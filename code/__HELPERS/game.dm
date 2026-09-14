@@ -8,6 +8,17 @@
 #define Z_TURFS(ZLEVEL) block(locate(1,1,ZLEVEL), locate(world.maxx, world.maxy, ZLEVEL))
 #define CULT_POLL_WAIT 2400
 
+/// Returns every atom that directly or indirectly contains atom_on_location, innermost first, stopping at (and optionally including) the turf under it.
+/proc/get_nested_locs(atom/movable/atom_on_location, include_turf = FALSE)
+	. = list()
+	var/atom/location = atom_on_location.loc
+	var/turf/our_turf = get_turf(atom_on_location)
+	while(location && location != our_turf)
+		. += location
+		location = location.loc
+	if(our_turf && include_turf) //At this point, only the turf is left, provided it exists.
+		. += our_turf
+
 /proc/get_area_name(atom/X, format_text = FALSE)
 	var/area/A = isarea(X) ? X : get_area(X)
 	if(!A)
@@ -205,24 +216,36 @@
 	. = list()
 	if(!T)
 		return
-	var/list/processing_list = list()
-	if (R == 0) // if the range is zero, we know exactly where to look for, we can skip view
-		processing_list += T.contents // We can shave off one iteration by assuming turfs cannot hear
-	else  // A variation of get_hear inlined here to take advantage of the compiler's fastpath for obj/mob in view
-		var/lum = T.luminosity
-		T.luminosity = 6 // This is the maximum luminosity
-		for(var/mob/M in view(R, T))
-			processing_list += M
-		for(var/obj/O in view(R, T))
-			processing_list += O
-		T.luminosity = lum
 
-	var/i = 0
-	while(i < length(processing_list)) // recursive_hear_check inlined here
-		var/atom/A = processing_list[++i]
-		if(A.flags_1 & HEAR_1)
-			. += A
-		processing_list += A.contents
+	if(R <= 0) // if the range is zero, we know exactly where to look for, we can skip view and the grid
+		for(var/atom/movable/target as anything in T)
+			var/list/recursive_contents = target.important_recursive_contents?[RECURSIVE_CONTENTS_HEARING_SENSITIVE]
+			if(recursive_contents)
+				. += recursive_contents
+			if(target.flags_1 & HEAR_1)
+				. += target
+		return .
+
+	var/lum = T.luminosity
+	T.luminosity = 6 // This is the maximum luminosity
+
+	if(!SSspatial_grid.initialized) // can be called during early roundstart init, before the grid exists yet
+		for(var/mob/M in view(R, T))
+			if(M.flags_1 & HEAR_1)
+				. += M
+		for(var/obj/O in view(R, T))
+			if(O.flags_1 & HEAR_1)
+				. += O
+		T.luminosity = lum
+		return .
+
+	// Use the spatial grid to only consider hearing-sensitive movables anywhere near us, instead of
+	// checking every movable in view() for the HEAR_1 flag.
+	var/list/hearables_from_grid = SSspatial_grid.orthogonal_range_search(T, SPATIAL_GRID_CONTENTS_TYPE_HEARING, R)
+	for(var/atom/movable/candidate as anything in hearables_from_grid)
+		if(candidate in view(R, T))
+			. += candidate
+	T.luminosity = lum
 
 /proc/get_mobs_in_radio_ranges(list/obj/item/radio/radios)
 	. = list()

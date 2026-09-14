@@ -378,8 +378,11 @@ Turf and target are separate in case you want to teleport some distance from a t
 /proc/get_mob_by_ckey(key)
 	if(!key)
 		return
-	var/list/mobs = sortmobs()
-	for(var/mob/M in mobs)
+	var/client/C = GLOB.directory[key]
+	if(C)
+		return C.mob
+	// Fallback for clientless mobs (ghosts, disconnected bodies, etc) not in GLOB.directory.
+	for(var/mob/M in GLOB.mob_list)
 		if(M.ckey == key)
 			return M
 
@@ -1446,6 +1449,8 @@ GLOBAL_DATUM_INIT(dview_mob, /mob/dview, new)
 
 //datum may be null, but it does need to be a typed var
 #define NAMEOF(datum, X) (#X || ##datum.##X)
+
+#define NAMEOF_STATIC(datum, X) (nameof(type::##X))
 
 #define VARSET_LIST_CALLBACK(target, var_name, var_value) CALLBACK(GLOBAL_PROC, /proc/___callbackvarset, ##target, ##var_name, ##var_value)
 //dupe code because dm can't handle 3 level deep macros

@@ -170,11 +170,11 @@ hippie end */
 			T.air_update_turf(FALSE, FALSE)
 			for(var/obj/effect/hotspot/H in T)
 				qdel(H)
-			var/list/G_gases = G.gases
+			var/list/G_gases = G.moles
 			if(G_gases[/datum/gas/plasma])
 				G.assert_gas(/datum/gas/nitrogen)
-				G_gases[/datum/gas/nitrogen][MOLES] += (G_gases[/datum/gas/plasma][MOLES])
-				G_gases[/datum/gas/plasma][MOLES] = 0
+				G_gases[/datum/gas/nitrogen] += (G_gases[/datum/gas/plasma])
+				G_gases[/datum/gas/plasma] = 0
 				G.garbage_collect()
 		if (weldvents)
 			for(var/obj/machinery/atmospherics/components/unary/U in T)

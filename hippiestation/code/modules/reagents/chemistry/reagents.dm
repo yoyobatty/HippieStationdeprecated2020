@@ -60,14 +60,7 @@
 				else
 					var/obj/effect/particle_effect/vapour/master/V = new(O)
 					V.volume = volume*50
-					var/paths = subtypesof(/datum/reagent)
-					for(var/path in paths)
-						var/datum/reagent/RR = new path
-						if(RR.type == type)
-							V.reagent_type = RR
-							break
-						else
-							qdel(RR)
+					V.reagent_type = new type
 				log_game("Reagent vapour of type [src] was released at [COORD(T)] Last Fingerprint: [touch_msg] ")
 
 
@@ -84,7 +77,7 @@
 					c.reagents.add_reagent(type, volume)
 					var/mixcolor = mix_color_from_reagents(c.reagents.reagent_list)
 					c.add_atom_colour(mixcolor, FIXED_COLOUR_PRIORITY)
-					if(c.reagents && c.reagents.total_volume < 5 & NO_REACT)
+					if(c.reagents && c.reagents.total_volume >= 5)
 						DISABLE_BITFIELD(c.reagents.flags, NO_REACT)
 					return TRUE
 

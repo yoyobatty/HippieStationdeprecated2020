@@ -151,16 +151,15 @@
 			src.atmos_overlay_types = null
 		return
 
-	var/list/gases = air.gases
+	var/list/gases = air.moles
 
 	for(var/id in gases)
 		if (nonoverlaying_gases[id])
 			continue
-		var/gas = gases[id]
-		var/gas_meta = gas[GAS_META]
-		var/gas_overlay = gas_meta[META_GAS_OVERLAY]
-		if(gas_overlay && gas[MOLES] > gas_meta[META_GAS_MOLES_VISIBLE])
-			new_overlay_types += gas_overlay[min(TOTAL_VISIBLE_STATES, CEILING(gas[MOLES] / MOLES_GAS_VISIBLE_STEP, 1))]
+		var/gas_amount = gases[id]
+		var/gas_overlay = GAS_META[META_GAS_OVERLAY][id]
+		if(gas_overlay && gas_amount > GAS_META[META_GAS_MOLES_VISIBLE][id])
+			new_overlay_types += gas_overlay[min(TOTAL_VISIBLE_STATES, CEILING(gas_amount / MOLES_GAS_VISIBLE_STEP, 1))]
 
 	if (atmos_overlay_types)
 		for(var/overlay in atmos_overlay_types-new_overlay_types) //doesn't remove overlays that would only be added
@@ -247,6 +246,10 @@
 	var/list/adjacent_turfs = atmos_adjacent_turfs
 	var/datum/excited_group/our_excited_group = excited_group
 	var/adjacent_turfs_length = LAZYLEN(adjacent_turfs)
+	//replaces the old atmos_adjacent_turfs count param to share(): each side scales the delta by its own fan-out
+	//instead of both sides dividing by the same shared count, so we no longer under/over-share when our and their
+	//neighbor counts differ.
+	var/our_share_coeff = 1/(adjacent_turfs_length + 1)
 
 	var/datum/gas_mixture/our_air = air
 
@@ -291,7 +294,7 @@
 
 		//air sharing
 		if(should_share_air)
-			var/difference = our_air.share(enemy_air, adjacent_turfs_length)
+			var/difference = our_air.share(enemy_air, our_share_coeff, 1/(LAZYLEN(enemy_tile.atmos_adjacent_turfs) + 1))
 			if(difference)
 				if(difference > 0)
 					consider_pressure_difference(enemy_tile, difference)
@@ -313,7 +316,7 @@
 				EG.add_turf(src)
 				our_excited_group = excited_group
 			// shares 4/5 of our difference in moles with the atmosphere
-			our_air.share(G, 0.25)
+			our_air.share(G, 0.8, 0.8)
 			// temperature share with the atmosphere with an inflated heat capacity to simulate faster sharing with a large atmosphere
 			our_air.temperature_share(G, OPEN_HEAT_TRANSFER_COEFFICIENT, G.temperature_archived, G.heat_capacity() * 5)
 			G.garbage_collect()
@@ -426,7 +429,7 @@
 	var/datum/gas_mixture/A = new
 
 	//make local for sanic speed
-	var/list/A_gases = A.gases
+	var/list/A_gases = A.moles
 	var/list/turf_list = src.turf_list
 	var/turflen = turf_list.len
 	var/imumutable_in_group = FALSE
@@ -440,7 +443,7 @@
 		if (roundstart && istype(T.air, /datum/gas_mixture/immutable))
 			imumutable_in_group = TRUE
 			A.copy_from(T.air) //This had better be immutable young man
-			A_gases = A.gases //update the cache
+			A_gases = A.moles //update the cache
 			break
 		//"borrowing" this code from merge(), I need to play with the temp portion. Lets expand it out
 		//temperature = (giver.temperature * giver_heat_capacity + temperature * self_heat_capacity) / combined_heat_capacity
@@ -448,15 +451,15 @@
 		energy += mix.temperature * capacity
 		heat_cap += capacity
 
-		var/list/giver_gases = mix.gases
+		var/list/giver_gases = mix.moles
 		for(var/giver_id in giver_gases)
 			ASSERT_GAS(giver_id, A)
-			A_gases[giver_id][MOLES] += giver_gases[giver_id][MOLES]
+			A_gases[giver_id] += giver_gases[giver_id]
 
 	if(!imumutable_in_group)
 		A.temperature = energy / heat_cap
 		for(var/id in A_gases)
-			A_gases[id][MOLES] /= turflen
+			A_gases[id] /= turflen
 		A.garbage_collect()
 
 	for(var/t in turf_list)

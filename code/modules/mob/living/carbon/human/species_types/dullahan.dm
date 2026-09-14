@@ -25,16 +25,19 @@
 /datum/species/dullahan/on_species_gain(mob/living/carbon/human/H, datum/species/old_species)
 	. = ..()
 	H.flags_1 &= ~HEAR_1
+	H.lose_hearing_sensitivity()
 	var/obj/item/bodypart/head/head = H.get_bodypart(BODY_ZONE_HEAD)
 	if(head)
 		head.drop_limb()
 		head.flags_1 = HEAR_1
+		head.become_hearing_sensitive()
 		head.throwforce = 25
 		myhead = new /obj/item/dullahan_relay (head, H)
 		H.put_in_hands(head)
 
 /datum/species/dullahan/on_species_loss(mob/living/carbon/human/H)
 	H.flags_1 |= ~HEAR_1
+	H.become_hearing_sensitive()
 	H.reset_perspective(H)
 	if(myhead)
 		var/obj/item/dullahan_relay/DR = myhead

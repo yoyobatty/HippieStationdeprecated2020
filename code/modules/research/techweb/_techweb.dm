@@ -111,10 +111,12 @@
 	modify_point_list(l)
 
 /datum/techweb/proc/copy_research_to(datum/techweb/receiver, unlock_hidden = TRUE)				//Adds any missing research to theirs.
-	for(var/i in researched_nodes)
+	// Skip anything the receiver already has - re-running research_node_id()/add_design_by_id()
+	// on already-researched nodes was doing 10,000s of redundant operations on a near-complete upload.
+	for(var/i in researched_nodes - receiver.researched_nodes)
 		CHECK_TICK
 		receiver.research_node_id(i, TRUE, FALSE, FALSE)
-	for(var/i in researched_designs)
+	for(var/i in researched_designs - receiver.researched_designs)
 		CHECK_TICK
 		receiver.add_design_by_id(i)
 	if(unlock_hidden)
@@ -212,7 +214,7 @@
 	for(var/id in node.unlock_ids)
 		visible_nodes[id] = TRUE
 		update_node_status(SSresearch.techweb_node_by_id(id))
-	for(var/id in node.design_ids)
+	for(var/id in node.design_ids - researched_designs) // Skip designs we already have.
 		add_design_by_id(id)
 	update_node_status(node)
 	if(get_that_dosh)

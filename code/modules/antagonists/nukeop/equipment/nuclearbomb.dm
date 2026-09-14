@@ -463,7 +463,7 @@
 	sound_to_playing_players('sound/machines/alarm.ogg')
 	if(SSticker && SSticker.mode)
 		SSticker.roundend_check_paused = TRUE
-	addtimer(CALLBACK(src, .proc/actually_explode), 100)
+	addtimer(CALLBACK(src, "actually_explode"), 100)
 
 /obj/machinery/nuclearbomb/proc/actually_explode()
 	if(!core)

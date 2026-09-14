@@ -41,7 +41,7 @@ export const TitleBar = props => {
           // IE8: Use a plain character instead of a unicode symbol.
           // eslint-disable-next-line react/no-unknown-property
           onclick={onClose}>
-          {tridentVersion <= 4 ? 'x' : '×'}
+          {(tridentVersion !== null && tridentVersion <= 4) ? 'x' : '×'}
         </div>
       )}
     </div>

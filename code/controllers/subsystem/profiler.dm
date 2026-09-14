@@ -8,6 +8,8 @@ SUBSYSTEM_DEF(profiler)
 	flags = SS_NO_TICK_CHECK 
 	var/fetch_cost = 0
 	var/write_cost = 0
+	/// Whether the profiler is currently running, either via auto_profile config or the "Toggle Profiling" admin verb.
+	var/profiling = FALSE
 
 /datum/controller/subsystem/profiler/stat_entry(msg)
 	msg += "F:[round(fetch_cost,1)]ms"
@@ -17,6 +19,7 @@ SUBSYSTEM_DEF(profiler)
 /datum/controller/subsystem/profiler/Initialize()
 	if(CONFIG_GET(flag/auto_profile))
 		StartProfiling()
+		profiling = TRUE
 	else
 		StopProfiling() //Stop the early start from world/New
 	return ..()
@@ -26,7 +29,7 @@ SUBSYSTEM_DEF(profiler)
 		DumpFile()
 
 /datum/controller/subsystem/profiler/Shutdown()
-	if(CONFIG_GET(flag/auto_profile))
+	if(CONFIG_GET(flag/auto_profile) || profiling)
 		DumpFile()
 	return ..()
 

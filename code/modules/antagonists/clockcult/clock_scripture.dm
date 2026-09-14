@@ -154,7 +154,7 @@ GLOBAL_LIST_INIT(scripture_states,scripture_states_init_value()) //list of clock
 	if(!channel_time)
 		return TRUE
 	chant()
-	if(!do_after(invoker, channel_time, target = invoker, extra_checks = CALLBACK(src, .proc/check_special_requirements)))
+	if(!do_after(invoker, channel_time, target = invoker, extra_checks = CALLBACK(src, "check_special_requirements")))
 		slab.busy = null
 		chanting = FALSE
 		scripture_fail()

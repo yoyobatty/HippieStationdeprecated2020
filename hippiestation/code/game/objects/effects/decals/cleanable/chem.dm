@@ -31,7 +31,7 @@ GLOBAL_LIST_EMPTY(chempiles)
 	GLOB.chempiles += src
 	if(reagents && reagents.total_volume)
 		if(reagents.total_volume < 5)
-			ENABLE_BITFIELD(reagents, NO_REACT)
+			ENABLE_BITFIELD(reagents.flags, NO_REACT)
 
 /obj/effect/decal/cleanable/chempile/Destroy()
 	GLOB.chempiles -= src
@@ -51,12 +51,13 @@ GLOBAL_LIST_EMPTY(chempiles)
 		for(var/obj/item/I in M.get_equipped_items())
 			if(I.body_parts_covered & FEET)
 				protection = I.permeability_coefficient
+				break
 		if(reagents?.total_volume >= 1)	//No transfer if there's less than 1u total
 			reagents.trans_to(M, 2, protection)
 			CHECK_TICK
-			for(var/datum/reagent/R in reagents)
+			for(var/datum/reagent/R in reagents.reagent_list)
 				if(R.volume < 0.2)
-					reagents.remove_reagent(R)	//Should remove most stray cases of microdosages that may get through without compromising chempiles with lots of mixes in them
+					reagents.remove_reagent(R.type, R.volume)	//Should remove most stray cases of microdosages that may get through without compromising chempiles with lots of mixes in them
 		else 
 			qdel(src)
 
@@ -77,7 +78,8 @@ GLOBAL_LIST_EMPTY(chempiles)
 				return
 			to_chat(user, "<span class='notice'>You attempt to scoop up what you can from the [src] into [I]!</span>")
 			reagents.trans_to(I, max(0.1, reagents.total_volume * 0.05))//fuck you
-			qdel(src)
+			if(!reagents.total_volume)
+				qdel(src)
 			return
 
 	var/hotness = I.is_hot()

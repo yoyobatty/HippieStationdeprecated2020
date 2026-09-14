@@ -3,6 +3,12 @@
 	var/light_power = 1 // Intensity of the light.
 	var/light_range = 0 // Range in tiles of the light.
 	var/light_color     // Hexadecimal RGB string representing the colour of the light.
+	/// What direction our angled light is pointed. NONE for omnidirectional lights.
+	var/light_dir = NONE
+	/// How many degrees of a circle should our light show. 360 is all of it (omnidirectional), 180 is a half-circle cone, etc.
+	var/light_angle = 360
+	/// The height of the light source on the pseudo-z-axis. The larger this is, the dimmer/softer the light starts out.
+	var/light_height = LIGHTING_HEIGHT
 
 	var/tmp/datum/light_source/light // Our light source. Don't fuck with this directly unless you have a good reason!
 	var/tmp/list/light_sources       // Any light sources that are "inside" of us, for example, if src here was a mob that's carrying a flashlight, that flashlight's light source would be part of this list.
@@ -10,7 +16,7 @@
 // The proc you should always use to set the light of this atom.
 // Nonesensical value for l_color default, so we can detect if it gets set to null.
 #define NONSENSICAL_VALUE -99999
-/atom/proc/set_light(var/l_range, var/l_power, var/l_color = NONSENSICAL_VALUE, l_on)
+/atom/proc/set_light(var/l_range, var/l_power, var/l_color = NONSENSICAL_VALUE, l_on, l_angle, l_dir, l_height)
 	if(l_range > 0 && l_range < MINIMUM_USEFUL_LIGHT_RANGE)
 		l_range = MINIMUM_USEFUL_LIGHT_RANGE	//Brings the range up to 1.4, which is just barely brighter than the soft lighting that surrounds players.
 	if (!isnull(l_power))
@@ -21,6 +27,15 @@
 
 	if (l_color != NONSENSICAL_VALUE)
 		light_color = l_color
+
+	if (!isnull(l_angle))
+		light_angle = l_angle
+
+	if (!isnull(l_dir))
+		light_dir = l_dir
+
+	if (!isnull(l_height))
+		light_height = l_height
 
 	//if(!isnull(l_on))
 	//	light_on = l_on

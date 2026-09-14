@@ -43,8 +43,8 @@
 	if(hotspot && istype(T) && T.air)
 		qdel(hotspot)
 		var/datum/gas_mixture/G = T.air
-		var/plas_amt = min(30,G.gases[/datum/gas/plasma][MOLES]) //Absorb some plasma
-		G.gases[/datum/gas/plasma][MOLES] -= plas_amt
+		var/plas_amt = min(30,G.moles[/datum/gas/plasma]) //Absorb some plasma
+		G.moles[/datum/gas/plasma] -= plas_amt
 		absorbed_plasma += plas_amt
 		if(G.temperature > T20C)
 			G.temperature = max(G.temperature/2,T20C)
@@ -325,11 +325,11 @@
 			G.temperature = 293.15
 			for(var/obj/effect/hotspot/H in O)
 				qdel(H)
-			var/list/G_gases = G.gases
+			var/list/G_gases = G.moles
 			for(var/I in G_gases)
 				if(I == /datum/gas/oxygen || I == /datum/gas/nitrogen)
 					continue
-				G_gases[I][MOLES] = 0
+				G_gases[I] = 0
 			G.garbage_collect()
 		for(var/obj/machinery/atmospherics/components/unary/U in O)
 			if(!U.welded)

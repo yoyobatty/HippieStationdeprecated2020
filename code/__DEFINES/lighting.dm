@@ -70,6 +70,9 @@
 #define DYNAMIC_LIGHTING_IFSTARLIGHT 3 //dynamic lighting enabled only if starlight is.
 #define IS_DYNAMIC_LIGHTING(A) A.dynamic_lighting
 
+/// Whether a turf is fully opaque and should block light propagation past it.
+#define IS_OPAQUE_TURF(turf) (turf.has_opaque_atom)
+
 
 //code assumes higher numbers override lower numbers.
 #define LIGHTING_NO_UPDATE 0

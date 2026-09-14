@@ -642,7 +642,7 @@
 		S.visible_message("<span class='danger'>Infused with plasma, the core begins to expand uncontrollably!</span>")
 		S.icon_state = "[S.base_state]_active"
 		S.active = TRUE
-		addtimer(CALLBACK(S, /obj/item/grenade.proc/prime), rand(15,60))
+		addtimer(CALLBACK(S, "prime"), rand(15,60))
 		qdel(holder.my_atom) //deleto
 	else
 		var/mob/living/simple_animal/slime/random/S = new (get_turf(holder.my_atom))
@@ -661,7 +661,7 @@
 	S.visible_message("<span class='danger'>Infused with slime jelly, the core begins to expand uncontrollably!</span>")
 	S.icon_state = "[S.base_state]_active"
 	S.active = TRUE
-	addtimer(CALLBACK(S, /obj/item/grenade.proc/prime), rand(15,60))
+	addtimer(CALLBACK(S, "prime"), rand(15,60))
 	qdel(holder.my_atom) //deleto
 	..()
 

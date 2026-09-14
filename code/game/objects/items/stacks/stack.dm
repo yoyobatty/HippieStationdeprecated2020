@@ -43,11 +43,17 @@
 	if(!merge_type)
 		merge_type = type
 	if(merge)
-		for(var/obj/item/stack/S in loc)
-			if(S.merge_type == merge_type)
-				merge(S)
+		// Deferred to LateInitialize so that stacking N items in the same
+		// loc at once (mass spawns, explosion debris, etc) doesn't do N
+		// separate O(n) scan-and-merge passes synchronously mid-Initialize.
+		. = INITIALIZE_HINT_LATELOAD
 	update_weight()
 	update_icon()
+
+/obj/item/stack/LateInitialize()
+	for(var/obj/item/stack/S in loc)
+		if(S.merge_type == merge_type)
+			merge(S)
 
 /obj/item/stack/proc/update_weight()
 	if(amount <= (max_amount * (1/3)))

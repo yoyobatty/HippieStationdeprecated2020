@@ -108,6 +108,8 @@
 
 /obj/machinery/power/solar/update_icon()
 	. = ..()
+	if(!panel) // can be called via power_change() before Initialize() has run the panel overlay
+		return
 	var/matrix/turner = matrix()
 	turner.Turn(azimuth_current)
 	panel.transform = turner

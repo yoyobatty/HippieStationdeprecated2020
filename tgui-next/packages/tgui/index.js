@@ -48,7 +48,9 @@ const renderLayout = () => {
         // Unsubscribe from updates
         window.update = window.initialize = () => {};
         // IE8: Use a redirection method
-        if (tridentVersion <= 4) {
+        // (tridentVersion is null on non-Trident engines, e.g. WebView2;
+        // `null <= 4` is true in JS, so check must be explicit)
+        if (tridentVersion !== null && tridentVersion <= 4) {
           setTimeout(() => {
             location.href = 'tgui-fallback.html?ref=' + window.__ref__;
           }, 10);
@@ -110,7 +112,10 @@ const parseStateJson = json => {
   };
   // IE8: No reviver for you!
   // See: https://stackoverflow.com/questions/1288962
-  if (tridentVersion <= 4) {
+  // (tridentVersion is null on non-Trident engines, e.g. WebView2;
+  // `null <= 4` is true in JS, so check must be explicit, else every
+  // BYOND-encoded number silently fails to parse and rendering throws)
+  if (tridentVersion !== null && tridentVersion <= 4) {
     reviver = undefined;
   }
   try {
@@ -159,7 +164,8 @@ const setupApp = () => {
 };
 
 // IE8: Wait for DOM to properly load
-if (tridentVersion <= 4 && document.readyState === 'loading') {
+const isOldTrident = tridentVersion !== null && tridentVersion <= 4;
+if (isOldTrident && document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', setupApp);
 }
 else {

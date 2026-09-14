@@ -633,7 +633,7 @@
 				spawn_gibs()
 				set_species(/datum/species/skeleton)
 				if(prob(90))
-					addtimer(CALLBACK(src, .proc/death), 30)
+					addtimer(CALLBACK(src, "death"), 30)
 					if(mind)
 						mind.hasSoul = FALSE
 			if(5)

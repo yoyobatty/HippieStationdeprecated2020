@@ -30,22 +30,22 @@
 			adjustBrainLoss(damage_amount)
 	return 1
 
-/mob/living/proc/apply_damage_type(damage = 0, damagetype = BRUTE) //like apply damage except it always uses the damage procs
+/mob/living/proc/apply_damage_type(damage = 0, damagetype = BRUTE, updating_health = TRUE) //like apply damage except it always uses the damage procs
 	switch(damagetype)
 		if(BRUTE)
-			return adjustBruteLoss(damage)
+			return adjustBruteLoss(damage, updating_health)
 		if(BURN)
-			return adjustFireLoss(damage)
+			return adjustFireLoss(damage, updating_health)
 		if(TOX)
-			return adjustToxLoss(damage)
+			return adjustToxLoss(damage, updating_health)
 		if(OXY)
-			return adjustOxyLoss(damage)
+			return adjustOxyLoss(damage, updating_health)
 		if(CLONE)
-			return adjustCloneLoss(damage)
+			return adjustCloneLoss(damage, updating_health)
 		if(STAMINA)
-			return adjustStaminaLoss(damage)
+			return adjustStaminaLoss(damage, updating_health)
 		if(BRAIN)
-			return adjustBrainLoss(damage)
+			return adjustBrainLoss(damage) // No updating_health param on this one; it doesn't call updatehealth() itself.
 
 /mob/living/proc/get_damage_amount(damagetype = BRUTE)
 	switch(damagetype)
@@ -288,11 +288,15 @@
 //heal up to amount damage, in a given order
 /mob/living/proc/heal_ordered_damage(amount, list/damage_types)
 	. = amount //we'll return the amount of damage healed
+	var/healed_any = FALSE
 	for(var/i in damage_types)
 		var/amount_to_heal = min(amount, get_damage_amount(i)) //heal only up to the amount of damage we have
 		if(amount_to_heal)
-			apply_damage_type(-amount_to_heal, i)
+			apply_damage_type(-amount_to_heal, i, updating_health = FALSE) // Batched below, so we only recompute health once per call instead of once per damage type.
+			healed_any = TRUE
 			amount -= amount_to_heal //remove what we healed from our current amount
 		if(!amount)
 			break
+	if(healed_any)
+		updatehealth()
 	. -= amount //if there's leftover healing, remove it from what we return

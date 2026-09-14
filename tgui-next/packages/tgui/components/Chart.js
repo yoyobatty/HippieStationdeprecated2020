@@ -117,5 +117,5 @@ const Stub = props => null;
 
 // IE8: No inline svg support
 export const Chart = {
-  Line: tridentVersion <= 4 ? Stub : LineChart,
+  Line: (tridentVersion !== null && tridentVersion <= 4) ? Stub : LineChart,
 };

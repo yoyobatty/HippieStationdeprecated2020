@@ -1,8 +1,7 @@
 //LISTMOS
-//indices of values in gas lists.
-#define MOLES			1
-#define ARCHIVE			2
-#define GAS_META		3
+//gas mixtures store moles/moles_archive as flat gas_id -> amount lists (see /datum/gas_mixture).
+//gas metadata is stored column-oriented in the static gas_meta list: GAS_META[META_GAS_X] is a gas_id -> value list across all gases.
+#define GAS_META /datum/gas_mixture::gas_meta
 #define META_GAS_SPECIFIC_HEAT	1
 #define META_GAS_NAME			2
 #define META_GAS_MOLES_VISIBLE	3
@@ -305,17 +304,14 @@
 
 #define THERMAL_ENERGY(gas) (gas.temperature * gas.heat_capacity())
 
-#define ADD_GAS(gas_id, out_list)\
-	var/list/tmp_gaslist = GLOB.gaslist_cache[gas_id]; out_list[gas_id] = tmp_gaslist.Copy();
+//gas_mixture is a /datum/gas_mixture (or an expression evaluating to one). Adds gas_id to both moles and moles_archive, clobbering any existing amount.
+#define ADD_GAS(gas_id, gas_mixture) gas_mixture.moles[gas_id] = 0; gas_mixture.moles_archive[gas_id] = 0;
 
-#define ASSERT_GAS(gas_id, gas_mixture) if (!gas_mixture.gases[gas_id]) { ADD_GAS(gas_id, gas_mixture.gases) };
+//gas_mixture is a /datum/gas_mixture. Guarantees gas_id exists in moles/moles_archive without clobbering an existing amount.
+#define ASSERT_GAS(gas_id, gas_mixture) if(isnull(gas_mixture.moles[gas_id])) { ADD_GAS(gas_id, gas_mixture) };
 
-//prefer this to gas_mixture/total_moles in performance critical areas
-#define TOTAL_MOLES(cached_gases, out_var)\
-	out_var = 0;\
-	for(var/total_moles_id in cached_gases){\
-		out_var += cached_gases[total_moles_id][MOLES];\
-	}
+//prefer this to gas_mixture/total_moles in performance critical areas. cached_moles must be a gas_mixture's moles (or moles_archive) list.
+#define TOTAL_MOLES(cached_moles, out_var) out_var = values_sum(cached_moles);
 #define NORMAL_TURF 1
 #define MAKE_ACTIVE 2
 #define KILL_EXCITED 3

@@ -50,10 +50,10 @@
 		return
 
 	filtered.temperature = filtering.temperature
-	for(var/gas in filtering.gases & scrubbing)
+	for(var/gas in filtering.moles & scrubbing)
 		filtered.add_gas(gas)
-		filtered.gases[gas][MOLES] = filtering.gases[gas][MOLES] // Shuffle the "bad" gasses to the filtered mixture.
-		filtering.gases[gas][MOLES] = 0
+		filtered.moles[gas] = filtering.moles[gas] // Shuffle the "bad" gasses to the filtered mixture.
+		filtering.moles[gas] = 0
 	filtering.garbage_collect() // Now that the gasses are set to 0, clean up the mixture.
 
 	air_contents.merge(filtered) // Store filtered out gasses.
@@ -85,9 +85,10 @@
 
 	data["id_tag"] = -1 //must be defined in order to reuse code between portable and vent scrubbers
 	data["filter_types"] = list()
-	for(var/path in GLOB.meta_gas_info)
-		var/list/gas = GLOB.meta_gas_info[path]
-		data["filter_types"] += list(list("gas_id" = gas[META_GAS_ID], "gas_name" = gas[META_GAS_NAME], "enabled" = (path in scrubbing)))
+	var/list/gas_ids = GLOB.meta_gas_info[META_GAS_ID]
+	var/list/gas_names = GLOB.meta_gas_info[META_GAS_NAME]
+	for(var/path in gas_ids)
+		data["filter_types"] += list(list("gas_id" = gas_ids[path], "gas_name" = gas_names[path], "enabled" = (path in scrubbing)))
 
 	if(holding)
 		data["holding"] = list()

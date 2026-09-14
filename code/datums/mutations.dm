@@ -86,7 +86,7 @@
 		owner.apply_overlay(layer_used)
 	grant_spell() //we do checks here so nothing about hulk getting magic
 	if(!modified)
-		addtimer(CALLBACK(src, .proc/modify, 5)) //gonna want children calling ..() to run first
+		addtimer(CALLBACK(src, "modify", 5)) //gonna want children calling ..() to run first
 
 /datum/mutation/human/proc/get_visual_indicator()
 	return

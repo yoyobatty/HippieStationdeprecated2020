@@ -57,7 +57,7 @@
 	var/steps = rand(1,4)
 	for(var/i in 1 to steps)
 		step_away(src,loc)
-	addtimer(CALLBACK(src, .proc/prime), rand(15,60))
+	addtimer(CALLBACK(src, "prime"), rand(15,60))
 
 /obj/item/grenade/clusterbuster/segment/prime()
 	new payload_spawner(drop_location(), payload, rand(min_spawned,max_spawned))
@@ -77,7 +77,7 @@
 		var/obj/item/grenade/P = new type(loc)
 		if(istype(P))
 			P.active = TRUE
-			addtimer(CALLBACK(P, /obj/item/grenade/proc/prime), rand(15,60))
+			addtimer(CALLBACK(P, "prime"), rand(15,60))
 		var/steps = rand(1,4)
 		for(var/i in 1 to steps)
 			step_away(src,loc)

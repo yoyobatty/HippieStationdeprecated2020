@@ -236,3 +236,11 @@ Remember to update _globalvars/traits.dm if you're adding/removing/renaming trai
 #define HIVEMIND_ONE_MIND_TRAIT "one_mind"
 #define VR_ZONE_TRAIT "vr_zone_trait"
 #define MADE_UNCLONEABLE "made-uncloneable"
+
+// Spatial grid / important_recursive_contents traits.
+///This atom counts as something that can hear, and should be tracked in important_recursive_contents/the spatial grid's hearing channel.
+#define TRAIT_HEARING_SENSITIVE "hearing_sensitive"
+///This atom wants to know when its outermost container changes area, tracked via important_recursive_contents.
+#define TRAIT_AREA_SENSITIVE "area_sensitive"
+///This atom is the parent of a storage component currently being viewed by a client, tracked via important_recursive_contents.
+#define TRAIT_ACTIVE_STORAGE "active_storage"

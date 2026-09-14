@@ -12,7 +12,8 @@
 /datum/gas_mixture/immutable/garbage_collect()
 	temperature = initial_temperature
 	temperature_archived = initial_temperature
-	gases.Cut()
+	moles.Cut()
+	moles_archive.Cut()
 
 /datum/gas_mixture/immutable/archive()
 	return 1 //nothing changes, so we do nothing and the archive is successful
@@ -20,8 +21,8 @@
 /datum/gas_mixture/immutable/merge()
 	return 0 //we're immutable.
 
-/datum/gas_mixture/immutable/share(datum/gas_mixture/sharer, atmos_adjacent_turfs = 4)
-	. = ..(sharer, 0)
+/datum/gas_mixture/immutable/share(datum/gas_mixture/sharer, our_coeff = 1, sharer_coeff = 1)
+	. = ..(sharer) //share at full, undiluted strength - we're about to reset ourselves anyway
 	sharer.temperature = initial_temperature
 	garbage_collect()
 
@@ -64,11 +65,11 @@
 
 /datum/gas_mixture/immutable/planetary/garbage_collect()
 	..()
-	gases.Cut()
+	moles.Cut()
+	moles_archive.Cut()
 	for(var/id in initial_gas)
-		ADD_GAS(id, gases)
-		gases[id][MOLES] = initial_gas[id][MOLES]
-		gases[id][ARCHIVE] = initial_gas[id][ARCHIVE]
+		moles[id] = initial_gas[id]
+		moles_archive[id] = initial_gas[id]
 
 /datum/gas_mixture/immutable/planetary/proc/parse_string_immutable(gas_string) //I know I know, I need this tho
 	gas_string = SSair.preprocess_gas_string(gas_string)
@@ -85,14 +86,11 @@
 		var/path = id
 		if(!ispath(path))
 			path = gas_id2path(path) //a lot of these strings can't have embedded expressions (especially for mappers), so support for IDs needs to stick around
-		ADD_GAS(path, mix)
-		mix[path][MOLES] = text2num(gas[id])
-		mix[path][ARCHIVE] = mix[path][MOLES]
+		mix[path] = text2num(gas[id])
 
 	for(var/id in mix)
-		ADD_GAS(id, gases)
-		gases[id][MOLES] = mix[id][MOLES]
-		gases[id][ARCHIVE] = mix[id][MOLES]
+		moles[id] = mix[id]
+		moles_archive[id] = mix[id]
 
 
 //used by cloners
@@ -101,8 +99,8 @@
 
 /datum/gas_mixture/immutable/cloner/garbage_collect()
 	..()
-	ADD_GAS(/datum/gas/nitrogen, gases)
-	gases[/datum/gas/nitrogen][MOLES] = MOLES_O2STANDARD + MOLES_N2STANDARD
+	ADD_GAS(/datum/gas/nitrogen, src)
+	moles[/datum/gas/nitrogen] = MOLES_O2STANDARD + MOLES_N2STANDARD
 
 /datum/gas_mixture/immutable/cloner/heat_capacity()
 	return (MOLES_O2STANDARD + MOLES_N2STANDARD)*20 //specific heat of nitrogen is 20

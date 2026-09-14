@@ -2,32 +2,38 @@ GLOBAL_LIST_INIT(hardcoded_gases, list(/datum/gas/oxygen, /datum/gas/nitrogen, /
 //Now this is what I call history
 GLOBAL_LIST_INIT(nonreactive_gases, typecacheof(list(/datum/gas/oxygen, /datum/gas/nitrogen, /datum/gas/carbon_dioxide, /datum/gas/pluoxium, /datum/gas/stimulum, /datum/gas/nitryl))) //unable to react amongst themselves
 
+// gas_meta is stored column-oriented: gas_info[META_GAS_X] is itself a gas_id -> value list spanning every gas.
+// This lets performance-critical code (e.g. heat_capacity() via values_dot(moles, GAS_META[META_GAS_SPECIFIC_HEAT]))
+// treat a whole metadata column as a vector instead of indexing gas-by-gas.
 /proc/meta_gas_list()
-	. = subtypesof(/datum/gas)
-	for(var/gas_path in .)
-		var/list/gas_info = new(7)
-		var/datum/gas/gas = gas_path
+	var/list/gas_info = new(7)
+	for(var/array_idx in 1 to gas_info.len)
+		gas_info[array_idx] = list()
 
-		gas_info[META_GAS_SPECIFIC_HEAT] = initial(gas.specific_heat)
-		gas_info[META_GAS_NAME] = initial(gas.name)
+	for(var/datum/gas/gas_path as anything in subtypesof(/datum/gas))
+		gas_info[META_GAS_SPECIFIC_HEAT][gas_path] = initial(gas_path.specific_heat)
+		gas_info[META_GAS_NAME][gas_path] = initial(gas_path.name)
 
-		gas_info[META_GAS_MOLES_VISIBLE] = initial(gas.moles_visible)
-		if(initial(gas.moles_visible) != null)
-			gas_info[META_GAS_OVERLAY] = new /list(TOTAL_VISIBLE_STATES)
+		gas_info[META_GAS_MOLES_VISIBLE][gas_path] = initial(gas_path.moles_visible)
+		if(initial(gas_path.moles_visible) != null)
+			var/list/overlay_states = new /list(TOTAL_VISIBLE_STATES)
 			for(var/i in 1 to TOTAL_VISIBLE_STATES)
-				gas_info[META_GAS_OVERLAY][i] = new /obj/effect/overlay/gas(initial(gas.gas_overlay), log(4, (i+0.4*TOTAL_VISIBLE_STATES) / (0.35*TOTAL_VISIBLE_STATES)) * 255)
+				overlay_states[i] = new /obj/effect/overlay/gas(initial(gas_path.gas_overlay), log(4, (i+0.4*TOTAL_VISIBLE_STATES) / (0.35*TOTAL_VISIBLE_STATES)) * 255)
+			gas_info[META_GAS_OVERLAY][gas_path] = overlay_states
 
-		gas_info[META_GAS_FUSION_POWER] = initial(gas.fusion_power)
-		gas_info[META_GAS_DANGER] = initial(gas.dangerous)
-		gas_info[META_GAS_ID] = initial(gas.id)
-		.[gas_path] = gas_info
+		gas_info[META_GAS_FUSION_POWER][gas_path] = initial(gas_path.fusion_power)
+		gas_info[META_GAS_DANGER][gas_path] = initial(gas_path.dangerous)
+		gas_info[META_GAS_ID][gas_path] = initial(gas_path.id)
+
+	/datum/gas_mixture::gas_meta = gas_info // save the reference for GAS_META
+	return gas_info
 
 /proc/gas_id2path(id)
-	var/list/meta_gas = GLOB.meta_gas_info
-	if(id in meta_gas)
+	var/list/meta_gas_id = GLOB.meta_gas_info[META_GAS_ID]
+	if(id in meta_gas_id)
 		return id
-	for(var/path in meta_gas)
-		if(meta_gas[path][META_GAS_ID] == id)
+	for(var/path in meta_gas_id)
+		if(meta_gas_id[path] == id)
 			return path
 	return ""
 

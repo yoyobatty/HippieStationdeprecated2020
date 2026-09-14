@@ -156,7 +156,7 @@
 			var/datum/gas_mixture/floor_mixture = loc.return_air()
 			floor_mixture.archive()
 			pod.air_contents.archive()
-			pod.air_contents.share(floor_mixture, 1) //mix the pod's gas mixture with the tile it's on
+			pod.air_contents.share(floor_mixture, 0.5, 0.5) //mix the pod's gas mixture with the tile it's on
 		air_update_turf(FALSE, FALSE)
 
 /obj/structure/transit_tube/station/init_tube_dirs()

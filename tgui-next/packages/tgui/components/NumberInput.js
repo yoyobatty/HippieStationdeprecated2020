@@ -157,7 +157,7 @@ export class NumberInput extends Component {
     const renderContentElement = value => (
       <div
         className="NumberInput__content"
-        unselectable={tridentVersion <= 4}>
+        unselectable={tridentVersion !== null && tridentVersion <= 4}>
         {value + (unit ? ' ' + unit : '')}
       </div>
     );

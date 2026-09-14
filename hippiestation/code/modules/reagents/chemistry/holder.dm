@@ -24,12 +24,12 @@
 			return //Yup, no reactions here. No siree.
 
 		var/reaction_occurred = 0
+		var/turf/T = get_turf(cached_my_atom)
 		do
 			reaction_occurred = 0
 			for(var/reagent in cached_reagents)
 				var/datum/reagent/R = reagent
 
-				var/turf/T = get_turf(cached_my_atom)
 				switch(R.reagent_state)//evaluating state of matter
 					if(GAS)
 						if(chem_temp < R.boiling_point)

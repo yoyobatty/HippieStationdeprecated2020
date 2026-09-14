@@ -66,7 +66,7 @@
 	src.user = user
 	src.src_object = src_object
 	src.ui_key = ui_key
-	src.window_id = browser_id ? browser_id : "[REF(src_object)]-[ui_key]" // DO NOT replace with \ref here. src_object could potentially be tagged
+	src.window_id = browser_id ? browser_id : replacetext(replacetext("[REF(src_object)]-[ui_key]", "\[", ""), "\]", "") // DO NOT replace with \ref here. src_object could potentially be tagged
 	src.custom_browser_id = browser_id ? TRUE : FALSE
 
 	set_interface(interface)
@@ -124,7 +124,7 @@
 	html = replacetextEx(html, "\[style]", style)
 
 	// Open the window.
-	user << browse(html, "window=[window_id];can_minimize=0;auto_format=0;[window_size][have_title_bar]")
+	user << browse(html, "window=[window_id];can_minimize=0;[window_size][have_title_bar]")
 	if (!custom_browser_id)
 		// Instruct the client to signal UI when the window is closed.
 		// NOTE: Intentional \ref usage; tgui datums can't/shouldn't
@@ -256,7 +256,7 @@
 
 	switch(action)
 		if("tgui:initialize")
-			user << output(url_encode(get_json(initial_data, initial_static_data)), "[custom_browser_id ? window_id : "[window_id].browser"]:initialize")
+			user << output(url_encode(get_json(initial_data, initial_static_data)), "[window_id]:initialize")
 			initialized = TRUE
 		if("tgui:view")
 			if(params["screen"])
@@ -313,7 +313,7 @@
 		return // Cannot update UI, we have no visibility.
 
 	// Send the new JSON to the update() Javascript function.
-	user << output(url_encode(get_json(data, static_data)), "[custom_browser_id ? window_id : "[window_id].browser"]:update")
+	user << output(url_encode(get_json(data, static_data)), "[window_id]:update")
 
  /**
   * private

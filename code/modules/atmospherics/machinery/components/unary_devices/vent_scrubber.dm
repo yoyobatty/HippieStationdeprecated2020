@@ -98,9 +98,10 @@
 		return FALSE
 
 	var/list/f_types = list()
-	for(var/path in GLOB.meta_gas_info)
-		var/list/gas = GLOB.meta_gas_info[path]
-		f_types += list(list("gas_id" = gas[META_GAS_ID], "gas_name" = gas[META_GAS_NAME], "enabled" = (path in filter_types)))
+	var/list/gas_ids = GLOB.meta_gas_info[META_GAS_ID]
+	var/list/gas_names = GLOB.meta_gas_info[META_GAS_NAME]
+	for(var/path in gas_ids)
+		f_types += list(list("gas_id" = gas_ids[path], "gas_name" = gas_names[path], "enabled" = (path in filter_types)))
 
 	var/datum/signal/signal = new(list(
 		"tag" = id_tag,
@@ -151,7 +152,7 @@
 		return FALSE
 	var/datum/gas_mixture/environment = tile.return_air()
 	var/datum/gas_mixture/air_contents = airs[1]
-	var/list/env_gases = environment.gases
+	var/list/env_gases = environment.moles
 
 	if(air_contents.return_pressure() >= 50*ONE_ATMOSPHERE)
 		return FALSE
@@ -167,17 +168,17 @@
 			if(isnull(removed))
 				return FALSE
 
-			var/list/removed_gases = removed.gases
+			var/list/removed_gases = removed.moles
 
 			//Filter it
 			var/datum/gas_mixture/filtered_out = new
-			var/list/filtered_gases = filtered_out.gases
+			var/list/filtered_gases = filtered_out.moles
 			filtered_out.temperature = removed.temperature
 
 			for(var/gas in filter_types & removed_gases)
 				filtered_out.add_gas(gas)
-				filtered_gases[gas][MOLES] = removed_gases[gas][MOLES]
-				removed_gases[gas][MOLES] = 0
+				filtered_gases[gas] = removed_gases[gas]
+				removed_gases[gas] = 0
 
 			removed.garbage_collect()
 

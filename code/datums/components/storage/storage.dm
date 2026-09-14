@@ -90,9 +90,9 @@
 
 	RegisterSignal(parent, COMSIG_ATOM_ATTACK_HAND, .proc/on_attack_hand)
 	RegisterSignal(parent, COMSIG_ATOM_ATTACK_PAW, .proc/on_attack_hand)
-	RegisterSignal(parent, COMSIG_ATOM_EMP_ACT, .proc/emp_act)
+	RegisterSignal(parent, COMSIG_ATOM_EMP_ACT, "emp_act")
 	RegisterSignal(parent, COMSIG_ATOM_ATTACK_GHOST, .proc/show_to_ghost)
-	RegisterSignal(parent, COMSIG_ATOM_ENTERED, .proc/refresh_mob_views)
+	RegisterSignal(parent, COMSIG_ATOM_ENTERED, "refresh_mob_views")
 	RegisterSignal(parent, COMSIG_ATOM_EXITED, .proc/_remove_and_refresh)
 	RegisterSignal(parent, COMSIG_ATOM_CANREACH, .proc/canreach_react)
 

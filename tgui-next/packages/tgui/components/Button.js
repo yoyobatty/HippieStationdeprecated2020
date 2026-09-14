@@ -52,7 +52,7 @@ export const Button = props => {
         className,
       ])}
       tabIndex={!disabled && '0'}
-      unselectable={tridentVersion <= 4}
+      unselectable={tridentVersion !== null && tridentVersion <= 4}
       onclick={e => {
         refocusLayout();
         if (!disabled && onClick) {

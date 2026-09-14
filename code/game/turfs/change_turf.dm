@@ -80,7 +80,10 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 	var/old_dynamic_lighting = dynamic_lighting
 	var/old_affecting_lights = affecting_lights
 	var/old_lighting_object = lighting_object
-	var/old_corners = corners
+	var/old_lighting_corner_NE = lighting_corner_NE
+	var/old_lighting_corner_SE = lighting_corner_SE
+	var/old_lighting_corner_SW = lighting_corner_SW
+	var/old_lighting_corner_NW = lighting_corner_NW
 
 	var/old_exl = explosion_level
 	var/old_exi = explosion_id
@@ -120,7 +123,10 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 		recalc_atom_opacity()
 		lighting_object = old_lighting_object
 		affecting_lights = old_affecting_lights
-		corners = old_corners
+		lighting_corner_NE = old_lighting_corner_NE
+		lighting_corner_SE = old_lighting_corner_SE
+		lighting_corner_SW = old_lighting_corner_SW
+		lighting_corner_NW = old_lighting_corner_NW
 		if (old_opacity != opacity || dynamic_lighting != old_dynamic_lighting)
 			reconsider_lights()
 
@@ -304,7 +310,7 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 		return
 
 	var/datum/gas_mixture/total = new//Holders to assimilate air from nearby turfs
-	var/list/total_gases = total.gases
+	var/list/total_gases = total.moles
 	//Stolen blatently from self_breakdown
 	var/list/turf_list = atmos_adjacent_turfs + src
 	var/turflen = turf_list.len
@@ -321,14 +327,14 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 		energy += mix.temperature * capacity
 		heat_cap += capacity
 
-		var/list/giver_gases = mix.gases
+		var/list/giver_gases = mix.moles
 		for(var/giver_id in giver_gases)
 			ASSERT_GAS(giver_id, total)
-			total_gases[giver_id][MOLES] += giver_gases[giver_id][MOLES]
+			total_gases[giver_id] += giver_gases[giver_id]
 
 	total.temperature = energy / heat_cap
 	for(var/id in total_gases)
-		total_gases[id][MOLES] /= turflen
+		total_gases[id] /= turflen
 
 	for(var/t in turf_list)
 		var/turf/open/T = t

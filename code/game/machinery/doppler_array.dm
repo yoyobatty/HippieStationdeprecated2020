@@ -12,7 +12,7 @@
 
 /obj/machinery/doppler_array/Initialize()
 	. = ..()
-	RegisterSignal(SSdcs, COMSIG_GLOB_EXPLOSION, .proc/sense_explosion)
+	RegisterSignal(SSdcs, COMSIG_GLOB_EXPLOSION, "sense_explosion")
 
 /obj/machinery/doppler_array/ComponentInitialize()
 	. = ..()

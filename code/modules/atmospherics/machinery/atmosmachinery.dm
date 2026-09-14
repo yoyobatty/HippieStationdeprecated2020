@@ -60,6 +60,10 @@
 	if(process)
 		SSair.atmos_machinery += src
 	SetInitDirections()
+	var/turf/machine_turf = get_turf(src)
+	if(machine_turf)
+		SSspatial_grid.add_grid_awareness(src, SPATIAL_GRID_CONTENTS_TYPE_ATMOS)
+		SSspatial_grid.add_grid_membership(src, machine_turf, SPATIAL_GRID_CONTENTS_TYPE_ATMOS)
 
 /obj/machinery/atmospherics/Destroy()
 	for(var/i in 1 to device_type)

@@ -342,13 +342,13 @@ GLOBAL_DATUM(main_supermatter_engine, /obj/machinery/power/supermatter_crystal)
 		//calculating gas related values
 		combined_gas = max(removed.total_moles(), 0)
 
-		plasmacomp = max(removed.gases[/datum/gas/plasma][MOLES]/combined_gas, 0)
-		o2comp = max(removed.gases[/datum/gas/oxygen][MOLES]/combined_gas, 0)
-		co2comp = max(removed.gases[/datum/gas/carbon_dioxide][MOLES]/combined_gas, 0)
+		plasmacomp = max(removed.moles[/datum/gas/plasma]/combined_gas, 0)
+		o2comp = max(removed.moles[/datum/gas/oxygen]/combined_gas, 0)
+		co2comp = max(removed.moles[/datum/gas/carbon_dioxide]/combined_gas, 0)
 
-		n2ocomp = max(removed.gases[/datum/gas/nitrous_oxide][MOLES]/combined_gas, 0)
-		n2comp = max(removed.gases[/datum/gas/nitrogen][MOLES]/combined_gas, 0)
-		freoncomp = max(removed.gases[/datum/gas/freon][MOLES]/combined_gas, 0)
+		n2ocomp = max(removed.moles[/datum/gas/nitrous_oxide]/combined_gas, 0)
+		n2comp = max(removed.moles[/datum/gas/nitrogen]/combined_gas, 0)
+		freoncomp = max(removed.moles[/datum/gas/freon]/combined_gas, 0)
 		gasmix_power_ratio = min(max(plasmacomp + o2comp + co2comp - n2comp, 0), 1)
 
 		dynamic_heat_modifier = max((plasmacomp * PLASMA_HEAT_PENALTY)+(o2comp * OXYGEN_HEAT_PENALTY)+(co2comp * CO2_HEAT_PENALTY)+(n2comp * NITROGEN_HEAT_MODIFIER), 0.5)
@@ -399,11 +399,11 @@ GLOBAL_DATUM(main_supermatter_engine, /obj/machinery/power/supermatter_crystal)
 		removed.temperature = max(0, min(removed.temperature, 2500 * dynamic_heat_modifier))
 
 		//Calculate how much gas to release
-		removed.gases[/datum/gas/plasma][MOLES] += max((device_energy * dynamic_heat_modifier) / PLASMA_RELEASE_MODIFIER, 0)
+		removed.moles[/datum/gas/plasma] += max((device_energy * dynamic_heat_modifier) / PLASMA_RELEASE_MODIFIER, 0)
 
-		removed.gases[/datum/gas/oxygen][MOLES] += max(((device_energy + removed.temperature * dynamic_heat_modifier) - T0C) / OXYGEN_RELEASE_MODIFIER, 0)
+		removed.moles[/datum/gas/oxygen] += max(((device_energy + removed.temperature * dynamic_heat_modifier) - T0C) / OXYGEN_RELEASE_MODIFIER, 0)
 		if(combined_gas < 50)
-			removed.gases[/datum/gas/freon][MOLES] = max((removed.gases[/datum/gas/freon][MOLES] + device_energy) * freoncomp / FREON_BREEDING_MODIFIER, 0)
+			removed.moles[/datum/gas/freon] = max((removed.moles[/datum/gas/freon] + device_energy) * freoncomp / FREON_BREEDING_MODIFIER, 0)
 		if(produces_gas)
 			env.merge(removed)
 			air_update_turf(FALSE, FALSE)
@@ -679,13 +679,19 @@ GLOBAL_DATUM(main_supermatter_engine, /obj/machinery/power/supermatter_crystal)
 
 	//Some poor sod got eaten, go ahead and irradiate people nearby.
 	radiation_pulse(src, 3000, 2, TRUE)
+	var/list/mob/living/irradiated = list()
 	for(var/mob/living/L in range(10))
-		investigate_log("has irradiated [key_name(L)] after consuming [AM].", INVESTIGATE_SUPERMATTER)
+		irradiated += L
 		if(L in view())
 			L.show_message("<span class='danger'>As \the [src] slowly stops resonating, you find your skin covered in new radiation burns.</span>", 1,\
 				"<span class='danger'>The unearthly ringing subsides and you notice you have new radiation burns.</span>", 2)
 		else
 			L.show_message("<span class='italics'>You hear an unearthly ringing and notice your skin is covered in fresh radiation burns.</span>", 2)
+	// One log line for the whole event instead of one per irradiated mob - this loop has no
+	// tick-check, and with a crowd nearby it was calling the (expensive) investigate_log()
+	// once per mob every single Consume(), which profiling showed as a real hotspot.
+	if(length(irradiated))
+		investigate_log("irradiated [irradiated.len] mob(s) nearby after consuming [AM]: [english_list(irradiated)].", INVESTIGATE_SUPERMATTER)
 
 //Do not blow up our internal radio
 /obj/machinery/power/supermatter_crystal/contents_explosion(severity, target)

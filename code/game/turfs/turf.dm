@@ -108,6 +108,8 @@ GLOBAL_LIST_EMPTY(station_turfs)
 		for(var/A in B.contents)
 			qdel(A)
 		for(var/I in B.vars)
+			if(I == "pixloc") // BYOND 515+ read-only computed var; writing to it throws a runtime error
+				continue
 			B.vars[I] = null
 		return
 	visibilityChanged()

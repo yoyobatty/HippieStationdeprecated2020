@@ -169,10 +169,10 @@
 		member.air_temporary = new
 		member.air_temporary.volume = member.volume
 		member.air_temporary.copy_from(air)
-		var/member_gases = member.air_temporary.gases
+		var/member_gases = member.air_temporary.moles
 
 		for(var/id in member_gases)
-			member_gases[id][MOLES] *= member.volume/air.volume
+			member_gases[id] *= member.volume/air.volume
 
 		member.air_temporary.temperature = air.temperature
 
@@ -264,7 +264,7 @@
 	var/total_heat_capacity = 0
 	var/datum/gas_mixture/total_gas_mixture = new(0)
 
-	var/list/total_gases = total_gas_mixture.gases
+	var/list/total_gases = total_gas_mixture.moles
 
 	for(var/i in GL)
 		var/datum/gas_mixture/G = i
@@ -272,13 +272,13 @@
 
 		// This is sort of a combined merge + heat_capacity calculation
 
-		var/list/giver_gases = G.gases
+		var/list/giver_gases = G.moles
 		//gas transfer
 		for(var/giver_id in giver_gases)
-			var/giver_gas_data = giver_gases[giver_id]
+			var/giver_gas_amount = giver_gases[giver_id]
 			ASSERT_GAS(giver_id, total_gas_mixture)
-			total_gases[giver_id][MOLES] += giver_gas_data[MOLES]
-			total_heat_capacity += giver_gas_data[MOLES] * giver_gas_data[GAS_META][META_GAS_SPECIFIC_HEAT]
+			total_gases[giver_id] += giver_gas_amount
+			total_heat_capacity += giver_gas_amount * GAS_META[META_GAS_SPECIFIC_HEAT][giver_id]
 
 		total_thermal_energy += THERMAL_ENERGY(G)
 
@@ -291,6 +291,6 @@
 		for(var/i in GL)
 			var/datum/gas_mixture/G = i
 			G.copy_from(total_gas_mixture)
-			var/list/G_gases = G.gases
+			var/list/G_gases = G.moles
 			for(var/id in G_gases)
-				G_gases[id][MOLES] *= G.volume/total_gas_mixture.volume
+				G_gases[id] *= G.volume/total_gas_mixture.volume

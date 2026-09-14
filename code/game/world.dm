@@ -7,9 +7,13 @@ GLOBAL_VAR_INIT(tgs_initialized, FALSE)
 //This happens after the Master subsystem new(s) (it's a global datum)
 //So subsystems globals exist, but are not initialised
 /world/New()
-	if(fexists(EXTOOLS))
-		call(EXTOOLS, "cleanup")()
-		call(EXTOOLS, "maptick_initialize")()
+	// byond-extools hooks BYOND's internal engine functions by name; the DLL shipped in this repo
+	// predates BYOND 516 and no longer matches those internals, so loading it unconditionally spams
+	// "Failed to locate ..." popups on every boot. Only load it if EXTOOLS_DLL is explicitly set
+	// (e.g. to a build known to support the running BYOND version), matching enable_debugger() below.
+	if(world.GetConfig("env", "EXTOOLS_DLL") && fexists(EXTOOLS))
+		call_ext(EXTOOLS, "cleanup")()
+		call_ext(EXTOOLS, "maptick_initialize")()
 	enable_debugger()
 
 	//Early profile for auto-profiler - will be stopped on profiler init if necessary.

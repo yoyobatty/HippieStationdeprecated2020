@@ -3,11 +3,8 @@
 		return 1
 
 	var/totallums = 0
-	var/thing
 	var/datum/lighting_corner/L
-	for (thing in corners)
-		if(!thing)
-			continue
+	for (var/thing in get_lighting_corners())
 		L = thing
 		totallums += (L.lum_r * r_mul) + (L.lum_b * b_mul) + (L.lum_g * g_mul)
 

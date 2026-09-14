@@ -32,12 +32,16 @@ SUBSYSTEM_DEF(lighting)
 		MC_SPLIT_TICK
 	var/list/queue = sources_queue
 	var/i = 0
-	for (i in 1 to length(queue))
+	while(i < length(queue)) //we don't use a for loop here because i cannot be changed during an iteration
+		i += 1
+
 		var/datum/light_source/L = queue[i]
 
 		L.update_corners()
-
-		L.needs_update = LIGHTING_NO_UPDATE
+		if(!QDELETED(L))
+			L.needs_update = LIGHTING_NO_UPDATE
+		else
+			i -= 1 // update_corners() has removed L from the list, move back so we don't overflow or skip the next element
 
 		if(init_tick_checks)
 			CHECK_TICK
@@ -51,11 +55,14 @@ SUBSYSTEM_DEF(lighting)
 		MC_SPLIT_TICK
 
 	queue = corners_queue
-	for (i in 1 to length(queue))
-		var/datum/lighting_corner/C = queue[i]
+	i = 0
+	while(i < length(queue)) //we don't use a for loop here because i cannot be changed during an iteration
+		i += 1
 
+		var/datum/lighting_corner/C = queue[i]
+		C.needs_update = FALSE //update_objects() can call qdel if the corner is storing no data
 		C.update_objects()
-		C.needs_update = FALSE
+
 		if(init_tick_checks)
 			CHECK_TICK
 		else if (MC_TICK_CHECK)

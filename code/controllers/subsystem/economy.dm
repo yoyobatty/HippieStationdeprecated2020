@@ -80,6 +80,8 @@ SUBSYSTEM_DEF(economy)
 	var/alive_crew
 	var/dead_monsters
 	var/cash_to_grant
+	var/datum/bank_account/srv_account = get_dep_account(ACCOUNT_SRV)
+	var/datum/bank_account/med_account = get_dep_account(ACCOUNT_MED)
 	for(var/mob/m in GLOB.mob_list)
 		if(isnewplayer(m))
 			continue
@@ -94,15 +96,13 @@ SUBSYSTEM_DEF(economy)
 					var/datum/component/mood/mood = H.GetComponent(/datum/component/mood)
 					var/medical_cash = (H.health / H.maxHealth) * alive_humans_bounty
 					if(mood)
-						var/datum/bank_account/D = get_dep_account(ACCOUNT_SRV)
-						if(D)
+						if(srv_account)
 							var/mood_dosh = (mood.mood_level / 9) * mood_bounty
-							D.adjust_money(mood_dosh)
+							srv_account.adjust_money(mood_dosh)
 						medical_cash *= (mood.sanity / 100)
 
-					var/datum/bank_account/D = get_dep_account(ACCOUNT_MED)
-					if(D)
-						D.adjust_money(medical_cash)
+					if(med_account)
+						med_account.adjust_money(medical_cash)
 		if(ishostile(m))
 			var/mob/living/simple_animal/hostile/H = m
 			if(H.stat == DEAD && (H.z in SSmapping.levels_by_trait(ZTRAIT_STATION)))

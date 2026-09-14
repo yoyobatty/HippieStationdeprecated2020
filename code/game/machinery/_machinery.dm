@@ -158,7 +158,7 @@ Class Procs:
 /obj/machinery/LateInitialize()
 	. = ..()
 	power_change()
-	RegisterSignal(src, COMSIG_ENTER_AREA, .proc/power_change)
+	RegisterSignal(src, COMSIG_ENTER_AREA, "power_change")
 
 /obj/machinery/Destroy()
 	GLOB.machines.Remove(src)

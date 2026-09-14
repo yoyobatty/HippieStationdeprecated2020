@@ -24,6 +24,8 @@
 #define reverseList(L) reverseRange(L.Copy())
 #define LAZYADDASSOC(L, K, V) if(!L) { L = list(); } L[K] += list(V);
 #define LAZYREMOVEASSOC(L, K, V) if(L) { if(L[K]) { L[K] -= V; if(!length(L[K])) L -= K; } if(!length(L)) L = null; }
+/// Removes key K from associative list L if the value stored there is now empty. Does not null out L itself if L becomes empty (use UNSETEMPTY for that).
+#define ASSOC_UNSETEMPTY(L, K) if (!length(L[K])) L -= K;
 
 // binary search sorted insert
 // IN: Object to be inserted

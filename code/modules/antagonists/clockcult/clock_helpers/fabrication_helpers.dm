@@ -180,7 +180,7 @@
 	if(reinf)
 		fabrication_cost -= POWER_ROD
 	for(var/obj/structure/grille/G in get_turf(src))
-		INVOKE_ASYNC(fabricator, /obj/item/clockwork/replica_fabricator.proc/fabricate, G, user)
+		INVOKE_ASYNC(fabricator, "fabricate", G, user)
 	return list("operation_time" = fabrication_time, "new_obj_type" = windowtype, "power_cost" = fabrication_cost, "spawn_dir" = dir, "dir_in_new" = new_dir)
 
 /obj/structure/window/reinforced/clockwork/fabrication_vals(mob/living/user, obj/item/clockwork/replica_fabricator/fabricator, silent)
@@ -323,7 +323,7 @@
 		for(var/obj/item/clockwork/alloy_shards/S in get_turf(src)) //convert all other shards in the turf if we can
 			if(S == src)
 				continue //we want the shards to be fabricated after the main shard, thus this delay
-			addtimer(CALLBACK(fabricator, /obj/item/clockwork/replica_fabricator.proc/fabricate, S, user, TRUE), 0)
+			addtimer(CALLBACK(fabricator, "fabricate", S, user, TRUE), 0)
 	return list("operation_time" = 0, "new_obj_type" = null, "power_cost" = power_amount, "spawn_dir" = SOUTH)
 
 /obj/item/clockwork/alloy_shards/medium/gear_bit/large/fabrication_vals(mob/living/user, obj/item/clockwork/replica_fabricator/fabricator, silent, power_amount)
