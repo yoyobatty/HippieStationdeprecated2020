@@ -414,14 +414,14 @@ SUBSYSTEM_DEF(demo)
 	..(msg)
 
 /datum/controller/subsystem/demo/proc/mark_turf(turf/T)
-	if(disabled)
+	if(disabled || !CONFIG_GET(flag/enable_demo)) // hippie -- init_order is deliberately last (see comment above), so also check the config directly rather than relying on Initialize() to have set `disabled` yet, avoiding wasted list-building work throughout atom init when demo recording is off
 		return
 	if(!isturf(T))
 		return
 	marked_turfs[T] = TRUE
 
 /datum/controller/subsystem/demo/proc/mark_new(atom/movable/M)
-	if(disabled)
+	if(disabled || !CONFIG_GET(flag/enable_demo)) // hippie -- see mark_turf() comment
 		return
 	if(!isobj(M) && !ismob(M))
 		return
@@ -433,7 +433,7 @@ SUBSYSTEM_DEF(demo)
 
 // I can't wait for when TG ports this and they make this a #define macro.
 /datum/controller/subsystem/demo/proc/mark_dirty(atom/movable/M)
-	if(disabled)
+	if(disabled || !CONFIG_GET(flag/enable_demo)) // hippie -- see mark_turf() comment
 		return
 	if(!isobj(M) && !ismob(M))
 		return
@@ -443,7 +443,7 @@ SUBSYSTEM_DEF(demo)
 		marked_dirty[M] = TRUE
 
 /datum/controller/subsystem/demo/proc/mark_destroyed(atom/movable/M)
-	if(disabled)
+	if(disabled || !CONFIG_GET(flag/enable_demo)) // hippie -- see mark_turf() comment
 		return
 	if(!isobj(M) && !ismob(M))
 		return

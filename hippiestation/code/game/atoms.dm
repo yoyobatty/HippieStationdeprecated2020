@@ -13,4 +13,5 @@
 
 /atom/Initialize()
 	. = ..()
-	check_hippie_icon()
+	if(icon_hippie) // hippie -- skip the proc call entirely for the vast majority of atoms that never set this
+		check_hippie_icon()

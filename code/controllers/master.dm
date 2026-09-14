@@ -199,6 +199,14 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 	to_chat(world, "<span class='boldannounce'>[msg]</span>")
 	log_world(msg)
 
+	//TEMP DIAGNOSTIC: see PROFILE_EXIT_PARAMETER definition; forces a clean shutdown so the
+	//profiler subsystem flushes profiler.json immediately instead of waiting on its 5 minute timer
+	if(PROFILE_EXIT_PARAMETER in world.params)
+		log_world("[PROFILE_EXIT_PARAMETER] requested; shutting down now to flush the profiler dump.")
+		Master.Shutdown()
+		qdel(world)
+		return
+
 	if (!current_runlevel)
 		SetRunLevel(1)
 

@@ -19,5 +19,4 @@
 	return ..()
 
 /turf/Initialize()
-	. = ..()
-	check_hippie_icon()
+	. = ..() // hippie -- already calls check_hippie_icon() via /atom/Initialize(), no need to call it again here
