@@ -656,11 +656,11 @@
 	var/temperature_dangerlevel = cur_tlv.get_danger_level(environment.temperature)
 
 	var/gas_dangerlevel = 0
-	for(var/gas_id in env_gases)
+	for(var/gas_id, value in env_gases)
 		if(!(gas_id in TLV)) // We're not interested in this gas, it seems.
 			continue
 		cur_tlv = TLV[gas_id]
-		gas_dangerlevel = max(gas_dangerlevel, cur_tlv.get_danger_level(env_gases[gas_id] * partial_pressure))
+		gas_dangerlevel = max(gas_dangerlevel, cur_tlv.get_danger_level(value * partial_pressure))
 
 	environment.garbage_collect()
 

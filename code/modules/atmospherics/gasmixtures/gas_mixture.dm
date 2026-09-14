@@ -126,8 +126,8 @@ GLOBAL_LIST_INIT(meta_gas_info, meta_gas_list()) //see ATMOSPHERICS/gas_types.dm
 	var/list/cached_moles = moles //accessing datum vars is slower than proc vars
 	var/list/giver_moles = giver.moles
 	//gas transfer
-	for(var/gas_id in giver_moles)
-		cached_moles[gas_id] += giver_moles[gas_id]
+	for(var/gas_id, value in giver_moles)
+		cached_moles[gas_id] += value
 
 	return 1
 
@@ -143,8 +143,8 @@ GLOBAL_LIST_INIT(meta_gas_info, meta_gas_list()) //see ATMOSPHERICS/gas_types.dm
 	var/list/removed_moles = removed.moles //accessing datum vars is slower than proc vars
 
 	removed.temperature = temperature
-	for(var/id in cached_moles)
-		removed_moles[id] = QUANTIZE((cached_moles[id] / sum) * amount)
+	for(var/id, value in cached_moles)
+		removed_moles[id] = QUANTIZE((value / sum) * amount)
 		cached_moles[id] -= removed_moles[id]
 	garbage_collect()
 
@@ -162,8 +162,8 @@ GLOBAL_LIST_INIT(meta_gas_info, meta_gas_list()) //see ATMOSPHERICS/gas_types.dm
 	var/list/removed_moles = removed.moles //accessing datum vars is slower than proc vars
 
 	removed.temperature = temperature
-	for(var/id in cached_moles)
-		removed_moles[id] = QUANTIZE(cached_moles[id] * ratio)
+	for(var/id, value in cached_moles)
+		removed_moles[id] = QUANTIZE(value * ratio)
 		cached_moles[id] -= removed_moles[id]
 
 	garbage_collect()
@@ -178,8 +178,8 @@ GLOBAL_LIST_INIT(meta_gas_info, meta_gas_list()) //see ATMOSPHERICS/gas_types.dm
 	var/list/copy_moles = copy.moles
 
 	copy.temperature = temperature
-	for(var/id in cached_moles)
-		copy_moles[id] = cached_moles[id]
+	for(var/id, value in cached_moles)
+		copy_moles[id] = value
 
 	return copy
 
@@ -192,8 +192,8 @@ GLOBAL_LIST_INIT(meta_gas_info, meta_gas_list()) //see ATMOSPHERICS/gas_types.dm
 
 	temperature = sample.temperature
 	cached_moles.Cut()
-	for(var/id in sample_moles)
-		cached_moles[id] = sample_moles[id]
+	for(var/id, value in sample_moles)
+		cached_moles[id] = value
 
 	return 1
 
@@ -221,11 +221,11 @@ GLOBAL_LIST_INIT(meta_gas_info, meta_gas_list()) //see ATMOSPHERICS/gas_types.dm
 		gas -= "TEMP"
 	cached_moles.Cut()
 	cached_moles_archive.Cut()
-	for(var/id in gas)
+	for(var/id, value in gas)
 		var/path = id
 		if(!ispath(path))
 			path = gas_id2path(path) //a lot of these strings can't have embedded expressions (especially for mappers), so support for IDs needs to stick around
-		cached_moles[path] = text2num(gas[id])
+		cached_moles[path] = text2num(value)
 		cached_moles_archive[path] = 0
 	return 1
 
@@ -398,10 +398,10 @@ GLOBAL_LIST_INIT(meta_gas_info, meta_gas_list()) //see ATMOSPHERICS/gas_types.dm
 			|| (min_reqs["ENER"] && ener < min_reqs["ENER"]))
 				continue
 
-			for(var/id in min_reqs)
+			for(var/id, req_value in min_reqs)
 				if (id == "TEMP" || id == "ENER")
 					continue
-				if(!cached_moles[id] || cached_moles[id] < min_reqs[id])
+				if(!cached_moles[id] || cached_moles[id] < req_value)
 					continue reaction_loop
 
 			//at this point, all requirements for the reaction are satisfied. we can now react()

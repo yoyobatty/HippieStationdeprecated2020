@@ -159,7 +159,7 @@
 		var/gas_amount = gases[id]
 		var/gas_overlay = GAS_META[META_GAS_OVERLAY][id]
 		if(gas_overlay && gas_amount > GAS_META[META_GAS_MOLES_VISIBLE][id])
-			new_overlay_types += gas_overlay[min(TOTAL_VISIBLE_STATES, CEILING(gas_amount / MOLES_GAS_VISIBLE_STEP, 1))]
+			new_overlay_types += gas_overlay[min(TOTAL_VISIBLE_STATES, ceil(gas_amount / MOLES_GAS_VISIBLE_STEP))]
 
 	if (atmos_overlay_types)
 		for(var/overlay in atmos_overlay_types-new_overlay_types) //doesn't remove overlays that would only be added

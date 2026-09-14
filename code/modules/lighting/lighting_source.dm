@@ -116,7 +116,7 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 	var/_turf_x = lighting_source.source_turf.x;                                \
 	var/_turf_y = lighting_source.source_turf.y;                                \
 	var/list/_sheet = get_sheet();                                              \
-	var/_range_offset = CEILING(lighting_source.light_range, 1) + 0.5 + 1;      \
+	var/_range_offset = ceil(lighting_source.light_range) + 0.5 + 1;      \
 	var/_light_power = lighting_source.light_power;                            \
 	var/_applied_lum_r = lighting_source.applied_lum_r;                        \
 	var/_applied_lum_g = lighting_source.applied_lum_g;                        \
@@ -320,8 +320,8 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 
 	if (source_turf)
 		var/oldlum = source_turf.luminosity
-		source_turf.luminosity = CEILING(light_range, 1)
-		for(T in view(CEILING(light_range, 1), source_turf))
+		source_turf.luminosity = ceil(light_range)
+		for(T in view(ceil(light_range), source_turf))
 			if((!IS_DYNAMIC_LIGHTING(T) && !T.light_sources) || IS_OPAQUE_TURF(T))
 				continue
 			if (!T.lighting_corners_initialised)

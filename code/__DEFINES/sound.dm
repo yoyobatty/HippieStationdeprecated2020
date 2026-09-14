@@ -18,6 +18,19 @@
 #define SOUND_MINIMUM_PRESSURE 10
 #define FALLOFF_SOUNDS 1
 
+/// This is the lowest volume that can be used by playsound otherwise it gets ignored
+/// Most sounds around 10 volume can barely be heard. Almost all sounds at 5 volume or below are inaudible
+/// This is to prevent sound being spammed at really low volumes, and to let us shrink the listener search radius
+/// Recommend setting this to anywhere from 10-3 (or 0 to disable any sound minimum volume restrictions)
+#define SOUND_AUDIBLE_VOLUME_MIN 3
+
+/* Calculates the max distance at which a sound is still audible, given this codebase's linear
+ * distance falloff (see /mob/proc/playsound_local: S.volume -= max(distance - world.view, 0) * 2).
+ * Used to shrink the listener search radius below the sound's nominal max range, mirroring
+ * tgstation PR #88517's approach adapted to this fork's simpler (non-exponential) falloff model.
+ */
+#define CALCULATE_MAX_SOUND_AUDIBLE_DISTANCE(volume, max_distance) min((max_distance), world.view + max(0, ((volume) - SOUND_AUDIBLE_VOLUME_MIN) * 0.5))
+
 
 //Ambience types
 

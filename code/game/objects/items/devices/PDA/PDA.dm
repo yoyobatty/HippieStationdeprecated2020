@@ -401,8 +401,8 @@ GLOBAL_LIST_EMPTY(PDAs)
 					dat += "Air Pressure: [round(pressure,0.1)] kPa<br>"
 
 					if (total_moles)
-						for(var/id in env_gases)
-							var/gas_level = env_gases[id]/total_moles
+						for(var/id, value in env_gases)
+							var/gas_level = value/total_moles
 							if(gas_level > 0)
 								dat += "[GLOB.meta_gas_info[META_GAS_NAME][id]]: [round(gas_level*100, 0.01)]%<br>"
 

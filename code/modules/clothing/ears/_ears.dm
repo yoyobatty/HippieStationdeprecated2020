@@ -22,6 +22,19 @@
 	AddElement(/datum/element/earhealing)
 	AddComponent(/datum/component/wearertargeting/earprotection, list(ITEM_SLOT_EARS))
 
+/obj/item/clothing/ears/earmuffs/debug
+	name = "debug earmuffs"
+	desc = "Wearing these sends a chat message for every sound played. Walking to ignore footsteps is highly recommended."
+
+/obj/item/clothing/ears/earmuffs/debug/equipped(mob/user, slot)
+	. = ..()
+	if(slot == ITEM_SLOT_EARS)
+		ADD_TRAIT(user, TRAIT_SOUND_DEBUGGED, CLOTHING_TRAIT)
+
+/obj/item/clothing/ears/earmuffs/debug/dropped(mob/user)
+	. = ..()
+	REMOVE_TRAIT(user, TRAIT_SOUND_DEBUGGED, CLOTHING_TRAIT)
+
 /obj/item/clothing/ears/headphones
 	name = "headphones"
 	desc = "Unce unce unce unce. Boop!"

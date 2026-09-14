@@ -80,7 +80,7 @@
 
 /obj/item/gun/ballistic/automatic/c20r/update_icon()//hippie edit -- bring back old gun icons
 	..()
-	icon_state = "[initial(icon_state)][magazine ? "-[CEILING(get_ammo(0)/4, 1)*4]" : ""][chambered ? "" : "-e"][suppressed ? "-suppressed" : ""]"//hippie end -- bring back old gun icons
+	icon_state = "[initial(icon_state)][magazine ? "-[ceil(get_ammo(0)/4)*4]" : ""][chambered ? "" : "-e"][suppressed ? "-suppressed" : ""]"//hippie end -- bring back old gun icons
 
 /obj/item/gun/ballistic/automatic/wt550
 	name = "security auto rifle"
@@ -101,7 +101,7 @@
 
 /obj/item/gun/ballistic/automatic/wt550/update_icon()//hippie edit -- bring back old gun icons
 	..()
-	icon_state = "[initial(icon_state)][magazine ? "-[CEILING(get_ammo(0)/4, 1)*4]" : ""]"//hippie end -- bring back old gun icons
+	icon_state = "[initial(icon_state)][magazine ? "-[ceil(get_ammo(0)/4)*4]" : ""]"//hippie end -- bring back old gun icons
 
 /obj/item/gun/ballistic/automatic/mini_uzi
 	name = "\improper Type U3 Uzi"
@@ -263,7 +263,7 @@
 	update_icon()
 
 /obj/item/gun/ballistic/automatic/l6_saw/update_icon()//hippie edit -- bring back old gun icons
-	icon_state = "[initial(icon_state)][cover_open ? "open" : "closed"][magazine ? CEILING(get_ammo(0)/12.5, 1)*25 : "-empty"][suppressed ? "-suppressed" : ""]"
+	icon_state = "[initial(icon_state)][cover_open ? "open" : "closed"][magazine ? ceil(get_ammo(0)/12.5)*25 : "-empty"][suppressed ? "-suppressed" : ""]"
 	item_state = "[initial(icon_state)][cover_open ? "openmag" : "closedmag"]"//hippie end -- bring back old gun icons
 
 
@@ -372,5 +372,5 @@
 
 /obj/item/gun/ballistic/automatic/laser/update_icon()//hippie edit -- bring back old gun icons
 	..()
-	icon_state = "[initial(icon_state)][magazine ? "-[CEILING(get_ammo(0)/4, 1)*4]" : ""]"
+	icon_state = "[initial(icon_state)][magazine ? "-[ceil(get_ammo(0)/4)*4]" : ""]"
 	return//hippie end -- bring back old gun icons

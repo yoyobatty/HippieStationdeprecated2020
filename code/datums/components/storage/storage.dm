@@ -334,7 +334,7 @@
 		adjusted_contents = numbered_contents.len
 
 	var/columns = clamp(max_items, 1, screen_max_columns)
-	var/rows = clamp(CEILING(adjusted_contents / columns, 1), 1, screen_max_rows)
+	var/rows = clamp(ceil(adjusted_contents / columns), 1, screen_max_rows)
 	standard_orient_objs(rows, columns, numbered_contents)
 
 //This proc draws out the inventory and places the items on it. It uses the standard position.

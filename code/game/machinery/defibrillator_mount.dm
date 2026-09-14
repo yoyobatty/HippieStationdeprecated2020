@@ -45,7 +45,7 @@
 		if(defib.powered)
 			add_overlay(defib.safety ? "online" : "emagged")
 			var/ratio = defib.cell.charge / defib.cell.maxcharge
-			ratio = CEILING(ratio * 4, 1) * 25
+			ratio = ceil(ratio * 4) * 25
 			add_overlay("charge[ratio]")
 		if(clamps_locked)
 			add_overlay("clamps")

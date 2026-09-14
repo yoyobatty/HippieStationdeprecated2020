@@ -24,7 +24,8 @@
 #define MIDNIGHT_ROLLOVER_CHECK ( GLOB.rollovercheck_last_timeofday != world.timeofday ? update_midnight_rollover() : GLOB.midnight_rollovers )
 
 /// Gets the sign of x, returns -1 if negative, 0 if 0, 1 if positive
-#define SIGN(x) ( ((x) > 0) - ((x) < 0) )
+/// Now just a wrapper for BYOND's native sign() builtin
+#define SIGN(x) ( sign(x) )
 
 #define CEILING(x, y) ( -round(-(x) / (y)) * (y) )
 

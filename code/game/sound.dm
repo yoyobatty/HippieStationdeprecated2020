@@ -7,23 +7,27 @@
 	if (!turf_source)
 		return
 
+	if(vol < SOUND_AUDIBLE_VOLUME_MIN) // never let sound go below SOUND_AUDIBLE_VOLUME_MIN or nobody will hear it anyway
+		return
+
 	//allocate a channel if necessary now so its the same for everyone
 	channel = channel || open_sound_channel()
 
  	// Looping through the player list has the added bonus of working for mobs inside containers
 	var/sound/S = sound(get_sfx(soundin))
 	var/maxdistance = (world.view + extrarange)
+	var/audible_distance = CALCULATE_MAX_SOUND_AUDIBLE_DISTANCE(vol, maxdistance)
 	var/z = turf_source.z
 	var/list/listeners = SSmobs.clients_by_zlevel[z]
 	if(!ignore_walls) //these sounds don't carry through walls
-		listeners = listeners & hearers(maxdistance,turf_source)
+		listeners = listeners & hearers(audible_distance,turf_source)
 	for(var/P in listeners)
 		var/mob/M = P
-		if(get_dist(M, turf_source) <= maxdistance)
+		if(get_dist(M, turf_source) <= audible_distance)
 			M.playsound_local(turf_source, soundin, vol, vary, frequency, falloff, channel, pressure_affected, S)
 	for(var/P in SSmobs.dead_players_by_zlevel[z])
 		var/mob/M = P
-		if(get_dist(M, turf_source) <= maxdistance)
+		if(get_dist(M, turf_source) <= audible_distance)
 			M.playsound_local(turf_source, soundin, vol, vary, frequency, falloff, channel, pressure_affected, S)
 
 /mob/proc/playsound_local(turf/turf_source, soundin, vol as num, vary, frequency, falloff, channel = 0, pressure_affected = TRUE, sound/S)
@@ -70,7 +74,7 @@
 			S.volume *= pressure_factor
 			//End Atmosphere affecting sound
 
-		if(S.volume <= 0)
+		if(S.volume < SOUND_AUDIBLE_VOLUME_MIN)
 			return //No sound
 
 		var/dx = turf_source.x - T.x // Hearing from the right/left
@@ -80,6 +84,9 @@
 		// The y value is for above your head, but there is no ceiling in 2d spessmens.
 		S.y = 1
 		S.falloff = (falloff ? falloff : FALLOFF_SOUNDS)
+
+	if(HAS_TRAIT(src, TRAIT_SOUND_DEBUGGED))
+		to_chat(src, "<span class='admin'>Vol-[round(S.volume, 0.01)] Sound-[S.file]</span>")
 
 	SEND_SOUND(src, S)
 

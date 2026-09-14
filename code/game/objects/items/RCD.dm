@@ -533,7 +533,7 @@ RLD
 /obj/item/construction/rcd/update_icon()
 	..()
 	if(has_ammobar)
-		var/ratio = CEILING((matter / max_matter) * ammo_sections, 1)
+		var/ratio = ceil((matter / max_matter) * ammo_sections)
 		cut_overlays()	//To prevent infinite stacking of overlays
 		add_overlay("[icon_state]_charge[ratio]")
 

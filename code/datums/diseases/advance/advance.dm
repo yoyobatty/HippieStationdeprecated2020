@@ -206,7 +206,7 @@
 
 		SetSpread(clamp(2 ** (properties["transmittable"] - symptoms.len), DISEASE_SPREAD_BLOOD, DISEASE_SPREAD_AIRBORNE))
 
-		permeability_mod = max(CEILING(0.4 * properties["transmittable"], 1), 1)
+		permeability_mod = max(ceil(0.4 * properties["transmittable"]), 1)
 		cure_chance = 15 - clamp(properties["resistance"], -5, 5) // can be between 10 and 20
 		stage_prob = max(properties["stage_rate"], 2)
 		SetSeverity(properties["severity"])
