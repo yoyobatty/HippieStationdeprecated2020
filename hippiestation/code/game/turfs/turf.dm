@@ -19,4 +19,6 @@
 	return ..()
 
 /turf/Initialize()
-	. = ..() // hippie -- already calls check_hippie_icon() via /atom/Initialize(), no need to call it again here
+	. = ..() // hippie -- base /turf/Initialize(mapload) never calls ..() up to /atom/Initialize(), so this is the only place turfs get their hippie icon applied - do not remove
+	if(icon_hippie)
+		check_hippie_icon()
