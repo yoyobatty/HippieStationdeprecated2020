@@ -8,7 +8,7 @@
 	icon = 'icons/obj/power.dmi'
 	icon_state = "cablerelay-off"
 	max_integrity = 350
-	integrity_failure = 0.25
+	integrity_failure = 88
 	var/broken_status = RELAY_OK
 	var/obj/machinery/power/deck_relay/below ///The relay that's below us (for bridging powernets)
 	var/obj/machinery/power/deck_relay/above ///The relay that's above us (for bridging powernets)

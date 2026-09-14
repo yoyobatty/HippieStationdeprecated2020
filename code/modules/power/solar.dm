@@ -11,7 +11,7 @@
 	idle_power_usage = 0
 	active_power_usage = 0
 	max_integrity = 150
-	integrity_failure = 0.33
+	integrity_failure = 50
 
 	var/id
 	var/obscured = FALSE

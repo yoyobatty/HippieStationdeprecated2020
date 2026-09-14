@@ -17,7 +17,7 @@
 	. = damage_amount
 	obj_integrity = max(obj_integrity - damage_amount, 0)
 	//BREAKING FIRST
-	if(integrity_failure && obj_integrity <= integrity_failure * max_integrity)
+	if(integrity_failure && obj_integrity <= integrity_failure)
 		obj_break(damage_flag)
 	//DESTROYING SECOND
 	if(obj_integrity <= 0)
