@@ -4,6 +4,8 @@
 	//check if it doesn't require any access at all
 	if(src.check_access(null))
 		return TRUE
+	if(istype(M) && (M.status_flags & GODMODE))
+		return TRUE	//godmode bypasses all access checks
 	if(issilicon(M))
 		if(ispAI(M))
 			return FALSE
