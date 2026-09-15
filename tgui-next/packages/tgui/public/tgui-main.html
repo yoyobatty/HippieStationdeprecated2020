@@ -55,19 +55,116 @@ location.href = 'byond://?src=' + window.__ref__
   + '&action=tgui:initialize';
 </script>
 
-<!-- Styles -->
-<link rel="stylesheet" type="text/css" href="tgui.bundle.css">
+<!-- Asset loader with retry.
+  BYOND 516 switched its embedded browser from IE/Trident to WebView2.
+  The old engine called onload() even on a failed (404) resource load,
+  so a "did it actually load" check inside onload() worked as a retry.
+  WebView2 follows normal browser behavior: onload() is never called on
+  failure, only onerror() is. Without this, a raced/failed asset load
+  (e.g. tgui.bundle.js not finished transferring yet when this page
+  first renders) permanently breaks the window with nothing ever
+  reported - it just stays blank forever, silently.
+  See: https://github.com/tgstation/tgstation/pull/89956 -->
+<script type="text/javascript">
+window.__loadAssetWithRetry__ = (function () {
+  var MAX_RETRIES = 5;
+  var RETRY_DELAY_MS = 300;
+
+  var reportLoadFailure = function (url) {
+    location.href = 'byond://?src=' + window.__ref__
+      + '&action=tgui:log&fatal=1'
+      + '&log=' + encodeURIComponent('Failed to load asset after ' + MAX_RETRIES + ' retries: ' + url);
+  };
+
+  var loadStylesheet = function (url, attempt) {
+    var node = document.createElement('link');
+    node.rel = 'stylesheet';
+    node.type = 'text/css';
+    node.onerror = function () {
+      node.onerror = null;
+      if (node.parentNode) {
+        node.parentNode.removeChild(node);
+      }
+      if (attempt < MAX_RETRIES) {
+        setTimeout(function () {
+          loadStylesheet(url, attempt + 1);
+        }, RETRY_DELAY_MS);
+      }
+      else {
+        reportLoadFailure(url);
+      }
+    };
+    node.href = url;
+    document.head.appendChild(node);
+  };
+
+  var loadScript = function (url, onSuccess, attempt) {
+    var node = document.createElement('script');
+    node.type = 'text/javascript';
+    node.onload = function () {
+      node.onload = null;
+      node.onerror = null;
+      onSuccess();
+    };
+    node.onerror = function () {
+      node.onload = null;
+      node.onerror = null;
+      if (node.parentNode) {
+        node.parentNode.removeChild(node);
+      }
+      if (attempt < MAX_RETRIES) {
+        setTimeout(function () {
+          loadScript(url, onSuccess, attempt + 1);
+        }, RETRY_DELAY_MS);
+      }
+      else {
+        reportLoadFailure(url);
+      }
+    };
+    node.src = url;
+    document.head.appendChild(node);
+  };
+
+  // Scripts load sequentially (in this order) since the shims must be
+  // in place before the main bundle runs.
+  var loadScriptsInOrder = function (urls) {
+    var i = 0;
+    var next = function () {
+      if (i >= urls.length) {
+        return;
+      }
+      var url = urls[i++];
+      loadScript(url, next, 0);
+    };
+    next();
+  };
+
+  return {
+    stylesheet: function (url) {
+      loadStylesheet(url, 0);
+    },
+    scriptsInOrder: loadScriptsInOrder,
+  };
+})();
+
+// Load our own stylesheet right away, same position it always loaded in.
+window.__loadAssetWithRetry__.stylesheet('tgui.bundle.css');
+</script>
 
 <!-- This is processed in byond, so interfaces can override the
   html head if needed, for custom sheets of style etc. -->
 <!--customheadhtml-->
 
 <!-- Scripts -->
-<script type="text/javascript" defer src="shim-html5shiv.js"></script>
-<script type="text/javascript" defer src="shim-ie8.js"></script>
-<script type="text/javascript" defer src="shim-dom4.js"></script>
-<script type="text/javascript" defer src="shim-css-om.js"></script>
-<script type="text/javascript" defer src="tgui.bundle.js"></script>
+<script type="text/javascript">
+window.__loadAssetWithRetry__.scriptsInOrder([
+  'shim-html5shiv.js',
+  'shim-ie8.js',
+  'shim-dom4.js',
+  'shim-css-om.js',
+  'tgui.bundle.js',
+]);
+</script>
 
 </head>
 <body>
