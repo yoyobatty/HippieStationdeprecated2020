@@ -115,6 +115,8 @@
 			lun.check_breath(breath,src)
 
 /mob/living/carbon/human/handle_environment(datum/gas_mixture/environment)
+	if(status_flags & GODMODE)
+		return
 	dna.species.handle_environment(environment, src)
 
 ///FIRE CODE

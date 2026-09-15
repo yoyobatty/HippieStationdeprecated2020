@@ -218,7 +218,7 @@
 ///For moving in space
 ///return TRUE for movement 0 for none
 /mob/Process_Spacemove(movement_dir = 0)
-	if(spacewalk || ..())
+	if((status_flags & GODMODE) || spacewalk || ..())
 		return TRUE
 	var/atom/movable/backup = get_spacemove_backup()
 	if(backup)
