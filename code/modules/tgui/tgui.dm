@@ -18,6 +18,8 @@
 	var/ui_key
 	/// The window_id for browse() and onclose().
 	var/window_id
+	/// Cached output() addressing target for window_id (see window_output_id()).
+	var/window_output_target
 	/// The window width.
 	var/width = 0
 	/// The window height
@@ -243,6 +245,32 @@
  /**
   * private
   *
+  * Returns the output() control-addressing target for this UI's popup
+  * window, e.g. "abc123:update" or "abc123.browser:update".
+  *
+  * On modern BYOND (WebView2, 516+), a browse()-opened standalone popup
+  * window is not always itself a "BROWSER"-type control - winexists()
+  * reports it as a plain window that CONTAINS a browser child control, and
+  * output() must target "[window_id].browser" to actually reach the loaded
+  * page's JavaScript. Targeting the bare window_id in that case silently
+  * fails to deliver anything, even though the window/page itself loaded
+  * fine and its own outgoing hrefs work - which is exactly the symptom
+  * that caused tgui-next windows to load a working blank page after the
+  * BYOND 513->516 upgrade (client->server hrefs worked; server->client
+  * output() delivery of the initial UI data never arrived). This mirrors
+  * upstream tgstation's /datum/tgui_window/proc/send_message() is_browser
+  * check.
+  *
+  * required suffix string The JS function name to call (e.g. "update").
+ **/
+/datum/tgui/proc/window_output_id(suffix)
+	if(isnull(window_output_target))
+		window_output_target = (winexists(user, window_id) == "BROWSER") ? window_id : "[window_id].browser"
+	return "[window_output_target]:[suffix]"
+
+ /**
+  * private
+  *
   * Handle clicks from the UI.
   * Call the src_object's ui_act() if status is UI_INTERACTIVE.
   * If the src_object's ui_act() returns 1, update all UIs attacked to it.
@@ -256,7 +284,7 @@
 
 	switch(action)
 		if("tgui:initialize")
-			user << output(url_encode(get_json(initial_data, initial_static_data)), "[window_id]:initialize")
+			user << output(url_encode(get_json(initial_data, initial_static_data)), window_output_id("initialize"))
 			initialized = TRUE
 		if("tgui:view")
 			if(params["screen"])
@@ -313,7 +341,7 @@
 		return // Cannot update UI, we have no visibility.
 
 	// Send the new JSON to the update() Javascript function.
-	user << output(url_encode(get_json(data, static_data)), "[window_id]:update")
+	user << output(url_encode(get_json(data, static_data)), window_output_id("update"))
 
  /**
   * private

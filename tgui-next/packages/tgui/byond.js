@@ -26,8 +26,36 @@ const href = (url, params = {}) => {
   return 'byond://' + url + '?' + buildQueryString(params);
 };
 
+/**
+ * Sends a byond:// url to the client via a disposable hidden iframe rather
+ * than top-level location.href. On BYOND 516+ (WebView2), a top-level
+ * navigation to the unregistered byond:// scheme hits Chromium's
+ * external-protocol prompt and disrupts this page's own JS state in the
+ * process (breaking the window.update/window.initialize listener that's
+ * meant to receive BYOND's replies) - even though BYOND itself still
+ * receives the href. Scoping the navigation to a throwaway iframe avoids
+ * that. window.__sendToByond__ is defined in tgui-main.html (needed there
+ * before this bundle even loads); fall back to an equivalent local
+ * implementation if it's ever missing (e.g. non-tgui-next embeds).
+ */
+const sendToByond = url => {
+  if (window.__sendToByond__) {
+    window.__sendToByond__(url);
+    return;
+  }
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = url;
+  document.documentElement.appendChild(iframe);
+  setTimeout(() => {
+    if (iframe.parentNode) {
+      iframe.parentNode.removeChild(iframe);
+    }
+  }, 2000);
+};
+
 export const callByond = (url, params = {}) => {
-  window.location.href = href(url, params);
+  sendToByond(href(url, params));
 };
 
 /**
@@ -45,10 +73,10 @@ export const callByondAsync = (url, params = {}) => {
     window.__callbacks__.push(resolve);
   });
   // Call BYOND client
-  window.location.href = href(url, {
+  sendToByond(href(url, {
     ...params,
     callback: `__callbacks__[${callbackIndex}]`,
-  });
+  }));
   return promise;
 };
 
