@@ -69,8 +69,12 @@
 	if((obj_flags & ON_BLUEPRINTS) && isturf(loc))
 		var/turf/T = loc
 		T.add_blueprints_preround(src)
+	if(length(GLOB.bot_type_registry)) // hippie -- keep bot AI target lists current, see bot_registry.dm
+		bot_registry_add(src)
 
 /obj/Destroy(force=FALSE)
+	if(length(GLOB.bot_type_registry)) // hippie -- see bot_registry.dm
+		bot_registry_remove(src)
 	if(!ismachinery(src))
 		STOP_PROCESSING(SSobj, src) // TODO: Have a processing bitflag to reduce on unnecessary loops through the processing lists
 	SStgui.close_uis(src)

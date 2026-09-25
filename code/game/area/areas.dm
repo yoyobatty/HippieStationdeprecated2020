@@ -203,6 +203,9 @@ GLOBAL_LIST_EMPTY(teleportlocs)
 			for(var/item in GLOB.alarmdisplay)
 				var/datum/computer_file/program/alarm_monitor/p = item
 				p.triggerAlarm("Atmosphere", src, cameras, source)
+			for(var/item in GLOB.atmos_alert_bots)
+				var/datum/bot_brain/B = item
+				B.triggerAlarm("Atmosphere", src, cameras, source)
 
 		else if (src.atmosalm == 2)
 			for (var/item in GLOB.silicon_mobs)
@@ -217,6 +220,9 @@ GLOBAL_LIST_EMPTY(teleportlocs)
 			for(var/item in GLOB.alarmdisplay)
 				var/datum/computer_file/program/alarm_monitor/p = item
 				p.cancelAlarm("Atmosphere", src, source)
+			for(var/item in GLOB.atmos_alert_bots)
+				var/datum/bot_brain/B = item
+				B.cancelAlarm("Atmosphere", src, source)
 
 		src.atmosalm = danger_level
 		return 1

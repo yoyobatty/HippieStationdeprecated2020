@@ -335,11 +335,46 @@
 					return
 	if (cyclelinkedairlock)
 		if (!shuttledocked && !emergency && !cyclelinkedairlock.shuttledocked && !cyclelinkedairlock.emergency && allowed(user))
-			if(cyclelinkedairlock.operating)
-				cyclelinkedairlock.delayed_close_requested = TRUE
-			else
-				addtimer(CALLBACK(cyclelinkedairlock, .proc/close), 2)
+			cyclelink_close_partner()
 	..()
+
+// Just the "actually close the other one" half, shared between bumpopen() (above) and
+// try_to_activate_door() (below) - each decides FOR ITSELF whether this bump/click
+// should trigger it at all, since that decision differs by caller: a real player
+// deliberately CLICKING a door instead of walking into it does NOT trigger this, so
+// intentionally holding both sides of a chamber open on purpose stays possible for a
+// human - but bots only ever click doors (use_atom() -> attack_hand(), bot_items.dm,
+// they never actually walk into a closed one), so without the override below their
+// cycling would silently never happen at all (both sides left open despite being
+// properly cyclelinked), which looks wrong even though nothing's actually broken.
+/obj/machinery/door/airlock/proc/cyclelink_close_partner()
+	if(cyclelinkedairlock.operating)
+		cyclelinkedairlock.delayed_close_requested = TRUE
+	else
+		addtimer(CALLBACK(cyclelinkedairlock, PROC_REF(debug_cyclelink_close)), 2)
+
+// TEMPORARY - tracking down a report that the partner door closes (density becomes
+// TRUE, blocks movement) without ever visibly animating/updating its icon, even though
+// close() itself looks like it should (both its update_icon() calls pass override=1).
+// Logs the exact state right before and after the real close() call so the next in-game
+// test pins down which guard (locked/welded/operating/power) is actually catching it, or
+// confirms it isn't one of those at all. Remove once the real cause is found and fixed.
+/obj/machinery/door/airlock/proc/debug_cyclelink_close()
+	log_game("CYCLELINK_DEBUG: [src] at [AREACOORD(src)] BEFORE close() - density=[density] operating=[operating] locked=[locked] welded=[welded] hasPower=[hasPower()] icon_state=[icon_state] overlays=[overlays.len]")
+	var/result = close()
+	log_game("CYCLELINK_DEBUG: [src] at [AREACOORD(src)] AFTER close() - result=[result] density=[density] operating=[operating] icon_state=[icon_state] overlays=[overlays.len]")
+
+// See cyclelink_close_partner()'s comment above - this is the bot-only exception. Not
+// gated on issilicon()/AI the way bumpopen()'s shock check is: this is specifically
+// about /mob/living/carbon/human bots (bot_brain, bots_ai) using the exact same click
+// path (attack_hand()) a real player would, distinguished only by having a bot_brain.
+/obj/machinery/door/airlock/try_to_activate_door(mob/user)
+	var/was_closed = density
+	. = ..()
+	if(. && was_closed && cyclelinkedairlock && ishuman(user))
+		var/mob/living/carbon/human/H = user
+		if(H.bot_brain && !shuttledocked && !emergency && !cyclelinkedairlock.shuttledocked && !cyclelinkedairlock.emergency)
+			cyclelink_close_partner()
 
 /obj/machinery/door/airlock/proc/isElectrified()
 	if(secondsElectrified != MACHINE_NOT_ELECTRIFIED)

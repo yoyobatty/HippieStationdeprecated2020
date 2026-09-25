@@ -111,7 +111,11 @@ GLOBAL_LIST_INIT(admin_verbs_fun, list(
 	/client/proc/polymorph_all,
 	/client/proc/show_tip,
 	/client/proc/smite,
-	/client/proc/admin_away
+	/client/proc/admin_away,
+	/client/proc/admin_spawn_bot_crew, /* hippie -- AI crew milestone 1 */
+	/client/proc/admin_toggle_bot_ai_log, /* hippie -- AI crew milestone 1 */
+	/client/proc/admin_toggle_bot_ai_verbose, /* hippie -- AI crew milestone 1 */
+	/client/proc/admin_assign_captains_id_goal, /* hippie -- AI crew GOAP slice */
 	))
 GLOBAL_PROTECT(admin_verbs_fun)
 GLOBAL_LIST_INIT(admin_verbs_spawn, list(/datum/admins/proc/spawn_atom, /datum/admins/proc/podspawn_atom, /datum/admins/proc/spawn_cargo, /datum/admins/proc/spawn_objasmob, /client/proc/respawn_character, /datum/admins/proc/beaker_panel))

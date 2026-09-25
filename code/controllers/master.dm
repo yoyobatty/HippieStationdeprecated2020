@@ -207,6 +207,11 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 		qdel(world)
 		return
 
+	// hippie -- Bot Gym: run the bot AI scenarios once the MC is up; the runner shuts the world down when done
+	if(BOT_GYM_PARAMETER in world.params)
+		sleep_offline_after_initializations = FALSE //no players connect to a headless run - the world must keep ticking
+		INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(run_bot_gym), world.params[BOT_GYM_PARAMETER], world.params[BOT_GYM_RUNS_PARAMETER])
+
 	if (!current_runlevel)
 		SetRunLevel(1)
 

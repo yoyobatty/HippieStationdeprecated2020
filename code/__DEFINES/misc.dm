@@ -422,6 +422,9 @@ GLOBAL_LIST_INIT(pda_styles, list(MONO, VT, ORBITRON, SHARE))
 #define OVERRIDE_CONFIG_DIRECTORY_PARAMETER "config" // hippie -- folder's named config, this basically turns this define off
 //TEMP DIAGNOSTIC: run with this param to force a clean shutdown (flushing the profiler dump) right after MC init completes
 #define PROFILE_EXIT_PARAMETER "profile-exit"
+/// hippie -- runs the bot AI scenario suite after init, then shuts down (hippiestation/code/modules/bots_ai/gym/bot_gym.dm)
+#define BOT_GYM_PARAMETER "bot-gym"
+#define BOT_GYM_RUNS_PARAMETER "bot-gym-runs"
 
 #define EGG_LAYING_MESSAGES list("lays an egg.","squats down and croons.","begins making a huge racket.","begins clucking raucously.")
 
