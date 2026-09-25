@@ -194,7 +194,8 @@
 		if(istype(I, /obj/item/storage))
 			for(var/obj/item/stored in I)
 				kit += stored
-			continue
+			if(!(I in owner.held_items))
+				continue //a worn backpack/belt isn't something you swing - but a toolbox in hand is
 		if(istype(I, /obj/item/clothing) || istype(I, /obj/item/card) || istype(I, /obj/item/pda))
 			continue
 		kit += I
@@ -335,14 +336,14 @@
 		return FALSE
 	equip_welding_eye_protection()
 	if(!W.isOn())
-		W.attack_self(owner) //try_to_weld() -> tool_start_check() needs it lit
+		toggle_in_hand(W)
 	if(!W.isOn())
 		bot_log(src, "couldn't light [W] to unweld [D]")
 		return FALSE
 	bot_log(src, "unwelding [D] ([describe_pursuit_purpose()])")
 	use_item_on(W, D, TRUE) //harm intent: on help intent an airlock treats a welder as a repair
 	if(W.isOn())
-		W.attack_self(owner) //don't wander around with a lit welder
+		toggle_in_hand(W)
 	if(D.welded)
 		bot_log(src, "[D] is still welded after trying")
 		return FALSE

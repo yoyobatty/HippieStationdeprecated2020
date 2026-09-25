@@ -54,6 +54,9 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	var/max_goal_attempts = 3
 	/// FALSE for scenarios describing behavior not built yet - reported as XFAIL/XPASS, not failures.
 	var/expect_success = TRUE
+	/// Telemetry tells (bot_telemetry.dm) that fail a run even if the goal succeeded: reaching the
+	/// goal isn't enough, it has to look like a person did it.
+	var/list/forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target")
 
 	// --- runtime state ---
 	var/run_index = 1
@@ -281,11 +284,35 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	result = check()
 	if(result == BOT_GYM_PENDING && world.time > start_time + time_limit)
 		result = on_timeout()
+	if(result == BOT_GYM_PASS)
+		var/tells = robotic_tells()
+		if(tells)
+			result = BOT_GYM_FAIL
+			fail_reason = "succeeded but looked robotic: [tells]"
 	if(result != BOT_GYM_PENDING)
 		end_time = world.time
 		return
 	if(brain && brain.state == BOT_STATE_WANDER && !brain.current_goal && goal_attempts < max_goal_attempts)
 		issue_goal()
+
+/// The forbidden tells this run showed, as text, or null.
+/datum/bot_scenario/proc/robotic_tells()
+	if(!brain)
+		return null
+	var/list/found = list()
+	for(var/tell in forbidden_tells)
+		if(LAZYACCESS(brain.telemetry_flags, tell))
+			found += "[tell] x[brain.telemetry_flags[tell]]"
+	return length(found) ? jointext(found, ", ") : null
+
+/// Robotic tells recorded by telemetry (bot_telemetry.dm) during the run, e.g. " [tool_not_in_hand=2]".
+/datum/bot_scenario/proc/believability_text()
+	if(!brain || !length(brain.telemetry_flags))
+		return ""
+	var/list/parts = list()
+	for(var/flag in brain.telemetry_flags)
+		parts += "[flag]=[brain.telemetry_flags[flag]]"
+	return "   \[[jointext(parts, " ")]\]"
 
 /datum/bot_scenario/proc/outcome_text()
 	switch(result)
@@ -346,7 +373,7 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 		counts[outcome]++
 		var/seconds = S.end_time ? round((S.end_time - S.start_time) / 10, 0.1) : null
 		var/label = "[S.name][S.run_index > 1 ? " #[S.run_index]" : ""]"
-		lines += "[pad_bot_gym(outcome, 7)][pad_bot_gym(label, 44)][seconds != null ? "[seconds]s" : ""][S.fail_reason ? "   [S.fail_reason]" : ""]"
+		lines += "[pad_bot_gym(outcome, 7)][pad_bot_gym(label, 44)][seconds != null ? "[seconds]s" : ""][S.fail_reason ? "   [S.fail_reason]" : ""][S.believability_text()]"
 		json += list(list("name" = S.name, "run" = S.run_index, "outcome" = outcome, "seconds" = seconds, "reason" = S.fail_reason, "desc" = S.desc))
 		text2file(jointext(S.transcript, "\n"), "[dir]transcripts/[replacetext(S.name, " ", "_")]_[S.run_index].log")
 	var/header = "BOT GYM  [counts["PASS"]] passed, [counts["FAIL"]] failed, [counts["XFAIL"]] expected failures, [counts["XPASS"]] unexpected passes[counts["PENDING"] ? ", [counts["PENDING"]] unfinished" : ""]"

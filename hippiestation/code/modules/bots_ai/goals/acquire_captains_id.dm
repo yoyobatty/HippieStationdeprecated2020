@@ -363,7 +363,7 @@ GLOBAL_LIST_INIT(captains_id_required_tools, list(
 	if(!istype(T) || QDELETED(T) || !W || !bot.owner.Adjacent(T))
 		return GOAL_STEP_FAIL
 	if(W.welding)
-		W.attack_self(bot.owner)
+		bot.toggle_in_hand(W)
 	if(W.welding)
 		bot_log(bot, "can't switch my welder off - not risking the fuel tank")
 		return GOAL_STEP_FAIL

@@ -510,6 +510,7 @@
 
 	var/turf/left_turf = get_turf(owner)
 	if(bot_step_towards(next_node))
+		quick_step_retries = 0
 		last_stuck_turf = null
 		stuck_repeat_count = 0
 		last_failed_blocker = null
@@ -528,11 +529,16 @@
 		// Lag parameter used to provide, just driven explicitly instead of trusted to
 		// its own internal continuation.
 		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), max(1, owner.movement_delay()), TIMER_STOPPABLE)
+	else if(quick_step_retries < BOT_QUICK_STEP_RETRIES)
+		// Didn't move this attempt - usually a door still finishing its opening animation.
+		// Step through the moment it's passable, like a person walking into it, instead of
+		// standing still for a full second (telemetry: most mid-route stops were exactly this).
+		quick_step_retries++
+		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), 2, TIMER_STOPPABLE)
 	else
-		// Didn't move this attempt. Retry soon rather than waiting out a long
-		// stuck-timeout window for the very first failure - on_stuck_timeout()'s
-		// repeat-counting/give-up logic still applies once this keeps failing at the
-		// same node.
+		// Still not moving after ~1s of quick retries: on_stuck_timeout()'s repeat-counting/
+		// give-up logic takes over.
+		quick_step_retries = 0
 		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(on_stuck_timeout), next_node), 10, TIMER_STOPPABLE)
 
 /datum/bot_brain/proc/on_stuck_timeout(turf/expected_node)

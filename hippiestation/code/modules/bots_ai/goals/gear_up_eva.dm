@@ -264,6 +264,7 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 		if(boots_type)
 			var/obj/item/clothing/shoes/magboots/boots = owner.shoes
 			if(istype(boots, boots_type) && boots.magpulse != needs_mag_pulse())
+				telemetry_shortcut("attack_self", boots, null) //telemetry
 				boots.attack_self(owner)
 	return is_eva_ready()
 
@@ -418,6 +419,7 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 		// turns back off again once the hazard's gone, same as it turns on for one.
 		var/desired_pulse = bot.needs_mag_pulse()
 		if(boots.magpulse != desired_pulse)
+			bot.telemetry_shortcut("attack_self", boots, null) //telemetry
 			boots.attack_self(H)
 			bot_log(bot, "[desired_pulse ? "activated" : "deactivated"] the mag-pulse traction system on [boots]")
 
@@ -476,35 +478,33 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 		return GOAL_STEP_FAIL
 	if(!bot.owner.Adjacent(SSU))
 		return GOAL_STEP_FAIL
+	// Done the way a player does it through the unit's panel: open the door, then press
+	// "dispense" for one item at a time (each drops onto the unit's tile) and pick it up, at a
+	// human click rhythm. This used to reach inside and pull all four items out in the same
+	// instant - telemetry recorded the hardsuit, mask, magboots and tank arriving within 2ms.
+	// (ui_act() itself refuses to run without an open tgui window, so each panel action's own
+	// effect is performed here, one paced click each.)
+	bot.human_pause(SSU)
+	bot.owner.face_atom(SSU)
 	if(!SSU.state_open)
+		bot.telemetry_ui_action(SSU, "door")
 		SSU.open_machine(0)
 		if(SSU.occupant)
 			SSU.dump_contents()
+		SSU.update_icon()
 	var/took_any = FALSE
-	if(SSU.suit)
-		var/obj/item/clothing/suit/space/suit = SSU.suit
-		SSU.suit = null
-		suit.forceMove(get_turf(SSU))
-		bot.try_pickup_target(suit)
-		took_any = TRUE
-	if(SSU.helmet)
-		var/obj/item/clothing/head/helmet = SSU.helmet
-		SSU.helmet = null
-		helmet.forceMove(get_turf(SSU))
-		bot.try_pickup_target(helmet)
-		took_any = TRUE
-	if(SSU.mask)
-		var/obj/item/clothing/mask/mask = SSU.mask
-		SSU.mask = null
-		mask.forceMove(get_turf(SSU))
-		bot.try_pickup_target(mask)
-		took_any = TRUE
-	if(SSU.storage)
-		var/obj/item/stored = SSU.storage
-		SSU.storage = null
-		stored.forceMove(get_turf(SSU))
-		bot.try_pickup_target(stored)
-		took_any = TRUE
-	SSU.update_icon()
-	bot_log(bot, "raided [SSU] for EVA gear")
+	for(var/slot in list("suit", "helmet", "mask", "storage"))
+		if(QDELETED(SSU) || !SSU.state_open || !bot.owner.Adjacent(SSU))
+			break
+		var/obj/item/I = SSU.vars[slot]
+		if(!I)
+			continue
+		bot.human_pause(SSU)
+		bot.telemetry_ui_action(SSU, "dispense [slot]")
+		SSU.vars[slot] = null
+		I.forceMove(SSU.loc) //exactly what the panel's "dispense" button does
+		SSU.update_icon()
+		if(bot.try_pickup_target(I))
+			took_any = TRUE
+	bot_log(bot, "took the EVA gear out of [SSU]")
 	return took_any ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL

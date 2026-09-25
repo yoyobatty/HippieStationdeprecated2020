@@ -188,6 +188,13 @@
 		if(!C.opened)
 			bot_log_verbose(bot, "pickup_tool_from_target: [C] isn't open (locked=[C.locked], broken=[C.broken], welded=[C.welded])")
 			return GOAL_STEP_FAIL
+	// Came for something specific and already have it (grabbed it in passing, say): done - don't
+	// rummage through the locker anyway. Telemetry caught a bot that already had the insulated
+	// gloves walk on to the electrical locker and take the toolbox out of it.
+	var/datum/bot_goal/acquire_tool/fetch = bot.current_goal
+	var/needed_type = istype(fetch) ? fetch.needed_tool_type : null
+	if(!pending_items && bot.tool_need_already_satisfied())
+		return GOAL_STEP_SUCCESS
 	if(!pending_items)
 		pending_items = list()
 		saw_any_tool = FALSE
@@ -202,7 +209,7 @@
 			if(!bot.is_tool_or_toolbox(I))
 				continue
 			saw_any_tool = TRUE
-			if(!bot.already_carries_matching_tool(I))
+			if(bot_wants_from_locker(bot, I, needed_type))
 				pending_items += I
 		// /obj/structure/closet/open() dumps its contents onto its own turf the instant
 		// it opens (see pickup_from_target's comment above) - a toolbox item's own
@@ -214,8 +221,11 @@
 					if(!bot.is_tool_or_toolbox(I))
 						continue
 					saw_any_tool = TRUE
-					if(!bot.already_carries_matching_tool(I))
+					if(bot_wants_from_locker(bot, I, needed_type))
 						pending_items += I
+		// A specific need is met by one item - take the first match, not every copy.
+		if(needed_type && length(pending_items) > 1)
+			pending_items.Cut(2)
 		got_any = FALSE
 		had_pending = pending_items.len > 0
 	return grab_next(bot)
@@ -478,3 +488,13 @@
 /datum/bot_brain/proc/handle_goal()
 	if(owner.buckled)
 		owner.buckled.unbuckle_mob(owner, force = TRUE)
+
+/// What a person would actually take out of a locker: the specific thing they came for, or - on a
+/// general "grab something useful" trip - loose tools they don't already have. Never a whole
+/// toolbox as a side-grab (it fills a hand for the rest of the trip).
+/proc/bot_wants_from_locker(datum/bot_brain/bot, obj/item/I, needed_type)
+	if(needed_type)
+		return istype(I, needed_type)
+	if(istype(I, /obj/item/storage/toolbox))
+		return FALSE
+	return !bot.already_carries_matching_tool(I)

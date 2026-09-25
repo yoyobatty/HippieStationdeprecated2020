@@ -586,7 +586,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	owner.changeNext_move(CLICK_CD_MELEE)
 	if(B)
 		if(!B.status)
-			B.attack_self(owner)
+			toggle_in_hand(B)
 		owner.a_intent = INTENT_HELP
 		bot_log(src, "stunning [S] with [B]")
 		use_item_on(B, S)
@@ -639,7 +639,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		if(istype(I, /obj/item/melee/baton))
 			var/obj/item/melee/baton/B = I
 			if(B.status)
-				B.attack_self(owner)
+				toggle_in_hand(B)
 			stow_item(B)
 		else if(istype(I, /obj/item/gun))
 			if(!owner.equip_to_slot_if_possible(I, ITEM_SLOT_SUITSTORE, disable_warning = TRUE))

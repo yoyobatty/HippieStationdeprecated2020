@@ -154,7 +154,7 @@
 		if(tank.loc != bot.owner)
 			bot_log(bot, "couldn't get [tank] into my hands to refill it")
 			return GOAL_STEP_FAIL
-		C.attackby(tank, bot.owner, null)
+		bot.use_tool_on(tank, C) //insert it the way a player does: click the canister with the tank in hand
 		if(C.holding != tank)
 			bot_log(bot, "[C] wouldn't accept [tank]")
 			return GOAL_STEP_FAIL

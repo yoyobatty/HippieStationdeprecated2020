@@ -33,6 +33,10 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 /datum/bot_brain/proc/use_atom(atom/A)
 	if(!A || QDELETED(A) || !owner.Adjacent(A))
 		return FALSE
+	human_pause(A) //bot_human.dm
+	if(QDELETED(A) || !owner.Adjacent(A))
+		return FALSE
+	owner.face_atom(A) //a player's click always turns them toward what they click
 	A.attack_hand(owner)
 	return TRUE
 
@@ -52,6 +56,14 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 /datum/bot_brain/proc/stow_item(obj/item/I)
 	if(!I || QDELETED(I))
 		return FALSE
+	// Not already on the bot: pick it up first. A player can't clip something to their belt
+	// straight off the floor or out of a locker - it goes through a hand (telemetry caught a
+	// wrench and a welder going floor -> belt directly).
+	if(I.loc != owner && I.loc?.loc != owner)
+		if(owner.get_active_held_item() && owner.get_inactive_held_item())
+			put_away(owner.get_active_held_item()) //both hands full: put one thing back first, like a person would
+		if(!owner.put_in_hands(I))
+			return FALSE
 	if(owner.equip_to_appropriate_slot(I))
 		return TRUE
 	// equip_to_appropriate_slot() only WEARS an item into an empty slot - it can't put
@@ -116,6 +128,12 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	if(!I || QDELETED(I))
 		bot_log_verbose(src, "try_pickup_target: [I] is null or deleted")
 		return FALSE
+	if(get_dist(owner, get_turf(I)) > 1)
+		bot_log_verbose(src, "try_pickup_target: [I] is out of reach ([get_dist(owner, get_turf(I))] tiles)")
+		return FALSE
+	human_pause(I) //bot_human.dm - one pickup per click, not a handful in the same instant
+	if(QDELETED(I))
+		return FALSE
 	make_room_for_item()
 	if(!stow_item(I))
 		bot_log_verbose(src, "try_pickup_target: stow_item([I]) failed - active=[owner.get_active_held_item()], inactive=[owner.get_inactive_held_item()], dist=[get_dist(owner, I)], active_hand_index=[owner.active_hand_index], held_items=[owner.held_items], mobility_pickup=[owner.mobility_flags & MOBILITY_PICKUP], I.loc=[I.loc], I.anchored=[I.anchored], I.item_flags=[I.item_flags]")
@@ -133,10 +151,12 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 /datum/bot_brain/proc/use_item_on(obj/item/I, atom/A, harm = FALSE)
 	if(!I || QDELETED(I) || !A || QDELETED(A) || !owner.Adjacent(A))
 		return FALSE
-	if(owner.get_active_held_item() != I)
-		free_hand_for(I)
-		if(!owner.put_in_hands(I))
-			return FALSE
+	human_pause(A) //bot_human.dm
+	if(QDELETED(I) || QDELETED(A) || !owner.Adjacent(A))
+		return FALSE
+	if(!ready_in_hand(I)) //drawn into the active hand first, like a player has to
+		return FALSE
+	owner.face_atom(A)
 	var/old_intent = owner.a_intent
 	if(harm)
 		owner.a_intent = INTENT_HARM
@@ -325,12 +345,14 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 			bot_log(src, "[F] is closed and I don't have a crowbar to pry it open")
 			return FALSE
 		bot_log(src, "prying [F] open with [CB]")
-		F.try_to_crowbar(CB, owner)
+		use_tool_on(CB, F) //a help-intent click: door/attackby() routes it to try_to_crowbar()
 		return !F.density
 	var/obj/machinery/door/D = O
 	if(istype(D))
 		if(!D.density)
 			return TRUE
+		if(D.operating)
+			return TRUE //mid-animation (opening) - walk in the moment it's passable rather than clicking it again
 		if(tool_need_already_satisfied())
 			bot_log(src, "already got what I needed for this trip - no point getting through [D]")
 			goal_succeeded()
@@ -463,7 +485,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	if(!CB)
 		return FALSE
 	bot_log(src, "prying [D] open with [CB] ([describe_pursuit_purpose()])")
-	D.try_to_crowbar(CB, owner, CB.force_opens)
+	use_tool_on(CB, D) //a help-intent click: door/attackby() routes it to try_to_crowbar()
 	return !D.density
 
 // Bolted/welded airlocks don't open via attack_hand() no matter what access you
@@ -776,7 +798,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	// on do_after() internally, so a normal synchronous call here already waits out the
 	// full weld before returning - nothing extra needed for that part.
 	if(!wt.isOn())
-		wt.attack_self(owner)
+		toggle_in_hand(wt)
 	if(!wt.isOn())
 		bot_log(src, "couldn't get [wt] lit - is it out of fuel?")
 		return FALSE
@@ -824,7 +846,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 			else
 				bot_log(src, "couldn't strip any more of [A]'s shielding")
 			if(wt.isOn())
-				wt.attack_self(owner)
+				toggle_in_hand(wt)
 			// Put EVERYTHING away, not just the welder - whichever of wt/(the jaws tool,
 			// in whichever of its two forms) is currently in hand from this attempt
 			// would otherwise sit there and immediately contend with the next tool
@@ -846,7 +868,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	// left sitting in hand could, and won't contend with whatever try_hack_door()'s
 	// screwdriver/multitool step needs a free hand for right after this returns.
 	if(wt.isOn())
-		wt.attack_self(owner)
+		toggle_in_hand(wt)
 	stow_or_drop(wt)
 	stow_or_drop(find_carried_tool(/obj/item/wirecutters))
 	stow_or_drop(find_carried_tool(/obj/item/crowbar))
@@ -1029,7 +1051,7 @@ GLOBAL_LIST_INIT(bot_tool_transform_pairs, list(
 			free_hand_for(carried)
 		var/turf/drop_turf = get_turf(owner)
 		bot_log(src, "transforming [carried] to switch heads")
-		carried.attack_self(owner)
+		toggle_in_hand(carried)
 		// `carried` is now deleted - look the result up fresh instead of trusting it.
 		var/obj/item/result = find_carried_tool(tool_type)
 		if(!result)
@@ -1117,6 +1139,10 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 				continue
 			if(try_pickup_target(I))
 				bot_log(src, "grabbed [I] in passing")
+				if(tool_need_already_satisfied())
+					bot_log(src, "that's what I was going for - no need to go any further")
+					goal_succeeded()
+					return
 			break
 
 // Real security etiquette, not just a courtesy - a solid airlock left open behind a bot

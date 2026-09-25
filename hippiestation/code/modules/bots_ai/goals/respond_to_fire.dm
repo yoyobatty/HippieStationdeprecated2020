@@ -183,9 +183,11 @@
 		bot_log(bot, "[E] is empty - can't keep fighting this fire")
 		return GOAL_STEP_FAIL
 	if(E.safety)
-		E.attack_self(bot.owner) //real toggle proc, not just flipping the var - keeps the icon/chat message honest
+		bot.toggle_in_hand(E)
 	if(bot.owner.get_active_held_item() != E)
 		bot.owner.put_in_hands(E)
+	bot.owner.face_atom(fire_turf)
+	bot.telemetry_shortcut("afterattack", E, fire_turf) //telemetry
 	E.afterattack(fire_turf, bot.owner, 0) //internally cooldown-gated (last_use, extinguisher.dm) - harmless to call again before it's ready
 	return GOAL_STEP_PENDING
 

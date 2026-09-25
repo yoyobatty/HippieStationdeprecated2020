@@ -362,6 +362,7 @@
 	if(pursuing_kind)
 		return
 	if(world.time < next_wander_time)
+		idle_fidget() //bot_human.dm - look around / get out of doorways instead of standing frozen
 		return
 
 	// Auto-retry the captain's-ID goal once its give-up cooldown has passed, instead of
@@ -393,7 +394,7 @@
 	if(prob(25))
 		var/atom/goal = find_item_goal()
 		if(goal)
-			next_wander_time = world.time + rand(50, 200)
+			next_wander_time = world.time + rand(10, 30)
 			bot_log(src, "going for [goal] @ [bot_coord(get_turf(goal))] ([get_area_name(goal)])")
 			pursue(goal, istype(goal, /obj/structure/closet) ? "locker" : "item")
 			return
@@ -404,7 +405,8 @@
 	switch(kind)
 		if("wander")
 			if(success)
-				try_sit_down()
+				if(!try_sit_down())
+					next_wander_time = world.time + wander_dwell_time()
 			else
 				var/area/AR = get_area(target)
 				if(AR)
@@ -442,12 +444,13 @@
 	return TRUE
 
 /datum/bot_brain/proc/begin_wander_pick()
-	next_wander_time = world.time + rand(50, 200)
+	next_wander_time = world.time + rand(10, 30) //spacing only - how long to linger is decided on arrival (wander_dwell_time())
 	wander_retry_count = 12
 	try_next_wander_candidate()
 
 /datum/bot_brain/proc/try_next_wander_candidate()
 	if(wander_retry_count <= 0)
+		next_wander_time = world.time + rand(20, 40) //every candidate failed - try again shortly rather than freezing
 		return
 	wander_retry_count--
 	var/turf/T = prob(65) ? pick_poi_destination() : pick_local_destination()
