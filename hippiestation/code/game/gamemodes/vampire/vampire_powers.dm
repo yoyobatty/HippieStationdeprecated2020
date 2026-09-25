@@ -331,7 +331,7 @@
 		new /obj/effect/decal/remains/human(L.loc)
 		L.dust()
 	to_chat(L, "<span class='notice'>We begin to reanimate... this will take a minute.</span>")
-	addtimer(CALLBACK(src, /obj/effect/proc_holder/spell/self/revive.proc/revive, L), 600)
+	addtimer(CALLBACK(src, TYPE_PROC_REF(/obj/effect/proc_holder/spell/self/revive, revive), L), 600)
 
 /obj/effect/proc_holder/spell/self/revive/proc/revive(mob/living/user)
 	user.revive(full_heal = TRUE)

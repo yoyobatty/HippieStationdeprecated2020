@@ -33,7 +33,7 @@
 			to_chat(target,"<span class='userdanger'> You MUST obey any command given to you by your master (that doesn't violate any rules). You are an antag while mindslaved.</span>")
 			to_chat(target,"<span class='danger'>You CANNOT harm your master. Check your memory (with the notes verb) if you forget who your master is.</span>")
 			if(!permanent)
-				timerid = addtimer(CALLBACK(src, .proc/remove_mindslave), time, TIMER_STOPPABLE)
+				timerid = addtimer(CALLBACK(src, PROC_REF(remove_mindslave)), time, TIMER_STOPPABLE)
 			if(!target.mind.special_role)
 				target.mind.special_role = "Mindslave"
 				SSticker.mode.traitors |= target.mind

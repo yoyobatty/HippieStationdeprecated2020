@@ -524,7 +524,7 @@ var/horse_stance_effects = FALSE // ensures the horse stance gains it effect
 	playsound(owner, 'sound/magic/blind.ogg', 50, 1)
 	owner.adjust_fire_stacks(-1)
 	toggle_horse_stance_effects(owner)
-	addtimer(CALLBACK(src, .proc/toggle_horse_stance_effects, owner), 150, TIMER_UNIQUE)
+	addtimer(CALLBACK(src, PROC_REF(toggle_horse_stance_effects), owner), 150, TIMER_UNIQUE)
 	return ..()
 
 /datum/status_effect/horse_stance/proc/toggle_horse_stance_effects(var/mob/living/owner) //recycled effect code from monkeyman

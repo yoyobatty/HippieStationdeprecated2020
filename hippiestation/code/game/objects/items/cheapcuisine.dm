@@ -38,7 +38,7 @@
 		if(used)
 			return FALSE
 		else
-			addtimer(CALLBACK(src, .proc/spawnFood, user, possibleFood[choice]), 50)
+			addtimer(CALLBACK(src, PROC_REF(spawnFood), user, possibleFood[choice]), 50)
 			soundloop.start()
 			used = TRUE
 			icon_state = "carboncan-on"

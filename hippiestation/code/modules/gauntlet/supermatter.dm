@@ -117,7 +117,7 @@
 		return FALSE
 	if(do_after(caller, 30, target = L))
 		L.visible_message("<span class='danger bold'>[L] seems a bit hot...</span>", "<span class='userdanger'>You feel like you'll explode any second!</span>")
-		addtimer(CALLBACK(GLOBAL_PROC, .proc/explosion, L, 0, 0, 2, 3, TRUE, FALSE, 3), 150)
+		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(explosion), L, 0, 0, 2, 3, TRUE, FALSE, 3), 150)
 	Finished()
 	return TRUE
 

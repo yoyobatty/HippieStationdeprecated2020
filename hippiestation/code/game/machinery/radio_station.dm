@@ -598,7 +598,7 @@
 	update_icon()
 
 /obj/machinery/recordburner/proc/diskProcess()
-	addtimer(CALLBACK(src, .proc/burnDisk), 40)
+	addtimer(CALLBACK(src, PROC_REF(burnDisk)), 40)
 	inuse = TRUE
 
 /obj/machinery/recordburner/proc/burnDisk()

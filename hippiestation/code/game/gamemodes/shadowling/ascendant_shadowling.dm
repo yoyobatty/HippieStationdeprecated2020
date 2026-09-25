@@ -33,7 +33,7 @@
 
 /mob/living/simple_animal/ascendant_shadowling/Initialize()
 	. = ..()
-	RegisterSignal(src, COMSIG_MOB_SAY, .proc/handle_speech)
+	RegisterSignal(src, COMSIG_MOB_SAY, PROC_REF(handle_speech))
 
 /mob/living/simple_animal/ascendant_shadowling/Process_Spacemove(movement_dir = 0)
 	return TRUE //copypasta from carp code

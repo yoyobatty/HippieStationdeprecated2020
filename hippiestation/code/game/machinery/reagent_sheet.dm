@@ -47,7 +47,7 @@
 			var/chem_material = working.reagents.total_volume * end_volume
 			use_power = working.reagents.total_volume
 			updateUsrDialog()
-			addtimer(CALLBACK(src, /obj/machinery/reagent_sheet/proc/create_sheets, chem_material), work_time)
+			addtimer(CALLBACK(src, TYPE_PROC_REF(/obj/machinery/reagent_sheet, create_sheets), chem_material), work_time)
 			to_chat(user, "<span class='notice'>You add [working] to [src]</span>")
 			visible_message("<span class='notice'>[src] activates!</span>")
 		if(!in_range(src, working) || !user.Adjacent(src))

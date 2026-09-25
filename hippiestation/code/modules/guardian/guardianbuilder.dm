@@ -192,7 +192,7 @@
 		G.summoner = user.mind
 		G.key = C.key
 		G.mind.enslave_mind_to_creator(user)
-		G.RegisterSignal(user, COMSIG_MOVABLE_MOVED, /mob/living/simple_animal/hostile/guardian.proc/OnMoved)
+		G.RegisterSignal(user, COMSIG_MOVABLE_MOVED, TYPE_PROC_REF(/mob/living/simple_animal/hostile/guardian, OnMoved))
 		var/datum/antagonist/guardian/S = new
 		S.stats = saved_stats
 		S.summoner = user.mind

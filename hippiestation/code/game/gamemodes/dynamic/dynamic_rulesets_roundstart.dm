@@ -21,7 +21,7 @@
 
 /datum/dynamic_ruleset/roundstart/choose/execute()
 	for(var/datum/mind/lucky in assigned)
-		INVOKE_ASYNC(src, .proc/let_choice, lucky)
+		INVOKE_ASYNC(src, PROC_REF(let_choice), lucky)
 	return TRUE
 
 /datum/dynamic_ruleset/roundstart/choose/proc/let_choice(datum/mind/M)

@@ -222,7 +222,7 @@
 		return
 
 	newpuck = build_puck()
-	addtimer(CALLBACK(src,.proc/reset_puck),recharge_time)
+	addtimer(CALLBACK(src,PROC_REF(reset_puck)),recharge_time)
 	if(!user.put_in_hands(newpuck))
 		to_chat(user, "<span class='warning'>You need a free hand to hold the puck!</span>")
 		return

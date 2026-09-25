@@ -90,7 +90,7 @@
 		playsound(user, 'sound/magic/Fireball.ogg', 100, 1)
 		F.fire()
 		charged = FALSE
-		addtimer(CALLBACK(src, .proc/recharge), FAXE_GOUT_TIME)
+		addtimer(CALLBACK(src, PROC_REF(recharge)), FAXE_GOUT_TIME)
 		return
 	if(wielded && proximity_flag)
 		var/obj/J = target
@@ -104,7 +104,7 @@
 			Wall.AddComponent(/datum/component/thermite, 50)
 			to_chat(user, "<span class='danger'>The wall has been marked, strike it once more to ignite the flames!</span>")
 			burnwall = FALSE
-			addtimer(CALLBACK(src, .proc/rekindle), FAXE_BURNWALL_TIME)
+			addtimer(CALLBACK(src, PROC_REF(rekindle)), FAXE_BURNWALL_TIME)
 		else
 			to_chat(user, "<span class='danger'>The flames need time to rekindle!</span>")
 		..()

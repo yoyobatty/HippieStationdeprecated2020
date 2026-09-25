@@ -290,7 +290,7 @@
 	if(prob(20) && Wearer.health < HEALTH_THRESHOLD_CRIT + 15 && hacked) //Automatic healing when hacked
 		if(world.time > med_cooldown)
 			med_cooldown = world.time + 200
-			addtimer(CALLBACK(src, .proc/heal_nano, Wearer), 30)
+			addtimer(CALLBACK(src, PROC_REF(heal_nano), Wearer), 30)
 
 	if(Wearer.bodytemperature < BODYTEMP_COLD_DAMAGE_LIMIT)
 		if(world.time > temp_cooldown)
@@ -546,7 +546,7 @@
 	Wearer.apply_effects(paralyze = 300, stun = 300, jitter = 120)
 	toggle_mode(NANO_NONE, TRUE)
 	shutdown = TRUE
-	addtimer(CALLBACK(src, .proc/emp_assaulttwo), 25)
+	addtimer(CALLBACK(src, PROC_REF(emp_assaulttwo)), 25)
 
 
 /obj/item/clothing/suit/space/hardsuit/nano/proc/emp_assaulttwo()
@@ -556,7 +556,7 @@
 	helmet.display_visor_message("Switching to: core function mode.")
 	sleep(25)
 	helmet.display_visor_message("Life support priority. Warning!")
-	addtimer(CALLBACK(src, .proc/emp_assaultthree), 35)
+	addtimer(CALLBACK(src, PROC_REF(emp_assaultthree)), 35)
 
 
 /obj/item/clothing/suit/space/hardsuit/nano/proc/emp_assaultthree()
@@ -672,7 +672,7 @@
 
 /obj/item/clothing/head/helmet/space/hardsuit/nano/Initialize()
 	. = ..()
-	RegisterSignal(SSdcs, COMSIG_GLOB_EXPLOSION, .proc/sense_explosion)
+	RegisterSignal(SSdcs, COMSIG_GLOB_EXPLOSION, PROC_REF(sense_explosion))
 
 /obj/item/clothing/head/helmet/space/hardsuit/nano/proc/sense_explosion(datum/source, turf/epicenter, devastation_range, heavy_impact_range,
 		light_impact_range, took, orig_dev_range, orig_heavy_range, orig_light_range)
@@ -744,13 +744,13 @@
 		Wearer.unequip_all_items()
 		Wearer.equipOutfit(outfit)
 		ADD_TRAIT(Wearer, TRAIT_NODISMEMBER, "Nanosuit")
-		RegisterSignal(Wearer, list(COMSIG_MOB_ITEM_ATTACK,COMSIG_MOB_ITEM_AFTERATTACK,COMSIG_MOB_THROW,COMSIG_MOB_ATTACK_HAND), .proc/kill_cloak,TRUE)
+		RegisterSignal(Wearer, list(COMSIG_MOB_ITEM_ATTACK,COMSIG_MOB_ITEM_AFTERATTACK,COMSIG_MOB_THROW,COMSIG_MOB_ATTACK_HAND), PROC_REF(kill_cloak),TRUE)
 		if(is_station_level(T.z))
 			priority_announce("[user] has engaged [src] at [A.map_name]!","Message from The Syndicate!", sound = 'hippiestation/sound/misc/nanosuitengage.ogg')
 		log_game("[user] has engaged [src]")
 		if(help_verb)
 			Wearer.verbs += help_verb
-		INVOKE_ASYNC(src, .proc/bootSequence)
+		INVOKE_ASYNC(src, PROC_REF(bootSequence))
 	..()
 
 /obj/item/clothing/suit/space/hardsuit/nano/dropped()
@@ -809,7 +809,7 @@
 				hacked = TRUE
 				qdel(emag)
 				to_chat(user, "<span class='warning'>The emag is absorbed into the nanosuit!</span>")
-				INVOKE_ASYNC(src, .proc/emagSequence)
+				INVOKE_ASYNC(src, PROC_REF(emagSequence))
 			else
 				to_chat(user, "<span class='danger'>An error has occured, please try again.</span>")
 				return
@@ -886,7 +886,7 @@
 
 /datum/martial_art/nanosuit/teach(mob/living/carbon/human/H, make_temporary = FALSE)
 	. = ..()
-	RegisterSignal(H, COMSIG_HUMAN_EARLY_UNARMED_ATTACK, .proc/on_attack_hand)
+	RegisterSignal(H, COMSIG_HUMAN_EARLY_UNARMED_ATTACK, PROC_REF(on_attack_hand))
 
 /datum/martial_art/nanosuit/remove(mob/living/carbon/human/H)
 	. = ..()
@@ -1146,7 +1146,7 @@
 				cut_nano_energy(15)
 				Wearer.filters = null
 				animate(Wearer, alpha = 255, time = stealth_cloak_out)
-				addtimer(CALLBACK(src, .proc/resume_cloak), 6, TIMER_UNIQUE|TIMER_OVERRIDE)
+				addtimer(CALLBACK(src, PROC_REF(resume_cloak)), 6, TIMER_UNIQUE|TIMER_OVERRIDE)
 				return
 		cut_nano_energy(cell.charge, NANO_CHARGE_DELAY)
 
@@ -1280,7 +1280,7 @@ mob/living/carbon/human/key_down(_key, client/user)
 	"cloak" = image(icon = 'hippiestation/icons/mob/actions/actions_nanosuit.dmi', icon_state = "cloak_menu"),
 	"strength" = image(icon = 'hippiestation/icons/mob/actions/actions_nanosuit.dmi', icon_state = "strength_menu")
 	)
-	var/choice = show_radial_menu(user,user, choices, custom_check = CALLBACK(src, .proc/check_menu, user), require_near = TRUE)
+	var/choice = show_radial_menu(user,user, choices, custom_check = CALLBACK(src, PROC_REF(check_menu), user), require_near = TRUE)
 	if(!check_menu(user))
 		return
 	switch(choice)

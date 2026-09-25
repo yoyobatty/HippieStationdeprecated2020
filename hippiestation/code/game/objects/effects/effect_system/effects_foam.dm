@@ -3,7 +3,7 @@
 
 /obj/effect/particle_effect/foam/Initialize(loc)
 	. = ..()
-	addtimer(CALLBACK(src, .proc/smokefoam_fade_in), 0)
+	addtimer(CALLBACK(src, PROC_REF(smokefoam_fade_in)), 0)
 
 /obj/effect/particle_effect/foam/kill_foam()
 	..()

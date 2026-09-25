@@ -501,11 +501,11 @@
 								if(1)
 									to_chat(H, "<span class='warning'><font size='3'>Your heart is starting to pound even harder... even faster... you need that heirloom now! You need it now!!</font></span>")
 									goingtodie = TRUE
-									addtimer(CALLBACK(src, .proc/make_heartattack), 300)	//You best find that thing soon kid
+									addtimer(CALLBACK(src, PROC_REF(make_heartattack)), 300)	//You best find that thing soon kid
 								if(2)
 									to_chat(H, "<span class='warning'><font size='3'>You're starting to feel really, really sick from the panic! You need that heirloom now!</font></span>")
 									goingtodie = TRUE
-									addtimer(CALLBACK(src, .proc/throwup_organ), 300)	//You best find that thing soon kid
+									addtimer(CALLBACK(src, PROC_REF(throwup_organ)), 300)	//You best find that thing soon kid
 	else
 		time_without_heirloom = 0	//Give them a chance, if they revive afterwards
 

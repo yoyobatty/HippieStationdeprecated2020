@@ -1,7 +1,8 @@
 /// Percentage of tick to leave for master controller to run
 #define MAPTICK_MC_MIN_RESERVE 70
-/// internal_tick_usage is updated every tick by extools
-#define MAPTICK_LAST_INTERNAL_TICK_USAGE ((GLOB.internal_tick_usage / world.tick_lag) * 100)
+/// Percentage of the last tick BYOND spent on map/appearance work (sending map updates to clients).
+/// Native since BYOND 514; replaces the old extools maptick hook, which is no longer loaded.
+#define MAPTICK_LAST_INTERNAL_TICK_USAGE (world.map_cpu)
 /// Tick limit while running normally
 #define TICK_BYOND_RESERVE 2
 #define TICK_LIMIT_RUNNING (max(100 - TICK_BYOND_RESERVE - MAPTICK_LAST_INTERNAL_TICK_USAGE, MAPTICK_MC_MIN_RESERVE))

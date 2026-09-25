@@ -23,7 +23,7 @@
 	C.draw_hippie_parts()
 	C.maxHealth = INFINITY
 	C.health = C.maxHealth
-	RegisterSignal(C, COMSIG_MOB_SAY, .proc/handle_speech)
+	RegisterSignal(C, COMSIG_MOB_SAY, PROC_REF(handle_speech))
 	. = ..()
 
 /datum/species/meeseeks/on_species_loss(mob/living/carbon/human/C, datum/species/new_species, pref_load)

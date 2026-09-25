@@ -9,13 +9,13 @@
 	emagged = TRUE
 	playsound(src, 'sound/magic/lightning_chargeup.ogg', 50, 0)
 	audible_message("<span class='boldwarning'>Runtime begins sparking, emitting a frightening electric crackle!</span>")
-	addtimer(CALLBACK(src, .proc/catscreech), 95)
+	addtimer(CALLBACK(src, PROC_REF(catscreech)), 95)
 
 /mob/living/simple_animal/pet/cat/Runtime/proc/catscreech()
 	playsound(src, 'hippiestation/sound/voice/scream_cat.ogg', 75, 1) //REE
 	SpinAnimation(500,1)
 	animate(src, transform = matrix()*1.5, time = 5)
-	addtimer(CALLBACK(src, .proc/catsplode), 5) //comedic timing
+	addtimer(CALLBACK(src, PROC_REF(catsplode)), 5) //comedic timing
 
 /mob/living/simple_animal/pet/cat/Runtime/proc/catsplode()
 	playsound(src, 'sound/magic/disintegrate.ogg', 50, 1)

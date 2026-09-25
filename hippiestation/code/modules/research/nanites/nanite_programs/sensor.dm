@@ -4,7 +4,7 @@
 
 /datum/nanite_program/sensor/emote/on_mob_add()
 	. = ..()
-	RegisterSignal(host_mob, COMSIG_MOB_EMOTE, .proc/on_emote)
+	RegisterSignal(host_mob, COMSIG_MOB_EMOTE, PROC_REF(on_emote))
 
 /datum/nanite_program/sensor/emote/on_mob_remove()
 	UnregisterSignal(host_mob, COMSIG_MOB_EMOTE)

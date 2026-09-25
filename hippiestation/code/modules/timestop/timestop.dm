@@ -51,7 +51,7 @@ GLOBAL_LIST_INIT(timestop_noz, typecacheof(list(/obj/screen)))
 				LAZYSET(immune, G, TRUE)
 			if(master == G)
 				LAZYSET(immune, G.summoner, TRUE)
-	INVOKE_ASYNC(src, .proc/za_warudo)
+	INVOKE_ASYNC(src, PROC_REF(za_warudo))
 
 /datum/timestop/Destroy()
 	..()
@@ -125,8 +125,8 @@ GLOBAL_LIST_INIT(timestop_noz, typecacheof(list(/obj/screen)))
 	if(!LAZYACCESS(frozen_things, A))
 		LAZYSET(frozen_things, A, A.move_resist)
 		A.move_resist = INFINITY
-	RegisterSignal(A, COMSIG_MOVABLE_PRE_MOVE, .proc/unfreeze_atom)
-	RegisterSignal(A, COMSIG_ITEM_PICKUP, .proc/unfreeze_atom)
+	RegisterSignal(A, COMSIG_MOVABLE_PRE_MOVE, PROC_REF(unfreeze_atom))
+	RegisterSignal(A, COMSIG_ITEM_PICKUP, PROC_REF(unfreeze_atom))
 	return TRUE
 
 /datum/timestop/proc/unfreeze_all()

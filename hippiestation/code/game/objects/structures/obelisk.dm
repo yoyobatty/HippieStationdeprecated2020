@@ -214,7 +214,7 @@
 
 /obj/item/inscripture/proc/teleportation(mob/living/user, teleports)
 	for(i = 1, i <= teleports, i++)
-		addtimer(CALLBACK(src, .proc/teleportation2, user, teleports), 3 - (i/40))
+		addtimer(CALLBACK(src, PROC_REF(teleportation2), user, teleports), 3 - (i/40))
 		switch(i)
 			if(0)
 				sleep(13)
@@ -240,7 +240,7 @@
 				sleep(0.08)
 		//addtimer(CALLBACK(src, .proc/teleportation2, user, teleports), 10 - (i/4))
 
-	addtimer(CALLBACK(src, .proc/delete), 2*teleports)
+	addtimer(CALLBACK(src, PROC_REF(delete)), 2*teleports)
 
 /obj/item/inscripture/proc/teleportation2(mob/living/user, teleports)
 	var/turf/dest = locate(rand(1, 300), rand(1, 300), rand(2, 9))

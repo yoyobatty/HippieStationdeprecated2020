@@ -56,7 +56,7 @@ PROCESSING_SUBSYSTEM_DEF(tts)
 			if (!(M.client.prefs.hippie_toggles & SOUND_TTS))
 				continue
 			M.playsound_local(M.loc, TTS_PATH +  "[T.filename].wav", 100, 0, channel=next_channel)
-		addtimer(CALLBACK(src, .proc/terminate, T), T.length)
+		addtimer(CALLBACK(src, PROC_REF(terminate), T), T.length)
 		return
 	else
 		var/turf/origin = get_turf(T.owner.mob)
@@ -74,8 +74,8 @@ PROCESSING_SUBSYSTEM_DEF(tts)
 
 		T.owner.tts_cooldown = world.time + T.length
 
-		addtimer(CALLBACK(T.owner.mob, /mob/living.proc/update_tts_hud), T.length + 5)
-		addtimer(CALLBACK(src, .proc/terminate, T), T.length)
+		addtimer(CALLBACK(T.owner.mob, TYPE_PROC_REF(/mob/living, update_tts_hud)), T.length + 5)
+		addtimer(CALLBACK(src, PROC_REF(terminate), T), T.length)
 
 		for (var/M in listeners)
 			var/mob/P = M

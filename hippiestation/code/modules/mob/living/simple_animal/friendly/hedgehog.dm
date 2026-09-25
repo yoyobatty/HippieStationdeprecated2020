@@ -41,7 +41,7 @@
 		icon_state = "Hedgehog_ball"
 		icon_living = "Hedgehog_ball"
 		mobility_flags &= ~MOBILITY_MOVE
-	addtimer(CALLBACK(src, .proc/stop_being_scared_lil_boi), FEAR_DURATION, TIMER_OVERRIDE|TIMER_UNIQUE)
+	addtimer(CALLBACK(src, PROC_REF(stop_being_scared_lil_boi)), FEAR_DURATION, TIMER_OVERRIDE|TIMER_UNIQUE)
 
 /mob/living/simple_animal/pet/hedgehog/attack_hand(mob/living/user)
 	if(..())
@@ -50,6 +50,6 @@
 			user.adjustBruteLoss(8)
 		scared = TRUE
 		mobility_flags &= ~MOBILITY_MOVE
-		addtimer(CALLBACK(src, .proc/stop_being_scared_lil_boi), FEAR_DURATION, TIMER_OVERRIDE|TIMER_UNIQUE)
+		addtimer(CALLBACK(src, PROC_REF(stop_being_scared_lil_boi)), FEAR_DURATION, TIMER_OVERRIDE|TIMER_UNIQUE)
 
 #undef FEAR_DURATION

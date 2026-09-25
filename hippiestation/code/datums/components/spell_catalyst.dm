@@ -2,7 +2,7 @@
 /datum/component/spell_catalyst
 
 /datum/component/spell_catalyst/Initialize()
-	RegisterSignal(parent, COMSIG_PARENT_EXAMINE,.proc/OnExamine)
+	RegisterSignal(parent, COMSIG_PARENT_EXAMINE,PROC_REF(OnExamine))
 	.=..()
 
 /datum/component/spell_catalyst/proc/OnExamine(datum/source, mob/user)

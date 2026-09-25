@@ -49,7 +49,7 @@
 	. = ..()
 	class = class_
 	if(timer)
-		addtimer(CALLBACK(src, .proc/remove), timer)
+		addtimer(CALLBACK(src, PROC_REF(remove)), timer)
 		timed = TRUE
 	if(copymut && istype(copymut, /datum/mutation/human))
 		copy_mutation(copymut)

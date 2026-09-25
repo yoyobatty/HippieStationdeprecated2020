@@ -57,7 +57,7 @@
 
 		cooldown = base_cooldown + world.time
 		owner.update_action_buttons_icon()
-		addtimer(CALLBACK(owner, /mob.proc/update_action_buttons_icon), base_cooldown)
+		addtimer(CALLBACK(owner, TYPE_PROC_REF(/mob, update_action_buttons_icon)), base_cooldown)
 		var/list/health
 		if(damage_interrupt && isliving(owner))
 			var/mob/living/L = owner

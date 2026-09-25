@@ -29,8 +29,8 @@
 	if(checkStuff())
 		playsound(src, unce_file, 100, 0, 2)
 		pixel_y += 2
-		addtimer(CALLBACK(src, .proc/loopUnce), speed)
-		addtimer(CALLBACK(src, .proc/move_to_the_beat), 4)
+		addtimer(CALLBACK(src, PROC_REF(loopUnce)), speed)
+		addtimer(CALLBACK(src, PROC_REF(move_to_the_beat)), 4)
 	else
 		return
 

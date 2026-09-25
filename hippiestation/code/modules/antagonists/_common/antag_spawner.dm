@@ -11,7 +11,7 @@
 	if(creator_op)
 		M.mind.add_antag_datum(new_op,creator_op.nuke_team)
 		M.mind.special_role = "Nuclear Operative"
-	INVOKE_ASYNC(src, .proc/choose_kit, M)
+	INVOKE_ASYNC(src, PROC_REF(choose_kit), M)
 
 /obj/item/antag_spawner/nuke_ops/proc/choose_kit(mob/living/carbon/human/H)
 	var/choice = null

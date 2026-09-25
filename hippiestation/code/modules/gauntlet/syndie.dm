@@ -82,7 +82,7 @@
 		C.super_mario_star = TRUE
 		C.move_force = INFINITY
 		user.visible_message("<span class='danger'>[user] charges!</span>")
-		addtimer(CALLBACK(src, .proc/done, C), 50)
+		addtimer(CALLBACK(src, PROC_REF(done), C), 50)
 
 /obj/effect/proc_holder/spell/self/infinity/syndie_bullcharge/proc/done(mob/living/carbon/user)
 	user.mario_star = FALSE
@@ -122,7 +122,7 @@
 		to_chat(user, "<span class='warning'>You can't jump here!</span>")
 		revert_cast(user)
 		return
-	INVOKE_ASYNC(src, .proc/do_jaunt, user)
+	INVOKE_ASYNC(src, PROC_REF(do_jaunt), user)
 
 /obj/effect/proc_holder/spell/self/infinity/syndie_jump/proc/do_jaunt(mob/living/target)
 	target.notransform = TRUE

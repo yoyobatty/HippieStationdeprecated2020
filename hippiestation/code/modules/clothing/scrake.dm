@@ -49,7 +49,7 @@
 	raged = TRUE
 	slowdown = -0.25
 	rage_cooldown = world.time + rage_cooldown_duration
-	addtimer(CALLBACK(src, .proc/rage_reset, owner), 180)
+	addtimer(CALLBACK(src, PROC_REF(rage_reset), owner), 180)
 
 /obj/item/clothing/suit/apron/chef/scrake/proc/rage_reset(mob/living/carbon/human/owner)
 	owner.client.color = initial(owner.client.color)

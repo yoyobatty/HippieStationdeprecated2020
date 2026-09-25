@@ -109,7 +109,7 @@
 		if(ishuman(user))
 			var/mob/living/carbon/human/H = user
 			H.electrocution_animation(10)
-		addtimer(CALLBACK(user, /mob/proc/gib), 10)
+		addtimer(CALLBACK(user, TYPE_PROC_REF(/mob, gib)), 10)
 	else
 		var/datum/component/storage/STR = B.GetComponent(/datum/component/storage)
 
@@ -182,7 +182,7 @@
 		var/turf/T = get_ranged_target_turf(user, NORTH, 8)
 		T.Beam(user, icon_state="lightning[rand(1,12)]", time = 5)
 		user.electrocution_animation(10)
-		addtimer(CALLBACK(user, /mob/proc/gib), 10)
+		addtimer(CALLBACK(user, TYPE_PROC_REF(/mob, gib)), 10)
 	else
 		for(var/i in 1 to 10)
 			playsound(user, 'hippiestation/sound/effects/fart.ogg', 100, 1, 5)

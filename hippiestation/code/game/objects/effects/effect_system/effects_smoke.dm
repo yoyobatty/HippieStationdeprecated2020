@@ -13,7 +13,7 @@ GLOBAL_LIST_EMPTY(smoke)
 /obj/effect/particle_effect/smoke/proc/kill_smoke()
 	LAZYREMOVE(GLOB.smoke, src)
 	STOP_PROCESSING(SSreagent_states, src)
-	INVOKE_ASYNC(src, .proc/fade_out)
+	INVOKE_ASYNC(src, PROC_REF(fade_out))
 	QDEL_IN(src, 10)
 
 /obj/effect/particle_effect/smoke/ex_act()

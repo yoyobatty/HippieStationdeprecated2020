@@ -3,8 +3,8 @@
 		return FALSE
 	if(is_banned_from(M.ckey, CRABBAN))
 		if(!SSticker.HasRoundStarted())
-			SSticker.OnRoundstart(CALLBACK(H, /mob/living/carbon/human.proc/change_mob_type, /mob/living/simple_animal/crab, null, H.real_name, TRUE)) // where's my antag token
+			SSticker.OnRoundstart(CALLBACK(H, TYPE_PROC_REF(/mob/living/carbon/human, change_mob_type), /mob/living/simple_animal/crab, null, H.real_name, TRUE)) // where's my antag token
 		else
-			addtimer(CALLBACK(H, /mob/living/carbon/human.proc/change_mob_type, /mob/living/simple_animal/crab, null, H.real_name, TRUE), 1 SECONDS)
+			addtimer(CALLBACK(H, TYPE_PROC_REF(/mob/living/carbon/human, change_mob_type), /mob/living/simple_animal/crab, null, H.real_name, TRUE), 1 SECONDS)
 	else if(is_banned_from(M.ckey, CATBAN))
 		H.set_species(/datum/species/human/felinid/tarajan) // can't escape hell

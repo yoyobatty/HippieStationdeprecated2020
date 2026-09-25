@@ -42,7 +42,7 @@
 		M.gib()
 	playsound(src, 'sound/magic/lightning_chargeup.ogg', 100, 0)
 	src.visible_message("<span class = 'userdanger'>The reactor has gone critical, its going to blow!</span>")
-	addtimer(CALLBACK(src,.proc/go_critical),breach_time)
+	addtimer(CALLBACK(src,PROC_REF(go_critical)),breach_time)
 
 /obj/mecha/neovgre/Destroy()
 	if(GLOB.neovgre_exists)

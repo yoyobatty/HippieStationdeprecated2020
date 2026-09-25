@@ -89,7 +89,7 @@
 
 /obj/item/holotool/CtrlClick(mob/user)
 	update_listing()
-	var/chosen = show_radial_menu(user, src, radial_modes, custom_check = CALLBACK(src, .proc/check_menu,user))
+	var/chosen = show_radial_menu(user, src, radial_modes, custom_check = CALLBACK(src, PROC_REF(check_menu),user))
 	if(!check_menu(user))
 		return
 	if(chosen)
@@ -112,7 +112,7 @@
 
 /obj/item/holotool/ui_action_click(mob/user, var/datum/action/A)
 	update_listing()
-	var/chosen = show_radial_menu(user, src, radial_modes, custom_check = CALLBACK(src, .proc/check_menu,user))
+	var/chosen = show_radial_menu(user, src, radial_modes, custom_check = CALLBACK(src, PROC_REF(check_menu),user))
 	if(!check_menu(user))
 		return
 	if(chosen)

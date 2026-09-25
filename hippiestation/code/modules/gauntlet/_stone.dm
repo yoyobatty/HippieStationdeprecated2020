@@ -68,7 +68,7 @@
 		var/mob/living/carbon/human/H = user
 		if(H.dna && H.dna.check_mutation(CLUWNEMUT))
 			to_chat(H, "<span class='danger'>\The [src] pulses in your hands, sending a spasm of pain and forcing you to drop it!</span>")
-			addtimer(CALLBACK(src, .proc/NoPickingMeUp, H), 5)
+			addtimer(CALLBACK(src, PROC_REF(NoPickingMeUp), H), 5)
 
 /obj/item/badmin_stone/proc/NoPickingMeUp(mob/user)
 	user.dropItemToGround(src, TRUE)

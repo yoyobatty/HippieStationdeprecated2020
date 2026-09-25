@@ -22,7 +22,7 @@
 /obj/item/clothing/glasses/hud/threat/equipped(mob/user, slot)
 	..()
 	if(slot == ITEM_SLOT_EYES)
-		RegisterSignal(user, COMSIG_THREAT_SCAN_CLICK_CTRL_SHIFT, .proc/ToggleThreat)
+		RegisterSignal(user, COMSIG_THREAT_SCAN_CLICK_CTRL_SHIFT, PROC_REF(ToggleThreat))
 
 /obj/item/clothing/glasses/hud/threat/dropped(mob/user)
 	..()

@@ -120,43 +120,43 @@
 
 				if(book == "2u - Exoplanet Exploration Vol. 13: Trapping")
 					if(checkprice(user, 2) == 1)
-						addtimer(CALLBACK(src, .proc/print, /obj/item/book/granter/crafting_recipe/trapping), 110)
+						addtimer(CALLBACK(src, PROC_REF(print), /obj/item/book/granter/crafting_recipe/trapping), 110)
 					else
 						return
 
 				else if(book == "1.5u - The Sound of Clown")
 					if(checkprice(user, 1.5) == 1)
-						addtimer(CALLBACK(src, .proc/print, /obj/item/book/granter/crafting_recipe/clowninstruments), 110)
+						addtimer(CALLBACK(src, PROC_REF(print), /obj/item/book/granter/crafting_recipe/clowninstruments), 110)
 					else
 						return
 
 				else if(book == "2u - Robert Lang's Origami Unveiled Vol. 1")
 					if(checkprice(user, 2) == 1)
-						addtimer(CALLBACK(src, .proc/print, /obj/item/book/granter/crafting_recipe/origami1), 110)
+						addtimer(CALLBACK(src, PROC_REF(print), /obj/item/book/granter/crafting_recipe/origami1), 110)
 					else
 						return
 
 				else if(book == "0.5u - The Mark of Cain")
 					if(checkprice(user, 0.5) == 1)
-						addtimer(CALLBACK(src, .proc/print, /obj/item/book/granter/crafting_recipe/vampire), 110)
+						addtimer(CALLBACK(src, PROC_REF(print), /obj/item/book/granter/crafting_recipe/vampire), 110)
 					else
 						return
 
 				else if(book == "1u - UAW Environment")
 					if(checkprice(user, 1) == 1)
-						addtimer(CALLBACK(src, .proc/print, /obj/item/book/granter/crafting_recipe/workenvironment), 110)
+						addtimer(CALLBACK(src, PROC_REF(print), /obj/item/book/granter/crafting_recipe/workenvironment), 110)
 					else
 						return
 
 				else if(book == "0.75u - Squod Word's Astrological Journal")
 					if(checkprice(user, 0.75) == 1)
-						addtimer(CALLBACK(src, .proc/print, /obj/item/book/granter/crafting_recipe/stargazing), 110)
+						addtimer(CALLBACK(src, PROC_REF(print), /obj/item/book/granter/crafting_recipe/stargazing), 110)
 					else
 						return
 
 				else if(book == "0.25u - Grabar: A Slow Mindkill")
 					if(checkprice(user, 0.25) == 1)
-						addtimer(CALLBACK(src, .proc/print, /obj/item/book/granter/crafting_recipe/audio), 110)
+						addtimer(CALLBACK(src, PROC_REF(print), /obj/item/book/granter/crafting_recipe/audio), 110)
 					else
 						return
 
@@ -164,25 +164,25 @@
 			if(2)
 				if(book == "2u - USSR-3 Public Disturbance Manual")
 					if(checkprice(user, 2) == 1)
-						addtimer(CALLBACK(src, .proc/print, /obj/item/book/granter/crafting_recipe/USSR3), 110)
+						addtimer(CALLBACK(src, PROC_REF(print), /obj/item/book/granter/crafting_recipe/USSR3), 110)
 					else
 						return
 
 				else if(book == "1.5u - Straight Outa' Compton")
 					if(checkprice(user, 1.5) == 1)
-						addtimer(CALLBACK(src, .proc/print, /obj/item/book/granter/crafting_recipe/gang), 110)
+						addtimer(CALLBACK(src, PROC_REF(print), /obj/item/book/granter/crafting_recipe/gang), 110)
 					else
 						return
 
 				else if(book == "2u - Anarchist's Compendium")
 					if(checkprice(user, 2) == 1)
-						addtimer(CALLBACK(src, .proc/print, /obj/item/book/granter/crafting_recipe), 110)
+						addtimer(CALLBACK(src, PROC_REF(print), /obj/item/book/granter/crafting_recipe), 110)
 					else
 						return
 
 				else if(book == "2.25u - CODEWORD Arabian")
 					if(checkprice(user, 2.25) == 1)
-						addtimer(CALLBACK(src, .proc/print, /obj/item/book/granter/crafting_recipe/illegalweapons), 110)
+						addtimer(CALLBACK(src, PROC_REF(print), /obj/item/book/granter/crafting_recipe/illegalweapons), 110)
 					else
 						return
 
@@ -190,7 +190,7 @@
 			if(3)
 				if(book == "3.5u - M'`nt a'd B,`'e")
 					if(checkprice(user, 3.5) == 1)
-						addtimer(CALLBACK(src, .proc/print, /obj/item/book/granter/crafting_recipe/obelisk), 110)
+						addtimer(CALLBACK(src, PROC_REF(print), /obj/item/book/granter/crafting_recipe/obelisk), 110)
 					else
 						return
 

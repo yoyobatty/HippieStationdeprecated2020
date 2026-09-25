@@ -59,7 +59,7 @@
 			var/atom/AT = targets[A]
 			radial_list[A] = image(AT.icon, AT.icon_state)
 	radial_list["ship"] = image(icon = 'icons/turf/shuttle.dmi', icon_state = "burst_s")
-	var/chosen = show_radial_menu(user, src, radial_list, custom_check = CALLBACK(src, .proc/check_menu, user))
+	var/chosen = show_radial_menu(user, src, radial_list, custom_check = CALLBACK(src, PROC_REF(check_menu), user))
 	if(!check_menu(user))
 		return
 	if(chosen)

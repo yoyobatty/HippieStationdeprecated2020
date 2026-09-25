@@ -220,7 +220,7 @@
 		spans = list(M.speech_span)
 	if(!language)
 		language = M.get_default_language()
-	INVOKE_ASYNC(src, .proc/talk_into_impl, M, message, channel, spans.Copy(), language)
+	INVOKE_ASYNC(src, PROC_REF(talk_into_impl), M, message, channel, spans.Copy(), language)
 	return ITALICS | REDUCE_RANGE
 
 /obj/item/radio/proc/talk_into_impl(atom/movable/M, message, channel, list/spans, datum/language/language)
@@ -288,7 +288,7 @@
 
 	// Non-subspace radios will check in a couple of seconds, and if the signal
 	// was never received, send a mundane broadcast (no headsets).
-	addtimer(CALLBACK(src, .proc/backup_transmission, signal), 20)
+	addtimer(CALLBACK(src, PROC_REF(backup_transmission), signal), 20)
 
 /obj/item/radio/proc/backup_transmission(datum/signal/subspace/vocal/signal)
 	var/turf/T = get_turf(src)
@@ -442,7 +442,7 @@
 			if(!(radio_holder.get_item_by_slot(ITEM_SLOT_EARS) == src)) //only want headsets to play music if they're equipped
 				return
 		stopmusic(radio_holder) //stop the previously playing song to make way for the new one
-		addtimer(CALLBACK(src, .proc/avoiding_a_sleep, radio_holder, music_filepath, name_of_music, music_volume), 10)
+		addtimer(CALLBACK(src, PROC_REF(avoiding_a_sleep), radio_holder, music_filepath, name_of_music, music_volume), 10)
 
 /obj/item/radio/proc/stopmusic(mob/living/user, music_turnoff_message_type)
 	if(music_playing)
@@ -471,7 +471,7 @@
 
 /obj/item/radio/dropped(mob/user)
 	..()
-	addtimer(CALLBACK(src, .proc/droppedStopMusic, user), 3)
+	addtimer(CALLBACK(src, PROC_REF(droppedStopMusic), user), 3)
 
 /obj/item/radio/proc/droppedStopMusic(mob/user)
 	for(var/i = 1, i <= user.contents.len, i++)

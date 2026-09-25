@@ -429,7 +429,7 @@
 	G = gang
 	queue = list()
 	name = "[G] reinforcements gateway"
-	addtimer(CALLBACK(src, .proc/reinforce), max(10, (4500 - world.time)))
+	addtimer(CALLBACK(src, PROC_REF(reinforce)), max(10, (4500 - world.time)))
 	do_sparks(4, TRUE, src)
 	gang.gateways++
 
@@ -479,7 +479,7 @@
 		we = 1
 	if(repeat)
 		cooldown = 250+((we/(rival+we))*100)**2
-		addtimer(CALLBACK(src, .proc/reinforce), cooldown, TIMER_UNIQUE)
+		addtimer(CALLBACK(src, PROC_REF(reinforce)), cooldown, TIMER_UNIQUE)
 	spawn_gangster()
 
 

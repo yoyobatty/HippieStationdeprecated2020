@@ -16,17 +16,17 @@
 /obj/item/pickup(mob/user)
 	..()
 	if (pickup_sound || dropped_sound)
-		addtimer(CALLBACK(src, .proc/try_play_interact_sound, user), 1)
+		addtimer(CALLBACK(src, PROC_REF(try_play_interact_sound), user), 1)
 
 /obj/item/dropped(mob/user)
 	..()
 	if (pickup_sound || dropped_sound)
-		addtimer(CALLBACK(src, .proc/try_play_interact_sound, user), 1)
+		addtimer(CALLBACK(src, PROC_REF(try_play_interact_sound), user), 1)
 
 /obj/item/equipped(mob/user, slot)
 	..()
 	if (pickup_sound || dropped_sound)
-		addtimer(CALLBACK(src, .proc/try_play_interact_sound, user), 1)
+		addtimer(CALLBACK(src, PROC_REF(try_play_interact_sound), user), 1)
 
 // Because of how pickup() and dropped() are handled I need to wait a very short time before finding where the item goes
 // Could also use "on_enter_storage" and "on_exit_storage" but this is for when an item is picked up or dropped (from hand)

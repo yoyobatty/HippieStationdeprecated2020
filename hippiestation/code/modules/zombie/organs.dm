@@ -25,4 +25,4 @@
 		owner.remove_language(/datum/language/common)
 	to_chat(owner ,"<span class='big bold'>You will revive in [DisplayTimeText(revive_time)]. </span>")
 	var/flags = TIMER_STOPPABLE
-	timer_id = addtimer(CALLBACK(src, .proc/zombify), revive_time, flags)
+	timer_id = addtimer(CALLBACK(src, PROC_REF(zombify)), revive_time, flags)

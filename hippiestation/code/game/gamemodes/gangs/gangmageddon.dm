@@ -108,8 +108,8 @@
 	for(var/mob/living/M in GLOB.player_list)
 		if(!M.mind.has_antag_datum(/datum/antagonist/gang))
 			M.mind.add_antag_datum(/datum/antagonist/vigilante)
-	addtimer(CALLBACK(GLOBAL_PROC, .proc/priority_announce, "Excessive costs associated with lawsuits from employees injured by Security and Synthetics have compelled us to re-evaluate the personnel budget for new stations. Accordingly, this station will be expected to operate without Security or Synthetic assistance. In the event that criminal enterprises seek to exploit this situation, we have implanted all crew with a device that will assist and incentivize the removal of all contraband and criminals.", "Nanotrasen Board of Directors"), 8 SECONDS)
-	addtimer(CALLBACK(src, .proc/vigilante_vengeance), rand(12 MINUTES, 17 MINUTES))
+	addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(priority_announce), "Excessive costs associated with lawsuits from employees injured by Security and Synthetics have compelled us to re-evaluate the personnel budget for new stations. Accordingly, this station will be expected to operate without Security or Synthetic assistance. In the event that criminal enterprises seek to exploit this situation, we have implanted all crew with a device that will assist and incentivize the removal of all contraband and criminals.", "Nanotrasen Board of Directors"), 8 SECONDS)
+	addtimer(CALLBACK(src, PROC_REF(vigilante_vengeance)), rand(12 MINUTES, 17 MINUTES))
 
 /datum/game_mode/hell_march/proc/cleanup(area/target)
 	if(target)
@@ -167,7 +167,7 @@
 			finalists += pick_n_take(candidates)
 	else
 		message_admins("No ghosts were willing to join the posse")
-		addtimer(CALLBACK(src, .proc/vigilante_vengeance), rand(3 MINUTES, 5 MINUTES))
+		addtimer(CALLBACK(src, PROC_REF(vigilante_vengeance)), rand(3 MINUTES, 5 MINUTES))
 		return
 	for(var/i in 1 to finalists.len)
 		var/mob/living/carbon/human/character = new(src)
@@ -182,7 +182,7 @@
 		character.mind.add_antag_datum(/datum/antagonist/vigilante)
 		character.put_in_l_hand(new /obj/item/flashlight/flare/torch(character))
 		character.equip_to_slot_or_del(new /obj/item/clothing/suit/armor/vest/alt(character), ITEM_SLOT_OCLOTHING)
-	addtimer(CALLBACK(src, .proc/vigilante_vengeance), rand(12 MINUTES, 17 MINUTES))
+	addtimer(CALLBACK(src, PROC_REF(vigilante_vengeance)), rand(12 MINUTES, 17 MINUTES))
 
 /obj/item/soap/vigilante
 	name = "cleaning rag"

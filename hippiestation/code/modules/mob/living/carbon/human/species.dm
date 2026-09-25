@@ -18,7 +18,7 @@
 			return
 
 	hurt_sound_cd = world.time + 30
-	addtimer(CALLBACK(src, .proc/play_hurt_sound, H), 5)
+	addtimer(CALLBACK(src, PROC_REF(play_hurt_sound), H), 5)
 
 /datum/species/proc/play_hurt_sound(mob/living/carbon/human/H)
 	// The sound frequency is set to 11,025 and I want to vary it by 25% both ways

@@ -14,7 +14,7 @@
 				has_stando = TRUE
 				jojo.forceMove(current)
 				jojo.revive()
-				jojo.RegisterSignal(current, COMSIG_MOVABLE_MOVED, /mob/living/simple_animal/hostile/guardian.proc/OnMoved)
+				jojo.RegisterSignal(current, COMSIG_MOVABLE_MOVED, TYPE_PROC_REF(/mob/living/simple_animal/hostile/guardian, OnMoved))
 				var/mob/gost = jojo.grab_ghost(TRUE)
 				if(gost)
 					jojo.ckey = gost.ckey

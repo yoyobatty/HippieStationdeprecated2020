@@ -145,12 +145,12 @@
 	ntimes--
 	reagents.trans_to(E, REAGENTS_PER_EFFECT)
 	do_move(E, target)
-	addtimer(CALLBACK(src, .proc/generate_effect, ntimes), MOVE)
+	addtimer(CALLBACK(src, PROC_REF(generate_effect), ntimes), MOVE)
 
 /datum/effect_system/water_cannon/proc/do_move(obj/effect/particle_effect/water_cannon/E, atom/target) // cache the target, it may change otherwise
 	if(get_turf(E) != get_turf(target))
 		if(step_towards(E, target))
-			addtimer(CALLBACK(src, .proc/do_move, E, target), MOVE)
+			addtimer(CALLBACK(src, PROC_REF(do_move), E, target), MOVE)
 			return
 	E.apply_reagents(get_turf(E))
 	total_effects--

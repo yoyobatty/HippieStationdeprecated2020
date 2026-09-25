@@ -337,7 +337,7 @@
 				jumper.dir = WEST
 				sleep(1)
 				jumper.loc = T
-				addtimer(CALLBACK(src, .proc/dive, jumper), 10)
+				addtimer(CALLBACK(src, PROC_REF(dive), jumper), 10)
 
 /obj/structure/pool/Lboard/proc/dive(mob/living/carbon/jumper)
 	switch(rand(1, 100))
@@ -404,7 +404,7 @@
 				var/atom/throw_target = get_edge_target_turf(src, dir)
 				jumper.throw_at(throw_target, 6, 1)
 	jumper.update_mobility()
-	addtimer(CALLBACK(src, .proc/togglejumping), 35)
+	addtimer(CALLBACK(src, PROC_REF(togglejumping)), 35)
 
 /obj/structure/pool/Lboard/proc/togglejumping()
 	jumping = FALSE

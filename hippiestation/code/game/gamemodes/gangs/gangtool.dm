@@ -188,13 +188,13 @@
 	gang.message_gangtools("[user] is attempting to recall the emergency shuttle.")
 	recalling = TRUE
 	to_chat(user, "<span class='info'>[icon2html(src, loc)]Generating shuttle recall order with codes retrieved from last call signal...</span>")
-	addtimer(CALLBACK(src, .proc/recall2, user), rand(100,300))
+	addtimer(CALLBACK(src, PROC_REF(recall2), user), rand(100,300))
 
 /obj/item/gangtool/proc/recall2(mob/user)
 	if(!recallchecks(user))
 		return
 	to_chat(user, "<span class='info'>[icon2html(src, loc)]Shuttle recall order generated. Accessing station long-range communication arrays...</span>")
-	addtimer(CALLBACK(src, .proc/recall3, user), rand(100,300))
+	addtimer(CALLBACK(src, PROC_REF(recall3), user), rand(100,300))
 
 /obj/item/gangtool/proc/recall3(mob/user)
 	if(!recallchecks(user))
@@ -209,7 +209,7 @@
 		recalling = FALSE
 		return
 	to_chat(user, "<span class='info'>[icon2html(src, loc)]Comm arrays accessed. Broadcasting recall signal...</span>")
-	addtimer(CALLBACK(src, .proc/recallfinal, user), rand(100,300))
+	addtimer(CALLBACK(src, PROC_REF(recallfinal), user), rand(100,300))
 
 /obj/item/gangtool/proc/recallfinal(mob/user)
 	if(!recallchecks(user))
@@ -382,7 +382,7 @@
 
 /obj/item/gangtool/hell_march/vigilante/Initialize()
 	. = ..()
-	addtimer(CALLBACK(src, .proc/earnings), 1500, TIMER_UNIQUE)
+	addtimer(CALLBACK(src, PROC_REF(earnings)), 1500, TIMER_UNIQUE)
 
 /obj/item/gangtool/hell_march/vigilante/proc/earnings()
 	var/all_territory = list()
@@ -398,7 +398,7 @@
 	for(var/obj/item/implant/mindshield/I in H.implants)
 		points += 3
 		to_chat(H, "<span class='notice'>You have also received 3 influence for possessing a mindshield implant.</span>")
-	addtimer(CALLBACK(src, .proc/earnings), 1500, TIMER_UNIQUE)
+	addtimer(CALLBACK(src, PROC_REF(earnings)), 1500, TIMER_UNIQUE)
 
 /obj/item/gangtool/hell_march/vigilante/ui_interact(mob/user)
 	if(user.mind.has_antag_datum(/datum/antagonist/gang))

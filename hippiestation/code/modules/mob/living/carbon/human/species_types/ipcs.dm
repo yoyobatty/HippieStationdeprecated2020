@@ -13,7 +13,7 @@
 
 /datum/species/ipc/on_species_gain(mob/living/carbon/human/C, datum/species/old_species, pref_load)
 	C.draw_hippie_parts()
-	RegisterSignal(C, COMSIG_MOB_SAY, .proc/handle_speech)
+	RegisterSignal(C, COMSIG_MOB_SAY, PROC_REF(handle_speech))
 	. = ..()
 
 /datum/species/ipc/on_species_loss(mob/living/carbon/human/C, datum/species/new_species, pref_load)

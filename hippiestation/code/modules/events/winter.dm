@@ -35,7 +35,7 @@ GLOBAL_LIST_INIT(winter_blacklisted_tiles, typecacheof(list(/turf/open/floor/eng
 					R.custom_price = (R.custom_price || V.default_price) * 2
 	message_admins("[key_name_admin(usr)] has started winter.")
 	log_admin("[key_name(usr)] has started winter.")
-	GLOB.winter_timer = addtimer(CALLBACK(GLOBAL_PROC, .proc/ProgressWinter), 15 SECONDS, TIMER_STOPPABLE|TIMER_UNIQUE)
+	GLOB.winter_timer = addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(ProgressWinter)), 15 SECONDS, TIMER_STOPPABLE|TIMER_UNIQUE)
 
 /proc/StopWinter()
 	if(!GLOB.winter)	
@@ -77,4 +77,4 @@ GLOBAL_LIST_INIT(winter_blacklisted_tiles, typecacheof(list(/turf/open/floor/eng
 			env.temperature -= deltaTemperature
 			O.air_update_turf()
 			O.temperature = env.temperature
-	GLOB.winter_timer = addtimer(CALLBACK(GLOBAL_PROC, .proc/ProgressWinter), 15 SECONDS, TIMER_STOPPABLE|TIMER_UNIQUE)
+	GLOB.winter_timer = addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(ProgressWinter)), 15 SECONDS, TIMER_STOPPABLE|TIMER_UNIQUE)

@@ -40,7 +40,7 @@
 
 /mob/living/simple_animal/hostile/true_changeling/adminbus/gibs/ComponentInitialize()
 	. = ..()
-	RegisterSignal(src, COMSIG_COMPONENT_CLEAN_ACT, .proc/hurt_gibs)
+	RegisterSignal(src, COMSIG_COMPONENT_CLEAN_ACT, PROC_REF(hurt_gibs))
 
 /mob/living/simple_animal/hostile/true_changeling/adminbus/gibs/Move(atom/newloc, direct)
 	. = ..()
@@ -111,7 +111,7 @@
 
 			loc = exit_vent
 			var/travel_time = round(get_dist(loc, exit_vent.loc) / 2)
-			addtimer(CALLBACK(src, .proc/exit_vents), travel_time) //come out at exit vent in 2 to 20 seconds
+			addtimer(CALLBACK(src, PROC_REF(exit_vents)), travel_time) //come out at exit vent in 2 to 20 seconds
 
 
 		if(world.time > min_next_vent && prob(GIB_VENT_CHANCE) && !entry_vent && !in_vent && !target) //small chance to go into a vent

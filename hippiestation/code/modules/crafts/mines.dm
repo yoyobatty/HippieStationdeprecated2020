@@ -156,7 +156,7 @@
 		victim.emote("spin")
 		victim.emote("snap")
 		victim.visible_message("<span class ='danger'>[victim] begins to uncontrollably DANCE!</span>")
-		addtimer(CALLBACK(src, .proc/discoDance, victim), 1)
+		addtimer(CALLBACK(src, PROC_REF(discoDance), victim), 1)
 
 /obj/item/mine/disco/proc/discoDance(mob/living/victim)
 	var/i
@@ -181,7 +181,7 @@
 	icon_state = null
 	update_icon()
 	mouse_opacity = 0
-	addtimer(CALLBACK(src, .proc/delete_self), 300) //30 seconds to account for mega lag
+	addtimer(CALLBACK(src, PROC_REF(delete_self)), 300) //30 seconds to account for mega lag
 
 /obj/item/mine/disco/proc/delete_self()
 	qdel(src)

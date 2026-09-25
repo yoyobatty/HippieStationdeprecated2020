@@ -97,7 +97,7 @@ GLOBAL_LIST_EMPTY(pocket_mirrors)
 		QDEL_IN(M, 3 SECONDS)
 	var/pocket_z = get_pocket_z()
 	if(pocket_z)
-		addtimer(CALLBACK(GLOBAL_PROC, .proc/update_pocket_mirror, pocket_z, manifested_at_x, manifested_at_y, manifested_at_z), 3.5 SECONDS)
+		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(update_pocket_mirror), pocket_z, manifested_at_x, manifested_at_y, manifested_at_z), 3.5 SECONDS)
 	addtimer(VARSET_CALLBACK(src, manifesting, FALSE), 3 SECONDS)
 
 /datum/guardian_ability/major/special/pocket/proc/check_if_teleport(mob/living/L)
@@ -113,7 +113,7 @@ GLOBAL_LIST_EMPTY(pocket_mirrors)
 	ADD_TRAIT(L, TRAIT_NOSOFTCRIT, GUARDIAN_TRAIT)
 	ADD_TRAIT(L, TRAIT_NODEATH, GUARDIAN_TRAIT)
 	if(!isguardian(L))
-		RegisterSignal(L, COMSIG_MOVABLE_MOVED, .proc/check_if_teleport)
+		RegisterSignal(L, COMSIG_MOVABLE_MOVED, PROC_REF(check_if_teleport))
 	for(var/mob/living/simple_animal/hostile/guardian/G in L.hasparasites())
 		G.status_flags |= GODMODE
 

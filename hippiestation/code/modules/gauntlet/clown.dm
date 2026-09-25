@@ -157,7 +157,7 @@
 		initial_loc = user.loc
 		i = 1
 		user.spin(175, 1)
-		INVOKE_ASYNC(src, .proc/setup_sparkles, user)
+		INVOKE_ASYNC(src, PROC_REF(setup_sparkles), user)
 		while(do_after(user, 10, target = clown_stone))
 			user.spin(20, 1)
 			user.SpinAnimation(7,1)
@@ -376,7 +376,7 @@
 	user.visible_message("<span class='danger bold'>[user] summons the THANOS CAR!</span>")
 	var/obj/vehicle/sealed/car/thanos/thanos_car = new(get_turf(user))
 	thanos_car.mob_forced_enter(user, TRUE)
-	addtimer(CALLBACK(thanos_car, /obj/vehicle/sealed/car/thanos.proc/ByeBye), 15 SECONDS)
+	addtimer(CALLBACK(thanos_car, TYPE_PROC_REF(/obj/vehicle/sealed/car/thanos, ByeBye)), 15 SECONDS)
 	
 
 ///////////////////////////////////////

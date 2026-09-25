@@ -121,8 +121,8 @@ GLOBAL_VAR_INIT(telescroll_time, 0)
 /obj/item/badmin_gauntlet/proc/DoSnap(mob/living/snapee)
 	var/dust_time = rand(5 SECONDS, 10 SECONDS)
 	if(prob(25))
-		addtimer(CALLBACK(GLOBAL_PROC, .proc/to_chat, snapee, "<span class='danger'>You don't feel so good...</span>"), dust_time - 3 SECONDS)
-	addtimer(CALLBACK(src, .proc/Dustify, snapee), dust_time)
+		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(to_chat), snapee, "<span class='danger'>You don't feel so good...</span>"), dust_time - 3 SECONDS)
+	addtimer(CALLBACK(src, PROC_REF(Dustify), snapee), dust_time)
 
 /obj/item/badmin_gauntlet/proc/Dustify(mob/living/victim)
 	var/dust_sound = pick(
@@ -154,8 +154,8 @@ GLOBAL_VAR_INIT(telescroll_time, 0)
 	for(var/mob/M in GLOB.mob_list)
 		if(isliving(M))
 			var/mob/living/L = M
-			addtimer(CALLBACK(L, /mob/living.proc/overlay_fullscreen, "thanos_snap", /obj/screen/fullscreen/thanos_snap), 10)
-			addtimer(CALLBACK(L, /mob/living.proc/clear_fullscreen, "thanos_snap"), 35)
+			addtimer(CALLBACK(L, TYPE_PROC_REF(/mob/living, overlay_fullscreen), "thanos_snap", /obj/screen/fullscreen/thanos_snap), 10)
+			addtimer(CALLBACK(L, TYPE_PROC_REF(/mob/living, clear_fullscreen), "thanos_snap"), 35)
 	var/list/eligible_mobs = list()	
 	for(var/mob/living/L in GLOB.mob_living_list)
 		if(L.stat == DEAD || !L.ckey || L == snapper)
@@ -167,7 +167,7 @@ GLOBAL_VAR_INIT(telescroll_time, 0)
 		var/mob/living/L = pick_n_take(eligible_mobs)
 		DoSnap(L)
 	_CallRevengers()
-	INVOKE_ASYNC(src, .proc/TotallyFine)
+	INVOKE_ASYNC(src, PROC_REF(TotallyFine))
 	log_game("[key_name(snapper)] snapped, wiping out [players_to_wipe] players.")
 	message_admins("[key_name(snapper)] snapped, wiping out [players_to_wipe] players.")
 
@@ -366,7 +366,7 @@ GLOBAL_VAR_INIT(telescroll_time, 0)
 			if(FullyAssembled() && !GLOB.gauntlet_snapped)
 				user.visible_message("<span class='userdanger'>A massive surge of power begins to course through [user]. You feel as though your very existence is in danger!</span>",
 					"<span class='danger bold'>The power from all the Badmin Stones begin to course through you!</span>")
-				INVOKE_ASYNC(src, .proc/FullPowerSequence, user)
+				INVOKE_ASYNC(src, PROC_REF(FullPowerSequence), user)
 			return TRUE
 	else if(istype(target, /obj/mecha))
 		. = TRUE
@@ -587,8 +587,8 @@ GLOBAL_VAR_INIT(telescroll_time, 0)
 							AI.move_resist = MOVE_FORCE_NORMAL
 							new /obj/effect/DPtarget(get_turf(pick(bridge_tiles)), ai_pod)
 					GLOB.telescroll_time = world.time + 10 MINUTES
-					addtimer(CALLBACK(GLOBAL_PROC, .proc/to_chat, user, "<span class='notice bold'>You can now teleport to the station.</span>"), 10 MINUTES)
-					addtimer(CALLBACK(src, .proc/_CallRevengers), 25 MINUTES)
+					addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(to_chat), user, "<span class='notice bold'>You can now teleport to the station.</span>"), 10 MINUTES)
+					addtimer(CALLBACK(src, PROC_REF(_CallRevengers)), 25 MINUTES)
 					CONFIG_SET(number/shuttle_refuel_delay, max(CONFIG_GET(number/shuttle_refuel_delay), 30 MINUTES))
 					to_chat(user, "<span class='notice bold'>You need to wait 10 minutes before teleporting to the station.</span>")
 				to_chat(user, "<span class='notice bold'>You can click on the pinpointer at the top right to track a stone.</span>")
@@ -636,7 +636,7 @@ GLOBAL_VAR_INIT(telescroll_time, 0)
 	if(GLOB.revengers_autocalled)
 		return
 	message_admins("Revengers ERT being auto-called in 15 seconds (<a href='?src=[REF(src)];cancel=1'>CANCEL</a>)")
-	addtimer(CALLBACK(src, .proc/CallRevengers), 15 SECONDS)
+	addtimer(CALLBACK(src, PROC_REF(CallRevengers)), 15 SECONDS)
 
 /obj/item/badmin_gauntlet/proc/CallRevengers()
 	if(ert_canceled)
@@ -730,7 +730,7 @@ GLOBAL_VAR_INIT(telescroll_time, 0)
 			if(FullyAssembled() && !GLOB.gauntlet_snapped)
 				user.visible_message("<span class='userdanger'>A massive surge of power begins to course through [user], stunning them in place!</span>",
 					"<span class='danger bold'>The power from all the Badmin Stones begin to course through you!</span>")
-				INVOKE_ASYNC(src, .proc/FullPowerSequence, user)
+				INVOKE_ASYNC(src, PROC_REF(FullPowerSequence), user)
 			return
 	return ..()
 
@@ -768,7 +768,7 @@ GLOBAL_VAR_INIT(telescroll_time, 0)
 
 /obj/effect/proc_holder/spell/self/infinity/shockwave/cast(list/targets, mob/user)
 	user.visible_message("<span class='danger'>[user] stomps down!</span>")
-	INVOKE_ASYNC(src, .proc/shockwave, user, get_turf(user))
+	INVOKE_ASYNC(src, PROC_REF(shockwave), user, get_turf(user))
 
 /obj/effect/proc_holder/spell/self/infinity/shockwave/proc/shockwave(mob/user, turf/center)
 	for(var/i = 1 to range)
@@ -878,7 +878,7 @@ GLOBAL_VAR_INIT(telescroll_time, 0)
 		C.super_mario_star = FALSE
 		ADD_TRAIT(user, TRAIT_IGNORESLOWDOWN, YEET_TRAIT)
 		user.visible_message("<span class='danger'>[user] charges!</span>")
-		addtimer(CALLBACK(src, .proc/done, C), 50)
+		addtimer(CALLBACK(src, PROC_REF(done), C), 50)
 
 /obj/effect/proc_holder/spell/self/infinity/gauntlet_bullcharge/proc/done(mob/living/carbon/user)
 	user.mario_star = FALSE
@@ -906,7 +906,7 @@ GLOBAL_VAR_INIT(telescroll_time, 0)
 		to_chat(user, "<span class='warning'>You can't jump here!</span>")
 		revert_cast(user)
 		return
-	INVOKE_ASYNC(src, .proc/do_jaunt, user)
+	INVOKE_ASYNC(src, PROC_REF(do_jaunt), user)
 
 /obj/effect/proc_holder/spell/self/infinity/gauntlet_jump/proc/do_jaunt(mob/living/target)
 	target.notransform = TRUE

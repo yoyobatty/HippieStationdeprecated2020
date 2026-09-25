@@ -25,12 +25,12 @@
 			if(!(M.movement_type & FLOATING))
 				M.forceMove(src)
 				trap_flush()
-				addtimer(CALLBACK(src, .proc/close), TIME_AUTO_CLOSE_MOB)
+				addtimer(CALLBACK(src, PROC_REF(close)), TIME_AUTO_CLOSE_MOB)
 		for(var/obj/item/O in loc)
 			if(!O.throwing || !O.anchored)
 				O.forceMove(src)
 				trap_flush()
-	addtimer(CALLBACK(src, .proc/close), TIME_AUTO_CLOSE)
+	addtimer(CALLBACK(src, PROC_REF(close)), TIME_AUTO_CLOSE)
 	return 1
 
 /obj/machinery/disposal/trapdoor/proc/close()
@@ -55,7 +55,7 @@
 				return
 			M.forceMove(src)
 			trap_flush()
-			addtimer(CALLBACK(src, .proc/close), TIME_AUTO_CLOSE_MOB)
+			addtimer(CALLBACK(src, PROC_REF(close)), TIME_AUTO_CLOSE_MOB)
 			return
 		if(istype(AM, /obj/item))
 			var/obj/item/O = AM
@@ -88,7 +88,7 @@
 				"<span class='notice'>You dive into [name].</span>")
 			sleep(5)
 			trap_flush()
-			addtimer(CALLBACK(src, .proc/close), TIME_AUTO_CLOSE_MOB)
+			addtimer(CALLBACK(src, PROC_REF(close)), TIME_AUTO_CLOSE_MOB)
 		else
 			user.visible_message("[user] is attempting to step on the edge of [name].", \
 				"<span class='notice'>You start attempting to step on the edge of [name]...</span>")
@@ -115,7 +115,7 @@
 				user.forceMove(src)
 				trap_flush()
 				user.Stun(10)
-				addtimer(CALLBACK(src, .proc/close), TIME_AUTO_CLOSE_MOB)
+				addtimer(CALLBACK(src, PROC_REF(close)), TIME_AUTO_CLOSE_MOB)
 			else
 				target.forceMove(src.loc)
 				user.visible_message("[user] steps on the edge of [name].", \

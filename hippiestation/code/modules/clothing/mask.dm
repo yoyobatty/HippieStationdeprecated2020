@@ -54,7 +54,7 @@
 			qdel(src)
 		else if(can_cluwne)
 			can_cluwne = FALSE
-			addtimer(CALLBACK(src, .proc/re_cluwne), CLUWNEDOWN)
+			addtimer(CALLBACK(src, PROC_REF(re_cluwne)), CLUWNEDOWN)
 
 /obj/item/clothing/mask/hippie/cluwne/happy_cluwne/proc/re_cluwne()
 	if(!can_cluwne)

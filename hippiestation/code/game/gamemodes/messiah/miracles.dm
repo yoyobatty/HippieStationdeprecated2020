@@ -24,7 +24,7 @@ Jesus icons by rumpelgeist and FurryMcFlurry
 	if(target.reagents)
 		target.reagents.add_reagent(/datum/reagent/consumable/ethanol/wine,rand(25,100))
 	if(prob(100*dist/range))
-		addtimer(CALLBACK(target, /mob/living/proc/apply_effect, rand(5,20), UNCONSCIOUS), rand(10,60))
+		addtimer(CALLBACK(target, TYPE_PROC_REF(/mob/living, apply_effect), rand(5,20), UNCONSCIOUS), rand(10,60))
 	target.visible_message("<span class='danger'>Some of [target]'s blood turns into wine!</span>", \
 							"<span class='userdanger'>Some of your blood turns into wine!</span>")
 
@@ -118,7 +118,7 @@ Jesus icons by rumpelgeist and FurryMcFlurry
 /obj/effect/proc_holder/spell/self/jesus_ascend/cast(list/targets,mob/living/user = usr)
 	user.ascend_animation()
 	user.revive(full_heal = TRUE)
-	addtimer(CALLBACK(user, /mob/proc/jesus_unascend), 20)
+	addtimer(CALLBACK(user, TYPE_PROC_REF(/mob, jesus_unascend)), 20)
 
 /mob/living/proc/ascend_animation(time = 20)
 	dir = 2

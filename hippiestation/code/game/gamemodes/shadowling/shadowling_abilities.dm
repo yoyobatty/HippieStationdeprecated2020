@@ -711,7 +711,7 @@
 /obj/effect/proc_holder/spell/self/lesser_shadow_walk/cast(mob/living/carbon/human/user)
 	user.visible_message("<span class='warning'>[user] suddenly fades away!</span>", "<span class='shadowling'>You veil yourself in darkness, making you harder to see.</span>")
 	user.alpha = 10
-	addtimer(CALLBACK(src, .proc/reappear, user), 40)
+	addtimer(CALLBACK(src, PROC_REF(reappear), user), 40)
 
 
 

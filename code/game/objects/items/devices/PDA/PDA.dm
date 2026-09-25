@@ -1095,7 +1095,7 @@ GLOBAL_LIST_EMPTY(PDAs)
 	set_light(5, fpower, fcolor) //5 is the range of the light... I think.
 	add_atom_colour("#[fcolor]", FIXED_COLOUR_PRIORITY)
 	update_icon()
-	TimerID = addtimer(CALLBACK(src, .proc/DiscoFever), 5, TIMER_STOPPABLE)  //Call ourselves every 0.5 seconds to change colors
+	TimerID = addtimer(CALLBACK(src, PROC_REF(DiscoFever)), 5, TIMER_STOPPABLE)  //Call ourselves every 0.5 seconds to change colors
 
 /obj/item/pda/proc/playMusic(mob/living/user)
 	if(istype(src.loc, /mob/living))
@@ -1112,7 +1112,7 @@ GLOBAL_LIST_EMPTY(PDAs)
 
 /obj/item/pda/dropped(mob/user)
 	..()
-	addtimer(CALLBACK(src, .proc/droppedStopMusic, user), 3)
+	addtimer(CALLBACK(src, PROC_REF(droppedStopMusic), user), 3)
 
 /obj/item/pda/proc/droppedStopMusic(mob/user)
 	for(var/i = 1, i <= user.contents.len, i++)

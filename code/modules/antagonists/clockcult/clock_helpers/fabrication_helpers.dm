@@ -237,7 +237,7 @@
 	fabricator.repairing = src
 	while(fabricator && user && src)
 		if(!do_after(user, repair_values["healing_for_cycle"] * fabricator.speed_multiplier, target = src, \
-			extra_checks = CALLBACK(fabricator, /obj/item/clockwork/replica_fabricator.proc/fabricator_repair_checks, repair_values, src, user, TRUE)))
+			extra_checks = CALLBACK(fabricator, TYPE_PROC_REF(/obj/item/clockwork/replica_fabricator, fabricator_repair_checks), repair_values, src, user, TRUE)))
 			break
 		obj_integrity = clamp(obj_integrity + repair_values["healing_for_cycle"], 0, max_integrity)
 		adjust_clockwork_power(-repair_values["power_required"])
@@ -259,7 +259,7 @@
 	fabricator.repairing = src
 	while(fabricator && user && src)
 		if(!do_after(user, repair_values["healing_for_cycle"] * fabricator.speed_multiplier, target = src, \
-			extra_checks = CALLBACK(fabricator, /obj/item/clockwork/replica_fabricator.proc/fabricator_repair_checks, repair_values, src, user, TRUE)))
+			extra_checks = CALLBACK(fabricator, TYPE_PROC_REF(/obj/item/clockwork/replica_fabricator, fabricator_repair_checks), repair_values, src, user, TRUE)))
 			break
 		fabricator_heal_tick(repair_values["healing_for_cycle"])
 		adjust_clockwork_power(-repair_values["power_required"])

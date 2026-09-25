@@ -53,7 +53,7 @@
 		addtimer(CALLBACK(program, "process"), 5)
 
 	usr.set_machine(src)
-	addtimer(CALLBACK(src, .proc/updateDialog), 5)
+	addtimer(CALLBACK(src, PROC_REF(updateDialog)), 5)
 
 /obj/machinery/embedded_controller/process()
 	if(program)

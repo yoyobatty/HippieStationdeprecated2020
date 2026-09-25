@@ -149,7 +149,7 @@ obj/item/clothing/gloves/syndielad/Destroy()
 			to_chat(user, "<span class = 'notice'>No targets found.</span>")
 			syndilad_pinactive = FALSE
 			return FALSE
-		var/chosen = show_radial_menu(user, wearer, radial_list, custom_check = CALLBACK(src, .proc/check_menu, user))
+		var/chosen = show_radial_menu(user, wearer, radial_list, custom_check = CALLBACK(src, PROC_REF(check_menu), user))
 		if(!check_menu(user))
 			return
 		if(chosen)
@@ -184,7 +184,7 @@ obj/item/clothing/gloves/syndielad/Destroy()
 		message_admins("[ADMIN_LOOKUPFLW(user)] rigged a Syndie-Lad to explode!")
 		log_game("[key_name(user)] rigged a Syndie-Lad to explode at [AREACOORD(user)]")
 		notify_ghosts("[user] has set a Syndie-Lad to explode!", source = src, action = NOTIFY_ORBIT)
-		addtimer(CALLBACK(src, .proc/kersplode), 100)
+		addtimer(CALLBACK(src, PROC_REF(kersplode)), 100)
 		sleep(0.5)
 		user.visible_message("<span class='warning'>[src] beeps ominously!</span>")
 		playsound(user, 'sound/items/timer.ogg', 30, 0)
@@ -246,7 +246,7 @@ obj/item/clothing/gloves/syndielad/Destroy()
 	"poweroff" = image(icon = 'icons/mob/radial.dmi', icon_state = "cable_invalid"),
 	"detonate" = image(icon = 'hippiestation/icons/mob/actions/syndielad.dmi', icon_state = "detonate"),
 	)
-	var/choice = show_radial_menu(user,user, choices, custom_check = CALLBACK(src, .proc/check_menu, user), require_near = TRUE)
+	var/choice = show_radial_menu(user,user, choices, custom_check = CALLBACK(src, PROC_REF(check_menu), user), require_near = TRUE)
 	if(!check_menu(user) || !syndilad_ready)
 		return
 	switch(choice)
