@@ -1,4 +1,3 @@
-#if DM_VERSION > 512 && DM_BUILD >= 1506
 /obj/effect/portal
 	vis_flags = VIS_HIDE
 	var/obj/effect/portal_contents/vcontents
@@ -55,4 +54,3 @@
 	filters += filter(type="blur", size = 1)
 	filters += filter(type="ripple", size = 2, radius = 1, falloff = 1)
 	animate(filters[3], time = 2.5 SECONDS, loop = -1, easing = LINEAR_EASING, radius = 16)
-#endif

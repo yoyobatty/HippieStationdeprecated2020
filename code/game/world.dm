@@ -1,5 +1,4 @@
 #define RESTART_COUNTER_PATH "data/round_counter.txt"
-#define EXTOOLS (world.system_type == UNIX ? "byond-extools" : "byond-extools.dll")
 
 GLOBAL_VAR(restart_counter)
 GLOBAL_VAR_INIT(tgs_initialized, FALSE)
@@ -7,19 +6,10 @@ GLOBAL_VAR_INIT(tgs_initialized, FALSE)
 //This happens after the Master subsystem new(s) (it's a global datum)
 //So subsystems globals exist, but are not initialised
 /world/New()
-	// byond-extools hooks BYOND's internal engine functions by name; the DLL shipped in this repo
-	// predates BYOND 516 and no longer matches those internals, so loading it unconditionally spams
-	// "Failed to locate ..." popups on every boot. Only load it if EXTOOLS_DLL is explicitly set
-	// (e.g. to a build known to support the running BYOND version), matching enable_debugger() below.
-	if(world.GetConfig("env", "EXTOOLS_DLL") && fexists(EXTOOLS))
-		call_ext(EXTOOLS, "cleanup")()
-		call_ext(EXTOOLS, "maptick_initialize")()
 	enable_debugger()
 
 	//Early profile for auto-profiler - will be stopped on profiler init if necessary.
-#if DM_VERSION >= 513 && DM_BUILD >= 1506
 	world.Profile(PROFILE_START)
-#endif
 
 	log_world("World loaded at [time_stamp()]!")
 

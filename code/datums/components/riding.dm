@@ -166,6 +166,7 @@
 			return
 		if(!Process_Spacemove(direction) || !isturf(AM.loc))
 			return
+		AM.set_glide_size(DELAY_TO_GLIDE_SIZE(vehicle_move_delay * ((direction & (direction - 1)) ? 2 : 1)))
 		step(AM, direction)
 
 		if((direction & (direction - 1)) && (AM.loc == next))		//moved diagonally

@@ -413,15 +413,29 @@ SUBSYSTEM_DEF(demo)
 	msg += "}"
 	..(msg)
 
+// hippie -- init_order is deliberately last (see comment above), so the mark_* procs can't rely on
+// Initialize() having set `disabled` yet. Check the config directly instead, which avoids wasted
+// list-building throughout atom init when demo recording is off. Atoms created before config.Load()
+// (world/New) keep being tracked, since we can't know yet. Once the config is readable and says demos
+// are off, `disabled` is set so every later call short-circuits on the var alone.
+/datum/controller/subsystem/demo/proc/recording_off()
+	if(disabled)
+		return TRUE
+	if(!config?.entries_by_type)
+		return FALSE
+	if(!CONFIG_GET(flag/enable_demo))
+		disabled = TRUE
+	return disabled
+
 /datum/controller/subsystem/demo/proc/mark_turf(turf/T)
-	if(disabled || !CONFIG_GET(flag/enable_demo)) // hippie -- init_order is deliberately last (see comment above), so also check the config directly rather than relying on Initialize() to have set `disabled` yet, avoiding wasted list-building work throughout atom init when demo recording is off
+	if(disabled || recording_off())
 		return
 	if(!isturf(T))
 		return
 	marked_turfs[T] = TRUE
 
 /datum/controller/subsystem/demo/proc/mark_new(atom/movable/M)
-	if(disabled || !CONFIG_GET(flag/enable_demo)) // hippie -- see mark_turf() comment
+	if(disabled || recording_off()) // hippie -- see recording_off()
 		return
 	if(!isobj(M) && !ismob(M))
 		return
@@ -433,7 +447,7 @@ SUBSYSTEM_DEF(demo)
 
 // I can't wait for when TG ports this and they make this a #define macro.
 /datum/controller/subsystem/demo/proc/mark_dirty(atom/movable/M)
-	if(disabled || !CONFIG_GET(flag/enable_demo)) // hippie -- see mark_turf() comment
+	if(disabled || recording_off()) // hippie -- see recording_off()
 		return
 	if(!isobj(M) && !ismob(M))
 		return
@@ -443,7 +457,7 @@ SUBSYSTEM_DEF(demo)
 		marked_dirty[M] = TRUE
 
 /datum/controller/subsystem/demo/proc/mark_destroyed(atom/movable/M)
-	if(disabled || !CONFIG_GET(flag/enable_demo)) // hippie -- see mark_turf() comment
+	if(disabled || recording_off()) // hippie -- see recording_off()
 		return
 	if(!isobj(M) && !ismob(M))
 		return

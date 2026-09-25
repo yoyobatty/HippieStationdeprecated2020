@@ -288,6 +288,13 @@
 //
 ////////////////////////////////////////
 
+/// Sets how fast this atom visually glides between tiles, and passes it on to anything buckled to it.
+/atom/movable/proc/set_glide_size(target = 8)
+	glide_size = target
+	for(var/m in buckled_mobs)
+		var/mob/buckled_mob = m
+		buckled_mob.set_glide_size(target)
+
 /atom/movable/Move(atom/newloc, direct)
 	var/atom/movable/pullee = pulling
 	var/turf/T = loc
@@ -368,6 +375,7 @@
 			//puller and pullee more than one tile away or in diagonal position
 			if(get_dist(src, pulling) > 1 || (moving_diagonally != SECOND_DIAG_STEP && ((pull_dir - 1) & pull_dir)))
 				pulling.moving_from_pull = src
+				pulling.set_glide_size(glide_size) //keep pace with the puller instead of snapping behind them
 				pulling.Move(T, get_dir(pulling, T)) //the pullee tries to reach our previous position
 				pulling.moving_from_pull = null
 			check_pulling()

@@ -66,3 +66,7 @@
 #define MOVESPEED_ID_SHOVE                              "SHOVE"
 #define MOVESPEED_ID_PRONE_DRAGGING                     "PRONE_DRAG"
 #define MOVESPEED_ID_HUMAN_CARRYING                     "HUMAN_CARRY"
+
+/// Glide size (pixels per server tick) that makes a one-tile move animate over exactly `delay` deciseconds,
+/// so movement slides smoothly instead of snapping or stuttering when move speed and glide don't match.
+#define DELAY_TO_GLIDE_SIZE(delay) (world.icon_size / max(ceil((delay) / world.tick_lag), 1))

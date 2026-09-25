@@ -70,6 +70,7 @@ SUBSYSTEM_DEF(garbage)
 		dellog += "Path: [path]"
 		if (I.failures)
 			dellog += "\tFailures: [I.failures]"
+			dellog += "\tMost references still held at a failure: [I.max_refs_on_fail]"
 		dellog += "\tqdel() Count: [I.qdels]"
 		dellog += "\tDestroy() Cost: [I.destroy_time]ms"
 		if (I.hard_deletes)
@@ -161,6 +162,7 @@ SUBSYSTEM_DEF(garbage)
 				var/datum/qdel_item/I = items[type]
 				testing("GC: -- \ref[src] | [type] was unable to be GC'd --")
 				I.failures++
+				I.max_refs_on_fail = max(I.max_refs_on_fail, refcount(D) - 1) // -1 for our own local var D
 			if (GC_QUEUE_HARDDELETE)
 				HardDelete(D)
 				if (MC_TICK_CHECK)
@@ -232,6 +234,7 @@ SUBSYSTEM_DEF(garbage)
 	var/qdels = 0			//Total number of times it's passed thru qdel.
 	var/destroy_time = 0	//Total amount of milliseconds spent processing this type's Destroy()
 	var/failures = 0		//Times it was queued for soft deletion but failed to soft delete.
+	var/max_refs_on_fail = 0	//Highest refcount() seen when a soft delete failed; 1 usually means a single stray reference to hunt down
 	var/hard_deletes = 0 	//Different from failures because it also includes QDEL_HINT_HARDDEL deletions
 	var/hard_delete_time = 0//Total amount of milliseconds spent hard deleting this type.
 	var/no_respect_force = 0//Number of times it's not respected force=TRUE

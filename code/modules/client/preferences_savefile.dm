@@ -5,7 +5,7 @@
 //	You do not need to raise this if you are adding new values that have sane defaults.
 //	Only raise this value when changing the meaning/format/name/layout of an existing value
 //	where you would want the updater procs below to run
-#define SAVEFILE_VERSION_MAX	25
+#define SAVEFILE_VERSION_MAX	26
 
 /*
 SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Carn
@@ -54,6 +54,8 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 						If you had custom hotkeys, you will need to re-configure them!</span>")
 	if(current_version < 25)
 		overhead_chat = TRUE
+	if(current_version < 26 && !clientfps) // hippie -- 0 (sync with the 20fps server tick) was the old default; clients now render at 60 for smoother movement
+		clientfps = initial(clientfps)
 
 /datum/preferences/proc/update_character(current_version, savefile/S)
 	if(current_version < 19)
@@ -192,7 +194,7 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	windowflashing	= sanitize_integer(windowflashing, 0, 1, initial(windowflashing))
 	default_slot	= sanitize_integer(default_slot, 1, max_save_slots, initial(default_slot))
 	toggles			= sanitize_integer(toggles, 0, 65535, initial(toggles))
-	clientfps		= sanitize_integer(clientfps, 0, 1000, 0)
+	clientfps		= sanitize_integer(clientfps, 0, 1000, initial(clientfps))
 	parallax		= sanitize_integer(parallax, PARALLAX_INSANE, PARALLAX_DISABLE, null)
 	ambientocclusion	= sanitize_integer(ambientocclusion, 0, 1, initial(ambientocclusion))
 	auto_fit_viewport	= sanitize_integer(auto_fit_viewport, 0, 1, initial(auto_fit_viewport))

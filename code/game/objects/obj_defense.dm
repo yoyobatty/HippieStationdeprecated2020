@@ -25,7 +25,9 @@
 
 //returns the damage value of the attack after processing the obj's various armor protections
 /obj/proc/run_obj_armor(damage_amount, damage_type, damage_flag = 0, attack_dir, armour_penetration = 0)
-	if(damage_flag == MELEE && damage_amount < damage_deflection)
+	// hippie -- "melee" literal: melee hits pass damage_flag = "melee", but the only MELEE define in scope is
+	// mecha.dm's range bitflag (1), which leaked in here and made damage_deflection never apply to melee at all
+	if(damage_flag == "melee" && damage_amount < damage_deflection)
 		return 0
 	switch(damage_type)
 		if(BRUTE)

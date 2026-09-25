@@ -96,7 +96,7 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 
 	var/list/ignoring = list()
 
-	var/clientfps = 0
+	var/clientfps = 60 // client-side render rate; 0 = sync with world.fps. Costs no server CPU.
 
 	var/parallax
 

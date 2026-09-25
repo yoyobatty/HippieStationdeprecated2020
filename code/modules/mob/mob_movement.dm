@@ -105,6 +105,8 @@
 			direct = newdir
 			n = get_step(L, direct)
 
+	//Match the glide to this move's delay (diagonals take twice as long) before moving, so the step and anything we pull animate smoothly
+	mob.set_glide_size(DELAY_TO_GLIDE_SIZE(add_delay * ((direct & (direct - 1)) ? 2 : 1)))
 	. = ..()
 
 	if((direct & (direct - 1)) && mob.loc == n) //moved diagonally successfully
