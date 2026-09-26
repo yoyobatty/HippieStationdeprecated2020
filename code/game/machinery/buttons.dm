@@ -167,13 +167,10 @@
 
 	playsound(src, pick('hippiestation/sound/halflife/button3.ogg', 'hippiestation/sound/halflife/button4.ogg', 'hippiestation/sound/halflife/button5.ogg', 'hippiestation/sound/halflife/button6.ogg', 'hippiestation/sound/halflife/button7.ogg', 'hippiestation/sound/halflife/button8.ogg', 'hippiestation/sound/halflife/button9.ogg', 'hippiestation/sound/halflife/button10.ogg', 'hippiestation/sound/halflife/button11.ogg'), 100, 0)
 	use_power(5)
-	icon_state = "[skin]1"
+	flick("[skin]1", src)
 
 	if(device)
 		device.pulsed()
-
-
-	addtimer(CALLBACK(src, .proc/update_icon), 15)
 
 /obj/machinery/button/door
 	name = "door button"

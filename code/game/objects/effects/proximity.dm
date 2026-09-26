@@ -79,19 +79,19 @@
 	var/old_checkers_used = min(turfs_len, old_checkers_len)
 
 	//reuse what we can
-	for(var/I in 1 to old_checkers_len)
-		if(I <= old_checkers_used)
-			var/obj/effect/abstract/proximity_checker/pc = checkers_local[I]
-			pc.forceMove(turfs[I])
-		else
-			qdel(checkers_local[I])	//delete the leftovers
+	for(var/I in 1 to old_checkers_used)
+		var/obj/effect/abstract/proximity_checker/pc = checkers_local[I]
+		pc.forceMove(turfs[I])
 
-	if(old_checkers_len < turfs_len)
+	if(old_checkers_len > turfs_len)
+		//delete the leftovers - each takes itself out of checkers (see proximity_checker/Destroy()). This used to
+		//qdel them and then Cut(used + 1, old_len), which stops short of End and kept the last deleted one listed.
+		for(var/pc in checkers_local.Copy(old_checkers_used + 1))
+			qdel(pc)
+	else
 		//create what we lack
 		for(var/I in (old_checkers_used + 1) to turfs_len)
 			checkers_local += new /obj/effect/abstract/proximity_checker(turfs[I], src)
-	else
-		checkers_local.Cut(old_checkers_used + 1, old_checkers_len)
 
 /obj/effect/abstract/proximity_checker
 	invisibility = INVISIBILITY_ABSTRACT
@@ -107,6 +107,8 @@
 		return INITIALIZE_HINT_QDEL
 
 /obj/effect/abstract/proximity_checker/Destroy()
+	if(monitor) // as in tgstation: never leave a deleted checker in its monitor's list, however it got deleted
+		monitor.checkers -= src
 	monitor = null
 	return ..()
 

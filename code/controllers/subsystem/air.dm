@@ -31,6 +31,8 @@ SUBSYSTEM_DEF(air)
 
 	//atmos singletons
 	var/list/gas_reactions = list()
+	/// Gas typepath -> the gas_reactions keyed on that gas, in priority order. See init_gas_reactions_by_key().
+	var/list/gas_reactions_by_key = list()
 	var/list/atmos_gen
 	var/list/planetary = list() //Lets cache static planetary mixes
 
@@ -77,6 +79,7 @@ SUBSYSTEM_DEF(air)
 /datum/controller/subsystem/air/Initialize(timeofday)
 	map_loading = FALSE
 	gas_reactions = init_gas_reactions()
+	gas_reactions_by_key = init_gas_reactions_by_key(gas_reactions)
 	setup_allturfs()
 	setup_atmos_machinery()
 	setup_pipenets()
@@ -171,18 +174,6 @@ SUBSYSTEM_DEF(air)
 		if(state != SS_RUNNING)
 			return
 		cost_highpressure = MC_AVERAGE(cost_highpressure, TICK_DELTA_TO_MS(cached_cost))
-		resumed = FALSE
-		currentpart = SSAIR_HOTSPOTS
-
-	if(currentpart == SSAIR_HOTSPOTS)
-		timer = TICK_USAGE_REAL
-		if(!resumed)
-			cached_cost = 0
-		process_hotspots(delta_time, resumed)
-		cached_cost += TICK_USAGE_REAL - timer
-		if(state != SS_RUNNING)
-			return
-		cost_hotspots = MC_AVERAGE(cost_hotspots, TICK_DELTA_TO_MS(cached_cost))
 		resumed = FALSE
 		currentpart = SSAIR_SUPERCONDUCTIVITY
 

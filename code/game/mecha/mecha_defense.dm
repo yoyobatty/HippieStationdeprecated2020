@@ -172,10 +172,18 @@
 	addtimer(CALLBACK(src, TYPE_PROC_REF(/obj/mecha, restore_equipment)), 3 SECONDS, TIMER_UNIQUE | TIMER_OVERRIDE)
 	equipment_disabled = 1
 
-/obj/mecha/temperature_expose(datum/gas_mixture/air, exposed_temperature, exposed_volume)
-	if(exposed_temperature>max_temperature)
-		log_message("Exposed to dangerous temperature.", LOG_MECHA, color="red")
-		take_damage(5, BURN, 0, 1)
+//hippie edit -- from tgstation/tgstation#55604. Nothing calls temperature_expose() on objects any more, they use the atmos_sensitive element,
+//so the old version of this never fired and mechs took no damage from hot air
+/obj/mecha/ComponentInitialize()
+	. = ..()
+	AddElement(/datum/element/atmos_sensitive)
+
+/obj/mecha/should_atmos_process(datum/gas_mixture/air, exposed_temperature)
+	return exposed_temperature > max_temperature
+
+/obj/mecha/atmos_expose(datum/gas_mixture/air, exposed_temperature)
+	log_message("Exposed to dangerous temperature.", LOG_MECHA, color="red")
+	take_damage(5, BURN, 0, 1)
 
 /obj/mecha/attackby(obj/item/W as obj, mob/user as mob, params)
 

@@ -267,7 +267,8 @@
 
 
 /obj/singularity/proc/eat()
-	for(var/tile in spiral_range_turfs(grav_pull, src))
+	var/list/pullable = list() //hippie edit -- what can be pulled, for the fast pull loop
+	for(var/tile in RANGE_TURFS(grav_pull, src))
 		var/turf/T = tile
 		if(!T || !isturf(loc))
 			continue
@@ -280,9 +281,12 @@
 				var/atom/movable/X = thing
 				if(get_dist(X, src) > consume_range)
 					X.singularity_pull(src, current_size)
+					if(!QDELETED(X) && !X.anchored && !istype(X, /obj/effect)) //hippie edit -- after its own pull effects, since a window is let go by them
+						pullable += X
 				else
 					consume(X)
 			CHECK_TICK
+	set_pull_targets(pullable) //hippie edit
 	return
 
 

@@ -92,6 +92,8 @@ GLOBAL_LIST_INIT(admin_verbs_fun, list(
 	/client/proc/cmd_admin_dress,
 	/client/proc/cmd_admin_gib_self,
 	/client/proc/drop_bomb,
+	/client/proc/cmd_admin_fiery_explosion, /*hippie -- flame front that spreads through oxygen-rich open turfs*/
+	/client/proc/cmd_admin_repair_machine, /*hippie -- fully repairs a damaged machine/obj*/
 	/client/proc/set_dynex_scale,
 	/client/proc/drop_dynex_bomb,
 	/client/proc/cinematic,
@@ -116,6 +118,7 @@ GLOBAL_LIST_INIT(admin_verbs_fun, list(
 	/client/proc/admin_toggle_bot_ai_log, /* hippie -- AI crew milestone 1 */
 	/client/proc/admin_toggle_bot_ai_verbose, /* hippie -- AI crew milestone 1 */
 	/client/proc/admin_assign_captains_id_goal, /* hippie -- AI crew GOAP slice */
+	/client/proc/admin_bot_botany_project, /* hippie -- AI crew botany projects */
 	))
 GLOBAL_PROTECT(admin_verbs_fun)
 GLOBAL_LIST_INIT(admin_verbs_spawn, list(/datum/admins/proc/spawn_atom, /datum/admins/proc/podspawn_atom, /datum/admins/proc/spawn_cargo, /datum/admins/proc/spawn_objasmob, /client/proc/respawn_character, /datum/admins/proc/beaker_panel))

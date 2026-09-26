@@ -31,6 +31,7 @@
 
 /datum/action/proc/link_to(Target)
 	target = Target
+	RegisterSignal(target, COMSIG_PARENT_QDELETING, PROC_REF(clear_ref), override = TRUE)
 
 /datum/action/Destroy()
 	if(owner)
@@ -40,6 +41,15 @@
 	button = null
 	return ..()
 
+/// Signal proc that clears any references based on the owner or target deleting (as in tgstation).
+/// If the owner's deleted, we will simply remove from them, but if the target's deleted, we will self-delete.
+/// Without this an action and its owner/target hold each other in a cycle BYOND can never collect.
+/datum/action/proc/clear_ref(datum/ref)
+	if(ref == owner)
+		Remove(owner)
+	if(ref == target)
+		qdel(src)
+
 /datum/action/proc/Grant(mob/M)
 	if(M)
 		if(owner)
@@ -47,6 +57,7 @@
 				return
 			Remove(owner)
 		owner = M
+		RegisterSignal(owner, COMSIG_PARENT_QDELETING, PROC_REF(clear_ref), override = TRUE)
 
 		//button id generation
 		var/counter = 0
@@ -78,6 +89,9 @@
 			M.client.screen -= button
 		M.actions -= src
 		M.update_action_buttons()
+		UnregisterSignal(M, COMSIG_PARENT_QDELETING)
+		if(target == M) // that also dropped our target registration - put it back
+			RegisterSignal(target, COMSIG_PARENT_QDELETING, PROC_REF(clear_ref))
 	owner = null
 	button.moved = FALSE //so the button appears in its normal position when given to another owner.
 	button.locked = FALSE

@@ -74,6 +74,9 @@
 			<BR>
 			<A href='?src=[REF(src)];[HrefToken()];secrets=winter;toggle=1'>Start Winter</A><BR>
 			<A href='?src=[REF(src)];[HrefToken()];secrets=winter;toggle=0'>Stop Winter</A><BR>
+			<BR>
+			<A href='?src=[REF(src)];[HrefToken()];secrets=upgrade_machines'>Upgrade all station machines, APCs, SMES, mechs and cyborgs</A><BR>
+			<A href='?src=[REF(src)];[HrefToken()];secrets=plasma_flood'>Flood the station with plasma</A><BR>
 			"}
 
 	dat += "<BR>"

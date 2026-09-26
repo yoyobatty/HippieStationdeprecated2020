@@ -21,6 +21,20 @@
 /proc/cmp_gas_reaction(datum/gas_reaction/a, datum/gas_reaction/b) // compares lists of reactions by the maximum priority contained within the list
 	return b.priority - a.priority
 
+/// Indexes reactions by their major_gas, like tgstation's init_gas_reactions(), so react() can skip mixes that hold
+/// no gas any reaction keys on. Walking the priority-sorted list keeps each gas's reactions in priority order too.
+/proc/init_gas_reactions_by_key(list/reactions)
+	. = list()
+	for(var/datum/gas_reaction/reaction as anything in reactions)
+		var/key = reaction.major_gas
+		if(!key) // no gas requirement, so react() could never select it anyway
+			continue
+		var/list/keyed = .[key]
+		if(!keyed)
+			keyed = list()
+			.[key] = keyed
+		keyed += reaction
+
 /datum/gas_reaction
 	//regarding the requirements lists: the minimum or maximum requirements must be non-zero.
 	//when in doubt, use MINIMUM_MOLE_COUNT.

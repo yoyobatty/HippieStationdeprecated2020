@@ -14,6 +14,13 @@
 	else
 		pulledby.stop_pulling()
 
+// Godmode already blocks the damage from being on fire (see damage_procs.dm), but nothing stopped a godmode mob from
+// visibly catching fire in the first place (the "on_fire" flag, the fire overlay, the alert icon). This stops it at the source.
+/mob/living/IgniteMob()
+	if(status_flags & GODMODE)
+		return FALSE
+	return ..()
+
 /mob/living/proc/canGhost()
 	return TRUE
 

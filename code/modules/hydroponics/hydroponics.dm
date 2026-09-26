@@ -382,7 +382,7 @@
 		var/mutantseed = pick(myseed.mutatelist)
 		qdel(myseed)
 		myseed = null
-		myseed = new mutantseed
+		myseed = new mutantseed(src) //hippie -- in the tray, not nullspace: process() flags it harvestable in the same tick, and harvest() needs loc
 	else
 		return
 
@@ -404,7 +404,7 @@
 			qdel(myseed)
 			myseed = null
 		var/newWeed = pick(/obj/item/seeds/liberty, /obj/item/seeds/angel, /obj/item/seeds/nettle/death, /obj/item/seeds/kudzu)
-		myseed = new newWeed
+		myseed = new newWeed(src) //hippie -- see mutatespecie()
 		dead = 0
 		hardmutate()
 		age = 0

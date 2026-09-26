@@ -57,8 +57,13 @@
 // check above - used as the bot's own STRICT (pass 1) adjacent proc instead of the
 // engine default, so field-hazard avoidance applies to the very first pathfinding
 // attempt, not just the permissive fallback.
+// Walking off dry floor into pool water knocks you down in it (pool_main.dm Entered()), and lying in water
+// drowns you - a person walks around the pool, not through it. Moving within it or climbing out is fine.
+/proc/bot_steps_into_pool(turf/from, turf/T)
+	return istype(T, /turf/open/pool) && !istype(from, /turf/open/pool)
+
 /turf/proc/bot_reachable_strict(caller, turf/T, ID, simulated_only)
-	if(T && !T.density && !(simulated_only && SSpathfinder.space_type_cache[T.type] && !bot_turf_crossable_without_boots(T, caller)) && !bot_turf_has_active_field(T) && !LinkBlockedWithAccess(T, caller, ID))
+	if(T && !T.density && !bot_steps_into_pool(src, T) && !(simulated_only && SSpathfinder.space_type_cache[T.type] && !bot_turf_crossable_without_boots(T, caller)) && !bot_turf_has_active_field(T) && !LinkBlockedWithAccess(T, caller, ID))
 		return TRUE
 
 // Mirrors code/__HELPERS/AStar.dm's reachableTurftest()/LinkBlockedWithAccess(), but
@@ -73,7 +78,7 @@
 // normal (obstruction-respecting) one finds no route, so a bot only ever plans through
 // an obstacle when there's no legitimate way around - see bot_movement.dm's repath().
 /turf/proc/bot_reachable_permissive(caller, turf/T, ID, simulated_only)
-	if(T && !T.density && !(simulated_only && SSpathfinder.space_type_cache[T.type] && !bot_turf_crossable_without_boots(T, caller)) && !bot_turf_has_active_field(T) && !bot_link_blocked_permissive(T, caller, ID))
+	if(T && !T.density && !bot_steps_into_pool(src, T) && !(simulated_only && SSpathfinder.space_type_cache[T.type] && !bot_turf_crossable_without_boots(T, caller)) && !bot_turf_has_active_field(T) && !bot_link_blocked_permissive(T, caller, ID))
 		return TRUE
 
 /turf/proc/bot_link_blocked_permissive(turf/T, caller, ID)
@@ -215,3 +220,94 @@
 		return
 	for(var/turf/T in path)
 		. += 1 + bot_turf_penalty(T)
+
+// ---------------------------------------------------------------------------------------------
+// Skipping hopeless searches
+// ---------------------------------------------------------------------------------------------
+// AStar() (code/__HELPERS/AStar.dm) doesn't fail fast: with no route, it expands every turf within
+// maxnodedepth steps (maxnodes, 300, overrides it) before giving up - most of the station. One decision
+// used to pay that over and over from the same spot under the same rules: pick_reachable() trying up to 20
+// tool sources x 5 tiles x 3 passes, repath() trying a destination, each open neighbour and several passes.
+// Reachability doesn't depend on which tile is being asked about, so once a search under some rules fails,
+// one breadth-first flood of those rules answers every later tile: a tile the flood never reached is one
+// AStar() couldn't reach either (same adjacency proc, never expands past BOT_PATH_FLOOD_STEPS), so skipping
+// it changes nothing, and a tile it did reach gets the real search and the same path as always. Floods only
+// live for one decision (begin/end_reach_scope()) so doors opening between decisions are always seen.
+
+/// AStar() expands a node up to maxnodedepth (300) steps out, so it can still match one step past that
+#define BOT_PATH_FLOOD_STEPS 301
+/// Safety net if a runtime leaves a scope open: never trust floods older than this
+#define BOT_REACH_FLOOD_TTL (5 SECONDS)
+
+/datum/bot_brain
+	/// Reachability floods for the decision in progress, keyed by reach_key(). Null outside a scope.
+	var/list/reach_floods
+	var/reach_scope_depth = 0
+	var/reach_floods_time = 0
+
+/// Opens a flood cache for one decision (repath(), pick_reachable(), is_reachable()). Nests.
+/datum/bot_brain/proc/begin_reach_scope()
+	if(!reach_scope_depth++)
+		reach_floods = list()
+		reach_floods_time = world.time
+
+/datum/bot_brain/proc/end_reach_scope()
+	if(reach_scope_depth > 0 && !--reach_scope_depth)
+		reach_floods = null
+
+/// Everything bot_reachable_strict()/bot_reachable_permissive() read that could change a route within one
+/// decision - including try_unlock_route()'s hypothetical "if I had a welder / that toolbox" flags and the
+/// urgency that decides whether breaking through is allowed. Anything new those procs start reading that can
+/// change mid-decision has to go in here too, or a flood made under the old state skips a route it shouldn't.
+/datum/bot_brain/proc/reach_key(turf/start, adjacent, obj/item/card/id/id_card, simulated_only)
+	return "[REF(start)]|[adjacent]|[REF(id_card)]|[simulated_only]|[pathing_allow_climb]|[pathing_allow_smash_tables]|[pathing_assume_welder]|[pathing_assume_nearby_weapons]|[get_urgency()]"
+
+/// get_path_to() for the bot's own route checks, minus searches a flood already proved hopeless (see above).
+/datum/bot_brain/proc/bot_path_to(turf/dest, dist, adjacent, obj/item/card/id/id_card, simulated_only)
+	var/turf/start = get_turf(owner)
+	var/key
+	if(reach_floods && start)
+		if(world.time > reach_floods_time + BOT_REACH_FLOOD_TTL)
+			reach_floods.Cut()
+			reach_floods_time = world.time
+		key = reach_key(start, adjacent, id_card, simulated_only)
+		var/list/reached = reach_floods[key]
+		if(reached && !reached[dest])
+			return list() //what get_path_to() returns when it finds nothing
+	var/list/explored = key ? list() : null
+	var/list/path = get_path_to(owner, dest, dist, 300, 250, adjacent = adjacent, id = id_card, simulated_only = simulated_only, explored = explored)
+	// A failed search under these rules: remember what's reachable under them, so the rest of this decision can
+	// skip the hopeless tiles. Only if nothing moved or changed rules while get_path_to() was yielding.
+	if(key && !length(path) && reach_floods && !reach_floods[key] && get_turf(owner) == start && reach_key(start, adjacent, id_card, simulated_only) == key)
+		var/list/reached = explored["reached"]
+		if(!reached)
+			return path //AStar() gave up before searching (too far, other z) - nothing learned
+		// Usually free: a failed search that never hit its depth limit has already visited exactly everything
+		// reachable from here. Only one cut short by maxnodedepth needs the proper flood.
+		if(explored["depth_cut"])
+			reached = bot_flood_reachable(owner, start, adjacent, id_card, simulated_only)
+		if(reach_floods && reach_key(start, adjacent, id_card, simulated_only) == key)
+			reach_floods[key] = reached
+	return path
+
+/// Every turf AStar() could reach from `start` with this adjacency proc: breadth first, BOT_PATH_FLOOD_STEPS out.
+/proc/bot_flood_reachable(caller, turf/start, adjacent, id, simulated_only)
+	var/list/reached = list()
+	reached[start] = TRUE
+	var/list/frontier = list(start)
+	for(var/steps in 1 to BOT_PATH_FLOOD_STEPS)
+		var/list/next = list()
+		for(var/turf/T as anything in frontier)
+			for(var/dir in GLOB.cardinals)
+				var/turf/N = get_step(T, dir)
+				if(N && !reached[N] && call(T, adjacent)(caller, N, id, simulated_only))
+					reached[N] = TRUE
+					next += N
+			CHECK_TICK
+		if(!length(next))
+			break
+		frontier = next
+	return reached
+
+#undef BOT_PATH_FLOOD_STEPS
+#undef BOT_REACH_FLOOD_TTL

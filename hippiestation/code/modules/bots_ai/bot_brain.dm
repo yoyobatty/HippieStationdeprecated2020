@@ -143,6 +143,12 @@
 		if(state == BOT_STATE_GOAL)
 			resume_goal()
 		return
+	// A botanist reaches for what it grew first - a death nettle up close, an acid melon or a
+	// primed combustible lemon from range (goals/botany_projects.dm).
+	if(try_botany_weapon(attacker))
+		if(owner.Adjacent(attacker))
+			try_combat_sidestep(attacker)
+		return
 	if(owner.Adjacent(attacker))
 		stop_pursuit()
 		owner.a_intent = pick_combat_intent(attacker)
@@ -239,6 +245,21 @@
 	// business finished - a real doctor doesn't finish their coffee break while someone
 	// dies on the floor. assign_goal() (called via try_medical_round()) already cancels
 	// any in-progress ordinary wander pursuit on its own.
+	// Engineers kit up with insulated gloves (and the CE's cloak) as a priority - goals/engineer_gear.dm
+	if(world.time >= next_engineer_gear_check_time)
+		next_engineer_gear_check_time = world.time + rand(300, 600) //retry every 30-60s if it couldn't finish
+		if(try_engineer_gear_round())
+			if(owner.buckled)
+				owner.buckled.unbuckle_mob(owner, force = TRUE)
+			return
+
+	if(world.time >= next_cable_check_time)
+		next_cable_check_time = world.time + rand(50, 150)
+		if(try_cable_repair_round()) //goals/repair_cables.dm
+			if(owner.buckled)
+				owner.buckled.unbuckle_mob(owner, force = TRUE)
+			return
+
 	if(world.time >= next_medical_check_time)
 		next_medical_check_time = world.time + rand(50, 150)
 		if(try_medical_round())
@@ -350,6 +371,14 @@
 	if(world.time >= next_atmos_check_time)
 		next_atmos_check_time = world.time + rand(50, 150)
 		if(try_atmos_round())
+			if(owner.buckled)
+				owner.buckled.unbuckle_mob(owner, force = TRUE)
+			return
+
+	// Botanists keep the hydroponics bay going (goals/tend_hydroponics.dm).
+	if(world.time >= next_botany_check_time)
+		next_botany_check_time = world.time + rand(50, 150)
+		if(try_botany_round())
 			if(owner.buckled)
 				owner.buckled.unbuckle_mob(owner, force = TRUE)
 			return
@@ -471,7 +500,7 @@
 // adjacent table tile is ordinary movement (table/CanPass()'s "already on a table"
 // exception, see bot_items.dm's clear_one_blocker()), so that's still fair game.
 /datum/bot_brain/proc/is_wanderable_turf(turf/T)
-	if(!T || T.density || isspaceturf(T) || !istype(T, /turf/open))
+	if(!T || T.density || isspaceturf(T) || !istype(T, /turf/open) || istype(T, /turf/open/pool)) //nobody strolls into the pool (bot_steps_into_pool())
 		return FALSE
 	// Shuttles (the arrivals shuttle especially, but any of them - cargo, mining, escape,
 	// custom, ...) dock and undock on their own schedule, independent of anything a bot

@@ -1,3 +1,6 @@
+/// hippie -- an unobserved (AI_Z_OFF) simple mob runs Life() on one SSmobs fire in this many. See skip_unobserved_life().
+#define UNOBSERVED_LIFE_INTERVAL 4
+
 SUBSYSTEM_DEF(mobs)
 	name = "Mobs"
 	priority = FIRE_PRIORITY_MOBS
@@ -34,8 +37,22 @@ SUBSYSTEM_DEF(mobs)
 		var/mob/living/L = currentrun[currentrun.len]
 		currentrun.len--
 		if(L)
-			L.Life(seconds, times_fired)
+			if(!skip_unobserved_life(L, times_fired))
+				L.Life(seconds, times_fired)
 		else
 			GLOB.mob_living_list.Remove(L)
 		if (MC_TICK_CHECK)
 			return
+
+/// hippie -- The idle NPC pool parks a simple mob AI_Z_OFF once no player is on its z-level (usually lavaland
+/// fauna), and wakes it as soon as one arrives. Nobody can see it until then, so its Life() only runs on one fire
+/// in UNOBSERVED_LIFE_INTERVAL - its AI is already off entirely. Fires are staggered per mob so the cost stays even.
+/datum/controller/subsystem/mobs/proc/skip_unobserved_life(mob/living/L, times_fired)
+	if(!isanimal(L))
+		return FALSE
+	var/mob/living/simple_animal/animal = L
+	if(animal.AIStatus != AI_Z_OFF || animal.client)
+		return FALSE
+	if(isnull(animal.unobserved_life_phase))
+		animal.unobserved_life_phase = rand(0, UNOBSERVED_LIFE_INTERVAL - 1)
+	return (times_fired + animal.unobserved_life_phase) % UNOBSERVED_LIFE_INTERVAL != 0

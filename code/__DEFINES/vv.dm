@@ -87,6 +87,7 @@
 #define VV_HK_OSAY "osay"
 #define VV_HK_MASS_DEL_TYPE "mass_delete_type"
 #define VV_HK_ARMOR_MOD "mod_obj_armor"
+#define VV_HK_REPAIR_MACHINE "repair_machine" //hippie edit -- see /obj/vv_get_dropdown() and cmd_admin_repair_machine()
 
 // /mob
 #define VV_HK_GIB "gib"

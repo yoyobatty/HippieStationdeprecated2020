@@ -55,6 +55,8 @@ GLOBAL_LIST_EMPTY(PDAs)
 	var/f_lum = 2.3 //Luminosity for the flashlight function
 	var/silent = FALSE //To beep or not to beep, that is the question
 	var/toff = FALSE //If TRUE, messenger disabled
+	var/mandown_enabled = FALSE //Hippie. If TRUE, going into crit broadcasts an emergency beacon message to the owner's department (and AI/cyborgs). Opt-in so the PDA can't be used as a passive tracker.
+	var/mandown_beacon_active = FALSE //Hippie. If TRUE, this PDA is actively sounding its own PASS-style "man down" alarm.
 	var/tnote = null //Current Texts
 	var/last_text //No text spamming
 	var/last_everyone //No text for everyone spamming
@@ -333,6 +335,7 @@ GLOBAL_LIST_EMPTY(PDAs)
 				dat += "<a href='byond://?src=[REF(src)];choice=Toggle Messenger'>[PDAIMG(mail)]Send / Receive: [toff == 1 ? "Off" : "On"]</a> | "
 				dat += "<a href='byond://?src=[REF(src)];choice=Ringtone'>[PDAIMG(bell)]Set Ringtone</a> | "
 				dat += "<a href='byond://?src=[REF(src)];choice=21'>[PDAIMG(mail)]Messages</a><br>"
+				dat += "<a href='byond://?src=[REF(src)];choice=Toggle Mandown'>[PDAIMG(bell)]Emergency Beacon: [mandown_enabled ? "On" : "Off"]</a><br>" //Hippie
 
 				if(cartridge)
 					dat += cartridge.message_header()
@@ -565,6 +568,10 @@ GLOBAL_LIST_EMPTY(PDAs)
 				toff = !toff
 			if("Toggle Ringer")//If viewing texts then erase them, if not then toggle silent status
 				silent = !silent
+			if("Toggle Mandown")//Hippie. Opt-in to broadcasting an emergency beacon when the wearer goes into crit.
+				mandown_enabled = !mandown_enabled
+				if(!mandown_enabled)
+					stop_mandown_beacon()
 			if("Clear")//Clears messages
 				tnote = null
 			if("Ringtone")
@@ -741,6 +748,72 @@ GLOBAL_LIST_EMPTY(PDAs)
 
 	update_icon()
 	add_overlay(icon_alert)
+
+//Hippie start. Emergency beacon: broadcast when the wearer goes into crit, delivered as a real PDA message to their department (and AI). The DOWNED person's own PDA sounds a repeating PASS-style alarm, like a first-responder man-down unit.
+/obj/item/pda/proc/start_mandown_beacon()
+	if(mandown_beacon_active)
+		return
+	mandown_beacon_active = TRUE
+	mandown_beacon_loop()
+
+/obj/item/pda/proc/mandown_beacon_loop()
+	if(!mandown_beacon_active)
+		return
+	playsound(src, 'sound/machines/triple_beep.ogg', 70, 1)
+	audible_message("[icon2html(src, hearers(src))] *EMERGENCY BEACON*", null, 5)
+	addtimer(CALLBACK(src, PROC_REF(mandown_beacon_loop)), 50)
+
+/obj/item/pda/proc/stop_mandown_beacon()
+	mandown_beacon_active = FALSE
+
+/mob/living/carbon/human/proc/trigger_mandown_alert()
+	var/obj/item/pda/P = get_item_by_slot(ITEM_SLOT_ID)
+	if(!istype(P))
+		P = get_item_by_slot(ITEM_SLOT_BELT)
+	if(!istype(P) || !P.mandown_enabled)
+		return
+
+	P.start_mandown_beacon()
+
+	var/area_name = get_area_name(src, TRUE)
+	var/obj/item/card/id/I = wear_id ? wear_id.GetID() : null
+	var/job = I ? I.assignment : "Unknown"
+	var/name = I ? I.registered_name : real_name
+	var/dept_code = GLOB.crewmonitor.jobs[job]
+	var/dept_bucket = isnull(dept_code) ? null : (dept_code - (dept_code % 10))
+
+	var/list/string_targets = list()
+	for(var/obj/item/pda/target in GLOB.PDAs)
+		if(target == P || !target.owner || !target.ownjob)
+			continue
+		if(target.ownjob == "AI")
+			string_targets += "[target.owner] ([target.ownjob])"
+			continue
+		var/target_dept = GLOB.crewmonitor.jobs[target.ownjob]
+		if(!isnull(dept_bucket) && !isnull(target_dept) && dept_bucket == (target_dept - (target_dept % 10)))
+			string_targets += "[target.owner] ([target.ownjob])"
+
+	for(var/mob/living/silicon/robot/R in GLOB.silicon_mobs)
+		to_chat(R, "<span class='userdanger'>EMERGENCY BEACON: [name] ([job]) is down in [area_name]!</span>")
+
+	if(!string_targets.len)
+		return
+
+	var/datum/signal/subspace/messaging/pda/signal = new(P, list(
+		"name" = "EMERGENCY BEACON",
+		"job" = job,
+		"message" = "[name] ([job]) is down in [area_name]!",
+		"targets" = string_targets
+	))
+	signal.send_to_receivers()
+
+/mob/living/carbon/human/proc/stop_mandown_beacon()
+	var/obj/item/pda/P = get_item_by_slot(ITEM_SLOT_ID)
+	if(!istype(P))
+		P = get_item_by_slot(ITEM_SLOT_BELT)
+	if(istype(P))
+		P.stop_mandown_beacon()
+//Hippie end.
 
 /obj/item/pda/proc/send_to_all(mob/living/U)
 	if (last_everyone && world.time < last_everyone + PDA_SPAM_DELAY)
@@ -984,6 +1057,7 @@ GLOBAL_LIST_EMPTY(PDAs)
 	return
 
 /obj/item/pda/Destroy()
+	mandown_beacon_active = FALSE //Hippie. Stops the alarm's self-rescheduling loop.
 	GLOB.PDAs -= src
 	GLOB.radio_list -= src //Hippie. Removes from global radio list
 	stopMusic()

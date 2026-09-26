@@ -107,7 +107,10 @@
 /mob/living/simple_animal/hostile/swarmer/Initialize()
 	. = ..()
 	verbs -= /mob/living/verb/pulled
-	for(var/datum/atom_hud/data/diagnostic/diag_hud in GLOB.huds)
+	for(var/hud_key, hud_type in GLOB.huds)
+		var/datum/atom_hud/data/diagnostic/diag_hud = astype(hud_type, /datum/atom_hud/data/diagnostic)
+		if(!diag_hud)
+			continue
 		diag_hud.add_to_hud(src)
 
 /mob/living/simple_animal/hostile/swarmer/med_hud_set_health()

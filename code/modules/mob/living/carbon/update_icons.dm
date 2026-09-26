@@ -55,9 +55,12 @@
 
 	var/list/hands = list()
 	for(var/obj/item/I in held_items)
-		if(client && hud_used && hud_used.hud_version != HUD_STYLE_NOHUD)
+		// Not gated on `client` (only the owner's own screen needs one) - a clientless
+		// mob (an AI crew bot) being observed must still push its held items to observers.
+		if(hud_used && hud_used.hud_version != HUD_STYLE_NOHUD)
 			I.screen_loc = ui_hand_position(get_held_index_of_item(I))
-			client.screen += I
+			if(client)
+				client.screen += I
 			if(observers && observers.len)
 				for(var/M in observers)
 					var/mob/dead/observe = M

@@ -82,6 +82,8 @@
 	var/dextrous_hud_type = /datum/hud/dextrous
 
 	var/AIStatus = AI_ON //The Status of our AI, can be set to AI_ON (On, usual processing), AI_IDLE (Will not process, but will return to AI_ON if an enemy comes near), AI_OFF (Off, Not processing ever), AI_Z_OFF (Temporarily off due to nonpresence of players)
+	/// hippie -- which SSmobs fire runs our Life() while we're AI_Z_OFF (see SSmobs.fire()), so unobserved mobs don't all tick on the same one
+	var/unobserved_life_phase
 	var/can_have_ai = TRUE //once we have become sentient, we can never go back
 
 	var/shouldwakeup = FALSE //convenience var for forcibly waking up an idling AI on next check.

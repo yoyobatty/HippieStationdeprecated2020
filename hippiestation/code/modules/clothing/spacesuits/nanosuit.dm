@@ -520,7 +520,7 @@
 	Wearer.update_action_buttons_icon()
 	update_icon()
 
-/obj/item/clothing/suit/space/hardsuit/nano/ex_act(severity, severity)
+/obj/item/clothing/suit/space/hardsuit/nano/ex_act(severity, target)
 	. = ..()
 	toggle_mode(NANO_ARMOR)
 
@@ -1098,8 +1098,8 @@
 /mob/living/carbon/human/check_weakness(obj/item/weapon, mob/living/carbon/attacker)
 	. = ..()
 	if(attacker && ishuman(attacker))
-		if(attacker.mind.has_martialart(MARTIALART_NANOSUIT) && weapon && weapon.damtype == BRUTE)
-			. += 1.25 //deal 25% more damage in strength
+		if(attacker.mind?.has_martialart(MARTIALART_NANOSUIT) && weapon && weapon.damtype == BRUTE)
+			. *= 1.25 //deal 25% more damage in strength
 
 /obj/attacked_by(obj/item/I, mob/living/user)
 	if(I.force && I.damtype == BRUTE && ishuman(user) && !user.stat && user.mind?.has_martialart(MARTIALART_NANOSUIT))

@@ -206,7 +206,7 @@
 		// started. A toolbox target itself never matches this (the check only ever
 		// matches actual tool types), so it's always still worth grabbing.
 		for(var/obj/item/I in T)
-			if(!bot.is_tool_or_toolbox(I))
+			if(!bot.is_tool_or_toolbox(I) && !(needed_type && istype(I, needed_type))) //a specific non-tool (the CE's cloak) counts too
 				continue
 			saw_any_tool = TRUE
 			if(bot_wants_from_locker(bot, I, needed_type))
@@ -218,7 +218,7 @@
 			var/turf/drop_turf = get_turf(T)
 			if(drop_turf && drop_turf != T)
 				for(var/obj/item/I in drop_turf)
-					if(!bot.is_tool_or_toolbox(I))
+					if(!bot.is_tool_or_toolbox(I) && !(needed_type && istype(I, needed_type)))
 						continue
 					saw_any_tool = TRUE
 					if(bot_wants_from_locker(bot, I, needed_type))

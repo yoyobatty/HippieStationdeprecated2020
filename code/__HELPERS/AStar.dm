@@ -74,12 +74,13 @@ Actual Adjacent procs :
 	return b.f - a.f
 
 //wrapper that returns an empty list if A* failed to find a path
-/proc/get_path_to(caller, end, dist, maxnodes, maxnodedepth = 30, mintargetdist, adjacent = /turf/proc/reachableTurftest, id=null, turf/exclude=null, simulated_only = TRUE)
+//explored: optional list, see AStar()
+/proc/get_path_to(caller, end, dist, maxnodes, maxnodedepth = 30, mintargetdist, adjacent = /turf/proc/reachableTurftest, id=null, turf/exclude=null, simulated_only = TRUE, list/explored)
 	var/l = SSpathfinder.mobs.getfree(caller)
 	while(!l)
 		stoplag(3)
 		l = SSpathfinder.mobs.getfree(caller)
-	var/list/path = AStar(caller, end, dist, maxnodes, maxnodedepth, mintargetdist, adjacent,id, exclude, simulated_only)
+	var/list/path = AStar(caller, end, dist, maxnodes, maxnodedepth, mintargetdist, adjacent,id, exclude, simulated_only, explored)
 
 	SSpathfinder.mobs.found(l)
 	if(!path)
@@ -97,7 +98,11 @@ Actual Adjacent procs :
 		path = list()
 	return path
 
-/proc/AStar(caller, _end, dist, maxnodes, maxnodedepth = 30, mintargetdist, adjacent = /turf/proc/reachableTurftest, id=null, turf/exclude=null, simulated_only = TRUE)
+//explored: optional list. When a search that actually ran finds nothing, gets "reached" (every turf it
+//discovered, as keys) and "depth_cut" (TRUE if maxnodedepth stopped it expanding anything). With no depth cut,
+//"reached" is exactly everything reachable from the start under `adjacent` - so any other destination not in it
+//can't be reached either (bot_path_to(), bot_pathing_permissive.dm, uses this to skip hopeless searches).
+/proc/AStar(caller, _end, dist, maxnodes, maxnodedepth = 30, mintargetdist, adjacent = /turf/proc/reachableTurftest, id=null, turf/exclude=null, simulated_only = TRUE, list/explored)
 	//sanitation
 	var/turf/end = get_turf(_end)
 	var/turf/start = get_turf(caller)
@@ -118,6 +123,7 @@ Actual Adjacent procs :
 	var/datum/PathNode/cur = new /datum/PathNode(start,null,0,call(start,dist)(end),0,15,1)//current processed turf
 	open.Insert(cur)
 	openc[start] = cur
+	var/depth_cut = FALSE //did maxnodedepth stop us expanding anything? (see explored above)
 	//then run the main loop
 	while(!open.IsEmpty() && !path)
 		cur = open.Pop() //get the lower f turf in the open list
@@ -159,12 +165,17 @@ Actual Adjacent procs :
 								CN = new(T,cur,newg,call(T,dist)(end),cur.nt+1,15^r)
 								open.Insert(CN)
 								openc[T] = CN
+		else
+			depth_cut = TRUE
 		cur.bf = 0
 		CHECK_TICK
 	//reverse the path to get it from start to finish
 	if(path)
 		for(var/i = 1 to round(0.5*path.len))
 			path.Swap(i,path.len-i+1)
+	else if(explored)
+		explored["reached"] = openc
+		explored["depth_cut"] = depth_cut
 	openc = null
 	//cleaning after us
 	return path

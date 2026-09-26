@@ -285,9 +285,9 @@
 	set_opacity(0)
 	sleep(5)
 	density = FALSE
-	sleep(5)
 	layer = initial(layer)
-	update_icon()
+	update_icon() //update the visible sprite the instant density actually changes, not half a second later
+	sleep(5)
 	set_opacity(0)
 	operating = FALSE
 	air_update_turf(TRUE, FALSE)
@@ -315,8 +315,8 @@
 	layer = closingLayer
 	sleep(5)
 	density = TRUE
+	update_icon() //update the visible sprite the instant density actually changes, not half a second later
 	sleep(5)
-	update_icon()
 	if(visible && !glass)
 		set_opacity(1)
 	operating = FALSE

@@ -1,5 +1,6 @@
 /mob/living/carbon
 	blood_volume = BLOOD_VOLUME_NORMAL
+	var/mandown_alerted = FALSE //Hippie. Prevents the PDA emergency beacon from re-firing every tick while still in crit.
 
 /mob/living/carbon/Initialize()
 	. = ..()
@@ -771,6 +772,7 @@
 /mob/living/carbon/update_stat()
 	if(status_flags & GODMODE)
 		return
+	var/old_stat = stat
 	if(stat != DEAD)
 		if(health <= HEALTH_THRESHOLD_DEAD && !HAS_TRAIT(src, TRAIT_NODEATH))
 			death()
@@ -793,6 +795,18 @@
 	update_damage_hud()
 	update_health_hud()
 	med_hud_set_status()
+
+	//Hippie start. PDA emergency beacon: fire once on the transition into crit, reset once conscious again.
+	if(ishuman(src) && stat != old_stat)
+		if((stat == SOFT_CRIT || stat == UNCONSCIOUS) && old_stat == CONSCIOUS && !mandown_alerted)
+			mandown_alerted = TRUE
+			var/mob/living/carbon/human/H = src
+			H.trigger_mandown_alert()
+		else if(stat == CONSCIOUS && mandown_alerted)
+			mandown_alerted = FALSE
+			var/mob/living/carbon/human/H = src
+			H.stop_mandown_beacon()
+	//Hippie end.
 
 //called when we get cuffed/uncuffed
 /mob/living/carbon/proc/update_handcuffed()

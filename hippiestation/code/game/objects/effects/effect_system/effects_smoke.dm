@@ -18,3 +18,7 @@ GLOBAL_LIST_EMPTY(smoke)
 
 /obj/effect/particle_effect/smoke/ex_act()
 	return
+
+/obj/effect/particle_effect/smoke/chem/fire_act(exposed_temperature, exposed_volume)
+	if(reagents?.total_volume)
+		reagents.expose_temperature(exposed_temperature, 1) // thin gas, so it heats through immediately

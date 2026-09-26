@@ -58,6 +58,42 @@ obj/item/projectile/rod/proc/Impale(mob/living/carbon/human/H)
 		new /obj/item/stack/rods(get_turf(src))
 	qdel(src)
 
+/**
+  * A lighter rod for the "rod shot" shotgun shell: several of these leave the barrel at once (see the ammo casing in
+  * ammunition/ballistic/shotgun.dm), so each one is tuned down from the crossbow's full-power bolt. Charge stays at
+  * the inherited 0, so unlike a fully-drawn crossbow shot these never impale-and-pin a target (that needs charge > 2)
+  * - a shotgun blast pinning someone to a wall six times over would be absurd. They still clatter to the ground as
+  * actual /obj/item/stack/rods on a miss or a shallow hit, so a rod shot volley litters the ground with scrap metal.
+  */
+/obj/item/projectile/rod/pellet
+	name = "rod fragment"
+	damage = 11 // comparable to a buckshot pellet (12.5), rods are sharper but this is spread across more pellets
+	range = 7 // shotgun pellets don't carry as far as a full crossbow draw
+	var/tile_dropoff = 1.5 // falls off faster than buckshot's 0.75, these are unbalanced scrap, not proper shot
+
+/obj/item/projectile/rod/pellet/Range()
+	..()
+	if(damage > 0)
+		damage -= tile_dropoff
+	if(damage <= 0)
+		qdel(src)
+
+/**
+  * A shotgun pellet that bursts into a tiny fragmentation blast wherever it lands, using the game's own explosion()
+  * rather than blast_atom(): light severity only (devastation and heavy are both switched off), reaching one tile out
+  * so it actually catches whoever's standing next to the point of impact, not just the thing directly hit - real
+  * shrapnel spread, which a single-target blast_atom() call can't give. Silent and left out of the admin log since a
+  * 6-pellet shell would otherwise fire off up to six of these in an instant; the shot's own bang is noise enough.
+  * Kept to light severity on purpose - devastating tier at zero range would gib whatever's hit outright, on every pellet.
+  */
+/obj/item/projectile/bullet/pellet/frag
+	name = "fragmentation pellet"
+	damage = 9 // a touch below buckshot's 12.5, since the burst below adds its own extra punch on top
+
+/obj/item/projectile/bullet/pellet/frag/on_hit(atom/target, blocked = FALSE)
+	. = ..()
+	explosion(target, -1, -1, 1, flash_range = 0, adminlog = FALSE, flame_range = 0)
+
 /obj/item/projectile/plasma/watcher
 	name = "freezing blast"
 	icon_state = "ice_2"

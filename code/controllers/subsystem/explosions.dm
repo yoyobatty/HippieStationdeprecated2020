@@ -245,6 +245,9 @@ SUBSYSTEM_DEF(explosions)
 					if(baseshakeamount > 0 && isliving(M)) //hippie edit -- ghosts don't get the shake
 						shake_camera(M, 10, clamp(baseshakeamount*0.25, 0, 2.5))
 
+	if(!silent && (devastation_range >= 1 || heavy_impact_range >= 1)) //hippie edit -- ripples the screen of everyone who can see it
+		screen_shockwave(epicenter, max_range, 3 + devastation_range * 5 + heavy_impact_range * 1.5 + light_impact_range * 0.4)
+
 	if(heavy_impact_range > 1)
 		var/datum/effect_system/explosion/E
 		if(smoke)
@@ -507,7 +510,7 @@ SUBSYSTEM_DEF(explosions)
 				if(!A.anchored && A.move_resist != INFINITY)
 					var/atom_throw_range = rand(throw_range, max_range)
 					var/turf/throw_at = get_ranged_target_turf(A, throw_dir, atom_throw_range)
-					A.throw_at(throw_at, atom_throw_range, EXPLOSION_THROW_SPEED, quickstart = FALSE)
+					throw_as_missile(A, throw_at, atom_throw_range, EXPLOSION_THROW_SPEED, atom_throw_range * 0.5, quickstart = FALSE) //hippie edit -- thrown items hit hard, like debris
 		cost_throwturf = MC_AVERAGE(cost_throwturf, TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer))
 
 	currentpart = SSEXPLOSIONS_TURFS

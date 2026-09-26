@@ -260,8 +260,13 @@
 //    hack-required room is off the table entirely when nothing open exists at all; see
 //    the unconditional last-resort fallback below for that case.
 /datum/bot_goal/acquire_tool/proc/pick_reachable(datum/bot_brain/bot, list/candidates)
-	if(!candidates.len)
+	if(!candidates.len || QDELETED(bot))
 		return null
+	bot.begin_reach_scope() //candidates share one flood cache - see bot_path_to() (bot_pathing_permissive.dm)
+	. = pick_reachable_candidate(bot, candidates)
+	bot.end_reach_scope()
+
+/datum/bot_goal/acquire_tool/proc/pick_reachable_candidate(datum/bot_brain/bot, list/candidates)
 	// Take the cheapest of the first few reachable candidates rather than just the first:
 	// the nearest fuel tank was reachable only by smashing a plasma window, while another
 	// (through doors the bot had already hacked open) was barely further away.
@@ -298,7 +303,7 @@
 	if(!T)
 		return "no turf"
 	var/obj/item/card/id/id_card = bot.owner.get_idcard(TRUE)
-	var/list/path = get_path_to(bot.owner, T, /turf/proc/bot_weighted_distance, 300, 250, adjacent = /turf/proc/bot_reachable_permissive, id = id_card, simulated_only = !bot.can_path_through_space())
+	var/list/path = bot.bot_path_to(T, /turf/proc/bot_weighted_distance, /turf/proc/bot_reachable_permissive, id_card, !bot.can_path_through_space())
 	if(!path || !path.len)
 		return "no route at all, even through locked doors"
 	for(var/turf/P in path)
@@ -335,6 +340,13 @@
 /datum/bot_goal/acquire_tool/proc/is_reachable(datum/bot_brain/bot, atom/A)
 	if(QDELETED(bot) || QDELETED(bot.owner))
 		return FALSE
+	bot.begin_reach_scope() //its tiles and passes share one flood cache - see bot_path_to() (bot_pathing_permissive.dm)
+	. = check_reachable(bot, A)
+	bot.end_reach_scope()
+
+/datum/bot_goal/acquire_tool/proc/check_reachable(datum/bot_brain/bot, atom/A)
+	if(QDELETED(bot) || QDELETED(bot.owner))
+		return FALSE
 	var/turf/T = get_turf(A)
 	if(!T)
 		return FALSE
@@ -357,7 +369,7 @@
 		// engine default: an active containment field/generator is density=FALSE by
 		// design, so the default check alone would call a route straight through one
 		// "reachable" when it's really a hazard the bot would keep getting shocked by.
-		var/list/path = get_path_to(bot.owner, D, /turf/proc/Distance, 300, 250, adjacent = /turf/proc/bot_reachable_strict, id = id_card, simulated_only = !bot.can_path_through_space())
+		var/list/path = bot.bot_path_to(D, /turf/proc/Distance, /turf/proc/bot_reachable_strict, id_card, !bot.can_path_through_space())
 		if(QDELETED(bot.owner))
 			return FALSE
 		if(path && path.len)
@@ -371,7 +383,7 @@
 	if(bot.can_eventually_provide_tool(/obj/item/screwdriver) && bot.find_carried_tool(/obj/item/multitool))
 		for(var/turf/D in dests)
 			bot.pathing_allow_climb = FALSE
-			var/list/path = get_path_to(bot.owner, D, /turf/proc/bot_weighted_distance, 300, 250, adjacent = /turf/proc/bot_reachable_permissive, id = id_card, simulated_only = !bot.can_path_through_space())
+			var/list/path = bot.bot_path_to(D, /turf/proc/bot_weighted_distance, /turf/proc/bot_reachable_permissive, id_card, !bot.can_path_through_space())
 			bot.pathing_allow_climb = TRUE
 			if(QDELETED(bot.owner))
 				return FALSE
@@ -385,7 +397,7 @@
 		// furniture (a captain's desk, a table). Without this a fire axe cabinet just past
 		// a desk read as "unreachable" even though the bot walks/climbs there fine.
 		for(var/turf/D in dests)
-			var/list/path = get_path_to(bot.owner, D, /turf/proc/bot_weighted_distance, 300, 250, adjacent = /turf/proc/bot_reachable_permissive, id = id_card, simulated_only = !bot.can_path_through_space())
+			var/list/path = bot.bot_path_to(D, /turf/proc/bot_weighted_distance, /turf/proc/bot_reachable_permissive, id_card, !bot.can_path_through_space())
 			if(QDELETED(bot.owner))
 				return FALSE
 			if(path && path.len)

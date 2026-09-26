@@ -209,6 +209,8 @@ GLOBAL_VAR(bot_telemetry_log)
 		return ..()
 	var/was = bot_brain.telemetry_item_where(I)
 	. = ..()
+	if(was == "floor" || findtext(was, "in:") == 1)
+		return //never on the bot - e.g. a plant bag scooping produce off the floor goes through here
 	if(. && !QDELETED(I))
 		var/now = isturf(I.loc) ? "floor" : "in:[bot_telemetry_short(I.loc?.type)]"
 		bot_brain.telemetry_event(isturf(I.loc) ? "drop" : "unequip", list("item" = "[I.name]", "was" = was, "to" = now))

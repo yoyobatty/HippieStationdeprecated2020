@@ -49,6 +49,8 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	var/list/kit_backpack
 	/// Forced urgency for the whole run (-1 = the bot's real perception).
 	var/urgency_override = -1
+	/// Job title for the bot (mind.assigned_role) - job-specific behaviour keys off it.
+	var/job
 	var/time_limit = 60 SECONDS
 	/// Times the goal is re-issued after the bot gives up, like a real bot trying again.
 	var/max_goal_attempts = 3
@@ -81,6 +83,10 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 
 /// Extra setup after the arena is built and before the bot spawns (fill lockers, etc).
 /datum/bot_scenario/proc/setup()
+	return
+
+/// Called right after the bot spawns, before its goal (dress it, give it an ID...).
+/datum/bot_scenario/proc/post_spawn()
 	return
 
 /// The goal to give the bot. Default: walk to the G marker.
@@ -169,7 +175,8 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 			else if(char == "S")
 				T.ChangeTurf(/turf/open/space/basic, flags = CHANGETURF_IGNORE_AIR)
 			else
-				T = T.ChangeTurf(/turf/open/floor/plasteel, flags = CHANGETURF_IGNORE_AIR)
+				var/floor_type = (char in list("=", "~", "x", "P")) ? /turf/open/floor/plating : /turf/open/floor/plasteel
+				T = T.ChangeTurf(floor_type, flags = CHANGETURF_IGNORE_AIR)
 				floors += T
 			arena_turfs[T] = char
 			LAZYADD(markers[char], T)
@@ -189,6 +196,8 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 ///  W grille + window   w window   g grille   D airlock   X welded airlock
 ///  F closed firelock   f welded firelock   T toolbox   E extinguisher cabinet
 ///  L locker   V vending machine   t table   c crowbar   r wirecutters
+///  P plating   = plating + cable (yellow layer)   ~ plating + cable (red layer)
+///  x plating + a chewed-off bit of cable (a gap)   m a mouse that stays put
 /datum/bot_scenario/proc/build_tile(turf/T, char)
 	switch(char)
 		if("W")
@@ -225,6 +234,18 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 			place(char, new /obj/item/crowbar(T))
 		if("r")
 			place(char, new /obj/item/wirecutters(T))
+		if("=")
+			place(char, new /obj/structure/cable(T))
+		if("~")
+			place(char, new /obj/structure/cable/layer1(T))
+		if("x")
+			place(char, new /obj/item/stack/cable_coil(T, 1))
+		if("m")
+			var/mob/living/simple_animal/mouse/M = new(T)
+			M.stop_automated_movement = TRUE
+			M.wander = FALSE
+			M.chew_probability = 0
+			place(char, M)
 
 /datum/bot_scenario/proc/place(char, obj/O)
 	LAZYADD(placed[char], O)
@@ -244,6 +265,8 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	bot.name = bot.real_name
 	bot.equipOutfit(/datum/outfit/bot_gym)
 	bot.mind_initialize()
+	if(job)
+		bot.mind.assigned_role = job
 	for(var/path in kit_hands)
 		bot.put_in_hands(new path(bot))
 	for(var/path in kit_backpack)
@@ -252,6 +275,7 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	brain.gym_run = src
 	brain.gym_scripted = TRUE
 	brain.urgency_override = urgency_override
+	post_spawn()
 	return TRUE
 
 /datum/bot_scenario/proc/start()
@@ -291,6 +315,7 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 			fail_reason = "succeeded but looked robotic: [tells]"
 	if(result != BOT_GYM_PENDING)
 		end_time = world.time
+		release_run()
 		return
 	if(brain && brain.state == BOT_STATE_WANDER && !brain.current_goal && goal_attempts < max_goal_attempts)
 		issue_goal()
@@ -304,6 +329,17 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 		if(LAZYACCESS(brain.telemetry_flags, tell))
 			found += "[tell] x[brain.telemetry_flags[tell]]"
 	return length(found) ? jointext(found, ", ") : null
+
+/// Scenario datums live until every run has finished (the report is written at the end), but a judged run
+/// only needs its text and brain. Letting go of its other atoms (arena objects, a scenario's own mouse or
+/// assailant) lets anything the bot destroyed be garbage collected - held here, every one was hard-deleted.
+/// The bot stays: start() may still be using it, and gym bots are never deleted.
+/datum/bot_scenario/proc/release_run()
+	for(var/varname in vars)
+		if(varname != "bot" && isatom(vars[varname]))
+			vars[varname] = null
+	markers = list()
+	placed = list()
 
 /// Robotic tells recorded by telemetry (bot_telemetry.dm) during the run, e.g. " [tool_not_in_hand=2]".
 /datum/bot_scenario/proc/believability_text()
@@ -334,6 +370,14 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	Master.sleep_offline_after_initializations = FALSE
 	world.sleep_offline = FALSE
 	runs = clamp(text2num("[runs]") || 1, 1, 50)
+	// Bot brains (SSprocessing) and machines (SSmachines: trays, vendors) only fire once a round is
+	// under way - RUNLEVELS_DEFAULT leaves out the lobby. Waiting out the lobby countdown froze
+	// every bot's own ticking and every machine for the first ~110s of the run.
+	SSticker.start_immediately = TRUE
+	var/round_deadline = world.time + 3 MINUTES
+	while(SSticker.current_state < GAME_STATE_PLAYING && world.time < round_deadline)
+		sleep(1 SECONDS)
+	log_world("BOT GYM: round state [SSticker.current_state], starting scenarios")
 	var/list/datum/bot_scenario/active = list()
 	for(var/path in subtypesof(/datum/bot_scenario))
 		var/datum/bot_scenario/probe = new path
@@ -373,7 +417,7 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 		counts[outcome]++
 		var/seconds = S.end_time ? round((S.end_time - S.start_time) / 10, 0.1) : null
 		var/label = "[S.name][S.run_index > 1 ? " #[S.run_index]" : ""]"
-		lines += "[pad_bot_gym(outcome, 7)][pad_bot_gym(label, 44)][seconds != null ? "[seconds]s" : ""][S.fail_reason ? "   [S.fail_reason]" : ""][S.believability_text()]"
+		lines += "[pad_bot_gym(outcome, 7)][pad_bot_gym(label, 54)][seconds != null ? "[seconds]s" : ""][S.fail_reason ? "   [S.fail_reason]" : ""][S.believability_text()]"
 		json += list(list("name" = S.name, "run" = S.run_index, "outcome" = outcome, "seconds" = seconds, "reason" = S.fail_reason, "desc" = S.desc))
 		text2file(jointext(S.transcript, "\n"), "[dir]transcripts/[replacetext(S.name, " ", "_")]_[S.run_index].log")
 	var/header = "BOT GYM  [counts["PASS"]] passed, [counts["FAIL"]] failed, [counts["XFAIL"]] expected failures, [counts["XPASS"]] unexpected passes[counts["PENDING"] ? ", [counts["PENDING"]] unfinished" : ""]"

@@ -23,10 +23,17 @@
 	if(in_range(user, src) || isobserver(user))
 		. += "<span class='notice'>A closer look reveals the temperature threshold has been set to <b>[temp_range]C.</b></span>"
 
-/obj/machinery/sprinkler/temperature_expose(datum/gas_mixture/air, temperature, volume)
-	if(temperature > T0C + temp_range)
-		spray()
-	..()
+//Nothing calls temperature_expose() on objects any more (tgstation/tgstation#55604), they use the atmos_sensitive element, so the old
+//version of this never fired and sprinklers only went off when they were damaged
+/obj/machinery/sprinkler/ComponentInitialize()
+	. = ..()
+	AddElement(/datum/element/atmos_sensitive)
+
+/obj/machinery/sprinkler/should_atmos_process(datum/gas_mixture/air, exposed_temperature)
+	return exposed_temperature > T0C + temp_range
+
+/obj/machinery/sprinkler/atmos_expose(datum/gas_mixture/air, exposed_temperature)
+	spray()
 
 /obj/machinery/sprinkler/proc/spray()
 	if(!is_operational() || stat)

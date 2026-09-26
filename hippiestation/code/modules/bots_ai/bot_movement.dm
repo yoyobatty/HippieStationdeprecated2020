@@ -121,7 +121,9 @@
 		return FALSE
 	repathing = TRUE
 	repath_superseded = FALSE
+	begin_reach_scope() //one flood cache for the whole cascade - see bot_path_to() (bot_pathing_permissive.dm)
 	. = do_repath()
+	end_reach_scope()
 	repathing = FALSE
 	// A new pursue() arrived while this one was still inside the (yielding) pathfinder.
 	// Its own repath() was rejected by the guard above, so nobody was going to compute
@@ -247,7 +249,7 @@
 			if(current_path && current_path.len)
 				break
 
-	if(!current_path || !current_path.len)
+	if((!current_path || !current_path.len) && pursuing_kind != "wander") //a stroll doesn't climb furniture either - see try_path_to_no_climb()
 		bot_log_verbose(src, "no no-climb route at all (direct or adjacent) - trying with climbing allowed")
 		if(try_adjacent_first)
 			for(var/turf/candidate in adjacent_candidates)
@@ -330,16 +332,20 @@
 	// default reachableTurftest() - same obstruction rules, plus refuses to route
 	// through an active containment field/generator, which the default's pure density
 	// check can't see (density=FALSE by design - a real player crosses one on purpose).
-	var/list/path = get_path_to(owner, dest, /turf/proc/Distance, 300, 250, adjacent = /turf/proc/bot_reachable_strict, id = id_card, simulated_only = !can_path_through_space())
+	var/list/path = bot_path_to(dest, /turf/proc/Distance, /turf/proc/bot_reachable_strict, id_card, !can_path_through_space())
 	bot_log_verbose(src, "  pass 1 (legit route) to [dest] @ [bot_coord(dest)]: [path ? "[path.len] nodes" : "no path"]")
 	if(path && path.len)
+		return path
+	// Someone out for a stroll who finds the way barred just picks somewhere else - they don't hack a door or
+	// smash a window to get to a random spot. Real goals, fetches, combat and arrests still get every fallback.
+	if(pursuing_kind == "wander")
 		return path
 
 	// No legitimate (unlocked) route - try again allowing routes through a locked (but
 	// unwelded, powered, access-satisfied) airlock or a window it can break, but still
 	// NOT through climbable furniture.
 	pathing_allow_climb = FALSE
-	path = get_path_to(owner, dest, /turf/proc/bot_weighted_distance, 300, 250, adjacent = /turf/proc/bot_reachable_permissive, id = id_card, simulated_only = !can_path_through_space())
+	path = bot_path_to(dest, /turf/proc/bot_weighted_distance, /turf/proc/bot_reachable_permissive, id_card, !can_path_through_space())
 	pathing_allow_climb = TRUE
 	// dest's own name is ambiguous when an adjacent-turf pass shares the destination's
 	// exact turf type (e.g. two carpet tiles both print as "the carpet") - always show
@@ -357,7 +363,7 @@
 	if(has_strong_weapon() && destruction_allowed()) //calm bots climb over furniture instead (pass 3)
 		pathing_allow_climb = FALSE
 		pathing_allow_smash_tables = TRUE
-		path = get_path_to(owner, dest, /turf/proc/bot_weighted_distance, 300, 250, adjacent = /turf/proc/bot_reachable_permissive, id = id_card, simulated_only = !can_path_through_space())
+		path = bot_path_to(dest, /turf/proc/bot_weighted_distance, /turf/proc/bot_reachable_permissive, id_card, !can_path_through_space())
 		pathing_allow_smash_tables = FALSE
 		pathing_allow_climb = TRUE
 		bot_log_verbose(src, "  pass 2b (hack/break, smash tables) to [dest] @ [bot_coord(dest)]: [path ? "[path.len] nodes" : "no path"]")
@@ -370,7 +376,7 @@
 // turf (repath()) - a bot should climb a table only when there is truly no other way
 // to get close enough, never merely because climbing happens to be shorter.
 /datum/bot_brain/proc/try_path_to_climb(turf/dest, obj/item/card/id/id_card)
-	var/list/path = get_path_to(owner, dest, /turf/proc/bot_weighted_distance, 300, 250, adjacent = /turf/proc/bot_reachable_permissive, id = id_card, simulated_only = !can_path_through_space())
+	var/list/path = bot_path_to(dest, /turf/proc/bot_weighted_distance, /turf/proc/bot_reachable_permissive, id_card, !can_path_through_space())
 	bot_log_verbose(src, "  pass 3 (allow climbing) to [dest] @ [bot_coord(dest)]: [path ? "[path.len] nodes" : "no path"]")
 	if(path && path.len)
 		bot_log(src, "no route to [dest] without climbing - climbing over furniture instead")
@@ -523,6 +529,7 @@
 		// and grab that in passing; check every tile advanced during a goal pursuit,
 		// not just at the pre-picked destination - see grab_passing_tools() (bot_items.dm).
 		grab_passing_tools()
+		swat_passing_mice() //bot_human.dm - crew squash mice in passing (they chew cables)
 		// Same idea, security-flavored - see close_airlock_behind()'s own comment.
 		close_airlock_behind(left_turf)
 		// Re-invoke ourselves after a normal per-tile delay, same pacing walk_to()'s

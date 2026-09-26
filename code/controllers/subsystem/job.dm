@@ -455,9 +455,10 @@ SUBSYSTEM_DEF(job)
 			else
 				M = H
 
-		SSpersistence.antag_rep_change[M.client.ckey] += job.GetAntagRep()
+		if(M.client) // hippie -- bot crew join with no client; this used to crash here and skip job.after_spawn() below
+			SSpersistence.antag_rep_change[M.client.ckey] += job.GetAntagRep()
 
-		if(M.client.holder)
+		if(M.client?.holder)
 			if(CONFIG_GET(flag/auto_deadmin_players) || (M.client.prefs?.toggles & DEADMIN_ALWAYS))
 				M.client.holder.auto_deadmin()
 			else

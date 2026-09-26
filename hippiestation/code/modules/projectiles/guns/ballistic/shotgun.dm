@@ -102,4 +102,16 @@ obj/item/gun/ballistic/shotgun/triplebarrel/sawoff(mob/user)
 	name = "cane-gun internal magazine"
 	max_ammo = 8
 
+// Pre-loaded pump shotguns, following the same pattern as /shotgun/lethal in the core file
+
+/obj/item/gun/ballistic/shotgun/rodshot
+	name = "rod shot shotgun"
+	desc = "A traditional shotgun, pre-loaded with rod shot shells."
+	mag_type = /obj/item/ammo_box/magazine/internal/shot/rodshot
+
+/obj/item/gun/ballistic/shotgun/fragshot
+	name = "fragmentation shotgun"
+	desc = "A traditional shotgun, pre-loaded with fragmentation shells."
+	mag_type = /obj/item/ammo_box/magazine/internal/shot/fragshot
+
 

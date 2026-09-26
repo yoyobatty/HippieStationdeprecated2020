@@ -95,6 +95,9 @@
 	mix_message = "<span class='boldannounce'>Sparks start flying around the black powder!</span>"
 
 /datum/chemical_reaction/reagent_explosion/blackpowder_explosion/on_reaction(datum/reagents/holder, created_volume)
+	if(istype(holder.my_atom, /obj/effect/particle_effect/smoke)) //hippie edit -- black powder in smoke goes off much quicker
+		sleep(rand(10,20))
+		return ..(holder, created_volume * GAS_PARTICLE_EFFECT_EFFICIENCY, FALSE)
 	sleep(rand(50,100))
 	..()
 

@@ -891,9 +891,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 // to reinvent for their own single slot - every equip in this module should go through
 // this instead of calling equip_to_slot_if_possible() directly.
 /datum/bot_brain/proc/equip_displacing(obj/item/W, slot)
-	var/obj/item/current = owner.get_item_by_slot(slot)
-	if(current && current != W)
-		owner.dropItemToGround(current)
+	swap_out_worn(owner.get_item_by_slot(slot), W) //bot_human.dm - into the bag, not onto the floor
 	return owner.equip_to_slot_if_possible(W, slot, FALSE, TRUE, TRUE)
 
 // Frees up the ID slot for the toolbelt fetch onward - not a tool itself, just good
@@ -1320,6 +1318,21 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 			bot_log(src, "climbing out of the pool")
 			F.MouseDrop_T(owner, owner)
 			return TRUE
+	// Out in the middle, with no edge to climb onto: swim toward the nearest dry floor. Doing nothing here used
+	// to leave the bot treading water until it drowned (11 of 12 bot deaths in a 42-bot chaos round).
+	var/turf/nearest
+	var/nearest_dist = INFINITY
+	for(var/turf/open/floor/F in view(7, owner))
+		if(istype(F, /turf/open/pool))
+			continue
+		var/d = get_dist(owner, F)
+		if(d < nearest_dist)
+			nearest = F
+			nearest_dist = d
+	if(nearest)
+		bot_log_verbose(src, "swimming toward the edge of the pool at [bot_coord(nearest)]")
+		step_towards(owner, nearest)
+		return TRUE
 	return FALSE
 
 // A dense object SOMEWHERE nearby isn't necessarily in the way of anything - a

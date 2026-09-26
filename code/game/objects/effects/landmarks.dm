@@ -41,13 +41,16 @@ INITIALIZE_IMMEDIATE(/obj/effect/landmark)
 	if(delete_after_roundstart)
 		qdel(src)
 
-/obj/effect/landmark/start/New()
+// Done in Initialize() rather than New() (as tgstation does), so the tag is set before a subtype's
+// INITIALIZE_HINT_QDEL runs Destroy(). Landmarks initialize immediately, inside New(), so setting the tag
+// after New()'s ..() re-tagged already-deleted landmarks, and BYOND never collects a tagged object.
+/obj/effect/landmark/start/Initialize(mapload)
+	. = ..()
 	GLOB.start_landmarks_list += src
 	if(jobspawn_override)
 		if(!GLOB.jobspawn_overrides[name])
 			GLOB.jobspawn_overrides[name] = list()
 		GLOB.jobspawn_overrides[name] += src
-	..()
 	if(name != "start")
 		tag = "start*[name]"
 
@@ -211,8 +214,8 @@ INITIALIZE_IMMEDIATE(/obj/effect/landmark)
 	name = "department_sec"
 	icon_state = "Security Officer"
 
-/obj/effect/landmark/start/depsec/New()
-	..()
+/obj/effect/landmark/start/depsec/Initialize(mapload)
+	. = ..()
 	GLOB.department_security_spawns += src
 
 /obj/effect/landmark/start/depsec/Destroy()

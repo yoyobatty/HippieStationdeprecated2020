@@ -7,9 +7,12 @@
 	var/obj/effect/particle_effect/fakeholder
 
 /obj/structure/mineral_door/transparent/reagent/ComponentInitialize()
-	return
+	AddElement(/datum/element/atmos_sensitive) //it used to be called by the fire on its tile, now hot air does it (tgstation/tgstation#55604)
 
-/obj/structure/mineral_door/transparent/reagent/temperature_expose(datum/gas_mixture/air, exposed_temperature, exposed_volume)
+/obj/structure/mineral_door/transparent/reagent/should_atmos_process(datum/gas_mixture/air, exposed_temperature)
+	return exposed_temperature >= FIRE_MINIMUM_TEMPERATURE_TO_EXIST
+
+/obj/structure/mineral_door/transparent/reagent/atmos_expose(datum/gas_mixture/air, exposed_temperature)
 	if(exposed_temperature && !fakeholder)
 		fakeholder = new(get_turf(src))
 		fakeholder.create_reagents(50)
@@ -79,7 +82,7 @@
 /obj/structure/mineral_door/transparent/reagent/attackby(obj/item/I, mob/user, params)
 	var/hotness = I.is_hot()
 	if(hotness)
-		temperature_expose(exposed_temperature = hotness)
+		atmos_expose(null, hotness)
 		to_chat(user, "<span class='warning'>You heat [src] with [I]!</span>")
 	..()
 
@@ -121,7 +124,7 @@
 
 /obj/structure/mineral_door/transparent/reagent/bullet_act(obj/item/projectile/Proj)
 	if(istype(Proj, /obj/item/projectile/beam))
-		temperature_expose(exposed_temperature = 1000)
+		atmos_expose(null, 1000)
 	else
 		reagent_act(src)
 	..()

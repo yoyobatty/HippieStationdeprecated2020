@@ -21,17 +21,20 @@
 
 /datum/bot_brain
 	var/next_click_time = 0
-	var/atom/last_click_target
+	/// Weak so a clicked thing that then gets destroyed (a smashed window, a squashed mouse) can still be
+	/// garbage collected - only ever compared, never used.
+	var/datum/weakref/last_click_target
 
 /// Waits until a human could plausibly make the next click on `target`. Sleeps - only call from
 /// code that can (goal steps, obstruction clearing, pickups), never from pathfinding checks.
 /datum/bot_brain/proc/human_pause(atom/target)
 	var/wait = next_click_time - world.time
-	if(target != last_click_target)
+	var/datum/weakref/target_ref = WEAKREF(target)
+	if(target_ref != last_click_target)
 		wait = max(wait, 0) + rand(BOT_REACTION_MIN, BOT_REACTION_MAX)
 	if(wait > 0)
 		sleep(wait)
-	last_click_target = target
+	last_click_target = target_ref
 	next_click_time = world.time + rand(BOT_CLICK_INTERVAL_MIN, BOT_CLICK_INTERVAL_MAX)
 
 /// Gets I into the active hand, drawing it from the belt/backpack/pocket or picking it up, using a
@@ -59,10 +62,10 @@
 
 /// Puts a held item away - an equipment slot, the belt, backpack or pocket storage - never on the
 /// floor and never back into a hand. Returns TRUE if it left the hands.
-/datum/bot_brain/proc/put_away(obj/item/I)
+/datum/bot_brain/proc/put_away(obj/item/I, allow_equip = TRUE)
 	if(!I || !(I in owner.held_items))
 		return FALSE
-	if(owner.equip_to_appropriate_slot(I))
+	if(allow_equip && owner.equip_to_appropriate_slot(I))
 		return TRUE
 	for(var/obj/item/storage/S in list(owner.get_item_by_slot(ITEM_SLOT_BELT), owner.get_item_by_slot(ITEM_SLOT_BACK), owner.get_item_by_slot(ITEM_SLOT_DEX_STORAGE)))
 		if(S && SEND_SIGNAL(S, COMSIG_TRY_STORAGE_INSERT, I, owner))
@@ -120,6 +123,8 @@
 	if(world.time < next_fidget_time || owner.incapacitated() || owner.buckled)
 		return
 	next_fidget_time = world.time + rand(15, 50)
+	if(swat_passing_mice())
+		return
 	var/turf/here = get_turf(owner)
 	if(here && (locate(/obj/machinery/door) in here))
 		for(var/turf/open/T in get_adjacent_open_turfs(here))
@@ -137,3 +142,60 @@
 		owner.face_atom(pick(interesting))
 	else if(prob(40))
 		owner.setDir(pick(GLOB.cardinals))
+
+/// Taking something off to put something else on: the old item goes into the bag (through a free
+/// hand, like a player), and only onto the floor if there's truly nowhere to put it. Telemetry
+/// caught bots dropping their shoes and hard hat on the floor when suiting up.
+/datum/bot_brain/proc/swap_out_worn(obj/item/current, obj/item/replacement)
+	if(!current || current == replacement)
+		return
+	if(!owner.temporarilyRemoveItemFromInventory(current))
+		return
+	if(owner.put_in_hands(current) && put_away(current, allow_equip = FALSE)) //into the bag - not straight back onto the body
+		return
+	if(current in owner.held_items)
+		owner.dropItemToGround(current)
+	else
+		current.forceMove(owner.drop_location())
+
+// ---------------------------------------------------------------------------------------------
+// Pests
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_brain
+	var/next_mouse_swat_time = 0
+
+/// Squash a mouse within reach, the way crew do in passing - mice chew through power cables
+/// (goals/repair_cables.dm). A harm-intent click with whatever is in hand, or a punch.
+/datum/bot_brain/proc/swat_passing_mice()
+	if(world.time < next_mouse_swat_time || owner.incapacitated() || state == BOT_STATE_COMBAT)
+		return FALSE
+	for(var/mob/living/simple_animal/mouse/M in range(1, owner))
+		if(M.stat == DEAD || istype(M, /mob/living/simple_animal/mouse/brown/Tom) || !isturf(M.loc))
+			continue
+		next_mouse_swat_time = world.time + CLICK_CD_MELEE
+		human_pause(M)
+		if(QDELETED(M) || M.stat == DEAD || !owner.Adjacent(M))
+			return FALSE
+		owner.face_atom(M)
+		var/old_intent = owner.a_intent
+		owner.a_intent = INTENT_HARM
+		var/obj/item/W = owner.get_active_held_item()
+		var/swings = 0
+		// Keep at it for a few clicks like a person would - a punch can miss or not quite kill it.
+		while(swings < 4 && !QDELETED(M) && M.stat != DEAD && owner.Adjacent(M) && !owner.incapacitated())
+			if(swings)
+				human_pause(M)
+			owner.face_atom(M)
+			if(W && W.force > 0 && !(W.item_flags & NOBLUDGEON))
+				W.melee_attack_chain(owner, M)
+			else
+				owner.UnarmedAttack(M, TRUE)
+			swings++
+		owner.a_intent = old_intent
+		owner.changeNext_move(CLICK_CD_MELEE)
+		telemetry_event("swat_mouse", list("with" = W ? "[W]" : "hands", "swings" = swings, "killed" = M.stat == DEAD))
+		if(M.stat == DEAD)
+			bot_log(src, "squashed [M]")
+		return TRUE
+	return FALSE

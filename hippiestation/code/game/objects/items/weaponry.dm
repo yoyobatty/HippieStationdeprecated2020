@@ -374,8 +374,9 @@
 			R.send_turf = null
 
 
-/obj/item/boomerang/throw_at()
-	..()
+// Full signature so callers passing named args (callback = ..., gentle = ...) don't runtime with "bad arg name".
+/obj/item/boomerang/throw_at(atom/target, range, speed, mob/thrower, spin = TRUE, diagonals_first = FALSE, datum/callback/callback, force = MOVE_FORCE_STRONG, gentle = FALSE, quickstart = TRUE)
+	. = ..()
 	src.SpinAnimation(10, 0)
 	playsound(src, throw_sound,50,0)
 

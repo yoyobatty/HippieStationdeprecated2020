@@ -72,6 +72,7 @@ SUBSYSTEM_DEF(demo)
 /datum/controller/subsystem/demo/Initialize()
 	if(!CONFIG_GET(flag/enable_demo))
 		disabled = TRUE
+		drop_tracked() // hippie -- see drop_tracked()
 		flags |= SS_NO_INIT
 		can_fire = FALSE
 		return FALSE
@@ -425,7 +426,17 @@ SUBSYSTEM_DEF(demo)
 		return FALSE
 	if(!CONFIG_GET(flag/enable_demo))
 		disabled = TRUE
+		drop_tracked()
 	return disabled
+
+// hippie -- the mark_* lists hold hard references, so atoms tracked before we knew demos were off (the whole
+// compiled-in CentCom map) could never garbage collect: every turf decal and window spawner there hard-deleted.
+/datum/controller/subsystem/demo/proc/drop_tracked()
+	marked_new.Cut()
+	marked_dirty.Cut()
+	marked_turfs.Cut()
+	del_list.Cut()
+	pre_init_lines.Cut()
 
 /datum/controller/subsystem/demo/proc/mark_turf(turf/T)
 	if(disabled || recording_off())

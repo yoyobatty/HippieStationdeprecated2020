@@ -3,6 +3,22 @@
 	attack_sound = 'hippiestation/sound/weapons/punch1.ogg'
 	miss_sound = 'hippiestation/sound/weapons/punchmiss.ogg'
 
+// Godmode already blocks the damage from being too hot/cold (see damage_procs.dm), but the environment was still adjusting
+// a godmode mob's actual bodytemperature and throwing hot/cold alerts and mood events, so they'd still visibly "freeze" or
+// overheat with nothing to show for it. Skipped entirely for them: no temperature change, no alerts, no damage attempt.
+/datum/species/handle_environment(datum/gas_mixture/environment, mob/living/carbon/human/H)
+	if(H.status_flags & GODMODE)
+		return
+	return ..()
+
+// Nutrition wasn't blocked at all: godmode mobs still starved down to 0, got the hungry/starving alerts, felt
+// "sluggish" (metabolism_efficiency 0.8), and still got fat from overeating. TRAIT_NOHUNGER already skips all of this
+// for the mobs that have it; godmode now does the same rather than only stopping the resulting damage elsewhere.
+/datum/species/handle_digestion(mob/living/carbon/human/H)
+	if(H.status_flags & GODMODE)
+		return
+	return ..()
+
 /datum/species/proc/queue_hurt_sound(mob/living/carbon/human/H)
 	if (hurt_sound_cd > world.time)
 		return

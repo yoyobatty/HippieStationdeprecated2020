@@ -220,6 +220,11 @@
 	var/datum/reagent/R = pick(typesof(/datum/reagent/toxin))
 	assign_reagent(GLOB.chemical_reagents_list[R])
 
+/mob/living/simple_animal/hostile/poison/bees/any/Initialize()
+	. = ..()
+	var/datum/reagent/R = pick(typesof(/datum/reagent))
+	assign_reagent(GLOB.chemical_reagents_list[R])
+
 /mob/living/simple_animal/hostile/poison/bees/queen
 	name = "queen bee"
 	desc = "She's the queen of bees, BZZ BZZ!"

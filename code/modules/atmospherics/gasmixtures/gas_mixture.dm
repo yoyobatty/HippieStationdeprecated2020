@@ -375,14 +375,25 @@ GLOBAL_LIST_INIT(meta_gas_info, meta_gas_list()) //see ATMOSPHERICS/gas_types.dm
 	var/list/cached_moles = moles
 	if(!length(cached_moles))
 		return
-	var/list/reactions = list()
-	for(var/G in SSair.gas_reactions)
-		var/datum/gas_reaction/reaction = G
-		if(cached_moles[reaction.major_gas])
-			reactions += G
-
-	if(!length(reactions))
+	// Most mixes (plain air, idle pipenets) hold no gas that any reaction keys on, so check the few gases present
+	// against the index before building anything. See init_gas_reactions_by_key().
+	var/list/reactions_by_key = SSair.gas_reactions_by_key
+	var/list/reactions
+	var/key_gas_count = 0
+	for(var/gas_id, amount in cached_moles)
+		if(!amount)
+			continue
+		var/list/keyed = reactions_by_key[gas_id]
+		if(keyed)
+			reactions = keyed
+			key_gas_count++
+	if(!key_gas_count)
 		return
+	if(key_gas_count > 1) // candidates from several key gases, so keep the global priority order across all of them
+		reactions = list()
+		for(var/datum/gas_reaction/reaction as anything in SSair.gas_reactions)
+			if(cached_moles[reaction.major_gas])
+				reactions += reaction
 
 	reaction_results = new
 	//It might be worth looking into updating these after each reaction, but it changes things a lot, so be careful

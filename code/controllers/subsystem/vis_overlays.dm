@@ -5,12 +5,10 @@ SUBSYSTEM_DEF(vis_overlays)
 	init_order = INIT_ORDER_VIS
 
 	var/list/vis_overlay_cache
-	var/list/unique_vis_overlays
 	var/list/currentrun
 
 /datum/controller/subsystem/vis_overlays/Initialize()
 	vis_overlay_cache = list()
-	unique_vis_overlays = list()
 	return ..()
 
 /datum/controller/subsystem/vis_overlays/fire(resumed = FALSE)
@@ -31,7 +29,10 @@ SUBSYSTEM_DEF(vis_overlays)
 			return
 
 //the "thing" var can be anything with vis_contents which includes images
-/datum/controller/subsystem/vis_overlays/proc/add_vis_overlay(atom/movable/thing, icon, iconstate, layer, plane, dir, alpha = 255, add_appearance_flags = NONE, unique = FALSE)
+/datum/controller/subsystem/vis_overlays/proc/add_vis_overlay(atom/movable/thing, icon, iconstate, layer, plane, dir, alpha = 255, add_appearance_flags = NONE, unique = FALSE, bloom = TRUE)
+	//hippie edit -- every emissive gets an identical twin on the bloom plane, which is what makes it glow
+	if(bloom && (plane == EMISSIVE_PLANE || plane == EMISSIVE_UNBLOCKABLE_PLANE))
+		add_vis_overlay(thing, icon, iconstate, layer, EMISSIVE_BLOOM_PLANE, dir, alpha, add_appearance_flags, unique, FALSE)
 	var/obj/effect/overlay/vis/overlay
 	if(!unique)
 		. = "[icon]|[iconstate]|[layer]|[plane]|[dir]|[alpha]|[add_appearance_flags]"
@@ -43,9 +44,8 @@ SUBSYSTEM_DEF(vis_overlays)
 			overlay.unused = 0
 	else
 		overlay = _create_new_vis_overlay(icon, iconstate, layer, plane, dir, alpha, add_appearance_flags)
-		overlay.cache_expiration = -1
+		overlay.cache_expiration = -1 //also how rotate_vis_overlay() tells a unique overlay apart
 		var/cache_id = "\ref[overlay]@{[world.time]}"
-		unique_vis_overlays += overlay
 		vis_overlay_cache[cache_id] = overlay
 		. = overlay
 	thing.vis_contents += overlay
@@ -85,11 +85,13 @@ SUBSYSTEM_DEF(vis_overlays)
 		return
 	var/rotation = dir2angle(old_dir) - dir2angle(new_dir)
 	var/list/overlays_to_remove = list()
-	for(var/i in thing.managed_vis_overlays - unique_vis_overlays)
-		var/obj/effect/overlay/vis/overlay = i
-		add_vis_overlay(thing, overlay.icon, overlay.icon_state, overlay.layer, overlay.plane, turn(overlay.dir, rotation), overlay.alpha, overlay.appearance_flags)
+	// Unique overlays (cache_expiration -1) are turned in place, shared cached ones swapped for a turned copy.
+	// This used to check a global unique_vis_overlays list, which never let go of them - once one stopped being
+	// displayed, fire() deleted it and that list's reference forced a hard delete (tgstation removed it too, #59371).
+	for(var/obj/effect/overlay/vis/overlay as anything in thing.managed_vis_overlays)
+		if(overlay.cache_expiration == -1)
+			overlay.dir = turn(overlay.dir, rotation)
+			continue
+		add_vis_overlay(thing, overlay.icon, overlay.icon_state, overlay.layer, overlay.plane, turn(overlay.dir, rotation), overlay.alpha, overlay.appearance_flags, bloom = FALSE) //hippie edit -- the bloom twins are managed overlays too, so they get turned themselves
 		overlays_to_remove += overlay
-	for(var/i in thing.managed_vis_overlays & unique_vis_overlays)
-		var/obj/effect/overlay/vis/overlay = i
-		overlay.dir = turn(overlay.dir, rotation)
 	remove_vis_overlay(thing, overlays_to_remove)

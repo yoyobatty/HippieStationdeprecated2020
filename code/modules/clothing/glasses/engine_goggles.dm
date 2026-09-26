@@ -5,10 +5,11 @@
 #define MODE_TRAY "t-ray"
 #define MODE_RAD "radiation"
 #define MODE_SHUTTLE "shuttle"
+#define MODE_THERMAL "thermal" //hippie edit -- heat map, see hippiestation/code/modules/clothing/glasses/thermal_vision.dm
 
 /obj/item/clothing/glasses/meson/engine
 	name = "engineering scanner goggles"
-	desc = "Goggles used by engineers. The Meson Scanner mode lets you see basic structural and terrain layouts through walls, the T-ray Scanner mode lets you see underfloor objects such as cables and pipes, and the Radiation Scanner mode let's you see objects contaminated by radiation."
+	desc = "Goggles used by engineers. The Meson Scanner mode lets you see basic structural and terrain layouts through walls, the T-ray Scanner mode lets you see underfloor objects such as cables and pipes, the Radiation Scanner mode let's you see objects contaminated by radiation, and the Thermal Scanner mode draws a heat map of everything in view, even in the dark. Blue is cold, green is comfortable, then yellow, orange and red as it gets hotter, and white is white hot."
 	icon_state = "trayson-meson"
 	item_state = "trayson-meson"
 	actions_types = list(/datum/action/item_action/toggle_mode)
@@ -17,9 +18,10 @@
 	darkness_view = 2
 	invis_view = SEE_INVISIBLE_LIVING
 
-	var/list/modes = list(MODE_NONE = MODE_MESON, MODE_MESON = MODE_TRAY, MODE_TRAY = MODE_RAD, MODE_RAD = MODE_NONE)
+	var/list/modes = list(MODE_NONE = MODE_MESON, MODE_MESON = MODE_TRAY, MODE_TRAY = MODE_RAD, MODE_RAD = MODE_THERMAL, MODE_THERMAL = MODE_NONE)
 	var/mode = MODE_NONE
 	var/range = 1
+	var/datum/thermal_vision/thermal //hippie edit -- the heat map, while it's on
 
 /obj/item/clothing/glasses/meson/engine/Initialize()
 	. = ..()
@@ -28,7 +30,27 @@
 
 /obj/item/clothing/glasses/meson/engine/Destroy()
 	STOP_PROCESSING(SSobj, src)
+	QDEL_NULL(thermal) //hippie edit
 	return ..()
+
+//hippie edit -- runs the heat map for as long as these are worn on someone's eyes in thermal mode, and stops it the moment they aren't
+/obj/item/clothing/glasses/meson/engine/proc/update_thermal(mob/living/carbon/human/user, worn = FALSE)
+	if(!user)
+		user = ishuman(loc) ? loc : null
+	if(mode == MODE_THERMAL && user && user.client && (worn || user.glasses == src))
+		if(!thermal || thermal.viewer != user)
+			QDEL_NULL(thermal)
+			thermal = new(user)
+	else
+		QDEL_NULL(thermal)
+
+/obj/item/clothing/glasses/meson/engine/equipped(mob/user, slot)
+	. = ..()
+	update_thermal(user, slot == ITEM_SLOT_EYES)
+
+/obj/item/clothing/glasses/meson/engine/dropped(mob/user)
+	. = ..()
+	update_thermal()
 
 /obj/item/clothing/glasses/meson/engine/proc/toggle_mode(mob/user, voluntary)
 	mode = modes[mode]
@@ -45,11 +67,22 @@
 			darkness_view = 2
 			lighting_alpha = null
 
+		if(MODE_THERMAL) //hippie edit -- thermal sees in the dark, the same way night vision goggles do
+			vision_flags = NONE
+			darkness_view = 8
+			lighting_alpha = LIGHTING_PLANE_ALPHA_MOSTLY_INVISIBLE
+
+		if(MODE_NONE) //hippie edit -- and this puts things back when they're switched off
+			vision_flags = NONE
+			darkness_view = 2
+			lighting_alpha = null
+
 	if(ishuman(user))
 		var/mob/living/carbon/human/H = user
 		if(H.glasses == src)
 			H.update_sight()
 
+	update_thermal(ishuman(user) ? user : null) //hippie edit
 	update_icon()
 	for(var/X in actions)
 		var/datum/action/A = X
@@ -116,7 +149,7 @@
 			flick_overlay(pic, list(user.client), 8)
 
 /obj/item/clothing/glasses/meson/engine/update_icon()
-	icon_state = "trayson-[mode]"
+	icon_state = "trayson-[mode == MODE_THERMAL ? MODE_RAD : mode]" //hippie edit -- thermal has no sprite of its own yet, so it borrows the radiation one
 	update_mob()
 
 /obj/item/clothing/glasses/meson/engine/proc/update_mob()
@@ -132,10 +165,10 @@
 	name = "optical t-ray scanner"
 	icon_state = "trayson-t-ray"
 	item_state = "trayson-t-ray"
-	desc = "Used by engineering staff to see underfloor objects such as cables and pipes."
+	desc = "Used by engineering staff to see underfloor objects such as cables and pipes. Its thermal mode draws a heat map of everything in view, even in the dark: blue is cold, green is comfortable, then yellow, orange and red as it gets hotter, and white is white hot."
 	range = 2
 
-	modes = list(MODE_NONE = MODE_TRAY, MODE_TRAY = MODE_NONE)
+	modes = list(MODE_NONE = MODE_TRAY, MODE_TRAY = MODE_THERMAL, MODE_THERMAL = MODE_NONE)
 
 /obj/item/clothing/glasses/meson/engine/shuttle
 	name = "shuttle region scanner"
@@ -150,3 +183,4 @@
 #undef MODE_TRAY
 #undef MODE_RAD
 #undef MODE_SHUTTLE
+#undef MODE_THERMAL

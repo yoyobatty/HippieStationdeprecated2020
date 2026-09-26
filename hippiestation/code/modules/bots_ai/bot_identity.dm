@@ -19,10 +19,15 @@
 /datum/bot_identity/New(mob/dead/new_player/new_owner)
 	. = ..()
 	owner = new_owner
+	// transfer_character() deletes the new_player once the human exists - holding it after that forced a hard delete per bot
+	RegisterSignal(owner, COMSIG_PARENT_QDELETING, PROC_REF(owner_deleted))
 	persona_name = pick(GLOB.bot_persona_names)
 	fake_prefs = new /datum/preferences(null)
 	fake_prefs.random_character()
 	fake_prefs.real_name = persona_name
+
+/datum/bot_identity/proc/owner_deleted()
+	owner = null
 
 /datum/bot_identity/Destroy()
 	owner = null

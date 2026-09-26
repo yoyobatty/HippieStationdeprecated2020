@@ -74,6 +74,9 @@
 
 	var/datum/gas_mixture/removed = air1.remove_ratio(transfer_ratio)
 
+	if(!removed || !removed.total_moles()) //remove_ratio() returns null for a zero ratio here
+		return
+
 	if(overclocked)//Some of the gas from the mixture leaks to the environment when overclocked
 		var/turf/open/T = loc
 		if(istype(T))

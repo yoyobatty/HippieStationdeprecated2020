@@ -895,6 +895,15 @@
 
 	. = ..()
 
+// The base attackby() above already handles eating the cracker; this only adds Poly's reaction to who fed it one.
+/mob/living/simple_animal/parrot/Poly/attackby(obj/item/O, mob/living/user, params)
+	var/was_cracker = istype(O, /obj/item/reagent_containers/food/snacks/cracker)
+	. = ..()
+	if(was_cracker && !stat && !buckled && ishuman(user))
+		var/mob/living/carbon/human/H = user
+		if(H.mind && H.mind.assigned_role == "Chief Engineer")
+			perch_on_human(H)
+
 /mob/living/simple_animal/parrot/Poly/Life()
 	if(!stat && SSticker.current_state == GAME_STATE_FINISHED && !memory_saved)
 		Write_Memory(FALSE)
