@@ -7,8 +7,15 @@
 	var/light_dir = NONE
 	/// How many degrees of a circle should our light show. 360 is all of it (omnidirectional), 180 is a half-circle cone, etc.
 	var/light_angle = 360
+	/// Whether our angled light points the way we're facing - or whoever's holding or wearing us is - instead of light_dir.
+	/// Lying loose, we keep pointing where we were left facing.
+	var/light_follows_facing = FALSE
 	/// The height of the light source on the pseudo-z-axis. The larger this is, the dimmer/softer the light starts out.
 	var/light_height = LIGHTING_HEIGHT
+	/// Whether our light spills into the shadows around what it lights, when bounce lighting is on (see LIGHTING_BOUNCE_STRENGTH)
+	var/light_bounce = TRUE
+	/// Whether our light eases off softly past its range, rather than falling off in a straight line to it (see LIGHTING_FALLOFF_TAIL)
+	var/light_falloff_tail = TRUE
 
 	var/tmp/datum/light_source/light // Our light source. Don't fuck with this directly unless you have a good reason!
 	var/tmp/list/light_sources       // Any light sources that are "inside" of us, for example, if src here was a mob that's carrying a flashlight, that flashlight's light source would be part of this list.
@@ -53,7 +60,7 @@
 	if (QDELETED(src))
 		return
 
-	if (!light_power || !light_range) // We won't emit light anyways, destroy the light source.
+	if (!light_power || light_range <= 0) // We won't emit light anyways, destroy the light source.
 		QDEL_NULL(light)
 	else
 		if (!ismovable(loc)) // We choose what atom should be the top atom of the light here.
@@ -65,6 +72,12 @@
 			light.update(.)
 		else
 			light = new/datum/light_source(src, .)
+
+/// Called by setDir() when we turn: re-aims the angled lights that point the way we face.
+/atom/proc/update_facing_lights()
+	for (var/datum/light_source/L as anything in light_sources)
+		if (L.top_atom == src && L.source_atom.light_follows_facing && L.light_angle < 360)
+			L.update()
 
 // If we have opacity, make sure to tell (potentially) affected light sources.
 /atom/movable/Destroy()

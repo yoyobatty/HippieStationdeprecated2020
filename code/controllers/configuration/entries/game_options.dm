@@ -315,6 +315,8 @@
 	config_entry_value = "Assistant"
 
 /datum/config_entry/flag/starlight
+/// hippie -- light spills softly around corners and out of doorways (see LIGHTING_BOUNCE_STRENGTH)
+/datum/config_entry/flag/bounce_lighting
 /datum/config_entry/flag/grey_assistants
 
 /datum/config_entry/number/lavaland_budget

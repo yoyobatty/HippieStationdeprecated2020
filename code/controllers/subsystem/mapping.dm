@@ -62,6 +62,11 @@ SUBSYSTEM_DEF(mapping)
 	repopulate_sorted_areas()
 	process_teleport_locs()			//Sets up the wizard teleport locations
 	preloadTemplates()
+	//hippie start -- random maintenance rooms (hippiestation/code/modules/mapping/random_maint_rooms.dm)
+	loading_ruins = TRUE
+	load_maint_rooms()
+	loading_ruins = FALSE
+	//hippie end
 #ifndef LOWMEMORYMODE
 	// Create space ruin levels
 	while (space_levels_so_far < config.space_ruin_levels)

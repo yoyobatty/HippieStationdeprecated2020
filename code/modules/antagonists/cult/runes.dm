@@ -32,6 +32,8 @@ Runes can either be invoked by one's self or with many different cultists. Each 
 
 	var/scribe_delay = 40 //how long the rune takes to create
 	var/scribe_damage = 0.1 //how much damage you take doing it
+	var/started_creating //global proc called when someone starts scribing this rune (as in tgstation)
+	var/failed_to_create //global proc called when that scribing is interrupted
 	var/invoke_damage = 0 //how much damage invokers take when invoking it
 	var/construct_invoke = TRUE //if constructs can invoke it
 
@@ -470,6 +472,9 @@ structure_check() searches for nearby cultist structures required for the invoca
 	pixel_y = -32
 	scribe_delay = 500 //how long the rune takes to create
 	scribe_damage = 40.1 //how much damage you take doing it
+	// Starlight slowly dims and reddens while this is being drawn - from tgstation
+	started_creating = /proc/started_narsie_summon
+	failed_to_create = /proc/failed_narsie_summon
 	var/used = FALSE
 
 /obj/effect/rune/narsie/Initialize(mapload, set_keyword)
@@ -482,6 +487,50 @@ structure_check() searches for nearby cultist structures required for the invoca
 
 /obj/effect/rune/narsie/conceal() //can't hide this, and you wouldn't want to
 	return
+
+GLOBAL_VAR_INIT(narsie_effect_last_modified, 0)
+///How many Nar'Sie runes are being scribed right now
+GLOBAL_VAR_INIT(narsie_summon_count, 0)
+
+/// When Nar'Sie begins to be summoned, slowly dim and redden the starlight (tgstation; its parallax desaturation isn't ported)
+/proc/started_narsie_summon()
+	set waitfor = FALSE
+
+	GLOB.narsie_summon_count++
+	if(GLOB.narsie_summon_count > 1)
+		return
+
+	var/started = world.time
+	GLOB.narsie_effect_last_modified = started
+
+	var/starting_color = GLOB.starlight_color
+	var/list/target_color = rgb2num(starting_color, COLORSPACE_HSV)
+	var/mid_color = rgb(target_color[1], target_color[2] * 0.4, target_color[3] * 0.5, space = COLORSPACE_HSV)
+	var/end_color = "#c21d57"
+	for(var/i in 1 to 9)
+		if(GLOB.narsie_effect_last_modified > started)
+			return
+		set_starlight(gradient(list(1, starting_color, 3, mid_color, 6, mid_color, 9, end_color, "space" = COLORSPACE_HSV), i))
+		sleep(8 SECONDS)
+
+/// Scribing failed, time to work backwards
+/proc/failed_narsie_summon()
+	set waitfor = FALSE
+
+	GLOB.narsie_summon_count = max(GLOB.narsie_summon_count - 1, 0)
+	if(GLOB.narsie_summon_count) // someone else is still drawing one
+		return
+
+	var/started = world.time
+	GLOB.narsie_effect_last_modified = started
+	var/starting_color = GLOB.starlight_color
+	var/end_color = GLOB.base_starlight_color
+	// We get 4 steps to fade in
+	for(var/i in 1 to 4)
+		if(GLOB.narsie_effect_last_modified > started)
+			return
+		set_starlight(gradient(list(0, starting_color, 1, end_color, "space" = COLORSPACE_HSV), i / 4))
+		sleep(8 SECONDS)
 
 /obj/effect/rune/narsie/invoke(var/list/invokers)
 	if(used)

@@ -13,6 +13,8 @@
 
 
 /obj/mecha
+	light_angle = LIGHT_ANGLE_HEADLIGHTS
+	light_follows_facing = TRUE
 	name = "mecha"
 	desc = "Exosuit"
 	icon = 'icons/mecha/mecha.dmi'

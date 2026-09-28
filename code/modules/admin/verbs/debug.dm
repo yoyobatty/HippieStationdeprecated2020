@@ -761,6 +761,20 @@ But you can call procs that are of type /mob/living/carbon/human/proc/ for that 
 	SSblackbox.record_feedback("tally", "admin_verb", 1, "Toggle Medal Disable") // If...
 	log_admin("[key_name(src)] [SSmedals.hub_enabled ? "disabled" : "enabled"] the medal hub lockout.")
 
+/client/proc/toggle_bounce_lighting()
+	set category = "Debug"
+	set name = "Toggle Bounce Lighting"
+	set desc = "Turns bounce lighting (light spilling softly around corners and out of doorways) on or off, relighting everything."
+
+	if(!check_rights(R_DEBUG))
+		return
+
+	SSlighting.set_bounce_lighting(!SSlighting.bounce_lighting)
+
+	message_admins("<span class='adminnotice'>[key_name_admin(src)] turned bounce lighting [SSlighting.bounce_lighting ? "on" : "off"].</span>")
+	SSblackbox.record_feedback("tally", "admin_verb", 1, "Toggle Bounce Lighting")
+	log_admin("[key_name(src)] turned bounce lighting [SSlighting.bounce_lighting ? "on" : "off"].")
+
 /client/proc/view_runtimes()
 	set category = "Debug"
 	set name = "View Runtimes"

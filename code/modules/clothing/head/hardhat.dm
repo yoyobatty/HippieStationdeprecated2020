@@ -1,4 +1,6 @@
 /obj/item/clothing/head/hardhat
+	light_angle = LIGHT_ANGLE_HEADLAMP
+	light_follows_facing = TRUE
 	name = "hard hat"
 	desc = "A piece of headgear used in dangerous working conditions to protect the head. Comes with a built-in flashlight."
 	icon_state = "hardhat0_yellow"

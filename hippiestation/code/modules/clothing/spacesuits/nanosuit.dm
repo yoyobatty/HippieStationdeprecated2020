@@ -684,7 +684,9 @@
 	display_visor_message("Explosion detected! Epicenter: [devastation_range], Outer: [heavy_impact_range], Shock: [light_impact_range]")
 
 
-/obj/item/clothing/head/helmet/space/hardsuit/nano/ui_action_click()
+/obj/item/clothing/head/helmet/space/hardsuit/nano/ui_action_click(mob/user, action)
+	if(istype(action, /datum/action/item_action/toggle_geiger))
+		return ..()
 	return FALSE
 
 /obj/item/clothing/head/helmet/space/hardsuit/nano/equipped(mob/living/carbon/human/user, slot)

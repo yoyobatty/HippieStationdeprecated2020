@@ -178,6 +178,13 @@ GLOBAL_LIST_EMPTY(asset_datums)
 	var/size_id = sprite[SPR_SIZE]
 	return {"[name][size_id] [sprite_name]"}
 
+/// Returns the "WxH" size group a sprite was put in, or null if it isn't in the sheet
+/datum/asset/spritesheet/proc/icon_size_id(sprite_name)
+	var/sprite = sprites[sprite_name]
+	if (!sprite)
+		return null
+	return sprite[SPR_SIZE]
+
 #undef SPR_SIZE
 #undef SPR_IDX
 #undef SPRSZ_COUNT

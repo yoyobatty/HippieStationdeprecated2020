@@ -78,17 +78,9 @@
 	. = ..()
 
 /obj/effect/decal/cleanable/blood/gibs/proc/streak(list/directions, mapload=FALSE)
-	set waitfor = FALSE
 	var/list/diseases = list()
 	SEND_SIGNAL(src, COMSIG_GIBS_STREAK, directions, diseases)
-	var/direction = pick(directions)
-	for(var/i in 0 to pick(0, 200; 1, 150; 2, 50))
-		if(!mapload)
-			sleep(2)
-		if(i > 0)
-			new /obj/effect/decal/cleanable/blood/splatter(loc, diseases)
-		if(!step_to(src, get_step(src, direction), 0))
-			break
+	fling(pick(directions), pick(200; 1, 150; 2, 50; 3), mapload, diseases) //hippie -- gibs arc through the air, see hippiestation cleanable.dm
 
 /obj/effect/decal/cleanable/blood/gibs/up
 	icon_state = "gibup1"

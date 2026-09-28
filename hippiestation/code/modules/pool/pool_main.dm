@@ -30,8 +30,10 @@
 	else
 		name = "poolwater"
 		desc = "You're safer here than in the deep."
-		watereffect = new /obj/effect/overlay/water(src)
-		watertop = new /obj/effect/overlay/water/top(src)
+		if(!watereffect) // refilling a pool that's already full shouldn't stack a second layer of water
+			watereffect = new /obj/effect/overlay/water(src)
+		if(!watertop)
+			watertop = new /obj/effect/overlay/water/top(src)
 
 /obj/effect/overlay/water
 	name = "water"
@@ -80,16 +82,19 @@
 			return
 
 /turf/open/floor/CanPass(atom/movable/A, turf/T)
+	// Every move onto any floor on the station comes through here, so bail out on the cheap test first: only
+	// something climbing out of a pool onto dry floor is ever stopped. (This used to look up gravity first, every move.)
+	if(!istype(A.loc, /turf/open/pool) || istype(T, /turf/open/pool))
+		return ..()
+	if(!isliving(A) && !istype(A, /obj/structure)) // items can still be tossed out
+		return ..()
+	if(istype(A, /mob/living/simple_animal) || istype(A, /mob/living/carbon/monkey))
+		return ..()
+	if(istype(A, /obj/structure) && istype(A.pulledby, /mob/living/carbon/human))
+		return ..()
 	if(!has_gravity(src))
 		return ..()
-	else if(istype(A, /mob/living) || istype(A, /obj/structure)) //This check ensures that only specific types of objects cannot pass into the water. Items will be able to get tossed out.
-		if(istype(A, /mob/living/simple_animal) || istype(A, /mob/living/carbon/monkey))
-			return ..()
-		if (istype(A, /obj/structure) && istype(A.pulledby, /mob/living/carbon/human))
-			return ..()
-		if(istype(get_turf(A), /turf/open/pool) && !istype(T, /turf/open/pool)) //!(locate(/obj/structure/pool/ladder) in get_turf(A).loc)
-			return FALSE
-	return ..()
+	return FALSE
 
 /turf/open/pool/proc/wash_obj(obj/O)
 	. = SEND_SIGNAL(O, COMSIG_COMPONENT_CLEAN_ACT, CLEAN_WEAK)
@@ -234,7 +239,7 @@
 						H.swimming = TRUE
 						playsound(src, 'sound/effects/woodhit.ogg', 60, 1, 1)
 					else
-						H.visible_message("<span class='danger'>[H] falls in the drained pool, and cracks his skull!</span>",
+						H.visible_message("<span class='danger'>[H] falls in the drained pool, and cracks [H.p_their()] skull!</span>",
 													"<span class='userdanger'>You fall in the drained pool, and crack your skull!</span>")
 						H.apply_damage(15, BRUTE, "head")
 						H.Knockdown(200) // This should hurt. And it does.
@@ -243,8 +248,8 @@
 						playsound(src, 'sound/effects/woodhit.ogg', 60, 1, 1)
 						playsound(src, 'hippiestation/sound/misc/crack.ogg', 100, 1)
 				else
-					H.visible_message("<span class='danger'>[H] falls in the drained pool, but had an helmet!</span>",
-										"<span class='userdanger'>You fall in the drained pool, but you had an helmet!</span>")
+					H.visible_message("<span class='danger'>[H] falls in the drained pool, but had a helmet!</span>",
+										"<span class='userdanger'>You fall in the drained pool, but you had a helmet!</span>")
 					H.Knockdown(40)
 					H.swimming = TRUE
 					playsound(src, 'sound/effects/woodhit.ogg', 60, 1, 1)
@@ -366,7 +371,7 @@
 			jumper.throw_at(throw_target, 3, 1)
 
 		if(61 to 80)
-			jumper.visible_message("<span class='notice'>[jumper] goes for an awesome dive! Don't stand in \his way!</span>", \
+			jumper.visible_message("<span class='notice'>[jumper] goes for an awesome dive! Don't stand in [jumper.p_their()] way!</span>", \
 								 "<span class='notice'>You feel like this dive will be awesome</span>")
 			sleep(30)
 			backswim()
@@ -375,7 +380,7 @@
 		if(81 to 91)
 			sleep(20)
 			backswim()
-			jumper.visible_message("<span class='danger'>[jumper] misses \his step!</span>", \
+			jumper.visible_message("<span class='danger'>[jumper] misses [jumper.p_their()] step!</span>", \
 							 "<span class='userdanger'>You misstep!</span>")
 			var/atom/throw_target = get_edge_target_turf(src, dir)
 			jumper.throw_at(throw_target, 0, 1)
@@ -383,7 +388,7 @@
 			jumper.adjustBruteLoss(10)
 
 		if(91 to 100)
-			jumper.visible_message("<span class='notice'>[jumper] is preparing for the legendary dive! Can he make it?</span>", \
+			jumper.visible_message("<span class='notice'>[jumper] is preparing for the legendary dive! Can [jumper.p_they()] make it?</span>", \
 								 "<span class='userdanger'>You start preparing for a legendary dive!</span>")
 			jumper.SpinAnimation(7,1)
 
@@ -421,7 +426,7 @@
 			S.Move(src)
 			QDEL_IN(S, 20)
 			for(var/mob/living/carbon/human/L in src)
-				if(!L.wear_mask && !user.stat) //Do not affect those underwater or dying.
+				if(!L.wear_mask && !L.stat) //Do not affect those underwater or dying. (Checked the splasher before, not who got splashed.)
 					L.emote("cough")
 				L.adjustStaminaLoss(4) //You need to give em a break!
 

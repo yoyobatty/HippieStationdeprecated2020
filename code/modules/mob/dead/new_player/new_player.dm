@@ -362,7 +362,7 @@
 
 	if(job && !job.override_latejoin_spawn(character))
 		SSjob.SendToLateJoin(character)
-		if(!arrivals_docked)
+		if(!arrivals_docked && character.client) // hippie -- bot crew late-join without a client
 			var/obj/screen/splash/Spl = new(character.client, TRUE)
 			Spl.Fade(TRUE)
 			var/picked_number = rand(1, 10) // hippie -- pykoai changes, also a random chance to make a joke about tgstation

@@ -1,10 +1,16 @@
 /turf
 	var/dynamic_lighting = TRUE
 	luminosity           = 1
+	// Starlight, lava and the like: thousands of faint lights, for which bounce lighting would cost far more than it adds
+	light_bounce = FALSE
+	// Likewise a soft falloff: and starlight's is tuned to look as tgstation's does
+	light_falloff_tail = FALSE
+
+	/// The number of the last light source update to find it lights us: see /datum/light_source/proc/update_corners()
+	var/tmp/lighting_stamp = 0
 
 	var/tmp/lighting_corners_initialised = FALSE
 
-	var/tmp/list/datum/light_source/affecting_lights       // List of light sources affecting this turf.
 	var/tmp/atom/movable/lighting_object/lighting_object // Our lighting object.
 
 	var/tmp/datum/lighting_corner/lighting_corner_NE

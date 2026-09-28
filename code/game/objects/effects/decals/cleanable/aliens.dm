@@ -26,15 +26,7 @@
 	mergeable_decal = FALSE
 
 /obj/effect/decal/cleanable/xenoblood/xgibs/proc/streak(list/directions, mapload=FALSE)
-	set waitfor = 0
-	var/direction = pick(directions)
-	for(var/i = 0, i < pick(1, 200; 2, 150; 3, 50), i++)
-		if(!mapload)
-			sleep(2)
-		if(i > 0)
-			new /obj/effect/decal/cleanable/xenoblood/xsplatter(loc)
-		if(!step_to(src, get_step(src, direction), 0))
-			break
+	fling(pick(directions), pick(200; 1, 150; 2, 50; 3), mapload) //hippie -- gibs arc through the air, see hippiestation cleanable.dm
 
 /obj/effect/decal/cleanable/xenoblood/xgibs/ex_act()
 	return

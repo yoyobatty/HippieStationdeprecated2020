@@ -236,7 +236,17 @@
 	, "Surely, there's no way this could go bad.")
 
 /obj/item/reagent_containers/pill/floorpill/Initialize()
-	list_reagents = list(get_random_reagent_id() = rand(10,50))
+	//hippie start -- no reagents that go off by themselves: a pill lying in maintenance shouldn't be a time bomb
+	var/static/list/unstable_reagents = typecacheof(list(
+		/datum/reagent/superboom, //randomly explodes
+		/datum/reagent/emit_on, //fires emitter beams
+		/datum/reagent/toxin/acid/hydrazine, //random small explosions and fireballs
+	))
+	var/reagent = get_random_reagent_id()
+	while(unstable_reagents[reagent])
+		reagent = get_random_reagent_id()
+	list_reagents = list((reagent) = rand(10,50))
+	//hippie end
 	. = ..()
 	name = pick(names)
 	if(prob(20))

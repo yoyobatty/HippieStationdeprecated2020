@@ -2,6 +2,12 @@
 #define BOT_STATE_COMBAT "combat"
 #define BOT_STATE_GOAL "goal"
 #define BOT_STATE_ARREST "arrest" //Hippie. Security bots only - see handle_arrest() (goals/security_patrol.dm).
+/// How long a bot keeps looking for someone it's fighting after losing sight of them
+#define BOT_COMBAT_LOST_TIMEOUT 150
+/// How long without being hit before a bot decides the fight's over
+#define BOT_COMBAT_CALM_DOWN 80
+/// How far a bot sees (the default client view radius) - see can_see_target()
+#define BOT_SIGHT_RANGE 7
 
 /mob/living/carbon/human
 	var/datum/bot_brain/bot_brain
@@ -45,6 +51,13 @@
 	// (the common case - most jobs spawn with both) should tuck the card away the same
 	// way, not just the one specific bot mid-hack on the captain's office.
 	var/next_id_consolidation_check_time = 0
+	// Combat by sight - see handle_combat()/can_see_target()
+	var/combat_last_seen = 0
+	var/turf/combat_last_seen_turf
+	var/turf/combat_path_turf
+	var/last_hit_by_attacker = 0
+	// When this bot last radioed security about being attacked (see bot_call_security(), goals/security_patrol.dm)
+	var/next_assault_report_time = 0
 
 /datum/bot_brain/New(mob/living/carbon/human/new_owner)
 	. = ..()
@@ -106,6 +119,11 @@
 	// here narrows it down decisively - if it's coming from bot code, this will name
 	// exactly which proc and bot; if it keeps happening with this catch never firing,
 	// it's proven to be unrelated to bot_brain entirely. Remove once resolved.
+	// An officer on an errand still has eyes: someone wanted walking past gets picked up (goals/security_patrol.dm).
+	if(state == BOT_STATE_GOAL && world.time >= next_security_check_time && is_security_job() && !istype(current_goal, /datum/bot_goal/brig_prisoner))
+		next_security_check_time = world.time + rand(10, 20)
+		try_spot_wanted()
+
 	try
 		switch(state)
 			if(BOT_STATE_COMBAT)
@@ -132,17 +150,92 @@
 		next_id_consolidation_check_time = world.time + rand(150, 400)
 		consolidate_id_into_pda()
 
+/datum/bot_brain/proc/disengage_combat(reason)
+	bot_log(src, "disengaging from [attacker]: [reason]")
+	attacker = null
+	combat_last_seen_turf = null
+	stop_pursuit()
+	state = state_before_combat || BOT_STATE_WANDER
+	state_before_combat = null
+	owner.a_intent = INTENT_HELP
+	if(state == BOT_STATE_GOAL)
+		resume_goal()
+
+/// What something is inside of, all the way out to whatever's actually sitting on a turf (a locker, a crate, a mech...)
+/proc/bot_outermost_holder(atom/movable/A)
+	while(A?.loc && !isturf(A.loc))
+		A = A.loc
+	return A
+
+/// Whether this bot can see T right now, the way a person would: T is in view, or T is inside something in view that
+/// the bot watched them get into a moment ago (last_seen_turf/last_seen_time are from its last sighting of them).
+/// Never "sees" someone through a locker door it didn't see them climb behind.
+/datum/bot_brain/proc/can_see_target(mob/living/T, turf/last_seen_turf, last_seen_time)
+	var/turf/their_turf = get_turf(T) // not T.z - anything inside a locker has no coordinates of its own
+	if(QDELETED(T) || !their_turf || their_turf.z != owner.z || is_blind(owner))
+		return FALSE
+	var/atom/movable/outer = bot_outermost_holder(T)
+	var/list/seen = view(BOT_SIGHT_RANGE, owner)
+	if(outer == T)
+		return (T in seen)
+	if(!(outer in seen))
+		return FALSE
+	return last_seen_turf && world.time - last_seen_time <= 30 && get_dist(get_turf(outer), last_seen_turf) <= 1
+
 /datum/bot_brain/proc/handle_combat()
-	if(QDELETED(attacker) || attacker.stat == DEAD || get_dist(owner, attacker) > 12)
-		bot_log(src, "disengaging from [attacker]")
-		attacker = null
-		stop_pursuit()
-		state = state_before_combat || BOT_STATE_WANDER
-		state_before_combat = null
-		owner.a_intent = INTENT_HELP
-		if(state == BOT_STATE_GOAL)
-			resume_goal()
+	if(QDELETED(attacker) || attacker.stat == DEAD)
+		disengage_combat("they're down")
 		return
+	// Crew fight to stop an attack, not to finish someone: once they're cuffed or out cold, it's over.
+	var/mob/living/carbon/restrained = attacker
+	if(attacker.stat != CONSCIOUS || (istype(restrained) && restrained.handcuffed))
+		disengage_combat(attacker.stat != CONSCIOUS ? "they're down" : "they're restrained")
+		return
+	// Self-defense ends when the threat does: they've stopped hitting us, so we stop too.
+	if(world.time - last_hit_by_attacker > BOT_COMBAT_CALM_DOWN)
+		disengage_combat("they've stopped fighting")
+		return
+	// Fights are fought by sight, not by knowing where everyone is: lose them and it's off to where they were last
+	// seen, then give up. (This used to chase anyone within 12 tiles through walls, and punch them through locker doors.)
+	var/visible = can_see_target(attacker, combat_last_seen_turf, combat_last_seen)
+	if(visible)
+		combat_last_seen = world.time
+		combat_last_seen_turf = get_turf(attacker)
+	else if(world.time - combat_last_seen > BOT_COMBAT_LOST_TIMEOUT)
+		disengage_combat("lost sight of them")
+		return
+	if(visible && get_dist(owner, attacker) > 12)
+		disengage_combat("they got away")
+		return
+
+	if(!visible)
+		var/turf/last_turf = combat_last_seen_turf
+		if(last_turf && get_turf(owner) != last_turf)
+			combat_chase(last_turf)
+		return
+
+	// Watched them climb into a locker or crate: get it open (or bash it, locked or welded), don't punch through the door.
+	if(!isturf(attacker.loc))
+		var/atom/movable/hideout = bot_outermost_holder(attacker)
+		if(!owner.Adjacent(hideout))
+			combat_chase(hideout)
+			return
+		stop_pursuit()
+		owner.changeNext_move(CLICK_CD_MELEE)
+		var/obj/structure/closet/C = hideout
+		if(istype(C) && !C.opened && C.can_open(owner))
+			bot_log(src, "opening [C] to get at [attacker]")
+			use_atom(C)
+			return
+		var/obj/item/weapon = owner.get_active_held_item()
+		if(weapon && weapon.force > 0)
+			use_item_on(weapon, hideout, harm = TRUE)
+		else
+			owner.a_intent = INTENT_HARM
+			owner.UnarmedAttack(hideout, TRUE)
+		bot_log(src, "bashing [hideout] - [attacker] is hiding in it")
+		return
+
 	// A botanist reaches for what it grew first - a death nettle up close, an acid melon or a
 	// primed combustible lemon from range (goals/botany_projects.dm).
 	if(try_botany_weapon(attacker))
@@ -158,7 +251,18 @@
 		try_combat_sidestep(attacker)
 	else
 		owner.a_intent = INTENT_HARM
-		pursue(attacker, "combat", force = TRUE)
+		combat_chase(attacker)
+
+/// Chase something, re-pathing only once it's moved off where the current path leads (same as arrests,
+/// goals/security_patrol.dm) - this used to run a fresh pathfind every second of every fight.
+/datum/bot_brain/proc/combat_chase(atom/target)
+	var/turf/target_turf = get_turf(target)
+	if(!target_turf)
+		return
+	if(pursuing_kind == "combat" && pursue_target == target && combat_path_turf && get_dist(combat_path_turf, target_turf) <= 1)
+		return
+	combat_path_turf = target_turf
+	pursue(target, "combat", force = TRUE)
 
 // Mostly harm, but sometimes goes for a disarm instead if the attacker is holding
 // something - matching how a real player alternates intents mid-fight rather than
@@ -659,8 +763,16 @@ GLOBAL_LIST_INIT(bot_maintenance_averse_jobs, list("Medical Doctor", "Chief Medi
 	if(prob(25))
 		bot_say(owner, pick(GLOB.bot_idle_lines))
 
-/datum/bot_brain/proc/on_attacked(mob/living/user)
-	if(!user || user == owner)
+/// Someone hurt this bot. what_done is log_combat()'s verb ("punched", "attacked", "shot"...), fed from
+/// bot_notice_combat() (goals/security_patrol.dm) - every kind of attack, fists and bites and bullets included.
+/datum/bot_brain/proc/on_attacked(mob/living/user, what_done, atom/object)
+	if(!user || user == owner || QDELETED(owner) || owner.stat == DEAD)
+		return
+	// A law-abiding crewmember doesn't fight the officer arresting them - they protest.
+	if(!is_security_job() && (user.mind?.assigned_role in GLOB.security_positions))
+		if(world.time >= next_reaction_time)
+			next_reaction_time = world.time + 100
+			bot_say(owner, pick("What did I do?!", "Hey, I didn't do anything!", "Okay, okay! I'm not resisting!", "This is a mistake!"))
 		return
 	// Security bots arrest their attacker (stun + cuff + brig) rather than trading
 	// punches - the witness hook files the actual "Assaulting an Officer" charge a tick
@@ -669,22 +781,25 @@ GLOBAL_LIST_INIT(bot_maintenance_averse_jobs, list("Medical Doctor", "Chief Medi
 	if(is_security_job() && ishuman(user) && !(user.mind?.assigned_role in GLOB.security_positions))
 		if(begin_arrest(user))
 			return
-	bot_log(src, "attacked by [user], engaging")
+	combat_last_seen = world.time
+	combat_last_seen_turf = get_turf(user)
+	last_hit_by_attacker = world.time
+	if(state == BOT_STATE_COMBAT && attacker == user)
+		return // already fighting them - every further hit used to re-shout and restart the chase
+	bot_log(src, "attacked by [user] ([what_done || "hit"]), engaging")
 	if(state != BOT_STATE_COMBAT)
 		state_before_combat = state
 	attacker = user
+	combat_path_turf = null
 	state = BOT_STATE_COMBAT
 	stop_pursuit()
 	if(owner.buckled)
 		owner.buckled.unbuckle_mob(owner, force = TRUE)
 	hangout_until = 0
+	if(ishuman(user))
+		bot_call_security(user, what_done, object) //goals/security_patrol.dm - a victim radios it in, it doesn't just fight back
 	if(prob(60))
 		bot_say(owner, pick(GLOB.bot_combat_lines))
-
-/mob/living/carbon/human/attacked_by(obj/item/I, mob/living/user)
-	if(bot_brain)
-		bot_brain.on_attacked(user)
-	return ..()
 
 /datum/bot_brain/proc/on_heard_speech(atom/movable/speaker, raw_message)
 	if(!raw_message || QDELETED(owner) || owner.stat == DEAD)

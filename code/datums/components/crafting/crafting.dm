@@ -11,50 +11,18 @@
 	CL.screen += C
 	RegisterSignal(C, COMSIG_CLICK, PROC_REF(component_ui_interact))
 
+#define CRAFTING_MODE 0
+#define COOKING_MODE 1
+/// Upper bound on "Craft all" repeats, in case a recipe somehow never runs out of parts
+#define MAX_MASS_CRAFT 50
+
 /datum/component/personal_crafting
 	var/busy
-	var/viewing_category = 1 //typical powergamer starting on the Weapons tab
-	var/viewing_subcategory = 1
-	var/list/categories = list(
-				CAT_WEAPONRY = list(
-					CAT_WEAPON,
-					CAT_AMMO,
-				),
-				CAT_ROBOT = CAT_NONE,
-				CAT_MISC = CAT_NONE,
-				CAT_PRIMAL = CAT_NONE,
-				CAT_FOOD = list(
-					CAT_BREAD,
-					CAT_BURGER,
-					CAT_CAKE,
-					CAT_EGG,
-					//CAT_ICE,
-					CAT_MEAT,
-					CAT_MISCFOOD,
-					CAT_PASTRY,
-					CAT_PIE,
-					CAT_PIZZA,
-					CAT_SALAD,
-					CAT_SANDWICH,
-					CAT_SOUP,
-					CAT_SPAGHETTI,
-				),
-				CAT_DRINK = CAT_NONE,
-				CAT_CLOTHING = CAT_NONE,
-				CAT_MAGIC = list(
-					CAT_TIER1,
-					CAT_TIER2,
-					CAT_TIER3,
-					CAT_TIER4,
-					),
-				CAT_LEARNED = CAT_NONE,
-			)
-
-	var/cur_category = CAT_NONE
-	var/cur_subcategory = CAT_NONE
+	/// CRAFTING_MODE or COOKING_MODE, which half of the recipe list the menu shows
+	var/mode = CRAFTING_MODE
 	var/datum/action/innate/crafting/button
 	var/display_craftable_only = FALSE
-	var/display_compact = TRUE
+	var/display_compact = FALSE
 
 
 
@@ -345,36 +313,43 @@
 /datum/component/personal_crafting/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, datum/tgui/master_ui = null, datum/ui_state/state = GLOB.not_incapacitated_turf_state)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
-		cur_category = categories[1]
-		if(islist(categories[cur_category]))
-			var/list/subcats = categories[cur_category]
-			cur_subcategory = subcats[1]
-		else
-			cur_subcategory = CAT_NONE
-		ui = new(user, src, ui_key, "personal_crafting", "Crafting Menu", 700, 800, master_ui, state)
+		var/datum/asset/assets = get_asset_datum(/datum/asset/spritesheet/crafting)
+		assets.send(user)
+		ui = new(user, src, ui_key, "personal_crafting", "Crafting Menu", 800, 720, master_ui, state)
 		ui.open()
 
+/datum/component/personal_crafting/ui_base_html(html)
+	var/datum/asset/spritesheet/assets = get_asset_datum(/datum/asset/spritesheet/crafting)
+	. = replacetext(html, "<!--customheadhtml-->", assets.css_tag())
+
+/// Recipes this user can see in the current mode: everything always available, plus what their mind has learned
+/datum/component/personal_crafting/proc/get_visible_recipes(mob/user)
+	init_crafting_ui_data()
+	. = list()
+	var/list/learned = user?.mind?.learned_recipes
+	for(var/rec in GLOB.crafting_ui_recipes[mode + 1])
+		var/datum/crafting_recipe/R = rec
+		if(R.always_availible || (learned && (R.type in learned)))
+			. += R
+
+/datum/component/personal_crafting/proc/can_see_recipe(mob/user, datum/crafting_recipe/R)
+	if(!istype(R) || !GLOB.crafting_ui_recipe_data[R])
+		return FALSE
+	return R.always_availible || (R.type in user?.mind?.learned_recipes)
 
 /datum/component/personal_crafting/ui_data(mob/user)
 	var/list/data = list()
 	data["busy"] = busy
-	data["category"] = cur_category
-	data["subcategory"] = cur_subcategory
+	data["mode"] = mode
 	data["display_craftable_only"] = display_craftable_only
 	data["display_compact"] = display_compact
 
 	var/list/surroundings = get_surroundings(user)
 	var/list/craftability = list()
-	for(var/rec in GLOB.crafting_recipes)
+	for(var/rec in get_visible_recipes(user))
 		var/datum/crafting_recipe/R = rec
-
-		if(!R.always_availible && !(R.type in user?.mind?.learned_recipes)) //User doesn't actually know how to make this.
-			continue
-
-		if((R.category != cur_category) || (R.subcategory != cur_subcategory))
-			continue
-
-		craftability["[REF(R)]"] = check_contents(user, R, surroundings)
+		if(check_contents(user, R, surroundings) && check_tools(user, R, surroundings))
+			craftability["[REF(R)]"] = TRUE
 
 	data["craftability"] = craftability
 	return data
@@ -382,130 +357,253 @@
 /datum/component/personal_crafting/ui_static_data(mob/user)
 	var/list/data = list()
 
-	var/list/crafting_recipes = list()
-	for(var/rec in GLOB.crafting_recipes)
-		var/datum/crafting_recipe/R = rec
+	var/list/recipes = list()
+	var/list/categories = list()
+	for(var/rec in get_visible_recipes(user))
+		var/list/recipe_data = GLOB.crafting_ui_recipe_data[rec]
+		recipes += list(recipe_data)
+		categories |= recipe_data["category"]
+	data["recipes"] = recipes
+	data["categories"] = sortList(categories)
 
-		if(R.name == "") //This is one of the invalid parents that sneaks in
-			continue
+	if(!GLOB.crafting_ui_atom_data)
+		var/datum/asset/spritesheet/assets = get_asset_datum(/datum/asset/spritesheet/crafting)
+		var/list/atom_data = list()
+		for(var/path in GLOB.crafting_ui_atoms)
+			atom_data += list(crafting_ui_atom_data(path, assets))
+		GLOB.crafting_ui_atom_data = atom_data
+	data["atom_data"] = GLOB.crafting_ui_atom_data
 
-		if(!R.always_availible && !(R.type in user?.mind?.learned_recipes)) //User doesn't actually know how to make this.
-			continue
-
-		if(isnull(crafting_recipes[R.category]))
-			crafting_recipes[R.category] = list()
-
-		if(R.subcategory == CAT_NONE)
-			crafting_recipes[R.category] += list(build_recipe_data(R))
-		else
-			if(isnull(crafting_recipes[R.category][R.subcategory]))
-				crafting_recipes[R.category][R.subcategory] = list()
-				crafting_recipes[R.category]["has_subcats"] = TRUE
-			crafting_recipes[R.category][R.subcategory] += list(build_recipe_data(R))
-
-	data["crafting_recipes"] = crafting_recipes
+	if(mode == COOKING_MODE)
+		data["foodtypes"] = crafting_foodtype_names(ALL)
+		if(ishuman(user))
+			var/mob/living/carbon/human/H = user
+			data["diet"] = list(
+				"liked_food" = crafting_foodtype_names(H.dna.species.liked_food),
+				"disliked_food" = crafting_foodtype_names(H.dna.species.disliked_food),
+				"toxic_food" = crafting_foodtype_names(H.dna.species.toxic_food),
+			)
 	return data
-
 
 /datum/component/personal_crafting/ui_act(action, params)
 	if(..())
 		return
 	switch(action)
-		if("make")
+		if("make", "make_mass")
+			if(busy)
+				return
+			var/mob/user = usr
 			var/datum/crafting_recipe/TR = locate(params["recipe"]) in GLOB.crafting_recipes
+			if(!can_see_recipe(user, TR)) //Unlearned recipes stay unlearned, whatever ref the client sends
+				return
 			busy = TRUE
-			ui_interact(usr)
-			var/fail_msg = construct_item(usr, TR)
-			if(!fail_msg)
-				to_chat(usr, "<span class='notice'>[TR.name] constructed.</span>")
-
-				//*************************
-				//***Curator magic stuff***
-				//*************************
-
-				if(istype(TR, /datum/crafting_recipe/tier1/obelisk))
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier1/upgradescroll) //Gives the curator a few recipes upon building the first obelisk. Like unlocks.
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier1/sord)
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier1/magicsoap)
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier1/immortalitytalisman)
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier1/d100)
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier1/doorwand)
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier1/lazarusinjector)
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier2/obelisk)
-
-				else if(istype(TR, /datum/crafting_recipe/tier2/obelisk))
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier2/telecrystal)
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier2/shittyrevivewand)
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier2/shittysafetywand)
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier2/monstercube)
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier2/soulshard)
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier2/spectralblade)
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier2/lighteater)
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier3/obelisk)
-
-
-				else if(istype(TR, /datum/crafting_recipe/tier3/obelisk))
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier3/oneusedieoffate)
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier3/nullrod)
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier3/portalgun)
-					usr.mind.teach_crafting_recipe(/datum/crafting_recipe/tier3/gravitygun)
-
-
-				//*************************
-				//*************************
-				//*************************
-
-			else
-				to_chat(usr, "<span class='warning'>Construction failed[fail_msg]</span>")
+			ui_interact(user)
+			var/crafted = 0
+			var/fail_msg
+			do
+				fail_msg = construct_item(user, TR)
+				if(fail_msg)
+					break
+				crafted++
+				on_recipe_crafted(user, TR)
+			while(action == "make_mass" && crafted < MAX_MASS_CRAFT)
+			if(crafted > 1)
+				to_chat(user, "<span class='notice'>You made [TR.name] x[crafted].</span>")
+			else if(crafted)
+				to_chat(user, "<span class='notice'>[TR.name] constructed.</span>")
+			if(fail_msg && (!crafted || fail_msg != ", missing component."))
+				to_chat(user, "<span class='warning'>Construction failed[fail_msg]</span>")
 			busy = FALSE
+			. = TRUE
 		if("toggle_recipes")
 			display_craftable_only = !display_craftable_only
 			. = TRUE
 		if("toggle_compact")
 			display_compact = !display_compact
 			. = TRUE
-		if("set_category")
-			if(!isnull(params["category"]))
-				cur_category = params["category"]
-			if(!isnull(params["subcategory"]))
-				if(params["subcategory"] == "0")
-					cur_subcategory = ""
-				else
-					cur_subcategory = params["subcategory"]
+		if("toggle_mode")
+			var/new_mode = text2num(params["mode"])
+			if(new_mode != CRAFTING_MODE && new_mode != COOKING_MODE)
+				return
+			mode = new_mode
+			update_static_data(usr)
 			. = TRUE
 
-/datum/component/personal_crafting/proc/build_recipe_data(datum/crafting_recipe/R)
+/// Side effects of finishing a recipe, run once per crafted item
+/datum/component/personal_crafting/proc/on_recipe_crafted(mob/user, datum/crafting_recipe/TR)
+	if(!user.mind)
+		return
+	//*************************
+	//***Curator magic stuff***
+	//*************************
+
+	if(istype(TR, /datum/crafting_recipe/tier1/obelisk))
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier1/upgradescroll) //Gives the curator a few recipes upon building the first obelisk. Like unlocks.
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier1/sord)
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier1/magicsoap)
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier1/immortalitytalisman)
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier1/d100)
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier1/doorwand)
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier1/lazarusinjector)
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier2/obelisk)
+
+	else if(istype(TR, /datum/crafting_recipe/tier2/obelisk))
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier2/telecrystal)
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier2/shittyrevivewand)
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier2/shittysafetywand)
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier2/monstercube)
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier2/soulshard)
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier2/spectralblade)
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier2/lighteater)
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier3/obelisk)
+
+	else if(istype(TR, /datum/crafting_recipe/tier3/obelisk))
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier3/oneusedieoffate)
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier3/nullrod)
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier3/portalgun)
+		user.mind.teach_crafting_recipe(/datum/crafting_recipe/tier3/gravitygun)
+
+	else
+		return
+
+	//The unlocks above add recipes to the menu, so resend the recipe list
+	update_static_data(user)
+
+//*************************
+//*** Crafting menu data ***
+//*************************
+
+/// Every atom or reagent path the crafting menu shows (results, ingredients, tools, catalysts). A path's index is its UI id.
+GLOBAL_LIST_EMPTY(crafting_ui_atoms)
+/// Two lists of valid recipes, index 1 for CRAFTING_MODE and 2 for COOKING_MODE
+GLOBAL_LIST_EMPTY(crafting_ui_recipes)
+/// recipe datum -> the static UI data for it, which is the same for every user
+GLOBAL_LIST_EMPTY(crafting_ui_recipe_data)
+/// Name and icon for each entry of crafting_ui_atoms, built the first time a menu opens
+GLOBAL_VAR(crafting_ui_atom_data)
+
+/// Builds the crafting menu globals the first time anything asks for them
+/proc/init_crafting_ui_data()
+	if(length(GLOB.crafting_ui_recipes))
+		return
+	GLOB.crafting_ui_recipes = list(list(), list())
+	for(var/rec in GLOB.crafting_recipes)
+		var/datum/crafting_recipe/R = rec
+		if(!R.name || !R.result) //Abstract parents
+			continue
+		GLOB.crafting_ui_atoms |= R.result
+		for(var/path in R.reqs)
+			GLOB.crafting_ui_atoms |= path
+		for(var/path in R.chem_catalysts)
+			GLOB.crafting_ui_atoms |= path
+		for(var/tool in R.tools)
+			if(ispath(tool))
+				GLOB.crafting_ui_atoms |= tool
+	for(var/rec in GLOB.crafting_recipes)
+		var/datum/crafting_recipe/R = rec
+		if(!R.name || !R.result)
+			continue
+		var/list/recipe_data = build_crafting_ui_recipe(R)
+		GLOB.crafting_ui_recipe_data[R] = recipe_data
+		var/list/mode_recipes = GLOB.crafting_ui_recipes[recipe_data["cooking"] ? COOKING_MODE + 1 : CRAFTING_MODE + 1]
+		mode_recipes += R
+
+/proc/build_crafting_ui_recipe(datum/crafting_recipe/R)
 	var/list/data = list()
-	data["name"] = R.name
 	data["ref"] = "[REF(R)]"
-	var/req_text = ""
-	var/tool_text = ""
-	var/catalyst_text = ""
+	data["name"] = R.name
+	data["id"] = GLOB.crafting_ui_atoms.Find(R.result)
+	data["time"] = R.time / 10
+	data["learned"] = !R.always_availible
 
-	for(var/a in R.reqs)
-		//We just need the name, so cheat-typecast to /atom for speed (even tho Reagents are /datum they DO have a "name" var)
-		//Also these are typepaths so sadly we can't just do "[a]"
-		var/atom/A = a
-		req_text += " [R.reqs[A]] [initial(A.name)],"
-	req_text = replacetext(req_text,",","",-1)
-	data["req_text"] = req_text
+	var/atom/result = R.result
+	data["desc"] = initial(result.desc)
 
-	for(var/a in R.chem_catalysts)
-		var/atom/A = a //cheat-typecast
-		catalyst_text += " [R.chem_catalysts[A]] [initial(A.name)],"
-	catalyst_text = replacetext(catalyst_text,",","",-1)
-	data["catalyst_text"] = catalyst_text
+	// Food recipes were split into a category and a subcategory, the menu only has categories
+	var/static/list/food_categories = list(CAT_BREAD, CAT_BURGER, CAT_CAKE, CAT_EGG, CAT_MEAT, CAT_MISCFOOD, CAT_PASTRY, CAT_PIE, CAT_PIZZA, CAT_SALAD, CAT_SANDWICH, CAT_SOUP, CAT_SPAGHETTI)
+	var/category = R.category
+	if(category == CAT_FOOD)
+		category = R.subcategory || CAT_MISCFOOD
+	var/cooking = (category in food_categories)
+	if(!cooking)
+		switch(category)
+			if(CAT_WEAPONRY)
+				category = R.subcategory || CAT_WEAPON
+			if(CAT_MAGIC)
+				if(R.subcategory)
+					category = "[CAT_MAGIC] ([R.subcategory])"
+			if(CAT_LEARNED)
+				category = "Learned"
+			if(CAT_NONE)
+				category = CAT_MISC
+	data["category"] = category
+	data["cooking"] = cooking
 
-	for(var/a in R.tools)
-		if(ispath(a, /obj/item))
-			var/obj/item/b = a
-			tool_text += " [initial(b.name)],"
+	if(cooking && ispath(R.result, /obj/item/reagent_containers/food))
+		var/obj/item/reagent_containers/food/F = R.result
+		data["foodtypes"] = crafting_foodtype_names(initial(F.foodtype))
+
+	var/list/reqs = list()
+	for(var/path in R.reqs)
+		reqs["[GLOB.crafting_ui_atoms.Find(path)]"] = R.reqs[path]
+	data["reqs"] = reqs
+
+	var/list/catalysts = list()
+	for(var/path in R.chem_catalysts)
+		catalysts["[GLOB.crafting_ui_atoms.Find(path)]"] = R.chem_catalysts[path]
+	data["chem_catalysts"] = catalysts
+
+	var/list/tool_behaviors = list()
+	var/list/tool_paths = list()
+	for(var/tool in R.tools)
+		if(ispath(tool))
+			tool_paths += GLOB.crafting_ui_atoms.Find(tool)
 		else
-			tool_text += " [a],"
-	tool_text = replacetext(tool_text,",","",-1)
-	data["tool_text"] = tool_text
-
+			tool_behaviors += tool
+	data["tool_behaviors"] = tool_behaviors
+	data["tool_paths"] = tool_paths
 	return data
+
+/proc/crafting_ui_atom_data(path, datum/asset/spritesheet/assets)
+	var/list/data = list()
+	if(ispath(path, /datum/reagent))
+		var/datum/reagent/reagent = path
+		data["name"] = initial(reagent.name)
+		data["is_reagent"] = TRUE
+	else
+		var/atom/A = path
+		data["name"] = initial(A.name)
+		var/sprite = "a[GLOB.crafting_ui_atoms.Find(path)]"
+		data["icon"] = assets.icon_class_name(sprite)
+		data["icon_size"] = assets.icon_size_id(sprite)
+	return data
+
+/// Converts a food flags bitfield into the flags' display names
+/proc/crafting_foodtype_names(foodflags)
+	var/static/list/foodtype_names = list(
+		"Meat" = MEAT,
+		"Vegetables" = VEGETABLES,
+		"Raw" = RAW,
+		"Junk Food" = JUNKFOOD,
+		"Grain" = GRAIN,
+		"Fruit" = FRUIT,
+		"Dairy" = DAIRY,
+		"Fried" = FRIED,
+		"Alcohol" = ALCOHOL,
+		"Sugar" = SUGAR,
+		"Gross" = GROSS,
+		"Toxic" = TOXIC,
+		"Pineapple" = PINEAPPLE,
+		"Cloth" = CLOTH,
+	)
+	. = list()
+	for(var/foodtype in foodtype_names)
+		if(foodflags & foodtype_names[foodtype])
+			. += foodtype
+
+#undef CRAFTING_MODE
+#undef COOKING_MODE
+#undef MAX_MASS_CRAFT
 
 //Mind helpers
 

@@ -249,7 +249,7 @@
 		if(user.z != L.z || L.stat == DEAD)
 			message += " could not be found."
 		else
-			var/multiplier = L.anti_magic_check(FALSE, FALSE, TRUE) ? rand(0.6, 1.4) : 1
+			var/multiplier = L.anti_magic_check(FALSE, FALSE, TRUE) ? (rand(60, 140) * 0.01) : 1
 			switch(distance*multiplier)
 				if(0 to 2)
 					message += " is right next to us!"
@@ -267,14 +267,14 @@
 		var/mob/living/carbon/C = enemy.owner?.current
 		if(!C)
 			continue
-		var/multiplier = C.anti_magic_check(FALSE, FALSE, TRUE) ? rand(0.6, 1.4) : 1
+		var/multiplier = C.anti_magic_check(FALSE, FALSE, TRUE) ? (rand(60, 140) * 0.01) : 1
 		var/mob/living/real_enemy = C.get_real_hivehost()
 		distance = get_dist(user, real_enemy)
 		message = "A host that we can track for [(hive.individual_track_bonus[enemy])/10] extra seconds"
 		if(user.z != real_enemy.z || real_enemy.stat == DEAD)
 			message += " could not be found."
 		else
-			multiplier = real_enemy.anti_magic_check(FALSE, FALSE, TRUE) ? rand(0.6, 1.4) : 1
+			multiplier = real_enemy.anti_magic_check(FALSE, FALSE, TRUE) ? (rand(60, 140) * 0.01) : 1
 			switch(distance*multiplier)
 				if(0 to 2)
 					message += " is right next to us!"

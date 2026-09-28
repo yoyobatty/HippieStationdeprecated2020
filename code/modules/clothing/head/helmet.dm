@@ -1,4 +1,6 @@
 /obj/item/clothing/head/helmet
+	light_angle = LIGHT_ANGLE_HEADLAMP
+	light_follows_facing = TRUE
 	name = "helmet"
 	desc = "Standard Security gear. Protects the head from impacts."
 	icon_state = "helmet"

@@ -11,19 +11,63 @@
 window.__inception__ = new Date().getTime();
 // Make window ref global
 window.__ref__ = document.getElementById('data').getAttribute('data-ref');
-// On BYOND 516's WebView2 (Chromium) engine, setting location.href to the
-// unregistered byond:// scheme is a REAL top-level navigation attempt that
-// hits Chromium's external-protocol guard (the "This site is trying to
-// open BYOND" permission prompt). BYOND does still receive the href once
-// approved, but the navigation attempt disrupts the page's own JS context
-// in the process (window.update/window.initialize get reset, wiping the
-// listener that receives BYOND's reply) - so the DM side sees the href,
-// but the client-side JS is left broken from the surrounding navigation
-// and never gets to render anything, even after the server-side fix for
-// output() addressing to WebView2 popups. Routing through a disposable
-// hidden iframe instead scopes the navigation (and the permission prompt)
-// to that throwaway iframe, leaving the parent page's JS state untouched.
-window.__sendToByond__ = function (url) {
+// How this page talks to BYOND. On 516's WebView2 (Chromium) engine, any
+// *navigation* to the byond:// scheme that BYOND doesn't catch itself - a
+// hidden iframe's, or a top-level one made while the page is still loading -
+// falls through to Chromium's external-protocol guard: the "This site is
+// trying to open BYOND" prompt. A top-level one can also reset this page's JS
+// (wiping window.update/initialize), which is why these once went through an
+// iframe.
+//
+// So by default nothing navigates at all: the call goes out as a plain HTTP
+// request to BYOND's own local web server, the one this page is served from
+// (the "http://127.0.0.1:<port>" in that prompt), which treats it exactly like
+// a byond:// href. tgstation sends long calls the same way (Byond.call in
+// tgui-setup/helpers.js). No navigation, no prompt, no page reset.
+//
+// 'xhr' (default) | 'iframe' (the old way) | 'href' (plain location.href)
+window.__byondTransport__ = 'iframe'; // 'xhr' left these windows blank on 516 - see the diagnostic below
+
+// TEMP 516 DIAGNOSTIC: reports what this page can see, and whether BYOND
+// accepts topic calls over plain HTTP, into the round's tgui.log.
+window.__runByondDiag__ = function () {
+  var info = [];
+  info.push('href=' + location.href);
+  info.push('ua=' + navigator.userAgent);
+  info.push('window.BYOND=' + typeof window.BYOND
+    + (window.BYOND ? ' [' + Object.keys(window.BYOND).join(',') + ']' : ''));
+  info.push('cef_to_byond=' + typeof window.cef_to_byond);
+  info.push('chrome.webview=' + (window.chrome && window.chrome.webview ? 'yes' : 'no'));
+  var report = function (extra) {
+    window.__sendViaIframe__('byond://?src=' + window.__ref__
+      + '&action=tgui:log&log=' + encodeURIComponent('[516 diag] '
+      + info.concat(extra).join(' | ')));
+  };
+  var probe = function (label, url) {
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.onload = function () {
+        report([label + ' xhr status=' + xhr.status
+          + ' len=' + (xhr.responseText || '').length
+          + ' body=' + (xhr.responseText || '').slice(0, 150)]);
+      };
+      xhr.onerror = function () {
+        report([label + ' xhr ERROR status=' + xhr.status]);
+      };
+      xhr.send();
+    }
+    catch (e) {
+      report([label + ' xhr THREW ' + e]);
+    }
+  };
+  var topic = 'src=' + window.__ref__ + '&action=tgui:log&log=';
+  probe('relative', '?' + topic + encodeURIComponent('[516 diag] XHR TOPIC ARRIVED via relative url'));
+  probe('root', '/?' + topic + encodeURIComponent('[516 diag] XHR TOPIC ARRIVED via root url'));
+};
+setTimeout(window.__runByondDiag__, 1500);
+
+window.__sendViaIframe__ = function (url) {
   var iframe = document.createElement('iframe');
   iframe.style.display = 'none';
   iframe.src = url;
@@ -33,6 +77,48 @@ window.__sendToByond__ = function (url) {
       iframe.parentNode.removeChild(iframe);
     }
   }, 2000);
+};
+
+window.__sendToByond__ = function (url) {
+  var mode = window.__byondTransport__;
+  if (mode === 'href') {
+    location.href = url;
+    return;
+  }
+  if (mode === 'xhr') {
+    try {
+      var xhr = new XMLHttpRequest();
+      // 'byond://winset?a=b' -> 'winset?a=b', relative to this page's server
+      xhr.open('GET', url.replace(/^byond:\/\//, ''), true);
+      xhr.send();
+    }
+    catch (e) {
+      window.__sendViaIframe__(url);
+      return;
+    }
+    // Calls that want an answer (winget, for dragging the window) need BYOND
+    // to call a JS callback back in this page. If that doesn't come back over
+    // the HTTP route, send the call the old way too - the first answer wins.
+    var match = url.match(/callback=__callbacks__%5B(\d+)%5D/)
+      || url.match(/callback=__callbacks__\[(\d+)\]/);
+    var callbacks = window.__callbacks__;
+    if (match && callbacks && callbacks[match[1]]) {
+      var index = match[1];
+      var resolve = callbacks[index];
+      var answered = false;
+      callbacks[index] = function (value) {
+        answered = true;
+        return resolve(value);
+      };
+      setTimeout(function () {
+        if (!answered) {
+          window.__sendViaIframe__(url);
+        }
+      }, 800);
+    }
+    return;
+  }
+  window.__sendViaIframe__(url);
 };
 // Global error handling
 window.onerror = function (msg, url, line, col, error) {

@@ -173,6 +173,8 @@
 
 /datum/hud/proc/update_parallax()
 	var/client/C = mymob.client
+	if(!C) // hippie -- an observer looking through a client-less mob's hud (a bot crew member)
+		return
 	var/turf/posobj = get_turf(C.eye)
 	if(!posobj)
 		return

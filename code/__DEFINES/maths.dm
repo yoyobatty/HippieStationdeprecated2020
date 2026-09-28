@@ -63,15 +63,15 @@
 
 #define ISABOUTEQUAL(a, b, deviation) (deviation ? abs((a) - (b)) <= deviation : abs((a) - (b)) <= 0.1)
 
-#define ISEVEN(x) (x % 2 == 0)
+#define ISEVEN(x) ((x) % 2 == 0)
 
-#define ISODD(x) (x % 2 != 0)
+#define ISODD(x) ((x) % 2 != 0)
 
 // Returns true if val is from min to max, inclusive.
-#define ISINRANGE(val, min, max) (min <= val && val <= max)
+#define ISINRANGE(val, min, max) ((min) <= (val) && (val) <= (max))
 
 // Same as above, exclusive.
-#define ISINRANGE_EX(val, min, max) (min < val && val < max)
+#define ISINRANGE_EX(val, min, max) ((min) < (val) && (val) < (max))
 
 #define ISINTEGER(x) (round(x) == x)
 
@@ -206,5 +206,5 @@
 #define LORENTZ_DISTRIBUTION(x, s) ( s*tan(TODEGREES(PI*(rand()-0.5))) + x )
 #define LORENTZ_CUMULATIVE_DISTRIBUTION(x, y, s) ( (1/PI)*TORADIANS(arctan((x-y)/s)) + 1/2 )
 
-#define RULE_OF_THREE(a, b, x) ((a*x)/b)
+#define RULE_OF_THREE(a, b, x) (((a) * (x)) / (b))
 // )

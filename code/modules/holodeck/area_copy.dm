@@ -2,7 +2,20 @@
 GLOBAL_LIST_INIT(duplicate_forbidden_vars,list(
 	"tag", "datum_components", "area", "type", "loc", "locs", "vars", "parent", "parent_type", "verbs", "ckey", "key",
 	"power_supply", "contents", "reagents", "stat", "x", "y", "z", "group", "atmos_adjacent_turfs", "comp_lookup",
-	"pixloc" // BYOND 515+ read-only computed atom var (derived from pixel_x/pixel_y); not directly assignable
+	"pixloc", // BYOND 515+ read-only computed atom var (derived from pixel_x/pixel_y); not directly assignable
+	// hippie -- per-instance bookkeeping, as tgstation's list: copied (shallowly - their inner lists stayed shared), a
+	// holodeck copy believed it was registered wherever its template was, and adding or deleting copies scrambled
+	// the template's and every other copy's signal registrations - "bad index" in SendSignal across the holodeck floor
+	// the moment a program was swapped
+	"signal_procs", "active_timers", "status_traits", "important_recursive_contents", "managed_vis_overlays",
+	"cooldowns", "gc_destroyed", "running_find_references", "last_find_references", "cached_vars"
+	))
+
+/// A turf's own bookkeeping, which the copy it's being made from mustn't overwrite (see copy_contents_to())
+GLOBAL_LIST_INIT(duplicate_forbidden_turf_vars, list(
+	"lighting_stamp", "lighting_object", "lighting_corners_initialised", "has_opaque_atom",
+	"lighting_corner_NE", "lighting_corner_SE", "lighting_corner_SW", "lighting_corner_NW",
+	"excited", "excited_group", "explosion_id", "explosion_level"
 	))
 
 /proc/DuplicateObject(atom/original, perfectcopy = TRUE, sameloc, atom/newloc = null, nerf, holoitem)
@@ -121,13 +134,24 @@ GLOBAL_LIST_INIT(duplicate_forbidden_vars,list(
 			var/mob/SM = DuplicateObject(M , perfectcopy=TRUE, newloc = B, holoitem=TRUE)
 			copiedobjs += SM.GetAllContents()
 
-		for(var/V in T.vars - GLOB.duplicate_forbidden_vars)
+		// hippie -- B came from ChangeTurf() with its own lighting and atmos state; this used to overwrite it wholesale with
+		// the template tile's (its lighting corners, lighting object and the lights affecting it), so the holodeck
+		// and the template area shared lighting bookkeeping - "list index out of bounds" in update_corners() and wrong
+		// light on both. Copy like DuplicateObject() does: skip references to other things, give lists their own copy.
+		for(var/V in T.vars - GLOB.duplicate_forbidden_vars - GLOB.duplicate_forbidden_turf_vars)
 			if(V == "air")
 				var/turf/open/O1 = B
 				var/turf/open/O2 = T
 				O1.air.copy_from(O2.return_air())
 				continue
-			B.vars[V] = T.vars[V]
+			var/value = T.vars[V]
+			if(islist(value))
+				var/list/L = value
+				B.vars[V] = L.Copy()
+			else if(istype(value, /datum))
+				continue
+			else
+				B.vars[V] = value
 		toupdate += B
 
 	if(toupdate.len)

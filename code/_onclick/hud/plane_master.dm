@@ -45,6 +45,7 @@
 	plane = FLOOR_PLANE
 	appearance_flags = PLANE_MASTER
 	blend_mode = BLEND_OVERLAY
+	render_target = FLOOR_PLANE_RENDER_TARGET
 
 /obj/screen/plane_master/floor/backdrop(mob/mymob)
 	filters = list()
@@ -57,6 +58,7 @@
 	plane = GAME_PLANE
 	appearance_flags = PLANE_MASTER //should use client color
 	blend_mode = BLEND_OVERLAY
+	render_target = GAME_PLANE_RENDER_TARGET
 
 /obj/screen/plane_master/game_world/backdrop(mob/mymob)
 	filters = list()
@@ -77,6 +79,36 @@
 	. = ..()
 	filters += filter(type="alpha", render_source=EMISSIVE_RENDER_TARGET, flags=MASK_INVERSE)
 	filters += filter(type="alpha", render_source=EMISSIVE_UNBLOCKABLE_RENDER_TARGET, flags=MASK_INVERSE)
+	filters += filter(type="alpha", render_source=SPACE_UNLIT_MASK_RENDER_TARGET, flags=MASK_INVERSE)
+
+/**
+  * Where space itself is showing. Doesn't render directly - masks the lighting plane, so space is never shaded, as in
+  * tgstation (which draws space to its unlit game plate). Starlight still lights whatever sits on top of it
+  * (lattices, catwalks, mobs), since those are on the floor/game planes and cut out of this mask.
+  */
+/obj/screen/plane_master/space_unlit_mask
+	name = "unlit space mask plane master"
+	plane = SPACE_UNLIT_MASK_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	render_target = SPACE_UNLIT_MASK_RENDER_TARGET
+
+/obj/screen/plane_master/space_unlit_mask/Initialize()
+	. = ..()
+	filters += filter(type="alpha", render_source=FLOOR_PLANE_RENDER_TARGET, flags=MASK_INVERSE)
+	filters += filter(type="alpha", render_source=GAME_PLANE_RENDER_TARGET, flags=MASK_INVERSE)
+
+///Copies the space plane onto the unlit space mask plane (every client carries one, see /datum/hud/proc/show_hud())
+/obj/screen/space_unlit_relay
+	name = "unlit space relay"
+	plane = SPACE_UNLIT_MASK_PLANE
+	// The copy is drawn from this object's bottom-left corner, so it has to sit in the screen's bottom-left tile to line up
+	// ("CENTER" put the mask a half-screen up and right). Same as /obj/starlight_appearance
+	screen_loc = "1,1"
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	appearance_flags = PASS_MOUSE | NO_CLIENT_COLOR | KEEP_TOGETHER
+	render_source = PLANE_SPACE_RENDER_TARGET
+
+GLOBAL_DATUM_INIT(space_unlit_relay, /obj/screen/space_unlit_relay, new)
 
 /**
   * Things placed on this mask the lighting plane. Doesn't render directly.
@@ -128,6 +160,7 @@
 /obj/screen/plane_master/parallax_white
 	name = "parallax whitifier plane master"
 	plane = PLANE_SPACE
+	render_target = PLANE_SPACE_RENDER_TARGET
 
 /obj/screen/plane_master/lighting/backdrop(mob/mymob)
 	mymob.overlay_fullscreen("lighting_backdrop_lit", /obj/screen/fullscreen/lighting_backdrop/lit)

@@ -366,13 +366,11 @@
 		var/matching = light && BR == light.light_range && PO == light.light_power && CO == light.light_color
 		if(!matching)
 			switchcount++
-			if(rigged)
-				if(status == LIGHT_OK && trigger)
-					explode()
-			else if( prob( min(60, (switchcount^2)*0.01) ) )
-				if(trigger)
-					burn_out()
-			else
+			if(rigged && status == LIGHT_OK && trigger)
+				explode()
+			else if(trigger && !rigged && prob(min(60, (switchcount**2) * 0.01)))
+				burn_out()
+			else //untriggered updates must still light the bulb, or it ends up on but dark
 				use_power = ACTIVE_POWER_USE
 				set_light(BR, PO, CO)
 	else if(has_emergency_power(LIGHT_EMERGENCY_POWER_USE) && !turned_off())
@@ -501,7 +499,7 @@
 			if(has_power() && (W.flags_1 & CONDUCT_1))
 				do_sparks(3, TRUE, src)
 				if (prob(75))
-					electrocute_mob(user, get_area(src), src, rand(0.7,1.0), TRUE)
+					electrocute_mob(user, get_area(src), src, rand(70, 100) * 0.01, TRUE)
 	else
 		return ..()
 

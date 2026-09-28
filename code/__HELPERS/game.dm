@@ -242,9 +242,23 @@
 	// Use the spatial grid to only consider hearing-sensitive movables anywhere near us, instead of
 	// checking every movable in view() for the HEAR_1 flag.
 	var/list/hearables_from_grid = SSspatial_grid.orthogonal_range_search(T, SPATIAL_GRID_CONTENTS_TYPE_HEARING, R)
-	for(var/atom/movable/candidate as anything in hearables_from_grid)
-		if(candidate in view(R, T))
-			. += candidate
+	if(!length(hearables_from_grid))
+		T.luminosity = lum
+		return .
+	// hippie -- build view() once, not once per candidate: with a pile of bodies in view (each one hearing, plus its
+	// headset) every message used to rebuild the whole view hundreds of times - multi-second freezes from explosions
+	var/list/in_view = view(R, T)
+	if(length(hearables_from_grid) <= 4) // a few list scans beat building a lookup table
+		for(var/atom/movable/candidate as anything in hearables_from_grid)
+			if(candidate in in_view)
+				. += candidate
+	else
+		var/list/seen = list()
+		for(var/atom/movable/thing in in_view)
+			seen[thing] = TRUE
+		for(var/atom/movable/candidate as anything in hearables_from_grid)
+			if(seen[candidate])
+				. += candidate
 	T.luminosity = lum
 
 /proc/get_mobs_in_radio_ranges(list/obj/item/radio/radios)

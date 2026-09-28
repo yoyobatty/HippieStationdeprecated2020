@@ -66,13 +66,8 @@
 		var/mob/living/carbon/human/H = L
 		H.bleed_rate = max(H.bleed_rate + 9, 6)
 		H.blood_volume -= 10
-		var/obj/effect/decal/cleanable/blood/hitsplatter/B = new(H.loc) // you just got impaled by a big-ass sword
-		B.add_blood_DNA(H.return_blood_DNA())
-		B.blood_source = H
-		playsound(H, pick('hippiestation/sound/effects/splash.ogg'), 40, TRUE, -1)
-		var/dist = rand(1,3)
-		var/turf/targ = get_ranged_target_turf(H, pick(GLOB.alldirs), dist)
-		B.GoTo(targ, dist)
+		if(H.spray_hit_blood(pick(GLOB.alldirs), rand(1,3))) // you just got impaled by a big-ass sword
+			playsound(H, pick('hippiestation/sound/effects/splash.ogg'), 40, TRUE, -1)
 
 /obj/effect/proc_holder/spell/self/bfs/proc/chugga_chugga(turf/T, direction, chugga_amount, reverse)
 	var/turf/tip = multistep(T, direction, chugga_amount)

@@ -47,8 +47,11 @@
 	if(beaker)
 		beaker.forceMove(get_turf(src))
 		beaker = null
+	mistoff()
+	if(linkeddrain?.poolcontrol == src)
+		linkeddrain.poolcontrol = null
 	linkeddrain = null
-	linkedturfs.Cut()
+	LAZYCLEARLIST(linkedturfs) // null when there was no pool in range
 	return ..()
 
 /obj/machinery/poolcontroller/emag_act(mob/user) //Emag_act, this is called when it is hit with a cryptographic sequencer.
@@ -152,96 +155,102 @@
 
 
 /obj/machinery/poolcontroller/process()
-	updatePool() //Call the mob affecting proc)
+	var/powered = !(stat & (NOPOWER|BROKEN))
+	updatePool(powered) //Call the mob affecting proc - water is still water without power, but the heater isn't
 	if(timer > 0)
 		timer--
 		updateUsrDialog()
 	if(reagenttimer > 0)
 		reagenttimer--
-	if(stat & (NOPOWER|BROKEN))
+	if(!powered)
 		return
 	if(!reagenttimer && !drained)
 		poolreagent()
 
-/obj/machinery/poolcontroller/proc/updatePool()
+/obj/machinery/poolcontroller/proc/updatePool(powered = TRUE)
 	if(!drained)
 		for(var/X in linkedturfs) //Check for pool-turfs linked to the controller.
 			var/turf/open/pool/W = X
 			for(var/mob/living/M in W) //Check for mobs in the linked pool-turfs.
-				switch(temperature) //Apply different effects based on what the temperature is set to.
-					if(SCALDING) //Scalding
-						M.adjust_bodytemperature(TEMPERATURE_DAMAGE_COEFFICIENT*50,0,500)
-					if(WARM) //Warm
-						M.adjust_bodytemperature(TEMPERATURE_DAMAGE_COEFFICIENT*20,0,360) //Heats up mobs till the termometer shows up
-					if(NORMAL) //Normal temp does nothing, because it's just room temperature water.
-						if(iscarbon(M))
-							var/mob/living/carbon/C = M
-							C.adjust_bodytemperature(C.natural_bodytemperature_stabilization())
-					if(COOL)
-						M.adjust_bodytemperature(TEMPERATURE_DAMAGE_COEFFICIENT*-20,250) //Cools mobs till the termometer shows up
-					if(FRIGID) //Freezing
-						M.adjust_bodytemperature(TEMPERATURE_DAMAGE_COEFFICIENT*-60) //cool mob at -35k per cycle, less would not affect the mob enough.
-						if(M.bodytemperature <= 50 && !M.stat)
-							M.apply_status_effect(/datum/status_effect/freon)
-				var/mob/living/carbon/human/drownee = M
-				if(drownee.stat == DEAD)
+				if(powered)
+					apply_water_temperature(M)
+				// Only things that breathe drown - this used to treat every mob as a human, so a knocked-down pet or
+				// borg in the water runtimed on .internal every tick
+				if(!iscarbon(M) || M.stat == DEAD)
 					continue
-				if(drownee && drownee.lying && !drownee.internal)
+				var/mob/living/carbon/drownee = M
+				if(drownee.lying && !drownee.internal)
 					if(drownee.stat != CONSCIOUS)
 						drownee.adjustOxyLoss(9)
 						to_chat(drownee, "<span class='danger'>You're quickly drowning!</span>")
 					else
-						if(!drownee.internal)
-							drownee.adjustOxyLoss(4)
-							if(prob(35))
-								to_chat(drownee, "<span class='danger'>You're lacking air!</span>")
+						drownee.adjustOxyLoss(4)
+						if(prob(35))
+							to_chat(drownee, "<span class='danger'>You're lacking air!</span>")
 
 			for(var/obj/effect/decal/cleanable/decal in W)
-				CHECK_TICK
+				if(decal.alpha == 10) // already fading out; this used to queue another qdel for it every tick
+					continue
 				animate(decal, alpha = 10, time = 20)
 				QDEL_IN(decal, 25)
 				if(istype(decal,/obj/effect/decal/cleanable/blood) || istype(decal, /obj/effect/decal/cleanable/trail_holder))
 					bloody = TRUE
 	changecolor()
 
+/// What the water's temperature setting does to someone in it
+/obj/machinery/poolcontroller/proc/apply_water_temperature(mob/living/M)
+	switch(temperature) //Apply different effects based on what the temperature is set to.
+		if(SCALDING) //Scalding
+			M.adjust_bodytemperature(TEMPERATURE_DAMAGE_COEFFICIENT*50,0,500)
+		if(WARM) //Warm
+			M.adjust_bodytemperature(TEMPERATURE_DAMAGE_COEFFICIENT*20,0,360) //Heats up mobs till the termometer shows up
+		if(NORMAL) //Normal temp does nothing, because it's just room temperature water.
+			if(iscarbon(M))
+				var/mob/living/carbon/C = M
+				C.adjust_bodytemperature(C.natural_bodytemperature_stabilization())
+		if(COOL)
+			M.adjust_bodytemperature(TEMPERATURE_DAMAGE_COEFFICIENT*-20,250) //Cools mobs till the termometer shows up
+		if(FRIGID) //Freezing
+			M.adjust_bodytemperature(TEMPERATURE_DAMAGE_COEFFICIENT*-60) //cool mob at -35k per cycle, less would not affect the mob enough.
+			if(M.bodytemperature <= 50 && !M.stat)
+				M.apply_status_effect(/datum/status_effect/freon)
+
+/// Tints the water: the beaker's reagent, blood, both, or neither
 /obj/machinery/poolcontroller/proc/changecolor()
 	if(drained)
 		return
 	var/rcolor
 	if(beaker && beaker.reagents && beaker.reagents.reagent_list.len)
 		rcolor = mix_color_from_reagents(beaker.reagents.reagent_list)
-	if(rcolor == old_rcolor)
-		return // small performance upgrade hopefully?
-	old_rcolor = rcolor
+	var/newcolor = rcolor
+	if(bloody)
+		newcolor = rcolor ? BlendRGB(rgb(150, 20, 20), rcolor, 0.5) : rgb(150, 20, 20)
+	// Cache on the colour actually shown, and check the water itself: this used to cache only the beaker's colour, so
+	// blood never tinted the water and a refilled pool (new, uncoloured water overlays) stayed clear
+	var/turf/open/pool/sample = LAZYACCESS(linkedturfs, 1)
+	if(newcolor == old_rcolor && sample?.watereffect?.color == newcolor)
+		return
+	old_rcolor = newcolor
 	for(var/X in linkedturfs)
-		var/turf/open/pool/color1 = X
-		if(bloody)
-			if(rcolor)
-				color1.watereffect.color = BlendRGB(rgb(150, 20, 20), rcolor, 0.5)
-				color1.watertop.color = color1.watereffect.color
-			else
-				color1.watereffect.color = rgb(150, 20, 20)
-				color1.watertop.color = color1.watereffect.color
-		else if(!bloody && rcolor)
-			color1.watereffect.color = rcolor
-			color1.watertop.color = color1.watereffect.color
-		else
-			color1.watereffect.color = null
-			color1.watertop.color = null
+		var/turf/open/pool/water = X
+		if(water.watereffect)
+			water.watereffect.color = newcolor
+		if(water.watertop)
+			water.watertop.color = newcolor
 
 /obj/machinery/poolcontroller/proc/miston() //Spawn /obj/effect/mist (from the shower) on all linked pool tiles
+	if(misted)
+		return
 	for(var/X in linkedturfs)
 		var/turf/open/pool/W = X
 		if(W.filled)
-			var/M = new /obj/effect/mist(W)
-			if(misted)
-				return
-			linkedmist += M
+			linkedmist += new /obj/effect/mist(W)
 	misted = TRUE //var just to keep track of when the mist on proc has been called.
 
 /obj/machinery/poolcontroller/proc/mistoff() //Delete all /obj/effect/mist from all linked pool tiles.
 	for(var/M in linkedmist)
 		qdel(M)
+	linkedmist = list() // the deleted mist used to stay listed
 	misted = FALSE //no mist left, turn off the tracking var
 
 /obj/machinery/poolcontroller/proc/handle_temp()
@@ -272,18 +281,18 @@
 	changecolor()
 
 /obj/machinery/poolcontroller/proc/ToggleDrain(mob/user)
+	if(!linkeddrain) // a pool with no drain in range can't be drained
+		return
 	if(isDrainable(user) && !linkeddrain.active)
+		temperature = NORMAL // before handle_temp(), so the screen shows it
 		handle_temp()
 		timer = 15
 		linkeddrain.active = TRUE
 		linkeddrain.timer = 15
 		if(!linkeddrain.status)
 			new /obj/effect/whirlpool(linkeddrain.loc)
-			temperature = NORMAL
 		else
 			new /obj/effect/effect/waterspout(linkeddrain.loc)
-			temperature = NORMAL
-		bloody = FALSE
 
 /obj/machinery/poolcontroller/proc/isDrainable(mob/user)
 	return (drainable || issilicon(user) || IsAdminGhost(user))

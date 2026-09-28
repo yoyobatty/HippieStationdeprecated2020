@@ -1,4 +1,6 @@
 /obj/item/flashlight
+	light_angle = LIGHT_ANGLE_HANDHELD
+	light_follows_facing = TRUE
 	name = "flashlight"
 	desc = "A hand-held emergency light."
 	custom_price = 10
@@ -208,6 +210,7 @@
 
 // the desk lamps are a bit special
 /obj/item/flashlight/lamp
+	light_angle = 360 // lights all around it
 	name = "desk lamp"
 	desc = "A desk lamp with an adjustable mount."
 	icon_state = "lamp"
@@ -248,6 +251,7 @@
 // FLARES
 
 /obj/item/flashlight/flare
+	light_angle = 360 // lights all around it
 	name = "flare"
 	desc = "A red Nanotrasen issued flare. There are instructions on the side, it reads 'pull cord, make light'."
 	w_class = WEIGHT_CLASS_SMALL
@@ -334,6 +338,7 @@
 	slot_flags = null
 
 /obj/item/flashlight/lantern
+	light_angle = 360 // lights all around it
 	name = "lantern"
 	icon_state = "lantern"
 	item_state = "lantern"
@@ -355,6 +360,7 @@
 	brightness_on = 10
 
 /obj/item/flashlight/slime
+	light_angle = 360 // lights all around it
 	gender = PLURAL
 	name = "glowing slime extract"
 	desc = "Extract from a yellow slime. It emits a strong light when squeezed."
@@ -421,6 +427,7 @@
 // Glowsticks, in the uncomfortable range of similar to flares,
 // but not similar enough to make it worth a refactor
 /obj/item/flashlight/glowstick
+	light_angle = 360 // lights all around it
 	name = "glowstick"
 	desc = "A military-grade glowstick."
 	custom_price = 10
@@ -528,6 +535,7 @@
 	. = ..()
 
 /obj/item/flashlight/spotlight //invisible lighting source
+	light_angle = 360 // lights all around it
 	name = "disco light"
 	desc = "Groovy..."
 	icon_state = null

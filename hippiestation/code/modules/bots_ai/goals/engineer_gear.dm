@@ -15,9 +15,11 @@
 	. = list()
 	if(!is_power_engineer_job())
 		return
-	.[/obj/item/clothing/gloves/color/yellow] = ITEM_SLOT_GLOVES
 	if(owner.mind?.assigned_role == "Chief Engineer")
+		.[/obj/item/clothing/gloves/chief_engineer] = ITEM_SLOT_GLOVES //their locker's advanced insulated gloves
 		.[/obj/item/clothing/neck/cloak/ce] = ITEM_SLOT_NECK
+	else
+		.[/obj/item/clothing/gloves/color/yellow] = ITEM_SLOT_GLOVES
 
 /datum/bot_brain/proc/is_wearing(item_type, slot)
 	var/obj/item/worn = owner.get_item_by_slot(slot)

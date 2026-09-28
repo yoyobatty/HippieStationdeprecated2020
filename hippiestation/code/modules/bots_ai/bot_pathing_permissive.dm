@@ -118,6 +118,8 @@
 		// Welded: passable only for a bot that can unweld it on arrival (bot_breach.dm).
 		if(F.welded && !(istype(H) && H.bot_brain && H.bot_brain.can_unweld()))
 			return FALSE
+		if(F.safety_mode && !F.hasPower() && !F.welded)
+			return TRUE //hand release (door.dm try_safety_unlock()), no crowbar needed
 		// can_eventually_provide_tool(), not find_carried_tool() - a bot holding the
 		// jaws-of-life in wirecutters/power form is just as able to pry this open (one
 		// attack_self() away from being a crowbar/power) as one already holding it in
@@ -148,7 +150,19 @@
 			return !A.density
 		// Welded is no longer a dead end for a bot carrying a fuelled welder (bot_breach.dm).
 		var/can_unweld = istype(H) && H.bot_brain && H.bot_brain.can_unweld()
-		return !A.density || ((!A.welded || can_unweld) && A.hasPower())
+		if(!A.density)
+			return TRUE
+		if(A.welded && !can_unweld)
+			return FALSE
+		if(A.hasPower())
+			return TRUE
+		// Unpowered: no hacking (the wires need power), but it still opens the way a player opens a dead
+		// door - by hand if it has the safety_mode emergency release (door.dm try_safety_unlock(), the
+		// arrivals dock airlocks), or with any crowbar (try_pry_door()). Bolts stop both. Treating every
+		// dead airlock as a wall stranded bots aboard the arrivals shuttle whenever the dock lost power.
+		if(A.locked)
+			return FALSE
+		return A.safety_mode || (istype(H) && H.bot_brain && H.bot_brain.can_eventually_provide_tool(/obj/item/crowbar))
 	if(O.CanAStarPass(ID, to_dir, caller))
 		return TRUE
 	var/obj/structure/S = O

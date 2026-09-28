@@ -94,6 +94,7 @@ GLOBAL_LIST_INIT(admin_verbs_fun, list(
 	/client/proc/drop_bomb,
 	/client/proc/cmd_admin_fiery_explosion, /*hippie -- flame front that spreads through oxygen-rich open turfs*/
 	/client/proc/cmd_admin_repair_machine, /*hippie -- fully repairs a damaged machine/obj*/
+	/client/proc/cmd_admin_abandon_station, /*hippie -- trashes the station so it looks abandoned after a disaster*/
 	/client/proc/set_dynex_scale,
 	/client/proc/drop_dynex_bomb,
 	/client/proc/cinematic,
@@ -177,6 +178,7 @@ GLOBAL_PROTECT(admin_verbs_debug)
 	/client/proc/jump_to_ruin,
 	/client/proc/clear_dynamic_transit,
 	/client/proc/toggle_medal_disable,
+	/client/proc/toggle_bounce_lighting, /*hippie -- light spilling softly around corners, see LIGHTING_BOUNCE_STRENGTH*/
 	/client/proc/view_runtimes,
 	/client/proc/pump_random_event,
 	/client/proc/cmd_display_init_log,

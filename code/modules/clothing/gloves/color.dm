@@ -22,6 +22,13 @@
 	. = ..()
 	siemens_coefficient = pick(0,0.5,0.5,0.5,0.5,0.75,1.5)
 
+/obj/item/clothing/gloves/color/fyellow/examine_tags(mob/user)
+	. = ..()
+	// Pretend we're always insulated
+	if(.["partially insulated"])
+		. -= "partially insulated"
+	.["insulated"] = "It is made from a robust electrical insulator and will block any electricity passing through it!"
+
 /obj/item/clothing/gloves/color/fyellow/old
 	desc = "Old and worn out insulated gloves, hopefully they still work."
 	name = "worn out insulated gloves"
@@ -29,6 +36,19 @@
 /obj/item/clothing/gloves/color/fyellow/old/Initialize()
 	. = ..()
 	siemens_coefficient = pick(0,0,0,0.5,0.5,0.5,0.75)
+
+/obj/item/clothing/gloves/chief_engineer
+	desc = "These gloves provide excellent heat and electric insulation."
+	name = "advanced insulated gloves"
+	icon_state = "ce_insuls"
+	item_state = "ce_insuls"
+	siemens_coefficient = 0
+	permeability_coefficient = 0.05
+	cold_protection = HANDS
+	min_cold_protection_temperature = GLOVES_MIN_TEMP_PROTECT
+	heat_protection = HANDS
+	max_heat_protection_temperature = GLOVES_MAX_TEMP_PROTECT
+	resistance_flags = NONE
 
 /obj/item/clothing/gloves/color/black
 	desc = "These gloves are fire-resistant."

@@ -292,6 +292,13 @@
 	if(desc)
 		. += desc
 
+	var/list/tags_list = examine_tags(user)
+	if(length(tags_list))
+		var/list/tag_strings = list()
+		for(var/atom_tag in tags_list)
+			tag_strings += (isnull(tags_list[atom_tag]) ? atom_tag : span_tooltip(tags_list[atom_tag], atom_tag))
+		. += "[gender == PLURAL ? "They are" : "It is"] a [english_list(tag_strings)] [examine_descriptor(user)]."
+
 	if(reagents)
 		if(reagents.flags & TRANSPARENT)
 			. += "It contains:"
@@ -313,6 +320,30 @@
 				. += "<span class='danger'>It's empty.</span>"
 
 	SEND_SIGNAL(src, COMSIG_PARENT_EXAMINE, user, .)
+
+/**
+ * A list of "tags" displayed after atom's description in examine.
+ * This should return an assoc list of tags -> tooltips for them. If the tooltip is null, the tag is shown plain.
+ *
+ * For example:
+ * ```
+ * . = list()
+ * .["small"] = "It is a small item."
+ * .["fireproof"] = "It is made of fire-retardant materials."
+ * ```
+ * will result in
+ *
+ * It is a *small* and *fireproof* item.
+ *
+ * where "item" is pulled from [/atom/proc/examine_descriptor]
+ */
+/atom/proc/examine_tags(mob/user)
+	. = list()
+	SEND_SIGNAL(src, COMSIG_ATOM_EXAMINE_TAGS, user, .)
+
+/// What this atom should be called in examine tags
+/atom/proc/examine_descriptor(mob/user)
+	return "object"
 
 /atom/proc/relaymove(mob/user)
 	if(buckle_message_cooldown <= world.time)
@@ -340,7 +371,9 @@
 	return
 
 /atom/proc/hitby(atom/movable/AM, skipcatch, hitpush, blocked, datum/thrownthing/throwingdatum)
-	if(density && !has_gravity(AM)) //thrown stuff bounces off dense stuff in no grav, unless the thrown stuff ends up inside what it hit(embedding, bola, etc...).
+	//thrown stuff bounces off dense stuff in no grav, unless the thrown stuff ends up inside what it hit(embedding, bola, etc...).
+	//hippie -- not off something the hit just destroyed (a mob that deletes on death, killed by the throw)
+	if(density && !QDELETED(src) && !has_gravity(AM))
 		addtimer(CALLBACK(src, PROC_REF(hitby_react), AM), 2)
 
 /atom/proc/hitby_react(atom/movable/AM)
@@ -476,6 +509,10 @@
 //Hook for running code when a dir change occurs
 /atom/proc/setDir(newdir)
 	SEND_SIGNAL(src, COMSIG_ATOM_DIR_CHANGE, dir, newdir)
+	if (light_sources && dir != newdir)
+		dir = newdir
+		update_facing_lights()
+		return
 	dir = newdir
 
 /atom/proc/mech_melee_attack(obj/mecha/M)

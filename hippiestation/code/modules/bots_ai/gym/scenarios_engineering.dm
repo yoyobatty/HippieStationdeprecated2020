@@ -64,7 +64,7 @@
 		if(locate(extra) in carried)
 			fail_reason = "also took [extra]"
 			return BOT_GYM_FAIL
-	if(istype(bot.gloves, /obj/item/clothing/gloves/color/yellow) && istype(bot.wear_neck, /obj/item/clothing/neck/cloak/ce))
+	if(istype(bot.gloves, /obj/item/clothing/gloves/chief_engineer) && istype(bot.wear_neck, /obj/item/clothing/neck/cloak/ce))
 		if(!(locate(/obj/item/clothing/gloves/color/black/ce) in carried))
 			fail_reason = "dropped the black gloves instead of bagging them"
 			return BOT_GYM_FAIL

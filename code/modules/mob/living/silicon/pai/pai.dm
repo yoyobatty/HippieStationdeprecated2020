@@ -1,4 +1,6 @@
 /mob/living/silicon/pai
+	light_angle = LIGHT_ANGLE_HEADLAMP
+	light_follows_facing = TRUE
 	name = "pAI"
 	icon = 'icons/mob/pai.dmi'
 	icon_state = "repairbot"

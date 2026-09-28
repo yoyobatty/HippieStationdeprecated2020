@@ -12,6 +12,8 @@ GLOBAL_LIST_EMPTY(PDAs)
 #define PDA_SPAM_DELAY		    2 MINUTES
 
 /obj/item/pda
+	light_angle = LIGHT_ANGLE_HANDHELD
+	light_follows_facing = TRUE
 	name = "\improper PDA"
 	desc = "A portable microcomputer by Thinktronic Systems, LTD. Functionality determined by a preprogrammed ROM cartridge."
 	icon = 'icons/obj/pda.dmi'

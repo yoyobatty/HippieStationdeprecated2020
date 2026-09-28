@@ -340,7 +340,7 @@ const ROUTES = {
   },
   personal_crafting: {
     component: () => PersonalCrafting,
-    scrollable: true,
+    scrollable: false,
   },
   portable_generator: {
     component: () => PortableGenerator,

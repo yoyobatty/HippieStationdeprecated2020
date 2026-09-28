@@ -163,9 +163,7 @@
 	goal_attempts++
 	if(goal_attempts > 1 || !assailant)
 		return
-	brain.attacker = assailant
-	brain.state_before_combat = brain.state
-	brain.state = BOT_STATE_COMBAT
+	brain.on_attacked(assailant, "attacked") // the way a real hit starts a fight (sight/calm-down tracking included, bot_brain.dm)
 	log_line("[assailant] attacks the bot from [get_dist(bot, assailant)] tiles")
 
 /datum/bot_scenario/botany/project/throw_acid_melon/botany_check()

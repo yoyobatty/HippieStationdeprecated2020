@@ -90,6 +90,10 @@
 #define POINT_LAYER 12
 
 
+///Hidden: where space is showing, not covered by floors or objects - that part of the screen ignores lighting (see /obj/screen/plane_master/space_unlit_mask)
+#define SPACE_UNLIT_MASK_PLANE 11
+#define SPACE_UNLIT_MASK_RENDER_TARGET "*SPACE_UNLIT_MASK_PLANE"
+
 #define EMISSIVE_BLOCKER_PLANE 12
 #define EMISSIVE_BLOCKER_LAYER 12
 #define EMISSIVE_BLOCKER_RENDER_TARGET "*EMISSIVE_BLOCKER_PLANE"

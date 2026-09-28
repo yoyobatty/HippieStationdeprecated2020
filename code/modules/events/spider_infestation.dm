@@ -26,7 +26,7 @@
 			continue
 		if(is_station_level(temp_vent.loc.z) && !temp_vent.welded)
 			var/datum/pipeline/temp_vent_parent = temp_vent.parents[1]
-			if(temp_vent_parent.other_atmosmch.len > 20)
+			if(temp_vent_parent && temp_vent_parent.other_atmosmch.len > 20) // no pipenet while it's queued for a rebuild (broken pipes)
 				vents += temp_vent
 
 	while((spawncount >= 1) && vents.len)

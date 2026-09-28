@@ -133,10 +133,12 @@
 		M.apply_water()
 
 	var/obj/effect/hotspot/hotspot = (locate(/obj/effect/hotspot) in T)
-	if(hotspot && !isspaceturf(T))
+	if(hotspot && !isspaceturf(T)) // the water evaporates in an endothermic reaction
 		if(T.air)
 			var/datum/gas_mixture/G = T.air
-			G.temperature = max(min(G.temperature-(CT*1000),G.temperature/CT),TCMB)
+			//as tgstation #92411: evaporation can't cool the air below 0C (it used to drop it to 2.7K), and cools the floor too
+			G.temperature = min(max(min(G.temperature-(CT*1000), G.temperature/CT), T0C), G.temperature) // the outer min guards against reactions that leave the air colder than this
+			T.temperature = clamp(min(T.temperature-(CT*1000), T.temperature/CT), T20C, T.temperature) // turfs normally don't go below T20C
 			G.react(src)
 			qdel(hotspot)
 	var/obj/effect/acid/A = (locate(/obj/effect/acid) in T)

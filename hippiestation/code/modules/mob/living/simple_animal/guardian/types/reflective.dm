@@ -70,13 +70,8 @@ GLOBAL_LIST_INIT(reflect_blacklist, typecacheof(list(/obj/structure, /obj/machin
 		H.blood_volume -= 20
 		H.adjustBruteLoss(5)
 		// spray blood
-		var/obj/effect/decal/cleanable/blood/hitsplatter/B = new(H.loc)
-		B.add_blood_DNA(H.return_blood_DNA())
-		B.blood_source = H
-		playsound(H, pick('hippiestation/sound/effects/splash.ogg'), 40, TRUE, -1)
-		var/dist = rand(1,3)
-		var/turf/targ = get_ranged_target_turf(H, get_dir(src, H), dist)
-		B.GoTo(targ, dist)
+		if(H.spray_hit_blood(get_dir(src, H), rand(1,3)))
+			playsound(H, pick('hippiestation/sound/effects/splash.ogg'), 40, TRUE, -1)
 	else
 		L.adjustBruteLoss(40)
 	changeNext_move(35) // kinda slow

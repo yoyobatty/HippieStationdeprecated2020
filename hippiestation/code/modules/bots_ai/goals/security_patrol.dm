@@ -187,15 +187,24 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 // bookkeeping is deferred a tick, which also lets the hit's damage land first so the
 // victim's stat reads post-hit (critted/killed) rather than pre-hit.
 /proc/bot_security_witness_combat(atom/user, atom/target, what_done, atom/object)
-	if(!GLOB.bot_security_brains.len)
-		return
-	if(!ishuman(user) || !ishuman(target) || user == target)
+	if(!isliving(user) || !ishuman(target) || user == target)
 		return
 	if(!bot_is_violent_verb(what_done))
 		return
 	// Records when each attacker FIRST started on each victim (within the window), not
 	// the latest hit - so a fight's instigator stays the instigator even after the
 	// other side starts hitting back. See bot_security_judge_combat()'s self-defense check.
+	if(ishuman(user))
+		bot_record_aggression(user, target)
+	// A bot notices being hurt however it happened - fists, feet, teeth, bullets, thrown junk - not just item hits
+	// (this used to hang off attacked_by(), which only item attacks reach).
+	var/mob/living/carbon/human/victim = target
+	victim.bot_brain?.on_attacked(user, what_done, object)
+	if(!GLOB.bot_security_brains.len || !ishuman(user))
+		return
+	addtimer(CALLBACK(GLOBAL_PROC, /proc/bot_security_judge_combat, user, target, what_done, object), 1)
+
+/proc/bot_record_aggression(mob/living/carbon/human/user, mob/living/carbon/human/target)
 	var/key = "[REF(user)]>[REF(target)]"
 	var/first_hit = GLOB.bot_recent_aggression[key]
 	if(!first_hit || world.time - first_hit > BOT_SELF_DEFENSE_WINDOW)
@@ -204,7 +213,6 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		for(var/old_key in GLOB.bot_recent_aggression)
 			if(world.time - GLOB.bot_recent_aggression[old_key] > BOT_SELF_DEFENSE_WINDOW)
 				GLOB.bot_recent_aggression -= old_key
-	addtimer(CALLBACK(GLOBAL_PROC, /proc/bot_security_judge_combat, user, target, what_done, object), 1)
 
 /proc/bot_is_violent_verb(what_done)
 	if(!istext(what_done))
@@ -426,13 +434,15 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		bot_say(owner, ":s Couldn't bring in [S.name], they're still at large. Last seen in [get_area_name(arrest_last_seen_turf, TRUE)].")
 		end_arrest("took too long")
 		return
-	if(S.z != owner.z)
+	var/turf/suspect_turf = get_turf(S) // S.z is 0 while they're hiding in a locker - that used to end the arrest on the spot
+	if(!suspect_turf || suspect_turf.z != owner.z)
 		end_arrest("suspect left the z-level")
 		return
 
 	// A suspect hiding in a locker/crate: go to the container and open it.
-	var/atom/chase = isturf(S.loc) ? S : S.loc
-	var/visible = (S in view(BOT_SEC_VIEW_RANGE, owner)) || (chase != S && (chase in view(BOT_SEC_VIEW_RANGE, owner)))
+	var/atom/chase = bot_outermost_holder(S)
+	// By sight (can_see_target(), bot_brain.dm): a locker in view only counts if they were seen getting into it.
+	var/visible = can_see_target(S, arrest_last_seen_turf, arrest_last_seen)
 	if(visible)
 		arrest_last_seen = world.time
 		arrest_last_seen_turf = get_turf(S)
@@ -655,6 +665,27 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	check_finished_sentences()
 
 	// Anyone wanted and in plain sight comes first.
+	if(try_spot_wanted())
+		return TRUE
+
+	// Start-of-shift gear-up, per the guide: "Go to the Security Office and open a
+	// security locker. Get HUD glasses and put them on."
+	if(try_gear_up_sec_hud())
+		return TRUE
+
+	// Out of cuffs (left them on someone, or never had any) - get another pair before
+	// there's a suspect in front of us and nothing to restrain them with.
+	if(!find_restraints() && world.time >= next_security_restock_time)
+		next_security_restock_time = world.time + 1200
+		var/datum/bot_goal/acquire_item_type/sub = new()
+		sub.item_type = /obj/item/restraints/handcuffs
+		if(assign_goal(sub))
+			bot_log(src, "out of handcuffs - going to find a pair")
+			return TRUE
+	return FALSE
+
+/// Anyone this officer knows is wanted, in plain sight: go get them. Also run mid-errand (process(), bot_brain.dm).
+/datum/bot_brain/proc/try_spot_wanted()
 	var/mob/living/carbon/human/best
 	var/best_dist
 	for(var/mob/living/carbon/human/H in view(BOT_SEC_VIEW_RANGE, owner))
@@ -675,21 +706,6 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		if(state == BOT_STATE_ARREST)
 			bot_say(owner, pick("Freeze, [best.name]!", "[best.name]! Security, don't move!", "Hey! [best.name], stop right there!"))
 		return TRUE
-
-	// Start-of-shift gear-up, per the guide: "Go to the Security Office and open a
-	// security locker. Get HUD glasses and put them on."
-	if(try_gear_up_sec_hud())
-		return TRUE
-
-	// Out of cuffs (left them on someone, or never had any) - get another pair before
-	// there's a suspect in front of us and nothing to restrain them with.
-	if(!find_restraints() && world.time >= next_security_restock_time)
-		next_security_restock_time = world.time + 1200
-		var/datum/bot_goal/acquire_item_type/sub = new()
-		sub.item_type = /obj/item/restraints/handcuffs
-		if(assign_goal(sub))
-			bot_log(src, "out of handcuffs - going to find a pair")
-			return TRUE
 	return FALSE
 
 // Whether this bot can tell, on sight, that H is wanted. Crimes it witnessed itself (or
@@ -775,8 +791,18 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 // Calls for help
 // ============================================================
 
+/// Whether a security bot would drop what it's doing to answer a call or grab someone wanted: yes for idling and
+/// errands (fetching a HUD, restocking cuffs), no mid-fight, mid-arrest, or with a prisoner on the way to the brig.
+/datum/bot_brain/proc/can_drop_for_call()
+	if(state == BOT_STATE_WANDER)
+		return TRUE
+	if(state != BOT_STATE_GOAL)
+		return FALSE
+	return !istype(current_goal, /datum/bot_goal/brig_prisoner) && !istype(current_goal, /datum/bot_goal/respond_to_call)
+
 /datum/bot_brain/proc/on_heard_security_call(atom/movable/speaker, raw_message, radio_freq)
-	if(!is_security_job() || state != BOT_STATE_WANDER || goal_chain_pending)
+	// (Used to need the bot idle, so an officer off fetching a sec HUD ignored someone screaming for help.)
+	if(!is_security_job() || goal_chain_pending || !can_drop_for_call())
 		return
 	if(world.time < next_security_call_time)
 		return
@@ -796,6 +822,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	if(!T || T.z != owner.z)
 		return
 	next_security_call_time = world.time + 600
+	if(state == BOT_STATE_GOAL)
+		abandon_goals_for_arrest()
 	var/datum/bot_goal/respond_to_call/G = new()
 	G.caller_turf = T
 	G.caller_name = L.name
@@ -865,7 +893,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 /proc/bot_find_cell_locker(obj/machinery/door_timer/T)
 	return locate(/obj/structure/closet/secure_closet/brig) in T.targets
 
-/datum/bot_brain/proc/is_in_active_cell(mob/living/M)
+/datum/bot_brain/proc/is_in_active_cell(atom/M) // a prisoner, or anything else sitting in the cell
 	var/turf/here = get_turf(M)
 	if(!here)
 		return FALSE
@@ -896,9 +924,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 				break
 		if(occupied)
 			continue
-		var/d = get_dist(owner, T)
-		if(d > 80)
-			continue
+		var/d = get_dist(owner, T) // nearest cell, however far - an 80-tile cap here left anyone arrested on the far side of the station cuffed on the floor
 		if(!best || d < best_dist)
 			best = T
 			best_dist = d
@@ -1139,6 +1165,38 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	if(severity >= BOT_CRIME_MURDER)
 		bot_say(bot.owner, ":s Warden, HoS - [P.name] is in for murder, requesting a decision on permabrig.")
 	return GOAL_STEP_SUCCESS
+
+
+
+// ============================================================
+// Victims calling it in
+// ============================================================
+
+/// Attacked by H: radio it in, the way a crewmember being beaten yells for security. Names them if their face can
+/// be seen (so the officers who hear it know who to grab on sight - GLOB.bot_security_wanted), otherwise just
+/// where. Nothing if this bot started the fight. Officers respond through on_heard_security_call() - no radio,
+/// no response.
+/datum/bot_brain/proc/bot_call_security(mob/living/carbon/human/H, what_done, atom/object)
+	if(is_security_job() || world.time < next_assault_report_time || QDELETED(H))
+		return
+	var/we_started = GLOB.bot_recent_aggression["[REF(owner)]>[REF(H)]"]
+	var/they_started = GLOB.bot_recent_aggression["[REF(H)]>[REF(owner)]"]
+	if(we_started && world.time - we_started <= BOT_SELF_DEFENSE_WINDOW && (!they_started || we_started < they_started))
+		return
+	next_assault_report_time = world.time + 600
+	var/where = get_area_name(owner, TRUE)
+	var/who = H.name // their visible name - "Unknown" behind a mask with no ID showing
+	var/identified = who && who != "Unknown"
+	bot_say(owner, identified ? ";Security! [who] is attacking me in [where]!" : ";Help! Someone's attacking me in [where]!")
+	if(!identified || !GLOB.bot_security_brains.len)
+		return
+	// Whoever's on duty takes the report down - a named assault goes on the record like any other.
+	var/datum/bot_brain/officer = GLOB.bot_security_brains[1]
+	var/list/verdict = bot_classify_crime(H, owner, what_done || "attacked", object)
+	var/datum/bot_wanted/existing = bot_get_wanted_entry(H)
+	if(!existing || existing.severity < verdict[2])
+		officer.file_crime(H, verdict[1], "[verdict[3]] (reported by the victim)", verdict[2])
+		bot_log(src, "reported [verdict[1]] by [H] to security")
 
 #undef BOT_CRIME_MINOR
 #undef BOT_CRIME_MAJOR

@@ -116,15 +116,35 @@ hippie end */
 					LAZYSET(user_vars_remembered, variable, user.vars[variable])
 					user.vv_edit_var(variable, user_vars_to_edit[variable])
 
+/obj/item/clothing/examine_tags(mob/user)
+	. = ..()
+	if(clothing_flags & THICKMATERIAL)
+		.["thick"] = "Protects from most injections and sprays."
+	if((clothing_flags & STOPSPRESSUREDAMAGE) || (visor_flags & STOPSPRESSUREDAMAGE))
+		.["pressure-proof"] = "Protects the wearer from extremely low or high pressure, such as vacuum of space."
+	if(heat_protection || cold_protection)
+		var/heat_desc
+		var/cold_desc
+		switch(max_heat_protection_temperature)
+			if(400 to 1000)
+				heat_desc = "high"
+			if(1001 to 1600)
+				heat_desc = "very high"
+			if(1601 to 35000)
+				heat_desc = "extremely high"
+		switch(min_cold_protection_temperature)
+			if(160 to 272)
+				cold_desc = "low"
+			if(72 to 159)
+				cold_desc = "very low"
+			if(0 to 71)
+				cold_desc = "extremely low"
+		var/list/temp_descs = list(heat_desc, cold_desc) - null
+		if(length(temp_descs))
+			.["thermally insulated"] = "Protects the wearer from [jointext(temp_descs, " and ")] temperatures."
+
 /obj/item/clothing/examine(mob/user)
 	. = ..()
-	switch (max_heat_protection_temperature)
-		if (400 to 1000)
-			. += "[src] offers the wearer limited protection from fire."
-		if (1001 to 1600)
-			. += "[src] offers the wearer some protection from fire."
-		if (1601 to 35000)
-			. += "[src] offers the wearer robust protection from fire."
 	if(damaged_clothes)
 		. += "<span class='warning'>It looks damaged!</span>"
 	var/datum/component/storage/pockets = GetComponent(/datum/component/storage)

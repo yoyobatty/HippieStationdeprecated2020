@@ -144,3 +144,39 @@
 
 /datum/bot_scenario/emergency_window_into_vacuum/on_timeout()
 	return BOT_GYM_PASS
+
+// --- Unpowered doors ---
+
+/datum/bot_scenario/unpowered_safety_airlock_by_hand
+	name = "unpowered safety airlock, bare hands"
+	desc = "The only door has no power but has the emergency hand release (safety_mode, like the arrivals dock airlocks). With no tools the bot should work the release (15s) and walk through - not treat the dead door as a wall."
+	layout = list(
+		"#########",
+		"#B..D..G#",
+		"#########")
+
+/datum/bot_scenario/unpowered_safety_airlock_by_hand/setup()
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	A.safety_mode = TRUE
+	A.stat |= NOPOWER //the arena area never loses power, so nothing turns this back off
+	A.update_icon()
+
+/datum/bot_scenario/unpowered_safety_airlock_by_hand/check_success_conditions()
+	if(QDELETED(first_placed("D"))) //not placed_destroyed() - that also counts an opened door
+		return "reached the goal, but broke the door down instead of using its hand release"
+
+/datum/bot_scenario/unpowered_safety_airlock_crowbar
+	name = "unpowered safety airlock, crowbar"
+	desc = "Same dead safety door, but the bot has a crowbar: prying is near-instant, so it should pry rather than spend 15s on the hand release."
+	layout = list(
+		"#########",
+		"#B..D..G#",
+		"#########")
+	kit_hands = list(/obj/item/crowbar)
+	time_limit = 14 SECONDS //finishing inside the hand release's 15s is the proof it pried
+
+/datum/bot_scenario/unpowered_safety_airlock_crowbar/setup()
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	A.safety_mode = TRUE
+	A.stat |= NOPOWER
+	A.update_icon()

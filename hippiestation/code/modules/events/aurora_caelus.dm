@@ -7,3 +7,5 @@
 		var/mob/M = V
 		if((M.client.prefs.toggles & SOUND_MIDI) && is_station_level(M.z))
 			M.playsound_local(M, 'hippiestation/sound/ambience/auroraborealis.ogg', 20, FALSE, pressure_affected = FALSE)
+	fade_space(fade_in = TRUE) //starlight brightens and turns green (code/modules/events/aurora_caelus.dm)
+	fade_kitchen(fade_in = TRUE)

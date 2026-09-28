@@ -2,6 +2,8 @@
 // Other types expand it - tablets use a direct subtypes, and
 // consoles and laptops use "procssor" item that is held inside machinery piece
 /obj/item/modular_computer
+	light_angle = LIGHT_ANGLE_HANDHELD
+	light_follows_facing = TRUE
 	name = "modular microcomputer"
 	desc = "A small portable microcomputer."
 

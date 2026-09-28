@@ -189,13 +189,25 @@
 	message_admins("<span class='adminnotice'><b> LocalNarrate: [key_name_admin(usr)] at [ADMIN_VERBOSEJMP(A)]:</b> [msg]<BR></span>")
 	SSblackbox.record_feedback("tally", "admin_verb", 1, "Local Narrate") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!
 
+/// Turns admin godmode on or off: GODMODE, which stops damage, and GODMODE_TRAITS, which stop everything else that hurts
+/mob/proc/set_admin_godmode(on)
+	if(on)
+		status_flags |= GODMODE
+	else
+		status_flags &= ~GODMODE
+	for(var/trait in GODMODE_TRAITS)
+		if(on)
+			ADD_TRAIT(src, trait, GODMODE_TRAIT)
+		else
+			REMOVE_TRAIT(src, trait, GODMODE_TRAIT)
+
 /client/proc/cmd_admin_godmode(mob/M in GLOB.mob_list)
 	set category = "Special Verbs"
 	set name = "Godmode"
 	if(!check_rights(R_ADMIN))
 		return
 
-	M.status_flags ^= GODMODE
+	M.set_admin_godmode(!(M.status_flags & GODMODE))
 	to_chat(usr, "<span class='adminnotice'>Toggled [(M.status_flags & GODMODE) ? "ON" : "OFF"]</span>", confidential = TRUE)
 
 	log_admin("[key_name(usr)] has toggled [key_name(M)]'s nodamage to [(M.status_flags & GODMODE) ? "On" : "Off"]")

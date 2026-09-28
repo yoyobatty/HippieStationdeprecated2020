@@ -36,6 +36,7 @@ NOTE: there are two lists of areas in the end of this file: centcom and station 
 	requires_power = TRUE
 	always_unpowered = TRUE
 	dynamic_lighting = DYNAMIC_LIGHTING_DISABLED
+	uses_starlight = TRUE //deep space glows the starlight color (as in tgstation)
 	power_light = FALSE
 	power_equip = FALSE
 	power_environ = FALSE

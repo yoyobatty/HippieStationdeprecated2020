@@ -17,87 +17,108 @@
 	STOP_PROCESSING(SSmachines, src)
 	START_PROCESSING(SSprocessing, src)
 	for(var/obj/machinery/poolcontroller/control in range(srange,src))
-		poolcontrol += control
+		poolcontrol = control // was +=, which turned this into a list with two controllers in range
+		break
 
 /obj/machinery/drain/Destroy()
+	if(poolcontrol?.linkeddrain == src)
+		poolcontrol.linkeddrain = null
 	poolcontrol = null
 	return ..()
 
+/// The pool tiles this drain empties and fills: its controller's, so the two always agree
+/obj/machinery/drain/proc/pool_turfs()
+	if(poolcontrol && length(poolcontrol.linkedturfs))
+		return poolcontrol.linkedturfs
+	. = list()
+	for(var/turf/open/pool/P in range(srange, src))
+		. += P
+
 /obj/machinery/drain/process()
 	if(!status) //don't drain an empty pool.
-		for(var/obj/item/absorbo in orange(1,src))
-			if(absorbo.w_class == WEIGHT_CLASS_TINY)
-				step_towards(absorbo, src)
-		spawn(7) //Gives them just the time to pick their items up.
-			for(var/obj/item/absorb in range(0,src))
-				if(absorb.w_class == WEIGHT_CLASS_TINY)
-					for(var/obj/machinery/poolfilter/filter in range(srange,src))
-						absorb.forceMove(filter)
-	if(active)
-		if(status) //if filling up, get back to normal position
-			if(timer > 0)
-				playsound(src, 'hippiestation/sound/effects/fillingwatter.ogg', 100, 1)
-				timer--
-				for(var/obj/whirlo in orange(1,src))
-					if(!whirlo.anchored )
-						step_away(whirlo,src)
-				for(var/mob/living/carbon/human/whirlm in orange(2,src))
-					step_away(whirlm,src)
-			else if(!timer)
-				for(var/turf/open/pool/undrained in range(5,src))
-					undrained.filled = TRUE
-					undrained.update_icon()
-				for(var/obj/effect/effect/waterspout/undrained3 in range(1,src))
-					qdel(undrained3)
-				poolcontrol.drained = FALSE
-				if(poolcontrol.bloody < 1000)
-					poolcontrol.bloody /= 2
-				if(poolcontrol.bloody > 1000)
-					poolcontrol.bloody /= 4
-				poolcontrol.changecolor()
-				status = FALSE
-				active = FALSE
-			return
-		if(!status) //if draining, change everything.
-			if(timer > 0)
-				playsound(src, 'hippiestation/sound/effects/pooldrain.ogg', 100, TRUE)
-				playsound(src, pick('hippiestation/sound/effects/water_wade1.ogg','hippiestation/sound/effects/water_wade2.ogg','hippiestation/sound/effects/water_wade3.ogg','hippiestation/sound/effects/water_wade4.ogg'), 60, TRUE)
-				timer--
-				for(var/obj/whirlo in orange(2,src))
-					if(!whirlo.anchored )
-						step_towards(whirlo,src)
-				for(var/mob/living/carbon/human/whirlm in orange(2,src))
-					step_towards(whirlm,src)
-					if(prob(20))
-						whirlm.Knockdown(40)
-					for(var/i in list(1,2,4,8,4,2,1)) //swirl!
-						whirlm.dir = i
-						sleep(1)
-					if(whirlm.forceMove(loc))
-						if(whirlm.health <= -50) //If very damaged, gib.
-							whirlm.gib()
-						if(whirlm.stat != CONSCIOUS || whirlm.lying) // If
-							whirlm.adjustBruteLoss(5)
-							playsound(src, pick('hippiestation/sound/misc/crack.ogg','hippiestation/sound/misc/crunch.ogg'), 50, TRUE)
-							to_chat(whirlm, "<span class='danger'>You're caught in the drain!</span>")
-							continue
-						else
-							playsound(src, pick('hippiestation/sound/misc/crack.ogg','hippiestation/sound/misc/crunch.ogg'), 50, TRUE)
-							whirlm.apply_damage(4, BRUTE, pick("l_leg", "r_leg")) //drain should only target the legs
-							to_chat(whirlm, "<span class='danger'>Your legs are caught in the drain!</span>")
-							continue
+		absorb_debris()
+	if(!active)
+		return
+	if(status) //filling back up
+		if(timer > 0)
+			timer--
+			playsound(src, 'hippiestation/sound/effects/fillingwatter.ogg', 100, 1)
+			for(var/obj/whirlo in orange(1,src))
+				if(!whirlo.anchored)
+					step_away(whirlo,src)
+			for(var/mob/living/carbon/human/whirlm in orange(2,src))
+				step_away(whirlm,src)
+		else
+			finish_filling()
+		return
+	if(timer > 0) //draining
+		timer--
+		playsound(src, 'hippiestation/sound/effects/pooldrain.ogg', 100, TRUE)
+		playsound(src, pick('hippiestation/sound/effects/water_wade1.ogg','hippiestation/sound/effects/water_wade2.ogg','hippiestation/sound/effects/water_wade3.ogg','hippiestation/sound/effects/water_wade4.ogg'), 60, TRUE)
+		for(var/obj/whirlo in orange(2,src))
+			if(!whirlo.anchored)
+				step_towards(whirlo,src)
+		for(var/mob/living/carbon/human/whirlm in orange(2,src))
+			if(istype(whirlm.loc, /turf/open/pool)) // the whirlpool is in the water: it used to drag people in off the deck too
+				whirlpool_pull(whirlm)
+	else
+		finish_draining()
 
-			else if(!timer)
-				for(var/turf/open/pool/drained in range(5,src))
-					drained.filled = FALSE
-					drained.update_icon()
-				for(var/obj/effect/whirlpool/drained3 in range(1,src))
-					qdel(drained3)
-				for(var/obj/machinery/poolcontroller/drained4 in range(5,src))
-					drained4.drained = TRUE
-					drained4.mistoff()
-				status = TRUE
-				active = FALSE
+/// Tiny things near an open drain get pulled onto it, then swallowed into the filter a tick later - time to grab them
+/obj/machinery/drain/proc/absorb_debris()
+	var/obj/machinery/poolfilter/filter = locate() in range(srange, src)
+	if(filter)
+		for(var/obj/item/absorb in loc)
+			if(absorb.w_class == WEIGHT_CLASS_TINY)
+				absorb.forceMove(filter)
+	// (this used to spawn() a fresh sleeping proc for the swallowing every single tick)
+	for(var/obj/item/absorbo in orange(1,src))
+		if(absorbo.w_class == WEIGHT_CLASS_TINY)
+			step_towards(absorbo, src)
+
+/// Sucks a swimmer down into the drain while it empties
+/obj/machinery/drain/proc/whirlpool_pull(mob/living/carbon/human/whirlm)
+	step_towards(whirlm,src)
+	if(prob(20))
+		whirlm.Knockdown(40)
+	whirlm.SpinAnimation(7, 1) //swirl! (this used to sleep() in process(), holding up the whole processing subsystem)
+	if(!whirlm.forceMove(loc))
+		return
+	if(whirlm.health <= -50) //If very damaged, gib.
+		whirlm.gib()
+		return // gone - the rest of this used to run on the deleted body
+	playsound(src, pick('hippiestation/sound/misc/crack.ogg','hippiestation/sound/misc/crunch.ogg'), 50, TRUE)
+	if(whirlm.stat != CONSCIOUS || whirlm.lying)
+		whirlm.adjustBruteLoss(5)
+		to_chat(whirlm, "<span class='danger'>You're caught in the drain!</span>")
+	else
+		whirlm.apply_damage(4, BRUTE, pick(BODY_ZONE_L_LEG, BODY_ZONE_R_LEG)) //drain should only target the legs
+		to_chat(whirlm, "<span class='danger'>Your legs are caught in the drain!</span>")
+
+/obj/machinery/drain/proc/finish_draining()
+	for(var/turf/open/pool/drained in pool_turfs())
+		drained.filled = FALSE
+		drained.update_icon()
+	for(var/obj/effect/whirlpool/drained3 in range(1,src))
+		qdel(drained3)
+	if(poolcontrol)
+		poolcontrol.drained = TRUE
+		poolcontrol.bloody = FALSE // the blood went down the drain with the water
+		poolcontrol.mistoff()
+	status = TRUE
+	active = FALSE
+
+/obj/machinery/drain/proc/finish_filling()
+	for(var/turf/open/pool/undrained in pool_turfs())
+		undrained.filled = TRUE
+		undrained.update_icon()
+	for(var/obj/effect/effect/waterspout/undrained3 in range(1,src))
+		qdel(undrained3)
+	if(poolcontrol)
+		poolcontrol.drained = FALSE
+		poolcontrol.changecolor() // fresh water overlays: tint them for whatever's in the beaker
+	status = FALSE
+	active = FALSE
 
 /obj/effect/whirlpool
 	name = "Whirlpool"
@@ -136,18 +157,15 @@
 		obj_flags |= EMAGGED
 		do_sparks(5, TRUE, src)
 		icon_state = "filter_b"
-		spawn(50)
-			if(prob(50))
-				new /mob/living/simple_animal/hostile/shark(loc)
-			else
-				if(prob(50))
-					new /mob/living/simple_animal/hostile/shark/kawaii(loc)
-				else
-					new /mob/living/simple_animal/hostile/shark/laser(loc)
+		addtimer(CALLBACK(src, PROC_REF(release_shark)), 5 SECONDS)
 		if(GLOB.adminlog)
 			log_game("[key_name(user)] emagged the pool filter and probably spawned sharks")
 			message_admins("[key_name_admin(user)] emagged the pool filter and probably spawned sharks")
 
+
+/obj/machinery/poolfilter/proc/release_shark()
+	var/shark_type = pick(prob(50); /mob/living/simple_animal/hostile/shark, prob(25); /mob/living/simple_animal/hostile/shark/kawaii, prob(25); /mob/living/simple_animal/hostile/shark/laser)
+	new shark_type(loc)
 
 /obj/machinery/poolfilter/attack_hand(mob/user)
 	to_chat(user, "You search the filter.")

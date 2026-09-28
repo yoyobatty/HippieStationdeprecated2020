@@ -194,6 +194,8 @@ GLOBAL_LIST_INIT(available_ui_styles, list(
 	screenmob.update_action_buttons(1)
 	reorganize_alerts(screenmob)
 	screenmob.reload_fullscreen()
+	screenmob.client.screen |= GLOB.starlight_object //render target the starlit space tiles mirror (space.dm)
+	screenmob.client.screen |= GLOB.space_unlit_relay //keeps lighting off space itself (plane_master.dm)
 	update_parallax_pref(screenmob)
 
 	// ensure observers get an accurate and up-to-date view

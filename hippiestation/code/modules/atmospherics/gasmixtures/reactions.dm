@@ -1,3 +1,7 @@
+// Hippie fusion replaces tg's kicked-rotator fusion; running both let them fight over the same plasma and CO2 every tick.
+/datum/gas_reaction/fusion
+	exclude = TRUE
+
 /datum/gas_reaction/hippie_fusion
 	exclude = FALSE
 	priority = 2
@@ -24,6 +28,8 @@
 		var/moles_impurities = (cached_gases[/datum/gas/plasma]+cached_gases[/datum/gas/carbon_dioxide])/air.total_moles()//more plasma+carbon = higher chance of collision regardless of actual thermal energy
 		var/carbon_plasma_ratio = min(cached_gases[/datum/gas/carbon_dioxide] / cached_gases[/datum/gas/plasma], MAX_CARBON_EFFICENCY_HIPPIE)//more carbon = more fusion
 		var/plasma_fused = max((PLASMA_FUSED_COEFFICENT_HIPPIE * (reaction_energy / PLASMA_BINDING_ENERGY_HIPPIE) * moles_impurities * carbon_plasma_ratio), 0)
+		// The rate scales with thermal energy, which this reaction itself raises, so a hot enough loop would otherwise fuse more than it holds and go negative.
+		plasma_fused = min(plasma_fused, cached_gases[/datum/gas/plasma], cached_gases[/datum/gas/carbon_dioxide] / CARBON_CATALYST_COEFFICENT_HIPPIE)
 		var/carbon_catalyzed = max(plasma_fused * CARBON_CATALYST_COEFFICENT_HIPPIE, 0)
 		var/oxygen_added = carbon_catalyzed
 		var/nitrogen_added = plasma_fused-oxygen_added
@@ -97,11 +103,13 @@
 	var/list/cached_gases = air.moles
 	var/temperature = air.temperature
 	var/turf/open/location = isturf(holder) ? holder : null
+	if(!location) // the frost only forms on open floor; checking this first stops pipe networks quietly eating their freon and nitrogen
+		return NO_REACTION
 	var/air_requirements = cached_gases[/datum/gas/nitrogen] * 0.05
 	if(air_requirements && air.heat_capacity() > MINIMUM_HEAT_CAPACITY && temperature <= (T0C-5)) //has a turf, the air requirements and it's below 0C
 		cached_gases[/datum/gas/freon] -= MOLES_GAS_VISIBLE
 		cached_gases[/datum/gas/nitrogen] -= air_requirements
-		if(location?.freon_gas_act())
+		if(location.freon_gas_act())
 			air.temperature = max(temperature - max(500 / air.heat_capacity(), TCMB),TCMB)// energy released is thermal energy so we convert back to kelvin via division
 			return REACTING
 	return NO_REACTION

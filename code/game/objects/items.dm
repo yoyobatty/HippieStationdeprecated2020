@@ -184,22 +184,36 @@ GLOBAL_VAR_INIT(rpg_loot_items, FALSE)
 	loc = null
 	loc = T
 
-/obj/item/examine(mob/user) //This might be spammy. Remove?
-	. = ..()
-
-	. += "[gender == PLURAL ? "They are" : "It is"] a [weightclass2text(w_class)] item."
+/obj/item/examine_tags(mob/user)
+	var/list/parent_tags = ..()
+	var/size_text = weightclass2text(w_class)
+	if(size_text)
+		parent_tags.Insert(1, size_text) // To make size display first, otherwise it looks goofy
+		parent_tags[size_text] = weight_class_to_tooltip(w_class)
+	. = parent_tags
 
 	if(resistance_flags & INDESTRUCTIBLE)
-		. += "[src] seems extremely robust! It'll probably withstand anything that could happen to it!"
+		.["indestructible"] = "It is extremely robust! It'll probably withstand anything that could happen to it!"
 	else
 		if(resistance_flags & LAVA_PROOF)
-			. += "[src] is made of an extremely heat-resistant material, it'd probably be able to withstand lava!"
+			.["lava-proof"] = "It is made of an extremely heat-resistant material, it'd probably be able to withstand lava!"
 		if(resistance_flags & (ACID_PROOF | UNACIDABLE))
-			. += "[src] looks pretty robust! It'd probably be able to withstand acid!"
+			.["acid-proof"] = "It looks pretty robust! It'd probably be able to withstand acid!"
 		if(resistance_flags & FREEZE_PROOF)
-			. += "[src] is made of cold-resistant materials."
+			.["freeze-proof"] = "It is made of cold-resistant materials."
 		if(resistance_flags & FIRE_PROOF)
-			. += "[src] is made of fire-retardant materials."
+			.["fire-proof"] = "It is made of fire-retardant materials."
+
+	if(siemens_coefficient == 0)
+		.["insulated"] = "It is made from a robust electrical insulator and will block any electricity passing through it!"
+	else if(siemens_coefficient <= 0.5)
+		.["partially insulated"] = "It is made from a poor insulator that will dampen (but not fully block) electric shocks passing through it."
+
+/obj/item/examine_descriptor(mob/user)
+	return "item"
+
+/obj/item/examine(mob/user) //This might be spammy. Remove?
+	. = ..()
 
 	if(!user.research_scanner)
 		return

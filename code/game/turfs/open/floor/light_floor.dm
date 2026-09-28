@@ -2,6 +2,8 @@
 	name = "light floor"
 	desc = "A wired glass tile embedded into the floor."
 	light_range = 5
+	light_bounce = TRUE //unlike most lit turfs, there's only ever a handful of these
+	light_falloff_tail = TRUE //likewise
 	icon_state = "light_on"
 	floor_tile = /obj/item/stack/tile/light
 	broken_states = list("light_broken")

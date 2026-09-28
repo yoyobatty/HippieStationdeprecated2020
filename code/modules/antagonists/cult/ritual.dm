@@ -118,13 +118,21 @@ This file contains the cult dagger and rune list code
 	var/scribe_mod = initial(rune_to_scribe.scribe_delay)
 	if(istype(get_turf(user), /turf/open/floor/engine/cult) && !(ispath(rune_to_scribe, /obj/effect/rune/narsie)))
 		scribe_mod *= 0.5
+	var/scribe_started = initial(rune_to_scribe.started_creating)
+	var/scribe_failed = initial(rune_to_scribe.failed_to_create)
+	if(scribe_started)
+		call(scribe_started)()
 	if(!do_after(user, scribe_mod, target = get_turf(user)))
 		for(var/V in shields)
 			var/obj/structure/emergency_shield/sanguine/S = V
 			if(S && !QDELETED(S))
 				qdel(S)
+		if(scribe_failed)
+			call(scribe_failed)()
 		return
 	if(!check_rune_turf(Turf, user))
+		if(scribe_failed)
+			call(scribe_failed)()
 		return
 	user.visible_message("<span class='warning'>[user] creates a strange circle[user.blood_volume ? " in [user.p_their()] own blood":""].</span>", \
 						 "<span class='cult'>You finish drawing the arcane markings of the Geometer.</span>")

@@ -111,10 +111,14 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 // itself (opened on arrival by try_open_locker(), then re-scanned next wander tick).
 /datum/bot_brain/proc/find_item_goal()
 	for(var/obj/item/I in oview(5, owner))
-		if(isturf(I.loc) && is_useful_item(I))
+		if(isturf(I.loc) && is_useful_item(I) && !is_in_active_cell(I))
 			return I
 	for(var/obj/structure/closet/C in oview(6, owner))
 		if(QDELETED(C))
+			continue
+		// A brig locker holds a prisoner's confiscated gear, and anything in an occupied cell is behind a door that
+		// should stay shut - nobody wanders in to rummage (an officer used to reopen a cell it had just locked, to loot it).
+		if(istype(C, /obj/structure/closet/secure_closet/brig) || is_in_active_cell(C))
 			continue
 		if(C.opened)
 			for(var/obj/item/I in C)
@@ -342,6 +346,8 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 			return FALSE
 		var/obj/item/crowbar/CB = find_or_transform_tool(/obj/item/crowbar)
 		if(!CB)
+			if(try_safety_release(F)) //a dead firelock has the same hand release
+				return TRUE
 			bot_log(src, "[F] is closed and I don't have a crowbar to pry it open")
 			return FALSE
 		bot_log(src, "prying [F] open with [CB]")
@@ -376,8 +382,27 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 			if(try_hack_door(D))
 				return TRUE
 			return try_smash_door(D)
+		// A dead door: a crowbar pops it straight away, so try that before the slow hand release -
+		// clicking it bare-handed would start the 15s safety crank even with a crowbar on the belt.
+		if(!istype(D, /obj/machinery/door/window) && !D.hasPower())
+			if(try_pry_door(D))
+				return TRUE
+			if(D.safety_mode)
+				return try_safety_release(D)
 		bot_log(src, "opening [O]")
-		use_atom(O)
+		// A windoor gets walked into, the way players go through them: that opens it and it shuts itself behind
+		// you (open_and_close()). Clicking one (attack_hand() -> try_to_activate_door()) switches autoclose off -
+		// so every windoor a bot went through stayed open, a brig cell door with a prisoner behind it included.
+		if(istype(D, /obj/machinery/door/window))
+			owner.face_atom(D)
+			// Async: open_and_close() sleeps through the whole open-wait-close cycle, so calling it directly froze the
+			// bot for it and handed back an already re-closed door (read as "access denied"). Opening = let through;
+			// the check at the top of this proc walks us in the moment it's passable.
+			INVOKE_ASYNC(D, TYPE_PROC_REF(/atom, Bumped), owner)
+			if(D.operating || !D.density)
+				return TRUE
+		else
+			use_atom(O)
 		if(!D.density)
 			return TRUE
 		// A closed, unbolted, unwelded airlock can still refuse to open via a plain
@@ -486,7 +511,21 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 		return FALSE
 	bot_log(src, "prying [D] open with [CB] ([describe_pursuit_purpose()])")
 	use_tool_on(CB, D) //a help-intent click: door/attackby() routes it to try_to_crowbar()
-	return !D.density
+	return !D.density || D.operating //operating = the pry worked and it's mid-animation; reading density alone reported that as a failure
+
+// An unpowered door with safety_mode (the arrivals dock airlocks; its examine text advertises "an
+// emergency mechanism to open it with just your hands") opens from a plain bare-handed click:
+// door/attack_hand() -> try_safety_unlock() -> a 15s do_after, then try_to_crowbar() with no tool.
+// Bolted/welded ones refuse at the end of that wait, so the caller rules those out first.
+/datum/bot_brain/proc/try_safety_release(obj/machinery/door/D)
+	if(!D.safety_mode || D.hasPower() || !D.density || D.locked || D.welded)
+		return FALSE
+	bot_log(src, "[D] has no power - working its emergency release by hand ([describe_pursuit_purpose()])")
+	use_atom(D) //blocks through the do_after, the same way the wire-hack's do_afters do
+	if(!QDELETED(D) && D.density && !D.operating)
+		bot_log(src, "couldn't get [D]'s emergency release to open it")
+		return FALSE
+	return TRUE
 
 // Bolted/welded airlocks don't open via attack_hand() no matter what access you
 // have (airlock/open(): `if(operating || welded || locked) return FALSE`) - the real
@@ -968,7 +1007,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 		var/obj/item/clothing/gloves/G = owner.gloves
 		if(G.siemens_coefficient <= 0)
 			return //already wearing something insulated
-	var/obj/item/clothing/gloves/color/yellow/gloves = find_carried_tool(/obj/item/clothing/gloves/color/yellow)
+	var/obj/item/clothing/gloves/gloves = find_carried_tool(/obj/item/clothing/gloves/color/yellow) || find_carried_tool(/obj/item/clothing/gloves/chief_engineer)
 	if(!gloves)
 		return
 	bot_log(src, "putting on [gloves] before touching live wiring")
@@ -1173,6 +1212,9 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 // that here, just let it handle the "someone's still there" case on its own.
 /datum/bot_brain/proc/close_airlock_behind(turf/T)
 	if(!T)
+		return
+	// Dragging something (a prisoner, a body, a crate) - it's still coming through this door, so leave it open.
+	if(owner.pulling)
 		return
 	var/obj/machinery/door/airlock/A = locate() in T
 	if(!istype(A) || A.density || A.operating || A.welded || A.cyclelinkeddir)

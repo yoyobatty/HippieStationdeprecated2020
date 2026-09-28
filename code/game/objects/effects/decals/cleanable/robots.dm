@@ -12,20 +12,7 @@
 	mergeable_decal = FALSE
 
 /obj/effect/decal/cleanable/robot_debris/proc/streak(list/directions, mapload=FALSE)
-	set waitfor = 0
-	var/direction = pick(directions)
-	for (var/i = 0, i < pick(1, 200; 2, 150; 3, 50), i++)
-		if(!mapload)
-			sleep(2)
-		if (i > 0)
-			if (prob(40))
-				new /obj/effect/decal/cleanable/oil/streak(src.loc)
-			else if (prob(10) && !mapload)
-				var/datum/effect_system/spark_spread/s = new /datum/effect_system/spark_spread
-				s.set_up(3, 1, src)
-				s.start()
-		if (!step_to(src, get_step(src, direction), 0))
-			break
+	fling(pick(directions), pick(200; 1, 150; 2, 50; 3), mapload) //hippie -- debris arcs through the air, see hippiestation cleanable.dm
 
 /obj/effect/decal/cleanable/robot_debris/ex_act()
 	return

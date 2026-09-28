@@ -2,6 +2,8 @@
 #define DUALWIELD_PENALTY_EXTRA_MULTIPLIER 1.4
 
 /obj/item/gun
+	light_angle = LIGHT_ANGLE_HANDHELD
+	light_follows_facing = TRUE
 	name = "gun"
 	desc = "It's a gun. It's pretty terrible, though."
 	icon = 'icons/obj/guns/projectile.dmi'

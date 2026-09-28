@@ -1,6 +1,4 @@
-#define GOAL_STEP_PENDING 0
-#define GOAL_STEP_SUCCESS 1
-#define GOAL_STEP_FAIL -1
+// GOAL_STEP_* defines: code/__DEFINES/~hippie_defines/bots_ai.dm
 
 /datum/bot_goal
 	var/atom/target

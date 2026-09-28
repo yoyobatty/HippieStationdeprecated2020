@@ -37,6 +37,8 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 
 	///Only run ticker subsystems for the next n ticks.
 	var/skip_ticks = 0 
+	/// hippie -- the iteration laggy_byond_map_update_incoming() last skipped, so it can't skip two ticks running
+	var/last_map_update_skip = -1
 
 	var/make_runtime = 0
 
@@ -211,6 +213,11 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 	if(BOT_GYM_PARAMETER in world.params)
 		sleep_offline_after_initializations = FALSE //no players connect to a headless run - the world must keep ticking
 		INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(run_bot_gym), world.params[BOT_GYM_PARAMETER], world.params[BOT_GYM_RUNS_PARAMETER])
+
+	// hippie -- Lighting bench: time the lighting engine and snapshot the station's lighting; shuts the world down when done
+	if(LIGHTING_BENCH_PARAMETER in world.params)
+		sleep_offline_after_initializations = FALSE
+		INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(run_lighting_bench), world.params[LIGHTING_BENCH_PARAMETER])
 
 	if (!current_runlevel)
 		SetRunLevel(1)
@@ -605,8 +612,12 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 
 /// Warns us that the end of tick byond map_update will be laggier then normal, so that we can just skip running subsystems this tick.
 /datum/controller/master/proc/laggy_byond_map_update_incoming()
-	if (!skip_ticks)
+	// hippie -- never two ticks in a row. Explosions call this every tick they touch turfs, so under a steady stream of them
+	// (a meteor storm) every non-ticker subsystem was skipped for as long as it lasted - atmos, machines and mobs froze
+	// solid for 10+ seconds at a time. Skipping every other tick still gives the map update its breathing room.
+	if (!skip_ticks && last_map_update_skip != iteration - 1)
 		skip_ticks = 1
+		last_map_update_skip = iteration
 
 
 /datum/controller/master/stat_entry()

@@ -31,11 +31,8 @@
 	damage = 1.5
 	stamina = 12.5
 
-/obj/item/projectile/bullet/process_hit(turf/T, atom/target, qdel_self, hit_something = FALSE)
+/obj/item/projectile/bullet/on_hit(atom/target, blocked = FALSE)
 	. = ..()
-	if(ishuman(target) && damage && !nodamage)
-		var/obj/effect/decal/cleanable/blood/hitsplatter/B = new(target.loc, target)
-		B.add_blood_DNA(return_blood_DNA())
-		var/dist = rand(1,7)
-		var/turf/targ = get_ranged_target_turf(target, get_dir(starting, target), dist)
-		B.GoTo(targ, dist)
+	if(ishuman(target) && blocked != 100 && damage && !nodamage && damage_type == BRUTE)
+		var/mob/living/carbon/human/H = target
+		H.spray_hit_blood(starting ? get_dir(starting, H) : dir, rand(1,7))

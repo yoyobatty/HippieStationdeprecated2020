@@ -258,7 +258,10 @@
 		if(drop)
 			if(drop.drips < 5)
 				drop.drips++
-				drop.add_overlay(pick(drop.random_icon_states))
+				var/mutable_appearance/extra_drip = mutable_appearance(drop.icon, pick(drop.random_icon_states)) //hippie start -- scatter the drips instead of stacking them
+				extra_drip.pixel_x = rand(-8, 8)
+				extra_drip.pixel_y = rand(-8, 8)
+				drop.add_overlay(extra_drip) //hippie end
 				drop.transfer_mob_blood_dna(src)
 				return
 			else
@@ -270,7 +273,11 @@
 			return
 
 	// Find a blood decal or create a new one.
-	var/obj/effect/decal/cleanable/blood/B = locate() in T
+	var/obj/effect/decal/cleanable/blood/B
+	for(var/obj/effect/decal/cleanable/blood/C in T) //hippie start -- don't pool into airborne or wall-mounted splatters
+		if(!istype(C, /obj/effect/decal/cleanable/blood/hitsplatter) && !istype(C, /obj/effect/decal/cleanable/blood/wall_splatter))
+			B = C
+			break //hippie end
 	if(!B)
 		B = new /obj/effect/decal/cleanable/blood/splatter(T, get_static_viruses())
 	if (B.bloodiness < MAX_SHOE_BLOODINESS) //add more blood, up to a limit

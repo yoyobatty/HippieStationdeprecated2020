@@ -303,6 +303,31 @@
 		Insert(initial(D.id), I)
 	return ..()
 
+// Icons for every result, ingredient and tool in the crafting menu, named "a[id]" after their index in GLOB.crafting_ui_atoms
+/datum/asset/spritesheet/crafting
+	name = "crafting"
+
+/datum/asset/spritesheet/crafting/register()
+	var/start_time = REALTIMEOFDAY
+	init_crafting_ui_data()
+	var/list/states_by_file = list()
+	for (var/id in 1 to length(GLOB.crafting_ui_atoms))
+		var/atom/item = GLOB.crafting_ui_atoms[id]
+		if (!ispath(item, /atom))
+			continue // reagents have no sprite, the menu draws an icon font glyph for them
+		var/icon_file = initial(item.icon)
+		var/icon_state = initial(item.icon_state)
+		if (!icon_file || !icon_state)
+			continue
+		var/list/states = states_by_file["[icon_file]"]
+		if (!states)
+			states = states_by_file["[icon_file]"] = icon_states(icon_file)
+		if (!(icon_state in states))
+			continue
+		Insert("a[id]", icon_file, icon_state)
+	..()
+	log_world("Crafting menu spritesheet: [length(sprites)] icons in [(REALTIMEOFDAY - start_time) / 10]s")
+
 /datum/asset/spritesheet/vending
 	name = "vending"
 

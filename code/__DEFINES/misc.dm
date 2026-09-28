@@ -425,6 +425,8 @@ GLOBAL_LIST_INIT(pda_styles, list(MONO, VT, ORBITRON, SHARE))
 /// hippie -- runs the bot AI scenario suite after init, then shuts down (hippiestation/code/modules/bots_ai/gym/bot_gym.dm)
 #define BOT_GYM_PARAMETER "bot-gym"
 #define BOT_GYM_RUNS_PARAMETER "bot-gym-runs"
+/// hippie -- times the lighting engine and snapshots the station's lighting after init, then shuts down (hippiestation/code/modules/lighting/lighting_bench.dm)
+#define LIGHTING_BENCH_PARAMETER "lighting-bench"
 
 #define EGG_LAYING_MESSAGES list("lays an egg.","squats down and croons.","begins making a huge racket.","begins clucking raucously.")
 
@@ -471,5 +473,8 @@ GLOBAL_LIST_INIT(pda_styles, list(MONO, VT, ORBITRON, SHARE))
 #define FALL_INTERCEPTED		(1<<0) //Stops the movable from falling further and crashing on the ground
 #define FALL_NO_MESSAGE			(1<<1) //Used to suppress the "[A] falls through [old_turf]" messages where it'd make little sense at all, like going downstairs.
 #define FALL_STOP_INTERCEPTING	(1<<2) //Used in situations where halting the whole "intercept" loop would be better, like supermatter dusting (and thus deleting) the atom.
+
+/// Wraps main_text in a hoverable tooltip showing tip. Used by examine tags, see [/atom/proc/examine_tags]
+#define span_tooltip(tip, main_text) ("<span class='tooltip' title='" + html_encode(tip) + "'>" + main_text + "</span>")
 
 #define UTF8HEADER "<meta http-equiv='Content-Type' content='text/html; charset=UTF-8' /><meta http-equiv='X-UA-Compatible' content='IE=edge' />"

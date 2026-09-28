@@ -101,6 +101,8 @@
 
 /atom/proc/air_update_turf(update = FALSE, remove = FALSE)
 	var/turf/T = get_turf(loc)
+	if(!T) // in nullspace (being deleted, or stowed somewhere) - no air to update, as in tgstation
+		return
 	T.air_update_turf(update, remove)
 
 /**

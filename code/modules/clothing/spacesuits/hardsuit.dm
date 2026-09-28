@@ -1,5 +1,7 @@
 	//Baseline hardsuits
 /obj/item/clothing/head/helmet/space/hardsuit
+	light_angle = LIGHT_ANGLE_HEADLAMP
+	light_follows_facing = TRUE
 	name = "hardsuit helmet"
 	desc = "A special helmet designed for work in a hazardous, low-pressure environment. Has radiation shielding."
 	icon_state = "hardsuit0-engineering"

@@ -143,3 +143,41 @@
 
 /obj/item/clothing/head/helmet/space/hardsuit/deathsquad
 	armor = list("melee" = 90, "bullet" = 90, "laser" = 90, "energy" = 90, "bomb" = 100, "bio" = 100, "rad" = 100, "fire" = 100, "acid" = 100)
+
+/datum/action/item_action/toggle_geiger
+	name = "Toggle Geiger Counter Sound"
+	desc = "Mute or unmute your helmet's built-in Geiger counter. The visor still warns you about heavy radiation while muted."
+	icon_icon = 'icons/obj/device.dmi'
+	button_icon_state = "geiger_on_1"
+
+/obj/item/clothing/head/helmet/space/hardsuit
+	var/geiger_muted = FALSE
+
+/obj/item/clothing/head/helmet/space/hardsuit/Initialize()
+	. = ..()
+	new /datum/action/item_action/toggle_geiger(src) // added here rather than through actions_types, since plenty of subtypes replace that list
+
+/obj/item/clothing/head/helmet/space/hardsuit/examine(mob/user)
+	. = ..()
+	. += "<span class='notice'>Its Geiger counter is [geiger_muted ? "muted" : "audible"]. The button on your HUD toggles it while you're wearing it.</span>"
+
+/obj/item/clothing/head/helmet/space/hardsuit/ui_action_click(mob/user, action)
+	if(!istype(action, /datum/action/item_action/toggle_geiger))
+		return ..()
+	var/datum/action/item_action/toggle_geiger/toggle = action
+	geiger_muted = !geiger_muted
+	if(geiger_muted)
+		soundloop.stop(user)
+	else if(iscarbon(user))
+		var/mob/living/carbon/wearer = user
+		if(wearer.head == src)
+			soundloop.start(user)
+	toggle.button_icon_state = geiger_muted ? "geiger_off" : "geiger_on_1"
+	toggle.UpdateButtonIcon()
+	to_chat(user, "<span class='notice'>You [geiger_muted ? "mute" : "unmute"] [src]'s Geiger counter.</span>")
+	playsound(src, 'sound/machines/click.ogg', 20, TRUE)
+
+/obj/item/clothing/head/helmet/space/hardsuit/equipped(mob/user, slot)
+	. = ..()
+	if(geiger_muted)
+		soundloop.stop(user) // the base proc starts the loop whenever the helmet goes on

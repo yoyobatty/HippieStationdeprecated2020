@@ -16,7 +16,10 @@
 
 /datum/element/atmos_sensitive/Detach(datum/source, force)
 	var/atom/us = source
-	us.UnregisterSignal(get_turf(us), COMSIG_TURF_EXPOSE)
+	var/turf/our_turf = get_turf(us)
+	if(our_turf) // things made in nullspace (the spacevine event's test vine) never registered on one - as tgstation
+		us.UnregisterSignal(our_turf, COMSIG_TURF_EXPOSE)
+	UnregisterSignal(us, COMSIG_MOVABLE_MOVED) // registered in Attach(); left behind, it kept a reference to the deleted atom
 	if(us.flags_1 & ATMOS_IS_PROCESSING_1)
 		SSair.atom_process -= us
 		us.flags_1 &= ~ATMOS_IS_PROCESSING_1
@@ -24,7 +27,8 @@
 
 /datum/element/atmos_sensitive/proc/handle_move(datum/source, atom/movable/oldloc, direction, forced)
 	var/atom/microchipped_lad = source
-	microchipped_lad.UnregisterSignal(oldloc, COMSIG_TURF_EXPOSE)
+	if(oldloc) // moving out of nullspace
+		microchipped_lad.UnregisterSignal(oldloc, COMSIG_TURF_EXPOSE)
 	if(isopenturf(microchipped_lad.loc))
 		var/turf/open/new_spot = microchipped_lad.loc
 		microchipped_lad.RegisterSignal(new_spot, COMSIG_TURF_EXPOSE, TYPE_PROC_REF(/atom, check_atmos_process))

@@ -39,5 +39,6 @@
 	T.assume_air(vented)
 	SSair.add_to_active(T)
 	playsound(T, 'sound/effects/explosion1.ogg', 60, TRUE)
-	fiery_explosion(T, range = 4, power = 2) // the vented gas is already burning-hot; this sets it properly alight and gives it a small blast wave
+	// Break the segment before the blast: the explosion usually destroys it first, and damaging a deleted pipe runtimes.
 	weak_point.take_damage(weak_point.max_integrity, BRUTE, "bomb", FALSE) // the segment itself fails; the network rebuilds around the gap
+	fiery_explosion(T, range = 4, power = 2) // the vented gas is already burning-hot; this sets it properly alight and gives it a small blast wave

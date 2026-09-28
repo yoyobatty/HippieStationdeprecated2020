@@ -190,6 +190,14 @@ Remember to update _globalvars/traits.dm if you're adding/removing/renaming trai
 #define JOB_TRAIT "job"
 #define CYBORG_ITEM_TRAIT "cyborg-item"
 #define ADMIN_TRAIT "admin" // (B)admins only.
+#define GODMODE_TRAIT "godmode" // From admin godmode, alongside GODMODE: see GODMODE_TRAITS and /mob/proc/set_admin_godmode()
+/// The immunities admin godmode gives on top of GODMODE, which only stops damage: so a god can touch hot
+/// light bulbs, grab live wires, walk through space and fire, and can't be stunned, slipped, knocked into crit or embedded
+#define GODMODE_TRAITS list(TRAIT_STUNIMMUNE, TRAIT_SLEEPIMMUNE, TRAIT_PUSHIMMUNE, TRAIT_SHOCKIMMUNE, TRAIT_STABLEHEART, \
+	TRAIT_STABLELIVER, TRAIT_RESISTHEAT, TRAIT_RESISTHEATHANDS, TRAIT_RESISTCOLD, TRAIT_RESISTHIGHPRESSURE, \
+	TRAIT_RESISTLOWPRESSURE, TRAIT_RADIMMUNE, TRAIT_VIRUSIMMUNE, TRAIT_PIERCEIMMUNE, TRAIT_NODISMEMBER, TRAIT_NOFIRE, \
+	TRAIT_NOHUNGER, TRAIT_NOLIMBDISABLE, TRAIT_NOBREATH, TRAIT_NOCRITDAMAGE, TRAIT_NODEATH, TRAIT_NOHARDCRIT, \
+	TRAIT_NOSOFTCRIT, TRAIT_NOSLIPALL, TRAIT_IGNORESLOWDOWN, TRAIT_IGNOREDAMAGESLOWDOWN, TRAIT_MINDSHIELD, TRAIT_DISSECTED, TRAIT_SIXTHSENSE, TRAIT_FEARLESS)
 #define CHANGELING_TRAIT "changeling"
 #define CULT_TRAIT "cult"
 #define CURSED_ITEM_TRAIT "cursed-item" // The item is magically cursed

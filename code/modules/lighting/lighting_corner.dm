@@ -13,10 +13,16 @@
 	var/turf/master_SW
 	var/turf/master_NW
 
-	//"raw" color values, changed by update_lumcount()
+	//"raw" color values, changed by the light sources affecting us (see ADD_CORNER_LUM)
 	var/lum_r = 0
 	var/lum_g = 0
 	var/lum_b = 0
+
+	//bounce light on top of that (see /datum/light_source/proc/get_bounce_corners()), changed likewise (ADD_CORNER_BOUNCE).
+	//It's only drawn: get_lumcount() and the like go by lum_r and co. alone
+	var/bounce_r = 0
+	var/bounce_g = 0
+	var/bounce_b = 0
 
 	//true color values, guaranteed to be between 0 and 1
 	var/cache_r = LIGHTING_SOFT_THRESHOLD
@@ -28,6 +34,16 @@
 
 	///whether we are to be added to SSlighting's corners_queue list for an update
 	var/needs_update = FALSE
+
+	// Scratch space for whichever light source is working its light out at the moment: see /datum/light_source/proc/update_corners()
+	/// The number of the last light source update to go through us: marks us as gone through, with no list to look us up in
+	var/tmp/lighting_stamp = 0
+	/// That light source's falloff multiplier here, if it lights us directly
+	var/tmp/lighting_level = 0
+	/// The number of the last light source update to work out its bounce light here
+	var/tmp/bounce_stamp = 0
+	/// That bounce light's falloff multiplier here
+	var/tmp/bounce_level = 0
 
 // Takes as an argument the coords to use as the bottom left (south west) of our corner.
 /datum/lighting_corner/New(x, y, z)
@@ -64,10 +80,6 @@
 		master_SE = process_next
 		process_next.lighting_corner_NW = src
 
-/datum/lighting_corner/proc/self_destruct_if_idle()
-	if (!LAZYLEN(affecting))
-		qdel(src, force = TRUE)
-
 /datum/lighting_corner/proc/vis_update()
 	var/thing
 	var/datum/light_source/L
@@ -82,25 +94,17 @@
 		L = thing
 		L.recalc_corner(src)
 
-// God that was a mess, now to do the rest of the corner code! Hooray!
-/datum/lighting_corner/proc/update_lumcount(var/delta_r, var/delta_g, var/delta_b)
-
-	if (!(delta_r || delta_g || delta_b)) // 0 is falsey ok
-		return
-
-	lum_r += delta_r
-	lum_g += delta_g
-	lum_b += delta_b
-
-	if (!needs_update)
-		needs_update = TRUE
-		SSlighting.corners_queue += src
-
 /datum/lighting_corner/proc/update_objects()
 	// Cache these values ahead of time so 4 individual lighting objects don't all calculate them individually.
 	var/lum_r = src.lum_r
 	var/lum_g = src.lum_g
 	var/lum_b = src.lum_b
+	// What gets drawn includes the bounce light, which fills in the dark rather than brightening what's already lit:
+	// lit rooms keep their pools of light, while their shadows soften.
+	if (bounce_r || bounce_g || bounce_b)
+		lum_r += bounce_r * clamp(1 - lum_r, 0, 1)
+		lum_g += bounce_g * clamp(1 - lum_g, 0, 1)
+		lum_b += bounce_b * clamp(1 - lum_b, 0, 1)
 	var/largest_color_luminosity = max(lum_r, lum_g, lum_b) // Scale it so one of them is the strongest lum, if it is above 1.
 	. = 1 // factor
 	if (largest_color_luminosity > 1)
@@ -126,7 +130,8 @@
 	src.largest_color_luminosity = round(largest_color_luminosity, LIGHTING_ROUND_VALUE)
 
 	if(old_r == cache_r && old_g == cache_g && old_b == cache_b)
-		self_destruct_if_idle()
+		if (!LAZYLEN(affecting)) // no light affects us any more
+			qdel(src, force = TRUE)
 		return
 
 	var/atom/movable/lighting_object/lighting_object = master_NE?.lighting_object
@@ -149,7 +154,8 @@
 		lighting_object.needs_update = TRUE
 		SSlighting.objects_queue += lighting_object
 
-	self_destruct_if_idle()
+	if (!LAZYLEN(affecting))
+		qdel(src, force = TRUE)
 
 /datum/lighting_corner/dummy/New()
 	return
@@ -163,6 +169,7 @@
 	for (thing in affecting)
 		L = thing
 		LAZYREMOVE(L.effect_str, src)
+		LAZYREMOVE(L.bounce_str, src)
 	affecting = null
 
 	if (master_NE)

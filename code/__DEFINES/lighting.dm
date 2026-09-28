@@ -6,6 +6,7 @@
 #define LIGHTING_FALLOFF        1 // type of falloff to use for lighting; 1 for circular, 2 for square
 #define LIGHTING_LAMBERTIAN     0 // use lambertian shading for light sources
 #define LIGHTING_HEIGHT         1 // height off the ground of light sources on the pseudo-z-axis, you should probably leave this alone
+#define LIGHTING_HEIGHT_SPACE   -0.5 // light from just under the floor, as tgstation lights space: full brightness right at the edge of space
 #define LIGHTING_ROUND_VALUE    (1 / 64) //Value used to round lumcounts, values smaller than 1/129 don't matter (if they do, thanks sinking points), greater values will make lighting less precise, but in turn increase performance, VERY SLIGHTLY.
 
 #define LIGHTING_ICON 'icons/effects/lighting_object.dmi' // icon used for lighting shading effects
@@ -13,6 +14,51 @@
 // If the max of the lighting lumcounts of each spectrum drops below this, disable luminosity on the lighting objects.
 // Set to zero to disable soft lighting. Luminosity changes then work if it's lit at all.
 #define LIGHTING_SOFT_THRESHOLD 0
+
+// Bounce lighting: light spills softly from the tiles a light source lights into the shadowed tiles beside them, so it
+// wraps around corners and out of doorways instead of stopping dead where the source's line of sight ends. It never goes
+// through walls or closed doors. It's only drawn - get_lumcount() doesn't count it - though like any light, it makes the
+// tiles it reaches visible in the dark. Toggled by the BOUNCE_LIGHTING config. See /datum/light_source/proc/get_bounce_corners()
+// These are the starting values: SSlighting.bounce_strength and co. can be tuned live with View Variables.
+/// How much of the light on a lit tile's edge spills across it into a shadowed tile
+#define LIGHTING_BOUNCE_STRENGTH 0.5
+/// How much of that carries on into each tile further into the shadow
+#define LIGHTING_BOUNCE_FALLOFF 0.5
+/// How many tiles deep into a shadow the light can spill
+#define LIGHTING_BOUNCE_DEPTH 3
+/// Spill dimmer than this is dropped
+#define LIGHTING_BOUNCE_CUTOFF 0.02
+
+// Soft falloff: instead of falling off in a straight line to a hard edge at its range, as tgstation's does, light eases
+// off along a curve over the outer part of its range, reaching a little past it and fading out with no edge at all.
+// Lights opt out with light_falloff_tail: turfs do, so starlight keeps tgstation's look. See /datum/light_source/proc/falloff_at_coord()
+/// How far past its range a light reaches, as a multiple of its range: 1 for tgstation's straight falloff, up to 2.
+/// The further, the softer - but every light then lights that many times more tiles, squared, whenever it changes.
+/// Starting value of SSlighting.falloff_tail, tunable live with View Variables.
+#define LIGHTING_FALLOFF_TAIL 1.4
+/// With a soft falloff, light too dim to show on its own - under half the step lighting is drawn in - is dropped
+#define LIGHTING_TAIL_CUTOFF (LIGHTING_ROUND_VALUE / 2)
+/// How far out a light with a soft falloff of TAIL still lights above LIGHTING_TAIL_CUTOFF, as a multiple of its range:
+/// where its curve (see falloff_at_coord()) drops below it - or the straight line before it, for a tail barely over 1
+#define LIGHTING_TAIL_END(TAIL) ((TAIL) <= 1 ? 1 : max((TAIL) - sqrt(4 * ((TAIL) - 1) * LIGHTING_TAIL_CUTOFF), 1 - LIGHTING_TAIL_CUTOFF))
+
+/// SSlighting.lighting_stamp starts over before it grows past this: numbers stop counting up one at a time past 2**24
+#define LIGHTING_STAMP_LIMIT 16000000
+
+// Directional lighting: a light with a light_angle under 360 only lights a cone, pointed along light_dir - or, with
+// light_follows_facing, the way whoever's holding or wearing it faces. See /datum/light_source/proc/falloff_at_coord()
+/// How many tiles behind a directional light its cone starts from, so it lights the tile it's on and a little to its sides
+#define LIGHTING_CONE_SETBACK 1
+/// With bounce lighting on, how much of what an angled light would light all around it scatters back off what it does
+/// light: so a flashlight dimly lights the room around its beam, and whoever's holding it, as in real life. Starting
+/// value of SSlighting.cone_scatter, tunable live with View Variables. See /datum/light_source/proc/get_scatter_sheet()
+#define LIGHTING_CONE_SCATTER 0.5
+/// Cone of a handheld light: flashlights, gun lights, PDAs
+#define LIGHT_ANGLE_HANDHELD 90
+/// Cone of a worn or built-in headlamp: helmets, hardhats, hardsuits, borgs
+#define LIGHT_ANGLE_HEADLAMP 110
+/// Cone of a mech's headlights
+#define LIGHT_ANGLE_HEADLIGHTS 120
 
 // If I were you I'd leave this alone.
 #define LIGHTING_BASE_MATRIX \
