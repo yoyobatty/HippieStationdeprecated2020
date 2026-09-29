@@ -270,13 +270,16 @@
 			else //this is not danger, don't spawn a boss, spawn something else
 				randumb = pickweight(mob_spawn_list)
 
-		for(var/mob/living/simple_animal/hostile/H in urange(12,T)) //prevents mob clumps
-			if((ispath(randumb, /mob/living/simple_animal/hostile/megafauna) || ismegafauna(H)) && get_dist(src, H) <= 7)
-				return //if there's a megafauna within standard view don't spawn anything at all
-			if(ispath(randumb, /mob/living/simple_animal/hostile/asteroid) || istype(H, /mob/living/simple_animal/hostile/asteroid))
-				return //if the random is a standard mob, avoid spawning if there's another one within 12 tiles
-			if((ispath(randumb, /obj/structure/spawner/lavaland) || istype(H, /obj/structure/spawner/lavaland)) && get_dist(src, H) <= 2)
-				return //prevents tendrils spawning in each other's collapse range
+		// hippie -- the same mobs urange(12,T) would give (those standing on the turfs within 12), without building a list of
+		// every turf and thing in the square first; every case below just returns, so the order they're met in doesn't matter
+		for(var/turf/nearby as anything in RANGE_TURFS(12, T))
+			for(var/mob/living/simple_animal/hostile/H in nearby) //prevents mob clumps
+				if((ispath(randumb, /mob/living/simple_animal/hostile/megafauna) || ismegafauna(H)) && get_dist(src, H) <= 7)
+					return //if there's a megafauna within standard view don't spawn anything at all
+				if(ispath(randumb, /mob/living/simple_animal/hostile/asteroid) || istype(H, /mob/living/simple_animal/hostile/asteroid))
+					return //if the random is a standard mob, avoid spawning if there's another one within 12 tiles
+				if((ispath(randumb, /obj/structure/spawner/lavaland) || istype(H, /obj/structure/spawner/lavaland)) && get_dist(src, H) <= 2)
+					return //prevents tendrils spawning in each other's collapse range
 
 		new randumb(T)
 	return

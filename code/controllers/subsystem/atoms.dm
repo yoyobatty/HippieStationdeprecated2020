@@ -33,18 +33,27 @@ SUBSYSTEM_DEF(atoms)
 
 	var/count
 	var/list/mapload_arg = list(TRUE)
+	// hippie -- plain space is ~2/3 of every atom in the world (~680k turfs). Its Initialize() never sleeps, qdels, skips
+	// INITIALIZED_1 or returns another hint, so InitAtom()'s checks for those have nothing to catch; call it directly.
+	var/static/list/plain_space = typecacheof(list(/turf/open/space, /turf/open/space/basic), only_root_path = TRUE)
 	if(atoms)
 		count = atoms.len
 		for(var/I in atoms)
 			var/atom/A = I
 			if(!(A.flags_1 & INITIALIZED_1))
-				InitAtom(I, mapload_arg)
+				if(plain_space[A.type])
+					A.Initialize(TRUE)
+				else
+					InitAtom(I, mapload_arg)
 				CHECK_TICK
 	else
 		count = 0
 		for(var/atom/A in world)
 			if(!(A.flags_1 & INITIALIZED_1))
-				InitAtom(A, mapload_arg)
+				if(plain_space[A.type])
+					A.Initialize(TRUE)
+				else
+					InitAtom(A, mapload_arg)
 				++count
 				CHECK_TICK
 

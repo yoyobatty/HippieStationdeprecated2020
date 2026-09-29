@@ -212,22 +212,40 @@ GLOBAL_LIST_INIT(meta_gas_info, meta_gas_list()) //see ATMOSPHERICS/gas_types.dm
 /datum/gas_mixture/proc/parse_gas_string(gas_string)
 	gas_string = SSair.preprocess_gas_string(gas_string)
 
+	// hippie -- every open turf parses its initial_gas_mix at init (~60k of them, from a few dozen distinct strings), so
+	// each string is parsed once: list(temperature or null, list(gas path = moles))
+	var/list/parsed = istext(gas_string) ? GLOB.parsed_gas_strings[gas_string] : null
+	if(!parsed)
+		var/list/gas = params2list(gas_string)
+		var/parsed_temperature
+		if(gas["TEMP"])
+			parsed_temperature = text2num(gas["TEMP"])
+			gas -= "TEMP"
+		var/list/parsed_moles = list()
+		for(var/id, value in gas)
+			var/path = id
+			if(!ispath(path))
+				path = gas_id2path(path) //a lot of these strings can't have embedded expressions (especially for mappers), so support for IDs needs to stick around
+			parsed_moles[path] = text2num(value)
+		parsed = list(parsed_temperature, parsed_moles)
+		if(istext(gas_string) && length(GLOB.parsed_gas_strings) < 500) // bounded: atmos_spawn_air() callers build strings with any amounts
+			GLOB.parsed_gas_strings[gas_string] = parsed
+
+	if(!isnull(parsed[1]))
+		temperature = parsed[1]
+		temperature_archived = temperature
 	var/list/cached_moles = moles
 	var/list/cached_moles_archive = moles_archive
-	var/list/gas = params2list(gas_string)
-	if(gas["TEMP"])
-		temperature = text2num(gas["TEMP"])
-		temperature_archived = temperature
-		gas -= "TEMP"
 	cached_moles.Cut()
 	cached_moles_archive.Cut()
-	for(var/id, value in gas)
-		var/path = id
-		if(!ispath(path))
-			path = gas_id2path(path) //a lot of these strings can't have embedded expressions (especially for mappers), so support for IDs needs to stick around
-		cached_moles[path] = text2num(value)
+	var/list/parsed_moles = parsed[2]
+	for(var/path in parsed_moles)
+		cached_moles[path] = parsed_moles[path]
 		cached_moles_archive[path] = 0
 	return 1
+
+///Gas strings parse_gas_string() has parsed: gas string = list(temperature or null, list(gas path = moles))
+GLOBAL_LIST_EMPTY(parsed_gas_strings)
 
 /datum/gas_mixture/proc/share(datum/gas_mixture/sharer, our_coeff = 1, sharer_coeff = 1)
 	//Performs air sharing calculations between two gas_mixtures.

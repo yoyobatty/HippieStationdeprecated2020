@@ -16,7 +16,7 @@
 		name = rename
 
 /datum/map_template/proc/preload_size(path, cache = FALSE)
-	var/datum/parsed_map/parsed = new(file(path))
+	var/datum/parsed_map/parsed = new(file(path), measureOnly = !cache) // hippie -- just the size unless it's being kept
 	var/bounds = parsed?.bounds
 	if(bounds)
 		width = bounds[MAP_MAXX] // Assumes all templates are rectangular, have a single Z level, and begin at 1,1,1

@@ -254,7 +254,8 @@ GLOBAL_LIST_INIT(pda_styles, list(MONO, VT, ORBITRON, SHARE))
 #define APPEARANCE_UI						(RESET_COLOR|RESET_TRANSFORM|NO_CLIENT_COLOR|PIXEL_SCALE)
 
 //Just space
-#define SPACE_ICON_STATE	"[((x + y) ^ ~(x * y) + z) % 25]"
+// hippie -- same "0" to "24" as formatting the number each time, from a premade list (GLOB.space_icon_states, space.dm): ~675k space turfs set this at init
+#define SPACE_ICON_STATE	GLOB.space_icon_states[((x + y) ^ ~(x * y) + z) % 25 + 1]
 
 // Maploader bounds indices
 #define MAP_MINX 1

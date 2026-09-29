@@ -11,6 +11,9 @@ GLOBAL_LIST_EMPTY(asset_datums)
 
 /datum/asset
 	var/_abstract = /datum/asset
+	/// hippie -- SSassets builds this right after init instead of during it. For the slow spritesheets that nothing needs
+	/// until a UI shows them; get_asset_datum() still builds it on the spot if something asks first.
+	var/build_after_init = FALSE
 
 /datum/asset/New()
 	GLOB.asset_datums[type] = src

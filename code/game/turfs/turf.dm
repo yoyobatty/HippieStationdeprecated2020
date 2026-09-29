@@ -49,7 +49,8 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	flags_1 |= INITIALIZED_1
 
 	// by default, vis_contents is inherited from the turf that was here before
-	vis_contents.Cut()
+	if(length(vis_contents))
+		vis_contents.Cut()
 
 	assemble_baseturfs()
 
@@ -420,6 +421,8 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	return can_have_cabling() & !intact
 
 /turf/proc/visibilityChanged()
+	if(!length(GLOB.cameranet.chunks)) // hippie -- nothing to update until an AI eye generates a chunk (never during init)
+		return
 	GLOB.cameranet.updateVisibility(src)
 	// The cameranet usually handles this for us, but if we've just been
 	// recreated we should make sure we have the cameranet vis_contents.

@@ -87,6 +87,8 @@
   * return int The number of UIs closed.
  **/
 /datum/controller/subsystem/tgui/proc/close_uis(datum/src_object)
+	if(!length(open_uis)) // hippie -- every /obj/Destroy() lands here; skip building the ref when nothing's open (all of init)
+		return 0
 	var/src_object_key = "[REF(src_object)]"
 	if(isnull(open_uis[src_object_key]) || !istype(open_uis[src_object_key], /list))
 		return 0 // Couldn't find any UIs for this object.

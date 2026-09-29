@@ -30,3 +30,4 @@
 
 /datum/asset/simple/icon_states/emojis
 	icon = 'hippiestation/icons/emoji.dmi'
+	build_after_init = TRUE // hippie -- chat renders emojis with icon2html(), not these

@@ -29,7 +29,7 @@
 
 	var/outdoors = FALSE //For space, the asteroid, lavaland, etc. Used with blueprints to determine if we are adding a new area (vs editing a station room)
 
-	var/areasize = 0 //Size of the area in open turfs, only calculated for indoors areas.
+	var/areasize = 0 //Size of the area in open turfs, only calculated for indoors areas, and only by update_areasize() (blueprints) - not at init
 
 	var/power_equip = TRUE
 	var/power_light = TRUE
@@ -133,22 +133,15 @@ GLOBAL_LIST_EMPTY(teleportlocs)
 	power_change()		// all machines set to current power level, also updates icon
 
 /area/proc/reg_in_areas_in_z()
-	if(contents.len)
-		var/list/areas_in_z = SSmapping.areas_in_z
-		var/z
-		update_areasize()
-		for(var/i in 1 to contents.len)
-			var/atom/thing = contents[i]
-			if(!thing)
-				continue
-			z = thing.z
-			break
-		if(!z)
-			WARNING("No z found for [src]")
-			return
-		if(!areas_in_z["[z]"])
-			areas_in_z["[z]"] = list()
-		areas_in_z["[z]"] += src
+	// hippie -- an area's z is its first turf's, 0 when it has none. Reading its contents instead scans every turf in the
+	// world (~0.4ms per area, 7ms for space), and this runs for every area at init. For the same reason areasize isn't
+	// counted here any more (nothing reads it).
+	if(!z)
+		return
+	var/list/areas_in_z = SSmapping.areas_in_z
+	if(!areas_in_z["[z]"])
+		areas_in_z["[z]"] = list()
+	areas_in_z["[z]"] += src
 
 /area/Destroy()
 	if(GLOB.areas_by_type[type] == src)

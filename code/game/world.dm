@@ -54,7 +54,8 @@ GLOBAL_VAR_INIT(tgs_initialized, FALSE)
 	if(NO_INIT_PARAMETER in params)
 		return
 
-	Master.Initialize(10, FALSE, TRUE)
+	// hippie -- was 10: a full second of idling before init starts. The sleep only needs to let world/New() return first.
+	Master.Initialize(1, FALSE, TRUE)
 
 	if(TEST_RUN_PARAMETER in params)
 		HandleTestRun()

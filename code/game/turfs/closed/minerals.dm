@@ -26,9 +26,8 @@
 /turf/closed/mineral/Initialize()
 	if (!canSmoothWith)
 		canSmoothWith = list(/turf/closed/mineral, /turf/closed/indestructible)
-	var/matrix/M = new
-	M.Translate(-4, -4)
-	transform = M
+	var/static/matrix/smooth_offset = matrix(1, 0, -4, 0, 1, -4) // hippie -- Translate(-4, -4), made once instead of per rock (~50k); transform copies it
+	transform = smooth_offset
 	icon = smooth_icon
 	. = ..()
 	if (mineralType && mineralAmt && spread && spreadChance)

@@ -53,19 +53,31 @@
 /datum/controller/subsystem/mapping/proc/get_turf_below(turf/T)
 	if (!T)
 		return
-	var/offset = level_trait(T.z, ZTRAIT_DOWN)
+	var/z = T.z
+	var/offset
+	if (z >= 1 && z <= length(z_list)) // hippie -- level_trait() inlined for managed levels: every turf asks at init, ~550k calls
+		var/datum/space_level/S = z_list[z]
+		offset = S.traits[ZTRAIT_DOWN]
+	else
+		offset = level_trait(z, ZTRAIT_DOWN)
 	if (!offset)
 		return
-	return locate(T.x, T.y, T.z + offset)
+	return locate(T.x, T.y, z + offset)
 
 // Attempt to get the turf above the provided one according to Z traits
 /datum/controller/subsystem/mapping/proc/get_turf_above(turf/T)
 	if (!T)
 		return
-	var/offset = level_trait(T.z, ZTRAIT_UP)
+	var/z = T.z
+	var/offset
+	if (z >= 1 && z <= length(z_list)) // hippie -- see get_turf_below()
+		var/datum/space_level/S = z_list[z]
+		offset = S.traits[ZTRAIT_UP]
+	else
+		offset = level_trait(z, ZTRAIT_UP)
 	if (!offset)
 		return
-	return locate(T.x, T.y, T.z + offset)
+	return locate(T.x, T.y, z + offset)
 
 // Prefer not to use this one too often
 /datum/controller/subsystem/mapping/proc/get_station_center()

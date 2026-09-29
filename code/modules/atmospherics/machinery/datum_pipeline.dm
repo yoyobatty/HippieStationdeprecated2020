@@ -71,6 +71,11 @@
 		addMachineryMember(base)
 	if(!air)
 		air = new
+	// hippie -- members.Find() for every candidate made building a network O(n^2) (the station's distro and scrubber loops
+	// are thousands of pipes); the same test, keyed
+	var/list/in_members = list()
+	for(var/member in members)
+		in_members[member] = TRUE
 	var/list/possible_expansions = list(base)
 	while(possible_expansions.len)
 		for(var/obj/machinery/atmospherics/borderline in possible_expansions)
@@ -79,7 +84,8 @@
 				for(var/obj/machinery/atmospherics/P in result)
 					if(istype(P, /obj/machinery/atmospherics/pipe))
 						var/obj/machinery/atmospherics/pipe/item = P
-						if(!members.Find(item))
+						if(!in_members[item])
+							in_members[item] = TRUE
 
 							if(item.parent)
 								var/static/pipenetwarnings = 10

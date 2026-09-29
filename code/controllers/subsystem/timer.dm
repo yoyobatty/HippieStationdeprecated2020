@@ -318,7 +318,10 @@ SUBSYSTEM_DEF(timer)
 	var/hash
 	var/list/flags
 	var/spent = 0 //time we ran the timer.
-	var/name //for easy debugging.
+	/// hippie -- for easy debugging: list(id, timeToRun, wait, flags, "[callBack.object]", its type, callBack.delegate), turned into
+	/// text by operator""() only when something prints the timer (as in tgstation). Building the whole string up front in New(),
+	/// \refs and all, cost ~50us a timer. Holds no datums, so it can't keep anything alive.
+	var/list/timer_info
 	//cicular doublely linked list
 	var/datum/timedevent/next
 	var/datum/timedevent/prev
@@ -347,7 +350,7 @@ SUBSYSTEM_DEF(timer)
 			nextid++
 		SStimer.timer_id_dict[id] = src
 
-	name = "Timer: [id] (\ref[src]), TTR: [timeToRun], Flags: [jointext(bitfield2list(flags, list("TIMER_UNIQUE", "TIMER_OVERRIDE", "TIMER_CLIENT_TIME", "TIMER_STOPPABLE", "TIMER_NO_HASH_WAIT", "TIMER_LOOP")), ", ")], callBack: \ref[callBack], callBack.object: [callBack.object]\ref[callBack.object]([getcallingtype()]), callBack.delegate:[callBack.delegate]([callBack.arguments ? callBack.arguments.Join(", ") : ""])"
+	timer_info = list(id, timeToRun, wait, flags, "[callBack.object]", getcallingtype(), callBack.delegate)
 
 	if ((timeToRun < world.time || timeToRun < SStimer.head_offset) && !(flags & TIMER_CLIENT_TIME))
 		CRASH("Invalid timer state: Timer created that would require a backtrack to run (addtimer would never let this happen): [SStimer.get_timer_debug_string(src)]")
@@ -446,6 +449,13 @@ SUBSYSTEM_DEF(timer)
 	prev = bucket_head.prev
 	next.prev = src
 	prev.next = src
+
+/// hippie -- what name used to say (see timer_info), minus the callback's arguments
+/datum/timedevent/proc/operator""()
+	if (!length(timer_info))
+		return "Timer (no info)"
+	var/static/list/flag_names = list("TIMER_UNIQUE", "TIMER_OVERRIDE", "TIMER_CLIENT_TIME", "TIMER_STOPPABLE", "TIMER_NO_HASH_WAIT", "TIMER_LOOP")
+	return "Timer: [timer_info[1]] (\ref[src]), TTR: [timer_info[2]], wait: [timer_info[3]], Flags: [jointext(bitfield2list(timer_info[4], flag_names), ", ")], callBack.object: [timer_info[5]]([timer_info[6]]), callBack.delegate: [timer_info[7]]"
 
 /datum/timedevent/proc/getcallingtype()
 	. = "ERROR"

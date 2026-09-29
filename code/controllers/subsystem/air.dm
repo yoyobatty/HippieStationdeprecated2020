@@ -478,7 +478,7 @@ SUBSYSTEM_DEF(air)
 
 	for(var/thing in turfs_to_init)
 		var/turf/T = thing
-		if (T.blocks_air)
+		if (T.blocks_air || isspaceturf(T)) // hippie -- space's Initalize_Atmos() does nothing, and it's ~680k of these turfs
 			continue
 		T.Initalize_Atmos(times_fired)
 		CHECK_TICK

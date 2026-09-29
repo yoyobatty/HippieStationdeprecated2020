@@ -238,6 +238,7 @@
 
 /datum/asset/spritesheet/pipes
 	name = "pipes"
+	build_after_init = TRUE // hippie
 
 /datum/asset/spritesheet/pipes/register()
 	for (var/each in list('icons/obj/atmospherics/pipes/pipe_item.dmi', 'icons/obj/atmospherics/pipes/disposal.dmi', 'icons/obj/atmospherics/pipes/transit_tube.dmi', 'icons/obj/plumbing/fluid_ducts.dmi'))
@@ -247,6 +248,7 @@
 // Representative icons for each research design
 /datum/asset/spritesheet/research_designs
 	name = "design"
+	build_after_init = TRUE // hippie -- ~0.6s
 
 /datum/asset/spritesheet/research_designs/register()
 	for (var/path in subtypesof(/datum/design))
@@ -306,6 +308,7 @@
 // Icons for every result, ingredient and tool in the crafting menu, named "a[id]" after their index in GLOB.crafting_ui_atoms
 /datum/asset/spritesheet/crafting
 	name = "crafting"
+	build_after_init = TRUE // hippie -- ~0.5s
 
 /datum/asset/spritesheet/crafting/register()
 	var/start_time = REALTIMEOFDAY
@@ -330,6 +333,7 @@
 
 /datum/asset/spritesheet/vending
 	name = "vending"
+	build_after_init = TRUE // hippie -- ~0.3s
 
 /datum/asset/spritesheet/vending/register()
 	for (var/k in GLOB.vending_products)

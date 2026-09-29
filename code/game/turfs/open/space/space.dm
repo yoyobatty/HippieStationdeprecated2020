@@ -16,6 +16,13 @@ GLOBAL_VAR_INIT(starlight_range, STARLIGHT_DEFAULT_RANGE)
 GLOBAL_VAR_INIT(starlight_power, STARLIGHT_DEFAULT_POWER)
 ///Every space turf currently giving off starlight
 GLOBAL_LIST_EMPTY(starlight)
+///The icon states SPACE_ICON_STATE picks between, "0" to "24"
+GLOBAL_LIST_INIT(space_icon_states, make_space_icon_states())
+
+/proc/make_space_icon_states()
+	. = list()
+	for(var/i in 0 to 24)
+		. += "[i]"
 
 // What lights the space tiles themselves, and anything sitting on them (lattices, catwalks): space turfs have no
 // lighting object, so light sources never reach them. As in tgstation, each gets an overlay that mirrors (render_source)
@@ -106,7 +113,8 @@ GLOBAL_LIST_EMPTY(starlit_areas)
 	icon_state = SPACE_ICON_STATE
 	air = space_gas
 
-	vis_contents.Cut()
+	if(length(vis_contents)) // hippie -- inherited from the turf this replaced, if any; skip the call for the usual empty list
+		vis_contents.Cut()
 
 	if(flags_1 & INITIALIZED_1)
 		stack_trace("Warning: [src]([type]) initialized multiple times!")
@@ -128,7 +136,10 @@ GLOBAL_LIST_EMPTY(starlit_areas)
 	if (opacity)
 		has_opaque_atom = TRUE
 
-	ComponentInitialize()
+	// hippie -- for space, ComponentInitialize() (/turf/open's) only ever adds wetness; skipping the call when dry saves
+	// ~0.3us on each of the ~675k space turfs. Space turf types override neither it nor this - if one ever needs to, drop the check.
+	if (wet)
+		ComponentInitialize()
 
 	return INITIALIZE_HINT_NORMAL
 

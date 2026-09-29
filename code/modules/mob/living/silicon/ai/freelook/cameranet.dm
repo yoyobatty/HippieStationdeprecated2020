@@ -143,7 +143,7 @@ GLOBAL_DATUM_INIT(cameranet, /datum/cameranet, new)
 // If you want to update the chunks around an object, without adding/removing a camera, use choice 2.
 
 /datum/cameranet/proc/majorChunkChange(atom/c, choice)
-	if(!c)
+	if(!c || !length(chunks)) // hippie -- only existing chunks get updated; none exist before an AI eye looks around
 		return
 
 	var/turf/T = get_turf(c)

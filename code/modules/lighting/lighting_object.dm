@@ -28,7 +28,10 @@
 	myturf.luminosity = 0
 
 	for(var/turf/open/space/S in RANGE_TURFS(1, src)) //RANGE_TURFS is in code\__HELPERS\game.dm
-		S.update_starlight()
+		// hippie -- next to our (never space) turf, update_starlight() can only switch it on; if it's already on there's
+		// nothing to do. Space touching several lit turfs was being redone for each (~75k calls at init)
+		if(!GLOB.starlight[S])
+			S.update_starlight()
 
 	needs_update = TRUE
 	SSlighting.objects_queue += src
