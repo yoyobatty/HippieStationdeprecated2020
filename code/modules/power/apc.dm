@@ -103,6 +103,7 @@
 	var/last_nightshift_switch = 0
 	var/update_state = -1
 	var/update_overlay = -1
+	var/list/indicator_overlays //hippie -- the screen/indicator light overlays update_icon() last added
 	var/icon_update_needed = FALSE
 	var/obj/machinery/computer/apc_control/remote_control = null
 
@@ -329,23 +330,27 @@
 		else if(update_state & UPSTATE_MAINT)
 			icon_state = "apc0"
 
+	//hippie start -- the indicator lights are the APC's own overlays, not shared vis_contents objects. Those stayed right
+	// on the server but clients would stop drawing them, leaving the black screen of the bare apc0 sprite; overlays are part
+	// of the APC's own appearance, so they can't drift apart from it (tgstation draws APC lights as overlays too)
 	if(!(update_state & UPSTATE_ALLGOOD))
-		SSvis_overlays.remove_vis_overlay(src, managed_vis_overlays)
+		clear_indicator_overlays()
 
 	if(update & 2)
-		SSvis_overlays.remove_vis_overlay(src, managed_vis_overlays)
+		clear_indicator_overlays()
 		if(!(stat & (BROKEN|MAINT)) && update_state & UPSTATE_ALLGOOD)
-			SSvis_overlays.add_vis_overlay(src, icon, "apcox-[locked]", layer, plane, dir)
-			SSvis_overlays.add_vis_overlay(src, icon, "apcox-[locked]", layer, EMISSIVE_PLANE, dir)
-			SSvis_overlays.add_vis_overlay(src, icon, "apco3-[charging]", layer, plane, dir)
-			SSvis_overlays.add_vis_overlay(src, icon, "apco3-[charging]", layer, EMISSIVE_PLANE, dir)
+			var/list/states = list("apcox-[locked]", "apco3-[charging]")
 			if(operating)
-				SSvis_overlays.add_vis_overlay(src, icon, "apco0-[equipment]", layer, plane, dir)
-				SSvis_overlays.add_vis_overlay(src, icon, "apco0-[equipment]", layer, EMISSIVE_PLANE, dir)
-				SSvis_overlays.add_vis_overlay(src, icon, "apco1-[lighting]", layer, plane, dir)
-				SSvis_overlays.add_vis_overlay(src, icon, "apco1-[lighting]", layer, EMISSIVE_PLANE, dir)
-				SSvis_overlays.add_vis_overlay(src, icon, "apco2-[environ]", layer, plane, dir)
-				SSvis_overlays.add_vis_overlay(src, icon, "apco2-[environ]", layer, EMISSIVE_PLANE, dir)
+				states += list("apco0-[equipment]", "apco1-[lighting]", "apco2-[environ]")
+			indicator_overlays = list()
+			for(var/state in states)
+				indicator_overlays += mutable_appearance(icon, state)
+				for(var/glow_plane in list(EMISSIVE_PLANE, EMISSIVE_BLOOM_PLANE)) // what glows, and the glow itself
+					var/mutable_appearance/glow = mutable_appearance(icon, state, layer, glow_plane)
+					glow.appearance_flags |= KEEP_APART
+					indicator_overlays += glow
+			add_overlay(indicator_overlays)
+	//hippie end
 
 	// And now, separately for cleanness, the lighting changing
 	if(update_state & UPSTATE_ALLGOOD)
@@ -364,6 +369,12 @@
 		set_light(0)
 
 	icon_update_needed = FALSE
+
+//hippie -- see update_icon()
+/obj/machinery/power/apc/proc/clear_indicator_overlays()
+	if(indicator_overlays)
+		cut_overlay(indicator_overlays)
+		indicator_overlays = null
 
 /obj/machinery/power/apc/proc/check_updates()
 	var/last_update_state = update_state

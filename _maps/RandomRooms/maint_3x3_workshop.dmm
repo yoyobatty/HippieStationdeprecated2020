@@ -1,0 +1,62 @@
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"a" = (
+/obj/machinery/light/small{
+	dir = 1
+	},
+/turf/template_noop,
+/area/template_noop)
+"b" = (
+/obj/effect/decal/cleanable/oil,
+/turf/template_noop,
+/area/template_noop)
+"c" = (
+/obj/structure/reagent_dispensers/fueltank,
+/turf/template_noop,
+/area/template_noop)
+"d" = (
+/obj/structure/table,
+/obj/item/storage/toolbox/mechanical,
+/turf/template_noop,
+/area/template_noop)
+"e" = (
+/turf/template_noop,
+/area/template_noop)
+"f" = (
+/obj/structure/table,
+/obj/item/weldingtool,
+/obj/item/stack/cable_coil,
+/turf/template_noop,
+/area/template_noop)
+"g" = (
+/obj/structure/table,
+/obj/item/stack/sheet/metal/five,
+/obj/item/stack/rods/ten,
+/turf/template_noop,
+/area/template_noop)
+"h" = (
+/obj/item/screwdriver,
+/obj/effect/decal/cleanable/oil,
+/turf/template_noop,
+/area/template_noop)
+"i" = (
+/obj/structure/table,
+/obj/item/electronics/airlock,
+/obj/item/multitool,
+/turf/template_noop,
+/area/template_noop)
+
+(1,1,1) = {"
+a
+d
+g
+"}
+(2,1,1) = {"
+b
+e
+h
+"}
+(3,1,1) = {"
+c
+f
+i
+"}

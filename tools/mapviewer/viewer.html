@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Map Viewer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+	--bg: #16181d; --panel: #1f2229; --panel-2: #272b34; --border: #343945;
+	--text: #e3e6ec; --muted: #8c93a3; --accent: #6aa9ff; --hover: rgba(106, 169, 255, 0.35);
+	--turf: #9fd08a; --area: #d9b36c; --obj: #e3e6ec; --var: #9aa3b5;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+	font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+#app { display: grid; grid-template-columns: 260px 1fr 320px; height: 100%; }
+aside, #info { background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+#info { border-right: none; border-left: 1px solid var(--border); }
+header { padding: 12px 12px 8px; border-bottom: 1px solid var(--border); }
+h1 { font-size: 14px; margin: 0 0 8px; font-weight: 600; }
+h2 { font-size: 12px; margin: 0; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+input[type=search] { width: 100%; padding: 6px 8px; background: var(--bg); border: 1px solid var(--border);
+	color: var(--text); border-radius: 6px; font: inherit; }
+#maps { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1; }
+#maps li { padding: 6px 8px; border-radius: 6px; cursor: pointer; word-break: break-all; }
+#maps li:hover { background: var(--panel-2); }
+#maps li.active { background: var(--accent); color: #0b1020; }
+#maps li small { display: block; opacity: .7; }
+#view { position: relative; overflow: hidden; cursor: grab; background:
+	repeating-conic-gradient(#1b1e24 0% 25%, #202329 0% 50%) 0 0 / 24px 24px; }
+#view.dragging { cursor: grabbing; }
+#stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#stage img { display: block; image-rendering: pixelated; }
+#hover { position: absolute; border: 2px solid var(--accent); background: var(--hover); pointer-events: none; display: none; }
+#hover.pinned { border-color: #ffd166; background: rgba(255, 209, 102, .25); }
+#gridlines { position: absolute; inset: 0; pointer-events: none; display: none; }
+#toolbar { position: absolute; top: 10px; left: 10px; display: flex; gap: 6px; z-index: 2; }
+#toolbar button { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px;
+	padding: 5px 10px; font: inherit; cursor: pointer; }
+#toolbar button:hover { background: var(--panel-2); }
+#toolbar button.on { border-color: var(--accent); color: var(--accent); }
+#zoomlabel { align-self: center; color: var(--muted); padding: 0 4px; min-width: 44px; }
+#coords { position: absolute; bottom: 10px; left: 10px; background: var(--panel); border: 1px solid var(--border);
+	border-radius: 6px; padding: 4px 8px; color: var(--muted); z-index: 2; }
+#details { padding: 12px; overflow-y: auto; flex: 1; }
+#details .tile { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+#details .hint { color: var(--muted); }
+.atom { padding: 6px 8px; background: var(--panel-2); border-radius: 6px; margin-bottom: 6px; word-break: break-all; }
+.atom.turf { border-left: 3px solid var(--turf); }
+.atom.area { border-left: 3px solid var(--area); }
+.atom.obj { border-left: 3px solid var(--border); }
+.atom .vars { color: var(--var); font-family: ui-monospace, Consolas, monospace; font-size: 12px; margin-top: 2px; }
+.keys { color: var(--muted); font-size: 12px; padding: 10px 12px; border-top: 1px solid var(--border); }
+kbd { background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; font-size: 11px; }
+.empty { padding: 40px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div id="app">
+	<aside>
+		<header>
+			<h1>Map Viewer</h1>
+			<input id="filter" type="search" placeholder="Filter maps..." autocomplete="off">
+		</header>
+		<ul id="maps"></ul>
+	</aside>
+	<main id="view">
+		<div id="toolbar">
+			<button id="fit" title="Fit to window (F)">Fit</button>
+			<button id="one" title="Actual size (1)">1:1</button>
+			<button id="gridbtn" title="Tile grid (G)">Grid</button>
+			<span id="zoomlabel"></span>
+		</div>
+		<div id="stage">
+			<img id="img" alt="">
+			<canvas id="gridlines"></canvas>
+			<div id="hover"></div>
+		</div>
+		<div id="coords">-</div>
+	</main>
+	<section id="info">
+		<header><h2>Tile</h2></header>
+		<div id="details"><div class="hint">Hover a tile to see what's on it. Click to pin.</div></div>
+		<div class="keys"><kbd>Scroll</kbd> zoom &nbsp;<kbd>Drag</kbd> pan &nbsp;<kbd>Click</kbd> pin<br>
+			<kbd>F</kbd> fit &nbsp;<kbd>1</kbd> 1:1 &nbsp;<kbd>G</kbd> grid &nbsp;<kbd>[</kbd><kbd>]</kbd> prev/next map</div>
+	</section>
+</div>
+<script src="maps.js"></script>
+<script>
+const MAPS = window.MAPS || [];
+const $ = id => document.getElementById(id);
+const view = $("view"), stage = $("stage"), img = $("img"), hover = $("hover"), grid = $("gridlines");
+let current = null, scale = 1, panX = 0, panY = 0, pinned = null, showGrid = false, visible = [];
+
+function tilePx() { return current ? img.naturalWidth / current.width : 32; }
+
+function applyTransform() {
+	stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+	$("zoomlabel").textContent = Math.round(scale * 100) + "%";
+}
+
+function fit() {
+	if (!img.naturalWidth) return;
+	const w = view.clientWidth - 40, h = view.clientHeight - 40;
+	scale = Math.min(w / img.naturalWidth, h / img.naturalHeight, 8);
+	// snap to crisp steps when zoomed in
+	if (scale > 1) scale = Math.floor(scale);
+	panX = (view.clientWidth - img.naturalWidth * scale) / 2;
+	panY = (view.clientHeight - img.naturalHeight * scale) / 2;
+	applyTransform();
+}
+
+function zoomAt(factor, cx, cy) {
+	const next = Math.min(Math.max(scale * factor, 0.05), 16);
+	panX = cx - (cx - panX) * (next / scale);
+	panY = cy - (cy - panY) * (next / scale);
+	scale = next;
+	applyTransform();
+}
+
+function drawGrid() {
+	grid.style.display = showGrid ? "block" : "none";
+	$("gridbtn").classList.toggle("on", showGrid);
+	if (!showGrid || !current) return;
+	const t = tilePx();
+	grid.width = img.naturalWidth; grid.height = img.naturalHeight;
+	const ctx = grid.getContext("2d");
+	ctx.strokeStyle = "rgba(255,255,255,0.18)"; ctx.lineWidth = 1;
+	ctx.beginPath();
+	for (let x = 0; x <= current.width; x++) { ctx.moveTo(x * t + .5, 0); ctx.lineTo(x * t + .5, grid.height); }
+	for (let y = 0; y <= current.height; y++) { ctx.moveTo(0, y * t + .5); ctx.lineTo(grid.width, y * t + .5); }
+	ctx.stroke();
+}
+
+function tileAt(clientX, clientY) {
+	const r = view.getBoundingClientRect();
+	const t = tilePx();
+	const px = (clientX - r.left - panX) / scale, py = (clientY - r.top - panY) / scale;
+	const col = Math.floor(px / t), row = Math.floor(py / t);
+	if (!current || col < 0 || row < 0 || col >= current.width || row >= current.height) return null;
+	return { col, row, x: current.origin[0] + col, y: current.origin[1] + current.height - 1 - row };
+}
+
+function tileKey(tile) {
+	const line = current.grid[tile.row] || "";
+	return line.substr(tile.col * current.keylen, current.keylen);
+}
+
+function esc(s) { return s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+function showTile(tile) {
+	const d = $("details");
+	if (!tile) { d.innerHTML = '<div class="hint">Hover a tile to see what\'s on it. Click to pin.</div>'; return; }
+	const atoms = current.keys[tileKey(tile)] || [];
+	// .dmm order is objects..., turf, area - show area and turf first, then objects top-down
+	const area = atoms.filter(a => a[0].startsWith("/area"));
+	const turfs = atoms.filter(a => a[0].startsWith("/turf"));
+	const objs = atoms.filter(a => !a[0].startsWith("/area") && !a[0].startsWith("/turf")).reverse();
+	const block = (a, cls) => `<div class="atom ${cls}">${esc(a[0])}${a[1].length ? `<div class="vars">${a[1].map(esc).join("<br>")}</div>` : ""}</div>`;
+	d.innerHTML = `<div class="tile">(${tile.x}, ${tile.y})${pinned ? " &middot; pinned" : ""}</div>`
+		+ area.map(a => block(a, "area")).join("") + turfs.map(a => block(a, "turf")).join("")
+		+ (objs.length ? objs.map(a => block(a, "obj")).join("") : '<div class="hint">No objects.</div>');
+}
+
+function placeHover(tile) {
+	if (!tile) { hover.style.display = "none"; return; }
+	const t = tilePx();
+	hover.style.display = "block";
+	hover.style.left = tile.col * t + "px"; hover.style.top = tile.row * t + "px";
+	hover.style.width = hover.style.height = t + "px";
+	hover.style.borderWidth = Math.max(1, 2 / scale) + "px";
+}
+
+function selectMap(index) {
+	current = MAPS[index];
+	pinned = null; hover.classList.remove("pinned");
+	document.querySelectorAll("#maps li").forEach(li => li.classList.toggle("active", +li.dataset.i === index));
+	img.onload = () => { fit(); drawGrid(); };
+	img.src = current.image + "?v=" + Date.now();
+	showTile(null); placeHover(null);
+	try { localStorage.setItem("mapviewer.last", current.name); } catch (e) {}
+}
+
+function renderList() {
+	const q = $("filter").value.toLowerCase();
+	const ul = $("maps");
+	ul.innerHTML = "";
+	visible = [];
+	MAPS.forEach((m, i) => {
+		if (q && !m.name.toLowerCase().includes(q)) return;
+		visible.push(i);
+		const li = document.createElement("li");
+		li.dataset.i = i;
+		const slash = m.name.lastIndexOf("/");
+		li.innerHTML = `${esc(m.name.slice(slash + 1))}<small>${esc(m.name.slice(0, slash))} &middot; ${m.width}&times;${m.height}</small>`;
+		if (current === m) li.classList.add("active");
+		li.onclick = () => selectMap(i);
+		ul.appendChild(li);
+	});
+}
+
+function step(dir) {
+	if (!visible.length) return;
+	const at = visible.indexOf(MAPS.indexOf(current));
+	selectMap(visible[(at + dir + visible.length) % visible.length]);
+}
+
+// ---- input
+let drag = null;
+view.addEventListener("mousedown", e => { if (e.button === 0) drag = { x: e.clientX, y: e.clientY, px: panX, py: panY, moved: false }; });
+window.addEventListener("mouseup", e => {
+	if (drag && !drag.moved && e.target.closest("#view") && !e.target.closest("#toolbar")) {
+		const tile = tileAt(e.clientX, e.clientY);
+		pinned = pinned && tile && pinned.x === tile.x && pinned.y === tile.y ? null : tile;
+		hover.classList.toggle("pinned", !!pinned);
+		placeHover(pinned || tile); showTile(pinned || tile);
+	}
+	drag = null; view.classList.remove("dragging");
+});
+window.addEventListener("mousemove", e => {
+	if (drag) {
+		const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+		if (Math.abs(dx) + Math.abs(dy) > 3) { drag.moved = true; view.classList.add("dragging"); }
+		if (drag.moved) { panX = drag.px + dx; panY = drag.py + dy; applyTransform(); }
+		return;
+	}
+	if (!e.target.closest("#view")) return;
+	const tile = tileAt(e.clientX, e.clientY);
+	$("coords").textContent = tile ? `${tile.x}, ${tile.y}` : "-";
+	if (!pinned) { placeHover(tile); showTile(tile); }
+});
+view.addEventListener("wheel", e => {
+	e.preventDefault();
+	const r = view.getBoundingClientRect();
+	zoomAt(e.deltaY < 0 ? 1.25 : 0.8, e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+$("fit").onclick = fit;
+$("one").onclick = () => zoomAt(1 / scale, view.clientWidth / 2, view.clientHeight / 2);
+$("gridbtn").onclick = () => { showGrid = !showGrid; drawGrid(); };
+$("filter").addEventListener("input", renderList);
+window.addEventListener("keydown", e => {
+	if (e.target.tagName === "INPUT") return;
+	if (e.key === "f" || e.key === "F") fit();
+	else if (e.key === "1") $("one").onclick();
+	else if (e.key === "g" || e.key === "G") $("gridbtn").onclick();
+	else if (e.key === "]" || e.key === "ArrowDown") { step(1); e.preventDefault(); }
+	else if (e.key === "[" || e.key === "ArrowUp") { step(-1); e.preventDefault(); }
+	else if (e.key === "Escape") { pinned = null; hover.classList.remove("pinned"); placeHover(null); showTile(null); }
+	else if (e.key === "+" || e.key === "=") zoomAt(1.25, view.clientWidth / 2, view.clientHeight / 2);
+	else if (e.key === "-") zoomAt(0.8, view.clientWidth / 2, view.clientHeight / 2);
+});
+window.addEventListener("resize", () => current && fit());
+
+renderList();
+if (!MAPS.length) {
+	view.innerHTML = '<div class="empty">No maps. Run tools/mapviewer/mapviewer.py to render some.</div>';
+} else {
+	let last = null;
+	try { last = localStorage.getItem("mapviewer.last"); } catch (e) {}
+	const found = MAPS.findIndex(m => m.name === last);
+	selectMap(found >= 0 ? found : 0);
+}
+</script>
+</body>
+</html>

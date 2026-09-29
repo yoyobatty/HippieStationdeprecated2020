@@ -219,6 +219,11 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 		sleep_offline_after_initializations = FALSE
 		INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(run_lighting_bench), world.params[LIGHTING_BENCH_PARAMETER])
 
+	// hippie -- Department gear self-test: drives the new department gear in the real engine; shuts the world down when done
+	if(DEPT_GEAR_TEST_PARAMETER in world.params)
+		sleep_offline_after_initializations = FALSE
+		INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(run_dept_gear_test))
+
 	if (!current_runlevel)
 		SetRunLevel(1)
 

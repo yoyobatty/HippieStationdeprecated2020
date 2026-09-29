@@ -1,0 +1,55 @@
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"a" = (
+/obj/machinery/light/small{
+	dir = 1
+	},
+/turf/template_noop,
+/area/template_noop)
+"b" = (
+/turf/template_noop,
+/area/template_noop)
+"c" = (
+/obj/structure/reagent_dispensers/watertank,
+/turf/template_noop,
+/area/template_noop)
+"d" = (
+/obj/machinery/hydroponics/soil,
+/obj/item/seeds/cannabis,
+/turf/template_noop,
+/area/template_noop)
+"e" = (
+/obj/item/cultivator,
+/turf/template_noop,
+/area/template_noop)
+"f" = (
+/obj/machinery/hydroponics/soil,
+/obj/item/seeds/ambrosia,
+/turf/template_noop,
+/area/template_noop)
+"g" = (
+/obj/machinery/hydroponics/soil,
+/turf/template_noop,
+/area/template_noop)
+"h" = (
+/obj/structure/table,
+/obj/item/reagent_containers/glass/bottle/nutrient/ez,
+/obj/item/rollingpaper,
+/obj/item/lighter,
+/turf/template_noop,
+/area/template_noop)
+
+(1,1,1) = {"
+a
+d
+g
+"}
+(2,1,1) = {"
+b
+e
+h
+"}
+(3,1,1) = {"
+c
+f
+g
+"}

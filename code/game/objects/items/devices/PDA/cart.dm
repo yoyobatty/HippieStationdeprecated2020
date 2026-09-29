@@ -456,13 +456,18 @@ Code:
 			menu += "<BR>Current approved orders: <BR><ol>"
 			for(var/S in SSshuttle.shoppinglist)
 				var/datum/supply_order/SO = S
-				menu += "<li>#[SO.id] - [SO.pack.name] approved by [SO.orderer] [SO.reason ? "([SO.reason])":""]</li>"
+				menu += "<li>#[SO.id] - [SO.pack.name] ordered by [SO.orderer][SO.approved_by ? ", approved by [SO.approved_by]" : ""] [SO.reason ? "([SO.reason])":""]</li>" //hippie -- it said "approved by" the orderer
 			menu += "</ol>"
 
 			menu += "Current requests: <BR><ol>"
 			for(var/S in SSshuttle.requestlist)
 				var/datum/supply_order/SO = S
 				menu += "<li>#[SO.id] - [SO.pack.name] requested by [SO.orderer]</li>"
+			//hippie start -- order ledger (hippiestation/code/modules/cargo/order_ledger.dm)
+			menu += "</ol>Recently shipped: <BR><ol>"
+			for(var/list/entry in cargo_order_ledger(10))
+				menu += "<li>#[entry["id"]] - [entry["object"]] for [entry["orderer"]] ([entry["orderer_rank"]]), [entry["cost"]] cr from [entry["paid_by"]][entry["approved_by"] ? ", approved by [entry["approved_by"]]" : ""], [entry["delivery"]] at [entry["shipped_at"]]</li>"
+			//hippie end
 			menu += "</ol><font size=\"-3\">Upgrade NOW to Space Parts & Space Vendors PLUS for full remote order control and inventory management."
 
 		if (48) // quartermaster ore logs

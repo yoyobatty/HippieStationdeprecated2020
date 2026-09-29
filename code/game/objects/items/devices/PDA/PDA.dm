@@ -726,6 +726,9 @@ GLOBAL_LIST_EMPTY(PDAs)
 		last_everyone = world.time
 
 /obj/item/pda/proc/receive_message(datum/signal/subspace/messaging/pda/signal)
+	if(signal.data["page"]) //hippie -- department pagers (hippiestation/code/game/objects/items/devices/dept_pager.dm)
+		receive_page(signal)
+		return
 	tnote += "<i><b>&larr; From <a href='byond://?src=[REF(src)];choice=Message;target=[REF(signal.source)]'>[signal.data["name"]]</a> ([signal.data["job"]]):</b></i><br>[signal.format_message()]<br>"
 
 	if (!silent)

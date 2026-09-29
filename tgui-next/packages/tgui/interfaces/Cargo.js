@@ -2,6 +2,7 @@ import { map } from 'common/collections';
 import { Fragment } from 'inferno';
 import { act } from '../byond';
 import { AnimatedNumber, Box, Button, LabeledList, Section, Tabs } from '../components';
+import { Searchable } from './common/Searchable';
 import { InterfaceLockNoticeBox } from './common/InterfaceLockNoticeBox';
 
 export const Cargo = props => {
@@ -11,6 +12,7 @@ export const Cargo = props => {
   const supplies = data.supplies || {};
   const requests = data.requests || [];
   const cart = data.cart || [];
+  const history = data.history || [];
 
   const cartTotalAmount = cart
     .reduce((total, entry) => total + entry.cost, 0);
@@ -126,6 +128,19 @@ export const Cargo = props => {
             )}
           </Tabs.Tab>
         )}
+        {!data.requestonly && (
+          <Tabs.Tab
+            key="history"
+            label="History"
+            icon="book"
+            lineHeight="23px">
+            {() => (
+              <Section title="Order Ledger">
+                <History history={history} />
+              </Section>
+            )}
+          </Tabs.Tab>
+        )}
       </Tabs>
     </Fragment>
   );
@@ -135,53 +150,75 @@ const Catalog = props => {
   const { state, supplies } = props;
   const { config, data } = state;
   const { ref } = config;
-  const renderTab = key => {
-    const supply = supplies[key];
-    const packs = supply.packs;
-    return (
-      <table className="LabeledList">
-        {packs.map(pack => (
-          <tr
-            key={pack.name}
-            className="LabeledList__row candystripe">
-            <td className="LabeledList__cell LabeledList__label">
-              {pack.name}:
-            </td>
-            <td className="LabeledList__cell">
-              {!!pack.small_item && (
-                <Fragment>Small Item</Fragment>
-              )}
-            </td>
-            <td className="LabeledList__cell">
-              {!!pack.access && (
-                <Fragment>Restrictions Apply</Fragment>
-              )}
-            </td>
-            <td className="LabeledList__cell LabeledList__buttons">
-              <Button fluid
-                content={(data.self_paid
-                  ? Math.round(pack.cost * 1.1)
-                  : pack.cost) + ' credits'}
-                onClick={() => act(ref, 'add', {
-                  id: pack.id,
-                })} />
-            </td>
-          </tr>
-        ))}
-      </table>
-    );
-  };
+  const renderPacks = (packs, showCategory, amount) => (
+    <table className="LabeledList">
+      {packs.map(pack => (
+        <tr
+          key={pack.name}
+          className="LabeledList__row candystripe">
+          <td className="LabeledList__cell LabeledList__label">
+            {pack.name}:
+          </td>
+          <td className="LabeledList__cell">
+            {showCategory && (
+              <Box inline color="label" mr={1}>
+                {pack.category}
+              </Box>
+            )}
+            {!!pack.small_item && (
+              <Fragment>Small Item</Fragment>
+            )}
+          </td>
+          <td className="LabeledList__cell">
+            {!!pack.access && (
+              <Fragment>Restrictions Apply</Fragment>
+            )}
+          </td>
+          <td className="LabeledList__cell LabeledList__buttons">
+            <Button fluid
+              content={(data.self_paid
+                ? Math.round(pack.cost * 1.1)
+                : pack.cost) * amount + ' credits'
+                + (amount > 1 ? ' (' + amount + 'x)' : '')}
+              onClick={() => act(ref, 'add', {
+                id: pack.id,
+                amount: amount,
+              })} />
+          </td>
+        </tr>
+      ))}
+    </table>
+  );
   return (
-    <Tabs vertical>
-      {map(supply => {
-        const name = supply.name;
+    <Searchable placeholder="Search all supplies..." amountMax={10}>
+      {(matches, searching, amount) => {
+        if (!searching) {
+          return (
+            <Tabs vertical>
+              {map(supply => (
+                <Tabs.Tab key={supply.name} label={supply.name}>
+                  {() => renderPacks(supply.packs, false, amount)}
+                </Tabs.Tab>
+              ))(supplies)}
+            </Tabs>
+          );
+        }
+        const found = [];
+        map(supply => supply.packs.forEach(pack => {
+          if (matches(pack.name, pack.desc)) {
+            found.push({ ...pack, category: supply.name });
+          }
+        }))(supplies);
+        if (found.length) {
+          return renderPacks(found, true, amount);
+        }
         return (
-          <Tabs.Tab key={name} label={name}>
-            {renderTab}
-          </Tabs.Tab>
+          <Box color="label">
+            No supplies match that search.
+          </Box>
         );
-      })(supplies)}
-    </Tabs>
+      }}
+    </Searchable>
   );
 };
 
@@ -233,6 +270,57 @@ const Requests = props => {
                     })} />
                 </Fragment>
               )}
+            </td>
+          </tr>
+        </Fragment>
+      ))}
+    </table>
+  );
+};
+
+// Shipped orders, newest first
+// (hippiestation/code/modules/cargo/order_ledger.dm)
+const History = props => {
+  const { history } = props;
+  if (history.length === 0) {
+    return (
+      <Box color="label">
+        Nothing has shipped yet.
+      </Box>
+    );
+  }
+  return (
+    <table className="LabeledList">
+      {history.map(entry => (
+        <Fragment key={entry.id}>
+          <tr className="LabeledList__row candystripe">
+            <td className="LabeledList__cell LabeledList__label">
+              #{entry.id}:
+            </td>
+            <td className="LabeledList__cell LabeledList__content">
+              <b>{entry.object}</b>
+              <Box color="label">
+                For {entry.orderer} ({entry.orderer_rank})
+                {!!entry.approved_by && (
+                  ', approved by ' + entry.approved_by
+                )}
+              </Box>
+              {!!entry.reason && (
+                <Box italic>
+                  {entry.reason}
+                </Box>
+              )}
+            </td>
+            <td className="LabeledList__cell LabeledList__buttons">
+              <Box bold>
+                {entry.cost} cr
+              </Box>
+              <Box color="label">
+                {entry.paid_by}
+              </Box>
+              <Box color="label">
+                {entry.delivery}, {entry.shipped_at}
+              </Box>
             </td>
           </tr>
         </Fragment>

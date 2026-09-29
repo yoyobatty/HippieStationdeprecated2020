@@ -519,7 +519,8 @@
 	var/stim_used = min(STIM_BALL_GAS_AMOUNT/cached_gases[/datum/gas/plasma],cached_gases[/datum/gas/stimulum])
 	var/pluox_used = min(STIM_BALL_GAS_AMOUNT/cached_gases[/datum/gas/plasma],cached_gases[/datum/gas/pluoxium])
 	var/energy_released = stim_used*STIMULUM_HEAT_SCALE//Stimulum has a lot of stored energy, and breaking it up releases some of it
-	location.fire_nuclear_particle(ball_shot_angle)
+	if(location) //hippie -- a tank reacts with no holder (/obj/item/tank/process()), and this crashed on the null turf every tick
+		location.fire_nuclear_particle(ball_shot_angle)
 	cached_gases[/datum/gas/carbon_dioxide] += 4*pluox_used
 	cached_gases[/datum/gas/nitrogen] += 8*stim_used
 	cached_gases[/datum/gas/pluoxium] -= pluox_used

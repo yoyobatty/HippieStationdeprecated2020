@@ -86,6 +86,9 @@ import { Wires } from './interfaces/Wires';
 import { Guardian } from './interfaces/Guardian';
 import { Vending } from './interfaces/Vending';
 import { Pool } from './interfaces/Pool';
+import { ScrubberPack } from './interfaces/ScrubberPack';
+import { MasterMultitool } from './interfaces/MasterMultitool';
+import { Orbit } from './interfaces/Orbit';
 // hippie end
 
 const ROUTES = {
@@ -451,6 +454,18 @@ const ROUTES = {
   pool_controller: {
     component: () => Pool,
     scrollable: false,
+  },
+  scrubber_pack: {
+    component: () => ScrubberPack,
+    scrollable: true,
+  },
+  master_multitool: {
+    component: () => MasterMultitool,
+    scrollable: true,
+  },
+  orbit: {
+    component: () => Orbit,
+    scrollable: true,
   },
   // hippie end
 };

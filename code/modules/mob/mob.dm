@@ -305,7 +305,7 @@
 		return
 
 	face_atom(A)
-	var/list/result = A.examine(src)
+	var/list/result = examine_or_look_closer(A) //hippie -- examining twice takes a closer look, see hippiestation/code/modules/examine/examine_more.dm
 	to_chat(src, result.Join("\n"))
 	SEND_SIGNAL(src, COMSIG_MOB_EXAMINATE, A)
 

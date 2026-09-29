@@ -116,6 +116,7 @@ GLOBAL_LIST_INIT(blacklisted_cargo_types, typecacheof(list(
 			D.bank_card_talk("Cargo order #[SO.id] has shipped. [price] credits have been charged to your bank account.")
 			var/datum/bank_account/department/cargo = SSeconomy.get_dep_account(ACCOUNT_CAR)
 			cargo.adjust_money(price - SO.pack.cost) //Cargo gets the handling fee
+		SO.record_shipment(SO.paying_account ? D.account_holder : "Cargo budget", price, "supply shuttle") //hippie -- order ledger (hippiestation/code/modules/cargo/order_ledger.dm)
 		value += SO.pack.cost
 		SSshuttle.shoppinglist -= SO
 		SSshuttle.orderhistory += SO

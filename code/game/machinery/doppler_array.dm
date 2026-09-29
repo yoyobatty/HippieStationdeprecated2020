@@ -92,8 +92,8 @@
 	if(devastation_range < orig_dev_range || heavy_impact_range < orig_heavy_range || light_impact_range < orig_light_range)
 		messages += "Theoretical: Epicenter radius: [orig_dev_range]. Outer radius: [orig_heavy_range]. Shockwave radius: [orig_light_range]."
 
-		for(var/message in messages)
-			say(message)
+	for(var/message in messages) //hippie -- was indented into the capped check above, so uncapped bombs went unannounced (tg has it out here)
+		say(message)
 	LAZYADD(message_log, messages.Join(" "))
 	return TRUE
 

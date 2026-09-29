@@ -195,15 +195,26 @@
 				if(isnull(reason) || ..())
 					return
 
+			//hippie start -- order several at once (CARGO_MAX_ORDER_AMOUNT), with one requisition form for the batch
+			var/amount = clamp(round(text2num(params["amount"]) || 1), 1, CARGO_MAX_ORDER_AMOUNT)
 			var/turf/T = get_turf(src)
-			var/datum/supply_order/SO = new(pack, name, rank, ckey, reason, account)
-			SO.generateRequisition(T)
-			if(requestonly && !self_paid)
-				SSshuttle.requestlist += SO
-			else
-				SSshuttle.shoppinglist += SO
-				if(self_paid)
-					say("Order processed. The price will be charged to [account.account_holder]'s bank account on delivery.")
+			var/list/batch = list()
+			for(var/i in 1 to amount)
+				var/datum/supply_order/SO = new(pack, name, rank, ckey, reason, account)
+				batch += SO
+				if(requestonly && !self_paid)
+					SSshuttle.requestlist += SO
+				else
+					SSshuttle.shoppinglist += SO
+			var/datum/supply_order/first = batch[1]
+			var/obj/item/paper/form = first.generateRequisition(T)
+			if(amount > 1)
+				var/datum/supply_order/last = batch[amount]
+				form.name = "requisition form - #[first.id] to #[last.id] ([amount]x [pack.name])"
+				form.info += "<br/>This form covers [amount] orders of [pack.name]: #[first.id] to #[last.id].<br/>"
+			if(self_paid && !requestonly)
+				say("Order[amount > 1 ? "s" : ""] processed. The price will be charged to [account.account_holder]'s bank account on delivery.")
+			//hippie end
 			. = TRUE
 		if("remove")
 			var/id = text2num(params["id"])

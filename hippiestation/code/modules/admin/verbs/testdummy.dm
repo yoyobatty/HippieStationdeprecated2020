@@ -8,6 +8,16 @@
 /obj/item/card/id/admin/Initialize()
 	. = ..()
 	access = get_all_accesses()+get_all_centcom_access()+get_all_syndicate_access()+get_ert_access("commander")
+	// A bank account of its own, so it can pay at vending machines and cargo like anyone's ID (crew get theirs when their
+	// job equips them). In godmode it never runs out (/datum/bank_account/proc/is_godmode_funded()).
+	registered_account = new /datum/bank_account/admin(registered_name || "Admin", SSjob.GetJob("Assistant"))
+	registered_account.bank_cards += src
+
+/// The Admin ID's account: listed with the crew's (so Give Money finds it), but off the payroll
+/datum/bank_account/admin
+
+/datum/bank_account/admin/payday(amt_of_paychecks, free = FALSE)
+	return FALSE
 
 /proc/spawntestdummy(var/mob/usr)
 	SSblackbox.record_feedback("tally", "admin_secrets_fun_used", 1, "TD")
@@ -31,3 +41,8 @@
 		newname = "Admin"
 	D.name = newname
 	D.real_name = newname
+	var/obj/item/card/id/admin/card = D.wear_id
+	if(istype(card))
+		card.registered_name = newname
+		card.update_label()
+		card.registered_account?.account_holder = newname

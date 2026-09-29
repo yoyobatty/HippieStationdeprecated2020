@@ -96,21 +96,33 @@
 	if(!user.temporarilyRemoveItemFromInventory(I))
 		to_chat(user, "<span class='warning'>[I] is stuck to you and cannot be placed into [parent].</span>")
 		return
+	var/list/per_item = I.materials?.Copy() //hippie -- what it's made of, for the message (a used-up stack is gone after)
+	var/item_name = "[I]"
 	var/inserted = insert_item(I, stack_amt = requested_amount)
 	if(inserted)
 		if(istype(I, /obj/item/stack))
 			var/obj/item/stack/S = I
-			to_chat(user, "<span class='notice'>You insert [inserted] [S.singular_name][inserted>1 ? "s" : ""] into [parent].</span>")
+			to_chat(user, "<span class='notice'>You insert [inserted] [S.singular_name][inserted>1 ? "s" : ""] into [parent]: [describe_materials(per_item, inserted)].</span>") //hippie -- and what that came to
 			if(!QDELETED(I) && I == active_held && !user.put_in_hands(I))
 				stack_trace("Warning: User could not put object back in hand during material container insertion, line [__LINE__]! This can lead to issues.")
 				I.forceMove(user.drop_location())
 		else
-			to_chat(user, "<span class='notice'>You insert a material total of [inserted] into [parent].</span>")
+			to_chat(user, "<span class='notice'>You insert [item_name] into [parent]: [describe_materials(per_item)].</span>") //hippie -- it only gave a total, not what went in or what it gave
 			qdel(I)
 		if(after_insert)
 			after_insert.Invoke(I.type, last_inserted_id, inserted)
 	else if(I == active_held)
 		user.put_in_active_hand(I)
+
+/// hippie -- "500 metal and 250 glass": the materials in `mats` (an item's materials list) this container takes, times `multiplier`
+/datum/component/material_container/proc/describe_materials(list/mats, multiplier = 1)
+	var/list/parts = list()
+	for(var/id in materials)
+		var/amount = mats?[id] * multiplier
+		if(amount > 0)
+			var/datum/material/M = materials[id]
+			parts += "[amount] [lowertext(M.name)]"
+	return length(parts) ? english_list(parts) : "no usable materials"
 
 //For inserting an amount of material
 /datum/component/material_container/proc/insert_amount(amt, id = null)

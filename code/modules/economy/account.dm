@@ -35,12 +35,23 @@
 		account_balance = 0
 
 /datum/bank_account/proc/has_money(amt)
-	return account_balance >= amt
+	return account_balance >= amt || is_godmode_funded() //hippie -- godmode never runs out
 
 /datum/bank_account/proc/adjust_money(amt)
+	if(amt < 0 && is_godmode_funded()) //hippie -- charges to someone in godmode go through without costing anything
+		return TRUE
 	if((amt < 0 && has_money(-amt)) || amt > 0)
 		_adjust_money(amt)
 		return TRUE
+	return FALSE
+
+/// hippie -- TRUE while one of this account's cards is carried by someone in admin godmode: the account can't run out of
+/// money, and nothing charged to it is taken (see has_money()/adjust_money())
+/datum/bank_account/proc/is_godmode_funded()
+	for(var/obj/card in bank_cards)
+		var/mob/holder = recursive_loc_check(card, /mob)
+		if(ismob(holder) && (holder.status_flags & GODMODE))
+			return TRUE
 	return FALSE
 
 /datum/bank_account/proc/transfer_money(datum/bank_account/from, amount)

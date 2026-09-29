@@ -1,0 +1,45 @@
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"a" = (
+/obj/machinery/light/small{
+	dir = 1
+	},
+/obj/structure/bed,
+/obj/item/bedsheet/brown,
+/turf/template_noop,
+/area/template_noop)
+"b" = (
+/obj/effect/decal/cleanable/dirt,
+/turf/template_noop,
+/area/template_noop)
+"c" = (
+/obj/structure/table,
+/obj/item/flashlight/lamp,
+/turf/template_noop,
+/area/template_noop)
+"d" = (
+/obj/structure/closet/cardboard,
+/turf/template_noop,
+/area/template_noop)
+"e" = (
+/obj/item/cigbutt,
+/obj/item/trash/can,
+/turf/template_noop,
+/area/template_noop)
+"f" = (
+/obj/structure/table,
+/obj/item/storage/box/donkpockets,
+/turf/template_noop,
+/area/template_noop)
+
+(1,1,1) = {"
+a
+d
+"}
+(2,1,1) = {"
+b
+e
+"}
+(3,1,1) = {"
+c
+f
+"}

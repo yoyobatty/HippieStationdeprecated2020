@@ -13,7 +13,7 @@
 		var/turf/T = get_turf(src)
 		var/loot_spawned = 0
 		while((lootcount-loot_spawned) && loot.len)
-			var/lootspawn = pickweight(loot)
+			var/lootspawn = pick_weight_recursive(loot) //hippie -- nested (tiered) loot tables, see maintenance_loot.dm
 			if(!lootdoubles)
 				loot.Remove(lootspawn)
 
@@ -113,7 +113,13 @@
 
 /obj/effect/spawner/lootdrop/maintenance/Initialize(mapload)
 	loot = GLOB.maintenance_loot
+	//hippie start -- loot that lands on a closed locker goes inside it, as on tg
+	var/turf/T = get_turf(src)
 	. = ..()
+	for(var/obj/structure/closet/closet in T)
+		if(!closet.opened)
+			closet.take_contents()
+	//hippie end
 
 /obj/effect/spawner/lootdrop/maintenance/two
 	name = "2 x maintenance loot spawner"

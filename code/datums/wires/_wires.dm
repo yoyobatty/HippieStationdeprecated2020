@@ -273,6 +273,12 @@
 			if(I || IsAdminGhost(usr))
 				if(I && holder)
 					I.play_tool_sound(holder, 20)
+				//hippie start -- a cracked multitool's probe slips onto the wrong wire (hippiestation/code/game/objects/items/worn_gear.dm)
+				var/obj/item/multitool/cracked/cracked = I
+				if(istype(cracked) && prob(cracked.slip_chance))
+					target_wire = pick(colors)
+					to_chat(L, "<span class='warning'>The probe of [cracked] slips!</span>")
+				//hippie end
 				pulse_color(target_wire, L)
 				. = TRUE
 			else

@@ -37,6 +37,8 @@
 	// itself changes.
 	var/obj/item/tank/internals/last_seen_internals_tank
 	var/internals_tank_max_pressure_seen = 0
+	/// Weakref to an internals tank a cut-short refill left in a canister; try_retrieve_stranded_tank() goes back for it
+	var/datum/weakref/stranded_refill_tank
 	// See continue_goal_chain()/run_goal_chain_link() below - TRUE for the brief window
 	// between a chained goal ending (goal_succeeded(), bot_goals.dm - which resets state
 	// to BOT_STATE_WANDER synchronously) and its scheduled continuation actually running

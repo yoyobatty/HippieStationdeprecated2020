@@ -428,10 +428,11 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 	set name = "Orbit" // "Haunt"
 	set desc = "Follow and orbit a mob."
 
-	var/list/mobs = getpois(skip_mindless=1)
-	var/input = input("Please, select a mob!", "Haunt", null, null) as null|anything in mobs
-	var/mob/target = mobs[input]
-	ManualFollow(target)
+	//hippie start -- a searchable orbit menu instead of the list picker, see hippiestation/.../observer/orbit_menu.dm
+	if(!orbit_menu)
+		orbit_menu = new(src)
+	orbit_menu.ui_interact(src)
+	//hippie end
 
 // This is the ghost's follow verb with an argument
 /mob/dead/observer/proc/ManualFollow(atom/movable/target)

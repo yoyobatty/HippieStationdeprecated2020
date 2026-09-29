@@ -73,8 +73,16 @@
 		return FALSE //nothing to compare against yet
 	return pressure < (internals_tank_max_pressure_seen * 0.5)
 
+/// The pressure a refill stops at: back above the halfway mark that sent the bot here, with a little headroom so it
+/// doesn't qualify as low again the moment it's put back on
+/datum/bot_brain/proc/tank_refill_target()
+	return internals_tank_max_pressure_seen * 0.6
+
 /datum/bot_brain/proc/find_oxygen_canister()
 	var/turf/bot_turf = get_turf(owner)
+	// A canister only fills a tank up to about its own pressure (release_gas_to() needs a 10 kPa gradient), so one below
+	// the target could never finish the job - the bot used to stand at it forever with its tank inside
+	var/min_pressure = max(ONE_ATMOSPHERE * 2, tank_refill_target() + 20)
 	var/obj/machinery/portable_atmospherics/canister/best
 	var/best_dist
 	for(var/obj/machinery/portable_atmospherics/canister/C in GLOB.machines)
@@ -85,8 +93,8 @@
 		var/turf/T = get_turf(C)
 		if(!T || T.z != owner.z)
 			continue
-		if(C.air_contents.return_pressure() < ONE_ATMOSPHERE * 2)
-			continue //not worth the trip - barely more full than a depleted tank already is
+		if(C.air_contents.return_pressure() < min_pressure)
+			continue //not worth the trip - it couldn't fill the tank to the target
 		var/dist = get_dist(bot_turf, C)
 		if(!best || dist < best_dist)
 			best = C
@@ -94,16 +102,64 @@
 	return best
 
 /datum/bot_brain/proc/try_refill_internals_round()
+	if(try_retrieve_stranded_tank())
+		return TRUE
 	if(!is_tank_refill_job() || !safe_to_refill_tank() || !tank_needs_refill())
 		return FALSE
 	return assign_goal(new /datum/bot_goal/refill_internals())
+
+/// A refill that got cut short after the tank went in (knocked away from the canister, a fight, somewhere turning unsafe)
+/// leaves the tank sitting in it - go back for it, as a player would, rather than leave it and run around tankless
+/datum/bot_brain/proc/try_retrieve_stranded_tank()
+	var/datum/bot_goal/refill_internals/retrieve = make_stranded_tank_goal()
+	return retrieve ? assign_goal(retrieve) : FALSE
+
+/// A goal to go take a stranded tank back out of its canister, or null if there's none to fetch (or it isn't safe to)
+/datum/bot_brain/proc/make_stranded_tank_goal()
+	var/obj/item/tank/internals/tank = stranded_refill_tank?.resolve()
+	var/obj/machinery/portable_atmospherics/canister/C = tank?.loc
+	if(!istype(C) || C.holding != tank)
+		stranded_refill_tank = null // someone else took it out, or it's gone
+		return null
+	if(!safe_to_refill_tank())
+		return null
+	var/datum/bot_goal/refill_internals/retrieve = new
+	retrieve.tank = tank
+	retrieve.retrieve_only = TRUE
+	return retrieve
+
+/// Pulls the tank out of the canister (closing its valve) and puts it back on. TRUE if the bot's breathing from it again.
+/datum/bot_brain/proc/take_back_refill_tank(obj/machinery/portable_atmospherics/canister/C, obj/item/tank/internals/tank)
+	if(C.holding == tank)
+		C.replace_tank(owner, TRUE) //pulls the tank back out AND closes the valve
+	if(tank.loc != owner)
+		owner.put_in_hands(tank)
+	if(tank.loc != owner)
+		return FALSE
+	stranded_refill_tank = null
+	owner.internal = tank
+	owner.update_internals_hud_icon(1)
+	return TRUE
 
 // Same immediate-rechain idea as continue_fire_response_round() (respond_to_fire.dm) -
 // re-checks are cheap and this only ever actually does anything when genuinely low.
 /datum/bot_brain/proc/continue_refill_internals_round()
 	continue_goal_chain(CALLBACK(src, PROC_REF(try_refill_internals_round)))
 
+/datum/bot_goal/refill_internals
+	/// The tank being refilled. Kept here because owner.internal is cleared the moment it goes into the canister - the
+	/// step used to re-read owner.internal on its next cycle, find nothing, give up and walk off leaving the tank inside
+	var/obj/item/tank/internals/tank
+	/// Just going back to take a tank out of the canister a cut-short refill left it in (try_retrieve_stranded_tank())
+	var/retrieve_only = FALSE
+	/// The tank's pressure when it last rose, and when - a transfer that's stopped rising has gone as far as it will
+	var/last_pressure = 0
+	var/last_progress_time = 0
+
 /datum/bot_goal/refill_internals/resolve_target(datum/bot_brain/bot)
+	if(retrieve_only)
+		target = tank?.loc
+		return
 	target = bot.find_oxygen_canister()
 
 /datum/bot_goal/refill_internals/get_strategies(datum/bot_brain/bot)
@@ -112,9 +168,14 @@
 /datum/bot_goal/refill_internals/on_success(datum/bot_brain/bot)
 	bot.continue_refill_internals_round()
 
-// No on_give_up cooldown, same reasoning as fight_fire's goal - a canister that's
-// genuinely out of reach just gets re-evaluated fresh next cycle rather than needing a
-// dedicated blacklist.
+// No cooldown on giving up, same reasoning as fight_fire's goal - a canister that's genuinely out of reach just gets
+// re-evaluated fresh next cycle rather than needing a dedicated blacklist. But a tank still in the canister is remembered,
+// and try_refill_internals_round() sends the bot back for it before anything else.
+/datum/bot_goal/refill_internals/on_give_up(datum/bot_brain/bot)
+	var/obj/machinery/portable_atmospherics/canister/C = tank?.loc
+	if(istype(C) && C.holding == tank)
+		bot.stranded_refill_tank = WEAKREF(tank)
+		bot_log(bot, "had to leave [tank] in [C] - will come back for it")
 
 /datum/bot_strategy/refill_internals/New()
 	. = ..()
@@ -128,18 +189,27 @@
 // steps already use for a multi-tick real interaction rather than splitting an
 // inherently continuous action across several separate step types.
 /datum/bot_step/fill_tank_from_canister/execute(datum/bot_brain/bot)
-	var/obj/machinery/portable_atmospherics/canister/C = bot.current_goal?.target
-	if(!C || QDELETED(C))
+	var/datum/bot_goal/refill_internals/goal = bot.current_goal
+	var/obj/machinery/portable_atmospherics/canister/C = goal?.target
+	if(!istype(goal) || !istype(C) || QDELETED(C))
+		return GOAL_STEP_FAIL
+	if(!goal.tank)
+		goal.tank = bot.owner.internal
+	var/obj/item/tank/internals/tank = goal.tank
+	if(!istype(tank) || QDELETED(tank))
+		bot_log(bot, "no internals tank to refill anymore")
 		return GOAL_STEP_FAIL
 	if(!bot.owner.Adjacent(C))
-		return GOAL_STEP_FAIL
+		return GOAL_STEP_FAIL // on_give_up() remembers the tank if it's still inside
+
+	if(goal.retrieve_only || (C.holding == tank && !bot.safe_to_refill_tank()))
+		if(!bot.take_back_refill_tank(C, tank))
+			bot_log(bot, "[C] wouldn't give [tank] back")
+			return GOAL_STEP_FAIL
+		bot_log(bot, goal.retrieve_only ? "came back for [tank] and put it back on" : "took [tank] back out of [C] - somewhere unsafe to be without it")
+		return goal.retrieve_only ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 	if(!bot.safe_to_refill_tank())
 		bot_log(bot, "somewhere unsafe to swap my tank now - abandoning the refill")
-		return GOAL_STEP_FAIL
-
-	var/obj/item/tank/internals/tank = bot.owner.internal
-	if(!istype(tank))
-		bot_log(bot, "no internals tank to refill anymore")
 		return GOAL_STEP_FAIL
 
 	// Not already sitting in the canister from an earlier PENDING cycle - go insert it.
@@ -159,6 +229,8 @@
 			bot_log(bot, "[C] wouldn't accept [tank]")
 			return GOAL_STEP_FAIL
 		bot_log(bot, "inserted [tank] into [C] to refill it")
+		goal.last_pressure = tank.air_contents.return_pressure()
+		goal.last_progress_time = world.time
 
 	// Max release pressure, not whatever it was already set to - confirmed in-game: left
 	// at the canister's default (often just above standard atmospheric), the transfer was
@@ -170,21 +242,34 @@
 		C.valve_open = TRUE
 		C.update_icon()
 
-	// Target: back above the halfway mark this whole trip exists to fix, with a little
-	// headroom (0.6 not 0.5) so it doesn't immediately qualify as low again the instant
-	// it's re-donned.
-	if(tank.air_contents.return_pressure() < (bot.internals_tank_max_pressure_seen * 0.6))
-		return GOAL_STEP_PENDING
+	// Fill it up, as a player does: until it's back to full, or the canister stops pushing any more in (it only fills to
+	// about its own pressure). Waiting for a fixed target the canister couldn't reach kept the bot there forever.
+	var/pressure = tank.air_contents.return_pressure()
+	if(pressure < bot.internals_tank_max_pressure_seen)
+		if(pressure > goal.last_pressure + 1)
+			goal.last_pressure = pressure
+			goal.last_progress_time = world.time
+		if(world.time < goal.last_progress_time + 5 SECONDS)
+			// Nothing re-runs a PENDING step on its own - this never came back, so the bot stood there forever with its
+			// tank in the canister. Check again shortly, the way self_treat and the other waiting steps do.
+			addtimer(CALLBACK(src, PROC_REF(continue_fill), bot, goal, C, tank), 1 SECONDS)
+			return GOAL_STEP_PENDING
+		bot_log(bot, "[C] stopped filling [tank] at [round(pressure)] kPa")
 
-	C.replace_tank(bot.owner, TRUE) //pulls the tank back out AND closes the valve
-	if(tank.loc != bot.owner)
-		bot.owner.put_in_hands(tank)
-	if(tank.loc != bot.owner)
+	if(!bot.take_back_refill_tank(C, tank))
 		bot_log(bot, "[C] wouldn't give [tank] back")
 		return GOAL_STEP_FAIL
-
-	bot.owner.internal = tank
-	bot.owner.update_internals_hud_icon(1)
-	bot.internals_tank_max_pressure_seen = tank.air_contents.return_pressure()
-	bot_log(bot, "refilled [tank] from [C] and put it back on")
+	bot_log(bot, "refilled [tank] from [C] to [round(pressure)] kPa and put it back on")
 	return GOAL_STEP_SUCCESS
+
+/datum/bot_step/fill_tank_from_canister/proc/continue_fill(datum/bot_brain/bot, datum/bot_goal/refill_internals/goal, obj/machinery/portable_atmospherics/canister/C, obj/item/tank/internals/tank)
+	if(QDELETED(bot))
+		return
+	if(bot.state != BOT_STATE_GOAL || bot.current_goal != goal || bot.current_strategy?.steps?[bot.current_step_index] != src)
+		// The goal was dropped some other way (a fight, a patrol taking over) with the tank still filling - remember it
+		if(!QDELETED(C) && C.holding == tank)
+			bot.stranded_refill_tank = WEAKREF(tank)
+		return
+	var/result = execute(bot)
+	if(result != GOAL_STEP_PENDING)
+		bot.advance_goal_step(result == GOAL_STEP_SUCCESS)

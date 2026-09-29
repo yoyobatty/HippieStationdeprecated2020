@@ -497,6 +497,11 @@ Class Procs:
 			to_chat(user, display_parts(user))
 		if(shouldplaysound)
 			W.play_rped_sound()
+			//hippie start -- the machine's parts after the swap (hippiestation/code/modules/research/rped_tiers.dm)
+			var/summary = part_tier_summary(user)
+			if(summary)
+				to_chat(user, summary)
+			//hippie end
 		return TRUE
 	return FALSE
 

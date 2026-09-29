@@ -50,6 +50,10 @@
 					hippie_toggles ^= SOUND_FOOTSTEPS
 				if("hear_vox")
 					hippie_toggles ^= SOUND_VOX
+				if("screentips")
+					hippie_toggles ^= SCREENTIPS_DISABLED
+					if((hippie_toggles & SCREENTIPS_DISABLED) && parent?.mob?.hud_used?.screentip_text)
+						parent.mob.hud_used.screentip_text.show(parent, null)
 				if("gear")
 					if(href_list["clear_loadout"])
 						LAZYCLEARLIST(chosen_gear)
@@ -85,6 +89,7 @@
 			. += "<b>Play Text-to-Speech:</b> <a href='?_src_=prefs;preference=hear_tts'>[(hippie_toggles & SOUND_TTS) ? "Enabled":"Disabled"]</a><br>" // let user toggle TTS sounds
 			. += "<b>Play Footsteps:</b> <a href='?_src_=prefs;preference=hear_footsteps'>[(hippie_toggles & SOUND_FOOTSTEPS) ? "Enabled":"Disabled"]</a><br>" // let user toggle footsteps
 			. += "<b>Play AI Vox:</b> <a href='?_src_=prefs;preference=hear_vox'>[(hippie_toggles & SOUND_VOX) ? "Enabled":"Disabled"]</a><br>" // let user toggle AI vox
+			. += "<b>Screentips:</b> <a href='?_src_=prefs;preference=screentips'>[(hippie_toggles & SCREENTIPS_DISABLED) ? "Disabled":"Enabled"]</a><br>" // the name and click hints at the top of the screen
 
 			. += "</tr></table>"
 		if(4)

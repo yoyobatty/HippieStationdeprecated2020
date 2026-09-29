@@ -1,0 +1,39 @@
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"a" = (
+/obj/machinery/light/small{
+	dir = 1
+	},
+/obj/structure/chair/stool,
+/turf/template_noop,
+/area/template_noop)
+"b" = (
+/obj/effect/turf_decal/stripes/line{
+	dir = 1
+	},
+/turf/template_noop,
+/area/template_noop)
+"c" = (
+/turf/template_noop,
+/area/template_noop)
+"d" = (
+/obj/structure/table,
+/obj/effect/spawner/lootdrop/maintenance,
+/turf/template_noop,
+/area/template_noop)
+"e" = (
+/obj/structure/closet/firecloset,
+/turf/template_noop,
+/area/template_noop)
+
+(1,1,1) = {"
+a
+d
+"}
+(2,1,1) = {"
+b
+c
+"}
+(3,1,1) = {"
+c
+e
+"}

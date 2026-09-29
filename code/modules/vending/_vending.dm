@@ -474,12 +474,12 @@ GLOBAL_LIST_EMPTY(vending_products)
 	var/moved = 0
 	if(panel_open || W.works_from_distance)
 		if(W.works_from_distance)
-			display_parts(user)
+			to_chat(user, display_parts(user)) //hippie -- this built the parts list and never showed it
 		for(var/I in W)
 			if(istype(I, refill_canister))
 				moved += restock(I)
 	else
-		display_parts(user)
+		to_chat(user, display_parts(user)) //hippie -- same
 	if(moved)
 		to_chat(user, "<span class='notice'>[moved] items restocked.</span>")
 		W.play_rped_sound()
@@ -585,114 +585,8 @@ GLOBAL_LIST_EMPTY(vending_products)
 	if(!vend_ready)
 		return
 	switch(action)
-		if("dispense")
-			var/N = params["item"]
-			if(!N || !vending_machine_input[N] || vending_machine_input[N] <= 0)
-				return
-			vend_ready = FALSE
-			if(ishuman(usr) && onstation)
-				var/mob/living/carbon/human/H = usr
-				var/obj/item/card/id/C = H.get_idcard(TRUE)
-				if(!C)
-					say("No card found.")
-					flick(icon_deny, src)
-					vend_ready = TRUE
-					return
-				else if(!C.registered_account)
-					say("No account found.")
-					flick(icon_deny, src)
-					vend_ready = TRUE
-					return
-				var/datum/bank_account/account = C.registered_account
-				if(!account.has_money(default_price))
-					say("You do not possess the funds to purchase this.")
-				else
-					account.adjust_money(-default_price)
-					var/datum/bank_account/D = SSeconomy.get_dep_account(ACCOUNT_SRV)
-					if(D)
-						D.adjust_money(default_price)
-					use_power(5)
-					vending_machine_input[N] = max(vending_machine_input[N] - 1, 0)
-					for(var/obj/O in contents)
-						if(O.name == N)
-							if(last_shopper != usr || purchase_message_cooldown < world.time)
-								say("Thank you for buying local and purchasing [O]!")
-								purchase_message_cooldown = world.time + 5 SECONDS
-								last_shopper = usr
-							O.forceMove(drop_location())
-							loaded_items--
-							break
-			vend_ready = TRUE
-			. = TRUE
-
-		if("vend")
-			if(panel_open)
-				to_chat(usr, "<span class='warning'>The vending machine cannot dispense products while its service panel is open!</span>")
-				return
-			vend_ready = FALSE //One thing at a time!!
-
-			var/datum/data/vending_product/R = locate(params["ref"])
-			var/list/record_to_check = product_records + coin_records
-			if(extended_inventory)
-				record_to_check = product_records + coin_records + hidden_records
-			if(!R || !istype(R) || !R.product_path)
-				vend_ready = TRUE
-				return
-			var/price_to_use = default_price
-			if(R.custom_price)
-				price_to_use = R.custom_price
-			if(R in hidden_records)
-				if(!extended_inventory)
-					vend_ready = TRUE
-					return
-			else if(!(R in record_to_check))
-				vend_ready = TRUE
-				message_admins("Vending machine exploit attempted by [ADMIN_LOOKUPFLW(usr)]!")
-				return
-			if(R.amount <= 0)
-				say("Sold out of [R.name].")
-				flick(icon_deny, src)
-				vend_ready = TRUE
-				return
-			if(onstation && ishuman(usr))
-				var/mob/living/carbon/human/H = usr
-				var/obj/item/card/id/C = H.get_idcard(TRUE)
-				if(!C)
-					say("No card found.")
-					flick(icon_deny, src)
-					vend_ready = TRUE
-					return
-				else if(!C.registered_account)
-					say("No account found.")
-					flick(icon_deny, src)
-					vend_ready = TRUE
-					return
-				var/datum/bank_account/account = C.registered_account
-				if(account.account_job && account.account_job.paycheck_department == payment_department)
-					price_to_use = 0
-				if(coin_records.Find(R) || hidden_records.Find(R))
-					price_to_use = R.custom_premium_price ? R.custom_premium_price : extra_price
-				if(price_to_use && !account.adjust_money(-price_to_use))
-					say("You do not possess the funds to purchase [R.name].")
-					flick(icon_deny, src)
-					vend_ready = TRUE
-					return
-				var/datum/bank_account/D = SSeconomy.get_dep_account(payment_department)
-				if(D)
-					D.adjust_money(price_to_use)
-			if(last_shopper != usr || purchase_message_cooldown < world.time)
-				say("Thank you for shopping with [src]!")
-				purchase_message_cooldown = world.time + 5 SECONDS
-				last_shopper = usr
-			use_power(5)
-			if(icon_vend) //Show the vending animation if needed
-				flick(icon_vend, src)
-			new R.product_path(get_turf(src))
-			R.amount--
-			SSblackbox.record_feedback("nested tally", "vending_machine_usage", 1, list("[type]", "[R.product_path]"))
-			vend_ready = TRUE
-			. = TRUE
-
+		//hippie -- "dispense" and "vend" live in hippiestation/code/modules/vending/_vending.dm. They ran here first, so
+		// the hippie versions only ever ran after a failure (repeating its messages), and custom vendors paid the wrong account.
 		if("togglevoice")
 			if(panel_open)
 				shut_up = !shut_up

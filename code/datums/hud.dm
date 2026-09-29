@@ -32,7 +32,8 @@ GLOBAL_LIST_INIT(huds, alist(
 	ANTAG_HUD_FUGITIVE = new/datum/atom_hud/antag(),
 	ANTAG_HUD_HIVEAWAKE = new/datum/atom_hud/antag(),	// hippie -- adds the comma
 	ANTAG_HUD_VAMPIRE = new/datum/atom_hud/antag/hidden(),	// hippie -- adds vampire hud
-	ANTAG_HUD_INFILTRATOR = new/datum/atom_hud/antag()	// hippie -- adds infiltrator hud
+	ANTAG_HUD_INFILTRATOR = new/datum/atom_hud/antag(),	// hippie -- adds infiltrator hud
+	DATA_HUD_BOTANY = new/datum/atom_hud/data/botany()	// hippie -- botanical HUD (hippiestation/code/modules/hydroponics/plant_hud.dm)
 	))
 
 /datum/atom_hud

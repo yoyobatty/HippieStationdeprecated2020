@@ -427,6 +427,8 @@ GLOBAL_LIST_INIT(pda_styles, list(MONO, VT, ORBITRON, SHARE))
 #define BOT_GYM_RUNS_PARAMETER "bot-gym-runs"
 /// hippie -- times the lighting engine and snapshots the station's lighting after init, then shuts down (hippiestation/code/modules/lighting/lighting_bench.dm)
 #define LIGHTING_BENCH_PARAMETER "lighting-bench"
+/// hippie -- runs the department gear self-test after init, then shuts down (hippiestation/code/modules/admin/dept_gear_selftest.dm)
+#define DEPT_GEAR_TEST_PARAMETER "dept-gear-test"
 
 #define EGG_LAYING_MESSAGES list("lays an egg.","squats down and croons.","begins making a huge racket.","begins clucking raucously.")
 

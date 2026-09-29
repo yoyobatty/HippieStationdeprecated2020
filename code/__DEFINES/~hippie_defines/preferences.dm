@@ -3,3 +3,4 @@
 #define SOUND_VOX				(1<<2)
 
 #define HIPPIE_TOGGLES_DEFAULT	(SOUND_TTS|SOUND_VOX)
+#define SCREENTIPS_DISABLED		(1<<3) // off rather than on, so existing savefiles get screentips

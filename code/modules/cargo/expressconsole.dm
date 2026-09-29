@@ -165,51 +165,68 @@
 				name = usr.real_name
 				rank = "Silicon"
 			var/reason = ""
-			var/list/empty_turfs
-			var/datum/supply_order/SO = new(pack, name, rank, ckey, reason)
-			var/points_to_check
-			var/datum/bank_account/D = SSeconomy.get_dep_account(ACCOUNT_CAR)
-			if(D)
-				points_to_check = D.account_balance
-			if(!(obj_flags & EMAGGED))
-				if(SO.pack.cost <= points_to_check)
-					var/LZ
-					if (istype(beacon) && usingBeacon)//prioritize beacons over landing in cargobay
-						LZ = get_turf(beacon)
-						beacon.update_status(SP_LAUNCH)
-					else if (!usingBeacon)//find a suitable supplypod landing zone in cargobay
-						landingzone = GLOB.areas_by_type[/area/quartermaster/storage]
-						if (!landingzone)
-							WARNING("[src] couldnt find a Quartermaster/Storage (aka cargobay) area on the station, and as such it has set the supplypod landingzone to the area it resides in.")
-							landingzone = get_area(src)
-						for(var/turf/open/floor/T in landingzone.contents)//uses default landing zone
-							if(is_blocked_turf(T))
-								continue
-							LAZYADD(empty_turfs, T)
-							CHECK_TICK
-						if(empty_turfs && empty_turfs.len)
-							LZ = pick(empty_turfs)
-					if (SO.pack.cost <= points_to_check && LZ)//we need to call the cost check again because of the CHECK_TICK call
-						D.adjust_money(-SO.pack.cost)
-						new /obj/effect/DPtarget(LZ, podType, SO)
-						. = TRUE
-						update_icon()
-			else
-				if(SO.pack.cost * (0.72*MAX_EMAG_ROCKETS) <= points_to_check) // bulk discount :^)
-					landingzone = GLOB.areas_by_type[pick(GLOB.the_station_areas)]  //override default landing zone
-					for(var/turf/open/floor/T in landingzone.contents)
-						if(is_blocked_turf(T))
-							continue
-						LAZYADD(empty_turfs, T)
-						CHECK_TICK
-					if(empty_turfs && empty_turfs.len)
-						D.adjust_money(-(SO.pack.cost * (0.72*MAX_EMAG_ROCKETS)))
+			//hippie start -- several at once (CARGO_MAX_ORDER_AMOUNT): each pod is its own order, launched while the budget covers it
+			var/amount = (obj_flags & EMAGGED) ? 1 : clamp(round(text2num(params["amount"]) || 1), 1, CARGO_MAX_ORDER_AMOUNT)
+			for(var/order_number in 1 to amount)
+				if(!express_launch_one(pack, name, rank, ckey, reason))
+					if(order_number > 1)
+						say("Launched [order_number - 1] of the [amount] pods: the cargo budget can't cover the rest.")
+					break
+				. = TRUE
+			//hippie end
 
-						SO.generateRequisition(get_turf(src))
-						for(var/i in 1 to MAX_EMAG_ROCKETS)
-							var/LZ = pick(empty_turfs)
-							LAZYREMOVE(empty_turfs, LZ)
-							new /obj/effect/DPtarget(LZ, podType, SO)
-							. = TRUE
-							update_icon()
-							CHECK_TICK
+//hippie start -- one express order: the launch code "add" used to run inline. TRUE if the pod (or pods, emagged) went out.
+/obj/machinery/computer/cargo/express/proc/express_launch_one(datum/supply_pack/pack, name, rank, ckey, reason)
+	var/list/empty_turfs
+	var/datum/supply_order/SO = new(pack, name, rank, ckey, reason)
+	var/points_to_check
+	var/datum/bank_account/D = SSeconomy.get_dep_account(ACCOUNT_CAR)
+	if(D)
+		points_to_check = D.account_balance
+	if(!(obj_flags & EMAGGED))
+		if(SO.pack.cost <= points_to_check)
+			var/LZ
+			if (istype(beacon) && usingBeacon)//prioritize beacons over landing in cargobay
+				LZ = get_turf(beacon)
+				beacon.update_status(SP_LAUNCH)
+			else if (!usingBeacon)//find a suitable supplypod landing zone in cargobay
+				landingzone = GLOB.areas_by_type[/area/quartermaster/storage]
+				if (!landingzone)
+					WARNING("[src] couldnt find a Quartermaster/Storage (aka cargobay) area on the station, and as such it has set the supplypod landingzone to the area it resides in.")
+					landingzone = get_area(src)
+				for(var/turf/open/floor/T in landingzone.contents)//uses default landing zone
+					if(is_blocked_turf(T))
+						continue
+					LAZYADD(empty_turfs, T)
+					CHECK_TICK
+				if(empty_turfs && empty_turfs.len)
+					LZ = pick(empty_turfs)
+			if (SO.pack.cost <= points_to_check && LZ)//we need to call the cost check again because of the CHECK_TICK call
+				D.adjust_money(-SO.pack.cost)
+				//hippie start -- order ledger (hippiestation/code/modules/cargo/order_ledger.dm)
+				SO.record_shipment("Cargo budget", SO.pack.cost, "express pod", cargo_ledger_signature(usr))
+				SSshuttle.orderhistory += SO
+				//hippie end
+				new /obj/effect/DPtarget(LZ, podType, SO)
+				. = TRUE
+				update_icon()
+	else
+		if(SO.pack.cost * (0.72*MAX_EMAG_ROCKETS) <= points_to_check) // bulk discount :^)
+			landingzone = GLOB.areas_by_type[pick(GLOB.the_station_areas)]  //override default landing zone
+			for(var/turf/open/floor/T in landingzone.contents)
+				if(is_blocked_turf(T))
+					continue
+				LAZYADD(empty_turfs, T)
+				CHECK_TICK
+			if(empty_turfs && empty_turfs.len)
+				D.adjust_money(-(SO.pack.cost * (0.72*MAX_EMAG_ROCKETS)))
+
+				SO.generateRequisition(get_turf(src))
+				for(var/i in 1 to MAX_EMAG_ROCKETS)
+					var/LZ = pick(empty_turfs)
+					LAZYREMOVE(empty_turfs, LZ)
+					new /obj/effect/DPtarget(LZ, podType, SO)
+					. = TRUE
+					update_icon()
+					CHECK_TICK
+//hippie end

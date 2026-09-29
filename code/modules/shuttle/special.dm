@@ -267,7 +267,7 @@
 		if(H.get_bank_account())
 			var/datum/bank_account/account = H.get_bank_account()
 
-			if(account.account_balance < threshold)
+			if(!account.has_money(threshold)) //hippie -- has_money(), so godmode rides free
 				payees[AM] += account.account_balance
 				account.adjust_money(-account.account_balance)
 			else

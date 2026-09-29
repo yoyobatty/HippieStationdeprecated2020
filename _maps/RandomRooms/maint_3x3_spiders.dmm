@@ -1,0 +1,46 @@
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"a" = (
+/obj/machinery/light/small/broken{
+	dir = 1
+	},
+/obj/effect/decal/cleanable/cobweb,
+/turf/template_noop,
+/area/template_noop)
+"b" = (
+/obj/structure/spider/stickyweb,
+/turf/template_noop,
+/area/template_noop)
+"c" = (
+/obj/effect/decal/cleanable/cobweb/cobweb2,
+/turf/template_noop,
+/area/template_noop)
+"d" = (
+/obj/structure/spider/cocoon,
+/turf/template_noop,
+/area/template_noop)
+"e" = (
+/obj/structure/spider/stickyweb,
+/obj/effect/decal/remains/human,
+/turf/template_noop,
+/area/template_noop)
+"f" = (
+/obj/structure/spider/stickyweb,
+/obj/effect/spawner/lootdrop/maintenance,
+/turf/template_noop,
+/area/template_noop)
+
+(1,1,1) = {"
+a
+d
+d
+"}
+(2,1,1) = {"
+b
+e
+f
+"}
+(3,1,1) = {"
+c
+b
+d
+"}

@@ -21,3 +21,14 @@
 #define DOM_BLOCKED_SPAM_CAP 6
 #define DOM_REQUIRED_TURFS 30
 #define DOM_HULK_HITS_REQUIRED 10
+
+/// Examining the same thing again within this long takes a closer look (examine_more)
+#define EXAMINE_MORE_WINDOW (1 SECONDS)
+
+// Screentips (hippiestation/code/modules/screentips): the clicks a screentip can describe
+#define SCREENTIP_LMB "LMB"
+#define SCREENTIP_ALT_LMB "Alt-LMB"
+#define SCREENTIP_CTRL_LMB "Ctrl-LMB"
+
+/// The most of one supply pack a cargo or express console orders in one go
+#define CARGO_MAX_ORDER_AMOUNT 10
