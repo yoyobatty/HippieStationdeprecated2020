@@ -502,4 +502,4 @@ DEFAULT_VIEW_SQUARE 15x15
 
 
 ## Enable automatic profiling - Byond 513.1506 and newer only.
-AUTO_PROFILE
+#AUTO_PROFILE
