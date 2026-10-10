@@ -1,0 +1,2 @@
+# what build.bat leaves behind; the DLL itself is built into the repository root
+build/

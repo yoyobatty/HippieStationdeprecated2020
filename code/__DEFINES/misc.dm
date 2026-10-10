@@ -430,6 +430,8 @@ GLOBAL_LIST_INIT(pda_styles, list(MONO, VT, ORBITRON, SHARE))
 #define LIGHTING_BENCH_PARAMETER "lighting-bench"
 /// hippie -- runs the department gear self-test after init, then shuts down (hippiestation/code/modules/admin/dept_gear_selftest.dm)
 #define DEPT_GEAR_TEST_PARAMETER "dept-gear-test"
+/// hippie -- fast-forwards a headless run: 0 = no speed limit, N = at most N times real time (hippiestation/code/modules/admin/timewarp.dm)
+#define TIMEWARP_PARAMETER "timewarp"
 
 #define EGG_LAYING_MESSAGES list("lays an egg.","squats down and croons.","begins making a huge racket.","begins clucking raucously.")
 

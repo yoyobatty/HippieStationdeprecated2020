@@ -209,6 +209,10 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 		qdel(world)
 		return
 
+	// hippie -- Timewarp: fast-forward the headless runs below (hippiestation/code/modules/admin/timewarp.dm)
+	if(TIMEWARP_PARAMETER in world.params)
+		timewarp_set_speed(world.params[TIMEWARP_PARAMETER])
+
 	// hippie -- Bot Gym: run the bot AI scenarios once the MC is up; the runner shuts the world down when done
 	if(BOT_GYM_PARAMETER in world.params)
 		sleep_offline_after_initializations = FALSE //no players connect to a headless run - the world must keep ticking
