@@ -21,6 +21,10 @@
 	var/next_reaction_time = 0
 	var/next_emote_time = 0
 	var/hangout_until = 0
+	/// When the bot will next think about buying something from a vending machine it's standing near.
+	var/next_snack_time = 0
+	/// The machine a stroll in progress is heading for, see try_vend_snack().
+	var/datum/weakref/snack_vendor
 	var/wander_retry_count = 0
 	var/list/area/failed_areas //area -> world.time it's worth retrying again
 	var/next_personal_objective_time = 0
@@ -107,13 +111,37 @@
 	if(QDELETED(owner))
 		return PROCESS_KILL
 	if(gym_scripted && state == BOT_STATE_WANDER)
-		return //Bot Gym bot between goals - it only does what its scenario asks (gym/bot_gym.dm)
+		// Bot Gym bot between goals - it only does what its scenario asks (gym/bot_gym.dm). It still sees to its
+		// own tank's valve, the way it still breathes: that isn't an errand (goals/refill_internals.dm).
+		if(world.time >= next_air_check_time && owner.stat != DEAD && !owner.incapacitated())
+			next_air_check_time = world.time + 10
+			manage_internals()
+		return
 	if(owner.stat == DEAD)
-		return PROCESS_KILL
+		// Not PROCESS_KILL: a bot brought back with the defibrillator (goals/treat_patient.dm) has to pick up where it
+		// left off, and nothing would ever start its brain again - it stood where it was revived for the rest of the
+		// shift. Dead, this costs a comparison a second. What it was in the middle of dies with it.
+		if(state != BOT_STATE_WANDER || current_goal || pursuing_kind)
+			if(state == BOT_STATE_ARREST)
+				end_arrest("died")
+			drop_goals("died")
+			attacker = null
+			state_before_combat = null
+			state = BOT_STATE_WANDER
+		return
 	if(owner.incapacitated())
 		return
 	if(try_escape_pool())
 		return
+
+	// Its own air before anything else, whatever state it's in (goals/refill_internals.dm): the tank's valve
+	// open only where the air isn't breathable, and back inside for a refill before it runs out.
+	if(world.time >= next_air_check_time)
+		next_air_check_time = world.time + 10
+		try
+			mind_air_supply()
+		catch(var/exception/air_error)
+			bot_log_exception(src, "mind_air_supply", air_error)
 
 	// TEMPORARY diagnostic wrap: an unexplained "Cannot execute 1.Copy()" (and an
 	// intermittent "Cannot execute null.incapacitated()") has shown up in server logs
@@ -125,6 +153,30 @@
 	if(state == BOT_STATE_GOAL && world.time >= next_security_check_time && is_security_job() && !istype(current_goal, /datum/bot_goal/brig_prisoner))
 		next_security_check_time = world.time + rand(10, 20)
 		try_spot_wanted()
+
+	// Shut in somewhere its ID doesn't open (bot_requests.dm): a look every minute or so, and a call for somebody
+	// to come and get the door.
+	if(world.time >= next_shut_in_look)
+		next_shut_in_look = world.time + rand(400, 700)
+		try
+			maybe_ask_to_be_let_out()
+		catch(var/exception/shut_in_error)
+			bot_log_exception(src, "maybe_ask_to_be_let_out", shut_in_error)
+
+	// A light in the dark (goals/solars.dm): every few seconds, whatever else is going on.
+	if(world.time >= next_light_check)
+		try
+			mind_the_dark()
+		catch(var/exception/light_error)
+			bot_log_exception(src, "mind_the_dark", light_error)
+
+	// Some duties don't wait for the errand in hand to finish (bot_duties.dm).
+	if(state == BOT_STATE_GOAL && world.time >= next_duty_interrupt_time)
+		next_duty_interrupt_time = world.time + 20
+		try
+			check_duty_interrupts()
+		catch(var/exception/duty_error)
+			bot_log_exception(src, "check_duty_interrupts", duty_error)
 
 	try
 		switch(state)
@@ -139,6 +191,7 @@
 	catch(var/exception/e)
 		message_admins("<span class='danger'>BOT AI EXCEPTION</span> [ADMIN_FLW(owner)] [owner] in [state]: [e]")
 		log_runtime("BOT AI EXCEPTION ([owner], state=[state]): [e] at [e.file]:[e.line]")
+		GLOB.bot_shift?.note_bot_exception("BOT AI EXCEPTION ([owner], state=[state]): [e] at [e.file]:[e.line]") //gym/bot_shift.dm
 
 	handle_idle_chat()
 
@@ -320,6 +373,10 @@
 // having handle_wander() bow out entirely while it's set, gives the scheduled
 // continuation first claim on the very next tick instead of racing it.
 /datum/bot_brain/proc/continue_goal_chain(datum/callback/cb)
+	// Something of its own has become pressing - it's properly hungry (goals/eat_and_drink.dm). The work doesn't
+	// chain straight on into more work: handle_wander() gets a look in, and comes back to the job after.
+	if(has_pressing_need())
+		return
 	goal_chain_pending = TRUE
 	addtimer(CALLBACK(src, PROC_REF(run_goal_chain_link), cb), 1)
 
@@ -330,6 +387,25 @@
 /datum/bot_brain/proc/handle_wander()
 	if(goal_chain_pending)
 		return
+	// Mid-reach for something (human_pause(), bot_human.dm): finish that before strolling off. The pause
+	// sleeps while this keeps ticking, and a bot that started its next wander leg in the middle of one
+	// picked the item up from wherever it had walked to.
+	if(world.time < mid_click_until)
+		return
+
+	// Whatever can't wait for anything below - the shuttle is leaving, the room is on fire (bot_duties.dm).
+	if(run_duties(BOT_DUTY_URGENT))
+		if(owner.buckled && state == BOT_STATE_GOAL) //up and off - unless the duty is to stay sat (aboard the shuttle)
+			owner.buckled.unbuckle_mob(owner, force = TRUE)
+		return
+
+	// Waiting somewhere on purpose - at departures for the shuttle, say (bot_duties.dm). Nothing below gets a look in
+	// until whatever it's waiting for says the wait is over.
+	if(holding_duty)
+		if(holding_duty.keep_holding(src))
+			idle_fidget()
+			return
+		holding_duty = null
 
 	// Security: spotting someone wanted in plain sight is checked first and on a short
 	// cadence (1-2s, not the 5-15s of the rounds below) - a suspect walking past is gone
@@ -489,6 +565,12 @@
 				owner.buckled.unbuckle_mob(owner, force = TRUE)
 			return
 
+	// The day job of everyone whose work isn't one of the rounds above (bot_duties.dm).
+	if(run_duties(BOT_DUTY_WORK))
+		if(owner.buckled && state == BOT_STATE_GOAL)
+			owner.buckled.unbuckle_mob(owner, force = TRUE)
+		return
+
 	if(owner.buckled)
 		if(world.time < hangout_until)
 			return
@@ -515,8 +597,12 @@
 		if(assign_goal(new /datum/bot_goal/acquire_captains_id()))
 			return
 
-	if(prob(30))
-		try_vend_snack()
+	// Free time: something to do instead of another stroll (bot_duties.dm).
+	if(run_duties(BOT_DUTY_LEISURE))
+		return
+
+	if(prob(30) && try_vend_snack())
+		return
 	if(world.time >= next_emote_time && prob(20))
 		next_emote_time = world.time + rand(150, 400)
 		owner.emote(pick(GLOB.bot_idle_emotes))
@@ -539,7 +625,14 @@
 /datum/bot_brain/proc/on_pursuit_finished(kind, atom/target, success)
 	switch(kind)
 		if("wander")
-			if(success)
+			// A stroll over to a vending machine (try_vend_snack()): buy on arrival; if the way was barred, never mind.
+			var/obj/machinery/vending/vendor = snack_vendor?.resolve()
+			snack_vendor = null
+			if(vendor)
+				if(success)
+					buy_snack(vendor)
+				next_wander_time = world.time + wander_dwell_time()
+			else if(success)
 				if(!try_sit_down())
 					next_wander_time = world.time + wander_dwell_time()
 			else
@@ -579,6 +672,7 @@
 	return TRUE
 
 /datum/bot_brain/proc/begin_wander_pick()
+	snack_vendor = null
 	next_wander_time = world.time + rand(10, 30) //spacing only - how long to linger is decided on arrival (wander_dwell_time())
 	wander_retry_count = 12
 	try_next_wander_candidate()
@@ -659,6 +753,12 @@ GLOBAL_LIST_INIT(bot_department_keywords, list(
 	"Botanist" = list("Hydroponics", "Garden"),
 	"Head of Personnel" = list("Head of Personnel", "Bridge", "Dormitories"),
 	"Captain" = list("Bridge", "Captain"),
+	"Clown" = list("Clown", "Theatre", "Hallway", "Bar"),
+	"Mime" = list("Mime", "Theatre", "Hallway", "Bar"),
+	"Chaplain" = list("Chapel"),
+	"Curator" = list("Library"),
+	"Lawyer" = list("Law Office", "Courtroom", "Brig"),
+	"Janitor" = list("Custodial", "Hallway"),
 ))
 
 // Public hallway/common-area keywords - where a job in bot_maintenance_averse_jobs
@@ -736,34 +836,49 @@ GLOBAL_LIST_INIT(bot_maintenance_averse_jobs, list("Medical Doctor", "Chief Medi
 		return candidate
 	return null
 
+/// Between strolls, with a vending machine a couple of steps away: go and buy something from it. This
+/// used to make the product appear on the machine's tile and take it from wherever the bot stood, for
+/// free - telemetry recorded every one as an item picked up from two tiles away. Returns TRUE if the
+/// bot is now on its way to (or at) the machine.
 /datum/bot_brain/proc/try_vend_snack()
+	if(world.time < next_snack_time)
+		return FALSE
 	var/obj/machinery/vending/V = locate(/obj/machinery/vending) in oview(2, owner)
 	if(!V || V.panel_open || (V.stat & (BROKEN|NOPOWER)))
 		return FALSE
+	next_snack_time = world.time + rand(600, 1800) //one trip to the machine every so often, whether or not it sells anything
+	if(owner.Adjacent(V))
+		INVOKE_ASYNC(src, PROC_REF(buy_snack), V) //it pauses like a person does; handle_wander() can't wait on it
+		return TRUE
+	var/turf/open/spot
+	for(var/turf/open/T in get_adjacent_open_turfs(V))
+		if(!is_blocked_turf(T, TRUE) && (!spot || get_dist(owner, T) < get_dist(owner, spot)))
+			spot = T
+	if(!spot)
+		return FALSE
+	// Walked as a stroll, so the same rules apply as to any other: nothing gets hacked or broken to reach a snack
+	snack_vendor = WEAKREF(V)
+	next_wander_time = world.time + rand(10, 30)
+	pursue(spot, "wander")
+	return TRUE
 
+/// At the machine: press the vend button and pay like anyone else (vend_from(), goals/tend_hydroponics.dm),
+/// then take the thing out of the tray.
+/datum/bot_brain/proc/buy_snack(obj/machinery/vending/V)
+	if(QDELETED(V) || !owner.Adjacent(V))
+		return FALSE
 	var/list/available = list()
 	for(var/datum/data/vending_product/R in V.product_records)
 		if(R.amount > 0 && R.product_path)
 			available += R
-	if(!available.len)
+	if(!length(available))
 		return FALSE
-
 	var/datum/data/vending_product/chosen = pick(available)
-	chosen.amount--
-	if(V.icon_vend)
-		flick(V.icon_vend, V)
-	var/obj/item/I = new chosen.product_path(get_turf(V))
-	stow_item(I)
-	V.say("Thank you for shopping with [V]!")
-	bot_log(src, "bought [chosen.name] from [V]")
+	var/obj/item/bought = vend_from(V, chosen.product_path)
+	if(!bought || !try_pickup_target(bought))
+		return FALSE
+	bot_log(src, "bought [bought] from [V]")
 	return TRUE
-
-/datum/bot_brain/proc/handle_idle_chat()
-	if(world.time < next_chat_time)
-		return
-	next_chat_time = world.time + rand(600, 1800)
-	if(prob(25))
-		bot_say(owner, pick(GLOB.bot_idle_lines))
 
 /// Someone hurt this bot. what_done is log_combat()'s verb ("punched", "attacked", "shot"...), fed from
 /// bot_notice_combat() (goals/security_patrol.dm) - every kind of attack, fists and bites and bullets included.
@@ -803,41 +918,11 @@ GLOBAL_LIST_INIT(bot_maintenance_averse_jobs, list("Medical Doctor", "Chief Medi
 	if(prob(60))
 		bot_say(owner, pick(GLOB.bot_combat_lines))
 
-/datum/bot_brain/proc/on_heard_speech(atom/movable/speaker, raw_message)
-	if(!raw_message || QDELETED(owner) || owner.stat == DEAD)
-		return
-	if(!isliving(speaker) || speaker == owner)
-		return
-	if(world.time < next_reaction_time)
-		return
-
-	var/lower_msg = lowertext(raw_message)
-	var/reply
-	if(findtext(lower_msg, lowertext(owner.real_name)))
-		reply = pick(GLOB.bot_name_called_lines)
-	else if(findtext(lower_msg, "?"))
-		if(prob(35))
-			reply = pick(GLOB.bot_question_reply_lines)
-	else if(findtext(lower_msg, "hi ") || findtext(lower_msg, "hello") || findtext(lower_msg, "hey "))
-		if(prob(50))
-			reply = pick(GLOB.bot_greeting_reply_lines)
-	if(!reply)
-		return
-
-	next_reaction_time = world.time + rand(80, 200)
-	addtimer(CALLBACK(src, PROC_REF(speak_reply), reply), rand(5, 20))
-
-/datum/bot_brain/proc/speak_reply(reply)
-	if(QDELETED(owner) || owner.stat == DEAD)
-		return
-	bot_say(owner, reply)
-	bot_log(src, "said \"[reply]\"")
-
 /mob/living/carbon/human/Hear(message, atom/movable/speaker, message_language, raw_message, radio_freq, list/spans, message_mode)
 	. = ..()
 	if(bot_brain && speaker)
-		bot_brain.on_heard_security_call(speaker, raw_message, radio_freq) //goals/security_patrol.dm - also catches radio (virtualspeaker) messages, which on_heard_speech() ignores
-		bot_brain.on_heard_speech(speaker, raw_message)
+		bot_brain.on_heard_security_call(speaker, raw_message, radio_freq) //goals/security_patrol.dm
+		bot_brain.on_heard_speech(speaker, raw_message, radio_freq) //bot_chatter.dm
 
 /mob/living/carbon/human/Destroy()
 	if(bot_brain)

@@ -191,6 +191,13 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		return
 	if(!bot_is_violent_verb(what_done))
 		return
+	// Something light that came flying isn't violence: a bruise pack out of the hand of somebody who slipped, a
+	// thrown paper cup. Not a crime and not a fight - a doctor it happened to once kicked its own patient into a coma.
+	var/obj/item/thrown = object
+	if(istype(thrown) && thrown.throwforce < 5 && findtext(what_done, "threw"))
+		var/mob/living/carbon/human/struck = target
+		struck.bot_brain?.mind_thrown_junk()
+		return
 	// Records when each attacker FIRST started on each victim (within the window), not
 	// the latest hit - so a fight's instigator stays the instigator even after the
 	// other side starts hitting back. See bot_security_judge_combat()'s self-defense check.
@@ -203,6 +210,13 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	if(!GLOB.bot_security_brains.len || !ishuman(user))
 		return
 	addtimer(CALLBACK(GLOBAL_PROC, /proc/bot_security_judge_combat, user, target, what_done, object), 1)
+
+/// Hit by something harmless that somebody threw or dropped: a word about it, now and then.
+/datum/bot_brain/proc/mind_thrown_junk()
+	if(QDELETED(owner) || owner.stat != CONSCIOUS || world.time < next_reaction_time || !prob(60))
+		return
+	next_reaction_time = world.time + 100
+	bot_say(owner, pick("Hey, watch it!", "Careful!", "Mind where that's going!", "Ow. Really?"))
 
 /proc/bot_record_aggression(mob/living/carbon/human/user, mob/living/carbon/human/target)
 	var/key = "[REF(user)]>[REF(target)]"

@@ -35,3 +35,7 @@
 
 /datum/config_entry/string/ipstack_api_key
 	protection = CONFIG_ENTRY_HIDDEN | CONFIG_ENTRY_LOCKED
+
+/datum/config_entry/number/bot_crew_target	// crew size to top up to with bot crew members, players counted first (bots_ai/bot_population.dm)
+	config_entry_value = 0
+	min_val = 0

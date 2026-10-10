@@ -32,11 +32,25 @@
 // Picks whichever supply matches the patient's WORSE damage type first (a burn victim
 // gets ointment before a bruise pack, and vice versa) - same instinct a real doctor
 // triaging at a glance would use, rather than blindly grabbing whatever's first in the kit.
-/datum/bot_brain/proc/pick_treatment_item(mob/living/carbon/human/patient)
+//
+// through_suit: the wound is under a suit a bandage can't get through (clothing_in_the_way(), below) - only a patch
+// will do, which sticks on over anything (pill/patch/attack() never asks can_inject()).
+/datum/bot_brain/proc/pick_treatment_item(mob/living/carbon/human/patient, through_suit = FALSE)
+	var/burn_first = patient.getFireLoss() > patient.getBruteLoss()
+	if(through_suit)
+		var/obj/item/reagent_containers/pill/patch/brute_patch
+		var/obj/item/reagent_containers/pill/patch/burn_patch
+		for(var/obj/item/reagent_containers/pill/patch/P in owner.GetAllContents(/obj/item/reagent_containers/pill/patch))
+			if(istype(P, /obj/item/reagent_containers/pill/patch/styptic) || istype(P, /obj/item/reagent_containers/pill/patch/synthflesh))
+				brute_patch = brute_patch || P
+			if(istype(P, /obj/item/reagent_containers/pill/patch/silver_sulf) || istype(P, /obj/item/reagent_containers/pill/patch/synthflesh))
+				burn_patch = burn_patch || P
+		if(burn_first)
+			return (patient.getFireLoss() > 10 ? burn_patch : null) || (patient.getBruteLoss() > 10 ? brute_patch : null)
+		return (patient.getBruteLoss() > 10 ? brute_patch : null) || (patient.getFireLoss() > 10 ? burn_patch : null)
 	var/list/supplies = get_medical_supplies()
 	if(!supplies.len)
 		return null
-	var/burn_first = patient.getFireLoss() > patient.getBruteLoss()
 	var/obj/item/stack/medical/bruise_pack/brute_pick
 	var/obj/item/stack/medical/ointment/burn_pick
 	for(var/obj/item/stack/medical/M in supplies)
@@ -60,6 +74,7 @@
 	for(var/wanted_type in list(/obj/item/storage/firstaid, /obj/item/stack/medical/bruise_pack, /obj/item/stack/medical/ointment))
 		var/datum/bot_goal/acquire_item_type/sub = new()
 		sub.item_type = wanted_type
+		sub.lawful = TRUE
 		if(suspend_goal_for(sub))
 			return TRUE
 	return FALSE
@@ -80,29 +95,151 @@
 	if(worst)
 		owner.zone_selected = worst.body_zone
 
+/// What the patient has on that a bandage can't get through to the wound being aimed at - their suit, or their
+/// headgear for a head wound (human/can_inject()) - or null. A firesuit, a hardsuit, a bio suit: bruise packs and
+/// ointment do nothing at all through one, and say so only to whoever is holding them.
+/datum/bot_brain/proc/clothing_in_the_way(mob/living/carbon/human/patient)
+	var/obj/item/clothing/covering = (owner.zone_selected in list(BODY_ZONE_HEAD, BODY_ZONE_PRECISE_MOUTH, BODY_ZONE_PRECISE_EYES)) ? patient.head : patient.wear_suit
+	if(istype(covering) && (covering.clothing_flags & THICKMATERIAL))
+		return covering
+	return null
+
+/// Gets the patient's suit (or helmet) off so the wound can be reached: a word of warning, then the strip menu, as a
+/// doctor does it (stripPanelUnequip() - a few seconds, longer for a hardsuit, and it stops if they walk off). The
+/// suit is left at their feet. Never where taking it off would hurt them.
+/datum/bot_brain/proc/uncover_patient(mob/living/carbon/human/patient, obj/item/clothing/covering)
+	if(!turf_air_is_breathable(get_turf(patient)))
+		bot_log(src, "[patient]'s [covering.name] is in the way, but they need it on in here")
+		return FALSE
+	// A hardsuit's helmet is part of the suit and doesn't come off by itself: the suit comes off, and takes it along.
+	var/obj/item/clothing/head/helmet/space/hardsuit/built_in = covering
+	if(istype(built_in) && built_in.suit && built_in.suit == patient.wear_suit)
+		covering = patient.wear_suit
+	var/slot = (covering == patient.head) ? ITEM_SLOT_HEAD : ITEM_SLOT_OCLOTHING
+	bot_say(owner, pick("Hold still, [patient.first_name()] - that [covering.name] has to come off.", "I can't treat you through that [covering.name]. Hold still."))
+	bot_log(src, "taking [patient]'s [covering.name] off to get at the wound")
+	human_pause(patient)
+	if(QDELETED(patient) || QDELETED(covering) || !owner.Adjacent(patient))
+		return FALSE
+	owner.face_atom(patient)
+	telemetry_action = "take [covering] off [patient]"
+	owner.stripPanelUnequip(covering, patient, slot)
+	telemetry_action = null
+	if(QDELETED(patient) || QDELETED(covering) || patient.get_item_by_slot(slot) == covering)
+		return FALSE
+	if(covering in owner.held_items)
+		owner.dropItemToGround(covering) //it comes away into the doctor's hand - set down by the patient, not carried off
+	// A patient who is one of ours puts it back on once it's over (a hardsuit they were working in).
+	var/datum/bot_brain/theirs = patient.bot_brain
+	if(theirs)
+		theirs.set_aside_clothing = WEAKREF(covering)
+		theirs.set_aside_slot = slot
+	return TRUE
+
+/datum/bot_brain
+	/// A suit or helmet a doctor took off this bot to treat it, and where it was worn - put back on afterwards.
+	var/datum/weakref/set_aside_clothing
+	var/set_aside_slot
+	/// Weakref of a patient -> world.time before which not to try treating them again (treat_patient/on_give_up()).
+	var/list/untreatable_patients
+
+/// Puts back on what the doctor took off, if it's still within reach.
+/datum/bot_brain/proc/put_clothing_back_on()
+	var/obj/item/clothing/covering = set_aside_clothing?.resolve()
+	set_aside_clothing = null
+	if(!covering || QDELETED(owner) || owner.stat != CONSCIOUS || !isturf(covering.loc) || get_dist(owner, covering) > 1)
+		return
+	if(owner.get_item_by_slot(set_aside_slot))
+		return //put something else on since
+	if(wear(covering, set_aside_slot))
+		bot_log(src, "put [covering] back on")
+
+// `lawful`: a doctor walks to a patient by doors a doctor's ID opens. One shut in a department it doesn't is asked to
+// come to Medbay - a doctor used to take the Engineering airlock apart to get to an engineer with a burn.
+/datum/bot_goal/treat_patient
+	lawful = TRUE
+
+/// Patient (weakref) -> when they may next be asked over the radio to come to Medbay. Shared, so two doctors don't both ask.
+GLOBAL_LIST_EMPTY(bot_patient_summons)
+
+/// Asks a patient the doctor can't get to, to come to Medbay.
+/datum/bot_brain/proc/call_patient_in(mob/living/carbon/human/patient)
+	var/datum/weakref/ref = WEAKREF(patient)
+	if(gym_scripted || GLOB.bot_patient_summons[ref] > world.time)
+		return
+	GLOB.bot_patient_summons[ref] = world.time + 5 MINUTES
+	say_after_typing(";[patient.first_name()], come by Medbay when you can and I'll patch you up.")
+
+/// A doctor is on the way to this bot: it stays where it is for a little, if it was only strolling about.
+/datum/bot_brain/proc/wait_for_doctor(datum/bot_brain/doctor)
+	if(state != BOT_STATE_WANDER || gym_scripted || holding_duty || owner.stat != CONSCIOUS)
+		return
+	awaited_doctor = WEAKREF(doctor)
+	doctor_wait_until = world.time + 40 SECONDS
+	holding_duty = bot_duty_of(/datum/bot_duty/await_doctor)
+	if(pursuing_kind == "wander")
+		stop_pursuit()
+
+/datum/bot_brain
+	var/datum/weakref/awaited_doctor
+	var/doctor_wait_until = 0
+
+/// Not a duty anyone goes looking for: it only keeps a patient where they are while the doctor walks over.
+/datum/bot_duty/await_doctor
+	name = "waiting for the doctor"
+	jobs = list()
+
+/datum/bot_duty/await_doctor/keep_holding(datum/bot_brain/bot)
+	var/datum/bot_brain/doctor = bot.awaited_doctor?.resolve()
+	if(!doctor || world.time > bot.doctor_wait_until)
+		return FALSE
+	return istype(doctor.current_goal, /datum/bot_goal/treat_patient) && doctor.current_goal.target == bot.owner
+
 /datum/bot_goal/treat_patient/resolve_target(datum/bot_brain/bot)
-	var/mob/living/carbon/human/best
-	var/best_score
+	var/mob/living/carbon/human/called = (world.time < bot.called_patient_until) ? bot.called_patient?.resolve() : null
+	var/list/hurt = list() //patient -> how badly they want seeing to
 	for(var/mob/living/carbon/human/H in GLOB.alive_mob_list)
 		if(H == bot.owner || H.z != bot.owner.z)
 			continue
+		if(bot.gym_run && get_area(H) != get_area(bot.owner))
+			continue //a Bot Gym doctor only sees to its own arena's patient
 		if(H.stat != CONSCIOUS) //crit/unconscious goes to escort_to_sleeper instead - dragging someone in for a scrape is overkill, but a downed patient needs more than a bandage
 			continue
 		if(!bot.patient_needs_treatment(H))
 			continue
-		if(get_dist(bot.owner, H) > 40)
+		if(get_dist(bot.owner, H) > 40 && H != called)
 			continue
-		var/score = bot.patient_injury_score(H) - get_dist(bot.owner, H)
-		if(!best || score > best_score)
-			best = H
-			best_score = score
-	target = best
+		if(LAZYACCESS(bot.untreatable_patients, WEAKREF(H)) > world.time)
+			continue //just tried and got nowhere (on_give_up()) - not straight back to them
+		hurt[H] = bot.patient_injury_score(H) - get_dist(bot.owner, H) + (H == called ? 200 : 0)
+	// The worst off there's a way to.
+	var/tries = 0
+	while(length(hurt) && tries++ < 3)
+		var/mob/living/carbon/human/worst
+		for(var/mob/living/carbon/human/H as anything in hurt)
+			if(!worst || hurt[H] > hurt[worst])
+				worst = H
+		hurt -= worst
+		if(bot.can_walk_lawfully_to(worst))
+			target = worst
+			worst.bot_brain?.wait_for_doctor(bot)
+			return
+		LAZYSET(bot.untreatable_patients, WEAKREF(worst), world.time + 2 MINUTES)
+		bot.call_patient_in(worst)
 
 /datum/bot_goal/treat_patient/get_strategies(datum/bot_brain/bot)
 	return list(new /datum/bot_strategy/treat())
 
 /datum/bot_goal/treat_patient/on_success(datum/bot_brain/bot)
+	var/mob/living/carbon/human/patient = target
+	if(istype(patient) && patient.bot_brain?.set_aside_clothing)
+		INVOKE_ASYNC(patient.bot_brain, TYPE_PROC_REF(/datum/bot_brain, put_clothing_back_on))
 	bot.continue_medical_round()
+
+/// For the next few minutes this patient is somebody else's problem: nothing the bot had got through to them.
+/datum/bot_goal/treat_patient/on_give_up(datum/bot_brain/bot)
+	if(target)
+		LAZYSET(bot.untreatable_patients, WEAKREF(target), world.time + 3 MINUTES)
 
 /datum/bot_strategy/treat/New()
 	. = ..()
@@ -116,14 +253,37 @@
 	// station with nothing left to restock from shouldn't burn a fresh suspend cycle
 	// (goal_suspend_count) on every single re-check while still treating this patient.
 	var/tried_restock = FALSE
+	/// Clicks in a row that left the patient no better. A doctor stops and thinks; this used to click on regardless -
+	/// 1,410 times in one shift, on an assistant in a firesuit.
+	var/useless_clicks = 0
+	/// Times the patient had moved on by the time the doctor got to where they were.
+	var/chases = 0
 
 /datum/bot_step/treat_patient/execute(datum/bot_brain/bot)
 	var/mob/living/carbon/human/patient = bot.current_goal?.target
 	if(!istype(patient) || QDELETED(patient) || !bot.patient_needs_treatment(patient))
 		return GOAL_STEP_SUCCESS //nothing left to do - either treated already or beyond help
 	if(!bot.owner.Adjacent(patient))
-		return GOAL_STEP_FAIL
-	var/obj/item/I = bot.pick_treatment_item(patient)
+		// They've walked on since. A doctor asks them to hold still and goes after them - a couple of times, not
+		// round and round the station.
+		if(chases >= 3 || patient.stat != CONSCIOUS || patient.z != bot.owner.z || get_dist(bot.owner, patient) > 12)
+			return GOAL_STEP_FAIL
+		chases++
+		if(chases == 1 && !bot.gym_scripted && (patient in view(7, bot.owner)))
+			bot_say(bot.owner, pick("Hold still a second, [patient.first_name()].", "[patient.first_name()], stay there - let me look at that.", "Wait up, [patient.first_name()]."))
+		patient.bot_brain?.hold_still_for(12 SECONDS)
+		bot.current_step_index = 1
+		addtimer(CALLBACK(src, PROC_REF(go_after), bot, bot.current_goal), 3)
+		return GOAL_STEP_PENDING
+	bot.aim_at_worst_wound(patient)
+	// Under a suit nothing gets through: a patch if there's one in the kit, otherwise the suit comes off.
+	var/obj/item/clothing/covering = bot.clothing_in_the_way(patient)
+	var/obj/item/I = bot.pick_treatment_item(patient, !!covering)
+	if(covering && !I)
+		if(!bot.uncover_patient(patient, covering))
+			bot_log(bot, "can't get at [patient]'s wounds through [covering]")
+			return GOAL_STEP_FAIL
+		I = bot.pick_treatment_item(patient)
 	if(!I)
 		if(!tried_restock)
 			tried_restock = TRUE
@@ -132,14 +292,30 @@
 				return GOAL_STEP_PENDING
 		bot_log(bot, "out of medical supplies for [patient], and nothing reachable to restock with")
 		return GOAL_STEP_FAIL
-	bot.aim_at_worst_wound(patient)
+	var/hurt_before = patient.getBruteLoss() + patient.getFireLoss()
 	bot.owner.changeNext_move(CLICK_CD_MELEE)
-	bot.use_item_on(I, patient)
 	bot_log(bot, "treating [patient] with [I]")
-	if(!bot.patient_needs_treatment(patient))
+	bot.use_item_on(I, patient)
+	if(QDELETED(patient) || !bot.patient_needs_treatment(patient))
 		return GOAL_STEP_SUCCESS
+	useless_clicks = (patient.getBruteLoss() + patient.getFireLoss() < hurt_before) ? 0 : useless_clicks + 1
+	if(useless_clicks >= 3)
+		bot_log(bot, "nothing I'm doing is helping [patient] - leaving it")
+		return GOAL_STEP_FAIL
 	addtimer(CALLBACK(src, PROC_REF(continue_treat), bot), CLICK_CD_MELEE)
 	return GOAL_STEP_PENDING
+
+/// Back to the walk, towards wherever the patient is now.
+/datum/bot_step/treat_patient/proc/go_after(datum/bot_brain/bot, datum/bot_goal/goal)
+	if(QDELETED(bot) || bot.state != BOT_STATE_GOAL || bot.current_goal != goal)
+		return
+	bot.run_current_step()
+
+/// Asked to stay put for a moment by somebody who's coming over. Not in a fight, and not with a shuttle to catch.
+/datum/bot_brain/proc/hold_still_for(duration)
+	if(QDELETED(owner) || owner.stat != CONSCIOUS || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST || !EMERGENCY_IDLE_OR_RECALLED)
+		return
+	stand_still_until = max(stand_still_until, world.time + duration)
 
 /datum/bot_step/treat_patient/proc/continue_treat(datum/bot_brain/bot)
 	if(QDELETED(bot) || bot.state != BOT_STATE_GOAL || bot.current_strategy?.steps?[bot.current_step_index] != src)
@@ -335,11 +511,22 @@
 // against load_cryo_beaker, which only ever runs when there's nobody to escort).
 // Distance is measured from the PATIENT, not the bot, since that's who actually needs
 // to end up there.
+/// Whether a sleeper or cryo cell is one this bot would go to, or take somebody to: Medbay's - or, for security,
+/// the brig infirmary's. The nearest as the crow flies is sometimes the brig's, which anybody else has to break in
+/// to reach and is then shut in with: a hurt assistant sat out an evacuation in the Brig that way.
+/datum/bot_brain/proc/healing_machine_is_ours(atom/machine)
+	var/area/where = get_area(machine)
+	if(gym_run)
+		return where == get_area(owner)
+	if(istype(where, /area/medical))
+		return TRUE
+	return is_security_job() && istype(where, /area/security)
+
 /datum/bot_brain/proc/find_reachable_healing_machine(mob/living/patient)
 	var/obj/machinery/sleeper/best_sleeper
 	var/best_sleeper_dist
 	for(var/obj/machinery/sleeper/S in GLOB.machines)
-		if(S.z != owner.z || S.occupant)
+		if(S.z != owner.z || S.occupant || !healing_machine_is_ours(S))
 			continue
 		var/dist = get_dist(patient, S)
 		if(dist > 60)
@@ -353,7 +540,7 @@
 	var/obj/machinery/atmospherics/components/unary/cryo_cell/best_cryo
 	var/best_cryo_dist
 	for(var/obj/machinery/atmospherics/components/unary/cryo_cell/C in GLOB.machines)
-		if(C.z != owner.z || C.occupant)
+		if(C.z != owner.z || C.occupant || !healing_machine_is_ours(C))
 			continue
 		var/dist = get_dist(patient, C)
 		if(dist > 60)
@@ -556,7 +743,11 @@
 #undef BOT_CRYO_SETUP_RADIUS
 #undef BOT_CRYO_SETUP_REACH
 
+// Medbay's own housekeeping, all three of the cryo goals: done by the doors a doctor's ID opens, or left. A doctor
+// after a beaker for the cryo tubes used to go through maintenance hacking doors for one - and died on an
+// electrified one.
 /datum/bot_goal/connect_cryo_canister
+	lawful = TRUE
 	var/obj/machinery/portable_atmospherics/canister/canister
 
 /datum/bot_goal/connect_cryo_canister/resolve_target(datum/bot_brain/bot)
@@ -616,6 +807,7 @@
 	return canister.connected_port ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 
 /datum/bot_goal/activate_cryo_freezer
+	lawful = TRUE
 	var/obj/machinery/atmospherics/components/unary/thermomachine/freezer/freezer
 
 /datum/bot_goal/activate_cryo_freezer/resolve_target(datum/bot_brain/bot)
@@ -662,6 +854,7 @@
 	return GOAL_STEP_SUCCESS
 
 /datum/bot_goal/load_cryo_beaker
+	lawful = TRUE
 	var/obj/machinery/atmospherics/components/unary/cryo_cell/cell
 
 /datum/bot_goal/load_cryo_beaker/resolve_target(datum/bot_brain/bot)

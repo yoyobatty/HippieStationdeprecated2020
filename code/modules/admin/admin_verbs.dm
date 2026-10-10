@@ -116,6 +116,7 @@ GLOBAL_LIST_INIT(admin_verbs_fun, list(
 	/client/proc/smite,
 	/client/proc/admin_away,
 	/client/proc/admin_spawn_bot_crew, /* hippie -- AI crew milestone 1 */
+	/client/proc/admin_set_bot_crew_target, /* hippie -- bot crew population (bots_ai/bot_population.dm) */
 	/client/proc/admin_toggle_bot_ai_log, /* hippie -- AI crew milestone 1 */
 	/client/proc/admin_toggle_bot_ai_verbose, /* hippie -- AI crew milestone 1 */
 	/client/proc/admin_assign_captains_id_goal, /* hippie -- AI crew GOAP slice */

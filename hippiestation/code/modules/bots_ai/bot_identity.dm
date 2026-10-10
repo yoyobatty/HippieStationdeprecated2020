@@ -21,9 +21,17 @@
 	owner = new_owner
 	// transfer_character() deletes the new_player once the human exists - holding it after that forced a hard delete per bot
 	RegisterSignal(owner, COMSIG_PARENT_QDELETING, PROC_REF(owner_deleted))
-	persona_name = pick(GLOB.bot_persona_names)
+	// A name nobody on the crew has yet, while there are any left - telemetry and the Bot Shift report tell bots apart by name
+	var/list/free_names = GLOB.bot_persona_names.Copy()
+	for(var/mob/living/carbon/human/crew_member in GLOB.bot_crew_members)
+		free_names -= crew_member.real_name
 	fake_prefs = new /datum/preferences(null)
 	fake_prefs.random_character()
+	if(length(free_names))
+		persona_name = pick(free_names)
+	else
+		// Every persona is on the crew already: the name the character generator rolls, like a player who pressed Random.
+		persona_name = fake_prefs.pref_species.random_name(fake_prefs.gender, 1)
 	fake_prefs.real_name = persona_name
 
 /datum/bot_identity/proc/owner_deleted()
@@ -104,4 +112,12 @@ GLOBAL_LIST_INIT(bot_persona_names, list(
 	"Alex Reyes", "Jordan Blake", "Casey Nakamura", "Morgan Vance", "Riley Osei",
 	"Sam Delacroix", "Taylor Huang", "Jamie Novak", "Avery Solano", "Quinn Larsen",
 	"Devon Whitfield", "Parker Osei", "Rowan Kessler", "Elliot Mbeki", "Skyler Voss",
+	"Robin Castellanos", "Frankie Dunmore", "Jesse Okafor", "Kai Lindqvist", "Dana Petrov",
+	"Emery Haldane", "Reese Tanaka", "Noel Abernathy", "Sasha Brennan", "Harper Nwosu",
+	"Blake Ferreira", "Lee Montague", "Charlie Vasquez", "Ash Kowalski", "Remy Thackeray",
+	"Shay Okonkwo", "Pat Holloway", "Corey Ishikawa", "Jude Marlowe", "Lane Sorensen",
+	"Micah Pemberton", "Toni Achebe", "Val Castillo", "Sage Whitlock", "Drew Halvorsen",
+	"Bailey Rourke", "Cam Oyelaran", "Jo Sandoval", "Kit Brannigan", "Max Adeyemi",
+	"Nico Faulkner", "Ollie Strand", "Perry Nakata", "Ray Dubois", "Terry Mwangi",
+	"Vic Sorrento", "Wren Gallagher", "Alexis Byrne", "Jean Kovac", "Marlow Singh",
 ))

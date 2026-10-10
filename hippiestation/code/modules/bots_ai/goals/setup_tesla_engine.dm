@@ -23,6 +23,38 @@
 #define BOT_ENGINE_REACH 100
 #define BOT_ENGINE_LOCAL_REACH 40
 
+/// Stray singularity generators an engineer has already dragged clear of the engine - nobody's business again
+/// (find_singularity_generator_to_remove()). One list for the whole crew: kept per bot, each engineer in turn went
+/// and "removed" the generator the last one had just set down.
+GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
+
+// One engineer per part (bot_goal.exclusive, bot_goals.dm). Three of them used to work the same checklist onto the
+// same part: wrenches and buttons toggle, so two finishing one grounding rod in the same second left it loose again
+// and two at the shutter button re-opened the shutters, and three hauling on the one stray singularity generator
+// blocked each other, gave up, and left it lying in an emitter's line of fire - with the accelerator then switched
+// on regardless, which is how a tesla ball got out in a Bot Shift (2026-10-10). The finders pass over a part someone
+// else has in hand; find_ready_pa_console() asks them strictly, so the accelerator waits for every one of them.
+/datum/bot_goal/assemble_pa_part
+	exclusive = TRUE
+
+/datum/bot_goal/activate_particle_accelerator
+	exclusive = TRUE
+
+/datum/bot_goal/activate_tesla_emitter
+	exclusive = TRUE
+
+/datum/bot_goal/activate_field_generator
+	exclusive = TRUE
+
+/datum/bot_goal/wrench_tesla_coil
+	exclusive = TRUE
+
+/datum/bot_goal/wrench_grounding_rod
+	exclusive = TRUE
+
+/datum/bot_goal/close_engine_shutters
+	exclusive = TRUE
+
 /datum/bot_brain/proc/find_pa_console()
 	var/obj/machinery/particle_accelerator/control_box/best
 	var/best_dist
@@ -111,25 +143,30 @@
 		if(P.construction_state < 3)
 			bot_log_verbose(src, "find_ready_pa_console: [P] construction_state=[P.construction_state], not complete")
 			return null
-	var/obj/machinery/the_singularitygen/leftover_singgen = find_singularity_generator_to_remove()
+	var/obj/machinery/the_singularitygen/leftover_singgen = find_singularity_generator_to_remove(TRUE)
 	if(leftover_singgen)
 		bot_log_verbose(src, "find_ready_pa_console: [leftover_singgen] still needs removing")
 		return null
-	var/obj/machinery/power/emitter/incomplete_emitter = find_incomplete_tesla_emitter()
+	var/obj/machinery/power/emitter/incomplete_emitter = find_incomplete_tesla_emitter(TRUE)
 	if(incomplete_emitter)
 		bot_log_verbose(src, "find_ready_pa_console: [incomplete_emitter] still needs activating")
 		return null
-	var/obj/machinery/field/generator/incomplete_fg = find_incomplete_field_generator()
+	var/obj/machinery/field/generator/incomplete_fg = find_incomplete_field_generator(TRUE)
 	if(incomplete_fg)
 		bot_log_verbose(src, "find_ready_pa_console: [incomplete_fg] still needs activating")
 		return null
-	var/obj/machinery/power/tesla_coil/unanchored_coil = find_unanchored_tesla_coil()
+	var/obj/machinery/power/tesla_coil/unanchored_coil = find_unanchored_tesla_coil(TRUE)
 	if(unanchored_coil)
 		bot_log_verbose(src, "find_ready_pa_console: [unanchored_coil] still needs wrenching down")
 		return null
-	var/obj/machinery/power/grounding_rod/unanchored_rod = find_unanchored_grounding_rod()
+	var/obj/machinery/power/grounding_rod/unanchored_rod = find_unanchored_grounding_rod(TRUE)
 	if(unanchored_rod)
 		bot_log_verbose(src, "find_ready_pa_console: [unanchored_rod] still needs wrenching down")
+		return null
+	// Everything is switched on - but is the field being held up? Not until the emitters have been firing for a bit
+	// and the ring is well charged (containment_steady(), the end of this file).
+	if(!containment_steady())
+		bot_log_verbose(src, "find_ready_pa_console: the containment field isn't holding steadily yet - not starting the accelerator")
 		return null
 	return CB
 
@@ -146,7 +183,7 @@
 // matched the generator's room at all, so this returned null on every single check,
 // permanently blocking the goal from ever running (confirmed in-game: "couldn't find a
 // target for remove_singularity_generator" on every cycle from round start).
-// removed_singularity_generators (bot_brain.dm var) is checked here too - NOT just
+// GLOB.bot_removed_singularity_generators (top of this file) is checked here too - NOT just
 // distance. find_turf_outside_area() (below), the no-storage fallback destination,
 // only walks until it crosses the NEAREST area boundary - often just a few tiles, nowhere
 // close to BOT_ENGINE_LOCAL_REACH away. Confirmed in-game as an infinite loop: the bot
@@ -158,7 +195,7 @@
 // has actually been dragged out once, it stays excluded for the rest of the round
 // regardless of where it ends up, the same permanent-once-handled idea as
 // known_tool_sources (bot_items.dm) uses for successful tool sources.
-/datum/bot_brain/proc/find_singularity_generator_to_remove()
+/datum/bot_brain/proc/find_singularity_generator_to_remove(strict = FALSE)
 	var/turf/anchor = tesla_component_anchor()
 	if(!anchor) //tesla generator gone - see tesla_component_anchor()'s comment
 		return null
@@ -180,12 +217,12 @@
 			continue //don't touch the one in storage, we set this one anchored as a hack
 		if(G.z != owner.z)
 			continue
-		if(G in removed_singularity_generators)
+		if(G in GLOB.bot_removed_singularity_generators)
 			continue
 		if(get_dist(anchor, G) > BOT_ENGINE_LOCAL_REACH)
 			continue //a combat/armory singularity generator elsewhere isn't this bot's business
-		if(is_failed_engine_part(G))
-			continue //a real pursuit already failed reaching this one - see on_give_up() below
+		if(!strict && (is_failed_engine_part(G) || taken_by_another(G)))
+			continue //a real pursuit already failed reaching this one (on_give_up() below), or another engineer has it in hand
 		if(storage_door && poddoor_bordering_area(G) == storage_door)
 			continue //already sitting in secure storage - pre-placed stock, not a stray part
 		return G
@@ -238,7 +275,7 @@
 // the bot bouncing between far corners of the engine room (bottom-middle, then top-right,
 // then back) instead of clearing whatever's nearest to it first like a real engineer
 // walking the room would.
-/datum/bot_brain/proc/find_incomplete_tesla_emitter()
+/datum/bot_brain/proc/find_incomplete_tesla_emitter(strict = FALSE)
 	var/turf/anchor = tesla_component_anchor()
 	if(!anchor) //tesla generator gone - see tesla_component_anchor()'s comment
 		return null
@@ -250,8 +287,8 @@
 			continue
 		if(E.active && E.state == 2 && !E.locked) //EMITTER_WELDED
 			continue //already fully set up
-		if(is_failed_engine_part(E))
-			continue //a real pursuit already failed on this one - see on_give_up() below
+		if(!strict && (is_failed_engine_part(E) || taken_by_another(E)))
+			continue //a real pursuit already failed on this one (on_give_up() below), or another engineer has it in hand
 		if(get_dist(anchor, E) > BOT_ENGINE_LOCAL_REACH) //stay near the engine room - a combat/armory emitter elsewhere isn't this bot's business
 			continue
 		var/dist = get_dist(bot_turf, E)
@@ -277,7 +314,7 @@
 // between coils/rods/generators clustered tightly around it, leaving the pick to fall
 // back to arbitrary GLOB.machines order instead of whichever one the bot could clear
 // next without crossing the whole room).
-/datum/bot_brain/proc/find_incomplete_field_generator()
+/datum/bot_brain/proc/find_incomplete_field_generator(strict = FALSE)
 	var/turf/anchor = tesla_component_anchor()
 	if(!anchor) //tesla generator gone - see tesla_component_anchor()'s comment
 		return null
@@ -287,7 +324,7 @@
 	for(var/obj/machinery/field/generator/F in GLOB.machines)
 		if(F.z != owner.z || F.active || !F.anchored)
 			continue
-		if(is_failed_engine_part(F))
+		if(!strict && (is_failed_engine_part(F) || taken_by_another(F)))
 			continue
 		if(get_dist(anchor, F) > BOT_ENGINE_LOCAL_REACH)
 			continue
@@ -297,7 +334,7 @@
 			best_dist = dist
 	return best
 
-/datum/bot_brain/proc/find_unanchored_tesla_coil()
+/datum/bot_brain/proc/find_unanchored_tesla_coil(strict = FALSE)
 	var/turf/anchor = tesla_component_anchor()
 	if(!anchor) //tesla generator gone - see tesla_component_anchor()'s comment
 		return null
@@ -307,7 +344,7 @@
 	for(var/obj/machinery/power/tesla_coil/TC in GLOB.machines)
 		if(TC.z != owner.z || TC.anchored)
 			continue
-		if(is_failed_engine_part(TC))
+		if(is_failed_engine_part(TC) || (!strict && taken_by_another(TC)))
 			continue
 		if(get_dist(anchor, TC) > BOT_ENGINE_LOCAL_REACH)
 			continue
@@ -317,7 +354,7 @@
 			best_dist = dist
 	return best
 
-/datum/bot_brain/proc/find_unanchored_grounding_rod()
+/datum/bot_brain/proc/find_unanchored_grounding_rod(strict = FALSE)
 	var/turf/anchor = tesla_component_anchor()
 	if(!anchor) //tesla generator gone - see tesla_component_anchor()'s comment
 		return null
@@ -327,7 +364,7 @@
 	for(var/obj/machinery/power/grounding_rod/GR in GLOB.machines)
 		if(GR.z != owner.z || GR.anchored)
 			continue
-		if(is_failed_engine_part(GR))
+		if(is_failed_engine_part(GR) || (!strict && taken_by_another(GR)))
 			continue
 		if(get_dist(anchor, GR) > BOT_ENGINE_LOCAL_REACH)
 			continue
@@ -506,8 +543,16 @@
 	// (they only ever get power from being shot by one).
 	if(assign_goal(new /datum/bot_goal/remove_singularity_generator()))
 		return TRUE
+	// The SMES units next: nothing below holds a tesla unless the emitters have power to fire with (see the end of this file).
+	if(assign_goal(new /datum/bot_goal/configure_smes()))
+		return TRUE
 	if(assign_goal(new /datum/bot_goal/assemble_pa_part()))
 		return TRUE
+	// Emitters before the coils and rods. Tried the other way round (wrench everything first, then switch on), with
+	// routes kept out of a live emitter's line of fire: over 18 engineer-only shifts three engineers died in the
+	// engine room (a beam, a containment field, the tesla itself) against about one in forty this way round, and
+	// with the beams avoided but this order kept, half the grounding rods couldn't be reached and the ball got
+	// loose. Known hazard, left as it was: an engineer now and then walks through an emitter beam.
 	if(assign_goal(new /datum/bot_goal/activate_tesla_emitter()))
 		return TRUE
 	if(assign_goal(new /datum/bot_goal/wrench_tesla_coil()))
@@ -863,6 +908,7 @@
 // ============================================================
 
 /datum/bot_goal/remove_singularity_generator
+	exclusive = TRUE
 	var/turf/destination
 	// Two DISTINCT poddoor-gated rooms exist near this engine, confirmed via the map's
 	// own key legend - "Secure Storage" (id-matched button/door pair) holds the LIVE
@@ -916,7 +962,7 @@
 /datum/bot_goal/remove_singularity_generator/on_success(datum/bot_brain/bot)
 	bot.owner.stop_pulling()
 	if(target)
-		LAZYADD(bot.removed_singularity_generators, target)
+		GLOB.bot_removed_singularity_generators |= target
 	bot.continue_engineering_round()
 
 // This goal has only ever ONE possible target (unlike the emitter/coil/rod finders,
@@ -961,6 +1007,7 @@
 		to_entry_button.step_target = entry_B
 		var/datum/bot_step/press_door_button/press_entry = new()
 		press_entry.step_target = entry_B
+		press_entry.for_door = entry_P
 		steps += list(to_entry_button, press_entry)
 	steps += list(new /datum/bot_step/move_to(), new /datum/bot_step/grab_singgen()) //default target = goal.target (the generator)
 	if(storage_P && storage_B && storage_P.density)
@@ -968,6 +1015,7 @@
 		to_storage_button.step_target = storage_B
 		var/datum/bot_step/press_door_button/press_storage = new()
 		press_storage.step_target = storage_B
+		press_storage.for_door = storage_P
 		steps += list(to_storage_button, press_storage, new /datum/bot_step/move_to_storage(storage_P))
 	else if(storage_P)
 		steps += list(new /datum/bot_step/move_to_storage(storage_P)) //already open - no need to press anything, just walk in
@@ -1014,11 +1062,18 @@
 
 /datum/bot_step/press_door_button
 	var/atom/step_target
+	/// The door this press is meant to open, where that's known. The button toggles, and the plan was made when the
+	/// bot set off: if somebody (another engineer, on the other generator) has opened the door since, pressing
+	/// would shut it - on the bot's own way in, or behind it once it's inside.
+	var/obj/machinery/door/for_door
 
 /datum/bot_step/press_door_button/execute(datum/bot_brain/bot)
 	var/atom/T = step_target || bot.current_goal?.target
 	if(!T || QDELETED(T))
 		return GOAL_STEP_FAIL
+	if(for_door && !QDELETED(for_door) && (!for_door.density || for_door.operating))
+		bot_log(bot, "[for_door] is open already - leaving [T] alone")
+		return GOAL_STEP_SUCCESS
 	if(!bot.owner.Adjacent(T))
 		return GOAL_STEP_FAIL
 	bot.use_atom(T)
@@ -1117,3 +1172,139 @@
 
 /datum/bot_strategy/close_shutters/is_feasible(datum/bot_brain/bot)
 	return TRUE
+
+// ============================================================
+// Power for the containment: the engineering SMES units, and not starting the accelerator
+// until the field is actually being held up.
+//
+// A field generator runs on what the emitters shoot into it, and the emitters only fire
+// while there's power to spare on the station grid. At the start of a shift there isn't:
+// the engineering SMES units come set to let out 50 kW each, and every APC on the station
+// charging its cell takes the lot. Measured over a run of Bot Shifts (2026-10-10): the grid
+// sat at 250 kW offered against 250 kW taken from 0:45 until the tesla itself came on, the
+// emitters dark throughout, and the field generators (switched on full, see
+// activate_field_generator above) ran down to nothing in two minutes - sometimes after the
+// ball had started feeding power back, and sometimes half a minute before, which let it
+// out. 4 loose teslas in 9 shifts.
+//
+// So, as an engineer does at the start of a shift: SMES input and output to maximum, first
+// thing; and the accelerator stays off until the emitters have been firing steadily and
+// the ring is well charged.
+// ============================================================
+
+#define BOT_SMES_REACH 60
+/// The same 40 tiles round the tesla generator the part finders above keep to (BOT_ENGINE_LOCAL_REACH, #undef'd by here).
+#define BOT_CONTAINMENT_REACH 40
+/// How long the emitters have to have been seen firing, check after check, before the accelerator goes on.
+#define BOT_CONTAINMENT_STEADY_TIME (20 SECONDS)
+/// The least the field generators can be holding between them, as a share of full, for the accelerator to go on.
+/// With all four emitters firing the ring settles at a little under half, so this has to sit below that: at 0.7 the
+/// accelerator only ever went on if an engineer happened to look in the first minute after the ring was switched on.
+#define BOT_CONTAINMENT_MIN_CHARGE 0.35
+
+/datum/bot_brain
+	/// world.time the containment was first seen holding up (containment_holding()) without a lapse since.
+	var/containment_steady_since = 0
+
+/// An engineering SMES still on its round-start settings.
+/datum/bot_brain/proc/find_unset_engine_smes()
+	var/turf/anchor = tesla_component_anchor() || get_turf(find_pa_console())
+	if(!anchor)
+		return null
+	var/obj/machinery/power/smes/best
+	var/best_dist
+	for(var/obj/machinery/power/smes/engineering/S in GLOB.machines)
+		if(S.z != owner.z || (S.stat & BROKEN) || S.panel_open || get_dist(anchor, S) > BOT_SMES_REACH)
+			continue
+		if(S.input_attempt && S.output_attempt && S.input_level >= S.input_level_max && S.output_level >= S.output_level_max)
+			continue
+		if(is_failed_engine_part(S) || taken_by_another(S))
+			continue
+		var/dist = get_dist(owner, S)
+		if(!best || dist < best_dist)
+			best = S
+			best_dist = dist
+	return best
+
+/datum/bot_goal/configure_smes
+	exclusive = TRUE
+	doing = "setting up the SMES"
+
+/datum/bot_goal/configure_smes/resolve_target(datum/bot_brain/bot)
+	target = bot.find_unset_engine_smes()
+
+/datum/bot_goal/configure_smes/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/configure_smes/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/configure_smes())
+	return list(S)
+
+/datum/bot_goal/configure_smes/on_success(datum/bot_brain/bot)
+	bot.continue_engineering_round()
+
+/datum/bot_goal/configure_smes/on_give_up(datum/bot_brain/bot)
+	if(target)
+		LAZYSET(bot.failed_engine_parts, target, world.time + rand(600, 1200))
+
+/datum/bot_strategy/configure_smes/is_feasible(datum/bot_brain/bot)
+	return TRUE
+
+/// The SMES panel's own buttons (smes.dm ui_act()): charging on, input to max, output on, output to max - one press at a time.
+/datum/bot_step/configure_smes/execute(datum/bot_brain/bot)
+	var/obj/machinery/power/smes/S = bot.current_goal?.target
+	if(!S || QDELETED(S) || !bot.owner.Adjacent(S))
+		return GOAL_STEP_FAIL
+	for(var/setting in list("input", "output"))
+		bot.human_pause(S)
+		if(QDELETED(S) || !bot.owner.Adjacent(S))
+			return GOAL_STEP_FAIL
+		bot.owner.face_atom(S)
+		bot.telemetry_ui_action(S, "[setting] to max")
+		if(setting == "input")
+			S.input_attempt = TRUE
+			S.input_level = S.input_level_max
+		else
+			S.output_attempt = TRUE
+			S.output_level = S.output_level_max
+		S.log_smes(bot.owner)
+		S.update_icon()
+	bot_log(bot, "set [S] to charge and discharge at full rate ([S.input_level] W in, [S.output_level] W out)")
+	return GOAL_STEP_SUCCESS
+
+/// Whether the containment field is being held up right now, not merely switched on: every field generator round
+/// the engine online, the ring well charged between them, and every emitter firing.
+/datum/bot_brain/proc/containment_holding()
+	var/turf/anchor = tesla_component_anchor()
+	if(!anchor)
+		return FALSE
+	var/held = 0
+	var/generators = 0
+	for(var/obj/machinery/field/generator/F in GLOB.machines)
+		if(F.z != owner.z || !F.anchored || get_dist(anchor, F) > BOT_CONTAINMENT_REACH)
+			continue
+		if(F.active != 2) //FG_ONLINE
+			return FALSE
+		generators++
+		held += F.power
+	if(!generators || held < generators * 250 * BOT_CONTAINMENT_MIN_CHARGE) //field_generator_max_power
+		return FALSE
+	for(var/obj/machinery/power/emitter/anchored/E in GLOB.machines)
+		if(E.z != owner.z || get_dist(anchor, E) > BOT_CONTAINMENT_REACH)
+			continue
+		if(!E.active || !E.powered)
+			return FALSE
+	return TRUE
+
+/// containment_holding(), and has been every time this engineer has looked for a little while - a grid with only just
+/// enough on it has the emitters cutting in and out.
+/datum/bot_brain/proc/containment_steady()
+	if(!containment_holding())
+		containment_steady_since = 0
+		return FALSE
+	if(!containment_steady_since)
+		containment_steady_since = world.time
+	return world.time - containment_steady_since >= BOT_CONTAINMENT_STEADY_TIME
+
+#undef BOT_SMES_REACH
+#undef BOT_CONTAINMENT_REACH
+#undef BOT_CONTAINMENT_STEADY_TIME
+#undef BOT_CONTAINMENT_MIN_CHARGE

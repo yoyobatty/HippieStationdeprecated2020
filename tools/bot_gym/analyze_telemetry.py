@@ -113,11 +113,18 @@ def report(name, data, verbose):
         print(f"  tools used without holding them: {len(bad_tool)}")
         for e in bad_tool[:8]:
             print(f"    {clock(e['t'], t0)} {e['proc']}: {e['item']} was {e['item_was']} -> {e.get('target')}")
-    facing = [e for e in E if e['ev'] in ('use', 'click', 'shortcut') and e.get('facing') is False]
+    # DM writes FALSE as 0, so "is False" never matched and this section never printed.
+    # A seated bot can't turn, the same as a seated player, so that isn't counted.
+    facing = [e for e in E if e['ev'] in ('use', 'click', 'shortcut', 'ui_action') and 'facing' in e and not e['facing'] and not e.get('seated')]
     if facing:
         print(f"  interacted with something it wasn't facing: {len(facing)}")
         for e in facing[:6]:
-            print(f"    {clock(e['t'], t0)} {e['ev']} {e.get('item', '')} -> {e.get('target')} (dist {e.get('dist')})")
+            print(f"    {clock(e['t'], t0)} {e['ev']} {e.get('item', '')} -> {e.get('target') or e.get('machine')} (dist {e.get('dist')})")
+    missed = [e for e in E if e['ev'] in ('use', 'click') and e.get('clicked') == 0]
+    if missed:
+        common = collections.Counter(e.get('target') for e in missed).most_common(4)
+        print(f"  went to click something and didn't (out of reach by then): {len(missed)}  "
+              f"({', '.join(f'{t} x{n}' for t, n in common)})")
     unheld_equip = [e for e in E if e['ev'] == 'equip' and (e.get('from') == 'floor' or str(e.get('from', '')).startswith('in:'))]
     if unheld_equip:
         print(f"  equipped straight from the floor/a container, never held: {len(unheld_equip)}")

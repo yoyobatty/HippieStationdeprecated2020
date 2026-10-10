@@ -36,3 +36,7 @@ TOKEN_CONSUMER http://127.0.0.1:9000/byondLinker.php
 
 ## Enables the Replay/Demo subsystem. This is now an option because it has high cpu/ram usage.
 #ENABLE_DEMO
+
+## Tops the crew up to this many with bot crew members, players counted first. Unset or 0 is off.
+## Can also be changed mid-round with the "Set Bot Crew Target" admin verb.
+#BOT_CREW_TARGET 20

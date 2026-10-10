@@ -28,6 +28,14 @@
 /datum/bot_brain/proc/try_self_heal_round()
 	if(!patient_needs_treatment(owner))
 		return FALSE
+	// In a hardsuit or a firesuit, a bandage does nothing (clothing_in_the_way(), treat_patient.dm) and there may be no
+	// patch to stick on over it. The suit isn't coming off out here: medbay's sleeper works through anything.
+	aim_at_worst_wound(owner)
+	if(clothing_in_the_way(owner) && !pick_treatment_item(owner, TRUE))
+		return try_seek_medbay_healing()
+	// Nothing on it to use, and it looked for some only a few minutes ago: straight to Medbay, not another look.
+	if(world.time < no_medical_supplies_until && !pick_treatment_item(owner))
+		return try_seek_medbay_healing()
 	return assign_goal(new /datum/bot_goal/self_heal())
 
 // Same immediate-rechain idea as continue_medical_round() - finish treating one wound,
@@ -62,16 +70,27 @@
 /datum/bot_strategy/self_treat/is_feasible(datum/bot_brain/bot)
 	return TRUE
 
+/datum/bot_brain
+	/// Until when there's no point looking for bandages again: it looked, and there were none to be had.
+	var/no_medical_supplies_until = 0
+
 /datum/bot_step/self_treat
 	// One-shot per strategy attempt, same idea as treat_patient's own tried_restock - a
 	// station with nothing left to restock from shouldn't burn a fresh suspend cycle
 	// (goal_suspend_count) on every single re-check while still treating itself.
 	var/tried_restock = FALSE
+	/// Applications in a row that did nothing - see treat_patient's step. This one once ran for 25 minutes.
+	var/useless_clicks = 0
 
 /datum/bot_step/self_treat/execute(datum/bot_brain/bot)
 	if(!bot.patient_needs_treatment(bot.owner))
 		return GOAL_STEP_SUCCESS //nothing left to do
-	var/obj/item/I = bot.pick_treatment_item(bot.owner)
+	bot.aim_at_worst_wound(bot.owner)
+	var/obj/item/clothing/covering = bot.clothing_in_the_way(bot.owner)
+	var/obj/item/I = bot.pick_treatment_item(bot.owner, !!covering)
+	if(covering && !I)
+		bot_log(bot, "can't bandage myself through [covering]")
+		return GOAL_STEP_FAIL //on_give_up() sends it to medbay
 	if(!I)
 		if(!tried_restock)
 			tried_restock = TRUE
@@ -79,8 +98,9 @@
 				bot_log(bot, "hurt and out of medical supplies - going to restock")
 				return GOAL_STEP_PENDING
 		bot_log(bot, "hurt and nothing reachable to restock medical supplies with")
+		bot.no_medical_supplies_until = world.time + 5 MINUTES
 		return GOAL_STEP_FAIL
-	bot.aim_at_worst_wound(bot.owner)
+	var/hurt_before = bot.owner.getBruteLoss() + bot.owner.getFireLoss()
 	bot.owner.changeNext_move(CLICK_CD_MELEE)
 	bot_log(bot, "treating myself with [I]")
 	// Unlike treating ANOTHER patient (treat_patient.dm's own step, which heals
@@ -92,6 +112,10 @@
 	bot.use_item_on(I, bot.owner)
 	if(!bot.patient_needs_treatment(bot.owner))
 		return GOAL_STEP_SUCCESS
+	useless_clicks = (bot.owner.getBruteLoss() + bot.owner.getFireLoss() < hurt_before) ? 0 : useless_clicks + 1
+	if(useless_clicks >= 3)
+		bot_log(bot, "this isn't doing anything for me")
+		return GOAL_STEP_FAIL
 	addtimer(CALLBACK(src, PROC_REF(continue_self_treat), bot), CLICK_CD_MELEE)
 	return GOAL_STEP_PENDING
 
@@ -110,6 +134,7 @@
 /datum/bot_brain/proc/try_seek_medbay_healing()
 	if(!patient_needs_treatment(owner))
 		return FALSE
+	maybe_call_medic() //bot_requests.dm - and sets off for Medbay regardless: whichever of them gets there first
 	return assign_goal(new /datum/bot_goal/seek_medbay_healing())
 
 /datum/bot_goal/seek_medbay_healing

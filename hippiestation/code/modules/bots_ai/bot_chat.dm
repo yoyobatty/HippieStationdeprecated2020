@@ -2,7 +2,10 @@
 /proc/bot_say(mob/living/carbon/human/H, line)
 	if(QDELETED(H) || !line)
 		return
-	H.say(line)
+	if(H.mind?.miming && H.bot_brain)
+		H.bot_brain.mime_instead(line) //goals/civilians.dm - a mime's say() fails without a word
+		return
+	H.say(H.bot_brain ? H.bot_brain.in_own_words(line) : line) //bot_chatter.dm
 
 /proc/bot_log(datum/bot_brain/B, msg)
 	B?.gym_run?.log_line(msg) //Bot Gym transcript (gym/bot_gym.dm), captured even with logging off
@@ -48,6 +51,7 @@
 	var/msg = "BOT AI EXCEPTION (owner=[B?.owner], in [where]): [e] at [e.file]:[e.line]"
 	message_admins("<span class='danger'>[msg]</span>[B?.owner ? " [ADMIN_FLW(B.owner)]" : ""]")
 	log_runtime(msg)
+	GLOB.bot_shift?.note_bot_exception(msg) //gym/bot_shift.dm
 
 GLOBAL_LIST_INIT(bot_idle_lines, list(
 	"Anyone else think the vents smell weird today?",

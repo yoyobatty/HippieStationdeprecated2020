@@ -37,6 +37,8 @@ GLOBAL_VAR(bot_telemetry_log)
 	/// Believability counters, summarised by the Bot Gym. Keys: see telemetry_flag().
 	var/list/telemetry_flags
 	var/telemetry_last_pickup_time = -100
+	/// What telemetry_clicked() measured for the click in progress, until its event is written.
+	var/list/telemetry_click
 
 // ---------------------------------------------------------------------------------------------
 // Lifecycle
@@ -124,9 +126,12 @@ GLOBAL_VAR(bot_telemetry_log)
 	if(!TT || !me)
 		return list()
 	var/facing = (TT == me) || !!(get_dir(me, TT) & owner.dir)
-	if(!facing)
+	// Sitting down, nobody turns - a player in a chair reaches for what's beside them without their sprite
+	// moving either (face_atom() does nothing while buckled). Recorded, but not a tell.
+	var/seated = !!owner.buckled
+	if(!facing && !seated)
 		telemetry_flag("not_facing_target")
-	return list("tx" = TT.x, "ty" = TT.y, "d" = owner.dir, "facing" = facing)
+	return list("tx" = TT.x, "ty" = TT.y, "d" = owner.dir, "facing" = facing, "seated" = seated)
 
 /datum/bot_brain/proc/telemetry_hands()
 	var/obj/item/A = owner.get_active_held_item()
@@ -185,7 +190,8 @@ GLOBAL_VAR(bot_telemetry_log)
 		return ..()
 	var/atom/from = I.loc
 	var/from_where = bot_brain.telemetry_item_where(I)
-	var/dist = get_dist(src, get_turf(I))
+	var/turf/item_turf = get_turf(I)
+	var/dist = item_turf ? get_dist(src, item_turf) : 0 //nowhere at all: being handed over by a machine or a cabinet, not lying somewhere far away
 	. = ..()
 	if(.)
 		bot_brain.telemetry_on_pickup(I, from, from_where, dist)
@@ -228,22 +234,38 @@ GLOBAL_VAR(bot_telemetry_log)
 // Interaction hooks
 // ---------------------------------------------------------------------------------------------
 
+/// Called by use_atom()/use_item_on() (bot_items.dm) at the instant of the click, once the bot has turned
+/// to its target: how far away the target was and whether the bot was facing it. Measured here rather
+/// than when the call returns - a door's attack_hand() only returns once it has finished opening, by
+/// which time the bot has walked through it and is two tiles on, facing away. A call that never gets
+/// this far (out of reach by the time the bot got round to it) made no click and is judged on nothing.
+/datum/bot_brain/proc/telemetry_clicked(atom/A)
+	var/turf/me = get_turf(owner)
+	telemetry_click = list("dist" = get_dist(owner, A), "cx" = me?.x, "cy" = me?.y) + telemetry_target_fields(A)
+
+/// The click's own measurements if use_atom()/use_item_on() got as far as clicking, or just the distance now if it didn't.
+/datum/bot_brain/proc/telemetry_take_click(atom/A)
+	. = telemetry_click || list("dist" = get_dist(owner, A), "clicked" = FALSE)
+	telemetry_click = null
+
 /datum/bot_brain/use_item_on(obj/item/I, atom/A, harm = FALSE)
 	var/where = telemetry_item_where(I)
 	var/started = world.time
 	telemetry_action = "use [I] on [A]"
+	telemetry_click = null
 	. = ..()
 	telemetry_action = null
 	telemetry_event("use", list("item" = "[I]", "item_was" = where, "target" = "[A]", "target_type" = bot_telemetry_short(A?.type),
-		"dist" = get_dist(owner, A), "harm" = harm, "dur" = world.time - started, "ok" = .) + telemetry_target_fields(A))
+		"harm" = harm, "dur" = world.time - started, "ok" = .) + telemetry_take_click(A))
 
 /datum/bot_brain/use_atom(atom/A)
 	var/started = world.time
 	telemetry_action = "click [A]"
+	telemetry_click = null
 	. = ..()
 	telemetry_action = null
-	telemetry_event("click", list("target" = "[A]", "target_type" = bot_telemetry_short(A?.type), "dist" = get_dist(owner, A),
-		"dur" = world.time - started) + telemetry_target_fields(A))
+	telemetry_event("click", list("target" = "[A]", "target_type" = bot_telemetry_short(A?.type),
+		"dur" = world.time - started, "ok" = .) + telemetry_take_click(A))
 
 /// Call right before a direct engine call that a player would perform by clicking with an item
 /// (try_to_crowbar, attack_self, attackby...). Records whether the item was actually in hand.

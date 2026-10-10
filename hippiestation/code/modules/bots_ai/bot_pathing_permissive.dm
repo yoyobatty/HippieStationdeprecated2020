@@ -36,6 +36,8 @@
 // applies to a bot that's genuinely survivable in vacuum and just missing the stability
 // magboots give.
 /proc/bot_turf_has_pushoff_backup(turf/T)
+	if(locate(/obj/structure/lattice) in range(1, T))
+		return TRUE //a lattice within a tile is enough to move by - /atom/movable/Process_Spacemove() (atoms_movable.dm)
 	for(var/A in orange(1, T))
 		if(isturf(A))
 			var/turf/adjacent = A
@@ -62,8 +64,17 @@
 /proc/bot_steps_into_pool(turf/from, turf/T)
 	return istype(T, /turf/open/pool) && !istype(from, /turf/open/pool)
 
+/// Somebody sat in a chair fills their tile - there is no swapping places with them, and the engine's own route
+/// check doesn't look at mobs at all. A bot used to plan straight down a row of taken shuttle seats to the free
+/// one at the end, bump the first sitter until it gave up, and plan the same route again.
+/proc/bot_turf_has_seated_mob(turf/T)
+	for(var/mob/living/L in T)
+		if(L.buckled && L.density)
+			return TRUE
+	return FALSE
+
 /turf/proc/bot_reachable_strict(caller, turf/T, ID, simulated_only)
-	if(T && !T.density && !bot_steps_into_pool(src, T) && !(simulated_only && SSpathfinder.space_type_cache[T.type] && !bot_turf_crossable_without_boots(T, caller)) && !bot_turf_has_active_field(T) && !LinkBlockedWithAccess(T, caller, ID))
+	if(T && !T.density && !bot_steps_into_pool(src, T) && !(simulated_only && SSpathfinder.space_type_cache[T.type] && !bot_turf_crossable_without_boots(T, caller)) && !bot_turf_has_active_field(T) && !bot_turf_has_seated_mob(T) && !LinkBlockedWithAccess(T, caller, ID))
 		return TRUE
 
 // Mirrors code/__HELPERS/AStar.dm's reachableTurftest()/LinkBlockedWithAccess(), but
@@ -78,7 +89,7 @@
 // normal (obstruction-respecting) one finds no route, so a bot only ever plans through
 // an obstacle when there's no legitimate way around - see bot_movement.dm's repath().
 /turf/proc/bot_reachable_permissive(caller, turf/T, ID, simulated_only)
-	if(T && !T.density && !bot_steps_into_pool(src, T) && !(simulated_only && SSpathfinder.space_type_cache[T.type] && !bot_turf_crossable_without_boots(T, caller)) && !bot_turf_has_active_field(T) && !bot_link_blocked_permissive(T, caller, ID))
+	if(T && !T.density && !bot_steps_into_pool(src, T) && !(simulated_only && SSpathfinder.space_type_cache[T.type] && !bot_turf_crossable_without_boots(T, caller)) && !bot_turf_has_active_field(T) && !bot_turf_has_seated_mob(T) && !bot_link_blocked_permissive(T, caller, ID))
 		return TRUE
 
 /turf/proc/bot_link_blocked_permissive(turf/T, caller, ID)
@@ -100,6 +111,14 @@
 // this off and once with it on, so climbing is only ever the deciding factor when it's
 // truly the only way through (see bot_movement.dm's repath()).
 /proc/bot_can_astar_pass_permissive(obj/O, ID, to_dir, caller)
+	// The climbing pass run for somebody hemmed in on an everyday errand (pathing_climb_only, bot_movement.dm):
+	// the ordinary rules, plus over the furniture - no forcing doors, no breaking anything.
+	var/mob/living/carbon/human/walker = caller
+	if(istype(walker) && walker.bot_brain?.pathing_climb_only)
+		if(O.CanAStarPass(ID, to_dir, caller))
+			return TRUE
+		var/obj/structure/furniture = O
+		return istype(furniture) && furniture.climbable
 	// A closed firelock (firedoor.dm) is crowbar-pryable regardless of why it's closed
 	// (try_to_crowbar() just calls open() outright, no access/power check at all) - a
 	// real engineer forces one open by hand every time they enter a room the local air
@@ -179,7 +198,7 @@
 // rule, so this never plans a route through a window the bot has nothing to smash it
 // with, right down to what's literally in its hands at pathing time.
 /proc/bot_can_break_through(obj/O, mob/living/carbon/human/caller)
-	if(!istype(caller))
+	if(!istype(caller) || caller.bot_brain?.pathing_climb_only)
 		return FALSE
 	// Only things that are actually meant to be smashed to get through (windows, grilles,
 	// windoors). This used to be true for ANY dense object once the bot held a weapon, so
@@ -274,7 +293,7 @@
 /// urgency that decides whether breaking through is allowed. Anything new those procs start reading that can
 /// change mid-decision has to go in here too, or a flood made under the old state skips a route it shouldn't.
 /datum/bot_brain/proc/reach_key(turf/start, adjacent, obj/item/card/id/id_card, simulated_only)
-	return "[REF(start)]|[adjacent]|[REF(id_card)]|[simulated_only]|[pathing_allow_climb]|[pathing_allow_smash_tables]|[pathing_assume_welder]|[pathing_assume_nearby_weapons]|[get_urgency()]"
+	return "[REF(start)]|[adjacent]|[REF(id_card)]|[simulated_only]|[pathing_allow_climb]|[pathing_climb_only]|[pathing_no_tailgating]|[pathing_allow_smash_tables]|[pathing_assume_welder]|[pathing_assume_nearby_weapons]|[get_urgency()]"
 
 /// get_path_to() for the bot's own route checks, minus searches a flood already proved hopeless (see above).
 /datum/bot_brain/proc/bot_path_to(turf/dest, dist, adjacent, obj/item/card/id/id_card, simulated_only)
@@ -288,6 +307,22 @@
 		var/list/reached = reach_floods[key]
 		if(reached && !reached[dest])
 			return list() //what get_path_to() returns when it finds nothing
+		var/list/sealed = reach_floods["sealed|[key]"]
+		if(sealed && sealed[dest])
+			return list()
+	// No flood to go by yet: before paying for one, see whether dest is simply shut in somewhere small
+	// (bot_sealed_pocket() below). Everything in the pocket is as unreachable as dest, so the rest of
+	// this decision can skip it too.
+	if(start && dest && !(key && reach_floods[key]))
+		var/list/pocket = bot_sealed_pocket(owner, start, dest, adjacent, id_card, simulated_only)
+		if(pocket)
+			if(key)
+				var/list/known = reach_floods["sealed|[key]"]
+				if(known)
+					known |= pocket
+				else
+					reach_floods["sealed|[key]"] = pocket
+			return list()
 	var/list/explored = key ? list() : null
 	var/list/path = get_path_to(owner, dest, dist, 300, 250, adjacent = adjacent, id = id_card, simulated_only = simulated_only, explored = explored)
 	// A failed search under these rules: remember what's reachable under them, so the rest of this decision can
@@ -323,5 +358,42 @@
 		frontier = next
 	return reached
 
+// The flood only pays off from the second hopeless search of a decision on: the first still opens
+// every turf the bot can reach - around 20,000 on the station - to learn the destination isn't one
+// of them. Usually it's the destination that is shut in (a locker room, a secure store, a cell),
+// and looking outward from it finds that out in a few dozen turfs: once everywhere that can reach
+// the destination has been found, and the bot isn't standing in it, there is no route. "Can reach"
+// is the search's own edge test asked in its own direction (can N step onto T), so the answer is
+// exactly the one AStar() would have reached, just from the cheap end.
+
+/// How far to look around a destination before deciding it isn't shut in anywhere small.
+#define BOT_SEALED_POCKET_TURFS 300
+
+/// Every turf that can reach `dest` under `adjacent`, as keys, if there are at most
+/// BOT_SEALED_POCKET_TURFS of them and `start` isn't one - none of them can be reached from `start`.
+/// Null if dest might be reachable, or is cut off but not in anywhere small.
+/proc/bot_sealed_pocket(caller, turf/start, turf/dest, adjacent, id, simulated_only)
+	if(start == dest || start.z != dest.z)
+		return null
+	var/list/pocket = list()
+	pocket[dest] = TRUE
+	var/list/frontier = list(dest)
+	var/found = 1
+	while(length(frontier))
+		var/list/next = list()
+		for(var/turf/T as anything in frontier)
+			for(var/dir in GLOB.cardinals)
+				var/turf/N = get_step(T, dir)
+				if(!N || pocket[N] || !call(N, adjacent)(caller, T, id, simulated_only))
+					continue
+				if(N == start || ++found > BOT_SEALED_POCKET_TURFS)
+					return null
+				pocket[N] = TRUE
+				next += N
+		frontier = next
+	return pocket
+
+
+#undef BOT_SEALED_POCKET_TURFS
 #undef BOT_PATH_FLOOD_STEPS
 #undef BOT_REACH_FLOOD_TTL

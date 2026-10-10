@@ -73,6 +73,60 @@ Actual Adjacent procs :
 /proc/HeapPathWeightCompare(datum/PathNode/a, datum/PathNode/b)
 	return b.f - a.f
 
+// hippie start -- the open list as a plain list
+// A binary heap on PathNode.f. These do exactly what /datum/Heap (heap.dm) did with
+// HeapPathWeightCompare - the same comparisons and the same swaps, so the same node comes out at
+// every step and every path is the same - without a proc call per comparison. A search that finds
+// nothing opens most of the station, and the old heap was a third of all pathfinding time.
+
+/// Moves heap[index] up to its place. /datum/Heap/proc/Swim()
+/proc/astar_open_swim(list/heap, index)
+	var/datum/PathNode/node = heap[index]
+	var/node_f = node.f
+	var/parent = round(index * 0.5)
+	while(parent > 0)
+		var/datum/PathNode/above = heap[parent]
+		if(node_f >= above.f)
+			break
+		heap[index] = above
+		index = parent
+		parent = round(index * 0.5)
+	heap[index] = node
+
+/// Moves heap[index] down to its place. /datum/Heap/proc/Sink() and GetGreaterChild()
+/proc/astar_open_sink(list/heap, index)
+	var/count = length(heap)
+	var/datum/PathNode/node = heap[index]
+	var/node_f = node.f
+	var/child = index * 2
+	while(child <= count)
+		var/datum/PathNode/below = heap[child]
+		if(child < count)
+			var/datum/PathNode/right = heap[child + 1]
+			if(right.f < below.f)
+				child++
+				below = right
+		if(below.f >= node_f)
+			break
+		heap[index] = below
+		index = child
+		child = index * 2
+	heap[index] = node
+
+/// Takes the node with the lowest f off the heap. /datum/Heap/proc/Pop()
+/proc/astar_open_pop(list/heap)
+	var/count = length(heap)
+	. = heap[1]
+	heap[1] = heap[count]
+	heap.len = count - 1
+	if(count > 1)
+		astar_open_sink(heap, 1)
+
+/// Searches run, searches that found no path, and the turfs each kind opened - the Bot Shift report
+/// (hippiestation/code/modules/bots_ai/gym/bot_shift.dm) shows what pathfinding cost a shift.
+GLOBAL_LIST_INIT(astar_tally, list("searches" = 0, "failed" = 0, "turfs" = 0, "failed_turfs" = 0))
+// hippie end
+
 //wrapper that returns an empty list if A* failed to find a path
 //explored: optional list, see AStar()
 /proc/get_path_to(caller, end, dist, maxnodes, maxnodedepth = 30, mintargetdist, adjacent = /turf/proc/reachableTurftest, id=null, turf/exclude=null, simulated_only = TRUE, list/explored)
@@ -116,17 +170,17 @@ Actual Adjacent procs :
 		if(call(start, dist)(end) > maxnodes)
 			return FALSE
 		maxnodedepth = maxnodes //no need to consider path longer than maxnodes
-	var/datum/Heap/open = new /datum/Heap(/proc/HeapPathWeightCompare) //the open list
+	var/list/open = list() //the open list - hippie -- a heap kept in a plain list, see astar_open_swim() above
 	var/list/openc = new() //open list for node check
 	var/list/path = null //the returned path, if any
 	//initialization
 	var/datum/PathNode/cur = new /datum/PathNode(start,null,0,call(start,dist)(end),0,15,1)//current processed turf
-	open.Insert(cur)
+	open += cur
 	openc[start] = cur
 	var/depth_cut = FALSE //did maxnodedepth stop us expanding anything? (see explored above)
 	//then run the main loop
-	while(!open.IsEmpty() && !path)
-		cur = open.Pop() //get the lower f turf in the open list
+	while(length(open) && !path)
+		cur = astar_open_pop(open) //get the lower f turf in the open list
 		//get the lower f node on the open list
 		//if we only want to get near the target, check if we're close enough
 		var/closeenough
@@ -158,17 +212,28 @@ Actual Adjacent procs :
 							if((newg < CN.g) )
 								if(call(cur.source,adjacent)(caller, T, id, simulated_only))
 									CN.setp(cur,newg,CN.h,cur.nt+1)
-									open.ReSort(CN)//reorder the changed element in the list
+									//reorder the changed element in the list - hippie -- as /datum/Heap/proc/ReSort() did, sinking from where it was
+									var/resort_index = open.Find(CN)
+									astar_open_swim(open, resort_index)
+									astar_open_sink(open, resort_index)
 						else
 						//is not already in open list, so add it
 							if(call(cur.source,adjacent)(caller, T, id, simulated_only))
 								CN = new(T,cur,newg,call(T,dist)(end),cur.nt+1,15^r)
-								open.Insert(CN)
+								open += CN
+								astar_open_swim(open, length(open))
 								openc[T] = CN
 		else
 			depth_cut = TRUE
 		cur.bf = 0
 		CHECK_TICK
+	// hippie -- see GLOB.astar_tally
+	var/list/tally = GLOB.astar_tally
+	tally["searches"]++
+	tally["turfs"] += length(openc)
+	if(!path)
+		tally["failed"]++
+		tally["failed_turfs"] += length(openc)
 	//reverse the path to get it from start to finish
 	if(path)
 		for(var/i = 1 to round(0.5*path.len))

@@ -17,13 +17,20 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 
 #define BOT_CHEM_REACH 60
 
+/// Whether a chemistry machine is the medical staff's own: one of Medbay's (in the Bot Gym, one in the bot's arena).
+/// The nearest dispenser as the crow flies is as often as not Research's, behind doors a doctor's ID doesn't open -
+/// a doctor used to hack its way into the Research Division for it and get shut in the access lobby.
+/datum/bot_brain/proc/is_medbay_chemistry(atom/A)
+	var/area/where = get_area(A)
+	return gym_run ? (where == get_area(owner)) : istype(where, /area/medical)
+
 /datum/bot_brain/proc/find_reachable_chem_dispenser()
 	var/obj/machinery/chem_dispenser/best
 	var/best_dist
 	for(var/obj/machinery/chem_dispenser/D in GLOB.machines)
 		if(istype(D, /obj/machinery/chem_dispenser/drinks) || istype(D, /obj/machinery/chem_dispenser/mutagen))
 			continue //not a chemistry dispenser
-		if(D.z != owner.z || !D.is_operational())
+		if(D.z != owner.z || !D.is_operational() || !is_medbay_chemistry(D))
 			continue
 		var/dist = get_dist(owner, D)
 		if(dist > BOT_CHEM_REACH)
@@ -39,7 +46,7 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	for(var/obj/machinery/chem_master/M in GLOB.machines)
 		if(istype(M, /obj/machinery/chem_master/condimaster))
 			continue
-		if(M.z != owner.z)
+		if(M.z != owner.z || !is_medbay_chemistry(M))
 			continue
 		var/dist = get_dist(owner, M)
 		if(dist > BOT_CHEM_REACH)
@@ -57,7 +64,7 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	for(var/obj/machinery/smartfridge/chemistry/F in GLOB.machines)
 		if(istype(F, /obj/machinery/smartfridge/chemistry/virology))
 			continue //samples, not medicine
-		if(F.z != owner.z || (F.stat & (BROKEN|NOPOWER)))
+		if(F.z != owner.z || (F.stat & (BROKEN|NOPOWER)) || !is_medbay_chemistry(F))
 			continue
 		var/dist = get_dist(owner, F)
 		if(dist > BOT_CHEM_REACH)
@@ -96,6 +103,7 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	return TRUE
 
 /datum/bot_goal/synthesize_medicine
+	lawful = TRUE
 	var/list/recipe
 	var/obj/machinery/chem_dispenser/dispenser
 	var/obj/machinery/chem_master/master
@@ -103,6 +111,8 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	var/list/produced_items
 
 /datum/bot_goal/synthesize_medicine/resolve_target(datum/bot_brain/bot)
+	if(world.time < bot.chemistry_blocked_until)
+		return //just tried, and it came to nothing (no beaker to be had, the machine in use): not again straight away
 	var/obj/machinery/chem_dispenser/D = bot.find_reachable_chem_dispenser()
 	if(!D)
 		return
@@ -117,6 +127,14 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 
 /datum/bot_goal/synthesize_medicine/get_strategies(datum/bot_brain/bot)
 	return list(new /datum/bot_strategy/synthesize(dispenser, master, fridge))
+
+/// A doctor and a chemist with no beaker between them used to start on this, find there was none, and start again
+/// a second later - a few hundred times a shift.
+/datum/bot_goal/synthesize_medicine/on_give_up(datum/bot_brain/bot)
+	bot.chemistry_blocked_until = world.time + 2 MINUTES
+
+/datum/bot_brain
+	var/chemistry_blocked_until = 0
 
 /datum/bot_goal/synthesize_medicine/on_success(datum/bot_brain/bot)
 	bot.continue_medical_round()
@@ -162,6 +180,7 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 		tried_fetch = TRUE
 		var/datum/bot_goal/acquire_item_type/sub = new()
 		sub.item_type = /obj/item/reagent_containers/glass/beaker
+		sub.lawful = TRUE //one of Medbay's, or one lying about - not the kitchen's or Robotics'
 		if(bot.suspend_goal_for(sub))
 			return GOAL_STEP_PENDING
 	bot_log(bot, "no empty beaker reachable to synthesize medicine with")

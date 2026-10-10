@@ -218,6 +218,11 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 		sleep_offline_after_initializations = FALSE //no players connect to a headless run - the world must keep ticking
 		INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(run_bot_gym), world.params[BOT_GYM_PARAMETER], world.params[BOT_GYM_RUNS_PARAMETER])
 
+	// hippie -- Bot Shift: run a shift on the real station with a crew of bots, then judge it; the runner shuts the world down when done
+	if(BOT_SHIFT_PARAMETER in world.params)
+		sleep_offline_after_initializations = FALSE
+		INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(run_bot_shift), world.params[BOT_SHIFT_PARAMETER], world.params[BOT_SHIFT_CREW_PARAMETER])
+
 	// hippie -- Lighting bench: time the lighting engine and snapshot the station's lighting; shuts the world down when done
 	if(LIGHTING_BENCH_PARAMETER in world.params)
 		sleep_offline_after_initializations = FALSE

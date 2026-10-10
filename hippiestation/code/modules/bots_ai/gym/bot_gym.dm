@@ -7,7 +7,10 @@
 //
 // Run it:   tools/bot_gym/run_bot_gym.sh [name filter] [runs per scenario]
 // or boot:  DreamDaemon hippiestation.dmb -params "bot-gym=all&bot-gym-runs=1"
+//           add &timewarp=0 to fast-forward it (admin/timewarp.dm) - the script does
 // Results:  data/bot_gym/summary.txt, results.json, and a transcript per run in transcripts/.
+//
+// For bots left to work a whole shift on the real station, see bot_shift.dm.
 //
 // Scripted bots don't wander, chat or pick up jobs of their own (see gym_scripted in
 // bot_brain.dm) - they only pursue the goal the scenario gives them, re-issued if they give up.
@@ -15,8 +18,10 @@
 #define BOT_GYM_PENDING 0
 #define BOT_GYM_PASS 1
 #define BOT_GYM_FAIL 2
-/// Empty space kept around each arena so view()-based searches can't see into a neighbour.
-#define BOT_GYM_MARGIN 4
+/// Empty space kept around each arena so view()- and range()-based searches can't reach into a neighbour: with
+/// each arena walled, two arenas' floors are never nearer than 2 * margin + 3 tiles, and nothing a bot does looks
+/// further than 7. It was 4 until three passes of every scenario stopped fitting on the one reserved map level.
+#define BOT_GYM_MARGIN 3
 
 GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 
@@ -275,16 +280,26 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	brain.gym_run = src
 	brain.gym_scripted = TRUE
 	brain.urgency_override = urgency_override
+	// An even temperament every run (bot_personality.dm rolls one), so runs compare - post_spawn() can set its own.
+	brain.diligence = 1
+	brain.sociability = 0.5
+	brain.nerve = 0.5
 	post_spawn()
 	return TRUE
 
-/datum/bot_scenario/proc/start()
+/// Builds the arena. The runner does these one at a time before anything starts - see run_bot_gym().
+/datum/bot_scenario/proc/prepare()
 	start_time = world.time
 	log_line("building arena")
 	if(!build())
 		result = BOT_GYM_FAIL
 		return
 	log_line("arena built at [bot_coord(first_marker("B"))]")
+
+/datum/bot_scenario/proc/start()
+	if(result != BOT_GYM_PENDING)
+		return //no arena
+	start_time = world.time
 	setup()
 	sleep(2 SECONDS) //let doors finish closing and air settle before the clock starts
 	start_time = world.time
@@ -297,6 +312,9 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 /datum/bot_scenario/proc/issue_goal()
 	goal_attempts++
 	var/datum/bot_goal/G = make_goal()
+	if(!G)
+		log_line("nothing left to issue as a goal (attempt [goal_attempts]/[max_goal_attempts])") //e.g. the stranded tank is already back on the bot
+		return
 	log_line("issuing goal [G.type] (attempt [goal_attempts]/[max_goal_attempts])")
 	if(!brain.assign_goal(G))
 		log_line("assign_goal refused")
@@ -388,11 +406,28 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 			S.run_index = i
 			active += S
 	log_world("BOT GYM: running [length(active)] scenario run(s)")
+	// Arenas are built one after another, and only then does everything start at once. Asking for all the map space
+	// in the same tick had a hundred reservation searches (turf_reservation/Reserve(), a slow first-fit scan that
+	// yields on a busy tick) competing: stoplag() doubles its wait each time it wakes to a busy tick, so the
+	// unlucky ones backed off for minutes and whole scenarios never got an arena before the deadline - on a server
+	// that was by then sitting idle. Roughly one three-pass run in six lost anything from 1 to 28 scenarios.
+	var/build_started = world.time
+	for(var/datum/bot_scenario/S in active)
+		S.prepare()
+	log_world("BOT GYM: [length(active)] arena\s built in [(world.time - build_started) / 10]s")
+	// A few per tick rather than all in the same one: a hundred bots asking for their first route in the same instant
+	// queue for the pathfinder's slots (get_path_to()), and the ones at the back stood for four seconds before
+	// taking a step - which the human-pace scenarios rightly fail.
+	var/started = 0
 	for(var/datum/bot_scenario/S in active)
 		INVOKE_ASYNC(S, TYPE_PROC_REF(/datum/bot_scenario, start))
+		if(!(++started % 4))
+			sleep(world.tick_lag)
 	var/deadline = world.time + 10 MINUTES
+	var/list/load = list("seconds" = 0, "sum" = 0, "peak" = 0, "over" = 0)
 	while(world.time < deadline)
 		sleep(1 SECONDS)
+		bot_gym_sample_load(load)
 		var/pending = 0
 		for(var/datum/bot_scenario/S in active)
 			if(S.brain) //judge only once the bot exists (arena build + settle take a few seconds)
@@ -401,17 +436,33 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 				pending++
 		if(!pending)
 			break
-	write_bot_gym_results(active)
+	write_bot_gym_results(active, load)
 	log_world("BOT GYM: done")
 	Master.Shutdown()
 	qdel(world)
 
-/proc/write_bot_gym_results(list/datum/bot_scenario/active)
+/// world.cpu is the share of a tick the server needed. Over 100 it can't keep up, and everything -
+/// bots included - runs slow in game time, whether the run is fast-forwarded (admin/timewarp.dm) or not.
+/proc/bot_gym_sample_load(list/load)
+	load["seconds"]++
+	load["sum"] += world.cpu
+	load["peak"] = max(load["peak"], world.cpu)
+	if(world.cpu > 100)
+		load["over"]++
+
+/proc/bot_gym_load_text(list/load)
+	. = "Server load averaged [round(load["sum"] / max(load["seconds"], 1))]% of a tick, peak [round(load["peak"])]%, [load["over"]] of [load["seconds"]] seconds over 100%."
+	if(load["over"] > load["seconds"] * 0.1)
+		. += " The server couldn't keep up, so bots ran slow in game time - timeouts and idle tells in this run may not be their doing."
+
+/proc/write_bot_gym_results(list/datum/bot_scenario/active, list/load)
 	var/dir = "data/bot_gym/"
 	fdel(dir)
 	var/list/json = list()
 	var/list/counts = list("PASS" = 0, "FAIL" = 0, "XFAIL" = 0, "XPASS" = 0, "PENDING" = 0)
 	var/list/lines = list()
+	// A colon in a file name is an NTFS stream, not a file: "locker: take the gloves..." wrote its transcript into a stream of an empty file called "locker".
+	var/static/regex/not_for_filenames = regex(@'[\\/:*?"<>|]', "g")
 	for(var/datum/bot_scenario/S in active)
 		var/outcome = S.outcome_text()
 		counts[outcome]++
@@ -419,8 +470,22 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 		var/label = "[S.name][S.run_index > 1 ? " #[S.run_index]" : ""]"
 		lines += "[pad_bot_gym(outcome, 7)][pad_bot_gym(label, 54)][seconds != null ? "[seconds]s" : ""][S.fail_reason ? "   [S.fail_reason]" : ""][S.believability_text()]"
 		json += list(list("name" = S.name, "run" = S.run_index, "outcome" = outcome, "seconds" = seconds, "reason" = S.fail_reason, "desc" = S.desc))
-		text2file(jointext(S.transcript, "\n"), "[dir]transcripts/[replacetext(S.name, " ", "_")]_[S.run_index].log")
+		text2file(jointext(S.transcript, "\n"), "[dir]transcripts/[not_for_filenames.Replace(replacetext(S.name, " ", "_"), "")]_[S.run_index].log")
 	var/header = "BOT GYM  [counts["PASS"]] passed, [counts["FAIL"]] failed, [counts["XFAIL"]] expected failures, [counts["XPASS"]] unexpected passes[counts["PENDING"] ? ", [counts["PENDING"]] unfinished" : ""]"
+	if(load)
+		header += "\n[bot_gym_load_text(load)]"
+	// When the reserved map level fills up, the rest of the arenas go on a new one made on the spot - which the
+	// spatial grid and the air never finish setting up, and bots on it fail for reasons that aren't theirs.
+	var/list/levels = list()
+	for(var/datum/bot_scenario/S in active)
+		if(S.reservation)
+			levels["[S.reservation.bottom_left_coords[3]]"]++
+	if(length(levels) > 1)
+		var/main_level
+		for(var/level in levels)
+			if(!main_level || levels[level] > levels[main_level])
+				main_level = level
+		header += "\nWARNING: [length(active) - levels[main_level]] of [length(active)] arenas didn't fit on the reserved map level and were built on an extra one, where results can't be trusted. Run fewer passes at once."
 	var/summary = "[header]\n\n[jointext(lines, "\n")]\nFAILED: [counts["FAIL"] + counts["PENDING"]]\n"
 	text2file(summary, "[dir]summary.txt")
 	text2file(json_encode(json), "[dir]results.json")

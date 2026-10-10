@@ -96,6 +96,11 @@
 	"}
 
 /datum/browser/proc/open(use_onclose = TRUE)
+	// hippie -- nobody to show it to: a bot crew member has no client, and winexists() in setup_onclose() runtimes
+	// ("bad client") for one - which is how a doctor bot taking a patient's suit off (stripPanelUnequip() ends by
+	// refreshing the strip window) froze mid-treatment.
+	if(!user?.client)
+		return
 	if(isnull(window_id))	//null check because this can potentially nuke goonchat
 		WARNING("Browser [title] tried to open with a null ID")
 		to_chat(user, "<span class='userdanger'>The [title] browser you tried to open failed a sanity check! Please report this on github!</span>")

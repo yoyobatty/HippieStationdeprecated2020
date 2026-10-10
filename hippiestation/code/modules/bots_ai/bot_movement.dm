@@ -8,6 +8,11 @@
 	// ever chosen when there's truly no other way through, not just because it's
 	// shorter than walking around.
 	var/pathing_allow_climb = TRUE
+	/// Until when this bot stays where it is because somebody asked it to (hold_still_for()).
+	var/stand_still_until = 0
+	// Set around the climbing pass when it's run for a stroll or an everyday errand (a bot hemmed in by
+	// furniture, see is_hemmed_in()): over a table, yes - through a locked door or a window, still no.
+	var/pathing_climb_only = FALSE
 	// Set only around the "smash through tables" pathing pass (needs a strong weapon).
 	var/pathing_allow_smash_tables = FALSE
 	// Climbing a structure moves the bot in the STRUCTURE's own facing direction
@@ -59,6 +64,13 @@
 	// Set by do_repath() when a NEW pursuit replaced the one it was computing a route for
 	// while it was yielding inside the pathfinder - see repath().
 	var/repath_superseded = FALSE
+
+/// Whether the walk in progress keeps to where the bot is allowed to go: a stroll, keeping up with someone it's
+/// tagging along with (bot_chatter.dm), or everyday work (bot_goal.lawful).
+/datum/bot_brain/proc/pursuit_is_lawful()
+	if(pursuing_kind == "wander" || pursuing_kind == "follow")
+		return TRUE
+	return pursuing_kind == "goal" && current_goal?.lawful
 
 // precomputed_path: an already-verified route (acquire_tool's is_reachable(),
 // goals/acquire_tool.dm, is the current source) to use AS-IS instead of running a
@@ -249,7 +261,10 @@
 			if(current_path && current_path.len)
 				break
 
-	if((!current_path || !current_path.len) && pursuing_kind != "wander") //a stroll doesn't climb furniture either - see try_path_to_no_climb()
+	// A stroll doesn't climb furniture either (see try_path_to_no_climb()) - unless the bot is hemmed in by it: one
+	// that went over a table after a tool, on an errand that allowed it, has to be able to come back the same way.
+	// A Quartermaster once stood in a corner of Technical Storage behind two tables for six minutes.
+	if((!current_path || !current_path.len) && (!pursuit_is_lawful() || is_hemmed_in()))
 		bot_log_verbose(src, "no no-climb route at all (direct or adjacent) - trying with climbing allowed")
 		if(try_adjacent_first)
 			for(var/turf/candidate in adjacent_candidates)
@@ -273,7 +288,7 @@
 	if(!current_path || !current_path.len)
 		// No route with what the bot has - would something it could go and get open one?
 		// (a welder for a welded door, or in an emergency a weapon lying nearby; bot_breach.dm)
-		if(try_unlock_route(destination, id_card))
+		if(!pursuit_is_lawful() && try_unlock_route(destination, id_card))
 			return supersede_repath() //now fetching it; repath() re-plans for that pursuit
 		current_path = null
 		last_path_fail_reason = "no path found in any pass (dist=[get_dist(owner, destination)], area=[get_area_name(destination)])"
@@ -301,8 +316,8 @@
 			continue
 		if(neighbor.density || !istype(neighbor, /turf/open))
 			continue
-		if(isspaceturf(neighbor) && !can_path_through_space())
-			continue
+		if(isspaceturf(neighbor) && !can_path_through_space() && !bot_turf_crossable_without_boots(neighbor, owner))
+			continue //somewhere the bot could stand and still move - the same rule the route search goes by
 		if(bot_turf_has_active_field(neighbor))
 			continue //an active containment field/generator shocks on every step or bump attempt (bot_pathing_permissive.dm) - never a genuinely open candidate
 		var/blocked = FALSE
@@ -332,13 +347,18 @@
 	// default reachableTurftest() - same obstruction rules, plus refuses to route
 	// through an active containment field/generator, which the default's pure density
 	// check can't see (density=FALSE by design - a real player crosses one on purpose).
+	// On a stroll or an everyday errand, a door this ID doesn't open isn't walked through just because somebody
+	// has left it open (bot_doors.dm) - unless the bot is shut in somewhere, and it's the way out.
+	pathing_no_tailgating = pursuit_is_lawful() && !is_shut_in()
 	var/list/path = bot_path_to(dest, /turf/proc/Distance, /turf/proc/bot_reachable_strict, id_card, !can_path_through_space())
+	pathing_no_tailgating = FALSE
 	bot_log_verbose(src, "  pass 1 (legit route) to [dest] @ [bot_coord(dest)]: [path ? "[path.len] nodes" : "no path"]")
 	if(path && path.len)
 		return path
 	// Someone out for a stroll who finds the way barred just picks somewhere else - they don't hack a door or
-	// smash a window to get to a random spot. Real goals, fetches, combat and arrests still get every fallback.
-	if(pursuing_kind == "wander")
+	// smash a window to get to a random spot, and neither does anyone going about their ordinary work. The goals
+	// written to get through anything, fetches for them, combat and arrests still get every fallback.
+	if(pursuit_is_lawful())
 		return path
 
 	// No legitimate (unlocked) route - try again allowing routes through a locked (but
@@ -376,11 +396,42 @@
 // turf (repath()) - a bot should climb a table only when there is truly no other way
 // to get close enough, never merely because climbing happens to be shorter.
 /datum/bot_brain/proc/try_path_to_climb(turf/dest, obj/item/card/id/id_card)
+	pathing_climb_only = pursuit_is_lawful()
 	var/list/path = bot_path_to(dest, /turf/proc/bot_weighted_distance, /turf/proc/bot_reachable_permissive, id_card, !can_path_through_space())
+	pathing_climb_only = FALSE
 	bot_log_verbose(src, "  pass 3 (allow climbing) to [dest] @ [bot_coord(dest)]: [path ? "[path.len] nodes" : "no path"]")
 	if(path && path.len)
 		bot_log(src, "no route to [dest] without climbing - climbing over furniture instead")
 	return path
+
+/// Fewer tiles than this to walk to without climbing or forcing anything, and the bot is hemmed in.
+#define BOT_HEMMED_IN_TILES 12
+
+/// Whether the bot is shut in a pocket of floor by furniture: only a handful of tiles it can walk to by the
+/// ordinary rules. It got in over a table, and gets out the same way.
+/datum/bot_brain/proc/is_hemmed_in()
+	var/turf/start = get_turf(owner)
+	if(!start)
+		return FALSE
+	var/obj/item/card/id/id_card = owner.get_idcard(TRUE)
+	var/simulated_only = !can_path_through_space()
+	var/list/seen = list()
+	seen[start] = TRUE
+	var/list/queue = list(start)
+	var/at = 1
+	while(at <= length(queue))
+		var/turf/T = queue[at++]
+		for(var/d in GLOB.cardinals)
+			var/turf/next = get_step(T, d)
+			if(!next || seen[next] || !T.bot_reachable_strict(owner, next, id_card, simulated_only))
+				continue
+			seen[next] = TRUE
+			queue += next
+			if(length(queue) >= BOT_HEMMED_IN_TILES)
+				return FALSE
+	return TRUE
+
+#undef BOT_HEMMED_IN_TILES
 
 // Dumps what's actually on each cardinal-adjacent turf when a pathfind fails
 // completely (0 nodes on all three passes) - if a bot's genuinely sealed off from
@@ -444,9 +495,23 @@
 		do_step_next_node()
 	catch(var/exception/e)
 		bot_log_exception(src, "step_next_node", e)
-		repath() //self-heal: never let a crash here leave the pursuit permanently dead
+		if(pursuing_kind)
+			repath() //self-heal: never let a crash here leave the pursuit permanently dead
+		else if(state == BOT_STATE_GOAL && current_goal)
+			// The walk itself had ended; what crashed was the goal's next step, run from finish_pursuit(). Nothing
+			// would ever run that step again (a doctor stood over its patient for the rest of the shift after a
+			// runtime in the game's strip code) - count it as failed, so the goal retries or gives up.
+			try
+				advance_goal_step(FALSE)
+			catch(var/exception/again)
+				bot_log_exception(src, "step_next_node/advance_goal_step", again)
+				give_up_goal()
 
 /datum/bot_brain/proc/do_step_next_node()
+	// Asked to hold still (a doctor coming over to it, goals/treat_patient.dm): the walk waits where it is.
+	if(world.time < stand_still_until && state != BOT_STATE_COMBAT && state != BOT_STATE_ARREST)
+		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), max(2, stand_still_until - world.time), TIMER_STOPPABLE)
+		return
 	// Climbing out of a pool (pool_main.dm) needs a dedicated ~2 second do_mob()
 	// channel (try_escape_pool(), bot_items.dm, called every process() tick while
 	// still swimming), and a do_mob() channel cancels the instant the user's state

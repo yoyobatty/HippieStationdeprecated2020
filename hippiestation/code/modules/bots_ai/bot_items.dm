@@ -37,6 +37,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	if(QDELETED(A) || !owner.Adjacent(A))
 		return FALSE
 	owner.face_atom(A) //a player's click always turns them toward what they click
+	telemetry_clicked(A) //bot_telemetry.dm
 	A.attack_hand(owner)
 	return TRUE
 
@@ -138,6 +139,13 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	human_pause(I) //bot_human.dm - one pickup per click, not a handful in the same instant
 	if(QDELETED(I))
 		return FALSE
+	// The pause sleeps, and the bot may have been walked on in the meantime (a new wander leg, the next
+	// step of a route) - telemetry caught items being taken from two and three tiles away. Out of reach
+	// now means no pickup, the same as a player who clicked too late.
+	if(get_dist(owner, get_turf(I)) > 1)
+		bot_log_verbose(src, "try_pickup_target: moved out of reach of [I] before picking it up")
+		return FALSE
+	owner.face_atom(get_turf(I)) //a player's click always turns them toward what they click
 	make_room_for_item()
 	if(!stow_item(I))
 		bot_log_verbose(src, "try_pickup_target: stow_item([I]) failed - active=[owner.get_active_held_item()], inactive=[owner.get_inactive_held_item()], dist=[get_dist(owner, I)], active_hand_index=[owner.active_hand_index], held_items=[owner.held_items], mobility_pickup=[owner.mobility_flags & MOBILITY_PICKUP], I.loc=[I.loc], I.anchored=[I.anchored], I.item_flags=[I.item_flags]")
@@ -161,6 +169,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	if(!ready_in_hand(I)) //drawn into the active hand first, like a player has to
 		return FALSE
 	owner.face_atom(A)
+	telemetry_clicked(A) //bot_telemetry.dm
 	var/old_intent = owner.a_intent
 	if(harm)
 		owner.a_intent = INTENT_HARM
@@ -367,6 +376,9 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 		// carried welder, bot_breach.dm), then the normal open/hack logic below takes over.
 		if(D.welded && can_unweld())
 			try_unweld(D)
+		if((D.locked || D.welded) && pursuit_is_lawful()) //bot_movement.dm
+			bot_log(src, "[D] is [D.welded ? "welded shut" : "bolted"] - not mine to force, going another way")
+			return FALSE
 		if(D.locked || D.welded)
 			// The door itself is rarely the actual point - it's just whatever happens
 			// to be between the bot and wherever it's actually trying to get to (the
@@ -389,6 +401,23 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 				return TRUE
 			if(D.safety_mode)
 				return try_safety_release(D)
+		// One this bot's ID doesn't open, with a button for it on this side (a department's exit button): that's
+		// what gets pressed, not the door (bot_doors.dm).
+		// Shut in behind a blast door with its button on this side: the button (bot_doors.dm).
+		var/obj/machinery/door/poddoor/shutter = D
+		if(istype(shutter) && shut_in_result)
+			if(world.time < door_button_pressed_at + 30)
+				return TRUE
+			var/obj/machinery/button/door/way_out = shutter_button_in_reach(shutter)
+			if(way_out && press_button_for_door(way_out, shutter))
+				return TRUE
+		var/obj/machinery/door/airlock/tagged = D
+		if(istype(tagged) && tagged.id_tag && !door_opens_for_me(tagged))
+			if(world.time < door_button_pressed_at + 20)
+				return TRUE //just pressed it: the door takes a moment, and a second press would shut it again
+			var/obj/machinery/button/door/exit_button = door_button_for(tagged, get_turf(owner))
+			if(exit_button && press_button_for_door(exit_button, tagged))
+				return TRUE
 		bot_log(src, "opening [O]")
 		// A windoor gets walked into, the way players go through them: that opens it and it shuts itself behind
 		// you (open_and_close()). Clicking one (attack_hand() -> try_to_activate_door()) switches autoclose off -
@@ -402,9 +431,43 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 			if(D.operating || !D.density)
 				return TRUE
 		else
-			use_atom(O)
-		if(!D.density)
+			// A door takes a moment to reach for, and in a crowd somebody else gets to it first: a second click on
+			// a door that has just been opened shuts it again in everybody's face (try_to_activate_door() toggles).
+			human_pause(O)
+			if(QDELETED(D))
+				return FALSE
+			if(!owner.Adjacent(D))
+				return TRUE //jostled out of reach of it in a crowd: that isn't the door refusing
+			if(!D.density || D.operating)
+				return TRUE
+			owner.face_atom(D)
+			telemetry_clicked(D)
+			var/burns_before = owner.getFireLoss()
+			D.attack_hand(owner)
+			// It bit. Nobody puts a hand on an electrified door a second time: this one is left well alone for the
+			// rest of the shift, whatever was on the other side of it. (A doctor took three shocks running from the
+			// same maintenance door, and died of them.)
+			if(!QDELETED(owner) && owner.getFireLoss() >= burns_before + 10)
+				bot_log(src, "[D] is electrified - not touching that again")
+				LAZYSET(failed_blockers, D, world.time + 30 MINUTES)
+				if(owner.stat == CONSCIOUS && prob(60))
+					bot_say(owner, pick("Ow! That door's live!", "Argh - careful, that door's electrified!", "Who wired that door up?!"))
+				finish_pursuit(FALSE)
+				return TRUE
+		if(!D.density || D.operating)
+			LAZYREMOVE(busy_doors, D)
 			return TRUE
+		// Still shut, though it's one this bot's ID opens: somebody else was working it. It gets a few seconds
+		// before that counts as a refusal - in the crush at the shuttle airlocks every other bot used to read a
+		// busy door as "access denied" and go off to find tools to hack a public airlock.
+		if(door_opens_for_me(D))
+			var/since = LAZYACCESS(busy_doors, D)
+			if(!since)
+				LAZYSET(busy_doors, D, world.time)
+				return TRUE
+			if(world.time < since + 10 SECONDS)
+				return TRUE
+			LAZYREMOVE(busy_doors, D)
 		// A closed, unbolted, unwelded airlock can still refuse to open via a plain
 		// attack_hand() click - access denied (req_access, not bolted, so the
 		// D.locked check above never caught it). That used to be silently treated as
@@ -420,6 +483,12 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 		// cleanest option when it applies at all (no do_after on an unpowered door, no
 		// destruction, no wire-hacking do_afters), so there's no reason to hack or smash
 		// a door a crowbar/jaws-of-life can just pop open outright.
+		//
+		// None of that on a stroll or an everyday errand, though: a door that won't open for this bot's ID
+		// is somewhere it has no business being (pursuit_is_lawful(), bot_movement.dm).
+		if(pursuit_is_lawful())
+			bot_log(src, "[D] won't open for me - going another way")
+			return FALSE
 		if(try_pry_door(D))
 			return TRUE
 		if(should_smash_instead(D))
@@ -1500,6 +1569,15 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 	// currently in hand (clear_one_blocker(), above) still happens as normal either way
 	// - only the FETCH escalation below is skipped for this goal category.
 	if(is_replaceable_target_goal())
+		return FALSE
+
+	// A stroll or an everyday errand stops at "it won't open for me" (pursuit_is_lawful(), bot_movement.dm): no
+	// going for tools to hack it, and no fire axe. An engineer on its way out of Medbay once fetched the Bridge's
+	// fire axe for the foyer doors.
+	if(pursuit_is_lawful())
+		return FALSE
+	// Nor is there time to go and fetch anything with the shuttle waiting: what's already in the bag, or another door.
+	if(istype(current_goal, /datum/bot_goal/evacuate))
 		return FALSE
 
 	// Out of welding fuel is fixable at the nearest fuel tank - do that before anything

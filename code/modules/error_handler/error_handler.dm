@@ -26,6 +26,8 @@ GLOBAL_VAR_INIT(total_runtimes_skipped, 0)
 		Reboot(reason = 1)
 		return ..()
 	
+	GLOB.bot_shift?.note_runtime(E) // hippie -- Bot Shift tallies the runtimes of its run (hippiestation/code/modules/bots_ai/gym/bot_shift.dm)
+
 	if (islist(stack_trace_storage))
 		for (var/line in splittext(E.desc, "\n"))
 			if (text2ascii(line) != 32)

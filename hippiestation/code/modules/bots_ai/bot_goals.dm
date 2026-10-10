@@ -4,6 +4,70 @@
 	var/atom/target
 	var/list/datum/bot_strategy/strategies
 	var/flavor_success //optional line said aloud on success, see goal_succeeded()
+	/// Everyday work: the bot only goes where its ID lets it, hacking, breaking and climbing nothing on the way
+	/// (pursuit_is_lawful(), bot_movement.dm). Off for the goals that were written to get through anything.
+	var/lawful = FALSE
+	/// What the bot says it's up to when asked, to finish "I'm ..." (bot_chatter.dm).
+	var/doing
+	/// Work for one pair of hands: while a bot is on this goal its target is claimed (GLOB.bot_work_claims), no other
+	/// bot is given the same target, and finders can skip it with taken_by_another(). Three engineers once set off
+	/// for the same stray singularity generator, got in each other's way, and all three gave up on it.
+	var/exclusive = FALSE
+	/// Walked rather than run, start to finish (update_gait()): a janitor without galoshes on its own wet floor.
+	var/careful = FALSE
+	/// Taken on even where the air would kill and the bot has no suit on - only for the goals that are about bad air,
+	/// or about getting out of it. Anything else is turned down at the outset if its target is somewhere the bot
+	/// couldn't breathe (assign_goal(), in_bad_air()): an engineer who hadn't found a hardsuit used to carry on with
+	/// the engine regardless, out into the vacuum round it, and died there with a full oxygen tank in its bag.
+	var/braves_bad_air = FALSE
+
+/datum/bot_goal/fight_fire
+	braves_bad_air = TRUE
+
+/datum/bot_goal/clean_contamination
+	braves_bad_air = TRUE
+
+/datum/bot_goal/seek_air
+	braves_bad_air = TRUE
+
+/datum/bot_goal/refill_internals
+	braves_bad_air = TRUE
+
+/datum/bot_goal/evacuate
+	braves_bad_air = TRUE
+
+/datum/bot_goal/gym_reach
+	braves_bad_air = TRUE //a Bot Gym scenario sends its bot where it means to
+
+/// Whether doing something at A would mean standing in air this bot can't breathe.
+/datum/bot_brain/proc/in_bad_air(atom/A)
+	var/turf/T = get_turf(A)
+	if(!T || A == owner)
+		return FALSE
+	if(isopenturf(T))
+		return !turf_air_is_breathable(T)
+	// On or in a wall (a button, a light fitting): it's the floor next to it that matters.
+	for(var/turf/open/next_to in get_adjacent_open_turfs(T))
+		if(turf_air_is_breathable(next_to))
+			return FALSE
+	return TRUE
+
+/// Target -> the brain of the bot whose `exclusive` goal is after it.
+GLOBAL_LIST_EMPTY(bot_work_claims)
+
+/// TRUE if another bot has `target` in hand right now: it claimed it, and is still on a goal that's after it.
+/datum/bot_brain/proc/taken_by_another(atom/target)
+	var/datum/bot_brain/other = GLOB.bot_work_claims[target]
+	if(!other || other == src)
+		return FALSE
+	if(QDELETED(other) || QDELETED(other.owner) || other.owner.stat != CONSCIOUS || (other.current_goal?.target != target && other.suspended_goal?.target != target))
+		GLOB.bot_work_claims -= target //dropped it one way or another without saying so
+		return FALSE
+	return TRUE
+
+/datum/bot_brain/proc/release_claim(datum/bot_goal/goal)
+	if(goal?.exclusive && goal.target && GLOB.bot_work_claims[goal.target] == src)
+		GLOB.bot_work_claims -= goal.target
 
 /datum/bot_goal/proc/resolve_target(datum/bot_brain/bot)
 	return
@@ -34,10 +98,16 @@
 /datum/bot_strategy/proc/is_feasible(datum/bot_brain/bot)
 	return FALSE
 
+/datum/bot_step
+	/// A step that sets off walking and then just waits to arrive. With no walk in progress one of these is
+	/// going nowhere - see handle_goal().
+	var/waits_on_walk = FALSE
+
 /datum/bot_step/proc/execute(datum/bot_brain/bot)
 	return GOAL_STEP_FAIL
 
 /datum/bot_step/move_to
+	waits_on_walk = TRUE
 	var/atom/step_target
 
 /datum/bot_step/move_to/execute(datum/bot_brain/bot)
@@ -287,6 +357,17 @@
 	var/datum/bot_strategy/current_strategy
 	var/current_step_index = 0
 	var/state_before_combat
+	/// When handle_goal() first saw the goal with nothing driving it; it steps in after a few seconds of that.
+	var/goal_stalled_since = 0
+	/// Where the bot was when handle_goal() last saw it somewhere new, and when - a walk that isn't getting anywhere.
+	var/turf/goal_progress_turf
+	var/goal_progress_time = 0
+	var/goal_last_handled = 0
+	/// Set while a goal has the bot walking rather than running (bot_goal.careful).
+	var/walking_for_goal = FALSE
+	/// The step handle_goal() last saw the goal on, and since when - a step that has gone quiet gets failed.
+	var/datum/bot_step/goal_watch_step
+	var/goal_watch_since = 0
 	var/goal_giveup_time = 0
 	var/fireaxe_retry_time = 0
 	var/fuel_retry_time = 0
@@ -321,10 +402,6 @@
 	var/list/known_tool_sources
 	// See is_failed_engine_part() below.
 	var/list/failed_engine_parts
-	// Permanent, plain list (no cooldown) - see find_singularity_generator_to_remove()'s
-	// comment (setup_tesla_engine.dm) for why distance alone can't tell "genuinely still
-	// needs removing" apart from "was already removed to a spot that's still in reach".
-	var/list/removed_singularity_generators
 	// Cooldown map for setup_atmospherics.dm, same pattern as failed_engine_parts above -
 	// kept as its own list (rather than sharing failed_engine_parts) since the two goals
 	// run for different jobs and there's no reason a slow atmos pump retry should share a
@@ -358,19 +435,49 @@
 	var/cooldown = LAZYACCESS(failed_atmos_parts, A)
 	return cooldown && world.time < cooldown
 
+/datum/bot_brain
+	/// Set while assign_goal() is inside a goal's resolve_target(): nothing else is assigned until it's back (or
+	/// this long has passed, in case it never is).
+	var/resolving_goal_until = 0
+
 /datum/bot_brain/proc/assign_goal(datum/bot_goal/goal)
 	if(!goal)
 		return FALSE
 	if(state == BOT_STATE_GOAL && current_goal)
 		return FALSE
+	// Finding the target can take real time (checking there's a way to it yields inside the route search), and the
+	// bot's next tick doesn't wait. Only one goal is weighed up at a time, and one that comes back to find the bot
+	// already busy stands down - two used to start on top of each other, and the first one's callbacks then
+	// failed the second.
+	if(world.time < resolving_goal_until)
+		return FALSE
+	resolving_goal_until = world.time + 5 SECONDS
+	var/state_before = state
 	goal.resolve_target(src)
+	resolving_goal_until = 0
+	if(QDELETED(src) || QDELETED(owner) || (state == BOT_STATE_GOAL && current_goal) || state != state_before)
+		return FALSE
 	if(!goal.target)
 		bot_log(src, "couldn't find a target for [goal.type] (currently @ [bot_coord(get_turf(owner))])")
 		return FALSE
+	// Aboard the evacuation shuttle there is nowhere to go but the shuttle: once it leaves, what's outside the
+	// hull is hyperspace (goals/evacuate.dm). A doctor hurt at launch once set off for a first-aid kit 85 tiles away.
+	if(bot_staying_aboard(owner) && !bot_aboard_shuttle(goal.target))
+		bot_log(src, "[goal.target] isn't aboard the shuttle - not leaving it for [goal.type]")
+		return FALSE
+	if(!goal.braves_bad_air && in_bad_air(goal.target) && !is_eva_ready())
+		bot_log(src, "[goal.target] is somewhere I can't breathe and I'm not suited up - not doing [goal.type]")
+		return FALSE
+	if(goal.exclusive)
+		if(taken_by_another(goal.target))
+			bot_log_verbose(src, "[goal.target] is already being seen to - leaving [goal.type] to them")
+			return FALSE
+		GLOB.bot_work_claims[goal.target] = src
 	goal.strategies = goal.get_strategies(src)
 	stop_pursuit()
 	current_goal = goal
 	state = BOT_STATE_GOAL
+	update_gait()
 	if(!suspended_goal)
 		goal_suspend_count = 0 //fresh top-level goal, not a tool-fetch nested under one
 	try_next_strategy()
@@ -456,6 +563,7 @@
 	// strategy if one was assigned since) - already guarded against crashing
 	// (advance_goal_step() checks current_strategy first), but still wrong behavior.
 	stop_pursuit()
+	release_claim(current_goal)
 	current_goal = null
 	current_strategy = null
 	current_step_index = 0
@@ -472,7 +580,17 @@
 		suspended_step_index = 0
 		state = BOT_STATE_GOAL
 		bot_log(src, "resuming [current_goal.type] after fetching tools (target: [current_goal.target] @ [bot_coord(get_turf(current_goal.target))])")
+		update_gait()
 		resume_goal()
+		return
+	update_gait()
+
+/// Walks instead of running for as long as the goal in hand asks it to (bot_goal.careful), and back to a run after.
+/datum/bot_brain/proc/update_gait()
+	var/should_walk = !!current_goal?.careful
+	if(should_walk != (owner.m_intent == MOVE_INTENT_WALK) && (should_walk || walking_for_goal))
+		owner.toggle_move_intent()
+	walking_for_goal = should_walk
 
 /datum/bot_brain/proc/resume_goal()
 	if(!current_goal || !current_strategy)
@@ -486,6 +604,51 @@
 /datum/bot_brain/proc/handle_goal()
 	if(owner.buckled)
 		owner.buckled.unbuckle_mob(owner, force = TRUE)
+	// A goal that nothing is driving any more. A walk can end while its goal is parked for a tool fetch
+	// (suspend_goal_for(), bot_items.dm - the fetch's search yields, and the old walk gives up at a locked door
+	// in the meantime): the failure is reported to a brain with no goal, so to nobody, and the goal comes back
+	// with a "walk there" step no walk belongs to - or doesn't come back at all. Either way the bot stood where
+	// it was for the rest of the shift (Bot Shift, 2026-10-04: a chemist frozen for 13 minutes, two runs running).
+	// The same thing can leave the walk on record with nothing moving it (the step chain that was driving it bowed
+	// out as "replaced"), so a walk that hasn't changed tile in 20 seconds counts too - while it's actually working
+	// on a door, searching for a route or mid-click it's excused, and a bot that was knocked down starts the clock again.
+	var/turf/here = get_turf(owner)
+	if(here != goal_progress_turf || world.time > goal_last_handled + 2 SECONDS)
+		goal_progress_turf = here
+		goal_progress_time = world.time
+	goal_last_handled = world.time
+	var/datum/bot_step/step = (current_strategy && current_step_index && current_step_index <= length(current_strategy.steps)) ? current_strategy.steps[current_step_index] : null
+	// A step that isn't a walk has nothing below to notice it has died - whatever was meant to finish it (a timer
+	// chain, a callback, a proc that runtimed) is gone and the bot stands there for good. Long enough that nothing
+	// legitimate looks like it: three minutes on the one step, the last ninety seconds of them without the bot
+	// moving, clicking or being in the middle of anything (the same clock Bot Shift calls a freeze by).
+	if(step != goal_watch_step)
+		goal_watch_step = step
+		goal_watch_since = world.time
+	else if(step && !step.waits_on_walk && world.time > goal_watch_since + 3 MINUTES && world.time > telemetry_last_activity + 90 SECONDS && !repathing && !busy_clearing)
+		bot_log(src, "[current_goal?.type] has gone quiet on [step.type] - counting that step as failed")
+		goal_watch_since = world.time
+		stop_pursuit()
+		advance_goal_step(FALSE)
+		return
+	var/stalled = !current_goal || (step?.waits_on_walk && (!pursuing_kind || world.time > goal_progress_time + 20 SECONDS))
+	if(!stalled || goal_chain_pending || repathing || busy_clearing || world.time < mid_click_until)
+		goal_stalled_since = 0
+		return
+	if(!goal_stalled_since)
+		goal_stalled_since = world.time
+		return
+	if(world.time < goal_stalled_since + 3 SECONDS)
+		return
+	goal_stalled_since = 0
+	goal_progress_time = world.time
+	if(!current_goal)
+		bot_log(src, "still set on a goal that's gone - back to my rounds")
+		state = BOT_STATE_WANDER
+		return
+	bot_log(src, "[current_goal.type] has stalled with nothing walking it - counting that step as failed")
+	stop_pursuit()
+	advance_goal_step(FALSE)
 
 /// What a person would actually take out of a locker: the specific thing they came for, or - on a
 /// general "grab something useful" trip - loose tools they don't already have. Never a whole

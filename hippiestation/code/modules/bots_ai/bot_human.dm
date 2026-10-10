@@ -24,6 +24,9 @@
 	/// Weak so a clicked thing that then gets destroyed (a smashed window, a squashed mouse) can still be
 	/// garbage collected - only ever compared, never used.
 	var/datum/weakref/last_click_target
+	/// While human_pause() is waiting to click, the bot is reaching for something - handle_wander()
+	/// doesn't set off somewhere new until then. A time, not a flag, so it can never get left on.
+	var/mid_click_until = 0
 
 /// Waits until a human could plausibly make the next click on `target`. Sleeps - only call from
 /// code that can (goal steps, obstruction clearing, pickups), never from pathfinding checks.
@@ -33,6 +36,7 @@
 	if(target_ref != last_click_target)
 		wait = max(wait, 0) + rand(BOT_REACTION_MIN, BOT_REACTION_MAX)
 	if(wait > 0)
+		mid_click_until = world.time + wait
 		sleep(wait)
 	last_click_target = target_ref
 	next_click_time = world.time + rand(BOT_CLICK_INTERVAL_MIN, BOT_CLICK_INTERVAL_MAX)
@@ -47,6 +51,14 @@
 	if(owner.get_inactive_held_item() == I)
 		owner.swap_hand()
 		return owner.get_active_held_item() == I
+	// Something the bot isn't carrying can only be taken up from within arm's reach. Without this a doctor
+	// storing medicine it had left by the chem master "drew" each patch into its hand from three tiles away.
+	var/atom/holder = I.loc
+	while(holder && holder != owner && !isturf(holder))
+		holder = holder.loc
+	if(holder != owner && get_dist(owner, get_turf(I)) > 1)
+		bot_log_verbose(src, "ready_in_hand: [I] isn't on me and is out of reach")
+		return FALSE
 	if(owner.get_active_held_item() && !owner.get_inactive_held_item())
 		owner.swap_hand() //the other hand is free - use it rather than putting something away
 	if(owner.get_active_held_item())

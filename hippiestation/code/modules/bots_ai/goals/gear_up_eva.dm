@@ -174,8 +174,8 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 	return FALSE
 
 // Suit worn, helmet engaged (suittoggled - see ToggleHelmet(), suits/toggles.dm), the
-// job's own mask type on, and an internals tank open (mob/internal, set the same way
-// the "Set Internals" Topic href does in carbon.dm - see equip_eva_gear below).
+// job's own mask type on, and an internals tank carried on the body (eva_tank(),
+// refill_internals.dm) - its valve is opened and shut as the air around the bot changes.
 // can_path_through_space=0 flickering to 1 and back within a handful of seconds in the
 // verbose logs (a "gear-up succeeded" moments before a "no path next to space" failure)
 // pointed at is_eva_ready() itself flapping, not a one-time gearing failure - but WHICH
@@ -193,8 +193,11 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 	if(mask_type && !istype(owner.wear_mask, mask_type))
 		bot_log_verbose(src, "is_eva_ready: FALSE - wear_mask is [owner.wear_mask], need [mask_type]")
 		return FALSE
-	if(!owner.internal)
-		bot_log_verbose(src, "is_eva_ready: FALSE - no internal tank set (owner.internal is null)")
+	// A tank on the body, where its valve can be reached - not one already open. This used to be "owner.internal
+	// is set", which made being ready for space the same thing as breathing from the tank all shift
+	// (manage_internals(), refill_internals.dm, opens it when the air calls for it).
+	if(!eva_tank())
+		bot_log_verbose(src, "is_eva_ready: FALSE - no internals tank on me")
 		return FALSE
 	// Wearing magboots alone isn't enough to move purposefully in zero-g - negates_gravity()
 	// (magboots.dm) only returns TRUE once the mag-pulse is actually toggled ON. Without
@@ -233,7 +236,11 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 	var/mask_type = get_job_mask_type()
 	if(mask_type && !istype(owner.wear_mask, mask_type))
 		return FALSE
-	if(!owner.internal)
+	if(!eva_tank())
+		return FALSE
+	// Standing in good air on the last quarter of a tank: nobody sets out across space on that (kept up to date
+	// once a second by mind_air_supply(), refill_internals.dm, because this runs once per tile in a route search)
+	if(low_air_stay_in)
 		return FALSE
 	return TRUE
 
@@ -266,7 +273,18 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 			if(istype(boots, boots_type) && boots.magpulse != needs_mag_pulse())
 				telemetry_shortcut("attack_self", boots, null) //telemetry
 				boots.attack_self(owner)
-	return is_eva_ready()
+	if(!is_eva_ready() || low_air_stay_in)
+		return FALSE
+	// Suited up is not the same as able to get about out there. Nothing moves in open space without something
+	// to push against - gravity, a wall or girder alongside, a lattice within a tile - or a jetpack
+	// (Process_Spacemove(), which bot_step_towards() goes through; magboots don't come into it). Bots were told
+	// all of space was open to them the moment they were suited, walked out past the last thing they could push
+	// off, and hung there until their air ran out - every route home failed at its first step ("still stuck at
+	// space"). So this is only true with a jetpack running. Without one a bot keeps to the space tiles it can
+	// actually cross: bot_turf_crossable_without_boots() (bot_pathing_permissive.dm), which is what the route
+	// planner applies while this is FALSE.
+	var/obj/item/tank/jetpack/jetpack = owner.get_jetpack()
+	return istype(jetpack) && jetpack.on
 
 /datum/bot_brain/proc/try_eva_gearing_round()
 	if(!is_eva_job() || is_eva_ready())
@@ -338,8 +356,10 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 				return GOAL_STEP_PENDING
 			bot_log(bot, "no hardsuit reachable to gear up with")
 			return GOAL_STEP_FAIL
-		bot.equip_displacing(suit, ITEM_SLOT_OCLOTHING)
-		bot_log(bot, "put on [suit]")
+		// wear() (engineer_gear.dm), not a bare equip: out of the bag or box into a hand first, then on,
+		// one piece at a time. Telemetry caught a breath mask going from the box in the backpack straight
+		// onto the face.
+		bot.wear(suit, ITEM_SLOT_OCLOTHING)
 
 	if(mask_type && !istype(H.wear_mask, mask_type))
 		var/obj/item/clothing/mask/mask = locate(mask_type) in H.GetAllContents()
@@ -350,10 +370,9 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 				return GOAL_STEP_PENDING
 			bot_log(bot, "no [mask_type] reachable to gear up with")
 			return GOAL_STEP_FAIL
-		bot.equip_displacing(mask, ITEM_SLOT_MASK)
-		bot_log(bot, "put on [mask]")
+		bot.wear(mask, ITEM_SLOT_MASK)
 
-	if(!H.internal)
+	if(!bot.eva_tank())
 		// Any /obj/item/tank/internals subtype works - which one's "correct" varies by
 		// job (plain oxygen for most, the ERT double-tank for response teams, etc), and
 		// whatever's actually in that job's SSU storage slot (raid_ssu below) already
@@ -390,9 +409,11 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 		if(tank.loc != H)
 			bot_log(bot, "couldn't get [tank] onto myself directly (still in [tank.loc]) - can't open its valve")
 			return GOAL_STEP_FAIL
-		H.internal = tank
-		H.update_internals_hud_icon(1)
-		bot_log(bot, "opened the valve on [tank] and started breathing from it")
+		// Carried where its valve can be reached, and that's all for now: it gets opened where the air isn't
+		// breathable and shut again where it is. Opening it here and leaving it open ran every suited bot's
+		// tank dry inside ten minutes, indoors - see manage_internals() (refill_internals.dm).
+		bot_log(bot, "got [tank] on me ([round(tank.air_contents.return_pressure())] kPa) - keeping its valve shut while there's air to breathe")
+		bot.manage_internals()
 
 	// Not in any engineering SSU's storage slot (suit_storage_unit.dm) - always fetched
 	// via acquire_item_type, same as a personal objective would. Worn AND mag-pulse
@@ -412,8 +433,7 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 					return GOAL_STEP_PENDING
 				bot_log(bot, "no magboots reachable to gear up with")
 				return GOAL_STEP_FAIL
-			bot.equip_displacing(boots, ITEM_SLOT_FEET)
-			bot_log(bot, "put on [boots]")
+			bot.wear(boots, ITEM_SLOT_FEET)
 		// Only actually toggled when needs_mag_pulse() (above) says the surroundings
 		// call for it - not unconditionally the moment boots are worn. Bidirectional:
 		// turns back off again once the hazard's gone, same as it turns on for one.
@@ -500,6 +520,9 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 		if(!I)
 			continue
 		bot.human_pause(SSU)
+		if(QDELETED(SSU) || !bot.owner.Adjacent(SSU))
+			break //the pause sleeps - still at the unit?
+		bot.owner.face_atom(SSU) //back to the panel: picking the last piece up and stowing it turned the bot away
 		bot.telemetry_ui_action(SSU, "dispense [slot]")
 		SSU.vars[slot] = null
 		I.forceMove(SSU.loc) //exactly what the panel's "dispense" button does

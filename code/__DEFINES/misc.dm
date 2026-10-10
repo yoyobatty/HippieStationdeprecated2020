@@ -432,6 +432,12 @@ GLOBAL_LIST_INIT(pda_styles, list(MONO, VT, ORBITRON, SHARE))
 #define DEPT_GEAR_TEST_PARAMETER "dept-gear-test"
 /// hippie -- fast-forwards a headless run: 0 = no speed limit, N = at most N times real time (hippiestation/code/modules/admin/timewarp.dm)
 #define TIMEWARP_PARAMETER "timewarp"
+/// hippie -- runs a shift of this many minutes on the real station with a crew of bots after init, judges it, then shuts down (hippiestation/code/modules/bots_ai/gym/bot_shift.dm)
+#define BOT_SHIFT_PARAMETER "bot-shift"
+#define BOT_SHIFT_CREW_PARAMETER "bot-crew"
+#define BOT_SHIFT_EVENTS_PARAMETER "bot-events"
+#define BOT_SHIFT_PROFILE_PARAMETER "bot-profile"
+#define BOT_SHIFT_EVAC_PARAMETER "bot-evac"
 
 #define EGG_LAYING_MESSAGES list("lays an egg.","squats down and croons.","begins making a huge racket.","begins clucking raucously.")
 
