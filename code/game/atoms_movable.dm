@@ -544,8 +544,10 @@
 
 	. = ..()
 	if(loc)
-		//Restore air flow if we were blocking it (movables with ATMOS_PASS_PROC will need to do this manually if necessary)
-		if(((CanAtmosPass == ATMOS_PASS_DENSITY && density) || CanAtmosPass == ATMOS_PASS_NO) && isturf(loc))
+		//Restore air flow if we were blocking it
+		// hippie -- ATMOS_PASS_PROC ones too: a deleted border firelock left its side sealed, as door/Destroy() updates
+		// the air while the door is still shut
+		if(((CanAtmosPass == ATMOS_PASS_DENSITY && density) || CanAtmosPass == ATMOS_PASS_NO || CanAtmosPass == ATMOS_PASS_PROC) && isturf(loc))
 			CanAtmosPass = ATMOS_PASS_YES
 			air_update_turf(TRUE)
 		loc.handle_atom_del(src)

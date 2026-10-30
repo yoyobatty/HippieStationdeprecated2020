@@ -26,6 +26,9 @@
 	opacity = 0
 	icon = 'hippiestation/icons/obj/inflatable.dmi'
 	icon_state = "wall"
+	// Holds air back while it's up. It used to override CanAtmosPass() without ever saying to use it, so air went
+	// straight through.
+	CanAtmosPass = ATMOS_PASS_DENSITY
 	var/health = 20
 	var/torntype = /obj/item/inflatable/torn
 	var/itemtype = /obj/item/inflatable
@@ -40,9 +43,6 @@
 
 /obj/structure/inflatable/CanPass(atom/movable/mover, turf/target, height=0, air_group=0)
 	return 0
-
-/obj/structure/inflatable/CanAtmosPass(turf/T)
-	return !density
 
 /obj/structure/inflatable/bullet_act(var/obj/item/projectile/Proj)
 	..()
@@ -167,9 +167,6 @@
 		return state
 	if(istype(mover, /obj/effect/beam))
 		return !opacity
-	return !density
-
-/obj/structure/inflatable/door/CanAtmosPass(turf/T)
 	return !density
 
 /obj/structure/inflatable/door/proc/TryToSwitchState(atom/user)
