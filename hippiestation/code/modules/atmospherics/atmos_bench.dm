@@ -4,7 +4,7 @@
 // over each: a calm station, a big gas release, a plasma fire, and hull breaches to space. The same spots get picked
 // every run, so runs compare.
 //
-// Run it:   tools/atmos_bench/run_atmos_bench.sh [profile]
+// Run it:   tools/atmos_bench/run_atmos_bench.sh [profile | machine-times | idle-check | machines]
 // or boot:  DreamDaemon hippiestation.dmb -params "atmos-bench=1" ("atmos-bench=profile" to also profile)
 // Results:  data/atmos_bench/results.txt, and with profiling data/atmos_bench/profile.json
 
@@ -15,6 +15,15 @@ GLOBAL_VAR_INIT(atmos_bench_recording, FALSE)
 GLOBAL_LIST_EMPTY(atmos_bench_stage_ms)
 /// Stage name -> how many times it ran while recording
 GLOBAL_LIST_EMPTY(atmos_bench_stage_calls)
+/// Machine type -> real ms in its process_atmos(), only kept with "atmos-bench=machine-times" (null otherwise)
+GLOBAL_VAR(atmos_bench_machine_ms)
+/// Machine type -> process_atmos() calls, alongside the above
+GLOBAL_VAR(atmos_bench_machine_calls)
+/// Pipe network -> real ms in its process(), and how many times it rebalanced (reconcile_air()), with machine-times
+GLOBAL_VAR(atmos_bench_net_ms)
+GLOBAL_VAR(atmos_bench_net_reconciles)
+/// Machine type -> update_parents() calls, with machine-times
+GLOBAL_VAR(atmos_bench_updaters)
 
 /proc/atmos_bench_add(stage, start)
 	GLOB.atmos_bench_stage_ms[stage] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - start)
@@ -33,15 +42,84 @@ GLOBAL_LIST_EMPTY(atmos_bench_stage_calls)
 	if(!GLOB.atmos_bench_recording)
 		return ..()
 	var/start = TICK_USAGE_REAL
-	. = ..()
+	if(GLOB.atmos_bench_net_ms)
+		atmos_bench_timed_pipenets(delta_time, resumed)
+	else
+		. = ..()
 	atmos_bench_add("pipe networks", start)
+
+/// The pipe network stage as SSair runs it, but timing every network ("atmos-bench=machine-times")
+/datum/controller/subsystem/air/proc/atmos_bench_timed_pipenets(delta_time, resumed)
+	if (!resumed)
+		src.currentrun = updating_networks.Copy()
+	var/list/currentrun = src.currentrun
+	var/list/net_ms = GLOB.atmos_bench_net_ms
+	var/list/net_reconciles = GLOB.atmos_bench_net_reconciles
+	while(currentrun.len)
+		var/datum/pipeline/net = currentrun[currentrun.len]
+		currentrun.len--
+		if(!net)
+			networks.Remove(net)
+			updating_networks.Remove(net)
+		else
+			var/reconciling = net.update && !net.building
+			var/net_start = TICK_USAGE_REAL
+			net.process(delta_time)
+			if(net.settled())
+				updating_networks -= net
+			net_ms[net] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - net_start)
+			if(reconciling)
+				net_reconciles[net] += 1
+		if(MC_TICK_CHECK)
+			return
+
+// Who flags pipe networks for rebalancing, by type
+/obj/machinery/atmospherics/components/update_parents()
+	if(GLOB.atmos_bench_updaters && GLOB.atmos_bench_recording)
+		GLOB.atmos_bench_updaters[type] += 1
+	return ..()
 
 /datum/controller/subsystem/air/process_atmos_machinery(delta_time, resumed = FALSE)
 	if(!GLOB.atmos_bench_recording)
 		return ..()
 	var/start = TICK_USAGE_REAL
-	. = ..()
+	if(GLOB.atmos_bench_machine_ms)
+		atmos_bench_timed_machinery(delta_time, resumed)
+	else
+		. = ..()
 	atmos_bench_add("atmos machinery", start)
+
+/// The machinery stage as SSair runs it, but timing every machine by type ("atmos-bench=machine-times")
+/datum/controller/subsystem/air/proc/atmos_bench_timed_machinery(delta_time, resumed)
+	if (!resumed)
+		src.currentrun = atmos_machinery.Copy()
+	var/list/currentrun = src.currentrun
+	var/list/machine_ms = GLOB.atmos_bench_machine_ms
+	var/list/machine_calls = GLOB.atmos_bench_machine_calls
+	var/can_idle = tile_engine
+	var/fired = times_fired
+	while(currentrun.len)
+		var/obj/machinery/M = currentrun[currentrun.len]
+		currentrun.len--
+		if(!M)
+			atmos_machinery.Remove(M)
+		else
+			var/machine_start = TICK_USAGE_REAL
+			if(M.atmos_idle_since)
+				var/turf/T = M.loc
+				if(can_idle && T?.air_changed_at < M.atmos_idle_since && fired - M.atmos_idle_since < ATMOS_IDLE_RECHECK)
+					machine_ms[M.type] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - machine_start)
+					continue
+				M.atmos_idle_since = 0
+			var/result = M.process_atmos(delta_time)
+			if(result == PROCESS_KILL)
+				atmos_machinery.Remove(M)
+			else if(result == ATMOS_IDLE && can_idle)
+				M.atmos_idle_since = fired
+			machine_ms[M.type] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - machine_start)
+			machine_calls[M.type] += 1
+		if(MC_TICK_CHECK)
+			return
 
 /datum/controller/subsystem/air/process_active_turfs(resumed = FALSE)
 	if(!GLOB.atmos_bench_recording)
@@ -143,9 +221,20 @@ GLOBAL_LIST_EMPTY(atmos_bench_stage_calls)
 		if(!too_close)
 			to_breach += W
 
+	if(option == "idle-check")
+		lines += atmos_bench_idle_check(z)
+		atmos_bench_finish(lines)
+		return
+
 	if(option == "profile")
 		world.Profile(PROFILE_CLEAR)
 		world.Profile(PROFILE_START)
+	if(option == "machine-times")
+		GLOB.atmos_bench_machine_ms = list()
+		GLOB.atmos_bench_machine_calls = list()
+		GLOB.atmos_bench_net_ms = list()
+		GLOB.atmos_bench_net_reconciles = list()
+		GLOB.atmos_bench_updaters = list()
 
 	if(option == "machines")
 		// What SSair's machinery stage goes through every tick, by type
@@ -201,6 +290,12 @@ GLOBAL_LIST_EMPTY(atmos_bench_stage_calls)
 /proc/atmos_bench_scene(name, length)
 	GLOB.atmos_bench_stage_ms = list()
 	GLOB.atmos_bench_stage_calls = list()
+	if(GLOB.atmos_bench_machine_ms)
+		GLOB.atmos_bench_machine_ms = list()
+		GLOB.atmos_bench_machine_calls = list()
+		GLOB.atmos_bench_net_ms = list()
+		GLOB.atmos_bench_net_reconciles = list()
+		GLOB.atmos_bench_updaters = list()
 	var/list/active = list()
 	var/list/groups = list()
 	var/list/hotspots = list()
@@ -227,7 +322,129 @@ GLOBAL_LIST_EMPTY(atmos_bench_stage_calls)
 		. += "  [stage]: [round(ms, 0.1)] ms total, [fires ? round(ms / fires, 0.01) : 0] ms per SSair fire"
 	if(SSair.tile_engine && fires)
 		. += "  tile engine, ms per SSair fire: packing [round((SSair.tile_engine_pack_ms - pack_ms) / fires, 0.01)], the engine itself [round((SSair.tile_engine_native_ms - native_ms) / fires, 0.01)], following up [round((SSair.tile_engine_apply_ms - apply_ms) / fires, 0.01)]"
+	var/list/machine_ms = GLOB.atmos_bench_machine_ms
+	if(length(machine_ms) && fires)
+		sortTim(machine_ms, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
+		. += "  machinery by type, ms per SSair fire (machines of that type, microseconds each):"
+		var/shown = 0
+		for(var/machine_type in machine_ms)
+			if(++shown > 15)
+				break
+			var/per_fire = machine_ms[machine_type] / fires
+			var/count = GLOB.atmos_bench_machine_calls[machine_type] / fires
+			. += "    [round(per_fire, 0.001)] [machine_type] ([round(count, 0.1)], [round(per_fire * 1000 / count, 0.1)] us each)"
+	var/list/net_ms = GLOB.atmos_bench_net_ms
+	if(length(net_ms) && fires)
+		sortTim(net_ms, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
+		. += "  pipe networks, ms per SSair fire (of [length(SSair.networks)]), rebalances per fire, what's on it:"
+		var/shown = 0
+		for(var/datum/pipeline/net as anything in net_ms)
+			if(++shown > 8)
+				break
+			var/rebalances = (GLOB.atmos_bench_net_reconciles[net] || 0) / fires
+			. += "    [round(net_ms[net] / fires, 0.001)] ms, [round(rebalances, 0.01)] rebalances: [atmos_bench_describe_net(net)]"
+		var/list/updaters = GLOB.atmos_bench_updaters
+		sortTim(updaters, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
+		var/list/updater_text = list()
+		for(var/updater_type in updaters)
+			if(length(updater_text) >= 8)
+				break
+			updater_text += "[round(updaters[updater_type] / fires, 0.1)] [updater_type]"
+		. += "  update_parents() calls per fire: [jointext(updater_text, "; ")]"
 	. += atmos_bench_outcome()
+
+/// Checks idle vents and scrubbers still do their job ("atmos-bench=idle-check"): CO2 put on two scrubbers' turfs, one
+/// the usual way (add_to_active()) and one behind atmos's back, and half the air taken off a vent's turf. Run it with
+/// ENGINE=linda too: that's how it worked before, as nothing idles there.
+/proc/atmos_bench_idle_check(z)
+	. = list("", "Idle machines check")
+	var/list/obj/machinery/atmospherics/components/unary/vent_scrubber/scrubbers = list()
+	var/obj/machinery/atmospherics/components/unary/vent_pump/vent
+	for(var/obj/machinery/atmospherics/components/unary/machine in SSair.atmos_machinery)
+		if(machine.z != z || !isopenturf(machine.loc) || !machine.on || !machine.is_operational() || machine.welded)
+			continue
+		if(istype(machine, /obj/machinery/atmospherics/components/unary/vent_scrubber))
+			var/obj/machinery/atmospherics/components/unary/vent_scrubber/scrubber = machine
+			// scrubbing 1 is scrubbing, not siphoning
+			if(length(scrubbers) < 2 && scrubber.scrubbing == 1 && !scrubber.widenet && (/datum/gas/carbon_dioxide in scrubber.filter_types))
+				scrubbers += scrubber
+		else if(!vent && istype(machine, /obj/machinery/atmospherics/components/unary/vent_pump))
+			var/obj/machinery/atmospherics/components/unary/vent_pump/candidate = machine
+			// pump_direction 1 is releasing, pressure_checks 1 the external bound
+			if(candidate.pump_direction == 1 && (candidate.pressure_checks & 1))
+				vent = candidate
+	if(length(scrubbers) < 2 || !vent)
+		. += "  couldn't find two scrubbers and a vent to try"
+		return
+	var/list/obj/machinery/machines = scrubbers + vent
+	var/list/idle_text = list()
+	for(var/obj/machinery/machine as anything in machines)
+		idle_text += machine.atmos_idle_since ? "idle" : "running"
+	. += "  before: scrubbers and vent [jointext(idle_text, ", ")]"
+
+	var/co2_start = atmos_bench_station_moles(z, /datum/gas/carbon_dioxide)
+	var/total_start = atmos_bench_station_moles(z)
+	var/fired_at = SSair.times_fired // the next atmos tick, as this runs between them
+	for(var/i in 1 to 2)
+		var/obj/machinery/atmospherics/components/unary/vent_scrubber/scrubber = scrubbers[i]
+		var/turf/open/T = scrubber.loc
+		T.air.assert_gas(/datum/gas/carbon_dioxide)
+		T.air.moles[/datum/gas/carbon_dioxide] += 20
+		if(i == 1)
+			SSair.add_to_active(T)
+	var/turf/open/vent_turf = vent.loc
+	vent_turf.remove_air(vent_turf.air.total_moles() / 2)
+	vent_turf.air_update_turf()
+	var/total_after_removal = atmos_bench_station_moles(z)
+	. += "  put 40 mol of CO2 on the scrubbers' turfs (the second without telling atmos), took [round(total_start - total_after_removal + 40, 0.1)] mol of air off the vent's turf"
+
+	var/start_time = world.time
+	for(var/seconds in list(1, 2, 3, 6))
+		sleep(start_time + seconds SECONDS - world.time)
+		var/list/state = list()
+		for(var/obj/machinery/machine as anything in machines)
+			var/ran = !machine.atmos_idle_since || machine.atmos_idle_since >= fired_at
+			state += ran ? "ran" : "still idle"
+		var/co2_gone = co2_start + 40 - atmos_bench_station_moles(z, /datum/gas/carbon_dioxide)
+		var/air_back = atmos_bench_station_moles(z) - total_after_removal
+		. += "  [SSair.times_fired - fired_at] atmos ticks on: scrubbers and vent [jointext(state, ", ")]; [round(co2_gone, 0.01)] mol CO2 scrubbed, [round(air_back, 0.1)] mol of air vented back in"
+
+/// Moles of one gas (or all of them) on the open turfs of a z-level
+/proc/atmos_bench_station_moles(z, gas_type)
+	. = 0
+	for(var/turf/open/T in block(locate(1, 1, z), locate(world.maxx, world.maxy, z)))
+		var/datum/gas_mixture/air = T.air
+		if(!air || istype(air, /datum/gas_mixture/immutable))
+			continue
+		if(gas_type)
+			. += air.moles[gas_type] || 0
+		else
+			for(var/each_type, amount in air.moles)
+				. += amount
+
+/// Roughly what a pipe network is: how many pipes, and the machines on it by kind
+/proc/atmos_bench_describe_net(datum/pipeline/net)
+	if(QDELETED(net))
+		return "(gone)"
+	var/list/kinds = list()
+	for(var/obj/machinery/atmospherics/machine as anything in net.other_atmosmch)
+		var/kind = "other"
+		if(istype(machine, /obj/machinery/atmospherics/components/unary/vent_pump))
+			kind = "vents"
+		else if(istype(machine, /obj/machinery/atmospherics/components/unary/vent_scrubber))
+			kind = "scrubbers"
+		else if(istype(machine, /obj/machinery/atmospherics/components/unary/portables_connector))
+			var/obj/machinery/atmospherics/components/unary/portables_connector/port = machine
+			kind = port.connected_device ? "connectors in use" : "empty connectors"
+		else if(istype(machine, /obj/machinery/atmospherics/components/binary))
+			kind = "pumps and valves"
+		else if(istype(machine, /obj/machinery/atmospherics/components/trinary))
+			kind = "filters and mixers"
+		kinds[kind] += 1
+	var/list/parts = list()
+	for(var/kind in kinds)
+		parts += "[kinds[kind]] [kind]"
+	return "[length(net.members)] pipes, [length(net.other_airs)] machine airs ([jointext(parts, ", ")]), [round(net.air.return_pressure(), 0.1)] kPa"
 
 /// What the station's air looks like now, to compare how the engines behave: totals over every open station turf
 /proc/atmos_bench_outcome()
