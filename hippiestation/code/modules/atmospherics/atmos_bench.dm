@@ -478,7 +478,20 @@ GLOBAL_VAR(atmos_bench_updaters)
 			low_pressure++
 		if(air.temperature > T0C + 100)
 			hot++
-	return "  air now, over [open] open station turfs: [round(total)] mol in all; N2O [round(n2o)] mol, on [n2o_tiles] turfs with a mole or more; plasma [round(plasma)] mol; [low_pressure] turfs under 20 kPa; [hot] turfs over 100 C"
+	// Heat above room temperature, in the air and in the turfs themselves (floors and walls hold heat too), so where a
+	// fire's heat went can be compared between engines
+	var/air_heat = 0
+	var/solid_heat = 0
+	for(var/turf/T as anything in block(locate(1, 1, z), locate(world.maxx, world.maxy, z)))
+		if(T.temperature > T20C)
+			solid_heat += T.heat_capacity * (T.temperature - T20C)
+		if(!isopenturf(T))
+			continue
+		var/turf/open/O = T
+		var/datum/gas_mixture/air = O.air
+		if(air && !istype(air, /datum/gas_mixture/immutable) && air.temperature > T20C)
+			air_heat += air.heat_capacity() * (air.temperature - T20C)
+	return "  air now, over [open] open station turfs: [round(total)] mol in all; N2O [round(n2o)] mol, on [n2o_tiles] turfs with a mole or more; plasma [round(plasma)] mol; [low_pressure] turfs under 20 kPa; [hot] turfs over 100 C; heat over 20 C: [round(air_heat / 1e6, 0.1)] MJ in the air, [round(solid_heat / 1e6, 0.1)] MJ in turfs"
 
 /proc/atmos_bench_mean(list/values)
 	if(!length(values))
