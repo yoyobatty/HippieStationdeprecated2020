@@ -1,10 +1,11 @@
 #!/bin/bash
 # Atmos bench: compile, boot headless, time every stage of SSair over a calm station, a gas release, a plasma fire and
 # hull breaches, print the results. See hippiestation/code/modules/atmospherics/atmos_bench.dm.
-# Usage: tools/atmos_bench/run_atmos_bench.sh [profile | machine-times | idle-check | machines]
+# Usage: tools/atmos_bench/run_atmos_bench.sh [profile | machine-times | idle-check | blocker-check | machines]
 #   profile: also profiles the scenes, into data/atmos_bench/profile.json (read it with tools/bot_gym/shift_profile.py)
 #   machine-times: also times SSair's machines by type and its pipe networks one by one
 #   idle-check: checks idle vents and scrubbers still wake up when their air changes (run it with ENGINE=linda too)
+#   blocker-check: checks every kind of air blocker lets air through once deleted, wrecked or taken apart, and walls too
 #   machines: just counts what's in SSair.atmos_machinery
 # Compare runs: tools/atmos_bench/compare_runs.py
 # Environment: SPEED=0 no speed limit (default), SPEED=1 real time; BYOND_BIN, PORT to override the defaults;
