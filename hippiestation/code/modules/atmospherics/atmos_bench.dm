@@ -147,6 +147,18 @@ GLOBAL_LIST_EMPTY(atmos_bench_stage_calls)
 		world.Profile(PROFILE_CLEAR)
 		world.Profile(PROFILE_START)
 
+	if(option == "machines")
+		// What SSair's machinery stage goes through every tick, by type
+		var/list/by_type = list()
+		for(var/obj/machinery/machine as anything in SSair.atmos_machinery)
+			by_type["[machine.type]"] += 1
+		sortTim(by_type, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
+		lines += list("", "[length(SSair.atmos_machinery)] machines in SSair.atmos_machinery:")
+		for(var/type_name in by_type)
+			lines += "  [by_type[type_name]] [type_name]"
+		atmos_bench_finish(lines)
+		return
+
 	lines += atmos_bench_scene("Calm station", 60 SECONDS)
 
 	// A canister's worth of gas let out on one tile
