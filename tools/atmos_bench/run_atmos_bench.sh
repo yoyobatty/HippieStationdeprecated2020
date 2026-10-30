@@ -23,6 +23,8 @@ PARAMS="atmos-bench=$OPTION"
 if [ "$SPEED" != "1" ] && [ -f timewarp.dll ]; then PARAMS="$PARAMS&timewarp=$SPEED"; fi
 # ENGINE=linda runs LINDA instead of the tile engine, for comparing the two
 if [ -n "${ENGINE:-}" ]; then PARAMS="$PARAMS&atmos-engine=$ENGINE"; fi
+# EXTRA_PARAMS="a=1&b=2" adds more world params, like atmos-engine-passes=3
+if [ -n "${EXTRA_PARAMS:-}" ]; then PARAMS="$PARAMS&$EXTRA_PARAMS"; fi
 
 rm -rf data/atmos_bench
 mkdir -p data

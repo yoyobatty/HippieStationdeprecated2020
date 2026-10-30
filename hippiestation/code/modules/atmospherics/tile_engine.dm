@@ -16,9 +16,13 @@
 
 #define TILE_ENGINE_LIB (world.system_type == UNIX ? "./libhippie_atmos.so" : "hippie_atmos")
 /// The version of the lists passed back and forth; the library has to report this one
-#define TILE_ENGINE_VERSION 3
-/// How many ticks in a row an awake turf has to be quiet before it sleeps
-#define TILE_ENGINE_QUIET_TICKS 3
+#define TILE_ENGINE_VERSION 4
+/// Sharing passes per tick. LINDA's gas got further than one turf a tick; three passes matched how fast it spread and
+/// vented in the atmos bench (one pass vented about half as much to space in 90 seconds). -params
+/// "atmos-engine-passes=N" overrides it, for trying others.
+#define TILE_ENGINE_PASSES 3
+/// How many ticks in a row an awake turf has to be quiet before it sleeps. -params "atmos-engine-quiet=N" overrides it.
+#define TILE_ENGINE_QUIET_TICKS (SSair.tile_engine_quiet_ticks)
 /// Numbers per turf in the packed list after its gases: temperature, adjacent turf count, kind, awake, drawn overlay
 /// key, ticks since its last big share
 #define TILE_ENGINE_EXTRAS 6
@@ -28,6 +32,9 @@
 /datum/controller/subsystem/air
 	/// TRUE when turfs are processed by the tile engine instead of LINDA
 	var/tile_engine = FALSE
+	/// How many ticks in a row an awake turf has to be quiet before it sleeps. 6 got thin gas clouds spreading about as
+	/// far as LINDA's in the atmos bench; 3 stopped them early, 11 cost more for no closer match.
+	var/tile_engine_quiet_ticks = 6
 	/// Gas typepath -> its position in the packed lists
 	var/list/tile_engine_gas_index
 	/// Position -> gas typepath
@@ -70,6 +77,7 @@
 /// Turns the tile engine on if the library is there and it's the version this code expects
 /datum/controller/subsystem/air/proc/tile_engine_setup()
 	tile_engine = FALSE
+	tile_engine_quiet_ticks = text2num(world.params["atmos-engine-quiet"]) || tile_engine_quiet_ticks
 	if(world.params["atmos-engine"] == "linda")
 		log_world("Atmos: running LINDA, the tile engine was turned off with atmos-engine=linda")
 		return
@@ -101,7 +109,8 @@
 		settings += list(MINIMUM_MOLES_DELTA_TO_MOVE, MINIMUM_AIR_RATIO_TO_MOVE, MINIMUM_TEMPERATURE_DELTA_TO_SUSPEND, \
 			MINIMUM_TEMPERATURE_DELTA_TO_CONSIDER, MINIMUM_TEMPERATURE_TO_MOVE, OPEN_HEAT_TRANSFER_COEFFICIENT, HEAT_CAPACITY_VACUUM, \
 			MINIMUM_HEAT_CAPACITY, TCMB, R_IDEAL_GAS_EQUATION, CELL_VOLUME, MOLAR_ACCURACY, MINIMUM_MOLE_COUNT, \
-			MINIMUM_TEMPERATURE_START_SUPERCONDUCTION, M_CELL_WITH_RATIO, MINIMUM_AIR_TO_SUSPEND, EXCITED_GROUP_BREAKDOWN_CYCLES)
+			MINIMUM_TEMPERATURE_START_SUPERCONDUCTION, M_CELL_WITH_RATIO, MINIMUM_AIR_TO_SUSPEND, EXCITED_GROUP_BREAKDOWN_CYCLES, \
+			text2num(world.params["atmos-engine-passes"]) || TILE_ENGINE_PASSES)
 		settings += length(gas_reactions)
 		for(var/datum/gas_reaction/reaction as anything in gas_reactions)
 			var/list/needs = reaction.min_requirements || list()
@@ -365,3 +374,4 @@
 #undef TILE_ENGINE_QUIET_TICKS
 #undef TILE_ENGINE_EXTRAS
 #undef TILE_ENGINE_CALM
+#undef TILE_ENGINE_PASSES

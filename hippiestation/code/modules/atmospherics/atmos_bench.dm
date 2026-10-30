@@ -215,6 +215,38 @@ GLOBAL_LIST_EMPTY(atmos_bench_stage_calls)
 		. += "  [stage]: [round(ms, 0.1)] ms total, [fires ? round(ms / fires, 0.01) : 0] ms per SSair fire"
 	if(SSair.tile_engine && fires)
 		. += "  tile engine, ms per SSair fire: packing [round((SSair.tile_engine_pack_ms - pack_ms) / fires, 0.01)], the engine itself [round((SSair.tile_engine_native_ms - native_ms) / fires, 0.01)], following up [round((SSair.tile_engine_apply_ms - apply_ms) / fires, 0.01)]"
+	. += atmos_bench_outcome()
+
+/// What the station's air looks like now, to compare how the engines behave: totals over every open station turf
+/proc/atmos_bench_outcome()
+	var/z = SSmapping.levels_by_trait(ZTRAIT_STATION)[1]
+	var/total = 0
+	var/n2o = 0
+	var/n2o_tiles = 0
+	var/plasma = 0
+	var/low_pressure = 0
+	var/hot = 0
+	var/open = 0
+	for(var/turf/open/T in block(locate(1, 1, z), locate(world.maxx, world.maxy, z)))
+		var/datum/gas_mixture/air = T.air
+		if(!air || istype(air, /datum/gas_mixture/immutable))
+			continue
+		open++
+		var/list/moles = air.moles
+		var/here = 0
+		for(var/gas_type, amount in moles)
+			here += amount
+		total += here
+		var/n2o_here = moles[/datum/gas/nitrous_oxide] || 0
+		n2o += n2o_here
+		if(n2o_here >= 1)
+			n2o_tiles++
+		plasma += moles[/datum/gas/plasma] || 0
+		if(here * R_IDEAL_GAS_EQUATION * air.temperature / air.volume < 20)
+			low_pressure++
+		if(air.temperature > T0C + 100)
+			hot++
+	return "  air now, over [open] open station turfs: [round(total)] mol in all; N2O [round(n2o)] mol, on [n2o_tiles] turfs with a mole or more; plasma [round(plasma)] mol; [low_pressure] turfs under 20 kPa; [hot] turfs over 100 C"
 
 /proc/atmos_bench_mean(list/values)
 	if(!length(values))

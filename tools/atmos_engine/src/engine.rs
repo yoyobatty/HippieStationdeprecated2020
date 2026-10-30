@@ -55,10 +55,12 @@ pub struct Config {
 	pub min_air_to_suspend: f64,
 	/// Ticks a group has to go without one before it's evened out (EXCITED_GROUP_BREAKDOWN_CYCLES)
 	pub breakdown_ticks: f64,
+	/// How many sharing passes a tick makes
+	pub sweeps: usize,
 }
 
 /// How many constants come after the per-gas lists in the settings list, in Config's order from min_moles_delta on
-const CONSTANTS: usize = 17;
+const CONSTANTS: usize = 18;
 
 impl Config {
 	/// Settings list layout: gas count G; G specific heats; G visible-mole thresholds (-1 for no overlay); the visible
@@ -104,7 +106,11 @@ impl Config {
 				}
 				needs.push((index - 1, amount));
 			}
-			reactions.push(Reaction { min_temperature, min_energy, gases: needs });
+			reactions.push(Reaction {
+				min_temperature,
+				min_energy,
+				gases: needs,
+			});
 		}
 		Ok(Config {
 			gases,
@@ -130,6 +136,7 @@ impl Config {
 			superconduct_heat_capacity: c[14],
 			min_air_to_suspend: c[15],
 			breakdown_ticks: c[16],
+			sweeps: (c[17] as usize).clamp(1, 8),
 		})
 	}
 
@@ -192,7 +199,10 @@ impl Config {
 		self.reactions.iter().any(|reaction| {
 			(reaction.min_temperature == 0.0 || temperature >= reaction.min_temperature)
 				&& (reaction.min_energy == 0.0 || energy >= reaction.min_energy)
-				&& reaction.gases.iter().all(|&(gas, need)| moles[gas] > 0.0 && moles[gas] >= need)
+				&& reaction
+					.gases
+					.iter()
+					.all(|&(gas, need)| moles[gas] > 0.0 && moles[gas] >= need)
 		})
 	}
 }
@@ -221,7 +231,10 @@ pub fn tick(cfg: &Config, tiles: &[f64], pairs: &[usize], planetary: &[f64], out
 	let g = cfg.gases;
 	let stride = g + TILE_EXTRAS;
 	if tiles.len() % stride != 0 {
-		return Err(format!("{} tile numbers isn't a whole number of tiles of {stride}", tiles.len()));
+		return Err(format!(
+			"{} tile numbers isn't a whole number of tiles of {stride}",
+			tiles.len()
+		));
 	}
 	if pairs.len() % 2 != 0 {
 		return Err("odd number of pair indices".into());
@@ -251,138 +264,163 @@ pub fn tick(cfg: &Config, tiles: &[f64], pairs: &[usize], planetary: &[f64], out
 		drawn[i] = row[g + 4];
 		calm[i] = row[g + 5];
 		if kind[i] >= KIND_PLANETARY && (kind[i] - KIND_PLANETARY) as usize >= planets {
-			return Err(format!("tile {i} uses planetary mix {} of {planets}", kind[i] - KIND_PLANETARY));
+			return Err(format!(
+				"tile {i} uses planetary mix {} of {planets}",
+				kind[i] - KIND_PLANETARY
+			));
 		}
 	}
 
-	let mut heat_capacity = vec![0f64; n];
-	let mut total = vec![0f64; n];
-	for i in 0..n {
-		let moles = &start[i * g..(i + 1) * g];
-		total[i] = moles.iter().sum();
-		heat_capacity[i] = if kind[i] == KIND_SPACE { cfg.heat_capacity_vacuum } else { cfg.turf_heat_capacity(moles) };
-	}
-
-	let mut moles = start.clone();
-	let mut energy_in = vec![0f64; n];
-	let mut heat_capacity_in = vec![0f64; n];
-	// Conduction changes temperature by heat over the tile's starting heat capacity, like temperature_share()
-	let mut conduction = vec![0f64; n];
 	let mut biggest_share = vec![0f64; n];
 	let mut wind = vec![(0f64, usize::MAX); n];
 	let mut wake = vec![false; n];
 	// Awake tiles sharing with each other this tick, for evening out groups of them below
 	let mut linked: Vec<(usize, usize)> = Vec::new();
 
-	for pair in pairs.chunks_exact(2) {
-		let (mut a, mut b) = (pair[0], pair[1]);
-		if a >= n || b >= n || a == b {
-			return Err(format!("bad pair {a}, {b} of {n} tiles"));
+	// The sharing runs in a few passes, each from where the last one left off. LINDA re-archives a turf every time
+	// a neighbour shares with it, so within one of its ticks gas gets further than one turf; passes do the same
+	// without the result depending on the order turfs come in.
+	let mut moles = start.clone();
+	let mut new_temp = temp.clone();
+	for sweep in 0..cfg.sweeps {
+		let from = moles.clone();
+		let from_temp = new_temp.clone();
+		let mut heat_capacity = vec![0f64; n];
+		let mut total = vec![0f64; n];
+		for i in 0..n {
+			let here = &from[i * g..(i + 1) * g];
+			total[i] = here.iter().sum();
+			heat_capacity[i] = if kind[i] == KIND_SPACE {
+				cfg.heat_capacity_vacuum
+			} else {
+				cfg.turf_heat_capacity(here)
+			};
 		}
-		// Always share from the side whose air can change: space and fixed air only ever give or take
-		if !mutable(kind[a]) {
-			std::mem::swap(&mut a, &mut b);
-		}
-		if !mutable(kind[a]) {
-			continue;
-		}
-		let b_mutable = mutable(kind[b]);
-		if awake[b] == NEIGHBOUR && awake[a] == NEIGHBOUR {
-			continue;
-		}
-		// A sleeping neighbour only joins in if the difference is worth it, like LINDA's compare()
-		let sleeper = if awake[b] == NEIGHBOUR { Some(b) } else if awake[a] == NEIGHBOUR { Some(a) } else { None };
-		if sleeper.is_some()
-			&& !cfg.significant(&start[a * g..(a + 1) * g], temp[a], &start[b * g..(b + 1) * g], temp[b])
-		{
-			continue;
-		}
-		if let Some(s) = sleeper {
-			if mutable(kind[s]) {
-				wake[s] = true;
-			}
-		} else if b_mutable {
-			linked.push((a, b));
-		}
+		let start = &from;
+		let temp = &from_temp;
+		let mut energy_in = vec![0f64; n];
+		let mut heat_capacity_in = vec![0f64; n];
+		// Conduction changes temperature by heat over the tile's starting heat capacity, like temperature_share()
+		let mut conduction = vec![0f64; n];
 
-		let our_coeff = 1.0 / (adjacent[a] + 1.0);
-		let their_coeff = 1.0 / (adjacent[b] + 1.0);
-		let temperature_delta = temp[a] - temp[b];
-		let consider_heat = temperature_delta.abs() > cfg.min_temp_delta_consider;
-		let mut moved = 0.0;
-		let mut abs_moved = 0.0;
-		let mut heat_capacity_out = 0.0; // of the gas going from a to b
-		let mut heat_capacity_back = 0.0; // of the gas going from b to a
-		for gas in 0..g {
-			let mut delta = cfg.quantize(start[a * g + gas] - start[b * g + gas]);
-			if delta == 0.0 {
+		for pair in pairs.chunks_exact(2) {
+			let (mut a, mut b) = (pair[0], pair[1]);
+			if a >= n || b >= n || a == b {
+				return Err(format!("bad pair {a}, {b} of {n} tiles"));
+			}
+			// Always share from the side whose air can change: space and fixed air only ever give or take
+			if !mutable(kind[a]) {
+				std::mem::swap(&mut a, &mut b);
+			}
+			if !mutable(kind[a]) {
 				continue;
 			}
-			delta *= if delta > 0.0 { our_coeff } else { their_coeff };
-			moles[a * g + gas] -= delta;
-			if b_mutable {
-				moles[b * g + gas] += delta;
+			let b_mutable = mutable(kind[b]);
+			if awake[b] == NEIGHBOUR && awake[a] == NEIGHBOUR {
+				continue;
 			}
-			moved += delta;
-			abs_moved += delta.abs();
-			if consider_heat {
-				let gas_heat_capacity = delta * cfg.specific_heat[gas];
-				if delta > 0.0 {
-					heat_capacity_out += gas_heat_capacity;
-				} else {
-					heat_capacity_back -= gas_heat_capacity;
+			// A sleeping neighbour only joins in if the difference is worth it, like LINDA's compare(). Once it has, it
+			// keeps sharing in the later passes.
+			let sleeper = if awake[b] == NEIGHBOUR {
+				Some(b)
+			} else if awake[a] == NEIGHBOUR {
+				Some(a)
+			} else {
+				None
+			};
+			if let Some(s) = sleeper {
+				if !wake[s] && !cfg.significant(&start[a * g..(a + 1) * g], temp[a], &start[b * g..(b + 1) * g], temp[b]) {
+					continue;
 				}
+				if mutable(kind[s]) {
+					wake[s] = true;
+				}
+			} else if b_mutable && sweep == 0 {
+				linked.push((a, b));
 			}
-		}
-		biggest_share[a] = biggest_share[a].max(abs_moved);
-		biggest_share[b] = biggest_share[b].max(abs_moved);
 
-		if consider_heat {
-			// The gas carries its heat with it at the temperature of the side it left
-			energy_in[a] += heat_capacity_back * temp[b] - heat_capacity_out * temp[a];
-			heat_capacity_in[a] += heat_capacity_back - heat_capacity_out;
-			if b_mutable {
-				energy_in[b] += heat_capacity_out * temp[a] - heat_capacity_back * temp[b];
-				heat_capacity_in[b] += heat_capacity_out - heat_capacity_back;
-			}
-			// Then conduction, as LINDA does when the gas moved didn't change their heat capacity much
-			let theirs_before = heat_capacity[b];
-			let theirs_after = theirs_before + heat_capacity_out - heat_capacity_back;
-			if theirs_before.abs() > cfg.min_heat_capacity && (theirs_after / theirs_before - 1.0).abs() < 0.1 {
-				let (ours, theirs) = (heat_capacity[a], heat_capacity[b]);
-				if ours > cfg.min_heat_capacity && theirs > cfg.min_heat_capacity {
-					let heat = cfg.open_heat_transfer * temperature_delta * (ours * theirs / (ours + theirs));
-					conduction[a] -= heat / ours;
-					if b_mutable {
-						conduction[b] += heat / theirs;
+			let our_coeff = 1.0 / (adjacent[a] + 1.0);
+			let their_coeff = 1.0 / (adjacent[b] + 1.0);
+			let temperature_delta = temp[a] - temp[b];
+			let consider_heat = temperature_delta.abs() > cfg.min_temp_delta_consider;
+			let mut moved = 0.0;
+			let mut abs_moved = 0.0;
+			let mut heat_capacity_out = 0.0; // of the gas going from a to b
+			let mut heat_capacity_back = 0.0; // of the gas going from b to a
+			for gas in 0..g {
+				let mut delta = cfg.quantize(start[a * g + gas] - start[b * g + gas]);
+				if delta == 0.0 {
+					continue;
+				}
+				delta *= if delta > 0.0 { our_coeff } else { their_coeff };
+				moles[a * g + gas] -= delta;
+				if b_mutable {
+					moles[b * g + gas] += delta;
+				}
+				moved += delta;
+				abs_moved += delta.abs();
+				if consider_heat {
+					let gas_heat_capacity = delta * cfg.specific_heat[gas];
+					if delta > 0.0 {
+						heat_capacity_out += gas_heat_capacity;
+					} else {
+						heat_capacity_back -= gas_heat_capacity;
 					}
 				}
 			}
-		}
+			biggest_share[a] = biggest_share[a].max(abs_moved);
+			biggest_share[b] = biggest_share[b].max(abs_moved);
 
-		// Wind: the pressure difference across the pair, the way share() works it out for consider_pressure_difference()
-		if temperature_delta > cfg.min_temp_to_move || moved.abs() > cfg.min_moles_delta {
-			let difference = (temp[a] * total[a] - temp[b] * total[b]) * cfg.r / cfg.cell_volume;
-			let (from, to, size) = if difference > 0.0 { (a, b, difference) } else { (b, a, -difference) };
-			if size > 0.0 && size > wind[from].0 {
-				wind[from] = (size, to);
+			if consider_heat {
+				// The gas carries its heat with it at the temperature of the side it left
+				energy_in[a] += heat_capacity_back * temp[b] - heat_capacity_out * temp[a];
+				heat_capacity_in[a] += heat_capacity_back - heat_capacity_out;
+				if b_mutable {
+					energy_in[b] += heat_capacity_out * temp[a] - heat_capacity_back * temp[b];
+					heat_capacity_in[b] += heat_capacity_out - heat_capacity_back;
+				}
+				// Then conduction, as LINDA does when the gas moved didn't change their heat capacity much
+				let theirs_before = heat_capacity[b];
+				let theirs_after = theirs_before + heat_capacity_out - heat_capacity_back;
+				if theirs_before.abs() > cfg.min_heat_capacity && (theirs_after / theirs_before - 1.0).abs() < 0.1 {
+					let (ours, theirs) = (heat_capacity[a], heat_capacity[b]);
+					if ours > cfg.min_heat_capacity && theirs > cfg.min_heat_capacity {
+						let heat = cfg.open_heat_transfer * temperature_delta * (ours * theirs / (ours + theirs));
+						conduction[a] -= heat / ours;
+						if b_mutable {
+							conduction[b] += heat / theirs;
+						}
+					}
+				}
+			}
+
+			// Wind: the pressure difference across the pair, the way share() works it out for consider_pressure_difference()
+			if temperature_delta > cfg.min_temp_to_move || moved.abs() > cfg.min_moles_delta {
+				let difference = (temp[a] * total[a] - temp[b] * total[b]) * cfg.r / cfg.cell_volume;
+				let (from, to, size) = if difference > 0.0 {
+					(a, b, difference)
+				} else {
+					(b, a, -difference)
+				};
+				if size > 0.0 && size > wind[from].0 {
+					wind[from] = (size, to);
+				}
 			}
 		}
-	}
 
-	let mut new_temp = temp.clone();
-	for i in 0..n {
-		if !mutable(kind[i]) {
-			continue;
-		}
-		let mut t = temp[i];
-		if heat_capacity_in[i] != 0.0 || energy_in[i] != 0.0 {
-			let after = heat_capacity[i] + heat_capacity_in[i];
-			if after > cfg.min_heat_capacity {
-				t = (heat_capacity[i] * temp[i] + energy_in[i]) / after;
+		for i in 0..n {
+			if !mutable(kind[i]) {
+				continue;
 			}
+			let mut t = temp[i];
+			if heat_capacity_in[i] != 0.0 || energy_in[i] != 0.0 {
+				let after = heat_capacity[i] + heat_capacity_in[i];
+				if after > cfg.min_heat_capacity {
+					t = (heat_capacity[i] * temp[i] + energy_in[i]) / after;
+				}
+			}
+			new_temp[i] = (t + conduction[i]).max(cfg.tcmb);
 		}
-		new_temp[i] = (t + conduction[i]).max(cfg.tcmb);
 	}
 
 	// Planetary turfs then share with the planet's air at 0.8 strength, from where the tick left them, and conduct
@@ -430,7 +468,10 @@ pub fn tick(cfg: &Config, tiles: &[f64], pairs: &[usize], planetary: &[f64], out
 		}
 		let planet_heat_capacity = cfg.real_heat_capacity(planet) * 5.0;
 		let ours = cfg.turf_heat_capacity(&moles[i * g..(i + 1) * g]);
-		if (t - planet_temp).abs() > cfg.min_temp_delta_consider && ours > cfg.min_heat_capacity && planet_heat_capacity > cfg.min_heat_capacity {
+		if (t - planet_temp).abs() > cfg.min_temp_delta_consider
+			&& ours > cfg.min_heat_capacity
+			&& planet_heat_capacity > cfg.min_heat_capacity
+		{
 			let heat = cfg.open_heat_transfer * (t - planet_temp) * (ours * planet_heat_capacity / (ours + planet_heat_capacity));
 			t -= heat / ours;
 		}
@@ -470,7 +511,9 @@ pub fn tick(cfg: &Config, tiles: &[f64], pairs: &[usize], planetary: &[f64], out
 	}
 	let mut broke_down = Vec::new();
 	for tiles_in_group in members.values() {
-		let settled = tiles_in_group.iter().all(|&i| !big[i] && calm[i] + 1.0 >= cfg.breakdown_ticks);
+		let settled = tiles_in_group
+			.iter()
+			.all(|&i| !big[i] && calm[i] + 1.0 >= cfg.breakdown_ticks);
 		if !settled {
 			continue;
 		}
@@ -493,7 +536,11 @@ pub fn tick(cfg: &Config, tiles: &[f64], pairs: &[usize], planetary: &[f64], out
 				*value = 0.0;
 			}
 		}
-		let average_temp = if group_heat_capacity > 0.0 { energy / group_heat_capacity } else { cfg.tcmb };
+		let average_temp = if group_heat_capacity > 0.0 {
+			energy / group_heat_capacity
+		} else {
+			cfg.tcmb
+		};
 		for &i in tiles_in_group {
 			if kind[i] >= KIND_PLANETARY {
 				// Planetary turfs just go back to the planet's air, as in self_breakdown()
@@ -580,7 +627,11 @@ pub fn tick(cfg: &Config, tiles: &[f64], pairs: &[usize], planetary: &[f64], out
 		if hot {
 			superconduct.push(i);
 		}
-		let heat_capacity_now = if real_heat_capacity == 0.0 { cfg.heat_capacity_vacuum } else { real_heat_capacity };
+		let heat_capacity_now = if real_heat_capacity == 0.0 {
+			cfg.heat_capacity_vacuum
+		} else {
+			real_heat_capacity
+		};
 		if cfg.can_react(now, new_temp[i], heat_capacity_now) {
 			react.push(i);
 		}
@@ -599,7 +650,9 @@ pub fn tick(cfg: &Config, tiles: &[f64], pairs: &[usize], planetary: &[f64], out
 	}
 	out.push(superconduct.len() as f64);
 	out.extend(superconduct.iter().map(|&i| i as f64 + 1.0));
-	let had_big_share: Vec<usize> = (0..n).filter(|&i| big[i] && awake[i] != NEIGHBOUR && mutable(kind[i])).collect();
+	let had_big_share: Vec<usize> = (0..n)
+		.filter(|&i| big[i] && awake[i] != NEIGHBOUR && mutable(kind[i]))
+		.collect();
 	for list in [&had_big_share, &broke_down] {
 		out.push(list.len() as f64);
 		out.extend(list.iter().map(|&i| i as f64 + 1.0));
@@ -633,6 +686,7 @@ mod tests {
 			moles_cellstandard * 0.005, // superconduct_heat_capacity
 			moles_cellstandard * 0.1,   // min_air_to_suspend
 			5.0,                        // breakdown_ticks
+			1.0,                        // sweeps
 		]);
 		// One reaction: gas 3 above 1 mole, over 400 K
 		settings.extend_from_slice(&[1.0, 400.0, 0.0, 1.0, 3.0, 1.0]);
@@ -641,7 +695,17 @@ mod tests {
 
 	fn tile(moles: [f64; 3], temperature: f64, adjacent: f64, kind: u32, awake: u8) -> Vec<f64> {
 		let cfg = config();
-		vec![moles[0], moles[1], moles[2], temperature, adjacent, kind as f64, awake as f64, cfg.visual_key(&moles), 0.0]
+		vec![
+			moles[0],
+			moles[1],
+			moles[2],
+			temperature,
+			adjacent,
+			kind as f64,
+			awake as f64,
+			cfg.visual_key(&moles),
+			0.0,
+		]
 	}
 
 	#[test]
@@ -661,7 +725,10 @@ mod tests {
 		// Heat: (100 * 300 + 101 * 300 + 102 * 330) / 303 = 310.10 K, give or take this tick's own sharing first
 		for (amount, temperature) in &values {
 			assert!((amount - 101.0).abs() < 1e-6, "every tile gets the average: {values:?}");
-			assert!((temperature - 310.10).abs() < 0.05, "at the temperature their heat adds up to: {values:?}");
+			assert!(
+				(temperature - 310.10).abs() < 0.05,
+				"at the temperature their heat adds up to: {values:?}"
+			);
 			assert_eq!(*temperature, values[0].1, "all the same: {values:?}");
 		}
 		// The last section lists the tiles that got evened out
@@ -719,12 +786,24 @@ mod tests {
 		let wake = list();
 		let quiet = list();
 		let react = list();
-		Result { changed, wind, wake, quiet, react }
+		Result {
+			changed,
+			wind,
+			wake,
+			quiet,
+			react,
+		}
 	}
 
 	#[test]
 	fn gas_is_conserved_between_two_tiles() {
-		let r = run(&[tile([80.0, 20.0, 0.0], 293.15, 1.0, KIND_TURF, AWAKE), tile([0.0, 0.0, 0.0], 293.15, 1.0, KIND_TURF, AWAKE)], &[0, 1]);
+		let r = run(
+			&[
+				tile([80.0, 20.0, 0.0], 293.15, 1.0, KIND_TURF, AWAKE),
+				tile([0.0, 0.0, 0.0], 293.15, 1.0, KIND_TURF, AWAKE),
+			],
+			&[0, 1],
+		);
 		assert_eq!(r.changed.len(), 2);
 		let total: f64 = r.changed.iter().flat_map(|(_, m, _)| m.iter()).sum();
 		assert!((total - 100.0).abs() < 1e-9, "total {total}");
@@ -737,19 +816,34 @@ mod tests {
 
 	#[test]
 	fn space_takes_gas_away() {
-		let r = run(&[tile([100.0, 0.0, 0.0], 293.15, 4.0, KIND_TURF, AWAKE), tile([0.0, 0.0, 0.0], 2.7, 4.0, KIND_SPACE, NEIGHBOUR)], &[0, 1]);
+		let r = run(
+			&[
+				tile([100.0, 0.0, 0.0], 293.15, 4.0, KIND_TURF, AWAKE),
+				tile([0.0, 0.0, 0.0], 2.7, 4.0, KIND_SPACE, NEIGHBOUR),
+			],
+			&[0, 1],
+		);
 		assert_eq!(r.changed.len(), 1, "space itself never changes");
 		let (_, moles, temperature) = &r.changed[0];
 		assert!((moles[0] - 80.0).abs() < 1e-6, "{moles:?}");
 		// LINDA: the gas leaving carries its own heat, then conduction with the vacuum takes
 		// 0.4 * 290.45 * (2000 * 7000 / 9000) J over the starting 2000 J/K: down to about 202.8 K
-		assert!((*temperature - 202.78).abs() < 0.05, "venting gas should cool like LINDA's, got {temperature}");
+		assert!(
+			(*temperature - 202.78).abs() < 0.05,
+			"venting gas should cool like LINDA's, got {temperature}"
+		);
 		assert!(r.wake.is_empty(), "space never wakes");
 	}
 
 	#[test]
 	fn small_differences_dont_wake_sleepers() {
-		let r = run(&[tile([100.0, 0.0, 0.0], 293.15, 4.0, KIND_TURF, AWAKE), tile([100.05, 0.0, 0.0], 293.15, 4.0, KIND_TURF, NEIGHBOUR)], &[0, 1]);
+		let r = run(
+			&[
+				tile([100.0, 0.0, 0.0], 293.15, 4.0, KIND_TURF, AWAKE),
+				tile([100.05, 0.0, 0.0], 293.15, 4.0, KIND_TURF, NEIGHBOUR),
+			],
+			&[0, 1],
+		);
 		assert!(r.changed.is_empty());
 		assert!(r.wake.is_empty());
 		assert_eq!(r.quiet, vec![0]);
@@ -757,7 +851,13 @@ mod tests {
 
 	#[test]
 	fn big_differences_wake_sleepers() {
-		let r = run(&[tile([100.0, 0.0, 0.0], 293.15, 4.0, KIND_TURF, AWAKE), tile([50.0, 0.0, 0.0], 293.15, 4.0, KIND_TURF, NEIGHBOUR)], &[0, 1]);
+		let r = run(
+			&[
+				tile([100.0, 0.0, 0.0], 293.15, 4.0, KIND_TURF, AWAKE),
+				tile([50.0, 0.0, 0.0], 293.15, 4.0, KIND_TURF, NEIGHBOUR),
+			],
+			&[0, 1],
+		);
 		assert_eq!(r.wake, vec![1]);
 		assert!(r.quiet.is_empty());
 	}
@@ -765,14 +865,21 @@ mod tests {
 	#[test]
 	fn heat_is_conserved_with_conduction() {
 		let cfg = config();
-		let tiles = [tile([100.0, 0.0, 0.0], 400.0, 1.0, KIND_TURF, AWAKE), tile([100.0, 0.0, 0.0], 300.0, 1.0, KIND_TURF, AWAKE)].concat();
+		let tiles = [
+			tile([100.0, 0.0, 0.0], 400.0, 1.0, KIND_TURF, AWAKE),
+			tile([100.0, 0.0, 0.0], 300.0, 1.0, KIND_TURF, AWAKE),
+		]
+		.concat();
 		let mut out = Vec::new();
 		tick(&cfg, &tiles, &[0, 1], &[], &mut out).unwrap();
 		// two changed tiles: index, 3 moles, temperature each
 		let t0 = out[1 + 4];
 		let t1 = out[1 + 5 + 4];
 		assert!(t0 < 400.0 && t1 > 300.0);
-		assert!(((t0 + t1) - 700.0).abs() < 1e-6, "same heat capacity on both sides, so the temperatures should sum the same: {t0} + {t1}");
+		assert!(
+			((t0 + t1) - 700.0).abs() < 1e-6,
+			"same heat capacity on both sides, so the temperatures should sum the same: {t0} + {t1}"
+		);
 	}
 
 	#[test]
@@ -793,7 +900,11 @@ mod tests {
 		let mut out = Vec::new();
 		tick(&cfg, &tiles, &[], &planet, &mut out).unwrap();
 		assert_eq!(out[0], 1.0, "one changed tile");
-		assert!((out[2] - 16.0).abs() < 1e-6 && (out[3] - 64.0).abs() < 1e-6, "0.8 of the way to the planet: {:?}", &out[2..5]);
+		assert!(
+			(out[2] - 16.0).abs() < 1e-6 && (out[3] - 64.0).abs() < 1e-6,
+			"0.8 of the way to the planet: {:?}",
+			&out[2..5]
+		);
 	}
 
 	#[test]
