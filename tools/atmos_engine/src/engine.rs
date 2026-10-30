@@ -218,7 +218,7 @@ fn mutable(kind: u32) -> bool {
 /// count from 1.
 ///
 /// Writes these sections to `out`, each starting with how many entries follow:
-/// - changed tiles: index, G moles, temperature
+/// - changed tiles: index, how many gases it has, a gas index (from 1) and moles for each, temperature
 /// - wind: tile, the neighbour it pushes toward, pressure difference (for consider_pressure_difference())
 /// - neighbours to wake
 /// - awake tiles that were quiet this tick
@@ -587,10 +587,16 @@ pub fn tick(cfg: &Config, tiles: &[f64], pairs: &[usize], planetary: &[f64], out
 			changed.push(i);
 		}
 	}
+	// Only the gases a tile has, so DM doesn't loop over all of them for every tile
 	out.push(changed.len() as f64);
 	for &i in &changed {
 		out.push(i as f64 + 1.0);
-		out.extend_from_slice(&moles[i * g..(i + 1) * g]);
+		let present: Vec<usize> = (0..g).filter(|&gas| moles[i * g + gas] > 0.0).collect();
+		out.push(present.len() as f64);
+		for gas in present {
+			out.push(gas as f64 + 1.0);
+			out.push(moles[i * g + gas]);
+		}
 		out.push(new_temp[i]);
 	}
 
@@ -719,9 +725,9 @@ mod tests {
 		}
 		let mut out = Vec::new();
 		tick(&cfg, &tiles, &[0, 1, 1, 2], &[], &mut out).unwrap();
-		let changed = out[0] as usize;
-		assert_eq!(changed, 3);
-		let values: Vec<(f64, f64)> = (0..changed).map(|k| (out[1 + k * 5 + 1], out[1 + k * 5 + 4])).collect();
+		let r = parse(&out);
+		assert_eq!(r.changed.len(), 3);
+		let values: Vec<(f64, f64)> = r.changed.iter().map(|(_, moles, temperature)| (moles[0], *temperature)).collect();
 		// Heat: (100 * 300 + 101 * 300 + 102 * 330) / 303 = 310.10 K, give or take this tick's own sharing first
 		for (amount, temperature) in &values {
 			assert!((amount - 101.0).abs() < 1e-6, "every tile gets the average: {values:?}");
@@ -762,6 +768,11 @@ mod tests {
 		let flat: Vec<f64> = tiles.concat();
 		let mut out = Vec::new();
 		tick(&cfg, &flat, pairs, &[], &mut out).unwrap();
+		parse(&out)
+	}
+
+	/// Reads tick()'s sections up to the reactions, with each changed tile's moles filled back out to all 3 gases
+	fn parse(out: &[f64]) -> Result {
 		let mut at = 0;
 		let mut take = || {
 			let v = out[at];
@@ -771,7 +782,11 @@ mod tests {
 		let mut changed = Vec::new();
 		for _ in 0..take() as usize {
 			let i = take() as usize - 1;
-			let moles = vec![take(), take(), take()];
+			let mut moles = vec![0.0; 3];
+			for _ in 0..take() as usize {
+				let gas = take() as usize - 1;
+				moles[gas] = take();
+			}
 			let temperature = take();
 			changed.push((i, moles, temperature));
 		}
@@ -872,9 +887,8 @@ mod tests {
 		.concat();
 		let mut out = Vec::new();
 		tick(&cfg, &tiles, &[0, 1], &[], &mut out).unwrap();
-		// two changed tiles: index, 3 moles, temperature each
-		let t0 = out[1 + 4];
-		let t1 = out[1 + 5 + 4];
+		let r = parse(&out);
+		let (t0, t1) = (r.changed[0].2, r.changed[1].2);
 		assert!(t0 < 400.0 && t1 > 300.0);
 		assert!(
 			((t0 + t1) - 700.0).abs() < 1e-6,
@@ -899,12 +913,15 @@ mod tests {
 		let planet = [20.0, 80.0, 0.0, 300.0];
 		let mut out = Vec::new();
 		tick(&cfg, &tiles, &[], &planet, &mut out).unwrap();
-		assert_eq!(out[0], 1.0, "one changed tile");
+		let r = parse(&out);
+		assert_eq!(r.changed.len(), 1, "one changed tile");
+		let moles = &r.changed[0].1;
 		assert!(
-			(out[2] - 16.0).abs() < 1e-6 && (out[3] - 64.0).abs() < 1e-6,
-			"0.8 of the way to the planet: {:?}",
-			&out[2..5]
+			(moles[0] - 16.0).abs() < 1e-6 && (moles[1] - 64.0).abs() < 1e-6,
+			"0.8 of the way to the planet: {moles:?}"
 		);
+		// Only the two gases it has get sent: index, count, then gas and moles twice, then temperature
+		assert_eq!(out[2], 2.0);
 	}
 
 	#[test]

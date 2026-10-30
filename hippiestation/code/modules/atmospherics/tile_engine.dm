@@ -16,7 +16,7 @@
 
 #define TILE_ENGINE_LIB (world.system_type == UNIX ? "./libhippie_atmos.so" : "hippie_atmos")
 /// The version of the lists passed back and forth; the library has to report this one
-#define TILE_ENGINE_VERSION 4
+#define TILE_ENGINE_VERSION 5
 /// Sharing passes per tick. LINDA's gas got further than one turf a tick; three passes matched how fast it spread and
 /// vented in the atmos bench (one pass vented about half as much to space in 90 seconds). -params
 /// "atmos-engine-passes=N" overrides it, for trying others.
@@ -261,10 +261,10 @@
 		var/datum/gas_mixture/air = T.air
 		air.moles_archive = air.moles
 		var/list/new_moles = list()
-		for(var/gas in 1 to gases)
-			var/amount = result[at++]
-			if(amount)
-				new_moles[gas_types[gas]] = amount
+		var/present = result[at++] // only the gases it has, as gas index and moles
+		for(var/gas in 1 to present)
+			new_moles[gas_types[result[at]]] = result[at + 1]
+			at += 2
 		air.moles = new_moles
 		air.temperature_archived = air.temperature
 		air.temperature = result[at++]

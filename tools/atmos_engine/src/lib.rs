@@ -13,7 +13,7 @@ use std::sync::{Mutex, OnceLock};
 
 /// Bumped whenever the lists DM and the engine pass each other change shape. DM won't use a library that says
 /// anything else and runs LINDA instead.
-pub const ENGINE_VERSION: f32 = 4.0;
+pub const ENGINE_VERSION: f32 = 5.0;
 
 const TYPE_NULL: u8 = 0x00;
 const TYPE_NUMBER: u8 = 0x2A;
