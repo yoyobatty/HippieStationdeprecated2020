@@ -370,6 +370,9 @@ SUBSYSTEM_DEF(air)
 			return
 
 /datum/controller/subsystem/air/proc/process_active_turfs(resumed = FALSE)
+	if(tile_engine) // hippie -- turfs go through the tile engine instead (hippiestation/code/modules/atmospherics/tile_engine.dm)
+		tile_engine_process()
+		return
 	//cache for sanic speed
 	var/fire_count = times_fired
 	if (!resumed)
@@ -385,6 +388,8 @@ SUBSYSTEM_DEF(air)
 			return
 
 /datum/controller/subsystem/air/proc/process_excited_groups(resumed = FALSE)
+	if(tile_engine) // hippie -- the tile engine has no excited groups
+		return
 	if (!resumed)
 		src.currentrun = excited_groups.Copy()
 	//cache for sanic speed (lists are references anyways)
