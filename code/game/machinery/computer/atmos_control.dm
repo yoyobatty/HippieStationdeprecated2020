@@ -64,6 +64,9 @@
 				signal.data["gases"][gas_name] = air_sample.moles[gas_id] / total_moles * 100
 
 		radio_connection.post_signal(src, signal, filter = RADIO_ATMOSIA)
+	// hippie -- nothing new to send until the tank's air changes, so SSair can skip us till then (idle_machines.dm).
+	// The computers only keep the last reading, and still get one at least every ATMOS_IDLE_RECHECK ticks.
+	return ATMOS_IDLE
 
 
 /obj/machinery/air_sensor/proc/set_frequency(new_frequency)

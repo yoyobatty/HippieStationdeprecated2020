@@ -50,7 +50,7 @@
 
 /obj/machinery/portable_atmospherics/process_atmos()
 	if(!connected_port) // Pipe network handles reactions if connected.
-		air_contents.react(src)
+		return air_contents.react(src) // hippie -- so a shut canister knows when it can idle
 
 /obj/machinery/portable_atmospherics/return_air()
 	return air_contents
@@ -76,6 +76,7 @@
 	anchored = TRUE //Prevent movement
 	pixel_x = new_port.pixel_x
 	pixel_y = new_port.pixel_y
+	atmos_wake() // hippie
 	update_icon()
 	return TRUE
 
@@ -92,6 +93,7 @@
 	connected_port = null
 	pixel_x = 0
 	pixel_y = 0
+	atmos_wake() // hippie
 	update_icon()
 	return TRUE
 
@@ -117,6 +119,7 @@
 		holding = new_tank
 	else
 		holding = null
+	atmos_wake() // hippie
 	update_icon()
 	return TRUE
 

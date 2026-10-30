@@ -14,6 +14,9 @@
 	var/atom/target
 	var/id_tag
 	var/target_layer = PIPING_LAYER_DEFAULT
+	/// hippie -- the pressure we last sent out and when, so an unchanged reading isn't sent every atmos tick
+	var/sent_pressure
+	var/sent_at = 0
 
 /obj/machinery/meter/atmos
 	frequency = FREQ_ATMOS_STORAGE
@@ -86,11 +89,16 @@
 		icon_state = "meter4"
 
 	if(frequency)
+		// hippie -- the computers only keep the last reading; still sent every few seconds for ones built since
+		if(round(env_pressure) == sent_pressure && world.time < sent_at + 5 SECONDS)
+			return
 		var/datum/radio_frequency/radio_connection = SSradio.return_frequency(frequency)
 
 		if(!radio_connection)
 			return
 
+		sent_pressure = round(env_pressure)
+		sent_at = world.time
 		var/datum/signal/signal = new(list(
 			"id_tag" = id_tag,
 			"device" = "AM",

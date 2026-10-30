@@ -163,6 +163,7 @@
 	timing = !timing
 	if(timing)
 		valve_timer = world.time + (timer_set * 10)
+	atmos_wake() // hippie
 	update_icon()
 
 /obj/machinery/portable_atmospherics/canister/proto
@@ -344,7 +345,7 @@
 			investigate_log("[key_name(user)] started a transfer into [holding].", INVESTIGATE_ATMOS)
 
 /obj/machinery/portable_atmospherics/canister/process_atmos()
-	..()
+	var/reacting = ..()
 	if(stat & BROKEN)
 		return PROCESS_KILL
 	if(timing && valve_timer < world.time)
@@ -364,6 +365,9 @@
 		pump.airs[2] = null
 
 	update_icon()
+	// hippie -- shut, unhooked and not burning, so nothing in here changes until someone does something to it
+	if(!valve_open && !timing && !connected_port && !reacting)
+		return ATMOS_IDLE
 
 /obj/machinery/portable_atmospherics/canister/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, \
 															datum/tgui/master_ui = null, datum/ui_state/state = GLOB.physical_state)
@@ -402,6 +406,7 @@
 /obj/machinery/portable_atmospherics/canister/ui_act(action, params)
 	if(..())
 		return
+	atmos_wake() // hippie -- the valve or pressure may change
 	switch(action)
 		if("relabel")
 			var/label = input("New canister label:", name) as null|anything in label2types
