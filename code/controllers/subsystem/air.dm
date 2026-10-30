@@ -22,6 +22,8 @@ SUBSYSTEM_DEF(air)
 	var/list/active_turfs = list()
 	var/list/hotspots = list()
 	var/list/networks = list()
+	/// hippie -- the networks with something to do, the only ones process_pipenets() goes through. See /datum/pipeline/proc/queue_update().
+	var/list/updating_networks = list()
 	var/list/rebuild_queue = list()
 	//Subservient to rebuild queue
 	var/list/expansion_queue = list()
@@ -206,16 +208,19 @@ SUBSYSTEM_DEF(air)
 
 /datum/controller/subsystem/air/proc/process_pipenets(delta_time, resumed = FALSE)
 	if (!resumed)
-		src.currentrun = networks.Copy()
+		src.currentrun = updating_networks.Copy() // hippie -- not the thousand-odd networks with nothing to do
 	//cache for sanic speed (lists are references anyways)
 	var/list/currentrun = src.currentrun
 	while(currentrun.len)
-		var/datum/thing = currentrun[currentrun.len]
+		var/datum/pipeline/thing = currentrun[currentrun.len]
 		currentrun.len--
 		if(thing)
 			thing.process(delta_time)
+			if(thing.settled())
+				updating_networks -= thing
 		else
 			networks.Remove(thing)
+			updating_networks.Remove(thing)
 		if(MC_TICK_CHECK)
 			return
 
@@ -324,11 +329,25 @@ SUBSYSTEM_DEF(air)
 		src.currentrun = atmos_machinery.Copy()
 	//cache for sanic speed (lists are references anyways)
 	var/list/currentrun = src.currentrun
+	// hippie -- idle machines sit out until their turf's air changes (hippiestation/code/modules/atmospherics/idle_machines.dm)
+	var/can_idle = tile_engine
+	var/fired = times_fired
 	while(currentrun.len)
 		var/obj/machinery/M = currentrun[currentrun.len]
 		currentrun.len--
-		if(!M || (M.process_atmos(delta_time) == PROCESS_KILL))
+		if(!M)
 			atmos_machinery.Remove(M)
+		else
+			if(M.atmos_idle_since)
+				var/turf/T = M.loc
+				if(can_idle && T?.air_changed_at < M.atmos_idle_since && fired - M.atmos_idle_since < ATMOS_IDLE_RECHECK)
+					continue
+				M.atmos_idle_since = 0
+			var/result = M.process_atmos(delta_time)
+			if(result == PROCESS_KILL)
+				atmos_machinery.Remove(M)
+			else if(result == ATMOS_IDLE && can_idle)
+				M.atmos_idle_since = fired
 		if(MC_TICK_CHECK)
 			return
 
@@ -435,6 +454,7 @@ SUBSYSTEM_DEF(air)
 ///Adds a turf to active processing, handles duplicates. Call this with blockchanges == TRUE if you want to nuke the assoc excited group
 /datum/controller/subsystem/air/proc/add_to_active(turf/open/T, blockchanges = FALSE)
 	if(istype(T) && T.air)
+		T.air_changed_at = times_fired // hippie -- wakes idle machines on it (hippiestation/code/modules/atmospherics/idle_machines.dm)
 		T.significant_share_ticker = 0
 		if(blockchanges && T.excited_group) //This is used almost exclusivly for shuttles, so the excited group doesn't stay behind
 			T.excited_group.garbage_collect() //Nuke it

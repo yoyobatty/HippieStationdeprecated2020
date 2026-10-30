@@ -258,6 +258,7 @@
 	for(var/k in 1 to count)
 		var/turf/open/T = packed[result[at++]]
 		exposed += T
+		T.air_changed_at = times_fired // wakes idle machines on it (idle_machines.dm)
 		var/datum/gas_mixture/air = T.air
 		air.moles_archive = air.moles
 		var/list/new_moles = list()

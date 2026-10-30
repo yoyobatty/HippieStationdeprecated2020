@@ -5,7 +5,7 @@
 	var/list/obj/machinery/atmospherics/pipe/members
 	var/list/obj/machinery/atmospherics/components/other_atmosmch
 
-	///Should we equalize air amoung all our members?
+	///Should we equalize air amoung all our members? Set it with queue_update(), so SSair knows to look at us
 	var/update = TRUE
 	///Is this pipeline being reconstructed?
 	var/building = FALSE
@@ -15,9 +15,11 @@
 	members = list()
 	other_atmosmch = list()
 	SSair.networks += src
+	SSair.updating_networks += src // hippie -- update starts TRUE
 
 /datum/pipeline/Destroy()
 	SSair.networks -= src
+	SSair.updating_networks -= src
 	if(building)
 		SSair.remove_from_expansion(src)
 	if(air?.volume)
@@ -36,6 +38,17 @@
 	reconcile_air()
 	//Only react if the mix has changed, and don't keep updating if it hasn't
 	update = air.react(src)
+
+// hippie -- SSair only goes through the networks that need it, so nothing may set update to TRUE without this
+/// Has the network even out its air across everything on it next atmos tick
+/datum/pipeline/proc/queue_update()
+	if(!update)
+		update = TRUE
+		SSair.updating_networks += src
+
+/// Whether SSair can stop looking at this network until something calls queue_update()
+/datum/pipeline/proc/settled()
+	return !update
 
 ///Preps a pipeline for rebuilding, insterts it into the rebuild queue
 /datum/pipeline/proc/build_pipeline(obj/machinery/atmospherics/base)
@@ -151,7 +164,7 @@
 	other_airs.Add(E.other_airs)
 	E.members.Cut()
 	E.other_atmosmch.Cut()
-	update = TRUE
+	queue_update()
 	qdel(E)
 
 /obj/machinery/atmospherics/proc/addMember(obj/machinery/atmospherics/A)
@@ -235,7 +248,7 @@
 				(partial_heat_capacity*target.heat_capacity/(partial_heat_capacity+target.heat_capacity))
 
 			air.temperature -= heat/total_heat_capacity
-	update = TRUE
+	queue_update()
 
 /datum/pipeline/proc/return_air()
 	. = other_airs + air

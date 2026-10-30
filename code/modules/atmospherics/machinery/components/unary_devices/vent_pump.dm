@@ -86,12 +86,13 @@
 
 /obj/machinery/atmospherics/components/unary/vent_pump/process_atmos()
 	..()
+	// hippie -- ATMOS_IDLE where nothing but the turf's air or our own settings would give us something to do
 	if(!is_operational())
-		return
+		return ATMOS_IDLE
 	if(!nodes[1])
 		on = FALSE
 	if(!on || welded)
-		return
+		return ATMOS_IDLE
 	var/turf/open/us = loc
 	if(!istype(us))
 		return
@@ -104,6 +105,8 @@
 
 		if(pressure_checks&EXT_BOUND)
 			pressure_delta = min(pressure_delta, (external_pressure_bound - environment_pressure))
+			if(pressure_delta <= 0)
+				return ATMOS_IDLE // full enough out there, whatever's in the pipe
 		if(pressure_checks&INT_BOUND)
 			pressure_delta = min(pressure_delta, (air_contents.return_pressure() - internal_pressure_bound))
 
@@ -123,6 +126,8 @@
 		var/pressure_delta = 10000
 		if(pressure_checks&EXT_BOUND)
 			pressure_delta = min(pressure_delta, (environment_pressure - external_pressure_bound))
+			if(pressure_delta <= 0) // hippie
+				return ATMOS_IDLE // empty enough out there, whatever's in the pipe
 		if(pressure_checks&INT_BOUND)
 			pressure_delta = min(pressure_delta, (internal_pressure_bound - air_contents.return_pressure()))
 
@@ -189,6 +194,7 @@
 		return
 
 	var/atom/signal_sender = signal.data["user"]
+	atmos_wake() // hippie -- our settings may change
 
 	if("purge" in signal.data)
 		pressure_checks &= ~EXT_BOUND
@@ -264,6 +270,7 @@
 		else
 			user.visible_message("[user] unwelded the vent.", "<span class='notice'>You unweld the vent.</span>", "<span class='italics'>You hear welding.</span>")
 			welded = FALSE
+		atmos_wake() // hippie
 		update_icon()
 		pipe_vision_img = image(src, loc, layer = ABOVE_HUD_LAYER, dir = dir)
 		pipe_vision_img.plane = ABOVE_HUD_PLANE
@@ -282,6 +289,7 @@
 
 /obj/machinery/atmospherics/components/unary/vent_pump/power_change()
 	. = ..()
+	atmos_wake() // hippie
 	update_icon_nopipes()
 
 /obj/machinery/atmospherics/components/unary/vent_pump/can_crawl_through()
@@ -292,6 +300,7 @@
 		return
 	user.visible_message("[user] furiously claws at [src]!", "You manage to clear away the stuff blocking the vent", "You hear loud scraping noises.")
 	welded = FALSE
+	atmos_wake() // hippie
 	update_icon()
 	pipe_vision_img = image(src, loc, layer = ABOVE_HUD_LAYER, dir = dir)
 	pipe_vision_img.plane = ABOVE_HUD_PLANE

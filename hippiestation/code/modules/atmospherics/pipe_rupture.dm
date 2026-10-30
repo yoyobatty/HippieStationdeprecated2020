@@ -23,6 +23,12 @@
 		return
 	rupture()
 
+/// A network hot and pressurized enough to burst keeps getting checked, so it still bursts once the cooldown's up
+/datum/pipeline/settled()
+	if(!..())
+		return FALSE
+	return !air || !members.len || air.temperature < PIPE_RUPTURE_TEMPERATURE || air.return_pressure() < PIPE_RUPTURE_PRESSURE
+
 /// Blows out one random segment of the network, vents a share of its air there, and sets it properly alight.
 /datum/pipeline/proc/rupture()
 	var/obj/machinery/atmospherics/pipe/weak_point = pick(members)

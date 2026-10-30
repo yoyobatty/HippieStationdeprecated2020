@@ -136,15 +136,17 @@
 
 /obj/machinery/atmospherics/components/unary/vent_scrubber/process_atmos()
 	..()
+	// hippie -- ATMOS_IDLE where nothing but the turf's air or our own settings would give us something to do
 	if(welded || !is_operational())
-		return FALSE
+		return ATMOS_IDLE
 	if(!nodes[1] || !on)
 		on = FALSE
-		return FALSE
+		return ATMOS_IDLE
+	if(!widenet)
+		return scrub(loc)
 	scrub(loc)
-	if(widenet)
-		for(var/turf/tile in adjacent_turfs)
-			scrub(tile)
+	for(var/turf/tile in adjacent_turfs)
+		scrub(tile)
 	return TRUE
 
 /obj/machinery/atmospherics/components/unary/vent_scrubber/proc/scrub(var/turf/tile)
@@ -187,6 +189,8 @@
 			tile.assume_air(removed)
 			tile.air_update_turf(FALSE, FALSE)
 			update_parents()
+		else
+			return ATMOS_IDLE // hippie -- nothing here to filter out, whatever's in the pipe
 
 	else //Just siphoning all air
 
@@ -220,6 +224,7 @@
 		return 0
 
 	var/atom/signal_sender = signal.data["user"]
+	atmos_wake() // hippie -- our settings may change
 
 	if("power" in signal.data)
 		on = text2num(signal.data["power"])
@@ -261,6 +266,7 @@
 
 /obj/machinery/atmospherics/components/unary/vent_scrubber/power_change()
 	. = ..()
+	atmos_wake() // hippie
 	update_icon_nopipes()
 
 /obj/machinery/atmospherics/components/unary/vent_scrubber/welder_act(mob/living/user, obj/item/I)
@@ -275,6 +281,7 @@
 		else
 			user.visible_message("[user] unwelds the scrubber.", "You unweld the scrubber.", "You hear welding.")
 			welded = FALSE
+		atmos_wake() // hippie
 		update_icon()
 		pipe_vision_img = image(src, loc, layer = ABOVE_HUD_LAYER, dir = dir)
 		pipe_vision_img.plane = ABOVE_HUD_PLANE
@@ -299,6 +306,7 @@
 		return
 	user.visible_message("[user] furiously claws at [src]!", "You manage to clear away the stuff blocking the scrubber.", "You hear loud scraping noises.")
 	welded = FALSE
+	atmos_wake() // hippie
 	update_icon()
 	pipe_vision_img = image(src, loc, layer = ABOVE_HUD_LAYER, dir = dir)
 	pipe_vision_img.plane = ABOVE_HUD_PLANE

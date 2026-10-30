@@ -63,6 +63,11 @@
 
 //some arbitrary defines to be used by self-pruning global lists. (see master_controller)
 #define PROCESS_KILL 26	//Used to trigger removal from a processing list
+// hippie -- process_atmos() returns this when the machine has nothing to do until its turf's air or its own settings
+// change; SSair skips it until then (hippiestation/code/modules/atmospherics/idle_machines.dm)
+#define ATMOS_IDLE 27
+/// hippie -- the most SSair ticks an idle machine gets skipped for, in case something changed it without waking it
+#define ATMOS_IDLE_RECHECK 10
 
 // Cargo-related stuff.
 #define MANIFEST_ERROR_CHANCE		5

@@ -114,16 +114,16 @@
 		var/datum/gas_mixture/removed1 = air1.remove(transfer_moles1)
 		air3.merge(removed1)
 		var/datum/pipeline/parent1 = parents[1]
-		parent1.update = TRUE
+		parent1.queue_update()
 
 	if(transfer_moles2)
 		var/datum/gas_mixture/removed2 = air2.remove(transfer_moles2)
 		air3.merge(removed2)
 		var/datum/pipeline/parent2 = parents[2]
-		parent2.update = TRUE
+		parent2.queue_update()
 
 	var/datum/pipeline/parent3 = parents[3]
-	parent3.update = TRUE
+	parent3.queue_update()
 
 /obj/machinery/atmospherics/components/trinary/mixer/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, \
 																	datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)

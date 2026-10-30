@@ -172,7 +172,7 @@
 			WARNING("Component is missing a pipenet! Rebuilding...")
 			SSair.add_to_rebuild_queue(src)
 		else
-			parent.update = TRUE
+			parent.queue_update()
 
 /obj/machinery/atmospherics/components/returnPipenets()
 	. = list()
