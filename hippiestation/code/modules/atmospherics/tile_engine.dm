@@ -191,7 +191,7 @@
 		tiles[base + gases + 3] = T.planetary_atmos ? 3 + tile_engine_planetary(T.initial_gas_mix) : 0
 		tiles[base + gases + 4] = 1
 		tiles[base + gases + 5] = T.tile_engine_drawn
-		tiles[base + gases + 6] = T.tile_engine_calm
+		tiles[base + gases + 6] = T.active_hotspot ? 0 : T.tile_engine_calm // a fire keeps its group from being evened out
 	var/awake_count = length(packed)
 	if(length(fixed))
 		for(var/turf/open/T as anything in fixed)
@@ -344,10 +344,15 @@
 		var/turf/open/T = packed[result[at++]]
 		T.consider_superconductivity(TRUE)
 
-	// Calm counts go up for every awake turf, and back to 0 for the ones that had a big share
+	// Calm counts go up for every awake turf, and back to 0 for the ones that had a big share. A burning turf stays at
+	// 0, so its group isn't evened out while it burns and gets EXCITED_GROUP_BREAKDOWN_CYCLES after: LINDA's hotspots
+	// reset their excited group's cooldowns the same way. Evening out a group with a fire in it spread the fire's heat
+	// over the whole group at once and lit everything there was to burn.
 	for(var/i in 1 to awake_count)
 		var/turf/open/T = packed[i]
-		if(T.tile_engine_calm < TILE_ENGINE_CALM)
+		if(T.active_hotspot)
+			T.tile_engine_calm = 0
+		else if(T.tile_engine_calm < TILE_ENGINE_CALM)
 			T.tile_engine_calm++
 	count = result[at++]
 	for(var/k in 1 to count)
