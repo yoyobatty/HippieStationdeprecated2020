@@ -325,14 +325,17 @@ GLOBAL_VAR(atmos_bench_updaters)
 	var/list/machine_ms = GLOB.atmos_bench_machine_ms
 	if(length(machine_ms) && fires)
 		sortTim(machine_ms, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
-		. += "  machinery by type, ms per SSair fire (machines of that type, microseconds each):"
+		var/all_machines_ms = 0
+		for(var/machine_type in machine_ms)
+			all_machines_ms += machine_ms[machine_type]
+		. += "  machinery by type, ms per SSair fire (machines of that type run per fire, microseconds each); all types [round(all_machines_ms / fires, 0.01)] ms:"
 		var/shown = 0
 		for(var/machine_type in machine_ms)
-			if(++shown > 15)
+			if(++shown > 40)
 				break
 			var/per_fire = machine_ms[machine_type] / fires
 			var/count = GLOB.atmos_bench_machine_calls[machine_type] / fires
-			. += "    [round(per_fire, 0.001)] [machine_type] ([round(count, 0.1)], [round(per_fire * 1000 / count, 0.1)] us each)"
+			. += "    [round(per_fire, 0.001)] [machine_type] ([round(count, 0.1)], [count ? round(per_fire * 1000 / count, 0.1) : 0] us each)"
 	var/list/net_ms = GLOB.atmos_bench_net_ms
 	if(length(net_ms) && fires)
 		sortTim(net_ms, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
