@@ -55313,7 +55313,9 @@
 /obj/effect/turf_decal/stripes/corner{
 	dir = 4
 	},
-/obj/machinery/atmospherics/components/trinary/filter/flipped/critical,
+/obj/machinery/atmospherics/components/trinary/filter/flipped/critical{
+	filter_type = "n2"
+	},
 /turf/open/floor/engine,
 /area/engine/engineering)
 "rYY" = (
@@ -57803,6 +57805,29 @@
 	},
 /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden,
 /turf/open/floor/plasteel/dark,
+/area/engine/engineering)
+"bjx" = (
+/obj/structure/disposalpipe/segment{
+	dir = 4
+	},
+/obj/machinery/atmospherics/pipe/simple/supply/hidden{
+	dir = 4
+	},
+/obj/structure/cable,
+/turf/open/floor/plating,
+/area/maintenance/department/cargo)
+"vjH" = (
+/turf/open/floor/plasteel,
+/area/engine/engineering)
+"vmA" = (
+/turf/open/floor/engine,
+/area/engine/engineering)
+"aaf" = (
+/obj/machinery/atmospherics/pipe/simple/orange/visible{
+	dir = 4
+	},
+/obj/machinery/atmospherics/pipe/simple/scrubbers/hidden,
+/turf/open/floor/engine,
 /area/engine/engineering)
 
 (1,1,1) = {"
@@ -90626,7 +90651,7 @@ iLF
 iLF
 iLF
 iLF
-vmA
+aaf
 liR
 bXk
 bXk

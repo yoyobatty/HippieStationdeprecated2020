@@ -576,7 +576,7 @@
 "ld" = (/obj/structure/sign/warning/biohazard,/turf/closed/wall,/area/science/research)
 "le" = (/obj/structure/lattice,/turf/open/space/basic,/area/science/research)
 "lf" = (/turf/open/space/basic,/area/science/research)
-"lg" = (/obj/docking_port/mobile/emergency{dir = 8; dwidth = 8; height = 9; name = "Mini emergency shuttle"; width = 21},/turf/open/space/basic,/area/space)
+"lg" = (/obj/docking_port/stationary{dir = 8; dwidth = 8; height = 9; id = "emergency_home"; name = "MiniStation emergency evac bay"; width = 21},/turf/open/space/basic,/area/space)
 "lh" = (/obj/effect/mapping_helpers/airlock/cyclelink_helper{dir = 4},/obj/machinery/door/airlock/external{name = "Escape Airlock"},/turf/open/floor/plating,/area/hallway/secondary/exit)
 "li" = (/turf/open/floor/plating,/area/hallway/secondary/exit)
 "lj" = (/obj/effect/mapping_helpers/airlock/cyclelink_helper{dir = 8},/obj/machinery/door/airlock/external{name = "Escape Airlock"},/turf/open/floor/plating,/area/hallway/secondary/exit)

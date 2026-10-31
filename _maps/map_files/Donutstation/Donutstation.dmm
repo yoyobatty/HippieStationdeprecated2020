@@ -45666,6 +45666,13 @@
 	},
 /turf/open/floor/plasteel,
 /area/medical/cryo)
+"csa" = (
+/obj/machinery/atmospherics/components/trinary/filter/flipped/critical{
+	dir = 4;
+	filter_type = "n2"
+	},
+/turf/open/floor/plasteel,
+/area/engine/engine_room)
 "csr" = (
 /obj/machinery/airalarm/server{
 	dir = 4;
@@ -89402,7 +89409,7 @@ xUj
 cla
 ooZ
 ice
-csH
+csa
 jLo
 dZW
 fAP

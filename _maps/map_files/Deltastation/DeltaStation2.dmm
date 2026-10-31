@@ -117348,6 +117348,203 @@
 /obj/structure/cable,
 /turf/open/floor/plating,
 /area/science/research/abandoned)
+"cKk" = (
+/obj/structure/cable,
+/turf/open/floor/plating,
+/area/maintenance/port)
+"cKl" = (
+/obj/machinery/atmospherics/pipe/simple/supply/hidden{
+	dir = 4
+	},
+/obj/structure/cable,
+/turf/open/floor/plasteel,
+/area/maintenance/port)
+"gCK" = (
+/turf/closed/wall/r_wall,
+/area/science/misc_lab/range)
+"gRL" = (
+/obj/machinery/atmospherics/pipe/simple/general/hidden,
+/turf/closed/wall/r_wall,
+/area/maintenance/disposal/incinerator)
+"jlX" = (
+/obj/structure/cable,
+/turf/open/floor/plasteel,
+/area/hallway/secondary/command)
+"lKR" = (
+/turf/open/space,
+/area/space/nearstation)
+"nGy" = (
+/obj/structure/cable,
+/turf/open/floor/plasteel/white,
+/area/science/mixing)
+"nLd" = (
+/obj/structure/cable,
+/turf/open/floor/wood,
+/area/bridge/showroom/corporate)
+"pnP" = (
+/obj/structure/cable,
+/turf/open/floor/plasteel,
+/area/engine/atmospherics_engine)
+"ruy" = (
+/obj/structure/cable,
+/turf/open/floor/plating,
+/area/maintenance/solars/port/fore)
+"sOi" = (
+/turf/open/floor/plasteel,
+/area/crew_quarters/kitchen)
+"scS" = (
+/obj/structure/cable,
+/turf/open/floor/plasteel/dark,
+/area/science/mixing)
+"tse" = (
+/turf/open/space/basic,
+/area/space/nearstation)
+"vQz" = (
+/turf/closed/wall/r_wall,
+/area/space)
+"waK" = (
+/obj/effect/mapping_helpers/airlock/cyclelink_helper{
+	dir = 4
+	},
+/obj/machinery/door/airlock/external{
+	name = "External Solar Access";
+	req_one_access_txt = "13; 24; 10"
+	},
+/obj/structure/cable,
+/turf/open/floor/plating,
+/area/maintenance/solars/port/fore)
+"whP" = (
+/turf/open/floor/plating,
+/area/maintenance/solars/port/fore)
+"aaf" = (
+/obj/machinery/atmospherics/pipe/simple/general/hidden{
+	dir = 6
+	},
+/turf/closed/wall/r_wall,
+/area/space)
+"aah" = (
+/obj/machinery/atmospherics/pipe/manifold/general/hidden{
+	dir = 1
+	},
+/turf/open/space/basic,
+/area/space/nearstation)
+"aai" = (
+/obj/machinery/atmospherics/pipe/simple/general/hidden{
+	dir = 4
+	},
+/turf/open/space,
+/area/space/nearstation)
+"aaj" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/simple/supply/hidden{
+	dir = 4
+	},
+/turf/open/floor/plating,
+/area/maintenance/port)
+"aak" = (
+/obj/machinery/atmospherics/pipe/simple/scrubbers/hidden{
+	dir = 4
+	},
+/turf/open/floor/plasteel,
+/area/crew_quarters/kitchen)
+"aal" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/simple/supply/hidden,
+/turf/open/floor/wood,
+/area/bridge/showroom/corporate)
+"aam" = (
+/obj/structure/reflector/single/anchored{
+	dir = 10
+	},
+/obj/effect/turf_decal/tile/neutral{
+	dir = 1
+	},
+/obj/effect/turf_decal/tile/neutral,
+/obj/effect/turf_decal/tile/neutral{
+	dir = 4
+	},
+/obj/effect/turf_decal/tile/neutral{
+	dir = 8
+	},
+/turf/open/floor/plasteel/dark,
+/area/engine/atmospherics_engine)
+"aan" = (
+/obj/effect/turf_decal/tile/neutral{
+	dir = 1
+	},
+/obj/effect/turf_decal/tile/neutral,
+/obj/effect/turf_decal/tile/neutral{
+	dir = 4
+	},
+/obj/effect/turf_decal/tile/neutral{
+	dir = 8
+	},
+/turf/open/floor/plasteel/dark,
+/area/engine/atmospherics_engine)
+"aaI" = (
+/obj/effect/turf_decal/tile/neutral{
+	dir = 1
+	},
+/obj/effect/turf_decal/tile/neutral,
+/obj/effect/turf_decal/tile/neutral{
+	dir = 4
+	},
+/obj/effect/turf_decal/tile/neutral{
+	dir = 8
+	},
+/obj/structure/reflector/box/anchored{
+	dir = 8
+	},
+/turf/open/floor/plasteel/dark,
+/area/engine/atmospherics_engine)
+"aaJ" = (
+/obj/structure/reflector/single/anchored{
+	dir = 10
+	},
+/obj/effect/turf_decal/tile/neutral{
+	dir = 1
+	},
+/obj/effect/turf_decal/tile/neutral,
+/obj/effect/turf_decal/tile/neutral{
+	dir = 4
+	},
+/obj/effect/turf_decal/tile/neutral{
+	dir = 8
+	},
+/turf/open/floor/plasteel/dark,
+/area/engine/atmospherics_engine)
+"aaK" = (
+/obj/effect/turf_decal/tile/neutral{
+	dir = 1
+	},
+/obj/effect/turf_decal/tile/neutral,
+/obj/effect/turf_decal/tile/neutral{
+	dir = 4
+	},
+/obj/effect/turf_decal/tile/neutral{
+	dir = 8
+	},
+/turf/open/floor/plasteel/dark,
+/area/engine/atmospherics_engine)
+"aaL" = (
+/obj/effect/turf_decal/stripes/line{
+	dir = 4
+	},
+/obj/effect/turf_decal/tile/neutral{
+	dir = 1
+	},
+/obj/effect/turf_decal/tile/neutral,
+/obj/effect/turf_decal/tile/neutral{
+	dir = 4
+	},
+/obj/effect/turf_decal/tile/neutral{
+	dir = 8
+	},
+/obj/structure/reflector/double/anchored{
+	dir = 5
+	},
+/turf/open/floor/plasteel/dark,
+/area/engine/atmospherics_engine)
 
 (1,1,1) = {"
 aaa
@@ -137222,7 +137419,7 @@ aoG
 aaa
 ajr
 aaa
-vQz
+aaf
 hZA
 aFr
 aIk
@@ -138250,7 +138447,7 @@ aad
 aaa
 ajr
 aad
-tse
+aah
 nSh
 aGO
 aIo
@@ -138507,7 +138704,7 @@ aad
 ajr
 ajr
 aad
-lKR
+aai
 aFr
 aMv
 aIp
@@ -142350,7 +142547,7 @@ amH
 amH
 anG
 amH
-aqK
+aaK
 arl
 asr
 atP
@@ -142443,7 +142640,7 @@ cRP
 cRP
 ddP
 deW
-cKk
+aaj
 caE
 jjN
 hNZ
@@ -142860,11 +143057,11 @@ aad
 ajr
 aaa
 alT
-amG
+aaJ
 anI
 aoI
 aoI
-aoI
+aaL
 arn
 ast
 atR
@@ -144405,8 +144602,8 @@ alT
 amH
 anM
 amH
-anG
-amH
+aan
+aaI
 arr
 asz
 atX
@@ -144663,7 +144860,7 @@ amK
 amH
 gXw
 amH
-aqM
+aam
 ark
 asA
 atY
@@ -152145,7 +152342,7 @@ aYC
 aYC
 aYC
 bdB
-sOi
+aak
 aYC
 bhK
 bjA
@@ -157072,7 +157269,7 @@ cvy
 cwQ
 cyw
 cAb
-nLd
+aal
 cDc
 cBv
 cBv

@@ -76401,6 +76401,117 @@
 	},
 /turf/open/floor/plasteel,
 /area/science/misc_lab/range)
+"fGz" = (
+/obj/machinery/atmospherics/pipe/simple/supply/hidden{
+	dir = 4
+	},
+/turf/open/floor/plasteel,
+/area/hallway/secondary/exit/departure_lounge)
+"fUt" = (
+/obj/structure/cable,
+/turf/open/floor/plasteel,
+/area/engine/engineering)
+"fiv" = (
+/turf/open/floor/plating,
+/area/maintenance/department/science/central)
+"gnd" = (
+/turf/open/floor/plating,
+/area/maintenance/department/science/central)
+"grA" = (
+/obj/structure/cable,
+/turf/open/floor/plasteel/cafeteria{
+	dir = 5
+	},
+/area/crew_quarters/kitchen)
+"jMc" = (
+/obj/structure/cable,
+/turf/open/floor/plasteel,
+/area/hallway/secondary/entry)
+"lkf" = (
+/turf/open/floor/plasteel,
+/area/hydroponics)
+"lwA" = (
+/obj/structure/cable,
+/turf/open/floor/plasteel,
+/area/engine/engineering)
+"oeK" = (
+/obj/structure/cable,
+/turf/open/floor/plating,
+/area/maintenance/starboard/fore)
+"oem" = (
+/obj/structure/cable,
+/turf/open/floor/plasteel/dark,
+/area/bridge)
+"ofy" = (
+/turf/open/floor/plasteel/white,
+/area/science/research)
+"ogE" = (
+/turf/open/floor/plating,
+/area/maintenance/starboard/secondary)
+"pVb" = (
+/obj/structure/cable,
+/turf/open/floor/plasteel/cafeteria{
+	dir = 5
+	},
+/area/crew_quarters/kitchen)
+"pYC" = (
+/obj/machinery/atmospherics/pipe/simple/supply/hidden{
+	dir = 4
+	},
+/obj/structure/cable,
+/turf/open/floor/plating,
+/area/maintenance/aft/secondary)
+"pgY" = (
+/turf/open/floor/plasteel,
+/area/hydroponics)
+"rbG" = (
+/obj/structure/cable,
+/turf/open/floor/plasteel,
+/area/security/prison)
+"sdA" = (
+/obj/machinery/atmospherics/pipe/simple/supply/hidden,
+/obj/structure/cable,
+/turf/open/floor/plasteel,
+/area/hallway/secondary/entry)
+"vwi" = (
+/obj/machinery/atmospherics/pipe/simple/supply/hidden,
+/turf/open/floor/plating,
+/area/maintenance/starboard/secondary)
+"aam" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/simple/supply/hidden,
+/turf/open/floor/plasteel,
+/area/hallway/secondary/entry)
+"aan" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on{
+	dir = 4
+	},
+/turf/open/floor/plasteel/cafeteria{
+	dir = 5
+	},
+/area/crew_quarters/kitchen)
+"aao" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/manifold/scrubbers/hidden{
+	dir = 8
+	},
+/turf/open/floor/plasteel/cafeteria{
+	dir = 5
+	},
+/area/crew_quarters/kitchen)
+"aap" = (
+/obj/machinery/atmospherics/pipe/simple/scrubbers/hidden{
+	dir = 4
+	},
+/turf/open/floor/plasteel,
+/area/hydroponics)
+"aar" = (
+/obj/machinery/atmospherics/pipe/simple/scrubbers/hidden{
+	dir = 10
+	},
+/turf/open/floor/plasteel,
+/area/hydroponics)
 
 (1,1,1) = {"
 aaa
@@ -89884,7 +89995,7 @@ bad
 bad
 bad
 bad
-jMc
+aam
 txO
 txO
 bnK
@@ -109949,7 +110060,7 @@ bKf
 bLK
 bNy
 bOS
-pVb
+aan
 bRR
 bST
 bUg
@@ -110978,7 +111089,7 @@ bLN
 bLK
 ddE
 bQF
-grA
+aao
 bSV
 bUk
 bVv
@@ -111752,7 +111863,7 @@ bKe
 bRW
 bST
 bUm
-pgY
+aap
 bWT
 bYj
 bWT
@@ -112009,7 +112120,7 @@ bQI
 bRX
 bST
 bUn
-lkf
+aar
 qkD
 bYk
 qkD

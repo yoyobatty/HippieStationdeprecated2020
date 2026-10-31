@@ -74,3 +74,7 @@
 /area/security/checkpoint/bridge_star //endo station specific
 	name = "Security Post - Bridge Star"
 	icon_state = "checkpoint_bridge_star"
+
+/area/science/shuttle_dock //endo station specific
+	name = "Science Shuttle Dock"
+	icon_state = "toxstorage"
