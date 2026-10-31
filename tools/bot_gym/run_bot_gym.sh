@@ -20,8 +20,13 @@ if [ ! -f hippiestation.dmb ]; then echo "Compile failed"; exit 1; fi
 
 rm -rf data/bot_gym
 echo "Running Bot Gym ($PARAMS)..."
-timeout 900 "$BYOND_BIN/dd.exe" hippiestation.dmb 45123 -trusted -invisible \
+# From a copy, so the code can be recompiled while the gym runs.
+COPY="gymrun_$$"
+cp hippiestation.dmb "$COPY.dmb"
+cp hippiestation.rsc "$COPY.rsc"
+timeout 900 "$BYOND_BIN/dd.exe" "$COPY.dmb" 45123 -trusted -invisible \
 	-params "$PARAMS" > data/bot_gym_dd.log 2>&1
+rm -f "$COPY".*
 
 if [ ! -f data/bot_gym/summary.txt ]; then
 	echo "No results written - see data/bot_gym_dd.log"

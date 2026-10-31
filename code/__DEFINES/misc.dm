@@ -445,6 +445,13 @@ GLOBAL_LIST_INIT(pda_styles, list(MONO, VT, ORBITRON, SHARE))
 #define BOT_SHIFT_EVENTS_PARAMETER "bot-events"
 #define BOT_SHIFT_PROFILE_PARAMETER "bot-profile"
 #define BOT_SHIFT_EVAC_PARAMETER "bot-evac"
+#define BOT_SHIFT_MAP_PARAMETER "bot-map"
+#define BOT_SHIFT_RESULTS_PARAMETER "bot-results"
+#define BOT_QUIET_PARAMETER "bot-quiet"
+#define BOT_ROUND_PARAMETER "bot-round"
+#define BOT_ANTAGS_PARAMETER "bot-antags"
+#define CODE_SWEEP_PARAMETER "code-sweep"
+#define CODE_SWEEP_SKIP_PARAMETER "code-sweep-skip"
 
 #define EGG_LAYING_MESSAGES list("lays an egg.","squats down and croons.","begins making a huge racket.","begins clucking raucously.")
 

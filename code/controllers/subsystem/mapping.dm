@@ -45,7 +45,10 @@ SUBSYSTEM_DEF(mapping)
 #ifdef FORCE_MAP
 		config = load_map_config(FORCE_MAP)
 #else
-		config = load_map_config(error_if_missing = FALSE)
+		//hippie start -- a Bot Shift picks its own map (bot-map=boxstation, tools/bot_gym/run_shift_batch.sh)
+		var/bot_map = world.params[BOT_SHIFT_MAP_PARAMETER]
+		config = bot_map ? load_map_config("_maps/[bot_map].json") : load_map_config(error_if_missing = FALSE)
+		//hippie end
 #endif
 
 /datum/controller/subsystem/mapping/Initialize(timeofday)

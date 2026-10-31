@@ -223,6 +223,11 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 		sleep_offline_after_initializations = FALSE
 		INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(run_bot_shift), world.params[BOT_SHIFT_PARAMETER], world.params[BOT_SHIFT_CREW_PARAMETER])
 
+	// hippie -- Code sweep: one of everything, to see what breaks; shuts the world down when done
+	if(CODE_SWEEP_PARAMETER in world.params)
+		sleep_offline_after_initializations = FALSE
+		INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(run_code_sweep), world.params[CODE_SWEEP_PARAMETER])
+
 	// hippie -- Lighting bench: time the lighting engine and snapshot the station's lighting; shuts the world down when done
 	if(LIGHTING_BENCH_PARAMETER in world.params)
 		sleep_offline_after_initializations = FALSE
