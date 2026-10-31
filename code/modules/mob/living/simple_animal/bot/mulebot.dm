@@ -143,9 +143,9 @@
 			qdel(src)
 		if(2)
 			for(var/i = 1; i < 3; i++)
-				wires.cut_random()
+				wires?.cut_random()
 		if(3)
-			wires.cut_random()
+			wires?.cut_random()
 	return
 
 /mob/living/simple_animal/bot/mulebot/bullet_act(obj/item/projectile/Proj)

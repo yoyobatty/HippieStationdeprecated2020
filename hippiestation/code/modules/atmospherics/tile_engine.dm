@@ -202,8 +202,8 @@
 	var/at = 1
 	for(var/turf/open/T as anything in wanted)
 		var/temperature = values[at++]
-		if(temperature < 0)
-			T.archive()
+		if(temperature == -1) //not archived. Only -1 will do: LINDA's air can really go below 0 K, and reading that as
+			T.archive() //"no record" put every turf after it out of step with the list
 			continue
 		var/datum/gas_mixture/air = T.air
 		var/list/archive = list()

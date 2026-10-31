@@ -859,7 +859,9 @@
 
 /obj/docking_port/mobile/pod/on_emergency_dock()
 	if(launch_status == ENDGAME_LAUNCHED)
-		initiate_docking(SSshuttle.getDock("[id]_away")) //Escape pods dock at centcom
+		var/obj/docking_port/stationary/away = SSshuttle.getDock("[id]_away")
+		if(away) // hippie -- a map can have more pods than CentCom has docks for
+			initiate_docking(away) //Escape pods dock at centcom
 		mode = SHUTTLE_ENDGAME
 
 /obj/docking_port/mobile/emergency/on_emergency_dock()

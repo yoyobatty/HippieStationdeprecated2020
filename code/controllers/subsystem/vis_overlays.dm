@@ -88,7 +88,7 @@ SUBSYSTEM_DEF(vis_overlays)
 	// Unique overlays (cache_expiration -1) are turned in place, shared cached ones swapped for a turned copy.
 	// This used to check a global unique_vis_overlays list, which never let go of them - once one stopped being
 	// displayed, fire() deleted it and that list's reference forced a hard delete (tgstation removed it too, #59371).
-	for(var/obj/effect/overlay/vis/overlay as anything in thing.managed_vis_overlays)
+	for(var/obj/effect/overlay/vis/overlay in thing.managed_vis_overlays) //not `as anything`: a deleted one leaves a null
 		if(overlay.cache_expiration == -1)
 			overlay.dir = turn(overlay.dir, rotation)
 			continue

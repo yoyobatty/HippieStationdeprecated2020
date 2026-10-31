@@ -275,7 +275,7 @@
 			P = inowhaveapen
 
 	var/obj/item/clothing/gloves/syndielad/SL // hippie -- syndielad
-	if(traitor_mob.client.prefs.uplink_spawn_loc == UPLINK_SYNDIELAD)
+	if(traitor_mob.client?.prefs?.uplink_spawn_loc == UPLINK_SYNDIELAD)
 		var/obj/item/clothing/gloves/syndielad/newSL
 		if(istype(traitor_mob.back,/obj/item/storage))
 			newSL = new /obj/item/clothing/gloves/syndielad/(traitor_mob.back)
@@ -309,6 +309,8 @@
 					uplink_loc = R
 			if(UPLINK_SYNDIELAD) // hippie -- syndielad again
 				uplink_loc = SL // hippie end
+	else // hippie -- no client to ask (disconnected, or a bot): the PDA, the same as the preference's default
+		uplink_loc = PDA || R || P
 
 	if (!uplink_loc)
 		if(!silent)

@@ -65,7 +65,7 @@ GLOBAL_LIST_INIT(name2reagent, build_name2reagent())
 
 /datum/reagent/proc/on_mob_life(mob/living/carbon/M)
 	current_cycle++
-	holder.remove_reagent(type, metabolization_rate * M.metabolism_efficiency) //By default it slowly disappears.
+	holder?.remove_reagent(type, metabolization_rate * M.metabolism_efficiency) //By default it slowly disappears.
 	return
 
 // Called when this reagent is first added to a mob

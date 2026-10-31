@@ -70,18 +70,23 @@ GLOBAL_LIST_INIT(wire_node_generating_types, typecacheof(list(/obj/structure/gri
 		if(under_thing)
 			switch(under_thing)
 				if(UNDER_SMES)
-					var/obj/machinery/power/terminal/term = locate(/obj/machinery/power/terminal) in TB
 					//Why null or equal to the search parent?
 					//during map init it's possible for a placed smes terminal to not have initialized to the smes yet
 					//but the cable underneath it is ready to link.
 					//I don't believe null is even a valid state for a smes terminal while the game is actually running
 					//So in the rare case that this happens, we also shouldn't connect
 					//This might break.
-					if(term && (!term.master || term.master == search_parent))
+					// hippie -- all of them: two SMES can share a tile of terminals. Box's do, and with only the first one
+					// looked at, half its SMES joined their own input to their output and charged from themselves.
+					var/own_terminal = FALSE
+					for(var/obj/machinery/power/terminal/term in TB)
+						if(!term.master || term.master == search_parent)
+							own_terminal = TRUE
+					if(own_terminal)
 						continue
 				if(UNDER_TERMINAL)
 					var/obj/machinery/power/smes/S = locate(/obj/machinery/power/smes) in TB
-					if(S && (!S.terminal || S.terminal == search_parent))
+					if(S && (!S.terminal || S.terminal.loc == loc)) // hippie -- the same thing from the other end
 						continue
 		var/inverse = turn(check_dir, 180)
 		for(var/obj/structure/cable/C in TB)

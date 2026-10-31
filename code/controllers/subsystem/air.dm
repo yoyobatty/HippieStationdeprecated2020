@@ -531,6 +531,7 @@ SUBSYSTEM_DEF(air)
 		var/ending_ats = active_turfs.len
 		for(var/thing in excited_groups)
 			var/datum/excited_group/EG = thing
+			log_vacuum_group(EG) // hippie
 			EG.self_breakdown(roundstart = TRUE)
 			EG.dismantle()
 			CHECK_TICK
@@ -538,6 +539,18 @@ SUBSYSTEM_DEF(air)
 		var/msg = "HEY! LISTEN! [DisplayTimeText(world.timeofday - timer)] were wasted processing [starting_ats] turf(s) (connected to [ending_ats - starting_ats] other turfs) with atmos differences at round start."
 		to_chat(world, "<span class='boldannounce'>[msg]</span>")
 		warning(msg)
+
+// hippie -- a group with space in it boots as vacuum, whatever its rooms were mapped with. Says where the hole is.
+/datum/controller/subsystem/air/proc/log_vacuum_group(datum/excited_group/EG)
+	var/list/holes = list()
+	for(var/turf/open/T in EG.turf_list)
+		if(!istype(T.air, /datum/gas_mixture/immutable))
+			continue
+		for(var/turf/open/beside in T.atmos_adjacent_turfs)
+			if(!istype(beside.air, /datum/gas_mixture/immutable))
+				holes += "[AREACOORD(beside)] into [T.type]"
+	if(length(holes))
+		log_mapping("A group of [EG.turf_list.len] turfs starts as vacuum, open to space at [length(holes)] place(s): [holes.Join("; ")]")
 
 /turf/open/proc/resolve_active_graph()
 	. = list()

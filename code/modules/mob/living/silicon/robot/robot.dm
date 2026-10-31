@@ -670,7 +670,7 @@
 
 /mob/living/silicon/robot/proc/SetLockdown(state = 1)
 	// They stay locked down if their wire is cut.
-	if(wires.is_cut(WIRE_LOCKDOWN))
+	if(wires?.is_cut(WIRE_LOCKDOWN))
 		state = 1
 	if(state)
 		throw_alert("locked", /obj/screen/alert/locked)

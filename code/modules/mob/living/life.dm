@@ -107,6 +107,8 @@
 	else
 		ExtinguishMob()
 		return TRUE //mob was put out, on_fire = FALSE via ExtinguishMob(), no need to update everything down the chain.
+	if(!loc)
+		return TRUE //nowhere to burn
 	var/datum/gas_mixture/G = loc.return_air() // Check if we're standing in an oxygenless environment
 	if(!G.moles[/datum/gas/oxygen] || G.moles[/datum/gas/oxygen] < 1)
 		ExtinguishMob() //If there's no oxygen in the tile we're on, put out the fire

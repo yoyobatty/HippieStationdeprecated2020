@@ -170,6 +170,8 @@
 
 /datum/component/mood/process() //Called on SSmood process
 	var/mob/living/owner = parent
+	if(QDELETED(owner)) //hard deleted: nothing took this off the list
+		return PROCESS_KILL
 
 	switch(mood_level)
 		if(1)

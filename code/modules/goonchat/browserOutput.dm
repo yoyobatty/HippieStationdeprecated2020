@@ -3,7 +3,7 @@ For the main html chat area
 *********************************/
 
 //Precaching a bunch of shit
-GLOBAL_DATUM_INIT(iconCache, /savefile, new("tmp/iconCache.sav")) //Cache of icons for the browser output
+GLOBAL_DATUM_INIT(iconCache, /savefile, new("tmp/iconCache[world.port].sav")) //Cache of icons for the browser output. hippie -- by port: two servers on one machine (a batch of Bot Shifts) fight over it and icon2base64() throws
 
 //Should match the value set in the browser js
 #define MAX_COOKIE_LENGTH 5

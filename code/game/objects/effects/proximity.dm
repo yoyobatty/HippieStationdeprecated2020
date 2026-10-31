@@ -107,7 +107,7 @@
 		return INITIALIZE_HINT_QDEL
 
 /obj/effect/abstract/proximity_checker/Destroy()
-	if(monitor) // as in tgstation: never leave a deleted checker in its monitor's list, however it got deleted
+	if(monitor?.checkers) // as in tgstation: never leave a deleted checker in its monitor's list, however it got deleted. An advanced field has no such list
 		monitor.checkers -= src
 	monitor = null
 	return ..()

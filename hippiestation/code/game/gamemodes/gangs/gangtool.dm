@@ -387,7 +387,10 @@
 /obj/item/gangtool/hell_march/vigilante/proc/earnings()
 	var/all_territory = list()
 	var/newpoints = 0
+	addtimer(CALLBACK(src, PROC_REF(earnings)), 1500, TIMER_UNIQUE)
 	var/mob/living/carbon/human/H = loc
+	if(!istype(H)) //on the floor, in a bag: nobody here to pay
+		return
 	for(var/datum/team/gang/G in GLOB.antagonist_teams)
 		all_territory += G.territories
 	for(var/area/A in tags)
@@ -398,7 +401,6 @@
 	for(var/obj/item/implant/mindshield/I in H.implants)
 		points += 3
 		to_chat(H, "<span class='notice'>You have also received 3 influence for possessing a mindshield implant.</span>")
-	addtimer(CALLBACK(src, PROC_REF(earnings)), 1500, TIMER_UNIQUE)
 
 /obj/item/gangtool/hell_march/vigilante/ui_interact(mob/user)
 	if(user.mind.has_antag_datum(/datum/antagonist/gang))

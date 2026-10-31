@@ -24,7 +24,7 @@
 			return
 		target = pick(targets_to_pick_from)
 		visible_message("<span class='notice'>[src] stares at [target].</span>")
-	if (world.time > cooldown)
+	if (!QDELETED(target) && world.time > cooldown)
 		ram()
 
 /obj/item/toy/plush/goatplushie/angry/proc/ram()

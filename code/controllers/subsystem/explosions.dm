@@ -149,7 +149,7 @@ SUBSYSTEM_DEF(explosions)
 		A.maptext = ""
 
 /proc/dyn_explosion(turf/epicenter, power, flash_range, adminlog = TRUE, ignorecap = TRUE, flame_range = 0, silent = FALSE, smoke = TRUE, atom/explosion_cause = null) //hippie -- explosion_cause, as tgstation
-	if(!power)
+	if(power <= 0) //the root of a negative number is a runtime
 		return
 	var/range = 0
 	range = round((2 * power)**GLOB.DYN_EX_SCALE)
