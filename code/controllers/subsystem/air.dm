@@ -330,7 +330,7 @@ SUBSYSTEM_DEF(air)
 	//cache for sanic speed (lists are references anyways)
 	var/list/currentrun = src.currentrun
 	// hippie -- idle machines sit out until their turf's air changes (hippiestation/code/modules/atmospherics/idle_machines.dm)
-	var/can_idle = tile_engine
+	var/can_idle = tile_engine && !atmos_never_idle
 	var/fired = times_fired
 	while(currentrun.len)
 		var/obj/machinery/M = currentrun[currentrun.len]
@@ -354,6 +354,8 @@ SUBSYSTEM_DEF(air)
 
 /datum/controller/subsystem/air/proc/process_super_conductivity(resumed = FALSE)
 	if (!resumed)
+		if(tile_engine) // hippie -- the turfs' archives, which this works from (hippiestation/code/modules/atmospherics/tile_engine.dm)
+			tile_engine_archives()
 		src.currentrun = active_super_conductivity.Copy()
 	//cache for sanic speed (lists are references anyways)
 	var/list/currentrun = src.currentrun
@@ -407,8 +409,6 @@ SUBSYSTEM_DEF(air)
 			return
 
 /datum/controller/subsystem/air/proc/process_excited_groups(resumed = FALSE)
-	if(tile_engine) // hippie -- the tile engine has no excited groups
-		return
 	if (!resumed)
 		src.currentrun = excited_groups.Copy()
 	//cache for sanic speed (lists are references anyways)

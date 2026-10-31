@@ -462,13 +462,23 @@
 			A_gases[id] /= turflen
 		A.garbage_collect()
 
+	// hippie -- most groups are plain air: nothing in the mix to draw, so a turf with no overlays has nothing to update
+	var/static/list/nonoverlaying_gases = typecache_of_gases_with_no_overlays()
+	var/list/moles_visible = GAS_META[META_GAS_MOLES_VISIBLE]
+	var/anything_visible = FALSE
+	for(var/id, amount in A_gases)
+		if(!nonoverlaying_gases[id] && amount > moles_visible[id])
+			anything_visible = TRUE
+			break
+
 	for(var/t in turf_list)
 		var/turf/open/T = t
 		if(T.planetary_atmos) //We do this as a hack to try and minimize unneeded excited group spread over planetary turfs
 			T.air.copy_from(SSair.planetary[T.initial_gas_mix]) //Comes with a cost of "slower" drains, but it's worth it
 		else
 			T.air.copy_from(A) //Otherwise just set the mix to a copy of our equalized mix
-		T.update_visuals()
+		if(anything_visible || T.atmos_overlay_types || T.planetary_atmos)
+			T.update_visuals()
 		if(poke_turfs) //Because we only activate all these once every breakdown, in event of lag due to this code and slow space + vent things, increase the wait time for breakdowns
 			SSair.add_to_active(T)
 			T.significant_share_ticker = EXCITED_GROUP_DISMANTLE_CYCLES //Max out the ticker, if they don't share next tick, nuke em

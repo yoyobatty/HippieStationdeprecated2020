@@ -10,6 +10,7 @@
 #   EVENTS=1  leave random events on      BYOND_BIN, PORT to override the defaults
 #   PROFILE=1 profile the shift (slower); read it with tools/bot_gym/shift_profile.py
 #   EVAC=1    call the emergency shuttle eight minutes before the end and judge who makes it aboard
+#   ENGINE=linda  runs LINDA instead of the tile atmos engine
 # Exit code: 0 if nothing failed, 1 otherwise.
 set -u
 cd "$(dirname "$0")/../.."
@@ -40,6 +41,7 @@ if [ -n "$CREW" ]; then PARAMS="$PARAMS&bot-crew=${CREW// /_}"; fi
 if [ "${EVENTS:-0}" = "1" ]; then PARAMS="$PARAMS&bot-events=1"; fi
 if [ "${PROFILE:-0}" = "1" ]; then PARAMS="$PARAMS&bot-profile=1"; fi
 if [ "${EVAC:-0}" = "1" ]; then PARAMS="$PARAMS&bot-evac=1"; fi
+if [ -n "${ENGINE:-}" ]; then PARAMS="$PARAMS&atmos-engine=$ENGINE"; fi
 
 rm -rf data/bot_shift
 mkdir -p data
