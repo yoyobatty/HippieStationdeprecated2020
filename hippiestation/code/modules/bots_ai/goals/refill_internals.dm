@@ -299,6 +299,8 @@
 
 /// Below this share of what the tank has held, with nowhere to refill: stop everything and get to air.
 #define BOT_TANK_RUNNING_OUT 0.25
+/// Below this a tank can't give lungs the oxygen they want, however pure it is.
+#define BOT_TANK_DRY 16
 /// A valve that was just opened stays open at least this long, so walking along a row of windows doesn't flick it on and off.
 #define BOT_INTERNALS_MIN_OPEN (5 SECONDS)
 /// How far to look for air when the tank is running out.
@@ -351,16 +353,18 @@
 	return turf_air_is_breathable(get_turf(owner))
 
 /// Opens the tank's valve where the bot can't breathe - or is a step from somewhere it can't
-/// (needs_mag_pulse(), gear_up_eva.dm: no gravity, a breach, a fire, space next door) - and closes it again
+/// (air_under_threat(), gear_up_eva.dm: a breach, a fire, space next door) - and closes it again
 /// where it can. On the tank's own switch (toggle_internals(), what the HUD button calls), so it needs a
-/// mask the same as a player does.
+/// mask the same as a player does. A dry tank comes off whatever's going on, if there's air to breathe instead.
 /datum/bot_brain/proc/manage_internals()
 	if(!is_eva_job())
 		return
-	var/need_tank = !air_is_breathable() || needs_mag_pulse()
+	var/breathable = air_is_breathable()
+	var/need_tank = !breathable || air_under_threat()
 	var/obj/item/tank/tank = owner.internal
 	if(tank)
-		if(need_tank || world.time < internals_opened_at + BOT_INTERNALS_MIN_OPEN)
+		var/dry = breathable && tank.air_contents.return_pressure() < BOT_TANK_DRY
+		if(!dry && (need_tank || world.time < internals_opened_at + BOT_INTERNALS_MIN_OPEN))
 			return
 		tank.toggle_internals(owner)
 		if(!owner.internal)
@@ -391,6 +395,7 @@
 /// else matters: it drops everything and makes for the nearest air.
 /datum/bot_brain/proc/mind_air_supply()
 	if(!is_eva_job())
+		get_out_of_bad_air()
 		return
 	manage_internals()
 	if(gym_scripted)
@@ -445,6 +450,24 @@
 /// can_path_through_space() (gear_up_eva.dm) won't plan a way back out on what's left.
 /datum/bot_goal/seek_air
 
+/// Anybody at all: stood somewhere it can't breathe with no suit on, it drops everything and makes for air. This used to
+/// be for engineers only. An assistant who strolled out onto a platform in the vacuum stopped to look through a crate
+/// there, and was still looking when it died.
+/datum/bot_brain/proc/get_out_of_bad_air()
+	if(gym_scripted || world.time < next_air_trip_time || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST)
+		return
+	if(istype(current_goal, /datum/bot_goal/seek_air) || istype(current_goal, /datum/bot_goal/evacuate))
+		return
+	if(turf_air_is_breathable(get_turf(owner)) || is_space_protected_without_boots())
+		return
+	next_air_trip_time = world.time + 10 SECONDS
+	if(state == BOT_STATE_GOAL)
+		drop_goals("can't breathe here")
+	if(state == BOT_STATE_WANDER)
+		bot_log(src, "can't breathe here - getting out")
+		stop_pursuit()
+		assign_goal(new /datum/bot_goal/seek_air())
+
 /datum/bot_goal/seek_air/resolve_target(datum/bot_brain/bot)
 	target = bot.find_breathable_turf()
 
@@ -459,5 +482,6 @@
 	return TRUE
 
 #undef BOT_TANK_RUNNING_OUT
+#undef BOT_TANK_DRY
 #undef BOT_INTERNALS_MIN_OPEN
 #undef BOT_AIR_SEARCH_RANGE

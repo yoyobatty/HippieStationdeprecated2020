@@ -37,6 +37,10 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 	var/list/door_button_presses
 	/// When it last pressed one.
 	var/door_button_pressed_at = 0
+	/// The id on the button it pressed, which is the id of every door that button works.
+	var/door_button_id
+	/// Button -> when it's worth trying to reach it again.
+	var/list/door_buttons_out_of_reach
 	/// Door -> when this bot first found it busy (somebody else working it), for giving it a moment.
 	var/list/busy_doors
 
@@ -164,6 +168,8 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 	for(var/obj/machinery/button/door/B as anything in bot_buttons_for_door_id(door.id_tag))
 		if(QDELETED(B) || B.z != doorway.z || !B.normaldoorcontrol || B.specialfunctions != OPEN || B.panel_open || (B.stat & (NOPOWER|BROKEN)))
 			continue
+		if(LAZYACCESS(door_buttons_out_of_reach, B) > world.time)
+			continue
 		var/near = (B.x - from.x) ** 2 + (B.y - from.y) ** 2
 		if(near > 36 || near >= (B.x - beyond.x) ** 2 + (B.y - beyond.y) ** 2)
 			continue //the other side of the door, or too far off to be this door's
@@ -180,23 +186,45 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 	if(!istype(H) || !H.bot_brain)
 		return
 	if(.)
-		// Stood open, and not one this bot's ID opens: no following somebody in (pathing_no_tailgating).
-		if(!density && H.bot_brain.pathing_no_tailgating && !emergency && !unres_sides && requiresID() && !check_access(ID))
+		// Stood open, and not one this bot's ID opens: no following somebody in (pathing_no_tailgating). The doors it
+		// has just opened itself are another matter - that's what the button was for. This was missing, so nobody
+		// without Medbay access could walk through the Medbay doors they'd opened with the exit button: 1 try in 9 got out.
+		if(!density && H.bot_brain.pathing_no_tailgating && !emergency && !unres_sides && requiresID() && !check_access(ID) && !H.bot_brain.pressed_button_for(src))
 			return FALSE
 		return
 	if(!id_tag || locked || welded || !to_dir || !hasPower())
 		return
 	return H.bot_brain.door_button_for(src, get_step(src, to_dir)) ? TRUE : FALSE
 
+/// Whether this bot has just pressed the button that works this door.
+/datum/bot_brain/proc/pressed_button_for(obj/machinery/door/airlock/door)
+	return door_button_id && door.id_tag == door_button_id && world.time < door_button_pressed_at + 10 SECONDS
+
+/// Presses a door's button, the one click.
+/datum/bot_brain/proc/press_door_button(obj/machinery/button/door/B)
+	door_button_id = B.id
+	door_button_pressed_at = world.time
+	use_atom(B)
+	door_button_pressed_at = world.time
+
+/// Nobody going about their day opens an external door onto a vacuum with no suit on. A bot's ID opens most of them, and
+/// assistants on a stroll went straight out onto the platforms outside the hull, on every map that has them.
+/obj/machinery/door/airlock/external/CanAStarPass(obj/item/card/id/ID, to_dir, caller)
+	. = ..()
+	var/mob/living/carbon/human/H = caller
+	if(!. || !to_dir || !istype(H) || !H.bot_brain?.pathing_no_tailgating)
+		return
+	var/turf/far_side = get_step(src, turn(to_dir, 180))
+	if(!H.bot_brain.turf_air_is_breathable(far_side) && !H.bot_brain.is_space_protected_without_boots())
+		return FALSE
+
 /// At a door that wants the button pressed. TRUE if that's in hand (pressed, or on the way to it).
 /datum/bot_brain/proc/press_button_for_door(obj/machinery/button/door/B, obj/machinery/door/D)
 	LAZYINITLIST(door_button_presses)
 	if(owner.Adjacent(B))
 		door_button_presses[D]++
-		door_button_pressed_at = world.time
 		bot_log(src, "[D] isn't one my ID opens - pressing [B]")
-		use_atom(B)
-		door_button_pressed_at = world.time
+		press_door_button(B)
 		return TRUE
 	if(istype(current_goal, /datum/bot_goal/press_door_button) || istype(suspended_goal, /datum/bot_goal/press_door_button))
 		return FALSE //already on exactly that errand, and it isn't working
@@ -221,6 +249,12 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 		return
 	var/turf/doorway = get_turf(door)
 	far_side = get_step(doorway, get_dir(get_turf(bot.owner), doorway))
+
+/// A button the bot couldn't get to: on the other side of a counter, as Medbay's is on some maps, where it's for the
+/// officer on the desk. Not one to plan a route by for a while.
+/datum/bot_goal/press_door_button/on_give_up(datum/bot_brain/bot)
+	if(target)
+		LAZYSET(bot.door_buttons_out_of_reach, target, world.time + 10 MINUTES)
 
 /datum/bot_goal/press_door_button/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/press_door_button/S = new
@@ -249,9 +283,7 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 		return FALSE //open, or opening
 	LAZYINITLIST(bot.door_button_presses)
 	bot.door_button_presses[G.door]++
-	bot.door_button_pressed_at = world.time
-	bot.use_atom(B)
-	bot.door_button_pressed_at = world.time
+	bot.press_door_button(B)
 	wait_for = 12 //the button takes a second to come back up, and the door a moment to move
 	clicks++
 	return TRUE

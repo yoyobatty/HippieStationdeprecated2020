@@ -226,8 +226,9 @@ GLOBAL_VAR(bot_telemetry_log)
 		return ..()
 	var/was = bot_brain.telemetry_item_where(I)
 	. = ..()
-	if(was == "floor" || findtext(was, "in:") == 1)
+	if(!bot_brain.being_issued_kit && (was == "floor" || findtext(was, "in:") == 1))
 		bot_brain.telemetry_flag("equip_without_holding")
+		bot_log_verbose(bot_brain, "equip_without_holding: [I] went straight to slot [slot] from [was]")
 	bot_brain.telemetry_event("equip", list("item" = "[I.name]", "slot" = slot, "from" = was))
 
 // ---------------------------------------------------------------------------------------------
@@ -305,4 +306,5 @@ GLOBAL_VAR(bot_telemetry_log)
 
 /// A machine panel button pressed the way a player would (SSU "dispense", etc) - legitimate, logged for pacing analysis.
 /datum/bot_brain/proc/telemetry_ui_action(obj/machinery/M, action)
+	owner.face_atom(M) //a click on a screen is a click on the machine: nobody works one with their back to it
 	telemetry_event("ui_action", list("machine" = "[M]", "action" = action, "dist" = get_dist(owner, M)) + telemetry_target_fields(M))

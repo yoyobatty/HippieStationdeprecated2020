@@ -736,7 +736,22 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 
 /datum/bot_strategy/activate_emitter/New()
 	. = ..()
-	steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/activate_emitter())
+	steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/stand_clear_of_emitter(), new /datum/bot_step/activate_emitter())
+
+/// Off the tile in front of it before it's switched on: an emitter fires straight out of its muzzle into whoever is
+/// there. A Chief Engineer switched one on from that tile, took four beams walking away and died of them.
+/datum/bot_step/stand_clear_of_emitter/execute(datum/bot_brain/bot)
+	var/obj/machinery/power/emitter/E = bot.current_goal?.target
+	if(!E || QDELETED(E))
+		return GOAL_STEP_FAIL
+	var/turf/muzzle = get_step(E, E.dir)
+	if(get_turf(bot.owner) != muzzle)
+		return GOAL_STEP_SUCCESS
+	for(var/turf/open/beside in get_adjacent_open_turfs(E))
+		if(beside != muzzle && !is_blocked_turf(beside, TRUE))
+			bot.pursue(beside, "goal", force = TRUE)
+			return GOAL_STEP_PENDING
+	return GOAL_STEP_SUCCESS
 
 /datum/bot_strategy/activate_emitter/is_feasible(datum/bot_brain/bot)
 	return TRUE
@@ -1207,16 +1222,40 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 	var/containment_steady_since = 0
 
 /// An engineering SMES still on its round-start settings.
-/datum/bot_brain/proc/find_unset_engine_smes()
-	var/turf/anchor = tesla_component_anchor() || get_turf(find_pa_console())
-	if(!anchor)
+/// The grid a supermatter's collectors feed. An SMES charging from anything else is running off the main grid. The ones
+/// round the crystal: Delta has a second set up by its tesla room, on a grid that goes nowhere.
+/datum/bot_brain/proc/engine_side_grid()
+	var/obj/machinery/power/supermatter_crystal/crystal = station_crystal()
+	if(!crystal)
 		return null
+	for(var/obj/machinery/power/rad_collector/C in orange(8, crystal))
+		if(C.anchored && C.powernet)
+			return C.powernet
+	return null
+
+/// Wires that used to cross now join wherever a map still has two cables on a tile, and on Endo that puts an SMES's input
+/// on the grid it feeds. Charging then takes everything spare on that grid and the emitters get nothing, so it's left to
+/// fill from what the station doesn't use.
+/datum/bot_brain/proc/smes_feeds_itself(obj/machinery/power/smes/S)
+	return S.terminal && S.terminal.powernet == S.powernet
+
+/datum/bot_brain/proc/find_unset_engine_smes()
+	// On a map with no tesla there's nothing to stay near, so it's the SMES the collectors feed. This used to give up
+	// without an anchor: a supermatter map's SMES stayed on 50 kW out, and Endo lost a third of its APCs by the half hour
+	// with its SMES still a third full. Then it took every one on the level: Donut has three more by the solars and the
+	// gravity generator, on the main grid, and turning their input up drained the engine's into them until the lights went.
+	// By what it's wired to and not its type: Delta's crystal feeds two plain ones.
+	var/turf/anchor = tesla_component_anchor() || get_turf(find_pa_console())
+	var/datum/powernet/engine_side = anchor ? null : engine_side_grid()
 	var/obj/machinery/power/smes/best
 	var/best_dist
-	for(var/obj/machinery/power/smes/engineering/S in GLOB.machines)
-		if(S.z != owner.z || (S.stat & BROKEN) || S.panel_open || get_dist(anchor, S) > BOT_SMES_REACH)
+	for(var/obj/machinery/power/smes/S in GLOB.machines)
+		if(S.z != owner.z || (S.stat & BROKEN) || S.panel_open || (anchor && get_dist(anchor, S) > BOT_SMES_REACH))
 			continue
-		if(S.input_attempt && S.output_attempt && S.input_level >= S.input_level_max && S.output_level >= S.output_level_max)
+		if(engine_side ? S.terminal?.powernet != engine_side : !istype(S, /obj/machinery/power/smes/engineering))
+			continue
+		var/input_set = smes_feeds_itself(S) ? !S.input_attempt : (S.input_attempt && S.input_level >= S.input_level_max)
+		if(input_set && S.output_attempt && S.output_level >= S.output_level_max)
 			continue
 		if(is_failed_engine_part(S) || taken_by_another(S))
 			continue
@@ -1260,7 +1299,7 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 		bot.owner.face_atom(S)
 		bot.telemetry_ui_action(S, "[setting] to max")
 		if(setting == "input")
-			S.input_attempt = TRUE
+			S.input_attempt = !bot.smes_feeds_itself(S)
 			S.input_level = S.input_level_max
 		else
 			S.output_attempt = TRUE

@@ -57,6 +57,8 @@ GLOBAL_LIST_EMPTY(bot_cable_breaks)
 			continue
 		if(T.z != owner.z || LAZYACCESS(failed_cable_repairs, T) > world.time)
 			continue
+		if(isspaceturf(T))
+			continue //a gap over open space: a cable won't lie on nothing. Engineers tried 90 times a shift, each.
 		var/datum/bot_brain/claimant = info["claim"]
 		if(claimant && claimant != src && !QDELETED(claimant) && world.time < info["claim_time"] + BOT_CABLE_CLAIM_TIME)
 			continue //another engineer is already on it

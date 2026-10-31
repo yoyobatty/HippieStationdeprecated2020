@@ -40,3 +40,7 @@ TOKEN_CONSUMER http://127.0.0.1:9000/byondLinker.php
 ## Tops the crew up to this many with bot crew members, players counted first. Unset or 0 is off.
 ## Can also be changed mid-round with the "Set Bot Crew Target" admin verb.
 #BOT_CREW_TARGET 20
+
+## How many of those bots turn out to be traitors, ten minutes or so into the round. Modes only pick antagonists from
+## players, so a crew of bots has none without this. Unset or 0 is none.
+#BOT_CREW_TRAITORS 2

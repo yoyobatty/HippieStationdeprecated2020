@@ -112,6 +112,15 @@ GLOBAL_LIST_INIT(bot_inedible_food, typecacheof(list(
 			best_dist = dist
 	return best
 
+/// Writes off a dish or a drink it can't get to, or a vending machine: not that again for a while.
+/datum/bot_brain/proc/block_refreshment(atom/source)
+	if(istype(source, /obj/machinery/vending))
+		LAZYSET(vendor_blocked, source, world.time + 10 MINUTES)
+	else if(istype(source, /obj/item/reagent_containers/food/drinks))
+		LAZYSET(bar_blocked, get_turf(source), world.time + 5 MINUTES)
+	else if(isturf(source?.loc))
+		LAZYSET(kitchen_blocked, source.loc, world.time + 5 MINUTES)
+
 /// What's left in the hands after a meal: into a bin if one is within reach, dropped where it stands otherwise.
 /datum/bot_brain/proc/dispose_of_leftovers()
 	for(var/obj/item/I in owner.held_items)
@@ -177,7 +186,14 @@ GLOBAL_LIST_INIT(bot_inedible_food, typecacheof(list(
 	if(food)
 		target = bot.owner
 		return
-	target = bot.find_served_food() || bot.find_fare_vendor(list(/obj/machinery/vending/snack), /obj/item/reagent_containers/food/snacks, BOT_MEAL_REACH)
+	// The nearest one there's a way to. A plate on a table inside the kitchen, or a machine in a room this ID doesn't
+	// open, used to be set out for and given up on at the door.
+	for(var/tries in 1 to 4)
+		target = bot.find_served_food() || bot.find_fare_vendor(list(/obj/machinery/vending/snack), /obj/item/reagent_containers/food/snacks, BOT_MEAL_REACH)
+		if(!target || bot.can_walk_lawfully_to(target))
+			break
+		bot.block_refreshment(target)
+		target = null
 	if(!target)
 		bot.meal_retry_time = world.time + 3 MINUTES
 
@@ -193,13 +209,10 @@ GLOBAL_LIST_INIT(bot_inedible_food, typecacheof(list(
 	return list(S)
 
 /datum/bot_goal/have_meal/on_give_up(datum/bot_brain/bot)
-	// A dish it couldn't get to (on a table inside the kitchen, not on the counter): that table is left alone for a
-	// while and it tries for something else. Anything else failing means there's nothing to be had just now.
-	if(istype(target, /obj/item) && isturf(target.loc))
-		LAZYSET(bot.kitchen_blocked, target.loc, world.time + 5 MINUTES)
-	else if(istype(target, /obj/machinery/vending))
-		// The nearest machine was in a room this ID doesn't open (the heads' meeting room, for one): the next nearest.
-		LAZYSET(bot.vendor_blocked, target, world.time + 10 MINUTES)
+	// A dish or a machine it couldn't get to: that's left alone for a while and it tries for something else. Anything
+	// else failing means there's nothing to be had just now.
+	if((istype(target, /obj/item) && isturf(target.loc)) || istype(target, /obj/machinery/vending))
+		bot.block_refreshment(target)
 	else
 		bot.meal_retry_time = world.time + 3 MINUTES
 
@@ -261,11 +274,16 @@ GLOBAL_LIST_INIT(bot_inedible_food, typecacheof(list(
 
 /datum/bot_goal/have_drink/resolve_target(datum/bot_brain/bot)
 	// Something the bartender has poured, if the bar's near enough - a regular will cross the station for it -
-	// and it hasn't had enough already. Otherwise a machine.
-	if(bot.owner.drunkenness < 20)
-		target = bot.find_served_drink(bot.has_habit(BOT_HABIT_BARFLY) ? 80 : BOT_DRINK_REACH) //goals/bartender.dm
-	if(!target)
-		target = bot.find_fare_vendor(list(/obj/machinery/vending/coffee, /obj/machinery/vending/cola), /obj/item/reagent_containers/food/drinks, BOT_DRINK_REACH)
+	// and it hasn't had enough already. Otherwise a machine. Whichever's nearest with a way to it.
+	for(var/tries in 1 to 4)
+		if(bot.owner.drunkenness < 20)
+			target = bot.find_served_drink(bot.has_habit(BOT_HABIT_BARFLY) ? 80 : BOT_DRINK_REACH) //goals/bartender.dm
+		if(!target)
+			target = bot.find_fare_vendor(list(/obj/machinery/vending/coffee, /obj/machinery/vending/cola), /obj/item/reagent_containers/food/drinks, BOT_DRINK_REACH)
+		if(!target || bot.can_walk_lawfully_to(target))
+			break
+		bot.block_refreshment(target)
+		target = null
 
 /datum/bot_goal/have_drink/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/refreshment/S = new
@@ -279,10 +297,7 @@ GLOBAL_LIST_INIT(bot_inedible_food, typecacheof(list(
 
 /// A drink on the bar it couldn't get to (the wrong side of the counter): not that table again for a while.
 /datum/bot_goal/have_drink/on_give_up(datum/bot_brain/bot)
-	if(istype(target, /obj/machinery/vending))
-		LAZYSET(bot.vendor_blocked, target, world.time + 10 MINUTES)
-	else if(target)
-		LAZYSET(bot.bar_blocked, get_turf(target), world.time + 5 MINUTES)
+	bot.block_refreshment(target)
 
 /// A gulp, a pause, a gulp, until the cup's empty.
 /datum/bot_step/paced/drink_up

@@ -14,12 +14,23 @@
 	if(QDELETED(I) || !isturf(I.loc) || get_dist(owner, I) > 1)
 		return FALSE
 	owner.face_atom(I)
-	if(owner.get_active_held_item() && owner.get_inactive_held_item())
-		put_away(owner.get_active_held_item(), allow_equip = FALSE)
+	make_hand_free()
 	if(!owner.put_in_hands(I))
 		return FALSE
 	bot_log(src, "picked up [I]")
 	return TRUE
+
+/// One hand empty, whatever it takes: into the bag if the bag will have it, either hand's load, or else set down for a
+/// moment (set_down_items). put_in_hands() with both hands full tips what it's given onto the floor, and with a full
+/// bag and a toolbox in hand that was a bot's dinner, off the counter and down at its feet.
+/datum/bot_brain/proc/make_hand_free()
+	var/obj/item/active = owner.get_active_held_item()
+	var/obj/item/inactive = owner.get_inactive_held_item()
+	if(!active || !inactive || put_away(active, allow_equip = FALSE) || put_away(inactive, allow_equip = FALSE))
+		return
+	bot_log(src, "setting [active] down for a moment")
+	owner.dropItemToGround(active)
+	LAZYADD(set_down_items, active)
 
 /// The nearest loose item of item_type within `reach` tiles that the bot might walk to. A Bot Gym bot only sees its own arena's.
 /datum/bot_brain/proc/find_loose_item(item_type, reach = 60)

@@ -4,6 +4,10 @@
 #define BOT_STATE_ARREST "arrest" //Hippie. Security bots only - see handle_arrest() (goals/security_patrol.dm).
 /// How long a bot keeps looking for someone it's fighting after losing sight of them
 #define BOT_COMBAT_LOST_TIMEOUT 150
+/// Force an item in hand needs before it's swung instead of a fist.
+#define BOT_COMBAT_WEAPON_FORCE 8
+/// Share of its health below which a bot stops fighting and runs.
+#define BOT_COMBAT_RUN_AT 0.35
 /// How long without being hit before a bot decides the fight's over
 #define BOT_COMBAT_CALM_DOWN 80
 /// How far a bot sees (the default client view radius) - see can_see_target()
@@ -112,10 +116,12 @@
 		return PROCESS_KILL
 	if(gym_scripted && state == BOT_STATE_WANDER)
 		// Bot Gym bot between goals - it only does what its scenario asks (gym/bot_gym.dm). It still sees to its
-		// own tank's valve, the way it still breathes: that isn't an errand (goals/refill_internals.dm).
-		if(world.time >= next_air_check_time && owner.stat != DEAD && !owner.incapacitated())
-			next_air_check_time = world.time + 10
-			manage_internals()
+		// own tank's valve, the way it still breathes, and puts itself out: those aren't errands (goals/refill_internals.dm).
+		if(owner.stat != DEAD && !owner.incapacitated())
+			try_put_self_out()
+			if(world.time >= next_air_check_time)
+				next_air_check_time = world.time + 10
+				manage_internals()
 		return
 	if(owner.stat == DEAD)
 		// Not PROCESS_KILL: a bot brought back with the defibrillator (goals/treat_patient.dm) has to pick up where it
@@ -133,6 +139,10 @@
 		return
 	if(try_escape_pool())
 		return
+	if(try_put_self_out())
+		return
+	if(world.time >= GLOB.bot_hazards_refresh_at) //bot_hazards.dm
+		bot_refresh_hazards()
 
 	// Its own air before anything else, whatever state it's in (goals/refill_internals.dm): the tank's valve
 	// open only where the air isn't breathable, and back inside for a refill before it runs out.
@@ -204,6 +214,10 @@
 	if(world.time >= next_id_consolidation_check_time)
 		next_id_consolidation_check_time = world.time + rand(150, 400)
 		consolidate_id_into_pda()
+
+/datum/bot_brain
+	/// Ran from a fight: not again before this.
+	var/next_run_for_it = 0
 
 /datum/bot_brain/proc/disengage_combat(reason)
 	bot_log(src, "disengaging from [attacker]: [reason]")
@@ -297,16 +311,64 @@
 		if(owner.Adjacent(attacker))
 			try_combat_sidestep(attacker)
 		return
+	if(try_run_for_it())
+		return
 	if(owner.Adjacent(attacker))
 		stop_pursuit()
-		owner.a_intent = pick_combat_intent(attacker)
 		owner.changeNext_move(CLICK_CD_MELEE)
-		owner.UnarmedAttack(attacker, TRUE)
-		bot_log(src, "attacking [attacker] ([owner.a_intent])")
+		var/obj/item/weapon = weapon_to_hand()
+		if(weapon)
+			owner.a_intent = INTENT_HARM
+			owner.face_atom(attacker)
+			telemetry_clicked(attacker)
+			weapon.melee_attack_chain(owner, attacker)
+			bot_log(src, "hitting [attacker] with [weapon]")
+		else
+			owner.a_intent = pick_combat_intent(attacker)
+			owner.UnarmedAttack(attacker, TRUE)
+			bot_log(src, "attacking [attacker] ([owner.a_intent])")
 		try_combat_sidestep(attacker)
 	else
 		owner.a_intent = INTENT_HARM
 		combat_chase(attacker)
+
+/// What to hit somebody with: whatever's the heaviest thing in its hands, if that beats a fist. Nobody in a fight puts
+/// down a fire extinguisher to punch.
+/datum/bot_brain/proc/weapon_to_hand()
+	var/obj/item/best
+	for(var/obj/item/I in owner.held_items)
+		if(I.force >= BOT_COMBAT_WEAPON_FORCE && (!best || I.force > best.force))
+			best = I
+	if(best && owner.get_active_held_item() != best)
+		owner.swap_hand()
+	return owner.get_active_held_item() == best ? best : null
+
+/// Badly hurt and still being hit, anybody but security makes for Medbay, shouting. Standing and trading blows to the
+/// death is what a script does: a doctor set on by a traitor stayed and punched it until it was dead.
+/// Alight: stop, drop and roll, by the Resist button a player would be pressing, which also deals with whatever's holding
+/// the bot in place first. Not in the flames themselves, where lying on the floor is how it ends, and not in gear fire can't
+/// get through. Bots used to burn to death on their feet, lighting everybody they brushed past: eight of a crew in one round.
+/datum/bot_brain/proc/try_put_self_out()
+	if(!owner.on_fire || owner.get_thermal_protection() >= FIRE_IMMUNITY_MAX_TEMP_PROTECT)
+		return FALSE
+	var/turf/open/T = owner.loc
+	if(istype(T) && T.active_hotspot)
+		return FALSE
+	bot_log(src, "on fire - stop, drop and roll")
+	INVOKE_ASYNC(owner, TYPE_VERB_REF(/mob/living, resist))
+	return TRUE
+
+/datum/bot_brain/proc/try_run_for_it()
+	if(is_security_job() || owner.health > owner.maxHealth * BOT_COMBAT_RUN_AT || world.time < next_run_for_it)
+		return FALSE
+	next_run_for_it = world.time + 30 SECONDS
+	var/mob/living/from = attacker
+	state_before_combat = null //whatever it was doing can wait, and mustn't take the goal slot back from this
+	drop_goals("running for it")
+	disengage_combat("running for it")
+	bot_say(owner, pick(";Help! [from] is trying to kill me!", ";Somebody help me, I'm being attacked!", ";I need help, [from] is after me!"))
+	assign_goal(new /datum/bot_goal/seek_medbay_healing())
+	return TRUE //either way the fight's over: handle_combat() has no attacker to go on with
 
 /// Chase something, re-pathing only once it's moved off where the current path leads (same as arrests,
 /// goals/security_patrol.dm) - this used to run a fresh pathfind every second of every fight.
@@ -507,7 +569,7 @@
 	// points the bot toward something it can't necessarily see yet (goals/check_alert_
 	// console.dm). Still untimed/checked every tick, same "reacts to what's observable
 	// right now" reasoning.
-	if(is_fire_response_job() && can_see_alerted_console())
+	if(world.time >= next_console_read_time && is_fire_response_job() && can_see_alerted_console())
 		if(try_check_alert_console_round())
 			if(owner.buckled)
 				owner.buckled.unbuckle_mob(owner, force = TRUE)

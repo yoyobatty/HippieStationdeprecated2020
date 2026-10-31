@@ -1,9 +1,15 @@
-GLOBAL_VAR_INIT(bot_ai_debug, TRUE)
+/// The bot AI logs are for reading test rounds back, so only those start with them on. In a live round they'd send every
+/// bot's every step to admin chat, and put 155,000 lines in game.log every half hour; the admin verbs below turn them on.
+/// bot-quiet turns them off in a test too, for measuring what a crew costs without the logging in the way.
+/proc/bot_ai_logging_wanted()
+	return ((BOT_GYM_PARAMETER in world.params) || (BOT_SHIFT_PARAMETER in world.params)) && !(BOT_QUIET_PARAMETER in world.params)
+
+GLOBAL_VAR_INIT(bot_ai_debug, bot_ai_logging_wanted())
 // Separate from bot_ai_debug - this is the noisy, per-decision trace (pathing pass
 // results, per-node stuck diagnostics, etc.) meant for post-round log analysis, not
 // live admin chat. bot_log_verbose() (bot_chat.dm) writes it to game.log only, never
 // message_admins(), so it doesn't flood anyone watching the live feed.
-GLOBAL_VAR_INIT(bot_ai_verbose, TRUE)
+GLOBAL_VAR_INIT(bot_ai_verbose, bot_ai_logging_wanted())
 
 /client/proc/admin_spawn_bot_crew()
 	set name = "Spawn Bot Crew Member"

@@ -169,6 +169,61 @@
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
 
+/datum/bot_scenario/duty/civilian/call_shuttle
+	name = "head of personnel calls the shuttle when the shift is over"
+	desc = "The shift has run its course and there's a communications console in the room. The HoP walks over, logs in, types a reason and confirms. In the gym the call doesn't reach the real shuttle."
+	duty_type = /datum/bot_duty/call_shuttle
+	job = "Head of Personnel"
+	layout = list(
+		"########",
+		"#B....K#",
+		"########")
+
+/datum/bot_scenario/duty/civilian/call_shuttle/setup()
+	GLOB.bot_shift_ends_at = world.time
+	for(var/turf/T in markers["K"])
+		place("K", new /obj/machinery/computer/communications(T))
+
+/datum/bot_scenario/duty/civilian/call_shuttle/post_spawn()
+	..()
+	give_job_id(list(ACCESS_HEADS))
+
+/datum/bot_scenario/duty/civilian/call_shuttle/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!brain.shuttle_calls || brain.state != BOT_STATE_WANDER)
+		return BOT_GYM_PENDING
+	if(world.time - start_time < 4 SECONDS)
+		fail_reason = "walked over, logged in and typed a reason in [(world.time - start_time) / 10]s"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/duty/civilian/detective
+	name = "detective works a body and names the killer"
+	desc = "A body on the floor, last hit by somebody with bare hands. The detective walks over, scans it, thinks, and calls it in. Bare hands mean most scans name a suspect; the scenario only asks for the case to be closed."
+	duty_type = /datum/bot_duty/detective
+	job = "Detective"
+	layout = list(
+		"#########",
+		"#B.....y#",
+		"#########")
+	var/mob/living/carbon/human/body
+
+/datum/bot_scenario/duty/civilian/detective/post_spawn()
+	..()
+	body = stand_in(first_marker("y"), "Dee Parted")
+	body.mind_initialize()
+	body.mind.assigned_role = "Assistant" //one of the crew: mapped corpses aren't cases
+	body.last_assailant = "Nobody Here"
+	body.death()
+
+/datum/bot_scenario/duty/civilian/detective/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!GLOB.bot_closed_cases[REF(body)] || brain.state != BOT_STATE_WANDER)
+		return BOT_GYM_PENDING
+	return BOT_GYM_PASS
+
 /datum/bot_scenario/duty/civilian/morgue
 	name = "chaplain takes a body to the morgue"
 	desc = "Somebody long dead on the floor and an empty morgue drawer. The chaplain takes hold of the body, drags it to the drawer, slides the tray out, moves the body onto it and shuts it - and isn't shut in with it."

@@ -21,6 +21,8 @@
 /datum/bot_brain
 	/// Turf (a mess on it) or light fixture -> world.time before it's worth another try.
 	var/list/janitor_blocked
+	/// Area -> until when this janitor knows it can walk there (pick_mess()).
+	var/list/janitor_open_areas
 	/// When to next think about the JaniDrobe.
 	var/janitor_wardrobe_retry = 0
 	/// Tiles this janitor has mopped clean, for the Bot Shift report.
@@ -73,8 +75,7 @@
 /// The mess to see to next: the worst first, the nearest among equals. Plain dirt in the maintenance tunnels is left
 /// where it is - nobody mops maintenance.
 /datum/bot_brain/proc/pick_mess()
-	var/obj/effect/decal/cleanable/best
-	var/best_score
+	var/list/messes = list() //mess -> score
 	for(var/obj/effect/decal/cleanable/C as anything in bot_instances_of(/obj/effect/decal/cleanable))
 		if(!bot_is_mess(C) || !janitor_in_reach(C))
 			continue
@@ -89,10 +90,24 @@
 		// Somebody asked for the janitor over there (bot_requests.dm): that one first.
 		if(janitor_called_to && world.time < janitor_called_until && get_dist(T, janitor_called_to) <= 7)
 			score += 400
-		if(!best || score > best_score)
-			best = C
-			best_score = score
-	return best
+		messes[C] = score
+	// The worst one there's a way to. A stain behind a door this ID doesn't open is somebody else's to see to, and
+	// the janitor's ID opens very few: 86 mops in a shift were abandoned at the door of Medbay, Toxins or the mining dock.
+	var/tries = 0
+	while(length(messes) && tries++ < 4)
+		var/obj/effect/decal/cleanable/best
+		for(var/obj/effect/decal/cleanable/C as anything in messes)
+			if(!best || messes[C] > messes[best])
+				best = C
+		messes -= best
+		var/area/where = get_area(best)
+		if(LAZYACCESS(janitor_open_areas, where) > world.time)
+			return best
+		if(can_walk_lawfully_to(best))
+			LAZYSET(janitor_open_areas, where, world.time + 3 MINUTES) //a route search for each of its stains would be a waste
+			return best
+		LAZYSET(janitor_blocked, where, world.time + 10 MINUTES)
+	return null
 
 /// A light fixture with a dead, broken or missing tube that the replacer can do something about.
 /datum/bot_brain/proc/pick_dead_light()

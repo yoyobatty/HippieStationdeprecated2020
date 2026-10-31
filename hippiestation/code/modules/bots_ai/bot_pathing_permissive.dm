@@ -74,7 +74,7 @@
 	return FALSE
 
 /turf/proc/bot_reachable_strict(caller, turf/T, ID, simulated_only)
-	if(T && !T.density && !bot_steps_into_pool(src, T) && !(simulated_only && SSpathfinder.space_type_cache[T.type] && !bot_turf_crossable_without_boots(T, caller)) && !bot_turf_has_active_field(T) && !bot_turf_has_seated_mob(T) && !LinkBlockedWithAccess(T, caller, ID))
+	if(T && !T.density && !bot_steps_into_pool(src, T) && !bot_steps_into_hazard(src, T, caller) &&!(simulated_only && SSpathfinder.space_type_cache[T.type] && !bot_turf_crossable_without_boots(T, caller)) && !bot_turf_has_active_field(T) && !bot_turf_has_seated_mob(T) && !LinkBlockedWithAccess(T, caller, ID))
 		return TRUE
 
 // Mirrors code/__HELPERS/AStar.dm's reachableTurftest()/LinkBlockedWithAccess(), but
@@ -89,7 +89,7 @@
 // normal (obstruction-respecting) one finds no route, so a bot only ever plans through
 // an obstacle when there's no legitimate way around - see bot_movement.dm's repath().
 /turf/proc/bot_reachable_permissive(caller, turf/T, ID, simulated_only)
-	if(T && !T.density && !bot_steps_into_pool(src, T) && !(simulated_only && SSpathfinder.space_type_cache[T.type] && !bot_turf_crossable_without_boots(T, caller)) && !bot_turf_has_active_field(T) && !bot_turf_has_seated_mob(T) && !bot_link_blocked_permissive(T, caller, ID))
+	if(T && !T.density && !bot_steps_into_pool(src, T) && !bot_steps_into_hazard(src, T, caller) &&!(simulated_only && SSpathfinder.space_type_cache[T.type] && !bot_turf_crossable_without_boots(T, caller)) && !bot_turf_has_active_field(T) && !bot_turf_has_seated_mob(T) && !bot_link_blocked_permissive(T, caller, ID))
 		return TRUE
 
 /turf/proc/bot_link_blocked_permissive(turf/T, caller, ID)

@@ -161,6 +161,16 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 		else if(role)
 			post = " I'm the [lowertext(role)]."
 		return "I'm [owner.first_name()].[post]"
+	if(bot_text_has_any(lower_msg, list("shuttle", "evac", "crew transfer", "going home")))
+		return shuttle_news()
+	if(bot_text_has_any(lower_msg, list("what's going on", "whats going on", "what's happening", "whats happening", "what did i miss", "anything going on", "anything happening", "how's the shift", "hows the shift")))
+		return shift_news()
+	if(!over_radio)
+		var/asked_for = tool_asked_for(lower_msg)
+		if(asked_for)
+			return lend_tool(talker, asked_for)
+	if(bot_text_has_any(lower_msg, list("are you a bot", "are you an ai", "are you a robot", "you a bot", "is this a bot", "you're a bot", "youre a bot")))
+		return pick("What? No.", "Rude.", "Do I look like a bot to you?", "That's a weird thing to ask.", "Haven't had my coffee, that's all.")
 	if(bot_text_has_any(lower_msg, list("where is", "where's", "wheres", "where are", "how do i get to", "which way", "where can i find")))
 		return directions_for(lower_msg)
 	if(bot_text_has_any(lower_msg, list("how are you", "how's it going", "hows it going", "you ok", "you okay", "you alright", "how you doing")))
@@ -182,6 +192,76 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 		return pick(GLOB.bot_question_reply_lines)
 	// Called by name and nothing else it understood. Someone just talking in its direction gets no stock reply.
 	return named ? pick(GLOB.bot_name_called_lines) : null
+
+// ---------------------------------------------------------------------------------------------
+// What it knows
+// ---------------------------------------------------------------------------------------------
+
+/// What's the shuttle doing, the way anyone would put it. The same state the crew reads off the status displays.
+/datum/bot_brain/proc/shuttle_news()
+	var/obj/docking_port/mobile/emergency/E = SSshuttle.emergency
+	if(!E)
+		return "No idea, sorry."
+	var/minutes = round(E.timeLeft() / 600)
+	switch(E.mode)
+		if(SHUTTLE_CALL)
+			return minutes >= 1 ? pick("It's on its way. About [minutes] minute\s out.", "Called already, [minutes] minute\s or so.") : pick("Any second now.", "It's nearly here.")
+		if(SHUTTLE_RECALL)
+			return pick("It got recalled.", "They called it back.")
+		if(SHUTTLE_DOCKED)
+			return pick("It's here! Get to departures.", "Docked. Get moving.")
+		if(SHUTTLE_IGNITING)
+			return pick("It's leaving now, run!", "Engines are going, hurry!")
+		if(SHUTTLE_ESCAPE, SHUTTLE_ENDGAME)
+			return pick("We're on our way home.", "Nearly there.")
+	return pick("Not called yet, as far as I know.", "Nobody's called it.", "Not yet.")
+
+/// How the shift's going, from what anyone could know: the shuttle, the alert level, the friends who've stopped answering.
+/datum/bot_brain/proc/shift_news()
+	var/obj/docking_port/mobile/emergency/E = SSshuttle.emergency
+	if(E && E.mode != SHUTTLE_IDLE && E.mode != SHUTTLE_RECALL)
+		return shuttle_news()
+	var/level = seclevel2num(get_security_level())
+	if(level >= SEC_LEVEL_RED)
+		return pick("Red alert, that's what. Keep your head down.", "We're on red. Stay away from the bad bits.")
+	var/lost = 0
+	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
+		if(H.stat == DEAD && H.mind?.assigned_role)
+			lost++
+	if(lost)
+		return pick("We've lost [lost] so far.", "[lost] dead that I know of. Watch yourself.")
+	return level >= SEC_LEVEL_BLUE ? pick("Blue alert. Nothing's gone bang yet.", "Something's up, but it's quiet here.") : pick("Quiet shift so far.", "Not much. Same old.", "Nothing I've heard about.")
+
+/// What people ask each other to borrow -> the item.
+GLOBAL_LIST_INIT(bot_tool_words, list(
+	"crowbar" = /obj/item/crowbar, "screwdriver" = /obj/item/screwdriver, "wrench" = /obj/item/wrench,
+	"wirecutters" = /obj/item/wirecutters, "cutters" = /obj/item/wirecutters, "welder" = /obj/item/weldingtool,
+	"welding tool" = /obj/item/weldingtool, "multitool" = /obj/item/multitool, "flashlight" = /obj/item/flashlight,
+	"extinguisher" = /obj/item/extinguisher, "gloves" = /obj/item/clothing/gloves/color/yellow, "cable" = /obj/item/stack/cable_coil,
+	"cigarette" = /obj/item/clothing/mask/cigarette, "lighter" = /obj/item/lighter,
+))
+
+/// The tool somebody's asking for, as an item type, or null if this isn't that. "got a crowbar?", "can I borrow your wrench"
+/datum/bot_brain/proc/tool_asked_for(lower_msg)
+	if(!bot_text_has_any(lower_msg, list("got a", "got any", "have a", "have any", "you got", "you have", "borrow", "lend me", "give me", "spare")))
+		return null
+	for(var/word in GLOB.bot_tool_words)
+		if(bot_text_has_any(lower_msg, list(word)))
+			return GLOB.bot_tool_words[word]
+	return null
+
+/// Asked for a tool: hands it over if it has one and isn't using it, set down where they can reach it. Hands are the
+/// only way this game has of passing something over, so a person does the same.
+/datum/bot_brain/proc/lend_tool(mob/living/asker, item_type)
+	var/obj/item/I = find_carried_tool(item_type)
+	if(!I || HAS_TRAIT(I, TRAIT_NODROP) || (I in owner.get_equipped_items()))
+		return pick("Sorry, haven't got one.", "Nope, sorry.", "Try the tool storage.")
+	if(state == BOT_STATE_GOAL || !owner.Adjacent(asker))
+		return pick("I need mine, sorry.", "Using it right now.", "Come back in a bit.")
+	if(!ready_in_hand(I))
+		return "Can't get at it, sorry."
+	owner.dropItemToGround(I)
+	return pick("Here, take it.", "There you go.", "All yours.")
 
 // ---------------------------------------------------------------------------------------------
 // What it's doing, and which way things are

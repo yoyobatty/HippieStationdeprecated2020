@@ -6,6 +6,10 @@
 #define GOAL_STEP_SUCCESS 1
 #define GOAL_STEP_FAIL -1
 
+// Give up on the same goal at the same target this many times running, and the bot leaves that alone for a while (note_give_up(), bot_goals.dm)
+#define BOT_GIVE_UP_LIMIT 4
+#define BOT_GIVE_UP_REST (5 MINUTES)
+
 // Where in handle_wander() a /datum/bot_duty is asked for (bot_duties.dm). Also the index of its list in bot_brain.duties.
 #define BOT_DUTY_URGENT 1
 #define BOT_DUTY_WORK 2

@@ -13,6 +13,8 @@
 // or boot:  DreamDaemon hippiestation.dmb -params "bot-shift=30&timewarp=0"
 //           also: bot-crew=Station Engineer*2,Botanist    bot-events=1 (leave random events on)
 //                 bot-profile=1 (profile the shift; read it with tools/bot_gym/shift_profile.py)
+//                 bot-round=1 (a whole round: the shift runs until the crew has called the shuttle and left, with the
+//                 minutes given to bot-shift as the limit; bot-round=20 has the heads call it at 20 minutes)
 // Results:  data/bot_shift/summary.txt, results.json and timeline.txt
 //
 // How fast a shift runs is set by how busy the server is, which is mostly the bots' pathfinding -
@@ -23,6 +25,7 @@
 
 #define BOT_SHIFT_DEFAULT_MINUTES 30
 #define BOT_SHIFT_DEFAULT_CREW "Chief Engineer,Station Engineer*2,Atmospheric Technician,Botanist,Medical Doctor,Chemist,Security Officer,Assistant*2,Janitor,Cook,Bartender,Scientist,Cargo Technician,Quartermaster"
+#define BOT_ROUND_DEFAULT_CREW "fill:20"
 /// Late-joiners trickle in rather than all appearing on the same tick.
 #define BOT_SHIFT_ARRIVAL_GAP (3 SECONDS)
 /// Standing still this long with nothing going on gets a warning...
@@ -78,6 +81,12 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 /datum/bot_shift
 	/// How long the shift runs, in game time.
 	var/length
+	/// Booted with bot-round: a whole round, over when the crew has left. `length` is then the limit.
+	var/whole_round = FALSE
+	/// The bots bot-antags made traitors.
+	var/list/mob/living/carbon/human/traitors = list()
+	/// station_power_text() every five minutes.
+	var/list/power_curve = list()
 	var/crew_text
 	var/start_time
 	var/real_start_ms
@@ -99,7 +108,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 
 /datum/bot_shift/New(minutes, crew_text)
 	length = clamp(text2num("[minutes]") || BOT_SHIFT_DEFAULT_MINUTES, 1, 600) MINUTES
-	src.crew_text = replacetext(crew_text || BOT_SHIFT_DEFAULT_CREW, "_", " ")
+	whole_round = (BOT_ROUND_PARAMETER in world.params)
+	src.crew_text = replacetext(crew_text || (whole_round ? BOT_ROUND_DEFAULT_CREW : BOT_SHIFT_DEFAULT_CREW), "_", " ")
 
 /// Game time since the shift began.
 /datum/bot_shift/proc/elapsed()
@@ -120,6 +130,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	if(BOT_SHIFT_PROFILE_PARAMETER in world.params)
 		world.Profile(PROFILE_RESTART)
 	muster()
+	make_antagonists()
 	for(var/path in subtypesof(/datum/bot_shift_check))
 		var/datum/bot_shift_check/check = new path(src)
 		if(check.name && check.worker())
@@ -127,7 +138,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 			check.begin()
 	var/next_report = start_time + 1 MINUTES
 	var/second = 0
-	while(elapsed() < length)
+	while(elapsed() < length && !(whole_round && SSticker.current_state == GAME_STATE_FINISHED))
 		sleep(1 SECONDS)
 		second++
 		for(var/datum/bot_shift_member/member as anything in members)
@@ -139,6 +150,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		if(world.time >= next_report)
 			next_report += 1 MINUTES
 			log_world("BOT SHIFT: [bot_shift_clock(elapsed())] of [bot_shift_clock(length)], [speed()]x")
+			if(!(round(elapsed() / (1 MINUTES)) % 5))
+				power_curve += station_power_text()
 	real_end_ms = timewarp_real_ms()
 	for(var/count in pathfinding)
 		pathfinding[count] = GLOB.astar_tally[count] - pathfinding[count]
@@ -157,7 +170,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 			continue
 		// "fill:25" is 25 arrivals in whatever jobs the population manager would give them (bot_population.dm).
 		var/fill = findtext(job, "fill:") == 1 ? text2num(copytext(job, 6)) : 0
-		for(var/i in 1 to clamp(fill || (length(parts) > 1 ? text2num(parts[2]) : 1), 1, fill ? 60 : 20))
+		for(var/i in 1 to clamp(fill || (length(parts) > 1 ? text2num(parts[2]) : 1), 1, fill ? 120 : 20))
 			if(fill)
 				job = GLOB.bot_population.pick_job() || "Assistant"
 			var/mob/living/carbon/human/body = SSjob.GetJob(job) ? spawn_bot_crew_member(job) : null
@@ -165,6 +178,71 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 			members += member
 			note(body ? "[member.label()] joined the crew" : "nobody could join as [job]")
 			sleep(BOT_SHIFT_ARRIVAL_GAP)
+
+/// The time, how many of the station's APCs are still running their equipment, and how full the SMES are.
+/datum/bot_shift/proc/station_power_text()
+	var/running = 0
+	var/total = 0
+	for(var/obj/machinery/power/apc/A as anything in GLOB.apcs_list)
+		if(A.area && is_station_level(A.z))
+			total++
+			if(A.equipment > 1)
+				running++
+	var/charge = 0
+	var/capacity = 0
+	for(var/obj/machinery/power/smes/S in GLOB.machines)
+		if(is_station_level(S.z))
+			charge += S.charge
+			capacity += S.capacity
+	return "[bot_shift_clock(elapsed())] [running]/[total] APCs, SMES [capacity ? round(100 * charge / capacity) : 0]%, [station_air_text()], [station_crystal_text()]"
+
+/// The crystal and the air around it, and how many of the emitters meant for it are firing.
+/datum/bot_shift/proc/station_crystal_text()
+	var/obj/machinery/power/supermatter_crystal/S = GLOB.main_supermatter_engine
+	if(QDELETED(S))
+		return "no crystal"
+	var/datum/gas_mixture/air = S.loc.return_air()
+	var/moles = air.total_moles()
+	var/emitters = 0
+	var/firing = 0
+	var/datum/powernet/grid
+	for(var/obj/machinery/power/emitter/anchored/E in GLOB.machines)
+		if(E.z == S.z && get_dist(E, S) <= 22)
+			emitters++
+			grid = E.powernet || grid
+			if(E.active && E.powered)
+				firing++
+	var/grid_text = grid ? " (grid [round(grid.avail / 1000)] kW, [round(grid.load / 1000)] used, [length(grid.cables)] cables)" : ""
+	return "crystal [round(S.get_integrity())]% [round(S.power)] MeV [round(air.temperature)] K [round(moles)] mol [moles ? round(100 * air.moles[/datum/gas/nitrogen] / moles) : 0]% N2, [firing]/[emitters] emitters[grid_text]"
+
+/// What the air on the station is like: a sample of its rooms, the mean pressure and how many of them nobody could breathe in.
+/datum/bot_shift/proc/station_air_text()
+	var/rooms = 0
+	var/pressure = 0
+	var/bad = 0
+	var/list/bad_rooms = list()
+	for(var/area/A in GLOB.sortedAreas)
+		var/turf/open/floor/F = locate() in A
+		if(!F || !is_station_level(F.z) || !F.air)
+			continue
+		rooms++
+		var/kpa = F.air.return_pressure()
+		pressure += kpa
+		if(kpa < HAZARD_LOW_PRESSURE || !F.air.moles[/datum/gas/oxygen])
+			bad++
+			if(length(bad_rooms) < 8)
+				bad_rooms += "[A.name] ([round(kpa)])"
+	return "[rooms ? round(pressure / rooms) : 0] kPa, [bad]/[rooms] rooms bad[length(bad_rooms) ? " ([jointext(bad_rooms, ", ")])" : ""]"
+
+/// bot-antags=traitor*2: a couple of the crew turn out to be working for somebody else.
+/datum/bot_shift/proc/make_antagonists()
+	for(var/entry in splittext("[world.params[BOT_ANTAGS_PARAMETER]]", ","))
+		var/list/parts = splittext(entry, "*")
+		if(parts[1] != "traitor")
+			continue
+		for(var/mob/living/carbon/human/H as anything in bot_make_traitors(length(parts) > 1 ? text2num(parts[2]) : 1))
+			traitors += H
+			note("[H.real_name] ([H.mind.assigned_role]) is a traitor: [jointext(H.bot_brain.objective_list(), "; ")]")
 
 /// Called from world/Error() for every runtime while a shift is running. Runs inside the error
 /// handler: keep it to plain list work.
@@ -429,12 +507,16 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	var/datum/bot_shift/shift
 	/// Shift time it was first seen done.
 	var/done_at
+	/// What this work is done on, if not every map has one. MiniStation has no kitchen, for one.
+	var/needs_on_map
 
 /datum/bot_shift_check/New(datum/bot_shift/shift)
 	src.shift = shift
 
 /// The brain of a living crew member whose job this is - the finders this leans on live on the brain.
 /datum/bot_shift_check/proc/worker()
+	if(needs_on_map && !length(bot_instances_of(needs_on_map)))
+		return null
 	for(var/datum/bot_shift_member/member as anything in shift.members)
 		if(member.brain && (member.job in jobs))
 			return member.brain
@@ -511,6 +593,10 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	jobs = list("Station Engineer", "Chief Engineer")
 	deadline = 15 MINUTES
 
+/// Nothing to judge on a map whose engine is a supermatter.
+/datum/bot_shift_check/pa_assembled/worker()
+	return station_pa_console() ? ..() : null
+
 /// list(parts assembled, parts in all), the console included.
 /datum/bot_shift_check/pa_assembled/proc/tally()
 	var/obj/machinery/particle_accelerator/control_box/console = station_pa_console()
@@ -534,6 +620,9 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	name = "engineering: tesla engine running"
 	jobs = list("Station Engineer", "Chief Engineer")
 	deadline = 25 MINUTES
+
+/datum/bot_shift_check/tesla_running/worker()
+	return station_pa_console() ? ..() : null
 
 /datum/bot_shift_check/tesla_running/done()
 	var/obj/machinery/particle_accelerator/control_box/console = station_pa_console()
@@ -696,6 +785,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 // --- Botany ---
 
 /datum/bot_shift_check/bay_planted
+	needs_on_map = /obj/machinery/hydroponics
 	name = "botany: hydroponics bay planted"
 	jobs = list("Botanist")
 	deadline = 10 MINUTES
@@ -722,6 +812,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	return "[trays[1]] of [trays[2]] trays growing something"
 
 /datum/bot_shift_check/produce_stocked
+	needs_on_map = /obj/machinery/hydroponics
 	name = "botany: harvest stocked in the fridge"
 	jobs = list("Botanist")
 	deadline = 25 MINUTES
@@ -824,6 +915,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		. += " - [work[1]] tile\s mopped and [work[2]] light\s replaced by the end"
 
 /datum/bot_shift_check/kitchen_serving
+	needs_on_map = /obj/machinery/microwave
 	name = "kitchen: food out on the counter"
 	jobs = list("Cook")
 	deadline = 12 MINUTES
@@ -850,6 +942,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		. += " - [served()] dishes put out by the end, and the crew ate [eaten] meal\s between them"
 
 /datum/bot_shift_check/bar_serving
+	needs_on_map = /obj/machinery/chem_dispenser/drinks
 	name = "bar: drinks out on the bar"
 	jobs = list("Bartender")
 	deadline = 12 MINUTES
@@ -878,6 +971,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 /// A drill: a customer nobody is driving turns up at the bar a few minutes in and asks for a drink by name. The
 /// bartender has to mix that one and say it's ready.
 /datum/bot_shift_check/drink_order
+	needs_on_map = /obj/machinery/chem_dispenser/drinks
 	name = "bar: a customer's order mixed (drill)"
 	jobs = list("Bartender")
 	deadline = 12 MINUTES
@@ -1118,7 +1212,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	var/seated = 0
 
 /datum/bot_shift_check/evacuation/worker()
-	if(!(BOT_SHIFT_EVAC_PARAMETER in world.params) || shift.length < 10 MINUTES)
+	if(!shift.whole_round && (!(BOT_SHIFT_EVAC_PARAMETER in world.params) || shift.length < 10 MINUTES))
 		return null
 	for(var/datum/bot_shift_member/member as anything in shift.members)
 		if(member.brain)
@@ -1130,6 +1224,11 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	if(!E || launched_at)
 		return
 	if(!called_at)
+		if(shift.whole_round) //the crew's call to make (goals/call_shuttle.dm)
+			if(E.mode != SHUTTLE_IDLE)
+				called_at = shift.elapsed()
+				shift.note("[name]: the crew has called the shuttle")
+			return
 		if(shift.elapsed() < shift.length - 8 MINUTES)
 			return
 		called_at = shift.elapsed()
@@ -1168,13 +1267,98 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		return "[aboard] aboard, [length(left_behind)] left behind: [jointext(left_behind, "; ")]"
 	return "all [aboard] aboard at [bot_shift_clock(launched_at)], [seated] of them sitting down"
 
+/// On a map with a supermatter and no tesla: running, and in one piece.
+/datum/bot_shift_check/supermatter
+	name = "engineering: supermatter running and holding"
+	jobs = list("Station Engineer", "Chief Engineer")
+	deadline = 25 MINUTES
+
+/datum/bot_shift_check/supermatter/worker()
+	var/datum/bot_duty/supermatter/duty = bot_duty_of(/datum/bot_duty/supermatter)
+	if(!duty?.enabled)
+		return null //nobody has been asked to start it
+	var/datum/bot_brain/brain = ..()
+	return brain?.station_crystal() ? brain : null
+
+/datum/bot_shift_check/supermatter/done()
+	var/obj/machinery/power/supermatter_crystal/S = GLOB.main_supermatter_engine
+	return !QDELETED(S) && S.has_been_powered
+
+/datum/bot_shift_check/supermatter/outcome()
+	var/obj/machinery/power/supermatter_crystal/S = GLOB.main_supermatter_engine
+	if(QDELETED(S))
+		return isnull(done_at) ? ..() : "FAIL" //it was lit, and it's gone
+	return ..()
+
+/datum/bot_shift_check/supermatter/report()
+	var/obj/machinery/power/supermatter_crystal/S = GLOB.main_supermatter_engine
+	if(QDELETED(S))
+		return isnull(done_at) ? ..() : "lit at [bot_shift_clock(done_at)], then it DELAMINATED"
+	return "[..()] - integrity [round(S.get_integrity())]%, power [round(S.power)]"
+
+/// Booted with bot-antags: did the traitors get anything done? Passes on one objective met by any of them.
+/datum/bot_shift_check/traitors
+	name = "traitors: an objective met"
+	deadline = 0
+
+/datum/bot_shift_check/traitors/worker()
+	return length(shift.traitors) ? shift.traitors[1].bot_brain : null
+
+/datum/bot_shift_check/traitors/poll()
+	return
+
+/datum/bot_shift_check/traitors/proc/met()
+	. = 0
+	for(var/mob/living/carbon/human/H as anything in shift.traitors)
+		if(QDELETED(H))
+			continue //gibbed, and took its objectives with it
+		var/datum/antagonist/traitor/T = H.mind?.has_antag_datum(/datum/antagonist/traitor)
+		for(var/datum/objective/O as anything in T?.objectives)
+			if(!istype(O, /datum/objective/escape) && !istype(O, /datum/objective/martyr) && H.bot_brain?.objective_finished(O))
+				.++
+
+/datum/bot_shift_check/traitors/outcome()
+	return met() ? "PASS" : "FAIL"
+
+/datum/bot_shift_check/traitors/report()
+	var/list/lines = list()
+	for(var/mob/living/carbon/human/H as anything in shift.traitors)
+		if(QDELETED(H))
+			lines += "a traitor was gibbed"
+			continue
+		var/datum/antagonist/traitor/T = H.mind?.has_antag_datum(/datum/antagonist/traitor)
+		var/list/state = list()
+		for(var/datum/objective/O as anything in T?.objectives)
+			state += "[H.bot_brain?.objective_finished(O) ? "DONE" : "not done"]: [O.explanation_text]"
+		lines += "[H.real_name] ([H.stat == DEAD ? "dead" : (H.handcuffed ? "cuffed" : "free")]) [jointext(state, "; ")]"
+	return jointext(lines, " || ")
+
+/// In a whole round (bot-round): nobody has to end it for the crew.
+/datum/bot_shift_check/round_ended
+	name = "everyone: the crew ended the round themselves"
+
+/datum/bot_shift_check/round_ended/worker()
+	return shift.whole_round && length(shift.members) ? shift.members[1].brain : null
+
+/datum/bot_shift_check/round_ended/begin()
+	deadline = shift.length
+
+/datum/bot_shift_check/round_ended/done()
+	return SSticker.current_state == GAME_STATE_FINISHED
+
+/datum/bot_shift_check/round_ended/progress()
+	var/obj/docking_port/mobile/emergency/E = SSshuttle.emergency
+	return E ? "the shuttle's mode is [E.mode]" : "there's no emergency shuttle"
+
 // ---------------------------------------------------------------------------------------------
 // The report
 // ---------------------------------------------------------------------------------------------
 
 /datum/bot_shift/proc/write_results()
-	var/dir = "data/bot_shift/"
-	fdel(dir)
+	var/dir = world.params[BOT_SHIFT_RESULTS_PARAMETER] //a batch of shifts keeps each one's results with its logs
+	if(!dir)
+		dir = "data/bot_shift/"
+		fdel(dir)
 	var/failures = 0
 	var/warnings = 0
 	var/list/lines = list()
@@ -1245,17 +1429,18 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		lines += "[pad_bot_gym("INFO", 7)][other_runtimes] runtime\s elsewhere in the game: [jointext(other_sites, ", ")]"
 
 	var/real_seconds = (real_end_ms - real_start_ms) / 1000
-	var/header = "BOT SHIFT  [bot_shift_clock(length)] shift, [length(members)] bots - [failures] failure\s, [warnings] warning\s\n"
+	var/header = "BOT SHIFT  [bot_shift_clock(length)] shift on [SSmapping.config?.map_name], [length(members)] bots - [failures] failure\s, [warnings] warning\s\n"
 	header += "Took [bot_shift_duration(real_seconds * 10)] of real time ([speed()]x). [bot_gym_load_text(load)]\n"
 	// What sets the server load, and so how fast a shift can run: a search that finds nothing opens every turf it can reach.
 	header += "Pathfinding: [pathfinding["searches"]] searches opened [pathfinding["turfs"]] turfs; [pathfinding["failed"]] found no route and opened [pathfinding["failed_turfs"]] of them.\n"
+	header += "Power: [jointext(power_curve, "; ")]\n"
 	header += "Round logs: [GLOB.log_directory]\n"
 	var/summary = "[header]\n[jointext(lines, "\n")]\nFAILED: [failures]\n"
 	text2file(summary, "[dir]summary.txt")
 	text2file(jointext(timeline, "\n"), "[dir]timeline.txt")
 	if(profile)
 		text2file(profile, "[dir]profile.json")
-	text2file(json_encode(list("minutes" = length / 600, "crew" = crew_text, "failures" = failures, "warnings" = warnings,
+	text2file(json_encode(list("minutes" = length / 600, "map" = SSmapping.config?.map_name, "crew" = crew_text, "failures" = failures, "warnings" = warnings,
 		"real_seconds" = real_seconds, "speed" = speed(), "load_avg" = round(load["sum"] / max(load["seconds"], 1)), "load_max" = round(load["peak"]), "overloaded_seconds" = load["over"],
 		"pathfinding" = pathfinding, "log_directory" = GLOB.log_directory, "checks" = json_checks, "members" = json_crew, "runtimes" = json_runtimes,
 		"bot_exceptions" = bot_exceptions)), "[dir]results.json")
@@ -1263,6 +1448,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 
 #undef BOT_SHIFT_DEFAULT_MINUTES
 #undef BOT_SHIFT_DEFAULT_CREW
+#undef BOT_ROUND_DEFAULT_CREW
 #undef BOT_SHIFT_ARRIVAL_GAP
 #undef BOT_SHIFT_IDLE_WARN
 #undef BOT_SHIFT_STUCK

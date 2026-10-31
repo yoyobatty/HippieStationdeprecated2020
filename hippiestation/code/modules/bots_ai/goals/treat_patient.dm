@@ -734,6 +734,10 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 		var/turf/T = get_turf(B)
 		if(!T || T.z != owner.z)
 			continue
+		// Medbay's own, and one there's a way to. Any beaker anywhere used to do: a doctor spent the shift setting off
+		// for whatever was sitting on a bench in Toxins, behind doors its ID doesn't open.
+		if(!is_medbay_chemistry(B) || !can_walk_lawfully_to(B))
+			continue
 		if(B.reagents.has_reagent(/datum/reagent/medicine/cryoxadone) || B.reagents.has_reagent(/datum/reagent/medicine/clonexadone) || B.reagents.has_reagent(/datum/reagent/medicine/pyroxadone))
 			return B
 		if(!fallback)

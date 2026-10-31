@@ -11,6 +11,9 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	list("reagent" = /datum/reagent/medicine/styptic_powder, "ingredients" = list(/datum/reagent/aluminium = 5, /datum/reagent/hydrogen = 5, /datum/reagent/oxygen = 5, /datum/reagent/toxin/acid = 5), "form" = "patch", "label" = "styptic powder"),
 ))
 
+/// Pills and patches in the fridge at which Medbay has enough.
+#define BOT_MEDICINE_STOCK 24
+
 /datum/bot_brain/proc/is_chem_producer_job()
 	var/role = owner.mind?.assigned_role
 	return role == "Medical Doctor" || role == "Chief Medical Officer" || role == "Chemist"
@@ -104,6 +107,9 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 
 /datum/bot_goal/synthesize_medicine
 	lawful = TRUE
+	/// One chemist at a dispenser at a time. A doctor and a chemist used to share one, each adding its recipe to the
+	/// beaker the other had loaded, and came away with neither medicine.
+	exclusive = TRUE
 	var/list/recipe
 	var/obj/machinery/chem_dispenser/dispenser
 	var/obj/machinery/chem_master/master
@@ -119,10 +125,14 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	var/obj/machinery/chem_master/M = bot.find_reachable_chem_master()
 	if(!M)
 		return
+	fridge = bot.find_reachable_chem_fridge()
+	// A full fridge is a job done. Bots used to keep mixing all shift, 90 batches of it, until the dispenser ran flat.
+	if(length(fridge?.contents) >= BOT_MEDICINE_STOCK)
+		bot.chemistry_blocked_until = world.time + 5 MINUTES
+		return
 	recipe = pick(GLOB.bot_medicine_recipes)
 	dispenser = D
 	master = M
-	fridge = bot.find_reachable_chem_fridge()
 	target = D
 
 /datum/bot_goal/synthesize_medicine/get_strategies(datum/bot_brain/bot)
@@ -234,7 +244,10 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	var/reagent_type = pending[1]
 	var/amount = pending[reagent_type]
 	pending -= reagent_type
-	bot.dispense_into_beaker(dispenser, reagent_type, amount)
+	if(!bot.dispense_into_beaker(dispenser, reagent_type, amount))
+		bot_log(bot, "[dispenser] wouldn't give me [reagent_type] - leaving this batch")
+		pending = null
+		return GOAL_STEP_FAIL
 	bot.owner.changeNext_move(CLICK_CD_MELEE)
 	if(pending.len)
 		addtimer(CALLBACK(src, PROC_REF(continue_dispense), bot), CLICK_CD_MELEE)
@@ -294,6 +307,15 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 /datum/bot_step/produce_medicine
 	var/obj/machinery/chem_master/master
 
+/// What's left in the beaker goes down the ChemMaster's drain (the transfer panel with its mode on "destroy"), so the
+/// beaker can be used again. A beaker with anything in it was as good as lost: find_empty_beaker() wouldn't take it,
+/// and once Medbay's few were all dirty the bots had none ("no empty beaker", 17 times in a shift).
+/datum/bot_brain/proc/empty_master_beaker(obj/machinery/chem_master/master)
+	if(!master.beaker?.reagents?.total_volume)
+		return
+	telemetry_ui_action(master, "destroy leftovers")
+	master.beaker.reagents.clear_reagents()
+
 /datum/bot_step/produce_medicine/New(obj/machinery/chem_master/M)
 	. = ..()
 	master = M
@@ -308,10 +330,12 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	var/amount = master.beaker.reagents.get_reagent_amount(reagent_type)
 	if(amount <= 0)
 		bot_log(bot, "the mix didn't yield any [goal.recipe["label"]] - discarding and returning the beaker")
+		bot.empty_master_beaker(master)
 		master.replace_beaker(bot.owner)
 		return GOAL_STEP_FAIL
 	master.beaker.reagents.trans_id_to(master, reagent_type, amount)
-	master.replace_beaker(bot.owner) //hands the (now empty of the useful reagent) beaker back for reuse
+	bot.empty_master_beaker(master)
+	master.replace_beaker(bot.owner) //hands the (now clean) beaker back for reuse
 
 	var/vol_each = min(20, master.reagents.total_volume)
 	var/produce_amount = clamp(round(master.reagents.total_volume / max(vol_each, 1)), 1, 5)
@@ -367,3 +391,5 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	var/result = store_next(bot)
 	if(result != GOAL_STEP_PENDING)
 		bot.advance_goal_step(result == GOAL_STEP_SUCCESS)
+
+#undef BOT_MEDICINE_STOCK

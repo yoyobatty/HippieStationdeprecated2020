@@ -53,3 +53,88 @@
 		"###########")
 	time_limit = 20 SECONDS
 	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "idle_3s")
+
+/datum/bot_scenario/puts_self_out
+	name = "on fire: stop, drop and roll"
+	desc = "A bot catches fire. It rolls on the floor until it's out, rather than walking on until it burns to death and lighting everyone it passes."
+	layout = list(
+		"#####",
+		"#B..#",
+		"#####")
+	time_limit = 20 SECONDS
+
+/datum/bot_scenario/puts_self_out/post_spawn()
+	..()
+	bot.adjust_fire_stacks(8)
+	bot.IgniteMob()
+
+/datum/bot_scenario/puts_self_out/issue_goal()
+	return
+
+/datum/bot_scenario/puts_self_out/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return bot.on_fire ? BOT_GYM_PENDING : BOT_GYM_PASS
+
+/datum/bot_scenario/fights_back
+	time_limit = 25 SECONDS
+	var/mob/living/carbon/human/assailant
+
+/datum/bot_scenario/fights_back/issue_goal()
+	return
+
+/datum/bot_scenario/fights_back/post_spawn()
+	..()
+	assailant = stand_in(first_marker("C"), "Casey Assailant")
+	addtimer(CALLBACK(src, PROC_REF(start_fight)), 2 SECONDS)
+
+/datum/bot_scenario/fights_back/proc/start_fight()
+	log_combat(assailant, bot, "punched")
+
+/datum/bot_scenario/fights_back/with_a_toolbox
+	name = "fight: swings what's in its hand, not its fists"
+	desc = "Attacked with a toolbox in hand, the bot hits back with the toolbox."
+	layout = list(
+		"######",
+		"#BC..#",
+		"######")
+	var/obj/item/storage/toolbox/mechanical/box
+
+/datum/bot_scenario/fights_back/with_a_toolbox/post_spawn()
+	..()
+	box = new(bot)
+	bot.put_in_hands(box)
+
+/datum/bot_scenario/fights_back/with_a_toolbox/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/line in transcript)
+		if(findtext(line, "hitting [assailant] with"))
+			return BOT_GYM_PASS
+		if(findtext(line, "attacking [assailant]"))
+			fail_reason = "punched them with a toolbox in its hand"
+			return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/fights_back/runs_when_losing
+	name = "fight: runs for it when it's losing"
+	desc = "Badly hurt and attacked, the bot shouts for help and leaves the fight rather than standing and trading blows."
+	layout = list(
+		"######",
+		"#BC..#",
+		"######")
+
+/datum/bot_scenario/fights_back/runs_when_losing/post_spawn()
+	..()
+	bot.adjustBruteLoss(90)
+
+/datum/bot_scenario/fights_back/runs_when_losing/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/line in transcript)
+		if(findtext(line, "disengaging from [assailant]: running for it"))
+			return BOT_GYM_PASS
+		if(findtext(line, "attacking [assailant]"))
+			fail_reason = "stayed and fought at [bot.health] health"
+			return BOT_GYM_FAIL
+	return BOT_GYM_PENDING

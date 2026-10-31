@@ -468,6 +468,9 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 	if(!goal.braves_bad_air && in_bad_air(goal.target) && !is_eva_ready())
 		bot_log(src, "[goal.target] is somewhere I can't breathe and I'm not suited up - not doing [goal.type]")
 		return FALSE
+	if(goal_is_resting(goal))
+		bot_log_verbose(src, "not trying [goal.type] on [goal.target] again just yet - it hasn't worked")
+		return FALSE
 	if(goal.exclusive)
 		if(taken_by_another(goal.target))
 			bot_log_verbose(src, "[goal.target] is already being seen to - leaving [goal.type] to them")
@@ -537,6 +540,8 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 
 /datum/bot_brain/proc/goal_succeeded()
 	bot_log(src, "goal [current_goal?.type] succeeded (target: [current_goal?.target] @ [bot_coord(get_turf(current_goal?.target))])")
+	if(give_up_streaks && current_goal)
+		give_up_streaks -= current_goal.give_up_key()
 	current_goal?.on_success(src)
 	if(current_goal?.flavor_success)
 		bot_say(owner, current_goal.flavor_success)
@@ -544,6 +549,7 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 
 /datum/bot_brain/proc/give_up_goal()
 	bot_log(src, "giving up on [current_goal?.type] (target: [current_goal?.target] @ [bot_coord(get_turf(current_goal?.target))])")
+	note_give_up(current_goal)
 	current_goal?.on_give_up(src)
 	// Only the captain's-ID goal gets auto-retried (handle_wander(), bot_brain.dm) - this
 	// used to be set on EVERY give-up, so a doctor losing track of a patient or a
@@ -552,6 +558,36 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 	if(istype(current_goal, /datum/bot_goal/acquire_captains_id))
 		goal_giveup_time = world.time + rand(600, 1200)
 	end_goal()
+
+/datum/bot_brain
+	/// give_up_key() -> times running the bot has given up on it.
+	var/list/give_up_streaks
+	/// give_up_key() -> when it's worth trying again. See note_give_up().
+	var/list/give_up_rests
+
+/// What the bot remembers a failed goal by: what it was and what it was after. A string, so remembering a target
+/// doesn't keep it from being deleted.
+/datum/bot_goal/proc/give_up_key()
+	return "[type] [REF(target)]"
+
+/// Most goals have their own memory of what failed (on_give_up()), but not all of them do, and it only takes one to
+/// keep a bot going round the same failure all shift: a Chief Engineer tried for the same hardsuit 1,079 times. Doing
+/// the same thing to the same target and failing a few times in a row, a person moves on and comes back to it later.
+/// Goals that are about staying alive (braves_bad_air) always get another go.
+/datum/bot_brain/proc/note_give_up(datum/bot_goal/goal)
+	if(!goal?.target || goal.braves_bad_air)
+		return
+	var/key = goal.give_up_key()
+	var/streak = LAZYACCESS(give_up_streaks, key) + 1
+	if(streak < BOT_GIVE_UP_LIMIT)
+		LAZYSET(give_up_streaks, key, streak)
+		return
+	give_up_streaks -= key
+	LAZYSET(give_up_rests, key, world.time + BOT_GIVE_UP_REST)
+	bot_log(src, "[goal.type] on [goal.target] isn't working - leaving it alone for a while")
+
+/datum/bot_brain/proc/goal_is_resting(datum/bot_goal/goal)
+	return give_up_rests && !goal.braves_bad_air && world.time < LAZYACCESS(give_up_rests, goal.give_up_key())
 
 /datum/bot_brain/proc/end_goal()
 	// The goal that just ended may still have an active pursuit in flight (a move_to

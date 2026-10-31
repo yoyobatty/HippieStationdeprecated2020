@@ -79,6 +79,11 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	for(var/obj/item/storage/S in list(owner.get_item_by_slot(ITEM_SLOT_BELT), owner.get_item_by_slot(ITEM_SLOT_BACK), owner.get_item_by_slot(ITEM_SLOT_DEX_STORAGE)))
 		if(S && SEND_SIGNAL(S, COMSIG_TRY_STORAGE_INSERT, I, owner))
 			return TRUE
+	// Nowhere to put it, so it stays in the hand it's in. put_in_hands() can't say that: asked about something already
+	// held, it drops it if the other hand is full, and lists it in both hands if not. A Chief Engineer with a tool in
+	// the other hand picked its bulky hardsuit up, dropped it at its own feet and tried again 1,079 times in a shift.
+	if(I in owner.held_items)
+		return TRUE
 	return owner.put_in_hands(I)
 
 // Same fix as stow_item()'s comment: equip_to_best_slot() only ever worked on the

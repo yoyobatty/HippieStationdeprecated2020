@@ -301,6 +301,7 @@ GLOBAL_LIST_INIT(bot_botany_crops, list(
 	owner.face_atom(I)
 	if(owner.get_active_held_item() && owner.get_inactive_held_item())
 		put_away_botany(owner.get_active_held_item())
+	make_hand_free() //goals/take_item.dm: with its hands full, a bartender paid for a glass and left it on the floor
 	if(!owner.put_in_hands(I))
 		return FALSE
 	bot_log(src, "picked up [I]")

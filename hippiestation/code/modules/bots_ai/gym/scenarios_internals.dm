@@ -93,3 +93,31 @@
 
 /datum/bot_scenario/refill_internals/stranded/make_goal()
 	return brain.make_stranded_tank_goal()
+
+/datum/bot_scenario/dry_tank_comes_off
+	name = "dry tank comes off in breathable air"
+	desc = "An engineer's tank has run dry with its valve open, and there's space the other side of the wall, which is usually a reason to keep a tank on. The room's air is fine, so the valve gets shut. Left open, the bot suffocates in good air."
+	layout = list(
+		"#####",
+		"##B.#",
+		"#S###",
+		"#####")
+	job = "Station Engineer"
+	time_limit = 10 SECONDS
+	var/obj/item/tank/internals/tank
+
+/datum/bot_scenario/dry_tank_comes_off/post_spawn()
+	..()
+	bot.equip_to_slot_or_del(new /obj/item/clothing/mask/breath(bot), ITEM_SLOT_MASK)
+	tank = new /obj/item/tank/internals/emergency_oxygen(bot)
+	bot.equip_to_slot_or_del(tank, ITEM_SLOT_BELT)
+	tank.air_contents.moles[/datum/gas/oxygen] = 0
+	bot.internal = tank
+
+/datum/bot_scenario/dry_tank_comes_off/issue_goal()
+	return
+
+/datum/bot_scenario/dry_tank_comes_off/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return bot.internal ? BOT_GYM_PENDING : BOT_GYM_PASS

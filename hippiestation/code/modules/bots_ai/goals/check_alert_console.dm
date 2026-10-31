@@ -89,6 +89,11 @@
 			best_dist = dist
 	return best
 
+/datum/bot_brain
+	/// Having read a console, it's not worth reading again before this. An alarm it could do nothing about stayed on the
+	/// screen, and the bot beside it read it again every tick for the rest of the round: 1,900 times, one engineer.
+	var/next_console_read_time = 0
+
 /datum/bot_brain/proc/try_check_alert_console_round()
 	if(!is_fire_response_job()) //same three jobs fire/contamination response use - the names differ but the role check is identical
 		return FALSE
@@ -130,6 +135,7 @@
 	if(!bot.owner.Adjacent(C))
 		return GOAL_STEP_FAIL
 	var/datum/bot_goal/check_alert_console/goal = bot.current_goal
+	bot.next_console_read_time = world.time + rand(600, 1200)
 	goal.saw_fire = bot.console_reports_fire(C)
 	goal.saw_atmos = bot.console_reports_atmos(C)
 	if(!goal.saw_fire && !goal.saw_atmos)

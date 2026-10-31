@@ -549,11 +549,31 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 		return FALSE
 	if(world.time < next_call_time || owner.stat != CONSCIOUS || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST)
 		return FALSE
+	if(is_shut_in() && shove_aside_what_shuts_me_in())
+		return TRUE
 	var/list/doors = doors_shutting_me_in()
 	if(!length(doors))
 		return FALSE
 	var/where = get_area_name(owner, TRUE)
 	return call_for(/datum/bot_request_kind/let_out, pick("Can somebody let me out of [where]? Door won't open for me.", "I'm shut in [where] - could someone get the door?", "Anyone near [where]? I can't get the door open from in here."), doors)
+
+/// Shut in by something that isn't bolted down, a person leans on it: it's the same walk into it that pushes anything.
+/// A Chief Engineer's drag of the singularity generator failed in its own office doorway, and it stood behind the
+/// thing for the rest of the shift, asking nobody for anything because there was no door to ask about.
+/datum/bot_brain/proc/shove_aside_what_shuts_me_in()
+	var/turf/here = get_turf(owner)
+	for(var/dir in GLOB.cardinals)
+		var/turf/next = get_step(here, dir)
+		var/turf/beyond = next && get_step(next, dir)
+		if(!beyond || next.density || beyond.density)
+			continue
+		for(var/atom/movable/A in next)
+			if(!A.density || A.anchored || ismob(A))
+				continue
+			bot_log(src, "shoving [A] out of the way")
+			step(owner, dir)
+			return TRUE
+	return FALSE
 
 /datum/bot_brain
 	/// A Bot Gym bot keeps quiet about being shut in unless its scenario is about that.

@@ -154,6 +154,10 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		R.fields["criminal"] = "*Arrest*"
 	H.sec_hud_set_security_status()
 
+/// A murder on the records (the severity defines stop at the end of this file).
+/datum/bot_brain/proc/file_murder(mob/living/carbon/human/H, details)
+	file_crime(H, "Murder", details, BOT_CRIME_MURDER)
+
 /proc/bot_set_criminal_status(mob/living/carbon/human/H, status)
 	var/datum/data/record/R = bot_find_security_record(H)
 	if(!R || R.fields["criminal"] == status)
@@ -203,6 +207,10 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	// other side starts hitting back. See bot_security_judge_combat()'s self-defense check.
 	if(ishuman(user))
 		bot_record_aggression(user, target)
+		var/mob/living/carbon/human/assailant = user
+		var/mob/living/carbon/human/marked = target
+		marked.last_assailant = assailant.real_name //what a forensic scan can turn up (goals/detective.dm)
+		marked.last_assailant_gloved = !!assailant.gloves
 	// A bot notices being hurt however it happened - fists, feet, teeth, bullets, thrown junk - not just item hits
 	// (this used to hang off attacked_by(), which only item attacks reach).
 	var/mob/living/carbon/human/victim = target

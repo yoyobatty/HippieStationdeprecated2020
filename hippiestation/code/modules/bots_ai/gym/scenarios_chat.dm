@@ -171,3 +171,49 @@
 	if(world.time < start_time + 12 SECONDS)
 		return BOT_GYM_PENDING
 	return BOT_GYM_PASS
+
+/datum/bot_scenario/chat/asked_about_shuttle
+	name = "chat: knows whether the shuttle's been called"
+	desc = "Asked about the shuttle, the bot answers from what the shuttle is really doing, not with a stock line. It hasn't been called in the gym."
+	layout = list(
+		"#######",
+		"#B.C..#",
+		"#######")
+
+/datum/bot_scenario/chat/asked_about_shuttle/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(ask)), 2 SECONDS)
+
+/datum/bot_scenario/chat/asked_about_shuttle/proc/ask()
+	visitor_says("[bot.first_name()], has the shuttle been called?")
+
+/datum/bot_scenario/chat/asked_about_shuttle/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/line in spoken())
+		if(findtext(line, "ot called") || findtext(line, "called it") || findtext(line, "Not yet"))
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/chat/lends_a_tool
+	name = "chat: hands over a tool it has when asked"
+	desc = "Somebody next to the bot asks if it's got a crowbar, and it has. It gets it out and sets it down for them."
+	layout = list(
+		"#####",
+		"#BC.#",
+		"#####")
+	var/obj/item/crowbar/bar
+
+/datum/bot_scenario/chat/lends_a_tool/post_spawn()
+	..()
+	bar = new(bot)
+	bot.put_in_hands(bar)
+	addtimer(CALLBACK(src, PROC_REF(ask)), 2 SECONDS)
+
+/datum/bot_scenario/chat/lends_a_tool/proc/ask()
+	visitor_says("[bot.first_name()], got a crowbar I could borrow?")
+
+/datum/bot_scenario/chat/lends_a_tool/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return isturf(bar.loc) ? BOT_GYM_PASS : BOT_GYM_PENDING

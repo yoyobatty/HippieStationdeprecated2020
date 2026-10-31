@@ -39,3 +39,7 @@
 /datum/config_entry/number/bot_crew_target	// crew size to top up to with bot crew members, players counted first (bots_ai/bot_population.dm)
 	config_entry_value = 0
 	min_val = 0
+
+/datum/config_entry/number/bot_crew_traitors	// how many of the bot crew turn out to be traitors, once it has settled in
+	config_entry_value = 0
+	min_val = 0

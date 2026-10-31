@@ -161,6 +161,15 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 		return FALSE
 	if(!owner.has_gravity())
 		return TRUE
+	return air_under_threat()
+
+/// A fire, a breach or space a step away: the air here might not be here for long. Gravity has no say in this one: the
+/// generator browning out once used to open every engineer's tank at the same moment, in rooms that were fine, and leave
+/// them open until they ran dry.
+/datum/bot_brain/proc/air_under_threat()
+	var/turf/T = get_turf(owner)
+	if(!T)
+		return FALSE
 	if(istype(T, /turf/open))
 		var/turf/open/O = T
 		if(O.active_hotspot)
@@ -286,8 +295,12 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 	var/obj/item/tank/jetpack/jetpack = owner.get_jetpack()
 	return istype(jetpack) && jetpack.on
 
+/datum/bot_brain
+	/// A failed gear-up isn't tried again before this. The next look used to be the very next wander tick.
+	var/eva_gearing_blocked_until = 0
+
 /datum/bot_brain/proc/try_eva_gearing_round()
-	if(!is_eva_job() || is_eva_ready())
+	if(!is_eva_job() || world.time < eva_gearing_blocked_until || is_eva_ready())
 		return FALSE
 	return assign_goal(new /datum/bot_goal/gear_up_for_eva())
 
@@ -302,6 +315,9 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 
 /datum/bot_goal/gear_up_for_eva/on_success(datum/bot_brain/bot)
 	bot.continue_eva_round()
+
+/datum/bot_goal/gear_up_for_eva/on_give_up(datum/bot_brain/bot)
+	bot.eva_gearing_blocked_until = world.time + rand(1200, 2400)
 
 /datum/bot_strategy/gear_up/New()
 	. = ..()
@@ -335,7 +351,10 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 	// find anything still sitting inside one (confirmed in-game: EVA gear fetch failed
 	// outright every time, because every piece was inside an SSU the whole time).
 	if(!tried_ssu)
-		var/missing_suit = suit_type && !istype(H.wear_suit, suit_type) && !(locate(suit_type) in H.GetAllContents())
+		// The bot's own suit at its feet, where a doctor left it after taking it off to get at a wound: picked back up
+		// by the fetch further down, not swapped for whatever's in the nearest storage unit.
+		var/own_suit_nearby = suit_type && (locate(suit_type) in view(7, H))
+		var/missing_suit = suit_type && !own_suit_nearby && !istype(H.wear_suit, /obj/item/clothing/suit/space/hardsuit) && !(locate(suit_type) in H.GetAllContents())
 		var/missing_mask = mask_type && !istype(H.wear_mask, mask_type) && !(locate(mask_type) in H.GetAllContents())
 		var/missing_tank = !H.internal && !(locate(/obj/item/tank/internals) in H.GetAllContents())
 		if(missing_suit || missing_mask || missing_tank)
@@ -349,7 +368,11 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 
 	if(suit_type && !istype(H.wear_suit, suit_type))
 		var/obj/item/clothing/suit/space/hardsuit/suit = locate(suit_type) in H.GetAllContents()
-		if(!suit)
+		// Any hardsuit keeps the vacuum out, and that's all is_eva_ready() asks. One already on (the nearest storage
+		// unit was somebody else's) stays on unless the bot's own is to hand: a bot sent after its own type here
+		// walked past a perfectly good suit on its own back for a whole shift.
+		var/own_suit_nearby = !suit && (locate(suit_type) in view(7, H))
+		if(!suit && (own_suit_nearby || !istype(H.wear_suit, /obj/item/clothing/suit/space/hardsuit)))
 			var/datum/bot_goal/acquire_item_type/sub = new()
 			sub.item_type = suit_type
 			if(bot.suspend_goal_for(sub))
@@ -359,7 +382,8 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 		// wear() (engineer_gear.dm), not a bare equip: out of the bag or box into a hand first, then on,
 		// one piece at a time. Telemetry caught a breath mask going from the box in the backpack straight
 		// onto the face.
-		bot.wear(suit, ITEM_SLOT_OCLOTHING)
+		if(suit)
+			bot.wear(suit, ITEM_SLOT_OCLOTHING)
 
 	if(mask_type && !istype(H.wear_mask, mask_type))
 		var/obj/item/clothing/mask/mask = locate(mask_type) in H.GetAllContents()

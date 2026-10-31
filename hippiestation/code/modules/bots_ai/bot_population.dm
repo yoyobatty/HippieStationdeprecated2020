@@ -32,6 +32,8 @@ GLOBAL_LIST_INIT(bot_crew_job_weights, list(
 
 /// The opening rush ends once this share of the target is aboard; the rest drift in as latecomers.
 #define BOT_CREW_RUSH_SHARE 0.7
+/// How long into the round the traitors are picked: everybody has signed on by then.
+#define BOT_CREW_TRAITORS_AFTER (10 MINUTES)
 
 GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 
@@ -41,6 +43,7 @@ GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 	/// Bots brought in so far.
 	var/joined = 0
 	var/running = FALSE
+	var/traitors_made = FALSE
 
 /// Called once the round is under way (the ticker hook below).
 /datum/bot_population/proc/round_started()
@@ -83,6 +86,11 @@ GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 	sleep(rand(100, 300)) //the shuttle doesn't unload the instant the round starts
 	while(target > 0 && SSticker.IsRoundInProgress())
 		var/short = target - player_count() - joined
+		if(!traitors_made && world.time > SSticker.round_start_time + BOT_CREW_TRAITORS_AFTER)
+			traitors_made = TRUE
+			var/traitors = CONFIG_GET(number/bot_crew_traitors)
+			if(traitors)
+				bot_make_traitors(traitors) //goals/traitor.dm
 		// Nobody new signs on once the evacuation shuttle is on its way.
 		if(short <= 0 || !EMERGENCY_IDLE_OR_RECALLED)
 			sleep(30 SECONDS)
@@ -115,3 +123,4 @@ GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 	log_admin("[key_name(usr)] set the bot crew target to [GLOB.bot_population.target].")
 
 #undef BOT_CREW_RUSH_SHARE
+#undef BOT_CREW_TRAITORS_AFTER
