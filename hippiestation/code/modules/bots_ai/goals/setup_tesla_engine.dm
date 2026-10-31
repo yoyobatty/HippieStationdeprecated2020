@@ -1208,6 +1208,8 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 // ============================================================
 
 #define BOT_SMES_REACH 60
+/// The furthest any map's engine SMES is from its crystal is Box's, 25 tiles.
+#define BOT_SMES_CRYSTAL_REACH 30
 /// The same 40 tiles round the tesla generator the part finders above keep to (BOT_ENGINE_LOCAL_REACH, #undef'd by here).
 #define BOT_CONTAINMENT_REACH 40
 /// How long the emitters have to have been seen firing, check after check, before the accelerator goes on.
@@ -1244,7 +1246,8 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 	// without an anchor: a supermatter map's SMES stayed on 50 kW out, and Endo lost a third of its APCs by the half hour
 	// with its SMES still a third full. Then it took every one on the level: Donut has three more by the solars and the
 	// gravity generator, on the main grid, and turning their input up drained the engine's into them until the lights went.
-	// By what it's wired to and not its type: Delta's crystal feeds two plain ones.
+	// By what it's wired to and not its type: Delta's crystal feeds two plain ones. And near the crystal, because on Endo
+	// the whole station is one grid, which had engineers setting off for the AI satellite's over and over.
 	var/turf/anchor = tesla_component_anchor() || get_turf(find_pa_console())
 	var/datum/powernet/engine_side = anchor ? null : engine_side_grid()
 	var/obj/machinery/power/smes/best
@@ -1252,7 +1255,7 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 	for(var/obj/machinery/power/smes/S in GLOB.machines)
 		if(S.z != owner.z || (S.stat & BROKEN) || S.panel_open || (anchor && get_dist(anchor, S) > BOT_SMES_REACH))
 			continue
-		if(engine_side ? S.terminal?.powernet != engine_side : !istype(S, /obj/machinery/power/smes/engineering))
+		if(engine_side ? (S.terminal?.powernet != engine_side || get_dist(GLOB.main_supermatter_engine, S) > BOT_SMES_CRYSTAL_REACH) : !istype(S, /obj/machinery/power/smes/engineering))
 			continue
 		var/input_set = smes_feeds_itself(S) ? !S.input_attempt : (S.input_attempt && S.input_level >= S.input_level_max)
 		if(input_set && S.output_attempt && S.output_level >= S.output_level_max)
@@ -1344,6 +1347,7 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 	return world.time - containment_steady_since >= BOT_CONTAINMENT_STEADY_TIME
 
 #undef BOT_SMES_REACH
+#undef BOT_SMES_CRYSTAL_REACH
 #undef BOT_CONTAINMENT_REACH
 #undef BOT_CONTAINMENT_STEADY_TIME
 #undef BOT_CONTAINMENT_MIN_CHARGE
