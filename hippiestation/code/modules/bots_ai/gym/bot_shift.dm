@@ -326,7 +326,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	. += brain.pursuing_kind ? ", walking to a [brain.pursuing_kind]" : ", not walking anywhere"
 
 /datum/bot_shift_member/proc/damage()
-	return "brute [round(body.getBruteLoss())], burn [round(body.getFireLoss())], toxin [round(body.getToxLoss())], suffocation [round(body.getOxyLoss())]"
+	return "brute [round(body.getBruteLoss())], burn [round(body.getFireLoss())], toxin [round(body.getToxLoss())], suffocation [round(body.getOxyLoss())], radiation [round(body.radiation)]"
 
 /// What the bot has to breathe and what it's wearing, for explaining a collapse or a death.
 /datum/bot_shift_member/proc/air_supply()
