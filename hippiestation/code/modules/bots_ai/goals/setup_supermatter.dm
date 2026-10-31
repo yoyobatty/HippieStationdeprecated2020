@@ -38,10 +38,15 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 /// The crystal this bot could be setting up: the station's engine, on a map with no tesla to start instead.
 /datum/bot_brain/proc/station_crystal()
 	var/obj/machinery/power/supermatter_crystal/S = GLOB.main_supermatter_engine
-	// By the accelerator, not the tesla generator: that's used up when the ball forms, and engineers on Hippie Station
-	// would then have gone and lit the crystal as well.
-	if(QDELETED(S) || S.z != owner.z || find_pa_console())
+	if(QDELETED(S) || S.z != owner.z)
 		return null
+	// By the accelerator, not the tesla generator: that's used up when the ball forms, and engineers on Hippie Station
+	// would then have gone and lit the crystal as well. Anywhere on the level, not find_pa_console(), which only looks
+	// as far as this bot can reach: an engineer standing by the crystal took it for a supermatter map and pumped the
+	// chamber out, and an unused crystal in a vacuum wears away until it delaminates on its own.
+	for(var/obj/machinery/particle_accelerator/control_box/console as anything in bot_instances_of(/obj/machinery/particle_accelerator/control_box))
+		if(!QDELETED(console) && console.z == S.z)
+			return null
 	return S
 
 /datum/bot_brain/proc/sm_part_free(atom/A)
