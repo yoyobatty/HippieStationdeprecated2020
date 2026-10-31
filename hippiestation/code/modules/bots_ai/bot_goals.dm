@@ -20,6 +20,8 @@
 	/// couldn't breathe (assign_goal(), in_bad_air()): an engineer who hadn't found a hardsuit used to carry on with
 	/// the engine regardless, out into the vacuum round it, and died there with a full oxygen tank in its bag.
 	var/braves_bad_air = FALSE
+	/// Goes on being tried however often it fails (note_give_up()): only for the goals that are about staying alive.
+	var/never_rests = FALSE
 
 /datum/bot_goal/fight_fire
 	braves_bad_air = TRUE
@@ -29,15 +31,19 @@
 
 /datum/bot_goal/seek_air
 	braves_bad_air = TRUE
+	never_rests = TRUE
 
 /datum/bot_goal/refill_internals
 	braves_bad_air = TRUE
+	never_rests = TRUE
 
 /datum/bot_goal/evacuate
 	braves_bad_air = TRUE
+	never_rests = TRUE
 
 /datum/bot_goal/gym_reach
 	braves_bad_air = TRUE //a Bot Gym scenario sends its bot where it means to
+	never_rests = TRUE
 
 /// Whether doing something at A would mean standing in air this bot can't breathe.
 /datum/bot_brain/proc/in_bad_air(atom/A)
@@ -573,9 +579,10 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 /// Most goals have their own memory of what failed (on_give_up()), but not all of them do, and it only takes one to
 /// keep a bot going round the same failure all shift: a Chief Engineer tried for the same hardsuit 1,079 times. Doing
 /// the same thing to the same target and failing a few times in a row, a person moves on and comes back to it later.
-/// Goals that are about staying alive (braves_bad_air) always get another go.
+/// Goals that are about staying alive (never_rests) always get another go. That used to be all the braves_bad_air ones,
+/// and three of Endo's engineers spent an hour on one air alarm behind a firelock they couldn't get past.
 /datum/bot_brain/proc/note_give_up(datum/bot_goal/goal)
-	if(!goal?.target || goal.braves_bad_air)
+	if(!goal?.target || goal.never_rests)
 		return
 	var/key = goal.give_up_key()
 	var/streak = LAZYACCESS(give_up_streaks, key) + 1
@@ -587,7 +594,7 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 	bot_log(src, "[goal.type] on [goal.target] isn't working - leaving it alone for a while")
 
 /datum/bot_brain/proc/goal_is_resting(datum/bot_goal/goal)
-	return give_up_rests && !goal.braves_bad_air && world.time < LAZYACCESS(give_up_rests, goal.give_up_key())
+	return give_up_rests && !goal.never_rests && world.time < LAZYACCESS(give_up_rests, goal.give_up_key())
 
 /datum/bot_brain/proc/end_goal()
 	// The goal that just ended may still have an active pursuit in flight (a move_to
