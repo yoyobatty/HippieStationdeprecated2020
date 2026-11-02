@@ -5,7 +5,7 @@
 // stranger than just leaving it to the people who signed up for it.
 /datum/bot_brain/proc/is_medical_job()
 	var/role = work_role()
-	return role == "Medical Doctor" || role == "Chief Medical Officer"
+	return role == "Medical Doctor" || role == "Chief Medical Officer" || role == "Geneticist" || role == "Virologist" //goals/quiet_jobs.dm
 
 // Same brute/burn thresholds as a real player would bother stopping for - scrapes and
 // bruises get walked past, anything that'll actually kill them eventually doesn't.

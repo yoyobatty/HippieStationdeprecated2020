@@ -14,7 +14,7 @@
 
 /// What can be picked up, the most pressing first, and who's already doing it.
 GLOBAL_LIST_INIT(bot_cover_jobs, list(
-	"Medical Doctor" = list("Medical Doctor", "Chief Medical Officer", "Paramedic"),
+	"Medical Doctor" = list("Medical Doctor", "Chief Medical Officer", "Paramedic", "Geneticist", "Virologist"),
 	"Chemist" = list("Chemist"),
 	"Station Engineer" = list("Station Engineer", "Chief Engineer"),
 	"Janitor" = list("Janitor"),

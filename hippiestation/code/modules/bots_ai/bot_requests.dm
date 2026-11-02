@@ -68,7 +68,7 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 
 /datum/bot_request_kind/medical
 	name = "medical"
-	jobs = list("Medical Doctor", "Chief Medical Officer", "Paramedic")
+	jobs = list("Medical Doctor", "Chief Medical Officer", "Paramedic", "Geneticist", "Virologist")
 	strong_words = list("medic", "man down", "need a doctor", "need a doc", "need medical", "im dying", "i'm dying", "bleeding out", "need healing", "paramedic", "need a medic")
 	role_words = list("doctor", "doc", "doctors", "medical", "cmo")
 	arrival_lines = list("Alright, let's have a look at you.", "Hold still, let me see.", "Where does it hurt?")

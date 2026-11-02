@@ -1371,6 +1371,15 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 /datum/bot_shift_check/counted/toxins/progress()
 	return "[count()] launched, [SSresearch.science_tech.largest_bomb_value] points from the doppler"
 
+/datum/bot_shift_check/counted/library
+	name = "library: a book read"
+	jobs = list("Curator")
+	counter = "books_read"
+	needs_on_map = /obj/structure/bookcase
+
+/datum/bot_shift_check/counted/library/progress()
+	return "[count()] read"
+
 /datum/bot_shift_check/counted/revolution
 	name = "revolution: somebody flashed over"
 	counter = "recruited"
