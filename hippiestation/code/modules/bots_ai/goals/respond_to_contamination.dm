@@ -30,7 +30,7 @@
 // anything left to clean, which isn't what a real atmos tech does once a room reads clear.
 
 /datum/bot_brain/proc/is_atmos_response_job()
-	var/role = owner.mind?.assigned_role
+	var/role = work_role()
 	return role == "Station Engineer" || role == "Chief Engineer" || role == "Atmospheric Technician"
 
 // Every bot_brain registers itself here on creation (bot_brain.dm's New()/Destroy()),

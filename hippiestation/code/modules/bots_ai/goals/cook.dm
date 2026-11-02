@@ -62,7 +62,7 @@ GLOBAL_LIST_INIT(bot_cook_menu, init_bot_cook_menu())
 	var/next_food_call_time = 0
 
 /datum/bot_brain/proc/is_cook_job()
-	return owner.mind?.assigned_role == "Cook"
+	return work_role() == "Cook"
 
 /// Whether A is part of this cook's kitchen. A Bot Gym cook's kitchen is its arena.
 /datum/bot_brain/proc/in_kitchen(atom/A)

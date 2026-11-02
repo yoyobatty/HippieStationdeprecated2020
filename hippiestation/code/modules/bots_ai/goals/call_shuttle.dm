@@ -82,7 +82,7 @@ GLOBAL_LIST_INIT(bot_shuttle_called_lines, list(
 	interval_max = 900
 
 /datum/bot_duty/call_shuttle/applies_to(datum/bot_brain/bot)
-	return bot.owner.mind?.assigned_role in GLOB.command_positions
+	return bot.work_role() in GLOB.command_positions
 
 /datum/bot_duty/call_shuttle/try_start(datum/bot_brain/bot)
 	if(world.time < bot.shuttle_call_blocked_until)

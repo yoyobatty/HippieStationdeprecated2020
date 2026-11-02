@@ -79,7 +79,7 @@ GLOBAL_LIST_INIT(bot_clown_lines, list(
 	return nearest
 
 /datum/bot_duty/perform/try_start(datum/bot_brain/bot)
-	if(bot.owner.mind?.assigned_role == "Clown" && !bot.find_carried_tool(/obj/item/bikehorn))
+	if(bot.work_role() == "Clown" && !bot.find_carried_tool(/obj/item/bikehorn))
 		return FALSE //no horn, no act
 	var/mob/living/carbon/human/audience = find_audience(bot)
 	return audience ? bot.assign_goal(new /datum/bot_goal/perform(audience)) : FALSE
@@ -180,7 +180,7 @@ GLOBAL_VAR_INIT(bot_hop_desk_called, 0)
 /// A free chair in this bot's office that it can walk to, the nearest first. In the Bot Gym, one in its arena.
 /datum/bot_brain/proc/find_desk_chair()
 	var/list/chairs = list() //chair -> how far off
-	var/list/area_types = GLOB.bot_desk_areas[owner.mind?.assigned_role]
+	var/list/area_types = GLOB.bot_desk_areas[work_role()]
 	if(gym_run)
 		for(var/obj/structure/chair/C in get_area(owner))
 			chairs[C] = get_dist(owner, C)
@@ -214,7 +214,7 @@ GLOBAL_VAR_INIT(bot_hop_desk_called, 0)
 	interval_max = 2400
 
 /datum/bot_duty/desk/applies_to(datum/bot_brain/bot)
-	return !!GLOB.bot_desk_areas[bot.owner.mind?.assigned_role]
+	return !!GLOB.bot_desk_areas[bot.work_role()]
 
 /datum/bot_duty/desk/try_start(datum/bot_brain/bot)
 	if(bot.owner.buckled || !prob(60))
@@ -261,7 +261,7 @@ GLOBAL_VAR_INIT(bot_hop_desk_called, 0)
 	bot.hangout_until = world.time + rand(1200, 3000)
 	bot.desk_sittings++
 	bot_log(bot, "sat down at the desk in [get_area_name(C, TRUE)]")
-	if(bot.owner.mind?.assigned_role == "Head of Personnel" && !bot.gym_scripted && (!GLOB.bot_hop_desk_called || world.time > GLOB.bot_hop_desk_called + 10 MINUTES))
+	if(bot.work_role() == "Head of Personnel" && !bot.gym_scripted && (!GLOB.bot_hop_desk_called || world.time > GLOB.bot_hop_desk_called + 10 MINUTES))
 		GLOB.bot_hop_desk_called = world.time
 		bot.say_after_typing(";[pick("HoP desk is open if anybody needs anything.", "HoP's at the desk - come by if you need access sorting out.", "Head of Personnel's office is open.")]")
 	return GOAL_STEP_SUCCESS
@@ -517,7 +517,7 @@ GLOBAL_LIST_INIT(bot_captain_greetings, list(
 		return GOAL_STEP_FAIL
 	bot.bodies_stored++
 	bot_log(bot, "put [body] in the morgue")
-	if(bot.owner.mind?.assigned_role == "Chaplain" && !bot.gym_scripted && prob(60))
+	if(bot.work_role() == "Chaplain" && !bot.gym_scripted && prob(60))
 		bot_say(bot.owner, pick("Rest in peace.", "May you find your way.", "Go gently."))
 	return GOAL_STEP_SUCCESS
 

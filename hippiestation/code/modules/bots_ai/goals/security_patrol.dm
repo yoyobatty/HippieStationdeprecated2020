@@ -91,7 +91,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/list/failed_brig_targets
 
 /datum/bot_brain/proc/is_security_job()
-	var/role = owner.mind?.assigned_role
+	var/role = work_role()
 	return role == "Security Officer" || role == "Warden" || role == "Head of Security"
 
 // Registered from bot_brain/New() - a bot's job never changes after spawn.
@@ -141,7 +141,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/datum/data/record/R = bot_find_security_record(H)
 	if(!R)
 		return
-	var/author = "[owner.real_name] ([owner.mind?.assigned_role])"
+	var/author = "[owner.real_name] ([work_role()])"
 	var/datum/data/crime/C = GLOB.data_core.createCrimeEntry(crime, details, author, station_time_timestamp())
 	if(severity >= BOT_CRIME_MAJOR)
 		GLOB.data_core.addMajorCrime(R.fields["id"], C)

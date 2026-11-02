@@ -54,7 +54,7 @@ GLOBAL_LIST_INIT(bot_bar_menu, init_bot_bar_menu())
 	var/orders_filled = 0
 
 /datum/bot_brain/proc/is_bartender_job()
-	return owner.mind?.assigned_role == "Bartender"
+	return work_role() == "Bartender"
 
 /// Whether A is in the bar. A Bot Gym bartender's bar is its arena.
 /datum/bot_brain/proc/in_bar(atom/A)

@@ -58,7 +58,7 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 		return FALSE
 	if(get_turf(owner) == T || owner.Adjacent(A))
 		return TRUE
-	var/obj/item/card/id/id_card = owner.get_idcard(TRUE)
+	var/obj/item/card/id/id_card = route_card()
 	begin_reach_scope()
 	. = FALSE
 	pathing_no_tailgating = !is_shut_in()
@@ -96,7 +96,7 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 	var/turf/start = get_turf(owner)
 	if(!start)
 		return FALSE
-	var/obj/item/card/id/id_card = owner.get_idcard(TRUE)
+	var/obj/item/card/id/id_card = route_card()
 	var/simulated_only = !can_path_through_space()
 	var/was = pathing_no_tailgating
 	pathing_no_tailgating = TRUE

@@ -62,7 +62,7 @@ GLOBAL_LIST_EMPTY(bot_seat_claims)
 		return FALSE
 	if(!bot.evac_lead)
 		// Heads and security see everyone else off first.
-		var/role = bot.owner.mind?.assigned_role
+		var/role = bot.work_role()
 		var/last_out = (role in GLOB.command_positions) || (role in GLOB.security_positions)
 		bot.evac_lead = last_out ? rand(450, 900) : rand(900, 2400)
 	return E.timeLeft(1) <= bot.evac_lead

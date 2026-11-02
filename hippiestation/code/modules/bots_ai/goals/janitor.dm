@@ -30,7 +30,7 @@
 	var/lights_replaced = 0
 
 /datum/bot_brain/proc/is_janitor_job()
-	return owner.mind?.assigned_role == "Janitor"
+	return work_role() == "Janitor"
 
 /datum/bot_brain/proc/janitor_in_reach(atom/A)
 	if(!A || QDELETED(A) || A.z != owner.z || get_dist(owner, A) > BOT_JANITOR_REACH)

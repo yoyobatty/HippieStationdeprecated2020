@@ -54,7 +54,7 @@ GLOBAL_LIST_INIT(bot_botany_crops, list(
 	var/last_tray_score = 0
 
 /datum/bot_brain/proc/is_botanist_job()
-	return owner.mind?.assigned_role == "Botanist"
+	return work_role() == "Botanist"
 
 // ---------------------------------------------------------------------------------------------
 // The round

@@ -261,6 +261,16 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	GLOB.bot_chem_orders += list(list("label" = "unstable mutagen", "area" = /area/hydroponics, "by" = "Hydroponics"))
 	GLOB.bot_poppies_wanted_at = world.time
 
+/// Somebody on the crew turns into a role-hopper, a very competent one, and the lights start going out.
+/datum/bot_shift/proc/hop_drill()
+	GLOB.bot_power_out_drill = TRUE
+	var/hoppers = 2
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		if(hoppers && B.owner.mind?.assigned_role == "Assistant")
+			hoppers--
+			B.set_playstyle(BOT_STYLE_HOPPER)
+			B.competence = 1
+
 /// Late-joins the crew, one at a time. An entry is a job title, optionally "*N" for several.
 /datum/bot_shift/proc/muster()
 	// Nobody's watching a shift, and lights nobody can see wait for somebody who can (lighting_source.dm): every shift
@@ -272,6 +282,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		addtimer(CALLBACK(src, PROC_REF(law_drill), world.params["law-drill"]), 4 MINUTES)
 	if(world.params["collab-drill"])
 		addtimer(CALLBACK(src, PROC_REF(collab_drill)), 3 MINUTES)
+	if(world.params["hop-drill"])
+		addtimer(CALLBACK(src, PROC_REF(hop_drill)), 2 MINUTES)
 	if(world.params["ttv-bench"])
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(run_ttv_bench)), 5 SECONDS)
 	if(world.params["engine-test"])

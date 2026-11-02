@@ -183,7 +183,7 @@
 		finish_pursuit(TRUE)
 		return FALSE
 
-	var/obj/item/card/id/id_card = owner.get_idcard(TRUE)
+	var/obj/item/card/id/id_card = route_card()
 	// can_path_through_space() (gear_up_eva.dm) logged explicitly here - a "no path"
 	// failure right next to a real space tile is ambiguous from the outside otherwise:
 	// looks identical whether simulated_only correctly excluded space (gear genuinely
@@ -418,7 +418,7 @@
 	var/turf/start = get_turf(owner)
 	if(!start)
 		return FALSE
-	var/obj/item/card/id/id_card = owner.get_idcard(TRUE)
+	var/obj/item/card/id/id_card = route_card()
 	var/simulated_only = !can_path_through_space()
 	var/list/seen = list()
 	seen[start] = TRUE

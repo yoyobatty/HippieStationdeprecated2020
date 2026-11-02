@@ -4,7 +4,7 @@
 // medical jobs, not every bot - a cargo tech stopping to bandage someone would look
 // stranger than just leaving it to the people who signed up for it.
 /datum/bot_brain/proc/is_medical_job()
-	var/role = owner.mind?.assigned_role
+	var/role = work_role()
 	return role == "Medical Doctor" || role == "Chief Medical Officer"
 
 // Same brute/burn thresholds as a real player would bother stopping for - scrapes and

@@ -43,7 +43,7 @@ GLOBAL_LIST_EMPTY(bot_cargo_strays)
 	var/list/cargo_blocked
 
 /datum/bot_brain/proc/is_cargo_job()
-	var/role = owner.mind?.assigned_role
+	var/role = work_role()
 	return role == "Cargo Technician" || role == "Quartermaster"
 
 /// A supply console that can place orders and move the shuttle (not a request-only one).

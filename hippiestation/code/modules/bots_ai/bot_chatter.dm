@@ -154,7 +154,7 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 		var/doing = describe_activity()
 		return doing ? pick("Just [doing].", "I'm [doing].", "[capitalize(doing)]. Why?") : pick("Nothing much.", "Just having a wander.", "Taking a breather.")
 	if(bot_text_has_any(lower_msg, list("who are you", "your name", "your job", "what do you do", "what's your job", "whats your job")))
-		var/role = owner.mind?.assigned_role
+		var/role = work_role()
 		var/post = ""
 		if(role == "Assistant")
 			post = " Just an assistant."
@@ -488,7 +488,7 @@ GLOBAL_LIST_INIT(bot_shop_talk, list(
 GLOBAL_LIST_INIT(bot_shop_talk_replies, list("Good to know.", "Nice.", "Noted.", "Alright.", "Glad to hear it.", "I'll bear it in mind."))
 
 /datum/bot_brain/proc/department()
-	var/role = owner.mind?.assigned_role
+	var/role = work_role()
 	if(role in GLOB.engineering_positions)
 		return "engineering"
 	if(role in GLOB.medical_positions)

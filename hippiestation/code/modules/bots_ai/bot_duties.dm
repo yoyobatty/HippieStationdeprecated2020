@@ -51,7 +51,7 @@ GLOBAL_LIST_INIT(bot_duties, init_bot_duties())
 	var/interrupts = FALSE
 
 /datum/bot_duty/proc/applies_to(datum/bot_brain/bot)
-	return !jobs || (bot.owner.mind?.assigned_role in jobs)
+	return !jobs || (bot.work_role() in jobs)
 
 /// Finds the bot something to do. TRUE if it is now busy with it.
 /datum/bot_duty/proc/try_start(datum/bot_brain/bot)

@@ -71,7 +71,7 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 	var/mining_gear_blocked_until = 0
 
 /datum/bot_brain/proc/is_miner()
-	return owner.mind?.assigned_role == "Shaft Miner"
+	return work_role() == "Shaft Miner"
 
 /datum/bot_brain/proc/on_lavaland()
 	return is_mining_level(owner.z)

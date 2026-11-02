@@ -213,6 +213,42 @@
 		return BOT_GYM_PASS
 	return BOT_GYM_PENDING
 
+/// Nobody in the room to ask, nobody healing: a role-hopper says so and gets on with it.
+/datum/bot_scenario/duty/hopper
+	name = "hopper: nobody's healing and there's no HoP, so it picks that up itself"
+	duty_type = /datum/bot_duty/cover_short_handed
+	job = "Assistant"
+	time_limit = 20 SECONDS
+	layout = list(
+		"#####",
+		"#B..#",
+		"#####")
+
+/datum/bot_scenario/duty/hopper/post_spawn()
+	..()
+	brain.set_playstyle(BOT_STYLE_HOPPER)
+
+/datum/bot_scenario/duty/hopper/check()
+	if(brain.work_role() == "Medical Doctor" && brain.is_medical_job())
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/// Only a very competent one touches the engine, and only with the power going.
+/datum/bot_scenario/duty/hopper/engine
+	name = "hopper: the engine's nobody's job until the power goes, and then only a very competent one's"
+
+/datum/bot_scenario/duty/hopper/engine/check()
+	brain.competence = 1
+	GLOB.bot_power_out_drill = FALSE
+	var/power_on = brain.may_take_on("Station Engineer")
+	GLOB.bot_power_out_drill = TRUE
+	var/very_competent = brain.may_take_on("Station Engineer")
+	brain.competence = 0.5
+	var/middling = brain.may_take_on("Station Engineer")
+	GLOB.bot_power_out_drill = null
+	log_line("power on [power_on], very competent [very_competent], middling [middling]")
+	return !power_on && very_competent && !middling ? BOT_GYM_PASS : BOT_GYM_FAIL
+
 /datum/bot_scenario/griefed/charges
 	name = "dept: the charge goes by the room, and by how they got in"
 	desc = "Space Law: 109 anywhere, 209 at the engine, 309 on the Bridge, and 110, 210 and 310 for forcing the door."

@@ -881,7 +881,7 @@ GLOBAL_LIST_INIT(bot_maintenance_averse_jobs, list("Medical Doctor", "Chief Medi
 // hallways/common areas instead of anywhere on the station; everyone else still falls
 // back to a fully random area, same as before.
 /datum/bot_brain/proc/pick_department_biased_area()
-	var/role = owner.mind?.assigned_role
+	var/role = work_role()
 	var/list/keywords = GLOB.bot_department_keywords[role]
 	if(keywords && length(keywords) && prob(75))
 		var/list/matches = list()

@@ -12,6 +12,7 @@
 #   EVAC=1    call the emergency shuttle eight minutes before the end and judge who makes it aboard
 #   ENGINE=linda  runs LINDA instead of the tile atmos engine
 #   LAW_DRILL=permabrig or injection  puts a capital case in front of Security four minutes in
+#   HOP_DRILL=1                       two assistants turn role-hopper at two minutes, with the power going out
 # Exit code: 0 if nothing failed, 1 otherwise.
 set -u
 cd "$(dirname "$0")/../.."
@@ -44,6 +45,7 @@ if [ "${PROFILE:-0}" = "1" ]; then PARAMS="$PARAMS&bot-profile=1"; fi
 if [ "${EVAC:-0}" = "1" ]; then PARAMS="$PARAMS&bot-evac=1"; fi
 if [ -n "${LAW_DRILL:-}" ]; then PARAMS="$PARAMS&law-drill=$LAW_DRILL"; fi
 if [ "${COLLAB_DRILL:-0}" = "1" ]; then PARAMS="$PARAMS&collab-drill=1"; fi
+if [ "${HOP_DRILL:-0}" = "1" ]; then PARAMS="$PARAMS&hop-drill=1"; fi
 if [ -n "${ENGINE:-}" ]; then PARAMS="$PARAMS&atmos-engine=$ENGINE"; fi
 
 rm -rf data/bot_shift

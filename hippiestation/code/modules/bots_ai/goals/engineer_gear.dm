@@ -7,7 +7,7 @@
 	var/next_engineer_gear_check_time = 0
 
 /datum/bot_brain/proc/is_power_engineer_job()
-	var/role = owner.mind?.assigned_role
+	var/role = work_role()
 	return role == "Station Engineer" || role == "Chief Engineer"
 
 /// What this engineer should be wearing, as list(item type = slot), in the order to fetch them.
@@ -15,7 +15,7 @@
 	. = list()
 	if(!is_power_engineer_job())
 		return
-	if(owner.mind?.assigned_role == "Chief Engineer")
+	if(work_role() == "Chief Engineer")
 		.[/obj/item/clothing/gloves/chief_engineer] = ITEM_SLOT_GLOVES //their locker's advanced insulated gloves
 		.[/obj/item/clothing/neck/cloak/ce] = ITEM_SLOT_NECK
 	else

@@ -61,12 +61,12 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 ))
 
 /datum/bot_brain/proc/get_eva_loadout()
-	return GLOB.bot_eva_loadouts[owner.mind?.assigned_role]
+	return GLOB.bot_eva_loadouts[work_role()]
 
 // Deliberately narrower than "every job with a loadout entry above" - see the big
 // comment at the top of this file for why.
 /datum/bot_brain/proc/is_eva_job()
-	var/role = owner.mind?.assigned_role
+	var/role = work_role()
 	return role == "Station Engineer" || role == "Chief Engineer" || role == "Atmospheric Technician"
 
 /datum/bot_brain/proc/get_job_hardsuit_type()

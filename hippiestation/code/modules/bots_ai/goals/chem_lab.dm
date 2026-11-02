@@ -120,7 +120,7 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 
 /// What this chemist means to keep on it, BOT_CHEM_* -> how many. Nothing, for anybody who isn't one. A mild one leaves the lethals alone.
 /datum/bot_brain/proc/chem_wishlist()
-	if(owner.mind?.assigned_role != "Chemist" && !(gym_run && job_is_chemist_for_gym))
+	if(work_role() != "Chemist" && !(gym_run && job_is_chemist_for_gym))
 		return null
 	var/list/wanted = GLOB.bot_chemist_stock[hardened ? BOT_STYLE_PARANOID : playstyle]
 	wanted = wanted.Copy()
@@ -203,7 +203,7 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 
 /// What Medbay's fridge gets next: a chemist often as not goes past the three everybody knows.
 /datum/bot_brain/proc/pick_medicine_recipe()
-	if(owner.mind?.assigned_role == "Chemist" && prob(50))
+	if(work_role() == "Chemist" && prob(50))
 		var/list/brew = pick_brew(BOT_CHEM_HEAL)
 		if(brew)
 			return brew

@@ -17,7 +17,7 @@
 // correspond to (confirmed via source read, not assumed from general SS13 knowledge).
 
 /datum/bot_brain/proc/is_engineer_job()
-	var/role = owner.mind?.assigned_role
+	var/role = work_role()
 	return role == "Station Engineer" || role == "Chief Engineer"
 
 #define BOT_ENGINE_REACH 100

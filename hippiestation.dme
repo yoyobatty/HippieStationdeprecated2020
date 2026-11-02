@@ -3313,6 +3313,7 @@
 #include "hippiestation\code\modules\bots_ai\bot_chat.dm"
 #include "hippiestation\code\modules\bots_ai\bot_chatter.dm"
 #include "hippiestation\code\modules\bots_ai\bot_collabs.dm"
+#include "hippiestation\code\modules\bots_ai\bot_hopping.dm"
 #include "hippiestation\code\modules\bots_ai\bot_departments.dm"
 #include "hippiestation\code\modules\bots_ai\bot_doors.dm"
 #include "hippiestation\code\modules\bots_ai\bot_duties.dm"

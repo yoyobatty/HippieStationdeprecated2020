@@ -97,7 +97,7 @@ GLOBAL_VAR_INIT(bot_open_departments_at, 0)
 /// The department a bot works for. A head's is their own, the Bridge being everybody's.
 /datum/bot_brain/proc/my_departments()
 	. = list()
-	var/role = owner.mind?.assigned_role
+	var/role = work_role()
 	for(var/department in list("engineering", "medical", "science", "security", "command", "supply"))
 		if(role in bot_positions_of(department))
 			. += department
@@ -266,7 +266,7 @@ GLOBAL_VAR_INIT(bot_open_departments_at, 0)
 	if(threat)
 		return keen ? TRUE : null
 	// The armory's a matter of routine, and that's the Warden's.
-	if(P.department == "security" && owner.mind?.assigned_role == "Warden" && istype(get_area(P.doors[1]), /area/ai_monitored/security/armory))
+	if(P.department == "security" && work_role() == "Warden" && istype(get_area(P.doors[1]), /area/ai_monitored/security/armory))
 		return TRUE
 	return P.shut_for_threat ? FALSE : null
 
@@ -394,7 +394,7 @@ GLOBAL_VAR_INIT(bot_open_departments_at, 0)
 /// Word goes round the engineers: the first thing any of them does is go and look at the engine.
 /proc/bot_sound_engine_alarm()
 	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
-		if(B.owner.mind?.assigned_role in GLOB.engineering_positions)
+		if(B.work_role() in GLOB.engineering_positions)
 			B.engine_alarm_at = world.time
 
 /datum/bot_duty/check_the_engine
@@ -405,7 +405,7 @@ GLOBAL_VAR_INIT(bot_open_departments_at, 0)
 	interval_max = 80
 
 /datum/bot_duty/check_the_engine/applies_to(datum/bot_brain/bot)
-	return bot.owner.mind?.assigned_role in GLOB.engineering_positions
+	return bot.work_role() in GLOB.engineering_positions
 
 /datum/bot_duty/check_the_engine/try_start(datum/bot_brain/bot)
 	if(!bot.engine_alarm_at || world.time > bot.engine_alarm_at + 2 MINUTES)
@@ -606,14 +606,14 @@ GLOBAL_LIST_INIT(bot_raid_wishlist, list(
 	interval_max = 4800
 
 /datum/bot_duty/open_up/applies_to(datum/bot_brain/bot)
-	var/job = bot.owner.mind?.assigned_role
+	var/job = bot.work_role()
 	return bot.strictness < BOT_EASYGOING && ((job in GLOB.science_positions) || (job in GLOB.medical_positions)) && !(job in GLOB.command_positions)
 
 /datum/bot_duty/open_up/try_start(datum/bot_brain/bot)
 	if(!bot_mischief_allowed() || !prob(40) || world.time < bot.next_door_work)
 		return FALSE
 	bot_refresh_open_departments()
-	var/department = (bot.owner.mind?.assigned_role in GLOB.science_positions) ? "science" : "medical"
+	var/department = (bot.work_role() in GLOB.science_positions) ? "science" : "medical"
 	if(GLOB.bot_open_departments[department])
 		return FALSE
 	var/obj/machinery/door/airlock/A = bot.find_front_door(department)

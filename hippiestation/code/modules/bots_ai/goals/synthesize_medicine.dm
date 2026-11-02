@@ -15,7 +15,7 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 #define BOT_MEDICINE_STOCK 24
 
 /datum/bot_brain/proc/is_chem_producer_job()
-	var/role = owner.mind?.assigned_role
+	var/role = work_role()
 	return role == "Medical Doctor" || role == "Chief Medical Officer" || role == "Chemist"
 
 #define BOT_CHEM_REACH 60

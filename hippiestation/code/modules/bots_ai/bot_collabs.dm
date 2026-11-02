@@ -72,10 +72,12 @@ GLOBAL_LIST_INIT(bot_drop_off_areas, list(
 	return null
 
 /// A clear tile in the corridor outside this department, the nearest to the bot.
-/datum/bot_brain/proc/department_doorstep(department)
+/datum/bot_brain/proc/department_doorstep(department, area_type)
 	var/turf/best
 	for(var/obj/machinery/door/airlock/A as anything in bot_instances_of(/obj/machinery/door/airlock))
-		if(QDELETED(A) || A.z != owner.z || bot_department_of(get_area(A)) != department || istype(A, /obj/machinery/door/airlock/external))
+		if(QDELETED(A) || A.z != owner.z || istype(A, /obj/machinery/door/airlock/external))
+			continue
+		if(area_type ? !istype(get_area(A), area_type) : bot_department_of(get_area(A)) != department)
 			continue
 		for(var/direction in GLOB.cardinals)
 			var/turf/T = get_step(A, direction)
@@ -251,7 +253,7 @@ GLOBAL_LIST_INIT(bot_drop_off_areas, list(
 
 /// Somebody's asked Chemistry for something. The first one that can be made, as a brew.
 /datum/bot_brain/proc/brew_for_order()
-	if(owner.mind?.assigned_role != "Chemist")
+	if(work_role() != "Chemist")
 		return null
 	for(var/list/order as anything in GLOB.bot_chem_orders)
 		for(var/list/brew in GLOB.bot_brews)
@@ -320,7 +322,7 @@ GLOBAL_LIST_INIT(bot_drop_off_areas, list(
 
 /// Poppies on Chemistry's counter, and a brew to go with them.
 /datum/bot_brain/proc/brew_for_poppies()
-	if(owner.mind?.assigned_role != "Chemist" || !find_poppy())
+	if(work_role() != "Chemist" || !find_poppy())
 		return null
 	for(var/list/brew in GLOB.bot_brews)
 		if(brew["kind"] == "poppy" && can_brew(brew))

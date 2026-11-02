@@ -53,7 +53,7 @@ GLOBAL_LIST_INIT(bot_atmos_pump_actions, list(
 ))
 
 /datum/bot_brain/proc/is_atmos_job()
-	var/role = owner.mind?.assigned_role
+	var/role = work_role()
 	return role == "Atmospheric Technician"
 
 /datum/bot_brain/proc/atmos_pump_needs_action(obj/machinery/atmospherics/components/binary/pump/P)

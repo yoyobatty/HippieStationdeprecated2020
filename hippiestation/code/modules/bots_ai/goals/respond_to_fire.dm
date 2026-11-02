@@ -26,7 +26,7 @@
 #define FIRE_UNPROTECTED_SPRAY_RANGE 4 //no heat protection at all - stay outside the flame, near the edge of the extinguisher's own reach (power=5, extinguisher.dm) instead of standing in it
 
 /datum/bot_brain/proc/is_fire_response_job()
-	var/role = owner.mind?.assigned_role
+	var/role = work_role()
 	return role == "Station Engineer" || role == "Chief Engineer" || role == "Atmospheric Technician"
 
 /datum/bot_brain/proc/bot_is_heat_immune_to(temperature)

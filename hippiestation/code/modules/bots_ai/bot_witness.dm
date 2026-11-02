@@ -131,8 +131,8 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 		return gym_run.arena_is_home
 	var/list/staff = bot_staff_of(A)
 	if(staff)
-		return owner.mind?.assigned_role in staff
-	var/list/keywords = GLOB.bot_department_keywords[owner.mind?.assigned_role]
+		return work_role() in staff
+	var/list/keywords = GLOB.bot_department_keywords[work_role()]
 	for(var/keyword in keywords)
 		if(findtext(A.name, keyword))
 			return TRUE
@@ -341,7 +341,7 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 /datum/bot_brain/proc/watch_the_door()
 	var/area/here = get_area(owner)
 	var/list/staff = bot_staff_of(here)
-	if(!staff || !(owner.mind?.assigned_role in staff))
+	if(!staff || !(work_role() in staff))
 		return
 	bot_refresh_open_departments() //bot_departments.dm
 	// Open's open, to anybody but the strict ones, and it's nobody's business but the staff's if they want it that way.
@@ -367,7 +367,7 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 				begin_arrest(H)
 			return
 		// Nobody but an engineer goes near the engine. There's no asking nicely about that.
-		if(bot_near_the_engine(H) && (owner.mind?.assigned_role in GLOB.engineering_positions) && (!warned || world.time > warned + 5 MINUTES))
+		if(bot_near_the_engine(H) && (work_role() in GLOB.engineering_positions) && (!warned || world.time > warned + 5 MINUTES))
 			LAZYSET(trespass_warned, ref, world.time)
 			owner.face_atom(H)
 			bot_say(owner, pick("Get away from the engine!", "What do you think you're doing down here?! OUT!", "You touch anything and we all die! Get out!"))

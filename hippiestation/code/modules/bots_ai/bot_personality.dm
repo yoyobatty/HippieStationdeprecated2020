@@ -81,6 +81,7 @@
 /// Sets a playstyle, with what goes along with playing that way. Bot Gym scenarios call this too.
 /datum/bot_brain/proc/set_playstyle(style)
 	playstyle = style
+	duties = null //a role-hopper has one more
 	switch(style)
 		if(BOT_STYLE_POWERGAMER)
 			diligence = max(diligence, 0.8)

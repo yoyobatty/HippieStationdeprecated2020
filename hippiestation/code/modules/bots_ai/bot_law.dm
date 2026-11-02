@@ -121,7 +121,7 @@ GLOBAL_VAR(bot_in_command)
 	interval_max = 400
 
 /datum/bot_duty/chain_of_command/applies_to(datum/bot_brain/bot)
-	return bot.owner.mind?.assigned_role in GLOB.bot_chain_of_command
+	return bot.work_role() in GLOB.bot_chain_of_command
 
 /datum/bot_duty/chain_of_command/try_start(datum/bot_brain/bot)
 	var/mob/living/carbon/human/boss = bot_find_in_command(bot.owner)
@@ -246,7 +246,7 @@ GLOBAL_VAR(bot_in_command)
 	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
 		if(B.owner.stat != CONSCIOUS || B.owner.handcuffed || !bot_fit_to_command(B.owner))
 			continue
-		if(B.owner.mind?.assigned_role == "Head of Security")
+		if(B.work_role() == "Head of Security")
 			return B
 		if(B.owner == boss)
 			fallback = B
@@ -257,7 +257,7 @@ GLOBAL_VAR(bot_in_command)
 	var/list/order = list("Warden", "Head of Security", "Security Officer")
 	for(var/job in order)
 		for(var/datum/bot_brain/B as anything in GLOB.bot_security_brains)
-			if(B.owner.mind?.assigned_role == job && B.owner.stat == CONSCIOUS && !B.owner.handcuffed)
+			if(B.work_role() == job && B.owner.stat == CONSCIOUS && !B.owner.handcuffed)
 				return B
 	return null
 
@@ -336,7 +336,7 @@ GLOBAL_VAR(bot_law_drill_verdict)
 	interval_max = 150
 
 /datum/bot_duty/capital_cases/applies_to(datum/bot_brain/bot)
-	return (bot.owner.mind?.assigned_role in GLOB.bot_chain_of_command) || bot.is_security_job()
+	return (bot.work_role() in GLOB.bot_chain_of_command) || bot.is_security_job()
 
 /datum/bot_duty/capital_cases/try_start(datum/bot_brain/bot)
 	for(var/datum/bot_case/C as anything in GLOB.bot_cases)
@@ -354,7 +354,7 @@ GLOBAL_VAR(bot_law_drill_verdict)
 	interval_max = 120
 
 /datum/bot_duty/carry_out_verdict/applies_to(datum/bot_brain/bot)
-	return (bot.owner.mind?.assigned_role in GLOB.bot_chain_of_command) || bot.is_security_job()
+	return (bot.work_role() in GLOB.bot_chain_of_command) || bot.is_security_job()
 
 /datum/bot_duty/carry_out_verdict/try_start(datum/bot_brain/bot)
 	for(var/datum/bot_case/C as anything in GLOB.bot_cases)

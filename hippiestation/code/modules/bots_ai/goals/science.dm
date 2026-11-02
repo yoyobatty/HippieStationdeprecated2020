@@ -9,7 +9,7 @@
 	var/list/science_blocked
 
 /datum/bot_brain/proc/is_science_job()
-	var/role = owner.mind?.assigned_role
+	var/role = work_role()
 	return role == "Scientist" || role == "Research Director"
 
 /// An R&D console in Science that can unlock nodes. A Bot Gym scientist's is in its arena.

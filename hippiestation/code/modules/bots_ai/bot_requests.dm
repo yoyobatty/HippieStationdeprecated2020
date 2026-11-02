@@ -199,7 +199,7 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 
 /// Whether a bot is one of those whose call this is.
 /datum/bot_request_kind/proc/answered_by(datum/bot_brain/bot, datum/bot_request/R)
-	return bot.owner.mind?.assigned_role in jobs
+	return bot.work_role() in jobs
 
 /// Where whoever answers walks to: the caller, or somewhere in the place they named.
 /datum/bot_request_kind/proc/where_to_go(datum/bot_brain/bot, datum/bot_request/R)
@@ -334,7 +334,7 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 	if(!kind)
 		return FALSE
 	// Only those whose call it is have anything to do with it (and for a summons, only whoever was named).
-	if(kind.jobs ? !(owner.mind?.assigned_role in kind.jobs) : !named)
+	if(kind.jobs ? !(work_role() in kind.jobs) : !named)
 		return FALSE
 	var/datum/bot_request/R = bot_open_request_from(talker, kind)
 	if(R)
@@ -594,7 +594,7 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 
 /// Walking past something that wants mopping up: mentions it to the janitor, now and then.
 /datum/bot_brain/proc/maybe_report_mess()
-	if(owner.mind?.assigned_role == "Janitor" || world.time < next_call_time || !prob(30 * sociability))
+	if(work_role() == "Janitor" || world.time < next_call_time || !prob(30 * sociability))
 		return FALSE
 	for(var/obj/effect/decal/cleanable/C in view(4, owner))
 		if(!bot_is_mess(C) || bot_mess_priority(C) < 2)
