@@ -314,6 +314,7 @@ GLOBAL_LIST_INIT(bot_botany_ancestors, list(
 		if(!P.asked_for_mutagen)
 			P.asked_for_mutagen = TRUE
 			bot_say(owner, ";Chemistry, could I get 50u of unstable mutagen in Hydroponics? It's for science.")
+			GLOB.bot_chem_orders += list(list("label" = "unstable mutagen", "area" = /area/hydroponics, "by" = "Hydroponics")) //bot_collabs.dm
 		var/obj/item/reagent_containers/loose = find_loose_mutagen()
 		if(loose && !carried_mutagen())
 			return new /datum/bot_goal/botany_project_errand/botany_pickup(loose)

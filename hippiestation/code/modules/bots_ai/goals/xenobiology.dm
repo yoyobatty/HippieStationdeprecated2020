@@ -136,6 +136,8 @@ GLOBAL_LIST_EMPTY(bot_slimes_fed)
 	bot.note_slime_colours(slimes)
 	if(X.monkeys < BOT_XENO_LOW_CUBES)
 		var/obj/item/storage/box/monkeycubes/box = bot.find_monkey_cubes()
+		if(!box)
+			bot.ask_cargo_for(/datum/supply_pack/critter/monkey, "some monkey cubes", "science", /obj/item/storage/box/monkeycubes) //bot_collabs.dm
 		if(box)
 			return bot.assign_goal(new /datum/bot_goal/xeno_work/stock_console(X, box))
 	if(length(slimes) >= BOT_XENO_PENS_FULL)

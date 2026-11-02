@@ -128,8 +128,10 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	if(!M)
 		return
 	fridge = bot.find_reachable_chem_fridge()
-	recipe = bot.brew_for_self() //goals/chem_lab.dm
-	for_self = !!recipe
+	recipe = bot.brew_for_order() || bot.brew_for_poppies() //bot_collabs.dm
+	if(!recipe)
+		recipe = bot.brew_for_self() //goals/chem_lab.dm
+		for_self = !!recipe
 	// A full fridge is a job done. Bots used to keep mixing all shift, 90 batches of it, until the dispenser ran flat.
 	if(!recipe && length(fridge?.contents) >= BOT_MEDICINE_STOCK)
 		bot.chemistry_blocked_until = world.time + 5 MINUTES
@@ -153,6 +155,9 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	var/chemistry_blocked_until = 0
 
 /datum/bot_goal/synthesize_medicine/on_success(datum/bot_brain/bot)
+	if(recipe["form"] == "beaker")
+		bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, deliver_chem_order), recipe)) //bot_collabs.dm
+		return
 	bot.continue_medical_round()
 
 /datum/bot_strategy/synthesize
@@ -260,6 +265,8 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	pending -= reagent_type
 	if(!bot.dispense_into_beaker(dispenser, reagent_type, amount))
 		bot_log(bot, "[dispenser] wouldn't give me [reagent_type] - leaving this batch")
+		if(dispenser.cell && dispenser.cell.charge < 100)
+			bot.ask_for_poppies() //bot_collabs.dm
 		pending = null
 		return GOAL_STEP_FAIL
 	bot.owner.changeNext_move(CLICK_CD_MELEE)

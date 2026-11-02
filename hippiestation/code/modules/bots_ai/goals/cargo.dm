@@ -140,6 +140,10 @@ GLOBAL_LIST_EMPTY(bot_cargo_strays)
 			continue
 		if(bot.assign_goal(new /datum/bot_goal/unload_crate(C)))
 			return TRUE
+	// Something somebody's waiting for: round to their door with it (bot_collabs.dm).
+	var/obj/structure/closet/crate/parcel = bot.crate_to_deliver()
+	if(parcel && bot.assign_goal(new /datum/bot_goal/deliver_crate(parcel)))
+		return TRUE
 	if(!bot.find_cargo_console())
 		return FALSE
 	// Empty and docked with nobody aboard: back it goes, so the next order has something to come in on.

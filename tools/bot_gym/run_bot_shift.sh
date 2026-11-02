@@ -43,6 +43,7 @@ if [ "${EVENTS:-0}" = "1" ]; then PARAMS="$PARAMS&bot-events=1"; fi
 if [ "${PROFILE:-0}" = "1" ]; then PARAMS="$PARAMS&bot-profile=1"; fi
 if [ "${EVAC:-0}" = "1" ]; then PARAMS="$PARAMS&bot-evac=1"; fi
 if [ -n "${LAW_DRILL:-}" ]; then PARAMS="$PARAMS&law-drill=$LAW_DRILL"; fi
+if [ "${COLLAB_DRILL:-0}" = "1" ]; then PARAMS="$PARAMS&collab-drill=1"; fi
 if [ -n "${ENGINE:-}" ]; then PARAMS="$PARAMS&atmos-engine=$ENGINE"; fi
 
 rm -rf data/bot_shift

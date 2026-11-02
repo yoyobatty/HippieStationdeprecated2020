@@ -106,6 +106,11 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 			names += lowertext(CallMaterialName(mat))
 	if(!length(names) || gym_scripted)
 		return
+	// Nobody on the rock, or nothing's come of asking: what comes in a crate, Cargo can send (bot_collabs.dm).
+	if(MAT_METAL in short)
+		ask_cargo_for(/datum/supply_pack/materials/metal50, "some metal", "science", /obj/item/stack/sheet/metal)
+	else if(MAT_GLASS in short)
+		ask_cargo_for(/datum/supply_pack/materials/glass50, "some glass", "science", /obj/item/stack/sheet/glass)
 	say_after_typing(";[pick("Mining, R&D is out of [english_list(names)]. Anything you can bring up would help.", "Could use more [english_list(names)] in the silo, Mining.", "We're short on [english_list(names)] up here in Science. Can Mining dig some up?")]")
 
 /// A design the station has researched, if it's a real one.

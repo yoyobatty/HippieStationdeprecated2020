@@ -103,6 +103,55 @@
 	label = "sarin"
 	time_limit = 400 SECONDS
 
+/datum/bot_scenario/chem_brew/order
+	name = "collab: Botany's mutagen, made and left on Hydroponics' counter"
+	label = "unstable mutagen"
+	time_limit = 40 SECONDS
+	layout = list(
+		"#########",
+		"#D.....M#",
+		"#.......#",
+		"#.B...t.#",
+		"#########")
+
+/datum/bot_scenario/chem_brew/order/post_spawn()
+	..()
+	GLOB.bot_chem_orders += list(list("label" = "unstable mutagen", "area" = /area/bot_gym, "by" = "Hydroponics"))
+
+/datum/bot_scenario/chem_brew/order/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/turf/counter = get_turf(first_placed("t"))
+	var/obj/item/reagent_containers/glass/beaker/B = locate() in counter
+	if(B?.reagents.get_reagent_amount(/datum/reagent/toxin/mutagen) >= 5)
+		log_line("left [B] with [B.reagents.get_reagent_amount(/datum/reagent/toxin/mutagen)]u of mutagen")
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/chem_brew/poppies
+	name = "collab: Botany's poppies through the grinder, into pills"
+	label = "poppy bicaridine"
+	time_limit = 40 SECONDS
+	layout = list(
+		"#########",
+		"#D..G..M#",
+		"#.......#",
+		"#.B..p..#",
+		"#########")
+
+/datum/bot_scenario/chem_brew/poppies/build_tile(turf/T, char)
+	switch(char)
+		if("G")
+			place(char, new /obj/machinery/reagentgrinder(T))
+		if("p")
+			for(var/i in 1 to 3)
+				var/obj/item/seeds/poppy/seed = new
+				seed.potency = 100
+				var/obj/item/reagent_containers/food/snacks/grown/poppy/P = new(T, seed)
+				place(char, P)
+		else
+			return ..()
+
 /datum/bot_scenario/chem_brew/smoke
 	name = "chem: a knockout smoke grenade, built from the parts"
 	label = "knockout smoke"

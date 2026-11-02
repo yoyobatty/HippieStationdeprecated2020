@@ -83,6 +83,7 @@
 		sub.lawful = TRUE
 		if(suspend_goal_for(sub))
 			return TRUE
+	ask_cargo_for(/datum/supply_pack/medical/supplies, "medical supplies", "medical", /obj/item/storage/firstaid) //bot_collabs.dm
 	return FALSE
 
 // Aims at whichever organic limb is currently worst off, instead of always healing

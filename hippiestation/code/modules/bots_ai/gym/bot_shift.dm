@@ -253,6 +253,14 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	officer.file_crime(culprit.owner, "Murder", "A drill.", BOT_CRIME_MURDER)
 	log_game("BOT LAW: drill, [culprit.owner.real_name] wanted for murder in front of [officer.owner.real_name]")
 
+/// A department short of something (bot_collabs.dm): Science wants monkey cubes from Cargo, Hydroponics wants mutagen from Chemistry.
+/datum/bot_shift/proc/collab_drill()
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		if(B.is_science_job() && B.ask_cargo_for(/datum/supply_pack/critter/monkey, "some monkey cubes", "science", /obj/item/storage/box/monkeycubes))
+			break
+	GLOB.bot_chem_orders += list(list("label" = "unstable mutagen", "area" = /area/hydroponics, "by" = "Hydroponics"))
+	GLOB.bot_poppies_wanted_at = world.time
+
 /// Late-joins the crew, one at a time. An entry is a job title, optionally "*N" for several.
 /datum/bot_shift/proc/muster()
 	// Nobody's watching a shift, and lights nobody can see wait for somebody who can (lighting_source.dm): every shift
@@ -262,6 +270,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		GLOB.bot_griefer = new
 	if(world.params["law-drill"])
 		addtimer(CALLBACK(src, PROC_REF(law_drill), world.params["law-drill"]), 4 MINUTES)
+	if(world.params["collab-drill"])
+		addtimer(CALLBACK(src, PROC_REF(collab_drill)), 3 MINUTES)
 	if(world.params["ttv-bench"])
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(run_ttv_bench)), 5 SECONDS)
 	if(world.params["engine-test"])

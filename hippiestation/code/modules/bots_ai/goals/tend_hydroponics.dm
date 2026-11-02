@@ -316,6 +316,9 @@ GLOBAL_LIST_INIT(bot_botany_crops, list(
 			seeds += S
 	if(!length(seeds))
 		return null
+	if(poppies_wanted()) //bot_collabs.dm
+		for(var/obj/item/seeds/poppy/P in seeds)
+			return P
 	var/list/growing = botany_crop_counts()
 	var/obj/item/seeds/best
 	var/best_count
@@ -329,6 +332,8 @@ GLOBAL_LIST_INIT(bot_botany_crops, list(
 /// A plain packet of a kitchen crop - what the ordinary round plants, stocks and replants.
 /// Mutation stock, gene donors and the experiments themselves are the project's business.
 /datum/bot_brain/proc/is_crop_seed(obj/item/seeds/S)
+	if(istype(S, /obj/item/seeds/poppy) && poppies_wanted()) //Chemistry's order (bot_collabs.dm)
+		return TRUE
 	return S && (S.type in GLOB.bot_botany_crops) && !bot_seed_is_experimental(S) && !is_reserved_seed(S)
 
 /// Produce that can go to the kitchen: plain crops, never experiments or weapons.

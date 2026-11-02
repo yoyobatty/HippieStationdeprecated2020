@@ -248,6 +248,8 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 /datum/bot_brain/proc/on_handled(mob/living/user, handled_verb, anger, atom/object)
 	if(GLOB.bot_reflexes_off || QDELETED(user) || QDELETED(owner) || owner.stat != CONSCIOUS || bot_means_well(user))
 		return
+	if(istype(user, /mob/living/simple_animal/bot/medbot))
+		return //one hurt roboticist took a medibot's needle badly, and went for it
 	if(handled_verb == "grabbed")
 		if(!held_since)
 			held_since = world.time

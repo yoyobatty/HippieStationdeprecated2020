@@ -164,6 +164,24 @@
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
 
+/datum/bot_scenario/drop_off
+	name = "collab: something left on another department's counter"
+	desc = "A defibrillator for Medbay, carried over and left on the table, with a word on the radio."
+	layout = list(
+		"#########",
+		"#B.....t#",
+		"#########")
+	time_limit = 20 SECONDS
+	kit_backpack = list(/obj/item/healthanalyzer)
+
+/datum/bot_scenario/drop_off/make_goal()
+	return new /datum/bot_goal/drop_off(brain.find_carried_tool(/obj/item/healthanalyzer), /area/bot_gym, "Medbay")
+
+/datum/bot_scenario/drop_off/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (locate(/obj/item/healthanalyzer) in get_turf(first_placed("t"))) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /datum/bot_scenario/griefed/charges
 	name = "dept: the charge goes by the room, and by how they got in"
 	desc = "Space Law: 109 anywhere, 209 at the engine, 309 on the Bridge, and 110, 210 and 310 for forcing the door."

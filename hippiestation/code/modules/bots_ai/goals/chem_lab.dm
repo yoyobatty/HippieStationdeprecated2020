@@ -59,6 +59,14 @@ GLOBAL_LIST_INIT(bot_brews, list(
 		list("press", 95), //and the same at 100
 		list("spin"),
 	)),
+	// For somebody who's asked (bot_collabs.dm): left in its beaker, on their counter.
+	list("label" = "unstable mutagen", "reagent" = /datum/reagent/toxin/mutagen, "kind" = "order", "form" = "beaker", "stages" = list(
+		list("add", list(/datum/reagent/uranium/radium = 20, /datum/reagent/phosphorus = 20, /datum/reagent/chlorine = 20)),
+	)),
+	// With the dispenser flat, what Botany sent over goes through the grinder. It comes out in the beaker.
+	list("label" = "poppy bicaridine", "reagent" = /datum/reagent/medicine/bicaridine, "kind" = "poppy", "form" = "pill", "stages" = list(
+		list("grind"),
+	)),
 	// Potassium and sugar in with the knockout, the phosphorus in a beaker of its own: they don't meet until the grenade goes off.
 	list("label" = "knockout smoke", "reagent" = /datum/reagent/toxin/chloralhydrate, "kind" = BOT_CHEM_GRENADE, "form" = "grenade", "stages" = list(
 		list("add", list(/datum/reagent/consumable/ethanol = 20, /datum/reagent/chlorine = 60, /datum/reagent/water = 20)),
@@ -85,13 +93,14 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 	var/static/list/kinds
 	if(!kinds)
 		kinds = list(
+			/datum/reagent/toxin/mutagen = null,
 			/datum/reagent/medicine/bicaridine = BOT_CHEM_HEAL,
 			/datum/reagent/medicine/kelotane = BOT_CHEM_HEAL,
 			/datum/reagent/medicine/styptic_powder = BOT_CHEM_HEAL,
 			/datum/reagent/medicine/silver_sulfadiazine = BOT_CHEM_HEAL,
 		)
 		for(var/list/brew in GLOB.bot_brews)
-			if(brew["form"] != "grenade") //what's in a grenade is what's in the knockout syringes
+			if(brew["form"] != "grenade" && brew["form"] != "beaker" && brew["kind"] != "poppy") //what's in a grenade is what's in the knockout syringes
 				kinds[brew["reagent"]] = brew["kind"]
 	return kinds[reagent_type]
 
@@ -138,6 +147,8 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 			return find_chem_machine(/obj/machinery/chem/pressure)
 		if("spin")
 			return find_chem_machine(/obj/machinery/chem/centrifuge)
+		if("grind")
+			return find_chem_machine(/obj/machinery/reagentgrinder)
 
 /// Whether every machine this brew needs is here to be had.
 /datum/bot_brain/proc/can_brew(list/brew)
@@ -247,11 +258,18 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 			continue
 		var/obj/machinery/M = bot.chem_machine_for(stage[1])
 		to_machine.step_target = M
+		if(stage[1] == "grind")
+			steps += new /datum/bot_step/fetch_poppy()
+			steps += to_machine
+			steps += new /datum/bot_step/paced/grind_poppy(M)
+			continue
 		steps += to_machine
 		steps += new /datum/bot_step/paced/run_chem_machine(M, stage[1], length(stage) > 1 ? stage[2] : 0)
 	if(G.recipe["form"] == "grenade")
 		steps += new /datum/bot_step/paced/assemble_grenade()
 		return
+	if(G.recipe["form"] == "beaker")
+		return //carried straight over to whoever asked (on_success(), goals/synthesize_medicine.dm)
 	var/datum/bot_step/move_to/to_master = new()
 	to_master.step_target = G.master
 	if(G.recipe["form"] == "syringe")

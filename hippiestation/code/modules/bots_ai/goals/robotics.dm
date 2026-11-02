@@ -142,13 +142,15 @@
 /// Metal for the arm, if the stores are short: a stack from the lab, fetched and fed to the fabricator.
 /datum/bot_step/stock_fabricator
 	var/fetched = FALSE
+	/// What it's for, if it isn't the medibot's arm (bot_collabs.dm).
+	var/limb_type
 
 /datum/bot_step/stock_fabricator/execute(datum/bot_brain/bot)
 	var/obj/machinery/mecha_part_fabricator/F = bot.current_goal?.target
 	if(!istype(F) || QDELETED(F))
 		return GOAL_STEP_FAIL
-	var/datum/design/D = bot.robot_arm_design(F)
-	if(!bot.medibot_needs_arm() || (D && F.check_resources(D)))
+	var/datum/design/D = limb_type ? bot.fabricator_design(F, limb_type) : bot.robot_arm_design(F)
+	if((!limb_type && !bot.medibot_needs_arm()) || (D && F.check_resources(D)))
 		return GOAL_STEP_SUCCESS
 	if(!D)
 		return GOAL_STEP_FAIL

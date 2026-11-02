@@ -887,6 +887,14 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 /datum/bot_goal/respond_to_call/on_success(datum/bot_brain/bot)
 	bot_log(bot, "arrived at [caller_name]'s call - looking around")
 	bot.next_wander_time = world.time + 100 //linger a bit instead of immediately wandering off
+	addtimer(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, report_on_call)), 8 SECONDS)
+
+/// A look round, and word to whoever called: they'd want to know.
+/datum/bot_brain/proc/report_on_call()
+	if(QDELETED(owner) || owner.stat != CONSCIOUS || state != BOT_STATE_WANDER)
+		return
+	bot_tally("checked in on a department")
+	bot_say(owner, pick(":s Nothing here now, [get_area_name(owner, TRUE)]'s clear.", ";[get_area_name(owner, TRUE)] looks clear from here. Call again if they come back."))
 
 // ============================================================
 // Brig
