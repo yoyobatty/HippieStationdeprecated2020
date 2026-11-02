@@ -34,6 +34,20 @@
   overflow-y: hidden;
   margin-bottom: -6px;
 
+  // The same on Chromium, which ignores all of the below
+  &::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 5px;
+  }
+
   // Fancy scrollbar
   scrollbar-base-color: color.scale(
     base.$color-bg,

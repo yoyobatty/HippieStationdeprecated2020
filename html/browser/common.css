@@ -8,6 +8,22 @@ body
 	line-height: 170%;
 }
 
+::-webkit-scrollbar
+{
+	width: 10px;
+}
+
+::-webkit-scrollbar-track
+{
+	background: #202020;
+}
+
+::-webkit-scrollbar-thumb
+{
+	background: #40628a;
+	border-radius: 5px;
+}
+
 hr
 {
 	background-color: #40628a;

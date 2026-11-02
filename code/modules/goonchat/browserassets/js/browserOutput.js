@@ -34,7 +34,7 @@ var opts = {
 	'wasd': false, //Is the user in wasd mode?
 	'priorChatHeight': 0, //Thing for height-resizing detection
 	'restarting': false, //Is the round restarting?
-	'darkmode':false, //Are we using darkmode? If not WHY ARE YOU LIVING IN 2009???
+	'darkmode':true, //Are we using darkmode? If not WHY ARE YOU LIVING IN 2009???
 
 	//Options menu
 	'selectedSubLoop': null, //Contains the interval loop for closing the selected sub menu
@@ -436,6 +436,10 @@ function internalOutput(message, flag)
 
 //Runs a route within byond, client or server side. Consider this "ehjax" for byond.
 function runByond(uri) {
+	if (window.chrome && window.chrome.webview) { //516: a direct line to the client, and no navigating (see tgui-main.html)
+		window.chrome.webview.postMessage(uri.charAt(0) == '?' ? 'byond://' + uri : uri);
+		return;
+	}
 	window.location = uri;
 }
 
@@ -744,7 +748,7 @@ $(function() {
 		$("body").css('line-height', savedConfig.lineheight);
 		internalOutput('<span class="internal boldnshit">Loaded line height setting of: '+savedConfig.lineheight+'</span>', 'internal');
 	}
-	if(savedConfig.sdarkmode == 'true'){
+	if(savedConfig.sdarkmode == 'false'){ //dark from the start, the same as the skin around it
 		swap();
 	}
 	if (savedConfig.spingDisabled) {

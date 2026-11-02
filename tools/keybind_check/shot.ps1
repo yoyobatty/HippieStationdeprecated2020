@@ -11,6 +11,37 @@ public class WindowShot {
 	[DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr dc, uint flags);
 	[DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
 	[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int how);
+	[DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
+	public delegate bool EnumProc(IntPtr h, IntPtr p);
+	[DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr h, EnumProc f, IntPtr p);
+	[DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetClassName(IntPtr h, System.Text.StringBuilder s, int n);
+	[DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc f, IntPtr p);
+	[DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+	[DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+	// A popup of this DreamSeeker: its own picture, whatever's on top of it on the desktop.
+	public static IntPtr FindPopup(int pid, IntPtr main) {
+		IntPtr found = IntPtr.Zero; int area = 0;
+		EnumWindows(delegate(IntPtr h, IntPtr p) {
+			uint owner; GetWindowThreadProcessId(h, out owner);
+			RECT r; GetWindowRect(h, out r);
+			int w = r.r - r.l, ht = r.b - r.t;
+			if (owner == pid && h != main && IsWindowVisible(h) && w > 300 && w < 900 && ht > 300 && w * ht > area) { area = w * ht; found = h; }
+			return true;
+		}, IntPtr.Zero);
+		return found;
+	}
+	// The map is the biggest "Static" child (posted mouse messages only register on that one).
+	public static IntPtr FindMap(IntPtr main) {
+		IntPtr best = IntPtr.Zero; int area = 0;
+		EnumChildWindows(main, delegate(IntPtr h, IntPtr p) {
+			var s = new System.Text.StringBuilder(64); GetClassName(h, s, 64);
+			RECT r; GetWindowRect(h, out r);
+			int a = (r.r - r.l) * (r.b - r.t);
+			if (s.ToString() == "Static" && a > area) { area = a; best = h; }
+			return true;
+		}, IntPtr.Zero);
+		return best;
+	}
 }
 "@
 $data = Join-Path (Get-Location) "data"
@@ -23,6 +54,15 @@ if (-not $p) { Say "no DreamSeeker window"; exit 1 }
 $h = $p.MainWindowHandle
 $deadline = (Get-Date).AddMinutes(3)
 while ((Get-Date) -lt $deadline -and -not (Test-Path "$data\keycheck_shots_done")) {
+	if (Test-Path "$data\keycheck_hover") { # window_check.dm: the mouse over the map, a few places, nothing global
+		Remove-Item "$data\keycheck_hover"
+		$map = [WindowShot]::FindMap($h)
+		foreach ($spot in @(@(400, 300), @(420, 320), @(300, 450), @(320, 470))) {
+			$lp = [IntPtr](($spot[1] -shl 16) -bor $spot[0])
+			[WindowShot]::PostMessage($map, 0x200, [IntPtr]::Zero, $lp) | Out-Null
+			Start-Sleep -Milliseconds 300
+		}
+	}
 	if (Test-Path "$data\keycheck_shot") {
 		Start-Sleep -Milliseconds 100
 		$name = ([IO.File]::ReadAllText("$data\keycheck_shot")).Trim()
@@ -32,10 +72,25 @@ while ((Get-Date) -lt $deadline -and -not (Test-Path "$data\keycheck_shots_done"
 		}
 		$r = New-Object WindowShot+RECT
 		[WindowShot]::GetWindowRect($h, [ref]$r) | Out-Null
+		if ($name -like "screen_*") { # a popup: the screen, it being on top
+			$shot = New-Object Drawing.Bitmap 2560, 1440
+			$g = [Drawing.Graphics]::FromImage($shot)
+			$g.CopyFromScreen(0, 0, 0, 0, $shot.Size)
+			$g.Dispose()
+			$shot.Save("$data\previews\$name.png", [Drawing.Imaging.ImageFormat]::Png)
+			$shot.Dispose()
+			Remove-Item "$data\keycheck_shot"
+			continue
+		}
+		$shoot = $h
+		if ($name -like "popup_*") {
+			$shoot = [WindowShot]::FindPopup($p.Id, $h)
+			[WindowShot]::GetWindowRect($shoot, [ref]$r) | Out-Null
+		}
 		$bitmap = New-Object Drawing.Bitmap ($r.r - $r.l), ($r.b - $r.t)
 		$g = [Drawing.Graphics]::FromImage($bitmap)
 		$dc = $g.GetHdc()
-		$done = [WindowShot]::PrintWindow($h, $dc, 2)
+		$done = [WindowShot]::PrintWindow($shoot, $dc, 2)
 		$g.ReleaseHdc($dc)
 		$g.Dispose()
 		$bitmap.Save("$data\previews\$name.png", [Drawing.Imaging.ImageFormat]::Png)

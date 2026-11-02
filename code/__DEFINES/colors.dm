@@ -1,7 +1,7 @@
 // This is eventually for wjohn to add more color standardization stuff like I keep asking him >:(
 
-#define COLOR_INPUT_DISABLED "#F0F0F0"
-#define COLOR_INPUT_ENABLED "#D3B5B5"
+#define COLOR_INPUT_DISABLED "#202020" // hippie -- on the dark skin, in place of "#F0F0F0"
+#define COLOR_INPUT_ENABLED "#4A2F35" // hippie -- on the dark skin, in place of "#D3B5B5"
 
 #define COLOR_DARKMODE_BACKGROUND "#202020"
 #define COLOR_DARKMODE_DARKBACKGROUND "#171717"

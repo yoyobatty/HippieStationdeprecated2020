@@ -89,6 +89,7 @@ import { Pool } from './interfaces/Pool';
 import { ScrubberPack } from './interfaces/ScrubberPack';
 import { MasterMultitool } from './interfaces/MasterMultitool';
 import { Orbit } from './interfaces/Orbit';
+import { DisplaySettings } from './interfaces/DisplaySettings';
 // hippie end
 
 const ROUTES = {
@@ -453,6 +454,10 @@ const ROUTES = {
   },
   pool_controller: {
     component: () => Pool,
+    scrollable: false,
+  },
+  display_settings: {
+    component: () => DisplaySettings,
     scrollable: false,
   },
   scrubber_pack: {

@@ -380,6 +380,8 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 		else
 			winset(src, "infowindow.changelog", "font-style=bold")
 
+	set_fullscreen() // hippie
+
 	if(ckey in GLOB.clientmessages)
 		for(var/message in GLOB.clientmessages[ckey])
 			to_chat(src, message)
@@ -893,7 +895,7 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 		var/mob/living/M = mob
 		M.update_damage_hud()
 	if (prefs.auto_fit_viewport)
-		addtimer(CALLBACK(src,VERB_REF(fit_viewport),10)) //Delayed to avoid wingets from Login calls.
+		addtimer(CALLBACK(src, VERB_REF(fit_viewport)), 1 SECONDS) //Delayed to avoid wingets from Login calls. // hippie -- the 10 was going to the verb, not the timer
 
 /client/proc/generate_clickcatcher()
 	if(!void)

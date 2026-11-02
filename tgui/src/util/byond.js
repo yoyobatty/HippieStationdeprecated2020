@@ -9,10 +9,20 @@ export const href = (url, params = {}) => {
       .join('&');
 };
 
+// Sends a byond:// url to the client. window.__sendToByond__ is in tgui-main.html,
+// which says why it isn't a navigation. tgui-fallback.html, for IE8, has no such thing.
+const go = url => {
+  if (window.__sendToByond__) {
+    window.__sendToByond__(url);
+    return;
+  }
+  window.location.href = url;
+};
+
 // Helper to make a BYOND ui_act() call on the UI 'src' given an 'action'
 // and optional 'params'.
 export const act = (src, action, params = {}) => {
-  window.location.href = href('', Object.assign({ src, action }, params))
+  go(href('', Object.assign({ src, action }, params)));
 };
 
 /**
@@ -30,9 +40,9 @@ export const callByond = (url, params = {}) => {
     window.byondCallbacks.push(resolve);
   });
   // Call BYOND client
-  window.location.href = href(url || '', Object.assign({}, params, {
+  go(href(url || '', Object.assign({}, params, {
     callback: `byondCallbacks[${callbackIndex}]`,
-  }));
+  })));
   // Return promise (awaitable)
   return promise;
 };
@@ -64,7 +74,7 @@ export const winget = (win, key) => {
 
 // Helper to make a BYOND winset() call on 'window', setting 'key' to 'value'
 export const winset = (win, key, value) => {
-  window.location.href = href('winset', {
+  go(href('winset', {
     [`${win}.${key}`]: value,
-  });
+  }));
 };

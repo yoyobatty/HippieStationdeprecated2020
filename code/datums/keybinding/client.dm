@@ -24,6 +24,16 @@
 	winset(user, null, "command=.screenshot [!user.keys_held["shift"] ? "auto" : ""]")
 	return TRUE
 
+/datum/keybinding/client/toggle_fullscreen // hippie
+	hotkey_keys = list("F11")
+	name = "toggle_fullscreen"
+	full_name = "Toggle Fullscreen"
+	description = "Fill the whole screen with the game, with no title bar."
+
+/datum/keybinding/client/toggle_fullscreen/down(client/user)
+	user.toggle_fullscreen()
+	return TRUE
+
 /datum/keybinding/client/minimal_hud
 	hotkey_keys = list("F12")
 	name = "minimal_hud"

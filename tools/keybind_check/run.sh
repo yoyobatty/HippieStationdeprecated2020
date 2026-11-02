@@ -15,7 +15,7 @@ if tasklist 2>/dev/null | grep -qi dreamseeker; then
 fi
 
 mkdir -p data
-rm -f data/keycheck.txt data/keycheck_sendkeys data/keycheck_keys_sent data/keycheck_focus_away data/keycheck_focus_gone data/keycheck_focus_back data/keycheck_alttab data/keycheck_alttab_done data/keycheck_alttab_back data/keycheck_phase data/keycheck_probe_ok data/keycheck_mouse_steps
+rm -f data/keycheck_shots_done data/keycheck.txt data/keycheck_sendkeys data/keycheck_keys_sent data/keycheck_focus_away data/keycheck_focus_gone data/keycheck_focus_back data/keycheck_alttab data/keycheck_alttab_done data/keycheck_alttab_back data/keycheck_phase data/keycheck_probe_ok data/keycheck_mouse_steps
 BEFORE=$(find data/player_saves -name preferences.sav -exec md5sum {} + 2>/dev/null | sort)
 
 echo "Building..."
