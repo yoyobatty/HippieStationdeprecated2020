@@ -184,7 +184,7 @@
 			var/datum/antagonist/rev/head/converter = user.mind.has_antag_datum(/datum/antagonist/rev/head)
 			if(!converter)
 				return
-			if(!H.client)
+			if(!H.client && !H.is_bot_crew()) //hippie edit -- a bot's as good as anybody
 				to_chat(user, "<span class='warning'>This mind is so vacant that it is not susceptible to influence!</span>")
 				return
 			if(H.stat != CONSCIOUS)

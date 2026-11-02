@@ -84,6 +84,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	var/length
 	/// Booted with bot-round: a whole round, over when the crew has left. `length` is then the limit.
 	var/whole_round = FALSE
+	/// The bots bot-antags made head revolutionaries.
+	var/list/revolutionaries = list()
 	/// The bots bot-antags made changelings.
 	var/list/changelings = list()
 	/// The bots bot-antags made traitors.
@@ -409,6 +411,10 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	for(var/entry in splittext("[world.params[BOT_ANTAGS_PARAMETER]]", ","))
 		var/list/parts = splittext(entry, "*")
 		var/count = length(parts) > 1 ? text2num(parts[2]) : 1
+		if(parts[1] == "rev")
+			for(var/mob/living/carbon/human/H as anything in bot_start_revolution(count))
+				revolutionaries += H
+				note("[H.real_name] ([H.mind.assigned_role]) is a head revolutionary")
 		if(parts[1] == "changeling")
 			for(var/mob/living/carbon/human/H as anything in bot_make_changelings(count))
 				changelings += H
@@ -1364,6 +1370,25 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 
 /datum/bot_shift_check/counted/toxins/progress()
 	return "[count()] launched, [SSresearch.science_tech.largest_bomb_value] points from the doppler"
+
+/datum/bot_shift_check/counted/revolution
+	name = "revolution: somebody flashed over"
+	counter = "recruited"
+	deadline = 40 MINUTES
+
+/datum/bot_shift_check/counted/revolution/New()
+	. = ..()
+	jobs = get_all_jobs()
+
+/datum/bot_shift_check/counted/revolution/outcome()
+	return length(shift.revolutionaries) ? ..() : "SKIP"
+
+/datum/bot_shift_check/counted/revolution/progress()
+	var/heads = 0
+	for(var/datum/mind/M as anything in SSjob.get_all_heads())
+		if(M.current && M.current.stat != DEAD)
+			heads++
+	return "[count()] brought over, [heads] heads of staff left standing"
 
 /datum/bot_shift_check/counted/changelings
 	name = "changelings: somebody absorbed"

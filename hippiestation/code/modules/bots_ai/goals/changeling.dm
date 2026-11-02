@@ -44,7 +44,7 @@
 	is_changeling = TRUE
 
 /datum/bot_brain/proc/ling_datum()
-	return owner.mind?.has_antag_datum(/datum/antagonist/changeling)
+	return owner.mind?.has_antag_datum(/datum/antagonist/changeling) || null
 
 /datum/bot_brain/proc/ling_power(power_type)
 	var/datum/antagonist/changeling/ling = ling_datum()

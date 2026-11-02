@@ -3366,6 +3366,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\repair_damage.dm"
 #include "hippiestation\code\modules\bots_ai\goals\respond_to_contamination.dm"
 #include "hippiestation\code\modules\bots_ai\goals\respond_to_fire.dm"
+#include "hippiestation\code\modules\bots_ai\goals\revolution.dm"
 #include "hippiestation\code\modules\bots_ai\goals\rnd_bench.dm"
 #include "hippiestation\code\modules\bots_ai\goals\robotics.dm"
 #include "hippiestation\code\modules\bots_ai\goals\science.dm"

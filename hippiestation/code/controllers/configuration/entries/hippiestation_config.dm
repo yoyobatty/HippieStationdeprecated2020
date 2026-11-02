@@ -56,6 +56,10 @@
 	config_entry_value = 0
 	min_val = 0
 
+/datum/config_entry/number/bot_crew_revolutionaries	// how many of the bot crew start a revolution, as head revolutionaries
+	config_entry_value = 0
+	min_val = 0
+
 /datum/config_entry/number/bot_chaos	// how much trouble the bot crew gets up to: 0 none, 1 a normal round, 2 mayhem (bots_ai/bot_chaos.dm)
 	config_entry_value = 1
 	min_val = 0
