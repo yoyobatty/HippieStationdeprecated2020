@@ -3359,6 +3359,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\mining.dm"
 #include "hippiestation\code\modules\bots_ai\goals\nanites.dm"
 #include "hippiestation\code\modules\bots_ai\goals\orders.dm"
+#include "hippiestation\code\modules\bots_ai\goals\rad_storm.dm"
 #include "hippiestation\code\modules\bots_ai\goals\refill_internals.dm"
 #include "hippiestation\code\modules\bots_ai\goals\repair_cables.dm"
 #include "hippiestation\code\modules\bots_ai\goals\repair_damage.dm"

@@ -271,6 +271,29 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 			B.set_playstyle(BOT_STYLE_HOPPER)
 			B.competence = 1
 
+/// A radiation storm, and a count half a minute after it hits and again at the end of it.
+/datum/bot_shift/proc/rad_drill()
+	SSweather.run_weather(/datum/weather/rad_storm)
+	addtimer(CALLBACK(src, PROC_REF(rad_count)), 70 SECONDS)
+	addtimer(CALLBACK(src, PROC_REF(rad_count)), 160 SECONDS)
+
+/datum/bot_shift/proc/rad_count()
+	var/out = 0
+	var/in_shelter = 0
+	var/rads = 0
+	var/list/caught = list()
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		if(B.owner.stat == DEAD || !is_station_level(B.owner.z))
+			continue
+		rads += B.owner.radiation
+		var/area/A = get_area(B.owner)
+		if(is_type_in_list(A, list(/area/maintenance, /area/storage/emergency, /area/shuttle)))
+			in_shelter++
+		else
+			out++
+			caught += "[B.owner.real_name] in [A.name] ([B.current_goal ? B.current_goal.type : "no goal"])"
+	log_game("RAD DRILL: [in_shelter] sheltered, [out] out in it, [rads] rads between them: [english_list(caught)]")
+
 /// An assistant turns up in the Brig with no way out, the same as a prisoner let out of a cell.
 /datum/bot_shift/proc/stuck_drill()
 	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
@@ -300,6 +323,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		addtimer(CALLBACK(src, PROC_REF(hop_drill)), 2 MINUTES)
 	if(world.params["stuck-drill"])
 		addtimer(CALLBACK(src, PROC_REF(stuck_drill)), 3 MINUTES)
+	if(world.params["rad-drill"])
+		addtimer(CALLBACK(src, PROC_REF(rad_drill)), 4 MINUTES)
 	if(world.params["ttv-bench"])
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(run_ttv_bench)), 5 SECONDS)
 	if(world.params["engine-test"])
