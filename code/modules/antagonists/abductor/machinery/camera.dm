@@ -56,7 +56,7 @@
 		actions += set_droppoint_action
 
 /obj/machinery/computer/camera_advanced/abductor/proc/IsScientist(mob/living/carbon/human/H)
-	return HAS_TRAIT(H, TRAIT_ABDUCTOR_SCIENTIST_TRAINING)
+	return HAS_TRAIT(H, TRAIT_ABDUCTOR_SCIENTIST_TRAINING) || (H.mind && HAS_TRAIT(H.mind, TRAIT_ABDUCTOR_SCIENTIST_TRAINING)) //hippie edit -- the antag datum puts it on the mind
 
 /datum/action/innate/teleport_in
 	name = "Send To"

@@ -32,6 +32,7 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /obj/effect/turf_decal
+	anchored = TRUE //hippie edit -- or a crate mapped on top swallows it before it's made it onto the turf
 	icon = 'icons/turf/decals.dmi'
 	icon_state = "warningline"
 	layer = TURF_DECAL_LAYER

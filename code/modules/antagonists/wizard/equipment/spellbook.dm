@@ -606,8 +606,8 @@
 			to_chat(user, "<span class='warning'>The contract has been used, you can't get your points back now!</span>")
 		else
 			to_chat(user, "<span class='notice'>You feed the contract back into the spellbook, refunding your points.</span>")
-			uses++
 			for(var/datum/spellbook_entry/item/contract/CT in entries)
+				uses += CT.cost //hippie edit -- it was uses++, for something that costs 2
 				if(!isnull(CT.limit))
 					CT.limit++
 			qdel(O)

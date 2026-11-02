@@ -227,7 +227,7 @@
 		return FALSE
 	if((world.time - C.timeofdeath) > 1800) //too late
 		return FALSE
-	if((C.getBruteLoss() >= MAX_REVIVE_BRUTE_DAMAGE) || (C.getFireLoss() >= MAX_REVIVE_FIRE_DAMAGE) || !C.can_be_revived()) //too damaged
+	if((C.getBruteLoss() >= MAX_REVIVE_BRUTE_DAMAGE) || (C.getFireLoss() >= MAX_REVIVE_FIRE_DAMAGE)) //too damaged
 		return FALSE
 	if(!C.getorgan(/obj/item/organ/heart)) //what are we even shocking
 		return FALSE
@@ -245,6 +245,22 @@
 	playsound(C, 'sound/machines/defib_zap.ogg', 50, 0)
 	if(check_revivable())
 		playsound(C, 'sound/machines/defib_success.ogg', 50, 0)
+		// hippie edit -- what the paddles do (defib.dm): revive() turns down anybody past the dead threshold, so anybody damage killed never came back
+		var/revive_at = (HEALTH_THRESHOLD_CRIT + HEALTH_THRESHOLD_DEAD) * 0.5
+		if(C.health > revive_at)
+			C.adjustOxyLoss(C.health - revive_at, 0)
+		else
+			var/brute = C.getBruteLoss()
+			var/burn = C.getFireLoss()
+			var/tox = C.getToxLoss()
+			var/oxy = C.getOxyLoss()
+			var/overall_damage = brute + burn + tox + oxy
+			var/excess = C.health - revive_at
+			C.adjustOxyLoss(excess * (oxy / overall_damage), 0)
+			C.adjustToxLoss(excess * (tox / overall_damage), 0)
+			C.adjustFireLoss(excess * (burn / overall_damage), 0)
+			C.adjustBruteLoss(excess * (brute / overall_damage), 0)
+		C.updatehealth()
 		C.set_heartattack(FALSE)
 		C.revive()
 		C.emote("gasp")

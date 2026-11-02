@@ -182,13 +182,13 @@
 	var/beakerContents[0]
 	if(beaker)
 		for(var/datum/reagent/R in beaker.reagents.reagent_list)
-			beakerContents.Add(list(list("name" = R.name, "id" = ckey(R.name), "volume" = R.volume))) // list in a list because Byond merges the first list...
+			beakerContents.Add(list(list("name" = R.name, "id" = "[R.type]", "volume" = R.volume))) // list in a list because Byond merges the first list...
 	data["beakerContents"] = beakerContents
 
 	var/bufferContents[0]
 	if(reagents.total_volume)
 		for(var/datum/reagent/N in reagents.reagent_list)
-			bufferContents.Add(list(list("name" = N.name, "id" = ckey(N.name), "volume" = N.volume))) // ^
+			bufferContents.Add(list(list("name" = N.name, "id" = "[N.type]", "volume" = N.volume))) // ^
 	data["bufferContents"] = bufferContents
 
 	//Calculated at init time as it never changes
@@ -214,7 +214,7 @@
 	if(action == "transfer")
 		if(!beaker)
 			return FALSE
-		var/reagent = GLOB.name2reagent[params["id"]]
+		var/reagent = text2path(params["id"]) //hippie edit -- two reagents can share a name
 		var/amount = text2num(params["amount"])
 		var/to_container = params["to"]
 		// Custom amount
@@ -358,8 +358,8 @@
 		return FALSE
 
 	if(action == "analyze")
-		var/datum/reagent/R = GLOB.name2reagent[params["id"]]
-		if(R)
+		var/datum/reagent/R = text2path(params["id"]) //hippie edit -- two reagents can share a name
+		if(ispath(R, /datum/reagent))
 			var/state = "Unknown"
 			if(initial(R.reagent_state) == 1)
 				state = "Solid"

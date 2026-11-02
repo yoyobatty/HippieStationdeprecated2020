@@ -23,7 +23,7 @@
 
 /obj/item/organ/heart/gland/examine(mob/user)
 	. = ..()
-	if(HAS_TRAIT(user, TRAIT_ABDUCTOR_SCIENTIST_TRAINING) || isobserver(user))
+	if(HAS_TRAIT(user, TRAIT_ABDUCTOR_SCIENTIST_TRAINING) || (user.mind && HAS_TRAIT(user.mind, TRAIT_ABDUCTOR_SCIENTIST_TRAINING)) || isobserver(user)) //hippie edit -- the antag datum puts it on the mind
 		. += "<span class='notice'>It is \a [true_name].</span>"
 
 /obj/item/organ/heart/gland/proc/ownerCheck()

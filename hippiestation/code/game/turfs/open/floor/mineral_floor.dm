@@ -44,7 +44,21 @@
 		ScrapeAway(flags = CHANGETURF_INHERIT_AIR)
 
 
+// A reaction can move what it touches: bluespace dust teleports you, onto the next tile of the same floor, and that was the server gone.
+// So one at a time, station wide, whatever a reaction sets off in the meantime goes without.
 /turf/open/floor/mineral/reagent/proc/reagent_act(atom/A)
+	var/static/reacting = FALSE
+	if(reacting)
+		return
+	reacting = TRUE
+	try
+		apply_reagent(A)
+	catch(var/exception/e)
+		reacting = FALSE
+		throw e
+	reacting = FALSE
+
+/turf/open/floor/mineral/reagent/proc/apply_reagent(atom/A)
 	if(reagent_type)
 		reagent_type.reaction_turf(src, TOUCH, 3)
 		if(prob(90))
@@ -74,7 +88,7 @@
 
 /turf/open/floor/mineral/reagent/Entered(atom/AM)
 	.=..()
-	if(!.)
+	if(!. && !iseffect(AM)) //sparks from the last reaction aren't to set off the next
 		reagent_act(AM)
 
 /turf/open/floor/mineral/reagent/attackby(obj/item/I, mob/user, params)

@@ -3392,6 +3392,7 @@
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_civilians.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_cook.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_depts.dm"
+#include "hippiestation\code\modules\bots_ai\gym\scenarios_bugs.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_doors.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_duties.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_engineering.dm"

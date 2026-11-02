@@ -572,13 +572,16 @@ hippie end */
 
 /datum/reagents/proc/update_total()
 	var/list/cached_reagents = reagent_list
+	var/list/spent //hippie edit -- deleted after the loop: del_reagent() totals up again itself, and what was left of this loop then counted twice
 	total_volume = 0
 	for(var/reagent in cached_reagents)
 		var/datum/reagent/R = reagent
-		if(R.volume < 0.1)
-			del_reagent(R.type)
+		if(!(R.volume >= 0.1)) //hippie edit -- written this way round so it catches NaN, which is less than nothing and more than nothing
+			LAZYADD(spent, R)
 		else
 			total_volume += R.volume
+	for(var/datum/reagent/R as anything in spent)
+		del_reagent(R.type)
 
 	return 0
 
