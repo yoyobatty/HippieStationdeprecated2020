@@ -128,6 +128,9 @@ GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 			var/traitors = CONFIG_GET(number/bot_crew_traitors)
 			if(traitors)
 				bot_make_traitors(traitors) //goals/traitor.dm
+			var/changelings = CONFIG_GET(number/bot_crew_changelings)
+			if(changelings)
+				bot_make_changelings(changelings) //goals/changeling.dm
 		// Nobody new signs on once the evacuation shuttle is on its way.
 		if(EMERGENCY_IDLE_OR_RECALLED)
 			if(target - player_count() - joined > 0) //an admin raised the target

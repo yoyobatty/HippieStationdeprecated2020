@@ -132,6 +132,8 @@
 		return PROCESS_KILL
 	if(world.time >= next_forget_time)
 		forget_deleted()
+	if(is_changeling)
+		mind_stasis() //goals/changeling.dm - before anything that gives up on a body that's stopped moving
 	if(gym_scripted && state == BOT_STATE_WANDER)
 		// Bot Gym bot between goals - it only does what its scenario asks (gym/bot_gym.dm). It still sees to its
 		// own tank's valve, the way it still breathes, and puts itself out: those aren't errands (goals/refill_internals.dm).

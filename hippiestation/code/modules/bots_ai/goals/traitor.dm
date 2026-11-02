@@ -54,8 +54,8 @@
 
 /datum/bot_brain/proc/objective_list()
 	. = list()
-	var/datum/antagonist/traitor/T = owner.mind?.has_antag_datum(/datum/antagonist/traitor)
-	for(var/datum/objective/O as anything in T?.objectives)
+	var/datum/antagonist/A = owner.mind?.has_antag_datum(/datum/antagonist/traitor) || ling_datum()
+	for(var/datum/objective/O as anything in A?.objectives)
 		. += O.explanation_text
 
 /// Whether there's nothing left to do on an objective. The game's own check_completion() won't do for a target: it counts

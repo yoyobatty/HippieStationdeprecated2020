@@ -84,6 +84,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	var/length
 	/// Booted with bot-round: a whole round, over when the crew has left. `length` is then the limit.
 	var/whole_round = FALSE
+	/// The bots bot-antags made changelings.
+	var/list/changelings = list()
 	/// The bots bot-antags made traitors.
 	var/list/mob/living/carbon/human/traitors = list()
 	/// station_power_text() every five minutes.
@@ -406,9 +408,14 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 /datum/bot_shift/proc/make_antagonists()
 	for(var/entry in splittext("[world.params[BOT_ANTAGS_PARAMETER]]", ","))
 		var/list/parts = splittext(entry, "*")
+		var/count = length(parts) > 1 ? text2num(parts[2]) : 1
+		if(parts[1] == "changeling")
+			for(var/mob/living/carbon/human/H as anything in bot_make_changelings(count))
+				changelings += H
+				note("[H.real_name] ([H.mind.assigned_role]) is a changeling: [jointext(H.bot_brain.objective_list(), "; ")]")
 		if(parts[1] != "traitor")
 			continue
-		for(var/mob/living/carbon/human/H as anything in bot_make_traitors(length(parts) > 1 ? text2num(parts[2]) : 1))
+		for(var/mob/living/carbon/human/H as anything in bot_make_traitors(count))
 			traitors += H
 			note("[H.real_name] ([H.mind.assigned_role]) is a traitor: [jointext(H.bot_brain.objective_list(), "; ")]")
 
@@ -1357,6 +1364,21 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 
 /datum/bot_shift_check/counted/toxins/progress()
 	return "[count()] launched, [SSresearch.science_tech.largest_bomb_value] points from the doppler"
+
+/datum/bot_shift_check/counted/changelings
+	name = "changelings: somebody absorbed"
+	counter = "absorbed"
+	deadline = 45 MINUTES
+
+/datum/bot_shift_check/counted/changelings/New()
+	. = ..()
+	jobs = get_all_jobs()
+
+/datum/bot_shift_check/counted/changelings/outcome()
+	return length(shift.changelings) ? ..() : "SKIP"
+
+/datum/bot_shift_check/counted/changelings/progress()
+	return "[count()] absorbed by [length(shift.changelings)]"
 
 /datum/bot_shift_check/counted/slimes
 	name = "science: slimes tended"

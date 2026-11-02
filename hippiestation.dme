@@ -3344,6 +3344,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\call_shuttle.dm"
 #include "hippiestation\code\modules\bots_ai\goals\chem_lab.dm"
 #include "hippiestation\code\modules\bots_ai\goals\cargo.dm"
+#include "hippiestation\code\modules\bots_ai\goals\changeling.dm"
 #include "hippiestation\code\modules\bots_ai\goals\check_alert_console.dm"
 #include "hippiestation\code\modules\bots_ai\goals\civilians.dm"
 #include "hippiestation\code\modules\bots_ai\goals\cook.dm"
