@@ -57,6 +57,37 @@
 
 /// What's plumbed to each heater and freezer in the lab, for working out where a pump can reach the hot gas.
 /proc/ttv_bench_plumbing()
+	// Which ports share a pipe, in the lab, and what's between them: what a burn can be plumbed from.
+	for(var/obj/machinery/atmospherics/components/trinary/mixer/M in GLOB.machines)
+		var/area/A = get_area(M)
+		if(!istype(A, /area/science))
+			continue
+		var/list/sides = list()
+		for(var/i in 1 to 3)
+			var/datum/pipeline/P = M.parents[i]
+			var/list/ports = list()
+			for(var/obj/machinery/atmospherics/components/unary/portables_connector/C in M.nodes[i] ? list(M.nodes[i]) : list())
+				ports += "[C.x],[C.y]"
+			if(P)
+				for(var/obj/machinery/atmospherics/components/unary/portables_connector/C in P.other_atmosmch)
+					ports |= "[C.x],[C.y]"
+			sides += "node[i]: [english_list(ports, "none")]"
+		log_world("TTV BENCH: mixer at [M.x],[M.y] dir [M.dir] flipped [M.flipped]: [jointext(sides, "; ")]")
+	var/list/lab_ports = list()
+	for(var/obj/machinery/atmospherics/components/unary/portables_connector/C in GLOB.machines)
+		if(istype(get_area(C), /area/science))
+			lab_ports += "[C.x],[C.y] ([get_area_name(C, TRUE)])"
+	log_world("TTV BENCH: ports: [english_list(lab_ports, "none")]")
+	var/list/gear = list()
+	for(var/obj/machinery/portable_atmospherics/P in GLOB.machines)
+		if(istype(get_area(P), /area/science))
+			gear += "[P.name] [P.x],[P.y]"
+	log_world("TTV BENCH: portable: [english_list(gear, "none")]")
+	for(var/obj/machinery/mass_driver/D in GLOB.machines)
+		if(istype(get_area(D), /area/science))
+			log_world("TTV BENCH: driver [D.id] at [D.x],[D.y] dir [D.dir]")
+	for(var/obj/machinery/doppler_array/D in GLOB.machines)
+		log_world("TTV BENCH: doppler at [D.x],[D.y] dir [D.dir] in [get_area_name(D, TRUE)]")
 	for(var/obj/machinery/atmospherics/components/unary/thermomachine/M in GLOB.machines)
 		var/area/A = get_area(M)
 		if(!istype(A, /area/science))
@@ -70,6 +101,31 @@
 				ports += "[C.x],[C.y]"
 		log_world("TTV BENCH: [M] at [M.x],[M.y] in [A]: max [M.max_temperature] min [M.min_temperature] on [M.on], ports [english_list(ports, "none")]")
 
+/// The players' guide burns 2 parts plasma to 1 of oxygen and pulls it off at 6000-7000 C, which leaves oxygen in it and it goes on
+/// burning. A leaner mix burns all its oxygen and stops by itself, hot, and what's left is mostly plasma.
+/datum/ttv_bench/proc/guide_recipe()
+	for(var/share in list(20, 30, 40, 60, 100))
+		var/datum/gas_mixture/burn = new(2500 * 9)
+		burn.temperature = 500
+		var/total = 2000 * burn.volume / (R_IDEAL_GAS_EQUATION * burn.temperature)
+		burn.moles[/datum/gas/plasma] = total * share / (share + 1)
+		burn.moles[/datum/gas/oxygen] = total / (share + 1)
+		for(var/i in 1 to 600)
+			burn.react()
+		var/list/left = list()
+		var/sum = 0
+		for(var/gas in burn.moles)
+			if(burn.moles[gas] > 0.01)
+				left[gas] = burn.moles[gas]
+				sum += burn.moles[gas]
+		var/list/names = list()
+		for(var/gas in left)
+			var/datum/gas/G = gas
+			names += "[initial(G.name)] [round(100 * left[gas] / sum)]%"
+		log_world("TTV BENCH: [share] to 1 burned out at [round(burn.temperature)] K, [round(burn.return_pressure())] kPa: [english_list(names)]")
+		for(var/hot_kpa in list(1013, 2500))
+			fire("[share] to 1 burn, [hot_kpa] kPa at [round(burn.temperature)] K, oxygen 1100 kPa at 73 K", left, burn.temperature, hot_kpa, list(/datum/gas/oxygen = 1), 73, 1100)
+
 /proc/run_ttv_bench()
 	ttv_bench_plumbing()
 	if(world.params["ttv-bench"] == "plumbing")
@@ -78,6 +134,10 @@
 	var/datum/ttv_bench/bench = new
 	var/plasma = list(/datum/gas/plasma = 1)
 	var/oxygen = list(/datum/gas/oxygen = 1)
+	bench.guide_recipe()
+	if(world.params["ttv-bench"] == "guide")
+		log_world("TTV BENCH: done")
+		return
 	// Hot plasma on cold oxygen: the heater's limit for each tier of laser, and what the freezer gets down to.
 	for(var/hot_k in list(573, 853, 1133, 1413))
 		for(var/cold_k in list(73, 58, 43))

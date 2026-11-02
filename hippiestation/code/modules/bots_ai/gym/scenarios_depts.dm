@@ -1,0 +1,191 @@
+// Bot Gym scenarios for departments: bot_departments.dm. Whole rooms and whole rounds are a Bot Shift's business (BOT_CHAOS 1 and up): these
+// are the pieces a shift can't be relied on to turn up.
+
+/area/bot_gym
+	/// Whose this arena counts as (bot_department_of()).
+	var/department
+
+/// A blast door and its button, in a department.
+/datum/bot_scenario/duty/panel
+	duty_type = /datum/bot_duty/blast_doors
+	job = "Station Engineer"
+	time_limit = 60 SECONDS
+	max_goal_attempts = 60
+	layout = list(
+		"#########",
+		"#B.....b#",
+		"#.......#",
+		"####p####",
+		"#.......#",
+		"#########")
+	var/button_name = "Engineering Lockdown"
+	var/door_id
+	var/mob/living/carbon/human/threat
+
+/datum/bot_scenario/duty/panel/build_tile(turf/T, char)
+	switch(char)
+		if("p")
+			door_id = "bot_gym_panel_[REF(src)]"
+			var/obj/machinery/door/poddoor/preopen/D = new(T)
+			D.id = door_id
+			place(char, D)
+		if("b")
+			var/obj/machinery/button/door/B = new(T)
+			B.id = door_id
+			B.name = button_name
+			B.req_access = list()
+			B.req_one_access = list()
+			place(char, B)
+		else
+			return ..()
+
+/datum/bot_scenario/duty/panel/post_spawn()
+	..()
+	arena_area.department = "engineering"
+	var/obj/machinery/button/door/B = first_placed("b")
+	B.id = door_id
+	B.device = new /obj/item/assembly/control(B)
+	var/obj/item/assembly/control/C = B.device
+	C.id = door_id
+
+/datum/bot_scenario/duty/panel/proc/make_threat()
+	threat = stand_in(first_marker("."), "Grim Reaper")
+	var/datum/bot_wanted/W = new
+	W.severity = BOT_CRIME_MAJOR
+	W.crime = "Murder"
+	W.last_seen = get_turf(threat)
+	W.last_seen_at = world.time
+	GLOB.bot_security_wanted[WEAKREF(threat)] = W
+
+/datum/bot_scenario/duty/panel/release_run()
+	if(threat)
+		GLOB.bot_security_wanted -= WEAKREF(threat)
+	return ..()
+
+/datum/bot_scenario/duty/panel/lockdown
+	name = "dept: a threat in the department and the lockdown goes down, and comes up after"
+	desc = "Somebody dangerous reported in Engineering. A strict engineer drops the lockdown, and lifts it when they've gone."
+	time_limit = 120 SECONDS //doors aren't worked twice in a minute and a half
+	var/stage = 0
+
+/datum/bot_scenario/duty/panel/lockdown/post_spawn()
+	..()
+	brain.strictness = 0.9
+	make_threat()
+
+/datum/bot_scenario/duty/panel/lockdown/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/machinery/door/poddoor/D = first_placed("p")
+	if(!stage && D.density && !D.operating)
+		stage = 1
+		log_line("door's shut: the threat's over")
+		QDEL_NULL(threat)
+		return BOT_GYM_PENDING
+	return stage && !D.density && !D.operating ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/panel/easygoing
+	name = "dept: an easygoing bot leaves the lockdown alone"
+	desc = "The same threat, and somebody who can't be doing with it."
+	expect_success = FALSE
+	time_limit = 12 SECONDS
+
+/datum/bot_scenario/duty/panel/easygoing/post_spawn()
+	..()
+	brain.strictness = 0.1
+	brain.playstyle = BOT_STYLE_NORMAL
+	make_threat()
+
+/datum/bot_scenario/duty/panel/easygoing/check()
+	var/obj/machinery/door/poddoor/D = first_placed("p")
+	return D.density ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/set_door
+	name = "dept: a door bolted open, and put right again"
+	desc = "Science's easygoing staff bolt it open. Then somebody strict comes along, unbolts it and shuts it. Same panel, same tools."
+	layout = list(
+		"#########",
+		"#B..D...#",
+		"#########")
+	time_limit = 40 SECONDS
+	kit_backpack = list(/obj/item/screwdriver, /obj/item/multitool)
+	var/stage = 0
+
+/datum/bot_scenario/set_door/make_goal()
+	return new /datum/bot_goal/set_door(first_placed("D"), !stage)
+
+/datum/bot_scenario/set_door/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	if(!stage && A.locked && !A.density)
+		stage = 1
+		log_line("bolted open")
+		return BOT_GYM_PENDING
+	if(stage && !A.locked && !A.panel_open && A.density)
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/raid
+	name = "dept: a greytider hacks into a locked room for the gloves"
+	desc = "Insulated gloves on a table behind a door its ID doesn't open. It goes in anyway, comes out wearing them, and leaves the door bolted open behind it."
+	layout = list(
+		"#########",
+		"#B..D..y#",
+		"#########")
+	time_limit = 40 SECONDS
+	max_goal_attempts = 1
+	kit_backpack = list(/obj/item/screwdriver, /obj/item/multitool)
+
+/datum/bot_scenario/raid/build_tile(turf/T, char)
+	if(char == "y")
+		place(char, new /obj/item/clothing/gloves/color/yellow(T))
+		return
+	..()
+	if(char == "D")
+		var/obj/machinery/door/airlock/A = first_placed("D")
+		A.req_access = list(ACCESS_ENGINE)
+
+/datum/bot_scenario/raid/post_spawn()
+	..()
+	brain.greytider = TRUE
+
+/datum/bot_scenario/raid/make_goal()
+	return new /datum/bot_goal/tide/raid(/obj/item/clothing/gloves/color/yellow)
+
+/datum/bot_scenario/raid/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!istype(bot.gloves, /obj/item/clothing/gloves/color/yellow))
+		return BOT_GYM_PENDING
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	if(!A.locked || A.density)
+		fail_reason = "the door isn't left open"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/griefed/charges
+	name = "dept: the charge goes by the room, and by how they got in"
+	desc = "Space Law: 109 anywhere, 209 at the engine, 309 on the Bridge, and 110, 210 and 310 for forcing the door."
+	layout = list(
+		"#######",
+		"#.BC..#",
+		"#######")
+	time_limit = 5 SECONDS
+
+/datum/bot_scenario/griefed/charges/check()
+	var/list/wrong = list()
+	if(bot_charge_code(bot_trespass_charge(new /area/hydroponics, FALSE)) != 109)
+		wrong += "hydroponics"
+	if(bot_charge_code(bot_trespass_charge(new /area/engine/engineering, FALSE)) != 209)
+		wrong += "engineering"
+	if(bot_charge_code(bot_trespass_charge(new /area/bridge, FALSE)) != 309)
+		wrong += "the bridge"
+	if(bot_charge_code(bot_trespass_charge(new /area/engine/engineering, TRUE)) != 210)
+		wrong += "breaking into engineering"
+	if(bot_charge_code(bot_trespass_charge(new /area/bridge, TRUE)) != 310)
+		wrong += "breaking into the bridge"
+	if(length(wrong))
+		fail_reason = english_list(wrong)
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

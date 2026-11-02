@@ -232,6 +232,27 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		spikes += "[name] [subsystem_spikes[name]]"
 	return "[round(total, 0.1)] ms a game second: [jointext(parts, ", ")]\nLoad spikes: [spike_seconds] seconds over half a tick[length(spikes) ? ", costliest then: [jointext(spikes, ", ")]" : ""]"
 
+/// A capital case on demand (bot_law.dm): somebody on the crew is put in front of an officer, wanted for murder. law-drill=permabrig or
+/// law-drill=injection says how it's to come out.
+/datum/bot_shift/proc/law_drill(drill)
+	var/datum/bot_brain/officer
+	for(var/datum/bot_brain/B as anything in GLOB.bot_security_brains)
+		if(B.owner.stat == CONSCIOUS)
+			officer = B
+			break
+	var/list/crew = list()
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		if(B.owner.stat == CONSCIOUS && !B.is_security_job() && !(B.owner.mind?.assigned_role in GLOB.command_positions))
+			crew += B
+	if(!officer || !length(crew))
+		log_game("BOT LAW: drill had nobody to run with")
+		return
+	var/datum/bot_brain/culprit = pick(crew)
+	GLOB.bot_law_drill_verdict = drill == "injection" ? BOT_VERDICT_INJECTION : BOT_VERDICT_PERMABRIG
+	culprit.owner.forceMove(get_turf(officer.owner))
+	officer.file_crime(culprit.owner, "Murder", "A drill.", BOT_CRIME_MURDER)
+	log_game("BOT LAW: drill, [culprit.owner.real_name] wanted for murder in front of [officer.owner.real_name]")
+
 /// Late-joins the crew, one at a time. An entry is a job title, optionally "*N" for several.
 /datum/bot_shift/proc/muster()
 	// Nobody's watching a shift, and lights nobody can see wait for somebody who can (lighting_source.dm): every shift
@@ -239,6 +260,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	addtimer(CALLBACK(src, PROC_REF(watch_a_bot)), 30 SECONDS)
 	if(world.params["griefer"])
 		GLOB.bot_griefer = new
+	if(world.params["law-drill"])
+		addtimer(CALLBACK(src, PROC_REF(law_drill), world.params["law-drill"]), 4 MINUTES)
 	if(world.params["ttv-bench"])
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(run_ttv_bench)), 5 SECONDS)
 	if(world.params["engine-test"])
@@ -458,7 +481,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		quiet_since = world.time //sitting down for a while is a choice, not a freeze - so is waiting for the shuttle (bot_duties.dm)
 		return
 	var/still = world.time - max(brain.telemetry_last_activity, quiet_since)
-	if(still >= BOT_SHIFT_IDLE_WARN && brain.is_in_active_cell(body))
+	if(still >= BOT_SHIFT_IDLE_WARN && (body.bot_life_sentence || brain.is_in_active_cell(body)))
 		quiet_since = world.time //doing its time: that's a choice too, if not its own
 		return
 	if(still > longest_still)
@@ -1247,6 +1270,14 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	counter = "nanites_injected"
 	needs_on_map = /obj/machinery/nanite_chamber
 
+/// The chamber takes two: somebody at the console, and a volunteer. One scientist on a crew is nothing to judge.
+/datum/bot_shift_check/counted/nanites/outcome()
+	var/scientists = 0
+	for(var/datum/bot_shift_member/member as anything in shift.members)
+		if(member.job in jobs)
+			scientists++
+	return scientists < 2 ? "SKIP" : ..()
+
 /datum/bot_shift_check/counted/nanites/progress()
 	return "[count()] injected, [count("nanite_programs_uploaded")] program\s on the cloud, [round(SSresearch.science_tech.research_points[TECHWEB_POINT_TYPE_NANITES])] nanite points banked"
 
@@ -1597,6 +1628,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	header += "Pathfinding: [pathfinding["searches"]] searches opened [pathfinding["turfs"]] turfs; [pathfinding["failed"]] found no route and opened [pathfinding["failed_turfs"]] of them.\n"
 	header += "Subsystems: [subsystem_text()]\n"
 	header += "Chaos: [GLOB.bot_chaos.report()]\n"
+	header += "Playstyles: [bot_playstyle_report()]\n"
 	if(GLOB.bot_griefer)
 		header += "Griefed: [GLOB.bot_griefer.report()]\n"
 	header += "Power: [jointext(power_curve, "; ")]\n"

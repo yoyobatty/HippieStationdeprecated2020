@@ -26,7 +26,18 @@
 // How long the accelerator is held back for a coil or rod nobody can get to (goals/setup_tesla_engine.dm)
 #define BOT_CAGE_PATIENCE (5 MINUTES)
 
-// How bad a crime is (goals/security_patrol.dm)
+// How bad a crime is (goals/security_patrol.dm). Murder and the capital crimes go to whoever's in charge (bot_law.dm).
 #define BOT_CRIME_MINOR 1
 #define BOT_CRIME_MAJOR 2
 #define BOT_CRIME_MURDER 3
+
+// What whoever's in charge rules for a capital charge (bot_law.dm)
+#define BOT_VERDICT_PERMABRIG "permabrig"
+#define BOT_VERDICT_INJECTION "lethal injection"
+
+// How a bot plays the round (bot_personality.dm)
+#define BOT_STYLE_NORMAL "normal"
+#define BOT_STYLE_POWERGAMER "powergamer"
+#define BOT_STYLE_HUNTER "antag hunter"
+#define BOT_STYLE_PARANOID "paranoid"
+#define BOT_STYLE_HOPPER "role-hopper"

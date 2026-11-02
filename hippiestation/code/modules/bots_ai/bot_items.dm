@@ -609,6 +609,8 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 // just skips needing to know the (possibly randomized) on-screen wire color/position,
 // since pulse() takes the wire constant directly. Welded doors have no wire fix.
 /datum/bot_brain/proc/try_hack_door(obj/machinery/door/D)
+	if(up_to_no_good())
+		owner.bot_broke_in_at = world.time //bot_departments.dm
 	if(D.welded)
 		bot_log(src, "[D] is welded shut - can't fix that")
 		return FALSE

@@ -295,7 +295,7 @@
 /datum/bot_scenario/griefed/robbed/check()
 	if(bot_lost())
 		return BOT_GYM_FAIL
-	return (brain.state == BOT_STATE_COMBAT && brain.attacker == griefer) ? BOT_GYM_PASS : BOT_GYM_PENDING
+	return bot_transcript_said("engaging") ? BOT_GYM_PASS : BOT_GYM_PENDING //a fight can be over by the next look at it: down's down
 
 // ---------------------------------------------------------------------------------------------
 // Fights
@@ -685,7 +685,7 @@
 /datum/bot_scenario/quarrel/check()
 	if(bot_lost())
 		return BOT_GYM_FAIL
-	return other.bot_brain.state == BOT_STATE_COMBAT ? BOT_GYM_PASS : BOT_GYM_PENDING
+	return GLOB.bot_chaos.tallies["lost their temper"] || other.bot_brain.state == BOT_STATE_COMBAT ? BOT_GYM_PASS : BOT_GYM_PENDING
 
 /datum/bot_scenario/riot
 	name = "chaos: the tide comes in when the call goes out"

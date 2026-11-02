@@ -66,6 +66,8 @@
 
 /// Lava and chasms are floor as far as the engine's route check goes. With a walkway or stepping stones over them, they are.
 /proc/bot_turf_is_deadly(turf/T)
+	if(GLOB.bot_open_trapdoors[T])
+		return TRUE
 	if(istype(T, /turf/open/lava))
 		var/turf/open/lava/L = T
 		return !L.is_safe()
@@ -73,6 +75,10 @@
 		var/datum/component/chasm/C = T.GetComponent(/datum/component/chasm)
 		return !C?.is_safe()
 	return FALSE
+
+/// Trapdoors standing open (hippiestation/code/game/machinery/trapdoors.dm). There's one in every cell on the Hippie map, and it opens when
+/// the timer stops: an officer walking in for a prisoner went down it, into the disposal pipes, and lost them.
+GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 
 /// Somebody sat in a chair fills their tile - there is no swapping places with them, and the engine's own route
 /// check doesn't look at mobs at all. A bot used to plan straight down a row of taken shuttle seats to the free

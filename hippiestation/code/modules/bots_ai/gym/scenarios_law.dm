@@ -1,0 +1,191 @@
+// Bot Gym scenarios for playstyles and Space Law: bot_personality.dm, bot_playstyles.dm, bot_law.dm. What a capital case comes to takes a
+// whole brig, so that's a Bot Shift drill (LAW_DRILL=permabrig or injection, tools/bot_gym/run_bot_shift.sh).
+
+/datum/bot_scenario/griefed/proc/make_griefer_wanted(crime = "Assault with a Deadly Weapon", severity = BOT_CRIME_MAJOR)
+	var/datum/bot_wanted/W = new
+	W.severity = severity
+	W.crime = crime
+	W.last_seen = get_turf(griefer)
+	W.last_seen_at = world.time
+	GLOB.bot_security_wanted[WEAKREF(griefer)] = W
+
+/datum/bot_scenario/griefed/release_run()
+	GLOB.bot_security_wanted -= WEAKREF(griefer)
+	return ..()
+
+/datum/bot_scenario/griefed/holds_down
+	name = "law: somebody Security wants is kept on the floor for it"
+	desc = "A wanted man on the floor after a fight. The bot doesn't walk off: it calls Security, stays with them, and puts them back down when they get up."
+	layout = list(
+		"#########",
+		"#..BC...#",
+		"#########")
+	time_limit = 40 SECONDS
+
+/datum/bot_scenario/griefed/holds_down/post_spawn()
+	..()
+	make_griefer_wanted()
+	griefer.Paralyze(4 SECONDS)
+
+/datum/bot_scenario/griefed/holds_down/grief()
+	brain.after_the_fight(griefer)
+
+/datum/bot_scenario/griefed/holds_down/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return bot_transcript_said("called Security") && bot_transcript_said("shoving") ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/cuffs_them
+	name = "law: with cuffs on it, it cuffs them itself"
+	desc = "Same as being held down, but this one's got a pair of handcuffs in its bag."
+	layout = list(
+		"#########",
+		"#..BC...#",
+		"#########")
+	kit_backpack = list(/obj/item/restraints/handcuffs)
+
+/datum/bot_scenario/griefed/cuffs_them/post_spawn()
+	..()
+	make_griefer_wanted()
+	griefer.Paralyze(20 SECONDS)
+
+/datum/bot_scenario/griefed/cuffs_them/grief()
+	brain.after_the_fight(griefer)
+
+/datum/bot_scenario/griefed/cuffs_them/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return griefer.handcuffed ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/contraband
+	name = "law: syndicate gear out in the open gets called in"
+	desc = "Somebody stood in plain sight with an energy sword. A bot sees it and gets on the radio."
+	layout = list(
+		"#########",
+		"#..B.C..#",
+		"#########")
+	time_limit = 20 SECONDS
+
+/datum/bot_scenario/griefed/contraband/post_spawn()
+	..()
+	brain.gym_scripted = FALSE
+	griefer_holds(/obj/item/melee/transforming/energy/sword/saber)
+
+/datum/bot_scenario/griefed/contraband/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return bot_transcript_said("called in") ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/captains_id
+	name = "law: somebody with the Captain's ID gets called in"
+	desc = "The spare ID on somebody who isn't in charge of anything: Grand Larceny, a capital charge."
+	layout = list(
+		"#########",
+		"#..BC...#",
+		"#########")
+	time_limit = 20 SECONDS
+
+/datum/bot_scenario/griefed/captains_id/post_spawn()
+	..()
+	brain.gym_scripted = FALSE
+	griefer.equip_to_slot_or_del(new /obj/item/card/id/captains_spare(griefer), ITEM_SLOT_ID)
+
+/datum/bot_scenario/griefed/captains_id/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return bot_transcript_said("Grand Larceny") ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/hardens
+	name = "law: attacked, a normal bot turns paranoid and stocks up"
+	desc = "An ordinary crewmember hit in the face plays it paranoid for the rest of the round: it goes and gets the crowbar it never wanted before."
+	layout = list(
+		"#########",
+		"#.CB...t#",
+		"#########")
+	time_limit = 30 SECONDS
+
+/datum/bot_scenario/griefed/hardens/post_spawn()
+	..()
+	brain.set_playstyle(BOT_STYLE_NORMAL)
+
+/datum/bot_scenario/griefed/hardens/build_tile(turf/T, char)
+	if(char == "t")
+		place(char, new /obj/item/crowbar(T))
+		return
+	..()
+
+/datum/bot_scenario/griefed/hardens/grief()
+	griefer_hand(INTENT_HARM)
+	griefer.forceMove(first_marker("."))
+	addtimer(CALLBACK(src, PROC_REF(after_hit)), 2 SECONDS)
+
+/datum/bot_scenario/griefed/hardens/proc/after_hit()
+	QDEL_NULL(griefer)
+	brain.kit_rests = null
+	bot_duty_of(/datum/bot_duty/stock_up).try_start(brain)
+
+/datum/bot_scenario/griefed/hardens/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(result != BOT_GYM_PENDING || !brain.hardened)
+		return BOT_GYM_PENDING
+	return brain.find_carried_tool(/obj/item/crowbar) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/acting_captain
+	name = "law: with no Captain aboard, the HoP takes command and says so"
+	desc = "No Captain on the crew. The next head in line says on the radio that they're acting captain, once."
+	duty_type = /datum/bot_duty/chain_of_command
+	job = "Head of Personnel"
+	time_limit = 10 SECONDS
+	layout = list(
+		"#####",
+		"#.B.#",
+		"#####")
+
+/datum/bot_scenario/duty/acting_captain/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return bot_transcript_said("in command now") ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/hunter
+	name = "law: an antag hunter goes to where the name on the radio was last seen"
+	desc = "Somebody wanted, last seen at the far end of the room, and a hunter with a crowbar. It drops what it's doing and goes to look."
+	layout = list(
+		"###################",
+		"#B...............C#",
+		"###################")
+	time_limit = 30 SECONDS
+	kit_backpack = list(/obj/item/crowbar)
+
+/datum/bot_scenario/griefed/hunter/post_spawn()
+	..()
+	brain.set_playstyle(BOT_STYLE_HUNTER)
+	make_griefer_wanted()
+
+/datum/bot_scenario/griefed/hunter/grief()
+	bot_duty_of(/datum/bot_duty/hunt_valids).try_start(brain)
+
+/datum/bot_scenario/griefed/hunter/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return get_dist(bot, griefer) <= 2 ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/vigilante
+	name = "law: a hunter who hits somebody nobody wants goes on the record for it"
+	desc = "Space Law 104. Security arrests a vigilante who goes too far: a blow on somebody with nothing against them is Vigilantism, not Assault."
+	layout = list(
+		"#######",
+		"#.BC..#",
+		"#######")
+	time_limit = 10 SECONDS
+
+/datum/bot_scenario/griefed/vigilante/post_spawn()
+	..()
+	brain.set_playstyle(BOT_STYLE_HUNTER)
+
+/datum/bot_scenario/griefed/vigilante/check()
+	var/list/verdict = bot_classify_crime(bot, griefer, "punched", null)
+	if(verdict[1] != "Vigilantism")
+		fail_reason = "charged with [verdict[1]]"
+		return BOT_GYM_FAIL
+	return bot_sentence_for("Vigilantism", BOT_CRIME_MINOR) == 5 MINUTES ? BOT_GYM_PASS : BOT_GYM_FAIL

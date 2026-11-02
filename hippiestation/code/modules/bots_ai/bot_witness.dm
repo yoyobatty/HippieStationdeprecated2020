@@ -57,6 +57,8 @@ GLOBAL_LIST_INIT(bot_staff_areas, list(
 	/area/security/warden = "security",
 	/area/ai_monitored/security/armory = "security",
 	/area/security/main = "security",
+	/area/security/prison = "security",
+	/area/security/execution = "security",
 	/area/quartermaster/qm = "supply",
 	/area/quartermaster/storage = "supply",
 ))
@@ -214,6 +216,8 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 		courage += 0.2
 	if(is_my_department(get_area(victim)))
 		courage += 0.15
+	if(playstyle == BOT_STYLE_HUNTER)
+		courage += 0.3 //this is what it came for
 	// Somebody needs to get on the radio, whatever else happens. Somebody in the same room as a fight usually does.
 	if(!assailant.bot_attack_called_in || world.time > assailant.bot_attack_called_in + 30 SECONDS)
 		assailant.bot_attack_called_in = world.time
@@ -264,7 +268,7 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 		return
 	owner.face_atom(vandal)
 	var/major = vandal.bot_vandal_hits >= BOT_VANDAL_MAJOR_HITS
-	var/crime = major ? "Sabotage" : "Vandalism"
+	var/crime = major ? "Major Vandalism" : "Vandalism"
 	var/severity = major ? BOT_CRIME_MAJOR : BOT_CRIME_MINOR
 	var/where = get_area_name(vandal, TRUE)
 	if(is_security_job())
@@ -307,6 +311,7 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 		return
 	if(length(GLOB.bot_security_wanted))
 		look_out_for_trouble()
+	look_round_the_room() //bot_playstyles.dm
 	watch_the_door()
 
 /// Anybody in sight the crew knows to be dangerous. Anything less than a major crime is security's to deal with.
@@ -324,8 +329,7 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 			next_sighting_call = world.time + 1 MINUTES
 			if(prob(50))
 				bot_say(owner, ";[H.name] is here, in [get_area_name(owner, TRUE)]! Security!")
-		var/armed = owner.get_active_held_item()?.force >= BOT_COMBAT_WEAPON_FORCE || !!find_carried_tool(/obj/item/storage/toolbox)
-		if(nerve >= 0.7 && armed && GLOB.bot_chaos_level >= 1 && bot_fighters_against(H) < BOT_DOGPILE_LIMIT)
+		if(nerve >= 0.7 && has_a_weapon() && GLOB.bot_chaos_level >= 1 && bot_fighters_against(H) < BOT_DOGPILE_LIMIT)
 			bot_say(owner, pick("It's you!", "That's the one!", "Get them!"))
 			step_in_against(H)
 		else if(nerve < 0.5 && get_dist(owner, H) <= 4 && state != BOT_STATE_GOAL)
@@ -339,14 +343,38 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 	var/list/staff = bot_staff_of(here)
 	if(!staff || !(owner.mind?.assigned_role in staff))
 		return
+	bot_refresh_open_departments() //bot_departments.dm
+	// Open's open, to anybody but the strict ones, and it's nobody's business but the staff's if they want it that way.
+	if(GLOB.bot_open_departments[bot_department_of(here)] && strictness < 0.6)
+		return
 	for(var/mob/living/carbon/human/H in view(6, owner))
 		if(H == owner || H.stat != CONSCIOUS || H.handcuffed || bot_means_well(H))
 			continue
 		var/job = H.get_assignment("", "")
 		if((job in staff) || (job in GLOB.command_positions) || (job in GLOB.security_positions))
 			continue
+		var/charge = bot_trespass_charge(get_area(H), world.time < H.bot_broke_in_at + 5 MINUTES)
 		var/datum/weakref/ref = WEAKREF(H)
 		var/warned = LAZYACCESS(trespass_warned, ref)
+		// Fort Knox: no second telling in the brig, and the arrest is Security's own to make.
+		if(is_security_job())
+			if(!warned || world.time > warned + 5 MINUTES)
+				LAZYSET(trespass_warned, ref, world.time)
+				owner.face_atom(H)
+				bot_say(owner, "[H.name], you can't be in here. Out, now.")
+			else if(world.time > warned + 10 SECONDS)
+				file_crime(H, charge, "In [get_area_name(H, TRUE)] with no business being there.", BOT_CRIME_MINOR)
+				begin_arrest(H)
+			return
+		// Nobody but an engineer goes near the engine. There's no asking nicely about that.
+		if(bot_near_the_engine(H) && (owner.mind?.assigned_role in GLOB.engineering_positions) && (!warned || world.time > warned + 5 MINUTES))
+			LAZYSET(trespass_warned, ref, world.time)
+			owner.face_atom(H)
+			bot_say(owner, pick("Get away from the engine!", "What do you think you're doing down here?! OUT!", "You touch anything and we all die! Get out!"))
+			call_it_in(H, charge, "is at the engine", BOT_CRIME_MAJOR)
+			bot_tally("engine scares")
+			bot_sound_engine_alarm()
+			return
 		if(!warned || world.time > warned + 5 MINUTES)
 			LAZYSET(trespass_warned, ref, world.time)
 			owner.face_atom(H)
@@ -354,7 +382,8 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 			bot_log(src, "told [H] they shouldn't be in [here]")
 		else if(world.time > warned + BOT_TRESPASS_PATIENCE)
 			LAZYSET(trespass_warned, ref, world.time - 5 MINUTES + 1 MINUTES) //won't come round again for a minute
-			call_it_in(H, "Trespassing", "won't leave", BOT_CRIME_MINOR)
+			call_it_in(H, charge, "won't leave", BOT_CRIME_MINOR)
+			shut_them_in(H)
 		return
 
 #undef BOT_DOGPILE_LIMIT

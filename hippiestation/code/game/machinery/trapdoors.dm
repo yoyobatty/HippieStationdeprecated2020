@@ -17,6 +17,7 @@
 	if(open)
 		return
 	open = TRUE
+	GLOB.bot_open_trapdoors[get_turf(src)] = TRUE //bot_pathing_permissive.dm
 	flick("opening", src)
 	playsound(loc, 'hippiestation/sound/misc/blast_door.ogg', 100, 1)
 	icon_state = "open"
@@ -35,6 +36,7 @@
 
 /obj/machinery/disposal/trapdoor/proc/close()
 	if(open)
+		GLOB.bot_open_trapdoors -= get_turf(src)
 		flick("closing", src)
 		icon_state = "closed"
 		playsound(loc, 'hippiestation/sound/misc/blast_door.ogg', 100, 1)

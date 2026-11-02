@@ -344,18 +344,20 @@ GLOBAL_LIST_EMPTY(bot_seat_claims)
 			continue
 		if(gym_run && get_area(T) != get_area(owner))
 			continue
+		if(world.time < T.activation_time + 3 SECONDS)
+			continue //its door's still shutting, and stopping the timer now would leave it shut
+		var/datum/weakref/in_cell = GLOB.bot_brig_sentences[T]
+		var/datum/bot_case/case = bot_case_of(in_cell?.resolve())
+		if(case && !case.closed)
+			continue //a capital charge doesn't get off for the evacuation
 		var/dist = get_dist(owner, T)
 		if(!best || dist < best_dist)
 			best = T
 			best_dist = dist
 	return (best && can_walk_lawfully_to(best)) ? best : null
 
-// Switched off: it has never been run. It needs somebody in a cell while the shuttle is on its way, which no Bot
-// Shift has produced yet, and the Bot Gym can't call the emergency shuttle without every other scenario seeing it.
-// Until then prisoners are left in their cells at an evacuation, as they were before.
 /datum/bot_duty/release_prisoners
 	name = "letting the cells out"
-	enabled = FALSE
 	tier = BOT_DUTY_URGENT
 	priority = 110 //ahead of the officer's own walk to departures
 	interval_min = 100

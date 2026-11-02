@@ -115,6 +115,8 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	var/obj/machinery/chem_master/master
 	var/atom/fridge //may stay null - see find_reachable_chem_fridge()
 	var/list/produced_items
+	/// Made for the bag, not the fridge (goals/chem_lab.dm).
+	var/for_self = FALSE
 
 /datum/bot_goal/synthesize_medicine/resolve_target(datum/bot_brain/bot)
 	if(world.time < bot.chemistry_blocked_until)
@@ -126,16 +128,20 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	if(!M)
 		return
 	fridge = bot.find_reachable_chem_fridge()
+	recipe = bot.brew_for_self() //goals/chem_lab.dm
+	for_self = !!recipe
 	// A full fridge is a job done. Bots used to keep mixing all shift, 90 batches of it, until the dispenser ran flat.
-	if(length(fridge?.contents) >= BOT_MEDICINE_STOCK)
+	if(!recipe && length(fridge?.contents) >= BOT_MEDICINE_STOCK)
 		bot.chemistry_blocked_until = world.time + 5 MINUTES
 		return
-	recipe = pick(GLOB.bot_medicine_recipes)
+	recipe = recipe || bot.pick_medicine_recipe()
 	dispenser = D
 	master = M
 	target = D
 
 /datum/bot_goal/synthesize_medicine/get_strategies(datum/bot_brain/bot)
+	if(recipe["stages"])
+		return list(new /datum/bot_strategy/brew(src, bot)) //goals/chem_lab.dm
 	return list(new /datum/bot_strategy/synthesize(dispenser, master, fridge))
 
 /// A doctor and a chemist with no beaker between them used to start on this, find there was none, and start again
@@ -198,10 +204,13 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 
 /datum/bot_step/load_beaker_into_dispenser
 	var/obj/machinery/chem_dispenser/dispenser
+	/// A fresh beaker, with the first one set aside (goals/chem_lab.dm).
+	var/fresh = FALSE
 
-/datum/bot_step/load_beaker_into_dispenser/New(obj/machinery/chem_dispenser/D)
+/datum/bot_step/load_beaker_into_dispenser/New(obj/machinery/chem_dispenser/D, use_fresh = FALSE)
 	. = ..()
 	dispenser = D
+	fresh = use_fresh
 
 /datum/bot_step/load_beaker_into_dispenser/execute(datum/bot_brain/bot)
 	if(!dispenser || QDELETED(dispenser))
@@ -210,7 +219,7 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 		return GOAL_STEP_SUCCESS
 	if(!bot.owner.Adjacent(dispenser))
 		return GOAL_STEP_FAIL
-	var/obj/item/reagent_containers/glass/beaker/B = bot.find_empty_beaker()
+	var/obj/item/reagent_containers/glass/beaker/B = fresh ? bot.find_empty_beaker() : bot.brew_beaker() //part way through a brew, it has something in it already
 	if(!B)
 		return GOAL_STEP_FAIL
 	bot.use_item_on(B, dispenser)
@@ -222,10 +231,14 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 /datum/bot_step/dispense_ingredients
 	var/obj/machinery/chem_dispenser/dispenser
 	var/list/pending
+	/// One stage of a brew, for a 100u beaker, instead of the recipe's ingredients.
+	var/list/stage_amounts
+	var/scale = 1
 
-/datum/bot_step/dispense_ingredients/New(obj/machinery/chem_dispenser/D)
+/datum/bot_step/dispense_ingredients/New(obj/machinery/chem_dispenser/D, list/amounts)
 	. = ..()
 	dispenser = D
+	stage_amounts = amounts
 
 /datum/bot_step/dispense_ingredients/execute(datum/bot_brain/bot)
 	if(!dispenser || QDELETED(dispenser) || !dispenser.beaker)
@@ -234,7 +247,8 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 		return GOAL_STEP_FAIL
 	if(!pending)
 		var/datum/bot_goal/synthesize_medicine/goal = bot.current_goal
-		pending = goal.recipe["ingredients"].Copy()
+		pending = (stage_amounts || goal.recipe["ingredients"]).Copy()
+		scale = stage_amounts ? dispenser.beaker.reagents.maximum_volume / 100 : 1
 	return dispense_next(bot)
 
 /datum/bot_step/dispense_ingredients/proc/dispense_next(datum/bot_brain/bot)
@@ -242,7 +256,7 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 		pending = null
 		return GOAL_STEP_SUCCESS
 	var/reagent_type = pending[1]
-	var/amount = pending[reagent_type]
+	var/amount = pending[reagent_type] * scale
 	pending -= reagent_type
 	if(!bot.dispense_into_beaker(dispenser, reagent_type, amount))
 		bot_log(bot, "[dispenser] wouldn't give me [reagent_type] - leaving this batch")
@@ -293,7 +307,7 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 		return GOAL_STEP_SUCCESS
 	if(!bot.owner.Adjacent(master))
 		return GOAL_STEP_FAIL
-	var/obj/item/reagent_containers/glass/beaker/B = locate(/obj/item/reagent_containers/glass/beaker) in bot.owner.GetAllContents()
+	var/obj/item/reagent_containers/glass/beaker/B = bot.brew_beaker()
 	if(!B)
 		return GOAL_STEP_FAIL
 	bot.use_item_on(B, master)
@@ -375,7 +389,7 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	while(goal.produced_items.len)
 		var/obj/item/I = goal.produced_items[1]
 		goal.produced_items.Cut(1, 2)
-		if(QDELETED(I))
+		if(QDELETED(I) || bot.keeps_for_self(I)) //goals/chem_lab.dm
 			continue
 		bot.use_item_on(I, fridge)
 		bot.owner.changeNext_move(CLICK_CD_MELEE)

@@ -282,10 +282,13 @@
 	if(QDELETED(attacker) || attacker.stat == DEAD)
 		disengage_combat("they're down")
 		return
-	// Crew fight to stop an attack, not to finish someone: once they're cuffed or out cold, it's over.
+	// Crew fight to stop an attack, not to finish someone: once they're on the floor, cuffed or out cold, it's over. Two hunters
+	// kicked a greytider to death on a hallway floor, with a doctor one of them. Only somebody out for trouble puts the boot in.
 	var/mob/living/carbon/restrained = attacker
-	if(attacker.stat != CONSCIOUS || (istype(restrained) && restrained.handcuffed))
-		disengage_combat(attacker.stat != CONSCIOUS ? "they're down" : "they're restrained")
+	if(attacker.stat != CONSCIOUS || (istype(restrained) && restrained.handcuffed) || (ishuman(attacker) && !up_to_no_good() && is_subdued(attacker)))
+		var/mob/living/foe = attacker
+		disengage_combat(attacker.stat != CONSCIOUS || !restrained.handcuffed ? "they're down" : "they're restrained")
+		after_the_fight(foe) //bot_playstyles.dm
 		return
 	if(fight_is_won(attacker)) //bot_fighting.dm
 		disengage_combat("they've had enough")
@@ -342,6 +345,10 @@
 			try_combat_sidestep(attacker)
 		return
 	if(try_run_for_it())
+		return
+	if(try_smoke_grenade(attacker) || try_chem_weapon(attacker)) //goals/chem_lab.dm
+		return
+	if(try_flash(attacker)) //bot_playstyles.dm
 		return
 	reach_for_weapon() //bot_fighting.dm
 	if(owner.Adjacent(attacker))
@@ -468,6 +475,11 @@
 	// sleeps while this keeps ticking, and a bot that started its next wander leg in the middle of one
 	// picked the item up from wherever it had walked to.
 	if(world.time < mid_click_until)
+		return
+
+	// Sentenced for good (bot_law.dm): it isn't going to work today.
+	if(owner.bot_life_sentence)
+		serve_time()
 		return
 
 	// Whatever can't wait for anything below - the shuttle is leaving, the room is on fire (bot_duties.dm).
@@ -996,6 +1008,8 @@ GLOBAL_LIST_INIT(bot_maintenance_averse_jobs, list("Medical Doctor", "Chief Medi
 	if(state == BOT_STATE_COMBAT && attacker == user)
 		return // already fighting them - every further hit used to re-shout and restart the chase
 	bot_log(src, "attacked by [user] ([what_done || "hit"]), engaging")
+	if(ishuman(user))
+		harden("attacked by [user]") //bot_personality.dm
 	if(state != BOT_STATE_COMBAT)
 		state_before_combat = state
 	attacker = user
@@ -1023,6 +1037,7 @@ GLOBAL_LIST_INIT(bot_maintenance_averse_jobs, list("Medical Doctor", "Chief Medi
 	. = ..()
 	if(bot_brain && speaker)
 		bot_brain.on_heard_security_call(speaker, raw_message, radio_freq) //goals/security_patrol.dm
+		bot_brain.on_heard_ruling(speaker, raw_message) //bot_law.dm
 		bot_brain.on_heard_speech(speaker, raw_message, radio_freq) //bot_chatter.dm
 
 /mob/living/carbon/human/Destroy()

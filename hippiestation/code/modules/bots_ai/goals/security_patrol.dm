@@ -32,13 +32,9 @@
 // officer had filed them - and a wanted entry is also kept in GLOB.bot_security_wanted
 // for people with no record at all (no manifest entry, face hidden and no ID, ...).
 
-// Sentences in deciseconds, fed straight into door_timer/set_timer() (brigdoors.dm
-// caps it at 9000). Minor matches the guide's "a fair timer, one to two minutes"; a
-// murder is the longest a cell timer allows, plus a radio request for the Warden/HoS
-// to decide on permabrig, which bots never do on their own.
-#define BOT_SENTENCE_MINOR 1200
-#define BOT_SENTENCE_MAJOR 3000
-#define BOT_SENTENCE_MURDER 9000
+// Sentences go by Space Law (bot_law.dm), fed straight into door_timer/set_timer(), and
+// brigdoors.dm caps those at 15 minutes. A capital charge is held for that long while
+// whoever's in charge decides what's to be done.
 
 #define BOT_SEC_VIEW_RANGE 7
 // How long a suspect can stay out of sight before the chase is called off.
@@ -68,6 +64,9 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/crime
 	var/severity = BOT_CRIME_MINOR
 	var/time_reported = 0
+	/// Where they were last reported, and when: what a hunter goes on (bot_playstyles.dm).
+	var/turf/last_seen
+	var/last_seen_at = 0
 
 /datum/bot_brain
 	var/mob/living/carbon/human/arrest_suspect
@@ -136,6 +135,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	if(severity >= W.severity || !W.crime)
 		W.crime = crime
 		W.severity = severity
+	W.last_seen = get_turf(H)
+	W.last_seen_at = world.time
 
 	var/datum/data/record/R = bot_find_security_record(H)
 	if(!R)
@@ -298,6 +299,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 			weapon_force = max(weapon_force, P.damage)
 	var/where = get_area_name(victim, TRUE)
 	if(victim.stat == DEAD)
+		if(victim.mind?.assigned_role in GLOB.command_positions)
+			return list("Subversion of the Chain of Command", BOT_CRIME_MURDER, "Killed [victim.real_name] in [where].")
 		return list("Murder", BOT_CRIME_MURDER, "Killed [victim.real_name] in [where].")
 	if(findtext(lower, "handcuffed"))
 		return list("Kidnapping", BOT_CRIME_MAJOR, "Restrained [victim.real_name] without authority in [where].")
@@ -307,6 +310,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		return list("Assault with a Deadly Weapon", BOT_CRIME_MAJOR, "[capitalize(what_done)] [victim.real_name] with [object] in [where].")
 	if(victim.stat != CONSCIOUS)
 		return list("Aggravated Assault", BOT_CRIME_MAJOR, "Left [victim.real_name] incapacitated in [where].")
+	if(attacker.bot_brain?.playstyle == BOT_STYLE_HUNTER)
+		return list("Vigilantism", BOT_CRIME_MINOR, "[capitalize(what_done)] [victim.real_name] in [where], with nobody having asked them to.")
 	return list("Assault", BOT_CRIME_MINOR, "[capitalize(what_done)] [victim.real_name] in [where].")
 
 /datum/bot_brain/proc/can_witness(mob/living/carbon/human/attacker, mob/living/carbon/human/victim)
@@ -991,6 +996,17 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/cooldown = LAZYACCESS(failed_brig_targets, H)
 	if(cooldown && world.time < cooldown)
 		return FALSE
+	// With the shuttle on its way there's no sentence left to serve. Locking somebody up now only leaves them behind: an officer brigged a
+	// man as another stopped that cell's timer, the door was caught half shut, and he was still in there when the shuttle left.
+	var/datum/bot_wanted/W = bot_get_wanted_entry(H)
+	var/obj/docking_port/mobile/emergency/E = SSshuttle.emergency
+	if(E && (E.mode == SHUTTLE_CALL || E.mode == SHUTTLE_DOCKED) && (!W || W.severity < BOT_CRIME_MURDER))
+		H.uncuff()
+		bot_clear_wanted(H)
+		bot_set_criminal_status(H, "Discharged")
+		bot_say(owner, "[H.name], get to the shuttle. You can explain yourself at CentCom.")
+		bot_log(src, "let [H] go for the evacuation")
+		return FALSE
 	// Nobody's locked up dying. A cook cuffed at -4 health was dragged to a cell and left: he died there 3 minutes later.
 	if(H.health <= 0)
 		bot_say(owner, ";Medical, [H.name] is in cuffs and needs a doctor, [get_area_name(H, TRUE)].")
@@ -1005,10 +1021,21 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/mob/living/carbon/human/prisoner
 	var/obj/machinery/door_timer/cell_timer
 	var/turf/deep_turf
+	/// On their way to the Prison Wing rather than a cell (bot_law.dm), and the locker for what they own.
+	var/for_life = FALSE
+	var/obj/structure/closet/secure_closet/brig/prison_locker
 
 /datum/bot_goal/brig_prisoner/resolve_target(datum/bot_brain/bot)
 	if(QDELETED(prisoner) || prisoner.stat == DEAD || !prisoner.handcuffed)
 		return
+	var/datum/bot_case/case = bot_case_of(prisoner)
+	if(case?.verdict == BOT_VERDICT_PERMABRIG)
+		deep_turf = bot_prison_spot()
+		if(deep_turf)
+			for_life = TRUE
+			prison_locker = bot_prison_locker(deep_turf)
+			target = prisoner
+			return
 	var/obj/machinery/door_timer/T = bot.find_free_brig_cell()
 	if(!T)
 		bot_log(bot, "no free brig cell for [prisoner]")
@@ -1023,7 +1050,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	target = prisoner
 
 /datum/bot_goal/brig_prisoner/get_strategies(datum/bot_brain/bot)
-	return list(new /datum/bot_strategy/brig_prisoner(src))
+	return list(for_life ? new /datum/bot_strategy/take_to_prison(src) : new /datum/bot_strategy/brig_prisoner(src))
 
 /datum/bot_goal/brig_prisoner/on_give_up(datum/bot_brain/bot)
 	bot.owner.stop_pulling()
@@ -1099,6 +1126,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 			for(var/obj/item/I in list(P.belt, P.back, P.s_store, P.l_store, P.r_store))
 				if(I && ((I.item_flags & NEEDS_PERMIT) || I.force >= 10 || istype(I, /obj/item/card/emag)))
 					to_confiscate |= I
+			bot.search_prisoner(P, src) //bot_law.dm
 			phase = 2
 			return schedule(bot)
 		if(2)
@@ -1184,11 +1212,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		var/list/rec = bot_describe_record_crimes(P)
 		crime = rec[1]
 		severity = rec[2]
-	var/sentence = BOT_SENTENCE_MINOR
-	if(severity >= BOT_CRIME_MURDER)
-		sentence = BOT_SENTENCE_MURDER
-	else if(severity >= BOT_CRIME_MAJOR)
-		sentence = BOT_SENTENCE_MAJOR
+	var/sentence = bot_sentence_for(crime, severity)
 	bot.owner.changeNext_move(CLICK_CD_MELEE)
 	T.set_timer(sentence)
 	T.timer_start()
@@ -1197,9 +1221,9 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	bot_set_criminal_status(P, "Incarcerated")
 	bot_clear_wanted(P)
 	bot_log(bot, "sentenced [P] to [sentence / 600] minute\s in [T.name] for [crime]")
-	bot_say(bot.owner, ":s [P.name] brigged in [T.name] for [sentence / 600] minute\s, charge: [lowertext(crime)].")
+	bot_say(bot.owner, ":s [P.name] brigged in [T.name] for [sentence / 600] minute\s, charge: [bot_charge_line(crime)].")
 	if(severity >= BOT_CRIME_MURDER)
-		bot_say(bot.owner, ":s Warden, HoS - [P.name] is in for murder, requesting a decision on permabrig.")
+		bot_open_case(P, crime, T, bot) //bot_law.dm
 	return GOAL_STEP_SUCCESS
 
 
@@ -1234,9 +1258,6 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		officer.file_crime(H, verdict[1], "[verdict[3]] (reported by the victim)", verdict[2])
 		bot_log(src, "reported [verdict[1]] by [H] to security")
 
-#undef BOT_SENTENCE_MINOR
-#undef BOT_SENTENCE_MAJOR
-#undef BOT_SENTENCE_MURDER
 #undef BOT_SEC_VIEW_RANGE
 #undef BOT_ARREST_LOST_TIMEOUT
 #undef BOT_ARREST_MAX_DURATION

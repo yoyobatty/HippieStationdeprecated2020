@@ -10,7 +10,7 @@
 // Same brute/burn thresholds as a real player would bother stopping for - scrapes and
 // bruises get walked past, anything that'll actually kill them eventually doesn't.
 /datum/bot_brain/proc/patient_needs_treatment(mob/living/carbon/human/H)
-	if(H.stat == DEAD)
+	if(H.stat == DEAD || H.bot_executed)
 		return FALSE
 	if(H.getBruteLoss() > 10 || H.getFireLoss() > 10)
 		return TRUE
@@ -50,7 +50,7 @@
 		return (patient.getBruteLoss() > 10 ? brute_patch : null) || (patient.getFireLoss() > 10 ? burn_patch : null)
 	var/list/supplies = get_medical_supplies()
 	if(!supplies.len)
-		return null
+		return find_healing_pill()
 	var/obj/item/stack/medical/bruise_pack/brute_pick
 	var/obj/item/stack/medical/ointment/burn_pick
 	for(var/obj/item/stack/medical/M in supplies)
@@ -60,9 +60,15 @@
 			brute_pick = M
 		else if(istype(M, /obj/item/stack/medical/ointment) && !burn_pick)
 			burn_pick = M
-	if(burn_first)
-		return burn_pick || brute_pick
-	return brute_pick || burn_pick
+	var/obj/item/stack/medical/picked = burn_first ? (burn_pick || brute_pick) : (brute_pick || burn_pick)
+	return picked || find_healing_pill()
+
+/// A pill or a patch with something healing in it, for when the first aid kit's run out or there never was one (goals/chem_lab.dm).
+/datum/bot_brain/proc/find_healing_pill()
+	for(var/obj/item/reagent_containers/pill/P in owner.GetAllContents(/obj/item/reagent_containers/pill))
+		if(bot_chem_kind_of(P) == "heal")
+			return P
+	return null
 
 // Sent out for more once the current kit runs dry - tries a whole spare first aid kit
 // first (any /obj/item/storage/firstaid subtype, wherever one's sitting unattended),
