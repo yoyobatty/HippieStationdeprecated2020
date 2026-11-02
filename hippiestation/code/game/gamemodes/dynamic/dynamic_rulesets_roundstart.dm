@@ -51,7 +51,7 @@
 	name = "Hivemind"
 	antag_flag = ROLE_HIVE
 	protected_roles = list("Security Officer", "Warden", "Detective", "Head of Security", "Captain", "Vice Officer")
-	restricted_roles = list("Cyborg")
+	restricted_roles = list("Cyborg", "AI")
 	required_candidates = 2
 	minimum_players = 20
 	weight = 20

@@ -19,6 +19,34 @@
 	log_line("[what]: [result ? "yes" : "no"]")
 	verdict = result ? BOT_GYM_PASS : BOT_GYM_FAIL
 
+/// Every mask there is, on somebody, and whether what it draws is a state its icon file has. It didn't reproduce: this keeps it that way.
+/datum/bot_scenario/griefed/bug/masks
+	griefer_job = "Assistant"
+	name = "bug 12729: masks show up on the wearer"
+
+/datum/bot_scenario/griefed/bug/masks/grief()
+	griefer.dropItemToGround(griefer.wear_mask)
+	var/shown = 0
+	var/list/missing = list()
+	for(var/path in subtypesof(/obj/item/clothing/mask))
+		var/obj/item/clothing/mask/M = new path(griefer.loc)
+		if(!griefer.equip_to_slot_if_possible(M, ITEM_SLOT_MASK, FALSE, TRUE, TRUE))
+			qdel(M)
+			continue
+		var/mutable_appearance/drawn = griefer.overlays_standing[FACEMASK_LAYER]
+		if(!drawn)
+			missing += "[path] drew nothing"
+		else if(!(drawn.icon_state in icon_states(drawn.icon)))
+			missing += "[path] wants [drawn.icon_state] in [drawn.icon]"
+		else
+			shown++
+		griefer.dropItemToGround(M, TRUE)
+		qdel(M)
+	log_line("[shown] drawn, [length(missing)] not")
+	for(var/line in missing)
+		log_line(line)
+	expect(shown >= 100, "all but the ones that are never worn: abstract parents, a dwarf's, a cyborg's")
+
 /datum/bot_scenario/griefed/bug/bluespace_floor
 	name = "bug 12221: walking onto bluespace dust floor doesn't teleport you round and round until the server dies"
 
