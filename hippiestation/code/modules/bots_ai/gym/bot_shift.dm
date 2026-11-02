@@ -271,6 +271,20 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 			B.set_playstyle(BOT_STYLE_HOPPER)
 			B.competence = 1
 
+/// An assistant turns up in the Brig with no way out, the same as a prisoner let out of a cell.
+/datum/bot_shift/proc/stuck_drill()
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		if(B.owner.mind?.assigned_role != "Assistant")
+			continue
+		var/list/spots = list()
+		for(var/turf/open/floor/T in get_area_turfs(/area/security/brig))
+			if(!is_blocked_turf(T, TRUE) && !B.is_in_active_cell(T))
+				spots += T
+		if(length(spots))
+			B.owner.forceMove(pick(spots))
+			bot_log(B, "DRILL: shut in the Brig")
+			return
+
 /// Late-joins the crew, one at a time. An entry is a job title, optionally "*N" for several.
 /datum/bot_shift/proc/muster()
 	// Nobody's watching a shift, and lights nobody can see wait for somebody who can (lighting_source.dm): every shift
@@ -284,6 +298,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		addtimer(CALLBACK(src, PROC_REF(collab_drill)), 3 MINUTES)
 	if(world.params["hop-drill"])
 		addtimer(CALLBACK(src, PROC_REF(hop_drill)), 2 MINUTES)
+	if(world.params["stuck-drill"])
+		addtimer(CALLBACK(src, PROC_REF(stuck_drill)), 3 MINUTES)
 	if(world.params["ttv-bench"])
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(run_ttv_bench)), 5 SECONDS)
 	if(world.params["engine-test"])

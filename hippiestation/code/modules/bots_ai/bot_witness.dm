@@ -348,7 +348,7 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 	if(GLOB.bot_open_departments[bot_department_of(here)] && strictness < 0.6)
 		return
 	for(var/mob/living/carbon/human/H in view(6, owner))
-		if(H == owner || H.stat != CONSCIOUS || H.handcuffed || bot_means_well(H))
+		if(H == owner || H.stat != CONSCIOUS || H.handcuffed || bot_means_well(H) || H.bot_brain?.shut_in_result) //not much point arresting somebody for not leaving when they can't
 			continue
 		var/job = H.get_assignment("", "")
 		if((job in staff) || (job in GLOB.command_positions) || (job in GLOB.security_positions))

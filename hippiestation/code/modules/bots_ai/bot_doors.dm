@@ -71,6 +71,10 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 
 /// Fewer tiles than this to walk to by doors its own ID opens, and the bot is shut in somewhere.
 #define BOT_SHUT_IN_TILES 60
+/// The look it takes once a minute goes this far for a way back out to a hallway. The Brig and Atmospherics are a lot bigger than
+/// 60 tiles: a prisoner let out of a cell, or a visitor when the door's locked behind them, was shut in with room to walk about and
+/// never said a word, right up until the shuttle left without them.
+#define BOT_SHUT_IN_WIDE_TILES 1500
 
 /datum/bot_brain
 	/// Set while a route is planned for a stroll or an everyday errand by a bot that's free to come and go: an
@@ -85,11 +89,13 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 	var/list/shut_in_region
 	/// Set while is_shut_in() is measuring: nothing counts as a way out that isn't one already.
 	var/measuring_shut_in = FALSE
+	/// Until when the last wide look stands, for the quick ones in between.
+	var/shut_in_wide_until = 0
 
 /// Whether the bot is somewhere it can't walk out of by doors its own ID opens: only a few dozen tiles to go to.
 /// Then any door that happens to be open is the way out, whoever it belongs to.
-/datum/bot_brain/proc/is_shut_in()
-	if(world.time < shut_in_checked_at + 30)
+/datum/bot_brain/proc/is_shut_in(wide = FALSE)
+	if(!wide && (world.time < shut_in_checked_at + 30 || world.time < shut_in_wide_until))
 		return shut_in_result
 	shut_in_checked_at = world.time
 	shut_in_result = FALSE
@@ -106,6 +112,10 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 	var/list/queue = list(start)
 	var/at = 1
 	var/roomy = FALSE
+	var/limit = wide ? BOT_SHUT_IN_WIDE_TILES : BOT_SHUT_IN_TILES
+	var/area/last_area = start.loc
+	if(wide && (istype(last_area, /area/hallway) || istype(last_area, /area/maintenance)))
+		roomy = TRUE
 	while(at <= length(queue) && !roomy)
 		var/turf/T = queue[at++]
 		for(var/d in GLOB.cardinals)
@@ -114,13 +124,19 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 				continue
 			seen[next] = TRUE
 			queue += next
-			if(length(queue) >= BOT_SHUT_IN_TILES)
+			if(length(queue) >= limit)
 				roomy = TRUE
 				break
+			if(wide && next.loc != last_area)
+				last_area = next.loc
+				if(istype(last_area, /area/hallway)) //not maintenance: there's a closet of it off the Brig that goes nowhere
+					roomy = TRUE
+					break
 	pathing_no_tailgating = was
 	measuring_shut_in = FALSE
 	shut_in_result = !roomy
 	shut_in_region = roomy ? null : seen
+	shut_in_wide_until = (wide && !roomy) ? world.time + 70 SECONDS : 0
 	return shut_in_result
 
 /// For a bot that's shut in behind a blast door or a shutter: the button for it, if that's in with the bot and the

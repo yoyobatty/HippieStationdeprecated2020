@@ -504,7 +504,7 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 
 /datum/bot_request_kind/let_out/answered_by(datum/bot_brain/bot, datum/bot_request/R)
 	var/mob/living/who = R.caller_ref?.resolve()
-	if(!who || who == bot.owner || who.z != bot.owner.z || get_dist(who, bot.owner) > 60)
+	if(!who || who == bot.owner || who.z != bot.owner.z || get_dist(who, bot.owner) > 120)
 		return FALSE
 	return !!door_for(bot, R)
 
@@ -523,16 +523,20 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 	// They head for it while it's open.
 	var/datum/bot_brain/theirs = istype(who) ? who.bot_brain : null
 	if(theirs && theirs.state == BOT_STATE_WANDER && !QDELETED(D))
+		var/list/inside = theirs.shut_in_region
 		theirs.shut_in_checked_at = -1000
-		var/turf/outside = get_step(D, get_dir(who, D))
-		if(isopenturf(outside) && !outside.density)
-			theirs.assign_goal(new /datum/bot_goal/walk_up_to(outside))
+		for(var/d in GLOB.cardinals) //the side of the door they aren't on: they can be anywhere in a big room
+			var/turf/outside = get_step(D, d)
+			if(isopenturf(outside) && !outside.density && !LAZYACCESS(inside, outside))
+				theirs.assign_goal(new /datum/bot_goal/walk_up_to(outside))
+				break
 
 /// The airlocks around the pocket this bot is shut in, which it can't open itself.
 /datum/bot_brain/proc/doors_shutting_me_in()
 	. = list()
 	if(!is_shut_in() || !shut_in_region)
 		return
+	var/list/ways_out = list()
 	for(var/turf/T as anything in shut_in_region)
 		for(var/d in GLOB.cardinals)
 			var/turf/next = get_step(T, d)
@@ -541,6 +545,10 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 			for(var/obj/machinery/door/airlock/D in next)
 				if(D.density && !D.welded && !D.locked)
 					. |= D
+					if(istype(get_area(get_step(next, d)), /area/hallway))
+						ways_out |= D
+	if(length(ways_out)) //and not the door to Brig Control, which only gets it further in
+		return ways_out
 
 /// Shut in, with a door somebody else could open: asks to be let out. Now and then - not for the first minute, in
 /// case whoever it followed in comes back out.
@@ -549,7 +557,9 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 		return FALSE
 	if(world.time < next_call_time || owner.stat != CONSCIOUS || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST)
 		return FALSE
-	if(is_shut_in() && shove_aside_what_shuts_me_in())
+	if(owner.handcuffed || owner.bot_life_sentence || is_in_active_cell(owner) || !is_station_level(owner.z))
+		return FALSE //there on purpose, as far as anybody else is concerned
+	if(is_shut_in(TRUE) && shove_aside_what_shuts_me_in())
 		return TRUE
 	var/list/doors = doors_shutting_me_in()
 	if(!length(doors))
