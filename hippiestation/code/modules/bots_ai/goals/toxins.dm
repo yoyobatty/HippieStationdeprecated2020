@@ -811,6 +811,7 @@ GLOBAL_DATUM(bot_toxins, /datum/bot_toxins)
 		return FALSE
 	bot.use_atom(button)
 	lab.finished = TRUE
+	bot_news("Science just set off a bomb on the test range")
 	return FALSE
 
 /datum/bot_step/paced/press_launch/finish(datum/bot_brain/bot)

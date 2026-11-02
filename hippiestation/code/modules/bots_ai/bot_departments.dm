@@ -393,6 +393,7 @@ GLOBAL_VAR_INIT(bot_open_departments_at, 0)
 
 /// Word goes round the engineers: the first thing any of them does is go and look at the engine.
 /proc/bot_sound_engine_alarm()
+	bot_news("somebody's been messing about near the engine")
 	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
 		if(B.work_role() in GLOB.engineering_positions)
 			B.engine_alarm_at = world.time

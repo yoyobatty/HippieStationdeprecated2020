@@ -197,6 +197,10 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 		return FALSE
 	return bot_text_has_any(lower_msg, GLOB.bot_request_words) || bot_area_named(lower_msg, near, own_words())
 
+/// Whether a bot hearing this has anything to do with it.
+/datum/bot_request_kind/proc/heard_by(datum/bot_brain/bot, named)
+	return jobs ? (bot.work_role() in jobs) : named
+
 /// Whether a bot is one of those whose call this is.
 /datum/bot_request_kind/proc/answered_by(datum/bot_brain/bot, datum/bot_request/R)
 	return bot.work_role() in jobs
@@ -334,7 +338,7 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 	if(!kind)
 		return FALSE
 	// Only those whose call it is have anything to do with it (and for a summons, only whoever was named).
-	if(kind.jobs ? !(work_role() in kind.jobs) : !named)
+	if(!kind.heard_by(src, named))
 		return FALSE
 	var/datum/bot_request/R = bot_open_request_from(talker, kind)
 	if(R)
@@ -482,16 +486,31 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 
 /// A bot shut in a room its ID doesn't open (it answered a call in there, or followed somebody, and the door has
 /// shut): it asks over the radio to be let out, and anybody whose ID opens one of the room's doors comes and opens
-/// it. Bots only make this call - what a player means by "can someone open the kitchen" isn't read yet.
+/// it. A player saying "can someone let me out" gets the same, with the doors nearest them.
 /datum/bot_request_kind/let_out
 	name = "locked in"
 	jobs = list()
 	ack_lines = list("On my way to let you out.", "Hang on, I'll get the door.", "Coming - give me a minute.", "I'll come and open it.")
 	arrival_lines = list("There you go.", "Out you come.", "Door's open.")
 	doing = "going to let somebody out"
+	needs_place = FALSE
 
 /datum/bot_request_kind/let_out/matches(lower_msg, named, turf/near)
-	return FALSE
+	return bot_text_has_any(lower_msg, list("let me out", "let me in", "locked in", "shut in", "stuck in", "trapped in", "open the door", "open this door", "get the door", "door open"))
+
+/datum/bot_request_kind/let_out/heard_by(datum/bot_brain/bot, named)
+	return TRUE
+
+/// A person asking: the doors around them that they can't open themselves.
+/datum/bot_request_kind/let_out/read_details(datum/bot_request/R, lower_msg)
+	var/mob/living/who = R.caller_ref?.resolve()
+	if(!who)
+		return
+	var/list/doors = list()
+	for(var/obj/machinery/door/airlock/D in range(12, who))
+		if(D.density && !D.allowed(who))
+			doors += D
+	R.detail = doors
 
 /// The door of the caller's room this bot would open: one its ID opens, that it can walk up to.
 /datum/bot_request_kind/let_out/proc/door_for(datum/bot_brain/bot, datum/bot_request/R)

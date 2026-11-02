@@ -11,10 +11,24 @@
 #define BOT_CHAT_LOWERCASE 2
 #define BOT_CHAT_TERSE 3
 
+/// Before the same bot says the same thing again.
+#define BOT_SAID_REPEAT (90 SECONDS)
+/// Before anybody says on the radio what somebody just said.
+#define BOT_RADIO_REPEAT (20 SECONDS)
+/// How long something's still worth bringing up.
+#define BOT_NEWS_LIFETIME (10 MINUTES)
+
+/// Radio line -> when it's fresh again.
+GLOBAL_LIST_EMPTY(bot_radio_lately)
+
 /datum/bot_brain
 	var/chat_style = BOT_CHAT_PROPER
 	/// Matches this bot's first or full name as whole words - built on first use.
 	var/regex/name_regex
+	/// Line -> when it's fresh again.
+	var/list/said_lately
+	/// News it's passed on, or had passed on to it.
+	var/list/news_told
 	/// When it will next answer someone talking to it (next_reaction_time, bot_brain.dm, paces everything else).
 	var/next_answer_time = 0
 
@@ -40,6 +54,25 @@
 	if(chat_style == BOT_CHAT_TERSE)
 		line = replacetext(replacetext(line, "'", ""), ",", "")
 	return prefix + line
+
+/// Nobody says the same thing twice in a minute and a half, whatever's going on, and on the radio nobody says what somebody else
+/// just did. A round's chat was the same dozen shouts over and over, and "I've got them, Security" forty times.
+/datum/bot_brain/proc/worth_saying(line)
+	if(gym_run)
+		return TRUE
+	if(said_lately && (world.time < said_lately[line]))
+		return FALSE
+	if(copytext(line, 1, 2) == ";")
+		if(world.time < GLOB.bot_radio_lately[line])
+			return FALSE
+		if(length(GLOB.bot_radio_lately) > 40)
+			GLOB.bot_radio_lately.Cut(1, 21)
+		GLOB.bot_radio_lately[line] = world.time + BOT_RADIO_REPEAT
+	LAZYINITLIST(said_lately)
+	if(length(said_lately) > 16)
+		said_lately.Cut(1, 9)
+	said_lately[line] = world.time + BOT_SAID_REPEAT
+	return TRUE
 
 /// How long a line takes to type, on top of noticing it needs saying.
 /proc/bot_typing_time(line)
@@ -228,6 +261,9 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
 		if(H.stat == DEAD && H.mind?.assigned_role)
 			lost++
+	var/latest = latest_news()
+	if(latest)
+		return prob(50) ? capitalize(latest) + "." : pick("Did you hear? ", "You missed it, ", "Well, ") + latest + "."
 	if(lost)
 		return pick("We've lost [lost] so far.", "[lost] dead that I know of. Watch yourself.")
 	return level >= SEC_LEVEL_BLUE ? pick("Blue alert. Nothing's gone bang yet.", "Something's up, but it's quiet here.") : pick("Quiet shift so far.", "Not much. Same old.", "Nothing I've heard about.")
@@ -476,6 +512,38 @@ GLOBAL_LIST_INIT(bot_small_talk, list(
 	list("Hope nothing explodes today.", list("Bold thing to hope for.", "There's always tomorrow.", "Same.")),
 ))
 
+/// What a playstyle goes on about (bot_personality.dm).
+GLOBAL_LIST_INIT(bot_playstyle_talk, list(
+	BOT_STYLE_PARANOID = list(
+		list("Keep your eyes open. Something's off today.", list("You always say that.", "Like what?", "You're making me nervous.")),
+		list("You've got a weapon on you, right?", list("Should I?", "Why, what have you heard?", "Of course.")),
+		list("I don't trust half this crew.", list("Which half?", "Only half?", "Should I be worried?")),
+		list("Where were you ten minutes ago?", list("Why do you ask?", "Working. Why?", "Relax.")),
+		list("I've got heals if it comes to it.", list("Good to know.", "Hope it doesn't.", "Got any spare?")),
+	),
+	BOT_STYLE_POWERGAMER = list(
+		list("Everything I need's in the bag already.", list("Course it is.", "Save some for the rest of us.", "Show off.")),
+		list("Whoever stocked that locker's an idiot.", list("That was probably you.", "Could be worse.", "Fix it then.")),
+		list("If you're not ready by now you're already dead.", list("Cheery.", "It's a space station, not a war.", "Noted.")),
+		list("I've been through the whole lab already.", list("Find anything good?", "Is that allowed?", "Of course you have.")),
+	),
+	BOT_STYLE_HUNTER = list(
+		list("Seen anyone acting shifty?", list("Only you.", "Not yet.", "Define shifty.")),
+		list("Somebody's a traitor. Somebody always is.", list("Probably.", "Got a name?", "Bit dark.")),
+		list("Tell me if you see anything. Anything.", list("Will do.", "Sure, officer.", "Are you even Security?")),
+		list("I've got my eye on someone.", list("Who?", "Don't do anything stupid.", "Is it me?")),
+	),
+	BOT_STYLE_HOPPER = list(
+		list("Need a hand with anything?", list("Always.", "We're fine, thanks.", "Aren't you busy?")),
+		list("I'll do anything, honestly. Just tell me what's short.", list("Medbay's always short.", "Ask the HoP.", "Good attitude.")),
+		list("This is my third job today.", list("Doing any of them well?", "Do they pay you for all three?", "Busy shift.")),
+	),
+))
+
+/// What's said back to a bit of news.
+GLOBAL_LIST_INIT(bot_news_replies, list("No way.", "Figures.", "Who's next?", "That's this place all over.", "I heard.", "Yeah, I heard that too.",
+	"Wow.", "Not surprised.", "Can't say I'm sorry.", "Keep your head down.", "Great, that's all we need.", "Really?"))
+
 /// Shop talk, by department: said by someone who works there, answered by anyone.
 GLOBAL_LIST_INIT(bot_shop_talk, list(
 	"engineering" = list("Engine's holding steady.", "Something's been chewing the power cables again.", "If the lights go out, it wasn't me."),
@@ -533,7 +601,19 @@ GLOBAL_LIST_INIT(bot_shop_talk_replies, list("Good to know.", "Nice.", "Noted.",
 	var/list/replies
 	var/dept = department()
 	var/list/shop = dept ? GLOB.bot_shop_talk[dept] : null
-	if(shop && prob(30))
+	var/news = prob(50) ? latest_news(company, TRUE) : null
+	var/list/style = GLOB.bot_playstyle_talk[is_paranoid() ? BOT_STYLE_PARANOID : playstyle]
+	if(news)
+		opener = pick("Did you hear? ", "You hear about it? ", "So, ", "Word is ") + news + "."
+		replies = GLOB.bot_news_replies
+		LAZYOR(news_told, news)
+		if(company.bot_brain)
+			LAZYOR(company.bot_brain.news_told, news) //it's heard it now, and won't be telling this one back
+	else if(style && prob(25))
+		var/list/exchange = pick(style)
+		opener = exchange[1]
+		replies = exchange[2]
+	else if(shop && prob(30))
 		opener = pick(shop)
 		replies = GLOB.bot_shop_talk_replies
 	else
@@ -552,6 +632,37 @@ GLOBAL_LIST_INIT(bot_shop_talk_replies, list("Good to know.", "Nice.", "Noted.",
 		if(!other.pursuing_kind)
 			company.face_atom(owner)
 		other.say_after_typing(pick(replies))
+
+// ---------------------------------------------------------------------------------------------
+// News
+// ---------------------------------------------------------------------------------------------
+
+/// What's happened this round that people would talk about: list(what, when, who it was). The newest last.
+GLOBAL_LIST_EMPTY(bot_news)
+
+/// Something for the crew to talk about, in the words they'd use, with no capital or full stop: it goes in the middle of a sentence.
+/proc/bot_news(what, mob/living/about)
+	for(var/list/old as anything in GLOB.bot_news)
+		if(old[1] == what)
+			return
+	GLOB.bot_news += list(list(what, world.time, about ? WEAKREF(about) : null))
+	if(length(GLOB.bot_news) > 30)
+		GLOB.bot_news.Cut(1, 2)
+
+/// Something from the last ten minutes, that isn't about the bot it's being said to. Asked for gossip, something it hasn't been over already.
+/datum/bot_brain/proc/latest_news(mob/living/company, fresh_only = FALSE)
+	for(var/i in length(GLOB.bot_news) to 1 step -1)
+		var/list/item = GLOB.bot_news[i]
+		if(world.time > item[2] + BOT_NEWS_LIFETIME)
+			return null
+		if(fresh_only && LAZYFIND(news_told, item[1]))
+			continue
+		var/datum/weakref/about = item[3]
+		var/mob/living/who = about?.resolve()
+		if(who == owner || (company && who == company))
+			continue
+		return item[1]
+	return null
 
 // ---------------------------------------------------------------------------------------------
 // Arriving

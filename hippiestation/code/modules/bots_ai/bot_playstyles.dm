@@ -105,6 +105,7 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 	if(ref in bodies_seen)
 		return
 	LAZYADD(bodies_seen, ref)
+	bot_news("[H.real_name] turned up dead in [get_area_name(H, TRUE)]", H)
 	if(prob(40))
 		harden("found [H] dead")
 

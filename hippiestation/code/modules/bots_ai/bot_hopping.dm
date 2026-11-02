@@ -129,6 +129,7 @@ GLOBAL_VAR(bot_power_out_drill)
 	duties = null //worked out again, for what it does now
 	bot_log(src, "HOPPER: covering [job]")
 	bot_tally("jobs covered")
+	bot_news("[owner.real_name]'s covering [lowertext(job)] now, nobody else was", owner)
 
 /datum/bot_duty/cover_short_handed
 	name = "picking up what's short-handed"

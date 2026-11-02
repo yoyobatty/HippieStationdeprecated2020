@@ -5,6 +5,8 @@
 	if(H.mind?.miming && H.bot_brain)
 		H.bot_brain.mime_instead(line) //goals/civilians.dm - a mime's say() fails without a word
 		return
+	if(H.bot_brain && !H.bot_brain.worth_saying(line)) //bot_chatter.dm
+		return
 	H.say(H.bot_brain ? H.bot_brain.in_own_words(line) : line) //bot_chatter.dm
 
 /proc/bot_log(datum/bot_brain/B, msg)

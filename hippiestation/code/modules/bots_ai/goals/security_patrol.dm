@@ -137,6 +137,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		W.severity = severity
 	W.last_seen = get_turf(H)
 	W.last_seen_at = world.time
+	bot_news("Security's after [H.real_name] for [lowertext(crime)]", H)
 
 	var/datum/data/record/R = bot_find_security_record(H)
 	if(!R)
