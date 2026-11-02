@@ -91,7 +91,7 @@
 				to_chat(user, "<span class='notice'>You repair [src].</span>")
 				stat &= ~BROKEN
 				obj_integrity = max_integrity
-				update_icon()
+				power_change() //hippie
 		else
 			to_chat(user, "<span class='notice'>[src] does not need repairs.</span>")
 	else

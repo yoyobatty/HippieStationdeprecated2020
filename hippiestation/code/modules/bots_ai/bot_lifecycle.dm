@@ -61,7 +61,8 @@ GLOBAL_VAR_INIT(bot_ai_verbose, bot_ai_logging_wanted())
 	GLOB.bot_ai_verbose = !GLOB.bot_ai_verbose
 	message_admins("[key_name(usr)] turned bot AI verbose logging [GLOB.bot_ai_verbose ? "ON" : "OFF"].")
 
-/proc/spawn_bot_crew_member(rank = "Assistant")
+/// at_post stands them where the job starts, for the crew who are on shift when the round begins. Otherwise they arrive like a latejoiner.
+/proc/spawn_bot_crew_member(rank = "Assistant", at_post = FALSE)
 	if(!SSticker?.IsRoundInProgress())
 		return null
 
@@ -72,7 +73,10 @@ GLOBAL_VAR_INIT(bot_ai_verbose, bot_ai_logging_wanted())
 	NP.mind_initialize()
 	NP.ready = PLAYER_READY_TO_PLAY
 
-	NP.AttemptLateSpawn(rank)
+	if(at_post && bot_post_free(rank))
+		NP.join_at_post(rank)
+	else
+		NP.AttemptLateSpawn(rank)
 
 	var/mob/living/carbon/human/H = identity.spawned_human
 	if(!H)

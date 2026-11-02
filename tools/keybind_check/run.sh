@@ -1,0 +1,74 @@
+#!/bin/bash
+# Keybind check with a real client (see keybind_check.dm). A BYOND window opens on the desktop for a minute or two.
+# Usage: tools/keybind_check/run.sh [label]     results in data/keycheck_<label>.txt
+# Won't start with a game window already open: DreamSeeker is one instance per machine and it would take that window over.
+set -u
+LABEL="${1:-now}"
+PORT="${PORT:-45311}"
+BYOND_BIN="${BYOND_BIN:-/c/Program Files (x86)/BYOND/bin}"
+HERE="$(cd "$(dirname "$0")" && pwd -W)"
+cd "${CHECKOUT:-$(dirname "$0")/../..}"
+
+if tasklist 2>/dev/null | grep -qi dreamseeker; then
+	echo "A game window is open: close it first."
+	exit 1
+fi
+
+mkdir -p data
+rm -f data/keycheck.txt data/keycheck_sendkeys data/keycheck_keys_sent data/keycheck_focus_away data/keycheck_focus_gone data/keycheck_focus_back data/keycheck_alttab data/keycheck_alttab_done data/keycheck_alttab_back data/keycheck_phase data/keycheck_probe_ok data/keycheck_mouse_steps
+BEFORE=$(find data/player_saves -name preferences.sav -exec md5sum {} + 2>/dev/null | sort)
+
+echo "Building..."
+sed 's/^#include "hippiestation\\code\\modules\\bots_ai\\bot_brain.dm"/#include "keybind_check_tmp.dm"\r\n&/' hippiestation.dme > keycheck.dme
+cp "$HERE/${HARNESS:-keybind_check.dm}" keybind_check_tmp.dm
+"$BYOND_BIN/dm.exe" keycheck.dme | grep -E "error|dmb -"
+[ -f keycheck.dmb ] || { echo "Build failed"; exit 1; }
+
+# Guests allowed: the only way in without touching the saved BYOND login.
+rm -rf data/keycheck_config
+cp -r config data/keycheck_config
+sed -i '/^GUEST_BAN/d' data/keycheck_config/config.txt
+sed -i '/^BOT_CREW/d' data/keycheck_config/hippiestation_config.txt
+
+"$BYOND_BIN/dd.exe" keycheck.dmb "$PORT" -trusted -invisible -params "config=data/keycheck_config&keycheck=1" > data/keycheck_dd.log 2>&1 &
+DD=$!
+echo "Server $DD booting..."
+for i in $(seq 1 240); do
+	grep -q "Initializations complete" data/keycheck_dd.log 2>/dev/null && break
+	sleep 1
+done
+grep -q "Initializations complete" data/keycheck_dd.log || { echo "Server never finished starting"; kill "$DD"; exit 1; }
+sleep 3
+
+"$BYOND_BIN/dreamseeker.exe" "byond://127.0.0.1:$PORT##guest" &
+CLIENT=$!
+echo "Client $CLIENT connecting..."
+
+SENT=0
+AWAY=0
+for i in $(seq 1 400); do
+	kill -0 "$DD" 2>/dev/null || break
+	grep -q "^done" data/keycheck.txt 2>/dev/null && break
+	if [ "$SENT" = "0" ] && [ -f data/keycheck_sendkeys ]; then
+		SENT=1
+		powershell -NoProfile -ExecutionPolicy Bypass -File "$HERE/${SENDER:-sendkeys.ps1}"
+		echo sent > data/keycheck_keys_sent
+	fi
+	if [ "${TABBED:-0}" = "0" ] && [ -f data/keycheck_alttab ]; then
+		TABBED=1
+		powershell -NoProfile -ExecutionPolicy Bypass -File "$HERE/alttab.ps1" &
+	fi
+	if [ "$AWAY" = "0" ] && [ -f data/keycheck_focus_away ]; then
+		AWAY=1
+		powershell -NoProfile -ExecutionPolicy Bypass -File "$HERE/focusaway.ps1" &
+	fi
+	sleep 1
+done
+kill "$DD" 2>/dev/null
+kill "$CLIENT" 2>/dev/null
+AFTER=$(find data/player_saves -name preferences.sav -exec md5sum {} + 2>/dev/null | sort)
+[ "$BEFORE" = "$AFTER" ] || echo "WRONG: a preferences file changed during this run"
+
+cp data/keycheck.txt "data/keycheck_$LABEL.txt" 2>/dev/null
+rm -f keycheck.* keybind_check_tmp.dm
+cat "data/keycheck_$LABEL.txt" 2>/dev/null || { echo "No results"; tail -20 data/keycheck_dd.log; }

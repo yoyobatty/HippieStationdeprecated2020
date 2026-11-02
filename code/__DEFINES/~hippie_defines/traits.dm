@@ -3,6 +3,7 @@
 #define TRAIT_ONEWAYROAD	"one-way road"
 #define TRAIT_TIMELESS	"timeless"
 #define TRAIT_BOOT_OF_LIFE "boot_of_life_trait"
+#define TRAIT_IMPACTPROOF "impactproof" // being thrown into a wall or someone doesn't hurt or stun you
 
 #define YEET_TRAIT "yeet_trait"
 #define BLUESPACE_STONE_TRAIT "bluespace_stone_trait"

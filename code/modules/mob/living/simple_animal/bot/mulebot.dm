@@ -111,7 +111,8 @@
 			..()
 	else
 		..()
-	update_icon()
+	if(!QDELETED(src)) //a hard enough hit destroys it
+		update_icon()
 	return
 
 /mob/living/simple_animal/bot/mulebot/emag_act(mob/user)

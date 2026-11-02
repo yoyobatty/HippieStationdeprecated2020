@@ -58,7 +58,7 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 /datum/bot_brain/proc/find_pa_console()
 	var/obj/machinery/particle_accelerator/control_box/best
 	var/best_dist
-	for(var/obj/machinery/particle_accelerator/control_box/CB in GLOB.machines)
+	for(var/obj/machinery/particle_accelerator/control_box/CB as anything in bot_instances_of(/obj/machinery/particle_accelerator/control_box))
 		if(CB.z != owner.z)
 			continue
 		var/dist = get_dist(owner, CB)
@@ -85,10 +85,61 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 
 // See engine_room_anchor()'s comment above for why this exists as a separate anchor.
 /datum/bot_brain/proc/find_tesla_generator()
-	for(var/obj/machinery/the_singularitygen/tesla/T in GLOB.machines)
+	for(var/obj/machinery/the_singularitygen/tesla/T as anything in bot_instances_of(/obj/machinery/the_singularitygen/tesla))
 		if(T.z == owner.z)
+			GLOB.bot_tesla_site = get_turf(T)
 			return T
 	return null
+
+/// Where the tesla generator stood. Making the ball uses it up, and everything here finds the engine by the generator
+/// (tesla_component_anchor()), so from the moment the engine started nobody could find an emitter to look after it.
+GLOBAL_VAR(bot_tesla_site)
+
+/// The tesla's cage, while there's a ball in it. Only for looking after the emitters: the rest of the checklist staying blind
+/// once the generator's gone is what keeps engineers off the parts of a running engine.
+/proc/bot_caged_tesla_site()
+	var/turf/site = GLOB.bot_tesla_site
+	if(!site)
+		return null
+	for(var/obj/singularity/energy_ball/ball in GLOB.singularities)
+		if(!QDELETED(ball) && ball.z == site.z && get_dist(ball, site) <= 10)
+			return site
+	return null
+
+/// An emitter on the running engine that's off or starved. One that loses its wire switches itself off and stays off.
+/proc/bot_emitter_trouble()
+	var/turf/site = bot_caged_tesla_site()
+	if(!site)
+		return FALSE
+	for(var/obj/machinery/power/emitter/anchored/E as anything in bot_instances_of(/obj/machinery/power/emitter/anchored))
+		if(E.z == site.z && E.state == 2 && get_dist(site, E) <= BOT_ENGINE_LOCAL_REACH && (!E.active || !E.powered)) //EMITTER_WELDED
+			return TRUE
+	return FALSE
+
+/// Emitters down on a running engine: nothing an engineer is doing matters more. The field has seventy seconds in it with all
+/// of them gone. Cuts first, since a dead wire won't switch back on, then the emitters themselves.
+/datum/bot_duty/engine_alarm
+	name = "the emitters are down"
+	jobs = list("Station Engineer", "Chief Engineer")
+	tier = BOT_DUTY_URGENT
+	priority = 60
+	interrupts = TRUE
+	interval_min = 30
+	interval_max = 60
+
+/datum/bot_duty/engine_alarm/should_interrupt(datum/bot_brain/bot)
+	// Anything already seeing to it is left to get on with it. Pulling engineers off the SMES for this every two seconds, while
+	// the SMES was what was wrong, lost three engines in three tries.
+	var/datum/bot_goal/goal = bot.current_goal
+	if(!goal || goal.never_rests || istype(goal, /datum/bot_goal/repair_cable) || istype(goal, /datum/bot_goal/activate_tesla_emitter) \
+		|| istype(goal, /datum/bot_goal/configure_smes) || istype(goal, /datum/bot_goal/acquire_tool))
+		return FALSE
+	return bot_emitter_trouble()
+
+/datum/bot_duty/engine_alarm/try_start(datum/bot_brain/bot)
+	if(!bot_emitter_trouble())
+		return FALSE
+	return bot.assign_goal(new /datum/bot_goal/configure_smes()) || bot.try_cable_repair_round() || bot.assign_goal(new /datum/bot_goal/activate_tesla_emitter())
 
 // Returns null, NOT engine_room_anchor(), when the tesla generator can't be found -
 // unlike find_incomplete_pa_target() (which genuinely has no other reference point and
@@ -155,13 +206,12 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 	if(incomplete_fg)
 		bot_log_verbose(src, "find_ready_pa_console: [incomplete_fg] still needs activating")
 		return null
-	var/obj/machinery/power/tesla_coil/unanchored_coil = find_unanchored_tesla_coil(TRUE)
-	if(unanchored_coil)
-		bot_log_verbose(src, "find_ready_pa_console: [unanchored_coil] still needs wrenching down")
-		return null
-	var/obj/machinery/power/grounding_rod/unanchored_rod = find_unanchored_grounding_rod(TRUE)
-	if(unanchored_rod)
-		bot_log_verbose(src, "find_ready_pa_console: [unanchored_rod] still needs wrenching down")
+	// A coil or rod that isn't wrenched down doesn't take an arc, it blows up: 85% of the time, with a bang that takes out the
+	// parts round it and the cable to the emitters (/obj/machinery/tesla_act()). Every tesla that ever got loose started like
+	// that, and they all got started with a part still loose, because a part somebody had given up on used to count as done.
+	var/obj/machinery/loose = find_unanchored_tesla_coil(TRUE) || find_unanchored_grounding_rod(TRUE)
+	if(loose && !done_waiting_for_cage(loose))
+		bot_log_verbose(src, "find_ready_pa_console: [loose] still needs wrenching down")
 		return null
 	// Everything is switched on - but is the field being held up? Not until the emitters have been firing for a bit
 	// and the ring is well charged (containment_steady(), the end of this file).
@@ -210,7 +260,7 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 	// door being open at that exact moment made it fail to recognize the spare as
 	// already-stored at all.
 	var/obj/machinery/door/poddoor/storage_door = find_engine_secure_storage()
-	for(var/obj/machinery/the_singularitygen/G in GLOB.machines)
+	for(var/obj/machinery/the_singularitygen/G as anything in bot_instances_of(/obj/machinery/the_singularitygen))
 		if(istype(G, /obj/machinery/the_singularitygen/tesla))
 			continue //keep this one - it's what the PA is supposed to feed
 		if(G.anchored)
@@ -277,16 +327,21 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 // walking the room would.
 /datum/bot_brain/proc/find_incomplete_tesla_emitter(strict = FALSE)
 	var/turf/anchor = tesla_component_anchor()
+	var/running = !anchor
+	if(running)
+		anchor = bot_caged_tesla_site() //the generator's gone because the engine's going: keep it going
 	if(!anchor) //tesla generator gone - see tesla_component_anchor()'s comment
 		return null
 	var/turf/bot_turf = get_turf(owner)
 	var/obj/machinery/power/emitter/best
 	var/best_dist
-	for(var/obj/machinery/power/emitter/anchored/E in GLOB.machines)
+	for(var/obj/machinery/power/emitter/anchored/E as anything in bot_instances_of(/obj/machinery/power/emitter/anchored))
 		if(E.z != owner.z)
 			continue
 		if(E.active && E.state == 2 && !E.locked) //EMITTER_WELDED
 			continue //already fully set up
+		if(running && !E.powernet)
+			continue //no wire under it: it won't switch on until that's fixed
 		if(!strict && (is_failed_engine_part(E) || taken_by_another(E)))
 			continue //a real pursuit already failed on this one (on_give_up() below), or another engineer has it in hand
 		if(get_dist(anchor, E) > BOT_ENGINE_LOCAL_REACH) //stay near the engine room - a combat/armory emitter elsewhere isn't this bot's business
@@ -321,7 +376,7 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 	var/turf/bot_turf = get_turf(owner)
 	var/obj/machinery/field/generator/best
 	var/best_dist
-	for(var/obj/machinery/field/generator/F in GLOB.machines)
+	for(var/obj/machinery/field/generator/F as anything in bot_instances_of(/obj/machinery/field/generator))
 		if(F.z != owner.z || F.active || !F.anchored)
 			continue
 		if(!strict && (is_failed_engine_part(F) || taken_by_another(F)))
@@ -334,6 +389,29 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 			best_dist = dist
 	return best
 
+/// Whether A is part of the tesla's engine, rather than the other engine on the map.
+/proc/bot_near_tesla(atom/A)
+	return GLOB.bot_tesla_site && get_dist(GLOB.bot_tesla_site, A) <= BOT_ENGINE_LOCAL_REACH + 8
+
+/// When the accelerator was first held up for a loose part, this round, and whether that's been said on the radio.
+GLOBAL_VAR_INIT(bot_cage_wait_began, 0)
+GLOBAL_VAR_INIT(bot_cage_wait_over, FALSE)
+
+/// Whether to stop holding the accelerator back for a loose part. A part nobody can reach mustn't cost the station its engine:
+/// the SMES lasts about ten minutes past this point, so after five it goes ahead, knowing what it's doing and saying so.
+/datum/bot_brain/proc/done_waiting_for_cage(obj/machinery/loose)
+	if(!GLOB.bot_cage_wait_began)
+		GLOB.bot_cage_wait_began = world.time
+		bot_say(owner, ":e Not starting the accelerator yet, [loose] by the tesla isn't wrenched down. [get_area_name(loose, TRUE)].")
+		bot_log(src, "holding the accelerator back: [loose] at [bot_coord(get_turf(loose))] is loose")
+	if(world.time < GLOB.bot_cage_wait_began + BOT_CAGE_PATIENCE)
+		return FALSE
+	if(!GLOB.bot_cage_wait_over)
+		GLOB.bot_cage_wait_over = TRUE
+		bot_say(owner, ":e Can't wait any longer for [loose], we need the engine. Starting it. Stay clear of it.")
+		bot_log(src, "starting the accelerator with [loose] still loose: nobody could get to it")
+	return TRUE
+
 /datum/bot_brain/proc/find_unanchored_tesla_coil(strict = FALSE)
 	var/turf/anchor = tesla_component_anchor()
 	if(!anchor) //tesla generator gone - see tesla_component_anchor()'s comment
@@ -341,10 +419,10 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 	var/turf/bot_turf = get_turf(owner)
 	var/obj/machinery/power/tesla_coil/best
 	var/best_dist
-	for(var/obj/machinery/power/tesla_coil/TC in GLOB.machines)
+	for(var/obj/machinery/power/tesla_coil/TC as anything in bot_instances_of(/obj/machinery/power/tesla_coil))
 		if(TC.z != owner.z || TC.anchored)
 			continue
-		if(is_failed_engine_part(TC) || (!strict && taken_by_another(TC)))
+		if(!strict && (is_failed_engine_part(TC) || taken_by_another(TC)))
 			continue
 		if(get_dist(anchor, TC) > BOT_ENGINE_LOCAL_REACH)
 			continue
@@ -361,10 +439,10 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 	var/turf/bot_turf = get_turf(owner)
 	var/obj/machinery/power/grounding_rod/best
 	var/best_dist
-	for(var/obj/machinery/power/grounding_rod/GR in GLOB.machines)
+	for(var/obj/machinery/power/grounding_rod/GR as anything in bot_instances_of(/obj/machinery/power/grounding_rod))
 		if(GR.z != owner.z || GR.anchored)
 			continue
-		if(is_failed_engine_part(GR) || (!strict && taken_by_another(GR)))
+		if(!strict && (is_failed_engine_part(GR) || taken_by_another(GR)))
 			continue
 		if(get_dist(anchor, GR) > BOT_ENGINE_LOCAL_REACH)
 			continue
@@ -385,7 +463,7 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 		return null
 	var/obj/machinery/button/door/best
 	var/best_dist
-	for(var/obj/machinery/button/door/B in GLOB.machines)
+	for(var/obj/machinery/button/door/B as anything in bot_instances_of(/obj/machinery/button/door))
 		if(B.z != owner.z || B.id != P.id)
 			continue
 		var/dist = get_dist(owner, B)
@@ -414,7 +492,7 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 	var/area/target_area = get_area(target)
 	if(!target_area)
 		return null
-	for(var/obj/machinery/door/poddoor/P in GLOB.machines)
+	for(var/obj/machinery/door/poddoor/P as anything in bot_instances_of(/obj/machinery/door/poddoor))
 		if(P.z != owner.z || !P.density)
 			continue //already open - nothing to do
 		if(get_dist(target, P) > BOT_ENGINE_LOCAL_REACH)
@@ -439,7 +517,7 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 	var/area/target_area = get_area(target)
 	if(!target_area)
 		return null
-	for(var/obj/machinery/door/poddoor/P in GLOB.machines)
+	for(var/obj/machinery/door/poddoor/P as anything in bot_instances_of(/obj/machinery/door/poddoor))
 		if(P.z != owner.z)
 			continue
 		if(get_dist(target, P) > BOT_ENGINE_LOCAL_REACH)
@@ -460,7 +538,7 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 	var/turf/anchor = engine_room_anchor()
 	var/obj/machinery/door/poddoor/best
 	var/best_dist
-	for(var/obj/machinery/door/poddoor/P in GLOB.machines)
+	for(var/obj/machinery/door/poddoor/P as anything in bot_instances_of(/obj/machinery/door/poddoor))
 		if(P.z != owner.z)
 			continue
 		if(!findtext(P.name, "storage"))
@@ -481,7 +559,7 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 // M.density), so a single press on an open shutter closes it - no need to check which
 // specific direction "closed" is.
 /datum/bot_brain/proc/find_open_engine_shutter()
-	for(var/obj/machinery/door/poddoor/shutters/S in GLOB.machines)
+	for(var/obj/machinery/door/poddoor/shutters/S as anything in bot_instances_of(/obj/machinery/door/poddoor/shutters))
 		if(S.z != owner.z || S.id != "Singularity" || S.density)
 			continue //already closed, or a shutter belonging to some other room entirely
 		return S
@@ -503,7 +581,7 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 	var/obj/machinery/particle_accelerator/control_box/CB = find_pa_console()
 	var/obj/machinery/button/door/best
 	var/best_dist
-	for(var/obj/machinery/button/door/B in GLOB.machines)
+	for(var/obj/machinery/button/door/B as anything in bot_instances_of(/obj/machinery/button/door))
 		if(B.z != owner.z || B.id != "Singularity")
 			continue
 		if(CB && get_dist(CB, B) <= 2)
@@ -785,7 +863,31 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 	target = bot.find_incomplete_field_generator()
 
 /datum/bot_goal/activate_field_generator/get_strategies(datum/bot_brain/bot)
-	return list(new /datum/bot_strategy/activate_field_gen())
+	var/datum/bot_strategy/activate_field_gen/plain = new
+	var/turf/outside = bot.outer_side_of(target)
+	if(!outside)
+		return list(plain)
+	var/datum/bot_strategy/activate_field_gen/from_outside = new
+	var/datum/bot_step/move_to/walk = from_outside.steps[1]
+	walk.step_target = outside
+	return list(from_outside, plain)
+
+/// The tile beside A furthest from the tesla generator. The fields are about to close round the engine, and an engineer who switched
+/// the generators on from the inside of the ring stood in the vacuum in there until its tank ran out: 2 shifts in 5.
+/datum/bot_brain/proc/outer_side_of(atom/A)
+	var/turf/center = tesla_component_anchor()
+	if(!center)
+		return null
+	var/turf/best
+	var/best_dist = get_dist_euclidian(center, A)
+	for(var/turf/open/T in orange(1, A))
+		if(isspaceturf(T) || is_blocked_turf(T, TRUE))
+			continue
+		var/dist = get_dist_euclidian(center, T)
+		if(dist > best_dist)
+			best = T
+			best_dist = dist
+	return best
 
 /datum/bot_goal/activate_field_generator/on_success(datum/bot_brain/bot)
 	bot.continue_engineering_round()
@@ -829,7 +931,8 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 	target = bot.find_unanchored_tesla_coil()
 
 /datum/bot_goal/wrench_tesla_coil/get_strategies(datum/bot_brain/bot)
-	return list(new /datum/bot_strategy/wrench_coil())
+	var/turf/spot = bot.floor_to_drag_onto(target)
+	return list(spot ? new /datum/bot_strategy/drag_then_wrench(target, spot, new /datum/bot_step/wrench_tesla_coil()) : new /datum/bot_strategy/wrench_coil())
 
 /datum/bot_goal/wrench_tesla_coil/on_success(datum/bot_brain/bot)
 	bot.continue_engineering_round()
@@ -838,6 +941,68 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 /datum/bot_goal/wrench_tesla_coil/on_give_up(datum/bot_brain/bot)
 	if(target)
 		LAZYSET(bot.failed_engine_parts, target, world.time + rand(600, 1200))
+
+/// A part that isn't on a floor, and the tile of floor beside it to get it onto, or null if it's fine where it is. A wrench won't
+/// secure anything to lattice ("needs to be on the floor to be secured!"), and these get shoved off the plating: every wrench on
+/// a rod that had ended up out there failed, for as long as anybody kept trying, and that's what left the tesla with a loose one.
+/datum/bot_brain/proc/floor_to_drag_onto(obj/machinery/part)
+	var/turf/here = get_turf(part)
+	if(!here || isfloorturf(here))
+		return null
+	for(var/d in GLOB.alldirs)
+		var/turf/T = get_step(here, d)
+		if(isfloorturf(T) && !is_blocked_turf(T, TRUE))
+			return T
+	return null
+
+/// Over to the floor beside it, take hold of it, and walk off that tile: it comes after, on to the floor. Then the usual wrench.
+/datum/bot_strategy/drag_then_wrench/New(obj/machinery/part, turf/spot, datum/bot_step/wrench)
+	. = ..()
+	var/datum/bot_step/move_to/walk = new
+	walk.step_target = spot
+	steps = list(new /datum/bot_step/ensure_wrench(), walk, new /datum/bot_step/paced/drag_onto_floor(part, spot), wrench)
+
+/datum/bot_strategy/drag_then_wrench/is_feasible(datum/bot_brain/bot)
+	return TRUE
+
+/datum/bot_step/paced/drag_onto_floor
+	max_clicks = 6
+	var/obj/machinery/part
+	var/turf/spot
+
+/datum/bot_step/paced/drag_onto_floor/New(obj/machinery/P, turf/S)
+	. = ..()
+	part = P
+	spot = S
+
+/datum/bot_step/paced/drag_onto_floor/do_click(datum/bot_brain/bot)
+	var/mob/living/carbon/human/H = bot.owner
+	if(QDELETED(part) || isfloorturf(get_turf(part)) || H.incapacitated())
+		return FALSE
+	if(H.pulling != part)
+		if(!H.Adjacent(part))
+			return FALSE
+		bot.human_pause(part)
+		if(QDELETED(part) || !H.Adjacent(part))
+			return FALSE
+		H.face_atom(part)
+		bot.telemetry_event("pull", list("target" = "[part]"))
+		H.start_pulling(part)
+		wait_for = 4
+		return H.pulling == part
+	for(var/turf/open/T in get_adjacent_open_turfs(spot))
+		if(T != get_turf(part) && isfloorturf(T) && !is_blocked_turf(T, TRUE))
+			step_to(H, T)
+			wait_for = 6
+			return TRUE
+	return FALSE
+
+/datum/bot_step/paced/drag_onto_floor/finish(datum/bot_brain/bot)
+	bot.owner.stop_pulling()
+	if(QDELETED(part) || !isfloorturf(get_turf(part)))
+		return GOAL_STEP_FAIL
+	bot_log(bot, "dragged [part] back onto the floor")
+	return GOAL_STEP_SUCCESS
 
 /datum/bot_strategy/wrench_coil/New()
 	. = ..()
@@ -880,7 +1045,8 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 	target = bot.find_unanchored_grounding_rod()
 
 /datum/bot_goal/wrench_grounding_rod/get_strategies(datum/bot_brain/bot)
-	return list(new /datum/bot_strategy/wrench_rod())
+	var/turf/spot = bot.floor_to_drag_onto(target)
+	return list(spot ? new /datum/bot_strategy/drag_then_wrench(target, spot, new /datum/bot_step/wrench_grounding_rod()) : new /datum/bot_strategy/wrench_rod())
 
 /datum/bot_goal/wrench_grounding_rod/on_success(datum/bot_brain/bot)
 	bot.continue_engineering_round()
@@ -1252,7 +1418,7 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 	var/datum/powernet/engine_side = anchor ? null : engine_side_grid()
 	var/obj/machinery/power/smes/best
 	var/best_dist
-	for(var/obj/machinery/power/smes/S in GLOB.machines)
+	for(var/obj/machinery/power/smes/S as anything in bot_instances_of(/obj/machinery/power/smes))
 		if(S.z != owner.z || (S.stat & BROKEN) || S.panel_open || (anchor && get_dist(anchor, S) > BOT_SMES_REACH))
 			continue
 		if(engine_side ? (S.terminal?.powernet != engine_side || get_dist(GLOB.main_supermatter_engine, S) > BOT_SMES_CRYSTAL_REACH) : !istype(S, /obj/machinery/power/smes/engineering))
@@ -1320,7 +1486,7 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 		return FALSE
 	var/held = 0
 	var/generators = 0
-	for(var/obj/machinery/field/generator/F in GLOB.machines)
+	for(var/obj/machinery/field/generator/F as anything in bot_instances_of(/obj/machinery/field/generator))
 		if(F.z != owner.z || !F.anchored || get_dist(anchor, F) > BOT_CONTAINMENT_REACH)
 			continue
 		if(F.active != 2) //FG_ONLINE
@@ -1329,7 +1495,7 @@ GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
 		held += F.power
 	if(!generators || held < generators * 250 * BOT_CONTAINMENT_MIN_CHARGE) //field_generator_max_power
 		return FALSE
-	for(var/obj/machinery/power/emitter/anchored/E in GLOB.machines)
+	for(var/obj/machinery/power/emitter/anchored/E as anything in bot_instances_of(/obj/machinery/power/emitter/anchored))
 		if(E.z != owner.z || get_dist(anchor, E) > BOT_CONTAINMENT_REACH)
 			continue
 		if(!E.active || !E.powered)

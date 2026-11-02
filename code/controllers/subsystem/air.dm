@@ -301,7 +301,7 @@ SUBSYSTEM_DEF(air)
 				net.addMachineryMember(considered_device)
 				continue
 			var/obj/machinery/atmospherics/pipe/item = considered_device
-			if(net.members.Find(item))
+			if(item.parent == net) // hippie -- was members.Find(item), which looks through 2,000 pipes for each of 2,000 pipes
 				continue
 			if(item.parent)
 				var/static/pipenetwarnings = 10
@@ -310,6 +310,7 @@ SUBSYSTEM_DEF(air)
 					pipenetwarnings--
 				if(pipenetwarnings == 0)
 					log_mapping("build_pipeline(): further messages about pipenets will be suppressed")
+					pipenetwarnings-- // hippie -- this one too
 
 			net.members += item
 			border += item

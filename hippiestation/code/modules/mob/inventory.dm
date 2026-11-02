@@ -1,3 +1,6 @@
+/// Turrets, mechs and ocular wardens: what a hostile mob looks out for besides mobs (hostile.dm)
+GLOBAL_LIST_EMPTY(hostile_machines)
+
 /mob/living/proc/unequip_all_items(force = FALSE) //like unequip_everything but don't drop items in hands and have option to force it
 	var/list/items = list()
 	items |= get_equipped_items(TRUE)
@@ -28,3 +31,15 @@
 					I.equip_to_best_slot(src)
 					return
 	..()
+
+/// What a shower or a pool gets to besides the clothes: the ID, what's in the pockets, what's clipped to the suit and what's hanging
+/// off the belt. None of it was washed, and those are the inventory icons that stayed bloody. A closed bag keeps the water out.
+/mob/living/carbon/human/proc/carried_washables()
+	. = list()
+	for(var/obj/item/I in list(wear_id, l_store, r_store))
+		. += I
+	if(s_store && !(ITEM_SLOT_SUITSTORE in check_obscured_slots()))
+		. += s_store
+	if(belt)
+		for(var/obj/item/I in belt)
+			. += I

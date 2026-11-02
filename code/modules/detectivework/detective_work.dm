@@ -66,7 +66,7 @@
 
 /obj/add_blood_DNA(list/dna)
 	. = ..()
-	if(length(dna))
+	if(length(dna) && !QDELETED(src)) // hippie -- a blood decal can merge into one already there the moment it's made, and then gets given its DNA by whoever made it: the component held it in memory for good
 		. = AddComponent(/datum/component/forensics, null, null, dna)
 
 /obj/item/clothing/gloves/add_blood_DNA(list/blood_dna, list/datum/disease/diseases)

@@ -137,14 +137,25 @@
 	full_name = "Hold to toggle move intent"
 	description = "Held down to cycle to the other move intent, release to cycle back"
 
+// Hippie: these used to be two blind flips, and a press and its release don't always arrive as a pair. Alt-Tab sends the press
+// and the other window gets the release: stuck walking. Hold Ctrl or Shift first, as AltGr does, and only the release matches
+// this key: walking again, out of nowhere. It remembers what to go back to now, and a release with no press does nothing.
 /datum/keybinding/mob/toggle_move_intent/down(client/user)
+	if(user.held_move_intent)
+		return TRUE
 	var/mob/M = user.mob
+	user.held_move_intent = M.m_intent
 	M.toggle_move_intent()
 	return TRUE
 
 /datum/keybinding/mob/toggle_move_intent/up(client/user)
+	var/go_back_to = user.held_move_intent
+	if(!go_back_to)
+		return FALSE
+	user.held_move_intent = null
 	var/mob/M = user.mob
-	M.toggle_move_intent()
+	if(M.m_intent != go_back_to)
+		M.toggle_move_intent()
 	return TRUE
 
 /datum/keybinding/mob/toggle_move_intent_alternative

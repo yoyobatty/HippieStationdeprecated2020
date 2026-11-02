@@ -1,6 +1,14 @@
 /mob/living/simple_animal/hostile/retaliate
 	var/list/enemies = list()
 
+// hippie -- somebody who's been deleted can't be garbage collected for as long as they're on here
+/mob/living/simple_animal/hostile/retaliate/Life()
+	. = ..()
+	if(length(enemies) && prob(5))
+		for(var/atom/enemy as anything in enemies.Copy())
+			if(QDELETED(enemy))
+				enemies -= enemy
+
 /mob/living/simple_animal/hostile/retaliate/Found(atom/A)
 	if(isliving(A))
 		var/mob/living/L = A

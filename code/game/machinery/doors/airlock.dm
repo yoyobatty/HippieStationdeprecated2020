@@ -1048,7 +1048,7 @@
 					stat &= ~BROKEN
 					user.visible_message("<span class='notice'>[user.name] has repaired [src].</span>", \
 										"<span class='notice'>You finish repairing the airlock.</span>")
-					update_icon()
+					power_change() //hippie
 			else
 				to_chat(user, "<span class='notice'>The airlock doesn't need repairing.</span>")
 

@@ -124,7 +124,7 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 	var/obj/machinery/suit_storage_unit/best
 	var/best_dist
 	var/best_score
-	for(var/obj/machinery/suit_storage_unit/S in GLOB.machines)
+	for(var/obj/machinery/suit_storage_unit/S as anything in bot_instances_of(/obj/machinery/suit_storage_unit))
 		if(S.z != owner.z)
 			continue
 		if(!S.suit && !S.mask && !S.storage)
@@ -191,6 +191,8 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 // sub-check flaps wasn't visible from outside. Logging the specific reason on every
 // FALSE turns that from a guess into a direct read on the next test.
 /datum/bot_brain/proc/is_eva_ready()
+	if(is_miner())
+		return ready_for_lavaland() //goals/mining.dm: thin air down there, not vacuum
 	var/obj/item/clothing/suit/space/hardsuit/suit = owner.wear_suit
 	if(!istype(suit))
 		bot_log_verbose(src, "is_eva_ready: FALSE - wear_suit is [owner.wear_suit] (not a hardsuit)")

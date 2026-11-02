@@ -6,6 +6,20 @@ SUBSYSTEM_DEF(lighting)
 	var/static/list/sources_queue = list() // List of lighting sources queued for update.
 	var/static/list/corners_queue = list() // List of lighting corners queued for update.
 	var/static/list/objects_queue = list() // List of lighting objects queued for update.
+	/// Light sources waiting for somebody to be able to see them, filed by where they are: LIGHTING_UNSEEN_CELL() of a place -> the
+	/// ones there. There can be thousands, and this way finding those near a player only looks near the player.
+	/// See /datum/light_source/proc/can_wait_unseen()
+	var/static/list/unseen_cells = list()
+	/// How many light sources are in unseen_cells
+	var/static/unseen_count = 0
+	/// Turf -> how far from it a player can see, in tiles, for every player. Worked out every so often by update_eyes().
+	var/list/eyes = list()
+	/// When update_eyes() next runs
+	var/next_eyes_update = 0
+	/// Whether updates nobody can see wait until somebody could. Off, every light updates at once, as it used to.
+	var/defer_unseen = TRUE
+	/// Atoms that count as a player's eyes, for tests with no client (gym/bot_shift.dm)
+	var/list/test_eyes
 	/// Whether lights spill bounce light into the shadows around what they light (see LIGHTING_BOUNCE_STRENGTH). Set by the BOUNCE_LIGHTING config.
 	var/bounce_lighting = FALSE
 	// How bounce light behaves (see the LIGHTING_BOUNCE_ defines they start as). Edit them with View Variables to tune
@@ -26,7 +40,67 @@ SUBSYSTEM_DEF(lighting)
 	var/lighting_stamp = 0
 
 /datum/controller/subsystem/lighting/stat_entry()
-	..("L:[length(sources_queue)]|C:[length(corners_queue)]|O:[length(objects_queue)]")
+	..("L:[length(sources_queue)]|C:[length(corners_queue)]|O:[length(objects_queue)]|U:[unseen_count]")
+
+/// Works out where the players are looking, and queues up what has been waiting for them that they might see now.
+/datum/controller/subsystem/lighting/proc/update_eyes()
+	next_eyes_update = world.time + LIGHTING_EYES_UPDATE
+	eyes.Cut()
+	if(!defer_unseen)
+		for(var/cell in unseen_cells)
+			for(var/datum/light_source/L as anything in unseen_cells[cell])
+				L.unseen_cell = null
+				sources_queue += L
+		unseen_cells.Cut()
+		unseen_count = 0
+		return
+	for(var/client/C as anything in GLOB.clients)
+		var/turf/eye = get_turf(C.eye)
+		if(eye)
+			var/list/view_size = getviewsize(C.view)
+			eyes[eye] = max(eyes[eye], ceil(max(view_size[1], view_size[2]) / 2))
+	for(var/atom/A as anything in test_eyes)
+		var/turf/eye = get_turf(A)
+		if(eye)
+			eyes[eye] = ceil(max(getviewsize(world.view)) / 2)
+	if(!unseen_count)
+		return
+	var/list/back = list()
+	for(var/turf/eye as anything in eyes)
+		var/range = eyes[eye] + LIGHTING_UNSEEN_MARGIN + LIGHTING_UNSEEN_MAX_REACH
+		for(var/y in LIGHTING_UNSEEN_CELL_OF(max(eye.y - range, 1)) to LIGHTING_UNSEEN_CELL_OF(min(eye.y + range, world.maxy)))
+			for(var/x in LIGHTING_UNSEEN_CELL_OF(max(eye.x - range, 1)) to LIGHTING_UNSEEN_CELL_OF(min(eye.x + range, world.maxx)))
+				for(var/datum/light_source/L as anything in unseen_cells["[x]|[y]|[eye.z]"])
+					if(!L.can_wait_unseen(eyes))
+						back += L
+	for(var/datum/light_source/L as anything in back)
+		if(L.unseen_cell) // two players can both find it
+			stop_waiting(L)
+
+/// Files a light source away, at the turf it'll be lighting up when somebody gets near
+/datum/controller/subsystem/lighting/proc/wait_unseen(datum/light_source/L, turf/where)
+	var/cell = LIGHTING_UNSEEN_CELL(where)
+	var/list/waiting = unseen_cells[cell]
+	if(!waiting)
+		waiting = list()
+		unseen_cells[cell] = waiting
+	waiting += L
+	L.unseen_cell = cell
+	unseen_count++
+
+/// Takes a light source back out of unseen_cells
+/datum/controller/subsystem/lighting/proc/forget_unseen(datum/light_source/L)
+	var/list/waiting = unseen_cells[L.unseen_cell]
+	waiting -= L
+	if(!length(waiting))
+		unseen_cells -= L.unseen_cell
+	L.unseen_cell = null
+	unseen_count--
+
+/// Queues up a light source that was waiting. It's still marked as needing an update, so nothing else will have.
+/datum/controller/subsystem/lighting/proc/stop_waiting(datum/light_source/L)
+	forget_unseen(L)
+	sources_queue += L
 
 
 /datum/controller/subsystem/lighting/Initialize(timeofday)
@@ -54,6 +128,9 @@ SUBSYSTEM_DEF(lighting)
 	MC_SPLIT_TICK_INIT(3)
 	if(!init_tick_checks)
 		MC_SPLIT_TICK
+	var/can_defer = defer_unseen && !init_tick_checks
+	if(!init_tick_checks && world.time >= next_eyes_update)
+		update_eyes()
 	var/list/queue = sources_queue
 	var/i = 0
 	while(i < length(queue)) //we don't use a for loop here because i cannot be changed during an iteration
@@ -68,11 +145,15 @@ SUBSYSTEM_DEF(lighting)
 			i -= 1
 			continue
 
-		L.update_corners()
-		if(!QDELETED(L))
-			L.needs_update = LIGHTING_NO_UPDATE
+		var/turf/wait_at = can_defer && L.can_wait_unseen(eyes)
+		if(wait_at)
+			wait_unseen(L, wait_at)
 		else
-			i -= 1 // update_corners() has removed L from the list, move back so we don't overflow or skip the next element
+			L.update_corners()
+			if(!QDELETED(L))
+				L.needs_update = LIGHTING_NO_UPDATE
+			else
+				i -= 1 // update_corners() has removed L from the list, move back so we don't overflow or skip the next element
 
 		if(init_tick_checks)
 			CHECK_TICK

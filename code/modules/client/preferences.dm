@@ -667,13 +667,13 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 						dat += "<br>"
 					else
 						var/bound_key = user_binds[kb.name][1]
-						dat += "<label>[kb.full_name]</label> <a href ='?_src_=prefs;preference=keybindings_capture;keybinding=[kb.name];old_key=[bound_key]'>[bound_key]</a>"
+						dat += "<label>[kb.full_name]</label> <a href ='?_src_=prefs;preference=keybindings_capture;keybinding=[kb.name];old_key=[url_encode(bound_key)]'>[bound_key]</a>"
 						for(var/bound_key_index in 2 to length(user_binds[kb.name]))
 							bound_key = user_binds[kb.name][bound_key_index]
-							dat += " | <a href ='?_src_=prefs;preference=keybindings_capture;keybinding=[kb.name];old_key=[bound_key]'>[bound_key]</a>"
+							dat += " | <a href ='?_src_=prefs;preference=keybindings_capture;keybinding=[kb.name];old_key=[url_encode(bound_key)]'>[bound_key]</a>"
 						if(length(user_binds[kb.name]) < MAX_KEYS_PER_KEYBIND)
 							dat += "| <a href ='?_src_=prefs;preference=keybindings_capture;keybinding=[kb.name]'>Add Secondary</a>"
-						var/list/default_keys = hotkeys ? kb.classic_keys : kb.hotkey_keys
+						var/list/default_keys = hotkeys ? kb.hotkey_keys : kb.classic_keys
 						if(LAZYLEN(default_keys))
 							dat += "| Default: [default_keys.Join(", ")]"
 						dat += "<br>"
@@ -705,16 +705,29 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 	<div id='focus' style="outline: 0;" tabindex=0>Keybinding: [kb.full_name]<br>[kb.description]<br><br><b>Press any key to change<br>Press ESC to clear</b></div>
 	<script>
 	var deedDone = false;
-	document.onkeyup = function(e) {
+	function isModifier(e) {
+		return e.key == 'Alt' || e.key == 'Control' || e.key == 'Shift' || e.key == 'AltGraph';
+	}
+	function sendKey(e) {
 		if(deedDone){ return; }
+		deedDone = true;
 		var alt = e.altKey ? 1 : 0;
 		var ctrl = e.ctrlKey ? 1 : 0;
 		var shift = e.shiftKey ? 1 : 0;
 		var numpad = (95 < e.keyCode && e.keyCode < 112) ? 1 : 0;
 		var escPressed = e.keyCode == 27 ? 1 : 0;
-		var url = 'byond://?_src_=prefs;preference=keybindings_set;keybinding=[kb.name];old_key=[old_key];clear_key='+escPressed+';key='+e.key+';alt='+alt+';ctrl='+ctrl+';shift='+shift+';numpad='+numpad+';key_code='+e.keyCode;
+		var url = 'byond://?_src_=prefs;preference=keybindings_set;keybinding=[kb.name];old_key=[url_encode(old_key)];clear_key='+escPressed+';key='+encodeURIComponent(e.key)+';code='+encodeURIComponent(e.code || '')+';alt='+alt+';ctrl='+ctrl+';shift='+shift+';numpad='+numpad+';key_code='+e.keyCode;
 		window.location=url;
-		deedDone = true;
+	}
+	// Anything but a modifier counts the moment it's pressed, with whatever is held then: waiting for it to come up, Ctrl let go
+	// first was read as plain Ctrl. A modifier on its own counts when it's let go, since it may be the start of a combination.
+	document.onkeydown = function(e) {
+		e.preventDefault();
+		if(!isModifier(e)){ sendKey(e); }
+	}
+	document.onkeyup = function(e) {
+		e.preventDefault();
+		if(isModifier(e)){ sendKey(e); }
 	}
 	document.getElementById('focus').focus();
 	</script>
@@ -1474,15 +1487,13 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 						ShowChoices(user)
 						return
 
-					var/new_key = uppertext(href_list["key"])
+					var/new_key = byond_key_name(href_list["key"], href_list["code"])
 					var/AltMod = text2num(href_list["alt"]) ? "Alt" : ""
 					var/CtrlMod = text2num(href_list["ctrl"]) ? "Ctrl" : ""
 					var/ShiftMod = text2num(href_list["shift"]) ? "Shift" : ""
-					var/numpad = text2num(href_list["numpad"]) ? "Numpad" : ""
+					// Internet Explorer has no e.code to say it was the numpad. With one, byond_key_name() has already.
+					var/numpad = (text2num(href_list["numpad"]) && !href_list["code"]) ? "Numpad" : ""
 					// var/key_code = text2num(href_list["key_code"])
-
-					if(GLOB._kbMap[new_key])
-						new_key = GLOB._kbMap[new_key]
 
 					var/full_key
 					switch(new_key)

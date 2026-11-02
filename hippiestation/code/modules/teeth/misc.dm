@@ -24,6 +24,8 @@
 	teeth_list += teeth
 
 /obj/item/bodypart/head/proc/knock_out_teeth(throw_dir, num=32) //Won't support knocking teeth out of a dismembered head or anything like that yet.
+	if(!owner) //The hit that got us here took the head off
+		return FALSE
 	num = clamp(num, 1, 32)
 	if(teeth_list && teeth_list.len) //We still have teeth
 		var/stacks = rand(1,3)

@@ -43,6 +43,8 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 	var/applied = FALSE // Whether we have applied our light yet or not.
 
 	var/needs_update = LIGHTING_NO_UPDATE    // Whether we are queued for an update.
+	/// Where in SSlighting.unseen_cells we're waiting for somebody to be able to see us, if we are
+	var/unseen_cell
 
 // Thanks to Lohikar for flinging this tiny bit of code at me, increasing my brain cell count from 1 to 2 in the process.
 // This macro will only offset up to 1 tile, but anything with a greater offset is an outlier and probably should handle its own lighting offsets.
@@ -81,6 +83,8 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 
 	if (needs_update)
 		SSlighting.sources_queue -= src
+	if (unseen_cell)
+		SSlighting.forget_unseen(src)
 
 	. = ..()
 
@@ -122,14 +126,53 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 			LAZYADD(top_atom.light_sources, src) // Add ourselves to the light sources of our new top atom.
 
 	EFFECT_UPDATE(LIGHTING_CHECK_UPDATE)
+	if (unseen_cell) // it might not be able to wait any more, or it's moved and is waiting in the wrong place
+		SSlighting.stop_waiting(src)
 
 // Will force an update without checking if it's actually needed.
 /datum/light_source/proc/force_update()
 	EFFECT_UPDATE(LIGHTING_FORCE_UPDATE)
+	if (unseen_cell)
+		SSlighting.stop_waiting(src)
 
 // Will cause the light source to recalculate turfs that were removed or added to visibility only.
 /datum/light_source/proc/vis_update()
 	EFFECT_UPDATE(LIGHTING_VIS_UPDATE)
+
+/**
+ * Whether this update can wait until somebody could see the difference.
+ *
+ * Most of what lighting does is lamps working their light out again because a door near them moved, and lights that
+ * move working it out at every step, and on a station with few players nobody is near enough to see most of that. If
+ * nobody is, we wait: however often the door opens and closes or the light moves meanwhile, it's the one update when a
+ * player gets close. Lamps going on, off or dim never wait, so what's lit and what's dark stays right for anything that
+ * asks (get_lumcount()), bar what a door or a moving light would have added since. That only leaves colour for them.
+ *
+ * Returns the turf we'd be lighting up if we can wait, or FALSE.
+ *
+ * Arguments:
+ * * eyes - SSlighting.eyes
+ */
+/datum/light_source/proc/can_wait_unseen(list/eyes)
+	var/atom/source_atom = src.source_atom
+	var/atom/top_atom = src.top_atom
+	if (!applied || !top_atom || needs_update == LIGHTING_FORCE_UPDATE || QDELETED(source_atom))
+		return FALSE
+	if (light_reach > LIGHTING_UNSEEN_MAX_REACH)
+		return FALSE
+	// A lamp going dim has to show for anything that asks, but starlight fading in and out with an aurora, on thousands of tiles
+	// at once, doesn't. Going out altogether never gets here: that deletes us.
+	if (!isturf(source_atom) && (source_atom.light_power != light_power || source_atom.light_range != light_range))
+		return FALSE
+	var/turf/where = isturf(top_atom) ? top_atom : top_atom.loc
+	if (!isturf(where)) // picked up, or put away: update_corners() takes our light off
+		return FALSE
+	var/reach = light_reach + LIGHTING_UNSEEN_MARGIN
+	var/z = where.z
+	for (var/turf/eye as anything in eyes)
+		if (eye.z == z && get_dist(eye, where) <= reach + eyes[eye])
+			return FALSE
+	return where
 
 // This exists so we can cache the vars used in this macro, and save MASSIVE time :)
 // Most of this is saving off datum var accesses, tho some of it does actually cache computation

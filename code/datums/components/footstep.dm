@@ -23,13 +23,7 @@
 			playsound(T, 'sound/effects/footstep/crawl1.ogg', 15 * v)
 		return
 	
-	if(iscarbon(LM))
-		var/mob/living/carbon/C = LM
-		if(!C.get_bodypart(BODY_ZONE_L_LEG) && !C.get_bodypart(BODY_ZONE_R_LEG))
-			return
-		if(ishuman(C) && C.m_intent == MOVE_INTENT_WALK)
-			v /= 2
-			e -= 5
+	// hippie -- counting first, as most steps stop here and looking for legs goes through the whole body
 	steps++
 	
 	if(steps >= 6)
@@ -37,6 +31,14 @@
 	
 	if(steps % 2)
 		return
+	
+	if(iscarbon(LM))
+		var/mob/living/carbon/C = LM
+		if(!C.get_bodypart(BODY_ZONE_L_LEG) && !C.get_bodypart(BODY_ZONE_R_LEG))
+			return
+		if(ishuman(C) && C.m_intent == MOVE_INTENT_WALK)
+			v /= 2
+			e -= 5
 	
 	if(!LM.has_gravity(T) && steps != 0) // don't need to step as often when you hop around
 		return

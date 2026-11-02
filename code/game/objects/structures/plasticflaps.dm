@@ -55,6 +55,9 @@
 		return FALSE
 	return TRUE
 
+/obj/structure/plasticflaps
+	astar_always_asks = TRUE // hippie
+
 /obj/structure/plasticflaps/CanAStarPass(ID, to_dir, caller)
 	if(isliving(caller))
 		if(isbot(caller))

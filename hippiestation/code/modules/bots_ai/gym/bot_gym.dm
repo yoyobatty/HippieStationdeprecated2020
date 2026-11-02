@@ -284,6 +284,8 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	brain.diligence = 1
 	brain.sociability = 0.5
 	brain.nerve = 0.5
+	brain.temper = 0.5
+	brain.greytider = FALSE
 	post_spawn()
 	return TRUE
 
@@ -391,6 +393,7 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	// Bot brains (SSprocessing) and machines (SSmachines: trays, vendors) only fire once a round is
 	// under way - RUNLEVELS_DEFAULT leaves out the lobby. Waiting out the lobby countdown froze
 	// every bot's own ticking and every machine for the first ~110s of the run.
+	GLOB.master_mode = "extended" // data/mode.txt is whatever the last real round left there, and most modes won't start with nobody playing
 	SSticker.start_immediately = TRUE
 	var/round_deadline = world.time + 3 MINUTES
 	while(SSticker.current_state < GAME_STATE_PLAYING && world.time < round_deadline)
@@ -399,7 +402,7 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	var/list/datum/bot_scenario/active = list()
 	for(var/path in subtypesof(/datum/bot_scenario))
 		var/datum/bot_scenario/probe = new path
-		if(!probe.layout || (filter && filter != "all" && !findtext(probe.name, filter)))
+		if(!probe.layout || probe.name == "unnamed" || (filter && filter != "all" && !findtext(probe.name, filter))) //no name: a parent type, for its children
 			continue
 		for(var/i in 1 to runs)
 			var/datum/bot_scenario/S = (i == 1) ? probe : new path

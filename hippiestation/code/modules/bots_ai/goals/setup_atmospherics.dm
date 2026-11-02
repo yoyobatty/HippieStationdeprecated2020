@@ -72,7 +72,7 @@ GLOBAL_LIST_INIT(bot_atmos_pump_actions, list(
 	var/turf/bot_turf = get_turf(owner)
 	var/obj/machinery/atmospherics/components/binary/pump/best
 	var/best_dist
-	for(var/obj/machinery/atmospherics/components/binary/pump/P in GLOB.machines)
+	for(var/obj/machinery/atmospherics/components/binary/pump/P as anything in bot_instances_of(/obj/machinery/atmospherics/components/binary/pump))
 		if(P.z != owner.z)
 			continue
 		if(!istype(get_area(P), /area/engine/atmos))

@@ -5,7 +5,7 @@
 //	You do not need to raise this if you are adding new values that have sane defaults.
 //	Only raise this value when changing the meaning/format/name/layout of an existing value
 //	where you would want the updater procs below to run
-#define SAVEFILE_VERSION_MAX	26
+#define SAVEFILE_VERSION_MAX	27
 
 /*
 SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Carn
@@ -41,6 +41,23 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 //This only really meant to avoid annoying frequent players
 //if your savefile is 3 months out of date, then 'tough shit'.
 
+/// Since BYOND moved to Chromium the capture window has been saving what it was told, and no macro is ever called "ARROWUP"
+/// or " ". Those binds looked set and did nothing: they go under the name that fires.
+/datum/preferences/proc/fix_browser_key_names()
+	for(var/saved_key in key_bindings.Copy())
+		var/mods = ""
+		var/bare = saved_key
+		for(var/mod in list("Alt", "Ctrl", "Shift"))
+			if(findtext(bare, mod) == 1 && length(bare) > length(mod))
+				mods += mod
+				bare = copytext(bare, length(mod) + 1)
+		var/real_name = GLOB._kbMap[bare]
+		if(!real_name || real_name == bare)
+			continue
+		var/list/kb_names = key_bindings[saved_key]
+		key_bindings -= saved_key
+		key_bindings["[mods][real_name]"] += kb_names
+
 /datum/preferences/proc/update_preferences(current_version, savefile/S)
 	if(current_version < 23)
 		key_bindings = (hotkeys) ? deepCopyList(GLOB.hotkey_keybinding_list_by_key) : deepCopyList(GLOB.classic_keybinding_list_by_key)
@@ -56,6 +73,8 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 		overhead_chat = TRUE
 	if(current_version < 26 && !clientfps) // hippie -- 0 (sync with the 20fps server tick) was the old default; clients now render at 60 for smoother movement
 		clientfps = initial(clientfps)
+	if(current_version < 27 && islist(key_bindings) && !("nanosuit_menu" in key_bindings["C"])) // hippie -- it was a hard-coded key, and a saved list only has what was bound when it was saved
+		key_bindings["C"] += list("nanosuit_menu")
 
 /datum/preferences/proc/update_character(current_version, savefile/S)
 	if(current_version < 19)
@@ -208,6 +227,7 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	pda_style		= sanitize_inlist(pda_style, GLOB.pda_styles, initial(pda_style))
 	pda_color		= sanitize_hexcolor(pda_color, 6, 1, initial(pda_color))
 	key_bindings 	= sanitize_islist(key_bindings, list())
+	fix_browser_key_names() // hippie -- binds saved under a Chromium name never fired
 
 
 	hippie_pref_load(S) // hippie -- load our preferences

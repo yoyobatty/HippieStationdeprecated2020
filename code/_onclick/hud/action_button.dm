@@ -188,7 +188,7 @@
 			if(B.ordered)
 				button_number++
 			if(B.moved)
-				B.screen_loc = B.moved
+				B.screen_loc = B.moved_loc_for_view(client.view) // hippie -- it may be saved from a bigger view
 			else
 				B.screen_loc = hud_used.ButtonNumberToScreenCoords(button_number)
 			if(reload_screen)
@@ -201,7 +201,7 @@
 	if(!hud_used.hide_actions_toggle.moved)
 		hud_used.hide_actions_toggle.screen_loc = hud_used.ButtonNumberToScreenCoords(button_number+1)
 	else
-		hud_used.hide_actions_toggle.screen_loc = hud_used.hide_actions_toggle.moved
+		hud_used.hide_actions_toggle.screen_loc = hud_used.hide_actions_toggle.moved_loc_for_view(client.view) // hippie
 	if(reload_screen)
 		client.screen += hud_used.hide_actions_toggle
 

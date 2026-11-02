@@ -28,6 +28,8 @@ SUBSYSTEM_DEF(throwing)
 		currentrun.len--
 		if (QDELETED(AM) || QDELETED(TT))
 			processing -= AM
+			if (!QDELETED(TT)) // hippie -- left alone it holds what was thrown forever: everything an explosion both throws and destroys
+				qdel(TT)
 			if (MC_TICK_CHECK)
 				return
 			continue

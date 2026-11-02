@@ -458,7 +458,7 @@
 	return (iscultist(user) && !isAllPowerCut())
 
 /obj/machinery/door/airlock/cult/obj_break(damage_flag)
-	if(!(flags_1 & BROKEN) && !(flags_1 & NODECONSTRUCT_1))
+	if(!(stat & BROKEN) && !(flags_1 & NODECONSTRUCT_1)) //hippie -- it read BROKEN from the wrong flags
 		stat |= BROKEN
 		if(!panel_open)
 			panel_open = TRUE

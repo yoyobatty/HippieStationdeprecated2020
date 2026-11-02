@@ -36,8 +36,13 @@
 	add_movespeed_modifier(MOVESPEED_ID_MOB_WALK_RUN_CONFIG_SPEED, TRUE, 100, override = TRUE, multiplicative_slowdown = mod)
 
 /mob/living/proc/update_turf_movespeed(turf/open/T)
-	if(isopenturf(T) && !is_flying())
-		add_movespeed_modifier(MOVESPEED_ID_LIVING_TURF_SPEEDMOD, TRUE, 100, override = TRUE, multiplicative_slowdown = T.slowdown)
+	// hippie -- most floors are the same as the last one, and finding that out built a list and re-sorted every modifier on every step
+	var/turf_slowdown = (isopenturf(T) && !is_flying()) ? T.slowdown : null
+	if(turf_slowdown == last_turf_slowdown)
+		return
+	last_turf_slowdown = turf_slowdown
+	if(!isnull(turf_slowdown))
+		add_movespeed_modifier(MOVESPEED_ID_LIVING_TURF_SPEEDMOD, TRUE, 100, override = TRUE, multiplicative_slowdown = turf_slowdown)
 	else
 		remove_movespeed_modifier(MOVESPEED_ID_LIVING_TURF_SPEEDMOD)
 

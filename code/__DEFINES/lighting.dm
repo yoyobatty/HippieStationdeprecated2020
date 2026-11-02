@@ -121,6 +121,20 @@
 
 
 //code assumes higher numbers override lower numbers.
+/// How often SSlighting looks at where the players are, to see which lights waiting for them they might see now.
+/// See /datum/light_source/proc/can_wait_unseen()
+#define LIGHTING_EYES_UPDATE (1 SECONDS)
+/// How much further than they can see a player has to be from a light for it to wait for them, in tiles: as far as anyone
+/// can run in LIGHTING_EYES_UPDATE, and a bit
+#define LIGHTING_UNSEEN_MARGIN 10
+/// How far a light can reach, in tiles, and still wait. How near a player SSlighting looks for ones that are waiting has to
+/// go by the furthest any can reach.
+#define LIGHTING_UNSEEN_MAX_REACH 16
+/// Which cell of 16 by 16 tiles an x or a y is in, for SSlighting.unseen_cells
+#define LIGHTING_UNSEEN_CELL_OF(coordinate) ((coordinate) >> 4)
+/// The key in SSlighting.unseen_cells for a turf
+#define LIGHTING_UNSEEN_CELL(turf) "[LIGHTING_UNSEEN_CELL_OF(turf.x)]|[LIGHTING_UNSEEN_CELL_OF(turf.y)]|[turf.z]"
+
 #define LIGHTING_NO_UPDATE 0
 #define LIGHTING_VIS_UPDATE 1
 #define LIGHTING_CHECK_UPDATE 2

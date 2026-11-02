@@ -274,7 +274,8 @@
 		if(i == src) // Multi tile objects
 			continue
 		var/atom/movable/thing = i
-		thing.Uncrossed(src)
+		if(!thing.no_cross_checks) //hippie
+			thing.Uncrossed(src)
 
 	newloc.Entered(src, oldloc)
 	if(oldarea != newarea)
@@ -284,7 +285,8 @@
 		if(i == src) // Multi tile objects
 			continue
 		var/atom/movable/thing = i
-		thing.Crossed(src)
+		if(!thing.no_cross_checks) //hippie
+			thing.Crossed(src)
 //
 ////////////////////////////////////////
 
@@ -381,7 +383,8 @@
 			check_pulling()
 
 	last_move = direct
-	setDir(direct)
+	if(dir != direct) //hippie -- it's usually been done already
+		setDir(direct)
 	if(. && has_buckled_mobs() && !handle_buckled_mob_movement(loc,direct)) //movement failed due to buckled mob(s)
 		return FALSE
 
@@ -390,7 +393,8 @@
 	SEND_SIGNAL(src, COMSIG_MOVABLE_MOVED, OldLoc, Dir, Forced)
 	if (!inertia_moving)
 		inertia_next_move = world.time + inertia_move_delay
-		newtonian_move(Dir)
+		if(inertia_dir || !has_gravity(src)) //hippie -- nothing drifts where there's gravity, and newtonian_move() is five procs a step to find that out
+			newtonian_move(Dir)
 	if (length(client_mobs_in_contents))
 		update_parallax_contents()
 
@@ -539,6 +543,7 @@
 /atom/movable/Destroy(force)
 	QDEL_NULL(proximity_monitor)
 	QDEL_NULL(language_holder)
+	QDEL_NULL(em_block) // hippie -- it and what it's blocking for hold each other
 
 	unbuckle_all_mobs(force=1)
 

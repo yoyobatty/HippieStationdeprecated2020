@@ -279,7 +279,7 @@ GLOBAL_LIST_INIT(astar_tally, list("searches" = 0, "failed" = 0, "turfs" = 0, "f
 		if(!W.CanAStarPass(ID, adir))
 			return TRUE
 	for(var/obj/O in T)
-		if(!O.CanAStarPass(ID, rdir, caller))
+		if((O.density || O.astar_always_asks) && !O.CanAStarPass(ID, rdir, caller)) // hippie -- a turf is mostly cables and pipes
 			return TRUE
 
 	return FALSE

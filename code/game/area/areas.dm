@@ -443,15 +443,17 @@ GLOBAL_LIST_EMPTY(teleportlocs)
 	if(!T)
 		return 0
 
-	var/list/forced_gravity = list()
-	SEND_SIGNAL(src, COMSIG_ATOM_HAS_GRAVITY, T, forced_gravity)
-	if(!forced_gravity.len)
-		SEND_SIGNAL(T, COMSIG_TURF_HAS_GRAVITY, src, forced_gravity)
-	if(forced_gravity.len)
-		var/max_grav
-		for(var/i in forced_gravity)
-			max_grav = max(max_grav, i)
-		return max_grav
+	// hippie -- only a list when something might fill it: this runs several times for every step anyone takes
+	if((comp_lookup && comp_lookup[COMSIG_ATOM_HAS_GRAVITY]) || (T.comp_lookup && T.comp_lookup[COMSIG_TURF_HAS_GRAVITY]))
+		var/list/forced_gravity = list()
+		SEND_SIGNAL(src, COMSIG_ATOM_HAS_GRAVITY, T, forced_gravity)
+		if(!forced_gravity.len)
+			SEND_SIGNAL(T, COMSIG_TURF_HAS_GRAVITY, src, forced_gravity)
+		if(forced_gravity.len)
+			var/max_grav
+			for(var/i in forced_gravity)
+				max_grav = max(max_grav, i)
+			return max_grav
 
 	if(isspaceturf(T)) // Turf never has gravity
 		return FALSE

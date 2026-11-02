@@ -81,7 +81,18 @@
 	// own list for the one place that actually needed bot-awareness (see arrivals.dm override).
 	GLOB.bot_crew_members |= H
 
+	if(H.mind)
+		H.mind.bot_handle = pick_handle()
+		H.mind.bot_ping = rand(25, 120)
+
 	return H
+
+/// What they go by among the players: the key "bot-whoever-3" is for logs and admins.
+/datum/bot_identity/proc/pick_handle()
+	var/list/free = GLOB.bot_handles.Copy()
+	for(var/mob/living/carbon/human/crew_member as anything in GLOB.bot_crew_members)
+		free -= crew_member.mind?.bot_handle
+	return length(free) ? pick(free) : "[pick(GLOB.bot_handles)][rand(10, 99)]"
 
 /datum/bot_identity/proc/generate_fake_key()
 	GLOB.bot_id_counter++
@@ -105,8 +116,57 @@
 		return bot_identity.create_bot_character(transfer_after)
 	return ..()
 
+/// Whether there's a start point for this job with nobody on it. Without one SSjob.EquipRank() stands them at some other job's.
+/proc/bot_post_free(rank)
+	if(length(GLOB.jobspawn_overrides[rank]))
+		return TRUE
+	for(var/obj/effect/landmark/start/post in GLOB.start_landmarks_list)
+		if(post.name == rank && !(locate(/mob/living) in post.loc))
+			return TRUE
+	return FALSE
+
+/// What readying up does in SSticker.setup(), for one bot once the round is under way: at their post, equipped, on the
+/// manifest, and no arrival announcement. create_characters() to transfer_characters() in that order.
+/mob/dead/new_player/proc/join_at_post(rank)
+	if(!SSjob.AssignRole(src, rank, TRUE))
+		return FALSE
+	var/mob/living/carbon/human/H = create_character(FALSE)
+	GLOB.joined_player_list += H.ckey
+	SSticker.minds += H.mind
+	SSjob.EquipRank(src, rank, FALSE)
+	GLOB.data_core.manifest_inject(H)
+	AddEmploymentContract(H)
+	if(CONFIG_GET(flag/roundstart_traits))
+		SSquirks.AssignQuirks(H, null, TRUE)
+	log_manifest(H.mind.key, H.mind, H, latejoin = FALSE)
+	var/bot_key = H.key
+	transfer_character() //stomps the key, see create_bot_character()
+	H.key = bot_key
+	return TRUE
+
+/// Whether this is one of the bot crew, who have no client and aren't to be treated as if they'd wandered off.
+/mob/proc/is_bot_crew()
+	return FALSE
+
+/mob/living/carbon/human/is_bot_crew()
+	return !isnull(bot_brain)
+
+/datum/mind
+	/// A bot's name among the players, in the Who list and the round-end report
+	var/bot_handle
+	/// What the Who list gives as a bot's ping
+	var/bot_ping = 0
+
 GLOBAL_VAR_INIT(bot_id_counter, 0)
 GLOBAL_LIST_EMPTY(bot_crew_members)
+
+GLOBAL_LIST_INIT(bot_handles, list(
+	"Greytider99", "MaintRat", "RobustRandy", "CargoCultist", "PlasmaFlood", "Sadcrab", "Honkmother7", "Clownshoes", "ToolboxEnjoyer",
+	"SoyCaptain", "StationPet", "AtmosFan", "InsulsPlease", "BeepskyFan", "Tiderman", "AirlockShock", "VendorTipper", "PunPunFan",
+	"MedbayDweller", "SpessBeans", "DonkPocket", "Breadlord", "MothLamp", "WelderFuel", "PipeDream", "Scrubber", "MopBucket",
+	"FloorBuffer", "TileRipper", "GlassShard", "SolarArray", "NukeDiskNerd", "ThermalPaste", "Gorlex", "SpacemanSteve", "Cheesewheel",
+	"PocketSand", "Lavalander", "ChefSurprise", "HotDonk", "CritTheory", "Cardboardbox", "Radstorm", "Stationwagon", "Wirecutter",
+))
 
 GLOBAL_LIST_INIT(bot_persona_names, list(
 	"Alex Reyes", "Jordan Blake", "Casey Nakamura", "Morgan Vance", "Riley Osei",

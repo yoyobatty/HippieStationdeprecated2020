@@ -102,6 +102,7 @@
 		log_game(bomb_message)
 
 	GLOB.bombers += bomb_message
+	bot_note_bomb(user, bomb) //hippie - the crew runs from what it can see (bots_ai/bot_witness.dm)
 
 	if(message_admins)
 		message_admins("[user ? "[ADMIN_LOOKUPFLW(user)] at [ADMIN_VERBOSEJMP(user)] " : ""][details][bomb ? " [bomb.name] at [ADMIN_VERBOSEJMP(bomb)]": ""][additional_details ? " [additional_details]" : ""].")
@@ -265,7 +266,7 @@
 			if(include_link)
 				. += "<a href='?priv_msg=[ckey]'>"
 			. += key
-		if(!C)
+		if(!C && !M?.is_bot_crew()) //hippie
 			. += "\[DC\]"
 
 		if(include_link)

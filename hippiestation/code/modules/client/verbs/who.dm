@@ -25,6 +25,9 @@
 	set name = "Who"
 	set category = "OOC"
 
+	to_chat(src, who_list())
+
+/client/proc/who_list()
 	var/msg = ""
 
 	var/list/Lines = list()
@@ -42,19 +45,30 @@
 				Lines += "\t <font color='#0033CC'>[C.key]</font>[show_admin_info(C)] ([round(C.avgping, 1)]ms)"
 
 	Lines += "<b>Players:</b>"
-	for(var/X in sortList(GLOB.clients))
+	var/list/players = list()
+	for(var/X in GLOB.clients)
 		var/client/C = X
 		if(!C) continue
 		var/key = C.key
 		if(C.holder && C.holder.fakekey)
 			key = C.holder.fakekey
-		Lines += "\t [key][show_admin_info(C)] ([round(C.avgping, 1)]ms)"
+		players += "\t [key][show_admin_info(C)] ([round(C.avgping, 1)]ms)"
+	// The bot crew are on the list with everyone else. Admins get told which they are.
+	for(var/mob/living/carbon/human/H as anything in GLOB.bot_crew_members)
+		if(H.mind?.bot_handle)
+			players += "\t [H.mind.bot_handle][show_bot_info(H)] ([H.mind.bot_ping + rand(-4, 4)]ms)"
+	Lines += sortList(players)
 
 	for(var/line in Lines)
 		msg += "[line]\n"
 
-	msg += "<b>Total Players: [length(GLOB.clients)]</b>"
-	to_chat(src, msg)
+	msg += "<b>Total Players: [length(players)]</b>"
+	return msg
+
+/client/proc/show_bot_info(mob/living/carbon/human/H)
+	if(!check_rights_for(src, R_ADMIN))
+		return ""
+	return " <i>(bot)</i>[show_mob_info(H)]"
 
 /client/proc/show_admin_info(var/client/C)
 	if(!C)
@@ -66,25 +80,29 @@
 	var/entry = ""
 	if(C.holder && C.holder.fakekey)
 		entry += " <i>(as [C.holder.fakekey])</i>"
-	if (isnewplayer(C.mob))
+	return entry + show_mob_info(C.mob)
+
+/client/proc/show_mob_info(mob/M)
+	var/entry = ""
+	if (isnewplayer(M))
 		entry += " - <font color='darkgray'><b>In Lobby</b></font>"
 	else
-		entry += " - Playing as [C.mob.real_name]"
-		switch(C.mob.stat)
+		entry += " - Playing as [M.real_name]"
+		switch(M.stat)
 			if(UNCONSCIOUS)
 				entry += " - <font color='darkgray'><b>Unconscious</b></font>"
 			if(DEAD)
-				if(isobserver(C.mob))
-					var/mob/dead/observer/O = C.mob
+				if(isobserver(M))
+					var/mob/dead/observer/O = M
 					if(O.started_as_observer)
 						entry += " - <font color='gray'>Observing</font>"
 					else
 						entry += " - <font color='black'><b>DEAD</b></font>"
 				else
 					entry += " - <font color='black'><b>DEAD</b></font>"
-		if(is_special_character(C.mob))
+		if(is_special_character(M))
 			entry += " - <b><font color='red'>Antagonist</font></b>"
-	entry += " (<A HREF='?_src_=holder;[HrefToken()];adminmoreinfo=\ref[C.mob]'>?</A>)"
+	entry += " (<A HREF='?_src_=holder;[HrefToken()];adminmoreinfo=\ref[M]'>?</A>)"
 	return entry
 
 /client/verb/adminwho()

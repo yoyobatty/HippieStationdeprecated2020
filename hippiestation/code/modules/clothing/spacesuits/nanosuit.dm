@@ -49,7 +49,7 @@
 	gas_transfer_coefficient = 0.01
 	permeability_coefficient = 0.01
 	resistance_flags = INDESTRUCTIBLE | FIRE_PROOF | ACID_PROOF | FREEZE_PROOF
-	var/jumpdistance = 2 //-1 from to see the actual distance, e.g 3 goes over 2 tiles
+	var/jumpdistance = 3 //-1 from to see the actual distance, e.g 3 goes over 2 tiles
 	var/jumpspeed = 1
 	actions_types = list(/datum/action/item_action/nanojump)
 	item_flags = DROPDEL
@@ -60,9 +60,10 @@
 	var/turf/open/floor/T = get_turf(src)
 	var/obj/structure/S = locate() in get_turf(user.loc)
 	var/mob/living/carbon/human/H = user
+	var/distance = jumpdistance
 	if(istype(H.wear_suit, /obj/item/clothing/suit/space/hardsuit/nano))
 		var/obj/item/clothing/suit/space/hardsuit/nano/NS = H.wear_suit
-		jumpdistance *= NS.upgrademulti
+		distance *= NS.upgrademulti
 		if(NS.mode == NANO_STRENGTH)
 			if(istype(T) || istype(S))
 				if(NS.cell.charge >= NANO_JUMP_USE)
@@ -81,7 +82,7 @@
 		return
 
 	var/atom/target = get_edge_target_turf(user, user.dir) //gets the user's direction
-	if(user.throw_at(target, jumpdistance, jumpspeed, spin = FALSE, diagonals_first = TRUE))
+	if(user.throw_at(target, distance, jumpspeed, spin = FALSE, diagonals_first = TRUE))
 		playsound(src, 'sound/effects/stealthoff.ogg', 50, TRUE)
 		user.visible_message("<span class='warning'>[user] jumps forward into the air!</span>")
 	else
@@ -201,7 +202,7 @@
 	heat_protection = CHEST|GROIN|LEGS|FEET|ARMS|HANDS					//Uncomment to enable firesuit protection
 	max_heat_protection_temperature = FIRE_IMMUNITY_MAX_TEMP_PROTECT
 	helmettype = /obj/item/clothing/head/helmet/space/hardsuit/nano
-	slowdown = 0.5
+	slowdown = 0.25
 	resistance_flags = INDESTRUCTIBLE | FIRE_PROOF | ACID_PROOF | FREEZE_PROOF
 	actions_types = list(/datum/action/item_action/nanosuit/armor, /datum/action/item_action/nanosuit/cloak, /datum/action/item_action/nanosuit/speed, /datum/action/item_action/nanosuit/strength)
 	permeability_coefficient = 0.01
@@ -221,10 +222,23 @@
 	jetpack = /obj/item/tank/jetpack/suit
 	var/recharge_cooldown = 0 //if this number is greater than 0, we can't recharge
 	var/med_cooldown = 0
+	var/medical_delay = 3 MINUTES //how long a spent medical charge takes to come back
+	var/next_medical_charge = 0
 	var/cloak_use_rate = 1.2 //cloaked energy consume rate
 	var/speed_use_rate = 2.0 //speed energy consume rate
 	var/crit_energy = 20 //critical energy level
 	var/regen_rate = 4 //rate at which we regen
+	//all of these only while the suit's running: see update_toughness()
+	var/stun_mult = 0.25 //how much of a stun lands
+	var/armor_stun_mult = 0.1 //the same in armor mode
+	var/stamina_mult = 0.5 //how much of a stamina hit lands
+	var/stun_grace = 3 SECONDS //how long after a stun ends before another can land
+	var/stamina_block = 2 SECONDS //the most a stamina hit can hold back stamina regen, instead of the usual 10
+	var/worn_stun_mult = 1 //what's on the wearer's physiology right now
+	var/worn_stamina_mult = 1
+	var/next_stun = 0
+	var/speed_burst_delay = 30 SECONDS //going into speed mode clears some stamina, this often
+	var/next_speed_burst = 0
 	var/msg_time_react = 0
 	var/trauma_threshold = 30
 	var/obj/item/stock_parts/cell/nano/cell //What type of power cell this uses
@@ -252,13 +266,7 @@
 
 /obj/item/clothing/suit/space/hardsuit/nano/Destroy()
 	STOP_PROCESSING(SSfastprocess, src)
-	var/datum/atom_hud/secsensor = GLOB.huds[DATA_HUD_SECURITY_ADVANCED]
-	var/datum/atom_hud/diagsensor = GLOB.huds[DATA_HUD_DIAGNOSTIC_BASIC ]
-	secsensor.remove_hud_from(Wearer)
-	diagsensor.remove_hud_from(Wearer)
-	if(Wearer && help_verb)
-		Wearer.verbs -= help_verb
-	Wearer = null
+	disengage() //a wearer killed in strength mode would keep a deleted martial art on their mind otherwise
 	if(style)
 		QDEL_NULL(style)
 	if(cell)
@@ -283,10 +291,18 @@
 	..()
 	if(!Wearer)
 		return
+	if(cellon)
+		Wearer.hud_used?.nano_energy?.show(round(cell.percent()), cell.charge < crit_energy)
 	if(shutdown)
 		return
 	if(!cell)
 		return
+	if(Wearer.stam_regen_start_time > world.time + stamina_block)
+		Wearer.stam_regen_start_time = world.time + stamina_block
+	if(current_charges < max_charges && world.time >= next_medical_charge)
+		addmedicalcharge()
+		next_medical_charge = world.time + medical_delay
+		helmet.display_visor_message("Medical systems recharged: [current_charges] of [max_charges].")
 	if(prob(20) && Wearer.health < HEALTH_THRESHOLD_CRIT + 15 && hacked) //Automatic healing when hacked
 		if(world.time > med_cooldown)
 			med_cooldown = world.time + 200
@@ -300,7 +316,7 @@
 
 	var/energy = cell.charge //store current energy here
 	if(mode == NANO_CLOAK) //are we in cloak, not moving?
-		energy -= (cloak_use_rate / upgrademulti) //take away the cloak discharge rate at 1/10th since we're not moving
+		energy -= (cloak_use_rate / 10 / upgrademulti) //take away the cloak discharge rate at 1/10th since we're not moving
 	if((energy < cell.maxcharge) && mode != NANO_CLOAK && !recharge_cooldown) //if our energy is less than 100, we're not in cloak and don't have a recharge delay timer
 		var/energy2 = regen_rate //store our regen rate here
 		energy2+=energy //add our current energy to it
@@ -315,6 +331,7 @@
 /obj/item/clothing/suit/space/hardsuit/nano/proc/cut_nano_energy(var/amount, var/delay = 0)
 	if(delay > recharge_cooldown)
 		recharge_cooldown = delay
+	cell.charge = max(0, (cell.charge - amount))
 	if(cell.charge < crit_energy && !criticalpower) //energy is less than critical energy level(20) and not in crit power
 		helmet.display_visor_message("Energy Critical!") //now we are
 		criticalpower = TRUE
@@ -325,7 +342,6 @@
 			recharge_cooldown = NANO_CHARGE_DELAY //then wait 3 seconds to recharge again
 		if(mode != NANO_ARMOR && mode != NANO_NONE) //we're not in cloak
 			toggle_mode(NANO_ARMOR, TRUE) //go into it, forced
-	cell.charge = max(0, (cell.charge - amount))
 
 /obj/item/clothing/suit/space/hardsuit/nano/proc/addmedicalcharge(amount = 1)
 	if(current_charges < max_charges)
@@ -335,7 +351,7 @@
 	if(mode == NANO_CLOAK)
 		cut_nano_energy(cloak_use_rate / upgrademulti, NANO_CHARGE_DELAY)
 	else if(mode == NANO_SPEED)
-		cut_nano_energy(speed_use_rate * upgrademulti, NANO_CHARGE_DELAY)
+		cut_nano_energy(speed_use_rate / upgrademulti, NANO_CHARGE_DELAY)
 
 /obj/item/clothing/suit/space/hardsuit/nano/hit_reaction(mob/living/carbon/human/user, atom/movable/hitby, attack_text = "the attack", final_block_chance = 0, damage = 0, attack_type = MELEE_ATTACK)
 	var/obj/item/projectile/P = hitby
@@ -343,16 +359,15 @@
 		if(prob(final_block_chance))
 			user.visible_message("<span class='danger'>[user]'s shields deflect [attack_text] draining their energy!</span>")
 			if(damage)
-				if(attack_type != STAMINA)
-					cut_nano_energy((5 + damage)*upgrademulti, NANO_CHARGE_DELAY)//laser guns, anything lethal drains 5 + the damage dealt
-				else if(P.damage_type == STAMINA && attack_type == PROJECTILE_ATTACK)
-					cut_nano_energy(20*upgrademulti, NANO_CHARGE_DELAY)//stamina damage, aka disabler beams
+				if(attack_type == PROJECTILE_ATTACK && P.damage_type == STAMINA)
+					cut_nano_energy(20/upgrademulti, NANO_CHARGE_DELAY)//stamina damage, aka disabler beams
+				else
+					cut_nano_energy((5 + damage)/upgrademulti, NANO_CHARGE_DELAY)//laser guns, anything lethal drains 5 + the damage dealt
 			if(istype(P, /obj/item/projectile/energy/electrode))//if electrode aka taser
-				cut_nano_energy(35*upgrademulti, NANO_CHARGE_DELAY)
+				cut_nano_energy(35/upgrademulti, NANO_CHARGE_DELAY)
 			return TRUE
-		else
-			user.visible_message("<span class='warning'>[user]'s shields fail to deflect [attack_text].</span>")
-			return FALSE
+		user.visible_message("<span class='warning'>[user]'s shields fail to deflect [attack_text].</span>")
+		final_block_chance = 0 //that was the roll, ..() doesn't get another one. What got through still gets the medical systems below
 	if(damage && attack_type == PROJECTILE_ATTACK && P.damage_type != STAMINA && prob(50))
 		var/datum/effect_system/spark_spread/s = new
 		s.set_up(1, 1, src)
@@ -391,11 +406,12 @@
 	return ..()
 
 /obj/item/clothing/suit/space/hardsuit/nano/proc/heal_nano(mob/living/carbon/human/user)
-	if(!current_charges)
+	if(!current_charges || QDELETED(user))
 		return
 	helmet.display_visor_message("Engaging emergency medical protocols.")
 	user.reagents.add_reagent(/datum/reagent/medicine/syndicate_nanites, 1)
-	//addtimer(CALLBACK(src, .proc/addmedicalcharge), medical_delay,TIMER_UNIQUE|TIMER_OVERRIDE)
+	if(current_charges == max_charges) //the clock starts with the first one spent
+		next_medical_charge = world.time + medical_delay
 	current_charges--
 
 /obj/item/clothing/suit/space/hardsuit/nano/ui_action_click(mob/user, action)
@@ -414,17 +430,19 @@
 	return FALSE
 
 /obj/item/clothing/suit/space/hardsuit/nano/proc/toggle_mode(var/suitmode, var/forced = FALSE)
+	if(!Wearer)
+		return
 	if(!shutdown && (forced || (cell?.charge && mode != suitmode)))
 		mode = suitmode
+		var/datum/component/footstep/FS = Wearer.GetComponent(/datum/component/footstep) //a mob being deleted has none
 		switch(suitmode)
 			if(NANO_ARMOR)
 				helmet.display_visor_message("Maximum Armor!")
-				var/datum/component/footstep/FS = Wearer.GetComponent(/datum/component/footstep)
-				FS.volume = 1.5
+				FS?.volume = 1.5
 				block_chance = hacked ? 65 : 50 //65% block emagged, 50% normal
 				slowdown = initial(slowdown)
-				armor = armor.setRating(melee = 40, bullet = 40, laser = 40, energy = 45, bomb = 90, rad = 90)
-				helmet.armor = helmet.armor.setRating(melee = 40, bullet = 40, laser = 40, energy = 45, bomb = 90, rad = 90)
+				armor = armor.setRating(melee = 60, bullet = 60, laser = 60, energy = 45, bomb = 90, rad = 90)
+				helmet.armor = helmet.armor.setRating(melee = 60, bullet = 60, laser = 60, energy = 45, bomb = 90, rad = 90)
 				Wearer.filters = list()
 				animate(Wearer, alpha = 255, time = 5)
 				Wearer.remove_movespeed_modifier(NANO_SPEED)
@@ -433,7 +451,6 @@
 				REMOVE_TRAIT(Wearer, TRAIT_TACRELOAD, NANO_SPEED)
 				REMOVE_TRAIT(Wearer, TRAIT_LIGHT_STEP, NANO_SPEED)
 				style.remove(Wearer)
-				jetpack.full_speed = FALSE
 
 			if(NANO_CLOAK)
 				helmet.display_visor_message("Cloak Engaged!")
@@ -441,11 +458,10 @@
 					var/datum/effect_system/spark_spread/spark = new
 					spark.set_up(1, 1, src)
 					spark.start()
-				var/datum/component/footstep/FS = Wearer.GetComponent(/datum/component/footstep)
-				FS.volume = hacked ? 0.25 : 0.75 //upgrade module
+				FS?.volume = hacked ? 0.25 : 0.75 //upgrade module
 				visible_message("<span class='warning'>[Wearer] suddenly disappears!</span>", vision_distance = 3)
 				block_chance = initial(block_chance)
-				slowdown = 0.4 //cloaking makes us move slightly faster
+				slowdown = 0.15 //cloaking makes us move slightly faster
 				armor = armor.setRating(melee = 40, bullet = 40, laser = 40, energy = 45, bomb = 70, rad = 70)
 				helmet.armor = helmet.armor.setRating(melee = 40, bullet = 40, laser = 40, energy = 45, bomb = 70, rad = 70)
 				Wearer.filters = filter(type="blur",size=1)
@@ -456,18 +472,18 @@
 				REMOVE_TRAIT(Wearer, TRAIT_TACRELOAD, NANO_SPEED)
 				ADD_TRAIT(Wearer, TRAIT_LIGHT_STEP, NANO_SPEED)
 				style.remove(Wearer)
-				jetpack.full_speed = FALSE
 
 			if(NANO_SPEED)
 				helmet.display_visor_message("Maximum Speed!")
-				var/datum/component/footstep/FS = Wearer.GetComponent(/datum/component/footstep)
-				FS.volume = 1.0
+				FS?.volume = 1.0
 				block_chance = initial(block_chance)
 				slowdown = initial(slowdown)
 				armor = armor.setRating(melee = 25, bullet = 25, laser = 25, energy = 45, bomb = 70, rad = 70)
 				helmet.armor = helmet.armor.setRating(melee = 25, bullet = 25, laser = 25, energy = 45, bomb = 70, rad = 70)
-				Wearer.adjustOxyLoss(-5, 0)
-				Wearer.adjustStaminaLoss(-20)
+				if(world.time >= next_speed_burst) //it's free, so switching in and out mustn't be a way to farm it
+					next_speed_burst = world.time + speed_burst_delay
+					Wearer.adjustOxyLoss(-5, 0)
+					Wearer.adjustStaminaLoss(-20)
 				Wearer.filters = filter(type="outline", size=0.1, color=rgb(255,255,224))
 				animate(Wearer, alpha = 255, time = 5)
 				REMOVE_TRAIT(Wearer, TRAIT_PUSHIMMUNE, NANO_STRENGTH)
@@ -476,12 +492,10 @@
 				ADD_TRAIT(Wearer, TRAIT_IGNORESLOWDOWN, NANO_SPEED)
 				REMOVE_TRAIT(Wearer, TRAIT_LIGHT_STEP, NANO_SPEED)
 				style.remove(Wearer)
-				jetpack.full_speed = TRUE
 
 			if(NANO_STRENGTH)
 				helmet.display_visor_message("Maximum Strength!")
-				var/datum/component/footstep/FS = Wearer.GetComponent(/datum/component/footstep)
-				FS.volume = 1.0
+				FS?.volume = 1.0
 				block_chance = initial(block_chance)
 				style.teach(Wearer,TRUE)
 				slowdown = initial(slowdown)
@@ -494,12 +508,10 @@
 				REMOVE_TRAIT(Wearer, TRAIT_IGNORESLOWDOWN, NANO_SPEED)
 				REMOVE_TRAIT(Wearer, TRAIT_TACRELOAD, NANO_SPEED)
 				REMOVE_TRAIT(Wearer, TRAIT_LIGHT_STEP, NANO_SPEED)
-				jetpack.full_speed = FALSE
 
 			if(NANO_NONE)
 				block_chance = initial(block_chance)
-				var/datum/component/footstep/FS = Wearer.GetComponent(/datum/component/footstep)
-				FS.volume = 1.0
+				FS?.volume = 1.0
 				style.remove(Wearer)
 				slowdown = initial(slowdown)
 				armor = armor.setRating(melee = 40, bullet = 40, laser = 40, energy = 45, bomb = 70, rad = 70)
@@ -511,14 +523,47 @@
 				REMOVE_TRAIT(Wearer, TRAIT_IGNORESLOWDOWN, NANO_SPEED)
 				REMOVE_TRAIT(Wearer, TRAIT_TACRELOAD, NANO_SPEED)
 				REMOVE_TRAIT(Wearer, TRAIT_LIGHT_STEP, NANO_SPEED)
-				jetpack.full_speed = FALSE
 
 	for(var/X in actions)
 		var/datum/action/A = X
+		if(istype(A, /datum/action/item_action/nanosuit))
+			var/datum/action/item_action/nanosuit/N = A
+			N.button.filters = (N.suit_mode == mode) ? filter(type="outline", size=2, color="#aaff00") : null //bg_tech_blue_on looks the same as bg_tech_blue
 		A.UpdateButtonIcon()
 	Wearer.update_inv_wear_suit()
 	Wearer.update_action_buttons_icon()
 	update_icon()
+	update_toughness()
+
+/// What a running suit does for its wearer against stuns. A suit that's down does nothing, and that's an EMP's whole point.
+/obj/item/clothing/suit/space/hardsuit/nano/proc/update_toughness()
+	var/datum/physiology/body = Wearer?.physiology
+	if(!body) //gone before the suit when a mob's deleted
+		return
+	var/stun = shutdown ? 1 : (mode == NANO_ARMOR ? armor_stun_mult : stun_mult)
+	var/stamina = shutdown ? 1 : stamina_mult
+	body.stun_mod *= stun / worn_stun_mult //multiplied, as other things that change these are
+	body.stamina_mod *= stamina / worn_stamina_mult
+	worn_stun_mult = stun
+	worn_stamina_mult = stamina
+	if(shutdown)
+		REMOVE_TRAIT(Wearer, TRAIT_IMPACTPROOF, "Nanosuit")
+	else
+		ADD_TRAIT(Wearer, TRAIT_IMPACTPROOF, "Nanosuit")
+
+/// One stun after another is what keeps someone down for good however short they are, so each one leaves a gap before the next can land.
+/obj/item/clothing/suit/space/hardsuit/nano/proc/on_stunned(datum/source, amount, updating, ignore_canstun)
+	if(shutdown || ignore_canstun || amount <= 0)
+		return
+	if(world.time < next_stun)
+		return COMPONENT_NO_STUN
+	next_stun = world.time + amount + stun_grace
+
+/// Everything goes off at once, full stuns included.
+/obj/item/clothing/suit/space/hardsuit/nano/proc/power_down()
+	toggle_mode(NANO_NONE, TRUE)
+	shutdown = TRUE
+	update_toughness()
 
 /obj/item/clothing/suit/space/hardsuit/nano/ex_act(severity, target)
 	. = ..()
@@ -537,20 +582,24 @@
 	update_icon()
 
 /obj/item/clothing/suit/space/hardsuit/nano/proc/emp_assault()
+	set waitfor = FALSE //it's called from emp_act(), and the rest of the pulse has things to do
 	if(!Wearer)
 		return //Not sure how this could happen.
 	SSblackbox.record_feedback("tally", "nanosuit_emp_shutdown", 1, type)
 	Wearer.confused += 50
 	helmet.display_visor_message("EMP Assault! Systems impaired.")
 	sleep(40)
+	if(!Wearer)
+		return
+	power_down() //first, so the stun below lands in full
 	Wearer.apply_effects(paralyze = 300, stun = 300, jitter = 120)
-	toggle_mode(NANO_NONE, TRUE)
-	shutdown = TRUE
 	addtimer(CALLBACK(src, PROC_REF(emp_assaulttwo)), 25)
 
 
 /obj/item/clothing/suit/space/hardsuit/nano/proc/emp_assaulttwo()
 	sleep(35)
+	if(!Wearer)
+		return
 	helmet.display_visor_message("Warning, EMP shutdown, all systems impaired!")
 	sleep(25)
 	helmet.display_visor_message("Switching to: core function mode.")
@@ -560,6 +609,8 @@
 
 
 /obj/item/clothing/suit/space/hardsuit/nano/proc/emp_assaultthree()
+	if(!Wearer)
+		return
 	helmet.display_visor_message("CMOS reset sequence begin, standby...")
 	sleep(20)
 	playsound(src, 'sound/machines/beep.ogg', 50, FALSE)
@@ -584,6 +635,8 @@
 	helmet.display_visor_message("Cardiac dysrhythmia treatment in progress, standby...")
 	playsound(src, 'sound/machines/defib_charge.ogg', 75, FALSE)
 	sleep(25)
+	if(!Wearer)
+		return
 	playsound(src, 'sound/machines/defib_zap.ogg', 50, FALSE)
 	Wearer.apply_effects(stun = -100, paralyze = -100, stamina = -55)
 	Wearer.adjustOxyLoss(-55)
@@ -591,14 +644,14 @@
 	playsound(src, 'sound/machines/defib_success.ogg', 75, FALSE)
 	helmet.display_visor_message("Cleared to proceed.")
 	shutdown = FALSE
-	toggle_mode(NANO_ARMOR)
+	toggle_mode(NANO_ARMOR, TRUE) //the pulse emptied the cell and it doesn't charge while shut down, so this has to be forced
 
 /obj/item/clothing/suit/space/hardsuit/nano/attackby(obj/item/W, mob/user)
 	if(istype(W, /obj/item/stock_parts/cell))
 		var/obj/item/stock_parts/cell/C = W
 		if(C && C.charge >= 10000)
 			if(current_charges < max_charges)
-				if(do_after(Wearer, 30, target = src))
+				if(do_after(user, 30, target = src))
 					to_chat(user, "<span class='notice'>You recharge [src]'s medical systems with [C].</span>")
 					addmedicalcharge()
 					C.use(10000)
@@ -620,6 +673,7 @@
 	check_flags = AB_CHECK_STUN|AB_CHECK_CONSCIOUS
 	icon_icon = 'icons/mob/actions.dmi'
 	background_icon_state = "bg_tech_blue"
+	var/suit_mode //the mode this button lights up for
 
 /datum/action/item_action/nanosuit/goggletoggle
 	name = "Night Vision"
@@ -628,21 +682,25 @@
 
 /datum/action/item_action/nanosuit/armor
 	name = "Armor Mode"
+	suit_mode = NANO_ARMOR
 	icon_icon = 'hippiestation/icons/mob/actions/actions_nanosuit.dmi'
 	button_icon_state = "armor_mode"
 
 /datum/action/item_action/nanosuit/cloak
 	name = "Cloak Mode"
+	suit_mode = NANO_CLOAK
 	icon_icon = 'hippiestation/icons/mob/actions/actions_nanosuit.dmi'
 	button_icon_state = "cloak_mode"
 
 /datum/action/item_action/nanosuit/speed
 	name = "Speed Mode"
+	suit_mode = NANO_SPEED
 	icon_icon = 'hippiestation/icons/mob/actions/actions_nanosuit.dmi'
 	button_icon_state = "speed_mode"
 
 /datum/action/item_action/nanosuit/strength
 	name = "Strength Mode"
+	suit_mode = NANO_STRENGTH
 	icon_icon = 'hippiestation/icons/mob/actions/actions_nanosuit.dmi'
 	button_icon_state = "strength_mode"
 
@@ -685,6 +743,9 @@
 
 
 /obj/item/clothing/head/helmet/space/hardsuit/nano/ui_action_click(mob/user, action)
+	if(istype(action, /datum/action/item_action/nanosuit/zoom))
+		toggle_zoom(user)
+		return TRUE
 	if(istype(action, /datum/action/item_action/toggle_geiger))
 		return ..()
 	return FALSE
@@ -706,7 +767,10 @@
 
 /obj/item/clothing/head/helmet/space/hardsuit/nano/proc/toggle_zoom(mob/living/user, force_off = FALSE)
 	if(!user || !user.client)
+		zoom = FALSE //a client coming back gets the default view from Login()
 		return
+	if(user.client.view != zoom_range) //a ghost and back, a mech: the view's been put back without us
+		zoom = FALSE
 	if(zoom || force_off)
 		user.client.change_view(CONFIG_GET(string/default_view))
 		to_chat(user, "<span class='boldnotice'>Disabled helmet zoom...</span>")
@@ -726,27 +790,22 @@
 	icon_icon = 'icons/mob/actions/actions_items.dmi'
 	button_icon_state = "sniper_zoom"
 
-/datum/action/item_action/nanosuit/zoom/Trigger()
-	var/obj/item/clothing/head/helmet/space/hardsuit/nano/NS = target
-	if(istype(NS))
-		NS.toggle_zoom(owner)
-	return ..()
-
 /obj/item/clothing/head/helmet/space/hardsuit/nano/ComponentInitialize()
 	. = ..()
 	AddComponent(/datum/component/rad_insulation, RAD_NO_INSULATION, TRUE, TRUE)
 
 /obj/item/clothing/suit/space/hardsuit/nano/equipped(mob/user, slot)
-	if(ishuman(user))
+	if(ishuman(user) && slot == ITEM_SLOT_OCLOTHING)
 		Wearer = user
-	if(slot == ITEM_SLOT_OCLOTHING)
 		var/turf/T = get_turf(src)
 		var/area/A = get_area(src)
 		ADD_TRAIT(src, TRAIT_NODROP, CLOTHING_TRAIT)
 		Wearer.unequip_all_items()
 		Wearer.equipOutfit(outfit)
 		ADD_TRAIT(Wearer, TRAIT_NODISMEMBER, "Nanosuit")
-		RegisterSignal(Wearer, list(COMSIG_MOB_ITEM_ATTACK,COMSIG_MOB_ITEM_AFTERATTACK,COMSIG_MOB_THROW,COMSIG_MOB_ATTACK_HAND), PROC_REF(kill_cloak),TRUE)
+		RegisterSignal(Wearer, list(COMSIG_MOB_ITEM_ATTACK,COMSIG_MOB_THROW,COMSIG_MOB_ATTACK_HAND), PROC_REF(kill_cloak),TRUE)
+		RegisterSignal(Wearer, COMSIG_MOB_ITEM_AFTERATTACK, PROC_REF(on_item_afterattack),TRUE)
+		RegisterSignal(Wearer, list(COMSIG_LIVING_STATUS_STUN,COMSIG_LIVING_STATUS_KNOCKDOWN,COMSIG_LIVING_STATUS_IMMOBILIZE,COMSIG_LIVING_STATUS_PARALYZE,COMSIG_LIVING_STATUS_UNCONSCIOUS), PROC_REF(on_stunned),TRUE)
 		if(is_station_level(T.z))
 			priority_announce("[user] has engaged [src] at [A.map_name]!","Message from The Syndicate!", sound = 'hippiestation/sound/misc/nanosuitengage.ogg')
 		log_game("[user] has engaged [src]")
@@ -755,15 +814,41 @@
 		INVOKE_ASYNC(src, PROC_REF(bootSequence))
 	..()
 
-/obj/item/clothing/suit/space/hardsuit/nano/dropped()
+/obj/item/clothing/suit/space/hardsuit/nano/dropped(mob/user)
+	if(user == Wearer)
+		disengage()
 	..()
-	//STOP_PROCESSING(SSfastprocess, src)
-	var/datum/atom_hud/secsensor = GLOB.huds[DATA_HUD_SECURITY_ADVANCED]
-	var/datum/atom_hud/diagsensor = GLOB.huds[DATA_HUD_DIAGNOSTIC_BASIC ]
-	secsensor.remove_hud_from(Wearer)
-	diagsensor.remove_hud_from(Wearer)
-	if(help_verb && Wearer)
+
+/// Takes back everything the suit did to its wearer. It can't be taken off, but it can still come off: a monkey sting, an admin, deletion.
+/obj/item/clothing/suit/space/hardsuit/nano/proc/disengage()
+	if(!Wearer)
+		return
+	power_down()
+	if(hacked)
+		var/datum/atom_hud/secsensor = GLOB.huds[DATA_HUD_SECURITY_ADVANCED]
+		var/datum/atom_hud/diagsensor = GLOB.huds[DATA_HUD_DIAGNOSTIC_BASIC ]
+		secsensor.remove_hud_from(Wearer)
+		diagsensor.remove_hud_from(Wearer)
+	if(help_verb)
 		Wearer.verbs -= help_verb
+	REMOVE_TRAIT(Wearer, TRAIT_NODISMEMBER, "Nanosuit")
+	UnregisterSignal(Wearer, list(COMSIG_MOB_ITEM_ATTACK,COMSIG_MOB_ITEM_AFTERATTACK,COMSIG_MOB_THROW,COMSIG_MOB_ATTACK_HAND,COMSIG_LIVING_STATUS_STUN,COMSIG_LIVING_STATUS_KNOCKDOWN,COMSIG_LIVING_STATUS_IMMOBILIZE,COMSIG_LIVING_STATUS_PARALYZE,COMSIG_LIVING_STATUS_UNCONSCIOUS))
+	REMOVE_TRAIT(src, TRAIT_NODROP, CLOTHING_TRAIT)
+	Wearer.hud_used?.nano_energy?.clear()
+	healthon = FALSE
+	atmoson = FALSE
+	radon = FALSE
+	cellon = FALSE
+	var/mob/living/carbon/human/H = Wearer
+	Wearer = null
+	if(QDELETED(H))
+		return
+	var/static/list/parts = typecacheof(list(/obj/item/clothing/under/syndicate/combat/nano, /obj/item/clothing/mask/gas/nano_mask, /obj/item/clothing/shoes/combat/coldres/nanojump, /obj/item/clothing/gloves/combat/nano, /obj/item/radio/headset/syndicate/alt/nano, /obj/item/clothing/glasses/nano_goggles))
+	for(var/obj/item/I in H.get_equipped_items())
+		if(is_type_in_typecache(I, parts))
+			H.dropItemToGround(I, TRUE) //they can't be taken off by hand, and they delete themselves
+	for(var/obj/item/implant/explosive/disintegrate/I in H.implants)
+		qdel(I)
 
 /obj/item/clothing/suit/space/hardsuit/nano/proc/bootSequence()
 	helmet.display_visor_message("Crynet - UEFI v1.32 Syndicate Systems")
@@ -794,6 +879,11 @@
 	helmet.display_visor_message("Loading default configuration, standby...")
 	sleep(25)
 	helmet.display_visor_message("Successful. Have a safe and secure day.")
+	if(!Wearer)
+		return
+	if(hacked) //put back on: coming off took its HUDs with it
+		upgrade()
+		return
 	shutdown = FALSE
 	toggle_mode(NANO_ARMOR)
 
@@ -806,10 +896,10 @@
 		if(hacked || choice == "No, abort")
 			return
 		else
-			var/obj/item/card/emag = locate() in user
-			if(emag)
+			var/obj/item/card/emag/card = locate() in user
+			if(card)
 				hacked = TRUE
-				qdel(emag)
+				qdel(card)
 				to_chat(user, "<span class='warning'>The emag is absorbed into the nanosuit!</span>")
 				INVOKE_ASYNC(src, PROC_REF(emagSequence))
 			else
@@ -820,15 +910,15 @@
 		return
 
 /obj/item/clothing/suit/space/hardsuit/nano/proc/emagSequence()
-	toggle_mode(NANO_NONE, TRUE)
-	shutdown = TRUE
+	power_down()
 	sleep(15)
 	helmet.display_visor_message("Unknown interference detected!")
 	sleep(20)
 	helmet.display_visor_message("Rebooting systems...")
 	sleep(50)
 	helmet.display_visor_message("Upgrades unlocked. Have a nice day.")
-	upgrade()
+	if(Wearer)
+		upgrade()
 
 /obj/item/clothing/suit/space/hardsuit/nano/proc/upgrade()
 	shutdown = FALSE
@@ -851,15 +941,63 @@
 	suit_store = /obj/item/tank/internals/emergency_oxygen/recharge
 	internals_slot = ITEM_SLOT_SUITSTORE
 
+/// The energy every mode runs on, a number and a bar to catch the eye mid-fight
+/obj/screen/nanosuit_energy
+	name = "suit energy"
+	screen_loc = "WEST,CENTER-2:15" //under the chemical and blood displays, which someone in a suit can have too
+	invisibility = INVISIBILITY_ABSTRACT
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	maptext_width = 32
+	maptext_height = 32
+	maptext_y = 15 //it sits on the bottom of its box, and the bar has that
+	var/shown
+
+/obj/screen/nanosuit_energy/proc/show(percent, low)
+	invisibility = 0
+	if(shown == percent)
+		return
+	shown = percent
+	var/colour = low ? "#ff5050" : "#66ccff"
+	maptext = "<div style=\"text-align: center; font-family: 'Verdana'; font-size: 7pt; color: [colour]; -dm-text-outline: 1px #000000;\"><b>[percent]</b></div>"
+	cut_overlays()
+	add_overlay(bar(1, 5, 30, 10, "#000000"))
+	add_overlay(bar(3, 7, 26 * percent / 100, 6, colour))
+
+/// A flat block, this many pixels from the tile's bottom left corner
+/obj/screen/nanosuit_energy/proc/bar(left, bottom, width, height, colour)
+	var/mutable_appearance/block = mutable_appearance('icons/effects/alphacolors.dmi', "white")
+	block.color = colour
+	var/matrix/M = matrix()
+	M.Scale(width / world.icon_size, height / world.icon_size)
+	M.Translate(left + width / 2 - world.icon_size / 2, bottom + height / 2 - world.icon_size / 2)
+	block.transform = M
+	return block
+
+/obj/screen/nanosuit_energy/proc/clear()
+	invisibility = INVISIBILITY_ABSTRACT
+
+/datum/hud
+	var/obj/screen/nanosuit_energy/nano_energy
+
+/datum/hud/human/New(mob/living/carbon/human/owner, ui_style = 'icons/mob/screen_midnight.dmi')
+	. = ..()
+	nano_energy = new()
+	infodisplay += nano_energy
+
+/datum/hud/Destroy()
+	. = ..()
+	nano_energy = null
+
 /mob/living/carbon/human/Stat()
 	..()
 	if(istype(wear_suit, /obj/item/clothing/suit/space/hardsuit/nano))
 		var/obj/item/clothing/suit/space/hardsuit/nano/NS = wear_suit
 		var/datum/gas_mixture/environment = loc?.return_air()
-		var/pressure = environment.return_pressure()
-		if(statpanel("Crynet Nanosuit"))
+		if(environment && statpanel("Crynet Nanosuit"))
+			var/pressure = environment.return_pressure()
 			stat("Crynet Protocols : [!NS.shutdown?"Engaged":"Disengaged"]")
 			stat("Energy Charge:", "[NS.cellon?"[round(NS.cell.percent())]%":"offline"]")
+			stat("Medical Charges:", "[NS.healthon?"[NS.current_charges] of [NS.max_charges]":"offline"]")
 			stat("Mode:", "[NS.mode]")
 			stat("Overall Status:", "[NS.healthon?"[health]% healthy":"offline"]")
 			stat("Nutrition Status:", "[NS.healthon?"[nutrition]":"offline"]")
@@ -875,15 +1013,16 @@
 
 /mob/living/carbon/human/Move(NewLoc, direct)
 	. = ..()
-	if(.)
+	if(. && !(direct & (direct - 1))) //a diagonal is two of these steps, and it comes through here again once they're done
 		if(istype(wear_suit, /obj/item/clothing/suit/space/hardsuit/nano))
 			var/obj/item/clothing/suit/space/hardsuit/nano/NS = wear_suit
 			if(mob_has_gravity() && !stat)
-				return NS.onmove()
+				NS.onmove()
 
 /datum/martial_art/nanosuit
 	name = "Nanosuit strength mode"
-	block_chance = 50
+	block_chance = 75
+	deflection_chance = 25
 	id = MARTIALART_NANOSUIT
 
 /datum/martial_art/nanosuit/teach(mob/living/carbon/human/H, make_temporary = FALSE)
@@ -895,17 +1034,17 @@
 	UnregisterSignal(H, COMSIG_HUMAN_EARLY_UNARMED_ATTACK)
 
 /datum/martial_art/nanosuit/proc/check_streak(mob/living/carbon/human/A, mob/living/carbon/human/D)
-	A.hud_used.combo_object.update_icon(streak, 60)
+	A.hud_used?.combo_object.update_icon(streak, 60)
 	if(findtext(streak, POWER_PUNCH))
 		streak = ""
-		A.hud_used.combo_object.update_icon(streak)
+		A.hud_used?.combo_object.update_icon(streak)
 		PowerPunch(A,D)
 		return TRUE
 	if(findtext(streak, FINISH_HIM))
 		to_chat(A, "<span class='cult italic'><b><span class='big'>FINISH HIM!!</span></b></span>")
 	if(findtext(streak, HEAD_EXPLOSION))
 		streak = ""
-		A.hud_used.combo_object.update_icon(streak)
+		A.hud_used?.combo_object.update_icon(streak)
 		HeadStomp(A,D)
 		return TRUE
 	return FALSE
@@ -968,7 +1107,7 @@
 				if(check_streak(A,D))
 					return TRUE
 	if(D != A && !D.stat && (!D.IsParalyzed() || !D.IsStun())) //and we can't knock ourselves the fuck out/down!
-		if(A.grab_state == GRAB_AGGRESSIVE)
+		if(A.pulling == D && A.grab_state == GRAB_AGGRESSIVE)
 			A.stop_pulling() //So we don't spam the combo
 			bonus_damage += 5
 			D.Paralyze(15)
@@ -976,7 +1115,7 @@
 							"<span class='userdanger'>[A] knocks you the fuck down!</span>")
 			if(prob(75))
 				step_away(D,A,15)
-		else if(A.grab_state > GRAB_AGGRESSIVE)
+		else if(A.pulling == D && A.grab_state > GRAB_AGGRESSIVE)
 			var/atom/throw_target = get_edge_target_turf(D, A.dir)
 			if(!D.anchored)
 				D.throw_at(throw_target, rand(1,2), 7, A)
@@ -1124,7 +1263,9 @@
 	if(!proximity)
 		return
 	var/datum/martial_art/nanosuit/style = owner.mind?.has_martialart(MARTIALART_NANOSUIT)
-	if(iscarbon(target) && !ishuman(target) && style?.harm_act(owner, target))
+	if(iscarbon(target) && !ishuman(target))
+		if(owner.a_intent == INTENT_HARM && style?.harm_act(owner, target))
+			return COMPONENT_NO_ATTACK_HAND
 		return
 	if(owner.a_intent == INTENT_HARM && !iscarbon(target))
 		if(target.attack_nanosuit(owner))
@@ -1152,12 +1293,17 @@
 				return
 		cut_nano_energy(cell.charge, NANO_CHARGE_DELAY)
 
+/// Afterattack runs for every click with something in hand. Guns fire from it, but a wrench on a pipe or a flashlight on the floor isn't an attack.
+/obj/item/clothing/suit/space/hardsuit/nano/proc/on_item_afterattack(datum/source, atom/target, mob/user, proximity_flag)
+	if(ismob(target) || (!proximity_flag && istype(Wearer.get_active_held_item(), /obj/item/gun)))
+		kill_cloak()
+
 /obj/item/clothing/suit/space/hardsuit/nano/proc/resume_cloak()
 	if(cell.charge && mode == NANO_CLOAK)
 		Wearer.filters = filter(type="blur",size=1)
 		animate(Wearer, alpha = 40, time = stealth_cloak_in)
 
-/obj/item/storage/box/syndie_kit/nanosuitLK
+/obj/item/storage/box/syndie_kit/nanosuit
 	name = "\improper Crynet Systems kit"
 	desc = "Maximum Death."
 
@@ -1174,7 +1320,9 @@
 /obj/item/implant/explosive/disintegrate/activate(cause)
 	if(!cause || !imp_in || cause == "emp" || active)
 		return FALSE
-	if(cause == "action_button" && !popup)
+	if(cause == "action_button")
+		if(popup) //the warning's already up, and a second click isn't a yes
+			return FALSE
 		popup = TRUE
 		var/response = alert(imp_in, "Are you sure you want to activate your [name]? This will cause you to disintergrate!", "[name] Confirmation", "Yes", "No")
 		popup = FALSE
@@ -1204,18 +1352,12 @@
 
 /obj/item/tank/internals/emergency_oxygen/recharge/process()
 	if(ishuman(loc))
-		var/mob/living/carbon/human/H = loc
 		var/moles_val = ONE_ATMOSPHERE*volume/(R_IDEAL_GAS_EQUATION*T20C)
-		var/In_Use = H.Move()
-		if(In_Use)
-			return
-		else
-			sleep(10)
-			if(air_contents.moles[/datum/gas/oxygen] < (10*moles_val))
-				air_contents.assert_gas(/datum/gas/oxygen)
-				air_contents.moles[/datum/gas/oxygen] = clamp(air_contents.total_moles()+moles_val,MOLES_GAS_VISIBLE,(10*moles_val))
-				if(!air_contents.total_moles())
-					air_contents.moles[/datum/gas/oxygen] = ONE_ATMOSPHERE*volume/(R_IDEAL_GAS_EQUATION*T20C)
+		if(air_contents.moles[/datum/gas/oxygen] < (10*moles_val))
+			air_contents.assert_gas(/datum/gas/oxygen)
+			air_contents.moles[/datum/gas/oxygen] = clamp(air_contents.total_moles()+moles_val,MOLES_GAS_VISIBLE,(10*moles_val))
+			if(!air_contents.total_moles())
+				air_contents.moles[/datum/gas/oxygen] = ONE_ATMOSPHERE*volume/(R_IDEAL_GAS_EQUATION*T20C)
 		if(air_contents.return_pressure() != initial(distribute_pressure))
 			distribute_pressure = initial(distribute_pressure)
 
@@ -1238,10 +1380,12 @@
 	to_chat(src, "<b><i>If you are reading this, you've probably alerted the entire sector about the purchase of an illegal syndicate item banned in a radius of 50 megaparsecs!</i></b>")
 	to_chat(src, "<b><i>Fortunately, the syndicate equipped this bad boy with high tech sensing equipment, the downside is the whole crew knows you're here.</i></b>")
 	to_chat(src, "<b>Sensors</b>: Reagent scanner, bomb radar, medical, user life signs monitor and bluespace communication relay.")
-	to_chat(src, "<b>Passive equipment</b>: Binoculars, night vision, anti-slips, shock and heat proof gloves, self-refilling mini o2 tank, body temperature stabilizer and impact reactive medical systems.")
-	to_chat(src, "<b>Press C to toggle quick mode selection.</b>")
+	to_chat(src, "<b>Passive equipment</b>: Binoculars, night vision, anti-slips, shock and heat proof gloves, self-refilling mini o2 tank, body temperature stabilizer and impact reactive medical systems, with a charge back every 3 minutes.")
+	to_chat(src, "<b>Press C to toggle quick mode selection. It's a keybind, so it can be changed in your preferences.</b>")
+	to_chat(src, "<b>Your energy is on the left of your screen, and the button of the mode you're in is lit.</b>")
+	to_chat(src, "<b>Toughness</b>: While the suit's running, stuns last a quarter as long and a tenth in armor mode, and another can't land until 3 seconds after one wears off. Stamina hits count half and you shake them off in seconds. Being thrown into a wall does nothing to you, and anyone you crash into goes down alone. An EMP shutdown takes all of this away.")
 	to_chat(src, "<b>Active modes</b>: Armor, strength, speed and cloak.")
-	to_chat(src, "<span class='notice'>Armor</span>: Resist damage that would normally kill or seriously injure you. Blocks 50% of attacks at a cost of suit energy drain.\n\
+	to_chat(src, "<span class='notice'>Armor</span>: Resist damage that would normally kill or seriously injure you. Your heaviest armor, and blocks 50% of attacks at a cost of suit energy drain.\n\
     <span class='notice'>Cloak</span>: Become a ninja. Cloaking technology alters the outer layers to refract light through and around the suit, making the user appear almost completely invisible. Simple tasks such as attacking in any way, being hit or throwing objects cancels cloak.\n\
 	<span class='notice'>Speed</span>: Run like a madman. Use conservatively as suit energy drains rather quickly.\n\
 	<span class='notice'>Strength</span>: Beat the shit out of objects  or people with your fists. Jump across small gaps and structures. You hit and throw harder with brute objects. You can't be grabbed aggressively or pushed. 25% ranged hits deflection. Toggling throw mode gives you a 75% block chance.\n\
@@ -1250,7 +1394,7 @@
 	<span class='notice'>MMA master</span>: Harm intents deals more damage, occasionally trigger series of fast hits and you can leg sweep while lying down.\n\
 	<span class='notice'>Highschool bully</span>: Grab someone and harm intent them to deliver a deadly knock down punch.\n\
 	<span class='notice'>Knockout master</span>: Tighten your grip and harm intent to deliver a very deadly knockout punch.\n\
-	<span class='notice'>Mike Tyson</span>: Getting 2 successful quick punches and a regular punch sends your victim flying back.\n\
+	<span class='notice'>Mike Tyson</span>: Getting 3 successful quick punches sends your victim flying back.\n\
 	<span class='notice'>Head stomp special</span>: Target victims head while they're knocked down, stomp until their brain explodes.")
 	to_chat(src, "<b><i>User warning: The suit is equipped with an implant which vaporizes the suit and user upon request or death.</i></b>")
 
@@ -1259,19 +1403,24 @@
 	maxcharge = 100
 	resistance_flags = INDESTRUCTIBLE | FIRE_PROOF | ACID_PROOF | FREEZE_PROOF
 
-mob/living/carbon/human/key_down(_key, client/user)
-	switch(_key)
-		if("C")
-			if(istype(wear_suit, /obj/item/clothing/suit/space/hardsuit/nano))
-				var/obj/item/clothing/suit/space/hardsuit/nano/NS = wear_suit
-				NS.open_mode_menu(src)
-				return
-	..()
+/datum/keybinding/human/nanosuit_menu
+	hotkey_keys = list("C")
+	name = "nanosuit_menu"
+	full_name = "Nanosuit quick menu"
+	description = "Pick a nanosuit mode from a wheel around you"
+
+/datum/keybinding/human/nanosuit_menu/down(client/user)
+	var/mob/living/carbon/human/H = user.mob
+	var/obj/item/clothing/suit/space/hardsuit/nano/NS = H.wear_suit
+	if(!istype(NS))
+		return FALSE
+	INVOKE_ASYNC(NS, TYPE_PROC_REF(/obj/item/clothing/suit/space/hardsuit/nano, open_mode_menu), H) //the wheel waits for a click, and the key press mustn't
+	return TRUE
 
 /obj/item/clothing/suit/space/hardsuit/nano/proc/check_menu(mob/living/user)
 	if(!user)
 		return FALSE
-	if(user.incapacitated() || !user.Adjacent(src))
+	if(user.incapacitated(TRUE, TRUE) || user != Wearer) //the same as the buttons: a locker or cuffs stop neither
 		return FALSE
 	return TRUE
 

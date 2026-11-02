@@ -75,6 +75,9 @@
 /obj/structure/blob/CanAtmosPass(turf/T)
 	return !atmosblock
 
+/obj/structure/blob
+	astar_always_asks = TRUE // hippie
+
 /obj/structure/blob/CanAStarPass(ID, dir, caller)
 	. = 0
 	if(ismovable(caller))

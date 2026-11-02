@@ -36,6 +36,8 @@
 		environment_temperature = T.temperature
 	if(abs(environment_temperature-pipe_air.temperature) > minimum_temperature_difference)
 		parent.temperature_interact(T, volume, thermal_conductivity)
+	else if(!has_buckled_mobs())
+		return ATMOS_IDLE // hippie -- see idle_machines.dm
 
 
 	//heatup/cooldown any mobs buckled to ourselves based on our temperature

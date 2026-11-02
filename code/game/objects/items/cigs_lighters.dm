@@ -63,6 +63,10 @@ CIGARETTE PACKETS ARE IN FANCY.DM
 		desc = "A [initial(name)]. This one has seen better days."
 		attack_verb = list("flicked")
 		STOP_PROCESSING(SSobj, src)
+		if(ismob(loc)) //hippie -- it burns out by itself, so nothing else redraws it
+			var/mob/holder = loc
+			holder.update_inv_hands()
+			update_slot_icon()
 
 /obj/item/match/extinguish()
 	matchburnout()

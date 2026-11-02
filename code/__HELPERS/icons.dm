@@ -1149,10 +1149,17 @@ GLOBAL_LIST_INIT(freon_color_matrix, list("#2E5E69", "#60A2A8", "#A1AFB1", rgb(0
 		if (isnull(icon_state))
 			icon_state = ""
 
-	I = icon(I, icon_state, dir, frame, moving)
-
-	key = "[generate_asset_name(I)].png"
-	register_asset(key, I)
+	// hippie -- hashing it is nearly all of what examining something costs, and it's the same icons all round. Only for icons from a file:
+	// one made at runtime has no name to go by.
+	var/static/list/known_assets = list()
+	var/known_as = isfile(I) ? "[I]|[icon_state]|[dir]|[frame]|[moving]" : null
+	key = known_as && known_assets[known_as]
+	if(!key)
+		I = icon(I, icon_state, dir, frame, moving)
+		key = "[generate_asset_name(I)].png"
+		register_asset(key, I)
+		if(known_as)
+			known_assets[known_as] = key
 	for (var/thing2 in targets)
 		send_asset(thing2, key)
 

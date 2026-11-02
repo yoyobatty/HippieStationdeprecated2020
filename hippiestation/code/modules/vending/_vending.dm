@@ -55,7 +55,7 @@
 
 /obj/machinery/vending/power_change()
 	..()
-	if(stat & NOPOWER)
+	if(stat & (NOPOWER|BROKEN))
 		set_light(0)
 	else
 		set_light(MINIMUM_USEFUL_LIGHT_RANGE, brightness_on)
@@ -64,9 +64,14 @@
 
 
 /obj/machinery/vending/obj_break(damage_flag)
-	..()
-	if(!(stat & BROKEN) && !(flags_1 & NODECONSTRUCT_1))
+	. = ..()
+	if(.)
 		set_light(0)
+
+/// The hippie sprite is only the working one. The off and broken ones are in the normal file.
+/obj/machinery/vending/wardrobe/sec_wardrobe/update_icon()
+	..()
+	icon = (icon_state == initial(icon_state)) ? icon_hippie : initial(icon)
 
 /obj/machinery/vending/ui_base_html(html)
 	var/datum/asset/spritesheet/assets = get_asset_datum(/datum/asset/spritesheet/vending)

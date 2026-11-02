@@ -15,6 +15,7 @@
 #   QUIET=1      no bot AI logs (for measuring speed; the WHY part of the report goes)
 #   ANTAGS=traitor*2   a couple of the crew are traitors
 #   NOCOMPILE=1  use the hippiestation.dmb that's there
+#   EXTRA_PARAMS="a=1&b=2"  more world params, like lighting-unseen=off to update every light at once
 #   BASE_PORT=45200
 # Each shift runs from its own copy of the .dmb, so the code can be edited and recompiled while a batch runs.
 # Everything is inside main() so that editing this file during a batch can't change what the batch does next:
@@ -60,6 +61,7 @@ run_shift() {
 	if [ "${QUIET:-0}" = "1" ]; then params="$params&bot-quiet=1"; fi
 	if [ -n "${ANTAGS:-}" ]; then params="$params&bot-antags=${ANTAGS// /_}"; fi
 	if [ -n "${ENGINE:-}" ]; then params="$params&atmos-engine=$ENGINE"; fi
+	if [ -n "${EXTRA_PARAMS:-}" ]; then params="$params&$EXTRA_PARAMS"; fi
 	local began
 	began=$(date +%s)
 	timeout $((MINUTES * 75 + 600)) "$BYOND_BIN/dd.exe" "${COPY}_$slot.dmb" $((BASE_PORT + slot)) -trusted -invisible \

@@ -100,6 +100,7 @@ GLOBAL_LIST_INIT(wire_node_generating_types, typecacheof(list(/obj/structure/gri
 	update_icon()
 
 /obj/structure/cable/Destroy()					// called when a cable is deleted
+	bot_note_cable_gone(src) //hippie - engineers re-lay it (bots_ai/goals/repair_cables.dm)
 	//Clear the linked indicator bitflags
 	for(var/check_dir in GLOB.cardinals)
 		var/inverse = turn(check_dir, 180)

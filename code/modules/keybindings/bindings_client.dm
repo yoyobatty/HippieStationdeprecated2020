@@ -46,8 +46,11 @@
 	//the time a key was pressed isn't actually used anywhere (as of 2019-9-10) but this allows easier access usage/checking
 	keys_held[_key] = world.time
 	current_key_address = ((current_key_address + 1) % HELD_KEY_BUFFER_LENGTH)
+	watch_held_keys()
 	var/movement = movement_keys[_key]
-	if(!(next_move_dir_sub & movement) && !keys_held["Ctrl"])
+	if(tap_is_waiting(movement))
+		next_move_dir_sub |= movement // hippie -- it goes first, and this key carries on after it if it's still held
+	else if(!(next_move_dir_sub & movement) && !keys_held["Ctrl"])
 		next_move_dir_add |= movement
 
 	// Client-level keybindings are ones anyone should be able to do at any time
@@ -70,6 +73,18 @@
 
 	holder?.key_down(_key, src)
 	mob.focus?.key_down(_key, src)
+
+/// hippie -- whether a quick tap in the opposite direction hasn't had its step yet. Both at once cancel out, and that lost the tap.
+/client/proc/tap_is_waiting(movement)
+	if(!movement)
+		return FALSE
+	var/opposite = turn(movement, 180)
+	if(!(next_move_dir_add & opposite))
+		return FALSE
+	for(var/held in keys_held)
+		if(movement_keys[held] & opposite)
+			return FALSE // that's not a tap, it's being held down
+	return TRUE
 
 /client/verb/keyUp(_key as text)
 	set instant = TRUE

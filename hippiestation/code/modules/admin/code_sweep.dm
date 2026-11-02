@@ -27,6 +27,7 @@ GLOBAL_DATUM(code_sweep, /datum/code_sweep)
 	Master.sleep_offline_after_initializations = FALSE
 	world.sleep_offline = FALSE
 	CONFIG_SET(flag/allow_random_events, FALSE)
+	GLOB.master_mode = "extended" // data/mode.txt is whatever the last real round left there, and most modes won't start with nobody playing
 	SSticker.start_immediately = TRUE
 	var/round_deadline = world.time + 3 MINUTES
 	while(SSticker.current_state < GAME_STATE_PLAYING && world.time < round_deadline)

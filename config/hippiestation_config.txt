@@ -39,8 +39,17 @@ TOKEN_CONSUMER http://127.0.0.1:9000/byondLinker.php
 
 ## Tops the crew up to this many with bot crew members, players counted first. Unset or 0 is off.
 ## Can also be changed mid-round with the "Set Bot Crew Target" admin verb.
+## They start at their posts with everyone else when the round starts.
 #BOT_CREW_TARGET 20
+
+## How many more bots come in on the arrivals shuttle later on, picked at random between these two.
+#BOT_CREW_LATE_MIN 5
+#BOT_CREW_LATE_MAX 10
 
 ## How many of those bots turn out to be traitors, ten minutes or so into the round. Modes only pick antagonists from
 ## players, so a crew of bots has none without this. Unset or 0 is none.
 #BOT_CREW_TRAITORS 2
+
+## How much trouble the bot crew gets up to by itself: 0 none, 1 a normal round (greytide, quarrels, the odd riot), 2 mayhem.
+## Unset is 1. Headless test runs leave it off unless they ask for it with bot-chaos=<level>.
+#BOT_CHAOS 1

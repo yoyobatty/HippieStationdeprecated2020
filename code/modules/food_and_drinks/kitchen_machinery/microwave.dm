@@ -40,6 +40,7 @@
 
 /obj/machinery/microwave/Destroy()
 	eject()
+	QDEL_NULL(soundloop) // hippie
 	if(wires)
 		QDEL_NULL(wires)
 	. = ..()

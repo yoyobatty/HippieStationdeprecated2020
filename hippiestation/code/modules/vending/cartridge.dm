@@ -16,5 +16,9 @@
 	extra_price = 10
 	scan_id = FALSE
 
+/// It always looks like this: there's no "cart-broken-off" or "cart-broken-broken", and either one would make it invisible.
+/obj/machinery/vending/cart/old/update_icon()
+	return
+
 /obj/machinery/vending/cart
 	light_color = LIGHT_COLOR_PINK

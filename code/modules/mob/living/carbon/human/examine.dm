@@ -288,7 +288,7 @@
 				msg += "[t_He] [t_has] a stupid expression on [t_his] face.\n"
 			if(InCritical())
 				msg += "[t_He] [t_is] barely conscious.\n"
-		if(getorgan(/obj/item/organ/brain))
+		if(getorgan(/obj/item/organ/brain) && !is_bot_crew()) //hippie -- a bot has no client and is very much there
 			if(!key)
 				msg += "<span class='deadsay'>[t_He] [t_is] totally catatonic. The stresses of life in deep-space must have been too much for [t_him]. Any recovery is unlikely.</span>\n"
 			else if(!client)

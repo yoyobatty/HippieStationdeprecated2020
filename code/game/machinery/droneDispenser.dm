@@ -229,7 +229,7 @@
 
 		stat &= ~BROKEN
 		obj_integrity = max_integrity
-		update_icon()
+		power_change() //hippie
 	else
 		return ..()
 

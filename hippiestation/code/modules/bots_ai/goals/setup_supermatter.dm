@@ -75,7 +75,7 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 
 /// An empty port with a pump beside it onto the loop, which rules out the ones that only collect what the filters take.
 /datum/bot_brain/proc/sm_free_port(obj/machinery/power/supermatter_crystal/S)
-	for(var/obj/machinery/atmospherics/components/unary/portables_connector/C in GLOB.machines)
+	for(var/obj/machinery/atmospherics/components/unary/portables_connector/C as anything in bot_instances_of(/obj/machinery/atmospherics/components/unary/portables_connector))
 		if(C.z != S.z || get_dist(S, C) > BOT_SM_REACH || C.connected_device || !sm_in_engine_room(C))
 			continue
 		if(locate(/obj/machinery/portable_atmospherics) in C.loc)
@@ -105,7 +105,7 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 	return (P.name in GLOB.bot_sm_loop_pumps) || (P.name == initial(P.name) && sm_in_engine_room(P))
 
 /datum/bot_brain/proc/sm_pump_to_set(obj/machinery/power/supermatter_crystal/S, strict = FALSE)
-	for(var/obj/machinery/atmospherics/components/binary/pump/P in GLOB.machines)
+	for(var/obj/machinery/atmospherics/components/binary/pump/P as anything in bot_instances_of(/obj/machinery/atmospherics/components/binary/pump))
 		if(P.z != S.z || get_dist(S, P) > BOT_SM_REACH || !sm_loop_pump(P) || !(strict || sm_part_free(P)))
 			continue
 		if(!P.on || P.target_pressure < MAX_OUTPUT_PRESSURE)
@@ -114,13 +114,13 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 
 /// A bypass left open sends the cold gas round the chamber instead of through it. Only Pubby's "Chamber Bypass" starts on.
 /datum/bot_brain/proc/sm_bypass_to_shut(obj/machinery/power/supermatter_crystal/S, strict = FALSE)
-	for(var/obj/machinery/atmospherics/components/binary/pump/P in GLOB.machines)
+	for(var/obj/machinery/atmospherics/components/binary/pump/P as anything in bot_instances_of(/obj/machinery/atmospherics/components/binary/pump))
 		if(P.on && P.z == S.z && get_dist(S, P) <= BOT_SM_REACH && findtext(P.name, "Bypass") && !sm_loop_pump(P) && (strict || sm_part_free(P)))
 			return P
 	return null
 
 /datum/bot_brain/proc/sm_filter_to_set(obj/machinery/power/supermatter_crystal/S, strict = FALSE)
-	for(var/obj/machinery/atmospherics/components/trinary/filter/F in GLOB.machines)
+	for(var/obj/machinery/atmospherics/components/trinary/filter/F as anything in bot_instances_of(/obj/machinery/atmospherics/components/trinary/filter))
 		if(F.z != S.z || get_dist(S, F) > BOT_SM_REACH || !sm_in_engine_room(F) || !(strict || sm_part_free(F)))
 			continue
 		if(!F.on || F.transfer_rate < MAX_TRANSFER_RATE)
@@ -144,19 +144,19 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 	if(sm_chamber_air_set(S))
 		return null
 	var/area/chamber = get_area(S)
-	for(var/obj/machinery/airalarm/A in GLOB.machines)
+	for(var/obj/machinery/airalarm/A as anything in bot_instances_of(/obj/machinery/airalarm))
 		if(A.z == S.z && get_area(A) == chamber && sm_part_free(A))
 			return A
 	return null
 
 /datum/bot_brain/proc/sm_collector_to_load(obj/machinery/power/supermatter_crystal/S)
-	for(var/obj/machinery/power/rad_collector/C in GLOB.machines)
+	for(var/obj/machinery/power/rad_collector/C as anything in bot_instances_of(/obj/machinery/power/rad_collector))
 		if(C.z == S.z && C.anchored && !C.loaded_tank && get_dist(S, C) <= BOT_SM_REACH && sm_part_free(C))
 			return C
 	return null
 
 /datum/bot_brain/proc/sm_collector_to_start(obj/machinery/power/supermatter_crystal/S)
-	for(var/obj/machinery/power/rad_collector/C in GLOB.machines)
+	for(var/obj/machinery/power/rad_collector/C as anything in bot_instances_of(/obj/machinery/power/rad_collector))
 		if(C.z == S.z && C.anchored && C.loaded_tank && !C.active && !C.locked && get_dist(S, C) <= BOT_SM_REACH && sm_part_free(C))
 			return C
 	return null
@@ -177,10 +177,10 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 		return FALSE
 	var/on = 0
 	var/loop_pumps = 0
-	for(var/obj/machinery/atmospherics/components/binary/pump/P in GLOB.machines)
+	for(var/obj/machinery/atmospherics/components/binary/pump/P as anything in bot_instances_of(/obj/machinery/atmospherics/components/binary/pump))
 		if(P.z == S.z && get_dist(S, P) <= BOT_SM_REACH && (P.name in GLOB.bot_sm_loop_pumps) && P.on)
 			loop_pumps++
-	for(var/obj/machinery/power/rad_collector/C in GLOB.machines)
+	for(var/obj/machinery/power/rad_collector/C as anything in bot_instances_of(/obj/machinery/power/rad_collector))
 		if(C.z == S.z && C.active && get_dist(S, C) <= BOT_SM_REACH)
 			on++
 	return loop_pumps >= 2 && on >= BOT_SM_COLLECTORS_NEEDED
@@ -190,7 +190,7 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 		return null
 	var/firing = 0
 	var/obj/machinery/power/emitter/anchored/next
-	for(var/obj/machinery/power/emitter/anchored/E in GLOB.machines)
+	for(var/obj/machinery/power/emitter/anchored/E as anything in bot_instances_of(/obj/machinery/power/emitter/anchored))
 		if(E.z != S.z || get_dist(S, E) > BOT_SM_REACH)
 			continue
 		if(E.active)

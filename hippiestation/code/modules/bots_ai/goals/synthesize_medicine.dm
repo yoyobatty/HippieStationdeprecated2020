@@ -30,7 +30,7 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 /datum/bot_brain/proc/find_reachable_chem_dispenser()
 	var/obj/machinery/chem_dispenser/best
 	var/best_dist
-	for(var/obj/machinery/chem_dispenser/D in GLOB.machines)
+	for(var/obj/machinery/chem_dispenser/D as anything in bot_instances_of(/obj/machinery/chem_dispenser))
 		if(istype(D, /obj/machinery/chem_dispenser/drinks) || istype(D, /obj/machinery/chem_dispenser/mutagen))
 			continue //not a chemistry dispenser
 		if(D.z != owner.z || !D.is_operational() || !is_medbay_chemistry(D))
@@ -46,7 +46,7 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 /datum/bot_brain/proc/find_reachable_chem_master()
 	var/obj/machinery/chem_master/best
 	var/best_dist
-	for(var/obj/machinery/chem_master/M in GLOB.machines)
+	for(var/obj/machinery/chem_master/M as anything in bot_instances_of(/obj/machinery/chem_master))
 		if(istype(M, /obj/machinery/chem_master/condimaster))
 			continue
 		if(M.z != owner.z || !is_medbay_chemistry(M))
@@ -64,7 +64,7 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 /datum/bot_brain/proc/find_reachable_chem_fridge()
 	var/obj/machinery/smartfridge/chemistry/best
 	var/best_dist
-	for(var/obj/machinery/smartfridge/chemistry/F in GLOB.machines)
+	for(var/obj/machinery/smartfridge/chemistry/F as anything in bot_instances_of(/obj/machinery/smartfridge/chemistry))
 		if(istype(F, /obj/machinery/smartfridge/chemistry/virology))
 			continue //samples, not medicine
 		if(F.z != owner.z || (F.stat & (BROKEN|NOPOWER)) || !is_medbay_chemistry(F))

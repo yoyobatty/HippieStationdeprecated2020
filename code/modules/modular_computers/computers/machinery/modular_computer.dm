@@ -54,6 +54,11 @@
 	cut_overlays()
 	icon_state = icon_state_powered
 
+	if(stat & BROKEN) //hippie -- broken ones went on showing their screen
+		icon_state = icon_state_unpowered
+		set_light(0)
+		return
+
 	if(!cpu || !cpu.enabled)
 		if (!(stat & NOPOWER) && (cpu && cpu.use_power()))
 			add_overlay(screen_icon_screensaver)

@@ -212,6 +212,9 @@
 /obj/get_dumping_location(datum/component/storage/source,mob/user)
 	return get_turf(src)
 
+/// hippie -- whether LinkBlockedWithAccess() has to ask CanAStarPass() even with us not dense: everything else that isn't dense lets anything by
+/obj/var/astar_always_asks = FALSE
+
 /obj/proc/CanAStarPass()
 	. = !density
 

@@ -136,6 +136,8 @@ GLOBAL_LIST_EMPTY(conveyors_by_id)
 
 	//get the first 30 items in contents
 	var/turf/locturf = loc
+	if(length(locturf.contents) <= (locturf.lighting_object ? 2 : 1)) //hippie -- just the belt, most of the time on most belts
+		return
 	var/list/items = locturf.contents - src - locturf.lighting_object
 	if(!LAZYLEN(items))//Dont do anything at all if theres nothing there but the conveyor
 		return

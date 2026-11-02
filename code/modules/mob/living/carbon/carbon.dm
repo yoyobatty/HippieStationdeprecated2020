@@ -79,8 +79,9 @@
 			var/mob/living/silicon/robot/R = D.thrower
 			if(!R.emagged)
 				hurt = FALSE
+	var/impactproof = HAS_TRAIT(src, TRAIT_IMPACTPROOF) // hippie
 	if(hit_atom.density && isturf(hit_atom))
-		if(hurt)
+		if(hurt && !impactproof) // hippie edit
 			Paralyze(20)
 			take_bodypart_damage(10,check_armor = TRUE)
 		if(fist_casted)//hippie edit -- adds fist
@@ -94,10 +95,11 @@
 			return
 		if(hurt)
 			victim.take_bodypart_damage(10,check_armor = TRUE)
-			take_bodypart_damage(10,check_armor = TRUE)
 			victim.Paralyze(20)
-			Paralyze(20)
-			visible_message("<span class='danger'>[src] crashes into [victim], knocking them both over!</span>",\
+			if(!impactproof) // hippie edit -- whoever got in the way still goes down
+				take_bodypart_damage(10,check_armor = TRUE)
+				Paralyze(20)
+			visible_message("<span class='danger'>[src] crashes into [victim], knocking [impactproof ? "[victim.p_them()]" : "them both"] over!</span>",\
 				"<span class='userdanger'>You violently crash into [victim]!</span>")
 		playsound(src,'sound/weapons/punch1.ogg',50,1)
 		if(fist_casted) //hippie edit -- adds fist

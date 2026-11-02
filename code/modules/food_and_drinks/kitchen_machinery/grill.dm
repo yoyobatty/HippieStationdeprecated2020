@@ -87,6 +87,7 @@
 
 /obj/machinery/grill/Destroy()
 	grilled_item = null
+	QDEL_NULL(grill_loop) // hippie
 	. = ..()
 
 /obj/machinery/grill/handle_atom_del(atom/A)

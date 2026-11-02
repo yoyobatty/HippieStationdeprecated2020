@@ -101,6 +101,11 @@
 
 	return ..()
 
+/obj/machinery/recharger/power_change() //hippie -- process() gives up the moment the power goes, and this is all that restarts it
+	. = ..()
+	if(charging && !(stat & (NOPOWER|BROKEN)))
+		START_PROCESSING(SSmachines, src)
+
 /obj/machinery/recharger/attack_hand(mob/user)
 	. = ..()
 	if(.)

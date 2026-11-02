@@ -50,6 +50,10 @@ God bless America.
 		/obj/item/his_grace))
 	var/datum/looping_sound/deep_fryer/fry_loop
 
+/obj/machinery/deepfryer/Destroy() // hippie
+	QDEL_NULL(fry_loop)
+	return ..()
+
 /obj/machinery/deepfryer/Initialize()
 	. = ..()
 	create_reagents(50, OPENCONTAINER)
@@ -107,6 +111,8 @@ God bless America.
 
 /obj/machinery/deepfryer/process()
 	..()
+	if(stat & (NOPOWER|BROKEN)) //hippie
+		return
 	var/datum/reagent/consumable/cooking_oil/C = reagents.has_reagent(/datum/reagent/consumable/cooking_oil)
 	if(!C)
 		return

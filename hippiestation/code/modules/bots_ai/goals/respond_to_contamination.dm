@@ -94,7 +94,7 @@ GLOBAL_LIST_EMPTY(atmos_alert_bots)
 	var/turf/bot_turf = get_turf(owner)
 	var/obj/machinery/airalarm/best
 	var/best_dist
-	for(var/obj/machinery/airalarm/AA in GLOB.machines)
+	for(var/obj/machinery/airalarm/AA as anything in bot_instances_of(/obj/machinery/airalarm))
 		if(AA.z != owner.z)
 			continue
 		if(AA.mode == 8) //AALARM_MODE_CONTAMINATED - already handling this one
@@ -113,7 +113,7 @@ GLOBAL_LIST_EMPTY(atmos_alert_bots)
 // contaminated mode at all - one a player set for their own reasons (a chem spill, say)
 // is left alone, not silently switched back by a bot that had no part in raising it.
 /datum/bot_brain/proc/find_air_alarm_needing_revert()
-	for(var/obj/machinery/airalarm/AA in GLOB.machines)
+	for(var/obj/machinery/airalarm/AA as anything in bot_instances_of(/obj/machinery/airalarm))
 		if(AA.z != owner.z)
 			continue
 		if(AA.mode != 8) //AALARM_MODE_CONTAMINATED

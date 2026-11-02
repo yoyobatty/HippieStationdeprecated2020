@@ -174,7 +174,7 @@
 	return i
 
 /obj/machinery/processor/slime/process()
-	if(processing)
+	if(processing || (stat & (NOPOWER|BROKEN))) //hippie
 		return
 	var/mob/living/simple_animal/slime/picked_slime
 	for(var/mob/living/simple_animal/slime/slime in range(1,src))

@@ -27,6 +27,13 @@
 	AddComponent(/datum/component/material_container, list(MAT_REAGENT), 200000)
 	stored_research = new /datum/techweb/specialized/autounlocking/reagent_forge
 
+/obj/machinery/reagent_forge/power_change()
+	. = ..()
+	if(stat & (NOPOWER|BROKEN))
+		set_light(0)
+	else
+		set_light(initial(light_range), initial(light_power))
+
 /obj/machinery/reagent_forge/attackby(obj/item/I, mob/user)
 
 	if(user.a_intent == INTENT_HARM)

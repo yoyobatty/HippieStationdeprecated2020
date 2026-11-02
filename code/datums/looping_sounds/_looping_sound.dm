@@ -71,16 +71,16 @@
 
 /datum/looping_sound/proc/play(soundfile)
 	var/list/atoms_cache = output_atoms
+	if(!direct) // hippie -- playsound() makes its own sound from this, and only if there's anyone to hear it
+		for(var/i in 1 to atoms_cache.len)
+			playsound(atoms_cache[i], soundfile, volume)
+		return
 	var/sound/S = sound(soundfile)
-	if(direct)
-		S.channel = open_sound_channel()
-		S.volume = volume
+	S.channel = open_sound_channel()
+	S.volume = volume
 	for(var/i in 1 to atoms_cache.len)
 		var/atom/thing = atoms_cache[i]
-		if(direct)
-			SEND_SOUND(thing, S)
-		else
-			playsound(thing, S, volume)
+		SEND_SOUND(thing, S)
 
 /datum/looping_sound/proc/get_sound(starttime, _mid_sounds)
 	. = _mid_sounds || mid_sounds

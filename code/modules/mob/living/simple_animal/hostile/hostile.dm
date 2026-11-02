@@ -131,10 +131,10 @@
 	if(!search_objects)
 		. = hearers(vision_range, targets_from) - src //Remove self, so we don't suicide
 
-		var/static/hostile_machines = typecacheof(list(/obj/machinery/porta_turret, /obj/mecha, /obj/structure/destructible/clockwork/ocular_warden))
-
-		for(var/HM in typecache_filter_list(range(vision_range, targets_from), hostile_machines))
-			if(can_see(targets_from, HM, vision_range))
+		// hippie -- range() looks at everything around us, for every hostile mob, for things that are almost never there
+		var/turf/our_turf = get_turf(targets_from)
+		for(var/atom/HM as anything in GLOB.hostile_machines)
+			if(our_turf && HM.z == our_turf.z && get_dist(our_turf, HM) <= vision_range && can_see(targets_from, HM, vision_range))
 				. += HM
 	else
 		. = list() // The following code is only very slightly slower than just returning oview(vision_range, targets_from), but it saves us much more work down the line, particularly when bees are involved

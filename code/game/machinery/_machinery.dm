@@ -390,6 +390,8 @@ Class Procs:
 	if(!(stat & BROKEN) && !(flags_1 & NODECONSTRUCT_1))
 		stat |= BROKEN
 		SEND_SIGNAL(src, COMSIG_MACHINERY_BROKEN, damage_flag)
+		update_icon() //hippie -- nothing else was showing it: a smashed vending machine looked fine until the next power change
+		return TRUE //hippie -- APCs and vending machines only do their part of breaking if this says it just broke
 
 /obj/machinery/contents_explosion(severity, target)
 	if(occupant)

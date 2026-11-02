@@ -32,21 +32,36 @@ GLOBAL_LIST_EMPTY(bot_cable_breaks)
 			return TRUE
 	return FALSE
 
-// Mice chew cable on bare plating (mouse.dm handle_automated_action) - note which ones they got.
-/mob/living/simple_animal/mouse/handle_automated_action()
-	var/turf/T = get_turf(src)
-	var/list/cables
-	for(var/obj/structure/cable/C in T)
-		LAZYSET(cables, C, C.type)
-	. = ..()
-	for(var/obj/structure/cable/C in cables)
-		if(QDELETED(C))
-			bot_record_cable_break(T, cables[C])
+/// Any cable gone, for any reason, during a round: a mouse, a bomb, an arc off the tesla, somebody with wirecutters. It used to be
+/// mice only, so what an explosion took out was left for somebody to happen across, and the emitters went without.
+/proc/bot_note_cable_gone(obj/structure/cable/C)
+	var/turf/T = get_turf(C)
+	if(!T || !length(GLOB.bot_brains) || !SSticker.HasRoundStarted() || !is_station_level(T.z))
+		return
+	bot_record_cable_break(T, C.type)
+	if(bot_near_tesla(T))
+		GLOB.bot_cable_breaks[T]["notice"] = 0 //it's on the engine monitor the moment it goes
+
+/// When somebody last said the emitters had gone down.
+GLOBAL_VAR_INIT(bot_emitters_down_called, 0)
+
+/// Emitters off on a running engine: every break anybody knows about comes up at once, and it goes out on the engineering channel.
+/datum/bot_brain/proc/notice_emitters_down()
+	if(!bot_emitter_trouble())
+		return
+	for(var/turf/T in GLOB.bot_cable_breaks)
+		GLOB.bot_cable_breaks[T]["notice"] = 0
+	if(!GLOB.bot_emitters_down_called || world.time > GLOB.bot_emitters_down_called + 1 MINUTES)
+		GLOB.bot_emitters_down_called = world.time
+		bot_say(owner, ":e Emitters are down! Find the break and get them back on, the field won't last!")
+		bot_log(src, "the emitters are down")
+		bot_tally("emitters down")
 
 /datum/bot_brain/proc/try_cable_repair_round()
 	if(!is_power_engineer_job())
 		return FALSE
 	notice_cable_gaps()
+	notice_emitters_down()
 	var/turf/best
 	var/best_dist
 	var/list/stale = list()
@@ -57,8 +72,8 @@ GLOBAL_LIST_EMPTY(bot_cable_breaks)
 			continue
 		if(T.z != owner.z || LAZYACCESS(failed_cable_repairs, T) > world.time)
 			continue
-		if(isspaceturf(T))
-			continue //a gap over open space: a cable won't lie on nothing. Engineers tried 90 times a shift, each.
+		if(isspaceturf(T) || T.intact)
+			continue //a gap over open space: a cable won't lie on nothing. Engineers tried 90 times a shift, each. Nor through a floor tile.
 		var/datum/bot_brain/claimant = info["claim"]
 		if(claimant && claimant != src && !QDELETED(claimant) && world.time < info["claim_time"] + BOT_CABLE_CLAIM_TIME)
 			continue //another engineer is already on it

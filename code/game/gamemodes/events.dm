@@ -47,6 +47,9 @@
 		if(!A.requires_power || A.always_unpowered)
 			continue
 		if(!istype(A, /area/shuttle))
+			var/obj/machinery/power/apc/C = A.get_apc() //hippie -- a broken APC doesn't come back with the rest
+			if(C && (!C.operating || (C.stat & (BROKEN|MAINT))))
+				continue
 			A.power_light = TRUE
 			A.power_equip = TRUE
 			A.power_environ = TRUE

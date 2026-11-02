@@ -1641,6 +1641,34 @@ GLOBAL_DATUM_INIT(dview_mob, /mob/dview, new)
 			return "F[keycode-111]"
 		if(96 to 105)
 			return "Numpad[keycode-96]"
+		// hippie start -- the rest of what tgui passes through, in BYOND's names for them
+		if(106)
+			return "Multiply"
+		if(107)
+			return "Add"
+		if(109)
+			return "Subtract"
+		if(110)
+			return "Decimal"
+		if(111)
+			return "Divide"
+		if(186)
+			return ";"
+		if(187)
+			return "="
+		if(191)
+			return "/"
+		if(192)
+			return "`"
+		if(219)
+			return "\["
+		if(220)
+			return "\\"
+		if(221)
+			return "]"
+		if(222)
+			return "'"
+		// hippie end
 		if(188)
 			return ","
 		if(190)

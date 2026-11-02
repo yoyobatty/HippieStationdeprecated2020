@@ -66,6 +66,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	world.sleep_offline = FALSE
 	if(!(BOT_SHIFT_EVENTS_PARAMETER in world.params))
 		CONFIG_SET(flag/allow_random_events, FALSE) //a meteor shower isn't the bots' doing - keep shifts comparable
+	GLOB.master_mode = "extended" // data/mode.txt is whatever the last real round left there, and most modes won't start with nobody playing
 	SSticker.start_immediately = TRUE
 	var/round_deadline = world.time + 3 MINUTES
 	while(SSticker.current_state < GAME_STATE_PLAYING && world.time < round_deadline)
@@ -105,6 +106,12 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	var/profile
 	/// GLOB.astar_tally as the shift began, then what the shift added to it.
 	var/list/pathfinding
+	/// Subsystem name -> ms it took over the shift, see sample_subsystems().
+	var/list/subsystem_ms = list()
+	/// Subsystem name -> times_fired when last sampled.
+	var/list/subsystem_fired = list()
+	/// Subsystem name -> how many sampled seconds it was the costliest one with the server over half a tick. What players feel as lag.
+	var/list/subsystem_spikes = list()
 
 /datum/bot_shift/New(minutes, crew_text)
 	length = clamp(text2num("[minutes]") || BOT_SHIFT_DEFAULT_MINUTES, 1, 600) MINUTES
@@ -144,6 +151,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		for(var/datum/bot_shift_member/member as anything in members)
 			member.sample()
 		bot_gym_sample_load(load)
+		sample_subsystems()
 		if(!(second % 5))
 			for(var/datum/bot_shift_check/check as anything in checks)
 				check.poll()
@@ -161,8 +169,82 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	for(var/datum/bot_shift_check/check as anything in checks)
 		check.poll()
 
+/// Knocks the tesla's power out on purpose, with the engine running (engine-test=<what>): does it survive what's meant to be
+/// causing trouble? "cable1" cuts the cable under one emitter, the way a mouse would, "cable4" under all four, "gridcheck" is the
+/// real random event, "blackout" is the admin button that empties every SMES.
+/datum/bot_shift/proc/test_engine_power(what)
+	switch(what)
+		if("gridcheck")
+			for(var/datum/round_event_control/grid_check/event in SSevents.control)
+				event.runEvent()
+		if("blackout")
+			power_failure()
+		if("cable1", "cable4")
+			var/left = what == "cable1" ? 1 : 4
+			for(var/obj/machinery/power/emitter/E in GLOB.machines)
+				if(!left || !E.active || !E.powernet || !is_station_level(E.z))
+					continue
+				var/obj/structure/cable/C = locate() in get_turf(E)
+				if(C)
+					left--
+					note("engine test: cutting the cable under the emitter at ([E.x],[E.y],[E.z])")
+					C.deconstruct()
+	note("engine test: [what] at [bot_shift_clock(elapsed())]")
+
+/datum/bot_shift/proc/watch_a_bot()
+	if(length(members))
+		var/datum/bot_shift_member/member = pick(members)
+		SSlighting.test_eyes = list(member.body)
+
+/// Adds up what every subsystem cost, from the MC's own figures: times fired since the last sample by its average cost.
+/// No profiler in the way, so these are real times and comparable between builds. Called once a second.
+/datum/bot_shift/proc/sample_subsystems()
+	var/top_ms = 0
+	var/top_name
+	for(var/datum/controller/subsystem/SS as anything in Master.subsystems)
+		var/fired = SS.times_fired - subsystem_fired[SS.name]
+		subsystem_fired[SS.name] = SS.times_fired
+		if(fired > 0)
+			var/ms = fired * SS.cost
+			subsystem_ms[SS.name] += ms
+			if(ms > top_ms)
+				top_ms = ms
+				top_name = SS.name
+	if(world.cpu > 50 && top_name)
+		subsystem_spikes[top_name]++
+
+/// The costliest subsystems as ms of server time per second of game time, one line.
+/datum/bot_shift/proc/subsystem_text()
+	var/game_seconds = max(elapsed() / (1 SECONDS), 1)
+	var/total = 0
+	var/list/parts = list()
+	sortTim(subsystem_ms, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
+	for(var/name in subsystem_ms)
+		var/rate = subsystem_ms[name] / game_seconds
+		total += rate
+		if(length(parts) < 14 && rate >= 0.1)
+			parts += "[name] [round(rate, 0.1)]"
+	var/list/spikes = list()
+	var/spike_seconds = 0
+	sortTim(subsystem_spikes, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
+	for(var/name in subsystem_spikes)
+		spike_seconds += subsystem_spikes[name]
+		spikes += "[name] [subsystem_spikes[name]]"
+	return "[round(total, 0.1)] ms a game second: [jointext(parts, ", ")]\nLoad spikes: [spike_seconds] seconds over half a tick[length(spikes) ? ", costliest then: [jointext(spikes, ", ")]" : ""]"
+
 /// Late-joins the crew, one at a time. An entry is a job title, optionally "*N" for several.
 /datum/bot_shift/proc/muster()
+	// Nobody's watching a shift, and lights nobody can see wait for somebody who can (lighting_source.dm): every shift
+	// would show lighting costing next to nothing. One bot counts as a player, to measure what a real round costs.
+	addtimer(CALLBACK(src, PROC_REF(watch_a_bot)), 30 SECONDS)
+	if(world.params["griefer"])
+		GLOB.bot_griefer = new
+	if(world.params["ttv-bench"])
+		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(run_ttv_bench)), 5 SECONDS)
+	if(world.params["engine-test"])
+		addtimer(CALLBACK(src, PROC_REF(test_engine_power), world.params["engine-test"]), 7 MINUTES)
+	if(world.params["lighting-unseen"] == "off")
+		SSlighting.defer_unseen = FALSE
 	for(var/entry in splittext(crew_text, ","))
 		var/list/parts = splittext(entry, "*")
 		var/job = trim(parts[1])
@@ -376,6 +458,9 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		quiet_since = world.time //sitting down for a while is a choice, not a freeze - so is waiting for the shuttle (bot_duties.dm)
 		return
 	var/still = world.time - max(brain.telemetry_last_activity, quiet_since)
+	if(still >= BOT_SHIFT_IDLE_WARN && brain.is_in_active_cell(body))
+		quiet_since = world.time //doing its time: that's a choice too, if not its own
+		return
 	if(still > longest_still)
 		longest_still = still
 		longest_still_note = "[where()], [doing()]"
@@ -661,6 +746,14 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	var/turf/cage_centre
 	var/escaped_at
 	var/next_status = 0
+	/// Coils and rods not wrenched down when the accelerator first came on, or null until it has.
+	var/loose_at_start
+
+/datum/bot_shift_check/tesla_contained/proc/loose_parts()
+	. = 0
+	for(var/obj/machinery/power/P in GLOB.machines)
+		if((istype(P, /obj/machinery/power/tesla_coil) || istype(P, /obj/machinery/power/grounding_rod)) && !P.anchored && P.z == cage_centre.z && get_dist(P, cage_centre) <= 12)
+			.++
 
 /datum/bot_shift_check/tesla_contained/begin()
 	for(var/obj/machinery/the_singularitygen/tesla/generator in GLOB.machines)
@@ -712,6 +805,10 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	if(shift.elapsed() >= next_status && shift.elapsed() <= 10 MINUTES)
 		next_status = shift.elapsed() + 30 SECONDS
 		shift.note("engine: [engine_status()]")
+	var/obj/machinery/particle_accelerator/control_box/accelerator = station_pa_console()
+	if(isnull(loose_at_start) && accelerator?.active)
+		loose_at_start = loose_parts()
+		shift.note("engineering: the accelerator came on with [loose_at_start] coils and rods loose")
 	if(escaped_at)
 		return
 	var/obj/singularity/energy_ball/ball = tesla_ball()
@@ -728,7 +825,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 /datum/bot_shift_check/tesla_contained/report()
 	if(escaped_at)
 		return "the tesla ball got loose at [bot_shift_clock(escaped_at)]"
-	return tesla_ball() ? "the ball stayed in its cage" : "not judged, no tesla ball was made"
+	var/started = isnull(loose_at_start) ? "" : ", [loose_at_start] coils and rods loose when the accelerator came on"
+	return (tesla_ball() ? "the ball stayed in its cage" : "not judged, no tesla ball was made") + started
 
 /datum/bot_shift_check/solars_tracking
 	name = "engineering: solar arrays tracking the sun"
@@ -1107,6 +1205,70 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	if(!isnull(done_at))
 		. += " - [unlocked()] node\s by the end"
 
+/// Work the bots keep their own count of: done once `counter`, added up over the crew doing it, reaches `needed`.
+/datum/bot_shift_check/counted
+	var/counter
+	var/needed = 1
+
+/datum/bot_shift_check/counted/proc/count(tally = counter)
+	. = 0
+	for(var/datum/bot_shift_member/member as anything in shift.members)
+		if(member.brain && (member.job in jobs))
+			. += member.brain.vars[tally]
+
+/datum/bot_shift_check/counted/done()
+	return count() >= needed
+
+/datum/bot_shift_check/counted/report()
+	. = ..()
+	if(!isnull(done_at))
+		. += " - [progress()]"
+
+/datum/bot_shift_check/counted/mining
+	name = "mining: ore in the machine"
+	jobs = list("Shaft Miner")
+	counter = "ores_delivered"
+	needed = 40
+
+/datum/bot_shift_check/counted/mining/progress()
+	return "[count()] ore delivered of [count("ores_mined")] dug, [count("ore_trips")] trip\s down"
+
+/datum/bot_shift_check/counted/upgrades
+	name = "science: machines upgraded"
+	jobs = list("Scientist", "Research Director")
+	counter = "machines_upgraded"
+
+/datum/bot_shift_check/counted/upgrades/progress()
+	return "[count()] upgrade\s, [count("designs_printed")] part\s printed"
+
+/datum/bot_shift_check/counted/nanites
+	name = "science: nanites in the crew"
+	jobs = list("Scientist", "Research Director")
+	counter = "nanites_injected"
+	needs_on_map = /obj/machinery/nanite_chamber
+
+/datum/bot_shift_check/counted/nanites/progress()
+	return "[count()] injected, [count("nanite_programs_uploaded")] program\s on the cloud, [round(SSresearch.science_tech.research_points[TECHWEB_POINT_TYPE_NANITES])] nanite points banked"
+
+/datum/bot_shift_check/counted/slimes
+	name = "science: slimes tended"
+	jobs = list("Scientist", "Research Director")
+	counter = "monkeys_fed"
+	needs_on_map = /obj/machinery/computer/camera_advanced/xenobio
+
+/datum/bot_shift_check/counted/slimes/progress()
+	return "[count()] fed, [count("slimes_processed")] processed, [count("extracts_stored")] extract\s kept, [length(GLOB.bot_slime_colours)] colour\s bred"
+
+/datum/bot_shift_check/counted/experiments
+	name = "science: experiments run"
+	jobs = list("Scientist", "Research Director")
+	counter = "experiments_run"
+	deadline = 25 MINUTES
+	needs_on_map = /obj/machinery/rnd/experimentor
+
+/datum/bot_shift_check/counted/experiments/progress()
+	return "[count()] test\s, [length(GLOB.bot_experiment_findings)] reaction\s found, [count("relics_revealed")] relic\s revealed"
+
 /datum/bot_shift_check/medibot_built
 	name = "robotics: a medibot built"
 	jobs = list("Roboticist")
@@ -1433,6 +1595,10 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	header += "Took [bot_shift_duration(real_seconds * 10)] of real time ([speed()]x). [bot_gym_load_text(load)]\n"
 	// What sets the server load, and so how fast a shift can run: a search that finds nothing opens every turf it can reach.
 	header += "Pathfinding: [pathfinding["searches"]] searches opened [pathfinding["turfs"]] turfs; [pathfinding["failed"]] found no route and opened [pathfinding["failed_turfs"]] of them.\n"
+	header += "Subsystems: [subsystem_text()]\n"
+	header += "Chaos: [GLOB.bot_chaos.report()]\n"
+	if(GLOB.bot_griefer)
+		header += "Griefed: [GLOB.bot_griefer.report()]\n"
 	header += "Power: [jointext(power_curve, "; ")]\n"
 	header += "Round logs: [GLOB.log_directory]\n"
 	var/summary = "[header]\n[jointext(lines, "\n")]\nFAILED: [failures]\n"

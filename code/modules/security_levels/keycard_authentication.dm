@@ -118,20 +118,25 @@ GLOBAL_DATUM_INIT(keycard_events, /datum/events, new)
 			toggle_bluespace_artillery()
 
 GLOBAL_VAR_INIT(emergency_access, FALSE)
+/// hippie -- from the airlock list: going through an area's contents scans every turf in the world, once for each maintenance area
+/proc/get_maint_airlocks()
+	. = list()
+	for(var/obj/machinery/door/airlock/D in GLOB.airlocks)
+		if(istype(get_area(D), /area/maintenance))
+			. += D
+
 /proc/make_maint_all_access()
-	for(var/area/maintenance/A in world)
-		for(var/obj/machinery/door/airlock/D in A)
-			D.emergency = TRUE
-			D.update_icon(0)
+	for(var/obj/machinery/door/airlock/D as anything in get_maint_airlocks())
+		D.emergency = TRUE
+		D.update_icon(0)
 	minor_announce("Access restrictions on maintenance and external airlocks have been lifted.", "Attention! Station-wide emergency declared!",1)
 	GLOB.emergency_access = TRUE
 	SSblackbox.record_feedback("nested tally", "keycard_auths", 1, list("emergency maintenance access", "enabled"))
 
 /proc/revoke_maint_all_access()
-	for(var/area/maintenance/A in world)
-		for(var/obj/machinery/door/airlock/D in A)
-			D.emergency = FALSE
-			D.update_icon(0)
+	for(var/obj/machinery/door/airlock/D as anything in get_maint_airlocks())
+		D.emergency = FALSE
+		D.update_icon(0)
 	minor_announce("Access restrictions in maintenance areas have been restored.", "Attention! Station-wide emergency rescinded:")
 	GLOB.emergency_access = FALSE
 	SSblackbox.record_feedback("nested tally", "keycard_auths", 1, list("emergency maintenance access", "disabled"))

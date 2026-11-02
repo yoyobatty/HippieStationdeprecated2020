@@ -79,6 +79,7 @@
 
 /obj/machinery/porta_turret/Initialize()
 	. = ..()
+	GLOB.hostile_machines += src //hippie
 	if(!base)
 		base = src
 	update_icon()
@@ -115,7 +116,7 @@
 			else
 				icon_state = "[base_icon_state]_off"
 		else
-			icon_state = "[base_icon_state]_unpowered"
+			icon_state = "[base_icon_state]_off" //hippie -- there's no _unpowered sprite, it went invisible
 
 
 /obj/machinery/porta_turret/proc/setup(obj/item/gun/turret_gun)
@@ -147,6 +148,7 @@
 	return gun_properties
 
 /obj/machinery/porta_turret/Destroy()
+	GLOB.hostile_machines -= src //hippie
 	//deletes its own cover with it
 	QDEL_NULL(cover)
 	base = null

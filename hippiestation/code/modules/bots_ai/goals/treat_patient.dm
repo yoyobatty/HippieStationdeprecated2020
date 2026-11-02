@@ -372,7 +372,7 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 /datum/bot_brain/proc/find_reachable_defib_mount()
 	var/obj/machinery/defibrillator_mount/best
 	var/best_dist
-	for(var/obj/machinery/defibrillator_mount/M in GLOB.machines)
+	for(var/obj/machinery/defibrillator_mount/M as anything in bot_instances_of(/obj/machinery/defibrillator_mount))
 		if(M.z != owner.z || !M.defib || !M.defib.paddles || !M.defib.powered)
 			continue
 		if(M.defib.paddles.loc != M.defib) //someone else already has the paddles out
@@ -525,7 +525,7 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 /datum/bot_brain/proc/find_reachable_healing_machine(mob/living/patient)
 	var/obj/machinery/sleeper/best_sleeper
 	var/best_sleeper_dist
-	for(var/obj/machinery/sleeper/S in GLOB.machines)
+	for(var/obj/machinery/sleeper/S as anything in bot_instances_of(/obj/machinery/sleeper))
 		if(S.z != owner.z || S.occupant || !healing_machine_is_ours(S))
 			continue
 		var/dist = get_dist(patient, S)
@@ -539,7 +539,7 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 
 	var/obj/machinery/atmospherics/components/unary/cryo_cell/best_cryo
 	var/best_cryo_dist
-	for(var/obj/machinery/atmospherics/components/unary/cryo_cell/C in GLOB.machines)
+	for(var/obj/machinery/atmospherics/components/unary/cryo_cell/C as anything in bot_instances_of(/obj/machinery/atmospherics/components/unary/cryo_cell))
 		if(C.z != owner.z || C.occupant || !healing_machine_is_ours(C))
 			continue
 		var/dist = get_dist(patient, C)
@@ -685,7 +685,7 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 #define BOT_CRYO_SETUP_REACH 40
 
 /datum/bot_brain/proc/find_disconnected_cryo_canister()
-	for(var/obj/machinery/atmospherics/components/unary/cryo_cell/C in GLOB.machines)
+	for(var/obj/machinery/atmospherics/components/unary/cryo_cell/C as anything in bot_instances_of(/obj/machinery/atmospherics/components/unary/cryo_cell))
 		if(C.z != owner.z)
 			continue
 		for(var/obj/machinery/atmospherics/components/unary/portables_connector/P in range(BOT_CRYO_SETUP_RADIUS, C))
@@ -697,7 +697,7 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 	return null
 
 /datum/bot_brain/proc/find_unset_cryo_freezer()
-	for(var/obj/machinery/atmospherics/components/unary/cryo_cell/C in GLOB.machines)
+	for(var/obj/machinery/atmospherics/components/unary/cryo_cell/C as anything in bot_instances_of(/obj/machinery/atmospherics/components/unary/cryo_cell))
 		if(C.z != owner.z)
 			continue
 		for(var/obj/machinery/atmospherics/components/unary/thermomachine/freezer/F in range(BOT_CRYO_SETUP_RADIUS, C))
@@ -710,7 +710,7 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 	return null
 
 /datum/bot_brain/proc/find_empty_cryo_cell()
-	for(var/obj/machinery/atmospherics/components/unary/cryo_cell/C in GLOB.machines)
+	for(var/obj/machinery/atmospherics/components/unary/cryo_cell/C as anything in bot_instances_of(/obj/machinery/atmospherics/components/unary/cryo_cell))
 		if(C.z != owner.z || C.beaker || C.occupant)
 			continue
 		if(get_dist(owner, C) <= BOT_CRYO_SETUP_REACH)

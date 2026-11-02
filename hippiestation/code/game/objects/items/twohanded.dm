@@ -92,7 +92,7 @@
 		charged = FALSE
 		addtimer(CALLBACK(src, PROC_REF(recharge)), FAXE_GOUT_TIME)
 		return
-	if(wielded && proximity_flag)
+	if(wielded && proximity_flag && !QDELETED(target))
 		var/obj/J = target
 		if(is_type_in_typecache(J, extra_damage_targets))
 			J.take_damage(75, BRUTE, "melee", 0)

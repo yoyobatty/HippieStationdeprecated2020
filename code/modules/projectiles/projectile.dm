@@ -469,18 +469,18 @@
 	if(!loc || !trajectory)
 		return
 	last_projectile_move = world.time
-	if(!nondirectional_sprite && !hitscanning)
-		var/matrix/M = new
-		M.Turn(Angle)
-		transform = M
+	// hippie -- no need to turn the sprite here, fire() and setAngle() do
 	if(homing)
 		process_homing()
 	var/forcemoved = FALSE
 	for(var/i in 1 to SSprojectiles.global_iterations_per_move)
 		if(QDELETED(src))
 			return
-		trajectory.increment(trajectory_multiplier)
-		var/turf/T = trajectory.return_turf()
+		// hippie -- moves the trajectory on and finds its turf right here, two procs sixteen times a tile adds up
+		trajectory.iteration++
+		trajectory.x += trajectory.mpx * trajectory_multiplier
+		trajectory.y += trajectory.mpy * trajectory_multiplier
+		var/turf/T = locate(ceil(trajectory.x / world.icon_size), ceil(trajectory.y / world.icon_size), trajectory.z)
 		if(!istype(T))
 			qdel(src)
 			return
@@ -500,9 +500,11 @@
 			step_towards(src, T)
 			hitscan_last = loc
 	if(!hitscanning && !forcemoved)
-		pixel_x = trajectory.return_px() - trajectory.mpx * trajectory_multiplier * SSprojectiles.global_iterations_per_move
-		pixel_y = trajectory.return_py() - trajectory.mpy * trajectory_multiplier * SSprojectiles.global_iterations_per_move
-		animate(src, pixel_x = trajectory.return_px(), pixel_y = trajectory.return_py(), time = 1, flags = ANIMATION_END_NOW)
+		var/end_px = trajectory.return_px()
+		var/end_py = trajectory.return_py()
+		pixel_x = end_px - trajectory.mpx * trajectory_multiplier * SSprojectiles.global_iterations_per_move
+		pixel_y = end_py - trajectory.mpy * trajectory_multiplier * SSprojectiles.global_iterations_per_move
+		animate(src, pixel_x = end_px, pixel_y = end_py, time = 1, flags = ANIMATION_END_NOW)
 	Range()
 
 /obj/item/projectile/proc/process_homing()			//may need speeding up in the future performance wise.

@@ -471,6 +471,9 @@
 
 /obj/item/radio/dropped(mob/user)
 	..()
+	if(QDELETED(src)) // deleted on the way out of the inventory, like the nanosuit's headset: no timer on something that's gone
+		stopmusic(user, 1)
+		return
 	addtimer(CALLBACK(src, PROC_REF(droppedStopMusic), user), 3)
 
 /obj/item/radio/proc/droppedStopMusic(mob/user)

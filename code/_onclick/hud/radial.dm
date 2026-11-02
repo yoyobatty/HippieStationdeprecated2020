@@ -272,7 +272,7 @@ GLOBAL_LIST_EMPTY(radial_menus)
 				return
 			else
 				next_check = world.time + check_delay
-		stoplag(1)
+		stoplag() //hippie -- every tick, not every other one, so a click on it registers sooner
 
 /datum/radial_menu/Destroy()
 	Reset()

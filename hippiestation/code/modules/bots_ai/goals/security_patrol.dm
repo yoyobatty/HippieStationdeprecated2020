@@ -32,10 +32,6 @@
 // officer had filed them - and a wanted entry is also kept in GLOB.bot_security_wanted
 // for people with no record at all (no manifest entry, face hidden and no ID, ...).
 
-#define BOT_CRIME_MINOR 1
-#define BOT_CRIME_MAJOR 2
-#define BOT_CRIME_MURDER 3
-
 // Sentences in deciseconds, fed straight into door_timer/set_timer() (brigdoors.dm
 // caps it at 9000). Minor matches the guide's "a fair timer, one to two minutes"; a
 // murder is the longest a cell timer allows, plus a radio request for the Warden/HoS
@@ -64,7 +60,8 @@ GLOBAL_LIST_EMPTY(bot_brig_cell_interiors) //door_timer -> list of turfs inside 
 GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	"attacked", "punched", "kick", "shot", "threw and hit", "tackled", "smothered",
 	"strangled", "stunned", "stung", "flashed", "handcuffed", "slashed", "stabbed",
-	"bit", "chop", "elbow", "knee", "sweep", "gibbed",
+	"bit", "chop", "elbow", "knee", "sweep", "gibbed", "attempted to punch", "attempted to neck grab", "attempted to strangle",
+	"tabled", "pinned", "thrown",
 ))
 
 /datum/bot_wanted
@@ -191,9 +188,14 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 // bookkeeping is deferred a tick, which also lets the hit's damage land first so the
 // victim's stat reads post-hit (critted/killed) rather than pre-hit.
 /proc/bot_security_witness_combat(atom/user, atom/target, what_done, atom/object)
+	if(isobj(target))
+		if(what_done == "attacked")
+			bot_note_vandalism(user, target) //bot_witness.dm
+		return
 	if(!isliving(user) || !ishuman(target) || user == target)
 		return
 	if(!bot_is_violent_verb(what_done))
+		bot_note_handling(user, target, what_done, object) //bot_reflexes.dm: a shove, a grab, a needle
 		return
 	// Something light that came flying isn't violence: a bruise pack out of the hand of somebody who slipped, a
 	// thrown paper cup. Not a crime and not a fight - a doctor it happened to once kicked its own patient into a coma.
@@ -215,9 +217,11 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	// (this used to hang off attacked_by(), which only item attacks reach).
 	var/mob/living/carbon/human/victim = target
 	victim.bot_brain?.on_attacked(user, what_done, object)
-	if(!GLOB.bot_security_brains.len || !ishuman(user))
+	if(!ishuman(user))
 		return
-	addtimer(CALLBACK(GLOBAL_PROC, /proc/bot_security_judge_combat, user, target, what_done, object), 1)
+	addtimer(CALLBACK(GLOBAL_PROC, /proc/bot_crew_witness_combat, user, target, what_done, object), 1) //bot_witness.dm
+	if(GLOB.bot_security_brains.len)
+		addtimer(CALLBACK(GLOBAL_PROC, /proc/bot_security_judge_combat, user, target, what_done, object), 1)
 
 /// Hit by something harmless that somebody threw or dropped: a word about it, now and then.
 /datum/bot_brain/proc/mind_thrown_junk()
@@ -248,8 +252,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 /proc/bot_security_judge_combat(mob/living/carbon/human/attacker, mob/living/carbon/human/victim, what_done, atom/object)
 	if(QDELETED(attacker) || QDELETED(victim))
 		return
-	// Security using force is assumed lawful - internal affairs is out of scope here.
-	if(attacker.mind?.assigned_role in GLOB.security_positions)
+	// Security using force is assumed lawful, unless it's a player who's just killed somebody nobody wanted arrested.
+	if(bot_is_officer(attacker) && (attacker.bot_brain || victim.stat != DEAD || bot_is_wanted(victim)))
 		return
 	// Hitting back at someone who started it is self-defense.
 	var/their_first = GLOB.bot_recent_aggression["[REF(victim)]>[REF(attacker)]"]
@@ -355,6 +359,10 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 
 	// Never drop a prisoner mid-escort to go chase someone new.
 	if(state == BOT_STATE_GOAL && istype(current_goal, /datum/bot_goal/brig_prisoner))
+		return FALSE
+	// Nothing to arrest them with. An officer who'd used up its cuffs started and ended the same arrest thousands of times,
+	// stood next to the suspect for five minutes. It can fight (on_attacked()) or go and get some (try_security_round()).
+	if(!H.handcuffed && !find_restraints())
 		return FALSE
 
 	abandon_goals_for_arrest()
@@ -919,7 +927,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/turf/here = get_turf(M)
 	if(!here)
 		return FALSE
-	for(var/obj/machinery/door_timer/T in GLOB.machines)
+	for(var/obj/machinery/door_timer/T as anything in bot_instances_of(/obj/machinery/door_timer))
 		if(!T.timing || T.z != here.z)
 			continue
 		var/list/interior = bot_get_cell_interior(T)
@@ -930,7 +938,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 /datum/bot_brain/proc/find_free_brig_cell()
 	var/obj/machinery/door_timer/best
 	var/best_dist
-	for(var/obj/machinery/door_timer/T in GLOB.machines)
+	for(var/obj/machinery/door_timer/T as anything in bot_instances_of(/obj/machinery/door_timer))
 		if(T.z != owner.z || T.timing || (T.stat & (NOPOWER|BROKEN)))
 			continue
 		var/list/interior = bot_get_cell_interior(T)
@@ -983,11 +991,17 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/cooldown = LAZYACCESS(failed_brig_targets, H)
 	if(cooldown && world.time < cooldown)
 		return FALSE
+	// Nobody's locked up dying. A cook cuffed at -4 health was dragged to a cell and left: he died there 3 minutes later.
+	if(H.health <= 0)
+		bot_say(owner, ";Medical, [H.name] is in cuffs and needs a doctor, [get_area_name(H, TRUE)].")
+		LAZYSET(failed_brig_targets, H, world.time + 1 MINUTES)
+		return FALSE
 	var/datum/bot_goal/brig_prisoner/G = new()
 	G.prisoner = H
 	return assign_goal(G)
 
 /datum/bot_goal/brig_prisoner
+	exclusive = TRUE //two officers once took the same prisoner to two different cells
 	var/mob/living/carbon/human/prisoner
 	var/obj/machinery/door_timer/cell_timer
 	var/turf/deep_turf
@@ -1220,9 +1234,6 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		officer.file_crime(H, verdict[1], "[verdict[3]] (reported by the victim)", verdict[2])
 		bot_log(src, "reported [verdict[1]] by [H] to security")
 
-#undef BOT_CRIME_MINOR
-#undef BOT_CRIME_MAJOR
-#undef BOT_CRIME_MURDER
 #undef BOT_SENTENCE_MINOR
 #undef BOT_SENTENCE_MAJOR
 #undef BOT_SENTENCE_MURDER

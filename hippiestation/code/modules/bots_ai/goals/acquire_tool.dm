@@ -286,7 +286,7 @@
 			found++
 			if(found >= 3 || best_cost <= get_dist(bot.owner, A) + 5)
 				break
-		else
+		else if(GLOB.bot_ai_verbose || bot.gym_run) //a route search per candidate, just for the log, and arguments get worked out whether or not it logs them
 			bot_log_verbose(bot, "pick_reachable: [A] ([get_area_name(A)], dist [get_dist(bot.owner, A)]) is NOT reachable - [describe_blocker(bot, A)]")
 	if(best)
 		cached_path = best_path
@@ -369,7 +369,7 @@
 		// engine default: an active containment field/generator is density=FALSE by
 		// design, so the default check alone would call a route straight through one
 		// "reachable" when it's really a hazard the bot would keep getting shocked by.
-		var/list/path = bot.bot_path_to(D, /turf/proc/Distance, /turf/proc/bot_reachable_strict, id_card, !bot.can_path_through_space())
+		var/list/path = bot.bot_path_to(D, /turf/proc/Distance_cardinal, /turf/proc/bot_reachable_strict, id_card, !bot.can_path_through_space())
 		if(QDELETED(bot.owner))
 			return FALSE
 		if(path && path.len)

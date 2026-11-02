@@ -130,7 +130,7 @@
 
 /obj/machinery/dominator/obj_break(damage_flag)
 	. = ..()
-	if(!(stat & BROKEN))
+	if(.) //the parent has already set BROKEN, so checking for that here meant a takeover carried on with its dominator in pieces
 		set_broken()
 
 /obj/machinery/dominator/deconstruct(disassembled = TRUE)
@@ -229,6 +229,7 @@
 		gang.message_gangtools("Hostile takeover cancelled: Dominator is no longer operational.[gang.dom_attempts ? " You have [gang.dom_attempts] attempt remaining." : " The station network will have likely blocked any more attempts by us."]",1,1)
 
 	countdown.stop()
+	set_light(0)
 	update_icon()
 	set_light(0)
 	operating = FALSE

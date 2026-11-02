@@ -50,6 +50,30 @@
 
 	moved = screen_loc
 
+/// hippie -- moved pulled in to fit a view of this size. It's absolute tiles and BYOND grows the map to show whatever is on client.screen, so a
+/// button dropped out by the edge of a zoomed out view kept the map that big once the zoom ended. moved itself isn't touched: the button goes
+/// back where it was put when the view grows again.
+/obj/screen/movable/proc/moved_loc_for_view(view)
+	var/list/sides = splittext(moved, ",")
+	if(length(sides) != 2)
+		return moved
+	var/list/loc_x = splittext(sides[1], ":")
+	var/list/loc_y = splittext(sides[2], ":")
+	var/tile_x = text2num(loc_x[1])
+	var/tile_y = text2num(loc_y[1])
+	if(isnull(tile_x) || isnull(tile_y)) // relative to the edges, so it follows the view by itself
+		return moved
+	var/list/view_size = getviewsize(view)
+	var/most_x = (view_size[1] - 1) * world.icon_size
+	var/most_y = (view_size[2] - 1) * world.icon_size
+	var/pixel_x = (tile_x - 1) * world.icon_size + (length(loc_x) > 1 ? text2num(loc_x[2]) : 0)
+	var/pixel_y = (tile_y - 1) * world.icon_size + (length(loc_y) > 1 ? text2num(loc_y[2]) : 0)
+	if(pixel_x >= 0 && pixel_x <= most_x && pixel_y >= 0 && pixel_y <= most_y)
+		return moved
+	pixel_x = clamp(pixel_x, 0, most_x)
+	pixel_y = clamp(pixel_y, 0, most_y)
+	return "[round(pixel_x / world.icon_size) + 1]:[pixel_x % world.icon_size],[round(pixel_y / world.icon_size) + 1]:[pixel_y % world.icon_size]"
+
 
 //Debug procs
 /client/proc/test_movable_UI()

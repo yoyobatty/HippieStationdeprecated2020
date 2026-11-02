@@ -137,6 +137,7 @@
 
 /obj/mecha/Initialize()
 	. = ..()
+	GLOB.hostile_machines += src //hippie
 	events = new
 	icon_state += "-open"
 	add_radio()
@@ -171,6 +172,7 @@
 	return cell
 
 /obj/mecha/Destroy()
+	GLOB.hostile_machines -= src //hippie
 	if(occupant)
 		occupant.SetSleeping(destruction_sleep_duration)
 	go_out()

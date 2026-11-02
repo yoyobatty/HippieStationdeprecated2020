@@ -877,56 +877,20 @@ $(function() {
 			internalOutput('Screenshot taken', 'internal');
 		}
 
-		var c = "";
-		switch (k) {
-			case 8:
-				c = 'BACK';
-			case 9:
-				c = 'TAB';
-			case 13:
-				c = 'ENTER';
-			case 19:
-				c = 'PAUSE';
-			case 27:
-				c = 'ESCAPE';
-			case 33: // Page up
-				c = 'NORTHEAST';
-			case 34: // Page down
-				c = 'SOUTHEAST';
-			case 35: // End
-				c = 'SOUTHWEST';
-			case 36: // Home
-				c = 'NORTHWEST';
-			case 37:
-				c = 'WEST';
-			case 38:
-				c = 'NORTH';
-			case 39:
-				c = 'EAST';
-			case 40:
-				c = 'SOUTH';
-			case 45:
-				c = 'INSERT';
-			case 46:
-				c = 'DELETE';
-			case 93: // That weird thing to the right of alt gr.
-				c = 'APPS';
-
-			default:
-				c = String.fromCharCode(k);
-		}
-
-		if (c.length == 0) {
-			if (!e.shiftKey) {
-				c = c.toLowerCase();
-			}
-			runByond('byond://winset?mapwindow.map.focus=true;mainwindow.input.text='+c);
-			return false;
-		} else {
-			runByond('byond://winset?mapwindow.map.focus=true');
-			return false;
-		}
+		// The keyboard goes back to the game, and the key that was pressed with it: the game will get its release from the map.
+		var name = gameKeyName(e);
+		runByond('byond://winset?mapwindow.map.focus=true' + (name ? ';command=' + encodeURIComponent('KeyDown ' + name) : ''));
+		return false;
 	});
+
+	// What the game's macros call this key, for the ones anybody would be holding down as they click out of the chat.
+	function gameKeyName(e) {
+		var names = {ArrowUp: 'North', ArrowDown: 'South', ArrowLeft: 'West', ArrowRight: 'East', ' ': 'Space'};
+		if (names[e.key]) {
+			return names[e.key];
+		}
+		return /^[a-zA-Z0-9]$/.test(e.key) ? e.key.toUpperCase() : null;
+	}
 
 	//Mildly hacky fix for scroll issues on mob change (interface gets resized sometimes, messing up snap-scroll)
 	$(window).on('resize', function(e) {

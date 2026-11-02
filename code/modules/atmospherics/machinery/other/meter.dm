@@ -91,7 +91,7 @@
 	if(frequency)
 		// hippie -- the computers only keep the last reading; still sent every few seconds for ones built since
 		if(round(env_pressure) == sent_pressure && world.time < sent_at + 5 SECONDS)
-			return
+			return idle_result()
 		var/datum/radio_frequency/radio_connection = SSradio.return_frequency(frequency)
 
 		if(!radio_connection)
@@ -106,6 +106,15 @@
 			"sigtype" = "status"
 		))
 		radio_connection.post_signal(src, signal)
+		return
+
+	return idle_result()
+
+/// hippie -- nothing changes the reading while the pipes it's on are settled (see idle_machines.dm)
+/obj/machinery/meter/proc/idle_result()
+	var/obj/machinery/atmospherics/pipe/pipe = target
+	if(istype(pipe) && pipe.parent && !pipe.parent.update)
+		return ATMOS_IDLE
 
 /obj/machinery/meter/proc/status()
 	if (target)

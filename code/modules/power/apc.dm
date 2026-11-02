@@ -203,8 +203,8 @@
 	if(area)
 		area.power_light = FALSE
 		area.power_equip = FALSE
-	area.power_environ = FALSE
-	area.power_change()
+		area.power_environ = FALSE
+		area.power_change()
 	if(occupier)
 		malfvacate(1)
 	qdel(wires)
@@ -546,6 +546,7 @@
 					to_chat(user, "<span class='warning'>There is nothing to secure!</span>")
 					return
 			update_icon()
+			update() //hippie
 	else if(obj_flags & EMAGGED)
 		to_chat(user, "<span class='warning'>The interface is broken!</span>")
 		return
@@ -911,7 +912,7 @@
 /obj/machinery/power/apc/proc/update()
 	if(!area)
 		return
-	if(operating && !shorted && !failure_timer)
+	if(operating && !shorted && !failure_timer && !(stat & (BROKEN|MAINT))) //hippie -- process() stops once it's broken or opened up, so this is the last say
 		area.power_light = (lighting > 1)
 		area.power_equip = (equipment > 1)
 		area.power_environ = (environ > 1)
@@ -1332,6 +1333,7 @@
 				aidisabled = FALSE
 		if(APC_RESET_EMP)
 			equipment = 3
+			lighting = 3 //hippie -- the EMP turned all three off, and nothing else turns the lights back on
 			environ = 3
 			update_icon()
 			update()

@@ -63,7 +63,7 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 	. = FALSE
 	pathing_no_tailgating = !is_shut_in()
 	for(var/turf/D in (list(T) + adjacent_turf_candidates(T)))
-		if(length(bot_path_to(D, /turf/proc/Distance, /turf/proc/bot_reachable_strict, id_card, !can_path_through_space())))
+		if(length(bot_path_to(D, /turf/proc/Distance_cardinal, /turf/proc/bot_reachable_strict, id_card, !can_path_through_space())))
 			. = TRUE
 			break
 	pathing_no_tailgating = FALSE
@@ -143,6 +143,9 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 	return null
 
 /// A shut blast door counts as a way through for a bot shut in behind it with the button (see above).
+/obj/machinery/door
+	astar_always_asks = TRUE //open, it can still be one the bot won't tailgate through
+
 /obj/machinery/door/poddoor/CanAStarPass(ID, to_dir, caller)
 	. = ..()
 	if(.)
@@ -215,6 +218,8 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 	if(!. || !to_dir || !istype(H) || !H.bot_brain?.pathing_no_tailgating)
 		return
 	var/turf/far_side = get_step(src, turn(to_dir, 180))
+	if((is_mining_level(z) || bot_aboard_mining_shuttle(H)) && H.bot_brain.ready_for_lavaland())
+		return //no vacuum outside this one, just thin air and a mask and a tank do for that (goals/mining.dm), or it's the way off the shuttle
 	if(!H.bot_brain.turf_air_is_breathable(far_side) && !H.bot_brain.is_space_protected_without_boots())
 		return FALSE
 

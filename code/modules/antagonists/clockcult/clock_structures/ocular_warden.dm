@@ -18,9 +18,11 @@
 
 /obj/structure/destructible/clockwork/ocular_warden/Initialize()
 	. = ..()
+	GLOB.hostile_machines += src //hippie
 	START_PROCESSING(SSfastprocess, src)
 
 /obj/structure/destructible/clockwork/ocular_warden/Destroy()
+	GLOB.hostile_machines -= src //hippie
 	STOP_PROCESSING(SSfastprocess, src)
 	return ..()
 

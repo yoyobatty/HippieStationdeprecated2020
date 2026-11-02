@@ -250,6 +250,7 @@
 	icon_state = "[initial(icon_state)]_dead"
 	item_state = "facehugger_inactive"
 	stat = DEAD
+	update_slot_icon() //hippie
 
 	visible_message("<span class='danger'>[src] curls up into a ball!</span>")
 

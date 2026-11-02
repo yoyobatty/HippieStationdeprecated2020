@@ -64,6 +64,16 @@
 /proc/bot_steps_into_pool(turf/from, turf/T)
 	return istype(T, /turf/open/pool) && !istype(from, /turf/open/pool)
 
+/// Lava and chasms are floor as far as the engine's route check goes. With a walkway or stepping stones over them, they are.
+/proc/bot_turf_is_deadly(turf/T)
+	if(istype(T, /turf/open/lava))
+		var/turf/open/lava/L = T
+		return !L.is_safe()
+	if(istype(T, /turf/open/chasm))
+		var/datum/component/chasm/C = T.GetComponent(/datum/component/chasm)
+		return !C?.is_safe()
+	return FALSE
+
 /// Somebody sat in a chair fills their tile - there is no swapping places with them, and the engine's own route
 /// check doesn't look at mobs at all. A bot used to plan straight down a row of taken shuttle seats to the free
 /// one at the end, bump the first sitter until it gave up, and plan the same route again.
@@ -74,8 +84,17 @@
 	return FALSE
 
 /turf/proc/bot_reachable_strict(caller, turf/T, ID, simulated_only)
-	if(T && !T.density && !bot_steps_into_pool(src, T) && !bot_steps_into_hazard(src, T, caller) &&!(simulated_only && SSpathfinder.space_type_cache[T.type] && !bot_turf_crossable_without_boots(T, caller)) && !bot_turf_has_active_field(T) && !bot_turf_has_seated_mob(T) && !LinkBlockedWithAccess(T, caller, ID))
-		return TRUE
+	if(!T || T.density)
+		return FALSE
+	if(istype(T, /turf/open/pool) && !istype(src, /turf/open/pool)) //bot_steps_into_pool()
+		return FALSE
+	if(bot_turf_is_deadly(T))
+		return FALSE
+	if(GLOB.bot_hazard_turfs[T] && bot_steps_into_hazard(src, T, caller))
+		return FALSE
+	if(simulated_only && SSpathfinder.space_type_cache[T.type] && !bot_turf_crossable_without_boots(T, caller))
+		return FALSE
+	return !bot_turf_has_active_field(T) && !bot_turf_has_seated_mob(T) && !LinkBlockedWithAccess(T, caller, ID)
 
 // Mirrors code/__HELPERS/AStar.dm's reachableTurftest()/LinkBlockedWithAccess(), but
 // treats as passable anything the bot could actually force its way through given its
@@ -89,8 +108,17 @@
 // normal (obstruction-respecting) one finds no route, so a bot only ever plans through
 // an obstacle when there's no legitimate way around - see bot_movement.dm's repath().
 /turf/proc/bot_reachable_permissive(caller, turf/T, ID, simulated_only)
-	if(T && !T.density && !bot_steps_into_pool(src, T) && !bot_steps_into_hazard(src, T, caller) &&!(simulated_only && SSpathfinder.space_type_cache[T.type] && !bot_turf_crossable_without_boots(T, caller)) && !bot_turf_has_active_field(T) && !bot_turf_has_seated_mob(T) && !bot_link_blocked_permissive(T, caller, ID))
-		return TRUE
+	if(!T || T.density)
+		return FALSE
+	if(istype(T, /turf/open/pool) && !istype(src, /turf/open/pool)) //bot_steps_into_pool()
+		return FALSE
+	if(bot_turf_is_deadly(T))
+		return FALSE
+	if(GLOB.bot_hazard_turfs[T] && bot_steps_into_hazard(src, T, caller))
+		return FALSE
+	if(simulated_only && SSpathfinder.space_type_cache[T.type] && !bot_turf_crossable_without_boots(T, caller))
+		return FALSE
+	return !bot_turf_has_active_field(T) && !bot_link_blocked_permissive(T, caller, ID)
 
 /turf/proc/bot_link_blocked_permissive(turf/T, caller, ID)
 	var/adir = get_dir(src, T)
@@ -241,10 +269,10 @@
 		else if(istype(O, /obj/structure/table))
 			. += 8
 
-// Drop-in replacement for /turf/proc/Distance as get_path_to()'s cost function (AStar.dm
+// Drop-in replacement for /turf/proc/Distance_cardinal as get_path_to()'s cost function (AStar.dm
 // uses it for both the edge cost and the heuristic).
 /turf/proc/bot_weighted_distance(turf/T)
-	return get_dist(src, T) + bot_turf_penalty(T)
+	return abs(x - T.x) + abs(y - T.y) + bot_turf_penalty(T)
 
 // Total weighted cost of a found path (nodes + obstacle penalties), for comparing routes.
 /proc/bot_path_cost(list/path)

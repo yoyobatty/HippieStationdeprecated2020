@@ -233,6 +233,7 @@
 	else
 		if(!busy)
 			lostPower = FALSE
+	update_icon() //hippie -- the parent draws it before lostPower is cleared, and it stayed on "busy"
 
 /obj/machinery/doorButtons/airlock_controller/findObjsByTag()
 	for(var/obj/machinery/door/airlock/A in GLOB.machines)

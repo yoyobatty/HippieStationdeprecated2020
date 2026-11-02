@@ -76,6 +76,8 @@
 		transmit_enabled = board.transmit
 
 /obj/machinery/dish_drive/process()
+	if(stat & (NOPOWER|BROKEN)) //hippie
+		return
 	if(time_since_dishes <= world.time && transmit_enabled)
 		do_the_dishes()
 	if(!suction_enabled)

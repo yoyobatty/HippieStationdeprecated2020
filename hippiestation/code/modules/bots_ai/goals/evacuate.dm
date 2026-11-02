@@ -69,7 +69,7 @@ GLOBAL_LIST_EMPTY(bot_seat_claims)
 
 /datum/bot_duty/evacuate/try_start(datum/bot_brain/bot)
 	var/obj/docking_port/mobile/emergency/E = SSshuttle.emergency
-	if(!E)
+	if(!E || bot.on_lavaland()) //no walking to departures from down there: the mining shuttle comes first (goals/mining.dm)
 		return FALSE
 	bot.notice_shuttle(E.mode)
 	if(bot_aboard_shuttle(bot.owner))
@@ -92,7 +92,7 @@ GLOBAL_LIST_EMPTY(bot_seat_claims)
 	return bot.assign_goal(new /datum/bot_goal/evacuate/go_to_departures())
 
 /datum/bot_duty/evacuate/should_interrupt(datum/bot_brain/bot)
-	if(istype(bot.current_goal, /datum/bot_goal/evacuate) || bot_aboard_shuttle(bot.owner) || !time_to_go(bot))
+	if(istype(bot.current_goal, /datum/bot_goal/evacuate) || bot_aboard_shuttle(bot.owner) || bot.on_lavaland() || !time_to_go(bot))
 		return FALSE
 	// Someone's life or liberty in hand: seen through, until the shuttle is nearly gone.
 	var/datum/bot_goal/G = bot.suspended_goal || bot.current_goal

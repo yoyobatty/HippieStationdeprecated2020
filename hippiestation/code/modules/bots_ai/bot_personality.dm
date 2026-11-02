@@ -9,6 +9,10 @@
 	var/sociability = 0.5
 	/// 0-1. Low runs from trouble, high wades in.
 	var/nerve = 0.5
+	/// 0-1. How little it takes before it stops telling somebody off and starts hitting them (bot_reflexes.dm).
+	var/temper = 0.5
+	/// Out for trouble when it gets the chance (goals/greytide.dm). Most assistants are, and the odd anybody else.
+	var/greytider = FALSE
 	/// Its pastimes (BOT_HABIT_*).
 	var/list/habits
 
@@ -21,6 +25,7 @@
 	diligence = rand(40, 100) / 100
 	sociability = rand(15, 95) / 100
 	nerve = rand(15, 85) / 100
+	temper = rand(10, 90) / 100
 	if(role in GLOB.command_positions)
 		diligence = max(diligence, 0.75) //nobody made head of department by loafing
 		nerve = max(nerve, 0.5)
@@ -30,11 +35,16 @@
 		diligence = rand(20, 70) / 100
 	if(role in list("Bartender", "Clown", "Chaplain", "Head of Personnel", "Curator", "DJ"))
 		sociability = max(sociability, 0.6)
+	// A third of the assistants are decent people. Everybody else mostly has a job to lose.
+	greytider = prob(role == "Assistant" ? 65 : (role == "Clown" ? 25 : ((role in GLOB.security_positions) || (role in GLOB.command_positions) ? 0 : 4)))
+	if(greytider)
+		temper = max(temper, 0.6)
+		nerve = max(nerve, 0.5)
 	habits = list()
 	var/list/pool = list(BOT_HABIT_SMOKER, BOT_HABIT_GAMER, BOT_HABIT_ANIMAL_LOVER, BOT_HABIT_BARFLY, BOT_HABIT_MUSICIAN, BOT_HABIT_GAMBLER)
 	for(var/i in 1 to rand(1, 3))
 		habits |= pick(pool)
-	bot_log_verbose(src, "personality: diligence [diligence], sociability [sociability], nerve [nerve], habits [english_list(habits)]")
+	bot_log_verbose(src, "personality: diligence [diligence], sociability [sociability], nerve [nerve], temper [temper], habits [english_list(habits)]")
 
 /// Whether this bot goes in for a pastime. A Bot Gym bot goes in for whichever one its scenario is about.
 /datum/bot_brain/proc/has_habit(habit)

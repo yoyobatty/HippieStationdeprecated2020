@@ -231,11 +231,13 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	var/canPassSelf = CanPass(mover, src)
 	if(canPassSelf || CHECK_BITFIELD(mover.movement_type, UNSTOPPABLE))
 		for(var/i in contents)
+			var/atom/movable/thing = i
+			if(thing.no_cross_checks || (!thing.density && isitem(thing))) //hippie -- a non-dense item never blocks, so don't ask every item in a pile
+				continue
 			if(QDELETED(mover))
 				return FALSE		//We were deleted, do not attempt to proceed with movement.
 			if(i == mover || i == mover.loc) // Multi tile objects and moving out of other objects
 				continue
-			var/atom/movable/thing = i
 			if(!thing.Cross(mover))
 				if(QDELETED(mover))		//Mover deleted from Cross/CanPass, do not proceed.
 					return FALSE
@@ -262,6 +264,8 @@ GLOBAL_LIST_EMPTY(station_turfs)
 		if(i == mover)
 			continue
 		var/atom/movable/thing = i
+		if(thing.no_cross_checks || isitem(thing)) //hippie -- no item holds anything back
+			continue
 		if(!thing.Uncross(mover, newloc))
 			if(thing.flags_1 & ON_BORDER_1)
 				mover.Bump(thing)

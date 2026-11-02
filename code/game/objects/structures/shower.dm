@@ -150,17 +150,17 @@
 		if(M.wear_mask && !(ITEM_SLOT_MASK in obscured) && wash_obj(M.wear_mask))
 			M.update_inv_wear_mask()
 
-		if(M.ears && !(HIDEEARS in obscured) && wash_obj(M.ears))
+		if(M.ears && !(ITEM_SLOT_EARS in obscured) && wash_obj(M.ears))
 			M.update_inv_ears()
 
 		if(M.wear_neck && !(ITEM_SLOT_NECK in obscured) && wash_obj(M.wear_neck))
 			M.update_inv_neck()
 
-		if(M.shoes && !(HIDESHOES in obscured) && wash_obj(M.shoes))
+		if(M.shoes && !(ITEM_SLOT_FEET in obscured) && wash_obj(M.shoes))
 			M.update_inv_shoes()
 
 		var/washgloves = FALSE
-		if(M.gloves && !(HIDEGLOVES in obscured))
+		if(M.gloves && !(ITEM_SLOT_GLOVES in obscured))
 			washgloves = TRUE
 
 		if(ishuman(M))
@@ -178,6 +178,7 @@
 				H.update_inv_w_uniform()
 
 			if(washgloves)
+				wash_obj(H.gloves) //hippie
 				SEND_SIGNAL(H, COMSIG_COMPONENT_CLEAN_ACT, CLEAN_STRENGTH_BLOOD)
 
 			if(!H.is_mouth_covered())
@@ -186,6 +187,9 @@
 
 			if(H.belt && wash_obj(H.belt))
 				H.update_inv_belt()
+
+			for(var/obj/item/I in H.carried_washables()) //hippie
+				wash_obj(I)
 		else
 			SEND_SIGNAL(M, COMSIG_COMPONENT_CLEAN_ACT, CLEAN_STRENGTH_BLOOD)
 			SEND_SIGNAL(L, COMSIG_ADD_MOOD_EVENT, "shower", /datum/mood_event/nice_shower)

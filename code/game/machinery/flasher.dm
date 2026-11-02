@@ -141,7 +141,7 @@
 			stat |= BROKEN
 			if(bulb)
 				bulb.burn_out()
-				power_change()
+				update_icon() //hippie -- power_change() skips anything broken
 
 /obj/machinery/flasher/deconstruct(disassembled = TRUE)
 	if(!(flags_1 & NODECONSTRUCT_1))

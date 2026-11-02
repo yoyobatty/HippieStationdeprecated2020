@@ -40,6 +40,19 @@
 	config_entry_value = 0
 	min_val = 0
 
+/datum/config_entry/number/bot_crew_late_min	// fewest bots to arrive late on top of the crew at their posts when the round starts (bots_ai/bot_population.dm)
+	config_entry_value = 5
+	min_val = 0
+
+/datum/config_entry/number/bot_crew_late_max	// most of them
+	config_entry_value = 10
+	min_val = 0
+
 /datum/config_entry/number/bot_crew_traitors	// how many of the bot crew turn out to be traitors, once it has settled in
 	config_entry_value = 0
 	min_val = 0
+
+/datum/config_entry/number/bot_chaos	// how much trouble the bot crew gets up to: 0 none, 1 a normal round, 2 mayhem (bots_ai/bot_chaos.dm)
+	config_entry_value = 1
+	min_val = 0
+	max_val = 2

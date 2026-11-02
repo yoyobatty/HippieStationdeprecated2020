@@ -399,6 +399,8 @@ GLOBAL_LIST_EMPTY(vending_products)
 				else
 					to_chat(user, "<span class='warning'>There's nothing to restock!</span>")
 			return
+	if(user.a_intent == INTENT_HARM) //hippie -- with no load list a swing did nothing at all, so a vending machine could never be broken
+		return ..()
 	if(compartmentLoadAccessCheck(user))
 		if(canLoadItem(I))
 			loadingAttempt(I,user)

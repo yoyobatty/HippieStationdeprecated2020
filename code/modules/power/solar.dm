@@ -342,6 +342,7 @@
 
 /obj/machinery/power/solar_control/update_icon()
 	. = ..()
+	cut_overlays() //hippie -- they piled up, the dead keyboard staying on top of the screen once the power was back
 	if(stat & NOPOWER)
 		add_overlay(mutable_appearance(icon, "[icon_keyboard]_off"))
 		return

@@ -2,19 +2,20 @@
 // station full of people.
 //
 // Set a crew size in hippiestation_config.txt (BOT_CREW_TARGET 20), or mid-round with the "Set Bot
-// Crew Target" admin verb. Players count first; bots make up the difference. They join the way
-// players do - most of them in the first few minutes, a few seconds apart on the arrivals shuttle,
-// then the odd latecomer - into jobs picked the way a crew fills up: the posts a station can't run
-// without first, then whatever is open, by how popular the job is.
+// Crew Target" admin verb. Players count first; bots make up the difference. They start the way
+// players who readied up do, at their posts the moment the round starts. After that a few latecomers
+// (BOT_CREW_LATE_MIN to BOT_CREW_LATE_MAX) come in on the arrivals shuttle, minutes apart. Jobs are
+// picked the way a crew fills up: the posts a station can't run without first, then whatever is
+// open, by how popular the job is.
 //
 // Headless test runs (Bot Gym, Bot Shift) muster their own crews and leave this off; a Bot Shift can
 // borrow the job picker with a crew of "fill:25" (gym/bot_shift.dm).
 
 /// The posts a station can't do without, in the order a short-handed crew covers them. Twice in the list is two of them.
 GLOBAL_LIST_INIT(bot_crew_core_jobs, list(
-	"Station Engineer", "Medical Doctor", "Security Officer", "Botanist", "Cook", "Cargo Technician",
-	"Janitor", "Atmospheric Technician", "Chemist", "Scientist", "Bartender", "Station Engineer",
-	"Security Officer", "Captain", "Medical Doctor", "Head of Personnel", "Chief Engineer", "Roboticist",
+	"Station Engineer", "Medical Doctor", "Security Officer", "Assistant", "Botanist", "Cook", "Cargo Technician",
+	"Janitor", "Assistant", "Atmospheric Technician", "Chemist", "Scientist", "Bartender", "Assistant", "Station Engineer",
+	"Security Officer", "Captain", "Clown", "Medical Doctor", "Assistant", "Head of Personnel", "Chief Engineer", "Roboticist",
 ))
 
 /// How popular each job is with players, as relative odds, once the core posts are covered.
@@ -30,9 +31,12 @@ GLOBAL_LIST_INIT(bot_crew_job_weights, list(
 	"Captain" = 2, "Head of Personnel" = 2,
 ))
 
-/// The opening rush ends once this share of the target is aboard; the rest drift in as latecomers.
-#define BOT_CREW_RUSH_SHARE 0.7
-/// How long into the round the traitors are picked: everybody has signed on by then.
+/// How long after the round starts a target can still be met by standing people at their posts. Any later and they arrive on the shuttle.
+#define BOT_CREW_AT_POSTS_UNTIL (1 MINUTES)
+/// How far apart latecomers arrive, the first one included.
+#define BOT_CREW_LATE_GAP_MIN (2 MINUTES)
+#define BOT_CREW_LATE_GAP_MAX (6 MINUTES)
+/// How long into the round the traitors are picked.
 #define BOT_CREW_TRAITORS_AFTER (10 MINUTES)
 
 GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
@@ -42,6 +46,11 @@ GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 	var/target = 0
 	/// Bots brought in so far.
 	var/joined = 0
+	/// Latecomers still to arrive this round.
+	var/latecomers = 0
+	var/latecomers_picked = FALSE
+	/// TRUE while the crew who start the round are still going to their posts, which go once the round has started
+	var/mustering = FALSE
 	var/running = FALSE
 	var/traitors_made = FALSE
 
@@ -49,7 +58,11 @@ GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 /datum/bot_population/proc/round_started()
 	if((BOT_GYM_PARAMETER in world.params) || (BOT_SHIFT_PARAMETER in world.params))
 		return
-	set_target(CONFIG_GET(number/bot_crew_target))
+	mustering = TRUE //before anything can sleep: the ticker's next step is to clear away the posts
+	if(!target) //an admin may have set one in the lobby
+		set_target(CONFIG_GET(number/bot_crew_target))
+	if(!target)
+		mustering = FALSE
 
 /datum/bot_population/proc/set_target(new_target)
 	target = max(0, round(new_target))
@@ -81,27 +94,51 @@ GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 			open[title] = GLOB.bot_crew_job_weights[title]
 	return length(open) ? pickweight(open) : null
 
+/// One more of the crew, into the next job going. Returns them, or null if there's nothing open.
+/datum/bot_population/proc/bring_in(at_post = FALSE)
+	var/title = pick_job()
+	var/mob/living/carbon/human/H = title ? spawn_bot_crew_member(title, at_post) : null
+	if(H)
+		joined++
+		log_game("BOT CREW: [H.real_name] [at_post ? "started" : "joined"] as [title] ([joined] bot\s, target [target])")
+	return H
+
+/// Everyone on shift when the round starts: at their posts, as though they'd readied up with everybody else.
+/datum/bot_population/proc/muster()
+	var/short = target - player_count()
+	for(var/i in 1 to short)
+		if(!bring_in(TRUE))
+			break
+		CHECK_TICK
+
 /datum/bot_population/proc/keep_crewed()
 	running = TRUE
-	sleep(rand(100, 300)) //the shuttle doesn't unload the instant the round starts
+	UNTIL(!target || SSticker.IsRoundInProgress())
+	if(world.time < SSticker.round_start_time + BOT_CREW_AT_POSTS_UNTIL)
+		muster()
+	mustering = FALSE
+	if(!latecomers_picked)
+		latecomers_picked = TRUE
+		var/late_min = CONFIG_GET(number/bot_crew_late_min)
+		latecomers = rand(late_min, max(late_min, CONFIG_GET(number/bot_crew_late_max)))
+	var/next_latecomer = world.time + rand(BOT_CREW_LATE_GAP_MIN, BOT_CREW_LATE_GAP_MAX)
 	while(target > 0 && SSticker.IsRoundInProgress())
-		var/short = target - player_count() - joined
 		if(!traitors_made && world.time > SSticker.round_start_time + BOT_CREW_TRAITORS_AFTER)
 			traitors_made = TRUE
 			var/traitors = CONFIG_GET(number/bot_crew_traitors)
 			if(traitors)
 				bot_make_traitors(traitors) //goals/traitor.dm
 		// Nobody new signs on once the evacuation shuttle is on its way.
-		if(short <= 0 || !EMERGENCY_IDLE_OR_RECALLED)
-			sleep(30 SECONDS)
-			continue
-		var/title = pick_job()
-		var/mob/living/carbon/human/H = title ? spawn_bot_crew_member(title) : null
-		if(H)
-			joined++
-			log_game("BOT CREW: [H.real_name] joined as [title] ([joined] bot\s, target [target])")
-		// A few seconds apart while the crew is still filling up, minutes apart for the last latecomers.
-		sleep(short > target * (1 - BOT_CREW_RUSH_SHARE) ? rand(30, 90) : rand(600, 2400))
+		if(EMERGENCY_IDLE_OR_RECALLED)
+			if(target - player_count() - joined > 0) //an admin raised the target
+				bring_in()
+				sleep(rand(30, 90))
+				continue
+			if(latecomers > 0 && world.time >= next_latecomer)
+				latecomers--
+				next_latecomer = world.time + rand(BOT_CREW_LATE_GAP_MIN, BOT_CREW_LATE_GAP_MAX)
+				bring_in()
+		sleep(30 SECONDS)
 	running = FALSE
 
 /datum/controller/subsystem/ticker/Initialize(timeofday)
@@ -122,5 +159,7 @@ GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 	message_admins("[key_name_admin(usr)] set the bot crew target to [GLOB.bot_population.target] ([GLOB.bot_population.joined] bot\s aboard so far).")
 	log_admin("[key_name(usr)] set the bot crew target to [GLOB.bot_population.target].")
 
-#undef BOT_CREW_RUSH_SHARE
+#undef BOT_CREW_AT_POSTS_UNTIL
+#undef BOT_CREW_LATE_GAP_MIN
+#undef BOT_CREW_LATE_GAP_MAX
 #undef BOT_CREW_TRAITORS_AFTER

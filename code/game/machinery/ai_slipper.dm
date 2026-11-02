@@ -20,7 +20,7 @@
 /obj/machinery/ai_slipper/update_icon()
 	if(stat & BROKEN)
 		return
-	if((stat & NOPOWER) || cooldown_time > world.time || !uses)
+	if((stat & NOPOWER) || cooldown > world.time || !uses) //hippie -- these read the length of the cooldown, not when it ends
 		icon_state = "ai-slipper0"
 	else
 		icon_state = "ai-slipper1"
@@ -32,8 +32,8 @@
 	if(!uses)
 		to_chat(user, "<span class='warning'>[src] is out of foam and cannot be activated!</span>")
 		return
-	if(cooldown_time > world.time)
-		to_chat(user, "<span class='warning'>[src] cannot be activated for <b>[DisplayTimeText(world.time - cooldown_time)]</b>!</span>")
+	if(cooldown > world.time)
+		to_chat(user, "<span class='warning'>[src] cannot be activated for <b>[DisplayTimeText(cooldown - world.time)]</b>!</span>")
 		return
 	new /obj/effect/particle_effect/foam(loc)
 	uses--

@@ -26,6 +26,8 @@
 
 #define MOVEMENT_DELAY_BUFFER 0.75
 #define MOVEMENT_DELAY_BUFFER_DELTA 1.25
+/// hippie -- what a diagonal step costs against a straight one: the distance it covers. It was double, which is 30% slower along the ground.
+#define DIAGONAL_MOVE_COST 1.4142
 
 /client/Move(n, direct)
 	if(world.time < move_delay) //do not move anything ahead of this check please
@@ -105,12 +107,12 @@
 			direct = newdir
 			n = get_step(L, direct)
 
-	//Match the glide to this move's delay (diagonals take twice as long) before moving, so the step and anything we pull animate smoothly
-	mob.set_glide_size(DELAY_TO_GLIDE_SIZE(add_delay * ((direct & (direct - 1)) ? 2 : 1)))
+	//Match the glide to this move's delay before moving, so the step and anything we pull animate smoothly
+	mob.set_glide_size(DELAY_TO_GLIDE_SIZE(add_delay * ((direct & (direct - 1)) ? DIAGONAL_MOVE_COST : 1)))
 	. = ..()
 
 	if((direct & (direct - 1)) && mob.loc == n) //moved diagonally successfully
-		add_delay *= 2
+		add_delay *= DIAGONAL_MOVE_COST
 	move_delay += add_delay
 	if(.) // If mob is null here, we deserve the runtime
 		if(mob.throwing)

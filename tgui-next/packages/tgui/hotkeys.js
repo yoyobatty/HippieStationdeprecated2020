@@ -66,6 +66,10 @@ const NO_PASSTHROUGH_KEYS = [
   KEY_SHIFT,
 ];
 
+// tridentVersion is null on anything but Internet Explorer, and `null > 4` is false: since BYOND moved to
+// Chromium this had switched off passing keys through to the game, and releasing the held ones, altogether.
+const canTrackFocus = tridentVersion === null || tridentVersion > 4;
+
 // Tracks the "pressed" state of keys
 const keyState = {};
 
@@ -223,13 +227,13 @@ export const hotKeyMiddleware = store => {
   subscribeToKeyPresses((e, eventType) => {
     // IE8: Can't determine the focused element, so by extension it passes
     // keypresses when inputs are focused.
-    if (tridentVersion > 4) {
+    if (canTrackFocus) {
       handlePassthrough(e, eventType);
     }
     handleHotKey(e, eventType, dispatch);
   });
   // IE8: focusin/focusout only available on IE9+
-  if (tridentVersion > 4) {
+  if (canTrackFocus) {
     // Clean up when browser window completely loses focus
     subscribeToLossOfFocus(() => {
       releaseHeldKeys();

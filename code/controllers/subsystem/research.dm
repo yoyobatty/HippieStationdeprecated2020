@@ -55,6 +55,8 @@ SUBSYSTEM_DEF(research)
 	if(multiserver_calculation)
 		var/eff = calculate_server_coefficient()
 		for(var/obj/machinery/rnd/server/miner in servers)
+			if(!miner.working) //hippie
+				continue
 			var/list/result = (miner.mine())	//SLAVE AWAY, SLAVE.
 			for(var/i in result)
 				result[i] *= eff

@@ -263,6 +263,7 @@ GLOBAL_DATUM_INIT(acid_overlay, /mutable_appearance, mutable_appearance('icons/e
 
 //what happens when the obj's integrity reaches zero.
 /obj/proc/obj_destruction(damage_flag)
+	bot_note_wreckage(src) //hippie - engineers put back what gets smashed (bots_ai/goals/repair_damage.dm)
 	if(damage_flag == "acid")
 		acid_melt()
 	else if(damage_flag == "fire")

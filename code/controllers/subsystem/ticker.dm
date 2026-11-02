@@ -313,6 +313,9 @@ SUBSYSTEM_DEF(ticker)
 	send2irc("Server", "Round [GLOB.round_id ? "#[GLOB.round_id]:" : "of"] [hide_mode ? "secret":"[mode.name]"] has started[allmins.len ? ".":" with no active admins online!"]")
 	setup_done = TRUE
 
+	// hippie -- the bot crew are being stood on these. They lost that race: four got their posts and the rest came in on the shuttle.
+	UNTIL(!GLOB.bot_population.mustering || world.time > round_start_time + 30 SECONDS)
+
 	for(var/i in GLOB.start_landmarks_list)
 		var/obj/effect/landmark/start/S = i
 		if(istype(S))							//we can not runtime here. not in this important of a proc.

@@ -35,10 +35,26 @@
 	heat_gen /= max(1, tot_rating)
 
 /obj/machinery/rnd/server/proc/refresh_working()
-	if(stat & EMPED)
+	if(stat & (EMPED|NOPOWER|BROKEN)) //hippie -- only an EMP stopped it: research points kept coming with the power out and the server smashed
 		working = FALSE
 	else
 		working = TRUE
+
+/obj/machinery/rnd/server/power_change()
+	. = ..()
+	refresh_working()
+
+/obj/machinery/rnd/server/obj_break(damage_flag)
+	. = ..()
+	refresh_working()
+
+/obj/machinery/rnd/server/update_icon()
+	if(panel_open)
+		icon_state = "[initial(icon_state)]_t"
+	else if(stat & (NOPOWER|BROKEN))
+		icon_state = "[initial(icon_state)]-nopower"
+	else
+		icon_state = initial(icon_state)
 
 /obj/machinery/rnd/server/emp_act()
 	. = ..()

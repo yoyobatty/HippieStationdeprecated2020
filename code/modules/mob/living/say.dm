@@ -283,11 +283,13 @@ GLOBAL_LIST_INIT(department_radio_keys, list(
 	for(var/mob/M in listening)
 		if(M.client)
 			speech_bubble_recipients.Add(M.client)
+	if(!length(speech_bubble_recipients)) //hippie -- nobody to show them to. animate_chat() scrambles the message for those who don't speak the language, for no one
+		return
 	var/image/I = image('icons/mob/talk.dmi', src, "[bubble_type][say_test(message)]", FLY_LAYER)
 	I.appearance_flags = APPEARANCE_UI_IGNORE_ALPHA
 	INVOKE_ASYNC(GLOBAL_PROC, /.proc/flick_overlay, I, speech_bubble_recipients, 30)
 	INVOKE_ASYNC(GLOBAL_PROC, /.proc/animate_chat, src, message, message_language, message_mode, speech_bubble_recipients, 50) // see chatheader.dm
-	
+
 /mob/proc/binarycheck()
 	return FALSE
 

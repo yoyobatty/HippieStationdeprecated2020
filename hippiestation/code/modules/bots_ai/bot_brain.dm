@@ -30,6 +30,8 @@
 	/// The machine a stroll in progress is heading for, see try_vend_snack().
 	var/datum/weakref/snack_vendor
 	var/wander_retry_count = 0
+	/// Times running that no stroll anywhere has worked out.
+	var/wander_fail_streak = 0
 	var/list/area/failed_areas //area -> world.time it's worth retrying again
 	var/next_personal_objective_time = 0
 	var/next_medical_check_time = 0 //Hippie. Paces try_medical_round() (goals/treat_patient.dm) the same way personal objectives are paced below.
@@ -99,6 +101,20 @@
 		owner.update_sight()
 		SEND_SIGNAL(owner, COMSIG_MOB_HUD_CREATED)
 
+/datum/bot_brain
+	/// When forget_deleted() next runs
+	var/next_forget_time = 0
+
+/// What a bot remembers about things, mostly cooldowns on them, lasts as long as the bot does, dead or alive, and anything
+/// deleted while it's on one of these lists can't be garbage collected. An explosion in a busy room left a dozen hard
+/// deletes, at 15-50 ms a time, each of them the server standing still.
+/datum/bot_brain/proc/forget_deleted()
+	next_forget_time = world.time + 1 MINUTES
+	for(var/list/memory in list(failed_blockers, failed_tool_targets, known_tool_sources, failed_engine_parts, failed_atmos_parts, set_down_items, door_button_presses, door_buttons_out_of_reach, busy_doors))
+		for(var/datum/thing in memory.Copy())
+			if(QDELETED(thing))
+				memory -= thing
+
 /datum/bot_brain/Destroy()
 	STOP_PROCESSING(SSprocessing, src)
 	stop_pursuit()
@@ -114,10 +130,16 @@
 /datum/bot_brain/process(delta_time)
 	if(QDELETED(owner))
 		return PROCESS_KILL
+	if(world.time >= next_forget_time)
+		forget_deleted()
 	if(gym_scripted && state == BOT_STATE_WANDER)
 		// Bot Gym bot between goals - it only does what its scenario asks (gym/bot_gym.dm). It still sees to its
 		// own tank's valve, the way it still breathes, and puts itself out: those aren't errands (goals/refill_internals.dm).
-		if(owner.stat != DEAD && !owner.incapacitated())
+		mind_being_held() //bot_reflexes.dm
+		if(owner.incapacitated())
+			floored = TRUE
+		else if(owner.stat != DEAD)
+			mind_hands()
 			try_put_self_out()
 			if(world.time >= next_air_check_time)
 				next_air_check_time = world.time + 10
@@ -135,8 +157,13 @@
 			state_before_combat = null
 			state = BOT_STATE_WANDER
 		return
+	mind_being_held() //bot_reflexes.dm - the Resist button is the one thing that works when nothing else does
 	if(owner.incapacitated())
+		floored = TRUE
 		return
+	mind_hands()
+	if(world.time >= next_watch_time)
+		keep_an_eye_out() //bot_witness.dm
 	if(try_escape_pool())
 		return
 	if(try_put_self_out())
@@ -260,6 +287,9 @@
 	if(attacker.stat != CONSCIOUS || (istype(restrained) && restrained.handcuffed))
 		disengage_combat(attacker.stat != CONSCIOUS ? "they're down" : "they're restrained")
 		return
+	if(fight_is_won(attacker)) //bot_fighting.dm
+		disengage_combat("they've had enough")
+		return
 	// Self-defense ends when the threat does: they've stopped hitting us, so we stop too.
 	if(world.time - last_hit_by_attacker > BOT_COMBAT_CALM_DOWN)
 		disengage_combat("they've stopped fighting")
@@ -313,22 +343,12 @@
 		return
 	if(try_run_for_it())
 		return
+	reach_for_weapon() //bot_fighting.dm
 	if(owner.Adjacent(attacker))
 		stop_pursuit()
-		owner.changeNext_move(CLICK_CD_MELEE)
-		var/obj/item/weapon = weapon_to_hand()
-		if(weapon)
-			owner.a_intent = INTENT_HARM
-			owner.face_atom(attacker)
-			telemetry_clicked(attacker)
-			weapon.melee_attack_chain(owner, attacker)
-			bot_log(src, "hitting [attacker] with [weapon]")
-		else
-			owner.a_intent = pick_combat_intent(attacker)
-			owner.UnarmedAttack(attacker, TRUE)
-			bot_log(src, "attacking [attacker] ([owner.a_intent])")
+		fight_in_reach(attacker)
 		try_combat_sidestep(attacker)
-	else
+	else if(!try_attack_from_range(attacker))
 		owner.a_intent = INTENT_HARM
 		combat_chase(attacker)
 
@@ -359,7 +379,10 @@
 	return TRUE
 
 /datum/bot_brain/proc/try_run_for_it()
-	if(is_security_job() || owner.health > owner.maxHealth * BOT_COMBAT_RUN_AT || world.time < next_run_for_it)
+	if(is_security_job() || world.time < next_run_for_it)
+		return FALSE
+	var/hurt = owner.health <= owner.maxHealth * health_to_run_at()
+	if(!hurt && !(nerve < 0.7 && outmatched_by(attacker))) //bot_fighting.dm
 		return FALSE
 	next_run_for_it = world.time + 30 SECONDS
 	var/mob/living/from = attacker
@@ -367,7 +390,7 @@
 	drop_goals("running for it")
 	disengage_combat("running for it")
 	bot_say(owner, pick(";Help! [from] is trying to kill me!", ";Somebody help me, I'm being attacked!", ";I need help, [from] is after me!"))
-	assign_goal(new /datum/bot_goal/seek_medbay_healing())
+	assign_goal(hurt ? new /datum/bot_goal/seek_medbay_healing() : new /datum/bot_goal/run_from(from))
 	return TRUE //either way the fight's over: handle_combat() has no attacker to go on with
 
 /// Chase something, re-pathing only once it's moved off where the current path leads (same as arrests,
@@ -380,14 +403,6 @@
 		return
 	combat_path_turf = target_turf
 	pursue(target, "combat", force = TRUE)
-
-// Mostly harm, but sometimes goes for a disarm instead if the attacker is holding
-// something - matching how a real player alternates intents mid-fight rather than
-// mindlessly punching regardless of whether the target is armed.
-/datum/bot_brain/proc/pick_combat_intent(mob/living/target)
-	if(target.get_active_held_item() && prob(30))
-		return INTENT_DISARM
-	return INTENT_HARM
 
 // Steps to a different tile still adjacent to the target after attacking, instead of
 // standing still and trading blows on the same tile - makes the bot a harder target to
@@ -695,6 +710,7 @@
 					buy_snack(vendor)
 				next_wander_time = world.time + wander_dwell_time()
 			else if(success)
+				wander_fail_streak = 0
 				if(!try_sit_down())
 					next_wander_time = world.time + wander_dwell_time()
 			else
@@ -736,12 +752,15 @@
 /datum/bot_brain/proc/begin_wander_pick()
 	snack_vendor = null
 	next_wander_time = world.time + rand(10, 30) //spacing only - how long to linger is decided on arrival (wander_dwell_time())
-	wander_retry_count = 12
+	wander_retry_count = wander_fail_streak ? 3 : 12
 	try_next_wander_candidate()
 
 /datum/bot_brain/proc/try_next_wander_candidate()
 	if(wander_retry_count <= 0)
-		next_wander_time = world.time + rand(20, 40) //every candidate failed - try again shortly rather than freezing
+		// Every candidate failed - try again shortly rather than freezing, and less and less often if it goes on: somewhere
+		// with no way out, like a brig cell, a prisoner went through 1,073 route searches in one shift, a tenth of the crew's.
+		wander_fail_streak++
+		next_wander_time = world.time + min(rand(20, 40) * wander_fail_streak, 1 MINUTES)
 		return
 	wander_retry_count--
 	var/turf/T = prob(65) ? pick_poi_destination() : pick_local_destination()
@@ -762,7 +781,7 @@
 // adjacent table tile is ordinary movement (table/CanPass()'s "already on a table"
 // exception, see bot_items.dm's clear_one_blocker()), so that's still fair game.
 /datum/bot_brain/proc/is_wanderable_turf(turf/T)
-	if(!T || T.density || isspaceturf(T) || !istype(T, /turf/open) || istype(T, /turf/open/pool)) //nobody strolls into the pool (bot_steps_into_pool())
+	if(!T || T.density || isspaceturf(T) || !istype(T, /turf/open) || istype(T, /turf/open/pool) || bot_turf_is_deadly(T)) //nobody strolls into the pool (bot_steps_into_pool())
 		return FALSE
 	// Shuttles (the arrivals shuttle especially, but any of them - cargo, mining, escape,
 	// custom, ...) dock and undock on their own schedule, independent of anything a bot
@@ -774,7 +793,15 @@
 	// business being on a shuttle at all in the first place. Goal-driven pursuits
 	// (move_to) aren't affected by this - no current goal ever targets anything aboard a
 	// shuttle, so this only needed to stop undirected wandering from picking one.
-	if(istype(get_area(T), /area/shuttle))
+	var/area/A = get_area(T)
+	if(istype(A, /area/shuttle))
+		return FALSE
+	// The AI's turrets stun whoever walks in, then keep them stunned: a captain with the access to stroll into the
+	// upload lay there being shot for the rest of the round, 165 times.
+	if(istype(A, /area/ai_monitored/turret_protected))
+		return FALSE
+	// Bare plating out in the open, like the floor round the tesla: nobody takes a stroll in a vacuum.
+	if(istype(A, /area/space))
 		return FALSE
 	for(var/obj/structure/S in T)
 		if(!S.density)
@@ -947,8 +974,11 @@ GLOBAL_LIST_INIT(bot_maintenance_averse_jobs, list("Medical Doctor", "Chief Medi
 /datum/bot_brain/proc/on_attacked(mob/living/user, what_done, atom/object)
 	if(!user || user == owner || QDELETED(owner) || owner.stat == DEAD)
 		return
-	// A law-abiding crewmember doesn't fight the officer arresting them - they protest.
-	if(!is_security_job() && (user.mind?.assigned_role in GLOB.security_positions))
+	if(findtext(what_done, "handcuffed"))
+		cuffed_lawfully = bot_is_officer(user)
+	// A law-abiding crewmember doesn't fight the officer arresting them - they protest. A traitor or a rioter isn't one,
+	// and somebody in a security uniform beating it half to death isn't arresting anybody.
+	if(!is_security_job() && bot_is_officer(user) && !resists_arrest() && !officer_out_of_line(user, what_done))
 		if(world.time >= next_reaction_time)
 			next_reaction_time = world.time + 100
 			bot_say(owner, pick("What did I do?!", "Hey, I didn't do anything!", "Okay, okay! I'm not resisting!", "This is a mistake!"))
@@ -979,6 +1009,15 @@ GLOBAL_LIST_INIT(bot_maintenance_averse_jobs, list("Medical Doctor", "Chief Medi
 		bot_call_security(user, what_done, object) //goals/security_patrol.dm - a victim radios it in, it doesn't just fight back
 	if(prob(60))
 		bot_say(owner, pick(GLOB.bot_combat_lines))
+
+/// Whether the officer hitting this bot has stopped being an officer about it. Bot officers only ever stun, and stun gear is an
+/// arrest whatever else is going on: this is for a player in a uniform with a weapon, once it's gone past a scuffle.
+/datum/bot_brain/proc/officer_out_of_line(mob/living/officer, what_done)
+	if(bot_means_well(officer) || GLOB.bot_reflexes_off)
+		return FALSE
+	if(findtext(what_done, "stunned") || findtext(what_done, "flashed") || findtext(what_done, "handcuffed"))
+		return FALSE
+	return owner.getBruteLoss() + owner.getFireLoss() >= 30
 
 /mob/living/carbon/human/Hear(message, atom/movable/speaker, message_language, raw_message, radio_freq, list/spans, message_mode)
 	. = ..()

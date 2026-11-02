@@ -68,7 +68,7 @@
 /// Whether the walk in progress keeps to where the bot is allowed to go: a stroll, keeping up with someone it's
 /// tagging along with (bot_chatter.dm), or everyday work (bot_goal.lawful).
 /datum/bot_brain/proc/pursuit_is_lawful()
-	if(pursuing_kind == "wander" || pursuing_kind == "follow")
+	if(pursuing_kind == "wander" || pursuing_kind == "follow" || pursuing_kind == "item" || pursuing_kind == "locker") //a scientist once hacked the kitchen door for a bottle of enzyme
 		return TRUE
 	return pursuing_kind == "goal" && current_goal?.lawful
 
@@ -322,7 +322,12 @@
 			continue //an active containment field/generator shocks on every step or bump attempt (bot_pathing_permissive.dm) - never a genuinely open candidate
 		var/blocked = FALSE
 		for(var/atom/movable/AM in neighbor)
-			if(AM.density)
+			if(!AM.density)
+				continue
+			// Somebody standing there moves, or swaps places. Counted as in the way, a machine with one tile free beside it
+			// couldn't be reached while they were: the Booze-O-Mat is one, and a bartender with Pun Pun behind the bar went minutes without a glass.
+			var/mob/living/stood_there = AM
+			if(!istype(stood_there) || stood_there.buckled)
 				blocked = TRUE
 				break
 		if(blocked)
@@ -350,7 +355,7 @@
 	// On a stroll or an everyday errand, a door this ID doesn't open isn't walked through just because somebody
 	// has left it open (bot_doors.dm) - unless the bot is shut in somewhere, and it's the way out.
 	pathing_no_tailgating = pursuit_is_lawful() && !is_shut_in()
-	var/list/path = bot_path_to(dest, /turf/proc/Distance, /turf/proc/bot_reachable_strict, id_card, !can_path_through_space())
+	var/list/path = bot_path_to(dest, /turf/proc/Distance_cardinal, /turf/proc/bot_reachable_strict, id_card, !can_path_through_space())
 	pathing_no_tailgating = FALSE
 	bot_log_verbose(src, "  pass 1 (legit route) to [dest] @ [bot_coord(dest)]: [path ? "[path.len] nodes" : "no path"]")
 	if(path && path.len)
@@ -491,6 +496,8 @@
 // movement chain forever (nothing else would ever reschedule it). Keep that same
 // protection here now that step_next_node() reschedules itself directly.
 /datum/bot_brain/proc/step_next_node()
+	if(QDELETED(owner)) //gone while this timer was waiting
+		return
 	try
 		do_step_next_node()
 	catch(var/exception/e)
@@ -508,6 +515,14 @@
 				give_up_goal()
 
 /datum/bot_brain/proc/do_step_next_node()
+	// Out cold, stunned or held in a neck grab. A player's keys do nothing then (client/Move() checks MOBILITY_MOVE), but
+	// this timer isn't a key press, step_towards() goes straight to Move(), and process() has stopped so nobody ends the
+	// walk: an atmos tech walked round a kitchen at -80 health and crowbarred a firelock. It waits where it is, and carries
+	// on if it comes round.
+	if(!(owner.mobility_flags & MOBILITY_MOVE))
+		deltimer(stuck_timer_id)
+		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), 5, TIMER_STOPPABLE)
+		return
 	// Asked to hold still (a doctor coming over to it, goals/treat_patient.dm): the walk waits where it is.
 	if(world.time < stand_still_until && state != BOT_STATE_COMBAT && state != BOT_STATE_ARREST)
 		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), max(2, stand_still_until - world.time), TIMER_STOPPABLE)
@@ -538,7 +553,9 @@
 	var/atom/expected_target = pursue_target
 	var/turf/before_clear = get_turf(owner)
 	busy_clearing = TRUE
-	try_clear_obstruction()
+	// In soft crit it can drag itself along, but it can't use a tool on anything in its way.
+	if(!owner.incapacitated(ignore_restraints = TRUE))
+		try_clear_obstruction()
 	busy_clearing = FALSE
 	var/moved_during_clear = (get_turf(owner) != before_clear)
 

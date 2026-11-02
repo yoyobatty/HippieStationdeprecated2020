@@ -167,7 +167,7 @@
 			obj_integrity = max_integrity
 			stat &= ~BROKEN
 			to_chat(user, "<span class='notice'>You repair \the [src].</span>")
-			update_icon()
+			power_change() //hippie
 
 	else if(W.tool_behaviour == TOOL_WRENCH)
 		if(locked)

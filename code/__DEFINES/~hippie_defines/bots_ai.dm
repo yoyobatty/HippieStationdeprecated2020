@@ -22,3 +22,11 @@
 #define BOT_HABIT_BARFLY "barfly"
 #define BOT_HABIT_MUSICIAN "musician"
 #define BOT_HABIT_GAMBLER "gambler"
+
+// How long the accelerator is held back for a coil or rod nobody can get to (goals/setup_tesla_engine.dm)
+#define BOT_CAGE_PATIENCE (5 MINUTES)
+
+// How bad a crime is (goals/security_patrol.dm)
+#define BOT_CRIME_MINOR 1
+#define BOT_CRIME_MAJOR 2
+#define BOT_CRIME_MURDER 3

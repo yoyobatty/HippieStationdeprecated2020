@@ -10,27 +10,39 @@
 	if(vol < SOUND_AUDIBLE_VOLUME_MIN) // never let sound go below SOUND_AUDIBLE_VOLUME_MIN or nobody will hear it anyway
 		return
 
-	//allocate a channel if necessary now so its the same for everyone
-	channel = channel || open_sound_channel()
+	// hippie -- nobody on this z-level to hear it, which is true of every machine humming on most of them
+	if(!length(SSmobs.clients_by_zlevel[turf_source.z]) && !length(SSmobs.dead_players_by_zlevel[turf_source.z]))
+		return
 
- 	// Looping through the player list has the added bonus of working for mobs inside containers
-	var/sound/S = sound(get_sfx(soundin))
+	// Looping through the player list has the added bonus of working for mobs inside containers
 	var/maxdistance = (world.view + extrarange)
 	var/audible_distance = CALCULATE_MAX_SOUND_AUDIBLE_DISTANCE(vol, maxdistance)
 	var/z = turf_source.z
 	var/list/listeners = SSmobs.clients_by_zlevel[z]
 	if(!ignore_walls) //these sounds don't carry through walls
 		listeners = listeners & hearers(audible_distance,turf_source)
+	var/list/in_earshot = list()
 	for(var/P in listeners)
 		var/mob/M = P
 		if(get_dist(M, turf_source) <= audible_distance)
-			M.playsound_local(turf_source, soundin, vol, vary, frequency, falloff, channel, pressure_affected, S)
+			in_earshot += M
 	for(var/P in SSmobs.dead_players_by_zlevel[z])
 		var/mob/M = P
 		if(get_dist(M, turf_source) <= audible_distance)
-			M.playsound_local(turf_source, soundin, vol, vary, frequency, falloff, channel, pressure_affected, S)
+			in_earshot += M
+	// hippie -- nobody near enough, so don't bother making the sound
+	if(!length(in_earshot))
+		return
 
-/mob/proc/playsound_local(turf/turf_source, soundin, vol as num, vary, frequency, falloff, channel = 0, pressure_affected = TRUE, sound/S)
+	//allocate a channel if necessary now so its the same for everyone
+	channel = channel || open_sound_channel()
+	var/sound/S = sound(get_sfx(soundin))
+	// hippie -- the air where it starts is the same for everyone who hears it
+	var/datum/gas_mixture/source_env = pressure_affected ? turf_source.return_air() : null
+	for(var/mob/M as anything in in_earshot)
+		M.playsound_local(turf_source, soundin, vol, vary, frequency, falloff, channel, pressure_affected, S, source_env)
+
+/mob/proc/playsound_local(turf/turf_source, soundin, vol as num, vary, frequency, falloff, channel = 0, pressure_affected = TRUE, sound/S, datum/gas_mixture/source_env)
 	if(!client || !can_hear())
 		return
 
@@ -59,7 +71,7 @@
 			//Atmosphere affects sound
 			var/pressure_factor = 1
 			var/datum/gas_mixture/hearer_env = T.return_air()
-			var/datum/gas_mixture/source_env = turf_source.return_air()
+			source_env = source_env || turf_source.return_air()
 
 			if(hearer_env && source_env)
 				var/pressure = min(hearer_env.return_pressure(), source_env.return_pressure())

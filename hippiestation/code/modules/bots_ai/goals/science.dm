@@ -29,11 +29,21 @@
 			best_dist = dist
 	return best
 
-/// The cheapest node the console's techweb can unlock right now, as its id - or null.
+/// What a department goes for first when it has a choice: the parts that make everything after them cheaper, the labs'
+/// own tools, and bluespace. Everything else follows, cheapest first.
+GLOBAL_LIST_INIT(bot_research_priorities, list("engineering", "biotech", "datatheory", "nanite_base", "adv_engi", "high_efficiency", "bio_process", "bluespace_basic", "practical_bluespace", "robotics", "adv_power", "adv_mining", "micro_bluespace"))
+
+/// The node to unlock next, as its id - or null: the first of the priorities the points cover, or the cheapest there is.
 /datum/bot_brain/proc/next_research_node(obj/machinery/computer/rdconsole/C)
 	var/datum/techweb/web = C?.stored_research
 	if(!web)
 		return null
+	for(var/id in GLOB.bot_research_priorities)
+		if(!web.available_nodes[id] || web.researched_nodes[id] || web.hidden_nodes[id])
+			continue
+		var/datum/techweb_node/priority = SSresearch.techweb_node_by_id(id)
+		if(istype(priority) && web.can_afford(priority.get_price(web)))
+			return id
 	var/best
 	var/best_cost
 	for(var/id in web.available_nodes)

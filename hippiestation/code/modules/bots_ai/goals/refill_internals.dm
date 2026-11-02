@@ -20,7 +20,7 @@
 // tank back out (replace_tank(), which also closes the valve in the same call).
 
 /datum/bot_brain/proc/is_tank_refill_job()
-	return is_eva_job()
+	return is_eva_job() || is_miner()
 
 // Oxygen specifically, NOT the general "air" canister (~79% N2/21% O2) - breathing is
 // gated on O2 PARTIAL pressure (check_breath(), life.dm: O2_partialpressure = O2_fraction
@@ -85,7 +85,7 @@
 	var/min_pressure = max(ONE_ATMOSPHERE * 2, tank_refill_target() + 20)
 	var/obj/machinery/portable_atmospherics/canister/best
 	var/best_dist
-	for(var/obj/machinery/portable_atmospherics/canister/C in GLOB.machines)
+	for(var/obj/machinery/portable_atmospherics/canister/C as anything in bot_instances_of(/obj/machinery/portable_atmospherics/canister))
 		if(!is_oxygen_canister(C))
 			continue
 		if((C.stat & BROKEN) || C.holding)
@@ -347,20 +347,27 @@
 		return FALSE
 	if(lungs.safe_co2_max && air.moles[/datum/gas/carbon_dioxide] * per_mole > lungs.safe_co2_max)
 		return FALSE
+	if(air.moles[/datum/gas/bz] * per_mole > lungs.BZ_trip_balls_min) //it puts people to sleep, and Lavaland's air can be full of it
+		return FALSE
 	return air.temperature > lungs.cold_level_1_threshold && air.temperature < lungs.heat_level_1_threshold
 
 /datum/bot_brain/proc/air_is_breathable()
 	return turf_air_is_breathable(get_turf(owner))
+
+/// Stood in a fire, in nothing that keeps it off.
+/datum/bot_brain/proc/in_the_flames()
+	var/turf/open/T = owner.loc
+	return istype(T) && T.active_hotspot && !bot_is_heat_immune_to(T.return_air().temperature)
 
 /// Opens the tank's valve where the bot can't breathe - or is a step from somewhere it can't
 /// (air_under_threat(), gear_up_eva.dm: a breach, a fire, space next door) - and closes it again
 /// where it can. On the tank's own switch (toggle_internals(), what the HUD button calls), so it needs a
 /// mask the same as a player does. A dry tank comes off whatever's going on, if there's air to breathe instead.
 /datum/bot_brain/proc/manage_internals()
-	if(!is_eva_job())
+	if(!is_tank_refill_job())
 		return
 	var/breathable = air_is_breathable()
-	var/need_tank = !breathable || air_under_threat()
+	var/need_tank = !breathable || air_under_threat() || (on_lavaland() && out_in_the_open()) //nobody breathes that air on purpose
 	var/obj/item/tank/tank = owner.internal
 	if(tank)
 		var/dry = breathable && tank.air_contents.return_pressure() < BOT_TANK_DRY
@@ -394,12 +401,15 @@
 /// the way a fetch for a tool does, to come back to. Under a quarter with nowhere to refill, nothing
 /// else matters: it drops everything and makes for the nearest air.
 /datum/bot_brain/proc/mind_air_supply()
-	if(!is_eva_job())
+	if(!is_tank_refill_job())
 		get_out_of_bad_air()
 		return
 	manage_internals()
 	if(gym_scripted)
 		return //a Bot Gym bot minds its valve, but only runs the errands its scenario gives it
+	if(in_the_flames()) //a tank does nothing for that: an atmos tech worked on through a burning kitchen until it died
+		get_out_of_bad_air()
+		return
 	var/low = tank_needs_refill() //also keeps track of what this tank holds when full
 	low_air_stay_in = !owner.internal && tank_running_out()
 	if(!owner.internal || !low)
@@ -440,7 +450,9 @@
 		var/dist = get_dist(here, T)
 		if(best && dist >= best_dist)
 			continue
-		if(!turf_air_is_breathable(T) || is_blocked_turf(T, TRUE))
+		if(T.active_hotspot || !turf_air_is_breathable(T) || is_blocked_turf(T, TRUE))
+			continue
+		if(istype(T.loc, /area/ai_monitored/turret_protected)) //good air, and stunned on the spot for the rest of the round
 			continue
 		best = T
 		best_dist = dist
@@ -458,9 +470,9 @@
 		return
 	if(istype(current_goal, /datum/bot_goal/seek_air) || istype(current_goal, /datum/bot_goal/evacuate))
 		return
-	if(turf_air_is_breathable(get_turf(owner)) || is_space_protected_without_boots())
+	if(!in_the_flames() && (turf_air_is_breathable(get_turf(owner)) || is_space_protected_without_boots()))
 		return
-	next_air_trip_time = world.time + 10 SECONDS
+	next_air_trip_time = world.time + 3 SECONDS //a fire spreads faster than the ten this used to wait
 	if(state == BOT_STATE_GOAL)
 		drop_goals("can't breathe here")
 	if(state == BOT_STATE_WANDER)

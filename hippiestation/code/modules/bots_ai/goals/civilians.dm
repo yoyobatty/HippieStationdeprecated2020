@@ -166,6 +166,9 @@ GLOBAL_LIST_INIT(bot_desk_areas, list(
 	"Chief Medical Officer" = list(/area/crew_quarters/heads/cmo),
 	"Head of Security" = list(/area/crew_quarters/heads/hos),
 	"Quartermaster" = list(/area/quartermaster/qm),
+	"Geneticist" = list(/area/medical/genetics),
+	"Virologist" = list(/area/medical/virology),
+	"Shaft Miner" = list(/area/quartermaster/miningdock),
 ))
 /// When somebody last said over the radio that the HoP's desk is open.
 GLOBAL_VAR_INIT(bot_hop_desk_called, 0)

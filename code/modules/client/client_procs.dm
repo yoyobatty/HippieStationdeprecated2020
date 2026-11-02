@@ -728,6 +728,7 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 /client/Click(atom/object, atom/location, control, params)
 	var/ab = FALSE
 	var/list/L = params2list(params)
+	check_modifiers_against(L) //hippie -- keys that never got their release (keybindings/setup.dm)
 
 	var/dragged = L["drag"]
 	if(dragged && !L[dragged])
@@ -883,6 +884,9 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 		new_size = CONFIG_GET(string/default_view_square)
 
 	view = new_size
+	for(var/obj/screen/movable/M in screen) // hippie -- see moved_loc_for_view()
+		if(M.moved && M.screen_loc)
+			M.screen_loc = M.moved_loc_for_view(view)
 	apply_clickcatcher()
 	mob.reload_fullscreen()
 	if (isliving(mob))

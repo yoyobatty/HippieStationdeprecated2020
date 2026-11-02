@@ -82,10 +82,7 @@
 	cut_overlays()
 	if (stat & BROKEN)
 		add_overlay("waitlight")
-	if(beaker)
-		icon_state = "mixer1"
-	else
-		icon_state = "mixer0"
+	icon_state = "mixer[beaker ? 1 : 0][((stat & NOPOWER) || panel_open) ? "_nopower" : ""]" //hippie -- it has this sprite and never showed it
 
 /obj/machinery/chem_master/blob_act(obj/structure/blob/B)
 	if (prob(50))

@@ -13,6 +13,7 @@ RUNS="${2:-1}"
 SPEED="${SPEED:-0}"
 PARAMS="bot-gym=$FILTER&bot-gym-runs=$RUNS"
 if [ "$SPEED" != "1" ] && [ -f timewarp.dll ]; then PARAMS="$PARAMS&timewarp=$SPEED"; fi
+if [ -n "${EXTRA_PARAMS:-}" ]; then PARAMS="$PARAMS&$EXTRA_PARAMS"; fi
 
 echo "Compiling..."
 "$BYOND_BIN/dm.exe" hippiestation.dme | grep -E "error|warning|dmb -" || true

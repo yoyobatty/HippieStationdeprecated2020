@@ -210,8 +210,12 @@
 	return found_mobs
 
 
-/proc/get_hearers_in_view(R, atom/source)
+/// hippie -- bumped by every get_hearers_in_view() that has to look, see /turf/var/hearing_stamp
+GLOBAL_VAR_INIT(hearing_stamp, 0)
+
+/proc/get_hearers_in_view(R, atom/source, ignore_radios = FALSE)
 	// Returns a list of hearers in view(R) from source (ignoring luminosity). Used in saycode.
+	// ignore_radios is for working out who hears a radio: other radios are most of what's near one, and do nothing with what they hear on it
 	var/turf/T = get_turf(source)
 	. = list()
 	if(!T)
@@ -222,14 +226,14 @@
 			var/list/recursive_contents = target.important_recursive_contents?[RECURSIVE_CONTENTS_HEARING_SENSITIVE]
 			if(recursive_contents)
 				. += recursive_contents
-			if(target.flags_1 & HEAR_1)
+			// hippie -- a hearer is in its own recursive contents. Adding it again here made everyone with a headset hear every radio message twice
+			if((target.flags_1 & HEAR_1) && !(target in recursive_contents))
 				. += target
 		return .
 
-	var/lum = T.luminosity
-	T.luminosity = 6 // This is the maximum luminosity
-
 	if(!SSspatial_grid.initialized) // can be called during early roundstart init, before the grid exists yet
+		var/lum = T.luminosity
+		T.luminosity = 6 // This is the maximum luminosity
 		for(var/mob/M in view(R, T))
 			if(M.flags_1 & HEAR_1)
 				. += M
@@ -242,31 +246,44 @@
 	// Use the spatial grid to only consider hearing-sensitive movables anywhere near us, instead of
 	// checking every movable in view() for the HEAR_1 flag.
 	var/list/hearables_from_grid = SSspatial_grid.orthogonal_range_search(T, SPATIAL_GRID_CONTENTS_TYPE_HEARING, R)
-	if(!length(hearables_from_grid))
-		T.luminosity = lum
+	// hippie -- what's on the source's own tile hears it without asking view(), and often that's everyone
+	var/list/further_off = list()
+	for(var/atom/movable/candidate as anything in hearables_from_grid)
+		if(ignore_radios && istype(candidate, /obj/item/radio))
+			continue
+		if(candidate.invisibility && isturf(candidate.loc)) // view() doesn't list these, which is what keeps ghosts and cameras out of this
+			continue
+		var/turf/where = get_turf(candidate)
+		if(where == T)
+			. += candidate
+		else if(get_dist(where, T) <= R) // the grid gives whole cells, far wider than most of what asks
+			further_off += candidate
+	if(!length(further_off))
 		return .
-	// hippie -- build view() once, not once per candidate: with a pile of bodies in view (each one hearing, plus its
-	// headset) every message used to rebuild the whole view hundreds of times - multi-second freezes from explosions
-	var/list/in_view = view(R, T)
-	if(length(hearables_from_grid) <= 4) // a few list scans beat building a lookup table
-		for(var/atom/movable/candidate as anything in hearables_from_grid)
-			if(candidate in in_view)
-				. += candidate
-	else
-		var/list/seen = list()
-		for(var/atom/movable/thing in in_view)
-			seen[thing] = TRUE
-		for(var/atom/movable/candidate as anything in hearables_from_grid)
-			if(seen[candidate])
-				. += candidate
+
+	// hippie -- stamp the tiles in view and go by the tile a hearer is on. view() only lists what's directly on a tile, so
+	// going by that left anyone in a locker, and anything held or in a pocket, unable to hear what was said next to them.
+	var/lum = T.luminosity
+	T.luminosity = 6 // This is the maximum luminosity
+	var/stamp = ++GLOB.hearing_stamp
+	for(var/turf/in_view in view(R, T))
+		in_view.hearing_stamp = stamp
 	T.luminosity = lum
+	for(var/atom/movable/candidate as anything in further_off)
+		var/turf/where = get_turf(candidate)
+		if(where?.hearing_stamp == stamp)
+			. += candidate
 
 /proc/get_mobs_in_radio_ranges(list/obj/item/radio/radios)
 	. = list()
 	// Returns a list of mobs who can hear any of the radios given in @radios
+	// hippie -- a keyed list as it's built: |= searched everyone found so far for everybody it added, for every radio there is
+	var/list/found = list()
 	for(var/obj/item/radio/R in radios)
-		if(R)
-			. |= get_hearers_in_view(R.canhear_range, R)
+		for(var/atom/movable/hearer as anything in get_hearers_in_view(R.canhear_range, R, ignore_radios = TRUE))
+			if(!found[hearer] && !istype(hearer, /obj/item/radio))
+				found[hearer] = TRUE
+				. += hearer
 
 #define SIGNV(X) ((X<0)?-1:1)
 
@@ -358,6 +375,8 @@
 	return FALSE
 
 /proc/considered_afk(datum/mind/M)
+	if(M?.current?.is_bot_crew()) //hippie -- no client, but at work. Being AFK finished a traitor's objective to kill them, for one
+		return FALSE
 	return !M || !M.current || !M.current.client || M.current.client.is_afk()
 
 /proc/ScreenText(obj/O, maptext="", screen_loc="CENTER-7,CENTER-7", maptext_height=480, maptext_width=480)

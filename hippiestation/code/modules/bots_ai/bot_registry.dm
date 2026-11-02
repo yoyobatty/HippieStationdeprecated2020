@@ -20,9 +20,14 @@ GLOBAL_LIST_EMPTY(bot_type_registry)
 	if(instances)
 		return instances
 	instances = list()
-	for(var/obj/O in world)
-		if(istype(O, type) && !QDELETED(O))
-			instances[O] = TRUE
+	if(ispath(type, /obj/machinery)) //every machine is on this list: a thousandth of the world, for a scan bots feel as a hitch
+		for(var/obj/machinery/M as anything in GLOB.machines)
+			if(istype(M, type) && !QDELETED(M))
+				instances[M] = TRUE
+	else
+		for(var/obj/O in world)
+			if(istype(O, type) && !QDELETED(O))
+				instances[O] = TRUE
 	GLOB.bot_type_registry[type] = instances
 	return instances
 

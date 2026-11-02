@@ -1,6 +1,8 @@
 /turf
 	var/elevation = 10
 	var/pinned = null
+	/// The last get_hearers_in_view() that could see this tile. A stamp beats a list of them: this runs for every word anyone says.
+	var/hearing_stamp = 0
 
 /turf/Destroy()
 	if (pinned)

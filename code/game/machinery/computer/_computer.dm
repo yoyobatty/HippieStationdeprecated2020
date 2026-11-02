@@ -65,11 +65,11 @@
 		luminosity = 0
 	SSvis_overlays.add_vis_overlay(src, icon, overlay_state, layer, plane, dir)
 	SSvis_overlays.add_vis_overlay(src, icon, overlay_state, layer, EMISSIVE_PLANE, dir)
-	luminosity = 1
+	luminosity = (stat & BROKEN) ? 0 : 1 //hippie
 
 /obj/machinery/computer/power_change()
 	. = ..()
-	if(stat & NOPOWER)
+	if(stat & (NOPOWER|BROKEN)) //hippie -- broken ones lit back up whenever the room's power changed
 		set_light(0)
 	else
 		set_light(brightness_on)

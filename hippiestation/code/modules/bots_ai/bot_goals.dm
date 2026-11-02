@@ -630,6 +630,8 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 
 /// Walks instead of running for as long as the goal in hand asks it to (bot_goal.careful), and back to a run after.
 /datum/bot_brain/proc/update_gait()
+	if(QDELETED(owner)) //gave up because there's no body left to walk with: an explosion, say
+		return
 	var/should_walk = !!current_goal?.careful
 	if(should_walk != (owner.m_intent == MOVE_INTENT_WALK) && (should_walk || walking_for_goal))
 		owner.toggle_move_intent()

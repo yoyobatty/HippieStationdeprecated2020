@@ -77,7 +77,7 @@
 	var/turf/bot_turf = get_turf(owner)
 	var/obj/machinery/computer/best
 	var/best_dist
-	for(var/obj/machinery/computer/C in GLOB.machines)
+	for(var/obj/machinery/computer/C as anything in bot_instances_of(/obj/machinery/computer))
 		if(!console_is_alerting(C))
 			continue
 		var/turf/T = get_turf(C)

@@ -73,6 +73,7 @@ GLOBAL_LIST_INIT(bibleitemstates, list("bible", "koran", "scrapbook", "burning",
 		var/biblename = GLOB.biblenames[iconi]
 		icon_state = GLOB.biblestates[iconi]
 		item_state = GLOB.bibleitemstates[iconi]
+		usr.update_inv_hands() //hippie
 
 		if(icon_state == "honk1" || icon_state == "honk2")
 			var/mob/living/carbon/human/H = usr
