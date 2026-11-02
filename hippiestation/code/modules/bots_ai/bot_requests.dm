@@ -52,6 +52,8 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 	var/walks_there = TRUE
 	/// Whether it matters where the caller is (an order at the bar doesn't: the drink goes on the bar).
 	var/needs_place = TRUE
+	/// Whether it's still answered with the shuttle on its way, while there's time.
+	var/during_evacuation = FALSE
 
 /// The words that name this kind of call - left out when the same line is read for a place ("I need a doctor"
 /// doesn't mean Medbay).
@@ -273,7 +275,10 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 	if(!R.place || (there && there.z != owner.z && !isarea(R.place)))
 		return FALSE
 	if(bot_staying_aboard(owner) || !EMERGENCY_IDLE_OR_RECALLED)
-		return FALSE //the shuttle comes first
+		if(!R.kind.during_evacuation || !bot_time_to_let_people_out())
+			return FALSE //the shuttle comes first
+		if(state == BOT_STATE_WANDER || istype(current_goal, /datum/bot_goal/evacuate))
+			return TRUE
 	if(state == BOT_STATE_WANDER)
 		return TRUE
 	if(state != BOT_STATE_GOAL || !current_goal || !R.kind.walks_there)
@@ -494,6 +499,7 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 	arrival_lines = list("There you go.", "Out you come.", "Door's open.")
 	doing = "going to let somebody out"
 	needs_place = FALSE
+	during_evacuation = TRUE
 
 /datum/bot_request_kind/let_out/matches(lower_msg, named, turf/near)
 	return bot_text_has_any(lower_msg, list("let me out", "let me in", "locked in", "shut in", "stuck in", "trapped in", "open the door", "open this door", "get the door", "door open"))
@@ -541,8 +547,10 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 	bot_log(bot, "opened [D] to let [who || "somebody"] out")
 	// They head for it while it's open.
 	var/datum/bot_brain/theirs = istype(who) ? who.bot_brain : null
-	if(theirs && theirs.state == BOT_STATE_WANDER && !QDELETED(D))
+	if(theirs && (theirs.state == BOT_STATE_WANDER || istype(theirs.current_goal, /datum/bot_goal/evacuate)) && !QDELETED(D))
 		var/list/inside = theirs.shut_in_region
+		if(theirs.current_goal)
+			theirs.drop_goals("the door's open")
 		theirs.shut_in_checked_at = -1000
 		for(var/d in GLOB.cardinals) //the side of the door they aren't on: they can be anywhere in a big room
 			var/turf/outside = get_step(D, d)

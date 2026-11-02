@@ -23,7 +23,7 @@
 	. = list()
 	var/list/candidates = list()
 	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
-		if(H.bot_brain && H.mind && H.stat != DEAD && bot_traitor_job_allowed(H.mind.assigned_role) && !H.mind.special_role && !HAS_TRAIT(H, TRAIT_MINDSHIELD))
+		if(H.bot_brain && H.mind && H.stat != DEAD && bot_traitor_job_allowed(H.mind.assigned_role) && !length(H.mind.antag_datums) && !HAS_TRAIT(H, TRAIT_MINDSHIELD))
 			candidates += H
 	if(!length(candidates))
 		return

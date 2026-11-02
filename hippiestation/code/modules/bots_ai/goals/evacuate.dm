@@ -29,6 +29,12 @@ GLOBAL_LIST_EMPTY(bot_seat_claims)
 	var/obj/docking_port/mobile/emergency/E = SSshuttle.emergency
 	return E && (E.mode == SHUTTLE_DOCKED || E.mode == SHUTTLE_IGNITING)
 
+/// Whether there's still time to go and let somebody out before it leaves. Whoever has the access does that first: everybody gets
+/// off this station, and it was the shut-in who were left on it.
+/proc/bot_time_to_let_people_out()
+	var/obj/docking_port/mobile/emergency/E = SSshuttle.emergency
+	return E && (E.mode == SHUTTLE_CALL || (E.mode == SHUTTLE_DOCKED && E.timeLeft(1) > 1 MINUTES))
+
 /proc/bot_aboard_shuttle(atom/A)
 	var/obj/docking_port/mobile/emergency/E = SSshuttle.emergency
 	return E?.shuttle_areas && E.shuttle_areas[get_area(A)]
@@ -99,6 +105,9 @@ GLOBAL_LIST_EMPTY(bot_seat_claims)
 	if(istype(G, /datum/bot_goal/revive_patient) || istype(G, /datum/bot_goal/escort_to_sleeper) || istype(G, /datum/bot_goal/brig_prisoner))
 		var/obj/docking_port/mobile/emergency/E = SSshuttle.emergency
 		return bot_shuttle_boarding() && E.timeLeft(1) <= 900
+	var/datum/bot_goal/answer_call/answering = G
+	if(istype(answering) && answering.request?.kind?.during_evacuation && bot_time_to_let_people_out())
+		return FALSE
 	return bot_shuttle_boarding() || !bot_in_departures(bot.owner)
 
 /// Waiting at departures while the shuttle is on its way; staying aboard once on it.

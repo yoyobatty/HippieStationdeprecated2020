@@ -36,7 +36,7 @@
 	. = list()
 	var/list/candidates = list()
 	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
-		if(H.bot_brain && H.mind && H.stat != DEAD && bot_traitor_job_allowed(H.mind.assigned_role) && !H.mind.has_antag_datum(/datum/antagonist/traitor))
+		if(H.bot_brain && H.mind && H.stat != DEAD && bot_traitor_job_allowed(H.mind.assigned_role) && !length(H.mind.antag_datums))
 			candidates += H
 	while(length(candidates) && length(.) < count)
 		var/mob/living/carbon/human/H = pick_n_take(candidates)
@@ -79,7 +79,8 @@
 
 /datum/bot_duty/traitor
 	name = "the Syndicate's business"
-	priority = 30
+	tier = BOT_DUTY_URGENT //the work tier never comes round for anybody with a job that's never finished
+	priority = 8
 	interval_min = 300
 	interval_max = 900
 

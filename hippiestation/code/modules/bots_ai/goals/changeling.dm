@@ -15,6 +15,8 @@
 #define BOT_LING_PARK (3 MINUTES)
 /// How far it'll go after somebody.
 #define BOT_LING_RANGE 60
+/// How many it wants a round, objective or no objective.
+#define BOT_LING_APPETITE 4
 
 /datum/bot_brain
 	/// Set when it's a changeling, so process() needn't look it up every second.
@@ -27,7 +29,7 @@
 	. = list()
 	var/list/candidates = list()
 	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
-		if(H.bot_brain && H.mind && H.stat != DEAD && bot_traitor_job_allowed(H.mind.assigned_role) && !H.mind.special_role)
+		if(H.bot_brain && H.mind && H.stat != DEAD && bot_traitor_job_allowed(H.mind.assigned_role) && !length(H.mind.antag_datums))
 			candidates += H
 	while(length(candidates) && length(.) < count)
 		var/mob/living/carbon/human/H = pick_n_take(candidates)
@@ -99,7 +101,8 @@
 
 /datum/bot_duty/changeling
 	name = "the hive's business"
-	priority = 30
+	tier = BOT_DUTY_URGENT //the work tier never comes round for anybody with a job that's never finished
+	priority = 8
 	interval_min = 300
 	interval_max = 900
 
@@ -125,6 +128,11 @@
 			goal = bot.goal_for_objective(O)
 		if(goal && bot.assign_goal(goal))
 			return TRUE
+	// It feeds whatever it's been told to do: an objective to extract one genome is met from the start, by its own.
+	if(bot.absorbed < BOT_LING_APPETITE)
+		var/mob/living/carbon/human/prey = bot.find_prey()
+		if(prey)
+			return bot.assign_goal(new /datum/bot_goal/traitor_kill/ling(null, prey))
 	return FALSE
 
 /datum/bot_goal/traitor_kill/ling
@@ -143,7 +151,8 @@
 	return list(S)
 
 /datum/bot_goal/traitor_kill/ling/on_give_up(datum/bot_brain/bot)
-	LAZYSET(bot.objectives_parked, objective, world.time + BOT_LING_PARK)
+	if(objective)
+		LAZYSET(bot.objectives_parked, objective, world.time + BOT_LING_PARK)
 	bot.ling_retract_blade()
 	bot.owner.stop_pulling()
 
@@ -263,3 +272,4 @@
 #undef BOT_LING_DIGEST
 #undef BOT_LING_PARK
 #undef BOT_LING_RANGE
+#undef BOT_LING_APPETITE
