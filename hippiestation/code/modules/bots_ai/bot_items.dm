@@ -107,6 +107,9 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	// which is the right trade-off - a missed opportunistic pickup costs nothing, a
 	// silently-abandoned tool costs the whole trip that gathered it.
 	if(is_tool_or_toolbox(inactive))
+		// The other hand might not be: a scientist with a screwdriver in one and a radiation suit in the other, and a full bag, couldn't take a wrench.
+		if(!is_tool_or_toolbox(active))
+			owner.dropItemToGround(active)
 		return
 	owner.dropItemToGround(inactive)
 
@@ -759,12 +762,12 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 		return
 	for(var/obj/item/I in set_down_items.Copy())
 		if(QDELETED(I) || !isturf(I.loc))
-			set_down_items -= I
+			LAZYREMOVE(set_down_items, I)
 			continue
 		if(get_turf(owner) != I.loc && !owner.Adjacent(I))
 			continue
-		if(try_pickup_target(I))
-			set_down_items -= I
+		if(try_pickup_target(I)) //sleeps, and another call can have emptied the list by the time it's back
+			LAZYREMOVE(set_down_items, I)
 			bot_log(src, "picked [I] back up")
 	UNSETEMPTY(set_down_items)
 	if(has_strong_weapon())

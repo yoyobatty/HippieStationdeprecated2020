@@ -1291,6 +1291,20 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 /datum/bot_shift_check/counted/nanites/progress()
 	return "[count()] injected, [count("nanite_programs_uploaded")] program\s on the cloud, [round(SSresearch.science_tech.research_points[TECHWEB_POINT_TYPE_NANITES])] nanite points banked"
 
+/datum/bot_shift_check/counted/toxins
+	name = "science: a tank bomb launched"
+	jobs = list("Scientist", "Research Director")
+	counter = "bombs_launched"
+	needs_on_map = /obj/machinery/mass_driver
+	deadline = 40 MINUTES
+
+/// Only the Hippie map has a mixer with all three ports (goals/toxins.dm).
+/datum/bot_shift_check/counted/toxins/outcome()
+	return (!GLOB.bot_toxins || GLOB.bot_toxins.mix_mixer) ? ..() : "SKIP"
+
+/datum/bot_shift_check/counted/toxins/progress()
+	return "[count()] launched, [SSresearch.science_tech.largest_bomb_value] points from the doppler"
+
 /datum/bot_shift_check/counted/slimes
 	name = "science: slimes tended"
 	jobs = list("Scientist", "Research Director")

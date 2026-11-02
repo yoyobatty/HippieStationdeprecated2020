@@ -60,10 +60,10 @@
 	if(attached_device)
 		attached_device.holder_movement()
 
-/obj/item/transfer_valve/dropped()
+/obj/item/transfer_valve/dropped(mob/user)
 	. = ..()
 	if(attached_device)
-		attached_device.dropped()
+		attached_device.dropped(user) //hippie edit -- passes who let go, for the health sensor
 
 /obj/item/transfer_valve/on_found(mob/finder)
 	if(attached_device)

@@ -385,6 +385,8 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 /datum/bot_brain/proc/mind_hands()
 	mind_slime()
 	mind_fauna() //goals/mining.dm
+	if(armed_bomb)
+		mind_armed_bomb() //goals/toxins.dm
 	if(floored)
 		floored = FALSE
 		if(!GLOB.bot_reflexes_off)

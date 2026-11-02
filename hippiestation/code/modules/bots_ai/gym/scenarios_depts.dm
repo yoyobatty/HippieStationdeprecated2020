@@ -182,6 +182,37 @@
 		return BOT_GYM_FAIL
 	return (locate(/obj/item/healthanalyzer) in get_turf(first_placed("t"))) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/datum/bot_scenario/griefed/dead_mans_switch
+	name = "toxins: a valve on a health sensor goes off when its carrier goes down"
+	desc = "The traitor's trick: a health sensor on the transfer valve, held in the hand, because it won't fit in a bag. Beaten into crit, it falls from the hand, the sensor reads them as it goes, and the valve opens by itself. Tanks of nothing here: the arena's got to last."
+	layout = list(
+		"#######",
+		"#.BC..#",
+		"#######")
+	time_limit = 20 SECONDS
+	var/obj/item/transfer_valve/valve
+
+/datum/bot_scenario/griefed/dead_mans_switch/post_spawn()
+	..()
+	valve = new(bot)
+	var/obj/item/tank/internals/oxygen/empty/one = new(valve)
+	var/obj/item/tank/internals/oxygen/empty/two = new(valve)
+	valve.tank_one = one
+	valve.tank_two = two
+	bot.put_in_hands(valve)
+	var/obj/item/assembly/health/sensor = new(bot)
+	bot.put_in_hands(sensor)
+	brain.fit_trigger(valve, sensor)
+
+/datum/bot_scenario/griefed/dead_mans_switch/grief()
+	bot.apply_damage(105, BRUTE, BODY_ZONE_CHEST) //on the arm holding it, that cripples the arm, and it goes on the floor
+	bot.updatehealth()
+
+/datum/bot_scenario/griefed/dead_mans_switch/check()
+	if(valve.attached_device && valve.valve_open)
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
 /datum/bot_scenario/griefed/charges
 	name = "dept: the charge goes by the room, and by how they got in"
 	desc = "Space Law: 109 anywhere, 209 at the engine, 309 on the Bridge, and 110, 210 and 310 for forcing the door."

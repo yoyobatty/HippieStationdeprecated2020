@@ -101,6 +101,8 @@
 	if(!ready_in_hand(I))
 		return FALSE
 	human_pause(I)
+	if(!ready_in_hand(I)) //the pause sleeps, and a fight doesn't wait: an officer's baton could be back on the belt by now
+		return FALSE
 	telemetry_shortcut("attack_self", I, null)
 	I.attack_self(owner)
 	return TRUE

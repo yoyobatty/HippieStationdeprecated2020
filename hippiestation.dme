@@ -3375,6 +3375,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\synthesize_medicine.dm"
 #include "hippiestation\code\modules\bots_ai\goals\take_item.dm"
 #include "hippiestation\code\modules\bots_ai\goals\tend_hydroponics.dm"
+#include "hippiestation\code\modules\bots_ai\goals\toxins.dm"
 #include "hippiestation\code\modules\bots_ai\goals\traitor.dm"
 #include "hippiestation\code\modules\bots_ai\goals\treat_patient.dm"
 #include "hippiestation\code\modules\bots_ai\goals\xenobiology.dm"

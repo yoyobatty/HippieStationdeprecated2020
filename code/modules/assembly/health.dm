@@ -50,14 +50,24 @@
 	var/mob/living/M = A
 
 	if(M)
-		health_scan = M.health
-		if(health_scan <= alarm_health)
-			pulse()
-			audible_message("[icon2html(src, hearers(src))] *beep* *beep* *beep*")
-			playsound(src, 'sound/machines/triple_beep.ogg', ASSEMBLY_BEEP_VOLUME, TRUE)
-			toggle_scan()
+		read_health(M)
 		return
 	return
+
+/obj/item/assembly/health/proc/read_health(mob/living/M)
+	health_scan = M.health
+	if(health_scan <= alarm_health)
+		pulse()
+		audible_message("[icon2html(src, hearers(src))] *beep* *beep* *beep*")
+		playsound(src, 'sound/machines/triple_beep.ogg', ASSEMBLY_BEEP_VOLUME, TRUE)
+		toggle_scan()
+
+//Hippie start. Falling over empties the hands, and it only reads whoever's carrying it, so it could never go off when it mattered: one last reading of who let go.
+/obj/item/assembly/health/dropped(mob/user)
+	. = ..()
+	if(scanning && secured && isliving(user))
+		read_health(user)
+//Hippie end.
 
 /obj/item/assembly/health/proc/toggle_scan()
 	if(!secured)
