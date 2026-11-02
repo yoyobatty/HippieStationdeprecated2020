@@ -91,6 +91,8 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 	var/measuring_shut_in = FALSE
 	/// Until when the last wide look stands, for the quick ones in between.
 	var/shut_in_wide_until = 0
+	/// Set for a route planned by a bot with an emag on business that calls for one: what's shut is only shut until it gets there.
+	var/pathing_emag = FALSE
 
 /// Whether the bot is somewhere it can't walk out of by doors its own ID opens: only a few dozen tiles to go to.
 /// Then any door that happens to be open is the way out, whoever it belongs to.
@@ -204,6 +206,8 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 	var/mob/living/carbon/human/H = caller
 	if(!istype(H) || !H.bot_brain)
 		return
+	if(H.bot_brain.pathing_emag && !H.bot_brain.measuring_shut_in)
+		return . || (!welded && hasPower() && !(obj_flags & EMAGGED) && !istype(src, /obj/machinery/door/airlock/external)) //it stays open: not onto space
 	if(.)
 		// Stood open, and not one this bot's ID opens: no following somebody in (pathing_no_tailgating). The doors it
 		// has just opened itself are another matter - that's what the button was for. This was missing, so nobody
@@ -214,6 +218,20 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 	if(!id_tag || locked || welded || !to_dir || !hasPower())
 		return
 	return H.bot_brain.door_button_for(src, get_step(src, to_dir)) ? TRUE : FALSE
+
+/// The card it'll swipe at a door, if it's out on business that calls for one.
+/datum/bot_brain/proc/emag_for_doors()
+	return current_goal?.breaks_in ? find_carried_tool(/obj/item/card/emag) : null
+
+/// At a door that doesn't open for it. TRUE if the card's gone through it: the door breaks, opens, and stays that way.
+/datum/bot_brain/proc/swipe_door(obj/machinery/door/airlock/A)
+	var/obj/item/card/emag/E = emag_for_doors()
+	if(!E || !istype(A) || A.welded || !A.hasPower() || (A.obj_flags & EMAGGED) || istype(A, /obj/machinery/door/airlock/external))
+		return FALSE
+	bot_log(src, "[A] doesn't open for me - swiping [E] at it")
+	use_item_on(E, A)
+	put_away(E)
+	return TRUE
 
 /// Whether this bot has just pressed the button that works this door.
 /datum/bot_brain/proc/pressed_button_for(obj/machinery/door/airlock/door)

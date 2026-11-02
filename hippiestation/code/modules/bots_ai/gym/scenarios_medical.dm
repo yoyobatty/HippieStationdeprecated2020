@@ -140,3 +140,57 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return patched_up() ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// A body nobody's defibrillating, on a real scanner, console and pod. The patient is a bot itself, or there's nothing to come back.
+/datum/bot_scenario/patient/cloning
+	name = "doctor clones somebody, and they get their things back"
+	desc = "The patient's dead with no paddles in the room. The doctor drags the body to the scanner, scans it, starts the pod, and opens the scanner again. The same bot climbs out with its brain and its name, and takes its ID and clothes back off its old body."
+	layout = list(
+		"#############",
+		"#B.........C#",
+		"#...........#",
+		"#....QKZ....#",
+		"#############")
+	time_limit = 7 MINUTES
+	var/datum/bot_brain/patient_brain
+	var/obj/item/card/id/patient_id
+
+/datum/bot_scenario/patient/cloning/setup()
+	for(var/turf/T in markers["Q"])
+		place("Q", new /obj/machinery/dna_scannernew(T))
+	for(var/turf/T in markers["Z"])
+		place("Z", new /obj/machinery/clonepod(T))
+	for(var/turf/T in markers["K"])
+		place("K", new /obj/machinery/computer/cloning(T))
+
+/datum/bot_scenario/patient/cloning/post_spawn()
+	..()
+	give_job_id(list(ACCESS_MEDICAL))
+	patient.mind_initialize()
+	patient.mind.assigned_role = "Assistant"
+	patient_brain = new(patient)
+	patient.key = "bot-pat-patient"
+	patient_id = new(patient)
+	patient_id.registered_name = patient.real_name
+	patient.equip_to_slot_or_del(patient_id, ITEM_SLOT_ID)
+	patient.death()
+
+/datum/bot_scenario/patient/cloning/make_goal()
+	return new /datum/bot_goal/clone_body()
+
+/datum/bot_scenario/patient/cloning/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/mob/living/carbon/human/clone = patient_brain.owner
+	if(clone == patient || !isturf(clone.loc) || clone.stat != CONSCIOUS)
+		return BOT_GYM_PENDING
+	if(clone.real_name != "Pat Patient" || clone.mind != patient_brain.owner.mind || patient.bot_brain)
+		fail_reason = "came out as [clone.real_name], with the brain in the wrong place"
+		return BOT_GYM_FAIL
+	var/obj/machinery/dna_scannernew/S = first_placed("Q")
+	if(!S.state_open || S.occupant)
+		fail_reason = "the body was left shut in the scanner"
+		return BOT_GYM_FAIL
+	if(clone.wear_id != patient_id || !clone.w_uniform)
+		return BOT_GYM_PENDING
+	return BOT_GYM_PASS

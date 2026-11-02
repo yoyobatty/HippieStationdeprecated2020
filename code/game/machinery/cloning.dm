@@ -154,7 +154,8 @@
 				return NONE
 			if(clonemind.current.suiciding) // Mind is associated with a body that is suiciding.
 				return NONE
-		if(!clonemind.active)
+		var/mob/living/carbon/human/bot_body = clonemind.current // hippie -- a bot has no ghost to come back from
+		if(!clonemind.active && !(istype(bot_body) && bot_body.bot_brain))
 			// get_ghost() will fail if they're unable to reenter their body
 			var/mob/dead/observer/G = clonemind.get_ghost()
 			if(!G)

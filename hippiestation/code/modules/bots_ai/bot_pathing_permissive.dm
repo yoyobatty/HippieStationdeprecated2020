@@ -327,11 +327,12 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 /// urgency that decides whether breaking through is allowed. Anything new those procs start reading that can
 /// change mid-decision has to go in here too, or a flood made under the old state skips a route it shouldn't.
 /datum/bot_brain/proc/reach_key(turf/start, adjacent, obj/item/card/id/id_card, simulated_only)
-	return "[REF(start)]|[adjacent]|[REF(id_card)]|[simulated_only]|[pathing_allow_climb]|[pathing_climb_only]|[pathing_no_tailgating]|[pathing_allow_smash_tables]|[pathing_assume_welder]|[pathing_assume_nearby_weapons]|[get_urgency()]"
+	return "[REF(start)]|[adjacent]|[REF(id_card)]|[simulated_only]|[pathing_allow_climb]|[pathing_climb_only]|[pathing_no_tailgating]|[pathing_allow_smash_tables]|[pathing_assume_welder]|[pathing_assume_nearby_weapons]|[get_urgency()]|[pathing_emag ? 1 : 0]"
 
 /// get_path_to() for the bot's own route checks, minus searches a flood already proved hopeless (see above).
 /datum/bot_brain/proc/bot_path_to(turf/dest, dist, adjacent, obj/item/card/id/id_card, simulated_only)
 	var/turf/start = get_turf(owner)
+	pathing_emag = !!emag_for_doors()
 	var/key
 	if(reach_floods && start)
 		if(world.time > reach_floods_time + BOT_REACH_FLOOD_TTL)

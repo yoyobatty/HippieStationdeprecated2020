@@ -7,6 +7,8 @@
 	/// Everyday work: the bot only goes where its ID lets it, hacking, breaking and climbing nothing on the way
 	/// (pursuit_is_lawful(), bot_movement.dm). Off for the goals that were written to get through anything.
 	var/lawful = FALSE
+	/// Whether a door its ID doesn't open is one it'll swipe an emag at, with one on it (bot_doors.dm).
+	var/breaks_in = FALSE
 	/// What the bot says it's up to when asked, to finish "I'm ..." (bot_chatter.dm).
 	var/doing
 	/// Work for one pair of hands: while a bot is on this goal its target is claimed (GLOB.bot_work_claims), no other

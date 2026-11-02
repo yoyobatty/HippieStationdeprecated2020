@@ -343,6 +343,9 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			return TRUE
 		if(assign_goal(new /datum/bot_goal/treat_patient()))
 			return TRUE
+		// Everybody alive seen to: the dead the paddles couldn't help (goals/cloning.dm).
+		if(assign_goal(new /datum/bot_goal/clone_body()))
+			return TRUE
 		// No patient needs attention right now - use the downtime to get medbay's
 		// cryo setup in order, same priority a real doctor would use: get gas
 		// flowing to the loop first, then get it cold, then make sure there's

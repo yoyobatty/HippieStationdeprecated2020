@@ -132,7 +132,7 @@
 // ============================================================
 
 /datum/bot_brain/proc/try_seek_medbay_healing()
-	if(!patient_needs_treatment(owner))
+	if(!patient_needs_treatment(owner) || bot_shuttle_boarding()) //the shuttle's got a first aid kit: Medbay's a walk away from it
 		return FALSE
 	maybe_call_medic() //bot_requests.dm - and sets off for Medbay regardless: whichever of them gets there first
 	return assign_goal(new /datum/bot_goal/seek_medbay_healing())

@@ -181,7 +181,7 @@ GLOBAL_VAR_INIT(bot_rev_started, 0)
 	var/datum/bot_goal/traitor_kill/G = bot.current_goal
 	var/mob/living/V = G?.victim()
 	var/turf/there = get_turf(V)
-	if(!there || V.stat == DEAD || there.z != bot.owner.z)
+	if(!there || V.stat == DEAD || there.z != bot.owner.z || !isturf(V.loc))
 		return FALSE
 	if(bot.owner.Adjacent(V))
 		caught_up = TRUE

@@ -399,7 +399,7 @@
 	drop_goals("running for it")
 	disengage_combat("running for it")
 	bot_say(owner, pick(";Help! [from] is trying to kill me!", ";Somebody help me, I'm being attacked!", ";I need help, [from] is after me!"))
-	assign_goal(hurt ? new /datum/bot_goal/seek_medbay_healing() : new /datum/bot_goal/run_from(from))
+	assign_goal(hurt && !bot_shuttle_boarding() ? new /datum/bot_goal/seek_medbay_healing() : new /datum/bot_goal/run_from(from))
 	return TRUE //either way the fight's over: handle_combat() has no attacker to go on with
 
 /// Chase something, re-pathing only once it's moved off where the current path leads (same as arrests,

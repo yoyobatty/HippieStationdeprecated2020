@@ -118,6 +118,8 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 	var/mob/living/carbon/human/H = foe
 	if(!istype(H) || H.stat == DEAD || is_security_job() || greytider || !bot_is_wanted(H) || !is_subdued(H))
 		return
+	if(bot_shuttle_boarding()) //nobody's coming for them now, and it was this that left two people sat on somebody at the shuttle's own doors
+		return
 	if(state == BOT_STATE_GOAL)
 		if(istype(current_goal, /datum/bot_goal/treat_patient) || istype(current_goal, /datum/bot_goal/evacuate))
 			return

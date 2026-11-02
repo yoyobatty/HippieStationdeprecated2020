@@ -388,6 +388,8 @@ GLOBAL_LIST_INIT(bot_captain_greetings, list(
 			continue
 		if(LAZYACCESS(morgue_blocked, H) > world.time || taken_by_another(H))
 			continue
+		if(bot_body_wanted_back(H) || (world.time < H.timeofdeath + BOT_CLONE_MORGUE_WAIT && bot_clonable(H))) //somebody may yet come back to that (goals/cloning.dm)
+			continue
 		bodies[H] = get_dist(owner, H)
 	var/tries = 0
 	while(length(bodies) && tries++ < 3)

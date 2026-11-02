@@ -12,7 +12,7 @@
 #define BOT_LING_SETTLE_IN (6 MINUTES)
 /// Between one and the next: people notice a crew that thins out all at once.
 #define BOT_LING_DIGEST (4 MINUTES)
-#define BOT_LING_PARK (3 MINUTES)
+#define BOT_LING_PARK (2 MINUTES)
 /// How far it'll go after somebody.
 #define BOT_LING_RANGE 60
 /// How many it wants a round, objective or no objective.
@@ -99,6 +99,10 @@
 			return nearest
 	return null
 
+/// Whether it's still got a mind to feed.
+/datum/bot_brain/proc/ling_still_hungry()
+	return is_changeling && absorbed < BOT_LING_APPETITE
+
 /datum/bot_duty/changeling
 	name = "the hive's business"
 	tier = BOT_DUTY_URGENT //the work tier never comes round for anybody with a job that's never finished
@@ -169,7 +173,7 @@
 /datum/bot_step/paced/strike/ling/do_click(datum/bot_brain/bot)
 	var/datum/bot_goal/traitor_kill/G = bot.current_goal
 	var/mob/living/V = G?.victim()
-	if(QDELETED(V) || V.stat != CONSCIOUS)
+	if(QDELETED(V) || V.stat != CONSCIOUS || !isturf(V.loc))
 		return FALSE
 	if(!bot.owner.Adjacent(V))
 		if(get_dist(bot.owner, V) > BOT_SIGHT_RANGE)
@@ -215,7 +219,7 @@
 	var/datum/bot_goal/traitor_kill/G = bot.current_goal
 	var/mob/living/V = G?.victim()
 	var/datum/antagonist/changeling/ling = bot.ling_datum()
-	if(QDELETED(V) || !ling || bot.owner.stat != CONSCIOUS)
+	if(QDELETED(V) || !ling || bot.owner.stat != CONSCIOUS || !isturf(V.loc))
 		return FALSE
 	if(started)
 		if(!ling.isabsorbing)

@@ -57,6 +57,26 @@ GLOBAL_LIST_EMPTY(bot_seat_claims)
 	interval_max = 80
 	interrupts = TRUE
 
+/// How long before the shuttle leaves an antagonist with work left gives it up and runs for it.
+#define BOT_LAST_CHANCE (75 SECONDS)
+
+/// Whether this bot has business on the station that the shuttle coming doesn't settle. Everybody else is walking to departures and
+/// nobody's looking, which is the best chance it'll get: it was the moment the antagonists were called off, and a third of them
+/// stood in the queue with their target alive. It's still got to make the shuttle, and it might not.
+/datum/bot_brain/proc/unfinished_business()
+	if(!length(owner.mind?.antag_datums))
+		return FALSE
+	var/obj/docking_port/mobile/emergency/E = SSshuttle.emergency
+	if(!E || (bot_shuttle_boarding() && E.timeLeft(1) <= BOT_LAST_CHANCE))
+		return FALSE
+	if(rev_datum() || ling_still_hungry())
+		return TRUE
+	var/datum/antagonist/traitor/T = owner.mind.has_antag_datum(/datum/antagonist/traitor) || null //0 for anybody else, and 0?.objectives throws
+	for(var/datum/objective/O as anything in T?.objectives)
+		if((istype(O, /datum/objective/assassinate) || istype(O, /datum/objective/maroon) || istype(O, /datum/objective/steal)) && !objective_finished(O))
+			return TRUE
+	return FALSE
+
 /// Whether it's time this bot was on its way: the shuttle is in, or close enough for this one to set off.
 /datum/bot_duty/evacuate/proc/time_to_go(datum/bot_brain/bot)
 	var/obj/docking_port/mobile/emergency/E = SSshuttle.emergency
@@ -88,7 +108,7 @@ GLOBAL_LIST_EMPTY(bot_seat_claims)
 			if(stuck_by_the_door || (bot.evac_board_failures < 3 && bot.pick_shuttle_seat()))
 				return bot.assign_goal(new /datum/bot_goal/evacuate/board())
 		return TRUE
-	if(!time_to_go(bot))
+	if(!time_to_go(bot) || bot.unfinished_business())
 		return FALSE
 	if(bot_shuttle_boarding())
 		return bot.assign_goal(new /datum/bot_goal/evacuate/board())
@@ -107,6 +127,8 @@ GLOBAL_LIST_EMPTY(bot_seat_claims)
 		return bot_shuttle_boarding() && E.timeLeft(1) <= 900
 	var/datum/bot_goal/answer_call/answering = G
 	if(istype(answering) && answering.request?.kind?.during_evacuation && bot_time_to_let_people_out())
+		return FALSE
+	if(bot.unfinished_business())
 		return FALSE
 	return bot_shuttle_boarding() || !bot_in_departures(bot.owner)
 
@@ -416,8 +438,18 @@ GLOBAL_LIST_EMPTY(bot_seat_claims)
 		return GOAL_STEP_FAIL
 	bot.owner.face_atom(T)
 	bot.telemetry_ui_action(T, "stop")
+	var/list/interior = bot_get_cell_interior(T)
 	T.timer_end(forced = TRUE)
 	bot_log(bot, "ended the sentence in [T] - everybody out for the shuttle")
+	// Out of the cell is still in the Brig, whose doors don't open for them. Most of those the shuttle left behind were people let out
+	// of their cells: they'd wait a minute to ask, with whoever freed them gone by then.
+	for(var/turf/T2 as anything in interior)
+		for(var/mob/living/carbon/human/H in T2)
+			if(H.bot_brain)
+				H.bot_brain.next_call_time = 0
+				H.bot_brain.next_shut_in_look = world.time + 2 SECONDS
 	if(!bot.gym_scripted)
 		bot_say(bot.owner, pick("Shuttle's coming - out you come, get to departures.", "Sentence is over. Evacuation - go.", "You're free to go. Don't miss the shuttle."))
 	return GOAL_STEP_SUCCESS
+
+#undef BOT_LAST_CHANCE

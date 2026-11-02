@@ -1633,9 +1633,14 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 /datum/bot_shift_check/traitors/poll()
 	return
 
+/// The same person, in whatever body they've got now: a traitor who's been cloned is still the traitor.
+/proc/bot_shift_self(mob/living/carbon/human/H)
+	return (H && !H.mind && H.last_mind?.current) || H
+
 /datum/bot_shift_check/traitors/proc/met()
 	. = 0
-	for(var/mob/living/carbon/human/H as anything in shift.traitors)
+	for(var/mob/living/carbon/human/traitor as anything in shift.traitors)
+		var/mob/living/carbon/human/H = bot_shift_self(traitor)
 		if(QDELETED(H))
 			continue //gibbed, and took its objectives with it
 		var/datum/antagonist/traitor/T = H.mind?.has_antag_datum(/datum/antagonist/traitor)
@@ -1648,7 +1653,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 
 /datum/bot_shift_check/traitors/report()
 	var/list/lines = list()
-	for(var/mob/living/carbon/human/H as anything in shift.traitors)
+	for(var/mob/living/carbon/human/traitor as anything in shift.traitors)
+		var/mob/living/carbon/human/H = bot_shift_self(traitor)
 		if(QDELETED(H))
 			lines += "a traitor was gibbed"
 			continue
