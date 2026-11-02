@@ -1,0 +1,11 @@
+Logging in...
+BYOND pager is offline. Connecting as Guest.
+Mon Nov  2 11:25:52 2026
+Auto-safety mode: safe (working directory access)
+World opened on network port 52097.
+Welcome BYOND! (5.0 Public Version 516.1688)
+BYOND 516.1688
+sorted: 4314 ms for 300000 strings, mean 14.4 us, 291 stalls over 1 ms costing 3363 ms, worst 26.7 ms, last gap between stalls 981 strings
+shuffled: 298 ms for 300000 strings, mean 1 us, 0 stalls over 1 ms costing 0 ms, worst 0.1 ms, last gap between stalls 0 strings
+done
+exit 0

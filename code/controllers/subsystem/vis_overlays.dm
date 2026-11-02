@@ -84,6 +84,8 @@ SUBSYSTEM_DEF(vis_overlays)
 	if(old_dir == new_dir)
 		return
 	var/rotation = dir2angle(old_dir) - dir2angle(new_dir)
+	if(!(rotation % 360)) // hippie -- setDir(null) gets here: each overlay would be swapped for itself, which takes it out of vis_contents and leaves it on managed_vis_overlays for a hard delete later
+		return
 	var/list/overlays_to_remove = list()
 	// Unique overlays (cache_expiration -1) are turned in place, shared cached ones swapped for a turned copy.
 	// This used to check a global unique_vis_overlays list, which never let go of them - once one stopped being

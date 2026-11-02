@@ -1,0 +1,307 @@
+/datum/dmm_suite/loaded_map: refcount 4, 0 found in 1.4s
+/datum/dmm_suite/loaded_map: refcount 4, 0 found in 1.3s
+/datum/dmm_suite/loaded_map: refcount 4, 0 found in 1.3s
+/datum/dmm_suite/loaded_map: refcount 4, 0 found in 1.3s
+/datum/dmm_suite/loaded_map: refcount 4, 0 found in 1.4s
+/datum/dmm_suite/loaded_map: refcount 4, 0 found in 1.3s
+/datum/dmm_suite/loaded_map: refcount 4, 0 found in 1.4s
+/datum/dmm_suite/loaded_map: refcount 4, 0 found in 1.3s
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+/datum/dmm_suite/loaded_map hard deleted, no search
+BYOND 516.1666, 20 ticks, 255 x 255 x 11
+through boot: 14118 new UIDs, 567 ms, 40.2 us each, 4 over 5 ms costing 395 ms, worst 122.1 ms
+forced: 3000 kept ascending strings, 347 ms, mean 115.9 us, 3 rebuilds averaging 112 ms, worst 125.6 ms, gaps 982 982
+transit dock for the supply shuttle: 100.8 ms in one go
+forced a transit dock: In transit
+1 minutes in: 15298 new UIDs, 581 ms, 38 us each, 4 over 5 ms costing 395 ms, worst 122.1 ms, 1393 ticks, 2 late, 4 ms over
+2 minutes in: 15531 new UIDs, 585 ms, 37.7 us each, 4 over 5 ms costing 395 ms, worst 122.1 ms, 2577 ticks, 6 late, 40 ms over
+grid check toggle_power(1): spread over 21 ticks
+3 minutes in: 16133 new UIDs, 592 ms, 36.8 us each, 4 over 5 ms costing 395 ms, worst 122.1 ms, 3757 ticks, 8 late, 58 ms over
+4 minutes in: 16251 new UIDs, 595 ms, 36.6 us each, 4 over 5 ms costing 395 ms, worst 122.1 ms, 4929 ticks, 13 late, 82 ms over
+/obj/effect/spawner/random/loot/outfit/shorts hard deleted, no search
+/obj/effect/spawner/random/loot/outfit/cham_ties hard deleted, no search
+/obj/effect/spawner/random/loot/cryo_beakers hard deleted, no search
+/obj/effect/spawner/random/loot/outfit/mime hard deleted, no search
+/obj/effect/spawner/random/loot/cryo_beakers hard deleted, no search
+5 minutes in: 16832 new UIDs, 603 ms, 35.9 us each, 4 over 5 ms costing 395 ms, worst 122.1 ms, 6101 ticks, 19 late, 171 ms over
+48s 106% over by 3.5 ms: AI Idle Behaviors 53
+49s 101% over by 0.8 ms: AI Idle Behaviors 49.8
+108s 106% over by 3.1 ms: Lighting 3.2, AI Idle Behaviors 48.9
+108s 100% over by 0.2 ms: Atmospherics 24.6, AI Idle Behaviors 13.7
+148s 139% over by 19.6 ms: Machines 68.7
+148s 126% over by 13.4 ms: Machines 62.5
+187s 130% over by 15.1 ms: Atmospherics 19.7, Lighting 34.2
+202s 105% over by 2.5 ms: Atmospherics 24.2, AI Idle Behaviors 25.5
+222s 101% over by 0.9 ms: Atmospherics 24.6, AI Idle Behaviors 24.7
+232s 104% over by 2 ms: AI Movement 3.6, Atmospherics 21, AI Idle Behaviors 26.4
+232s 100% over by 0.3 ms: Mobs 23.3, Events 26.2
+272s 138% over by 19.2 ms: Weather 68.2
+275s 104% over by 2.3 ms: Timer 11.1, Atmospherics 13.7, Timer 19.7
+290s 123% over by 11.7 ms: Machines 60.9
+290s 153% over by 27 ms: Lighting 5.2, Machines 71.3
+292s 169% over by 34.7 ms: Machines 84.3
+296s 121% over by 10.9 ms: Lighting 3.9, Radiation 16.2, Lighting 38.8
+322s 106% over by 3.2 ms: Lighting 3, Atmospherics 5.8, Lighting 42.6
+332s 101% over by 0.7 ms: Mobs 32.3, Weather 14, AI Movement 3
+/obj/item/stack/sheet/mineral/titanium hard deleted, no search
+/obj/effect/overlay hard deleted, no search
+6 minutes in: 17466 new UIDs, 612 ms, 35.1 us each, 4 over 5 ms costing 395 ms, worst 122.1 ms, 7253 ticks, 25 late, 327 ms over
+/obj/effect/meteor/big hard deleted, no search
+/obj/machinery/door/airlock/medical hard deleted, no search

@@ -129,6 +129,7 @@
 		restore()
 
 /obj/shapeshift_holder/Exited(atom/movable/AM)
+	. = ..() // hippie -- without this, whatever left stayed on important_recursive_contents and could only be hard deleted
 	if(AM == stored && !restoring)
 		restore()
 

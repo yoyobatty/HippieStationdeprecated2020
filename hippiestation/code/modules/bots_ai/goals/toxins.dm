@@ -94,6 +94,15 @@ GLOBAL_DATUM(bot_toxins, /datum/bot_toxins)
 	return null
 
 /// Everything a bomb takes, found where it's kept. FALSE if this station hasn't got it.
+/// A bomb that's gone off is still held here, tanks and all, and every part of it would be hard deleted. bot_brain.dm calls this once a minute.
+/datum/bot_toxins/proc/forget_deleted()
+	if(QDELETED(hot_tank))
+		hot_tank = null
+	if(QDELETED(cold_tank))
+		cold_tank = null
+	if(QDELETED(valve))
+		valve = null
+
 /datum/bot_toxins/proc/find_lab(datum/bot_brain/bot)
 	var/list/mixers = list()
 	for(var/obj/machinery/atmospherics/components/trinary/mixer/M as anything in bot_instances_of(/obj/machinery/atmospherics/components/trinary/mixer))

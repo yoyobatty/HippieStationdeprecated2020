@@ -21,3 +21,4 @@
 				continue
 
 			C.energy_fail(rand(30,120))
+			CHECK_TICK // hippie -- each of these scans the world for what's in its area, and there are 120 of them: 50 ms in one go without this

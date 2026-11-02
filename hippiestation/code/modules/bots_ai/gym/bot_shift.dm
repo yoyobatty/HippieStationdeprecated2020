@@ -116,6 +116,12 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	var/list/subsystem_fired = list()
 	/// Subsystem name -> how many sampled seconds it was the costliest one with the server over half a tick. What players feel as lag.
 	var/list/subsystem_spikes = list()
+	/// A line for every five minutes of the shift, see note_load_stretch().
+	var/list/load_curve = list()
+	/// Server load over the current five minutes.
+	var/list/stretch_load = list("seconds" = 0, "sum" = 0, "peak" = 0, "over" = 0, "spikes" = 0)
+	/// subsystem_ms as the current five minutes began.
+	var/list/stretch_ms = list()
 
 /datum/bot_shift/New(minutes, crew_text)
 	length = clamp(text2num("[minutes]") || BOT_SHIFT_DEFAULT_MINUTES, 1, 600) MINUTES
@@ -155,6 +161,9 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		for(var/datum/bot_shift_member/member as anything in members)
 			member.sample()
 		bot_gym_sample_load(load)
+		bot_gym_sample_load(stretch_load)
+		if(world.cpu > 50)
+			stretch_load["spikes"]++
 		sample_subsystems()
 		if(!(second % 5))
 			for(var/datum/bot_shift_check/check as anything in checks)
@@ -164,6 +173,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 			log_world("BOT SHIFT: [bot_shift_clock(elapsed())] of [bot_shift_clock(length)], [speed()]x")
 			if(!(round(elapsed() / (1 MINUTES)) % 5))
 				power_curve += station_power_text()
+				note_load_stretch()
 	real_end_ms = timewarp_real_ms()
 	for(var/count in pathfinding)
 		pathfinding[count] = GLOB.astar_tally[count] - pathfinding[count]
@@ -216,6 +226,22 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 				top_name = SS.name
 	if(world.cpu > 50 && top_name)
 		subsystem_spikes[top_name]++
+
+/// Closes off five minutes of the shift with what they cost and what has piled up, so a late round can be set against a young one.
+/datum/bot_shift/proc/note_load_stretch()
+	var/seconds = max(stretch_load["seconds"], 1)
+	var/total = 0
+	var/top_ms = 0
+	var/top_name
+	for(var/name in subsystem_ms)
+		var/ms = subsystem_ms[name] - stretch_ms[name]
+		total += ms
+		if(ms > top_ms)
+			top_ms = ms
+			top_name = name
+	load_curve += "[bot_shift_clock(elapsed())]  load [round(stretch_load["sum"] / seconds)]%, peak [round(stretch_load["peak"])]%, [stretch_load["spikes"]] spike seconds, [round(total / seconds, 0.1)] ms a game second, [top_name] [round(top_ms / seconds, 0.1)]; [length(world.contents)] atoms, [length(SStimer.timer_id_dict)] timers, [length(SSobj.processing)] objects processing, [length(SSair.active_turfs)] active turfs"
+	stretch_load = list("seconds" = 0, "sum" = 0, "peak" = 0, "over" = 0, "spikes" = 0)
+	stretch_ms = subsystem_ms.Copy()
 
 /// The costliest subsystems as ms of server time per second of game time, one line.
 /datum/bot_shift/proc/subsystem_text()
@@ -1771,6 +1797,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	if(GLOB.bot_griefer)
 		header += "Griefed: [GLOB.bot_griefer.report()]\n"
 	header += "Power: [jointext(power_curve, "; ")]\n"
+	header += "Load every five minutes, at [world.fps] ticks a second:\n  [jointext(load_curve, "\n  ")]\n"
 	header += "Round logs: [GLOB.log_directory]\n"
 	var/summary = "[header]\n[jointext(lines, "\n")]\nFAILED: [failures]\n"
 	text2file(summary, "[dir]summary.txt")

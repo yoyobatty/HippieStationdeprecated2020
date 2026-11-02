@@ -30,6 +30,7 @@
 	return ..()
 
 /obj/item/pet_carrier/Exited(atom/movable/occupant)
+	. = ..() // hippie -- without this, whatever left stayed on important_recursive_contents and could only be hard deleted
 	if(occupant in occupants && isliving(occupant))
 		var/mob/living/L = occupant
 		occupants -= occupant

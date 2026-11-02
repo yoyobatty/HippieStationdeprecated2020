@@ -38,6 +38,7 @@
 	STOP_PROCESSING(SSfastprocess, src)
 	if(owner)
 		owner.clear_alert(id)
+		linked_alert = null // hippie -- the alert's just been deleted, and this held it for a hard delete
 		LAZYREMOVE(owner.status_effects, src)
 		on_remove()
 		owner = null

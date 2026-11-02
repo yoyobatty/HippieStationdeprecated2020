@@ -1,0 +1,17 @@
+Logging in...
+BYOND pager is offline. Connecting as Guest.
+Mon Nov  2 10:40:05 2026
+Auto-safety mode: safe (working directory access)
+World opened on network port 62305.
+Welcome BYOND! (5.0 Public Version 516.1666)
+BYOND 516.1666
+a = list(1); a |= list(2, 2): 3 items [1,2,2], the reference's reading gives 2
+b = list(); b |= list("x", "x", "x"): 3 items ["x","x","x"], the reference's reading gives 1
+c = list(2); c |= list(2, 2): 2 items [2,2], the reference's reading gives 1
+f = list(2, 2); f |= list(2, 2, 2): 3 items [2,2,2], the reference's reading gives 2
+list(1) | list(2, 2): 3 items [1,2,2], the reference's reading gives 2
+list() | list("x", "x", "x"): 3 items ["x","x","x"], the reference's reading gives 1
+d = list(1); for each of list(2, 2): d |= item: 2 items [1,2], the reference's reading gives 2
+e = list(); e |= list(datum, datum): 2 items, the reference's reading gives 1
+done
+exit 0

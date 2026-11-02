@@ -1,4 +1,5 @@
 #!/bin/bash
+unset __COMPAT_LAYER # Git Bash sets it, and under it dm.exe leaks two kernel handles for every file it opens until the next reboot
 # Atmos bench: compile, boot headless, time every stage of SSair over a calm station, a gas release, a plasma fire and
 # hull breaches, print the results. See hippiestation/code/modules/atmospherics/atmos_bench.dm.
 # Usage: tools/atmos_bench/run_atmos_bench.sh [profile | series | shadow | trace | failover | machine-times | idle-check |

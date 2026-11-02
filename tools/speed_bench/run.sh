@@ -1,4 +1,5 @@
 #!/bin/bash
+unset __COMPAT_LAYER # Git Bash sets it, and under it dm.exe leaks two kernel handles for every file it opens until the next reboot
 # Before and after, in turns so the machine's mood falls on both. Headless, no game window. See speed_bench.dm.
 #   tools/speed_bench/run.sh build <name>         builds speedbench_<name>.dmb from the code as it is now
 #   tools/speed_bench/run.sh run <name> [label]   one boot of it, results in data/speed_bench_<label>.txt

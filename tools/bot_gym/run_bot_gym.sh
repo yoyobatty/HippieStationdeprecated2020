@@ -1,4 +1,5 @@
 #!/bin/bash
+unset __COMPAT_LAYER # Git Bash sets it, and under it dm.exe leaks two kernel handles for every file it opens until the next reboot
 # Bot Gym: compile, boot headless, run the bot AI scenario suite, print the results.
 # Usage: tools/bot_gym/run_bot_gym.sh [name filter|all] [runs per scenario]
 #   tools/bot_gym/run_bot_gym.sh                 # everything, once

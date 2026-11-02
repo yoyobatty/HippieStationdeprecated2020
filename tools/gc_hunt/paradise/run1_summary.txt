@@ -1,0 +1,116 @@
+Live round carryover: 360s of game time in 360.7s real time, BYOND 516.1666, mode extended, busy round
+world.cpu: mean 30.4, p95 46.6, max 95.9
+living mobs: start 782, end 885
+crew alive at the end: 57 of 60
+radiation: 34171 pulses, 237783 wave steps; hotspot effects made: 846; UIDs made: 2718
+
+Subsystem CPU time over the round (ms, share of all subsystem time, fires):
+  Atmospherics: 35723 ms, 36.4%, 7149 fires
+  Radiation: 20127 ms, 20.5%, 1340 fires
+  Lighting: 16310 ms, 16.6%, 4250 fires
+  Mobs: 8430 ms, 8.6%, 364 fires
+  Machines: 4011 ms, 4.1%, 301 fires
+  AI Idle Behaviors: 2899 ms, 3%, 286 fires
+  AI Movement: 1867 ms, 1.9%, 7063 fires
+  Weather: 1451 ms, 1.5%, 358 fires
+  Objects: 1448 ms, 1.5%, 185 fires
+  Timer: 1287 ms, 1.3%, 7074 fires
+  Fast Processing: 994 ms, 1%, 1800 fires
+  Unplanned AI Idle Controllers: 536 ms, 0.5%, 145 fires
+  Overlay: 461 ms, 0.5%, 7072 fires
+  NPC Pool: 399 ms, 0.4%, 180 fires
+  AI Idle Controllers: 310 ms, 0.3%, 73 fires
+  Garbage: 221 ms, 0.2%, 180 fires
+  Movement Loops: 217 ms, 0.2%, 7064 fires
+  AI Behavior: 209 ms, 0.2%, 3535 fires
+  Pathfinder: 166 ms, 0.2%, 7064 fires
+  Space Drift: 160 ms, 0.2%, 7067 fires
+  Events: 112 ms, 0.1%, 180 fires
+  Redis: 92 ms, 0.1%, 7067 fires
+  AI Controller: 84 ms, 0.1%, 720 fires
+  Icon Smoothing: 65 ms, 0.1%, 323 fires
+  Runechat: 58 ms, 0.1%, 7069 fires
+  Processing: 58 ms, 0.1%, 360 fires
+  Stat Panels: 48 ms, 0%, 900 fires
+  Throwing: 48 ms, 0%, 7067 fires
+  Projectiles: 41 ms, 0%, 7067 fires
+  Shuttle: 34 ms, 0%, 360 fires
+  Verb Queue Manager: 28 ms, 0%, 7069 fires
+  Input: 23 ms, 0%, 7069 fires
+  Chat: 15 ms, 0%, 7069 fires
+  MouseEntered: 14 ms, 0%, 7069 fires
+  Debug View: 14 ms, 0%, 7067 fires
+  Instruments: 13 ms, 0%, 7063 fires
+  HTTP: 13 ms, 0%, 7064 fires
+  Idling NPC Pool: 9 ms, 0%, 60 fires
+  Sun: 8 ms, 0%, 6 fires
+  Fires: 7 ms, 0%, 180 fires
+  Obj Tab Items: 7 ms, 0%, 3535 fires
+  AI Unplanned Controllers: 7 ms, 0%, 1439 fires
+  Transit Tubes: 6 ms, 0%, 3535 fires
+  Parallax: 5 ms, 0%, 1800 fires
+  Ticker: 4 ms, 0%, 362 fires
+  Fields: 4 ms, 0%, 1800 fires
+  Datum Component System: 3 ms, 0%, 360 fires
+  Mapping: 1 ms, 0%, 180 fires
+  tgui: 1 ms, 0%, 399 fires
+  Ambience: 1 ms, 0%, 360 fires
+  Ghost Spawns: 1 ms, 0%, 360 fires
+  Vote: 1 ms, 0%, 362 fires
+  Acid: 0 ms, 0%, 180 fires
+  Station: 0 ms, 0%, 144 fires
+  Camera: 0 ms, 0%, 144 fires
+  AFK Watcher: 0 ms, 0%, 12 fires
+  Ping: 0 ms, 0%, 90 fires
+  Research: 0 ms, 0%, 6 fires
+  Time Tracking: 0 ms, 0%, 36 fires
+  Null cleanup: 0 ms, 0%, 12 fires
+  Vis contents overlays: 0 ms, 0%, 6 fires
+  Admin Tickets: 0 ms, 0%, 12 fires
+  Mentor Tickets: 0 ms, 0%, 12 fires
+  Economy: 0 ms, 0%, 12 fires
+  Night Shift: 0 ms, 0%, 6 fires
+  Database: 0 ms, 0%, 6 fires
+  Jobs: 0 ms, 0%, 1 fires
+  total: 98051 ms
+
+Hard deletes during the round (type: count, total ms):
+  /obj/effect/spawner/random/loot/good_times: 2, 0 ms
+  /obj/effect/spawner/random/loot/coins: 1, 0 ms
+  /obj/effect/spawner/random/loot/space_kit: 1, 0 ms
+  /obj/effect/spawner/random/loot/outfit/fancy: 2, 0 ms
+  /obj/effect/spawner/random/loot/outfit/shorts: 1, 0 ms
+  /obj/effect/meteor/big: 1, 0 ms
+  /obj/effect/meteor/irradiated: 1, 49.9 ms
+
+Atmos stages (real ms over the round):
+  fire_sleepless (all stages): 35693 ms
+  atmos machinery: 16933 ms
+  interesting tiles: 7919 ms
+  pipenets: 6609 ms
+  windy tiles: 2510 ms
+  hotspots: 820 ms
+  bound mixtures: 425 ms
+  milla_safe callbacks after the MILLA tick: 167 ms
+  build pipenets: 141 ms
+  pressure overlay: 13 ms
+Atmos tiles handled: interesting 1015600, windy 947551
+Atmos cycles: 1942
+Atmos machines by type (real ms, calls, us per call):
+  /obj/machinery/atmospherics/unary/vent_scrubber/on: 5750 ms, 733993 calls, 7.83 us
+  /obj/machinery/atmospherics/unary/vent_pump/on: 2704 ms, 789825 calls, 3.42 us
+  /obj/machinery/atmospherics/pipe/simple/heat_exchanging: 1149 ms, 260228 calls, 4.41 us
+  /obj/machinery/atmospherics/portable/canister/air: 903 ms, 302952 calls, 2.98 us
+  /obj/machinery/atmospherics/meter: 649 ms, 139824 calls, 4.64 us
+  /obj/machinery/atmospherics/portable/canister/oxygen: 373 ms, 104868 calls, 3.55 us
+  /obj/machinery/atmospherics/unary/outlet_injector/on: 310 ms, 66028 calls, 4.7 us
+  /obj/machinery/atmospherics/unary/vent_scrubber: 249 ms, 19420 calls, 12.8 us
+  /obj/machinery/atmospherics/portable/canister/toxins: 206 ms, 54376 calls, 3.79 us
+  /obj/machinery/atmospherics/unary/passive_vent: 194 ms, 11652 calls, 16.64 us
+  /obj/machinery/atmospherics/portable/canister/sleeping_agent: 193 ms, 58260 calls, 3.31 us
+  /obj/machinery/atmospherics/pipe/simple/heat_exchanging/junction: 156 ms, 17478 calls, 8.94 us
+  /obj/machinery/atmospherics/unary/vent_pump/high_volume: 125 ms, 91787 calls, 1.36 us
+  /obj/machinery/atmospherics/unary/portables_connector: 123 ms, 223330 calls, 0.55 us
+  /obj/machinery/atmospherics/portable/canister/nitrogen: 116 ms, 34956 calls, 3.32 us
+
+per second ms: 169.5,231.2,152.3,296.4,178.8,113,224.7,132.1,208.9,136.1,205.4,104.5,202.2,144.7,181.1,147.4,233.2,131.9,232.1,138.1,181,159.3,252.3,135.2,259.8,149.6,196,128.6,261.2,94.4,181.2,148.7,169.3,139.7,188.3,127.5,262.6,177.8,176.3,112.4,180.4,94.9,204.4,123.5,166,98.1,166.8,107.1,191.6,113.7,227.3,165.4,218.3,160.2,271.9,145.7,230.6,172.4,256.3,143.5,202.4,259.3,266.3,229.5,279.6,259.6,469.6,288.6,320.3,222.9,313.5,305.8,339.2,297.9,362.3,317.1,363.2,297.6,372.7,301.3,339.6,305.4,361.3,275.2,325.3,295.1,307.4,262.5,307.2,263.8,361.9,307.8,372.1,265.9,278.7,197.4,320.8,243.8,314.1,293.9,281,183.8,340.2,234,278.4,250.4,281,168.4,385.8,199.4,290.7,233.6,326.8,237.6,279.4,218.9,280.3,242.8,276,207.1,296.3,447.5,369.1,266.9,371.3,229.7,395.8,284.2,368.5,347.8,333.3,273.5,397.8,286.9,393.7,321,390.9,307.2,477.5,318.2,394.8,332.8,414.3,298,415.7,304,373.9,286.1,395.1,310,462.1,311.6,356,294.7,347.1,314.9,350.3,277.2,383.1,239.5,342.9,223.7,313.6,241.6,306.8,891.5,410.7,165.9,259.6,184,240.2,186.5,254.8,175.1,256.9,195,227.3,175.4,261,150.7,228.4,176.6,216,160.3,207.6,182.8,247.1,198,252.8,134.3,225.4,123.1,213.3,149.6,198.3,132.4,214.8,122.9,275.3,135,226.9,166.7,217.6,127.1,214.3,185.9,178.4,175.3,214.8,133.6,186.7,144.8,184.2,143,193.1,166.8,187.4,149.4,220,181,206.7,105.8,180.1,142.5,198.2,121.6,186.5,166.5,230.5,207.5,234.6,188.8,243.4,157.9,215.1,153.5,185.5,164.8,222.9,156.9,194.2,188,207.4,163.2,252.8,732.3,730,926.1,711.7,279.7,384.7,272.6,380,255.7,328.9,270.1,365.3,244.4,377.1,254.5,370.7,263.9,329.1,242.4,324.1,225.5,305.8,261.2,330.1,231.3,420.4,416.9,453.6,299,444.5,289.8,396.2,312.7,406,250.5,365.8,251.9,375.2,280,362.8,272,376.8,265.3,376.7,277.6,418.5,304.1,371.9,298.3,393.3,287.6,347.9,348.3,358,318.8,370.8,370.1,396.4,337.5,422.4,365.8,437.6,321.9,406.3,304.8,420.5,306.2,410.8,319.5,385,282.1,364.8,265.8,388.2,294.9,371.8,292.7,365.5,265.6,340.4,266.8,339.5,296.4,394.7,239.8,398.6,245,460.1,296.7,343.2,236.4,353,241.2,372.3,260.1,326.7,247.5,354.8,272.9,356.2,231.9,345.7,253.3,350.8,226.3,279.9,242.8,309.6,250.7,279,248.1,318.6,245,359.4,229

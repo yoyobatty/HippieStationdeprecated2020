@@ -750,6 +750,7 @@ Difficulty: Very Hard
 	START_PROCESSING(SSobj, src)
 
 /obj/structure/closet/stasis/Entered(atom/A)
+	. = ..() // hippie -- without this, whatever left stayed on important_recursive_contents and could only be hard deleted
 	if(isliving(A) && holder_animal)
 		var/mob/living/L = A
 		L.notransform = 1

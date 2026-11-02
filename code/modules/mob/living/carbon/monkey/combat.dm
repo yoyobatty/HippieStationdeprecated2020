@@ -68,12 +68,21 @@
 		for(var/mob/living/carbon/monkey/M in view(7,src))
 			M.next_battle_screech = world.time + battle_screech_cooldown
 
+/// hippie -- anything a monkey gave up on stayed on this list after it was deleted, and had to be hard deleted
+/mob/living/carbon/monkey/proc/blacklist_item(obj/item/I)
+	if(!blacklistItems[I])
+		RegisterSignal(I, COMSIG_PARENT_QDELETING, PROC_REF(forget_blacklisted_item))
+	blacklistItems[I]++
+
+/mob/living/carbon/monkey/proc/forget_blacklisted_item(datum/source)
+	blacklistItems -= source
+
 /mob/living/carbon/monkey/proc/equip_item(obj/item/I)
 	if(I.loc == src)
 		return TRUE
 
 	if(I.anchored)
-		blacklistItems[I] ++
+		blacklist_item(I)
 		return FALSE
 
 	// WEAPONS
@@ -97,7 +106,7 @@
 			put_in_hands(I)
 			return TRUE
 
-	blacklistItems[I] ++
+	blacklist_item(I)
 	return FALSE
 
 /mob/living/carbon/monkey/proc/pickup_and_wear(var/obj/item/clothing/C)
@@ -136,7 +145,7 @@
 		else
 			pickupTimer++
 			if(pickupTimer >= 4)
-				blacklistItems[pickupTarget] ++
+				blacklist_item(pickupTarget)
 				pickupTarget = null
 				pickupTimer = 0
 			else

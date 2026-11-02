@@ -73,6 +73,7 @@
 
 /datum/bot_brain/New(mob/living/carbon/human/new_owner)
 	. = ..()
+	bot_index_objs() //bot_registry.dm - the one world scan, as the first bot wakes up instead of in the middle of its thinking
 	owner = new_owner
 	owner.bot_brain = src
 	next_chat_time = world.time + rand(50, 150)
@@ -110,7 +111,8 @@
 /// deletes, at 15-50 ms a time, each of them the server standing still.
 /datum/bot_brain/proc/forget_deleted()
 	next_forget_time = world.time + 1 MINUTES
-	for(var/list/memory in list(failed_blockers, failed_tool_targets, known_tool_sources, failed_engine_parts, failed_atmos_parts, set_down_items, door_button_presses, door_buttons_out_of_reach, busy_doors))
+	GLOB.bot_toxins?.forget_deleted()
+	for(var/list/memory in list(failed_blockers, failed_tool_targets, known_tool_sources, failed_engine_parts, failed_atmos_parts, set_down_items, door_button_presses, door_buttons_out_of_reach, busy_doors, breach_kit_cache))
 		for(var/datum/thing in memory.Copy())
 			if(QDELETED(thing))
 				memory -= thing

@@ -1,4 +1,5 @@
 #!/bin/bash
+unset __COMPAT_LAYER # Git Bash sets it, and under it dm.exe leaks two kernel handles for every file it opens until the next reboot
 # Keybind check with a real client (see keybind_check.dm). A BYOND window opens on the desktop for a minute or two.
 # Usage: tools/keybind_check/run.sh [label]     results in data/keycheck_<label>.txt
 # Won't start with a game window already open: DreamSeeker is one instance per machine and it would take that window over.

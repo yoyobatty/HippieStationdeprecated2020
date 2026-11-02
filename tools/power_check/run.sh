@@ -1,4 +1,5 @@
 #!/bin/bash
+unset __COMPAT_LAYER # Git Bash sets it, and under it dm.exe leaks two kernel handles for every file it opens until the next reboot
 # Headless check on the real station, no game window (see update_check.dm). Results in data/update_check_<label>.txt
 # Usage: tools/power_check/run.sh [label]     HARNESS=other.dm picks another check in this folder
 # Builds its own dmb, so a server running hippiestation.dmb isn't touched.

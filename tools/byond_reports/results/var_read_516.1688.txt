@@ -1,0 +1,15 @@
+Logging in...
+BYOND pager is offline. Connecting as Guest.
+Mon Nov  2 10:58:09 2026
+World opened on network port 59929.
+Welcome BYOND! (5.0 Public Version 516.1688)
+BYOND 516.1688
+65025 turfs, median of 6 passes, ns a read
+DM, the loop alone: 37.6
+DM, loop and a var changed on every turf: 121.7
+DM, loop and a var left at its default: 177.1
+Byondapi, one call a turf, changed var: 94.9
+Byondapi, one call a turf, default var: 120.5
+Byondapi, the whole list in one call, per item: 0.4
+done
+exit 0

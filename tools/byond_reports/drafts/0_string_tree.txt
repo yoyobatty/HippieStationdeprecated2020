@@ -1,0 +1,97 @@
+<b>BYOND Version:</b> 516.1688
+<b>Operating System:</b> Windows 11
+<b>Applies to:</b> Dream Daemon
+
+<b>Descriptive Problem Summary:</b>
+Strings kept alive in sorted order are much slower to create than the same strings in shuffled order, and about every 982 of them the server stalls. The stall grows with the number of strings in the world. In our game, HippieStation, one stall is about 60 ms, which is more than two ticks at 40 fps.
+
+300,000 strings on 516.1688:
+Sorted: 4,314 ms, 14.4 us each, 291 stalls over 1 ms costing 3,363 ms, worst 26.7 ms
+Shuffled: 298 ms, 1 us each, no stalls, worst 0.1 ms
+
+Descending order behaves like ascending order, and the shape of the text doesn't matter. Text landing past the end of a sorted run stays slow as well, about 8 us against 0.4 us in our game, while unrelated text stays fast.
+
+From the outside it looks like the string tree isn't balanced on insert, so sorted strings build one long branch, and reaching a fixed depth triggers a rebuild of the whole tree. That's a guess. What I can see is that the 982 stays the same however many strings exist, while the stall grows, and that byondapi.h calls it a tree.
+
+Sorted strings are common in practice. A new datum's ref usually goes up with its ID, so "\ref[D]" on new datums is a sorted series. Our garbage collector keeps "\ref[D]" for each queued datum, and in two boots, 7 and 9 of these stalls took about 80% of the time spent in its Queue() proc. It's fine once the game is running: over a 95 minute round the same proc made 391,510 calls with no stalls, because IDs are being recycled by then and no longer arrive in order. So for us this is a boot cost today, and a trap for anything that keeps a sorted series alive.
+
+<b>Numbered Steps to Reproduce Problem:</b>
+1. Compile and run the code below.
+2. Read world.log.
+
+<b>Code Snippet (if applicable) to Reproduce Problem:</b>
+<dm>
+// The same strings kept alive, made in sorted order and then in shuffled order. Stand-alone: dm sorted_strings.dm, then dd sorted_strings.dmb -invisible.
+// Results go to world.log. Only the line that builds each string is timed.
+
+#define TOTAL 300000
+#define STALL_MS 1
+
+/world
+	fps = 20
+
+/proc/make_strings(label, list/numbers)
+	var/list/kept = new/list(TOTAL)
+	var/total = 0
+	var/stalls = 0
+	var/stall_total = 0
+	var/worst = 0
+	var/last = 0
+	var/gap = 0
+	for(var/i in 1 to TOTAL)
+		var/n = numbers[i]
+		var/t0 = world.tick_usage
+		var/text = "item [num2text(n, 8, 16)]"
+		var/ms = (world.tick_usage - t0) * world.tick_lag
+		kept[i] = text
+		total += ms
+		worst = max(worst, ms)
+		if(ms > STALL_MS)
+			stalls++
+			stall_total += ms
+			if(last)
+				gap = i - last
+			last = i
+		if(!(i % 10000))
+			sleep(1)
+	world.log << "[label]: [round(total)] ms for [TOTAL] strings, mean [round(total * 1000 / TOTAL, 0.1)] us, [stalls] stalls over [STALL_MS] ms costing [round(stall_total)] ms, worst [round(worst, 0.1)] ms, last gap between stalls [gap] strings"
+
+/proc/run_cases()
+	world.log << "BYOND [world.byond_version].[world.byond_build]"
+	var/list/numbers = new/list(TOTAL)
+	for(var/i in 1 to TOTAL)
+		numbers[i] = i
+	make_strings("sorted", numbers)
+	sleep(5)
+	for(var/i in TOTAL to 2 step -1)
+		numbers.Swap(i, rand(1, i))
+	make_strings("shuffled", numbers)
+	world.log << "done"
+	del(world)
+
+/world/New()
+	. = ..()
+	spawn(5)
+		run_cases()
+</dm>
+
+<b>Expected Results:</b>
+Similar cost for the same strings in either order, with no stalls.
+
+<b>Actual Results:</b>
+Sorted order is about 14 times slower, with a stall about every 982 strings. Most of the extra time is in the stalls.
+
+<b>Does the problem occur:</b>
+<b>Every time? Or how often?</b> Every time.
+<b>In other games?</b> Yes, the test project is stand-alone.
+<b>In other user accounts?</b> Not tested.
+<b>On other computers?</b> Not tested.
+
+<b>When does the problem NOT occur?</b>
+When the strings are made in shuffled order, or when each string is dropped straight away, so the branch never grows.
+
+<b>Did the problem NOT occur in any earlier versions? If so, what was the last version that worked?</b>
+Same result on 516.1666. I haven't tried anything older.
+
+<b>Workarounds:</b>
+Avoid keeping long sorted runs of strings alive, for example by storing something other than a text ref where that's possible.

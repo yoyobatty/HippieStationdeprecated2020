@@ -250,6 +250,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 	sortTim(subsystems, /proc/cmp_subsystem_display)
 	// Set world options.
 	world.fps = CONFIG_GET(number/fps)
+	SStimer.reset_buckets() // hippie -- sized for the rate at PreInit: above 20 ticks, a timer set before SStimer next fires lands off the end and is lost
 	var/initialized_tod = REALTIMEOFDAY
 
 	if(sleep_offline_after_initializations)

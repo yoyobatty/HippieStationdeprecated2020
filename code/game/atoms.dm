@@ -107,6 +107,8 @@
 	if(reagents)
 		qdel(reagents)
 
+	QDEL_NULL(wires) // hippie -- wires and their holder point at each other, so anything wired without its own cleanup could only be hard deleted
+
 	orbiters = null // The component is attached to us normaly and will be deleted elsewhere
 
 	LAZYCLEARLIST(overlays)

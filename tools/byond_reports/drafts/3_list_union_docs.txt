@@ -1,0 +1,92 @@
+<b>BYOND Version:</b> 516.1688
+<b>Operating System:</b> Windows 11
+<b>Applies to:</b> DM Language (documentation)
+
+<b>Descriptive Problem Summary:</b>
+With lists, A |= B keeps repeated items from B and can add an item that's already in A. The reference for |= says: "any items in B that are not already in A are added to A." The | operator does the same thing.
+
+The behaviour looks like a counted union, where each item ends up as many times as the larger of its counts in A and B. That may well be intended, and code may rely on it, so I'm not asking for it to change. If it's intended, the reference should say so.
+
+<b>Numbered Steps to Reproduce Problem:</b>
+1. Compile and run the code below.
+2. Read world.log.
+
+<b>Code Snippet (if applicable) to Reproduce Problem:</b>
+<dm>
+// Duplicates inside the right-hand list of | and |=. Stand-alone: dm list_union.dm, then dd list_union.dmb -invisible.
+// The reference: "If A and B are lists, any items in B that are not already in A are added to A."
+
+/world
+	fps = 20
+
+/proc/show(label, list/L, expected)
+	world.log << "[label]: [L.len] items [json_encode(L)], the reference's reading gives [expected]"
+
+/proc/run_cases()
+	world.log << "BYOND [world.byond_version].[world.byond_build]"
+
+	var/list/a = list(1)
+	a |= list(2, 2)
+	show("a = list(1); a |= list(2, 2)", a, 2)
+
+	var/list/b = list()
+	b |= list("x", "x", "x")
+	show("b = list(); b |= list(\"x\", \"x\", \"x\")", b, 1)
+
+	var/list/c = list(2)
+	c |= list(2, 2)
+	show("c = list(2); c |= list(2, 2)", c, 1)
+
+	var/list/f = list(2, 2)
+	f |= list(2, 2, 2)
+	show("f = list(2, 2); f |= list(2, 2, 2)", f, 2)
+
+	show("list(1) | list(2, 2)", list(1) | list(2, 2), 2)
+	show("list() | list(\"x\", \"x\", \"x\")", list() | list("x", "x", "x"), 1)
+
+	var/list/d = list(1)
+	for(var/item in list(2, 2))
+		d |= item
+	show("d = list(1); for each of list(2, 2): d |= item", d, 2)
+
+	var/datum/thing = new
+	var/list/e = list()
+	e |= list(thing, thing)
+	world.log << "e = list(); e |= list(datum, datum): [e.len] items, the reference's reading gives 1"
+
+	world.log << "done"
+	del(world)
+
+/world/New()
+	. = ..()
+	spawn(5)
+		run_cases()
+</dm>
+
+<b>Expected Results:</b>
+Going by the reference's wording:
+list(1) |= list(2, 2) gives [1,2]
+list(2) |= list(2, 2) gives [2]
+list(2, 2) |= list(2, 2, 2) gives [2,2]
+
+<b>Actual Results:</b>
+list(1) |= list(2, 2) gives [1,2,2]
+list(2) |= list(2, 2) gives [2,2]
+list(2, 2) |= list(2, 2, 2) gives [2,2,2]
+
+<b>Does the problem occur:</b>
+<b>Every time? Or how often?</b> Every time.
+<b>In other games?</b> Yes, it's a plain list operation. The test project is stand-alone.
+<b>In other user accounts?</b> Not tested.
+<b>On other computers?</b> Not tested.
+
+<b>When does the problem NOT occur?</b>
+When B has no repeats, or when items are added one at a time. for(var/item in list(2, 2)) d |= item gives [1,2].
+
+<b>Did the problem NOT occur in any earlier versions? If so, what was the last version that worked?</b>
+Same result on 516.1666. I haven't tried anything older.
+
+<b>Workarounds:</b>
+Add items one at a time, or remove repeats from B first.
+
+For context, this caused a real bug in our game: a helper built a list with the same mob in it twice, and |= passed the repeat through, so everyone with a headset heard each radio message twice.

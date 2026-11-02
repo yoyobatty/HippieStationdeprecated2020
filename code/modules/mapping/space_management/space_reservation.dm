@@ -60,7 +60,11 @@
 		T.flags_1 &= ~UNUSED_RESERVATION_TURF_1
 		SSmapping.unused_turfs["[T.z]"] -= T
 		SSmapping.used_turfs[T] = src
+	// hippie -- all claimed above, so changing them can wait for the next tick: SSshuttle can't pause by itself, and ~700 turfs in one go was a 47 ms hitch per shuttle trip
+	for(var/i in final)
+		var/turf/T = i
 		T.ChangeTurf(turf_type, turf_type)
+		CHECK_TICK
 	src.width = width
 	src.height = height
 	return TRUE

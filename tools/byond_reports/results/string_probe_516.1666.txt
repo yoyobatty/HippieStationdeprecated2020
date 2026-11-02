@@ -1,0 +1,33 @@
+Logging in...
+BYOND pager is offline. Connecting as Guest.
+Mon Nov  2 11:12:12 2026
+Auto-safety mode: safe (working directory access)
+World opened on network port 59828.
+Welcome BYOND! (5.0 Public Version 516.1666)
+BYOND 516.1666, 20 ticks, tick_lag 0.5
+pass 1
+nothing: mean 0.05 us, median 0, 99% under 0.1, worst 0.2
+text that already exists: mean 0.17 us, median 0.1, 99% under 0.2, worst 7.2
+unique text, kept: mean 0.42 us, median 0.3, 99% under 1.4, worst 11.1
+unique text, dropped: mean 0.35 us, median 0.3, 99% under 0.5, worst 6.1
+new datum: mean 0.17 us, median 0.1, 99% under 0.7, worst 57.8
+\ref of a kept datum, first time: mean 0.28 us, median 0.2, 99% under 0.5, worst 4.7
+\ref of a kept datum, second time: mean 0.27 us, median 0.2, 99% under 0.3, worst 5.3
+after an untimed new: nothing: mean 0.05 us, median 0, 99% under 0.1, worst 0.3
+after an untimed new: text that already exists: mean 0.19 us, median 0.2, 99% under 0.2, worst 3.8
+after an untimed new: unique text: mean 0.42 us, median 0.3, 99% under 0.7, worst 16.3
+after an untimed new: \ref of it: mean 0.28 us, median 0.2, 99% under 0.3, worst 14.3
+pass 2
+nothing: mean 0.06 us, median 0, 99% under 0.1, worst 0.3
+text that already exists: mean 0.25 us, median 0.2, 99% under 0.4, worst 3.7
+unique text, kept: mean 0.37 us, median 0.3, 99% under 0.5, worst 15.5
+unique text, dropped: mean 0.36 us, median 0.3, 99% under 0.4, worst 59.4
+new datum: mean 0.1 us, median 0.1, 99% under 0.2, worst 5.3
+\ref of a kept datum, first time: mean 0.31 us, median 0.2, 99% under 0.6, worst 27.5
+\ref of a kept datum, second time: mean 0.28 us, median 0.2, 99% under 0.3, worst 6.9
+after an untimed new: nothing: mean 0.06 us, median 0, 99% under 0.1, worst 0.5
+after an untimed new: text that already exists: mean 0.22 us, median 0.2, 99% under 0.6, worst 59.1
+after an untimed new: unique text: mean 0.36 us, median 0.3, 99% under 0.4, worst 5.3
+after an untimed new: \ref of it: mean 0.26 us, median 0.2, 99% under 0.3, worst 5.3
+done
+exit 0

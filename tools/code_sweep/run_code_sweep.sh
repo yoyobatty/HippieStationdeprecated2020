@@ -1,4 +1,5 @@
 #!/bin/bash
+unset __COMPAT_LAYER # Git Bash sets it, and under it dm.exe leaks two kernel handles for every file it opens until the next reboot
 # Code sweep: one of everything, to see what breaks (hippiestation/code/modules/admin/code_sweep.dm).
 # Usage: tools/code_sweep/run_code_sweep.sh [atoms,turfs,reagents,reactions,crafting,ui]
 # Environment: NOCOMPILE=1, PORT=45300, MAP=boxstation

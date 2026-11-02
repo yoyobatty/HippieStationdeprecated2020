@@ -33,6 +33,8 @@ import subprocess
 import sys
 import time
 
+os.environ.pop("__COMPAT_LAYER", None)  # Git Bash sets it, and under it dm.exe leaks two kernel handles for every file it opens until the next reboot
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 BYOND_BIN = os.environ.get("BYOND_BIN", r"C:\Program Files (x86)\BYOND\bin")
 RESULTS_DIR = os.path.join(ROOT, "data", "boot_bench")

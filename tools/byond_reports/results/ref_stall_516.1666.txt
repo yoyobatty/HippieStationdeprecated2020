@@ -1,0 +1,21 @@
+Logging in...
+BYOND pager is offline. Connecting as Guest.
+Mon Nov  2 10:46:01 2026
+Auto-safety mode: safe (working directory access)
+World opened on network port 55824.
+Welcome BYOND! (5.0 Public Version 516.1666)
+BYOND 516.1666
+unique text, no \ref, datum kept alive, 0 other datums alive: 5000 calls, mean 0.6 us, 0 over 5 ms, worst 0 ms, no pattern, about 0 ms by the wall clock
+\ref, datum kept alive, 0 other datums alive: 5000 calls, mean 0.4 us, 0 over 5 ms, worst 0.2 ms, no pattern, about 0 ms by the wall clock
+\ref again of a kept datum, 0 other datums alive: 5000 calls, mean 0.3 us, 0 over 5 ms, worst 0 ms, no pattern, about 0 ms by the wall clock
+\ref, datum dropped straight away, 0 other datums alive: 5000 calls, mean 0.4 us, 0 over 5 ms, worst 0 ms, no pattern, about 0 ms by the wall clock
+unique text, no \ref, datum kept alive, 100000 other datums alive: 5000 calls, mean 0.5 us, 0 over 5 ms, worst 0.2 ms, no pattern, about 0 ms by the wall clock
+\ref, datum kept alive, 100000 other datums alive: 5000 calls, mean 0.4 us, 0 over 5 ms, worst 0 ms, no pattern, about 0 ms by the wall clock
+\ref again of a kept datum, 100000 other datums alive: 5000 calls, mean 0.3 us, 0 over 5 ms, worst 0 ms, no pattern, about 0 ms by the wall clock
+\ref, datum dropped straight away, 100000 other datums alive: 5000 calls, mean 0.3 us, 0 over 5 ms, worst 0 ms, no pattern, about 0 ms by the wall clock
+unique text, no \ref, datum kept alive, 1000000 other datums alive: 5000 calls, mean 0.4 us, 0 over 5 ms, worst 0 ms, no pattern, about 0 ms by the wall clock
+\ref, datum kept alive, 1000000 other datums alive: 5000 calls, mean 0.3 us, 0 over 5 ms, worst 0 ms, no pattern, about 0 ms by the wall clock
+\ref again of a kept datum, 1000000 other datums alive: 5000 calls, mean 0.3 us, 0 over 5 ms, worst 0 ms, no pattern, about 0 ms by the wall clock
+\ref, datum dropped straight away, 1000000 other datums alive: 5000 calls, mean 0.3 us, 0 over 5 ms, worst 0 ms, no pattern, about 0 ms by the wall clock
+done
+exit 0

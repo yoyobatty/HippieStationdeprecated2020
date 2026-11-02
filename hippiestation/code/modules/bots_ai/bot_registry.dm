@@ -5,12 +5,27 @@
 // at ~17ms per scan against a 50ms server tick, and acquire_tool could run up to five of
 // those in one decision. Iterating a list of just the instances takes ~0.01ms.
 //
-// Lists are built lazily: the first bot_instances_of(type) call pays for one world scan,
-// after which /obj/Initialize() and /obj/Destroy() keep the list current. Until a bot asks
-// for a type, the per-object cost is a length() check on an empty list.
+// One world scan files every obj under its exact type, as the first bot wakes up (bot_index_objs()),
+// and /obj/Initialize() and /obj/Destroy() keep that current. A type's first bot_instances_of()
+// puts its list together from the types under it. That used to be a world scan of its own, one a
+// type, in the middle of a bot's thinking: 44-77 ms each, late ticks all through the early round.
+// With no bots there's no scan, and the per-object cost is one check of a global.
 
 /// Typepath -> assoc list of live instances (instance -> TRUE) of that type and its subtypes.
 GLOBAL_LIST_EMPTY(bot_type_registry)
+/// Exact typepath -> assoc list of live objs of just that type.
+GLOBAL_LIST_EMPTY(bot_objs_by_type)
+/// Exact typepath -> the types in bot_type_registry it counts towards. Cleared whenever one is added.
+GLOBAL_LIST_EMPTY(bot_tracked_parents)
+GLOBAL_VAR_INIT(bot_objs_indexed, FALSE)
+
+/proc/bot_index_objs()
+	if(GLOB.bot_objs_indexed)
+		return
+	GLOB.bot_objs_indexed = TRUE
+	for(var/obj/O in world)
+		if(!QDELETED(O))
+			bot_registry_add(O)
 
 /// Returns the live instances of `type` (and subtypes) as an assoc list; iterate its keys.
 /// The returned list is the registry's own - don't modify it. Entries can still be mid-deletion,
@@ -19,28 +34,44 @@ GLOBAL_LIST_EMPTY(bot_type_registry)
 	var/list/instances = GLOB.bot_type_registry[type]
 	if(instances)
 		return instances
+	bot_index_objs()
 	instances = list()
-	if(ispath(type, /obj/machinery)) //every machine is on this list: a thousandth of the world, for a scan bots feel as a hitch
-		for(var/obj/machinery/M as anything in GLOB.machines)
-			if(istype(M, type) && !QDELETED(M))
-				instances[M] = TRUE
-	else
-		for(var/obj/O in world)
-			if(istype(O, type) && !QDELETED(O))
-				instances[O] = TRUE
+	var/list/by_type = GLOB.bot_objs_by_type
+	for(var/path in typesof(type))
+		for(var/obj/O as anything in by_type[path])
+			instances[O] = TRUE
 	GLOB.bot_type_registry[type] = instances
+	GLOB.bot_tracked_parents.Cut()
 	return instances
 
-/// Called from /obj/Initialize() once any type is being tracked.
-/proc/bot_registry_add(obj/O)
+/// The tracked types an exact type counts towards, so a new or deleted obj doesn't have to ask about every tracked type.
+/proc/bot_tracked_parents_of(path)
+	. = GLOB.bot_tracked_parents[path]
+	if(.)
+		return
+	. = list()
 	for(var/type in GLOB.bot_type_registry)
-		if(istype(O, type))
-			var/list/instances = GLOB.bot_type_registry[type]
-			instances[O] = TRUE
+		if(ispath(path, type))
+			. += type
+	GLOB.bot_tracked_parents[path] = .
 
-/// Called from /obj/Destroy() once any type is being tracked.
+/// Called from /obj/Initialize() once the index exists.
+/proc/bot_registry_add(obj/O)
+	var/path = O.type
+	var/list/same = GLOB.bot_objs_by_type[path]
+	if(!same)
+		same = list()
+		GLOB.bot_objs_by_type[path] = same
+	same[O] = TRUE
+	for(var/type in bot_tracked_parents_of(path))
+		var/list/instances = GLOB.bot_type_registry[type]
+		instances[O] = TRUE
+
+/// Called from /obj/Destroy() once the index exists.
 /proc/bot_registry_remove(obj/O)
-	for(var/type in GLOB.bot_type_registry)
-		if(istype(O, type))
-			var/list/instances = GLOB.bot_type_registry[type]
-			instances -= O
+	var/path = O.type
+	var/list/same = GLOB.bot_objs_by_type[path]
+	same -= O
+	for(var/type in bot_tracked_parents_of(path))
+		var/list/instances = GLOB.bot_type_registry[type]
+		instances -= O

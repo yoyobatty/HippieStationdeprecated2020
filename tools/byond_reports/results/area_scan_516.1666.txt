@@ -1,0 +1,15 @@
+Logging in...
+BYOND pager is offline. Connecting as Guest.
+Mon Nov  2 11:01:56 2026
+Auto-safety mode: safe (working directory access)
+World opened on network port 52537.
+Welcome BYOND! (5.0 Public Version 516.1666)
+BYOND 516.1666
+area holds 200 turfs
+10000 turfs in the world: area.contents.len 0.01 ms (200); for(turf in area) 0.06 ms (200); area.contents.Copy() 0.02 ms (200); locate(/turf) in area 0 ms (1); for(turf in a plain list of the same turfs) 0.01 ms (200)
+65025 turfs in the world: area.contents.len 0.04 ms (200); for(turf in area) 0.05 ms (200); area.contents.Copy() 0.05 ms (200); locate(/turf) in area 0 ms (1); for(turf in a plain list of the same turfs) 0.02 ms (200)
+260100 turfs in the world: area.contents.len 0.2 ms (200); for(turf in area) 0.14 ms (200); area.contents.Copy() 0.18 ms (200); locate(/turf) in area 0 ms (1); for(turf in a plain list of the same turfs) 0.01 ms (200)
+520200 turfs in the world: area.contents.len 0.33 ms (200); for(turf in area) 0.31 ms (200); area.contents.Copy() 0.29 ms (200); locate(/turf) in area 0 ms (1); for(turf in a plain list of the same turfs) 0.01 ms (200)
+780300 turfs in the world: area.contents.len 0.44 ms (200); for(turf in area) 0.4 ms (200); area.contents.Copy() 0.57 ms (200); locate(/turf) in area 0 ms (1); for(turf in a plain list of the same turfs) 0.02 ms (200)
+done
+exit 0

@@ -1,0 +1,41 @@
+<b>BYOND Version:</b> 516.1688
+<b>Operating System:</b> Windows 11
+<b>Applies to:</b> Dream Daemon (Byondapi documentation)
+
+<b>Descriptive Problem Summary:</b>
+The change list at line 62 of byondapi.h says "Temporary refs have been abolished. All references are persistent." Other parts of the same header still describe temporary references as current behaviour, and still tell the reader to call ByondValue_DecTempRef(). That function isn't declared in the header and isn't in byondcore.dll or byondapi.lib.
+
+Line numbers from the 516.1688 header:
+Lines 377-380: "you don't need to worry about reference counting. The main thread uses temporary references that will clean themselves up at tick's end."
+Line 396: says references in a callback are "persistent, not temporary, even though your callback runs on the main thread", which reads as though other main thread calls are still temporary.
+Lines 762-771: "Temporary references are made when you call Byondapi on the main thread. They will be removed at the end of the current server tick." and the advice to call ByondValue_DecTempRef().
+Line 787: mentions ByondValue_DecTempRef().
+Line 816: "This cannot be used for temporary references. See ByondValue_DecTempRef() for those."
+
+<b>Numbered Steps to Reproduce Problem:</b>
+1. Open byondapi/byondapi.h from a 516.1688 install.
+2. Read line 62, then the lines listed above.
+
+<b>Code Snippet (if applicable) to Reproduce Problem:</b>
+None, this is the header's text.
+
+<b>Expected Results:</b>
+The header agrees with the 516.1674 change: every reference is persistent, and a referenced result has to be released with ByondValue_DecRef().
+
+<b>Actual Results:</b>
+The sections above tell the reader the opposite. Anyone following lines 377-380 won't release the refs from main thread calls, and those refs now stay.
+
+<b>Does the problem occur:</b>
+<b>Every time? Or how often?</b> It's in the file.
+<b>In other games?</b> Not game specific.
+<b>In other user accounts?</b> Not applicable.
+<b>On other computers?</b> Not applicable.
+
+<b>When does the problem NOT occur?</b>
+Not applicable.
+
+<b>Did the problem NOT occur in any earlier versions? If so, what was the last version that worked?</b>
+The text was correct before 516.1674.
+
+<b>Workarounds:</b>
+Treat every referenced result as persistent, and ignore the sections above.

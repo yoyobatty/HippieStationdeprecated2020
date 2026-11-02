@@ -1003,6 +1003,7 @@
 	is_currently_ejecting = FALSE
 
 /obj/mecha/Exited(atom/movable/M, atom/newloc)
+	. = ..() // hippie -- without this, whatever left stayed on important_recursive_contents and could only be hard deleted
 	if(occupant && occupant == M) // The occupant exited the mech without calling go_out()
 		go_out(TRUE, newloc)
 

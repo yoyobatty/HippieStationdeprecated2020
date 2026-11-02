@@ -1,0 +1,21 @@
+I'd like to request a Byondapi call that reads the same var from an array of objects in one trip:
+
+<dm>
+// Reads varname from each of locs[0] to locs[count-1] into results[0] to results[count-1].
+DUNGPUB bool Byond_ReadVarsByStrId(CByondValue const *locs, u4c count, u4c varname, CByondValue *results);
+</dm>
+
+<b>Why:</b> Our game (HippieStation) runs its atmos simulation in a native library. Every atmos tick it needs several vars from each active turf, usually hundreds of turfs under load. A native read costs about the same as a DM read, so moving that copying into native code gains nothing, and we pack the data in DM instead. In our last bench, packing took about 2.6 ms of an atmos tick in the heaviest scenario.
+
+<b>Measurements:</b> 516.1688, 65,025 turfs with 24 vars and 12 of them changed from their defaults, Byond_ReadVarByStrId with a cached string ID, median of 6 passes, ns per read. 516.1666 gives similar figures.
+
+DM, the loop alone: 37.6
+DM, loop and a changed var: 121.7 (about 84 for the read)
+DM, loop and a var at its default: 177.1 (about 140 for the read)
+Byondapi, one call per turf, changed var: 94.9
+Byondapi, one call per turf, default var: 120.5
+Byond_ReadList, the whole list in one call, per item: 0.4
+
+<b>What I don't know:</b> A var read still has to find the var on each object, so a batch won't get near list speed. I can't tell how much of the 95 ns is per-call work a batch could skip, like argument checks and the thread check, and how much is the lookup. If the lookup is nearly all of it, a batch won't help much, and that would be useful to know too.
+
+The test is a small C++ DLL and a DM file. I can post them if they'd help.

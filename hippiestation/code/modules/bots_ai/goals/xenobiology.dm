@@ -19,8 +19,7 @@
 
 /// Slime colours bred so far this shift: colour -> TRUE.
 GLOBAL_LIST_EMPTY(bot_slime_colours)
-/// Slime -> when it was last fed.
-GLOBAL_LIST_EMPTY(bot_slimes_fed)
+/mob/living/simple_animal/slime/var/bot_fed_at = 0 //when a bot last dropped it a monkey. Not a global keyed by slime: that held every slime ever fed, so they all hard deleted
 
 /datum/bot_brain
 	var/monkeys_fed = 0
@@ -78,7 +77,7 @@ GLOBAL_LIST_EMPTY(bot_slimes_fed)
 
 /// Whether a slime could do with a monkey.
 /proc/bot_slime_wants_feeding(mob/living/simple_animal/slime/S)
-	if(S.buckled || S.nutrition >= S.get_grow_nutrition() || world.time < GLOB.bot_slimes_fed[S] + BOT_XENO_FEED_GAP)
+	if(S.buckled || S.nutrition >= S.get_grow_nutrition() || world.time < S.bot_fed_at + BOT_XENO_FEED_GAP)
 		return FALSE
 	for(var/mob/living/carbon/monkey/M in range(2, S))
 		if(M.stat != DEAD)
@@ -325,7 +324,7 @@ GLOBAL_LIST_EMPTY(bot_slimes_fed)
 			return FALSE
 		food.LAssailant = bot.owner
 		X.monkeys = round(X.monkeys - 1, 0.1)
-		GLOB.bot_slimes_fed[S] = world.time
+		S.bot_fed_at = world.time
 		bot.monkeys_fed++
 		fed++
 		bot_log(bot, "dropped a monkey in for [S]")

@@ -1,0 +1,93 @@
+The reference notes that looping through an area "actually loops through every turf in the world" and advises against it in a large world. I'd like to request an index instead: each area keeps track of its own turfs, so reaching an area's contents costs what the area costs, not what the world costs.
+
+<b>Why:</b> Space Station 13 games run 255x255x12 maps, which is 780,300 turfs, and they use areas as rooms. Lots of per-room work goes through area contents. In our game (HippieStation), /area/proc/power_change() loops over the machines in src, and there are dozens of similar loops. Each one scans the whole world, however small the room is. The only way around it in DM is to keep our own turf lists and update them on every turf and area change.
+
+<b>Measurements:</b> 516.1688, a 200-turf area, mean ms over 10 repeats. 516.1666 shows the same pattern. Figures move by up to about 30% between runs.
+
+Turfs in world / area.contents.len / for(turf in area) / area.contents.Copy() / plain list of the same turfs
+10,000 / 0.01 / 0.02 / 0.02 / 0.02
+65,025 / 0.04 / 0.04 / 0.05 / 0.02
+260,100 / 0.13 / 0.11 / 0.14 / 0.02
+520,200 / 0.26 / 0.20 / 0.26 / 0.02
+780,300 / 0.54 / 0.35 / 0.44 / 0.02
+
+locate(/turf) in area stays at or under 0.01 ms at every size, so that path is already fine.
+
+<b>Syntax:</b> None needed. The existing contents, for() and locate() forms would just get faster.
+
+<b>Possible approach:</b> If maintaining an index would cost too much for games that never read area contents, it could be built the first time an area's contents are read and kept up from then on. A read-only area.turfs list would also solve this for us, if changing contents itself is too risky.
+
+I found your note in http://www.byond.com/forum/post/1860571 that areas don't store their contents in a convenient way, and the 509 fixes to looping over them, so I understand this is a known design limit. I couldn't find an existing request for an index, though I may have missed one.
+
+Test project, run as-is with dm and dd:
+
+<dm>
+// What reaching an area's contents costs as the world grows, with the area itself staying the same size.
+// Stand-alone, nothing else in the project: dm area_scan.dm, then dd area_scan.dmb -invisible. Results go to world.log.
+// The reference documents this ("actually loops through every turf in the world"), so this is the size of it, not a surprise.
+
+#define REPEATS 10
+
+/world
+	fps = 20
+	maxx = 20
+	maxy = 20
+	maxz = 1
+
+/area/small
+
+var/global/area/small/small_area
+var/global/list/same_turfs = list()
+
+/proc/ms_since(start)
+	return (world.tick_usage - start) * world.tick_lag
+
+/proc/time_case(label)
+	var/total = 0
+	var/n = 0
+	for(var/i in 1 to REPEATS)
+		var/start = world.tick_usage
+		switch(label)
+			if("area.contents.len")
+				n = small_area.contents.len
+			if("for(turf in area)")
+				n = 0
+				for(var/turf/T in small_area)
+					n++
+			if("area.contents.Copy()")
+				var/list/copy = small_area.contents.Copy()
+				n = copy.len
+			if("locate(/turf) in area")
+				n = (locate(/turf) in small_area) ? 1 : 0
+			if("for(turf in a plain list of the same turfs)")
+				n = 0
+				for(var/turf/T as anything in same_turfs)
+					n++
+		total += ms_since(start)
+		sleep(1)
+	return "[label] [round(total / REPEATS, 0.01)] ms ([n])"
+
+/proc/run_cases()
+	world.log << "BYOND [world.byond_version].[world.byond_build]"
+	small_area = new
+	for(var/turf/T in block(locate(1, 1, 1), locate(20, 10, 1)))
+		small_area.contents += T
+		same_turfs += T
+	world.log << "area holds [length(same_turfs)] turfs"
+	for(var/list/size in list(list(100, 100, 1), list(255, 255, 1), list(255, 255, 4), list(255, 255, 8), list(255, 255, 12)))
+		world.maxx = size[1]
+		world.maxy = size[2]
+		world.maxz = size[3]
+		sleep(5)
+		var/list/lines = list()
+		for(var/label in list("area.contents.len", "for(turf in area)", "area.contents.Copy()", "locate(/turf) in area", "for(turf in a plain list of the same turfs)"))
+			lines += time_case(label)
+		world.log << "[world.maxx * world.maxy * world.maxz] turfs in the world: [jointext(lines, "; ")]"
+	world.log << "done"
+	del(world)
+
+/world/New()
+	. = ..()
+	spawn(5)
+		run_cases()
+</dm>

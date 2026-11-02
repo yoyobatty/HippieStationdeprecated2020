@@ -1,0 +1,14 @@
+diff --git a/code/modules/space_management/turf_reservation.dm b/code/modules/space_management/turf_reservation.dm
+index 40177605fd..2cd0887a4b 100644
+--- a/code/modules/space_management/turf_reservation.dm
++++ b/code/modules/space_management/turf_reservation.dm
+@@ -140,7 +140,9 @@
+ 		SSmapping.unused_turfs["[T.z]"] -= T
+ 		SSmapping.used_turfs[T] = src
+ 		T.turf_flags = (T.turf_flags | RESERVATION_TURF) & ~UNUSED_RESERVATION_TURF
++	for(var/turf/T as anything in final_turfs)
+ 		T.empty(turf_type)
++		CHECK_TICK
+ 
+ 	bottom_left_turf = bottom_left
+ 	top_right_turf = top_right

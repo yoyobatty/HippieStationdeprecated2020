@@ -69,6 +69,7 @@
 /obj/machinery/sleeper/Exited(atom/movable/user)
 	if (!state_open && user == occupant)
 		container_resist(user)
+	. = ..() // hippie -- without this, whatever left stayed on important_recursive_contents and could only be hard deleted
 
 /obj/machinery/sleeper/relaymove(mob/user)
 	if (!state_open)

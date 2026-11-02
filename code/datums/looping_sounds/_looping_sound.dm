@@ -78,6 +78,11 @@
 	var/sound/S = sound(soundfile)
 	S.channel = open_sound_channel()
 	S.volume = volume
+	if(atoms_cache.len && isarea(atoms_cache[1])) // hippie -- sending to an area scans every turf in the world, once per area and once per loop
+		for(var/mob/M as anything in GLOB.player_list)
+			if(get_area(M) in atoms_cache)
+				SEND_SOUND(M, S)
+		return
 	for(var/i in 1 to atoms_cache.len)
 		var/atom/thing = atoms_cache[i]
 		SEND_SOUND(thing, S)
