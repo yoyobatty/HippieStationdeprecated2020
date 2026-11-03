@@ -32,6 +32,9 @@
 /datum/component/mood/Destroy()
 	STOP_PROCESSING(SSmood, src)
 	unmodify_hud()
+	for(var/category in mood_events) // hippie -- each event's owner is this, and kept it from being deleted with a gibbed mob
+		qdel(mood_events[category])
+	mood_events.Cut()
 	return ..()
 
 /datum/component/mood/proc/print_mood(mob/user)

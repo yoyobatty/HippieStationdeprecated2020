@@ -56,6 +56,7 @@
 	AddElement(/datum/element/atmos_sensitive)
 
 /obj/machinery/firealarm/Destroy()
+	myarea?.cancel_alarms_from(src) // hippie -- or the consoles listing its alarm kept it from being deleted
 	LAZYREMOVE(myarea.firealarms, src)
 	return ..()
 

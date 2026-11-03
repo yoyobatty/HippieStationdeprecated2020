@@ -587,6 +587,7 @@
 	for(var/mob/M in GLOB.mob_list)
 		if(M.stat != DEAD && M.z == z)
 			M.gib()
+			CHECK_TICK // hippie -- forty of them in one tick was half a second, on top of the station going up
 
 /*
 This is here to make the tiles around the station mininuke change when it's armed.

@@ -191,9 +191,15 @@
 	anchored = TRUE
 
 /obj/structure/bed/dogbed/proc/update_owner(mob/living/M)
+	if(owner)
+		UnregisterSignal(owner, COMSIG_PARENT_QDELETING)
 	owner = M
+	RegisterSignal(owner, COMSIG_PARENT_QDELETING, PROC_REF(owner_deleted)) // hippie -- the bed kept a gibbed Ian from being deleted
 	name = "[M]'s bed"
 	desc = "[M]'s bed! Looks comfy."
+
+/obj/structure/bed/dogbed/proc/owner_deleted()
+	owner = null
 
 /obj/structure/bed/dogbed/buckle_mob(mob/living/M, force, check_loc)
 	. = ..()

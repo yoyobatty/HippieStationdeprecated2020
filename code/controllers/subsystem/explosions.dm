@@ -72,7 +72,7 @@ SUBSYSTEM_DEF(explosions)
 #define SSEX_OBJ "obj"
 
 /datum/controller/subsystem/explosions/proc/is_exploding()
-	return (lowturf.len || medturf.len || highturf.len || flameturf.len || throwturf.len || lowobj.len || medobj.len || highobj.len)
+	return (length(batch) || lowturf.len || medturf.len || highturf.len || flameturf.len || throwturf.len || lowobj.len || medobj.len || highobj.len) //hippie -- and one being worked through (fire(), below)
 
 
 /client/proc/check_bomb_impacts()
@@ -272,9 +272,11 @@ SUBSYSTEM_DEF(explosions)
 
 	var/reactionary = CONFIG_GET(flag/reactionary_explosions)
 	var/list/cached_exp_block
+	var/list/path_block //hippie -- turf -> what's in the way between it and the epicenter
 
 	if(reactionary)
 		cached_exp_block = CaculateExplosionBlock(affected_turfs)
+		path_block = list()
 
 	//lists are guaranteed to contain at least 1 turf at this point
 
@@ -284,10 +286,23 @@ SUBSYSTEM_DEF(explosions)
 		var/dist = init_dist
 
 		if(reactionary)
-			var/turf/Trajectory = T
-			while(Trajectory != epicenter)
-				Trajectory = get_step_towards(Trajectory, epicenter)
-				dist += cached_exp_block[Trajectory]
+			// hippie start -- this walked every tile's whole way back to the epicenter, adding up what blocked it. Its first step lands on a tile
+			// one ring nearer (get_dir() never leaves a step that doesn't close the larger gap), and the rings come in order from the middle,
+			// so that tile's own sum is already known: its block plus its sum is the same total, without the walk.
+			var/sum = 0
+			if(T != epicenter)
+				var/turf/next = get_step_towards(T, epicenter)
+				var/next_sum = next ? path_block[next] : null //0 is a sum; null is not worked out
+				if(!isnull(next_sum))
+					sum = cached_exp_block[next] + next_sum
+				else
+					var/turf/Trajectory = T
+					while(Trajectory && Trajectory != epicenter)
+						Trajectory = get_step_towards(Trajectory, epicenter)
+						sum += cached_exp_block[Trajectory]
+			path_block[T] = sum
+			dist += sum
+			// hippie end
 
 		var/flame_dist = dist < flame_range
 		var/throw_dist = dist
@@ -415,101 +430,97 @@ SUBSYSTEM_DEF(explosions)
 
 		.[T] = current_exp_block
 
+// hippie start -- a whole explosion used to be done in one tick, however long that took ("force using the entire tick"): on a
+// 40-crew station a maxcap froze the server for a tenth of a second, 1000u of superboom for half a second, a nuke for six. Each part
+// is now taken whole, as before, and worked through as the tick allows, going on next tick: the tiles nearest the middle first, so a
+// blast that takes a few ticks goes out like a shockwave. Explosions set off meanwhile join the next round, as they always did.
+/// What's being worked through: things, the force each is hit with (0 for a flame tile), and how far it's got.
+/datum/controller/subsystem/explosions/var/list/batch = list()
+/datum/controller/subsystem/explosions/var/list/batch_severity = list()
+/datum/controller/subsystem/explosions/var/batch_pos = 0
+/datum/controller/subsystem/explosions/var/batch_part
+
 /datum/controller/subsystem/explosions/fire(resumed = 0)
-	if (!is_exploding())
+	if(!length(batch) && !is_exploding())
 		return
-	var/timer
-	Master.current_ticklimit = TICK_LIMIT_RUNNING //force using the entire tick if we need it.
-
-	if(currentpart == SSEXPLOSIONS_TURFS)
-		currentpart = SSEXPLOSIONS_MOVABLES
-
-		timer = TICK_USAGE_REAL
-		var/list/low_turf = lowturf
-		lowturf = list()
-		for(var/thing in low_turf)
+	Master.current_ticklimit = TICK_LIMIT_RUNNING //all the tick there is, as before, but no more: on a crewed station its own share took a superboom two seconds to go off
+	for(var/parts_taken in 1 to 3) //turfs, then what was in bags at the epicentre, then the throws; at most once round in a fire
+		if(!length(batch) && !next_batch())
+			return
+		var/timer = TICK_USAGE_REAL
+		while(batch_pos < length(batch))
+			batch_pos++
+			var/thing = batch[batch_pos]
 			if(thing)
-				var/turf/T = thing
-				T.explosion_level = max(T.explosion_level, EXPLODE_LIGHT)
-				T.ex_act(EXPLODE_LIGHT)
-		cost_lowturf = MC_AVERAGE(cost_lowturf, TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer))
+				hit(thing, batch_severity[batch_pos])
+			if(MC_TICK_CHECK)
+				note_cost(TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer))
+				return
+		note_cost(TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer))
+		batch.Cut()
+		batch_severity.Cut()
+		batch_pos = 0
 
-		timer = TICK_USAGE_REAL
-		var/list/med_turf = medturf
-		medturf = list()
-		for(var/thing in med_turf)
-			if(thing)
-				var/turf/T = thing
-				T.explosion_level = max(T.explosion_level, EXPLODE_HEAVY)
-				T.ex_act(EXPLODE_HEAVY)
-		cost_medturf = MC_AVERAGE(cost_medturf, TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer))
+/// The next part's lists, taken whole. FALSE if there's nothing in any of them.
+/datum/controller/subsystem/explosions/proc/next_batch()
+	for(var/tries in 1 to 3)
+		batch_part = currentpart
+		switch(currentpart)
+			if(SSEXPLOSIONS_TURFS)
+				currentpart = SSEXPLOSIONS_MOVABLES
+				take(highturf, EXPLODE_DEVASTATE)
+				take(medturf, EXPLODE_HEAVY)
+				take(lowturf, EXPLODE_LIGHT)
+				if(length(batch))
+					Master.laggy_byond_map_update_incoming()
+				take(flameturf, 0)
+				highturf = list()
+				medturf = list()
+				lowturf = list()
+				flameturf = list()
+			if(SSEXPLOSIONS_MOVABLES)
+				currentpart = SSEXPLOSIONS_THROWS
+				take(highobj, EXPLODE_DEVASTATE)
+				take(medobj, EXPLODE_HEAVY)
+				take(lowobj, EXPLODE_LIGHT)
+				highobj = list()
+				medobj = list()
+				lowobj = list()
+			if(SSEXPLOSIONS_THROWS)
+				currentpart = SSEXPLOSIONS_TURFS
+				take(throwturf, 0)
+				throwturf = list()
+		if(length(batch))
+			return TRUE
+	return FALSE
 
-		timer = TICK_USAGE_REAL
-		var/list/high_turf = highturf
-		highturf = list()
-		for(var/thing in high_turf)
-			if(thing)
-				var/turf/T = thing
-				T.explosion_level = max(T.explosion_level, EXPLODE_DEVASTATE)
-				T.ex_act(EXPLODE_DEVASTATE)
-		cost_highturf = MC_AVERAGE(cost_highturf, TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer))
+/datum/controller/subsystem/explosions/proc/take(list/things, severity)
+	if(!length(things))
+		return
+	batch += things
+	var/list/severities = new /list(length(things))
+	for(var/i in 1 to length(severities))
+		severities[i] = severity
+	batch_severity += severities
 
-		timer = TICK_USAGE_REAL
-		var/list/flame_turf = flameturf
-		flameturf = list()
-		for(var/thing in flame_turf)
-			if(thing)
-				var/turf/T = thing
+/datum/controller/subsystem/explosions/proc/hit(thing, severity)
+	switch(batch_part)
+		if(SSEXPLOSIONS_TURFS)
+			var/turf/T = thing
+			if(!severity)
 				new /obj/effect/hotspot(T) //Mostly for ambience!
-		cost_flameturf = MC_AVERAGE(cost_flameturf, TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer))
-
-		if (low_turf.len || med_turf.len || high_turf.len)
-			Master.laggy_byond_map_update_incoming()
-
-	if(currentpart == SSEXPLOSIONS_MOVABLES)
-		currentpart = SSEXPLOSIONS_THROWS
-
-		timer = TICK_USAGE_REAL
-		var/list/high_obj = highobj
-		highobj = list()
-		for(var/thing in high_obj)
-			if(thing)
-				var/obj/O = thing
-				O.ex_act(EXPLODE_DEVASTATE)
-		cost_highobj = MC_AVERAGE(cost_highobj, TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer))
-
-		timer = TICK_USAGE_REAL
-		var/list/med_obj = medobj
-		medobj = list()
-		for(var/thing in med_obj)
-			if(thing)
-				var/obj/O = thing
-				O.ex_act(EXPLODE_HEAVY)
-		cost_medobj = MC_AVERAGE(cost_medobj, TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer))
-
-		timer = TICK_USAGE_REAL
-		var/list/low_obj = lowobj
-		lowobj = list()
-		for(var/thing in low_obj)
-			if(thing)
-				var/obj/O = thing
-				O.ex_act(EXPLODE_LIGHT)
-		cost_lowobj = MC_AVERAGE(cost_lowobj, TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer))
-
-
-	if (currentpart == SSEXPLOSIONS_THROWS)
-		currentpart = SSEXPLOSIONS_TURFS
-		timer = TICK_USAGE_REAL
-		var/list/throw_turf = throwturf
-		throwturf = list()
-		for (var/thing in throw_turf)
-			if (!thing)
-				continue
+				return
+			T.explosion_level = max(T.explosion_level, severity)
+			T.ex_act(severity)
+		if(SSEXPLOSIONS_MOVABLES)
+			var/obj/O = thing
+			O.ex_act(severity)
+		if(SSEXPLOSIONS_THROWS)
 			var/turf/T = thing
 			var/list/L = T.explosion_throw_details
 			T.explosion_throw_details = null
 			if (length(L) != 3)
-				continue
+				return
 			var/throw_range = L[1]
 			var/throw_dir = L[2]
 			var/max_range = L[3]
@@ -518,6 +529,14 @@ SUBSYSTEM_DEF(explosions)
 					var/atom_throw_range = rand(throw_range, max_range)
 					var/turf/throw_at = get_ranged_target_turf(A, throw_dir, atom_throw_range)
 					throw_as_missile(A, throw_at, atom_throw_range, EXPLOSION_THROW_SPEED, atom_throw_range * 0.5, quickstart = FALSE) //hippie edit -- thrown items hit hard, like debris
-		cost_throwturf = MC_AVERAGE(cost_throwturf, TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer))
 
-	currentpart = SSEXPLOSIONS_TURFS
+/// For the stat panel: what each part has been costing, a tick at a time.
+/datum/controller/subsystem/explosions/proc/note_cost(ms)
+	switch(batch_part)
+		if(SSEXPLOSIONS_TURFS)
+			cost_highturf = MC_AVERAGE(cost_highturf, ms)
+		if(SSEXPLOSIONS_MOVABLES)
+			cost_highobj = MC_AVERAGE(cost_highobj, ms)
+		if(SSEXPLOSIONS_THROWS)
+			cost_throwturf = MC_AVERAGE(cost_throwturf, ms)
+// hippie end

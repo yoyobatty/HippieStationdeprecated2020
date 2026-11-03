@@ -27,6 +27,9 @@
 	START_PROCESSING(SSobj, src)
 
 /obj/item/clothing/head/helmet/space/hardsuit/Destroy()
+	if(suit?.helmet == src) // hippie -- a blown-up helmet stayed the suit's, and was a hard delete
+		suit.helmet = null
+	suit = null
 	. = ..()
 	STOP_PROCESSING(SSobj, src)
 

@@ -54,6 +54,8 @@
 
 	var/datum/gas_mixture/air_contents = airs[1]
 	var/datum/gas_mixture/partner_air_contents = partner.airs[1]
+	if(!air_contents || !partner_air_contents) // hippie -- a partner blown away still had its link: a runtime a tick, fifty in three minutes
+		return
 
 	var/air_heat_capacity = air_contents.heat_capacity()
 	var/other_air_heat_capacity = partner_air_contents.heat_capacity()

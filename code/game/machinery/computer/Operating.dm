@@ -21,6 +21,12 @@
 	linked_techweb = SSresearch.science_tech
 	find_table()
 
+/obj/machinery/computer/operating/Destroy() // hippie -- the table kept a blown-up computer from being deleted
+	if(table?.computer == src)
+		table.computer = null
+	table = null
+	return ..()
+
 /obj/machinery/computer/operating/attackby(obj/item/O, mob/user, params)
 	if(istype(O, /obj/item/disk/surgery))
 		user.visible_message("[user] begins to load \the [O] in \the [src]...",

@@ -211,6 +211,8 @@
 	update_icon()
 
 /obj/machinery/airalarm/Destroy()
+	var/area/A = get_area(src)
+	A?.cancel_alarms_from(src) // hippie -- or the consoles listing its alarm kept it from being deleted
 	SSradio.remove_object(src, frequency)
 	qdel(wires)
 	wires = null
@@ -626,6 +628,8 @@
 		return
 
 	var/area/A = get_area(src)
+	if(!A) // hippie -- taken off the map partway through (a tesla zap)
+		return
 	switch(max(danger_level, A.atmosalm))
 		if(0)
 			icon_state = "alarm0"

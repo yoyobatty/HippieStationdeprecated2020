@@ -176,6 +176,11 @@ GLOBAL_LIST_INIT(astar_tally, list("searches" = 0, "failed" = 0, "turfs" = 0, "f
 	// hippie -- the usual cost: a step to a neighbour is 1 and the estimate is the Manhattan distance, worked out here instead of two
 	// call()s per neighbour (Distance_cardinal() does just this)
 	var/cardinal_cost = (dist == /turf/proc/Distance_cardinal)
+	// and the bots' weighted one (bot_weighted_distance(), bot_pathing_permissive.dm): a step is 1 and the tile's penalty, the estimate
+	// is the Manhattan distance and the end tile's penalty, which never changes. After a blast the bots' fallback searches called it
+	// over five million times in three minutes.
+	var/weighted_cost = (dist == /turf/proc/bot_weighted_distance)
+	var/end_penalty = weighted_cost ? bot_turf_penalty(end) : 0
 	//initialization
 	var/datum/PathNode/cur = new /datum/PathNode(start,null,0,call(start,dist)(end),0,15,1)//current processed turf
 	open += cur
@@ -208,7 +213,7 @@ GLOBAL_LIST_INIT(astar_tally, list("searches" = 0, "failed" = 0, "turfs" = 0, "f
 					if(T && T != exclude) // hippie -- no neighbour past the map's edge: it never passed the adjacent proc anyway
 						var/datum/PathNode/CN = openc[T]  //current checking turf
 						var/r=((f & MASK_ODD)<<1)|((f & MASK_EVEN)>>1) //getting reverse direction throught swapping even and odd bits.((f & 01010101)<<1)|((f & 10101010)>>1)
-						var/newg = cur.g + (cardinal_cost ? 1 : call(cur.source,dist)(T))
+						var/newg = cur.g + (cardinal_cost ? 1 : (weighted_cost ? 1 + bot_turf_penalty(T) : call(cur.source,dist)(T)))
 						if(CN)
 						//is already in open list, check if it's a better way from the current turf
 							CN.bf &= 15^r //we have no closed, so just cut off exceed dir.00001111 ^ reverse_dir.We don't need to expand to checked turf.
@@ -222,7 +227,7 @@ GLOBAL_LIST_INIT(astar_tally, list("searches" = 0, "failed" = 0, "turfs" = 0, "f
 						else
 						//is not already in open list, so add it
 							if(call(cur.source,adjacent)(caller, T, id, simulated_only))
-								CN = new(T,cur,newg,cardinal_cost ? abs(T.x - end.x) + abs(T.y - end.y) : call(T,dist)(end),cur.nt+1,15^r)
+								CN = new(T,cur,newg,(cardinal_cost || weighted_cost) ? abs(T.x - end.x) + abs(T.y - end.y) + end_penalty : call(T,dist)(end),cur.nt+1,15^r)
 								open += CN
 								astar_open_swim(open, length(open))
 								openc[T] = CN

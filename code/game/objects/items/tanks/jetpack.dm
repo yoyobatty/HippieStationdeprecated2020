@@ -19,6 +19,10 @@
 	ion_trail = new
 	ion_trail.set_up(src)
 
+/obj/item/tank/jetpack/Destroy() // hippie -- its trail held on to it, and a blown-up jetpack was a hard delete
+	QDEL_NULL(ion_trail)
+	return ..()
+
 /obj/item/tank/jetpack/populate_gas()
 	if(gas_type)
 		air_contents.assert_gas(gas_type)

@@ -221,6 +221,26 @@ GLOBAL_LIST_EMPTY(teleportlocs)
 		return 1
 	return 0
 
+/// hippie -- takes one alarm's reports off everything that lists them (cyborgs, the AI, consoles, drones, tablets, the bot crew), leaving
+/// the area's own alarm state alone. A blown-up air or fire alarm stayed on those lists and was a hard delete every time.
+/area/proc/cancel_alarms_from(obj/source)
+	for(var/class in list("Atmosphere", "Fire"))
+		for(var/item in GLOB.silicon_mobs)
+			var/mob/living/silicon/S = item
+			S.cancelAlarm(class, src, source)
+		for(var/item in GLOB.alert_consoles)
+			var/obj/machinery/computer/station_alert/a = item
+			a.cancelAlarm(class, src, source)
+		for(var/item in GLOB.drones_list)
+			var/mob/living/simple_animal/drone/D = item
+			D.cancelAlarm(class, src, source)
+		for(var/item in GLOB.alarmdisplay)
+			var/datum/computer_file/program/alarm_monitor/p = item
+			p.cancelAlarm(class, src, source)
+	for(var/item in GLOB.atmos_alert_bots)
+		var/datum/bot_brain/B = item
+		B.cancelAlarm("Atmosphere", src, source)
+
 /area/proc/ModifyFiredoors(opening)
 	if(firedoors)
 		firedoors_last_closed_on = world.time

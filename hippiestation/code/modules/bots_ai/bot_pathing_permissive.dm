@@ -387,12 +387,43 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 /// urgency that decides whether breaking through is allowed. Anything new those procs start reading that can
 /// change mid-decision has to go in here too, or a flood made under the old state skips a route it shouldn't.
 /datum/bot_brain/proc/reach_key(turf/start, adjacent, obj/item/card/id/id_card, simulated_only)
-	return "[REF(start)]|[adjacent]|[REF(id_card)]|[simulated_only]|[pathing_allow_climb]|[pathing_climb_only]|[pathing_no_tailgating]|[pathing_allow_smash_tables]|[pathing_assume_welder]|[pathing_assume_nearby_weapons]|[get_urgency()]|[pathing_emag ? 1 : 0]"
+	return "[REF(start)]|[reach_rules(adjacent, id_card, simulated_only)]"
+
+/// reach_key() without where it starts from.
+/datum/bot_brain/proc/reach_rules(adjacent, obj/item/card/id/id_card, simulated_only)
+	return "[adjacent]|[REF(id_card)]|[simulated_only]|[pathing_allow_climb]|[pathing_climb_only]|[pathing_no_tailgating]|[pathing_allow_smash_tables]|[pathing_assume_welder]|[pathing_assume_nearby_weapons]|[get_urgency()]|[pathing_emag ? 1 : 0]"
+
+// A whole region, kept a little while. A failed search that wasn't cut short has visited everything reachable from where it began, and
+// from anywhere inside that, nothing outside it is reachable either: whatever such a tile reaches, the first one reached through it. So
+// while the bot's still inside it, under the same rules, a destination outside it is no route, without searching. A superboom cut a
+// piece out of the station and the bots shut in on the far side kept trying everywhere they used to go, flooding 2,700 tiles a time:
+// two million tiles in three minutes, a third of every tick. Kept 20 seconds, so a door opened since is seen that much later, as by
+// somebody who tried a moment ago.
+#define BOT_REGION_FLOOD_TTL (20 SECONDS)
+
+/datum/bot_brain
+	/// reach_rules() -> list(every turf a failed search reached, until when it's trusted)
+	var/list/region_floods
+
+/datum/bot_brain/proc/outside_known_region(turf/start, turf/dest, rules)
+	var/list/known = LAZYACCESS(region_floods, rules)
+	if(!known || world.time > known[2])
+		return FALSE
+	var/list/region = known[1]
+	return region[start] && !region[dest]
+
+/datum/bot_brain/proc/remember_region(list/reached, rules)
+	if(LAZYLEN(region_floods) > 8)
+		region_floods.Cut()
+	LAZYSET(region_floods, rules, list(reached, world.time + BOT_REGION_FLOOD_TTL))
 
 /// get_path_to() for the bot's own route checks, minus searches a flood already proved hopeless (see above).
 /datum/bot_brain/proc/bot_path_to(turf/dest, dist, adjacent, obj/item/card/id/id_card, simulated_only)
 	var/turf/start = get_turf(owner)
 	pathing_emag = !!emag_for_doors()
+	var/rules = start && dest ? reach_rules(adjacent, id_card, simulated_only) : null
+	if(rules && outside_known_region(start, dest, rules))
+		return list() //what get_path_to() returns when it finds nothing
 	var/key
 	if(reach_floods && start)
 		if(world.time > reach_floods_time + BOT_REACH_FLOOD_TTL)
@@ -423,8 +454,10 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 				else
 					reach_floods["sealed|[key]"] = pocket
 			return list()
-	var/list/explored = key ? list() : null
+	var/list/explored = (key || rules) ? list() : null
 	var/list/path = get_path_to(owner, dest, dist, 300, 250, adjacent = adjacent, id = id_card, simulated_only = simulated_only, explored = explored)
+	if(rules && !length(path) && explored["reached"] && !explored["depth_cut"] && get_turf(owner) == start && reach_rules(adjacent, id_card, simulated_only) == rules)
+		remember_region(explored["reached"], rules) //the whole region (above)
 	// A failed search under these rules: remember what's reachable under them, so the rest of this decision can
 	// skip the hopeless tiles. Only if nothing moved or changed rules while get_path_to() was yielding.
 	if(key && !length(path) && reach_floods && !reach_floods[key] && get_turf(owner) == start && reach_key(start, adjacent, id_card, simulated_only) == key)
@@ -500,3 +533,4 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 #undef BOT_SEALED_POCKET_TURFS
 #undef BOT_PATH_FLOOD_STEPS
 #undef BOT_REACH_FLOOD_TTL
+#undef BOT_REGION_FLOOD_TTL
