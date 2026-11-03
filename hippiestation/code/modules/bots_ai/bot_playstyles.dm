@@ -17,6 +17,11 @@
 
 /// What each kind likes to have on it, the first thing first. Whatever it can get by the door: break-ins are another matter.
 GLOBAL_LIST_INIT(bot_style_kits, list(
+	BOT_STYLE_ROBUST = list(
+		/obj/item/storage/firstaid/regular,
+		/obj/item/crowbar,
+		/obj/item/assembly/flash/handheld,
+	),
 	BOT_STYLE_POWERGAMER = list(
 		/obj/item/clothing/gloves/color/yellow,
 		/obj/item/storage/belt/utility,
@@ -272,10 +277,10 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 	interval_max = 90
 
 /datum/bot_duty/hunt_valids/applies_to(datum/bot_brain/bot)
-	return bot.playstyle == BOT_STYLE_HUNTER && !bot.is_security_job()
+	return !bot.is_security_job()
 
 /datum/bot_duty/hunt_valids/try_start(datum/bot_brain/bot)
-	if(!length(GLOB.bot_security_wanted) || !bot.has_a_weapon())
+	if(!length(GLOB.bot_security_wanted) || !bot.fights_back_now() || !bot.has_a_weapon()) //goals/robust.dm
 		return FALSE
 	var/mob/living/carbon/human/mark = bot.find_quarry()
 	if(!mark)

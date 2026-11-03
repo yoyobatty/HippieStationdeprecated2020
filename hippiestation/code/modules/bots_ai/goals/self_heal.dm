@@ -32,7 +32,7 @@
 	// patch to stick on over it. The suit isn't coming off out here: medbay's sleeper works through anything.
 	aim_at_worst_wound(owner)
 	if(clothing_in_the_way(owner) && !pick_treatment_item(owner, TRUE))
-		return try_seek_medbay_healing()
+		return nanosuit_on() ? patch_up() : try_seek_medbay_healing() //goals/robust.dm
 	// Nothing on it to use, and it looked for some only a few minutes ago: straight to Medbay, not another look.
 	if(world.time < no_medical_supplies_until && !pick_treatment_item(owner))
 		return try_seek_medbay_healing()
@@ -42,7 +42,7 @@
 // check immediately whether more's needed (another item, a restock, or a trip to Medbay)
 // instead of waiting out the normal wander pace.
 /datum/bot_brain/proc/continue_self_heal_round()
-	continue_goal_chain(CALLBACK(src, PROC_REF(try_self_heal_round)))
+	continue_goal_chain(CALLBACK(src, PROC_REF(try_self_heal_round)), TRUE)
 
 /datum/bot_goal/self_heal/resolve_target(datum/bot_brain/bot)
 	if(!bot.patient_needs_treatment(bot.owner))

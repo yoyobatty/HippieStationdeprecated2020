@@ -4,7 +4,7 @@
 // to a head of staff, usually somewhere past the hour mark or sooner if the station has had enough. They walk to a
 // communications console, log in with their ID, give a reason and confirm (communications.dm: "login", "callshuttle",
 // "callshuttle2"). The console takes only an ID with head of staff access, so this duty is theirs. A crew with no head
-// left has the game's own casualty auto-call to fall back on (CheckAutoEvac(), shuttle.dm), the same as players do.
+// left takes one off a body (goals/robust.dm): the game's own casualty auto-call is off in config, and it only counts players.
 
 /// When a head of staff calls it a day, picked once a round. -1 is never: a Bot Shift and the Bot Gym end when they say.
 GLOBAL_VAR_INIT(bot_shift_ends_at, 0)
@@ -100,11 +100,11 @@ GLOBAL_LIST_INIT(bot_shuttle_called_lines, list(
 /// Time to go and no console that works: no power on the bridge, usually. The head says so, and if nothing has changed
 /// a while later Central Command sends the transfer shuttle anyway, as it would for a station that stopped answering.
 /// Without this a station that lost its power was a round that never ended.
-/datum/bot_brain/proc/shuttle_console_down(reason)
+/datum/bot_brain/proc/shuttle_console_down(reason, what_it_says = ";Comms console's dead, I can't call the shuttle. Engineering, we need power on the bridge.")
 	var/obj/docking_port/mobile/emergency/E = SSshuttle.emergency
 	if(!GLOB.bot_comms_down_since)
 		GLOB.bot_comms_down_since = world.time
-		bot_say(owner, ";Comms console's dead, I can't call the shuttle. Engineering, we need power on the bridge.")
+		bot_say(owner, what_it_says)
 		return
 	if(world.time < GLOB.bot_comms_down_since + BOT_COMMS_DOWN_WAIT || !E)
 		return

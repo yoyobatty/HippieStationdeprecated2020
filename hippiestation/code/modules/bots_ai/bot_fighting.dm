@@ -61,7 +61,7 @@
 /datum/bot_brain/proc/fight_in_reach(mob/living/target)
 	owner.changeNext_move(CLICK_CD_MELEE)
 	owner.face_atom(target)
-	var/obj/item/weapon = weapon_to_hand()
+	var/obj/item/weapon = fights_barehanded() ? null : weapon_to_hand() //goals/robust.dm
 	var/intent = pick_combat_intent(target)
 	if(weapon && (intent != INTENT_DISARM || !target.get_active_held_item())) //anything in hand is swung, unless what they're holding wants knocking away
 		owner.a_intent = INTENT_HARM
@@ -78,6 +78,8 @@
 /datum/bot_brain/proc/pick_combat_intent(mob/living/target)
 	if(!(target.mobility_flags & MOBILITY_STAND))
 		return INTENT_HARM
+	if(plays_robust()) //goals/robust.dm: 91% of the clicks of the player it's modelled on were on harm
+		return prob(10) ? INTENT_DISARM : INTENT_HARM
 	var/obj/item/theirs = target.get_active_held_item()
 	if(theirs && prob(theirs.force >= BOT_COMBAT_WEAPON_FORCE ? 60 : 40))
 		return INTENT_DISARM
@@ -117,6 +119,8 @@
 
 /// Share of its health at which this bot stops fighting and runs: the less nerve, the sooner.
 /datum/bot_brain/proc/health_to_run_at()
+	if(plays_robust()) //goals/robust.dm: it goes while there's still time, and it means to come back
+		return 0.5
 	return BOT_COMBAT_RUN_AT + (0.5 - nerve) * 0.5
 
 /// Somebody out of reach and still a threat: shot if it has a gun, or sometimes pelted with what's in its hand.

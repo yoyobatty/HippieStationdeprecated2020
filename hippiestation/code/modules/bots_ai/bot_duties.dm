@@ -96,8 +96,11 @@ GLOBAL_LIST_INIT(bot_duties, init_bot_duties())
 
 /// Asks this tier's duties in turn whether there's something to do. TRUE once one has set the bot going.
 /datum/bot_brain/proc/run_duties(tier)
+	var/loud = gone_loud() //goals/robust.dm
 	for(var/datum/bot_duty/D as anything in my_duties(tier))
 		if(world.time < duty_next_check[D])
+			continue
+		if(loud && !is_type_in_typecache(D, GLOB.bot_duties_when_loud))
 			continue
 		duty_next_check[D] = world.time + D.next_look(src)
 		if(D.try_start(src))
@@ -106,8 +109,11 @@ GLOBAL_LIST_INIT(bot_duties, init_bot_duties())
 
 /// Called from process() while the bot is on a goal: some things don't wait for it to finish.
 /datum/bot_brain/proc/check_duty_interrupts()
+	var/loud = gone_loud() //goals/robust.dm
 	for(var/datum/bot_duty/D as anything in my_duties(BOT_DUTY_URGENT))
 		if(!D.interrupts || (gym_scripted && !(D.type in gym_duties)))
+			continue
+		if(loud && !is_type_in_typecache(D, GLOB.bot_duties_when_loud))
 			continue
 		if(!D.should_interrupt(src))
 			continue

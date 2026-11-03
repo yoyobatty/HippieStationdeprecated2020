@@ -160,3 +160,24 @@
 			cane.process_fire(wall, griefer, FALSE)
 	log_line("after: chambered [cane.chambered], live [cane.chambered?.BB], left in it [cane.magazine.ammo_count()], can shoot [cane.can_shoot()]")
 	expect(!cane.chambered?.BB, "nothing left to fire")
+
+/// From a played round: a dead officer kept taking Security's calls and saying so into deadchat, for 17 minutes. Alive it has to take the call, or this proves nothing.
+/datum/bot_scenario/griefed/bug/dead_officer
+	name = "bug: a dead officer takes no calls and starts no goals"
+	job = "Security Officer"
+	griefer_job = "Assistant"
+
+/datum/bot_scenario/griefed/bug/dead_officer/grief()
+	brain.on_heard_security_call(griefer, "Security! Help!", FREQ_COMMON)
+	if(!istype(brain.current_goal, /datum/bot_goal/respond_to_call))
+		expect(FALSE, "alive, it took the call")
+		return
+	log_line("alive, it took the call: yes")
+	brain.drop_goals("gym")
+	brain.state = BOT_STATE_WANDER
+	brain.next_security_call_time = 0
+	bot.death()
+	brain.on_heard_security_call(griefer, "Security! Help!", FREQ_COMMON)
+	var/took_call = !!brain.current_goal
+	log_line("dead, it took the call: [took_call ? "yes" : "no"]")
+	expect(!took_call && !brain.assign_goal(new /datum/bot_goal/clean_contamination()), "dead, nothing gets assigned")

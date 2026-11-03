@@ -404,7 +404,7 @@
 
 	GLOB.joined_player_list += character.ckey
 
-	if(CONFIG_GET(flag/allow_latejoin_antagonists) && humanc)	//Borgs aren't allowed to be antags. Will need to be tweaked if we get true latejoin ais.
+	if(CONFIG_GET(flag/allow_latejoin_antagonists) && humanc?.client)	//Borgs aren't allowed to be antags. Will need to be tweaked if we get true latejoin ais. hippie -- a bot joining late has no client for make_antag_chance() to read, and the runtime lost it its quirks and manifest entry
 		if(SSshuttle.emergency)
 			switch(SSshuttle.emergency.mode)
 				if(SHUTTLE_RECALL, SHUTTLE_IDLE)

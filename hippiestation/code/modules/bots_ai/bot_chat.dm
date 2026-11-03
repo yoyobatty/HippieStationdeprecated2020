@@ -1,6 +1,10 @@
 // Milestone 1 chat: canned-line banter, not real language generation.
-/proc/bot_say(mob/living/carbon/human/H, line)
-	if(QDELETED(H) || !line)
+/// `in_character` is for what a traitor everybody's after says as itself: anything else it was about to say gives it a threat instead.
+/proc/bot_say(mob/living/carbon/human/H, line, in_character = FALSE)
+	if(QDELETED(H) || !line || H.stat == DEAD) //a corpse's say() goes to deadchat, radio prefix and all
+		return
+	if(!in_character && H.bot_brain?.gone_loud()) //goals/robust.dm: "Security! Help!" from somebody in a Syndicate nanosuit
+		H.bot_brain.say_something_hostile()
 		return
 	if(H.mind?.miming && H.bot_brain)
 		H.bot_brain.mime_instead(line) //goals/civilians.dm - a mime's say() fails without a word
@@ -54,6 +58,9 @@
 	message_admins("<span class='danger'>[msg]</span>[B?.owner ? " [ADMIN_FLW(B.owner)]" : ""]")
 	log_runtime(msg)
 	GLOB.bot_shift?.note_bot_exception(msg) //gym/bot_shift.dm
+
+/// Nobody says these with bodies in the hallways.
+GLOBAL_LIST_INIT(bot_calm_lines, list("Quiet shift so far.", "Not much. Same old.", "Nothing I've heard about.", "Medbay's quiet for once.", "Quiet in the brig today."))
 
 GLOBAL_LIST_INIT(bot_idle_lines, list(
 	"Anyone else think the vents smell weird today?",

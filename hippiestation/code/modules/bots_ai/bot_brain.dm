@@ -166,6 +166,8 @@
 		floored = TRUE
 		return
 	mind_hands()
+	mind_nanosuit() //goals/robust.dm
+	stay_armed()
 	if(world.time >= next_watch_time)
 		keep_an_eye_out() //bot_witness.dm
 	if(try_escape_pool())
@@ -359,7 +361,7 @@
 		stop_pursuit()
 		fight_in_reach(attacker)
 		try_combat_sidestep(attacker)
-	else if(!try_attack_from_range(attacker))
+	else if(!try_suit_jump(attacker) && !try_attack_from_range(attacker))
 		owner.a_intent = INTENT_HARM
 		combat_chase(attacker)
 
@@ -460,10 +462,12 @@
 // entirely for a while. Setting this flag right before scheduling the continuation, and
 // having handle_wander() bow out entirely while it's set, gives the scheduled
 // continuation first claim on the very next tick instead of racing it.
-/datum/bot_brain/proc/continue_goal_chain(datum/callback/cb)
+/datum/bot_brain/proc/continue_goal_chain(datum/callback/cb, loud_too = FALSE)
 	// Something of its own has become pressing - it's properly hungry (goals/eat_and_drink.dm). The work doesn't
 	// chain straight on into more work: handle_wander() gets a look in, and comes back to the job after.
-	if(has_pressing_need())
+	if(has_pressing_need() && !loud_too)
+		return
+	if(!loud_too && gone_loud()) //goals/robust.dm: a tray of plants chains into the next for ever, and a traitor had got to 177
 		return
 	goal_chain_pending = TRUE
 	addtimer(CALLBACK(src, PROC_REF(run_goal_chain_link), cb), 1)
@@ -990,6 +994,7 @@ GLOBAL_LIST_INIT(bot_maintenance_averse_jobs, list("Medical Doctor", "Chief Medi
 /datum/bot_brain/proc/on_attacked(mob/living/user, what_done, atom/object)
 	if(!user || user == owner || QDELETED(owner) || owner.stat == DEAD)
 		return
+	break_pact_with(user) //goals/robust.dm
 	if(findtext(what_done, "handcuffed"))
 		cuffed_lawfully = bot_is_officer(user)
 	// A law-abiding crewmember doesn't fight the officer arresting them - they protest. A traitor or a rioter isn't one,

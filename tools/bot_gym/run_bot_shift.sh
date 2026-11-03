@@ -1,5 +1,5 @@
 #!/bin/bash
-unset __COMPAT_LAYER # Git Bash sets it, and under it dm.exe leaks two kernel handles for every file it opens until the next reboot
+unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every file it opens until the next reboot
 # Bot Shift: compile, boot headless, run a fast-forwarded shift on the real station with a crew of
 # bots, print the verdict. See hippiestation/code/modules/bots_ai/gym/bot_shift.dm.
 # Usage: tools/bot_gym/run_bot_shift.sh [minutes] [crew]

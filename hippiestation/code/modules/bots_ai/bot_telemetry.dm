@@ -61,7 +61,11 @@ GLOBAL_VAR(bot_telemetry_log)
 /proc/bot_telemetry_loop()
 	while(TRUE)
 		for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
-			if(!QDELETED(B) && !QDELETED(B.owner))
+			if(QDELETED(B) || QDELETED(B.owner))
+				continue
+			if(B.owner.stat == DEAD) //a corpse says the same thing twice a second, and that was 46% of a round where everybody died
+				B.telemetry_touch()
+			else
 				B.telemetry_sample()
 		sleep(BOT_TELEMETRY_SAMPLE_INTERVAL)
 
@@ -105,6 +109,9 @@ GLOBAL_VAR(bot_telemetry_log)
 
 /// Where an item is relative to the bot, as a player would see it.
 /datum/bot_brain/proc/telemetry_item_where(obj/item/I)
+	return bot_item_where(owner, I)
+
+/proc/bot_item_where(mob/owner, obj/item/I)
 	if(!I || QDELETED(I))
 		return "none"
 	if(I == owner.get_active_held_item())

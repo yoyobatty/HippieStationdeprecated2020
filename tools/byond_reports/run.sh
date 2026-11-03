@@ -1,5 +1,5 @@
 #!/bin/bash
-unset __COMPAT_LAYER # Git Bash sets it, and under it dm.exe leaks two kernel handles for every file it opens until the next reboot
+unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every file it opens until the next reboot
 # Builds and runs the stand-alone BYOND repros on each install, results in tools/byond_reports/results/<name>_<build>.txt.
 # Usage: tools/byond_reports/run.sh [name]     ref_stall, area_scan or list_union, every one by default
 set -u

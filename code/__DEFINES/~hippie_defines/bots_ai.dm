@@ -41,3 +41,9 @@
 #define BOT_STYLE_HUNTER "antag hunter"
 #define BOT_STYLE_PARANOID "paranoid"
 #define BOT_STYLE_HOPPER "role-hopper"
+#define BOT_STYLE_ROBUST "robust"
+
+/// How a traitor goes about it (goals/robust.dm).
+#define BOT_TRAITOR_UNDERCOVER "undercover" //an emag and its objectives, and nobody the wiser until it's caught
+#define BOT_TRAITOR_HIT_LIST "hit list" //the suit, its targets, the Captain and Security, and whoever gets in the way
+#define BOT_TRAITOR_RAMPAGE "rampage" //the suit, and everybody

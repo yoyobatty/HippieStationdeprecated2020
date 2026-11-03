@@ -451,6 +451,9 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 /datum/bot_brain/proc/assign_goal(datum/bot_goal/goal)
 	if(!goal)
 		return FALSE
+	// The radio and the air alarms still reach a corpse, and to everything that hands out goals a corpse looks idle.
+	if(QDELETED(owner) || owner.stat == DEAD)
+		return FALSE
 	if(state == BOT_STATE_GOAL && current_goal)
 		return FALSE
 	// Finding the target can take real time (checking there's a way to it yields inside the route search), and the

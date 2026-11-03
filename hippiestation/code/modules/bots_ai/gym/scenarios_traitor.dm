@@ -10,6 +10,7 @@
 /datum/bot_scenario/duty/traitor/post_spawn()
 	..()
 	give_job_id(list())
+	brain.set_playstyle(BOT_STYLE_NORMAL) //a roll of the new style would buy a suit and not the sword these are about
 	antag = brain.become_traitor() //no PDA on a gym bot: the uplink goes in a pen
 	antag.objectives.Cut()
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-unset __COMPAT_LAYER # Git Bash sets it, and under it dm.exe leaks two kernel handles for every file it opens until the next reboot
+unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every file it opens until the next reboot
 # TTV bench: boots a shift with nobody on it, sets off a list of tank transfer valve mixes in empty space and prints how big
 # each would have been. See hippiestation/code/modules/bots_ai/gym/ttv_bench.dm.
 set -u

@@ -4,7 +4,8 @@
 //
 // A real server's players are mostly ordinary: they do their job and pitch in when somebody needs stopping. Past that, a few
 // play the round their own way, and that's a bot's playstyle: the powergamer after the best kit going, the antag hunter who's
-// only here for that, the paranoid one ready for the worst, the one who turns up wherever it's short-handed. Being attacked or
+// only here for that, the paranoid one ready for the worst, the one who turns up wherever it's short-handed, the robust one modelled on
+// a real player's rounds (goals/robust.dm). Being attacked or
 // seeing somebody dead hardens anybody into the paranoid kind, for the rest of the round (bot_playstyles.dm).
 
 /// Out of a hundred, how many just play the game.
@@ -73,7 +74,7 @@
 	if(prob(BOT_NORMAL_SHARE))
 		playstyle = BOT_STYLE_NORMAL
 		return
-	var/list/styles = list(BOT_STYLE_POWERGAMER, BOT_STYLE_HUNTER, BOT_STYLE_PARANOID, BOT_STYLE_HOPPER)
+	var/list/styles = list(BOT_STYLE_POWERGAMER, BOT_STYLE_HUNTER, BOT_STYLE_PARANOID, BOT_STYLE_HOPPER, BOT_STYLE_ROBUST)
 	if(greytider)
 		styles -= BOT_STYLE_HUNTER //after anybody's trouble but its own
 	set_playstyle(pick(styles))
@@ -91,6 +92,9 @@
 		if(BOT_STYLE_HOPPER)
 			diligence = max(diligence, 0.7)
 			sociability = max(sociability, 0.5)
+		if(BOT_STYLE_ROBUST)
+			nerve = max(nerve, 0.75)
+			competence = max(competence, 0.7)
 
 /// Ready for the worst, by nature or because it's seen it.
 /datum/bot_brain/proc/is_paranoid()

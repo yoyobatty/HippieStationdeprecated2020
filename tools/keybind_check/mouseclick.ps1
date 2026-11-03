@@ -15,6 +15,26 @@ public class MousePost {
 	[DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
 	[DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetClassName(IntPtr h, StringBuilder s, int n);
 	[DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
+	[DllImport("user32.dll")] public static extern uint MapVirtualKey(uint c, uint t);
+	[StructLayout(LayoutKind.Sequential)]
+	public struct GUITHREADINFO {
+		public int cbSize, flags;
+		public IntPtr hwndActive, hwndFocus, hwndCapture, hwndMenuOwner, hwndMoveSize, hwndCaret;
+		public RECT rcCaret;
+	}
+	[DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr p);
+	[DllImport("user32.dll")] public static extern bool GetGUIThreadInfo(uint t, ref GUITHREADINFO g);
+	public static IntPtr FocusOf(IntPtr main) {
+		GUITHREADINFO g = new GUITHREADINFO();
+		g.cbSize = Marshal.SizeOf(g);
+		uint t = GetWindowThreadProcessId(main, IntPtr.Zero);
+		if (GetGUIThreadInfo(t, ref g) && g.hwndFocus != IntPtr.Zero) return g.hwndFocus;
+		return main;
+	}
+	public static void Key(IntPtr h, uint vk, bool down) {
+		uint scan = MapVirtualKey(vk, 0);
+		PostMessage(h, down ? 0x0100u : 0x0101u, (IntPtr)vk, (IntPtr)((down ? 1 : unchecked((int)0xC0000001)) | (int)(scan << 16)));
+	}
 	public static List<IntPtr> Children(IntPtr main) {
 		var found = new List<IntPtr>();
 		EnumChildWindows(main, delegate(IntPtr h, IntPtr p) { found.Add(h); return true; }, IntPtr.Zero);
@@ -88,5 +108,7 @@ foreach ($line in ($lines | Select-Object -Skip 2)) {
 		"down" { Post $h $down[$s[1]] $flag[$s[1]] ([int]([int]$s[2] * $scaleX)) ([int]([int]$s[3] * $scaleY)) }
 		"up" { Post $h $up[$s[1]] 0 ([int]([int]$s[2] * $scaleX)) ([int]([int]$s[3] * $scaleY)) }
 		"drag" { Post $h $WM_MOUSEMOVE $flag[$s[1]] ([int]([int]$s[2] * $scaleX)) ([int]([int]$s[3] * $scaleY)) }
+		"keydown" { [MousePost]::Key([MousePost]::FocusOf($p.MainWindowHandle), [uint32]$s[1], $true) }
+		"keyup" { [MousePost]::Key([MousePost]::FocusOf($p.MainWindowHandle), [uint32]$s[1], $false) }
 	}
 }

@@ -1,5 +1,5 @@
 #!/bin/bash
-unset __COMPAT_LAYER # Git Bash sets it, and under it dm.exe leaks two kernel handles for every file it opens until the next reboot
+unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every file it opens until the next reboot
 # Whole rounds with the reference search, several at once. Usage: tools/gc_hunt/round_hunt.sh [rounds] [jobs]. Results append to data/ref_stall.txt.
 # The harness goes into a temporary build; hippiestation.dme and .dmb are put back afterwards.
 set -u

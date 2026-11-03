@@ -1,5 +1,5 @@
 #!/bin/bash
-unset __COMPAT_LAYER # Git Bash sets it, and under it dm.exe leaks two kernel handles for every file it opens until the next reboot
+unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every file it opens until the next reboot
 # A batch of Bot Shifts, several at a time, with one report at the end. A single shift is one roll of the
 # dice (the MC schedules by real CPU time, so nothing replays); the same crew over a dozen shifts shows what
 # fails every time and what fails one time in ten.

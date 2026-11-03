@@ -808,6 +808,7 @@
 		RegisterSignal(Wearer, list(COMSIG_LIVING_STATUS_STUN,COMSIG_LIVING_STATUS_KNOCKDOWN,COMSIG_LIVING_STATUS_IMMOBILIZE,COMSIG_LIVING_STATUS_PARALYZE,COMSIG_LIVING_STATUS_UNCONSCIOUS), PROC_REF(on_stunned),TRUE)
 		if(is_station_level(T.z))
 			priority_announce("[user] has engaged [src] at [A.map_name]!","Message from The Syndicate!", sound = 'hippiestation/sound/misc/nanosuitengage.ogg')
+			bot_nanosuit_announced(user) //bots_ai/goals/robust.dm
 		log_game("[user] has engaged [src]")
 		if(help_verb)
 			Wearer.verbs += help_verb

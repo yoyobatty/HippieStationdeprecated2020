@@ -1,5 +1,5 @@
 #!/bin/bash
-unset __COMPAT_LAYER # Git Bash sets it, and under it dm.exe leaks two kernel handles for every file it opens until the next reboot
+unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every file it opens until the next reboot
 # Lighting bench: compile, boot headless, time the lighting engine and snapshot the station's lighting, print the results.
 # Usage: tools/lighting_bench/run_lighting_bench.sh [profile|starlight|directional|tail]
 #   profile: also runs the workloads once more under BYOND's profiler, into data/lighting_bench/profile_<mode>.json

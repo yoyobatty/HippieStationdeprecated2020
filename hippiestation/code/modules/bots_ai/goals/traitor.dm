@@ -17,8 +17,6 @@
 // Objectives it has no way of doing yet (hijack, download a research disk...) are left alone, as a player leaves the
 // hard ones. Being arrested, it doesn't try to escape; a player would.
 
-/// The earliest a traitor starts on its objectives, after arriving.
-#define BOT_TRAITOR_SETTLE_IN (8 MINUTES)
 /// How long something that didn't work is left before trying again.
 #define BOT_TRAITOR_PARK (2 MINUTES)
 /// How long it stays on somebody's heels, waiting for its moment.
@@ -50,7 +48,7 @@
 	while(length(candidates) && length(.) < count)
 		var/mob/living/carbon/human/H = pick_n_take(candidates)
 		H.bot_brain.become_traitor()
-		H.bot_brain.traitor_business_after = world.time + BOT_TRAITOR_SETTLE_IN + rand(0, 5 MINUTES)
+		H.bot_brain.pick_traitor_plan() //goals/robust.dm
 		bot_log(H.bot_brain, "I'm a traitor: [jointext(H.bot_brain.objective_list(), "; ")]")
 		. += H
 
@@ -60,6 +58,7 @@
 	being_issued_kit = TRUE
 	. = owner.mind.add_antag_datum(/datum/antagonist/traitor)
 	being_issued_kit = FALSE
+	bot_traitor = TRUE
 
 /datum/bot_brain/proc/objective_list()
 	. = list()
@@ -83,6 +82,8 @@
 			return null
 		return new /datum/bot_goal/traitor_steal(S)
 	if(istype(O, /datum/objective/assassinate) || istype(O, /datum/objective/maroon))
+		if(plays_robust())
+			return null //next_victim() has them at the top of its list, goals/robust.dm
 		return O.target?.current ? new /datum/bot_goal/traitor_kill(O) : null
 	return null
 
@@ -93,14 +94,24 @@
 	interval_min = 300
 	interval_max = 900
 
+/datum/bot_duty/traitor/next_look(datum/bot_brain/bot)
+	return bot.gone_loud() ? 30 : ..()
+
 /datum/bot_duty/traitor/try_start(datum/bot_brain/bot)
 	var/datum/antagonist/traitor/T = bot.owner.mind?.has_antag_datum(/datum/antagonist/traitor)
-	if(!T || (world.time < bot.traitor_business_after && EMERGENCY_IDLE_OR_RECALLED)) //there's no settling in with the shuttle on its way
+	if(!T)
 		return FALSE
+	if(bot.gone_loud() && !bot.plays_robust()) //goals/robust.dm: undercover until it's caught
+		bot.turn_hostile()
+	if(world.time < bot.traitor_business_after && EMERGENCY_IDLE_OR_RECALLED && !bot.gone_loud()) //there's no settling in with the shuttle on its way
+		return FALSE
+	bot.try_codewords()
 	if(!bot.traitor_shopped)
 		bot.traitor_shopped = TRUE
 		if(bot.assign_goal(new /datum/bot_goal/traitor_shop()))
 			return TRUE
+	if(bot.plays_robust())
+		return bot.robust_business() //goals/robust.dm
 	for(var/datum/objective/O as anything in T.objectives)
 		if(LAZYACCESS(bot.objectives_parked, O) > world.time || bot.objective_finished(O))
 			continue
@@ -163,6 +174,10 @@
 	return TRUE
 
 /datum/bot_step/traitor_shop/execute(datum/bot_brain/bot)
+	if(bot.plays_robust())
+		if(bot.buy_nanosuit()) //goals/robust.dm
+			bot.put_on_nanosuit()
+		return GOAL_STEP_SUCCESS
 	if(!bot.find_carried_tool(/obj/item/card/emag) && bot.buy_from_uplink(/obj/item/card/emag))
 		var/obj/item/card/emag/E = bot.find_carried_tool(/obj/item/card/emag)
 		bot_log(bot, "bought [E || "nothing"] off the uplink")
@@ -513,6 +528,5 @@
 		return GOAL_STEP_SUCCESS
 	return GOAL_STEP_FAIL
 
-#undef BOT_TRAITOR_SETTLE_IN
 #undef BOT_TRAITOR_PARK
 #undef BOT_STALK_TIME

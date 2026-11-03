@@ -365,7 +365,7 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 
 /// Puts a call out over the radio for somebody of another trade: says the line, and has it answered like anyone's.
 /datum/bot_brain/proc/call_for(kind_type, line, detail)
-	if(world.time < next_call_time || gym_scripted || QDELETED(owner) || owner.stat != CONSCIOUS)
+	if(world.time < next_call_time || gym_scripted || QDELETED(owner) || owner.stat != CONSCIOUS || gone_loud())
 		return FALSE
 	var/datum/bot_request_kind/kind = locate(kind_type) in GLOB.bot_request_kinds
 	if(!kind || bot_open_request_from(owner, kind))

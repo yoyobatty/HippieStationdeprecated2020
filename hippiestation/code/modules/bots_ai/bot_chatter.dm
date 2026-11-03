@@ -60,6 +60,8 @@ GLOBAL_LIST_EMPTY(bot_radio_lately)
 /datum/bot_brain/proc/worth_saying(line)
 	if(gym_run)
 		return TRUE
+	if((line in GLOB.bot_calm_lines) && bot_shift_gone_bad()) //goals/robust.dm
+		return FALSE
 	if(said_lately && (world.time < said_lately[line]))
 		return FALSE
 	if(copytext(line, 1, 2) == ";")
@@ -121,6 +123,11 @@ GLOBAL_LIST_EMPTY(bot_radio_lately)
 		talker = V.source
 	if(!isliving(talker) || talker == owner)
 		return
+	if(heard_codeword(talker, lowertext(raw_message))) //goals/robust.dm: other traitors' words count, bots or not
+		return
+	if(gone_loud()) //nobody it's on speaking terms with, short of a deal
+		heard_team_offer(talker, lowertext(raw_message), radio_freq)
+		return
 	// Bots talk to each other through make_small_talk() below. Answering whatever another bot says as well would
 	// have two of them alone in a room trading stock replies for the rest of the shift.
 	var/mob/living/carbon/human/crewmate = talker
@@ -128,6 +135,8 @@ GLOBAL_LIST_EMPTY(bot_radio_lately)
 		return
 
 	var/lower_msg = lowertext(raw_message)
+	if(heard_confession(talker, lower_msg, radio_freq)) //goals/robust.dm
+		return
 	var/named = hears_own_name(lower_msg)
 	// A call for somebody of this bot's trade, or for this bot by name to come somewhere (bot_requests.dm).
 	if(heard_call(talker, lower_msg, radio_freq, named))
@@ -597,6 +606,8 @@ GLOBAL_LIST_INIT(bot_shop_talk_replies, list("Good to know.", "Nice.", "Noted.",
 		bot_say(owner, pick(GLOB.bot_idle_lines)) //muttering to nobody is the exception
 
 /datum/bot_brain/proc/make_small_talk(mob/living/carbon/human/company)
+	if(gone_loud())
+		return
 	var/opener
 	var/list/replies
 	var/dept = department()
@@ -620,6 +631,8 @@ GLOBAL_LIST_INIT(bot_shop_talk_replies, list("Good to know.", "Nice.", "Noted.",
 		var/list/exchange = pick(GLOB.bot_small_talk)
 		opener = exchange[1]
 		replies = exchange[2]
+	if((opener in GLOB.bot_calm_lines) && bot_shift_gone_bad())
+		return
 	var/datum/bot_brain/other = company.bot_brain
 	var/they_answer = other && other.state != BOT_STATE_COMBAT && other.state != BOT_STATE_ARREST && company.can_hear()
 	if(they_answer)

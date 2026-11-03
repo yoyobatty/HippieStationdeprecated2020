@@ -302,6 +302,14 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 			B.competence = 1
 
 /// A radiation storm, and a count half a minute after it hits and again at the end of it.
+/// Every head of staff drops dead with the shift over, so the shuttle's somebody else's problem (goals/robust.dm).
+/datum/bot_shift/proc/heads_drill()
+	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
+		if(H.stat != DEAD && (H.mind?.assigned_role in GLOB.command_positions))
+			note("drill: [H.real_name] ([H.mind.assigned_role]) drops dead")
+			H.death()
+	GLOB.bot_shift_ends_at = world.time
+
 /datum/bot_shift/proc/rad_drill()
 	SSweather.run_weather(/datum/weather/rad_storm)
 	addtimer(CALLBACK(src, PROC_REF(rad_count)), 70 SECONDS)
@@ -355,6 +363,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		addtimer(CALLBACK(src, PROC_REF(stuck_drill)), 3 MINUTES)
 	if(world.params["rad-drill"])
 		addtimer(CALLBACK(src, PROC_REF(rad_drill)), 4 MINUTES)
+	if(world.params["heads-drill"])
+		addtimer(CALLBACK(src, PROC_REF(heads_drill)), 4 MINUTES)
 	if(world.params["ttv-bench"])
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(run_ttv_bench)), 5 SECONDS)
 	if(world.params["engine-test"])

@@ -121,7 +121,7 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 
 /// Up to something right now, that the crew would stop if they saw it.
 /datum/bot_brain/proc/up_to_no_good()
-	if(world.time < trouble_until)
+	if(world.time < trouble_until || gone_loud()) //goals/robust.dm
 		return TRUE
 	for(var/datum/bot_goal/goal in list(current_goal, suspended_goal))
 		if(istype(goal, /datum/bot_goal/tide) || istype(goal, /datum/bot_goal/traitor_kill))
