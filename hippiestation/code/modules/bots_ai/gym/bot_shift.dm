@@ -363,6 +363,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		addtimer(CALLBACK(src, PROC_REF(stuck_drill)), 3 MINUTES)
 	if(world.params["rad-drill"])
 		addtimer(CALLBACK(src, PROC_REF(rad_drill)), 4 MINUTES)
+	if(world.params["bot-silly"])
+		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_silly_start), text2num(world.params["bot-silly"])), 90 SECONDS) //bot_silly.dm
 	if(world.params["heads-drill"])
 		addtimer(CALLBACK(src, PROC_REF(heads_drill)), 4 MINUTES)
 	if(world.params["ttv-bench"])

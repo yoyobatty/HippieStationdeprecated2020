@@ -266,3 +266,43 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return bot_transcript_said("falling back from") ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/surgeon
+	name = "surgery: with no sleeper, a doctor gets the tools, tables the patient and tends the wounds"
+	desc = "Somebody out cold and badly hurt, no sleeper in the room, and an operating table. The tools are on the floor. It collects them, drags the patient over, and works through the procedure with the right tool at each step."
+	job = "Medical Doctor"
+	griefer_job = "Assistant"
+	griefer_name = "Pat Patient"
+	time_limit = 120 SECONDS
+	layout = list(
+		"###########",
+		"#Bs.r.h.c.#",
+		"#...C...T.#",
+		"###########")
+
+/datum/bot_scenario/griefed/surgeon/setup()
+	for(var/turf/T in markers["s"])
+		place("s", new /obj/item/scalpel(T))
+	for(var/turf/T in markers["r"])
+		place("r", new /obj/item/retractor(T))
+	for(var/turf/T in markers["h"])
+		place("h", new /obj/item/hemostat(T))
+	for(var/turf/T in markers["c"])
+		place("c", new /obj/item/cautery(T))
+	for(var/turf/T in markers["T"])
+		place("T", new /obj/structure/table/optable(T))
+
+/datum/bot_scenario/griefed/surgeon/grief()
+	griefer.adjustBruteLoss(90)
+	griefer.Unconscious(180 SECONDS)
+	brain.assign_goal(new /datum/bot_goal/operate())
+
+/datum/bot_scenario/griefed/surgeon/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(griefer.stat == DEAD)
+		fail_reason = "the patient died"
+		return BOT_GYM_FAIL
+	if(griefer.getBruteLoss() < 15 && bot_transcript_said("finished operating"))
+		return (locate(/obj/structure/table/optable) in griefer.loc) ? BOT_GYM_PASS : BOT_GYM_FAIL
+	return BOT_GYM_PENDING

@@ -341,6 +341,8 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			return TRUE
 		if(assign_goal(new /datum/bot_goal/escort_to_sleeper()))
 			return TRUE
+		if(assign_goal(new /datum/bot_goal/operate())) //goals/surgery.dm: the sleepers are full, or there aren't any
+			return TRUE
 		if(assign_goal(new /datum/bot_goal/treat_patient()))
 			return TRUE
 		// Everybody alive seen to: the dead the paddles couldn't help (goals/cloning.dm).
