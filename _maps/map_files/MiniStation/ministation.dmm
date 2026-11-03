@@ -1,5 +1,5 @@
 "aa" = (/turf/open/space/basic,/area/space)
-"ab" = (/obj/docking_port/stationary{dheight = 1; dir = 8; height = 17; id = "syndicate_ne"; name = "northeast of station"; width = 23},/turf/open/space,/area/space)
+"ab" = (/obj/docking_port/stationary{dheight = 1; dir = 8; dwidth = 12; height = 17; id = "syndicate_ne"; name = "northeast of station"; width = 23},/turf/open/space,/area/space)
 "ac" = (/obj/structure/sign/warning/electricshock{pixel_y = -32},/turf/open/space/basic,/area/space)
 "ad" = (/turf/closed/wall,/area/bridge)
 "ae" = (/obj/structure/cable,/obj/effect/spawner/structure/window/reinforced,/obj/machinery/door/poddoor/preopen{id = "bridge blast"; name = "bridge blast door"},/turf/open/floor/plating,/area/bridge)

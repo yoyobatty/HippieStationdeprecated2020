@@ -207,7 +207,7 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 	if(!istype(H) || !H.bot_brain)
 		return
 	if(H.bot_brain.pathing_emag && !H.bot_brain.measuring_shut_in)
-		return . || (!welded && hasPower() && !(obj_flags & EMAGGED) && !istype(src, /obj/machinery/door/airlock/external)) //it stays open: not onto space
+		return . || (!welded && hasPower() && !(obj_flags & EMAGGED) && (!istype(src, /obj/machinery/door/airlock/external) || H.bot_brain.op_team)) //it stays open: not onto space, unless it's an operative in a hardsuit coming in from it
 	if(.)
 		// Stood open, and not one this bot's ID opens: no following somebody in (pathing_no_tailgating). The doors it
 		// has just opened itself are another matter - that's what the button was for. This was missing, so nobody
@@ -226,7 +226,7 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 /// At a door that doesn't open for it. TRUE if the card's gone through it: the door breaks, opens, and stays that way.
 /datum/bot_brain/proc/swipe_door(obj/machinery/door/airlock/A)
 	var/obj/item/card/emag/E = emag_for_doors()
-	if(!E || !istype(A) || A.welded || !A.hasPower() || (A.obj_flags & EMAGGED) || istype(A, /obj/machinery/door/airlock/external))
+	if(!E || !istype(A) || A.welded || !A.hasPower() || (A.obj_flags & EMAGGED) || (istype(A, /obj/machinery/door/airlock/external) && !op_team))
 		return FALSE
 	bot_log(src, "[A] doesn't open for me - swiping [E] at it")
 	use_item_on(E, A)

@@ -20,7 +20,7 @@
 // tank back out (replace_tank(), which also closes the valve in the same call).
 
 /datum/bot_brain/proc/is_tank_refill_job()
-	return is_eva_job() || is_miner()
+	return is_eva_job() || is_miner() || op_team //goals/nuke_ops.dm: suited for space from the start
 
 // Oxygen specifically, NOT the general "air" canister (~79% N2/21% O2) - breathing is
 // gated on O2 PARTIAL pressure (check_breath(), life.dm: O2_partialpressure = O2_fraction
@@ -405,6 +405,8 @@
 		get_out_of_bad_air()
 		return
 	manage_internals()
+	if(op_team)
+		return //goals/nuke_ops.dm: the valve, and that's all. There's nowhere for an operative to refill, and taking the tank out of the suit's storage to try turns off the suit's jetpack
 	if(gym_scripted)
 		return //a Bot Gym bot minds its valve, but only runs the errands its scenario gives it
 	if(in_the_flames()) //a tank does nothing for that: an atmos tech worked on through a burning kitchen until it died

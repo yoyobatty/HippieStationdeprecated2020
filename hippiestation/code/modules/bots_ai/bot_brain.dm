@@ -496,6 +496,11 @@
 			owner.buckled.unbuckle_mob(owner, force = TRUE)
 		return
 
+	// An operative has nothing to do but the operation (goals/nuke_ops.dm): no errands, no strolls, no snacks.
+	if(op_team)
+		idle_fidget()
+		return
+
 	// Waiting somewhere on purpose - at departures for the shuttle, say (bot_duties.dm). Nothing below gets a look in
 	// until whatever it's waiting for says the wait is over.
 	if(holding_duty)

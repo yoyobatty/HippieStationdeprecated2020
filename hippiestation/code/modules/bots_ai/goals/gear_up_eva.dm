@@ -58,6 +58,10 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 		"hardsuit" = /obj/item/clothing/suit/space/hardsuit/swat/captain,
 		"mask" = /obj/item/clothing/mask/gas/sechailer,
 		"ssu" = /obj/machinery/suit_storage_unit/captain),
+	"Nuclear Operative" = list( //goals/nuke_ops.dm: the infiltrator's units
+		"hardsuit" = /obj/item/clothing/suit/space/hardsuit/syndi,
+		"mask" = /obj/item/clothing/mask/gas/syndicate,
+		"ssu" = /obj/machinery/suit_storage_unit/syndicate),
 ))
 
 /datum/bot_brain/proc/get_eva_loadout()
@@ -284,7 +288,7 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 			if(istype(boots, boots_type) && boots.magpulse != needs_mag_pulse())
 				telemetry_shortcut("attack_self", boots, null) //telemetry
 				boots.attack_self(owner)
-	if(!is_eva_ready() || low_air_stay_in)
+	if(!is_eva_ready() || (low_air_stay_in && !op_team)) //an operative has nowhere to refill, and the hardsuit's jetpack drinks from the same small tank
 		return FALSE
 	// Suited up is not the same as able to get about out there. Nothing moves in open space without something
 	// to push against - gravity, a wall or girder alongside, a lattice within a tile - or a jetpack
@@ -295,6 +299,8 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 	// actually cross: bot_turf_crossable_without_boots() (bot_pathing_permissive.dm), which is what the route
 	// planner applies while this is FALSE.
 	var/obj/item/tank/jetpack/jetpack = owner.get_jetpack()
+	if(op_team)
+		return istype(jetpack) //goals/nuke_ops.dm: switched on a step before space and off again on a floor (op_mind_jetpack()), to make a small tank last
 	return istype(jetpack) && jetpack.on
 
 /datum/bot_brain

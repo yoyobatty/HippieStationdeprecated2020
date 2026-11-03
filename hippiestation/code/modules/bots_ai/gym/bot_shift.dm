@@ -369,6 +369,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		addtimer(CALLBACK(src, PROC_REF(rad_drill)), 4 MINUTES)
 	if(world.params["bot-silly"])
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_silly_start), text2num(world.params["bot-silly"])), 90 SECONDS) //bot_silly.dm
+	if(world.params["bot-nukeops"])
+		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_spawn_nukeops), text2num(world.params["bot-nukeops"])), 10 SECONDS) //goals/nuke_ops.dm
 	if(world.params["bot-silicons"])
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_spawn_silicons), text2num(world.params["bot-silicons"])), 5 SECONDS) //goals/silicon.dm
 	if(world.params["heads-drill"])

@@ -12,6 +12,9 @@
 
 /datum/component/rot/process()
 	var/atom/A = parent
+	if(QDELETED(A)) // hippie -- a body gibbed by its own microbomb partway through Life() picked this up after it was gone
+		qdel(src)
+		return
 
 	var/turf/open/T = get_turf(A)
 	if(!istype(T) || T.return_air().return_pressure() > (WARNING_HIGH_PRESSURE - 10))
@@ -34,6 +37,9 @@
 
 /datum/component/rot/corpse/process()
 	var/mob/living/carbon/C = parent
+	if(QDELETED(C)) // hippie -- see rot/process()
+		qdel(src)
+		return
 	if(C.stat != DEAD)
 		qdel(src)
 		return

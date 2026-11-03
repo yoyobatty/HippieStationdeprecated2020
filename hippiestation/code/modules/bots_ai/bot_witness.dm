@@ -163,6 +163,8 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 /// Radios that somebody's up to something where they are, unless somebody's beaten it to it. Names them if it can see their
 /// face, and has whoever's on duty put it on their record, the same as bot_call_security() (goals/security_patrol.dm).
 /datum/bot_brain/proc/call_it_in(mob/living/carbon/human/culprit, crime, details, severity)
+	if(gone_loud()) //goals/robust.dm: nobody Security's after calls Security
+		return
 	var/who = culprit.name
 	var/where = get_area_name(culprit, TRUE)
 	var/line = "[who] [details] in [where]!"

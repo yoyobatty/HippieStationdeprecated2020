@@ -6549,7 +6549,7 @@
 "kvn" = (/obj/machinery/atmospherics/pipe/simple/scrubbers/visible{dir = 4},/obj/machinery/atmospherics/pipe/simple/general/visible,/turf/open/floor/engine,/area/engine/engineering)
 "kvH" = (/obj/effect/turf_decal/stripes/line{dir = 5},/turf/open/floor/plasteel,/area/science/nanite)
 "kwu" = (/obj/effect/turf_decal/stripes/line{dir = 5},/obj/structure/cable,/turf/open/floor/plasteel,/area/engine/engineering)
-"kwC" = (/obj/docking_port/stationary{name = "northeast of station"; dir = 8; width = 23; height = 17; id = "syndicate_ne"; dheight = 1},/turf/open/space,/area/space/nearstation)
+"kwC" = (/obj/docking_port/stationary{name = "northeast of station"; dir = 8; width = 23; height = 17; id = "syndicate_ne"; dheight = 1; dwidth = 12},/turf/open/space,/area/space/nearstation)
 "kxa" = (/obj/machinery/atmospherics/pipe/simple/supplymain/hidden{dir = 5},/obj/effect/decal/cleanable/dirt,/turf/open/floor/plasteel,/area/maintenance/port/fore)
 "kxg" = (/obj/machinery/computer/scan_consolenew{dir = 8},/turf/open/floor/plasteel/white,/area/medical/genetics)
 "kxR" = (/obj/machinery/atmospherics/pipe/simple/supply/hidden/layer1{dir = 4},/turf/open/floor/carpet,/area/chapel/main)

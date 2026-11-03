@@ -486,6 +486,8 @@
 /datum/bot_brain/proc/bot_step_towards(turf/next_node)
 	if(!next_node)
 		return FALSE
+	if(op_team)
+		op_mind_jetpack(next_node) //goals/nuke_ops.dm
 	if(!owner.Process_Spacemove(get_dir(owner, next_node)))
 		return FALSE
 	return step_towards(owner, next_node)

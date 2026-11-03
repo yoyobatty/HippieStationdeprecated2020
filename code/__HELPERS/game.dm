@@ -249,6 +249,8 @@ GLOBAL_VAR_INIT(hearing_stamp, 0)
 	// hippie -- what's on the source's own tile hears it without asking view(), and often that's everyone
 	var/list/further_off = list()
 	for(var/atom/movable/candidate as anything in hearables_from_grid)
+		if(!candidate) // something hard deleted while it was still in the grid leaves a null behind
+			continue
 		if(ignore_radios && istype(candidate, /obj/item/radio))
 			continue
 		if(candidate.invisibility && isturf(candidate.loc)) // view() doesn't list these, which is what keeps ghosts and cameras out of this
