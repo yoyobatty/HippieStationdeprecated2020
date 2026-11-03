@@ -52,6 +52,8 @@ SUBSYSTEM_DEF(vis_overlays)
 
 	if(!isatom(thing)) // Automatic rotation is not supported on non atoms
 		return
+	if(QDELETED(thing)) // hippie -- its signals were already cleared, so this one stayed in signal_procs for good: a hard delete
+		return
 
 	if(!thing.managed_vis_overlays)
 		thing.managed_vis_overlays = list(overlay)

@@ -38,7 +38,7 @@
 		icon_state = "[state]"
 
 /obj/machinery/bluespace_beacon/process()
-	if(!Beacon)
+	if(QDELETED(Beacon)) // hippie -- one blown up was moved back out every tick, a hard delete, and no beacon anyone could track
 		var/turf/T = loc
 		Beacon = new(T)
 		Beacon.invisibility = INVISIBILITY_MAXIMUM

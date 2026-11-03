@@ -63,9 +63,7 @@
 
 
 /obj/machinery/computer/station_alert/proc/cancelAlarm(class, area/A, obj/origin)
-	if(stat & (BROKEN))
-		return
-	var/list/L = alarms[class]
+	var/list/L = alarms[class] // hippie -- even when broken: one blown up kept every alarm it had, and a destroyed alarm on it was a hard delete
 	var/cleared = 0
 	for (var/I in L)
 		if (I == A.name)

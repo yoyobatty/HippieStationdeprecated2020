@@ -128,9 +128,10 @@
 		suspended_goal = null
 		suspended_strategy = null
 		suspended_step_index = 0
-	for(var/datum/bot_strategy/strategy in list(current_strategy, suspended_strategy))
+	for(var/datum/bot_strategy/strategy in list(current_strategy, suspended_strategy) + current_goal?.strategies + suspended_goal?.strategies) // the ones not tried yet too
 		for(var/datum/bot_step/step as anything in strategy.steps)
 			bot_forget_deleted_in(step)
+	bot_forget_deleted_in(src) // last_failed_blocker, upgrade_blocked and the rest of what it notes about things
 
 /// Takes what's been deleted out of a datum's vars and its lists, one level down.
 /proc/bot_forget_deleted_in(datum/D)

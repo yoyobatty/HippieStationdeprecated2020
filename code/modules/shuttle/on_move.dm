@@ -102,6 +102,9 @@ All ShuttleMove procs go here
 		return
 
 	loc = newT
+	if(HAS_SPATIAL_GRID_CONTENTS(src)) // hippie -- what Moved() does, which setting loc skips: the old cell kept it, a hard delete later
+		SSspatial_grid.exit_cell(src, oldT)
+		SSspatial_grid.enter_cell(src, newT)
 
 	return TRUE
 

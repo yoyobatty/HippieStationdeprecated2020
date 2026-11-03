@@ -4,12 +4,24 @@
 /datum/martial_art/teach(mob/living/carbon/human/H,make_temporary=0)
 	. = ..()
 	if(.)
-		owner = H
+		set_owner(H)
 
 /datum/martial_art/remove(mob/living/carbon/human/H)
 	reset_streak() // just in case
-	owner = null
+	set_owner(null)
 	..()
+
+/// A gibbed body's mind is in its brain by the time the body is deleted, so the human's Destroy() can't find this to let go: an owner kept
+/// here was a hard delete. Lets go when the owner is deleted, wherever the mind is.
+/datum/martial_art/proc/set_owner(mob/living/carbon/human/H)
+	if(owner)
+		UnregisterSignal(owner, COMSIG_PARENT_QDELETING)
+	owner = H
+	if(owner)
+		RegisterSignal(owner, COMSIG_PARENT_QDELETING, PROC_REF(owner_deleted), override = TRUE)
+
+/datum/martial_art/proc/owner_deleted(datum/source)
+	set_owner(null)
 
 /datum/martial_art/add_to_streak(element,mob/living/carbon/human/D)
 	..()

@@ -65,6 +65,11 @@ GLOBAL_LIST_INIT(gh_skip_vars, list("vars" = TRUE, "verbs" = TRUE, "overlays" = 
 	for(var/turf/T in world)
 		if(length(T.vis_contents) && (D in T.vis_contents))
 			gh_note(hits, "[T.type] at [T.x],[T.y],[T.z].vis_contents")
+		if(length(T.opacity_sources) && (D in T.opacity_sources))
+			gh_note(hits, "[T.type] at [T.x],[T.y],[T.z].opacity_sources")
+		var/turf/simulated/S = T
+		if(istype(S) && S.wind_effect == D)
+			gh_note(hits, "[T.type] at [T.x],[T.y],[T.z].wind_effect")
 	for(var/datum/thing in world)
 		if(!isturf(thing))
 			gh_scan(thing, gh_label(thing), D, hits)

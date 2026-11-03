@@ -1,0 +1,17 @@
+hard delete /datum/dmm_suite/loaded_map /datum/dmm_suite/loaded_map
+/datum/dmm_suite/loaded_map at 1s: refcount 4, 0 found in 1s
+hard delete /datum/dmm_suite/loaded_map /datum/dmm_suite/loaded_map
+/datum/dmm_suite/loaded_map at 1s: refcount 4, 0 found in 1s
+hard delete the good times spawner /obj/effect/spawner/random/loot/good_times
+/obj/effect/spawner/random/loot/good_times at 321s: refcount 4, 1 found in 22.1s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 181,108,4.contents[1]
+hard delete Ian fan outfit spawner /obj/effect/spawner/random/loot/outfit/ian_fan
+/obj/effect/spawner/random/loot/outfit/ian_fan at 321s: refcount 4, 1 found in 22.3s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 197,119,4.contents[1]
+hard delete 5x contraband posters spawner /obj/effect/spawner/random/loot/contraband_posters
+/obj/effect/spawner/random/loot/contraband_posters at 321s: refcount 4, 1 found in 22.7s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 80,204,6.contents[1]
+hard delete the connector port /obj/machinery/atmospherics/unary/portables_connector
+/obj/machinery/atmospherics/unary/portables_connector at 382s: refcount 5, 2 found in 22.2s, loc , vis_locs 0
+    /datum/pipeline.other_atmosmch[1]
+    /datum/pipeline.reconcile_machinery[1]

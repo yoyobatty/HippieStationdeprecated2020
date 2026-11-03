@@ -64,6 +64,8 @@ GLOBAL_DATUM(boom_drill, /datum/boom_drill)
 	var/boom_longest = 0
 	var/list/turf_types_before
 	var/list/mob/living/carbon/human/crew = list()
+	/// Crew deleted (dusted, gibbed): taken off both lists, so the drill's own bookkeeping isn't what keeps them
+	var/crew_gone = 0
 	var/list/hard_deletes_before
 	var/real_start
 
@@ -99,6 +101,7 @@ GLOBAL_DATUM(boom_drill, /datum/boom_drill)
 			H.mind_initialize() // the way a player's body has one
 		crew += H
 		SSmobs.clients_by_zlevel[z] += H
+		RegisterSignal(H, COMSIG_PARENT_QDELETING, PROC_REF(crew_deleted))
 	for(var/datum/ai_controller/controller as anything in GLOB.ai_controllers_by_zlevel[z])
 		controller.set_ai_status(controller.get_expected_ai_status())
 	for(var/mob/living/simple_animal/SA as anything in SSidlenpcpool.idle_mobs_by_zlevel[z])
@@ -145,6 +148,13 @@ GLOBAL_DATUM(boom_drill, /datum/boom_drill)
 			var/turf/next = get_step(H, dir)
 			if(next && !next.density)
 				H.Move(next, dir)
+
+/datum/boom_drill/proc/crew_deleted(mob/living/carbon/human/H)
+	SIGNAL_HANDLER
+	crew -= H
+	crew_gone++
+	for(var/z_level in 1 to length(SSmobs.clients_by_zlevel))
+		SSmobs.clients_by_zlevel[z_level] -= H
 
 /datum/boom_drill/proc/on_explosion(datum/source, turf/epicenter, devastation_range, heavy_impact_range, light_impact_range, took)
 	SIGNAL_HANDLER
@@ -194,7 +204,7 @@ GLOBAL_DATUM(boom_drill, /datum/boom_drill)
 			changed++
 			if(isspaceturf(T))
 				space++
-	var/dead = 0
+	var/dead = crew_gone
 	for(var/mob/living/carbon/human/H as anything in crew)
 		if(QDELETED(H) || H.stat == DEAD)
 			dead++
@@ -213,7 +223,7 @@ GLOBAL_DATUM(boom_drill, /datum/boom_drill)
 			hd_types += "[type_name] [now[1] - was[1]]"
 	return "boom drill [what] on [SSmapping.map_datum?.technical_name]: worst tick [round(worst_ms)] ms at +[round(worst_at / 10, 0.1)]s, [over_100] ticks over 100 ms, [over_1000] over a second; \
 		[round(extra / 1000, 0.1)] s more than the ticks before ([round(per_tick, 0.1)] ms a tick then) over [BOOM_AFTER / 10] s; \
-		[booms_done] explosions finished, the longest over [boom_longest] s of game time; [changed] tiles changed ([space] to space), [dead] of [length(crew)] crew dead; \
+		[booms_done] explosions finished, the longest over [boom_longest] s of game time; [changed] tiles changed ([space] to space), [dead] of [BOOM_CREW] crew dead; \
 		[hd_count] hard deletes by +[BOOM_GC_WAIT / 600] min, [round(hd_ms)] ms: [jointext(hd_types, ", ")]"
 
 #undef BOOM_BASELINE

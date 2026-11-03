@@ -12,6 +12,10 @@
 	var/datum/component/storage/detached_pockets
 	var/attachment_slot = CHEST
 
+/obj/item/clothing/accessory/Destroy() // hippie -- the pockets it gave its uniform go with the uniform; kept here, a hard delete
+	detached_pockets = null
+	return ..()
+
 /obj/item/clothing/accessory/proc/can_attach_accessory(obj/item/clothing/U, mob/user)
 	if(!attachment_slot || (U && U.body_parts_covered & attachment_slot))
 		return TRUE

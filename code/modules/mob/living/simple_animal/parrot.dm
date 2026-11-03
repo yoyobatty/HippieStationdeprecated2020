@@ -98,6 +98,17 @@
 	var/obj/item/held_item = null
 
 
+/// hippie -- the perch, let go of when it's destroyed: Poly, dead or alive, kept a destroyed one, a hard delete
+/mob/living/simple_animal/parrot/proc/set_perch(obj/new_perch)
+	if(parrot_perch)
+		UnregisterSignal(parrot_perch, COMSIG_PARENT_QDELETING)
+	parrot_perch = new_perch
+	if(parrot_perch)
+		RegisterSignal(parrot_perch, COMSIG_PARENT_QDELETING, PROC_REF(perch_deleted), override = TRUE)
+
+/mob/living/simple_animal/parrot/proc/perch_deleted(datum/source)
+	set_perch(null)
+
 /mob/living/simple_animal/parrot/Initialize()
 	. = ..()
 	if(!ears)
@@ -461,7 +472,7 @@
 					parrot_state = PARROT_SWOOP | PARROT_STEAL
 					return
 				else	//Else it's a perch
-					parrot_perch = AM
+					set_perch(AM)
 					parrot_state = PARROT_SWOOP | PARROT_RETURN
 					return
 			return
@@ -475,7 +486,7 @@
 			return
 
 		else //Have an item but no perch? Find one!
-			parrot_perch = search_for_perch()
+			set_perch(search_for_perch())
 			if(parrot_perch)
 				parrot_state = PARROT_SWOOP | PARROT_RETURN
 				return

@@ -123,6 +123,13 @@ GLOBAL_DATUM_INIT(cameranet, /datum/cameranet, new)
 
 /datum/cameranet/proc/removeCamera(obj/machinery/camera/c)
 	majorChunkChange(c, 0)
+	// hippie -- a chunk counts every camera within CHUNK_SIZE of its middle, which reaches past the chunks majorChunkChange()
+	// looks at: a camera destroyed stayed on the further ones, and was a hard delete
+	for(var/key in chunks)
+		var/datum/camerachunk/chunk = chunks[key]
+		if(c in chunk.cameras)
+			chunk.cameras -= c
+			chunk.hasChanged()
 
 // Add a camera to a chunk.
 

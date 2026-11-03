@@ -1,0 +1,35 @@
+hard delete /datum/dmm_suite/loaded_map /datum/dmm_suite/loaded_map
+/datum/dmm_suite/loaded_map at 1s: refcount 4, 0 found in 1.1s
+hard delete /datum/dmm_suite/loaded_map /datum/dmm_suite/loaded_map
+/datum/dmm_suite/loaded_map at 1s: refcount 4, 0 found in 1s
+hard delete the random mech figurine /obj/effect/spawner/random/toy/mech_figure
+/obj/effect/spawner/random/toy/mech_figure at 322s: refcount 4, 1 found in 23.8s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 50,198,8.contents[1]
+hard delete the good times spawner /obj/effect/spawner/random/loot/good_times
+/obj/effect/spawner/random/loot/good_times at 322s: refcount 4, 1 found in 23.9s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 33,134,8.contents[1]
+hard delete the stock parts spawner /obj/effect/spawner/random/stock_parts
+/obj/effect/spawner/random/stock_parts at 322s: refcount 4, 1 found in 24.4s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 35,135,8.contents[1]
+hard delete the stock parts spawner /obj/effect/spawner/random/stock_parts
+/obj/effect/spawner/random/stock_parts at 322s: refcount 4, 1 found in 23.6s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 107,169,6.contents[1]
+hard delete the random mech figurine /obj/effect/spawner/random/toy/mech_figure
+/obj/effect/spawner/random/toy/mech_figure at 322s: refcount 4, 1 found in 23.8s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 112,61,3.contents[1]
+hard delete the good times spawner /obj/effect/spawner/random/loot/good_times
+/obj/effect/spawner/random/loot/good_times at 322s: refcount 4, 1 found in 24s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 190,89,6.contents[1]
+hard delete the pet uhhh supplies spawner /obj/effect/spawner/random/loot/pet_uhhh_supplies
+/obj/effect/spawner/random/loot/pet_uhhh_supplies at 322s: refcount 4, 1 found in 24.4s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 188,49,6.contents[1]
+hard delete the pet uhhh supplies spawner /obj/effect/spawner/random/loot/pet_uhhh_supplies
+/obj/effect/spawner/random/loot/pet_uhhh_supplies at 322s: refcount 4, 1 found in 23.8s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 108,205,5.contents[1]
+hard delete the chameleon and ties spawner /obj/effect/spawner/random/loot/outfit/cham_ties
+/obj/effect/spawner/random/loot/outfit/cham_ties at 322s: refcount 4, 1 found in 23.6s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 56,48,4.contents[1]
+hard delete the connector port /obj/machinery/atmospherics/unary/portables_connector
+/obj/machinery/atmospherics/unary/portables_connector at 386s: refcount 5, 2 found in 23.9s, loc , vis_locs 0
+    /datum/pipeline.other_atmosmch[1]
+    /datum/pipeline.reconcile_machinery[1]

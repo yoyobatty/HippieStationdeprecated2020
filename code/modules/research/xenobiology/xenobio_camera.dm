@@ -59,6 +59,8 @@
 
 /obj/machinery/computer/camera_advanced/xenobio/Destroy()
 	stored_slimes = null
+	connected_recycler?.connected -= src // hippie -- the recycler kept a blown-up console: a hard delete
+	connected_recycler = null
 	QDEL_NULL(current_potion)
 	for(var/i in contents)
 		var/mob/living/simple_animal/slime/S = i

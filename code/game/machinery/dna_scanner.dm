@@ -20,6 +20,9 @@
 	for(var/obj/machinery/computer/cloning/C in GLOB.machines)
 		if(C.scanner == src)
 			C.scanner = null
+	for(var/obj/machinery/computer/scan_consolenew/C in GLOB.machines) // and the genetics console
+		if(C.connected == src)
+			C.connected = null
 	return ..()
 
 /obj/machinery/dna_scannernew/RefreshParts()

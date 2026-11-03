@@ -60,8 +60,8 @@
 	if(process)
 		SSair.atmos_machinery += src
 	SetInitDirections()
-	var/turf/machine_turf = get_turf(src)
-	if(machine_turf)
+	var/turf/machine_turf = loc
+	if(isturf(machine_turf)) // hippie -- not one inside something else, a canister's valve: it never moved cells with the canister, and was a hard delete
 		SSspatial_grid.add_grid_awareness(src, SPATIAL_GRID_CONTENTS_TYPE_ATMOS)
 		SSspatial_grid.add_grid_membership(src, machine_turf, SPATIAL_GRID_CONTENTS_TYPE_ATMOS)
 

@@ -227,10 +227,18 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 	return null
 
 GLOBAL_VAR_INIT(bot_globals_forget_time, 0)
+GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 
-/// The crew's shared lists, once a minute from whichever bot's forget_deleted() gets there first (bot_brain.dm): requests only went
-/// when a new one was made, so after a blast the doors one listed stayed held; a door bolted open and blown up stayed its department's.
+/// Keeps bot_forget_deleted_globals() going once the first bot has run it, with no bot left alive to: after a nuke there wasn't one.
+/datum/bot_globals_forgetter/process()
+	bot_forget_deleted_globals()
+
+/// The crew's shared lists, once a minute: requests only went when a new one was made, so after a blast the doors one listed stayed
+/// held; a door bolted open and blown up stayed its department's.
 /proc/bot_forget_deleted_globals()
+	if(!GLOB.bot_globals_forgetter)
+		GLOB.bot_globals_forgetter = new
+		START_PROCESSING(SSprocessing, GLOB.bot_globals_forgetter)
 	if(world.time < GLOB.bot_globals_forget_time)
 		return
 	GLOB.bot_globals_forget_time = world.time + 1 MINUTES
@@ -243,6 +251,11 @@ GLOBAL_VAR_INIT(bot_globals_forget_time, 0)
 		var/datum/door = GLOB.bot_open_departments[department]
 		if(QDELETED(door))
 			GLOB.bot_open_departments -= department
+	for(var/turf/T as anything in GLOB.bot_cable_breaks) // goals/repair_cables.dm
+		var/list/info = GLOB.bot_cable_breaks[T]
+		var/datum/bot_brain/claimant = info["claim"]
+		if(claimant && QDELETED(claimant))
+			info["claim"] = null
 
 /proc/bot_new_request(datum/bot_request_kind/kind, mob/living/talker, radio_freq, atom/place)
 	for(var/datum/bot_request/old as anything in GLOB.bot_requests)

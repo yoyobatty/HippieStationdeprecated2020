@@ -714,6 +714,8 @@
 	if(!force)
 		amount = min(remaining_space_items(), amount)
 	for(var/i in 1 to amount)
+		if(QDELETED(parent)) // hippie -- the CHECK_TICK below can sleep, and what it's filling can be destroyed meanwhile (by a tesla zap)
+			return FALSE
 		handle_item_insertion(new type(real_location), TRUE)
 		CHECK_TICK
 	return TRUE

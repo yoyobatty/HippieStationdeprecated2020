@@ -20,6 +20,12 @@
 	var/busy_message
 	var/message_cooldown = 0
 
+/obj/machinery/nanite_chamber/Destroy() // hippie -- its console kept pointing at it: a hard delete, board and all
+	if(console?.chamber == src)
+		console.chamber = null
+	console = null
+	return ..()
+
 /obj/machinery/nanite_chamber/Initialize()
 	. = ..()
 	occupant_typecache = GLOB.typecache_living

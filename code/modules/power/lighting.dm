@@ -63,6 +63,11 @@
 	QDEL_NULL(cell)
 	return ..()
 
+/obj/structure/light_construct/handle_atom_del(atom/A) // hippie -- a cell destroyed inside it was kept, a hard delete
+	if(A == cell)
+		cell = null
+	return ..()
+
 /obj/structure/light_construct/get_cell()
 	return cell
 

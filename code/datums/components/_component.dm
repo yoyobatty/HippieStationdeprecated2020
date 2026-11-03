@@ -126,6 +126,10 @@
 	if(!islist(sig_type_or_types))
 		sig_type_or_types = list(sig_type_or_types)
 	for(var/sig in sig_type_or_types)
+		// hippie -- not one we registered: below would take another datum's registration off the target, and that datum, still listing
+		// the target, kept it for good (SSvis_overlays and a dismembered limb: a hard delete)
+		if(!signal_procs[target][sig])
+			continue
 		switch(length(lookup[sig]))
 			if(2)
 				lookup[sig] = (lookup[sig]-src)[1]
@@ -137,6 +141,8 @@
 						target.comp_lookup = null
 						break
 			if(0)
+				if(lookup[sig] != src) // hippie -- someone else's
+					continue
 				lookup -= sig
 				if(!length(lookup))
 					target.comp_lookup = null

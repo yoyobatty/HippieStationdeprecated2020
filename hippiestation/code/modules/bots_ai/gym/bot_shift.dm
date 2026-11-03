@@ -1272,7 +1272,6 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	jobs = list("Bartender")
 	deadline = 12 MINUTES
 	var/asks_at = 4 MINUTES
-	var/mob/living/carbon/human/customer
 	var/asked = FALSE
 
 /datum/bot_shift_check/drink_order/proc/served()
@@ -1295,7 +1294,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 					spot = T
 					break
 			spot = spot || get_step(counter, SOUTH)
-			customer = new(spot)
+			var/mob/living/carbon/human/customer = new(spot) // not kept: one blown up was a hard delete
 			customer.real_name = "Dana Customer"
 			customer.name = customer.real_name
 			customer.equipOutfit(/datum/outfit/job/assistant)
@@ -1318,7 +1317,6 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	jobs = list("Cargo Technician", "Quartermaster")
 	deadline = 14 MINUTES
 	var/asks_at = 5 MINUTES
-	var/mob/living/carbon/human/asker
 	var/asked = FALSE
 
 /datum/bot_shift_check/supply_request/proc/ordered()
@@ -1338,7 +1336,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 				if(!T.density && !is_blocked_turf(T, TRUE))
 					spot = T
 					break
-			asker = new(spot)
+			var/mob/living/carbon/human/asker = new(spot) // not kept: one blown up was a hard delete
 			asker.real_name = "Glenn Asker"
 			asker.name = asker.real_name
 			asker.equipOutfit(/datum/outfit/job/assistant)

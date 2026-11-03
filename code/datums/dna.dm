@@ -33,6 +33,7 @@
 	for(var/datum/mutation/human/M in mutations) // hippie -- each points back here, and one held elsewhere kept a gibbed mob's dna: a hard delete
 		if(M.dna == src)
 			M.dna = null
+			M.owner = null
 	mutations.Cut()					//This only references mutations, just dereference.
 	temporary_mutations.Cut()		//^
 	previous.Cut()					//^

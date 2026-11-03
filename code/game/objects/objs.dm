@@ -182,6 +182,7 @@
 
 /mob/proc/unset_machine()
 	if(machine)
+		UnregisterSignal(machine, COMSIG_PARENT_QDELETING)
 		machine.on_unset_machine(src)
 		machine = null
 
@@ -195,6 +196,8 @@
 	src.machine = O
 	if(istype(O))
 		O.obj_flags |= IN_USE
+	if(istype(O, /datum)) // hippie -- let go of it when it's destroyed: a mob kept a blown-up machine it had been using, a hard delete
+		RegisterSignal(O, COMSIG_PARENT_QDELETING, PROC_REF(unset_machine), override = TRUE)
 
 /obj/item/proc/updateSelfDialog()
 	var/mob/M = src.loc

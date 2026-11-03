@@ -94,8 +94,12 @@
 	materials = AddComponent(/datum/component/remote_materials, "stacking", mapload, FALSE, mapload && force_connect)
 
 /obj/machinery/mineral/stacking_machine/Destroy() // hippie -- its console kept pointing at it: a hard delete, board and all
-	if(CONSOLE?.machine == src)
-		CONSOLE.machine = null
+	var/obj/machinery/mineral/stacking_unit_console/console = CONSOLE
+	if(istype(console) && console.machine == src)
+		console.machine = null
+	var/obj/machinery/mineral/labor_claim_console/labor_console = CONSOLE // the labor camp's
+	if(istype(labor_console) && labor_console.stacking_machine == src)
+		labor_console.stacking_machine = null
 	CONSOLE = null
 	materials = null
 	return ..()

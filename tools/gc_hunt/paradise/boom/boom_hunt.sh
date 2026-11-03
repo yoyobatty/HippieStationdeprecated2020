@@ -5,7 +5,7 @@ unset __COMPAT_LAYER
 set -u
 cd "$(dirname "$0")/../.."
 BYOND_BIN="${BYOND_BIN:-/c/Users/Keegan Eaton/BYOND-516.1666/byond/bin}"
-sed 's|^// END_INCLUDE|#include "tools\\live_bench\\boom_drill.dm"\n#include "tools\\live_bench\\gc_hunt_para.dm"\n// END_INCLUDE|' paradise.dme > boomhunt.dme
+sed 's|^// END_INCLUDE|#include "tools\\live_bench\\boom_drill.dm"\n#include "tools\\live_bench\\gc_hunt_para.dm"\n#include "tools\\live_bench\\pipe_debug.dm"\n// END_INCLUDE|' paradise.dme > boomhunt.dme
 rm -f boomhunt.dmb
 "$BYOND_BIN/dm.exe" boomhunt.dme | grep -E "error|warning|dmb -" | head -20
 [ -f boomhunt.dmb ] || { echo "Compile failed"; exit 1; }

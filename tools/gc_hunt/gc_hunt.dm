@@ -123,19 +123,83 @@ GLOBAL_VAR_INIT(gh_radio_checks, 0)
 	var/where = T ? "[T.x],[T.y],[T.z]" : "nowhere"
 	var/key = spatial_grid_key
 	var/chain = gh_chain(caller)
+	var/list/held_by = get_nested_locs(src)
 	. = ..()
-	if(GLOB.gh_radio_checks >= 30)
+	if(GLOB.gh_radio_checks >= 30) // logs, not checks: radios deleted at round start would use them all up
 		return
-	GLOB.gh_radio_checks++
+	for(var/atom/movable/holder as anything in held_by)
+		var/list/hearing = holder.important_recursive_contents?[RECURSIVE_CONTENTS_HEARING_SENSITIVE]
+		if(src in hearing)
+			GLOB.gh_radio_checks++
+			gh_log("deleted radio [src] [type] at [where] still in the hearing list of [holder] [holder.type] ([QDELETED(holder) ? "deleted" : "alive"]), [chain]")
 	for(var/list/z_level_grid as anything in SSspatial_grid.grids_by_z_level)
 		for(var/list/cell_row as anything in z_level_grid)
 			for(var/datum/spatial_grid_cell/cell as anything in cell_row)
 				if(src in cell.hearing_contents)
+					GLOB.gh_radio_checks++
 					gh_log("deleted radio [src] [type] at [where] still on the cell at [cell.cell_x],[cell.cell_y],[cell.cell_z], grid key '[key]', [gh_chain(caller)] / [chain]")
+
+/// Items and limbs turn up deleted but still in SSvis_overlays.signal_procs: who gave each its first managed overlay, for the hard delete to show
+GLOBAL_LIST_EMPTY(gh_vis_registered)
+
+/datum/controller/subsystem/vis_overlays/add_vis_overlay(atom/movable/thing, icon, iconstate, layer, plane, dir, alpha = 255, add_appearance_flags = NONE, unique = FALSE, bloom = TRUE)
+	var/first = isitem(thing) && !thing.managed_vis_overlays
+	. = ..()
+	if(first && thing.managed_vis_overlays)
+		GLOB.gh_vis_registered[REF(thing)] = "[QDELETED(thing) ? "while deleted" : "alive"] at [round(world.time / 10)]s, [iconstate] plane [plane]: [gh_chain(caller)]"
+
+/datum/controller/subsystem/vis_overlays/remove_vis_overlay(atom/movable/thing, list/overlays)
+	. = ..()
+	if(isatom(thing) && !thing.managed_vis_overlays)
+		GLOB.gh_vis_registered -= REF(thing)
+
+GLOBAL_VAR_INIT(gh_atmos_checks, 0)
+
+/// Passive gates turn up deleted on a cell's atmos list: where each was, and the cell that kept it.
+/obj/machinery/atmospherics/Destroy()
+	var/turf/T = get_turf(src)
+	var/where = T ? "[T.x],[T.y],[T.z]" : "nowhere"
+	var/chain = gh_chain(caller)
+	. = ..()
+	if(GLOB.gh_atmos_checks >= 20)
+		return
+	for(var/list/z_level_grid as anything in SSspatial_grid.grids_by_z_level)
+		for(var/list/cell_row as anything in z_level_grid)
+			for(var/datum/spatial_grid_cell/cell as anything in cell_row)
+				if(src in cell.atmos_contents)
+					GLOB.gh_atmos_checks++
+					gh_log("deleted [src] [type] at [where] still on the atmos list of the cell at [cell.cell_x],[cell.cell_y],[cell.cell_z], key '[spatial_grid_key]', [chain]")
+
+GLOBAL_VAR_INIT(gh_slot_leaves, 0)
+
+/// A screwdriver turned up deleted but still a human's pocket: what took it out of the pocket without unequipping it.
+/obj/item/Moved(atom/OldLoc, Dir)
+	. = ..()
+	if(GLOB.gh_slot_leaves < 20 && ishuman(OldLoc) && loc != OldLoc)
+		var/mob/living/carbon/human/H = OldLoc
+		var/chain = gh_chain(caller)
+		spawn(1) // a proper unequip moves it first and clears the slot after
+			if(H && loc != H && (H.l_store == src || H.r_store == src || H.s_store == src || H.belt == src || H.back == src || H.wear_id == src || (src in H.held_items)))
+				GLOB.gh_slot_leaves++
+				gh_log("[src] [type] left [H] for [loc] but is still in one of its slots, at [round(world.time / 10)]s: [chain]")
+
+GLOBAL_VAR_INIT(gh_stale_enters, 0)
+
+/// Something entering a cell brings its recursive hearing list with it: a deleted radio still on that list goes onto the cell.
+/datum/controller/subsystem/spatial_grid/enter_cell(atom/movable/new_target, turf/target_turf)
+	. = ..()
+	if(GLOB.gh_stale_enters >= 20)
+		return
+	for(var/datum/thing as anything in new_target?.important_recursive_contents?[RECURSIVE_CONTENTS_HEARING_SENSITIVE])
+		if(QDELETED(thing))
+			GLOB.gh_stale_enters++
+			gh_log("deleted [thing] [thing.type] brought onto a cell by [new_target] [new_target.type] at [round(world.time / 10)]s: [gh_chain(caller)]")
 
 /datum/controller/subsystem/garbage/HardDelete(datum/D)
 	var/path = D.type
 	gh_log("hard delete [D] [path]")
+	if(GLOB.gh_vis_registered[REF(D)])
+		gh_log("    its managed vis overlays began [GLOB.gh_vis_registered[REF(D)]]; managed now [length(D:managed_vis_overlays)]")
 	if(GLOB.gh_searched[path] < (text2num(world.params["gh-per-type"]) || GH_MAX_PER_TYPE)) //gh-per-type=1 for a blast's dozens of types, at half a minute a search
 		GLOB.gh_searched[path]++
 		try

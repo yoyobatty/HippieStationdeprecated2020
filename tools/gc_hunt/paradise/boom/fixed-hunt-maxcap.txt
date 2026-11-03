@@ -1,0 +1,29 @@
+hard delete /datum/dmm_suite/loaded_map /datum/dmm_suite/loaded_map
+/datum/dmm_suite/loaded_map at 1s: refcount 4, 0 found in 1.1s
+hard delete /datum/dmm_suite/loaded_map /datum/dmm_suite/loaded_map
+/datum/dmm_suite/loaded_map at 1s: refcount 4, 0 found in 1s
+hard delete the mime outfit spawner /obj/effect/spawner/random/loot/outfit/mime
+/obj/effect/spawner/random/loot/outfit/mime at 322s: refcount 4, 1 found in 31.5s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 205,179,7.contents[1]
+hard delete the chameleon and ties spawner /obj/effect/spawner/random/loot/outfit/cham_ties
+/obj/effect/spawner/random/loot/outfit/cham_ties at 322s: refcount 4, 1 found in 30.9s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 207,178,7.contents[1]
+hard delete 3x cryo beaker spawner /obj/effect/spawner/random/loot/cryo_beakers
+/obj/effect/spawner/random/loot/cryo_beakers at 322s: refcount 4, 1 found in 30.3s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 41,123,6.contents[1]
+hard delete 5x contraband posters spawner /obj/effect/spawner/random/loot/contraband_posters
+/obj/effect/spawner/random/loot/contraband_posters at 322s: refcount 4, 1 found in 30.6s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 169,51,4.contents[1]
+hard delete 5x contraband posters spawner /obj/effect/spawner/random/loot/contraband_posters
+/obj/effect/spawner/random/loot/contraband_posters at 322s: refcount 4, 1 found in 31.4s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 114,214,5.contents[1]
+hard delete the random mech figurine /obj/effect/spawner/random/toy/mech_figure
+/obj/effect/spawner/random/toy/mech_figure at 322s: refcount 4, 1 found in 31.7s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 102,144,3.contents[1]
+hard delete the clown outfit spawner /obj/effect/spawner/random/loot/outfit/clown
+/obj/effect/spawner/random/loot/outfit/clown at 322s: refcount 4, 1 found in 31s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 97,43,4.contents[1]
+hard delete the sparks /obj/effect/particle_effect/sparks
+/obj/effect/particle_effect/sparks at 322s: refcount 4, 0 found in 28.5s, loc , vis_locs 0
+hard delete the sparks /obj/effect/particle_effect/sparks
+/obj/effect/particle_effect/sparks at 322s: refcount 4, 0 found in 25.6s, loc , vis_locs 0
