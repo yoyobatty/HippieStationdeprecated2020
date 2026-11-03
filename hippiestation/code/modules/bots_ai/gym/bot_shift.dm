@@ -157,7 +157,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 			check.begin()
 	var/next_report = start_time + 1 MINUTES
 	var/second = 0
-	while(elapsed() < length && !(whole_round && SSticker.current_state == GAME_STATE_FINISHED))
+	//a nuke that goes off ends the round, and the reboot after it would lose the results
+	while(elapsed() < length && !(whole_round && SSticker.current_state == GAME_STATE_FINISHED) && !SSticker.mode?.station_was_nuked)
 		sleep(1 SECONDS)
 		second++
 		for(var/datum/bot_shift_member/member as anything in members)
@@ -179,6 +180,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 				power_curve += station_power_text()
 				note_load_stretch()
 	real_end_ms = timewarp_real_ms()
+	if(SSticker.mode?.station_was_nuked)
+		note("the nuke went off: the station is gone")
 	for(var/count in pathfinding)
 		pathfinding[count] = GLOB.astar_tally[count] - pathfinding[count]
 	if(BOT_SHIFT_PROFILE_PARAMETER in world.params)

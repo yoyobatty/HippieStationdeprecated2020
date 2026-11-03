@@ -44,11 +44,16 @@ def report(run):
     reloads = len(re.findall(r"BOT AI: (%s): reloaded" % names, game))
     disk = len(re.findall(r"BOT AI: (%s): picked up the nuclear" % names, game))
     armed = re.findall(r"BOT OPS: (.+?) armed the nuke", game)
-    exploded = "Station destroyed" in game or "nuclear device detonated" in game.lower()
+    timeline = read(os.path.join(run, "timeline.txt"))
+    exploded = "Station destroyed" in game or "nuke went off" in timeline
+    armed_at = re.search(r"^(\d+:\d+)\s+.* armed the nuke", timeline, re.M)
+    went_off = re.search(r"^(\d+:\d+)\s+the nuke went off", timeline, re.M)
+    if armed_at:
+        armed = ["%s at %s" % (armed[0] if armed else "an operative", armed_at.group(1))]
     lines = ["%s: %d operatives, %d dead, %d cuffed, %d disk pickups, %d reloads, nuke %s" % (
         os.path.basename(run), len(ops), deaths, cuffs, disk, reloads, ("ARMED by " + armed[0]) if armed else "not armed")]
     if exploded:
-        lines.append("  the nuke went off")
+        lines.append("  the nuke went off" + (" at " + went_off.group(1) if went_off else ""))
     lines.append("  fired/struck: " + (", ".join("%s x%d" % (k, n) for k, n in fired.most_common(6)) or "nothing"))
     lines.append("  hit by: " + (", ".join("%s x%d" % (k, n) for k, n in hit.most_common(6)) or "nothing"))
     return lines

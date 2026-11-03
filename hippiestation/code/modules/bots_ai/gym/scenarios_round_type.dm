@@ -111,6 +111,31 @@
 	brain.op_team = null
 	..()
 
+/datum/bot_scenario/coming_through
+	name = "teams: through a doorway somebody's stood in on harm intent"
+	desc = "Places only swap with both on help intent, and a bot that had been shooting stayed on harm. Two operatives holding by the nuke blocked the infiltrator's doorway, and the one with the disk was stuck four tiles from it."
+	layout = list(
+		"#######",
+		"#B...C#",
+		"#####.#",
+		"#####.#",
+		"#####G#",
+		"#######")
+	time_limit = 20 SECONDS
+	var/mob/living/carbon/human/other //at the corner: a push only shoves it into the wall, so the way past is a swap
+
+/datum/bot_scenario/coming_through/post_spawn()
+	..()
+	bot.a_intent = INTENT_HARM
+	other = second_bot(first_marker("C"), "Pat Holder")
+	other.a_intent = INTENT_HARM
+	other.bot_brain.stand_still_until = world.time + time_limit //holding its spot, as an operative guarding the nuke does
+
+/datum/bot_scenario/coming_through/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return get_dist(bot, first_marker("G")) <= 1 ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /datum/bot_scenario/op_arms_the_nuke
 	name = "operatives: the disk in, the code, the timer, armed"
 	desc = "An operative at the nuke with the disk in its bag. None had ever got this far alive, so the panel had never been worked."
@@ -129,6 +154,12 @@
 /datum/bot_scenario/op_arms_the_nuke/post_spawn()
 	..()
 	nuke = new(first_marker("N"))
+	var/obj/machinery/door/window/door = new(first_marker("N")) //the infiltrator has it behind one, which the Syndicate card opens
+	door.setDir(WEST)
+	door.req_access = list(ACCESS_SYNDICATE)
+	if(bot.wear_id)
+		qdel(bot.wear_id)
+	bot.equip_to_slot_or_del(new /obj/item/card/id/syndicate(bot), ITEM_SLOT_ID) //an operative's agent card
 	var/datum/bot_nuke_team/team = new
 	team.code = nuke.r_code
 	team.nuke = nuke

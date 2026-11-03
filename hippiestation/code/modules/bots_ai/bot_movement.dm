@@ -490,7 +490,21 @@
 		op_mind_jetpack(next_node) //goals/nuke_ops.dm
 	if(!owner.Process_Spacemove(get_dir(owner, next_node)))
 		return FALSE
+	make_way_through(next_node)
 	return step_towards(owner, next_node)
+
+/// Somebody on the next tile who isn't a fight: places are only swapped with both on help intent (living.dm), and a bot that had been
+/// shooting stayed on harm. Two operatives holding by the nuke stood in the infiltrator's doorway, and the one with the disk was stuck
+/// four tiles from it until it gave up. It goes on help, and a bot there that isn't fighting does too, as a teammate would at "coming through".
+/datum/bot_brain/proc/make_way_through(turf/next_node)
+	if(state == BOT_STATE_COMBAT || owner.a_intent == INTENT_HELP && !(locate(/mob/living/carbon/human) in next_node))
+		return
+	for(var/mob/living/carbon/human/H in next_node)
+		if(H == owner || H == attacker || H == pursue_target || H.bot_brain?.attacker == owner)
+			return
+		owner.a_intent = INTENT_HELP
+		if(H.bot_brain && H.bot_brain.state != BOT_STATE_COMBAT)
+			H.a_intent = INTENT_HELP
 
 // step_next_node() re-invokes itself via addtimer to keep walking (see its own
 // comment) - previously that self-perpetuation went through on_pursuit_moved(), which

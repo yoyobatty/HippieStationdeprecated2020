@@ -13,7 +13,11 @@
 //
 // They're loud from the start (gone_loud()): no job, no small talk, and what they say is what an antagonist says.
 
-/// How long the leader waits for the team before going anyway.
+/// How long a team talks it over and shops at the base before it'll go, as players do. Going the moment they were suited, they had the
+/// station nuked four and a half minutes into the round, before the crew had finished getting to their posts.
+#define BOT_OPS_PLAN_MIN (6 MINUTES)
+#define BOT_OPS_PLAN_MAX (12 MINUTES)
+/// How long the leader waits for the team after that before going anyway.
 #define BOT_OPS_LAUNCH_WAIT (5 MINUTES)
 /// And how much longer with a player on the team, who shops and plans at a player's pace.
 #define BOT_OPS_PLAYER_WAIT (10 MINUTES)
@@ -27,6 +31,9 @@
 	var/obj/machinery/nuclearbomb/nuke
 	var/code
 	var/launched = FALSE
+	/// Not before this.
+	var/earliest_launch = 0
+	/// And no later, whoever's still not ready.
 	var/launch_at = 0
 	/// id -> the blast door or shutter: see door_shut().
 	var/list/doors = list()
@@ -50,7 +57,7 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 		return 0
 	var/datum/bot_nuke_team/team = new
 	GLOB.bot_nuke_team = team
-	team.launch_at = world.time + BOT_OPS_LAUNCH_WAIT
+	team.plan_launch()
 	var/datum/team/nuclear/antag_team
 	for(var/i in 1 to count)
 		var/mob/living/carbon/human/H = new(GLOB.nukeop_start[1])
@@ -77,8 +84,14 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 		if(!QDELETED(B.owner) && B.owner.stat != DEAD)
 			. += B
 
+/datum/bot_nuke_team/proc/plan_launch()
+	earliest_launch = world.time + rand(BOT_OPS_PLAN_MIN, BOT_OPS_PLAN_MAX)
+	launch_at = earliest_launch + BOT_OPS_LAUNCH_WAIT
+
 /// Everybody alive is aboard and suited, players on the team aboard too, or they've waited long enough.
 /datum/bot_nuke_team/proc/ready_to_go()
+	if(world.time < earliest_launch)
+		return FALSE
 	var/list/players = player_members()
 	if(world.time >= launch_at + (length(players) ? BOT_OPS_PLAYER_WAIT : 0))
 		return TRUE
@@ -117,7 +130,7 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 	var/datum/bot_brain/B = H.bot_brain
 	if(!GLOB.bot_nuke_team)
 		GLOB.bot_nuke_team = new
-		GLOB.bot_nuke_team.launch_at = world.time + BOT_OPS_LAUNCH_WAIT
+		GLOB.bot_nuke_team.plan_launch()
 	var/datum/bot_nuke_team/team = GLOB.bot_nuke_team
 	B.op_team = team
 	B.set_playstyle(BOT_STYLE_ROBUST)
@@ -397,6 +410,8 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 		return assign_goal(new /datum/bot_goal/op_arm(N))
 	if(disk && disk.loc == N)
 		return assign_goal(new /datum/bot_goal/op_arm(N)) //somebody put it in and didn't finish
+	if(op_take_on_security())
+		return TRUE
 	if(!disk)
 		return op_hold()
 	var/mob/living/carrier
@@ -412,6 +427,19 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 			return assign_goal(new /datum/bot_goal/op_eject(carrier.loc))
 		return assign_goal(new /datum/bot_goal/traitor_kill/robust/op_disk(null, carrier))
 	return assign_goal(new /datum/bot_goal/op_grab_disk(disk))
+
+/// An officer in sight and on their feet: shot first. Security came at them in twos and threes and tased them down one at a time while
+/// they walked on to the disk, fighting back only once hit; a team of players opens fire first. Whoever has the disk keeps going.
+/datum/bot_brain/proc/op_take_on_security()
+	if(!find_usable_gun() && !find_carried_tool(/obj/item/melee/transforming/energy/sword))
+		return FALSE
+	for(var/mob/living/carbon/human/H in view(BOT_OPS_GUARD, owner))
+		if(H.stat != CONSCIOUS || H.handcuffed || !bot_is_officer(H) || on_my_side(H))
+			continue
+		if(assign_goal(new /datum/bot_goal/traitor_kill/robust/op_disk(null, H)))
+			bot_log(src, "taking on [H] before they take us")
+			return TRUE
+	return FALSE
 
 /// Armed: anybody coming for it dies; otherwise it stays close.
 /datum/bot_brain/proc/op_hold()
@@ -910,17 +938,30 @@ GLOBAL_LIST_INIT(bot_op_shopping, list(/obj/item/gun/ballistic/automatic/c20r, /
 /// The panel the way it goes: the disk in, the code and Enter, the timer and Enter (which takes the safety off), Arm.
 /// ui_act() won't run without an open window, so each button's effect is done here, a click at a time.
 /datum/bot_step/paced/op_arm
-	max_clicks = 6
+	max_clicks = 7
 	var/stage = 0
+	var/door_tried = FALSE
 
 /datum/bot_step/paced/op_arm/start(datum/bot_brain/bot)
 	stage = 0
-	return bot.owner.Adjacent(bot.current_goal?.target)
+	door_tried = FALSE
+	return get_dist(bot.owner, bot.current_goal?.target) <= 1
 
 /datum/bot_step/paced/op_arm/do_click(datum/bot_brain/bot)
 	var/obj/machinery/nuclearbomb/N = bot.current_goal?.target
-	if(!istype(N) || QDELETED(N) || !bot.owner.Adjacent(N) || N.exploded)
+	if(!istype(N) || QDELETED(N) || N.exploded)
 		return FALSE
+	// The infiltrator's nuke is behind its interior windoor: the one with the disk got to the tile in front, couldn't reach across the
+	// closed door, and gave up, over and over. The Syndicate card opens it.
+	if(!bot.owner.Adjacent(N))
+		var/obj/machinery/door/window/W = locate() in get_turf(N)
+		if(door_tried || !W?.density || !W.allowed(bot.owner))
+			return FALSE
+		door_tried = TRUE
+		bot.telemetry_ui_action(W, "open")
+		W.open()
+		wait_for = 1 SECONDS
+		return TRUE
 	bot.human_pause(N)
 	bot.owner.face_atom(N)
 	switch(stage++)
@@ -949,11 +990,13 @@ GLOBAL_LIST_INIT(bot_op_shopping, list(/obj/item/gun/ballistic/automatic/c20r, /
 			N.update_ui_mode()
 		if(3)
 			bot.telemetry_ui_action(N, "arm")
-			if(!N.timing)
-				N.set_active()
+			if(N.timing)
+				return FALSE //a teammate got there first
+			N.set_active()
 			N.update_ui_mode()
 			if(N.timing)
 				log_game("BOT OPS: [bot.owner] armed the nuke at [AREACOORD(N)]")
+				GLOB.bot_shift?.note("[bot.owner.real_name] armed the nuke") //gym/bot_shift.dm: on the shift's own clock
 				bot_say(bot.owner, pick(";Nuke's armed. Hold the shuttle.", ";It's armed. Nobody gets near it.", ";Armed. Ninety seconds."))
 			return FALSE
 	return TRUE
@@ -963,6 +1006,8 @@ GLOBAL_LIST_INIT(bot_op_shopping, list(/obj/item/gun/ballistic/automatic/c20r, /
 	return istype(N) && N.timing ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 
 #undef BOT_OPS_LAUNCH_WAIT
+#undef BOT_OPS_PLAN_MIN
+#undef BOT_OPS_PLAN_MAX
 #undef BOT_OPS_HOLD
 #undef BOT_OPS_GUARD
 #undef BOT_OPS_PLAYER_WAIT
