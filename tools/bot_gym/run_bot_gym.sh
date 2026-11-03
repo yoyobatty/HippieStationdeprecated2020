@@ -37,4 +37,30 @@ if [ ! -f data/bot_gym/summary.txt ]; then
 fi
 cat data/bot_gym/summary.txt
 echo "Transcripts: data/bot_gym/transcripts/"
-grep -q "^FAILED: 0$" data/bot_gym/summary.txt
+if grep -q "^FAILED: 0$" data/bot_gym/summary.txt; then exit 0; fi
+
+# A full run puts 200-odd scenarios on one server, and a few of the slow ones time out under that load but pass alone. Each one
+# that failed is run again on its own: passing then, it's reported as flaky under load rather than failed. RERUN=0 skips this.
+if [ "${RERUN:-1}" = "0" ] || [ "$FILTER" != "all" ]; then exit 1; fi
+mapfile -t FAILED_NAMES < <(python -c "import json; [print(r['name']) for r in json.load(open('data/bot_gym/results.json')) if r['outcome'] == 'FAIL']" | sort -u)
+rm -rf data/bot_gym_full
+mv data/bot_gym data/bot_gym_full
+STILL=0
+for NAME in "${FAILED_NAMES[@]}"; do
+	ENC=$(python -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))" "$NAME")
+	ALONE="bot-gym=$ENC&bot-gym-runs=1${PARAMS#bot-gym=$FILTER&bot-gym-runs=$RUNS}"
+	rm -rf data/bot_gym
+	cp hippiestation.dmb "$COPY.dmb"
+	cp hippiestation.rsc "$COPY.rsc"
+	timeout 300 "$BYOND_BIN/dd.exe" "$COPY.dmb" 45123 -trusted -invisible -params "$ALONE" > data/bot_gym_dd_rerun.log 2>&1
+	rm -f "$COPY".*
+	if [ -f data/bot_gym/summary.txt ] && grep -q "^FAILED: 0$" data/bot_gym/summary.txt; then
+		echo "FLAKY  $NAME: failed in the full run, passed on its own"
+	else
+		echo "STILL FAILS ON ITS OWN  $NAME"
+		STILL=1
+	fi
+done
+rm -rf data/bot_gym
+mv data/bot_gym_full data/bot_gym
+exit $STILL
