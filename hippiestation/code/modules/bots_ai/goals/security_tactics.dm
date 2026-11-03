@@ -73,8 +73,9 @@
 			continue
 		for(var/i in 1 to G.ammo_type.len)
 			var/obj/item/ammo_casing/energy/shot = G.ammo_type[i]
-			if(is_nonlethal_shot(shot) || G.cell.charge < shot.e_cost)
-				continue
+			var/obj/item/projectile/beam = shot.projectile_type
+			if(is_nonlethal_shot(shot) || (beam && (initial(beam.nodamage) || initial(beam.damage) <= 0)) || G.cell.charge < shot.e_cost)
+				continue //a practice laser's beam does nothing: one was being fired at a blob, and would have been at anybody due lethal force
 			var/guard = G.ammo_type.len
 			while(G.select != i && guard-- > 0)
 				G.select_fire(owner)
@@ -181,7 +182,7 @@
 		for(var/obj/item/gun/energy/ionrifle/ion as anything in bot_instances_of(/obj/item/gun/energy/ionrifle))
 			if(!QDELETED(ion) && isturf(ion.loc) && ion.z == owner.z)
 				return /obj/item/gun/energy/ionrifle
-	if(dangerous && !find_carried_tool(/obj/item/gun/energy/laser))
+	if((dangerous || length(GLOB.blob_cores)) && !find_carried_tool(/obj/item/gun/energy/laser)) //a blob takes a laser's whole burn
 		return /obj/item/gun/energy/laser
 	return null
 
@@ -194,7 +195,7 @@
 	interval_max = 200
 
 /datum/bot_duty/arm_up/try_start(datum/bot_brain/bot)
-	if(world.time < bot.next_armory_try || !length(GLOB.bot_security_wanted))
+	if(world.time < bot.next_armory_try || (!length(GLOB.bot_security_wanted) && !length(GLOB.blob_cores)))
 		return FALSE
 	var/want = bot.armory_want()
 	if(!want)

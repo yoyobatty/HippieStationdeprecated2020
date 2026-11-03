@@ -264,7 +264,11 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 	var/obj/structure/blob/B = bot.current_goal?.target
 	if(QDELETED(B) || bot.owner.incapacitated() || bot.owner.health < bot.owner.maxHealth * 0.5)
 		return FALSE
-	var/obj/item/gun/G = bot.find_carried_tool(/obj/item/gun)
+	var/obj/item/gun/G = bot.ready_lethal_gun() //goals/security_tactics.dm: a disabler's beam does nothing to it, and that's what an officer drew first
+	if(!G)
+		var/obj/item/gun/ballistic/shooter = bot.find_carried_tool(/obj/item/gun/ballistic)
+		if(shooter?.can_shoot())
+			G = shooter
 	if(G && G.can_shoot() && get_dist(bot.owner, B) > 1 && bot.ready_in_hand(G))
 		bot.owner.face_atom(B)
 		bot.owner.a_intent = INTENT_HARM
