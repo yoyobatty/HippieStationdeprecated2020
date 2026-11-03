@@ -26,7 +26,8 @@
 			return FALSE
 	else
 		return FALSE
-	if(HAS_TRAIT(M, TRAIT_MINDSHIELD) || issilicon(M) || isbot(M) || isdrone(M) || is_servant_of_ratvar(M) || !M.client)
+	var/mob/living/carbon/human/crew_bot = M
+	if(HAS_TRAIT(M, TRAIT_MINDSHIELD) || issilicon(M) || isbot(M) || isdrone(M) || is_servant_of_ratvar(M) || (!M.client && !(istype(crew_bot) && crew_bot.bot_brain))) // hippie -- a bot crew member's brain counts as somebody home (bots_ai)
 		return FALSE //can't convert machines, shielded, braindead, or ratvar's dogs
 	return TRUE
 

@@ -3353,6 +3353,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\check_alert_console.dm"
 #include "hippiestation\code\modules\bots_ai\goals\civilians.dm"
 #include "hippiestation\code\modules\bots_ai\goals\cook.dm"
+#include "hippiestation\code\modules\bots_ai\goals\cult.dm"
 #include "hippiestation\code\modules\bots_ai\goals\detective.dm"
 #include "hippiestation\code\modules\bots_ai\goals\eat_and_drink.dm"
 #include "hippiestation\code\modules\bots_ai\goals\engineer_gear.dm"

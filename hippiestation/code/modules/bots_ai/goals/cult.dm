@@ -1,0 +1,354 @@
+// The blood cult (bot-cult=N on a Bot Shift, or bot_spawn_cult()): crew bots with the game's own cultist datum, growing the cult the way
+// players do it:
+//
+//  - An Offer rune somewhere quiet in maintenance, scribed in the scribe's own blood (the dagger's scribe_rune() delay and damage; its menu
+//    takes a client, so the choice is made here).
+//  - Two of them for each conversion. One waits beside the rune. The other finds somebody on their own, stuns them with blood magic (the
+//    stun spell's flash, paralysis and silence) and shackles them (the shackles spell's cult cuffs), drags them to the rune and onto it,
+//    and invokes it with the first beside it: the rune does the rest (runes.dm).
+//  - In between they keep their jobs and their mouths shut. A convert who's a bot joins in.
+
+#define BOT_CULT_OP_TIMEOUT (3 MINUTES)
+/// Between one conversion and the next.
+#define BOT_CULT_OP_GAP (2 MINUTES)
+/// Nobody else this close, for somebody to count as on their own.
+#define BOT_CULT_ALONE 6
+
+/datum/bot_cult
+	/// The game's own cult team, for everybody made a cultist here to share.
+	var/datum/team/cult/antag_team
+	var/list/members = list()
+	var/obj/effect/rune/convert/rune
+	var/datum/weakref/victim_ref
+	var/datum/bot_brain/stunner
+	var/datum/bot_brain/helper
+	var/op_started = 0
+	var/next_op = 0
+	var/converted = 0
+
+GLOBAL_DATUM(bot_cult, /datum/bot_cult)
+
+/datum/bot_brain
+	var/bot_cultist = FALSE
+
+/proc/bot_spawn_cult(count)
+	if(!GLOB.bot_cult)
+		GLOB.bot_cult = new
+	var/made = 0
+	for(var/datum/bot_brain/B as anything in shuffle(GLOB.bot_brains.Copy()))
+		if(made >= count)
+			break
+		var/mob/living/carbon/human/H = B.owner
+		if(QDELETED(H) || H.stat == DEAD || !H.mind || B.bot_traitor || B.op_team || B.bot_wizard || B.bot_cultist || !is_station_level(H.z))
+			continue
+		var/role = B.work_role()
+		if((role in GLOB.security_positions) || (role in GLOB.command_positions) || HAS_TRAIT(H, TRAIT_MINDSHIELD))
+			continue
+		var/datum/antagonist/cult/C = new
+		C.give_equipment = TRUE //the dagger and the runed metal, as the cult game mode hands out
+		if(H.mind.add_antag_datum(C, GLOB.bot_cult.antag_team))
+			GLOB.bot_cult.antag_team = C.cult_team
+			made++
+	log_game("BOT CULT: [made] cultists")
+	return made
+
+/// Anybody who becomes a cultist, from the start or off the rune: a bot one joins the bot cult.
+/datum/antagonist/cult/on_gain()
+	. = ..()
+	var/mob/living/carbon/human/H = owner?.current
+	if(!istype(H) || !H.bot_brain)
+		return
+	if(!GLOB.bot_cult)
+		GLOB.bot_cult = new
+	H.bot_brain.bot_cultist = TRUE
+	H.bot_brain.duties = null //worked out once and kept: this time there's one more (bot_duties.dm)
+	GLOB.bot_cult.members |= H.bot_brain
+	log_game("BOT CULT: [H] is a cultist now")
+
+/datum/bot_cult/proc/living()
+	. = list()
+	for(var/datum/bot_brain/B as anything in members)
+		if(!QDELETED(B) && !QDELETED(B.owner) && B.owner.stat != DEAD && iscultist(B.owner))
+			. += B
+
+/// Whoever draws the rune and plans the conversions: the first of them still about.
+/datum/bot_cult/proc/leader()
+	var/list/alive = living()
+	return length(alive) ? alive[1] : null
+
+/// The conversion in hand, if it's still going; otherwise it's dropped.
+/datum/bot_cult/proc/check_op()
+	var/mob/living/carbon/human/V = victim_ref?.resolve()
+	if(!V)
+		return
+	if(V.stat == DEAD || iscultist(V) || world.time > op_started + BOT_CULT_OP_TIMEOUT || !(stunner in living()) || !(helper in living()))
+		if(iscultist(V))
+			converted++
+			log_game("BOT CULT: [V] converted ([converted] so far)")
+		else
+			log_game("BOT CULT: dropped [V]: dead [V.stat == DEAD], timed out [world.time > op_started + BOT_CULT_OP_TIMEOUT], taker [stunner in living()], waiter [helper in living()]")
+		if(stunner?.owner?.pulling)
+			stunner.owner.stop_pulling()
+		victim_ref = null
+		stunner = null
+		helper = null
+		next_op = world.time + BOT_CULT_OP_GAP
+
+/// Somebody on their own, who the rune would take, and the two cultists nearest them.
+/datum/bot_cult/proc/plan_op()
+	var/list/alive = living()
+	if(length(alive) < 2 || QDELETED(rune))
+		return
+	var/datum/bot_brain/first = alive[1]
+	var/datum/antagonist/cult/C = first.owner.mind.has_antag_datum(/datum/antagonist/cult, TRUE)
+	var/mob/living/carbon/human/best
+	var/datum/bot_brain/best_stunner
+	var/best_dist
+	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
+		if(H.stat != CONSCIOUS || iscultist(H) || H.z != rune.z || !H.mind || !is_convertable_to_cult(H, C?.cult_team))
+			continue
+		var/role = H.bot_brain ? H.bot_brain.work_role() : H.mind.assigned_role
+		if((role in GLOB.security_positions) || (role in GLOB.command_positions))
+			continue
+		var/company = FALSE
+		for(var/mob/living/carbon/human/other in view(BOT_CULT_ALONE, H))
+			if(other != H && other.stat == CONSCIOUS && !iscultist(other))
+				company = TRUE
+				break
+		if(company)
+			continue
+		for(var/datum/bot_brain/B as anything in alive)
+			var/dist = get_dist(B.owner, H)
+			if(!best || dist < best_dist)
+				best = H
+				best_stunner = B
+				best_dist = dist
+	if(!best || best_dist > 60)
+		return
+	victim_ref = WEAKREF(best)
+	stunner = best_stunner
+	var/helper_dist
+	for(var/datum/bot_brain/B as anything in alive)
+		if(B == stunner)
+			continue
+		var/dist = get_dist(B.owner, rune)
+		if(!helper || dist < helper_dist)
+			helper = B
+			helper_dist = dist
+	op_started = world.time
+	log_game("BOT CULT: going for [best]: [stunner.owner] takes them, [helper.owner] waits at the rune")
+
+/datum/bot_duty/cult
+	name = "the Geometer's work"
+	tier = BOT_DUTY_URGENT
+	priority = 7
+	interval_min = 20
+	interval_max = 50
+
+/datum/bot_duty/cult/applies_to(datum/bot_brain/bot)
+	return bot.bot_cultist
+
+/datum/bot_duty/cult/try_start(datum/bot_brain/bot)
+	return bot.cult_business()
+
+/datum/bot_brain/proc/cult_business()
+	var/datum/bot_cult/C = GLOB.bot_cult
+	if(!C || !iscultist(owner) || owner.incapacitated())
+		return FALSE
+	C.check_op()
+	if(QDELETED(C.rune))
+		return src == C.leader() ? assign_goal(new /datum/bot_goal/cult_scribe()) : FALSE
+	var/mob/living/carbon/human/V = C.victim_ref?.resolve()
+	if(!V)
+		if(src != C.leader() || world.time < C.next_op)
+			return FALSE
+		C.plan_op()
+		V = C.victim_ref?.resolve()
+		if(!V)
+			return FALSE
+	if(src == C.helper)
+		return owner.Adjacent(C.rune) ? FALSE : assign_goal(new /datum/bot_goal/cult_wait(C.rune))
+	if(src != C.stunner)
+		return FALSE
+	if(V.loc == C.rune.loc)
+		if(!owner.Adjacent(C.rune))
+			return assign_goal(new /datum/bot_goal/cult_wait(C.rune))
+		if(C.helper?.owner?.Adjacent(C.rune))
+			human_pause(C.rune)
+			telemetry_clicked(C.rune)
+			C.rune.attack_hand(owner) //it gathers the cultists beside it (can_invoke())
+			C.check_op()
+			return TRUE
+		return FALSE //waiting on the other one
+	return assign_goal(new /datum/bot_goal/cult_take(V, C.rune))
+
+// ---------------------------------------------------------------------------------------------
+// The rune
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_goal/cult_scribe
+	doing = "looking for somewhere quiet"
+
+/datum/bot_goal/cult_scribe/resolve_target(datum/bot_brain/bot)
+	target = GLOB.bot_cult?.rune_spot()
+
+/// Quiet rooms anybody can walk into: maintenance would do for the scribe, but most of a cult can't get in there.
+GLOBAL_LIST_INIT(bot_cult_rune_areas, typecacheof(list(/area/crew_quarters/toilet, /area/crew_quarters/dorms, /area/crew_quarters/locker, /area/library, /area/crew_quarters/fitness)))
+
+/// Somewhere quiet that every one of them can walk to, a few tries' worth.
+/datum/bot_cult/proc/rune_spot()
+	var/list/alive = living()
+	if(!length(alive))
+		return null
+	var/datum/bot_brain/first = alive[1]
+	var/list/candidates = list()
+	for(var/area/A as anything in GLOB.sortedAreas)
+		if(!GLOB.bot_cult_rune_areas[A.type] || A.z != first.owner.z)
+			continue
+		for(var/turf/open/floor/F in A)
+			if(!is_blocked_turf(F, TRUE) && !(locate(/obj/effect/rune) in F))
+				candidates += F
+	for(var/i in 1 to 6)
+		if(!length(candidates))
+			break
+		var/turf/T = pick_n_take(candidates)
+		var/everyone = TRUE
+		for(var/datum/bot_brain/B as anything in alive)
+			if(!B.can_walk_lawfully_to(T))
+				everyone = FALSE
+				break
+		if(everyone)
+			return T
+	return null
+
+/datum/bot_goal/cult_scribe/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/cult/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/cult_scribe())
+	return list(S)
+
+/datum/bot_strategy/cult/is_feasible(datum/bot_brain/bot)
+	return bot.current_goal?.target && !QDELETED(bot.current_goal.target)
+
+/// The dagger's rite, in the scribe's own blood: the arm cut, the wait, the rune.
+/datum/bot_step/paced/cult_scribe
+	max_clicks = 3
+	var/stage = 0
+
+/datum/bot_step/paced/cult_scribe/start(datum/bot_brain/bot)
+	stage = 0
+	return TRUE
+
+/datum/bot_step/paced/cult_scribe/do_click(datum/bot_brain/bot)
+	var/mob/living/carbon/human/H = bot.owner
+	var/turf/T = get_turf(H)
+	var/obj/item/melee/cultblade/dagger/D = locate() in H.GetAllContents()
+	if(!D || !isopenturf(T) || (locate(/obj/effect/rune) in T) || !GLOB.bot_cult)
+		return FALSE
+	switch(stage++)
+		if(0)
+			if(!bot.ready_in_hand(D))
+				return FALSE
+			H.visible_message("<span class='warning'>[H] cuts open [H.p_their()] arm and begins writing in [H.p_their()] own blood!</span>")
+			var/obj/effect/rune/convert/kind = /obj/effect/rune/convert
+			H.apply_damage(initial(kind.scribe_damage), BRUTE, pick(BODY_ZONE_L_ARM, BODY_ZONE_R_ARM))
+			wait_for = initial(kind.scribe_delay)
+			return TRUE
+		if(1)
+			GLOB.bot_cult.rune = new /obj/effect/rune/convert(T)
+			log_game("BOT CULT: [H] scribed an Offer rune at [AREACOORD(T)]")
+			bot.put_away(D)
+	return FALSE
+
+/datum/bot_step/paced/cult_scribe/finish(datum/bot_brain/bot)
+	return !QDELETED(GLOB.bot_cult?.rune) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+
+/// Beside the rune, to make up the numbers.
+/datum/bot_goal/cult_wait
+	doing = "waiting"
+	var/obj/effect/rune/rune
+
+/datum/bot_goal/cult_wait/New(obj/effect/rune/R)
+	. = ..()
+	rune = R
+
+/datum/bot_goal/cult_wait/resolve_target(datum/bot_brain/bot)
+	target = QDELETED(rune) ? null : rune
+
+/datum/bot_goal/cult_wait/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/cult/S = new
+	S.steps = list(new /datum/bot_step/move_to())
+	return list(S)
+
+// ---------------------------------------------------------------------------------------------
+// Taking somebody
+// ---------------------------------------------------------------------------------------------
+
+/// Up to them, the stun and the shackles, then dragged to the rune and onto it.
+/datum/bot_goal/cult_take
+	doing = "on an errand"
+	var/obj/effect/rune/rune
+
+/datum/bot_goal/cult_take/New(mob/living/carbon/human/V, obj/effect/rune/R)
+	. = ..()
+	target = V
+	rune = R
+
+/datum/bot_goal/cult_take/resolve_target(datum/bot_brain/bot)
+	if(QDELETED(target) || QDELETED(rune))
+		target = null
+
+/datum/bot_goal/cult_take/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/cult/S = new
+	var/datum/bot_step/move_to/to_rune = new
+	to_rune.step_target = rune
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/cult_stun(), new /datum/bot_step/grab_patient(), to_rune, new /datum/bot_step/cult_place())
+	return list(S)
+
+/datum/bot_goal/cult_take/on_give_up(datum/bot_brain/bot)
+	bot.owner.stop_pulling()
+
+/// What the stun spell's hand does to whoever it touches (blood_magic.dm), then what the shackles spell does.
+/datum/bot_step/cult_stun/execute(datum/bot_brain/bot)
+	var/mob/living/carbon/human/V = bot.current_goal?.target
+	var/mob/living/carbon/human/H = bot.owner
+	if(!istype(V) || QDELETED(V) || V.stat == DEAD || !H.Adjacent(V))
+		return GOAL_STEP_FAIL
+	if(V.IsParalyzed() && V.handcuffed)
+		return GOAL_STEP_SUCCESS
+	bot.human_pause(V)
+	H.face_atom(V)
+	H.say("Fuu ma'jin!", forced = "cult invocation")
+	H.visible_message("<span class='warning'>[H] holds up [H.p_their()] hand, which explodes in a flash of red light!</span>")
+	log_combat(H, V, "used a cult spell on", "Stun", "")
+	V.Paralyze(160)
+	V.flash_act(1, 1)
+	V.silent += 6
+	V.stuttering += 15
+	V.cultslurring += 15
+	V.Jitter(15)
+	if(!V.handcuffed)
+		var/obj/item/restraints/handcuffs/energy/cult/used/shackles = new(V)
+		V.handcuffed = shackles
+		V.update_handcuffed()
+		log_combat(H, V, "shackled", "", "")
+	return GOAL_STEP_SUCCESS
+
+/// Next to the rune with them in tow: a click on the rune's tile pulls them onto it.
+/datum/bot_step/cult_place/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/cult_take/G = bot.current_goal
+	var/mob/living/carbon/human/V = G?.target
+	var/mob/living/carbon/human/H = bot.owner
+	if(!istype(G) || QDELETED(G.rune) || !istype(V) || H.pulling != V)
+		return GOAL_STEP_FAIL
+	var/turf/T = get_turf(G.rune)
+	for(var/i in 1 to 3)
+		if(V.loc == T)
+			break
+		bot.human_pause(T)
+		H.Move_Pulled(T)
+	H.stop_pulling()
+	return V.loc == T ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+
+#undef BOT_CULT_OP_TIMEOUT
+#undef BOT_CULT_OP_GAP
+#undef BOT_CULT_ALONE
