@@ -77,7 +77,7 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 		next_dispatch = world.time + 3 MINUTES
 		bot_dispatch_security(get_turf(owner.blob_core), "the blob") //goals/security_tactics.dm
 		send_volunteers()
-		log_game("BOT BLOB: [length(owner.blobs_legit)] tiles, [round(owner.blob_points)] points")
+		log_game("BOT BLOB: [length(owner.blobs_legit)] tiles, [round(owner.blob_points)] points, core [round(owner.blob_core.obj_integrity)]/[owner.blob_core.max_integrity]")
 	if(build())
 		return
 	if(owner.blob_points >= BLOB_SPREAD_COST)
@@ -86,14 +86,14 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 			owner.forceMove(T) //the overmind's eye goes where it clicks
 			owner.expand_blob(T)
 
-/// "Everybody grab something and kill the blob": the bravest of the armed crew go to it with Security, up to four at a time.
+/// "Everybody grab something and kill the blob": the braver half of the armed crew go to it with Security, up to six at a time.
 /datum/bot_blob/proc/send_volunteers()
 	var/sent = 0
 	for(var/datum/bot_brain/B as anything in shuffle(GLOB.bot_brains.Copy()))
-		if(sent >= 4)
+		if(sent >= 6)
 			break
 		var/mob/living/carbon/human/H = B.owner
-		if(QDELETED(H) || H.stat != CONSCIOUS || H.z != owner.blob_core.z || B.gone_loud() || B.is_security_job() || B.nerve < 0.6 || !B.has_a_weapon())
+		if(QDELETED(H) || H.stat != CONSCIOUS || H.z != owner.blob_core.z || B.gone_loud() || B.is_security_job() || B.nerve < 0.5 || !(B.has_a_weapon() || B.find_carried_tool(/obj/item/weldingtool)))
 			continue
 		if(B.state != BOT_STATE_WANDER || H.health < H.maxHealth * 0.7)
 			continue
@@ -102,7 +102,10 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 	if(sent)
 		log_game("BOT BLOB: [sent] of the crew went to fight it")
 
-/// Near enough to see it: the nearest open floor by the core that the blob hasn't got to.
+/// To the blob's edge, on its own side of it and as far towards the core as that goes: open floor beside a blob. From there it cuts its
+/// way in (hit_blob). It used to make for the open floor nearest the core within ten tiles: once the blob had grown past that nobody was
+/// sent anywhere (one volunteer went in the last ten minutes of a round), and the nearest free floor was usually a room the blob had
+/// closed round, with no way to it at all.
 /datum/bot_goal/approach_blob
 	doing = "going to fight the blob"
 	var/obj/structure/blob/core/core
@@ -113,13 +116,26 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 
 /datum/bot_goal/approach_blob/resolve_target(datum/bot_brain/bot)
 	target = null
-	if(QDELETED(core))
+	var/mob/camera/blob/overmind = core?.overmind
+	if(QDELETED(core) || !overmind)
 		return
-	for(var/dist in 2 to 10)
-		for(var/turf/open/T in RANGE_TURFS(dist, core))
-			if(get_dist(T, core) == dist && !T.density && !(locate(/obj/structure/blob) in T) && !is_blocked_turf(T, TRUE))
+	var/turf/here = get_turf(bot.owner)
+	var/best_score
+	for(var/obj/structure/blob/B as anything in overmind.blobs_legit)
+		if(QDELETED(B) || B.z != here.z)
+			continue
+		for(var/d in GLOB.cardinals)
+			var/turf/open/T = get_step(B, d)
+			if(!istype(T) || T.density || (locate(/obj/structure/blob) in T))
+				continue
+			// Its own distance counts double: the blob's outside edge is on its side, and a pocket the blob has closed round is
+			// further in from there.
+			var/score = get_dist(here, T) * 2 + get_dist(T, core)
+			if(isnull(best_score) || score < best_score)
+				if(is_blocked_turf(T, TRUE))
+					continue
+				best_score = score
 				target = T
-				return
 
 /datum/bot_goal/approach_blob/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/fight_blob/S = new
@@ -197,14 +213,17 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 /datum/bot_brain/proc/fight_the_blob()
 	if(!length(GLOB.bot_blobs) || gone_loud() || owner.incapacitated() || owner.health < owner.maxHealth * 0.6)
 		return FALSE
-	var/armed = is_security_job() || find_carried_tool(/obj/item/gun) || (nerve >= 0.4 && has_a_weapon()) //bot_playstyles.dm: something heavy to hand
+	var/armed = is_security_job() || find_carried_tool(/obj/item/gun) || (nerve >= 0.4 && (has_a_weapon() || find_carried_tool(/obj/item/weldingtool))) //bot_playstyles.dm: something heavy to hand
 	if(!armed)
 		return FALSE
 	// What a player goes for: the core, which ends it, then the nodes and factories that keep it growing, then whatever's nearest.
 	var/obj/structure/blob/best
 	var/best_score
 	for(var/obj/structure/blob/B in view(BOT_SIGHT_RANGE, owner))
-		var/score = get_dist(owner, B)
+		var/obj/structure/blob/core/core = B.overmind?.blob_core
+		// The way in: whatever in sight is nearest the core, as well as near. Chopping at the nearest edge did nothing, the blob grows it
+		// straight back; hit_blob() cuts through what's in between.
+		var/score = core ? get_dist(B, core) + get_dist(owner, B) / 2 : get_dist(owner, B)
 		if(istype(B, /obj/structure/blob/core))
 			score -= 30
 		else if(istype(B, /obj/structure/blob/node) || istype(B, /obj/structure/blob/factory))
@@ -254,12 +273,18 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 		return TRUE
 	if(!bot.owner.Adjacent(B))
 		var/turf/next = get_step_towards(bot.owner, B)
-		if(!next || !bot.owner.Move(next, get_dir(bot.owner, next)))
-			return FALSE
-		wait_for = 3
-		return TRUE
-	bot.reach_for_weapon() //bot_fighting.dm: the best thing it's got, in hand
-	var/obj/item/weapon = bot.owner.get_active_held_item()
+		var/obj/structure/blob/in_the_way = next && (locate(/obj/structure/blob) in next)
+		if(in_the_way)
+			B = in_the_way //cutting a way through to the core: it used to stop at the first blob between, and the core was never reached
+		else
+			if(!next || !bot.owner.Move(next, get_dir(bot.owner, next)))
+				return FALSE
+			wait_for = 3
+			return TRUE
+	var/obj/item/weapon = bot.blob_welder()
+	if(!weapon)
+		bot.reach_for_weapon() //bot_fighting.dm: the best thing it's got, in hand
+		weapon = bot.owner.get_active_held_item()
 	bot.owner.face_atom(B)
 	bot.owner.a_intent = INTENT_HARM
 	if(weapon)
@@ -271,7 +296,20 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 	return TRUE
 
 /datum/bot_step/paced/hit_blob/finish(datum/bot_brain/bot)
+	var/obj/item/weldingtool/W = bot.find_carried_tool(/obj/item/weldingtool)
+	if(W?.isOn() && (W in bot.owner.held_items))
+		bot.toggle_in_hand(W) //not left burning in its hand to set the next plasma leak off
 	return GOAL_STEP_SUCCESS
+
+/// A lit welder, if it's carrying one with fuel in. A blob takes the whole of a burn and only half a club's blow (a shield blob a
+/// quarter): a rod did two and a half to the shields round the core, a lit welder fifteen.
+/datum/bot_brain/proc/blob_welder()
+	var/obj/item/weldingtool/W = find_carried_tool(/obj/item/weldingtool)
+	if(!W || W.get_fuel() <= 0 || !ready_in_hand(W))
+		return null
+	if(!W.isOn())
+		toggle_in_hand(W)
+	return W.isOn() ? W : null
 
 #undef BOT_BLOB_TICK
 #undef BOT_BLOB_RESOURCES
