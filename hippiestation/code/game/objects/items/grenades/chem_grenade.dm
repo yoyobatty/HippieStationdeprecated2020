@@ -2,6 +2,8 @@
 	banned_containers = list() // reverts bluespace beaker's nerf
 
 /obj/item/grenade/chem_grenade/Crossed(atom/movable/AM, oldloc)
+	if(!wires) //gone off and being deleted, its wires with it (atoms.dm)
+		return ..()
 	for(var/A in wires.assemblies)
 		var/obj/item/I = wires.assemblies[A]
 		if(istype(I))
@@ -9,6 +11,8 @@
 	return ..()
 
 /obj/item/grenade/chem_grenade/on_found(mob/finder)
+	if(!wires)
+		return
 	for(var/A in wires.assemblies)
 		var/obj/item/assembly/I = wires.assemblies[A]
 		if(istype(I))

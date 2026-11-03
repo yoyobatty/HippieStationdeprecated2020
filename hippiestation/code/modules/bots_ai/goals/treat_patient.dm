@@ -12,6 +12,9 @@
 /datum/bot_brain/proc/patient_needs_treatment(mob/living/carbon/human/H)
 	if(H.stat == DEAD || H.bot_executed)
 		return FALSE
+	if(!H.handcuffed && (bot_is_wanted(H) || is_type_in_typecache(H.wear_suit, GLOB.bot_contraband)))
+		return FALSE //nobody patches up a nuclear operative, or anybody Security's after, until they're in cuffs: a doctor once took
+		//an operative's hardsuit off them in the middle of the bridge to get at a cut
 	if(H.getBruteLoss() > 10 || H.getFireLoss() > 10)
 		return TRUE
 	if(H.stat == SOFT_CRIT || H.stat == UNCONSCIOUS)

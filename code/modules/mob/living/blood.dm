@@ -101,6 +101,8 @@
 				add_splatter_floor(src.loc, 1)
 
 /mob/living/carbon/human/bleed(amt)
+	if(QDELETED(src)) //bled out a moment ago in handle_blood(), and a nuclear operative's microbomb has gibbed them since
+		return
 	amt *= physiology.bleed_mod
 	if(!(NOBLOOD in dna.species.species_traits))
 		..()

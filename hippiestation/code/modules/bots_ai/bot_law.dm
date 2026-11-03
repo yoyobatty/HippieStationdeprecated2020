@@ -274,6 +274,8 @@ GLOBAL_VAR(bot_in_command)
 		else if(is_type_in_typecache(I, GLOB.bot_contraband))
 			step.to_confiscate |= I
 			file_crime(P, "Possession of Dangerous Equipment", "Found with [I.name] on them.", BOT_CRIME_MAJOR)
+		else if(istype(I, /obj/item/disk/nuclear) && P.mind?.assigned_role != "Captain")
+			step.to_confiscate |= I //the officer keeps that one on them (process_prisoner): a nuclear operative was sat in a cell with it
 
 /// A test can have a capital case come out one way or the other.
 GLOBAL_VAR(bot_law_drill_verdict)

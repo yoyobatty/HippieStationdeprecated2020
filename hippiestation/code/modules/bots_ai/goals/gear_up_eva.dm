@@ -204,6 +204,9 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 	if(!suit.suittoggled)
 		bot_log_verbose(src, "is_eva_ready: FALSE - [suit] helmet not toggled")
 		return FALSE
+	if(!(suit.clothing_flags & STOPSPRESSUREDAMAGE) || !(suit.helmet?.clothing_flags & STOPSPRESSUREDAMAGE))
+		bot_log_verbose(src, "is_eva_ready: FALSE - [suit] is in combat mode") //a syndicate hardsuit's: no good in space like that
+		return FALSE
 	var/mask_type = get_job_mask_type()
 	if(mask_type && !istype(owner.wear_mask, mask_type))
 		bot_log_verbose(src, "is_eva_ready: FALSE - wear_mask is [owner.wear_mask], need [mask_type]")
@@ -491,6 +494,12 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 			if(!H.head)
 				suit.ToggleHelmet()
 				bot_log(bot, "engaged the hardsuit helmet")
+		// A syndicate hardsuit in combat mode (a helmet's own button, hardsuit.dm) keeps nothing out: back to EVA mode, the same button.
+		var/obj/item/clothing/head/helmet/space/hardsuit/syndi/syndi_helmet = suit.helmet
+		if(suit.suittoggled && istype(syndi_helmet) && !syndi_helmet.on && H.head == syndi_helmet)
+			bot.telemetry_shortcut("attack_self", syndi_helmet, null)
+			syndi_helmet.attack_self(H)
+			bot_log(bot, "switched [suit] to EVA mode")
 
 	return bot.is_eva_ready() ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 

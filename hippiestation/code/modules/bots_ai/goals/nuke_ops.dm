@@ -2,7 +2,8 @@
 // bot_spawn_nukeops()). They play it the way a team of players does:
 //
 //  - At the base: the uplink (an emag for the doors, an energy sword), then aboard the infiltrator. The shuttle's suit storage
-//    units have their hardsuits: the suit on, the helmet up, the mask, a tank in the suit's storage and the suit's jetpack on.
+//    units have their hardsuits: the suit on, the helmet up, the mask, and a full oxygen tank out of the shuttle's dispenser in
+//    the suit's storage for the suit's jetpack to run off.
 //  - The leader flies them to the station once they're all aboard and suited, or once they've waited long enough.
 //  - At the station: the disk. Whoever's carrying it gets killed for it and searched; a disk lying about gets picked up. The pinpointer
 //    every operative carries says where it is, which is why they know.
@@ -38,6 +39,8 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 	var/op_bought_suit = FALSE
 	var/op_arrival_noted = FALSE
 	var/op_space_note_at = 0
+	var/op_tank_tried = FALSE
+	var/op_resuit_at = 0
 
 /// count operatives, the first of them the leader, each with a brain. The datum dresses them and puts them at the base.
 /proc/bot_spawn_nukeops(count)
@@ -243,7 +246,7 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 			return FALSE
 	return TRUE
 
-/// The suit's jetpack drinks from the two-litre tank they breathe from, a little every step it's on: on for a step into space or
+/// The suit's jetpack drinks from the tank in the suit's storage, a little every step it's on: on for a step into space or
 /// somewhere with no gravity, off again on a floor, the way a player flicks it.
 /datum/bot_brain/proc/op_mind_jetpack(turf/next_node)
 	var/obj/item/tank/jetpack/J = owner.get_jetpack()
@@ -269,7 +272,7 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 
 /datum/bot_brain/proc/op_suited()
 	var/obj/item/clothing/suit/space/hardsuit/suit = owner.wear_suit
-	return istype(suit) && suit.suittoggled && istype(owner.s_store, /obj/item/tank/internals)
+	return istype(suit) && suit.suittoggled && (suit.clothing_flags & STOPSPRESSUREDAMAGE) && istype(owner.s_store, /obj/item/tank/internals) && (owner.wear_mask?.clothing_flags & MASKINTERNALS)
 
 /datum/bot_duty/nuke_op
 	name = "the operation"
@@ -304,8 +307,15 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 		return TRUE
 	if(!team.launched)
 		if(!op_suited())
-			var/obj/machinery/suit_storage_unit/U = op_find_suit() //three on the shuttle: the rest buy theirs
-			if((U || !op_bought_suit) && assign_goal(new /datum/bot_goal/op_suit_up(U)))
+			var/suited = istype(owner.wear_suit, /obj/item/clothing/suit/space/hardsuit)
+			var/obj/machinery/suit_storage_unit/U = suited ? null : op_find_suit() //three on the shuttle: the rest buy theirs. In one already, the rest's
+			//out of the bag (the survival box's mask and tank), not another unit
+			if((U || suited || !op_bought_suit) && assign_goal(new /datum/bot_goal/op_suit_up(U)))
+				return TRUE
+		if(!op_tank_tried && op_tank_small())
+			op_tank_tried = TRUE
+			var/obj/structure/tank_dispenser/D = op_tank_dispenser()
+			if(D && assign_goal(new /datum/bot_goal/op_tank(D)))
 				return TRUE
 		if(!istype(get_area(owner), /area/shuttle/syndicate))
 			return assign_goal(new /datum/bot_goal/op_board())
@@ -323,6 +333,11 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 		op_space_note_at = world.time + 1 MINUTES
 		var/obj/item/tank/internals/T = eva_tank()
 		log_game("BOT OPS: [owner] can't cross space: eva ready [is_eva_ready()], jetpack [pack ? (pack.on ? "on" : "off") : "none"], low air [low_air_stay_in], tank [T] [T ? round(T.air_contents.return_pressure()) : 0] kPa, internals [owner.internal], suit [owner.wear_suit], helmet up [istype(owner.wear_suit, /obj/item/clothing/suit/space/hardsuit) ? owner.wear_suit:vars["suittoggled"] : "-"], mask [owner.wear_mask]")
+	// Stripped by Security, or the helmet's down: suited again, off the uplink if the suit's gone, or nobody's crossing back to the nuke.
+	if(!op_suited() && world.time >= op_resuit_at && !owner.handcuffed)
+		op_resuit_at = world.time + 1 MINUTES
+		if(assign_goal(new /datum/bot_goal/op_suit_up()))
+			return TRUE
 	var/obj/machinery/nuclearbomb/N = team.nuke
 	if(QDELETED(N))
 		return op_hunt_crew()
@@ -471,7 +486,7 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 				return FALSE
 			U.suit = null
 			bot.telemetry_ui_action(U, "dispense suit")
-			suit.forceMove(get_turf(U))
+			bot.op_take_dispensed(suit, U)
 			if(!bot.op_put_on(suit, ITEM_SLOT_OCLOTHING))
 				return FALSE
 			wait_for = max(1 SECONDS, suit.equip_delay_self)
@@ -481,7 +496,7 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 				if(M)
 					U.mask = null
 					bot.telemetry_ui_action(U, "dispense mask")
-					M.forceMove(get_turf(U))
+					bot.op_take_dispensed(M, U)
 				else
 					M = locate(/obj/item/clothing/mask/gas/syndicate) in H.GetAllContents() //the survival box has one too
 				if(M)
@@ -511,9 +526,19 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 				suit.ToggleHelmet()
 				if(!suit.suittoggled)
 					bot_log(bot, "the helmet won't go up: head [H.head], helmet [suit.helmet]")
+			var/obj/item/clothing/head/helmet/space/hardsuit/syndi/helmet = istype(suit) ? suit.helmet : null
+			if(istype(helmet) && !helmet.on && H.head == helmet) //combat mode: no good for space
+				helmet.attack_self(H)
 		if(5)
-			return FALSE //the jetpack stays off until it's needed (op_business()): it runs off the same small tank
+			return FALSE //the jetpack stays off until it's needed (op_mind_jetpack()): it runs off the tank they breathe from
 	return TRUE
+
+/// The unit puts it out on its own tile, and the one who pressed the button picks it straight up: left there, with four others
+/// crowding round the units, somebody else's hand got to it first and the one who dispensed it went without.
+/datum/bot_brain/proc/op_take_dispensed(obj/item/I, obj/machinery/suit_storage_unit/U)
+	I.forceMove(get_turf(U))
+	free_hand_for(I)
+	owner.put_in_hands(I)
 
 /// Into a hand, then on: a click each, with the wait for getting into it done as the pause before (do_after() won't run for a bot
 /// partway through a step).
@@ -539,6 +564,76 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 		bot_log(bot, "not suited after stage [stage]: suit [H.wear_suit], mask [H.wear_mask], suit storage [H.s_store]")
 		return GOAL_STEP_FAIL
 	return GOAL_STEP_SUCCESS
+
+/// The suit's jetpack takes a puff from the tank in its storage at every step through space, and the survival box's two litres is
+/// about eighty steps: there and back is more than that, and an operative who runs dry drifts and suffocates. So, the way a player
+/// does before the crossing, a full oxygen tank out of the shuttle's dispenser goes in the suit's storage instead.
+/datum/bot_brain/proc/op_tank_small()
+	var/obj/item/tank/internals/T = owner.s_store
+	return !istype(T) || T.volume < 10
+
+/datum/bot_brain/proc/op_tank_dispenser()
+	for(var/obj/structure/tank_dispenser/D as anything in bot_instances_of(/obj/structure/tank_dispenser))
+		if(D.oxygentanks > 0 && D.z == owner.z && istype(get_area(D), /area/shuttle/syndicate))
+			return D
+
+/datum/bot_goal/op_tank
+	doing = "getting a full tank"
+	var/obj/structure/tank_dispenser/dispenser
+
+/datum/bot_goal/op_tank/New(obj/structure/tank_dispenser/D)
+	. = ..()
+	dispenser = D
+
+/datum/bot_goal/op_tank/resolve_target(datum/bot_brain/bot)
+	target = QDELETED(dispenser) ? null : dispenser
+
+/datum/bot_goal/op_tank/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/op_simple/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/op_tank())
+	return list(S)
+
+/// A tank off the dispenser, then the little one out of the suit's storage into the bag and the full one in: a click each.
+/datum/bot_step/paced/op_tank
+	max_clicks = 3
+	var/stage = 0
+
+/datum/bot_step/paced/op_tank/start(datum/bot_brain/bot)
+	stage = 0
+	return bot.owner.Adjacent(bot.current_goal?.target)
+
+/datum/bot_step/paced/op_tank/do_click(datum/bot_brain/bot)
+	var/obj/structure/tank_dispenser/D = bot.current_goal?.target
+	var/mob/living/carbon/human/H = bot.owner
+	if(!istype(D) || QDELETED(D))
+		return FALSE
+	bot.human_pause(D)
+	switch(stage++)
+		if(0)
+			var/obj/item/tank/internals/oxygen/tank = locate() in D
+			if(!tank || !H.Adjacent(D))
+				return FALSE
+			bot.make_hand_free()
+			bot.telemetry_ui_action(D, "take an oxygen tank")
+			if(!H.put_in_hands(tank))
+				return FALSE
+			D.oxygentanks--
+			D.update_icon()
+			bot_log(bot, "took [tank] out of [D]")
+		if(1)
+			var/obj/item/tank/internals/oxygen/tank = locate() in H.held_items
+			if(!tank)
+				return FALSE
+			var/obj/item/old = H.s_store
+			if(old && H.temporarilyRemoveItemFromInventory(old)) //the valve shuts itself once it's off them (Life())
+				H.put_in_hands(old) //on the floor if the other hand's full
+			bot.op_put_on(tank, ITEM_SLOT_SUITSTORE)
+			bot.stow_or_drop(old) //only now: put away first, it'd go straight back in the suit's storage
+			return FALSE
+	return TRUE
+
+/datum/bot_step/paced/op_tank/finish(datum/bot_brain/bot)
+	return bot.op_tank_small() ? GOAL_STEP_FAIL : GOAL_STEP_SUCCESS
 
 /// Aboard, beside the console; or, given somewhere, within a few tiles of it.
 /datum/bot_goal/op_board
