@@ -157,8 +157,9 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 			check.begin()
 	var/next_report = start_time + 1 MINUTES
 	var/second = 0
-	//a nuke that goes off ends the round, and the reboot after it would lose the results
-	while(elapsed() < length && !(whole_round && SSticker.current_state == GAME_STATE_FINISHED) && !SSticker.mode?.station_was_nuked)
+	//an antagonist's win (the nuke going off, the blob taking the station) ends the round, and the reboot after it lost the results and
+	//started the shift over, again and again
+	while(elapsed() < length && SSticker.current_state != GAME_STATE_FINISHED && !SSticker.mode?.station_was_nuked)
 		sleep(1 SECONDS)
 		second++
 		for(var/datum/bot_shift_member/member as anything in members)
@@ -182,6 +183,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	real_end_ms = timewarp_real_ms()
 	if(SSticker.mode?.station_was_nuked)
 		note("the nuke went off: the station is gone")
+	else if(SSticker.current_state == GAME_STATE_FINISHED && !whole_round)
+		note("the round ended[SSticker.news_report == BLOB_WIN ? ": the blob took the station" : ""]")
 	for(var/count in pathfinding)
 		pathfinding[count] = GLOB.astar_tally[count] - pathfinding[count]
 	if(BOT_SHIFT_PROFILE_PARAMETER in world.params)
