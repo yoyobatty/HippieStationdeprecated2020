@@ -324,7 +324,7 @@
 	addtimer(CALLBACK(src, PROC_REF(check_dropped)), 1)
 
 /obj/item/borg/upgrade/selfrepair/proc/check_dropped()
-	if(loc != cyborg)
+	if(loc != cyborg && toggle_action) //dropped twice inside the tick: the first check has already taken it off
 		toggle_action.Remove(cyborg)
 		QDEL_NULL(toggle_action)
 		cyborg = null

@@ -71,3 +71,31 @@
 		fail_reason = "photos after looking: [front], [side]"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+/// Glowshrooms (glowshroom.dm) are made as new(loc, seed, mutate_stats). A stray argument in Initialize() had every one that spread
+/// runtime on TRUE.Copy(), never light up or spread again, and every planted one throw away the seed it was grown from.
+/datum/bot_scenario/chat/glowshroom
+	name = "glowshroom: a planted one keeps its seed, lights up and spreads"
+	desc = "A glowshroom is put down from a seed with 10 potency. It has its own copy of that seed and gives off light; a new one made the way Spread() makes them has a seed of its own and light too."
+	layout = list(
+		"#########",
+		"#B.....C#",
+		"#.......#",
+		"#.......#",
+		"#########")
+	time_limit = 5 SECONDS
+
+/datum/bot_scenario/chat/glowshroom/check()
+	var/turf/T = get_step(get_step(visitor, EAST), EAST)
+	var/obj/item/seeds/glowshroom/seed = new(T)
+	seed.potency = 10
+	var/obj/structure/glowshroom/G = new(T, seed)
+	if(!istype(G.myseed, /obj/item/seeds) || G.myseed == seed || G.myseed.potency != 10 || !G.light_range)
+		fail_reason = "planted: seed [G.myseed], potency [istype(G.myseed, /obj/item/seeds) ? G.myseed.potency : "-"], light [G.light_range]"
+		return BOT_GYM_FAIL
+	// Spread() itself picks its spot by view(), and an arena has no lights for that to see by: the same call it makes, then.
+	var/obj/structure/glowshroom/child = new G.type(get_step(T, SOUTH), G.myseed, TRUE)
+	if(!istype(child.myseed, /obj/item/seeds) || child.myseed == G.myseed || !child.light_range)
+		fail_reason = "spread: seed [child.myseed], light [child.light_range]"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
