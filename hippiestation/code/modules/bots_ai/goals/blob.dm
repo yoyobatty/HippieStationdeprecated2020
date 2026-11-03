@@ -76,6 +76,7 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 	if(world.time >= started_at + 3 MINUTES && world.time >= next_dispatch) //the core announces itself at three minutes (core.dm): Security gets sent to it
 		next_dispatch = world.time + 3 MINUTES
 		bot_dispatch_security(get_turf(owner.blob_core), "the blob") //goals/security_tactics.dm
+		send_volunteers()
 		log_game("BOT BLOB: [length(owner.blobs_legit)] tiles, [round(owner.blob_points)] points")
 	if(build())
 		return
@@ -84,6 +85,46 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 		if(T)
 			owner.forceMove(T) //the overmind's eye goes where it clicks
 			owner.expand_blob(T)
+
+/// "Everybody grab something and kill the blob": the bravest of the armed crew go to it with Security, up to four at a time.
+/datum/bot_blob/proc/send_volunteers()
+	var/sent = 0
+	for(var/datum/bot_brain/B as anything in shuffle(GLOB.bot_brains.Copy()))
+		if(sent >= 4)
+			break
+		var/mob/living/carbon/human/H = B.owner
+		if(QDELETED(H) || H.stat != CONSCIOUS || H.z != owner.blob_core.z || B.gone_loud() || B.is_security_job() || B.nerve < 0.6 || !B.has_a_weapon())
+			continue
+		if(B.state != BOT_STATE_WANDER || H.health < H.maxHealth * 0.7)
+			continue
+		if(B.assign_goal(new /datum/bot_goal/approach_blob(owner.blob_core)))
+			sent++
+	if(sent)
+		log_game("BOT BLOB: [sent] of the crew went to fight it")
+
+/// Near enough to see it: the nearest open floor by the core that the blob hasn't got to.
+/datum/bot_goal/approach_blob
+	doing = "going to fight the blob"
+	var/obj/structure/blob/core/core
+
+/datum/bot_goal/approach_blob/New(obj/structure/blob/core/C)
+	. = ..()
+	core = C
+
+/datum/bot_goal/approach_blob/resolve_target(datum/bot_brain/bot)
+	target = null
+	if(QDELETED(core))
+		return
+	for(var/dist in 2 to 10)
+		for(var/turf/open/T in RANGE_TURFS(dist, core))
+			if(get_dist(T, core) == dist && !T.density && !(locate(/obj/structure/blob) in T) && !is_blocked_turf(T, TRUE))
+				target = T
+				return
+
+/datum/bot_goal/approach_blob/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/fight_blob/S = new
+	S.steps = list(new /datum/bot_step/move_to())
+	return list(S)
 
 /// What its points go on before spreading: the economy, then spores, then reach.
 /datum/bot_blob/proc/build()
@@ -156,8 +197,7 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 /datum/bot_brain/proc/fight_the_blob()
 	if(!length(GLOB.bot_blobs) || gone_loud() || owner.incapacitated() || owner.health < owner.maxHealth * 0.6)
 		return FALSE
-	var/obj/item/weapon = owner.get_active_held_item()
-	var/armed = is_security_job() || (weapon && weapon.force >= 10) || find_carried_tool(/obj/item/gun)
+	var/armed = is_security_job() || find_carried_tool(/obj/item/gun) || (nerve >= 0.4 && has_a_weapon()) //bot_playstyles.dm: something heavy to hand
 	if(!armed)
 		return FALSE
 	// What a player goes for: the core, which ends it, then the nodes and factories that keep it growing, then whatever's nearest.
@@ -218,6 +258,7 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 			return FALSE
 		wait_for = 3
 		return TRUE
+	bot.reach_for_weapon() //bot_fighting.dm: the best thing it's got, in hand
 	var/obj/item/weapon = bot.owner.get_active_held_item()
 	bot.owner.face_atom(B)
 	bot.owner.a_intent = INTENT_HARM
