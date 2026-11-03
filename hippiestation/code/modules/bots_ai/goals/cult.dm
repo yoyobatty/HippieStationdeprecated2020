@@ -489,7 +489,7 @@ GLOBAL_LIST_INIT(bot_cult_rune_areas, typecacheof(list(/area/crew_quarters/toile
 	if(!A?.blob_allowed)
 		return FALSE
 	for(var/turf/U in range(1, T))
-		if(!isopenturf(U) || isspaceturf(U) || U.density)
+		if(!isopenturf(U) || isspaceturf(U) || U.density || istype(U, /turf/open/pool)) //the water's no place to stand nine of them, and a rune drawn by it vanished five times over (cause not found)
 			return FALSE
 		for(var/obj/O in U)
 			if(!O.density)
