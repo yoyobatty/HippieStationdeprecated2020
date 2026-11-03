@@ -48,8 +48,6 @@
 	while(length(candidates) && length(.) < count)
 		var/mob/living/carbon/human/H = pick_n_take(candidates)
 		H.bot_brain.become_traitor()
-		H.bot_brain.pick_traitor_plan() //goals/robust.dm
-		bot_log(H.bot_brain, "I'm a traitor: [jointext(H.bot_brain.objective_list(), "; ")]")
 		. += H
 
 /// The real antagonist datum, and what it hands out. The game puts a traitor's kit on it (a pinpointer, a folder of
@@ -58,7 +56,17 @@
 	being_issued_kit = TRUE
 	. = owner.mind.add_antag_datum(/datum/antagonist/traitor)
 	being_issued_kit = FALSE
-	bot_traitor = TRUE
+
+/// However it came about (the round type, an admin's traitor panel, bot_make_traitors()), a bot given the role plays it.
+/datum/antagonist/traitor/on_gain()
+	. = ..()
+	var/mob/living/carbon/human/H = owner?.current
+	if(!istype(H) || !H.bot_brain || H.bot_brain.bot_traitor)
+		return
+	H.bot_brain.bot_traitor = TRUE
+	if(!H.bot_brain.gym_run) //a Bot Gym scenario sets out what it's testing
+		H.bot_brain.pick_traitor_plan() //goals/robust.dm
+	bot_log(H.bot_brain, "I'm a traitor: [jointext(H.bot_brain.objective_list(), "; ")]")
 
 /datum/bot_brain/proc/objective_list()
 	. = list()

@@ -34,16 +34,24 @@
 	while(length(candidates) && length(.) < count)
 		var/mob/living/carbon/human/H = pick_n_take(candidates)
 		H.bot_brain.become_changeling()
-		H.bot_brain.traitor_business_after = world.time + BOT_LING_SETTLE_IN + rand(0, 4 MINUTES)
-		bot_log(H.bot_brain, "I'm a changeling: [jointext(H.bot_brain.objective_list(), "; ")]")
 		. += H
 
 /datum/bot_brain/proc/become_changeling()
 	being_issued_kit = TRUE
-	var/datum/antagonist/changeling/ling = owner.mind.add_antag_datum(/datum/antagonist/changeling)
+	owner.mind.add_antag_datum(/datum/antagonist/changeling)
 	being_issued_kit = FALSE
-	ling.purchase_power("Arm Blade") //off the Cellular Emporium, with the points it starts with
-	is_changeling = TRUE
+
+/// However it came about (the round type, an admin, bot_make_changelings()), a bot given the role plays it.
+/datum/antagonist/changeling/on_gain()
+	. = ..()
+	var/mob/living/carbon/human/H = owner?.current
+	if(!istype(H) || !H.bot_brain || H.bot_brain.is_changeling)
+		return
+	var/datum/bot_brain/B = H.bot_brain
+	B.is_changeling = TRUE
+	purchase_power("Arm Blade") //off the Cellular Emporium, with the points it starts with
+	B.traitor_business_after = world.time + BOT_LING_SETTLE_IN + rand(0, 4 MINUTES)
+	bot_log(B, "I'm a changeling: [jointext(B.objective_list(), "; ")]")
 
 /datum/bot_brain/proc/ling_datum()
 	return owner.mind?.has_antag_datum(/datum/antagonist/changeling) || null

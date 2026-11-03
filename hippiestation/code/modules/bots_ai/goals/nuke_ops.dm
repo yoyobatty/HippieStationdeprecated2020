@@ -15,6 +15,8 @@
 
 /// How long the leader waits for the team before going anyway.
 #define BOT_OPS_LAUNCH_WAIT (5 MINUTES)
+/// And how much longer with a player on the team, who shops and plans at a player's pace.
+#define BOT_OPS_PLAYER_WAIT (10 MINUTES)
 /// How close to the nuke they hold once it's armed, and how far they look for anybody coming for it.
 #define BOT_OPS_HOLD 4
 #define BOT_OPS_GUARD 8
@@ -75,14 +77,57 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 		if(!QDELETED(B.owner) && B.owner.stat != DEAD)
 			. += B
 
-/// Everybody alive is aboard and suited, or they've waited long enough.
+/// Everybody alive is aboard and suited, players on the team aboard too, or they've waited long enough.
 /datum/bot_nuke_team/proc/ready_to_go()
-	if(world.time >= launch_at)
+	var/list/players = player_members()
+	if(world.time >= launch_at + (length(players) ? BOT_OPS_PLAYER_WAIT : 0))
 		return TRUE
 	for(var/datum/bot_brain/B as anything in living_members())
 		if(!istype(get_area(B.owner), /area/shuttle/syndicate) || !B.op_suited())
 			return FALSE
+	for(var/mob/living/carbon/human/H as anything in players)
+		if(!istype(get_area(H), /area/shuttle/syndicate))
+			return FALSE
 	return TRUE
+
+/// The game's team the bots are on.
+/datum/bot_nuke_team/proc/antag_team()
+	for(var/datum/bot_brain/B as anything in members)
+		var/datum/antagonist/nukeop/N = B.owner?.mind?.has_antag_datum(/datum/antagonist/nukeop)
+		if(N?.nuke_team)
+			return N.nuke_team
+	return null
+
+/// Operatives on the team who aren't bots, alive: players, whom the bots wait for and fly with (bot_round_type.dm puts them together).
+/datum/bot_nuke_team/proc/player_members()
+	. = list()
+	var/datum/team/nuclear/T = antag_team()
+	for(var/datum/mind/M as anything in T?.members)
+		var/mob/living/carbon/human/H = M.current
+		if(istype(H) && !H.bot_brain && H.stat != DEAD)
+			. += H
+
+/// An operative from the round type (bot_round_type.dm) or an admin, with a brain already: on the bots' team, which a player may be
+/// on as well. bot_spawn_nukeops() sets its own up.
+/datum/antagonist/nukeop/on_gain()
+	. = ..()
+	var/mob/living/carbon/human/H = owner?.current
+	if(!istype(H) || !H.bot_brain || H.bot_brain.op_team)
+		return
+	var/datum/bot_brain/B = H.bot_brain
+	if(!GLOB.bot_nuke_team)
+		GLOB.bot_nuke_team = new
+		GLOB.bot_nuke_team.launch_at = world.time + BOT_OPS_LAUNCH_WAIT
+	var/datum/bot_nuke_team/team = GLOB.bot_nuke_team
+	B.op_team = team
+	B.set_playstyle(BOT_STYLE_ROBUST)
+	B.bot_traitor = TRUE //the antagonist talk and the hostility of a traitor who's been found out (goals/robust.dm)
+	team.members += B
+	if(!team.leader)
+		team.leader = B
+	team.nuke = nuke_team?.tracked_nuke || team.nuke
+	team.code = nuke_team?.memorized_code || team.code
+	log_game("BOT OPS: [H.real_name] joins the operatives, nuke [team.nuke ? AREACOORD(team.nuke) : "missing"]")
 
 /// The blast doors and shutters on the way, by id: "nukeop_ready" between the base and the dock, which the leader's
 /// "mission launch control" opens, and "smindicate", the infiltrator's own hatch.
@@ -297,6 +342,10 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 	if(owner.health <= owner.maxHealth * health_to_run_at() && patch_up()) //goals/robust.dm
 		return TRUE
 	if(!team.launched)
+		var/obj/docking_port/mobile/S = bot_ops_shuttle()
+		if(S && (S.mode != SHUTTLE_IDLE || is_station_level(S.z)))
+			team.launched = TRUE //a player on the team flew it
+	if(!team.launched)
 		if(!op_shopped)
 			op_shopped = TRUE
 			if(assign_goal(new /datum/bot_goal/op_shop()))
@@ -336,7 +385,7 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 	// Stripped by Security, or the helmet's down: suited again, off the uplink if the suit's gone, or nobody's crossing back to the nuke.
 	if(!op_suited() && world.time >= op_resuit_at && !owner.handcuffed)
 		op_resuit_at = world.time + 1 MINUTES
-		if(assign_goal(new /datum/bot_goal/op_suit_up()))
+		if(op_fetch_breathing_gear() || assign_goal(new /datum/bot_goal/op_suit_up()))
 			return TRUE
 	var/obj/machinery/nuclearbomb/N = team.nuke
 	if(QDELETED(N))
@@ -417,13 +466,22 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 /datum/bot_strategy/op_simple/is_feasible(datum/bot_brain/bot)
 	return bot.current_goal?.target && !QDELETED(bot.current_goal.target)
 
-/// An emag for the station's doors and a sword, off the uplink.
+/// What an operative buys, in this order, while the telecrystals last (twenty each, the leader more): a gun that holds its own against
+/// Security's tasers and a spare magazine (bot_fighting.dm reloads), the emag for the doors, a sword with what the leader has over.
+/// With only the emag and a sword, three or five of them were tased and cuffed one at a time within a minute of landing.
+GLOBAL_LIST_INIT(bot_op_shopping, list(/obj/item/gun/ballistic/automatic/c20r, /obj/item/ammo_box/magazine/smgm45, /obj/item/card/emag,
+	/obj/item/melee/transforming/energy/sword/saber, /obj/item/ammo_box/magazine/smgm45))
+
 /datum/bot_step/op_shop/execute(datum/bot_brain/bot)
-	for(var/path in list(/obj/item/card/emag, /obj/item/melee/transforming/energy/sword/saber))
-		if(!bot.find_carried_tool(path) && bot.buy_from_uplink(path)) //goals/traitor.dm
-			var/obj/item/I = bot.find_carried_tool(path)
-			bot_log(bot, "bought [I || "nothing"] off the uplink")
-			bot.put_away(I)
+	for(var/path in GLOB.bot_op_shopping)
+		var/spare = ispath(path, /obj/item/ammo_box) //one's in the gun already: these are on top
+		if(!spare && bot.find_carried_tool(path))
+			continue
+		if(!bot.buy_from_uplink(path)) //goals/traitor.dm: not enough left, mostly
+			continue
+		var/obj/item/I = (locate(path) in bot.owner.held_items) || bot.find_carried_tool(path)
+		bot_log(bot, "bought [I || "nothing"] off the uplink")
+		bot.put_away(I) //a gun too big for the bag stays in hand, which is where it's wanted
 	return GOAL_STEP_SUCCESS
 
 /datum/bot_goal/op_suit_up
@@ -498,7 +556,7 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 					bot.telemetry_ui_action(U, "dispense mask")
 					bot.op_take_dispensed(M, U)
 				else
-					M = locate(/obj/item/clothing/mask/gas/syndicate) in H.GetAllContents() //the survival box has one too
+					M = bot.op_breathing_mask() //the survival box has one, or one off the station (op_fetch_breathing_gear())
 				if(M)
 					bot.op_put_on(M, ITEM_SLOT_MASK)
 		if(3)
@@ -531,6 +589,32 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 				helmet.attack_self(H)
 		if(5)
 			return FALSE //the jetpack stays off until it's needed (op_mind_jetpack()): it runs off the tank they breathe from
+	return TRUE
+
+/// A mask its tank can be breathed through, on it somewhere.
+/datum/bot_brain/proc/op_breathing_mask()
+	for(var/obj/item/clothing/mask/M in owner.GetAllContents())
+		if(M.clothing_flags & MASKINTERNALS)
+			return M
+	return null
+
+/// Stripped on the station, the bag gone with everything else: the suit comes off the uplink, but a mask and a tank have to be found,
+/// where the crew keep them (an emergency closet, a fire locker), the way a player who's lost theirs goes and finds some. Without them
+/// there's no crossing back to the nuke: operatives were buying a suit a minute and never leaving the station.
+/datum/bot_brain/proc/op_fetch_breathing_gear()
+	var/want
+	if(!op_breathing_mask())
+		want = /obj/item/clothing/mask/breath
+	else if(!(locate(/obj/item/tank/internals) in owner.GetAllContents()))
+		want = length(bot_instances_of(/obj/item/tank/internals/oxygen)) ? /obj/item/tank/internals/oxygen : /obj/item/tank/internals/emergency_oxygen
+	if(!want)
+		return FALSE
+	var/datum/bot_goal/acquire_item_type/G = new()
+	G.item_type = want
+	G.lawful = FALSE
+	if(!assign_goal(G))
+		return FALSE
+	bot_log(src, "off for a [want == /obj/item/clothing/mask/breath ? "mask" : "tank"] to breathe from")
 	return TRUE
 
 /// The unit puts it out on its own tile, and the one who pressed the button picks it straight up: left there, with four others
@@ -881,3 +965,4 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 #undef BOT_OPS_LAUNCH_WAIT
 #undef BOT_OPS_HOLD
 #undef BOT_OPS_GUARD
+#undef BOT_OPS_PLAYER_WAIT

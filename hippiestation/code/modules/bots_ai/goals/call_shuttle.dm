@@ -55,8 +55,8 @@ GLOBAL_LIST_INIT(bot_shuttle_called_lines, list(
 	var/crew = 0
 	var/lost = 0
 	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
-		if(!H.mind?.assigned_role)
-			continue
+		if(!H.mind?.assigned_role || !SSjob.GetJob(H.mind.assigned_role))
+			continue //a station job: not an operative or the wizard, nor a body in a ruin
 		crew++
 		if(H.stat == DEAD)
 			lost++

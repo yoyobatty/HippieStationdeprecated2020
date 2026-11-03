@@ -1005,6 +1005,11 @@ GLOBAL_LIST_INIT(bot_maintenance_averse_jobs, list("Medical Doctor", "Chief Medi
 /datum/bot_brain/proc/on_attacked(mob/living/user, what_done, atom/object)
 	if(!user || user == owner || QDELETED(owner) || owner.stat == DEAD)
 		return
+	if(on_my_side(user))
+		if(world.time >= next_reaction_time)
+			next_reaction_time = world.time + 100
+			bot_say(owner, pick("Watch it!", "Careful!", "Watch where you're swinging that!"), TRUE)
+		return //a stray blow in a scrum: nobody turns on their own over that
 	break_pact_with(user) //goals/robust.dm
 	if(findtext(what_done, "handcuffed"))
 		cuffed_lawfully = bot_is_officer(user)
@@ -1043,6 +1048,18 @@ GLOBAL_LIST_INIT(bot_maintenance_averse_jobs, list("Medical Doctor", "Chief Medi
 		bot_call_security(user, what_done, object) //goals/security_patrol.dm - a victim radios it in, it doesn't just fight back
 	if(prob(60))
 		bot_say(owner, pick(GLOB.bot_combat_lines))
+
+/// Whether they're on its side, by the sides the game keeps: a team of antagonists (the operatives, the cult, the revolution, blood
+/// brothers). Five operatives were killing each other: one saw another sword a crewman and stepped in for the crewman, the way the
+/// crew do (bot_witness.dm), and the rest joined in.
+/datum/bot_brain/proc/on_my_side(mob/living/other)
+	if(!ishuman(other) || !owner.mind || !other.mind)
+		return FALSE
+	for(var/datum/antagonist/A as anything in owner.mind.antag_datums)
+		var/datum/team/T = A.get_team()
+		if(T && (other.mind in T.members))
+			return TRUE
+	return FALSE
 
 /// Whether the officer hitting this bot has stopped being an officer about it. Bot officers only ever stun, and stun gear is an
 /// arrest whatever else is going on: this is for a player in a uniform with a weapon, once it's gone past a scuffle.

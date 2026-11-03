@@ -274,7 +274,7 @@ GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor,
 			continue //somebody else's arena
 		if(LAZYACCESS(robust_rested, WEAKREF(H)) > world.time)
 			continue
-		if(pact_with(H) != BOT_PACT_NONE)
+		if(pact_with(H) != BOT_PACT_NONE || on_my_side(H))
 			continue
 		var/job = H.mind.assigned_role
 		var/rank = get_dist(owner, H)

@@ -38,6 +38,8 @@ GLOBAL_LIST_INIT(bot_crew_job_weights, list(
 #define BOT_CREW_LATE_GAP_MAX (6 MINUTES)
 /// How long into the round the traitors are picked.
 #define BOT_CREW_TRAITORS_AFTER (10 MINUTES)
+/// How long a third of the crew can lie dead with no shuttle called before Central Command sends it.
+#define BOT_CREW_CENTCOM_CALL_AFTER (10 MINUTES)
 
 GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 
@@ -53,6 +55,8 @@ GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 	var/mustering = FALSE
 	var/running = FALSE
 	var/traitors_made = FALSE
+	/// Since when a third of the crew have been dead with the shuttle not called.
+	var/decimated_since = 0
 
 /// Called once the round is under way (the ticker hook below).
 /datum/bot_population/proc/round_started()
@@ -105,7 +109,7 @@ GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 
 /// Everyone on shift when the round starts: at their posts, as though they'd readied up with everybody else.
 /datum/bot_population/proc/muster()
-	var/short = target - player_count()
+	var/short = target - player_count() - bot_offstation_stand_ins(SSticker.mode) //bot_round_type.dm: an operative or the wizard is one of the number
 	for(var/i in 1 to short)
 		if(!bring_in(TRUE))
 			break
@@ -126,15 +130,28 @@ GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 	while(target > 0 && SSticker.IsRoundInProgress())
 		if(!traitors_made && world.time > SSticker.round_start_time + BOT_CREW_TRAITORS_AFTER)
 			traitors_made = TRUE
-			var/traitors = CONFIG_GET(number/bot_crew_traitors)
-			if(traitors)
-				bot_make_traitors(traitors) //goals/traitor.dm
-			var/changelings = CONFIG_GET(number/bot_crew_changelings)
-			if(changelings)
-				bot_make_changelings(changelings) //goals/changeling.dm
-			var/revolutionaries = CONFIG_GET(number/bot_crew_revolutionaries)
-			if(revolutionaries)
-				bot_start_revolution(revolutionaries) //goals/revolution.dm
+			if(!bot_round_has_antagonists()) //bot_round_type.dm: the round type's are bots too, and these are for a round it gave none
+				var/traitors = CONFIG_GET(number/bot_crew_traitors)
+				if(traitors)
+					bot_make_traitors(traitors) //goals/traitor.dm
+				var/changelings = CONFIG_GET(number/bot_crew_changelings)
+				if(changelings)
+					bot_make_changelings(changelings) //goals/changeling.dm
+				var/revolutionaries = CONFIG_GET(number/bot_crew_revolutionaries)
+				if(revolutionaries)
+					bot_start_revolution(revolutionaries) //goals/revolution.dm
+		// A third of the crew dead and nobody's called the shuttle: the heads are among them, and nobody left can or will. Central Command
+		// sends it, as it does for a comms console that's down (goals/call_shuttle.dm); the game's own casualty call only counts players.
+		// Three traitors loud from the start killed 18 of 20 in a live round, and it would have gone on for ever.
+		if(EMERGENCY_IDLE_OR_RECALLED && bot_crew_decimated())
+			if(!decimated_since)
+				decimated_since = world.time
+			else if(world.time > decimated_since + BOT_CREW_CENTCOM_CALL_AFTER)
+				decimated_since = 0
+				log_game("BOT CREW: Central Command sends the shuttle: a third of the crew dead and nobody called it")
+				SSshuttle.emergency.request(null, set_coefficient = 1, reason = "Heavy casualties reported aboard. Evacuation shuttle dispatched by Central Command.")
+		else
+			decimated_since = 0
 		// Nobody new signs on once the evacuation shuttle is on its way.
 		if(EMERGENCY_IDLE_OR_RECALLED)
 			if(target - player_count() - joined > 0) //an admin raised the target
@@ -170,3 +187,4 @@ GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 #undef BOT_CREW_LATE_GAP_MIN
 #undef BOT_CREW_LATE_GAP_MAX
 #undef BOT_CREW_TRAITORS_AFTER
+#undef BOT_CREW_CENTCOM_CALL_AFTER

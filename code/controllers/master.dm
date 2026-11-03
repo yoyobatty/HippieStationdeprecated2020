@@ -223,6 +223,11 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 		sleep_offline_after_initializations = FALSE
 		INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(run_bot_shift), world.params[BOT_SHIFT_PARAMETER], world.params[BOT_SHIFT_CREW_PARAMETER])
 
+	// hippie -- a live test round (tools/bot_gym/run_live_round.sh): nobody connects to that either. RESUME_AFTER_INITIALIZATIONS
+	// is read after the sleep(1) below, which never ends with sleep_offline on and no clients.
+	if("bot-mode" in world.params)
+		sleep_offline_after_initializations = FALSE
+
 	// hippie -- Code sweep: one of everything, to see what breaks; shuts the world down when done
 	if(CODE_SWEEP_PARAMETER in world.params)
 		sleep_offline_after_initializations = FALSE

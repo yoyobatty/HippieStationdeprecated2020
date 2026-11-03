@@ -18,6 +18,17 @@ GLOBAL_LIST_INIT(bot_wizard_spells, list(/datum/spellbook_entry/fireball, /datum
 	var/next_wizard_escape = 0
 	var/next_wizard_fail_note = 0
 
+/// A wizard from the round type (bot_round_type.dm) or an admin, with a brain already. bot_spawn_wizards() sets its own up.
+/datum/antagonist/wizard/on_gain()
+	. = ..()
+	var/mob/living/carbon/human/H = owner?.current
+	if(!istype(H) || !H.bot_brain || H.bot_brain.bot_wizard)
+		return
+	H.bot_brain.bot_wizard = TRUE
+	H.bot_brain.bot_traitor = TRUE
+	H.bot_brain.set_playstyle(BOT_STYLE_ROBUST)
+	log_game("BOT WIZARD: [H.real_name] at [AREACOORD(H)]")
+
 /proc/bot_spawn_wizards(count)
 	var/made = 0
 	for(var/i in 1 to count)
@@ -98,6 +109,11 @@ GLOBAL_LIST_INIT(bot_wizard_spells, list(/datum/spellbook_entry/fireball, /datum
 				bot_log(src, "learned [E.name] ([book.uses] points left)")
 			break
 
+/// Rooms nobody picks off the scroll's menu: the scroll drops you anywhere in the room, and in these that's inside the engine's
+/// electrified grilles. A wizard went to Port Engineering, where the engineers were starting the tesla, and shocked itself to death on them.
+GLOBAL_LIST_INIT(bot_wizard_no_landing, typecacheof(list(/area/engine/engineering, /area/engine/port_engineering, /area/engine/supermatter,
+	/area/engine/engine_room, /area/engine/atmospherics_engine, /area/engine/engine_smes, /area/engine/gravity_generator)))
+
 /// The scroll's menu, to wherever the crew are thickest: a room with somebody to fight in it.
 /datum/bot_brain/proc/wizard_teleport_in()
 	var/obj/item/teleportation_scroll/scroll = locate() in owner.GetAllContents()
@@ -108,6 +124,8 @@ GLOBAL_LIST_INIT(bot_wizard_spells, list(/datum/spellbook_entry/fireball, /datum
 		if(H.stat == DEAD || !is_station_level(H.z) || !H.mind?.assigned_role)
 			continue
 		var/area/A = get_area(H)
+		if(is_type_in_typecache(A, GLOB.bot_wizard_no_landing))
+			continue
 		for(var/name in GLOB.teleportlocs)
 			if(GLOB.teleportlocs[name] == A)
 				crowd[name]++

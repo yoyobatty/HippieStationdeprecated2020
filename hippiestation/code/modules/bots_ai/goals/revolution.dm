@@ -44,6 +44,17 @@
 
 GLOBAL_VAR_INIT(bot_rev_started, 0)
 
+/// A head revolutionary from the round type (bot_round_type.dm) or an admin: it keeps its job a while first, as bot_start_revolution()'s do.
+/datum/antagonist/rev/head/on_gain()
+	. = ..()
+	var/mob/living/carbon/human/H = owner?.current
+	if(!istype(H) || !H.bot_brain || H.bot_brain.rev_next_work)
+		return
+	if(!GLOB.bot_rev_started)
+		GLOB.bot_rev_started = world.time
+	H.bot_brain.rev_next_work = world.time + BOT_REV_SETTLE_IN + rand(0, 3 MINUTES)
+	bot_log(H.bot_brain, "I'm a head revolutionary")
+
 /// Null if it isn't one: has_antag_datum() says 0, and ?. takes that for something to read.
 /datum/bot_brain/proc/rev_datum()
 	return owner.mind?.has_antag_datum(/datum/antagonist/rev) || null

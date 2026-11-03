@@ -206,6 +206,8 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 		return
 	if(is_security_job() || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST || world.time < next_witness_time || owner.incapacitated())
 		return
+	if(on_my_side(assailant) || (gone_loud() && !on_my_side(victim)))
+		return //bot_brain.dm: nobody stops their own from doing what they came to do, and somebody who's turned on the crew doesn't stand up for them
 	next_witness_time = world.time + 4 SECONDS
 	if(istype(current_goal, /datum/bot_goal/brig_prisoner) || greytider) //a greytider's got its own troubles, and likes a fight
 		return

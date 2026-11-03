@@ -304,6 +304,12 @@ SUBSYSTEM_DEF(ticker)
 
 /datum/controller/subsystem/ticker/proc/PostSetup()
 	set waitfor = FALSE
+	// hippie start -- the bot crew come aboard first, so the bots the round type picked can take their roles (bots_ai/bot_round_type.dm)
+	// and the mode's head counts and targets have the crew in them. They're also being stood on the start points cleared below: they lost
+	// that race once, and four got their posts while the rest came in on the shuttle.
+	UNTIL(!GLOB.bot_population.mustering || world.time > round_start_time + 30 SECONDS)
+	bot_take_stand_in_roles(mode)
+	// hippie end
 	mode.post_setup()
 	GLOB.start_state = new /datum/station_state()
 	GLOB.start_state.count()
@@ -312,9 +318,6 @@ SUBSYSTEM_DEF(ticker)
 	var/list/allmins = adm["present"]
 	send2irc("Server", "Round [GLOB.round_id ? "#[GLOB.round_id]:" : "of"] [hide_mode ? "secret":"[mode.name]"] has started[allmins.len ? ".":" with no active admins online!"]")
 	setup_done = TRUE
-
-	// hippie -- the bot crew are being stood on these. They lost that race: four got their posts and the rest came in on the shuttle.
-	UNTIL(!GLOB.bot_population.mustering || world.time > round_start_time + 30 SECONDS)
 
 	for(var/i in GLOB.start_landmarks_list)
 		var/obj/effect/landmark/start/S = i

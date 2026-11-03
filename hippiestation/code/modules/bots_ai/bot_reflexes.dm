@@ -130,7 +130,8 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 
 /// Takes on security rather than going quietly: a traitor, or somebody in the middle of a riot.
 /datum/bot_brain/proc/resists_arrest()
-	return greytider || is_changeling || !!owner.mind?.has_antag_datum(/datum/antagonist/traitor) || !!rev_datum()
+	//operatives, wizards and cultists weren't here: five operatives with submachine guns stood still for Security's tasers and cuffs
+	return greytider || is_changeling || op_team || bot_wizard || bot_cultist || !!owner.mind?.has_antag_datum(/datum/antagonist/traitor) || !!rev_datum()
 
 /// Whether this bot is the kind that's only ever hands-on for a good reason: bots go at each other all shift, in a doctor's
 /// or an officer's way of doing things, and it mustn't start fights over that.

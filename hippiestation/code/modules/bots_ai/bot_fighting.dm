@@ -138,7 +138,15 @@
 	if(world.time < next_taser_time)
 		return FALSE
 	var/obj/item/gun/G = find_carried_tool(/obj/item/gun)
-	if(!G || !G.can_shoot() || !has_clear_shot(target) || !ready_in_hand(G))
+	if(G && !G.can_shoot()) //the first one it found is empty: another that isn't
+		G = null
+		for(var/obj/item/gun/other in owner.GetAllContents())
+			if(other.can_shoot())
+				G = other
+				break
+	if(!G)
+		return reload_a_gun()
+	if(!has_clear_shot(target) || !ready_in_hand(G))
 		return FALSE
 	owner.a_intent = INTENT_HARM
 	owner.face_atom(target)
@@ -147,6 +155,43 @@
 	bot_log(src, "firing [G] at [target] (dist [get_dist(owner, target)])")
 	INVOKE_ASYNC(G, TYPE_PROC_REF(/obj/item/gun, afterattack), target, owner, FALSE, null)
 	return TRUE
+
+/datum/bot_brain
+	var/next_reload_time = 0
+
+/// Out of rounds, with a magazine for the gun on it: the magazine into the other hand and onto the gun, which swaps it for the spent
+/// one (a tactical reload, ballistic.dm attackby()), and the spent one goes on the floor. Nothing reloaded before: a bot fired one
+/// magazine and was done with the gun, an operative's pistol included. Guns loaded a round at a time (revolvers, pump shotguns) aren't.
+/datum/bot_brain/proc/reload_a_gun()
+	if(world.time < next_reload_time)
+		return FALSE
+	var/list/carried = owner.GetAllContents()
+	for(var/obj/item/gun/ballistic/G in carried)
+		if(G.can_shoot() || G.internal_magazine || G.bolt_type == BOLT_TYPE_NO_BOLT)
+			continue
+		var/obj/item/ammo_box/magazine/fresh
+		for(var/obj/item/ammo_box/magazine/M in carried)
+			if(M != G.magazine && istype(M, G.mag_type) && M.ammo_count())
+				fresh = M
+				break
+		if(!fresh)
+			continue
+		next_reload_time = world.time + 2 SECONDS
+		if(!ready_in_hand(G))
+			return FALSE
+		var/obj/item/other = owner.get_inactive_held_item()
+		if(other && other != fresh && !put_away(other))
+			return FALSE
+		if(!(fresh in owner.held_items) && !owner.put_in_inactive_hand(fresh))
+			return FALSE
+		owner.changeNext_move(CLICK_CD_MELEE)
+		G.attackby(fresh, owner)
+		for(var/obj/item/ammo_box/magazine/spent in owner.held_items)
+			if(!spent.ammo_count())
+				owner.dropItemToGround(spent)
+		bot_log(src, "reloaded [G]: [G.can_shoot() ? "ready" : "still not firing"]")
+		return TRUE
+	return FALSE
 
 /datum/bot_brain/proc/try_throw_at(mob/living/target)
 	var/obj/item/I = owner.get_active_held_item()
