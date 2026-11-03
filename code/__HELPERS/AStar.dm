@@ -173,6 +173,9 @@ GLOBAL_LIST_INIT(astar_tally, list("searches" = 0, "failed" = 0, "turfs" = 0, "f
 	var/list/open = list() //the open list - hippie -- a heap kept in a plain list, see astar_open_swim() above
 	var/list/openc = new() //open list for node check
 	var/list/path = null //the returned path, if any
+	// hippie -- the usual cost: a step to a neighbour is 1 and the estimate is the Manhattan distance, worked out here instead of two
+	// call()s per neighbour (Distance_cardinal() does just this)
+	var/cardinal_cost = (dist == /turf/proc/Distance_cardinal)
 	//initialization
 	var/datum/PathNode/cur = new /datum/PathNode(start,null,0,call(start,dist)(end),0,15,1)//current processed turf
 	open += cur
@@ -201,11 +204,11 @@ GLOBAL_LIST_INIT(astar_tally, list("searches" = 0, "failed" = 0, "turfs" = 0, "f
 			for(var/i = 0 to 3)
 				var/f= 1<<i //get cardinal directions.1,2,4,8
 				if(cur.bf & f)
-					var/T = get_step(cur.source,f)
-					if(T != exclude)
+					var/turf/T = get_step(cur.source,f)
+					if(T && T != exclude) // hippie -- no neighbour past the map's edge: it never passed the adjacent proc anyway
 						var/datum/PathNode/CN = openc[T]  //current checking turf
 						var/r=((f & MASK_ODD)<<1)|((f & MASK_EVEN)>>1) //getting reverse direction throught swapping even and odd bits.((f & 01010101)<<1)|((f & 10101010)>>1)
-						var/newg = cur.g + call(cur.source,dist)(T)
+						var/newg = cur.g + (cardinal_cost ? 1 : call(cur.source,dist)(T))
 						if(CN)
 						//is already in open list, check if it's a better way from the current turf
 							CN.bf &= 15^r //we have no closed, so just cut off exceed dir.00001111 ^ reverse_dir.We don't need to expand to checked turf.
@@ -219,7 +222,7 @@ GLOBAL_LIST_INIT(astar_tally, list("searches" = 0, "failed" = 0, "turfs" = 0, "f
 						else
 						//is not already in open list, so add it
 							if(call(cur.source,adjacent)(caller, T, id, simulated_only))
-								CN = new(T,cur,newg,call(T,dist)(end),cur.nt+1,15^r)
+								CN = new(T,cur,newg,cardinal_cost ? abs(T.x - end.x) + abs(T.y - end.y) : call(T,dist)(end),cur.nt+1,15^r)
 								open += CN
 								astar_open_swim(open, length(open))
 								openc[T] = CN

@@ -180,6 +180,43 @@ GLOBAL_LIST_EMPTY(sb_crew)
 			qdel(P)
 	sb_report("a bullet's move ([moves_done] moves)", times)
 
+/// Routes between departments the way a bot plans its first try (bot_movement.dm: Distance_cardinal, bot_reachable_strict, 300 nodes,
+/// its own card, an engineer's here), the same routes every boot. Timed whole, a search a sample, with the tiles they opened.
+/proc/sb_paths()
+	var/list/areas = list(/area/crew_quarters/bar, /area/medical/medbay/central, /area/engine/engineering, /area/science/research, /area/quartermaster/storage,
+		/area/bridge, /area/security/brig, /area/hydroponics, /area/crew_quarters/kitchen, /area/janitor, /area/hallway/primary/central, /area/storage/primary)
+	var/list/spots = list()
+	for(var/A in areas)
+		for(var/turf/open/floor/T in get_area_turfs(A))
+			if(!is_blocked_turf(T, TRUE))
+				spots += T
+				break
+	if(length(spots) < 2)
+		sb_log("paths: only [length(spots)] places found")
+		return
+	var/mob/living/carbon/human/H = sb_person(spots[1])
+	GLOB.sb_crew -= H
+	var/obj/item/card/id/card = H.get_idcard()
+	var/list/times = list()
+	var/total = 0
+	var/steps = 0 //every route's length added up: the same in a faster build, or it's found different routes
+	var/turfs_before = GLOB.astar_tally["turfs"]
+	var/failed_before = GLOB.astar_tally["failed"]
+	for(var/turf/from in spots)
+		for(var/turf/dest in spots)
+			if(from == dest)
+				continue
+			H.forceMove(from)
+			sleep(1)
+			var/start = TICK_USAGE_REAL
+			var/list/path = get_path_to(H, dest, /turf/proc/Distance_cardinal, 300, 250, adjacent = /turf/proc/bot_reachable_strict, id = card, simulated_only = TRUE)
+			var/took = TICK_DELTA_TO_MS(TICK_USAGE_REAL - start) * 1000
+			times += took
+			total += took
+			steps += length(path)
+	var/searches = length(times)
+	sb_report("a route between departments ([length(spots)] places, [GLOB.astar_tally["failed"] - failed_before] of [searches] found none, [round((GLOB.astar_tally["turfs"] - turfs_before) / searches)] tiles opened each, [steps] steps in all, [round(total / 1000, 0.1)] ms in all)", times)
+
 /proc/sb_hallway()
 	. = list()
 	for(var/turf/open/floor/T in get_area_turfs(/area/hallway/primary/central))
@@ -223,6 +260,7 @@ GLOBAL_LIST_EMPTY(sb_crew)
 	sb_run("life", /proc/sb_life)
 	sb_run("hostile", /proc/sb_hostile, spots[1])
 	sb_run("projectile", /proc/sb_projectile, spots[1], 90)
+	sb_run("paths", /proc/sb_paths)
 	sb_log("done")
 	sleep(5)
 	del(world)

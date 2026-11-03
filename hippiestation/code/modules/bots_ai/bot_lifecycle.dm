@@ -2,7 +2,7 @@
 /// bot's every step to admin chat, and put 155,000 lines in game.log every half hour; the admin verbs below turn them on.
 /// bot-quiet turns them off in a test too, for measuring what a crew costs without the logging in the way.
 /proc/bot_ai_logging_wanted()
-	return ((BOT_GYM_PARAMETER in world.params) || (BOT_SHIFT_PARAMETER in world.params)) && !(BOT_QUIET_PARAMETER in world.params)
+	return ((BOT_GYM_PARAMETER in world.params) || (BOT_SHIFT_PARAMETER in world.params) || ("bot-mode" in world.params)) && !(BOT_QUIET_PARAMETER in world.params) //bot-mode: tools/bot_gym/run_live_round.sh
 
 GLOBAL_VAR_INIT(bot_ai_debug, bot_ai_logging_wanted())
 // Separate from bot_ai_debug - this is the noisy, per-decision trace (pathing pass

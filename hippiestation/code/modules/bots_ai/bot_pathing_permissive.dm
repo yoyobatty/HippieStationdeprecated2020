@@ -137,7 +137,26 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 		return FALSE
 	if(simulated_only && SSpathfinder.space_type_cache[T.type] && !bot_turf_crossable_without_boots(T, caller))
 		return FALSE
-	return !bot_turf_has_active_field(T) && !bot_turf_has_seated_mob(T) && !LinkBlockedWithAccess(T, caller, ID)
+	return !bot_turf_has_active_field(T) && !bot_link_blocked_strict(T, caller, ID)
+
+/// LinkBlockedWithAccess() (AStar.dm) and bot_turf_has_seated_mob() together, with the same answers: one pass over each turf's
+/// contents instead of four. Asked for every neighbour of every tile a search opens, two million times a shift.
+/turf/proc/bot_link_blocked_strict(turf/T, caller, ID)
+	var/adir = get_dir(src, T)
+	for(var/obj/O in src)
+		if((istype(O, /obj/structure/window) || istype(O, /obj/machinery/door/window)) && !O.CanAStarPass(ID, adir))
+			return TRUE
+	var/rdir = ((adir & MASK_ODD)<<1)|((adir & MASK_EVEN)>>1)
+	for(var/atom/movable/AM as anything in T)
+		if(isobj(AM))
+			var/obj/O = AM
+			if((O.density || O.astar_always_asks) && !O.CanAStarPass(ID, rdir, caller))
+				return TRUE
+		else if(isliving(AM))
+			var/mob/living/L = AM
+			if(L.buckled && L.density) //bot_turf_has_seated_mob()
+				return TRUE
+	return FALSE
 
 // Mirrors code/__HELPERS/AStar.dm's reachableTurftest()/LinkBlockedWithAccess(), but
 // treats as passable anything the bot could actually force its way through given its
