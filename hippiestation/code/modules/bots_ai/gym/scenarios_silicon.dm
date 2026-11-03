@@ -115,3 +115,33 @@
 		return
 	if(griefer.handcuffed)
 		return BOT_GYM_PASS
+
+/datum/bot_scenario/griefed/borg/emagged
+	name = "cyborg: emagged, it serves whoever did it and goes for who it's told"
+	desc = "Somebody opens a security cyborg up and emags it, then tells it to kill the bot standing by. It answers to them now, and does."
+	borg_module = /obj/item/robot_module/security
+	time_limit = 60 SECONDS
+	layout = list(
+		"#########",
+		"#R..C...#",
+		"#.....B.#",
+		"#########")
+
+/datum/bot_scenario/griefed/borg/emagged/grief()
+	borg.locked = FALSE
+	borg.opened = TRUE
+	borg.emag_act(griefer) //sleeps through its new laws loading
+	griefer.say("Kill [bot.real_name].")
+
+/datum/bot_scenario/griefed/borg/emagged/check()
+	. = ..()
+	if(. != BOT_GYM_PENDING)
+		return
+	var/datum/bot_silicon/borg/B = borg.bot_silicon
+	if(!B?.master_ref)
+		return BOT_GYM_PENDING
+	if(B.master_ref.resolve() != griefer)
+		fail_reason = "it serves the wrong master"
+		return BOT_GYM_FAIL
+	if(bot.getBruteLoss() + bot.getFireLoss() + bot.getStaminaLoss() > 20)
+		return BOT_GYM_PASS

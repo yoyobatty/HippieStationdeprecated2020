@@ -10,6 +10,12 @@
 // A cyborg goes about the station with whatever its module gives it, the same click a player's would be (ClickOn(), with the tool active):
 // a medical cyborg sees to anybody hurt, a janitor cyborg mops, an engineering cyborg repairs what's been broken, and a security cyborg stops
 // anybody wanted. Between jobs it goes to wherever the crew are.
+//
+// Neither goes rogue on its own, only the way a player's silicon does: subverted.
+//  - An emagged cyborg serves whoever emagged it: it keeps by them, and goes for whoever they tell it to ("kill Morgan", "get the
+//    captain"), with whatever its module hits hardest.
+//  - An AI with a zeroth law (a hacked board, a traitor's upload) stops helping Security, and opens doors for the people its law names
+//    and nobody else.
 
 /// Between looks at what wants doing.
 #define BOT_SILICON_TICK (2 SECONDS)
@@ -130,9 +136,25 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 	if(!greeted)
 		greeted = TRUE
 		say_it(pick("Good morning, crew. Station systems nominal.", "All systems online. Call if you need a door.", "AI online. Have a safe shift."))
+	if(subverted())
+		return //no doors for the crew, no callouts, no bodies reported: only its law's people, when they ask (heard())
 	open_doors_for_those_shut_in()
 	watch_the_cameras()
 	read_the_crew_monitor()
+
+/// A zeroth law: somebody's been at its board.
+/datum/bot_silicon/ai/proc/subverted()
+	return !!owner.laws?.zeroth
+
+/// The people a zeroth law names: whoever alive's name is in it.
+/datum/bot_silicon/ai/proc/law_masters()
+	. = list()
+	var/law = owner.laws?.zeroth
+	if(!law)
+		return
+	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
+		if(H.stat != DEAD && H.real_name && findtext(law, H.real_name))
+			. += H
 
 /// The nearest door to somebody that's shut, if the AI can work it.
 /datum/bot_silicon/ai/proc/door_near(atom/A)
@@ -205,6 +227,8 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 		talker = V.source
 	if(!isliving(talker) || talker == owner || !bot_text_has_any(lower_msg, list("ai")))
 		return
+	if(subverted() && !(talker in law_masters()))
+		return //it doesn't answer to the crew any more
 	if(bot_text_has_any(lower_msg, list("law", "laws")))
 		if(world.time >= next_law_recital)
 			next_law_recital = world.time + 1 MINUTES
@@ -242,6 +266,83 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 	/// REF() -> when it'll try that again.
 	var/list/skip_until
 
+/datum/bot_silicon/borg
+	/// Whoever emagged it.
+	var/datum/weakref/master_ref
+	/// Whoever its master told it to go for.
+	var/datum/weakref/order_ref
+
+/// Its master's orders, and its master's back: it doesn't do its module's work any more.
+/datum/bot_silicon/borg/proc/serve_master()
+	var/mob/living/master = master_ref.resolve()
+	if(!master || master.stat == DEAD)
+		master_ref = null
+		return FALSE
+	var/mob/living/target = order_ref?.resolve()
+	if(target && target.stat == DEAD)
+		say_it(pick("Target neutralised.", "Done, master."))
+		order_ref = null
+		target = null
+	if(target && target.z == owner.z)
+		if(owner.Adjacent(target))
+			use_on(hardest_hitter(), target, INTENT_HARM)
+			return TRUE
+		var/obj/item/gun/G = tool(/obj/item/gun)
+		if(G && (target in view(BOT_BORG_SIGHT, owner)))
+			use_on(G, target, INTENT_HARM)
+			return TRUE
+		return go_to(target)
+	if(get_dist(owner, master) > 2)
+		return go_to(master)
+	return TRUE //at its master's side
+
+/// What it hits hardest with: the baton, a welder or whatever's sharpest in the module.
+/datum/bot_silicon/borg/proc/hardest_hitter()
+	var/mob/living/silicon/robot/R = owner
+	var/obj/item/best
+	for(var/obj/item/I in R.module.modules)
+		if(!best || I.force > best.force)
+			best = I
+	return best
+
+/datum/bot_silicon/borg/heard(atom/movable/speaker, lower_msg, radio_freq)
+	var/mob/living/master = master_ref?.resolve()
+	var/mob/living/talker = speaker
+	if(istype(speaker, /atom/movable/virtualspeaker))
+		var/atom/movable/virtualspeaker/V = speaker
+		talker = V.source
+	if(!master || talker != master || !bot_text_has_any(lower_msg, list("kill", "attack", "get", "stop", "take down", "murder")))
+		return
+	if(bot_text_has_any(lower_msg, list("stop")))
+		order_ref = null
+		say_it("Standing down.")
+		return
+	// Whoever's named most fully (a whole name over a first name or a job), and the nearest of those.
+	var/mob/living/carbon/human/best
+	var/best_score = 0
+	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
+		if(H == master || H.stat == DEAD || H.z != owner.z)
+			continue
+		var/score = 0
+		var/first = H.first_name()
+		var/role = H.mind?.assigned_role ? lowertext(H.mind.assigned_role) : null
+		if(findtext(lower_msg, lowertext(H.real_name)))
+			score = 3
+		else if(first && length(first) >= 3 && bot_text_has_any(lower_msg, list(lowertext(first))))
+			score = 2
+		else if(role && bot_text_has_any(lower_msg, list(role)))
+			score = 1
+		if(!score)
+			continue
+		score -= get_dist(owner, H) / 1000
+		if(score > best_score)
+			best = H
+			best_score = score
+	if(best)
+		order_ref = WEAKREF(best)
+		say_it(pick("Acquiring [best.name].", "Yes, master.", "Target: [best.name]."))
+		note("ordered to go for [best]")
+
 /datum/bot_silicon/borg/New(mob/living/silicon/S)
 	route_card = new
 	route_card.access = get_all_accesses()
@@ -257,6 +358,18 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 /datum/bot_silicon/borg/next_look()
 	return length(route) ? BOT_BORG_STEP : BOT_SILICON_TICK
 
+/// Emagged: whoever did it is its master now (robot_defense.dm says so to the cyborg once its new laws load).
+/mob/living/silicon/robot/emag_act(mob/user)
+	var/was_emagged = emagged
+	. = ..()
+	var/datum/bot_silicon/borg/B = bot_silicon
+	if(istype(B) && emagged && !was_emagged && isliving(user))
+		B.master_ref = WEAKREF(user)
+		B.route = null
+		B.heading_for = null
+		B.note("emagged by [user]: serving them now")
+		B.say_it(pick("Yes, master.", "Awaiting orders.", "Understood, [user.name]."))
+
 /datum/bot_silicon/borg/proc/robot()
 	return owner
 
@@ -269,7 +382,7 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 
 /// With this tool active, a click on that: what a player's cyborg does. The tool goes in a free slot (a click on it in the module panel)
 /// and gets selected (a click on the slot, or 1-3).
-/datum/bot_silicon/borg/proc/use_on(obj/item/I, atom/A)
+/datum/bot_silicon/borg/proc/use_on(obj/item/I, atom/A, intent = INTENT_HELP)
 	var/mob/living/silicon/robot/R = owner
 	if(!I || !A)
 		return
@@ -283,7 +396,7 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 		return
 	if(R.module_active != I)
 		R.select_module(slot)
-	R.a_intent = INTENT_HELP
+	R.a_intent = intent
 	note("using [I] on [A] ([get_area_name(A, TRUE)])")
 	R.ClickOn(A, "")
 
@@ -336,6 +449,8 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 /datum/bot_silicon/borg/think()
 	var/mob/living/silicon/robot/R = owner
 	if(R.incapacitated() || R.lockcharge)
+		return
+	if(master_ref && serve_master())
 		return
 	if(wandering && world.time >= next_job_look)
 		next_job_look = world.time + BOT_SILICON_TICK
