@@ -500,8 +500,9 @@ GLOBAL_LIST_INIT(bot_cult_rune_areas, typecacheof(list(/area/crew_quarters/toile
 	return TRUE
 
 /// Ground for the rune in each of the summoning spots, and of the cultists nearest each, one who can walk there on its own card: that one
-/// draws it. A spot behind a locked door (the auxiliary base's construction room) had the leader fetching tools to hack its way in nine
-/// hundred times over, and with the leader's card alone there was often nowhere at all. A few route checks, a minute apart at most.
+/// draws it. With the leader's card alone there was often nowhere at all. When none of them can, the nearest to the nearest spot breaks
+/// in, the way players do: a hacked door gets bolted open (bot_doors.dm), so the rest follow it in. A few route checks, a minute apart at
+/// most.
 /datum/bot_cult/proc/pick_summoner()
 	summoner = null
 	summon_spot = null
@@ -529,9 +530,19 @@ GLOBAL_LIST_INIT(bot_cult_rune_areas, typecacheof(list(/area/crew_quarters/toile
 				summoner = B
 				summon_spot = T
 				return TRUE
+	var/best_dist
+	for(var/turf/T as anything in grounds)
+		for(var/datum/bot_brain/B as anything in alive)
+			if(B.owner.z == T.z && (isnull(best_dist) || get_dist(B.owner, T) < best_dist))
+				best_dist = get_dist(B.owner, T)
+				summoner = B
+				summon_spot = T
+	if(summoner)
+		log_game("BOT CULT: no way in to [get_area(summon_spot)] on any of their cards: [summoner.owner] breaks in")
+		return TRUE
 	if(!summon_nowhere_noted)
 		summon_nowhere_noted = TRUE
-		log_game("BOT CULT: nowhere to call the Geometer that one of them can walk to: [length(grounds)] of [length(O?.summon_spots)] spots ([english_list(O?.summon_spots)]) have room")
+		log_game("BOT CULT: nowhere to call the Geometer: none of the [length(O?.summon_spots)] spots ([english_list(O?.summon_spots)]) has room")
 	return FALSE
 
 /// On it, as far as the words go: anywhere in the three tiles across (can_invoke(), runes.dm).
