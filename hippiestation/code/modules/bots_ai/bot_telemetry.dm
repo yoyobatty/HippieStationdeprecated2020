@@ -67,7 +67,9 @@ GLOBAL_VAR(bot_telemetry_log)
 				B.telemetry_touch()
 			else
 				B.telemetry_sample()
-		sleep(BOT_TELEMETRY_SAMPLE_INTERVAL)
+		// A test round's checks (Bot Gym tells, Bot Shift idle stretches) read it at this rate; reading back a live round doesn't need
+		// it, and it was 2-3% of the server's time there.
+		sleep(GLOB.bot_ai_debug ? BOT_TELEMETRY_SAMPLE_INTERVAL : BOT_TELEMETRY_SAMPLE_INTERVAL * 2)
 
 // ---------------------------------------------------------------------------------------------
 // Writing
