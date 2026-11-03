@@ -126,6 +126,8 @@
 /// Somebody out of reach and still a threat: shot if it has a gun, or sometimes pelted with what's in its hand.
 /datum/bot_brain/proc/try_attack_from_range(mob/living/target)
 	var/dist = get_dist(owner, target)
+	if(bot_wizard && dist <= BOT_SIGHT_RANGE && (wizard_escape() || wizard_cast_at(target))) //goals/wizard.dm
+		return TRUE
 	if(dist < 2 || dist > BOT_SIGHT_RANGE)
 		return FALSE
 	if(try_shoot_at(target))

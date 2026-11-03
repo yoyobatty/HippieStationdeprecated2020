@@ -54,7 +54,8 @@
 /obj/item/gun/magic/Initialize()
 	. = ..()
 	charges = max_charges
-	chambered = new ammo_type(src)
+	if(ammo_type) // hippie -- the staff of nothing (the wizard's outfit, hippiestation/.../outfits/standard.dm) has no shot to load
+		chambered = new ammo_type(src)
 	if(can_charge)
 		START_PROCESSING(SSobj, src)
 

@@ -496,8 +496,8 @@
 			owner.buckled.unbuckle_mob(owner, force = TRUE)
 		return
 
-	// An operative has nothing to do but the operation (goals/nuke_ops.dm): no errands, no strolls, no snacks.
-	if(op_team)
+	// An operative has nothing to do but the operation (goals/nuke_ops.dm), nor a wizard but trouble: no errands, no strolls, no snacks.
+	if(op_team || bot_wizard)
 		idle_fidget()
 		return
 

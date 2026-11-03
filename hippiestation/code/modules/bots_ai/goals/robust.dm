@@ -87,7 +87,7 @@
 
 /// What it still does once it's gone loud: the Syndicate's business, staying alive, and getting off the station. Most job duties are in the
 /// urgent tier as well (a job that's never finished would otherwise starve the rest), so the tier alone doesn't tell them apart.
-GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor, /datum/bot_duty/nuke_op, /datum/bot_duty/evacuate, /datum/bot_duty/shelter_from_storm, /datum/bot_duty/rad_shelter)))
+GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor, /datum/bot_duty/nuke_op, /datum/bot_duty/wizard, /datum/bot_duty/evacuate, /datum/bot_duty/shelter_from_storm, /datum/bot_duty/rad_shelter)))
 
 /datum/bot_brain/proc/plays_robust()
 	return playstyle == BOT_STYLE_ROBUST
@@ -95,7 +95,7 @@ GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor,
 /// A traitor everybody knows about: the Syndicate read its name out for wearing the suit, or Security wants it for something serious. It
 /// stops pretending, and that's every duty, every chain of work and every word it says (bot_say()).
 /datum/bot_brain/proc/gone_loud()
-	if(op_team) //goals/nuke_ops.dm: there's no passing for crew in that suit
+	if(op_team || bot_wizard) //goals/nuke_ops.dm, goals/wizard.dm: there's no passing for crew in that suit, or those robes
 		return TRUE
 	if(!bot_traitor)
 		return FALSE
