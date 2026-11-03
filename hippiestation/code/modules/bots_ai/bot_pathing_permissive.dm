@@ -9,14 +9,51 @@
 // and bot_reachable_permissive() below - a bot has no more business walking through a
 // live field than through a locked door it can't hack.
 /proc/bot_turf_has_active_field(turf/T)
-	for(var/obj/machinery/field/F in T)
-		if(istype(F, /obj/machinery/field/containment))
-			return TRUE //exists at all only while its field connection is live
-		if(istype(F, /obj/machinery/field/generator))
-			var/obj/machinery/field/generator/G = F
-			if(LAZYLEN(G.fields))
-				return TRUE //fields.len>0 means its own Bumped()/shock() are live too (field_generator.dm)
+	// Asked on every step of every route the bots plan, 2.7 million times a round: what's where is kept as the fields come and go
+	// (below), instead of every turf's contents being gone through for one.
+	if(GLOB.bot_field_turfs[T])
+		return TRUE //a containment field exists at all only while its field connection is live
+	if(!GLOB.bot_field_generator_turfs[T])
+		return FALSE
+	for(var/obj/machinery/field/generator/G in T)
+		if(LAZYLEN(G.fields))
+			return TRUE //fields.len>0 means its own Bumped()/shock() are live too (field_generator.dm)
 	return FALSE
+
+/// Turf -> how many containment fields are on it.
+GLOBAL_LIST_EMPTY(bot_field_turfs)
+/// Turf -> how many field generators are on it. They can be unwrenched and dragged about, so they're kept track of as they move.
+GLOBAL_LIST_EMPTY(bot_field_generator_turfs)
+
+/proc/bot_count_field_turf(list/counts, turf/T, change)
+	if(!isturf(T))
+		return
+	var/now = counts[T] + change
+	if(now > 0)
+		counts[T] = now
+	else
+		counts -= T
+
+/obj/machinery/field/containment/Initialize()
+	. = ..()
+	bot_count_field_turf(GLOB.bot_field_turfs, loc, 1)
+
+/obj/machinery/field/containment/Destroy()
+	bot_count_field_turf(GLOB.bot_field_turfs, loc, -1)
+	return ..()
+
+/obj/machinery/field/generator/Initialize()
+	. = ..()
+	bot_count_field_turf(GLOB.bot_field_generator_turfs, loc, 1)
+
+/obj/machinery/field/generator/Destroy()
+	bot_count_field_turf(GLOB.bot_field_generator_turfs, loc, -1)
+	return ..()
+
+/obj/machinery/field/generator/Moved(atom/OldLoc, Dir)
+	. = ..()
+	bot_count_field_turf(GLOB.bot_field_generator_turfs, OldLoc, -1)
+	bot_count_field_turf(GLOB.bot_field_generator_turfs, loc, 1)
 
 // A space turf can still be safely crossed without magboots if there's something dense
 // adjacent to push off from - the exact real mechanic get_spacemove_backup() (mob_
