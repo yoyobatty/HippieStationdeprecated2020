@@ -69,6 +69,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/last_seen_at = 0
 
 /datum/bot_brain
+	/// When it'll next say on the radio that the cells are full
+	var/next_cells_full_shout = 0
 	var/mob/living/carbon/human/arrest_suspect
 	var/arrest_crime
 	var/arrest_severity = BOT_CRIME_MINOR
@@ -1059,7 +1061,9 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/obj/machinery/door_timer/T = bot.find_free_brig_cell()
 	if(!T)
 		bot_log(bot, "no free brig cell for [prisoner]")
-		bot_say(bot.owner, ":s All the cells are full, I need somewhere to put [prisoner.name]!")
+		if(world.time >= bot.next_cells_full_shout) // it tries again every minute: the channel had this 37 times in three shifts
+			bot.next_cells_full_shout = world.time + 5 MINUTES
+			bot_say(bot.owner, ":s All the cells are full, I need somewhere to put [prisoner.name]!")
 		LAZYSET(bot.failed_brig_targets, prisoner, world.time + 600)
 		return
 	var/turf/D = bot_pick_deep_cell_turf(T)

@@ -566,6 +566,76 @@ GLOBAL_LIST_INIT(bot_shop_talk, list(
 	"service" = list("Fresh food in the kitchen if you're hungry.", "Bar's open, by the way.", "Mind the wet floor."),
 ))
 GLOBAL_LIST_INIT(bot_shop_talk_replies, list("Good to know.", "Nice.", "Noted.", "Alright.", "Glad to hear it.", "I'll bear it in mind."))
+GLOBAL_LIST_INIT(bot_shop_talk_good_replies, list("Nice.", "Glad to hear it.", "Good.", "Nice one.", "Keep it up."))
+GLOBAL_LIST_INIT(bot_shop_talk_bad_replies, list("That's not good.", "Yikes.", "Hope it holds.", "Shout if you need a hand.", "Great, that's all we need."))
+GLOBAL_LIST_INIT(bot_shop_talk_plain_replies, list("Good to know.", "Noted.", "Alright.", "Huh.", "I'll bear it in mind."))
+
+/// How its department really is right now, the way somebody working there would say it: list(line, "good", "bad" or "plain"), or null
+/// when there's nothing to say. The fixed lines had "Engine's holding steady." with the crystal at half, and "Medbay's quiet for
+/// once." with the beds full.
+/datum/bot_brain/proc/shop_talk_now()
+	switch(department())
+		if("engineering")
+			var/obj/machinery/power/supermatter_crystal/S = GLOB.main_supermatter_engine
+			if(S && !QDELETED(S) && S.z == owner.z && S.power > 0)
+				var/integrity = round(S.get_integrity())
+				if(integrity < 95)
+					return list(pick("The crystal's down to [integrity]%. Nobody touch anything.", "Supermatter's at [integrity]%, I'm keeping an eye on it."), "bad")
+				return list(pick("Crystal's holding at full integrity.", "Supermatter's running nice and stable."), "good")
+			var/smes = bot_smes_percent(owner.z)
+			if(!isnull(smes))
+				if(smes < 15)
+					return list(pick("The SMES are nearly flat, [smes]%.", "Power's running out. SMES are at [smes]%."), "bad")
+				return list(pick("SMES are at [smes]%.", "Power's fine. SMES at [smes]%."), smes >= 50 ? "good" : "plain")
+		if("medical")
+			var/patients = bot_medbay_patients(owner.z)
+			if(patients >= 3)
+				return list(pick("[patients] in Medbay right now. It's mad.", "We've got [patients] patients in. Busy one."), "bad")
+			if(patients)
+				return list(pick("Just the [patients == 1 ? "one patient" : "two patients"] in Medbay.", "Medbay's alright, [patients] in."), "plain")
+			return list(pick("Medbay's quiet for once.", "Nobody in Medbay right now."), "good")
+		if("security")
+			var/held = bot_brig_cells_in_use(owner.z)
+			if(held >= 3)
+				return list(pick("[held] in the cells. Busy shift.", "Brig's filling up, [held] cells in use."), "bad")
+			if(held)
+				return list(pick("[held == 1 ? "Somebody's" : "[held] of them are"] in the cells right now.", "Got [held] in the brig."), "plain")
+			return list(pick("Brig's empty.", "Nobody in the cells yet."), "good")
+		if("science")
+			var/nodes = length(SSresearch.science_tech.researched_nodes)
+			return list(pick("We're [nodes] nodes in.", "[nodes] nodes researched so far."), nodes >= 20 ? "good" : "plain")
+		if("supply")
+			var/datum/bank_account/D = SSeconomy.get_dep_account(ACCOUNT_CAR)
+			if(D)
+				var/credits = round(D.account_balance)
+				return list(pick("Cargo's got [credits] credits, if you need anything ordered.", "Budget's at [credits]. Put a request in if you need something."), credits >= 2000 ? "good" : "plain")
+	return null
+
+/// How full the station's SMES are, out of 100; null with none on this level.
+/proc/bot_smes_percent(z)
+	var/charge = 0
+	var/capacity = 0
+	for(var/obj/machinery/power/smes/S in GLOB.machines)
+		if(S.z == z && istype(get_area(S), /area/engine))
+			charge += S.charge
+			capacity += S.capacity
+	return capacity ? round(100 * charge / capacity) : null
+
+/// Hurt people in Medbay who aren't its own staff.
+/proc/bot_medbay_patients(z)
+	. = 0
+	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
+		if(H.z != z || H.stat == DEAD || !istype(get_area(H), /area/medical) || (H.mind?.assigned_role in GLOB.medical_positions))
+			continue
+		if(H.health < H.maxHealth * 0.9 || H.buckled)
+			.++
+
+/// Brig cells with a sentence running.
+/proc/bot_brig_cells_in_use(z)
+	. = 0
+	for(var/obj/machinery/door_timer/T in GLOB.machines)
+		if(T.z == z && T.timing)
+			.++
 
 /datum/bot_brain/proc/department()
 	var/role = work_role()
@@ -608,7 +678,29 @@ GLOBAL_LIST_INIT(bot_shop_talk_replies, list("Good to know.", "Nice.", "Noted.",
 		if(prob(40 + sociability * 40))
 			make_small_talk(company)
 	else if(prob(8))
-		bot_say(owner, pick(GLOB.bot_idle_lines)) //muttering to nobody is the exception
+		bot_say(owner, idle_mutter()) //muttering to nobody is the exception
+
+/// Something to say to nobody in particular: how it's doing first, when there's anything to say about that. Six stock lines were all
+/// there was, and "Has anyone seen my ID around here?" came round 29 times in three shifts, from people wearing theirs.
+/datum/bot_brain/proc/idle_mutter()
+	var/list/options = list()
+	if(owner.nutrition < NUTRITION_LEVEL_HUNGRY)
+		options += list("I need to eat something.", "Starving.", "Could murder a sandwich right now.")
+	if(owner.health < owner.maxHealth * 0.7)
+		options += list("Ow. I should get this looked at.", "That really hurts.")
+	if(istype(get_area(owner), /area/maintenance))
+		options += list("It's creepy down here.", "Who keeps leaving trash in maintenance?", "Should've brought a flashlight.")
+	var/shift_minutes = (world.time - SSticker.round_start_time) / (1 MINUTES)
+	if(shift_minutes > 45)
+		options += list("This shift is dragging on.", "Long shift.", "Feels like I've been here all day.")
+	else if(shift_minutes < 10)
+		options += list("Right, let's get started.", "New shift, same station.")
+	if(length(options) && prob(70))
+		return pick(options)
+	var/list/stock = GLOB.bot_idle_lines.Copy()
+	if(!owner.wear_id)
+		stock += "Has anyone seen my ID around here?" // only somebody without one
+	return pick(stock)
 
 /datum/bot_brain/proc/make_small_talk(mob/living/carbon/human/company)
 	if(gone_loud())
@@ -630,8 +722,13 @@ GLOBAL_LIST_INIT(bot_shop_talk_replies, list("Good to know.", "Nice.", "Noted.",
 		opener = exchange[1]
 		replies = exchange[2]
 	else if(shop && prob(30))
-		opener = pick(shop)
-		replies = GLOB.bot_shop_talk_replies
+		var/list/fact = shop_talk_now()
+		if(fact)
+			opener = fact[1]
+			replies = fact[2] == "good" ? GLOB.bot_shop_talk_good_replies : (fact[2] == "bad" ? GLOB.bot_shop_talk_bad_replies : GLOB.bot_shop_talk_plain_replies)
+		else
+			opener = pick(shop)
+			replies = GLOB.bot_shop_talk_replies
 	else
 		var/list/exchange = pick(GLOB.bot_small_talk)
 		opener = exchange[1]

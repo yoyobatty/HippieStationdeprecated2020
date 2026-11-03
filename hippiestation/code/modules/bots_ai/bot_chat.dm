@@ -65,10 +65,19 @@ GLOBAL_LIST_INIT(bot_calm_lines, list("Quiet shift so far.", "Not much. Same old
 GLOBAL_LIST_INIT(bot_idle_lines, list(
 	"Anyone else think the vents smell weird today?",
 	"I should really get back to work.",
-	"Has anyone seen my ID around here?",
 	"Quiet shift so far.",
 	"Does anyone have a spare cup of coffee?",
 	"Man, I could go for a snack right about now.",
+	"Who even designed this station?",
+	"I swear the lights flickered.",
+	"Somebody needs to fix that noise.",
+	"What was I doing again?",
+	"Hm.",
+	"This place could use a clean.",
+	"I should've stayed in bed.",
+	"Is it just me or is it cold in here?",
+	"Wonder what's for dinner.",
+	"Right. Where was I.",
 ))
 
 GLOBAL_LIST_INIT(bot_combat_lines, list(

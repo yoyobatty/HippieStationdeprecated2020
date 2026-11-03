@@ -175,6 +175,19 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 
 #undef BOT_SHUT_IN_TILES
 
+/// "[REF(button)]|[side of its door]" -> when to try it from that side again. A button somebody couldn't get to from one side of
+/// its door is the map's: Medbay's on MetaStation is behind the reception desk, and each of 40 bots had to fail at it in person,
+/// up to three times a shift - 107 give-ups in one 30 minute shift, every one a bot stood at the doors not getting in.
+GLOBAL_LIST_EMPTY(bot_door_buttons_out_of_reach)
+
+/// Which side of a door `from` is on, as one of the four directions.
+/proc/bot_door_side(turf/doorway, turf/from)
+	var/dx = from.x - doorway.x
+	var/dy = from.y - doorway.y
+	if(abs(dx) >= abs(dy))
+		return dx >= 0 ? EAST : WEST
+	return dy >= 0 ? NORTH : SOUTH
+
 /// The wall button this bot could open `door` with, coming at it from `from`: one that works that door, that this
 /// bot may press, on the same side of the door as `from` and no more than a few steps away.
 /datum/bot_brain/proc/door_button_for(obj/machinery/door/airlock/door, turf/from)
@@ -189,7 +202,7 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 	for(var/obj/machinery/button/door/B as anything in bot_buttons_for_door_id(door.id_tag))
 		if(QDELETED(B) || B.z != doorway.z || !B.normaldoorcontrol || B.specialfunctions != OPEN || B.panel_open || (B.stat & (NOPOWER|BROKEN)))
 			continue
-		if(LAZYACCESS(door_buttons_out_of_reach, B) > world.time)
+		if(LAZYACCESS(door_buttons_out_of_reach, B) > world.time || GLOB.bot_door_buttons_out_of_reach["[REF(B)]|[bot_door_side(doorway, from)]"] > world.time)
 			continue
 		var/near = (B.x - from.x) ** 2 + (B.y - from.y) ** 2
 		if(near > 36 || near >= (B.x - beyond.x) ** 2 + (B.y - beyond.y) ** 2)
@@ -276,6 +289,8 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 	doing = "letting myself through a door"
 	var/obj/machinery/door/door
 	var/turf/far_side
+	/// Which side of the door the bot set out from
+	var/side
 
 /datum/bot_goal/press_door_button/New(obj/machinery/button/door/B, obj/machinery/door/D)
 	. = ..()
@@ -288,12 +303,15 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 		return
 	var/turf/doorway = get_turf(door)
 	far_side = get_step(doorway, get_dir(get_turf(bot.owner), doorway))
+	side = bot_door_side(doorway, get_turf(bot.owner))
 
 /// A button the bot couldn't get to: on the other side of a counter, as Medbay's is on some maps, where it's for the
 /// officer on the desk. Not one to plan a route by for a while.
 /datum/bot_goal/press_door_button/on_give_up(datum/bot_brain/bot)
 	if(target)
 		LAZYSET(bot.door_buttons_out_of_reach, target, world.time + 10 MINUTES)
+		if(side) // and everybody else's, from that side: the counter in the way isn't going anywhere
+			GLOB.bot_door_buttons_out_of_reach["[REF(target)]|[side]"] = world.time + 15 MINUTES
 
 /datum/bot_goal/press_door_button/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/press_door_button/S = new
