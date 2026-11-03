@@ -26,8 +26,8 @@
 	use_power = IDLE_POWER_USE
 	circuit = /obj/item/circuitboard/machine/experimentor
 	var/recentlyExperimented = 0
-	var/mob/trackedIan
-	var/mob/trackedRuntime
+	var/datum/weakref/trackedIan // hippie -- weakrefs: a pet blown up or gibbed was held here, a hard delete
+	var/datum/weakref/trackedRuntime
 	var/badThingCoeff = 0
 	var/resetTime = 15
 	var/cloneMode = FALSE
@@ -72,8 +72,8 @@
 /obj/machinery/rnd/experimentor/Initialize()
 	. = ..()
 
-	trackedIan = locate(/mob/living/simple_animal/pet/dog/corgi/Ian) in GLOB.mob_living_list
-	trackedRuntime = locate(/mob/living/simple_animal/pet/cat/Runtime) in GLOB.mob_living_list
+	trackedIan = WEAKREF(locate(/mob/living/simple_animal/pet/dog/corgi/Ian) in GLOB.mob_living_list)
+	trackedRuntime = WEAKREF(locate(/mob/living/simple_animal/pet/cat/Runtime) in GLOB.mob_living_list)
 	SetTypeReactions()
 
 	critical_items_typecache = typecacheof(list(
@@ -488,9 +488,10 @@
 		if(globalMalf > 16 && globalMalf < 35)
 			visible_message("<span class='warning'>[src] melts [exp_on], ian-izing the air around it!</span>")
 			throwSmoke(loc)
-			if(trackedIan)
-				throwSmoke(trackedIan.loc)
-				trackedIan.forceMove(loc)
+			var/mob/ian = trackedIan?.resolve()
+			if(ian)
+				throwSmoke(ian.loc)
+				ian.forceMove(loc)
 				investigate_log("Experimentor has stolen Ian!", INVESTIGATE_EXPERIMENTOR) //...if anyone ever fixes it...
 			else
 				new /mob/living/simple_animal/pet/dog/corgi(loc)
@@ -505,9 +506,10 @@
 		if(globalMalf > 51 && globalMalf < 75)
 			visible_message("<span class='warning'>[src] encounters a run-time error!</span>")
 			throwSmoke(loc)
-			if(trackedRuntime)
-				throwSmoke(trackedRuntime.loc)
-				trackedRuntime.forceMove(drop_location())
+			var/mob/runtime_cat = trackedRuntime?.resolve()
+			if(runtime_cat)
+				throwSmoke(runtime_cat.loc)
+				runtime_cat.forceMove(drop_location())
 				investigate_log("Experimentor has stolen Runtime!", INVESTIGATE_EXPERIMENTOR)
 			else
 				new /mob/living/simple_animal/pet/cat(loc)

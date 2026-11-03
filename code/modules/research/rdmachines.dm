@@ -24,6 +24,14 @@
 
 /obj/machinery/rnd/Destroy()
 	QDEL_NULL(wires)
+	if(linked_console) // hippie -- the console kept pointing at a blown-up machine: a hard delete
+		if(linked_console.linked_lathe == src)
+			linked_console.linked_lathe = null
+		if(linked_console.linked_imprinter == src)
+			linked_console.linked_imprinter = null
+		if(linked_console.linked_destroy == src)
+			linked_console.linked_destroy = null
+		linked_console = null
 	return ..()
 
 /obj/machinery/rnd/proc/shock(mob/user, prb)

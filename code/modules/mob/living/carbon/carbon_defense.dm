@@ -256,6 +256,8 @@
 	if((!tesla_shock || (tesla_shock && siemens_coeff > 0.5)) && stun)
 		Paralyze(40)
 	spawn(20)
+		if(QDELETED(src)) // hippie -- gibbed in the meantime: this ran on the deleted body, which has no dna to stun with
+			return
 		jitteriness = max(jitteriness - 990, 10) //Still jittery, but vastly less
 		if((!tesla_shock || (tesla_shock && siemens_coeff > 0.5)) && stun)
 			Paralyze(60)

@@ -60,22 +60,24 @@
 			return FALSE
 	return TRUE
 
-/// Target -> the brain of the bot whose `exclusive` goal is after it.
+/// REF(target) -> the brain of the bot whose `exclusive` goal is after it. By REF(), not the target itself: a mess mopped up, or blown
+/// away, while the bot cleaning it was gibbed stayed claimed here, and was a hard delete.
 GLOBAL_LIST_EMPTY(bot_work_claims)
 
 /// TRUE if another bot has `target` in hand right now: it claimed it, and is still on a goal that's after it.
 /datum/bot_brain/proc/taken_by_another(atom/target)
-	var/datum/bot_brain/other = GLOB.bot_work_claims[target]
+	var/key = REF(target)
+	var/datum/bot_brain/other = GLOB.bot_work_claims[key]
 	if(!other || other == src)
 		return FALSE
 	if(QDELETED(other) || QDELETED(other.owner) || other.owner.stat != CONSCIOUS || (other.current_goal?.target != target && other.suspended_goal?.target != target))
-		GLOB.bot_work_claims -= target //dropped it one way or another without saying so
+		GLOB.bot_work_claims -= key //dropped it one way or another without saying so
 		return FALSE
 	return TRUE
 
 /datum/bot_brain/proc/release_claim(datum/bot_goal/goal)
-	if(goal?.exclusive && goal.target && GLOB.bot_work_claims[goal.target] == src)
-		GLOB.bot_work_claims -= goal.target
+	if(goal?.exclusive && goal.target && GLOB.bot_work_claims[REF(goal.target)] == src)
+		GLOB.bot_work_claims -= REF(goal.target)
 
 /datum/bot_goal/proc/resolve_target(datum/bot_brain/bot)
 	return
@@ -486,7 +488,7 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 		if(taken_by_another(goal.target))
 			bot_log_verbose(src, "[goal.target] is already being seen to - leaving [goal.type] to them")
 			return FALSE
-		GLOB.bot_work_claims[goal.target] = src
+		GLOB.bot_work_claims[REF(goal.target)] = src
 	goal.strategies = goal.get_strategies(src)
 	stop_pursuit()
 	current_goal = goal

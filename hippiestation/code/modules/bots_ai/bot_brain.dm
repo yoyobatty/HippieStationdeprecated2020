@@ -112,16 +112,50 @@
 /datum/bot_brain/proc/forget_deleted()
 	next_forget_time = world.time + 1 MINUTES
 	GLOB.bot_toxins?.forget_deleted()
-	for(var/list/memory in list(failed_blockers, failed_tool_targets, known_tool_sources, failed_engine_parts, failed_atmos_parts, set_down_items, door_button_presses, door_buttons_out_of_reach, busy_doors, breach_kit_cache))
+	bot_forget_deleted_globals()
+	for(var/list/memory in list(failed_blockers, failed_tool_targets, known_tool_sources, failed_engine_parts, failed_atmos_parts, set_down_items, door_button_presses, door_buttons_out_of_reach, busy_doors, breach_kit_cache, vendor_blocked))
 		for(var/datum/thing in memory.Copy())
 			if(QDELETED(thing))
 				memory -= thing
+	// What it's in the middle of, after a blast: an air alarm it was going to clean, the dispenser it was pouring at. A goal after
+	// something that's gone is over; a step that's done with something that's gone lets go of it.
+	if(pursue_target && QDELETED(pursue_target))
+		stop_pursuit()
+	if(current_goal?.target && QDELETED(current_goal.target))
+		drop_goals("what it was after is gone")
+	if(suspended_goal?.target && QDELETED(suspended_goal.target))
+		release_claim(suspended_goal)
+		suspended_goal = null
+		suspended_strategy = null
+		suspended_step_index = 0
+	for(var/datum/bot_strategy/strategy in list(current_strategy, suspended_strategy))
+		for(var/datum/bot_step/step as anything in strategy.steps)
+			bot_forget_deleted_in(step)
+
+/// Takes what's been deleted out of a datum's vars and its lists, one level down.
+/proc/bot_forget_deleted_in(datum/D)
+	for(var/name in D.vars)
+		if(name == "vars")
+			continue
+		var/value = D.vars[name]
+		if(islist(value))
+			var/list/L = value
+			for(var/datum/thing in L.Copy())
+				if(QDELETED(thing))
+					L -= thing
+		else if(istype(value, /datum))
+			var/datum/thing = value
+			if(QDELETED(thing))
+				D.vars[name] = null
 
 /datum/bot_brain/Destroy()
 	STOP_PROCESSING(SSprocessing, src)
 	stop_pursuit()
 	GLOB.atmos_alert_bots -= src
 	GLOB.bot_security_brains -= src
+	for(var/key in GLOB.bot_work_claims.Copy()) // a bot gibbed with a job in hand stayed the one doing it, and was a hard delete (bot_goals.dm)
+		if(GLOB.bot_work_claims[key] == src)
+			GLOB.bot_work_claims -= key
 	arrest_suspect = null
 	if(owner && owner.bot_brain == src)
 		owner.bot_brain = null

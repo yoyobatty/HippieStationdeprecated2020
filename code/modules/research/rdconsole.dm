@@ -103,6 +103,9 @@ Nothing else in the console has ID requirements.
 	if(linked_imprinter)
 		linked_imprinter.linked_console = null
 		linked_imprinter = null
+	for(var/obj/machinery/rnd/M in GLOB.machines) // hippie -- an experimentor linked to it isn't one of the three above, and kept it: a hard delete
+		if(M.linked_console == src)
+			M.linked_console = null
 	if(t_disk)
 		t_disk.forceMove(get_turf(src))
 		t_disk = null

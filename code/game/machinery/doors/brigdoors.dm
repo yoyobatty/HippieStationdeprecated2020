@@ -40,6 +40,9 @@
 	ui_x = 300
 	ui_y = 138 
 
+/obj/machinery/door_timer/proc/forget_target(datum/source) // hippie
+	targets -= source
+
 /obj/machinery/door_timer/Initialize()
 	. = ..()
 
@@ -63,6 +66,8 @@
 		for(var/obj/machinery/disposal/trapdoor/T in urange(20, src)) // hippie start -- trapdoors
 			if(T.id == src.id)
 				targets += T // hippie end
+	for(var/obj/O in targets) // hippie -- one blown away stayed a target of the timer, and was a hard delete
+		RegisterSignal(O, COMSIG_PARENT_QDELETING, PROC_REF(forget_target))
 
 	if(!targets.len)
 		stat |= BROKEN

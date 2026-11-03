@@ -60,6 +60,9 @@ SUBSYSTEM_DEF(lighting)
 			var/list/view_size = getviewsize(C.view)
 			eyes[eye] = max(eyes[eye], ceil(max(view_size[1], view_size[2]) / 2))
 	for(var/atom/A as anything in test_eyes)
+		if(QDELETED(A)) // a watched bot gibbed in a blast was kept here, and was a hard delete
+			test_eyes -= A
+			continue
 		var/turf/eye = get_turf(A)
 		if(eye)
 			eyes[eye] = ceil(max(getviewsize(world.view)) / 2)

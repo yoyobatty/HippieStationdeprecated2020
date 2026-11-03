@@ -213,10 +213,10 @@
 				return
 			if(vended < wanted)
 				say("Vended [vended] of the [wanted] [R.name] you asked for: [ran_out_of_money ? "you're out of funds" : "that's all of them"].")
-			else if(last_shopper != usr || purchase_message_cooldown < world.time)
+			else if(last_shopper != REF(usr) || purchase_message_cooldown < world.time)
 				say("Thank you for shopping with [src]!")
 				purchase_message_cooldown = world.time + 5 SECONDS
-				last_shopper = usr
+				last_shopper = REF(usr)
 			use_power(5 * vended)
 			if(icon_vend) //Show the vending animation if needed
 				flick(icon_vend,src)
@@ -304,10 +304,10 @@
 			if(!owner_access)
 				if(dispensed < wanted)
 					say("Dispensed [dispensed] of the [wanted] you asked for.")
-				else if(last_shopper != usr || purchase_message_cooldown < world.time)
+				else if(last_shopper != REF(usr) || purchase_message_cooldown < world.time)
 					say("Thank you for buying local and purchasing [last_item]!")
 					purchase_message_cooldown = world.time + 5 SECONDS
-					last_shopper = usr
+					last_shopper = REF(usr)
 			updateUsrDialog()
 
 #undef VEND_MAX_AMOUNT

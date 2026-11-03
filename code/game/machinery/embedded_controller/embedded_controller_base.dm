@@ -68,6 +68,9 @@
 
 /obj/machinery/embedded_controller/radio/Destroy()
 	SSradio.remove_object(src,frequency)
+	if(program) // hippie -- it and its program point at each other, a loop nothing let go of: a hard delete
+		program.master = null
+		QDEL_NULL(program)
 	return ..()
 
 /obj/machinery/embedded_controller/radio/Initialize()

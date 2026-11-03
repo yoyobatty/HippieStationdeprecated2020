@@ -173,6 +173,9 @@
 
 /obj/mecha/Destroy()
 	GLOB.hostile_machines -= src //hippie
+	for(var/hud_key, hud_type in GLOB.huds) // hippie -- added to the diagnostic HUD when it was made and never taken off: a hard delete
+		var/datum/atom_hud/data/diagnostic/diag_hud = astype(hud_type, /datum/atom_hud/data/diagnostic)
+		diag_hud?.remove_from_hud(src)
 	if(occupant)
 		occupant.SetSleeping(destruction_sleep_duration)
 	go_out()

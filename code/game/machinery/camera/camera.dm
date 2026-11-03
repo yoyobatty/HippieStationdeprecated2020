@@ -89,6 +89,8 @@
 /obj/machinery/camera/Destroy()
 	if(can_use())
 		toggle_cam(null, 0) //kick anyone viewing out and remove from the camera chunks
+	else // hippie -- one already broken or EMPed could still be on a chunk it was counted in when the chunk was made: a hard delete
+		GLOB.cameranet.removeCamera(src)
 	GLOB.cameranet.cameras -= src
 	if(isarea(myarea))
 		LAZYREMOVE(myarea.cameras, src)
@@ -100,6 +102,7 @@
 			bug.current = null
 		bug = null
 	cancelCameraAlarm()
+	forget_alarm_camera(src) // hippie
 	return ..()
 
 /obj/machinery/camera/examine(mob/user)

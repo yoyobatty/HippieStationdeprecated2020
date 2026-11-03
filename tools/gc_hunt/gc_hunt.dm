@@ -94,10 +94,49 @@ GLOBAL_LIST_INIT(gh_skip_vars, list("vars" = TRUE, "verbs" = TRUE, "overlays" = 
 	gh_log("slime [src] destroyed at [round(world.time / 10)]s, stat [stat], in [loc], [jointext(chain, " < ")]")
 	return ..()
 
+/proc/gh_chain(callee/step)
+	var/list/chain = list()
+	while(step && length(chain) < 8)
+		chain += "[step.proc]"
+		step = step.caller
+	return jointext(chain, " < ")
+
+/// Hardsuit helmets turn up deleted but back in their suit, which still has them: how each was deleted, and what put it back.
+/obj/item/clothing/head/helmet/space/hardsuit/Destroy()
+	gh_log("helmet [src] destroyed at [round(world.time / 10)]s: suit [suit] (its helmet [suit ? (suit.helmet == src ? "this one" : "[suit.helmet]") : "-"]), in [loc], [gh_chain(caller)]")
+	return ..()
+
+GLOBAL_VAR_INIT(gh_deleted_moves, 0)
+
+/// A deleted item put back somewhere - a helmet into its suit, a used-up cable coil into a toolbelt - and what did it.
+/obj/item/Moved(atom/OldLoc, Dir)
+	. = ..()
+	if(loc && QDELETED(src) && GLOB.gh_deleted_moves < 40)
+		GLOB.gh_deleted_moves++
+		gh_log("deleted [src] [type] moved from [OldLoc] to [loc] at [round(world.time / 10)]s: [gh_chain(caller)]")
+
+GLOBAL_VAR_INIT(gh_radio_checks, 0)
+
+/// Radios turn up deleted but still on a grid cell's hearing list: where each was, against the cell that kept it.
+/obj/item/radio/Destroy()
+	var/turf/T = get_turf(src)
+	var/where = T ? "[T.x],[T.y],[T.z]" : "nowhere"
+	var/key = spatial_grid_key
+	var/chain = gh_chain(caller)
+	. = ..()
+	if(GLOB.gh_radio_checks >= 30)
+		return
+	GLOB.gh_radio_checks++
+	for(var/list/z_level_grid as anything in SSspatial_grid.grids_by_z_level)
+		for(var/list/cell_row as anything in z_level_grid)
+			for(var/datum/spatial_grid_cell/cell as anything in cell_row)
+				if(src in cell.hearing_contents)
+					gh_log("deleted radio [src] [type] at [where] still on the cell at [cell.cell_x],[cell.cell_y],[cell.cell_z], grid key '[key]', [gh_chain(caller)] / [chain]")
+
 /datum/controller/subsystem/garbage/HardDelete(datum/D)
 	var/path = D.type
 	gh_log("hard delete [D] [path]")
-	if(GLOB.gh_searched[path] < GH_MAX_PER_TYPE)
+	if(GLOB.gh_searched[path] < (text2num(world.params["gh-per-type"]) || GH_MAX_PER_TYPE)) //gh-per-type=1 for a blast's dozens of types, at half a minute a search
 		GLOB.gh_searched[path]++
 		try
 			gh_find(D)

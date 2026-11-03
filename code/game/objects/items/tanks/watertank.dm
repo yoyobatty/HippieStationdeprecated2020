@@ -122,7 +122,14 @@
 	tank = loc
 	if(!istype(tank))
 		return INITIALIZE_HINT_QDEL
+	if(reagents && reagents != tank.reagents) // hippie -- its own was left pointing at it, as the extinguisher nozzle's was (below)
+		qdel(reagents)
 	reagents = tank.reagents	//This mister is really just a proxy for the tank's reagents
+
+/obj/item/reagent_containers/spray/mister/Destroy() // hippie -- the tank's reagents are shared, not its own to delete with it
+	reagents = null
+	tank = null
+	return ..()
 
 /obj/item/reagent_containers/spray/mister/attack_self()
 	return
@@ -223,8 +230,15 @@
 	tank = loc
 	if (!istype(tank))
 		return INITIALIZE_HINT_QDEL
+	if(reagents && reagents != tank.reagents) // hippie -- its own, from the extinguisher's Initialize(), was left pointing at it: a hard delete
+		qdel(reagents)
 	reagents = tank.reagents
 	max_water = tank.volume
+
+/obj/item/extinguisher/mini/nozzle/Destroy() // hippie -- the tank's reagents are shared, not its own to delete with it
+	reagents = null
+	tank = null
+	return ..()
 
 
 /obj/item/extinguisher/mini/nozzle/doMove(atom/destination)

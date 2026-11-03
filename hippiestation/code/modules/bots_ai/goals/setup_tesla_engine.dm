@@ -23,7 +23,7 @@
 #define BOT_ENGINE_REACH 100
 #define BOT_ENGINE_LOCAL_REACH 40
 
-/// Stray singularity generators an engineer has already dragged clear of the engine - nobody's business again
+/// REF()s of stray singularity generators an engineer has already dragged clear of the engine - nobody's business again
 /// (find_singularity_generator_to_remove()). One list for the whole crew: kept per bot, each engineer in turn went
 /// and "removed" the generator the last one had just set down.
 GLOBAL_LIST_EMPTY(bot_removed_singularity_generators)
@@ -267,7 +267,7 @@ GLOBAL_VAR(bot_tesla_site)
 			continue //don't touch the one in storage, we set this one anchored as a hack
 		if(G.z != owner.z)
 			continue
-		if(G in GLOB.bot_removed_singularity_generators)
+		if(REF(G) in GLOB.bot_removed_singularity_generators)
 			continue
 		if(get_dist(anchor, G) > BOT_ENGINE_LOCAL_REACH)
 			continue //a combat/armory singularity generator elsewhere isn't this bot's business
@@ -1143,7 +1143,7 @@ GLOBAL_VAR_INIT(bot_cage_wait_over, FALSE)
 /datum/bot_goal/remove_singularity_generator/on_success(datum/bot_brain/bot)
 	bot.owner.stop_pulling()
 	if(target)
-		GLOB.bot_removed_singularity_generators |= target
+		GLOB.bot_removed_singularity_generators |= REF(target) // by REF(): one blown up was held here, a hard delete
 	bot.continue_engineering_round()
 
 // This goal has only ever ONE possible target (unlike the emitter/coil/rod finders,

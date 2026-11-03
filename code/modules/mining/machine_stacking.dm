@@ -16,6 +16,12 @@
 	if (machine)
 		machine.CONSOLE = src
 
+/obj/machinery/mineral/stacking_unit_console/Destroy() // hippie -- the stacker kept pointing at it: a hard delete, board and all
+	if(machine?.CONSOLE == src)
+		machine.CONSOLE = null
+	machine = null
+	return ..()
+
 /obj/machinery/mineral/stacking_unit_console/ui_interact(mob/user)
 	. = ..()
 
@@ -86,6 +92,13 @@
 	. = ..()
 	proximity_monitor = new(src, 1)
 	materials = AddComponent(/datum/component/remote_materials, "stacking", mapload, FALSE, mapload && force_connect)
+
+/obj/machinery/mineral/stacking_machine/Destroy() // hippie -- its console kept pointing at it: a hard delete, board and all
+	if(CONSOLE?.machine == src)
+		CONSOLE.machine = null
+	CONSOLE = null
+	materials = null
+	return ..()
 
 /obj/machinery/mineral/stacking_machine/HasProximity(atom/movable/AM)
 	if(istype(AM, /obj/item/stack/sheet) && AM.loc == get_step(src, input_dir))

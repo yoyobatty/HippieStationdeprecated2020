@@ -429,6 +429,12 @@
 			computer.table = src
 			break
 
+/obj/structure/table/optable/Destroy() // hippie -- its computer kept pointing at it: a hard delete
+	if(computer?.table == src)
+		computer.table = null
+	computer = null
+	return ..()
+
 /obj/structure/table/optable/tablepush(mob/living/user, mob/living/pushed_mob)
 	pushed_mob.forceMove(loc)
 	pushed_mob.set_resting(TRUE, TRUE)

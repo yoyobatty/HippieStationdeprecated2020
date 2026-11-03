@@ -12,6 +12,12 @@
 	. = ..()
 	find_chamber()
 
+/obj/machinery/computer/nanite_chamber_control/Destroy() // hippie -- the chamber kept pointing at it: a hard delete
+	if(chamber?.console == src)
+		chamber.console = null
+	chamber = null
+	return ..()
+
 /obj/machinery/computer/nanite_chamber_control/proc/find_chamber()
 	for(var/direction in GLOB.cardinals)
 		var/C = locate(/obj/machinery/nanite_chamber, get_step(src, direction))

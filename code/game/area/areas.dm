@@ -224,7 +224,7 @@ GLOBAL_LIST_EMPTY(teleportlocs)
 /// hippie -- takes one alarm's reports off everything that lists them (cyborgs, the AI, consoles, drones, tablets, the bot crew), leaving
 /// the area's own alarm state alone. A blown-up air or fire alarm stayed on those lists and was a hard delete every time.
 /area/proc/cancel_alarms_from(obj/source)
-	for(var/class in list("Atmosphere", "Fire"))
+	for(var/class in list("Atmosphere", "Fire", "Power")) // an APC's power alarm too
 		for(var/item in GLOB.silicon_mobs)
 			var/mob/living/silicon/S = item
 			S.cancelAlarm(class, src, source)
@@ -240,6 +240,29 @@ GLOBAL_LIST_EMPTY(teleportlocs)
 	for(var/item in GLOB.atmos_alert_bots)
 		var/datum/bot_brain/B = item
 		B.cancelAlarm("Atmosphere", src, source)
+
+/// hippie -- an alarm in an area with only the one camera keeps that camera itself, not the area's list of them, and a camera blown up
+/// while it showed stayed on it (cyborgs, the AI, consoles, tablets): a hard delete every time. Takes it off, leaving the alarm.
+/proc/forget_alarm_camera(obj/machinery/camera/camera)
+	var/list/all_alarms = list()
+	for(var/mob/living/silicon/ai/AI in GLOB.silicon_mobs)
+		all_alarms += list(AI.alarms)
+	for(var/mob/living/silicon/robot/R in GLOB.silicon_mobs)
+		all_alarms += list(R.alarms)
+	for(var/obj/machinery/computer/station_alert/console as anything in GLOB.alert_consoles)
+		all_alarms += list(console.alarms)
+	for(var/datum/computer_file/program/alarm_monitor/program in GLOB.alarmdisplay)
+		all_alarms += list(program.alarms)
+	for(var/list/alarms as anything in all_alarms)
+		for(var/class in alarms)
+			var/list/by_area = alarms[class]
+			for(var/area_name in by_area)
+				var/list/alarm = by_area[area_name]
+				if(alarm[2] == camera)
+					alarm[2] = null
+				else if(islist(alarm[2]))
+					var/list/cameras = alarm[2]
+					cameras -= camera
 
 /area/proc/ModifyFiredoors(opening)
 	if(firedoors)

@@ -54,6 +54,12 @@
 		manifest = null
 		update_icon()
 
+/obj/structure/closet/crate/handle_atom_del(atom/A) // hippie -- a manifest burnt or blown up was kept here, a hard delete
+	if(A == manifest)
+		manifest = null
+		update_icon()
+	return ..()
+
 /obj/structure/closet/crate/proc/tear_manifest(mob/user)
 	to_chat(user, "<span class='notice'>You tear the manifest off of [src].</span>")
 	playsound(src, 'sound/items/poster_ripped.ogg', 75, 1)

@@ -197,6 +197,7 @@
 
 /obj/machinery/power/apc/Destroy()
 	GLOB.apcs_list -= src
+	area?.cancel_alarms_from(src) // hippie -- or the consoles and cyborgs listing its power alarm kept it from being deleted
 
 	if(malfai && operating)
 		malfai.malf_picker.processing_time = clamp(malfai.malf_picker.processing_time - 10,0,1000)

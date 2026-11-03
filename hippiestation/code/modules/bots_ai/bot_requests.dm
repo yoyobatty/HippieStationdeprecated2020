@@ -226,6 +226,24 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 			return R
 	return null
 
+GLOBAL_VAR_INIT(bot_globals_forget_time, 0)
+
+/// The crew's shared lists, once a minute from whichever bot's forget_deleted() gets there first (bot_brain.dm): requests only went
+/// when a new one was made, so after a blast the doors one listed stayed held; a door bolted open and blown up stayed its department's.
+/proc/bot_forget_deleted_globals()
+	if(world.time < GLOB.bot_globals_forget_time)
+		return
+	GLOB.bot_globals_forget_time = world.time + 1 MINUTES
+	for(var/datum/bot_request/R as anything in GLOB.bot_requests.Copy())
+		if(world.time > R.made + BOT_REQUEST_LIFETIME)
+			GLOB.bot_requests -= R
+		else
+			bot_forget_deleted_in(R)
+	for(var/department in GLOB.bot_open_departments.Copy())
+		var/datum/door = GLOB.bot_open_departments[department]
+		if(QDELETED(door))
+			GLOB.bot_open_departments -= department
+
 /proc/bot_new_request(datum/bot_request_kind/kind, mob/living/talker, radio_freq, atom/place)
 	for(var/datum/bot_request/old as anything in GLOB.bot_requests)
 		if(world.time > old.made + BOT_REQUEST_LIFETIME)

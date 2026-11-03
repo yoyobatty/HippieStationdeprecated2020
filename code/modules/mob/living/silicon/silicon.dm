@@ -66,6 +66,8 @@
 	return //we use a different hud
 
 /mob/living/silicon/Destroy()
+	if(laws?.owner == src) // hippie -- its laws pointed back at it, a loop that kept a destroyed cyborg from being deleted
+		laws.owner = null
 	radio = null
 	aicamera = null
 	QDEL_NULL(builtInCamera)

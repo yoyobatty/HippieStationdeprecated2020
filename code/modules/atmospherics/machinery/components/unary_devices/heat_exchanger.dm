@@ -44,6 +44,13 @@
 
 	..()
 
+/obj/machinery/atmospherics/components/unary/heat_exchanger/Destroy() // hippie -- its partner kept pointing at it: a hard delete
+	if(partner)
+		if(partner.partner == src)
+			partner.partner = null
+		partner = null
+	return ..()
+
 /obj/machinery/atmospherics/components/unary/heat_exchanger/process_atmos()
 	..()
 	if(!partner || SSair.times_fired <= update_cycle)

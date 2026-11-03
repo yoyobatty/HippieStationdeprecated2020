@@ -197,6 +197,8 @@
 	module = null
 	eye_lights = null
 	cell = null
+	QDEL_NULL(spark_system) // hippie -- it pointed back at the cyborg, a loop nothing ever let go of: a hard delete every time
+	upgrades.Cut()
 	return ..()
 
 /mob/living/silicon/robot/proc/pick_module()

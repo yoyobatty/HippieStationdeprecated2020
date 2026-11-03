@@ -30,6 +30,7 @@
 	if(suit?.helmet == src) // hippie -- a blown-up helmet stayed the suit's, and was a hard delete
 		suit.helmet = null
 	suit = null
+	QDEL_NULL(soundloop) // hippie -- its geiger sound kept the wearer it was playing to: a gibbed one was a hard delete
 	. = ..()
 	STOP_PROCESSING(SSobj, src)
 

@@ -17,6 +17,8 @@
 	qdel(hud_used)
 	QDEL_LIST(client_colours)
 	ghostize()
+	if(mind?.current == src) // hippie -- a body deleted with its mind still in it (gibbed in a blast) was a hard delete: the mind kept it
+		mind.current = null
 	return ..()
 
 /mob/Initialize()

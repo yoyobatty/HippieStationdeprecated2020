@@ -59,7 +59,7 @@
 	if(mind)
 		mind.store_memory("Time of death: [tod]", 0)
 	GLOB.alive_mob_list -= src
-	if(!gibbed)
+	if(!gibbed && !QDELETED(src)) // hippie -- a bot deletes itself in death() before this: kept here, it was a hard delete
 		GLOB.dead_mob_list += src
 	set_drugginess(0)
 	set_disgust(0)

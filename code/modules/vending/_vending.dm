@@ -62,7 +62,7 @@ IF YOU MODIFY THE PRODUCTS LIST OF A MACHINE, MAKE SURE TO UPDATE ITS RESUPPLY C
 	///Next world time to send a purchase message
 	var/purchase_message_cooldown
 	///Last mob to shop with us
-	var/last_shopper
+	var/last_shopper // hippie -- REF() of them, not them: a shopper blown up after buying was held here, a hard delete
 
 
 	/**
@@ -785,10 +785,10 @@ GLOBAL_LIST_EMPTY(vending_products)
 					S.forceMove(drop_location())
 					loaded_items--
 					use_power(5)
-					if(last_shopper != usr || purchase_message_cooldown < world.time)
+					if(last_shopper != REF(usr) || purchase_message_cooldown < world.time)
 						say("Thank you for buying local and purchasing [S]!")
 						purchase_message_cooldown = world.time + 5 SECONDS
-						last_shopper = usr
+						last_shopper = REF(usr)
 					vend_ready = 1
 					updateUsrDialog()
 					return

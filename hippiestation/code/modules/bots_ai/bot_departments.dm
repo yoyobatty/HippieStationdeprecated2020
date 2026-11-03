@@ -166,11 +166,33 @@ GLOBAL_VAR_INIT(bot_open_departments_at, 0)
 		return BOT_PANEL_SHUTTERS
 	return null
 
+/// id -> panel. What one remembers has to outlast a button being added. A global, not a static in bot_panels(), so a door or a button
+/// that's destroyed can take itself off (below): a panel only lists its parts again when the count of buttons changes, so a blown-up
+/// blast door stayed on its panel, out of sight of the hunt for what held it (statics aren't anywhere it looks), and was a hard delete.
+GLOBAL_LIST_EMPTY(bot_panels_known)
+
+/proc/bot_forget_door_part(obj/machinery/part)
+	for(var/id in GLOB.bot_panels_known)
+		var/datum/bot_panel/P = GLOB.bot_panels_known[id]
+		P.doors -= part
+		P.buttons -= part
+	for(var/id in GLOB.bot_door_button_cache) //bot_doors.dm
+		var/list/buttons = GLOB.bot_door_button_cache[id]
+		buttons -= part
+
+/obj/machinery/door/poddoor/Destroy()
+	bot_forget_door_part(src)
+	return ..()
+
+/obj/machinery/button/door/Destroy()
+	bot_forget_door_part(src)
+	return ..()
+
 /// Every set of doors that's anybody's business, worked out once.
 /proc/bot_panels()
 	var/static/list/panels
 	var/static/buttons_seen = 0
-	var/static/list/known = list() //id -> panel. What one remembers has to outlast a button being added.
+	var/list/known = GLOB.bot_panels_known
 	var/list/all_buttons = bot_instances_of(/obj/machinery/button/door)
 	if(panels && buttons_seen == length(all_buttons) && !GLOB.bot_gym_running)
 		return panels

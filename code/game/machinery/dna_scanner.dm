@@ -16,6 +16,12 @@
 	var/message_cooldown
 	var/breakout_time = 1200
 
+/obj/machinery/dna_scannernew/Destroy() // hippie -- the cloning console kept pointing at it: a hard delete
+	for(var/obj/machinery/computer/cloning/C in GLOB.machines)
+		if(C.scanner == src)
+			C.scanner = null
+	return ..()
+
 /obj/machinery/dna_scannernew/RefreshParts()
 	scan_level = 0
 	damage_coeff = 0

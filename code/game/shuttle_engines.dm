@@ -74,6 +74,8 @@
 /obj/structure/shuttle/engine/Destroy()
 	if(state == ENGINE_WELDED)
 		alter_engine_power(-engine_power)
+	for(var/obj/docking_port/mobile/M as anything in SSshuttle.mobile) // hippie -- the shuttle's list of them kept a blown-up one: a hard delete
+		M.engine_list -= src
 	. = ..()
 
 //Propagates the change to the shuttle.

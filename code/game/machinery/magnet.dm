@@ -41,6 +41,8 @@
 /obj/machinery/magnetic_module/Destroy()
 	SSradio.remove_object(src, freq)
 	center = null
+	for(var/obj/machinery/magnetic_controller/C in GLOB.machines) // hippie -- the controller's list kept it: a hard delete
+		C.magnets -= src
 	return ..()
 
 // update the invisibility and icon

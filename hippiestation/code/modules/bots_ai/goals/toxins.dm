@@ -71,6 +71,8 @@ GLOBAL_DATUM(bot_toxins, /datum/bot_toxins)
 	var/finished = FALSE
 	/// Who's on it, as a weakref.
 	var/datum/weakref/worker
+	/// When forget_deleted() next runs
+	var/next_forget_time = 0
 
 /// A port on one side of a mixer, if there is one.
 /proc/bot_mixer_port(obj/machinery/atmospherics/components/trinary/mixer/M, side)
@@ -93,16 +95,25 @@ GLOBAL_DATUM(bot_toxins, /datum/bot_toxins)
 			return found
 	return null
 
-/// Everything a bomb takes, found where it's kept. FALSE if this station hasn't got it.
-/// A bomb that's gone off is still held here, tanks and all, and every part of it would be hard deleted. bot_brain.dm calls this once a minute.
-/datum/bot_toxins/proc/forget_deleted()
-	if(QDELETED(hot_tank))
-		hot_tank = null
-	if(QDELETED(cold_tank))
-		cold_tank = null
-	if(QDELETED(valve))
-		valve = null
+/datum/bot_toxins/New()
+	. = ..()
+	START_PROCESSING(SSprocessing, src)
 
+/datum/bot_toxins/process()
+	if(world.time >= next_forget_time)
+		forget_deleted()
+
+/// A bomb that's gone off is still held here, tanks and all, and a blast through the lab leaves the freezer, the pump, the canisters
+/// and the ports: each one held was a hard delete. Runs once a minute on its own (above), and from any bot's forget_deleted()
+/// (bot_brain.dm): a blast that killed every scientist left nobody to call it.
+/datum/bot_toxins/proc/forget_deleted()
+	next_forget_time = world.time + 1 MINUTES
+	for(var/name in vars)
+		var/datum/thing = vars[name]
+		if(istype(thing) && QDELETED(thing))
+			vars[name] = null
+
+/// Everything a bomb takes, found where it's kept. FALSE if this station hasn't got it.
 /datum/bot_toxins/proc/find_lab(datum/bot_brain/bot)
 	var/list/mixers = list()
 	for(var/obj/machinery/atmospherics/components/trinary/mixer/M as anything in bot_instances_of(/obj/machinery/atmospherics/components/trinary/mixer))

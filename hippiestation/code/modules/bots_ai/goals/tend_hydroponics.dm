@@ -511,10 +511,10 @@ GLOBAL_LIST_INIT(bot_botany_crops, list(
 			return null
 		var/datum/bank_account/D = SSeconomy.get_dep_account(V.payment_department)
 		D?.adjust_money(price)
-	if(V.last_shopper != owner || V.purchase_message_cooldown < world.time)
+	if(V.last_shopper != REF(owner) || V.purchase_message_cooldown < world.time)
 		V.say("Thank you for shopping with [V]!")
 		V.purchase_message_cooldown = world.time + 5 SECONDS
-		V.last_shopper = owner
+		V.last_shopper = REF(owner)
 	V.use_power(5)
 	if(V.icon_vend)
 		flick(V.icon_vend, V)

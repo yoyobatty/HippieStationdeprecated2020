@@ -32,6 +32,7 @@
 			mind.current = null
 		ghostize()		//Ghostize checks for key so nothing else is necessary.
 	container = null
+	QDEL_NULL(stored_dna) // hippie -- it and its dna point at each other, a loop nothing let go of: every brain blown up was a hard delete
 	return ..()
 
 /mob/living/brain/update_mobility()
