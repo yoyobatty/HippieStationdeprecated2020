@@ -176,6 +176,10 @@
 	return TRUE
 
 /datum/bot_step/traitor_shop/execute(datum/bot_brain/bot)
+	if(bot.hijack_objective() && !bot.find_carried_tool(/obj/item/melee/transforming/energy/sword) && bot.buy_from_uplink(/obj/item/melee/transforming/energy/sword/saber))
+		var/obj/item/sword = bot.find_carried_tool(/obj/item/melee/transforming/energy/sword) //a shuttle full of people to get through (goals/traitor_objectives.dm)
+		bot_log(bot, "bought [sword || "nothing"] off the uplink")
+		bot.put_away(sword)
 	if(bot.plays_robust())
 		if(bot.buy_nanosuit()) //goals/robust.dm
 			bot.put_on_nanosuit()

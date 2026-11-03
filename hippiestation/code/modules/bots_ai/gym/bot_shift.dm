@@ -492,6 +492,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 
 /// bot-antags=traitor*2: a couple of the crew turn out to be working for somebody else.
 /datum/bot_shift/proc/make_antagonists()
+	var/hijack_given = FALSE
 	for(var/entry in splittext("[world.params[BOT_ANTAGS_PARAMETER]]", ","))
 		var/list/parts = splittext(entry, "*")
 		var/count = length(parts) > 1 ? text2num(parts[2]) : 1
@@ -507,6 +508,12 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 			continue
 		for(var/mob/living/carbon/human/H as anything in bot_make_traitors(count))
 			traitors += H
+			if(("bot-hijack" in world.params) && !hijack_given) //bot-hijack=1: the first of them is to hijack the shuttle
+				hijack_given = TRUE
+				var/datum/antagonist/traitor/T = H.mind.has_antag_datum(/datum/antagonist/traitor)
+				var/datum/objective/hijack/O = new
+				O.owner = H.mind
+				T.add_objective(O)
 			note("[H.real_name] ([H.mind.assigned_role]) is a traitor: [jointext(H.bot_brain.objective_list(), "; ")]")
 
 /// Called from world/Error() for every runtime while a shift is running. Runs inside the error

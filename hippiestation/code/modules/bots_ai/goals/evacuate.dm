@@ -99,6 +99,8 @@ GLOBAL_LIST_EMPTY(bot_seat_claims)
 		return FALSE
 	bot.notice_shuttle(E.mode)
 	if(bot_aboard_shuttle(bot.owner))
+		if(bot.hijack_business()) //goals/traitor_objectives.dm
+			return TRUE
 		if(!keep_holding(bot))
 			return FALSE
 		bot.holding_duty = src

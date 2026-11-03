@@ -156,3 +156,87 @@
 
 #undef BOT_DOWNLOAD_AGAIN
 #undef BOT_DOWNLOAD_RETRY
+
+// ---------------------------------------------------------------------------------------------
+// Hijack
+// ---------------------------------------------------------------------------------------------
+// The shuttle gets to CentCom with nobody loyal alive aboard it and out of custody (is_hijacked(), emergency.dm: the brig's red floor
+// counts as custody). The traitor does its other business through the shift like anybody and boards with everybody else. Once the
+// doors are about to shut it starts on whoever's aboard, nearest first, and keeps on through the flight: nobody new can get aboard by
+// then, and Security on the station can't get to it.
+
+/// How long before the shuttle leaves a hijacker starts on the people aboard.
+#define BOT_HIJACK_START (45 SECONDS)
+
+/datum/bot_brain
+	var/hijack_started = FALSE
+	var/hijack_noted = FALSE
+
+/datum/bot_brain/proc/hijack_objective()
+	var/datum/antagonist/traitor/T = owner.mind?.has_antag_datum(/datum/antagonist/traitor)
+	return T && (locate(/datum/objective/hijack) in T.objectives)
+
+/// Aboard, with the shuttle about to go or gone.
+/datum/bot_brain/proc/hijack_time()
+	var/obj/docking_port/mobile/emergency/E = SSshuttle.emergency
+	if(!E || !bot_aboard_shuttle(owner) || !hijack_objective())
+		return FALSE
+	if(E.mode == SHUTTLE_IGNITING || E.mode == SHUTTLE_ESCAPE)
+		return TRUE
+	return E.mode == SHUTTLE_DOCKED && E.timeLeft(1) <= BOT_HIJACK_START
+
+/// Everybody aboard who'd stop it counting as hijacked: loyal crew, alive, and not held in the brig.
+/proc/bot_shuttle_loyalists()
+	. = list()
+	var/obj/docking_port/mobile/emergency/E = SSshuttle.emergency
+	if(!E?.shuttle_areas)
+		return
+	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
+		if(H.stat == DEAD || !H.mind || !E.shuttle_areas[get_area(H)] || H.mind.has_antag_datum(/datum/antagonist))
+			continue
+		var/turf/T = get_turf(H)
+		if(istype(T, /turf/open/floor/plasteel/shuttle/red) || istype(T, /turf/open/floor/mineral/plastitanium/red/brig))
+			continue
+		. += H
+
+/// From the evacuation duty, for a bot aboard (goals/evacuate.dm), which otherwise just has it sit tight.
+/datum/bot_brain/proc/hijack_business()
+	if(!hijack_time() || owner.incapacitated())
+		return FALSE
+	if(istype(current_goal, /datum/bot_goal/traitor_kill/robust/hijack))
+		return TRUE
+	var/list/aboard = bot_shuttle_loyalists()
+	var/mob/living/carbon/human/nearest
+	for(var/mob/living/carbon/human/H as anything in aboard)
+		if(LAZYACCESS(robust_rested, WEAKREF(H)) > world.time)
+			continue
+		if(!nearest || get_dist(owner, H) < get_dist(owner, nearest))
+			nearest = H
+	if(!length(aboard))
+		if(!hijack_noted)
+			hijack_noted = TRUE
+			log_game("BOT HIJACK: [owner.real_name] has the shuttle to itself (hijacked: [SSshuttle.emergency.is_hijacked() ? "yes" : "no"])")
+		return FALSE
+	if(!nearest)
+		return FALSE
+	if(!hijack_started)
+		hijack_started = TRUE
+		log_game("BOT HIJACK: [owner.real_name] starts on the shuttle, [length(aboard)] loyal aboard")
+		var/obj/item/melee/transforming/energy/sword/S = find_carried_tool(/obj/item/melee/transforming/energy/sword)
+		if(S && ready_in_hand(S) && !S.active)
+			toggle_in_hand(S)
+		say_something_hostile()
+	return assign_goal(new /datum/bot_goal/traitor_kill/robust/hijack(null, nearest))
+
+/datum/bot_goal/traitor_kill/robust/hijack
+	doing = "taking the shuttle"
+
+/datum/bot_goal/traitor_kill/robust/hijack/on_give_up(datum/bot_brain/bot)
+	if(mark_ref)
+		LAZYSET(bot.robust_rested, mark_ref, world.time + 10 SECONDS) //somebody else first, then back to them
+	bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, hijack_business)), TRUE)
+
+/datum/bot_goal/traitor_kill/robust/hijack/on_success(datum/bot_brain/bot)
+	bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, hijack_business)), TRUE)
+
+#undef BOT_HIJACK_START
