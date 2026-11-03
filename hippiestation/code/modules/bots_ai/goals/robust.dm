@@ -105,13 +105,14 @@ GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor,
 /// Whether it goes loud at all, and how far it takes it. Half stay undercover. Of the rest, the short-tempered and the fearless go for everybody.
 /datum/bot_brain/proc/pick_traitor_plan()
 	uses_codewords = prob(BOT_CODEWORD_CHANCE)
-	if(prob(BOT_UNDERCOVER_SHARE))
+	var/forced = world.params["bot-traitor-plan"] //a Bot Shift that wants a particular kind
+	if(forced == BOT_TRAITOR_UNDERCOVER || (!forced && prob(BOT_UNDERCOVER_SHARE)))
 		traitor_plan = BOT_TRAITOR_UNDERCOVER
 		traitor_business_after = world.time + rand(BOT_UNDERCOVER_WAIT_MIN, BOT_UNDERCOVER_WAIT_MAX)
 		if(plays_robust())
 			set_playstyle(BOT_STYLE_NORMAL) //it's the style that buys the suit, and one in twelve rolled it at the start of the round
 	else
-		traitor_plan = (nerve + temper) / 2 >= BOT_RAMPAGE_TEMPER ? BOT_TRAITOR_RAMPAGE : BOT_TRAITOR_HIT_LIST
+		traitor_plan = forced || ((nerve + temper) / 2 >= BOT_RAMPAGE_TEMPER ? BOT_TRAITOR_RAMPAGE : BOT_TRAITOR_HIT_LIST)
 		set_playstyle(BOT_STYLE_ROBUST)
 		traitor_business_after = world.time + rand(BOT_LOUD_WAIT_MIN, BOT_LOUD_WAIT_MAX)
 	bot_log(src, "traitor plan: [traitor_plan][uses_codewords ? ", code words" : ""]")
@@ -724,6 +725,7 @@ GLOBAL_VAR_INIT(bot_dead_crew_counted_at, -100)
 	if(!heard)
 		return
 	heard.file_crime(H, "Possession of Dangerous Equipment", "The Syndicate announced it to the whole station: [H.real_name], in a nanosuit.", BOT_CRIME_MAJOR)
+	bot_dispatch_security(get_turf(H), H.real_name) //goals/security_tactics.dm
 	bot_say(heard.owner, pick(";[H.real_name] has a nanosuit on, you all heard that. Watch yourselves.", ";Did everybody hear that? [H.real_name], [get_area_name(H, TRUE)]. Security, get on it.", ";That's [H.real_name] in a Syndicate suit. They're armed and dangerous."))
 
 /// Whether a bot who isn't a hunter by nature goes after a name on the radio: it's seen enough, it's got the nerve, and it's that kind of shift.

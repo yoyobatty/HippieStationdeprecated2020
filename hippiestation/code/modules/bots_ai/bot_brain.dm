@@ -392,7 +392,7 @@
 	return TRUE
 
 /datum/bot_brain/proc/try_run_for_it()
-	if(is_security_job() || world.time < next_run_for_it)
+	if((is_security_job() && !bot_too_dangerous(attacker)) || world.time < next_run_for_it) //goals/security_tactics.dm
 		return FALSE
 	var/hurt = owner.health <= owner.maxHealth * health_to_run_at()
 	if(!hurt && !(nerve < 0.7 && outmatched_by(attacker))) //bot_fighting.dm

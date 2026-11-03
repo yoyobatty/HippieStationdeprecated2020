@@ -366,6 +366,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	// Never drop a prisoner mid-escort to go chase someone new.
 	if(state == BOT_STATE_GOAL && istype(current_goal, /datum/bot_goal/brig_prisoner))
 		return FALSE
+	if(world.time < fallen_back_until && bot_too_dangerous(H)) //goals/security_tactics.dm
+		return FALSE
 	// Nothing to arrest them with. An officer who'd used up its cuffs started and ended the same arrest thousands of times,
 	// stood next to the suspect for five minutes. It can fight (on_attacked()) or go and get some (try_security_round()).
 	if(!H.handcuffed && !find_restraints())
@@ -490,6 +492,10 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/dist = get_dist(owner, S)
 	var/subdued = is_subdued(S)
 
+	if(visible && !subdued && bot_too_dangerous(S) && keep_it_at_range(S, dist)) //goals/security_tactics.dm
+		arrest_last_dist = dist
+		return
+
 	if(chase != S && owner.Adjacent(chase))
 		stop_pursuit()
 		if(istype(chase, /obj/structure/closet))
@@ -538,6 +544,11 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		return
 	if(!visible && get_turf(owner) == goal_turf)
 		return //reached the last sighting and they're not here - keep looking around until the lost-sight timeout
+	if(!subdued && bot_too_dangerous(S) && get_dist(owner, goal_turf) > 5) //goals/security_tactics.dm
+		var/turf/short = spot_short_of(goal_turf)
+		if(short)
+			pursuit_goal = short
+			goal_turf = short
 	if(!pursuing_kind || pursue_target != pursuit_goal || !arrest_path_turf || get_dist(arrest_path_turf, goal_turf) > 1)
 		arrest_path_turf = goal_turf
 		pursue(pursuit_goal, "arrest", force = TRUE)

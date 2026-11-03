@@ -14,8 +14,8 @@
 /// The posts a station can't do without, in the order a short-handed crew covers them. Twice in the list is two of them.
 GLOBAL_LIST_INIT(bot_crew_core_jobs, list(
 	"Station Engineer", "Medical Doctor", "Security Officer", "Assistant", "Botanist", "Cook", "Cargo Technician",
-	"Janitor", "Assistant", "Atmospheric Technician", "Chemist", "Scientist", "Bartender", "Assistant", "Station Engineer",
-	"Security Officer", "Captain", "Clown", "Medical Doctor", "Assistant", "Head of Personnel", "Chief Engineer", "Roboticist",
+	"Janitor", "Head of Security", "Atmospheric Technician", "Chemist", "Scientist", "Bartender", "Assistant", "Security Officer",
+	"Station Engineer", "Captain", "Warden", "Medical Doctor", "Security Officer", "Assistant", "Head of Personnel", "Clown", "Chief Engineer", "Roboticist",
 ))
 
 /// How popular each job is with players, as relative odds, once the core posts are covered.

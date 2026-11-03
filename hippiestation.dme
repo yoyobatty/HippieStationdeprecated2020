@@ -3375,6 +3375,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\robust.dm"
 #include "hippiestation\code\modules\bots_ai\goals\science.dm"
 #include "hippiestation\code\modules\bots_ai\goals\security_patrol.dm"
+#include "hippiestation\code\modules\bots_ai\goals\security_tactics.dm"
 #include "hippiestation\code\modules\bots_ai\goals\self_heal.dm"
 #include "hippiestation\code\modules\bots_ai\goals\setup_atmospherics.dm"
 #include "hippiestation\code\modules\bots_ai\goals\setup_supermatter.dm"

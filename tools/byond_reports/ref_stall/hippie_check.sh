@@ -1,5 +1,5 @@
 #!/bin/bash
-unset __COMPAT_LAYER # Git Bash sets it, and under it dm.exe leaks two kernel handles for every file it opens until the next reboot
+unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every file it opens until the next reboot
 # Builds the game with hippie_check.dm in it, boots it headless once, prints data/ref_stall.txt. About a minute.
 set -u
 PORT="${PORT:-45317}"

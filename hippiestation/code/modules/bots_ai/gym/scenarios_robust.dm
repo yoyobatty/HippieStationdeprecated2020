@@ -211,3 +211,58 @@
 	brain.turn_hostile()
 	bot_clear_wanted(bot)
 	expect(brain.plays_robust() && brain.traitor_plan == BOT_TRAITOR_HIT_LIST && brain.threats_made == 1, "turned hostile")
+
+/// A suited suspect stood still, and one officer: what matters here is how it goes about it.
+/datum/bot_scenario/griefed/officer
+	job = "Security Officer"
+	griefer_job = "Assistant"
+	time_limit = 90 SECONDS
+	kit_backpack = list(/obj/item/restraints/handcuffs, /obj/item/melee/baton/loaded, /obj/item/gun/energy/e_gun/advtaser)
+	layout = list(
+		"###########",
+		"#B.......C#",
+		"###########")
+
+/datum/bot_scenario/griefed/officer/grief()
+	var/obj/item/clothing/suit/space/hardsuit/nano/N = new(griefer.loc)
+	griefer.equip_to_slot_if_possible(N, ITEM_SLOT_OCLOTHING, FALSE, TRUE, TRUE)
+	brain.file_crime(griefer, "Murder", "Gym.", BOT_CRIME_MURDER)
+	brain.begin_arrest(griefer)
+
+/datum/bot_scenario/griefed/officer/release_run()
+	bot_clear_wanted(griefer)
+	return ..()
+
+/datum/bot_scenario/griefed/officer/range
+	name = "security: a nanosuit gets shot from range and cuffed once it's down, not rushed"
+	desc = "Seven to ten hits stam-crit even a suit. An officer stops short, calls it in and keeps shooting, and only walks up once they're on the floor."
+	var/closest_while_up = 99
+
+/datum/bot_scenario/griefed/officer/range/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(griefer.handcuffed)
+		if(!bot_transcript_said("firing"))
+			fail_reason = "cuffed them without a shot"
+			return BOT_GYM_FAIL
+		if(closest_while_up < 2)
+			fail_reason = "walked into arm's reach while they were up"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PASS
+	if(!brain.is_subdued(griefer))
+		closest_while_up = min(closest_while_up, get_dist(bot, griefer))
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/officer/falls_back
+	name = "security: an officer who's badly hurt falls back from a nanosuit"
+	desc = "It used to stand there with a baton until it died."
+	time_limit = 30 SECONDS
+
+/datum/bot_scenario/griefed/officer/falls_back/grief()
+	..()
+	bot.adjustBruteLoss(80)
+
+/datum/bot_scenario/griefed/officer/falls_back/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return bot_transcript_said("falling back from") ? BOT_GYM_PASS : BOT_GYM_PENDING
