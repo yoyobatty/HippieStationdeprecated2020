@@ -698,10 +698,10 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 
 /datum/bot_brain/proc/find_disconnected_cryo_canister()
 	for(var/obj/machinery/atmospherics/components/unary/cryo_cell/C as anything in bot_instances_of(/obj/machinery/atmospherics/components/unary/cryo_cell))
-		if(C.z != owner.z)
+		if(C.z != owner.z || get_dist(owner, C) > BOT_CRYO_SETUP_REACH + BOT_CRYO_SETUP_RADIUS) //nothing round this one can be in reach: skip the range() scan, 2.5 ms a time
 			continue
-		for(var/obj/machinery/atmospherics/components/unary/portables_connector/P in range(BOT_CRYO_SETUP_RADIUS, C))
-			if(P.z != owner.z || P.connected_device)
+		for(var/obj/machinery/atmospherics/components/unary/portables_connector/P as anything in bot_instances_of(/obj/machinery/atmospherics/components/unary/portables_connector)) //not range(): 2.5 ms a look
+			if(P.z != owner.z || P.connected_device || get_dist(P, C) > BOT_CRYO_SETUP_RADIUS)
 				continue
 			var/obj/machinery/portable_atmospherics/canister/O = locate(/obj/machinery/portable_atmospherics/canister) in P.loc
 			if(O && !O.connected_port && get_dist(owner, O) <= BOT_CRYO_SETUP_REACH)
@@ -710,10 +710,10 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 
 /datum/bot_brain/proc/find_unset_cryo_freezer()
 	for(var/obj/machinery/atmospherics/components/unary/cryo_cell/C as anything in bot_instances_of(/obj/machinery/atmospherics/components/unary/cryo_cell))
-		if(C.z != owner.z)
+		if(C.z != owner.z || get_dist(owner, C) > BOT_CRYO_SETUP_REACH + BOT_CRYO_SETUP_RADIUS)
 			continue
-		for(var/obj/machinery/atmospherics/components/unary/thermomachine/freezer/F in range(BOT_CRYO_SETUP_RADIUS, C))
-			if(F.z != owner.z)
+		for(var/obj/machinery/atmospherics/components/unary/thermomachine/freezer/F as anything in bot_instances_of(/obj/machinery/atmospherics/components/unary/thermomachine/freezer))
+			if(F.z != owner.z || get_dist(F, C) > BOT_CRYO_SETUP_RADIUS)
 				continue
 			if(F.on && F.target_temperature <= F.min_temperature + 5)
 				continue //already on and cold enough

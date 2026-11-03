@@ -212,17 +212,10 @@
 		var/id = num2hex(record_id_num++,6)
 		if(!C)
 			C = H.client
-		var/image = get_id_photo(H, C, show_directions)
-		var/datum/picture/pf = new
-		var/datum/picture/ps = new
-		pf.picture_name = "[H]"
-		ps.picture_name = "[H]"
-		pf.picture_desc = "This is [H]."
-		ps.picture_desc = "This is [H]."
-		pf.picture_image = icon(image, dir = SOUTH)
-		ps.picture_image = icon(image, dir = WEST)
-		var/obj/item/photo/photo_front = new(null, pf)
-		var/obj/item/photo/photo_side = new(null, ps)
+		// hippie -- the photos are taken the first time somebody looks at the record (record_photo()), not here: drawing them cost
+		// about 80 ms at every join, the whole server standing still, and most records are never opened.
+		var/datum/record_photo_pending/photo_front = new(H, C)
+		var/datum/record_photo_pending/photo_side = photo_front
 
 		//These records should ~really~ be merged or something
 		//General Record
@@ -291,10 +284,43 @@
 		L.fields["identity"]	= H.dna.uni_identity
 		L.fields["species"]		= H.dna.species.type
 		L.fields["features"]	= H.dna.features
-		L.fields["image"]		= image
+		L.fields["image"]		= photo_front // hippie -- taken when the AI picks it (/mob/living/silicon/ai/proc/ai_hologram_change()), see record_photo()
 		L.fields["mindref"]		= H.mind
 		locked += L
 	return
+
+/// hippie -- what manifest_inject() leaves in a record's photo fields until somebody looks: enough to take the photos then.
+/datum/record_photo_pending
+	var/name
+	var/datum/job/job
+	var/datum/preferences/prefs
+
+/datum/record_photo_pending/New(mob/living/carbon/human/H, client/C)
+	name = "[H]"
+	job = SSjob.GetJob(H.mind?.assigned_role)
+	prefs = (C || H.client)?.prefs
+
+/// hippie -- the photo as an icon with both directions, for whatever wants the picture itself (the AI's hologram).
+/datum/record_photo_pending/proc/render()
+	return get_flat_human_icon(null, job, prefs, DUMMY_HUMAN_SLOT_MANIFEST, list(SOUTH, WEST))
+
+/// hippie -- the photo in a record's field, taken now if it hasn't been yet (both of them, with the one dummy).
+/proc/record_photo(datum/data/record/R, field)
+	if(!R)
+		return null
+	var/datum/record_photo_pending/pending = R.fields[field]
+	if(!istype(pending))
+		return pending
+	var/icon/image = pending.render()
+	for(var/f in list("photo_front", "photo_side"))
+		if(R.fields[f] != pending)
+			continue
+		var/datum/picture/P = new
+		P.picture_name = pending.name
+		P.picture_desc = "This is [pending.name]."
+		P.picture_image = icon(image, dir = f == "photo_front" ? SOUTH : WEST)
+		R.fields[f] = new /obj/item/photo(null, P)
+	return R.fields[field]
 
 /datum/datacore/proc/get_id_photo(mob/living/carbon/human/H, client/C, show_directions = list(SOUTH))
 	var/datum/job/J = SSjob.GetJob(H.mind.assigned_role)

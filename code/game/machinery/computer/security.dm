@@ -182,11 +182,11 @@
 				if(3)
 					dat += "<font size='4'><b>Security Record</b></font><br>"
 					if(istype(active1, /datum/data/record) && GLOB.data_core.general.Find(active1))
-						if(istype(active1.fields["photo_front"], /obj/item/photo))
-							var/obj/item/photo/P1 = active1.fields["photo_front"]
+						if(istype(record_photo(active1, "photo_front"), /obj/item/photo))
+							var/obj/item/photo/P1 = record_photo(active1, "photo_front")
 							user << browse_rsc(P1.picture.picture_image, "photo_front")
-						if(istype(active1.fields["photo_side"], /obj/item/photo))
-							var/obj/item/photo/P2 = active1.fields["photo_side"]
+						if(istype(record_photo(active1, "photo_side"), /obj/item/photo))
+							var/obj/item/photo/P2 = record_photo(active1, "photo_side")
 							user << browse_rsc(P2.picture.picture_image, "photo_side")
 						dat += {"<table><tr><td><table>
 						<tr><td>Name:</td><td><A href='?src=[REF(src)];choice=Edit Field;field=name'>&nbsp;[active1.fields["name"]]&nbsp;</A></td></tr>
@@ -448,7 +448,7 @@ What a mess.*/
 							printing = 1
 							sleep(30)
 							if((istype(active1, /datum/data/record) && GLOB.data_core.general.Find(active1)))//make sure the record still exists.
-								var/obj/item/photo/photo = active1.fields["photo_front"]
+								var/obj/item/photo/photo = record_photo(active1, "photo_front")
 								new /obj/item/poster/wanted(loc, photo.picture.picture_image, wanted_name, info, headerText)
 							printing = 0
 			if("Print Missing")
@@ -465,7 +465,7 @@ What a mess.*/
 							printing = 1
 							sleep(30)
 							if((istype(active1, /datum/data/record) && GLOB.data_core.general.Find(active1)))//make sure the record still exists.
-								var/obj/item/photo/photo = active1.fields["photo_front"]
+								var/obj/item/photo/photo = record_photo(active1, "photo_front")
 								new /obj/item/poster/wanted/missing(loc, photo.picture.picture_image, missing_name, info, headerText)
 							printing = 0
 
@@ -624,14 +624,14 @@ What a mess.*/
 								return
 							active1.fields["species"] = t1
 					if("show_photo_front")
-						if(active1.fields["photo_front"])
-							if(istype(active1.fields["photo_front"], /obj/item/photo))
-								var/obj/item/photo/P = active1.fields["photo_front"]
+						if(record_photo(active1, "photo_front"))
+							if(istype(record_photo(active1, "photo_front"), /obj/item/photo))
+								var/obj/item/photo/P = record_photo(active1, "photo_front")
 								P.show(usr)
 					if("upd_photo_front")
 						var/obj/item/photo/photo = get_photo(usr)
 						if(photo)
-							qdel(active1.fields["photo_front"])
+							qdel(record_photo(active1, "photo_front"))
 							//Lets center it to a 32x32.
 							var/icon/I = photo.picture.picture_image
 							var/w = I.Width()
@@ -641,19 +641,19 @@ What a mess.*/
 							I.Crop(dw/2, dh/2, w - dw/2, h - dh/2)
 							active1.fields["photo_front"] = photo
 					if("print_photo_front")
-						if(active1.fields["photo_front"])
-							if(istype(active1.fields["photo_front"], /obj/item/photo))
-								var/obj/item/photo/P = active1.fields["photo_front"]
+						if(record_photo(active1, "photo_front"))
+							if(istype(record_photo(active1, "photo_front"), /obj/item/photo))
+								var/obj/item/photo/P = record_photo(active1, "photo_front")
 								print_photo(P.picture.picture_image, active1.fields["name"])
 					if("show_photo_side")
-						if(active1.fields["photo_side"])
-							if(istype(active1.fields["photo_side"], /obj/item/photo))
-								var/obj/item/photo/P = active1.fields["photo_side"]
+						if(record_photo(active1, "photo_side"))
+							if(istype(record_photo(active1, "photo_side"), /obj/item/photo))
+								var/obj/item/photo/P = record_photo(active1, "photo_side")
 								P.show(usr)
 					if("upd_photo_side")
 						var/obj/item/photo/photo = get_photo(usr)
 						if(photo)
-							qdel(active1.fields["photo_side"])
+							qdel(record_photo(active1, "photo_side"))
 							//Lets center it to a 32x32.
 							var/icon/I = photo.picture.picture_image
 							var/w = I.Width()
@@ -663,9 +663,9 @@ What a mess.*/
 							I.Crop(dw/2, dh/2, w - dw/2, h - dh/2)
 							active1.fields["photo_side"] = photo
 					if("print_photo_side")
-						if(active1.fields["photo_side"])
-							if(istype(active1.fields["photo_side"], /obj/item/photo))
-								var/obj/item/photo/P = active1.fields["photo_side"]
+						if(record_photo(active1, "photo_side"))
+							if(istype(record_photo(active1, "photo_side"), /obj/item/photo))
+								var/obj/item/photo/P = record_photo(active1, "photo_side")
 								print_photo(P.picture.picture_image, active1.fields["name"])
 					if("mi_crim_add")
 						if(istype(active1, /datum/data/record))
@@ -828,8 +828,8 @@ What a mess.*/
 					R.fields["species"] = pick(GLOB.roundstart_races)
 				if(8)
 					var/datum/data/record/G = pick(GLOB.data_core.general)
-					R.fields["photo_front"] = G.fields["photo_front"]
-					R.fields["photo_side"] = G.fields["photo_side"]
+					R.fields["photo_front"] = record_photo(G, "photo_front")
+					R.fields["photo_side"] = record_photo(G, "photo_side")
 			continue
 
 		else if(prob(1))

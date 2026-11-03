@@ -43,3 +43,31 @@
 		fail_reason = "the jetpack went off"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+/// The records (datacore.dm) leave a crew member's photo to be taken the first time somebody looks, instead of at every join.
+/datum/bot_scenario/chat/record_photo
+	name = "records: a crew member's photo is taken the first time somebody looks at it"
+	desc = "Somebody joins the crew records. Their photo fields hold a note until a records console asks; then both photos exist, front and side."
+	layout = list(
+		"######",
+		"#B.C.#",
+		"######")
+	time_limit = 5 SECONDS
+
+/datum/bot_scenario/chat/record_photo/check()
+	visitor.mind_initialize()
+	visitor.mind.assigned_role = "Assistant"
+	GLOB.data_core.manifest_inject(visitor)
+	var/datum/data/record/R = find_record("name", visitor.real_name, GLOB.data_core.general)
+	if(!R)
+		fail_reason = "no record made"
+		return BOT_GYM_FAIL
+	if(!istype(R.fields["photo_front"], /datum/record_photo_pending))
+		fail_reason = "the photo was taken at the join: [R.fields["photo_front"]]"
+		return BOT_GYM_FAIL
+	var/obj/item/photo/front = record_photo(R, "photo_front")
+	var/obj/item/photo/side = R.fields["photo_side"]
+	if(!istype(front) || !istype(side) || !front.picture?.picture_image || !side.picture?.picture_image || front == side)
+		fail_reason = "photos after looking: [front], [side]"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

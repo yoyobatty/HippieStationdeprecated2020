@@ -318,6 +318,10 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 		reach_floods = list()
 		reach_floods_time = world.time
 
+/datum/bot_brain
+	/// "dest|adjacency" -> until when bot_sealed_pocket() has already said dest isn't shut in anywhere small.
+	var/list/pockets_ruled_out
+
 /datum/bot_brain/proc/end_reach_scope()
 	if(reach_scope_depth > 0 && !--reach_scope_depth)
 		reach_floods = null
@@ -348,8 +352,13 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 	// No flood to go by yet: before paying for one, see whether dest is simply shut in somewhere small
 	// (bot_sealed_pocket() below). Everything in the pocket is as unreachable as dest, so the rest of
 	// this decision can skip it too.
-	if(start && dest && !(key && reach_floods[key]))
+	var/open_key = dest ? "[REF(dest)]|[adjacent]" : null
+	if(start && dest && !(key && reach_floods[key]) && !(LAZYACCESS(pockets_ruled_out, open_key) > world.time))
 		var/list/pocket = bot_sealed_pocket(owner, start, dest, adjacent, id_card, simulated_only)
+		if(!pocket) //not shut in anywhere small: no need to look again for a while (a bot re-routes to the same place over and over)
+			if(LAZYLEN(pockets_ruled_out) > 200)
+				pockets_ruled_out.Cut()
+			LAZYSET(pockets_ruled_out, open_key, world.time + 15 SECONDS)
 		if(pocket)
 			if(key)
 				var/list/known = reach_floods["sealed|[key]"]
@@ -410,6 +419,9 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 /proc/bot_sealed_pocket(caller, turf/start, turf/dest, adjacent, id, simulated_only)
 	if(start == dest || start.z != dest.z)
 		return null
+	// A hallway reached from dest settles it: dest isn't shut in anywhere small. Most destinations are a room or two off one, and
+	// without this every one of them flooded the whole 300 turfs before saying so - 1.2 ms a route, 6% of a bot round's server time.
+	var/static/list/hubs = typecacheof(list(/area/hallway)) //not maintenance: there's no getting into it from a hallway without the access for it, which most bots haven't got
 	var/list/pocket = list()
 	pocket[dest] = TRUE
 	var/list/frontier = list(dest)
@@ -421,7 +433,7 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 				var/turf/N = get_step(T, dir)
 				if(!N || pocket[N] || !call(N, adjacent)(caller, T, id, simulated_only))
 					continue
-				if(N == start || ++found > BOT_SEALED_POCKET_TURFS)
+				if(N == start || ++found > BOT_SEALED_POCKET_TURFS || hubs[N.loc.type])
 					return null
 				pocket[N] = TRUE
 				next += N

@@ -676,6 +676,9 @@ HIPPIE END*/
 			if(personnel_list.len)
 				input = input("Select a crew member:") as null|anything in personnel_list
 				var/icon/character_icon = personnel_list[input]
+				var/datum/record_photo_pending/pending = character_icon // hippie -- the records leave the photo to be taken when it's wanted (datacore.dm)
+				if(istype(pending))
+					character_icon = pending.render()
 				if(character_icon)
 					qdel(holo_icon)//Clear old icon so we're not storing it in memory.
 					holo_icon = getHologramIcon(icon(character_icon))

@@ -293,9 +293,9 @@
 				return
 			var/obj/item/photo/P = null
 			if(href_list["photo_front"])
-				P = R.fields["photo_front"]
+				P = record_photo(R, "photo_front")
 			else if(href_list["photo_side"])
-				P = R.fields["photo_side"]
+				P = record_photo(R, "photo_side")
 			if(P)
 				P.show(H)
 			return
