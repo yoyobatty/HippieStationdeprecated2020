@@ -1045,6 +1045,7 @@ GLOBAL_LIST_INIT(bot_maintenance_averse_jobs, list("Medical Doctor", "Chief Medi
 /mob/living/carbon/human/Hear(message, atom/movable/speaker, message_language, raw_message, radio_freq, list/spans, message_mode)
 	. = ..()
 	if(bot_brain && speaker)
+		raw_message = html_decode(raw_message) //it comes encoded: "where's" arrives as "where&#39;s", and nothing with an apostrophe in it ever matched
 		bot_brain.on_heard_security_call(speaker, raw_message, radio_freq) //goals/security_patrol.dm
 		bot_brain.on_heard_ruling(speaker, raw_message) //bot_law.dm
 		bot_brain.on_heard_speech(speaker, raw_message, radio_freq) //bot_chatter.dm

@@ -35,6 +35,7 @@
 			to_chat(M, announcement)
 			if(M.client.prefs.toggles & SOUND_ANNOUNCEMENTS)
 				SEND_SOUND(M, s)
+	bot_crew_heard_announcement(text, title, type) // hippie -- the bot crew react to it (bots_ai/bot_conversation.dm)
 
 /proc/print_command_report(text = "", title = null, announce=TRUE)
 	if(!title)
@@ -52,6 +53,7 @@
 /proc/minor_announce(message, title = "Attention:", alert)
 	if(!message)
 		return
+	bot_crew_heard_announcement(message, title) // hippie -- the bot crew react to it (bots_ai/bot_conversation.dm)
 
 	for(var/mob/M in GLOB.player_list)
 		if(!isnewplayer(M) && M.can_hear())

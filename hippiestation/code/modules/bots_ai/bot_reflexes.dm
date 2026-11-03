@@ -220,6 +220,10 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 /datum/bot_brain/proc/handling_limit(points)
 	return points * (1.5 - temper)
 
+/// Grudge enough to shove over. bot_conversation.dm asks, for insults.
+/datum/bot_brain/proc/shove_limit()
+	return handling_limit(BOT_GRUDGE_SHOVE)
+
 /datum/bot_brain/proc/grudge_with(mob/living/who)
 	var/datum/weakref/ref = WEAKREF(who)
 	var/points = LAZYACCESS(grudges, ref)

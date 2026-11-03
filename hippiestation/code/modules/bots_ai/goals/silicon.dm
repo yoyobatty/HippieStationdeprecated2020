@@ -32,7 +32,7 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 /mob/living/silicon/Hear(message, atom/movable/speaker, datum/language/message_language, raw_message, radio_freq, list/spans, message_mode)
 	. = ..()
 	if(bot_silicon && raw_message)
-		bot_silicon.heard(speaker, lowertext(raw_message), radio_freq)
+		bot_silicon.heard(speaker, lowertext(html_decode(raw_message)), radio_freq)
 
 /// One AI first, then cyborgs, each out of a body that's made for it and handed over by the game's own procs.
 /proc/bot_spawn_silicons(count)

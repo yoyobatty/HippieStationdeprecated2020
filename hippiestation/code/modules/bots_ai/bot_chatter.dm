@@ -213,16 +213,19 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 			return lend_tool(talker, asked_for)
 	if(bot_text_has_any(lower_msg, list("are you a bot", "are you an ai", "are you a robot", "you a bot", "is this a bot", "you're a bot", "youre a bot")))
 		return pick("What? No.", "Rude.", "Do I look like a bot to you?", "That's a weird thing to ask.", "Haven't had my coffee, that's all.")
+	var/about_people = people_answer(lower_msg) //bot_conversation.dm
+	if(about_people)
+		return about_people
 	if(bot_text_has_any(lower_msg, list("where is", "where's", "wheres", "where are", "how do i get to", "which way", "where can i find")))
 		return directions_for(lower_msg)
 	if(bot_text_has_any(lower_msg, list("how are you", "how's it going", "hows it going", "you ok", "you okay", "you alright", "how you doing")))
 		if(owner.health < owner.maxHealth * 0.6)
 			return pick("I've been better. Could really use a doctor.", "Not great, honestly.", "Hurting a bit.")
-		return pick("Not bad. You?", "Can't complain.", "Fine, thanks.", "Surviving.")
+		return mood_pick(list("Great, thanks! You?", "Pretty good! How about you?", "Can't complain, nice shift so far."), list("Not bad. You?", "Can't complain.", "Fine, thanks.", "Surviving."), list("Could be worse.", "Ask me after the shift.", "Same as always.", "Don't ask."))
 	if(bot_text_has_any(lower_msg, list("thanks", "thank you", "cheers", "ty")))
 		return pick("No problem.", "Anytime.", "Don't mention it.")
-	if(bot_text_has_any(lower_msg, list("idiot", "stupid", "moron", "fuck you", "shut up", "asshole", "dumbass")))
-		return pick("Rude.", "What's your problem?", "Yeah, okay.", "Charming.")
+	if(bot_text_has_any(lower_msg, GLOB.bot_insult_words))
+		return insulted_by(talker) //bot_conversation.dm
 	if(bot_text_has_any(lower_msg, list("sorry", "my bad", "apologies")))
 		return pick("It's fine.", "Don't worry about it.", "No harm done.")
 	if(bot_text_has_any(lower_msg, list("bye", "goodbye", "see you", "see ya", "cya")))
@@ -600,6 +603,8 @@ GLOBAL_LIST_INIT(bot_shop_talk_replies, list("Good to know.", "Nice.", "Noted.",
 	if(maybe_report_mess()) //bot_requests.dm
 		return
 	if(company)
+		if(company.bot_brain && temper >= 0.65 && prob(15) && start_argument(company)) //bot_conversation.dm
+			return
 		if(prob(40 + sociability * 40))
 			make_small_talk(company)
 	else if(prob(8))

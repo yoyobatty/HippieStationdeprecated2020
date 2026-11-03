@@ -85,6 +85,8 @@
 		if(plays_robust())
 			return null //next_victim() has them at the top of its list, goals/robust.dm
 		return O.target?.current ? new /datum/bot_goal/traitor_kill(O) : null
+	if(istype(O, /datum/objective/download))
+		return new /datum/bot_goal/traitor_download(O) //goals/traitor_objectives.dm
 	return null
 
 /datum/bot_duty/traitor

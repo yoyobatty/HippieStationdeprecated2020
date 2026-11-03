@@ -50,6 +50,7 @@ run_shift() {
 	local out="$DIR/run$n"
 	local map=""
 	if [ "${#MAP_LIST[@]}" -gt 0 ]; then map="${MAP_LIST[$(((n - 1) % ${#MAP_LIST[@]}))]}"; fi
+	rm -rf "$out" #a name used before: the game appends to its files, so old results would end up in the new ones
 	mkdir -p "$out"
 	local params="bot-shift=$MINUTES&log-directory=$LOGS/run$n&bot-results=$out/"
 	if [ "$SPEED" != "1" ] && [ -f timewarp.dll ]; then params="$params&timewarp=$SPEED"; fi
