@@ -1,0 +1,46 @@
+hard delete /datum/dmm_suite/loaded_map /datum/dmm_suite/loaded_map
+/datum/dmm_suite/loaded_map at 1s: refcount 4, 0 found in 1.2s
+hard delete /datum/dmm_suite/loaded_map /datum/dmm_suite/loaded_map
+/datum/dmm_suite/loaded_map at 1s: refcount 4, 0 found in 1.1s
+hard delete Ian fan outfit spawner /obj/effect/spawner/random/loot/outfit/ian_fan
+/obj/effect/spawner/random/loot/outfit/ian_fan at 323s: refcount 4, 1 found in 27.5s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 180,179,9.contents[1]
+hard delete the good times spawner /obj/effect/spawner/random/loot/good_times
+/obj/effect/spawner/random/loot/good_times at 323s: refcount 4, 1 found in 28.4s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 182,178,9.contents[1]
+hard delete the good times spawner /obj/effect/spawner/random/loot/good_times
+/obj/effect/spawner/random/loot/good_times at 323s: refcount 4, 1 found in 29.1s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 127,124,4.contents[1]
+hard delete the chameleon and ties spawner /obj/effect/spawner/random/loot/outfit/cham_ties
+/obj/effect/spawner/random/loot/outfit/cham_ties at 323s: refcount 4, 1 found in 31.6s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 194,170,4.contents[1]
+hard delete Ian fan outfit spawner /obj/effect/spawner/random/loot/outfit/ian_fan
+/obj/effect/spawner/random/loot/outfit/ian_fan at 323s: refcount 4, 1 found in 28.6s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 198,166,4.contents[1]
+hard delete the random mech figurine /obj/effect/spawner/random/toy/mech_figure
+/obj/effect/spawner/random/toy/mech_figure at 324s: refcount 4, 1 found in 25.4s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 57,194,4.contents[1]
+hard delete the abandoned minebot /mob/living/basic/abandoned_minebot
+/mob/living/basic/abandoned_minebot at 338s: refcount 4, 1 found in 24.5s, loc the chasm depths, vis_locs 0
+    /obj/effect/abstract/chasm_storage at 36,13,9.contents[1]
+hard delete the Repairbot /mob/living/basic/bot/repairbot
+/mob/living/basic/bot/repairbot at 386s: refcount 4, 1 found in 24.8s, loc , vis_locs 0
+    /datum/atom_hud/data/diagnostic/advanced.hudusers[1]
+hard delete the Cleanbot /mob/living/basic/bot/cleanbot
+/mob/living/basic/bot/cleanbot at 386s: refcount 4, 1 found in 25.2s, loc , vis_locs 0
+    /datum/atom_hud/data/diagnostic/advanced.hudusers[2]
+hard delete OSI-669 /mob/living/brain
+/mob/living/brain at 386s: refcount 4, 1 found in 24.7s, loc , vis_locs 0
+    /obj/item/mmi/robotic_brain at 176,126,2.brainmob
+hard delete Jeremy /mob/living/simple_animal/hostile/retaliate/carp/koi
+/mob/living/simple_animal/hostile/retaliate/carp/koi at 386s: refcount 4, 0 found in 24.7s, loc , vis_locs 0
+hard delete the space koi /mob/living/simple_animal/hostile/retaliate/carp/koi
+/mob/living/simple_animal/hostile/retaliate/carp/koi at 386s: refcount 4, 0 found in 25.2s, loc , vis_locs 0
+hard delete Ian Pershing /mob/living/carbon/human
+/mob/living/carbon/human at 386s: refcount 6, 2 found in 25.4s, loc , vis_locs 0
+    /datum/controller/subsystem/mobs.clients_by_zlevel[2][40]
+    /datum/boom_drill.crew[40]
+hard delete Cohen Kirkson /mob/living/carbon/human
+/mob/living/carbon/human at 386s: refcount 5, 2 found in 25.4s, loc , vis_locs 0
+    /datum/controller/subsystem/mobs.clients_by_zlevel[2][39]
+    /datum/boom_drill.crew[39]

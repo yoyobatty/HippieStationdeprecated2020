@@ -1,0 +1,54 @@
+hard delete /datum/dmm_suite/loaded_map /datum/dmm_suite/loaded_map
+/datum/dmm_suite/loaded_map at 1s: refcount 4, 0 found in 1.1s
+hard delete /datum/dmm_suite/loaded_map /datum/dmm_suite/loaded_map
+/datum/dmm_suite/loaded_map at 1s: refcount 4, 0 found in 1.1s
+hard delete the chameleon and ties spawner /obj/effect/spawner/random/loot/outfit/cham_ties
+/obj/effect/spawner/random/loot/outfit/cham_ties at 322s: refcount 4, 1 found in 23.5s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 46,214,8.contents[1]
+hard delete the chameleon and ties spawner /obj/effect/spawner/random/loot/outfit/cham_ties
+/obj/effect/spawner/random/loot/outfit/cham_ties at 322s: refcount 4, 1 found in 23.4s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 181,113,6.contents[1]
+hard delete the good times spawner /obj/effect/spawner/random/loot/good_times
+/obj/effect/spawner/random/loot/good_times at 322s: refcount 4, 1 found in 23.1s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 103,205,4.contents[1]
+hard delete the stock parts spawner /obj/effect/spawner/random/stock_parts
+/obj/effect/spawner/random/stock_parts at 322s: refcount 4, 1 found in 23.5s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 68,189,4.contents[1]
+hard delete the shorts spawner /obj/effect/spawner/random/loot/outfit/shorts
+/obj/effect/spawner/random/loot/outfit/shorts at 322s: refcount 4, 1 found in 23.6s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 52,212,5.contents[1]
+hard delete Ian fan outfit spawner /obj/effect/spawner/random/loot/outfit/ian_fan
+/obj/effect/spawner/random/loot/outfit/ian_fan at 322s: refcount 4, 1 found in 23.1s, loc the abandoned crate, vis_locs 0
+    /obj/structure/closet/crate/secure/loot at 56,211,5.contents[1]
+hard delete Air supply pipe /obj/machinery/atmospherics/pipe/simple/hidden/supply
+/obj/machinery/atmospherics/pipe/simple/hidden/supply at 387s: refcount 4, 1 found in 24.5s, loc , vis_locs 0
+    /datum/pipeline.members[1]
+hard delete Scrubbers pipe /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers
+/obj/machinery/atmospherics/pipe/simple/hidden/scrubbers at 387s: refcount 4, 1 found in 23.8s, loc , vis_locs 0
+    /datum/pipeline.members[1]
+hard delete Air supply pipe /obj/machinery/atmospherics/pipe/simple/hidden/supply
+/obj/machinery/atmospherics/pipe/simple/hidden/supply at 387s: refcount 4, 1 found in 23.2s, loc , vis_locs 0
+    /datum/pipeline.members[1]
+hard delete Scrubbers pipe /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers
+/obj/machinery/atmospherics/pipe/simple/hidden/scrubbers at 387s: refcount 4, 1 found in 23s, loc , vis_locs 0
+    /datum/pipeline.members[1]
+hard delete Fore-Starboard Maintenance Vent Pump #3 /obj/machinery/atmospherics/unary/vent_pump/on
+/obj/machinery/atmospherics/unary/vent_pump/on at 451s: refcount 4, 1 found in 23.2s, loc , vis_locs 0
+    /datum/pipeline.other_atmosmch[1]
+hard delete the wind /obj/effect/wind
+/obj/effect/wind at 451s: refcount 4, 0 found in 23.6s, loc , vis_locs 0
+hard delete the oxygen refill station /obj/machinery/atmospherics/refill_station/oxygen
+/obj/machinery/atmospherics/refill_station/oxygen at 451s: refcount 4, 1 found in 23.3s, loc , vis_locs 0
+    /datum/controller/subsystem/air.atmos_machinery[1029]
+hard delete the connector port /obj/machinery/atmospherics/unary/portables_connector
+/obj/machinery/atmospherics/unary/portables_connector at 451s: refcount 5, 2 found in 23.6s, loc , vis_locs 0
+    /datum/pipeline.other_atmosmch[1]
+    /datum/pipeline.reconcile_machinery[1]
+hard delete the pipe /obj/machinery/atmospherics/pipe/simple/visible
+/obj/machinery/atmospherics/pipe/simple/visible at 451s: refcount 4, 1 found in 23.7s, loc , vis_locs 0
+    /datum/controller/subsystem/air.machinery_to_construct[29]
+hard delete Fore-Starboard Maintenance Vent Pump #2 /obj/machinery/atmospherics/unary/vent_pump/high_volume
+/obj/machinery/atmospherics/unary/vent_pump/high_volume at 451s: refcount 4, 1 found in 23.8s, loc , vis_locs 0
+    /datum/controller/subsystem/air.machinery_to_construct[30]
+hard delete the wind /obj/effect/wind
+/obj/effect/wind at 451s: refcount 4, 0 found in 23.1s, loc , vis_locs 0

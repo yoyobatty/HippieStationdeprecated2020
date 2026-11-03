@@ -1,0 +1,1 @@
+boom drill maxcap6 on BoxStation: worst tick 122 ms at +2.8s, 2 ticks over 100 ms, 0 over a second; 0.5 s more than the ticks before (49.9 ms a tick then) over 180 s; 7 explosions finished, the longest over 3.5 s of game time; 236 tiles changed (139 to space), 2 of 40 crew dead; 1 hard deletes by +12 min, 0 ms: /obj/effect/spawner/random/loot/contraband_posters 1

@@ -1,0 +1,1 @@
+boom drill nuke on BoxStation: worst tick 355 ms at +110.3s, 12 ticks over 100 ms, 0 over a second; 1.1 s more than the ticks before (49.9 ms a tick then) over 180 s; 0 explosions finished, the longest over 0 s of game time; 0 tiles changed (0 to space), 40 of 40 crew dead; 1 hard deletes by +12 min, 0 ms: /obj/effect/spawner/random/loot/space_kit 1
