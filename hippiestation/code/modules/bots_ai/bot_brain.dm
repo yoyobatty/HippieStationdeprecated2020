@@ -501,6 +501,12 @@
 		idle_fidget()
 		return
 
+	// A blob in sight, for anybody armed (goals/blob.dm).
+	if(world.time >= next_blob_check)
+		next_blob_check = world.time + 3 SECONDS
+		if(fight_the_blob())
+			return
+
 	// Waiting somewhere on purpose - at departures for the shuttle, say (bot_duties.dm). Nothing below gets a look in
 	// until whatever it's waiting for says the wait is over.
 	if(holding_duty)

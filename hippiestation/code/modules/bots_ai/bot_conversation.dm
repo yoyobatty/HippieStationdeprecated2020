@@ -58,6 +58,7 @@ GLOBAL_LIST_INIT(bot_announcement_lines, list(
 	"power" = list("Lights are out!", "Power's down.", "Engineering, power?", "Who turned off the lights?"),
 	"captain" = list("Thanks, Captain.", "Okay, Captain.", "Who gave the Captain a mic?", "Noted.", "Yes sir."),
 	"anomaly" = list("Anyone seen the anomaly?", "Science, there's an anomaly for you.", "Stay clear of the anomaly, folks."),
+	"biohazard" = list("Blob! Where is it?", "Everybody grab something and kill the blob.", "Biohazard? Great.", "Where's the core?", "Security, the blob!"),
 ))
 
 /// From priority_announce() and minor_announce(): what everyone heard over the speakers.
@@ -103,6 +104,8 @@ GLOBAL_LIST_INIT(bot_announcement_lines, list(
 		return "ion"
 	if(findtext(lower, "powernet") || findtext(lower, "power failure") || findtext(lower, "overload"))
 		return "power"
+	if(findtext(lower, "biohazard"))
+		return "biohazard"
 	if(findtext(lower, "anomal"))
 		return "anomaly"
 	return null

@@ -3342,6 +3342,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\acquire_item_type.dm"
 #include "hippiestation\code\modules\bots_ai\goals\acquire_tool.dm"
 #include "hippiestation\code\modules\bots_ai\goals\assistant.dm"
+#include "hippiestation\code\modules\bots_ai\goals\blob.dm"
 #include "hippiestation\code\modules\bots_ai\goals\bartender.dm"
 #include "hippiestation\code\modules\bots_ai\goals\botany_projects.dm"
 #include "hippiestation\code\modules\bots_ai\goals\call_shuttle.dm"
