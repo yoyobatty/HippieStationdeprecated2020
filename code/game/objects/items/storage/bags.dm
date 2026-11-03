@@ -125,7 +125,8 @@
 
 /obj/item/storage/bag/ore/dropped()
 	. = ..()
-	UnregisterSignal(listeningTo, COMSIG_MOVABLE_MOVED)
+	if(listeningTo) // hippie -- dropped without ever being equipped
+		UnregisterSignal(listeningTo, COMSIG_MOVABLE_MOVED)
 	listeningTo = null
 
 /obj/item/storage/bag/ore/proc/Pickup_ores(mob/living/user)

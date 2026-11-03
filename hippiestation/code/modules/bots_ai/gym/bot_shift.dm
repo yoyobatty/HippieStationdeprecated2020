@@ -92,6 +92,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	var/list/mob/living/carbon/human/traitors = list()
 	/// station_power_text() every five minutes.
 	var/list/power_curve = list()
+	/// What's broken on the station a minute in (station_damage_text()), to set the end against.
+	var/damage_start
 	var/crew_text
 	var/start_time
 	var/real_start_ms
@@ -171,6 +173,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		if(world.time >= next_report)
 			next_report += 1 MINUTES
 			log_world("BOT SHIFT: [bot_shift_clock(elapsed())] of [bot_shift_clock(length)], [speed()]x")
+			if(!damage_start)
+				damage_start = station_damage_text()
 			if(!(round(elapsed() / (1 MINUTES)) % 5))
 				power_curve += station_power_text()
 				note_load_stretch()
@@ -365,6 +369,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		addtimer(CALLBACK(src, PROC_REF(rad_drill)), 4 MINUTES)
 	if(world.params["bot-silly"])
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_silly_start), text2num(world.params["bot-silly"])), 90 SECONDS) //bot_silly.dm
+	if(world.params["bot-silicons"])
+		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_spawn_silicons), text2num(world.params["bot-silicons"])), 5 SECONDS) //goals/silicon.dm
 	if(world.params["heads-drill"])
 		addtimer(CALLBACK(src, PROC_REF(heads_drill)), 4 MINUTES)
 	if(world.params["ttv-bench"])
@@ -405,6 +411,38 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 			charge += S.charge
 			capacity += S.capacity
 	return "[bot_shift_clock(elapsed())] [running]/[total] APCs, SMES [capacity ? round(100 * charge / capacity) : 0]%, [station_air_text()], [station_crystal_text()]"
+
+/// What's broken and not yet put back, across the station: what repairs have to keep up with.
+/datum/bot_shift/proc/station_damage_text()
+	var/lights = 0
+	var/apcs = 0
+	var/doors = 0
+	var/machines = 0
+	for(var/obj/machinery/M as anything in GLOB.machines)
+		if(!is_station_level(M.z))
+			continue
+		if(istype(M, /obj/machinery/light))
+			var/obj/machinery/light/L = M
+			if(L.status != LIGHT_OK)
+				lights++
+		else if(istype(M, /obj/machinery/power/apc))
+			var/obj/machinery/power/apc/A = M
+			if((A.stat & BROKEN) || !A.cell)
+				apcs++
+		else if(istype(M, /obj/machinery/door))
+			if(M.stat & BROKEN)
+				doors++
+		else if(M.stat & BROKEN)
+			machines++
+	var/cameras = 0
+	for(var/obj/machinery/camera/C as anything in GLOB.cameranet.cameras)
+		if(is_station_level(C.z) && !C.status)
+			cameras++
+	var/door_frames = 0
+	for(var/obj/structure/door_assembly/D in world)
+		if(is_station_level(D.z))
+			door_frames++
+	return "[lights] lights, [apcs] APCs, [doors] doors and [door_frames] empty door frames, [cameras] cameras, [machines] other machines, [length(GLOB.bot_wrecks)] windows out"
 
 /// The crystal and the air around it, and how many of the emitters meant for it are firing.
 /datum/bot_shift/proc/station_crystal_text()
@@ -1809,6 +1847,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	if(GLOB.bot_griefer)
 		header += "Griefed: [GLOB.bot_griefer.report()]\n"
 	header += "Power: [jointext(power_curve, "; ")]\n"
+	header += "Broken: [damage_start] a minute in; [station_damage_text()] at the end\n"
 	header += "Load every five minutes, at [world.fps] ticks a second:\n  [jointext(load_curve, "\n  ")]\n"
 	header += "Round logs: [GLOB.log_directory]\n"
 	var/summary = "[header]\n[jointext(lines, "\n")]\nFAILED: [failures]\n"

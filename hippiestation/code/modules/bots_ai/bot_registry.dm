@@ -71,7 +71,8 @@ GLOBAL_VAR_INIT(bot_objs_indexed, FALSE)
 /proc/bot_registry_remove(obj/O)
 	var/path = O.type
 	var/list/same = GLOB.bot_objs_by_type[path]
-	same -= O
+	if(same) //something deleted in the middle of being made never got as far as being added
+		same -= O
 	for(var/type in bot_tracked_parents_of(path))
 		var/list/instances = GLOB.bot_type_registry[type]
 		instances -= O

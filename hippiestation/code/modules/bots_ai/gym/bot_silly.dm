@@ -27,6 +27,8 @@ GLOBAL_LIST_INIT(bot_silly_values, list("1", "0", "-1", "100", "99999", "-99999"
 		var/obj/item/I = path
 		if((initial(I.item_flags) & ABSTRACT) || !initial(I.name) || !initial(I.icon_state) || findtext("[path]", "/cyborg")) //a cyborg's stacks need a cyborg
 			continue
+		if(path == /obj/item/gun/magic || path == /obj/item/slimecross/recurring || path == /obj/item/gangtool/hell_march || ispath(path, /obj/item/paper/contract/infernal))
+			continue //parents and things that can't exist on their own
 		GLOB.bot_silly_items += path
 	var/list/crew = GLOB.bot_crew_members.Copy()
 	shuffle_inplace(crew)
@@ -112,7 +114,8 @@ GLOBAL_LIST_INIT(bot_silly_values, list("1", "0", "-1", "100", "99999", "-99999"
 				var/mods = pick("ctrl=1", "middle=1", "shift=1;ctrl=1", "right=1", "alt", "altclick")
 				doing = "[mods] on [A] ([A.type]) with [H.get_active_held_item()]"
 				if(mods == "alt" || mods == "altclick")
-					A.AltClick(H)
+					if(!isturf(A)) //a turf's opens the statpanel
+						A.AltClick(H)
 				else
 					H.ClickOn(A, mods)
 		if("drag")
@@ -120,9 +123,7 @@ GLOBAL_LIST_INIT(bot_silly_values, list("1", "0", "-1", "100", "99999", "-99999"
 			var/atom/over = pick(something_nearby(), H, get_turf(H))
 			if(from && over)
 				doing = "dragging [from] ([from.type]) on to [over] ([over.type])"
-				from.MouseDrop(over, from.loc, over.loc, "mapwindow.map", "mapwindow.map", "left=1")
-				if(!QDELETED(from) && !QDELETED(over))
-					over.MouseDrop_T(from, H)
+				over.MouseDrop_T(from, H) //the half of a drag that isn't about the client
 		if("button")
 			press_a_button()
 		if("self")

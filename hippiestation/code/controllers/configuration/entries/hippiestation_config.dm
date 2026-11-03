@@ -60,6 +60,10 @@
 	config_entry_value = 0
 	min_val = 0
 
+/datum/config_entry/number/bot_crew_silicons	// how many of the bot crew are silicons on top of the rest: one AI, then cyborgs (bots_ai/goals/silicon.dm)
+	config_entry_value = 3
+	min_val = 0
+
 /datum/config_entry/string/player_log_ckey	// the one player whose actions get logged the way the bots' are (bots_ai/player_log.dm)
 	protection = CONFIG_ENTRY_LOCKED
 

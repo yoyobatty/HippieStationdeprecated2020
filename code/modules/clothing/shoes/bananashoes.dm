@@ -61,7 +61,9 @@
 		icon_state = "clown_prototype_on"
 	else
 		icon_state = "clown_prototype_off"
-	usr.update_inv_shoes()
+	if(ismob(loc)) // hippie -- this also runs when the bananium runs out, with no usr at all, and for shoes nobody's wearing
+		var/mob/wearer = loc
+		wearer.update_inv_shoes()
 	for(var/X in actions)
 		var/datum/action/A = X
 		A.UpdateButtonIcon()

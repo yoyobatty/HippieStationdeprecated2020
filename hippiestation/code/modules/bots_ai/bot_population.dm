@@ -116,6 +116,7 @@ GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 	UNTIL(!target || SSticker.IsRoundInProgress())
 	if(world.time < SSticker.round_start_time + BOT_CREW_AT_POSTS_UNTIL)
 		muster()
+		bot_spawn_silicons(CONFIG_GET(number/bot_crew_silicons)) //goals/silicon.dm
 	mustering = FALSE
 	if(!latecomers_picked)
 		latecomers_picked = TRUE

@@ -107,7 +107,8 @@
 	if(reagents)
 		qdel(reagents)
 
-	QDEL_NULL(wires) // hippie -- wires and their holder point at each other, so anything wired without its own cleanup could only be hard deleted
+	if(istype(wires)) // hippie -- wires and their holder point at each other, so anything wired without its own cleanup could only be hard deleted.
+		QDEL_NULL(wires) // assemblies keep bitflags in this var, and del() on a number is a "bad del" runtime
 
 	orbiters = null // The component is attached to us normaly and will be deleted elsewhere
 

@@ -291,6 +291,8 @@
 /obj/item/paicard/attackby(obj/item/W, mob/user, params)
 	..()
 	user.set_machine(src)
+	if(!pai) // hippie -- a card with nobody in it
+		return
 	if(pai.encryptmod == TRUE)
 		if(W.tool_behaviour == TOOL_SCREWDRIVER)
 			pai.radio.attackby(W, user, params)

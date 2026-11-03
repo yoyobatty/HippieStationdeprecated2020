@@ -56,6 +56,8 @@
 		G.caller_turf = T
 		G.caller_name = what
 		B.assign_goal(G)
+	for(var/datum/bot_silicon/borg/S in GLOB.bot_silicons) //goals/silicon.dm
+		S.answer_call(T)
 
 /datum/bot_brain/proc/call_for_backup(mob/living/carbon/human/S)
 	if(world.time < next_dispatch_call)
