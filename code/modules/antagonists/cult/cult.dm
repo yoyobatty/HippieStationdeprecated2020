@@ -300,13 +300,13 @@
 	var/datum/objective/sacrifice/sac_objective = new
 	sac_objective.team = src
 
-	for(var/mob/living/carbon/human/player in GLOB.player_list)
+	for(var/mob/living/carbon/human/player in bot_counted_players()) //hippie: the bot crew can be picked too (bot_shuttle.dm)
 		if(player.mind && !player.mind.has_antag_datum(/datum/antagonist/cult) && !is_convertable_to_cult(player) && player.stat != DEAD)
 			target_candidates += player.mind
 
 	if(target_candidates.len == 0)
 		message_admins("Cult Sacrifice: Could not find unconvertible target, checking for convertible target.")
-		for(var/mob/living/carbon/human/player in GLOB.player_list)
+		for(var/mob/living/carbon/human/player in bot_counted_players())
 			if(player.mind && !player.mind.has_antag_datum(/datum/antagonist/cult) && player.stat != DEAD)
 				target_candidates += player.mind
 	listclearnulls(target_candidates)
@@ -315,7 +315,7 @@
 		sac_objective.update_explanation_text()
 
 		var/datum/job/sacjob = SSjob.GetJob(sac_objective.target.assigned_role)
-		var/datum/preferences/sacface = sac_objective.target.current.client.prefs
+		var/datum/preferences/sacface = sac_objective.target.current.client?.prefs //a bot has no client: the job's outfit on a stand-in
 		var/icon/reshape = get_flat_human_icon(null, sacjob, sacface, list(SOUTH))
 		reshape.Shift(SOUTH, 4)
 		reshape.Shift(EAST, 1)

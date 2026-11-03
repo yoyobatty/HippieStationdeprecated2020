@@ -12,13 +12,18 @@
 		if((get_area(H) in areas) && H.stat != DEAD)
 			return TRUE
 
-/// The same judgement as emergency.dm's, with the bots counted as well. It goes by GLOB.player_list, the mobs with a client, which no
-/// bot has: a shuttle full of bot crew read as empty, and a bot hijacker was never aboard (goals/traitor_objectives.dm).
-/obj/docking_port/mobile/emergency/is_hijacked()
-	var/list/everyone = GLOB.player_list.Copy()
+/// GLOB.player_list, the mobs with a client, and the bot crew, who have none (bot_identity.dm keeps them out of it): for the round's own
+/// judgements of who's about, which ought to count them.
+/proc/bot_counted_players()
+	. = GLOB.player_list.Copy()
 	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
 		if(B.owner)
-			everyone |= B.owner
+			. |= B.owner
+
+/// The same judgement as emergency.dm's, with the bots counted as well: a shuttle full of bot crew read as empty, and a bot hijacker was
+/// never aboard (goals/traitor_objectives.dm).
+/obj/docking_port/mobile/emergency/is_hijacked()
+	var/list/everyone = bot_counted_players()
 	var/has_people = FALSE
 	var/hijacker_present = FALSE
 	for(var/mob/living/player in everyone)

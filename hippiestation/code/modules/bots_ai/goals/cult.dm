@@ -6,6 +6,8 @@
 //  - Two of them for each conversion. One waits beside the rune. The other finds somebody on their own, stuns them with blood magic (the
 //    stun spell's flash, paralysis and silence) and shackles them (the shackles spell's cult cuffs), drags them to the rune and onto it,
 //    and invokes it with the first beside it: the rune does the rest (runes.dm).
+//  - The sacrifice the Geometer asks for (the cult's first objective, somebody it can't convert: Security or a head) the same way, once
+//    there are three of them: the rune won't take that one with fewer chanting.
 //  - In between they keep their jobs and their mouths shut. A convert who's a bot joins in.
 
 #define BOT_CULT_OP_TIMEOUT (3 MINUTES)
@@ -22,6 +24,9 @@
 	var/datum/weakref/victim_ref
 	var/datum/bot_brain/stunner
 	var/datum/bot_brain/helper
+	/// The third pair of hands a sacrifice needs.
+	var/datum/bot_brain/helper2
+	var/sacrificing = FALSE
 	var/op_started = 0
 	var/next_op = 0
 	var/converted = 0
@@ -78,26 +83,78 @@ GLOBAL_DATUM(bot_cult, /datum/bot_cult)
 
 /// The conversion in hand, if it's still going; otherwise it's dropped.
 /datum/bot_cult/proc/check_op()
+	if(sacrificing && sac_objective()?.check_completion()) //the rune gibs them: there's nobody left to check on
+		log_game("BOT CULT: the sacrifice is made")
+		end_op()
+		return
 	var/mob/living/carbon/human/V = victim_ref?.resolve()
 	if(!V)
 		return
-	if(V.stat == DEAD || iscultist(V) || world.time > op_started + BOT_CULT_OP_TIMEOUT || !(stunner in living()) || !(helper in living()))
+	if((V.stat == DEAD && !sacrificing) || iscultist(V) || world.time > op_started + BOT_CULT_OP_TIMEOUT || !(stunner in living()) || !(helper in living()) || (sacrificing && !(helper2 in living())))
 		if(iscultist(V))
 			converted++
 			log_game("BOT CULT: [V] converted ([converted] so far)")
 		else
-			log_game("BOT CULT: dropped [V]: dead [V.stat == DEAD], timed out [world.time > op_started + BOT_CULT_OP_TIMEOUT], taker [stunner in living()], waiter [helper in living()]")
-		if(stunner?.owner?.pulling)
-			stunner.owner.stop_pulling()
-		victim_ref = null
-		stunner = null
-		helper = null
-		next_op = world.time + BOT_CULT_OP_GAP
+			log_game("BOT CULT: dropped [V][sacrificing ? " (the sacrifice)" : ""]: dead [V.stat == DEAD], timed out [world.time > op_started + BOT_CULT_OP_TIMEOUT], taker [stunner in living()], waiter [helper in living()]")
+		end_op()
+
+/datum/bot_cult/proc/end_op()
+	if(stunner?.owner?.pulling)
+		stunner.owner.stop_pulling()
+	victim_ref = null
+	stunner = null
+	helper = null
+	helper2 = null
+	sacrificing = FALSE
+	next_op = world.time + BOT_CULT_OP_GAP
+
+/datum/bot_cult/proc/sac_objective()
+	for(var/datum/objective/sacrifice/S in antag_team?.objectives)
+		return S
+
+/// Nobody else this close to them.
+/proc/bot_cult_alone(mob/living/carbon/human/H)
+	for(var/mob/living/carbon/human/other in view(BOT_CULT_ALONE, H))
+		if(other != H && other.stat == CONSCIOUS && !iscultist(other))
+			return FALSE
+	return TRUE
+
+/// The one the Geometer asked for, on their own: the nearest of them takes them and two more wait at the rune.
+/datum/bot_cult/proc/plan_sacrifice(list/alive)
+	var/datum/objective/sacrifice/S = sac_objective()
+	var/mob/living/carbon/human/H = S?.target?.current
+	if(!S || S.check_completion() || !istype(H) || H.stat == DEAD || iscultist(H) || H.z != rune.z || is_convertable_to_cult(H, antag_team) || !bot_cult_alone(H))
+		return FALSE //one they could convert gets converted by the rune instead, and the objective's still undone
+	var/datum/bot_brain/taker
+	for(var/datum/bot_brain/B as anything in alive)
+		if(!taker || get_dist(B.owner, H) < get_dist(taker.owner, H))
+			taker = B
+	var/list/rest = alive - taker
+	var/datum/bot_brain/first
+	var/datum/bot_brain/second
+	for(var/datum/bot_brain/B as anything in rest)
+		if(!first || get_dist(B.owner, rune) < get_dist(first.owner, rune))
+			second = first
+			first = B
+		else if(!second || get_dist(B.owner, rune) < get_dist(second.owner, rune))
+			second = B
+	if(!taker || !first || !second || get_dist(taker.owner, H) > 60)
+		return FALSE
+	victim_ref = WEAKREF(H)
+	stunner = taker
+	helper = first
+	helper2 = second
+	sacrificing = TRUE
+	op_started = world.time
+	log_game("BOT CULT: going for the sacrifice, [H]: [stunner.owner] takes them, [helper.owner] and [helper2.owner] wait at the rune")
+	return TRUE
 
 /// Somebody on their own, who the rune would take, and the two cultists nearest them.
 /datum/bot_cult/proc/plan_op()
 	var/list/alive = living()
 	if(length(alive) < 2 || QDELETED(rune))
+		return
+	if(length(alive) >= 3 && plan_sacrifice(alive))
 		return
 	var/datum/bot_brain/first = alive[1]
 	var/datum/antagonist/cult/C = first.owner.mind.has_antag_datum(/datum/antagonist/cult, TRUE)
@@ -110,12 +167,7 @@ GLOBAL_DATUM(bot_cult, /datum/bot_cult)
 		var/role = H.bot_brain ? H.bot_brain.work_role() : H.mind.assigned_role
 		if((role in GLOB.security_positions) || (role in GLOB.command_positions))
 			continue
-		var/company = FALSE
-		for(var/mob/living/carbon/human/other in view(BOT_CULT_ALONE, H))
-			if(other != H && other.stat == CONSCIOUS && !iscultist(other))
-				company = TRUE
-				break
-		if(company)
+		if(!bot_cult_alone(H))
 			continue
 		for(var/datum/bot_brain/B as anything in alive)
 			var/dist = get_dist(B.owner, H)
@@ -151,6 +203,20 @@ GLOBAL_DATUM(bot_cult, /datum/bot_cult)
 /datum/bot_duty/cult/try_start(datum/bot_brain/bot)
 	return bot.cult_business()
 
+/// Beside the rune for the one being brought, or with them on it for the others: it stays there. Back to wandering in between, it walked
+/// off from the rune a moment after getting there, and was never beside it with the victim on it and the rest there too: the
+/// conversion ran out of time three times out of four.
+/datum/bot_duty/cult/keep_holding(datum/bot_brain/bot)
+	var/datum/bot_cult/C = GLOB.bot_cult
+	if(!C || QDELETED(C.rune) || !C.victim_ref?.resolve() || bot.owner.incapacitated() || !bot.owner.Adjacent(C.rune))
+		return FALSE
+	return bot == C.helper || bot == C.helper2 || bot == C.stunner
+
+/// Waiting by the rune: held there (keep_holding() above).
+/datum/bot_brain/proc/cult_hold()
+	holding_duty = bot_duty_of(/datum/bot_duty/cult)
+	return TRUE
+
 /datum/bot_brain/proc/cult_business()
 	var/datum/bot_cult/C = GLOB.bot_cult
 	if(!C || !iscultist(owner) || owner.incapacitated())
@@ -166,20 +232,21 @@ GLOBAL_DATUM(bot_cult, /datum/bot_cult)
 		V = C.victim_ref?.resolve()
 		if(!V)
 			return FALSE
-	if(src == C.helper)
-		return owner.Adjacent(C.rune) ? FALSE : assign_goal(new /datum/bot_goal/cult_wait(C.rune))
+	if(src == C.helper || src == C.helper2)
+		return owner.Adjacent(C.rune) ? cult_hold() : assign_goal(new /datum/bot_goal/cult_wait(C.rune))
 	if(src != C.stunner)
 		return FALSE
 	if(V.loc == C.rune.loc)
 		if(!owner.Adjacent(C.rune))
 			return assign_goal(new /datum/bot_goal/cult_wait(C.rune))
-		if(C.helper?.owner?.Adjacent(C.rune))
+		if(C.helper?.owner?.Adjacent(C.rune) && (!C.sacrificing || C.helper2?.owner?.Adjacent(C.rune)))
 			human_pause(C.rune)
 			telemetry_clicked(C.rune)
+			usr = owner //the soulstone a sacrifice leaves is made out to whoever clicked (runes.dm)
 			C.rune.attack_hand(owner) //it gathers the cultists beside it (can_invoke())
 			C.check_op()
 			return TRUE
-		return FALSE //waiting on the other one
+		return cult_hold() //waiting on the others
 	return assign_goal(new /datum/bot_goal/cult_take(V, C.rune))
 
 // ---------------------------------------------------------------------------------------------
@@ -306,6 +373,12 @@ GLOBAL_LIST_INIT(bot_cult_rune_areas, typecacheof(list(/area/crew_quarters/toile
 
 /datum/bot_goal/cult_take/on_give_up(datum/bot_brain/bot)
 	bot.owner.stop_pulling()
+
+/datum/bot_goal/cult_wait/on_success(datum/bot_brain/bot)
+	bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, cult_business)), TRUE) //there: held, or the words if they're all in place
+
+/datum/bot_goal/cult_take/on_success(datum/bot_brain/bot)
+	bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, cult_business)), TRUE) //on the rune: the words, before they can get up
 
 /// What the stun spell's hand does to whoever it touches (blood_magic.dm), then what the shackles spell does.
 /datum/bot_step/cult_stun/execute(datum/bot_brain/bot)
