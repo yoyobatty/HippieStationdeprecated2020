@@ -8,6 +8,8 @@
 //    and invokes it with the first beside it: the rune does the rest (runes.dm).
 //  - The sacrifice the Geometer asks for (the cult's first objective, somebody it can't convert: Security or a head) the same way, once
 //    there are three of them: the rune won't take that one with fewer chanting.
+//  - Nine of them and the sacrifice made: the leader draws Nar'Sie's rune where the veil is weak and the rest stand on it to call the
+//    Geometer (below).
 //  - In between they keep their jobs and their mouths shut. A convert who's a bot joins in.
 
 #define BOT_CULT_OP_TIMEOUT (3 MINUTES)
@@ -35,6 +37,7 @@ GLOBAL_DATUM(bot_cult, /datum/bot_cult)
 
 /datum/bot_brain
 	var/bot_cultist = FALSE
+	var/cult_gather_retry_at = 0
 
 /proc/bot_spawn_cult(count)
 	if(!GLOB.bot_cult)
@@ -193,6 +196,7 @@ GLOBAL_DATUM(bot_cult, /datum/bot_cult)
 /datum/bot_duty/cult
 	name = "the Geometer's work"
 	tier = BOT_DUTY_URGENT
+	interrupts = TRUE
 	priority = 7
 	interval_min = 20
 	interval_max = 50
@@ -203,11 +207,26 @@ GLOBAL_DATUM(bot_cult, /datum/bot_cult)
 /datum/bot_duty/cult/try_start(datum/bot_brain/bot)
 	return bot.cult_business()
 
+/// One with a part in what's going on now drops whatever it's doing for it. Only a bot with nothing on looked: a botanist sent to take the
+/// sacrifice watered trays the whole three minutes, six times over.
+/datum/bot_duty/cult/should_interrupt(datum/bot_brain/bot)
+	var/datum/bot_cult/C = GLOB.bot_cult
+	var/static/list/cult_goals = typecacheof(list(/datum/bot_goal/cult_take, /datum/bot_goal/cult_wait, /datum/bot_goal/cult_summon, /datum/bot_goal/cult_gather, /datum/bot_goal/cult_scribe))
+	if(!C || cult_goals[bot.current_goal?.type] || cult_goals[bot.suspended_goal?.type]) //suspended: off for the tools to hack a door on the way, say
+		return FALSE
+	if(C.victim_ref)
+		return bot == C.stunner || bot == C.helper || bot == C.helper2
+	if(!QDELETED(C.big_rune))
+		return !C.big_rune.used
+	return bot == (C.summoner || C.leader()) && C.ready_to_summon() && world.time >= C.next_summon_try
+
 /// Beside the rune for the one being brought, or with them on it for the others: it stays there. Back to wandering in between, it walked
 /// off from the rune a moment after getting there, and was never beside it with the victim on it and the rest there too: the
 /// conversion ran out of time three times out of four.
 /datum/bot_duty/cult/keep_holding(datum/bot_brain/bot)
 	var/datum/bot_cult/C = GLOB.bot_cult
+	if(C && !QDELETED(C.big_rune))
+		return !bot.owner.incapacitated() && C.on_big_rune(bot)
 	if(!C || QDELETED(C.rune) || !C.victim_ref?.resolve() || bot.owner.incapacitated() || !bot.owner.Adjacent(C.rune))
 		return FALSE
 	return bot == C.helper || bot == C.helper2 || bot == C.stunner
@@ -222,6 +241,8 @@ GLOBAL_DATUM(bot_cult, /datum/bot_cult)
 	if(!C || !iscultist(owner) || owner.incapacitated())
 		return FALSE
 	C.check_op()
+	if(!C.victim_ref && C.ready_to_summon())
+		return summon_business(C)
 	if(QDELETED(C.rune))
 		return src == C.leader() ? assign_goal(new /datum/bot_goal/cult_scribe()) : FALSE
 	var/mob/living/carbon/human/V = C.victim_ref?.resolve()
@@ -275,16 +296,22 @@ GLOBAL_LIST_INIT(bot_cult_rune_areas, typecacheof(list(/area/crew_quarters/toile
 		for(var/turf/open/floor/F in A)
 			if(!is_blocked_turf(F, TRUE) && !(locate(/obj/effect/rune) in F))
 				candidates += F
+	// The leader and two more is all the rune ever needs at once (three for the sacrifice). Every one of them was asked for: a cult of nine
+	// never once found a quiet room all nine could walk into, and never drew a rune.
+	var/need = min(3, length(alive))
 	for(var/i in 1 to 6)
 		if(!length(candidates))
 			break
 		var/turf/T = pick_n_take(candidates)
-		var/everyone = TRUE
-		for(var/datum/bot_brain/B as anything in alive)
-			if(!B.can_walk_lawfully_to(T))
-				everyone = FALSE
+		if(!first.can_walk_lawfully_to(T))
+			continue
+		var/can = 1
+		for(var/datum/bot_brain/B as anything in alive - first)
+			if(can >= need)
 				break
-		if(everyone)
+			if(B.can_walk_lawfully_to(T))
+				can++
+		if(can >= need)
 			return T
 	return null
 
@@ -421,6 +448,238 @@ GLOBAL_LIST_INIT(bot_cult_rune_areas, typecacheof(list(/area/crew_quarters/toile
 		H.Move_Pulled(T)
 	H.stop_pulling()
 	return V.loc == T ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+
+// ---------------------------------------------------------------------------------------------
+// The Geometer
+// ---------------------------------------------------------------------------------------------
+// What the dagger does for Nar'Sie's rune (scribe_rune(), ritual.dm), its menu and its "are you sure" both being a client's: one of the
+// summoning spots the objective names, the station told, a shield of blood round the one drawing it, forty damage and fifty seconds.
+// Then the nine of them on it, a tile each, and the words.
+
+/datum/bot_cult
+	var/obj/effect/rune/narsie/big_rune
+	var/turf/summon_spot
+	/// Whichever of them can walk to the spot on its own card: it draws the rune and stands in the middle of it.
+	var/datum/bot_brain/summoner
+	var/next_summon_try = 0
+	var/summon_announced = FALSE
+	var/summon_nowhere_noted = FALSE
+	/// Until when the summoner is in the middle of drawing it.
+	var/drawing_until = 0
+
+/datum/bot_cult/proc/summon_objective()
+	for(var/datum/objective/eldergod/O in antag_team?.objectives)
+		return O
+
+/// Nine of them, the sacrifice made, and the Geometer not here yet.
+/datum/bot_cult/proc/ready_to_summon()
+	var/datum/objective/eldergod/O = summon_objective()
+	if(!O || O.check_completion() || length(living()) < 9)
+		return FALSE
+	var/datum/objective/sacrifice/S = sac_objective()
+	return !S || S.check_completion()
+
+/// Where it can go: clear floor for the one drawing it, and the eight round it somewhere to stand for the rest, the rune being three tiles
+/// across - a table will do, they climb up. Clear floor all round was more than a kitchen, an office or the armory ever has: two rounds
+/// in three found nowhere in any of the three spots.
+/proc/bot_summon_ground(turf/T)
+	if(!T || !is_station_level(T.z) || !isopenturf(T) || isspaceturf(T) || is_blocked_turf(T, TRUE) || (locate(/obj/effect/rune) in T))
+		return FALSE
+	var/area/A = get_area(T)
+	if(!A?.blob_allowed)
+		return FALSE
+	for(var/turf/U in range(1, T))
+		if(!isopenturf(U) || isspaceturf(U) || U.density)
+			return FALSE
+		for(var/obj/O in U)
+			if(!O.density)
+				continue
+			var/obj/structure/S = O
+			if(!istype(S) || !S.climbable)
+				return FALSE
+	return TRUE
+
+/// Ground for the rune in each of the summoning spots, and of the cultists nearest each, one who can walk there on its own card: that one
+/// draws it. A spot behind a locked door (the auxiliary base's construction room) had the leader fetching tools to hack its way in nine
+/// hundred times over, and with the leader's card alone there was often nowhere at all. A few route checks, a minute apart at most.
+/datum/bot_cult/proc/pick_summoner()
+	summoner = null
+	summon_spot = null
+	var/datum/objective/eldergod/O = summon_objective()
+	var/list/alive = living()
+	var/list/grounds = list()
+	for(var/area/A in O?.summon_spots)
+		var/looked = 0
+		for(var/turf/open/floor/T in A)
+			if(++looked > 400)
+				break
+			if(bot_summon_ground(T))
+				grounds += T
+				break
+	for(var/turf/T as anything in grounds)
+		var/list/by_distance = list()
+		for(var/datum/bot_brain/B as anything in alive)
+			by_distance[B] = get_dist(B.owner, T)
+		sortTim(by_distance, associative = TRUE) //nearest first
+		var/asked = 0
+		for(var/datum/bot_brain/B as anything in by_distance)
+			if(++asked > 3)
+				break
+			if(B.can_walk_lawfully_to(T))
+				summoner = B
+				summon_spot = T
+				return TRUE
+	if(!summon_nowhere_noted)
+		summon_nowhere_noted = TRUE
+		log_game("BOT CULT: nowhere to call the Geometer that one of them can walk to: [length(grounds)] of [length(O?.summon_spots)] spots ([english_list(O?.summon_spots)]) have room")
+	return FALSE
+
+/// On it, as far as the words go: anywhere in the three tiles across (can_invoke(), runes.dm).
+/datum/bot_cult/proc/on_big_rune(datum/bot_brain/B)
+	return !QDELETED(big_rune) && get_dist(B.owner, big_rune) <= 1 && B.owner.z == big_rune.z
+
+/// The one who drew it in the middle; everybody else whichever tile round it is free and nearest. A tile each, handed out in turn, left
+/// those given one with a table on it stopping beside it and trying again, hundreds of times.
+/datum/bot_cult/proc/gather_tile(datum/bot_brain/B)
+	if(QDELETED(big_rune))
+		return null
+	var/turf/center = get_turf(big_rune)
+	if(B == summoner)
+		return center
+	var/turf/best
+	for(var/turf/T in range(1, center))
+		if(T == center || (locate(/mob/living) in T))
+			continue
+		if(!best || get_dist(B.owner, T) < get_dist(B.owner, best))
+			best = T
+	return best
+
+/datum/bot_brain/proc/summon_business(datum/bot_cult/C)
+	if(QDELETED(C.big_rune))
+		if(world.time < C.next_summon_try || (world.time < C.drawing_until && (C.summoner in C.living())))
+			return FALSE //the shield of blood round the one drawing it fails the ground check: a second of them went off to draw another
+		if(!(C.summoner in C.living()) || !bot_summon_ground(C.summon_spot))
+			if(src != C.leader())
+				return FALSE //the rest keep their heads down until it's drawn
+			if(!C.pick_summoner())
+				C.next_summon_try = world.time + 1 MINUTES
+				return FALSE
+		return src == C.summoner ? assign_goal(new /datum/bot_goal/cult_summon()) : FALSE
+	if(!C.on_big_rune(src))
+		if(world.time < cult_gather_retry_at)
+			return FALSE
+		cult_gather_retry_at = world.time + 5 SECONDS
+		return assign_goal(new /datum/bot_goal/cult_gather())
+	if((src == C.summoner || !(C.summoner in C.living())) && !C.big_rune.used)
+		var/list/invokers = C.big_rune.can_invoke(owner)
+		if(length(invokers) >= C.big_rune.req_cultists)
+			log_game("BOT CULT: the Geometer is called, [length(invokers)] of them chanting")
+			human_pause(C.big_rune)
+			telemetry_clicked(C.big_rune)
+			usr = owner
+			C.big_rune.attack_hand(owner)
+			return TRUE
+	return cult_hold()
+
+/datum/bot_goal/cult_summon
+	doing = "drawing something"
+
+/datum/bot_goal/cult_summon/resolve_target(datum/bot_brain/bot)
+	var/datum/bot_cult/C = GLOB.bot_cult
+	if(!C)
+		return
+	target = (bot == C.summoner && bot_summon_ground(C.summon_spot)) ? C.summon_spot : null
+
+/datum/bot_goal/cult_summon/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/cult/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/cult_summon())
+	return list(S)
+
+/datum/bot_goal/cult_summon/on_give_up(datum/bot_brain/bot)
+	var/datum/bot_cult/C = GLOB.bot_cult
+	if(C)
+		C.next_summon_try = world.time + 1 MINUTES
+		C.summon_spot = null
+
+/datum/bot_goal/cult_summon/on_success(datum/bot_brain/bot)
+	bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, cult_business)), TRUE)
+
+/datum/bot_step/paced/cult_summon
+	max_clicks = 3
+	var/stage = 0
+	var/turf/spot
+	var/list/shields
+
+/datum/bot_step/paced/cult_summon/start(datum/bot_brain/bot)
+	stage = 0
+	spot = get_turf(bot.owner)
+	var/datum/objective/eldergod/O = GLOB.bot_cult?.summon_objective()
+	return O && (get_area(spot) in O.summon_spots) && bot_summon_ground(spot) && (locate(/obj/item/melee/cultblade/dagger) in bot.owner.GetAllContents())
+
+/datum/bot_step/paced/cult_summon/do_click(datum/bot_brain/bot)
+	var/mob/living/carbon/human/H = bot.owner
+	var/datum/bot_cult/C = GLOB.bot_cult
+	var/obj/item/melee/cultblade/dagger/D = locate() in H.GetAllContents()
+	switch(stage++)
+		if(0)
+			if(!D || !C || !bot.ready_in_hand(D))
+				return FALSE
+			var/area/A = get_area(spot)
+			priority_announce("Figments from an eldritch god are being summoned by [H] into [A.map_name] from an unknown dimension. Disrupt the ritual at all costs!","Central Command Higher Dimensional Affairs", 'hippiestation/sound/pyko/spanomalies.ogg') // hippie -- pykoai
+			C.summon_announced = TRUE
+			shields = list()
+			for(var/turf/T in spiral_range_turfs(1, H, 1))
+				var/obj/structure/emergency_shield/sanguine/N = new(T)
+				QDEL_IN(N, 70 SECONDS) //if this is cut short and finish() never comes
+				shields += N
+			H.visible_message("<span class='warning'>[H] cuts open [H.p_their()] arm and begins writing in [H.p_their()] own blood!</span>")
+			var/obj/effect/rune/narsie/kind = /obj/effect/rune/narsie
+			H.apply_damage(initial(kind.scribe_damage), BRUTE, pick(BODY_ZONE_L_ARM, BODY_ZONE_R_ARM))
+			started_narsie_summon()
+			log_game("BOT CULT: [H] is drawing Nar'Sie's rune in [A]")
+			wait_for = initial(kind.scribe_delay)
+			C.drawing_until = world.time + wait_for + 10 SECONDS
+			return TRUE
+		if(1)
+			for(var/obj/structure/emergency_shield/sanguine/S as anything in shields)
+				if(!QDELETED(S))
+					qdel(S)
+			shields = null
+			if(C)
+				C.drawing_until = 0
+			if(!D || !C || H.incapacitated() || get_turf(H) != spot || (locate(/obj/effect/rune) in spot)) //do_after()'s checks
+				failed_narsie_summon()
+				log_game("BOT CULT: the drawing of Nar'Sie's rune was cut short")
+				return FALSE
+			H.visible_message("<span class='warning'>[H] creates a strange circle in [H.p_their()] own blood.</span>")
+			var/obj/effect/rune/narsie/R = new(spot)
+			R.add_mob_blood(H)
+			C.big_rune = R
+			log_game("BOT CULT: Nar'Sie's rune is drawn")
+			return FALSE
+	return FALSE
+
+/datum/bot_step/paced/cult_summon/finish(datum/bot_brain/bot)
+	for(var/obj/structure/emergency_shield/sanguine/S as anything in shields)
+		if(!QDELETED(S))
+			qdel(S)
+	shields = null
+	return QDELETED(GLOB.bot_cult?.big_rune) ? GOAL_STEP_FAIL : GOAL_STEP_SUCCESS
+
+/// Onto its own tile of the big rune.
+/datum/bot_goal/cult_gather
+	doing = "on an errand"
+
+/datum/bot_goal/cult_gather/resolve_target(datum/bot_brain/bot)
+	target = GLOB.bot_cult?.gather_tile(bot)
+
+/datum/bot_goal/cult_gather/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/cult/S = new
+	S.steps = list(new /datum/bot_step/move_to())
+	return list(S)
+
+/datum/bot_goal/cult_gather/on_success(datum/bot_brain/bot)
+	bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, cult_business)), TRUE)
 
 #undef BOT_CULT_OP_TIMEOUT
 #undef BOT_CULT_OP_GAP
