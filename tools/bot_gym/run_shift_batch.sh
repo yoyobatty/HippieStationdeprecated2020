@@ -105,6 +105,7 @@ main() {
 	fi
 	if [ ! -f hippiestation.dmb ]; then echo "Compile failed"; exit 1; fi
 
+	rm -rf "$DIR" #a name used before with more runs left its extra runN folders, and the report counted them in
 	mkdir -p "$DIR"
 	# One copy for each slot: a server writes icons it builds at runtime into <name>.dyn.rsc, and two sharing one fail
 	# with "cannot open savefile buffer" the first time both want it.
