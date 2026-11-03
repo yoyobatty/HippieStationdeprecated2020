@@ -11,7 +11,7 @@
 	antagpanel_category = "IAA"
 	var/syndicate = FALSE
 	var/last_man_standing = FALSE
-	var/list/datum/mind/targets_stolen
+	var/list/datum/mind/targets_stolen = list() // hippie -- was never made: an agent who got its target crashed taking over theirs (steal_targets(), .Find())
 
 
 /datum/antagonist/traitor/internal_affairs/proc/give_pinpointer()

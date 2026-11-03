@@ -52,7 +52,7 @@
 	return TRUE
 
 /datum/symptom/proc/Activate(datum/disease/advance/A)
-	if(neutered)
+	if(neutered || !A.affected_mob) // hippie -- a disease with nobody to act on: sneeze, itching and fever ran on into null.emote() and the like
 		return FALSE
 	if(world.time < next_activation)
 		return FALSE

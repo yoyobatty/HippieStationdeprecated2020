@@ -573,6 +573,8 @@
 	if(!owner.incapacitated(ignore_restraints = TRUE))
 		try_clear_obstruction()
 	busy_clearing = FALSE
+	if(QDELETED(owner))
+		return //gone while clearing the way (it can yield): a nuke's blast gibbed one mid-step
 	var/moved_during_clear = (get_turf(owner) != before_clear)
 
 	// try_clear_obstruction() can, several calls deep (handle_blocker_failure() ->

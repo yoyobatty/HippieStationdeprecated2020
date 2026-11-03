@@ -203,7 +203,7 @@ Maintenance panel panel is [open ? "opened" : "closed"]"},
 				var/judgement_criteria = judgement_criteria()
 				threatlevel = H.assess_threat(judgement_criteria)
 				threatlevel -= 6
-				target = null // hippie -- was oldtarget_name, their name: the next look read the string's .loc. oldtarget_name keeps it off them for a while (look_for_perp())
+				target = null // hippie -- was oldtarget_name, their name: a string where a mob goes. oldtarget_name keeps it off them for a while (look_for_perp())
 			else // you really don't want to hit an emagged honkbot
 				threatlevel = 6 // will never let you go
 			addtimer(CALLBACK(src, PROC_REF(spam_flag_false)), cooldowntime)
@@ -249,7 +249,7 @@ Maintenance panel panel is [open ? "opened" : "closed"]"},
 							set waitfor = 0
 							stun_attack(target)
 							anchored = FALSE
-							target_lastloc = target.loc
+							target_lastloc = target?.loc // hippie -- stun_attack() lets them go ("HONK once, then leave"): this read the target it had just dropped
 					return
 
 				else	// not next to perp

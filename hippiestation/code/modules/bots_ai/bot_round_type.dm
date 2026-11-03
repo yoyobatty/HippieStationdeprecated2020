@@ -147,8 +147,11 @@
 			continue
 		var/found = FALSE
 		for(var/datum/mind/bot_stand_in/S in L)
-			picked |= S
 			found = TRUE
+			// Given a role, not merely in a pool: traitorchan keeps every changeling candidate in possible_changelings, and 31 were
+			// "picked" for 6 roles. The revolution marks its head revolutionaries only with the mode's restricted jobs.
+			if(S.special_role || S.assigned_role || (S.restricted_roles && S.restricted_roles == mode.restricted_jobs))
+				picked |= S
 		if(found)
 			lists += list(L)
 	var/list/taken = list()
@@ -170,6 +173,10 @@
 		bot.restricted_roles = S.restricted_roles
 		mode.bots_picked++
 		log_game("BOT ROLES: [key_name(bot)] ([bot.assigned_role]) is the [S.special_role || "pick"] [S.name] stood in for")
+	for(var/list/L as anything in lists) //the ones nobody picked, out of the pools they were in
+		for(var/datum/mind/bot_stand_in/S as anything in stand_ins)
+			while(S in L)
+				L -= S
 	log_game("BOT ROLES: [mode.name], [mode.bots_picked] of its antagonists bots, [length(stand_ins)] bots stood in")
 
 /// One of the crew aboard for a role the mode handed out, by the mode's own rules for who can't (its restricted jobs), and nobody
@@ -233,6 +240,25 @@
 	var/limit = text2num(world.params["bot-round-limit"])
 	if(limit)
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_end_test_round)), limit MINUTES)
+	if(world.params["bot-mode"])
+		INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(bot_log_test_round_load))
+
+/// What the round costs the server, a line a minute, for live_round_report.py: world.cpu is the share of a tick used, averaged over
+/// the last few, and the worst second of the minute is kept too.
+/proc/bot_log_test_round_load()
+	UNTIL(SSticker.IsRoundInProgress()) //it's called as the round starts, a moment before the ticker says so
+	while(SSticker.IsRoundInProgress())
+		var/worst = 0
+		var/total = 0
+		for(var/i in 1 to 60)
+			sleep(1 SECONDS)
+			worst = max(worst, world.cpu)
+			total += world.cpu
+		var/alive = 0
+		for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+			if(!QDELETED(B.owner) && B.owner.stat != DEAD)
+				alive++
+		log_game("LIVE LOAD: average [round(total / 60, 0.1)]%, worst [round(worst, 0.1)]%, [alive] bots alive, [length(GLOB.mob_living_list)] living mobs")
 
 /proc/bot_end_test_round()
 	if(!SSticker.IsRoundInProgress())

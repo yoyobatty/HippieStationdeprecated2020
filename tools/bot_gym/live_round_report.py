@@ -32,7 +32,7 @@ def report_run(run):
 
     mode = re.search(r"BOT ROLES: mode '([^']+)'", game)
     picked = re.search(r"BOT ROLES: (.+?), (\d+) of its antagonists bots, (\d+) bots stood in", game)
-    failed = re.findall(r"(\S.*?) failed pre_setup, cause: (.*)", game)
+    failed = re.findall(r"GAME: ([^\n]+?) failed pre_setup, cause: (.*)", game)  # anchored: with the bot logs on, game.log is huge
     head = "%s: %s" % (name, mode.group(1) if mode else "?")
     if picked:
         head += " -> %s, %s of its antagonists bots (%s bots stood in)" % picked.groups()
@@ -80,6 +80,11 @@ def report_run(run):
                 lines.append("    " + line[:160])
     else:
         lines.append("  no round-end report")
+
+    loads = [(float(a), float(w)) for a, w in re.findall(r"LIVE LOAD: average ([\d.]+)%, worst ([\d.]+)%", game)]
+    if loads:
+        lines.append("  server load: %.1f%% of a tick on average, worst second %.1f%%, %d minutes" % (
+            sum(a for a, _ in loads) / len(loads), max(w for _, w in loads), len(loads)))
 
     errors = re.findall(r"runtime error: (.*)", runtime)
     exceptions = runtime.count("BOT AI EXCEPTION")
