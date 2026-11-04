@@ -385,6 +385,8 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 			return TRUE
 		if((D.locked || D.welded || !door_opens_for_me(D)) && minor_arrest_at_door(D)) //goals/security_patrol.dm
 			return TRUE
+		if(!door_opens_for_me(D) && !D.locked && is_security_job() && bot_armory_open_for_security() && bot_is_armory_door(D))
+			return TRUE //the Warden's holding it: in a moment (goals/security_tactics.dm)
 		if(!door_opens_for_me(D) && swipe_door(D)) //a traitor's card (bot_doors.dm)
 			return TRUE
 		// A welded door no longer has to be smashed or given up on: unweld it first (4s with a

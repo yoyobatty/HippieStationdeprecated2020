@@ -291,6 +291,8 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 			next_law_recital = world.time + 1 MINUTES
 			state_laws()
 		return
+	if(bot_text_has_any(lower_msg, list("bolt")) && bot_text_has_any(lower_msg, list("armory")) && bolt_armory_for(talker))
+		return
 	var/answering = world.time < asked_why_until && asked_why?.resolve() == talker //what the door it asked about is for
 	if(answering || bot_text_has_any(lower_msg, list("open", "door", "let me", "unbolt", "help")))
 		asked_why_until = 0
@@ -340,6 +342,29 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	open_door(D)
 	note("opened [D] for [talker]")
 	say_it(pick("Done.", "Opening.", "Got it, [talker.name]."))
+
+/// Security at red alert, arming up: the armory door by them opened and bolted.
+/datum/bot_silicon/ai/proc/bolt_armory_for(mob/living/talker)
+	var/mob/living/carbon/human/H = talker
+	if(!istype(H) || GLOB.security_level < SEC_LEVEL_RED || !(H.mind?.assigned_role in GLOB.security_positions))
+		return FALSE
+	for(var/obj/machinery/door/airlock/D in range(2, H))
+		if(!bot_is_armory_door(D) || !D.canAIControl(owner))
+			continue
+		if(D.density)
+			INVOKE_ASYNC(src, PROC_REF(open_and_bolt), D)
+		else
+			D.bolt()
+		note("bolted the armory open for [H]")
+		say_it(pick("Armory bolted open.", "Done. Armory's open.", "Bolted. Good luck."))
+		return TRUE
+	return FALSE
+
+/datum/bot_silicon/ai/proc/open_and_bolt(obj/machinery/door/airlock/D)
+	if(D.locked)
+		D.unbolt()
+	if(D.open())
+		D.bolt()
 
 /// Places the AI keeps shut to anybody not cleared for them.
 /proc/bot_ai_restricted_area(area/A)

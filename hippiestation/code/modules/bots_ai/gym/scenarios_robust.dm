@@ -401,3 +401,53 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return bot_transcript_said("EMP grenade at") ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/armory_opens
+	name = "security: at red alert with a nanosuit loose, the Warden opens the armory and an officer arms up from it"
+	desc = "The user's ruling: open the Armory. The Warden opens the armory door and holds it, says so on the radio, and an officer with no armory access of its own walks in for a laser."
+	duty_type = /datum/bot_duty/open_armory
+	job = "Warden"
+	station_wide = TRUE //the alert level is the whole station's
+	layout = list(
+		"############",
+		"#B.O...Dl..#",
+		"#K##########",
+		"############")
+	time_limit = 40 SECONDS
+	var/mob/living/carbon/human/officer
+	var/mob/living/carbon/human/suspect
+
+/datum/bot_scenario/duty/armory_opens/setup()
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	A.req_access = list(ACCESS_ARMORY)
+	A.req_access_txt = "[ACCESS_ARMORY]"
+	for(var/turf/T in markers["l"])
+		place("l", new /obj/item/gun/energy/laser(T))
+
+/datum/bot_scenario/duty/armory_opens/post_spawn()
+	var/obj/item/card/id/C = bot.get_idcard(TRUE)
+	if(!C)
+		C = new /obj/item/card/id(bot)
+		bot.equip_to_slot_or_del(C, ITEM_SLOT_ID)
+	C.access |= list(ACCESS_ARMORY, ACCESS_SECURITY, ACCESS_BRIG)
+	officer = second_bot(first_marker("O"), "Officer Oakes")
+	officer.mind.assigned_role = "Security Officer"
+	officer.bot_brain.register_security()
+	suspect = stand_in(first_marker("K"), "Nano Suit")
+	suspect.equip_to_slot_or_del(new /obj/item/clothing/suit/space/hardsuit/nano(suspect), ITEM_SLOT_OCLOTHING)
+	brain.file_crime(suspect, "Murder", "Gym.", BOT_CRIME_MURDER)
+	INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(set_security_level), SEC_LEVEL_RED)
+
+/datum/bot_scenario/duty/armory_opens/check()
+	if(bot_lost() || QDELETED(officer))
+		return BOT_GYM_FAIL
+	if(bot_armory_open_for_security() && officer.bot_brain.state == BOT_STATE_WANDER && !officer.bot_brain.current_goal)
+		var/datum/bot_duty/arm_up/D = bot_duty_of(/datum/bot_duty/arm_up)
+		D.try_start(officer.bot_brain) //a scripted bot doesn't look for its own duties
+	return (locate(/obj/item/gun/energy/laser) in officer.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/armory_opens/release_run()
+	bot_clear_wanted(suspect)
+	GLOB.bot_armory_open_until = 0
+	INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(set_security_level), SEC_LEVEL_GREEN)
+	return ..()

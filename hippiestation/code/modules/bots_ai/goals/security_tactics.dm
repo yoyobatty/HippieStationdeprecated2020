@@ -320,9 +320,115 @@ GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 			return G
 	return null
 
+// ---------------------------------------------------------------------------------------------
+// The armory, open at red alert (the user's ruling, 2026-11-04)
+// ---------------------------------------------------------------------------------------------
+
+// At red alert with somebody in a nanosuit at large, the Warden or the Head of Security opens the armory for the officers: its lockdown
+// lifted, the door opened and held, or bolted open by the AI if there is one, and the officers told on the radio to come and arm up.
+// They walk in for the ion rifle, a laser, the EMP grenade, which they've no access of their own for.
+
+GLOBAL_VAR_INIT(bot_armory_open_until, 0)
+/// How long the armory stays open to Security once it's opened, and how long the Warden stands at the door.
+#define BOT_ARMORY_OPEN_TIME (3 MINUTES)
+#define BOT_ARMORY_HOLD_TIME (90 SECONDS)
+
+/// A door that wants armory access.
+/proc/bot_is_armory_door(obj/machinery/door/D)
+	if(!istype(D))
+		return FALSE
+	D.gen_access()
+	return (ACCESS_ARMORY in D.req_access) || (ACCESS_ARMORY in D.req_one_access)
+
+/// Open to Security just now: the Warden or the Head of Security has opened up at red alert.
+/proc/bot_armory_open_for_security()
+	return world.time < GLOB.bot_armory_open_until
+
+/// Somebody in a nanosuit wanted and at large, this bot's business (in the Bot Gym, in its own arena).
+/datum/bot_brain/proc/suit_at_large()
+	for(var/datum/weakref/ref as anything in GLOB.bot_security_wanted)
+		var/mob/living/carbon/human/H = ref.resolve()
+		if(H && H.stat != DEAD && !H.handcuffed && bot_in_nanosuit(H) && (!gym_run || get_area(H) == get_area(owner)))
+			return H
+	return null
+
+/// The nearest armory door its ID opens and it can walk to.
+/datum/bot_brain/proc/armory_door()
+	var/obj/machinery/door/airlock/best
+	for(var/obj/machinery/door/airlock/D as anything in bot_instances_of(/obj/machinery/door/airlock))
+		if(QDELETED(D) || D.z != owner.z || !bot_is_armory_door(D) || !D.check_access(owner.get_idcard(TRUE)))
+			continue
+		if(gym_run && get_area(D) != get_area(owner))
+			continue
+		if(best && get_dist(owner, D) >= get_dist(owner, best))
+			continue
+		if(can_walk_lawfully_to(D))
+			best = D
+	return best
+
+/datum/bot_duty/open_armory
+	name = "opening the armory"
+	jobs = list("Warden", "Head of Security")
+	tier = BOT_DUTY_URGENT
+	priority = 31
+	interval_min = 50
+	interval_max = 150
+
+/datum/bot_duty/open_armory/try_start(datum/bot_brain/bot)
+	if(GLOB.security_level < SEC_LEVEL_RED || bot_armory_open_for_security() || !bot.suit_at_large())
+		return FALSE
+	var/obj/machinery/door/airlock/D = bot.armory_door()
+	return D ? bot.assign_goal(new /datum/bot_goal/open_armory(D)) : FALSE
+
+/datum/bot_goal/open_armory
+	lawful = TRUE
+	exclusive = TRUE
+	doing = "opening the armory"
+
+/datum/bot_goal/open_armory/New(obj/machinery/door/airlock/D)
+	. = ..()
+	target = D
+
+/datum/bot_goal/open_armory/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/robotics/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/hold_armory())
+	return list(S)
+
+/// At the armory door: opened, the officers told, the AI asked to bolt it, and held open till it's bolted or the time's up.
+/datum/bot_step/paced/hold_armory
+	max_clicks = 60
+	var/until = 0
+
+/datum/bot_step/paced/hold_armory/start(datum/bot_brain/bot)
+	var/obj/machinery/door/airlock/D = bot.current_goal?.target
+	if(!istype(D) || !bot.owner.Adjacent(D))
+		return FALSE
+	until = world.time + BOT_ARMORY_HOLD_TIME
+	GLOB.bot_armory_open_until = world.time + BOT_ARMORY_OPEN_TIME
+	bot_log(bot, "opening the armory for the officers")
+	bot_tally("armory opened")
+	bot_say(bot.owner, ":s Armory's open. Lasers, the ion rifle, the EMP grenade if there is one: get armed and get back to me.")
+	if(locate(/datum/bot_silicon/ai) in GLOB.bot_silicons)
+		bot_say(bot.owner, ";AI, bolt the Armory open, we're arming up.")
+	return TRUE
+
+/datum/bot_step/paced/hold_armory/do_click(datum/bot_brain/bot)
+	var/obj/machinery/door/airlock/D = bot.current_goal?.target
+	if(!istype(D) || QDELETED(D) || world.time > until || !bot.owner.Adjacent(D))
+		return FALSE
+	if(D.locked && !D.density)
+		return FALSE //bolted open: done
+	if(D.density && !D.operating && !D.locked && D.hasPower())
+		bot.use_atom(D)
+	wait_for = 20
+	return TRUE
+
+/datum/bot_step/paced/hold_armory/finish(datum/bot_brain/bot)
+	return GOAL_STEP_SUCCESS
+
 /datum/bot_duty/arm_up
 	name = "getting something heavier from the armory"
-	jobs = list("Warden", "Head of Security")
+	jobs = list("Warden", "Head of Security", "Security Officer")
 	tier = BOT_DUTY_URGENT
 	priority = 30
 	interval_min = 100
@@ -331,6 +437,8 @@ GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 /datum/bot_duty/arm_up/try_start(datum/bot_brain/bot)
 	if(world.time < bot.next_armory_try || (!length(GLOB.bot_security_wanted) && !length(GLOB.blob_cores)))
 		return FALSE
+	if(bot.work_role() == "Security Officer" && !bot_armory_open_for_security())
+		return FALSE //no access of its own: only once the Warden or the Head of Security has opened up
 	var/want = bot.armory_want()
 	if(!want)
 		return FALSE
@@ -349,6 +457,8 @@ GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 #undef BOT_SEC_FALL_BACK_AT
 #undef BOT_SEC_FALL_BACK_TIME
 #undef BOT_ARMORY_REST
+#undef BOT_ARMORY_OPEN_TIME
+#undef BOT_ARMORY_HOLD_TIME
 #undef BOT_SEC_GROUP
 #undef BOT_SEC_GROUP_RANGE
 #undef BOT_SEC_WAIT_AWAY
