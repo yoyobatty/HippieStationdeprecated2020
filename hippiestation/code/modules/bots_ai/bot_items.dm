@@ -361,6 +361,9 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 			if(destruction_allowed())
 				return try_breach(F)
 			return FALSE
+		if(!heat_proof() && bot_fire_behind(F)) //goals/respond_to_fire.dm: it's shut on a fire
+			bot_log(src, "there's fire at [F], not opening it")
+			return FALSE
 		var/obj/item/crowbar/CB = find_or_transform_tool(/obj/item/crowbar)
 		if(!CB)
 			if(try_safety_release(F)) //a dead firelock has the same hand release

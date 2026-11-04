@@ -56,7 +56,7 @@
 	if(T.active_hotspot)
 		return BOT_GYM_PENDING
 	for(var/line in transcript)
-		if(findtext(line, "can't breathe here"))
+		if(findtext(line, "can't breathe here") || findtext(line, "in the flames at")) //seek_air, or the flames reflex first (goals/respond_to_fire.dm)
 			return BOT_GYM_PASS
 	return BOT_GYM_PENDING
 

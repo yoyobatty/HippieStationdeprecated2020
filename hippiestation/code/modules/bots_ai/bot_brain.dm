@@ -179,7 +179,8 @@
 			floored = TRUE
 		else if(owner.stat != DEAD)
 			mind_hands()
-			try_put_self_out()
+			if(!try_escape_flames())
+				try_put_self_out()
 			if(world.time >= next_air_check_time)
 				next_air_check_time = world.time + 10
 				manage_internals()
@@ -206,6 +207,8 @@
 	if(world.time >= next_watch_time)
 		keep_an_eye_out() //bot_witness.dm
 	if(try_escape_pool())
+		return
+	if(try_escape_flames()) //goals/respond_to_fire.dm
 		return
 	if(try_put_self_out())
 		return
@@ -642,6 +645,8 @@
 			if(owner.buckled)
 				owner.buckled.unbuckle_mob(owner, force = TRUE)
 			return
+	else if(world.time >= next_fire_report_time && can_see_active_fire())
+		report_fire() //goals/respond_to_fire.dm
 	if(is_atmos_response_job() && can_see_atmos_hazard())
 		if(try_contamination_round())
 			if(owner.buckled)

@@ -18,6 +18,9 @@
 #define BOT_HAZARD_PEN_REACH 6
 #define BOT_HAZARD_BEAM 1
 #define BOT_HAZARD_BALL 2
+/// Flames: nobody walks into them who'd burn there, whatever it's on its way to. A firefighter sprays from outside them (goals/respond_to_fire.dm),
+/// and an engineer that walked through a burning engineering bay to fetch an extinguisher and then to mend a cable died of it.
+#define BOT_HAZARD_FIRE 3
 
 /// Turf -> BOT_HAZARD_*, for everywhere a bot won't step into.
 GLOBAL_LIST_EMPTY(bot_hazard_turfs)
@@ -28,6 +31,8 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 	var/hazard = GLOB.bot_hazard_turfs[T]
 	if(!hazard || GLOB.bot_hazard_turfs[from])
 		return FALSE
+	if(hazard == BOT_HAZARD_FIRE)
+		return !caller.bot_brain?.heat_proof()
 	return hazard == BOT_HAZARD_BALL || caller.bot_brain?.pathing_no_tailgating
 
 /proc/bot_refresh_hazards()
@@ -47,7 +52,7 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 	for(var/obj/effect/hotspot/H as anything in SSair.hotspots)
 		var/turf/T = H?.loc
 		if(T && !hazards[T])
-			hazards[T] = BOT_HAZARD_BEAM
+			hazards[T] = BOT_HAZARD_FIRE
 	for(var/mob/living/simple_animal/slime/S in GLOB.alive_mob_list)
 		if(!S.docile && !S.ckey && isturf(S.loc))
 			bot_mark_slime_pen(hazards, S)
@@ -86,3 +91,4 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 #undef BOT_HAZARD_PEN_REACH
 #undef BOT_HAZARD_BEAM
 #undef BOT_HAZARD_BALL
+#undef BOT_HAZARD_FIRE
