@@ -87,6 +87,11 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 // ---------------------------------------------------------------------------------------------
 
 /// Extra setup after the arena is built and before the bot spawns (fill lockers, etc).
+/datum/bot_scenario
+	/// It changes something every arena shares (the station's alert level, a plan only one of runs at a time): it runs once, and only
+	/// when it's asked for by name, not with the rest of the suite.
+	var/station_wide = FALSE
+
 /datum/bot_scenario/proc/setup()
 	return
 
@@ -406,7 +411,9 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 		var/datum/bot_scenario/probe = new path
 		if(!probe.layout || probe.name == "unnamed" || (filter && filter != "all" && !findtext(probe.name, filter))) //no name: a parent type, for its children
 			continue
-		for(var/i in 1 to runs)
+		if(probe.station_wide && (!filter || filter == "all"))
+			continue //it changes what every arena runs under (the alert level): named on its own, not in the suite
+		for(var/i in 1 to (probe.station_wide ? 1 : runs))
 			var/datum/bot_scenario/S = (i == 1) ? probe : new path
 			S.run_index = i
 			active += S

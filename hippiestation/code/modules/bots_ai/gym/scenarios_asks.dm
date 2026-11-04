@@ -491,3 +491,50 @@
 		fail_reason = "the patient died"
 		return BOT_GYM_FAIL
 	return (sleeper.occupant == patient && patient.reagents.has_reagent(/datum/reagent/medicine/epinephrine)) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/red_alert
+	name = "security: a nanosuit at large, the HoS and the Captain take the station to red alert"
+	desc = "A murderer in a nanosuit is wanted. The Head of Security calls red alert with the Captain: each goes to a keycard device, the HoS presses Red Alert and the Captain swipes inside the two seconds the devices give it. Red is when Space Law allows lethal force, and the comms console only goes to blue."
+	job = "Head of Security"
+	station_wide = TRUE
+	layout = list(
+		"###############",
+		"#K..B.....C..k#",
+		"#.............#",
+		"#......N......#",
+		"###############")
+	time_limit = 60 SECONDS
+	var/mob/living/carbon/human/captain
+	var/mob/living/carbon/human/suspect
+
+/datum/bot_scenario/red_alert/setup()
+	for(var/c in list("K", "k"))
+		for(var/turf/T in markers[c])
+			place(c, new /obj/machinery/keycard_auth(T))
+
+/datum/bot_scenario/red_alert/post_spawn()
+	give_job_id(list(ACCESS_KEYCARD_AUTH, ACCESS_HEADS, ACCESS_SECURITY))
+	set_security_level(SEC_LEVEL_GREEN)
+	captain = second_bot(first_marker("C"), "Cap Tain")
+	captain.mind.assigned_role = "Captain"
+	suspect = stand_in(first_marker("N"), "Nano Suit")
+	suspect.equip_to_slot_or_del(new /obj/item/clothing/suit/space/hardsuit/nano(suspect), ITEM_SLOT_OCLOTHING)
+	brain.file_crime(suspect, "Murder", "Gym.", BOT_CRIME_MAJOR)
+
+/datum/bot_scenario/red_alert/issue_goal()
+	var/datum/bot_duty/red_alert/D = bot_duty_of(/datum/bot_duty/red_alert)
+	D.try_start(brain)
+
+/datum/bot_scenario/red_alert/check()
+	if(bot_lost())
+		set_security_level(SEC_LEVEL_GREEN)
+		return BOT_GYM_FAIL
+	if(GLOB.security_level >= SEC_LEVEL_RED)
+		set_security_level(SEC_LEVEL_GREEN) //nothing after this runs at red
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/red_alert/on_timeout()
+	set_security_level(SEC_LEVEL_GREEN)
+	GLOB.bot_red_alert_plan = null
+	return ..()
