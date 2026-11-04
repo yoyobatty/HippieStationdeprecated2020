@@ -373,6 +373,11 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 				return GOAL_STEP_FAIL
 			bot.use_tool_on(tank, C)
 			return C.loaded_tank ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+		// Somebody else got to it on the way: the switch is a toggle, and flicking it again turns it off. Two engineers on Meta switched
+		// one collector on and off between them, failing the job each time, and went back into the chamber for it at full power, 28
+		// trips; the radiation they came back out with killed 21 of the crew.
+		if(C.active)
+			return GOAL_STEP_SUCCESS
 		bot.use_atom(C)
 		bot_log(bot, "switched on [C]")
 		return C.active ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL

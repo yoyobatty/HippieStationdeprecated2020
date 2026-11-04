@@ -410,3 +410,51 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return QDELETED(window) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// Not a test of any one answer: thirty-odd things a player says to somebody stood in front of them, one every few seconds, and
+/// whether anything came back before the next. The transcript has each line and its answer, to read; it passes at two in three.
+/datum/bot_scenario/chat/sweep
+	name = "asks: a sweep of everyday lines, face to face"
+	desc = "Hi, how are you, where's the captain, follow me, give me that, thanks, bye: what a player says to somebody stood in front of them. The user's \"bots need to respond to a lot more of my text\"."
+	job = "Assistant"
+	time_limit = 240 SECONDS
+	layout = list(
+		"#######",
+		"#B.C..#",
+		"#######")
+	var/list/lines = list("hi", "hey", "how are you?", "what are you doing?", "where is the captain?", "can you help me?", "who are you?", "what's your job?", "do you have a crowbar?", "where's medbay?", "thanks", "lol", "are you a traitor?", "nice day isn't it", "i need a doctor", "have you seen the clown?", "what's going on?", "you there?", "excuse me", "sorry", "whats up", "can i have that?", "follow me", "wait here", "come with me", "are you ok?", "do you know where engineering is?", "what do you think of the captain?", "you're cool", "bye")
+	var/next_line = 1
+	var/list/said_at = list()
+
+/datum/bot_scenario/chat/sweep/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(say_next)), 2 SECONDS)
+
+/datum/bot_scenario/chat/sweep/proc/say_next()
+	if(result != BOT_GYM_PENDING || next_line > length(lines))
+		return
+	said_at += length(transcript)
+	visitor_says(lines[next_line++])
+	addtimer(CALLBACK(src, PROC_REF(say_next)), 6 SECONDS)
+
+/datum/bot_scenario/chat/sweep/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(next_line <= length(lines) || world.time < start_time + (length(lines) * 6 + 10) SECONDS)
+		return BOT_GYM_PENDING
+	var/answered = 0
+	var/list/missed = list()
+	for(var/i in 1 to length(said_at))
+		var/first = said_at[i] + 1
+		var/last = (i < length(said_at)) ? said_at[i + 1] : length(transcript)
+		var/got = FALSE
+		for(var/j in first to last)
+			if(j <= length(transcript) && findtext(transcript[j], "said \""))
+				got = TRUE
+				break
+		if(got)
+			answered++
+		else
+			missed += lines[i]
+	log_line("SWEEP: answered [answered] of [length(said_at)]; nothing back for: [english_list(missed)]")
+	return answered * 3 >= length(said_at) * 2 ? BOT_GYM_PASS : BOT_GYM_FAIL

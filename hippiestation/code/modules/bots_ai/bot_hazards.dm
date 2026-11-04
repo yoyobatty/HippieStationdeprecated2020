@@ -26,8 +26,11 @@
 /// Close to a running supermatter: its radiation, for anybody not in a radiation suit or an engineering hardsuit. An assistant, a
 /// chemist and a doctor walking through Meta's Engineering died of it, 1300 to 2300 rads apiece, the crystal at 100%.
 #define BOT_HAZARD_RADS 5
-/// How far from a running crystal that is.
-#define BOT_HAZARD_RADS_RANGE 5
+/// The crystal's power from which its radiation counts, and how far out it does then: two tiles at 150, five at about 900, six at the most.
+/// Not from any power at all: a crystal sits at 1 to 10 from roundstart (Bot Shift's crystal line), and with the whole room round it
+/// out of bounds the engineers couldn't get in to start it, 0 of 4 shifts.
+#define BOT_HAZARD_RADS_FROM 150
+#define BOT_HAZARD_RADS_RANGE(power) clamp(round(sqrt(power) / 6), 2, 6)
 
 /// Turf -> BOT_HAZARD_*, for everywhere a bot won't step into.
 GLOBAL_LIST_EMPTY(bot_hazard_turfs)
@@ -62,8 +65,8 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 	// A supermatter crystal dusts whatever touches it, lit or not.
 	var/obj/machinery/power/supermatter_crystal/crystal = GLOB.main_supermatter_engine
 	if(!QDELETED(crystal))
-		if(crystal.power > 0)
-			for(var/turf/T as anything in RANGE_TURFS(BOT_HAZARD_RADS_RANGE, crystal))
+		if(crystal.power >= BOT_HAZARD_RADS_FROM)
+			for(var/turf/T as anything in RANGE_TURFS(BOT_HAZARD_RADS_RANGE(crystal.power), crystal))
 				hazards[T] = BOT_HAZARD_RADS
 		for(var/turf/T as anything in RANGE_TURFS(1, crystal))
 			hazards[T] = BOT_HAZARD_BALL
@@ -117,3 +120,4 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 #undef BOT_HAZARD_GLASS
 #undef BOT_HAZARD_RADS
 #undef BOT_HAZARD_RADS_RANGE
+#undef BOT_HAZARD_RADS_FROM

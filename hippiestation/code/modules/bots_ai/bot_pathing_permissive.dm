@@ -105,6 +105,8 @@ GLOBAL_LIST_EMPTY(bot_field_generator_turfs)
 /proc/bot_turf_is_deadly(turf/T)
 	if(GLOB.bot_open_trapdoors[T])
 		return TRUE
+	if(istype(T, /turf/open/space/transit)) //off the side of a shuttle under way: thrown out into deep space (transit.dm)
+		return TRUE
 	if(istype(T, /turf/open/lava))
 		var/turf/open/lava/L = T
 		return !L.is_safe()

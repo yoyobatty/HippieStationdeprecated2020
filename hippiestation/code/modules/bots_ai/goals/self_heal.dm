@@ -94,13 +94,13 @@
 	if(!I)
 		if(!tried_restock)
 			tried_restock = TRUE
-			if(bot.restock_medical_supplies())
+			if(bot.restock_medical_supplies(bot_needs_antitox(bot.owner)))
 				bot_log(bot, "hurt and out of medical supplies - going to restock")
 				return GOAL_STEP_PENDING
 		bot_log(bot, "hurt and nothing reachable to restock medical supplies with")
 		bot.no_medical_supplies_until = world.time + 5 MINUTES
 		return GOAL_STEP_FAIL
-	var/hurt_before = bot.owner.getBruteLoss() + bot.owner.getFireLoss()
+	var/hurt_before = bot.owner.getBruteLoss() + bot.owner.getFireLoss() + bot.owner.getToxLoss()
 	bot.owner.changeNext_move(CLICK_CD_MELEE)
 	bot_log(bot, "treating myself with [I]")
 	// Unlike treating ANOTHER patient (treat_patient.dm's own step, which heals
@@ -112,7 +112,7 @@
 	bot.use_item_on(I, bot.owner)
 	if(!bot.patient_needs_treatment(bot.owner))
 		return GOAL_STEP_SUCCESS
-	useless_clicks = (bot.owner.getBruteLoss() + bot.owner.getFireLoss() < hurt_before) ? 0 : useless_clicks + 1
+	useless_clicks = (bot.owner.getBruteLoss() + bot.owner.getFireLoss() + bot.owner.getToxLoss() < hurt_before) ? 0 : useless_clicks + 1
 	if(useless_clicks >= 3)
 		bot_log(bot, "this isn't doing anything for me")
 		return GOAL_STEP_FAIL

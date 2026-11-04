@@ -120,7 +120,7 @@
 /// A step straight away from them, if the floor's there for it.
 /datum/bot_brain/proc/step_back_from(atom/A)
 	var/turf/T = get_step_away(owner, A)
-	if(T && !T.density && !is_blocked_turf(T, TRUE))
+	if(T && !T.density && !is_blocked_turf(T, TRUE) && !bot_turf_is_deadly(T)) //not backwards into the lava
 		step_towards(owner, T)
 
 /// Hurt, and there's nothing to be gained by staying. It says so, and goes and patches up.

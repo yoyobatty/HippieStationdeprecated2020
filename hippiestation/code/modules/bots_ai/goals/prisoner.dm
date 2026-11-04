@@ -72,8 +72,22 @@
 		next_cell_word = world.time + rand(1 MINUTES, 3 MINUTES)
 		var/minutes = max(1, round((T.timer_duration - (world.time - T.activation_time)) / (1 MINUTES)))
 		bot_say(owner, mood_pick(list("[minutes] more minute\s. I can do this.", "Could be worse. At least it's quiet in here."), list("How long have I got? [minutes] minute\s?", "This is ridiculous.", "I want a lawyer.", "Anyone got a deck of cards?"), list("Let me out of here!", "This is shitcurity at its finest.", "I didn't do anything!", "You'll regret this.")))
+	// Up and down the cell now and then, the way anybody does with time to kill: prisoners stood on one tile for minutes at a time.
+	if(world.time >= next_cell_pace && !owner.buckled)
+		next_cell_pace = world.time + rand(20 SECONDS, 50 SECONDS)
+		var/area/cell = get_area(owner)
+		var/list/room = list()
+		for(var/turf/open/F in get_adjacent_open_turfs(owner))
+			if(get_area(F) == cell && !is_blocked_turf(F, TRUE) && !(locate(/obj/machinery/door) in F) && !bot_turf_is_deadly(F))
+				room += F
+		if(length(room))
+			step_to(owner, pick(room))
+			return TRUE
 	idle_fidget()
 	return TRUE
+
+/datum/bot_brain
+	var/next_cell_pace = 0
 
 /datum/bot_goal/break_out
 	doing = "trying the cell window"

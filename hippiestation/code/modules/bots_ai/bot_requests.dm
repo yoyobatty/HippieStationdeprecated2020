@@ -582,9 +582,13 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 	if(D.density && !D.operating)
 		bot.use_atom(D)
 	bot_log(bot, "opened [D] to let [who || "somebody"] out")
-	// They head for it while it's open.
+	// And holds it: an airlock shuts again after fifteen seconds, and from the far end of Engineering that's not long enough.
+	if(who && !QDELETED(D) && get_dist(who, D) > 1)
+		bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, hold_door_for), D, who))
+	// They head for it while it's open. Whatever they were at in there can wait: they asked to be let out, and nothing in there
+	// was getting done (an assistant on a walk that had died under it never got the word, five doors opened for it).
 	var/datum/bot_brain/theirs = istype(who) ? who.bot_brain : null
-	if(theirs && (theirs.state == BOT_STATE_WANDER || istype(theirs.current_goal, /datum/bot_goal/evacuate)) && !QDELETED(D))
+	if(theirs && theirs.state != BOT_STATE_COMBAT && theirs.state != BOT_STATE_ARREST && !QDELETED(D))
 		var/list/inside = theirs.shut_in_region
 		if(theirs.current_goal)
 			theirs.drop_goals("the door's open")
@@ -594,6 +598,53 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 			if(isopenturf(outside) && !outside.density && !LAZYACCESS(inside, outside))
 				theirs.assign_goal(new /datum/bot_goal/walk_up_to(outside))
 				break
+
+/datum/bot_brain/proc/hold_door_for(obj/machinery/door/airlock/D, mob/living/who)
+	return assign_goal(new /datum/bot_goal/hold_door(D, who))
+
+/// Stood at a door it has opened for somebody, opening it again when it shuts, until they're through or it's been the best part of a minute.
+/datum/bot_goal/hold_door
+	lawful = TRUE
+	doing = "holding a door for somebody"
+	var/datum/weakref/for_ref
+
+/datum/bot_goal/hold_door/New(obj/machinery/door/airlock/D, mob/living/who)
+	. = ..()
+	target = D
+	for_ref = WEAKREF(who)
+
+/datum/bot_goal/hold_door/resolve_target(datum/bot_brain/bot)
+	if(QDELETED(target))
+		target = null
+
+/datum/bot_goal/hold_door/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/robotics/S = new
+	S.steps = list(new /datum/bot_step/paced/hold_door())
+	return list(S)
+
+/datum/bot_step/paced/hold_door
+	max_clicks = 30
+	var/until = 0
+
+/datum/bot_step/paced/hold_door/start(datum/bot_brain/bot)
+	until = world.time + 45 SECONDS
+	return bot.owner.Adjacent(bot.current_goal?.target)
+
+/datum/bot_step/paced/hold_door/do_click(datum/bot_brain/bot)
+	var/datum/bot_goal/hold_door/G = bot.current_goal
+	var/obj/machinery/door/airlock/D = G?.target
+	var/mob/living/who = G?.for_ref?.resolve()
+	if(!istype(D) || QDELETED(D) || !who || who.stat != CONSCIOUS || world.time > until || !bot.owner.Adjacent(D))
+		return FALSE
+	var/turf/doorway = get_turf(D)
+	var/turf/theirs = get_turf(who)
+	// Through: off the doorway, close by, and on this side of it.
+	if(theirs != doorway && get_dist(theirs, doorway) <= 2 && bot_door_side(doorway, theirs) == bot_door_side(doorway, get_turf(bot.owner)))
+		return FALSE
+	if(D.density && !D.operating && !D.locked && D.hasPower())
+		bot.use_atom(D)
+	wait_for = 20
+	return TRUE
 
 /// The airlocks around the pocket this bot is shut in, which it can't open itself.
 /datum/bot_brain/proc/doors_shutting_me_in()

@@ -267,6 +267,9 @@ GLOBAL_DATUM(bot_toxins, /datum/bot_toxins)
 	var/datum/bot_toxins/lab
 	var/ends_at = 0
 	var/limit = 2 MINUTES
+	/// Where it stood to start waiting, and when it next moves about a little.
+	var/turf/anchor
+	var/next_mill = 0
 
 /datum/bot_step/paced/toxins/New(datum/bot_toxins/L)
 	. = ..()
@@ -274,6 +277,8 @@ GLOBAL_DATUM(bot_toxins, /datum/bot_toxins)
 
 /datum/bot_step/paced/toxins/start(datum/bot_brain/bot)
 	ends_at = world.time + limit
+	anchor = get_turf(bot.owner)
+	next_mill = world.time + rand(15 SECONDS, 30 SECONDS)
 	return begin(bot)
 
 /datum/bot_step/paced/toxins/proc/begin(datum/bot_brain/bot)
@@ -286,6 +291,16 @@ GLOBAL_DATUM(bot_toxins, /datum/bot_toxins)
 /datum/bot_step/paced/toxins/do_click(datum/bot_brain/bot)
 	if(ready(bot) || world.time > ends_at)
 		return FALSE
+	// A wait of minutes (a burn takes up to eight) isn't spent stood on the one tile: a step or two about the lab now and then, and back.
+	// Every shift with a scientist in Toxins had it flagged as frozen, three minutes at a time, by the burn chamber.
+	if(world.time >= next_mill && anchor && !bot.owner.buckled && !bot.pursuing_kind)
+		next_mill = world.time + rand(15 SECONDS, 30 SECONDS)
+		var/list/near = list()
+		for(var/turf/open/T in get_adjacent_open_turfs(bot.owner))
+			if(get_dist(T, anchor) <= 2 && get_area(T) == get_area(anchor) && !is_blocked_turf(T, TRUE) && !bot_turf_is_deadly(T) && !GLOB.bot_hazard_turfs[T])
+				near += T
+		if(length(near))
+			step_to(bot.owner, pick(near))
 	wait_for = 5
 	return TRUE
 

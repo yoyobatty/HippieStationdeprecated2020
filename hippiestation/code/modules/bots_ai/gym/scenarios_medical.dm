@@ -194,3 +194,48 @@
 	if(clone.wear_id != patient_id || !clone.w_uniform)
 		return BOT_GYM_PENDING
 	return BOT_GYM_PASS
+
+/datum/bot_scenario/patient/poisoned
+	name = "doctor gives a poisoned patient charcoal from the toxin kit"
+	desc = "The patient has 40 toxin damage, what radiation sickness does, and not a scratch. The doctor feeds them a charcoal pill out of the pill bottle in its bag. Doctors used to see to brute and burn and nothing else: 21 of a crew died of radiation in one shift."
+	layout = list(
+		"#########",
+		"#B..C...#",
+		"#########")
+	kit_backpack = list(/obj/item/storage/pill_bottle/charcoal)
+	time_limit = 40 SECONDS
+
+/datum/bot_scenario/patient/poisoned/post_spawn()
+	patient = stand_in(first_marker("C"), "Pat Patient")
+	patient.adjustToxLoss(40)
+
+/datum/bot_scenario/patient/poisoned/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return patient.reagents?.has_reagent(/datum/reagent/medicine/charcoal) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/emergency_internals
+	name = "an assistant where the air's gone puts the mask on and opens the tank"
+	desc = "No oxygen in the room. An assistant, no space job, has the survival box's mask and tank in its bag: it puts the mask on and breathes from the tank. Only the jobs that go out into space used to: officers in a Brig whose air had gone suffocated with full tanks in their bags."
+	layout = list(
+		"#########",
+		"#...B...#",
+		"#########")
+	job = "Assistant"
+	kit_backpack = list(/obj/item/clothing/mask/breath, /obj/item/tank/internals/emergency_oxygen)
+	time_limit = 30 SECONDS
+
+/datum/bot_scenario/emergency_internals/issue_goal()
+	return
+
+/datum/bot_scenario/emergency_internals/post_spawn()
+	..()
+	brain.gym_scripted = FALSE //a scripted bot minds no air but a space job's
+	for(var/turf/open/T in arena_area)
+		T.air.moles[/datum/gas/oxygen] = 0
+		T.air_update_turf()
+
+/datum/bot_scenario/emergency_internals/check()
+	if(bot_lost() || bot.getOxyLoss() > 60)
+		return BOT_GYM_FAIL
+	return bot.internal ? BOT_GYM_PASS : BOT_GYM_PENDING

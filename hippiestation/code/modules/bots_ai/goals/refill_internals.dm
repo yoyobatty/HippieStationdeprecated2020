@@ -20,7 +20,9 @@
 // tank back out (replace_tank(), which also closes the valve in the same call).
 
 /datum/bot_brain/proc/is_tank_refill_job()
-	return is_eva_job() || is_miner() || op_team //goals/nuke_ops.dm: suited for space from the start
+	// Anybody down on Lavaland or out to explore it minds the valve as a miner does: an explorer who wasn't one went back and forth
+	// between the outpost and the wastes, "can't breathe here", mask and tank on and never opened.
+	return is_eva_job() || is_miner() || op_team || pursuit == BOT_PURSUIT_EXPLORE || on_lavaland() //goals/nuke_ops.dm: suited for space from the start
 
 // Oxygen specifically, NOT the general "air" canister (~79% N2/21% O2) - breathing is
 // gated on O2 PARTIAL pressure (check_breath(), life.dm: O2_partialpressure = O2_fraction
@@ -320,13 +322,58 @@
 /// The tank this bot breathes from when it has to: the one whose valve is open, or else the fullest it's
 /// carrying on its body, where the valve can be reached - not one buried in a bag.
 /datum/bot_brain/proc/eva_tank()
-	if(istype(owner.internal, /obj/item/tank/internals))
+	if(istype(owner.internal, /obj/item/tank/internals) && bot_tank_breathable(owner.internal))
 		return owner.internal
 	var/obj/item/tank/internals/best
 	for(var/obj/item/tank/internals/tank in owner)
-		if(!best || tank.air_contents.return_pressure() > best.air_contents.return_pressure())
+		if(bot_tank_breathable(tank) && (!best || tank.air_contents.return_pressure() > best.air_contents.return_pressure()))
 			best = tank
 	return best
+
+/// Air worth breathing in it: oxygen, or air. Not the plasma tank an engineer is carrying to the collectors - two of them breathed one,
+/// it being the fullest tank they had on them, and went down poisoned.
+/proc/bot_tank_breathable(obj/item/tank/T)
+	var/datum/gas_mixture/A = T?.air_contents
+	var/total = A?.total_moles()
+	return total && A.moles[/datum/gas/oxygen] / total >= 0.15
+
+/// Anybody at all, where they can't breathe: the mask and the emergency tank out of the survival box, valve open while they get out, and
+/// shut again once they can breathe. Only the jobs that go out into space used to: officers, an assistant and a doctor suffocated in a
+/// Brig whose air had gone bad, a full tank in their bags, eight of the crew in one shift.
+/datum/bot_brain/proc/emergency_internals()
+	var/obj/item/tank/tank = owner.internal
+	if(tank)
+		if(!bot_tank_breathable(tank) || (air_is_breathable() && !in_the_flames() && !air_under_threat() && world.time >= internals_opened_at + BOT_INTERNALS_MIN_OPEN))
+			tank.toggle_internals(owner)
+			if(!owner.internal)
+				bot_log(src, "breathing the room's air again - closed the valve on [tank]")
+		return
+	if(air_is_breathable() || owner.incapacitated())
+		return
+	var/obj/item/clothing/mask/mask = owner.wear_mask
+	if(!istype(mask) || !(mask.clothing_flags & MASKINTERNALS))
+		for(var/obj/item/clothing/mask/M in owner.GetAllContents())
+			if((M.clothing_flags & MASKINTERNALS) && M != mask)
+				if(wear(M, ITEM_SLOT_MASK))
+					bot_log(src, "can't breathe - put on [M]")
+				return //the tank next time round, a second from now
+		return
+	tank = eva_tank()
+	if(!tank)
+		for(var/obj/item/tank/internals/T in owner.GetAllContents())
+			if(bot_tank_breathable(T) && T.air_contents.return_pressure() > BOT_TANK_DRY)
+				tank = T
+				break
+		if(!tank || !ready_in_hand(tank))
+			return
+		// On the belt or in a pocket, where the valve stays in reach and the hands stay free (dress_for_lavaland(), goals/mining.dm).
+		for(var/slot in list(ITEM_SLOT_BELT, ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET, ITEM_SLOT_SUITSTORE))
+			if(owner.equip_to_slot_if_possible(tank, slot, FALSE, TRUE, TRUE))
+				break
+	tank.toggle_internals(owner)
+	if(owner.internal == tank)
+		internals_opened_at = world.time
+		bot_log(src, "can't breathe - opened the valve on [tank] ([round(tank.air_contents.return_pressure())] kPa)")
 
 /// Could this bot breathe the air on T without coming to harm? Oxygen, plasma, CO2 and temperature against
 /// its own lungs' limits, the ones check_breath() (lungs.dm) goes by.
@@ -402,6 +449,7 @@
 /// else matters: it drops everything and makes for the nearest air.
 /datum/bot_brain/proc/mind_air_supply()
 	if(!is_tank_refill_job())
+		emergency_internals()
 		get_out_of_bad_air()
 		return
 	manage_internals()

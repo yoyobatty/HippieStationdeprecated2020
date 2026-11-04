@@ -68,9 +68,10 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 			return FALSE
 		bot.next_explore_access_ask = world.time + 10 MINUTES
 		return bot.assign_goal(new /datum/bot_goal/job_transfer/access(list(ACCESS_MINING, ACCESS_MINING_STATION, ACCESS_MAILSORTING), "mining"))
-	if(!bot.find_carried_tool(/obj/item/gun/energy/kinetic_accelerator))
+	var/kit_needed = !bot.find_carried_tool(/obj/item/gun/energy/kinetic_accelerator) ? /obj/item/gun/energy/kinetic_accelerator : (!bot.find_carried_tool(/obj/item/pickaxe) ? /obj/item/pickaxe : null)
+	if(kit_needed)
 		var/datum/bot_goal/acquire_item_type/fetch = new()
-		fetch.item_type = /obj/item/gun/energy/kinetic_accelerator
+		fetch.item_type = kit_needed
 		fetch.lawful = TRUE
 		if(!bot.assign_goal(fetch))
 			bot.explore_blocked_until = world.time + 5 MINUTES //none to be had: another time
@@ -113,7 +114,8 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 				nearest = R
 		candidates -= nearest
 		var/turf/spot = bot_ruin_spot(nearest)
-		if(spot && can_walk_lawfully_to(spot))
+		// With a pick, the rock between is no obstacle: it's dug through on the way (head_for_ruin), the way a miner tunnels.
+		if(spot && (find_carried_tool(/obj/item/pickaxe) || can_walk_lawfully_to(spot)))
 			return nearest
 		bot_log(src, "can't get to [nearest.ruin_template?.name || "a ruin"] at [bot_coord(get_turf(nearest))] on foot ([spot ? "no way there" : "nowhere to stand in it"])")
 		GLOB.bot_ruins_explored[nearest] = TRUE //nobody's getting in there on foot
@@ -147,7 +149,7 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 	for(var/datum/weakref/ref as anything in spoils)
 		var/obj/item/I = ref.resolve()
 		if(I && (I in owner.GetAllContents()))
-			names += I.name
+			names |= I.name
 	spoils = null
 	exploring_since = 0
 	if(length(names))
@@ -166,6 +168,7 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 
 /datum/bot_goal/explore_ruin
 	lawful = TRUE
+	braves_bad_air = TRUE //dressed for it before it came down (ready_for_lavaland()), the same as a miner (goals/mining.dm)
 	doing = "exploring a ruin"
 	var/obj/effect/landmark/ruin/ruin
 
@@ -178,7 +181,7 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 
 /datum/bot_goal/explore_ruin/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/explore_ruin/S = new
-	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/loot_ruin())
+	S.steps = list(new /datum/bot_step/paced/head_for_ruin(), new /datum/bot_step/paced/loot_ruin())
 	return list(S)
 
 /datum/bot_goal/explore_ruin/on_success(datum/bot_brain/bot)
@@ -191,6 +194,100 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 
 /datum/bot_strategy/explore_ruin/is_feasible(datum/bot_brain/bot)
 	return !!bot.current_goal?.target
+
+/// Over the ground to it, the way a person crosses Lavaland: straight at it, through the rock with the pick, round lava and over
+/// what's open, and the last few tiles by the ordinary route in. Lavaland's ruins sit in rock or out past the routes' reach (they
+/// stop at 250 steps); every one the explorers tried by route alone was out of it.
+/datum/bot_step/paced/head_for_ruin
+	max_clicks = 400
+	var/stuck = 0
+	/// Whether it has looked for the walkable ground nearest the ruin from where it stands now.
+	var/looked = FALSE
+
+/datum/bot_step/paced/head_for_ruin/start(datum/bot_brain/bot)
+	stuck = 0
+	looked = FALSE
+	var/turf/spot = get_turf(bot.current_goal?.target)
+	return spot && bot.owner.z == spot.z
+
+/datum/bot_step/paced/head_for_ruin/do_click(datum/bot_brain/bot)
+	var/turf/spot = get_turf(bot.current_goal?.target)
+	var/mob/living/carbon/human/H = bot.owner
+	var/turf/here = get_turf(H)
+	if(!spot || !here || bot.explore_time_up() || H.incapacitated())
+		return FALSE
+	if(get_dist(here, spot) <= 1 || here.z != spot.z)
+		return FALSE //there, or carried off by the shuttle
+	if(bot.pursuing_kind)
+		wait_for = 10 //walking it, by route
+		return TRUE
+	if(get_dist(here, spot) <= 6 && bot.pursue(spot, "follow", force = TRUE))
+		wait_for = 10
+		return TRUE
+	// Out of the shuttle and the outpost, round a wall, along a path: as far as the ground goes towards it, before the pick comes out.
+	// Every explorer stood at the shuttle's console with its walls on all sides and called it "no way on".
+	if(!looked)
+		looked = TRUE
+		var/turf/nearest = bot.nearest_walkable_toward(spot)
+		if(nearest && get_dist(nearest, spot) < get_dist(here, spot) - 2 && bot.pursue(nearest, "follow", force = TRUE))
+			wait_for = 10
+			return TRUE
+	var/obj/item/pickaxe/pick = bot.find_carried_tool(/obj/item/pickaxe)
+	var/x_off = spot.x - here.x
+	var/y_off = spot.y - here.y
+	var/major = abs(x_off) >= abs(y_off) ? (x_off > 0 ? EAST : WEST) : (y_off > 0 ? NORTH : SOUTH)
+	var/minor = abs(x_off) >= abs(y_off) ? (y_off > 0 ? NORTH : SOUTH) : (x_off > 0 ? EAST : WEST)
+	for(var/direction in list(major, minor, turn(major, 90), turn(major, -90)))
+		var/turf/next = get_step(here, direction)
+		if(!next || bot_turf_is_deadly(next) || istype(next, /turf/closed/mineral/gibtonite))
+			continue
+		if(ismineralturf(next))
+			if(!pick || !bot.ready_in_hand(pick) || !bot.use_tool_on(pick, next))
+				continue
+			wait_for = rand(3, 6)
+			stuck = 0
+			looked = FALSE
+			return TRUE
+		if(here.bot_reachable_strict(H, next, H.get_idcard(TRUE), TRUE) && bot.bot_step_towards(next))
+			wait_for = rand(2, 4)
+			stuck = 0
+			looked = FALSE
+			return TRUE
+	if(++stuck > 5)
+		bot_log(bot, "no way on to the ruin from [bot_coord(here)]")
+		return FALSE
+	wait_for = 10
+	return TRUE
+
+/// The tile it can walk to by an ordinary route that's nearest `spot`, from a flood of the ground round about.
+/datum/bot_brain/proc/nearest_walkable_toward(turf/spot, limit = 900)
+	var/turf/start = get_turf(owner)
+	if(!start || !spot)
+		return null
+	var/obj/item/card/id/id_card = route_card()
+	var/list/seen = list()
+	seen[start] = TRUE
+	var/list/queue = list(start)
+	var/at = 1
+	var/turf/best = start
+	var/best_dist = (start.x - spot.x) ** 2 + (start.y - spot.y) ** 2
+	while(at <= length(queue) && length(queue) < limit)
+		var/turf/T = queue[at++]
+		for(var/d in GLOB.cardinals)
+			var/turf/next = get_step(T, d)
+			if(!next || seen[next] || !T.bot_reachable_strict(owner, next, id_card, TRUE))
+				continue
+			seen[next] = TRUE
+			queue += next
+			var/dist = (next.x - spot.x) ** 2 + (next.y - spot.y) ** 2
+			if(dist < best_dist)
+				best = next
+				best_dist = dist
+	return best
+
+/datum/bot_step/paced/head_for_ruin/finish(datum/bot_brain/bot)
+	var/turf/spot = get_turf(bot.current_goal?.target)
+	return (spot && get_dist(bot.owner, spot) <= 6) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 
 /// What's worth taking from a ruin: something that'd help, or sells, or is just good to have. Not rubbish, not the furniture.
 /proc/bot_ruin_loot(obj/item/I)
@@ -227,13 +324,16 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 		skipped += A
 		heading_for = null
 		return FALSE
-	bot.pursue(A, "goal", force = TRUE)
+	bot.pursue(A, "follow", force = TRUE) //not "goal": that one's arrival ends the step (on_goal_pursuit_finished()), after the first crate
 	wait_for = 10
 	return TRUE
 
 /datum/bot_step/paced/loot_ruin/do_click(datum/bot_brain/bot)
 	if(length(bot.spoils) >= BOT_EXPLORE_HAUL || bot.explore_time_up())
 		return FALSE
+	if(bot.pursuing_kind)
+		wait_for = 10
+		return TRUE
 	// Something to open first: a closet or a crate, shut, that it hasn't tried.
 	for(var/obj/structure/closet/C in view(5, bot.owner))
 		if(C.opened || C.locked || C.welded || (C in opened) || (C in skipped))
@@ -247,7 +347,14 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 		C.open(bot.owner)
 		return TRUE
 	var/obj/item/best
+	var/list/have = list()
+	for(var/datum/weakref/ref as anything in bot.spoils)
+		var/obj/item/kept = ref.resolve()
+		if(kept)
+			have[kept.type] = TRUE
 	for(var/obj/item/I in view(6, bot.owner))
+		if(have[I.type]) //one of each: an explorer came back with four of the same tool
+			continue
 		if(isturf(I.loc) && !(I in skipped) && bot_ruin_loot(I) && !bot.taken_by_another(I) && (!best || get_dist(bot.owner, I) < get_dist(bot.owner, best)))
 			best = I
 	if(!best)

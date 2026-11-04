@@ -313,11 +313,19 @@ GLOBAL_VAR(bot_in_command)
 			if(HAS_TRAIT(worn, TRAIT_NODROP) || !P.transferItemToLoc(worn, locker_turf))
 				continue
 			return TRUE
-		human_pause(P)
-		orange.forceMove(locker_turf)
-		if(!P.equip_to_slot_if_possible(orange, slot, FALSE, TRUE, TRUE))
+		// Picked up, and put on them by the strip menu, as an officer does it: it takes a few seconds, and they're stood there for it.
+		// It used to go from the locker straight on to them, which no player can do.
+		if(!owner.Adjacent(orange) || !owner.Adjacent(P))
+			return FALSE
+		human_pause(orange)
+		make_hand_free()
+		if(QDELETED(orange) || !owner.Adjacent(orange) || !owner.put_in_hands(orange))
+			return FALSE
+		owner.stripPanelEquip(orange, P, slot)
+		if(P.get_item_by_slot(slot) != orange)
+			if(orange.loc == owner)
+				owner.dropItemToGround(orange)
 			return FALSE //it won't go on them: leave it there, rather than trying for ever
-		P.visible_message("<span class='notice'>[owner] puts [P] in [orange].</span>")
 		bot_log(src, "dressed [P] in [orange]")
 		return TRUE
 	return FALSE

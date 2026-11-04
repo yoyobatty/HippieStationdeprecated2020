@@ -315,10 +315,24 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 /datum/bot_step/paced/ride_mining_shuttle
 	max_clicks = 240
 	var/pressed = FALSE
+	/// How many looks it's had at somebody right outside the doors, waiting for them to get on.
+	var/held = 0
 
 /datum/bot_step/paced/ride_mining_shuttle/start(datum/bot_brain/bot)
 	pressed = FALSE
+	held = 0
 	return TRUE
+
+/// Somebody just outside the shuttle's doors, not aboard: on their way on, most likely. Nobody sends a shuttle off in their face (an
+/// assistant behind two others in the dock's doorway walked on to where the floor had been).
+/proc/bot_somebody_boarding(obj/machinery/computer/shuttle/mining/C)
+	for(var/obj/machinery/door/airlock/A in range(7, C))
+		if(!bot_aboard_mining_shuttle(A))
+			continue
+		for(var/mob/living/carbon/human/P in orange(2, A))
+			if(P.stat == CONSCIOUS && !P.handcuffed && !bot_aboard_mining_shuttle(P))
+				return P
+	return null
 
 /datum/bot_step/paced/ride_mining_shuttle/do_click(datum/bot_brain/bot)
 	var/datum/bot_goal/ride_mining_shuttle/G = bot.current_goal
@@ -340,6 +354,13 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 	bot.human_pause(C)
 	if(QDELETED(C) || !bot.owner.Adjacent(C) || M.mode != SHUTTLE_IDLE)
 		return TRUE
+	if(aboard && held < 15)
+		var/mob/living/carbon/human/boarding = bot_somebody_boarding(C)
+		if(boarding)
+			if(!held)
+				bot_say(bot.owner, pick("Getting on? Shuttle's leaving.", "Hop on, [boarding.first_name()], we're off.", "Coming? I'm sending it."))
+			held++
+			return TRUE
 	bot.owner.face_atom(C)
 	bot.telemetry_ui_action(C, "send shuttle to [wanted]")
 	var/result = SSshuttle.moveShuttle("mining", wanted, TRUE)

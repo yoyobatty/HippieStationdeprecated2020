@@ -129,6 +129,21 @@ GLOBAL_LIST_EMPTY(bot_fire_reports)
 // started has no business waiting out next_fire_check_time's normal 5-15s pace before
 // reacting, the same way a real person notices flames in front of them immediately.
 /datum/bot_brain/proc/can_see_active_fire()
+	// No fire anywhere near: no look round for one. A view() a tick for every bot came to 112 us a call, 4 seconds a shift.
+	var/list/fires = SSair.hotspots
+	if(!length(fires))
+		return FALSE
+	var/turf/here = get_turf(owner)
+	if(!here)
+		return FALSE
+	if(length(fires) < 60)
+		var/near = FALSE
+		for(var/obj/effect/hotspot/F as anything in fires)
+			if(F.z == here.z && get_dist(F, here) <= 7)
+				near = TRUE
+				break
+		if(!near)
+			return FALSE
 	for(var/obj/effect/hotspot/H in view(7, owner))
 		if(!QDELETED(H))
 			return TRUE

@@ -61,6 +61,8 @@
 	var/busy_clearing = FALSE
 	// Guards repath() itself against re-entrancy - see repath()'s comment.
 	var/repathing = FALSE
+	/// When the route search in progress began: one going on for half a minute has died under itself (repath()).
+	var/repath_started_at = 0
 	// Set by do_repath() when a NEW pursuit replaced the one it was computing a route for
 	// while it was yielding inside the pathfinder - see repath().
 	var/repath_superseded = FALSE
@@ -85,6 +87,7 @@
 	bot_tally("unfroze")
 	freeze_watch_since = world.time
 	busy_clearing = FALSE //whatever it was waiting on in there has long since stopped mattering
+	repathing = FALSE
 	stop_pursuit()
 	give_up_goal()
 
@@ -151,13 +154,24 @@
 	// same bot - two overlapping cascades interleaving their pathfinds and clobbering
 	// each other's current_path. Guard against that directly, the same way
 	// busy_clearing guards step_next_node()'s obstruction-clearing yield.
+	if(repathing && world.time > repath_started_at + 30 SECONDS)
+		bot_log(src, "a route search has been running since [DisplayTimeText(world.time - repath_started_at)] ago - counting it as dead")
+		repathing = FALSE
 	if(repathing)
 		bot_log_verbose(src, "repath: already repathing, ignoring reentrant call")
 		return FALSE
 	repathing = TRUE
+	repath_started_at = world.time
 	repath_superseded = FALSE
 	begin_reach_scope() //one flood cache for the whole cascade - see bot_path_to() (bot_pathing_permissive.dm)
-	. = do_repath()
+	// Whatever runs under the search (an arrival, a pick-up, a goal's next step) can runtime. Uncaught, that left `repathing` set for
+	// good, every walk after it was turned away as "already repathing", and the bot never took another step: an assistant shut in
+	// Engineering had five doors opened for it and stood where it was for the rest of the shift, a harmonica's runtime the cause.
+	try
+		. = do_repath()
+	catch(var/exception/e)
+		bot_log_exception(src, "repath", e)
+		. = FALSE
 	end_reach_scope()
 	repathing = FALSE
 	// A new pursue() arrived while this one was still inside the (yielding) pathfinder.
@@ -508,6 +522,15 @@
 // "if(has_gravity(src)): return 1"), so this costs nothing outside actual zero-g.
 /datum/bot_brain/proc/bot_step_towards(turf/next_node)
 	if(!next_node)
+		return FALSE
+	// A route is for where the bot was when it was planned. A shuttle that has gone with it aboard leaves every tile of it on another
+	// level, and a step "towards" one went straight off the side into hyperspace; the dock a shuttle has left is open space where the
+	// route had floor. A shaft miner and an assistant were thrown into deep space off the mining shuttle and died that way, the same
+	// minute. The step fails and the walk is planned again from where the bot is.
+	var/turf/here = get_turf(owner)
+	if(!here || next_node.z != here.z || get_dist(here, next_node) > 1 || bot_turf_is_deadly(get_step(here, get_dir(here, next_node))))
+		return FALSE
+	if(SSpathfinder.space_type_cache[next_node.type] && !SSpathfinder.space_type_cache[here.type] && !bot_turf_crossable_without_boots(next_node, owner) && !can_path_through_space())
 		return FALSE
 	if(op_team)
 		op_mind_jetpack(next_node) //goals/nuke_ops.dm

@@ -393,6 +393,8 @@
 		if(owner.Adjacent(attacker))
 			try_combat_sidestep(attacker)
 		return
+	if(istype(attacker, /mob/living/simple_animal/hostile/asteroid) && fight_fauna(attacker)) //bot_fighting.dm
+		return
 	if(try_run_for_it())
 		return
 	if(try_smoke_grenade(attacker) || try_chem_weapon(attacker)) //goals/chem_lab.dm
@@ -1054,15 +1056,30 @@ GLOBAL_LIST_INIT(bot_maintenance_averse_jobs, list("Medical Doctor", "Chief Medi
 	bot_log(src, "bought [bought] from [V]")
 	return TRUE
 
+/// A shot that was for something else: a miner's accelerator at a watcher with this bot beside it, or crew shooting at whoever they're
+/// fighting. Two miners on Lavaland fought it out to the death over one of those, the watcher looking on.
+/datum/bot_brain/proc/stray_shot_from(mob/living/user, what_done, atom/object)
+	if(!findtext(what_done, "shot") || !ishuman(user))
+		return FALSE
+	var/mob/living/carbon/human/H = user
+	var/mob/living/aim = H.bot_brain?.attacker
+	if(aim && aim != owner)
+		return TRUE
+	if(istype(object, /obj/item/projectile/kinetic) || istype(object, /obj/item/gun/energy/kinetic_accelerator))
+		for(var/mob/living/simple_animal/hostile/asteroid/beast in view(7, owner))
+			if(beast.stat == CONSCIOUS)
+				return TRUE
+	return FALSE
+
 /// Someone hurt this bot. what_done is log_combat()'s verb ("punched", "attacked", "shot"...), fed from
 /// bot_notice_combat() (goals/security_patrol.dm) - every kind of attack, fists and bites and bullets included.
 /datum/bot_brain/proc/on_attacked(mob/living/user, what_done, atom/object)
 	if(!user || user == owner || QDELETED(owner) || owner.stat == DEAD)
 		return
-	if(on_my_side(user))
+	if(on_my_side(user) || stray_shot_from(user, what_done, object))
 		if(world.time >= next_reaction_time)
 			next_reaction_time = world.time + 100
-			bot_say(owner, pick("Watch it!", "Careful!", "Watch where you're swinging that!"), TRUE)
+			bot_say(owner, pick("Watch it!", "Careful!", "Watch where you're swinging that!", "Hey, I'm on your side!"), TRUE)
 		return //a stray blow in a scrum: nobody turns on their own over that
 	break_pact_with(user) //goals/robust.dm
 	if(findtext(what_done, "handcuffed"))

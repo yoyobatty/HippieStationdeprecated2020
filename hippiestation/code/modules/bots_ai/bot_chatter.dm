@@ -237,6 +237,26 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 			return lend_tool(talker, asked_for)
 	if(bot_text_has_any(lower_msg, list("are you a bot", "are you an ai", "are you a robot", "you a bot", "is this a bot", "you're a bot", "youre a bot")))
 		return pick("What? No.", "Rude.", "Do I look like a bot to you?", "That's a weird thing to ask.", "Haven't had my coffee, that's all.")
+	// The everyday things the conversation sweep (gym/scenarios_asks.dm) got "Beats me." or nothing at all for.
+	if(bot_text_has_any(lower_msg, list("are you a traitor", "are you traitor", "you a traitor", "are you an antag", "are you a ling", "are you a changeling", "are you a cultist", "are you syndie", "are you a syndie", "are you syndicate", "you're a traitor", "youre a traitor", "you're a ling", "youre a ling")))
+		return mood_pick(list("Ha, no.", "Me? No way.", "Nope. Just doing my job."), list("No?", "What? No.", "Why would you ask that?"), list("Are YOU?", "No, and that's a weird thing to ask.", "Says the one asking."))
+	if(bot_text_has_any(lower_msg, list("you there", "are you there", "you awake", "you alive", "you listening", "anyone home")))
+		return pick("Yeah?", "Yep, what's up?", "I'm here.", "Mhm?")
+	if(bot_text_has_any(lower_msg, list("what's up", "whats up", "wassup", "what's new", "whats new")) && !bot_text_has_any(lower_msg, list("what's up with", "whats up with")))
+		return mood_pick(list("Not much! You?", "All good here. You?"), list("Not much. You?", "Same old.", "Nothing really."), list("Nothing good.", "Don't ask.", "Ugh. This shift."))
+	if(bot_text_has_any(lower_msg, list("you're cool", "youre cool", "you're great", "youre great", "you're awesome", "youre awesome", "you rock", "you're the best", "youre the best", "good job", "nice job", "well done", "nice one", "great work", "good work", "love you", "ily")))
+		return pick("Thanks!", "Aw, cheers.", "Ha, thanks.", "You're not so bad yourself.")
+	if(!over_radio && bot_text_has_any(lower_msg, list("can you help", "could you help", "help me", "i need help", "need a hand", "give me a hand", "lend me a hand", "can i ask you something", "got a minute", "got a sec")))
+		if(state == BOT_STATE_GOAL && current_goal && !current_goal.lawful)
+			return pick("Bit busy right now.", "Can it wait?", "Not now, sorry.")
+		return pick("Sure, what do you need?", "Yeah, what's up?", "What do you need?", "Sure. What is it?")
+	if(!over_radio && bot_text_has_any(lower_msg, list("excuse me", "scuse me", "'scuse me", "coming through", "make way", "out of my way", "get out of the way", "move over", "move it")))
+		step_aside_for(talker)
+		return pick("Oh, sorry.", "Sorry!", "My bad.", "Go ahead.")
+	if(!over_radio && bot_text_has_any(lower_msg, list("i need a doctor", "i need a medic", "get me a doctor", "get me a medic", "call a doctor", "call a medic", "i'm hurt", "im hurt", "i'm dying", "im dying")))
+		return help_find_a_doctor(talker)
+	if(!over_radio && bot_text_has_any(lower_msg, list("give me that", "can i have that", "can i have it", "hand it over", "gimme that", "gimme", "can i have one", "give it here", "can i borrow that", "pass me that")))
+		return hand_over_what_im_holding(talker)
 	var/about_people = people_answer(lower_msg) //bot_conversation.dm
 	if(about_people)
 		return about_people
@@ -319,6 +339,51 @@ GLOBAL_LIST_INIT(bot_tool_words, list(
 ))
 
 /// The tool somebody's asking for, as an item type, or null if this isn't that. "got a crowbar?", "can I borrow your wrench"
+/// "Excuse me": a step to one side, out of their way.
+/datum/bot_brain/proc/step_aside_for(mob/living/talker)
+	var/turf/here = get_turf(owner)
+	var/towards = get_dir(talker, owner)
+	for(var/d in list(turn(towards, 90), turn(towards, -90), towards))
+		var/turf/T = get_step(here, d)
+		if(T && !T.density && !is_blocked_turf(T, TRUE) && !bot_turf_is_deadly(T) && !(locate(/mob/living) in T))
+			step_to(owner, T)
+			return TRUE
+	return FALSE
+
+/// "I need a doctor", said to its face: a doctor has a look, anybody else calls one for them on the radio if they're hurt.
+/datum/bot_brain/proc/help_find_a_doctor(mob/living/carbon/human/talker)
+	if(!istype(talker))
+		return null
+	var/hurt = talker.health < talker.maxHealth * 0.9 || talker.getToxLoss() > 10
+	if(!hurt)
+		return pick("You look fine to me?", "Where does it hurt?", "Medbay's the place for that.")
+	if(is_medical_job())
+		if(state != BOT_STATE_GOAL || !current_goal)
+			called_patient = WEAKREF(talker)
+			called_patient_until = world.time + 2 MINUTES
+			assign_goal(new /datum/bot_goal/treat_patient())
+		return pick("Let me have a look.", "Hold still, I've got you.", "Okay, let's see.")
+	if(world.time >= next_call_time)
+		var/where = get_area_name(owner, TRUE)
+		call_for(/datum/bot_request_kind/medical, pick("Medic to [where], [talker.first_name()]'s hurt.", "Need a doctor in [where] for [talker.first_name()]."))
+	return pick("Hang on, I'll call one.", "I'll get you a medic.", "Calling one now.")
+
+/// "Give me that": what's in its hand, set down by them as anything's passed over in this game (lend_tool()), unless it needs it.
+/datum/bot_brain/proc/hand_over_what_im_holding(mob/living/talker)
+	var/obj/item/I = owner.get_active_held_item() || owner.get_inactive_held_item()
+	if(!I)
+		return pick("I'm not holding anything.", "Give you what?", "Got nothing in my hands.")
+	if(HAS_TRAIT(I, TRAIT_NODROP) || istype(I, /obj/item/card/id) || istype(I, /obj/item/pda) || istype(I, /obj/item/gun) || (I == current_goal?.target))
+		return pick("I need this, sorry.", "No, this one's mine.", "Get your own.")
+	if(state == BOT_STATE_GOAL || !owner.Adjacent(talker) || trusts_not(talker))
+		return pick("Not right now.", "I'm using it.", "Maybe later.")
+	owner.dropItemToGround(I)
+	return pick("Here.", "Sure, take it.", "All yours.")
+
+/// Somebody it has a grudge against, or who's wanted: it doesn't hand them things.
+/datum/bot_brain/proc/trusts_not(mob/living/talker)
+	return bot_is_wanted(talker) || LAZYFIND(grudges, WEAKREF(talker))
+
 /datum/bot_brain/proc/tool_asked_for(lower_msg)
 	if(!bot_text_has_any(lower_msg, list("got a", "got any", "have a", "have any", "you got", "you have", "borrow", "lend me", "give me", "spare")))
 		return null

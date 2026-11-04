@@ -19,12 +19,30 @@
 		return TRUE
 	if(H.stat == SOFT_CRIT || H.stat == UNCONSCIOUS)
 		return TRUE
-	return FALSE
+	return bot_needs_antitox(H)
 
 /datum/bot_brain/proc/patient_injury_score(mob/living/carbon/human/H)
 	. = H.getBruteLoss() + H.getFireLoss()
+	if(bot_needs_antitox(H))
+		. += H.getToxLoss()
 	if(H.stat != CONSCIOUS)
 		. += 30
+
+/// Poisoned, or sick from radiation, which is the same thing to a body (life.dm: past 500 rads it's toxin damage every few seconds, and
+/// it takes hours to wear off by itself), with nothing in them for it yet. Charcoal from the toxin kit keeps them ahead of it. Nobody
+/// treated it: on MetaStation with the supermatter running 21 of the crew died of it in one shift, the doctors bandaging scratches.
+/proc/bot_needs_antitox(mob/living/carbon/human/H)
+	if(H.getToxLoss() <= 20)
+		return FALSE
+	return !(H.reagents?.has_reagent(/datum/reagent/medicine/charcoal) || H.reagents?.has_reagent(/datum/reagent/medicine/pen_acid) || H.reagents?.has_reagent(/datum/reagent/medicine/potass_iodide))
+
+/// A pill against poison or radiation, wherever on it it's kept: the charcoal out of a toxin kit's pill bottles, pentetic acid, potassium iodide.
+/datum/bot_brain/proc/find_antitox_pill()
+	for(var/obj/item/reagent_containers/pill/P in owner.GetAllContents(/obj/item/reagent_containers/pill))
+		var/datum/reagent/R = P.reagents?.get_master_reagent()
+		if(istype(R, /datum/reagent/medicine/charcoal) || istype(R, /datum/reagent/medicine/pen_acid) || istype(R, /datum/reagent/medicine/potass_iodide))
+			return P
+	return null
 
 // Every /obj/item/stack/medical the bot is carrying, wherever it's stowed (hand, belt,
 // first aid kit, backpack) - GetAllContents() walks nested storage same as a player
@@ -39,6 +57,11 @@
 // through_suit: the wound is under a suit a bandage can't get through (clothing_in_the_way(), below) - only a patch
 // will do, which sticks on over anything (pill/patch/attack() never asks can_inject()).
 /datum/bot_brain/proc/pick_treatment_item(mob/living/carbon/human/patient, through_suit = FALSE)
+	// Poison or radiation the worst of it: a pill, swallowed, whatever they've got on.
+	if(bot_needs_antitox(patient) && patient.getToxLoss() >= max(patient.getBruteLoss(), patient.getFireLoss()))
+		var/obj/item/reagent_containers/pill/antitox = find_antitox_pill()
+		if(antitox)
+			return antitox
 	var/burn_first = patient.getFireLoss() > patient.getBruteLoss()
 	if(through_suit)
 		var/obj/item/reagent_containers/pill/patch/brute_patch
@@ -79,8 +102,9 @@
 // acquire_item_type goal every personal-objective fetch already uses (goals/
 // acquire_item_type.dm) via suspend_goal_for() - same suspend/resume dance
 // ensure_wrench/ensure_tools use for tools, just for medical supplies instead.
-/datum/bot_brain/proc/restock_medical_supplies()
-	for(var/wanted_type in list(/obj/item/storage/firstaid, /obj/item/stack/medical/bruise_pack, /obj/item/stack/medical/ointment))
+/datum/bot_brain/proc/restock_medical_supplies(antitox = FALSE)
+	var/list/wanted = antitox ? list(/obj/item/storage/pill_bottle/charcoal, /obj/item/storage/firstaid/toxin) : list(/obj/item/storage/firstaid, /obj/item/stack/medical/bruise_pack, /obj/item/stack/medical/ointment)
+	for(var/wanted_type in wanted)
 		var/datum/bot_goal/acquire_item_type/sub = new()
 		sub.item_type = wanted_type
 		sub.lawful = TRUE
@@ -297,18 +321,18 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 	if(!I)
 		if(!tried_restock)
 			tried_restock = TRUE
-			if(bot.restock_medical_supplies())
+			if(bot.restock_medical_supplies(bot_needs_antitox(patient)))
 				bot_log(bot, "out of medical supplies for [patient] - going to restock")
 				return GOAL_STEP_PENDING
 		bot_log(bot, "out of medical supplies for [patient], and nothing reachable to restock with")
 		return GOAL_STEP_FAIL
-	var/hurt_before = patient.getBruteLoss() + patient.getFireLoss()
+	var/hurt_before = patient.getBruteLoss() + patient.getFireLoss() + patient.getToxLoss()
 	bot.owner.changeNext_move(CLICK_CD_MELEE)
 	bot_log(bot, "treating [patient] with [I]")
 	bot.use_item_on(I, patient)
 	if(QDELETED(patient) || !bot.patient_needs_treatment(patient))
 		return GOAL_STEP_SUCCESS
-	useless_clicks = (patient.getBruteLoss() + patient.getFireLoss() < hurt_before) ? 0 : useless_clicks + 1
+	useless_clicks = (patient.getBruteLoss() + patient.getFireLoss() + patient.getToxLoss() < hurt_before) ? 0 : useless_clicks + 1
 	if(useless_clicks >= 3)
 		bot_log(bot, "nothing I'm doing is helping [patient] - leaving it")
 		return GOAL_STEP_FAIL
@@ -569,6 +593,7 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 	return best_cryo
 
 /datum/bot_goal/escort_to_sleeper
+	exclusive = TRUE //one doctor to a patient: two went for the same one, and the second found them gone from where they'd lain
 	var/atom/machine_target
 
 /datum/bot_goal/escort_to_sleeper/resolve_target(datum/bot_brain/bot)
@@ -581,6 +606,8 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			continue
 		if(get_dist(bot.owner, H) > 60)
 			continue
+		if(!isturf(H.loc) || (H.pulledby && H.pulledby != bot.owner) || bot.taken_by_another(H))
+			continue //in a machine already, being dragged in by somebody, or somebody's on their way
 		var/score = bot.patient_injury_score(H) - get_dist(bot.owner, H)
 		if(!best || score > best_score)
 			best = H
@@ -661,8 +688,14 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 		var/obj/machinery/sleeper/S = machine_target
 		if(S.occupant)
 			return (S.occupant == patient) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+		// Shut and empty (whoever was in it got out, or was taken out): it's opened first, as a person clicks it open. Dropping a
+		// patient on a shut one does nothing at all (close_machine() wants it open), and a doctor tried three times in two seconds
+		// and gave up, the patient dying in crit on the floor next to it.
+		if(!S.state_open)
+			S.open_machine()
 		S.MouseDrop_T(patient, bot.owner)
 		if(S.occupant != patient)
+			bot_log_verbose(bot, "load_patient: MouseDrop_T into [S] didn't take - state_open=[S.state_open], occupant=[S.occupant]")
 			return GOAL_STEP_FAIL
 		bot_log(bot, "loaded [patient] into [S]")
 		S.inject_chem(pick(/datum/reagent/medicine/bicaridine, /datum/reagent/medicine/kelotane), bot.owner)

@@ -123,6 +123,36 @@
 		return 0.5
 	return BOT_COMBAT_RUN_AT + (0.5 - nerve) * 0.5
 
+/// Lavaland's wildlife, the way a miner takes it on: the accelerator, point blank if need be, a step back while it recharges, and back
+/// to the shuttle once it's going badly. Four explorers died in one shift each stood toe to toe with a watcher, one shot and then their
+/// fists, from full health to dead. Without a gun it's the ordinary fight (or the ordinary run for it).
+/datum/bot_brain/proc/fight_fauna(mob/living/simple_animal/hostile/asteroid/beast)
+	if(owner.health <= owner.maxHealth * max(0.5, health_to_run_at()) && world.time >= next_run_for_it)
+		next_run_for_it = world.time + 30 SECONDS
+		bot_say(owner, pick("Nope, nope, nope.", "Too much, I'm out.", "Back to the shuttle!", ";Getting chewed up out here, heading back."))
+		run_from(beast, "hurt, and [beast] is still at me")
+		return TRUE
+	var/obj/item/gun/energy/kinetic_accelerator/KA = find_carried_tool(/obj/item/gun/energy/kinetic_accelerator)
+	if(!KA)
+		return FALSE
+	// Not let close: a goliath's tentacles hold whoever they come up under, and one that's next to them beats them while they're held - a
+	// miner shooting one point blank was beaten to death in twenty seconds. From three tiles off, held is all it is: they're slow. A step
+	// back keeps them there, and the shot comes between steps. (Running from them instead left a goliath stood in the only tunnel home,
+	// and the miner behind it ran out of air.)
+	if(get_dist(owner, beast) <= 2 && world.time >= next_fauna_step)
+		next_fauna_step = world.time + 6
+		stop_pursuit()
+		var/turf/was = get_turf(owner)
+		step_back_from(beast)
+		if(get_turf(owner) != was)
+			return TRUE
+	if(try_shoot_at(beast))
+		return TRUE
+	return TRUE
+
+/datum/bot_brain
+	var/next_fauna_step = 0
+
 /// Somebody out of reach and still a threat: shot if it has a gun, or sometimes pelted with what's in its hand.
 /datum/bot_brain/proc/try_attack_from_range(mob/living/target)
 	var/dist = get_dist(owner, target)
