@@ -124,17 +124,21 @@
 //mouse-transparent (see mouse_opacity docs for PLANE_MASTER atoms) without affecting ABOVE_LIGHTING_PLANE, which other things share
 #define THERMAL_TINT_PLANE 19
 
-#define BYOND_LIGHTING_PLANE 20
+//hippie edit -- the T-ray's faint glow in the dark (hippiestation/code/game/objects/items/devices/t_ray.dm): added over the darkness,
+//kept off mobs and items by the emissive blockers. Everything from here up moved along by one to make room
+#define T_RAY_GLOW_PLANE 20
+
+#define BYOND_LIGHTING_PLANE 21
 #define BYOND_LIGHTING_LAYER 18
 #define BYOND_LIGHTING_RENDER_TARGET "BYOND_LIGHTING_PLANE"
 
-#define CAMERA_STATIC_PLANE 21
+#define CAMERA_STATIC_PLANE 22
 #define CAMERA_STATIC_LAYER 19
 #define CAMERA_STATIC_RENDER_TARGET "CAMERA_STATIC_PLANE"
 
 //HUD layer defines
 
-#define FULLSCREEN_PLANE 22
+#define FULLSCREEN_PLANE 23
 #define FLASH_LAYER 20
 #define FULLSCREEN_LAYER 20.1
 #define UI_DAMAGE_LAYER 20.2
@@ -143,13 +147,13 @@
 #define CURSE_LAYER 20.5
 #define FULLSCREEN_RENDER_TARGET "FULLSCREEN_PLANE"
 
-#define HUD_PLANE 23
+#define HUD_PLANE 24
 #define HUD_LAYER 21
 #define HUD_RENDER_TARGET "HUD_PLANE"
-#define ABOVE_HUD_PLANE 24
+#define ABOVE_HUD_PLANE 25
 #define ABOVE_HUD_LAYER 22
 #define ABOVE_HUD_RENDER_TARGET "ABOVE_HUD_PLANE"
 
 #define SPLASHSCREEN_LAYER 23
-#define SPLASHSCREEN_PLANE 25
+#define SPLASHSCREEN_PLANE 26
 #define SPLASHSCREEN_RENDER_TARGET "SPLASHSCREEN_PLANE"

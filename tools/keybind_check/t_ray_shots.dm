@@ -265,6 +265,25 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	tray_lights(spot, FALSE)
 	sleep(2 SECONDS)
 	tray_shot("tray_after_2_scanner_dark")
+	if(V) // in the dark every glow is lit and changes with each step
+		var/turf/dark_centre = get_turf(H)
+		var/turf/dark_east = get_step(dark_centre, EAST)
+		var/tick_dark = TICK_USAGE_REAL
+		for(var/i in 1 to 50)
+			V.look()
+		var/cost_dark = TICK_USAGE_TO_MS(tick_dark) / 50
+		tick_dark = TICK_USAGE_REAL
+		for(var/i in 1 to 25) // real steps, the move itself included
+			H.Move(dark_east, EAST)
+			H.Move(dark_centre, WEST)
+		var/cost_dark_step = TICK_USAGE_TO_MS(tick_dark) / 50
+		V.look()
+		var/glowing = 0
+		for(var/thing in V.shown)
+			var/list/entry = V.shown[thing]
+			if(entry[7] > 0)
+				glowing++
+		kc_log("in the dark: a look [round(cost_dark * 1000, 1)] us, a step [round(cost_dark_step * 1000, 1)] us, [glowing] of [length(V.shown)] things glowing")
 	if(fexists("data/tray_probe") && V)
 		tray_probe(V)
 	tray_lights(spot, TRUE)
