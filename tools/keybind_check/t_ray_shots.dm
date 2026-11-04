@@ -1,8 +1,8 @@
-// Pictures of the T-ray view with a real client, before and after, plus a count of loose ends across the station and the view's cost.
+// Pictures of the T-ray view with a real client, before and after, plus the view's cost.
 // Not part of the game: HARNESS=t_ray_shots.dm SENDER=shot.ps1 tools/keybind_check/run.sh tray
 // Pictures in data/previews/tray_*.png, numbers in data/keycheck_tray.txt. The "before" pictures are the old flash, which is still
-// t_ray_scan(): caught in the 0.8 seconds of every 2 it showed. It cuts a cable and lays a dead run for the loose ends and the dead
-// cables, stashes a satchel and a pressure plate, and checks a still view builds nothing and a walk misses nothing.
+// t_ray_scan(): caught in the 0.8 seconds of every 2 it showed. It cuts a cable and lays a dead run for live and dead cables side by
+// side, stashes a satchel and a pressure plate, and checks a still view builds nothing and a walk misses nothing.
 // With data/tray_probe present it also logs the emissive twins' settings and lights every tile round the viewer with a white emissive
 // square in the dark: tiles that stay black are ones BYOND isn't drawing at all (see_in_dark), not ones the lighting covers.
 
@@ -66,29 +66,6 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	kc_log("spot [best] ([best?.x],[best?.y]) in [get_area(best)], score [best_score], [looked] looked at")
 	return best
 
-/// Loose ends over the whole station, to see how noisy the red dots are, with a few of each kind's places to check by eye.
-/proc/tray_census()
-	var/list/counts = list("cables" = 0, "pipes" = 0, "disposals" = 0)
-	var/list/loose = list("cables" = 0, "pipes" = 0, "disposals" = 0)
-	var/list/where = list("cables" = list(), "pipes" = list(), "disposals" = list())
-	for(var/obj/O in world)
-		if(!is_station_level(O.z) || O.level != 1 || !isturf(O.loc))
-			continue
-		var/kind = GLOB.t_ray_kinds[O.type]
-		if(!(kind in counts))
-			continue
-		counts[kind]++
-		var/ends = t_ray_loose_ends(O)
-		if(ends)
-			loose[kind]++
-			var/list/places = where[kind]
-			if(places.len < 12)
-				places += "[O.type] ([O.x],[O.y]) [get_area(O)] ends=[ends][tray_hidden(O) ? " hidden" : ""]"
-	for(var/kind in counts)
-		kc_log("census [kind]: [counts[kind]] on the station, [loose[kind]] with a loose end")
-		for(var/line in where[kind])
-			kc_log("  [line]")
-
 /proc/tray_image_text(image/I)
 	return "plane [I.plane] layer [I.layer] alpha [I.alpha] color [I.color] blend [I.blend_mode] flags [I.appearance_flags] rt [I.render_target] rs [I.render_source] invis [I.invisibility] filters [length(I.filters)] icon [I.icon]:[I.icon_state] over [length(I.overlays)] under [length(I.underlays)] px [I.pixel_x],[I.pixel_y] vis [length(I.vis_contents)]"
 
@@ -136,7 +113,6 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	while(SSticker.current_state < GAME_STATE_PLAYING && world.time < wait_for_round)
 		sleep(1 SECONDS)
 	sleep(3 SECONDS)
-	tray_census()
 	text2file("go", "data/keycheck_sendkeys") //starts shot.ps1, which gives up three minutes on
 	var/turf/spot = tray_pick_spot()
 	var/mob/living/carbon/human/H = new(spot)
@@ -145,7 +121,7 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	H.ckey = C.ckey
 	sleep(3 SECONDS)
 
-	// Something stashed under the floor, a hidden pressure plate, and a cut cable for loose ends and a dead run
+	// Something stashed under the floor, a hidden pressure plate, a cut cable and a dead run
 	var/list/floors = list()
 	for(var/turf/open/floor/F in range(4, spot))
 		if(F != spot && F.intact && !(locate(/obj/structure) in F) && !(locate(/obj/machinery) in F))
@@ -236,15 +212,6 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		var/cost_checks = TICK_USAGE_TO_MS(tick_before) / 50
 		tick_before = TICK_USAGE_REAL
 		for(var/i in 1 to 50)
-			for(var/obj/O in range(V.range, centre))
-				if(O.level != 1)
-					continue
-				var/kind = GLOB.t_ray_kinds[O.type]
-				if(kind)
-					n += t_ray_loose_ends(O)
-		var/cost_ends = TICK_USAGE_TO_MS(tick_before) / 50
-		tick_before = TICK_USAGE_REAL
-		for(var/i in 1 to 50)
 			V.look()
 		var/cost = TICK_USAGE_TO_MS(tick_before) / 50
 		var/turf/east = get_step(centre, EAST)
@@ -261,7 +228,7 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			objs++
 			if(O.level == 1)
 				level_one++
-		kc_log("a look at range [V.range] with [length(V.shown)] things: [round(cost * 1000, 1)] us; range() walk alone [round(cost_range * 1000, 1)] us, with the checks [round(cost_checks * 1000, 1)] us, with loose ends [round(cost_ends * 1000, 1)] us; [objs] objs in range, [level_one] underfloor")
+		kc_log("a look at range [V.range] with [length(V.shown)] things: [round(cost * 1000, 1)] us; range() walk alone [round(cost_range * 1000, 1)] us, with the checks [round(cost_checks * 1000, 1)] us; [objs] objs in range, [level_one] underfloor")
 	tray_lights(spot, FALSE)
 	sleep(2 SECONDS)
 	tray_shot("tray_after_2_scanner_dark")

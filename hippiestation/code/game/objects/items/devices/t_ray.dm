@@ -1,6 +1,6 @@
 // hippie -- the T-ray view. The old one flashed what was under the floor for 0.8 seconds out of every 2, and not at all in the dark.
 // This one holds it steady, glows faintly in the dark, reaches 7 tiles from a scanner and 5 from goggles or a hardsuit helmet, marks
-// live cables and loose ends, shows anything stashed under the floor, and can be told to show only cables, pipes or disposals.
+// live cables, shows anything stashed under the floor, and can be told to show only cables, pipes or disposals.
 
 #define T_RAY_REFRESH 10 // deciseconds between looks, besides one every step the viewer takes
 #define T_RAY_ALPHA 128 // the half see-through copy of what's under the floor, as it always was
@@ -9,15 +9,12 @@
 #define T_RAY_GLOW_LIVE 140 // a cable with power in it: the one thing down there that would give off light
 #define T_RAY_GLOW_FAINT 45 // pipes, disposals and dead cables
 #define T_RAY_GLOW_STASH 90
-#define T_RAY_GLOW_END 120 // the red dots
 #define T_RAY_GLOW_BLUR 1 // pixels, so it's a soft glow and not a sharp cut-out
 #define T_RAY_LIT 0.6 // a tile this lit or more has no glow at all: in a lit room the copies look as they always did
 #define T_RAY_RANGE_SCANNER 7
 #define T_RAY_RANGE_WORN 5
 #define T_RAY_LIVE_GLOW "#FFE04A"
 #define T_RAY_STASH_OUTLINE "#FFB000"
-#define T_RAY_END_CENTRE 16 // a loose end in the middle of the tile, next to the four direction bits
-#define T_RAY_END_LAYER (WIRE_LAYER + 0.05) // above the cables and pipes, under anything lying on the floor
 #define T_RAY_CRAWLER_LAYER (WIRE_LAYER + 0.04)
 #define T_RAY_GOGGLE_MODE "t-ray" // MODE_TRAY in engine_goggles.dm, which #undefs it
 
@@ -78,66 +75,6 @@ GLOBAL_LIST_EMPTY(t_ray_views)
 		V.sources -= source
 		V.refresh()
 
-/// The directions an underfloor run ends in with nothing joined on, as direction bits plus T_RAY_END_CENTRE.
-/proc/t_ray_loose_ends(obj/O)
-	if(istype(O, /obj/structure/cable))
-		var/obj/structure/cable/C = O
-		var/links = C.linked_dirs
-		if(links & (links - 1)) // two or more ways out: the middle of a run
-			return 0
-		for(var/obj/thing in C.loc) // a run ending at a machine, a grille or a bridge ends where it should
-			if(GLOB.wire_node_generating_types[thing.type])
-				return 0
-			if(istype(thing, /obj/machinery) && !istype(thing, /obj/machinery/door) && !istype(thing, /obj/machinery/atmospherics) && !istype(thing, /obj/machinery/duct) && !istype(thing, /obj/machinery/navbeacon) && !istype(thing, /obj/machinery/magnetic_module))
-				return 0
-		return T_RAY_END_CENTRE
-	if(istype(O, /obj/machinery/atmospherics))
-		var/obj/machinery/atmospherics/A = O
-		if(!A.device_type || istype(A, /obj/machinery/atmospherics/pipe/layer_manifold))
-			return 0
-		var/list/nodes = A.nodes
-		var/joined = 0
-		for(var/node in nodes)
-			if(node)
-				joined++
-		if(joined >= A.device_type)
-			return 0
-		// The open side: a way out with nothing joined on the next tile. Pumps and filters order their nodes their own way.
-		. = 0
-		var/ways = A.GetInitDirections()
-		for(var/direction in GLOB.cardinals)
-			if(!(ways & direction))
-				continue
-			var/turf/next = get_step(A, direction)
-			var/found = FALSE
-			for(var/obj/machinery/atmospherics/node in nodes)
-				if(node.loc == next)
-					found = TRUE
-					break
-			if(!found)
-				. |= direction
-		return . || T_RAY_END_CENTRE
-	if(istype(O, /obj/structure/disposalpipe))
-		var/obj/structure/disposalpipe/P = O
-		. = 0
-		for(var/direction in GLOB.cardinals)
-			if(!(P.dpdir & direction))
-				continue
-			var/joined = FALSE
-			var/back = turn(direction, 180)
-			for(var/obj/structure/disposalpipe/next in get_step(P, direction))
-				if(next.dpdir & back)
-					joined = TRUE
-					break
-			if(!joined)
-				. |= direction
-		if(istype(P, /obj/structure/disposalpipe/trunk))
-			var/obj/structure/disposalpipe/trunk/trunk = P
-			if(!trunk.linked)
-				. |= T_RAY_END_CENTRE
-		return
-	return 0
-
 /// How dark a tile is for the T-ray's glow, from none in a lit room to all of it in a black one. In quarters, so a flickering light
 /// doesn't set it going.
 /// get_lumcount()'s sum without the list it builds for every call, which was most of the cost of a look.
@@ -172,9 +109,8 @@ GLOBAL_LIST_EMPTY(t_ray_views)
 
 /**
   * What one player sees through their T-ray scanners, goggles and helmets: every hidden thing under the floor in reach drawn half
-  * see-through where it lies, the same as the old flash, but held steady. Live cables glow, the open ends of cables, pipes and
-  * disposals get a red dot, and anything hidden that isn't wiring or plumbing (a floor safe, a smuggler's satchel, a pressure plate,
-  * something crawling in the vents) is drawn stronger with a gold rim.
+  * see-through where it lies, the same as the old flash, but held steady. Live cables glow, and anything hidden that isn't wiring or
+  * plumbing (a floor safe, a smuggler's satchel, a pressure plate, something crawling in the vents) is drawn stronger with a gold rim.
   *
   * In the dark each copy has a glow: the same picture, blurred and faint, added over the darkness on a plane above the lighting, so
   * only the thing itself shows and the floor round it stays dark. Live cables glow warmest, pipes, disposals and dead cables barely,
@@ -182,7 +118,7 @@ GLOBAL_LIST_EMPTY(t_ray_views)
   * always did. (A first try lifted the lighting off the copies instead, on the emissive plane: that lit the floor under them too, a
   * sharp cut-out brighter than a lit room.)
   *
-  * It takes a full look every second, and on each step looks only at the strip of tiles that came into reach (0.7 ms against 0.05 ms
+  * It takes a full look every second, and on each step looks only at the strip of tiles that came into reach (0.5 ms against 0.07 ms
   * in a busy hallway at range 7). Only the images of things that changed are rebuilt.
   *
   * The viewer's see_in_dark is raised to the T-ray's reach while it's up. BYOND draws nothing at all on an unlit tile past
@@ -194,7 +130,7 @@ GLOBAL_LIST_EMPTY(t_ray_views)
 	var/client/viewer_client
 	/// The items giving this view. Each is asked every look whether it still does.
 	var/list/sources = list()
-	/// Thing -> list(its appearance, state number, turf, list of images, its glows (image -> strength), how dark its tile is, the glow
+	/// Thing -> list(its appearance, whether it's live, turf, list of images, its glows (image -> strength), how dark its tile is, the glow
 	/// strength last set)
 	var/list/shown = list()
 	/// Turf -> how dark it is, for the look under way
@@ -284,7 +220,7 @@ GLOBAL_LIST_EMPTY(t_ray_views)
 		viewer.update_sight()
 	look()
 
-/// A full look at everything in reach: what's new, what's changed and what's gone. About 0.7 ms at range 7 in a busy hallway.
+/// A full look at everything in reach: what's new, what's changed and what's gone. About 0.5 ms at range 7 in a busy hallway.
 /datum/t_ray_view/proc/look()
 	var/list/now = list()
 	dark_cache = list()
@@ -336,31 +272,24 @@ GLOBAL_LIST_EMPTY(t_ray_views)
 	var/kind = GLOB.t_ray_kinds[O.type]
 	if(!everything && (!kind || !showing[kind]))
 		return
-	var/hidden = O.invisibility == INVISIBILITY_MAXIMUM || HAS_TRAIT(O, TRAIT_T_RAY_VISIBLE)
-	var/ends = kind ? t_ray_loose_ends(O) : 0
-	if(!hidden && !ends)
+	if(O.invisibility != INVISIBILITY_MAXIMUM && !HAS_TRAIT(O, TRAIT_T_RAY_VISIBLE))
 		return
-	var/live = hidden && kind == T_RAY_SHOW_CABLES && t_ray_live(O)
+	var/live = (kind == T_RAY_SHOW_CABLES && t_ray_live(O)) ? TRUE : FALSE
 	var/turf/T = O.loc
-	var/state = hidden + live * 2 + ends * 4
 	var/list/entry = shown[O]
-	if(!entry || entry[1] != O.appearance || entry[2] != state || entry[3] != T)
-		var/list/images = list()
+	if(!entry || entry[1] != O.appearance || entry[2] != live || entry[3] != T)
 		var/list/glows = list()
-		if(hidden)
-			var/outline
-			if(live)
-				outline = filter(type = "drop_shadow", x = 0, y = 0, size = 3, offset = 1, color = T_RAY_LIVE_GLOW)
-			else if(!kind)
-				outline = filter(type = "outline", size = 1, color = T_RAY_STASH_OUTLINE)
-			images += copy_of(O, T, kind ? T_RAY_ALPHA : T_RAY_STASH_ALPHA, outline, null, glows, live ? T_RAY_GLOW_LIVE : (kind ? T_RAY_GLOW_FAINT : T_RAY_GLOW_STASH))
-		if(ends)
-			images += end_markers(O, T, ends, glows)
-		entry = replace(entry, list(O.appearance, state, T, images, glows, 0, -1))
+		var/outline
+		if(live)
+			outline = filter(type = "drop_shadow", x = 0, y = 0, size = 3, offset = 1, color = T_RAY_LIVE_GLOW)
+		else if(!kind)
+			outline = filter(type = "outline", size = 1, color = T_RAY_STASH_OUTLINE)
+		var/list/images = copy_of(O, T, kind ? T_RAY_ALPHA : T_RAY_STASH_ALPHA, outline, null, glows, live ? T_RAY_GLOW_LIVE : (kind ? T_RAY_GLOW_FAINT : T_RAY_GLOW_STASH))
+		entry = replace(entry, list(O.appearance, live, T, images, glows, 0, -1))
 	entry[6] = darkness_at(T)
 	now[O] = entry
 	// Anything crawling through the vents and pipes under the floor
-	if(hidden && kind == T_RAY_SHOW_PIPES && length(O.contents))
+	if(kind == T_RAY_SHOW_PIPES && length(O.contents))
 		for(var/mob/living/crawler in O.contents)
 			if(crawler == viewer)
 				continue
@@ -426,24 +355,6 @@ GLOBAL_LIST_EMPTY(t_ray_views)
 	glow.alpha = 0
 	glows[glow] = glow_strength
 	return list(plain, glow)
-
-/// A red dot at each open end, at the edge of the tile it runs off or in the middle, and its glow.
-/datum/t_ray_view/proc/end_markers(obj/O, turf/T, ends, list/glows)
-	. = list()
-	for(var/bit in list(NORTH, SOUTH, EAST, WEST, T_RAY_END_CENTRE))
-		if(!(ends & bit))
-			continue
-		var/image/mark = image('hippiestation/icons/effects/t_ray.dmi', T, "end", T_RAY_END_LAYER)
-		mark.plane = GAME_PLANE
-		mark.pixel_x = O.pixel_x + (bit == EAST ? 12 : (bit == WEST ? -12 : 0))
-		mark.pixel_y = O.pixel_y + (bit == NORTH ? 12 : (bit == SOUTH ? -12 : 0))
-		var/image/glow = image(loc = T)
-		glow.appearance = mark.appearance
-		glow.plane = T_RAY_GLOW_PLANE
-		glow.alpha = 0
-		glows[glow] = T_RAY_GLOW_END
-		. += mark
-		. += glow
 
 // The sources
 
@@ -641,15 +552,12 @@ GLOBAL_LIST_EMPTY(t_ray_views)
 #undef T_RAY_GLOW_LIVE
 #undef T_RAY_GLOW_FAINT
 #undef T_RAY_GLOW_STASH
-#undef T_RAY_GLOW_END
 #undef T_RAY_GLOW_BLUR
 #undef T_RAY_LIT
 #undef T_RAY_RANGE_SCANNER
 #undef T_RAY_RANGE_WORN
 #undef T_RAY_LIVE_GLOW
 #undef T_RAY_STASH_OUTLINE
-#undef T_RAY_END_CENTRE
-#undef T_RAY_END_LAYER
 #undef T_RAY_CRAWLER_LAYER
 #undef T_RAY_GOGGLE_MODE
 #undef T_RAY_SHOW_ALL
