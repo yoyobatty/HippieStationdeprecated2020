@@ -231,6 +231,7 @@
 /datum/bot_step/paced/jetpack_on
 	max_clicks = 30
 	var/done = FALSE
+	var/next_case_ask = 0
 
 /datum/bot_step/paced/jetpack_on/start(datum/bot_brain/bot)
 	done = FALSE
@@ -256,6 +257,12 @@
 		var/obj/machinery/door/window/W = locate() in get_turf(J)
 		var/turf/front = W ? get_step(W, W.dir) : null
 		if(W && get_turf(H) == front && W.density)
+			if(!W.allowed(H))
+				if(world.time >= next_case_ask)
+					next_case_ask = world.time + 20 SECONDS
+					bot_say(H, ";AI, open the [W.name] in EVA, please, I'm going out on an EVA.")
+				wait_for = 10
+				return TRUE
 			bot_log(bot, "opening [W] for [J]")
 			bot.human_pause(W)
 			W.open()
@@ -301,8 +308,8 @@
 /// it isn't in one, or its ID won't open it, or there's no getting to the front of it.
 /datum/bot_brain/proc/jetpack_case_front(obj/item/tank/jetpack/J)
 	var/obj/machinery/door/window/W = locate() in get_turf(J)
-	if(!W || !W.allowed(owner))
-		return null
+	if(!W || (!W.allowed(owner) && !(locate(/datum/bot_silicon/ai) in GLOB.bot_silicons)))
+		return null //Meta's case is for heads of staff: without the access, it's the AI that can open it, if there is one
 	var/turf/front = get_step(W, W.dir)
 	return (front && can_walk_lawfully_to(front)) ? front : null
 

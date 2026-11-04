@@ -166,21 +166,26 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 			. += H
 
 /// The nearest door to somebody that's shut, if the AI can work it.
+/// The nearest door to somebody that's shut, if the AI can work it: an airlock, or a windoor (a display case's, Meta's jetpacks).
 /datum/bot_silicon/ai/proc/door_near(atom/A)
-	var/obj/machinery/door/airlock/best
+	var/obj/machinery/door/best
 	var/best_dist
-	for(var/obj/machinery/door/airlock/D in range(2, get_turf(A)))
-		if(!D.density || !D.canAIControl(owner))
+	for(var/obj/machinery/door/D in range(2, get_turf(A)))
+		if(!D.density || istype(D, /obj/machinery/door/firedoor) || istype(D, /obj/machinery/door/poddoor))
 			continue
+		var/obj/machinery/door/airlock/L = D
+		if(istype(L) ? !L.canAIControl(owner) : ((D.stat & (NOPOWER|BROKEN)) || istype(get_area(D), /area/security)))
+			continue //not Security's desk windoors
 		var/dist = get_dist(A, D)
 		if(!best || dist < best_dist)
 			best = D
 			best_dist = dist
 	return best
 
-/datum/bot_silicon/ai/proc/open_door(obj/machinery/door/airlock/D)
-	if(D.locked)
-		D.unbolt()
+/datum/bot_silicon/ai/proc/open_door(obj/machinery/door/D)
+	var/obj/machinery/door/airlock/L = D
+	if(istype(L) && L.locked)
+		L.unbolt()
 	return D.open()
 
 /datum/bot_silicon/ai/proc/open_doors_for_those_shut_in()
