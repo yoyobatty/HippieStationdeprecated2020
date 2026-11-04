@@ -722,6 +722,7 @@
 		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), max(1, owner.movement_delay()), TIMER_STOPPABLE)
 		return
 
+	next_node = mind_the_footing(next_node) //bot_hazards.dm
 	var/turf/left_turf = get_turf(owner)
 	if(bot_step_towards(next_node))
 		quick_step_retries = 0

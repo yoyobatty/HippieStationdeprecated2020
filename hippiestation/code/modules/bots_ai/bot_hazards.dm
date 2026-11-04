@@ -193,3 +193,111 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 #undef BOT_HAZARD_RADS
 #undef BOT_HAZARD_RADS_RANGE
 #undef BOT_HAZARD_RADS_FROM
+
+// ---------------------------------------------------------------------------------------------
+// Footing
+// ---------------------------------------------------------------------------------------------
+
+// Slips (the user, 2026-11-04: aware of them, as a person is, in their own time, and still slipping now and then). A wet floor is walked
+// over, since walking doesn't slip you on water (_open.dm handle_slip(), NO_SLIP_WHEN_WALKING). A banana peel, soap, lube or ice puts you
+// down walking or not, so that's stepped round, a tile to the side, if there's one free. What's two tiles ahead gets one look, and the
+// look doesn't always catch it: less often in a hurry, more often for the careful. Bots ran on to everything, the clown's peels included.
+
+/// Out of a hundred, the chance it sees what's on a tile in time.
+#define BOT_FOOTING_SEEN 80
+#define BOT_FOOTING_SEEN_HURRIED 55
+/// How long one look at a tile stands, seen or missed.
+#define BOT_FOOTING_LOOK (30 SECONDS)
+
+/datum/bot_brain
+	/// REF(turf) -> until when what it saw (or missed) there stands. Positive: seen. Negative: missed.
+	var/list/footing_looks
+	/// Walking because of the floor, not because a goal asked it to.
+	var/walking_for_footing = FALSE
+	/// Set by a Bot Gym scenario: the chance it sees something, instead of the usual.
+	var/footing_attention
+
+/// What stepping on to T would put it on the floor with, as it's dressed: "wet" (water, which walking over is fine on), "slip" (a peel,
+/// soap, lube or ice, which walking won't help with), or null.
+/datum/bot_brain/proc/slip_on(turf/T)
+	if(!isopenturf(T) || !(owner.status_flags & CANKNOCKDOWN))
+		return null
+	var/noslip = has_noslip_shoes() //goals/janitor.dm
+	var/datum/component/wet_floor/W = T.GetComponent(/datum/component/wet_floor)
+	if(W && W.highest_strength != TURF_DRY)
+		if(W.highest_strength == TURF_WET_WATER)
+			return noslip ? null : "wet"
+		return "slip" //lube and ice: galoshes don't help
+	if(noslip)
+		return null
+	for(var/atom/movable/AM in T)
+		var/datum/component/slippery/S = AM.GetComponent(/datum/component/slippery)
+		if(S)
+			return (S.lube_flags & NO_SLIP_WHEN_WALKING) ? "wet" : "slip"
+	return null
+
+/// Whether it's seen what's on T in time. One look a tile, so looking again and again doesn't see everything sooner or later.
+/datum/bot_brain/proc/sees_footing(turf/T)
+	var/key = REF(T)
+	var/look = LAZYACCESS(footing_looks, key)
+	if(look && abs(look) > world.time)
+		return look > 0
+	var/chance = footing_attention
+	if(isnull(chance))
+		var/hurried = state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST || istype(current_goal, /datum/bot_goal/run_from)
+		chance = (hurried ? BOT_FOOTING_SEEN_HURRIED : BOT_FOOTING_SEEN) + (is_paranoid() ? 10 : 0) + (owner.m_intent == MOVE_INTENT_WALK ? 10 : 0)
+	var/seen = prob(chance)
+	LAZYSET(footing_looks, key, seen ? world.time + BOT_FOOTING_LOOK : -(world.time + BOT_FOOTING_LOOK))
+	if(seen)
+		bot_log_verbose(src, "saw [slip_on(T)] floor at [bot_coord(T)]")
+	return seen
+
+/// About to step on to `next`: what's underfoot two tiles ahead is looked at. Water ahead, and it walks till it's past. Something that'll
+/// put it down anyway, and it takes the tile beside it if one's free and goes on from there. Returns the tile to step on to.
+/datum/bot_brain/proc/mind_the_footing(turf/next)
+	var/turf/here = get_turf(owner)
+	var/turf/after = length(current_path) >= 2 ? current_path[2] : null
+	var/wet_ahead = FALSE
+	for(var/turf/T in list(next, after))
+		if(T && slip_on(T) == "wet" && sees_footing(T))
+			wet_ahead = TRUE
+	if(wet_ahead && owner.m_intent != MOVE_INTENT_WALK)
+		bot_log(src, "wet floor ahead - walking")
+		owner.toggle_move_intent()
+		walking_for_footing = TRUE
+	else if(!wet_ahead && walking_for_footing && slip_on(here) != "wet")
+		walking_for_footing = FALSE
+		if(owner.m_intent == MOVE_INTENT_WALK && !walking_for_goal)
+			owner.toggle_move_intent()
+	if(slip_on(next) != "slip" || !sees_footing(next) || !here)
+		return next
+	// Round it, a step at a time: aside, along past it, and back on to the route. A diagonal step is two straight ones to this engine
+	// (atom/movable/Move()), and the first of them went on to the peel.
+	if(!after || get_dist(next, after) != 1)
+		return next
+	var/ahead = get_dir(here, next)
+	var/obj/item/card/id/id_card = owner.get_idcard(TRUE)
+	for(var/side_dir in list(turn(ahead, 90), turn(ahead, -90)))
+		var/turf/aside = get_step(here, side_dir)
+		var/turf/past = get_step(next, side_dir)
+		var/turf/beyond = get_step(after, side_dir)
+		if(!aside || !past || !beyond || slip_on(aside) || slip_on(past) || slip_on(beyond))
+			continue
+		if(!here.bot_reachable_strict(owner, aside, id_card, TRUE) || !aside.bot_reachable_strict(owner, past, id_card, TRUE) || !past.bot_reachable_strict(owner, beyond, id_card, TRUE) || !beyond.bot_reachable_strict(owner, after, id_card, TRUE))
+			continue
+		bot_log(src, "stepping round the [slip_thing(next)] at [bot_coord(next)]")
+		current_path.Cut(1, 2)
+		current_path.Insert(1, aside, past, beyond)
+		return aside
+	return next
+
+/// What's slippery there, for the log.
+/datum/bot_brain/proc/slip_thing(turf/T)
+	for(var/atom/movable/AM in T)
+		if(AM.GetComponent(/datum/component/slippery))
+			return AM.name
+	return "slippery floor"
+
+#undef BOT_FOOTING_SEEN
+#undef BOT_FOOTING_SEEN_HURRIED
+#undef BOT_FOOTING_LOOK

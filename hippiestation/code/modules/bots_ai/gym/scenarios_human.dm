@@ -212,3 +212,44 @@
 		return BOT_GYM_FAIL
 	keep_burning()
 	return world.time >= start_time + 12 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// A banana peel on the way: stepped round, when it's seen (the chance is set to a sure thing here; a shift has it missed now and then).
+/datum/bot_scenario/banana_peel
+	name = "footing: a banana peel in the way is stepped round, not run on to"
+	desc = "Straight down a corridor three wide with a peel in the middle of the way. It goes round it. Bots ran straight on to everything slippery, the clown's peels included."
+	layout = list(
+		"###########",
+		"#.........#",
+		"#B...p...G#",
+		"#.........#",
+		"###########")
+	time_limit = 20 SECONDS
+	var/slipped = FALSE
+
+/datum/bot_scenario/banana_peel/setup()
+	for(var/turf/T in markers["p"])
+		place("p", new /obj/item/grown/bananapeel(T))
+
+/datum/bot_scenario/banana_peel/post_spawn()
+	brain.footing_attention = 100
+
+/datum/bot_scenario/banana_peel/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!(bot.mobility_flags & MOBILITY_STAND))
+		fail_reason = "slipped"
+		return BOT_GYM_FAIL
+	return get_turf(bot) == first_marker("G") ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// A wet floor right across the way: walked over, not run.
+/datum/bot_scenario/banana_peel/wet_floor
+	name = "footing: a wet floor right across the way is walked over, not run across"
+	desc = "The floor's been mopped from wall to wall, so there's no way round. It walks it, as walking doesn't slip you on water."
+	layout = list(
+		"###########",
+		"#B..yyy..G#",
+		"###########")
+
+/datum/bot_scenario/banana_peel/wet_floor/setup()
+	for(var/turf/open/T in markers["y"])
+		T.MakeSlippery(TURF_WET_WATER, 2 MINUTES)
