@@ -167,15 +167,30 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 					break
 			break
 
-/// The RPED this bot has on it, or the one left by the lathe.
+/// The RPED this bot has on it, or the one left by its own lathe: Science's for Science, its department's for anybody else. Three
+/// engineers set off one after another for the lab's, behind doors none of them could open.
 /datum/bot_brain/proc/find_rped()
 	var/obj/item/storage/part_replacer/R = find_carried_tool(/obj/item/storage/part_replacer)
 	if(R)
 		return R
+	var/science = is_science_job()
 	for(var/obj/item/storage/part_replacer/loose as anything in bot_instances_of(/obj/item/storage/part_replacer))
-		if(!QDELETED(loose) && isturf(loose.loc) && loose.z == owner.z && in_science(loose) && !taken_by_another(loose))
+		if(QDELETED(loose) || !isturf(loose.loc) || loose.z != owner.z || taken_by_another(loose))
+			continue
+		if(science ? in_science(loose) : (gym_run ? get_area(loose) == get_area(owner) : is_my_department(get_area(loose))))
 			return loose
 	return null
+
+/// Somebody else in its department out with the department's RPED just now: one at a time, as Science goes.
+/datum/bot_brain/proc/department_rped_in_use()
+	var/mine = department()
+	for(var/obj/item/storage/part_replacer/R as anything in bot_instances_of(/obj/item/storage/part_replacer))
+		if(QDELETED(R) || isturf(R.loc) || R.loc == owner)
+			continue
+		var/mob/living/carbon/human/holder = bot_outermost_holder(R)
+		if(istype(holder) && holder != owner && holder.bot_brain && holder.bot_brain.department() == mine && (!gym_run || holder.bot_brain.gym_run == gym_run))
+			return TRUE
+	return FALSE
 
 /// Whether somebody else in the department is going round with the RPED. A lab has the one, and they don't queue up to print
 /// a second: two scientists used to print the same bins a couple of hundred times between them, for parts neither could carry.
@@ -867,7 +882,7 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 	if(left_open)
 		return bot.assign_goal(new /datum/bot_goal/close_panel(left_open))
 	var/obj/machinery/rnd/production/fab = bot.department_fabricator()
-	if(!fab || fab.busy)
+	if(!fab || fab.busy || bot.department_rped_in_use())
 		return FALSE
 	var/obj/machinery/M = bot.next_department_upgrade()
 	if(!M)

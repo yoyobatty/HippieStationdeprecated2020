@@ -159,6 +159,11 @@
 		bot_log(src, "[pack] is nearly empty - not going out on it")
 		explore_blocked_until = world.time + 10 MINUTES
 		return FALSE
+	// No jetpack to be had: not suited up for nothing.
+	if(!pack && !nearest_free_jetpack())
+		explore_blocked_until = world.time + 10 MINUTES
+		pick_pursuit("no jetpack to be had")
+		return FALSE
 	if(!suited || !pack)
 		var/obj/machinery/suit_storage_unit/U = suited ? null : eva_suit_storage()
 		if(!suited && !U)
@@ -241,9 +246,11 @@
 	max_clicks = 30
 	var/done = FALSE
 	var/next_case_ask = 0
+	var/case_asks = 0
 
 /datum/bot_step/paced/jetpack_on/start(datum/bot_brain/bot)
 	done = FALSE
+	case_asks = 0
 	return TRUE
 
 /datum/bot_step/paced/jetpack_on/do_click(datum/bot_brain/bot)
@@ -267,8 +274,17 @@
 		var/turf/front = W ? get_step(W, W.dir) : null
 		if(W && get_turf(H) == front && W.density)
 			if(!W.allowed(H))
+				// Asked twice and still shut: no jetpack, and no trip. Four explorers on Meta asked the AI every twenty seconds for four
+				// minutes after it had said the case was for heads of staff.
+				if(case_asks >= 2 && world.time >= next_case_ask)
+					GLOB.bot_jetpack_cases_refused[REF(W)] = world.time + 15 MINUTES
+					bot_log(bot, "nobody's opening [W] - no jetpack, then")
+					if(prob(50))
+						bot_say(H, pick("Never mind the jetpack, then.", "Guess I'm not going out after all.", "Fine, staying in."))
+					return FALSE
 				if(world.time >= next_case_ask)
-					next_case_ask = world.time + 20 SECONDS
+					case_asks++
+					next_case_ask = world.time + 30 SECONDS
 					bot_say(H, ";AI, open the [W.name] in EVA, please, I'm going out on an EVA.")
 				wait_for = 10
 				return TRUE
@@ -301,11 +317,17 @@
 	wait_for = 3
 	return TRUE //switched on next click
 
+/// Jetpack cases nobody would open for an explorer (REF) -> until when nobody else asks.
+GLOBAL_LIST_EMPTY(bot_jetpack_cases_refused)
+
 /// The nearest jetpack lying about on this level that nobody else is after and it can walk to.
 /datum/bot_brain/proc/nearest_free_jetpack()
 	var/obj/item/tank/jetpack/best
 	for(var/obj/item/tank/jetpack/J as anything in bot_instances_of(/obj/item/tank/jetpack))
 		if(QDELETED(J) || !isturf(J.loc) || J.z != owner.z || taken_by_another(J) || get_dist(owner, J) > 60 || bot_jetpack_fuel(J) < BOT_JETPACK_SET_OUT)
+			continue
+		var/obj/machinery/door/window/shut_in = locate() in get_turf(J)
+		if(shut_in?.density && !shut_in.allowed(owner) && GLOB.bot_jetpack_cases_refused[REF(shut_in)] > world.time)
 			continue
 		if(best && get_dist(owner, J) >= get_dist(owner, best))
 			continue
