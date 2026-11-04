@@ -90,6 +90,7 @@ import { ScrubberPack } from './interfaces/ScrubberPack';
 import { MasterMultitool } from './interfaces/MasterMultitool';
 import { Orbit } from './interfaces/Orbit';
 import { DisplaySettings } from './interfaces/DisplaySettings';
+import { RdConsole, RdFabricator } from './interfaces/RdConsole';
 // hippie end
 
 const ROUTES = {
@@ -471,6 +472,14 @@ const ROUTES = {
   orbit: {
     component: () => Orbit,
     scrollable: true,
+  },
+  rdconsole: {
+    component: () => RdConsole,
+    scrollable: false,
+  },
+  rd_fabricator: {
+    component: () => RdFabricator,
+    scrollable: false,
   },
   // hippie end
 };

@@ -25,7 +25,7 @@ public class WindowShot {
 			uint owner; GetWindowThreadProcessId(h, out owner);
 			RECT r; GetWindowRect(h, out r);
 			int w = r.r - r.l, ht = r.b - r.t;
-			if (owner == pid && h != main && IsWindowVisible(h) && w > 300 && w < 900 && ht > 300 && w * ht > area) { area = w * ht; found = h; }
+			if (owner == pid && h != main && IsWindowVisible(h) && w > 300 && w < 1400 && ht > 300 && w * ht > area) { area = w * ht; found = h; }
 			return true;
 		}, IntPtr.Zero);
 		return found;
