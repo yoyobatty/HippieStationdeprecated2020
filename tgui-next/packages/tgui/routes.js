@@ -44,6 +44,7 @@ import { KeycardAuth } from './interfaces/KeycardAuth';
 import { LanguageMenu } from './interfaces/LanguageMenu';
 import { MechBayPowerConsole } from './interfaces/MechBayPowerConsole';
 import { MedicalKiosk } from './interfaces/MedicalKiosk';
+import { MedicalRecords, SecurityRecords } from './interfaces/RecordsConsole';
 import { Mint } from './interfaces/Mint';
 import { NaniteChamberControl } from './interfaces/NaniteChamberControl';
 import { NaniteCloudControl } from './interfaces/NaniteCloudControl';
@@ -204,6 +205,10 @@ const ROUTES = {
     component: () => ChemDebugSynthesizer,
     scrollable: false,
   },
+  security_records: {
+    component: () => SecurityRecords,
+    scrollable: false,
+  },
   synthesizer: {
     component: () => ChemSynthesizer,
     scrollable: false,
@@ -282,6 +287,10 @@ const ROUTES = {
   },
   medical_kiosk: {
     component: () => MedicalKiosk,
+    scrollable: false,
+  },
+  medical_records: {
+    component: () => MedicalRecords,
     scrollable: false,
   },
   mint: {

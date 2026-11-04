@@ -112,13 +112,13 @@ while ((Get-Date) -lt $deadline -and -not (Test-Path "$data\keycheck_shots_done"
 					if ($px.R -lt 250 -or $px.G -lt 250 -or $px.B -lt 250) { $white = $false }
 				}
 			}
-			if (-not $white) { break }
+			if (-not $white -or $try -eq 3) { break } # the last try is kept whatever it is, and said to be white
 			$bitmap.Dispose()
 			Start-Sleep -Milliseconds 700
 		}
 		$bitmap.Save("$data\previews\$name.png", [Drawing.Imaging.ImageFormat]::Png)
 		$bitmap.Dispose()
-		Say "picture $name ($($r.r - $r.l) x $($r.b - $r.t)), PrintWindow $done"
+		Say "picture $name ($($r.r - $r.l) x $($r.b - $r.t)), PrintWindow $done$(if ($white) { ', STILL WHITE' } else { '' })"
 		Remove-Item "$data\keycheck_shot"
 	}
 	Start-Sleep -Milliseconds 100

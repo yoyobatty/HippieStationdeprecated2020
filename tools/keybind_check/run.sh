@@ -46,6 +46,12 @@ done
 grep -q "Initializations complete" data/keycheck_dd.log || { echo "Server never finished starting"; kill "$DD"; exit 1; }
 sleep 3
 
+# The last run's game window browser (WebView2) can still be shutting down: a window opened on top of it came up blank and took no
+# clicks (twice in a row of quick runs, 2026-11-04). Wait for any of DreamSeeker's to go first.
+for i in $(seq 1 30); do
+	powershell -NoProfile -Command "if (Get-CimInstance Win32_Process -Filter \"name='msedgewebview2.exe'\" | Where-Object { \$_.CommandLine -match 'dreamseeker' }) { exit 1 } else { exit 0 }" && break
+	sleep 1
+done
 "$BYOND_BIN/dreamseeker.exe" "byond://127.0.0.1:$PORT##guest" &
 CLIENT=$!
 echo "Client $CLIENT connecting..."
