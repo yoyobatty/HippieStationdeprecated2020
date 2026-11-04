@@ -616,3 +616,58 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return istype(bot.wear_suit, /obj/item/clothing/suit/hooded/explorer) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/floor_goes
+	name = "space: the floor ahead turns to space mid-walk (a shuttle leaving its dock), and it doesn't walk on to it"
+	desc = "The bot sets off down a corridor, and the stretch ahead becomes open space while it's on the way, the way a dock does when the shuttle it was walking to leaves. No suit, so it doesn't step out into it: explorers stepped off the mining shuttle that way and drifted off into space."
+	layout = list(
+		"#############",
+		"#B....xx...G#",
+		"#############")
+	time_limit = 20 SECONDS
+	var/went = FALSE
+
+/datum/bot_scenario/floor_goes/post_spawn()
+	addtimer(CALLBACK(src, PROC_REF(open_up)), 3)
+
+/datum/bot_scenario/floor_goes/proc/open_up()
+	for(var/turf/T in markers["x"])
+		T.ChangeTurf(/turf/open/space/basic)
+	went = TRUE
+
+/datum/bot_scenario/floor_goes/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(isspaceturf(get_turf(bot)))
+		fail_reason = "walked out into the space"
+		return BOT_GYM_FAIL
+	return (went && world.time > start_time + 15 SECONDS) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/dock_door
+	name = "space: an airlock with open space behind it isn't opened without a suit"
+	desc = "The way on is through an airlock, and the other side of it has gone to space (the shuttle that was docked there has left). No suit: it doesn't open it. A bot opened the mining dock's door with the shuttle gone and was blown out into space."
+	layout = list(
+		"###########",
+		"#B...Dx..G#",
+		"###########")
+	time_limit = 20 SECONDS
+
+/datum/bot_scenario/dock_door/setup()
+	for(var/turf/T in markers["D"])
+		place("D", new /obj/machinery/door/airlock(T))
+
+/datum/bot_scenario/dock_door/post_spawn()
+	addtimer(CALLBACK(src, PROC_REF(shuttle_leaves)), 3) //after it has set off, the way planned through the door and the dock
+
+/datum/bot_scenario/dock_door/proc/shuttle_leaves()
+	for(var/turf/T in markers["x"])
+		T.ChangeTurf(/turf/open/space/basic)
+
+/datum/bot_scenario/dock_door/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	if(A && !A.density)
+		fail_reason = "opened it on to space"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 15 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING

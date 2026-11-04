@@ -532,6 +532,10 @@
 		return FALSE
 	if(SSpathfinder.space_type_cache[next_node.type] && !SSpathfinder.space_type_cache[here.type] && !bot_turf_crossable_without_boots(next_node, owner) && !can_path_through_space())
 		return FALSE
+	// Walking into an airlock opens it (Bumped()): not one with vacuum behind it, without a suit (bot_door_opens_on_vacuum(), bot_items.dm).
+	var/obj/machinery/door/airlock/door = locate() in next_node
+	if(door && door.density && !is_space_protected_without_boots() && bot_door_opens_on_vacuum(door, here))
+		return FALSE
 	if(op_team)
 		op_mind_jetpack(next_node) //goals/nuke_ops.dm
 	if(!owner.Process_Spacemove(get_dir(owner, next_node)))

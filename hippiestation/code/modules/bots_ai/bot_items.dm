@@ -431,6 +431,12 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 			var/obj/machinery/button/door/exit_button = door_button_for(tagged, get_turf(owner))
 			if(exit_button && press_button_for_door(exit_button, tagged))
 				return TRUE
+		// Vacuum on the other side (a dock whose shuttle has gone, a breach): nobody opens that without a suit on. The room's air goes
+		// out through it and takes whoever's in the doorway with it: a bot was blown off the end of the mining dock that way, the
+		// shuttle having just left, and drifted off into space.
+		if(istype(D, /obj/machinery/door/airlock) && !is_space_protected_without_boots() && bot_door_opens_on_vacuum(D, get_turf(owner)))
+			bot_log(src, "[D] opens on to vacuum - not without a suit")
+			return FALSE
 		bot_log(src, "opening [O]")
 		// A windoor gets walked into, the way players go through them: that opens it and it shuts itself behind
 		// you (open_and_close()). Clicking one (attack_hand() -> try_to_activate_door()) switches autoclose off -
@@ -1106,6 +1112,22 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 		return
 	bot_log(src, "putting on [gloves] before touching live wiring")
 	equip_displacing(gloves, ITEM_SLOT_GLOVES)
+
+/// Open space or next to no air on a side of this door other than the one the bot is on.
+/proc/bot_door_opens_on_vacuum(obj/machinery/door/D, turf/from)
+	var/turf/doorway = get_turf(D)
+	if(!doorway)
+		return FALSE
+	for(var/d in GLOB.cardinals)
+		var/turf/open/T = get_step(doorway, d)
+		if(!istype(T) || T == from)
+			continue
+		if(isspaceturf(T))
+			return TRUE
+		var/datum/gas_mixture/air = T.return_air()
+		if(air && air.return_pressure() < HAZARD_LOW_PRESSURE)
+			return TRUE
+	return FALSE
 
 // `locate(type) in owner` only ever searches owner's DIRECT contents - one level. That
 // was fine when a tool could only ever end up loose in a hand or worn directly, but
