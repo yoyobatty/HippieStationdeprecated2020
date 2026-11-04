@@ -288,10 +288,13 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 	var/stuck = 0
 	/// Whether it has looked for the walkable ground nearest the ruin from where it stands now.
 	var/looked = FALSE
+	/// Turf -> times it has stepped on to it on the way.
+	var/list/trodden
 
 /datum/bot_step/paced/head_for_ruin/start(datum/bot_brain/bot)
 	stuck = 0
 	looked = FALSE
+	trodden = list()
 	var/turf/spot = get_turf(bot.current_goal?.target)
 	return spot && bot.owner.z == spot.z
 
@@ -333,7 +336,13 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 			stuck = 0
 			looked = FALSE
 			return TRUE
+		// Not back over ground it has been over twice already. With lava ahead and to the side, the best step from each of two tiles
+		// was the other: two explorers paced the same two tiles at the edge of a lava river for most of a minute, and one burned to
+		// death there.
+		if(trodden[next] >= 2)
+			continue
 		if(here.bot_reachable_strict(H, next, H.get_idcard(TRUE), TRUE) && bot.bot_step_towards(next))
+			trodden[next] = trodden[next] + 1
 			wait_for = rand(2, 4)
 			stuck = 0
 			looked = FALSE

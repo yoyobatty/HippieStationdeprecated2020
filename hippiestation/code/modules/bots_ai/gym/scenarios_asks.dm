@@ -617,6 +617,53 @@
 		return BOT_GYM_FAIL
 	return istype(bot.wear_suit, /obj/item/clothing/suit/hooded/explorer) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/datum/bot_scenario/lava_moat
+	name = "pursuits: an explorer with lava between it and the ruin gives up on it, not pacing the edge"
+	desc = "Out for a ruin on Lavaland, the way to it runs out at a lava river: lava ahead and to the side, one tile back. It tries that and gives the ruin up. Two explorers paced the same two tiles at the edge of a lava river for most of a minute, the best step from each being the other, and one burned to death there."
+	job = "Assistant"
+	layout = list(
+		"##############",
+		"#R.......LL###",
+		"#........LB###",
+		"#........L.###",
+		"##############")
+	time_limit = 25 SECONDS
+	max_goal_attempts = 1
+	var/obj/effect/landmark/ruin/ruin
+	var/turf/was_at
+	var/moves = 0
+
+/datum/bot_scenario/lava_moat/setup()
+	for(var/turf/T in markers["L"])
+		T.ChangeTurf(/turf/open/lava/smooth)
+	ruin = new(first_marker("R"), null)
+	place("R", ruin)
+
+/datum/bot_scenario/lava_moat/post_spawn()
+	brain.set_pursuit(BOT_PURSUIT_EXPLORE, 10 MINUTES, "the gym")
+
+/datum/bot_scenario/lava_moat/make_goal()
+	return new /datum/bot_goal/explore_ruin(ruin)
+
+/datum/bot_scenario/lava_moat/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/turf/T = get_turf(bot)
+	if(was_at && T != was_at)
+		moves++
+	was_at = T
+	if(istype(T, /turf/open/lava))
+		fail_reason = "walked into the lava"
+		return BOT_GYM_FAIL
+	if(moves > 8)
+		fail_reason = "paced the edge: [moves] steps without getting anywhere"
+		return BOT_GYM_FAIL
+	return istype(brain.current_goal, /datum/bot_goal/explore_ruin) ? BOT_GYM_PENDING : BOT_GYM_PASS
+
+/datum/bot_scenario/lava_moat/Destroy()
+	QDEL_NULL(ruin)
+	return ..()
+
 /datum/bot_scenario/floor_goes
 	name = "space: the floor ahead turns to space mid-walk (a shuttle leaving its dock), and it doesn't walk on to it"
 	desc = "The bot sets off down a corridor, and the stretch ahead becomes open space while it's on the way, the way a dock does when the shuttle it was walking to leaves. No suit, so it doesn't step out into it: explorers stepped off the mining shuttle that way and drifted off into space."
