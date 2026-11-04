@@ -282,7 +282,7 @@
 		dat += "<BR>\n"
 
 	viewalerts = 1
-	src << browse(dat, "window=aialerts&can_close=0")
+	src << browse(HTML_SKELETON(dat), "window=aialerts&can_close=0")
 
 /* HIPPIE START added max characters to the shuttle call reason length
 /mob/living/silicon/ai/proc/ai_call_shuttle()

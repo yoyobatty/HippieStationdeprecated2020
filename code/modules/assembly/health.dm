@@ -88,7 +88,7 @@
 	dat += "<BR><A href='?src=[REF(src)];scanning=1'>[scanning?"On":"Off"]</A>"
 	if(scanning && health_scan)
 		dat += "<BR>Health: [health_scan]"
-	user << browse(dat, "window=hscan")
+	user << browse(HTML_SKELETON(dat), "window=hscan")
 	onclose(user, "hscan")
 
 /obj/item/assembly/health/Topic(href, href_list)

@@ -19,7 +19,7 @@ GLOBAL_LIST_EMPTY(custom_outfits) //Admin created outfits
 	dat += "</ul>"
 	dat += "<a href='?_src_=holder;[HrefToken()];create_outfit_menu=1'>Create</a><br>"
 	dat += "<a href='?_src_=holder;[HrefToken()];load_outfit=1'>Load from file</a>"
-	admin << browse(dat.Join(),"window=outfitmanager")
+	admin << browse(HTML_SKELETON(dat.Join()),"window=outfitmanager")
 
 /datum/admins/proc/save_outfit(mob/admin,datum/outfit/O)
 	O.save_to_file(admin)

@@ -178,7 +178,7 @@
 	. += "<hr><a href='?src=[REF(src)];finish_req_access=1;user=[REF(user)]'>Finish</a> "
 	. += "<span class='danger'>(Warning! The ID upload panel will be locked. It can be unlocked only through Exosuit Interface.)</span>"
 	. += "</body></html>"
-	user << browse(., "window=exosuit_add_access")
+	user << browse(HTML_SKELETON(.), "window=exosuit_add_access")
 	onclose(user, "exosuit_add_access")
 
 
@@ -198,7 +198,7 @@
 						[(state>0) ?"<a href='?src=[REF(src)];set_internal_tank_valve=1;user=[REF(user)]'>Set Cabin Air Pressure</a>":null]
 						</body>
 						</html>"}
-	user << browse(., "window=exosuit_maint_console")
+	user << browse(HTML_SKELETON(.), "window=exosuit_maint_console")
 	onclose(user, "exosuit_maint_console")
 
 

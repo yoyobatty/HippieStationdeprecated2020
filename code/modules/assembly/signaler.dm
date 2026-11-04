@@ -68,7 +68,7 @@ Code:
 <A href='byond://?src=[REF(src)];set=code'>Set</A><BR>
 [t1]
 </TT>"}
-		user << browse(dat, "window=radio")
+		user << browse(HTML_SKELETON(dat), "window=radio")
 		onclose(user, "radio")
 		return
 

@@ -35,7 +35,7 @@
 		dat = {"
 <B>Persistent Signal Locator</B><HR>
 <A href='?src=[REF(src)];refresh=1'>Refresh</A>"}
-	user << browse(dat, "window=radio")
+	user << browse(HTML_SKELETON(dat), "window=radio")
 	onclose(user, "radio")
 	return
 

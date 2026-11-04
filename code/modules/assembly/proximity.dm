@@ -124,7 +124,7 @@
 		dat += "<BR>Detection range: <A href='?src=[REF(src)];sense=down'>-</A> [sensitivity] <A href='?src=[REF(src)];sense=up'>+</A>"
 		dat += "<BR><BR><A href='?src=[REF(src)];refresh=1'>Refresh</A>"
 		dat += "<BR><BR><A href='?src=[REF(src)];close=1'>Close</A>"
-		user << browse(dat, "window=prox")
+		user << browse(HTML_SKELETON(dat), "window=prox")
 		onclose(user, "prox")
 		return
 

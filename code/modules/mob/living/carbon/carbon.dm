@@ -219,7 +219,7 @@
 	<BR>
 	<BR><A href='?src=[REF(user)];mach_close=mob[REF(src)]'>Close</A>
 	"}
-	user << browse(dat, "window=mob[REF(src)];size=325x500")
+	user << browse(HTML_SKELETON(dat), "window=mob[REF(src)];size=325x500")
 	onclose(user, "mob[REF(src)]")
 
 /mob/living/carbon/Topic(href, href_list)

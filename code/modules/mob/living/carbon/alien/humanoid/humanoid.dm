@@ -46,7 +46,7 @@
 	<BR>
 	<BR><A href='?src=[REF(user)];mach_close=mob[REF(src)]'>Close</A>
 	"}
-	user << browse(dat.Join(), "window=mob[REF(src)];size=325x500")
+	user << browse(HTML_SKELETON(dat.Join()), "window=mob[REF(src)];size=325x500")
 	onclose(user, "mob[REF(src)]")
 
 

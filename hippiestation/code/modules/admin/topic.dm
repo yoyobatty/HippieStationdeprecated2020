@@ -59,7 +59,7 @@
 		return
 	if(query_memoedits.NextRow())
 		var/edit_log = query_memoedits.item[1]
-		usr << browse(edit_log,"window=mentormemoeditlist")
+		usr << browse(HTML_SKELETON(edit_log),"window=mentormemoeditlist")
 	qdel(query_memoedits)
 
 /datum/admins/proc/makeMentor(ckey)

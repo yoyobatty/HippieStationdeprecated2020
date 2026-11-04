@@ -215,4 +215,4 @@
 	dat += build_antag_listing()
 
 	dat += "</body></html>"
-	usr << browse(dat.Join(), "window=roundstatus;size=500x500")
+	usr << browse(HTML_SKELETON(dat.Join()), "window=roundstatus;size=500x500")

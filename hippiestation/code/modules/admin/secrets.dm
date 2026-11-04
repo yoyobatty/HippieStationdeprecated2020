@@ -5,7 +5,7 @@
 
 	if(!GLOB.mentorlog.len)
 		dat += "No mentors have done anything this round!"
-	usr << browse(dat, "window=mentor_log")
+	usr << browse(HTML_SKELETON(dat), "window=mentor_log")
 
 /datum/admins/Secrets_topic(item,href_list)
 	. = ..()
@@ -427,7 +427,7 @@
 	dat += hippie_report_section("APCs", report["apcs"])
 	dat += hippie_report_section("Mechs", report["mechs"])
 	dat += hippie_report_section("Cyborgs", report["borgs"])
-	usr << browse(dat.Join(), "window=upgrade_report;size=800x650")
+	usr << browse(HTML_SKELETON(dat.Join()), "window=upgrade_report;size=800x650")
 
 //Adds plasma to every floor tile on the station levels that isn't out in space, at room temperature and with nothing lit
 /datum/admins/proc/PlasmaFloodSecret(moles)

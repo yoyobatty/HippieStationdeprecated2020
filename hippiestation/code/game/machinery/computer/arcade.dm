@@ -116,13 +116,13 @@
 	if(game_status == MINESWEEPER_GAME_MAIN_MENU)
 		if(obj_flags & EMAGGED)
 			playsound(loc, 'hippiestation/sound/arcade/minesweeper_emag2.ogg', 50, 0, extrarange = -3, falloff = 10)
-			user << browse(static_emagged_web+emagged_web_difficulty_menu,"window=minesweeper,size=400x500")
+			user << browse(HTML_SKELETON(static_emagged_web+emagged_web_difficulty_menu),"window=minesweeper,size=400x500")
 		else
 			playsound(loc, 'hippiestation/sound/arcade/minesweeper_startup.ogg', 50, 0, extrarange = -3, falloff = 10)
-			user << browse(static_web+web_difficulty_menu,"window=minesweeper,size=400x500")
+			user << browse(HTML_SKELETON(static_web+web_difficulty_menu),"window=minesweeper,size=400x500")
 	else
 		playsound(loc, 'hippiestation/sound/arcade/minesweeper_boardpress.ogg', 50, 0, extrarange = -3, falloff = 10)
-		user << browse(saved_web,"window=minesweeper,size=400x500")
+		user << browse(HTML_SKELETON(saved_web),"window=minesweeper,size=400x500")
 	if(obj_flags & EMAGGED)
 		do_sparks(5, 1, src)
 	add_fingerprint(user)
@@ -361,7 +361,7 @@
 
 	web += "</div>"
 	saved_web = web
-	user << browse(web,"window=minesweeper,size=400x500")
+	user << browse(HTML_SKELETON(web),"window=minesweeper,size=400x500")
 	return
 
 /obj/machinery/computer/arcade/minesweeper/emag_act(mob/user)

@@ -62,7 +62,7 @@
 	dat += "<A href='byond://?src=[REF(src)];invisible_wall=1'>Invisible Wall</A><BR>"
 	dat += "<A href='byond://?src=[REF(src)];invisible_chair=1'>Invisible Chair</A><BR>"
 	dat += "<A href='byond://?src=[REF(src)];invisible_box=1'>Invisible Box</A><BR>"
-	user << browse(dat, "window=book")
+	user << browse(HTML_SKELETON(dat), "window=book")
 
 /obj/item/book/mimery/Topic(href, href_list)
 	..()

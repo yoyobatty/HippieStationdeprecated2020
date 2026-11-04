@@ -48,7 +48,7 @@
 	dat += "Current toner level: [toner]"
 	if(!toner)
 		dat +="<BR>Please insert a new toner cartridge!"
-	user << browse(dat.Join(""), "window=copier")
+	user << browse(HTML_SKELETON(dat.Join("")), "window=copier")
 	onclose(user, "copier")
 
 /obj/machinery/photocopier/Topic(href, href_list)

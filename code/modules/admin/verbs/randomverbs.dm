@@ -1045,7 +1045,7 @@ Traitors and the like can also be revived with the previous role mostly intact.
 	for(var/datum/station_goal/S in SSticker.mode.station_goals)
 		dat += "[S.name] - <a href='?src=[REF(S)];[HrefToken()];announce=1'>Announce</a> | <a href='?src=[REF(S)];[HrefToken()];remove=1'>Remove</a><br>"
 	dat += "<br><a href='?src=[REF(src)];[HrefToken()];add_station_goal=1'>Add New Goal</a>"
-	usr << browse(dat, "window=goals;size=400x400")
+	usr << browse(HTML_SKELETON(dat), "window=goals;size=400x400")
 
 
 /client/proc/toggle_hub()
@@ -1169,7 +1169,7 @@ Traitors and the like can also be revived with the previous role mostly intact.
 	for(var/client/C in GLOB.clients)
 		msg += "<LI> - [key_name_admin(C)]: <A href='?_src_=holder;[HrefToken()];getplaytimewindow=[REF(C.mob)]'>" + C.get_exp_living() + "</a></LI>"
 	msg += "</UL></BODY></HTML>"
-	src << browse(msg.Join(), "window=Player_playtime_check")
+	src << browse(HTML_SKELETON(msg.Join()), "window=Player_playtime_check")
 
 /datum/admins/proc/cmd_show_exp_panel(client/C)
 	if(!check_rights(R_ADMIN))
@@ -1186,7 +1186,7 @@ Traitors and the like can also be revived with the previous role mostly intact.
 	body += C.get_exp_report()
 	body += "<A href='?_src_=holder;[HrefToken()];toggleexempt=[REF(C)]'>Toggle Exempt status</a>"
 	body += "</BODY></HTML>"
-	usr << browse(body.Join(), "window=playerplaytime[C.ckey];size=550x615")
+	usr << browse(HTML_SKELETON(body.Join()), "window=playerplaytime[C.ckey];size=550x615")
 
 /datum/admins/proc/toggle_exempt_status(client/C)
 	if(!check_rights(R_ADMIN))

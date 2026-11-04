@@ -98,7 +98,7 @@ GLOBAL_VAR_INIT(hsboxspawn, TRUE)
 		hsbinfo += "- <a href='?[REF(src)];hsb=hsbreag'>Spawn Reagent Container...</a><br>"
 		hsbinfo += "- <a href='?[REF(src)];hsb=hsbobj'>Spawn Other Item...</a><br><br>"
 
-	usr << browse(hsbinfo, "window=hsbpanel")
+	usr << browse(HTML_SKELETON(hsbinfo), "window=hsbpanel")
 
 /datum/hSB/Topic(href, href_list)
 	if(!usr || !src || !(src.owner == usr.ckey))
@@ -242,7 +242,7 @@ GLOBAL_VAR_INIT(hsboxspawn, TRUE)
 					for(var/O in reverseRange(all_items))
 						clothinfo += "<a href='?src=[REF(src)];hsb=hsb_safespawn&path=[O]'>[O]</a><br>"
 
-				usr << browse(clothinfo,"window=sandbox")
+				usr << browse(HTML_SKELETON(clothinfo),"window=sandbox")
 
 			// Reagent containers
 			if("hsbreag")
@@ -256,7 +256,7 @@ GLOBAL_VAR_INIT(hsboxspawn, TRUE)
 					for(var/O in reverseRange(all_items))
 						reaginfo += "<a href='?src=[REF(src)];hsb=hsb_safespawn&path=[O]'>[O]</a><br>"
 
-				usr << browse(reaginfo,"window=sandbox")
+				usr << browse(HTML_SKELETON(reaginfo),"window=sandbox")
 
 			// Other items
 			if("hsbobj")
@@ -271,7 +271,7 @@ GLOBAL_VAR_INIT(hsboxspawn, TRUE)
 					for(var/O in reverseRange(all_items))
 						objinfo += "<a href='?src=[REF(src)];hsb=hsb_safespawn&path=[O]'>[O]</a><br>"
 
-				usr << browse(objinfo,"window=sandbox")
+				usr << browse(HTML_SKELETON(objinfo),"window=sandbox")
 
 			//
 			// Safespawn checks to see if spawning is disabled.

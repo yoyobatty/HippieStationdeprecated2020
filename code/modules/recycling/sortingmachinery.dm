@@ -193,7 +193,7 @@
 
 	dat += "</tr></table><br>Current Selection: [currTag ? GLOB.TAGGERLOCATIONS[currTag] : "None"]</tt>"
 
-	user << browse(dat, "window=destTagScreen;size=450x350")
+	user << browse(HTML_SKELETON(dat), "window=destTagScreen;size=450x350")
 	onclose(user, "destTagScreen")
 
 /obj/item/destTagger/attack_self(mob/user)

@@ -21,7 +21,7 @@
 	qdel(query_poll_get)
 	output += "</table>"
 	if(!QDELETED(src))
-		src << browse(output,"window=playerpolllist;size=500x300")
+		src << browse(HTML_SKELETON(output),"window=playerpolllist;size=500x300")
 
 /mob/dead/new_player/proc/poll_player(pollid)
 	if(!pollid)
@@ -90,7 +90,7 @@
 				output += "</form>"
 			output += "</div>"
 			src << browse(null ,"window=playerpolllist")
-			src << browse(output,"window=playerpoll;size=500x250")
+			src << browse(HTML_SKELETON(output),"window=playerpoll;size=500x250")
 		if(POLLTYPE_TEXT)
 			var/datum/DBQuery/query_text_get_votes = SSdbcore.NewQuery("SELECT replytext FROM [format_table_name("poll_textreply")] WHERE pollid = [pollid] AND ckey = '[ckey]'")
 			if(!query_text_get_votes.warn_execute())
@@ -118,7 +118,7 @@
 			output += "<input type='submit' value='Abstain'></form>"
 
 			src << browse(null ,"window=playerpolllist")
-			src << browse(output,"window=playerpoll;size=500x500")
+			src << browse(HTML_SKELETON(output),"window=playerpoll;size=500x500")
 		if(POLLTYPE_RATING)
 			var/datum/DBQuery/query_rating_get_votes = SSdbcore.NewQuery("SELECT o.text, v.rating FROM [format_table_name("poll_option")] o, [format_table_name("poll_vote")] v WHERE o.pollid = [pollid] AND v.ckey = '[ckey]' AND o.id = v.optionid")
 			if(!query_rating_get_votes.warn_execute())
@@ -175,7 +175,7 @@
 				output += "<p><input type='submit' value='Submit'></form>"
 			if(!QDELETED(src))
 				src << browse(null ,"window=playerpolllist")
-				src << browse(output,"window=playerpoll;size=500x500")
+				src << browse(HTML_SKELETON(output),"window=playerpoll;size=500x500")
 		if(POLLTYPE_MULTI)
 			var/datum/DBQuery/query_multi_get_votes = SSdbcore.NewQuery("SELECT optionid FROM [format_table_name("poll_vote")] WHERE pollid = [pollid] AND ckey = '[ckey]'")
 			if(!query_multi_get_votes.warn_execute())
@@ -227,7 +227,7 @@
 				output += "<p><input type='submit' value='Vote'></form>"
 			output += "</div>"
 			src << browse(null ,"window=playerpolllist")
-			src << browse(output,"window=playerpoll;size=500x250")
+			src << browse(HTML_SKELETON(output),"window=playerpoll;size=500x250")
 		if(POLLTYPE_IRV)
 			var/datum/asset/irv_assets = get_asset_datum(/datum/asset/group/IRV)
 			irv_assets.send(src)

@@ -190,7 +190,7 @@
 		dat += "<BR><B>Visibility</B>: [visible ? "<A href='?src=[REF(src)];visible=0'>Visible</A>" : "<A href='?src=[REF(src)];visible=1'>Invisible</A>"]"
 		dat += "<BR><BR><A href='?src=[REF(src)];refresh=1'>Refresh</A>"
 		dat += "<BR><BR><A href='?src=[REF(src)];close=1'>Close</A>"
-		user << browse(dat, "window=infra")
+		user << browse(HTML_SKELETON(dat), "window=infra")
 		onclose(user, "infra")
 		return
 

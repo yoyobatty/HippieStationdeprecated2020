@@ -57,7 +57,7 @@
 					dat += "<font size=2px><b>[entry]</b><br>[reversed[entry]]</font><br>"
 			dat += "<hr>"
 
-	usr << browse(dat, "window=invidual_logging_[key_name(M)];size=600x480")
+	usr << browse(HTML_SKELETON(dat), "window=invidual_logging_[key_name(M)];size=600x480")
 
 /proc/individual_logging_panel_link(mob/M, log_type, log_src, label, selected_src, selected_type)
 	var/slabel = label
