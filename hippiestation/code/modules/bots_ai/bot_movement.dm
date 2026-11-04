@@ -65,6 +65,29 @@
 	// while it was yielding inside the pathfinder - see repath().
 	var/repath_superseded = FALSE
 
+/datum/bot_brain
+	/// Where it was, and since when, for watch_for_freeze().
+	var/turf/freeze_watch_turf
+	var/freeze_watch_since = 0
+
+/// On its way somewhere for an errand and not a step taken in a minute and a half: whatever's gone wrong under it, a person would
+/// have given up and done something else long since. Bots stood for six and ten minutes on one walk (the user: "standing or
+/// pacing"), the move to it never finishing and never failing. Not while it's held, cuffed, down, seated or being dragged.
+/datum/bot_brain/proc/watch_for_freeze()
+	var/turf/here = get_turf(owner)
+	if(here != freeze_watch_turf || !pursuing_kind || state != BOT_STATE_GOAL || !current_goal)
+		freeze_watch_turf = here
+		freeze_watch_since = world.time
+		return
+	if(world.time - freeze_watch_since < 90 SECONDS || owner.incapacitated() || owner.handcuffed || owner.buckled || owner.pulledby)
+		return
+	bot_log(src, "hasn't moved in [round((world.time - freeze_watch_since) / 10)]s on its way to [pursue_target] for [current_goal.type] - giving that up")
+	bot_tally("unfroze")
+	freeze_watch_since = world.time
+	busy_clearing = FALSE //whatever it was waiting on in there has long since stopped mattering
+	stop_pursuit()
+	give_up_goal()
+
 /// Whether the walk in progress keeps to where the bot is allowed to go: a stroll, keeping up with someone it's
 /// tagging along with (bot_chatter.dm), or everyday work (bot_goal.lawful).
 /datum/bot_brain/proc/pursuit_is_lawful()

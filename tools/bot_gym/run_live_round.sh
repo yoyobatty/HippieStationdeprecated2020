@@ -22,7 +22,7 @@ CREW="${3:-20}"
 RUNS="${RUNS:-1}"
 SPEED="${SPEED:-0}"
 PORT="${PORT:-45300}"
-STAMP="$(date +%m%d-%H%M%S)"
+STAMP="$(date +%m%d-%H%M%S)-$$" # the pid too: several started in the same second clashed over their copies of the build
 NAME="${NAME:-$MODE-$STAMP}"
 DIR="data/logs/live_round/$NAME"
 

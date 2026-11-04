@@ -566,6 +566,16 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 			waited_for_grip += 2
 		recover_dropped_tools(get_turf(owner), held_before)
 		return TRUE
+	// A crate or a locker in the way: open, it's no obstacle (an open closet isn't dense), and that's how anybody gets past one. A
+	// security officer that had climbed on to a table in a maintenance corner stood there for ten minutes, the crate between it
+	// and the way out "cleared" 1528 times by trying to break it, which a calm bot never does.
+	var/obj/structure/closet/C = O
+	if(istype(C) && !C.opened && !C.locked && !C.welded && C.can_open(owner))
+		bot_log(src, "opening [C] to get past it")
+		human_pause(C)
+		C.open(owner)
+		if(!C.density)
+			return TRUE
 	// Anything else physically in the way (window, grille, windoor, machine, crate...): only broken
 	// when the bot is in real danger, with the weapon that gets through fastest - carried, lying
 	// nearby, or in a wall cabinet. See bot_breach.dm. This used to swing whatever was in hand,

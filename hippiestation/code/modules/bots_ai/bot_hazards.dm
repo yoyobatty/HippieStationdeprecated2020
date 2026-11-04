@@ -23,6 +23,11 @@
 #define BOT_HAZARD_FIRE 3
 /// Broken glass: nothing to anybody in shoes, and a cut foot for anybody without (caltrop, shards.dm). Barefoot bots walked straight over it.
 #define BOT_HAZARD_GLASS 4
+/// Close to a running supermatter: its radiation, for anybody not in a radiation suit or an engineering hardsuit. An assistant, a
+/// chemist and a doctor walking through Meta's Engineering died of it, 1300 to 2300 rads apiece, the crystal at 100%.
+#define BOT_HAZARD_RADS 5
+/// How far from a running crystal that is.
+#define BOT_HAZARD_RADS_RANGE 5
 
 /// Turf -> BOT_HAZARD_*, for everywhere a bot won't step into.
 GLOBAL_LIST_EMPTY(bot_hazard_turfs)
@@ -37,7 +42,13 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 		return !caller.bot_brain?.heat_proof()
 	if(hazard == BOT_HAZARD_GLASS)
 		return !caller.shoes
+	if(hazard == BOT_HAZARD_RADS)
+		return !bot_rad_suited(caller)
 	return hazard == BOT_HAZARD_BALL || caller.bot_brain?.pathing_no_tailgating
+
+/// Dressed for radiation: the radiation suit, or a hardsuit made for the engine.
+/proc/bot_rad_suited(mob/living/carbon/human/H)
+	return istype(H.wear_suit, /obj/item/clothing/suit/radiation) || istype(H.wear_suit, /obj/item/clothing/suit/space/hardsuit/engine)
 
 /proc/bot_refresh_hazards()
 	GLOB.bot_hazards_refresh_at = world.time + BOT_HAZARD_REFRESH
@@ -51,6 +62,9 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 	// A supermatter crystal dusts whatever touches it, lit or not.
 	var/obj/machinery/power/supermatter_crystal/crystal = GLOB.main_supermatter_engine
 	if(!QDELETED(crystal))
+		if(crystal.power > 0)
+			for(var/turf/T as anything in RANGE_TURFS(BOT_HAZARD_RADS_RANGE, crystal))
+				hazards[T] = BOT_HAZARD_RADS
 		for(var/turf/T as anything in RANGE_TURFS(1, crystal))
 			hazards[T] = BOT_HAZARD_BALL
 	for(var/obj/effect/hotspot/H as anything in SSair.hotspots)
@@ -101,3 +115,5 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 #undef BOT_HAZARD_BALL
 #undef BOT_HAZARD_FIRE
 #undef BOT_HAZARD_GLASS
+#undef BOT_HAZARD_RADS
+#undef BOT_HAZARD_RADS_RANGE

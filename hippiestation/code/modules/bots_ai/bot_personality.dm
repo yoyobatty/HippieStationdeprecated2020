@@ -102,12 +102,13 @@
 
 /// For the rest of the round, whatever it was before.
 /datum/bot_brain/proc/harden(why)
-	shaken(why) //bot_pursuits.dm: the nervous go careful for a while
-	if(is_paranoid())
+	if(hardened || playstyle == BOT_STYLE_PARANOID) //paranoid already, by nature or from before: being careful for a while is all that's new
+		shaken(why) //bot_pursuits.dm
 		return
 	hardened = TRUE
 	bot_log(src, "hardened: [why]")
 	bot_tally("hardened")
+	shaken(why) //bot_pursuits.dm: the nervous go careful for a while. After: careful counts as paranoid, and it isn't yet
 
 /// Whether this bot goes in for a pastime. A Bot Gym bot goes in for whichever one its scenario is about.
 /datum/bot_brain/proc/has_habit(habit)
