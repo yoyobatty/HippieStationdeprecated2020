@@ -112,9 +112,16 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 	/// A step that sets off walking and then just waits to arrive. With no walk in progress one of these is
 	/// going nowhere - see handle_goal().
 	var/waits_on_walk = FALSE
+	/// A walk with the goal's target in tow: it stops the moment that's let go of (do_step_next_node(), bot_movement.dm),
+	/// and lost_hold() says what then.
+	var/hauling = FALSE
 
 /datum/bot_step/proc/execute(datum/bot_brain/bot)
 	return GOAL_STEP_FAIL
+
+/// What a hauling step does when the bot finds it's let go of what it was dragging: by default the step has failed.
+/datum/bot_step/proc/lost_hold(datum/bot_brain/bot)
+	bot.advance_goal_step(FALSE)
 
 /datum/bot_step/move_to
 	waits_on_walk = TRUE

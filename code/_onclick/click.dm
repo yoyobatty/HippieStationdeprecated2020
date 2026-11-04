@@ -364,7 +364,7 @@
 /atom/proc/AltClick(mob/user)
 	SEND_SIGNAL(src, COMSIG_CLICK_ALT, user)
 	var/turf/T = get_turf(src)
-	if(T && user.TurfAdjacent(T))
+	if(T && user.client && user.TurfAdjacent(T)) //hippie -- a mob with no client alt-clicking (a bot turning an emitter) ran into the null client here
 		user.listed_turf = T
 		user.client.statpanel = T.name
 

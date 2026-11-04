@@ -491,12 +491,16 @@
 	if(!owner.Process_Spacemove(get_dir(owner, next_node)))
 		return FALSE
 	make_way_through(next_node)
+	if(owner.pulling?.density && !isliving(owner.pulling) && (locate(/mob/living) in next_node) && haul_round(next_node))
+		return TRUE
 	return step_towards(owner, next_node)
 
 /// Somebody on the next tile who isn't a fight: places are only swapped with both on help intent (living.dm), and a bot that had been
 /// shooting stayed on harm. Two operatives holding by the nuke stood in the infiltrator's doorway, and the one with the disk was stuck
 /// four tiles from it until it gave up. It goes on help, and a bot there that isn't fighting does too, as a teammate would at "coming through".
 /datum/bot_brain/proc/make_way_through(turf/next_node)
+	if(owner.pulling?.density && !isliving(owner.pulling))
+		haul_past(next_node)
 	if(state == BOT_STATE_COMBAT || owner.a_intent == INTENT_HELP && !(locate(/mob/living/carbon/human) in next_node))
 		return
 	for(var/mob/living/carbon/human/H in next_node)
@@ -505,6 +509,45 @@
 		owner.a_intent = INTENT_HELP
 		if(H.bot_brain && H.bot_brain.state != BOT_STATE_COMBAT)
 			H.a_intent = INTENT_HELP
+
+/datum/bot_brain/var/next_coming_through = 0
+
+/// Dragging something big (an emitter, a canister) with somebody stood in the way. A swap of places (living.dm) leaves what's dragged
+/// behind, as there's somebody now on the tile it was to follow on to, and the pull breaks: an engineer taking an emitter to the blob
+/// lost it on the same crewman three times running. "Coming through" - a bot that's there steps aside off the way, as a crewmate would.
+/datum/bot_brain/proc/haul_past(turf/next_node)
+	var/turf/here = get_turf(owner)
+	var/turf/behind = get_turf(owner.pulling)
+	var/turf/after = length(current_path) >= 2 ? current_path[2] : null
+	for(var/mob/living/carbon/human/H in next_node)
+		if(H == owner || !H.bot_brain || H.bot_brain.state == BOT_STATE_COMBAT || H.incapacitated() || H.buckled || H.pulledby || H.pulling)
+			continue
+		for(var/d in GLOB.alldirs)
+			var/turf/T = get_step(next_node, d)
+			if(!T || T == here || T == behind || T == after || T.density || isspaceturf(T) || is_blocked_turf(T))
+				continue
+			if(H.Move(T, d))
+				if(world.time > next_coming_through)
+					next_coming_through = world.time + 30 SECONDS
+					bot_say(owner, pick("Coming through!", "Mind your back!", "Heavy load, make way.", "Excuse me, coming through."))
+				break
+
+/// Dragging something big with somebody still stood on the next tile, who didn't step aside (a player, somebody busy): round them, on to
+/// a free tile that's next to where the way goes after them. Swapping places with them leaves what's dragged behind.
+/datum/bot_brain/proc/haul_round(turf/next_node)
+	var/turf/here = get_turf(owner)
+	var/turf/behind = get_turf(owner.pulling)
+	var/turf/after = length(current_path) >= 2 ? current_path[2] : null
+	if(!after)
+		return FALSE
+	for(var/turf/T in orange(1, here))
+		if(T == next_node || T == behind || get_dist(T, after) > 1 || T.density || isspaceturf(T) || is_blocked_turf(T))
+			continue
+		if(owner.Move(T, get_dir(here, T)))
+			if(current_path[1] == next_node)
+				current_path.Cut(1, 2)
+			return TRUE
+	return FALSE
 
 // step_next_node() re-invokes itself via addtimer to keep walking (see its own
 // comment) - previously that self-perpetuation went through on_pursuit_moved(), which
@@ -554,6 +597,14 @@
 	// the path is lost by waiting, it's still sitting in current_path untouched.
 	if(owner.swimming)
 		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), max(1, owner.movement_delay()), TIMER_STOPPABLE)
+		return
+	// Dragging something that's come loose behind (somebody stood in its way, it caught on a corner): a player notices and goes back
+	// for it. An engineer hauling an emitter to the blob used to walk the rest of the way with nothing in tow.
+	var/datum/bot_step/hauling_step = (state == BOT_STATE_GOAL && current_strategy && current_step_index <= length(current_strategy.steps)) ? current_strategy.steps[current_step_index] : null
+	if(hauling_step?.hauling && current_goal?.target && owner.pulling != current_goal.target)
+		bot_log(src, "let go of [current_goal.target] on the way")
+		stop_pursuit()
+		hauling_step.lost_hold(src)
 		return
 	while(current_path && current_path.len && current_path[1] == get_turf(owner))
 		current_path.Cut(1, 2)

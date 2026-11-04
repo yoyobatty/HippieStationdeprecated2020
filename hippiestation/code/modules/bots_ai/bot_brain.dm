@@ -209,6 +209,8 @@
 		return
 	if(try_put_self_out())
 		return
+	if(length(GLOB.blob_cores) && dodge_blob()) //goals/blob.dm: off its edge, whatever else is going on
+		return
 	if(world.time >= GLOB.bot_hazards_refresh_at) //bot_hazards.dm
 		bot_refresh_hazards()
 
