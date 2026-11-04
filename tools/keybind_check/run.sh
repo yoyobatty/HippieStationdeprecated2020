@@ -22,6 +22,11 @@ BEFORE=$(find data/player_saves -name preferences.sav -exec md5sum {} + 2>/dev/n
 echo "Building..."
 sed 's/^#include "hippiestation\\code\\modules\\bots_ai\\bot_brain.dm"/#include "keybind_check_tmp.dm"\r\n&/' hippiestation.dme > keycheck.dme
 cp "$HERE/${HARNESS:-keybind_check.dm}" keybind_check_tmp.dm
+# EXCLUDE=<text> leaves out the include lines containing it: a "before" build without a new file (console_shots.dm)
+if [ -n "${EXCLUDE:-}" ]; then
+	grep -v -F "$EXCLUDE" keycheck.dme > keycheck_excluded.dme && mv keycheck_excluded.dme keycheck.dme
+	echo "Left out: $EXCLUDE"
+fi
 "$BYOND_BIN/dm.exe" keycheck.dme | grep -E "error|dmb -"
 [ -f keycheck.dmb ] || { echo "Build failed"; exit 1; }
 

@@ -18,14 +18,21 @@ public class WindowShot {
 	[DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc f, IntPtr p);
 	[DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
 	[DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
-	// A popup of this DreamSeeker: its own picture, whatever's on top of it on the desktop.
-	public static IntPtr FindPopup(int pid, IntPtr main) {
+	[DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowText(IntPtr h, System.Text.StringBuilder s, int n);
+	// A popup of this DreamSeeker: its own picture, whatever's on top of it on the desktop. The biggest, or the one with this title
+	// (a closed tgui window can stay about blank, the same size as the new one).
+	public static IntPtr FindPopup(int pid, IntPtr main, string title) {
 		IntPtr found = IntPtr.Zero; int area = 0;
 		EnumWindows(delegate(IntPtr h, IntPtr p) {
 			uint owner; GetWindowThreadProcessId(h, out owner);
 			RECT r; GetWindowRect(h, out r);
 			int w = r.r - r.l, ht = r.b - r.t;
-			if (owner == pid && h != main && IsWindowVisible(h) && w > 300 && w < 1400 && ht > 300 && w * ht > area) { area = w * ht; found = h; }
+			if (owner != pid || h == main || !IsWindowVisible(h) || w <= 300 || w >= 1400 || ht <= 300) return true;
+			if (title != "") {
+				var s = new System.Text.StringBuilder(256); GetWindowText(h, s, 256);
+				if (!string.Equals(s.ToString().Trim(), title, StringComparison.OrdinalIgnoreCase)) return true;
+			}
+			if (w * ht > area) { area = w * ht; found = h; }
 			return true;
 		}, IntPtr.Zero);
 		return found;
@@ -84,15 +91,31 @@ while ((Get-Date) -lt $deadline -and -not (Test-Path "$data\keycheck_shots_done"
 		}
 		$shoot = $h
 		if ($name -like "popup_*") {
-			$shoot = [WindowShot]::FindPopup($p.Id, $h)
+			$title = ""
+			if (Test-Path "$data\keycheck_shot_title") { $title = ([IO.File]::ReadAllText("$data\keycheck_shot_title")).Trim() }
+			$shoot = [WindowShot]::FindPopup($p.Id, $h, $title)
+			if ($shoot -eq [IntPtr]::Zero) { $shoot = [WindowShot]::FindPopup($p.Id, $h, "") } # nothing by that title: the biggest
 			[WindowShot]::GetWindowRect($shoot, [ref]$r) | Out-Null
 		}
-		$bitmap = New-Object Drawing.Bitmap ($r.r - $r.l), ($r.b - $r.t)
-		$g = [Drawing.Graphics]::FromImage($bitmap)
-		$dc = $g.GetHdc()
-		$done = [WindowShot]::PrintWindow($shoot, $dc, 2)
-		$g.ReleaseHdc($dc)
-		$g.Dispose()
+		# A web page window that hasn't painted yet comes back pure white: wait and take it again, a few times
+		for ($try = 0; $try -lt 4; $try++) {
+			$bitmap = New-Object Drawing.Bitmap ($r.r - $r.l), ($r.b - $r.t)
+			$g = [Drawing.Graphics]::FromImage($bitmap)
+			$dc = $g.GetHdc()
+			$done = [WindowShot]::PrintWindow($shoot, $dc, 2)
+			$g.ReleaseHdc($dc)
+			$g.Dispose()
+			$white = $true
+			foreach ($fx in @(0.2, 0.4, 0.5, 0.6, 0.8)) {
+				foreach ($fy in @(0.2, 0.5, 0.8)) {
+					$px = $bitmap.GetPixel([int]($bitmap.Width * $fx), [int]($bitmap.Height * $fy))
+					if ($px.R -lt 250 -or $px.G -lt 250 -or $px.B -lt 250) { $white = $false }
+				}
+			}
+			if (-not $white) { break }
+			$bitmap.Dispose()
+			Start-Sleep -Milliseconds 700
+		}
 		$bitmap.Save("$data\previews\$name.png", [Drawing.Imaging.ImageFormat]::Png)
 		$bitmap.Dispose()
 		Say "picture $name ($($r.r - $r.l) x $($r.b - $r.t)), PrintWindow $done"

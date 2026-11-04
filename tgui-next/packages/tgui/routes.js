@@ -37,6 +37,7 @@ import { Gps } from './interfaces/Gps';
 import { GravityGenerator } from './interfaces/GravityGenerator';
 import { GulagItemReclaimer } from './interfaces/GulagItemReclaimer';
 import { Holodeck } from './interfaces/Holodeck';
+import { IdConsole } from './interfaces/IdConsole';
 import { ImplantChair } from './interfaces/ImplantChair';
 import { KeycardAuth } from './interfaces/KeycardAuth';
 import { LanguageMenu } from './interfaces/LanguageMenu';
@@ -252,6 +253,10 @@ const ROUTES = {
   },
   holodeck: {
     component: () => Holodeck,
+    scrollable: true,
+  },
+  id_console: {
+    component: () => IdConsole,
     scrollable: true,
   },
   implantchair: {
