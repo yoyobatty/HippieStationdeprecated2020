@@ -67,6 +67,9 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	/// Where they were last reported, and when: what a hunter goes on (bot_playstyles.dm).
 	var/turf/last_seen
 	var/last_seen_at = 0
+	/// What they did, as it went on the record, and who to: what an officer tells them, and weighs what they say against (bot_asks.dm).
+	var/details
+	var/datum/weakref/victim
 
 /datum/bot_brain
 	/// When it'll next say on the radio that the cells are full
@@ -128,7 +131,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	return R && R.fields["criminal"] == "*Arrest*"
 
 // Mirrors what the sec HUD's "status" and "add_crime" hrefs (human.dm Topic()) do.
-/datum/bot_brain/proc/file_crime(mob/living/carbon/human/H, crime, details, severity)
+/datum/bot_brain/proc/file_crime(mob/living/carbon/human/H, crime, details, severity, mob/living/victim)
 	var/datum/bot_wanted/W = bot_get_wanted_entry(H)
 	if(!W)
 		W = new
@@ -137,6 +140,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	if(severity >= W.severity || !W.crime)
 		W.crime = crime
 		W.severity = severity
+		W.details = details
+		W.victim = victim ? WEAKREF(victim) : null
 	W.last_seen = get_turf(H)
 	W.last_seen_at = world.time
 	bot_news("Security's after [H.real_name] for [lowertext(crime)]", H)
@@ -334,7 +339,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 /datum/bot_brain/proc/on_witnessed_crime(mob/living/carbon/human/attacker, mob/living/carbon/human/victim, crime, severity, details)
 	var/datum/bot_wanted/existing = bot_get_wanted_entry(attacker)
 	var/new_report = !existing || existing.severity < severity
-	file_crime(attacker, crime, details, severity)
+	file_crime(attacker, crime, details, severity, victim)
 	if(new_report)
 		bot_log(src, "witnessed [attacker] commit [crime] against [victim] @ [bot_coord(get_turf(victim))]")
 		bot_say(owner, ":s [crime] in progress, [get_area_name(attacker, TRUE)] - suspect [attacker.name]. Responding.")
@@ -1148,16 +1153,10 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 			if(!(get_turf(P) in interior))
 				bot_log(bot, "[P] isn't inside [goal.cell_timer.name] - can't process them there")
 				return GOAL_STEP_FAIL
-			// Weapons and anything else useful for breaking out - held items plus
-			// anything obviously a weapon on the belt/back/suit storage. Tools and
-			// ordinary job gear are left alone ("Don't confiscate items that were
-			// unrelated to the crime").
-			to_confiscate = list()
-			for(var/obj/item/I in P.held_items)
-				to_confiscate += I
-			for(var/obj/item/I in list(P.belt, P.back, P.s_store, P.l_store, P.r_store))
-				if(I && ((I.item_flags & NEEDS_PERMIT) || I.force >= 10 || istype(I, /obj/item/card/emag)))
-					to_confiscate |= I
+			// All of it but their clothes goes in the cell's locker, and comes back when the timer opens it (the user's ruling): what's
+			// in their hands, the bag, the belt, the pockets, the ID, the headset, gloves, mask, glasses, hat and suit, and what a search
+			// turns up hidden on them. Weapons only, it used to be: a prisoner kept their tools, their radio and whatever was in their bag.
+			to_confiscate = bot.everything_but_clothes(P) //bot_law.dm
 			bot.search_prisoner(P, src) //bot_law.dm
 			phase = 2
 			return schedule(bot)
@@ -1168,7 +1167,11 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 				to_confiscate.Cut(1, 2)
 				if(!QDELETED(I) && (I in P.GetAllContents()))
 					var/turf/drop = (locker && bot.owner.Adjacent(locker)) ? get_turf(locker) : get_turf(bot.owner)
-					if(istype(I, /obj/item/disk/nuclear) && P.transferItemToLoc(I, get_turf(bot.owner)))
+					if(bot_take_from_hiding(P, I, drop)) //bot_law.dm: out of the butt, and the like
+						P.visible_message("<span class='warning'>[bot.owner] pulls [I] out of [P]'s hiding place.</span>")
+						bot_log(bot, "found [I] hidden on [P]")
+						bot_tally("hidden things found")
+					else if(istype(I, /obj/item/disk/nuclear) && P.transferItemToLoc(I, get_turf(bot.owner)))
 						bot.owner.put_in_hands(I)
 						bot.put_away(I)
 						bot_log(bot, "took [I] off [P]")
@@ -1176,13 +1179,17 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 						P.visible_message("<span class='warning'>[bot.owner] confiscates [I] from [P].</span>")
 						bot_log(bot, "confiscated [I] from [P]")
 				return schedule(bot)
-			// Close the locker over whatever got dropped on its tile - door_timer's
-			// timer_start() locks it (brigdoors.dm) until the sentence is up. Brig
-			// lockers start the round locked (secure closets), hence the unlock.
+			// Into orange, out of the locker: the brig lockers keep a prisoner's jumpsuit and shoes. Brig lockers start the round
+			// locked (secure closets), hence the unlock.
 			if(locker && !locker.opened && bot.owner.Adjacent(locker))
 				if(locker.locked)
 					locker.togglelock(bot.owner, TRUE)
 				locker.open(bot.owner)
+				return schedule(bot)
+			if(locker?.opened && bot.owner.Adjacent(locker) && bot.dress_in_orange(P, get_turf(locker))) //bot_law.dm, a piece a go
+				return schedule(bot)
+			// Close the locker over whatever got dropped on its tile - door_timer's timer_start() locks it (brigdoors.dm) until the
+			// sentence is up.
 			if(locker && locker.opened && bot.owner.Adjacent(locker))
 				locker.close(bot.owner)
 			phase = 3
@@ -1256,6 +1263,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	GLOB.bot_brig_sentences[T] = WEAKREF(P)
 	bot_set_criminal_status(P, "Incarcerated")
 	bot_clear_wanted(P)
+	if(P.bot_brain)
+		P.bot_brain.last_charge = crime //what it says it's in for (bot_asks.dm)
 	bot_log(bot, "sentenced [P] to [sentence / 600] minute\s in [T.name] for [crime]")
 	bot_say(bot.owner, ":s [P.name] brigged in [T.name] for [sentence / 600] minute\s, charge: [bot_charge_line(crime)].")
 	if(severity >= BOT_CRIME_MURDER)
@@ -1296,7 +1305,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/list/verdict = bot_classify_crime(H, owner, what_done || "attacked", object)
 	var/datum/bot_wanted/existing = bot_get_wanted_entry(H)
 	if(!existing || existing.severity < verdict[2])
-		officer.file_crime(H, verdict[1], "[verdict[3]] (reported by the victim)", verdict[2])
+		officer.file_crime(H, verdict[1], "[verdict[3]] (reported by the victim)", verdict[2], owner)
 		bot_log(src, "reported [verdict[1]] by [H] to security")
 
 #undef BOT_SEC_VIEW_RANGE

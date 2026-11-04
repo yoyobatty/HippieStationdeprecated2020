@@ -216,6 +216,8 @@
 		return
 	if(world.time >= GLOB.bot_hazards_refresh_at) //bot_hazards.dm
 		bot_refresh_hazards()
+	if(talk_pause_until && hold_still_for_talk()) //bot_asks.dm: somebody said "wait"
+		return
 
 	// Its own air before anything else, whatever state it's in (goals/refill_internals.dm): the tank's valve
 	// open only where the air isn't breathable, and back inside for a refill before it runs out.

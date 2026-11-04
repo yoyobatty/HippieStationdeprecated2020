@@ -48,6 +48,7 @@
 	old_body = body_before
 	reclaim_tries = 0
 	next_reclaim_time = 0
+	asked_after_things = FALSE
 	if(!owner.hud_used) //see New()
 		owner.hud_used = new owner.hud_type(owner)
 		owner.update_sight()
@@ -81,6 +82,10 @@
 
 /// The nearest body it can get to, and get to the scanner from.
 /datum/bot_brain/proc/find_body_to_clone(obj/machinery/computer/cloning/console)
+	// The one somebody asked it to clone (bot_asks.dm), once whoever brought it has let go of it.
+	var/mob/living/carbon/human/asked = clone_wanted?.resolve()
+	if(asked && world.time < clone_wanted_until && asked.z == owner.z && isturf(asked.loc) && !asked.buckled && !asked.pulledby && bot_clonable(asked) && !taken_by_another(asked) && can_walk_lawfully_to(asked))
+		return asked
 	var/list/bodies = list() //body -> how far off
 	for(var/mob/living/carbon/human/H in GLOB.dead_mob_list)
 		if(H.z != owner.z || !isturf(H.loc) || H.buckled || H.pulledby || !bot_clonable(H))
@@ -246,7 +251,17 @@ GLOBAL_LIST_INIT(bot_clone_dress_order, list(ITEM_SLOT_ICLOTHING, ITEM_SLOT_FEET
 /datum/bot_duty/reclaim_belongings/try_start(datum/bot_brain/bot)
 	if(!bot.old_body || world.time < bot.next_reclaim_time)
 		return FALSE
-	if(QDELETED(bot.old_body) || !isturf(bot.old_body.loc) || !length(bot.old_body.get_equipped_items(TRUE)))
+	if(QDELETED(bot.old_body))
+		bot.old_body = null
+		return FALSE
+	// Stripped: somebody's had its things, and it asks who (goals/own_upkeep.dm).
+	if(!length(bot.old_body.get_equipped_items(TRUE)))
+		bot.ask_after_my_things(bot.old_body)
+		bot.old_body = null
+		return FALSE
+	// In a morgue tray or a body bag it gets it out (body_out); anywhere else (somebody's carrying it, a machine) it can't.
+	var/atom/holder = bot.old_body.loc
+	if(!isturf(holder) && !istype(holder, /obj/structure/bodycontainer) && !istype(holder, /obj/structure/closet))
 		bot.old_body = null
 		return FALSE
 	return bot.assign_goal(new /datum/bot_goal/reclaim_belongings())
@@ -259,7 +274,7 @@ GLOBAL_LIST_INIT(bot_clone_dress_order, list(ITEM_SLOT_ICLOTHING, ITEM_SLOT_FEET
 
 /datum/bot_goal/reclaim_belongings/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/reclaim_belongings/S = new
-	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/take_things_back())
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/body_out(), new /datum/bot_step/paced/take_things_back())
 	return list(S)
 
 /datum/bot_goal/reclaim_belongings/on_success(datum/bot_brain/bot)
@@ -269,6 +284,8 @@ GLOBAL_LIST_INIT(bot_clone_dress_order, list(ITEM_SLOT_ICLOTHING, ITEM_SLOT_FEET
 /// With no ID there may be a door in the way, and somebody on the other side of it sooner or later (bot_requests.dm).
 /datum/bot_goal/reclaim_belongings/on_give_up(datum/bot_brain/bot)
 	bot.next_reclaim_time = world.time + BOT_RECLAIM_GAP
+	if(bot.old_body && !bot.can_walk_lawfully_to(bot.old_body)) //no ID to get through the door with: it asks (goals/own_upkeep.dm)
+		bot.ask_to_be_let_in_for_body(bot.old_body)
 	if(++bot.reclaim_tries >= BOT_RECLAIM_TRIES)
 		bot.old_body = null
 

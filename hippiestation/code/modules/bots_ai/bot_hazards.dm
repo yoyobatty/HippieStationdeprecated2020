@@ -21,6 +21,8 @@
 /// Flames: nobody walks into them who'd burn there, whatever it's on its way to. A firefighter sprays from outside them (goals/respond_to_fire.dm),
 /// and an engineer that walked through a burning engineering bay to fetch an extinguisher and then to mend a cable died of it.
 #define BOT_HAZARD_FIRE 3
+/// Broken glass: nothing to anybody in shoes, and a cut foot for anybody without (caltrop, shards.dm). Barefoot bots walked straight over it.
+#define BOT_HAZARD_GLASS 4
 
 /// Turf -> BOT_HAZARD_*, for everywhere a bot won't step into.
 GLOBAL_LIST_EMPTY(bot_hazard_turfs)
@@ -33,6 +35,8 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 		return FALSE
 	if(hazard == BOT_HAZARD_FIRE)
 		return !caller.bot_brain?.heat_proof()
+	if(hazard == BOT_HAZARD_GLASS)
+		return !caller.shoes
 	return hazard == BOT_HAZARD_BALL || caller.bot_brain?.pathing_no_tailgating
 
 /proc/bot_refresh_hazards()
@@ -53,6 +57,10 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 		var/turf/T = H?.loc
 		if(T && !hazards[T])
 			hazards[T] = BOT_HAZARD_FIRE
+	for(var/obj/item/shard/S as anything in bot_instances_of(/obj/item/shard))
+		var/turf/T = S.loc
+		if(isturf(T) && !hazards[T])
+			hazards[T] = BOT_HAZARD_GLASS
 	for(var/mob/living/simple_animal/slime/S in GLOB.alive_mob_list)
 		if(!S.docile && !S.ckey && isturf(S.loc))
 			bot_mark_slime_pen(hazards, S)
@@ -92,3 +100,4 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 #undef BOT_HAZARD_BEAM
 #undef BOT_HAZARD_BALL
 #undef BOT_HAZARD_FIRE
+#undef BOT_HAZARD_GLASS

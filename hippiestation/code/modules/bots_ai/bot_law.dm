@@ -266,6 +266,62 @@ GLOBAL_VAR(bot_in_command)
 
 /// What a search turns up on somebody being brigged: a charge for whatever they'd rather nobody had seen. It's evidence, so it goes
 /// in the cell locker with the rest of what's taken off them.
+/// What comes off a prisoner going into a cell: all but the jumpsuit and shoes, in the order they come off a person.
+/datum/bot_brain/proc/everything_but_clothes(mob/living/carbon/human/P)
+	. = list()
+	for(var/obj/item/I in P.held_items)
+		. += I
+	for(var/obj/item/I in list(P.s_store, P.back, P.belt, P.l_store, P.r_store, P.wear_id, P.ears, P.gloves, P.wear_mask, P.glasses, P.head, P.wear_suit, P.wear_neck))
+		if(I && !HAS_TRAIT(I, TRAIT_NODROP))
+			. |= I
+	// Hidden on them: every officer goes through pockets, bag and belt (they're in the locker already), the thorough and the
+	// paranoid have a look up the back as well, which is where people keep the things they don't want found.
+	if(strictness >= 0.6 || is_paranoid() || bot_too_dangerous(P))
+		var/obj/item/organ/butt/B = P.getorgan(/obj/item/organ/butt)
+		var/datum/component/storage/S = B?.GetComponent(/datum/component/storage)
+		if(S)
+			bot_log(src, "searching [P]'s butt")
+			for(var/obj/item/I in S.contents())
+				. |= I
+
+/// Out of somewhere it was hidden on them (the butt's storage), to drop. FALSE if it wasn't hidden.
+/proc/bot_take_from_hiding(mob/living/carbon/human/P, obj/item/I, turf/drop)
+	var/obj/item/organ/butt/B = I.loc
+	if(!istype(B) || B.owner != P)
+		return FALSE
+	var/datum/component/storage/S = B.GetComponent(/datum/component/storage)
+	return S && S.remove_from_storage(I, drop)
+
+/// One piece of the prison outfit on them from the locker, the jumpsuit and then the shoes, what they had on going in with the rest.
+/// TRUE while there's still something to do.
+/datum/bot_brain/proc/dress_in_orange(mob/living/carbon/human/P, turf/locker_turf)
+	var/list/outfit = list(/obj/item/clothing/under/rank/prisoner = ITEM_SLOT_ICLOTHING, /obj/item/clothing/shoes/sneakers/orange = ITEM_SLOT_FEET)
+	for(var/path in outfit)
+		var/slot = outfit[path]
+		var/obj/item/worn = P.get_item_by_slot(slot)
+		if(istype(worn, path))
+			continue
+		var/obj/item/clothing/orange = locate(path) in locker_turf
+		if(!orange)
+			for(var/obj/structure/closet/C in locker_turf)
+				orange = locate(path) in C
+				if(orange)
+					break
+		if(!orange)
+			continue //somebody's had them: what they've got on will do
+		if(worn)
+			if(HAS_TRAIT(worn, TRAIT_NODROP) || !P.transferItemToLoc(worn, locker_turf))
+				continue
+			return TRUE
+		human_pause(P)
+		orange.forceMove(locker_turf)
+		if(!P.equip_to_slot_if_possible(orange, slot, FALSE, TRUE, TRUE))
+			return FALSE //it won't go on them: leave it there, rather than trying for ever
+		P.visible_message("<span class='notice'>[owner] puts [P] in [orange].</span>")
+		bot_log(src, "dressed [P] in [orange]")
+		return TRUE
+	return FALSE
+
 /datum/bot_brain/proc/search_prisoner(mob/living/carbon/human/P, datum/bot_step/process_prisoner/step)
 	for(var/obj/item/I in P.GetAllContents())
 		if(bot_is_captains_id(I) && P.mind?.assigned_role != "Captain" && P != bot_find_in_command())

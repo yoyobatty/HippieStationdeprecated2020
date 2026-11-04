@@ -294,6 +294,9 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 /datum/bot_brain/proc/can_take_call(datum/bot_request/R)
 	if(QDELETED(owner) || owner.stat != CONSCIOUS || owner.incapacitated())
 		return FALSE
+	// Locked up: a doctor serving time in a cell said "Coming" to a call for a medic, and then "I can't get to you".
+	if(owner.handcuffed || owner.bot_life_sentence || is_in_active_cell(owner))
+		return FALSE
 	if(R.only_for ? (R.only_for != src) : !R.kind.answered_by(src, R))
 		return FALSE
 	if(gym_run)
@@ -533,7 +536,10 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 	during_evacuation = TRUE
 
 /datum/bot_request_kind/let_out/matches(lower_msg, named, turf/near)
-	return bot_text_has_any(lower_msg, list("let me out", "let me in", "locked in", "shut in", "stuck in", "trapped in", "open the door", "open this door", "get the door", "door open"))
+	if(bot_text_has_any(lower_msg, list("let me out", "let me in", "let me into", "let me through", "locked in", "shut in", "stuck in", "trapped in", "open the door", "open this door", "get the door", "door open", "please open", "open please", "open up", "can someone open", "could someone open", "can you open", "could you open", "somebody open", "someone open", "unlock the door", "need in", "need to get in")))
+		return TRUE
+	// "Open genetics", "genetics, open up": a door and a place in the one line.
+	return bot_text_has_any(lower_msg, list("open")) && !!bot_area_named(lower_msg, near)
 
 /datum/bot_request_kind/let_out/heard_by(datum/bot_brain/bot, named)
 	return TRUE

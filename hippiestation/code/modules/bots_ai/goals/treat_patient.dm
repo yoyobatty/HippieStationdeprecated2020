@@ -336,6 +336,9 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 
 /datum/bot_brain/proc/try_medical_round()
 	if(is_medical_job())
+		// The machines first: anybody finished with a sleeper or a cryo cell, dead or patched up, is let out (goals/medical_rounds.dm).
+		if(assign_goal(new /datum/bot_goal/empty_machine()))
+			return TRUE
 		// Priority order matches real triage: revive the dead first (nothing else
 		// matters until their heart's beating), then get the incapacitated somewhere
 		// that can actually stabilize them, then patch up whoever's just walking

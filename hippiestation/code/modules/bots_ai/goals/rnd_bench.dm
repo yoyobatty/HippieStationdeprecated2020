@@ -198,6 +198,16 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 
 /// The next machine that could do with better parts and that this bot can have a go at.
 /datum/bot_brain/proc/next_upgrade_target()
+	// Somewhere somebody asked for (bot_asks.dm) goes first.
+	if(upgrade_wanted_in && world.time < upgrade_wanted_until)
+		for(var/machine_type in GLOB.bot_upgrade_order)
+			for(var/obj/machinery/M as anything in bot_instances_of(machine_type))
+				if(QDELETED(M) || get_area(M) != upgrade_wanted_in || M.panel_open || (M.stat & BROKEN) || !length(M.component_parts))
+					continue
+				if(LAZYACCESS(upgrade_blocked, M) > world.time || taken_by_another(M) || !length(parts_to_upgrade(M)) || !can_walk_lawfully_to(M))
+					continue
+				return M
+		upgrade_wanted_in = null
 	for(var/machine_type in GLOB.bot_upgrade_order)
 		for(var/obj/machinery/M as anything in bot_instances_of(machine_type))
 			if(QDELETED(M) || M.z != owner.z || M.panel_open || (M.stat & BROKEN) || !length(M.component_parts))

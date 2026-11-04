@@ -162,7 +162,7 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 
 /// Radios that somebody's up to something where they are, unless somebody's beaten it to it. Names them if it can see their
 /// face, and has whoever's on duty put it on their record, the same as bot_call_security() (goals/security_patrol.dm).
-/datum/bot_brain/proc/call_it_in(mob/living/carbon/human/culprit, crime, details, severity)
+/datum/bot_brain/proc/call_it_in(mob/living/carbon/human/culprit, crime, details, severity, mob/living/victim)
 	if(gone_loud()) //goals/robust.dm: nobody Security's after calls Security
 		return
 	var/who = culprit.name
@@ -178,7 +178,7 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 	var/datum/bot_brain/officer = GLOB.bot_security_brains[1]
 	var/datum/bot_wanted/existing = bot_get_wanted_entry(culprit)
 	if(!existing || existing.severity < severity)
-		officer.file_crime(culprit, crime, "[capitalize(details)] in [where] (reported by [owner.real_name]).", severity)
+		officer.file_crime(culprit, crime, "[capitalize(details)] in [where] (reported by [owner.real_name]).", severity, victim)
 
 // ---------------------------------------------------------------------------------------------
 // Somebody being attacked
@@ -227,7 +227,7 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 	// Somebody needs to get on the radio, whatever else happens. Somebody in the same room as a fight usually does.
 	if(!assailant.bot_attack_called_in || world.time > assailant.bot_attack_called_in + 30 SECONDS)
 		assailant.bot_attack_called_in = world.time
-		call_it_in(assailant, "Assault", "is attacking [victim.name]", BOT_CRIME_MINOR)
+		call_it_in(assailant, "Assault", "is attacking [victim.name]", BOT_CRIME_MINOR, victim)
 	else if(world.time >= next_reaction_time)
 		next_reaction_time = world.time + 30
 		bot_say(owner, pick(GLOB.bot_saw_attack_lines))

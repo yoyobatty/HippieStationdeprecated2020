@@ -137,12 +137,29 @@ GLOBAL_LIST_EMPTY(bot_radio_lately)
 	var/lower_msg = lowertext(raw_message)
 	if(heard_confession(talker, lower_msg, radio_freq)) //goals/robust.dm
 		return
-	var/named = hears_own_name(lower_msg)
+	// bot_asks.dm: somebody it's arresting talking back, and somebody pointing Security at somebody.
+	if(istype(crewmate) && bot_heard_plea(crewmate, lower_msg))
+		return
+	if(bot_heard_accusation(talker, lower_msg, radio_freq))
+		return
+	// Its job called by its title is it being called; the next line from somebody it's answered is to it as well.
+	var/called = hears_own_name(lower_msg) || hears_own_title(lower_msg)
+	var/named = called || in_conversation_with(talker)
+	if(world.time < access_asked_until && access_asker?.resolve() == talker) //what they want the access for
+		access_asked_until = 0
+		consider_access_request(talker, lower_msg, radio_freq)
+		return
 	// A call for somebody of this bot's trade, or for this bot by name to come somewhere (bot_requests.dm).
 	if(heard_call(talker, lower_msg, radio_freq, named))
 		return
+	// A job called that nobody's on: said so, to their face or over the radio (bot_asks.dm).
+	var/list/title_jobs = bot_title_called(lower_msg)
+	if(title_jobs && !(work_role() in title_jobs) && say_nobody_on(title_jobs, radio_freq))
+		return
 	// Over the radio it only answers to its name - half the station isn't talking to it.
 	var/addressed = named || (!radio_freq && is_spoken_to_by(talker))
+	if(!addressed && answer_whereabouts(talker, lower_msg, radio_freq)) //"where's Max?" to everybody, by somebody who can see them
+		return
 	if(!addressed && (radio_freq || get_dist(owner, talker) > 3))
 		return
 	// Someone talking to it gets an answer every time; what it merely overhears, it reacts to now and then.
@@ -151,7 +168,8 @@ GLOBAL_LIST_EMPTY(bot_radio_lately)
 	var/reply
 	if(addressed)
 		next_answer_time = world.time + 25
-		reply = answer_for(talker, lower_msg, !!radio_freq, named)
+		talking_to(talker)
+		reply = answer_for(talker, lower_msg, !!radio_freq, called)
 	else if(findtext(lower_msg, "?"))
 		if(prob(35 * sociability))
 			reply = pick(GLOB.bot_question_reply_lines)
@@ -185,6 +203,12 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 
 /// What to say back to something said to this bot in particular, or null if it has nothing to say to it.
 /datum/bot_brain/proc/answer_for(mob/living/talker, lower_msg, over_radio, named)
+	if(bot_text_has_any(lower_msg, list("wait", "hold on", "hang on", "stop", "stop running", "wait up")) && !bot_text_has_any(lower_msg, list("stop following", "wait here")))
+		var/waiting = wait_for(talker) //bot_asks.dm
+		if(waiting)
+			return waiting
+	if(bot_text_has_any(lower_msg, list("what you in for", "what are you in for", "what're you in for", "why are you in", "what did you do")))
+		return what_im_in_for() //bot_asks.dm
 	if(!over_radio)
 		if(bot_text_has_any(lower_msg, list("follow me", "come with me", "come here")))
 			return try_tag_along(talker)
@@ -235,8 +259,13 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 		return (their_name && prob(40)) ? "Hey, [their_name]." : pick(GLOB.bot_greeting_reply_lines)
 	if(findtext(lower_msg, "?"))
 		return pick(GLOB.bot_question_reply_lines)
-	// Called by name and nothing else it understood. Someone just talking in its direction gets no stock reply.
-	return named ? pick(GLOB.bot_name_called_lines) : null
+	// Called by name and nothing else it understood. Someone just talking in its direction gets no stock reply; somebody it's
+	// already talking with gets what you say to somebody who's told you something (bot_asks.dm keeps the conversation).
+	if(named)
+		return pick(GLOB.bot_name_called_lines)
+	if(in_conversation_with(talker) && prob(over_radio ? 35 : 60))
+		return mood_pick(list("Okay!", "Gotcha.", "Ah, right.", "Nice."), list("Right.", "Okay.", "Mm.", "Fair enough.", "Huh.", "If you say so."), list("Sure.", "Whatever you say.", "Uh huh.", "Okay..."))
+	return null
 
 // ---------------------------------------------------------------------------------------------
 // What it knows

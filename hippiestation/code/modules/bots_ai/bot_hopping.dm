@@ -178,6 +178,9 @@ GLOBAL_VAR(bot_power_out_drill)
 	var/obj/item/card/id/card
 	var/job
 	var/mob/living/carbon/human/who
+	/// Not a job: access somebody asked the HoP for and was promised (bot_asks.dm), and what it's called.
+	var/list/add_access
+	var/access_names
 	/// Whichever HoP's gone to fetch it.
 	var/datum/weakref/taken_by
 	var/done = FALSE
@@ -276,6 +279,10 @@ GLOBAL_VAR(bot_power_out_drill)
 	priority = 15
 
 /datum/bot_duty/job_transfers/try_start(datum/bot_brain/bot)
+	if(length(GLOB.bot_access_pending) && bot.find_id_console()) //a card left on the desk for access it promised (bot_asks.dm)
+		var/datum/bot_transfer/promised = bot.find_promised_card()
+		if(promised)
+			return bot.assign_goal(new /datum/bot_goal/process_transfer(promised))
 	for(var/datum/bot_transfer/T as anything in GLOB.bot_transfers)
 		if(!T.taken_by?.resolve() && !T.done && isturf(T.card?.loc) && bot.find_id_console() && (!bot.gym_run || get_area(T.card) == get_area(bot.owner)))
 			return bot.assign_goal(new /datum/bot_goal/process_transfer(T))
@@ -365,6 +372,18 @@ GLOBAL_VAR(bot_power_out_drill)
 		return FALSE //somebody's using it
 	if(!(ACCESS_CHANGE_IDS in own.access))
 		return FALSE
+	if(transfer.add_access)
+		bot.telemetry_ui_action(C, "access")
+		C.modify.access |= transfer.add_access
+		playsound(C, 'sound/machines/terminal_prompt_confirm.ogg', 50, 0)
+		C.eject_id_modify(bot.owner)
+		C.eject_id_scan(bot.owner)
+		bot.wear_card(own)
+		bot.put_away(transfer.card)
+		transfer.done = TRUE
+		bot_log(bot, "HOP: gave [transfer.who] access to [transfer.access_names]")
+		bot_tally("access given")
+		return FALSE
 	var/datum/job/J = SSjob.GetJob(transfer.job)
 	if(!J)
 		return FALSE
@@ -406,7 +425,7 @@ GLOBAL_VAR(bot_power_out_drill)
 	if(QDELETED(transfer) || QDELETED(transfer.card))
 		return GOAL_STEP_SUCCESS //they've gone: it's their loss
 	bot.owner.dropItemToGround(transfer.card)
-	bot_say(bot.owner, "There you go, [transfer.who.name]. You're a [transfer.job] now.")
+	bot_say(bot.owner, transfer.add_access ? "There you go, [transfer.who.name]. You've got [transfer.access_names] now." : "There you go, [transfer.who.name]. You're a [transfer.job] now.")
 	return GOAL_STEP_SUCCESS
 
 #undef BOT_HOP_COMPETENCE
