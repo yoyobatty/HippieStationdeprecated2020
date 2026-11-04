@@ -190,7 +190,7 @@ GLOBAL_LIST_INIT(bot_inedible_food, typecacheof(list(
 	// open, used to be set out for and given up on at the door.
 	for(var/tries in 1 to 4)
 		target = bot.find_served_food() || bot.find_fare_vendor(list(/obj/machinery/vending/snack), /obj/item/reagent_containers/food/snacks, BOT_MEAL_REACH)
-		if(!target || bot.can_walk_lawfully_to(target))
+		if(!target || (bot.can_walk_lawfully_to(target) && !bot.in_bad_air(target))) //not a plate in a room with no air: it was set out for, refused, and picked again, 21 times
 			break
 		bot.block_refreshment(target)
 		target = null
@@ -280,7 +280,7 @@ GLOBAL_LIST_INIT(bot_inedible_food, typecacheof(list(
 			target = bot.find_served_drink(bot.has_habit(BOT_HABIT_BARFLY) ? 80 : BOT_DRINK_REACH) //goals/bartender.dm
 		if(!target)
 			target = bot.find_fare_vendor(list(/obj/machinery/vending/coffee, /obj/machinery/vending/cola), /obj/item/reagent_containers/food/drinks, BOT_DRINK_REACH)
-		if(!target || bot.can_walk_lawfully_to(target))
+		if(!target || (bot.can_walk_lawfully_to(target) && !bot.in_bad_air(target))) //not a plate in a room with no air: it was set out for, refused, and picked again, 21 times
 			break
 		bot.block_refreshment(target)
 		target = null

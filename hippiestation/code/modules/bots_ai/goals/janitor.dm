@@ -237,6 +237,11 @@
 	if(QDELETED(target))
 		target = null
 		return
+	// Somewhere with no air to breathe: left for now. It used to be picked, refused for the air, and picked again, every look.
+	if(bot.in_bad_air(target) && !bot.is_eva_ready())
+		LAZYSET(bot.janitor_blocked, spot, world.time + 5 MINUTES)
+		target = null
+		return
 	careful = !bot.has_noslip_shoes() //no galoshes: it walks, or it's flat on its back on the first wet tile
 
 /datum/bot_goal/mop_mess/get_strategies(datum/bot_brain/bot)

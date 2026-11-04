@@ -41,6 +41,8 @@ GLOBAL_LIST_INIT(bot_round_machines, list(
 				continue
 			if(bot.gym_run && get_area(M) != get_area(bot.owner))
 				continue
+			if(bot.in_bad_air(M) && !bot.is_eva_ready())
+				continue //not a stop in a room with no air: the round was refused for it, and asked again
 			stops += M
 	if(!length(stops))
 		return FALSE
