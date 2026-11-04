@@ -2965,6 +2965,7 @@
 #include "hippiestation\code\controllers\subsystem\job.dm"
 #include "hippiestation\code\controllers\subsystem\reagent_states.dm"
 #include "hippiestation\code\controllers\subsystem\shuttle.dm"
+#include "hippiestation\code\controllers\subsystem\tgui.dm"
 #include "hippiestation\code\controllers\subsystem\throwing.dm"
 #include "hippiestation\code\controllers\subsystem\ticker.dm"
 #include "hippiestation\code\controllers\subsystem\tts.dm"
