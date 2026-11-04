@@ -390,3 +390,14 @@
 	GLOB.bot_dead_crew_counted_at = 0
 	bot_clear_wanted(griefer)
 	expect(!before && after, "not for the suit alone ([before]), and for the suit with four dead ([after])")
+
+/datum/bot_scenario/griefed/officer/range/emp
+	name = "security: the Warden, with the others there, throws an EMP grenade at a nanosuit from range"
+	desc = "An EMP drains the suit. With three of them together, the Warden throws the armory's EMP grenade from range, not with a colleague next to the suit."
+	job = "Warden"
+	kit_backpack = list(/obj/item/restraints/handcuffs, /obj/item/grenade/empgrenade, /obj/item/gun/energy/e_gun/advtaser)
+
+/datum/bot_scenario/griefed/officer/range/emp/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return bot_transcript_said("EMP grenade at") ? BOT_GYM_PASS : BOT_GYM_PENDING

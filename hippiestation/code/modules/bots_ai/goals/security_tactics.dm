@@ -235,7 +235,8 @@ GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 				step_back_from(S)
 			return TRUE
 		return FALSE
-	shoot_at_range(S)
+	if(!try_suit_grenade(S, dist))
+		shoot_at_range(S)
 	if(dist <= BOT_SEC_HOLD_AT)
 		stop_pursuit()
 		if(dist < BOT_SEC_KEEP_AWAY)
@@ -277,8 +278,46 @@ GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 		for(var/obj/item/gun/energy/ionrifle/ion as anything in bot_instances_of(/obj/item/gun/energy/ionrifle))
 			if(!QDELETED(ion) && isturf(ion.loc) && ion.z == owner.z)
 				return /obj/item/gun/energy/ionrifle
+	// An EMP grenade drains the suit, where a map has one in the armory (Meta). Not flashbangs: the suit's headset stops a bang and its
+	// helmet is a space helmet's, flash-proof (_spacesuits.dm).
+	if(suited && !carried_grenade(/obj/item/grenade/empgrenade) && armory_has(/obj/item/grenade/empgrenade))
+		return /obj/item/grenade/empgrenade
 	if((dangerous || length(GLOB.blob_cores)) && !find_carried_tool(/obj/item/gun/energy/laser)) //a blob takes a laser's whole burn
 		return /obj/item/gun/energy/laser
+	return null
+
+/// One of these lying in the armory on this level.
+/datum/bot_brain/proc/armory_has(path)
+	for(var/obj/item/I as anything in bot_instances_of(path))
+		if(!QDELETED(I) && isturf(I.loc) && I.z == owner.z && istype(get_area(I), /area/ai_monitored/security/armory))
+			return TRUE
+	return FALSE
+
+/// An EMP grenade at somebody in a nanosuit, with the others here and none of them next to it: it drains the suit.
+/datum/bot_brain/proc/try_suit_grenade(mob/living/carbon/human/S, dist)
+	if(world.time < next_needle_time || dist < 3 || dist > 6 || !bot_in_nanosuit(S) || short_of_the_others(S) || !has_clear_shot(S))
+		return FALSE
+	var/obj/item/grenade/G = carried_grenade(/obj/item/grenade/empgrenade)
+	if(!G)
+		return FALSE
+	for(var/mob/living/carbon/human/H in range(2, S))
+		if(H != S && H.stat == CONSCIOUS && bot_means_well(H))
+			return FALSE
+	if(!ready_in_hand(G))
+		return FALSE
+	next_needle_time = world.time + 6 SECONDS
+	bot_log(src, "throwing [G] at [S] (dist [dist])")
+	bot_tally("grenades at a suit")
+	owner.face_atom(S)
+	G.attack_self(owner)
+	owner.throw_item(S)
+	return TRUE
+
+/// A grenade of this kind on it, not already going: anywhere on it, a box of them in the bag included.
+/datum/bot_brain/proc/carried_grenade(path)
+	for(var/obj/item/grenade/G in owner.GetAllContents())
+		if(istype(G, path) && !G.active)
+			return G
 	return null
 
 /datum/bot_duty/arm_up
