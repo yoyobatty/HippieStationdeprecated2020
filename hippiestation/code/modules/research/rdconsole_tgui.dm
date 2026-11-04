@@ -47,6 +47,8 @@ GLOBAL_LIST_EMPTY(rd_ui_mat_names)
 				"dept" = D.departmental_flags,
 				// Sheets and bluespace crystals cost the same whatever the manipulators (production/efficient_with()).
 				"flat" = ispath(D.build_path, /obj/item/stack/sheet) || ispath(D.build_path, /obj/item/stack/ore/bluespace_crystal),
+				// Any stack: the autolathe's parts change none of them, and they're made 50 at a time (autolathe_tgui.dm)
+				"stack" = ispath(D.build_path, /obj/item/stack),
 			)
 	return list(
 		"nodes" = GLOB.rd_ui_nodes,

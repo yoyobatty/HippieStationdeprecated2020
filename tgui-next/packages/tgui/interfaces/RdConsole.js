@@ -147,9 +147,15 @@ const getPath = (id, research) => {
 const pathCost = (path, research) => path
   .reduce((sum, id) => sum + research.costOf(id), 0);
 
+// Costs the machine's parts don't change: sheets on the R&D machines, every
+// stack on the autolathe
+const isFlat = (design, fab) => (fab && fab.stacks_flat
+  ? design.stack
+  : design.flat);
+
 // How many of a design the materials and chemicals in a fabricator make
 const maxPrintable = (design, fab) => {
-  if (!fab) {
+  if (!fab || fab.disabled) {
     return 0;
   }
   const have = {};
@@ -159,7 +165,7 @@ const maxPrintable = (design, fab) => {
   for (let chem of fab.chems || []) {
     have[chem.id] = chem.volume;
   }
-  const coeff = design.flat ? 1 : (fab.coeff || 1);
+  const coeff = isFlat(design, fab) ? 1 : (fab.coeff || 1);
   let most = 50;
   for (let key of Object.keys(design.mats)) {
     const need = Math.max(1, design.mats[key] / coeff);
@@ -366,7 +372,13 @@ const PrintButtons = props => {
   }
   const most = maxPrintable(design, fab);
   const verb = fab.busy || (fab.queue && fab.queue.length) ? 'Queue' : 'Print';
-  const amounts = compact ? [1] : [1, 5, 10];
+  // Stacks come by the handful: rods, glass, cable
+  let amounts = [1, 5, 10];
+  if (compact) {
+    amounts = [1];
+  } else if (design.stack) {
+    amounts = [1, 10, 25, 50];
+  }
   return (
     <Box inline style={{ 'white-space': 'nowrap' }}>
       {amounts.map(amount => (
@@ -397,7 +409,7 @@ const MaterialCosts = props => {
       have[chem.id] = chem.volume;
     }
   }
-  const coeff = !fab || design.flat ? 1 : (fab.coeff || 1);
+  const coeff = !fab || isFlat(design, fab) ? 1 : (fab.coeff || 1);
   return (
     <Box color="label" fontSize="11px">
       {Object.keys(design.mats).map(key => {
@@ -612,6 +624,11 @@ const FabricatorStores = props => {
   const { fab, act, sheet } = props;
   return (
     <Fragment>
+      {!!fab.disabled && (
+        <NoticeBox>
+          The controls aren&apos;t responding: a wire inside is cut.
+        </NoticeBox>
+      )}
       <Box bold mb={0.5}>
         <Icon name="cubes" mr={0.5} />
         Materials
@@ -662,10 +679,12 @@ const FabricatorStores = props => {
             })} />
         </Box>
       ))}
-      <Box bold mt={1} mb={0.5}>
-        <Icon name="flask" mr={0.5} />
-        {'Chemicals ' + fab.chem_volume + ' / ' + fab.chem_max}
-      </Box>
+      {!fab.no_chems && (
+        <Box bold mt={1} mb={0.5}>
+          <Icon name="flask" mr={0.5} />
+          {'Chemicals ' + fab.chem_volume + ' / ' + fab.chem_max}
+        </Box>
+      )}
       {(fab.chems || []).map(chem => (
         <Box key={chem.id} style={{ 'display': 'flex' }}>
           <Box style={{ 'flex-grow': 1 }}>
@@ -1590,10 +1609,12 @@ class RdFabricatorMenu extends Component {
               placeholder={'Search what the ' + data.name + ' makes...'}
               onInput={(e, value) => this.setState({ search: value })} />
           </Box>
-          <Button
-            icon="sync"
-            content="Sync research"
-            onClick={() => act('sync')} />
+          {!data.no_sync && (
+            <Button
+              icon="sync"
+              content="Sync research"
+              onClick={() => act('sync')} />
+          )}
         </Box>
         <Box
           style={{
