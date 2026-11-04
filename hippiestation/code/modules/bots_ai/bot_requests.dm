@@ -30,6 +30,12 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 	. = list()
 	for(var/path in subtypesof(/datum/bot_request_kind))
 		. += new path
+	sortTim(., GLOBAL_PROC_REF(cmp_bot_request_precedence))
+
+/// The more particular kinds are read first: "science, can you research stock parts" is a research request before it's a call for
+/// upgrades somewhere, which asked where and got nowhere.
+/proc/cmp_bot_request_precedence(datum/bot_request_kind/A, datum/bot_request_kind/B)
+	return B.precedence - A.precedence
 
 /datum/bot_request_kind
 	var/name
@@ -54,6 +60,8 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 	var/needs_place = TRUE
 	/// Whether it's still answered with the shuttle on its way, while there's time.
 	var/during_evacuation = FALSE
+	/// Read before kinds with less (init_bot_request_kinds()).
+	var/precedence = 0
 
 /// The words that name this kind of call - left out when the same line is read for a place ("I need a doctor"
 /// doesn't mean Medbay).
@@ -67,6 +75,10 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 /// What happens once the answerer is there (or, for a kind that doesn't walk there, once it has taken the call).
 /datum/bot_request_kind/proc/attend(datum/bot_brain/bot, datum/bot_request/R)
 	return
+
+/// What the bot taking the call says to it.
+/datum/bot_request_kind/proc/ack_for(datum/bot_brain/bot, datum/bot_request/R)
+	return pick(ack_lines)
 
 /datum/bot_request_kind/medical
 	name = "medical"
@@ -337,7 +349,7 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 	var/mob/living/who = R.caller_ref?.resolve()
 	bot_log(src, "taking a [R.kind.name] call from [who || "somebody"] ([isarea(R.place) ? "[R.place]" : get_area_name(R.place, TRUE)])")
 	if(who != owner)
-		say_after_typing(bot_radio_prefix(R.radio_freq) + pick(R.kind.ack_lines))
+		say_after_typing(bot_radio_prefix(R.radio_freq) + R.kind.ack_for(src, R))
 	if(!R.kind.walks_there)
 		R.kind.attend(src, R)
 	return TRUE

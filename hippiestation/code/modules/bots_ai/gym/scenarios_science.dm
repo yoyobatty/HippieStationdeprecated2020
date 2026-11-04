@@ -8,10 +8,10 @@
 	time_limit = 60 SECONDS
 
 /datum/bot_scenario/duty/science/setup()
+	// The station's servers have barely started: enough in the bank for the first node or two. A web of the console's own: two runs
+	// sharing the station's spent each other's points.
 	for(var/turf/T in markers["C"])
-		place("C", new /obj/machinery/computer/rdconsole/core(T))
-	// The station's servers have barely started: enough in the bank for a couple of first-tier nodes.
-	SSresearch.science_tech.add_point_list(list(TECHWEB_POINT_TYPE_GENERIC = 6000))
+		place("C", private_rd_console(T, 8000))
 
 /datum/bot_scenario/duty/science/research
 	name = "scientist unlocks research at the console"
@@ -251,3 +251,167 @@
 
 /datum/bot_scenario/mining/lava/on_timeout()
 	return BOT_GYM_PASS
+
+// ---------------------------------------------------------------------------------------------
+// Asked for research, the parts first, and the departments' own upgrades
+// ---------------------------------------------------------------------------------------------
+
+/// A console with a techweb of its own, so a run's research doesn't move every other arena's.
+/datum/bot_scenario/proc/private_rd_console(turf/T, points)
+	var/obj/machinery/computer/rdconsole/core/console = new(T)
+	console.stored_research.consoles_accessing -= console
+	console.stored_research = new /datum/techweb
+	console.stored_research.consoles_accessing[console] = TRUE
+	if(points)
+		console.stored_research.add_point_list(list(TECHWEB_POINT_TYPE_GENERIC = points))
+	return console
+
+/// Nothing asked for from before this run. By name, so ab_gym.sh's build from before the asking was written still compiles.
+/proc/gym_clear_research_wanted()
+	if("bot_research_wanted" in GLOB.vars)
+		var/list/wanted = GLOB.vars["bot_research_wanted"]
+		wanted.Cut()
+
+/datum/bot_scenario/chat/research_request
+	name = "science: asked to research stock parts, it says it's on it and researches the next of them"
+	desc = "Somebody asks Science to its face to research stock parts. The scientist says it'll do it and researches the next node on the way to better parts. The user asked Science that on the radio in a played round and got \"where?\", and then nothing."
+	job = "Scientist"
+	layout = list(
+		"#########",
+		"#B.C...R#",
+		"#########")
+	time_limit = 40 SECONDS
+	var/obj/machinery/computer/rdconsole/console
+
+/datum/bot_scenario/chat/research_request/setup()
+	for(var/turf/T in markers["R"])
+		console = private_rd_console(T, 30000)
+		place("R", console)
+
+/datum/bot_scenario/chat/research_request/post_spawn()
+	..()
+	give_job_id(list(ACCESS_RESEARCH, ACCESS_TOX))
+	gym_clear_research_wanted()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "Hey science, can you research stock parts?"), 2 SECONDS)
+
+/datum/bot_scenario/chat/research_request/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/list/lines = spoken()
+	if(length(lines) && findtext(lowertext(lines[1]), "where"))
+		fail_reason = "asked where: \"[lines[1]]\""
+		return BOT_GYM_FAIL
+	return console.stored_research.researched_nodes["engineering"] ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/chat/research_request/self_serve
+	name = "science: asked for research, a less keen scientist says come and do it yourself, and lets them into R&D"
+	desc = "The same request to a scientist who'd sooner not (the user's ruling: by personality, some say they'll let you in to research it yourself). It says so, and when the asker is outside R&D's door it opens it for them."
+	layout = list(
+		"###########",
+		"#B.C....D.#",
+		"#R......#.#",
+		"###########")
+	var/obj/machinery/door/airlock/door
+
+/datum/bot_scenario/chat/research_request/self_serve/setup()
+	..()
+	door = first_placed("D")
+	door.req_access = list(ACCESS_RESEARCH)
+	door.req_access_txt = "[ACCESS_RESEARCH]"
+
+/datum/bot_scenario/chat/research_request/self_serve/post_spawn()
+	..()
+	brain.diligence = 0.3
+	brain.gym_scripted = FALSE //letting them in is a duty of its own
+	addtimer(CALLBACK(src, PROC_REF(walk_round)), 6 SECONDS)
+
+/// Off round to R&D's door, the far side of it.
+/datum/bot_scenario/chat/research_request/self_serve/proc/walk_round()
+	if(!QDELETED(visitor))
+		visitor.forceMove(get_step(door, EAST))
+		log_line("visitor at the door, outside")
+
+/datum/bot_scenario/chat/research_request/self_serve/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/list/lines = spoken()
+	if(!length(lines))
+		return BOT_GYM_PENDING
+	if(!findtext(lowertext(lines[1]), "yourself") && !findtext(lowertext(lines[1]), "let you in"))
+		fail_reason = "said \"[lines[1]]\""
+		return BOT_GYM_FAIL
+	return door.density ? BOT_GYM_PENDING : BOT_GYM_PASS
+
+/datum/bot_scenario/research_saves_for_parts
+	name = "science: research goes the way of better parts and the bluespace RPED, and saves up for them"
+	desc = "Industrial Engineering in, 2,600 points in the bank and cheaper nodes to be had: the next node is Basic Bluespace Theory, on the way to the bluespace RPED (the user's ruling). Short of the points for the next step, it waits for them rather than spending them on something else."
+	job = "Scientist"
+	layout = list(
+		"#####",
+		"#B.R#",
+		"#####")
+	time_limit = 5 SECONDS
+	var/obj/machinery/computer/rdconsole/console
+
+/datum/bot_scenario/research_saves_for_parts/setup()
+	for(var/turf/T in markers["R"])
+		console = private_rd_console(T, 2600)
+		place("R", console)
+	console.stored_research.research_node_id("engineering", TRUE, FALSE)
+
+/datum/bot_scenario/research_saves_for_parts/make_goal()
+	return null
+
+/datum/bot_scenario/research_saves_for_parts/check()
+	gym_clear_research_wanted()
+	var/first = brain.next_research_node(console)
+	if(first != "bluespace_basic")
+		fail_reason = "went for [first || "nothing"] with 2,600 points, not Basic Bluespace Theory on the way to the bluespace RPED"
+		return BOT_GYM_FAIL
+	console.stored_research.research_points[TECHWEB_POINT_TYPE_GENERIC] = 1500
+	var/second = brain.next_research_node(console)
+	if(second)
+		fail_reason = "spent 1,500 points on [second] instead of saving for the next of the parts"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+// Letters: y the Engineering techfab, u a recharger.
+/datum/bot_scenario/duty/department_upgrades
+	name = "upgrades: a keen engineer prints an RPED and parts at the Engineering techfab and fits the department's recharger"
+	desc = "The user's ruling: department staff can upgrade too, by personality. A diligent engineer with the department's techfab prints an RPED and a better capacitor, and fits it to a recharger, the panel open and shut again."
+	duty_type = null //set in New(), by name: see gym_clear_research_wanted()
+	job = "Station Engineer"
+	time_limit = 120 SECONDS
+	kit_backpack = list(/obj/item/screwdriver)
+	layout = list(
+		"#########",
+		"#B..y..u#",
+		"#.......#",
+		"#########")
+	var/obj/machinery/recharger/recharger
+
+/datum/bot_scenario/duty/department_upgrades/New()
+	. = ..()
+	duty_type = text2path("/datum/bot_duty/department_upgrades")
+
+/datum/bot_scenario/duty/department_upgrades/setup()
+	for(var/turf/T in markers["y"])
+		var/obj/machinery/rnd/production/techfab/department/engineering/fab = place("y", new /obj/machinery/rnd/production/techfab/department/engineering(T))
+		var/datum/component/material_container/mats = fab.materials?.mat_container
+		mats?.insert_amount(40000, MAT_METAL)
+		mats?.insert_amount(30000, MAT_GLASS)
+	for(var/turf/T in markers["u"])
+		recharger = place("u", new /obj/machinery/recharger(T))
+	SSresearch.science_tech.research_node_id("engineering", TRUE, FALSE)
+
+/datum/bot_scenario/duty/department_upgrades/post_spawn()
+	..()
+	brain.competence = 1
+
+/datum/bot_scenario/duty/department_upgrades/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/obj/item/stock_parts/capacitor/C in recharger.component_parts)
+		if(C.rating >= 2 && !recharger.panel_open)
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING

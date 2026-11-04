@@ -28,28 +28,44 @@ GLOBAL_LIST_INIT(bot_part_designs, list(
 	/obj/item/stock_parts/capacitor = list("quadratic_capacitor", "super_capacitor", "adv_capacitor"),
 ))
 
-/// What gets upgraded, first things first: the lathes themselves save materials on everything after them, the redemption
-/// machine turns the same ore into more sheets, and then the rest of the department and what the crew lean on.
+/// What gets upgraded, first things first (the user's ruling, 2026-11-04): Science's own lathes and printers, which save materials on
+/// everything printed after them, and every other lathe; then Medbay; then the rest of Science; then the rest of the station, a
+/// department at a time. Emitters and collectors are left be: new parts change how the engine runs, and that's Engineering's call.
 GLOBAL_LIST_INIT(bot_upgrade_order, list(
 	/obj/machinery/rnd/production/protolathe,
-	/obj/machinery/mineral/ore_redemption,
 	/obj/machinery/rnd/production/circuit_imprinter,
-	/obj/machinery/rnd/destructive_analyzer,
+	/obj/machinery/rnd/production/techfab,
 	/obj/machinery/mecha_part_fabricator,
+	/obj/machinery/autolathe,
+	/obj/machinery/mineral/ore_redemption,
+	/obj/machinery/sleeper,
+	/obj/machinery/atmospherics/components/unary/cryo_cell,
+	/obj/machinery/clonepod,
+	/obj/machinery/dna_scannernew,
+	/obj/machinery/chem_dispenser,
+	/obj/machinery/chem_heater,
+	/obj/machinery/limbgrower,
+	/obj/machinery/rnd/destructive_analyzer,
 	/obj/machinery/rnd/experimentor,
 	/obj/machinery/atmospherics/components/unary/thermomachine/heater,
 	/obj/machinery/atmospherics/components/unary/thermomachine/freezer,
 	/obj/machinery/nanite_chamber,
 	/obj/machinery/monkey_recycler,
 	/obj/machinery/processor,
-	/obj/machinery/sleeper,
-	/obj/machinery/atmospherics/components/unary/cryo_cell,
-	/obj/machinery/clonepod,
-	/obj/machinery/chem_dispenser,
-	/obj/machinery/hydroponics/constructable,
+	/obj/machinery/power/smes,
+	/obj/machinery/power/port_gen/pacman,
 	/obj/machinery/recharge_station,
+	/obj/machinery/mech_bay_recharge_port,
 	/obj/machinery/recharger,
+	/obj/machinery/cell_charger,
+	/obj/machinery/hydroponics/constructable,
+	/obj/machinery/biogenerator,
+	/obj/machinery/seed_extractor,
+	/obj/machinery/plantgenes,
 	/obj/machinery/microwave,
+	/obj/machinery/gibber,
+	/obj/machinery/smoke_machine,
+	/obj/machinery/space_heater,
 ))
 
 /// When the department last asked for each material.
@@ -111,6 +127,9 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 		ask_cargo_for(/datum/supply_pack/materials/metal50, "some metal", "science", /obj/item/stack/sheet/metal)
 	else if(MAT_GLASS in short)
 		ask_cargo_for(/datum/supply_pack/materials/glass50, "some glass", "science", /obj/item/stack/sheet/glass)
+	if(!is_science_job())
+		say_after_typing(";[pick("Mining, could use some [english_list(names)] in the silo for the techfab.", "Anyone got [english_list(names)]? The techfab's out.")]")
+		return
 	say_after_typing(";[pick("Mining, R&D is out of [english_list(names)]. Anything you can bring up would help.", "Could use more [english_list(names)] in the silo, Mining.", "We're short on [english_list(names)] up here in Science. Can Mining dig some up?")]")
 
 /// A design the station has researched, if it's a real one.
@@ -165,7 +184,11 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 		if(QDELETED(R) || isturf(R.loc) || R.loc == owner)
 			continue
 		var/turf/T = get_turf(R) //its own z is 0, in somebody's hand
-		if(T?.z == owner.z && (!gym_run || in_science(T)))
+		if(T?.z != owner.z || (gym_run && !in_science(T)))
+			continue
+		// Science's: one an engineer printed at the Engineering techfab for its own machines isn't the lab's to wait on.
+		var/mob/living/carbon/human/holder = bot_outermost_holder(R)
+		if(istype(holder) && holder.bot_brain ? holder.bot_brain.is_science_job() : in_science(T))
 			return TRUE
 	return FALSE
 
@@ -376,7 +399,7 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 	return list(S)
 
 /datum/bot_goal/print_design/on_success(datum/bot_brain/bot)
-	var/datum/bot_duty/rnd_bench/duty = bot_duty_of(/datum/bot_duty/rnd_bench)
+	var/datum/bot_duty/duty = bot_duty_of(chain_duty)
 	bot.continue_goal_chain(CALLBACK(duty, TYPE_PROC_REF(/datum/bot_duty, try_start), bot))
 
 /datum/bot_goal/print_design/on_give_up(datum/bot_brain/bot)
@@ -458,7 +481,7 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 	return list(S)
 
 /datum/bot_goal/collect_prints/on_success(datum/bot_brain/bot)
-	var/datum/bot_duty/rnd_bench/duty = bot_duty_of(/datum/bot_duty/rnd_bench)
+	var/datum/bot_duty/duty = bot_duty_of(chain_duty)
 	bot.continue_goal_chain(CALLBACK(duty, TYPE_PROC_REF(/datum/bot_duty, try_start), bot))
 
 /datum/bot_goal/collect_prints/on_give_up(datum/bot_brain/bot)
@@ -520,7 +543,7 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 		LAZYSET(bot.upgrade_blocked, target, world.time + 10 MINUTES)
 
 /datum/bot_goal/fit_upgrades/on_success(datum/bot_brain/bot)
-	var/datum/bot_duty/rnd_bench/duty = bot_duty_of(/datum/bot_duty/rnd_bench)
+	var/datum/bot_duty/duty = bot_duty_of(chain_duty)
 	bot.continue_goal_chain(CALLBACK(duty, TYPE_PROC_REF(/datum/bot_duty, try_start), bot))
 
 /// The RPED into a hand, walking over to it if it's lying about, and a screwdriver on the bot to go with it.
@@ -594,7 +617,10 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 	if(!fitted)
 		return GOAL_STEP_FAIL
 	if(!bot.gym_scripted && !bot.in_science(M) && prob(50))
-		bot.say_after_typing(";[pick("[M] has new parts in, courtesy of R&D.", "Just upgraded [M].", "[capitalize(M.name)] should run better now, R&D's been at it.")]")
+		if(bot.is_science_job())
+			bot.say_after_typing(";[pick("[M] has new parts in, courtesy of R&D.", "Just upgraded [M].", "[capitalize(M.name)] should run better now, R&D's been at it.")]")
+		else
+			bot.say_after_typing(pick("Better parts in [M].", "[capitalize(M.name)]'s upgraded.", "That should help."))
 	return GOAL_STEP_SUCCESS
 
 /// A machine the department looks after with its panel off and nobody working on it: somebody got called away.
@@ -759,3 +785,136 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 #undef BOT_RND_LOW_SHEETS
 #undef BOT_RND_ASK_GAP
 #undef BOT_RND_RPED_SCRAP_AT
+
+// ---------------------------------------------------------------------------------------------
+// The departments' own
+// ---------------------------------------------------------------------------------------------
+
+// Department staff who like a job done right fit their own department's machines (the user's ruling, 2026-11-04: "department staff and
+// science can do it, depends on personality"): an RPED and the parts printed at the department's own techfab, which draws on the ore
+// silo, and in they go, a machine at a time, the same three clicks a scientist makes.
+
+/datum/bot_brain
+	/// When it'll next ask Science to upgrade its department's machines.
+	var/next_upgrade_ask = 0
+
+/// Which duty a bench goal goes back to when it's done: Science's bench, or a department's.
+/datum/bot_goal/print_design
+	var/chain_duty = /datum/bot_duty/rnd_bench
+
+/datum/bot_goal/collect_prints
+	var/chain_duty = /datum/bot_duty/rnd_bench
+
+/datum/bot_goal/fit_upgrades
+	var/chain_duty = /datum/bot_duty/rnd_bench
+
+/// Its department's own techfab or lathe, powered and stocked from the silo, if it's got one that works without a console.
+/datum/bot_brain/proc/department_fabricator()
+	var/obj/machinery/rnd/production/best
+	var/best_dist
+	for(var/obj/machinery/rnd/production/L as anything in bot_instances_of(/obj/machinery/rnd/production))
+		if(QDELETED(L) || L.z != owner.z || L.requires_console || L.panel_open || (L.stat & (BROKEN|NOPOWER)) || !L.materials?.mat_container || L.materials.on_hold())
+			continue
+		if(gym_run ? (get_area(L) != get_area(owner)) : !is_my_department(get_area(L)))
+			continue
+		var/dist = get_dist(owner, L)
+		if(!best || dist < best_dist)
+			best = L
+			best_dist = dist
+	return best
+
+/// A machine in its own department with its panel off and nobody at it.
+/datum/bot_brain/proc/department_panel_left_open()
+	for(var/machine_type in GLOB.bot_upgrade_order)
+		for(var/obj/machinery/M as anything in bot_instances_of(machine_type))
+			if(QDELETED(M) || !M.panel_open || M.z != owner.z || taken_by_another(M) || LAZYACCESS(upgrade_blocked, M) > world.time)
+				continue
+			if(gym_run ? (get_area(M) == get_area(owner)) : is_my_department(get_area(M)))
+				return M
+	return null
+
+/// The next machine in its own department that could do with the parts that have been researched.
+/datum/bot_brain/proc/next_department_upgrade()
+	for(var/machine_type in GLOB.bot_upgrade_order)
+		for(var/obj/machinery/M as anything in bot_instances_of(machine_type))
+			if(QDELETED(M) || M.z != owner.z || M.panel_open || (M.stat & BROKEN) || !length(M.component_parts))
+				continue
+			if(gym_run ? (get_area(M) != get_area(owner)) : !is_my_department(get_area(M)))
+				continue
+			if(istype(M, /obj/machinery/atmospherics/components/unary/thermomachine) && !istype(get_area(M), /area/science/mixing))
+				continue
+			if(LAZYACCESS(upgrade_blocked, M) > world.time || taken_by_another(M) || !length(parts_to_upgrade(M)))
+				continue
+			return M
+	return null
+
+/datum/bot_duty/department_upgrades
+	name = "upgrading the department's machines"
+	jobs = list("Station Engineer", "Chief Engineer", "Atmospheric Technician", "Medical Doctor", "Chief Medical Officer", "Chemist", "Paramedic", "Geneticist", "Virologist", "Cargo Technician", "Quartermaster", "Botanist", "Cook", "Bartender", "Roboticist")
+	interval_min = 600
+	interval_max = 1800
+
+/// The diligent and handy: the rest leave it to Science.
+/datum/bot_duty/department_upgrades/applies_to(datum/bot_brain/bot)
+	return ..() && bot.diligence >= 0.6 && bot.competence >= 0.4
+
+/datum/bot_duty/department_upgrades/try_start(datum/bot_brain/bot)
+	if(world.time < bot.rnd_bench_blocked_until)
+		return FALSE
+	// One of its own left with the panel off: shut first. The techfab caught fire under an engineer mid-job, the screwdriver went with
+	// everything else it was holding, and the recharger it had just fitted stood open.
+	var/obj/machinery/left_open = bot.department_panel_left_open()
+	if(left_open)
+		return bot.assign_goal(new /datum/bot_goal/close_panel(left_open))
+	var/obj/machinery/rnd/production/fab = bot.department_fabricator()
+	if(!fab || fab.busy)
+		return FALSE
+	var/obj/machinery/M = bot.next_department_upgrade()
+	if(!M)
+		return FALSE
+	var/obj/item/storage/part_replacer/rped = bot.find_carried_tool(/obj/item/storage/part_replacer)
+	if(!rped)
+		rped = locate() in get_turf(fab)
+	// What's been researched since the techfab last looked, as anybody does before printing: its Sync button.
+	if(!fab.stored_research.researched_designs["rped"] && SSresearch.science_tech.researched_designs["rped"])
+		bot.telemetry_ui_action(fab, "sync")
+		fab.update_research()
+	if(!rped)
+		var/datum/design/D = bot_researched_design("rped")
+		if(!D || !(D.build_type & fab.allowed_buildtypes) || !(isnull(fab.allowed_department_flags) || (D.departmental_flags & fab.allowed_department_flags)))
+			// No RPED to be had here (only Engineering's and Science's techfabs make them): Science asked to come and see to it, from
+			// the room it's wanted in (bot_asks.dm, the upgrades call), the way a doctor would ask on the radio.
+			if(D && world.time >= bot.next_upgrade_ask && get_area(bot.owner) == get_area(M))
+				bot.next_upgrade_ask = world.time + 20 MINUTES
+				bot.call_for(/datum/bot_request_kind/upgrades, "Science, could you upgrade the machines in [get_area_name(M, TRUE)]? [pick("They could do with it.", "Better parts would help.", "Whenever you're free.")]")
+			return FALSE
+		return bot.print_for_department(fab, D, 1)
+	if(bot_parts_to_collect(fab))
+		var/datum/bot_goal/collect_prints/collect = new(fab)
+		collect.chain_duty = type
+		return bot.assign_goal(collect)
+	var/list/to_print = bot.parts_still_to_print(M, rped, fab)
+	if(!length(to_print))
+		var/datum/bot_goal/fit_upgrades/fit = new(M)
+		fit.chain_duty = type
+		return bot.assign_goal(fit)
+	var/id = to_print[1]
+	var/datum/design/part = SSresearch.techweb_design_by_id(id)
+	if(!fab.stored_research.researched_designs[id])
+		bot.telemetry_ui_action(fab, "sync")
+		fab.update_research()
+	return bot.print_for_department(fab, part, to_print[id])
+
+/// print_or_ask(), at the department's own techfab.
+/datum/bot_brain/proc/print_for_department(obj/machinery/rnd/production/fab, datum/design/D, amount)
+	var/list/short = list()
+	if(!bot_lathe_can_afford(fab, D, amount, short))
+		if(amount > 1 && bot_lathe_can_afford(fab, D, 1))
+			amount = 1
+		else
+			ask_for_materials(short)
+			rnd_bench_blocked_until = world.time + 5 MINUTES
+			return FALSE
+	var/datum/bot_goal/print_design/G = new(fab, D, amount)
+	G.chain_duty = /datum/bot_duty/department_upgrades
+	return assign_goal(G)
