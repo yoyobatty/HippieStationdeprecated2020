@@ -111,6 +111,10 @@
 
 /// Whether foe is holding something this bot has no answer to.
 /datum/bot_brain/proc/outmatched_by(mob/living/foe)
+	// Bare hands in a nanosuit, or a gun: no fair fight with a toolbox. A traitor in one killed twenty of a crew in seven minutes, every one
+	// of them stood toe to toe with it, because there was nothing in its hands to be outmatched by. The brave still stay (try_run_for_it()).
+	if(bot_too_dangerous(foe)) //goals/security_tactics.dm
+		return TRUE
 	var/obj/item/theirs = foe?.get_active_held_item()
 	if(!theirs || theirs.force < BOT_FIGHT_DANGEROUS_FORCE)
 		return FALSE

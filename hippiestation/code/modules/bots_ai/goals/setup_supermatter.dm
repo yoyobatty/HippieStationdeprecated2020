@@ -50,7 +50,9 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 	return S
 
 /datum/bot_brain/proc/sm_part_free(atom/A)
-	return !is_failed_engine_part(A) && !taken_by_another(A)
+	// Not in where the running crystal's radiation reaches, without a radiation suit on (bot_hazards.dm): a collector out of plasma can
+	// wait, as it does for most crews, and the crystal runs on without it.
+	return !is_failed_engine_part(A) && !taken_by_another(A) && (!bot_in_crystal_rads(A) || bot_rad_suited(owner))
 
 /// Atmospherics next door is /area/engine as well.
 /datum/bot_brain/proc/sm_in_engine_room(atom/A)

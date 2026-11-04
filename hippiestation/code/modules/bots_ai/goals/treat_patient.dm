@@ -698,7 +698,9 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			bot_log_verbose(bot, "load_patient: MouseDrop_T into [S] didn't take - state_open=[S.state_open], occupant=[S.occupant]")
 			return GOAL_STEP_FAIL
 		bot_log(bot, "loaded [patient] into [S]")
-		S.inject_chem(pick(/datum/reagent/medicine/bicaridine, /datum/reagent/medicine/kelotane), bot.owner)
+		var/chem = bot_sleeper_dose(S, patient) //goals/medical_rounds.dm
+		if(chem)
+			S.inject_chem(chem, bot.owner)
 		return GOAL_STEP_SUCCESS
 	if(istype(machine_target, /obj/machinery/atmospherics/components/unary/cryo_cell))
 		var/obj/machinery/atmospherics/components/unary/cryo_cell/C = machine_target

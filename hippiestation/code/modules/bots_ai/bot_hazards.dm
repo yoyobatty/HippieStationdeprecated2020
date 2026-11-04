@@ -49,9 +49,16 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 		return !bot_rad_suited(caller)
 	return hazard == BOT_HAZARD_BALL || caller.bot_brain?.pathing_no_tailgating
 
-/// Dressed for radiation: the radiation suit, or a hardsuit made for the engine.
+/// Dressed for radiation: the radiation suit. Not the engineering hardsuit: its armour takes three quarters of a dose off its wearer, but
+/// what they've got on comes out contaminated all the same. Engineers going back in to reload the collectors at 1500 power carried it out
+/// on their suits, and Medbay, treating them, was where Box's crew died of radiation, 4 to 15 a shift.
 /proc/bot_rad_suited(mob/living/carbon/human/H)
-	return istype(H.wear_suit, /obj/item/clothing/suit/radiation) || istype(H.wear_suit, /obj/item/clothing/suit/space/hardsuit/engine)
+	return istype(H.wear_suit, /obj/item/clothing/suit/radiation)
+
+/// Where a running crystal's radiation reaches (bot_refresh_hazards()).
+/proc/bot_in_crystal_rads(atom/A)
+	var/turf/T = get_turf(A)
+	return T && GLOB.bot_hazard_turfs[T] == BOT_HAZARD_RADS
 
 /proc/bot_refresh_hazards()
 	GLOB.bot_hazards_refresh_at = world.time + BOT_HAZARD_REFRESH
@@ -115,9 +122,74 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 #undef BOT_HAZARD_BEAM_RANGE
 #undef BOT_HAZARD_PEN_REACH
 #undef BOT_HAZARD_BEAM
-#undef BOT_HAZARD_BALL
 #undef BOT_HAZARD_FIRE
+/// Near a running crystal in nothing against its radiation: out, whatever it was at, the way it gets out of flames (goals/respond_to_fire.dm).
+/// An officer who answered a call in Engineering chased a suspect round the supermatter at 1444 power, stuck there for minutes, and died
+/// of 3000 rads. The routes keep everybody out of there (bot_steps_into_hazard()), but not whoever's already in it.
+/datum/bot_brain/proc/try_escape_radiation()
+	var/turf/here = get_turf(owner)
+	if(!here || GLOB.bot_hazard_turfs[here] != BOT_HAZARD_RADS || owner.buckled || bot_rad_suited(owner))
+		return FALSE
+	if(pursuing_kind == "flames" && pursue_target && GLOB.bot_hazard_turfs[get_turf(pursue_target)] != BOT_HAZARD_RADS)
+		return TRUE //on its way out
+	var/turf/out = bot_way_out_of_rads(here)
+	if(!out)
+		return FALSE
+	switch(state)
+		if(BOT_STATE_ARREST)
+			end_arrest("too close to the crystal")
+		if(BOT_STATE_COMBAT)
+			disengage_combat("too close to the crystal")
+	if(state == BOT_STATE_GOAL)
+		drop_goals("too close to the crystal")
+	bot_log(src, "too close to the crystal with nothing on against it - getting out to [bot_coord(out)]")
+	bot_tally("got away from the crystal")
+	pursue(out, "flames", force = TRUE)
+	return TRUE
+
+/datum/bot_brain
+	var/rads_noted = FALSE
+
+/// The first time a bot's radiation passes what's safe: where it was, what radioactive things are about it, how far the crystal is.
+/// For finding where a shift's radiation sickness comes from (Box lost 4 to 15 a shift to it, with nobody near its supermatter).
+/datum/bot_brain/proc/note_radiation()
+	if(rads_noted || owner.radiation <= RAD_MOB_SAFE)
+		return
+	rads_noted = TRUE
+	var/list/sources = list()
+	for(var/atom/movable/A in range(7, owner))
+		var/datum/component/radioactive/R = A.GetComponent(/datum/component/radioactive)
+		if(R)
+			sources += "[A] ([round(R.strength)])"
+	var/obj/machinery/power/supermatter_crystal/crystal = GLOB.main_supermatter_engine
+	var/crystal_at = (crystal && crystal.z == owner.z) ? "[get_dist(owner, crystal)] tiles from the crystal ([round(crystal.power)] power)" : "no crystal here"
+	bot_log(src, "IRRADIATED: [round(owner.radiation)] rads at [bot_coord(get_turf(owner))] in [get_area_name(owner, TRUE)], [crystal_at]; radioactive about: [length(sources) ? english_list(sources) : "nothing"]")
+	bot_tally("irradiated")
+
+/// The nearest floor out of the crystal's reach that can be walked to.
+/proc/bot_way_out_of_rads(turf/open/from)
+	if(!istype(from))
+		return null
+	var/list/seen = list()
+	seen[from] = TRUE
+	var/list/frontier = list(from)
+	for(var/depth in 1 to 12)
+		var/list/next = list()
+		for(var/turf/open/T as anything in frontier)
+			for(var/turf/open/N as anything in T.atmos_adjacent_turfs)
+				if(seen[N])
+					continue
+				seen[N] = TRUE
+				if(isspaceturf(N) || is_blocked_turf(N, TRUE) || bot_turf_is_deadly(N))
+					continue
+				if(GLOB.bot_hazard_turfs[N] != BOT_HAZARD_RADS && GLOB.bot_hazard_turfs[N] != BOT_HAZARD_BALL)
+					return N
+				next += N
+		frontier = next
+	return null
+
 #undef BOT_HAZARD_GLASS
+#undef BOT_HAZARD_BALL
 #undef BOT_HAZARD_RADS
 #undef BOT_HAZARD_RADS_RANGE
 #undef BOT_HAZARD_RADS_FROM

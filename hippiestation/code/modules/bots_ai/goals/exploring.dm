@@ -78,6 +78,9 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 			return FALSE
 		return TRUE
 	if(!bot.ready_for_lavaland())
+		if(world.time < bot.mining_gear_blocked_until) //no mask or no tank to be had (dress_for_lavaland's on_give_up()): another time
+			bot.explore_blocked_until = world.time + 5 MINUTES
+			return FALSE
 		return bot.assign_goal(new /datum/bot_goal/dress_for_lavaland())
 	if(!bot.exploring_since)
 		bot_say(bot.owner, pick(";Heading down to Lavaland, gonna check out a ruin.", "Off exploring. Back in a bit.", ";Anyone want anything from Lavaland?"))

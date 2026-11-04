@@ -265,11 +265,21 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 			continue
 		if(H.stat == DEAD || H.handcuffed || W.last_seen.z != owner.z || is_in_active_cell(H) || W.last_seen_at <= best_at)
 			continue
+		// Down already, or in a sleeper or a locker: nothing to hunt. And not the same sighting twice: a hunter got there, found nobody,
+		// and went back to the same spot 22 times in one shift, the wanted man lying in crit in Medbay.
+		if(H.stat != CONSCIOUS || !isturf(H.loc) || LAZYACCESS(hunted_sightings, REF(H)) == W.last_seen_at)
+			continue
+		if(bot_too_dangerous(H) && !find_usable_gun())
+			continue //a nanosuit or a gun isn't gone after with a toolbox: that's Security's, geared up (goals/security_tactics.dm)
 		if(gym_run && get_area(H) != get_area(owner))
 			continue //somebody else's arena
 		best = H
 		best_at = W.last_seen_at
 	return best
+
+/datum/bot_brain
+	/// REF(somebody wanted) -> the sighting of them it last went to, so it isn't gone to again.
+	var/list/hunted_sightings
 
 /datum/bot_duty/hunt_valids
 	name = "hunting somebody down"
@@ -288,6 +298,7 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 	if(!mark)
 		return FALSE
 	var/datum/bot_wanted/W = bot_get_wanted_entry(mark)
+	LAZYSET(bot.hunted_sightings, REF(mark), W.last_seen_at)
 	if(!bot.can_walk_lawfully_to(W.last_seen) || !bot.assign_goal(new /datum/bot_goal/hunt(W.last_seen)))
 		return FALSE
 	bot_log(bot, "going after [mark], last seen in [get_area_name(W.last_seen, TRUE)]")

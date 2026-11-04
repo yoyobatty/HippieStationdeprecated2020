@@ -17,8 +17,10 @@
 			if(QDELETED(M) || M.z != owner.z || M.state_open || M.panel_open || taken_by_another(M))
 				continue
 			var/mob/living/carbon/human/H = M.occupant
-			if(!istype(H) || (H.stat != DEAD && H.health < H.maxHealth * BOT_SLEEPER_DONE))
+			if(!istype(H))
 				continue
+			if(H.stat != DEAD && H.health < H.maxHealth * BOT_SLEEPER_DONE && !(istype(M, /obj/machinery/sleeper) && bot_sleeper_dose(M, H)))
+				continue //not done, and nothing more the machine can give them just now
 			if(gym_run && get_area(M) != get_area(owner))
 				continue
 			var/dist = get_dist(owner, M)
@@ -60,6 +62,15 @@
 	if(QDELETED(M) || M.occupant != H || !bot.owner.Adjacent(M))
 		return GOAL_STEP_FAIL
 	bot.owner.face_atom(M)
+	// Still being seen to: a dose of what they need off the sleeper's panel, as a doctor going round does.
+	if(H.stat != DEAD && H.health < H.maxHealth * BOT_SLEEPER_DONE)
+		var/obj/machinery/sleeper/S = M
+		var/chem = istype(S) ? bot_sleeper_dose(S, H) : null
+		if(chem && S.inject_chem(chem, bot.owner))
+			var/datum/reagent/R = chem
+			bot.telemetry_ui_action(S, "inject")
+			bot_log(bot, "gave [H] [initial(R.name)] in [S]")
+		return GOAL_STEP_SUCCESS
 	bot.telemetry_ui_action(M, "eject")
 	M.open_machine()
 	if(M.occupant == H)
@@ -71,5 +82,33 @@
 		bot_log(bot, "let [H] out of [M], patched up")
 		bot_say(bot.owner, pick("You're good to go.", "All patched up. Off you go.", "There, good as new.", "That's you done."))
 	return GOAL_STEP_SUCCESS
+
+/// The sleeper's medicine for whoever's in it, by what's worst with them: epinephrine for somebody in crit (the one it gives whatever
+/// their state), pentetic acid against radiation and antitoxin for poisoning once the sleeper's upgraded for them, something for their
+/// breathing, then bicaridine or kelotane, the worse first. Null if it's in them already or the sleeper doesn't do it. A doctor used to
+/// put in bicaridine or kelotane at random, whatever was wrong.
+/proc/bot_sleeper_dose(obj/machinery/sleeper/S, mob/living/carbon/human/H)
+	if(!istype(S) || !istype(H) || H.stat == DEAD || !H.reagents)
+		return null
+	var/list/wanted = list()
+	if(H.health <= 0)
+		wanted += /datum/reagent/medicine/epinephrine
+	if(H.radiation > RAD_MOB_SAFE)
+		wanted += /datum/reagent/medicine/pen_acid
+	if(H.getToxLoss() > 20)
+		wanted += /datum/reagent/medicine/antitoxin
+	if(H.getOxyLoss() > 30)
+		wanted += list(/datum/reagent/medicine/perfluorodecalin, /datum/reagent/medicine/salbutamol)
+	var/burn_first = H.getFireLoss() > H.getBruteLoss()
+	if(burn_first && H.getFireLoss() > 15)
+		wanted += /datum/reagent/medicine/kelotane
+	if(H.getBruteLoss() > 15)
+		wanted += /datum/reagent/medicine/bicaridine
+	if(!burn_first && H.getFireLoss() > 15)
+		wanted += /datum/reagent/medicine/kelotane
+	for(var/chem in wanted)
+		if((chem in S.available_chems) && H.reagents.get_reagent_amount(chem) < 5 && S.chem_allowed(chem))
+			return chem
+	return null
 
 #undef BOT_SLEEPER_DONE

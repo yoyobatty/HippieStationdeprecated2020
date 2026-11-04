@@ -210,6 +210,10 @@
 		return
 	if(try_escape_flames()) //goals/respond_to_fire.dm
 		return
+	if(!rads_noted && owner.radiation > RAD_MOB_SAFE)
+		note_radiation() //bot_hazards.dm
+	if(try_escape_radiation()) //bot_hazards.dm
+		return
 	if(try_put_self_out())
 		return
 	if(length(GLOB.blob_cores) && dodge_blob()) //goals/blob.dm: off its edge, whatever else is going on

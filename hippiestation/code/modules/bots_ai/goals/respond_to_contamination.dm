@@ -80,12 +80,19 @@ GLOBAL_LIST_EMPTY(atmos_alert_bots)
 //   the bot happens to be standing right there regardless.
 /datum/bot_brain/proc/can_see_atmos_hazard()
 	for(var/turf/open/T in view(7, owner))
-		if(LAZYLEN(T.atmos_overlay_types))
+		if(LAZYLEN(T.atmos_overlay_types) && !bot_air_meant_to_be_bad(T))
 			return TRUE
 	for(var/obj/machinery/airalarm/AA in view(7, owner))
-		if(AA.danger_level >= 2 && AA.mode != 8) //AALARM_MODE_CONTAMINATED - already handling this one
+		if(AA.danger_level >= 2 && AA.mode != 8 && !bot_air_meant_to_be_bad(AA)) //AALARM_MODE_CONTAMINATED - already handling this one
 			return TRUE
 	return FALSE
+
+/// Rooms whose air is meant to read bad: the supermatter's chamber, the toxins burn chamber, the incinerator. "Cleaning" the crystal's
+/// chamber took engineers in there again and again at 1440 power, fighting the engine setup over the alarm (it wants it siphoning, goals/
+/// setup_supermatter.dm), and what they brought out on their suits irradiated Medbay: 7 of a crew died of it in one shift.
+/proc/bot_air_meant_to_be_bad(atom/A)
+	var/area/where = get_area(A)
+	return istype(where, /area/engine/supermatter) || istype(where, /area/science/mixing/chamber) || istype(where, /area/maintenance/disposal/incinerator) || (GLOB.main_supermatter_engine && where == get_area(GLOB.main_supermatter_engine))
 
 // Nearest air alarm reading "severe" (danger_level == 2, the same threshold the atmos
 // alert console treats as a priority alarm, atmos_alert.dm) that isn't already in
@@ -99,7 +106,7 @@ GLOBAL_LIST_EMPTY(atmos_alert_bots)
 			continue
 		if(AA.mode == 8) //AALARM_MODE_CONTAMINATED - already handling this one
 			continue
-		if(AA.danger_level < 2)
+		if(AA.danger_level < 2 || bot_air_meant_to_be_bad(AA))
 			continue
 		var/dist = get_dist(bot_turf, AA)
 		if(!best || dist < best_dist)

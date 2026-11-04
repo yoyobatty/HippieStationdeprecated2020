@@ -458,3 +458,36 @@
 			missed += lines[i]
 	log_line("SWEEP: answered [answered] of [length(said_at)]; nothing back for: [english_list(missed)]")
 	return answered * 3 >= length(said_at) * 2 ? BOT_GYM_PASS : BOT_GYM_FAIL
+
+/datum/bot_scenario/sleeper_crit
+	name = "medical rounds: somebody in crit goes in a shut sleeper, with epinephrine"
+	desc = "Somebody's down in crit on the floor, and the sleeper beside them is shut and empty. The doctor opens it, drags them in, and gives them epinephrine, which holds crit off, not bicaridine or kelotane at random. A shut one used to take nobody, and the patient died on the floor by it."
+	job = "Medical Doctor"
+	layout = list(
+		"#########",
+		"#B..C..Y#",
+		"#########")
+	time_limit = 40 SECONDS
+	var/obj/machinery/sleeper/sleeper
+	var/mob/living/carbon/human/patient
+
+/datum/bot_scenario/sleeper_crit/setup()
+	sleeper = new(first_marker("Y"))
+	place("Y", sleeper)
+
+/datum/bot_scenario/sleeper_crit/post_spawn()
+	give_job_id(list(ACCESS_MEDICAL))
+	sleeper.close_machine() //shut, nobody in it
+	patient = stand_in(first_marker("C"), "Drew Patient")
+	patient.apply_damage(130, BRUTE, BODY_ZONE_CHEST)
+
+/datum/bot_scenario/sleeper_crit/make_goal()
+	return new /datum/bot_goal/escort_to_sleeper()
+
+/datum/bot_scenario/sleeper_crit/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(patient.stat == DEAD)
+		fail_reason = "the patient died"
+		return BOT_GYM_FAIL
+	return (sleeper.occupant == patient && patient.reagents.has_reagent(/datum/reagent/medicine/epinephrine)) ? BOT_GYM_PASS : BOT_GYM_PENDING
