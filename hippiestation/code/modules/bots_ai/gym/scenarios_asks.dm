@@ -594,3 +594,25 @@
 	name = "asks: a sweep of requests, orders and warnings, face to face"
 	desc = "What a player asks or tells somebody stood in front of them: open this, give me your ID, get back to work, watch out, heal me. Read the transcript for whether each answer fits."
 	lines = list("can you open this door?", "give me your id", "drop it", "put your hands up", "what's your name?", "who's the captain?", "is the shuttle coming?", "get back to work", "you're fired", "watch out!", "run!", "fire!", "there's a breach!", "someone help", "i need insuls", "got any tools?", "can you fix this?", "heal me please", "i'm hurt", "can you clone me?", "do you know surgery?", "go away", "stop following me", "leave me alone", "shut up", "be quiet", "good morning", "how's the shift going?", "seen anything weird?", "take care")
+
+/datum/bot_scenario/explorer_suit
+	name = "pursuits: an explorer takes the explorer suit out of the suit storage and puts it on"
+	desc = "Going out on Lavaland, the suit first: out of the mining suit storage unit and on, armour against what's out there. A raid for the lot left it in the bag."
+	job = "Assistant"
+	layout = list(
+		"#######",
+		"#B..U.#",
+		"#######")
+	time_limit = 30 SECONDS
+
+/datum/bot_scenario/explorer_suit/setup()
+	for(var/turf/T in markers["U"])
+		place("U", new /obj/machinery/suit_storage_unit/mining(T))
+
+/datum/bot_scenario/explorer_suit/make_goal()
+	return new /datum/bot_goal/explorer_suit_up(first_placed("U"))
+
+/datum/bot_scenario/explorer_suit/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return istype(bot.wear_suit, /obj/item/clothing/suit/hooded/explorer) ? BOT_GYM_PASS : BOT_GYM_PENDING

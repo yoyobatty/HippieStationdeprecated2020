@@ -192,6 +192,9 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 	lawful = TRUE
 	doing = "getting my mask on"
 
+/datum/bot_goal/dress_for_lavaland
+	braves_bad_air = TRUE //the outpost's EVA room, where the suit is put on, is open to the air outside
+
 /datum/bot_goal/dress_for_lavaland/resolve_target(datum/bot_brain/bot)
 	target = bot.owner
 
@@ -211,6 +214,9 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 
 /datum/bot_step/dress_for_lavaland/execute(datum/bot_brain/bot)
 	var/mob/living/carbon/human/H = bot.owner
+	var/obj/item/clothing/suit/hooded/explorer/suit = bot.find_carried_tool(/obj/item/clothing/suit/hooded/explorer)
+	if(suit && H.wear_suit != suit)
+		bot.wear(suit, ITEM_SLOT_OCLOTHING) //goals/exploring.dm fetches it out of the outpost's suit storage
 	var/obj/item/clothing/mask/mask = H.wear_mask
 	if(!istype(mask) || !(mask.clothing_flags & MASKINTERNALS))
 		var/obj/item/clothing/mask/spare

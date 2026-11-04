@@ -48,6 +48,17 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 	if(bot.on_lavaland())
 		if(bot_storm_over(bot.owner.z))
 			return FALSE
+		// The explorer suit out of the outpost's suit storage before going out, as a miner goes: armour against what's out there.
+		// Explorers walked out in their jumpsuits, and a watcher or a goliath had one in about the time it takes to read this.
+		if(!bot.explore_time_up() && !istype(bot.owner.wear_suit, /obj/item/clothing/suit/hooded/explorer))
+			var/obj/item/clothing/suit/hooded/explorer/carried = bot.find_carried_tool(/obj/item/clothing/suit/hooded/explorer)
+			if(carried)
+				return bot.assign_goal(new /datum/bot_goal/dress_for_lavaland())
+			if(world.time >= bot.explorer_suit_tried_until)
+				bot.explorer_suit_tried_until = world.time + 10 MINUTES
+				var/obj/machinery/suit_storage_unit/unit = bot.explorer_suit_storage()
+				if(unit && bot.assign_goal(new /datum/bot_goal/explorer_suit_up(unit)))
+					return TRUE
 		var/obj/effect/landmark/ruin/R = bot.explore_time_up() ? null : bot.ruin_to_explore()
 		if(!R)
 			if(!bot.explore_time_up())
@@ -85,6 +96,73 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 	if(!bot.exploring_since)
 		bot_say(bot.owner, pick(";Heading down to Lavaland, gonna check out a ruin.", "Off exploring. Back in a bit.", ";Anyone want anything from Lavaland?"))
 	return bot.assign_goal(new /datum/bot_goal/ride_mining_shuttle/exploring("mining_away"))
+
+/datum/bot_brain
+	var/explorer_suit_tried_until = 0
+
+/// The nearest suit storage unit down here with an explorer suit still in it, that it can walk to.
+/datum/bot_brain/proc/explorer_suit_storage()
+	var/obj/machinery/suit_storage_unit/best
+	for(var/obj/machinery/suit_storage_unit/mining/U as anything in bot_instances_of(/obj/machinery/suit_storage_unit/mining))
+		if(QDELETED(U) || U.z != owner.z || !istype(U.suit, /obj/item/clothing/suit/hooded/explorer) || U.locked || (U.stat & (BROKEN|NOPOWER)))
+			continue
+		if(best && get_dist(owner, U) >= get_dist(owner, best))
+			continue
+		if(can_walk_lawfully_to(U))
+			best = U
+	return best
+
+/// Over to the suit storage, the suit out of it and on: only the suit (a raid for EVA gear takes the lot, and with its hands full the
+/// suit went in the bag or on the floor and never on).
+/datum/bot_goal/explorer_suit_up
+	lawful = TRUE
+	braves_bad_air = TRUE
+	doing = "getting an explorer suit on"
+
+/datum/bot_goal/explorer_suit_up/New(obj/machinery/suit_storage_unit/U)
+	. = ..()
+	target = U
+
+/datum/bot_goal/explorer_suit_up/resolve_target(datum/bot_brain/bot)
+	var/obj/machinery/suit_storage_unit/U = target
+	if(QDELETED(U) || !istype(U.suit, /obj/item/clothing/suit/hooded/explorer))
+		target = null
+
+/datum/bot_goal/explorer_suit_up/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/robotics/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/explorer_suit_up())
+	return list(S)
+
+/datum/bot_goal/explorer_suit_up/on_success(datum/bot_brain/bot)
+	var/datum/bot_duty/explore/duty = bot_duty_of(/datum/bot_duty/explore)
+	bot.continue_goal_chain(CALLBACK(duty, TYPE_PROC_REF(/datum/bot_duty, try_start), bot))
+
+/// The unit's door, its "dispense suit" (it lands on the unit's tile, as the panel does it), picked up and put on.
+/datum/bot_step/explorer_suit_up/execute(datum/bot_brain/bot)
+	var/obj/machinery/suit_storage_unit/U = bot.current_goal?.target
+	if(istype(bot.owner.wear_suit, /obj/item/clothing/suit/hooded/explorer))
+		return GOAL_STEP_SUCCESS //got one on since, on the way over
+	if(!istype(U) || QDELETED(U) || !bot.owner.Adjacent(U))
+		return GOAL_STEP_FAIL
+	bot.human_pause(U)
+	if(QDELETED(U) || !bot.owner.Adjacent(U))
+		return GOAL_STEP_FAIL
+	bot.owner.face_atom(U)
+	if(!U.state_open)
+		bot.telemetry_ui_action(U, "door")
+		U.open_machine(0)
+		U.update_icon()
+	var/obj/item/clothing/suit/hooded/explorer/suit = U.suit
+	if(!istype(suit))
+		return GOAL_STEP_FAIL
+	bot.telemetry_ui_action(U, "dispense suit")
+	U.suit = null
+	suit.forceMove(U.loc)
+	U.update_icon()
+	if(!bot.try_pickup_target(suit) || !bot.wear(suit, ITEM_SLOT_OCLOTHING))
+		bot_log(bot, "couldn't get [suit] on over [bot.owner.wear_suit || "nothing"]")
+		return GOAL_STEP_FAIL
+	return GOAL_STEP_SUCCESS
 
 /datum/bot_brain/proc/has_mining_access()
 	if(is_miner())
