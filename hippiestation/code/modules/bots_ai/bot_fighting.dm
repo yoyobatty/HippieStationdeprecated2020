@@ -131,7 +131,9 @@
 /// to the shuttle once it's going badly. Four explorers died in one shift each stood toe to toe with a watcher, one shot and then their
 /// fists, from full health to dead. Without a gun it's the ordinary fight (or the ordinary run for it).
 /datum/bot_brain/proc/fight_fauna(mob/living/simple_animal/hostile/asteroid/beast)
-	if(owner.health <= owner.maxHealth * max(0.5, health_to_run_at()) && world.time >= next_run_for_it)
+	// Back to the shuttle at half health, a miner; sooner, anybody who isn't one (an explorer out from the station), who's
+	// less to fight with and less idea how. Legions, watchers and goliaths had one or two of them a batch, early on.
+	if(owner.health <= owner.maxHealth * max(is_miner() ? 0.5 : 0.7, health_to_run_at()) && world.time >= next_run_for_it)
 		next_run_for_it = world.time + 30 SECONDS
 		bot_say(owner, pick("Nope, nope, nope.", "Too much, I'm out.", "Back to the shuttle!", ";Getting chewed up out here, heading back."))
 		run_from(beast, "hurt, and [beast] is still at me")

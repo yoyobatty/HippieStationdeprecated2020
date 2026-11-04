@@ -159,9 +159,13 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 	U.suit = null
 	suit.forceMove(U.loc)
 	U.update_icon()
-	if(!bot.try_pickup_target(suit) || !bot.wear(suit, ITEM_SLOT_OCLOTHING))
+	if(bot.try_pickup_target(suit))
+		bot.wear(suit, ITEM_SLOT_OCLOTHING)
+	// By what's on, not wear()'s answer: the equip under it can say no and have put it on all the same.
+	if(bot.owner.wear_suit != suit)
 		bot_log(bot, "couldn't get [suit] on over [bot.owner.wear_suit || "nothing"]")
 		return GOAL_STEP_FAIL
+	bot_log(bot, "put on [suit]")
 	return GOAL_STEP_SUCCESS
 
 /datum/bot_brain/proc/has_mining_access()
