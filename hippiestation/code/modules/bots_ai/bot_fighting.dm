@@ -268,7 +268,8 @@
 	var/best_score
 	for(var/i in 1 to 5)
 		var/turf/T = bot.gym_run ? bot.pick_local_destination() : (bot.pick_poi_destination() || bot.pick_local_destination())
-		if(!T)
+		// Not into air it can't breathe from air it can: assign_goal() refuses that, and a bot that picked a breached room ran nowhere.
+		if(!T || (!braves_bad_air && bot.in_bad_air(T)))
 			continue
 		var/score = (foe ? get_dist(T, foe) : 0) - get_dist(T, bot.owner) / 2
 		if(!target || score > best_score)

@@ -766,3 +766,17 @@
 		return BOT_GYM_FAIL
 	// Where it runs to is a pick of the spots about (scored on getting away), so in an arena this size it can be only a few tiles.
 	return (get_dist(bot, foe) >= 2 && bot_transcript_said("trying /datum/bot_strategy/run_from")) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/runs_in_thin_air/not_into_it
+	name = "survival: running from something in good air, it runs where the air's good, not into the bad"
+	desc = "Something it means to get away from is next to it. The far end of the corridor, past a door, has air too thin to breathe. It runs the other way: picking the far end got the run refused, and it went nowhere."
+	layout = list(
+		"###############",
+		"#..BK..Dyyyyyy#",
+		"###############")
+
+/datum/bot_scenario/runs_in_thin_air/not_into_it/setup()
+	for(var/turf/open/F in markers["y"])
+		F.air.parse_gas_string("o2=6;n2=82;TEMP=293.15")
+		F.update_visuals()
+		SSair.add_to_active(F)
