@@ -77,6 +77,7 @@ import { SmokeMachine } from './interfaces/SmokeMachine';
 import { SolarControl } from './interfaces/SolarControl';
 import { SpaceHeater } from './interfaces/SpaceHeater';
 import { SpawnersMenu } from './interfaces/SpawnersMenu';
+import { StackCrafting } from './interfaces/StackCrafting';
 import { StationAlertConsole } from './interfaces/StationAlertConsole';
 import { SuitStorageUnit } from './interfaces/SuitStorageUnit';
 import { Tank } from './interfaces/Tank';
@@ -209,6 +210,10 @@ const ROUTES = {
   security_records: {
     component: () => SecurityRecords,
     scrollable: false,
+  },
+  stack_crafting: {
+    component: () => StackCrafting,
+    scrollable: true,
   },
   synthesizer: {
     component: () => ChemSynthesizer,
