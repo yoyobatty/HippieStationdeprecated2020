@@ -1472,6 +1472,9 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 /datum/bot_brain/proc/try_escape_pool()
 	if(!owner.swimming)
 		return FALSE
+	// In after somebody, on its feet and breathing fine: it stays in till it's done (bot_may_jump_in(), bot_pathing_permissive.dm).
+	if((state == BOT_STATE_ARREST || state == BOT_STATE_COMBAT) && !owner.lying && owner.getOxyLoss() < 30)
+		return FALSE
 	for(var/d in GLOB.cardinals)
 		var/turf/open/floor/F = get_step(owner, d)
 		if(istype(F) && !istype(F, /turf/open/pool))

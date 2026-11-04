@@ -101,6 +101,12 @@ GLOBAL_LIST_EMPTY(bot_field_generator_turfs)
 /proc/bot_steps_into_pool(turf/from, turf/T)
 	return istype(T, /turf/open/pool) && !istype(from, /turf/open/pool)
 
+/// Making an arrest or in a fight: in after them, taking the fall into the water like anybody does (pool_main.dm Entered()). Anybody in
+/// the pool used to be out of Security's reach (the user, 2026-11-04).
+/proc/bot_may_jump_in(mob/living/carbon/human/H)
+	var/datum/bot_brain/B = istype(H) ? H.bot_brain : null
+	return B && (B.pursuing_kind == "arrest" || B.pursuing_kind == "combat")
+
 /// Lava and chasms are floor as far as the engine's route check goes. With a walkway or stepping stones over them, they are.
 /proc/bot_turf_is_deadly(turf/T)
 	if(GLOB.bot_open_trapdoors[T])
@@ -131,7 +137,7 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 /turf/proc/bot_reachable_strict(caller, turf/T, ID, simulated_only)
 	if(!T || T.density)
 		return FALSE
-	if(istype(T, /turf/open/pool) && !istype(src, /turf/open/pool)) //bot_steps_into_pool()
+	if(istype(T, /turf/open/pool) && !istype(src, /turf/open/pool) && !bot_may_jump_in(caller)) //bot_steps_into_pool()
 		return FALSE
 	if(bot_turf_is_deadly(T))
 		return FALSE
@@ -174,7 +180,7 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 /turf/proc/bot_reachable_permissive(caller, turf/T, ID, simulated_only)
 	if(!T || T.density)
 		return FALSE
-	if(istype(T, /turf/open/pool) && !istype(src, /turf/open/pool)) //bot_steps_into_pool()
+	if(istype(T, /turf/open/pool) && !istype(src, /turf/open/pool) && !bot_may_jump_in(caller)) //bot_steps_into_pool()
 		return FALSE
 	if(bot_turf_is_deadly(T))
 		return FALSE
@@ -396,7 +402,7 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 
 /// reach_key() without where it starts from.
 /datum/bot_brain/proc/reach_rules(adjacent, obj/item/card/id/id_card, simulated_only)
-	return "[adjacent]|[REF(id_card)]|[simulated_only]|[pathing_allow_climb]|[pathing_climb_only]|[pathing_no_tailgating]|[pathing_allow_smash_tables]|[pathing_assume_welder]|[pathing_assume_nearby_weapons]|[get_urgency()]|[pathing_emag ? 1 : 0]"
+	return "[adjacent]|[REF(id_card)]|[simulated_only]|[pathing_allow_climb]|[pathing_climb_only]|[pathing_no_tailgating]|[pathing_allow_smash_tables]|[pathing_assume_welder]|[pathing_assume_nearby_weapons]|[get_urgency()]|[pathing_emag ? 1 : 0]|[bot_may_jump_in(owner) ? 1 : 0]"
 
 // A whole region, kept a little while. A failed search that wasn't cut short has visited everything reachable from where it began, and
 // from anywhere inside that, nothing outside it is reachable either: whatever such a tile reaches, the first one reached through it. So

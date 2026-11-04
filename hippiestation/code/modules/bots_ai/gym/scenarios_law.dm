@@ -412,3 +412,45 @@
 /datum/bot_scenario/minor_behind_door/release_run()
 	GLOB.bot_security_wanted -= WEAKREF(suspect)
 	return ..()
+
+/datum/bot_scenario/suspect_in_pool
+	name = "law: somebody wanted stood in the pool is gone in after and cuffed, not left there"
+	desc = "A man wanted for a scuffle stands in the middle of the pool. The officer goes in after him, taking the fall into the water, and cuffs him. Nobody would walk into a pool for a stroll, but anybody in one used to be out of Security's reach."
+	job = "Security Officer"
+	layout = list(
+		"##########",
+		"#B...qqq.#",
+		"#....qKq.#",
+		"#....qqq.#",
+		"##########")
+	time_limit = 40 SECONDS
+	kit_backpack = list(/obj/item/restraints/handcuffs)
+	var/mob/living/carbon/human/suspect
+
+/datum/bot_scenario/suspect_in_pool/setup()
+	for(var/char in list("q", "K"))
+		for(var/turf/T in markers[char])
+			T.ChangeTurf(/turf/open/pool)
+
+/datum/bot_scenario/suspect_in_pool/post_spawn()
+	suspect = stand_in(first_marker("K"), "Wes Wanted")
+	suspect.swimming = TRUE
+	var/datum/bot_wanted/W = new
+	W.severity = BOT_CRIME_MINOR
+	W.crime = "Assault"
+	W.last_seen = get_turf(suspect)
+	W.last_seen_at = world.time
+	GLOB.bot_security_wanted[WEAKREF(suspect)] = W
+	brain.begin_arrest(suspect)
+
+/datum/bot_scenario/suspect_in_pool/make_goal()
+	return null //the arrest is the job
+
+/datum/bot_scenario/suspect_in_pool/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return suspect.handcuffed ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/suspect_in_pool/release_run()
+	GLOB.bot_security_wanted -= WEAKREF(suspect)
+	return ..()
