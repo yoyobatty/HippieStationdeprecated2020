@@ -27,6 +27,7 @@ import { ChemSplitter } from './interfaces/ChemSplitter';
 import { ChemSynthesizer } from './interfaces/ChemSynthesizer';
 import { CodexGigas } from './interfaces/CodexGigas';
 import { ComputerFabricator } from './interfaces/ComputerFabricator';
+import { CloningConsole } from './interfaces/CloningConsole';
 import { CommsConsole } from './interfaces/CommsConsole';
 import { Crayon } from './interfaces/Crayon';
 import { CrewConsole } from './interfaces/CrewConsole';
@@ -220,6 +221,10 @@ const ROUTES = {
   computer_fabricator: {
     component: () => ComputerFabricator,
     scrollable: false,
+  },
+  cloning_console: {
+    component: () => CloningConsole,
+    scrollable: true,
   },
   comms_console: {
     component: () => CommsConsole,
