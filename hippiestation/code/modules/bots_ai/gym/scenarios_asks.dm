@@ -780,3 +780,45 @@
 		F.air.parse_gas_string("o2=6;n2=82;TEMP=293.15")
 		F.update_visuals()
 		SSair.add_to_active(F)
+
+/datum/bot_scenario/space_suit_up
+	name = "pursuits: suiting up for a space ruin, it takes the suit, helmet and mask from the unit and puts the jetpack on"
+	desc = "Off to a space ruin: the suit, the helmet and the mask out of EVA's suit storage and on, the tank where it can reach it, the backpack down by the unit, and a jetpack on the back, switched on."
+	job = "Assistant"
+	layout = list(
+		"########",
+		"#B..U.j#",
+		"########")
+	time_limit = 30 SECONDS
+	kit_backpack = list(/obj/item/tank/internals/emergency_oxygen) //as a crew member's survival box has
+
+/datum/bot_scenario/space_suit_up/setup()
+	for(var/turf/T in markers["U"])
+		place("U", new /obj/machinery/suit_storage_unit/standard_unit(T))
+	for(var/turf/T in markers["j"])
+		place("j", new /obj/item/tank/jetpack/carbondioxide(T))
+
+/datum/bot_scenario/space_suit_up/make_goal()
+	return new /datum/bot_goal/space_suit_up(first_placed("U"))
+
+/datum/bot_scenario/space_suit_up/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/item/tank/jetpack/J = brain.worn_jetpack()
+	if(brain.in_plain_space_suit() && J?.on && brain.eva_tank() && brain.stashed_bag?.resolve())
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/space_suit_up/cased
+	name = "pursuits: suiting up for a space ruin, the jetpack's in a case behind a windoor, as on Meta, and it opens the case"
+	desc = "Meta keeps its jetpacks on a rack behind a windoor. No route reaches through it: it walks up to the windoor, opens it, and takes the jetpack. Explorers on Meta never found one."
+
+/datum/bot_scenario/space_suit_up/cased/setup()
+	for(var/turf/T in markers["U"])
+		place("U", new /obj/machinery/suit_storage_unit/standard_unit(T))
+	for(var/turf/T in markers["j"])
+		place("j", new /obj/structure/rack(T))
+		place("j", new /obj/item/tank/jetpack/carbondioxide(T))
+		var/obj/machinery/door/window/W = new(T)
+		W.setDir(WEST)
+		place("j", W)

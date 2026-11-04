@@ -194,17 +194,23 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 // pointed at is_eva_ready() itself flapping, not a one-time gearing failure - but WHICH
 // sub-check flaps wasn't visible from outside. Logging the specific reason on every
 // FALSE turns that from a guess into a direct read on the next test.
+/// EVA storage's sort of suit (not a hardsuit, whose helmet's part of it) with its own helmet on: as good against vacuum.
+/datum/bot_brain/proc/in_plain_space_suit()
+	var/obj/item/clothing/suit/space/S = owner.wear_suit
+	var/obj/item/clothing/head/helmet/space/HM = owner.head
+	return istype(S) && !istype(S, /obj/item/clothing/suit/space/hardsuit) && istype(HM) && (S.clothing_flags & STOPSPRESSUREDAMAGE) && (HM.clothing_flags & STOPSPRESSUREDAMAGE)
+
 /datum/bot_brain/proc/is_eva_ready()
 	if(is_miner())
 		return ready_for_lavaland() //goals/mining.dm: thin air down there, not vacuum
 	var/obj/item/clothing/suit/space/hardsuit/suit = owner.wear_suit
-	if(!istype(suit))
-		bot_log_verbose(src, "is_eva_ready: FALSE - wear_suit is [owner.wear_suit] (not a hardsuit)")
+	if(!istype(suit) && !in_plain_space_suit())
+		bot_log_verbose(src, "is_eva_ready: FALSE - wear_suit is [owner.wear_suit] (not a hardsuit, nor a space suit with its helmet on)")
 		return FALSE
-	if(!suit.suittoggled)
+	if(istype(suit) && !suit.suittoggled)
 		bot_log_verbose(src, "is_eva_ready: FALSE - [suit] helmet not toggled")
 		return FALSE
-	if(!(suit.clothing_flags & STOPSPRESSUREDAMAGE) || !(suit.helmet?.clothing_flags & STOPSPRESSUREDAMAGE))
+	if(istype(suit) && (!(suit.clothing_flags & STOPSPRESSUREDAMAGE) || !(suit.helmet?.clothing_flags & STOPSPRESSUREDAMAGE)))
 		bot_log_verbose(src, "is_eva_ready: FALSE - [suit] is in combat mode") //a syndicate hardsuit's: no good in space like that
 		return FALSE
 	var/mask_type = get_job_mask_type()
@@ -249,7 +255,7 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 // every call would flood the log for no benefit.
 /datum/bot_brain/proc/is_space_protected_without_boots()
 	var/obj/item/clothing/suit/space/hardsuit/suit = owner.wear_suit
-	if(!istype(suit) || !suit.suittoggled)
+	if(istype(suit) ? !suit.suittoggled : !in_plain_space_suit())
 		return FALSE
 	var/mask_type = get_job_mask_type()
 	if(mask_type && !istype(owner.wear_mask, mask_type))

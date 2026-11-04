@@ -3400,6 +3400,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\traitor.dm"
 #include "hippiestation\code\modules\bots_ai\goals\traitor_objectives.dm"
 #include "hippiestation\code\modules\bots_ai\goals\exploring.dm"
+#include "hippiestation\code\modules\bots_ai\goals\space_ruins.dm"
 #include "hippiestation\code\modules\bots_ai\goals\medical_rounds.dm"
 #include "hippiestation\code\modules\bots_ai\goals\own_upkeep.dm"
 #include "hippiestation\code\modules\bots_ai\goals\prisoner.dm"

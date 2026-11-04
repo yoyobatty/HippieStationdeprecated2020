@@ -69,6 +69,8 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 		return FALSE
 	if(length(bot.spoils))
 		bot.show_off_spoils()
+	if(bot.stashed_bag && bot.take_back_bag()) //goals/space_ruins.dm: the backpack left in EVA for the jetpack
+		return TRUE
 	if(bot.pursuit != BOT_PURSUIT_EXPLORE || bot_going_home_soon() || bot.owner.health < bot.owner.maxHealth * 0.8)
 		return FALSE
 	// Lavaland is the miners' (the user's ruling, 2026-11-04): about one explorer a batch from the station was killed by a goliath
@@ -103,13 +105,6 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 
 /datum/bot_brain
 	var/explorer_suit_tried_until = 0
-
-/// Out to explore and not a miner: the space ruins, suited up at EVA with a jetpack. Not built yet: until then it's a poke around
-/// maintenance instead (maint_crawl), or whatever else it fancies.
-/datum/bot_brain/proc/try_space_ruin()
-	explore_blocked_until = world.time + 10 MINUTES
-	pick_pursuit("Lavaland's for the miners")
-	return FALSE
 
 /// The mining outpost's suit storage nearest the bot, suit in it or not: where somebody out on Lavaland runs back to.
 /datum/bot_brain/proc/lavaland_outpost()
@@ -257,7 +252,8 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 	spoils = null
 	exploring_since = 0
 	if(length(names))
-		bot_say(owner, pick(";Back from Lavaland. Found [english_list(names)] in a ruin!", ";Back from the ruins with [english_list(names)].", "Look what I found down there: [english_list(names)]."))
+		var/where = is_miner() ? "Lavaland" : "space" //everybody else's ruins are out in space (goals/space_ruins.dm)
+		bot_say(owner, pick(";Back from [where]. Found [english_list(names)] in a ruin!", ";Back from the ruins with [english_list(names)].", "Look what I found out there: [english_list(names)]."))
 		bot_tally("came back with spoils")
 
 /datum/bot_goal/ride_mining_shuttle/exploring/on_success(datum/bot_brain/bot)
