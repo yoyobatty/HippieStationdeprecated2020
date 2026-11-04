@@ -264,8 +264,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/our_first = GLOB.bot_recent_aggression["[REF(attacker)]>[REF(victim)]"]
 	if(their_first && world.time - their_first <= BOT_SELF_DEFENSE_WINDOW && their_first < our_first)
 		return
-	// Crew subduing someone who's already wanted - not a new crime.
-	if(bot_is_wanted(victim))
+	// Somebody Security's already after is fair game: hitting them is no crime, down or cuffed or not. Killing them still is.
+	if(bot_is_wanted(victim) && victim.stat != DEAD)
 		return
 
 	var/list/verdict = bot_classify_crime(attacker, victim, what_done, object)
@@ -302,6 +302,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 			weapon_force = max(weapon_force, P.damage)
 	var/where = get_area_name(victim, TRUE)
 	if(victim.stat == DEAD)
+		if(bot_is_wanted(victim)) //somebody Security was after: still murder, but no capital case over it
+			return list("Murder", BOT_CRIME_MAJOR, "Killed [victim.real_name], who Security was after, in [where].")
 		if(victim.mind?.assigned_role in GLOB.command_positions)
 			return list("Subversion of the Chain of Command", BOT_CRIME_MURDER, "Killed [victim.real_name] in [where].")
 		return list("Murder", BOT_CRIME_MURDER, "Killed [victim.real_name] in [where].")
@@ -363,7 +365,13 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 				arrest_severity = severity
 				arrest_crime = crime
 			return TRUE
-		return FALSE //already busy with someone else - they stay wanted, picked up later
+		// Somebody worse in sight: they come first, and whoever it was after stays wanted for later. An officer used to carry on after
+		// a player for a scuffle with a traitor in a nanosuit stood beside them.
+		var/mob/living/carbon/human/current = arrest_suspect
+		if(QDELETED(current) || current.handcuffed || arrest_busy || (world.time < fallen_back_until && bot_too_dangerous(H)) || !(severity > arrest_severity || (bot_too_dangerous(H) && !bot_too_dangerous(current))) || !(H in view(7, owner)))
+			return FALSE //already busy with someone else - they stay wanted, picked up later
+		bot_log(src, "leaving [current] ([arrest_crime]) for [H] ([crime])")
+		end_arrest("somebody worse turned up")
 
 	// Never drop a prisoner mid-escort to go chase someone new.
 	if(state == BOT_STATE_GOAL && istype(current_goal, /datum/bot_goal/brig_prisoner))
@@ -1266,6 +1274,11 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 /// no response.
 /datum/bot_brain/proc/bot_call_security(mob/living/carbon/human/H, what_done, atom/object)
 	if(is_security_job() || world.time < next_assault_report_time || QDELETED(H))
+		return
+	// Somebody Security's after has nothing to report: whoever's hitting them is doing Security's job. A traitor in a nanosuit
+	// reported a player for assault this way, the crime went on the player's record though the traitor's radio call came out
+	// as a threat, and every officer who saw the player went for them while the traitor stood beside them.
+	if(gone_loud() || bot_is_wanted(owner))
 		return
 	var/we_started = GLOB.bot_recent_aggression["[REF(owner)]>[REF(H)]"]
 	var/they_started = GLOB.bot_recent_aggression["[REF(H)]>[REF(owner)]"]

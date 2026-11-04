@@ -189,3 +189,50 @@
 		fail_reason = "charged with [verdict[1]]"
 		return BOT_GYM_FAIL
 	return bot_sentence_for("Vigilantism", BOT_CRIME_MINOR) == 5 MINUTES ? BOT_GYM_PASS : BOT_GYM_FAIL
+
+/datum/bot_scenario/griefed/fair_game
+	name = "law: hitting a wanted traitor isn't a crime, even reported by the traitor"
+	desc = "A traitor in a nanosuit Security's already after (a bot) is punched by a crew member in front of an officer. The traitor doesn't get to report it, the officer doesn't charge it, and nobody goes after the crew member. A player was arrested for this while the traitor stood beside them."
+	job = "Security Officer"
+	layout = list(
+		"###########",
+		"#B...TC...#",
+		"###########")
+	time_limit = 15 SECONDS
+	kit_backpack = list(/obj/item/restraints/handcuffs)
+	var/mob/living/carbon/human/traitor
+
+/datum/bot_scenario/griefed/fair_game/post_spawn()
+	..()
+	traitor = second_bot(first_marker("T"), "Max Traitor")
+	traitor.bot_brain.bot_traitor = TRUE
+	var/datum/bot_wanted/W = new
+	W.severity = BOT_CRIME_MAJOR
+	W.crime = "Possession of Dangerous Equipment"
+	W.last_seen = get_turf(traitor)
+	W.last_seen_at = world.time
+	GLOB.bot_security_wanted[WEAKREF(traitor)] = W
+
+/datum/bot_scenario/griefed/fair_game/grief()
+	for(var/i in 1 to 3)
+		if(QDELETED(griefer) || QDELETED(traitor))
+			return
+		griefer.a_intent = INTENT_HARM
+		griefer.UnarmedAttack(traitor, TRUE)
+		sleep(8)
+
+/datum/bot_scenario/griefed/fair_game/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/datum/bot_wanted/W = bot_get_wanted_entry(griefer)
+	if(W)
+		fail_reason = "the crew member is wanted for [W.crime]"
+		return BOT_GYM_FAIL
+	if(brain.arrest_suspect == griefer)
+		fail_reason = "the officer went after the crew member"
+		return BOT_GYM_FAIL
+	return world.time >= start_time + 10 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/fair_game/release_run()
+	GLOB.bot_security_wanted -= WEAKREF(traitor)
+	return ..()
