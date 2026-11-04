@@ -542,6 +542,14 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		arrest_last_dist = dist
 		return
 
+	// A colleague's beside them already, making the same arrest: stand by a few tiles off rather than walk into them. Two officers
+	// after one man who stood still for it took turns swapping each other off the one tile beside him, and every pair of cuffs that
+	// went on was cut short and counted as him resisting. Not while he's fighting, or has the colleague beaten.
+	if(visible && dist <= 3 && S.a_intent != INTENT_HARM && bot_colleague_arresting(S))
+		stop_pursuit()
+		arrest_last_dist = dist
+		return
+
 	// Not in reach yet.
 	if(visible && !subdued)
 		if(!arrest_hailed && arrest_severity < BOT_CRIME_MAJOR && dist <= 5)
@@ -576,6 +584,16 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	if(!pursuing_kind || pursue_target != pursuit_goal || !arrest_path_turf || get_dist(arrest_path_turf, goal_turf) > 1)
 		arrest_path_turf = goal_turf
 		pursue(pursuit_goal, "arrest", force = TRUE)
+
+/// Another officer stood beside `S`, on its feet and not badly hurt, arresting them too.
+/datum/bot_brain/proc/bot_colleague_arresting(mob/living/carbon/human/S)
+	for(var/mob/living/carbon/human/H in range(1, S))
+		if(H == owner || H == S || H.stat != CONSCIOUS || H.health < H.maxHealth * 0.5)
+			continue
+		var/datum/bot_brain/other = H.bot_brain
+		if(other && other.state == BOT_STATE_ARREST && other.arrest_suspect == S)
+			return TRUE
+	return FALSE
 
 /datum/bot_brain/proc/hail_suspect(mob/living/carbon/human/S)
 	arrest_hailed = TRUE

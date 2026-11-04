@@ -310,3 +310,60 @@
 	if(officer)
 		UnregisterSignal(officer, COMSIG_MOVABLE_MOVED)
 	return ..()
+
+/datum/bot_scenario/colleague_cuffs_him
+	name = "law: with a colleague already cuffing the man, the second officer stands by rather than walking into them"
+	desc = "Two officers after one man who stands still for it, at the end of a corridor with room beside him for one. The officer there cuffs him and the other waits. Two officers took turns swapping each other off the tile beside a man, every pair of cuffs cut short and counted as him resisting."
+	job = "Security Officer"
+	layout = list(
+		"#######",
+		"#KOB..#",
+		"#######")
+	time_limit = 20 SECONDS
+	kit_backpack = list(/obj/item/restraints/handcuffs)
+	var/mob/living/carbon/human/officer
+	var/mob/living/carbon/human/suspect
+	var/moves = 0
+
+/datum/bot_scenario/colleague_cuffs_him/post_spawn()
+	officer = second_bot(first_marker("O"), "Sam Second")
+	officer.mind.assigned_role = "Security Officer"
+	officer.put_in_hands(new /obj/item/restraints/handcuffs(officer))
+	suspect = stand_in(first_marker("K"), "Wes Wanted")
+	var/datum/bot_wanted/W = new
+	W.severity = BOT_CRIME_MINOR
+	W.crime = "Assault"
+	W.last_seen = get_turf(suspect)
+	W.last_seen_at = world.time
+	GLOB.bot_security_wanted[WEAKREF(suspect)] = W
+	officer.bot_brain.begin_arrest(suspect)
+	brain.begin_arrest(suspect)
+	RegisterSignal(bot, COMSIG_MOVABLE_MOVED, PROC_REF(stepped))
+	RegisterSignal(officer, COMSIG_MOVABLE_MOVED, PROC_REF(stepped))
+
+/datum/bot_scenario/colleague_cuffs_him/make_goal()
+	return null //the arrest is the job
+
+/datum/bot_scenario/colleague_cuffs_him/proc/stepped()
+	moves++
+
+/datum/bot_scenario/colleague_cuffs_him/check()
+	if(bot_lost() || QDELETED(officer) || QDELETED(suspect))
+		return BOT_GYM_FAIL
+	if(moves > 4)
+		fail_reason = "the two of them shuffled round him: [moves] steps"
+		return BOT_GYM_FAIL
+	if(suspect.handcuffed)
+		if(suspect.getStaminaLoss() > 0 || suspect.AmountParalyzed() > 0)
+			fail_reason = "he stood still for it and was stunned all the same"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/colleague_cuffs_him/release_run()
+	GLOB.bot_security_wanted -= WEAKREF(suspect)
+	if(bot)
+		UnregisterSignal(bot, COMSIG_MOVABLE_MOVED)
+	if(officer)
+		UnregisterSignal(officer, COMSIG_MOVABLE_MOVED)
+	return ..()
