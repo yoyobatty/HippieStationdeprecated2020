@@ -402,6 +402,11 @@ GLOBAL_VAR(atmos_bench_updaters)
 		atmos_bench_finish(lines)
 		return
 
+	if(option == "storage-fire")
+		lines += atmos_bench_storage_fire(z)
+		atmos_bench_finish(lines)
+		return
+
 	if(option == "profile")
 		world.Profile(PROFILE_CLEAR)
 		world.Profile(PROFILE_START)
@@ -888,6 +893,43 @@ GLOBAL_VAR(atmos_bench_updaters)
 	for(var/turf/open/T as anything in tiles)
 		var/datum/gas_mixture/air = T.air
 		. += "    ([T.x],[T.y]) at the end: [round(air.total_moles())] mol, [round(air.moles[/datum/gas/plasma] || 0, 0.1)] plasma, [round(air.temperature)] K"
+
+/// A player's fire ("atmos-bench=storage-fire"): the plasma canister in an engine's storage opened and lit, as a player did on
+/// 2026-11-03, after which a floor there ended up with no air at all and heat through the walls runtimed on it every tick for
+/// eleven minutes. Watches every open turf round it for one that's lost its air, with what it was the second before.
+/proc/atmos_bench_storage_fire(z)
+	. = list("", "Engine storage fire check")
+	var/obj/machinery/portable_atmospherics/canister/toxins/can
+	for(var/obj/machinery/portable_atmospherics/canister/toxins/C in GLOB.machines)
+		var/area/A = get_area(C)
+		if(C.z == z && istype(A, /area/engine) && !istype(A, /area/engine/atmos))
+			can = C
+			if(istype(A, /area/engine/port_engineering)) //where the player's was, on Hippie
+				break
+	if(!can)
+		. += "  no plasma canister in an engine area on this map"
+		return
+	var/turf/open/spot = get_turf(can)
+	can.valve_open = TRUE
+	can.release_pressure = can.can_max_release_pressure
+	. += "  opened [can] at ([spot.x],[spot.y]) in [get_area_name(spot, TRUE)], lighting it for the first 20 s"
+	var/list/watched = list()
+	for(var/turf/T in range(12, spot))
+		watched[T] = "[T.type]"
+	var/list/reported = list()
+	for(var/second in 1 to 240)
+		if(second <= 20)
+			spot.hotspot_expose(1000, CELL_VOLUME)
+		sleep(1 SECONDS)
+		for(var/turf/T as anything in watched)
+			if(isopenturf(T) && !T.blocks_air && !T:air && !reported[T])
+				reported[T] = TRUE
+				. += "  [second] s: ([T.x],[T.y]) [T.type] has no air (was [watched[T]] a second before, initialized [!!(T.flags_1 & INITIALIZED_1)], changing [T.changing_turf], in heat through walls [(T in SSair.active_super_conductivity)])"
+			watched[T] = "[T.type]"
+		if(second % 30 == 0)
+			. += "  [second] s: [length(SSair.hotspots)] tiles burning, [length(SSair.active_super_conductivity)] conducting heat through walls, [length(reported)] without air"
+	if(!length(reported))
+		. += "  no turf lost its air"
 
 /// Plasma on the station's open turfs outside the lab
 /proc/atmos_bench_plasma_outside(z, list/lab)

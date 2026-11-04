@@ -206,6 +206,12 @@
 	update_icon()
 
 /obj/machinery/portable_atmospherics/canister/Destroy()
+	// hippie -- the pump only borrows its airs: the canister's own and, with the valve open, the turf's or the tank's. Deleting the
+	// pump deletes whatever it holds, so a canister burnt up with its valve open took the floor's air with it: the turf was left with
+	// none at all once that was hard deleted, and heat through the walls runtimed on it every tick for the rest of the round.
+	if(pump)
+		pump.airs[1] = null
+		pump.airs[2] = null
 	qdel(pump)
 	pump = null
 	return ..()
