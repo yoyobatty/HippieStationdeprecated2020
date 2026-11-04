@@ -71,6 +71,10 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 		bot.show_off_spoils()
 	if(bot.pursuit != BOT_PURSUIT_EXPLORE || bot_going_home_soon() || bot.owner.health < bot.owner.maxHealth * 0.8)
 		return FALSE
+	// Lavaland is the miners' (the user's ruling, 2026-11-04): about one explorer a batch from the station was killed by a goliath
+	// down there. Anybody else out exploring goes for the space ruins instead.
+	if(!bot.is_miner())
+		return bot.try_space_ruin()
 	if(world.time < GLOB.bot_lavaland_done_until)
 		bot.pick_pursuit("nothing left to explore down there") //maintenance is still there for an explorer (maint_crawl), or something else
 		return FALSE
@@ -100,7 +104,13 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 /datum/bot_brain
 	var/explorer_suit_tried_until = 0
 
-/// The nearest suit storage unit down here with an explorer suit still in it, that it can walk to.
+/// Out to explore and not a miner: the space ruins, suited up at EVA with a jetpack. Not built yet: until then it's a poke around
+/// maintenance instead (maint_crawl), or whatever else it fancies.
+/datum/bot_brain/proc/try_space_ruin()
+	explore_blocked_until = world.time + 10 MINUTES
+	pick_pursuit("Lavaland's for the miners")
+	return FALSE
+
 /// The mining outpost's suit storage nearest the bot, suit in it or not: where somebody out on Lavaland runs back to.
 /datum/bot_brain/proc/lavaland_outpost()
 	var/obj/machinery/suit_storage_unit/mining/nearest
@@ -109,6 +119,7 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 			nearest = U
 	return nearest
 
+/// The nearest suit storage unit down here with an explorer suit still in it, that it can walk to.
 /datum/bot_brain/proc/explorer_suit_storage()
 	var/obj/machinery/suit_storage_unit/best
 	for(var/obj/machinery/suit_storage_unit/mining/U as anything in bot_instances_of(/obj/machinery/suit_storage_unit/mining))
