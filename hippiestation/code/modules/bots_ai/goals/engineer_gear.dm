@@ -77,6 +77,8 @@
 /// Puts on a worn item the way a player does: in hand first, then onto the body. Whatever was in
 /// that slot goes into the bag, not onto the floor (the CE's black gloves, a hard hat...).
 /datum/bot_brain/proc/wear(obj/item/I, slot)
+	if(owner.get_item_by_slot(slot) == I)
+		return TRUE //on already: picking it up put it straight on (stow_item(), bot_items.dm)
 	if(!ready_in_hand(I))
 		return FALSE
 	human_pause(owner)

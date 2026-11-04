@@ -59,6 +59,10 @@
 	if(holder != owner && get_dist(owner, get_turf(I)) > 1)
 		bot_log_verbose(src, "ready_in_hand: [I] isn't on me and is out of reach")
 		return FALSE
+	// Something it's wearing comes off into the hand: put_in_hands() on a worn item leaves it in its slot as well, worn and held at once.
+	// Picking up a space suit had the game put it straight on (stow_item()), and getting it ready to wear left it in both places.
+	if(holder == owner && I.loc == owner && !(I in owner.held_items) && !owner.temporarilyRemoveItemFromInventory(I))
+		return FALSE
 	if(owner.get_active_held_item() && !owner.get_inactive_held_item())
 		owner.swap_hand() //the other hand is free - use it rather than putting something away
 	if(owner.get_active_held_item())
