@@ -3174,6 +3174,7 @@
 #include "hippiestation\code\game\objects\items\devices\scanners.dm"
 #include "hippiestation\code\game\objects\items\devices\scrubber_pack.dm"
 #include "hippiestation\code\game\objects\items\devices\synthmorpher.dm"
+#include "hippiestation\code\game\objects\items\devices\t_ray.dm"
 #include "hippiestation\code\game\objects\items\devices\transfer_valve.dm"
 #include "hippiestation\code\game\objects\items\grenades\chem_grenade.dm"
 #include "hippiestation\code\game\objects\items\grenades\clusterbuster.dm"
