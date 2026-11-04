@@ -506,6 +506,11 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 
 	var/dist = get_dist(owner, S)
 	var/subdued = is_subdued(S)
+	// Somebody you don't walk up to (a nanosuit, a gun, blood on them) is only down when they're down: out, out of breath for good, or
+	// held for longer than it takes to get the cuffs on. A Warden walked in on a baton's moment of stun on a traitor in a nanosuit, who
+	// was up before the cuffs were, and five officers died one after another in the Brig the same way.
+	if(subdued && S.stat == CONSCIOUS && bot_too_dangerous(S) && S.AmountParalyzed() < 4 SECONDS && S.AmountUnconscious() <= 0 && S.getStaminaLoss() < 100)
+		subdued = FALSE
 
 	if(visible && !subdued && bot_too_dangerous(S) && keep_it_at_range(S, dist)) //goals/security_tactics.dm
 		arrest_last_dist = dist

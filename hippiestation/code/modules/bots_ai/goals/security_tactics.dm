@@ -139,6 +139,12 @@
 		fall_back_from(S)
 		return TRUE
 	if(!find_usable_gun())
+		// Nothing to shoot with: it doesn't go in alone with a baton. It keeps its distance and waits for the others to come.
+		if(dist <= BOT_SEC_HOLD_AT)
+			stop_pursuit()
+			if(dist < BOT_SEC_KEEP_AWAY)
+				step_back_from(S)
+			return TRUE
 		return FALSE
 	shoot_at_range(S)
 	if(dist <= BOT_SEC_HOLD_AT)
