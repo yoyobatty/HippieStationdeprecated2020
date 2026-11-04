@@ -531,6 +531,7 @@
 	if(!here || next_node.z != here.z || get_dist(here, next_node) > 1 || bot_turf_is_deadly(get_step(here, get_dir(here, next_node))))
 		return FALSE
 	if(SSpathfinder.space_type_cache[next_node.type] && !SSpathfinder.space_type_cache[here.type] && !bot_turf_crossable_without_boots(next_node, owner) && !can_path_through_space())
+		back_off_from_space(here, next_node)
 		return FALSE
 	// Walking into an airlock opens it (Bumped()): not one with vacuum behind it, without a suit (bot_door_opens_on_vacuum(), bot_items.dm).
 	var/obj/machinery/door/airlock/door = locate() in next_node
@@ -550,6 +551,28 @@
 	if(owner.pulling?.density && !isliving(owner.pulling) && (locate(/mob/living) in next_node) && haul_round(next_node))
 		return TRUE
 	return step_towards(owner, next_node)
+
+/// Space where the way on was and no suit: a person steps back from the edge rather than wait on the lip while the air rushes out past
+/// them. A bot stood there for its reroute, and the rush of air threw it out into the gap (gym: the floor ahead turns to space).
+/datum/bot_brain/proc/back_off_from_space(turf/here, turf/space)
+	if(!bot_turf_borders_space(here))
+		return
+	var/turf/best
+	for(var/direction in GLOB.cardinals)
+		var/turf/open/T = get_step(here, direction)
+		if(!istype(T) || T.density || SSpathfinder.space_type_cache[T.type] || bot_turf_borders_space(T) || is_blocked_turf(T, TRUE))
+			continue
+		if(!best || get_dist(T, space) > get_dist(best, space))
+			best = T
+	if(best && step_towards(owner, best))
+		bot_log(src, "space where the way on was - stepping back from the edge")
+
+/proc/bot_turf_borders_space(turf/T)
+	for(var/direction in GLOB.cardinals)
+		var/turf/next = get_step(T, direction)
+		if(next && SSpathfinder.space_type_cache[next.type])
+			return TRUE
+	return FALSE
 
 /// Somebody on the next tile who isn't a fight: places are only swapped with both on help intent (living.dm), and a bot that had been
 /// shooting stayed on harm. Two operatives holding by the nuke stood in the infiltrator's doorway, and the one with the disk was stuck
