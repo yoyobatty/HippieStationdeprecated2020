@@ -236,3 +236,77 @@
 /datum/bot_scenario/griefed/fair_game/release_run()
 	GLOB.bot_security_wanted -= WEAKREF(traitor)
 	return ..()
+
+/datum/bot_scenario/two_officers_lose_him
+	name = "law: two officers lose the same man, and stand where he was seen rather than swapping places on it"
+	desc = "Two officers after one wanted man, who gets away out of sight. Both make for where he was last seen. The first stands on the spot and the second stops beside it: two officers took turns walking on to the spot and swapping the other off it for half a minute."
+	job = "Security Officer"
+	layout = list(
+		"###############",
+		"#B.O.......K..#",
+		"###############",
+		"#P#############",
+		"###############")
+	time_limit = 30 SECONDS
+	kit_backpack = list(/obj/item/restraints/handcuffs)
+	var/mob/living/carbon/human/officer
+	var/mob/living/carbon/human/suspect
+	var/turf/spot
+	var/arrived_at = 0
+	var/moves = 0
+
+/datum/bot_scenario/two_officers_lose_him/post_spawn()
+	officer = second_bot(first_marker("O"), "Sam Second")
+	officer.mind.assigned_role = "Security Officer"
+	officer.put_in_hands(new /obj/item/restraints/handcuffs(officer))
+	suspect = stand_in(first_marker("K"), "Wes Wanted")
+	var/datum/bot_wanted/W = new
+	W.severity = BOT_CRIME_MAJOR
+	W.crime = "Assault with a Deadly Weapon"
+	W.last_seen = get_turf(suspect)
+	W.last_seen_at = world.time
+	GLOB.bot_security_wanted[WEAKREF(suspect)] = W
+	brain.begin_arrest(suspect)
+	officer.bot_brain.begin_arrest(suspect)
+	RegisterSignal(bot, COMSIG_MOVABLE_MOVED, PROC_REF(stepped))
+	RegisterSignal(officer, COMSIG_MOVABLE_MOVED, PROC_REF(stepped))
+	addtimer(CALLBACK(src, PROC_REF(gets_away)), 5)
+
+/datum/bot_scenario/two_officers_lose_him/make_goal()
+	return null //the arrest is the job
+
+/datum/bot_scenario/two_officers_lose_him/proc/gets_away()
+	if(QDELETED(suspect))
+		return
+	spot = get_turf(suspect)
+	suspect.forceMove(first_marker("P"))
+
+/datum/bot_scenario/two_officers_lose_him/check()
+	if(bot_lost() || QDELETED(officer))
+		return BOT_GYM_FAIL
+	if(!spot)
+		return BOT_GYM_PENDING
+	if(!arrived_at)
+		return BOT_GYM_PENDING
+	if(moves > 6)
+		fail_reason = "the two of them shuffled on and off the spot: [moves] steps"
+		return BOT_GYM_FAIL
+	return world.time > arrived_at + 12 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// Every step either of them takes once one has got to the spot.
+/datum/bot_scenario/two_officers_lose_him/proc/stepped(atom/movable/mover)
+	if(!spot)
+		return
+	if(!arrived_at)
+		if(get_turf(mover) == spot)
+			arrived_at = world.time
+		return
+	moves++
+
+/datum/bot_scenario/two_officers_lose_him/release_run()
+	GLOB.bot_security_wanted -= WEAKREF(suspect)
+	if(bot)
+		UnregisterSignal(bot, COMSIG_MOVABLE_MOVED)
+	if(officer)
+		UnregisterSignal(officer, COMSIG_MOVABLE_MOVED)
+	return ..()

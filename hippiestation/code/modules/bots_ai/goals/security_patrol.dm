@@ -562,8 +562,12 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/turf/goal_turf = get_turf(pursuit_goal)
 	if(!goal_turf)
 		return
-	if(!visible && get_turf(owner) == goal_turf)
-		return //reached the last sighting and they're not here - keep looking around until the lost-sight timeout
+	// Reached the last sighting and they're not here: keep looking around until the lost-sight timeout. Beside it is as good, with
+	// somebody already stood on it: two officers after the same man took turns walking on to the spot and swapping the other off it,
+	// for the half minute it took them to give him up.
+	if(!visible && (get_turf(owner) == goal_turf || (get_dist(owner, goal_turf) <= 1 && (locate(/mob/living) in goal_turf))))
+		stop_pursuit()
+		return
 	if(!subdued && bot_too_dangerous(S) && get_dist(owner, goal_turf) > 5) //goals/security_tactics.dm
 		var/turf/short = spot_short_of(goal_turf)
 		if(short)

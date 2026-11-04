@@ -623,9 +623,9 @@
 	job = "Assistant"
 	layout = list(
 		"##############",
-		"#R.......LL###",
-		"#........LB###",
-		"#........L.###",
+		"#R.......ll###",
+		"#........lB###",
+		"#........l.###",
 		"##############")
 	time_limit = 25 SECONDS
 	max_goal_attempts = 1
@@ -634,7 +634,7 @@
 	var/moves = 0
 
 /datum/bot_scenario/lava_moat/setup()
-	for(var/turf/T in markers["L"])
+	for(var/turf/T in markers["l"])
 		T.ChangeTurf(/turf/open/lava/smooth)
 	ruin = new(first_marker("R"), null)
 	place("R", ruin)
