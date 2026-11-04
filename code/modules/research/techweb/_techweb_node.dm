@@ -83,12 +83,12 @@
 
 /datum/techweb_node/proc/get_price(datum/techweb/host)
 	if(host)
-		var/list/actual_costs = research_costs
+		var/list/actual_costs = research_costs.Copy() // hippie -- a copy: the boost came off the node's own list, cheaper every time anybody looked
 		if(host.boosted_nodes[id])
 			var/list/L = host.boosted_nodes[id]
 			for(var/i in L)
 				if(actual_costs[i])
-					actual_costs[i] -= L[i]
+					actual_costs[i] = max(0, actual_costs[i] - L[i]) // hippie -- never below nothing
 		return actual_costs
 	else
 		return research_costs
