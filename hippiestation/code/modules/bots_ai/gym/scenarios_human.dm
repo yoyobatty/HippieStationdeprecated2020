@@ -253,3 +253,30 @@
 /datum/bot_scenario/banana_peel/wet_floor/setup()
 	for(var/turf/open/T in markers["y"])
 		T.MakeSlippery(TURF_WET_WATER, 2 MINUTES)
+
+/// A banana peel is litter: somebody out to keep the station nice picks it up and bins it, from beside it.
+/datum/bot_scenario/duty/tidies_up/peel
+	name = "footing: somebody tidying up bins a banana peel, picked up from beside it, not stepped on"
+	desc = "A peel on the floor in front of somebody keeping the station nice. It's litter: picked up from the next tile and put in the bin. One in a hallway was stepped round 45 times in a shift and left there."
+	layout = list(
+		"#########",
+		"#B..j..u#",
+		"#########")
+
+/datum/bot_scenario/duty/tidies_up/peel/setup()
+	litter = new /obj/item/grown/bananapeel(first_marker("j"))
+	place("j", litter)
+	bin = new(first_marker("u"))
+	place("u", bin)
+
+/datum/bot_scenario/duty/tidies_up/peel/post_spawn()
+	..()
+	brain.footing_attention = 100 //seen for certain here; a shift has it missed now and then
+
+/datum/bot_scenario/duty/tidies_up/peel/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!(bot.mobility_flags & MOBILITY_STAND))
+		fail_reason = "slipped on it"
+		return BOT_GYM_FAIL
+	return ..()

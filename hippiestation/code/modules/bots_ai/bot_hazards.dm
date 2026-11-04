@@ -273,7 +273,9 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 		return next
 	// Round it, a step at a time: aside, along past it, and back on to the route. A diagonal step is two straight ones to this engine
 	// (atom/movable/Move()), and the first of them went on to the peel.
-	if(!after || get_dist(next, after) != 1)
+	if(!after)
+		return null //the slippery tile's where the walk ends (the peel it's come to pick up): it stops beside it
+	if(get_dist(next, after) != 1)
 		return next
 	var/ahead = get_dir(here, next)
 	var/obj/item/card/id/id_card = owner.get_idcard(TRUE)

@@ -723,6 +723,9 @@
 		return
 
 	next_node = mind_the_footing(next_node) //bot_hazards.dm
+	if(!next_node)
+		finish_pursuit(TRUE) //beside it is as good as on it
+		return
 	var/turf/left_turf = get_turf(owner)
 	if(bot_step_towards(next_node))
 		quick_step_retries = 0

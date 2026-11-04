@@ -107,8 +107,9 @@ GLOBAL_LIST_INIT(bot_pursuit_lines, list(
 // Keeping the station nice
 // ---------------------------------------------------------------------------------------------
 
-/// Litter: what people drop and somebody tidy picks up.
-GLOBAL_LIST_INIT(bot_litter_types, typecacheof(list(/obj/item/trash, /obj/item/cigbutt, /obj/item/reagent_containers/food/drinks/soda_cans, /obj/item/paper/crumpled)))
+/// Litter: what people drop and somebody tidy picks up. Banana peels too: one in a hallway was stepped round 45 times in a shift and
+/// left where it was (bot_hazards.dm mind_the_footing()).
+GLOBAL_LIST_INIT(bot_litter_types, typecacheof(list(/obj/item/trash, /obj/item/cigbutt, /obj/item/reagent_containers/food/drinks/soda_cans, /obj/item/paper/crumpled, /obj/item/grown/bananapeel)))
 
 /datum/bot_duty/tidy_up
 	name = "tidying up"
