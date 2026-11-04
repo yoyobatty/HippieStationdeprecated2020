@@ -86,7 +86,8 @@
 		return
 
 	var/turf/T = get_turf(user)
-	T.assume_air(removed)
+	if(T) //moved somewhere that isn\'t a turf (into a pod, a cloner, nullspace): the puff goes nowhere
+		T.assume_air(removed)
 
 	return TRUE
 
@@ -125,7 +126,8 @@
 		return
 
 	var/turf/T = get_turf(user)
-	T.assume_air(removed)
+	if(T) //moved somewhere that isn\'t a turf (into a pod, a cloner, nullspace): the puff goes nowhere
+		T.assume_air(removed)
 
 	return TRUE
 

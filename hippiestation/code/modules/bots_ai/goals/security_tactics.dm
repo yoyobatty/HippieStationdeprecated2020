@@ -82,8 +82,11 @@
 		bot_say(owner, ":s [pick("Need backup", "All units", "Backup needed")], [S.name], [get_area_name(S, TRUE)]. Don't go in alone.")
 		bot_dispatch_security(get_turf(S), S.name, owner)
 		return
-	// A suit: everybody comes to this officer, not to the suit, and the crew keep out of the way.
-	bot_say(owner, ":s [pick("All units", "Need backup")], [S.name] in a nanosuit, [get_area_name(S, TRUE)]. Rally on me, [get_area_name(owner, TRUE)]. Nobody goes in alone.")
+	// A suit: everybody comes to this officer, not to the suit, and the crew keep out of the way. Said once between them, not by every
+	// officer every twenty seconds: that was 279 lines in six shifts.
+	if(world.time >= LAZYACCESS(GLOB.bot_rally_called, REF(S)))
+		LAZYSET(GLOB.bot_rally_called, REF(S), world.time + 30 SECONDS)
+		bot_say(owner, ":s [pick("All units", "Need backup")], [S.name] in a nanosuit, [get_area_name(S, TRUE)]. Rally on me, [get_area_name(owner, TRUE)]. Nobody goes in alone.")
 	bot_dispatch_security(get_turf(owner), S.name, owner)
 	if(world.time >= GLOB.bot_next_keep_clear)
 		GLOB.bot_next_keep_clear = world.time + BOT_KEEP_CLEAR_GAP
@@ -92,6 +95,11 @@
 
 /// Area -> until when Security has told the crew to keep out of it.
 GLOBAL_LIST_EMPTY(bot_keep_clear)
+/// REF(suspect) -> when somebody on Security can next call a rally on them.
+GLOBAL_LIST_EMPTY(bot_rally_called)
+
+/datum/bot_brain
+	var/next_keep_clear_note = 0
 GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 
 /// Somewhere Security has told everybody to keep out of, just now.

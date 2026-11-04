@@ -486,8 +486,10 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 		bot_log(src, "[goal.target] isn't aboard the shuttle - not leaving it for [goal.type]")
 		return FALSE
 	// Security's told everybody to keep out of there (goals/security_tactics.dm): nobody but Security goes in for anything that can wait.
-	if(!is_security_job() && !istype(goal, /datum/bot_goal/run_from) && !goal.braves_bad_air && bot_told_to_keep_clear(goal.target) && !bot_told_to_keep_clear(owner))
-		bot_log(src, "[goal.target] is where Security's told everybody to keep clear of - not doing [goal.type]")
+	if(!is_security_job() && !bot_traitor && !op_team && !bot_wizard && !is_changeling && !istype(goal, /datum/bot_goal/run_from) && !goal.braves_bad_air && bot_told_to_keep_clear(goal.target) && !bot_told_to_keep_clear(owner))
+		if(world.time >= next_keep_clear_note) //it's asked again every time a duty looks: once a minute in the log is plenty
+			next_keep_clear_note = world.time + 1 MINUTES
+			bot_log(src, "[goal.target] is where Security's told everybody to keep clear of - not doing [goal.type] (or anything else in there for now)")
 		return FALSE
 	if(!goal.braves_bad_air && in_bad_air(goal.target) && !is_eva_ready())
 		bot_log(src, "[goal.target] is somewhere I can't breathe and I'm not suited up - not doing [goal.type]")

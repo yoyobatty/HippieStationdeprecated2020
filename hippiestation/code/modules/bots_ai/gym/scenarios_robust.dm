@@ -224,6 +224,8 @@
 
 /datum/bot_scenario/griefed/bug/exposed/quiet_plans/grief()
 	brain.become_traitor()
+	var/datum/antagonist/traitor/T = bot.mind.has_antag_datum(/datum/antagonist/traitor)
+	T?.objectives.Cut() //the game's random ones can want it loud (hijack, a glorious death, the Captain), which is another test
 	brain.set_playstyle(BOT_STYLE_NORMAL)
 	var/list/wrong = list()
 	brain.temper = 0.5
