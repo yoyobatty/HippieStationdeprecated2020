@@ -280,3 +280,53 @@
 		fail_reason = "slipped on it"
 		return BOT_GYM_FAIL
 	return ..()
+
+/// Adrift in open space with nothing in reach to push off: something thrown the other way, and back on the push.
+/datum/bot_scenario/adrift
+	name = "space: adrift with nothing to push off, it throws something the other way and drifts back to the floor"
+	desc = "Suited and breathing, but out in the open with no jetpack, too far from anything to push off. It throws a crayon away from the floor and rides the push back. An engineer drifted thirteen minutes that way and ran out of air."
+	layout = list(
+		"###########",
+		"#..SSSSSSS#",
+		"#..SSSSSSS#",
+		"#B.SSSSSSS#",
+		"#..SSSSSSS#",
+		"#..SSSSSSS#",
+		"###########")
+	time_limit = 25 SECONDS
+
+/datum/bot_scenario/adrift/setup()
+	arena_area.has_gravity = FALSE //out in space there's none: the arena's own would let it just walk off the space tiles
+
+/datum/bot_scenario/adrift/post_spawn()
+	bot.equip_to_slot_or_del(new /obj/item/clothing/mask/breath(bot), ITEM_SLOT_MASK)
+	bot.equip_to_slot_or_del(new /obj/item/clothing/suit/space/eva(bot), ITEM_SLOT_OCLOTHING)
+	bot.equip_to_slot_or_del(new /obj/item/clothing/head/helmet/space/eva(bot), ITEM_SLOT_HEAD)
+	var/obj/item/tank/internals/emergency_oxygen/T = new(bot)
+	bot.equip_to_slot_or_del(T, ITEM_SLOT_SUITSTORE)
+	bot.internal = T
+	new /obj/item/toy/crayon/red(bot.back)
+	bot.forceMove(locate(bot.x + 6, bot.y, bot.z)) //out in the middle of it, three tiles from anything
+
+/datum/bot_scenario/adrift/make_goal()
+	return null //the reflex is what's tested
+
+/datum/bot_scenario/adrift/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return isspaceturf(get_turf(bot)) ? BOT_GYM_PENDING : BOT_GYM_PASS
+
+/// Adrift with nothing it would part with: it calls for help, with where it is.
+/datum/bot_scenario/adrift/empty_handed
+	name = "space: adrift with nothing to throw, it calls for help with where it is"
+	desc = "The same open space and no jetpack, and nothing on it it can do without: its ID, its tank and its clothes. It radios for help with its position."
+
+/datum/bot_scenario/adrift/empty_handed/post_spawn()
+	..()
+	for(var/obj/item/I in bot.back)
+		qdel(I) //nothing to throw: the crayon and anything else in the bag
+
+/datum/bot_scenario/adrift/empty_handed/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return bot_transcript_said("calling for help") ? BOT_GYM_PASS : BOT_GYM_PENDING

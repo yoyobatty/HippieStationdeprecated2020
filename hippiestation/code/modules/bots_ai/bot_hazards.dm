@@ -303,3 +303,86 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 #undef BOT_FOOTING_SEEN
 #undef BOT_FOOTING_SEEN_HURRIED
 #undef BOT_FOOTING_LOOK
+
+// ---------------------------------------------------------------------------------------------
+// Adrift
+// ---------------------------------------------------------------------------------------------
+
+// Out in space with nothing to push off and no jetpack running: an engineer crossing a gap by the walls pushed off into the open, drifted
+// for thirteen minutes and ran out of air. A player throws something the other way and rides the push back (carbon.dm throw_item(),
+// newtonian_move()): the least use to it first, the ID, the tank, the jetpack and a gun never. With nothing left to throw, it calls for help.
+
+/datum/bot_brain
+	var/next_drift_throw = 0
+	var/next_drift_call = 0
+
+/datum/bot_brain/proc/try_drift_back()
+	var/turf/here = get_turf(owner)
+	if(!isspaceturf(here) || owner.has_gravity() || owner.incapacitated() || world.time < next_drift_throw)
+		return FALSE
+	if(owner.Process_Spacemove(0))
+		return FALSE //something to push off, or a jetpack under it
+	var/turf/ground = nearest_solid_ground()
+	if(!ground)
+		return FALSE
+	var/toward = get_dir(here, ground)
+	if(owner.inertia_dir && (owner.inertia_dir & toward))
+		return FALSE //on its way already: the drift carries it
+	next_drift_throw = world.time + 2 SECONDS
+	var/obj/item/I = throwaway_item()
+	if(!I)
+		if(world.time >= next_drift_call)
+			next_drift_call = world.time + 1 MINUTES
+			bot_log(src, "adrift with nothing to throw - calling for help")
+			bot_say(owner, ";Help! I'm adrift out in space at [here.x], [here.y], nothing to push off from. Anybody with a jetpack?")
+		return FALSE
+	if(!ready_in_hand(I))
+		return FALSE
+	var/turf/away = get_ranged_target_turf(owner, turn(toward, 180), 5)
+	bot_log(src, "adrift - throwing [I] the other way to push back towards [bot_coord(ground)]")
+	bot_tally("threw something to drift back")
+	owner.face_atom(away)
+	owner.throw_item(away)
+	return TRUE
+
+/// The nearest ground in sight to make for: floor, a lattice or a catwalk, somewhere to stand; a wall if that's all there is (it can push
+/// off along one). The middle of the level if there's nothing.
+/datum/bot_brain/proc/nearest_solid_ground()
+	var/turf/here = get_turf(owner)
+	var/turf/best
+	var/best_score
+	for(var/turf/T in view(10, owner))
+		if(isspaceturf(T) && !(locate(/obj/structure/lattice) in T))
+			continue
+		var/score = get_dist_euclidian(here, T) + (T.density ? 20 : 0) //standing room beats a wall that's nearer; straight at it beats the diagonal
+		if(!best || score < best_score)
+			best = T
+			best_score = score
+	return best || locate(world.maxx / 2, world.maxy / 2, here.z)
+
+/// What it would part with to push off: rubbish, paper and food first, then anything small, tools last. Never its ID or PDA, the tank it
+/// breathes from, a jetpack, a gun, a bag, or what its goal is about.
+/datum/bot_brain/proc/throwaway_item()
+	var/list/carried = list()
+	for(var/obj/item/I in owner.held_items)
+		carried += I
+	var/obj/item/storage/bag = owner.back
+	if(istype(bag))
+		for(var/obj/item/I in bag.contents)
+			carried += I
+	var/obj/item/best
+	var/best_rank = 99
+	for(var/obj/item/I as anything in carried)
+		if(HAS_TRAIT(I, TRAIT_NODROP) || (I.item_flags & ABSTRACT) || istype(I, /obj/item/card/id) || istype(I, /obj/item/pda) || istype(I, /obj/item/tank) || istype(I, /obj/item/gun) || istype(I, /obj/item/storage) || I == current_goal?.target)
+			continue
+		var/rank = 5
+		if(istype(I, /obj/item/trash) || istype(I, /obj/item/paper) || istype(I, /obj/item/reagent_containers/food) || istype(I, /obj/item/toy) || istype(I, /obj/item/toy/crayon))
+			rank = 1
+		else if(I.w_class <= WEIGHT_CLASS_SMALL && !is_tool_or_toolbox(I))
+			rank = 2
+		else if(!is_tool_or_toolbox(I))
+			rank = 3
+		if(rank < best_rank)
+			best = I
+			best_rank = rank
+	return best

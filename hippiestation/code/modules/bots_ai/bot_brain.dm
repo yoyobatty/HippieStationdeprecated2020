@@ -181,6 +181,7 @@
 			mind_hands()
 			if(!try_escape_flames())
 				try_put_self_out()
+			try_drift_back() //bot_hazards.dm: like putting itself out, not an errand
 			if(world.time >= next_air_check_time)
 				next_air_check_time = world.time + 10
 				manage_internals()
@@ -207,6 +208,8 @@
 	if(world.time >= next_watch_time)
 		keep_an_eye_out() //bot_witness.dm
 	if(try_escape_pool())
+		return
+	if(try_drift_back()) //bot_hazards.dm
 		return
 	if(try_escape_flames()) //goals/respond_to_fire.dm
 		return
