@@ -255,10 +255,52 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 		return pick("What's wrong?", "What happened?", "What do you need?", "Whoa, what's up?")
 	if(bot_text_has_any(lower_msg, list("plasma here", "plasma in the air", "there's plasma", "theres plasma", "gas leak", "plasma leak", "don't breathe", "dont breathe", "air's bad", "airs bad")))
 		return pick("Thanks for the heads up.", "Got it, I'll keep clear.", "Yikes. Thanks.", "Noted, staying away.")
+	// Requests, orders and warnings: the second conversation sweep (gym/scenarios_asks.dm) got "Okay." and "Fair enough." for these.
+	if(!over_radio && bot_text_has_any(lower_msg, list("open this door", "open the door", "open this", "get the door", "can you open", "could you open")))
+		return open_a_door_for(talker)
+	if(bot_text_has_any(lower_msg, list("give me your id", "gimme your id", "hand over your id", "your id card", "give me your card")))
+		return bot_is_officer(talker) ? pick("What for?", "Am I under arrest?", "...Fine. What's this about?") : pick("No way.", "Why would I do that?", "Get your own.")
+	if(!over_radio && bot_text_has_any(lower_msg, list("drop it", "drop that", "drop your weapon", "drop the")))
+		if(bot_is_officer(talker) && !gone_loud())
+			var/obj/item/held = owner.get_active_held_item()
+			if(held && !HAS_TRAIT(held, TRAIT_NODROP))
+				owner.dropItemToGround(held)
+			return pick("Okay, okay!", "Dropped it! Relax.", "There. Happy?")
+		return pick("Make me.", "Why?", "No?")
+	if(!over_radio && bot_text_has_any(lower_msg, list("hands up", "put your hands up", "hands in the air")))
+		if(bot_is_officer(talker) && !gone_loud())
+			owner.emote("surrender")
+			return pick("Okay! Don't shoot!", "I'm not doing anything!", "Alright, alright!")
+		return pick("What? Why?", "You're not Security.", "Ha. No.")
+	if(bot_text_has_any(lower_msg, list("get back to work", "do your job", "stop slacking")))
+		return mood_pick(list("On it!", "Yep, going."), list("Yeah, yeah.", "I'm on break.", "Going, going."), list("Make me.", "Mind your own business.", "Who made you boss?"))
+	if(bot_text_has_any(lower_msg, list("you're fired", "youre fired", "you are fired", "you're demoted", "youre demoted")))
+		var/role = bot_job_of(talker)
+		if(role == "Captain" || role == "Head of Personnel")
+			return pick("Seriously?", "For what?!", "You can't be serious.")
+		return pick("You can't fire me.", "Ha. Sure.", "You're not my boss.")
+	// A shout on its own ("run!", "fire!"): the word boundary the phrase list matches on doesn't come after a "!", so those are taken whole.
+	var/static/list/alarm_shouts = list("run", "run!", "run!!", "fire", "fire!", "fire!!", "bomb", "bomb!", "breach", "breach!", "help!!")
+	if(!over_radio && ((trim(lower_msg) in alarm_shouts) || bot_text_has_any(lower_msg, list("watch out", "look out", "run away", "there's a fire", "theres a fire", "breach", "get down"))))
+		return pick("Where?!", "What?!", "Whoa, where?", "What is it?!")
+	if(!over_radio && bot_text_has_any(lower_msg, list("got any tools", "have any tools", "any tools", "what tools")))
+		var/list/tools = list()
+		for(var/word in list("crowbar", "screwdriver", "wrench", "wirecutters", "welder", "multitool"))
+			if(find_carried_tool(GLOB.bot_tool_words[word]))
+				tools += word
+		return length(tools) ? "I've got a [english_list(tools)]." : pick("Nope, nothing on me.", "Not a thing. Tool storage?")
+	if(!over_radio && bot_text_has_any(lower_msg, list("fix this", "fix it", "repair this", "can you fix")))
+		return (work_role() in list("Station Engineer", "Chief Engineer", "Atmospheric Technician")) ? pick("Sure, what's broken?", "What's wrong with it?", "Let's have a look.") : pick("Not my thing. Call an engineer.", "No idea how. Engineering?", "Wouldn't know where to start.")
+	if(bot_text_has_any(lower_msg, list("clone me", "can you clone", "do you know surgery", "can you do surgery", "operate on me")))
+		return is_medical_job() ? pick("Yeah, come to Medbay.", "Sure, Medbay's this way.", "Come on then.") : pick("I'm not a doctor. Try Medbay.", "That's Medbay's job.", "Not me, ask a doctor.")
+	if(bot_text_has_any(lower_msg, list("seen anything weird", "seen anything strange", "seen anything suspicious", "anything weird", "anything suspicious", "anything strange")))
+		return shift_news()
+	if(bot_text_has_any(lower_msg, list("leave me alone", "go away", "get lost", "piss off", "buzz off")))
+		return mood_pick(list("Sorry! Going.", "Okay, okay."), list("Fine.", "Alright, alright.", "Jeez, okay."), list("What's your problem?", "Make me.", "Rude."))
 	if(!over_radio && bot_text_has_any(lower_msg, list("excuse me", "scuse me", "'scuse me", "coming through", "make way", "out of my way", "get out of the way", "move over", "move it")))
 		step_aside_for(talker)
 		return pick("Oh, sorry.", "Sorry!", "My bad.", "Go ahead.")
-	if(!over_radio && bot_text_has_any(lower_msg, list("i need a doctor", "i need a medic", "get me a doctor", "get me a medic", "call a doctor", "call a medic", "i'm hurt", "im hurt", "i'm dying", "im dying")))
+	if(!over_radio && bot_text_has_any(lower_msg, list("i need a doctor", "i need a medic", "get me a doctor", "get me a medic", "call a doctor", "call a medic", "i'm hurt", "im hurt", "i'm dying", "im dying", "heal me", "patch me up", "fix me up")))
 		return help_find_a_doctor(talker)
 	if(!over_radio && bot_text_has_any(lower_msg, list("give me that", "can i have that", "can i have it", "hand it over", "gimme that", "gimme", "can i have one", "give it here", "can i borrow that", "pass me that")))
 		return hand_over_what_im_holding(talker)
@@ -277,7 +319,7 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 		return insulted_by(talker) //bot_conversation.dm
 	if(bot_text_has_any(lower_msg, list("sorry", "my bad", "apologies")))
 		return pick("It's fine.", "Don't worry about it.", "No harm done.")
-	if(bot_text_has_any(lower_msg, list("bye", "goodbye", "see you", "see ya", "cya")))
+	if(bot_text_has_any(lower_msg, list("bye", "goodbye", "see you", "see ya", "cya", "take care", "later", "good night", "night night")))
 		return pick("See you around.", "Later.", "Take care.")
 	if(bot_text_has_any(lower_msg, GLOB.bot_greeting_words))
 		var/their_name = talker.name != "Unknown" ? talker.first_name() : null
@@ -340,10 +382,35 @@ GLOBAL_LIST_INIT(bot_tool_words, list(
 	"wirecutters" = /obj/item/wirecutters, "cutters" = /obj/item/wirecutters, "welder" = /obj/item/weldingtool,
 	"welding tool" = /obj/item/weldingtool, "multitool" = /obj/item/multitool, "flashlight" = /obj/item/flashlight,
 	"extinguisher" = /obj/item/extinguisher, "gloves" = /obj/item/clothing/gloves/color/yellow, "cable" = /obj/item/stack/cable_coil,
-	"cigarette" = /obj/item/clothing/mask/cigarette, "lighter" = /obj/item/lighter,
+	"cigarette" = /obj/item/clothing/mask/cigarette, "lighter" = /obj/item/lighter, "insuls" = /obj/item/clothing/gloves/color/yellow,
+	"insulated gloves" = /obj/item/clothing/gloves/color/yellow,
 ))
 
-/// The tool somebody's asking for, as an item type, or null if this isn't that. "got a crowbar?", "can I borrow your wrench"
+/// "Can you open this door?": the nearest door by them that this bot's ID opens and theirs doesn't, opened, or a word why not.
+/datum/bot_brain/proc/open_a_door_for(mob/living/talker)
+	var/obj/machinery/door/airlock/best
+	for(var/obj/machinery/door/airlock/D in range(2, talker))
+		if(!D.density || D.locked || D.welded || !D.hasPower() || D.allowed(talker))
+			continue
+		if(!best || get_dist(talker, D) < get_dist(talker, best))
+			best = D
+	if(!best)
+		return pick("Which door?", "What door?", "It's open, isn't it?")
+	if(!best.allowed(owner))
+		return pick("Can't, I don't have access there.", "My ID won't open that one, sorry.", "No access, sorry. Ask the AI?")
+	if(state == BOT_STATE_GOAL && current_goal && !current_goal.lawful)
+		return pick("Bit busy right now.", "In a minute.")
+	if(!owner.Adjacent(best))
+		pursue(best, "follow", force = TRUE)
+		addtimer(CALLBACK(src, PROC_REF(open_door_on_arrival), best), 3 SECONDS)
+		return pick("Sure, hang on.", "One sec.", "Yeah, coming.")
+	use_atom(best)
+	return pick("There you go.", "There.", "Go on through.")
+
+/datum/bot_brain/proc/open_door_on_arrival(obj/machinery/door/airlock/D)
+	if(!QDELETED(D) && D.density && owner.Adjacent(D) && D.allowed(owner))
+		use_atom(D)
+
 /// "Excuse me": a step to one side, out of their way.
 /datum/bot_brain/proc/step_aside_for(mob/living/talker)
 	var/turf/here = get_turf(owner)
@@ -389,8 +456,9 @@ GLOBAL_LIST_INIT(bot_tool_words, list(
 /datum/bot_brain/proc/trusts_not(mob/living/talker)
 	return bot_is_wanted(talker) || LAZYFIND(grudges, WEAKREF(talker))
 
+/// The tool somebody's asking for, as an item type, or null if this isn't that. "got a crowbar?", "can I borrow your wrench"
 /datum/bot_brain/proc/tool_asked_for(lower_msg)
-	if(!bot_text_has_any(lower_msg, list("got a", "got any", "have a", "have any", "you got", "you have", "borrow", "lend me", "give me", "spare")))
+	if(!bot_text_has_any(lower_msg, list("got a", "got any", "have a", "have any", "you got", "you have", "borrow", "lend me", "give me", "spare", "i need", "need some", "need a")))
 		return null
 	for(var/word in GLOB.bot_tool_words)
 		if(bot_text_has_any(lower_msg, list(word)))

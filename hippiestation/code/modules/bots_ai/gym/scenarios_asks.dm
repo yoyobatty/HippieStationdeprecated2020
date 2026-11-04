@@ -558,3 +558,39 @@
 			return BOT_GYM_PASS
 	fail_reason = "in the sleeper without the medipen first"
 	return BOT_GYM_FAIL
+
+/datum/bot_scenario/job_round
+	name = "rounds: an engineer goes round the SMES and the power monitor and looks them over"
+	desc = "Nothing wrong, nothing asked for: an engineer between jobs walks a round of what matters in Engineering, stopping at each for a look. The user: every job walks a round of what matters every 5-15 minutes, diligent ones more often."
+	job = "Station Engineer"
+	layout = list(
+		"###########",
+		"#B...m...s#",
+		"#.........#",
+		"###########")
+	time_limit = 60 SECONDS
+
+/datum/bot_scenario/job_round/setup()
+	arena_area.department = "engineering"
+	for(var/turf/T in markers["m"])
+		place("m", new /obj/machinery/computer/monitor(T))
+	for(var/turf/T in markers["s"])
+		place("s", new /obj/machinery/power/smes(T))
+
+/datum/bot_scenario/job_round/issue_goal()
+	var/datum/bot_duty/job_round/D = bot_duty_of(/datum/bot_duty/job_round)
+	D.try_start(brain)
+
+/datum/bot_scenario/job_round/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/line in transcript)
+		if(findtext(line, "goal /datum/bot_goal/job_round succeeded"))
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/// The second half of the sweep: requests, orders and warnings rather than chat.
+/datum/bot_scenario/chat/sweep/requests
+	name = "asks: a sweep of requests, orders and warnings, face to face"
+	desc = "What a player asks or tells somebody stood in front of them: open this, give me your ID, get back to work, watch out, heal me. Read the transcript for whether each answer fits."
+	lines = list("can you open this door?", "give me your id", "drop it", "put your hands up", "what's your name?", "who's the captain?", "is the shuttle coming?", "get back to work", "you're fired", "watch out!", "run!", "fire!", "there's a breach!", "someone help", "i need insuls", "got any tools?", "can you fix this?", "heal me please", "i'm hurt", "can you clone me?", "do you know surgery?", "go away", "stop following me", "leave me alone", "shut up", "be quiet", "good morning", "how's the shift going?", "seen anything weird?", "take care")

@@ -3404,6 +3404,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\own_upkeep.dm"
 #include "hippiestation\code\modules\bots_ai\goals\prisoner.dm"
 #include "hippiestation\code\modules\bots_ai\goals\red_alert.dm"
+#include "hippiestation\code\modules\bots_ai\goals\job_rounds.dm"
 #include "hippiestation\code\modules\bots_ai\goals\treat_patient.dm"
 #include "hippiestation\code\modules\bots_ai\goals\wizard.dm"
 #include "hippiestation\code\modules\bots_ai\goals\xenobiology.dm"
