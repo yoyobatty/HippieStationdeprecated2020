@@ -210,7 +210,36 @@
 		return
 	brain.turn_hostile()
 	bot_clear_wanted(bot)
-	expect(brain.plays_robust() && brain.traitor_plan == BOT_TRAITOR_HIT_LIST && brain.threats_made == 1, "turned hostile")
+	if(!brain.plays_robust() || brain.traitor_plan != BOT_TRAITOR_CORNERED || brain.threats_made != 1)
+		expect(FALSE, "turned hostile, on whoever comes for it")
+		return
+	brain.traitor_plan = BOT_TRAITOR_UNDERCOVER
+	brain.temper = 0.9
+	brain.turn_hostile()
+	expect(brain.traitor_plan == BOT_TRAITOR_HIT_LIST, "turned hostile on whoever comes for it, and a hothead on Security and the heads too")
+
+/datum/bot_scenario/griefed/bug/exposed/quiet_plans
+	name = "traitor plans: most stay quiet, and the hotheads and the robust go loud from the start"
+	desc = "The user's ruling: most traitors do their objectives by stealth. An even-tempered one plans to stay undercover, a hothead or a robust player plans to go loud."
+
+/datum/bot_scenario/griefed/bug/exposed/quiet_plans/grief()
+	brain.become_traitor()
+	brain.set_playstyle(BOT_STYLE_NORMAL)
+	var/list/wrong = list()
+	brain.temper = 0.5
+	brain.pick_traitor_plan()
+	if(brain.traitor_plan != BOT_TRAITOR_UNDERCOVER)
+		wrong += "an even-tempered traitor went loud"
+	brain.temper = 0.9
+	brain.pick_traitor_plan()
+	if(brain.traitor_plan == BOT_TRAITOR_UNDERCOVER)
+		wrong += "a hothead stayed undercover"
+	brain.temper = 0.5
+	brain.set_playstyle(BOT_STYLE_ROBUST)
+	brain.pick_traitor_plan()
+	if(brain.traitor_plan == BOT_TRAITOR_UNDERCOVER)
+		wrong += "a robust player stayed undercover"
+	expect(!length(wrong), length(wrong) ? jointext(wrong, "; ") : "even-tempered undercover, hothead and robust loud")
 
 /// A suited suspect stood still, and one officer: what matters here is how it goes about it.
 /datum/bot_scenario/griefed/officer

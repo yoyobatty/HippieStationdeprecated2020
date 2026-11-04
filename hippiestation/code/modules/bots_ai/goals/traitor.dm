@@ -113,6 +113,8 @@
 		return FALSE
 	if(bot.gone_loud() && !bot.plays_robust()) //goals/robust.dm: undercover until it's caught
 		bot.turn_hostile()
+	if(!EMERGENCY_IDLE_OR_RECALLED)
+		bot.consider_going_out_swinging() //goals/robust.dm
 	if(world.time < bot.traitor_business_after && EMERGENCY_IDLE_OR_RECALLED && !bot.gone_loud()) //there's no settling in with the shuttle on its way
 		return FALSE
 	bot.try_codewords()

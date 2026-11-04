@@ -42,8 +42,12 @@
 /// Bodies before the crew stops acting as if it's an ordinary shift.
 #define BOT_BODIES_TO_WORRY 3
 
-/// Out of a hundred, the traitors who stay undercover.
-#define BOT_UNDERCOVER_SHARE 50
+/// Temper it takes to plan on going loud from the start, or to turn on everybody who matters once caught: the hotheads.
+#define BOT_HOTHEAD_TEMPER 0.8
+#define BOT_CORNERED_HIT_LIST_TEMPER 0.75
+/// Temper it takes to go out swinging with the shuttle called and nothing left to lose, and the chance it does.
+#define BOT_LATE_LOUD_TEMPER 0.6
+#define BOT_LATE_LOUD_CHANCE 50
 #define BOT_UNDERCOVER_WAIT_MIN (8 MINUTES)
 #define BOT_UNDERCOVER_WAIT_MAX (13 MINUTES)
 #define BOT_LOUD_WAIT_MIN (30 SECONDS)
@@ -104,28 +108,63 @@ GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor,
 	var/datum/bot_wanted/W = bot_get_wanted_entry(owner)
 	return W && W.severity >= BOT_CRIME_MAJOR
 
-/// Whether it goes loud at all, and how far it takes it. Half stay undercover. Of the rest, the short-tempered and the fearless go for everybody.
+/// Whether it goes loud at all, and how far it takes it. Mostly quiet (the user's ruling, 2026-11-04): most do their objectives by stealth
+/// and kill nobody but their target or whoever catches them. Loud from the start are the ones born that way (the robust style, the
+/// hotheads) and those whose objective can't be done quietly. Of those, the short-tempered and the fearless go for everybody. When half
+/// went loud, a shift with two traitors had four to seven dead and one robust traitor killed nine.
 /datum/bot_brain/proc/pick_traitor_plan()
 	uses_codewords = prob(BOT_CODEWORD_CHANCE)
 	var/forced = world.params["bot-traitor-plan"] //a Bot Shift that wants a particular kind
-	if(forced == BOT_TRAITOR_UNDERCOVER || (!forced && prob(BOT_UNDERCOVER_SHARE)))
+	if(forced == BOT_TRAITOR_UNDERCOVER || (!forced && !plays_robust() && temper < BOT_HOTHEAD_TEMPER && !objective_wants_it_loud()))
 		traitor_plan = BOT_TRAITOR_UNDERCOVER
 		traitor_business_after = world.time + rand(BOT_UNDERCOVER_WAIT_MIN, BOT_UNDERCOVER_WAIT_MAX)
-		if(plays_robust())
-			set_playstyle(BOT_STYLE_NORMAL) //it's the style that buys the suit, and one in twelve rolled it at the start of the round
 	else
 		traitor_plan = forced || ((nerve + temper) / 2 >= BOT_RAMPAGE_TEMPER ? BOT_TRAITOR_RAMPAGE : BOT_TRAITOR_HIT_LIST)
 		set_playstyle(BOT_STYLE_ROBUST)
 		traitor_business_after = world.time + rand(BOT_LOUD_WAIT_MIN, BOT_LOUD_WAIT_MAX)
 	bot_log(src, "traitor plan: [traitor_plan][uses_codewords ? ", code words" : ""]")
 
-/// Caught, or as good as: the job's over, so it stops acting like it's still got one.
+/// An objective there's no doing quietly: the shuttle to take, a glorious death to die, or a target who's never on their own.
+/datum/bot_brain/proc/objective_wants_it_loud()
+	var/datum/antagonist/traitor/T = owner.mind?.has_antag_datum(/datum/antagonist/traitor)
+	for(var/datum/objective/O as anything in T?.objectives)
+		if(istype(O, /datum/objective/hijack) || istype(O, /datum/objective/martyr))
+			return TRUE
+		if(istype(O, /datum/objective/assassinate) && (O.target?.assigned_role in list("Captain", "Head of Security")))
+			return TRUE
+	return FALSE
+
+/// Caught, or as good as: the job's over, so it stops acting like it's still got one. A quiet one fights its way out and still goes for
+/// its own target; only a hothead turns on Security and the heads as well.
 /datum/bot_brain/proc/turn_hostile()
 	bot_log(src, "the game's up")
 	if(traitor_plan == BOT_TRAITOR_UNDERCOVER)
-		traitor_plan = BOT_TRAITOR_HIT_LIST
+		traitor_plan = temper >= BOT_CORNERED_HIT_LIST_TEMPER ? BOT_TRAITOR_HIT_LIST : BOT_TRAITOR_CORNERED
 	set_playstyle(BOT_STYLE_ROBUST)
 	say_something_hostile()
+
+/// The shuttle's called and there's nothing left it can do: a short-tempered one goes out swinging. Asked once, the first time it looks
+/// after the call.
+/datum/bot_brain/proc/consider_going_out_swinging()
+	if(late_loud_asked || gone_loud() || traitor_plan != BOT_TRAITOR_UNDERCOVER)
+		return
+	late_loud_asked = TRUE
+	if(temper < BOT_LATE_LOUD_TEMPER || !prob(BOT_LATE_LOUD_CHANCE) || objectives_left_to_do())
+		return
+	traitor_plan = temper >= BOT_HOTHEAD_TEMPER ? BOT_TRAITOR_RAMPAGE : BOT_TRAITOR_HIT_LIST
+	bot_log(src, "nothing left to lose with the shuttle coming: going out swinging ([traitor_plan])")
+	set_playstyle(BOT_STYLE_ROBUST)
+
+/// Objectives it could still get on with.
+/datum/bot_brain/proc/objectives_left_to_do()
+	var/datum/antagonist/traitor/T = owner.mind?.has_antag_datum(/datum/antagonist/traitor)
+	for(var/datum/objective/O as anything in T?.objectives)
+		if(!objective_finished(O) && LAZYACCESS(objectives_parked, O) <= world.time && (istype(O, /datum/objective/steal) || istype(O, /datum/objective/assassinate) || istype(O, /datum/objective/maroon) || istype(O, /datum/objective/download)))
+			return TRUE
+	return FALSE
+
+/datum/bot_brain
+	var/late_loud_asked = FALSE
 
 /// What it says instead of calling for help. Up close to whoever's there, and now and then to the whole station.
 /datum/bot_brain/proc/say_something_hostile()
@@ -260,8 +299,9 @@ GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor,
 // Going loud
 // ---------------------------------------------------------------------------------------------
 
-/// Who's next: lowest rank first, with how far off they are breaking ties. With `important_only` nobody who's just in the way.
-/datum/bot_brain/proc/next_victim(datum/antagonist/traitor/T, important_only = FALSE)
+/// Who's next: lowest rank first, with how far off they are breaking ties. With `important_only` nobody who's just in the way, and with
+/// `marks_only` nobody but its targets.
+/datum/bot_brain/proc/next_victim(datum/antagonist/traitor/T, important_only = FALSE, marks_only = FALSE)
 	var/list/marks = list()
 	for(var/datum/objective/O as anything in T?.objectives)
 		if((istype(O, /datum/objective/assassinate) || istype(O, /datum/objective/maroon)) && !objective_finished(O))
@@ -275,6 +315,8 @@ GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor,
 		if(LAZYACCESS(robust_rested, WEAKREF(H)) > world.time)
 			continue
 		if(pact_with(H) != BOT_PACT_NONE || on_my_side(H))
+			continue
+		if(marks_only && !(H in marks))
 			continue
 		var/job = H.mind.assigned_role
 		var/rank = get_dist(owner, H)
@@ -312,7 +354,7 @@ GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor,
 	var/mob/living/foe = foe_of_my_partner()
 	if(foe && assign_goal(new /datum/bot_goal/traitor_kill/robust(null, foe)))
 		return TRUE
-	var/mob/living/carbon/human/V = next_victim(T, TRUE)
+	var/mob/living/carbon/human/V = next_victim(T, TRUE, traitor_plan == BOT_TRAITOR_CORNERED)
 	if(V && assign_goal(new /datum/bot_goal/traitor_kill/robust(null, V)))
 		return TRUE
 	for(var/datum/objective/O as anything in T.objectives)

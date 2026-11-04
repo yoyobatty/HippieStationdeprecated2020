@@ -55,3 +55,4 @@
 #define BOT_TRAITOR_UNDERCOVER "undercover" //an emag and its objectives, and nobody the wiser until it's caught
 #define BOT_TRAITOR_HIT_LIST "hit list" //the suit, its targets, the Captain and Security, and whoever gets in the way
 #define BOT_TRAITOR_RAMPAGE "rampage" //the suit, and everybody
+#define BOT_TRAITOR_CORNERED "cornered" //caught: fights whoever comes for it and still goes for its own target, and nobody else
