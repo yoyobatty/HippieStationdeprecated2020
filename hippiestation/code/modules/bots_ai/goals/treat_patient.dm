@@ -654,6 +654,14 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 		return GOAL_STEP_FAIL
 	if(bot.owner.pulling == patient)
 		return GOAL_STEP_SUCCESS
+	// In crit: the epinephrine medipen first, as a doctor does before dragging anybody anywhere (the first aid kit has one). A patient
+	// brought up from Engineering in crit had run up a hundred of suffocation on the way, and died in the sleeper at the end of it.
+	if(patient.health <= 0 && !patient.reagents?.has_reagent(/datum/reagent/medicine/epinephrine))
+		for(var/obj/item/reagent_containers/hypospray/medipen/pen in bot.owner.GetAllContents())
+			if(pen.reagents?.has_reagent(/datum/reagent/medicine/epinephrine))
+				bot_log(bot, "epinephrine into [patient] before moving them")
+				bot.use_item_on(pen, patient)
+				break
 	if(!patient.can_be_pulled(bot.owner, 0, bot.owner.move_force))
 		bot_log_verbose(bot, "grab_patient: [patient].can_be_pulled() refused - anchored=[patient.anchored], throwing=[patient.throwing], patient move_resist=[patient.move_resist], bot move_force=[bot.owner.move_force]")
 		return GOAL_STEP_FAIL

@@ -538,3 +538,23 @@
 	set_security_level(SEC_LEVEL_GREEN)
 	GLOB.bot_red_alert_plan = null
 	return ..()
+
+/datum/bot_scenario/sleeper_crit/medipen
+	name = "medical rounds: somebody in crit gets the medipen before they're dragged to the sleeper"
+	desc = "The same patient down in crit, further off, and the doctor has the epinephrine medipen out of a first aid kit. It goes in before the drag. One brought up from Engineering in crit ran up a hundred of suffocation on the way and died in the sleeper."
+	kit_backpack = list(/obj/item/reagent_containers/hypospray/medipen)
+	layout = list(
+		"###############",
+		"#B.........C.Y#",
+		"###############")
+
+/datum/bot_scenario/sleeper_crit/medipen/check()
+	if(bot_lost() || patient.stat == DEAD)
+		return BOT_GYM_FAIL
+	if(sleeper.occupant != patient)
+		return BOT_GYM_PENDING
+	for(var/line in transcript)
+		if(findtext(line, "epinephrine into [patient]"))
+			return BOT_GYM_PASS
+	fail_reason = "in the sleeper without the medipen first"
+	return BOT_GYM_FAIL
