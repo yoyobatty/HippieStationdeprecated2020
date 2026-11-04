@@ -650,8 +650,9 @@
 	// counted as exactly that kind of disruption - restarting the climb-out from
 	// scratch every single time, forever, which is why a bot could fall in a pool and
 	// never actually get back out. Defer entirely until back on dry land; nothing about
-	// the path is lost by waiting, it's still sitting in current_path untouched.
-	if(owner.swimming)
+	// the path is lost by waiting, it's still sitting in current_path untouched. Not when it's in after somebody (bot_may_jump_in(),
+	// bot_pathing_permissive.dm): it wades on to them, and only climbs out once it's done.
+	if(owner.swimming && !(bot_may_jump_in(owner) && !owner.lying && owner.getOxyLoss() < 30))
 		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), max(1, owner.movement_delay()), TIMER_STOPPABLE)
 		return
 	// Dragging something that's come loose behind (somebody stood in its way, it caught on a corner): a player notices and goes back

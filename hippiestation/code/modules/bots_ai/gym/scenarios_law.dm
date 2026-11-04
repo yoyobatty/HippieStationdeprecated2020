@@ -418,11 +418,13 @@
 	desc = "A man wanted for a scuffle stands in the middle of the pool. The officer goes in after him, taking the fall into the water, and cuffs him. Nobody would walk into a pool for a stroll, but anybody in one used to be out of Security's reach."
 	job = "Security Officer"
 	layout = list(
-		"##########",
-		"#B...qqq.#",
-		"#....qKq.#",
-		"#....qqq.#",
-		"##########")
+		"############",
+		"#B...qqqqq.#",
+		"#....qqqqq.#",
+		"#....qqKqq.#",
+		"#....qqqqq.#",
+		"#....qqqqq.#",
+		"############")
 	time_limit = 40 SECONDS
 	kit_backpack = list(/obj/item/restraints/handcuffs)
 	var/mob/living/carbon/human/suspect
