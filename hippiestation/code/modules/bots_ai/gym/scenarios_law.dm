@@ -367,3 +367,48 @@
 	if(officer)
 		UnregisterSignal(officer, COMSIG_MOVABLE_MOVED)
 	return ..()
+
+/datum/bot_scenario/minor_behind_door
+	name = "law: after somebody for something minor, behind a door its ID doesn't open, it asks for the door rather than hacking it"
+	desc = "A man wanted for a scuffle stands behind the Kitchen's door. The officer has the tools to hack it, but a minor charge isn't worth breaking into a department for: it asks the AI over the radio and waits. An officer once hacked the Kitchen's door and bolted it open over a low-level Assault."
+	job = "Security Officer"
+	layout = list(
+		"##########",
+		"#B...DK..#",
+		"##########")
+	time_limit = 15 SECONDS
+	kit_backpack = list(/obj/item/restraints/handcuffs, /obj/item/multitool, /obj/item/wirecutters, /obj/item/screwdriver)
+	var/mob/living/carbon/human/suspect
+	var/obj/machinery/door/airlock/glass/door
+
+/datum/bot_scenario/minor_behind_door/setup()
+	var/turf/T = first_marker("D")
+	for(var/obj/machinery/door/airlock/A in T)
+		qdel(A)
+	door = new(T)
+	door.req_access = list(ACCESS_KITCHEN)
+
+/datum/bot_scenario/minor_behind_door/post_spawn()
+	suspect = stand_in(first_marker("K"), "Wes Wanted")
+	var/datum/bot_wanted/W = new
+	W.severity = BOT_CRIME_MINOR
+	W.crime = "Assault"
+	W.last_seen = get_turf(suspect)
+	W.last_seen_at = world.time
+	GLOB.bot_security_wanted[WEAKREF(suspect)] = W
+	brain.begin_arrest(suspect)
+
+/datum/bot_scenario/minor_behind_door/make_goal()
+	return null //the arrest is the job
+
+/datum/bot_scenario/minor_behind_door/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(door) || !door.density || door.locked || door.wires.is_cut(WIRE_OPEN) || bot_transcript_said("hacking"))
+		fail_reason = "it broke the door open over a minor charge"
+		return BOT_GYM_FAIL
+	return (world.time > start_time + 10 SECONDS && bot_transcript_said("asking the AI")) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/minor_behind_door/release_run()
+	GLOB.bot_security_wanted -= WEAKREF(suspect)
+	return ..()

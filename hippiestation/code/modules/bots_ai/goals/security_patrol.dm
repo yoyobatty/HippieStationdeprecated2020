@@ -595,6 +595,22 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 			return TRUE
 	return FALSE
 
+/// A door in the way of an arrest for something minor, that won't open for this officer: not worth hacking or breaking into a
+/// department for. It asks over the radio (the AI opens doors for whoever asks with a reason, goals/silicon.dm), and otherwise
+/// waits for them to come out, until the lost-sight timeout gives them up. An officer after somebody for a scuffle once hacked the
+/// Kitchen's door and bolted it open. Major crimes and murder still get through whatever's in the way.
+/datum/bot_brain/proc/minor_arrest_at_door(obj/machinery/door/D)
+	if(state != BOT_STATE_ARREST || arrest_severity >= BOT_CRIME_MAJOR)
+		return FALSE
+	if(world.time >= next_minor_door_ask)
+		next_minor_door_ask = world.time + 20 SECONDS
+		bot_log(src, "[D] won't open for me, and [lowertext(arrest_crime)] isn't worth breaking in for - asking the AI")
+		bot_say(owner, ";AI, open [D.name] for Security, please. I'm after [arrest_suspect?.name] for [lowertext(arrest_crime)].")
+	return TRUE
+
+/datum/bot_brain
+	var/next_minor_door_ask = 0
+
 /datum/bot_brain/proc/hail_suspect(mob/living/carbon/human/S)
 	arrest_hailed = TRUE
 	if(arrest_severity >= BOT_CRIME_MAJOR)

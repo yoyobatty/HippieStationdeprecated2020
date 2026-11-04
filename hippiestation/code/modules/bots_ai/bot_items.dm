@@ -383,6 +383,8 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 			bot_log(src, "already got what I needed for this trip - no point getting through [D]")
 			goal_succeeded()
 			return TRUE
+		if((D.locked || D.welded || !door_opens_for_me(D)) && minor_arrest_at_door(D)) //goals/security_patrol.dm
+			return TRUE
 		if(!door_opens_for_me(D) && swipe_door(D)) //a traitor's card (bot_doors.dm)
 			return TRUE
 		// A welded door no longer has to be smashed or given up on: unweld it first (4s with a
