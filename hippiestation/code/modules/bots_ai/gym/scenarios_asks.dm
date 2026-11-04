@@ -732,3 +732,37 @@
 		fail_reason = "opened it on to space"
 		return BOT_GYM_FAIL
 	return world.time > start_time + 15 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/runs_in_thin_air
+	name = "survival: out where the air's too thin to breathe, it still runs from what's after it"
+	desc = "The air all round is too thin to breathe (Lavaland's is), and something it means to get away from is next to it. It runs anyway: anywhere else is no worse than where it stands. An explorer called out 'Back to the shuttle!' and went nowhere, every place it thought of being air it couldn't breathe, and a goliath beat it to death where it stood."
+	layout = list(
+		"#############",
+		"#...BK......#",
+		"#...........#",
+		"#############")
+	time_limit = 15 SECONDS
+	var/mob/living/carbon/human/foe
+
+/datum/bot_scenario/runs_in_thin_air/setup()
+	for(var/char in markers)
+		for(var/turf/open/F in markers[char])
+			F.air.parse_gas_string("o2=6;n2=82;TEMP=293.15")
+			F.update_visuals()
+			SSair.add_to_active(F)
+
+/datum/bot_scenario/runs_in_thin_air/post_spawn()
+	foe = stand_in(first_marker("K"), "Big Beast")
+	addtimer(CALLBACK(brain, TYPE_PROC_REF(/datum/bot_brain, run_from), foe, "the gym"), 1 SECONDS)
+
+/datum/bot_scenario/runs_in_thin_air/make_goal()
+	return null //running is the job
+
+/datum/bot_scenario/runs_in_thin_air/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("can't breathe and I'm not suited up"))
+		fail_reason = "wouldn't run anywhere it couldn't breathe"
+		return BOT_GYM_FAIL
+	// Where it runs to is a pick of the spots about (scored on getting away), so in an arena this size it can be only a few tiles.
+	return (get_dist(bot, foe) >= 2 && bot_transcript_said("trying /datum/bot_strategy/run_from")) ? BOT_GYM_PASS : BOT_GYM_PENDING

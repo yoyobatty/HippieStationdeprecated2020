@@ -101,6 +101,14 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 	var/explorer_suit_tried_until = 0
 
 /// The nearest suit storage unit down here with an explorer suit still in it, that it can walk to.
+/// The mining outpost's suit storage nearest the bot, suit in it or not: where somebody out on Lavaland runs back to.
+/datum/bot_brain/proc/lavaland_outpost()
+	var/obj/machinery/suit_storage_unit/mining/nearest
+	for(var/obj/machinery/suit_storage_unit/mining/U as anything in bot_instances_of(/obj/machinery/suit_storage_unit/mining))
+		if(!QDELETED(U) && U.z == owner.z && (!nearest || get_dist(owner, U) < get_dist(owner, nearest)))
+			nearest = U
+	return nearest
+
 /datum/bot_brain/proc/explorer_suit_storage()
 	var/obj/machinery/suit_storage_unit/best
 	for(var/obj/machinery/suit_storage_unit/mining/U as anything in bot_instances_of(/obj/machinery/suit_storage_unit/mining))

@@ -256,6 +256,15 @@
 
 /datum/bot_goal/run_from/resolve_target(datum/bot_brain/bot)
 	var/atom/foe = foe_ref?.resolve()
+	// Out in air it can't breathe already (Lavaland's), anywhere else in it is no worse: "Back to the shuttle!" went nowhere, every
+	// spot it thought of being open ground it couldn't breathe on unsuited, and a goliath beat an explorer to death where it stood.
+	braves_bad_air = bot.in_bad_air(get_turf(bot.owner))
+	// On Lavaland, back towards the outpost, not some spot on the station it's a shuttle ride from.
+	if(bot.on_lavaland())
+		var/obj/machinery/suit_storage_unit/mining/outpost = bot.lavaland_outpost()
+		if(outpost && get_dist(outpost, bot.owner) > 3)
+			target = outpost
+			return
 	var/best_score
 	for(var/i in 1 to 5)
 		var/turf/T = bot.gym_run ? bot.pick_local_destination() : (bot.pick_poi_destination() || bot.pick_local_destination())
