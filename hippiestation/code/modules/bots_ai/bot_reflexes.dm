@@ -403,8 +403,8 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 	hands_were = list()
 	for(var/obj/item/I in owner.held_items)
 		hands_were += WEAKREF(I)
-	if(knocked_away)
-		try_recover_knocked_item()
+	if(knocked_away && gym_scripted && state == BOT_STATE_WANDER)
+		try_recover_knocked_item() //otherwise after the reflexes in process(), where walking back for it holds everything else up
 
 /datum/bot_brain/proc/try_recover_knocked_item()
 	if(world.time > knocked_away_at + BOT_KNOCKED_ITEM_MEMORY)
@@ -422,13 +422,27 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 			add_grudge(thief, 3)
 			addtimer(CALLBACK(src, PROC_REF(answer_handling), WEAKREF(thief), "stripped"), rand(3, 8))
 		return FALSE
-	if(!owner.Adjacent(I) || owner.next_move > world.time)
+	if(owner.next_move > world.time)
 		return FALSE
+	if(!owner.Adjacent(I))
+		// A weapon or a tool a step or three off goes back in the hand before anything else: an officer knocked flat by a nanosuit got up,
+		// went on with the arrest four tiles away, and left his energy gun on the floor where he fell. Anything less, or further, is let be.
+		if(get_dist(owner, I) > 3 || !worth_going_back_for(I) || owner.buckled || owner.pulledby || !(I in view(3, owner)))
+			return FALSE
+		if(pursuing_kind != "follow" || pursue_target != I)
+			pursue(I, "follow", force = TRUE)
+		return TRUE
+	if(pursue_target == I)
+		stop_pursuit()
 	LAZYREMOVE(knocked_away, ref)
 	bot_log(src, "picking [I] back up")
 	bot_tally("picked back up")
 	INVOKE_ASYNC(src, PROC_REF(take_back), I)
 	return TRUE
+
+/// Worth a step or three back for, with somebody at it: a weapon, cuffs, a tool, an ID, the RPED, what the job's about.
+/datum/bot_brain/proc/worth_going_back_for(obj/item/I)
+	return istype(I, /obj/item/gun) || istype(I, /obj/item/melee) || I.force >= 10 || istype(I, /obj/item/restraints) || istype(I, /obj/item/card/id) || istype(I, /obj/item/storage/part_replacer) || is_tool_or_toolbox(I) || I == current_goal?.target
 
 /datum/bot_brain/proc/take_back(obj/item/I)
 	if(try_pickup_target(I) && state == BOT_STATE_COMBAT)

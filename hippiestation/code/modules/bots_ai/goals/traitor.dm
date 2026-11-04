@@ -122,6 +122,8 @@
 		bot.traitor_shopped = TRUE
 		if(bot.assign_goal(new /datum/bot_goal/traitor_shop()))
 			return TRUE
+		if(bot.plays_robust() && !bot.nanosuit_on())
+			bot.traitor_shopped = FALSE //somebody watching and nowhere out of sight to go: the suit another time
 	if(bot.plays_robust())
 		return bot.robust_business() //goals/robust.dm
 	for(var/datum/objective/O as anything in T.objectives)
@@ -175,12 +177,25 @@
 	doing = "checking my messages"
 
 /datum/bot_goal/traitor_shop/resolve_target(datum/bot_brain/bot)
+	// Somewhere nobody's looking, for one about to change into a nanosuit. A cook bought one and put it on in the hallway outside the
+	// HoP's office, stripping in front of an assistant, and Security had his name on the radio within a second.
+	if(bot.plays_robust() && !bot.nanosuit_on() && bot.watched_by_anyone())
+		target = bot.quiet_spot() //goals/robust.dm: or nowhere just now, and the duty looks again later
+		return
 	target = bot.owner
 
 /datum/bot_goal/traitor_shop/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/traitor_shop/S = new
-	S.steps = list(new /datum/bot_step/traitor_shop())
+	S.steps = target == bot.owner ? list(new /datum/bot_step/traitor_shop()) : list(new /datum/bot_step/move_to(), new /datum/bot_step/traitor_shop())
 	return list(S)
+
+/// Anybody up and able to see it from where they stand, crew or silicon: what a traitor waits for an empty corridor for.
+/datum/bot_brain/proc/watched_by_anyone()
+	for(var/mob/living/L in view(BOT_SIGHT_RANGE, owner))
+		if(L == owner || L.stat != CONSCIOUS || !(ishuman(L) || issilicon(L)) || is_blind(L))
+			continue
+		return TRUE
+	return FALSE
 
 /datum/bot_strategy/traitor_shop/is_feasible(datum/bot_brain/bot)
 	return TRUE
@@ -191,6 +206,9 @@
 		bot_log(bot, "bought [sword || "nothing"] off the uplink")
 		bot.put_away(sword)
 	if(bot.plays_robust())
+		if(!bot.nanosuit_on() && bot.watched_by_anyone())
+			bot.traitor_shopped = FALSE //somebody's turned up: another spot, another go
+			return GOAL_STEP_FAIL
 		if(bot.buy_nanosuit()) //goals/robust.dm
 			bot.put_on_nanosuit()
 		return GOAL_STEP_SUCCESS

@@ -37,7 +37,7 @@
 	var/obj/item/best
 	var/best_dist
 	for(var/obj/item/I as anything in bot_instances_of(item_type))
-		if(QDELETED(I) || !isturf(I.loc) || I.anchored || I.z != owner.z)
+		if(QDELETED(I) || !isturf(I.loc) || I.anchored || I.z != owner.z || on_a_shuttle_without_me(I))
 			continue
 		var/dist = get_dist(owner, I)
 		if(dist > reach || (best && dist >= best_dist))

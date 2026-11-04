@@ -352,11 +352,61 @@ GLOBAL_VAR_INIT(bot_armory_open_until, 0)
 /proc/bot_armory_open_for_security()
 	return world.time < GLOB.bot_armory_open_until
 
+/// Suit-wearers Security knows of (REF) -> when they were first known of (suit_at_large()).
+GLOBAL_LIST_EMPTY(bot_suit_seen_at)
+/// Until when the Head of Security's or the Captain's word has the armory open, red alert or not.
+GLOBAL_VAR_INIT(bot_armory_ordered_until, 0)
+/// How long a suit is loose with no red alert before that word's given, and how long it stands.
+#define BOT_ARMORY_ORDER_AFTER (1 MINUTES)
+#define BOT_ARMORY_ORDER_TIME (5 MINUTES)
+
+/// Red alert, or the order to open up without it: if red isn't up a minute after a suit is seen, the Head of Security or the Captain
+/// orders the armory opened anyway (the user's ruling, 2026-11-04). Red alert takes two heads at two keycard devices, and in a played
+/// round only one of them got there.
+/proc/bot_armory_authorised()
+	return GLOB.security_level >= SEC_LEVEL_RED || world.time < GLOB.bot_armory_ordered_until
+
+/// The Warden or the Head of Security up and about, a bot, to open the armory: the Captain leaves it to them.
+/proc/bot_armory_keeper_up(datum/bot_brain/asking)
+	for(var/datum/bot_brain/B as anything in GLOB.bot_security_brains)
+		if(B == asking || QDELETED(B.owner) || B.owner.stat != CONSCIOUS || B.owner.handcuffed || !(B.work_role() in list("Warden", "Head of Security")))
+			continue
+		if(asking?.gym_run && B.gym_run != asking.gym_run)
+			continue
+		return B
+	return null
+
+/datum/bot_duty/order_armory
+	name = "ordering the armory open"
+	jobs = list("Head of Security", "Captain")
+	tier = BOT_DUTY_URGENT
+	priority = 32
+	interval_min = 50
+	interval_max = 100
+
+/datum/bot_duty/order_armory/try_start(datum/bot_brain/bot)
+	if(bot_armory_authorised() || bot.owner.handcuffed || bot.state == BOT_STATE_COMBAT)
+		return FALSE
+	var/mob/living/carbon/human/S = bot.suit_at_large()
+	if(!S || world.time < GLOB.bot_suit_seen_at[REF(S)] + BOT_ARMORY_ORDER_AFTER)
+		return FALSE
+	var/datum/bot_brain/keeper = bot_armory_keeper_up(bot)
+	if(bot.work_role() == "Captain" && keeper?.work_role() == "Head of Security")
+		return FALSE //the Head of Security's call
+	GLOB.bot_armory_ordered_until = world.time + BOT_ARMORY_ORDER_TIME
+	bot_log(bot, "ordering the armory open: [S] loose in a suit and no red alert after a minute")
+	bot_tally("armory ordered open")
+	var/who = keeper?.work_role() == "Warden" ? "Warden, open the armory" : "Opening the armory"
+	bot_say(bot.owner, ":s [S.name]'s still loose in that suit and there's no red alert. [who], everybody arm up. That's an order.")
+	return FALSE //the word's given: the door's the Warden's (open_armory)
+
 /// Somebody in a nanosuit wanted and at large, this bot's business (in the Bot Gym, in its own arena).
 /datum/bot_brain/proc/suit_at_large()
 	for(var/datum/weakref/ref as anything in GLOB.bot_security_wanted)
 		var/mob/living/carbon/human/H = ref.resolve()
 		if(H && H.stat != DEAD && !H.handcuffed && bot_in_nanosuit(H) && (!gym_run || get_area(H) == get_area(owner)))
+			if(!GLOB.bot_suit_seen_at[REF(H)])
+				GLOB.bot_suit_seen_at[REF(H)] = world.time
 			return H
 	return null
 
@@ -376,21 +426,24 @@ GLOBAL_VAR_INIT(bot_armory_open_until, 0)
 
 /datum/bot_duty/open_armory
 	name = "opening the armory"
-	jobs = list("Warden", "Head of Security")
+	jobs = list("Warden", "Head of Security", "Captain")
 	tier = BOT_DUTY_URGENT
 	priority = 31
 	interval_min = 50
 	interval_max = 150
 
 /datum/bot_duty/open_armory/try_start(datum/bot_brain/bot)
-	if(GLOB.security_level < SEC_LEVEL_RED || bot_armory_open_for_security() || !bot.suit_at_large())
+	if(!bot_armory_authorised() || bot_armory_open_for_security() || !bot.suit_at_large())
 		return FALSE
+	if(bot.work_role() == "Captain" && bot_armory_keeper_up(bot))
+		return FALSE //the Warden's or the Head of Security's to open
 	var/obj/machinery/door/airlock/D = bot.armory_door()
 	return D ? bot.assign_goal(new /datum/bot_goal/open_armory(D)) : FALSE
 
 /datum/bot_goal/open_armory
 	lawful = TRUE
 	exclusive = TRUE
+	holds_for_calls = TRUE
 	doing = "opening the armory"
 
 /datum/bot_goal/open_armory/New(obj/machinery/door/airlock/D)
@@ -454,6 +507,7 @@ GLOBAL_VAR_INIT(bot_armory_open_until, 0)
 	var/datum/bot_goal/acquire_item_type/G = new()
 	G.item_type = want
 	G.lawful = TRUE
+	G.holds_for_calls = TRUE
 	if(!bot.assign_goal(G))
 		return FALSE
 	bot_say(bot.owner, ":s Getting something heavier from the armory.")
@@ -467,6 +521,8 @@ GLOBAL_VAR_INIT(bot_armory_open_until, 0)
 #undef BOT_ARMORY_REST
 #undef BOT_ARMORY_OPEN_TIME
 #undef BOT_ARMORY_HOLD_TIME
+#undef BOT_ARMORY_ORDER_AFTER
+#undef BOT_ARMORY_ORDER_TIME
 #undef BOT_SEC_GROUP
 #undef BOT_SEC_GROUP_RANGE
 #undef BOT_SEC_WAIT_AWAY

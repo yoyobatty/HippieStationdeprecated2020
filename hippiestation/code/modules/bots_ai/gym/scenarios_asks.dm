@@ -847,3 +847,62 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return (get_turf(kit) == first_marker("t")) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/red_alert/call_comes_in
+	name = "security: a call for help on the way to the keycard device doesn't stop red alert"
+	desc = "The same red alert, and a crewman shouts for Security as the Head of Security sets off for the device. It goes on to the device: in a played round the HoS answered a call sixteen seconds in, the Captain was left stood at the other one, and red alert never went up."
+	layout = list(
+		"###################################",
+		"#K..............................B.#",
+		"#k.C..............................#",
+		"#................N................#",
+		"###################################")
+	var/mob/living/carbon/human/shouter
+	var/called = FALSE
+
+/datum/bot_scenario/red_alert/call_comes_in/post_spawn()
+	..()
+	shouter = stand_in(locate(bot.x + 1, bot.y - 2, bot.z), "Shou Ter") //behind it, thirty tiles from the devices
+
+/datum/bot_scenario/red_alert/call_comes_in/check()
+	if(!called && istype(brain.current_goal, /datum/bot_goal/red_alert))
+		called = TRUE
+		log_line("a call for help, with the HoS [get_dist(bot, brain.current_goal.target)] tiles off its device")
+		brain.on_heard_security_call(shouter, "Help! Security!", FREQ_COMMON)
+	if(istype(brain.current_goal, /datum/bot_goal/respond_to_call))
+		fail_reason = "dropped the keycard device to answer the call"
+		set_security_level(SEC_LEVEL_GREEN)
+		GLOB.bot_red_alert_plan = null
+		return BOT_GYM_FAIL
+	return ..()
+
+/datum/bot_scenario/hop_card_back
+	name = "hopping: the wait at the HoP's door over, it goes back for its card a couple of tiles off"
+	desc = "The bot has left its ID out for the HoP and been pushed two tiles along by somebody else come to wait at the door. Nobody came: it goes back and picks the card up before it leaves. Two bots walked off from their cards that way in a played round, and a doctor spent the shift locked out of Medbay."
+	job = "Assistant"
+	layout = list(
+		"#######",
+		"#B....#",
+		"#######")
+	time_limit = 25 SECONDS
+	var/obj/item/card/id/card
+	var/moved = FALSE
+
+/datum/bot_scenario/hop_card_back/post_spawn()
+	card = give_job_id(list())
+
+/datum/bot_scenario/hop_card_back/make_goal()
+	return new /datum/bot_goal/job_transfer/access(list(ACCESS_EVA), "EVA")
+
+/datum/bot_scenario/hop_card_back/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!moved)
+		var/datum/bot_step/paced/await_transfer/S = brain.current_strategy?.steps?[brain.current_step_index]
+		if(isturf(card.loc) && istype(S))
+			S.give_up_at = world.time //nobody came
+			bot.forceMove(locate(bot.x + 2, bot.y, bot.z)) //shoved along by the next one to wait there
+			moved = TRUE
+			log_line("card down at [bot_coord(card)], bot pushed along to [bot_coord(bot)], the wait's over")
+		return BOT_GYM_PENDING
+	return bot.get_idcard(FALSE) == card ? BOT_GYM_PASS : BOT_GYM_PENDING

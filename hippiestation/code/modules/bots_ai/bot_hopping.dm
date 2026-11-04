@@ -159,6 +159,20 @@ GLOBAL_VAR(bot_power_out_drill)
 	bot.take_up_job(job)
 	return TRUE
 
+/// Who can give a card new access: the HoP, or with none up, the Captain (it takes a card with ACCESS_CHANGE_IDS at the console, which
+/// the Captain's has). With neither, nobody asks: four bots left their cards at an empty HoP's office in the first three minutes of a
+/// played round.
+/proc/bot_find_card_granter(mob/living/carbon/human/asking)
+	. = bot_find_hop(asking)
+	if(.)
+		return
+	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
+		if(H.mind?.assigned_role != "Captain" || H.stat != CONSCIOUS || !bot_fit_to_command(H))
+			continue
+		if(H.bot_brain?.gym_run && asking && get_area(H) != get_area(asking))
+			continue
+		return H
+
 /// The HoP, if there's one up and about.
 /proc/bot_find_hop(mob/living/carbon/human/asking)
 	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
@@ -247,7 +261,17 @@ GLOBAL_VAR(bot_power_out_drill)
 	var/obj/item/card/id/card = transfer.card
 	if(QDELETED(card))
 		return FALSE
-	if(transfer.done ? (isturf(card.loc) && bot.owner.Adjacent(card)) : (isturf(card.loc) && world.time > give_up_at && bot.owner.Adjacent(card)))
+	if((transfer.done || world.time > give_up_at) && isturf(card.loc))
+		// Back in its hand before it goes, wherever on the floor the card's got to. Two bots walked off from theirs a tile away in a
+		// played round, pushed off the spot by another come to wait at the same door, and a doctor spent the shift locked out of Medbay.
+		if(!bot.owner.Adjacent(card))
+			if(get_dist(bot.owner, card) > 7 || world.time > give_up_at + BOT_HOP_TRANSFER_WAIT)
+				return FALSE
+			if(bot.pursuing_kind != "follow" || bot.pursue_target != card)
+				bot.pursue(card, "follow", force = TRUE)
+			wait_for = 1 SECONDS
+			return TRUE
+		bot.stop_pursuit()
 		bot.try_pickup_target(card)
 		bot.wear_card(card)
 		return FALSE
@@ -259,6 +283,7 @@ GLOBAL_VAR(bot_power_out_drill)
 
 /datum/bot_step/paced/await_transfer/finish(datum/bot_brain/bot)
 	var/got_it = transfer.done
+	bot.check_card_back(transfer.card)
 	qdel(transfer)
 	transfer = null
 	if(!got_it)
@@ -273,12 +298,14 @@ GLOBAL_VAR(bot_power_out_drill)
 /datum/bot_duty/job_transfers
 	name = "seeing to transfers"
 	tier = BOT_DUTY_URGENT
-	jobs = list("Head of Personnel")
+	jobs = list("Head of Personnel", "Captain")
 	interval_min = 50
 	interval_max = 100
 	priority = 15
 
 /datum/bot_duty/job_transfers/try_start(datum/bot_brain/bot)
+	if(bot.work_role() == "Captain" && bot_find_hop(bot.owner))
+		return FALSE //the HoP's, while there's one on
 	if(length(GLOB.bot_access_pending) && bot.find_id_console()) //a card left on the desk for access it promised (bot_asks.dm)
 		var/datum/bot_transfer/promised = bot.find_promised_card()
 		if(promised)
@@ -432,3 +459,97 @@ GLOBAL_VAR(bot_power_out_drill)
 #undef BOT_HOP_POWER_OUT
 #undef BOT_HOP_TRANSFER_WAIT
 #undef BOT_HOP_REST
+
+// ---------------------------------------------------------------------------------------------
+// Its own card
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_brain
+	/// Its own ID, known to be lying where it left it (the HoP's door), to go back for (get_my_card_back).
+	var/datum/weakref/missing_card
+	/// Somebody who said they'd got its ID, and until when it waits for them to bring it.
+	var/datum/weakref/card_finder
+	var/card_wait_until = 0
+
+/// Its own ID on it: worn, in its PDA or in a hand.
+/datum/bot_brain/proc/has_own_card()
+	var/obj/item/card/id/worn = owner.get_idcard(FALSE)
+	var/obj/item/card/id/held = owner.get_idcard(TRUE)
+	return (worn && worn.registered_name == owner.real_name) || (held && held.registered_name == owner.real_name)
+
+/// The wait at the HoP's door over: the card back on it, or noted as missing to go back for.
+/datum/bot_brain/proc/check_card_back(obj/item/card/id/card)
+	if(!card || QDELETED(card) || is_carried(card))
+		return
+	missing_card = WEAKREF(card)
+	bot_log(src, "left without [card] - it isn't where it was left")
+
+/// Its own card lying where it can get to it: the one it knows it left, or one it can see.
+/datum/bot_brain/proc/my_card_to_fetch()
+	if(has_own_card())
+		missing_card = null
+		return null
+	var/obj/item/card/id/card = missing_card?.resolve()
+	if(card && isturf(card.loc) && card.z == owner.z && get_dist(owner, card) <= 60 && can_walk_lawfully_to(card))
+		return card
+	for(var/obj/item/card/id/seen in view(7, owner))
+		if(isturf(seen.loc) && seen.registered_name == owner.real_name)
+			return seen
+	return null
+
+/datum/bot_duty/get_my_card_back
+	name = "getting my ID back"
+	tier = BOT_DUTY_URGENT
+	priority = 40
+	interval_min = 30
+	interval_max = 60
+
+/datum/bot_duty/get_my_card_back/try_start(datum/bot_brain/bot)
+	if(bot.gone_loud()) //goals/robust.dm: no name to keep up
+		return FALSE
+	var/obj/item/card/id/card = bot.my_card_to_fetch()
+	return card ? bot.assign_goal(new /datum/bot_goal/take_item/exact/my_card(card)) : FALSE
+
+/datum/bot_goal/take_item/exact/my_card
+	doing = "getting my ID back"
+
+/datum/bot_goal/take_item/exact/my_card/on_success(datum/bot_brain/bot)
+	. = ..()
+	for(var/obj/item/card/id/card in bot.owner.held_items)
+		if(card.registered_name == bot.owner.real_name)
+			bot.wear_card(card)
+	bot.missing_card = null
+	var/mob/living/finder = bot.card_finder?.resolve()
+	if(finder && get_dist(bot.owner, finder) <= 7)
+		bot_say(bot.owner, pick("Thanks for that!", "Cheers, you're a lifesaver.", "Thank you!"))
+	bot.card_finder = null
+	bot.card_wait_until = 0
+
+/// Somebody's found an ID and says it's this bot's. Its own missing, it's glad of it, says where it is and waits there for them, or for
+/// them to drop it, if they're in sight. With its own on it, it says so.
+/datum/bot_brain/proc/about_my_card(mob/living/talker, over_radio)
+	if(has_own_card())
+		return pick("Not mine, I've got mine.", "Huh? Mine's right here.", "Must be somebody else's, I've got mine on me.")
+	card_finder = WEAKREF(talker)
+	card_wait_until = world.time + 3 MINUTES
+	var/place = get_area_name(owner, TRUE)
+	if(!over_radio && get_dist(owner, talker) <= 7)
+		return pick("Oh, that's mine! Thanks. Drop it here?", "My ID! Thank you. Can you drop it for me?", "That's mine, thanks! Just put it down, I'll grab it.")
+	return pick("Oh, that's mine! I'm in [place], can you bring it?", "My ID! I'm at [place], I'll wait here.", "Thank you! I'm in [place], I'll stay put.")
+
+/// Waiting where it said it would for its card: over to them when they're in sight, stood still otherwise, and over to the card the moment
+/// it's on the floor (get_my_card_back). Only between jobs, and only while it hasn't got it back.
+/datum/bot_brain/proc/wait_for_my_card()
+	if(state != BOT_STATE_WANDER || has_own_card())
+		card_wait_until = 0
+		return FALSE
+	if(my_card_to_fetch())
+		return FALSE //the duties see to it
+	var/mob/living/finder = card_finder?.resolve()
+	if(finder && get_dist(owner, finder) <= 7 && (finder in view(7, owner)))
+		if(get_dist(owner, finder) > 1 && (pursuing_kind != "follow" || pursue_target != finder))
+			pursue(finder, "follow", force = TRUE)
+		return TRUE
+	if(pursuing_kind)
+		stop_pursuit()
+	return TRUE

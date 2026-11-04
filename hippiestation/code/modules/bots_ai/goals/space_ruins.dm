@@ -10,6 +10,8 @@
 //  - Risk and reward as on Lavaland: hurt, short of air, the shuttle called or the trip running long, and it heads home.
 
 /// How long a trip out to a space ruin goes on.
+/// How long into the shift before anybody heads out for a space ruin.
+#define BOT_SPACE_SETTLE_IN (10 MINUTES)
 #define BOT_SPACE_TRIP (15 MINUTES)
 /// A route won't go this far: past it, the flight's done in legs.
 #define BOT_SPACE_LEG 150
@@ -134,6 +136,9 @@
 
 /// Out to explore and not a miner (goals/exploring.dm): access, the suit, then off.
 /datum/bot_brain/proc/try_space_ruin()
+	// Not straight off the shuttle: four bots set off for EVA in the first three minutes of a played round, a doctor and the cook among them.
+	if(!gym_run && world.time < SSticker.round_start_time + BOT_SPACE_SETTLE_IN)
+		return FALSE
 	var/obj/effect/landmark/ruin/R = space_ruin_to_explore()
 	if(!R)
 		explore_blocked_until = world.time + 10 MINUTES
@@ -143,6 +148,10 @@
 		if(world.time < next_eva_access_ask)
 			return FALSE
 		next_eva_access_ask = world.time + 10 MINUTES
+		if(!bot_find_card_granter(owner)) //nobody to give it: it doesn't go, and keeps its card
+			explore_blocked_until = world.time + 10 MINUTES
+			pick_pursuit("nobody to give me EVA access")
+			return FALSE
 		return assign_goal(new /datum/bot_goal/job_transfer/access(list(ACCESS_EVA), "EVA"))
 	var/suited = in_plain_space_suit() || istype(owner.wear_suit, /obj/item/clothing/suit/space/hardsuit)
 	var/obj/item/tank/jetpack/pack = worn_jetpack()
@@ -511,6 +520,7 @@
 	return TRUE
 
 #undef BOT_SPACE_TRIP
+#undef BOT_SPACE_SETTLE_IN
 #undef BOT_SPACE_LEG
 #undef BOT_JETPACK_SET_OUT
 #undef BOT_JETPACK_TURN_BACK

@@ -453,3 +453,77 @@
 	GLOB.bot_armory_open_until = 0
 	INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(set_security_level), SEC_LEVEL_GREEN)
 	return ..()
+
+/datum/bot_scenario/duty/traitor/robust_shop/watched
+	name = "robust: doesn't change into the nanosuit with somebody watching"
+	desc = "The same traitor about to buy its nanosuit, with a crewman stood watching. The suit doesn't come out until they've gone. A cook put one on in the hallway outside the HoP's office, stripping in front of an assistant, and Security had his name on the radio within a second."
+	layout = list(
+		"#######",
+		"#B..W.#",
+		"#######")
+	var/mob/living/carbon/human/onlooker
+
+/datum/bot_scenario/duty/traitor/robust_shop/watched/setup()
+	for(var/turf/T in markers["W"])
+		onlooker = new(T)
+		place("W", onlooker)
+		onlooker.equipOutfit(/datum/outfit/bot_gym)
+
+/datum/bot_scenario/duty/traitor/robust_shop/watched/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(onlooker_leaves)), 6 SECONDS)
+
+/datum/bot_scenario/duty/traitor/robust_shop/watched/proc/onlooker_leaves()
+	if(QDELETED(onlooker))
+		return
+	log_line("the onlooker leaves")
+	qdel(onlooker)
+	onlooker = null
+
+/datum/bot_scenario/duty/traitor/robust_shop/watched/check()
+	if(brain.nanosuit_on() && onlooker)
+		fail_reason = "put the suit on with somebody watching"
+		return BOT_GYM_FAIL
+	return ..()
+
+/datum/bot_scenario/duty/armory_opens/ordered
+	name = "security: a nanosuit loose a minute and no red alert, the Head of Security orders the armory open anyway"
+	desc = "The user's ruling: if red isn't up a minute after a suit is seen, the HoS or the Captain orders the armory opened anyway. Red alert takes two heads at two devices: in a played round only one got there, the armory stayed shut, and five officers died to a nanosuit with tasers in their hands."
+	layout = list(
+		"############",
+		"#B.O...Dl..#",
+		"#KH#########",
+		"############")
+	time_limit = 100 SECONDS
+	var/mob/living/carbon/human/hos
+
+/datum/bot_scenario/duty/armory_opens/ordered/post_spawn()
+	var/obj/item/card/id/C = bot.get_idcard(TRUE)
+	if(!C)
+		C = new /obj/item/card/id(bot)
+		bot.equip_to_slot_or_del(C, ITEM_SLOT_ID)
+	C.access |= list(ACCESS_ARMORY, ACCESS_SECURITY, ACCESS_BRIG)
+	officer = second_bot(first_marker("O"), "Officer Oakes")
+	officer.mind.assigned_role = "Security Officer"
+	officer.bot_brain.register_security()
+	hos = second_bot(first_marker("H"), "Head Hos")
+	hos.mind.assigned_role = "Head of Security"
+	hos.bot_brain.register_security()
+	suspect = stand_in(first_marker("K"), "Nano Suit")
+	suspect.equip_to_slot_or_del(new /obj/item/clothing/suit/space/hardsuit/nano(suspect), ITEM_SLOT_OCLOTHING)
+	brain.file_crime(suspect, "Murder", "Gym.", BOT_CRIME_MURDER)
+	INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(set_security_level), SEC_LEVEL_GREEN) //no red alert: that's the point
+
+/datum/bot_scenario/duty/armory_opens/ordered/check()
+	if(QDELETED(hos))
+		return BOT_GYM_FAIL
+	var/order_type = text2path("/datum/bot_duty/order_armory") //only there with the fix
+	if(order_type && hos.bot_brain.state == BOT_STATE_WANDER && !hos.bot_brain.current_goal)
+		var/datum/bot_duty/D = bot_duty_of(order_type)
+		D?.try_start(hos.bot_brain) //a scripted bot doesn't look for its own duties
+	return ..()
+
+/datum/bot_scenario/duty/armory_opens/ordered/release_run()
+	if("bot_armory_ordered_until" in GLOB.vars)
+		GLOB.vars["bot_armory_ordered_until"] = 0
+	return ..()

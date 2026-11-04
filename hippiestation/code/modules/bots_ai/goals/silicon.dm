@@ -351,7 +351,7 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 /// Security at red alert, arming up: the armory door by them opened and bolted.
 /datum/bot_silicon/ai/proc/bolt_armory_for(mob/living/talker)
 	var/mob/living/carbon/human/H = talker
-	if(!istype(H) || GLOB.security_level < SEC_LEVEL_RED || !(H.mind?.assigned_role in GLOB.security_positions))
+	if(!istype(H) || !bot_armory_authorised() || !(H.mind?.assigned_role in GLOB.security_positions))
 		return FALSE
 	for(var/obj/machinery/door/airlock/D in range(2, H))
 		if(!bot_is_armory_door(D) || !D.canAIControl(owner))

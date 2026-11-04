@@ -52,6 +52,9 @@ case "$OUT" in *" 0 errors"*) ;; *) echo "After doesn't compile"; exit 1 ;; esac
 echo
 echo "BEFORE"
 DMB="$SAVE/before" RERUN=0 tools/bot_gym/run_bot_gym.sh "$FILTER" "$RUNS" 2>&1 | grep -E "^(PASS|FAIL|XFAIL|XPASS) |^BOT GYM" | cut -c1-220
+# The after run starts by deleting data/bot_gym: what the old code did is kept beside it.
+rm -rf data/bot_gym_before
+cp -r data/bot_gym/transcripts data/bot_gym_before 2>/dev/null && echo "(before's transcripts: data/bot_gym_before/)"
 echo
 echo "AFTER"
 NOCOMPILE=1 RERUN=0 tools/bot_gym/run_bot_gym.sh "$FILTER" "$RUNS" 2>&1 | grep -E "^(PASS|FAIL|XFAIL|XPASS) |^BOT GYM" | cut -c1-220

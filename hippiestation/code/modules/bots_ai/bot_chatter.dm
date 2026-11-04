@@ -258,6 +258,10 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 	// Requests, orders and warnings: the second conversation sweep (gym/scenarios_asks.dm) got "Okay." and "Fair enough." for these.
 	if(!over_radio && bot_text_has_any(lower_msg, list("open this door", "open the door", "open this", "get the door", "can you open", "could you open")))
 		return open_a_door_for(talker)
+	// Somebody's found its ID ("I got your ID card", "where are you, I've got your card"). A doctor whose card was left at the HoP's door
+	// was told so twice on the radio and answered "no way", taking it for somebody after his card.
+	if(bot_text_has_any(lower_msg, list("your id", "your card", "id card", "id cards", "your pda")) && bot_text_has_any(lower_msg, list("got", "have", "found", "picked up", "with me", "holding")))
+		return about_my_card(talker, over_radio) //bot_hopping.dm
 	if(bot_text_has_any(lower_msg, list("give me your id", "gimme your id", "hand over your id", "your id card", "give me your card")))
 		return bot_is_officer(talker) ? pick("What for?", "Am I under arrest?", "...Fine. What's this about?") : pick("No way.", "Why would I do that?", "Get your own.")
 	if(!over_radio && bot_text_has_any(lower_msg, list("drop it", "drop that", "drop your weapon", "drop the")))
@@ -304,6 +308,10 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 		return help_find_a_doctor(talker)
 	if(!over_radio && bot_text_has_any(lower_msg, list("give me that", "can i have that", "can i have it", "hand it over", "gimme that", "gimme", "can i have one", "give it here", "can i borrow that", "pass me that")))
 		return hand_over_what_im_holding(talker)
+	// "Where are you?" is about it, not somewhere to be pointed to: directions_for() said "No idea, sorry" to it ten times running.
+	var/whereabouts = where_i_am(lower_msg)
+	if(whereabouts)
+		return whereabouts
 	var/about_people = people_answer(lower_msg) //bot_conversation.dm
 	if(about_people)
 		return about_people
@@ -558,6 +566,25 @@ GLOBAL_LIST_INIT(bot_place_words, list(
 	"hallway" = "Hallway", "maintenance" = "Maintenance", "maint" = "Maintenance", "hydro" = "Hydroponics",
 	"disposals" = "Disposal", "lounge" = "Lounge", "holodeck" = "Holodeck", "quartermaster" = "Quartermaster",
 ))
+
+/// "Where are you?", "where you at", "tell me your location", "are you in maintenance?": where it is by the area's name, and yes or no
+/// when they've a place in mind. Null for anything else.
+/datum/bot_brain/proc/where_i_am(lower_msg)
+	var/asked_mine = bot_text_has_any(lower_msg, list("where are you", "where r u", "where are u", "where you at", "where ya at", "where u at", "wru", "your location", "your position", "whereabouts are you", "where you be"))
+	var/asked_if_in = bot_text_has_any(lower_msg, list("are you in", "you in the", "r u in", "are you at", "you at the", "you still in"))
+	if(!asked_mine && !asked_if_in)
+		return null
+	var/place = get_area_name(owner, TRUE)
+	if(asked_if_in)
+		for(var/word in GLOB.bot_place_words)
+			if(!bot_text_has_any(lower_msg, list(word)))
+				continue
+			if(findtext(place, GLOB.bot_place_words[word]))
+				return pick("Yeah, [place].", "Yep, I'm in [place].", "That's right, [place].")
+			return pick("No, I'm in [place].", "Nope, [place].", "No, [place]. Why?")
+		if(!asked_mine)
+			return null
+	return mood_pick(list("I'm in [place]! What's up?", "[place]. Need me?"), list("[place].", "I'm in [place].", "[place], why?"), list("[place]. Why?", "[place]. What do you want?"))
 
 /// "Medbay? East of here." - the way anyone points a newcomer, by compass rather than by map.
 /datum/bot_brain/proc/directions_for(lower_msg)

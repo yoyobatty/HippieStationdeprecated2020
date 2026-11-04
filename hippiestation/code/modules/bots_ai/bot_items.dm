@@ -108,10 +108,41 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	// silently-abandoned tool costs the whole trip that gathered it.
 	if(is_tool_or_toolbox(inactive))
 		// The other hand might not be: a scientist with a screwdriver in one and a radiation suit in the other, and a full bag, couldn't take a wrench.
-		if(!is_tool_or_toolbox(active))
-			owner.dropItemToGround(active)
+		if(!is_tool_or_toolbox(active) && !put_away(active, allow_equip = FALSE))
+			set_down(active)
 		return
-	owner.dropItemToGround(inactive)
+	if(!put_away(inactive, allow_equip = FALSE))
+		set_down(inactive)
+
+/// Down for a moment, to be picked back up (go_back_for_set_down()): a scientist set the RPED down three times for something else and
+/// walked off from it each time.
+/datum/bot_brain/proc/set_down(obj/item/I)
+	bot_log(src, "setting [I] down for a moment")
+	owner.dropItemToGround(I)
+	LAZYADD(set_down_items, I)
+
+/// Back for what it set down and walked off from, once it's between jobs with a hand free. TRUE while it's on its way or picking it up.
+/datum/bot_brain/proc/go_back_for_set_down()
+	if(owner.get_active_held_item() && owner.get_inactive_held_item())
+		return FALSE
+	for(var/obj/item/I in set_down_items.Copy())
+		if(QDELETED(I) || !isturf(I.loc) || get_dist(owner, I) > 8)
+			LAZYREMOVE(set_down_items, I)
+			continue
+		if(owner.Adjacent(I))
+			if(pursue_target == I)
+				stop_pursuit()
+			LAZYREMOVE(set_down_items, I)
+			bot_log(src, "back for [I]")
+			INVOKE_ASYNC(src, PROC_REF(take_back), I) //it pauses like a person does: process() can't wait on it
+			return TRUE
+		if(!(I in view(5, owner)))
+			continue
+		if(pursuing_kind != "follow" || pursue_target != I)
+			pursue(I, "follow", force = TRUE)
+		return TRUE
+	UNSETEMPTY(set_down_items)
+	return FALSE
 
 /datum/bot_brain/proc/is_useful_item(obj/item/I)
 	return istype(I) && !I.anchored && is_type_in_typecache(I, GLOB.bot_useful_items) && !already_carries_matching_tool(I)

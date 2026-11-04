@@ -381,6 +381,10 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	// Never drop a prisoner mid-escort to go chase someone new.
 	if(state == BOT_STATE_GOAL && istype(current_goal, /datum/bot_goal/brig_prisoner))
 		return FALSE
+	// Nor red alert, the armory or arming up, for somebody walking past: the Warden off for the ion rifle took a cuffed prisoner to the
+	// brig instead, and never went back for it.
+	if(state == BOT_STATE_GOAL && current_goal?.holds_for_calls)
+		return FALSE
 	if(world.time < fallen_back_until && bot_too_dangerous(H)) //goals/security_tactics.dm
 		return FALSE
 	// Nothing to arrest them with. An officer who'd used up its cuffs started and ended the same arrest thousands of times,
@@ -908,7 +912,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		return TRUE
 	if(state != BOT_STATE_GOAL)
 		return FALSE
-	return !istype(current_goal, /datum/bot_goal/brig_prisoner) && !istype(current_goal, /datum/bot_goal/respond_to_call)
+	return !current_goal?.holds_for_calls && !istype(current_goal, /datum/bot_goal/brig_prisoner) && !istype(current_goal, /datum/bot_goal/respond_to_call)
 
 /datum/bot_brain/proc/on_heard_security_call(atom/movable/speaker, raw_message, radio_freq)
 	// (Used to need the bot idle, so an officer off fetching a sec HUD ignored someone screaming for help.)

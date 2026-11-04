@@ -456,3 +456,64 @@
 /datum/bot_scenario/suspect_in_pool/release_run()
 	GLOB.bot_security_wanted -= WEAKREF(suspect)
 	return ..()
+
+/datum/bot_scenario/suit_loose_no_drink
+	name = "security: an officer doesn't stop for a drink with a nanosuit loose"
+	desc = "Somebody in a nanosuit is wanted, out of sight behind a wall, and there's a cola machine beside the officer. It doesn't stop for a drink: the Head of Security went for one between the first fight with a suit and the second."
+	job = "Security Officer"
+	layout = list(
+		"#########",
+		"#B.V#..N#",
+		"#...#...#",
+		"#########")
+	time_limit = 12 SECONDS
+	var/mob/living/carbon/human/suspect
+
+/datum/bot_scenario/suit_loose_no_drink/post_spawn()
+	give_job_id(list(ACCESS_SECURITY))
+	suspect = stand_in(first_marker("N"), "Nano Suit")
+	suspect.equip_to_slot_or_del(new /obj/item/clothing/suit/space/hardsuit/nano(suspect), ITEM_SLOT_OCLOTHING)
+	brain.file_crime(suspect, "Murder", "Gym.", BOT_CRIME_MAJOR)
+
+/datum/bot_scenario/suit_loose_no_drink/make_goal()
+	return new /datum/bot_goal/have_drink()
+
+/datum/bot_scenario/suit_loose_no_drink/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(istype(brain.current_goal, /datum/bot_goal/have_drink))
+		fail_reason = "went for a drink"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 10 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/knocked_gun_back
+	name = "security: knocked flat and the gun dropped, it goes back a few steps for it"
+	desc = "An officer with an energy gun out is knocked down, the gun falls, and it's three tiles on by the time it's up. It walks back and picks the gun up. An officer knocked down by a nanosuit went on with the arrest and left his gun on the floor where he fell."
+	job = "Security Officer"
+	kit_hands = list(/obj/item/gun/energy/e_gun)
+	layout = list(
+		"#########",
+		"#B......#",
+		"#########")
+	time_limit = 20 SECONDS
+	var/obj/item/gun/energy/e_gun/gun
+
+/datum/bot_scenario/knocked_gun_back/post_spawn()
+	gun = locate() in bot.held_items
+	addtimer(CALLBACK(src, PROC_REF(knock_down)), 2 SECONDS)
+
+/datum/bot_scenario/knocked_gun_back/make_goal()
+	return null //the reflex is what's tested
+
+/datum/bot_scenario/knocked_gun_back/proc/knock_down()
+	bot.Paralyze(30)
+	addtimer(CALLBACK(src, PROC_REF(drag_on)), 1 SECONDS)
+
+/datum/bot_scenario/knocked_gun_back/proc/drag_on()
+	bot.forceMove(locate(bot.x + 3, bot.y, bot.z))
+	log_line("gun at [bot_coord(gun)], bot dragged on to [bot_coord(bot)]")
+
+/datum/bot_scenario/knocked_gun_back/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return brain.is_carried(gun) && world.time > start_time + 5 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING

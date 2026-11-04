@@ -316,7 +316,7 @@ GLOBAL_LIST_EMPTY(bot_panels_known)
 		var/mob/living/threat = here
 		if(P.kind == BOT_PANEL_LOCKDOWN && (P.department == "command" || (P.department == "security" && bot_in_nanosuit(anywhere))))
 			threat = anywhere
-		if(threat && GLOB.security_level >= SEC_LEVEL_RED && P.department == "security" && istype(get_area(P.doors[1]), /area/ai_monitored/security/armory))
+		if(threat && bot_armory_authorised() && P.department == "security" && istype(get_area(P.doors[1]), /area/ai_monitored/security/armory))
 			threat = null //red alert: the armory opens for the officers to arm up (goals/security_tactics.dm)
 		var/shut = panel_opinion(P, threat)
 		if(isnull(shut) || shut == P.is_shut() || P.moving())

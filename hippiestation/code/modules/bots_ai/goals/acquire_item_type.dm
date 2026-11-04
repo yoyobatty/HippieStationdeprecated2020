@@ -20,7 +20,7 @@
 	var/obj/item/best
 	var/best_dist
 	for(var/obj/item/I as anything in bot_instances_of(item_type))
-		if(!isturf(I.loc) || I.anchored)
+		if(!isturf(I.loc) || I.anchored || bot.on_a_shuttle_without_me(I))
 			continue //already held/worn/bagged, or fixed in place - not freely takeable
 		var/turf/T = I.loc
 		if(T.z != bot.owner.z)
@@ -41,7 +41,7 @@
 	var/obj/structure/closet/best_closet
 	var/best_closet_dist
 	for(var/obj/structure/closet/C as anything in bot_instances_of(/obj/structure/closet))
-		if(QDELETED(C) || !isturf(C.loc) || C.z != bot.owner.z)
+		if(QDELETED(C) || !isturf(C.loc) || C.z != bot.owner.z || bot.on_a_shuttle_without_me(C))
 			continue
 		if(C.secure && C.locked && !C.allowed(bot.owner))
 			continue //can't open it anyway - not a real candidate
@@ -59,11 +59,11 @@
 /datum/bot_goal/acquire_item_type/proc/nearest_lawful_source(datum/bot_brain/bot)
 	var/list/found = list() //source -> how far off
 	for(var/obj/item/I as anything in bot_instances_of(item_type))
-		if(QDELETED(I) || !isturf(I.loc) || I.anchored || I.z != bot.owner.z)
+		if(QDELETED(I) || !isturf(I.loc) || I.anchored || I.z != bot.owner.z || bot.on_a_shuttle_without_me(I))
 			continue
 		found[I] = get_dist(bot.owner, I)
 	for(var/obj/structure/closet/C as anything in bot_instances_of(/obj/structure/closet))
-		if(QDELETED(C) || !isturf(C.loc) || C.z != bot.owner.z)
+		if(QDELETED(C) || !isturf(C.loc) || C.z != bot.owner.z || bot.on_a_shuttle_without_me(C))
 			continue
 		if(C.secure && C.locked && !C.allowed(bot.owner))
 			continue
@@ -80,6 +80,12 @@
 		if(bot.can_walk_lawfully_to(nearest))
 			return nearest
 	return null
+
+/// On a shuttle it isn't aboard, which could leave with it before it gets there: Cargo's own aside, which is Cargo's to unload. An assistant
+/// just off the arrival shuttle went back aboard for its first-aid kit as it left, and the dock decompressed round them.
+/datum/bot_brain/proc/on_a_shuttle_without_me(atom/A)
+	var/area/where = get_area(A)
+	return istype(where, /area/shuttle) && !istype(where, /area/shuttle/supply) && where != get_area(owner)
 
 /datum/bot_goal/acquire_item_type/get_strategies(datum/bot_brain/bot)
 	if(istype(target, /obj/structure/closet))

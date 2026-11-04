@@ -219,11 +219,17 @@
 		return
 	if(try_put_self_out())
 		return
+	if(knocked_away && try_recover_knocked_item()) //bot_reflexes.dm: back for what was knocked out of its hands
+		return
+	if(set_down_items && state == BOT_STATE_WANDER && go_back_for_set_down()) //bot_items.dm
+		return
 	if(length(GLOB.blob_cores) && dodge_blob()) //goals/blob.dm: off its edge, whatever else is going on
 		return
 	if(world.time >= GLOB.bot_hazards_refresh_at) //bot_hazards.dm
 		bot_refresh_hazards()
 	if(talk_pause_until && hold_still_for_talk()) //bot_asks.dm: somebody said "wait"
+		return
+	if(card_wait_until > world.time && wait_for_my_card()) //bot_hopping.dm: somebody's bringing its ID
 		return
 	watch_for_freeze() //bot_movement.dm
 

@@ -86,6 +86,9 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 		if(world.time < bot.next_explore_access_ask)
 			return FALSE
 		bot.next_explore_access_ask = world.time + 10 MINUTES
+		if(!bot_find_card_granter(bot.owner)) //nobody to give it: it doesn't go, and keeps its card
+			bot.explore_blocked_until = world.time + 10 MINUTES
+			return FALSE
 		return bot.assign_goal(new /datum/bot_goal/job_transfer/access(list(ACCESS_MINING, ACCESS_MINING_STATION, ACCESS_MAILSORTING), "mining"))
 	var/kit_needed = !bot.find_carried_tool(/obj/item/gun/energy/kinetic_accelerator) ? /obj/item/gun/energy/kinetic_accelerator : (!bot.find_carried_tool(/obj/item/pickaxe) ? /obj/item/pickaxe : null)
 	if(kit_needed)
@@ -660,12 +663,16 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 	transfer.add_access = add_access
 	transfer.access_names = access_names
 	give_up_at = world.time + 3 MINUTES
-	bot_say(bot.owner, ";HoP, could I get [access_names] access? Want to go exploring. My card's at your door.")
+	if(bot_find_hop(bot.owner))
+		bot_say(bot.owner, ";HoP, could I get [access_names] access? Want to go exploring. My card's at your door.")
+	else
+		bot_say(bot.owner, ";Captain, there's no HoP on. Could I get [access_names] access? Want to go exploring. My card's at the HoP's door.")
 	bot_log(bot, "left [card] for the HoP, for [access_names] access")
 	return TRUE
 
 /datum/bot_step/paced/await_transfer/access/finish(datum/bot_brain/bot)
 	var/got_it = transfer?.done
+	bot.check_card_back(transfer?.card)
 	qdel(transfer)
 	transfer = null
 	bot_log(bot, got_it ? "got [access_names] access" : "nobody came for the card")

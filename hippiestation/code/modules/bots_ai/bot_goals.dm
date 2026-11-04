@@ -24,6 +24,46 @@
 	var/braves_bad_air = FALSE
 	/// Goes on being tried however often it fails (note_give_up()): only for the goals that are about staying alive.
 	var/never_rests = FALSE
+	/// Kept to through a call for help on the radio or somebody wanted walking past (can_drop_for_call(), goals/security_patrol.dm):
+	/// the walk to a keycard device for red alert, opening the armory, arming up. A Head of Security left the keycard swipe sixteen
+	/// seconds in to answer a call, the Captain stood at the other device alone, and five officers fought a nanosuit with tasers.
+	var/holds_for_calls = FALSE
+	/// A break, a bite, a game, an errand of its own: not for Security while there's a nanosuit loose (assign_goal()). The Head of
+	/// Security went for a drink between the first fight with one and the second.
+	var/off_duty = FALSE
+
+/datum/bot_goal/smoke
+	off_duty = TRUE
+
+/datum/bot_goal/buy_smokes
+	off_duty = TRUE
+
+/datum/bot_goal/pet_animal
+	off_duty = TRUE
+
+/datum/bot_goal/play_arcade
+	off_duty = TRUE
+
+/datum/bot_goal/have_meal
+	off_duty = TRUE
+
+/datum/bot_goal/have_drink
+	off_duty = TRUE
+
+/datum/bot_goal/rummage
+	off_duty = TRUE
+
+/datum/bot_goal/sit_at_desk
+	off_duty = TRUE
+
+/datum/bot_goal/perform
+	off_duty = TRUE
+
+/datum/bot_goal/visit_department
+	off_duty = TRUE
+
+/datum/bot_goal/tide
+	off_duty = TRUE
 
 /datum/bot_goal/fight_fire
 	braves_bad_air = TRUE
@@ -490,6 +530,11 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 		if(world.time >= next_keep_clear_note) //it's asked again every time a duty looks: once a minute in the log is plenty
 			next_keep_clear_note = world.time + 1 MINUTES
 			bot_log(src, "[goal.target] is where Security's told everybody to keep clear of - not doing [goal.type] (or anything else in there for now)")
+		return FALSE
+	if(goal.off_duty && is_security_job() && suit_at_large()) //goals/security_tactics.dm
+		if(world.time >= next_keep_clear_note)
+			next_keep_clear_note = world.time + 1 MINUTES
+			bot_log(src, "there's a nanosuit loose - no [goal.type] for Security now")
 		return FALSE
 	if(!goal.braves_bad_air && in_bad_air(goal.target) && !is_eva_ready())
 		bot_log(src, "[goal.target] is somewhere I can't breathe and I'm not suited up - not doing [goal.type]")

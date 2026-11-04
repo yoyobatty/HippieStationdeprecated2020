@@ -217,3 +217,58 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return isturf(bar.loc) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/chat/where_are_you
+	name = "chat: asked where it is, it says - not \"no idea\""
+	desc = "Somebody asks the bot by name where it is, and it says the place it's in. The user asked a doctor ten times on the radio where he was, and got \"no idea, sorry\", \"yeah that's me\" and \"not sure where that is\"."
+	layout = list(
+		"#######",
+		"#B.C..#",
+		"#######")
+
+/datum/bot_scenario/chat/where_are_you/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "[bot.first_name()], where are you?"), 2 SECONDS)
+
+/datum/bot_scenario/chat/where_are_you/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/list/lines = spoken()
+	if(!length(lines))
+		return BOT_GYM_PENDING
+	var/place = get_area_name(bot, TRUE)
+	if(findtext(lines[1], place))
+		return BOT_GYM_PASS
+	fail_reason = "said \"[lines[1]]\", not where it is ([place])"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/chat/found_your_id
+	name = "chat: told its lost ID's been found, it says it's its own and takes it back when it's dropped"
+	desc = "The bot has no ID on it. Somebody says they've got its card, and drops it: it says the card's its own, picks it up and puts it on. A doctor whose card was left at the HoP's door answered \"no way\" to that twice."
+	layout = list(
+		"#######",
+		"#B.C..#",
+		"#######")
+	time_limit = 30 SECONDS
+	var/obj/item/card/id/card
+
+/datum/bot_scenario/chat/found_your_id/post_spawn()
+	..()
+	brain.gym_scripted = FALSE //going back for its card is a duty of its own
+	card = new(visitor)
+	card.registered_name = bot.real_name
+	card.assignment = "Assistant"
+	visitor.put_in_hands(card)
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "Hey [bot.first_name()], I got your ID card."), 2 SECONDS)
+	addtimer(CALLBACK(src, PROC_REF(drop_it)), 7 SECONDS)
+
+/datum/bot_scenario/chat/found_your_id/proc/drop_it()
+	if(QDELETED(visitor) || QDELETED(card) || card.loc != visitor)
+		return
+	log_line("visitor drops the card")
+	visitor.dropItemToGround(card)
+
+/datum/bot_scenario/chat/found_your_id/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return bot.get_idcard(FALSE) == card ? BOT_GYM_PASS : BOT_GYM_PENDING

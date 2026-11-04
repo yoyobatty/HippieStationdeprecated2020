@@ -407,9 +407,17 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 		sleep(1 SECONDS)
 	log_world("BOT GYM: round state [SSticker.current_state], starting scenarios")
 	var/list/datum/bot_scenario/active = list()
+	var/list/wanted = (filter && filter != "all") ? splittext(filter, "|") : null //"chat|hop" runs both
 	for(var/path in subtypesof(/datum/bot_scenario))
 		var/datum/bot_scenario/probe = new path
-		if(!probe.layout || probe.name == "unnamed" || (filter && filter != "all" && !findtext(probe.name, filter))) //no name: a parent type, for its children
+		if(!probe.layout || probe.name == "unnamed") //no name: a parent type, for its children
+			continue
+		var/named = !wanted
+		for(var/bit in wanted)
+			if(findtext(probe.name, bit))
+				named = TRUE
+				break
+		if(!named)
 			continue
 		if(probe.station_wide && (!filter || filter == "all"))
 			continue //it changes what every arena runs under (the alert level): named on its own, not in the suite

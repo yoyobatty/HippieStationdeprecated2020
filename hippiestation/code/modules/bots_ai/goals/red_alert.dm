@@ -19,6 +19,8 @@
 GLOBAL_DATUM(bot_red_alert_plan, /datum/bot_red_alert_plan)
 /// After a try that came to nothing, not again before this: a head walking to the keycard device every two minutes isn't anybody.
 GLOBAL_VAR_INIT(bot_red_alert_next_try, 0)
+/// Until when a head is working out a plan (red_alert/try_start()): nobody else starts one, or calls the current one off.
+GLOBAL_VAR_INIT(bot_red_alert_planning_until, 0)
 
 /// Somebody at large Security can't deal with as things are: in a nanosuit and wanted for something serious, or two murderers loose.
 /proc/bot_red_alert_called_for()
@@ -47,6 +49,16 @@ GLOBAL_LIST_INIT(bot_red_alert_heads, list("Head of Security", "Captain", "Head 
 		return FALSE
 	return (B.work_role() in GLOB.bot_red_alert_heads)
 
+/// Still on its way to its device for this plan, or stood at it: up, uncuffed, the goal not dropped. One that isn't is replaced straight
+/// away by the next head (red_alert/try_start()), not after the five minutes a plan nobody got to waits.
+/proc/bot_still_on_alert_plan(datum/bot_brain/B, datum/bot_red_alert_plan/P)
+	if(QDELETED(B) || QDELETED(B.owner) || B.owner.stat != CONSCIOUS || B.owner.handcuffed)
+		return FALSE
+	var/datum/bot_goal/red_alert/G = B.current_goal
+	if(!istype(G))
+		G = B.suspended_goal
+	return istype(G) && G.plan == P
+
 /// The device it'd go to: the nearest working one it can walk to, other than `not_this`.
 /datum/bot_brain/proc/nearest_keycard_device(obj/machinery/keycard_auth/not_this)
 	var/obj/machinery/keycard_auth/best
@@ -74,12 +86,25 @@ GLOBAL_LIST_INIT(bot_red_alert_heads, list("Head of Security", "Captain", "Head 
 	interval_max = 200
 
 /datum/bot_duty/red_alert/try_start(datum/bot_brain/bot)
+	// One head working out a plan at a time. Finding the devices checks routes, which sleep, and a second head's look in that gap made a
+	// plan of its own, couldn't seat the first, and wiped the plan both were already walking to (the gym caught it).
+	if(world.time < GLOB.bot_red_alert_planning_until)
+		return FALSE
 	var/datum/bot_red_alert_plan/P = GLOB.bot_red_alert_plan
-	if(P && (world.time > P.started_at + BOT_RED_ALERT_PLAN_TIME || GLOB.security_level >= SEC_LEVEL_RED || QDELETED(P.initiator) || QDELETED(P.confirmer)))
+	if(P && (world.time > P.started_at + BOT_RED_ALERT_PLAN_TIME || GLOB.security_level >= SEC_LEVEL_RED || !bot_still_on_alert_plan(P.initiator, P) || !bot_still_on_alert_plan(P.confirmer, P)))
+		if(world.time <= P.started_at + BOT_RED_ALERT_PLAN_TIME && GLOB.security_level < SEC_LEVEL_RED)
+			var/datum/bot_brain/gone = bot_still_on_alert_plan(P.initiator, P) ? P.confirmer : P.initiator
+			bot_log(bot, "red alert plan off: [gone?.owner || "one of them"] isn't on it any more ([gone?.current_goal?.type || "no goal"], [gone?.owner?.stat])")
 		GLOB.bot_red_alert_plan = null
 		P = null
 	if(P || world.time < GLOB.bot_red_alert_next_try || !bot_red_alert_called_for() || !bot_head_free_for_alert(bot))
 		return FALSE
+	GLOB.bot_red_alert_planning_until = world.time + 10 SECONDS
+	. = bot_plan_red_alert(bot)
+	GLOB.bot_red_alert_planning_until = 0
+
+/// The plan itself: the most senior free head calls it with the nearest other, each at a device. TRUE if both have set off.
+/proc/bot_plan_red_alert(datum/bot_brain/bot)
 	// The most senior head who's free calls it; anybody junior to one who could leaves it to them.
 	var/rank = GLOB.bot_red_alert_heads.Find(bot.work_role())
 	var/datum/bot_brain/partner
@@ -101,7 +126,7 @@ GLOBAL_LIST_INIT(bot_red_alert_heads, list("Head of Security", "Captain", "Head 
 	var/obj/machinery/keycard_auth/theirs = mine && partner.nearest_keycard_device(mine)
 	if(!theirs)
 		return FALSE
-	P = new
+	var/datum/bot_red_alert_plan/P = new
 	P.initiator = bot
 	P.confirmer = partner
 	P.first = mine
@@ -126,6 +151,7 @@ GLOBAL_LIST_INIT(bot_red_alert_heads, list("Head of Security", "Captain", "Head 
 /datum/bot_goal/red_alert
 	lawful = TRUE
 	never_rests = TRUE
+	holds_for_calls = TRUE
 	doing = "on my way to a keycard device, we're going to red alert"
 
 /datum/bot_goal/red_alert

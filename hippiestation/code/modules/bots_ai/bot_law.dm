@@ -170,6 +170,10 @@ GLOBAL_VAR(bot_in_command)
 		return TRUE
 	if(bot_armed_and_dangerous(foe))
 		return TRUE
+	// A Syndicate combat suit is a weapon worn. Four officers fired twenty disabler shots at one, which it shrugs off, while it beat an
+	// engineer and then all of them.
+	if(bot_in_nanosuit(foe))
+		return TRUE
 	if(owner.health < owner.maxHealth * 0.4)
 		return TRUE
 	if(bot_fighters_against(owner) >= BOT_MOBBED_BY)
