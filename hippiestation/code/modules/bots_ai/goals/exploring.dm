@@ -71,6 +71,8 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 		bot.show_off_spoils()
 	if(bot.stashed_bag && bot.take_back_bag()) //goals/space_ruins.dm: the backpack left in EVA for the jetpack
 		return TRUE
+	if(length(bot.spoils_to_deliver) && bot.deliver_next_spoil())
+		return TRUE
 	if(bot.pursuit != BOT_PURSUIT_EXPLORE || bot_going_home_soon() || bot.owner.health < bot.owner.maxHealth * 0.8)
 		return FALSE
 	// Lavaland is the miners' (the user's ruling, 2026-11-04): about one explorer a batch from the station was killed by a goliath
@@ -249,12 +251,152 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 		var/obj/item/I = ref.resolve()
 		if(I && (I in owner.GetAllContents()))
 			names |= I.name
+			LAZYADD(spoils_to_deliver, ref) //then what it's for: kept, given to whoever needs it, or sold (deliver_next_spoil())
 	spoils = null
 	exploring_since = 0
 	if(length(names))
 		var/where = is_miner() ? "Lavaland" : "space" //everybody else's ruins are out in space (goals/space_ruins.dm)
 		bot_say(owner, pick(";Back from [where]. Found [english_list(names)] in a ruin!", ";Back from the ruins with [english_list(names)].", "Look what I found out there: [english_list(names)]."))
 		bot_tally("came back with spoils")
+
+// ---------------------------------------------------------------------------------------------
+// What the finds are for
+// ---------------------------------------------------------------------------------------------
+
+// The user's ruling (2026-11-04): what's brought back is kept and used, given to whoever needs it, or sold at Cargo.
+//  - Minerals, cash and coins go to Cargo to sell: on to the cargo shuttle if it can get to it, on Cargo's desk if not.
+//  - Circuit boards and disks go to Science, medical kits and hyposprays to Medbay (unless it's Medical itself), a space suit back to EVA.
+//  - Guns, armour and anything heavy are kept by those who'd use them (Security, hunters, powergamers, the robust, the paranoid) and
+//    handed in to Security by everybody else.
+//  - The rest is kept, and worn where there's a slot free for it.
+
+/datum/bot_brain
+	/// Weakrefs of what it brought back and hasn't seen to yet.
+	var/list/spoils_to_deliver
+
+/// Where a find goes: an atom to take it to, or null to keep it.
+/datum/bot_brain/proc/spoil_destination(obj/item/I)
+	if(istype(I, /obj/item/stack/sheet/mineral) || istype(I, /obj/item/stack/ore) || istype(I, /obj/item/stack/spacecash) || istype(I, /obj/item/coin))
+		return cargo_shuttle_floor() || nearest_desk_in(/area/quartermaster)
+	if(istype(I, /obj/item/circuitboard) || istype(I, /obj/item/disk))
+		return is_science_job() ? null : nearest_desk_in(/area/science)
+	if(istype(I, /obj/item/storage/firstaid) || istype(I, /obj/item/reagent_containers/hypospray))
+		return is_medical_job() ? null : nearest_desk_in(/area/medical)
+	if(istype(I, /obj/item/clothing/suit/space))
+		return eva_suit_storage() || nearest_desk_in(/area/ai_monitored/storage/eva)
+	if(istype(I, /obj/item/gun) || istype(I, /obj/item/clothing/suit/armor) || I.force >= 15)
+		if(is_security_job() || playstyle == BOT_STYLE_HUNTER || playstyle == BOT_STYLE_POWERGAMER || plays_robust() || is_paranoid())
+			return null
+		return nearest_desk_in(/area/security)
+	return null
+
+/// The nearest table in that sort of place that it can walk up to: a department's front desk, from the public side, when it has no
+/// access further in.
+/datum/bot_brain/proc/nearest_desk_in(area_type)
+	var/list/by_dist = list()
+	for(var/obj/structure/table/T as anything in bot_instances_of(/obj/structure/table))
+		if(QDELETED(T) || T.z != owner.z || get_dist(owner, T) > 150)
+			continue
+		if(gym_run ? get_area(T) != get_area(owner) : !istype(get_area(T), area_type))
+			continue //in the Bot Gym, the arena's table is everybody's desk
+		by_dist[T] = get_dist(owner, T)
+	sortTim(by_dist, GLOBAL_PROC_REF(cmp_numeric_asc), TRUE)
+	var/tries = 0
+	for(var/obj/structure/table/T as anything in by_dist)
+		if(can_walk_lawfully_to(T))
+			return T
+		if(++tries >= 4)
+			break
+	return null
+
+/// A free tile aboard the cargo shuttle while it's docked at the station, if this bot can walk on to it: what's put aboard is sold when
+/// it's sent.
+/datum/bot_brain/proc/cargo_shuttle_floor()
+	var/obj/docking_port/mobile/supply/S = SSshuttle.supply
+	if(!S || S.mode != SHUTTLE_IDLE || !is_station_level(S.z))
+		return null
+	for(var/area/A in S.shuttle_areas)
+		for(var/turf/open/floor/T in A)
+			if(!is_blocked_turf(T, TRUE) && can_walk_lawfully_to(T))
+				return T
+	return null
+
+/// The next find seen to: off to wherever it goes, or kept (and put on, if there's a slot for it).
+/datum/bot_brain/proc/deliver_next_spoil()
+	while(length(spoils_to_deliver))
+		var/datum/weakref/ref = spoils_to_deliver[1]
+		spoils_to_deliver.Cut(1, 2)
+		var/obj/item/I = ref.resolve()
+		if(!I || !(I in owner.GetAllContents()))
+			continue
+		var/atom/where = spoil_destination(I)
+		if(!where)
+			keep_spoil(I)
+			continue
+		return assign_goal(new /datum/bot_goal/deliver_spoil(I, where))
+	return FALSE
+
+/// Kept: on, if it's something worn and the slot's free, and in the bag otherwise.
+/datum/bot_brain/proc/keep_spoil(obj/item/I)
+	var/slot
+	if(istype(I, /obj/item/clothing/suit/armor) && !owner.wear_suit)
+		slot = ITEM_SLOT_OCLOTHING
+	else if(istype(I, /obj/item/clothing/glasses) && !owner.glasses)
+		slot = ITEM_SLOT_EYES
+	else if(istype(I, /obj/item/clothing/shoes) && owner.shoes && istype(owner.shoes, /obj/item/clothing/shoes/sneakers))
+		slot = ITEM_SLOT_FEET
+	if(slot && wear(I, slot))
+		bot_log(src, "keeping [I], and wearing it")
+	else
+		bot_log(src, "keeping [I]")
+
+/datum/bot_goal/deliver_spoil
+	lawful = TRUE
+	doing = "taking something I found where it's wanted"
+	var/datum/weakref/item_ref
+
+/datum/bot_goal/deliver_spoil/New(obj/item/I, atom/where)
+	. = ..()
+	item_ref = WEAKREF(I)
+	target = where
+
+/datum/bot_goal/deliver_spoil/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/robotics/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/hand_in_spoil())
+	return list(S)
+
+/datum/bot_goal/deliver_spoil/on_success(datum/bot_brain/bot)
+	var/datum/bot_duty/explore/duty = bot_duty_of(/datum/bot_duty/explore)
+	bot.continue_goal_chain(CALLBACK(duty, TYPE_PROC_REF(/datum/bot_duty, try_start), bot))
+
+/// On the table or the unit with a click, or down on the cargo shuttle's floor, and a word to whoever it's for.
+/datum/bot_step/hand_in_spoil/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/deliver_spoil/G = bot.current_goal
+	var/obj/item/I = G?.item_ref?.resolve()
+	var/atom/where = G?.target
+	if(!I || !where || !(I in bot.owner.GetAllContents()))
+		return GOAL_STEP_FAIL
+	if(isturf(where))
+		if(get_turf(bot.owner) != where && !bot.owner.Adjacent(where))
+			return GOAL_STEP_FAIL
+		if(!bot.ready_in_hand(I))
+			return GOAL_STEP_FAIL
+		bot.human_pause(where)
+		bot.owner.dropItemToGround(I)
+		bot_say(bot.owner, pick(";Cargo, left [I] on your shuttle to sell.", ";Put [I] on the cargo shuttle, Cargo. Should fetch something."))
+		bot_tally("finds sold")
+		return GOAL_STEP_SUCCESS
+	if(!bot.owner.Adjacent(where) || !bot.ready_in_hand(I))
+		return GOAL_STEP_FAIL
+	bot.human_pause(where)
+	if(istype(where, /obj/structure/table))
+		bot.use_item_on(I, where) //on to the table, the way anything's put on one
+	else
+		bot.owner.dropItemToGround(I) //by the suit storage
+	var/area/A = get_area(where)
+	bot_say(bot.owner, pick(";Left [I] at [A.name] for you. Found it in a ruin.", ";[A.name], there's [I] on your desk. Thought you'd want it.", "Dropping this off: [I]."))
+	bot_tally("finds handed in")
+	return GOAL_STEP_SUCCESS
 
 /datum/bot_goal/ride_mining_shuttle/exploring/on_success(datum/bot_brain/bot)
 	if(destination == "mining_away" && bot.on_lavaland())

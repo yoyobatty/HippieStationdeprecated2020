@@ -22,15 +22,51 @@
 	var/back_from_space = FALSE
 	var/next_eva_access_ask = 0
 
-/// The direction of the edge of level `from_z` that leads to level `to_z`, or 0 if no edge does.
+/// The direction of the edge of level `from_z` to cross first on the way to level `to_z`, over as many levels as it takes, or 0 if there's
+/// no way there. Space levels are a grid of neighbours (space_transition.dm); a ruin two levels over is two crossings.
 /proc/bot_edge_dir_to(from_z, to_z)
-	var/datum/space_level/L = SSmapping.z_list[from_z]
-	if(!L)
+	if(from_z == to_z)
 		return 0
-	for(var/d in L.neigbours)
-		var/datum/space_level/N = L.neigbours[d]
-		if(N?.z_value == to_z)
-			return text2num(d)
+	var/datum/space_level/start = SSmapping.z_list[from_z]
+	if(!start)
+		return 0
+	var/list/first_dir = list() //level -> the edge of from_z its route starts across
+	var/list/queue = list()
+	for(var/d in start.neigbours)
+		var/datum/space_level/N = start.neigbours[d]
+		if(N && N != start && !first_dir[N])
+			first_dir[N] = text2num(d)
+			queue += N
+	var/at = 1
+	while(at <= length(queue))
+		var/datum/space_level/L = queue[at++]
+		if(L.z_value == to_z)
+			return first_dir[L]
+		for(var/d in L.neigbours)
+			var/datum/space_level/N = L.neigbours[d]
+			if(N && N != start && !first_dir[N])
+				first_dir[N] = first_dir[L]
+				queue += N
+	return 0
+
+/// How many edges there are to cross from level `from_z` to level `to_z`, or 0 if there's no way.
+/proc/bot_levels_between(from_z, to_z)
+	var/datum/space_level/start = SSmapping.z_list[from_z]
+	if(!start || from_z == to_z)
+		return 0
+	var/list/hops = list()
+	hops[start] = 0
+	var/list/queue = list(start)
+	var/at = 1
+	while(at <= length(queue))
+		var/datum/space_level/L = queue[at++]
+		if(L.z_value == to_z)
+			return hops[L]
+		for(var/d in L.neigbours)
+			var/datum/space_level/N = L.neigbours[d]
+			if(N && isnull(hops[N]))
+				hops[N] = hops[L] + 1
+				queue += N
 	return 0
 
 /// Where on level z a flight towards its `dir` edge crosses over: the first tile of that edge's band, level with `near`.
@@ -59,11 +95,10 @@
 	for(var/obj/effect/landmark/ruin/R as anything in GLOB.ruin_landmarks)
 		if(QDELETED(R) || GLOB.bot_ruins_explored[R] || bot_ruin_deadly(R) || !SSmapping.level_trait(R.z, ZTRAIT_SPACE_RUINS))
 			continue
-		var/dir = bot_edge_dir_to(owner.z, R.z)
-		if(!dir || !bot_ruin_spot(R))
-			continue
-		var/turf/landing = bot_edge_crossing(R.z, turn(dir, 180), owner)
-		var/dist = get_dist(landing, R)
+		var/hops = bot_levels_between(owner.z, R.z)
+		if(!hops || hops > 2 || !bot_ruin_spot(R))
+			continue //more than two levels over is further than a tank of air goes
+		var/dist = hops * 1000 + get_dist(locate(owner.x, owner.y, R.z), R)
 		if(!best || dist < best_dist)
 			best = R
 			best_dist = dist

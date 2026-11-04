@@ -774,6 +774,7 @@
 		"###############",
 		"#..BK..Dyyyyyy#",
 		"###############")
+	time_limit = 25 SECONDS //it starts at once; under a full run's load the walk to a spot takes longer than 15
 
 /datum/bot_scenario/runs_in_thin_air/not_into_it/setup()
 	for(var/turf/open/F in markers["y"])
@@ -822,3 +823,27 @@
 		var/obj/machinery/door/window/W = new(T)
 		W.setDir(WEST)
 		place("j", W)
+
+/datum/bot_scenario/spoil_handed_in
+	name = "pursuits: back from a ruin with a first-aid kit, an assistant leaves it on Medbay's desk"
+	desc = "The user's ruling: what's brought back is kept, given to whoever needs it, or sold. A medkit's Medbay's: it goes on the desk with a word on the radio. (In the gym the arena's table stands in for the desk.)"
+	job = "Assistant"
+	layout = list(
+		"#########",
+		"#B.....t#",
+		"#########")
+	time_limit = 20 SECONDS
+	var/obj/item/storage/firstaid/kit
+
+/datum/bot_scenario/spoil_handed_in/post_spawn()
+	kit = new /obj/item/storage/firstaid/regular(bot)
+	bot.put_in_hands(kit)
+
+/datum/bot_scenario/spoil_handed_in/make_goal()
+	var/atom/where = brain.spoil_destination(kit)
+	return where ? new /datum/bot_goal/deliver_spoil(kit, where) : null
+
+/datum/bot_scenario/spoil_handed_in/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (get_turf(kit) == first_marker("t")) ? BOT_GYM_PASS : BOT_GYM_PENDING
