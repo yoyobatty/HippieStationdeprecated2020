@@ -1738,8 +1738,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	. = 0
 	for(var/mob/living/carbon/human/traitor as anything in shift.traitors)
 		var/mob/living/carbon/human/H = bot_shift_self(traitor)
-		if(QDELETED(H))
-			continue //gibbed, and took its objectives with it
+		if(QDELETED(H) || !ishuman(H))
+			continue //gibbed, and took its objectives with it, or a brain in a jar or a cyborg now (no bot_brain)
 		var/datum/antagonist/traitor/T = H.mind?.has_antag_datum(/datum/antagonist/traitor)
 		for(var/datum/objective/O as anything in T?.objectives)
 			if(!istype(O, /datum/objective/escape) && !istype(O, /datum/objective/martyr) && H.bot_brain?.objective_finished(O))
@@ -1754,6 +1754,9 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		var/mob/living/carbon/human/H = bot_shift_self(traitor)
 		if(QDELETED(H))
 			lines += "a traitor was gibbed"
+			continue
+		if(!ishuman(H))
+			lines += "[traitor.real_name] (no body now: [H])"
 			continue
 		var/datum/antagonist/traitor/T = H.mind?.has_antag_datum(/datum/antagonist/traitor)
 		var/list/state = list()

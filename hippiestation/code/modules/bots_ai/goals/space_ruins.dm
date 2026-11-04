@@ -325,6 +325,9 @@
 	/// The level it set out from, to come back to, and where it was when it did.
 	var/home_z
 	var/turf/set_out_from
+	/// The jetpack's gas when it set out, and whether it's turned for home on it.
+	var/fuel_at_start = 0
+	var/turned_back = FALSE
 
 /datum/bot_goal/explore_ruin/space/resolve_target(datum/bot_brain/bot)
 	home_z = home_z || bot.owner.z
@@ -349,6 +352,7 @@
 		return FALSE
 	bot.exploring_since = bot.exploring_since || world.time
 	went_in = FALSE
+	G.fuel_at_start = bot_jetpack_fuel(bot.worn_jetpack())
 	return TRUE
 
 /datum/bot_step/paced/fly_to_ruin/do_click(datum/bot_brain/bot)
@@ -398,9 +402,16 @@
 /datum/bot_brain/proc/space_trip_over()
 	if(bot_going_home_soon() || owner.health < owner.maxHealth * 0.6 || owner.getOxyLoss() > 20 || low_air_stay_in)
 		return TRUE
+	// Half the gas it set out with gone, and it turns round, as a diver does with air: the way back is as long as the way out. Two
+	// explorers who'd gone two levels over turned at a quarter and were left adrift on the way home.
 	var/obj/item/tank/jetpack/J = worn_jetpack()
-	if(J && bot_jetpack_fuel(J) < BOT_JETPACK_TURN_BACK)
-		bot_log(src, "[J]'s getting low - turning back")
+	var/datum/bot_goal/explore_ruin/space/trip = current_goal
+	var/turn_at = max(BOT_JETPACK_TURN_BACK, istype(trip) && trip.fuel_at_start ? trip.fuel_at_start / 2 : 0)
+	if(J && istype(trip) && !trip.turned_back && bot_jetpack_fuel(J) < turn_at)
+		trip.turned_back = TRUE
+		bot_log(src, "half the jetpack's gas gone - turning back")
+		return TRUE
+	if(istype(trip) && trip.turned_back)
 		return TRUE
 	return exploring_since && world.time > exploring_since + BOT_SPACE_TRIP
 
