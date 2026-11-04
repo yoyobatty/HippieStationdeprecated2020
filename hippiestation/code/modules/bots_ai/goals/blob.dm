@@ -23,6 +23,10 @@
 #define BOT_BLOB_EMITTER_TOO_CLOSE 2
 /// How far along its line an emitter does any good.
 #define BOT_BLOB_EMITTER_REACH 20
+/// Off the score of a spot with no live cable, where a generator has to be brought as well: a second haul.
+#define BOT_BLOB_GEN_PENALTY 8
+/// Plasma sheets a generator is filled with: an hour and a half at its lowest setting.
+#define BOT_BLOB_GEN_SHEETS 10
 
 GLOBAL_LIST_EMPTY(bot_blobs)
 
@@ -89,10 +93,13 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 		bot_dispatch_security(get_turf(owner.blob_core), "the blob") //goals/security_tactics.dm
 		send_volunteers()
 		var/emitters = 0
+		var/on_generators = 0
 		for(var/obj/machinery/power/emitter/E as anything in bot_instances_of(/obj/machinery/power/emitter))
 			if(E.type == /obj/machinery/power/emitter && E.active && E.z == owner.blob_core.z)
 				emitters++
-		log_game("BOT BLOB: [length(owner.blobs_legit)] tiles, [round(owner.blob_points)] points, core [round(owner.blob_core.obj_integrity)]/[owner.blob_core.max_integrity], [emitters] emitters on it")
+				if(E.powernet && (locate(/obj/machinery/power/port_gen) in E.powernet.nodes))
+					on_generators++
+		log_game("BOT BLOB: [length(owner.blobs_legit)] tiles, [round(owner.blob_points)] points, core [round(owner.blob_core.obj_integrity)]/[owner.blob_core.max_integrity], [emitters] emitters on it, [on_generators] on generators")
 	if(build())
 		return
 	if(owner.blob_points >= BLOB_SPREAD_COST)
@@ -524,6 +531,8 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 	var/again
 	/// Times it's gone back for the emitter after letting go of it on the way
 	var/regrabs = 0
+	/// Where a generator goes, beside a spot with no live cable: both get a cable laid, and the generator's brought after the emitter
+	var/turf/gen_spot
 
 /datum/bot_goal/blob_emitter/New(obj/machinery/power/emitter/E)
 	. = ..()
@@ -540,14 +549,35 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 		return
 	spot = where[1]
 	aim = where[2]
+	gen_spot = where[3]
 	target = E
 
 /datum/bot_goal/blob_emitter/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/fight_blob/S = new
-	S.steps = list(new /datum/bot_step/ensure_wrench(), new /datum/bot_step/ready_welder(), new /datum/bot_step/open_emitter_storage(), new /datum/bot_step/move_to(), new /datum/bot_step/free_emitter(), \
-		new /datum/bot_step/move_to/ahead_of_emitter(), new /datum/bot_step/sm_take_hold(), new /datum/bot_step/move_to/emitter_spot(), new /datum/bot_step/set_down_emitter(), \
-		new /datum/bot_step/paced/aim_emitter(), new /datum/bot_step/secure_emitter(), new /datum/bot_step/paced/mind_emitter())
+	S.steps = list(new /datum/bot_step/ensure_wrench(), new /datum/bot_step/ready_welder(), new /datum/bot_step/ready_for_wiring(), new /datum/bot_step/open_emitter_storage(), \
+		new /datum/bot_step/move_to(), new /datum/bot_step/free_emitter(), new /datum/bot_step/move_to/ahead_of_emitter(), new /datum/bot_step/sm_take_hold(), \
+		new /datum/bot_step/move_to/emitter_spot(), new /datum/bot_step/wire_emitter_spot(), new /datum/bot_step/set_down_emitter(), new /datum/bot_step/paced/aim_emitter(), \
+		new /datum/bot_step/secure_emitter(), new /datum/bot_step/fuel_for_generator(), new /datum/bot_step/power_emitter(), new /datum/bot_step/paced/mind_emitter())
 	return list(S)
+
+/// Whether the spot it's making for still does: nothing set down on it, none of the blob near but in front, some still in its line, and
+/// power to be had there.
+/datum/bot_goal/blob_emitter/proc/spot_holds()
+	if(!spot || is_blocked_turf(spot, TRUE) || (locate(/obj/structure/blob) in orange(BOT_BLOB_EMITTER_CLEAR, spot)) || !bot_emitter_line_worth(spot, aim))
+		return FALSE
+	if(!gen_spot)
+		return bot_live_cable(spot)
+	return bot_wire_alone(spot, gen_spot) && bot_generator_tile_ok(gen_spot, spot, aim, target)
+
+/// A fresh spot, from wherever it's got to.
+/datum/bot_goal/blob_emitter/proc/new_spot(datum/bot_brain/bot)
+	var/list/where = bot.blob_emitter_spot(target)
+	if(!where)
+		return FALSE
+	spot = where[1]
+	aim = where[2]
+	gen_spot = where[3]
+	return TRUE
 
 /datum/bot_goal/blob_emitter/on_success(datum/bot_brain/bot)
 	if(again && !QDELETED(target))
@@ -609,7 +639,7 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 
 /// Somewhere to stand beside it and take hold. Secure Storage packs them in with the field generators: on Box only the front one has a
 /// free side, and an engineer sent for the nearest got as far as the doors with no way to it. Taking the front one out frees the next.
-/proc/bot_emitter_has_free_side(obj/machinery/power/emitter/E)
+/proc/bot_emitter_has_free_side(atom/movable/E)
 	for(var/d in GLOB.cardinals)
 		var/turf/T = get_step(E, d)
 		if(T && !T.density && !isspaceturf(T) && !is_blocked_turf(T, TRUE))
@@ -658,16 +688,76 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 			return C.powernet?.avail >= 1000
 	return FALSE
 
-/// Where T would still do for an emitter facing `aim`: nothing in the way, a live cable, none of the blob near but for its line, which
-/// still has some in it.
-/proc/bot_emitter_spot_holds(turf/T, aim)
-	if(!T || is_blocked_turf(T, TRUE) || (locate(/obj/structure/blob) in orange(BOT_BLOB_EMITTER_CLEAR, T)) || !bot_live_cable(T))
+/// TRUE if a cable could be laid on T by hand: bare plating, or floor whose tiles a crowbar takes up.
+/proc/bot_can_wire(turf/T)
+	if(!isfloorturf(T) || !T.can_have_cabling())
 		return FALSE
-	return bot_emitter_line_worth(T, aim) > 0
+	return !T.intact || !(istype(T, /turf/open/floor/engine) || istype(T, /turf/open/floor/clockwork) || istype(T, /turf/open/floor/grass))
 
-/// Where an emitter goes against the blob, and which way it faces: floor with a live cable under it, a long clear run out from the blob's
-/// edge, none of the blob near it but for what's in front, room beside it to work, and out of any other emitter's line. The most blob in
-/// its line wins, the core or a node in it most of all; then the shortest haul. list(turf, dir), or null.
+/// The cable on T an emitter or a generator would join (the yellow layer), or null.
+/proc/bot_cable_on(turf/T)
+	for(var/obj/structure/cable/C in T)
+		if(C.cable_layer == CABLE_LAYER_2)
+			return C
+	return null
+
+/// TRUE if a cable laid on T would be a circuit of its own with the one at `with`: no cable on it or beside it but a stub of one or two,
+/// what's been laid there already. The station's cable runs to every APC on it, and those take everything a generator makes to charge,
+/// dead grid or no.
+/proc/bot_wire_alone(turf/T, turf/with)
+	if(!bot_can_wire(T))
+		return FALSE
+	var/list/round_it = list(T)
+	for(var/d in GLOB.cardinals)
+		round_it += get_step(T, d)
+	for(var/turf/N in round_it)
+		if(N == with)
+			continue
+		var/obj/structure/cable/C = bot_cable_on(N)
+		if(C && (!C.powernet || length(C.powernet.cables) > 2))
+			return FALSE
+	return TRUE
+
+/// TRUE if T has nothing on it in the way but mobs and `ignore`.
+/proc/bot_tile_free(turf/T, atom/movable/ignore)
+	if(!T || T.density || isspaceturf(T))
+		return FALSE
+	for(var/atom/movable/A in T)
+		if(A.density && A != ignore && !ismob(A))
+			return FALSE
+	return TRUE
+
+/// Where a generator could go beside an emitter at T facing `aim`: to one side first, then behind, never in front, and never `not_here`
+/// (where the emitter's stood while it's dragged in). `ignore` is the emitter.
+/proc/bot_generator_tile(turf/T, aim, atom/movable/ignore, turf/not_here)
+	for(var/d in list(turn(aim, 90), turn(aim, -90), turn(aim, 180)))
+		var/turf/G = get_step(T, d)
+		if(G != not_here && bot_generator_tile_ok(G, T, aim, ignore))
+			return G
+	return null
+
+/// G will do for a generator beside an emitter at T: wireable with T and nothing else, out of any emitter's line, the blob not right
+/// by it, and room round it to come on to it with the generator in tow and step off again.
+/proc/bot_generator_tile_ok(turf/G, turf/T, aim, atom/movable/ignore)
+	if(!bot_tile_free(G, ignore) || (locate(/obj/machinery/door) in G) || !bot_wire_alone(G, T) || bot_in_emitter_fire(G))
+		return FALSE
+	if(locate(/obj/structure/blob) in orange(BOT_BLOB_EMITTER_TOO_CLOSE, G))
+		return FALSE
+	var/room = 0
+	for(var/d in GLOB.cardinals)
+		var/turf/N = get_step(G, d)
+		if(N != T && isopenturf(N) && bot_tile_free(N, ignore) && !(locate(/obj/structure/blob) in N))
+			room++
+	return room >= 2
+
+/// TRUE if there's power enough on E's cable for it to fire.
+/proc/bot_emitter_has_power(obj/machinery/power/emitter/E)
+	return E.powernet && E.powernet.avail >= E.active_power_usage
+
+/// Where an emitter goes against the blob, and which way it faces: a long clear run out from the blob's edge, none of the blob near it
+/// but for what's in front, room beside it to work, out of any other emitter's line, and power: a live cable under it, or else floor it
+/// can be wired on, with a tile beside it for a generator. The most blob in its line wins, the core or a node in it most of all; then
+/// the shortest haul, a live cable before a generator. list(turf, dir, the generator's tile or null), or null.
 /datum/bot_brain/proc/blob_emitter_spot(obj/machinery/power/emitter/E)
 	var/turf/from = get_turf(E)
 	var/list/scores = list()
@@ -688,13 +778,17 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 						continue
 					var/aim = turn(d, 180)
 					var/key = "[T.x],[T.y],[aim]"
-					if(spots[key] || !isfloorturf(T) || is_blocked_turf(T, TRUE) || (locate(/obj/machinery/door) in T) || !bot_live_cable(T))
+					if(spots[key] || !isfloorturf(T) || is_blocked_turf(T, TRUE) || (locate(/obj/machinery/door) in T))
 						continue
-					spots[key] = list(T, aim)
-					scores[key] = bot_emitter_line_worth(T, aim) * 4 - get_dist(from, T) / 5
+					var/live = bot_live_cable(T)
+					if(!live && !bot_wire_alone(T))
+						continue
+					spots[key] = list(T, aim, live)
+					scores[key] = bot_emitter_line_worth(T, aim) * 4 - get_dist(from, T) / 5 - (live ? 0 : BOT_BLOB_GEN_PENALTY)
 			CHECK_TICK
 	var/list/why_not = list()
 	var/walks_checked = 0
+	var/generator_to_be_had //worked out the first time a spot needs one
 	for(var/tries in 1 to 40)
 		var/best_key
 		for(var/key in scores)
@@ -705,6 +799,10 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 		var/list/where = spots[best_key]
 		scores -= best_key
 		var/turf/T = where[1]
+		var/live = where[3]
+		var/turf/gen_at = live ? null : bot_generator_tile(T, where[2], E)
+		if(!live && isnull(generator_to_be_had))
+			generator_to_be_had = !!generator_for_blob()
 		if(LAZYACCESS(blob_spots_failed, "[T.x],[T.y],[T.z]") > world.time)
 			why_not["tried"]++
 		else if(locate(/obj/structure/blob) in orange(BOT_BLOB_EMITTER_CLEAR, T))
@@ -713,25 +811,33 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 			why_not["in a line of fire"]++
 		else if(bot_emitter_room_beside(T, where[2]) < 2)
 			why_not["no room"]++
+		else if(!live && !generator_to_be_had)
+			why_not["no generator"]++
+		else if(!live && !gen_at)
+			why_not["nowhere for a generator"]++
 		else if(++walks_checked > 3)
 			break
 		else if(!can_walk_lawfully_to(T)) //maintenance behind a door this engineer's ID doesn't open
 			why_not["no way there"]++
 			LAZYSET(blob_spots_failed, "[T.x],[T.y],[T.z]", world.time + 5 MINUTES)
 		else
-			return where
+			return list(T, where[2], gen_at)
 	var/list/reasons = list()
 	for(var/reason in why_not)
 		reasons += "[why_not[reason]] [reason]"
 	bot_log_verbose(src, "no spot for an emitter on the blob: [length(spots)] looked at[length(reasons) ? ", [jointext(reasons, ", ")]" : ""]")
 	return null
 
-/// Open floor round T to stand on and work from, not counting the tile in front of an emitter there.
+/// Open floor straight beside T, behind it and to its sides: one for what's dragged on to it to come from, and one to step off on to
+/// so it comes on to T. Corners don't count: a step off to one goes round the thing being dragged or a wall, and one of those is in the
+/// way. Four engineers in a row stood on a spot in a maintenance corridor with nowhere to step but a corner, and gave up.
 /proc/bot_emitter_room_beside(turf/T, aim)
 	. = 0
-	var/turf/muzzle = get_step(T, aim)
-	for(var/turf/open/N in orange(1, T))
-		if(N != muzzle && !isspaceturf(N) && !is_blocked_turf(N, TRUE) && !(locate(/obj/structure/blob) in N))
+	for(var/d in GLOB.cardinals)
+		if(d == aim)
+			continue
+		var/turf/N = get_step(T, d)
+		if(isopenturf(N) && !isspaceturf(N) && !is_blocked_turf(N, TRUE) && !(locate(/obj/structure/blob) in N))
 			.++
 
 /// The shut blast door an emitter is kept behind, or null if there's a way to it without one: a few dozen tiles of floor round it, walled
@@ -938,19 +1044,22 @@ GLOBAL_LIST_EMPTY(bot_storage_asked)
 	var/datum/bot_goal/blob_emitter/G = bot.current_goal
 	if(!istype(G) || QDELETED(G.target) || ++G.regrabs > 3)
 		return ..()
-	bot.current_step_index = bot.current_strategy.steps.Find(src) - 4 //the walk over to it (move_to, free_emitter, ahead_of_emitter, sm_take_hold, this)
-	bot.run_current_step()
+	var/list/steps = bot.current_strategy.steps
+	for(var/i = steps.Find(src) - 1, i >= 1, i--)
+		var/datum/bot_step/S = steps[i]
+		if(S.type == /datum/bot_step/move_to) //the walk over to it
+			bot.current_step_index = i
+			bot.run_current_step()
+			return
+	return ..()
 
 /datum/bot_step/move_to/emitter_spot/execute(datum/bot_brain/bot)
 	var/datum/bot_goal/blob_emitter/G = bot.current_goal
 	if(!istype(G) || QDELETED(G.target) || bot.owner.pulling != G.target)
 		return GOAL_STEP_FAIL
-	if(!bot_emitter_spot_holds(G.spot, G.aim))
-		var/list/where = bot.blob_emitter_spot(G.target)
-		if(!where)
+	if(!G.spot_holds())
+		if(!G.new_spot(bot))
 			return GOAL_STEP_FAIL
-		G.spot = where[1]
-		G.aim = where[2]
 		bot_log(bot, "the blob's moved - a new spot for [G.target] at [bot_coord(G.spot)]")
 	step_target = G.spot
 	return ..()
@@ -965,24 +1074,25 @@ GLOBAL_LIST_EMPTY(bot_storage_asked)
 		return GOAL_STEP_FAIL
 	var/turf/here = get_turf(H)
 	if(here == G.spot)
-		var/turf/muzzle = get_step(here, G.aim)
+		var/turf/muzzle = G.aim ? get_step(here, G.aim) : null
 		var/turf/behind = get_turf(E)
 		var/stepped = FALSE
 		for(var/d in GLOB.alldirs) //the cardinals first
 			var/turf/T = get_step(here, d)
-			if(!T || T == muzzle || T == behind || isspaceturf(T) || T.density || is_blocked_turf(T, TRUE) || (locate(/obj/structure/blob) in T))
+			if(!T || T == muzzle || T == behind || isspaceturf(T) || T.density || is_blocked_turf(T, TRUE) || (locate(/obj/structure/blob) in T) || bot_in_emitter_fire(T))
 				continue
 			if(H.Move(T, d))
 				stepped = TRUE
 				break
 		if(!stepped)
+			bot_log(bot, "nowhere to step off [bot_coord(here)] to leave [E] there")
 			H.stop_pulling()
 			return GOAL_STEP_FAIL
 	H.stop_pulling()
 	if(QDELETED(E) || get_turf(E) != G.spot)
 		bot_log(bot, "[E] didn't end up on [bot_coord(G.spot)]")
 		return GOAL_STEP_FAIL
-	bot_log(bot, "set [E] down at [bot_coord(G.spot)] to face [dir2text(G.aim)]")
+	bot_log(bot, "set [E] down at [bot_coord(G.spot)][G.aim ? " to face [dir2text(G.aim)]" : ""]")
 	return GOAL_STEP_SUCCESS
 
 /// Turned to face the blob: an alt-click turns it a quarter clockwise.
@@ -1117,6 +1227,318 @@ GLOBAL_LIST_EMPTY(bot_storage_asked)
 /datum/bot_step/paced/mind_emitter/finish(datum/bot_brain/bot)
 	return GOAL_STEP_SUCCESS
 
+
+// ---------------------------------------------------------------------------------------------
+// Generators for emitters
+// ---------------------------------------------------------------------------------------------
+//
+// Where there's no live cable in reach of the blob (the blob's eaten the SMES, or there was never any cable there), the engineer wires the
+// spot up itself: the floor tiles up on the spot and on the tile beside it, a cable laid on each, the emitter set up on the one, and a
+// P.A.C.M.A.N. brought for the other, fuelled with plasma out of engineering's crate, wrenched down and started. The two cables make a
+// circuit of their own: on the station's, every APC charging off it takes the generator's power first.
+
+/// When there's no plasma to be had for a generator, as far as this engineer knows
+/datum/bot_brain/var/blob_no_fuel_until = 0
+
+/// A crowbar for the floor tiles and a coil of cable, for a spot that has to be wired up: the engineer's belt has both.
+/datum/bot_step/ready_for_wiring
+	var/fetched_crowbar = FALSE
+	var/fetched_cable = FALSE
+
+/datum/bot_step/ready_for_wiring/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/blob_emitter/G = bot.current_goal
+	if(!istype(G) || !G.gen_spot)
+		return GOAL_STEP_SUCCESS
+	if(!bot.can_eventually_provide_tool(/obj/item/crowbar))
+		if(fetched_crowbar)
+			return GOAL_STEP_FAIL
+		fetched_crowbar = TRUE
+		return bot.seek_tool_for_obstacle(/obj/item/crowbar) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
+	var/obj/item/stack/cable_coil/coil = bot.find_carried_tool(/obj/item/stack/cable_coil)
+	if(!coil || coil.get_amount() < 2)
+		if(fetched_cable)
+			return GOAL_STEP_FAIL
+		fetched_cable = TRUE
+		var/datum/bot_goal/acquire_item_type/fetch = new
+		fetch.item_type = /obj/item/stack/cable_coil
+		fetch.lawful = TRUE
+		return bot.suspend_goal_for(fetch) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
+	return GOAL_STEP_SUCCESS
+
+/// Stood on the spot with the emitter in tow, where there's no live cable: a cable laid there and on the generator's tile beside it. If
+/// the emitter came in over the generator's tile, another side.
+/datum/bot_step/wire_emitter_spot/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/blob_emitter/G = bot.current_goal
+	if(!istype(G) || QDELETED(G.target))
+		return GOAL_STEP_FAIL
+	if(!G.gen_spot)
+		return GOAL_STEP_SUCCESS
+	var/turf/behind = get_turf(G.target)
+	if(behind == G.gen_spot)
+		G.gen_spot = bot_generator_tile(G.spot, G.aim, G.target, behind)
+		if(!G.gen_spot)
+			bot_log(bot, "nowhere beside [bot_coord(G.spot)] for a generator")
+			return GOAL_STEP_FAIL
+	for(var/turf/T in list(G.spot, G.gen_spot))
+		if(!bot.lay_cable_on(T))
+			bot_log(bot, "couldn't lay cable at [bot_coord(T)]")
+			return GOAL_STEP_FAIL
+	bot_log(bot, "laid cable at [bot_coord(G.spot)] for [G.target], and beside it for a generator")
+	return GOAL_STEP_SUCCESS
+
+/// A cable laid on T by hand: the floor tile prised up with a crowbar if there is one, then the coil used on the bare plating, on the
+/// yellow layer emitters and generators take their power from. TRUE once there's one there.
+/datum/bot_brain/proc/lay_cable_on(turf/T)
+	if(bot_cable_on(T))
+		return TRUE
+	if(get_dist(owner, T) > 1)
+		bot_log(src, "[bot_coord(T)] is out of reach from [bot_coord(owner)]")
+		return FALSE
+	if(!bot_can_wire(T))
+		bot_log(src, "can't wire [T] ([T.type])")
+		return FALSE
+	if(T.intact)
+		var/obj/item/crowbar/C = find_or_transform_tool(/obj/item/crowbar)
+		if(!C)
+			bot_log(src, "no crowbar for the floor tile")
+			return FALSE
+		use_tool_on(C, T)
+		if(T.intact)
+			bot_log(src, "the floor tile at [bot_coord(T)] didn't come up ([T.type])")
+			return FALSE
+	var/obj/item/stack/cable_coil/coil = find_carried_tool(/obj/item/stack/cable_coil)
+	if(!coil || !ready_in_hand(coil))
+		bot_log(src, coil ? "couldn't get [coil] in hand" : "no cable left")
+		return FALSE
+	set_coil_layer(coil, /obj/structure/cable)
+	use_tool_on(coil, T)
+	if(!bot_cable_on(T))
+		bot_log(src, "the cable didn't go down at [bot_coord(T)] ([T.type], coil [QDELETED(coil) ? "used up" : "[coil.get_amount()] left, in [coil.loc]"])")
+		return FALSE
+	return TRUE
+
+/// Plasma for the generator, if the one there is to bring has too little in it: out of engineering's crate, as a rule. Ten sheets taken
+/// and the rest put back for the next engineer.
+/datum/bot_step/fuel_for_generator
+	var/fetched = FALSE
+
+/datum/bot_step/fuel_for_generator/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/blob_emitter/G = bot.current_goal
+	if(!istype(G) || !G.gen_spot || QDELETED(G.target) || bot_emitter_has_power(G.target))
+		return GOAL_STEP_SUCCESS
+	var/obj/item/stack/sheet/mineral/plasma/S = bot.find_carried_tool(/obj/item/stack/sheet/mineral/plasma)
+	if(S)
+		if(fetched)
+			bot.take_what_fuel_is_needed(S)
+		return GOAL_STEP_SUCCESS
+	var/obj/machinery/power/port_gen/pacman/P = bot.generator_for_blob()
+	if(!P || P.sheets >= BOT_BLOB_GEN_SHEETS / 2)
+		return GOAL_STEP_SUCCESS //none to be had (power_emitter says so), or it's fuelled
+	if(fetched)
+		bot_log(bot, "no plasma to be had for a generator")
+		bot.blob_no_fuel_until = world.time + 5 MINUTES
+		return GOAL_STEP_SUCCESS
+	fetched = TRUE
+	bot_log(bot, "getting plasma for a generator")
+	var/datum/bot_goal/acquire_item_type/fetch = new
+	fetch.item_type = /obj/item/stack/sheet/mineral/plasma
+	fetch.lawful = TRUE
+	return bot.suspend_goal_for(fetch) ? GOAL_STEP_PENDING : GOAL_STEP_SUCCESS
+
+/// The sheets a generator wants split off the stack (the stack's alt-click), and the rest put back in the crate it came out of.
+/datum/bot_brain/proc/take_what_fuel_is_needed(obj/item/stack/S)
+	if(S.get_amount() <= BOT_BLOB_GEN_SHEETS)
+		return
+	var/obj/structure/closet/crate
+	for(var/obj/structure/closet/C in orange(1, owner))
+		if(C.opened)
+			crate = C
+			break
+	if(!crate || !ready_in_hand(S))
+		return
+	var/obj/item/other = owner.get_inactive_held_item()
+	if(other)
+		stow_or_drop(other)
+	human_pause(S)
+	if(QDELETED(S) || owner.get_inactive_held_item() || owner.get_active_held_item() != S)
+		return
+	telemetry_event("split", list("item" = "[S]", "amount" = BOT_BLOB_GEN_SHEETS))
+	var/obj/item/stack/taken = S.change_stack(owner, BOT_BLOB_GEN_SHEETS)
+	if(!taken)
+		return
+	use_item_on(S, crate)
+	stow_item(taken)
+	bot_log(src, "took [BOT_BLOB_GEN_SHEETS] sheets of plasma, the rest back in [crate]")
+
+/// No live cable at the spot: a generator brought and started beside it (an errand of its own, blob_emitter/generator). Without one,
+/// mind_emitter finds there's no power and takes the emitter somewhere there is.
+/datum/bot_step/power_emitter
+	var/tried = FALSE
+
+/datum/bot_step/power_emitter/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/blob_emitter/G = bot.current_goal
+	if(!istype(G) || QDELETED(G.target))
+		return GOAL_STEP_FAIL
+	if(!G.gen_spot || tried || bot_emitter_has_power(G.target))
+		return GOAL_STEP_SUCCESS
+	var/obj/machinery/power/port_gen/pacman/P = bot.generator_for_blob()
+	if(!P)
+		bot_log(bot, "no generator to be had for [G.target]")
+		return GOAL_STEP_SUCCESS
+	if(P.sheets < 1 && !bot.find_carried_tool(P.sheet_path))
+		bot_log(bot, "no plasma for [P]")
+		return GOAL_STEP_SUCCESS
+	tried = TRUE
+	return bot.suspend_goal_for(new /datum/bot_goal/blob_emitter/generator(P, G.target, G.gen_spot)) ? GOAL_STEP_PENDING : GOAL_STEP_SUCCESS
+
+/// A P.A.C.M.A.N. this engineer could bring to an emitter: one standing about, or one left running beside an emitter that's since been
+/// moved on. The nearest it can walk to. With no plasma found lately, only one with some in it.
+/datum/bot_brain/proc/generator_for_blob(prefer_ref)
+	var/obj/machinery/power/port_gen/pacman/P = prefer_ref ? locate(prefer_ref) : null
+	if(istype(P) && spare_generator(P))
+		return P
+	var/turf/here = get_turf(owner)
+	var/list/by_dist = list()
+	for(var/obj/machinery/power/port_gen/pacman/candidate as anything in bot_instances_of(/obj/machinery/power/port_gen/pacman))
+		if(spare_generator(candidate))
+			by_dist[candidate] = get_dist(here, candidate)
+	for(var/tries in 1 to 3)
+		P = null
+		for(var/obj/machinery/power/port_gen/pacman/candidate as anything in by_dist)
+			if(!P || by_dist[candidate] < by_dist[P])
+				P = candidate
+		if(!P)
+			return null
+		by_dist -= P
+		if(can_walk_lawfully_to(P))
+			return P
+	return null
+
+/datum/bot_brain/proc/spare_generator(obj/machinery/power/port_gen/pacman/P)
+	if(QDELETED(P) || P.type != /obj/machinery/power/port_gen/pacman || P.z != owner.z || !isturf(P.loc) || (P.stat & BROKEN))
+		return FALSE
+	if(P.active && !bot_generator_left_running(P))
+		return FALSE
+	if(blob_no_fuel_until > world.time && P.sheets < 1)
+		return FALSE
+	return !is_failed_engine_part(P) && !taken_by_another(P) && bot_emitter_has_free_side(P)
+
+/// TRUE if a running generator is on a stub of cable with no emitter on it any more: one brought out to an emitter that's been moved on
+/// since. One on the station's cable is somebody's backup power.
+/proc/bot_generator_left_running(obj/machinery/power/port_gen/P)
+	if(!P.powernet)
+		return TRUE
+	if(length(P.powernet.cables) > 2)
+		return FALSE
+	return !(locate(/obj/machinery/power/emitter) in P.powernet.nodes)
+
+/// Bringing a P.A.C.M.A.N. to an emitter set up where there was no live cable: dragged on to the wired tile beside it, wrenched down,
+/// fuelled and started. The emitter's own hauling steps, with the generator in tow.
+/datum/bot_goal/blob_emitter/generator
+	doing = "bringing a generator to an emitter"
+	/// REF() of the emitter it's for
+	var/emitter_ref
+
+/datum/bot_goal/blob_emitter/generator/New(obj/machinery/power/port_gen/pacman/P, obj/machinery/power/emitter/E, turf/G)
+	. = ..(P) //prefer_ref: the one picked for it
+	emitter_ref = REF(E)
+	spot = G
+
+/datum/bot_goal/blob_emitter/generator/resolve_target(datum/bot_brain/bot)
+	target = null
+	if(spot_holds())
+		target = bot.generator_for_blob(prefer_ref)
+
+/datum/bot_goal/blob_emitter/generator/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/fight_blob/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/ready_generator(), new /datum/bot_step/move_to/ahead_of_emitter(), new /datum/bot_step/sm_take_hold(), \
+		new /datum/bot_step/move_to/emitter_spot(), new /datum/bot_step/set_down_emitter(), new /datum/bot_step/start_generator())
+	return list(S)
+
+/datum/bot_goal/blob_emitter/generator/spot_holds()
+	var/obj/machinery/power/emitter/E = locate(emitter_ref)
+	return istype(E) && !QDELETED(E) && bot_generator_tile_ok(spot, get_turf(E), E.dir, target)
+
+/datum/bot_goal/blob_emitter/generator/new_spot(datum/bot_brain/bot)
+	return FALSE
+
+/datum/bot_goal/blob_emitter/generator/on_success(datum/bot_brain/bot)
+	return
+
+/datum/bot_goal/blob_emitter/generator/on_give_up(datum/bot_brain/bot)
+	if(bot.owner.pulling == target)
+		bot.owner.stop_pulling()
+	if(!QDELETED(target))
+		LAZYSET(bot.failed_engine_parts, target, world.time + rand(1200, 2400))
+
+/// Switched off and unwrenched if it's running somewhere, and filled with the plasma brought for it.
+/datum/bot_step/ready_generator/execute(datum/bot_brain/bot)
+	var/obj/machinery/power/port_gen/pacman/P = bot.current_goal?.target
+	if(!istype(P) || QDELETED(P) || !bot.owner.Adjacent(P))
+		return GOAL_STEP_FAIL
+	if(P.active)
+		bot.switch_generator(P)
+		if(QDELETED(P) || P.active)
+			return GOAL_STEP_FAIL
+	if(P.anchored)
+		var/obj/item/wrench = bot.find_or_transform_tool(/obj/item/wrench)
+		if(!wrench)
+			return GOAL_STEP_FAIL
+		bot.use_item_on(wrench, P)
+		if(QDELETED(P) || P.anchored)
+			return GOAL_STEP_FAIL
+		bot_log(bot, "unwrenched [P] to move it")
+	bot.fuel_generator(P)
+	if(!P.HasFuel())
+		bot_log(bot, "no fuel for [P]")
+		return GOAL_STEP_FAIL
+	return GOAL_STEP_SUCCESS
+
+/// On the tile beside the emitter: wrenched down on to the cable there, and started.
+/datum/bot_step/start_generator/execute(datum/bot_brain/bot)
+	var/obj/machinery/power/port_gen/pacman/P = bot.current_goal?.target
+	if(!istype(P) || QDELETED(P) || !bot.owner.Adjacent(P))
+		return GOAL_STEP_FAIL
+	if(!P.anchored)
+		var/obj/item/wrench = bot.find_or_transform_tool(/obj/item/wrench)
+		if(!wrench)
+			return GOAL_STEP_FAIL
+		bot.use_item_on(wrench, P)
+		if(QDELETED(P) || !P.anchored)
+			bot_log(bot, "couldn't wrench [P] down")
+			return GOAL_STEP_FAIL
+	if(!P.powernet)
+		bot_log(bot, "[P] isn't on the cable")
+		return GOAL_STEP_FAIL
+	bot.fuel_generator(P)
+	if(!P.active)
+		bot.switch_generator(P)
+	if(QDELETED(P) || !P.active)
+		bot_log(bot, "couldn't start [P]")
+		return GOAL_STEP_FAIL
+	bot_log(bot, "started [P] beside the emitter")
+	bot_tally("generator on an emitter")
+	return GOAL_STEP_SUCCESS
+
+/// The generator's panel (port_gen.dm, ui_act "toggle_power"): on if it's off, off if it's on.
+/datum/bot_brain/proc/switch_generator(obj/machinery/power/port_gen/pacman/P)
+	human_pause(P)
+	if(QDELETED(P) || !owner.Adjacent(P))
+		return
+	owner.face_atom(P)
+	telemetry_ui_action(P, "toggle_power")
+	P.TogglePower()
+
+/// Plasma carried, into the generator if it's low.
+/datum/bot_brain/proc/fuel_generator(obj/machinery/power/port_gen/pacman/P)
+	if(P.sheets >= BOT_BLOB_GEN_SHEETS / 2)
+		return
+	var/obj/item/stack/S = find_carried_tool(P.sheet_path)
+	if(!S)
+		return
+	bot_log(src, "filling [P] with [S.get_amount()] sheets of plasma")
+	use_item_on(S, P)
+
 #undef BOT_BLOB_TICK
 #undef BOT_BLOB_RESOURCES
 #undef BOT_BLOB_FACTORIES
@@ -1126,3 +1548,5 @@ GLOBAL_LIST_EMPTY(bot_storage_asked)
 #undef BOT_BLOB_EMITTER_CLEAR
 #undef BOT_BLOB_EMITTER_TOO_CLOSE
 #undef BOT_BLOB_EMITTER_REACH
+#undef BOT_BLOB_GEN_PENALTY
+#undef BOT_BLOB_GEN_SHEETS

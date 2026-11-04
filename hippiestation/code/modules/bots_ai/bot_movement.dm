@@ -490,6 +490,12 @@
 		op_mind_jetpack(next_node) //goals/nuke_ops.dm
 	if(!owner.Process_Spacemove(get_dir(owner, next_node)))
 		return FALSE
+	// Somebody dragging something big on the next tile: wait for them, or go round. Walking into them swaps places (living.dm), and
+	// what they're dragging can't follow them on to a tile with somebody on it: engineers taking emitters along the central hallway
+	// lost hold of them to passers-by eight and ten times a shift.
+	for(var/mob/living/L in next_node)
+		if(L != owner && L.pulling?.density && !isliving(L.pulling))
+			return FALSE
 	make_way_through(next_node)
 	if(owner.pulling?.density && !isliving(owner.pulling) && (locate(/mob/living) in next_node) && haul_round(next_node))
 		return TRUE

@@ -181,7 +181,9 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 				T.ChangeTurf(/turf/open/space/basic, flags = CHANGETURF_IGNORE_AIR)
 			else
 				var/floor_type = (char in list("=", "~", "x", "P")) ? /turf/open/floor/plating : /turf/open/floor/plasteel
-				T = T.ChangeTurf(floor_type, flags = CHANGETURF_IGNORE_AIR)
+				// Plating under the tiles, as on the station: the reserved space was all there was under them, and a tile prised up opened the
+				// arena to space.
+				T = T.ChangeTurf(floor_type, floor_type == /turf/open/floor/plating ? null : list(/turf/open/space/basic, /turf/open/floor/plating), CHANGETURF_IGNORE_AIR)
 				floors += T
 			arena_turfs[T] = char
 			LAZYADD(markers[char], T)

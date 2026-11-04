@@ -1,7 +1,8 @@
 // Bot Gym scenarios for the crew against a blob (goals/blob.dm).
 //
 // Layout letters used here: e a spare emitter, standing loose as it does in Secure Storage; p a P.A.C.M.A.N. running on the cable,
-// for power; k a blob core (an overmind nobody drives, so it only grows round its core); b a plain bit of blob belonging to it.
+// for power; n a P.A.C.M.A.N. standing loose with no fuel in it; Q a crate with 30 sheets of plasma in it, as in engineering; k a blob
+// core (an overmind nobody drives, so it only grows round its core); b a plain bit of blob belonging to it.
 
 /datum/bot_scenario/blob_emitter
 	job = "Station Engineer"
@@ -21,6 +22,12 @@
 		place("p", P)
 	for(var/turf/T in markers["e"])
 		place("e", new /obj/machinery/power/emitter(T))
+	for(var/turf/T in markers["n"])
+		place("n", new /obj/machinery/power/port_gen/pacman(T))
+	for(var/turf/T in markers["Q"])
+		var/obj/structure/closet/crate/C = new(T)
+		new /obj/item/stack/sheet/mineral/plasma(C, 30)
+		place("Q", C)
 	var/turf/core_at = first_marker("k")
 	if(!core_at)
 		return
@@ -28,6 +35,7 @@
 	// station-loving like the nuke disk, back to the station the moment it's off it. The first tries at this put a blob on the station
 	// for every run.
 	var/mob/camera/blob/overmind = new(core_at, 0)
+	overmind.hud_used = new overmind.hud_type(overmind) //the core writes its health on it every pulse: a player's comes with their client
 	core = new(core_at, overmind, 1)
 	qdel(core.GetComponent(/datum/component/stationloving))
 	core.forceMove(core_at)
@@ -134,3 +142,45 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return emitter_on_the_blob() ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/blob_emitter/brings_a_generator
+	name = "engineer powers an emitter with a generator"
+	desc = "No live cable in reach of the blob: the station's cable along the bottom is dead, the way it is once the blob has had the SMES. The engineer drags the emitter to a spot well back from the blob anyway, takes the floor tiles up there and on the tile beside it and lays cable on both, sets the emitter up, then takes ten sheets of plasma out of the crate, putting the rest back, and brings the P.A.C.M.A.N. over on to the other tile, wrenched down, fuelled and started."
+	time_limit = 400 SECONDS
+	layout = list(
+		"##############################",
+		"#B..e.....................bbk#",
+		"#n...........................#",
+		"#Q...........................#",
+		"#=========================bb.#",
+		"##############################")
+
+/datum/bot_scenario/blob_emitter/brings_a_generator/setup()
+	. = ..()
+	var/obj/structure/cable/C = first_placed("=")
+	if(C && !C.powernet)
+		propagate_network(C, new /datum/powernet()) //the station's cable, dead
+
+/datum/bot_scenario/blob_emitter/brings_a_generator/post_spawn()
+	. = ..()
+	bot.equip_to_slot_or_del(new /obj/item/storage/belt/utility/full/engi(bot), ITEM_SLOT_BELT) //an engineer's own: the crowbar and the cable are on it
+
+/datum/bot_scenario/blob_emitter/brings_a_generator/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/machinery/power/emitter/E = first_placed("e")
+	var/obj/machinery/power/port_gen/pacman/P = first_placed("n")
+	if(QDELETED(E) || QDELETED(P) || E.state != 2 || !E.active || !E.powered || !P.active)
+		return BOT_GYM_PENDING
+	if(P.powernet != E.powernet || length(E.powernet.cables) > 2)
+		fail_reason = "the emitter's running off [length(E.powernet.cables)] cables, not its own two with the generator"
+		return BOT_GYM_FAIL
+	var/obj/structure/closet/crate/C = first_placed("Q")
+	var/turf/at = get_turf(C)
+	var/left = 0
+	for(var/obj/item/stack/sheet/mineral/plasma/S in C.contents + at.contents)
+		left += S.amount
+	if(left < 20)
+		fail_reason = "[left] sheets of plasma left at the crate"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
