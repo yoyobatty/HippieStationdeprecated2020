@@ -79,6 +79,7 @@ import { SpaceHeater } from './interfaces/SpaceHeater';
 import { SpawnersMenu } from './interfaces/SpawnersMenu';
 import { StackCrafting } from './interfaces/StackCrafting';
 import { StationAlertConsole } from './interfaces/StationAlertConsole';
+import { StripMenu } from './interfaces/StripMenu';
 import { SuitStorageUnit } from './interfaces/SuitStorageUnit';
 import { Tank } from './interfaces/Tank';
 import { TankDispenser } from './interfaces/TankDispenser';
@@ -213,6 +214,10 @@ const ROUTES = {
   },
   stack_crafting: {
     component: () => StackCrafting,
+    scrollable: true,
+  },
+  strip_menu: {
+    component: () => StripMenu,
     scrollable: true,
   },
   synthesizer: {

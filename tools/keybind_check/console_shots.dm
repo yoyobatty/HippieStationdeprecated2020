@@ -123,6 +123,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_cloning(C, H, label)
 		if("stack")
 			cs_stack(C, H, label)
+		if("strip")
+			cs_strip(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -722,3 +724,121 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		cs_shot("popup_stack_[label]_1_metal")
 	SStgui.close_user_uis(H)
 	H << browse(null, "window=stack")
+
+// The strip menu
+
+/// A floor next to them to stand someone on
+/proc/cs_open_beside(atom/A, list/taken)
+	for(var/dir in GLOB.alldirs)
+		var/turf/open/T = get_step(A, dir)
+		if(istype(T) && !T.density && !(T in taken) && !(locate(/mob) in T) && !(locate(/obj/structure) in T) && !(locate(/obj/machinery) in T))
+			return T
+	return get_turf(A)
+
+/// Waits until `what` on `thing` isn't `was` any more, up to `seconds`
+/proc/cs_wait_change(datum/thing, what, was, seconds)
+	var/deadline = world.time + seconds SECONDS
+	while(world.time < deadline && thing.vars[what] == was)
+		sleep(2)
+
+/proc/cs_strip(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/engineer)
+	H.dropItemToGround(H.get_active_held_item())
+	var/mob/living/carbon/human/V = new(cs_open_beside(H))
+	V.fully_replace_character_name(null, "Tomas Reyes")
+	V.equipOutfit(/datum/outfit/job/security)
+	qdel(V.s_store)
+	V.equip_to_slot_or_del(new /obj/item/tank/internals/emergency_oxygen(V), ITEM_SLOT_SUITSTORE)
+	V.equip_to_slot_or_del(new /obj/item/clothing/glasses/hud/security/sunglasses(V), ITEM_SLOT_EYES)
+	V.equip_to_slot_or_del(new /obj/item/clothing/mask/gas(V), ITEM_SLOT_MASK)
+	qdel(V.l_store)
+	var/obj/item/coin/gold/coin = new(V)
+	coin.name = "lucky coin"
+	V.equip_to_slot_or_del(coin, ITEM_SLOT_LPOCKET)
+	V.handcuffed = new /obj/item/restraints/handcuffs(V)
+	V.update_handcuffed()
+	sleep(1 SECONDS)
+	usr = H
+	H.MouseDrop_T(V, H)
+	sleep(3 SECONDS)
+	var/datum/tgui/ui = cs_find_ui(H, V)
+	if(!ui)
+		// The old windows
+		winset(C, "mob[REF(V)]", "pos=200,40")
+		sleep(10)
+		cs_shot("popup_strip_[label]_1_officer")
+		H << browse(null, "window=mob[REF(V)]")
+		var/mob/living/carbon/monkey/M = cs_strip_monkey(H, V)
+		usr = H
+		H.MouseDrop_T(M, H)
+		sleep(2 SECONDS)
+		winset(C, "mob[REF(M)]", "pos=200,40")
+		sleep(10)
+		cs_shot("popup_strip_[label]_3_monkey")
+		H << browse(null, "window=mob[REF(M)]")
+		return
+	winset(C, ui.window_id, "pos=200,40")
+	sleep(10)
+	cs_shot("popup_strip_[label]_1_officer", V.name)
+	var/json = json_encode(V.ui_data(H))
+	cs_check("the window doesn't say what's in the pockets", V.l_store && V.r_store && !findtextEx(json, V.l_store.name) && !findtextEx(json, V.r_store.name), "[V.l_store] and [V.r_store]")
+	// Clicked in the window: the valve, the left pocket, the boots
+	var/obj/item/tank = V.s_store
+	cs_tgui_do(C, ui.window_id, "click:Set internals")
+	cs_wait_change(V, "internal", null, 8)
+	cs_check("clicking Set internals opens their tank", V.internal == tank, "[V.internal || "no tank open"]")
+	var/obj/item/pocketed = V.l_store
+	cs_tgui_do(C, ui.window_id, "click:Left (Full)")
+	cs_wait_change(V, "l_store", pocketed, 8)
+	cs_check("clicking Left (Full) empties that pocket", !V.l_store && pocketed?.loc == V.loc, "[V.l_store ? "still has [V.l_store]" : "[pocketed] on the floor"]")
+	var/obj/item/boots = V.shoes
+	cs_tgui_do(C, ui.window_id, "click:[boots.name]")
+	cs_wait_change(V, "shoes", boots, 10)
+	cs_check("clicking the boots takes them off into your hands", !V.shoes && H.is_holding(boots), "[V.shoes ? "still on" : "[boots.loc]"]")
+	sleep(10)
+	cs_shot("popup_strip_[label]_2_stripped", V.name)
+	cs_act(V, H, "item", list("slot" = "[ITEM_SLOT_FEET]", "hand" = "0"))
+	cs_check("Empty with them in hand puts the boots back on", V.shoes == boots, "[V.shoes || "barefoot"]")
+	// What the old window's Topic took on trust
+	var/obj/item/flash = V.r_store
+	cs_act(V, H, "item", list("slot" = "[ITEM_SLOT_RPOCKET]", "hand" = "0"))
+	cs_check("a pocket can't be sent as a slot", V.r_store == flash, "[V.r_store || "taken"]")
+	var/obj/item/glasses = V.glasses
+	cs_act(V, H, "item", list("slot" = "[ITEM_SLOT_EYES]", "hand" = "0"))
+	cs_check("nor eyes the gas mask covers", V.glasses == glasses, "[V.glasses || "taken"]")
+	// A bot strips without a window
+	var/mob/living/carbon/human/bot = new(cs_open_beside(V, list(get_turf(H))))
+	var/obj/item/helmet = V.head
+	bot.stripPanelUnequip(helmet, V, ITEM_SLOT_HEAD)
+	cs_check("a bot's stripPanelUnequip() still strips", V.head != helmet, "[V.head || "bareheaded"]")
+	cs_check("and opens no window", !length(bot.open_uis))
+	qdel(bot)
+	// Out of reach: the window shuts
+	H.forceMove(locate(H.x, H.y + 4, H.z))
+	sleep(4 SECONDS)
+	cs_check("walking off shuts it", !cs_find_ui(H, V))
+	H.forceMove(cs_open_beside(V))
+	// A monkey's window, with its tank on its back
+	var/mob/living/carbon/monkey/M = cs_strip_monkey(H, V)
+	usr = H
+	H.MouseDrop_T(M, H)
+	sleep(2 SECONDS)
+	ui = cs_find_ui(H, M)
+	cs_check("a monkey's window opens", ui)
+	if(ui)
+		winset(C, ui.window_id, "pos=200,40")
+		sleep(10)
+		cs_shot("popup_strip_[label]_3_monkey", M.name)
+		var/turf/was_at = M.loc
+		var/started = world.time
+		cs_act(M, H, "internal", list("slot" = "[ITEM_SLOT_BACK]"))
+		cs_check("and its tank opens (the old link sent the wrong slot)", M.internal == M.back, "[M.internal || "no tank open"], [get_dist(H, M)] apart, [(world.time - started) / 10] s, [M.loc == was_at ? "stayed put" : "moved"], holding [H.get_active_held_item() || "nothing"], mask [M.wear_mask], back [M.back], [M.mobility_flags & MOBILITY_MOVE ? "can move" : "held still"]")
+	SStgui.close_user_uis(H)
+
+/proc/cs_strip_monkey(mob/living/carbon/human/H, mob/living/carbon/human/V)
+	var/mob/living/carbon/monkey/M = new(cs_open_beside(H, list(get_turf(V))))
+	M.equip_to_slot_or_del(new /obj/item/clothing/mask/breath(M), ITEM_SLOT_MASK)
+	M.equip_to_slot_or_del(new /obj/item/tank/internals/oxygen(M), ITEM_SLOT_BACK)
+	M.Immobilize(2 MINUTES) // monkeys wander, and a strip stops when they move
+	sleep(5)
+	return M

@@ -3670,6 +3670,7 @@
 #include "hippiestation\code\modules\mob\living\carbon\examine.dm"
 #include "hippiestation\code\modules\mob\living\carbon\life.dm"
 #include "hippiestation\code\modules\mob\living\carbon\reindex_screams.dm"
+#include "hippiestation\code\modules\mob\living\carbon\strip_menu_tgui.dm"
 #include "hippiestation\code\modules\mob\living\carbon\alien\alien.dm"
 #include "hippiestation\code\modules\mob\living\carbon\alien\facehugger.dm"
 #include "hippiestation\code\modules\mob\living\carbon\human\damage_procs.dm"
