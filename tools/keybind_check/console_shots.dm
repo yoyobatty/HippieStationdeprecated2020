@@ -51,12 +51,15 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			return open
 
 /// One click or keystroke on a tgui page, from script. "click:<text>" presses the first button whose text starts with it,
-/// "input<N>:<text>" types in the Nth text box (from 0).
+/// "input<N>:<text>" types in the Nth text box (from 0), "scroll:<pixels>" scrolls the page to there.
 /proc/cs_tgui_do(client/C, window_id, action)
 	var/js
 	if(findtext(action, "click:") == 1)
 		var/text = copytext(action, 7)
-		js = "var t=[json_encode(text)];var b=Array.prototype.slice.call(document.querySelectorAll('.Button, \[style*=\"cursor\"\]')).filter(function(e){return e.textContent.trim().indexOf(t)===0;})\[0\];if(b){b.click();}"
+		js = "var t=[json_encode(text)];var b=Array.prototype.slice.call(document.querySelectorAll('.Button, .Collapsible, \[style*=\"cursor\"\]')).filter(function(e){return e.textContent.trim().indexOf(t)===0;})\[0\];if(b){b.click();}"
+	else if(findtext(action, "scroll:") == 1)
+		var/pixels = text2num(copytext(action, 8))
+		js = "var c=document.querySelector('.Layout__content')||document.scrollingElement||document.body;c.scrollTop=[pixels];"
 	else if(findtext(action, "input") == 1)
 		var/colon = findtext(action, ":")
 		var/index = text2num(copytext(action, 6, colon))
@@ -110,6 +113,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	switch(which)
 		if("id")
 			cs_id(C, H, label)
+		if("comms")
+			cs_comms(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -223,3 +228,132 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	cs_act(console, H, "access", list("access" = "[ACCESS_CAPTAIN]", "allowed" = 1))
 	cs_check("logged out, nothing changes", !(ACCESS_CAPTAIN in target.access))
 	console.Topic(null, list("choice" = "auth"))
+
+// The communications console
+
+/proc/cs_comms(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/captain)
+	var/obj/machinery/computer/communications/console = new(get_step(H, EAST))
+	console.stat &= ~(NOPOWER|BROKEN)
+	var/datum/comm_message/report = new("Central Command Status Summary", "Your station has been selected for a routine audit.<br>Answer <b>within the hour</b>.", list("Accept the audit", "Refuse it"))
+	console.add_message(report)
+	var/datum/comm_message/old = new("Crew transfer notice", "A shuttle of replacement staff is scheduled.", list())
+	console.add_message(old)
+	usr = H
+	console.Topic(null, list("operation" = "login"))
+	cs_check("the Captain logs in to captain functions", console.authenticated == 2, "authenticated [console.authenticated], [console.auth_id]")
+	console.interact(H)
+	sleep(3 SECONDS)
+	var/datum/tgui/ui = cs_find_ui(H, console)
+	if(ui)
+		winset(C, ui.window_id, "pos=200,40")
+		var/list/steps = list(
+			list("1_main", list()),
+			list("2_message", list("click:Central Command Status Summary", "scroll:420")),
+			list("3_captain", list("scroll:250")),
+			list("4_status_and_shuttles", list("scroll:2000")),
+		)
+		for(var/list/step in steps)
+			for(var/action in step[2])
+				cs_tgui_do(C, ui.window_id, action)
+				sleep(4)
+			sleep(10)
+			cs_shot("popup_comms_[label]_[step[1]]", "Communications Console")
+		// The real buttons, clicked in the window: the alert level wants the Captain's ID in hand
+		cs_tgui_do(C, ui.window_id, "scroll:0")
+		var/obj/item/card/id/captain_id = H.get_idcard()
+		H.temporarilyRemoveItemFromInventory(captain_id, TRUE)
+		H.put_in_active_hand(captain_id)
+		cs_tgui_do(C, ui.window_id, "click:Blue")
+		sleep(10)
+		cs_check("clicking Blue sets blue alert", GLOB.security_level == SEC_LEVEL_BLUE, "[get_security_level()]")
+		cs_tgui_do(C, ui.window_id, "click:Green")
+		sleep(10)
+		cs_check("clicking Green sets green", GLOB.security_level == SEC_LEVEL_GREEN, "[get_security_level()]")
+		CONFIG_SET(number/shuttle_refuel_delay, 0)
+		cs_tgui_do(C, ui.window_id, "input0:A clicked shuttle call")
+		sleep(4)
+		cs_tgui_do(C, ui.window_id, "click:Call the shuttle")
+		sleep(4)
+		cs_tgui_do(C, ui.window_id, "click:Call it")
+		sleep(10)
+		cs_check("calling the shuttle from the window, with the confirm", SSshuttle.emergency.mode == SHUTTLE_CALL, "mode [SSshuttle.emergency.mode]")
+		cs_tgui_do(C, ui.window_id, "click:Recall the shuttle")
+		sleep(4)
+		cs_tgui_do(C, ui.window_id, "click:Recall it")
+		sleep(10)
+		cs_check("and recalling it", SSshuttle.emergency.mode == SHUTTLE_RECALL, "mode [SSshuttle.emergency.mode]")
+		var/list/data = console.ui_data(H)
+		var/list/shuttle = data["shuttle"]
+		cs_check("no Call button while it's on its way back", !shuttle["can_call"])
+		cs_shuttle_idle()
+		cs_comms_checks(console, H, report)
+	else
+		winset(C, "communications", "pos=200,40")
+		var/list/pages = list(
+			list("1_main", null),
+			list("2_message", list("operation" = "viewmessage", "message-num" = "1")),
+			list("3_alert", list("operation" = "changeseclevel")),
+			list("4_status", list("operation" = "status")),
+		)
+		for(var/list/page in pages)
+			if(page[2])
+				console.Topic(null, list("operation" = "main"))
+				console.currmsg = null
+				console.Topic(null, page[2])
+			console.interact(H)
+			sleep(10)
+			cs_shot("popup_comms_[label]_[page[1]]")
+	SStgui.close_user_uis(H)
+	H << browse(null, "window=communications")
+
+/proc/cs_comms_checks(obj/machinery/computer/communications/console, mob/living/carbon/human/H, datum/comm_message/report)
+	cs_act(console, H, "status", list("display" = "message", "line1" = "ALL HANDS", "line2" = "MUSTER"))
+	cs_check("the status displays' two lines", console.stat_msg1 == "ALL HANDS" && console.stat_msg2 == "MUSTER", "[console.stat_msg1] / [console.stat_msg2]")
+	cs_act(console, H, "answer", list("index" = "1", "answer" = "1"))
+	cs_check("a message is answered", report.answered == 1)
+	cs_act(console, H, "answer", list("index" = "1", "answer" = "2"))
+	cs_check("and stays answered", report.answered == 1)
+	// The alert level wants a Captain's ID in hand, as the old window's "swipe ID"
+	var/obj/item/card/id/captain_id = H.get_idcard()
+	H.temporarilyRemoveItemFromInventory(captain_id, TRUE)
+	H.put_in_active_hand(captain_id)
+	cs_act(console, H, "alert", list("level" = "[SEC_LEVEL_BLUE]"))
+	cs_check("blue alert, with the Captain's ID in hand", GLOB.security_level == SEC_LEVEL_BLUE, "[get_security_level()]")
+	cs_act(console, H, "alert", list("level" = "[SEC_LEVEL_GREEN]"))
+	cs_check("and back to green", GLOB.security_level == SEC_LEVEL_GREEN, "[get_security_level()]")
+	H.dropItemToGround(captain_id)
+	cs_act(console, H, "alert", list("level" = "[SEC_LEVEL_BLUE]"))
+	cs_check("not without the ID in hand", GLOB.security_level == SEC_LEVEL_GREEN, "[get_security_level()]")
+	H.put_in_active_hand(captain_id)
+	cs_act(console, H, "emergency_access")
+	cs_check("emergency maintenance access lifted", GLOB.emergency_access)
+	cs_act(console, H, "emergency_access")
+	cs_check("and restored", !GLOB.emergency_access)
+	cs_act(console, H, "announce", list("text" = "This is a test of the new console."))
+	cs_check("an announcement goes out (and the intercomms recharge)", !SScommunications.can_announce(H, FALSE))
+	cs_act(console, H, "message_centcom", list("text" = "Testing the quantum link."))
+	var/list/data = console.ui_data(H)
+	cs_check("a message to CentCom starts the arrays' cooldown", data["cc_cooldown"] > 0, "[data["cc_cooldown"]] s")
+	var/count = length(console.messages)
+	cs_act(console, H, "delete", list("index" = "2"))
+	cs_check("a message is deleted", length(console.messages) == count - 1)
+	CONFIG_SET(number/shuttle_refuel_delay, 0)
+	set_security_level(SEC_LEVEL_BLUE)
+	var/mode_before = SSshuttle.emergency.mode
+	cs_act(console, H, "call_shuttle", list("reason" = "short"))
+	cs_check("above green, a reason too short calls nothing", SSshuttle.emergency.mode == mode_before, "mode [SSshuttle.emergency.mode]")
+	set_security_level(SEC_LEVEL_GREEN)
+	cs_act(console, H, "call_shuttle", list("reason" = "Testing the new communications console"))
+	cs_check("the shuttle is called", SSshuttle.emergency.mode == SHUTTLE_CALL, "mode [SSshuttle.emergency.mode]")
+	cs_act(console, H, "recall_shuttle")
+	cs_check("and recalled", SSshuttle.emergency.mode == SHUTTLE_RECALL, "mode [SSshuttle.emergency.mode]")
+	cs_act(console, H, "logout")
+	SScommunications.nonsilicon_message_cooldown = 0
+	cs_act(console, H, "announce", list("text" = "Logged out."))
+	cs_check("logged out, no announcement", SScommunications.can_announce(H, FALSE))
+
+/// Back at CentCom at once, as a recall ends: a test calls it again without waiting out the trip.
+/proc/cs_shuttle_idle()
+	SSshuttle.emergency.mode = SHUTTLE_IDLE
+	SSshuttle.emergency.timer = 0
