@@ -9,6 +9,9 @@
 //  - Hurt, an officer falls back and patches up instead of dying where it stands.
 //  - An EMP drops the suit for 30 seconds, so the Warden or the Head of Security fetches the armory's ion rifle, or failing that a laser.
 //    Lethal force goes by Space Law's cases (bot_may_use_lethal_force()), and it stops when they're down.
+//  - Against a nanosuit, gather first and go in together (the user's ruling, 2026-11-04). Short of three, an officer waits out of reach
+//    and the others come to it; the crew are told to keep clear. One at a time, officers walked into a suit's reach and died one after
+//    another, five or six a shift, most of them in the Brig.
 
 /// Between one call for backup and the next from the same officer.
 #define BOT_BACKUP_GAP (20 SECONDS)
@@ -22,6 +25,13 @@
 #define BOT_SEC_FALL_BACK_TIME (45 SECONDS)
 /// Before it looks in the armory again.
 #define BOT_ARMORY_REST (3 MINUTES)
+/// Officers together before anybody goes in on a nanosuit, and how close counts as together.
+#define BOT_SEC_GROUP 3
+#define BOT_SEC_GROUP_RANGE 5
+/// How far off an officer waiting for the others keeps: out past a suit's jump, and where it can still see it (BOT_SIGHT_RANGE).
+#define BOT_SEC_WAIT_AWAY 7
+/// Between one warning to the crew to keep clear and the next, from anybody.
+#define BOT_KEEP_CLEAR_GAP (60 SECONDS)
 
 /datum/bot_brain
 	var/next_dispatch_call = 0
@@ -63,8 +73,80 @@
 	if(world.time < next_dispatch_call)
 		return
 	next_dispatch_call = world.time + BOT_BACKUP_GAP
-	bot_say(owner, ":s [pick("Need backup", "All units", "Backup needed")], [S.name], [get_area_name(S, TRUE)]. Don't go in alone.")
-	bot_dispatch_security(get_turf(S), S.name, owner)
+	if(!istype(S.wear_suit, /obj/item/clothing/suit/space/hardsuit/nano))
+		bot_say(owner, ":s [pick("Need backup", "All units", "Backup needed")], [S.name], [get_area_name(S, TRUE)]. Don't go in alone.")
+		bot_dispatch_security(get_turf(S), S.name, owner)
+		return
+	// A suit: everybody comes to this officer, not to the suit, and the crew keep out of the way.
+	bot_say(owner, ":s [pick("All units", "Need backup")], [S.name] in a nanosuit, [get_area_name(S, TRUE)]. Rally on me, [get_area_name(owner, TRUE)]. Nobody goes in alone.")
+	bot_dispatch_security(get_turf(owner), S.name, owner)
+	if(world.time >= GLOB.bot_next_keep_clear)
+		GLOB.bot_next_keep_clear = world.time + BOT_KEEP_CLEAR_GAP
+		bot_say(owner, ";Everybody keep clear of [get_area_name(S, TRUE)]. [S.name]'s in a Syndicate suit and armed. Get out of there if you're in it.")
+		GLOB.bot_keep_clear[get_area(S)] = world.time + 2 MINUTES
+
+/// Area -> until when Security has told the crew to keep out of it.
+GLOBAL_LIST_EMPTY(bot_keep_clear)
+GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
+
+/// Somewhere Security has told everybody to keep out of, just now.
+/proc/bot_told_to_keep_clear(atom/A)
+	var/area/where = get_area(A)
+	return where && GLOB.bot_keep_clear[where] > world.time
+
+/// Officers on their feet and fit to fight, close enough to count as together, here for this one: this bot and its colleagues.
+/datum/bot_brain/proc/officers_with_me(mob/living/carbon/human/S)
+	. = 1
+	for(var/datum/bot_brain/B as anything in GLOB.bot_security_brains)
+		if(B == src || QDELETED(B.owner) || B.owner.stat != CONSCIOUS || B.owner.z != owner.z || get_dist(B.owner, owner) > BOT_SEC_GROUP_RANGE)
+			continue
+		if(B.owner.health < B.owner.maxHealth * BOT_SEC_FALL_BACK_AT || world.time < B.fallen_back_until)
+			continue
+		if((B.state == BOT_STATE_ARREST && B.arrest_suspect == S) || istype(B.current_goal, /datum/bot_goal/respond_to_call))
+			.++
+
+/// The nearest colleague also after `S`, to wait beside.
+/datum/bot_brain/proc/nearest_colleague_on(mob/living/carbon/human/S)
+	var/best_dist
+	for(var/datum/bot_brain/B as anything in GLOB.bot_security_brains)
+		if(B == src || QDELETED(B.owner) || B.owner.stat != CONSCIOUS || B.owner.z != owner.z || B.state != BOT_STATE_ARREST || B.arrest_suspect != S)
+			continue
+		var/dist = get_dist(B.owner, owner)
+		if(!. || dist < best_dist)
+			. = B.owner
+			best_dist = dist
+
+/// In a suit, and not enough officers here yet to go in on it.
+/datum/bot_brain/proc/short_of_the_others(mob/living/carbon/human/S)
+	return istype(S?.wear_suit, /obj/item/clothing/suit/space/hardsuit/nano) && officers_with_me(S) < BOT_SEC_GROUP
+
+/// How far short of somebody dangerous an officer stops: out of a suit's reach while there aren't enough of them, in shooting range
+/// otherwise.
+/datum/bot_brain/proc/hold_off_distance(mob/living/carbon/human/S)
+	return short_of_the_others(S) ? BOT_SEC_WAIT_AWAY : BOT_SEC_HOLD_AT
+
+/// Short of three against a suit: out of reach, nothing fired to draw it, the others called, and over to the nearest of them. TRUE while
+/// it waits.
+/datum/bot_brain/proc/wait_for_the_others(mob/living/carbon/human/S, dist)
+	if(!short_of_the_others(S))
+		return FALSE
+	if(world.time >= next_waiting_note)
+		next_waiting_note = world.time + 20 SECONDS
+		bot_log(src, "holding back from [S]: [officers_with_me(S)] of us here, waiting for [BOT_SEC_GROUP]")
+	if(dist < BOT_SEC_WAIT_AWAY)
+		stop_pursuit()
+		step_back_from(S)
+		return TRUE
+	var/mob/living/carbon/human/mate = nearest_colleague_on(S)
+	if(mate && get_dist(owner, mate) > 2 && get_dist(mate, S) >= BOT_SEC_WAIT_AWAY - 2)
+		if(pursuing_kind != "arrest" || pursue_target != mate)
+			pursue(mate, "arrest", force = TRUE)
+		return TRUE
+	stop_pursuit()
+	return TRUE
+
+/datum/bot_brain
+	var/next_waiting_note = 0
 
 /// A gun's lethal setting, if it has one with the charge for it.
 /datum/bot_brain/proc/ready_lethal_gun()
@@ -138,6 +220,8 @@
 	if(owner.health <= owner.maxHealth * BOT_SEC_FALL_BACK_AT)
 		fall_back_from(S)
 		return TRUE
+	if(wait_for_the_others(S, dist))
+		return TRUE
 	if(!find_usable_gun())
 		// Nothing to shoot with: it doesn't go in alone with a baton. It keeps its distance and waits for the others to come.
 		if(dist <= BOT_SEC_HOLD_AT)
@@ -161,9 +245,9 @@
 
 /// Somewhere to stop on the way to something, or null if that's in a wall. At a run a bot covers ten tiles between one look and the next, so
 /// heading for the suspect itself had it in arm's reach before it knew it.
-/datum/bot_brain/proc/spot_short_of(atom/A)
+/datum/bot_brain/proc/spot_short_of(atom/A, by = BOT_SEC_HOLD_AT)
 	var/list/line = getline(owner, A)
-	var/turf/spot = line[max(1, length(line) - BOT_SEC_HOLD_AT)]
+	var/turf/spot = line[max(1, length(line) - by)]
 	return !spot || spot.density || is_blocked_turf(spot, TRUE) ? null : spot
 
 /// Whether there's a charged gun on it at all.
@@ -221,3 +305,7 @@
 #undef BOT_SEC_FALL_BACK_AT
 #undef BOT_SEC_FALL_BACK_TIME
 #undef BOT_ARMORY_REST
+#undef BOT_SEC_GROUP
+#undef BOT_SEC_GROUP_RANGE
+#undef BOT_SEC_WAIT_AWAY
+#undef BOT_KEEP_CLEAR_GAP

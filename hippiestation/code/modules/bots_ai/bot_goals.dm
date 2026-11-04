@@ -485,6 +485,10 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 	if(bot_staying_aboard(owner) && !bot_aboard_shuttle(goal.target))
 		bot_log(src, "[goal.target] isn't aboard the shuttle - not leaving it for [goal.type]")
 		return FALSE
+	// Security's told everybody to keep out of there (goals/security_tactics.dm): nobody but Security goes in for anything that can wait.
+	if(!is_security_job() && !istype(goal, /datum/bot_goal/run_from) && !goal.braves_bad_air && bot_told_to_keep_clear(goal.target) && !bot_told_to_keep_clear(owner))
+		bot_log(src, "[goal.target] is where Security's told everybody to keep clear of - not doing [goal.type]")
+		return FALSE
 	if(!goal.braves_bad_air && in_bad_air(goal.target) && !is_eva_ready())
 		bot_log(src, "[goal.target] is somewhere I can't breathe and I'm not suited up - not doing [goal.type]")
 		return FALSE

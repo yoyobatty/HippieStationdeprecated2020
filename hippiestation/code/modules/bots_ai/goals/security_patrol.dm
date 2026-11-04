@@ -576,11 +576,16 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	if(!visible && (get_turf(owner) == goal_turf || (get_dist(owner, goal_turf) <= 1 && (locate(/mob/living) in goal_turf))))
 		stop_pursuit()
 		return
-	if(!subdued && bot_too_dangerous(S) && get_dist(owner, goal_turf) > 5) //goals/security_tactics.dm
-		var/turf/short = spot_short_of(goal_turf)
-		if(short)
-			pursuit_goal = short
-			goal_turf = short
+	if(!subdued && bot_too_dangerous(S)) //goals/security_tactics.dm
+		var/hold = hold_off_distance(S)
+		if(get_dist(owner, goal_turf) > hold)
+			var/turf/short = spot_short_of(goal_turf, hold)
+			if(short)
+				pursuit_goal = short
+				goal_turf = short
+		else if(!visible && short_of_the_others(S))
+			stop_pursuit()
+			return //no nearer where a suit was last seen, without the others
 	if(!pursuing_kind || pursue_target != pursuit_goal || !arrest_path_turf || get_dist(arrest_path_turf, goal_turf) > 1)
 		arrest_path_turf = goal_turf
 		pursue(pursuit_goal, "arrest", force = TRUE)

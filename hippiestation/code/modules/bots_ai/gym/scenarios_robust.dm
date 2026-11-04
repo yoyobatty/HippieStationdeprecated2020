@@ -263,9 +263,47 @@
 	return ..()
 
 /datum/bot_scenario/griefed/officer/range
-	name = "security: a nanosuit gets shot from range and cuffed once it's down, not rushed"
-	desc = "Seven to ten hits stam-crit even a suit. An officer stops short, calls it in and keeps shooting, and only walks up once they're on the floor."
+	name = "security: a nanosuit gets shot from range by three officers and cuffed once it's down, not rushed"
+	desc = "Seven to ten hits stam-crit even a suit. Three officers together stop short, call it in and keep shooting, and only walk up once they're on the floor."
+	layout = list(
+		"###########",
+		"#B.......C#",
+		"#O........#",
+		"#P........#",
+		"###########")
 	var/closest_while_up = 99
+
+/datum/bot_scenario/griefed/officer/range/grief()
+	..()
+	for(var/marker in list("O", "P"))
+		var/mob/living/carbon/human/H = second_bot(first_marker(marker), "Officer [marker]")
+		H.mind.assigned_role = "Security Officer"
+		H.bot_brain.register_security()
+		H.put_in_hands(new /obj/item/gun/energy/e_gun/advtaser(H))
+		H.put_in_hands(new /obj/item/restraints/handcuffs(H))
+		H.bot_brain.begin_arrest(griefer)
+
+/datum/bot_scenario/griefed/officer/alone
+	name = "security: one officer on its own against a nanosuit holds back and waits for two more"
+	desc = "The user's ruling: gather first and go in together. On its own it keeps out of reach, fires nothing to draw the suit, and calls the others to it. One at a time, officers walked into reach and died one after another."
+	time_limit = 15 SECONDS
+	layout = list(
+		"##################",
+		"#B..............C#",
+		"##################")
+	var/closest = 99
+
+/datum/bot_scenario/griefed/officer/alone/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	closest = min(closest, get_dist(bot, griefer))
+	if(bot_transcript_said("firing"))
+		fail_reason = "fired at the suit on its own"
+		return BOT_GYM_FAIL
+	if(closest < 6)
+		fail_reason = "went within [closest] tiles of the suit on its own"
+		return BOT_GYM_FAIL
+	return (world.time > start_time + 10 SECONDS && bot_transcript_said("holding back from")) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
 /datum/bot_scenario/griefed/officer/range/check()
 	if(bot_lost())
