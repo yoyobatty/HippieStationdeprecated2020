@@ -455,9 +455,13 @@ GLOBAL_LIST(cachedbooks) // List of our cached book datums
 					href_list["targetid"] = num2text(orderid)
 
 	if(href_list["targetid"])
-		var/sqlid = sanitizeSQL(href_list["targetid"])
+		//a number or nothing: it goes into the query unquoted, and escaping quotes doesn't stop "0 UNION SELECT ..." from any player
+		var/sqlid = text2num(href_list["targetid"])
+		if(!isnum(sqlid) || !ISINTEGER(sqlid))
+			return
 		if (!SSdbcore.Connect())
 			alert("Connection to Archive has been severed. Aborting.")
+			return
 		if(cooldown > world.time)
 			say("Printer unavailable. Please allow a short time before attempting to print.")
 		else

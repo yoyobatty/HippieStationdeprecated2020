@@ -16,6 +16,7 @@ SUBSYSTEM_DEF(dbcore)
 
 	var/datum/BSQL_Connection/connection
 	var/datum/BSQL_Operation/connectOperation
+	var/connecting = FALSE //a Connect() is waiting on the library: others wait for its answer instead of starting a second over the top of it
 
 /datum/controller/subsystem/dbcore/Initialize()
 	//We send warnings to the admins during subsystem init, as the clients will be New'd and messages
@@ -65,6 +66,12 @@ SUBSYSTEM_DEF(dbcore)
 	if(IsConnected())
 		return TRUE
 
+	//two at once, with the database down, had the second overwrite the first's connection, then the first's failure delete it
+	//under the second, which was left waiting on a null operation
+	if(connecting)
+		UNTIL(!connecting)
+		return IsConnected()
+
 	if(failed_connection_timeout <= world.time) //it's been more than 5 seconds since we failed to connect, reset the counter
 		failed_connections = 0
 
@@ -81,6 +88,7 @@ SUBSYSTEM_DEF(dbcore)
 	var/address = CONFIG_GET(string/address)
 	var/port = CONFIG_GET(number/port)
 
+	connecting = TRUE
 	connection = new /datum/BSQL_Connection(BSQL_CONNECTION_TYPE_MARIADB, CONFIG_GET(number/async_query_timeout), CONFIG_GET(number/blocking_query_timeout), CONFIG_GET(number/bsql_thread_limit))
 	var/error
 	if(QDELETED(connection))
@@ -89,10 +97,12 @@ SUBSYSTEM_DEF(dbcore)
 	else
 		SSdbcore.last_error = null
 		connectOperation = connection.BeginConnect(address, port, user, pass, db)
-		if(SSdbcore.last_error)
-			CRASH(SSdbcore.last_error)
-		UNTIL(connectOperation.IsComplete())
-		error = connectOperation.GetError()
+		if(SSdbcore.last_error || !connectOperation) //a failure like any other: a CRASH() here left everyone waiting on connecting
+			error = SSdbcore.last_error || "The library started no connect operation"
+		else
+			UNTIL(QDELETED(connectOperation) || connectOperation.IsComplete())
+			error = QDELETED(connectOperation) ? "The connect operation was deleted" : connectOperation.GetError()
+	connecting = FALSE
 	. = !error
 	if (!.)
 		last_error = error
@@ -160,8 +170,8 @@ SUBSYSTEM_DEF(dbcore)
 	//block until any connect operations finish
 	var/datum/BSQL_Connection/_connection = connection
 	var/datum/BSQL_Operation/op = connectOperation
-	UNTIL(QDELETED(_connection) || op.IsComplete())
-	return !QDELETED(connection) && !op.GetError()
+	UNTIL(QDELETED(_connection) || QDELETED(op) || op.IsComplete())
+	return !QDELETED(connection) && !QDELETED(op) && !op.GetError()
 
 /datum/controller/subsystem/dbcore/proc/Quote(str)
 	if(connection)
@@ -216,7 +226,7 @@ Delayed insert mode was removed in mysql 7 and only works with MyISAM type table
 	It does not work with duplicate_key and the mysql server ignores it in those cases
 */
 /datum/controller/subsystem/dbcore/proc/MassInsert(table, list/rows, duplicate_key = FALSE, ignore_errors = FALSE, delayed = FALSE, warn = FALSE, async = TRUE)
-	if (!table || !rows || !istype(rows))
+	if (!table || !rows || !istype(rows) || !length(rows)) //no rows would make "INSERT INTO table () VALUES", a syntax error
 		return
 	var/list/columns = list()
 	var/list/sorted_rows = list()
@@ -257,9 +267,9 @@ Delayed insert mode was removed in mysql 7 and only works with MyISAM type table
 	for (var/list/row in sorted_rows)
 		if (length(row) != len)
 			row.len = len
-		for (var/value in row)
-			if (value == null)
-				value = "NULL"
+		for (var/i in 1 to len) //assigning to a for-in loop var doesn't change the list, so the NULLs have to go in by index
+			if (isnull(row[i]))
+				row[i] = "NULL"
 		sqlrowlist += "([row.Join(", ")])"
 
 	sqlrowlist = "	[sqlrowlist.Join(",\n	")]"
@@ -320,8 +330,10 @@ Delayed insert mode was removed in mysql 7 and only works with MyISAM type table
 		CRASH("Attempted to start a new query while waiting on the old one")
 
 	if(QDELETED(connection))
-		last_error = "No connection!"
-		return FALSE
+		connection = SSdbcore.connection //another query may have reconnected since this one was made
+		if(QDELETED(connection))
+			last_error = "No connection!"
+			return FALSE
 
 	var/start_time
 	var/timed_out
@@ -329,12 +341,18 @@ Delayed insert mode was removed in mysql 7 and only works with MyISAM type table
 		start_time = REALTIMEOFDAY
 	Close()
 	timed_out = run_query(async)
-	if(query.GetErrorCode() == 2006) //2006 is the return code for "MySQL server has gone away" time-out error, meaning the connection has been lost to the server (if it's still alive)
-		log_sql("Executing query encountered returned a lost database connection (2006).")
+	//2006 is the return code for "MySQL server has gone away" time-out error, meaning the connection has been lost to the server (if it's still alive)
+	//2013, "Lost connection to MySQL server during query", is what a restarted database or a killed or timed out connection gives
+	var/error_code = query?.GetErrorCode()
+	if(error_code == 2006 || error_code == 2013)
+		log_sql("Executing query encountered returned a lost database connection ([error_code]).")
 		SSdbcore.Disconnect()
 		if(SSdbcore.Connect()) //connection was restablished, reattempt the query
 			log_sql("Connection restablished")
-			timed_out = run_query(async)
+			connection = SSdbcore.connection //the old one was deleted by Disconnect()
+			//a 2013 can come after the server ran it, so only a read is run again: a write could go in twice
+			if(error_code == 2006 || findtext(trim(sql), "SELECT", 1, 7))
+				timed_out = run_query(async)
 		else
 			log_sql("Executing query failed to restablish database connection.")
 	skip_next_is_complete = TRUE
@@ -352,6 +370,8 @@ Delayed insert mode was removed in mysql 7 and only works with MyISAM type table
 
 /datum/DBQuery/proc/run_query(async)
 	query = connection.BeginQuery(sql)
+	if(!query) //the library refused it, the reason is in SSdbcore.last_error
+		return
 	if(!async)
 		. = !query.WaitForCompletion()
 	else
@@ -365,6 +385,9 @@ Delayed insert mode was removed in mysql 7 and only works with MyISAM type table
 /datum/DBQuery/proc/NextRow(async = TRUE)
 	Activity("NextRow")
 	UNTIL(!in_progress)
+	if(!query) //never executed, or it failed to start
+		item.Cut()
+		return FALSE
 	if(!skip_next_is_complete)
 		if(!async)
 			query.WaitForCompletion()

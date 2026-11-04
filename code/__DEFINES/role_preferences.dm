@@ -42,6 +42,9 @@
 #define ROLE_GANG				"gangster" // hippie -- adds gang related role
 #define ROLE_INFILTRATOR		"syndicate infiltrator" // hippie -- adds infiltrator role
 #define ROLE_KOTD				"Syndicate Recruit (KotD)" // hippie -- adds KotD role
+#define ROLE_DEFECTIVE_CLONE	"Defective Clone" //ghost polls that checked no ban before: each has its own in the ban panel
+#define ROLE_SANTA				"Santa"
+#define ROLE_MEESEEKS			"Mr. Meeseeks"
 
 //Missing assignment means it's not a gamemode specific role, IT'S NOT A BUG OR ERROR.
 //The gamemode specific ones are just so the gamemodes can query whether a player is old enough

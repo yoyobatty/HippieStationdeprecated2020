@@ -311,7 +311,7 @@
 			add_admin(admin_ckey, admin_key, TRUE)
 			old_rank = "NEW ADMIN"
 		else
-			old_rank = query_admin_in_db.item[1]
+			old_rank = sanitizeSQL(query_admin_in_db.item[1]) //it goes into the log query below
 		qdel(query_admin_in_db)
 		//similarly if a temp rank is created it won't be in the db if someone is permanently changed to it
 		var/datum/DBQuery/query_rank_in_db = SSdbcore.NewQuery("SELECT 1 FROM [format_table_name("admin_ranks")] WHERE rank = '[new_rank]'")
@@ -424,7 +424,7 @@
 	if(!admin_rank)
 		return
 	for(var/datum/admin_rank/R in GLOB.admin_ranks)
-		if(R.name == admin_rank && (!(R.rights & usr.client.holder.rank.can_edit_rights) == R.rights))
+		if(R.name == admin_rank && ((R.rights & usr.client.holder.rank.can_edit_rights) != R.rights))
 			to_chat(usr, "<span class='admin prefix'>You don't have edit rights to all the rights this rank has, rank deletion not permitted.</span>", confidential=TRUE)
 			return
 	if(!CONFIG_GET(flag/admin_legacy_system) && CONFIG_GET(flag/protect_legacy_ranks) && (admin_rank in GLOB.protected_ranks))

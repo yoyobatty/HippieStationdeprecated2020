@@ -28,7 +28,7 @@
 	var/mob_color //Change the mob's color
 	var/assignedrole
 	var/show_flavour = TRUE
-	var/banType = "lavaland"
+	var/banType = ROLE_LAVALAND //was "lavaland", which no ban matched: the panel bans "Lavaland"
 	var/ghost_usable = TRUE
 
 //ATTACK GHOST IGNORING PARENT RETURN VALUE
@@ -38,7 +38,7 @@
 	if(!uses)
 		to_chat(user, "<span class='warning'>This spawner is out of charges!</span>")
 		return
-	if(is_banned_from(user.key, banType) || is_banned_from(user.ckey, list(CATBAN,CLUWNEBAN,CRABBAN))) // hippie -- adds our jobbans
+	if(is_banned_from(user.ckey, banType) || is_banned_from(user.ckey, list(CATBAN,CLUWNEBAN,CRABBAN))) // hippie -- adds our jobbans
 		to_chat(user, "<span class='warning'>You are jobanned!</span>")
 		return
 	if(QDELETED(src) || QDELETED(user))

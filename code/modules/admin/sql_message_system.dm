@@ -21,7 +21,7 @@
 		qdel(query_find_ckey)
 		target_ckey = new_ckey
 		target_key = new_key
-	if(QDELETED(usr))
+	if(usr && QDELETED(usr)) //an admin gone during the prompts; system notes (cid randomizer, note conversion) can come with no usr at all
 		return
 	if(target_ckey)
 		target_ckey = sanitizeSQL(target_ckey)
@@ -38,7 +38,7 @@
 		text = input(usr,"Write your [type]","Create [type]") as null|message
 		if(!text)
 			return
-	text = sanitizeSQL(text)
+	var/sql_text = sanitizeSQL(text) //the logs and admins see the text as written
 	if(!timestamp)
 		timestamp = SQLtime()
 	if(!server)
@@ -76,8 +76,11 @@
 		note_severity = input("Set the severity of the note.", "Severity", null, null) as null|anything in list("High", "Medium", "Minor", "None")
 		if(!note_severity)
 			return
-	note_severity = sanitizeSQL(note_severity)
-	var/datum/DBQuery/query_create_message = SSdbcore.NewQuery("INSERT INTO [format_table_name("messages")] (type, targetckey, adminckey, text, timestamp, server, server_ip, server_port, round_id, secret, expire_timestamp, severity) VALUES ('[type]', '[target_ckey]', '[admin_ckey]', '[text]', '[timestamp]', '[server]', INET_ATON(IF('[world.internet_address]' LIKE '', '0', '[world.internet_address]')), '[world.port]', '[GLOB.round_id]','[secret]', [expiry ? "'[expiry]'" : "NULL"], [note_severity ? "'[note_severity]'" : "NULL"])")
+	if(note_severity)
+		note_severity = sanitizeSQL(note_severity)
+	else
+		note_severity = null //system notes pass 0, and '0' isn't one of the severity column's values, so strict mode refused the note
+	var/datum/DBQuery/query_create_message = SSdbcore.NewQuery("INSERT INTO [format_table_name("messages")] (type, targetckey, adminckey, text, timestamp, server, server_ip, server_port, round_id, secret, expire_timestamp, severity) VALUES ('[type]', '[target_ckey]', '[admin_ckey]', '[sql_text]', '[timestamp]', '[server]', INET_ATON(IF('[world.internet_address]' LIKE '', '0', '[world.internet_address]')), '[world.port]', '[GLOB.round_id]','[secret]', [expiry ? "'[expiry]'" : "NULL"], [note_severity ? "'[note_severity]'" : "NULL"])")
 	var/pm = "[key_name(usr)] has created a [type][(type == "note" || type == "message" || type == "watchlist entry") ? " for [target_key]" : ""]: [text]"
 	var/header = "[key_name_admin(usr)] has created a [type][(type == "note" || type == "message" || type == "watchlist entry") ? " for [target_key]" : ""]"
 	if(!query_create_message.warn_execute())
@@ -141,7 +144,7 @@
 	var/editor_key = sanitizeSQL(usr.key)
 	var/kn = key_name(usr)
 	var/kna = key_name_admin(usr)
-	var/datum/DBQuery/query_find_edit_message = SSdbcore.NewQuery("SELECT type, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = targetckey), targetckey), IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = adminckey), targetckey), text FROM [format_table_name("messages")] WHERE id = [message_id] AND deleted = 0")
+	var/datum/DBQuery/query_find_edit_message = SSdbcore.NewQuery("SELECT type, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = targetckey), targetckey), IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = adminckey), adminckey), text FROM [format_table_name("messages")] WHERE id = [message_id] AND deleted = 0")
 	if(!query_find_edit_message.warn_execute())
 		qdel(query_find_edit_message)
 		return
@@ -154,9 +157,9 @@
 		if(!new_text)
 			qdel(query_find_edit_message)
 			return
-		new_text = sanitizeSQL(new_text)
-		var/edit_text = sanitizeSQL("Edited by [editor_key] on [SQLtime()] from<br>[old_text]<br>to<br>[new_text]<hr>")
-		var/datum/DBQuery/query_edit_message = SSdbcore.NewQuery("UPDATE [format_table_name("messages")] SET text = '[new_text]', lasteditor = '[editor_ckey]', edits = CONCAT(IFNULL(edits,''),'[edit_text]') WHERE id = [message_id] AND deleted = 0")
+		var/sql_new_text = sanitizeSQL(new_text)
+		var/edit_text = sanitizeSQL("Edited by [editor_key] on [SQLtime()] from<br>[old_text]<br>to<br>[new_text]<hr>") //from the raw text: escaping it twice put the backslashes into the log
+		var/datum/DBQuery/query_edit_message = SSdbcore.NewQuery("UPDATE [format_table_name("messages")] SET text = '[sql_new_text]', lasteditor = '[editor_ckey]', edits = CONCAT(IFNULL(edits,''),'[edit_text]') WHERE id = [message_id] AND deleted = 0")
 		if(!query_edit_message.warn_execute())
 			qdel(query_edit_message)
 			return
@@ -258,7 +261,7 @@
 		var/datum/DBQuery/query_edit_note_severity = SSdbcore.NewQuery("UPDATE [format_table_name("messages")] SET severity = '[new_severity]', lasteditor = '[editor_ckey]', edits = CONCAT(IFNULL(edits,''),'[edit_text]') WHERE id = [message_id] AND deleted = 0")
 		if(!query_edit_note_severity.warn_execute(async = TRUE))
 			qdel(query_edit_note_severity)
-			qdel(qdel(query_find_edit_note_severity))
+			qdel(query_find_edit_note_severity)
 			return
 		qdel(query_edit_note_severity)
 		log_admin_private("[kn] has edited the severity of a [type] for [target_key] made by [admin_key] from [old_severity] to [new_severity]")
@@ -277,7 +280,7 @@
 	var/editor_key = sanitizeSQL(usr.key)
 	var/kn = key_name(usr)
 	var/kna = key_name_admin(usr)
-	var/datum/DBQuery/query_find_message_secret = SSdbcore.NewQuery("SELECT type, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = targetckey), targetckey), IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = adminckey), targetckey), secret FROM [format_table_name("messages")] WHERE id = [message_id] AND deleted = 0")
+	var/datum/DBQuery/query_find_message_secret = SSdbcore.NewQuery("SELECT type, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = targetckey), targetckey), IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = adminckey), adminckey), secret FROM [format_table_name("messages")] WHERE id = [message_id] AND deleted = 0")
 	if(!query_find_message_secret.warn_execute())
 		qdel(query_find_message_secret)
 		return
@@ -509,6 +512,8 @@
 	browser.open()
 
 /proc/get_message_output(type, target_ckey)
+	if(!CONFIG_GET(flag/sql_enabled)) //called at every login: with no database there's nothing to show, and no failure to report
+		return
 	if(!SSdbcore.Connect())
 		to_chat(usr, "<span class='danger'>Failed to establish database connection.</span>", confidential=TRUE)
 		return

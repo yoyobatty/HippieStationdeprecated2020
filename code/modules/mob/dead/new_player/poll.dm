@@ -3,7 +3,7 @@
 	var/optiontext
 
 /mob/dead/new_player/proc/handle_player_polling()
-	if(!SSdbcore.IsConnected())
+	if(!SSdbcore.Connect())
 		to_chat(usr, "<span class='danger'>Failed to establish database connection.</span>")
 		return
 	var/datum/DBQuery/query_poll_get = SSdbcore.NewQuery("SELECT id, question FROM [format_table_name("poll_question")] WHERE Now() BETWEEN starttime AND endtime [(client.holder ? "" : "AND adminonly = false")]")
@@ -402,6 +402,17 @@
 	qdel(query_validate_poll)
 	return 1
 
+//Is optionid one of this poll's options? Both come back from the player's browser, so they can be anything
+/mob/dead/new_player/proc/vote_option_valid(pollid, optionid)
+	if(!isnum(pollid) || !isnum(optionid))
+		return FALSE
+	var/datum/DBQuery/query_validate_option = SSdbcore.NewQuery("SELECT 1 FROM [format_table_name("poll_option")] WHERE id = [optionid] AND pollid = [pollid]")
+	if(!query_validate_option.warn_execute())
+		qdel(query_validate_option)
+		return FALSE
+	. = query_validate_option.NextRow()
+	qdel(query_validate_option)
+
 /mob/dead/new_player/proc/vote_on_irv_poll(pollid, list/votelist)
 	if (!SSdbcore.Connect())
 		to_chat(src, "<span class='danger'>Failed to establish database connection.</span>")
@@ -489,6 +500,8 @@
 	//validate the poll
 	if (!vote_valid_check(pollid, client.holder, POLLTYPE_OPTION))
 		return 0
+	if (!vote_option_valid(pollid, optionid))
+		return 0
 	var/voted = poll_check_voted(pollid)
 	if(isnull(voted) || voted) //Failed or already voted.
 		return
@@ -524,8 +537,11 @@
 	var/adminrank = sanitizeSQL(poll_rank())
 	if(!adminrank)
 		return
+	if(length(replytext) > 2048) //the replytext column's size: strict mode refuses longer replies rather than cutting them
+		to_chat(usr, "The text you entered was invalid or too long. Please correct the text and submit again.")
+		return
 	replytext = sanitizeSQL(replytext)
-	if(!(length(replytext) > 0) || !(length(replytext) <= 8000))
+	if(!length(replytext))
 		to_chat(usr, "The text you entered was invalid or too long. Please correct the text and submit again.")
 		return
 	var/datum/DBQuery/query_text_vote
@@ -547,11 +563,24 @@
 		return 0
 	if (!vote_rig_check())
 		return 0
-	if(!pollid || !optionid || !rating)
+	if(!pollid || !optionid) //no rating is an abstention, which is saved as a null rating
 		return
 	//validate the poll
 	if (!vote_valid_check(pollid, client.holder, POLLTYPE_RATING))
 		return 0
+	//and that the option is this poll's, and the rating within its range
+	var/datum/DBQuery/query_numval_option = SSdbcore.NewQuery("SELECT minval, maxval FROM [format_table_name("poll_option")] WHERE id = [optionid] AND pollid = [pollid]")
+	if(!query_numval_option.warn_execute())
+		qdel(query_numval_option)
+		return
+	if(!query_numval_option.NextRow())
+		qdel(query_numval_option)
+		return
+	var/minval = text2num(query_numval_option.item[1])
+	var/maxval = text2num(query_numval_option.item[2])
+	qdel(query_numval_option)
+	if(!isnull(rating) && (rating < minval || rating > maxval))
+		return
 	var/datum/DBQuery/query_numval_hasvoted = SSdbcore.NewQuery("SELECT id FROM [format_table_name("poll_vote")] WHERE optionid = [optionid] AND ckey = '[ckey]'")
 	if(!query_numval_hasvoted.warn_execute())
 		qdel(query_numval_hasvoted)
@@ -574,17 +603,20 @@
 		usr << browse(null,"window=playerpoll")
 	return 1
 
+//Returns 0 when the vote was saved, 1 when it failed, 2 when the poll's choices are used up
 /mob/dead/new_player/proc/vote_on_multi_poll(pollid, optionid)
 	if (!SSdbcore.Connect())
 		to_chat(src, "<span class='danger'>Failed to establish database connection.</span>")
-		return 0
+		return 1
 	if (!vote_rig_check())
-		return 0
+		return 1
 	if(!pollid || !optionid)
 		return 1
 	//validate the poll
 	if (!vote_valid_check(pollid, client.holder, POLLTYPE_MULTI))
-		return 0
+		return 1
+	if (!vote_option_valid(pollid, optionid))
+		return 1
 	var/datum/DBQuery/query_multi_choicelen = SSdbcore.NewQuery("SELECT multiplechoiceoptions FROM [format_table_name("poll_question")] WHERE id = [pollid]")
 	if(!query_multi_choicelen.warn_execute())
 		qdel(query_multi_choicelen)

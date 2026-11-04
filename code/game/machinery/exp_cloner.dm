@@ -50,7 +50,7 @@
 	ADD_TRAIT(H, TRAIT_NOCRITDAMAGE, CLONING_POD_TRAIT)
 	H.Unconscious(80)
 
-	var/list/candidates = pollCandidatesForMob("Do you want to play as [clonename]'s defective clone?", null, null, null, 100, H, POLL_IGNORE_DEFECTIVECLONE)
+	var/list/candidates = pollCandidatesForMob("Do you want to play as [clonename]'s defective clone?", ROLE_DEFECTIVE_CLONE, null, null, 100, H, POLL_IGNORE_DEFECTIVECLONE) //with no role, a poll checks no bans at all
 	if(LAZYLEN(candidates))
 		var/mob/dead/observer/C = pick(candidates)
 		H.key = C.key

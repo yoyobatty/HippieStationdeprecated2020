@@ -3,7 +3,7 @@
 	set category = "Server"
 	if(!check_rights(0))
 		return
-	if(!SSdbcore.IsConnected())
+	if(!SSdbcore.Connect())
 		to_chat(src, "<span class='danger'>Failed to establish database connection.</span>", confidential=TRUE)
 		return
 	var/memotask = input(usr,"Choose task.","Memo") in list("Show","Write","Edit","Remove")
@@ -16,7 +16,7 @@
 	set category = "Mentor"
 	if(!is_mentor())
 		return
-	if(!SSdbcore.IsConnected())
+	if(!SSdbcore.Connect())
 		to_chat(src, "<span class='danger'>Failed to establish database connection.</span>", confidential=TRUE)
 		return
 	mentor_memo_output("Show")
@@ -24,7 +24,7 @@
 /client/proc/mentor_memo_output(task)
 	if(!task)
 		return
-	if(!SSdbcore.IsConnected())
+	if(!SSdbcore.Connect())
 		to_chat(src, "<span class='danger'>Failed to establish database connection.</span>", confidential=TRUE)
 		return
 	var/sql_ckey = sanitizeSQL(ckey)
@@ -91,10 +91,10 @@
 					qdel(query_memolist)
 					qdel(query_memofind)
 					return
-				new_memo = sanitizeSQL(new_memo)
-				var/edit_text = "Edited by [sql_ckey] on [SQLtime()] from<br>[old_memo]<br>to<br>[new_memo]<hr>"
+				var/sql_new_memo = sanitizeSQL(new_memo)
+				var/edit_text = "Edited by [sql_ckey] on [SQLtime()] from<br>[old_memo]<br>to<br>[new_memo]<hr>" //the raw memo: escaped twice, the backslashes ended up in the log
 				edit_text = sanitizeSQL(edit_text)
-				var/datum/DBQuery/update_query = SSdbcore.NewQuery("UPDATE [format_table_name("mentor_memo")] SET memotext = '[new_memo]', last_editor = '[sql_ckey]', edits = CONCAT(IFNULL(edits,''),'[edit_text]') WHERE ckey = '[target_sql_ckey]'")
+				var/datum/DBQuery/update_query = SSdbcore.NewQuery("UPDATE [format_table_name("mentor_memo")] SET memotext = '[sql_new_memo]', last_editor = '[sql_ckey]', edits = CONCAT(IFNULL(edits,''),'[edit_text]') WHERE ckey = '[target_sql_ckey]'")
 				if(!update_query.Execute())
 					var/err = update_query.ErrorMsg()
 					log_game("SQL ERROR editing memo. Error : \[[err]\]\n")

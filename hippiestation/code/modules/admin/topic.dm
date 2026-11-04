@@ -67,6 +67,7 @@
 		return
 	if (!check_rights(0))
 		return
+	ckey = ckey(ckey) //it goes into the queries unescaped, and the directory and the mentor list are by ckey
 	if(!ckey)
 		return
 	var/client/C = GLOB.directory[ckey]
@@ -76,6 +77,9 @@
 			return
 	if(SSdbcore.Connect())
 		var/datum/DBQuery/query_get_mentor = SSdbcore.NewQuery("SELECT id FROM [format_table_name("mentor")] WHERE ckey = '[ckey]'")
+		if(!query_get_mentor.warn_execute()) //it was never run, so NextRow() below was a runtime and nobody could be made a mentor
+			qdel(query_get_mentor)
+			return
 		if(query_get_mentor.NextRow())
 			to_chat(usr, "<span class='danger'>[ckey] is already a mentor.</span>", confidential = TRUE)
 			qdel(query_get_mentor)
@@ -85,7 +89,7 @@
 			qdel(query_get_mentor)
 			qdel(query_add_mentor)
 			return
-		var/datum/DBQuery/query_add_admin_log = SSdbcore.NewQuery("INSERT INTO [format_table_name("admin_log")] (datetime, round_id, adminckey, adminip, operation, target, log) VALUES ('[SQLtime()]', '[GLOB.round_id]', '[sanitizeSQL(usr.ckey)]', INET_ATON('[sanitizeSQL(usr.client.address)]'), 'add rank', '[sanitizeSQL(ckey)]', 'New mentor added: [sanitizeSQL(ckey)]');")
+		var/datum/DBQuery/query_add_admin_log = SSdbcore.NewQuery("INSERT INTO [format_table_name("admin_log")] (datetime, round_id, adminckey, adminip, operation, target, log) VALUES ('[SQLtime()]', '[GLOB.round_id]', '[sanitizeSQL(usr.ckey)]', INET_ATON('[sanitizeSQL(usr.client.address)]'), 'add rank', '[sanitizeSQL(ckey)]', 'New mentor added: [sanitizeSQL(ckey)]')")
 		if(!query_add_admin_log.warn_execute())
 			qdel(query_get_mentor)
 			qdel(query_add_mentor)
@@ -104,6 +108,7 @@
 		return
 	if (!check_rights(0))
 		return
+	ckey = ckey(ckey)
 	if(!ckey)
 		return
 	var/client/C = GLOB.directory[ckey]
@@ -119,7 +124,7 @@
 		if(!query_remove_mentor.warn_execute())
 			qdel(query_remove_mentor)
 			return
-		var/datum/DBQuery/query_add_admin_log = SSdbcore.NewQuery("INSERT INTO [format_table_name("admin_log")] (datetime, round_id, adminckey, adminip, operation, target, log) VALUES ('[SQLtime()]', '[GLOB.round_id]', '[sanitizeSQL(usr.ckey)]', INET_ATON('[sanitizeSQL(usr.client.address)]'), 'remove rank', '[sanitizeSQL(ckey)]', 'Mentor removed: [sanitizeSQL(ckey)]');")
+		var/datum/DBQuery/query_add_admin_log = SSdbcore.NewQuery("INSERT INTO [format_table_name("admin_log")] (datetime, round_id, adminckey, adminip, operation, target, log) VALUES ('[SQLtime()]', '[GLOB.round_id]', '[sanitizeSQL(usr.ckey)]', INET_ATON('[sanitizeSQL(usr.client.address)]'), 'remove rank', '[sanitizeSQL(ckey)]', 'Mentor removed: [sanitizeSQL(ckey)]')")
 		if(!query_add_admin_log.warn_execute())
 			qdel(query_remove_mentor)
 			qdel(query_add_admin_log)
@@ -144,10 +149,10 @@
 
 /datum/admins/proc/makeDonator(ckey)
 	var/makedonator = FALSE
+	ckey = ckey(ckey) //as Login() compares them: a typed key missed the online client, and kept its spaces in the table
 	if(!ckey)
 		return
 	var/client/C = GLOB.directory[ckey]
-	ckey = lowertext("[ckey]")
 	if("[ckey]" in GLOB.donators)
 		to_chat(usr, "<span class='danger'>[ckey] is already a donator!", confidential = TRUE)
 		log_admin("[key_name(usr)] tried to make [ckey] into a donator but they were already a donator.")
@@ -179,10 +184,10 @@
 
 /datum/admins/proc/removeDonator(ckey)
 	var/removedonator = FALSE
+	ckey = ckey(ckey)
 	if(!ckey)
 		return
 	var/client/C = GLOB.directory[ckey]
-	ckey = lowertext("[ckey]")
 	if(!("[ckey]" in GLOB.donators))
 		to_chat(usr, "<span class='danger'>[ckey] is not a donator!</span>", confidential = TRUE)
 		log_admin("[key_name(usr)] tried to remove [ckey] as a donator but they were not a donator.")

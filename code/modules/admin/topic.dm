@@ -575,6 +575,8 @@
 		browse_messages(target_ckey = target, agegate = agegate)
 
 	else if(href_list["showmessageckeylinkless"])
+		if(!check_rights(R_ADMIN)) //the only note link with no rights check: any admin rank could read anyone's notes
+			return
 		var/target = href_list["showmessageckeylinkless"]
 		browse_messages(target_ckey = target, linkless = 1)
 
@@ -2169,8 +2171,7 @@
 		var/player_cid = href_list["unbancid"]
 		var/role = href_list["unbanrole"]
 		var/page = href_list["unbanpage"]
-		var/admin_key = href_list["unbanadminkey"]
-		unban(ban_id, player_key, player_ip, player_cid, role, page, admin_key)
+		unban(ban_id, player_key, player_ip, player_cid, role, page, href_list["unbansearchkey"], href_list["unbansearchadminkey"], href_list["unbansearchip"], href_list["unbansearchcid"])
 
 	else if(href_list["unbanlog"])
 		var/ban_id = href_list["unbanlog"]

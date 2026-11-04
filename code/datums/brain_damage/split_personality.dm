@@ -181,7 +181,7 @@
 
 /datum/brain_trauma/severe/split_personality/brainwashing/get_ghost()
 	set waitfor = FALSE
-	var/list/mob/dead/observer/candidates = pollCandidatesForMob("Do you want to play as [owner]'s brainwashed mind?", null, null, null, 75, stranger_backseat)
+	var/list/mob/dead/observer/candidates = pollCandidatesForMob("Do you want to play as [owner]'s brainwashed mind?", ROLE_BRAINWASHED, null, null, 75, stranger_backseat) //with no role, a poll checks no bans at all
 	if(LAZYLEN(candidates))
 		var/mob/dead/observer/C = pick(candidates)
 		stranger_backseat.key = C.key

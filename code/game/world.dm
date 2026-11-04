@@ -32,6 +32,7 @@ GLOBAL_VAR_INIT(tgs_initialized, FALSE)
 	SSdbcore.CheckSchemaVersion()
 	SSdbcore.SetRoundID()
 	SetupLogs()
+	SSbans.load() //before anyone can connect: bans hold with no database, or a dead one
 
 #ifndef USE_CUSTOM_ERROR_HANDLER
 	world.log = file("[GLOB.log_directory]/dd.log")

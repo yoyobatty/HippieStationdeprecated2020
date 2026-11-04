@@ -197,7 +197,7 @@ SUBSYSTEM_DEF(stickyban)
 		for (var/ip in ips)
 			var/list/sqlip = list()
 			sqlip["stickyban"] = "'[sanitizeSQL(ckey)]'"
-			sqlip["matched_ip"] = "'[sanitizeSQL(ip)]'"
+			sqlip["matched_ip"] = "INET_ATON('[sanitizeSQL(ip)]')" //an INT UNSIGNED column: the quoted dotted form went in as its first number, or not at all
 			sqlips[++sqlips.len] = sqlip
 
 	if (length(sqlckeys))

@@ -367,6 +367,7 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 	get_message_output("watchlist entry", ckey)
 	check_ip_intel()
 	validate_key_in_db()
+	build_ban_cache(src) //now, so a ban check later never has to query (or sleep) for it
 
 	send_resources()
 
@@ -472,7 +473,7 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 	if(!SSdbcore.Connect())
 		return
 	var/sql_ckey = sanitizeSQL(src.ckey)
-	var/datum/DBQuery/query_get_related_ip = SSdbcore.NewQuery("SELECT ckey FROM [format_table_name("player")] WHERE ip = INET_ATON('[address]') AND ckey != '[sql_ckey]'")
+	var/datum/DBQuery/query_get_related_ip = SSdbcore.NewQuery("SELECT ckey FROM [format_table_name("player")] WHERE ip = INET_ATON('[sanitizeSQL(address)]') AND ckey != '[sql_ckey]'")
 	if(!query_get_related_ip.Execute())
 		qdel(query_get_related_ip)
 		return
@@ -480,7 +481,7 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 	while(query_get_related_ip.NextRow())
 		related_accounts_ip += "[query_get_related_ip.item[1]], "
 	qdel(query_get_related_ip)
-	var/datum/DBQuery/query_get_related_cid = SSdbcore.NewQuery("SELECT ckey FROM [format_table_name("player")] WHERE computerid = '[computer_id]' AND ckey != '[sql_ckey]'")
+	var/datum/DBQuery/query_get_related_cid = SSdbcore.NewQuery("SELECT ckey FROM [format_table_name("player")] WHERE computerid = '[sanitizeSQL(computer_id)]' AND ckey != '[sql_ckey]'")
 	if(!query_get_related_cid.Execute())
 		qdel(query_get_related_cid)
 		return
@@ -698,7 +699,7 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 	var/sql_system_ckey = sanitizeSQL(system_ckey)
 	var/sql_ckey = sanitizeSQL(ckey)
 	//check to see if we noted them in the last day.
-	var/datum/DBQuery/query_get_notes = SSdbcore.NewQuery("SELECT id FROM [format_table_name("messages")] WHERE type = 'note' AND targetckey = '[sql_ckey]' AND adminckey = '[sql_system_ckey]' AND timestamp + INTERVAL 1 DAY < NOW() AND deleted = 0 AND (expire_timestamp > NOW() OR expire_timestamp IS NULL)")
+	var/datum/DBQuery/query_get_notes = SSdbcore.NewQuery("SELECT id FROM [format_table_name("messages")] WHERE type = 'note' AND targetckey = '[sql_ckey]' AND adminckey = '[sql_system_ckey]' AND timestamp + INTERVAL 1 DAY > NOW() AND deleted = 0 AND (expire_timestamp > NOW() OR expire_timestamp IS NULL)")
 	if(!query_get_notes.Execute())
 		qdel(query_get_notes)
 		return

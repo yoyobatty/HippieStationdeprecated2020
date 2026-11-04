@@ -67,6 +67,9 @@
 	var/question = input("Write your question","Question") as message|null
 	if(!question)
 		return
+	if(length(question) > 255) //the column sizes, which strict mode refuses to overflow rather than cut
+		to_chat(src, "The question can't be longer than 255 characters.", confidential=TRUE)
+		return
 	question = sanitizeSQL(question)
 	var/list/sql_option_list = list()
 	if(polltype != POLLTYPE_TEXT)
@@ -75,6 +78,9 @@
 			var/option = input("Write your option","Option") as message|null
 			if(!option)
 				return
+			if(length(option) > 255)
+				to_chat(src, "An option can't be longer than 255 characters.", confidential=TRUE)
+				continue
 			option = sanitizeSQL(option)
 			var/default_percentage_calc = 0
 			if(polltype != POLLTYPE_IRV)
@@ -91,19 +97,16 @@
 			var/descmid = ""
 			var/descmax = ""
 			if(polltype == POLLTYPE_RATING)
+				//left as numbers: escaped they were text, so "5" >= "10" refused a 5 to 10 scale and a minimum of 0 was a runtime
 				minval = input("Set minimum rating value.","Minimum rating") as num|null
-				if(minval)
-					minval = sanitizeSQL(minval)
-				else if(minval == null)
+				if(isnull(minval))
 					return
 				maxval = input("Set maximum rating value.","Maximum rating") as num|null
-				if(maxval)
-					maxval = sanitizeSQL(maxval)
+				if(isnull(maxval))
+					return
 				if(minval >= maxval)
 					to_chat(src, "Maximum rating value can't be less than or equal to minimum rating value", confidential=TRUE)
 					continue
-				else if(maxval == null)
-					return
 				descmin = input("Optional: Set description for minimum rating","Minimum rating description") as message|null
 				if(descmin)
 					descmin = sanitizeSQL(descmin)
@@ -119,6 +122,9 @@
 					descmax = sanitizeSQL(descmax)
 				else if(descmax == null)
 					return
+				if(length(descmin) > 32 || length(descmid) > 32 || length(descmax) > 32)
+					to_chat(src, "Rating descriptions can't be longer than 32 characters.", confidential=TRUE)
+					continue
 			sql_option_list += list(list("text" = "'[option]'", "minval" = "'[minval]'", "maxval" = "'[maxval]'", "descmin" = "'[descmin]'", "descmid" = "'[descmid]'", "descmax" = "'[descmax]'", "default_percentage_calc" = "'[default_percentage_calc]'"))
 			switch(alert(" ",,"Add option","Finish", "Cancel"))
 				if("Add option")
