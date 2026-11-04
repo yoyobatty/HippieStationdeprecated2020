@@ -531,6 +531,9 @@
 	if(owner.bot_life_sentence)
 		serve_time()
 		return
+	// In a cell for a while: doing its time, or trying the window (goals/prisoner.dm).
+	if(do_time())
+		return
 
 	// Whatever can't wait for anything below - the shuttle is leaving, the room is on fire (bot_duties.dm).
 	if(run_duties(BOT_DUTY_URGENT))
@@ -542,6 +545,12 @@
 	if(op_team || bot_wizard)
 		idle_fidget()
 		return
+
+	// What it's after this part of the shift (bot_pursuits.dm): bored of it yet. Out for a social, the bar comes before work now and then.
+	if(!gone_loud() && !gym_run)
+		mind_pursuit()
+		if(pursuit == BOT_PURSUIT_SOCIAL && prob(40) && run_duties(BOT_DUTY_LEISURE))
+			return
 
 	// A blob in sight, for anybody armed (goals/blob.dm).
 	if(world.time >= next_blob_check)

@@ -15,6 +15,14 @@
 #define BOT_DUTY_WORK 2
 #define BOT_DUTY_LEISURE 3
 
+// What a bot's after this part of its shift (bot_pursuits.dm)
+#define BOT_PURSUIT_JOB "job"
+#define BOT_PURSUIT_POWER "power"
+#define BOT_PURSUIT_UPKEEP "upkeep"
+#define BOT_PURSUIT_EXPLORE "explore"
+#define BOT_PURSUIT_SOCIAL "social"
+#define BOT_PURSUIT_CAREFUL "careful"
+
 // Pastimes a bot can have (bot_personality.dm)
 #define BOT_HABIT_SMOKER "smoker"
 #define BOT_HABIT_GAMER "gamer"

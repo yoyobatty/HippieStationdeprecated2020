@@ -173,8 +173,8 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 /// to be bitten. A goliath stood in a tunnel doesn't attack anything it isn't bored of, and three miners waited behind one for it to
 /// move until their tanks ran out.
 /datum/bot_brain/proc/mind_fauna()
-	if(!is_miner() || !(on_lavaland() || gym_run) || world.time < next_taser_time || state == BOT_STATE_COMBAT)
-		return
+	if(!(is_miner() || pursuit == BOT_PURSUIT_EXPLORE) || !(on_lavaland() || gym_run) || world.time < next_taser_time || state == BOT_STATE_COMBAT)
+		return //an explorer down there shoots what comes at it as well (goals/exploring.dm)
 	for(var/mob/living/simple_animal/hostile/asteroid/beast in view(BOT_SIGHT_RANGE, owner))
 		if(beast.stat == CONSCIOUS && try_shoot_at(beast))
 			return

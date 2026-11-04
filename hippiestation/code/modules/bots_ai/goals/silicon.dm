@@ -125,6 +125,12 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 // ---------------------------------------------------------------------------------------------
 
 /datum/bot_silicon/ai
+	/// How by the book it is about doors: a strict one asks what it's for, an easygoing one just opens (the user's ruling: some are
+	/// indifferent). Whatever it is, its laws come first.
+	var/strictness = 0.5
+	/// Somebody it's asked what a door's for, and until when the answer's that.
+	var/datum/weakref/asked_why
+	var/asked_why_until = 0
 	/// Weakref -> when it can next call this person out.
 	var/list/called_out
 	/// Weakrefs of the bodies it's told Medical about.
@@ -135,6 +141,7 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 /datum/bot_silicon/ai/think()
 	if(!greeted)
 		greeted = TRUE
+		strictness = rand(10, 90) / 100
 		say_it(pick("Good morning, crew. Station systems nominal.", "All systems online. Call if you need a door.", "AI online. Have a safe shift."))
 	if(subverted())
 		return //no doors for the crew, no callouts, no bodies reported: only its law's people, when they ask (heard())
@@ -234,11 +241,67 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 			next_law_recital = world.time + 1 MINUTES
 			state_laws()
 		return
-	if(bot_text_has_any(lower_msg, list("open", "door", "let me", "unbolt")))
-		var/obj/machinery/door/airlock/D = door_near(talker)
+	var/answering = world.time < asked_why_until && asked_why?.resolve() == talker //what the door it asked about is for
+	if(answering || bot_text_has_any(lower_msg, list("open", "door", "let me", "unbolt", "help")))
+		asked_why_until = 0
+		consider_door_for(talker, lower_msg, answering)
+
+/// Somebody asking the AI for a door, or for help. Its laws first: nobody's let anywhere they'd harm people from, and nobody in
+/// danger is left in it. Then the high security doors are for those cleared for them, and then it's down to the AI: a strict one
+/// asks what it's for, an easygoing one opens up.
+/datum/bot_silicon/ai/proc/consider_door_for(mob/living/talker, lower_msg, answering)
+	var/mob/living/carbon/human/H = talker
+	var/obj/machinery/door/airlock/D = door_near(talker)
+	// Law 1, the harm it would help: somebody out to hurt people. A strict AI won't open for anybody Security's after; even an
+	// easygoing one won't for a traitor out in the open or somebody wanted for something serious.
+	if(istype(H))
+		var/datum/bot_wanted/W = bot_get_wanted_entry(H)
+		if(H.bot_brain?.gone_loud() || W?.severity >= BOT_CRIME_MAJOR || (W && strictness >= 0.5) || bot_too_dangerous(H))
+			say_it(pick("Request denied.", "No.", "Denied, [H.name]. Security has been informed."))
+			if(W)
+				W.last_seen = get_turf(H)
+				W.last_seen_at = world.time
+			return
+	// Law 1, the harm it would be leaving them in: hurt, alight, being hit, somewhere they can't breathe. Open, and help sent.
+	if(istype(H) && (H.health < H.maxHealth * 0.6 || H.on_fire || bot_being_attacked(H) || (H.bot_brain ? H.bot_brain.in_bad_air(H) : FALSE)))
 		if(D)
 			open_door(D)
-			say_it(pick("Done.", "Opening.", "Got it, [talker.name]."))
+		say_it(pick("Opening. Get to safety, [H.name].", "Door's open. Help is on the way.", "Opening. Medical has been told."))
+		var/datum/bot_request_kind/medical/M = locate() in GLOB.bot_request_kinds
+		if(M && !bot_open_request_from(H, M))
+			bot_offer_request(bot_new_request(M, H, FREQ_COMMON, H))
+		return
+	if(!D)
+		if(bot_text_has_any(lower_msg, list("help")))
+			say_it(pick("What do you need, [talker.name]?", "State your request.", "How can I help?"))
+		return
+	// The doors that aren't for everybody: the heads', the armory, the vault, the AI's own.
+	var/area/A = get_area(get_step(D, get_dir(talker, D))) || get_area(D)
+	if(bot_ai_restricted_area(A) && !(istype(H) && ((H.mind?.assigned_role in GLOB.command_positions) || (istype(A, /area/ai_monitored/security/armory) && (H.mind?.assigned_role in GLOB.security_positions)))))
+		say_it(pick("You don't have clearance for [A.name].", "Access to [A.name] is restricted. Ask a head of staff.", "Negative. [A.name] is restricted."))
+		return
+	// Law 2: an order from a crew member. A strict AI wants a reason first; it has one if they've said what for.
+	var/reason = answering || bot_text_has_any(lower_msg, list("need", "for", "because", "work", "fix", "clone", "patient", "job", "get my", "my stuff", "trapped", "stuck", "please"))
+	if(!reason && strictness >= 0.5)
+		asked_why = WEAKREF(talker)
+		asked_why_until = world.time + 1 MINUTES
+		say_it(pick("What for?", "Reason for access?", "State your reason, [talker.name]."))
+		return
+	open_door(D)
+	note("opened [D] for [talker]")
+	say_it(pick("Done.", "Opening.", "Got it, [talker.name]."))
+
+/// Places the AI keeps shut to anybody not cleared for them.
+/proc/bot_ai_restricted_area(area/A)
+	return istype(A, /area/ai_monitored) || istype(A, /area/crew_quarters/heads) || istype(A, /area/bridge) || istype(A, /area/security/nuke_storage) || istype(A, /area/storage/tech) || istype(A, /area/teleporter) || istype(A, /area/gateway)
+
+/// Somebody's been hitting them in the last little while.
+/proc/bot_being_attacked(mob/living/carbon/human/H)
+	var/key_end = ">[REF(H)]"
+	for(var/key in GLOB.bot_recent_aggression)
+		if(findtext(key, key_end) && world.time - GLOB.bot_recent_aggression[key] < 20 SECONDS)
+			return TRUE
+	return FALSE
 
 /datum/bot_silicon/ai/proc/state_laws()
 	set waitfor = FALSE

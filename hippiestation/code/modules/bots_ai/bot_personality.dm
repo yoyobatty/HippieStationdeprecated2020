@@ -98,10 +98,11 @@
 
 /// Ready for the worst, by nature or because it's seen it.
 /datum/bot_brain/proc/is_paranoid()
-	return hardened || playstyle == BOT_STYLE_PARANOID
+	return hardened || playstyle == BOT_STYLE_PARANOID || pursuit == BOT_PURSUIT_CAREFUL
 
 /// For the rest of the round, whatever it was before.
 /datum/bot_brain/proc/harden(why)
+	shaken(why) //bot_pursuits.dm: the nervous go careful for a while
 	if(is_paranoid())
 		return
 	hardened = TRUE

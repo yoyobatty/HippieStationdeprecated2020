@@ -339,3 +339,74 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return bot.shoes ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/tidies_up
+	name = "pursuits: out to keep the station nice, it bins the litter"
+	desc = "A bot whose pursuit this part of the shift is keeping the station nice sees a crisp packet on the floor and puts it in the bin."
+	duty_type = /datum/bot_duty/tidy_up
+	layout = list(
+		"#########",
+		"#B..j..u#",
+		"#########")
+	time_limit = 25 SECONDS
+	var/obj/item/litter
+	var/obj/machinery/disposal/bin/bin
+
+/datum/bot_scenario/duty/tidies_up/setup()
+	litter = new /obj/item/trash/chips(first_marker("j"))
+	place("j", litter)
+	bin = new(first_marker("u"))
+	place("u", bin)
+
+/datum/bot_scenario/duty/tidies_up/post_spawn()
+	brain.set_pursuit(BOT_PURSUIT_UPKEEP, 10 MINUTES, "the gym")
+
+/datum/bot_scenario/duty/tidies_up/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (litter.loc == bin) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/breaks_out
+	name = "prisoner: a traitor in a cell gets its hidden crowbar out and goes at the window"
+	desc = "A traitor locked in a cell, with a crowbar hidden up its back that the officer never looked for, and nobody about. It gets the crowbar out and breaks the cell window."
+	layout = list(
+		"#########",
+		"#...i...#",
+		"####d####",
+		"###.Bw###",
+		"###..l###",
+		"#########")
+	time_limit = 240 SECONDS
+	var/obj/machinery/door_timer/timer
+	var/obj/structure/window/window
+
+/datum/bot_scenario/breaks_out/issue_goal()
+	return
+
+/datum/bot_scenario/breaks_out/setup()
+	var/id = "gymcell[rand(1, 99999)]"
+	var/obj/machinery/door/window/brigdoor/door = new(first_marker("d"))
+	door.dir = SOUTH
+	door.id = id
+	var/obj/structure/closet/secure_closet/brig/locker = new(first_marker("l"))
+	locker.id = id
+	timer = new(first_marker("i"))
+	timer.id = id
+	timer.targets = list(door, locker)
+	timer.stat &= ~BROKEN
+	window = first_placed("w")
+
+/datum/bot_scenario/breaks_out/post_spawn()
+	brain.gym_scripted = FALSE
+	brain.bot_traitor = TRUE
+	brain.next_escape_try = world.time + 2 SECONDS
+	var/obj/item/organ/butt/B = bot.getorgan(/obj/item/organ/butt)
+	if(B)
+		SEND_SIGNAL(B, COMSIG_TRY_STORAGE_INSERT, new /obj/item/crowbar/red(bot), null, TRUE, TRUE)
+	timer.set_timer(10 MINUTES)
+	timer.timer_start()
+
+/datum/bot_scenario/breaks_out/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return QDELETED(window) ? BOT_GYM_PASS : BOT_GYM_PENDING
