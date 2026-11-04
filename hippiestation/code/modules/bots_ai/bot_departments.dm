@@ -286,6 +286,9 @@ GLOBAL_LIST_EMPTY(bot_panels_known)
 		P.holding = null
 		return FALSE
 	if(threat)
+		// A suit at large: the heads and the Warden drop them whatever their nature.
+		if(bot_in_nanosuit(threat) && ((work_role() in GLOB.command_positions) || work_role() == "Warden"))
+			return TRUE
 		return keen ? TRUE : null
 	// The armory's a matter of routine, and that's the Warden's.
 	if(P.department == "security" && work_role() == "Warden" && istype(get_area(P.doors[1]), /area/ai_monitored/security/armory))
@@ -305,11 +308,15 @@ GLOBAL_LIST_EMPTY(bot_panels_known)
 		return null
 	var/list/mine = my_departments()
 	var/mob/living/here = threat_in(mine)
-	var/mob/living/anywhere = ("command" in mine) ? threat_in(null) : null //the Bridge shuts for trouble anywhere
+	// The Bridge shuts for trouble anywhere, and the Brig and the armory for somebody in a nanosuit anywhere (the user's ruling, 2026-11-04).
+	var/mob/living/anywhere = (("command" in mine) || ("security" in mine)) ? threat_in(null) : null
 	for(var/datum/bot_panel/P as anything in panels)
 		if(world.time < P.last_worked + BOT_PANEL_REST)
 			continue
-		var/shut = panel_opinion(P, (P.kind == BOT_PANEL_LOCKDOWN && P.department == "command") ? anywhere : here)
+		var/mob/living/threat = here
+		if(P.kind == BOT_PANEL_LOCKDOWN && (P.department == "command" || (P.department == "security" && bot_in_nanosuit(anywhere))))
+			threat = anywhere
+		var/shut = panel_opinion(P, threat)
 		if(isnull(shut) || shut == P.is_shut() || P.moving())
 			continue
 		var/obj/machinery/button/door/B = P.button_for(src)

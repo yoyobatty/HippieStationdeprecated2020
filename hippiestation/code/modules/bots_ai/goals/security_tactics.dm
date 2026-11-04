@@ -50,6 +50,11 @@
 	var/datum/bot_wanted/W = bot_get_wanted_entry(S)
 	return W?.severity >= BOT_CRIME_MURDER
 
+/// In a Syndicate nanosuit.
+/proc/bot_in_nanosuit(mob/M)
+	var/mob/living/carbon/human/H = M
+	return istype(H) && istype(H.wear_suit, /obj/item/clothing/suit/space/hardsuit/nano)
+
 /// Everybody on Security who's free heads there. An officer already in a fight or walking a prisoner down stays where it is.
 /proc/bot_dispatch_security(turf/T, what, mob/living/caller_mob)
 	if(!T)

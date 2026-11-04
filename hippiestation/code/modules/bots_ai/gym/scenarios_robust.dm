@@ -373,3 +373,20 @@
 	if(griefer.getBruteLoss() < 15 && bot_transcript_said("finished operating"))
 		return (locate(/obj/structure/table/optable) in griefer.loc) ? BOT_GYM_PASS : BOT_GYM_FAIL
 	return BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/bug/exposed/suit_shuttle
+	name = "security: a suit at large and four of the crew dead is reason to call the shuttle early"
+	desc = "The user's ruling: with a nanosuit nobody's stopped and several dead, the Captain or acting captain calls the shuttle. Not for the suit alone, and not for the dead alone."
+
+/datum/bot_scenario/griefed/bug/exposed/suit_shuttle/grief()
+	var/obj/item/clothing/suit/space/hardsuit/nano/N = new(griefer.loc)
+	griefer.equip_to_slot_if_possible(N, ITEM_SLOT_OCLOTHING, FALSE, TRUE, TRUE)
+	brain.file_crime(griefer, "Murder", "Gym.", BOT_CRIME_MURDER)
+	GLOB.bot_dead_crew_counted_at = world.time + 1 MINUTES //the count's set by hand here: other arenas' bodies don't come into it
+	GLOB.bot_dead_crew = 0
+	var/before = bot_unstoppable_suit()
+	GLOB.bot_dead_crew = 4
+	var/after = bot_unstoppable_suit()
+	GLOB.bot_dead_crew_counted_at = 0
+	bot_clear_wanted(griefer)
+	expect(!before && after, "not for the suit alone ([before]), and for the suit with four dead ([after])")

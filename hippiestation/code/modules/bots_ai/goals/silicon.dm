@@ -22,6 +22,8 @@
 #define BOT_BORG_STEP 2
 /// Between calling the same person out over the cameras.
 #define BOT_AI_CALLOUT_GAP (45 SECONDS)
+/// How long the AI holds a suit bolted in.
+#define BOT_AI_LOCKDOWN_TIME (90 SECONDS)
 /// Tiles a cyborg will look for work in.
 #define BOT_BORG_SIGHT 7
 /// What a cyborg will walk across the station for, in its own trade.
@@ -211,7 +213,55 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 		LAZYSET(called_out, ref, world.time + BOT_AI_CALLOUT_GAP)
 		say_it(":s [H.name], [get_area_name(T, TRUE)].")
 		bot_dispatch_security(T, H.name) //goals/security_tactics.dm
+		if(istype(H.wear_suit, /obj/item/clothing/suit/space/hardsuit/nano))
+			lock_down_around(H)
 		return
+
+/// Somebody in a nanosuit on the cameras: the doors of the room it's in bolted, to hold it while Security gathers (the user's ruling,
+/// 2026-11-04). Not with anybody else in there: shutting the crew in with it is the harm its first law forbids. Lifted after a while.
+/datum/bot_silicon/ai/proc/lock_down_around(mob/living/carbon/human/H)
+	var/area/A = get_area(H)
+	if(!A || world.time < LAZYACCESS(GLOB.bot_ai_lockdown_rest, A))
+		return
+	for(var/mob/living/carbon/human/other in A)
+		if(other != H && other.stat != DEAD && other.mind?.assigned_role && !bot_get_wanted_entry(other))
+			return
+	var/list/bolted = list()
+	for(var/obj/machinery/door/airlock/D in range(12, get_turf(H)))
+		if(D.locked || !D.canAIControl(owner))
+			continue
+		var/on_the_edge = get_area(D) == A
+		if(!on_the_edge)
+			for(var/turf/T in get_adjacent_open_turfs(D))
+				if(get_area(T) == A)
+					on_the_edge = TRUE
+					break
+		if(!on_the_edge)
+			continue
+		if(D.density)
+			D.bolt()
+		else
+			INVOKE_ASYNC(src, PROC_REF(close_and_bolt), D) //the door's closing takes its time
+		bolted += D
+	if(!length(bolted))
+		return
+	LAZYSET(GLOB.bot_ai_lockdown_rest, A, world.time + 3 MINUTES)
+	note("bolted [length(bolted)] doors round [H] in [A]")
+	say_it(";[A.name] is locked down. [H.name] is inside in a Syndicate suit. Everybody keep away.")
+	addtimer(CALLBACK(src, PROC_REF(lift_lockdown), bolted, A), BOT_AI_LOCKDOWN_TIME)
+
+/datum/bot_silicon/ai/proc/close_and_bolt(obj/machinery/door/airlock/D)
+	if(D.close())
+		D.bolt()
+
+/datum/bot_silicon/ai/proc/lift_lockdown(list/doors, area/A)
+	for(var/obj/machinery/door/airlock/D in doors)
+		if(!QDELETED(D) && D.locked)
+			D.unbolt()
+	note("lifted the lockdown on [A]")
+
+/// Area -> when the AI can lock it down again.
+GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 
 /datum/bot_silicon/ai/proc/read_the_crew_monitor()
 	for(var/mob/living/carbon/human/H in GLOB.dead_mob_list)

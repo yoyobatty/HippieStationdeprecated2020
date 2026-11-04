@@ -27,6 +27,10 @@ GLOBAL_LIST_INIT(bot_shuttle_casualty_reasons, list(
 	"We've lost too many people. Evacuating the station.",
 ))
 
+GLOBAL_LIST_INIT(bot_shuttle_suit_reasons, list(
+	"A Syndicate agent in a nanosuit is killing the crew and Security can't stop them. Evacuating.",
+	"Hostile in a Syndicate suit, several dead. Getting everyone off the station.",
+))
 GLOBAL_LIST_INIT(bot_shuttle_called_lines, list(
 	";Shuttle's been called, finish up what you're doing.",
 	";I've called the shuttle, get to departures when it's close.",
@@ -62,6 +66,22 @@ GLOBAL_LIST_INIT(bot_shuttle_called_lines, list(
 			lost++
 	return crew >= 6 && lost * 3 >= crew
 
+/// Dead crew before a suit nobody's stopped is reason enough to leave.
+#define BOT_SUIT_DEATHS_TO_LEAVE 4
+
+/// Somebody in a Syndicate suit loose, wanted, and the crew dying: the user's ruling (2026-11-04) is that the Captain or the acting
+/// captain calls the shuttle early, as players do when a round's gone that way.
+/proc/bot_unstoppable_suit()
+	if(bot_dead_crew_count() < BOT_SUIT_DEATHS_TO_LEAVE) //goals/robust.dm
+		return FALSE
+	for(var/datum/weakref/ref as anything in GLOB.bot_security_wanted)
+		var/mob/living/carbon/human/H = ref.resolve()
+		if(H && H.stat != DEAD && !H.handcuffed && istype(H.wear_suit, /obj/item/clothing/suit/space/hardsuit/nano))
+			return TRUE
+	return FALSE
+
+#undef BOT_SUIT_DEATHS_TO_LEAVE
+
 /// Why this bot should call the shuttle now, in its own words, or null if it shouldn't.
 /datum/bot_brain/proc/reason_to_call_shuttle()
 	var/obj/docking_port/mobile/emergency/E = SSshuttle.emergency
@@ -72,6 +92,8 @@ GLOBAL_LIST_INIT(bot_shuttle_called_lines, list(
 		return null
 	if(bot_crew_decimated())
 		return pick(GLOB.bot_shuttle_casualty_reasons)
+	if(bot_unstoppable_suit())
+		return pick(GLOB.bot_shuttle_suit_reasons)
 	return world.time >= ends_at ? pick(GLOB.bot_shuttle_wrap_up_reasons) : null
 
 /datum/bot_duty/call_shuttle
