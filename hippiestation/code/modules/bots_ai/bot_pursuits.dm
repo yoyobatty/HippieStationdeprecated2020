@@ -134,17 +134,25 @@ GLOBAL_LIST_INIT(bot_litter_types, typecacheof(list(/obj/item/trash, /obj/item/c
 		return FALSE
 	return bot.assign_goal(new /datum/bot_goal/tidy_litter(litter, B))
 
+/// The nearest bin to `near` that the bot can walk to by doors its own ID opens. The nearest of all was often behind a counter or
+/// a door it has no access to (the kitchen's, the bar's): an assistant picked up a plate, set off for the kitchen's bin, found no
+/// way to it and gave up, ten times in a shift, still holding the plate.
 /datum/bot_brain/proc/nearest_bin(atom/near)
-	var/best
-	var/best_dist
+	var/list/by_dist = list()
 	for(var/obj/machinery/disposal/bin/B as anything in bot_instances_of(/obj/machinery/disposal/bin))
 		if(QDELETED(B) || B.z != owner.z || (B.stat & BROKEN))
 			continue
 		var/dist = get_dist(near, B)
-		if(dist <= 12 && (!best || dist < best_dist))
-			best = B
-			best_dist = dist
-	return best
+		if(dist <= 12)
+			by_dist[B] = dist
+	sortTim(by_dist, GLOBAL_PROC_REF(cmp_numeric_asc), TRUE)
+	var/tries = 0
+	for(var/obj/machinery/disposal/bin/B as anything in by_dist)
+		if(can_walk_lawfully_to(B))
+			return B
+		if(++tries >= 3)
+			break
+	return null
 
 /datum/bot_goal/tidy_litter
 	lawful = TRUE

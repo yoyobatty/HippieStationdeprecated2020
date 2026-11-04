@@ -366,6 +366,24 @@
 		return BOT_GYM_FAIL
 	return (litter.loc == bin) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/datum/bot_scenario/duty/tidies_up/locked_bin
+	name = "pursuits: the nearest bin is through a door it has no access to, so the litter goes in the one it can get to"
+	desc = "Keeping the station nice, it picks up a crisp packet. The nearest bin is behind the kitchen door, which its ID doesn't open; the other is a few steps further along the corridor. An assistant set off for the kitchen's bin ten times in a shift, found no way to it, and gave up each time with the rubbish in its hand."
+	job = "Assistant"
+	layout = list(
+		"###########",
+		"#u...Bj.Dk#",
+		"###########")
+
+/datum/bot_scenario/duty/tidies_up/locked_bin/setup()
+	litter = new /obj/item/trash/chips(first_marker("j"))
+	place("j", litter)
+	bin = new(first_marker("u"))
+	place("u", bin)
+	place("k", new /obj/machinery/disposal/bin(first_marker("k")))
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	A.req_access = list(ACCESS_KITCHEN)
+
 /datum/bot_scenario/breaks_out
 	name = "prisoner: a traitor in a cell gets its hidden crowbar out and goes at the window"
 	desc = "A traitor locked in a cell, with a crowbar hidden up its back that the officer never looked for, and nobody about. It gets the crowbar out and breaks the cell window."
@@ -698,10 +716,6 @@
 		"#B...Dx..G#",
 		"###########")
 	time_limit = 20 SECONDS
-
-/datum/bot_scenario/dock_door/setup()
-	for(var/turf/T in markers["D"])
-		place("D", new /obj/machinery/door/airlock(T))
 
 /datum/bot_scenario/dock_door/post_spawn()
 	addtimer(CALLBACK(src, PROC_REF(shuttle_leaves)), 3) //after it has set off, the way planned through the door and the dock
