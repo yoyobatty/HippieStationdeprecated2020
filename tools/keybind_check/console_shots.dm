@@ -51,7 +51,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			return open
 
 /// One click or keystroke on a tgui page, from script. "click:<text>" presses the first button whose text starts with it,
-/// "input<N>:<text>" types in the Nth text box (from 0), "scroll:<pixels>" scrolls the page to there.
+/// "input<N>:<text>" types in the Nth text box (from 0), "type<N>:<text>" types and leaves it (for boxes that send on
+/// change), "scroll:<pixels>" scrolls the page to there.
 /proc/cs_tgui_do(client/C, window_id, action)
 	var/js
 	if(findtext(action, "click:") == 1)
@@ -60,6 +61,12 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	else if(findtext(action, "scroll:") == 1)
 		var/pixels = text2num(copytext(action, 8))
 		js = "Array.prototype.slice.call(document.querySelectorAll('*')).filter(function(e){var o=getComputedStyle(e).overflowY;return (o=='auto'||o=='scroll')&&e.scrollHeight>e.clientHeight;}).forEach(function(e){e.scrollTop=[pixels];});"
+	else if(findtext(action, "type") == 1)
+		// Typed and left, as a player does: for boxes that only send what's in them on enter or leaving (onChange)
+		var/colon = findtext(action, ":")
+		var/index = text2num(copytext(action, 5, colon))
+		var/text = copytext(action, colon + 1)
+		js = "var i=document.querySelectorAll('input')\[[index]\];if(i){i.focus();i.value=[json_encode(text)];i.dispatchEvent(new Event('input',{bubbles:true}));i.blur();}"
 	else if(findtext(action, "input") == 1)
 		var/colon = findtext(action, ":")
 		var/index = text2num(copytext(action, 6, colon))
@@ -133,6 +140,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_teg(C, H, label)
 		if("pipes")
 			cs_pipes(C, H, label)
+		if("tcomms")
+			cs_tcomms(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -1105,6 +1114,15 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			return FALSE
 	return TRUE
 
+/// Somewhere to stand or set something down: pipes and vents under the floor are fine
+/proc/cs_free_floor(turf/T)
+	if(!istype(T, /turf/open/floor) || T.density)
+		return FALSE
+	for(var/atom/movable/AM in T)
+		if(AM.density || ismob(AM))
+			return FALSE
+	return TRUE
+
 /proc/cs_teg(client/C, mob/living/carbon/human/H, label)
 	H.equipOutfit(/datum/outfit/job/engineer)
 	// A floor with room for a circulator either side, and for us beside it
@@ -1256,4 +1274,68 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		cs_tgui_do(C, ui.window_id, "click:Terminus")
 		sleep(10)
 		cs_check("clicking Terminus Tube Station makes one", locate(/obj/structure/c_transit_tube/station/reverse) in tubes.loc)
+	SStgui.close_user_uis(H)
+
+// The telecommunications monitor, in the telecomms control room beside the station's own servers
+
+/proc/cs_tcomms(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/engineer)
+	var/turf/spot
+	for(var/turf/T in get_area_turfs(/area/tcommsat/computer))
+		if(cs_free_floor(T) && cs_free_floor(get_step(T, EAST)))
+			spot = T
+			break
+	var/obj/machinery/telecomms/hub/hub
+	for(var/obj/machinery/telecomms/hub/candidate in GLOB.telecomms_list)
+		if(is_station_level(candidate.z))
+			hub = candidate
+			break
+	cs_check("the telecomms control room and the hub are there", spot && hub, "room [spot ? "yes" : "no"], hub [hub ? "yes" : "no"], [length(GLOB.telecomms_list)] telecomms machines")
+	if(!spot || !hub)
+		return
+	H.forceMove(spot)
+	var/obj/machinery/computer/telecomms/monitor/console = new(get_step(spot, EAST))
+	console.stat &= ~(NOPOWER|BROKEN)
+	usr = H
+	console.interact(H)
+	sleep(3 SECONDS)
+	var/datum/tgui/ui = cs_find_ui(H, console)
+	if(!ui)
+		// The old window, probed and then on a machine
+		console.network = hub.network
+		usr = H
+		console.Topic(null, list("operation" = "probe"))
+		sleep(10)
+		winset(C, "comm_monitor", "pos=200,40")
+		sleep(10)
+		cs_shot("popup_tcomms_[label]_1_probed")
+		usr = H
+		console.Topic(null, list("viewmachine" = hub.id))
+		sleep(10)
+		cs_shot("popup_tcomms_[label]_2_machine")
+		H << browse(null, "window=comm_monitor")
+		return
+	winset(C, ui.window_id, "pos=200,40")
+	// Clicked and typed in the window
+	cs_tgui_do(C, ui.window_id, "type0:[hub.network]")
+	sleep(10)
+	cs_check("typing the network sets it", console.network == hub.network, console.network)
+	cs_tgui_do(C, ui.window_id, "click:Probe network")
+	sleep(10)
+	cs_check("clicking Probe network finds its machines", length(console.machinelist) > 3, "[length(console.machinelist)] found")
+	cs_shot("popup_tcomms_[label]_1_probed", console.name)
+	var/obj/machinery/telecomms/first = length(console.machinelist) ? console.machinelist[1] : null
+	cs_tgui_do(C, ui.window_id, "click:View")
+	sleep(10)
+	cs_check("clicking View shows that machine", console.screen == 1 && console.SelectedMachine == first, "[console.SelectedMachine]")
+	cs_shot("popup_tcomms_[label]_2_machine", console.name)
+	cs_tgui_do(C, ui.window_id, "click:Main menu")
+	sleep(10)
+	cs_check("clicking Main menu goes back", console.screen == 0)
+	cs_tgui_do(C, ui.window_id, "type0:a network name far too long")
+	sleep(10)
+	cs_check("a network name over 15 letters is refused, as before", console.network == hub.network && findtext(console.temp, "TOO LENGHTLY"), console.network)
+	cs_tgui_do(C, ui.window_id, "click:Flush buffer")
+	sleep(10)
+	cs_check("clicking Flush buffer empties it", !length(console.machinelist))
 	SStgui.close_user_uis(H)

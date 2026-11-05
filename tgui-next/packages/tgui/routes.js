@@ -86,6 +86,7 @@ import { StripMenu } from './interfaces/StripMenu';
 import { SuitStorageUnit } from './interfaces/SuitStorageUnit';
 import { Tank } from './interfaces/Tank';
 import { TankDispenser } from './interfaces/TankDispenser';
+import { TelecommsMonitor } from './interfaces/TelecommsMonitor';
 import { ThermoMachine } from './interfaces/ThermoMachine';
 import { ThermoelectricGenerator } from './interfaces/ThermoelectricGenerator';
 import { TurbineComputer } from './interfaces/TurbineComputer';
@@ -472,6 +473,10 @@ const ROUTES = {
   tank_dispenser: {
     component: () => TankDispenser,
     scrollable: false,
+  },
+  telecomms_monitor: {
+    component: () => TelecommsMonitor,
+    scrollable: true,
   },
   thermoelectric_generator: {
     component: () => ThermoelectricGenerator,
