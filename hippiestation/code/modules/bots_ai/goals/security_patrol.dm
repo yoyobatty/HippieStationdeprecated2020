@@ -350,8 +350,26 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 // ============================================================
 
 // Returns TRUE if the bot is now (or already was) arresting H.
+/// Another officer's prisoner already: on the way to a cell with them (their escort claims the prisoner), or in a running cell. Two
+/// officers after one prisoner went wrong: one came into the cell the other had just put him in, tasered and cuffed him and started
+/// dragging him out, the first took that for a jailbreak and shot, and four officers fought it out at the labor shuttle dock.
+/datum/bot_brain/proc/brigged_by_another(mob/living/carbon/human/H)
+	if(taken_by_another(H))
+		var/datum/bot_brain/other = GLOB.bot_work_claims[REF(H)]
+		if(other?.is_security_job() && istype(other.current_goal, /datum/bot_goal/brig_prisoner))
+			return TRUE
+	// Serving a sentence: the prisoner of a running cell (GLOB.bot_brig_sentences), inside it. Not just anybody standing in a cell
+	// with a timer going: a Bot Gym arena built where a running cell had been read as one, and nobody there was ever arrested.
+	for(var/obj/machinery/door_timer/T as anything in GLOB.bot_brig_sentences)
+		var/datum/weakref/ref = GLOB.bot_brig_sentences[T]
+		if(!QDELETED(T) && T.timing && ref?.resolve() == H && (get_turf(H) in bot_get_cell_interior(T)))
+			return TRUE
+	return FALSE
+
 /datum/bot_brain/proc/begin_arrest(mob/living/carbon/human/H)
 	if(!istype(H) || QDELETED(H) || H == owner || H.stat == DEAD)
+		return FALSE
+	if(brigged_by_another(H))
 		return FALSE
 	var/datum/bot_wanted/W = bot_get_wanted_entry(H)
 	var/crime
@@ -476,6 +494,9 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		end_arrest("suspect is gone")
 		return
 	if(arrest_busy)
+		return
+	if(brigged_by_another(S))
+		end_arrest("another officer has them, or they're in a cell")
 		return
 	if(S.stat == DEAD)
 		bot_say(owner, ":s Suspect [S.name] is down, deceased, in [get_area_name(S, TRUE)].")

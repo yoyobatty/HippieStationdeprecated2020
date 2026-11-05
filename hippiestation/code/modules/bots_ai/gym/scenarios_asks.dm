@@ -290,6 +290,11 @@
 
 /datum/bot_scenario/brigged/release_run()
 	GLOB.bot_security_wanted -= WEAKREF(prisoner)
+	// A running timer outlives the arena, and the next arena built on the same turfs reads as inside a cell: Security left anybody
+	// standing there alone (brigged_by_another(), goals/security_patrol.dm)
+	if(!QDELETED(timer) && timer.timing)
+		timer.timer_end(forced = TRUE)
+	GLOB.bot_brig_sentences -= timer
 	return ..()
 
 /datum/bot_scenario/barefoot_glass

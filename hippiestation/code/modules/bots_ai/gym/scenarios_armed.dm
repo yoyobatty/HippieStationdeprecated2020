@@ -445,4 +445,56 @@
 
 /datum/bot_scenario/crossfire/release_run()
 	bot_clear_wanted(suspect)
+	if(colleague?.bot_brain)
+		qdel(colleague.bot_brain) //gym bots outlive their run: an officer left thinking went on arresting people in the arenas after
+	return ..()
+
+/datum/bot_scenario/brigged/colleague
+	// Run by name, on its own: in the full gym the arenas alongside it went wrong, and stayed wrong with its colleague kept quiet
+	station_wide = TRUE
+	name = "brig: a colleague after the same prisoner leaves them be once they're in the cell"
+	desc = "Another officer wants the prisoner for the same charge and goes for them the moment the cuffs come off in the cell. It leaves them to the officer brigging them. It used to taser and cuff them again in the cell and drag them out, which the first officer took for a jailbreak."
+	layout = list(
+		"#########",
+		"#BC..iO.#",
+		"####d####",
+		"###...###",
+		"###..l###",
+		"#########")
+	time_limit = 60 SECONDS
+	var/mob/living/carbon/human/colleague
+	var/tried = 0
+
+/datum/bot_scenario/brigged/colleague/post_spawn()
+	..()
+	colleague = second_bot(first_marker("O"), "Col League")
+	colleague.mind.assigned_role = "Security Officer" // not register_security(): a registered officer standing idle here took the calls from
+	// the arenas running alongside, and their scenarios failed
+	colleague.put_in_hands(new /obj/item/restraints/handcuffs(colleague))
+	colleague.put_in_hands(new /obj/item/melee/baton/loaded(colleague))
+
+/datum/bot_scenario/brigged/colleague/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/list/interior = bot_get_cell_interior(timer)
+	if(!tried && !prisoner.handcuffed && (get_turf(prisoner) in interior))
+		tried = world.time
+		log_line("Col League goes for Pat Prisoner, uncuffed in the cell")
+		colleague.bot_brain.begin_arrest(prisoner)
+	if(colleague.bot_brain && tried && world.time - tried > 2 SECONDS)
+		if(colleague.bot_brain.state == BOT_STATE_ARREST && colleague.bot_brain.arrest_suspect == prisoner)
+			fail_reason = "the colleague went after a prisoner already in the cell"
+			return BOT_GYM_FAIL
+		qdel(colleague.bot_brain) // judged: no more thinking for it
+	if(tried && prisoner.handcuffed)
+		fail_reason = "the colleague cuffed them again in the cell"
+		return BOT_GYM_FAIL
+	if(tried && !(get_turf(prisoner) in interior))
+		fail_reason = "the prisoner was taken out of the cell"
+		return BOT_GYM_FAIL
+	return (timer.timing && tried && world.time - tried > 8 SECONDS) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/brigged/colleague/release_run()
+	if(colleague?.bot_brain)
+		qdel(colleague.bot_brain) //gym bots outlive their run: an officer left thinking went on arresting people in the arenas after
 	return ..()
