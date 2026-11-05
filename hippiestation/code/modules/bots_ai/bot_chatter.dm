@@ -123,6 +123,8 @@ GLOBAL_LIST_EMPTY(bot_radio_lately)
 		talker = V.source
 	if(!isliving(talker) || talker == owner)
 		return
+	if(!istype(speaker, /atom/movable/virtualspeaker) || get_dist(owner, talker) <= 7)
+		bot_heard_apology(talker, lowertext(raw_message)) //bot_witness.dm: an accident said sorry for
 	if(heard_codeword(talker, lowertext(raw_message))) //goals/robust.dm: other traitors' words count, bots or not
 		return
 	if(gone_loud()) //nobody it's on speaking terms with, short of a deal
@@ -152,8 +154,14 @@ GLOBAL_LIST_EMPTY(bot_radio_lately)
 	// A call for somebody of this bot's trade, or for this bot by name to come somewhere (bot_requests.dm).
 	if(heard_call(talker, lower_msg, radio_freq, named))
 		return
+	// What they need, told a cargo technician who asked (bot_collabs.dm): "silver"
+	if(world.time < materials_ask_until && materials_asker?.resolve() == talker && bot_material_named(lower_msg) && order_materials_for(talker, lower_msg, radio_freq))
+		return
 	// A job called that nobody's on: said so, to their face or over the radio (bot_asks.dm).
 	var/list/title_jobs = bot_title_called(lower_msg)
+	// Mining called with nobody mining: Cargo orders it in instead (bot_collabs.dm)
+	if(title_jobs && ("Shaft Miner" in title_jobs) && !bot_anyone_in_jobs(title_jobs, owner) && order_materials_for(talker, lower_msg, radio_freq))
+		return
 	if(title_jobs && !(work_role() in title_jobs) && say_nobody_on(title_jobs, radio_freq))
 		return
 	// Over the radio it only answers to its name - half the station isn't talking to it.
@@ -191,18 +199,25 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 
 /// TRUE if any of words is in text as a whole word.
 /proc/bot_text_has_any(text, list/words)
-	var/static/list/cache = list()
 	for(var/word in words)
-		var/regex/R = cache[word]
-		if(!R)
-			R = regex("\\b[word]\\b", "i")
-			cache[word] = R
-		if(R.Find(text))
+		if(bot_text_word_at(text, word))
 			return TRUE
 	return FALSE
 
+/// Where a whole word first comes in the text, or 0
+/proc/bot_text_word_at(text, word)
+	var/static/list/cache = list()
+	var/regex/R = cache[word]
+	if(!R)
+		R = regex("\\b[word]\\b", "i")
+		cache[word] = R
+	return R.Find(text)
+
 /// What to say back to something said to this bot in particular, or null if it has nothing to say to it.
 /datum/bot_brain/proc/answer_for(mob/living/talker, lower_msg, over_radio, named)
+	var/adrift_news = adrift_answer(lower_msg)
+	if(adrift_news)
+		return adrift_news
 	if(bot_text_has_any(lower_msg, list("wait", "hold on", "hang on", "stop", "stop running", "wait up")) && !bot_text_has_any(lower_msg, list("stop following", "wait here")))
 		var/waiting = wait_for(talker) //bot_asks.dm
 		if(waiting)
@@ -332,6 +347,9 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 	if(bot_text_has_any(lower_msg, GLOB.bot_greeting_words))
 		var/their_name = talker.name != "Unknown" ? talker.first_name() : null
 		return (their_name && prob(40)) ? "Hey, [their_name]." : pick(GLOB.bot_greeting_reply_lines)
+	// Just its name ("Sam?"): that's it being called, not a question it can't answer
+	if(named && just_my_name(lower_msg))
+		return pick("Yeah?", "Yes?", "What's up?", "Here.")
 	if(findtext(lower_msg, "?"))
 		return pick(GLOB.bot_question_reply_lines)
 	// Called by name and nothing else it understood. Someone just talking in its direction gets no stock reply; somebody it's
@@ -570,7 +588,11 @@ GLOBAL_LIST_INIT(bot_place_words, list(
 /// "Where are you?", "where you at", "tell me your location", "are you in maintenance?": where it is by the area's name, and yes or no
 /// when they've a place in mind. Null for anything else.
 /datum/bot_brain/proc/where_i_am(lower_msg)
-	var/asked_mine = bot_text_has_any(lower_msg, list("where are you", "where r u", "where are u", "where you at", "where ya at", "where u at", "wru", "your location", "your position", "whereabouts are you", "where you be"))
+	var/asked_mine = bot_text_has_any(lower_msg, list("where are you", "where r u", "where are u", "where you at", "where ya at", "where u at", "wru", "your location", "your position", "whereabouts are you", "where you be", "coords", "coordinates", "co-ords", "your gps"))
+	// Out in space it's where it is by the numbers: what it gave calling for help, and all anybody coming out can steer by
+	var/turf/out_there = get_turf(owner)
+	if(asked_mine && isspaceturf(out_there))
+		return pick("Out in space at [out_there.x], [out_there.y].", "[out_there.x], [out_there.y], out in space.", "In space, [out_there.x], [out_there.y].")
 	var/asked_if_in = bot_text_has_any(lower_msg, list("are you in", "you in the", "r u in", "are you at", "you at the", "you still in"))
 	if(!asked_mine && !asked_if_in)
 		return null
@@ -585,6 +607,27 @@ GLOBAL_LIST_INIT(bot_place_words, list(
 		if(!asked_mine)
 			return null
 	return mood_pick(list("I'm in [place]! What's up?", "[place]. Need me?"), list("[place].", "I'm in [place].", "[place], why?"), list("[place]. Why?", "[place]. What do you want?"))
+
+/// Asked about being out in space after it called for help ("you stuck?", "trying to help", "coming to get you"): where it still is,
+/// or that it's back. Sam called from space, was back in EVA a minute later, and to "coords?", "you're adrift though?" and "trying
+/// to help" said "Couldn't tell you", "Beats me" and "Yeah, that's me" while the CE searched space for him.
+/datum/bot_brain/proc/adrift_answer(lower_msg)
+	if(!drift_called_for_help && world.time > drift_back_at + 5 MINUTES)
+		return null
+	if(!bot_text_has_any(lower_msg, list("adrift", "stuck", "in space", "drifting", "still out", "you ok", "you okay", "you alright", "help you", "trying to help", "get you", "on my way", "omw", "i'm coming", "im coming", "coming for you", "jetpack", "rescue")))
+		return null
+	var/turf/here = get_turf(owner)
+	if(drift_called_for_help)
+		return pick("Still out here at [here.x], [here.y]!", "Yeah, still drifting. [here.x], [here.y].", "Please hurry, I'm at [here.x], [here.y].")
+	return pick("I'm back inside now, all good. Thanks though!", "Made it back in on my own. Thanks!", "All good now, I got back in.")
+
+/// Nothing in it but its name and a hello: "Sam?", "yo Sam"
+/datum/bot_brain/proc/just_my_name(lower_msg)
+	var/static/regex/not_letters = regex("\[^a-z ]", "g")
+	var/rest = " [not_letters.Replace(lower_msg, "")] "
+	for(var/word in list(lowertext(owner.real_name), lowertext(owner.first_name()), "hey", "yo", "oi", "hello", "hi"))
+		rest = replacetext(rest, " [word] ", " ")
+	return !length(trim(rest))
 
 /// "Medbay? East of here." - the way anyone points a newcomer, by compass rather than by map.
 /datum/bot_brain/proc/directions_for(lower_msg)

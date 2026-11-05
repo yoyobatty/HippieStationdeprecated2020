@@ -96,7 +96,9 @@
 			var/armor = run_armor_check(zone, "melee", "Your armor has protected your [parse_zone(zone)].", "Your armor has softened hit to your [parse_zone(zone)].",I.armour_penetration)
 			apply_damage(I.throwforce, dtype, zone, armor)
 			if(I.thrownby)
+				GLOB.bot_throw_aimed_at = throwingdatum?.target //hippie - what the throw was for, read while it's logged (bots_ai/bot_witness.dm)
 				log_combat(I.thrownby, src, "threw and hit", I)
+				GLOB.bot_throw_aimed_at = null //hippie
 		else
 			return 1
 	else

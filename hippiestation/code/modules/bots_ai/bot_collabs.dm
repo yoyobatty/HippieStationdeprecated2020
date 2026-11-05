@@ -159,6 +159,9 @@ GLOBAL_LIST_INIT(bot_drop_off_areas, list(
 		if(QDELETED(C))
 			GLOB.bot_delivered_crates -= C
 			continue
+		// Not while it's still riding the MULE: a scientist went for the silver on its way, lost it, and the crate was forgotten
+		if(!isturf(C.loc) || LAZYACCESS(bot.unpack_blocked, REF(C)) > world.time)
+			continue
 		if(!(delivery[1] in mine) || bot.taken_by_another(C) || !bot.can_walk_lawfully_to(C))
 			continue
 		if(bot.assign_goal(new /datum/bot_goal/unpack_crate(C, delivery[2])))
@@ -189,8 +192,14 @@ GLOBAL_LIST_INIT(bot_drop_off_areas, list(
 	GLOB.bot_delivered_crates -= target
 	bot_tally("crates collected")
 
+/// Still somebody's crate: this bot leaves it a while, and it or a colleague goes back for it
 /datum/bot_goal/unpack_crate/on_give_up(datum/bot_brain/bot)
-	GLOB.bot_delivered_crates -= target
+	if(target)
+		LAZYSET(bot.unpack_blocked, REF(target), world.time + 2 MINUTES)
+
+/datum/bot_brain
+	/// Delivered crates it couldn't get at, by REF(), until when
+	var/list/unpack_blocked
 
 // ---------------------------------------------------------------------------------------------
 // Leaving something for somebody
@@ -530,6 +539,229 @@ GLOBAL_VAR_INIT(bot_medbay_defib_printed, FALSE)
 	bot_tally("called for backup")
 	bot_say(bot.owner, ";Security, we need somebody in [get_area_name(bot.owner, TRUE)]. [threat.name]'s been seen around here.")
 	return FALSE
+
+// ---------------------------------------------------------------------------------------------
+// By MULE
+// ---------------------------------------------------------------------------------------------
+
+// A crate somebody's waiting for goes out on a MULE when one's free: pulled beside it, dragged on, the MULE's controls opened with
+// the technician's ID, the department's delivery beacon picked and Go pressed, as a player works one (mulebot.dm MouseDrop_T(),
+// bot_control(); set_destination() is what the panel's list of beacons sets). The user ruled it, 2026-11-05: "Cargo orders it and
+// uses the mulebot to deliver it." Carried round by hand (deliver_crate) when there's no MULE or no beacon.
+
+/// Whether a MULE's free to take a crate out: on, empty, idle, with charge, and nobody riding or driving it
+/proc/bot_mule_free(mob/living/simple_animal/bot/mulebot/M)
+	return istype(M) && !QDELETED(M) && M.on && !M.load && M.mode == BOT_IDLE && M.has_power() && !M.client && !M.paicard
+
+/// The nearest free MULE it can walk to, near enough to the bay to be the bay's
+/datum/bot_brain/proc/free_mule()
+	var/mob/living/simple_animal/bot/mulebot/best
+	for(var/mob/living/simple_animal/bot/mulebot/M in GLOB.bots_list)
+		if(M.z != owner.z || get_dist(owner, M) > 20 || !bot_mule_free(M) || taken_by_another(M) || LAZYACCESS(cargo_blocked, M) > world.time)
+			continue
+		if(best && get_dist(owner, M) >= get_dist(owner, best))
+			continue
+		if(can_walk_lawfully_to(get_turf(M)))
+			best = M
+	return best
+
+/// The delivery beacon a department's crates go to, by its tag: one in the department, or failing that the nearest to its door
+/datum/bot_brain/proc/delivery_beacon_for(department)
+	var/turf/door = department_doorstep(department)
+	var/obj/machinery/navbeacon/best
+	var/best_score
+	for(var/obj/machinery/navbeacon/B in GLOB.deliverybeacons)
+		if(QDELETED(B) || B.z != owner.z || !B.location)
+			continue
+		var/score
+		if(bot_department_of(get_area(B)) == department)
+			score = get_dist(owner, B) / 1000
+		else if(door && get_dist(B, door) <= 10)
+			score = 1 + get_dist(B, door)
+		else
+			continue
+		if(!best || score < best_score)
+			best = B
+			best_score = score
+	return best?.location
+
+/datum/bot_goal/deliver_crate/by_mule
+	doing = "sending a crate out on a MULE"
+	var/mob/living/simple_animal/bot/mulebot/mule
+	var/beacon_tag
+
+/datum/bot_goal/deliver_crate/by_mule/New(obj/structure/closet/crate/C, mob/living/simple_animal/bot/mulebot/M, beacon)
+	. = ..(C)
+	mule = M
+	beacon_tag = beacon
+
+/datum/bot_goal/deliver_crate/by_mule/resolve_target(datum/bot_brain/bot)
+	if(QDELETED(target) || !GLOB.bot_cargo_deliveries[pack_type] || !beacon_tag || (!bot_mule_free(mule) && mule?.load != target))
+		target = null
+
+/datum/bot_goal/deliver_crate/by_mule/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/cargo/S = new
+	var/datum/bot_step/move_to/to_mule = new
+	to_mule.step_target = mule
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/grab_crate(), to_mule, new /datum/bot_step/load_mule(), new /datum/bot_step/send_mule())
+	return list(S)
+
+/datum/bot_goal/deliver_crate/by_mule/on_success(datum/bot_brain/bot)
+	var/list/delivery = GLOB.bot_cargo_deliveries[pack_type]
+	if(delivery)
+		GLOB.bot_delivered_crates[target] = delivery
+		GLOB.bot_cargo_deliveries -= pack_type
+		bot_tally("crates sent by MULE")
+		bot_say(bot.owner, ";[capitalize(delivery[1])], your [lowertext(target.name)]'s on its way on [mule]. It'll be at your delivery point.")
+	bot.continue_cargo_round()
+
+/datum/bot_goal/deliver_crate/by_mule/on_give_up(datum/bot_brain/bot)
+	bot.owner.stop_pulling()
+	if(mule)
+		LAZYSET(bot.cargo_blocked, mule, world.time + 3 MINUTES) //carried round by hand next time
+
+/// The crate, pulled up beside the MULE, dragged onto it
+/datum/bot_step/load_mule/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/deliver_crate/by_mule/G = bot.current_goal
+	var/obj/structure/closet/crate/C = G?.target
+	var/mob/living/simple_animal/bot/mulebot/M = G?.mule
+	if(!istype(G) || !istype(C) || QDELETED(C) || !bot_mule_free(M) || !bot.owner.Adjacent(M))
+		return GOAL_STEP_FAIL
+	bot.owner.stop_pulling()
+	bot.human_pause(M)
+	if(QDELETED(C) || !bot_mule_free(M) || !bot.owner.Adjacent(M) || !bot.owner.Adjacent(C))
+		return GOAL_STEP_FAIL
+	bot.owner.face_atom(M)
+	bot.telemetry_event("drag", list("target" = "[C]", "onto" = "[M]"))
+	M.MouseDrop_T(C, bot.owner)
+	return M.load == C ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+
+/// Its controls opened with an ID, the destination set to the department's beacon, Go, and locked again
+/datum/bot_step/send_mule/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/deliver_crate/by_mule/G = bot.current_goal
+	var/mob/living/simple_animal/bot/mulebot/M = G?.mule
+	if(!istype(G) || QDELETED(M) || M.load != G.target || !bot.owner.Adjacent(M))
+		return GOAL_STEP_FAIL
+	var/obj/item/card/id/card = bot.owner.get_idcard(TRUE)
+	var/was_locked = M.locked
+	if(was_locked)
+		if(!card)
+			return GOAL_STEP_FAIL
+		M.attackby(card, bot.owner)
+		if(M.locked)
+			return GOAL_STEP_FAIL
+	bot.human_pause(M)
+	if(QDELETED(M) || !bot.owner.Adjacent(M))
+		return GOAL_STEP_FAIL
+	bot.telemetry_event("mule", list("target" = "[M]", "destination" = G.beacon_tag))
+	M.set_destination(G.beacon_tag)
+	M.bot_control("go", bot.owner)
+	if(was_locked && !M.locked)
+		M.attackby(card, bot.owner)
+	if(M.mode != BOT_DELIVER)
+		bot_log(bot, "[M] wouldn't set off for [G.beacon_tag]")
+		return GOAL_STEP_FAIL
+	bot_log(bot, "sent [G.target] to [G.beacon_tag] on [M]")
+	return GOAL_STEP_SUCCESS
+
+// ---------------------------------------------------------------------------------------------
+// Materials with nobody mining
+// ---------------------------------------------------------------------------------------------
+
+// Mining called for with no miner on shift: a cargo technician says so and orders it from CentCom, to go round when it comes. In the
+// user's round there were no miners, and "Mining we need materials" and "Mining, science needs silver" on Common got no answer at all.
+
+/// What there is a crate of, by the word people ask with
+GLOBAL_LIST_INIT(bot_material_packs, list(
+	"silver" = /datum/supply_pack/materials/silver20, "gold" = /datum/supply_pack/materials/gold20,
+	"diamond" = /datum/supply_pack/materials/diamond20, "diamonds" = /datum/supply_pack/materials/diamond20,
+	"plasma" = /datum/supply_pack/materials/plasma20, "uranium" = /datum/supply_pack/materials/uranium20,
+	"titanium" = /datum/supply_pack/materials/titanium20, "bananium" = /datum/supply_pack/materials/bananium20,
+	"plasteel" = /datum/supply_pack/materials/plasteel20, "metal" = /datum/supply_pack/materials/metal50,
+	"iron" = /datum/supply_pack/materials/metal50, "glass" = /datum/supply_pack/materials/glass50,
+	"plastic" = /datum/supply_pack/materials/plastic50,
+))
+
+/// Departments by the words for them, for who a request's for
+GLOBAL_LIST_INIT(bot_department_words, list(
+	"science" = "science", "research" = "science", "rnd" = "science", "r&d" = "science", "robotics" = "science", "toxins" = "science",
+	"medbay" = "medical", "medical" = "medical", "chemistry" = "medical", "engineering" = "engineering", "atmos" = "engineering",
+	"security" = "security", "brig" = "security", "bridge" = "command",
+))
+
+/// Whose ask a technician has just answered, so the rest of Cargo leaves it: REF -> when
+GLOBAL_LIST_EMPTY(bot_materials_answered)
+
+/datum/bot_brain
+	/// Asked what material they need: who, and until when the answer's taken as one
+	var/datum/weakref/materials_asker
+	var/materials_ask_until = 0
+
+/// The material a line asks for, by its word
+/proc/bot_material_named(lower_msg)
+	for(var/word in GLOB.bot_material_packs)
+		if(bot_text_has_any(lower_msg, list(word)))
+			return word
+	return null
+
+/// The department somebody works for, the way you'd guess it: their job, or where they are
+/proc/bot_department_of_person(mob/living/L)
+	var/job = L?.mind?.assigned_role
+	for(var/department in list("science", "medical", "engineering", "security", "supply", "command"))
+		if(job in bot_positions_of(department))
+			return department
+	return L ? bot_department_of(get_area(L)) : null
+
+/// A cargo technician told Mining's wanted when nobody's mining: it says so and orders the crate in, for whoever it's for (named, or
+/// the asker's department). Asked for "materials", it asks which. TRUE if it answered.
+/datum/bot_brain/proc/order_materials_for(mob/living/talker, lower_msg, radio_freq)
+	if(!(work_role() in list("Cargo Technician", "Quartermaster")) || state == BOT_STATE_COMBAT || !isliving(talker))
+		return FALSE
+	var/asker_key = REF(talker)
+	if(world.time < GLOB.bot_materials_answered[asker_key] + 3 SECONDS)
+		return TRUE //another technician's answering
+	var/what = bot_material_named(lower_msg)
+	if(!what && !bot_text_has_any(lower_msg, list("need", "needs", "want", "could", "can", "send", "get", "materials", "minerals", "ore", "please")))
+		return FALSE
+	GLOB.bot_materials_answered[asker_key] = world.time
+	var/prefix = bot_radio_prefix(radio_freq)
+	var/them = talker.first_name()
+	talking_to(talker)
+	if(!what)
+		materials_asker = WEAKREF(talker)
+		materials_ask_until = world.time + 1 MINUTES
+		say_after_typing(prefix + "[them], nobody's mining today. What do you need? I can order metal, glass, silver, gold, plasma, the lot.")
+		return TRUE
+	materials_asker = null
+	var/pack_type = GLOB.bot_material_packs[what]
+	for(var/datum/bot_request/R as anything in GLOB.bot_cargo_requests)
+		if(R.detail == pack_type)
+			say_after_typing(prefix + "[them], the [what]'s already on order. It'll come round when it's in.")
+			return TRUE
+	var/department = null
+	for(var/word in GLOB.bot_department_words)
+		if(bot_text_has_any(lower_msg, list(word)))
+			department = GLOB.bot_department_words[word]
+			break
+	department = department || bot_department_of_person(talker)
+	var/datum/bot_request/R = new
+	R.caller_ref = WEAKREF(talker)
+	R.detail = pack_type
+	R.made = world.time
+	R.radio_freq = radio_freq
+	GLOB.bot_cargo_requests |= R
+	if(department && department != "supply")
+		GLOB.bot_cargo_deliveries[pack_type] = list(department, null)
+	bot_log(src, "nobody mining: ordering [what] for [department || them]")
+	bot_tally("materials ordered with nobody mining")
+	var/datum/supply_pack/P = SSshuttle.supply_packs[pack_type]
+	var/datum/bank_account/budget = SSeconomy.get_dep_account(ACCOUNT_CAR)
+	var/spendable = bot_cargo_spendable(budget)
+	if(P && budget && P.cost > spendable)
+		say_after_typing(prefix + "[them], nobody's mining today, and the [lowertext(P.name)] is [P.cost] credits. Cargo's got [max(0, spendable)] to spend; I'll order it once we can afford it.")
+		return TRUE
+	say_after_typing(prefix + pick("[them], nobody's mining today. I'll order you some [what] from CentCom.", "No miners on, [them]. I'll get some [what] sent up from CentCom."))
+	return TRUE
 
 #undef BOT_CARGO_ASK_GAP
 #undef BOT_BACKUP_GAP

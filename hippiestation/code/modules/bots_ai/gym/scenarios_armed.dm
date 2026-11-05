@@ -337,6 +337,8 @@
 /datum/bot_scenario/brigged/pale/post_spawn()
 	..()
 	prisoner.blood_volume = 400
+	var/datum/bot_wanted/W = bot_get_wanted_entry(prisoner)
+	W.crime = "Theft" //not dangerous: they can go to Medbay
 	if("gym_medbay_spot" in brain.vars) // the fix's: a build without it has no such var
 		brain.vars["gym_medbay_spot"] = first_marker("M")
 
@@ -356,6 +358,127 @@
 		return BOT_GYM_FAIL
 	return (get_dist(prisoner, first_marker("M")) <= 1 && bot.pulling != prisoner) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/// The same, and in orange when it gets there, from the cell's locker: nobody in Medbay could tell the user's janitor was a prisoner
+/datum/bot_scenario/brigged/pale/in_orange
+	name = "brig: a prisoner pale from losing blood is put in orange from the brig locker and taken to Medbay"
+	desc = "The same pale prisoner. On the way, the officer dresses them in the prison jumpsuit and shoes from the locker, so whoever sees them in Medbay knows they're Security's. The user uncuffed a traitor janitor left in Medbay in his own clothes, not knowing he was a prisoner."
+
+/datum/bot_scenario/brigged/pale/in_orange/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(timer.timing)
+		fail_reason = "put them in the cell"
+		return BOT_GYM_FAIL
+	if(get_dist(prisoner, first_marker("M")) > 1 || bot.pulling == prisoner)
+		return BOT_GYM_PENDING
+	if(!istype(prisoner.w_uniform, /obj/item/clothing/under/rank/prisoner))
+		fail_reason = "left in Medbay in [prisoner.w_uniform || "nothing"]"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// Wanted for carrying something, and nothing on them when searched: let go, not brigged
+/// Taken to Medbay, and the officer waits with them; seen to, they go back to the Brig. The Warden left the user's janitor alone
+/// in Medbay and went to eat.
+/datum/bot_scenario/brigged/pale/stays
+	name = "brig: a prisoner taken to Medbay has the officer stay with them, and goes back to the cell once seen to"
+	desc = "The pale prisoner, wanted for something minor, goes to Medbay. The officer waits with them; once their blood's back (a doctor's seen to them) it takes them back and cells them."
+	time_limit = 70 SECONDS
+	var/healed = FALSE
+
+/datum/bot_scenario/brigged/pale/stays/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!healed)
+		if(get_dist(prisoner, first_marker("M")) <= 1 && bot.pulling != prisoner)
+			healed = TRUE
+			log_line("a doctor sees to the prisoner")
+			prisoner.blood_volume = BLOOD_VOLUME_NORMAL
+		return BOT_GYM_PENDING
+	if(timer.timing)
+		return BOT_GYM_PASS
+	if(get_dist(bot, prisoner) > 3 && !istype(brain.current_goal, /datum/bot_goal/brig_prisoner))
+		fail_reason = "left them in Medbay"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/// Somebody dangerous who needs a doctor stays in Security: kept by the door, and Medical called there
+/datum/bot_scenario/brigged/kept_in_brig
+	name = "brig: a dangerous prisoner pale from losing blood stays in the Brig, kept by the door, and Medical's called there"
+	desc = "The prisoner's wanted for assault and is pale from losing blood. The officer doesn't take them to Medbay (M): it keeps them just inside Security's door (K) and calls Medical to come to them. The user's ruling: violent prisoners and traitors don't leave Security."
+	layout = list(
+		"#########",
+		"#BC.Ki.M#",
+		"####d####",
+		"###...###",
+		"###..l###",
+		"#########")
+	var/asked = FALSE
+
+/datum/bot_scenario/brigged/kept_in_brig/post_spawn()
+	..()
+	prisoner.blood_volume = 300
+	if("gym_medbay_spot" in brain.vars)
+		brain.vars["gym_medbay_spot"] = first_marker("M")
+	if("gym_brig_spot" in brain.vars)
+		brain.vars["gym_brig_spot"] = first_marker("K")
+
+/datum/bot_scenario/brigged/kept_in_brig/make_goal()
+	return null
+
+/datum/bot_scenario/brigged/kept_in_brig/issue_goal()
+	if(!asked)
+		asked = TRUE
+		brain.start_brig_escort(prisoner)
+
+/datum/bot_scenario/brigged/kept_in_brig/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(get_dist(prisoner, first_marker("M")) <= 1)
+		fail_reason = "took them to Medbay"
+		return BOT_GYM_FAIL
+	if(!bot_transcript_said("isn't leaving Security"))
+		return BOT_GYM_PENDING
+	for(var/datum/bot_request/R as anything in GLOB.bot_requests)
+		if(R.caller_ref?.resolve() == prisoner && istype(R.kind, /datum/bot_request_kind/medical))
+			return get_dist(prisoner, first_marker("K")) <= 1 ? BOT_GYM_PASS : BOT_GYM_PENDING
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/brigged/kept_in_brig/release_run()
+	for(var/datum/bot_request/R as anything in GLOB.bot_requests.Copy())
+		if(R.caller_ref?.resolve() == prisoner)
+			GLOB.bot_requests -= R
+	return ..()
+
+/datum/bot_scenario/brigged/searched_clean
+	name = "brig: somebody arrested for carrying contraband with none on them is searched and let go"
+	desc = "An officer has somebody in cuffs who's wanted for Possession of Dangerous Equipment, but has nothing of the kind on them. It searches them, uncuffs them and lets them go. The user was arrested for a sword they'd thrown away three minutes earlier."
+	var/asked = FALSE
+
+/datum/bot_scenario/brigged/searched_clean/post_spawn()
+	..()
+	var/datum/bot_wanted/W = bot_get_wanted_entry(prisoner)
+	W.crime = "Possession of Dangerous Equipment"
+	W.severity = BOT_CRIME_MAJOR
+
+/datum/bot_scenario/brigged/searched_clean/make_goal()
+	return null
+
+/datum/bot_scenario/brigged/searched_clean/issue_goal()
+	if(!asked)
+		asked = TRUE
+		brain.start_brig_escort(prisoner)
+
+/datum/bot_scenario/brigged/searched_clean/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(timer.timing)
+		fail_reason = "brigged them"
+		return BOT_GYM_FAIL
+	if(istype(brain.current_goal, /datum/bot_goal/brig_prisoner))
+		fail_reason = "took them off to a cell"
+		return BOT_GYM_FAIL
+	return (!prisoner.handcuffed && !bot_get_wanted_entry(prisoner)) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /datum/bot_scenario/brigged/collapsed
 	name = "brig: a prisoner who's collapsed in a cell is let out and taken to Medbay"
 	desc = "A prisoner is down in crit in a cell with the timer running, and an officer sees them through the door. It stops the timer, gets them out and takes them to Medbay. They used to be left in there until they died."
@@ -374,6 +497,9 @@
 	timer.timer_start()
 	GLOB.bot_brig_sentences[timer] = WEAKREF(prisoner)
 	prisoner.apply_damage(130, BRUTE, BODY_ZONE_CHEST)
+	var/datum/bot_wanted/W = bot_get_wanted_entry(prisoner)
+	if(W)
+		W.crime = "Theft" //not dangerous: they can go to Medbay
 	if("gym_medbay_spot" in brain.vars)
 		brain.vars["gym_medbay_spot"] = first_marker("M")
 

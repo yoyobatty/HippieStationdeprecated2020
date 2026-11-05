@@ -272,3 +272,61 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return bot.get_idcard(FALSE) == card ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/chat/coords_in_space
+	name = "chat: out in space and asked its coordinates, it gives them"
+	desc = "Out on a space tile with no gravity, somebody asks it by name for its coords. It answers with the numbers, as it gave them calling for help, not \"couldn't tell you\"."
+	layout = list(
+		"#######",
+		"#C.SBS#",
+		"#######")
+
+/datum/bot_scenario/chat/coords_in_space/setup()
+	arena_area.has_gravity = FALSE
+
+/datum/bot_scenario/chat/coords_in_space/post_spawn()
+	..()
+	bot.equip_to_slot_or_del(new /obj/item/clothing/mask/breath(bot), ITEM_SLOT_MASK)
+	bot.equip_to_slot_or_del(new /obj/item/clothing/suit/space/eva(bot), ITEM_SLOT_OCLOTHING)
+	bot.equip_to_slot_or_del(new /obj/item/clothing/head/helmet/space/eva(bot), ITEM_SLOT_HEAD)
+	var/obj/item/tank/internals/emergency_oxygen/T = new(bot)
+	bot.equip_to_slot_or_del(T, ITEM_SLOT_SUITSTORE)
+	bot.internal = T
+	bot.forceMove(first_marker("S")) //the spawn mark is floor
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "[bot.first_name()], coords?"), 2 SECONDS)
+
+/datum/bot_scenario/chat/coords_in_space/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/list/lines = spoken()
+	if(!length(lines))
+		return BOT_GYM_PENDING
+	var/turf/T = get_turf(bot)
+	var/static/regex/coords = regex("\\d+, \\d+")
+	if(coords.Find(lines[1])) //it drifts as it speaks
+		return BOT_GYM_PASS
+	fail_reason = "said \"[lines[1]]\", not where it is ([T.x], [T.y])"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/chat/just_its_name
+	name = "chat: called by just its name with a question mark, it answers to it"
+	desc = "Somebody says \"Sam?\" and nothing else. It answers \"Yeah?\", not \"Hm, not sure, honestly\"."
+	layout = list(
+		"#######",
+		"#B.C..#",
+		"#######")
+
+/datum/bot_scenario/chat/just_its_name/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "[bot.first_name()]?"), 2 SECONDS)
+
+/datum/bot_scenario/chat/just_its_name/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/list/lines = spoken()
+	if(!length(lines))
+		return BOT_GYM_PENDING
+	if(lines[1] in GLOB.bot_question_reply_lines)
+		fail_reason = "said \"[lines[1]]\" to its own name"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

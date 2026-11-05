@@ -488,8 +488,67 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 
 /datum/bot_goal/answer_call/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/answer_call/S = new
-	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/attend_call())
+	S.steps = list()
+	// Somebody kept in the Brig for a doctor (goals/security_medevac.dm): to the Security door nearest them, to be let in. Doctors'
+	// IDs don't open it, and a call there used to get "Can't get in there, sorry".
+	if(istype(request.kind, /datum/bot_request_kind/medical) && target && bot_department_of(get_area(target)) == "security" && !bot.can_walk_lawfully_to(target))
+		var/turf/door_step = bot.doorstep_nearest(target, "security")
+		if(door_step)
+			var/datum/bot_step/move_to/to_door = new
+			to_door.step_target = door_step
+			S.steps += list(to_door, new /datum/bot_step/paced/ask_let_in())
+	S.steps += list(new /datum/bot_step/move_to(), new /datum/bot_step/attend_call())
 	return list(S)
+
+/// The bit of corridor outside the department's airlock nearest to A
+/datum/bot_brain/proc/doorstep_nearest(atom/A, department)
+	var/list/spots = list()
+	for(var/obj/machinery/door/airlock/D as anything in bot_instances_of(/obj/machinery/door/airlock))
+		if(QDELETED(D) || D.z != owner.z || istype(D, /obj/machinery/door/airlock/external) || bot_department_of(get_area(D)) != department)
+			continue
+		for(var/direction in GLOB.cardinals)
+			var/turf/T = get_step(D, direction)
+			if(isopenturf(T) && bot_department_of(get_area(T)) != department && !is_blocked_turf(T, TRUE))
+				spots[T] = get_dist(D, A)
+	for(var/tries in 1 to 4) //nearest first; a route search each
+		var/turf/nearest
+		for(var/turf/T as anything in spots)
+			if(!nearest || spots[T] < spots[nearest])
+				nearest = T
+		if(!nearest)
+			return null
+		spots -= nearest
+		if(can_walk_lawfully_to(nearest))
+			return nearest
+	return null
+
+/// At a door it can't open with somebody inside to see to: asks to be let in, and waits for it to open
+/datum/bot_step/paced/ask_let_in
+	max_clicks = 6
+	var/until = 0
+	var/asked_at = -INFINITY
+
+/datum/bot_step/paced/ask_let_in/start(datum/bot_brain/bot)
+	until = world.time + 75 SECONDS
+	return TRUE
+
+/datum/bot_step/paced/ask_let_in/do_click(datum/bot_brain/bot)
+	if(world.time > until)
+		return FALSE
+	for(var/obj/machinery/door/airlock/D in range(1, bot.owner))
+		if(!D.density)
+			return FALSE //open: in
+	if(world.time > asked_at + 25 SECONDS)
+		asked_at = world.time
+		bot.say_after_typing(pick(";Security, I'm at your door for the prisoner. Let me in?", ";Doctor here, at Security's door. Can someone let me in?"))
+	wait_for = 10
+	return TRUE
+
+/datum/bot_step/paced/ask_let_in/finish(datum/bot_brain/bot)
+	for(var/obj/machinery/door/airlock/D in range(1, bot.owner))
+		if(!D.density)
+			return GOAL_STEP_SUCCESS
+	return GOAL_STEP_FAIL
 
 /datum/bot_goal/answer_call/on_success(datum/bot_brain/bot)
 	GLOB.bot_requests -= request

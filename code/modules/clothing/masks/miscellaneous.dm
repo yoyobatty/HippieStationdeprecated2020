@@ -57,9 +57,11 @@
 			if(islist(value))
 				value = pick(value)
 
-			message = replacetextEx(message, " [uppertext(key)]", " [uppertext(value)]")
-			message = replacetextEx(message, " [capitalize(key)]", " [capitalize(value)]")
-			message = replacetextEx(message, " [key]", " [value]")
+			//hippie start - whole words: "sec" made "Security" into "Poliziaurity"
+			message = replacetextEx(message, regex("\\b[uppertext(key)]\\b", "g"), uppertext(value))
+			message = replacetextEx(message, regex("\\b[capitalize(key)]\\b", "g"), capitalize(value))
+			message = replacetextEx(message, regex("\\b[key]\\b", "g"), value)
+			//hippie end
 
 		if(prob(3))
 			message += pick(" Ravioli, ravioli, give me the formuoli!"," Mamma-mia!"," Mamma-mia! That's a spicy meat-ball!", " La la la la la funiculi funicula!")

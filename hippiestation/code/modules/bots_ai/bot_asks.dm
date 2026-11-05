@@ -62,7 +62,7 @@ GLOBAL_LIST_INIT(bot_title_words, list(
 	"chemist" = list("Chemist"), "chemistry" = list("Chemist"),
 	"botanist" = list("Botanist"), "botany" = list("Botanist"), "hydroponics" = list("Botanist"),
 	"bartender" = list("Bartender"), "barkeep" = list("Bartender"), "chef" = list("Cook"), "cook" = list("Cook"),
-	"janitor" = list("Janitor"), "cargo" = list("Cargo Technician", "Quartermaster"), "miner" = list("Shaft Miner"),
+	"janitor" = list("Janitor"), "cargo" = list("Cargo Technician", "Quartermaster"), "miner" = list("Shaft Miner"), "miners" = list("Shaft Miner"), "mining" = list("Shaft Miner"),
 	"atmos" = list("Atmospheric Technician"), "clown" = list("Clown"), "mime" = list("Mime"), "chaplain" = list("Chaplain"),
 	"lawyer" = list("Lawyer"), "curator" = list("Curator"), "librarian" = list("Curator"),
 ))
@@ -71,10 +71,14 @@ GLOBAL_LIST_INIT(bot_title_words, list(
 /proc/bot_title_called(lower_msg)
 	if(length(lower_msg) > 40)
 		return null
+	// The one it's said to comes first ("Mining, science needs silver" is to Mining); the longer word where two start together
 	var/best
+	var/best_at = 0
 	for(var/word in GLOB.bot_title_words)
-		if((!best || length(word) > length(best)) && bot_text_has_any(lower_msg, list(word)))
+		var/at = bot_text_word_at(lower_msg, word)
+		if(at && (!best || at < best_at || (at == best_at && length(word) > length(best))))
 			best = word
+			best_at = at
 	return best ? GLOB.bot_title_words[best] : null
 
 /// Whether this bot is the one a title called for.
@@ -90,9 +94,13 @@ GLOBAL_LIST_INIT(bot_title_words, list(
 /datum/bot_brain/proc/in_conversation_with(mob/living/who)
 	return world.time < talking_until && talking_with?.resolve() == who
 
-/// Anybody alive on one of these jobs, a cyborg or the AI included.
-/proc/bot_anyone_in_jobs(list/jobs)
+/// Anybody alive on one of these jobs, a cyborg or the AI included. Asked from a Bot Gym arena, only that arena's count: the rest of
+/// the gym isn't on its shift (a Shaft Miner in the mining arena had Cargo saying Mining was on for the arena next door).
+/proc/bot_anyone_in_jobs(list/jobs, atom/asking)
+	var/area/bot_gym/arena = asking ? get_area(asking) : null
 	for(var/mob/living/L in GLOB.alive_mob_list)
+		if(istype(arena) && get_area(L) != arena)
+			continue
 		if(L.stat != DEAD && (L.mind?.assigned_role in jobs))
 			return TRUE
 	return FALSE
@@ -100,7 +108,7 @@ GLOBAL_LIST_INIT(bot_title_words, list(
 /// A job called that nobody's on: one person says so, the way somebody always does. "AI?" with no AI.
 /datum/bot_brain/proc/say_nobody_on(list/jobs, radio_freq)
 	var/key = jointext(jobs, "/")
-	if(world.time < GLOB.bot_nobody_said[key] || bot_anyone_in_jobs(jobs))
+	if(world.time < GLOB.bot_nobody_said[key] || bot_anyone_in_jobs(jobs, owner))
 		return FALSE
 	GLOB.bot_nobody_said[key] = world.time + 2 MINUTES
 	var/job = jobs[1]

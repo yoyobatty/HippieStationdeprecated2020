@@ -107,14 +107,57 @@ GLOBAL_LIST_EMPTY(bot_cargo_requests)
 	if(bot.state == BOT_STATE_WANDER)
 		bot.continue_cargo_round()
 
-/// The next crate somebody asked for that the budget covers, as the call it came in.
+/// A person's ask, or a console's, that the budget hasn't covered yet: nothing else is ordered before it while Cargo saves up
+/// (pick_supply_pack(), goals/cargo.dm). Not for anything far past a budget, or one ask would stop Cargo for good.
+GLOBAL_DATUM(bot_cargo_saving_for, /datum/bot_request)
+
+#define BOT_CARGO_SAVE_UP_TO 5000
+
+/// What Cargo's budget has to spend once what's already on order is paid for. Orders are charged when the shuttle brings them in,
+/// and the balance alone said "on it" to the silver somebody asked for at Science's console with three crates still to be paid for:
+/// they were, and the silver never was.
+/proc/bot_cargo_spendable(datum/bank_account/budget)
+	if(!budget)
+		return 0
+	. = budget.account_balance
+	for(var/datum/supply_order/SO as anything in SSshuttle.shoppinglist)
+		if(!SO.paying_account)
+			. -= SO.pack.cost
+
+/// Whether an ask came from a person or a console, not a bot's own errand
+/proc/bot_cargo_request_for_people(datum/bot_request/R)
+	var/mob/living/carbon/human/asker = R.caller_ref?.resolve()
+	return !!(R.station_request || !istype(asker) || !asker.bot_brain) //a TRUE or FALSE: it's compared with one
+
+/// The next crate somebody asked for that the budget covers, as the call it came in: people's asks first. The user's silver at
+/// Science's console sat behind a toolbox crate, a bot's medical supplies and the rest of the budget in three shifts of six.
 /proc/bot_next_cargo_request()
 	var/datum/bank_account/budget = SSeconomy.get_dep_account(ACCOUNT_CAR)
-	for(var/datum/bot_request/R as anything in GLOB.bot_cargo_requests)
+	GLOB.bot_cargo_saving_for = null
+	for(var/pass in 1 to 2)
+		var/datum/bot_request/found = bot_next_cargo_request_of(budget, pass == 1)
+		if(found)
+			return found
+		if(GLOB.bot_cargo_saving_for)
+			return null
+	return null
+
+/proc/bot_next_cargo_request_of(datum/bank_account/budget, people)
+	for(var/datum/bot_request/R as anything in GLOB.bot_cargo_requests.Copy())
 		var/datum/supply_pack/P = SSshuttle.supply_packs[R.detail]
-		if(world.time > R.made + 10 MINUTES || !P)
+		// Somebody's own ask, or a console's, waits for the budget half an hour: the user's silver (2000 credits) at Science's console
+		// was "on it" in three shifts out of six and quietly dropped at ten minutes. A bot's own asks come round again anyway.
+		var/mob/living/carbon/human/asker = R.caller_ref?.resolve()
+		var/keep = (R.station_request || !istype(asker) || !asker.bot_brain) ? 30 MINUTES : 10 MINUTES
+		if(world.time > R.made + keep || !P)
 			GLOB.bot_cargo_requests -= R
 			continue
-		if(budget && P.cost <= budget.account_balance)
+		if(bot_cargo_request_for_people(R) != people)
+			continue
+		if(budget && P.cost <= bot_cargo_spendable(budget))
 			return R
+		if(people && !GLOB.bot_cargo_saving_for && P.cost <= BOT_CARGO_SAVE_UP_TO)
+			GLOB.bot_cargo_saving_for = R
 	return null
+
+#undef BOT_CARGO_SAVE_UP_TO

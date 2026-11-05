@@ -315,13 +315,30 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 /datum/bot_brain
 	var/next_drift_throw = 0
 	var/next_drift_call = 0
+	/// When it called for help out there; it says so once it's back in, and answers asked about it (bot_chatter.dm adrift_answer())
+	var/drift_called_for_help = 0
+	var/drift_back_at = -INFINITY
 
 /datum/bot_brain/proc/try_drift_back()
 	var/turf/here = get_turf(owner)
+	if(drift_called_for_help && here && !isspaceturf(here))
+		drift_called_for_help = 0
+		drift_back_at = world.time
+		bot_log(src, "made it back in after calling for help")
+		bot_say(owner, ";[pick("Never mind, I've made it back in. Thanks!", "All good, I made it back inside.", "Made it back in on my own, no need to come out.")]")
 	if(!isspaceturf(here) || owner.has_gravity() || owner.incapacitated() || world.time < next_drift_throw)
 		return FALSE
 	if(owner.Process_Spacemove(0))
 		return FALSE //something to push off, or a jetpack under it
+	// A jetpack with gas in it is the way back: switched on if it's off, never called for. Process_Spacemove(0) above only counts one
+	// with its stabilizers on, so an explorer flying to a ruin on one, between moves at the edge of the level, radioed "Anybody with a
+	// jetpack?" with one on its back, and somebody went out looking for it.
+	var/obj/item/tank/jetpack/J = worn_jetpack()
+	if(J && bot_jetpack_fuel(J) > 0.02)
+		if(!J.on)
+			J.turn_on(owner)
+			bot_log(src, "adrift - switched the jetpack on")
+		return FALSE
 	var/turf/ground = nearest_solid_ground()
 	if(!ground)
 		return FALSE
@@ -333,6 +350,7 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 	if(!I)
 		if(world.time >= next_drift_call)
 			next_drift_call = world.time + 1 MINUTES
+			drift_called_for_help = world.time
 			bot_log(src, "adrift with nothing to throw - calling for help")
 			bot_say(owner, ";Help! I'm adrift out in space at [here.x], [here.y], nothing to push off from. Anybody with a jetpack?")
 		return FALSE

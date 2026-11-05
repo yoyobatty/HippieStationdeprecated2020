@@ -330,3 +330,277 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return bot_transcript_said("calling for help") ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// On a jetpack with gas in it it never calls for one: an explorer flying to a ruin, between moves at the edge of the level, radioed
+/// "Anybody with a jetpack?" with one on its back, and the CE went out into space looking for it.
+/datum/bot_scenario/adrift/on_a_jetpack
+	name = "space: on a jetpack and nothing to throw, it doesn't call for a jetpack"
+	desc = "The same open space with nothing it would throw, but a jetpack on its back, on, with its stabilizers off. It never radios for help."
+	time_limit = 20 SECONDS
+	var/watch_until = 0
+
+/datum/bot_scenario/adrift/on_a_jetpack/post_spawn()
+	..()
+	for(var/obj/item/I in bot.back)
+		qdel(I)
+	qdel(bot.back)
+	var/obj/item/tank/jetpack/oxygen/J = new(bot)
+	bot.equip_to_slot_or_del(J, ITEM_SLOT_BACK)
+	J.turn_on(bot)
+	J.stabilizers = FALSE
+	watch_until = world.time + 10 SECONDS
+
+/datum/bot_scenario/adrift/on_a_jetpack/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("calling for help"))
+		fail_reason = "called for a jetpack with one on its back"
+		return BOT_GYM_FAIL
+	return world.time >= watch_until ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// Called for help, then got back in: it says so, so nobody goes out looking.
+/datum/bot_scenario/adrift/empty_handed/back_in
+	name = "space: called for help adrift, then back on the floor, it says it's made it back in"
+	desc = "It calls for help with nothing to throw; then it's put back on the floor, and it radios that it's back and nobody need come. Sam called from space and was back in EVA a minute later without a word, while the CE searched space for him."
+	var/moved_back = FALSE
+
+/datum/bot_scenario/adrift/empty_handed/back_in/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!moved_back)
+		if(bot_transcript_said("calling for help"))
+			moved_back = TRUE
+			log_line("it's put back on the floor")
+			bot.forceMove(first_marker("B") || locate(bot.x - 6, bot.y, bot.z))
+		return BOT_GYM_PENDING
+	return bot_transcript_said("made it back in") ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// Accidents (bot_witness.dm). The visitor throws a toolbox at a table (t) with the bot, or a bystander (Y), in the way.
+
+/datum/bot_scenario/chat/accident_sorry
+	name = "accident: hit by a toolbox thrown at a table and told sorry, it forgives and doesn't fight or call Security"
+	desc = "A visitor throws a toolbox at the table behind the bot; it hits the bot on the way. \"Ow! Watch it!\", then the visitor says sorry and the bot forgives them: no fight, no call to Security. The user's sword, thrown at a table, hit the janitor beside it, who fought them through every sorry."
+	time_limit = 20 SECONDS
+	layout = list(
+		"#########",
+		"#C.B.t..#",
+		"#########")
+	var/obj/item/storage/toolbox/box
+	var/say_sorry = TRUE
+	var/thrown_at = 0
+
+/datum/bot_scenario/chat/accident_sorry/post_spawn()
+	..()
+	box = new(visitor)
+	visitor.put_in_active_hand(box)
+	addtimer(CALLBACK(src, PROC_REF(throw_it)), 2 SECONDS)
+	if(say_sorry)
+		addtimer(CALLBACK(src, PROC_REF(visitor_says), "Sorry! That was meant for the table."), 6 SECONDS)
+
+/datum/bot_scenario/chat/accident_sorry/proc/throw_it()
+	if(QDELETED(visitor) || QDELETED(box))
+		return
+	log_line("visitor throws the toolbox at the table")
+	thrown_at = world.time
+	visitor.throw_item(first_placed("t"))
+
+/datum/bot_scenario/chat/accident_sorry/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(brain.attacker == visitor)
+		fail_reason = "it fought the visitor"
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("Security"))
+		fail_reason = "it called Security"
+		return BOT_GYM_FAIL
+	if(thrown_at && world.time > thrown_at + 3 SECONDS && !bot.getBruteLoss())
+		fail_reason = "the throw never hit it (the scenario's at fault)"
+		return BOT_GYM_FAIL
+	return bot_transcript_said("forgave") ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// No sorry: in the end it's taken as the attack it looked like
+/datum/bot_scenario/chat/accident_sorry/never_said
+	name = "accident: hit by a toolbox thrown at a table and never told sorry, it holds off a while, then takes it as an attack"
+	desc = "The same throw, and no sorry. It doesn't fight or report it straight away, but when the time to say sorry is up it does."
+	time_limit = 50 SECONDS
+	say_sorry = FALSE
+
+/datum/bot_scenario/chat/accident_sorry/never_said/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(thrown_at && world.time > thrown_at + 3 SECONDS && !bot.getBruteLoss())
+		fail_reason = "the throw never hit it (the scenario's at fault)"
+		return BOT_GYM_FAIL
+	if(brain.attacker == visitor || bot_transcript_said("Security"))
+		if(world.time < thrown_at + 15 SECONDS)
+			fail_reason = "it went for them straight away, with no time to say sorry"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/// Seen from across the room: the bystander hit, the sorry said, and nobody's called
+/datum/bot_scenario/chat/accident_witnessed
+	name = "accident: sees somebody hit by a toolbox thrown at a table, then sorry said, it doesn't call Security or step in"
+	desc = "A doctor watches a visitor throw a toolbox at a table and hit the bystander in the way, then say sorry. It doesn't radio Security or go for the visitor. A doctor who saw the user's sword hit the janitor called Security and fought them for three minutes."
+	job = "Medical Doctor"
+	time_limit = 25 SECONDS
+	layout = list(
+		"#########",
+		"#C.Y.t..#",
+		"#...B...#",
+		"#########")
+	var/obj/item/storage/toolbox/box
+	var/mob/living/carbon/human/bystander
+	var/thrown_at = 0
+
+/datum/bot_scenario/chat/accident_witnessed/post_spawn()
+	..()
+	bystander = stand_in(first_marker("Y"), "Bailey Bystander")
+	box = new(visitor)
+	visitor.put_in_active_hand(box)
+	addtimer(CALLBACK(src, PROC_REF(throw_it)), 2 SECONDS)
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "Oh no, sorry! That was meant for the table."), 6 SECONDS)
+
+/datum/bot_scenario/chat/accident_witnessed/proc/throw_it()
+	if(QDELETED(visitor) || QDELETED(box))
+		return
+	log_line("visitor throws the toolbox at the table")
+	thrown_at = world.time
+	visitor.throw_item(first_placed("t"))
+
+/datum/bot_scenario/chat/accident_witnessed/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(brain.attacker == visitor)
+		fail_reason = "it went for the visitor"
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("Security"))
+		fail_reason = "it called Security"
+		return BOT_GYM_FAIL
+	if(thrown_at && world.time > thrown_at + 3 SECONDS && !bystander.getBruteLoss())
+		fail_reason = "the throw never hit the bystander (the scenario's at fault)"
+		return BOT_GYM_FAIL
+	return (thrown_at && world.time > thrown_at + 18 SECONDS) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/chat/accident_witnessed/release_run()
+	if(bystander)
+		qdel(bystander)
+	return ..()
+
+// Uncuffing Security's prisoner (bot_witness.dm)
+
+/datum/bot_scenario/chat/uncuffing
+	name = "uncuffing: a bystander objects and radios it in, and drops it at sorry and the cuffs back on"
+	desc = "A visitor takes the cuffs off a prisoner Security wants. A doctor watching says that's Security's prisoner and radios it in; the visitor says sorry and puts the cuffs back on, and the doctor says never mind, and the charge comes off. The user uncuffed a traitor not knowing he was a prisoner."
+	job = "Medical Doctor"
+	time_limit = 45 SECONDS
+	layout = list(
+		"#########",
+		"#C.Y..B.#",
+		"#########")
+	var/mob/living/carbon/human/prisoner
+	var/stage = 0
+
+/datum/bot_scenario/chat/uncuffing/post_spawn()
+	..()
+	prisoner = stand_in(first_marker("Y"), "Pat Prisoner")
+	prisoner.handcuffed = new /obj/item/restraints/handcuffs(prisoner)
+	prisoner.update_handcuffed()
+	var/datum/bot_wanted/W = new
+	W.crime = "Theft"
+	W.severity = BOT_CRIME_MINOR
+	GLOB.bot_security_wanted[WEAKREF(prisoner)] = W
+	visitor.forceMove(get_step(prisoner, WEST)) //within reach of the cuffs
+	visitor.setDir(get_dir(visitor, prisoner))
+	addtimer(CALLBACK(src, PROC_REF(take_cuffs_off)), 2 SECONDS)
+
+/datum/bot_scenario/chat/uncuffing/proc/take_cuffs_off()
+	if(QDELETED(visitor) || QDELETED(prisoner) || !prisoner.handcuffed)
+		return
+	log_line("visitor takes the prisoner's cuffs off")
+	INVOKE_ASYNC(visitor, TYPE_PROC_REF(/mob, stripPanelUnequip), prisoner.handcuffed, prisoner, ITEM_SLOT_HANDCUFFED)
+
+/datum/bot_scenario/chat/uncuffing/proc/put_them_back()
+	var/obj/item/restraints/handcuffs/cuffs = locate() in visitor.held_items
+	if(!cuffs)
+		cuffs = locate() in get_turf(visitor)
+		if(cuffs)
+			visitor.put_in_hands(cuffs)
+	if(!cuffs)
+		log_line("the visitor's lost the cuffs")
+		return
+	visitor_says("Oh, sorry! I didn't know they were a prisoner.")
+	log_line("visitor puts the cuffs back on")
+	INVOKE_ASYNC(cuffs, TYPE_PROC_REF(/obj/item, attack), prisoner, visitor)
+
+/datum/bot_scenario/chat/uncuffing/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(brain.attacker == visitor)
+		fail_reason = "it went for the visitor"
+		return BOT_GYM_FAIL
+	switch(stage)
+		if(0)
+			if(prisoner.handcuffed || world.time < start_time + 4 SECONDS)
+				return BOT_GYM_PENDING
+			stage = 1
+		if(1)
+			if(bot_transcript_said("Security's prisoner") && bot_transcript_said("called in")) //the charge goes on record only with an officer about
+				stage = 2
+				addtimer(CALLBACK(src, PROC_REF(put_them_back)), 2 SECONDS)
+			else if(world.time > start_time + 15 SECONDS)
+				fail_reason = "nobody objected or reported it"
+				return BOT_GYM_FAIL
+		if(2)
+			if(prisoner.handcuffed && !bot_get_wanted_entry(visitor) && bot_transcript_said("cuffs back on and said sorry"))
+				return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/chat/uncuffing/release_run()
+	GLOB.bot_security_wanted -= WEAKREF(prisoner)
+	GLOB.bot_security_wanted -= WEAKREF(visitor)
+	if(prisoner)
+		qdel(prisoner)
+	return ..()
+
+/// It's the prisoner: let out of its cuffs by somebody who isn't Security, it doesn't take it as being set on, and waits
+/datum/bot_scenario/chat/uncuffed_prisoner
+	name = "uncuffing: a law-abiding prisoner uncuffed by somebody who isn't Security doesn't fight them, and waits for Security"
+	desc = "The bot is in cuffs and wanted. A visitor takes the cuffs off. It doesn't treat that as an attack: it says it'll wait for Security, and doesn't go for them."
+	time_limit = 20 SECONDS
+	layout = list(
+		"#######",
+		"#C.B..#",
+		"#######")
+
+/datum/bot_scenario/chat/uncuffed_prisoner/post_spawn()
+	..()
+	bot.handcuffed = new /obj/item/restraints/handcuffs(bot)
+	bot.update_handcuffed()
+	var/datum/bot_wanted/W = new
+	W.crime = "Theft"
+	W.severity = BOT_CRIME_MINOR
+	GLOB.bot_security_wanted[WEAKREF(bot)] = W
+	visitor.forceMove(get_step(bot, WEST))
+	addtimer(CALLBACK(src, PROC_REF(take_cuffs_off)), 2 SECONDS)
+
+/datum/bot_scenario/chat/uncuffed_prisoner/proc/take_cuffs_off()
+	if(QDELETED(visitor) || !bot.handcuffed)
+		return
+	log_line("visitor takes the bot's cuffs off")
+	INVOKE_ASYNC(visitor, TYPE_PROC_REF(/mob, stripPanelUnequip), bot.handcuffed, bot, ITEM_SLOT_HANDCUFFED)
+
+/datum/bot_scenario/chat/uncuffed_prisoner/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(brain.attacker == visitor)
+		fail_reason = "it went for the visitor"
+		return BOT_GYM_FAIL
+	if(bot.handcuffed || world.time < start_time + 6 SECONDS)
+		return BOT_GYM_PENDING
+	return bot_transcript_said("wait") ? BOT_GYM_PASS : (world.time > start_time + 15 SECONDS ? BOT_GYM_FAIL : BOT_GYM_PENDING)
+
+/datum/bot_scenario/chat/uncuffed_prisoner/release_run()
+	GLOB.bot_security_wanted -= WEAKREF(bot)
+	GLOB.bot_security_wanted -= WEAKREF(visitor)
+	return ..()

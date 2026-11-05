@@ -88,13 +88,30 @@ GLOBAL_DATUM(bot_station_request_listener, /datum/bot_station_request_listener)
 	if(!kind)
 		return
 	var/mob/living/asker = R.sender_ref?.resolve()
-	var/datum/bot_request/BR = bot_new_request(kind, asker, bot_department_freq(dept), R.location)
+	var/datum/bot_request/BR = bot_new_request(kind, asker, bot_reply_freq_for(asker, bot_department_freq(dept)), R.location)
 	BR.station_request = R
 	if(R.kind == "crate" && R.order)
 		BR.detail = R.order.pack.type
+		// Round to the department it was asked from when it comes: the user's silver, asked for at Science's console, was ordered and
+		// left in the bay, since only crates a bot asked for were ever delivered
+		var/department = bot_department_of(get_area(R.location))
+		if(department && department != "supply")
+			GLOB.bot_cargo_deliveries[BR.detail] = list(department, null)
 	else
 		kind.read_details(BR, lower)
 	bot_offer_request(BR)
+
+/// The channel to answer somebody on: the department's, if their headset has it, or Common. A request comes in over the department's
+/// channel, but whoever sent it from another department's console mostly can't hear it: the user asked Cargo for silver at Science's
+/// console as the Chief Engineer, and the technician's "I've ordered the 20 silver sheets" went out on Supply.
+/proc/bot_reply_freq_for(mob/living/asker, freq)
+	if(!freq || freq == FREQ_COMMON || !ishuman(asker))
+		return freq
+	var/mob/living/carbon/human/H = asker
+	var/obj/item/radio/headset/headset = H.ears
+	if(istype(headset) && headset.channels[GLOB.reverseradiochannels["[freq]"]])
+		return freq
+	return FREQ_COMMON
 
 /// Who's on it, as the console shows it
 /datum/bot_brain/proc/station_request_name()
@@ -141,9 +158,10 @@ GLOBAL_DATUM(bot_station_request_listener, /datum/bot_station_request_listener)
 	. = ..()
 	var/datum/supply_pack/P = SSshuttle.supply_packs[R.detail]
 	var/datum/bank_account/budget = SSeconomy.get_dep_account(ACCOUNT_CAR)
-	if(!P || !budget || P.cost <= budget.account_balance)
+	var/spendable = bot_cargo_spendable(budget)
+	if(!P || !budget || P.cost <= spendable)
 		return
-	bot_log(bot, "can't afford [P.name] ([P.cost] credits, [budget.account_balance] in the budget)")
+	bot_log(bot, "can't afford [P.name] ([P.cost] credits, [spendable] to spend once what's on order is paid for)")
 	if(R.station_request && R.station_request.status != "done")
 		R.station_request.set_status("can't afford", bot.station_request_name())
 
@@ -151,10 +169,11 @@ GLOBAL_DATUM(bot_station_request_listener, /datum/bot_station_request_listener)
 /datum/bot_request_kind/cargo_order/ack_for(datum/bot_brain/bot, datum/bot_request/R)
 	var/datum/supply_pack/P = SSshuttle.supply_packs[R.detail]
 	var/datum/bank_account/budget = SSeconomy.get_dep_account(ACCOUNT_CAR)
-	if(!P || !budget || P.cost <= budget.account_balance)
+	var/spendable = bot_cargo_spendable(budget)
+	if(!P || !budget || P.cost <= spendable)
 		return ..()
 	var/mob/living/asker = R.caller_ref?.resolve()
-	return "[asker ? "[asker.first_name()], the" : "The"] [lowertext(P.name)] is [P.cost] credits and Cargo's got [budget.account_balance]. I'll put it in once we can afford it."
+	return "[asker ? "[asker.first_name()], the" : "The"] [lowertext(P.name)] is [P.cost] credits and Cargo's got [max(0, spendable)] to spend[spendable < budget.account_balance ? " after what's on order" : ""]. I'll put it in once we can afford it."
 
 /// The crate a request asked for has been ordered (goals/cargo.dm): the request the console made comes off the cargo console's
 /// list, where it would otherwise wait to be ordered a second time

@@ -203,6 +203,12 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		return
 	if(!isliving(user) || !ishuman(target) || user == target)
 		return
+	// Security's prisoner's cuffs off them, and back on again (bot_witness.dm)
+	if(ishuman(user) && findtext(what_done, "stripped") && bot_restraints_named(what_done))
+		bot_note_uncuffed(user, target)
+		return
+	if(ishuman(user) && findtext(what_done, "handcuffed") && bot_note_recuffed(user, target))
+		return
 	if(!bot_is_violent_verb(what_done))
 		bot_note_handling(user, target, what_done, object) //bot_reflexes.dm: a shove, a grab, a needle
 		return
@@ -212,6 +218,9 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	if(istype(thrown) && thrown.throwforce < 5 && findtext(what_done, "threw"))
 		var/mob/living/carbon/human/struck = target
 		struck.bot_brain?.mind_thrown_junk()
+		return
+	// Thrown at something else and it hit them on the way: an accident, held back while there's time to say sorry (bot_witness.dm)
+	if(findtext(what_done, "threw") && ishuman(user) && bot_hold_accident(user, target, what_done, object))
 		return
 	// Records when each attacker FIRST started on each victim (within the window), not
 	// the latest hit - so a fight's instigator stays the instigator even after the
@@ -1120,9 +1129,38 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		bot_say(owner, "[H.name], get to the shuttle. You can explain yourself at CentCom.")
 		bot_log(src, "let [H] go for the evacuation")
 		return FALSE
+	// Wanted only for something they were seen carrying, and searched with nothing on them: let go. The user was arrested for an
+	// energy sword they'd got rid of three minutes before, which the HoP was carrying by then.
+	if(W?.crime == "Possession of Dangerous Equipment" && H.handcuffed && owner.Adjacent(H) && !bot_carrying_contraband(H))
+		human_pause(H)
+		if(!QDELETED(H) && owner.Adjacent(H) && !bot_carrying_contraband(H))
+			H.uncuff()
+			bot_clear_wanted(H)
+			bot_set_criminal_status(H, "Discharged")
+			bot_say(owner, pick("Alright, you're clean. Next time you find something like that, hand it in to Security.", "Nothing on you. You're free to go - bring anything like that straight to Security next time."))
+			bot_log(src, "searched [H], wanted for carrying contraband: nothing on them, let go")
+			bot_tally("searched and let go")
+			return FALSE
 	// Nobody's locked up dying. A cook cuffed at -4 health was dragged to a cell and left: he died there 3 minutes later. Down or pale
 	// from losing blood, they're taken to Medbay instead (security_medevac.dm), or failing a way there, Medical is called to them.
 	if(bot_prisoner_needs_medbay(H))
+		// Somebody dangerous doesn't leave Security: kept in the Brig, and Medical's called there (security_medevac.dm). With no doctor
+		// after a while, into the cell regardless, patched up there.
+		if(bot_prisoner_dangerous(H))
+			var/tried = LAZYACCESS(brig_care_tried, H)
+			if((!tried || world.time > tried + 5 MINUTES) && start_brig_care(H))
+				return TRUE
+			var/datum/bot_goal/brig_prisoner/cell_anyway = new()
+			cell_anyway.prisoner = H
+			return assign_goal(cell_anyway)
+		// On their feet: processed in the cell first, into orange and patched, then to Medbay in cuffs (security_medevac.dm). The user's
+		// ruling (2026-11-05): "ensure they are always wearing prison outfits, never their regular clothes".
+		if(H.stat == CONSCIOUS && H.health > 0 && !istype(H.w_uniform, /obj/item/clothing/under/rank/prisoner))
+			var/datum/bot_goal/brig_prisoner/first = new()
+			first.prisoner = H
+			first.then_medbay = TRUE
+			if(assign_goal(first))
+				return TRUE
 		if(start_medevac(H))
 			return TRUE
 		if(!bot_in_medbay(H))
@@ -1141,6 +1179,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	/// On their way to the Prison Wing rather than a cell (bot_law.dm), and the locker for what they own.
 	var/for_life = FALSE
 	var/obj/structure/closet/secure_closet/brig/prison_locker
+	/// Processed into orange in the cell, then on to Medbay in their cuffs rather than left there (security_medevac.dm)
+	var/then_medbay = FALSE
 
 /datum/bot_goal/brig_prisoner/resolve_target(datum/bot_brain/bot)
 	if(QDELETED(prisoner) || prisoner.stat == DEAD || !prisoner.handcuffed)
@@ -1177,6 +1217,11 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 
 /datum/bot_goal/brig_prisoner/on_success(datum/bot_brain/bot)
 	bot.owner.stop_pulling()
+	if(then_medbay && !QDELETED(prisoner) && prisoner.stat != DEAD)
+		if(bot_prisoner_needs_medbay(prisoner))
+			bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, start_medevac), prisoner, cell_timer))
+		else
+			bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, start_brig_escort), prisoner))
 
 /datum/bot_strategy/brig_prisoner
 	var/datum/bot_goal/brig_prisoner/goal
@@ -1198,6 +1243,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		to_timer,
 		new /datum/bot_step/start_sentence(G),
 	)
+	if(G.then_medbay) //no sentence yet: Medbay next, in their cuffs
+		steps -= list(to_timer, steps[length(steps)])
 
 /datum/bot_strategy/brig_prisoner/is_feasible(datum/bot_brain/bot)
 	return goal.cell_timer && !QDELETED(goal.cell_timer) && !QDELETED(goal.prisoner)
@@ -1285,6 +1332,9 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 			// "Uncuff the prisoner, leaving them to buckle cuffed is considered poor
 			// form" - and the bot needs its cuffs back for the next arrest anyway.
 			var/obj/item/restraints/handcuffs/cuffs = P.handcuffed
+			if(cuffs && goal.then_medbay)
+				phase = 0
+				return GOAL_STEP_SUCCESS //to Medbay in them
 			if(cuffs)
 				P.uncuff()
 				P.visible_message("<span class='notice'>[bot.owner] removes [P]'s restraints.</span>")

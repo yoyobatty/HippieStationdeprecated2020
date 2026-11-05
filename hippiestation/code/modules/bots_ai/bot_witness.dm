@@ -248,6 +248,9 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 	bot_log(src, "stepping in against [assailant]")
 	bot_tally("stepped in")
 	bot_record_aggression(assailant, owner)
+	// Not hit itself, so nothing of its own to radio in: a doctor stepping in against the user radioed "Security! Mikayla Collins is
+	// attacking me", and that went on the user's record as an assault on the doctor, who hadn't been touched
+	next_assault_report_time = max(next_assault_report_time, world.time + 1 MINUTES)
 	on_attacked(assailant, "stepped in", null)
 
 // ---------------------------------------------------------------------------------------------
@@ -335,7 +338,8 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 			next_sighting_call = world.time + 1 MINUTES
 			if(prob(50))
 				bot_say(owner, ";[H.name] is here, in [get_area_name(owner, TRUE)]! Security!")
-		if(nerve >= 0.7 && has_a_weapon() && GLOB.bot_chaos_level >= 1 && bot_fighters_against(H) < BOT_DOGPILE_LIMIT)
+		// Somebody who's hurt people, that is: a doctor went for the user for having been seen with a sword, before they'd hurt anybody
+		if(nerve >= 0.7 && has_a_weapon() && GLOB.bot_chaos_level >= 1 && bot_crime_is_violent(W.crime) && bot_fighters_against(H) < BOT_DOGPILE_LIMIT)
 			bot_say(owner, pick("It's you!", "That's the one!", "Get them!"))
 			step_in_against(H)
 		else if(nerve < 0.5 && get_dist(owner, H) <= 4 && state != BOT_STATE_GOAL)
@@ -396,3 +400,228 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 #undef BOT_WATCH_INTERVAL
 #undef BOT_TRESPASS_PATIENCE
 #undef BOT_VANDAL_MAJOR_HITS
+
+/// Whether a crime is one of hurting people: what crew take somebody on for, rather than leave to Security
+/proc/bot_crime_is_violent(crime)
+	var/lower = lowertext("[crime]")
+	for(var/word in list("assault", "murder", "manslaughter", "battery", "kidnap", "mutiny", "terror"))
+		if(findtext(lower, word))
+			return TRUE
+	return FALSE
+
+// ---------------------------------------------------------------------------------------------
+// Accidents
+// ---------------------------------------------------------------------------------------------
+
+// Something thrown at something else that hit somebody on the way looks like an accident. Nobody fights or reports it at once ("Ow!
+// Watch it!"); said sorry for in time, it's forgiven by whoever was hit and whoever saw. A second, or a swing at them, isn't one; with
+// no sorry by the end of the time, it's taken as it looked. The user ruled it, 2026-11-05 ("Forgive if it fits"): their sword, thrown
+// at a table in Medbay, hit the cuffed janitor beside it, and the janitor and a doctor fought them for three minutes through "sorry"
+// and "I'm helping him". The user's first sorry came 16 seconds after.
+
+/// What the throw being logged was for (living_defense.dm hitby()), while it's logged
+GLOBAL_VAR(bot_throw_aimed_at)
+
+#define BOT_ACCIDENT_MEMORY (3 MINUTES)
+
+/mob/living/carbon/human
+	/// Accidents they've had on somebody: REF of who -> list(when, forgiven)
+	var/list/bot_accidents
+	var/bot_apologised_at = -INFINITY
+
+/// A thrown hit that looks like an accident, held back while they've time to say sorry. TRUE if it's held.
+/proc/bot_hold_accident(mob/living/carbon/human/culprit, mob/living/carbon/human/victim, what_done, atom/object)
+	var/atom/aim = GLOB.bot_throw_aimed_at
+	if(!aim || aim == victim || get_turf(aim) == get_turf(victim) || !istype(culprit) || !istype(victim) || culprit == victim)
+		return FALSE //at them, or there's no telling
+	var/key = REF(victim)
+	var/list/had = LAZYACCESS(culprit.bot_accidents, key)
+	if(had && world.time < had[1] + BOT_ACCIDENT_MEMORY)
+		return FALSE //twice isn't an accident
+	LAZYSET(culprit.bot_accidents, key, list(world.time, FALSE))
+	var/sociability = victim.bot_brain ? victim.bot_brain.sociability : 0.5
+	var/grace = 20 SECONDS + round(10 SECONDS * clamp(sociability, 0, 1))
+	bot_tally("accidents held")
+	victim.bot_brain?.on_accident(culprit)
+	for(var/datum/bot_brain/B as anything in bot_witnesses_of(victim, list(culprit, victim)))
+		B.on_saw_accident(culprit, victim)
+	addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_accident_unanswered), WEAKREF(culprit), WEAKREF(victim), world.time, what_done, object), grace)
+	return TRUE
+
+/// The time's up: said sorry for, it's done with; otherwise it's taken as the attack it looked like
+/proc/bot_accident_unanswered(datum/weakref/culprit_ref, datum/weakref/victim_ref, when, what_done, atom/object)
+	var/mob/living/carbon/human/culprit = culprit_ref?.resolve()
+	var/mob/living/carbon/human/victim = victim_ref?.resolve()
+	if(QDELETED(culprit) || QDELETED(victim))
+		return
+	var/list/had = LAZYACCESS(culprit.bot_accidents, REF(victim))
+	if(!had || had[1] != when || had[2])
+		return
+	if(victim.bot_brain)
+		bot_log(victim.bot_brain, "[culprit] never said sorry for the accident: taken as an attack")
+	bot_security_witness_combat(culprit, victim, what_done, QDELETED(object) ? null : object) //nothing to read the aim off now: as it looked
+
+/// Somebody saying sorry, heard by a bot: anything they've done by accident in the last while is forgiven
+/proc/bot_heard_apology(mob/living/carbon/human/H, lower_msg)
+	if(!istype(H) || (!LAZYLEN(H.bot_accidents) && !H.bot_uncuffed) || world.time < H.bot_apologised_at + 2 SECONDS)
+		return
+	if(!bot_text_has_any(lower_msg, list("sorry", "my bad", "apologies", "accident", "didn't mean", "didnt mean", "oops", "whoops", "i'm helping", "im helping", "trying to help", "i'm trying to help", "not trying to hurt")))
+		return
+	H.bot_apologised_at = world.time
+	bot_uncuff_settled(H)
+	for(var/key in H.bot_accidents)
+		var/list/had = H.bot_accidents[key]
+		if(had[2] || world.time > had[1] + 40 SECONDS)
+			continue
+		had[2] = TRUE
+		var/mob/living/carbon/human/victim = locate(key)
+		bot_tally("accidents forgiven")
+		if(istype(victim) && victim.bot_brain)
+			victim.bot_brain.forgive_accident(H)
+		else
+			for(var/datum/bot_brain/B as anything in bot_witnesses_of(H, list(H)))
+				B.forgive_accident(H)
+				break
+
+/// Hit by something meant for something else
+/datum/bot_brain/proc/on_accident(mob/living/carbon/human/culprit)
+	if(QDELETED(owner) || owner.stat != CONSCIOUS)
+		return
+	bot_log(src, "hit by [culprit]'s throw at something else: an accident, unless they don't say sorry")
+	owner.face_atom(culprit)
+	if(world.time >= next_reaction_time)
+		next_reaction_time = world.time + 50
+		bot_say(owner, pick("Ow! Watch it!", "Hey! Watch where you're throwing that!", "OW! What the hell?!", "Ow! Careful!"))
+
+/// Saw somebody hit by something meant for something else
+/datum/bot_brain/proc/on_saw_accident(mob/living/carbon/human/culprit, mob/living/carbon/human/victim)
+	if(owner.stat != CONSCIOUS || state == BOT_STATE_COMBAT)
+		return
+	next_witness_time = max(next_witness_time, world.time + 4 SECONDS)
+	if(world.time >= next_reaction_time && prob(50))
+		next_reaction_time = world.time + 50
+		bot_say(owner, pick("Whoa, careful!", "Watch it!", "Hey, mind where that's going!"))
+
+/// They said sorry for an accident on this bot, or one it saw: forgiven, and a fight over it ended
+/datum/bot_brain/proc/forgive_accident(mob/living/carbon/human/culprit)
+	if(QDELETED(owner) || owner.stat != CONSCIOUS)
+		return
+	bot_log(src, "forgave [culprit] for the accident")
+	if(state == BOT_STATE_COMBAT && attacker == culprit)
+		end_combat_with(culprit)
+	if(owner.stat == CONSCIOUS)
+		say_after_typing(mood_pick(list("It's fine, no harm done.", "Don't worry about it!"), list("It's fine. Just watch where you're throwing things.", "Alright. Be careful."), list("Fine. Watch it next time.", "Yeah, yeah. Careful.")))
+
+/// Stops fighting somebody, the way it does when they're down or gone
+/datum/bot_brain/proc/end_combat_with(mob/living/who)
+	if(attacker != who)
+		return
+	attacker = null
+	state = state_before_combat || BOT_STATE_WANDER
+	stop_pursuit()
+
+#undef BOT_ACCIDENT_MEMORY
+
+// ---------------------------------------------------------------------------------------------
+// Uncuffing Security's prisoner
+// ---------------------------------------------------------------------------------------------
+
+// Somebody who isn't Security taking the cuffs off somebody Security has: whoever sees it says so to them and radios it in, a minor
+// charge; said sorry for with the cuffs back on, it's dropped. The prisoner doesn't take being let go as being set on, and only
+// one with reason to runs. The user ruled it, 2026-11-05: "they should report it, allowing me to apologize and then recuff the
+// prisoner". The user had uncuffed the janitor, a traitor Security had brought to Medbay, without knowing he was a prisoner.
+
+#define BOT_UNCUFF_SETTLE (5 MINUTES)
+
+/mob/living/carbon/human
+	/// The prisoner they let out of their cuffs: list(REF, when, cuffed again)
+	var/list/bot_uncuffed
+	var/bot_freed_called_in = -INFINITY
+
+/// Whether what was done names restraints: "stripped the handcuffs off"
+/proc/bot_restraints_named(what_done)
+	var/lower = lowertext("[what_done]")
+	for(var/word in list("handcuffs", "cuffs", "zipties", "restraints"))
+		if(findtext(lower, word))
+			return TRUE
+	return FALSE
+
+/// In Security's hands: wanted, on the way to a cell, or serving a sentence
+/proc/bot_in_custody(mob/living/carbon/human/H)
+	if(bot_is_wanted(H))
+		return TRUE
+	var/datum/bot_brain/other = GLOB.bot_work_claims[REF(H)]
+	if(other?.is_security_job() && istype(other.current_goal, /datum/bot_goal/brig_prisoner))
+		return TRUE
+	for(var/obj/machinery/door_timer/T as anything in GLOB.bot_brig_sentences)
+		var/datum/weakref/ref = GLOB.bot_brig_sentences[T]
+		if(!QDELETED(T) && T.timing && ref?.resolve() == H)
+			return TRUE
+	return FALSE
+
+/proc/bot_note_uncuffed(mob/living/carbon/human/freer, mob/living/carbon/human/prisoner)
+	if(GLOB.bot_reflexes_off || !istype(freer) || !istype(prisoner) || bot_is_officer(freer) || !bot_in_custody(prisoner))
+		return //not Security's, or Security letting them go
+	freer.bot_uncuffed = list(REF(prisoner), world.time, FALSE)
+	bot_tally("prisoners uncuffed")
+	prisoner.bot_brain?.on_uncuffed(freer)
+	for(var/datum/bot_brain/B as anything in bot_witnesses_of(freer, list(freer, prisoner)))
+		if(B.owner.stat == CONSCIOUS && !B.gone_loud() && !B.on_my_side(prisoner) && !B.is_security_job())
+			B.object_to_uncuffing(freer, prisoner)
+			return
+
+/// Its cuffs off by somebody who isn't Security
+/datum/bot_brain/proc/on_uncuffed(mob/living/carbon/human/freer)
+	if(QDELETED(owner) || owner.stat != CONSCIOUS)
+		return
+	if(resists_arrest())
+		bot_log(src, "uncuffed by [freer]: making a run for it")
+		say_after_typing(pick("Thanks!", "Cheers, sucker.", "See ya!"))
+		run_from(freer, "got its cuffs off")
+		return
+	bot_log(src, "uncuffed by [freer]: waiting for Security")
+	say_after_typing(pick("Uh, thanks? I'd better wait for Security.", "Thanks... I'll wait here for Security, though.", "Are you allowed to do that? I'll wait for Security."))
+
+/// Saw it: says so to them, and on the radio
+/datum/bot_brain/proc/object_to_uncuffing(mob/living/carbon/human/freer, mob/living/carbon/human/prisoner)
+	owner.face_atom(freer)
+	bot_log(src, "saw [freer] uncuff [prisoner], Security's prisoner")
+	bot_say(owner, pick("Hey! That's Security's prisoner!", "What are you doing? [prisoner.first_name()]'s under arrest!", "Hey, those cuffs are Security's! Put them back on!"))
+	if(world.time > prisoner.bot_freed_called_in + 1 MINUTES)
+		prisoner.bot_freed_called_in = world.time
+		call_it_in(freer, "Freeing a Prisoner", "has uncuffed [prisoner.name], Security's prisoner,", BOT_CRIME_MINOR)
+
+/// The cuffs back on the prisoner they let out: TRUE if it's that (not violence, then)
+/proc/bot_note_recuffed(mob/living/carbon/human/freer, mob/living/carbon/human/prisoner)
+	var/list/had = freer.bot_uncuffed
+	if(!had || had[1] != REF(prisoner) || world.time > had[2] + BOT_UNCUFF_SETTLE)
+		return FALSE
+	had[3] = TRUE
+	bot_uncuff_settled(freer)
+	return TRUE
+
+/// Said sorry, and the cuffs back on: the charge for it is dropped, and said so
+/proc/bot_uncuff_settled(mob/living/carbon/human/freer)
+	var/list/had = freer.bot_uncuffed
+	if(!had || !had[3] || freer.bot_apologised_at < had[2] || world.time > had[2] + BOT_UNCUFF_SETTLE)
+		return
+	freer.bot_uncuffed = null
+	var/mob/living/carbon/human/prisoner = locate(had[1])
+	var/datum/bot_wanted/W = bot_get_wanted_entry(freer)
+	if(W?.crime == "Freeing a Prisoner")
+		bot_clear_wanted(freer)
+	bot_tally("uncuffing put right")
+	for(var/datum/bot_brain/B as anything in bot_witnesses_of(freer, list(freer, prisoner)))
+		if(B.owner.stat == CONSCIOUS && !B.is_security_job())
+			bot_log(B, "[freer] put [prisoner]'s cuffs back on and said sorry")
+			bot_say(B.owner, ";Never mind, Security. [freer.name]'s cuffed [istype(prisoner) ? prisoner.name : "them"] again.")
+			return
+
+#undef BOT_UNCUFF_SETTLE
+
+/// Anything dangerous on them at all, searched: in their hands, their bag, their pockets
+/proc/bot_carrying_contraband(mob/living/carbon/human/H)
+	for(var/obj/item/I in H.GetAllContents())
+		if(is_type_in_typecache(I, GLOB.bot_contraband))
+			return TRUE
+	return FALSE
