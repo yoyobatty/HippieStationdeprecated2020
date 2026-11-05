@@ -1166,6 +1166,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	steps = list(
 		new /datum/bot_step/move_to(), //to the prisoner
 		new /datum/bot_step/grab_patient(), //shared with escort_to_sleeper (treat_patient.dm) - it's just "pull the goal's target"
+		new /datum/bot_step/move_to/brig_first_aid(G), //security_brig_first_aid.dm: the Brig's kit, for somebody bleeding
+		new /datum/bot_step/take_brig_first_aid(G),
 		to_cell,
 		new /datum/bot_step/process_prisoner(G),
 		to_timer,
@@ -1252,6 +1254,9 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 			phase = 3
 			return schedule(bot)
 		if(3)
+			// Bleeding: patched up before they're left (security_brig_first_aid.dm)
+			if(bot.patch_up_prisoner(P, src))
+				return schedule(bot)
 			// "Uncuff the prisoner, leaving them to buckle cuffed is considered poor
 			// form" - and the bot needs its cuffs back for the next arrest anyway.
 			var/obj/item/restraints/handcuffs/cuffs = P.handcuffed

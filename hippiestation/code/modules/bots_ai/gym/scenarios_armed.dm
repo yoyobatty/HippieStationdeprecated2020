@@ -170,3 +170,63 @@
 		fail_reason = "no gun"
 		return BOT_GYM_FAIL
 	return (gun.cell.charge >= gun.cell.maxcharge * 0.9 && (gun in bot.GetAllContents())) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// A prisoner brought in bleeding (security_brig_first_aid.dm)
+
+/datum/bot_scenario/brigged/bleeding
+	name = "brig: a prisoner who's bleeding is patched up before they're left"
+	desc = "An officer brigs somebody cut up in a fight (30 brute on each arm, bleeding). There's a first aid kit in the Brig; the officer takes it on the way and patches them in the cell before the cuffs come off. Prisoners used to bleed out in their cells."
+	layout = list(
+		"#########",
+		"#BC..ik.#",
+		"####d####",
+		"###...###",
+		"###..l###",
+		"#########")
+
+/datum/bot_scenario/brigged/bleeding/setup()
+	..()
+	if(length(markers["k"]))
+		new /obj/item/storage/firstaid/regular(first_marker("k"))
+
+/datum/bot_scenario/brigged/bleeding/post_spawn()
+	..()
+	prisoner.apply_damage(30, BRUTE, BODY_ZONE_L_ARM)
+	prisoner.apply_damage(30, BRUTE, BODY_ZONE_R_ARM)
+
+/// The limbs still bleeding (20 brute or more, blood.dm)
+/datum/bot_scenario/brigged/bleeding/proc/still_bleeding()
+	. = list()
+	for(var/obj/item/bodypart/BP as anything in prisoner.bodyparts)
+		if(BP.brute_dam >= 20)
+			. += "[BP.name] ([round(BP.brute_dam)])"
+
+/datum/bot_scenario/brigged/bleeding/check()
+	. = ..()
+	if(. != BOT_GYM_PASS)
+		return
+	var/list/bleeding = still_bleeding()
+	if(length(bleeding))
+		fail_reason = "left in the cell still bleeding from the [english_list(bleeding)]"
+		return BOT_GYM_FAIL
+
+/datum/bot_scenario/brigged/bleeding/no_kit
+	name = "brig: with nothing to patch a bleeding prisoner with, it tells Medical"
+	desc = "The same, with no first aid kit anywhere. The officer brigs them and asks Medical for a doctor."
+	layout = list(
+		"#########",
+		"#BC..i..#",
+		"####d####",
+		"###...###",
+		"###..l###",
+		"#########")
+
+/datum/bot_scenario/brigged/bleeding/no_kit/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!timer.timing || prisoner.handcuffed)
+		return BOT_GYM_PENDING
+	if(!bot_transcript_said("nothing to patch them with")) //logged with the call on the medical channel
+		fail_reason = "brigged them bleeding without a word to Medical"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
