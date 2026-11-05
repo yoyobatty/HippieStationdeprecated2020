@@ -201,6 +201,11 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		if(what_done == "attacked")
 			bot_note_vandalism(user, target) //bot_witness.dm
 		return
+	if(issilicon(target))
+		var/mob/living/silicon/S = target
+		if(S.bot_silicon && isliving(user) && bot_is_violent_verb(what_done))
+			addtimer(CALLBACK(S.bot_silicon, TYPE_PROC_REF(/datum/bot_silicon, hit_by), user), 1) //goals/silicon.dm
+		return
 	if(!isliving(user) || !ishuman(target) || user == target)
 		return
 	// Security's prisoner's cuffs off them, and back on again (bot_witness.dm)

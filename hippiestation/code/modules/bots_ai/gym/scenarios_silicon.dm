@@ -13,6 +13,10 @@
 	new /datum/bot_silicon/borg(borg)
 	borg.module.transform_to(borg_module)
 	log_line("cyborg: [borg.name], [borg.module.name] module")
+	RegisterSignal(borg, COMSIG_MOB_SAY, PROC_REF(borg_spoke))
+
+/datum/bot_scenario/griefed/borg/proc/borg_spoke(datum/source, list/speech_args)
+	log_line("cyborg said: [speech_args[SPEECH_MESSAGE]]")
 
 /datum/bot_scenario/griefed/borg/check()
 	if(QDELETED(borg) || borg.stat == DEAD)
@@ -144,4 +148,101 @@
 		fail_reason = "it serves the wrong master"
 		return BOT_GYM_FAIL
 	if(bot.getBruteLoss() + bot.getFireLoss() + bot.getStaminaLoss() > 20)
+		return BOT_GYM_PASS
+
+// The user's round (2026-11-05): "AI?" and "any AIs?" went unanswered, the cyborgs sat in the AI satellite all round and didn't say a word
+// when drilled.
+
+/datum/bot_scenario/griefed/borg/called
+	name = "cyborg: somebody calls for a borg and it answers"
+	desc = "Somebody across the room says \"Any borgs?\". The cyborg answers them."
+	borg_module = /obj/item/robot_module/janitor
+	layout = list(
+		"##########",
+		"#R.....C.#",
+		"#B.......#",
+		"##########")
+
+/datum/bot_scenario/griefed/borg/called/grief()
+	griefer.say("Any borgs?")
+
+/datum/bot_scenario/griefed/borg/called/check()
+	. = ..()
+	if(. != BOT_GYM_PENDING)
+		return
+	if(bot_transcript_said("cyborg said"))
+		return BOT_GYM_PASS
+
+/datum/bot_scenario/griefed/borg/follow
+	name = "cyborg: told to follow, it keeps up"
+	desc = "Somebody beside the cyborg says \"Borg, follow me\" and walks off down the corridor. It keeps a step or two behind them all the way."
+	borg_module = /obj/item/robot_module/janitor
+	layout = list(
+		"################",
+		"#RC............#",
+		"#.............B#",
+		"################")
+	var/walked = 0
+
+/datum/bot_scenario/griefed/borg/follow/grief()
+	griefer.say("Borg, follow me.")
+	addtimer(CALLBACK(src, PROC_REF(keep_at_it), "walk_on", 5), 4 SECONDS)
+
+/datum/bot_scenario/griefed/borg/follow/proc/walk_on()
+	if(walked >= 12)
+		return FALSE
+	walked++
+	step(griefer, EAST)
+	return TRUE
+
+/datum/bot_scenario/griefed/borg/follow/check()
+	. = ..()
+	if(. != BOT_GYM_PENDING || walked < 12)
+		return
+	if(get_dist(borg, griefer) <= 2)
+		log_line("at the end of the corridor, [get_dist(borg, griefer)] tiles behind")
+		return BOT_GYM_PASS
+
+/datum/bot_scenario/griefed/borg/hit
+	name = "cyborg: hit, it says stop, backs off and reports them"
+	desc = "Somebody hits the cyborg with a toolbox, twice. It tells them to stop, gets out of reach, and tells Security who's attacking it."
+	borg_module = /obj/item/robot_module/janitor
+	layout = list(
+		"##########",
+		"#RC......#",
+		"#.......B#",
+		"##########")
+
+/datum/bot_scenario/griefed/borg/hit/grief()
+	var/obj/item/I = griefer_holds(/obj/item/storage/toolbox/mechanical)
+	griefer_swing(I, borg)
+	addtimer(CALLBACK(src, PROC_REF(griefer_swing), I, borg), 3)
+
+/datum/bot_scenario/griefed/borg/hit/check()
+	. = ..()
+	if(. != BOT_GYM_PENDING)
+		return
+	if(bot_transcript_said("attacking me") && get_dist(borg, griefer) >= 3)
+		return BOT_GYM_PASS
+
+/datum/bot_scenario/griefed/borg/spacewalk
+	name = "cyborg: across a stretch of space along a wall, to somebody hurt"
+	desc = "Somebody badly hurt on the far side of open space, walls along both sides of it. A medical cyborg goes across by pushing off the walls, the way a player's does without thrusters, and treats them."
+	borg_module = /obj/item/robot_module/medical
+	layout = list(
+		"###############",
+		"#R..DSSSSSD..C#",
+		"#...#######..B#",
+		"###############")
+
+/datum/bot_scenario/griefed/borg/spacewalk/grief()
+	griefer.adjustBruteLoss(60)
+	griefer.Unconscious(60 SECONDS)
+
+/// Treated over there: the patient, or the bystander if the air rushing out through the door got to them first.
+/datum/bot_scenario/griefed/borg/spacewalk/check()
+	. = ..()
+	if(. != BOT_GYM_PENDING)
+		return
+	if(borg.x > griefer.x - 4 && (griefer.reagents.has_reagent(/datum/reagent/medicine/bicaridine) || bot.reagents.has_reagent(/datum/reagent/medicine/bicaridine)))
 		return BOT_GYM_PASS

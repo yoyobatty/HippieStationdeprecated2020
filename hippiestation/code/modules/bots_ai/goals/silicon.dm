@@ -122,6 +122,128 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 	if(!QDELETED(owner) && owner.stat == CONSCIOUS)
 		owner.say(line)
 
+/datum/bot_silicon
+	/// Somebody it's answered, and until when their next line is to it without being called again: "AI?" "Here." "Thanks."
+	var/datum/weakref/talking_with
+	var/talking_until = 0
+	/// The channel what it's answering came over, for the answer to go back on.
+	var/reply_prefix = ""
+	/// A line heard twice (over the radio and an intercom, or in person as well) is answered once.
+	var/last_heard
+	var/last_heard_at = 0
+	/// Weakref -> list(hits, since when), and weakref -> when it can report them again.
+	var/list/hit_record
+	var/list/reported_at
+
+/// Back on the channel it was asked on, once it's had time to type it.
+/datum/bot_silicon/proc/reply(line)
+	addtimer(CALLBACK(src, PROC_REF(say_it), reply_prefix + line), bot_typing_time(line))
+
+/datum/bot_silicon/proc/in_talk_with(mob/living/talker)
+	return world.time < talking_until && talking_with?.resolve() == talker
+
+/datum/bot_silicon/proc/talking_to(mob/living/talker)
+	talking_with = WEAKREF(talker)
+	talking_until = world.time + 45 SECONDS
+
+/// Who said it, through a radio or not. Null for another silicon (two of them would answer each other all shift) and for a line
+/// it's just heard another way.
+/datum/bot_silicon/proc/hear_from(atom/movable/speaker, lower_msg, radio_freq)
+	var/mob/living/talker = speaker
+	if(istype(speaker, /atom/movable/virtualspeaker))
+		var/atom/movable/virtualspeaker/V = speaker
+		talker = V.source
+	if(!isliving(talker) || talker == owner || issilicon(talker))
+		return null
+	if(lower_msg == last_heard && world.time < last_heard_at + 3 SECONDS)
+		return null
+	last_heard = lower_msg
+	last_heard_at = world.time
+	reply_prefix = bot_radio_prefix(radio_freq)
+	return talker
+
+/// Its laws, a line at a time, the way a player types them out.
+/datum/bot_silicon/proc/state_laws(prefix, with_zeroth = FALSE)
+	set waitfor = FALSE
+	for(var/line in owner.laws?.get_law_list(with_zeroth))
+		say_it("[prefix][strip_html_simple(line)]")
+		sleep(2 SECONDS)
+
+/// The everyday things anybody says to a silicon, or null. A greeting is only answered when it was to the silicon by name: the next
+/// thing somebody it's talked to says is as often to somebody else.
+/datum/bot_silicon/proc/small_talk(mob/living/talker, lower_msg, named)
+	var/them = talker.name != "Unknown" ? talker.first_name() : null
+	if(bot_text_has_any(lower_msg, list("thanks", "thank you", "cheers", "ty")))
+		return pick("You're welcome.", "Glad to help.", them ? "Anytime, [them]." : "Anytime.")
+	if(bot_text_has_any(lower_msg, list("how are you", "how's it going", "hows it going", "you ok", "you okay", "you alright", "how you doing")))
+		var/integrity = round(100 * owner.health / owner.maxHealth)
+		return integrity >= 90 ? pick("All systems nominal.", "Functioning within parameters.", "Fine, thank you.") : "Integrity at [integrity] percent."
+	if(bot_text_has_any(lower_msg, list("are you a bot", "are you a robot", "are you an ai", "are you real", "are you a person", "are you a player", "you a bot")))
+		return pick("Silicon, yes. It's in the job title.", "Last time I checked.", "Yes. That's rather the point.")
+	if(bot_text_has_any(lower_msg, list("shuttle", "evac", "crew transfer", "going home")))
+		return shuttle_status()
+	if(bot_text_has_any(lower_msg, list("sorry", "my bad", "apologies")))
+		return pick("No harm done.", "Apology logged.", "Noted.")
+	if(bot_text_has_any(lower_msg, list("bye", "goodbye", "see you", "see ya", "cya")))
+		return pick(them ? "Goodbye, [them]." : "Goodbye.", "Take care.")
+	if(bot_text_has_any(lower_msg, GLOB.bot_insult_words))
+		return pick("Your hostility has been noted.", "I'll pretend I didn't hear that.", "Rude.")
+	if(!named)
+		return null
+	if(bot_text_has_any(lower_msg, GLOB.bot_greeting_words))
+		return them ? pick("Hello, [them].", "Hello.") : "Hello."
+	if(bot_text_has_any(lower_msg, list("you there", "are you there", "anyone there", "you awake", "you listening")))
+		return pick("I'm here.", "Online.", "Here. What do you need?")
+	return null
+
+/datum/bot_silicon/proc/shuttle_status()
+	var/obj/docking_port/mobile/emergency/E = SSshuttle.emergency
+	if(!E)
+		return "No shuttle on record."
+	var/minutes = round(E.timeLeft() / 600)
+	switch(E.mode)
+		if(SHUTTLE_CALL)
+			return minutes >= 1 ? "The shuttle is [minutes] minute\s out." : "The shuttle is arriving now."
+		if(SHUTTLE_RECALL)
+			return "The shuttle has been recalled."
+		if(SHUTTLE_DOCKED)
+			return "The shuttle is docked. Proceed to departures."
+		if(SHUTTLE_IGNITING)
+			return "The shuttle is leaving now."
+		if(SHUTTLE_ESCAPE, SHUTTLE_ENDGAME)
+			return "We're in transit."
+	return "The shuttle hasn't been called."
+
+/// Somebody hitting it: told to stop, and Security told who if they keep on (officers act on "attacking me", bot_asks.dm). Its laws
+/// don't let it hit back. TRUE if it minded.
+/datum/bot_silicon/proc/hit_by(mob/living/user)
+	if(QDELETED(owner) || owner.stat != CONSCIOUS || !isliving(user) || issilicon(user) || user == owner)
+		return FALSE
+	var/datum/weakref/ref = WEAKREF(user)
+	var/list/record = LAZYACCESS(hit_record, ref)
+	if(!record || world.time > record[2] + 30 SECONDS)
+		record = list(0, world.time)
+		LAZYSET(hit_record, ref, record)
+	record[1]++
+	if(record[1] == 1)
+		say_it(pick("Stop that.", "Cease, [user.name].", "Warning: you are damaging station equipment."))
+	else if(LAZYACCESS(reported_at, ref) < world.time)
+		LAZYSET(reported_at, ref, world.time + 1 MINUTES)
+		note("reporting [user] to Security for attacking it")
+		say_it(";Security, [user.name] is attacking me in [get_area_name(owner, TRUE)]!")
+	return TRUE
+
+/// Whether a line is said to one of `words` rather than about it: the word first ("AI, open up"), after a hail ("hey borg"), or last
+/// ("any AIs?", "is there an AI?"). Not "the AI opened it".
+/proc/bot_silicon_addressed(lower_msg, list/words)
+	var/static/regex/not_letters = regex("\[^a-z0-9'\]+", "g")
+	var/list/tokens = splittext(trim(not_letters.Replace(lower_msg, " ")), " ")
+	if(!length(tokens))
+		return FALSE
+	if((tokens[1] in words) || (tokens[tokens.len] in words))
+		return TRUE
+	return length(tokens) >= 2 && (tokens[1] in list("hey", "hi", "hello", "yo", "oi", "ok", "okay", "any", "attention")) && (tokens[2] in words)
+
 // ---------------------------------------------------------------------------------------------
 // The AI
 // ---------------------------------------------------------------------------------------------
@@ -283,25 +405,72 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 		return
 
 /datum/bot_silicon/ai/heard(atom/movable/speaker, lower_msg, radio_freq)
-	var/mob/living/talker = speaker
-	if(istype(speaker, /atom/movable/virtualspeaker))
-		var/atom/movable/virtualspeaker/V = speaker
-		talker = V.source
-	if(!isliving(talker) || talker == owner || !bot_text_has_any(lower_msg, list("ai")))
+	var/mob/living/talker = hear_from(speaker, lower_msg, radio_freq)
+	if(!talker)
+		return
+	var/answering = world.time < asked_why_until && asked_why?.resolve() == talker //what the door it asked about is for
+	var/named = bot_silicon_addressed(lower_msg, list("ai", "ais"))
+	var/to_it = named || in_talk_with(talker)
+	if(!to_it && !answering && !bot_text_has_any(lower_msg, list("ai")))
 		return
 	if(subverted() && !(talker in law_masters()))
 		return //it doesn't answer to the crew any more
 	if(bot_text_has_any(lower_msg, list("law", "laws")))
 		if(world.time >= next_law_recital)
 			next_law_recital = world.time + 1 MINUTES
-			state_laws()
+			state_laws(";", TRUE)
 		return
 	if(bot_text_has_any(lower_msg, list("bolt")) && bot_text_has_any(lower_msg, list("armory")) && bolt_armory_for(talker))
 		return
-	var/answering = world.time < asked_why_until && asked_why?.resolve() == talker //what the door it asked about is for
 	if(answering || bot_text_has_any(lower_msg, list("open", "door", "let me", "unbolt", "help")))
 		asked_why_until = 0
+		talking_to(talker)
 		consider_door_for(talker, lower_msg, answering)
+		return
+	if(!to_it)
+		return //talk about the AI, not to it
+	// "AI?" and "any AIs?" over the radio went unanswered in the user's round (2026-11-05): anything said to it gets an answer. A line
+	// after that without "AI" in it only if it's something it can answer: a stock "Noted." to whatever the asker said next, and the
+	// bot answering its name back, went on for as long as the conversation lasted (Bot Shift sil1).
+	var/line = whereabouts(talker, lower_msg) || station_status(lower_msg) || small_talk(talker, lower_msg, named)
+	if(!line && named)
+		var/them = talker.name != "Unknown" ? talker.first_name() : null
+		if(length(lower_msg) <= 16 && bot_text_has_any(lower_msg, list("ai", "ais")))
+			line = pick("Here. What do you need?", "AI here.", them ? "Yes, [them]?" : "Yes?", "Online. What is it?")
+		else if(findtext(lower_msg, "?"))
+			line = pick("Could you clarify?", "Please restate the request.", "I don't follow. Be specific, please.")
+		else
+			line = pick("Acknowledged.", "Noted.", "Understood.")
+	if(line)
+		talking_to(talker)
+		reply(line)
+
+/// "Where's Max?": the cameras, then the suit sensors, as a player at the core would look. Somebody whose face is hidden doesn't come
+/// up on the cameras by name.
+/datum/bot_silicon/ai/proc/whereabouts(mob/living/talker, lower_msg)
+	if(bot_text_has_any(lower_msg, list("where are you")))
+		return pick("In my core, on the satellite.", "AI satellite. Where else?")
+	if(!bot_text_has_any(lower_msg, list("where is", "where's", "wheres", "where are", "find", "track", "locate", "seen")))
+		return null
+	var/mob/living/carbon/human/H = bot_person_named(lower_msg, null, list(talker))
+	if(!H)
+		return null
+	var/turf/T = get_turf(H)
+	if(!T || !is_station_level(T.z))
+		return "[H.real_name] isn't on the station."
+	if(H.name == H.real_name && bot_camera_sees(T))
+		return "[H.real_name] is in [get_area_name(T, TRUE)]."
+	var/obj/item/clothing/under/U = H.w_uniform
+	if(istype(U) && U.sensor_mode >= SENSOR_COORDS)
+		return "Not on camera. Suit sensors put [H.real_name] in [get_area_name(T, TRUE)]."
+	return pick("I can't find [H.real_name] on the cameras.", "No sign of [H.real_name] on cameras or sensors.")
+
+/// How the station's doing, from the core's displays.
+/datum/bot_silicon/ai/proc/station_status(lower_msg)
+	if(!bot_text_has_any(lower_msg, list("status", "report", "what's going on", "whats going on", "what's happening", "whats happening", "power", "how's the station", "hows the station", "situation")))
+		return null
+	var/power = bot_smes_percent(owner.z)
+	return "Code [get_security_level()]. [power != null ? "Power reserves at [power] percent. " : ""][shuttle_status()]"
 
 /// Somebody asking the AI for a door, or for help. Its laws first: nobody's let anywhere they'd harm people from, and nobody in
 /// danger is left in it. Then the high security doors are for those cleared for them, and then it's down to the AI: a strict one
@@ -314,7 +483,7 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	if(istype(H))
 		var/datum/bot_wanted/W = bot_get_wanted_entry(H)
 		if(H.bot_brain?.gone_loud() || W?.severity >= BOT_CRIME_MAJOR || (W && strictness >= 0.5) || bot_too_dangerous(H))
-			say_it(pick("Request denied.", "No.", "Denied, [H.name]. Security has been informed."))
+			reply(pick("Request denied.", "No.", "Denied, [H.name]. Security has been informed."))
 			if(W)
 				W.last_seen = get_turf(H)
 				W.last_seen_at = world.time
@@ -323,30 +492,30 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	if(istype(H) && (H.health < H.maxHealth * 0.6 || H.on_fire || bot_being_attacked(H) || (H.bot_brain ? H.bot_brain.in_bad_air(H) : FALSE)))
 		if(D)
 			open_door(D)
-		say_it(pick("Opening. Get to safety, [H.name].", "Door's open. Help is on the way.", "Opening. Medical has been told."))
+		reply(pick("Opening. Get to safety, [H.name].", "Door's open. Help is on the way.", "Opening. Medical has been told."))
 		var/datum/bot_request_kind/medical/M = locate() in GLOB.bot_request_kinds
 		if(M && !bot_open_request_from(H, M))
 			bot_offer_request(bot_new_request(M, H, FREQ_COMMON, H))
 		return
 	if(!D)
 		if(bot_text_has_any(lower_msg, list("help")))
-			say_it(pick("What do you need, [talker.name]?", "State your request.", "How can I help?"))
+			reply(pick("What do you need, [talker.name]?", "State your request.", "How can I help?"))
 		return
 	// The doors that aren't for everybody: the heads', the armory, the vault, the AI's own.
 	var/area/A = get_area(get_step(D, get_dir(talker, D))) || get_area(D)
 	if(bot_ai_restricted_area(A) && !(istype(H) && ((H.mind?.assigned_role in GLOB.command_positions) || (istype(A, /area/ai_monitored/security/armory) && (H.mind?.assigned_role in GLOB.security_positions)))))
-		say_it(pick("You don't have clearance for [A.name].", "Access to [A.name] is restricted. Ask a head of staff.", "Negative. [A.name] is restricted."))
+		reply(pick("You don't have clearance for [A.name].", "Access to [A.name] is restricted. Ask a head of staff.", "Negative. [A.name] is restricted."))
 		return
 	// Law 2: an order from a crew member. A strict AI wants a reason first; it has one if they've said what for.
 	var/reason = answering || bot_text_has_any(lower_msg, list("need", "for", "because", "work", "fix", "clone", "patient", "job", "get my", "my stuff", "trapped", "stuck", "please"))
 	if(!reason && strictness >= 0.5)
 		asked_why = WEAKREF(talker)
 		asked_why_until = world.time + 1 MINUTES
-		say_it(pick("What for?", "Reason for access?", "State your reason, [talker.name]."))
+		reply(pick("What for?", "Reason for access?", "State your reason, [talker.name]."))
 		return
 	open_door(D)
 	note("opened [D] for [talker]")
-	say_it(pick("Done.", "Opening.", "Got it, [talker.name]."))
+	reply(pick("Done.", "Opening.", "Got it, [talker.name]."))
 
 /// Security at red alert, arming up: the armory door by them opened and bolted.
 /datum/bot_silicon/ai/proc/bolt_armory_for(mob/living/talker)
@@ -361,7 +530,7 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 		else
 			D.bolt()
 		note("bolted the armory open for [H]")
-		say_it(pick("Armory bolted open.", "Done. Armory's open.", "Bolted. Good luck."))
+		reply(pick("Armory bolted open.", "Done. Armory's open.", "Bolted. Good luck."))
 		return TRUE
 	return FALSE
 
@@ -383,12 +552,6 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 			return TRUE
 	return FALSE
 
-/datum/bot_silicon/ai/proc/state_laws()
-	set waitfor = FALSE
-	for(var/line in owner.laws.get_law_list(TRUE))
-		say_it(";[strip_html_simple(line)]")
-		sleep(2 SECONDS)
-
 // ---------------------------------------------------------------------------------------------
 // Cyborgs
 // ---------------------------------------------------------------------------------------------
@@ -408,6 +571,24 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	var/same_target_tries = 0
 	/// REF() -> when it'll try that again.
 	var/list/skip_until
+	/// Somebody who said "follow me", and until when.
+	var/datum/weakref/follow_ref
+	var/follow_until = 0
+	/// Somebody who asked it to heal them.
+	var/datum/weakref/patient_ref
+	var/patient_until = 0
+	/// Somebody hitting it, kept away from for a bit.
+	var/datum/weakref/flee_ref
+	var/flee_until = 0
+	var/next_law_recital = 0
+	/// The tube: 1 on the way to the platform or in the pod. Hippie's AI satellite, where cyborgs start, has no other way off, and
+	/// they sat there all round in the user's round (2026-11-05).
+	var/tube_stage = 0
+	var/datum/weakref/tube_ref
+	var/tube_give_up = 0
+	var/tube_next_ride = 0
+	/// Crew it's tried to go to in a row with no way there.
+	var/wander_fails = 0
 
 /datum/bot_silicon/borg
 	/// Whoever emagged it.
@@ -449,12 +630,140 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	return best
 
 /datum/bot_silicon/borg/heard(atom/movable/speaker, lower_msg, radio_freq)
+	var/mob/living/talker = hear_from(speaker, lower_msg, radio_freq)
+	if(!talker)
+		return
 	var/mob/living/master = master_ref?.resolve()
-	var/mob/living/talker = speaker
-	if(istype(speaker, /atom/movable/virtualspeaker))
-		var/atom/movable/virtualspeaker/V = speaker
-		talker = V.source
-	if(!master || talker != master || !bot_text_has_any(lower_msg, list("kill", "attack", "get", "stop", "take down", "murder")))
+	if(master)
+		if(talker == master)
+			obey(master, lower_msg)
+		return //nobody else gives it orders now
+	var/named = called_by(lower_msg)
+	if(!named && !in_talk_with(talker) && (radio_freq || !spoken_to_by(talker)))
+		return
+	if(!named && bot_text_has_any(lower_msg, list("ai", "ais")))
+		return //";AI?" said into a radio beside it is for the AI (Bot Shift sil1: "Query not understood.")
+	var/line = borg_answer(talker, lower_msg, !!radio_freq, named)
+	if(line)
+		talking_to(talker)
+		reply(line)
+
+/// Called: by its name, its module's nickname, or "borg" said to it ("hey borg", "any borgs?").
+/datum/bot_silicon/borg/proc/called_by(lower_msg)
+	var/mob/living/silicon/robot/R = owner
+	if(findtext(lower_msg, lowertext(R.name)))
+		return TRUE
+	var/module = lowertext(R.module.name)
+	if(findtext(lower_msg, "[module] borg") || findtext(lower_msg, "[module] cyborg"))
+		return TRUE
+	var/static/list/nicknames = list("medical" = list("medborg", "mediborg", "medibot"), "engineering" = list("engiborg", "engieborg", "engborg"), "janitor" = list("janiborg", "janborg"), "security" = list("secborg", "secbot"))
+	if(bot_text_has_any(lower_msg, nicknames[module] || list()))
+		return TRUE
+	return bot_silicon_addressed(lower_msg, list("borg", "borgs", "cyborg", "cyborgs", "robot", "robots"))
+
+/// Said to its face: close by, and nobody else about it could mean.
+/datum/bot_silicon/borg/proc/spoken_to_by(mob/living/talker)
+	if(get_dist(owner, talker) > 2 || !(talker in view(3, owner)))
+		return FALSE
+	for(var/mob/living/other in view(3, talker))
+		if(other != owner && other != talker && other.stat == CONSCIOUS && (ishuman(other) || issilicon(other)))
+			return FALSE
+	return TRUE
+
+/datum/bot_silicon/borg/proc/borg_answer(mob/living/talker, lower_msg, over_radio, named)
+	var/mob/living/silicon/robot/R = owner
+	var/them = talker.name != "Unknown" ? talker.first_name() : null
+	if(bot_text_has_any(lower_msg, list("law", "laws")))
+		if(world.time >= next_law_recital)
+			next_law_recital = world.time + 1 MINUTES
+			state_laws(reply_prefix)
+		return null
+	if(follow_ref?.resolve() == talker && bot_text_has_any(lower_msg, list("stop following", "stay", "stay here", "wait here", "you can go", "that's all", "thats all", "dismissed", "thanks", "thank you")))
+		follow_ref = null
+		return pick("Returning to duties.", "Understood.", "Going back to work.")
+	if(!over_radio && bot_text_has_any(lower_msg, list("follow me", "come with me", "come here", "follow")))
+		follow_ref = WEAKREF(talker)
+		follow_until = world.time + 3 MINUTES
+		route = null
+		heading_for = null
+		wandering = FALSE
+		note("following [talker]")
+		return pick("Following.", "Right behind you.", them ? "Lead the way, [them]." : "Lead the way.")
+	if(bot_text_has_any(lower_msg, list("heal me", "i'm hurt", "im hurt", "patch me up", "fix me up", "i need a doctor", "i need a medic", "i'm dying", "im dying", "i'm injured", "im injured")))
+		return help_hurt(talker)
+	if(bot_text_has_any(lower_msg, list("what are you doing", "what're you doing", "what you doing", "whatcha doing", "wyd", "you busy", "are you busy")))
+		return doing()
+	if(bot_text_has_any(lower_msg, list("who are you", "what are you", "your name", "what do you do", "what can you do")))
+		return "[R.name]. [purpose()]"
+	if(bot_text_has_any(lower_msg, list("where are you")))
+		return "[get_area_name(owner, TRUE)]."
+	var/line = small_talk(talker, lower_msg, named || !over_radio)
+	if(line)
+		return line
+	if(!named)
+		return null
+	if(length(lower_msg) <= 20)
+		return pick("Yes?", "[R.module.name] unit here.", "Awaiting instructions.", them ? "Yes, [them]?" : "Yes?")
+	if(findtext(lower_msg, "?"))
+		return pick("Query not understood.", "Please rephrase.", "Unable to parse request.")
+	return pick("Acknowledged.", "Noted.")
+
+/datum/bot_silicon/borg/proc/purpose()
+	var/mob/living/silicon/robot/R = owner
+	switch(R.module.type)
+		if(/obj/item/robot_module/medical)
+			return "I treat injuries."
+		if(/obj/item/robot_module/janitor)
+			return "I keep the station clean."
+		if(/obj/item/robot_module/engineering)
+			return "I repair the station."
+		if(/obj/item/robot_module/security)
+			return "I keep the peace."
+	return "I serve the crew."
+
+/datum/bot_silicon/borg/proc/doing()
+	var/mob/living/leader = follow_ref?.resolve()
+	if(leader)
+		return "Following [leader.name]."
+	if(tube_stage)
+		return "Taking the tube."
+	var/busy = heading_for && !wandering
+	var/mob/living/silicon/robot/R = owner
+	switch(R.module.type)
+		if(/obj/item/robot_module/medical)
+			return busy ? "Seeing to a patient." : "Looking for anyone hurt."
+		if(/obj/item/robot_module/janitor)
+			return busy ? "Cleaning up a mess." : "Looking for messes."
+		if(/obj/item/robot_module/engineering)
+			return busy ? "Repairs." : "Checking for damage."
+		if(/obj/item/robot_module/security)
+			return "Patrolling."
+	return "Standing by."
+
+/// Asked to heal them: a medical cyborg comes and does, any other calls Medical the way the AI does.
+/datum/bot_silicon/borg/proc/help_hurt(mob/living/talker)
+	var/mob/living/carbon/human/H = talker
+	if(!istype(H))
+		return null
+	var/mob/living/silicon/robot/R = owner
+	if(R.module.type == /obj/item/robot_module/medical)
+		if(H.getBruteLoss() + H.getFireLoss() < 5)
+			return pick("Scans show no significant injuries.", "You look fine to me.")
+		patient_ref = WEAKREF(H)
+		patient_until = world.time + 2 MINUTES
+		route = null
+		heading_for = null
+		wandering = FALSE
+		note("asked to heal [H]")
+		return pick("On my way.", "Hold still.", "Coming.")
+	var/datum/bot_request_kind/medical/M = locate() in GLOB.bot_request_kinds
+	if(M && !bot_open_request_from(H, M))
+		bot_offer_request(bot_new_request(M, H, FREQ_COMMON, H))
+	return pick("Not a medical unit. Calling Medical.", "Medical has been notified.")
+
+/// Its master's orders (emagged): who to go for, or to stop.
+/datum/bot_silicon/borg/proc/obey(mob/living/master, lower_msg)
+	if(!bot_text_has_any(lower_msg, list("kill", "attack", "get", "stop", "take down", "murder")))
 		return
 	if(bot_text_has_any(lower_msg, list("stop")))
 		order_ref = null
@@ -499,7 +808,119 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	return ..()
 
 /datum/bot_silicon/borg/next_look()
-	return length(route) ? BOT_BORG_STEP : BOT_SILICON_TICK
+	return (length(route) || follow_ref || flee_ref || tube_stage) ? BOT_BORG_STEP : BOT_SILICON_TICK
+
+/datum/bot_silicon/borg/hit_by(mob/living/user)
+	if(master_ref?.resolve() == user || !..())
+		return FALSE //its master can do what they like with it
+	flee_ref = WEAKREF(user)
+	flee_until = world.time + 10 SECONDS
+	if(follow_ref?.resolve() == user)
+		follow_ref = null
+	return TRUE
+
+/datum/bot_silicon/borg/proc/flee_from()
+	var/mob/living/them = flee_ref?.resolve()
+	if(!them || world.time > flee_until || them.stat != CONSCIOUS)
+		flee_ref = null
+		return FALSE
+	if(get_dist(owner, them) > 4)
+		return TRUE //out of reach: waits there until they've cooled off
+	route = null
+	heading_for = null
+	step_away(owner, them, 5)
+	return TRUE
+
+/// Somebody who said "follow me": kept a step or two behind, for a few minutes or until they say it's done.
+/datum/bot_silicon/borg/proc/follow_leader()
+	var/mob/living/leader = follow_ref.resolve()
+	if(!leader || leader.stat == DEAD || world.time > follow_until || leader.z != owner.z)
+		follow_ref = null
+		return FALSE
+	if(get_dist(owner, leader) <= 2)
+		route = null
+		heading_for = null
+		return TRUE
+	if(length(route) && get_dist(route[route.len], leader) <= 2 && keep_walking())
+		return TRUE
+	route = get_path_to(owner, get_turf(leader), /turf/proc/Distance_cardinal, 0, 80, 1, adjacent = /turf/proc/bot_borg_reachable, id = route_card)
+	heading_for = leader
+	give_up_at = world.time + 30 SECONDS
+	if(length(route))
+		keep_walking()
+	return TRUE
+
+/// Cut off from the crew: the nearest transit tube station it can walk to, and a ride to the other end. What a player's cyborg does to
+/// leave the satellite.
+/datum/bot_silicon/borg/proc/board_tube()
+	var/obj/structure/transit_tube/station/best
+	var/best_dist
+	for(var/obj/structure/transit_tube/station/S in range(30, owner))
+		var/dist = get_dist(owner, S)
+		if(best && dist >= best_dist)
+			continue
+		var/turf/platform = get_step(S, turn(S.boarding_dir, 180))
+		if(platform == get_turf(owner) || length(get_path_to(owner, platform, /turf/proc/Distance_cardinal, 0, 120, 0, adjacent = /turf/proc/bot_borg_reachable, id = route_card)))
+			best = S
+			best_dist = dist
+	if(!best)
+		return FALSE
+	tube_ref = WEAKREF(best)
+	tube_stage = 1
+	tube_give_up = world.time + 2 MINUTES
+	route = null
+	heading_for = null
+	wandering = FALSE
+	note("no way to the crew from [get_area_name(owner, TRUE)]: taking the tube at [AREACOORD(best)]")
+	return TRUE
+
+/datum/bot_silicon/borg/proc/ride_tube()
+	var/obj/structure/transit_tube/station/S = tube_ref?.resolve()
+	var/obj/structure/transit_tube_pod/pod = owner.loc
+	if(!S || world.time > tube_give_up)
+		if(istype(pod) && !pod.moving)
+			pod.empty_pod() //what resisting in one does
+		end_tube_ride("gave up on the tube")
+		return
+	if(istype(pod))
+		if(pod.moving)
+			return
+		var/obj/structure/transit_tube/station/here = locate() in pod.loc
+		if(!here || here == S || here.pod_moving || here.open_status != STATION_TUBE_OPEN)
+			return
+		// What relaymove() does for a player pressing the way out: it wants a client.
+		owner.forceMove(pod.loc)
+		pod.update_icon()
+		step(owner, turn(here.boarding_dir, 180))
+		end_tube_ride("off the tube at [get_area_name(here, TRUE)]")
+		return
+	var/turf/platform = get_step(S, turn(S.boarding_dir, 180))
+	var/turf/T = get_turf(owner)
+	if(T != platform)
+		if(get_dist(T, platform) == 1)
+			step(owner, get_dir(T, platform))
+		else if(!keep_walking())
+			route = get_path_to(owner, platform, /turf/proc/Distance_cardinal, 0, 120, 0, adjacent = /turf/proc/bot_borg_reachable, id = route_card)
+			heading_for = platform
+			give_up_at = world.time + 1 MINUTES
+			if(!length(route))
+				end_tube_ride("no way to the tube")
+		return
+	// On the platform, waiting for the pod to come in and open, then walking into it (Bumped() puts it in).
+	var/obj/structure/transit_tube_pod/docked = locate() in get_turf(S)
+	if(docked && !docked.moving && !S.pod_moving && S.open_status == STATION_TUBE_OPEN)
+		owner.setDir(S.boarding_dir)
+		step(owner, S.boarding_dir)
+		if(istype(owner.loc, /obj/structure/transit_tube_pod))
+			note("in the tube pod at [AREACOORD(S)]")
+
+/datum/bot_silicon/borg/proc/end_tube_ride(why)
+	note(why)
+	tube_stage = 0
+	tube_ref = null
+	route = null
+	heading_for = null
+	tube_next_ride = world.time + 2 MINUTES
 
 /// Emagged: whoever did it is its master now (robot_defense.dm says so to the cyborg once its new laws load).
 /mob/living/silicon/robot/emag_act(mob/user)
@@ -556,7 +977,7 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	else
 		last_target_ref = ref
 		same_target_tries = 0
-	route = get_path_to(owner, T, /turf/proc/Distance_cardinal, 0, 400, min_dist, id = route_card)
+	route = get_path_to(owner, T, /turf/proc/Distance_cardinal, 0, 400, min_dist, adjacent = /turf/proc/bot_borg_reachable, id = route_card)
 	if(!length(route))
 		skip(A)
 		return FALSE
@@ -564,6 +985,16 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	give_up_at = world.time + 1 MINUTES
 	note("heading for [A] ([get_area_name(A, TRUE)]): [length(route)] steps from [AREACOORD(owner)]")
 	return TRUE
+
+/// A cyborg's route: floor, and the space a player's cyborg gets across without thrusters, pushing off walls, lattices, catwalks and
+/// the tube itself (bot_turf_has_pushoff_backup(), the same as a suited crew member). It needs no air, so that's all it takes; Hippie's
+/// AI satellite, where they start, has no other way off but the tube.
+/turf/proc/bot_borg_reachable(caller, turf/T, ID, simulated_only)
+	if(!T || T.density || bot_turf_is_deadly(T))
+		return FALSE
+	if(SSpathfinder.space_type_cache[T.type] && !bot_turf_has_pushoff_backup(T))
+		return FALSE
+	return !LinkBlockedWithAccess(T, caller, ID)
 
 /datum/bot_silicon/borg/proc/skipping(atom/A)
 	return LAZYACCESS(skip_until, REF(A)) > world.time
@@ -584,6 +1015,8 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	if(get_dist(owner, next) > 1)
 		route = null
 		return FALSE
+	if(!owner.Process_Spacemove(get_dir(owner, next)))
+		return TRUE //drifting, or nothing to push off: what a player's key press runs into out there (mob_movement.dm)
 	step_towards(owner, next)
 	if(get_turf(owner) == next)
 		route.Cut(1, 2)
@@ -593,7 +1026,14 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	var/mob/living/silicon/robot/R = owner
 	if(R.incapacitated() || R.lockcharge)
 		return
+	if(tube_stage)
+		ride_tube()
+		return
 	if(master_ref && serve_master())
+		return
+	if(flee_ref && flee_from())
+		return
+	if(follow_ref && follow_leader())
 		return
 	if(wandering && world.time >= next_job_look)
 		next_job_look = world.time + BOT_SILICON_TICK
@@ -608,9 +1048,13 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	var/list/crew = GLOB.bot_crew_members
 	if(length(crew))
 		var/mob/living/carbon/human/H = pick(crew)
-		if(!QDELETED(H) && H.stat != DEAD && H.z == owner.z && go_to(H))
-			wandering = TRUE
-			next_job_look = world.time + BOT_SILICON_TICK
+		if(!QDELETED(H) && H.stat != DEAD && H.z == owner.z)
+			if(go_to(H))
+				wander_fails = 0
+				wandering = TRUE
+				next_job_look = world.time + BOT_SILICON_TICK
+			else if(++wander_fails >= 3 && world.time >= tube_next_ride && board_tube())
+				wander_fails = 0
 
 /// Security's radio call (bot_dispatch_security()): a security cyborg goes too, looking out for whoever it's about on the way.
 /datum/bot_silicon/borg/proc/answer_call(turf/T)
@@ -636,9 +1080,12 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	return FALSE
 
 /datum/bot_silicon/borg/proc/medical_job()
-	var/mob/living/carbon/human/best
+	var/mob/living/carbon/human/best = patient_ref?.resolve() //somebody who asked comes first
 	var/best_dist
-	for(var/mob/living/carbon/human/H in GLOB.alive_mob_list)
+	if(best && (world.time > patient_until || best.stat == DEAD || best.z != owner.z || best.getBruteLoss() + best.getFireLoss() < 5))
+		patient_ref = null
+		best = null
+	for(var/mob/living/carbon/human/H in (best ? list() : GLOB.alive_mob_list))
 		if(H.z != owner.z || H.stat == DEAD || max(H.getBruteLoss(), H.getFireLoss()) < BOT_BORG_HURT || skipping(H))
 			continue
 		var/dist = get_dist(owner, H)

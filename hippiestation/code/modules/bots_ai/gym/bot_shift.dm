@@ -320,6 +320,39 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 			H.death()
 	GLOB.bot_shift_ends_at = world.time
 
+/// What the user said over the radio in their round (2026-11-05), then a question the AI can answer from its cameras, then thanks:
+/// a crew member asks, 20 seconds apart. The answers are the AI's SAY lines in game.log.
+/datum/bot_shift/proc/ask_ai_drill(step)
+	var/list/crew = list()
+	for(var/mob/living/carbon/human/H in GLOB.bot_crew_members)
+		if(H.stat == CONSCIOUS && is_station_level(H.z))
+			crew += H
+	if(length(crew) < 2)
+		return
+	var/mob/living/carbon/human/asker = crew[1]
+	var/mob/living/carbon/human/other = crew[2]
+	var/static/list/lines = list(";AI?", ";Any AIs?", ";AI, where's %?", ";AI, status report.", ";Thanks AI.")
+	var/line = replacetext(lines[step + 1], "%", other.real_name)
+	note("drill: [asker.real_name] says \"[line]\"")
+	asker.say(line)
+	if(step + 1 < length(lines))
+		addtimer(CALLBACK(src, PROC_REF(ask_ai_drill), step + 1), 20 SECONDS)
+
+/// Where a round's cyborgs start (in the AI satellite on Hippie, the user's round 2026-11-05): beside the AI core. A shift's are made
+/// after the job landmarks have gone, so they turn up on the arrivals shuttle instead.
+/datum/bot_shift/proc/borgs_to_core()
+	var/mob/living/silicon/ai/A = locate() in GLOB.ai_list
+	if(!A)
+		return
+	var/list/spots = list()
+	for(var/turf/open/floor/F in range(4, A))
+		if(get_area(F) == get_area(A) && !is_blocked_turf(F, TRUE))
+			spots += F
+	for(var/datum/bot_silicon/borg/B in GLOB.bot_silicons)
+		if(length(spots))
+			B.owner.forceMove(pick(spots))
+			note("drill: [B.owner] starts by the AI core at [AREACOORD(B.owner)]")
+
 /datum/bot_shift/proc/rad_drill()
 	SSweather.run_weather(/datum/weather/rad_storm)
 	addtimer(CALLBACK(src, PROC_REF(rad_count)), 70 SECONDS)
@@ -387,8 +420,12 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_spawn_nukeops), text2num(world.params["bot-nukeops"])), 10 SECONDS) //goals/nuke_ops.dm
 	if(world.params["bot-silicons"])
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_spawn_silicons), text2num(world.params["bot-silicons"])), 5 SECONDS) //goals/silicon.dm
+		if(world.params["borgs-at-core"])
+			addtimer(CALLBACK(src, PROC_REF(borgs_to_core)), 6 SECONDS)
 	if(world.params["heads-drill"])
 		addtimer(CALLBACK(src, PROC_REF(heads_drill)), 4 MINUTES)
+	if(world.params["ask-ai"])
+		addtimer(CALLBACK(src, PROC_REF(ask_ai_drill), 0), 3 MINUTES)
 	if(world.params["ttv-bench"])
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(run_ttv_bench)), 5 SECONDS)
 	if(world.params["engine-test"])
