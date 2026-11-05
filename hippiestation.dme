@@ -3409,6 +3409,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\setup_tesla_engine.dm"
 #include "hippiestation\code\modules\bots_ai\goals\silicon.dm"
 #include "hippiestation\code\modules\bots_ai\goals\solars.dm"
+#include "hippiestation\code\modules\bots_ai\goals\station_requests.dm"
 #include "hippiestation\code\modules\bots_ai\goals\surgery.dm"
 #include "hippiestation\code\modules\bots_ai\goals\synthesize_medicine.dm"
 #include "hippiestation\code\modules\bots_ai\goals\take_item.dm"
