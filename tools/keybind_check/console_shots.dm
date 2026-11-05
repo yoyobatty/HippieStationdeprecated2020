@@ -129,6 +129,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_apc(C, H, label)
 		if("pa")
 			cs_pa(C, H, label)
+		if("teg")
+			cs_teg(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -1090,3 +1092,71 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	cs_check("the reset is in the log", logged)
 	sleep(2 SECONDS)
 	cs_shot("popup_apc_[label]_7_reset_done", office.name)
+
+// The thermoelectric generator
+
+/proc/cs_clear_floor(turf/T)
+	if(!istype(T, /turf/open/floor) || T.density)
+		return FALSE
+	for(var/atom/movable/AM in T)
+		if(AM.density || istype(AM, /obj/machinery) || ismob(AM))
+			return FALSE
+	return TRUE
+
+/proc/cs_teg(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/engineer)
+	// A floor with room for a circulator either side, and for us beside it
+	var/turf/spot
+	for(var/turf/T in range(7, H))
+		if(cs_clear_floor(T) && cs_clear_floor(get_step(T, EAST)) && cs_clear_floor(get_step(T, WEST)) && (cs_clear_floor(get_step(T, NORTH)) || cs_clear_floor(get_step(T, SOUTH))))
+			spot = T
+			break
+	cs_check("there's room for a generator", spot)
+	if(!spot)
+		return
+	var/obj/machinery/atmospherics/components/binary/circulator/hot = new(get_step(spot, EAST))
+	hot.setDir(WEST)
+	var/obj/machinery/atmospherics/components/binary/circulator/cold/cold = new(get_step(spot, WEST))
+	cold.setDir(EAST)
+	new /obj/structure/cable(spot)
+	var/obj/machinery/power/generator/teg = new(spot)
+	if(!teg.powernet)
+		var/obj/structure/cable/wire = locate() in spot
+		if(!wire.powernet)
+			var/datum/powernet/net = new
+			net.add_cable(wire)
+		teg.connect_to_network()
+	cs_check("it finds both circulators and the cable", teg.hot_circ == hot && teg.cold_circ == cold && teg.powernet, "hot [teg.hot_circ ? "yes" : "no"], cold [teg.cold_circ ? "yes" : "no"], power net [teg.powernet ? "yes" : "no"]")
+	// Burning plasma one side, nitrogen near the boil the other
+	var/datum/gas_mixture/hot_in = hot.airs[2]
+	hot_in.parse_gas_string("plasma=150;TEMP=1600")
+	var/datum/gas_mixture/cold_in = cold.airs[2]
+	cold_in.parse_gas_string("n2=150;TEMP=80")
+	H.forceMove(cs_clear_floor(get_step(spot, SOUTH)) ? get_step(spot, SOUTH) : get_step(spot, NORTH))
+	sleep(6 SECONDS)
+	cs_check("it generates", teg.lastgenlev > 0, DisplayPower(teg.lastgenlev))
+	usr = H
+	teg.interact(H)
+	sleep(3 SECONDS)
+	var/datum/tgui/ui = cs_find_ui(H, teg)
+	if(!ui)
+		// The old window
+		winset(C, "teg", "pos=200,40")
+		sleep(10)
+		cs_shot("popup_teg_[label]_1_running")
+		H << browse(null, "window=teg")
+		return
+	winset(C, ui.window_id, "pos=200,40")
+	sleep(10)
+	cs_shot("popup_teg_[label]_1_running", teg.name)
+	var/list/data = teg.ui_data(H)
+	var/list/hot_data = data["hot"]
+	cs_check("the window has the generator's own numbers", data["output_level"] == teg.lastgenlev && hot_data["inlet_temperature"] == round(hot_in.temperature, 0.1), "[data["output"]], hot inlet [hot_data["inlet_temperature"]] K")
+	// A circulator gone
+	qdel(hot)
+	teg.find_circs()
+	sleep(3 SECONDS)
+	data = teg.ui_data(H)
+	cs_check("with the hot circulator gone it says so", !data["hot"] && data["cold"])
+	cs_shot("popup_teg_[label]_2_no_hot_loop", teg.name)
+	SStgui.close_user_uis(H)

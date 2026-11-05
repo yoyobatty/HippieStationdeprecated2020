@@ -86,6 +86,7 @@ import { SuitStorageUnit } from './interfaces/SuitStorageUnit';
 import { Tank } from './interfaces/Tank';
 import { TankDispenser } from './interfaces/TankDispenser';
 import { ThermoMachine } from './interfaces/ThermoMachine';
+import { ThermoelectricGenerator } from './interfaces/ThermoelectricGenerator';
 import { TurbineComputer } from './interfaces/TurbineComputer';
 import { Uplink } from './interfaces/Uplink';
 import { VaultController } from './interfaces/VaultController';
@@ -465,6 +466,10 @@ const ROUTES = {
   },
   tank_dispenser: {
     component: () => TankDispenser,
+    scrollable: false,
+  },
+  thermoelectric_generator: {
+    component: () => ThermoelectricGenerator,
     scrollable: false,
   },
   thermomachine: {
