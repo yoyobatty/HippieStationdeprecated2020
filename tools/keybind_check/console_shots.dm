@@ -209,6 +209,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_prefs(C, H, label)
 		if("teleporter")
 			cs_teleporter(C, H, label)
+		if("arcade")
+			cs_arcade(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -4233,3 +4235,38 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	cs_check("the regime can't change while calibrating", console.regime_set == "Teleporter")
 	SStgui.close_user_uis(H)
 
+
+// The arcade machines, as they are
+/proc/cs_arcade(client/C, mob/living/carbon/human/H, label)
+	for(var/path in list(/obj/machinery/computer/arcade/battle, /obj/machinery/computer/arcade/orion_trail, /obj/machinery/computer/arcade/minesweeper))
+		var/obj/machinery/computer/arcade/A = new path(cs_open_beside(H))
+		A.stat &= ~(NOPOWER|BROKEN)
+		usr = H
+		A.interact(H)
+		sleep(25)
+		var/short = copytext("[path]", length("/obj/machinery/computer/arcade/") + 1)
+		if(SStgui.get_open_ui(H, A, "main"))
+			var/datum/tgui/opened = SStgui.get_open_ui(H, A, "main")
+			winset(C, opened.window_id, "pos=200,40")
+			sleep(10)
+		cs_shot("popup_arcade_[label]_[short]")
+		var/window = (path == /obj/machinery/computer/arcade/minesweeper) ? "minesweeper" : "arcade"
+		// The real links, clicked: anything whose text starts with it
+		var/js_click = "var t=%T%;var b=Array.prototype.slice.call(document.querySelectorAll('a')).filter(function(e){return e.textContent.trim().indexOf(t)===0;})\[0\];if(b){b.click();}"
+		var/first = (path == /obj/machinery/computer/arcade/battle) ? "Attack" : (path == /obj/machinery/computer/arcade/orion_trail) ? "New Game" : "Easy"
+		var/status_var = ("game_status" in A.vars) ? "game_status" : (("gameStatus" in A.vars) ? "gameStatus" : "enemy_hp")
+		var/before_status = A.vars[status_var]
+		var/datum/tgui/ui = SStgui.get_open_ui(H, A, "main")
+		if(ui)
+			winset(C, ui.window_id, "pos=200,40")
+			cs_tgui_do(C, ui.window_id, "click:[first]")
+		else
+			C << output(url_encode(replacetext(js_click, "%T%", json_encode(first))), "[window].browser:eval")
+		sleep(25)
+		kc_log("[short]: clicked [first]: [status_var] [before_status] -> [A.vars[status_var]]")
+		cs_shot("popup_arcade_[label]_[short]_2_clicked")
+		H << browse(null, "window=arcade")
+		H << browse(null, "window=minesweeper")
+		SStgui.close_user_uis(H)
+		qdel(A)
+		sleep(5)

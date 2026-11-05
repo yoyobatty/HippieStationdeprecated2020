@@ -3105,6 +3105,7 @@
 #include "hippiestation\code\game\machinery\computer\robot_tgui.dm"
 #include "hippiestation\code\game\machinery\computer\teleporter_tgui.dm"
 #include "hippiestation\code\game\machinery\computer\arcade.dm"
+#include "hippiestation\code\game\machinery\computer\arcade_tgui.dm"
 #include "hippiestation\code\game\machinery\computer\camera_tgui.dm"
 #include "hippiestation\code\game\machinery\computer\card_tgui.dm"
 #include "hippiestation\code\game\machinery\computer\cloning_tgui.dm"
