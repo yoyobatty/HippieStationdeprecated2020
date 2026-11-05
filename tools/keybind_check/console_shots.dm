@@ -125,6 +125,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_stack(C, H, label)
 		if("strip")
 			cs_strip(C, H, label)
+		if("apc")
+			cs_apc(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -842,3 +844,93 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	M.Immobilize(2 MINUTES) // monkeys wander, and a strip stops when they move
 	sleep(5)
 	return M
+
+// The power flow control console
+
+/proc/cs_apc(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/ce)
+	var/obj/machinery/computer/apc_control/console = new(cs_open_beside(H))
+	console.stat &= ~(NOPOWER|BROKEN)
+	usr = H
+	console.Topic(null, list("authenticate" = "1"))
+	cs_check("the Chief Engineer logs in", console.authenticated, console.auth_id)
+	console.interact(H)
+	sleep(3 SECONDS)
+	var/datum/tgui/ui = cs_find_ui(H, console)
+	if(!ui)
+		// The old window
+		winset(C, "apc_control", "pos=200,40")
+		sleep(10)
+		cs_shot("popup_apc_[label]_1_list")
+		usr = H
+		console.Topic(null, list("check_logs" = "1"))
+		sleep(10)
+		cs_shot("popup_apc_[label]_3_logs")
+		H << browse(null, "window=apc_control")
+		return
+	winset(C, ui.window_id, "pos=200,40")
+	sleep(10)
+	cs_shot("popup_apc_[label]_1_list", console.name)
+	cs_tgui_do(C, ui.window_id, "input0:engi")
+	sleep(10)
+	cs_shot("popup_apc_[label]_2_search", console.name)
+	// Access, clicked in the window: the first engineering APC that answers
+	var/obj/machinery/power/apc/first
+	for(var/obj/machinery/power/apc/APC as anything in GLOB.apcs_list)
+		if(console.check_apc(APC) && !APC.aidisabled && !APC.panel_open && (findtext(APC.name, "engi") || findtext(get_area_name(APC.area, TRUE), "engi")))
+			first = APC
+			break
+	cs_tgui_do(C, ui.window_id, "click:Access")
+	sleep(2 SECONDS)
+	cs_check("clicking Access reaches an engineering APC", console.active_apc && console.active_apc == first, "[console.active_apc ? get_area_name(console.active_apc.area, TRUE) : "none"]")
+	cs_check("which unlocks and opens its own window", console.active_apc && !console.active_apc.locked && cs_find_ui(H, console.active_apc))
+	if(console.active_apc)
+		var/datum/tgui/apc_ui = cs_find_ui(H, console.active_apc)
+		apc_ui?.close()
+	sleep(5)
+	// What the old window's Topic took on trust
+	var/obj/machinery/power/apc/far
+	for(var/obj/machinery/power/apc/APC as anything in GLOB.apcs_list)
+		if(APC.z != console.z && !APC.aidisabled && !APC.panel_open)
+			far = APC
+			break
+	if(far)
+		var/obj/machinery/power/apc/was = console.active_apc
+		cs_act(console, H, "access", list("ref" = REF(far)))
+		cs_check("an APC off the station's level can't be sent", console.active_apc == was, "[get_area_name(far.area, TRUE)]")
+		var/datum/tgui/far_ui = cs_find_ui(H, far)
+		far_ui?.close()
+	else
+		kc_log("SKIP no APC off the station's level to try")
+	var/log_count = length(console.logs)
+	cs_act(console, H, "clear_logs")
+	cs_check("nor clearing the logs without an emag", length(console.logs) == log_count, "[length(console.logs)] of [log_count] entries")
+	// The logs, clicked
+	cs_tgui_do(C, ui.window_id, "click:Logs")
+	sleep(10)
+	cs_check("clicking Logs shows the log", console.checking_logs)
+	var/list/data = console.ui_data(H)
+	var/found = FALSE
+	for(var/entry in data["logs"])
+		if(findtext(entry, "remotely accessed APC"))
+			found = TRUE
+	cs_check("which has the access, in plain text", found && !findtext(json_encode(data["logs"]), "<b>"), "[length(data["logs"])] entries")
+	cs_shot("popup_apc_[label]_3_logs", console.name)
+	// Emagged: the warning, and the logs can be cleared
+	console.emag_act(H)
+	sleep(10)
+	cs_shot("popup_apc_[label]_4_emagged", console.name)
+	cs_tgui_do(C, ui.window_id, "click:@#%! Clear logs")
+	sleep(10)
+	cs_check("an emagged console's Clear logs clears them", !length(console.logs), "[length(console.logs)] left")
+	cs_tgui_do(C, ui.window_id, "click:Restore logging")
+	sleep(10)
+	cs_check("clicking Restore logging restores it", !(console.obj_flags & EMAGGED))
+	cs_tgui_do(C, ui.window_id, "click:Log out")
+	sleep(10)
+	cs_check("clicking Log out logs out", !console.authenticated)
+	cs_tgui_do(C, ui.window_id, "click:Log in")
+	sleep(10)
+	var/last_entry = length(console.logs) ? console.logs[length(console.logs)] : ""
+	cs_check("clicking Log in logs in, under their name (the old window put NULL OPERATOR)", console.authenticated && findtext(last_entry, H.real_name) && findtext(last_entry, "logged in"), last_entry)
+	SStgui.close_user_uis(H)
