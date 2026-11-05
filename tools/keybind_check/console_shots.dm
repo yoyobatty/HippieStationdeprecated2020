@@ -131,6 +131,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_pa(C, H, label)
 		if("teg")
 			cs_teg(C, H, label)
+		if("pipes")
+			cs_pipes(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -1159,4 +1161,99 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	data = teg.ui_data(H)
 	cs_check("with the hot circulator gone it says so", !data["hot"] && data["cold"])
 	cs_shot("popup_teg_[label]_2_no_hot_loop", teg.name)
+	SStgui.close_user_uis(H)
+
+// The pipe, disposal pipe and transit tube dispensers
+
+/proc/cs_pipes(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/atmos)
+	var/list/taken = list()
+	var/obj/machinery/pipedispenser/atmos = new(cs_open_beside(H, taken))
+	taken += atmos.loc
+	var/obj/machinery/pipedispenser/disposal/disposal = new(cs_open_beside(H, taken))
+	taken += disposal.loc
+	var/obj/machinery/pipedispenser/disposal/transit_tube/tubes = new(cs_open_beside(H, taken))
+	var/list/dispensers = list()
+	dispensers[atmos] = "1_atmos"
+	dispensers[disposal] = "2_disposal"
+	dispensers[tubes] = "3_transit"
+	usr = H
+	atmos.interact(H)
+	sleep(3 SECONDS)
+	if(!cs_find_ui(H, atmos))
+		// The old windows, one at a time: they share a window
+		for(var/obj/machinery/pipedispenser/D in dispensers)
+			usr = H
+			D.interact(H)
+			sleep(2 SECONDS)
+			winset(C, "pipedispenser", "pos=200,40")
+			sleep(10)
+			cs_shot("popup_pipes_[label]_[dispensers[D]]")
+			H << browse(null, "window=pipedispenser")
+			sleep(5)
+		return
+	var/datum/tgui/ui = cs_find_ui(H, atmos)
+	winset(C, ui.window_id, "pos=200,40")
+	sleep(10)
+	cs_shot("popup_pipes_[label]_1_atmos", atmos.name)
+	// Clicked in the window
+	cs_tgui_do(C, ui.window_id, "click:Manifold")
+	sleep(10)
+	var/obj/item/pipe/made = locate() in atmos.loc
+	cs_check("clicking Manifold makes a manifold", made?.pipe_type == /obj/machinery/atmospherics/pipe/manifold, "[made ? made.pipe_type : "nothing"]")
+	qdel(made)
+	sleep(5)
+	cs_tgui_do(C, ui.window_id, "click:Bent Pipe")
+	sleep(10)
+	made = locate() in atmos.loc
+	cs_check("clicking Bent Pipe makes a bent pipe", made?.pipe_type == /obj/machinery/atmospherics/pipe/simple && made.dir == NORTHEAST, "[made ? "[made.pipe_type], dir [made.dir]" : "nothing"]")
+	qdel(made)
+	cs_tgui_do(C, ui.window_id, "click:3")
+	sleep(10)
+	cs_check("clicking 3 sets the piping layer", atmos.piping_layer == 3, "layer [atmos.piping_layer]")
+	cs_tgui_do(C, ui.window_id, "click:Pipe")
+	sleep(10)
+	made = locate() in atmos.loc
+	cs_check("and the next pipe's on it", made?.piping_layer == 3, "[made ? "layer [made.piping_layer]" : "nothing"]")
+	qdel(made)
+	sleep(5)
+	cs_tgui_do(C, ui.window_id, "click:Meter")
+	sleep(10)
+	var/obj/item/pipe_meter/meter = locate() in atmos.loc
+	cs_check("clicking Meter makes a meter", meter)
+	qdel(meter)
+	// What the old Topic took on trust
+	sleep(15)
+	var/before = length(atmos.loc.contents)
+	cs_act(atmos, H, "make", list("group" = "Pipes", "index" = "99"))
+	cs_act(atmos, H, "make", list("group" = "Disposal Pipes", "index" = "1"))
+	cs_check("nothing it doesn't list", length(atmos.loc.contents) == before)
+	SStgui.close_user_uis(H)
+	// The disposal and transit tube dispensers
+	usr = H
+	disposal.interact(H)
+	sleep(3 SECONDS)
+	ui = cs_find_ui(H, disposal)
+	cs_check("the disposal dispenser's window opens", ui)
+	if(ui)
+		winset(C, ui.window_id, "pos=200,40")
+		sleep(10)
+		cs_shot("popup_pipes_[label]_2_disposal", disposal.name)
+		cs_tgui_do(C, ui.window_id, "click:Junction")
+		sleep(10)
+		var/obj/structure/disposalconstruct/piece = locate() in disposal.loc
+		cs_check("clicking Junction makes a disposal junction", piece?.pipe_type == /obj/structure/disposalpipe/junction, "[piece ? piece.pipe_type : "nothing"]")
+		SStgui.close_user_uis(H)
+	usr = H
+	tubes.interact(H)
+	sleep(3 SECONDS)
+	ui = cs_find_ui(H, tubes)
+	cs_check("the transit tube dispenser's window opens", ui)
+	if(ui)
+		winset(C, ui.window_id, "pos=200,40")
+		sleep(10)
+		cs_shot("popup_pipes_[label]_3_transit", tubes.name)
+		cs_tgui_do(C, ui.window_id, "click:Terminus")
+		sleep(10)
+		cs_check("clicking Terminus Tube Station makes one", locate(/obj/structure/c_transit_tube/station/reverse) in tubes.loc)
 	SStgui.close_user_uis(H)
