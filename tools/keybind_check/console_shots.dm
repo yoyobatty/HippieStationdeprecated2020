@@ -161,6 +161,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_dna(C, H, label)
 		if("news")
 			cs_news(C, H, label)
+		if("req")
+			cs_req(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -1770,4 +1772,100 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		if(entry["channel"] == channel)
 			hidden = FALSE
 	cs_check("an ordinary newscaster's front page leaves out a D-Noticed channel", hidden)
+	SStgui.close_user_uis(H)
+
+// The requests consoles: the station's own, the Bridge's sending to Medbay
+
+/proc/cs_req(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/captain)
+	var/obj/machinery/requests_console/bridge
+	var/obj/machinery/requests_console/medbay
+	for(var/obj/machinery/requests_console/console in GLOB.allConsoles)
+		if(!is_station_level(console.z))
+			continue
+		if(!bridge && console.announcementConsole && console.department == "Bridge")
+			bridge = console
+		if(!medbay && console.department == "Medbay")
+			medbay = console
+	cs_check("the Bridge and Medbay have requests consoles", bridge && medbay)
+	if(!bridge || !medbay)
+		return
+	bridge.stat &= ~(NOPOWER|BROKEN)
+	var/turf/stand
+	for(var/dir in GLOB.alldirs)
+		var/turf/T = get_step(bridge, dir)
+		if(cs_free_floor(T))
+			stand = T
+			break
+	H.forceMove(stand || get_turf(bridge))
+	var/obj/item/card/id/captain_id = H.get_idcard()
+	usr = H
+	bridge.interact(H)
+	sleep(3 SECONDS)
+	var/datum/tgui/ui = cs_find_ui(H, bridge)
+	if(!ui)
+		// The old window
+		winset(C, "req_console", "pos=200,40")
+		sleep(10)
+		cs_shot("popup_req_[label]_1_main")
+		usr = H
+		bridge.Topic(null, list("setScreen" = "1"))
+		sleep(10)
+		cs_shot("popup_req_[label]_2_assistance")
+		H << browse(null, "window=req_console")
+		return
+	winset(C, ui.window_id, "pos=200,40")
+	sleep(10)
+	cs_tgui_do(C, ui.window_id, "click:Assistance")
+	cs_wait_until(bridge, "screen", 1)
+	cs_shot("popup_req_[label]_2_assistance", bridge.name)
+	// A message to Medbay, written in the window and validated with the ID
+	cs_act(bridge, H, "write", list("department" = ckey(medbay.department), "priority" = "3"))
+	cs_check("EXTREME priority is refused on a console nobody's rewired", bridge.screen == 1)
+	cs_act(bridge, H, "write", list("department" = ckey(medbay.department), "priority" = "2"))
+	cs_wait_until(bridge, "screen", 9)
+	SStgui.update_uis(bridge)
+	sleep(10)
+	cs_tgui_do(C, ui.window_id, "type0:Need a doctor on the bridge, the Captain fainted")
+	cs_wait_until(bridge, "message", "Need a doctor on the bridge, the Captain fainted")
+	bridge.attackby(captain_id, H)
+	sleep(10)
+	cs_check("typing the message and swiping the ID validates it, with no popup", bridge.message && findtext(bridge.msgVerified, H.real_name), "message '[bridge.message]', [bridge.msgVerified ? "validated" : "not validated"]")
+	cs_shot("popup_req_[label]_3_writing", bridge.name)
+	var/list/medbay_entries = medbay.vars["message_entries"] // the new file's: the old build has no such var
+	var/before = length(medbay_entries)
+	cs_tgui_do(C, ui.window_id, "click:Send Message")
+	cs_wait_until(bridge, "screen", 6)
+	cs_check("clicking Send Message sends it", bridge.screen == 6, "screen [bridge.screen]")
+	sleep(10)
+	var/list/arrived = length(medbay_entries) > before ? medbay_entries[length(medbay_entries)] : null
+	cs_check("Medbay gets it, high priority, validated, with Reply to the Bridge", arrived && arrived["priority"] == 2 && findtext(arrived["body"], "Captain fainted") && arrived["verified"] && arrived["reply"] == ckey(bridge.department), "[arrived ? "[arrived["from"]]: [arrived["body"]]" : "nothing"]")
+	cs_check("and Medbay's console flashes", medbay.newmessagepriority == 2)
+	cs_act(medbay, H, "screen", list("screen" = "8"))
+	cs_check("until its messages are read", medbay.newmessagepriority == 0)
+	// An announcement, with the Captain's ID
+	cs_tgui_do(C, ui.window_id, "click:Announce")
+	cs_wait_until(bridge, "screen", 10)
+	cs_act(bridge, H, "set_announcement", list("text" = "Drill at noon"))
+	cs_act(bridge, H, "announce")
+	cs_check("an announcement isn't sent before a card that can is swiped", bridge.screen == 10)
+	bridge.attackby(captain_id, H)
+	sleep(5)
+	cs_tgui_do(C, ui.window_id, "type0:All hands: drill in the cafeteria at noon.")
+	cs_wait_until(bridge, "message", "All hands: drill in the cafeteria at noon.")
+	cs_shot("popup_req_[label]_4_announcement", bridge.name)
+	cs_tgui_do(C, ui.window_id, "click:Announce Message")
+	cs_wait_until(bridge, "screen", 0)
+	var/announced = FALSE
+	for(var/datum/newscaster/feed_channel/FC in GLOB.news_network.network_channels)
+		for(var/datum/newscaster/feed_message/story in FC.messages)
+			if(findtext(story.body, "drill in the cafeteria"))
+				announced = TRUE
+	cs_check("swiping the Captain's ID, typing it and clicking Announce Message announces it", announced && bridge.screen == 0)
+	// An emergency call
+	cs_tgui_do(C, ui.window_id, "click:Security")
+	sleep(10)
+	cs_check("clicking Security calls Security", bridge.emergency == "Security", "[bridge.emergency]")
+	sleep(10)
+	cs_shot("popup_req_[label]_1_main", bridge.name)
 	SStgui.close_user_uis(H)

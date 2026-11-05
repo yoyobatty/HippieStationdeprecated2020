@@ -73,6 +73,7 @@ import { PortablePump, PortableScrubber } from './interfaces/PortableAtmos';
 import { PowerMonitor } from './interfaces/PowerMonitor';
 import { Radio } from './interfaces/Radio';
 import { RapidPipeDispenser } from './interfaces/RapidPipeDispenser';
+import { RequestsConsole } from './interfaces/RequestsConsole';
 import { SatelliteControl } from './interfaces/SatelliteControl';
 import { ScannerGate } from './interfaces/ScannerGate';
 import { ShuttleManipulator } from './interfaces/ShuttleManipulator';
@@ -235,6 +236,10 @@ const ROUTES = {
   chem_synthesizer: {
     component: () => ChemDebugSynthesizer,
     scrollable: false,
+  },
+  requests_console: {
+    component: () => RequestsConsole,
+    scrollable: true,
   },
   security_records: {
     component: () => SecurityRecords,
