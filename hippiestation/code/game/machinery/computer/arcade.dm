@@ -361,7 +361,7 @@
 
 	web += "</div>"
 	saved_web = web
-	user << browse(HTML_SKELETON(web),"window=minesweeper,size=400x500")
+	ui_interact(user) // hippie -- the tgui window (arcade_tgui.dm) shows the board now
 	return
 
 /obj/machinery/computer/arcade/minesweeper/emag_act(mob/user)

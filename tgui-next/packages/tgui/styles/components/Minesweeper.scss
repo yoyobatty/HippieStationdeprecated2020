@@ -1,0 +1,42 @@
+// hippie -- the minesweeper board (interfaces/Arcade.js): raised grey
+// squares until they're opened, as the classic game.
+
+.Minesweeper__board {
+  display: inline-block;
+  padding: 3px;
+  background-color: #7b7b7b;
+  user-select: none;
+}
+
+.Minesweeper__row {
+  white-space: nowrap;
+  line-height: 0;
+}
+
+.Minesweeper__square {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 12px;
+  vertical-align: top;
+  cursor: pointer;
+  color: #222;
+  background-color: #c0c0c0;
+  border: 2px outset #e8e8e8;
+}
+
+.Minesweeper__square--open {
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  cursor: default;
+  border: 1px solid #8a8a8a;
+  background-color: #d4d4d4;
+}
+
+.Minesweeper__square--hit {
+  background-color: #e53935;
+}

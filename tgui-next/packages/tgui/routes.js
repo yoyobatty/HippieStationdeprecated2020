@@ -135,7 +135,7 @@ import { ClockworkSlab } from './interfaces/ClockworkSlab';
 import { CameraConsole } from './interfaces/CameraConsole';
 import { Preferences } from './interfaces/Preferences';
 import { Teleporter } from './interfaces/Teleporter';
-import { ArcadeBattle } from './interfaces/Arcade';
+import { ArcadeBattle, ArcadeMinesweeper } from './interfaces/Arcade';
 import { NtosCard } from './interfaces/NtosCard';
 import { NtnetRelay, NtosConfiguration, NtosFileManager, NtosNetChat, NtosNetDos, NtosNetMonitor, NtosNetTransfer, NtosRevelation, SyndContract } from './interfaces/NtosPrograms';
 // hippie end
@@ -822,6 +822,10 @@ const ROUTES = {
     wrapper: () => NtosWrapper,
     scrollable: true,
     theme: 'syndicate',
+  },
+  arcade_minesweeper: {
+    component: () => ArcadeMinesweeper,
+    scrollable: true,
   },
   arcade_battle: {
     component: () => ArcadeBattle,
