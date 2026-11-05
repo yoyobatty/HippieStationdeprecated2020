@@ -1,5 +1,6 @@
 export { AnimatedNumber } from './AnimatedNumber';
 export { BlockQuote } from './BlockQuote';
+export { ByondUi } from './ByondUi';
 export { Box } from './Box';
 export { Button } from './Button';
 export { ColorBox } from './ColorBox';

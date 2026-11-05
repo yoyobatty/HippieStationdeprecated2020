@@ -165,7 +165,7 @@
  **/
 /datum/tgui/proc/close()
 	user << browse(null, "window=[window_id]") // Close the window.
-	src_object.ui_close()
+	src_object.ui_close(user) // hippie -- who closed it, so a window with its own map can clear theirs (camera console)
 	SStgui.on_close(src)
 	for(var/datum/tgui/child in children) // Loop through and close all children.
 		child.close()

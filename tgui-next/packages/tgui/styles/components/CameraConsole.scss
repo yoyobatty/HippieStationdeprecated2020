@@ -1,0 +1,50 @@
+// hippie -- the camera console (interfaces/CameraConsole.js): the list of
+// cameras down the left, the picture filling the rest.
+
+$camera-list-width: 230px;
+$camera-toolbar-height: 30px;
+
+.CameraConsole__left {
+  position: absolute;
+  top: 0;
+  bottom: 6px;
+  left: 0;
+  width: $camera-list-width;
+  padding: 6px;
+  overflow-y: auto;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.CameraConsole__right {
+  position: absolute;
+  top: 0;
+  bottom: 6px;
+  left: $camera-list-width;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.33);
+}
+
+.CameraConsole__toolbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: $camera-toolbar-height;
+  line-height: $camera-toolbar-height;
+  padding: 0 8px;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.CameraConsole__toolbarRight {
+  float: right;
+}
+
+.CameraConsole__map {
+  position: absolute;
+  top: $camera-toolbar-height + 6px;
+  bottom: 6px;
+  left: 6px;
+  right: 6px;
+  background-color: #000000;
+}

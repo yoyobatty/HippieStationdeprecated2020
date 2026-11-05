@@ -203,6 +203,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_gadgets(C, H, label)
 		if("oldlook")
 			cs_oldlook(C, H, label)
+		if("camera")
+			cs_camera(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -3994,3 +3996,83 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		panel.ui_interact(G)
 		cs_oldlook_shot(C, G, panel, label, "notifications", "Notification Preferences")
 		SStgui.close_user_uis(G)
+
+// The camera console: a pop-up list that moved your whole view before, a window with the list and the picture after
+
+/proc/cs_camera_named(text)
+	for(var/obj/machinery/camera/C in GLOB.cameranet.cameras)
+		if(C.status && findtext(C.c_tag, text) && ("ss13" in C.network))
+			return C
+
+/proc/cs_camera(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/hos)
+	var/obj/machinery/computer/security/console = new(cs_open_beside(H))
+	console.stat &= ~(NOPOWER|BROKEN)
+	var/obj/machinery/camera/bar = cs_camera_named("Bar") || cs_camera_named("Kitchen") || cs_camera_named("Arrivals")
+	if(!("map_name" in console.vars))
+		// The old console: a pop-up list, and picking one moves your whole view there
+		spawn(0)
+			usr = H
+			console.interact(H)
+		sleep(20)
+		cs_shot("popup_camera_[label]_0_list")
+		H.reset_perspective(bar)
+		sleep(15)
+		cs_shot("camera_[label]_1_view")
+		H.reset_perspective(null)
+		return
+	usr = H
+	console.interact(H)
+	var/datum/tgui/ui = cs_find_ui(H, console)
+	if(!ui)
+		cs_check("the window opens", FALSE)
+		return
+	winset(C, ui.window_id, "pos=120,40")
+	sleep(20)
+	cs_check("the window's map is registered on the client", length(C.screen_maps[console.vars["map_name"]]) > 5 && (console.vars["cam_screen"] in C.screen))
+	cs_shot("popup_camera_[label]_0_list", console.name)
+	cs_tgui_do(C, ui.window_id, "click:[bar.c_tag]")
+	cs_wait_until(console, "active_camera", bar)
+	cs_check("clicking a camera in the list shows it", console.vars["active_camera"] == bar && length(console.vars["cam_screen"]:vis_contents) > 20, "[console.vars["active_camera"]], [length(console.vars["cam_screen"]:vis_contents)] turfs")
+	cs_check("and your own view stays where you are", C.eye == H)
+	sleep(20)
+	cs_shot("popup_camera_[label]_1_picture", console.name)
+	// A dark one, to see the lighting come through
+	var/obj/machinery/camera/maint = cs_camera_named("Maint")
+	if(maint)
+		cs_act(console, H, "switch_camera", list("name" = maint.c_tag))
+		SStgui.update_uis(console)
+		sleep(20)
+		cs_shot("popup_camera_[label]_1b_dark", console.name)
+	cs_tgui_do(C, ui.window_id, "input0:bar")
+	sleep(10)
+	cs_shot("popup_camera_[label]_2_search", console.name)
+	// A camera that's been cut shows static
+	var/obj/machinery/camera/other = cs_camera_named("Brig") || cs_camera_named("Security")
+	if(other && other != bar)
+		other.status = FALSE
+		cs_act(console, H, "switch_camera", list("name" = other.c_tag))
+		SStgui.update_uis(console)
+		sleep(15)
+		cs_check("a camera that's off shows static", console.vars["active_camera"] == other && !length(console.vars["cam_screen"]:vis_contents) && console.vars["cam_background"]:icon == 'icons/effects/cameravis.dmi')
+		cs_shot("popup_camera_[label]_3_static", console.name)
+		other.status = TRUE
+	cs_act(console, H, "switch_camera", list("name" = "Nowhere At All"))
+	cs_check("nor a camera it doesn't reach", console.vars["active_camera"] == other)
+	SStgui.close_user_uis(H, console)
+	sleep(5)
+	cs_check("closing it takes the map off the client", !(console.vars["map_name"] in C.screen_maps) && !(console.vars["cam_screen"] in C.screen) && !console.vars["active_camera"])
+	// Deleting a console someone's watching takes its map off their screen too
+	usr = H
+	console.interact(H)
+	cs_find_ui(H, console)
+	var/obj/screen/screen = console.vars["cam_screen"]
+	qdel(console)
+	sleep(5)
+	cs_check("a console deleted while watched leaves nothing on the screen", !(screen in C.screen) && !length(C.screen_maps))
+	// The same spot in the main view, to compare the lighting
+	var/obj/machinery/camera/dark = cs_camera_named("Maint")
+	if(dark && label == "after")
+		H.forceMove(get_turf(dark))
+		sleep(30)
+		cs_shot("camera_[label]_9_main_view_of_dark")
