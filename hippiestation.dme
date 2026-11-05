@@ -3117,6 +3117,7 @@
 #include "hippiestation\code\game\machinery\telecomms\computers\logbrowser_tgui.dm"
 #include "hippiestation\code\game\machinery\telecomms\computers\message_tgui.dm"
 #include "hippiestation\code\game\machinery\telecomms\computers\telemonitor_tgui.dm"
+#include "hippiestation\code\game\machinery\telecomms\machine_interactions_tgui.dm"
 #include "hippiestation\code\game\mecha\mech_fabricator.dm"
 #include "hippiestation\code\game\mecha\clockwork\clockwork_mech.dm"
 #include "hippiestation\code\game\mecha\makeshift\lockermech.dm"

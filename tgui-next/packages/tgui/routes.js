@@ -95,6 +95,7 @@ import { SuitStorageUnit } from './interfaces/SuitStorageUnit';
 import { Tank } from './interfaces/Tank';
 import { TankDispenser } from './interfaces/TankDispenser';
 import { TelecommsLogs } from './interfaces/TelecommsLogs';
+import { TelecommsMachine } from './interfaces/TelecommsMachine';
 import { TelecommsMonitor } from './interfaces/TelecommsMonitor';
 import { ThermoMachine } from './interfaces/ThermoMachine';
 import { ThermoelectricGenerator } from './interfaces/ThermoelectricGenerator';
@@ -517,6 +518,10 @@ const ROUTES = {
   },
   telecomms_logs: {
     component: () => TelecommsLogs,
+    scrollable: true,
+  },
+  telecomms_machine: {
+    component: () => TelecommsMachine,
     scrollable: true,
   },
   telecomms_monitor: {
