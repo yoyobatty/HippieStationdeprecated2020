@@ -3611,6 +3611,7 @@
 #include "hippiestation\code\modules\hydroponics\biogenerator_tgui.dm"
 #include "hippiestation\code\modules\hydroponics\buttflower.dm"
 #include "hippiestation\code\modules\hydroponics\gene_modder.dm"
+#include "hippiestation\code\modules\hydroponics\gene_modder_tgui.dm"
 #include "hippiestation\code\modules\hydroponics\hydroponics.dm"
 #include "hippiestation\code\modules\hydroponics\limbflower.dm"
 #include "hippiestation\code\modules\hydroponics\planet_genes.dm"

@@ -52,6 +52,7 @@ import { MiningVendor } from './interfaces/MiningVendor';
 import { Newscaster } from './interfaces/Newscaster';
 import { ParticleAccelerator } from './interfaces/ParticleAccelerator';
 import { PipeDispenser } from './interfaces/PipeDispenser';
+import { PlantDnaManipulator } from './interfaces/PlantDnaManipulator';
 import { MedicalRecords, SecurityRecords } from './interfaces/RecordsConsole';
 import { Mint } from './interfaces/Mint';
 import { NaniteChamberControl } from './interfaces/NaniteChamberControl';
@@ -233,6 +234,10 @@ const ROUTES = {
   },
   pipe_dispenser: {
     component: () => PipeDispenser,
+    scrollable: true,
+  },
+  plant_dna_manipulator: {
+    component: () => PlantDnaManipulator,
     scrollable: true,
   },
   reaction_chamber: {
