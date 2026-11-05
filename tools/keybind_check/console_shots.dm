@@ -99,8 +99,12 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	)
 	for(var/name in crew)
 		var/datum/data/record/R = new
+		R.fields["id"] = copytext(md5(name), 1, 7)
 		R.fields["name"] = name
 		R.fields["rank"] = crew[name]
+		R.fields["fingerprint"] = md5(name + "print")
+		R.fields["p_stat"] = "Active"
+		R.fields["m_stat"] = "Stable"
 		GLOB.data_core.general += R
 
 /proc/cs_card(name, assignment, list/access, turf/at)
@@ -2142,19 +2146,78 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	friend.owner = "Riley Test"
 	friend.ownjob = "Botanist"
 	friend.update_label()
-	if(!hascall(P, "pda_apps"))
-		// The old window
+	var/obj/item/pda/other = new(H.loc)
+	other.owner = "Sam Tanaka"
+	other.ownjob = "Assistant"
+	other.update_label()
+	P.note = "Buy more seeds.\nAsk Riley about the tomatoes."
+	var/datum/data/record/patient = find_record("name", "Maya Ferreira", GLOB.data_core.general)
+	patient.fields["gender"] = "Female"
+	patient.fields["age"] = 34
+	var/datum/data/record/medical = new
+	medical.fields["id"] = patient.fields["id"]
+	medical.fields["name"] = patient.fields["name"]
+	medical.fields["blood_type"] = "O-"
+	medical.fields["mi_dis"] = "Nearsighted"
+	medical.fields["mi_dis_d"] = "Wears prescription glasses."
+	medical.fields["ma_dis"] = "None"
+	medical.fields["ma_dis_d"] = "No major disabilities have been diagnosed."
+	medical.fields["alg"] = "Penicillin"
+	medical.fields["alg_d"] = "Rash and swelling. Use cephalexin."
+	medical.fields["cdi"] = "None"
+	medical.fields["cdi_d"] = "No diseases have been diagnosed at the moment."
+	medical.fields["notes"] = "Donates blood every shift."
+	GLOB.data_core.medical += medical
+	if(!hascall(P, "pda_menu"))
+		// The original window, on the same screens. Its send_message() asks for the text in a popup, so the message is
+		// written into the log as its receive_message() writes it.
+		P.tnote += "<i><b>&larr; From <a href='byond://?src=[REF(P)];choice=Message;target=[REF(friend)]'>Riley Test</a> (Botanist):</b></i><br>\"Did anyone water the tomatoes?\"<br>"
+		P.tnote += "<i><b>&rarr; To Riley Test (Botanist):</b></i><br>\"Ten minutes, I'm on my way\"<br>"
 		usr = H
 		P.attack_self(H)
 		sleep(20)
 		winset(C, "pda", "pos=200,40")
 		sleep(10)
 		cs_shot("popup_pda_[label]_0_home")
-		P.Topic(null, list("choice" = "2"))
-		sleep(20)
-		cs_shot("popup_pda_[label]_1_messenger")
+		for(var/list/step in list(list("2", "1_messenger"), list("21", "2_messages"), list("1", "4_notes")))
+			usr = H
+			P.Topic(null, list("choice" = step[1]))
+			sleep(15)
+			cs_shot("popup_pda_[label]_[step[2]]")
+		P.cartridge = new /obj/item/cartridge/captain(P)
+		P.cartridge.host_pda = P
+		usr = H
+		P.Topic(null, list("choice" = "0"))
+		sleep(15)
+		cs_shot("popup_pda_[label]_5_cart_home")
+		usr = H
+		P.Topic(null, list("choice" = "43"))
+		sleep(15)
+		usr = H
+		P.cartridge.Topic(null, list("choice" = "Power Select", "target" = "1"))
+		sleep(15)
+		cs_shot("popup_pda_[label]_6_power")
+		usr = H
+		P.Topic(null, list("choice" = "41"))
+		sleep(15)
+		cs_shot("popup_pda_[label]_7_manifest")
+		usr = H
+		P.Topic(null, list("choice" = "44"))
+		sleep(5)
+		usr = H
+		P.cartridge.Topic(null, list("choice" = "Medical Records", "target" = patient.fields["id"]))
+		sleep(15)
+		cs_shot("popup_pda_[label]_8_medical")
+		usr = H
+		P.Topic(null, list("choice" = "54"))
+		sleep(5)
+		usr = H
+		P.cartridge.Topic(null, list("op" = "botlist"))
+		sleep(15)
+		cs_shot("popup_pda_[label]_9_bots")
 		H << browse(null, "window=pda")
 		return
+	call(friend, "send_message")(H, list(P), FALSE, "Did anyone water the tomatoes?")
 	usr = H
 	P.attack_self(H)
 	var/datum/tgui/ui = cs_find_ui(H, P)
@@ -2163,88 +2226,148 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		return
 	winset(C, ui.window_id, "pos=200,40")
 	sleep(10)
+	cs_check("a message that came in shows on the home screen as unread", P.vars["pda_unread"] == 1)
 	cs_shot("popup_pda_[label]_0_home", "Personal Data Assistant")
 	cs_tgui_do(C, ui.window_id, "click:Messenger")
-	cs_wait_until(P, "pda_screen", "messenger")
-	cs_tgui_do(C, ui.window_id, "clickexact:New")
-	cs_wait_until(P, "pda_screen", "contacts")
-	cs_tgui_do(C, ui.window_id, "clickexact:Riley Test (Botanist)")
-	cs_wait_until(P, "pda_screen", "thread")
-	cs_check("Messenger, New and a name opens a conversation with them", P.vars["pda_screen"] == "thread" && P.vars["pda_thread_open"] == "Riley Test (Botanist)")
-	sleep(10)
-	cs_tgui_do(C, ui.window_id, "input0:Are the tomatoes in yet?")
-	sleep(5)
+	cs_wait_until(P, "mode", 2)
+	cs_check("Messenger opens SpaceMessenger", P.mode == 2)
+	cs_shot("popup_pda_[label]_1_messenger", "Personal Data Assistant")
+	cs_tgui_do(C, ui.window_id, "click:PDA-Riley Test")
+	cs_wait_until(P, "mode", 24)
+	cs_check("a name under Detected PDAs opens a message to them", P.mode == 24)
+	cs_tgui_do(C, ui.window_id, "input0:Ten minutes, I'm on my way")
+	sleep(3)
 	cs_tgui_do(C, ui.window_id, "clickexact:Send")
-	sleep(20)
-	var/list/mine = LAZYACCESS(P.vars["pda_threads"], "Riley Test (Botanist)")
-	var/list/theirs = LAZYACCESS(friend.vars["pda_threads"], "[H.real_name] (Assistant)")
-	cs_check("typing and Send delivers it, into both sides' conversations and the old message log", findtext(friend.tnote, "Are the tomatoes in yet?") && length(mine?["messages"]) == 1 && length(theirs?["messages"]) == 1)
+	cs_wait_until(P, "mode", 2)
+	cs_check("typed in the window and Sent, it reaches them, and it's back to the messenger", findtext(friend.tnote, "on my way") && P.mode == 2)
+	cs_tgui_do(C, ui.window_id, "click:Messages")
+	cs_wait_until(P, "mode", 21)
+	cs_check("Messages shows the log, and reading it clears the unread", P.mode == 21 && P.vars["pda_unread"] == 0 && length(P.vars["pda_log"]) == 2)
+	cs_shot("popup_pda_[label]_2_messages", "Personal Data Assistant")
+	cs_tgui_do(C, ui.window_id, "clickexact:Reply")
+	cs_wait_until(P, "mode", 24)
+	cs_check("Reply in the log opens a message back", P.mode == 24)
+	cs_tgui_do(C, ui.window_id, "clickexact:Back")
+	cs_wait_until(P, "mode", 2)
+	cs_tgui_do(C, ui.window_id, "clickexact:Conversations")
+	cs_wait_until(P, "mode", 22)
+	cs_tgui_do(C, ui.window_id, "click:Riley Test")
+	cs_wait_until(P, "mode", 23)
+	cs_check("Conversations, then a name, opens that conversation", P.mode == 23 && P.vars["pda_thread_open"] == "Riley Test (Botanist)")
 	friend.last_text = 0
-	call(friend, "send_message")(H, list(P), FALSE, "Ten minutes, I'm watering them")
+	call(friend, "send_message")(H, list(P), FALSE, "Thanks! Also we're out of ash")
 	SStgui.update_uis(P)
+	sleep(5)
+	cs_tgui_do(C, ui.window_id, "input0:I'll bring some from the incinerator")
+	sleep(3)
+	cs_tgui_do(C, ui.window_id, "clickexact:Send")
 	sleep(10)
-	cs_check("a reply lands in the same conversation", length(mine?["messages"]) == 2)
-	cs_shot("popup_pda_[label]_1_thread", "Personal Data Assistant")
-	cs_act(P, H, "screen", list("screen" = "messenger"))
-	SStgui.update_uis(P)
-	friend.last_text = 0
-	call(friend, "send_message")(H, list(P), FALSE, "Also we're out of ash")
-	SStgui.update_uis(P)
-	sleep(10)
-	cs_check("one that comes in while it's not open counts as unread", mine?["unread"] == 1)
-	cs_shot("popup_pda_[label]_2_messenger", "Personal Data Assistant")
-	cs_act(P, H, "screen", list("screen" = "home"))
-	SStgui.update_uis(P)
+	var/list/thread = LAZYACCESS(P.vars["pda_threads"], "Riley Test (Botanist)")
+	cs_check("a reply typed into the conversation goes out and lands in it", length(thread?["messages"]) == 4 && findtext(friend.tnote, "incinerator"), "[length(thread?["messages"])] messages")
+	cs_check("one that came in while the conversation was open isn't left unread", P.vars["pda_unread"] == 0, "[P.vars["pda_unread"]] unread")
+	cs_shot("popup_pda_[label]_3_thread", "Personal Data Assistant")
+	cs_tgui_do(C, ui.window_id, "clickexact:Home")
+	cs_wait_until(P, "mode", 0)
+	cs_tgui_do(C, ui.window_id, "click:Notekeeper")
+	cs_wait_until(P, "mode", 1)
+	cs_tgui_do(C, ui.window_id, "clickexact:Edit")
 	sleep(5)
-	cs_tgui_do(C, ui.window_id, "click:Notes")
-	cs_wait_until(P, "pda_screen", "notes")
-	sleep(5)
-	cs_tgui_do(C, ui.window_id, "textarea:Buy more seeds")
-	sleep(5)
-	cs_shot("popup_pda_[label]_4_notes", "Personal Data Assistant")
+	cs_tgui_do(C, ui.window_id, "textarea:Buy more seeds.\nAsk Riley about the tomatoes.\nAsh from the incinerator.")
+	sleep(3)
 	cs_tgui_do(C, ui.window_id, "clickexact:Save")
 	sleep(10)
-	cs_check("Notes are typed in and saved", P.note == "Buy more seeds", P.note)
-	cs_act(P, H, "screen", list("screen" = "home"))
-	SStgui.update_uis(P)
-	sleep(5)
-	cs_tgui_do(C, ui.window_id, "click:Settings")
-	cs_wait_until(P, "pda_screen", "settings")
-	sleep(5)
+	cs_check("Edit, typed in the window and Saved", findtext(P.note, "incinerator"), P.note)
+	cs_shot("popup_pda_[label]_4_notes", "Personal Data Assistant")
+	cs_tgui_do(C, ui.window_id, "clickexact:Back")
+	cs_wait_until(P, "mode", 0)
+	cs_tgui_do(C, ui.window_id, "click:Messenger")
+	cs_wait_until(P, "mode", 2)
 	var/was_silent = P.silent
-	cs_tgui_do(C, ui.window_id, "clickexact:On")
+	cs_tgui_do(C, ui.window_id, "click:Ringer")
 	sleep(5)
-	cs_check("the ringer turns off", P.silent && !was_silent)
-	cs_tgui_do(C, ui.window_id, "type0:chirp")
-	cs_tgui_do(C, ui.window_id, "clickexact:Set")
+	cs_check("Ringer turns it off", P.silent && !was_silent)
+	cs_tgui_do(C, ui.window_id, "input0:chirp")
+	sleep(3)
+	cs_tgui_do(C, ui.window_id, "clickexact:Set Ringtone")
 	sleep(5)
 	cs_check("a ringtone is typed in and set", P.ttone == "chirp", P.ttone)
 	var/datum/component/uplink/uplink = P.AddComponent(/datum/component/uplink, H.key)
 	uplink.unlock_code = "Orange 42"
-	cs_tgui_do(C, ui.window_id, "type0:orange 42")
-	cs_tgui_do(C, ui.window_id, "clickexact:Set")
+	cs_tgui_do(C, ui.window_id, "input0:orange 42")
+	sleep(3)
+	cs_tgui_do(C, ui.window_id, "clickexact:Set Ringtone")
 	sleep(10)
 	cs_check("an uplink's code as the ringtone opens the uplink and keeps the old tone", !uplink.locked && P.ttone == "chirp", "locked [uplink.locked], tone [P.ttone]")
 	SStgui.close_user_uis(H)
 	qdel(uplink)
-	P.cartridge = new /obj/item/cartridge/engineering(P)
+	P.cartridge = new /obj/item/cartridge/captain(P)
 	P.cartridge.host_pda = P
+	cs_act(P, H, "home")
 	usr = H
 	P.attack_self(H)
 	ui = cs_find_ui(H, P)
-	cs_act(P, H, "screen", list("screen" = "home"))
-	SStgui.update_uis(P)
+	if(!ui)
+		cs_check("the window opens again", FALSE)
+		return
 	sleep(10)
-	cs_shot("popup_pda_[label]_3_cartridge", "Personal Data Assistant")
-	if(ui)
-		cs_tgui_do(C, ui.window_id, "click:Power Monitor")
-	sleep(20)
-	cs_check("a cartridge program opens its old window, and this one shuts", P.mode == 43 && !SStgui.get_open_ui(H, P, "main"), "mode [P.mode]")
-	P.Topic(null, list("choice" = "Return"))
-	sleep(20)
-	cs_check("Return there comes back here", P.mode == 0 && cs_find_ui(H, P))
+	var/list/titles = list()
+	for(var/list/section in call(P, "pda_menu")())
+		titles += section["title"]
+	cs_check("a captain's cartridge adds its sections between General Functions and Utilities", titles.Join(", ") == "General Functions, Engineering Functions, Medical Functions, Security Functions, Quartermaster Functions, Utilities", titles.Join(", "))
+	cs_shot("popup_pda_[label]_5_cart_home", "Personal Data Assistant")
+	cs_tgui_do(C, ui.window_id, "click:Power Monitor")
+	cs_wait_until(P, "mode", 43)
+	var/list/monitors = P.cartridge.powermonitors
+	cs_check("Power Monitor lists the station's power monitors", P.mode == 43 && length(monitors), "mode [P.mode], [length(monitors)] monitors")
+	if(length(monitors))
+		var/obj/machinery/computer/monitor/first = monitors[1]
+		cs_tgui_do(C, ui.window_id, "click:[capitalize(first.name)]")
+		cs_wait_until(P, "mode", 433)
+	cs_check("one picked shows its readings", P.mode == 433 && P.cartridge.powmonitor)
+	cs_shot("popup_pda_[label]_6_power", "Personal Data Assistant")
+	cs_tgui_do(C, ui.window_id, "clickexact:Back")
+	cs_wait_until(P, "mode", 43)
+	cs_check("Back goes to the list of monitors", P.mode == 43)
+	cs_tgui_do(C, ui.window_id, "clickexact:Home")
+	cs_wait_until(P, "mode", 0)
+	cs_tgui_do(C, ui.window_id, "click:View Crew Manifest")
+	cs_wait_until(P, "mode", 41)
+	cs_check("View Crew Manifest opens it", P.mode == 41)
+	cs_shot("popup_pda_[label]_7_manifest", "Personal Data Assistant")
+	cs_tgui_do(C, ui.window_id, "clickexact:Home")
+	cs_wait_until(P, "mode", 0)
+	cs_tgui_do(C, ui.window_id, "click:Set Status Display")
+	cs_wait_until(P, "mode", 42)
+	cs_tgui_do(C, ui.window_id, "input0:EVAC AT")
+	sleep(3)
+	cs_tgui_do(C, ui.window_id, "clickexact:Set")
+	sleep(5)
+	cs_check("a status display line is typed in and Set", P.cartridge.message1 == "EVAC AT", P.cartridge.message1)
+	cs_shot("popup_pda_[label]_10_status", "Personal Data Assistant")
+	cs_act(P, H, "cart", list("do" = "status", "what" = "not_a_screen"))
+	cs_act(P, H, "open", list("key" = "999"))
+	cs_check("nothing for a status it hasn't, nor a screen the cartridge hasn't", P.mode == 42)
+	cs_tgui_do(C, ui.window_id, "clickexact:Home")
+	cs_wait_until(P, "mode", 0)
+	cs_tgui_do(C, ui.window_id, "click:Medical Records")
+	cs_wait_until(P, "mode", 44)
+	cs_tgui_do(C, ui.window_id, "click:[patient.fields["id"]]: Maya")
+	cs_wait_until(P, "mode", 441)
+	cs_check("Medical Records, then a name, opens their record", P.mode == 441)
+	cs_shot("popup_pda_[label]_8_medical", "Personal Data Assistant")
+	cs_tgui_do(C, ui.window_id, "clickexact:Home")
+	cs_wait_until(P, "mode", 0)
+	cs_tgui_do(C, ui.window_id, "click:Bots Access")
+	cs_wait_until(P, "mode", 54)
+	cs_tgui_do(C, ui.window_id, "click:Scan for active bots")
+	sleep(10)
+	cs_shot("popup_pda_[label]_9_bots", "Personal Data Assistant")
+	cs_tgui_do(C, ui.window_id, "clickexact:Home")
+	cs_wait_until(P, "mode", 0)
+	cs_tgui_do(C, ui.window_id, "click:Eject")
+	sleep(10)
+	cs_check("the cartridge ejects from the home screen", !P.cartridge)
 	SStgui.close_user_uis(H)
-	H << browse(null, "window=pda")
 
 // The message monitor console
 
