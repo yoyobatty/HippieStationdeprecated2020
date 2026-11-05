@@ -1,4 +1,4 @@
-import { Fragment } from 'inferno';
+import { Component, Fragment } from 'inferno';
 import { useBackend } from '../backend';
 import { Box, Button, ByondUi, ColorBox, Dropdown, Input, LabeledList, NoticeBox, NumberInput, Section, Table, Tabs } from '../components';
 
@@ -14,6 +14,72 @@ const TAB_KEYS = 3;
 const TAB_LOADOUT = 4;
 const TAB_JOBS = 5;
 const TAB_QUIRKS = 6;
+
+// Colours to pick from in the window; any other is typed as a hex code
+const SWATCHES = [
+  '#000000', '#3b3b3b', '#7a7a7a', '#bdbdbd', '#ffffff', '#5a3a22',
+  '#8b5a2b', '#b5835a', '#e0b080', '#f2d7b6', '#c62828', '#e65100',
+  '#f9a825', '#2e7d32', '#00838f', '#1565c0', '#4527a0', '#ad1457',
+  '#ff8a80', '#ffd180', '#ccff90', '#80d8ff', '#b388ff', '#f8bbd0',
+];
+
+const HEX = /^#[0-9a-fA-F]{6}$/;
+
+class ColorRow extends Component {
+  constructor() {
+    super();
+    this.state = { open: false, hex: '' };
+  }
+
+  render() {
+    const { row, link, set } = this.props;
+    const { open, hex } = this.state;
+    const pick = value => {
+      set(value);
+      this.setState({ open: false });
+    };
+    return (
+      <Box inline>
+        <ColorBox color={row.value} mr={1} />
+        <Button
+          icon="palette"
+          selected={open}
+          content={row.value}
+          onClick={() => this.setState({ open: !open, hex: row.value })} />
+        {open && (
+          <Box mt={0.5} style={{ 'max-width': '300px' }}>
+            {SWATCHES.map(swatch => (
+              <Box
+                key={swatch}
+                inline
+                className="Preferences__swatch"
+                style={{ 'background-color': swatch }}
+                onClick={() => pick(swatch)} />
+            ))}
+            <Box mt={0.5}>
+              <Input
+                width="80px"
+                value={hex}
+                onInput={(e, value) => this.setState({ hex: value })} />
+              <Button
+                content="Set"
+                disabled={!HEX.test(hex)}
+                onClick={() => pick(hex)} />
+              <Button
+                icon="eye-dropper"
+                content="Picker"
+                tooltip="BYOND's colour picker"
+                onClick={() => {
+                  this.setState({ open: false });
+                  link(row.link);
+                }} />
+            </Box>
+          </Box>
+        )}
+      </Box>
+    );
+  }
+}
 
 // A setting: shown and changed the way its row says (preferences_tgui.dm)
 const Row = props => {
@@ -42,7 +108,7 @@ const Row = props => {
         <Box inline>
           <Dropdown
             key={row.key + row.value}
-            width="230px"
+            width="170px"
             options={row.options || []}
             selected={row.value === null ? '...' : String(row.value)}
             onSelected={value => set(value)} />
@@ -54,7 +120,7 @@ const Row = props => {
       content = (
         <Box inline>
           <Input
-            width="230px"
+            width="170px"
             value={row.value}
             onChange={(e, value) => set(value)} />
           {!!row.random && (
@@ -85,13 +151,11 @@ const Row = props => {
       break;
     case 'color':
       content = (
-        <Box inline>
-          <ColorBox color={row.value} mr={1} />
-          <Button
-            icon="palette"
-            content="Change"
-            onClick={() => link(row.link)} />
-        </Box>
+        <ColorRow
+          key={row.key}
+          row={row}
+          link={link}
+          set={set} />
       );
       break;
     default:
@@ -108,6 +172,24 @@ const Row = props => {
     <LabeledList.Item label={row.label}>
       {content}
     </LabeledList.Item>
+  );
+};
+
+// The character tab in two columns: who they are on the left, how they
+// look on the right
+const TwoColumns = props => {
+  const { act, sections = [] } = props;
+  return (
+    <Table>
+      <Table.Row>
+        <Table.Cell style={{ 'vertical-align': 'top', width: '50%' }} pr={1}>
+          <Sections act={act} sections={sections.slice(0, 2)} />
+        </Table.Cell>
+        <Table.Cell style={{ 'vertical-align': 'top', width: '50%' }}>
+          <Sections act={act} sections={sections.slice(2)} />
+        </Table.Cell>
+      </Table.Row>
+    </Table>
   );
 };
 
@@ -406,6 +488,51 @@ const Loadout = props => {
   );
 };
 
+// A save slot: switch to it, save this character into it, or clear it
+// (two clicks)
+class SlotRow extends Component {
+  constructor() {
+    super();
+    this.state = { confirm: false };
+  }
+
+  render() {
+    const { act, slot, current } = this.props;
+    const { confirm } = this.state;
+    return (
+      <Box className="Preferences__slot">
+        <Button
+          ellipsis
+          selected={current}
+          className="Preferences__slotName"
+          content={slot.name}
+          onClick={() => act('link', {
+            preference: 'changeslot',
+            num: slot.num,
+          })} />
+        {!current && (
+          <Button
+            icon="copy"
+            tooltip="Save this character here"
+            tooltipPosition="left"
+            onClick={() => act('copy_slot', { num: slot.num })} />
+        )}
+        <Button
+          icon={confirm ? 'check' : 'trash'}
+          color={confirm ? 'bad' : null}
+          tooltip={confirm ? 'Click again to clear this slot' : 'Clear'}
+          tooltipPosition="left"
+          onClick={() => {
+            if (confirm) {
+              act('delete_slot', { num: slot.num });
+            }
+            this.setState({ confirm: !confirm });
+          }} />
+      </Box>
+    );
+  }
+}
+
 export const Preferences = props => {
   const { act, data, config } = useBackend(props);
   const {
@@ -443,32 +570,32 @@ export const Preferences = props => {
           }} />
         <Box textAlign="center" mt={1}>
           <Button
-            icon="undo"
-            tooltip="Turn left"
-            onClick={() => act('turn', { way: 'left' })} />
+            icon="user-tie"
+            selected={!data.plain}
+            content="Job outfit"
+            onClick={() => data.plain && act('outfit')} />
           <Button
-            icon="redo"
-            tooltip="Turn right"
-            onClick={() => act('turn', { way: 'right' })} />
+            icon="tshirt"
+            selected={!!data.plain}
+            content="Plain"
+            onClick={() => !data.plain && act('outfit')} />
         </Box>
         {slots.length > 0 && (
           <Section title="Characters" mt={1}>
             {slots.map(each => (
-              <Button
+              <SlotRow
                 key={each.num}
-                fluid
-                ellipsis
-                selected={each.num === slot}
-                content={each.name}
-                onClick={() => act('link', {
-                  preference: 'changeslot',
-                  num: each.num,
-                })} />
+                act={act}
+                slot={each}
+                current={each.num === slot} />
             ))}
           </Section>
         )}
         {!!noAccount && (
           <NoticeBox>Log in with a BYOND account to save.</NoticeBox>
+        )}
+        {!noAccount && !!data.dirty && (
+          <NoticeBox>Unsaved changes</NoticeBox>
         )}
         <Box mt={1}>
           {!guest && (
@@ -476,7 +603,7 @@ export const Preferences = props => {
               <Button
                 fluid
                 icon="save"
-                color="good"
+                color={data.dirty ? 'good' : null}
                 content="Save setup"
                 onClick={() => act('link', { preference: 'save' })} />
               <Button
@@ -503,7 +630,10 @@ export const Preferences = props => {
               Quirks: {quirks.length ? quirks.join(', ') : 'none'}
             </Box>
           )}
-          {(tab === TAB_CHARACTER || tab === TAB_GAME || tab === TAB_OOC)
+          {tab === TAB_CHARACTER && (
+            <TwoColumns act={act} sections={data.sections} />
+          )}
+          {(tab === TAB_GAME || tab === TAB_OOC)
             && <Sections act={act} sections={data.sections} />}
           {tab === TAB_JOBS && <Jobs act={act} jobs={data.jobs} />}
           {tab === TAB_QUIRKS && (

@@ -18,10 +18,17 @@
 	var/obj/screen/preview_floor
 	/// Which way the drawing faces
 	var/preview_dir = SOUTH
+	/// The character from its four sides
+	var/list/preview_sides
+	/// Draw them in plain clothes, not their top job's outfit
+	var/preview_plain = FALSE
+	/// Changed since the last save or load
+	var/prefs_dirty = FALSE
 
 /datum/preferences/Destroy()
 	QDEL_NULL(preview_screen)
 	QDEL_NULL(preview_floor)
+	QDEL_LIST(preview_sides)
 	return ..()
 
 /datum/preferences/ShowChoices(mob/user)
@@ -48,29 +55,53 @@
 
 /datum/preferences/proc/set_preview(mutable_appearance/MA)
 	if(!preview_screen)
-		preview_screen = new
-		preview_screen.assigned_map = PREFS_PREVIEW_MAP
-		preview_screen.del_on_map_removal = FALSE
+		// The floor: a second map shows a whole view (about 15 by 15), not just what's on it
 		preview_floor = new
-		preview_floor.icon = 'icons/turf/floors.dmi'
-		preview_floor.icon_state = "dark"
+		preview_floor.icon = 'icons/effects/alphacolors.dmi'
+		preview_floor.icon_state = ""
+		preview_floor.color = "#1b1d21"
+		preview_floor.layer = TURF_LAYER
 		preview_floor.plane = FLOOR_PLANE - 1
 		preview_floor.assigned_map = PREFS_PREVIEW_MAP
 		preview_floor.del_on_map_removal = FALSE
-		// A second map shows a whole view (about 15 by 15), not just what's on it: floor all of it, and draw the character big in the middle
 		preview_floor.screen_loc = "[PREFS_PREVIEW_MAP]:1,1 to 15,15"
-	preview_screen.appearance = MA
-	preview_screen.dir = preview_dir
-	preview_screen.transform = matrix(4, 0, 0, 0, 4, 0)
-	preview_screen.screen_loc = "[PREFS_PREVIEW_MAP]:CENTER"
+		preview_screen = new // the front, also what a client registers first
+		preview_sides = list(preview_screen)
+		for(var/i in 1 to 3)
+			preview_sides += new /obj/screen
+		// A card behind each view
+		for(var/i in 1 to 4)
+			var/obj/screen/card = new
+			card.icon = 'icons/effects/alphacolors.dmi'
+			card.icon_state = ""
+			card.color = "#2c3038"
+			card.plane = FLOOR_PLANE - 1
+			card.layer = TURF_LAYER + 0.1
+			card.transform = matrix(5.6, 0, 0, 0, 5.6, 0)
+			preview_sides += card
+		for(var/obj/screen/side as anything in preview_sides)
+			side.assigned_map = PREFS_PREVIEW_MAP
+			side.del_on_map_removal = FALSE
+	// Front, left side, back, right side, two by two, each drawn five times over
+	var/list/dirs = list(SOUTH, WEST, NORTH, EAST)
+	var/list/spots = list("4,10", "11,10", "4,3", "11,3")
+	for(var/i in 1 to 4)
+		var/obj/screen/side = preview_sides[i]
+		side.appearance = MA
+		side.dir = dirs[i]
+		side.transform = matrix(5, 0, 0, 0, 5, 0)
+		side.screen_loc = "[PREFS_PREVIEW_MAP]:[spots[i]]"
+		var/obj/screen/card = preview_sides[i + 4]
+		card.screen_loc = "[PREFS_PREVIEW_MAP]:[spots[i]]"
 
 /datum/preferences/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, datum/tgui/master_ui = null, datum/ui_state/state = GLOB.always_state)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
 		if(preview_screen)
-			user.client.register_map_obj(preview_screen)
 			user.client.register_map_obj(preview_floor)
-		ui = new(user, src, ui_key, "preferences", "Character Setup", 1000, 760, master_ui, state)
+			for(var/obj/screen/side as anything in preview_sides)
+				user.client.register_map_obj(side)
+		ui = new(user, src, ui_key, "preferences", "Character Setup", 1120, 780, master_ui, state)
 		ui.set_autoupdate(FALSE)
 		ui.open()
 
@@ -91,16 +122,42 @@
 		if("link")
 			var/list/href = params.Copy()
 			href -= "src"
+			var/preference = href["preference"]
+			if(preference in list("save", "load", "changeslot"))
+				prefs_dirty = FALSE
+			else if(!(preference in list("tab", "keybindings_capture")) && !(href["task"] in list("menu", "close")) && !href["bancheck"])
+				prefs_dirty = TRUE
 			process_link(user, href)
 			return TRUE
 		if("set")
 			if(pref_set(user, params["key"], params["value"]))
+				prefs_dirty = TRUE
 				ShowChoices(user)
 			return TRUE
-		if("turn")
-			preview_dir = turn(preview_dir, params["way"] == "left" ? -90 : 90)
-			if(preview_screen)
-				preview_screen.dir = preview_dir
+		if("outfit")
+			preview_plain = !preview_plain
+			ShowChoices(user)
+			return TRUE
+		if("copy_slot", "delete_slot")
+			var/slot = text2num(params["num"])
+			if(!path || !slot || slot < 1 || slot > max_save_slots)
+				return
+			if(action == "copy_slot")
+				// This character, saved into that slot, which becomes the one in use
+				default_slot = slot
+				save_character()
+				save_preferences()
+				prefs_dirty = FALSE
+			else
+				var/savefile/S = new /savefile(path)
+				S.cd = "/"
+				S.dir.Remove("character[slot]")
+				if(slot == default_slot)
+					random_character()
+					real_name = random_unique_name(gender)
+					save_character()
+					prefs_dirty = FALSE
+			ShowChoices(user)
 			return TRUE
 
 // Rows
@@ -126,7 +183,7 @@
 /datum/preferences/proc/pref_color(label, hex, preference)
 	if(hex && copytext(hex, 1, 2) != "#")
 		hex = "#[hex]"
-	return pref_row(label, hex, "color", list("preference" = preference, "task" = "input"))
+	return pref_row(label, hex, "color", list("preference" = preference, "task" = "input"), key = preference)
 
 /datum/preferences/proc/pref_section(title, list/rows, list/extra)
 	var/list/section = list("title" = title, "rows" = rows)
@@ -242,6 +299,36 @@
 			to_chat(user, "<font color='red'>Invalid name. Your name should be at least 2 and at most [MAX_NAME_LEN] characters long. It may only contain the characters A-Z, a-z,[namedata["allow_numbers"] ? ",0-9," : ""] -, ' and .</font>")
 			return TRUE
 		custom_names[key] = sanitized_name
+		return TRUE
+	var/static/regex/hex_colour = regex("^#\[0-9a-fA-F\]{6}$")
+	if(key in list("hair", "facial", "eyes", "mutant_color", "ooccolor", "asaycolor", "pda_color"))
+		if(!hex_colour.Find(value))
+			return FALSE
+		switch(key)
+			if("hair")
+				hair_color = sanitize_hexcolor(value)
+			if("facial")
+				facial_hair_color = sanitize_hexcolor(value)
+			if("eyes")
+				eye_color = sanitize_hexcolor(value)
+			if("mutant_color")
+				// Same rule as the old picker: bright enough, unless it only colours parts
+				if(value == "#000000")
+					features["mcolor"] = pref_species.default_color
+				else if((MUTCOLORS_PARTSONLY in pref_species.species_traits) || ReadHSV(RGBtoHSV(value))[3] >= ReadHSV("#7F7F7F")[3])
+					features["mcolor"] = sanitize_hexcolor(value)
+				else
+					to_chat(user, "<span class='danger'>Invalid color. Your color is not bright enough.</span>")
+			if("ooccolor")
+				if(!(unlock_content || check_rights_for(user.client, R_ADMIN)))
+					return FALSE
+				ooccolor = value
+			if("asaycolor")
+				if(!user.client.holder)
+					return FALSE
+				asaycolor = value
+			if("pda_color")
+				pda_color = value
 		return TRUE
 	switch(key)
 		if("name")
@@ -359,6 +446,9 @@
 	data["slot"] = default_slot
 	data["slots"] = pref_slot_names()
 	data["quirksEnabled"] = CONFIG_GET(flag/roundstart_traits)
+	data["plain"] = preview_plain
+	data["dirty"] = prefs_dirty
+	data["maxSlots"] = max_save_slots
 	switch(current_tab)
 		if(0)
 			data["sections"] = pref_character_sections(user)
@@ -702,3 +792,28 @@
 #undef PREFS_PREVIEW_MAP
 #undef PREFS_TAB_JOBS
 #undef PREFS_TAB_QUIRKS
+
+/// As the old preview, but in plain clothes when the window's toggle says so (code/modules/mob/dead/new_player/preferences_setup.dm)
+/datum/preferences/update_preview_icon()
+	var/datum/job/previewJob
+	var/highest_pref = 0
+	if(!preview_plain)
+		for(var/job in job_preferences)
+			if(job_preferences[job] > highest_pref)
+				previewJob = SSjob.GetJob(job)
+				highest_pref = job_preferences[job]
+	if(previewJob)
+		if(istype(previewJob, /datum/job/ai))
+			parent.show_character_previews(image('icons/mob/ai.dmi', icon_state = resolve_ai_icon(preferred_ai_core_display), dir = SOUTH))
+			return
+		if(istype(previewJob, /datum/job/cyborg))
+			parent.show_character_previews(image('icons/mob/robots.dmi', icon_state = "robot", dir = SOUTH))
+			return
+	var/mob/living/carbon/human/dummy/mannequin = generate_or_wait_for_human_dummy(DUMMY_HUMAN_SLOT_PREFERENCES)
+	copy_to(mannequin)
+	if(previewJob)
+		mannequin.job = previewJob.title
+		previewJob.equip(mannequin, TRUE, preference_source = parent)
+	COMPILE_OVERLAYS(mannequin)
+	parent.show_character_previews(new /mutable_appearance(mannequin))
+	unset_busy_human_dummy(DUMMY_HUMAN_SLOT_PREFERENCES)
