@@ -8,6 +8,9 @@
 // was a popup there (a message, a note, the ringtone, the status display lines, the newscaster channel and story), which is that
 // Topic()'s branch here with the text typed in the window. Messages are still written to tnote for the pAI and anything else reading
 // it; a ringtone that's an uplink's code still opens it.
+// The window is the handheld (the user's rulings, same morning): a case in the PDA's own paint around a glowing screen, signal bars
+// that are the real route a message takes, a second's boot screen the first time it's opened, a wallpaper per department, and the
+// clown's and the mime's PDAs in their own looks.
 
 #define PDA_THREAD_KEEP 100
 #define PDA_LOG_KEEP 200
@@ -27,6 +30,11 @@
 	var/pda_compose_to
 	/// Seen the log since the last message came in
 	var/pda_unread = 0
+	/// Opened this round: the boot screen is shown once
+	var/pda_booted = FALSE
+	/// The signal bars, worked out at most once a second: list("bars", "why")
+	var/list/pda_signal
+	var/pda_signal_at = 0
 
 // ---------------------------------------------------------------------------------------------
 // Opening it
@@ -44,8 +52,53 @@
 /obj/item/pda/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
-		ui = new(user, src, ui_key, "pda", "Personal Data Assistant", 480, 640, master_ui, state)
+		ui = new(user, src, ui_key, "pda", "Personal Data Assistant", 500, 700, master_ui, state)
 		ui.open()
+		pda_booted = TRUE
+
+/// The case's paint, after the PDA's own sprite (a chameleon PDA takes the look it's disguised as)
+/obj/item/pda/proc/pda_theme()
+	var/static/list/themes = list(
+		"pda-medical" = "medical", "pda-virology" = "medical", "pda-chemistry" = "medical", "pda-genetics" = "medical", "pda-cmo" = "medical",
+		"pda-engineer" = "engineering", "pda-atmos" = "engineering", "pda-ce" = "engineering",
+		"pda-security" = "security", "pda-detective" = "security", "pda-warden" = "security", "pda-hos" = "security",
+		"pda-science" = "science", "pda-rd" = "science", "pda-roboticist" = "science",
+		"pda-cargo" = "cargo", "pda-qm" = "cargo", "pda-miner" = "cargo",
+		"pda-captain" = "captain", "pda-clown" = "clown", "pda-mime" = "mime", "pda-syndi" = "syndicate",
+	)
+	return themes[icon_state] || "nt"
+
+/// The signal bars: the route a message takes (broadcasting.dm send_to_receivers()), with a signal that's never sent. A subspace
+/// receiver that's on and hears this level (4 bars; 2 through a relay), then a message server that's on. No bars, and why, if not.
+/obj/item/pda/proc/pda_signal_now()
+	if(pda_signal && world.time < pda_signal_at + 1 SECONDS)
+		return pda_signal
+	pda_signal_at = world.time
+	pda_signal = list("bars" = 0, "why" = "Send / Receive is off")
+	if(toff)
+		return pda_signal
+	var/turf/here = get_turf(src)
+	if(!here)
+		pda_signal["why"] = "No signal"
+		return pda_signal
+	var/datum/signal/subspace/messaging/pda/probe = new(src, list())
+	var/bars = 0
+	for(var/obj/machinery/telecomms/receiver/R in GLOB.telecomms_list)
+		if(!R.on || !R.is_freq_listening(probe) || !R.check_receive_level(probe))
+			continue
+		bars = max(bars, R.z == here.z ? 4 : 2)
+	for(var/obj/machinery/telecomms/allinone/A in GLOB.telecomms_list)
+		if(A.on && A.is_freq_listening(probe) && (A.intercept || A.z == here.z))
+			bars = 4
+	if(!bars)
+		pda_signal["why"] = "No signal: telecomms can't hear you here"
+		return pda_signal
+	for(var/obj/machinery/telecomms/message_server/S in GLOB.telecomms_list)
+		if(S.on && !S.calibrating)
+			pda_signal = list("bars" = bars, "why" = bars == 4 ? "Messages get through" : "Messages get through, by relay")
+			return pda_signal
+	pda_signal["why"] = "No signal: the message server is down"
+	return pda_signal
 
 // ---------------------------------------------------------------------------------------------
 // The messages (hooks in send_message() and receive_message(), PDA.dm, and receive_page(), dept_pager.dm)
@@ -252,6 +305,9 @@
 	data["cartridge"] = cartridge ? cartridge.name : null
 	data["light"] = fon
 	data["unread"] = pda_unread
+	data["theme"] = pda_theme()
+	data["signal"] = pda_signal_now()
+	data["boot"] = !pda_booted
 	switch(mode)
 		if(0)
 			data["menu"] = pda_menu()

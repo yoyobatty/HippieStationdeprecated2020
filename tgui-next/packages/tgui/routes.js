@@ -242,7 +242,7 @@ const ROUTES = {
   },
   pda: {
     component: () => Pda,
-    scrollable: true,
+    scrollable: false,
   },
   pipe_dispenser: {
     component: () => PipeDispenser,

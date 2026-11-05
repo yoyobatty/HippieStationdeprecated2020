@@ -70,27 +70,55 @@ const Badge = props => {
   );
 };
 
-const BAR = {
-  'margin': '-6px -6px 6px -6px',
-  'padding': '4px 8px',
-  'background': 'linear-gradient(to bottom, #1f2b3c, #141b26)',
-  'border-bottom': '1px solid #3e6189',
+// The time, its colons blinking
+const Clock = props => {
+  const parts = (props.time || '').split(':');
+  return (
+    <Box as="span" className={props.className}>
+      {parts.map((part, i) => (
+        <Fragment key={i}>
+          {i > 0 && <span className="Pda__colon">:</span>}
+          {part}
+        </Fragment>
+      ))}
+    </Box>
+  );
+};
+
+// Bars for whether a message gets through, from the route one takes
+const SignalBars = props => {
+  const signal = props.signal || {};
+  const bars = signal.bars || 0;
+  return (
+    <span
+      className={'Pda__signal' + (bars ? '' : ' Pda__signal--none')}
+      title={signal.why}>
+      {[3, 5, 7, 10].map((height, i) => (
+        <span
+          key={i}
+          className={'Pda__bar' + (i < bars ? ' Pda__bar--on' : '')}
+          style={{ 'height': height + 'px' }} />
+      ))}
+    </span>
+  );
 };
 
 // The strip along the top, as on a handheld: who it's for, what's on, time
 const StatusBar = props => {
   const { data } = props;
   return (
-    <Box style={BAR}>
+    <Box className="Pda__status">
       <Flex align="center">
         <Flex.Item grow={1} fontFamily="monospace" nowrap>
-          <Icon name="satellite-dish" color="good" mr={1} />
+          <SignalBars signal={data.signal} />
           {data.owner}
           <Box inline color="label" ml={1}>{data.job}</Box>
         </Flex.Item>
         {!!data.unread && (
           <Flex.Item ml={1} color="average">
-            <Icon name="envelope" />
+            <span className="Pda__pulse">
+              <Icon name="envelope" />
+            </span>
             <Badge count={data.unread} />
           </Flex.Item>
         )}
@@ -109,7 +137,9 @@ const StatusBar = props => {
             <Icon name="sd-card" />
           </Flex.Item>
         )}
-        <Flex.Item ml={1.5} bold fontFamily="monospace">{data.time}</Flex.Item>
+        <Flex.Item ml={1.5} bold fontFamily="monospace">
+          <Clock time={data.time} />
+        </Flex.Item>
       </Flex>
     </Box>
   );
@@ -189,6 +219,10 @@ const IdLine = props => {
 
 const CELL = { 'width': '50%', 'padding': '2px' };
 
+const hasItem = (menu, key) => (menu || []).some(section => (
+  section.items.some(item => item.key === key)
+));
+
 const Home = props => {
   const { data, act } = props;
   return (
@@ -206,8 +240,8 @@ const Home = props => {
             </LabeledList>
           </Flex.Item>
           <Flex.Item textAlign="right" ml={1}>
-            <Box fontSize="24px" bold fontFamily="monospace" color="good">
-              {data.time}
+            <Box fontSize="26px" bold fontFamily="monospace">
+              <Clock time={data.time} className="Pda__clock" />
             </Box>
             <Box color="label">{data.date}</Box>
           </Flex.Item>
@@ -221,6 +255,16 @@ const Home = props => {
           </Box>
         )}
       </Section>
+      {data.theme === 'clown' && hasItem(data.menu, 'honk') && (
+        <Box mb={1}>
+          <Button
+            fluid
+            className="Pda__honk"
+            icon="bullhorn"
+            content="HONK!"
+            onClick={() => act('open', { key: 'honk' })} />
+        </Box>
+      )}
       {(data.menu || []).map(section => (
         <Section key={section.title} title={section.title}>
           <Flex wrap="wrap">
@@ -322,8 +366,12 @@ class Messenger extends Component {
     const contacts = data.contacts || [];
     const virus = data.virus_charges;
     const hasVirus = virus !== null && virus !== undefined;
+    const signal = data.signal || {};
     return (
       <Fragment>
+        {!data.toff && !signal.bars && (
+          <NoticeBox>{signal.why}</NoticeBox>
+        )}
         <Section>
           <Box mb={0.5}>
             <Button
@@ -525,18 +573,24 @@ const Conversations = props => {
   );
 };
 
+// A message; one that came while the conversation was open slides in
 const Bubble = props => {
-  const { message } = props;
+  const { message, fresh } = props;
   let color = 'rgba(255, 255, 255, 0.1)';
   if (message.out) {
-    color = 'rgba(32, 160, 80, 0.45)';
+    color = 'var(--pda-button)';
   }
   if (message.page) {
     color = 'rgba(200, 40, 40, 0.45)';
   }
+  let className = null;
+  if (fresh) {
+    className = message.out ? 'Pda__bubble--out' : 'Pda__bubble--in';
+  }
   return (
     <Flex justify={message.out ? 'flex-end' : 'flex-start'} mb={0.5}>
       <Flex.Item
+        className={className}
         style={{
           'max-width': '80%',
           'padding': '5px 9px',
@@ -578,7 +632,7 @@ class WriteBox extends Component {
         <Flex.Item grow={1}>
           <input
             value={this.state.text}
-            placeholder="Message..."
+            placeholder={this.props.placeholder || 'Message...'}
             maxLength={1024}
             onInput={e => this.setState({ text: e.target.value })}
             onKeyDown={e => {
@@ -600,38 +654,57 @@ class WriteBox extends Component {
   }
 }
 
-const Thread = props => {
-  const { data, act } = props;
-  const thread = data.thread;
-  let reply = (
-    <Box color="label" textAlign="center">They can&apos;t be reached now.</Box>
-  );
-  if (data.toff) {
-    reply = <Box color="label" textAlign="center">Send / Receive is off.</Box>;
+// The mime's PDA has nothing to say
+const placeholder = data => (data.theme === 'mime' ? '...' : null);
+
+class Thread extends Component {
+  constructor(props) {
+    super(props);
+    // What was there when it opened doesn't slide in; what comes after does
+    this.seen = props.data.thread.messages.length;
   }
-  else if (data.can_reply) {
-    reply = <WriteBox onSend={text => act('send', { text })} />;
-  }
-  return (
-    <Section
-      title={thread.job}
-      buttons={(
-        <Button
-          icon="trash"
-          color="transparent"
-          tooltip="Delete this conversation"
-          tooltipPosition="left"
-          onClick={() => act('delete_thread', { key: thread.key })} />
-      )}>
-      <Box mb={1}>
-        {thread.messages.map((message, i) => (
-          <Bubble key={i} message={message} />
-        ))}
+
+  render() {
+    const { data, act } = this.props;
+    const thread = data.thread;
+    let reply = (
+      <Box color="label" textAlign="center">
+        They can&apos;t be reached now.
       </Box>
-      {reply}
-    </Section>
-  );
-};
+    );
+    if (data.toff) {
+      reply = (
+        <Box color="label" textAlign="center">Send / Receive is off.</Box>
+      );
+    }
+    else if (data.can_reply) {
+      reply = (
+        <WriteBox
+          placeholder={placeholder(data)}
+          onSend={text => act('send', { text })} />
+      );
+    }
+    return (
+      <Section
+        title={thread.job}
+        buttons={(
+          <Button
+            icon="trash"
+            color="transparent"
+            tooltip="Delete this conversation"
+            tooltipPosition="left"
+            onClick={() => act('delete_thread', { key: thread.key })} />
+        )}>
+        <Box mb={1}>
+          {thread.messages.map((message, i) => (
+            <Bubble key={i} message={message} fresh={i >= this.seen} />
+          ))}
+        </Box>
+        {reply}
+      </Section>
+    );
+  }
+}
 
 const Compose = props => {
   const { data, act } = props;
@@ -641,7 +714,9 @@ const Compose = props => {
   }
   return (
     <Section title={'To ' + to}>
-      <WriteBox onSend={text => act('send', { text })} />
+      <WriteBox
+        placeholder={placeholder(data)}
+        onSend={text => act('send', { text })} />
     </Section>
   );
 };
@@ -1360,32 +1435,119 @@ const SCREENS = {
   99: NotAuthorized,
 };
 
-export const Pda = props => {
-  const { act, data } = useBackend(props);
-  if (!data.owner) {
-    return (
-      <Section>
-        <NoticeBox>
-          Warning: No owner information entered. Please swipe card.
-        </NoticeBox>
-        <Button
-          icon="id-card"
-          content="Swipe the ID in your hand"
-          disabled={!data.holding_id}
-          onClick={() => act('id')} />
-      </Section>
-    );
-  }
-  const Screen = SCREENS[data.mode] || Home;
-  let title = null;
-  if (data.mode === 23 && data.thread) {
-    title = data.thread.name;
-  }
+// The plate on the case, and the boot screen's logo, per theme
+const BRAND = {
+  nt: ['NANOTRASEN', 'NTOS'],
+  medical: ['NT MEDICAL', 'NTOS'],
+  engineering: ['NT ENGINEERING', 'NTOS'],
+  security: ['NT SECURITY', 'NTOS'],
+  science: ['NT SCIENCE', 'NTOS'],
+  cargo: ['NT SUPPLY', 'NTOS'],
+  captain: ['NANOTRASEN COMMAND', 'NTOS'],
+  syndicate: ['SYNDICATE', 'SYN-OS'],
+  clown: ['HONK CO.', 'HONKOS'],
+  mime: ['. . .', '...'],
+};
+
+const NoOwner = props => {
+  const { data, act } = props;
   return (
-    <Fragment>
-      <StatusBar data={data} />
-      <NavBar data={data} act={act} title={title} />
-      <Screen key={data.mode} data={data} act={act} />
-    </Fragment>
+    <Box mt={1}>
+      <NoticeBox>
+        Warning: No owner information entered. Please swipe card.
+      </NoticeBox>
+      <Button
+        icon="id-card"
+        content="Swipe the ID in your hand"
+        disabled={!data.holding_id}
+        onClick={() => act('id')} />
+    </Box>
   );
 };
+
+// A second of the PDA starting up, the first time it's opened in a round
+const Boot = props => {
+  const { data, brand } = props;
+  return (
+    <div className="Pda__boot">
+      <div className="Pda__bootLogo">{brand[1]}</div>
+      <div className="Pda__bootText">PERSONAL DATA ASSISTANT v.1.2</div>
+      <div className="Pda__bootBar">
+        <div className="Pda__bootFill" />
+      </div>
+      {!!data.owner && (
+        <div className="Pda__bootText">{'Welcome, ' + data.owner}</div>
+      )}
+    </div>
+  );
+};
+
+// The handheld: its case, the screen, and the button under it
+export class Pda extends Component {
+  constructor(props) {
+    super(props);
+    // Only the first update of the round says to boot; it plays out here
+    this.state = { booting: !!useBackend(props).data.boot };
+  }
+
+  componentDidMount() {
+    if (this.state.booting) {
+      this.bootTimer = setTimeout(() => {
+        this.setState({ booting: false });
+      }, 1600);
+    }
+  }
+
+  componentWillUnmount() {
+    clearTimeout(this.bootTimer);
+  }
+
+  render() {
+    const { act, data } = useBackend(this.props);
+    const theme = BRAND[data.theme] ? data.theme : 'nt';
+    const brand = BRAND[theme];
+    const Screen = SCREENS[data.mode] || Home;
+    let title = null;
+    if (data.mode === 23 && data.thread) {
+      title = data.thread.name;
+    }
+    let screen = <NoOwner data={data} act={act} />;
+    if (data.owner) {
+      screen = (
+        <Fragment>
+          <NavBar data={data} act={act} title={title} />
+          <Screen key={data.mode} data={data} act={act} />
+        </Fragment>
+      );
+    }
+    let screenClass = 'Pda__screen';
+    if (data.mode === 0 || !data.owner) {
+      screenClass += ' Pda__screen--home';
+    }
+    return (
+      <div className={'Pda Pda--theme--' + theme}>
+        <div className="Pda__top">
+          <div className="Pda__grille" />
+          <div className="Pda__brand">{brand[0]}</div>
+          <div
+            className={'Pda__led' + (data.unread ? ' Pda__led--mail' : '')}
+            title={data.unread ? 'Unread messages' : null} />
+        </div>
+        <div className="Pda__glass">
+          <div className={screenClass}>
+            <StatusBar data={data} />
+            {screen}
+          </div>
+          <div className="Pda__glare" />
+          {this.state.booting && <Boot data={data} brand={brand} />}
+        </div>
+        <div className="Pda__bottom">
+          <div
+            className="Pda__homeButton"
+            title="Home"
+            onClick={() => act('home')} />
+        </div>
+      </div>
+    );
+  }
+}

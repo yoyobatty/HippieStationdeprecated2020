@@ -2225,7 +2225,10 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		cs_check("the window opens", FALSE)
 		return
 	winset(C, ui.window_id, "pos=200,40")
-	sleep(10)
+	cs_shot("popup_pda_[label]_00_boot", "Personal Data Assistant")
+	sleep(20)
+	var/list/opened = P.ui_data(H)
+	cs_check("the boot screen is only for the first time it's opened", P.vars["pda_booted"] && !opened["boot"])
 	cs_check("a message that came in shows on the home screen as unread", P.vars["pda_unread"] == 1)
 	cs_shot("popup_pda_[label]_0_home", "Personal Data Assistant")
 	cs_tgui_do(C, ui.window_id, "click:Messenger")
@@ -2367,7 +2370,53 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	cs_tgui_do(C, ui.window_id, "click:Eject")
 	sleep(10)
 	cs_check("the cartridge ejects from the home screen", !P.cartridge)
+	// The signal bars are the route a message takes
+	var/list/signal = call(P, "pda_signal_now")()
+	cs_check("with telecomms up, the signal bars are full", signal["bars"] == 4, signal["why"])
+	P.toff = TRUE
+	sleep(11)
+	signal = call(P, "pda_signal_now")()
+	cs_check("with Send / Receive off, no bars, and that's why", !signal["bars"] && findtext(signal["why"], "Send / Receive"), signal["why"])
+	P.toff = FALSE
+	var/list/servers = list()
+	for(var/obj/machinery/telecomms/message_server/S in GLOB.telecomms_list)
+		if(S.toggled)
+			S.toggled = FALSE
+			S.update_power()
+			servers += S
+	sleep(11)
+	signal = call(P, "pda_signal_now")()
+	cs_check("with the message server off, no bars, and that's why", !signal["bars"] && findtext(signal["why"], "message server"), signal["why"])
+	cs_tgui_do(C, ui.window_id, "click:Messenger")
+	cs_wait_until(P, "mode", 2)
+	sleep(5)
+	cs_shot("popup_pda_[label]_11_no_signal", "Personal Data Assistant")
+	for(var/obj/machinery/telecomms/message_server/S in servers)
+		S.toggled = TRUE
+		S.update_power()
 	SStgui.close_user_uis(H)
+	// Each department's paint, and the clown's and the mime's
+	for(var/kind in list("medical", "engineering", "security", "toxins", "cargo", "captain", "syndicate", "clown", "mime"))
+		var/path = text2path("/obj/item/pda/[kind]")
+		var/obj/item/pda/T = new path(H.loc)
+		T.owner = H.real_name
+		T.ownjob = "Assistant"
+		T.update_label()
+		usr = H
+		T.interact(H)
+		var/datum/tgui/tui = cs_find_ui(H, T)
+		if(!tui)
+			cs_check("[kind]'s PDA opens", FALSE)
+			continue
+		winset(C, tui.window_id, "pos=200,40")
+		sleep(20)
+		cs_shot("popup_pda_[label]_t_[kind]", "Personal Data Assistant")
+		if(kind == "clown")
+			cs_tgui_do(C, tui.window_id, "clickexact:HONK!")
+			sleep(5)
+			cs_check("the clown's big HONK! honks", T.last_noise)
+		SStgui.close_user_uis(H, T)
+		qdel(T)
 
 // The message monitor console
 
