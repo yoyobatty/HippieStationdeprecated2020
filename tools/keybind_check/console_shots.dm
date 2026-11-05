@@ -142,6 +142,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_pipes(C, H, label)
 		if("tcomms")
 			cs_tcomms(C, H, label)
+		if("tlogs")
+			cs_tlogs(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -1338,4 +1340,87 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	cs_tgui_do(C, ui.window_id, "click:Flush buffer")
 	sleep(10)
 	cs_check("clicking Flush buffer empties it", !length(console.machinelist))
+	SStgui.close_user_uis(H)
+
+// The telecommunications server monitor (the log browser), in the telecomms control room
+
+/proc/cs_tlogs(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/engineer)
+	var/turf/spot
+	for(var/turf/T in get_area_turfs(/area/tcommsat/computer))
+		if(cs_free_floor(T) && cs_free_floor(get_step(T, EAST)))
+			spot = T
+			break
+	cs_check("the telecomms control room is there", spot)
+	if(!spot)
+		return
+	H.forceMove(spot)
+	var/obj/machinery/computer/telecomms/server/console = new(get_step(spot, EAST))
+	console.stat &= ~(NOPOWER|BROKEN)
+	// Something on the radio for the logs
+	var/said = "Checking the telecomms logs, over."
+	H.say(";[said]")
+	sleep(3 SECONDS)
+	var/obj/machinery/telecomms/server/logged
+	for(var/obj/machinery/telecomms/server/S in GLOB.telecomms_list)
+		for(var/datum/comm_log_entry/entry in S.log_entries)
+			if(findtext(entry.parameters["message"], "telecomms logs"))
+				logged = S
+	cs_check("what was said on the radio is in a server's logs", logged, logged ? logged.id : "nowhere")
+	if(!logged)
+		return
+	usr = H
+	console.interact(H)
+	sleep(3 SECONDS)
+	var/datum/tgui/ui = cs_find_ui(H, console)
+	if(!ui)
+		// The old window, scanned and then on the server with the log
+		console.network = logged.network
+		usr = H
+		console.Topic(null, list("operation" = "scan"))
+		sleep(10)
+		winset(C, "comm_monitor", "pos=200,40")
+		sleep(10)
+		cs_shot("popup_tlogs_[label]_1_scanned")
+		usr = H
+		console.Topic(null, list("viewserver" = logged.id))
+		sleep(10)
+		cs_shot("popup_tlogs_[label]_2_logs")
+		H << browse(null, "window=comm_monitor")
+		return
+	winset(C, ui.window_id, "pos=200,40")
+	// Clicked and typed in the window
+	cs_tgui_do(C, ui.window_id, "type0:[logged.network]")
+	sleep(10)
+	cs_tgui_do(C, ui.window_id, "click:Scan")
+	sleep(10)
+	cs_check("clicking Scan finds the servers", length(console.servers) > 3, "[length(console.servers)] found")
+	cs_shot("popup_tlogs_[label]_1_scanned", console.name)
+	cs_tgui_do(C, ui.window_id, "click:View")
+	sleep(10)
+	cs_check("clicking View opens a server", console.screen == 1 && console.SelectedServer, "[console.SelectedServer]")
+	cs_act(console, H, "view", list("id" = logged.id))
+	sleep(10)
+	var/list/data = console.ui_data(H)
+	var/list/selected = data["selected"]
+	var/found = FALSE
+	var/list/logs = selected ? selected["logs"] : list()
+	for(var/list/entry in logs)
+		if(findtext(entry["message"], "telecomms logs") && entry["source"] == H.real_name && entry["race"] == "Humanoid")
+			found = TRUE
+	cs_check("the log has who said it, as what, and the words", found)
+	cs_shot("popup_tlogs_[label]_2_logs", console.name)
+	// Deleting: telecomms access only, and only a log that's there
+	var/count = length(logged.log_entries)
+	var/mob/living/carbon/human/visitor = new(cs_free_floor(get_step(spot, WEST)) ? get_step(spot, WEST) : spot)
+	visitor.equipOutfit(/datum/outfit/job/assistant)
+	cs_act(console, visitor, "delete", list("index" = "1"))
+	cs_check("an assistant can't delete a log", length(logged.log_entries) == count, "[length(logged.log_entries)] of [count]")
+	qdel(visitor)
+	cs_act(console, H, "delete", list("index" = "999"))
+	cs_check("nor can anyone delete one that isn't there", length(logged.log_entries) == count)
+	usr = H
+	cs_tgui_do(C, ui.window_id, "click:Delete")
+	sleep(10)
+	cs_check("an engineer clicking Delete deletes it", length(logged.log_entries) == count - 1, "[length(logged.log_entries)] of [count]")
 	SStgui.close_user_uis(H)
