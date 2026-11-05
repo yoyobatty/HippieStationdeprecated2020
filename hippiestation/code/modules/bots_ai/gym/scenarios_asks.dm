@@ -906,3 +906,25 @@
 			log_line("card down at [bot_coord(card)], bot pushed along to [bot_coord(bot)], the wait's over")
 		return BOT_GYM_PENDING
 	return bot.get_idcard(FALSE) == card ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/sleeper_crit/bandaged
+	name = "medical rounds: somebody too far gone for the sleeper is bandaged before going in"
+	desc = "The same, with the patient deeper in crit than the sleeper treats (it gives nothing but epinephrine under its min_health), and bruise packs in the doctor's bag. The doctor bandages them until the sleeper can take over, then puts them in. Patients used to go in as they were, get epinephrine, and suffocate in it."
+	kit_backpack = list(/obj/item/stack/medical/bruise_pack, /obj/item/stack/medical/bruise_pack)
+
+/datum/bot_scenario/sleeper_crit/bandaged/post_spawn()
+	..()
+	patient.apply_damage(20, BRUTE, BODY_ZONE_L_ARM) //-50: below the sleeper's -25
+
+/datum/bot_scenario/sleeper_crit/bandaged/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(patient.stat == DEAD)
+		fail_reason = "the patient died"
+		return BOT_GYM_FAIL
+	if(sleeper.occupant != patient)
+		return BOT_GYM_PENDING
+	if(patient.health <= sleeper.min_health)
+		fail_reason = "put in the sleeper at [round(patient.health)] health, where it can only give epinephrine"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

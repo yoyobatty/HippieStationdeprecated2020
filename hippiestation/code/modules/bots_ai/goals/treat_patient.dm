@@ -662,6 +662,9 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 				bot_log(bot, "epinephrine into [patient] before moving them")
 				bot.use_item_on(pen, patient)
 				break
+	var/datum/bot_goal/escort_to_sleeper/E = bot.current_goal
+	if(istype(E))
+		bot.bandage_for_sleeper(patient, E.machine_target)
 	if(!patient.can_be_pulled(bot.owner, 0, bot.owner.move_force))
 		bot_log_verbose(bot, "grab_patient: [patient].can_be_pulled() refused - anchored=[patient.anchored], throwing=[patient.throwing], patient move_resist=[patient.move_resist], bot move_force=[bot.owner.move_force]")
 		return GOAL_STEP_FAIL
@@ -676,6 +679,23 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 	var/result = (bot.owner.pulling == patient)
 	bot_log_verbose(bot, "grab_patient: start_pulling([patient]) -> pulling=[result]")
 	return result ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+
+/// Somebody too far gone for the sleeper (under its min_health it gives nothing but epinephrine, Sleeper.dm chem_allowed()) is
+/// bandaged first, the worst wound at a time, until it can take over, as a doctor does before dragging them in. An engineer brought in
+/// at -26 had epinephrine twice and suffocated in the sleeper with 91 brute that a bruise pack or two would have seen to.
+/datum/bot_brain/proc/bandage_for_sleeper(mob/living/carbon/human/patient, obj/machinery/sleeper/S)
+	if(!istype(S) || !istype(patient))
+		return
+	for(var/i in 1 to 4)
+		if(QDELETED(patient) || patient.stat == DEAD || patient.health > S.min_health + 10 || !owner.Adjacent(patient))
+			return
+		aim_at_worst_wound(patient)
+		var/obj/item/I = pick_treatment_item(patient, !!clothing_in_the_way(patient))
+		if(!I)
+			return
+		bot_log(src, "patching up [patient] with [I] - too far gone for [S] to treat yet")
+		use_item_on(I, patient)
+		human_pause(patient)
 
 /datum/bot_step/load_patient
 	var/atom/machine_target
