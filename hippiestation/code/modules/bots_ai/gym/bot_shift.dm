@@ -1461,9 +1461,9 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	needs_on_map = /obj/machinery/mass_driver
 	deadline = 40 MINUTES
 
-/// Only the Hippie map has a mixer with all three ports (goals/toxins.dm).
+/// Skipped where there's no burn chamber a bot can work (goals/toxins.dm find_lab())
 /datum/bot_shift_check/counted/toxins/outcome()
-	return (!GLOB.bot_toxins || GLOB.bot_toxins.mix_mixer) ? ..() : "SKIP"
+	return (!GLOB.bot_toxins || GLOB.bot_toxins.injector) ? ..() : "SKIP"
 
 /datum/bot_shift_check/counted/toxins/progress()
 	return "[count()] launched, [SSresearch.science_tech.largest_bomb_value] points from the doppler"

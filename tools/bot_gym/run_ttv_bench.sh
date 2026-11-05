@@ -10,7 +10,7 @@ LOG=data/ttv_bench_dd.log
 mkdir -p data
 "$BYOND_BIN/dm.exe" hippiestation.dme | grep -E "error|dmb -" || true
 timeout "${LIMIT:-580}" "$BYOND_BIN/dd.exe" hippiestation.dmb "$PORT" -trusted -invisible \
-	-params "bot-shift=${MINUTES:-40}&bot-crew=Assistant&timewarp=0&ttv-bench=${BENCH:-1}${MAP:+&bot-map=$MAP}" > "$LOG" 2>&1 &
+	-params "bot-shift=${MINUTES:-40}&bot-crew=Assistant&timewarp=0&ttv-bench=${BENCH:-1}${MAP:+&bot-map=$MAP}${EXTRA:+&$EXTRA}" > "$LOG" 2>&1 &
 DD=$!
 trap 'kill $DD 2>/dev/null' INT TERM
 while kill -0 $DD 2>/dev/null; do
