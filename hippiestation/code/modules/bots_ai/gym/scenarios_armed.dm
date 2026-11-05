@@ -230,3 +230,219 @@
 		fail_reason = "brigged them bleeding without a word to Medical"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+// A Bot Shift drill, only with sword-drill=1 in the parameters (it would change every batch's deaths otherwise): at 8 minutes somebody
+// turns up in the Bar with a lit energy sword and goes at whoever's nearest, as the user did as Chief Engineer. Security has to stop
+// them - cuffed or dead - within 6 minutes. Who they cut and who died of it are counted.
+/datum/bot_shift_check/sword_drill
+	name = "security: somebody with an energy sword in the Bar is stopped (drill)"
+	jobs = list("Security Officer", "Warden", "Head of Security")
+	deadline = 14 MINUTES
+	var/starts_at = 8 MINUTES
+	var/started = FALSE
+	var/mob/living/carbon/human/swordsman
+	var/obj/item/melee/transforming/energy/sword/saber/sword
+	var/next_swing = 0
+	var/list/cut = list()
+
+/datum/bot_shift_check/sword_drill/worker()
+	if(!world.params["sword-drill"])
+		return null
+	return ..()
+
+/datum/bot_shift_check/sword_drill/poll()
+	if(!started && shift.elapsed() >= starts_at)
+		started = TRUE
+		start()
+	..()
+
+/datum/bot_shift_check/sword_drill/proc/start()
+	var/area/bar = GLOB.areas_by_type[/area/crew_quarters/bar]
+	var/turf/spot
+	for(var/turf/open/floor/T in bar)
+		if(!is_blocked_turf(T, TRUE))
+			spot = T
+			break
+	if(!spot)
+		shift.note("[name]: no Bar on this map to start in")
+		return
+	swordsman = new(spot)
+	swordsman.real_name = "Ed Sword"
+	swordsman.name = swordsman.real_name
+	swordsman.equipOutfit(/datum/outfit/job/assistant)
+	sword = new(swordsman)
+	swordsman.put_in_active_hand(sword)
+	sword.attack_self(swordsman) //lit
+	shift.note("[name]: Ed Sword turns up in the Bar with a lit energy sword")
+	addtimer(CALLBACK(src, PROC_REF(act)), 5)
+
+/// Twice a second: over to whoever's nearest, and a swing every second and a half once beside them
+/datum/bot_shift_check/sword_drill/proc/act()
+	if(QDELETED(swordsman) || swordsman.stat == DEAD || swordsman.handcuffed)
+		return
+	if(swordsman.stat == CONSCIOUS && !swordsman.IsParalyzed() && !swordsman.IsKnockdown() && !swordsman.IsStun() && !swordsman.IsUnconscious() && swordsman.get_active_held_item() == sword)
+		var/mob/living/carbon/human/target
+		var/best
+		for(var/mob/living/carbon/human/H in view(7, swordsman))
+			if(H == swordsman || H.stat == DEAD)
+				continue
+			var/d = get_dist(H, swordsman)
+			if(!target || d < best)
+				target = H
+				best = d
+		if(target)
+			if(best <= 1)
+				if(world.time >= next_swing)
+					next_swing = world.time + 15
+					swordsman.a_intent = INTENT_HARM
+					sword.melee_attack_chain(swordsman, target)
+					cut |= target.real_name
+			else
+				step_towards(swordsman, target)
+	addtimer(CALLBACK(src, PROC_REF(act)), 5)
+
+/datum/bot_shift_check/sword_drill/done()
+	return started && swordsman && (QDELETED(swordsman) || swordsman.stat == DEAD || swordsman.handcuffed)
+
+/datum/bot_shift_check/sword_drill/progress()
+	if(!started)
+		return "not started yet"
+	if(!swordsman)
+		return "didn't start: no Bar"
+	var/killed = 0
+	for(var/mob/living/carbon/human/H in GLOB.dead_mob_list)
+		if(H.lastattacker == swordsman.real_name)
+			killed++
+	var/state = "still free"
+	if(QDELETED(swordsman) || swordsman.stat == DEAD)
+		state = "dead"
+	else if(swordsman.handcuffed)
+		state = "cuffed"
+	return "Ed Sword [state], cut [length(cut)] crew, [killed] of them dead"
+
+// Prisoners who need a doctor (security_medevac.dm). M is the arena's stand-in for Medbay's lobby.
+
+/datum/bot_scenario/brigged/pale
+	name = "brig: a prisoner pale from losing blood is taken to Medbay, not a cell"
+	desc = "An officer has somebody in cuffs who's lost a lot of blood (pale skin, under BLOOD_VOLUME_SAFE). It takes them to Medbay and leaves them for a doctor. Prisoners like that used to be put in a cell, collapse in it and die there, where no doctor could get to them."
+	layout = list(
+		"#########",
+		"#BC..i.M#",
+		"####d####",
+		"###...###",
+		"###..l###",
+		"#########")
+	var/asked = FALSE
+
+/datum/bot_scenario/brigged/pale/post_spawn()
+	..()
+	prisoner.blood_volume = 400
+	if("gym_medbay_spot" in brain.vars) // the fix's: a build without it has no such var
+		brain.vars["gym_medbay_spot"] = first_marker("M")
+
+/datum/bot_scenario/brigged/pale/make_goal()
+	return null
+
+/datum/bot_scenario/brigged/pale/issue_goal()
+	if(!asked)
+		asked = TRUE
+		brain.start_brig_escort(prisoner)
+
+/datum/bot_scenario/brigged/pale/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(timer.timing)
+		fail_reason = "put them in the cell"
+		return BOT_GYM_FAIL
+	return (get_dist(prisoner, first_marker("M")) <= 1 && bot.pulling != prisoner) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/brigged/collapsed
+	name = "brig: a prisoner who's collapsed in a cell is let out and taken to Medbay"
+	desc = "A prisoner is down in crit in a cell with the timer running, and an officer sees them through the door. It stops the timer, gets them out and takes them to Medbay. They used to be left in there until they died."
+	layout = list(
+		"#########",
+		"#...Bi.M#",
+		"####d####",
+		"###.C.###",
+		"###..l###",
+		"#########")
+
+/datum/bot_scenario/brigged/collapsed/post_spawn()
+	..()
+	prisoner.uncuff()
+	timer.set_timer(5 MINUTES)
+	timer.timer_start()
+	GLOB.bot_brig_sentences[timer] = WEAKREF(prisoner)
+	prisoner.apply_damage(130, BRUTE, BODY_ZONE_CHEST)
+	if("gym_medbay_spot" in brain.vars)
+		brain.vars["gym_medbay_spot"] = first_marker("M")
+
+/datum/bot_scenario/brigged/collapsed/make_goal()
+	return null
+
+/datum/bot_scenario/brigged/collapsed/issue_goal()
+	var/datum/bot_duty/D = bot_duty_of(text2path("/datum/bot_duty/prisoner_down")) // by name: a build without the fix has no such duty
+	D?.try_start(brain)
+
+/datum/bot_scenario/brigged/collapsed/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(prisoner.stat == DEAD)
+		fail_reason = "the prisoner died"
+		return BOT_GYM_FAIL
+	return (get_dist(prisoner, first_marker("M")) <= 1 && bot.pulling != prisoner) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/brigged/collapsed/release_run()
+	GLOB.bot_brig_sentences -= timer
+	return ..()
+
+// Crossfire (bot_brain.dm, stray_shot_from())
+
+/datum/bot_scenario/crossfire
+	name = "security: an officer hit by a colleague's shot at a suspect doesn't turn on the colleague"
+	desc = "Another officer is arresting somebody and its taser shot hits this officer. It says to watch it and carries on. Officers used to take that as an attack and fight each other with batons in the middle of the Brig."
+	job = "Security Officer"
+	layout = list(
+		"#########",
+		"#B.O..C.#",
+		"#########")
+	time_limit = 15 SECONDS
+	var/mob/living/carbon/human/colleague
+	var/mob/living/carbon/human/suspect
+	var/shot_at = 0
+
+/datum/bot_scenario/crossfire/post_spawn()
+	give_job_id(list(ACCESS_SECURITY, ACCESS_BRIG))
+	brain.register_security()
+	colleague = second_bot(first_marker("O"), "Col League")
+	colleague.mind.assigned_role = "Security Officer"
+	colleague.bot_brain.register_security()
+	colleague.put_in_hands(new /obj/item/restraints/handcuffs(colleague)) //nothing to arrest with, no arrest
+	suspect = stand_in(first_marker("C"), "Sus Pect")
+	colleague.bot_brain.file_crime(suspect, "Assault", "Gym.", BOT_CRIME_MINOR)
+	colleague.bot_brain.begin_arrest(suspect)
+
+/datum/bot_scenario/crossfire/make_goal()
+	return null
+
+/datum/bot_scenario/crossfire/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(brain.state == BOT_STATE_COMBAT && brain.attacker == colleague)
+		fail_reason = "turned on its colleague"
+		return BOT_GYM_FAIL
+	if(!shot_at)
+		if(colleague.bot_brain.state != BOT_STATE_ARREST || colleague.bot_brain.arrest_suspect != suspect)
+			if(colleague.bot_brain.state != BOT_STATE_ARREST && !colleague.bot_brain.begin_arrest(suspect))
+				fail_reason = "the colleague won't arrest the suspect (state [colleague.bot_brain.state])"
+				return BOT_GYM_FAIL
+			return BOT_GYM_PENDING
+		shot_at = world.time
+		log_line("Col League's taser shot at Sus Pect hits this officer")
+		brain.on_attacked(colleague, "shot", null) // what log_combat() feeds it for a hit from a projectile (bot_notice_combat())
+		return BOT_GYM_PENDING
+	return world.time - shot_at > 5 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/crossfire/release_run()
+	bot_clear_wanted(suspect)
+	return ..()

@@ -1076,6 +1076,11 @@ GLOBAL_LIST_INIT(bot_maintenance_averse_jobs, list("Medical Doctor", "Chief Medi
 		return FALSE
 	var/mob/living/carbon/human/H = user
 	var/mob/living/aim = H.bot_brain?.attacker
+	// An officer making an arrest aims at whoever it's arresting, which isn't its attacker: officers hit by a colleague's taser shot
+	// at the suspect between them took it as an attack and fought each other with batons in the middle of the Brig (5 to 14 times in
+	// every batch of six shifts).
+	if(H.bot_brain?.state == BOT_STATE_ARREST && H.bot_brain.arrest_suspect)
+		aim = H.bot_brain.arrest_suspect
 	if(aim && aim != owner)
 		return TRUE
 	if(istype(object, /obj/item/projectile/kinetic) || istype(object, /obj/item/gun/energy/kinetic_accelerator))

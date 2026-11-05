@@ -1099,10 +1099,14 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		bot_say(owner, "[H.name], get to the shuttle. You can explain yourself at CentCom.")
 		bot_log(src, "let [H] go for the evacuation")
 		return FALSE
-	// Nobody's locked up dying. A cook cuffed at -4 health was dragged to a cell and left: he died there 3 minutes later.
-	if(H.health <= 0)
-		bot_say(owner, ";Medical, [H.name] is in cuffs and needs a doctor, [get_area_name(H, TRUE)].")
-		LAZYSET(failed_brig_targets, H, world.time + 1 MINUTES)
+	// Nobody's locked up dying. A cook cuffed at -4 health was dragged to a cell and left: he died there 3 minutes later. Down or pale
+	// from losing blood, they're taken to Medbay instead (security_medevac.dm), or failing a way there, Medical is called to them.
+	if(bot_prisoner_needs_medbay(H))
+		if(start_medevac(H))
+			return TRUE
+		if(!bot_in_medbay(H))
+			bot_say(owner, ";Medical, [H.name] is in cuffs and needs a doctor, [get_area_name(H, TRUE)].")
+			LAZYSET(failed_brig_targets, H, world.time + 1 MINUTES)
 		return FALSE
 	var/datum/bot_goal/brig_prisoner/G = new()
 	G.prisoner = H
