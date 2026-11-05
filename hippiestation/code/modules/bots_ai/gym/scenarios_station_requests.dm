@@ -263,3 +263,67 @@
 /datum/bot_scenario/duty/crate_in_bad_air/release_run()
 	GLOB.bot_cargo_strays -= crate
 	return ..()
+
+/// rc-sweep=1: from 2:00 every requests console on the station sends a test message to Cargo Bay, one a second, and the ones that get
+/// no answer from the message server are named. On Box Station none could: its map had the bare message server, which calibrates for
+/// 15 minutes and isn't linked to the network, where the other maps have the preset.
+/datum/bot_shift_check/rc_sweep
+	name = "telecomms: every requests console can send (sweep)"
+	jobs = list("Cargo Technician", "Quartermaster")
+	deadline = 4 MINUTES
+	var/swept = FALSE
+	var/list/failed = list()
+	var/sent = 0
+	var/unusable = 0
+	var/list/queue
+	var/mob/living/carbon/human/tester
+
+/datum/bot_shift_check/rc_sweep/worker()
+	if(!world.params["rc-sweep"])
+		return null
+	return ..()
+
+/datum/bot_shift_check/rc_sweep/poll()
+	if(isnull(queue) && shift.elapsed() >= 2 MINUTES)
+		queue = list()
+		for(var/obj/machinery/requests_console/RC in GLOB.allConsoles)
+			if(is_station_level(RC.z) && !(RC.stat & (NOPOWER|BROKEN)) && ckey(RC.department) != "cargobay")
+				queue += RC
+		sweep_next()
+	..()
+
+/// One console a second: a burst of them in one tick is more than the telecomms receivers pass on
+/datum/bot_shift_check/rc_sweep/proc/sweep_next()
+	if(!length(queue))
+		swept = TRUE
+		QDEL_NULL(tester)
+		shift.note("[name]: [sent] sent, [length(failed)] failed[length(failed) ? ": [english_list(failed)]" : ""], [unusable] the stand-in couldn't use")
+		return
+	var/obj/machinery/requests_console/RC = queue[1]
+	queue.Cut(1, 2)
+	if(!tester)
+		tester = new(get_turf(RC))
+		tester.real_name = "Rhea Tester"
+		tester.name = tester.real_name
+	tester.forceMove(get_turf(RC))
+	RC.to_department = GLOB.req_console_ckey_departments["cargobay"]
+	RC.message = "Test from [RC.department]"
+	RC.priority = REQ_NORMAL_MESSAGE_PRIORITY
+	usr = tester
+	RC.Topic(null, list("send" = "1"))
+	usr = null
+	if(RC.screen == 6) // REQ_SCREEN_SENT
+		sent++
+	else if(RC.screen == 0 && RC.message)
+		unusable++ // its Topic() turned the stand-in away (the console's own checks on who's using it), not a failed send
+	else
+		failed += "[RC.department] in [get_area_name(RC, TRUE)] (screen [RC.screen])"
+	RC.screen = 0
+	RC.message = ""
+	addtimer(CALLBACK(src, PROC_REF(sweep_next)), 1 SECONDS)
+
+/datum/bot_shift_check/rc_sweep/done()
+	return swept && !length(failed)
+
+/datum/bot_shift_check/rc_sweep/progress()
+	return swept ? "[sent] sent, [unusable] the stand-in couldn't use, failed: [english_list(failed)]" : "not swept yet"
