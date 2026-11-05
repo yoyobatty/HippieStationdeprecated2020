@@ -223,3 +223,43 @@
 	if(budget && !isnull(saved_balance))
 		budget.account_balance = saved_balance
 	return ..()
+
+// A crate somewhere with no air (goals/cargo.dm, crate_in_bad_air())
+
+/datum/bot_scenario/duty/crate_in_bad_air
+	name = "cargo: a crate left where there's no air is left alone for a while, not asked about every few seconds"
+	desc = "A crate that went astray on the way to the bay sits in a pocket with no air, and the cargo technician has no suit. It leaves the crate be. Two cargo technicians used to turn the same crate down 183 times between them in one shift."
+	duty_type = /datum/bot_duty/cargo
+	job = "Cargo Technician"
+	time_limit = 50 SECONDS
+	layout = list(
+		"#########",
+		"#B....#v#",
+		"#########")
+	var/obj/structure/closet/crate/crate
+	var/started
+
+/datum/bot_scenario/duty/crate_in_bad_air/setup()
+	crate = new(first_marker("v"))
+	place("v", crate)
+	GLOB.bot_cargo_strays |= crate
+
+/datum/bot_scenario/duty/crate_in_bad_air/post_spawn()
+	started = world.time
+
+/datum/bot_scenario/duty/crate_in_bad_air/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/asked = 0
+	for(var/line in transcript)
+		// Each go at it: turned down for the air or, with no cargo bay on the gym's level to take it to, for that
+		if(findtext(line, "somewhere I can't breathe") || findtext(line, "unload_crate"))
+			asked++
+	if(asked > 1)
+		fail_reason = "went at the crate [asked] times in [round((world.time - started) / 10)] s"
+		return BOT_GYM_FAIL
+	return world.time - started > 40 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/crate_in_bad_air/release_run()
+	GLOB.bot_cargo_strays -= crate
+	return ..()

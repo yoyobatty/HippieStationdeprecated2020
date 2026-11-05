@@ -81,6 +81,16 @@ GLOBAL_LIST_EMPTY(bot_cargo_strays)
 			if(isturf(C.loc) && C.z == owner.z && !C.anchored && !(LAZYACCESS(cargo_blocked, C) > world.time))
 				. += C
 
+/// A crate in air this bot can't breathe, with no suit on: left for a couple of minutes. assign_goal() turned these down every time
+/// it was asked, and it was asked every few seconds: two cargo technicians asked 183 times between them in one shift over a crate of
+/// glass in a dock that had lost its air.
+/datum/bot_brain/proc/crate_in_bad_air(obj/structure/closet/crate/C)
+	if(!in_bad_air(C) || is_eva_ready())
+		return FALSE
+	bot_log(src, "[C] is somewhere I can't breathe and I'm not suited up - leaving it for now")
+	LAZYSET(cargo_blocked, C, world.time + 2 MINUTES)
+	return TRUE
+
 /// A clear bit of floor in the cargo bay to leave a crate on.
 /datum/bot_brain/proc/find_bay_spot()
 	var/area/bay = GLOB.areas_by_type[/area/quartermaster/storage]
@@ -129,6 +139,8 @@ GLOBAL_LIST_EMPTY(bot_cargo_strays)
 		return FALSE
 	// The shuttle's in: get the crates off it.
 	for(var/obj/structure/closet/crate/C as anything in bot.crates_on_shuttle())
+		if(bot.crate_in_bad_air(C))
+			continue
 		if(!bot.taken_by_another(C) && bot.assign_goal(new /datum/bot_goal/unload_crate(C)))
 			return TRUE
 	// One that got left in the dock on the way: finish the job.
@@ -136,7 +148,7 @@ GLOBAL_LIST_EMPTY(bot_cargo_strays)
 		if(QDELETED(C) || !isturf(C.loc) || C.z != bot.owner.z || bot_crate_in_bay(C))
 			GLOB.bot_cargo_strays -= C
 			continue
-		if(LAZYACCESS(bot.cargo_blocked, C) > world.time || bot.taken_by_another(C))
+		if(LAZYACCESS(bot.cargo_blocked, C) > world.time || bot.taken_by_another(C) || bot.crate_in_bad_air(C))
 			continue
 		if(bot.assign_goal(new /datum/bot_goal/unload_crate(C)))
 			return TRUE
