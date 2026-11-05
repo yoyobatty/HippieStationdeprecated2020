@@ -1,4 +1,4 @@
-import { Fragment } from 'inferno';
+import { Component, Fragment } from 'inferno';
 import { useBackend } from '../backend';
 import { Box, Button, Flex, Input, LabeledList, NoticeBox, Section } from '../components';
 
@@ -75,6 +75,72 @@ const Emergencies = props => {
   );
 };
 
+// One-click asks: the room goes with them
+const QuickRequests = props => {
+  const { data, act } = props;
+  const quick = data.quick || [];
+  if (!quick.length) {
+    return null;
+  }
+  return (
+    <Flex mb={1} align="center">
+      <Flex.Item color="label" mr={1}>Quick request:</Flex.Item>
+      {quick.map(q => (
+        <Flex.Item key={q.name} grow={1} basis={0} mr={0.5}>
+          <Button
+            fluid
+            textAlign="center"
+            icon={q.icon}
+            content={q.name}
+            tooltip={'Ask ' + q.department + ', with this room'}
+            onClick={() => act('quick', { name: q.name })} />
+        </Flex.Item>
+      ))}
+    </Flex>
+  );
+};
+
+const Notice = props => {
+  const { notice } = props;
+  if (!notice) {
+    return null;
+  }
+  const good = notice[1] === 'good';
+  return (
+    <Box
+      mb={1}
+      p={1}
+      color={good ? 'good' : 'bad'}
+      style={{
+        'background-color': good
+          ? 'rgba(91, 170, 39, 0.15)'
+          : 'rgba(219, 40, 40, 0.15)',
+        'border-left': '3px solid currentColor',
+      }}>
+      {notice[0]}
+    </Box>
+  );
+};
+
+// Where a request stands
+const Tracking = props => {
+  const { tracking } = props;
+  if (!tracking) {
+    return null;
+  }
+  if (tracking.status === 'done') {
+    return (
+      <Box inline color="good">{'Done - ' + tracking.handler}</Box>
+    );
+  }
+  if (tracking.status === 'on it') {
+    return (
+      <Box inline color="average">{'On it - ' + tracking.handler}</Box>
+    );
+  }
+  return <Box inline color="label">Not answered yet</Box>;
+};
+
 const PRIORITY_TEXT = {
   [HIGH]: 'High Priority',
   [EXTREME]: '!!!Extreme Priority!!!',
@@ -121,11 +187,123 @@ const Messages = props => {
           <Box mt={0.5}>{msg.body}</Box>
           {!!msg.verified && <Box color="good">{msg.verified}</Box>}
           {!!msg.stamped && <Box color="average">{msg.stamped}</Box>}
+          {!!msg.tracking && (
+            <Flex mt={0.5} align="center">
+              <Flex.Item grow={1}>
+                <Tracking tracking={msg.tracking} />
+              </Flex.Item>
+              {msg.tracking.status === 'new' && (
+                <Flex.Item>
+                  <Button
+                    icon="running"
+                    content="On it"
+                    onClick={() => act('request_status', {
+                      id: msg.tracking.id,
+                      status: 'on it',
+                    })} />
+                </Flex.Item>
+              )}
+              {msg.tracking.status !== 'done' && (
+                <Flex.Item>
+                  <Button
+                    icon="check"
+                    color="good"
+                    content="Done"
+                    onClick={() => act('request_status', {
+                      id: msg.tracking.id,
+                      status: 'done',
+                    })} />
+                </Flex.Item>
+              )}
+            </Flex>
+          )}
         </Box>
+      ))}
+      <Sent data={data} />
+    </Section>
+  );
+};
+
+// What this department asked for, and where each stands
+const Sent = props => {
+  const { data } = props;
+  const sent = data.sent || [];
+  if (!sent.length) {
+    return null;
+  }
+  return (
+    <Section level={2} title="Sent requests">
+      {sent.map(req => (
+        <Flex key={req.id} className="candystripe" p={0.5} align="center">
+          <Flex.Item grow={1}>
+            <Box>
+              <Box inline bold>{'To ' + req.to}</Box>
+              <Box inline color="label" ml={1}>{req.time}</Box>
+            </Box>
+            <Box color="label">{req.body}</Box>
+          </Flex.Item>
+          <Flex.Item ml={1}>
+            <Tracking tracking={req.tracking} />
+          </Flex.Item>
+        </Flex>
       ))}
     </Section>
   );
 };
+
+// A crate for Cargo, into the cargo console's request list
+class CrateRequest extends Component {
+  constructor() {
+    super();
+    this.state = { search: '', reason: '' };
+  }
+
+  render() {
+    const { data, act } = this.props;
+    const query = this.state.search.toLowerCase();
+    const packs = (data.packs || [])
+      .filter(pack => !query || pack.name.toLowerCase().includes(query)
+        || (pack.group || '').toLowerCase().includes(query))
+      .slice(0, 25);
+    return (
+      <Section level={2} title="Request a crate from Cargo">
+        <Flex mb={0.5}>
+          <Flex.Item grow={1} mr={0.5}>
+            <Input
+              fluid
+              placeholder="Search the crates..."
+              value={this.state.search}
+              onInput={(e, value) => this.setState({ search: value })} />
+          </Flex.Item>
+          <Flex.Item grow={1}>
+            <Input
+              fluid
+              placeholder="Reason (optional)"
+              value={this.state.reason}
+              onInput={(e, value) => this.setState({ reason: value })} />
+          </Flex.Item>
+        </Flex>
+        {packs.map(pack => (
+          <Flex key={pack.id} className="candystripe" p={0.5} align="center">
+            <Flex.Item grow={1}>{pack.name}</Flex.Item>
+            <Flex.Item color="label" mr={1}>
+              {pack.group + ', ' + pack.cost + ' cr'}
+            </Flex.Item>
+            <Flex.Item>
+              <Button
+                icon="box"
+                content="Request"
+                onClick={() => act('crate', {
+                  id: pack.id,
+                  reason: this.state.reason,
+                })} />
+            </Flex.Item>
+          </Flex>
+        ))}
+      </Section>
+    );
+  }
+}
 
 const QUESTION = {
   1: 'Which department do you need assistance from?',
@@ -171,6 +349,9 @@ const Departments = props => {
           </Flex.Item>
         </Flex>
       ))}
+      {data.screen === 2 && !!data.cargo && (
+        <CrateRequest data={data} act={act} />
+      )}
     </Section>
   );
 };
@@ -278,8 +459,10 @@ export const RequestsConsole = props => {
             onClick={() => act('silent')} />
         )}>
         <Emergencies data={data} act={act} />
+        <QuickRequests data={data} act={act} />
         <Tabs data={data} act={act} />
       </Section>
+      <Notice notice={data.notice} />
       {body}
     </Fragment>
   );

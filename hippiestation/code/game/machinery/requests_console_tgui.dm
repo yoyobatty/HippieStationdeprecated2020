@@ -25,7 +25,32 @@
 		"verified" = msgVerified ? comm_plain_text(msgVerified) : null,
 		"stamped" = msgStamped ? comm_plain_text(msgStamped) : null,
 		"priority" = priority,
+		"request" = (GLOB.station_request_sending && ckey(GLOB.station_request_sending.to_dept) == ckey(department)) ? GLOB.station_request_sending.id : null,
 	))
+
+/obj/machinery/requests_console/ui_static_data(mob/user)
+	var/list/data = list()
+	// The crates Cargo can be asked for, as the cargo request console offers them
+	var/list/packs = list()
+	for(var/path in SSshuttle.supply_packs)
+		var/datum/supply_pack/pack = SSshuttle.supply_packs[path]
+		if(pack.hidden || pack.contraband || pack.DropPodOnly || (pack.special && !pack.special_enabled))
+			continue
+		packs += list(list("id" = "[path]", "name" = pack.name, "cost" = pack.cost, "group" = pack.group))
+	data["packs"] = packs
+	var/list/quick = list()
+	for(var/name in GLOB.req_quick_requests)
+		var/list/info = GLOB.req_quick_requests[name]
+		if(GLOB.req_console_ckey_departments[ckey(info[1])] && ckey(info[1]) != ckey(department))
+			quick += list(list("name" = name, "department" = info[1], "icon" = info[3], "priority" = info[4]))
+	data["quick"] = quick
+	data["cargo"] = !!GLOB.req_console_ckey_departments["cargobay"]
+	return data
+
+/obj/machinery/requests_console/proc/req_status_entry(datum/station_request/R)
+	if(!R)
+		return null
+	return list("id" = R.id, "status" = R.status, "handler" = R.handler, "time" = R.handled_time)
 
 /obj/machinery/requests_console/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)
 	if(open || !user?.client)
@@ -63,8 +88,22 @@
 	data["new_priority"] = newmessagepriority
 	var/list/entries = list()
 	for(var/i in length(message_entries) to 1 step -1)
-		entries += list(message_entries[i])
+		var/list/entry = message_entries[i]
+		var/list/shown = entry.Copy()
+		shown["tracking"] = req_status_entry(GLOB.station_requests_by_id["[entry["request"]]"])
+		entries += list(shown)
 	data["messages"] = entries
+	// What this department has asked for, newest first
+	var/list/sent = list()
+	for(var/i in length(GLOB.station_requests) to 1 step -1)
+		var/datum/station_request/R = GLOB.station_requests[i]
+		if(R.from_dept != department)
+			continue
+		sent += list(list("id" = R.id, "to" = R.to_dept, "body" = R.body, "time" = R.time, "kind" = R.kind, "tracking" = req_status_entry(R)))
+		if(length(sent) >= 10)
+			break
+	data["sent"] = sent
+	data["notice"] = req_notice
 	data["assistance"] = req_departments(GLOB.req_console_assistance)
 	data["supplies"] = req_departments(GLOB.req_console_supplies)
 	data["information"] = req_departments(GLOB.req_console_information)
@@ -79,6 +118,7 @@
 /obj/machinery/requests_console/ui_act(action, params)
 	if(..())
 		return
+	req_notice = null
 	switch(action)
 		if("screen")
 			var/to_screen = text2num(params["screen"])
@@ -110,7 +150,20 @@
 				message = stripped_input_text(params["text"], MAX_MESSAGE_LEN) || ""
 		if("send")
 			if(screen == REQ_TGUI_SCREEN_AUTHENTICATE && message)
-				Topic(null, list("send" = "1"))
+				req_send()
+		if("quick")
+			req_quick(params["name"], usr)
+		if("crate")
+			req_crate(text2path(params["id"]), params["reason"], usr)
+		if("request_status")
+			// The receiving department, at any of its consoles: on it, with who, or done
+			var/datum/station_request/R = GLOB.station_requests_by_id["[params["id"]]"]
+			var/new_status = params["status"]
+			if(!R || ckey(R.to_dept) != ckey(department) || !(new_status in list("on it", "done")))
+				return
+			var/who = req_who(usr) || usr.name
+			R.set_status(new_status, who)
+			log_game("[key_name(usr)] marked the request from [R.from_dept] to [R.to_dept] \"[R.body]\" [new_status] at [src].")
 		if("set_announcement")
 			if(screen == REQ_TGUI_SCREEN_ANNOUNCE)
 				message = reject_bad_text(stripped_input_text(params["text"], MAX_MESSAGE_LEN)) || ""

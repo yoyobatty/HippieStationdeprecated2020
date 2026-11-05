@@ -1862,6 +1862,52 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			if(findtext(story.body, "drill in the cafeteria"))
 				announced = TRUE
 	cs_check("swiping the Captain's ID, typing it and clicking Announce Message announces it", announced && bridge.screen == 0)
+	// A quick request: one click, with the room
+	var/list/requests = GLOB.vars["station_requests"] // the new file's: the old build has no such list
+	var/had = length(requests)
+	cs_tgui_do(C, ui.window_id, "clickexact:Doctor")
+	sleep(15)
+	var/datum/station_request/quick = length(requests) > had ? requests[length(requests)] : null
+	cs_check("clicking Doctor asks Medbay, with the room and who's asking", quick && quick.to_dept == "Medbay" && quick.kind == "Doctor" && findtext(quick.body, "A doctor is needed in") && findtext(quick.sender, H.real_name), "[quick ? "[quick.to_dept]: [quick.body] ([quick.sender])" : "nothing"]")
+	cs_tgui_do(C, ui.window_id, "clickexact:Doctor")
+	sleep(15)
+	cs_check("and clicking it again straight away doesn't send another", length(requests) == had + 1, "[length(requests) - had] sent")
+	// Tracking: Medbay is on it, then done, and the Bridge sees it
+	cs_act(bridge, H, "request_status", list("id" = "[quick?.id]", "status" = "done"))
+	cs_check("the Bridge can't mark a request it sent to Medbay", quick && quick.status == "new", quick?.status)
+	var/mob/living/carbon/human/doctor = new(get_turf(medbay))
+	doctor.equipOutfit(/datum/outfit/job/doctor)
+	cs_act(medbay, doctor, "request_status", list("id" = "[quick?.id]", "status" = "on it"))
+	cs_check("Medbay marks it on it, with who", quick && quick.status == "on it" && findtext(quick.handler, doctor.real_name), "[quick?.status] - [quick?.handler]")
+	SStgui.update_uis(bridge)
+	cs_tgui_do(C, ui.window_id, "click:Messages")
+	sleep(15)
+	var/list/sent = bridge.ui_data(H)["sent"]
+	var/list/first_sent = length(sent) ? sent[1] : null
+	var/list/first_tracking = first_sent ? first_sent["tracking"] : null
+	cs_check("and the Bridge's sent list says so", first_tracking && first_tracking["status"] == "on it", "[first_tracking ? first_tracking["status"] : "nothing"]")
+	cs_shot("popup_req_[label]_5_tracking", bridge.name)
+	cs_act(medbay, doctor, "request_status", list("id" = "[quick?.id]", "status" = "done"))
+	cs_check("then done", quick && quick.status == "done")
+	qdel(doctor)
+	usr = H
+	// A crate for Cargo
+	var/requested = length(SSshuttle.requestlist)
+	cs_tgui_do(C, ui.window_id, "click:Supplies")
+	cs_wait_until(bridge, "screen", 2)
+	SStgui.update_uis(bridge)
+	sleep(10)
+	cs_tgui_do(C, ui.window_id, "input0:medical")
+	sleep(5)
+	cs_tgui_do(C, ui.window_id, "input1:For the injured on the bridge")
+	sleep(10)
+	cs_shot("popup_req_[label]_6_crates", bridge.name)
+	cs_tgui_do(C, ui.window_id, "click:Request")
+	sleep(15)
+	var/datum/supply_order/order = length(SSshuttle.requestlist) > requested ? SSshuttle.requestlist[length(SSshuttle.requestlist)] : null
+	cs_check("searching the crates and clicking Request puts it in cargo's request list", order && order.reason == "For the injured on the bridge", "[order ? "[order.pack.name]: [order.reason]" : "nothing"]")
+	var/datum/station_request/crate = length(requests) ? requests[length(requests)] : null
+	cs_check("and Cargo Bay hears about it", crate && crate.kind == "crate" && crate.to_dept == "Cargo Bay" && crate.order == order, "[crate ? "[crate.to_dept]: [crate.body]" : "nothing"]")
 	// An emergency call
 	cs_tgui_do(C, ui.window_id, "click:Security")
 	sleep(10)
