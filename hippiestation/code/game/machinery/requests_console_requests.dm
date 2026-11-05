@@ -33,6 +33,8 @@ GLOBAL_LIST_INIT(req_quick_requests, list(
 	var/body
 	/// Who sent it: their ID if they swiped or wore one, or null
 	var/sender
+	/// Whoever was at the console, for those answering to find
+	var/datum/weakref/sender_ref
 	/// Where it was sent from
 	var/area_name
 	var/turf/location
@@ -76,6 +78,7 @@ GLOBAL_LIST_INIT(req_quick_requests, list(
 	R.priority = priority
 	R.body = comm_plain_text(message)
 	R.sender = msgVerified ? comm_plain_text(msgVerified) : null
+	R.sender_ref = WEAKREF(usr)
 	var/area/A = get_area(src)
 	R.area_name = A ? get_area_name(A, TRUE) : null
 	R.location = get_turf(src)

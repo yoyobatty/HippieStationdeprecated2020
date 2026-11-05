@@ -3460,6 +3460,7 @@
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_robotics.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_science.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_solars.dm"
+#include "hippiestation\code\modules\bots_ai\gym\scenarios_station_requests.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_robust.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_round_type.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_silicon.dm"

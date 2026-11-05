@@ -221,6 +221,8 @@ GLOBAL_LIST_EMPTY(bot_cargo_strays)
 			order.generateRequisition(get_turf(C))
 			order.approved_by = cargo_ledger_signature(bot.owner)
 			SSshuttle.shoppinglist += order
+			if(asked)
+				bot_station_request_ordered(asked, order, bot) // a requests console's crate request: off the cargo console's list
 			GLOB.bot_cargo_last_order = world.time
 			bot.orders_placed++
 			C.say("Order placed: [pack.name].")
