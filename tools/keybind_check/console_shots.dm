@@ -936,6 +936,9 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	var/last_entry = length(console.logs) ? console.logs[length(console.logs)] : ""
 	cs_check("clicking Log in logs in, under their name (the old window put NULL OPERATOR)", console.authenticated && findtext(last_entry, H.real_name) && findtext(last_entry, "logged in"), last_entry)
 	SStgui.close_user_uis(H)
+	sleep(1 SECONDS)
+	cs_apc_outage(C, H, label)
+	SStgui.close_user_uis(H)
 
 // The particle accelerator's control console
 
@@ -1016,3 +1019,74 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	sleep(10)
 	cs_check("mended and pulsed, clicking On switches it off", !CB.active)
 	SStgui.close_user_uis(H)
+
+/// A real Grid Check, at the console in the Chief Engineer's office: backup power, then Reset all APCs
+/proc/cs_apc_outage(client/C, mob/living/carbon/human/H, label)
+	var/obj/machinery/computer/apc_control/office
+	for(var/obj/machinery/computer/apc_control/A in GLOB.machines)
+		if(is_station_level(A.z) && istype(get_area(A), /area/crew_quarters/heads/chief))
+			office = A
+			break
+	cs_check("there's a power flow console in the Chief Engineer's office", office)
+	if(!office)
+		return
+	H.forceMove(cs_open_beside(office))
+	usr = H
+	office.Topic(null, list("authenticate" = "1"))
+	office.interact(H)
+	sleep(2 SECONDS)
+	var/datum/tgui/ui = cs_find_ui(H, office)
+	cs_check("its window opens", ui)
+	if(!ui)
+		return
+	winset(C, ui.window_id, "pos=200,40")
+	for(var/datum/round_event_control/grid_check/event in SSevents.control)
+		event.runEvent()
+	var/area/room = get_area(office)
+	var/obj/machinery/power/apc/office_apc = room.get_apc()
+	var/deadline = world.time + 20 SECONDS
+	while(world.time < deadline && !(office_apc?.failure_timer && office.backup_power))
+		sleep(5)
+	sleep(3 SECONDS)
+	var/down = 0
+	for(var/obj/machinery/power/apc/APC as anything in GLOB.apcs_list)
+		if(office.check_apc(APC) && APC.failure_timer)
+			down++
+	cs_check("the Grid Check times the APCs out", down > 20, "[down] down")
+	cs_check("the office goes dark but the console runs on its backup cell", !room.power_light && office.backup_power && !(office.stat & NOPOWER), "lights [room.power_light ? "on" : "off"], backup [office.backup_power]")
+	cs_shot("popup_apc_[label]_5_grid_failure", office.name)
+	// Only the Chief Engineer's ID resets the grid
+	var/mob/living/carbon/human/engineer = new(cs_open_beside(office, list(get_turf(H))))
+	engineer.equipOutfit(/datum/outfit/job/engineer)
+	cs_act(office, engineer, "reset_all")
+	cs_check("an engineer's ID can't reset the grid", !office.resetting && !office.ui_data(engineer)["can_reset"])
+	qdel(engineer)
+	usr = H
+	// Clicked in the window
+	cs_tgui_do(C, ui.window_id, "click:Reset all APCs")
+	var/started = world.time
+	sleep(5)
+	cs_check("clicking Reset all APCs starts the reset", office.resetting, "[office.reset_total] to reset")
+	sleep(5)
+	cs_check("the office's own APC is among the first back", !office_apc.failure_timer && office.reset_done <= 10, "[office.reset_done] back by then")
+	sleep(6 SECONDS)
+	cs_shot("popup_apc_[label]_6_resetting", office.name)
+	cs_check("halfway there at 7 seconds", office.reset_done > office.reset_total * 0.3 && office.reset_done < office.reset_total * 0.7, "[office.reset_done] of [office.reset_total]")
+	deadline = world.time + 15 SECONDS
+	while(world.time < deadline && office.resetting)
+		sleep(2)
+	var/took = (world.time - started) / 10
+	cs_check("it takes 15 seconds", took >= 14 && took <= 17, "[took] s")
+	var/still_down = 0
+	for(var/obj/machinery/power/apc/APC as anything in GLOB.apcs_list)
+		if(office.check_apc(APC) && APC.failure_timer)
+			still_down++
+	cs_check("and every APC is back", !still_down, "[still_down] still down")
+	cs_check("the office lights are back and the console off its backup", room.power_light && !office.backup_power)
+	var/logged = FALSE
+	for(var/entry in office.logs)
+		if(findtext(entry, "began resetting"))
+			logged = TRUE
+	cs_check("the reset is in the log", logged)
+	sleep(2 SECONDS)
+	cs_shot("popup_apc_[label]_7_reset_done", office.name)

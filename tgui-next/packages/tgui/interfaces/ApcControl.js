@@ -7,8 +7,8 @@ import { Box, Button, Input, NoticeBox, ProgressBar, Section, Table } from '../c
 
 // An APC channel: 0 off, 1 off by itself, 2 on, 3 on by itself
 const Channel = props => {
-  const { name, short, status } = props;
-  const on = status >= 2;
+  const { name, short, status, failed } = props;
+  const on = status >= 2 && !failed;
   const auto = status === 1 || status === 3;
   return (
     <Box
@@ -66,6 +66,10 @@ class ApcList extends Component {
       }
       return true;
     });
+    // In a grid failure, the order the reset brings them back in
+    if (data.down || data.resetting) {
+      apcs.sort((a, b) => a.dist - b.dist);
+    }
     return (
       <Section
         title={apcs.length + ' APCs'}
@@ -105,10 +109,10 @@ class ApcList extends Component {
             <Table.Row key={apc.ref} className="candystripe">
               <Table.Cell py={0.5} px={0.5}>
                 <Box>{apc.area}</Box>
-                <Box color="label" fontSize="11px">
-                  {apc.responds
-                    ? apc.load + ' used'
-                    : 'does not respond to interface query'}
+                <Box
+                  color={apc.failed ? 'bad' : 'label'}
+                  fontSize="11px">
+                  {rowNote(apc)}
                 </Box>
               </Table.Cell>
               <Table.Cell width="130px" px={0.5}>
@@ -123,9 +127,21 @@ class ApcList extends Component {
                 )}
               </Table.Cell>
               <Table.Cell width="110px" px={0.5} nowrap>
-                <Channel name="Equipment" short="Eqp" status={apc.equipment} />
-                <Channel name="Lighting" short="Lgt" status={apc.lighting} />
-                <Channel name="Environment" short="Env" status={apc.environ} />
+                <Channel
+                  name="Equipment"
+                  short="Eqp"
+                  status={apc.equipment}
+                  failed={apc.failed} />
+                <Channel
+                  name="Lighting"
+                  short="Lgt"
+                  status={apc.lighting}
+                  failed={apc.failed} />
+                <Channel
+                  name="Environment"
+                  short="Env"
+                  status={apc.environ}
+                  failed={apc.failed} />
               </Table.Cell>
               <Table.Cell collapsing px={0.5}>
                 <Button
@@ -142,6 +158,54 @@ class ApcList extends Component {
     );
   }
 }
+
+const rowNote = apc => {
+  if (!apc.responds) {
+    return 'does not respond to interface query';
+  }
+  if (apc.failed) {
+    return 'power failure';
+  }
+  return apc.load + ' used';
+};
+
+// A grid failure: how many APCs it timed out, and the reset that brings them
+// back one after another
+const GridFailure = props => {
+  const { data, act } = props;
+  if (data.resetting) {
+    return (
+      <Section title="Resetting the grid">
+        <ProgressBar
+          value={data.reset_total ? data.reset_done / data.reset_total : 0}
+          color="good"
+          content={data.reset_done + ' of ' + data.reset_total
+            + (data.reset_last ? ' — ' + data.reset_last : '')} />
+      </Section>
+    );
+  }
+  if (!data.down) {
+    return null;
+  }
+  return (
+    <Section>
+      <Box style={{ 'display': 'flex', 'align-items': 'center' }}>
+        <Box bold color="bad" style={{ 'flex-grow': 1 }}>
+          {'Grid failure: ' + data.down + ' APC'
+            + (data.down === 1 ? '' : 's') + ' down'}
+        </Box>
+        <Button
+          icon="power-off"
+          color="bad"
+          content="Reset all APCs"
+          disabled={!data.can_reset}
+          tooltip={data.can_reset ? null : 'Needs the Chief Engineer\'s ID'}
+          tooltipPosition="left"
+          onClick={() => act('reset_all')} />
+      </Box>
+    </Section>
+  );
+};
 
 const Logs = props => {
   const { data, act } = props;
@@ -202,18 +266,21 @@ export const ApcControl = props => {
               content="Log out"
               onClick={() => act('log_out')} />
           </Fragment>
-        )}>
-        {!!data.emagged && (
-          <NoticeBox>
-            WARNING: Logging functionality partially disabled from outside
-            source.
-            <Button
-              ml={1}
-              content="Restore logging"
-              onClick={() => act('restore_logging')} />
-          </NoticeBox>
-        )}
-      </Section>
+        )} />
+      {!!data.backup_power && (
+        <NoticeBox>Running on backup power.</NoticeBox>
+      )}
+      {!!data.emagged && (
+        <NoticeBox>
+          WARNING: Logging functionality partially disabled from outside
+          source.
+          <Button
+            ml={1}
+            content="Restore logging"
+            onClick={() => act('restore_logging')} />
+        </NoticeBox>
+      )}
+      <GridFailure data={data} act={act} />
       {data.checking_logs
         ? <Logs data={data} act={act} />
         : <ApcList data={data} act={act} />}
