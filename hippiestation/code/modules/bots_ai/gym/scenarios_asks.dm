@@ -936,3 +936,46 @@
 /datum/bot_scenario/sleeper_crit/bandaged/suited/post_spawn()
 	..()
 	patient.equip_to_slot_or_del(new /obj/item/clothing/suit/fire/firefighter(patient), ITEM_SLOT_OCLOTHING)
+
+/datum/bot_scenario/give_blood
+	name = "medical rounds: somebody pale from losing blood is put on a drip with blood they can take"
+	desc = "A patient's lost a lot of blood (pale skin). The doctor opens the freezer crate, takes an O- pack, puts it on an IV drip, wheels the drip over and attaches it, stays while it goes in, and takes the needle out once they've their colour back. Nobody was ever given blood, and patched-up patients suffocated in Medbay from what they'd lost."
+	job = "Medical Doctor"
+	layout = list(
+		"##########",
+		"#B..K..I.#",
+		"#....C...#",
+		"##########")
+	time_limit = 60 SECONDS
+	var/obj/machinery/iv_drip/drip
+	var/mob/living/carbon/human/patient
+	var/given = FALSE
+
+/datum/bot_scenario/give_blood/setup()
+	var/obj/structure/closet/crate/freezer/crate = new(first_marker("K"))
+	place("K", crate)
+	new /obj/item/reagent_containers/blood/OMinus(crate)
+	drip = new(first_marker("I"))
+	place("I", drip)
+
+/datum/bot_scenario/give_blood/post_spawn()
+	give_job_id(list(ACCESS_MEDICAL))
+	patient = stand_in(first_marker("C"), "Pale Patient")
+	patient.blood_volume = 350
+
+/datum/bot_scenario/give_blood/make_goal()
+	var/path = text2path("/datum/bot_goal/give_blood") // by name: a build without it has no such goal
+	return path ? new path() : null
+
+/datum/bot_scenario/give_blood/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(drip.attached == patient)
+		given = TRUE
+		return BOT_GYM_PENDING
+	if(!given)
+		return BOT_GYM_PENDING
+	if(patient.blood_volume < BLOOD_VOLUME_SAFE && drip.beaker?.reagents?.total_volume)
+		fail_reason = "took them off the drip at [round(patient.blood_volume)] blood with some left in the pack"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS //on it, then off it once they'd had enough

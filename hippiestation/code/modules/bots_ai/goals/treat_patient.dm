@@ -375,6 +375,8 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			return TRUE
 		if(assign_goal(new /datum/bot_goal/treat_patient()))
 			return TRUE
+		if(assign_goal(new /datum/bot_goal/give_blood())) //goals/give_blood.dm: patched up, but short of blood
+			return TRUE
 		// Everybody alive seen to: the dead the paddles couldn't help (goals/cloning.dm).
 		if(assign_goal(new /datum/bot_goal/clone_body()))
 			return TRUE
