@@ -24,9 +24,10 @@ class NameBox extends Component {
     if (!this.state.editing) {
       return (
         <Box style={ROW}>
-          <Box bold fontSize="16px" style={{ 'flex-grow': 1 }}>
-            <Icon name="robot" mr={1} />
-            {name}
+          <Box bold fontSize="15px" style={{ 'flex-grow': 1 }}>
+            <span className="Exosuit__prompt">&gt;</span>
+            {name.toUpperCase()}
+            <span className="Exosuit__cursor" />
           </Box>
           <Button
             icon="pen"
@@ -56,9 +57,9 @@ class NameBox extends Component {
           }}
           style={{
             'flex-grow': 1,
-            'background-color': 'rgba(0, 0, 0, 0.4)',
-            'color': '#ffffff',
-            'border': '1px solid #404b6e',
+            'background-color': 'rgba(0, 0, 0, 0.6)',
+            'color': 'inherit',
+            'border': '1px solid rgba(61, 255, 107, 0.5)',
             'padding': '3px',
           }} />
         <Button ml={0.5} icon="check" content="Rename" onClick={done} />
@@ -70,18 +71,40 @@ class NameBox extends Component {
   }
 }
 
+// One line under the name, as the cockpit's own read-out would put it
+const readout = data => {
+  if (data.integrity < 30) {
+    return ['bad', 'DAMAGE CRITICAL'];
+  }
+  if ((data.damage || []).length) {
+    return ['average', 'INTERNAL DAMAGE'];
+  }
+  if (data.cell === null || data.cell < 15) {
+    return ['average', 'POWER LOW'];
+  }
+  return ['good', 'ALL SYSTEMS NOMINAL'];
+};
+
+// The bar's figure on a chip of its own, clear of the segments
+const pct = value => <span className="Exosuit__pct">{value + '%'}</span>;
+
 const Status = props => {
   const { data, act } = props;
+  const [color, line] = readout(data);
   return (
     <Section>
       <NameBox name={data.name} act={act} />
+      <Box color={color} fontSize="11px" mb={1} style={{
+        'letter-spacing': '1px' }}>
+        {'SYS: ' + line}
+      </Box>
       <LabeledList>
         <LabeledList.Item label="Integrity">
           <ProgressBar
             value={data.integrity}
             maxValue={100}
             color={healthColor(data.integrity)}
-            content={data.integrity + '%'} />
+            content={pct(data.integrity)} />
         </LabeledList.Item>
         <LabeledList.Item label="Power">
           {data.cell === null && <Box color="bad">No power cell</Box>}
@@ -90,7 +113,7 @@ const Status = props => {
               value={data.cell}
               maxValue={100}
               color={healthColor(data.cell)}
-              content={data.cell + '%'} />
+              content={pct(data.cell)} />
           )}
         </LabeledList.Item>
       </LabeledList>

@@ -1,0 +1,215 @@
+// hippie -- an exosuit's own menu (interfaces/Exosuit.js): a cockpit read-out in phosphor green on black, after the old mech data
+// window the user liked (black, green monospace, solid green bars). Not a copy of it: segmented bars, green title bars, faint
+// scanlines.
+@use 'sass:color';
+@use 'sass:meta';
+
+$phosphor: #3dff6b;
+$phosphor-dim: #22a845;
+$phosphor-bar: #2ecc55;
+$ink: #031a09;
+
+@use '../colors.scss' with (
+  $primary: #1c8a3a,
+  $good: #3dff6b,
+  $average: #ffb21e,
+  $bad: #ff4b3e,
+  $label: #22a845,
+);
+@use '../base.scss' with (
+  $color-fg: #3dff6b,
+  $color-bg: #020602,
+  $color-bg-grad-spread: 0%,
+  $border-radius: 0px,
+);
+
+.theme-mecha {
+  // Atomic classes
+  @include meta.load-css('../atomic/color.scss');
+
+  // Components
+  @include meta.load-css('../components/Button.scss', $with: (
+    'color-default': #0c2c15,
+    'color-disabled': #141a15,
+    'color-selected': #3dff6b,
+    'color-caution': #8a5d00,
+    'color-danger': #8f2017,
+    'color-transparent-text': rgba(61, 255, 107, 0.6),
+  ));
+  @include meta.load-css('../components/Input.scss', $with: (
+    'border-color': $phosphor-dim,
+  ));
+  @include meta.load-css('../components/Layout.scss');
+  @include meta.load-css('../components/NoticeBox.scss', $with: (
+    'color-first': #2b1c00,
+    'color-second': #211600,
+    'color-border': #ffb21e,
+  ));
+  @include meta.load-css('../components/ProgressBar.scss', $with: (
+    'color-background': rgba(61, 255, 107, 0.05),
+  ));
+  @include meta.load-css('../components/Section.scss', $with: (
+    'color-title': $ink,
+    'color-background': rgba(8, 36, 16, 0.4),
+    'color-shadow': rgba(0, 0, 0, 0),
+    'color-separator': $phosphor-bar,
+  ));
+  @include meta.load-css('../components/TitleBar.scss', $with: (
+    'color-text': $phosphor,
+    'color-background': #041006,
+    'color-shadow-core': #000000,
+  ));
+  @include meta.load-css('../components/Tooltip.scss', $with: (
+    'color-background': #0c2c15,
+  ));
+
+  font-family: 'Lucida Console', Consolas, 'Courier New', monospace;
+
+  .Layout__content {
+    // Faint scanlines in place of the Nanotrasen mark
+    background-image: repeating-linear-gradient(
+      0deg,
+      rgba(61, 255, 107, 0.03) 0,
+      rgba(61, 255, 107, 0.03) 1px,
+      transparent 1px,
+      transparent 3px);
+    text-shadow: 0 0 3px rgba(61, 255, 107, 0.3);
+  }
+
+  .TitleBar {
+    border-bottom: 1px solid $phosphor-dim;
+  }
+
+  .TitleBar__title {
+    font-family: 'Lucida Console', Consolas, 'Courier New', monospace;
+    letter-spacing: 0.5px;
+  }
+
+  .Section {
+    border: 1px solid rgba(61, 255, 107, 0.35);
+  }
+
+  .Section__title {
+    background-color: $phosphor-bar;
+    padding: 3px 6px;
+    border-bottom: 0;
+    text-shadow: none;
+  }
+
+  .Section__titleText {
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 12px;
+  }
+
+  .Section__buttons {
+    color: $ink;
+    text-shadow: none;
+
+    .color-label {
+      color: rgba(3, 26, 9, 0.75) !important;
+    }
+  }
+
+  .Button {
+    border: 1px solid rgba(61, 255, 107, 0.4);
+    color: $phosphor;
+    text-shadow: none;
+    line-height: 18px;
+
+    &:hover,
+    &:focus {
+      color: $phosphor;
+    }
+  }
+
+  .Button--selected,
+  .Button--selected:hover,
+  .Button--selected:focus {
+    color: $ink;
+    border-color: $phosphor;
+  }
+
+  .Button--color--transparent {
+    border-color: transparent;
+  }
+
+  .Button--disabled {
+    color: rgba(61, 255, 107, 0.3);
+    border-color: rgba(61, 255, 107, 0.15);
+  }
+
+  .Button--color--danger,
+  .Button--color--caution {
+    color: #ffffff;
+  }
+
+  .ProgressBar__fill {
+    // LED segments
+    background-image: repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 7px,
+      rgba(0, 0, 0, 0.6) 7px,
+      rgba(0, 0, 0, 0.6) 9px);
+  }
+
+  .ProgressBar__content {
+    font-weight: bold;
+    text-shadow: 0 0 2px #000000, 0 0 3px #000000;
+  }
+
+  .LabeledList__label {
+    color: $phosphor-dim;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+  }
+
+  .NoticeBox {
+    color: #ffb21e;
+    border: 1px solid #ffb21e;
+    font-style: normal;
+    text-shadow: 0 0 3px rgba(255, 178, 30, 0.4);
+  }
+
+  .candystripe:nth-child(odd) {
+    background-color: rgba(61, 255, 107, 0.05);
+  }
+
+  input {
+    font-family: inherit;
+  }
+
+  .Exosuit__pct {
+    display: inline-block;
+    min-width: 34px;
+    padding: 0 4px;
+    margin-right: -5px;
+    text-align: right;
+    background-color: #020602;
+    border-left: 1px solid rgba(61, 255, 107, 0.4);
+    text-shadow: 0 0 3px rgba(61, 255, 107, 0.3);
+  }
+
+  .Exosuit__prompt {
+    color: $phosphor-dim;
+    margin-right: 6px;
+  }
+
+  .Exosuit__cursor {
+    display: inline-block;
+    width: 8px;
+    height: 13px;
+    margin-left: 4px;
+    vertical-align: -1px;
+    background-color: $phosphor;
+    animation: Exosuit__blink 1.2s steps(1) infinite;
+  }
+}
+
+@keyframes Exosuit__blink {
+  50% {
+    opacity: 0;
+  }
+}

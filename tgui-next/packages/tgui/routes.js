@@ -244,6 +244,7 @@ const ROUTES = {
   exosuit: {
     component: () => Exosuit,
     scrollable: true,
+    theme: 'mecha',
   },
   exosuit_fabricator: {
     component: () => ExosuitFabricator,

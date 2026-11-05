@@ -2811,6 +2811,12 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	SStgui.update_uis(M)
 	sleep(10)
 	cs_shot("popup_exosuit_[label]_1_used", M.name)
+	// Battered: a quarter of its integrity and a short circuit (MECHA_INT_SHORT_CIRCUIT, mecha.dm's own define)
+	M.obj_integrity = M.max_integrity * 0.25
+	M.setInternalDamage(4)
+	SStgui.update_uis(M)
+	sleep(10)
+	cs_shot("popup_exosuit_[label]_2_damaged", M.name)
 	SStgui.close_user_uis(H)
 	M.go_out()
 
