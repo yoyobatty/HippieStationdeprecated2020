@@ -58,6 +58,10 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	if(findtext(action, "click:") == 1)
 		var/text = copytext(action, 7)
 		js = "var t=[json_encode(text)];var b=Array.prototype.slice.call(document.querySelectorAll('.Button, .Collapsible, \[style*=\"cursor\"\]')).filter(function(e){return e.textContent.trim().indexOf(t)===0;})\[0\];if(b){b.click();}"
+	else if(findtext(action, "clickexact:") == 1)
+		// The first button whose whole text is this: one-letter buttons ("C" would find "Close Scanner")
+		var/text = copytext(action, 12)
+		js = "var t=[json_encode(text)];var b=Array.prototype.slice.call(document.querySelectorAll('.Button')).filter(function(e){return e.textContent.trim()===t;})\[0\];if(b){b.click();}"
 	else if(findtext(action, "scroll:") == 1)
 		var/pixels = text2num(copytext(action, 8))
 		js = "Array.prototype.slice.call(document.querySelectorAll('*')).filter(function(e){var o=getComputedStyle(e).overflowY;return (o=='auto'||o=='scroll')&&e.scrollHeight>e.clientHeight;}).forEach(function(e){e.scrollTop=[pixels];});"
@@ -144,6 +148,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_tcomms(C, H, label)
 		if("tlogs")
 			cs_tlogs(C, H, label)
+		if("dna")
+			cs_dna(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -1423,4 +1429,174 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	cs_tgui_do(C, ui.window_id, "click:Delete")
 	sleep(10)
 	cs_check("an engineer clicking Delete deletes it", length(logged.log_entries) == count - 1, "[length(logged.log_entries)] of [count]")
+	SStgui.close_user_uis(H)
+
+// The DNA console, the station's own in Genetics, with somebody in its scanner
+
+/proc/cs_dna(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/geneticist)
+	var/obj/machinery/computer/scan_consolenew/console
+	for(var/obj/machinery/computer/scan_consolenew/candidate in GLOB.machines)
+		if(is_station_level(candidate.z) && candidate.connected)
+			console = candidate
+			break
+	cs_check("Genetics has a console and scanner", console)
+	if(!console)
+		return
+	var/obj/machinery/dna_scannernew/scanner = console.connected
+	console.stat &= ~(NOPOWER|BROKEN)
+	scanner.stat &= ~(NOPOWER|BROKEN)
+	var/turf/stand
+	for(var/dir in GLOB.alldirs)
+		var/turf/T = get_step(console, dir)
+		if(cs_free_floor(T) && T != scanner.loc)
+			stand = T
+			break
+	H.forceMove(stand || get_turf(console))
+	// The subject, with the first gene in their sequence switched on
+	var/mob/living/carbon/human/subject = new(get_turf(scanner))
+	subject.fully_replace_character_name(null, "Rosa Lindgren")
+	scanner.open_machine()
+	scanner.close_machine(subject)
+	// Not one that turns them into something else (a monkey): the round's genes are random
+	var/gene_path
+	for(var/path in subject.dna.mutation_index)
+		if(!ispath(path, /datum/mutation/human/race))
+			gene_path = path
+			break
+	subject.dna.mutation_index[gene_path] = GET_SEQUENCE(gene_path)
+	subject.domutcheck()
+	var/edit_path
+	for(var/path in subject.dna.mutation_index)
+		if(path != gene_path && !ispath(path, /datum/mutation/human/race))
+			edit_path = path
+			break
+	console.jokerready = 0
+	console.injectorready = 0
+	cs_check("the subject's in the scanner with a gene on", scanner.occupant == subject && subject.dna.get_mutation(gene_path), "[gene_path]")
+	usr = H
+	console.Topic(null, list("task" = "screen", "text" = "mainmenu"))
+	console.Topic(null, list("task" = "inspect", "num" = "[subject.dna.mutation_index.Find(gene_path)]"))
+	console.interact(H)
+	sleep(3 SECONDS)
+	var/datum/tgui/ui = cs_find_ui(H, console)
+	if(!ui)
+		// The old window
+		winset(C, "scannernew", "pos=200,40")
+		sleep(10)
+		cs_shot("popup_dna_[label]_1_sequencer")
+		usr = H
+		console.Topic(null, list("task" = "setbuffer", "num" = "1"))
+		console.Topic(null, list("task" = "screen", "text" = "ui"))
+		sleep(10)
+		cs_shot("popup_dna_[label]_2_identifiers")
+		usr = H
+		console.Topic(null, list("task" = "savemut", "path" = "[gene_path]"))
+		console.Topic(null, list("task" = "screen", "text" = "mutations"))
+		sleep(10)
+		cs_shot("popup_dna_[label]_3_storage")
+		H << browse(null, "window=scannernew")
+		return
+	winset(C, ui.window_id, "pos=200,40")
+	sleep(10)
+	cs_shot("popup_dna_[label]_1_sequencer", console.name)
+	cs_check("the page names genes by alias, never by mutation", !findtext(json_encode(console.ui_data(H)), "/datum/mutation"))
+	// Clicked in the window: print an activator for the gene that's on, and store it
+	var/injectors = 0
+	for(var/obj/item/dnainjector/activator/A in console.loc)
+		injectors++
+	cs_tgui_do(C, ui.window_id, "click:Print Activator")
+	sleep(10)
+	var/injectors_after = 0
+	for(var/obj/item/dnainjector/activator/A in console.loc)
+		injectors_after++
+	cs_check("clicking Print Activator prints one", injectors_after == injectors + 1, "[injectors_after - injectors] printed")
+	cs_tgui_do(C, ui.window_id, "click:Store")
+	sleep(10)
+	cs_check("clicking Store stores it", length(console.stored_mutations) == 1, "[length(console.stored_mutations)] stored")
+	// A base changed in the window, the JOKER way: it becomes the right one
+	usr = H
+	console.Topic(null, list("task" = "inspect", "num" = "[subject.dna.mutation_index.Find(edit_path)]"))
+	sleep(15)
+	var/before = GET_GENE_STRING(edit_path, subject.dna)
+	var/right = GET_SEQUENCE(edit_path)
+	var/num = 0
+	for(var/i in 1 to length_char(before))
+		if(copytext_char(before, i, i + 1) != copytext_char(right, i, i + 1))
+			num = i
+			break
+	if(num)
+		var/letter = copytext_char(before, num, num + 1)
+		// The first base with this letter might not be the wrong one: pick it out by number
+		var/datum/mutation/human/edit_mutation = GET_INITIALIZED_MUTATION(edit_path)
+		cs_act(console, H, "gene", list("alias" = edit_mutation.alias, "num" = "[num]", "gene" = "JOKER"))
+		sleep(5)
+		var/now = GET_GENE_STRING(edit_path, subject.dna)
+		cs_check("the JOKER puts the right base in", copytext_char(now, num, num + 1) == copytext_char(right, num, num + 1) && console.jokerready > world.time, "base [num]: [letter] -> [copytext_char(now, num, num + 1)], should be [copytext_char(right, num, num + 1)]")
+		// And by hand, clicking a base then a letter, once the window has the JOKER's change
+		SStgui.update_uis(console)
+		sleep(10)
+		var/first_letter = copytext_char(now, 1, 2)
+		var/other = first_letter == "A" ? "T" : "A"
+		cs_tgui_do(C, ui.window_id, "clickexact:[first_letter]")
+		sleep(5)
+		cs_tgui_do(C, ui.window_id, "clickexact:[other]")
+		sleep(10)
+		var/after = GET_GENE_STRING(edit_path, subject.dna)
+		var/changed = 0
+		var/changed_to
+		for(var/i in 1 to length_char(after))
+			if(copytext_char(after, i, i + 1) != copytext_char(now, i, i + 1))
+				changed++
+				changed_to = copytext_char(after, i, i + 1)
+		cs_check("clicking a base and then a letter changes that base", changed == 1 && changed_to == other, "[now] -> [after]")
+		cs_shot("popup_dna_[label]_2_editing", console.name)
+	// The unique identifiers and a buffer
+	cs_tgui_do(C, ui.window_id, "click:Unique Identifiers")
+	sleep(10)
+	cs_check("clicking Unique Identifiers opens them", console.current_screen == "ui")
+	cs_tgui_do(C, ui.window_id, "click:Save to Buffer")
+	sleep(10)
+	var/list/slot = console.buffer[1]
+	cs_check("clicking Save to Buffer saves the subject", islist(slot) && slot["name"] == subject.real_name)
+	cs_tgui_do(C, ui.window_id, "type0:Rosa, before")
+	sleep(10)
+	slot = console.buffer[1]
+	cs_check("typing a label labels it, without a popup", islist(slot) && slot["label"] == "Rosa, before", "[islist(slot) ? slot["label"] : "nothing"]")
+	cs_shot("popup_dna_[label]_3_identifiers", console.name)
+	// A pulse: the window shows it working, then what it did
+	var/list/data = console.ui_data(H)
+	var/list/identity = data["identity"]
+	var/list/first_block = identity[1]
+	var/list/first_char = first_block[1]
+	cs_tgui_do(C, ui.window_id, "clickexact:[first_char["char"]]")
+	sleep(5)
+	cs_check("clicking an identifier block pulses it", console.current_screen == "working")
+	sleep(console.radduration * 10 + 15)
+	var/last_operation = console.vars["last_operation"] // the new file's: the old build has no such var
+	cs_check("and the last operation says what changed", console.current_screen == "ui" && findtext(last_operation, "UI #"), last_operation)
+	// Storage, and the chromosomes the old window couldn't eject (only the last)
+	var/obj/item/chromosome/first_one = new /obj/item/chromosome/stabilizer(console)
+	var/obj/item/chromosome/second_one = new /obj/item/chromosome/synchronizer(console)
+	console.stored_chromosomes += first_one
+	console.stored_chromosomes += second_one
+	cs_tgui_do(C, ui.window_id, "click:Mutations")
+	sleep(10)
+	cs_shot("popup_dna_[label]_4_storage", console.name)
+	cs_tgui_do(C, ui.window_id, "click:Eject")
+	sleep(10)
+	cs_check("clicking the first chromosome's Eject ejects that one", !(first_one in console.stored_chromosomes) && (second_one in console.stored_chromosomes))
+	// What the old Topic took on trust
+	cs_act(console, H, "task", list("task" = "screen", "text" = "working"))
+	cs_check("the page can't put it to work and lock it", console.current_screen == "mutations", console.current_screen)
+	cs_act(console, H, "task", list("task" = "deletemut", "num" = "99"))
+	cs_check("nor delete storage that isn't there", length(console.stored_mutations) == 1)
+	// A bot's way: Topic() with the mutation, and no window for it
+	var/mob/living/carbon/human/bot = new(stand || get_turf(console))
+	usr = bot
+	console.Topic(null, list("task" = "savemut", "path" = "[gene_path]"))
+	cs_check("a bot's Topic() still stores a mutation", length(console.stored_mutations) == 2, "[length(console.stored_mutations)] stored")
+	cs_check("and opens no window", !length(bot.open_uis))
+	qdel(bot)
+	usr = H
 	SStgui.close_user_uis(H)

@@ -34,6 +34,7 @@ import { Crayon } from './interfaces/Crayon';
 import { CrewConsole } from './interfaces/CrewConsole';
 import { Cryo } from './interfaces/Cryo';
 import { DisposalUnit } from './interfaces/DisposalUnit';
+import { DnaConsole } from './interfaces/DnaConsole';
 import { DnaVault } from './interfaces/DnaVault';
 import { EngravedMessage } from './interfaces/EngravedMessage';
 import { Gps } from './interfaces/Gps';
@@ -205,6 +206,10 @@ const ROUTES = {
   chem_press: {
     component: () => ChemPress,
     scrollable: false,
+  },
+  dna_console: {
+    component: () => DnaConsole,
+    scrollable: true,
   },
   particle_accelerator: {
     component: () => ParticleAccelerator,
