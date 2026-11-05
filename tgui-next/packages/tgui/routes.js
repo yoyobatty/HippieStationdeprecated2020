@@ -47,6 +47,7 @@ import { KeycardAuth } from './interfaces/KeycardAuth';
 import { LanguageMenu } from './interfaces/LanguageMenu';
 import { MechBayPowerConsole } from './interfaces/MechBayPowerConsole';
 import { MedicalKiosk } from './interfaces/MedicalKiosk';
+import { Newscaster } from './interfaces/Newscaster';
 import { ParticleAccelerator } from './interfaces/ParticleAccelerator';
 import { PipeDispenser } from './interfaces/PipeDispenser';
 import { MedicalRecords, SecurityRecords } from './interfaces/RecordsConsole';
@@ -209,6 +210,10 @@ const ROUTES = {
   },
   dna_console: {
     component: () => DnaConsole,
+    scrollable: true,
+  },
+  newscaster: {
+    component: () => Newscaster,
     scrollable: true,
   },
   particle_accelerator: {

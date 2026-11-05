@@ -48,6 +48,12 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 /proc/cs_find_ui(mob/user, datum/src_object)
 	for(var/datum/tgui/open as anything in user.open_uis)
 		if(open.src_object == src_object)
+			// A page that hasn't loaded yet takes no clicks (the first window of a session can take a while)
+			var/deadline = world.time + 15 SECONDS
+			while(!open.initialized && world.time < deadline && !QDELETED(open))
+				sleep(2)
+			if(!open.initialized)
+				kc_log("NOTE: [src_object]'s window never finished loading")
 			return open
 
 /// One click or keystroke on a tgui page, from script. "click:<text>" presses the first button whose text starts with it,
@@ -65,6 +71,9 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	else if(findtext(action, "scroll:") == 1)
 		var/pixels = text2num(copytext(action, 8))
 		js = "Array.prototype.slice.call(document.querySelectorAll('*')).filter(function(e){var o=getComputedStyle(e).overflowY;return (o=='auto'||o=='scroll')&&e.scrollHeight>e.clientHeight;}).forEach(function(e){e.scrollTop=[pixels];});"
+	else if(findtext(action, "textarea:") == 1)
+		var/text = copytext(action, 10)
+		js = "var a=document.querySelector('textarea');if(a){a.focus();a.value=[json_encode(text)];a.dispatchEvent(new Event('input',{bubbles:true}));}"
 	else if(findtext(action, "type") == 1)
 		// Typed and left, as a player does: for boxes that only send what's in them on enter or leaving (onChange)
 		var/colon = findtext(action, ":")
@@ -150,6 +159,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_tlogs(C, H, label)
 		if("dna")
 			cs_dna(C, H, label)
+		if("news")
+			cs_news(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -1599,4 +1610,164 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	cs_check("and opens no window", !length(bot.open_uis))
 	qdel(bot)
 	usr = H
+	SStgui.close_user_uis(H)
+
+// The newscaster and the security one
+
+/proc/cs_news_channel(name)
+	for(var/datum/newscaster/feed_channel/FC in GLOB.news_network.network_channels)
+		if(FC.channel_name == name)
+			return FC
+
+/// Waits until `what` on `thing` is `value`, up to `seconds`: the window's next click needs the page the last one made
+/proc/cs_wait_until(datum/thing, what, value, seconds = 5)
+	var/deadline = world.time + seconds SECONDS
+	while(world.time < deadline && thing.vars[what] != value)
+		sleep(2)
+	sleep(5) // and for the page to draw it
+	return thing.vars[what] == value
+
+/proc/cs_news(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/assistant)
+	var/list/taken = list()
+	var/obj/machinery/newscaster/caster = new(cs_open_beside(H, taken))
+	taken += caster.loc
+	var/obj/machinery/newscaster/security_unit/security = new(cs_open_beside(H, taken))
+	caster.stat &= ~(NOPOWER|BROKEN)
+	security.stat &= ~(NOPOWER|BROKEN)
+	// A photo in hand for the story
+	var/datum/picture/pic = new("the bar", "A photo of the bar.", list(), list(), icon('icons/obj/drinks.dmi', "beer"), null, 32, 32, null, "Opening night")
+	var/obj/item/photo/photo = new(H.loc, pic)
+	H.put_in_active_hand(photo)
+	var/channel = "Station Gazette"
+	usr = H
+	caster.interact(H)
+	sleep(3 SECONDS)
+	var/datum/tgui/ui = cs_find_ui(H, caster)
+	if(!ui)
+		// The old windows, filled in the way the old popups would have
+		winset(C, "newscaster_main", "pos=200,40")
+		sleep(10)
+		cs_shot("popup_news_[label]_1_main")
+		caster.scan_user(H)
+		GLOB.news_network.CreateFeedChannel(channel, caster.scanned_user, FALSE)
+		GLOB.news_network.SubmitArticle("<font face=\"[PEN_FONT]\">The bar is open again after the meteor.<br>Drinks are on the Captain.</font>", caster.scanned_user, channel, pic, 0, 1)
+		var/datum/newscaster/feed_channel/FC = cs_news_channel(channel)
+		var/datum/newscaster/feed_message/story = FC.messages[1]
+		var/datum/newscaster/feed_comment/comment = new
+		comment.author = "Tomas Reyes (Security Officer)"
+		comment.body = "Is it open to Security?"
+		comment.time_stamp = station_time_timestamp()
+		story.comments += comment
+		usr = H
+		caster.Topic(null, list("show_channel" = REF(FC)))
+		sleep(10)
+		cs_shot("popup_news_[label]_2_channel")
+		H << browse(null, "window=newscaster_main")
+		usr = H
+		security.interact(H)
+		sleep(2 SECONDS)
+		winset(C, "newscaster_main", "pos=200,40")
+		sleep(10)
+		cs_shot("popup_news_[label]_3_security")
+		H << browse(null, "window=newscaster_main")
+		return
+	winset(C, ui.window_id, "pos=200,40")
+	sleep(10)
+	cs_shot("popup_news_[label]_0_empty", caster.name)
+	// A channel, clicked and typed in the window
+	cs_tgui_do(C, ui.window_id, "click:New channel")
+	cs_wait_until(caster, "screen", 2)
+	cs_tgui_do(C, ui.window_id, "type0:[channel]")
+	cs_wait_until(caster, "channel_name", channel)
+	cs_tgui_do(C, ui.window_id, "click:Submit")
+	cs_wait_until(caster, "screen", 9)
+	var/datum/newscaster/feed_channel/FC = cs_news_channel(channel)
+	cs_check("typing a name and clicking Submit makes the channel and opens it, with no popups", FC && FC.author == caster.scanned_user && caster.screen == 9 && caster.viewing_channel == FC, "[FC ? FC.author : "no channel"], screen [caster.screen]")
+	// A story with the photo
+	cs_tgui_do(C, ui.window_id, "click:New story")
+	cs_wait_until(caster, "screen", 3)
+	cs_act(caster, H, "set_channel_receiving", list("text" = channel))
+	cs_tgui_do(C, ui.window_id, "click:Attach the photo")
+	sleep(10)
+	cs_check("clicking Attach takes the photo in hand", caster.picture == pic)
+	cs_tgui_do(C, ui.window_id, "textarea:The bar is open again after the meteor.\nDrinks are on the Captain.")
+	sleep(5)
+	cs_tgui_do(C, ui.window_id, "click:Submit")
+	cs_wait_until(caster, "screen", 9)
+	var/datum/newscaster/feed_message/story = length(FC?.messages) ? FC.messages[1] : null
+	cs_check("typing the story and clicking Submit posts it and shows it in its channel", story && caster.screen == 9, "[FC ? length(FC.messages) : 0] stories, screen [caster.screen]")
+	cs_check("with its photo and both lines", story?.img && findtext(story.body, "Drinks are on the Captain"), "[story ? story.body : "none"]")
+	// A comment, in the channel
+	cs_tgui_do(C, ui.window_id, "input0:Is it open to Security?")
+	sleep(5)
+	cs_tgui_do(C, ui.window_id, "click:Comment")
+	sleep(10)
+	cs_check("typing a comment and clicking Comment posts it", story && length(story.comments) == 1, "[story ? length(story.comments) : 0] comments")
+	cs_shot("popup_news_[label]_2_channel", caster.name)
+	// The channel's owner can lock the comments; somebody else can't
+	var/mob/living/carbon/human/reader = new(cs_open_beside(caster, list(get_turf(H))))
+	reader.equipOutfit(/datum/outfit/job/cook)
+	cs_act(caster, reader, "lock_comment", list("ref" = REF(story)))
+	cs_check("a reader who doesn't own the channel can't lock its comments", story && !story.locked)
+	usr = H
+	caster.scan_user(H)
+	SStgui.update_uis(caster)
+	sleep(10)
+	cs_tgui_do(C, ui.window_id, "click:Lock comments")
+	sleep(10)
+	cs_check("the owner clicking Lock comments locks them", story?.locked)
+	cs_act(caster, reader, "comment", list("ref" = REF(story), "text" = "Let me in"))
+	cs_check("and a comment on a locked story is refused", story && length(story.comments) == 1)
+	cs_act(caster, reader, "censor_story_body", list("ref" = REF(story)))
+	cs_check("an ordinary newscaster can't censor", story && !story.bodyCensor)
+	qdel(reader)
+	usr = H
+	// The front page, and printing in one click
+	cs_tgui_do(C, ui.window_id, "click:Front page")
+	cs_wait_until(caster, "screen", 0)
+	caster.scan_user(H)
+	SStgui.update_uis(caster)
+	sleep(10)
+	cs_shot("popup_news_[label]_1_front_page", caster.name)
+	var/paper = caster.paper_remaining
+	cs_tgui_do(C, ui.window_id, "click:Print")
+	sleep(10)
+	cs_check("clicking Print prints a newspaper there and then", caster.paper_remaining == paper - 1 && (locate(/obj/item/newspaper) in caster.drop_location()) && caster.screen == 0, "[caster.paper_remaining] of [paper] left, screen [caster.screen]")
+	SStgui.close_user_uis(H)
+	// The security unit: a wanted issue, and censoring on the stories themselves
+	security.interact(H)
+	sleep(3 SECONDS)
+	ui = cs_find_ui(H, security)
+	cs_check("the security newscaster opens", ui)
+	if(!ui)
+		return
+	winset(C, ui.window_id, "pos=200,40")
+	cs_tgui_do(C, ui.window_id, "click:Wanted")
+	cs_wait_until(security, "screen", 14)
+	cs_tgui_do(C, ui.window_id, "type0:Griff Mcfrag")
+	cs_wait_until(security, "channel_name", "Griff Mcfrag")
+	cs_tgui_do(C, ui.window_id, "type1:Broke into the armory. Armed.")
+	cs_wait_until(security, "msg", "Broke into the armory. Armed.")
+	cs_tgui_do(C, ui.window_id, "click:Submit")
+	cs_wait_until(security, "screen", 0)
+	var/datum/newscaster/wanted_message/wanted = GLOB.news_network.wanted_issue
+	cs_check("filling in the wanted issue and clicking Submit publishes it, with no popups", wanted.active && wanted.criminal == "Griff Mcfrag", "[wanted.active ? wanted.criminal : "not published"]; screen [security.screen], name '[security.channel_name]', description '[security.msg]'")
+	sleep(10)
+	cs_shot("popup_news_[label]_3_security", security.name)
+	cs_tgui_do(C, ui.window_id, "click:Censor story")
+	sleep(10)
+	cs_check("on a security unit, clicking Censor story on the front page censors it", story?.bodyCensor)
+	cs_tgui_do(C, ui.window_id, "click:[channel]")
+	cs_wait_until(security, "screen", 9)
+	cs_tgui_do(C, ui.window_id, "click:D-Notice")
+	sleep(10)
+	cs_check("and clicking D-Notice on its channel marks it", FC?.censored)
+	cs_shot("popup_news_[label]_4_censor", security.name)
+	var/list/front = caster.ui_data(H)["front"]
+	var/hidden = TRUE
+	for(var/list/entry in front)
+		if(entry["channel"] == channel)
+			hidden = FALSE
+	cs_check("an ordinary newscaster's front page leaves out a D-Noticed channel", hidden)
 	SStgui.close_user_uis(H)
