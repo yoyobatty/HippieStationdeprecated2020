@@ -928,3 +928,11 @@
 		fail_reason = "put in the sleeper at [round(patient.health)] health, where it can only give epinephrine"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+/datum/bot_scenario/sleeper_crit/bandaged/suited
+	name = "medical rounds: somebody too far gone for the sleeper, in a firesuit, has it taken off and is bandaged"
+	desc = "The same, the patient in an emergency firesuit, which a bruise pack doesn't get through. The doctor takes the suit off, bandages them and puts them in. It used to give up on the bandaging and put them in as they were."
+
+/datum/bot_scenario/sleeper_crit/bandaged/suited/post_spawn()
+	..()
+	patient.equip_to_slot_or_del(new /obj/item/clothing/suit/fire/firefighter(patient), ITEM_SLOT_OCLOTHING)

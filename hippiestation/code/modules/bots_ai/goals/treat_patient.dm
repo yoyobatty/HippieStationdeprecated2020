@@ -690,7 +690,12 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 		if(QDELETED(patient) || patient.stat == DEAD || patient.health > S.min_health + 10 || !owner.Adjacent(patient))
 			return
 		aim_at_worst_wound(patient)
-		var/obj/item/I = pick_treatment_item(patient, !!clothing_in_the_way(patient))
+		// Under a firesuit or a hardsuit a bandage does nothing: a patch if there is one, otherwise the suit comes off first, as for any
+		// patient (uncover_patient(), which leaves it on where the air would hurt them)
+		var/obj/item/clothing/covering = clothing_in_the_way(patient)
+		var/obj/item/I = pick_treatment_item(patient, !!covering)
+		if(!I && covering && uncover_patient(patient, covering))
+			I = pick_treatment_item(patient)
 		if(!I)
 			return
 		bot_log(src, "patching up [patient] with [I] - too far gone for [S] to treat yet")
