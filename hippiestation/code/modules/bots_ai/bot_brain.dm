@@ -972,28 +972,36 @@ GLOBAL_LIST_INIT(bot_maintenance_averse_jobs, list("Medical Doctor", "Chief Medi
 	var/role = work_role()
 	var/list/keywords = GLOB.bot_department_keywords[role]
 	if(keywords && length(keywords) && prob(75))
-		var/list/matches = list()
-		for(var/area_name in GLOB.teleportlocs)
-			for(var/keyword in keywords)
-				if(findtext(area_name, keyword))
-					matches += GLOB.teleportlocs[area_name]
-					break
+		var/list/matches = bot_areas_matching(keywords)
 		if(matches.len)
 			return pick(matches)
 
 	if(role in GLOB.bot_maintenance_averse_jobs)
-		var/list/common = list()
-		for(var/area_name in GLOB.teleportlocs)
-			if(findtext(area_name, "Maintenance"))
-				continue
-			for(var/keyword in GLOB.bot_common_area_keywords)
-				if(findtext(area_name, keyword))
-					common += GLOB.teleportlocs[area_name]
-					break
+		var/list/common = bot_areas_matching(GLOB.bot_common_area_keywords, "Maintenance")
 		if(common.len)
 			return pick(common)
 
 	return GLOB.teleportlocs[pick(GLOB.teleportlocs)]
+
+/// keyword list -> list(unwanted word, size of teleportlocs, matching areas)
+GLOBAL_LIST_EMPTY(bot_keyword_areas)
+
+/// The teleportlocs areas whose names hold one of the keywords and not the unwanted word. Worked out once for each list,
+/// since teleportlocs is built at boot; matching every name on every wander cost about 0.3 ms.
+/proc/bot_areas_matching(list/keywords, unwanted)
+	var/list/entry = GLOB.bot_keyword_areas[keywords]
+	if(entry && entry[1] == unwanted && entry[2] == length(GLOB.teleportlocs))
+		return entry[3]
+	var/list/matches = list()
+	for(var/area_name in GLOB.teleportlocs)
+		if(unwanted && findtext(area_name, unwanted))
+			continue
+		for(var/keyword in keywords)
+			if(findtext(area_name, keyword))
+				matches += GLOB.teleportlocs[area_name]
+				break
+	GLOB.bot_keyword_areas[keywords] = list(unwanted, length(GLOB.teleportlocs), matches)
+	return matches
 
 /datum/bot_brain/proc/pick_poi_destination()
 	if(!length(GLOB.teleportlocs))
@@ -1004,19 +1012,53 @@ GLOBAL_LIST_INIT(bot_maintenance_averse_jobs, list("Medical Doctor", "Chief Medi
 	var/cooldown = LAZYACCESS(failed_areas, AR)
 	if(cooldown && world.time < cooldown)
 		return null //recently unreachable - pick_local_destination() covers this wander cycle instead
-	var/list/candidates = list()
-	var/list/chair_candidates = list()
-	for(var/turf/T in AR)
-		if(!is_wanderable_turf(T))
-			continue
-		candidates += T
-		if(locate(/obj/structure/chair) in T)
-			chair_candidates += T
-	if(chair_candidates.len && prob(50))
-		return pick(chair_candidates)
-	if(!candidates.len)
-		return null
-	return pick(candidates)
+	// Half the time a seat, if one is fine to wander to; otherwise any turf that is. Trying turfs in random order until one
+	// passes picks from the same turfs with the same odds as checking them all first, which cost 0.5 ms a pick on top of the
+	// area scan (666 picks in 15 minutes of 20 bots).
+	var/list/turfs = bot_area_turfs(AR)
+	if(prob(50))
+		var/list/chair_turfs = list()
+		for(var/turf/T as anything in turfs)
+			if(locate(/obj/structure/chair) in T)
+				chair_turfs += T
+		. = random_wanderable_turf(chair_turfs, AR)
+		if(.)
+			return
+	return random_wanderable_turf(turfs.Copy(), AR)
+
+/// A random turf from the list that's in the area and fine to wander to, or null if none is. Takes apart the list it's given.
+/datum/bot_brain/proc/random_wanderable_turf(list/turfs, area/inside)
+	var/left = length(turfs)
+	while(left)
+		var/i = rand(1, left)
+		var/turf/T = turfs[i]
+		if(T.loc != inside)
+			inside.bot_turfs = null //given to another area since its turfs were read: read them again next time
+		else if(is_wanderable_turf(T))
+			return T
+		turfs[i] = turfs[left]
+		left--
+	return null
+
+/area/var/tmp/list/bot_turfs
+/area/var/tmp/bot_turfs_until = 0
+
+/// Every turf in an area, read again every 30 minutes, or sooner if random_wanderable_turf() finds one gone. Reading an area's
+/// contents scans every turf in the world, 0.34 ms for a station room against 0.01 for a list of its turfs, and a room is
+/// picked to wander to about twice in 5 minutes. A room made bigger with blueprints gets its new floor in wander picks when
+/// the list is next read. Shuttle areas are read every time, as their turfs move.
+/proc/bot_area_turfs(area/A)
+	if(istype(A, /area/shuttle))
+		. = list()
+		for(var/turf/T in A)
+			. += T
+		return
+	if(!A.bot_turfs || world.time > A.bot_turfs_until)
+		A.bot_turfs = list()
+		for(var/turf/T in A)
+			A.bot_turfs += T
+		A.bot_turfs_until = world.time + 30 MINUTES
+	return A.bot_turfs
 
 /datum/bot_brain/proc/pick_local_destination()
 	for(var/turf/candidate in shuffle(orange(6, get_turf(owner))))

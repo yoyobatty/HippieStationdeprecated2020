@@ -276,10 +276,10 @@ GLOBAL_LIST_EMPTY(the_station_areas)
 	for(var/area/A in world)
 		if (is_type_in_typecache(A, station_areas_blacklist))
 			continue
-		if (!A.contents.len || !A.unique)
+		// hippie -- an area's z is its first turf's, 0 when it has none. Reading its contents scans every turf in the world, twice here.
+		if (!A.z || !A.unique)
 			continue
-		var/turf/picked = A.contents[1]
-		if (is_station_level(picked.z))
+		if (is_station_level(A.z))
 			GLOB.the_station_areas += A.type
 
 	if(!GLOB.the_station_areas.len)

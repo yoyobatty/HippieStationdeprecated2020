@@ -1,0 +1,19 @@
+Reply to http://www.byond.com/forum/post/2992468 (Keep a turf index on each area so contents doesn't scan the world)
+
+Some numbers from inside the game, for context. 516.1688, our tgstation fork on a 255x255x12 map: 780,300 turfs, 243 to 259 areas (some ruins are random). Three runs with 20 player bots; the ranges below cover all three.
+
+Per area, the mean over real station rooms:
+
+for(var/obj/machinery/M in area), 60 rooms, 4,832 machines: 0.43 to 0.44 ms. The same machines from a plain list: 0.01 ms.
+for(var/turf/T in area), 131 rooms, about 160 turfs each: 0.34 to 0.37 ms. From a plain list: 0.013 to 0.014 ms.
+The machines reached through a plain list of the room's turfs: 0.11 to 0.13 ms. So a turf index would make turf loops about 25 times faster, and loops over the objects in an area about 4 times.
+locate(/turf/open) in area: 0.04 to 0.06 ms.
+T in area: 0.0001 ms, so membership tests are already fine.
+
+Where it shows up:
+
+Every area calls power_change() from LateInitialize, which loops over the machines in it. That's one scan per area in a single boot tick, about 110 ms of the 250 to 290 ms that tick spends in power_change().
+Two boot procs read contents.len and contents[1] for every area: 110 to 140 ms each. We've switched both to area.z, which gives the same answers and costs under 1 ms.
+Our player bots read a room's turfs to pick somewhere to walk, 650 to 800 times in 15 minutes with 20 players. We keep our own turf lists for that now.
+
+So we can work around the hot spots, but each workaround is a list we keep in sync ourselves, and anything that changes a turf's area (shuttles, blueprints, map loading) has to know about all of them. That's the reason for asking for the index.
