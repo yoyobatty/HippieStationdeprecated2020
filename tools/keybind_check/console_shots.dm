@@ -195,6 +195,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_paperwork(C, H, label)
 		if("lockermech")
 			cs_lockermech(C, H, label)
+		if("mechpaints")
+			cs_mechpaints(C, H, label)
 		if("assemblies")
 			cs_assemblies(C, H, label)
 		if("gadgets")
@@ -3325,6 +3327,43 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	sleep(5)
 	cs_check("with it, Take out takes one down", board.notices == 2 && length(board.contents) == 2, "[board.notices]")
 	SStgui.close_user_uis(H)
+
+// Every mech in its own paint: each boarded in turn and its menu pictured
+
+/proc/cs_mechpaints(client/C, mob/living/carbon/human/H, label)
+	var/list/types = list(
+		/obj/mecha/working/ripley, /obj/mecha/working/ripley/firefighter, /obj/mecha/working/ripley/deathripley,
+		/obj/mecha/medical/odysseus, /obj/mecha/combat/gygax, /obj/mecha/combat/gygax/dark, /obj/mecha/combat/durand,
+		/obj/mecha/combat/marauder, /obj/mecha/combat/marauder/seraph, /obj/mecha/combat/marauder/mauler, /obj/mecha/combat/phazon,
+		/obj/mecha/combat/honker, /obj/mecha/combat/honker/dark, /obj/mecha/combat/reticence, /obj/mecha/makeshift, /obj/mecha/neovgre,
+	)
+	var/turf/at = cs_open_beside(H)
+	var/n = 0
+	for(var/path in types)
+		n++
+		var/obj/mecha/M = new path(at)
+		usr = H
+		M.moved_inside(H)
+		if(M.occupant != H)
+			cs_check("[M.name] takes the pilot", FALSE)
+			qdel(M)
+			continue
+		sleep(5)
+		usr = H
+		M.stats_action.Activate()
+		sleep(10)
+		var/datum/tgui/ui = SStgui.get_open_ui(H, M, "main")
+		var/paint = hascall(M, "mecha_ui_paint") ? call(M, "mecha_ui_paint")() : "old"
+		if(ui)
+			ui = cs_find_ui(H, M)
+			winset(C, ui.window_id, "pos=200,40")
+			sleep(15)
+			cs_shot("popup_mechpaint_[label]_[n < 10 ? "0[n]" : n]_[paint]", M.name) //shot.ps1 looks for a window only for popup_ names
+		cs_check("[M.name]: its window, in [paint]", ui)
+		SStgui.close_user_uis(H)
+		M.go_out()
+		qdel(M)
+		sleep(5)
 
 // Hippie's locker mech: the same window, with its hold
 

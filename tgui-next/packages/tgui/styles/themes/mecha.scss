@@ -1,13 +1,24 @@
-// hippie -- an exosuit's own menu (interfaces/Exosuit.js): a cockpit read-out in phosphor green on black, after the old mech data
-// window the user liked (black, green monospace, solid green bars). Not a copy of it: segmented bars, green title bars, faint
-// scanlines.
-@use 'sass:color';
+// hippie -- an exosuit's own menu (interfaces/Exosuit.js): a cockpit read-out, after the old mech data window the user liked (black,
+// green monospace, solid green bars). Not a copy of it: segmented bars, title bars, faint scanlines. Each mech wears its own paint
+// (the user, 2026-11-05): the colours are CSS custom properties the window sets for its mech (Exosuit.js PAINTS), with the Ripley's
+// green as every fallback, so one theme serves them all.
 @use 'sass:meta';
 
-$phosphor: #3dff6b;
-$phosphor-dim: #22a845;
-$phosphor-bar: #2ecc55;
-$ink: #031a09;
+$fg: var(--m-fg, #3dff6b);
+$dim: var(--m-dim, #22a845);
+$bar: var(--m-bar, #2ecc55);
+$bar-image: var(--m-bar-image, none);
+$ink: var(--m-ink, #031a09);
+$bg: var(--m-bg, #020602);
+$panel: var(--m-panel, rgba(8, 36, 16, 0.4));
+$line: var(--m-line, rgba(61, 255, 107, 0.35));
+$button: var(--m-button, #0c2c15);
+$button-hover: var(--m-button-hover, #164a24);
+$title: var(--m-title, #041006);
+$glow: var(--m-glow, rgba(61, 255, 107, 0.3));
+$scan: var(--m-scan, rgba(61, 255, 107, 0.03));
+$stripe: var(--m-stripe, rgba(61, 255, 107, 0.05));
+$border-style: var(--m-border-style, solid);
 
 @use '../colors.scss' with (
   $primary: #1c8a3a,
@@ -27,7 +38,7 @@ $ink: #031a09;
   // Atomic classes
   @include meta.load-css('../atomic/color.scss');
 
-  // Components
+  // Components: their structure, with the colours set below from the paint
   @include meta.load-css('../components/Button.scss', $with: (
     'color-default': #0c2c15,
     'color-disabled': #141a15,
@@ -37,7 +48,7 @@ $ink: #031a09;
     'color-transparent-text': rgba(61, 255, 107, 0.6),
   ));
   @include meta.load-css('../components/Input.scss', $with: (
-    'border-color': $phosphor-dim,
+    'border-color': #22a845,
   ));
   @include meta.load-css('../components/Layout.scss');
   @include meta.load-css('../components/NoticeBox.scss', $with: (
@@ -46,57 +57,63 @@ $ink: #031a09;
     'color-border': #ffb21e,
   ));
   @include meta.load-css('../components/ProgressBar.scss', $with: (
-    'color-background': rgba(61, 255, 107, 0.05),
+    'color-background': rgba(0, 0, 0, 0),
   ));
   @include meta.load-css('../components/Section.scss', $with: (
-    'color-title': $ink,
-    'color-background': rgba(8, 36, 16, 0.4),
     'color-shadow': rgba(0, 0, 0, 0),
-    'color-separator': $phosphor-bar,
   ));
-  @include meta.load-css('../components/TitleBar.scss', $with: (
-    'color-text': $phosphor,
-    'color-background': #041006,
-    'color-shadow-core': #000000,
-  ));
+  @include meta.load-css('../components/TitleBar.scss');
   @include meta.load-css('../components/Tooltip.scss', $with: (
     'color-background': #0c2c15,
   ));
 
-  font-family: 'Lucida Console', Consolas, 'Courier New', monospace;
+  font-family: var(--m-font, 'Lucida Console', Consolas, 'Courier New', monospace);
+
+  .Layout {
+    color: $fg;
+    background-color: $bg;
+    background-image: none;
+  }
 
   .Layout__content {
+    background-color: $bg;
     // Faint scanlines in place of the Nanotrasen mark
-    background-image: repeating-linear-gradient(
-      0deg,
-      rgba(61, 255, 107, 0.03) 0,
-      rgba(61, 255, 107, 0.03) 1px,
-      transparent 1px,
-      transparent 3px);
-    text-shadow: 0 0 3px rgba(61, 255, 107, 0.3);
+    background-image: repeating-linear-gradient(0deg, $scan 0, $scan 1px, transparent 1px, transparent 3px);
+    text-shadow: 0 0 3px $glow;
   }
 
   .TitleBar {
-    border-bottom: 1px solid $phosphor-dim;
+    background-color: $title;
+    border-bottom: 1px solid $dim;
+  }
+
+  .TitleBar__title,
+  .TitleBar__close,
+  .TitleBar__statusIcon {
+    color: $fg;
   }
 
   .TitleBar__title {
-    font-family: 'Lucida Console', Consolas, 'Courier New', monospace;
+    font-family: var(--m-font, 'Lucida Console', Consolas, 'Courier New', monospace);
     letter-spacing: 0.5px;
   }
 
   .Section {
-    border: 1px solid rgba(61, 255, 107, 0.35);
+    background-color: $panel;
+    border: 1px $border-style $line;
+    box-shadow: none;
   }
 
   .Section__title {
-    background-color: $phosphor-bar;
+    background-color: $bar;
+    background-image: $bar-image;
     padding: 3px 6px;
     border-bottom: 0;
     text-shadow: none;
   }
 
   .Section__titleText {
+    color: $ink;
     text-transform: uppercase;
     letter-spacing: 1px;
     font-size: 12px;
@@ -107,36 +124,53 @@ $ink: #031a09;
     text-shadow: none;
 
     .color-label {
-      color: rgba(3, 26, 9, 0.75) !important;
+      color: $ink !important;
+      opacity: 0.75;
     }
   }
 
   .Button {
-    border: 1px solid rgba(61, 255, 107, 0.4);
-    color: $phosphor;
+    border: 1px solid $line;
+    color: $fg;
     text-shadow: none;
     line-height: 18px;
+  }
+
+  .Button--color--default {
+    background-color: $button;
+    color: $fg;
 
     &:hover,
     &:focus {
-      color: $phosphor;
+      background-color: $button-hover;
+      color: $fg;
+    }
+  }
+
+  .Button--color--transparent {
+    background-color: transparent;
+    border-color: transparent;
+    color: $dim;
+
+    &:hover,
+    &:focus {
+      background-color: $button;
+      color: $fg;
     }
   }
 
   .Button--selected,
   .Button--selected:hover,
   .Button--selected:focus {
+    background-color: $fg;
     color: $ink;
-    border-color: $phosphor;
-  }
-
-  .Button--color--transparent {
-    border-color: transparent;
+    border-color: $fg;
   }
 
   .Button--disabled {
-    color: rgba(61, 255, 107, 0.3);
-    border-color: rgba(61, 255, 107, 0.15);
+    background-color: $panel !important;
+    color: $dim;
+    opacity: 0.55;
   }
 
   .Button--color--danger,
@@ -144,23 +178,39 @@ $ink: #031a09;
     color: #ffffff;
   }
 
+  .ProgressBar {
+    background-color: $stripe;
+  }
+
+  .ProgressBar--color--default,
+  .ProgressBar--color--good {
+    border-color: $fg !important;
+
+    .ProgressBar__fill {
+      background-color: $fg;
+    }
+  }
+
   .ProgressBar__fill {
     // LED segments
-    background-image: repeating-linear-gradient(
-      90deg,
-      transparent 0,
-      transparent 7px,
-      rgba(0, 0, 0, 0.6) 7px,
-      rgba(0, 0, 0, 0.6) 9px);
+    background-image: repeating-linear-gradient(90deg, transparent 0, transparent 7px, rgba(0, 0, 0, 0.6) 7px, rgba(0, 0, 0, 0.6) 9px);
   }
 
   .ProgressBar__content {
+    color: $fg;
     font-weight: bold;
-    text-shadow: 0 0 2px #000000, 0 0 3px #000000;
+  }
+
+  .color-good {
+    color: $fg !important;
+  }
+
+  .color-label {
+    color: $dim !important;
   }
 
   .LabeledList__label {
-    color: $phosphor-dim;
+    color: $dim;
     text-transform: uppercase;
     font-size: 11px;
     letter-spacing: 0.5px;
@@ -174,11 +224,12 @@ $ink: #031a09;
   }
 
   .candystripe:nth-child(odd) {
-    background-color: rgba(61, 255, 107, 0.05);
+    background-color: $stripe;
   }
 
   input {
     font-family: inherit;
+    color: inherit;
   }
 
   .Exosuit__pct {
@@ -187,13 +238,13 @@ $ink: #031a09;
     padding: 0 4px;
     margin-right: -5px;
     text-align: right;
-    background-color: #020602;
-    border-left: 1px solid rgba(61, 255, 107, 0.4);
-    text-shadow: 0 0 3px rgba(61, 255, 107, 0.3);
+    background-color: $bg;
+    border-left: 1px solid $line;
+    text-shadow: 0 0 3px $glow;
   }
 
   .Exosuit__prompt {
-    color: $phosphor-dim;
+    color: $dim;
     margin-right: 6px;
   }
 
@@ -203,7 +254,7 @@ $ink: #031a09;
     height: 13px;
     margin-left: 4px;
     vertical-align: -1px;
-    background-color: $phosphor;
+    background-color: $fg;
     animation: Exosuit__blink 1.2s steps(1) infinite;
   }
 }

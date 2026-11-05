@@ -111,7 +111,58 @@
 	data["cargo"] = mecha_ui_cargo()
 	data["slots"] = max_equip - length(equipment)
 	data["max_equip"] = max_equip
+	data["paint"] = mecha_ui_paint()
 	return data
+
+/// The paint its cockpit read-out wears (interfaces/Exosuit.js PAINTS), by what it is: the old window was one green for all of them,
+/// and the user asked for each mech's own (2026-11-05)
+/obj/mecha/proc/mecha_ui_paint()
+	return "ripley"
+
+/obj/mecha/working/ripley/firefighter/mecha_ui_paint()
+	return "firefighter"
+
+/obj/mecha/working/ripley/deathripley/mecha_ui_paint()
+	return "syndicate"
+
+/obj/mecha/medical/odysseus/mecha_ui_paint()
+	return "medical"
+
+/obj/mecha/combat/gygax/mecha_ui_paint()
+	return "gygax"
+
+/obj/mecha/combat/gygax/dark/mecha_ui_paint()
+	return "syndicate"
+
+/obj/mecha/combat/durand/mecha_ui_paint()
+	return "durand"
+
+/obj/mecha/combat/marauder/mecha_ui_paint()
+	return "marauder"
+
+/obj/mecha/combat/marauder/seraph/mecha_ui_paint()
+	return "seraph"
+
+/obj/mecha/combat/marauder/mauler/mecha_ui_paint()
+	return "syndicate"
+
+/obj/mecha/combat/phazon/mecha_ui_paint()
+	return "phazon"
+
+/obj/mecha/combat/honker/mecha_ui_paint()
+	return "honk"
+
+/obj/mecha/combat/honker/dark/mecha_ui_paint()
+	return "honk_dark"
+
+/obj/mecha/combat/reticence/mecha_ui_paint()
+	return "mime"
+
+/obj/mecha/makeshift/mecha_ui_paint()
+	return "scrap"
+
+/obj/mecha/neovgre/mecha_ui_paint()
+	return "brass"
 
 /obj/mecha/ui_act(action, params)
 	if(..())
