@@ -187,6 +187,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_exosuit(C, H, label)
 		if("mechcontrol")
 			cs_mechcontrol(C, H, label)
+		if("library")
+			cs_library(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -2856,3 +2858,211 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	cs_check("nothing for a beacon that isn't in an exosuit", !loose.recharging)
 	SStgui.close_user_uis(H)
 	qdel(loose)
+
+// The library: the librarian's console, the book scanner and the visitor console. There's no database here, so the Archive is a
+// handful of books put straight in the cache the console reads.
+
+/proc/cs_library(client/C, mob/living/carbon/human/H, label)
+	var/list/taken = list()
+	var/turf/at = cs_open_beside(H, taken)
+	taken += at
+	var/obj/machinery/computer/libraryconsole/bookmanagement/console = new(at)
+	console.stat &= ~(NOPOWER|BROKEN)
+	var/turf/scanner_at = cs_open_beside(H, taken)
+	taken += scanner_at
+	var/obj/machinery/libraryscanner/scanner = new(scanner_at)
+	var/obj/item/book/B = new(scanner)
+	B.name = "Book: The Long Shift"
+	B.title = "The Long Shift"
+	B.author = "Ines Okafor"
+	B.dat = "It was the third hour of the shift when the lights went out in Cargo."
+	GLOB.cachedbooks = list()
+	var/list/archive = list(
+		list("Space Law, Annotated", "Ines Okafor", "Reference"), list("A Brief History of Plasma", "Ola Svensson", "Non-Fiction"),
+		list("Robust Botany", "Zara Haddad", "Reference"), list("The Clown Who Fell Up", "Anonymous", "Fiction"),
+		list("Plasma Fires and You", "Hugo Brandt", "Reference"), list("Night Shift at the Singularity", "Lena Kowalczyk", "Fiction"),
+		list("The Gospel of the Geometer", "Anonymous", "Religion"), list("Cooking With Meat Of Uncertain Origin", "Luca Romano", "Non-Fiction"),
+		list("Wires, Wires, Wires", "Ade Bello", "Reference"), list("The Last Shuttle Out", "Mara Lindqvist", "Fiction"),
+	)
+	var/id = 101
+	for(var/list/entry in archive)
+		var/datum/cachedbook/CB = new
+		CB.id = "[id++]"
+		CB.title = entry[1]
+		CB.author = entry[2]
+		CB.category = entry[3]
+		GLOB.cachedbooks += CB
+	for(var/name in list("Book: Robust Botany", "Book: Space Law, Annotated", "Book: The Clown Who Fell Up"))
+		var/obj/item/book/shelved = new
+		shelved.name = name
+		console.inventory += shelved
+	var/datum/borrowbook/late = new
+	late.bookname = "Robust Botany"
+	late.mobname = "Zara Haddad"
+	late.getdate = world.time - 25 MINUTES
+	late.duedate = world.time - 5 MINUTES
+	console.checkouts += late
+	var/datum/borrowbook/due = new
+	due.bookname = "A Brief History of Plasma"
+	due.mobname = "Ola Svensson"
+	due.getdate = world.time - 2 MINUTES
+	due.duedate = world.time + 8 MINUTES
+	console.checkouts += due
+	usr = H
+	console.interact(H)
+	if(!hascall(console, "ui_act") || !SStgui.get_open_ui(H, console, "main"))
+		// The old pages: the menu, then the ones the new window has as tabs
+		scanner.cache = B
+		sleep(20)
+		winset(C, "library", "pos=200,40")
+		sleep(10)
+		cs_shot("popup_library_[label]_0_menu")
+		for(var/screen in list(1, 2, 3, 4, 5, 7))
+			console.screenstate = screen
+			console.ui_interact(H)
+			sleep(10)
+			cs_shot("popup_library_[label]_[screen]_page")
+		H << browse(null, "window=library")
+		scanner.attack_hand(H)
+		sleep(15)
+		winset(C, "scanner", "pos=200,40")
+		sleep(5)
+		cs_shot("popup_library_[label]_scanner")
+		H << browse(null, "window=scanner")
+		var/obj/machinery/computer/libraryconsole/visitor = new(cs_open_beside(H, taken))
+		visitor.stat &= ~(NOPOWER|BROKEN)
+		visitor.interact(H)
+		sleep(15)
+		winset(C, "publiclibrary", "pos=200,40")
+		sleep(5)
+		cs_shot("popup_library_[label]_visitor")
+		H << browse(null, "window=publiclibrary")
+		return
+	var/datum/tgui/ui = cs_find_ui(H, console)
+	winset(C, ui.window_id, "pos=200,40")
+	sleep(10)
+	cs_shot("popup_library_[label]_0_inventory", console.name)
+	var/obj/item/book/gone = console.inventory[1]
+	cs_act(console, H, "delbook", list("ref" = REF(gone)))
+	cs_check("a book comes off the inventory", !(gone in console.inventory) && length(console.inventory) == 2)
+	// What's out, and lending one from the form in place
+	cs_tgui_do(C, ui.window_id, "click:Checked out")
+	sleep(5)
+	cs_tgui_do(C, ui.window_id, "input0:The Long Shift")
+	cs_tgui_do(C, ui.window_id, "input1:Sam Tanaka")
+	sleep(3)
+	cs_shot("popup_library_[label]_1_checkouts", console.name)
+	cs_tgui_do(C, ui.window_id, "click:Commit entry")
+	sleep(5)
+	var/datum/borrowbook/lent = console.checkouts[length(console.checkouts)]
+	cs_check("a book lent from the form typed in place", lent.bookname == "The Long Shift" && lent.mobname == "Sam Tanaka", "[lent.bookname] to [lent.mobname]")
+	cs_check("for the period shown", lent.duedate - lent.getdate == console.checkoutperiod * 600)
+	cs_tgui_do(C, ui.window_id, "click:Check in")
+	sleep(5)
+	cs_check("Check in takes the first off the list", !(late in console.checkouts) && (due in console.checkouts))
+	var/period = console.checkoutperiod
+	cs_act(console, H, "period", list("by" = "1"))
+	cs_check("+ lends for a minute longer", console.checkoutperiod == period + 1)
+	cs_act(console, H, "period", list("by" = "-1"))
+	cs_check("and - a minute less", console.checkoutperiod == period)
+	// The Archive, all of it, and searched
+	cs_tgui_do(C, ui.window_id, "click:External Archive")
+	sleep(5)
+	cs_shot("popup_library_[label]_2_archive", console.name)
+	cs_tgui_do(C, ui.window_id, "input0:plasma")
+	sleep(5)
+	cs_shot("popup_library_[label]_3_search", console.name)
+	// The scanner's window (on its own for its picture: a tgui window has no caption to pick it out by), and what it scanned on the
+	// console
+	scanner.cache = null
+	cs_tgui_do(C, ui.window_id, "click:Upload & post")
+	sleep(5)
+	cs_shot("popup_library_[label]_4_nothing_scanned", console.name)
+	SStgui.close_uis(console)
+	scanner.attack_hand(H)
+	var/datum/tgui/sui = cs_find_ui(H, scanner)
+	cs_check("the scanner opens its window by hand", sui)
+	if(sui)
+		winset(C, sui.window_id, "pos=200,40")
+		sleep(10)
+		cs_tgui_do(C, sui.window_id, "click:Scan")
+		sleep(5)
+		cs_check("Scan keeps the book in memory", scanner.cache == B)
+		SStgui.update_uis(scanner)
+		sleep(5)
+		cs_shot("popup_library_[label]_5_scanner", scanner.name)
+		winset(C, sui.window_id, "pos=960,40")
+	console.interact(H)
+	ui = cs_find_ui(H, console)
+	winset(C, ui.window_id, "pos=200,40")
+	sleep(10)
+	cs_tgui_do(C, ui.window_id, "click:Upload & post")
+	sleep(5)
+	cs_tgui_do(C, ui.window_id, "input0:Ines Okafor-Reyes")
+	sleep(2)
+	cs_tgui_do(C, ui.window_id, "clickexact:Set")
+	sleep(5)
+	cs_check("the author typed in place", B.author == "Ines Okafor-Reyes", B.author)
+	cs_act(console, H, "category", list("category" = "Reference"))
+	cs_act(console, H, "category", list("category" = "Banned books"))
+	cs_check("a category from the list, and only from it", console.upload_category == "Reference", console.upload_category)
+	SStgui.update_uis(console)
+	sleep(5)
+	cs_shot("popup_library_[label]_6_upload", console.name)
+	cs_tgui_do(C, ui.window_id, "click:Post to the newscasters")
+	sleep(5)
+	var/stories = 0
+	for(var/datum/newscaster/feed_channel/FC in GLOB.news_network.network_channels)
+		if(FC.channel_name == "Nanotrasen Book Club")
+			stories = length(FC.messages)
+	cs_check("Post puts it on the newscasters' book club", stories == 1, "[stories] stories")
+	// The printer, and the vault once it's emagged
+	cs_tgui_do(C, ui.window_id, "clickexact:Print")
+	sleep(5)
+	cs_tgui_do(C, ui.window_id, "click:Print a poster")
+	sleep(5)
+	cs_check("Print a poster prints one", locate(/obj/item/poster) in console.loc)
+	cs_check("and the printer waits after", console.cooldown > world.time)
+	SStgui.update_uis(console)
+	sleep(5)
+	cs_shot("popup_library_[label]_7_print", console.name)
+	console.obj_flags |= EMAGGED
+	SStgui.update_uis(console)
+	sleep(5)
+	cs_shot("popup_library_[label]_8_vault", console.name)
+	cs_tgui_do(C, ui.window_id, "click:Access the vault")
+	sleep(5)
+	var/relics = 0
+	for(var/obj/item/I in console.loc)
+		if(istype(I, /obj/item/melee/cultblade/dagger) || istype(I, /obj/item/clockwork/slab))
+			relics++
+	cs_check("the vault gives up a relic", relics == 1, "[relics]")
+	console.obj_flags &= ~EMAGGED
+	cs_act(console, H, "forbidden")
+	var/after = 0
+	for(var/obj/item/I in console.loc)
+		if(istype(I, /obj/item/melee/cultblade/dagger) || istype(I, /obj/item/clockwork/slab))
+			after++
+	cs_check("but not unless it's emagged", after == relics)
+	if(sui)
+		cs_tgui_do(C, sui.window_id, "click:Remove book")
+		sleep(5)
+		cs_check("Remove book puts it down", B.loc == scanner.drop_location())
+	SStgui.close_user_uis(H)
+	// The visitor console
+	var/obj/machinery/computer/libraryconsole/visitor = new(cs_open_beside(H, taken))
+	visitor.stat &= ~(NOPOWER|BROKEN)
+	visitor.interact(H)
+	var/datum/tgui/vui = cs_find_ui(H, visitor)
+	winset(C, vui.window_id, "pos=200,40")
+	sleep(10)
+	cs_tgui_do(C, vui.window_id, "input0:plasma")
+	cs_tgui_do(C, vui.window_id, "input1:Ola")
+	sleep(3)
+	cs_tgui_do(C, vui.window_id, "clickexact:Search")
+	sleep(5)
+	cs_check("the visitor's search takes what was typed", visitor.vars["searched"] && visitor.title == "plasma" && visitor.author == "Ola", "[visitor.title], [visitor.author]")
+	SStgui.update_uis(visitor)
+	sleep(5)
+	cs_shot("popup_library_[label]_9_visitor", visitor.name)
+	SStgui.close_user_uis(H)

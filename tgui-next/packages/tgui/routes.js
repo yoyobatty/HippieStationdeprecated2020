@@ -48,6 +48,7 @@ import { IdConsole } from './interfaces/IdConsole';
 import { ImplantChair } from './interfaces/ImplantChair';
 import { KeycardAuth } from './interfaces/KeycardAuth';
 import { LanguageMenu } from './interfaces/LanguageMenu';
+import { LibraryConsole, LibraryScanner, LibraryVisitor } from './interfaces/Library';
 import { MechBayPowerConsole } from './interfaces/MechBayPowerConsole';
 import { MechaControl } from './interfaces/MechaControl';
 import { MedicalKiosk } from './interfaces/MedicalKiosk';
@@ -234,6 +235,18 @@ const ROUTES = {
   exosuit_fabricator: {
     component: () => ExosuitFabricator,
     scrollable: false,
+  },
+  library_console: {
+    component: () => LibraryConsole,
+    scrollable: true,
+  },
+  library_scanner: {
+    component: () => LibraryScanner,
+    scrollable: false,
+  },
+  library_visitor: {
+    component: () => LibraryVisitor,
+    scrollable: true,
   },
   mecha_control: {
     component: () => MechaControl,
