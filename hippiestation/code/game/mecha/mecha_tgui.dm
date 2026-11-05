@@ -174,3 +174,10 @@
 	for(var/obj/O in cargo)
 		items += list(list("ref" = REF(O), "name" = O.name))
 	return list("items" = items, "capacity" = cargo_capacity)
+
+/// Hippie's locker mech has a hold too (makeshift/lockermech.dm): the window missed it, and its Unload links went with the old page
+/obj/mecha/makeshift/mecha_ui_cargo()
+	var/list/items = list()
+	for(var/obj/O in cargo)
+		items += list(list("ref" = REF(O), "name" = O.name))
+	return list("items" = items, "capacity" = cargo_capacity)

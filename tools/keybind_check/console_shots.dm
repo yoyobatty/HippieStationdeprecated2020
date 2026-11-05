@@ -193,6 +193,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_photocopier(C, H, label)
 		if("paperwork")
 			cs_paperwork(C, H, label)
+		if("lockermech")
+			cs_lockermech(C, H, label)
 		if("assemblies")
 			cs_assemblies(C, H, label)
 		if("gadgets")
@@ -3323,6 +3325,43 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	sleep(5)
 	cs_check("with it, Take out takes one down", board.notices == 2 && length(board.contents) == 2, "[board.notices]")
 	SStgui.close_user_uis(H)
+
+// Hippie's locker mech: the same window, with its hold
+
+/proc/cs_lockermech(client/C, mob/living/carbon/human/H, label)
+	var/obj/mecha/makeshift/M = new(cs_open_beside(H))
+	var/obj/item/crowbar/bar = new(M)
+	M.cargo += bar
+	var/obj/item/stack/sheet/metal/five/sheets = new(M)
+	M.cargo += sheets
+	usr = H
+	M.moved_inside(H)
+	cs_check("the pilot is in", M.occupant == H)
+	sleep(5)
+	usr = H
+	M.stats_action.Activate()
+	sleep(10)
+	var/datum/tgui/ui = SStgui.get_open_ui(H, M, "main")
+	if(!ui)
+		sleep(30)
+		winset(C, "exosuit", "pos=200,40;size=520x600")
+		sleep(10)
+		cs_shot("popup_lockermech_[label]_0_stats", "[M.name] data")
+		H << browse(null, "window=exosuit")
+		M.go_out()
+		return
+	ui = cs_find_ui(H, M)
+	winset(C, ui.window_id, "pos=200,40")
+	sleep(10)
+	cs_shot("popup_lockermech_[label]_0_stats", M.name)
+	var/list/data = M.ui_data(H)
+	var/list/hold = data["cargo"]
+	cs_check("its hold is in the window", islist(hold) && length(hold["items"]) == 2 && hold["capacity"] == 5)
+	cs_tgui_do(C, ui.window_id, "clickexact:Unload")
+	sleep(5)
+	cs_check("Unload takes the first thing out", !(bar in M.cargo) && (sheets in M.cargo) && isturf(bar.loc))
+	SStgui.close_user_uis(H)
+	M.go_out()
 
 // The signaler, timer, proximity sensor, infrared laser, health sensor and electropack
 
