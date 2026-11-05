@@ -1,0 +1,32 @@
+// hippie -- the Orion Trail's own screens (interfaces/Arcade.js), with its
+// links drawn as buttons.
+
+.OrionTrail {
+  line-height: 1.5;
+
+  h1, h2, h3 {
+    color: #e0a33a;
+    margin: 6px 0;
+  }
+
+  a {
+    display: inline-block;
+    margin: 2px;
+    padding: 0 8px;
+    line-height: 20px;
+    color: #fff;
+    text-decoration: none;
+    background-color: #40628a;
+    border-radius: 2px;
+    cursor: pointer;
+
+    &:hover {
+      background-color: #4f78aa;
+    }
+  }
+}
+
+.OrionTrail--emagged h1,
+.OrionTrail--emagged h2 {
+  color: #db2828;
+}
