@@ -1,0 +1,48 @@
+// hippie -- character setup (interfaces/Preferences.js): the character and
+// the save slots down the left, the tabs filling the rest.
+
+$prefs-left-width: 220px;
+
+.Preferences__left {
+  position: absolute;
+  top: 0;
+  bottom: 6px;
+  left: 0;
+  width: $prefs-left-width;
+  padding: 8px;
+  overflow: hidden;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.Preferences__preview {
+  width: 200px;
+  height: 240px;
+  background-color: #1a1a1a;
+}
+
+.Preferences__right {
+  position: absolute;
+  top: 0;
+  bottom: 6px;
+  left: $prefs-left-width;
+  right: 0;
+  padding: 6px 8px 0 8px;
+}
+
+.Preferences__content {
+  position: absolute;
+  top: 42px;
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+  overflow-y: auto;
+}
+
+.Preferences .Dropdown__menu {
+  max-height: 260px;
+}
+
+.Preferences__job td {
+  padding-top: 1px;
+  padding-bottom: 1px;
+}

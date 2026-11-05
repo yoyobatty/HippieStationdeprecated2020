@@ -3498,6 +3498,7 @@
 #include "hippiestation\code\modules\client\display_settings.dm"
 #include "hippiestation\code\modules\client\preferences.dm"
 #include "hippiestation\code\modules\client\preferences_savefile.dm"
+#include "hippiestation\code\modules\client\preferences_tgui.dm"
 #include "hippiestation\code\modules\client\preferences_toggles.dm"
 #include "hippiestation\code\modules\client\loadout\glasses.dm"
 #include "hippiestation\code\modules\client\loadout\hands.dm"

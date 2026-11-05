@@ -133,6 +133,7 @@ import { Eightball, NotificationPanel, SlimeBodySwapper } from './interfaces/Gho
 import { ChemBluespace, ChemCentrifuge, ChemPressure, ChemRadioactive, MaterialAnalyser, ReagentForge } from './interfaces/ChemLab';
 import { ClockworkSlab } from './interfaces/ClockworkSlab';
 import { CameraConsole } from './interfaces/CameraConsole';
+import { Preferences } from './interfaces/Preferences';
 import { NtosCard } from './interfaces/NtosCard';
 import { NtnetRelay, NtosConfiguration, NtosFileManager, NtosNetChat, NtosNetDos, NtosNetMonitor, NtosNetTransfer, NtosRevelation, SyndContract } from './interfaces/NtosPrograms';
 // hippie end
@@ -819,6 +820,10 @@ const ROUTES = {
     wrapper: () => NtosWrapper,
     scrollable: true,
     theme: 'syndicate',
+  },
+  preferences: {
+    component: () => Preferences,
+    scrollable: false,
   },
   camera_console: {
     component: () => CameraConsole,
