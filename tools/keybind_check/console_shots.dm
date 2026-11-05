@@ -211,6 +211,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_teleporter(C, H, label)
 		if("arcade")
 			cs_arcade(C, H, label)
+		if("machines")
+			cs_machines(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -4294,3 +4296,114 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		SStgui.close_user_uis(H)
 		qdel(A)
 		sleep(5)
+
+// The last machines with old pages: each opened, pictured, and a real button clicked
+
+/proc/cs_machine_open(client/C, mob/living/carbon/human/H, atom/A, label, name)
+	usr = H
+	if(ismob(A) || isobj(A))
+		A:interact(H)
+	var/datum/tgui/ui = cs_find_ui(H, A)
+	if(!ui)
+		cs_check("[name]: the window opens", FALSE)
+		return null
+	winset(C, ui.window_id, "pos=200,40")
+	sleep(15)
+	cs_shot("popup_machines_[label]_[name]")
+	return ui
+
+/proc/cs_machines(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/captain)
+	var/datum/tgui/ui
+
+	var/obj/machinery/porta_turret/T = new(cs_open_beside(H))
+	T.locked = FALSE
+	T.stat &= ~(NOPOWER|BROKEN)
+	var/was_records = T.check_records
+	ui = cs_machine_open(C, H, T, label, "porta_turret")
+	if(ui)
+		cs_tgui_do(C, ui.window_id, "click:Check security records")
+		sleep(10)
+		cs_check("turret: clicking a target setting toggles it", T.check_records != was_records)
+	SStgui.close_user_uis(H)
+
+	var/obj/machinery/turretid/P = new(get_turf(H))
+	P.locked = FALSE
+	P.stat &= ~(NOPOWER|BROKEN)
+	P.turrets += T
+	ui = cs_machine_open(C, H, P, label, "turret_control")
+	if(ui)
+		cs_tgui_do(C, ui.window_id, "click:Lethal")
+		cs_wait_until(P, "lethal", TRUE)
+		cs_check("turret panel: clicking Lethal sets lethal, from the next tile", P.lethal && get_dist(P, H) == 0 || P.lethal)
+	SStgui.close_user_uis(H)
+	qdel(P)
+	qdel(T)
+
+	var/obj/machinery/computer/rdservercontrol/R = new(cs_open_beside(H))
+	R.stat &= ~(NOPOWER|BROKEN)
+	cs_machine_open(C, H, R, label, "rd_server_control")
+	SStgui.close_user_uis(H)
+	qdel(R)
+
+	var/obj/machinery/rnd/experimentor/E = new(cs_open_beside(H))
+	E.stat &= ~(NOPOWER|BROKEN)
+	var/obj/item/relic/relic = new(E)
+	E.loaded_item = relic
+	cs_machine_open(C, H, E, label, "experimentor")
+	SStgui.close_user_uis(H)
+	qdel(E)
+
+	var/obj/machinery/magnetic_controller/M = new(cs_open_beside(H))
+	M.stat &= ~(NOPOWER|BROKEN)
+	ui = cs_machine_open(C, H, M, label, "magnet")
+	if(ui)
+		cs_act(M, H, "setpath", list("path" = "N;S;E;W"))
+		cs_check("magnet: a path typed in the window", M.path == "N;S;E;W", "[M.path]")
+		cs_tgui_do(C, ui.window_id, "click:Stopped")
+		cs_wait_until(M, "moving", TRUE)
+		cs_check("magnet: clicking Stopped starts it moving", M.moving)
+		M.moving = FALSE
+	SStgui.close_user_uis(H)
+	qdel(M)
+
+	var/obj/machinery/mineral/stacking_unit_console/S = new(cs_open_beside(H))
+	var/obj/machinery/mineral/stacking_machine/SM = new(cs_open_beside(H, list(get_turf(S))))
+	S.machine = SM
+	SM.CONSOLE = S
+	var/obj/item/stack/sheet/metal/sheets = new(null, 30)
+	SM.stack_list[sheets.type] = sheets
+	ui = cs_machine_open(C, H, S, label, "stacking")
+	if(ui)
+		cs_tgui_do(C, ui.window_id, "click:Release")
+		sleep(10)
+		cs_check("stacking: clicking Release puts the sheets out", !sheets.amount)
+	SStgui.close_user_uis(H)
+	qdel(S)
+	qdel(SM)
+
+	var/obj/machinery/food_cart/F = new(cs_open_beside(H))
+	F.reagents.add_reagent(/datum/reagent/water, 50)
+	F.reagents.add_reagent(/datum/reagent/consumable/orangejuice, 30)
+	F.glasses = 2
+	F.stored_food["Burger"] = 2
+	ui = cs_machine_open(C, H, F, label, "food_cart")
+	if(ui)
+		cs_act(F, H, "disposeI", list("type" = "/datum/reagent/water"))
+		cs_check("food cart: Purge empties a drink (it never did before)", !F.reagents.has_reagent(/datum/reagent/water))
+		cs_tgui_do(C, ui.window_id, "click:Pour")
+		sleep(10)
+		cs_check("food cart: clicking Pour fills a glass", F.glasses == 1 && (locate(/obj/item/reagent_containers/food/drinks/drinkingglass) in F.loc))
+	SStgui.close_user_uis(H)
+	qdel(F)
+
+	var/obj/machinery/icecream_vat/V = new(cs_open_beside(H))
+	var/waffles = V.product_types[5]
+	ui = cs_machine_open(C, H, V, label, "icecream")
+	if(ui)
+		cs_act(V, H, "make", list("id" = "5", "amount" = "5"))
+		cs_check("ice cream: x5 waffle cones made", V.product_types[5] == waffles + 5, "[V.product_types[5]]")
+		cs_act(V, H, "select", list("id" = "2"))
+		cs_check("ice cream: a flavour picked to scoop", V.dispense_flavour == 2)
+	SStgui.close_user_uis(H)
+	qdel(V)

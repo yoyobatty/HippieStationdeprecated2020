@@ -136,6 +136,9 @@ import { CameraConsole } from './interfaces/CameraConsole';
 import { Preferences } from './interfaces/Preferences';
 import { Teleporter } from './interfaces/Teleporter';
 import { ArcadeBattle, ArcadeMinesweeper, ArcadeOrion } from './interfaces/Arcade';
+import { PortableTurret, TurretControl } from './interfaces/Turrets';
+import { Experimentor, RdServerControl } from './interfaces/ResearchMachines';
+import { FoodCart, IcecreamVat, MagnetController, StackingConsole } from './interfaces/MiscMachines';
 import { NtosCard } from './interfaces/NtosCard';
 import { NtnetRelay, NtosConfiguration, NtosFileManager, NtosNetChat, NtosNetDos, NtosNetMonitor, NtosNetTransfer, NtosRevelation, SyndContract } from './interfaces/NtosPrograms';
 // hippie end
@@ -825,6 +828,38 @@ const ROUTES = {
   },
   arcade_minesweeper: {
     component: () => ArcadeMinesweeper,
+    scrollable: true,
+  },
+  porta_turret: {
+    component: () => PortableTurret,
+    scrollable: true,
+  },
+  turret_control: {
+    component: () => TurretControl,
+    scrollable: true,
+  },
+  rd_server_control: {
+    component: () => RdServerControl,
+    scrollable: true,
+  },
+  experimentor: {
+    component: () => Experimentor,
+    scrollable: true,
+  },
+  magnet_controller: {
+    component: () => MagnetController,
+    scrollable: true,
+  },
+  stacking_console: {
+    component: () => StackingConsole,
+    scrollable: true,
+  },
+  food_cart: {
+    component: () => FoodCart,
+    scrollable: true,
+  },
+  icecream_vat: {
+    component: () => IcecreamVat,
     scrollable: true,
   },
   arcade_orion: {
