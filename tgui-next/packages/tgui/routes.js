@@ -4,6 +4,7 @@ import { AirAlarm } from './interfaces/AirAlarm';
 import { AirlockElectronics } from './interfaces/AirlockElectronics';
 import { Apc } from './interfaces/Apc';
 import { ApcControl } from './interfaces/ApcControl';
+import { Assembly } from './interfaces/Assembly';
 import { AtmosAlertConsole } from './interfaces/AtmosAlertConsole';
 import { AtmosControlConsole } from './interfaces/AtmosControlConsole';
 import { AtmosFilter } from './interfaces/AtmosFilter';
@@ -40,6 +41,7 @@ import { DnaVault } from './interfaces/DnaVault';
 import { EngravedMessage } from './interfaces/EngravedMessage';
 import { Exosuit } from './interfaces/Exosuit';
 import { ExosuitFabricator } from './interfaces/ExosuitFabricator';
+import { DestinationTagger, HandTeleporter, ImplantPad, Safe, SecureStorage } from './interfaces/Gadgets';
 import { Gps } from './interfaces/Gps';
 import { GravityGenerator } from './interfaces/GravityGenerator';
 import { GulagItemReclaimer } from './interfaces/GulagItemReclaimer';
@@ -147,6 +149,10 @@ const ROUTES = {
     component: () => ApcControl,
     scrollable: true,
   },
+  assembly: {
+    component: () => Assembly,
+    scrollable: false,
+  },
   atmos_alert: {
     component: () => AtmosAlertConsole,
     scrollable: true,
@@ -227,6 +233,10 @@ const ROUTES = {
     component: () => ChemPress,
     scrollable: false,
   },
+  destination_tagger: {
+    component: () => DestinationTagger,
+    scrollable: false,
+  },
   dna_console: {
     component: () => DnaConsole,
     scrollable: true,
@@ -238,6 +248,14 @@ const ROUTES = {
   exosuit_fabricator: {
     component: () => ExosuitFabricator,
     scrollable: false,
+  },
+  hand_teleporter: {
+    component: () => HandTeleporter,
+    scrollable: true,
+  },
+  implant_pad: {
+    component: () => ImplantPad,
+    scrollable: true,
   },
   library_console: {
     component: () => LibraryConsole,
@@ -314,6 +332,14 @@ const ROUTES = {
   robotics_console: {
     component: () => RoboticsConsole,
     scrollable: true,
+  },
+  safe: {
+    component: () => Safe,
+    scrollable: true,
+  },
+  secure_storage: {
+    component: () => SecureStorage,
+    scrollable: false,
   },
   security_records: {
     component: () => SecurityRecords,
