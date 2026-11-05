@@ -548,8 +548,10 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 
 	// A colleague's beside them already, making the same arrest: stand by a few tiles off rather than walk into them. Two officers
 	// after one man who stood still for it took turns swapping each other off the one tile beside him, and every pair of cuffs that
-	// went on was cut short and counted as him resisting. Not while he's fighting, or has the colleague beaten.
-	if(visible && dist <= 3 && S.a_intent != INTENT_HARM && bot_colleague_arresting(S))
+	// went on was cut short and counted as him resisting. Not while he's fighting, or has the colleague beaten - but flashed or
+	// stunned on the floor he isn't fighting, whatever his intent: two officers swapped places over a swordsman the flash had put
+	// down, and the cuffs never got on.
+	if(visible && dist <= 3 && (S.a_intent != INTENT_HARM || S.incapacitated()) && bot_colleague_arresting(S))
 		stop_pursuit()
 		arrest_last_dist = dist
 		return
@@ -706,6 +708,9 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 // exactly the "use your stun weapons, minimal force" the guide asks for. Falls back to a
 // disarm shove with bare hands if there's no charged baton.
 /datum/bot_brain/proc/melee_subdue(mob/living/carbon/human/S)
+	// Somebody dangerous on their feet: the flash first, which an energy sword doesn't block and puts them down for long enough to cuff
+	if(bot_too_dangerous(S) && !is_subdued(S) && S.get_eye_protection() <= 0 && try_flash(S)) //bot_playstyles.dm
+		return
 	var/obj/item/melee/baton/B = find_usable_baton()
 	owner.changeNext_move(CLICK_CD_MELEE)
 	if(B)

@@ -187,6 +187,7 @@ GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 	if(bot_may_use_lethal_force(S)) //bot_law.dm
 		var/obj/item/gun/lethal = ready_lethal_gun()
 		if(lethal)
+			say_going_lethal(S)
 			return lethal
 	return ready_nonlethal_gun()
 
@@ -236,7 +237,14 @@ GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 	if(wait_for_the_others(S, dist))
 		return TRUE
 	if(!find_usable_gun())
-		// Nothing to shoot with: it doesn't go in alone with a baton. It keeps its distance and waits for the others to come.
+		// Nothing to shoot with. With another officer by it, or somebody being cut down in front of it, it goes in: the flash first
+		// (a sword doesn't stop that), then the baton and the cuffs, the ordinary arrest. Otherwise it doesn't go in alone: it keeps
+		// its distance and waits for the others to come.
+		if(should_go_in_unarmed(S))
+			if(world.time >= next_going_in_note)
+				next_going_in_note = world.time + 20 SECONDS
+				bot_log(src, "out of shots - going in on [S] with [carried_flash() ? "the flash" : "the baton"]")
+			return FALSE
 		if(dist <= BOT_SEC_HOLD_AT)
 			stop_pursuit()
 			if(dist < BOT_SEC_KEEP_AWAY)
@@ -264,12 +272,24 @@ GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 	var/turf/spot = line[max(1, length(line) - by)]
 	return !spot || spot.density || is_blocked_turf(spot, TRUE) ? null : spot
 
-/// Whether there's a charged gun on it at all.
+/// Whether there's a charged gun on it at all: any setting with the charge for a shot. It used to ask only the setting it was on, so a
+/// hybrid taser with its taser spent (200 a shot) and charge left for its disabler (50) read as nothing to shoot with, and four
+/// officers stood off from somebody cutting down the crew with an energy sword without firing once.
 /datum/bot_brain/proc/find_usable_gun()
 	for(var/obj/item/gun/G in owner.GetAllContents())
-		if(G.can_shoot())
+		if(G.can_shoot() || bot_gun_has_a_shot(G))
 			return G
 	return null
+
+/// Any of an energy gun's settings with the charge for one more shot.
+/proc/bot_gun_has_a_shot(obj/item/gun/G)
+	var/obj/item/gun/energy/E = G
+	if(!istype(E) || !E.cell || !length(E.ammo_type))
+		return FALSE
+	for(var/obj/item/ammo_casing/energy/shot in E.ammo_type)
+		if(E.cell.charge >= shot.e_cost)
+			return TRUE
+	return FALSE
 
 /// What's worth having from the armory just now, going by who's at large.
 /datum/bot_brain/proc/armory_want()
@@ -500,6 +520,10 @@ GLOBAL_VAR_INIT(bot_armory_ordered_until, 0)
 		return FALSE
 	if(bot.work_role() == "Security Officer" && !bot_armory_open_for_security())
 		return FALSE //no access of its own: only once the Warden or the Head of Security has opened up
+	// Somebody dangerous in sight: deal with them with what it has. The Head of Security reached the Kitchen, said it was off for
+	// something heavier, gave that up ten seconds later and went back to its rounds while the chemist was killed in front of it.
+	if(bot.dangerous_suspect_in_sight())
+		return FALSE
 	var/want = bot.armory_want()
 	if(!want)
 		return FALSE
