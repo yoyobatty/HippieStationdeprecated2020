@@ -140,19 +140,19 @@
 	var/list/data = list()
 	var/lowest_cost = 1
 
+	var/list/seen = list()
 	for(var/v in stored_research.researched_designs)
 		var/datum/design/forge/D = SSresearch.techweb_design_by_id(v)
-		var/md5name = md5(D.name)
 		var/cost = D.materials[MAT_REAGENT]*efficiency
-		if(!listofrecipes[md5name])
-			listofrecipes[md5name] = list("name" = D.name, "category" = D.category[2], "cost" = cost)
+		if(!seen[D.name])
+			seen[D.name] = TRUE
+			listofrecipes += list(list("name" = D.name, "category" = D.category[2], "cost" = cost))
 			if(cost < lowest_cost)
 				lowest_cost = cost
-	sortList(listofrecipes)
 
 	var/datum/component/material_container/materials = GetComponent(/datum/component/material_container)
 	data["recipes"] = listofrecipes
-	data["currently_forging"] = currently_forging ? currently_forging : "Nothing"
+	data["currently_forging"] = currently_forging ? currently_forging.name : "Nothing"
 	data["material_amount"] = materials.amount(MAT_REAGENT)
 	data["can_afford"] = check_cost(lowest_cost, FALSE)
 	return data
@@ -164,8 +164,10 @@
 		return
 	switch(action)
 		if("Create")
-			var/amount = 0
-			amount = input("How many?", "How many would you like to forge?", 1) as null|num
+			// The window sends how many; anything else still asks
+			var/amount = round(text2num(params["amount"]))
+			if(isnull(params["amount"]))
+				amount = input("How many?", "How many would you like to forge?", 1) as null|num
 			if(amount <= 0)
 				return FALSE
 

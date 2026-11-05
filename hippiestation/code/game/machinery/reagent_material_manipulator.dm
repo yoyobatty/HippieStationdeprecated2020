@@ -116,29 +116,33 @@
 	if(reagents.total_volume <= 0 && synthesis)
 		synthesis = null
 
+	// Plain lists (a keyed one reaches the window as an object), and the addable traits read from their types
 	if(loaded && special_traits && reagent_analyse)
+		var/list/seen = list()
 		for(var/I in special_traits)
 			var/datum/special_trait/D = I
-			var/md5name = md5(D.name)
-			if(!listoftraits[md5name])
-				listoftraits[md5name] = list("name" = D.name, "desc" = D.desc, "effectiveness" = D.effectiveness)
-		sortList(listoftraits)
+			if(!seen[D.name])
+				seen[D.name] = TRUE
+				listoftraits += list(list("name" = D.name, "desc" = D.desc, "effectiveness" = D.effectiveness))
 
 	if(synthesis && synthesis.special_traits)
+		var/list/seen = list()
 		for(var/D in synthesis.special_traits)
-			var/datum/special_trait/S = new D
-			var/md5name = md5(S.name)
-			if(!listoftraitsadd[md5name])
-				listoftraitsadd[md5name] = list("name" = S.name, "desc" = S.desc, "effectiveness" = S.effectiveness)
-		sortList(listoftraitsadd)
+			var/datum/special_trait/S = D
+			if(!seen[initial(S.name)])
+				seen[initial(S.name)] = TRUE
+				listoftraitsadd += list(list("name" = initial(S.name), "desc" = initial(S.desc), "effectiveness" = initial(S.effectiveness)))
 
-	data["item"] = loaded ? loaded.name : "Nothing"
-	data["reagent_analyse"] = reagent_analyse ? reagent_analyse : "Nothing"
-	data["density"] = reagent_analyse ? reagent_analyse.density : "N/A"
-	data["traits"] = listoftraits ? listoftraits : "Nothing"
-	data["traitsadd"] = listoftraitsadd ? listoftraitsadd : "Nothing"
+	data["item"] = loaded ? loaded.name : null
+	data["reagent_analyse"] = reagent_analyse ? reagent_analyse.name : null
+	data["density"] = reagent_analyse ? reagent_analyse.density : null
+	data["traits"] = listoftraits
+	data["traitsadd"] = listoftraitsadd
 	data["volume"] = synthesis ? reagents.total_volume : 0
-	data["reagent_synthesis"] = synthesis ? synthesis : "Nothing"
+	data["reagent_synthesis"] = synthesis ? synthesis.name : null
+	data["analyse_only"] = analyse_only
+	data["add_cost"] = SPECIAL_TRAIT_ADD_COST
+	data["trait_room"] = SPECIAL_TRAIT_MAXIMUM - LAZYLEN(special_traits)
 	return data
 
 

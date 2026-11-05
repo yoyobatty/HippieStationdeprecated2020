@@ -122,6 +122,18 @@ import { MasterMultitool } from './interfaces/MasterMultitool';
 import { Orbit } from './interfaces/Orbit';
 import { DisplaySettings } from './interfaces/DisplaySettings';
 import { RdConsole, RdFabricator } from './interfaces/RdConsole';
+import { Sleeper } from './interfaces/Sleeper';
+import { Autodoc } from './interfaces/Autodoc';
+import { Mule } from './interfaces/Mule';
+import { EmergencyShuttleConsole } from './interfaces/EmergencyShuttleConsole';
+import { LaunchpadConsole, LaunchpadRemote } from './interfaces/Launchpad';
+import { GulagConsole, LaborClaimConsole } from './interfaces/LaborCamp';
+import { Intellicard, NtosAiRestorer } from './interfaces/AiCard';
+import { Eightball, NotificationPanel, SlimeBodySwapper } from './interfaces/GhostAndSlime';
+import { ChemBluespace, ChemCentrifuge, ChemPressure, ChemRadioactive, MaterialAnalyser, ReagentForge } from './interfaces/ChemLab';
+import { ClockworkSlab } from './interfaces/ClockworkSlab';
+import { NtosCard } from './interfaces/NtosCard';
+import { NtnetRelay, NtosConfiguration, NtosFileManager, NtosNetChat, NtosNetDos, NtosNetMonitor, NtosNetTransfer, NtosRevelation, SyndContract } from './interfaces/NtosPrograms';
 // hippie end
 
 const ROUTES = {
@@ -664,6 +676,154 @@ const ROUTES = {
   rd_fabricator: {
     component: () => RdFabricator,
     scrollable: false,
+  },
+  sleeper: {
+    component: () => Sleeper,
+    scrollable: true,
+  },
+  autodoc: {
+    component: () => Autodoc,
+    scrollable: true,
+  },
+  mulebot: {
+    component: () => Mule,
+    scrollable: true,
+  },
+  emergency_shuttle_console: {
+    component: () => EmergencyShuttleConsole,
+    scrollable: true,
+  },
+  launchpad_console: {
+    component: () => LaunchpadConsole,
+    scrollable: true,
+  },
+  launchpad_remote: {
+    component: () => LaunchpadRemote,
+    scrollable: true,
+    theme: 'syndicate',
+  },
+  gulag_console: {
+    component: () => GulagConsole,
+    scrollable: true,
+  },
+  labor_claim_console: {
+    component: () => LaborClaimConsole,
+    scrollable: true,
+  },
+  intellicard: {
+    component: () => Intellicard,
+    scrollable: true,
+  },
+  ntos_ai_restorer: {
+    component: () => NtosAiRestorer,
+    wrapper: () => NtosWrapper,
+    scrollable: true,
+    theme: 'ntos',
+  },
+  notificationpanel: {
+    component: () => NotificationPanel,
+    scrollable: true,
+  },
+  eightball: {
+    component: () => Eightball,
+    scrollable: true,
+  },
+  slime_swap_body: {
+    component: () => SlimeBodySwapper,
+    scrollable: true,
+  },
+  ntnet_relay: {
+    component: () => NtnetRelay,
+    scrollable: true,
+  },
+  chem_pressure: {
+    component: () => ChemPressure,
+    scrollable: true,
+  },
+  chem_radioactive: {
+    component: () => ChemRadioactive,
+    scrollable: true,
+  },
+  chem_bluespace: {
+    component: () => ChemBluespace,
+    scrollable: true,
+  },
+  chem_centrifuge: {
+    component: () => ChemCentrifuge,
+    scrollable: true,
+  },
+  chem_reagent_analysis: {
+    component: () => MaterialAnalyser,
+    scrollable: true,
+  },
+  chem_reagent_forge: {
+    component: () => ReagentForge,
+    scrollable: true,
+  },
+  clockwork_slab: {
+    component: () => ClockworkSlab,
+    scrollable: true,
+    theme: 'clockwork',
+  },
+  ntos_card: {
+    component: () => NtosCard,
+    wrapper: () => NtosWrapper,
+    scrollable: true,
+    theme: 'ntos',
+  },
+  ntos_configuration: {
+    component: () => NtosConfiguration,
+    wrapper: () => NtosWrapper,
+    scrollable: true,
+    theme: 'ntos',
+  },
+  ntos_file_manager: {
+    component: () => NtosFileManager,
+    wrapper: () => NtosWrapper,
+    scrollable: true,
+    theme: 'ntos',
+  },
+  ntos_net_chat: {
+    component: () => NtosNetChat,
+    wrapper: () => NtosWrapper,
+    scrollable: true,
+    theme: 'ntos',
+  },
+  ntos_net_monitor: {
+    component: () => NtosNetMonitor,
+    wrapper: () => NtosWrapper,
+    scrollable: true,
+    theme: 'ntos',
+  },
+  ntos_net_transfer: {
+    component: () => NtosNetTransfer,
+    wrapper: () => NtosWrapper,
+    scrollable: true,
+    theme: 'ntos',
+  },
+  ntos_station_alert: {
+    component: () => StationAlertConsole,
+    wrapper: () => NtosWrapper,
+    scrollable: true,
+    theme: 'ntos',
+  },
+  ntos_net_dos: {
+    component: () => NtosNetDos,
+    wrapper: () => NtosWrapper,
+    scrollable: true,
+    theme: 'syndicate',
+  },
+  ntos_revelation: {
+    component: () => NtosRevelation,
+    wrapper: () => NtosWrapper,
+    scrollable: true,
+    theme: 'syndicate',
+  },
+  synd_contract: {
+    component: () => SyndContract,
+    wrapper: () => NtosWrapper,
+    scrollable: true,
+    theme: 'syndicate',
   },
   // hippie end
 };

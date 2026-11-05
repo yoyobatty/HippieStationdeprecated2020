@@ -201,6 +201,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_assemblies(C, H, label)
 		if("gadgets")
 			cs_gadgets(C, H, label)
+		if("oldlook")
+			cs_oldlook(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -3620,3 +3622,375 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		sleep(5)
 		cs_check("R locks it", SEND_SIGNAL(brief, COMSIG_IS_STORAGE_LOCKED))
 	SStgui.close_user_uis(H)
+
+// The windows still on the 2017 tgui look (an old .ract page and no tgui-next route): each one opened and pictured.
+// The same build gives "before" until the routes go in. data/console_shots_sub limits it to some (names, one per line).
+
+/proc/cs_oldlook_wanted(name)
+	var/sub = trim(file2text("data/console_shots_sub"))
+	if(!sub)
+		return TRUE
+	return (name in splittext(sub, "\n"))
+
+/// The window `A` has open for `user`, moved into view and pictured; FALSE when none opened
+/proc/cs_oldlook_shot(client/C, mob/user, datum/A, label, name, title)
+	var/datum/tgui/ui = cs_find_ui(user, A)
+	if(!ui)
+		var/detail = "status [A.ui_status(user, GLOB.default_state)]"
+		if(ismachinery(A))
+			var/obj/machinery/M = A
+			detail += ", stat [M.stat], adjacent [M.Adjacent(user)], can_interact [M.can_interact(user)], at [M.x],[M.y] [M.loc], user at [user.x],[user.y]"
+		cs_check("[name]: the window opens", FALSE, detail)
+		return null
+	sleep(5)
+	winset(C, ui.window_id, "pos=200,40")
+	sleep(20)
+	cs_shot("popup_oldlook_[label]_[name]", title)
+	return ui
+
+/proc/cs_oldlook_patient(turf/at, name)
+	var/mob/living/carbon/human/P = new(at)
+	P.fully_replace_character_name(null, name)
+	P.equipOutfit(/datum/outfit/job/doctor)
+	return P
+
+/proc/cs_oldlook(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/captain)
+	var/turf/home = get_turf(H)
+
+	if(cs_oldlook_wanted("sleeper"))
+		var/obj/machinery/sleeper/S = new(cs_open_beside(H))
+		S.stat &= ~(NOPOWER|BROKEN)
+		var/mob/living/carbon/human/P = cs_oldlook_patient(get_turf(S), "Lena Kowalczyk")
+		P.adjustBruteLoss(45)
+		P.adjustFireLoss(22)
+		P.adjustToxLoss(8)
+		P.adjustOxyLoss(30)
+		P.reagents.add_reagent(/datum/reagent/medicine/epinephrine, 4.5)
+		P.reagents.add_reagent(/datum/reagent/medicine/morphine, 2)
+		S.close_machine(P)
+		S.ui_interact(H)
+		var/datum/tgui/ui = cs_oldlook_shot(C, H, S, label, "sleeper", S.name)
+		if(ui && label == "after")
+			cs_tgui_do(C, ui.window_id, "click:Epinephrine")
+			sleep(10)
+			cs_check("sleeper: clicking Epinephrine injects it", P.reagents.get_reagent_amount(/datum/reagent/medicine/epinephrine) > 4.5, "[P.reagents.get_reagent_amount(/datum/reagent/medicine/epinephrine)]u")
+			cs_tgui_do(C, ui.window_id, "click:Open door")
+			cs_wait_until(S, "state_open", TRUE)
+			cs_check("sleeper: clicking Open opens it", S.state_open)
+		SStgui.close_user_uis(H)
+		qdel(P)
+		qdel(S)
+
+	if(cs_oldlook_wanted("autodoc"))
+		var/obj/machinery/autodoc/D = new(cs_open_beside(H))
+		D.stat &= ~(NOPOWER|BROKEN)
+		D.ui_interact(H)
+		var/datum/tgui/ui = cs_oldlook_shot(C, H, D, label, "autodoc", D.name)
+		if(ui && label == "after")
+			cs_tgui_do(C, ui.window_id, "click:Left Arm")
+			sleep(10)
+			cs_check("autodoc: clicking Left Arm aims it there", D.target_zone == BODY_ZONE_L_ARM, "[D.target_zone]")
+		SStgui.close_user_uis(H)
+		qdel(D)
+
+	if(cs_oldlook_wanted("mulebot"))
+		var/mob/living/simple_animal/bot/mulebot/M = new(cs_open_beside(H))
+		M.locked = FALSE
+		M.ui_interact(H)
+		var/datum/tgui/ui = cs_oldlook_shot(C, H, M, label, "mulebot", M.name)
+		if(ui && label == "after" && length(GLOB.deliverybeacontags))
+			var/beacon = GLOB.deliverybeacontags[1]
+			cs_act(M, H, "destination", list("value" = beacon))
+			cs_check("mulebot: a destination picked in the window", M.destination == beacon, "[M.destination]")
+			cs_act(M, H, "destination", list("value" = "Nowhere At All"))
+			cs_check("mulebot: but not one that isn't a beacon", M.destination == beacon, "[M.destination]")
+			cs_act(M, H, "setid", list("value" = "Mule-7"))
+			cs_check("mulebot: its ID typed in the window", M.id == "Mule-7", "[M.id]")
+			SStgui.update_uis(M)
+			sleep(10)
+			cs_shot("popup_oldlook_[label]_mulebot_2_set", M.name)
+		SStgui.close_user_uis(H)
+		qdel(M)
+
+	if(cs_oldlook_wanted("shuttle"))
+		var/obj/machinery/computer/emergency_shuttle/E = new(cs_open_beside(H))
+		E.authorized += cs_card("Hugo Brandt", "Chief Engineer", list(ACCESS_HEADS), null)
+		E.authorized += cs_card("Ines Okafor", "Head of Security", list(ACCESS_HEADS), null)
+		E.ui_interact(H)
+		cs_oldlook_shot(C, H, E, label, "shuttle", E.name)
+		SStgui.close_user_uis(H)
+		E.authorized.Cut()
+		qdel(E)
+
+	if(cs_oldlook_wanted("launchpad"))
+		var/obj/machinery/computer/launchpad/L = new(cs_open_beside(H))
+		L.stat &= ~(NOPOWER|BROKEN)
+		var/obj/machinery/launchpad/pad1 = new(cs_open_beside(L))
+		pad1.display_name = "Cargo Bay"
+		var/obj/machinery/launchpad/pad2 = new(cs_open_beside(L, list(get_turf(pad1))))
+		pad2.display_name = "Toxins"
+		L.launchpads += pad1
+		L.launchpads += pad2
+		L.ui_interact(H)
+		var/datum/tgui/ui = cs_oldlook_shot(C, H, L, label, "launchpad_0_select", L.name)
+		if(ui)
+			cs_act(L, H, "select_pad", list("id" = "1"))
+			cs_act(L, H, "up-right")
+			cs_act(L, H, "up")
+			SStgui.update_uis(L)
+			sleep(10)
+			cs_shot("popup_oldlook_[label]_launchpad_1_control", L.name)
+			if(label == "after")
+				cs_act(L, H, "set_x", list("value" = "3"))
+				cs_act(L, H, "set_y", list("value" = "-2"))
+				cs_check("launchpad: X and Y typed in the window", pad1.x_offset == 3 && pad1.y_offset == -2, "[pad1.x_offset],[pad1.y_offset]")
+				cs_act(L, H, "set_x", list("value" = "99"))
+				cs_check("launchpad: kept within the pad's reach", pad1.x_offset == pad1.range, "[pad1.x_offset]")
+				cs_act(L, H, "rename_to", list("value" = "Cargo <b>Bay</b>"))
+				cs_check("launchpad: renamed in the window, tags escaped", findtext(pad1.display_name, "Cargo &lt;b&gt") == 1 && !findtext(pad1.display_name, "<"), "[pad1.display_name]")
+				pad1.display_name = "Cargo Bay"
+				SStgui.update_uis(L)
+				sleep(10)
+				cs_tgui_do(C, ui.window_id, "click:All launchpads")
+				cs_wait_until(L, "screen", "select")
+				cs_check("launchpad: clicking All launchpads goes back to the list", L.screen == "select")
+		SStgui.close_user_uis(H)
+		qdel(L)
+		qdel(pad1)
+		qdel(pad2)
+
+	if(cs_oldlook_wanted("launchpad_remote"))
+		var/obj/item/storage/briefcase/launchpad/case = new(home)
+		var/obj/item/launchpad_remote/R = new(home)
+		R.pad = case.pad
+		case.pad.closed = FALSE
+		H.drop_all_held_items()
+		H.put_in_active_hand(R)
+		R.ui_interact(H)
+		cs_oldlook_shot(C, H, R, label, "launchpad_remote", R.name)
+		SStgui.close_user_uis(H)
+		qdel(R)
+		qdel(case)
+
+	if(cs_oldlook_wanted("gulag"))
+		var/obj/machinery/computer/gulag_teleporter_computer/G = new(cs_open_beside(H))
+		G.stat &= ~(NOPOWER|BROKEN)
+		var/obj/item/card/id/prisoner/P = new(G)
+		P.registered_name = "Sam Tanaka"
+		P.goal = 200
+		G.id = P
+		G.ui_interact(H)
+		cs_oldlook_shot(C, H, G, label, "gulag", G.name)
+		SStgui.close_user_uis(H)
+		qdel(G)
+
+	if(cs_oldlook_wanted("labor"))
+		// It deletes itself without a labor stacker south of it, as the camp has
+		var/turf/spot = cs_open_beside(H)
+		var/obj/machinery/mineral/stacking_machine/laborstacker/stacker = new(get_step(spot, SOUTH))
+		stacker.points = 40
+		var/obj/machinery/mineral/labor_claim_console/LC = new(spot)
+		LC.stat &= ~(NOPOWER|BROKEN)
+		var/obj/item/card/id/prisoner/P = new(LC)
+		P.registered_name = "Sam Tanaka"
+		P.goal = 200
+		P.points = 85
+		LC.inserted_id = P
+		LC.ui_interact(H)
+		var/datum/tgui/ui = cs_oldlook_shot(C, H, LC, label, "labor", LC.name)
+		if(ui && label == "after")
+			cs_tgui_do(C, ui.window_id, "click:Claim")
+			sleep(10)
+			cs_check("labor: clicking Claim moves the stacker's points to the ID", P.points == 125 && !stacker.points, "[P.points]")
+		SStgui.close_user_uis(H)
+		qdel(LC)
+		qdel(stacker)
+
+	if(cs_oldlook_wanted("intellicard"))
+		var/obj/item/aicard/card = new(home)
+		var/mob/living/silicon/ai/A = new(home, null, null)
+		A.fully_replace_character_name(null, "HAL-9001")
+		A.laws = new /datum/ai_laws/default/asimov
+		A.laws.associate(A)
+		A.forceMove(card)
+		card.AI = A
+		A.control_disabled = TRUE
+		A.adjustOxyLoss(30)
+		A.updatehealth()
+		card.update_icon()
+		H.drop_all_held_items()
+		H.put_in_active_hand(card)
+		card.ui_interact(H)
+		var/datum/tgui/ui = cs_oldlook_shot(C, H, card, label, "intellicard", card.name)
+		if(ui && label == "after")
+			cs_tgui_do(C, ui.window_id, "click:Wireless")
+			sleep(10)
+			cs_check("intellicard: clicking Wireless turns it on", !A.control_disabled)
+		SStgui.close_user_uis(H)
+		H.drop_all_held_items()
+		qdel(card)
+
+	if(cs_oldlook_wanted("relay"))
+		var/obj/machinery/ntnet_relay/NR = new(cs_open_beside(H))
+		NR.ui_interact(H)
+		cs_oldlook_shot(C, H, NR, label, "relay", "NTNet Quantum Relay")
+		SStgui.close_user_uis(H)
+		qdel(NR)
+
+	if(cs_oldlook_wanted("chem"))
+		var/list/chem_types = list(/obj/machinery/chem/pressure, /obj/machinery/chem/radioactive, /obj/machinery/chem/bluespace, /obj/machinery/chem/centrifuge)
+		for(var/path in chem_types)
+			var/obj/machinery/chem/M = new path(cs_open_beside(H))
+			M.stat &= ~(NOPOWER|BROKEN)
+			M.beaker = new /obj/item/reagent_containers/glass/beaker/large(M)
+			M.beaker.reagents.add_reagent(/datum/reagent/water, 40)
+			M.beaker.reagents.add_reagent(/datum/reagent/consumable/sugar, 12.5)
+			M.ui_interact(H)
+			// The old radioactive and centrifuge windows were 275 wide, under what shot.ps1 takes for a window
+			var/datum/tgui/opened = cs_find_ui(H, M)
+			if(opened)
+				winset(C, opened.window_id, "size=400x400")
+			var/short = copytext("[path]", length("/obj/machinery/chem/") + 1)
+			var/datum/tgui/ui = cs_oldlook_shot(C, H, M, label, "chem_[short]", M.name)
+			if(ui && label == "after" && path == /obj/machinery/chem/radioactive)
+				var/obj/machinery/chem/radioactive/RM = M
+				cs_act(RM, H, "irradiate", list("target" = "12"))
+				cs_check("chem: the radioactive target set from the window", RM.target_radioactivity == 12, "[RM.target_radioactivity]")
+			SStgui.close_user_uis(H)
+			qdel(M)
+		var/obj/machinery/reagent_material_manipulator/MM = new(cs_open_beside(H))
+		MM.ui_interact(H)
+		cs_oldlook_shot(C, H, MM, label, "chem_analyser", MM.name)
+		SStgui.close_user_uis(H)
+		qdel(MM)
+		var/obj/machinery/reagent_forge/F = new(locate(home.x + 2, home.y, home.z))
+		F.ui_interact(H)
+		cs_oldlook_shot(C, H, F, label, "chem_forge", F.name)
+		SStgui.close_user_uis(H)
+		qdel(F)
+
+	if(cs_oldlook_wanted("slime"))
+		var/mob/living/carbon/human/S1 = new(home)
+		S1.fully_replace_character_name(null, "Gloop Primary")
+		S1.set_species(/datum/species/jelly/slime)
+		var/datum/species/jelly/slime/SS = S1.dna.species
+		var/mob/living/carbon/human/S2 = new(cs_open_beside(H))
+		S2.fully_replace_character_name(null, "Gloop Spare")
+		S2.set_species(/datum/species/jelly/slime)
+		SS.bodies |= S2
+		var/datum/species/jelly/slime/SS2 = S2.dna.species
+		SS2.bodies = SS.bodies
+		S2.Unconscious(600)
+		var/datum/action/innate/swap_body/swap = locate() in S1.actions
+		if(swap)
+			swap.ui_interact(H)
+			cs_oldlook_shot(C, H, swap, label, "slime", "Swap Body")
+		else
+			cs_check("slime: the swap action is there", FALSE)
+		SStgui.close_user_uis(H)
+		qdel(S2)
+		qdel(S1)
+
+	if(cs_oldlook_wanted("ntos"))
+		var/obj/machinery/modular_computer/console/preset/command/PC = new(cs_open_beside(H))
+		PC.stat &= ~(NOPOWER|BROKEN)
+		var/obj/item/modular_computer/processor/cpu = PC.cpu
+		cpu.install_component(new /obj/item/computer_hardware/ai_slot)
+		var/obj/item/computer_hardware/hard_drive/drive = cpu.all_components[MC_HDD]
+		var/list/progs = list(
+			/datum/computer_file/program/card_mod, /datum/computer_file/program/computerconfig, /datum/computer_file/program/filemanager,
+			/datum/computer_file/program/chatclient, /datum/computer_file/program/ntnetmonitor, /datum/computer_file/program/nttransfer,
+			/datum/computer_file/program/alarm_monitor, /datum/computer_file/program/aidiag, /datum/computer_file/program/ntnet_dos,
+			/datum/computer_file/program/revelation, /datum/computer_file/program/contract_uplink)
+		var/list/names = list()
+		for(var/path in progs)
+			var/datum/computer_file/program/P = new path
+			names += P.filename
+			if(drive.find_file_by_name(P.filename))
+				qdel(P)
+			else
+				drive.store_file(P)
+		cpu.turn_on(H)
+		var/datum/computer_file/data/text = new
+		text.filename = "shift_notes"
+		text.stored_data = "Remember to set up the <b>SMES</b> before the engine.<br>Ask cargo about the plasma."
+		drive.store_file(text)
+		var/obj/item/card/id/target = cs_card("Sam Tanaka", "Assistant", list(ACCESS_MAINT_TUNNELS, ACCESS_NETWORK), home)
+		var/obj/item/computer_hardware/card_slot/slot = cpu.all_components[MC_CARD]
+		H.drop_all_held_items()
+		H.put_in_active_hand(target)
+		slot.try_insert(target, H)
+		var/obj/item/card/id/mine = H.get_idcard()
+		if(mine)
+			H.temporarilyRemoveItemFromInventory(mine, TRUE)
+			H.put_in_active_hand(mine)
+			slot.try_insert(mine, H)
+		// The programs read the ID being worn, not the one in the slot (can_run() checks the slot before it has it)
+		var/obj/item/card/id/worn = cs_card("Fernando Stall", "Captain", get_all_accesses(), home)
+		H.equip_to_slot_or_del(worn, ITEM_SLOT_ID)
+		for(var/fname in names)
+			if(cpu.active_program)
+				cs_act(cpu, H, "PC_exit")
+			cs_act(cpu, H, "PC_runprogram", list("name" = fname))
+			if(!cpu.active_program)
+				cs_check("ntos: [fname] starts", FALSE)
+				continue
+			cpu.ui_interact(H)
+			var/datum/tgui/ui = cs_oldlook_shot(C, H, cpu.active_program, label, "ntos_[fname]", null)
+			if(ui && fname == "ntnrc_client")
+				// A channel to be in, said in from the window (the old program asked in a pop-up)
+				var/datum/computer_file/program/chatclient/chat = cpu.active_program
+				var/datum/ntnet_conversation/conv = new
+				conv.title = "#engineering"
+				conv.add_client(chat)
+				chat.channel = conv
+				conv.add_message("anyone seen the CE?", "Hugo")
+				cs_act(chat, H, "PRG_changename", list("text" = "Fernando"))
+				cs_act(chat, H, "PRG_speak", list("text" = "on my way to the SM"))
+				cs_check("ntos chat: a message and a nickname typed in the window", findtext(conv.messages[conv.messages.len], "Fernando: on my way to the SM") && chat.username == "Fernando", "[conv.messages[conv.messages.len]]")
+				SStgui.update_uis(chat)
+				sleep(10)
+				cs_shot("popup_oldlook_[label]_ntos_ntnrc_client_2_channel")
+			if(ui && fname == "cardmod")
+				cs_act(cpu.active_program, H, "PRG_switchm", list("target" = "manage"))
+				SStgui.update_uis(cpu.active_program)
+				sleep(10)
+				cs_shot("popup_oldlook_[label]_ntos_cardmod_2_jobs")
+			SStgui.close_user_uis(H)
+		SStgui.close_user_uis(H)
+		qdel(PC)
+
+	if(cs_oldlook_wanted("slab"))
+		add_servant_of_ratvar(H, TRUE)
+		var/obj/item/clockwork/slab/slab = new(home)
+		H.drop_all_held_items()
+		H.put_in_active_hand(slab)
+		slab.ui_interact(H)
+		cs_oldlook_shot(C, H, slab, label, "slab_0_recital", slab.name)
+		if(cs_find_ui(H, slab))
+			cs_act(slab, H, "toggle")
+			SStgui.update_uis(slab)
+			sleep(10)
+			cs_shot("popup_oldlook_[label]_slab_1_recollection", slab.name)
+		SStgui.close_user_uis(H)
+		H.drop_all_held_items()
+		qdel(slab)
+		remove_servant_of_ratvar(H, TRUE)
+
+	// Ghost windows last: ghosting takes the body away
+	if(cs_oldlook_wanted("ghost"))
+		var/obj/item/toy/eightball/haunted/ball = new(home)
+		ball.shaking = TRUE
+		ball.selected_message = "Will the shuttle be called before the hour?"
+		var/mob/dead/observer/G = H.ghostize(TRUE)
+		sleep(10)
+		ball.votes["someone"] = "Yes"
+		ball.votes["someone else"] = "Ask again later"
+		ball.ui_interact(G)
+		cs_oldlook_shot(C, G, ball, label, "eightball", ball.name)
+		SStgui.close_user_uis(G)
+		var/datum/notificationpanel/panel = new(G)
+		panel.ui_interact(G)
+		cs_oldlook_shot(C, G, panel, label, "notifications", "Notification Preferences")
+		SStgui.close_user_uis(G)

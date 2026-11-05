@@ -1,0 +1,65 @@
+@use 'sass:color';
+@use 'sass:meta';
+
+// hippie -- brass on dark bronze for the clockwork slab (ClockworkSlab.js), as the old window's clockwork style was
+
+@use '../colors.scss' with (
+  $primary: #8a6214,
+  $fg-map-keys: (),
+  $bg-map-keys: (),
+);
+@use '../base.scss' with (
+  $color-bg: #2a1a0c,
+  $color-bg-grad-spread: 8%,
+  $border-radius: 2px,
+);
+
+.theme-clockwork {
+  // Atomic classes
+  @include meta.load-css('../atomic/color.scss');
+
+  // Components
+  @include meta.load-css('../components/Button.scss', $with: (
+    'color-default': colors.$primary,
+    'color-disabled': #3b3020,
+    'color-selected': #c79a1e,
+    'color-caution': #be6209,
+    'color-danger': #8c1c1c,
+  ));
+  @include meta.load-css('../components/Input.scss', $with: (
+    'border-color': colors.$primary,
+  ));
+  @include meta.load-css('../components/Layout.scss');
+  @include meta.load-css('../components/NoticeBox.scss', $with: (
+    'color-first': #6b4a10,
+    'color-second': #7e5713,
+  ));
+  @include meta.load-css('../components/ProgressBar.scss', $with: (
+    'color-background': rgba(0, 0, 0, 0.5),
+  ));
+  @include meta.load-css('../components/Section.scss');
+  @include meta.load-css('../components/TitleBar.scss', $with: (
+    'color-background': #5a3b0d,
+  ));
+  @include meta.load-css('../components/Tooltip.scss', $with: (
+    'color-background': #3d2810,
+  ));
+
+  .Layout__content {
+    font-family: Georgia, 'Times New Roman', serif;
+    background-image: repeating-radial-gradient(
+      circle at 85% 90%,
+      rgba(177, 139, 37, 0.05) 0,
+      rgba(177, 139, 37, 0.05) 2px,
+      transparent 2px,
+      transparent 22px);
+  }
+
+  .Section__titleText {
+    color: #daaa18;
+  }
+
+  .Section__title {
+    border-bottom-color: #8a6214;
+  }
+}
