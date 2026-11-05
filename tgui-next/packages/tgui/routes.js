@@ -9,6 +9,7 @@ import { AtmosControlConsole } from './interfaces/AtmosControlConsole';
 import { AtmosFilter } from './interfaces/AtmosFilter';
 import { AtmosMixer } from './interfaces/AtmosMixer';
 import { AtmosPump } from './interfaces/AtmosPump';
+import { Biogenerator } from './interfaces/Biogenerator';
 import { BluespaceArtillery } from './interfaces/BluespaceArtillery';
 import { BorgPanel } from './interfaces/BorgPanel';
 import { BrigTimer } from './interfaces/BrigTimer';
@@ -153,6 +154,10 @@ const ROUTES = {
   atmos_pump: {
     component: () => AtmosPump,
     scrollable: false,
+  },
+  biogenerator: {
+    component: () => Biogenerator,
+    scrollable: true,
   },
   borgopanel: {
     component: () => BorgPanel,
