@@ -68,12 +68,7 @@
 	assets.send(user)
 
 	if(in_range(user, src) || isobserver(user))
-		if(user.is_literate())
-			user << browse("<HTML><HEAD>[UTF8HEADER]<TITLE>[name]</TITLE></HEAD><BODY>[info]<HR>[stamps]</BODY></HTML>", "window=[name]")
-			onclose(user, "[name]")
-		else
-			user << browse("<HTML><HEAD>[UTF8HEADER]<TITLE>[name]</TITLE></HEAD><BODY>[stars(info)]<HR>[stamps]</BODY></HTML>", "window=[name]")
-			onclose(user, "[name]")
+		ui_interact(user) //hippie -- the paper's tgui window, starred for those who can't read (hippiestation/code/modules/paperwork/paperwork_tgui.dm)
 	else
 		. += "<span class='warning'>You're too far away to read it!</span>"
 
@@ -120,12 +115,8 @@
 		dist = get_dist(src, user.current)
 	else //cyborg or AI not seeing through a camera
 		dist = get_dist(src, user)
-	if(dist < 2)
-		usr << browse("<HTML><HEAD>[UTF8HEADER]<TITLE>[name]</TITLE></HEAD><BODY>[info]<HR>[stamps]</BODY></HTML>", "window=[name]")
-		onclose(usr, "[name]")
-	else
-		usr << browse("<HTML><HEAD>[UTF8HEADER]<TITLE>[name]</TITLE></HEAD><BODY>[stars(info)]<HR>[stamps]</BODY></HTML>", "window=[name]")
-		onclose(usr, "[name]")
+	if(dist >= 0)
+		ui_interact(user) //hippie -- the paper's tgui window: clear from the camera's spot, starred from further
 
 
 /obj/item/paper/proc/addtofield(id, text, links = 0)
@@ -291,7 +282,7 @@
 
 	if(istype(P, /obj/item/pen) || istype(P, /obj/item/toy/crayon))
 		if(user.is_literate())
-			user << browse("<HTML><HEAD>[UTF8HEADER]<TITLE>[name]</TITLE></HEAD><BODY>[info_links]<HR>[stamps]</BODY><div align='right'style='position:fixed;bottom:0;font-style:bold;'><A href='?src=[REF(src)];help=1'>\[?\]</A></div></HTML>", "window=[name]")
+			ui_interact(user) //hippie -- the paper's tgui window, with the box to write in while there's a pen in hand
 			return
 		else
 			to_chat(user, "<span class='warning'>You don't know how to read or write!</span>")

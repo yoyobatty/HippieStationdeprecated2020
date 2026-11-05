@@ -55,8 +55,11 @@ import { MedicalKiosk } from './interfaces/MedicalKiosk';
 import { MessageMonitor } from './interfaces/MessageMonitor';
 import { MiningVendor } from './interfaces/MiningVendor';
 import { Newscaster } from './interfaces/Newscaster';
+import { Paper } from './interfaces/Paper';
+import { PaperList } from './interfaces/PaperList';
 import { ParticleAccelerator } from './interfaces/ParticleAccelerator';
 import { Pda } from './interfaces/Pda';
+import { Photocopier } from './interfaces/Photocopier';
 import { PipeDispenser } from './interfaces/PipeDispenser';
 import { PlantDnaManipulator } from './interfaces/PlantDnaManipulator';
 import { MedicalRecords, SecurityRecords } from './interfaces/RecordsConsole';
@@ -264,12 +267,24 @@ const ROUTES = {
     component: () => Newscaster,
     scrollable: true,
   },
+  paper: {
+    component: () => Paper,
+    scrollable: true,
+  },
+  paper_list: {
+    component: () => PaperList,
+    scrollable: true,
+  },
   particle_accelerator: {
     component: () => ParticleAccelerator,
     scrollable: false,
   },
   pda: {
     component: () => Pda,
+    scrollable: false,
+  },
+  photocopier: {
+    component: () => Photocopier,
     scrollable: false,
   },
   pipe_dispenser: {
