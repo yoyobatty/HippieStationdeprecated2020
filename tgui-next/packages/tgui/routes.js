@@ -49,6 +49,7 @@ import { ImplantChair } from './interfaces/ImplantChair';
 import { KeycardAuth } from './interfaces/KeycardAuth';
 import { LanguageMenu } from './interfaces/LanguageMenu';
 import { MechBayPowerConsole } from './interfaces/MechBayPowerConsole';
+import { MechaControl } from './interfaces/MechaControl';
 import { MedicalKiosk } from './interfaces/MedicalKiosk';
 import { MessageMonitor } from './interfaces/MessageMonitor';
 import { MiningVendor } from './interfaces/MiningVendor';
@@ -233,6 +234,10 @@ const ROUTES = {
   exosuit_fabricator: {
     component: () => ExosuitFabricator,
     scrollable: false,
+  },
+  mecha_control: {
+    component: () => MechaControl,
+    scrollable: true,
   },
   message_monitor: {
     component: () => MessageMonitor,
