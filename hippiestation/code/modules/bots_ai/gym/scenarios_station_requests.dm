@@ -181,3 +181,45 @@
 		if(brain.turf_has_mess(T))
 			return BOT_GYM_PENDING
 	return tracked("done") ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/chat/request/console/cargo_budget
+	name = "request console: cargo says when a crate asked for is over budget"
+	desc = "The bartender asks Cargo for a Supermatter Shard crate (10,000 credits) at a console, with 2,000 in the budget. The cargo technician says on the channel it came over that it can't afford it yet, and the request reads so on the console. It used to be put aside without a word."
+	job = "Cargo Technician"
+	to_dept = "Cargo Bay"
+	body = "Crate requested: Supermatter Shard Crate (For the engine). It's in the cargo console's requests."
+	request_kind = "crate"
+	station_wide = TRUE //the cargo budget is the whole station's
+	layout = list(
+		"##########",
+		"#B.....C.#",
+		"##########")
+	var/datum/supply_order/order
+	var/saved_balance
+
+/datum/bot_scenario/chat/request/console/cargo_budget/make_call()
+	var/datum/bank_account/budget = SSeconomy.get_dep_account(ACCOUNT_CAR)
+	saved_balance = budget.account_balance
+	budget.account_balance = 2000
+	order = new(SSshuttle.supply_packs[/datum/supply_pack/engine/supermatter_shard], visitor.real_name, "Bartender", null, "For the engine", null)
+	..()
+	request.order = order //read when it's taken up, a moment later
+
+/datum/bot_scenario/chat/request/console/cargo_budget/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!request || world.time < request_made_at() + 10 SECONDS)
+		return BOT_GYM_PENDING
+	if(request.status == "new" && world.time > request_made_at() + 15 SECONDS)
+		fail_reason = "nobody took the request"
+		return BOT_GYM_FAIL
+	if(request.status == "on it" && world.time > request_made_at() + 20 SECONDS)
+		fail_reason = "took it, and said nothing about the budget"
+		return BOT_GYM_FAIL
+	return (request.status == "can't afford" && bot_transcript_said("credits")) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/chat/request/console/cargo_budget/release_run()
+	var/datum/bank_account/budget = SSeconomy.get_dep_account(ACCOUNT_CAR)
+	if(budget && !isnull(saved_balance))
+		budget.account_balance = saved_balance
+	return ..()

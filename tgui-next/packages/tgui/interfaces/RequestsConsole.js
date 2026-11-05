@@ -133,6 +133,11 @@ const Tracking = props => {
       <Box inline color="good">{'Done - ' + tracking.handler}</Box>
     );
   }
+  if (tracking.status === "can't afford") {
+    return (
+      <Box inline color="bad">{"Can't afford yet - " + tracking.handler}</Box>
+    );
+  }
   if (tracking.status === 'on it') {
     return (
       <Box inline color="average">{'On it - ' + tracking.handler}</Box>

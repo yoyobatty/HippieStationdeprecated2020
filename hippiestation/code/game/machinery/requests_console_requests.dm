@@ -41,7 +41,7 @@ GLOBAL_LIST_INIT(req_quick_requests, list(
 	/// "message", a quick request's name, or "crate"
 	var/kind = "message"
 	var/time
-	/// "new", "on it" or "done"
+	/// "new", "on it", "can't afford" (Cargo, over budget) or "done"
 	var/status = "new"
 	var/handler
 	var/handled_time

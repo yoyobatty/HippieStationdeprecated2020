@@ -133,6 +133,29 @@ GLOBAL_DATUM(bot_station_request_listener, /datum/bot_station_request_listener)
 			return
 	addtimer(CALLBACK(src, PROC_REF(check_station_request_done), R, give_up_at), 5 SECONDS)
 
+/// A crate the budget doesn't cover: says so to whoever asked, on the channel they asked over, and the console's request reads "can't
+/// afford" until it's ordered. It used to be put to one side without a word: the user asked for a Supermatter Shard (10,000 credits) at
+/// the Chief Engineer's desk, and the cargo technician went for a snack. Whether the budget grows enough to order it is the cargo
+/// round's (bot_next_cargo_request(), goals/orders.dm).
+/datum/bot_request_kind/cargo_order/attend(datum/bot_brain/bot, datum/bot_request/R)
+	. = ..()
+	var/datum/supply_pack/P = SSshuttle.supply_packs[R.detail]
+	var/datum/bank_account/budget = SSeconomy.get_dep_account(ACCOUNT_CAR)
+	if(!P || !budget || P.cost <= budget.account_balance)
+		return
+	bot_log(bot, "can't afford [P.name] ([P.cost] credits, [budget.account_balance] in the budget)")
+	if(R.station_request && R.station_request.status != "done")
+		R.station_request.set_status("can't afford", bot.station_request_name())
+
+/// The answer to an order: the budget, when it doesn't cover it, in place of "on it - ordering now"
+/datum/bot_request_kind/cargo_order/ack_for(datum/bot_brain/bot, datum/bot_request/R)
+	var/datum/supply_pack/P = SSshuttle.supply_packs[R.detail]
+	var/datum/bank_account/budget = SSeconomy.get_dep_account(ACCOUNT_CAR)
+	if(!P || !budget || P.cost <= budget.account_balance)
+		return ..()
+	var/mob/living/asker = R.caller_ref?.resolve()
+	return "[asker ? "[asker.first_name()], the" : "The"] [lowertext(P.name)] is [P.cost] credits and Cargo's got [budget.account_balance]. I'll put it in once we can afford it."
+
 /// The crate a request asked for has been ordered (goals/cargo.dm): the request the console made comes off the cargo console's
 /// list, where it would otherwise wait to be ordered a second time
 /proc/bot_station_request_ordered(datum/bot_request/asked, datum/supply_order/order, datum/bot_brain/bot)
