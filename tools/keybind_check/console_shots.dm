@@ -175,6 +175,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_msgmon(C, H, label)
 		if("tcmachine")
 			cs_tcmachine(C, H, label)
+		if("robotics")
+			cs_robotics(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -2408,3 +2410,63 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	H.dropItemToGround(tool)
 	cs_act(R, H, "toggle")
 	cs_check("nothing without a multitool in hand", !R.toggled)
+
+// The robotics control console
+
+/proc/cs_robotics(client/C, mob/living/carbon/human/H, label)
+	var/obj/machinery/computer/robotics/M = new(cs_open_beside(H))
+	M.stat &= ~(NOPOWER|BROKEN)
+	var/obj/item/card/id/card = H.get_idcard()
+	if(!card)
+		card = new /obj/item/card/id(H.loc) // in hand: the ID slot holds an empty PDA
+		H.put_in_active_hand(card)
+	card.access |= ACCESS_ROBOTICS
+	var/mob/living/silicon/robot/R = new(get_turf(H))
+	R.name = "Cyborg-Test"
+	var/mob/living/simple_animal/drone/D = new(get_turf(H))
+	D.name = "Drone (Test)"
+	usr = H
+	M.interact(H)
+	if(!hascall(M, "ui_data") || !cs_find_ui(H, M))
+		sleep(20)
+		winset(C, "computer", "pos=200,40")
+		sleep(20)
+		cs_shot("popup_robotics_[label]_0_units")
+		H << browse(null, "window=computer")
+		return
+	var/datum/tgui/ui = cs_find_ui(H, M)
+	winset(C, ui.window_id, "pos=200,40")
+	sleep(10)
+	cs_shot("popup_robotics_[label]_0_units", "Robotics Control Console")
+	var/list/free = list() // the station's own (an AI shell) may be listed before ours: whichever is first
+	for(var/mob/living/silicon/robot/other in GLOB.silicon_mobs)
+		if(!other.lockcharge)
+			free += other
+	cs_tgui_do(C, ui.window_id, "clickexact:Lockdown")
+	sleep(5)
+	var/locked_any = FALSE
+	for(var/mob/living/silicon/robot/other in free)
+		if(other.lockcharge)
+			locked_any = TRUE
+	cs_check("one click on Lockdown only asks", !locked_any)
+	cs_shot("popup_robotics_[label]_1_sure", "Robotics Control Console")
+	cs_tgui_do(C, ui.window_id, "clickexact:Lockdown? Sure")
+	sleep(10)
+	for(var/mob/living/silicon/robot/other in free)
+		if(other.lockcharge)
+			R = other
+	cs_check("the second locks the cyborg down", R.lockcharge, R.name)
+	SStgui.update_uis(M)
+	sleep(10)
+	cs_tgui_do(C, ui.window_id, "clickexact:Release")
+	sleep(3)
+	cs_tgui_do(C, ui.window_id, "clickexact:Release? Sure")
+	sleep(10)
+	cs_check("Release, twice, lets it go", !R.lockcharge)
+	cs_act(M, H, "destroy_drone", list("ref" = REF(D)))
+	sleep(5)
+	cs_check("a drone can be destroyed", QDELETED(D) || D.stat == DEAD)
+	card.access -= ACCESS_ROBOTICS
+	cs_act(M, H, "lockdown", list("ref" = REF(R)))
+	cs_check("no lockdown without robotics access", !R.lockcharge)
+	SStgui.close_user_uis(H)

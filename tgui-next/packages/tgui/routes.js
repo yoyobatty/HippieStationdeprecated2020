@@ -79,6 +79,7 @@ import { PowerMonitor } from './interfaces/PowerMonitor';
 import { Radio } from './interfaces/Radio';
 import { RapidPipeDispenser } from './interfaces/RapidPipeDispenser';
 import { RequestsConsole } from './interfaces/RequestsConsole';
+import { RoboticsConsole } from './interfaces/RoboticsConsole';
 import { SatelliteControl } from './interfaces/SatelliteControl';
 import { ScannerGate } from './interfaces/ScannerGate';
 import { ShuttleManipulator } from './interfaces/ShuttleManipulator';
@@ -265,6 +266,10 @@ const ROUTES = {
   },
   requests_console: {
     component: () => RequestsConsole,
+    scrollable: true,
+  },
+  robotics_console: {
+    component: () => RoboticsConsole,
     scrollable: true,
   },
   security_records: {
