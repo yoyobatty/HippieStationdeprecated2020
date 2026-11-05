@@ -127,6 +127,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_strip(C, H, label)
 		if("apc")
 			cs_apc(C, H, label)
+		if("pa")
+			cs_pa(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -933,4 +935,84 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	sleep(10)
 	var/last_entry = length(console.logs) ? console.logs[length(console.logs)] : ""
 	cs_check("clicking Log in logs in, under their name (the old window put NULL OPERATOR)", console.authenticated && findtext(last_entry, H.real_name) && findtext(last_entry, "logged in"), last_entry)
+	SStgui.close_user_uis(H)
+
+// The particle accelerator's control console
+
+/proc/cs_pa(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/engineer)
+	var/obj/machinery/particle_accelerator/control_box/CB
+	for(var/obj/machinery/particle_accelerator/control_box/box in GLOB.machines)
+		if(is_station_level(box.z))
+			CB = box
+			break
+	cs_check("the station has an accelerator", CB)
+	if(!CB)
+		return
+	// Bolted down, wired and closed up, as engineers leave it
+	for(var/obj/structure/particle_accelerator/part in range(4, CB))
+		part.construction_state = 3
+		part.anchored = TRUE
+		part.update_icon()
+	CB.construction_state = 3
+	CB.anchored = TRUE
+	CB.stat &= ~(NOPOWER|BROKEN)
+	CB.use_power = IDLE_POWER_USE
+	cs_check("all its parts are there", CB.part_scan())
+	CB.assembled = FALSE
+	CB.connected_parts.Cut()
+	CB.update_icon()
+	H.forceMove(cs_open_beside(CB))
+	usr = H
+	CB.interact(H)
+	sleep(3 SECONDS)
+	var/datum/tgui/ui = cs_find_ui(H, CB)
+	if(!ui)
+		// The old window
+		winset(C, "pacontrol", "pos=200,40")
+		sleep(10)
+		cs_shot("popup_pa_[label]_1_unscanned")
+		usr = H
+		CB.Topic(null, list("scan" = "1"))
+		CB.Topic(null, list("togglep" = "1"))
+		CB.Topic(null, list("strengthup" = "1"))
+		sleep(10)
+		cs_shot("popup_pa_[label]_2_running")
+		CB.Topic(null, list("togglep" = "1"))
+		H << browse(null, "window=pacontrol")
+		return
+	winset(C, ui.window_id, "pos=200,40")
+	sleep(10)
+	cs_shot("popup_pa_[label]_1_unscanned", CB.name)
+	cs_act(CB, H, "power")
+	cs_check("it won't switch on before a scan finds the parts", !CB.active)
+	// Clicked in the window
+	cs_tgui_do(C, ui.window_id, "click:Run scan")
+	sleep(10)
+	cs_check("clicking Run scan finds the parts", CB.assembled)
+	cs_tgui_do(C, ui.window_id, "click:Off")
+	sleep(10)
+	cs_check("clicking Off switches it on", CB.active)
+	cs_tgui_do(C, ui.window_id, "click:+")
+	sleep(10)
+	cs_tgui_do(C, ui.window_id, "click:+")
+	sleep(10)
+	cs_check("clicking + twice takes it to 2", CB.strength == 2, "strength [CB.strength]")
+	cs_tgui_do(C, ui.window_id, "click:+")
+	sleep(10)
+	cs_check("and no further", CB.strength == 2, "strength [CB.strength]")
+	cs_shot("popup_pa_[label]_2_running", CB.name)
+	cs_tgui_do(C, ui.window_id, "click:-")
+	sleep(10)
+	cs_check("clicking - turns it down", CB.strength == 1, "strength [CB.strength]")
+	// The wires still have their say: a cut interface wire times the window out
+	CB.wires.cut(WIRE_INTERFACE)
+	cs_tgui_do(C, ui.window_id, "click:On")
+	sleep(10)
+	cs_check("with the interface wire cut, clicking On does nothing", CB.active)
+	CB.wires.cut(WIRE_INTERFACE) // mended; it takes a pulse to bring the interface back, as it always has
+	CB.wires.pulse(WIRE_INTERFACE)
+	cs_tgui_do(C, ui.window_id, "click:On")
+	sleep(10)
+	cs_check("mended and pulsed, clicking On switches it off", !CB.active)
 	SStgui.close_user_uis(H)

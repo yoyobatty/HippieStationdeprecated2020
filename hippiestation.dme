@@ -3743,6 +3743,7 @@
 #include "hippiestation\code\modules\power\singularity_pull.dm"
 #include "hippiestation\code\modules\power\solar.dm"
 #include "hippiestation\code\modules\power\tesla_examine.dm"
+#include "hippiestation\code\modules\power\singularity\particle_control_tgui.dm"
 #include "hippiestation\code\modules\power\supermatter\supermatter.dm"
 #include "hippiestation\code\modules\procedural_mapping\mapGenerators\christmas.dm"
 #include "hippiestation\code\modules\projectiles\gun.dm"

@@ -46,6 +46,7 @@ import { KeycardAuth } from './interfaces/KeycardAuth';
 import { LanguageMenu } from './interfaces/LanguageMenu';
 import { MechBayPowerConsole } from './interfaces/MechBayPowerConsole';
 import { MedicalKiosk } from './interfaces/MedicalKiosk';
+import { ParticleAccelerator } from './interfaces/ParticleAccelerator';
 import { MedicalRecords, SecurityRecords } from './interfaces/RecordsConsole';
 import { Mint } from './interfaces/Mint';
 import { NaniteChamberControl } from './interfaces/NaniteChamberControl';
@@ -199,6 +200,10 @@ const ROUTES = {
   },
   chem_press: {
     component: () => ChemPress,
+    scrollable: false,
+  },
+  particle_accelerator: {
+    component: () => ParticleAccelerator,
     scrollable: false,
   },
   reaction_chamber: {

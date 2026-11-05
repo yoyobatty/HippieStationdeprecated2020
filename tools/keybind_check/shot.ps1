@@ -27,7 +27,10 @@ public class WindowShot {
 			uint owner; GetWindowThreadProcessId(h, out owner);
 			RECT r; GetWindowRect(h, out r);
 			int w = r.r - r.l, ht = r.b - r.t;
-			if (owner != pid || h == main || !IsWindowVisible(h) || w <= 300 || w >= 1400 || ht <= 300) return true;
+			if (owner != pid || h == main || !IsWindowVisible(h)) return true;
+			// Untitled, only window-sized ones (the PA console's is 230 high). tgui windows have no caption, so they're found this
+			// way; a title only picks out the old HTML windows
+			if (title == "" && (w <= 300 || w >= 1400 || ht <= 150)) return true;
 			if (title != "") {
 				var s = new System.Text.StringBuilder(256); GetWindowText(h, s, 256);
 				if (!string.Equals(s.ToString().Trim(), title, StringComparison.OrdinalIgnoreCase)) return true;
