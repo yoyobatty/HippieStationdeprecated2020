@@ -171,6 +171,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_plantdna(C, H, label)
 		if("pda")
 			cs_pda(C, H, label)
+		if("msgmon")
+			cs_msgmon(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -2239,3 +2241,93 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	cs_check("Return there comes back here", P.mode == 0 && cs_find_ui(H, P))
 	SStgui.close_user_uis(H)
 	H << browse(null, "window=pda")
+
+// The message monitor console
+
+/proc/cs_msgmon(client/C, mob/living/carbon/human/H, label)
+	var/obj/machinery/computer/message_monitor/M = new(cs_open_beside(H))
+	M.stat &= ~(NOPOWER|BROKEN)
+	var/obj/machinery/telecomms/message_server/server = M.linkedServer
+	if(!server)
+		cs_check("there's a message server to link to", FALSE)
+		return
+	var/key = server.decryptkey
+	var/obj/item/pda/P1 = new(H.loc)
+	P1.owner = "Sam Sender"
+	P1.ownjob = "Cook"
+	var/obj/item/pda/P2 = new(H.loc)
+	P2.owner = "Robin Reader"
+	P2.ownjob = "Botanist"
+	call(P1, "send_message")(H, list(P2), FALSE, "Lunch is ready")
+	if(!hascall(M, "msgmon_server_down"))
+		// The old window, logged in on its logs
+		M.auth = TRUE
+		M.screen = 1
+		usr = H
+		M.interact(H)
+		sleep(20)
+		winset(C, "hologram_console", "pos=200,40")
+		sleep(10)
+		cs_shot("popup_msgmon_[label]_1_logs")
+		H << browse(null, "window=hologram_console")
+		return
+	usr = H
+	M.interact(H)
+	var/datum/tgui/ui = cs_find_ui(H, M)
+	if(!ui)
+		cs_check("the window opens", FALSE)
+		return
+	winset(C, ui.window_id, "pos=200,40")
+	sleep(10)
+	cs_shot("popup_msgmon_[label]_0_locked", M.name)
+	cs_tgui_do(C, ui.window_id, "input0:not the key")
+	sleep(3)
+	cs_tgui_do(C, ui.window_id, "clickexact:Log in")
+	sleep(10)
+	cs_check("a wrong key doesn't log in", !M.auth)
+	cs_tgui_do(C, ui.window_id, "input0:[key]")
+	sleep(3)
+	cs_tgui_do(C, ui.window_id, "clickexact:Log in")
+	cs_wait_until(M, "auth", TRUE)
+	cs_check("the server's key, typed in, does", M.auth)
+	sleep(5)
+	cs_tgui_do(C, ui.window_id, "clickexact:Messages")
+	cs_wait_until(M, "screen", 1)
+	sleep(10)
+	var/datum/data_pda_msg/logged
+	for(var/datum/data_pda_msg/L in server.pda_msgs)
+		if(L.message == "Lunch is ready")
+			logged = L
+	cs_check("the Messages tab shows the logs, with the message sent", M.screen == 1 && logged)
+	cs_shot("popup_msgmon_[label]_1_logs", M.name)
+	if(logged)
+		cs_act(M, H, "delete_log", list("ref" = REF(logged)))
+		cs_check("a log can be deleted", !(logged in server.pda_msgs))
+	SStgui.update_uis(M)
+	sleep(5)
+	cs_tgui_do(C, ui.window_id, "clickexact:Send a message")
+	cs_wait_until(M, "screen", 3)
+	sleep(5)
+	cs_tgui_do(C, ui.window_id, "type0:Captain Fake")
+	cs_tgui_do(C, ui.window_id, "type2:Report to the bridge")
+	cs_act(M, H, "custom", list("field" = "recipient", "value" = REF(P2)))
+	SStgui.update_uis(M)
+	sleep(10)
+	cs_shot("popup_msgmon_[label]_2_custom", M.name)
+	cs_tgui_do(C, ui.window_id, "clickexact:Send")
+	sleep(10)
+	cs_check("a message sent as somebody else reaches the PDA in their name", findtext(P2.tnote, "Report to the bridge") && findtext(P2.tnote, "Captain Fake"), M.customsender)
+	cs_tgui_do(C, ui.window_id, "clickexact:Key")
+	cs_wait_until(M, "screen", 0)
+	sleep(5)
+	cs_tgui_do(C, ui.window_id, "input0:[key]")
+	cs_tgui_do(C, ui.window_id, "input1:newkey42")
+	sleep(3)
+	cs_tgui_do(C, ui.window_id, "clickexact:Set key")
+	sleep(10)
+	cs_check("the key changes with the old one", server.decryptkey == "newkey42")
+	server.decryptkey = key
+	cs_tgui_do(C, ui.window_id, "clickexact:Log out")
+	cs_wait_until(M, "auth", FALSE)
+	cs_check("Log out", !M.auth)
+	SStgui.close_user_uis(H)
