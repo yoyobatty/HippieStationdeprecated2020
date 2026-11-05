@@ -181,6 +181,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_tcmachine(C, H, label)
 		if("robotics")
 			cs_robotics(C, H, label)
+		if("exofab")
+			cs_exofab(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -2641,4 +2643,93 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	card.access -= ACCESS_ROBOTICS
 	cs_act(M, H, "lockdown", list("ref" = REF(R)))
 	cs_check("no lockdown without robotics access", !R.lockcharge)
+	SStgui.close_user_uis(H)
+
+// The exosuit fabricator
+
+/proc/cs_exofab(client/C, mob/living/carbon/human/H, label)
+	var/obj/item/card/id/card = H.get_idcard()
+	if(!card)
+		card = new /obj/item/card/id(H.loc) // in hand: the ID slot holds an empty PDA
+		H.put_in_active_hand(card)
+	card.access |= ACCESS_ROBOTICS
+	var/obj/machinery/mecha_part_fabricator/F = new(cs_open_beside(H))
+	F.stat &= ~(NOPOWER|BROKEN)
+	F.setDir(get_dir(F, H)) //its outlet clear
+	var/datum/component/material_container/M = F.rmat.mat_container
+	M.insert_amount(40 * MINERAL_MATERIAL_AMOUNT, MAT_METAL)
+	M.insert_amount(20 * MINERAL_MATERIAL_AMOUNT, MAT_GLASS)
+	M.insert_amount(3 * MINERAL_MATERIAL_AMOUNT, MAT_SILVER)
+	var/list/cyborg = list()
+	for(var/id in F.stored_research.researched_designs)
+		var/datum/design/D = SSresearch.techweb_design_by_id(id)
+		if(D && (D.build_type & MECHFAB) && ("Cyborg" in D.category))
+			cyborg += id
+	usr = H
+	F.interact(H)
+	if(!hascall(F, "fab_design"))
+		// The old window, on the same screens
+		sleep(20)
+		winset(C, "mecha_fabricator", "pos=100,40")
+		sleep(10)
+		cs_shot("popup_exofab_[label]_0_main")
+		usr = H
+		F.Topic(null, list("part_set" = "Cyborg"))
+		usr = H
+		F.Topic(null, list("add_to_queue" = cyborg[1]))
+		usr = H
+		F.Topic(null, list("add_to_queue" = cyborg[2]))
+		sleep(15)
+		cs_shot("popup_exofab_[label]_1_cyborg")
+		H << browse(null, "window=mecha_fabricator")
+		return
+	var/datum/tgui/ui = cs_find_ui(H, F)
+	if(!ui)
+		cs_check("the window opens", FALSE)
+		return
+	winset(C, ui.window_id, "pos=100,40")
+	sleep(10)
+	cs_shot("popup_exofab_[label]_0_main", F.name)
+	cs_tgui_do(C, ui.window_id, "clickexact:Queue")
+	sleep(5)
+	cs_check("Queue puts a part in the queue", length(F.queue) == 1, "[length(F.queue)] queued")
+	cs_tgui_do(C, ui.window_id, "click:Queue all")
+	sleep(5)
+	cs_check("Queue all puts the whole set in", length(F.queue) == 1 + length(cyborg), "[length(F.queue)] queued, [length(cyborg)] in the set")
+	var/datum/design/second = F.queue[2]
+	cs_act(F, H, "queue_move", list("index" = 2, "by" = -1))
+	cs_check("a part moves up the queue", F.queue[1] == second)
+	cs_act(F, H, "queue_move", list("index" = 1, "by" = -1))
+	cs_check("nothing moves above the top", F.queue[1] == second)
+	cs_act(F, H, "queue_remove", list("index" = 1))
+	cs_check("a part comes out of the queue", length(F.queue) == length(cyborg))
+	cs_act(F, H, "queue", list("id" = "not_a_design"))
+	cs_act(F, H, "build", list("id" = "ripley_chassis_not"))
+	cs_check("nothing for a design it hasn't got", length(F.queue) == length(cyborg) && !F.being_built)
+	SStgui.update_uis(F)
+	sleep(10)
+	cs_shot("popup_exofab_[label]_1_queue", F.name)
+	var/metal = M.materials[MAT_METAL].amount
+	cs_tgui_do(C, ui.window_id, "clickexact:Build")
+	sleep(10)
+	cs_check("Build starts the part", !!F.being_built, "[F.being_built]")
+	SStgui.update_uis(F)
+	sleep(10)
+	cs_shot("popup_exofab_[label]_2_building", F.name)
+	cs_check("it takes the materials", M.materials[MAT_METAL].amount < metal)
+	var/glass = M.materials[MAT_GLASS].amount
+	cs_act(F, H, "eject", list("mat" = MAT_GLASS, "amount" = 1))
+	cs_check("Eject 1 gives a sheet of glass", M.materials[MAT_GLASS].amount == glass - MINERAL_MATERIAL_AMOUNT && (locate(/obj/item/stack/sheet/glass) in F.drop_location()))
+	cs_act(F, H, "eject", list("mat" = "$nothing", "amount" = 5))
+	cs_tgui_do(C, ui.window_id, "input0:leg")
+	sleep(10)
+	cs_shot("popup_exofab_[label]_3_search", F.name)
+	var/deadline = world.time + 75 SECONDS //the endoskeleton takes 50
+	while(F.being_built && world.time < deadline)
+		sleep(5)
+	cs_tgui_do(C, ui.window_id, "click:Process queue")
+	sleep(10)
+	cs_check("Process queue starts on the queue", F.processing_queue && !!F.being_built)
+	cs_act(F, H, "queue_clear")
+	cs_check("Clear empties the queue", !length(F.queue))
 	SStgui.close_user_uis(H)

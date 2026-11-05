@@ -157,6 +157,8 @@
 	add_overlay("fab-active")
 	use_power = ACTIVE_POWER_USE
 	updateUsrDialog()
+	build_length = get_construction_time_w_coeff(D) //hippie - the window's bar (mech_fabricator_tgui.dm)
+	build_finish = world.time + build_length //hippie
 	sleep(get_construction_time_w_coeff(D))
 	use_power = IDLE_POWER_USE
 	cut_overlay("fab-active")

@@ -38,6 +38,7 @@ import { DisposalUnit } from './interfaces/DisposalUnit';
 import { DnaConsole } from './interfaces/DnaConsole';
 import { DnaVault } from './interfaces/DnaVault';
 import { EngravedMessage } from './interfaces/EngravedMessage';
+import { ExosuitFabricator } from './interfaces/ExosuitFabricator';
 import { Gps } from './interfaces/Gps';
 import { GravityGenerator } from './interfaces/GravityGenerator';
 import { GulagItemReclaimer } from './interfaces/GulagItemReclaimer';
@@ -223,6 +224,10 @@ const ROUTES = {
   dna_console: {
     component: () => DnaConsole,
     scrollable: true,
+  },
+  exosuit_fabricator: {
+    component: () => ExosuitFabricator,
+    scrollable: false,
   },
   message_monitor: {
     component: () => MessageMonitor,
