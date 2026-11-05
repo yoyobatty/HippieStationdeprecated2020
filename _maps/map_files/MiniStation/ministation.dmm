@@ -1554,7 +1554,7 @@
 "DT" = (/obj/machinery/atmospherics/pipe/simple/supply/hidden/layer1{dir = 9},/turf/closed/wall/r_wall,/area/ai_monitored/turret_protected/aisat)
 "DU" = (/obj/machinery/telecomms/processor/preset_one/birdstation,/turf/open/floor/plasteel/dark/telecomms,/area/ai_monitored/turret_protected/aisat)
 "DV" = (/turf/open/floor/circuit/telecomms/mainframe,/area/ai_monitored/turret_protected/aisat)
-"DW" = (/obj/machinery/telecomms/message_server,/turf/open/floor/plasteel/dark/telecomms,/area/ai_monitored/turret_protected/aisat)
+"DW" = (/obj/machinery/telecomms/message_server/preset,/turf/open/floor/plasteel/dark/telecomms,/area/ai_monitored/turret_protected/aisat)
 "DX" = (/obj/structure/cable,/obj/machinery/power/apc/highcap/five_k{dir = 8; pixel_x = -24},/turf/open/floor/plasteel,/area/ai_monitored/turret_protected/aisat)
 "DY" = (/obj/structure/cable,/obj/machinery/atmospherics/components/unary/vent_pump/on/layer1{dir = 1},/turf/open/floor/plasteel,/area/ai_monitored/turret_protected/aisat)
 "DZ" = (/obj/structure/cable,/turf/open/floor/plasteel,/area/ai_monitored/turret_protected/aisat)
