@@ -51,6 +51,7 @@ import { MedicalKiosk } from './interfaces/MedicalKiosk';
 import { MiningVendor } from './interfaces/MiningVendor';
 import { Newscaster } from './interfaces/Newscaster';
 import { ParticleAccelerator } from './interfaces/ParticleAccelerator';
+import { Pda } from './interfaces/Pda';
 import { PipeDispenser } from './interfaces/PipeDispenser';
 import { PlantDnaManipulator } from './interfaces/PlantDnaManipulator';
 import { MedicalRecords, SecurityRecords } from './interfaces/RecordsConsole';
@@ -231,6 +232,10 @@ const ROUTES = {
   particle_accelerator: {
     component: () => ParticleAccelerator,
     scrollable: false,
+  },
+  pda: {
+    component: () => Pda,
+    scrollable: true,
   },
   pipe_dispenser: {
     component: () => PipeDispenser,

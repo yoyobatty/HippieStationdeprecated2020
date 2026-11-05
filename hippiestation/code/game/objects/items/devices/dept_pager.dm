@@ -194,6 +194,7 @@
 /obj/item/pda/proc/receive_page(datum/signal/subspace/messaging/pda/signal)
 	var/sender = "[signal.data["name"]] ([signal.data["job"]])"
 	tnote += "<i><b>&larr; PAGE to [signal.data["page_department"]] from [sender], at [signal.data["page_location"]]:</b></i><br>[signal.format_message()]<br>"
+	pda_log_received(signal, TRUE) //the messenger's threads (PDA/pda_tgui.dm)
 	if(!silent)
 		playsound(src, 'sound/machines/triple_beep.ogg', 60, TRUE)
 		audible_message("[icon2html(src, hearers(src))] *PAGE*", null, 4)

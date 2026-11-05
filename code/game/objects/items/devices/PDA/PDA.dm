@@ -671,8 +671,8 @@ GLOBAL_LIST_EMPTY(PDAs)
 		t = Gibberish(t, 100)
 	return t
 
-/obj/item/pda/proc/send_message(mob/living/user, list/obj/item/pda/targets, everyone)
-	var/message = msg_input(user)
+/obj/item/pda/proc/send_message(mob/living/user, list/obj/item/pda/targets, everyone, typed)
+	var/message = typed ? pda_typed_message(user, typed) : msg_input(user) //hippie: typed into the messenger window (pda_tgui.dm)
 	if(!message || !targets.len)
 		return
 	if((last_text && world.time < last_text + 10) || (everyone && last_everyone && world.time < last_everyone + PDA_SPAM_DELAY))
@@ -711,6 +711,7 @@ GLOBAL_LIST_EMPTY(PDAs)
 	var/target_text = signal.format_target()
 	// Log it in our logs
 	tnote += "<i><b>&rarr; To [target_text]:</b></i><br>[signal.format_message()]<br>"
+	pda_log_sent(targets, message, everyone) //hippie: the messenger's threads (pda_tgui.dm)
 	// Show it to ghosts
 	var/ghost_message = "<span class='name'>[owner] </span><span class='game say'>PDA Message</span> --> <span class='name'>[target_text]</span>: <span class='message'>[signal.format_message()]</span>"
 	for(var/mob/M in GLOB.player_list)
@@ -730,6 +731,7 @@ GLOBAL_LIST_EMPTY(PDAs)
 		receive_page(signal)
 		return
 	tnote += "<i><b>&larr; From <a href='byond://?src=[REF(src)];choice=Message;target=[REF(signal.source)]'>[signal.data["name"]]</a> ([signal.data["job"]]):</b></i><br>[signal.format_message()]<br>"
+	pda_log_received(signal) //hippie: the messenger's threads (pda_tgui.dm)
 
 	if (!silent)
 		playsound(src, 'sound/machines/twobeep_high.ogg', 50, 1)
