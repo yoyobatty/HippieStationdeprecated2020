@@ -25,6 +25,8 @@
 	var/list/add_overlays // a very temporary list of overlays to add
 
 	var/list/managed_vis_overlays //vis overlays managed by SSvis_overlays to automaticaly turn them like other overlays
+	/// hippie -- how many of those SSvis_overlays turns by hand when we turn (the rest face our way by themselves)
+	var/tmp/vis_overlays_turned = 0
 
 	var/datum/proximity_monitor/proximity_monitor
 	var/buckle_message_cooldown = 0

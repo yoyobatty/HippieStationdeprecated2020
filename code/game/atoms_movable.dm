@@ -66,12 +66,12 @@
 	if(blocks_emissive != EMISSIVE_BLOCK_GENERIC)
 		return
 	if(length(managed_vis_overlays))
-		for(var/a in managed_vis_overlays)
-			var/obj/effect/overlay/vis/vs
+		for(var/obj/effect/overlay/vis/vs in managed_vis_overlays) // hippie -- vs was never set from the loop: null.plane
 			if(vs.plane == EMISSIVE_BLOCKER_PLANE)
 				SSvis_overlays.remove_vis_overlay(src, list(vs))
 				break
-	SSvis_overlays.add_vis_overlay(src, icon, icon_state, EMISSIVE_BLOCKER_LAYER, EMISSIVE_BLOCKER_PLANE, dir)
+	// hippie -- faces the way we do by itself (VIS_INHERIT_DIR), instead of being swapped for a turned copy every time we turn
+	SSvis_overlays.add_vis_overlay(src, icon, icon_state, EMISSIVE_BLOCKER_LAYER, EMISSIVE_BLOCKER_PLANE, dir, inherit_dir = TRUE)
 
 /atom/movable/proc/can_zFall(turf/source, levels = 1, turf/target, direction)
 	if(!direction)
