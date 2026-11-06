@@ -12,13 +12,13 @@ import { TemperatureScale } from './ThermoMachine';
 const WORKING = {
   heat: { color: 'orange', icon: 'fire-alt', text: 'Heating' },
   cool: { color: 'blue', icon: 'snowflake', text: 'Cooling' },
-  standby: { color: 'label', icon: 'pause', text: 'Waiting' },
+  standby: { color: 'label', icon: 'pause', text: 'Standby' },
 };
 
 const MODES = [
   ['auto', 'thermometer-half', 'Auto'],
-  ['heat', 'fire-alt', 'Heat only'],
-  ['cool', 'snowflake', 'Cool only'],
+  ['heat', 'fire-alt', 'Heat'],
+  ['cool', 'snowflake', 'Cool'],
 ];
 
 export const SpaceHeater = props => {
@@ -45,7 +45,7 @@ export const SpaceHeater = props => {
             {known ? current + ' °C' : 'N/A'}
           </Box>
           <Box inline ml={1} color="label">
-            in the room, target {target} °C
+            Target {target} °C
           </Box>
           <Button
             style={{ float: 'right' }}
@@ -76,7 +76,6 @@ export const SpaceHeater = props => {
             icon="eject"
             content="Eject"
             disabled={!data.hasPowercell || !data.open}
-            title={data.open ? null : 'Open the panel first'}
             onClick={() => act('eject')} />
         )}>
         {data.hasPowercell && (
@@ -90,17 +89,14 @@ export const SpaceHeater = props => {
             {data.powerLevel}%
           </ProgressBar>
         ) || (
-          <Box color="bad">
-            No cell installed. Open the panel and put one in to run it.
-          </Box>
+          <Box color="bad">No cell</Box>
         )}
       </Section>
       <Section title="Thermostat">
         {!data.open && (
           <Box color="label" mb={1}>
             <Icon name="lock" mr={1} />
-            Open the maintenance panel (screwdriver) to change the mode or
-            the target.
+            Panel closed
           </Box>
         )}
         <Box mb={1}>

@@ -35,16 +35,15 @@ export const Canister = props => {
           <Box
             inline
             style={{ float: 'right' }}
-            color={data.portConnected ? 'good' : 'label'}>
+            color={data.portConnected ? 'good' : 'average'}>
             <Icon name="plug" mr={1} />
-            {data.portConnected ? 'On a port' : 'Not on a port'}
+            {data.portConnected ? 'Connected' : 'Not Connected'}
           </Box>
         </Box>
         <ProgressBar
           value={data.tankPressure / (data.maxPressure || 9000)}
           color="teal">
           {Math.round(data.tankPressure / (data.maxPressure || 9000) * 100)}%
-          {' full'}
         </ProgressBar>
         <Box mt={1}>
           <GasBar gases={data.gases} />
@@ -72,13 +71,11 @@ export const Canister = props => {
             || data.valveOpen && 'caution'
             || 'default'}
           content={data.valveOpen
-            ? (tank
-              ? 'Open: filling ' + tank.name
-              : 'Open: releasing into the room')
+            ? 'Open → ' + (tank ? 'Holding Tank' : 'Environment')
             : 'Closed'}
           onClick={() => act('valve')} />
         <LabeledList>
-          <LabeledList.Item label="Release pressure">
+          <LabeledList.Item label="Release Pressure">
             <NumberInput
               width="90px"
               unit="kPa"
@@ -107,7 +104,7 @@ export const Canister = props => {
         </LabeledList>
       </Section>
       <Section
-        title="Tank in the regulator"
+        title="Holding Tank"
         buttons={!!tank && (
           <Button
             icon="eject"
@@ -129,10 +126,7 @@ export const Canister = props => {
             </Box>
           </Fragment>
         ) || (
-          <Box color="label">
-            No tank inserted. Opening the valve releases the gas into the
-            room.
-          </Box>
+          <Box color="average">No Holding Tank</Box>
         )}
       </Section>
     </Fragment>

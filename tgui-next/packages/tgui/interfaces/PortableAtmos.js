@@ -18,7 +18,7 @@ const PowerSwitch = props => {
       fontSize="14px"
       icon="power-off"
       color={on ? 'good' : 'default'}
-      content={on ? 'Running' : 'Off'}
+      content={on ? 'On' : 'Off'}
       onClick={onClick} />
   );
 };
@@ -31,13 +31,12 @@ const Contents = props => {
         <Box inline fontSize="18px" bold mr={1}>
           <AnimatedNumber value={data.pressure} /> kPa
         </Box>
-        <Box inline color="label">inside</Box>
         <Box
           inline
           style={{ float: 'right' }}
-          color={data.connected ? 'good' : 'label'}>
+          color={data.connected ? 'good' : 'average'}>
           <Icon name="plug" mr={1} />
-          {data.connected ? 'On a port' : 'Not on a port'}
+          {data.connected ? 'Connected' : 'Not Connected'}
         </Box>
       </Box>
       <GasBar gases={data.gases} />
@@ -47,10 +46,10 @@ const Contents = props => {
 };
 
 const HoldingTank = props => {
-  const { act, holding, empty } = props;
+  const { act, holding } = props;
   return (
     <Section
-      title="Tank"
+      title="Holding Tank"
       buttons={(
         <Button
           icon="eject"
@@ -72,7 +71,7 @@ const HoldingTank = props => {
           </Box>
         </Fragment>
       ) || (
-        <Box color="label">{empty}</Box>
+        <Box color="average">No holding tank</Box>
       )}
     </Section>
   );
@@ -91,11 +90,11 @@ export const PortablePump = props => {
   // pump.dm: "out" moves the pump's gas to the room, or with a tank in,
   // the tank's gas into the pump; "in" the other way round
   const from = direction
-    ? (holding ? 'the pump' : 'the room')
-    : (holding ? 'the tank' : 'the pump');
+    ? (holding ? 'Pump' : 'Environment')
+    : (holding ? 'Tank' : 'Pump');
   const to = direction
-    ? (holding ? 'the tank' : 'the pump')
-    : (holding ? 'the pump' : 'the room');
+    ? (holding ? 'Tank' : 'Pump')
+    : (holding ? 'Pump' : 'Environment');
   return (
     <Fragment>
       <Section>
@@ -104,7 +103,7 @@ export const PortablePump = props => {
           <Contents data={data} />
         </Box>
       </Section>
-      <Section title="Pumping">
+      <Section title="Pump">
         <div className="Atmos__flow">
           <Box inline bold>{from}</Box>
           <Icon name="long-arrow-alt-right" mx={1} size={1.5}
@@ -117,7 +116,7 @@ export const PortablePump = props => {
             onClick={() => act('direction')} />
         </div>
         <Box mt={1}>
-          <Box inline color="label" mr={1}>Until</Box>
+          <Box inline color="label" mr={1}>Target</Box>
           <NumberInput
             value={target_pressure}
             unit="kPa"
@@ -146,8 +145,7 @@ export const PortablePump = props => {
       </Section>
       <HoldingTank
         act={act}
-        holding={holding}
-        empty="No tank inserted. It pumps between itself and the room." />
+        holding={holding} />
     </Fragment>
   );
 };
@@ -155,7 +153,6 @@ export const PortablePump = props => {
 export const PortableScrubber = props => {
   const { act, data } = useBackend(props);
   const filters = data.filter_types || [];
-  const enabled = filters.filter(filter => filter.enabled).length;
   return (
     <Fragment>
       <Section>
@@ -164,16 +161,14 @@ export const PortableScrubber = props => {
           <Contents data={data} />
         </Box>
       </Section>
-      <Section title={'Scrubbing ' + enabled + ' of ' + filters.length}>
+      <Section title="Filters">
         <FilterChips
           filters={filters}
           onToggle={gas_id => act('toggle_filter', { val: gas_id })} />
       </Section>
       <HoldingTank
         act={act}
-        holding={data.holding}
-        empty={'No tank inserted. What it filters out is stored inside'
-          + ' the scrubber.'} />
+        holding={data.holding} />
     </Fragment>
   );
 };

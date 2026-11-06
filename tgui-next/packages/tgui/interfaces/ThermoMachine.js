@@ -85,8 +85,8 @@ export const ThermoMachine = props => {
         <Box mb={1} color={data.on ? (cooling ? 'blue' : 'orange') : 'label'}>
           <Icon name={cooling ? 'snowflake' : 'fire-alt'} mr={1} />
           {!data.on && 'Off'
-            || reached && 'Holding at the target'
-            || (cooling ? 'Cooling' : 'Heating') + ' the pipe gas to '
+            || reached && 'At target'
+            || (cooling ? 'Cooling' : 'Heating') + ' → '
               + Math.round(data.target) + ' K'}
         </Box>
         <TemperatureScale
@@ -121,7 +121,7 @@ export const ThermoMachine = props => {
         <Box mt={1}>
           <Button
             icon="snowflake"
-            content={'Coldest (' + Math.round(data.min) + ' K)'}
+            content="Min"
             disabled={data.target === data.min}
             onClick={() => act('target', { target: data.min })} />
           <Button
@@ -134,7 +134,7 @@ export const ThermoMachine = props => {
             })} />
           <Button
             icon="fire-alt"
-            content={'Hottest (' + Math.round(data.max) + ' K)'}
+            content="Max"
             disabled={data.target === data.max}
             onClick={() => act('target', { target: data.max })} />
         </Box>

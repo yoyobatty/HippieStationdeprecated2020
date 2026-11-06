@@ -17,7 +17,7 @@ const DANGER = [
   { color: 'good', icon: 'check-circle', text: 'Optimal' },
   { color: 'average', icon: 'exclamation-circle', text: 'Caution' },
   { color: 'bad', icon: 'exclamation-triangle',
-    text: 'Danger: internals needed' },
+    text: 'Danger (Internals Required)' },
 ];
 
 const PANIC_MODE = 3;
@@ -50,9 +50,7 @@ export class AirAlarm extends Component {
               <Button
                 icon="exclamation-triangle"
                 color={data.mode === PANIC_MODE ? 'danger' : 'default'}
-                content={data.mode === PANIC_MODE
-                  ? 'Stop panic siphon'
-                  : 'Panic siphon'}
+                content="Panic Siphon"
                 onClick={() => act('mode', {
                   mode: data.mode === PANIC_MODE ? SCRUB_MODE : PANIC_MODE,
                 })} />
@@ -110,7 +108,7 @@ const AirStatus = props => {
   if (!entries.length) {
     return (
       <NoticeBox>
-        Cannot obtain an air sample for analysis.
+        Cannot obtain air sample for analysis.
       </NoticeBox>
     );
   }
@@ -123,9 +121,9 @@ const AirStatus = props => {
         </Box>
         <Box inline style={{ float: 'right' }}>
           <Box inline mr={1} color={alarm ? 'bad' : 'label'}>
-            {data.fire_alarm && 'Fire alarm'
-              || data.atmos_alarm && 'Area alarm on'
-              || 'No area alarm'}
+            {data.fire_alarm && 'Area: Fire Alarm'
+              || data.atmos_alarm && 'Area: Atmosphere Alarm'
+              || 'Area: Nominal'}
           </Box>
           <Button
             icon="bell"
@@ -156,7 +154,7 @@ const AirStatus = props => {
       {!!data.emagged && (
         <Box mt={1} color="bad">
           <Icon name="exclamation-triangle" mr={1} />
-          Safety measures offline. The device may behave abnormally.
+          Safety measures offline. Device may exhibit abnormal behavior.
         </Box>
       )}
     </Section>
@@ -168,7 +166,7 @@ const Vents = props => {
   const { data } = useBackend(props);
   const vents = data.vents || [];
   if (!vents.length) {
-    return <Box color="label">No vents are linked to this air alarm.</Box>;
+    return <Box color="label">No vents.</Box>;
   }
   return vents.map(vent => (
     <Vent key={vent.id_tag} state={state} vent={vent} />
@@ -188,12 +186,8 @@ const PressureCheck = props => {
           id_tag: vent.id_tag,
           val: vent.checks,
         })} />
-      {!checked && (
-        <Box inline color="label" ml={1}>not checked</Box>
-      )}
       {!!checked && (
         <Fragment>
-          <Box inline color="label" mx={1}>stop at</Box>
           <NumberInput
             value={Math.round(value)}
             unit="kPa"
@@ -236,17 +230,12 @@ const Vent = props => {
       </Box>
       <Box color={vent.power ? (pressurizing ? 'good' : 'average') : 'label'}>
         <Icon name={pressurizing ? 'sign-out-alt' : 'sign-in-alt'} mr={1} />
-        {pressurizing
-          ? 'Pushing air into the room'
-          : 'Pulling air out of the room'}
+        {pressurizing ? 'Pressurizing' : 'Siphoning'}
       </Box>
       <PressureCheck
         act={act}
         vent={vent}
-        label="Room pressure (external)"
-        title={pressurizing
-          ? 'Stops pushing air once the room reaches this pressure'
-          : 'Stops pulling air once the room drops to this pressure'}
+        label="External"
         checked={vent.excheck}
         checkAction="excheck"
         value={vent.external}
@@ -256,10 +245,7 @@ const Vent = props => {
       <PressureCheck
         act={act}
         vent={vent}
-        label="Pipe pressure (internal)"
-        title={pressurizing
-          ? 'Stops pushing air once the pipe behind it drops to this'
-          : 'Stops pulling air once the pipe behind it reaches this'}
+        label="Internal"
         checked={vent.incheck}
         checkAction="incheck"
         value={vent.internal}
@@ -275,9 +261,7 @@ const Scrubbers = props => {
   const { data } = useBackend(props);
   const scrubbers = data.scrubbers || [];
   if (!scrubbers.length) {
-    return (
-      <Box color="label">No scrubbers are linked to this air alarm.</Box>
-    );
+    return <Box color="label">No scrubbers.</Box>;
   }
   return scrubbers.map(scrubber => (
     <Scrubber key={scrubber.id_tag} state={state} scrubber={scrubber} />
@@ -335,7 +319,7 @@ const Scrubber = props => {
           })} />
         <Button.Checkbox
           checked={scrubber.widenet}
-          content="Wide range"
+          content="Expanded range"
           onClick={() => act('widenet', {
             id_tag,
             val: Number(!scrubber.widenet),
@@ -350,9 +334,7 @@ const Scrubber = props => {
               val: gas_id,
             })} />
         ) || (
-          <Box color="average">
-            Siphoning pulls in every gas, so the filters don&apos;t apply.
-          </Box>
+          <Box color="label">Filters: N/A</Box>
         )}
       </Box>
     </div>
@@ -386,55 +368,47 @@ const Modes = props => {
 };
 
 const LIMITS = [
-  ['min2', 'bad', 'Danger below'],
-  ['min1', 'average', 'Caution below'],
-  ['max1', 'average', 'Caution above'],
-  ['max2', 'bad', 'Danger above'],
+  ['min2', 'bad', 'min2'],
+  ['min1', 'average', 'min1'],
+  ['max1', 'average', 'max1'],
+  ['max2', 'bad', 'max2'],
 ];
 
 const Thresholds = props => {
   const { act, data } = useBackend(props);
   const thresholds = data.thresholds || [];
   return (
-    <Fragment>
-      <Box color="label" mb={1}>
-        A reading past a caution limit turns the alarm amber; past a danger
-        limit, red, and the area alarm goes off. Click a number to type a new
-        one, or drag it up or down. Set it below 0 to turn that limit off.
-        Gas limits are the gas&apos;s own pressure in kPa, not its share.
-      </Box>
-      <table className="Atmos__thresholds">
-        <tr>
-          <td />
-          {LIMITS.map(limit => (
-            <td key={limit[0]} className={'color-' + limit[1]}>
-              {limit[2]}
+    <table className="Atmos__thresholds">
+      <tr>
+        <td />
+        {LIMITS.map(limit => (
+          <td key={limit[0]} className={'color-' + limit[1]}>
+            {limit[2]}
+          </td>
+        ))}
+      </tr>
+      {thresholds.map(threshold => (
+        <tr key={threshold.name}>
+          <td className="color-label">{threshold.name}</td>
+          {threshold.settings.map(setting => (
+            <td key={setting.val}>
+              <NumberInput
+                width="70px"
+                value={setting.selected}
+                minValue={-1}
+                maxValue={100000}
+                step={1}
+                stepPixelSize={4}
+                format={value => (value < 0 ? 'off' : toFixed(value, 2))}
+                onChange={(e, value) => act('threshold_set', {
+                  env: setting.env,
+                  var: setting.val,
+                  value,
+                })} />
             </td>
           ))}
         </tr>
-        {thresholds.map(threshold => (
-          <tr key={threshold.name}>
-            <td className="color-label">{threshold.name}</td>
-            {threshold.settings.map(setting => (
-              <td key={setting.val}>
-                <NumberInput
-                  width="70px"
-                  value={setting.selected}
-                  minValue={-1}
-                  maxValue={100000}
-                  step={1}
-                  stepPixelSize={4}
-                  format={value => (value < 0 ? 'off' : toFixed(value, 2))}
-                  onChange={(e, value) => act('threshold_set', {
-                    env: setting.env,
-                    var: setting.val,
-                    value,
-                  })} />
-              </td>
-            ))}
-          </tr>
-        ))}
-      </table>
-    </Fragment>
+      ))}
+    </table>
   );
 };
