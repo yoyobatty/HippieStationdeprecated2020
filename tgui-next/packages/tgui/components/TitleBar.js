@@ -34,7 +34,7 @@ export const TitleBar = props => {
       <div
         className="TitleBar__dragZone"
         onMousedown={e => fancy && onDragStart(e)} />
-      {!!fancy && (
+      {!!fancy && !!onClose && (
         <div
           className="TitleBar__close TitleBar__clickable"
           // IE8: Synthetic onClick event doesn't work on IE8.

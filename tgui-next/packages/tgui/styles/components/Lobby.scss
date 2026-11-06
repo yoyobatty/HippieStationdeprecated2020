@@ -1,0 +1,79 @@
+// hippie -- the lobby and the late-join job list (interfaces/Lobby.js)
+
+.Lobby__row {
+  display: flex;
+  margin-top: 4px;
+}
+
+.Lobby__row > * {
+  flex: 1;
+  margin-left: 4px;
+}
+
+.Lobby__row > *:first-child {
+  margin-left: 0;
+}
+
+.Lobby__join {
+  font-size: 14px;
+  line-height: 28px;
+}
+
+.Lobby__header {
+  margin-bottom: 6px;
+  padding: 4px 6px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border-radius: 3px;
+}
+
+.Lobby__columns {
+  display: flex;
+  align-items: flex-start;
+}
+
+.Lobby__column {
+  flex: 1;
+  min-width: 0;
+  margin-left: 6px;
+}
+
+.Lobby__column:first-child {
+  margin-left: 0;
+}
+
+.Lobby__dept {
+  margin-bottom: 6px;
+  padding: 4px 6px 6px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left-width: 3px;
+  border-radius: 3px;
+}
+
+.Lobby__deptName {
+  margin-bottom: 4px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.Lobby__job {
+  margin-bottom: 2px;
+}
+
+.Lobby__job.Button--disabled {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.Lobby__job--command {
+  font-weight: bold;
+}
+
+.Lobby__job--priority {
+  color: #f2c94c;
+}
+
+.Lobby__slots {
+  float: right;
+  opacity: 0.7;
+}

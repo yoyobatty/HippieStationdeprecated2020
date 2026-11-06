@@ -46,6 +46,8 @@
 	var/list/datum/tgui/children = list()
 	var/custom_browser_id = FALSE
 	var/ui_screen = "home"
+	/// hippie -- the window has no close button (the lobby), set before open()
+	var/no_close = FALSE
 
  /**
   * public
@@ -126,7 +128,7 @@
 	html = replacetextEx(html, "\[style]", style)
 
 	// Open the window.
-	user << browse(html, "window=[window_id];can_minimize=0;[window_size][have_title_bar]")
+	user << browse(html, "window=[window_id];can_minimize=0;[no_close ? "can_close=0;" : ""][window_size][have_title_bar]") // hippie -- no_close
 	if (!custom_browser_id)
 		// Instruct the client to signal UI when the window is closed.
 		// NOTE: Intentional \ref usage; tgui datums can't/shouldn't
@@ -225,6 +227,7 @@
 		"locked" = user.client.prefs.tgui_lock && !custom_browser_id,
 		"observer" = isobserver(user),
 		"window" = window_id,
+		"noclose" = no_close, // hippie
 		// NOTE: Intentional \ref usage; tgui datums can't/shouldn't
 		// be tagged, so this is an effective unwrap
 		"ref" = "\ref[src]"

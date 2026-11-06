@@ -56,6 +56,16 @@ export class Layout extends Component {
     const showDimmer = config.observer
       ? config.status < UI_DISABLED
       : config.status < UI_INTERACTIVE;
+    // hippie -- no close button on windows that can't close (the lobby)
+    let closeHandler = null;
+    if (!config.noclose) {
+      closeHandler = () => {
+        logger.log('pressed close');
+        releaseHeldKeys();
+        winset(config.window, 'is-visible', false);
+        runCommand(`uiclose ${config.ref}`);
+      };
+    }
     return (
       <div className={'theme-' + theme}>
         <div className="Layout">
@@ -65,12 +75,7 @@ export class Layout extends Component {
             status={config.status}
             fancy={config.fancy}
             onDragStart={dragStartHandler}
-            onClose={() => {
-              logger.log('pressed close');
-              releaseHeldKeys();
-              winset(config.window, 'is-visible', false);
-              runCommand(`uiclose ${config.ref}`);
-            }} />
+            onClose={closeHandler} />
           {contentElement}
           {showDimmer && (
             <div className="Layout__dimmer" />

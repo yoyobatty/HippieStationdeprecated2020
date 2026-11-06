@@ -263,6 +263,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_mechpai(C, H, label)
 		if("experiments")
 			cs_experiments(C, H, label)
+		if("lobby")
+			cs_lobby(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -6161,3 +6163,120 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	SStgui.close_user_uis(H)
 	for(var/atom/movable/A in made)
 		qdel(A)
+
+// The lobby and the late-join job list: the player back in the lobby, with the ticker held in its countdown for the
+// before-the-round pictures, then joining as a Botanist. The before build gets the old HTML windows through Topic().
+/proc/cs_lobby(client/C, mob/living/carbon/human/H, label)
+	var/mob/dead/new_player/NP = new()
+	NP.ckey = C.ckey // Login opens the lobby
+	sleep(30)
+	cs_check("lobby: the client is in the lobby", C.mob == NP)
+	var/after = ("late_join_menu" in NP.vars)
+	var/datum/job/full_job = SSjob.GetJob("Chaplain")
+	var/datum/job/wanted_job = SSjob.GetJob("Medical Doctor")
+	var/full_was = full_job?.total_positions
+	if(full_job)
+		full_job.total_positions = full_job.current_positions
+	if(wanted_job)
+		SSjob.prioritized_jobs |= wanted_job
+
+	// Before the round
+	var/old_state = SSticker.current_state
+	var/old_left = SSticker.timeLeft
+	var/old_immediately = SSticker.start_immediately
+	SSticker.start_immediately = FALSE
+	SSticker.timeLeft = 1235
+	SSticker.current_state = GAME_STATE_PREGAME
+	sleep(10)
+	usr = NP
+	var/datum/tgui/ui
+	if(after)
+		NP.new_player_panel()
+		ui = cs_find_ui(NP, NP)
+		cs_check("lobby: the lobby opens in tgui", ui)
+		if(ui)
+			cs_check("lobby: it has no close button", ui.vars["no_close"])
+			winset(C, ui.window_id, "pos=100,20")
+			cs_tgui_do(C, ui.window_id, "click:Ready")
+			sleep(10)
+	else
+		NP.Topic(null, list("ready" = "1"))
+	cs_check("lobby: Ready readies them", NP.ready == PLAYER_READY_TO_PLAY)
+	sleep(15)
+	cs_retitle_old(C, after, "playersetup", "pos=100,20", "LobbyOld")
+	cs_shot("popup_lobby_[label]_pregame", after ? null : "LobbyOld")
+	if(after && ui)
+		cs_tgui_do(C, ui.window_id, "click:Not Ready")
+		sleep(10)
+	else
+		NP.Topic(null, list("ready" = "0"))
+	cs_check("lobby: Not Ready unreadies them", NP.ready == PLAYER_NOT_READY)
+	SSticker.current_state = old_state
+	SSticker.timeLeft = old_left
+	SSticker.start_immediately = old_immediately
+
+	// During the round
+	usr = NP
+	NP.new_player_panel()
+	sleep(20)
+	cs_retitle_old(C, after, "playersetup", "pos=100,20", "LobbyOld")
+	cs_shot("popup_lobby_[label]_round", after ? null : "LobbyOld")
+	var/datum/menu
+	if(after && ui)
+		cs_tgui_do(C, ui.window_id, "click:Join")
+		sleep(10)
+		menu = NP.vars["late_join_menu"]
+	else
+		usr = NP
+		NP.Topic(null, list("late_join" = "1"))
+	var/datum/tgui/menu_ui = menu ? cs_find_ui(NP, menu) : null
+	if(after)
+		cs_check("lobby: Join Game opens the job list", menu_ui)
+		if(menu)
+			var/list/data = menu.ui_data(NP)
+			var/full_word
+			var/wanted
+			var/departments = 0
+			for(var/list/dept in data["departments"])
+				departments++
+				for(var/list/job in dept["jobs"])
+					if(full_job && job["title"] == full_job.title)
+						full_word = job["status"]
+					if(wanted_job && job["title"] == wanted_job.title)
+						wanted = job["priority"]
+			cs_check("lobby: the job list has the departments ([departments])", departments >= 7)
+			cs_check("lobby: a full job says Full ([full_word])", full_word == "Full")
+			cs_check("lobby: a prioritized job is marked", wanted)
+	if(menu_ui)
+		winset(C, menu_ui.window_id, "pos=440,20")
+	sleep(25)
+	cs_retitle_old(C, after, "latechoices", "pos=440,20", "LateJoinOld")
+	cs_shot("popup_lobby_[label]_latejoin", after ? null : "LateJoinOld")
+	if(full_job)
+		full_job.total_positions = full_was
+	if(wanted_job)
+		SSjob.prioritized_jobs -= wanted_job
+
+	// Joining
+	if(menu_ui)
+		cs_tgui_do(C, menu_ui.window_id, "click:Botanist")
+	else
+		usr = NP
+		NP.Topic(null, list("SelectedJob" = "Botanist"))
+	var/deadline = world.time + 10 SECONDS
+	while(!ishuman(C.mob) && world.time < deadline)
+		sleep(2)
+	sleep(10)
+	cs_check("lobby: picking Botanist puts them in the round as one ([C.mob?.mind?.assigned_role])", ishuman(C.mob) && C.mob.mind?.assigned_role == "Botanist")
+	var/stray = 0
+	for(var/datum/tgui/open as anything in C.mob.open_uis)
+		if(open.interface == "lobby" || open.interface == "late_join")
+			stray++
+	cs_check("lobby: no lobby windows follow them in", !stray)
+
+/// An old HTML window, once loaded, renamed so shot.ps1 can pick it out (the page sets its caption as it loads)
+/proc/cs_retitle_old(client/C, after, window, pos, title)
+	if(after)
+		return
+	winset(C, window, "[pos];title=[title]")
+	sleep(5)

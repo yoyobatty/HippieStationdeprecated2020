@@ -153,6 +153,7 @@ import { Blueprints, CameraBug, RcdAccess } from './interfaces/Tools';
 import { BibleStyle, BookReader, MimeBook, PhotoViewer } from './interfaces/Books';
 import { MechSleeper, MechSyringeGun, PaiCard } from './interfaces/MechMedicalPai';
 import { ExperimentScanner } from './interfaces/Experiments';
+import { LateJoin, Lobby } from './interfaces/Lobby';
 // hippie end
 
 const ROUTES = {
@@ -361,6 +362,10 @@ const ROUTES = {
     component: () => Jukebox,
     scrollable: true,
   },
+  late_join: {
+    component: () => LateJoin,
+    scrollable: true,
+  },
   library_console: {
     component: () => LibraryConsole,
     scrollable: true,
@@ -375,6 +380,10 @@ const ROUTES = {
   },
   limb_grower: {
     component: () => LimbGrower,
+    scrollable: true,
+  },
+  lobby: {
+    component: () => Lobby,
     scrollable: true,
   },
   mass_driver_console: {
