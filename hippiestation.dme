@@ -3266,6 +3266,7 @@
 #include "hippiestation\code\game\objects\structures\mirror.dm"
 #include "hippiestation\code\game\objects\structures\obelisk.dm"
 #include "hippiestation\code\game\objects\structures\statues.dm"
+#include "hippiestation\code\game\objects\structures\song_tgui.dm"
 #include "hippiestation\code\game\objects\structures\storage_tgui.dm"
 #include "hippiestation\code\game\objects\structures\tables_racks.dm"
 #include "hippiestation\code\game\objects\structures\tank_dispenser.dm"

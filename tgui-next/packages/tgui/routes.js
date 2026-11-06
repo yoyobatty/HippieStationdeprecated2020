@@ -148,6 +148,7 @@ import { AiFixer, AnnouncementSystem, DopplerArray, PrisonerConsole } from './in
 import { NtosTrafficControl } from './interfaces/NtosTrafficControl';
 import { GunLocker, JaniCart } from './interfaces/Storage';
 import { CyborgFrame, TransferValve } from './interfaces/Items';
+import { SongEditor } from './interfaces/SongEditor';
 // hippie end
 
 const ROUTES = {
@@ -458,6 +459,10 @@ const ROUTES = {
   },
   smelter_console: {
     component: () => SmelterConsole,
+    scrollable: true,
+  },
+  song_editor: {
+    component: () => SongEditor,
     scrollable: true,
   },
   stack_crafting: {
