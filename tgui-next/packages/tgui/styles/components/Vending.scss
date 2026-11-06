@@ -51,3 +51,57 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+// hippie -- the crew monitor's map and rows (interfaces/CrewConsole.js)
+.CrewMonitor__layout {
+  display: flex;
+  align-items: flex-start;
+}
+
+.CrewMonitor__left {
+  flex: 0 0 auto;
+  margin-right: 6px;
+}
+
+.CrewMonitor__right {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.CrewMonitor__map {
+  position: relative;
+  background-color: #111316;
+}
+
+.CrewMonitor__dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+}
+
+.CrewMonitor__dot--selected {
+  width: 15px;
+  height: 15px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid #fff;
+  z-index: 2;
+}
+
+.CrewMonitor__row {
+  padding: 5px 4px;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+}
+
+.CrewMonitor__row--selected {
+  background-color: rgba(64, 140, 220, 0.25);
+}

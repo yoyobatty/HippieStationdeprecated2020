@@ -4535,6 +4535,11 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	var/mob/living/carbon/human/dead = cs_med_patient(cs_open_beside(H, list(get_turf(made[1]), get_turf(made[2]))), "Ola Svensson", 150, 50, 0, 0)
 	dead.death()
 	made += dead
+	// Spread out over the station, for the map
+	for(var/mob/living/carbon/human/M in made)
+		var/turf/somewhere = get_safe_random_station_turf()
+		if(somewhere && somewhere.z == H.z)
+			M.forceMove(somewhere)
 	var/obj/machinery/computer/crew/monitor = new(get_turf(H))
 	monitor.stat &= ~(NOPOWER|BROKEN)
 	usr = H
