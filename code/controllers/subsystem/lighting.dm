@@ -118,6 +118,7 @@ SUBSYSTEM_DEF(lighting)
 /datum/controller/subsystem/lighting/Initialize(timeofday)
 	if(!initialized)
 		bounce_lighting = CONFIG_GET(flag/bounce_lighting)
+		native_setup() // hippie -- the lighting engine (lighting_engine.dm)
 		if (CONFIG_GET(flag/starlight))
 			for(var/I in GLOB.sortedAreas)
 				var/area/A = I
@@ -130,6 +131,7 @@ SUBSYSTEM_DEF(lighting)
 				if (initial(A.dynamic_lighting) == DYNAMIC_LIGHTING_IFSTARLIGHT)
 					for(var/turf/open/space/S in A)
 						S.enable_starlight()
+		native_ready()
 		initialized = TRUE
 
 	fire(FALSE, TRUE)
@@ -177,6 +179,13 @@ SUBSYSTEM_DEF(lighting)
 
 	if(!init_tick_checks)
 		MC_SPLIT_TICK
+
+	// hippie -- the lighting engine keeps the corners, and says which lighting objects to draw (lighting_engine.dm)
+	if(native)
+		native_draw(init_tick_checks)
+		return
+	if(native_shadow)
+		call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_flush")(-1, list())
 
 	queue = corners_queue
 	i = 0

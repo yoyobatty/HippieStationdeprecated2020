@@ -518,6 +518,10 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 	if(light_shadow)
 		out += ""
 		out += "Light shadow check (light-shadow): [json_encode(light_shadow)]"
+	out += ""
+	out += "Lighting engine: [SSlighting.native_status]"
+	if(SSlighting.native_shadow) // lighting-engine=shadow: the engine followed the DM code through the whole round
+		out += SSlighting.native_shadow_check(z)
 	var/list/json_phases = list()
 	for(var/datum/stress_phase/P as anything in phases)
 		json_phases += list(P.to_list())

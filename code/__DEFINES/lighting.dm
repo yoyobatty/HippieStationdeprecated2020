@@ -172,3 +172,15 @@ do { \
 		source.lum_b = 1; \
 	}; \
 } while (FALSE)
+
+// hippie -- the lighting engine (hippiestation/code/modules/lighting/lighting_engine.dm, tools/lighting_engine)
+#define LIGHTING_ENGINE_LIB (world.system_type == UNIX ? "./libhippie_lighting.so" : "hippie_lighting")
+/// tools/lighting_engine/src/lib.rs ENGINE_VERSION: anything else and SSlighting works in DM
+#define LIGHTING_ENGINE_VERSION 1
+// A turf's flags, as the engine keeps them (tools/lighting_engine/src/engine.rs)
+#define LIGHTING_FLAG_OPAQUE 1
+#define LIGHTING_FLAG_DYNAMIC 2
+#define LIGHTING_FLAG_SOURCES 4
+#define LIGHTING_FLAG_OBJECT 8
+/// The engine works the station's lighting out, or follows the DM code along to be compared with it
+#define LIGHTING_ENGINE_ON (SSlighting.native || SSlighting.native_shadow)

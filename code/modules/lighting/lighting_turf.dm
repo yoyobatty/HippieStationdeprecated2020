@@ -34,6 +34,16 @@
 
 // Causes any affecting light sources to be queued for a visibility update, for example a door got opened.
 /turf/proc/reconsider_lights()
+	if (LIGHTING_ENGINE_ON) // hippie -- the lighting engine keeps what lights our corners (lighting_engine.dm)
+		lighting_engine_push()
+		if (SSlighting.native)
+			var/list/ids = list()
+			if (call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_affecting")(src, ids) > 0)
+				var/list/lights = SSlighting.native_lights
+				for (var/id in ids)
+					var/datum/light_source/L = id <= length(lights) ? lights[id] : null
+					L?.vis_update()
+			return
 	lighting_corner_NE?.vis_update()
 	lighting_corner_SE?.vis_update()
 	lighting_corner_SW?.vis_update()
@@ -52,10 +62,17 @@
 	if (!IS_DYNAMIC_LIGHTING(A) && !light_sources)
 		return
 
+	if (SSlighting.native) // hippie -- the engine keeps the corners (lighting_engine.dm)
+		new/atom/movable/lighting_object(src)
+		call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_recalc")(src)
+		return
+
 	if (!lighting_corners_initialised)
 		generate_missing_corners()
 
 	new/atom/movable/lighting_object(src)
+	if (SSlighting.native_shadow)
+		call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_recalc")(src)
 
 	var/datum/lighting_corner/C
 	var/datum/light_source/S
@@ -71,10 +88,13 @@
 		return 1
 
 	var/totallums = 0
-	var/datum/lighting_corner/L
-	for (var/thing in get_lighting_corners())
-		L = thing
-		totallums += L.lum_r + L.lum_b + L.lum_g
+	if (SSlighting.native) // hippie -- the engine keeps the corners (lighting_engine.dm)
+		totallums = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_lumcount")(src)
+	else
+		var/datum/lighting_corner/L
+		for (var/thing in get_lighting_corners())
+			L = thing
+			totallums += L.lum_r + L.lum_b + L.lum_g
 
 	totallums /= 12 // 4 corners, each with 3 channels, get the average.
 
@@ -100,6 +120,7 @@
 			if (A.opacity)
 				has_opaque_atom = TRUE
 				break
+	lighting_engine_push()
 
 /turf/Exited(atom/movable/Obj, atom/newloc)
 	. = ..()

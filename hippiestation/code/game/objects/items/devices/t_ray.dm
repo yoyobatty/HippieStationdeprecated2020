@@ -81,6 +81,8 @@ GLOBAL_LIST_EMPTY(t_ray_views)
 /proc/t_ray_darkness(turf/T)
 	if(!T.lighting_object)
 		return 0
+	if(SSlighting.native) // the lighting engine keeps the corners (lighting_engine.dm)
+		return round(clamp(1 - (call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_lumcount")(T) / 12) / T_RAY_LIT, 0, 1), 0.25)
 	var/lum = 0
 	var/datum/lighting_corner/C = T.lighting_corner_NE
 	if(C)

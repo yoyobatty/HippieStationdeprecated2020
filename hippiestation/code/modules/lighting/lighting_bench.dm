@@ -28,7 +28,7 @@
 	fdel(LIGHTING_BENCH_DIR)
 
 	var/z = SSmapping.levels_by_trait(ZTRAIT_STATION)[1]
-	var/list/lines = list("Lighting bench - station z-level [z], BYOND [world.byond_version].[world.byond_build]")
+	var/list/lines = list("Lighting bench - station z-level [z], BYOND [world.byond_version].[world.byond_build], lighting engine [SSlighting.native_status]")
 
 	// Spots for the moving lights, and airlocks to open and close. Same picks every run, so runs compare.
 	rand_seed(1337)
@@ -165,6 +165,16 @@
 		lines += ""
 		lines += "== where a lamp's update goes =="
 		lines += lighting_bench_sections(z)
+
+	if(option == "engines")
+		lines += ""
+		lines += "== the engine against the DM code =="
+		lines += lighting_bench_engines(z, spots, doors)
+
+	if(option == "shadow") // booted with lighting-engine=shadow: the engine followed the DM code through everything above
+		lines += ""
+		lines += "== the engine shadowing the DM code =="
+		lines += SSlighting.native_shadow_check(z)
 
 	text2file(jointext(lines, "\n"), "[LIGHTING_BENCH_DIR]results.txt")
 	log_world("LIGHTING BENCH: done")
@@ -471,6 +481,82 @@
 		fitting.set_light(old[1], old[2], old[3])
 	lighting_bench_flush()
 
+/// With the engine on: whether every lighting object on the z-level draws what the engine's corners say it should
+/proc/lighting_bench_objects_check(z)
+	if(!SSlighting.native)
+		return "objects check: only with the engine on"
+	var/list/values = list()
+	var/checked = 0
+	var/list/wrong = list()
+	for(var/turf/T as anything in block(locate(1, 1, z), locate(world.maxx, world.maxy, z)))
+		var/atom/movable/lighting_object/O = T.lighting_object
+		if(!O)
+			continue
+		checked++
+		values.Cut()
+		call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_object")(T, values)
+		var/was_state = O.icon_state
+		var/list/was_color = O.color
+		var/was_luminosity = O.luminosity
+		O.draw(values[1], values[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], values[10], values[11], values[12], values[13])
+		if(was_state != O.icon_state || was_luminosity != O.luminosity || jointext(was_color || list(), ",") != jointext(O.color || list(), ","))
+			if(length(wrong) < 5)
+				wrong += "([T.x],[T.y]) drew [was_state] [was_luminosity] [jointext(was_color || list(), ",")], should be [O.icon_state] [O.luminosity] [jointext(O.color || list(), ",")]"
+			else
+				wrong += "-"
+	. = "objects check: [checked] lighting objects, [length(wrong)] not drawing what the engine has"
+	for(var/line in wrong)
+		if(line != "-")
+			. += "\n  [line]"
+
+/// With the engine on: corner "x|y" (as the engine numbers them, corners at x + 0.5) -> the light's strength there, direct or bounce
+/proc/lighting_bench_native_light(datum/light_source/light)
+	if(!SSlighting.native || !light?.native_id)
+		return null
+	var/list/values = list()
+	call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_light")(light.native_id, values)
+	. = list()
+	for(var/i = 1, i <= length(values), i += 4)
+		var/key = "[values[i]]|[values[i + 1]]"
+		.[key] = max(.[key], values[i + 2])
+
+/**
+ * The engine against the DM code ("lighting-bench=engines", booted with the engine on): everything relit from scratch by
+ * each, then airlocks opened and closed and lights carried around by each, compared tile by tile. They should never differ.
+ */
+/proc/lighting_bench_engines(z, list/turf/spots, list/obj/machinery/door/airlock/doors)
+	. = list()
+	if(!SSlighting.native)
+		. += "the engine isn't on ([SSlighting.native_status])"
+		return
+	SSlighting.set_bounce_lighting(TRUE)
+	lighting_bench_flush()
+	for(var/round in 1 to 2)
+		SSlighting.native_failed("the lighting bench is comparing it with the DM code")
+		lighting_bench_flush()
+		lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_dm_relit.txt")
+		if(round == 2)
+			lighting_bench_doors(doors)
+			lighting_bench_carry(spots.Copy(1, min(length(spots), 100) + 1), 7)
+			lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_dm_worked.txt")
+		var/start = TICK_USAGE_REAL
+		if(!SSlighting.native_restart())
+			. += "the engine wouldn't start again: [SSlighting.native_status]"
+			return
+		lighting_bench_flush()
+		var/relight_ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - start)
+		lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_engine_relit.txt")
+		if(round == 1)
+			. += "everything relit from scratch, engine against DM code: [lighting_bench_compare_snapshots("[LIGHTING_BENCH_DIR]snapshot_dm_relit.txt", "[LIGHTING_BENCH_DIR]snapshot_engine_relit.txt")] (engine relit it in [round(relight_ms)] ms)"
+			. += lighting_bench_check()
+		else
+			lighting_bench_doors(doors)
+			lighting_bench_carry(spots.Copy(1, min(length(spots), 100) + 1), 7)
+			lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_engine_worked.txt")
+			. += "after [length(doors)] airlocks opened and closed and a light carried to 100 spots, engine against DM code: [lighting_bench_compare_snapshots("[LIGHTING_BENCH_DIR]snapshot_dm_worked.txt", "[LIGHTING_BENCH_DIR]snapshot_engine_worked.txt")]"
+			. += lighting_bench_check()
+			. += lighting_bench_objects_check(z)
+
 /// The median time a workload takes, in milliseconds
 /proc/lighting_bench_time(datum/callback/workload)
 	var/list/timings = list()
@@ -526,6 +612,9 @@
  * affecting it say they're giving it, and that corners and light sources agree on which affects which.
  */
 /proc/lighting_bench_check()
+	if(SSlighting.native) // the engine checks its own books: see tools/lighting_engine/src/engine.rs, Engine::check()
+		var/native_problems = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_check")()
+		return list("bookkeeping check (the engine's): [native_problems ? "[native_problems] PROBLEMS (see the server's error output)" : "all consistent"]")
 	var/list/problems = list()
 	var/list/expected = list() // corner -> list(red, green, blue, bounce red, bounce green, bounce blue)
 	var/checked_sources = 0
@@ -593,6 +682,7 @@
 			var/obj/effect/dummy/lighting_obj/probe = new(spot, LIGHT_COLOR_WHITE, range, 1)
 			lighting_bench_flush()
 			var/datum/light_source/light = probe.light
+			var/list/native_map = lighting_bench_native_light(light)
 			for(var/direction in GLOB.cardinals)
 				walks++
 				var/turf/T = spot
@@ -614,6 +704,19 @@
 						if(WEST)
 							far_corners = list(T.lighting_corner_NW, T.lighting_corner_SW)
 					var/here = 0
+					if(native_map)
+						var/list/far = list()
+						switch(direction)
+							if(NORTH)
+								far = list("[T.x - 1]|[T.y]", "[T.x]|[T.y]")
+							if(SOUTH)
+								far = list("[T.x - 1]|[T.y - 1]", "[T.x]|[T.y - 1]")
+							if(EAST)
+								far = list("[T.x]|[T.y]", "[T.x]|[T.y - 1]")
+							if(WEST)
+								far = list("[T.x - 1]|[T.y]", "[T.x - 1]|[T.y - 1]")
+						for(var/key in far)
+							here = max(here, native_map[key])
 					for(var/datum/lighting_corner/C in far_corners)
 						here = max(here, LAZYACCESS(light?.effect_str, C), LAZYACCESS(light?.bounce_str, C))
 					if(here > previous + 0.001)
@@ -633,9 +736,27 @@
  */
 /proc/lighting_bench_snapshot(z, path)
 	var/list/out = list()
+	var/list/native_corners = list()
 	for(var/turf/T as anything in block(locate(1, 1, z), locate(world.maxx, world.maxy, z)))
 		var/atom/movable/lighting_object/object = T.lighting_object
 		if(!object)
+			continue
+		if(SSlighting.native) // the engine keeps the corners: NE, SE, SW, NW, each light (3), bounce (3), colour (3), brightest
+			native_corners.Cut()
+			call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_corners")(T, native_corners)
+			var/list/native_values = list()
+			var/native_sum = 0
+			for(var/corner in list(3, 2, 4, 1)) // SW, SE, NW, NE
+				var/at = (corner - 1) * 10 + 7
+				native_values += list(native_corners[at], native_corners[at + 1], native_corners[at + 2])
+				native_sum += native_corners[at] + native_corners[at + 1] + native_corners[at + 2]
+			var/native_prefix = "[T.x] [T.y] [object.luminosity ? 1 : 0]"
+			if(native_sum >= 12)
+				out += "[native_prefix] L"
+			else if(!native_sum)
+				out += "[native_prefix] D"
+			else
+				out += "[native_prefix] [jointext(native_values, " ")]"
 			continue
 		var/list/values = list()
 		var/sum = 0

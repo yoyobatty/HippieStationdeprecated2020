@@ -2,6 +2,7 @@
 unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every file it opens until the next reboot
 # Lighting bench: compile, boot headless, time the lighting engine and snapshot the station's lighting, print the results.
 # Usage: tools/lighting_bench/run_lighting_bench.sh [profile|starlight|directional|tail]
+#   engines: boot with the lighting engine and compare it with the DM code (EXTRA_PARAMS is added to the params)
 #   profile: also runs the workloads once more under BYOND's profiler, into data/lighting_bench/profile_<mode>.json
 #   starlight: also snapshots starlight as tgstation had it in 2020, as it is, and that with bounce lighting
 #              (then: python tools/lighting_bench/render.py --before starlight_2020 --after starlight)
@@ -21,7 +22,7 @@ if [ ! -f hippiestation.dmb ]; then echo "Compile failed"; exit 1; fi
 rm -rf data/lighting_bench
 echo "Running lighting bench..."
 timeout "${BENCH_TIMEOUT:-3600}" "$BYOND_BIN/dd.exe" hippiestation.dmb 45124 -trusted -invisible \
-	-params "lighting-bench=$OPTION" > data/lighting_bench_dd.log 2>&1
+	-params "lighting-bench=$OPTION${EXTRA_PARAMS:+&$EXTRA_PARAMS}" > data/lighting_bench_dd.log 2>&1
 
 if [ ! -f data/lighting_bench/results.txt ]; then
 	echo "No results written - see data/lighting_bench_dd.log"

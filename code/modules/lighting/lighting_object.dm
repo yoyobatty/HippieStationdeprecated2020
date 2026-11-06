@@ -26,6 +26,7 @@
 		qdel(myturf.lighting_object, force = TRUE)
 	myturf.lighting_object = src
 	myturf.luminosity = 0
+	myturf.lighting_engine_push()
 
 	for(var/turf/open/space/S in RANGE_TURFS(1, src)) //RANGE_TURFS is in code\__HELPERS\game.dm
 		// hippie -- next to our (never space) turf, update_starlight() can only switch it on; if it's already on there's
@@ -46,6 +47,7 @@
 		if (isturf(myturf))
 			myturf.lighting_object = null
 			myturf.luminosity = 1
+			myturf.lighting_engine_push()
 		myturf = null
 
 		return ..()
@@ -78,23 +80,19 @@
 	var/datum/lighting_corner/cb = myturf.lighting_corner_NW || dummy_lighting_corner
 	var/datum/lighting_corner/ca = myturf.lighting_corner_NE || dummy_lighting_corner
 
-	var/max = max(cr.largest_color_luminosity, cg.largest_color_luminosity, cb.largest_color_luminosity, ca.largest_color_luminosity)
+	draw(cr.cache_r, cr.cache_g, cr.cache_b, cg.cache_r, cg.cache_g, cg.cache_b, cb.cache_r, cb.cache_g, cb.cache_b, ca.cache_r, ca.cache_g, ca.cache_b, 		max(cr.largest_color_luminosity, cg.largest_color_luminosity, cb.largest_color_luminosity, ca.largest_color_luminosity))
 
-	var/rr = cr.cache_r
-	var/rg = cr.cache_g
-	var/rb = cr.cache_b
+/// What update() draws, from the southwest, southeast, northwest and northeast corners' colours and the brightest channel of
+/// them all. The lighting engine (lighting_engine.dm) hands it these straight.
+/atom/movable/lighting_object/proc/draw(rr, rg, rb, gr, gg, gb, br, bg, bb, ar, ag, ab, max)
+	if (loc != myturf)
+		if (loc)
+			var/turf/oldturf = get_turf(myturf)
+			var/turf/newturf = get_turf(loc)
+			warning("A lighting object realised it's loc had changed in update() ([myturf]\[[myturf ? myturf.type : "null"]]([COORD(oldturf)]) -> [loc]\[[ loc ? loc.type : "null"]]([COORD(newturf)]))!")
 
-	var/gr = cg.cache_r
-	var/gg = cg.cache_g
-	var/gb = cg.cache_b
-
-	var/br = cb.cache_r
-	var/bg = cb.cache_g
-	var/bb = cb.cache_b
-
-	var/ar = ca.cache_r
-	var/ag = ca.cache_g
-	var/ab = ca.cache_b
+		qdel(src, TRUE)
+		return
 
 	#if LIGHTING_SOFT_THRESHOLD != 0
 	var/set_luminosity = max > LIGHTING_SOFT_THRESHOLD

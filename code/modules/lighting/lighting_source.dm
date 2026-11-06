@@ -67,6 +67,9 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 	top_atom = top
 	if (top_atom != source_atom)
 		LAZYADD(top_atom.light_sources, src)
+	if (isturf(top_atom)) // hippie -- a turf with a light of its own counts, lit dynamically or not (see lighting_engine_flags())
+		var/turf/T = top_atom
+		T.lighting_engine_push()
 
 	source_turf = top_atom
 	UPDATE_APPROXIMATE_PIXEL_TURF
@@ -84,11 +87,19 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 
 /datum/light_source/Destroy(force)
 	remove_lum()
+	if (native_id)
+		SSlighting.native_forget(src)
 	if (source_atom)
 		LAZYREMOVE(source_atom.light_sources, src)
+		if (isturf(source_atom))
+			var/turf/T = source_atom
+			T.lighting_engine_push()
 
 	if (top_atom)
 		LAZYREMOVE(top_atom.light_sources, src)
+		if (isturf(top_atom))
+			var/turf/T = top_atom
+			T.lighting_engine_push()
 
 	if (needs_update)
 		SSlighting.sources_queue -= src
@@ -128,11 +139,17 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 	if (new_top_atom && new_top_atom != top_atom)
 		if(top_atom != source_atom && top_atom.light_sources) // Remove ourselves from the light sources of that top atom.
 			LAZYREMOVE(top_atom.light_sources, src)
+			if (isturf(top_atom))
+				var/turf/T = top_atom
+				T.lighting_engine_push()
 
 		top_atom = new_top_atom
 
 		if (top_atom != source_atom)
 			LAZYADD(top_atom.light_sources, src) // Add ourselves to the light sources of our new top atom.
+			if (isturf(top_atom))
+				var/turf/T = top_atom
+				T.lighting_engine_push()
 
 	EFFECT_UPDATE(LIGHTING_CHECK_UPDATE)
 	if (unseen_cell) // it might not be able to wait any more, or it's moved and is waiting in the wrong place
@@ -247,6 +264,7 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 		hand_back = generate_sheet(range, light_dir, light_angle, light_height, light_tail, light_reach)
 		GLOB.lighting_sheets[key] = hand_back
 	sheet = hand_back
+	sheet_id = lighting_sheet_number(key, hand_back)
 	return hand_back
 
 /**
@@ -271,6 +289,7 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 				row += max(cone_row[j], all_around_row[j] * scatter)
 			hand_back += list(row)
 		GLOB.lighting_sheets[key] = hand_back
+	spill_sheet_id = lighting_sheet_number(key, hand_back)
 	return hand_back
 
 /// Returns a list of lists that encodes the light falloff of our source, out to `reach` tiles from it.
@@ -340,6 +359,10 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 
 /datum/light_source/proc/remove_lum()
 	applied = FALSE
+	if (native_id)
+		call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_remove")(native_id)
+	if (SSlighting.native)
+		return
 	SETUP_CORNERS_REMOVAL_CACHE(src)
 	var/list/_corners_queue = SSlighting.corners_queue
 	var/strength
@@ -495,27 +518,50 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 	var/bounces = SSlighting.bounce_lighting && source_atom.light_bounce && light_power > 0
 	// Only brighter, dimmer or another colour, with nothing we can see changed since: an emergency light running down, a lamp on
 	// emergency power, starlight changing colour in an aurora. The same corners get the new light where they are.
-	if (update && !reshaped && !forced && !vis_changed && bounces == applied_bounces && (!bounce_str || bounce_levels))
+	if (update && !reshaped && !forced && !vis_changed && bounces == applied_bounces && (!bounce_str || bounce_levels) && (!LIGHTING_ENGINE_ON || native_id))
 		relight_in_place()
 		return
 
 	light_reach = ceil(max(1, light_range) * LIGHTING_TAIL_END(light_tail))
 	// Only what we can see has changed, not us: what we already light, we light as before
 	var/vis_only = needs_update == LIGHTING_VIS_UPDATE
+	// An angled light also lights what it can see around it, with the light that scatters back off what it lights, drawn
+	// as bounce light wherever that's brighter than its cone: see get_scatter_sheet()
+	var/scatters = bounces && light_dir && SSlighting.cone_scatter > 0
+
+	var/oldlum = source_turf.luminosity
+	// Lights up our surroundings so view() sees them. That lights a circle, and view() takes a square: the square's
+	// corners only count as visible if some other light happens to light them. That's fine for our direct light, which
+	// doesn't reach them anyway - but bounce light would take them for shadows, and spill into them depending on
+	// which lights around here worked their light out first. So bouncing, light the whole square.
+	source_turf.luminosity = bounces ? ceil(light_reach * 1.5) : light_reach
+	var/list/seen = view(light_reach, source_turf)
+	source_turf.luminosity = oldlum
+
+	// hippie -- the lighting engine (hippiestation/code/modules/lighting/lighting_engine.dm) works out the rest from what we see
+	if (LIGHTING_ENGINE_ON)
+		get_sheet()
+		if (scatters)
+			get_scatter_sheet()
+		SSlighting.native_update(src, seen, vis_only, bounces, scatters)
+		if (SSlighting.native)
+			applied_lum_r = lum_r
+			applied_lum_g = lum_g
+			applied_lum_b = lum_b
+			applied_bounces = bounces
+			vis_changed = FALSE
+			return
+
 	var/stamp = ++SSlighting.lighting_stamp
 	if (stamp >= LIGHTING_STAMP_LIMIT)
 		stamp = SSlighting.reset_lighting_stamps()
 	SETUP_CORNERS_CACHE(src)
 	var/list/_corners_queue = SSlighting.corners_queue
 
-	// An angled light also lights what it can see around it, with the light that scatters back off what it lights, drawn
-	// as bounce light wherever that's brighter than its cone: see get_scatter_sheet()
 	var/list/spill_sheet = _sheet // what our bounce light spills from
-	var/scatters = FALSE
 	var/scatter_cutoff
-	if (bounces && light_dir && SSlighting.cone_scatter > 0)
+	if (scatters)
 		spill_sheet = get_scatter_sheet()
-		scatters = TRUE
 		scatter_cutoff = SSlighting.bounce_cutoff
 
 	// Corners we can see but don't reach (past our range, or outside our cone) are left to our bounce light, which may
@@ -561,13 +607,7 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 // Whether we light CORNER of a turf we've just gone through the corners of, directly or with scattered light
 #define LIGHTS_CORNER(CORNER) (CORNER && (CORNER.lighting_level > 0 || CORNER.bounce_stamp == stamp))
 
-	var/oldlum = source_turf.luminosity
-	// Lights up our surroundings so view() sees them. That lights a circle, and view() takes a square: the square's
-	// corners only count as visible if some other light happens to light them. That's fine for our direct light, which
-	// doesn't reach them anyway - but bounce light would take them for shadows, and spill into them depending on
-	// which lights around here worked their light out first. So bouncing, light the whole square.
-	source_turf.luminosity = bounces ? ceil(light_reach * 1.5) : light_reach
-	for (var/turf/T in view(light_reach, source_turf))
+	for (var/turf/T in seen)
 		if ((!IS_DYNAMIC_LIGHTING(T) && !T.light_sources) || IS_OPAQUE_TURF(T))
 			continue
 		if (!T.lighting_corners_initialised)
@@ -579,7 +619,6 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 		if (bounces && (LIGHTS_CORNER(T.lighting_corner_NE) || LIGHTS_CORNER(T.lighting_corner_SE) || LIGHTS_CORNER(T.lighting_corner_SW) || LIGHTS_CORNER(T.lighting_corner_NW)))
 			T.lighting_stamp = stamp
 			lit += T
-	source_turf.luminosity = oldlum
 
 #undef GATHER_CORNER
 #undef LIGHTS_CORNER
@@ -671,6 +710,13 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
  */
 /datum/light_source/proc/relight_in_place()
 	SSlighting.relit_in_place++
+	if (native_id)
+		call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_relight")(native_id, light_power, lum_r, lum_g, lum_b)
+		if (SSlighting.native)
+			applied_lum_r = lum_r
+			applied_lum_g = lum_g
+			applied_lum_b = lum_b
+			return
 	SETUP_CORNERS_CACHE(src)
 	var/list/_corners_queue = SSlighting.corners_queue
 	var/old

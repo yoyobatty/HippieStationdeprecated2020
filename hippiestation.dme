@@ -3673,6 +3673,7 @@
 #include "hippiestation\code\modules\library\lib_machines.dm"
 #include "hippiestation\code\modules\library\library_tgui.dm"
 #include "hippiestation\code\modules\lighting\lighting_bench.dm"
+#include "hippiestation\code\modules\lighting\lighting_engine.dm"
 #include "hippiestation\code\modules\lighting\lighting_turf.dm"
 #include "hippiestation\code\modules\mapping\random_maint_rooms.dm"
 #include "hippiestation\code\modules\mentor\follow.dm"

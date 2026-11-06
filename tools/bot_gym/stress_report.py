@@ -10,7 +10,8 @@ Usage:
   --state          what the station was like at the end of each phase (for telling a faster build from one doing less)
 
 Every figure is ms of real server time per second of game time, unless it says otherwise. "outside" is the real time not spent
-in any subsystem: procs waking from sleep, the MC's own bookkeeping, BYOND's own work. Ranges are the lowest and highest run.
+in any subsystem: procs waking from sleep (mostly bot pathfinding), the MC's own bookkeeping, BYOND's own work. "engine" is the
+MC without Timer and Processing, which are mostly the bots. Ranges are the lowest and highest run.
 """
 import argparse, glob, json, os, statistics, sys
 
@@ -39,6 +40,9 @@ def phase_figures(phase):
     f = {
         'real': phase['real_ms'] / s,
         'MC': phase['mc_ms'] / s,
+        # The MC without Timer and Processing, which are mostly the bots walking and thinking (out of scope, and noisy:
+        # how much pathfinding a run does swings with where the crew ends up stranded)
+        'engine': (phase['mc_ms'] - phase['ss_ms'].get('Timer', 0) - phase['ss_ms'].get('Processing', 0)) / s,
         'outside': (phase['real_ms'] - phase['mc_ms']) / s,
         'worst ms': phase['worst_ms'],
         'p99 ms': phase['p99'],
@@ -106,7 +110,7 @@ def change(a, b):
     return f'{100 * (mb - ma) / ma:+.0f}%'
 
 
-MAIN = ('real', 'MC', 'outside', 'worst ms', 'p99 ms', '>25ms', '>100ms')
+MAIN = ('real', 'MC', 'engine', 'outside', 'worst ms', 'p99 ms', '>25ms', '>100ms')
 
 
 def main():
