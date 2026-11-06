@@ -259,6 +259,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_tools(C, H, label)
 		if("books")
 			cs_books(C, H, label)
+		if("mechpai")
+			cs_mechpai(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -6028,3 +6030,78 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	if(!QDELETED(mime))
 		qdel(mime)
 	H.drop_all_held_items()
+
+// An Odysseus with a patient in its sleeper and a loaded syringe gun, and a pAI card with a personality
+/proc/cs_mechpai_shot(client/C, mob/living/carbon/human/H, datum/D, name, window)
+	sleep(5)
+	var/datum/tgui/ui = cs_find_ui(H, D)
+	if(ui)
+		winset(C, ui.window_id, "pos=100,20")
+	sleep(25)
+	cs_shot(name)
+	C << browse(null, "window=[window]")
+	SStgui.close_user_uis(H)
+	return ui
+
+/proc/cs_mechpai(client/C, mob/living/carbon/human/H, label)
+	var/obj/machinery/holopad/pad
+	for(var/obj/machinery/holopad/P in GLOB.machines)
+		if(is_station_level(P.z) && cs_open_turf_by(P))
+			pad = P
+			break
+	if(pad)
+		H.forceMove(pad.loc)
+	H.drop_all_held_items()
+	var/turf/spot = cs_open_turf_by(H)
+	var/obj/mecha/medical/odysseus/mech = new(spot)
+	var/obj/item/mecha_parts/mecha_equipment/medical/sleeper/sleeper = new
+	sleeper.attach(mech)
+	var/obj/item/mecha_parts/mecha_equipment/medical/syringe_gun/gun = new
+	gun.attach(mech)
+	gun.reagents.add_reagent(/datum/reagent/medicine/epinephrine, 15)
+	gun.reagents.add_reagent(/datum/reagent/medicine/charcoal, 10)
+	var/mob/living/carbon/human/patient = new(spot)
+	patient.real_name = "Ola Svensson"
+	patient.name = patient.real_name
+	patient.adjustBruteLoss(35)
+	patient.adjustFireLoss(20)
+	patient.reagents.add_reagent(/datum/reagent/medicine/bicaridine, 5)
+	patient.forceMove(sleeper)
+	sleeper.patient = patient
+	usr = H // moved_inside() checks range(1) around usr
+	mech.moved_inside(H)
+	usr = H
+	sleeper.Topic(null, list("view_stats" = "1"))
+	var/datum/tgui/ui = cs_mechpai_shot(C, H, sleeper, "popup_mechpai_[label]_sleeper", "msleeper")
+	if(label == "after")
+		cs_check("mech sleeper: View stats opens the window", ui)
+	usr = H
+	gun.Topic(null, list("show_reagents" = "1"))
+	ui = cs_mechpai_shot(C, H, gun, "popup_mechpai_[label]_syringe", "msyringegun")
+	if(label == "after")
+		cs_check("mech syringe gun: Show reagents opens the window", ui)
+		gun.ui_interact(H)
+		cs_act(gun, H, "purge", list("path" = "[/datum/reagent/medicine/charcoal]"))
+		cs_check("mech syringe gun: purge charcoal (the old link never worked)", !gun.reagents.has_reagent(/datum/reagent/medicine/charcoal))
+		SStgui.close_user_uis(H)
+	mech.go_out()
+	qdel(mech)
+	qdel(patient)
+
+	var/obj/item/paicard/card = new(get_turf(H))
+	var/mob/living/silicon/pai/pai = new(card)
+	pai.name = "Pal"
+	pai.real_name = "Pal"
+	card.setPersonality(pai)
+	H.drop_all_held_items()
+	H.put_in_active_hand(card)
+	usr = H
+	card.attack_self(H)
+	ui = cs_mechpai_shot(C, H, card, "popup_mechpai_[label]_pai", "paicard")
+	if(label == "after")
+		card.ui_interact(H)
+		cs_act(card, H, "setlaws", list("laws" = "Fetch the captain's coffee."))
+		cs_check("pAI: a directive typed in ([json_encode(pai.laws.supplied)])", (sanitize("Fetch the captain's coffee.") in pai.laws.supplied))
+		SStgui.close_user_uis(H)
+	H.drop_all_held_items()
+	qdel(card)

@@ -151,6 +151,7 @@ import { CyborgFrame, TransferValve } from './interfaces/Items';
 import { SongEditor } from './interfaces/SongEditor';
 import { Blueprints, CameraBug, RcdAccess } from './interfaces/Tools';
 import { BibleStyle, BookReader, MimeBook, PhotoViewer } from './interfaces/Books';
+import { MechSleeper, MechSyringeGun, PaiCard } from './interfaces/MechMedicalPai';
 // hippie end
 
 const ROUTES = {
@@ -375,6 +376,14 @@ const ROUTES = {
     component: () => MassDriverConsole,
     scrollable: true,
   },
+  mech_sleeper: {
+    component: () => MechSleeper,
+    scrollable: true,
+  },
+  mech_syringe_gun: {
+    component: () => MechSyringeGun,
+    scrollable: true,
+  },
   mecha_control: {
     component: () => MechaControl,
     scrollable: true,
@@ -401,6 +410,10 @@ const ROUTES = {
   },
   ore_silo: {
     component: () => OreSilo,
+    scrollable: true,
+  },
+  pai_card: {
+    component: () => PaiCard,
     scrollable: true,
   },
   paper: {
