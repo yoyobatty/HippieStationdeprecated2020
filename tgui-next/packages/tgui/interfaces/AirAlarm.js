@@ -168,7 +168,7 @@ const Vents = props => {
   const { data } = useBackend(props);
   const vents = data.vents || [];
   if (!vents.length) {
-    return <Box color="label">No vents on this alarm.</Box>;
+    return <Box color="label">No vents are linked to this air alarm.</Box>;
   }
   return vents.map(vent => (
     <Vent key={vent.id_tag} state={state} vent={vent} />
@@ -188,8 +188,12 @@ const PressureCheck = props => {
           id_tag: vent.id_tag,
           val: vent.checks,
         })} />
+      {!checked && (
+        <Box inline color="label" ml={1}>not checked</Box>
+      )}
       {!!checked && (
         <Fragment>
+          <Box inline color="label" mx={1}>stop at</Box>
           <NumberInput
             value={Math.round(value)}
             unit="kPa"
@@ -232,13 +236,17 @@ const Vent = props => {
       </Box>
       <Box color={vent.power ? (pressurizing ? 'good' : 'average') : 'label'}>
         <Icon name={pressurizing ? 'sign-out-alt' : 'sign-in-alt'} mr={1} />
-        {pressurizing ? 'Pressurizing' : 'Siphoning'}
+        {pressurizing
+          ? 'Pushing air into the room'
+          : 'Pulling air out of the room'}
       </Box>
       <PressureCheck
         act={act}
         vent={vent}
-        label="Room limit"
-        title="External: stop when the room reaches this"
+        label="Room pressure (external)"
+        title={pressurizing
+          ? 'Stops pushing air once the room reaches this pressure'
+          : 'Stops pulling air once the room drops to this pressure'}
         checked={vent.excheck}
         checkAction="excheck"
         value={vent.external}
@@ -248,8 +256,10 @@ const Vent = props => {
       <PressureCheck
         act={act}
         vent={vent}
-        label="Pipe limit"
-        title="Internal: stop when the pipe falls to this"
+        label="Pipe pressure (internal)"
+        title={pressurizing
+          ? 'Stops pushing air once the pipe behind it drops to this'
+          : 'Stops pulling air once the pipe behind it reaches this'}
         checked={vent.incheck}
         checkAction="incheck"
         value={vent.internal}
@@ -265,7 +275,9 @@ const Scrubbers = props => {
   const { data } = useBackend(props);
   const scrubbers = data.scrubbers || [];
   if (!scrubbers.length) {
-    return <Box color="label">No scrubbers on this alarm.</Box>;
+    return (
+      <Box color="label">No scrubbers are linked to this air alarm.</Box>
+    );
   }
   return scrubbers.map(scrubber => (
     <Scrubber key={scrubber.id_tag} state={state} scrubber={scrubber} />
@@ -338,7 +350,9 @@ const Scrubber = props => {
               val: gas_id,
             })} />
         ) || (
-          <Box color="average">Siphoning everything, filters unused.</Box>
+          <Box color="average">
+            Siphoning pulls in every gas, so the filters don&apos;t apply.
+          </Box>
         )}
       </Box>
     </div>
@@ -384,8 +398,10 @@ const Thresholds = props => {
   return (
     <Fragment>
       <Box color="label" mb={1}>
-        Click a number to type it, or drag it. Below zero turns the limit
-        off. Gas limits are partial pressures in kPa.
+        A reading past a caution limit turns the alarm amber; past a danger
+        limit, red, and the area alarm goes off. Click a number to type a new
+        one, or drag it up or down. Set it below 0 to turn that limit off.
+        Gas limits are the gas&apos;s own pressure in kPa, not its share.
       </Box>
       <table className="Atmos__thresholds">
         <tr>

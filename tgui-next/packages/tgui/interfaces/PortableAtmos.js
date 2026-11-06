@@ -147,7 +147,7 @@ export const PortablePump = props => {
       <HoldingTank
         act={act}
         holding={holding}
-        empty="No tank: it pumps to and from the room." />
+        empty="No tank inserted. It pumps between itself and the room." />
     </Fragment>
   );
 };
@@ -172,7 +172,8 @@ export const PortableScrubber = props => {
       <HoldingTank
         act={act}
         holding={data.holding}
-        empty="No tank: what it scrubs stays inside it." />
+        empty={'No tank inserted. What it filters out is stored inside'
+          + ' the scrubber.'} />
     </Fragment>
   );
 };

@@ -90,14 +90,17 @@ export const SpaceHeater = props => {
             {data.powerLevel}%
           </ProgressBar>
         ) || (
-          <Box color="bad">No cell: it can&apos;t run.</Box>
+          <Box color="bad">
+            No cell installed. Open the panel and put one in to run it.
+          </Box>
         )}
       </Section>
       <Section title="Thermostat">
         {!data.open && (
           <Box color="label" mb={1}>
             <Icon name="lock" mr={1} />
-            Open the maintenance panel to change these.
+            Open the maintenance panel (screwdriver) to change the mode or
+            the target.
           </Box>
         )}
         <Box mb={1}>

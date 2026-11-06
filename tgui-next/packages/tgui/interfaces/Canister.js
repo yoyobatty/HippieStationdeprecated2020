@@ -130,7 +130,8 @@ export const Canister = props => {
           </Fragment>
         ) || (
           <Box color="label">
-            No tank. With the valve open, the gas goes into the room.
+            No tank inserted. Opening the valve releases the gas into the
+            room.
           </Box>
         )}
       </Section>
