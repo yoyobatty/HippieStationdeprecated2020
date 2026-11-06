@@ -143,6 +143,7 @@ import { NtosCard } from './interfaces/NtosCard';
 import { NtnetRelay, NtosConfiguration, NtosFileManager, NtosNetChat, NtosNetDos, NtosNetMonitor, NtosNetTransfer, NtosRevelation, SyndContract } from './interfaces/NtosPrograms';
 import { AuxBase, BountyConsole, CoinPress, OreSilo, SmelterConsole } from './interfaces/CargoMining';
 import { MassDriverConsole, ShuttleConsole } from './interfaces/ShuttleConsole';
+import { AirlockController, BankVault, Holopad, Jukebox, LimbGrower, NavBeacon, SeedExtractor, SlotMachine } from './interfaces/ServiceMachines';
 // hippie end
 
 const ROUTES = {
@@ -156,6 +157,10 @@ const ROUTES = {
   },
   airalarm: {
     component: () => AirAlarm,
+    scrollable: true,
+  },
+  airlock_controller: {
+    component: () => AirlockController,
     scrollable: true,
   },
   airlock_electronics: {
@@ -196,6 +201,10 @@ const ROUTES = {
   },
   aux_base: {
     component: () => AuxBase,
+    scrollable: true,
+  },
+  bank_vault: {
+    component: () => BankVault,
     scrollable: true,
   },
   biogenerator: {
@@ -287,8 +296,16 @@ const ROUTES = {
     component: () => HandTeleporter,
     scrollable: true,
   },
+  holopad: {
+    component: () => Holopad,
+    scrollable: true,
+  },
   implant_pad: {
     component: () => ImplantPad,
+    scrollable: true,
+  },
+  jukebox: {
+    component: () => Jukebox,
     scrollable: true,
   },
   library_console: {
@@ -301,6 +318,10 @@ const ROUTES = {
   },
   library_visitor: {
     component: () => LibraryVisitor,
+    scrollable: true,
+  },
+  limb_grower: {
+    component: () => LimbGrower,
     scrollable: true,
   },
   mass_driver_console: {
@@ -317,6 +338,10 @@ const ROUTES = {
   },
   mining_vendor: {
     component: () => MiningVendor,
+    scrollable: true,
+  },
+  nav_beacon: {
+    component: () => NavBeacon,
     scrollable: true,
   },
   newscaster: {
@@ -387,8 +412,16 @@ const ROUTES = {
     component: () => SecurityRecords,
     scrollable: false,
   },
+  seed_extractor: {
+    component: () => SeedExtractor,
+    scrollable: true,
+  },
   shuttle_console: {
     component: () => ShuttleConsole,
+    scrollable: true,
+  },
+  slot_machine: {
+    component: () => SlotMachine,
     scrollable: true,
   },
   smelter_console: {

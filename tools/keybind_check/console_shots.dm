@@ -234,6 +234,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_cargo(C, H, label)
 		if("shuttle")
 			cs_shuttle(C, H, label)
+		if("service")
+			cs_service(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -4922,7 +4924,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		// The before build: the old HTML popup, closed again after its picture
 		sleep(25)
 		cs_shot(name)
-		for(var/window in list("bounties", "ore_silo", "processing", "mint", "computer"))
+		for(var/window in list("bounties", "ore_silo", "processing", "mint", "computer", "vending", "slotmachine", "holopad", \
+			"seed_ext", "Limb Grower", "navbeacon", "autosec"))
 			C << browse(null, "window=[window]")
 		return null
 	winset(C, ui.window_id, "pos=100,20")
@@ -5083,3 +5086,145 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		SStgui.close_user_uis(H)
 		qdel(pod)
 		qdel(driver)
+
+// Service and misc machines
+/proc/cs_service(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/captain)
+	var/obj/item/card/id/id = H.wear_id
+	if(istype(id))
+		id.access = get_all_accesses()
+	// Everything is set down beside a station holopad
+	var/obj/machinery/holopad/pad
+	for(var/obj/machinery/holopad/P in GLOB.machines)
+		if(is_station_level(P.z) && P.on_network && cs_open_turf_by(P))
+			pad = P
+			break
+	if(pad)
+		H.forceMove(pad.loc)
+	var/turf/spot = cs_open_turf_by(H)
+
+	var/obj/machinery/jukebox/jukebox = new(spot)
+	jukebox.anchored = TRUE
+	if(!jukebox.songs.len)
+		jukebox.songs += new /datum/track("Space Asshole", null, 1850, 5)
+		jukebox.songs += new /datum/track("Title3", null, 2400, 6)
+		jukebox.songs += new /datum/track("Clown", null, 1200, 4)
+		jukebox.selection = jukebox.songs[1]
+	var/datum/tgui/ui = cs_window_shot(C, H, jukebox, "popup_service_[label]_jukebox")
+	if(ui && label == "after")
+		cs_act(jukebox, H, "select", list("name" = "Title3"))
+		cs_check("jukebox: picking a track ([jukebox.selection.song_name])", jukebox.selection.song_name == "Title3")
+	SStgui.close_user_uis(H)
+	qdel(jukebox)
+
+	var/obj/machinery/computer/slot_machine/slots = new(spot)
+	slots.balance = 20
+	ui = cs_window_shot(C, H, slots, "popup_service_[label]_slots")
+	if(ui && label == "after")
+		cs_tgui_do(C, ui.window_id, "click:Play")
+		sleep(10)
+		cs_check("slots: clicking Play spins (credit [slots.balance], spinning [slots.working])", slots.balance == 15 && slots.working)
+		sleep(5)
+		cs_shot("popup_service_after_slots_spinning")
+		sleep(70)
+	SStgui.close_user_uis(H)
+	qdel(slots)
+
+	var/obj/machinery/seed_extractor/extractor = new(spot)
+	for(var/kind in list(/obj/item/seeds/tomato, /obj/item/seeds/tomato, /obj/item/seeds/wheat, /obj/item/seeds/potato, /obj/item/seeds/ambrosia))
+		var/obj/item/seeds/seed = new kind(H.loc)
+		H.put_in_hands(seed)
+		extractor.add_seed(seed)
+	ui = cs_window_shot(C, H, extractor, "popup_service_[label]_seeds")
+	if(ui && label == "after")
+		var/list/data = extractor.ui_data(H)
+		var/list/seeds = data["seeds"]
+		var/before = length(extractor.contents)
+		cs_act(extractor, H, "vend", list("ref" = seeds[1]["ref"]))
+		cs_check("seeds: Vend drops one ([before] -> [length(extractor.contents)] stored)", length(extractor.contents) == before - 1)
+	SStgui.close_user_uis(H)
+	qdel(extractor)
+
+	var/obj/machinery/limbgrower/grower = new(spot)
+	grower.reagents.add_reagent(/datum/reagent/medicine/synthflesh, 60)
+	ui = cs_window_shot(C, H, grower, "popup_service_[label]_limbs")
+	if(ui && label == "after")
+		var/list/data = grower.ui_data(H)
+		var/list/cats = data["categories"]
+		var/list/human = cats[1]
+		var/list/designs = human["designs"]
+		cs_check("limb grower: [length(cats)] categories, [length(designs)] in the first", length(designs) > 0)
+		cs_act(grower, H, "make", list("id" = designs[1]["id"]))
+		cs_check("limb grower: growing [designs[1]["name"]]", grower.busy)
+		sleep(5)
+		cs_shot("popup_service_after_limbs_growing")
+	SStgui.close_user_uis(H)
+	sleep(50)
+	qdel(grower)
+
+	// A station patrol beacon, its floor tile lifted and its cover opened
+	var/obj/machinery/navbeacon/beacon
+	for(var/obj/machinery/navbeacon/B in GLOB.machines)
+		if(is_station_level(B.z) && B.codes && B.codes["patrol"] && cs_open_turf_by(B))
+			beacon = B
+			break
+	if(beacon)
+		var/turf/beacon_turf = beacon.loc
+		var/was_intact = beacon_turf.intact
+		var/old_location = beacon.location
+		var/list/old_codes = beacon.codes.Copy()
+		beacon_turf.intact = FALSE
+		beacon.hide(FALSE)
+		beacon.open = TRUE
+		beacon.locked = FALSE
+		cs_stand_by(H, beacon)
+		ui = cs_window_shot(C, H, beacon, "popup_service_[label]_beacon")
+		if(ui && label == "after")
+			cs_act(beacon, H, "location", list("value" = "Dorms"))
+			cs_act(beacon, H, "add", list("key" = "delivery", "value" = "1"))
+			cs_check("beacon: location and a new code typed in ([beacon.location], [length(beacon.codes)] codes)", beacon.location == "Dorms" && beacon.codes["delivery"] == "1")
+		SStgui.close_user_uis(H)
+		beacon.location = old_location
+		beacon.codes = old_codes
+		beacon.open = FALSE
+		beacon.locked = TRUE
+		beacon_turf.intact = was_intact
+		beacon.hide(was_intact)
+		if(pad)
+			H.forceMove(pad.loc)
+		spot = cs_open_turf_by(H)
+	else
+		cs_check("a station patrol beacon", FALSE)
+
+	var/obj/machinery/computer/bank_machine/bank = new(spot)
+	ui = cs_window_shot(C, H, bank, "popup_service_[label]_bank")
+	if(ui && label == "after")
+		cs_act(bank, H, "siphon")
+		var/started = bank.siphoning
+		cs_act(bank, H, "halt")
+		cs_check("bank: siphon then halt ([started] then [bank.siphoning])", started && !bank.siphoning)
+	SStgui.close_user_uis(H)
+	qdel(bank)
+
+	if(pad)
+		H.forceMove(pad.loc)
+		ui = cs_window_shot(C, H, pad, "popup_service_[label]_holopad")
+		if(ui && label == "after")
+			var/list/data = pad.ui_data(H)
+			cs_check("holopad: [length(data["areas"])] areas to call", length(data["areas"]) > 3)
+		SStgui.close_user_uis(H)
+
+	var/obj/machinery/embedded_controller/radio/airlock_controller/airlock
+	for(var/obj/machinery/embedded_controller/radio/airlock_controller/A in GLOB.machines)
+		if(is_station_level(A.z))
+			airlock = A
+			break
+	if(airlock)
+		cs_stand_by(H, airlock)
+		ui = cs_window_shot(C, H, airlock, "popup_service_[label]_airlock")
+		if(ui && label == "after")
+			var/list/data = airlock.ui_data(H)
+			cs_check("airlock controller: [length(data["commands"])] commands offered", length(data["commands"]) > 0)
+		SStgui.close_user_uis(H)
+	else
+		cs_check("an airlock controller", FALSE)
