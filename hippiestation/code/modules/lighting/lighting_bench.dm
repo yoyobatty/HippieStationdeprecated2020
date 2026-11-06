@@ -104,6 +104,7 @@
 		lines += lighting_bench_check()
 		lines += lighting_bench_falloff_check(spots.Copy(1, min(length(spots), 100) + 1))
 		lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_[mode].txt")
+		lines += lighting_bench_in_place_check(z, mode)
 
 		if(option == "profile")
 			world.Profile(PROFILE_CLEAR)
@@ -159,6 +160,11 @@
 		lines += ""
 		lines += "== soft falloff =="
 		lines += lighting_bench_tail(z, spots, doors)
+
+	if(option == "sections")
+		lines += ""
+		lines += "== where a lamp's update goes =="
+		lines += lighting_bench_sections(z)
 
 	text2file(jointext(lines, "\n"), "[LIGHTING_BENCH_DIR]results.txt")
 	log_world("LIGHTING BENCH: done")
@@ -360,6 +366,110 @@
 	var/range7 = lighting_bench_time(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(lighting_bench_carry), spots, 7)) / length(spots)
 	var/door = lighting_bench_time(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(lighting_bench_doors), doors)) / (2 * max(1, length(doors)))
 	return "[label]: relight all [length(sources)] lights [round(relight, 0.1)] ms, moving range 4 light [round(range4, 0.001)] ms, range 7 [round(range7, 0.001)] ms, airlock [round(door, 0.001)] ms"
+
+/**
+ * Where a lamp's update goes ("lighting-bench=sections"), bounce lighting on: every lamp on the station is put through the parts of
+ * update_corners() one at a time, cumulatively - BYOND's view() alone, then going through what it hands back for the turfs, then
+ * reading their corners - and then through a whole update forced, and one for a door (vis_update()).
+ */
+/proc/lighting_bench_sections(z)
+	SSlighting.set_bounce_lighting(TRUE)
+	lighting_bench_flush()
+	var/list/datum/light_source/lamps = list()
+	for(var/obj/machinery/light/fitting in GLOB.machines)
+		if(fitting.z == z && fitting.light && !QDELETED(fitting.light))
+			lamps += fitting.light
+	var/n = max(length(lamps), 1)
+	var/atoms = 0
+	var/turfs = 0
+	var/start = TICK_USAGE_REAL
+	for(var/datum/light_source/L as anything in lamps)
+		var/turf/source = L.source_turf
+		var/old = source.luminosity
+		source.luminosity = ceil(L.light_reach * 1.5)
+		var/list/seen = view(L.light_reach, source)
+		source.luminosity = old
+		atoms += length(seen)
+	var/view_ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - start)
+	start = TICK_USAGE_REAL
+	for(var/datum/light_source/L as anything in lamps)
+		var/turf/source = L.source_turf
+		var/old = source.luminosity
+		source.luminosity = ceil(L.light_reach * 1.5)
+		for(var/turf/T in view(L.light_reach, source))
+			turfs++
+		source.luminosity = old
+	var/loop_ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - start)
+	start = TICK_USAGE_REAL
+	var/corners = 0
+	for(var/datum/light_source/L as anything in lamps)
+		var/turf/source = L.source_turf
+		var/old = source.luminosity
+		source.luminosity = ceil(L.light_reach * 1.5)
+		for(var/turf/T in view(L.light_reach, source))
+			if((!IS_DYNAMIC_LIGHTING(T) && !T.light_sources) || IS_OPAQUE_TURF(T))
+				continue
+			if(T.lighting_corner_NE)
+				corners++
+			if(T.lighting_corner_SE)
+				corners++
+			if(T.lighting_corner_SW)
+				corners++
+			if(T.lighting_corner_NW)
+				corners++
+		source.luminosity = old
+	var/corner_ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - start)
+	start = TICK_USAGE_REAL
+	for(var/datum/light_source/L as anything in lamps)
+		L.force_update()
+	lighting_bench_flush()
+	var/force_ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - start)
+	start = TICK_USAGE_REAL
+	for(var/datum/light_source/L as anything in lamps)
+		L.vis_update()
+	lighting_bench_flush()
+	var/vis_ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - start)
+	var/effect_corners = 0
+	var/bounce_corners = 0
+	for(var/datum/light_source/L as anything in lamps)
+		effect_corners += length(L.effect_str)
+		bounce_corners += length(L.bounce_str)
+	return list("[length(lamps)] lamps; each sees [round(atoms / n)] atoms, [round(turfs / n)] of them turfs, [round(corners / n)] corners on those; lights [round(effect_corners / n)] corners, bounces onto [round(bounce_corners / n)]",
+		"  view() alone [round(1000 * view_ms / n)] us a lamp; + going through it for turfs [round(1000 * loop_ms / n)] us; + reading their corners [round(1000 * corner_ms / n)] us",
+		"  whole update, forced [round(1000 * force_ms / n)] us a lamp; for a door (vis_update) [round(1000 * vis_ms / n)] us (both with the corner and lighting object stages after)")
+
+/**
+ * Lamps going dimmer and changing colour are relit where they are (/datum/light_source/proc/relight_in_place()), not worked out
+ * afresh: checks that lights every tile exactly as working them out afresh does, and the bookkeeping still adds up.
+ */
+/proc/lighting_bench_in_place_check(z, mode)
+	var/list/obj/machinery/light/fittings = list()
+	for(var/obj/machinery/light/fitting in GLOB.machines)
+		if(fitting.z == z && fitting.light && !QDELETED(fitting.light) && length(fittings) < 300)
+			fittings += fitting
+	var/list/was = list()
+	for(var/obj/machinery/light/fitting as anything in fittings)
+		was[fitting] = list(fitting.light_range, fitting.light_power, fitting.light_color)
+	var/before = SSlighting.relit_in_place
+	var/start = TICK_USAGE_REAL
+	for(var/obj/machinery/light/fitting as anything in fittings)
+		fitting.set_light(fitting.light_range, fitting.light_power * 0.83, "#FFD0A0")
+	lighting_bench_flush()
+	var/in_place_ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - start)
+	var/in_place = SSlighting.relit_in_place - before
+	lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_in_place_[mode].txt")
+	start = TICK_USAGE_REAL
+	for(var/obj/machinery/light/fitting as anything in fittings)
+		fitting.light?.force_update()
+	lighting_bench_flush()
+	var/afresh_ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - start)
+	lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_afresh_[mode].txt")
+	. = list("relit in place: [length(fittings)] lamps dimmed and recoloured, [in_place] of them in place ([round(1000 * in_place_ms / max(1, length(fittings)))] us a lamp, afresh [round(1000 * afresh_ms / max(1, length(fittings)))] us): [lighting_bench_compare_snapshots("[LIGHTING_BENCH_DIR]snapshot_afresh_[mode].txt", "[LIGHTING_BENCH_DIR]snapshot_in_place_[mode].txt")]")
+	. += lighting_bench_check()
+	for(var/obj/machinery/light/fitting as anything in fittings)
+		var/list/old = was[fitting]
+		fitting.set_light(old[1], old[2], old[3])
+	lighting_bench_flush()
 
 /// The median time a workload takes, in milliseconds
 /proc/lighting_bench_time(datum/callback/workload)

@@ -408,6 +408,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		addtimer(CALLBACK(src, PROC_REF(rad_drill)), 4 MINUTES)
 	if(world.params["boom-drill"])
 		addtimer(CALLBACK(src, PROC_REF(boom_drill), world.params["boom-drill"]), 5 MINUTES - 20 SECONDS) //boom_drill.dm: it goes off at 5:00
+	if(world.params["stress-bench"]) //stress_bench.dm: picks its spots now, before the crew's arrival uses any random numbers
+		INVOKE_ASYNC(src, PROC_REF(stress_bench))
 	if(world.params["bot-silly"])
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_silly_start), text2num(world.params["bot-silly"])), 90 SECONDS) //bot_silly.dm
 	if(world.params["bot-cult"])

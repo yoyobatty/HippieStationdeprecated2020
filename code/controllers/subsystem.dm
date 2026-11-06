@@ -18,6 +18,7 @@
 	var/last_fire = 0		//last world.time we called fire()
 	var/next_fire = 0		//scheduled world.time for next fire()
 	var/cost = 0			//average time to execute
+	var/total_ms = 0		//hippie: every ms this ss has run since boot, paused slices included (for benches: differences between two readings)
 	var/tick_usage = 0		//average tick usage
 	var/tick_overrun = 0	//average tick overrun
 	var/state = SS_IDLE		//tracks the current state of the ss, running, paused, etc.

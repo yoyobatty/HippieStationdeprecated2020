@@ -3454,6 +3454,7 @@
 #include "hippiestation\code\modules\bots_ai\gym\bot_griefer.dm"
 #include "hippiestation\code\modules\bots_ai\gym\boom_drill.dm"
 #include "hippiestation\code\modules\bots_ai\gym\bot_shift.dm"
+#include "hippiestation\code\modules\bots_ai\gym\stress_bench.dm"
 #include "hippiestation\code\modules\bots_ai\gym\bot_silly.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_assistant.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_armed.dm"

@@ -39,12 +39,21 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 	var/list/datum/lighting_corner/effect_str     // List used to store how much we're affecting corners.
 	/// Like effect_str, for the corners only our bounce light reaches (see get_bounce_corners()). Never shares a corner with it.
 	var/list/datum/lighting_corner/bounce_str
+	/// Each corner in bounce_str -> its bounce_level as our last whole update worked it out, for relight_in_place()
+	var/list/datum/lighting_corner/bounce_levels
+	/// Whether our last whole update spilled bounce light
+	var/applied_bounces = FALSE
+	/// Whether what we can see may have changed since our last whole update (vis_update()). Until it has, only a change of
+	/// brightness or colour can be done in place: see relight_in_place().
+	var/vis_changed = FALSE
 
 	var/applied = FALSE // Whether we have applied our light yet or not.
 
 	var/needs_update = LIGHTING_NO_UPDATE    // Whether we are queued for an update.
 	/// Where in SSlighting.unseen_cells we're waiting for somebody to be able to see us, if we are
 	var/unseen_cell
+	/// The turf we'd light up from, while we wait there
+	var/turf/unseen_at
 
 // Thanks to Lohikar for flinging this tiny bit of code at me, increasing my brain cell count from 1 to 2 in the process.
 // This macro will only offset up to 1 tile, but anything with a greater offset is an outlier and probably should handle its own lighting offsets.
@@ -137,6 +146,7 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 
 // Will cause the light source to recalculate turfs that were removed or added to visibility only.
 /datum/light_source/proc/vis_update()
+	vis_changed = TRUE
 	EFFECT_UPDATE(LIGHTING_VIS_UPDATE)
 
 /**
@@ -353,6 +363,7 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 		ADD_CORNER_BOUNCE(C, delta_r, delta_g, delta_b)
 		LAZYREMOVE(C.affecting, src)
 	bounce_str = null
+	bounce_levels = null
 
 /datum/light_source/proc/recalc_corner(var/datum/lighting_corner/C)
 	if (LAZYACCESS(bounce_str, C)) // only our bounce light reaches it, and that's left as it is
@@ -393,6 +404,8 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
  */
 /datum/light_source/proc/update_corners()
 	var/update = FALSE
+	var/reshaped = FALSE // anything but our brightness and colour: where we are, how far we reach, which way we point
+	var/forced = needs_update == LIGHTING_FORCE_UPDATE
 	var/atom/source_atom = src.source_atom
 
 	if (QDELETED(source_atom))
@@ -407,10 +420,12 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 		light_range = source_atom.light_range
 		sheet = null
 		update = TRUE
+		reshaped = TRUE
 
 	if (!top_atom)
 		top_atom = source_atom
 		update = TRUE
+		reshaped = TRUE
 
 	if (light_range <= 0 || !light_power)
 		qdel(src)
@@ -421,10 +436,12 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 			source_turf = top_atom
 			UPDATE_APPROXIMATE_PIXEL_TURF
 			update = TRUE
+			reshaped = TRUE
 	else if (top_atom.loc != source_turf)
 		source_turf = top_atom.loc
 		UPDATE_APPROXIMATE_PIXEL_TURF
 		update = TRUE
+		reshaped = TRUE
 
 	if (!isturf(source_turf))
 		if (applied)
@@ -433,6 +450,7 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 
 	if (!applied)
 		update = TRUE
+		reshaped = TRUE
 
 	if (source_atom.light_color != light_color)
 		light_color = source_atom.light_color
@@ -446,23 +464,27 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 		light_angle = source_atom.light_angle
 		sheet = null
 		update = TRUE
+		reshaped = TRUE
 
 	var/new_dir = get_light_dir()
 	if (new_dir != light_dir)
 		light_dir = new_dir
 		sheet = null
 		update = TRUE
+		reshaped = TRUE
 
 	if (source_atom.light_height != light_height)
 		light_height = source_atom.light_height
 		sheet = null
 		update = TRUE
+		reshaped = TRUE
 
 	var/tail = source_atom.light_falloff_tail ? SSlighting.falloff_tail : 1
 	if (tail != light_tail)
 		light_tail = tail
 		sheet = null
 		update = TRUE
+		reshaped = TRUE
 
 	if (update)
 		needs_update = LIGHTING_CHECK_UPDATE
@@ -470,10 +492,16 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 	else if (needs_update == LIGHTING_CHECK_UPDATE)
 		return //nothing's changed
 
+	var/bounces = SSlighting.bounce_lighting && source_atom.light_bounce && light_power > 0
+	// Only brighter, dimmer or another colour, with nothing we can see changed since: an emergency light running down, a lamp on
+	// emergency power, starlight changing colour in an aurora. The same corners get the new light where they are.
+	if (update && !reshaped && !forced && !vis_changed && bounces == applied_bounces && (!bounce_str || bounce_levels))
+		relight_in_place()
+		return
+
 	light_reach = ceil(max(1, light_range) * LIGHTING_TAIL_END(light_tail))
 	// Only what we can see has changed, not us: what we already light, we light as before
 	var/vis_only = needs_update == LIGHTING_VIS_UPDATE
-	var/bounces = SSlighting.bounce_lighting && source_atom.light_bounce && light_power > 0
 	var/stamp = ++SSlighting.lighting_stamp
 	if (stamp >= LIGHTING_STAMP_LIMIT)
 		stamp = SSlighting.reset_lighting_stamps()
@@ -599,11 +627,13 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 	if (bounce_str || length(bounced))
 		LAZYINITLIST(bounce_str)
 		var/list/datum/lighting_corner/bounce = bounce_str
+		var/list/datum/lighting_corner/levels = list()
 		for (var/datum/lighting_corner/corner as anything in bounced)
 			old = bounce[corner]
 			if (isnull(old))
 				LAZYADD(corner.affecting, src)
 				old = 0
+			levels[corner] = corner.bounce_level
 			strength = corner.bounce_level * _light_power
 			bounce[corner] = strength
 			delta_r = (strength * _lum_r) - (old * _applied_lum_r)
@@ -624,12 +654,52 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 		if (gone)
 			bounce -= gone
 		UNSETEMPTY(bounce_str)
+		bounce_levels = length(levels) ? levels : null
 
 	applied_lum_r = lum_r
 	applied_lum_g = lum_g
 	applied_lum_b = lum_b
+	applied_bounces = bounces
+	vis_changed = FALSE
 
 	UNSETEMPTY(effect_str)
+
+/**
+ * Our brightness or colour has changed and nothing else has, nor has anything we can see (see update_corners()): we light the same
+ * corners, to the same falloff, so each gets what a whole update would give it - the same sum, worked out the same way - without
+ * looking around again. Bounce light goes by the levels our last whole update spilled (bounce_levels).
+ */
+/datum/light_source/proc/relight_in_place()
+	SSlighting.relit_in_place++
+	SETUP_CORNERS_CACHE(src)
+	var/list/_corners_queue = SSlighting.corners_queue
+	var/old
+	var/strength
+	var/delta_r
+	var/delta_g
+	var/delta_b
+	var/list/datum/lighting_corner/effect = effect_str
+	for (var/datum/lighting_corner/corner as anything in effect)
+		old = effect[corner]
+		strength = LUM_FALLOFF(corner) * _light_power
+		effect[corner] = strength
+		delta_r = (strength * _lum_r) - (old * _applied_lum_r)
+		delta_g = (strength * _lum_g) - (old * _applied_lum_g)
+		delta_b = (strength * _lum_b) - (old * _applied_lum_b)
+		ADD_CORNER_LUM(corner, delta_r, delta_g, delta_b)
+	var/list/datum/lighting_corner/bounce = bounce_str
+	var/list/datum/lighting_corner/levels = bounce_levels
+	for (var/datum/lighting_corner/corner as anything in bounce)
+		old = bounce[corner]
+		strength = levels[corner] * _light_power
+		bounce[corner] = strength
+		delta_r = (strength * _lum_r) - (old * _applied_lum_r)
+		delta_g = (strength * _lum_g) - (old * _applied_lum_g)
+		delta_b = (strength * _lum_b) - (old * _applied_lum_b)
+		ADD_CORNER_BOUNCE(corner, delta_r, delta_g, delta_b)
+	applied_lum_r = lum_r
+	applied_lum_g = lum_g
+	applied_lum_b = lum_b
 
 /**
  * Bounce lighting: works out where our light spills into the shadows around what it lights directly.

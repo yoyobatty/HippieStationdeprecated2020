@@ -28,6 +28,8 @@ SUBSYSTEM_DEF(chat)
 
 	if(target == world)
 		target = GLOB.clients
+	else if(!islist(target) && !CLIENT_FROM_VAR(target))
+		return //hippie: a mob with no player. Nothing below shows it anyone, demos included, so don't work the text up first
 
 	//Some macros remain in the string even after parsing and fuck up the eventual output
 	var/original_message = message
@@ -50,7 +52,7 @@ SUBSYSTEM_DEF(chat)
 			var/client/C = CLIENT_FROM_VAR(I) //Grab us a client if possible
 
 			if(!C)
-				return
+				continue //hippie: was return, which left everyone after the first mob with no player without the message
 
 			//Send it to the old style output window.
 			SEND_TEXT(C, original_message)

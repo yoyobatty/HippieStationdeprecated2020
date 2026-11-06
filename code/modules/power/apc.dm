@@ -1169,7 +1169,10 @@
 	if(!area.requires_power)
 		return
 	if(failure_timer)
-		update()
+		// hippie: only the outage's first tick changes anything. Every tick after it told every machine in the area again, pipes
+		// included, and scanned the world for them to do it: in a grid check that was most of the server's time for minutes.
+		if(area.power_light || area.power_equip || area.power_environ)
+			update()
 		queue_icon_update()
 		failure_timer--
 		force_update = 1

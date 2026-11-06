@@ -16,6 +16,7 @@ unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every 
 #   QUIET=1      no bot AI logs (for measuring speed; the WHY part of the report goes)
 #   ANTAGS=traitor*2   a couple of the crew are traitors
 #   NOCOMPILE=1  use the hippiestation.dmb that's there
+#   DMB=x.dmb    run this build instead (its .rsc beside it); implies NOCOMPILE. For before/after batches side by side
 #   EXTRA_PARAMS="a=1&b=2"  more world params, like lighting-unseen=off to update every light at once
 #   BASE_PORT=45200
 # Each shift runs from its own copy of the .dmb, so the code can be edited and recompiled while a batch runs.
@@ -99,21 +100,23 @@ main() {
 	LOGS="shift_batch/$NAME"
 	DIR="data/logs/$LOGS"
 
+	SRC_DMB="${DMB:-hippiestation.dmb}"
+	if [ -n "${DMB:-}" ]; then NOCOMPILE=1; fi
 	if [ "${NOCOMPILE:-0}" != "1" ]; then
 		echo "Compiling..."
 		"$BYOND_BIN/dm.exe" hippiestation.dme | grep -E "error|warning|dmb -" || true
 	fi
-	if [ ! -f hippiestation.dmb ]; then echo "Compile failed"; exit 1; fi
+	if [ ! -f "$SRC_DMB" ]; then echo "No $SRC_DMB (compile failed?)"; exit 1; fi
 
 	rm -rf "$DIR" #a name used before with more runs left its extra runN folders, and the report counted them in
 	mkdir -p "$DIR"
 	# One copy for each slot: a server writes icons it builds at runtime into <name>.dyn.rsc, and two sharing one fail
 	# with "cannot open savefile buffer" the first time both want it.
-	COPY="shiftbatch_$stamp"
+	COPY="shiftbatch_${NAME//[^A-Za-z0-9_-]/_}_$stamp" #the name too: two batches started in the same second shared copies
 	local copy_slot
 	for copy_slot in $(seq 1 "$JOBS"); do
-		cp hippiestation.dmb "${COPY}_$copy_slot.dmb"
-		cp hippiestation.rsc "${COPY}_$copy_slot.rsc"
+		cp "$SRC_DMB" "${COPY}_$copy_slot.dmb"
+		cp "${SRC_DMB%.dmb}.rsc" "${COPY}_$copy_slot.rsc"
 	done
 	trap 'kill $(jobs -p) 2>/dev/null' INT TERM
 

@@ -1,0 +1,532 @@
+// The CPU stress bench (stress-bench=1 on a Bot Shift; tools/bot_gym/run_stress_bench.sh <label> [runs]): the worst a round gets, the
+// same way every run, to measure what the server costs and whether a change made it any cheaper. The run script brings 40 bot crew, two
+// traitors and random events; this adds a fixed list of disasters at set times on top, each its own phase (see `schedule`):
+//   crew arriving, calm, aurora, grid check, rad storm, plasma fire, hull breaches, meteors, maxcap, tesla (taken away when the aftermath
+//   starts), aftermath
+// They stack: the fire still burns through the breaches, the station stays holed for the tesla.
+// Every bot counts as a player for what waits until a player is near (SSlighting.test_eyes), where a plain Bot Shift counts one.
+// Spots are picked from a fixed seed before the crew arrives, so they're the same every run (and so is the crew's first roll of jobs).
+//
+// Each phase records
+//  - every tick's real length on timewarp's clock: with the wait skipped, that's everything the server did that tick, in the MC or not
+//  - what each subsystem cost (exact: /datum/controller/subsystem/var/total_ms) and how often it fired, since one that falls behind
+//    fires less and would look cheaper
+//  - what the station is like at its end (tiles changed, fires, air, deaths, lights waiting), to tell a faster build from one doing less
+// Results: <bot-results>stress.txt and stress.json (data/stress_bench/ without bot-results). Compare builds with
+// tools/bot_gym/stress_report.py. The bots' own thinking can't be timed from here (pathfinding sleeps mid-search): profile a run
+// (PROFILE=1) and read it with tools/bot_gym/shift_profile.py for that split.
+
+#define STRESS_BENCH_SEED 1337
+/// How many bots count as players watching
+#define STRESS_BENCH_EYES 40
+/// A tick that took longer than this was over budget at 40 ticks a second: the game slowed down
+#define STRESS_BENCH_BUDGET_MS 25
+
+GLOBAL_DATUM(stress_bench, /datum/stress_bench)
+
+/datum/stress_phase
+	var/name
+	/// world.time it began
+	var/started_at
+	/// Game time it lasted, deciseconds
+	var/game_ds = 0
+	/// Real time of the ticks in it, ms
+	var/real_ms = 0
+	var/list/tick_ms = list()
+	var/worst_ms = 0
+	/// Deciseconds into the phase the worst tick came
+	var/worst_at = 0
+	var/over_budget = 0
+	var/over_100 = 0
+	/// Subsystem name -> its total_ms as the phase began, then what the phase added
+	var/list/ss_ms = list()
+	/// Subsystem name -> times_fired as the phase began, then how many times it fired in the phase
+	var/list/ss_fired = list()
+	/// What the station was like at the end, see /datum/stress_bench/proc/survey()
+	var/list/state
+
+/datum/stress_phase/proc/add_tick(gap)
+	real_ms += gap
+	tick_ms += gap
+	if(gap > worst_ms)
+		worst_ms = gap
+		worst_at = world.time - started_at
+	if(gap > STRESS_BENCH_BUDGET_MS)
+		over_budget++
+	if(gap > 100)
+		over_100++
+
+/datum/stress_phase/proc/seconds()
+	return max(game_ds / 10, 0.1)
+
+/datum/stress_phase/proc/percentile(fraction)
+	if(!length(tick_ms))
+		return 0
+	var/list/sorted = sortTim(tick_ms.Copy(), GLOBAL_PROC_REF(cmp_numeric_asc))
+	return sorted[clamp(round(length(sorted) * fraction), 1, length(sorted))]
+
+/datum/stress_phase/proc/mc_ms()
+	. = 0
+	for(var/name in ss_ms)
+		. += ss_ms[name]
+
+/datum/stress_phase/proc/line()
+	var/seconds = seconds()
+	var/list/top = ss_ms.Copy()
+	sortTim(top, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
+	var/list/parts = list()
+	for(var/name in top)
+		if(length(parts) >= 8 || top[name] / seconds < 0.1)
+			break
+		parts += "[name] [round(top[name] / seconds, 0.1)]"
+	return "[pad(name, 14)] [pad(bot_shift_duration(game_ds), 7)] real [pad(round(real_ms / seconds, 0.1), 6)] ms/s (MC [round(mc_ms() / seconds, 0.1)], \
+		outside [round((real_ms - mc_ms()) / seconds, 0.1)]); ticks worst [round(worst_ms)] ms at +[round(worst_at / 10)]s, p99 [round(percentile(0.99), 0.1)], \
+		[over_budget] over [STRESS_BENCH_BUDGET_MS] ms, [over_100] over 100 | [jointext(parts, ", ")]"
+
+/datum/stress_phase/proc/pad(text, width)
+	text = "[text]"
+	while(length(text) < width)
+		text += " "
+	return text
+
+/datum/stress_phase/proc/to_list()
+	return list("name" = name, "seconds" = seconds(), "real_ms" = real_ms, "ticks" = length(tick_ms), "worst_ms" = worst_ms, "worst_at" = worst_at / 10,
+		"p99" = percentile(0.99), "p999" = percentile(0.999), "over_budget" = over_budget, "over_100" = over_100, "mc_ms" = mc_ms(),
+		"ss_ms" = ss_ms, "ss_fired" = ss_fired, "state" = state)
+
+/datum/stress_bench
+	var/datum/bot_shift/shift
+	/// Phase name -> seconds into the shift it starts at, in order. "end" closes the last one.
+	var/list/schedule = list(
+		"crew arriving" = 0,
+		"calm" = 150,
+		"aurora" = 270,
+		"grid check" = 390,
+		"rad storm" = 510,
+		"plasma fire" = 630,
+		"hull breaches" = 750,
+		"meteors" = 870,
+		"maxcap" = 1020,
+		"tesla" = 1140,
+		"aftermath" = 1380,
+		"end" = 1560
+	)
+	var/list/datum/stress_phase/phases = list()
+	var/datum/stress_phase/current
+	var/z
+	var/turf/open/floor/fire_spot
+	var/list/turf/closed/wall/breach_walls = list()
+	var/turf/open/floor/boom_spot
+	var/turf/open/floor/tesla_spot
+	var/obj/singularity/energy_ball/ball
+	/// GLOB.station_turfs as the bench began, and their types in the same order
+	var/list/turf/station_turfs_start
+	var/list/station_types_start
+	var/list/lines = list()
+	var/next_eyes = 0
+	/// light-tally=1: why light sources worked their light out, and what it cost: "<why> <what>" -> count, and -> ms
+	var/list/light_tally
+	var/list/light_ms
+	/// light-shadow=1: the old and new tests for which waiting lights somebody can see, set against each other (see update_eyes() below)
+	var/list/light_shadow
+
+/datum/stress_bench/New(datum/bot_shift/shift)
+	src.shift = shift
+	shift.length = max(shift.length, (schedule["end"] + 30) SECONDS)
+	if(world.params["light-tally"])
+		light_tally = list()
+		light_ms = list()
+	if(world.params["light-shadow"])
+		light_shadow = list("checked" = 0, "taken out" = 0, "old only" = 0, "new only" = 0)
+
+// light-tally=1: every light update, by why it ran and what the light is on. Only while the bench runs with it.
+/datum/light_source/update_corners()
+	var/datum/stress_bench/B = GLOB.stress_bench
+	if(!B?.light_tally || B.shift.elapsed() < B.schedule["calm"] SECONDS)
+		return ..()
+	var/why
+	switch(needs_update)
+		if(LIGHTING_VIS_UPDATE)
+			why = "door/opacity"
+		if(LIGHTING_FORCE_UPDATE)
+			why = "forced"
+		else
+			var/atom/top = top_atom || source_atom
+			why = ((isturf(top) ? top : top?.loc) != source_turf) ? "moved" : "changed"
+	var/what
+	if(isturf(source_atom))
+		what = "turf ([source_atom.type])"
+	else if(top_atom && top_atom != source_atom)
+		what = "carried by [ismob(top_atom) ? "a mob" : "[top_atom.type]"] ([source_atom?.type])"
+	else
+		what = "[source_atom?.type]"
+	var/key = "[why] [what]"
+	var/start = TICK_USAGE_REAL
+	. = ..()
+	var/took = TICK_USAGE_REAL - start
+	B.light_tally[key] += 1
+	B.light_ms[key] += took > 0 ? TICK_DELTA_TO_MS(took) : 0
+
+// light-shadow=1: every time SSlighting looks where the players are, works out which waiting lights the old test (each light near an
+// eye against every eye, with can_wait_unseen()) would have taken out of waiting, and counts any that the real one didn't, or the other
+// way round. The two should always agree.
+/datum/controller/subsystem/lighting/update_eyes()
+	var/datum/stress_bench/B = GLOB.stress_bench
+	if(!B?.light_shadow || !defer_unseen)
+		return ..()
+	var/list/waiting = list()
+	var/list/waiting_at = list()
+	for(var/cell in unseen_cells)
+		for(var/datum/light_source/L as anything in unseen_cells[cell])
+			waiting += L
+			waiting_at += L.unseen_at
+	. = ..()
+	for(var/i in 1 to length(waiting))
+		var/datum/light_source/L = waiting[i]
+		var/turf/at = waiting_at[i]
+		var/new_back = !L.unseen_cell
+		var/scanned = FALSE
+		for(var/turf/eye as anything in eyes)
+			var/range = eyes[eye] + LIGHTING_UNSEEN_MARGIN + LIGHTING_UNSEEN_MAX_REACH
+			if(eye.z == at.z && abs(LIGHTING_UNSEEN_CELL_OF(at.x) - LIGHTING_UNSEEN_CELL_OF(clamp(at.x, eye.x - range, eye.x + range))) == 0 \
+				&& abs(LIGHTING_UNSEEN_CELL_OF(at.y) - LIGHTING_UNSEEN_CELL_OF(clamp(at.y, eye.y - range, eye.y + range))) == 0)
+				scanned = TRUE
+				break
+		var/old_back = scanned && !L.can_wait_unseen(eyes)
+		B.light_shadow["checked"]++
+		if(new_back)
+			B.light_shadow["taken out"]++
+		if(old_back != new_back)
+			B.light_shadow[old_back ? "old only" : "new only"]++
+
+/datum/bot_shift/proc/stress_bench()
+	GLOB.stress_bench = new /datum/stress_bench(src)
+	GLOB.stress_bench.go()
+
+/datum/stress_bench/proc/go()
+	z = SSmapping.levels_by_trait(ZTRAIT_STATION)[1]
+	pick_spots()
+	station_turfs_start = GLOB.station_turfs.Copy()
+	station_types_start = list()
+	for(var/turf/T as anything in station_turfs_start)
+		station_types_start += T.type
+	var/list/names = list()
+	for(var/name in schedule)
+		names += name
+	var/next = 1
+	var/last = timewarp_real_ms()
+	while(next <= length(names))
+		var/name = names[next]
+		if(shift.elapsed() >= schedule[name] SECONDS)
+			next++
+			if(current)
+				close_phase()
+			if(name == "end")
+				break
+			start_phase(name)
+			last = timewarp_real_ms() // what the survey took isn't counted, what setting the disaster off takes is
+			set_off(name)
+			continue
+		sleep(world.tick_lag)
+		var/now = timewarp_real_ms()
+		current?.add_tick(now - last)
+		if(world.time >= next_eyes)
+			refresh_eyes()
+		last = timewarp_real_ms()
+	write_results()
+
+/datum/stress_bench/proc/note(text)
+	lines += text
+	shift.note("stress bench: [text]")
+
+/datum/stress_bench/proc/start_phase(name)
+	current = new
+	current.name = name
+	current.started_at = world.time
+	for(var/datum/controller/subsystem/SS as anything in Master.subsystems)
+		current.ss_ms[SS.name] = SS.total_ms
+		current.ss_fired[SS.name] = SS.times_fired
+	phases += current
+	refresh_eyes()
+	if(replacetext("[world.params["profile-phase"]]", "_", " ") == name) // profile-phase=<name> (underscores for spaces): BYOND's profiler over that phase alone, into <results>profile_<name>.json
+		world.Profile(PROFILE_CLEAR)
+		world.Profile(PROFILE_START)
+
+/datum/stress_bench/proc/close_phase()
+	current.game_ds = world.time - current.started_at
+	for(var/datum/controller/subsystem/SS as anything in Master.subsystems)
+		current.ss_ms[SS.name] = SS.total_ms - current.ss_ms[SS.name]
+		current.ss_fired[SS.name] = SS.times_fired - current.ss_fired[SS.name]
+	if(replacetext("[world.params["profile-phase"]]", "_", " ") == current.name)
+		var/dir = world.params["bot-results"] || "data/stress_bench/"
+		text2file(world.Profile(PROFILE_REFRESH, format = "json"), "[dir]profile_[replacetext(current.name, " ", "_")].json")
+		world.Profile(PROFILE_STOP)
+	current.state = survey()
+	log_world("STRESS BENCH: [current.line()]")
+	current = null
+
+/// Who counts as a player watching: up to STRESS_BENCH_EYES living bots, the same ones while they live
+/datum/stress_bench/proc/refresh_eyes()
+	next_eyes = world.time + 30 SECONDS
+	if(shift.elapsed() < schedule["calm"] SECONDS)
+		return // the shift watches its one bot while the crew arrives
+	var/list/eyes = list()
+	for(var/datum/bot_shift_member/M as anything in shift.members)
+		if(length(eyes) >= STRESS_BENCH_EYES)
+			break
+		var/mob/living/body = M.body
+		if(!QDELETED(body) && body.stat != DEAD)
+			eyes += body
+	if(length(eyes))
+		SSlighting.test_eyes = eyes
+
+/datum/stress_bench/proc/run_event(type)
+	for(var/datum/round_event_control/C in SSevents.control)
+		if(C.type == type)
+			C.runEvent()
+			return
+	note("no [type] event to run")
+
+/datum/stress_bench/proc/set_off(name)
+	switch(name)
+		if("aurora")
+			run_event(/datum/round_event_control/aurora_caelus)
+		if("grid check")
+			run_event(/datum/round_event_control/grid_check)
+		if("rad storm")
+			SSweather.run_weather(/datum/weather/rad_storm)
+		if("plasma fire")
+			var/tiles = 0
+			for(var/turf/open/floor/F in range(3, fire_spot))
+				var/datum/gas_mixture/air = F.air
+				if(!air || istype(air, /datum/gas_mixture/immutable))
+					continue
+				air.assert_gases(/datum/gas/plasma, /datum/gas/oxygen)
+				air.moles[/datum/gas/plasma] += 60
+				air.moles[/datum/gas/oxygen] += 40
+				SSair.add_to_active(F)
+				tiles++
+			fire_spot.hotspot_expose(1000, CELL_VOLUME)
+			note("plasma fire on [tiles] tiles round [AREACOORD(fire_spot)]")
+		if("hull breaches")
+			var/list/done = list()
+			for(var/turf/closed/wall/W in breach_walls)
+				done += "([W.x],[W.y])"
+				W.ChangeTurf(/turf/open/floor/plating)
+			note("hull walls knocked out: [jointext(done, " ")]")
+		if("meteors")
+			run_event(/datum/round_event_control/meteor_wave/threatening)
+		if("maxcap")
+			explosion(boom_spot, GLOB.MAX_EX_DEVESTATION_RANGE, GLOB.MAX_EX_HEAVY_RANGE, GLOB.MAX_EX_LIGHT_RANGE, GLOB.MAX_EX_FLASH_RANGE)
+			note("maxcap at [AREACOORD(boom_spot)]")
+		if("tesla")
+			ball = new(tesla_spot, 200)
+			for(var/i in 1 to 5)
+				ball.new_mini_ball()
+			note("tesla loose at [AREACOORD(tesla_spot)]")
+		if("aftermath")
+			if(!QDELETED(ball))
+				note("tesla taken away at [AREACOORD(ball)]")
+				qdel(ball)
+
+/// The same spots every run: everything is picked straight after seeding, before the crew arrives
+/datum/stress_bench/proc/pick_spots()
+	rand_seed(STRESS_BENCH_SEED)
+	var/list/room_floors = list()
+	var/list/hall_floors = list()
+	var/list/hull_walls = list()
+	var/sx = 0
+	var/sy = 0
+	var/n = 0
+	for(var/turf/T as anything in GLOB.station_turfs)
+		if(T.z != z)
+			continue
+		sx += T.x
+		sy += T.y
+		n++
+	for(var/turf/T as anything in block(locate(1, 1, z), locate(world.maxx, world.maxy, z)))
+		var/area/A = T.loc
+		if(istype(T, /turf/open/floor))
+			if(istype(A, /area/hallway))
+				hall_floors += T
+			else if(!istype(A, /area/space) && !istype(A, /area/maintenance) && !istype(A, /area/solar) && !istype(A, /area/shuttle) && !istype(A, /area/engine))
+				room_floors += T
+		else if(istype(T, /turf/closed/wall) && !istype(T, /turf/closed/wall/r_wall))
+			for(var/dir in GLOB.cardinals)
+				var/turf/inside = get_step(T, dir)
+				var/turf/outside = get_step(T, turn(dir, 180))
+				if(istype(inside, /turf/open/floor) && istype(inside.loc, /area/hallway) && istype(outside, /turf/open/space))
+					hull_walls += T
+					break
+	// The maxcap: the open floor nearest the middle of the station, where the boom drills set theirs off (boom_drill.dm)
+	if(n)
+		var/turf/middle = locate(round(sx / n), round(sy / n), z)
+		for(var/turf/open/floor/F in range(15, middle))
+			if(!boom_spot || get_dist(F, middle) < get_dist(boom_spot, middle))
+				boom_spot = F
+	// The fire: a floor in a room, with floor all round it, air on it and no space near
+	for(var/i in 1 to 200)
+		var/turf/open/floor/F = pick(room_floors)
+		if(!F.air || F.air.total_moles() < 50)
+			continue
+		var/ok = TRUE
+		for(var/turf/T in range(3, F))
+			if(isspaceturf(T))
+				ok = FALSE
+				break
+		for(var/dir in GLOB.cardinals)
+			if(!istype(get_step(F, dir), /turf/open/floor))
+				ok = FALSE
+		if(ok)
+			fire_spot = F
+			break
+	// Six hull breaches off hallways, well apart
+	shuffle_inplace(hull_walls)
+	for(var/turf/closed/wall/W as anything in hull_walls)
+		if(length(breach_walls) >= 6)
+			break
+		var/too_close = FALSE
+		for(var/turf/other as anything in breach_walls)
+			if(get_dist(W, other) < 15)
+				too_close = TRUE
+				break
+		if(!too_close)
+			breach_walls += W
+	// The tesla: a hallway well away from the maxcap's crater
+	for(var/i in 1 to 200)
+		var/turf/open/floor/F = pick(hall_floors)
+		if(!boom_spot || get_dist(F, boom_spot) >= 30)
+			tesla_spot = F
+			break
+	lines += "Spots (seed [STRESS_BENCH_SEED]): fire [fire_spot ? AREACOORD(fire_spot) : "none"], maxcap [boom_spot ? AREACOORD(boom_spot) : "none"], \
+		tesla [tesla_spot ? AREACOORD(tesla_spot) : "none"], [length(breach_walls)] hull walls"
+
+/// What the station is like now: to set a faster build against one that simply does less
+/datum/stress_bench/proc/survey()
+	var/list/S = list()
+	var/changed = 0
+	var/to_space = 0
+	for(var/i in 1 to length(station_turfs_start))
+		var/turf/T = station_turfs_start[i]
+		if(T.type != station_types_start[i])
+			changed++
+			if(isspaceturf(T))
+				to_space++
+	S["tiles changed"] = changed
+	S["tiles now space"] = to_space
+	var/moles = 0
+	var/low = 0
+	var/hot = 0
+	for(var/turf/open/T in block(locate(1, 1, z), locate(world.maxx, world.maxy, z)))
+		var/datum/gas_mixture/air = T.air
+		if(!air || istype(air, /datum/gas_mixture/immutable))
+			continue
+		moles += air.total_moles()
+		if(air.return_pressure() < 20)
+			low++
+		if(air.temperature > T0C + 100)
+			hot++
+	S["station mol"] = round(moles)
+	S["turfs under 20 kPa"] = low
+	S["turfs over 100 C"] = hot
+	S["burning"] = length(SSair.hotspots)
+	S["active turfs"] = length(SSair.active_turfs)
+	var/alive = 0
+	var/dead = 0
+	var/gone = 0
+	for(var/datum/bot_shift_member/M as anything in shift.members)
+		if(QDELETED(M.body))
+			gone++
+		else if(M.body.stat == DEAD)
+			dead++
+		else
+			alive++
+	S["crew alive"] = alive
+	S["crew dead"] = dead
+	S["crew bodies gone"] = gone
+	var/apcs = 0
+	for(var/obj/machinery/power/apc/A as anything in GLOB.apcs_list)
+		if(A.z == z && A.equipment > 1)
+			apcs++
+	S["APCs running"] = apcs
+	S["lights waiting unseen"] = SSlighting.unseen_count
+	S["lights queued"] = length(SSlighting.sources_queue)
+	S["atoms"] = length(world.contents)
+	S["objects processing"] = length(SSobj.processing)
+	S["machines"] = length(GLOB.machines)
+	S["timers"] = length(SStimer.timer_id_dict)
+	return S
+
+/datum/stress_bench/proc/write_results()
+	var/dir = world.params["bot-results"] || "data/stress_bench/"
+	var/real = 0
+	var/mc = 0
+	var/seconds = 0
+	var/worst = 0
+	var/over_budget = 0
+	var/over_100 = 0
+	var/list/ss_total = list()
+	var/list/out = list("CPU STRESS BENCH on [SSmapping.config?.map_name], BYOND [world.byond_version].[world.byond_build], [world.fps] ticks a second, \
+		[length(shift.members)] crew, [STRESS_BENCH_EYES] watching")
+	out += lines
+	out += ""
+	for(var/datum/stress_phase/P as anything in phases)
+		out += P.line()
+		if(P.name == "crew arriving")
+			continue
+		real += P.real_ms
+		mc += P.mc_ms()
+		seconds += P.seconds()
+		worst = max(worst, P.worst_ms)
+		over_budget += P.over_budget
+		over_100 += P.over_100
+		for(var/name in P.ss_ms)
+			ss_total[name] += P.ss_ms[name]
+	sortTim(ss_total, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
+	var/list/parts = list()
+	for(var/name in ss_total)
+		if(ss_total[name] / max(seconds, 1) >= 0.1)
+			parts += "[name] [round(ss_total[name] / max(seconds, 1), 0.1)]"
+	out += ""
+	out += "From calm on: real [round(real / max(seconds, 1), 0.1)] ms a game second (MC [round(mc / max(seconds, 1), 0.1)], outside [round((real - mc) / max(seconds, 1), 0.1)]), \
+		worst tick [round(worst)] ms, [over_budget] ticks over [STRESS_BENCH_BUDGET_MS] ms, [over_100] over 100"
+	out += "Subsystems from calm on, ms a game second: [jointext(parts, ", ")]"
+	out += ""
+	out += "What the station was like at the end of each phase:"
+	for(var/datum/stress_phase/P as anything in phases)
+		var/list/state_parts = list()
+		for(var/key in P.state)
+			state_parts += "[key] [P.state[key]]"
+		out += "  [P.name]: [jointext(state_parts, ", ")]"
+	if(light_tally)
+		var/list/why_ms = list()
+		var/all_ms = 0
+		var/all_count = 0
+		for(var/key in light_ms)
+			all_ms += light_ms[key]
+			all_count += light_tally[key]
+			var/why = copytext(key, 1, findtext(key, " "))
+			why_ms[why] += light_ms[key]
+		sortTim(light_ms, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
+		out += ""
+		out += "Light updates from calm on (light-tally): [all_count], [round(all_ms)] ms; by why: [json_encode(why_ms)]"
+		var/shown = 0
+		for(var/key in light_ms)
+			if(++shown > 30)
+				break
+			out += "  [round(light_ms[key])] ms, [light_tally[key]] updates ([round(1000 * light_ms[key] / max(light_tally[key], 1))] us each): [key]"
+	if(light_shadow)
+		out += ""
+		out += "Light shadow check (light-shadow): [json_encode(light_shadow)]"
+	var/list/json_phases = list()
+	for(var/datum/stress_phase/P as anything in phases)
+		json_phases += list(P.to_list())
+	fdel("[dir]stress.txt")
+	fdel("[dir]stress.json")
+	text2file(jointext(out, "\n"), "[dir]stress.txt")
+	text2file(json_encode(list("map" = SSmapping.config?.map_name, "crew" = length(shift.members), "fps" = world.fps, "phases" = json_phases)), "[dir]stress.json")
+	log_world("STRESS BENCH: done, [dir]stress.txt")
+
+#undef STRESS_BENCH_SEED
+#undef STRESS_BENCH_EYES
+#undef STRESS_BENCH_BUDGET_MS

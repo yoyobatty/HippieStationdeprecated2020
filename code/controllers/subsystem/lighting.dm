@@ -36,6 +36,8 @@ SUBSYSTEM_DEF(lighting)
 	var/cone_scatter = LIGHTING_CONE_SCATTER
 	/// How far past its range a light reaches as its falloff eases off, as a multiple of its range, 1 to 2 (see LIGHTING_FALLOFF_TAIL)
 	var/falloff_tail = LIGHTING_FALLOFF_TAIL
+	/// How many light source updates were only a change of brightness or colour, done in place (/datum/light_source/proc/relight_in_place())
+	var/relit_in_place = 0
 	/// The number of the latest light source update, which marks the corners and turfs it goes through: see /datum/light_source/proc/update_corners()
 	var/lighting_stamp = 0
 
@@ -68,13 +70,18 @@ SUBSYSTEM_DEF(lighting)
 			eyes[eye] = ceil(max(getviewsize(world.view)) / 2)
 	if(!unseen_count)
 		return
+	// A waiting light hasn't moved or changed since it began to wait (either would have taken it out: see update()), so all
+	// that can stop it waiting now is somebody getting close enough to see it, the distance test in can_wait_unseen(). Each eye
+	// only tests itself against the lights near it: any other eye that close finds the light in its own cells. Testing every
+	// light near every eye against every eye cost eyes squared times lights, ~20 s of a 25 minute bench with 20 watching.
 	var/list/back = list()
 	for(var/turf/eye as anything in eyes)
-		var/range = eyes[eye] + LIGHTING_UNSEEN_MARGIN + LIGHTING_UNSEEN_MAX_REACH
+		var/sight = eyes[eye] + LIGHTING_UNSEEN_MARGIN
+		var/range = sight + LIGHTING_UNSEEN_MAX_REACH
 		for(var/y in LIGHTING_UNSEEN_CELL_OF(max(eye.y - range, 1)) to LIGHTING_UNSEEN_CELL_OF(min(eye.y + range, world.maxy)))
 			for(var/x in LIGHTING_UNSEEN_CELL_OF(max(eye.x - range, 1)) to LIGHTING_UNSEEN_CELL_OF(min(eye.x + range, world.maxx)))
 				for(var/datum/light_source/L as anything in unseen_cells["[x]|[y]|[eye.z]"])
-					if(!L.can_wait_unseen(eyes))
+					if(get_dist(eye, L.unseen_at) <= L.light_reach + sight)
 						back += L
 	for(var/datum/light_source/L as anything in back)
 		if(L.unseen_cell) // two players can both find it
@@ -89,6 +96,7 @@ SUBSYSTEM_DEF(lighting)
 		unseen_cells[cell] = waiting
 	waiting += L
 	L.unseen_cell = cell
+	L.unseen_at = where
 	unseen_count++
 
 /// Takes a light source back out of unseen_cells
@@ -98,6 +106,7 @@ SUBSYSTEM_DEF(lighting)
 	if(!length(waiting))
 		unseen_cells -= L.unseen_cell
 	L.unseen_cell = null
+	L.unseen_at = null
 	unseen_count--
 
 /// Queues up a light source that was waiting. It's still marked as needing an update, so nothing else will have.
