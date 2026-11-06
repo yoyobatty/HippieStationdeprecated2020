@@ -1,6 +1,6 @@
 import { Component, Fragment } from 'inferno';
 import { useBackend } from '../backend';
-import { Box, Button, Input, LabeledList, NoticeBox, Section } from '../components';
+import { Box, Button, Input, LabeledList, NoticeBox, ProgressBar, Section } from '../components';
 
 // hippie -- a telecomms machine's multitool menu
 // (hippiestation/.../telecomms/machine_interactions_tgui.dm)
@@ -165,7 +165,63 @@ export const TelecommsMachine = props => {
           </NoticeBox>
         )}
       </Section>
+      <Condition data={data} />
       {settings}
     </Fragment>
+  );
+};
+
+// hippie -- the machine's condition (signal_quality.dm): what it adds to
+// the static on every signal through it
+const Condition = props => {
+  const { data } = props;
+  if (data.temperature === undefined) {
+    return null;
+  }
+  const hot = data.temperature >= data.temp_limit;
+  const warm = data.temperature > data.temp_safe;
+  return (
+    <Section title="Condition">
+      <LabeledList>
+        <LabeledList.Item
+          label="Temperature"
+          color={hot && 'bad' || warm && 'average' || 'good'}>
+          {data.temperature} K
+          <Box inline color="label" ml={1}>
+            (limit {data.temp_limit} K)
+          </Box>
+        </LabeledList.Item>
+        <LabeledList.Item label="Integrity">
+          <ProgressBar
+            value={data.integrity / 100}
+            ranges={{
+              good: [0.8, Infinity],
+              average: [0.4, 0.8],
+              bad: [-Infinity, 0.4],
+            }}>
+            {data.integrity}%
+          </ProgressBar>
+        </LabeledList.Item>
+        <LabeledList.Item label="Traffic">
+          {data.traffic}
+        </LabeledList.Item>
+        <LabeledList.Item
+          label="Signal noise"
+          color={data.noise >= 50 && 'bad' || data.noise >= 5 && 'average'
+            || 'good'}>
+          {data.noise}%
+        </LabeledList.Item>
+        {!!data.emped && (
+          <LabeledList.Item label="Fault" color="bad">
+            EMP: heavy static
+          </LabeledList.Item>
+        )}
+        {!!data.overheated && (
+          <LabeledList.Item label="Fault" color="bad">
+            OVERHEATED
+          </LabeledList.Item>
+        )}
+      </LabeledList>
+    </Section>
   );
 };

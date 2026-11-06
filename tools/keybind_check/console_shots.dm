@@ -241,6 +241,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_service(C, H, label)
 		if("secsci")
 			cs_secsci(C, H, label)
+		if("tsignal")
+			cs_tsignal(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -5324,3 +5326,111 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		cs_check("announcer: arrival text typed in ([announcer.arrival])", announcer.arrival == "%PERSON, %RANK, is here.")
 	SStgui.close_user_uis(H)
 	qdel(announcer)
+
+// Telecomms signal quality: real radio messages through the station's network, with the common server damaged, EMP'd,
+// warm and overheated; what the broadcaster sent is in GLOB.tcomms_last_broadcast (signal_quality.dm)
+/// Sends text on the radio and waits for the broadcast of that message (not anyone else's): list(sent, noise, delay, original)
+/proc/cs_tsignal_send(mob/living/carbon/human/H, obj/item/radio/R, text)
+	GLOB.tcomms_last_broadcast = null
+	R.talk_into(H, text, null)
+	for(var/i in 1 to 25)
+		sleep(2)
+		var/list/L = GLOB.tcomms_last_broadcast
+		if(L && findtext(lowertext(L[4]), lowertext(text)))
+			return L
+	return null
+
+/proc/cs_tsignal(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/ce)
+	var/obj/machinery/telecomms/server/presets/common/server
+	for(var/obj/machinery/telecomms/server/presets/common/S in GLOB.telecomms_list)
+		if(is_station_level(S.z))
+			server = S
+			break
+	if(!server)
+		cs_check("a common server", FALSE)
+		return
+	var/obj/machinery/holopad/pad
+	for(var/obj/machinery/holopad/P in GLOB.machines)
+		if(is_station_level(P.z) && cs_open_turf_by(P))
+			pad = P
+			break
+	H.forceMove(pad ? pad.loc : get_turf(H))
+	var/obj/item/radio/R = new(get_turf(H))
+	R.set_frequency(FREQ_COMMON)
+	R.broadcasting = TRUE
+	var/turf/open/server_turf = get_turf(server)
+	var/datum/gas_mixture/air = server_turf.return_air()
+	var/room_temp = air.temperature
+	var/words = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty"
+
+	var/list/L = cs_tsignal_send(H, R, "clean [words]")
+	cs_check("tcomms: a healthy network sends it clean (noise [L ? L[2] : "none"])", L && L[1] == L[4] && L[2] < 0.05)
+
+	server.obj_integrity = server.max_integrity * 0.5
+	var/changed = 0
+	var/noise_seen = 0
+	for(var/i in 1 to 6)
+		L = cs_tsignal_send(H, R, "damaged [i] [words]")
+		if(L)
+			noise_seen = L[2]
+			if(L[1] != L[4])
+				changed++
+	cs_check("tcomms: a server at half integrity crackles (noise [noise_seen], [changed] of 6 messages touched)", noise_seen >= 0.25 && noise_seen < 0.5 && changed >= 1)
+	if(L)
+		cs_check("tcomms: light static example: [L[1]]", TRUE)
+	server.obj_integrity = server.max_integrity
+
+	server.stat |= EMPED
+	server.update_power()
+	L = cs_tsignal_send(H, R, "emp [words]")
+	cs_check("tcomms: an EMP'd server stays up but garbles and delays (noise [L ? L[2] : "none"], delay [L ? L[3] : "none"] ds)", L && L[2] >= 0.6 && L[3] >= 12 && L[1] != L[4])
+	if(L)
+		cs_check("tcomms: heavy static example: [L[1]]", TRUE)
+	server.stat &= ~EMPED
+	server.update_power()
+
+	air.temperature = 300
+	L = cs_tsignal_send(H, R, "warm [words]")
+	cs_check("tcomms: a 300 K server room adds static (noise [L ? L[2] : "none"])", L && L[2] >= 0.3 && L[2] < 0.5)
+
+	// The whole room, as a real overheat would be: one hot tile cools back to the room's 80 K in seconds
+	var/area/hot_room = get_area(server)
+	var/list/old_temps = list()
+	for(var/turf/open/T in hot_room)
+		var/datum/gas_mixture/G = T.return_air()
+		old_temps[T] = G.temperature
+		G.temperature = 400
+	server.process()
+	cs_check("tcomms: past 373 K the server shuts down", server.overheated && !server.on)
+	if(label == "after")
+		cs_stand_by(H, server)
+		H.drop_all_held_items()
+		H.put_in_active_hand(new /obj/item/multitool(H)) // what opens a telecomms machine's window
+		cs_window_shot(C, H, server, "popup_tsignal_after_server_hot")
+		SStgui.close_user_uis(H)
+		H.forceMove(pad ? pad.loc : get_turf(H))
+	L = cs_tsignal_send(H, R, "overheated [words]")
+	cs_check("tcomms: with the common server down and the room at 400 K our message [L ? "went out, noise [L[2]]: [L[1]]" : "was lost"]", !L || L[2] >= 0.5)
+	cs_check("tcomms: still down a few seconds later in the hot room", server.overheated && !server.on)
+	for(var/turf/open/T in old_temps)
+		var/datum/gas_mixture/G = T.return_air()
+		G.temperature = old_temps[T]
+	server.process()
+	cs_check("tcomms: below 323 K it starts again", !server.overheated && server.on)
+	air.temperature = room_temp
+
+	// How fast the servers warm their room at base load
+	var/area/room = get_area(server)
+	var/capacity = 0
+	var/tiles = 0
+	for(var/turf/open/T in room)
+		var/datum/gas_mixture/G = T.return_air()
+		capacity += G.heat_capacity()
+		tiles++
+	var/servers = 0
+	for(var/obj/machinery/telecomms/server/S in room)
+		servers++
+	var/per_minute = capacity ? servers * 500 * 60 / capacity : 0
+	cs_check("tcomms: [servers] servers warm their [tiles]-tile room by about [round(per_minute, 0.01)] K a minute at base load (80 K to 200 K in [per_minute ? round(120 / per_minute) : "never"] min, to 373 K in [per_minute ? round(293 / per_minute) : "never"] min, before any heat leaks away)", TRUE)
+	qdel(R)

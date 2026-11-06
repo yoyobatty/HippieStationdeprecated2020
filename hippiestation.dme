@@ -3130,6 +3130,7 @@
 #include "hippiestation\code\game\machinery\telecomms\computers\message_tgui.dm"
 #include "hippiestation\code\game\machinery\telecomms\computers\telemonitor_tgui.dm"
 #include "hippiestation\code\game\machinery\telecomms\machine_interactions_tgui.dm"
+#include "hippiestation\code\game\machinery\telecomms\signal_quality.dm"
 #include "hippiestation\code\game\mecha\mech_fabricator.dm"
 #include "hippiestation\code\game\mecha\mech_fabricator_tgui.dm"
 #include "hippiestation\code\game\mecha\mecha_control_tgui.dm"
