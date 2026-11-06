@@ -141,6 +141,7 @@ import { Experimentor, RdServerControl } from './interfaces/ResearchMachines';
 import { FoodCart, IcecreamVat, MagnetController, StackingConsole } from './interfaces/MiscMachines';
 import { NtosCard } from './interfaces/NtosCard';
 import { NtnetRelay, NtosConfiguration, NtosFileManager, NtosNetChat, NtosNetDos, NtosNetMonitor, NtosNetTransfer, NtosRevelation, SyndContract } from './interfaces/NtosPrograms';
+import { AuxBase, BountyConsole, CoinPress, OreSilo, SmelterConsole } from './interfaces/CargoMining';
 // hippie end
 
 const ROUTES = {
@@ -192,12 +193,20 @@ const ROUTES = {
     component: () => AtmosPump,
     scrollable: false,
   },
+  aux_base: {
+    component: () => AuxBase,
+    scrollable: true,
+  },
   biogenerator: {
     component: () => Biogenerator,
     scrollable: true,
   },
   borgopanel: {
     component: () => BorgPanel,
+    scrollable: true,
+  },
+  bounty_console: {
+    component: () => BountyConsole,
     scrollable: true,
   },
   brig_timer: {
@@ -252,6 +261,10 @@ const ROUTES = {
     component: () => ChemPress,
     scrollable: false,
   },
+  coin_press: {
+    component: () => CoinPress,
+    scrollable: true,
+  },
   destination_tagger: {
     component: () => DestinationTagger,
     scrollable: false,
@@ -303,6 +316,10 @@ const ROUTES = {
   },
   newscaster: {
     component: () => Newscaster,
+    scrollable: true,
+  },
+  ore_silo: {
+    component: () => OreSilo,
     scrollable: true,
   },
   paper: {
@@ -364,6 +381,10 @@ const ROUTES = {
   security_records: {
     component: () => SecurityRecords,
     scrollable: false,
+  },
+  smelter_console: {
+    component: () => SmelterConsole,
+    scrollable: true,
   },
   stack_crafting: {
     component: () => StackCrafting,

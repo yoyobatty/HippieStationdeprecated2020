@@ -230,6 +230,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_atmos(C, H, label)
 		if("uplink")
 			cs_uplink(C, H, label)
+		if("cargo")
+			cs_cargo(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -4904,3 +4906,128 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		cs_shot("popup_uplink_after_list")
 	SStgui.close_user_uis(H)
 	qdel(device)
+
+// Cargo and mining: the bounty console, the ore silo, the smelter console, the coin press and the aux base console
+/proc/cs_window_shot(client/C, mob/living/carbon/human/H, datum/D, name)
+	usr = H
+	if(isatom(D))
+		var/atom/A = D
+		A.attack_hand(H) // as a player's click; the coin press builds its old window there, not in interact()
+	else
+		D.ui_interact(H)
+	var/datum/tgui/ui = cs_find_ui(H, D)
+	if(!ui)
+		// The before build: the old HTML popup, closed again after its picture
+		sleep(25)
+		cs_shot(name)
+		for(var/window in list("bounties", "ore_silo", "processing", "mint", "computer"))
+			C << browse(null, "window=[window]")
+		return null
+	winset(C, ui.window_id, "pos=100,20")
+	if(ui.width < 340)
+		winset(C, ui.window_id, "size=340x[ui.height]")
+	sleep(25)
+	cs_shot(name)
+	return ui
+
+/// The first machine of this type on a station or mining level, or a new one beside H
+/proc/cs_find_or_make(type, mob/living/carbon/human/H)
+	for(var/obj/machinery/M in GLOB.machines)
+		if(istype(M, type) && (is_station_level(M.z) || SSmapping.level_trait(M.z, ZTRAIT_MINING)) && cs_open_turf_by(M))
+			return M
+	var/turf/spot = cs_open_turf_by(H)
+	return spot ? new type(spot) : null
+
+/proc/cs_stand_by(mob/living/carbon/human/H, atom/A)
+	var/turf/T = cs_open_turf_by(A)
+	if(T)
+		H.forceMove(T)
+
+/proc/cs_cargo(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/quartermaster)
+	var/obj/item/card/id/id = H.wear_id
+	if(istype(id))
+		id.access = get_all_accesses()
+	if(!GLOB.bounties_list.len)
+		setup_bounties()
+
+	var/obj/machinery/computer/bounty/bounty = cs_find_or_make(/obj/machinery/computer/bounty, H)
+	if(bounty)
+		cs_stand_by(H, bounty)
+		var/datum/tgui/ui = cs_window_shot(C, H, bounty, "popup_cargo_[label]_bounty")
+		if(ui && label == "after")
+			bounty.printer_ready = 0
+			cs_act(bounty, H, "print")
+			cs_check("bounty: Print makes the bounty list", locate(/obj/item/paper/bounty_printout) in bounty.loc)
+		SStgui.close_user_uis(H)
+
+	var/obj/machinery/ore_silo/silo = GLOB.ore_silo_default || cs_find_or_make(/obj/machinery/ore_silo, H)
+	if(silo)
+		var/datum/component/material_container/mats = silo.GetComponent(/datum/component/material_container)
+		mats.insert_amount(MINERAL_MATERIAL_AMOUNT * 30, MAT_METAL)
+		mats.insert_amount(MINERAL_MATERIAL_AMOUNT * 12, MAT_GLASS)
+		mats.insert_amount(MINERAL_MATERIAL_AMOUNT * 5, MAT_GOLD)
+		silo.silo_log(silo, "deposited", 30, "sheets", list(MAT_METAL = MINERAL_MATERIAL_AMOUNT))
+		cs_stand_by(H, silo)
+		var/datum/tgui/ui = cs_window_shot(C, H, silo, "popup_cargo_[label]_silo")
+		if(ui && label == "after")
+			var/datum/material/metal = mats.materials[MAT_METAL]
+			var/before = metal.amount
+			cs_act(silo, H, "eject", list("id" = MAT_METAL, "amount" = "5"))
+			cs_check("silo: eject 5 metal ([before / MINERAL_MATERIAL_AMOUNT] -> [metal.amount / MINERAL_MATERIAL_AMOUNT] sheets)", metal.amount == before - MINERAL_MATERIAL_AMOUNT * 5)
+		SStgui.close_user_uis(H)
+
+	var/obj/machinery/mineral/processing_unit_console/smelter = cs_find_or_make(/obj/machinery/mineral/processing_unit_console, H)
+	if(!smelter || QDELETED(smelter))
+		var/turf/spot = cs_open_turf_by(H)
+		var/turf/east = spot ? get_step(spot, EAST) : null
+		if(east && !east.density)
+			new /obj/machinery/mineral/processing_unit(east)
+			smelter = new(spot)
+	if(smelter && !QDELETED(smelter) && smelter.machine)
+		var/datum/component/material_container/mats = smelter.machine.GetComponent(/datum/component/material_container)
+		mats.insert_amount(MINERAL_MATERIAL_AMOUNT * 14, MAT_METAL)
+		mats.insert_amount(MINERAL_MATERIAL_AMOUNT * 6, MAT_PLASMA)
+		cs_stand_by(H, smelter)
+		var/datum/tgui/ui = cs_window_shot(C, H, smelter, "popup_cargo_[label]_smelter")
+		if(ui && label == "after")
+			var/was = smelter.machine.on
+			cs_act(smelter, H, "power")
+			cs_check("smelter: the power switch flips the furnace", smelter.machine.on != was)
+			smelter.machine.on = was
+			cs_act(smelter, H, "material", list("id" = MAT_PLASMA))
+			cs_check("smelter: Smelt picks plasma", smelter.machine.selected_material == MAT_PLASMA)
+		SStgui.close_user_uis(H)
+	else
+		cs_check("a smelter console", FALSE)
+
+	var/obj/machinery/mineral/mint/mint = cs_find_or_make(/obj/machinery/mineral/mint, H)
+	if(mint)
+		var/datum/component/material_container/mats = mint.GetComponent(/datum/component/material_container)
+		mats.insert_amount(MINERAL_MATERIAL_AMOUNT * 4, MAT_GOLD)
+		mats.insert_amount(MINERAL_MATERIAL_AMOUNT * 2, MAT_SILVER)
+		cs_stand_by(H, mint)
+		var/datum/tgui/ui = cs_window_shot(C, H, mint, "popup_cargo_[label]_mint")
+		if(ui && label == "after")
+			cs_act(mint, H, "choose", list("id" = MAT_GOLD))
+			cs_act(mint, H, "count", list("count" = "3"))
+			sleep(5)
+			var/made = mint.newCoins
+			cs_tgui_do(C, ui.window_id, "click:Make coins")
+			sleep(30)
+			cs_check("mint: Make coins presses 3 gold coins ([made] -> [mint.newCoins])", mint.newCoins == made + 3)
+		SStgui.close_user_uis(H)
+
+	var/obj/machinery/computer/auxillary_base/aux
+	for(var/obj/machinery/computer/auxillary_base/A in GLOB.machines)
+		aux = A
+		break
+	if(aux)
+		cs_stand_by(H, aux)
+		var/datum/tgui/ui = cs_window_shot(C, H, aux, "popup_cargo_[label]_aux")
+		if(ui && label == "after")
+			var/list/data = aux.ui_data(H)
+			cs_check("aux base: status sent ([data["status"]], [length(data["destinations"])] landing zones)", !isnull(data["status"]))
+		SStgui.close_user_uis(H)
+	else
+		cs_check("an aux base console", FALSE)

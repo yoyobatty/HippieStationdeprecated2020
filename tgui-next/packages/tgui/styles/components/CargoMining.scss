@@ -1,0 +1,26 @@
+// hippie -- the cargo and mining windows (interfaces/CargoMining.js)
+
+.CargoMining__cards {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 -3px;
+}
+
+.CargoMining__card {
+  width: calc(50% - 6px);
+  margin: 0 3px 6px;
+  padding: 6px 8px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid #4972a1;
+  border-radius: 3px;
+}
+
+.CargoMining__card--priority {
+  border-left-color: #f08f11;
+}
+
+.CargoMining__card--done {
+  opacity: 0.5;
+  border-left-color: #5baa27;
+}

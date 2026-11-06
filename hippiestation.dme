@@ -3680,6 +3680,7 @@
 #include "hippiestation\code\modules\mentor\mentorhelp.dm"
 #include "hippiestation\code\modules\mentor\mentorpm.dm"
 #include "hippiestation\code\modules\mentor\mentorsay.dm"
+#include "hippiestation\code\modules\mining\cargo_mining_tgui.dm"
 #include "hippiestation\code\modules\mining\machine_bluespace.dm"
 #include "hippiestation\code\modules\mining\machine_processing.dm"
 #include "hippiestation\code\modules\mining\machine_redemption.dm"
