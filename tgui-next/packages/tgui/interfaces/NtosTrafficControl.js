@@ -1,6 +1,7 @@
 import { Component, Fragment } from 'inferno';
 import { useBackend } from '../backend';
 import { Box, Button, Dropdown, Icon, Input, LabeledList, NoticeBox, NumberInput, Section, Tabs } from '../components';
+import { TelecommsMap } from './common/TelecommsMap';
 
 // hippie -- the Traffic Control NTOS app: telecomms traffic rules, a
 // point-and-click NTSL. Data from hippiestation/code/game/machinery/
@@ -201,7 +202,7 @@ class RuleForm extends Component {
 export class NtosTrafficControl extends Component {
   constructor() {
     super();
-    this.state = { tab: 'rules' };
+    this.state = { tab: 'network' };
   }
 
   render() {
@@ -219,6 +220,10 @@ export class NtosTrafficControl extends Component {
         )}
         <Tabs activeTab={tab}>
           <Tabs.Tab
+            key="network"
+            label="Network"
+            onClick={() => this.setState({ tab: 'network' })} />
+          <Tabs.Tab
             key="rules"
             label={'Rules (' + rules.length + ')'}
             onClick={() => this.setState({ tab: 'rules' })} />
@@ -227,6 +232,11 @@ export class NtosTrafficControl extends Component {
             label="History"
             onClick={() => this.setState({ tab: 'history' })} />
         </Tabs>
+        {tab === 'network' && (
+          <Section>
+            <TelecommsMap map={data.map} />
+          </Section>
+        )}
         {tab === 'rules' && (
           <Fragment>
             <Section title="Rules, in order">

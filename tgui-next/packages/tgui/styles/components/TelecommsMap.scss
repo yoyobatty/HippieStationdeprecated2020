@@ -1,0 +1,106 @@
+// hippie -- the telecomms network map (interfaces/common/TelecommsMap.js)
+
+.TcommsMap__svg {
+  display: block;
+  margin: 0 auto;
+  background-color: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+}
+
+.TcommsMap__link {
+  stroke: #46566a;
+  stroke-width: 2;
+}
+
+.TcommsMap__link--busy {
+  stroke: #5ab0ff;
+  stroke-width: 2.5;
+  stroke-dasharray: 3 7;
+  animation: tcomms-packets 0.7s linear infinite;
+}
+
+.TcommsMap__link--down {
+  stroke: #5a2626;
+  stroke-dasharray: 2 4;
+}
+
+@keyframes tcomms-packets {
+  0% {
+    stroke-dashoffset: 10;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.TcommsMap__node {
+  cursor: pointer;
+}
+
+.TcommsMap__dot {
+  stroke: rgba(0, 0, 0, 0.6);
+  stroke-width: 2;
+}
+
+.TcommsMap__dot--ok {
+  fill: #3fa34d;
+  background-color: #3fa34d;
+}
+
+.TcommsMap__dot--warn {
+  fill: #d9a21b;
+  background-color: #d9a21b;
+}
+
+.TcommsMap__dot--fault {
+  fill: #d33a3a;
+  background-color: #d33a3a;
+}
+
+.TcommsMap__dot--off {
+  fill: #4d4d4d;
+  background-color: #4d4d4d;
+}
+
+.TcommsMap__dot--selected {
+  stroke: #fff;
+  stroke-width: 3;
+}
+
+.TcommsMap__letter {
+  fill: #fff;
+  font-size: 11px;
+  font-weight: bold;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.TcommsMap__label {
+  fill: rgba(255, 255, 255, 0.65);
+  font-size: 9px;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.TcommsMap__legend {
+  margin: 6px 0;
+  font-size: 11px;
+}
+
+.TcommsMap__swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 4px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.TcommsMap__details {
+  padding: 6px 8px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}

@@ -1,6 +1,7 @@
 import { Fragment } from 'inferno';
 import { useBackend } from '../backend';
 import { Box, Button, Input, LabeledList, NoticeBox, Section, Table } from '../components';
+import { TelecommsMap } from './common/TelecommsMap';
 
 // hippie -- the telecommunications monitor
 // (hippiestation/.../telecomms/computers/telemonitor_tgui.dm)
@@ -85,6 +86,11 @@ export const TelecommsMonitor = props => {
             <Box color="label">None.</Box>
           )}
           <MachineRows machines={selected.links} act={act} />
+        </Section>
+      )}
+      {!selected && machines.length > 0 && (
+        <Section title="Network map">
+          <TelecommsMap map={data.map} />
         </Section>
       )}
       {!selected && (

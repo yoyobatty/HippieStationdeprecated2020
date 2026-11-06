@@ -245,6 +245,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_tsignal(C, H, label)
 		if("trules")
 			cs_trules(C, H, label)
+		if("tmap")
+			cs_tmap(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -5538,3 +5540,109 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	GLOB.tcomms_rules.Cut()
 	qdel(R)
 	qdel(PC)
+
+// The telecomms network map: the Traffic Control app's Network tab and the telecomms monitor, with faults and traffic
+/proc/cs_tmap(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/ce)
+	var/obj/item/card/id/worn = cs_card("Hugo Brandt", "Chief Engineer", get_all_accesses(), get_turf(H))
+	H.equip_to_slot_or_del(worn, ITEM_SLOT_ID)
+	var/obj/machinery/telecomms/server/presets/science/sci
+	var/obj/machinery/telecomms/server/presets/security/sec
+	var/obj/machinery/telecomms/bus/preset_two/bus
+	for(var/obj/machinery/telecomms/T in GLOB.telecomms_list)
+		if(!is_station_level(T.z))
+			continue
+		if(istype(T, /obj/machinery/telecomms/server/presets/science))
+			sci = T
+		if(istype(T, /obj/machinery/telecomms/server/presets/security))
+			sec = T
+		if(istype(T, /obj/machinery/telecomms/bus/preset_two))
+			bus = T
+	if(sci)
+		sci.obj_integrity = sci.max_integrity * 0.6
+	if(bus)
+		bus.stat |= EMPED
+	if(sec)
+		sec.overheated = TRUE
+		sec.update_power()
+	var/list/map = tcomms_map_data(tcomms_station_machines())
+	var/list/nodes = map["nodes"]
+	var/list/links = map["links"]
+	var/sci_state
+	var/sec_state
+	var/bus_state
+	for(var/list/N in nodes)
+		if(sci && N["ref"] == REF(sci))
+			sci_state = N["state"]
+		if(sec && N["ref"] == REF(sec))
+			sec_state = N["state"]
+		if(bus && N["ref"] == REF(bus))
+			bus_state = N["state"]
+	cs_check("map: [length(nodes)] machines, [length(links)] links", length(nodes) >= 10 && length(links) >= 10)
+	cs_check("map: damaged server [sci_state], EMP'd bus [bus_state], overheated server [sec_state]", sci_state == "warn" && bus_state == "fault" && sec_state == "off")
+
+	var/obj/machinery/holopad/pad
+	for(var/obj/machinery/holopad/P in GLOB.machines)
+		if(is_station_level(P.z) && cs_open_turf_by(P))
+			pad = P
+			break
+	if(pad)
+		H.forceMove(pad.loc)
+	// Some traffic, so the busy links show
+	var/obj/item/radio/R = new(get_turf(H))
+	R.set_frequency(FREQ_COMMON)
+	R.broadcasting = TRUE
+	for(var/i in 1 to 4)
+		R.talk_into(H, "map traffic [i]", null)
+		R.set_frequency(pick(FREQ_COMMON, FREQ_ENGINEERING, FREQ_MEDICAL, FREQ_SUPPLY))
+	var/obj/machinery/modular_computer/console/preset/engineering/PC = new(cs_open_beside(H))
+	PC.stat &= ~(NOPOWER|BROKEN)
+	var/obj/item/modular_computer/processor/cpu = PC.cpu
+	var/obj/item/computer_hardware/hard_drive/drive = cpu.all_components[MC_HDD]
+	drive.store_file(new /datum/computer_file/program/traffic_control)
+	cpu.turn_on(H)
+	cs_act(cpu, H, "PC_runprogram", list("name" = "trafficctrl"))
+	cpu.ui_interact(H)
+	var/datum/tgui/ui = cs_find_ui(H, cpu.active_program)
+	if(ui)
+		winset(C, ui.window_id, "pos=100,20")
+		sleep(25)
+		cs_tgui_do(C, ui.window_id, "css:.TcommsMap__node")
+		sleep(15)
+		cs_shot("popup_tmap_[label]_app")
+	else
+		cs_check("map: the app window opens", FALSE)
+	SStgui.close_user_uis(H)
+	qdel(PC)
+
+	// The telecomms monitor, probed
+	var/obj/machinery/computer/telecomms/monitor/monitor
+	for(var/obj/machinery/computer/telecomms/monitor/M in GLOB.machines)
+		if(is_station_level(M.z) && cs_open_turf_by(M))
+			monitor = M
+			break
+	if(monitor)
+		cs_stand_by(H, monitor)
+		monitor.network = "tcommsat"
+		usr = H
+		monitor.interact(H)
+		cs_act(monitor, H, "probe")
+		ui = cs_find_ui(H, monitor)
+		if(ui)
+			winset(C, ui.window_id, "pos=100,20")
+			sleep(25)
+			cs_shot("popup_tmap_[label]_monitor")
+			var/list/data = monitor.ui_data(H)
+			var/list/mon_map = data["map"]
+			cs_check("monitor: probed map has [length(mon_map["nodes"])] machines", length(mon_map["nodes"]) >= 5)
+		SStgui.close_user_uis(H)
+	else
+		cs_check("a telecomms monitor on the station", FALSE)
+	if(sci)
+		sci.obj_integrity = sci.max_integrity
+	if(bus)
+		bus.stat &= ~EMPED
+	if(sec)
+		sec.overheated = FALSE
+		sec.update_power()
+	qdel(R)

@@ -39,6 +39,10 @@
 /obj/machinery/telecomms/proc/heat_noise()
 	return clamp((machine_temperature() - TCOMMS_TEMP_SAFE) / (TCOMMS_TEMP_LIMIT - TCOMMS_TEMP_SAFE), 0, 1) * 0.6
 
+/// Relays stand in outposts at room temperature, not the cold telecomms room, and only add their level to a signal
+/obj/machinery/telecomms/relay/heat_noise()
+	return 0
+
 /// Adds this machine's noise to a signal, once per machine per signal
 /obj/machinery/telecomms/proc/add_signal_noise(datum/signal/subspace/signal)
 	if(!istype(signal) || !signal.data)
