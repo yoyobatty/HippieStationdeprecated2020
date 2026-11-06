@@ -3084,6 +3084,7 @@
 #include "hippiestation\code\game\machinery\cryo.dm"
 #include "hippiestation\code\game\machinery\doppler_array.dm"
 #include "hippiestation\code\game\machinery\launchpad_tgui.dm"
+#include "hippiestation\code\game\machinery\medical_tgui.dm"
 #include "hippiestation\code\game\machinery\misc_machines_tgui.dm"
 #include "hippiestation\code\game\machinery\newscaster_tgui.dm"
 #include "hippiestation\code\game\machinery\radio_station.dm"

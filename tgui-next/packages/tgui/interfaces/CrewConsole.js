@@ -1,147 +1,207 @@
+import { Component, Fragment } from 'inferno';
 import { useBackend } from '../backend';
-import { Box, Button, ColorBox, Section, Table } from '../components';
-import { COLORS } from '../constants';
-import { Searchable } from './common/Searchable';
+import { Box, Button, Icon, Input, Section, Table } from '../components';
 
-const HEALTH_COLOR_BY_LEVEL = [
-  '#17d568',
-  '#2ecc71',
-  '#e67e22',
-  '#ed5100',
-  '#e74c3c',
-  '#ed2814',
+// hippie -- the crew monitor redone: everyone on suit sensors grouped by
+// department, a count of who's fine, hurt, critical and dead, a search and a
+// "hurt only" filter, and each person's damage as coloured numbers
+
+const DEPARTMENTS = [
+  ['Command', 'yellow'],
+  ['Security', 'red'],
+  ['Medical', 'teal'],
+  ['Science', 'purple'],
+  ['Engineering', 'orange'],
+  ['Supply', 'brown'],
+  ['Service', 'green'],
+  ['Central Command', 'blue'],
+  ['Civilian', 'grey'],
 ];
 
-const jobIsHead = jobId => jobId % 10 === 0;
-
-const jobToColor = jobId => {
-  if (jobId === 0) {
-    return COLORS.department.captain;
+// The monitor's own job order (code/game/machinery/computer/crew.dm): heads
+// are the round tens, each department its own ten
+const departmentOf = ijob => {
+  if (ijob >= 200 && ijob < 999) {
+    return 'Central Command';
   }
-  if (jobId >= 10 && jobId < 20) {
-    return COLORS.department.security;
+  if (ijob === 0 || (ijob % 10 === 0 && ijob <= 50)) {
+    return 'Command';
   }
-  if (jobId >= 20 && jobId < 30) {
-    return COLORS.department.medbay;
-  }
-  if (jobId >= 30 && jobId < 40) {
-    return COLORS.department.science;
-  }
-  if (jobId >= 40 && jobId < 50) {
-    return COLORS.department.engineering;
-  }
-  if (jobId >= 50 && jobId < 60) {
-    return COLORS.department.cargo;
-  }
-  if (jobId >= 200 && jobId < 230) {
-    return COLORS.department.centcom;
-  }
-  return COLORS.department.other;
+  const tens = Math.floor(ijob / 10);
+  return ['Command', 'Security', 'Medical', 'Science', 'Engineering',
+    'Supply', 'Service'][tens] || 'Civilian';
 };
 
-const healthToColor = (oxy, tox, burn, brute) => {
-  const healthSum = oxy + tox + burn + brute;
-  const level = Math.min(Math.max(Math.ceil(healthSum / 25), 0), 5);
-  return HEALTH_COLOR_BY_LEVEL[level];
+const totalDamage = person => (person.oxydam || 0) + (person.toxdam || 0)
+  + (person.burndam || 0) + (person.brutedam || 0);
+
+const stateOf = person => {
+  if (person.life_status === null || person.life_status === undefined) {
+    return 'unknown';
+  }
+  // life_status is whether they're conscious: out cold is critical unless
+  // the damage is past what kills (200)
+  const vitals = person.oxydam !== null && person.oxydam !== undefined;
+  const damage = totalDamage(person);
+  if (!person.life_status) {
+    return vitals && damage < 200 ? 'critical' : 'dead';
+  }
+  if (!vitals) {
+    return 'alive';
+  }
+  if (damage >= 100) {
+    return 'critical';
+  }
+  return damage > 0 ? 'hurt' : 'alive';
 };
 
-const HealthStat = props => {
-  const { type, value } = props;
+const STATE_COLOR = {
+  alive: 'good',
+  hurt: 'average',
+  critical: 'bad',
+  dead: 'bad',
+  unknown: 'label',
+};
+
+const Damage = props => {
+  const { person } = props;
+  if (person.oxydam === null || person.oxydam === undefined) {
+    return <Box inline color="label">No vitals</Box>;
+  }
   return (
-    <Box
-      inline
-      width={4}
-      color={COLORS.damageType[type]}
-      textAlign="center">
-      {value}
+    <Box inline>
+      <Box inline color="blue" mr={1} title="Suffocation">
+        {person.oxydam}
+      </Box>
+      <Box inline color="green" mr={1} title="Toxin">
+        {person.toxdam}
+      </Box>
+      <Box inline color="orange" mr={1} title="Burn">
+        {person.burndam}
+      </Box>
+      <Box inline color="red" title="Brute">
+        {person.brutedam}
+      </Box>
     </Box>
   );
 };
 
-export const CrewConsole = props => {
-  const { data } = useBackend(props);
-  const sensors = data.sensors || [];
-  return (
-    <Section minHeight={90}>
-      <Searchable placeholder="Search name, job or area...">
-        {matches => (
-          <CrewTable
-            state={props.state}
-            sensors={sensors.filter(sensor => matches(sensor.name,
-              sensor.assignment, sensor.pos_x !== null && sensor.area))} />
-        )}
-      </Searchable>
-    </Section>
-  );
-};
+export class CrewConsole extends Component {
+  constructor() {
+    super();
+    this.state = { search: '', hurtOnly: false };
+  }
 
-const CrewTable = props => {
-  const { act, data } = useBackend(props);
-  const { sensors } = props;
-  return (
-    <Table>
-      <Table.Row>
-        <Table.Cell bold>
-          Name
-        </Table.Cell>
-        <Table.Cell bold collapsing />
-        <Table.Cell bold collapsing textAlign="center">
-          Vitals
-        </Table.Cell>
-        <Table.Cell bold>
-          Position
-        </Table.Cell>
-        {!!data.link_allowed && (
-          <Table.Cell bold collapsing>
-            Tracking
-          </Table.Cell>
-        )}
-      </Table.Row>
-      {sensors.map(sensor => (
-        <Table.Row key={sensor.name}>
-          <Table.Cell
-            bold={jobIsHead(sensor.ijob)}
-            color={jobToColor(sensor.ijob)}>
-            {sensor.name} ({sensor.assignment})
-          </Table.Cell>
-          <Table.Cell collapsing textAlign="center">
-            <ColorBox
-              color={healthToColor(
-                sensor.oxydam,
-                sensor.toxdam,
-                sensor.burndam,
-                sensor.brutedam)} />
-          </Table.Cell>
-          <Table.Cell collapsing textAlign="center">
-            {sensor.oxydam !== null ? (
-              <Box inline>
-                <HealthStat type="oxy" value={sensor.oxydam} />
-                {'/'}
-                <HealthStat type="toxin" value={sensor.toxdam} />
-                {'/'}
-                <HealthStat type="burn" value={sensor.burndam} />
-                {'/'}
-                <HealthStat type="brute" value={sensor.brutedam} />
-              </Box>
-            ) : (
-              sensor.life_status ? 'Alive' : 'Dead'
-            )}
-          </Table.Cell>
-          <Table.Cell>
-            {sensor.pos_x !== null ? sensor.area : 'N/A'}
-          </Table.Cell>
-          {!!data.link_allowed && (
-            <Table.Cell collapsing>
-              <Button
-                content="Track"
-                disabled={!sensor.can_track}
-                onClick={() => act('select_person', {
-                  name: sensor.name,
-                })} />
-            </Table.Cell>
+  render() {
+    const { act, data } = useBackend(this.props);
+    const { search, hurtOnly } = this.state;
+    const sensors = data.sensors || [];
+    const counts = { alive: 0, hurt: 0, critical: 0, dead: 0, unknown: 0 };
+    for (let person of sensors) {
+      counts[stateOf(person)]++;
+    }
+    const term = search.toLowerCase();
+    const shown = sensors.filter(person => {
+      const state = stateOf(person);
+      if (hurtOnly && state !== 'hurt' && state !== 'critical'
+        && state !== 'dead') {
+        return false;
+      }
+      return !term || person.name.toLowerCase().includes(term)
+        || (person.assignment || '').toLowerCase().includes(term)
+        || (person.area || '').toLowerCase().includes(term);
+    });
+    return (
+      <Fragment>
+        <Section>
+          <Box inline mr={2} color="good">
+            <Icon name="heartbeat" mr={1} />
+            {counts.alive} fine
+          </Box>
+          <Box inline mr={2} color="average">
+            <Icon name="band-aid" mr={1} />
+            {counts.hurt} hurt
+          </Box>
+          <Box inline mr={2} color="bad">
+            <Icon name="exclamation-triangle" mr={1} />
+            {counts.critical} critical
+          </Box>
+          <Box inline mr={2} color="bad">
+            <Icon name="skull" mr={1} />
+            {counts.dead} dead
+          </Box>
+          <Box inline color="label">
+            <Icon name="question" mr={1} />
+            {counts.unknown} no vitals
+          </Box>
+        </Section>
+        <Section
+          title="Crew"
+          buttons={(
+            <Fragment>
+              <Input
+                width="160px"
+                placeholder="Search name, job, place..."
+                value={search}
+                onInput={(e, value) => this.setState({ search: value })} />
+              <Button.Checkbox
+                checked={hurtOnly}
+                content="Hurt only"
+                onClick={() => this.setState({ hurtOnly: !hurtOnly })} />
+            </Fragment>
+          )}>
+          {shown.length === 0 && (
+            <Box color="label">Nobody to show.</Box>
           )}
-        </Table.Row>
-      ))}
-    </Table>
-  );
-};
+          <Table>
+            {DEPARTMENTS.map(department => {
+              const people = shown.filter(person => (
+                departmentOf(person.ijob) === department[0]));
+              if (!people.length) {
+                return null;
+              }
+              return [
+                <Table.Row key={department[0]}>
+                  <Table.Cell colspan="4" pt={1} bold color={department[1]}>
+                    {department[0]}
+                  </Table.Cell>
+                </Table.Row>,
+                ...people.map(person => (
+                  <Table.Row key={person.name + person.assignment}>
+                    <Table.Cell>
+                      <Icon
+                        name="circle"
+                        mr={1}
+                        color={STATE_COLOR[stateOf(person)]} />
+                      <b>{person.name}</b>
+                      <Box inline color="label" ml={1}>
+                        {person.assignment}
+                      </Box>
+                    </Table.Cell>
+                    <Table.Cell collapsing px={1}>
+                      <Damage person={person} />
+                    </Table.Cell>
+                    <Table.Cell color={person.area ? null : 'label'}>
+                      {person.area || 'Unknown'}
+                    </Table.Cell>
+                    <Table.Cell collapsing>
+                      {!!data.link_allowed && (
+                        <Button
+                          icon="video"
+                          disabled={!person.can_track}
+                          content="Track"
+                          onClick={() => act('select_person', {
+                            name: person.name,
+                          })} />
+                      )}
+                    </Table.Cell>
+                  </Table.Row>
+                )),
+              ];
+            })}
+          </Table>
+        </Section>
+      </Fragment>
+    );
+  }
+}
