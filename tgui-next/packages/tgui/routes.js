@@ -150,6 +150,7 @@ import { GunLocker, JaniCart } from './interfaces/Storage';
 import { CyborgFrame, TransferValve } from './interfaces/Items';
 import { SongEditor } from './interfaces/SongEditor';
 import { Blueprints, CameraBug, RcdAccess } from './interfaces/Tools';
+import { BibleStyle, BookReader, MimeBook, PhotoViewer } from './interfaces/Books';
 // hippie end
 
 const ROUTES = {
@@ -221,12 +222,20 @@ const ROUTES = {
     component: () => BankVault,
     scrollable: true,
   },
+  bible_style: {
+    component: () => BibleStyle,
+    scrollable: true,
+  },
   biogenerator: {
     component: () => Biogenerator,
     scrollable: true,
   },
   blueprints: {
     component: () => Blueprints,
+    scrollable: true,
+  },
+  book_reader: {
+    component: () => BookReader,
     scrollable: true,
   },
   borgopanel: {
@@ -374,6 +383,10 @@ const ROUTES = {
     component: () => MessageMonitor,
     scrollable: true,
   },
+  mime_book: {
+    component: () => MimeBook,
+    scrollable: true,
+  },
   mining_vendor: {
     component: () => MiningVendor,
     scrollable: true,
@@ -405,6 +418,10 @@ const ROUTES = {
   pda: {
     component: () => Pda,
     scrollable: false,
+  },
+  photo_viewer: {
+    component: () => PhotoViewer,
+    scrollable: true,
   },
   photocopier: {
     component: () => Photocopier,

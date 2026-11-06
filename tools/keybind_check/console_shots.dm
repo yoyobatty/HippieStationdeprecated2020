@@ -257,6 +257,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_song(C, H, label)
 		if("tools")
 			cs_tools(C, H, label)
+		if("books")
+			cs_books(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -5958,3 +5960,71 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	SStgui.close_user_uis(H)
 	H.drop_all_held_items()
 	qdel(rcd)
+
+// A book, a photo, the chaplain's bible style and the mime's book
+/proc/cs_books_open(client/C, mob/living/carbon/human/H, obj/item/I, datum/ui_src, name)
+	H.drop_all_held_items()
+	H.put_in_active_hand(I)
+	usr = H
+	I.attack_self(H)
+	sleep(5)
+	// A book's window belongs to its reader (books_tgui.dm); vars[] so the before build, without that var, still compiles
+	if(!ui_src && ("reader" in I.vars))
+		ui_src = I.vars["reader"]
+	var/datum/tgui/ui = cs_find_ui(H, ui_src || I)
+	if(ui)
+		winset(C, ui.window_id, "pos=100,20")
+	sleep(25)
+	cs_shot(name)
+	for(var/window in list("book", "photo_showing", "editicon"))
+		C << browse(null, "window=[window]")
+	SStgui.close_user_uis(H)
+	return ui
+
+/proc/cs_books(client/C, mob/living/carbon/human/H, label)
+	var/obj/machinery/holopad/pad
+	for(var/obj/machinery/holopad/P in GLOB.machines)
+		if(is_station_level(P.z) && cs_open_turf_by(P))
+			pad = P
+			break
+	if(pad)
+		H.forceMove(pad.loc)
+	var/obj/item/book/book = new(get_turf(H))
+	book.title = "A Brief History of the Clown Planet"
+	book.author = "Professor Honkington"
+	book.dat = "<h2>Chapter One</h2><p>Long ago, on a planet made mostly of <b>banana peels</b>, the first clown honked.</p><p>Historians disagree on <i>what</i> it honked at. Some say a mime; others say the void.</p><ul><li>Rule one: never trust a quiet mime.</li><li>Rule two: always carry a spare horn.</li></ul>"
+	var/datum/tgui/ui = cs_books_open(C, H, book, null, "popup_books_[label]_book")
+	if(label == "after")
+		cs_check("book: opens in the reader", ui)
+	qdel(book)
+
+	var/datum/picture/P = new
+	P.picture_name = "a photo of [H]"
+	P.picture_image = icon(getFlatIcon(H), dir = SOUTH)
+	P.picture_image.Scale(96, 96)
+	var/obj/item/photo/photo = new(get_turf(H), P)
+	photo.scribble = "Me on my first day."
+	ui = cs_books_open(C, H, photo, null, "popup_books_[label]_photo")
+	if(label == "after")
+		cs_check("photo: opens in the viewer", ui)
+	qdel(photo)
+
+	var/old_style = GLOB.bible_icon_state
+	GLOB.bible_icon_state = null
+	var/old_job = H.job
+	H.job = "Chaplain"
+	var/obj/item/storage/book/bible/bible = new(get_turf(H))
+	ui = cs_books_open(C, H, bible, null, "popup_books_[label]_bible")
+	if(label == "after")
+		cs_check("bible: the style picker opens", ui)
+	qdel(bible)
+	GLOB.bible_icon_state = old_style
+	H.job = old_job
+
+	var/obj/item/book/mimery/mime = new(get_turf(H))
+	ui = cs_books_open(C, H, mime, null, "popup_books_[label]_mime")
+	if(label == "after")
+		cs_check("mime book: opens", ui)
+	if(!QDELETED(mime))
+		qdel(mime)
+	H.drop_all_held_items()

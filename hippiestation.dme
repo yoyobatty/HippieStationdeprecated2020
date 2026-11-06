@@ -3678,6 +3678,7 @@
 #include "hippiestation\code\modules\jobs\job_types\shaft_miner.dm"
 #include "hippiestation\code\modules\jobs\job_types\vice_officer.dm"
 #include "hippiestation\code\modules\language\dwarven.dm"
+#include "hippiestation\code\modules\library\books_tgui.dm"
 #include "hippiestation\code\modules\library\lib_machines.dm"
 #include "hippiestation\code\modules\library\library_tgui.dm"
 #include "hippiestation\code\modules\lighting\lighting_bench.dm"
