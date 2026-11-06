@@ -3782,6 +3782,7 @@
 #include "hippiestation\code\modules\power\generator_tgui.dm"
 #include "hippiestation\code\modules\power\lighting.dm"
 #include "hippiestation\code\modules\power\port_gen.dm"
+#include "hippiestation\code\modules\power\power_tgui.dm"
 #include "hippiestation\code\modules\power\singularity_pull.dm"
 #include "hippiestation\code\modules\power\solar.dm"
 #include "hippiestation\code\modules\power\tesla_examine.dm"

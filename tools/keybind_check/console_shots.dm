@@ -221,6 +221,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_medical(C, H, label)
 		if("crafting")
 			cs_crafting(C, H, label)
+		if("power")
+			cs_power(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -4629,3 +4631,66 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	sleep(30)
 	cs_shot("popup_craft_[label]_0", "Crafting Menu")
 	SStgui.close_user_uis(H)
+
+// Power: an APC, an SMES and the power monitor
+/proc/cs_power_window(client/C, mob/living/carbon/human/H, datum/D, label, name)
+	usr = H
+	D.ui_interact(H)
+	var/datum/tgui/ui = cs_find_ui(H, D)
+	if(!ui)
+		cs_check("[name]: the window opens", FALSE)
+		return null
+	winset(C, ui.window_id, "pos=100,20")
+	sleep(25)
+	cs_shot("popup_power_[label]_[name]")
+	return ui
+
+/proc/cs_power(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/ce)
+	// The Engineering APC, with someone standing at it
+	var/obj/machinery/power/apc/apc
+	for(var/obj/machinery/power/apc/A in GLOB.apcs_list)
+		if(istype(A.area, /area/engine/engineering))
+			apc = A
+			break
+	if(apc)
+		H.forceMove(get_turf(apc))
+		apc.locked = FALSE
+		var/datum/tgui/ui = cs_power_window(C, H, apc, label, "apc")
+		if(ui && label == "after")
+			var/list/data = apc.ui_data(H)
+			cs_check("apc: channel loads and battery time sent ([json_encode(data["channelLoads"])], [data["cellSeconds"]] s)", islist(data["channelLoads"]) && length(data["channelLoads"]) == 3)
+			cs_act(apc, H, "channel", list("lgt" = "1"))
+			cs_check("apc: Off on the lighting card turns lighting off (now [apc.lighting])", apc.lighting == 0)
+			cs_act(apc, H, "channel", list("lgt" = "3"))
+			cs_check("apc: Auto turns it back on (now [apc.lighting])", apc.lighting == 3)
+		SStgui.close_user_uis(H)
+	var/obj/machinery/power/smes/S
+	for(var/obj/machinery/power/smes/each in GLOB.machines)
+		if(get_area(each) && istype(get_area(each), /area/engine))
+			S = each
+			break
+	if(S)
+		H.forceMove(get_step(S, SOUTH))
+		var/datum/tgui/ui = cs_power_window(C, H, S, label, "smes")
+		if(ui && label == "after")
+			var/was = S.input_level
+			cs_act(S, H, "input", list("target" = "120000"))
+			cs_check("smes: a typed 120 kW sets the input level (now [S.input_level])", S.input_level == min(120000, S.input_level_max))
+			S.input_level = was
+		SStgui.close_user_uis(H)
+	var/obj/machinery/computer/monitor/M
+	for(var/obj/machinery/computer/monitor/each in GLOB.machines)
+		if(is_station_level(each.z))
+			M = each
+			break
+	if(M)
+		H.forceMove(get_step(M, SOUTH))
+		sleep(50) // a few readings for its chart
+		var/datum/tgui/ui = cs_power_window(C, H, M, label, "monitor")
+		if(ui && label == "after")
+			var/list/data = M.ui_data(H)
+			var/list/areas = data["areas"]
+			var/list/first = length(areas) ? areas[1] : list()
+			cs_check("monitor: raw supply/draw and [length(areas)] areas with raw loads", !isnull(data["supplyRaw"]) && !isnull(first["loadRaw"]))
+		SStgui.close_user_uis(H)

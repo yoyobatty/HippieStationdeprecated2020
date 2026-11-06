@@ -1,0 +1,75 @@
+// hippie -- the power windows (interfaces/Apc.js, Smes.js, PowerMonitor.js)
+
+.Power__header {
+  display: flex;
+  align-items: flex-start;
+}
+
+.Power__headerMain {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.Power__headerSide {
+  flex: 0 0 140px;
+  margin-left: 12px;
+  text-align: right;
+}
+
+.Power__cards {
+  display: flex;
+  margin: 0 -3px;
+}
+
+.Power__card {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0 3px;
+  padding: 6px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+
+.Power__switch {
+  display: flex;
+
+  .Button {
+    flex: 1 1 0;
+    margin: 0;
+    text-align: center;
+    border-radius: 0;
+
+    &:first-child {
+      border-radius: 2px 0 0 2px;
+    }
+
+    &:last-child {
+      border-radius: 0 2px 2px 0;
+    }
+  }
+}
+
+.Power__stats {
+  display: flex;
+  margin-bottom: 6px;
+}
+
+.Power__stat {
+  flex: 1 1 0;
+  padding: 4px 8px;
+  margin-right: 6px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+
+  &:last-child {
+    margin-right: 0;
+  }
+}
+
+.Power__chart {
+  position: relative;
+  height: 130px;
+  background-color: rgba(0, 0, 0, 0.25);
+  border-radius: 3px;
+}
