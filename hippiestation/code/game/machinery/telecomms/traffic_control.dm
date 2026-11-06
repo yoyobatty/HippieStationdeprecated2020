@@ -138,8 +138,13 @@ GLOBAL_LIST_INIT(tcomms_rule_actions_hacked, list("rename"))
 		var/datum/comm_log_entry/entry = log_entries[log_entries.len]
 		if(signal.data["rule_hide_log"])
 			log_entries -= entry
-		else if(signal.data["rule_tags"])
-			entry.parameters["rules"] = signal.data["rule_tags"]
+		else
+			if(signal.data["rule_tags"])
+				entry.parameters["rules"] = signal.data["rule_tags"]
+			// For the Wiretap tab (tcomms_wiretap.dm): when and on what channel
+			entry.parameters["frequency"] = signal.frequency
+			entry.parameters["time"] = station_time_timestamp()
+			tcomms_wiretap_add(entry, src)
 
 /obj/machinery/telecomms/broadcaster/receive_information(datum/signal/subspace/signal, obj/machinery/telecomms/machine_from)
 	if(istype(signal) && signal.data && signal.data["reroute_to"])

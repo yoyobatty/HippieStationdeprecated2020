@@ -247,6 +247,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_trules(C, H, label)
 		if("tmap")
 			cs_tmap(C, H, label)
+		if("twiretap")
+			cs_twiretap(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -5646,3 +5648,91 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 		sec.overheated = FALSE
 		sec.update_power()
 	qdel(R)
+
+// The Wiretap tab: the servers' logs as a feed; on an emagged computer, inject, delete and wipe
+/proc/cs_twiretap(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/ce)
+	var/obj/item/card/id/worn = cs_card("Hugo Brandt", "Chief Engineer", get_all_accesses(), get_turf(H))
+	H.equip_to_slot_or_del(worn, ITEM_SLOT_ID)
+	var/obj/machinery/holopad/pad
+	for(var/obj/machinery/holopad/P in GLOB.machines)
+		if(is_station_level(P.z) && cs_open_turf_by(P))
+			pad = P
+			break
+	if(pad)
+		H.forceMove(pad.loc)
+	var/obj/machinery/modular_computer/console/preset/engineering/PC = new(cs_open_beside(H))
+	PC.stat &= ~(NOPOWER|BROKEN)
+	var/obj/item/modular_computer/processor/cpu = PC.cpu
+	var/obj/item/computer_hardware/hard_drive/drive = cpu.all_components[MC_HDD]
+	drive.store_file(new /datum/computer_file/program/traffic_control)
+	cpu.turn_on(H)
+	cs_act(cpu, H, "PC_runprogram", list("name" = "trafficctrl"))
+	var/datum/computer_file/program/traffic_control/app = cpu.active_program
+	if(!istype(app))
+		cs_check("wiretap: the app starts", FALSE)
+		return
+	cs_act(app, H, "tab", list("tab" = "wiretap"))
+	var/obj/item/radio/R = new(get_turf(H))
+	R.broadcasting = TRUE
+	R.set_frequency(FREQ_COMMON)
+	R.talk_into(H, "wiretap check on common", null)
+	sleep(20)
+	R.set_frequency(FREQ_ENGINEERING)
+	R.talk_into(H, "wiretap check on engineering", null)
+	sleep(20)
+	var/list/data = app.ui_data(H)
+	var/found_common = FALSE
+	var/found_eng = FALSE
+	for(var/list/L in data["logs"])
+		if(findtext(L["message"], "wiretap check on common") && L["channel"] == "Common" && L["time"])
+			found_common = TRUE
+		if(findtext(L["message"], "wiretap check on engineering") && L["channel"] == "Engineering")
+			found_eng = TRUE
+	cs_check("wiretap: both messages in the feed with channel and time ([length(data["logs"])] entries)", found_common && found_eng)
+	cpu.ui_interact(H)
+	var/datum/tgui/ui = cs_find_ui(H, app)
+	if(ui)
+		winset(C, ui.window_id, "pos=100,20")
+		sleep(25)
+		cs_shot("popup_twiretap_[label]_feed")
+
+	cpu.obj_flags |= EMAGGED
+	GLOB.tcomms_recent_broadcasts.Cut()
+	cs_act(app, H, "inject", list("frequency" = "[FREQ_COMMON]", "name" = "Captain", "job" = "Captain", "message" = "All hands, report to the bridge."))
+	sleep(30)
+	var/heard = FALSE
+	for(var/list/L in GLOB.tcomms_recent_broadcasts)
+		if(findtext(L[4], "report to the bridge") && L[5] == FREQ_COMMON)
+			heard = TRUE
+	var/datum/comm_log_entry/fake
+	for(var/list/item in GLOB.tcomms_wiretap)
+		var/datum/comm_log_entry/E = item[1]
+		if(findtext(E.parameters["message"], "report to the bridge"))
+			fake = E
+	cs_check("wiretap: an injected message goes out on Common and is logged as the Captain ([fake ? fake.parameters["name"] : "no log"])", heard && fake && fake.parameters["name"] == "Captain")
+	sleep(10)
+	cs_shot("popup_twiretap_[label]_hacked")
+	if(fake)
+		var/obj/machinery/telecomms/server/holder
+		for(var/list/item in GLOB.tcomms_wiretap)
+			if(item[1] == fake)
+				holder = item[2]
+		cs_act(app, H, "delete_log", list("ref" = REF(fake)))
+		cs_check("wiretap: delete removes it from the server's log", holder && !(fake in holder.log_entries))
+	cs_act(app, H, "wipe_logs")
+	var/left = 0
+	for(var/obj/machinery/telecomms/server/S in tcomms_station_machines())
+		left += length(S.log_entries)
+	cs_check("wiretap: wipe empties every server log ([left] left)", left == 0)
+	cpu.obj_flags &= ~EMAGGED
+	cs_act(app, H, "inject", list("frequency" = "[FREQ_COMMON]", "name" = "Captain", "message" = "should not send"))
+	sleep(20)
+	var/sent = FALSE
+	for(var/list/L in GLOB.tcomms_recent_broadcasts)
+		if(findtext(L[4], "should not send"))
+			sent = TRUE
+	cs_check("wiretap: no inject without an emag", !sent)
+	SStgui.close_user_uis(H)
+	qdel(R)
+	qdel(PC)

@@ -199,76 +199,219 @@ class RuleForm extends Component {
   }
 }
 
-export class NtosTrafficControl extends Component {
+class Wiretap extends Component {
   constructor() {
     super();
-    this.state = { tab: 'network' };
+    this.state = {
+      channel: 'All',
+      search: '',
+      injectChannel: 'Common',
+      injectName: '',
+      injectJob: '',
+      injectMessage: '',
+    };
   }
 
   render() {
-    const { act, data } = useBackend(this.props);
-    const { tab } = this.state;
-    const rules = data.rules || [];
-    const history = data.history || [];
+    const { act, data } = this.props;
+    const s = this.state;
+    const set = (key, value) => this.setState({ [key]: value });
+    const channels = data.channels || [];
+    const names = channels.map(channel => channel.name);
+    const freqOf = name => {
+      const found = channels.find(channel => channel.name === name);
+      return found ? found.frequency : 0;
+    };
+    const term = s.search.toLowerCase();
+    const logs = (data.logs || []).filter(log => (s.channel === 'All'
+      || log.channel === s.channel)
+      && (!term
+        || String(log.name).toLowerCase().includes(term)
+        || String(log.message).toLowerCase().includes(term)));
     return (
       <Fragment>
-        {!!data.hacked && (
-          <NoticeBox>
-            <Icon name="user-secret" mr={1} />
-            OVERRIDE ACTIVE
-          </NoticeBox>
-        )}
-        <Tabs activeTab={tab}>
-          <Tabs.Tab
-            key="network"
-            label="Network"
-            onClick={() => this.setState({ tab: 'network' })} />
-          <Tabs.Tab
-            key="rules"
-            label={'Rules (' + rules.length + ')'}
-            onClick={() => this.setState({ tab: 'rules' })} />
-          <Tabs.Tab
-            key="history"
-            label="History"
-            onClick={() => this.setState({ tab: 'history' })} />
-        </Tabs>
-        {tab === 'network' && (
-          <Section>
-            <TelecommsMap map={data.map} />
-          </Section>
-        )}
-        {tab === 'rules' && (
-          <Fragment>
-            <Section title="Rules, in order">
-              {rules.length === 0 && (
-                <Box color="label">No rules. All traffic passes.</Box>
-              )}
-              {rules.map((rule, i) => (
-                <RuleRow
-                  key={rule.id}
-                  act={act}
-                  rule={rule}
-                  first={i === 0}
-                  last={i === rules.length - 1} />
-              ))}
-            </Section>
-            <RuleForm act={act} data={data} />
-          </Fragment>
-        )}
-        {tab === 'history' && (
-          <Section title="Rule changes">
-            {history.length === 0 && (
-              <Box color="label">None</Box>
-            )}
-            {history.map((entry, i) => (
-              <Box key={i} mb={0.5}>
-                <Box inline color="label" mr={1}>{entry.time}</Box>
-                <b>{entry.who}</b> {entry.what}
+        <Section
+          title={'Traffic (' + logs.length + ')'}
+          buttons={!!data.hacked && (
+            <Button
+              icon="trash"
+              color="bad"
+              content="Wipe logs"
+              onClick={() => act('wipe_logs')} />
+          )}>
+          <Box mb={1}>
+            <Dropdown
+              width="140px"
+              selected={s.channel}
+              options={['All', ...names]}
+              onSelected={value => set('channel', value)} />
+            <Input
+              width="200px"
+              ml={1}
+              placeholder="Search..."
+              value={s.search}
+              onInput={(e, value) => set('search', value)} />
+          </Box>
+          {logs.length === 0 && (
+            <Box color="label">No traffic logged.</Box>
+          )}
+          {logs.map(log => (
+            <div key={log.ref} className="TrafficControl__log">
+              <Box inline color="label" width="62px">{log.time}</Box>
+              <Box inline nowrap color="teal" width="106px">
+                [{log.channel}]
               </Box>
-            ))}
+              {log.corrupt && (
+                <Box inline italic color="label">
+                  Corrupt File: {log.message}
+                </Box>
+              ) || (
+                <Box inline>
+                  <b>{log.name}</b>
+                  <Box inline color="label" ml={0.5}>({log.job})</Box>
+                  : {log.message}
+                </Box>
+              )}
+              {!!log.rules && (
+                <Box inline ml={1} fontSize="10px" color="average">
+                  {log.rules}
+                </Box>
+              )}
+              {!!data.hacked && (
+                <Button
+                  style={{ float: 'right' }}
+                  icon="times"
+                  color="bad"
+                  onClick={() => act('delete_log', { ref: log.ref })} />
+              )}
+            </div>
+          ))}
+        </Section>
+        {!!data.hacked && (
+          <Section title="Inject">
+            <LabeledList>
+              <LabeledList.Item label="Channel">
+                <Dropdown
+                  width="160px"
+                  selected={s.injectChannel}
+                  options={names}
+                  onSelected={value => set('injectChannel', value)} />
+              </LabeledList.Item>
+              <LabeledList.Item label="Name">
+                <Input
+                  width="200px"
+                  value={s.injectName}
+                  onInput={(e, value) => set('injectName', value)} />
+              </LabeledList.Item>
+              <LabeledList.Item label="Job">
+                <Input
+                  width="200px"
+                  value={s.injectJob}
+                  onInput={(e, value) => set('injectJob', value)} />
+              </LabeledList.Item>
+              <LabeledList.Item label="Message">
+                <Input
+                  fluid
+                  value={s.injectMessage}
+                  onInput={(e, value) => set('injectMessage', value)} />
+              </LabeledList.Item>
+            </LabeledList>
+            <Box mt={1}>
+              <Button
+                icon="broadcast-tower"
+                color="purple"
+                content="Send"
+                disabled={!s.injectName || !s.injectMessage}
+                onClick={() => {
+                  act('inject', {
+                    frequency: freqOf(s.injectChannel),
+                    name: s.injectName,
+                    job: s.injectJob,
+                    message: s.injectMessage,
+                  });
+                  set('injectMessage', '');
+                }} />
+            </Box>
           </Section>
         )}
       </Fragment>
     );
   }
 }
+
+export const NtosTrafficControl = props => {
+  const { act, data } = useBackend(props);
+  // The tab is kept by the program, so it only builds the log feed on the
+  // Wiretap tab
+  const tab = data.tab || 'network';
+  const setTab = value => act('tab', { tab: value });
+  const rules = data.rules || [];
+  const history = data.history || [];
+  return (
+    <Fragment>
+      {!!data.hacked && (
+        <NoticeBox>
+          <Icon name="user-secret" mr={1} />
+          OVERRIDE ACTIVE
+        </NoticeBox>
+      )}
+      <Tabs activeTab={tab}>
+        <Tabs.Tab
+          key="network"
+          label="Network"
+          onClick={() => setTab('network')} />
+        <Tabs.Tab
+          key="rules"
+          label={'Rules (' + rules.length + ')'}
+          onClick={() => setTab('rules')} />
+        <Tabs.Tab
+          key="wiretap"
+          label="Wiretap"
+          onClick={() => setTab('wiretap')} />
+        <Tabs.Tab
+          key="history"
+          label="History"
+          onClick={() => setTab('history')} />
+      </Tabs>
+      {tab === 'network' && (
+        <Section>
+          <TelecommsMap map={data.map} />
+        </Section>
+      )}
+      {tab === 'rules' && (
+        <Fragment>
+          <Section title="Rules, in order">
+            {rules.length === 0 && (
+              <Box color="label">No rules. All traffic passes.</Box>
+            )}
+            {rules.map((rule, i) => (
+              <RuleRow
+                key={rule.id}
+                act={act}
+                rule={rule}
+                first={i === 0}
+                last={i === rules.length - 1} />
+            ))}
+          </Section>
+          <RuleForm act={act} data={data} />
+        </Fragment>
+      )}
+      {tab === 'wiretap' && (
+        <Wiretap act={act} data={data} />
+      )}
+      {tab === 'history' && (
+        <Section title="Rule changes">
+          {history.length === 0 && (
+            <Box color="label">None</Box>
+          )}
+          {history.map((entry, i) => (
+            <Box key={i} mb={0.5}>
+              <Box inline color="label" mr={1}>{entry.time}</Box>
+              <b>{entry.who}</b> {entry.what}
+            </Box>
+          ))}
+        </Section>
+      )}
+    </Fragment>
+  );
+};

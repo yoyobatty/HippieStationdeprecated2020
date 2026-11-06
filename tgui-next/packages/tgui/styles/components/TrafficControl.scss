@@ -33,3 +33,9 @@
   max-width: 400px;
   vertical-align: top;
 }
+
+.TrafficControl__log {
+  overflow: hidden;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
