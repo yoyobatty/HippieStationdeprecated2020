@@ -146,6 +146,7 @@ import { MassDriverConsole, ShuttleConsole } from './interfaces/ShuttleConsole';
 import { AirlockController, BankVault, Holopad, Jukebox, LimbGrower, NavBeacon, SeedExtractor, SlotMachine } from './interfaces/ServiceMachines';
 import { AiFixer, AnnouncementSystem, DopplerArray, PrisonerConsole } from './interfaces/SecurityScience';
 import { NtosTrafficControl } from './interfaces/NtosTrafficControl';
+import { GunLocker, JaniCart } from './interfaces/Storage';
 // hippie end
 
 const ROUTES = {
@@ -306,6 +307,10 @@ const ROUTES = {
     component: () => ExosuitFabricator,
     scrollable: false,
   },
+  gun_locker: {
+    component: () => GunLocker,
+    scrollable: true,
+  },
   hand_teleporter: {
     component: () => HandTeleporter,
     scrollable: true,
@@ -316,6 +321,10 @@ const ROUTES = {
   },
   implant_pad: {
     component: () => ImplantPad,
+    scrollable: true,
+  },
+  jani_cart: {
+    component: () => JaniCart,
     scrollable: true,
   },
   jukebox: {

@@ -1,0 +1,46 @@
+// hippie -- the gun locker and janitorial cart (interfaces/Storage.js)
+
+.Storage__grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.Storage__card {
+  width: 88px;
+  margin: 0 6px 6px 0;
+  padding: 6px 4px;
+  text-align: center;
+  cursor: pointer;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  img {
+    image-rendering: pixelated;
+    -ms-interpolation-mode: nearest-neighbor;
+  }
+}
+
+.Storage__card--empty {
+  cursor: default;
+  opacity: 0.4;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.Storage__picture {
+  height: 64px;
+}
+
+.Storage__name {
+  height: 28px;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 14px;
+}
