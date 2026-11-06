@@ -1,130 +1,177 @@
-import { Fragment } from 'inferno';
+import { Component, Fragment } from 'inferno';
 import { useBackend } from '../backend';
-import { Section, Box, Button, Table } from '../components';
-import { Searchable } from './common/Searchable';
+import { Box, Button, Icon, Input, NoticeBox, NumberInput, Section, Tabs } from '../components';
 
-// What a buy button says: the price for the quantity picked
-const priceLabel = (free, price, amount) => {
-  if (amount > 1) {
-    return (free ? 'FREE' : '$' + price * amount) + ' (' + amount + 'x)';
+// hippie -- vending machines as a shop (data from
+// hippiestation/code/modules/vending/_vending.dm): a grid of item cards with
+// their sprites, stock and price, tabs for premium and contraband stock, your
+// card and balance up top
+
+const stockColor = (stock, max) => {
+  if (stock <= 0) {
+    return 'bad';
   }
-  return free ? 'FREE' : '$' + price;
+  return stock <= max / 2 ? 'average' : 'good';
 };
 
-const VendingRow = props => {
+const ItemCard = props => {
   const { product, custom, act, data, amount } = props;
-  const free = ((data.department && data.user
+  const free = (data.department && data.user
     && data.department === data.user.department)
     || product.price === 0 || !data.onstation || !data.scanid
-    || (data.user && data.user.unlimited));
+    || (data.user && data.user.unlimited);
   const stock = custom ? product.amount : data.stock[product.name];
+  const total = product.price * amount;
+  const cantAfford = !free && (!data.user || total > data.user.cash);
+  const empty = !custom && stock <= 0;
+  let price = free ? 'Free' : '$' + total;
+  if (custom && data.access) {
+    price = 'Take';
+  }
   return (
-    <Table.Row>
-      <Table.Cell>
-        {product.base64 && (
-          <img src={`data:image/jpeg;base64,${product.img}`}
-            style={{
-              'vertical-align': 'middle',
-              'horizontal-align': 'middle',
-            }} />
+    <div className={'Vending__card' + (empty ? ' Vending__card--empty' : '')}>
+      <div className="Vending__picture">
+        {!custom && (
+          <span className={'vending32x32 ' + product.path} />
         ) || (
-          <span className={['vending32x32', product.path].join(' ')}
-            style={{
-              'vertical-align': 'middle',
-              'horizontal-align': 'middle',
-            }} />
+          <Icon name="box" size={2} />
         )}
-        <b>{product.name}</b>
-      </Table.Cell>
-      <Table.Cell>
-        <Box color={custom
-          ? 'good'
-          : stock <= 0
-            ? 'bad'
-            : stock <= (product.max_amount / 2)
-              ? 'average'
-              : 'good'}>
-          {stock} in stock
-        </Box>
-      </Table.Cell>
-      <Table.Cell>
-        {custom && (
-          <Button
-            content={priceLabel(data.access, product.price, amount)}
-            onClick={() => act('dispense', {
-              'item': product.name,
-              'amount': amount,
-            })} />
-        ) || (
-          <Button
-            disabled={(!free && (!data.user
-                || (product.price > data.user.cash)))
-                || stock === 0}
-            content={priceLabel(free, product.price, amount)}
-            onClick={() => act('vend', {
-              'ref': product.ref,
-              'amount': amount,
-            })} />
-        )}
-      </Table.Cell>
-    </Table.Row>
+      </div>
+      <div className="Vending__name" title={product.name}>
+        {product.name}
+      </div>
+      <Box
+        fontSize="11px"
+        color={custom ? 'label' : stockColor(stock, product.max_amount)}>
+        {empty ? 'Sold out' : stock + ' left'}
+      </Box>
+      <Button
+        fluid
+        mt={0.5}
+        textAlign="center"
+        color={free && !empty ? 'good' : null}
+        disabled={empty || (!custom && cantAfford)}
+        content={price}
+        tooltip={cantAfford && !empty ? 'Not enough money' : null}
+        onClick={() => custom
+          ? act('dispense', { item: product.name, amount })
+          : act('vend', { ref: product.ref, amount })} />
+    </div>
   );
 };
 
-export const Vending = props => {
-  const { act, data } = useBackend(props);
-  let inventory;
-  let custom = false;
-  if (data.vending_machine_input) {
-    inventory = data.vending_machine_input;
-    custom = true;
-  } else if (data.extended_inventory) {
-    inventory = [...data.product_records,
-      ...data.coin_records,
-      ...data.hidden_records];
-  } else {
-    inventory = [...data.product_records, ...data.coin_records];
+export class Vending extends Component {
+  constructor() {
+    super();
+    this.state = { tab: 'products', search: '', amount: 1 };
   }
-  return (
-    <Fragment>
-      <Section
-        title="User">
-        {data.user && (
-          <Box>
-            Welcome, <b>{data.user.name}</b>,
-            <b>{data.user.job || "Unemployed"}</b>!<br />
-            Your balance is{' '}
-            <b>
-              {data.user.unlimited ? 'unlimited' : '$' + data.user.cash}
-            </b>.
-          </Box>
-        ) || (
-          <Box color="light-gray">
-            No registered ID card!<br />
-            Please contact your local HoP!
-          </Box>
-        )}
-      </Section>
-      <Section
-        title="Products">
-        <Searchable placeholder="Search products..." amountMax={10}>
-          {(matches, searching, amount) => (
-            <Table>
-              {inventory
-                .filter(product => matches(product.name))
-                .map(product => (
-                  <VendingRow
-                    key={product.name}
-                    product={product}
-                    custom={custom}
-                    act={act}
-                    data={data}
-                    amount={amount} />
-                ))}
-            </Table>
+
+  render() {
+    const { act, data } = useBackend(this.props);
+    const { search, amount } = this.state;
+    const custom = !!data.vending_machine_input;
+    const premium = data.coin_records || [];
+    const contraband = (data.extended_inventory && data.hidden_records)
+      || [];
+    let tab = this.state.tab;
+    if ((tab === 'premium' && !premium.length)
+      || (tab === 'contraband' && !contraband.length)) {
+      tab = 'products';
+    }
+    let inventory = custom ? data.vending_machine_input : data.product_records;
+    if (tab === 'premium') {
+      inventory = premium;
+    }
+    if (tab === 'contraband') {
+      inventory = contraband;
+    }
+    const term = search.toLowerCase();
+    const shown = (inventory || [])
+      .filter(product => !term || product.name.toLowerCase().includes(term));
+    const user = data.user;
+    const departmentFree = data.department && user
+      && data.department === user.department;
+    return (
+      <Fragment>
+        <Section>
+          {user && (
+            <Box>
+              <Icon name="id-card" mr={1} />
+              <b>{user.name}</b>
+              <Box inline color="label" ml={1}>
+                {user.job || 'Unemployed'}
+              </Box>
+              <Box inline style={{ float: 'right' }} bold color="good">
+                {user.unlimited ? 'Unlimited' : '$' + user.cash}
+              </Box>
+              {!!departmentFree && (
+                <Box color="good" mt={0.5}>
+                  <Icon name="check" mr={1} />
+                  Free for your department
+                </Box>
+              )}
+            </Box>
+          ) || (
+            <NoticeBox mb={0}>
+              No ID card with a bank account. See the Head of Personnel.
+            </NoticeBox>
           )}
-        </Searchable>
-      </Section>
-    </Fragment>
-  );
-};
+        </Section>
+        {!custom && (premium.length > 0 || contraband.length > 0) && (
+          <Tabs activeTab={tab}>
+            <Tabs.Tab
+              key="products"
+              label="Products"
+              onClick={() => this.setState({ tab: 'products' })} />
+            {premium.length > 0 && (
+              <Tabs.Tab
+                key="premium"
+                label="Premium"
+                onClick={() => this.setState({ tab: 'premium' })} />
+            )}
+            {contraband.length > 0 && (
+              <Tabs.Tab
+                key="contraband"
+                label="Contraband"
+                onClick={() => this.setState({ tab: 'contraband' })} />
+            )}
+          </Tabs>
+        )}
+        <Section
+          title={shown.length + (shown.length === 1 ? ' item' : ' items')}
+          buttons={(
+            <Fragment>
+              <Input
+                width="150px"
+                placeholder="Search..."
+                value={search}
+                onInput={(e, value) => this.setState({ search: value })} />
+              <Box inline ml={1} color="label">Buy</Box>
+              <NumberInput
+                ml={0.5}
+                width="40px"
+                value={amount}
+                minValue={1}
+                maxValue={10}
+                onChange={(e, value) => this.setState({ amount: value })} />
+            </Fragment>
+          )}>
+          {shown.length === 0 && (
+            <Box color="label">Nothing here.</Box>
+          )}
+          <div className="Vending__grid">
+            {shown.map(product => (
+              <ItemCard
+                key={product.name}
+                product={product}
+                custom={custom}
+                act={act}
+                data={data}
+                amount={amount} />
+            ))}
+          </div>
+        </Section>
+      </Fragment>
+    );
+  }
+}

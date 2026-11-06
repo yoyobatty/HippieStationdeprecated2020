@@ -82,7 +82,7 @@
 	if(!ui)
 		var/datum/asset/assets = get_asset_datum(/datum/asset/spritesheet/vending)
 		assets.send(user)
-		ui = new(user, src, ui_key, "vending", "[name]", 450, 600, master_ui, state)
+		ui = new(user, src, ui_key, "vending", "[name]", 600, 640, master_ui, state)
 		ui.set_autoupdate(TRUE)
 		ui.open()
 

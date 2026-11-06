@@ -1,0 +1,39 @@
+// hippie -- the vending machine shop grid (interfaces/Vending.js)
+
+.Vending__grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.Vending__card {
+  width: 98px;
+  margin: 0 6px 6px 0;
+  padding: 6px;
+  text-align: center;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+
+.Vending__card--empty {
+  opacity: 0.45;
+}
+
+.Vending__picture {
+  height: 52px;
+  line-height: 52px;
+
+  .vending32x32 {
+    display: inline-block;
+    vertical-align: middle;
+    transform: scale(2);
+    image-rendering: pixelated;
+  }
+}
+
+.Vending__name {
+  height: 30px;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 15px;
+}
