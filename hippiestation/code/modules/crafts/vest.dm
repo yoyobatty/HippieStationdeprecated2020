@@ -67,8 +67,8 @@
 /datum/crafting_recipe/plate_armor
 	name = "plate armor"
 	result =  /obj/item/clothing/suit/armor/plate_armor/steel
-	reqs = list(/obj/item/stack/sheet/metal = 50,
-				/obj/item/weldingtool)
+	reqs = list(/obj/item/stack/sheet/metal = 50)
+	tools = list(TOOL_WELDER) // was in reqs with no amount: listed as "null x" and never matched
 	time = 30 //time gating is a shit concept
 	category = CAT_WEAPONRY
 	subcategory = CAT_WEAPON

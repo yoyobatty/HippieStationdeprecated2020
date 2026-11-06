@@ -144,7 +144,7 @@ const Ingredient = props => {
       }}>
       <AtomIcon atom={atom} size={16} />
       <Box inline ml={0.5}>
-        {atom.is_reagent ? amount + 'u ' : amount + 'x '}
+        {atom.is_reagent ? (amount || 1) + 'u ' : (amount || 1) + 'x '}
         {atom.name}
       </Box>
     </Box>
