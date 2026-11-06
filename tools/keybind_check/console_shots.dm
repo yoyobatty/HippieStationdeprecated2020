@@ -261,6 +261,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_books(C, H, label)
 		if("mechpai")
 			cs_mechpai(C, H, label)
+		if("experiments")
+			cs_experiments(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -6105,3 +6107,57 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 		SStgui.close_user_uis(H)
 	H.drop_all_held_items()
 	qdel(card)
+
+// Research experiments: a scientist scans live slimes, ores and organs
+/proc/cs_experiments(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/scientist)
+	var/obj/machinery/holopad/pad
+	for(var/obj/machinery/holopad/P in GLOB.machines)
+		if(is_station_level(P.z) && cs_open_turf_by(P))
+			pad = P
+			break
+	if(pad)
+		H.forceMove(pad.loc)
+	var/obj/item/experi_scanner/scanner = locate() in H.GetAllContents()
+	cs_check("experiments: a scientist starts with a scanner", scanner)
+	if(!scanner)
+		scanner = new(get_turf(H))
+	H.drop_all_held_items()
+	H.put_in_active_hand(scanner)
+	var/turf/spot = cs_open_turf_by(H)
+	var/datum/techweb/web = SSresearch.science_tech
+	var/points_before = web.research_points[TECHWEB_POINT_TYPE_GENERIC]
+	var/datum/techweb_node/node = SSresearch.techweb_node_by_id("bio_process")
+	var/list/price_before = node.get_price(web)
+	var/cost_before = price_before[TECHWEB_POINT_TYPE_GENERIC]
+	var/list/made = list()
+	for(var/colour in list("grey", "orange", "purple", "blue"))
+		var/mob/living/simple_animal/slime/S = new(spot, colour)
+		made += S
+		scanner.afterattack(S, H, TRUE)
+	var/datum/science_experiment/slimes/survey = locate() in science_experiments()
+	var/list/price_after = node.get_price(web)
+	cs_check("experiments: four slime colours complete the Slime Survey ([length(survey.done)] recorded)", survey.completed)
+	cs_check("experiments: it paid points and halved Biological Processing ([cost_before] -> [price_after[TECHWEB_POINT_TYPE_GENERIC]])", web.research_points[TECHWEB_POINT_TYPE_GENERIC] >= points_before + survey.reward - 1 && price_after[TECHWEB_POINT_TYPE_GENERIC] <= cost_before / 2)
+	for(var/path in list(/obj/item/stack/ore/iron, /obj/item/stack/ore/silver, /obj/item/stack/ore/gold))
+		var/obj/item/O = new path(spot)
+		made += O
+		scanner.afterattack(O, H, TRUE)
+	for(var/path in list(/obj/item/organ/heart, /obj/item/organ/lungs))
+		var/obj/item/O = new path(spot)
+		made += O
+		scanner.afterattack(O, H, TRUE)
+	var/datum/science_experiment/slimes/again = survey
+	var/before = length(again.done)
+	scanner.afterattack(made[1], H, TRUE)
+	cs_check("experiments: the same slime again counts nothing", length(again.done) == before)
+	usr = H
+	scanner.attack_self(H)
+	var/datum/tgui/ui = cs_find_ui(H, scanner)
+	if(ui)
+		winset(C, ui.window_id, "pos=100,20")
+	sleep(25)
+	cs_shot("popup_experiments_[label]_scanner")
+	SStgui.close_user_uis(H)
+	for(var/atom/movable/A in made)
+		qdel(A)

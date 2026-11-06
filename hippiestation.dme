@@ -3875,6 +3875,7 @@
 #include "hippiestation\code\modules\reagents\reagent_containers\solid_reagent.dm"
 #include "hippiestation\code\modules\reagents\reagent_containers\spray.dm"
 #include "hippiestation\code\modules\reagents\reagent_containers\syringes.dm"
+#include "hippiestation\code\modules\research\experiments.dm"
 #include "hippiestation\code\modules\research\message_server.dm"
 #include "hippiestation\code\modules\research\rdconsole_tgui.dm"
 #include "hippiestation\code\modules\research\rdmachines.dm"

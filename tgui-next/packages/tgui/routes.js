@@ -152,6 +152,7 @@ import { SongEditor } from './interfaces/SongEditor';
 import { Blueprints, CameraBug, RcdAccess } from './interfaces/Tools';
 import { BibleStyle, BookReader, MimeBook, PhotoViewer } from './interfaces/Books';
 import { MechSleeper, MechSyringeGun, PaiCard } from './interfaces/MechMedicalPai';
+import { ExperimentScanner } from './interfaces/Experiments';
 // hippie end
 
 const ROUTES = {
@@ -331,6 +332,10 @@ const ROUTES = {
   exosuit_fabricator: {
     component: () => ExosuitFabricator,
     scrollable: false,
+  },
+  experiment_scanner: {
+    component: () => ExperimentScanner,
+    scrollable: true,
   },
   gun_locker: {
     component: () => GunLocker,
