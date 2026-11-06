@@ -3204,6 +3204,7 @@
 #include "hippiestation\code\game\objects\items\devices\analyzer_history.dm"
 #include "hippiestation\code\game\objects\items\devices\blast_calculator.dm"
 #include "hippiestation\code\game\objects\items\devices\dept_pager.dm"
+#include "hippiestation\code\game\objects\items\devices\paicard_tgui.dm"
 #include "hippiestation\code\game\objects\items\devices\pda_tgui.dm"
 #include "hippiestation\code\game\objects\items\devices\extra_arm.dm"
 #include "hippiestation\code\game\objects\items\devices\glue.dm"
