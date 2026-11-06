@@ -1,75 +1,85 @@
-import { useBackend } from '../backend';
 import { Fragment } from 'inferno';
-import { Box, Section, LabeledList, Button, AnimatedNumber, NumberInput } from '../components';
-import { getGasLabel } from '../constants';
+import { useBackend } from '../backend';
+import { AnimatedNumber, Box, Button, Icon, NumberInput, Section } from '../components';
+import { GasBar, GasLegend } from './common/AtmosBits';
+import { FilterChips } from './AirAlarm';
 
-export const PortableBasicInfo = props => {
-  const { act, data } = useBackend(props);
+// hippie -- the portable pump and scrubber redone: a big power switch, what's
+// inside as a bar split by gas, the pump's direction drawn as where the gas
+// goes, and the scrubber's filters as chips in each gas's colour. The extra
+// data comes from hippiestation/code/modules/atmospherics/atmos_tgui.dm.
 
-  const {
-    connected,
-    holding,
-    on,
-    pressure,
-  } = data;
+const PowerSwitch = props => {
+  const { on, onClick } = props;
+  return (
+    <Button
+      fluid
+      textAlign="center"
+      fontSize="14px"
+      icon="power-off"
+      color={on ? 'good' : 'default'}
+      content={on ? 'Running' : 'Off'}
+      onClick={onClick} />
+  );
+};
 
+const Contents = props => {
+  const { data } = props;
   return (
     <Fragment>
-      <Section
-        title="Status"
-        buttons={(
-          <Button
-            icon={on ? 'power-off' : 'times'}
-            content={on ? 'On' : 'Off'}
-            selected={on}
-            onClick={() => act('power')} />
-        )}>
-        <LabeledList>
-          <LabeledList.Item label="Pressure">
-            <AnimatedNumber value={pressure} />
-            {' kPa'}
-          </LabeledList.Item>
-          <LabeledList.Item
-            label="Port"
-            color={connected ? 'good' : 'average'}>
-            {connected ? 'Connected' : 'Not Connected'}
-          </LabeledList.Item>
-        </LabeledList>
-      </Section>
-      <Section
-        title="Holding Tank"
-        minHeight="82px"
-        buttons={(
-          <Button
-            icon="eject"
-            content="Eject"
-            disabled={!holding}
-            onClick={() => act('eject')} />
-        )}>
-        {holding ? (
-          <LabeledList>
-            <LabeledList.Item label="Label">
-              {holding.name}
-            </LabeledList.Item>
-            <LabeledList.Item label="Pressure">
-              <AnimatedNumber
-                value={holding.pressure} />
-              {' kPa'}
-            </LabeledList.Item>
-          </LabeledList>
-        ) : (
-          <Box color="average">
-            No holding tank
-          </Box>
-        )}
-      </Section>
+      <Box mb={0.5}>
+        <Box inline fontSize="18px" bold mr={1}>
+          <AnimatedNumber value={data.pressure} /> kPa
+        </Box>
+        <Box inline color="label">inside</Box>
+        <Box
+          inline
+          style={{ float: 'right' }}
+          color={data.connected ? 'good' : 'label'}>
+          <Icon name="plug" mr={1} />
+          {data.connected ? 'On a port' : 'Not on a port'}
+        </Box>
+      </Box>
+      <GasBar gases={data.gases} />
+      <GasLegend gases={data.gases} />
     </Fragment>
+  );
+};
+
+const HoldingTank = props => {
+  const { act, holding, empty } = props;
+  return (
+    <Section
+      title="Tank"
+      buttons={(
+        <Button
+          icon="eject"
+          content="Eject"
+          disabled={!holding}
+          onClick={() => act('eject')} />
+      )}>
+      {!!holding && (
+        <Fragment>
+          <Box>
+            <b>{holding.name}</b>
+            <Box inline ml={1}>
+              <AnimatedNumber value={holding.pressure} /> kPa
+            </Box>
+          </Box>
+          <Box mt={0.5}>
+            <GasBar gases={holding.gases} height="10px" />
+            <GasLegend gases={holding.gases} />
+          </Box>
+        </Fragment>
+      ) || (
+        <Box color="label">{empty}</Box>
+      )}
+    </Section>
   );
 };
 
 export const PortablePump = props => {
   const { act, data } = useBackend(props);
-
   const {
     direction,
     holding,
@@ -78,78 +88,91 @@ export const PortablePump = props => {
     min_pressure,
     max_pressure,
   } = data;
-
+  // pump.dm: "out" moves the pump's gas to the room, or with a tank in,
+  // the tank's gas into the pump; "in" the other way round
+  const from = direction
+    ? (holding ? 'the pump' : 'the room')
+    : (holding ? 'the tank' : 'the pump');
+  const to = direction
+    ? (holding ? 'the tank' : 'the pump')
+    : (holding ? 'the pump' : 'the room');
   return (
     <Fragment>
-      <PortableBasicInfo state={props.state} />
-      <Section
-        title="Pump"
-        buttons={(
-          <Button
-            icon={direction ? 'sign-in-alt' : 'sign-out-alt'}
-            content={direction ? 'In' : 'Out'}
-            selected={direction}
-            onClick={() => act('direction')} />
-        )}>
-        <LabeledList>
-          <LabeledList.Item label="Output">
-            <NumberInput
-              value={target_pressure}
-              unit="kPa"
-              width="75px"
-              minValue={min_pressure}
-              maxValue={max_pressure}
-              step={10}
-              onChange={(e, value) => act('pressure', {
-                pressure: value,
-              })} />
-          </LabeledList.Item>
-          <LabeledList.Item label="Presets">
-            <Button
-              icon="minus"
-              disabled={target_pressure === min_pressure}
-              onClick={() => act('pressure', {
-                pressure: 'min',
-              })} />
-            <Button
-              icon="sync"
-              disabled={target_pressure === default_pressure}
-              onClick={() => act('pressure', {
-                pressure: 'reset',
-              })} />
-            <Button
-              icon="plus"
-              disabled={target_pressure === max_pressure}
-              onClick={() => act('pressure', {
-                pressure: 'max',
-              })} />
-          </LabeledList.Item>
-        </LabeledList>
+      <Section>
+        <PowerSwitch on={data.on} onClick={() => act('power')} />
+        <Box mt={1}>
+          <Contents data={data} />
+        </Box>
       </Section>
+      <Section title="Pumping">
+        <div className="Atmos__flow">
+          <Box inline bold>{from}</Box>
+          <Icon name="long-arrow-alt-right" mx={1} size={1.5}
+            color={data.on ? 'good' : 'label'} />
+          <Box inline bold>{to}</Box>
+          <Button
+            ml={2}
+            icon="exchange-alt"
+            content={direction ? 'In' : 'Out'}
+            onClick={() => act('direction')} />
+        </div>
+        <Box mt={1}>
+          <Box inline color="label" mr={1}>Until</Box>
+          <NumberInput
+            value={target_pressure}
+            unit="kPa"
+            width="85px"
+            minValue={min_pressure}
+            maxValue={max_pressure}
+            step={10}
+            stepPixelSize={2}
+            onChange={(e, value) => act('pressure', { pressure: value })} />
+          <Button
+            icon="fast-backward"
+            title="Lowest"
+            disabled={target_pressure === min_pressure}
+            onClick={() => act('pressure', { pressure: 'min' })} />
+          <Button
+            icon="undo"
+            title={'Default (' + default_pressure + ' kPa)'}
+            disabled={target_pressure === default_pressure}
+            onClick={() => act('pressure', { pressure: 'reset' })} />
+          <Button
+            icon="fast-forward"
+            title="Highest"
+            disabled={target_pressure === max_pressure}
+            onClick={() => act('pressure', { pressure: 'max' })} />
+        </Box>
+      </Section>
+      <HoldingTank
+        act={act}
+        holding={holding}
+        empty="No tank: it pumps to and from the room." />
     </Fragment>
   );
 };
 
 export const PortableScrubber = props => {
   const { act, data } = useBackend(props);
-
-  const filter_types = data.filter_types || [];
-
+  const filters = data.filter_types || [];
+  const enabled = filters.filter(filter => filter.enabled).length;
   return (
     <Fragment>
-      <PortableBasicInfo state={props.state} />
-      <Section title="Filters">
-        {filter_types.map(filter => (
-          <Button
-            key={filter.id}
-            icon={filter.enabled ? 'check-square-o' : 'square-o'}
-            content={getGasLabel(filter.gas_id, filter.gas_name)}
-            selected={filter.enabled}
-            onClick={() => act('toggle_filter', {
-              val: filter.gas_id,
-            })} />
-        ))}
+      <Section>
+        <PowerSwitch on={data.on} onClick={() => act('power')} />
+        <Box mt={1}>
+          <Contents data={data} />
+        </Box>
       </Section>
+      <Section title={'Scrubbing ' + enabled + ' of ' + filters.length}>
+        <FilterChips
+          filters={filters}
+          onToggle={gas_id => act('toggle_filter', { val: gas_id })} />
+      </Section>
+      <HoldingTank
+        act={act}
+        holding={data.holding}
+        empty="No tank: what it scrubs stays inside it." />
     </Fragment>
   );
 };

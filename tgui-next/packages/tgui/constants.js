@@ -195,6 +195,12 @@ const GASES = [
     'label': 'Miasma',
     'color': 'olive',
   },
+  {
+    'id': 'freon',
+    'name': 'Freon',
+    'label': 'Freon',
+    'color': 'violet',
+  },
 ];
 
 export const getGasLabel = (gasId, fallbackValue) => {

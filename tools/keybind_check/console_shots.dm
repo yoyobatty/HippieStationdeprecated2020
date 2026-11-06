@@ -223,6 +223,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_crafting(C, H, label)
 		if("power")
 			cs_power(C, H, label)
+		if("atmos")
+			cs_atmos(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -4694,3 +4696,160 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			var/list/first = length(areas) ? areas[1] : list()
 			cs_check("monitor: raw supply/draw and [length(areas)] areas with raw loads", !isnull(data["supplyRaw"]) && !isnull(first["loadRaw"]))
 		SStgui.close_user_uis(H)
+
+// Atmos: the Atmospherics air alarm, a canister with a tank in it, a portable pump and scrubber, a freezer and a
+// space heater
+/proc/cs_atmos_window(client/C, mob/living/carbon/human/H, datum/D, label, name)
+	usr = H
+	D.ui_interact(H)
+	var/datum/tgui/ui = cs_find_ui(H, D)
+	if(!ui)
+		cs_check("[name]: the window opens", FALSE)
+		return null
+	winset(C, ui.window_id, "pos=100,20")
+	if(ui.width < 340) // the picture taker passes over windows 300 wide
+		winset(C, ui.window_id, "size=340x[ui.height]")
+	sleep(25)
+	cs_shot("popup_atmos_[label]_[name]")
+	return ui
+
+/// An open floor next to A, for setting a machine down
+/proc/cs_open_turf_by(atom/A)
+	for(var/d in GLOB.cardinals)
+		var/turf/T = get_step(A, d)
+		if(!T || T.density || isspaceturf(T))
+			continue
+		var/blocked = FALSE
+		for(var/atom/movable/M in T)
+			if(M.density)
+				blocked = TRUE
+				break
+		if(!blocked)
+			return T
+	return null
+
+/proc/cs_atmos(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/atmos)
+	var/obj/machinery/airalarm/alarm
+	for(var/obj/machinery/airalarm/A in GLOB.machines)
+		if(istype(get_area(A), /area/engine/atmos))
+			alarm = A
+			break
+	if(!alarm)
+		cs_check("an air alarm in Atmospherics", FALSE)
+		return
+	H.forceMove(get_turf(alarm))
+	alarm.locked = FALSE
+	var/datum/tgui/ui = cs_atmos_window(C, H, alarm, label, "alarm")
+	if(ui)
+		cs_tgui_do(C, ui.window_id, label == "after" ? "click:Scrubbers" : "click:Scrubber Controls")
+		sleep(15)
+		cs_shot("popup_atmos_[label]_alarm_scrubbers")
+		if(label == "after")
+			cs_atmos_alarm_checks(C, H, alarm, ui)
+	SStgui.close_user_uis(H)
+
+	var/turf/spot = cs_open_turf_by(H)
+	if(!spot)
+		cs_check("a free tile beside the air alarm", FALSE)
+		return
+	// An air canister with some plasma in it and a tank in its regulator
+	var/obj/machinery/portable_atmospherics/canister/air/can = new(spot)
+	can.air_contents.assert_gas(/datum/gas/plasma)
+	can.air_contents.moles[/datum/gas/plasma] = 120
+	can.air_contents.assert_gas(/datum/gas/carbon_dioxide)
+	can.air_contents.moles[/datum/gas/carbon_dioxide] = 60
+	can.holding = new /obj/item/tank/internals/oxygen(can)
+	can.update_icon()
+	ui = cs_atmos_window(C, H, can, label, "canister")
+	if(ui && label == "after")
+		cs_atmos_canister_checks(C, H, can, ui)
+	SStgui.close_user_uis(H)
+	qdel(can)
+
+	var/obj/machinery/portable_atmospherics/pump/pump = new(spot)
+	cs_atmos_window(C, H, pump, label, "pump")
+	SStgui.close_user_uis(H)
+	qdel(pump)
+
+	var/obj/machinery/portable_atmospherics/scrubber/scrubber = new(spot)
+	ui = cs_atmos_window(C, H, scrubber, label, "scrubber")
+	if(ui && label == "after")
+		cs_atmos_scrubber_checks(C, H, scrubber, ui)
+	SStgui.close_user_uis(H)
+	qdel(scrubber)
+
+	var/obj/machinery/space_heater/heater = new(spot)
+	heater.panel_open = TRUE
+	ui = cs_atmos_window(C, H, heater, label, "heater")
+	if(ui && label == "after")
+		cs_atmos_heater_checks(C, H, heater, ui)
+	SStgui.close_user_uis(H)
+	qdel(heater)
+
+	// A station freezer, with someone at it
+	var/obj/machinery/atmospherics/components/unary/thermomachine/freezer/freezer
+	for(var/obj/machinery/atmospherics/components/unary/thermomachine/freezer/F in GLOB.machines)
+		if(is_station_level(F.z) && cs_open_turf_by(F))
+			freezer = F
+			break
+	if(freezer)
+		H.forceMove(cs_open_turf_by(freezer))
+		freezer.on = TRUE
+		freezer.target_temperature = 200
+		ui = cs_atmos_window(C, H, freezer, label, "freezer")
+		if(ui && label == "after")
+			cs_atmos_freezer_checks(C, H, freezer, ui)
+		SStgui.close_user_uis(H)
+	else
+		cs_check("a station freezer", FALSE)
+
+// The after build's checks
+/proc/cs_atmos_alarm_checks(client/C, mob/living/carbon/human/H, obj/machinery/airalarm/alarm, datum/tgui/ui)
+	var/list/data = alarm.ui_data(H)
+	var/list/gases = data["gases"]
+	cs_check("alarm: the air sent gas by gas ([length(gases)] gases, [data["pressure"]] kPa)", length(gases) >= 2 && !isnull(data["pressure"]))
+	var/datum/tlv/tlv = alarm.TLV["pressure"]
+	var/was = tlv.max1
+	cs_act(alarm, H, "threshold_set", list("env" = "pressure", "var" = "max1", "value" = "150"))
+	cs_check("alarm: a pressure threshold typed in the window sets it (now [tlv.max1])", tlv.max1 == 150)
+	cs_act(alarm, H, "threshold_set", list("env" = "pressure", "var" = "bogus", "value" = "1"))
+	cs_check("alarm: an unknown threshold name is refused", !("bogus" in tlv.vars))
+	tlv.max1 = was
+	cs_tgui_do(C, ui.window_id, "click:Mode")
+	sleep(15)
+	cs_shot("popup_atmos_after_alarm_modes")
+	cs_tgui_do(C, ui.window_id, "click:Thresholds")
+	sleep(15)
+	cs_shot("popup_atmos_after_alarm_thresholds")
+
+/proc/cs_atmos_canister_checks(client/C, mob/living/carbon/human/H, obj/machinery/portable_atmospherics/canister/can, datum/tgui/ui)
+	var/list/data = can.ui_data()
+	cs_check("canister: contents and labels sent ([length(data["gases"])] gases, [length(data["labels"])] labels)", length(data["gases"]) >= 3 && length(data["labels"]) > 5)
+	cs_tgui_do(C, ui.window_id, "click:Closed")
+	sleep(10)
+	cs_check("canister: clicking the valve opens it", can.valve_open)
+	sleep(10)
+	cs_shot("popup_atmos_after_canister_open")
+	cs_act(can, H, "valve")
+	cs_act(can, H, "relabel_to", list("label" = "plasma"))
+	var/obj/machinery/portable_atmospherics/canister/plasma_type = /obj/machinery/portable_atmospherics/canister/toxins
+	cs_check("canister: relabel from the list (now [can.name])", can.name == initial(plasma_type.name))
+
+/proc/cs_atmos_scrubber_checks(client/C, mob/living/carbon/human/H, obj/machinery/portable_atmospherics/scrubber/scrubber, datum/tgui/ui)
+	var/had = (/datum/gas/plasma in scrubber.scrubbing)
+	cs_act(scrubber, H, "toggle_filter", list("val" = "plasma"))
+	cs_check("scrubber: a filter chip toggles plasma", (/datum/gas/plasma in scrubber.scrubbing) != had)
+
+/proc/cs_atmos_heater_checks(client/C, mob/living/carbon/human/H, obj/machinery/space_heater/heater, datum/tgui/ui)
+	var/list/data = heater.ui_data()
+	cs_check("heater: what it's doing is sent ([data["working"]])", !isnull(data["working"]))
+	cs_act(heater, H, "mode", list("mode" = "heat"))
+	cs_check("heater: Heat only sets the mode ([heater.setMode])", heater.setMode == "heat")
+
+/proc/cs_atmos_freezer_checks(client/C, mob/living/carbon/human/H, obj/machinery/atmospherics/components/unary/thermomachine/freezer, datum/tgui/ui)
+	var/list/data = freezer.ui_data(H)
+	cs_check("freezer: says it cools", data["cooling"])
+	var/was = freezer.target_temperature
+	cs_act(freezer, H, "target", list("adjust" = "-10"))
+	cs_check("freezer: minus steps the target down 10 K ([was] -> [freezer.target_temperature])", freezer.target_temperature == max(was - 10, freezer.min_temperature))

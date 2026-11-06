@@ -1,0 +1,159 @@
+// hippie -- the atmos windows (interfaces/AirAlarm.js, Canister.js,
+// PortableAtmos.js, ThermoMachine.js, SpaceHeater.js)
+
+.Atmos__gasBar {
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+  background-color: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.Atmos__gasSegment {
+  height: 100%;
+  min-width: 2px;
+}
+
+.Atmos__gasBarEmpty {
+  width: 100%;
+  font-size: 10px;
+  line-height: 12px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.Atmos__dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 4px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.Atmos__banner {
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  border-radius: 3px;
+  border-left: 4px solid;
+  overflow: hidden;
+  line-height: 22px;
+}
+
+.Atmos__banner--good {
+  background-color: rgba(91, 170, 39, 0.15);
+  border-color: #5baa27;
+  color: #7fd14a;
+}
+
+.Atmos__banner--average {
+  background-color: rgba(240, 143, 17, 0.15);
+  border-color: #f08f11;
+  color: #f5a742;
+}
+
+.Atmos__banner--bad {
+  background-color: rgba(219, 40, 40, 0.2);
+  border-color: #db2828;
+  color: #ff5a5a;
+}
+
+.Atmos__readings {
+  display: flex;
+  margin-bottom: 6px;
+}
+
+.Atmos__reading {
+  flex: 1 1 0;
+  padding: 4px 8px;
+  margin-right: 6px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+
+  &:last-child {
+    margin-right: 0;
+  }
+}
+
+.Atmos__device {
+  padding: 6px;
+  margin-bottom: 6px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+
+.Atmos__modes {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 -3px;
+}
+
+.Atmos__mode {
+  width: calc(50% - 6px);
+  margin: 0 3px 6px;
+  padding: 5px 7px;
+  cursor: pointer;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.Atmos__mode--selected {
+  background-color: rgba(73, 114, 161, 0.45);
+  border-color: #4972a1;
+}
+
+.Atmos__mode--danger.Atmos__mode--selected {
+  background-color: rgba(219, 40, 40, 0.35);
+  border-color: #db2828;
+}
+
+.Atmos__thresholds {
+  width: 100%;
+  border-collapse: collapse;
+
+  td {
+    padding: 2px 3px;
+    white-space: nowrap;
+  }
+
+  tr:first-child td {
+    font-size: 11px;
+    font-weight: bold;
+  }
+}
+
+.Atmos__flow {
+  font-size: 13px;
+  line-height: 24px;
+}
+
+.Atmos__scale {
+  position: relative;
+  height: 14px;
+  background-color: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.Atmos__scaleFill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s;
+}
+
+.Atmos__scaleTarget {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 3px;
+  margin-left: -1px;
+  background-color: #fff;
+  box-shadow: 0 0 3px #000;
+}
