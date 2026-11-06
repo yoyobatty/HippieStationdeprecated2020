@@ -147,6 +147,7 @@ import { AirlockController, BankVault, Holopad, Jukebox, LimbGrower, NavBeacon, 
 import { AiFixer, AnnouncementSystem, DopplerArray, PrisonerConsole } from './interfaces/SecurityScience';
 import { NtosTrafficControl } from './interfaces/NtosTrafficControl';
 import { GunLocker, JaniCart } from './interfaces/Storage';
+import { CyborgFrame, TransferValve } from './interfaces/Items';
 // hippie end
 
 const ROUTES = {
@@ -284,6 +285,10 @@ const ROUTES = {
   },
   coin_press: {
     component: () => CoinPress,
+    scrollable: true,
+  },
+  cyborg_frame: {
+    component: () => CyborgFrame,
     scrollable: true,
   },
   destination_tagger: {
@@ -725,6 +730,10 @@ const ROUTES = {
   thermomachine: {
     component: () => ThermoMachine,
     scrollable: false,
+  },
+  transfer_valve: {
+    component: () => TransferValve,
+    scrollable: true,
   },
   turbine_computer: {
     component: () => TurbineComputer,
