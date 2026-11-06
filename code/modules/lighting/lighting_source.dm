@@ -530,11 +530,12 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 	var/scatters = bounces && light_dir && SSlighting.cone_scatter > 0
 
 	var/oldlum = source_turf.luminosity
-	// Lights up our surroundings so view() sees them. That lights a circle, and view() takes a square: the square's
-	// corners only count as visible if some other light happens to light them. That's fine for our direct light, which
-	// doesn't reach them anyway - but bounce light would take them for shadows, and spill into them depending on
-	// which lights around here worked their light out first. So bouncing, light the whole square.
-	source_turf.luminosity = bounces ? ceil(light_reach * 1.5) : light_reach
+	// Lights up our surroundings so view() sees them. Luminosity N only lights N - 1 tiles out, so with just light_reach
+	// the square's outer ring would only count as visible where some other light happens to light it: a corner we reach
+	// only through a tile out there (the tile inside it a wall) would be lit or not depending on which lights around
+	// here worked their light out first, and relight_in_place() would keep whichever it was. Bounce light would also
+	// take those tiles for shadows. So light the whole square, always.
+	source_turf.luminosity = bounces ? ceil(light_reach * 1.5) : light_reach + 1
 	var/list/seen = view(light_reach, source_turf)
 	source_turf.luminosity = oldlum
 
