@@ -232,6 +232,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_uplink(C, H, label)
 		if("cargo")
 			cs_cargo(C, H, label)
+		if("shuttle")
+			cs_shuttle(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -5031,3 +5033,53 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		SStgui.close_user_uis(H)
 	else
 		cs_check("an aux base console", FALSE)
+
+// Shuttle consoles: the mining shuttle's, the labor shuttle's, and a mass driver console
+/proc/cs_shuttle(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/captain)
+	var/obj/item/card/id/id = H.wear_id
+	if(istype(id))
+		id.access = get_all_accesses()
+	for(var/kind in list(/obj/machinery/computer/shuttle/mining, /obj/machinery/computer/shuttle/labor))
+		var/obj/machinery/computer/shuttle/console
+		for(var/obj/machinery/computer/shuttle/S in GLOB.machines)
+			if(S.type == kind && is_station_level(S.z) && cs_open_turf_by(S))
+				console = S
+				break
+		if(!console)
+			cs_check("a [kind] on the station", FALSE)
+			continue
+		cs_stand_by(H, console)
+		var/name = (kind == /obj/machinery/computer/shuttle/mining) ? "mining" : "labor"
+		var/datum/tgui/ui = cs_window_shot(C, H, console, "popup_shuttle_[label]_[name]")
+		if(ui && label == "after" && name == "mining")
+			var/list/data = console.ui_data(H)
+			var/list/dests = data["destinations"]
+			cs_check("shuttle: [length(dests)] destinations sent ([data["status"]])", length(dests) >= 1)
+			var/obj/docking_port/mobile/M = SSshuttle.getShuttle(console.shuttleId)
+			var/target
+			for(var/list/D in dests)
+				if(!D["here"])
+					target = D["id"]
+			if(M && target)
+				cs_tgui_do(C, ui.window_id, "click:Send to")
+				sleep(10)
+				cs_check("shuttle: clicking a destination launches it ([M.mode])", M.mode != SHUTTLE_IDLE)
+				sleep(10)
+				cs_shot("popup_shuttle_after_mining_moving")
+		SStgui.close_user_uis(H)
+
+	var/turf/spot = cs_open_turf_by(H)
+	var/obj/machinery/mass_driver/driver = spot ? new(get_step(spot, EAST)) : null
+	var/obj/machinery/computer/pod/pod = spot ? new(spot) : null
+	if(pod)
+		pod.connected = driver
+		var/datum/tgui/ui = cs_window_shot(C, H, pod, "popup_shuttle_[label]_massdriver")
+		if(ui && label == "after")
+			cs_act(pod, H, "power", list("level" = "4"))
+			cs_check("mass driver: power level 4 ([driver.power])", driver.power == 4)
+			cs_act(pod, H, "time", list("time" = "45"))
+			cs_check("mass driver: typed timer 45 s ([pod.time])", pod.time == 45)
+		SStgui.close_user_uis(H)
+		qdel(pod)
+		qdel(driver)

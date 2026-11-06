@@ -142,6 +142,7 @@ import { FoodCart, IcecreamVat, MagnetController, StackingConsole } from './inte
 import { NtosCard } from './interfaces/NtosCard';
 import { NtnetRelay, NtosConfiguration, NtosFileManager, NtosNetChat, NtosNetDos, NtosNetMonitor, NtosNetTransfer, NtosRevelation, SyndContract } from './interfaces/NtosPrograms';
 import { AuxBase, BountyConsole, CoinPress, OreSilo, SmelterConsole } from './interfaces/CargoMining';
+import { MassDriverConsole, ShuttleConsole } from './interfaces/ShuttleConsole';
 // hippie end
 
 const ROUTES = {
@@ -302,6 +303,10 @@ const ROUTES = {
     component: () => LibraryVisitor,
     scrollable: true,
   },
+  mass_driver_console: {
+    component: () => MassDriverConsole,
+    scrollable: true,
+  },
   mecha_control: {
     component: () => MechaControl,
     scrollable: true,
@@ -381,6 +386,10 @@ const ROUTES = {
   security_records: {
     component: () => SecurityRecords,
     scrollable: false,
+  },
+  shuttle_console: {
+    component: () => ShuttleConsole,
+    scrollable: true,
   },
   smelter_console: {
     component: () => SmelterConsole,
