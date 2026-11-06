@@ -68,6 +68,9 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		// The first button whose whole text is this: one-letter buttons ("C" would find "Close Scanner")
 		var/text = copytext(action, 12)
 		js = "var t=[json_encode(text)];var b=Array.prototype.slice.call(document.querySelectorAll('.Button')).filter(function(e){return e.textContent.trim()===t;})\[0\];if(b){b.click();}"
+	else if(findtext(action, "css:") == 1)
+		// The first element matching a CSS selector, for controls that aren't .Button
+		js = "var e=document.querySelector([json_encode(copytext(action, 5))]);if(e){e.click();}"
 	else if(findtext(action, "card:") == 1)
 		var/index = text2num(copytext(action, 6)) - 1
 		js = "var c=document.querySelectorAll('.Uplink__card')\[[index]\];if(c){c.click();}"
@@ -5114,6 +5117,13 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	if(ui && label == "after")
 		cs_act(jukebox, H, "select", list("name" = "Title3"))
 		cs_check("jukebox: picking a track ([jukebox.selection.song_name])", jukebox.selection.song_name == "Title3")
+		// As if playing (the test tracks have no sound file to play)
+		jukebox.active = TRUE
+		jukebox.stop = world.time + 1500
+		sleep(20)
+		cs_shot("popup_service_after_jukebox_playing")
+		jukebox.active = FALSE
+		jukebox.stop = 0
 	SStgui.close_user_uis(H)
 	qdel(jukebox)
 
@@ -5121,7 +5131,7 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	slots.balance = 20
 	ui = cs_window_shot(C, H, slots, "popup_service_[label]_slots")
 	if(ui && label == "after")
-		cs_tgui_do(C, ui.window_id, "click:Play")
+		cs_tgui_do(C, ui.window_id, "css:.Slots__button--spin")
 		sleep(10)
 		cs_check("slots: clicking Play spins (credit [slots.balance], spinning [slots.working])", slots.balance == 15 && slots.working)
 		sleep(5)

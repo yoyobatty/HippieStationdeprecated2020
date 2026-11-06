@@ -14,73 +14,110 @@ const formatTime = deciseconds => {
     + String(seconds % 60).padStart(2, '0');
 };
 
+const EQ_BARS = 14;
+
+// 0..n-1; the build turns [...Array(n).keys()] into one item
+const range = n => {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push(i);
+  }
+  return out;
+};
+
 export const Jukebox = props => {
   const { act, data } = useBackend(props);
   const tracks = data.tracks || [];
+  const elapsed = data.active ? data.length - data.time_left : 0;
   return (
     <Fragment>
-      <Section>
-        <Box fontSize="16px" bold mb={0.5}>
-          <Icon name="music" mr={1} color={data.active ? 'good' : 'label'} />
-          {data.selected || 'No track'}
+      <div className="Jukebox__screen">
+        <Box color="label" fontSize="10px" mb={0.5}>
+          {data.active ? 'NOW PLAYING' : 'STOPPED'}
         </Box>
-        {!!data.active && (
-          <Box mb={1}>
-            <ProgressBar
-              value={data.length
-                ? 1 - data.time_left / data.length
-                : 0}>
-              {formatTime(data.length - data.time_left)}
-              {' / '}
-              {formatTime(data.length)}
-            </ProgressBar>
+        <div className="Jukebox__title">
+          {data.selected || 'No track'}
+        </div>
+        <div
+          className={'Jukebox__eq'
+            + (data.active ? ' Jukebox__eq--playing' : '')}>
+          {range(EQ_BARS).map(i => (
+            <span
+              key={i}
+              className="Jukebox__bar"
+              style={{ 'animation-delay': (-(i * 37) % 600) + 'ms' }} />
+          ))}
+        </div>
+        <div className="Jukebox__time">
+          <span>{formatTime(elapsed)}</span>
+          <div className="Jukebox__track">
+            <div
+              className="Jukebox__progress"
+              style={{
+                width: (data.length ? elapsed / data.length * 100 : 0) + '%',
+              }} />
+          </div>
+          <span>{formatTime(data.length)}</span>
+        </div>
+        <div className="Jukebox__controls">
+          <div
+            className={'Jukebox__play'
+              + (data.active ? ' Jukebox__play--stop' : '')
+              + (!data.active && data.cooldown > 0
+                ? ' Jukebox__play--off'
+                : '')}
+            title={data.active ? 'SHUT IT DOWN' : 'BREAK IT DOWN'}
+            onClick={() => (data.active || !data.cooldown)
+              && act('toggle')}>
+            <Icon name={data.active ? 'stop' : 'play'} />
+          </div>
+          <Box mt={0.5} bold fontSize="11px"
+            color={data.active ? 'bad' : 'good'}>
+            {data.active
+              ? 'SHUT IT DOWN'
+              : (data.cooldown > 0
+                ? 'Resetting ' + formatTime(data.cooldown)
+                : 'BREAK IT DOWN')}
           </Box>
-        )}
-        <Button
-          fluid
-          textAlign="center"
-          fontSize="14px"
-          icon={data.active ? 'stop' : 'play'}
-          color={data.active ? 'bad' : 'good'}
-          disabled={!data.active && data.cooldown > 0}
-          content={data.active
-            ? 'SHUT IT DOWN'
-            : (data.cooldown > 0
-              ? 'Resetting (' + formatTime(data.cooldown) + ')'
-              : 'BREAK IT DOWN')}
-          onClick={() => act('toggle')} />
-      </Section>
-      <Section title="Tracks">
-        {tracks.map(track => (
-          <Button
-            key={track.name}
-            fluid
-            icon={track.name === data.selected ? 'compact-disc' : 'circle'}
-            selected={track.name === data.selected}
-            disabled={data.active}
-            onClick={() => act('select', { name: track.name })}>
-            {track.name}
-            <Box inline style={{ float: 'right' }} color="label">
-              {formatTime(track.length)}
-            </Box>
-          </Button>
-        ))}
+        </div>
+      </div>
+      <Section title={'Tracks (' + tracks.length + ')'}>
+        {tracks.map((track, i) => {
+          const picked = track.name === data.selected;
+          return (
+            <div
+              key={track.name}
+              className={'Jukebox__row'
+                + (picked ? ' Jukebox__row--picked' : '')
+                + (data.active ? ' Jukebox__row--locked' : '')}
+              onClick={() => !data.active && !picked
+                && act('select', { name: track.name })}>
+              <span className="Jukebox__num">
+                {picked
+                  ? <Icon name={data.active ? 'volume-up' : 'compact-disc'} />
+                  : i + 1}
+              </span>
+              <span className="Jukebox__name">{track.name}</span>
+              <span className="Jukebox__len">{formatTime(track.length)}</span>
+            </div>
+          );
+        })}
       </Section>
     </Fragment>
   );
 };
 
 // The reels' symbols come as the old window's HTML: <font color='x'>c</font>,
-// in HTML colour names; brighter shades so they read on the dark reels
+// in HTML colour names; shades that read on the cream reel strips
 const REEL_COLORS = {
-  red: '#ff4d4d',
-  orange: '#ff9f40',
-  yellow: '#ffe14d',
-  green: '#4ddd6a',
-  blue: '#5c9dff',
-  grey: '#b0b0b0',
-  white: '#ffffff',
-  fuchsia: '#ff5cf0',
+  red: '#d01818',
+  orange: '#e06a00',
+  yellow: '#c99a00',
+  green: '#1d9a35',
+  blue: '#1f5fd6',
+  grey: '#6b6b6b',
+  white: '#2a2a2a',
+  fuchsia: '#c21ab4',
 };
 
 const symbolOf = text => {
@@ -90,69 +127,131 @@ const symbolOf = text => {
       color: REEL_COLORS[match[1]] || match[1],
       char: decodeHtmlEntities(match[2]),
     }
-    : { color: '#ffffff', char: text || ' ' };
+    : { color: '#2a2a2a', char: text || ' ' };
 };
+
+// The cells in a run of three or more of the same symbol on a line, as
+// get_lines() (slotmachine.dm) counts a win
+const winningCells = reels => {
+  const cells = {};
+  reels.forEach((row, r) => {
+    let start = 0;
+    for (let c = 1; c <= row.length; c++) {
+      if (c === row.length || row[c] !== row[start]) {
+        if (c - start >= 3) {
+          for (let k = start; k < c; k++) {
+            cells[r + ':' + k] = true;
+          }
+        }
+        start = c;
+      }
+    }
+  });
+  return cells;
+};
+
+const PAYTABLE = [
+  ['7 7 7 7 7', 'middle line', 'JACKPOT'],
+  ['5 in a row', 'any line', '1000'],
+  ['4 in a row', 'any line', '400'],
+  ['3 in a row', 'any line', 'free games'],
+];
 
 export const SlotMachine = props => {
   const { act, data } = useBackend(props);
   const reels = data.reels || [];
+  const spinning = data.spinning || [];
+  const wins = data.working ? {} : winningCells(reels);
+  const canSpin = !data.working && data.balance >= data.price;
   return (
-    <Fragment>
-      <Section>
-        <div className="Service__reels">
-          {reels.map((row, i) => (
-            <div key={i}
-              className={'Service__reelRow'
-                + (i === 1 ? ' Service__reelRow--middle' : '')}>
-              {row.map((cell, j) => {
-                const symbol = symbolOf(cell);
-                return (
-                  <span
-                    key={j}
-                    className="Service__reel"
-                    style={{ color: symbol.color }}>
-                    {symbol.char}
-                  </span>
-                );
-              })}
-            </div>
+    <div className="Slots__cabinet">
+      <div className="Slots__marquee">
+        <div className="Slots__lights">
+          {range(12).map(i => (
+            <span key={i}
+              className={'Slots__light'
+                + (data.working ? ' Slots__light--chase' : '')}
+              style={{ 'animation-delay': (i * 80) + 'ms' }} />
           ))}
         </div>
-        <Button
-          fluid
-          mt={1}
-          textAlign="center"
-          fontSize="14px"
-          icon={data.working ? 'cog' : 'play'}
-          iconSpin={data.working}
-          color="good"
-          disabled={data.working || data.balance < data.price}
-          content={data.working
-            ? 'Spinning...'
-            : 'Play (' + data.price + ' cr)'}
-          onClick={() => act('spin')} />
-      </Section>
-      <Section>
-        <LabeledList>
-          <LabeledList.Item
-            label="Credit"
-            buttons={!!data.balance && !data.working && (
-              <Button
-                icon="undo"
-                content="Refund"
-                onClick={() => act('refund')} />
-            )}>
-            {data.balance}
-          </LabeledList.Item>
-          <LabeledList.Item label="Prize money">
-            {data.money}
-          </LabeledList.Item>
-          <LabeledList.Item label="Plays">
-            {data.plays} ({data.jackpots} jackpots)
-          </LabeledList.Item>
-        </LabeledList>
-      </Section>
-    </Fragment>
+        <div className="Slots__jackpotLabel">JACKPOT</div>
+        <div className="Slots__led Slots__led--big">{data.money}</div>
+      </div>
+      <div className="Slots__body">
+        <div className="Slots__window">
+          {[0, 1, 2, 3, 4].map(col => (
+            <div
+              key={col}
+              className={'Slots__reel'
+                + (spinning[col] ? ' Slots__reel--spinning' : '')}>
+              <div className="Slots__strip">
+                {reels.map((row, r) => {
+                  const symbol = symbolOf(row[col]);
+                  return (
+                    <div
+                      key={r}
+                      className={'Slots__symbol'
+                        + (wins[r + ':' + col] ? ' Slots__symbol--win' : '')}
+                      style={{ color: symbol.color }}>
+                      {symbol.char}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          <div className="Slots__payline" />
+        </div>
+        <div
+          className={'Slots__lever'
+            + (data.working ? ' Slots__lever--pulled' : '')
+            + (canSpin ? '' : ' Slots__lever--off')}
+          title={'Pull (' + data.price + ' cr)'}
+          onClick={() => canSpin && act('spin')}>
+          <div className="Slots__knob" />
+          <div className="Slots__stick" />
+        </div>
+      </div>
+      <div className="Slots__panel">
+        <div className="Slots__readout">
+          <div className="Slots__readoutLabel">CREDIT</div>
+          <div className="Slots__led">{data.balance}</div>
+        </div>
+        <div className="Slots__readout">
+          <div className="Slots__readoutLabel">BET</div>
+          <div className="Slots__led">{data.price}</div>
+        </div>
+        <div className="Slots__buttons">
+          <div
+            className={'Slots__button Slots__button--spin'
+              + (canSpin ? '' : ' Slots__button--off')}
+            onClick={() => canSpin && act('spin')}>
+            {data.working ? 'SPINNING' : 'SPIN'}
+          </div>
+          <div
+            className={'Slots__button'
+              + (data.balance > 0 && !data.working
+                ? ''
+                : ' Slots__button--off')}
+            onClick={() => data.balance > 0 && !data.working
+              && act('refund')}>
+            CASH OUT
+          </div>
+        </div>
+      </div>
+      <div className="Slots__paytable">
+        {PAYTABLE.map(line => (
+          <div key={line[0]} className="Slots__payline-row">
+            <span>{line[0]}</span>
+            <span className="Slots__payWhere">{line[1]}</span>
+            <span className="Slots__payWin">{line[2]}</span>
+          </div>
+        ))}
+        <div className="Slots__stats">
+          {data.plays} plays · {data.jackpots} jackpots
+        </div>
+      </div>
+    </div>
   );
 };
 

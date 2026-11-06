@@ -22,7 +22,7 @@
 		return TRUE
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
-		ui = new(user, src, ui_key, "jukebox", name, 420, 440, master_ui, state)
+		ui = new(user, src, ui_key, "jukebox", name, 420, 520, master_ui, state)
 		ui.open()
 	return TRUE
 
@@ -61,7 +61,7 @@
 												datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
-		ui = new(user, src, ui_key, "slot_machine", "Slot Machine", 420, 400, master_ui, state)
+		ui = new(user, src, ui_key, "slot_machine", "Slot Machine", 440, 600, master_ui, state)
 		ui.open()
 	return TRUE
 
@@ -80,6 +80,10 @@
 			row += reels[r][i]
 		rows += list(row)
 	data["reels"] = rows
+	var/list/spinning = list()
+	for(var/reel in reels)
+		spinning += reels[reel] ? TRUE : FALSE
+	data["spinning"] = spinning
 	return data
 
 /obj/machinery/computer/slot_machine/ui_act(action, list/params)
