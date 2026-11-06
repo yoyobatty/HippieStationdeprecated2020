@@ -85,11 +85,12 @@
 		signal.data["noise_server"] = TRUE
 	return ..()
 
-GLOBAL_VAR(tcomms_last_broadcast) // for the self-test: list(message sent, noise, delay, message before the static)
+GLOBAL_VAR(tcomms_last_broadcast) // for the self-test: list(message sent, noise, delay, message before the static, frequency)
+GLOBAL_LIST_EMPTY(tcomms_recent_broadcasts) // the last 20 of those
 
 // The noise turns into static once, before the broadcasters' duplicate check, so both broadcasters send the same words
 /obj/machinery/telecomms/broadcaster/receive_information(datum/signal/subspace/signal, obj/machinery/telecomms/machine_from)
-	if(istype(signal, /datum/signal/subspace/vocal) && signal.data && !signal.data["noise_applied"] && signal.data["message"])
+	if(istype(signal, /datum/signal/subspace/vocal) && signal.data && !signal.data["noise_applied"] && signal.data["message"] && !signal.data["reject"])
 		if(on)
 			add_signal_noise(signal)
 		signal.data["noise_applied"] = TRUE
@@ -99,7 +100,11 @@ GLOBAL_VAR(tcomms_last_broadcast) // for the self-test: list(message sent, noise
 			signal.data["message"] = tcomms_static(signal.data["message"], noise)
 			if(noise >= TCOMMS_NOISE_HEAVY)
 				signal.data["slow"] = (signal.data["slow"] || 0) + round(noise * 20) // up to 2 s
-		GLOB.tcomms_last_broadcast = list(signal.data["message"], noise, signal.data["slow"] || 0, original)
+		var/list/record = list(signal.data["message"], noise, signal.data["slow"] || 0, original, signal.frequency)
+		GLOB.tcomms_last_broadcast = record
+		GLOB.tcomms_recent_broadcasts += list(record)
+		if(GLOB.tcomms_recent_broadcasts.len > 20)
+			GLOB.tcomms_recent_broadcasts.Cut(1, 2)
 	return ..()
 
 /// Static over a message: light noise crackles or drops the odd word, heavy noise garbles it

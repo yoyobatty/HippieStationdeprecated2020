@@ -243,6 +243,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_secsci(C, H, label)
 		if("tsignal")
 			cs_tsignal(C, H, label)
+		if("trules")
+			cs_trules(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -5434,3 +5436,105 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	var/per_minute = capacity ? servers * 500 * 60 / capacity : 0
 	cs_check("tcomms: [servers] servers warm their [tiles]-tile room by about [round(per_minute, 0.01)] K a minute at base load (80 K to 200 K in [per_minute ? round(120 / per_minute) : "never"] min, to 373 K in [per_minute ? round(293 / per_minute) : "never"] min, before any heat leaks away)", TRUE)
 	qdel(R)
+
+/// What went out after a message: list(frequency = message as sent); the noise of the last one in heard_noise
+GLOBAL_VAR_INIT(cs_trules_noise, 0)
+/proc/cs_trules_say(mob/living/carbon/human/H, obj/item/radio/R, text, match)
+	GLOB.tcomms_recent_broadcasts.Cut()
+	R.talk_into(H, text, null)
+	sleep(30)
+	var/list/heard = list()
+	for(var/list/L in GLOB.tcomms_recent_broadcasts)
+		if(!findtext(lowertext(L[4]), lowertext(match || text))) // only ours, not the crew's chatter
+			continue
+		heard["[L[5]]"] = L[1]
+		GLOB.cs_trules_noise = L[2]
+	return heard
+
+// Telecomms traffic rules, added from the Traffic Control app on a console as a player would, then real radio messages
+/proc/cs_trules(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/ce)
+	var/obj/machinery/holopad/pad
+	for(var/obj/machinery/holopad/P in GLOB.machines)
+		if(is_station_level(P.z) && cs_open_turf_by(P))
+			pad = P
+			break
+	if(pad)
+		H.forceMove(pad.loc)
+	var/obj/item/card/id/worn = cs_card("Hugo Brandt", "Chief Engineer", get_all_accesses(), get_turf(H))
+	H.equip_to_slot_or_del(worn, ITEM_SLOT_ID)
+	var/obj/machinery/modular_computer/console/preset/engineering/PC = new(cs_open_beside(H))
+	PC.stat &= ~(NOPOWER|BROKEN)
+	var/obj/item/modular_computer/processor/cpu = PC.cpu
+	var/obj/item/computer_hardware/hard_drive/drive = cpu.all_components[MC_HDD]
+	drive.store_file(new /datum/computer_file/program/traffic_control)
+	cpu.turn_on(H)
+	cs_act(cpu, H, "PC_runprogram", list("name" = "trafficctrl"))
+	var/datum/computer_file/program/traffic_control/app = cpu.active_program
+	if(!istype(app))
+		cs_check("traffic control: the app starts", FALSE)
+		return
+	GLOB.tcomms_rules.Cut()
+	var/common = "[FREQ_COMMON]"
+	cs_act(app, H, "add_rule", list("frequency" = common, "word" = "honk", "action" = "replace", "replace_with" = "hug"))
+	cs_act(app, H, "add_rule", list("frequency" = common, "word" = "secret", "action" = "block"))
+	cs_act(app, H, "add_rule", list("frequency" = common, "word" = "reroute me", "action" = "reroute", "target" = "[FREQ_SECURITY]"))
+	cs_act(app, H, "add_rule", list("frequency" = common, "word" = "copy me", "action" = "copy", "target" = "[FREQ_ENGINEERING]"))
+	cs_act(app, H, "add_rule", list("frequency" = common, "speaker" = H.real_name, "word" = "fuzz", "action" = "garble", "garble" = "60"))
+	cs_act(app, H, "add_rule", list("action" = "rename", "rename_to" = "Captain"))
+	cs_check("traffic control: 5 legal rules added, rename refused without an emag ([length(GLOB.tcomms_rules)] rules)", length(GLOB.tcomms_rules) == 5)
+
+	var/obj/item/radio/R = new(get_turf(H))
+	R.set_frequency(FREQ_COMMON)
+	R.broadcasting = TRUE
+	var/list/heard = cs_trules_say(H, R, "the clown said honk twice", "the clown said")
+	cs_check("rules: replace ([heard[common]])", heard[common] && findtext(heard[common], "hug") && !findtext(heard[common], "honk"))
+	heard = cs_trules_say(H, R, "this is secret stuff")
+	cs_check("rules: block ([length(heard)] broadcasts)", !length(heard))
+	heard = cs_trules_say(H, R, "please reroute me now")
+	cs_check("rules: reroute to security ([json_encode(heard)])", heard["[FREQ_SECURITY]"] && !heard[common])
+	heard = cs_trules_say(H, R, "copy me please")
+	cs_check("rules: copy to engineering ([json_encode(heard)])", heard["[FREQ_ENGINEERING]"] && heard[common])
+	heard = cs_trules_say(H, R, "fuzz alpha bravo charlie delta echo foxtrot golf hotel india juliet", "fuzz alpha")
+	cs_check("rules: garble by speaker (noise [GLOB.cs_trules_noise]: [heard[common]])", heard[common] && GLOB.cs_trules_noise >= 0.6)
+	var/datum/tcomms_rule/first = GLOB.tcomms_rules[1]
+	cs_check("rules: hits counted (#[first.id]: [first.hits])", first.hits == 1)
+
+	cpu.ui_interact(H)
+	var/datum/tgui/ui = cs_find_ui(H, app)
+	if(ui)
+		winset(C, ui.window_id, "pos=100,20")
+		sleep(25)
+		cs_shot("popup_trules_[label]_app")
+
+	// An emagged computer: rename and silent rules
+	cpu.obj_flags |= EMAGGED
+	cs_act(app, H, "add_rule", list("speaker" = H.real_name, "word" = "orders", "action" = "rename", "rename_to" = "Captain"))
+	cs_act(app, H, "add_rule", list("frequency" = common, "word" = "hidden", "action" = "block", "silent" = "1"))
+	var/datum/tcomms_rule/silent_rule = GLOB.tcomms_rules[GLOB.tcomms_rules.len]
+	cs_check("hacked: rename and a silent block added ([length(GLOB.tcomms_rules)] rules, last silent [silent_rule.silent])", length(GLOB.tcomms_rules) == 7 && silent_rule.silent)
+	var/obj/machinery/telecomms/server/presets/common/server
+	for(var/obj/machinery/telecomms/server/presets/common/S in GLOB.telecomms_list)
+		if(is_station_level(S.z))
+			server = S
+	GLOB.tcomms_recent_broadcasts.Cut()
+	R.talk_into(H, "new orders from above", null)
+	sleep(30)
+	var/renamed = FALSE
+	for(var/list/L in GLOB.tcomms_recent_broadcasts)
+		if(findtext(L[4], "orders"))
+			renamed = TRUE
+	var/datum/comm_log_entry/last_log = server.log_entries[server.log_entries.len]
+	cs_check("hacked: the speaker is renamed in the server log ([last_log.parameters["name"]])", renamed && last_log.parameters["name"] == "Captain")
+	var/logs = server.log_entries.len
+	heard = cs_trules_say(H, R, "this is hidden stuff")
+	cs_check("hacked: silent block leaves no broadcast and no log ([length(heard)] broadcasts, logs [logs] -> [server.log_entries.len])", !length(heard) && server.log_entries.len == logs)
+	sleep(10)
+	cs_shot("popup_trules_[label]_app_hacked")
+	cpu.obj_flags &= ~EMAGGED
+	var/list/data = app.ui_data(H)
+	cs_check("hacked rules are hidden off an emagged computer ([length(data["rules"])] of [length(GLOB.tcomms_rules)] shown)", length(data["rules"]) == 6)
+	SStgui.close_user_uis(H)
+	GLOB.tcomms_rules.Cut()
+	qdel(R)
+	qdel(PC)

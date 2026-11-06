@@ -145,6 +145,7 @@ import { AuxBase, BountyConsole, CoinPress, OreSilo, SmelterConsole } from './in
 import { MassDriverConsole, ShuttleConsole } from './interfaces/ShuttleConsole';
 import { AirlockController, BankVault, Holopad, Jukebox, LimbGrower, NavBeacon, SeedExtractor, SlotMachine } from './interfaces/ServiceMachines';
 import { AiFixer, AnnouncementSystem, DopplerArray, PrisonerConsole } from './interfaces/SecurityScience';
+import { NtosTrafficControl } from './interfaces/NtosTrafficControl';
 // hippie end
 
 const ROUTES = {
@@ -573,6 +574,12 @@ const ROUTES = {
   },
   ntos_net_downloader: {
     component: () => NtosNetDownloader,
+    wrapper: () => NtosWrapper,
+    scrollable: true,
+    theme: 'ntos',
+  },
+  ntos_traffic_control: {
+    component: () => NtosTrafficControl,
     wrapper: () => NtosWrapper,
     scrollable: true,
     theme: 'ntos',
