@@ -5,8 +5,9 @@ unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every 
 # by phase. A run is about 27 game minutes; with timewarp that's several real minutes, more while the disasters are on.
 #
 # Usage:
-#   tools/bot_gym/run_stress_bench.sh run <label> [runs]          compile, then [runs] (3) runs of this build
-#   tools/bot_gym/run_stress_bench.sh save <label>                compile and keep the build as data/stress_builds/<label>.dmb
+#   tools/bot_gym/run_stress_bench.sh run <label> [runs]          compile, then [runs] (3) runs of this build (BUILD=<saved label>
+#                                                                 runs a saved build instead)
+#   tools/bot_gym/run_stress_bench.sh save <label>                compile a side copy and keep it as data/stress_builds/<label>.dmb
 #   tools/bot_gym/run_stress_bench.sh ab <labelA> <labelB> [runs] two saved builds side by side, [runs] (3) each, running at the
 #                                                                 same time so both see the same machine load. BUILD_A/BUILD_B
 #                                                                 run another saved build under that label
@@ -20,11 +21,25 @@ cd "$(dirname "$0")/../.."
 BYOND_BIN="${BYOND_BIN:-/c/Program Files (x86)/BYOND/bin}"
 MINUTES=27
 
-compile() {
-	local out
-	out="$("$BYOND_BIN/dm.exe" hippiestation.dme | grep -E "error|warning|dmb -")"
-	echo "$out"
-	echo "$out" | grep -q "dmb - 0 errors" || { echo "Compile failed"; exit 1; }
+# Compiles a side copy of the .dme (stressbench.mdme, gitignored) and keeps the build as data/stress_builds/<label>.dmb: another
+# session compiling hippiestation.dme at the same time can't hand a run half of one build and half of another. With NOCOMPILE=1
+# it keeps hippiestation.dmb as it is instead.
+save_build() { # label
+	mkdir -p data/stress_builds
+	if [ "${NOCOMPILE:-0}" = "1" ]; then
+		cp hippiestation.dmb "data/stress_builds/$1.dmb"
+		cp hippiestation.rsc "data/stress_builds/$1.rsc"
+	else
+		cp hippiestation.dme stressbench.mdme
+		local out
+		out="$("$BYOND_BIN/dm.exe" stressbench.mdme | grep -E "error|warning|dmb -")"
+		echo "$out"
+		echo "$out" | grep -q "dmb - 0 errors" || { echo "Compile failed"; rm -f stressbench.mdme*; exit 1; }
+		mv stressbench.mdme.dmb "data/stress_builds/$1.dmb"
+		mv stressbench.mdme.rsc "data/stress_builds/$1.rsc"
+		rm -f stressbench.mdme stressbench.mdme.*
+	fi
+	echo "Saved data/stress_builds/$1.dmb"
 }
 
 batch() { # label runs port [dmb] [more params]
@@ -39,17 +54,16 @@ case "${1:-}" in
 	run)
 		LABEL="${2:?a label}"
 		RUNS="${3:-3}"
-		if [ "${NOCOMPILE:-0}" != "1" ]; then compile; fi
-		EVENTS_ON="${EVENTS:-1}" JOBS="${JOBS:-3}" batch "$LABEL" "$RUNS" "${BASE_PORT:-46000}"
+		BUILD="${BUILD:-}"
+		if [ -z "$BUILD" ]; then
+			BUILD="run-$LABEL"
+			save_build "$BUILD"
+		fi
+		EVENTS_ON="${EVENTS:-1}" JOBS="${JOBS:-3}" batch "$LABEL" "$RUNS" "${BASE_PORT:-46000}" "data/stress_builds/$BUILD.dmb"
 		python tools/bot_gym/stress_report.py "$LABEL"
 		;;
 	save)
-		LABEL="${2:?a label}"
-		if [ "${NOCOMPILE:-0}" != "1" ]; then compile; fi
-		mkdir -p data/stress_builds
-		cp hippiestation.dmb "data/stress_builds/$LABEL.dmb"
-		cp hippiestation.rsc "data/stress_builds/$LABEL.rsc"
-		echo "Saved data/stress_builds/$LABEL.dmb"
+		save_build "${2:?a label}"
 		;;
 	ab)
 		A="${2:?label A}"

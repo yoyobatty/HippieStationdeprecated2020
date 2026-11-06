@@ -28,11 +28,17 @@ OPTION="${1:-1}"
 SPEED="${SPEED:-0}"
 PORT="${PORT:-45126}"
 
-if [ -z "${SKIP_BUILD:-}" ]; then
+# DMB=<label> runs data/stress_builds/<label>.dmb (tools/bot_gym/run_stress_bench.sh save <label>) instead, from a copy of its own
+WORLD=hippiestation
+if [ -n "${DMB:-}" ]; then
+	WORLD="atmosbench_${DMB//[^A-Za-z0-9_-]/_}"
+	cp "data/stress_builds/$DMB.dmb" "$WORLD.dmb" && cp "data/stress_builds/$DMB.rsc" "$WORLD.rsc" || exit 1
+	trap 'rm -f "$WORLD".dmb "$WORLD".rsc "$WORLD".dyn.rsc "$WORLD".*.lk' EXIT
+elif [ -z "${SKIP_BUILD:-}" ]; then
 	echo "Compiling..."
 	"$BYOND_BIN/dm.exe" hippiestation.dme | grep -E "error|warning|dmb -" || true
 fi
-if [ ! -f hippiestation.dmb ]; then echo "Compile failed"; exit 1; fi
+if [ ! -f "$WORLD.dmb" ]; then echo "Compile failed"; exit 1; fi
 
 PARAMS="atmos-bench=$OPTION"
 if [ "$SPEED" != "1" ] && [ -f timewarp.dll ]; then PARAMS="$PARAMS&timewarp=$SPEED"; fi
@@ -44,7 +50,7 @@ if [ -n "${EXTRA_PARAMS:-}" ]; then PARAMS="$PARAMS&$EXTRA_PARAMS"; fi
 rm -rf data/atmos_bench
 mkdir -p data
 echo "Running atmos bench ($PARAMS)..."
-timeout "${BENCH_TIMEOUT:-1800}" "$BYOND_BIN/dd.exe" hippiestation.dmb "$PORT" -trusted -invisible \
+timeout "${BENCH_TIMEOUT:-1800}" "$BYOND_BIN/dd.exe" "$WORLD.dmb" "$PORT" -trusted -invisible \
 	-params "$PARAMS" > data/atmos_bench_dd.log 2>&1
 
 if [ ! -f data/atmos_bench/results.txt ]; then

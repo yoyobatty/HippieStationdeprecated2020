@@ -55,6 +55,8 @@ def phase_figures(phase):
         f['fired:' + name] = fired / s
     for key, value in (phase.get('state') or {}).items():
         f['state:' + key] = value
+    for key, ms in (phase.get('atmos_ms') or {}).items():
+        f['atmos:' + key] = ms / s
     return f
 
 
@@ -119,6 +121,7 @@ def main():
     ap.add_argument('--vs')
     ap.add_argument('--subsystems', type=int, default=8)
     ap.add_argument('--state', action='store_true')
+    ap.add_argument('--atmos', action='store_true', help="SSair's stages, and the tile engine's packing/native/follow-up time")
     args = ap.parse_args()
     runs_a = load(args.a)
     order, fa = gather(runs_a)
@@ -157,6 +160,13 @@ def main():
                 if a.get(fired) and b.get(fired) and mean(a[fired]) > 0 and abs(mean(b[fired]) / mean(a[fired]) - 1) > 0.1:
                     fired_note = f'   fired {mean(a[fired]):.1f} -> {mean(b[fired]):.1f} a second'
                 print(f'   {k[3:]:<20} {mean(a.get(k, [])):7.2f} -> {mean(b.get(k, [])):7.2f}  {change(a.get(k, []), b.get(k, []))}{fired_note}')
+        if args.atmos:
+            stages = [k for k in a if k.startswith('atmos:')]
+            if fb is None:
+                print('   atmos: ' + ', '.join(f'{k[6:]} {mean(a[k]):.1f}' for k in stages))
+            else:
+                b = fb.get(name, {})
+                print('   atmos: ' + ', '.join(f'{k[6:]} {mean(a[k]):.1f}->{mean(b.get(k, [0])):.1f}' for k in stages))
         if args.state:
             states = [k for k in a if k.startswith('state:')]
             if fb is None:

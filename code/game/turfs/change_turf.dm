@@ -83,6 +83,7 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 	var/old_lighting_corner_SE = lighting_corner_SE
 	var/old_lighting_corner_SW = lighting_corner_SW
 	var/old_lighting_corner_NW = lighting_corner_NW
+	var/list/old_idle_atmos_machines = idle_atmos_machines // hippie -- idle atmos machines still wait on this place (idle_machines.dm)
 
 	var/old_exl = explosion_level
 	var/old_exi = explosion_id
@@ -112,6 +113,9 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 
 	W.explosion_id = old_exi
 	W.explosion_level = old_exl
+	W.idle_atmos_machines = old_idle_atmos_machines
+	for(var/obj/machinery/M as anything in old_idle_atmos_machines)
+		M.atmos_idle_turf = W
 
 	if(!(flags & CHANGETURF_DEFER_CHANGE))
 		W.AfterChange(flags, old_type)

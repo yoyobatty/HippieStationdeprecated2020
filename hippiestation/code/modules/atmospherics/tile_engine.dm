@@ -41,10 +41,14 @@
 	var/tile_engine_total_rounds = 0
 	var/tile_engine_total_changed = 0
 	var/tile_engine_total_turns = 0
+	/// How many of the turfs packed so far had air that never changes (space, and planets' fixed air)
+	var/tile_engine_total_immutable = 0
 	/// Real ms spent so far packing, in the engine itself, and following up, for the atmos bench
 	var/tile_engine_pack_ms = 0
 	var/tile_engine_native_ms = 0
 	var/tile_engine_apply_ms = 0
+	/// The follow-up's time by part, for benches (stress_bench.dm)
+	var/list/tile_engine_apply_parts = list("air" = 0, "turns" = 0, "groups" = 0, "wind" = 0, "react" = 0, "redraw" = 0, "hot" = 0)
 
 /turf/open
 	/// The overlay key the tile engine last drew this turf with, -1 for none
@@ -73,6 +77,8 @@
 /datum/controller/subsystem/air/proc/tile_engine_setup()
 	tile_engine = FALSE
 	atmos_never_idle = world.params["atmos-idle"] == "off"
+	if(world.params["atmos-idle-shadow"]) // idle_machines.dm: the old check runs the machines, the registry is set against it
+		atmos_idle_shadow = list("agree" = 0, "only the old check ran it" = 0, "only the registry ran it" = 0)
 	if(world.params["atmos-engine"] == "linda")
 		log_world("Atmos: running LINDA, the tile engine was turned off with atmos-engine=linda")
 		return
@@ -158,6 +164,7 @@
 		var/kind = 0
 		if(istype(air, /datum/gas_mixture/immutable))
 			kind = istype(air, /datum/gas_mixture/immutable/space) ? 1 : 2
+			tile_engine_total_immutable++
 		else if(T.planetary_atmos)
 			kind = 3 + tile_engine_planetary(T.initial_gas_mix)
 		var/list/neighbours = T.atmos_adjacent_turfs
@@ -290,10 +297,13 @@
 
 	var/fired = times_fired
 	tile_engine_swept_at = fired
+	var/part = TICK_USAGE_REAL
 	// Air first. Only the gases that changed get written, in the turf's own list.
 	var/at = 1
 	for(var/turf/open/T as anything in changed)
 		T.air_changed_at = fired // wakes idle machines on it (idle_machines.dm)
+		if(T.idle_atmos_machines)
+			atmos_wake_turf(T)
 		var/datum/gas_mixture/air = T.air
 		var/list/moles = air.moles
 		for(var/gas in 1 to values[at++])
@@ -311,6 +321,8 @@
 		if(temperature >= 10000 || T.comp_lookup)
 			T.temperature_expose(air, temperature)
 
+	tile_engine_apply_parts["air"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - part) // for benches
+	part = TICK_USAGE_REAL
 	// What process_cell() leaves on a turf that had its turn. current_cycle tells a new hotspot whether it's on a turf
 	// that's already had its turn this tick.
 	at = 0
@@ -322,6 +334,8 @@
 	for(var/turf/open/T as anything in slept)
 		T.excited = FALSE
 
+	tile_engine_apply_parts["turns"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - part) // for benches
+	part = TICK_USAGE_REAL
 	// Excited groups, in the order LINDA's process_cell() would have gone through them: a pair in two groups merges them,
 	// and otherwise they join a group, a new one if neither is in one (a turf alone with its planet's air comes as a pair
 	// with itself). LAST_SHARE_CHECK comes after, on one turf from each group that had a share.
@@ -347,6 +361,8 @@
 		if(group)
 			group.dismantle_cooldown = 0
 
+	tile_engine_apply_parts["groups"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - part) // for benches
+	part = TICK_USAGE_REAL
 	// Wind, as consider_pressure_difference() records it. A turf whose pressure_difference is still 0 isn't in
 	// high_pressure_delta (process_high_pressure_delta() zeroes it as it takes a turf out), so it goes straight on the end
 	// instead of searching the whole list with |= for every windy turf.
@@ -360,6 +376,8 @@
 			T.pressure_direction = get_dir(T, wind_to[at])
 			T.pressure_difference = difference
 
+	tile_engine_apply_parts["wind"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - part) // for benches
+	part = TICK_USAGE_REAL
 	// One turf's reaction can change the next turf on the list into a wall, so from here on they might not be open any more
 	for(var/turf/open/T as anything in react)
 		if(!isopenturf(T))
@@ -372,6 +390,8 @@
 			T.consider_superconductivity(TRUE) // a small fire flashing hot starts heating its floor, which is what cools it
 			T.temperature_expose(air, air.temperature)
 
+	tile_engine_apply_parts["react"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - part) // for benches
+	part = TICK_USAGE_REAL
 	// Gas overlays that would look different now
 	at = 0
 	for(var/turf/open/T as anything in redraw)
@@ -380,9 +400,12 @@
 			T.update_visuals()
 			T.tile_engine_drawn = redraw_keys[at]
 
+	tile_engine_apply_parts["redraw"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - part) // for benches
+	part = TICK_USAGE_REAL
 	// Hot enough to conduct heat through walls
 	for(var/turf/open/T as anything in hot)
 		T.consider_superconductivity(TRUE)
+	tile_engine_apply_parts["hot"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - part)
 	tile_engine_apply_ms += TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer)
 
 #undef TILE_ENGINE_LIB

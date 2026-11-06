@@ -76,11 +76,11 @@
 
 /obj/machinery/air_sensor/Initialize()
 	. = ..()
-	SSair.atmos_machinery += src
+	SSair.start_processing_machine(src) // hippie -- keeps the idle registry (idle_machines.dm)
 	set_frequency(frequency)
 
 /obj/machinery/air_sensor/Destroy()
-	SSair.atmos_machinery -= src
+	SSair.stop_processing_machine(src) // hippie -- keeps the idle registry (idle_machines.dm)
 	SSradio.remove_object(src, frequency)
 	return ..()
 

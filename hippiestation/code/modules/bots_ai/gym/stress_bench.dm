@@ -44,6 +44,9 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 	var/list/ss_fired = list()
 	/// What the station was like at the end, see /datum/stress_bench/proc/survey()
 	var/list/state
+	/// SSair's stages (SSair.stage_ms) and the tile engine's packing, native and follow-up time: totals as the phase began, then
+	/// what the phase added
+	var/list/atmos_ms = list()
 
 /datum/stress_phase/proc/add_tick(gap)
 	real_ms += gap
@@ -92,7 +95,7 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 /datum/stress_phase/proc/to_list()
 	return list("name" = name, "seconds" = seconds(), "real_ms" = real_ms, "ticks" = length(tick_ms), "worst_ms" = worst_ms, "worst_at" = worst_at / 10,
 		"p99" = percentile(0.99), "p999" = percentile(0.999), "over_budget" = over_budget, "over_100" = over_100, "mc_ms" = mc_ms(),
-		"ss_ms" = ss_ms, "ss_fired" = ss_fired, "state" = state)
+		"ss_ms" = ss_ms, "ss_fired" = ss_fired, "state" = state, "atmos_ms" = atmos_ms)
 
 /datum/stress_bench
 	var/datum/bot_shift/shift
@@ -247,6 +250,7 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 		current.ss_ms[SS.name] = SS.total_ms
 		current.ss_fired[SS.name] = SS.times_fired
 	phases += current
+	current.atmos_ms = atmos_totals()
 	refresh_eyes()
 	if(replacetext("[world.params["profile-phase"]]", "_", " ") == name) // profile-phase=<name> (underscores for spaces): BYOND's profiler over that phase alone, into <results>profile_<name>.json
 		world.Profile(PROFILE_CLEAR)
@@ -257,6 +261,9 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 	for(var/datum/controller/subsystem/SS as anything in Master.subsystems)
 		current.ss_ms[SS.name] = SS.total_ms - current.ss_ms[SS.name]
 		current.ss_fired[SS.name] = SS.times_fired - current.ss_fired[SS.name]
+	var/list/atmos_now = atmos_totals()
+	for(var/key in atmos_now)
+		current.atmos_ms[key] = atmos_now[key] - current.atmos_ms[key]
 	if(replacetext("[world.params["profile-phase"]]", "_", " ") == current.name)
 		var/dir = world.params["bot-results"] || "data/stress_bench/"
 		text2file(world.Profile(PROFILE_REFRESH, format = "json"), "[dir]profile_[replacetext(current.name, " ", "_")].json")
@@ -264,6 +271,21 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 	current.state = survey()
 	log_world("STRESS BENCH: [current.line()]")
 	current = null
+
+/// SSair's stage totals and the tile engine's own
+/datum/stress_bench/proc/atmos_totals()
+	. = SSair.stage_ms.Copy()
+	.["tile pack"] = SSair.tile_engine_pack_ms
+	.["tile native"] = SSair.tile_engine_native_ms
+	.["tile apply"] = SSair.tile_engine_apply_ms
+	// counts, not ms (stress_report.py shows them a game second all the same)
+	.["#packed"] = SSair.tile_engine_total_packed
+	.["#immutable"] = SSair.tile_engine_total_immutable
+	.["#rounds"] = SSair.tile_engine_total_rounds
+	.["#changed"] = SSair.tile_engine_total_changed
+	.["#turns"] = SSair.tile_engine_total_turns
+	for(var/part in SSair.tile_engine_apply_parts)
+		.["apply [part]"] = SSair.tile_engine_apply_parts[part]
 
 /// Who counts as a player watching: up to STRESS_BENCH_EYES living bots, the same ones while they live
 /datum/stress_bench/proc/refresh_eyes()
@@ -518,6 +540,9 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 	if(light_shadow)
 		out += ""
 		out += "Light shadow check (light-shadow): [json_encode(light_shadow)]"
+	if(SSair.atmos_idle_shadow) // atmos-idle-shadow=1: the idle registry set against the old check, every machine every tick
+		out += ""
+		out += "Idle atmos machines, the registry against the old check: [json_encode(SSair.atmos_idle_shadow)]"
 	out += ""
 	out += "Lighting engine: [SSlighting.native_status]"
 	if(SSlighting.native_shadow) // lighting-engine=shadow: the engine followed the DM code through the whole round

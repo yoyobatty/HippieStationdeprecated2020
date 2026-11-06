@@ -10,6 +10,8 @@ SUBSYSTEM_DEF(air)
 
 	var/cost_atoms = 0
 	var/cost_turfs = 0
+	/// hippie -- every ms each stage has taken since boot, for benches: stage name -> ms
+	var/list/stage_ms = list("pipenets" = 0, "machinery" = 0, "turfs" = 0, "hotspots" = 0, "groups" = 0, "highpressure" = 0, "superconductivity" = 0)
 	var/cost_groups = 0
 	var/cost_highpressure = 0
 	var/cost_hotspots = 0
@@ -116,6 +118,7 @@ SUBSYSTEM_DEF(air)
 		if(state != SS_RUNNING)
 			return
 		cost_pipenets = MC_AVERAGE(cost_pipenets, TICK_DELTA_TO_MS(cached_cost))
+		stage_ms["pipenets"] += TICK_DELTA_TO_MS(cached_cost) //hippie: totals for benches (stress_bench.dm)
 		resumed = FALSE
 		currentpart = SSAIR_ATMOSMACHINERY
 
@@ -128,6 +131,7 @@ SUBSYSTEM_DEF(air)
 		if(state != SS_RUNNING)
 			return
 		cost_atmos_machinery = MC_AVERAGE(cost_atmos_machinery, TICK_DELTA_TO_MS(cached_cost))
+		stage_ms["machinery"] += TICK_DELTA_TO_MS(cached_cost) //hippie: totals for benches (stress_bench.dm)
 		resumed = FALSE
 		currentpart = SSAIR_ACTIVETURFS
 
@@ -140,6 +144,7 @@ SUBSYSTEM_DEF(air)
 		if(state != SS_RUNNING)
 			return
 		cost_turfs = MC_AVERAGE(cost_turfs, TICK_DELTA_TO_MS(cached_cost))
+		stage_ms["turfs"] += TICK_DELTA_TO_MS(cached_cost) //hippie: totals for benches (stress_bench.dm)
 		resumed = FALSE
 		currentpart = SSAIR_HOTSPOTS
 
@@ -152,6 +157,7 @@ SUBSYSTEM_DEF(air)
 		if(state != SS_RUNNING)
 			return
 		cost_hotspots = MC_AVERAGE(cost_hotspots, TICK_DELTA_TO_MS(cached_cost))
+		stage_ms["hotspots"] += TICK_DELTA_TO_MS(cached_cost) //hippie: totals for benches (stress_bench.dm)
 		resumed = FALSE
 		currentpart = SSAIR_EXCITEDGROUPS
 
@@ -164,6 +170,7 @@ SUBSYSTEM_DEF(air)
 		if(state != SS_RUNNING)
 			return
 		cost_groups = MC_AVERAGE(cost_groups, TICK_DELTA_TO_MS(cached_cost))
+		stage_ms["groups"] += TICK_DELTA_TO_MS(cached_cost) //hippie: totals for benches (stress_bench.dm)
 		resumed = FALSE
 		currentpart = SSAIR_HIGHPRESSURE
 
@@ -176,6 +183,7 @@ SUBSYSTEM_DEF(air)
 		if(state != SS_RUNNING)
 			return
 		cost_highpressure = MC_AVERAGE(cost_highpressure, TICK_DELTA_TO_MS(cached_cost))
+		stage_ms["highpressure"] += TICK_DELTA_TO_MS(cached_cost) //hippie: totals for benches (stress_bench.dm)
 		resumed = FALSE
 		currentpart = SSAIR_SUPERCONDUCTIVITY
 
@@ -188,6 +196,7 @@ SUBSYSTEM_DEF(air)
 		if(state != SS_RUNNING)
 			return
 		cost_superconductivity = MC_AVERAGE(cost_superconductivity, TICK_DELTA_TO_MS(cached_cost))
+		stage_ms["superconductivity"] += TICK_DELTA_TO_MS(cached_cost) //hippie: totals for benches (stress_bench.dm)
 		resumed = FALSE
 		currentpart = SSAIR_PROCESS_ATOMS
 
@@ -326,32 +335,13 @@ SUBSYSTEM_DEF(air)
 			return
 
 /datum/controller/subsystem/air/proc/process_atmos_machinery(delta_time, resumed = FALSE)
-	if (!resumed)
-		src.currentrun = atmos_machinery.Copy()
-	//cache for sanic speed (lists are references anyways)
-	var/list/currentrun = src.currentrun
-	// hippie -- idle machines sit out until their turf's air changes (hippiestation/code/modules/atmospherics/idle_machines.dm)
+	// hippie -- idle machines sit out until their turf's air changes (hippiestation/code/modules/atmospherics/idle_machines.dm),
+	// and aren't even looked at till then
 	var/can_idle = tile_engine && !atmos_never_idle
-	var/fired = times_fired
-	while(currentrun.len)
-		var/obj/machinery/M = currentrun[currentrun.len]
-		currentrun.len--
-		if(!M)
-			atmos_machinery.Remove(M)
-		else
-			if(M.atmos_idle_since)
-				var/turf/T = M.loc
-				if(can_idle && T?.air_changed_at < M.atmos_idle_since && fired - M.atmos_idle_since < ATMOS_IDLE_RECHECK)
-					continue
-				M.atmos_idle_since = 0
-			var/result = M.process_atmos(delta_time)
-			if(result == PROCESS_KILL)
-				atmos_machinery.Remove(M)
-			else if(result == ATMOS_IDLE && can_idle)
-				M.atmos_idle_since = fired
-		if(MC_TICK_CHECK)
-			return
-
+	if(can_idle && !atmos_idle_shadow)
+		process_awake_machinery(delta_time, resumed)
+	else
+		process_every_machine(delta_time, resumed, can_idle)
 
 /datum/controller/subsystem/air/proc/process_super_conductivity(resumed = FALSE)
 	if (!resumed)
@@ -456,6 +446,8 @@ SUBSYSTEM_DEF(air)
 /datum/controller/subsystem/air/proc/add_to_active(turf/open/T, blockchanges = FALSE)
 	if(istype(T) && T.air)
 		T.air_changed_at = times_fired // hippie -- wakes idle machines on it (hippiestation/code/modules/atmospherics/idle_machines.dm)
+		if(T.idle_atmos_machines)
+			atmos_wake_turf(T)
 		T.significant_share_ticker = 0
 		if(blockchanges && T.excited_group) //This is used almost exclusivly for shuttles, so the excited group doesn't stay behind
 			T.excited_group.garbage_collect() //Nuke it
@@ -657,6 +649,13 @@ GLOBAL_LIST_EMPTY(colored_images)/*
  */
 /datum/controller/subsystem/air/proc/start_processing_machine(obj/machinery/machine)
 	atmos_machinery += machine
+	// hippie -- its place in atmos_machinery's order, and awake from the next machinery stage (idle_machines.dm)
+	machine.atmos_serial = ++atmos_serial_next
+	if(machine.atmos_idle_since)
+		atmos_went_idle(machine, machine.atmos_idle_since)
+	else if(!machine.atmos_wake_queued)
+		machine.atmos_wake_queued = TRUE
+		atmos_woken += machine
 
 /**
  * Removes a given machine to the processing system for SSAIR_ATMOSMACHINERY processing.
@@ -670,6 +669,19 @@ GLOBAL_LIST_EMPTY(colored_images)/*
  */
 /datum/controller/subsystem/air/proc/stop_processing_machine(obj/machinery/machine)
 	atmos_machinery -= machine
+	// hippie -- out of the idle registry too (idle_machines.dm), or its turf would keep it from being deleted
+	atmos_awake -= machine
+	if(machine.atmos_wake_queued)
+		atmos_woken -= machine
+		machine.atmos_wake_queued = FALSE
+	if(machine.atmos_idle_turf)
+		LAZYREMOVE(machine.atmos_idle_turf.idle_atmos_machines, machine)
+		machine.atmos_idle_turf = null
+	if(atmos_recheck && machine.atmos_idle_since)
+		var/list/bucket = atmos_recheck[(machine.atmos_idle_since % ATMOS_IDLE_RECHECK) + 1]
+		bucket -= machine
+	if(atmos_shadow_run)
+		atmos_shadow_run -= machine
 
 	// If we're currently processing atmos machines, there's a chance this machine is in
 	// the currentrun list, which is a cache of atmos_machinery. Remove it from that list

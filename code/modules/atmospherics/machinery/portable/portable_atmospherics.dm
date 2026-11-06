@@ -16,7 +16,7 @@
 
 /obj/machinery/portable_atmospherics/New()
 	..()
-	SSair.atmos_machinery += src
+	SSair.start_processing_machine(src) // hippie -- keeps the idle registry (idle_machines.dm)
 
 /obj/machinery/portable_atmospherics/Initialize()
 	. = ..()
@@ -27,7 +27,7 @@
 	return 1
 
 /obj/machinery/portable_atmospherics/Destroy()
-	SSair.atmos_machinery -= src
+	SSair.stop_processing_machine(src) // hippie -- keeps the idle registry (idle_machines.dm)
 
 	disconnect()
 	qdel(air_contents)

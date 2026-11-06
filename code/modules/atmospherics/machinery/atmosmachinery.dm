@@ -58,7 +58,7 @@
 		armor = list("melee" = 25, "bullet" = 10, "laser" = 10, "energy" = 100, "bomb" = 0, "bio" = 100, "rad" = 100, "fire" = 100, "acid" = 70)
 	..()
 	if(process)
-		SSair.atmos_machinery += src
+		SSair.start_processing_machine(src) // hippie -- keeps the idle registry (idle_machines.dm)
 	SetInitDirections()
 	var/turf/machine_turf = loc
 	if(isturf(machine_turf)) // hippie -- not one inside something else, a canister's valve: it never moved cells with the canister, and was a hard delete
@@ -69,7 +69,7 @@
 	for(var/i in 1 to device_type)
 		nullifyNode(i)
 
-	SSair.atmos_machinery -= src
+	SSair.stop_processing_machine(src) // hippie -- keeps the idle registry (idle_machines.dm)
 	SSair.rebuild_queue -= src
 	if(SSair.currentpart == SSAIR_ATMOSMACHINERY)
 		SSair.currentrun -= src
