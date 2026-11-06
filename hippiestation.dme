@@ -3107,6 +3107,7 @@
 #include "hippiestation\code\game\machinery\computer\_computer.dm"
 #include "hippiestation\code\game\machinery\computer\apc_control_tgui.dm"
 #include "hippiestation\code\game\machinery\computer\robot_tgui.dm"
+#include "hippiestation\code\game\machinery\computer\security_science_tgui.dm"
 #include "hippiestation\code\game\machinery\computer\teleporter_tgui.dm"
 #include "hippiestation\code\game\machinery\computer\arcade.dm"
 #include "hippiestation\code\game\machinery\computer\arcade_tgui.dm"

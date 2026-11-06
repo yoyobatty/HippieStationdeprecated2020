@@ -144,6 +144,7 @@ import { NtnetRelay, NtosConfiguration, NtosFileManager, NtosNetChat, NtosNetDos
 import { AuxBase, BountyConsole, CoinPress, OreSilo, SmelterConsole } from './interfaces/CargoMining';
 import { MassDriverConsole, ShuttleConsole } from './interfaces/ShuttleConsole';
 import { AirlockController, BankVault, Holopad, Jukebox, LimbGrower, NavBeacon, SeedExtractor, SlotMachine } from './interfaces/ServiceMachines';
+import { AiFixer, AnnouncementSystem, DopplerArray, PrisonerConsole } from './interfaces/SecurityScience';
 // hippie end
 
 const ROUTES = {
@@ -154,6 +155,10 @@ const ROUTES = {
   ai_airlock: {
     component: () => AiAirlock,
     scrollable: false,
+  },
+  ai_fixer: {
+    component: () => AiFixer,
+    scrollable: true,
   },
   airalarm: {
     component: () => AirAlarm,
@@ -166,6 +171,10 @@ const ROUTES = {
   airlock_electronics: {
     component: () => AirlockElectronics,
     scrollable: false,
+  },
+  announcement_system: {
+    component: () => AnnouncementSystem,
+    scrollable: true,
   },
   apc: {
     component: () => Apc,
@@ -283,6 +292,10 @@ const ROUTES = {
     component: () => DnaConsole,
     scrollable: true,
   },
+  doppler_array: {
+    component: () => DopplerArray,
+    scrollable: true,
+  },
   exosuit: {
     component: () => Exosuit,
     scrollable: true,
@@ -378,6 +391,10 @@ const ROUTES = {
   },
   plant_dna_manipulator: {
     component: () => PlantDnaManipulator,
+    scrollable: true,
+  },
+  prisoner_console: {
+    component: () => PrisonerConsole,
     scrollable: true,
   },
   reaction_chamber: {

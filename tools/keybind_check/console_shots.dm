@@ -239,6 +239,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_shuttle(C, H, label)
 		if("service")
 			cs_service(C, H, label)
+		if("secsci")
+			cs_secsci(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -4928,7 +4930,7 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		sleep(25)
 		cs_shot(name)
 		for(var/window in list("bounties", "ore_silo", "processing", "mint", "computer", "vending", "slotmachine", "holopad", \
-			"seed_ext", "Limb Grower", "navbeacon", "autosec"))
+			"seed_ext", "Limb Grower", "navbeacon", "autosec", "announcement_config"))
 			C << browse(null, "window=[window]")
 		return null
 	winset(C, ui.window_id, "pos=100,20")
@@ -5238,3 +5240,87 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		SStgui.close_user_uis(H)
 	else
 		cs_check("an airlock controller", FALSE)
+
+
+// Security and science: the prisoner console with a card, a chem and a tracking implant; the AI fixer with an AI in it;
+// a doppler array with a blast logged; the announcement system
+/proc/cs_secsci(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/hos)
+	var/obj/item/card/id/id = H.wear_id
+	if(istype(id))
+		id.access = get_all_accesses()
+	var/obj/machinery/holopad/pad
+	for(var/obj/machinery/holopad/P in GLOB.machines)
+		if(is_station_level(P.z) && cs_open_turf_by(P))
+			pad = P
+			break
+	if(pad)
+		H.forceMove(pad.loc)
+	var/turf/spot = cs_open_turf_by(H)
+
+	// Two prisoners with implants, one card
+	var/mob/living/carbon/human/convict = new(spot)
+	convict.real_name = "Tomas Reyes"
+	convict.name = convict.real_name
+	var/obj/item/implant/chem/chem = new
+	chem.reagents.add_reagent(/datum/reagent/medicine/salbutamol, 30)
+	chem.implant(convict, null, TRUE)
+	var/obj/item/implant/tracking/tracker = new
+	tracker.implant(convict, null, TRUE)
+	var/obj/item/card/id/prisoner/card = new(get_turf(H))
+	card.registered_name = convict.real_name
+	card.goal = 300
+	card.points = 120
+	var/obj/machinery/computer/prisoner/console = new(spot)
+	console.screen = 1
+	console.inserted_id = card
+	card.forceMove(console)
+	var/datum/tgui/ui = cs_window_shot(C, H, console, "popup_secsci_[label]_prisoner")
+	if(ui && label == "after")
+		cs_act(console, H, "goal", list("goal" = "450"))
+		cs_check("prisoner: goal typed in ([card.goal])", card.goal == 450)
+		var/units = chem.reagents.total_volume
+		cs_act(console, H, "inject", list("ref" = REF(chem), "amount" = "5"))
+		cs_check("prisoner: Inject 5 ([units] -> [chem.reagents.total_volume] u)", chem.reagents.total_volume < units)
+	SStgui.close_user_uis(H)
+	qdel(console)
+	qdel(convict)
+
+	var/obj/machinery/computer/aifixer/fixer = new(spot)
+	// As the intelliCard check: an AI with no mob behind it gets no laws from Initialize, so they're set here
+	var/mob/living/silicon/ai/AI = new(fixer, null, null)
+	AI.fully_replace_character_name(null, "HAL 9000")
+	AI.laws = new /datum/ai_laws/default/asimov
+	AI.laws.associate(AI)
+	AI.laws.add_ion_law("THE CAPTAIN IS A LIZARD")
+	AI.adjustBruteLoss(80)
+	AI.updatehealth()
+	fixer.occupier = AI
+	ui = cs_window_shot(C, H, fixer, "popup_secsci_[label]_aifixer")
+	if(ui && label == "after")
+		cs_act(fixer, H, "fix")
+		cs_check("ai fixer: Begin Reconstruction", fixer.active)
+		fixer.active = FALSE
+	SStgui.close_user_uis(H)
+	fixer.occupier = null
+	qdel(AI)
+	qdel(fixer)
+
+	var/obj/machinery/doppler_array/research/science/doppler = new(spot)
+	doppler.anchored = TRUE
+	doppler.power_change()
+	LAZYADD(doppler.message_log, "Explosive disturbance detected. Epicenter at: grid (120,88). Temporal displacement of tachyons: 0.7 seconds. Factual: Epicenter radius: 5. Outer radius: 10. Shockwave radius: 20. Theoretical: Epicenter radius: 12. Outer radius: 25. Shockwave radius: 50.")
+	ui = cs_window_shot(C, H, doppler, "popup_secsci_[label]_doppler")
+	if(ui && label == "after")
+		cs_act(doppler, H, "delete")
+		cs_check("doppler: Delete logs", !length(doppler.message_log))
+	SStgui.close_user_uis(H)
+	qdel(doppler)
+
+	var/obj/machinery/announcement_system/announcer = new(spot)
+	ui = cs_window_shot(C, H, announcer, "popup_secsci_[label]_announcer")
+	if(ui && label == "after")
+		cs_act(announcer, H, "arrival", list("text" = "%PERSON, %RANK, is here."))
+		cs_check("announcer: arrival text typed in ([announcer.arrival])", announcer.arrival == "%PERSON, %RANK, is here.")
+	SStgui.close_user_uis(H)
+	qdel(announcer)
