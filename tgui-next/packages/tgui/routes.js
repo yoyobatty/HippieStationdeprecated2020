@@ -149,6 +149,7 @@ import { NtosTrafficControl } from './interfaces/NtosTrafficControl';
 import { GunLocker, JaniCart } from './interfaces/Storage';
 import { CyborgFrame, TransferValve } from './interfaces/Items';
 import { SongEditor } from './interfaces/SongEditor';
+import { Blueprints, CameraBug, RcdAccess } from './interfaces/Tools';
 // hippie end
 
 const ROUTES = {
@@ -224,6 +225,10 @@ const ROUTES = {
     component: () => Biogenerator,
     scrollable: true,
   },
+  blueprints: {
+    component: () => Blueprints,
+    scrollable: true,
+  },
   borgopanel: {
     component: () => BorgPanel,
     scrollable: true,
@@ -239,6 +244,10 @@ const ROUTES = {
   bsa: {
     component: () => BluespaceArtillery,
     scrollable: false,
+  },
+  camera_bug: {
+    component: () => CameraBug,
+    scrollable: true,
   },
   canister: {
     component: () => Canister,
@@ -411,6 +420,10 @@ const ROUTES = {
   },
   prisoner_console: {
     component: () => PrisonerConsole,
+    scrollable: true,
+  },
+  rcd_access: {
+    component: () => RcdAccess,
     scrollable: true,
   },
   reaction_chamber: {
