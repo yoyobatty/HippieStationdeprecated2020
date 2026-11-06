@@ -3832,6 +3832,7 @@
 #include "hippiestation\code\modules\reagents\chemistry\recipes.dm"
 #include "hippiestation\code\modules\reagents\chemistry\machinery\chem_dispenser.dm"
 #include "hippiestation\code\modules\reagents\chemistry\machinery\chem_heater.dm"
+#include "hippiestation\code\modules\reagents\chemistry\machinery\chemistry_tgui.dm"
 #include "hippiestation\code\modules\reagents\chemistry\machinery\lcasschem.dm"
 #include "hippiestation\code\modules\reagents\chemistry\reagents\alcohol_reagents.dm"
 #include "hippiestation\code\modules\reagents\chemistry\reagents\density.dm"

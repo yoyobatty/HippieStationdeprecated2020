@@ -1,8 +1,21 @@
 import { round, toFixed } from 'common/math';
 import { Fragment } from 'inferno';
 import { useBackend } from '../backend';
-import { AnimatedNumber, Box, Button, LabeledList, NumberInput, Section } from '../components';
-import { BeakerContents } from './common/BeakerContents';
+import { AnimatedNumber, Box, Button, LabeledList, NumberInput, ProgressBar, Section } from '../components';
+import { FillBar, ReagentTable } from './common/ReagentBits';
+
+// hippie -- the chem heater redone: the beaker's temperature against the
+// target, cold blue to hot red, and its contents in their colours
+
+const tempColor = kelvin => {
+  if (kelvin < 273) {
+    return 'blue';
+  }
+  if (kelvin < 340) {
+    return 'good';
+  }
+  return kelvin < 500 ? 'average' : 'bad';
+};
 
 export const ChemHeater = props => {
   const { act, data } = useBackend(props);
@@ -13,62 +26,77 @@ export const ChemHeater = props => {
     currentTemp,
     beakerCurrentVolume,
     beakerMaxVolume,
-    beakerContents = [],
+    beakerColor,
   } = data;
   return (
     <Fragment>
       <Section
-        title="Thermostat"
+        title="Heater"
         buttons={(
           <Button
-            icon={isActive ? 'power-off' : 'times'}
+            icon="power-off"
             selected={isActive}
-            content={isActive ? 'On' : 'Off'}
+            content={isActive ? 'Heating' : 'Off'}
             onClick={() => act('power')} />
         )}>
         <LabeledList>
           <LabeledList.Item label="Target">
             <NumberInput
-              width="65px"
+              width="70px"
               unit="K"
-              step={2}
+              step={5}
               stepPixelSize={1}
               value={round(targetTemp)}
               minValue={0}
               maxValue={1000}
-              onDrag={(e, value) => act('temperature', {
-                target: value,
-              })} />
+              onDrag={(e, value) => act('temperature', { target: value })} />
+            {[273, 300, 373, 500].map(preset => (
+              <Button
+                key={preset}
+                ml={0.5}
+                content={preset + 'K'}
+                onClick={() => act('temperature', { target: preset })} />
+            ))}
           </LabeledList.Item>
-          <LabeledList.Item label="Reading">
-            <Box
-              width="60px"
-              textAlign="right">
-              {isBeakerLoaded && (
+          <LabeledList.Item label="Beaker">
+            {isBeakerLoaded && (
+              <ProgressBar
+                value={currentTemp}
+                minValue={0}
+                maxValue={Math.max(1000, targetTemp)}
+                color={tempColor(currentTemp)}>
                 <AnimatedNumber
                   value={currentTemp}
                   format={value => toFixed(value) + ' K'} />
-              ) || '—'}
-            </Box>
+                {' (target ' + round(targetTemp) + ' K)'}
+              </ProgressBar>
+            ) || (
+              <Box color="label">No beaker</Box>
+            )}
           </LabeledList.Item>
         </LabeledList>
       </Section>
       <Section
         title="Beaker"
         buttons={!!isBeakerLoaded && (
-          <Fragment>
-            <Box inline color="label" mr={2}>
-              {beakerCurrentVolume} / {beakerMaxVolume} units
-            </Box>
-            <Button
-              icon="eject"
-              content="Eject"
-              onClick={() => act('eject')} />
-          </Fragment>
+          <Button
+            icon="eject"
+            content="Eject"
+            onClick={() => act('eject')} />
         )}>
-        <BeakerContents
-          beakerLoaded={isBeakerLoaded}
-          beakerContents={beakerContents} />
+        {!isBeakerLoaded && (
+          <Box color="label">Put a beaker in by hand.</Box>
+        ) || (
+          <Fragment>
+            <FillBar
+              volume={beakerCurrentVolume}
+              maxVolume={beakerMaxVolume}
+              color={beakerColor} />
+            <ReagentTable
+              contents={data.beakerContents}
+              empty="The beaker is empty." />
+          </Fragment>
+        )}
       </Section>
     </Fragment>
   );

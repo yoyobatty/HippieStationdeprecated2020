@@ -37,3 +37,17 @@
   font-size: 11px;
   line-height: 15px;
 }
+
+// hippie -- the chem dispenser's chemical buttons (interfaces/ChemDispenser.js)
+.ChemDispenser__grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.ChemDispenser__chem {
+  width: 132px;
+  margin: 0 4px 4px 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
