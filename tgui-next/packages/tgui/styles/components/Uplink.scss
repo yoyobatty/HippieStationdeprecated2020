@@ -1,0 +1,143 @@
+// hippie -- the uplink shop (interfaces/Uplink.js)
+
+.Uplink__layout {
+  display: flex;
+  align-items: flex-start;
+}
+
+.Uplink__categories {
+  flex: 0 0 170px;
+  position: sticky;
+  top: 0;
+  margin-right: 6px;
+
+  .Button {
+    margin-bottom: 2px;
+  }
+}
+
+.Uplink__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.Uplink__panel {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 8px;
+  margin-bottom: 6px;
+  background-color: #3a0505;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.Uplink__panelText {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: 10px;
+}
+
+.Uplink__picture {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+  vertical-align: middle;
+  flex: 0 0 auto;
+
+  .uplink32x32 {
+    display: inline-block;
+    vertical-align: middle;
+  }
+}
+
+.Uplink__picture--big {
+  width: 72px;
+  height: 72px;
+  line-height: 72px;
+  background-color: rgba(0, 0, 0, 0.25);
+  border-radius: 3px;
+
+  .uplink32x32 {
+    transform: scale(2);
+    image-rendering: pixelated;
+  }
+}
+
+.Uplink__grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.Uplink__card {
+  width: 104px;
+  margin: 0 6px 6px 0;
+  padding: 6px;
+  text-align: center;
+  cursor: pointer;
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .Uplink__picture {
+    width: 64px;
+    height: 64px;
+    line-height: 64px;
+
+    .uplink32x32 {
+      transform: scale(2);
+      image-rendering: pixelated;
+    }
+  }
+}
+
+.Uplink__card--picked {
+  border-color: #fff;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.Uplink__card--gone {
+  opacity: 0.45;
+}
+
+.Uplink__name {
+  height: 30px;
+  overflow: hidden;
+  margin-bottom: 4px;
+  font-size: 11px;
+  line-height: 15px;
+}
+
+.Uplink__row {
+  display: flex;
+  align-items: center;
+  padding: 2px 4px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.Uplink__rowText {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0 8px;
+}
+
+.Uplink__rowDesc {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  opacity: 0.6;
+}

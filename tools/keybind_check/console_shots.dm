@@ -68,6 +68,9 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		// The first button whose whole text is this: one-letter buttons ("C" would find "Close Scanner")
 		var/text = copytext(action, 12)
 		js = "var t=[json_encode(text)];var b=Array.prototype.slice.call(document.querySelectorAll('.Button')).filter(function(e){return e.textContent.trim()===t;})\[0\];if(b){b.click();}"
+	else if(findtext(action, "card:") == 1)
+		var/index = text2num(copytext(action, 6)) - 1
+		js = "var c=document.querySelectorAll('.Uplink__card')\[[index]\];if(c){c.click();}"
 	else if(findtext(action, "scroll:") == 1)
 		var/pixels = text2num(copytext(action, 8))
 		js = "Array.prototype.slice.call(document.querySelectorAll('*')).filter(function(e){var o=getComputedStyle(e).overflowY;return (o=='auto'||o=='scroll')&&e.scrollHeight>e.clientHeight;}).forEach(function(e){e.scrollTop=[pixels];});"
@@ -225,6 +228,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_power(C, H, label)
 		if("atmos")
 			cs_atmos(C, H, label)
+		if("uplink")
+			cs_uplink(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -4853,3 +4858,49 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	var/was = freezer.target_temperature
 	cs_act(freezer, H, "target", list("adjust" = "-10"))
 	cs_check("freezer: minus steps the target down 10 K ([was] -> [freezer.target_temperature])", freezer.target_temperature == max(was - 10, freezer.min_temperature))
+
+// The traitor uplink: a 20 TC uplink in hand, opened
+/proc/cs_uplink(client/C, mob/living/carbon/human/H, label)
+	var/obj/item/uplink/device = new(get_turf(H), H.key, 20)
+	H.put_in_hands(device)
+	var/datum/component/uplink/U = device.GetComponent(/datum/component/uplink)
+	U.locked = FALSE
+	usr = H
+	U.ui_interact(H)
+	var/datum/tgui/ui = cs_find_ui(H, U)
+	if(!ui)
+		cs_check("uplink: the window opens", FALSE)
+		return
+	winset(C, ui.window_id, "pos=100,20")
+	sleep(30)
+	cs_shot("popup_uplink_[label]_main")
+	cs_tgui_do(C, ui.window_id, "input0:grenade")
+	sleep(15)
+	cs_shot("popup_uplink_[label]_search")
+	cs_tgui_do(C, ui.window_id, "input0:")
+	sleep(10)
+	if(label == "after")
+		var/list/static_data = U.ui_static_data(H)
+		var/pictured = 0
+		var/total = 0
+		for(var/list/category in static_data["categories"])
+			for(var/list/item in category["items"])
+				total++
+				if(item["icon"])
+					pictured++
+		cs_check("uplink: items with a picture ([pictured] of [total])", pictured > total * 0.8)
+		// Pick a card and buy it from the panel, as a player would
+		var/tc = U.telecrystals
+		cs_tgui_do(C, ui.window_id, "click:Stealth")
+		sleep(10)
+		cs_tgui_do(C, ui.window_id, "card:1")
+		sleep(10)
+		cs_shot("popup_uplink_after_picked")
+		cs_tgui_do(C, ui.window_id, "click:Buy")
+		sleep(15)
+		cs_check("uplink: Buy in the panel spends TC ([tc] -> [U.telecrystals])", U.telecrystals < tc)
+		cs_tgui_do(C, ui.window_id, "click:List")
+		sleep(15)
+		cs_shot("popup_uplink_after_list")
+	SStgui.close_user_uis(H)
+	qdel(device)
