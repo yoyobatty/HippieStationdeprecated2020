@@ -183,7 +183,7 @@ GLOBAL_VAR_INIT(lobby_design, "pass")
 									datum/tgui/master_ui = null, datum/ui_state/state = GLOB.always_state)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
-		ui = new(user, src, ui_key, "late_join", "Choose Profession", 660, 500, master_ui, state)
+		ui = new(user, src, ui_key, "late_join", "Choose Profession", 660, 590, master_ui, state)
 		ui.open()
 
 /datum/late_join_menu/ui_status(mob/user, datum/ui_state/state)

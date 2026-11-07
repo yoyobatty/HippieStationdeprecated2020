@@ -364,7 +364,7 @@ const ROUTES = {
   },
   late_join: {
     component: () => LateJoin,
-    scrollable: true,
+    scrollable: false,
   },
   library_console: {
     component: () => LibraryConsole,

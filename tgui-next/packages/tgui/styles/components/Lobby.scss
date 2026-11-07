@@ -19,6 +19,16 @@
   line-height: 28px;
 }
 
+.Lobby__scroll {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  padding: 6px;
+}
+
 .Lobby__header {
   margin-bottom: 6px;
   padding: 4px 6px;

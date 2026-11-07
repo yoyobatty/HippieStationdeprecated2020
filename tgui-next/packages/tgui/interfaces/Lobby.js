@@ -208,10 +208,8 @@ const Department = props => {
   );
 };
 
-export const LateJoin = props => {
-  const { act, data } = useBackend(props);
-  const departments = data.departments || [];
-  // Three columns, each department to the shortest so far
+// / Three columns, each department to the shortest so far
+const balance = departments => {
   const columns = [[], [], []];
   const heights = [0, 0, 0];
   departments.forEach(dept => {
@@ -224,8 +222,110 @@ export const LateJoin = props => {
     columns[best].push(dept);
     heights[best] += dept.jobs.length + 2;
   });
+  return columns;
+};
+
+// The job list as the boarding pass's paperwork
+
+const PassJob = props => {
+  const { job, canJoin, act } = props;
+  const open = !job.status && canJoin;
   return (
-    <Fragment>
+    <div
+      className={'LateJoinPass__job'
+        + (job.command ? ' LateJoinPass__job--command' : '')
+        + (job.priority ? ' LateJoinPass__job--wanted' : '')
+        + (open ? '' : ' LateJoinPass__job--closed')}
+      style={open ? { 'cursor': 'pointer' } : null}
+      onClick={() => open && act('join', { job: job.title })}>
+      <span className="LateJoinPass__title">{job.title}</span>
+      {!!job.priority && (
+        <span className="LateJoinPass__star"><Icon name="star" /></span>
+      )}
+      {job.status ? (
+        <span className="LateJoinPass__why">{job.status}</span>
+      ) : (
+        <span className="LateJoinPass__slots">{slotText(job)}</span>
+      )}
+    </div>
+  );
+};
+
+const PassCard = props => {
+  const { dept, canJoin, act } = props;
+  const open = dept.jobs.filter(job => !job.status).length;
+  return (
+    <div className="LateJoinPass__card">
+      <div
+        className="LateJoinPass__band"
+        style={{ 'background-color': dept.color }}>
+        {dept.name}
+        <span className="LateJoinPass__open">{open} open</span>
+      </div>
+      {dept.jobs.map(job => (
+        <PassJob key={job.title} job={job} canJoin={canJoin} act={act} />
+      ))}
+    </div>
+  );
+};
+
+const PassInfo = props => (
+  <div className="LateJoinPass__info">
+    <div className="LobbyPass__label">{props.label}</div>
+    <div className="LobbyPass__value">{props.value}</div>
+  </div>
+);
+
+const LateJoinPass = props => {
+  const { act, data, columns } = props;
+  let status = data.evac || 'In progress';
+  if (data.queue) {
+    status = 'Queued (' + data.queue + ')';
+  }
+  return (
+    <div className="LateJoinPass">
+      <div className="LateJoinPass__head">
+        <div className="LobbyPass__band">
+          <span className="LobbyPass__logo">NT</span>
+          <span>Crew Transfer &middot; Assignments</span>
+          {!!data.round_id && (
+            <span className="LobbyPass__class">
+              {'Shift ' + data.round_id}
+            </span>
+          )}
+        </div>
+        <div className="LateJoinPass__infoRow">
+          <PassInfo label="Departed" value={clock(data.round_time || 0)} />
+          <PassInfo label="Aboard" value={data.crew} />
+          <PassInfo label="Gate" value={data.map} />
+          <PassInfo label="Status" value={status} />
+        </div>
+      </div>
+      <div className="LateJoinPass__columns">
+        {columns.map((column, i) => (
+          <div key={i} className="LateJoinPass__column">
+            {column.map(dept => (
+              <PassCard
+                key={dept.name}
+                dept={dept}
+                canJoin={!!data.can_join}
+                act={act} />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export const LateJoin = props => {
+  const { act, data } = useBackend(props);
+  const columns = balance(data.departments || []);
+  if (data.design === 'pass') {
+    return <LateJoinPass act={act} data={data} columns={columns} />;
+  }
+  return (
+    <div className="Lobby__scroll">
       <Box className="Lobby__header">
         <Box inline mr={2}>
           <Box inline color="label" mr={0.5}>Duration</Box>
@@ -259,6 +359,6 @@ export const LateJoin = props => {
           </div>
         ))}
       </div>
-    </Fragment>
+    </div>
   );
 };
