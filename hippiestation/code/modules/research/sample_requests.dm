@@ -167,7 +167,7 @@ GLOBAL_DATUM_INIT(sample_board, /datum/sample_board, new)
 
 /datum/sample_request/lavaland
 	kind = "lavaland"
-	department = "Mining"
+	department = "Lavaland" // miners, but told apart from the ore on the board
 	channel = RADIO_CHANNEL_SUPPLY
 	var/want
 
