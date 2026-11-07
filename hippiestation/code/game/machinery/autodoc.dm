@@ -53,6 +53,9 @@ GLOBAL_LIST_INIT(autodoc_supported_surgery_steps, typecacheof(list(
 	var/datum/surgery/active_surgery
 	var/datum/surgery_step/active_step
 	var/target_zone = "chest"
+	/// The patient as the window shows them: a PNG made when the patient or their limbs change, and what it was made of
+	var/patient_sprite
+	var/patient_sprite_key
 	var/in_use = FALSE
 	var/caesar = FALSE
 	var/message_cooldown = 0
@@ -282,6 +285,25 @@ GLOBAL_LIST_INIT(autodoc_supported_surgery_steps, typecacheof(list(
 	if(istype(patient))
 		.["patient"] = patient.name
 		.["health"] = round(max(0, patient.health) / patient.maxHealth * 100)
+	var/mob/living/carbon/body = occupant
+	if(istype(body))
+		// The patient's own sprite, the parts picked over it and coloured by their damage. A key, not the mob: nothing
+		// held here stops a patient being deleted.
+		var/key = "[REF(body)]-[length(body.bodyparts)]"
+		if(key != patient_sprite_key)
+			var/icon/flat = autodoc_flat_patient(body)
+			patient_sprite = flat ? "data:image/png;base64,[icon2base64(flat)]" : null
+			if(patient_sprite) // nothing to show yet is tried again next time
+				patient_sprite_key = key
+		.["sprite"] = patient_sprite
+		var/list/parts = list()
+		for(var/zone in list(BODY_ZONE_HEAD, BODY_ZONE_CHEST, BODY_ZONE_L_ARM, BODY_ZONE_R_ARM, BODY_ZONE_L_LEG, BODY_ZONE_R_LEG))
+			var/obj/item/bodypart/part = body.get_bodypart(zone)
+			if(part)
+				parts[zone] = list("brute" = round(part.brute_dam), "burn" = round(part.burn_dam), "max" = part.max_damage)
+			else
+				parts[zone] = list("missing" = TRUE)
+		.["parts"] = parts
 	.["target"] = target_zone
 	if(in_use)
 		.["mode"] = 2
@@ -368,3 +390,25 @@ GLOBAL_LIST_INIT(autodoc_supported_surgery_steps, typecacheof(list(
 			to_chat(user, "<span class='warning'>[src]'s door won't budge!</span>")
 		return
 	open_machine()
+
+/// The patient from the front, flat. getFlatIcon() gives up on the whole thing (returns nothing) at the first overlay
+/// or underlay on a floating layer, and a live body has some, so it's given a copy of their appearance without those.
+/proc/autodoc_flat_patient(mob/living/carbon/body)
+	COMPILE_OVERLAYS(body) // a body dressed this tick has its look still queued
+	var/mutable_appearance/look = new(body)
+	look.dir = SOUTH
+	look.pixel_x = 0
+	look.pixel_y = 0
+	look.transform = null
+	look.alpha = 255
+	var/list/kept = list()
+	for(var/image/overlay as anything in look.overlays)
+		if(overlay.layer > -1000)
+			kept += overlay
+	look.overlays = kept
+	var/list/kept_under = list()
+	for(var/image/underlay as anything in look.underlays)
+		if(underlay.layer > -1000)
+			kept_under += underlay
+	look.underlays = kept_under
+	return getFlatIcon(look, SOUTH, no_anim = TRUE)

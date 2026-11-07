@@ -98,6 +98,73 @@ $clinic-accent: #4fd1c5;
   50% { fill: #2c7a7b; }
 }
 
+.Autodoc__sprite {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  margin: 4px auto 6px;
+  border-radius: 6px;
+  background: radial-gradient(circle at 50% 40%, #2f4750, #1b282e 70%);
+}
+
+.Autodoc__sprite img,
+.Autodoc__sprite svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 180px;
+  height: 180px;
+}
+
+.Autodoc__sprite img {
+  image-rendering: pixelated;
+}
+
+.Autodoc__hit {
+  fill-opacity: 0.45;
+  stroke: transparent;
+  stroke-width: 0.35;
+  cursor: pointer;
+}
+
+.Autodoc__hit:hover {
+  stroke: #b2f5ea;
+}
+
+.Autodoc__hit--on,
+.Autodoc__hit--on:hover {
+  stroke: #4fd1c5;
+  stroke-width: 0.55;
+}
+
+.Autodoc__hit--busy {
+  animation: Autodoc-outline 1.2s ease-in-out infinite;
+}
+
+@keyframes Autodoc-outline {
+  50% { stroke: #b2f5ea; }
+}
+
+.Autodoc__damage {
+  margin-top: 4px;
+  color: #9fb8bf;
+  font-size: 12px;
+}
+
+.Autodoc__damage--bad {
+  color: #ff6b6b;
+}
+
+.Autodoc__brute {
+  color: #ff8787;
+  font-weight: bold;
+}
+
+.Autodoc__burn {
+  color: #ffc078;
+  font-weight: bold;
+}
+
 .Autodoc__target {
   color: $clinic-accent;
   font-size: 12px;

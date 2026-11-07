@@ -6807,7 +6807,11 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	var/mob/living/carbon/human/patient = new(doc_spot)
 	patient.real_name = "Rosa Delgado"
 	patient.name = patient.real_name
-	patient.adjustBruteLoss(30)
+	patient.equipOutfit(/datum/outfit/job/assistant)
+	// Hurt in different places, to see it on the figure
+	patient.apply_damage(25, BRUTE, BODY_ZONE_CHEST)
+	patient.apply_damage(15, BURN, BODY_ZONE_L_ARM)
+	patient.apply_damage(45, BRUTE, BODY_ZONE_R_LEG)
 	doc.close_machine(patient)
 	cs_check("medlab: the patient is in the Auto-Doc", doc.occupant == patient)
 	cs_act(doc, H, "target", list("part" = BODY_ZONE_HEAD))
@@ -6815,6 +6819,9 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	var/list/doc_data = doc.ui_data(H)
 	var/list/surgeries = doc_data["surgeries"]
 	cs_check("medlab: it lists surgeries there ([length(surgeries)])", length(surgeries) > 0)
+	var/list/doc_parts = doc_data["parts"]
+	var/list/leg = doc_parts?[BODY_ZONE_R_LEG]
+	cs_check("medlab: the patient's own sprite and their wounds go to the window (right leg [leg?["brute"]] brute)", findtext(doc_data["sprite"], "data:image/png") == 1 && leg?["brute"] >= 40)
 	if(length(surgeries))
 		var/list/first = surgeries[1]
 		cs_act(doc, H, "surgery", list("path" = first["path"]))

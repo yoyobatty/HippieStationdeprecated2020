@@ -46,6 +46,115 @@ const Figure = props => {
   );
 };
 
+// The same parts over the patient's own 32x32 sprite, facing you
+const SPRITE_PARTS = {
+  head: { x: 12, y: 1, width: 8, height: 9 },
+  chest: { x: 11, y: 10, width: 10, height: 8 },
+  groin: { x: 11, y: 18, width: 10, height: 3 },
+  r_arm: { x: 7, y: 10, width: 4, height: 12 },
+  l_arm: { x: 21, y: 10, width: 4, height: 12 },
+  r_leg: { x: 11, y: 21, width: 5, height: 9 },
+  l_leg: { x: 16, y: 21, width: 5, height: 9 },
+  eyes: { x: 13, y: 4.5, width: 6, height: 2 },
+  mouth: { x: 14, y: 7.5, width: 4, height: 1.5 },
+};
+
+// Eyes and mouth are on the head, the groin with the chest
+const LIMB_OF = { eyes: 'head', mouth: 'head', groin: 'chest' };
+
+const damageOf = (parts, zone) => (parts || {})[LIMB_OF[zone] || zone];
+
+// A part's colour by its damage, like a health doll
+const damageColor = part => {
+  if (!part || part.missing) {
+    return null;
+  }
+  const hurt = (part.brute + part.burn) / Math.max(part.max, 1);
+  if (hurt <= 0) {
+    return null;
+  }
+  if (hurt < 0.2) {
+    return '#94d82d';
+  }
+  if (hurt < 0.45) {
+    return '#fcc419';
+  }
+  return hurt < 0.7 ? '#fd7e14' : '#e03131';
+};
+
+const SpriteFigure = props => {
+  const { sprite, parts, target, onPick, busy } = props;
+  // Limbs first, the head's eyes and mouth last so they're on top
+  const order = ['r_arm', 'l_arm', 'chest', 'groin', 'r_leg', 'l_leg',
+    'head', 'eyes', 'mouth'];
+  return (
+    <div className="Autodoc__sprite">
+      <img src={sprite} />
+      <svg viewBox="0 0 32 32" shapeRendering="crispEdges">
+        <defs>
+          <pattern id="autodoc-missing" width="2" height="2"
+            patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="1" height="2" fill="#e03131" />
+          </pattern>
+        </defs>
+        {order.map(zone => {
+          const part = damageOf(parts, zone);
+          const small = SMALL_PARTS.includes(zone);
+          let fill = 'transparent';
+          if (part && part.missing && !small) {
+            fill = 'url(#autodoc-missing)';
+          } else if (!small) {
+            fill = damageColor(part) || 'transparent';
+          }
+          return (
+            <rect
+              key={zone}
+              {...SPRITE_PARTS[zone]}
+              fill={fill}
+              className={'Autodoc__hit'
+                + (target === zone ? ' Autodoc__hit--on' : '')
+                + (busy && target === zone ? ' Autodoc__hit--busy' : '')}
+              onClick={() => !busy && onPick(zone)} />
+          );
+        })}
+      </svg>
+    </div>
+  );
+};
+
+// The picked part's damage, under the figure
+const PartDamage = props => {
+  const part = damageOf(props.parts, props.target);
+  if (!part) {
+    return null;
+  }
+  if (part.missing) {
+    return <div className="Autodoc__damage Autodoc__damage--bad">Missing</div>;
+  }
+  return (
+    <div className="Autodoc__damage">
+      <span className="Autodoc__brute">{part.brute}</span> brute
+      {' · '}
+      <span className="Autodoc__burn">{part.burn}</span> burn
+    </div>
+  );
+};
+
+const PatientFigure = props => {
+  const { data, onPick, busy } = props;
+  if (data.sprite) {
+    return (
+      <SpriteFigure
+        sprite={data.sprite}
+        parts={data.parts}
+        target={data.target}
+        onPick={onPick}
+        busy={busy} />
+    );
+  }
+  return <Figure target={data.target} onPick={onPick} busy={busy} />;
+};
+
 const partName = zone => {
   const part = PARTS.find(p => p[0] === zone);
   return part ? part[1] : zone;
@@ -81,8 +190,9 @@ export const Autodoc = props => {
       <div className="Autodoc">
         <div className="Autodoc__left">
           <Patient data={data} />
-          <Figure target={data.target} busy />
+          <PatientFigure data={data} busy />
           <div className="Autodoc__target">{partName(data.target)}</div>
+          <PartDamage parts={data.parts} target={data.target} />
         </div>
         <div className="Autodoc__right">
           <div className="Autodoc__heading">
@@ -116,8 +226,11 @@ export const Autodoc = props => {
     <div className="Autodoc">
       <div className="Autodoc__left">
         <Patient data={data} />
-        <Figure target={data.target} onPick={part => act('target', { part })} />
+        <PatientFigure
+          data={data}
+          onPick={part => act('target', { part })} />
         <div className="Autodoc__target">{partName(data.target)}</div>
+        <PartDamage parts={data.parts} target={data.target} />
       </div>
       <div className="Autodoc__right">
         <div className="Autodoc__heading">Surgeries</div>
