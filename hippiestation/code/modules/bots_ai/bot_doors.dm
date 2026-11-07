@@ -237,14 +237,19 @@ GLOBAL_LIST_EMPTY(bot_door_buttons_out_of_reach)
 	// a way through (press_access_button()). Searches never went through it, so a Virologist couldn't get into its own lab, or
 	// out again, on any lawful errand.
 	if(locked)
-		return bot_access_button_for(src, ID) ? TRUE : .
+		return bot_access_button_for(src, ID, get_step(src, to_dir)) ? TRUE : .
 	return H.bot_brain.door_button_for(src, get_step(src, to_dir)) ? TRUE : FALSE
 
-/// The working access button beside a bolted airlock that this ID opens.
-/proc/bot_access_button_for(obj/machinery/door/airlock/D, obj/item/card/id/ID)
+/// What works a bolted airlock from `from` (the tile it's come up to it on) with this ID: an access button within reach of there, or the
+/// airlock controller that cycles it. Box and Hippie's Virology have the interior door's button in the airlock between the doors, out
+/// of reach from the lab: from inside, it's the access console beside the door, as a player does it.
+/proc/bot_access_button_for(obj/machinery/door/airlock/D, obj/item/card/id/ID, turf/from)
 	for(var/obj/machinery/doorButtons/access_button/B in range(1, D))
-		if(B.idDoor == D.id_tag && !(B.stat & (NOPOWER|BROKEN)) && B.check_access(ID))
+		if(B.idDoor == D.id_tag && !(B.stat & (NOPOWER|BROKEN)) && B.check_access(ID) && (!from || get_dist(B, from) <= 1))
 			return B
+	for(var/obj/machinery/doorButtons/airlock_controller/C in range(2, D))
+		if((C.interiorAirlock == D || C.exteriorAirlock == D) && !(C.stat & (NOPOWER|BROKEN)) && C.check_access(ID) && (!from || get_dist(C, from) <= 1))
+			return C
 	return null
 
 /// The card it'll swipe at a door, if it's out on business that calls for one.
@@ -375,15 +380,33 @@ GLOBAL_LIST_EMPTY(bot_door_buttons_out_of_reach)
 /datum/bot_brain/proc/press_access_button(obj/machinery/door/airlock/D)
 	if(!istype(D) || !D.id_tag)
 		return FALSE
-	for(var/obj/machinery/doorButtons/access_button/B in range(1, D))
-		if(B.idDoor != D.id_tag || (B.stat & (NOPOWER|BROKEN)) || !owner.Adjacent(B) || !B.allowed(owner))
-			continue
-		if(B.busy || B.controller?.busy)
+	var/obj/machinery/doorButtons/B = bot_access_button_for(D, owner.get_idcard(TRUE), get_turf(owner))
+	if(!B || !owner.Adjacent(B))
+		return FALSE
+	if(istype(B, /obj/machinery/doorButtons/access_button))
+		var/obj/machinery/doorButtons/access_button/button = B
+		if(button.busy || button.controller?.busy)
 			return TRUE //cycling already: wait for it
-		human_pause(B)
-		owner.face_atom(B)
-		telemetry_clicked(B)
-		B.interact(owner)
-		bot_log(src, "pressed [B] for [D]")
+		human_pause(button)
+		owner.face_atom(button)
+		telemetry_clicked(button)
+		button.interact(owner)
+		bot_log(src, "pressed [button] for [D]")
 		return TRUE
-	return FALSE
+	var/obj/machinery/doorButtons/airlock_controller/C = B
+	if(C.busy)
+		return TRUE
+	human_pause(C)
+	owner.face_atom(C)
+	// Its "open" command, or "cycle" when the other door's stood open (they don't close by themselves): the controller won't open one
+	// door with the other open, and a doctor's open from the console came to nothing and it gave up on the route.
+	var/obj/machinery/door/airlock/other = (D == C.interiorAirlock) ? C.exteriorAirlock : C.interiorAirlock
+	var/side = D == C.interiorAirlock ? "interior" : "exterior"
+	if(other && !other.density)
+		telemetry_ui_action(C, "cycle [side]")
+		C.cycleClose(D)
+	else
+		telemetry_ui_action(C, "open [side]")
+		C.onlyOpen(D)
+	bot_log(src, "worked [C] for [D]")
+	return TRUE

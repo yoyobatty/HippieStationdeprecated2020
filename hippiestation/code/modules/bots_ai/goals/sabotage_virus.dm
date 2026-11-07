@@ -202,6 +202,16 @@ GLOBAL_LIST_INIT(bot_lethal_symptoms, typecacheof(list(/datum/symptom/fire, /dat
 	bot_log(bot, "SABOTAGE: ground [ground.reagents.get_reagent_amount(/datum/reagent/toxin/plasma)]u of plasma")
 	return (ground in bot.owner.GetAllContents()) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 
+/// Both hands free for what comes out of a smartfridge: into the bag, or set down a moment (picked back up after, bot_items.dm). A Hippie
+/// virologist's hands and bag were full, the bottle had nowhere to go, and it gave the plague up at the fridge.
+/datum/bot_brain/proc/empty_hands_for_fridge()
+	for(var/obj/item/held in owner.held_items)
+		if(put_away(held, allow_equip = FALSE))
+			continue
+		bot_log(src, "setting [held] down for a moment")
+		owner.dropItemToGround(held)
+		LAZYADD(set_down_items, held)
+
 /datum/bot_brain/proc/nearest_pandemic()
 	var/obj/machinery/computer/pandemic/best
 	for(var/obj/machinery/computer/pandemic/P as anything in bot_instances_of(/obj/machinery/computer/pandemic))
@@ -221,15 +231,16 @@ GLOBAL_LIST_INIT(bot_lethal_symptoms, typecacheof(list(/datum/symptom/fire, /dat
 		wanted += (locate(/obj/item/reagent_containers/glass/bottle/flu_virion) in F) || (locate(/obj/item/reagent_containers/glass/bottle/cold) in F)
 	if(!(locate(/obj/item/reagent_containers/glass/bottle/plasma) in bot.owner.GetAllContents()))
 		wanted += locate(/obj/item/reagent_containers/glass/bottle/plasma) in F
+	if(length(wanted))
+		bot.empty_hands_for_fridge()
 	for(var/obj/item/I in wanted)
 		bot.human_pause(F)
 		if(QDELETED(F) || QDELETED(I) || I.loc != F || !bot.owner.Adjacent(F))
 			return GOAL_STEP_FAIL
 		bot.owner.face_atom(F)
 		bot.telemetry_ui_action(F, "release [I.name]")
-		if(bot.owner.get_active_held_item() && bot.owner.get_inactive_held_item())
-			bot.put_away(bot.owner.get_active_held_item(), allow_equip = FALSE)
 		if(!bot.owner.put_in_hands(I))
+			bot_log(bot, "no hand free for [I]")
 			return GOAL_STEP_FAIL
 		F.update_icon()
 		bot.put_away(I, allow_equip = FALSE)
@@ -400,7 +411,16 @@ GLOBAL_LIST_INIT(bot_lethal_symptoms, typecacheof(list(/datum/symptom/fire, /dat
 /datum/bot_step/paced/spike_drink/do_click(datum/bot_brain/bot)
 	var/obj/item/reagent_containers/food/drinks/drinkingglass/G = goal.target
 	var/obj/item/reagent_containers/glass/beaker/B = bot.carried_plague()
-	if(poured || QDELETED(G) || !B || !isturf(G.loc) || !bot.owner.Adjacent(G)) //on the bar still: one was "spiked" in a customer's hand
+	if(poured)
+		return FALSE
+	if(QDELETED(G) || !isturf(G.loc)) //on the bar still: one was "spiked" in a customer's hand
+		bot_log(bot, "SABOTAGE: [G] isn't on the bar any more")
+		return FALSE
+	if(!B)
+		bot_log(bot, "SABOTAGE: nothing left to put in [G]")
+		return FALSE
+	if(!bot.owner.Adjacent(G))
+		bot_log(bot, "SABOTAGE: can't reach [G] from [bot_coord(bot.owner)]")
 		return FALSE
 	if(!bot.sabotage_unwatched(waiting_since))
 		wait_for = 10
@@ -689,9 +709,9 @@ GLOBAL_LIST_EMPTY(bot_virus_cures_known)
 	if(QDELETED(S) || S.loc != F)
 		return GOAL_STEP_FAIL
 	bot.telemetry_ui_action(F, "release [S.name]")
-	if(bot.owner.get_active_held_item() && bot.owner.get_inactive_held_item())
-		bot.put_away(bot.owner.get_active_held_item(), allow_equip = FALSE)
+	bot.empty_hands_for_fridge()
 	if(!bot.owner.put_in_hands(S))
+		bot_log(bot, "no hand free for [S]")
 		return GOAL_STEP_FAIL
 	F.update_icon()
 	bot.put_away(S, allow_equip = FALSE)

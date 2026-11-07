@@ -46,13 +46,13 @@
 	var/list/parts = list()
 	var/list/hot = list() //in among the radiation
 	for(var/obj/machinery/atmospherics/components/binary/pump/P as anything in bot_instances_of(/obj/machinery/atmospherics/components/binary/pump))
-		if(P.on && P.z == S.z && get_dist(S, P) <= 22 && sm_loop_pump(P))
+		if(P.on && P.z == S.z && get_dist(S, P) <= 22 && sm_loop_pump(P) && !is_failed_engine_part(P))
 			if(bot_in_crystal_rads(P))
 				hot += P
 			else
 				parts += P
 	for(var/obj/machinery/atmospherics/components/trinary/filter/F as anything in bot_instances_of(/obj/machinery/atmospherics/components/trinary/filter))
-		if(F.on && F.z == S.z && get_dist(S, F) <= 22 && sm_in_engine_room(F))
+		if(F.on && F.z == S.z && get_dist(S, F) <= 22 && sm_in_engine_room(F) && !is_failed_engine_part(F))
 			if(bot_in_crystal_rads(F))
 				hot += F
 			else
@@ -113,6 +113,11 @@
 		to_part.step_target = A
 		S.steps += list(to_part, new /datum/bot_step/paced/sabotage_switch_off(src, A))
 	return list(S)
+
+/// One it couldn't get to is left alone a while: a Box doctor went for the pump between the chamber's doors four times running.
+/datum/bot_goal/sabotage_engine/on_give_up(datum/bot_brain/bot)
+	if(target)
+		LAZYSET(bot.failed_engine_parts, target, world.time + rand(600, 1200))
 
 /datum/bot_goal/sabotage_engine/on_success(datum/bot_brain/bot)
 	if(!done)
