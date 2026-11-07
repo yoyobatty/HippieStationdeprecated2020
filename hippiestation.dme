@@ -3449,6 +3449,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\sabotage_engine.dm"
 #include "hippiestation\code\modules\bots_ai\goals\sabotage_grenades.dm"
 #include "hippiestation\code\modules\bots_ai\goals\sabotage_slimes.dm"
+#include "hippiestation\code\modules\bots_ai\goals\sabotage_virus.dm"
 #include "hippiestation\code\modules\bots_ai\goals\science.dm"
 #include "hippiestation\code\modules\bots_ai\goals\security_patrol.dm"
 #include "hippiestation\code\modules\bots_ai\goals\security_armed.dm"

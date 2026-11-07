@@ -128,7 +128,7 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	if(!M)
 		return
 	fridge = bot.find_reachable_chem_fridge()
-	recipe = bot.brew_for_sabotage() //goals/sabotage_grenades.dm
+	recipe = bot.brew_for_sabotage() || bot.brew_for_cure() //goals/sabotage_grenades.dm, goals/sabotage_virus.dm
 	for_self = !!recipe
 	recipe = recipe || bot.brew_for_order() || bot.brew_for_poppies() //bot_collabs.dm
 	if(!recipe)

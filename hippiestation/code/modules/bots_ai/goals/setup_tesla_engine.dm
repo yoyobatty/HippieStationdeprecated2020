@@ -106,13 +106,28 @@ GLOBAL_VAR(bot_tesla_site)
 			return site
 	return null
 
-/// An emitter on the running engine that's off or starved. One that loses its wire switches itself off and stays off.
-/proc/bot_emitter_trouble()
+/// An emitter on the running engine that's off or starved, that this engineer would know about. One with no power (no wire under it:
+/// one that loses its wire switches itself off and stays off) is on the engine monitor the moment it goes, as the cut cables by the
+/// tesla are (repair_cables.dm). One somebody has switched off isn't: it's seen, by an engineer within sight of it, or heard of on
+/// the engineering channel (notice_emitters_down()). Every engineer used to know within a tick: a saboteur's click on the tesla's
+/// emitters had one shouting about it from Medbay, and in five tries the field never got near failing.
+/// With no bot: whether there's any at all. Never for a saboteur (goals/sabotage.dm): an engineer that had switched them off saw
+/// them off, and its own engineer's duty switched them back on, ten times over in a minute.
+/proc/bot_emitter_trouble(datum/bot_brain/bot)
+	if(bot?.saboteur)
+		return FALSE
 	var/turf/site = bot_caged_tesla_site()
 	if(!site)
 		return FALSE
+	var/heard = GLOB.bot_emitters_down_called && world.time < GLOB.bot_emitters_down_called + 3 MINUTES
 	for(var/obj/machinery/power/emitter/anchored/E as anything in bot_instances_of(/obj/machinery/power/emitter/anchored))
-		if(E.z == site.z && E.state == 2 && get_dist(site, E) <= BOT_ENGINE_LOCAL_REACH && (!E.active || !E.powered)) //EMITTER_WELDED
+		if(E.z != site.z || E.state != 2 || get_dist(site, E) > BOT_ENGINE_LOCAL_REACH) //EMITTER_WELDED
+			continue
+		if(!E.powernet || !E.powered)
+			return TRUE
+		if(E.active)
+			continue
+		if(!bot || heard || (bot.owner.z == E.z && get_dist(bot.owner, E) <= 7 && (E in view(7, bot.owner))))
 			return TRUE
 	return FALSE
 
@@ -134,11 +149,12 @@ GLOBAL_VAR(bot_tesla_site)
 	if(!goal || goal.never_rests || istype(goal, /datum/bot_goal/repair_cable) || istype(goal, /datum/bot_goal/activate_tesla_emitter) \
 		|| istype(goal, /datum/bot_goal/configure_smes) || istype(goal, /datum/bot_goal/acquire_tool))
 		return FALSE
-	return bot_emitter_trouble()
+	return bot_emitter_trouble(bot)
 
 /datum/bot_duty/engine_alarm/try_start(datum/bot_brain/bot)
-	if(!bot_emitter_trouble())
+	if(!bot_emitter_trouble(bot))
 		return FALSE
+	bot.notice_emitters_down() //whoever's seen it says so first, whatever it goes and does about it
 	return bot.assign_goal(new /datum/bot_goal/configure_smes()) || bot.try_cable_repair_round() || bot.assign_goal(new /datum/bot_goal/activate_tesla_emitter())
 
 // Returns null, NOT engine_room_anchor(), when the tesla generator can't be found -
@@ -330,6 +346,9 @@ GLOBAL_VAR(bot_tesla_site)
 	var/running = !anchor
 	if(running)
 		anchor = bot_caged_tesla_site() //the generator's gone because the engine's going: keep it going
+		// and only an emitter this engineer knows is down: one switched off is seen or heard of, not just known (bot_emitter_trouble())
+		if(anchor && !strict && !bot_emitter_trouble(src))
+			return null
 	if(!anchor) //tesla generator gone - see tesla_component_anchor()'s comment
 		return null
 	var/turf/bot_turf = get_turf(owner)

@@ -51,8 +51,15 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 
 /datum/bot_brain/proc/sm_part_free(atom/A)
 	// Not in where the running crystal's radiation reaches, without a radiation suit on (bot_hazards.dm): a collector out of plasma can
-	// wait, as it does for most crews, and the crystal runs on without it.
-	return !is_failed_engine_part(A) && !taken_by_another(A) && (!bot_in_crystal_rads(A) || bot_rad_suited(owner))
+	// wait, as it does for most crews, and the crystal runs on without it. Not so a crystal that's losing integrity: then an engineer
+	// gets into a radiation suit and goes in (/datum/bot_step/suit_up_for_rads, goals/sabotage_engine.dm). A saboteur's switched-off
+	// loop on Box and Meta delaminated both crystals with every engineer stood outside the radiation.
+	return !is_failed_engine_part(A) && !taken_by_another(A) && (!bot_in_crystal_rads(A) || bot_rad_suited(owner) || (sm_crystal_failing() && find_rad_suit()))
+
+/// The station's crystal losing integrity, as the supermatter monitor shows it.
+/datum/bot_brain/proc/sm_crystal_failing()
+	var/obj/machinery/power/supermatter_crystal/S = station_crystal()
+	return S && S.get_integrity() < 100
 
 /// Atmospherics next door is /area/engine as well.
 /datum/bot_brain/proc/sm_in_engine_room(atom/A)
@@ -226,6 +233,10 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 
 /datum/bot_duty/supermatter/try_start(datum/bot_brain/bot)
 	var/obj/machinery/power/supermatter_crystal/S = bot.station_crystal()
+	// A saboteur (goals/sabotage.dm) helps start it, for cover, and doesn't look after it once it's lit: it would put back the loop it
+	// had just switched off, as the tesla's saboteurs switched their emitters back on (bot_emitter_trouble()).
+	if(S && bot.saboteur && S.power >= 100)
+		return FALSE
 	return S && bot.next_sm_job(S) ? bot.assign_goal(new /datum/bot_goal/setup_supermatter()) : FALSE
 
 /datum/bot_brain/proc/continue_supermatter_round()
@@ -257,6 +268,8 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 		S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/sm_take_hold(), to_port, new /datum/bot_step/move_to/step_off(), let_go)
 	else
 		S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/sm_work())
+	if(bot_in_crystal_rads(target) && !bot_rad_suited(bot.owner))
+		S.steps.Insert(1, new /datum/bot_step/suit_up_for_rads())
 	return list(S)
 
 /datum/bot_goal/setup_supermatter/on_success(datum/bot_brain/bot)

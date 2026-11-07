@@ -439,12 +439,22 @@ GLOBAL_LIST_EMPTY(bot_panels_known)
 /datum/bot_duty/check_the_engine/applies_to(datum/bot_brain/bot)
 	return bot.work_role() in GLOB.engineering_positions
 
+/// When an engineer next goes and has a look at the running tesla, on its rounds.
+GLOBAL_VAR_INIT(bot_next_engine_look, 0)
+
 /datum/bot_duty/check_the_engine/try_start(datum/bot_brain/bot)
+	var/turf/tesla = bot_caged_tesla_site() //goals/setup_tesla_engine.dm
 	if(!bot.engine_alarm_at || world.time > bot.engine_alarm_at + 2 MINUTES)
-		return FALSE
+		// Now and then one goes and looks at a running tesla anyway: an emitter somebody's switched off is seen, not known
+		// (bot_emitter_trouble()), and in a Bot Shift nobody went near one in the five minutes a saboteur's field took to fail.
+		if(!tesla || bot.saboteur || world.time < GLOB.bot_next_engine_look || !prob(25))
+			return FALSE
+		GLOB.bot_next_engine_look = world.time + rand(3 MINUTES, 6 MINUTES)
 	bot.engine_alarm_at = 0
 	var/obj/machinery/power/emitter/nearest
 	for(var/obj/machinery/power/emitter/E as anything in bot_instances_of(/obj/machinery/power/emitter))
+		if(tesla && (E.z != tesla.z || get_dist(E, tesla) > 40)) //BOT_ENGINE_LOCAL_REACH, goals/setup_tesla_engine.dm
+			continue
 		if(E.z == bot.owner.z && (!nearest || get_dist(bot.owner, E) < get_dist(bot.owner, nearest)))
 			nearest = E
 	if(!nearest || !bot.can_walk_lawfully_to(nearest) || !bot.assign_goal(new /datum/bot_goal/stand_over_engine(nearest)))

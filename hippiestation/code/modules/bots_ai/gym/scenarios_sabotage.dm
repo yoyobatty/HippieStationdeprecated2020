@@ -441,6 +441,54 @@
 		fail_reason = "beat it to death: the gun stayed on disable"
 		return BOT_GYM_FAIL
 
+/// A tesla out of its cage (goals/sabotage_engine.dm): whoever sees it calls it in, and a head calls the shuttle for it
+/datum/bot_scenario/duty/loose_engine
+	name = "engine: a head who sees the tesla loose calls it in and calls the shuttle"
+	desc = "A tesla ball loose in the room (held still for the test, nowhere near a cage) and the HoP by a communications console. The HoP says on the radio that it's loose and calls the shuttle for it. A loose tesla used to go unremarked until the shift was up."
+	duty_type = /datum/bot_duty/call_shuttle
+	job = "Head of Personnel"
+	time_limit = 40 SECONDS
+	station_wide = TRUE //the shift's end time, which the other shuttle scenario sets to now
+	layout = list(
+		"################",
+		"#...B.K........#",
+		"#..............#",
+		"#..............#",
+		"#...........o..#",
+		"################")
+	var/obj/singularity/energy_ball/ball
+
+/datum/bot_scenario/duty/loose_engine/setup()
+	GLOB.bot_shift_ends_at = world.time + 2 HOURS
+	if("bot_engine_loose_called" in GLOB.vars)
+		GLOB.vars["bot_engine_loose_called"] = 0
+	for(var/turf/T in markers["K"])
+		place("K", new /obj/machinery/computer/communications(T))
+	ball = new(first_marker("o"))
+	STOP_PROCESSING(SSobj, ball) //where it is, and no zapping
+
+/datum/bot_scenario/duty/loose_engine/post_spawn()
+	..()
+	give_job_id(list(ACCESS_HEADS))
+
+/datum/bot_scenario/duty/loose_engine/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	bot_refresh_hazards() //a scripted gym bot doesn't redraw them, and on the station somebody's always about to
+	if(!brain.shuttle_calls || brain.state != BOT_STATE_WANDER)
+		return BOT_GYM_PENDING
+	if(!bot_transcript_said("loose"))
+		fail_reason = "called the shuttle without saying the tesla was loose"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/duty/loose_engine/release_run()
+	if(!QDELETED(ball))
+		qdel(ball)
+	if("bot_engine_loose_called" in GLOB.vars)
+		GLOB.vars["bot_engine_loose_called"] = 0
+	return ..()
+
 /// Hippie's superboom bomber (goals/sabotage_grenades.dm): the pill a chemist saboteur makes, swallowed running in among them
 /obj/item/reagent_containers/pill/bot_gym_superboom
 	name = "multivitamin pill"
@@ -477,3 +525,151 @@
 		fail_reason = "went up [last_turf ? "[get_dist(last_turf, first_marker("O"))] tiles from them" : "nowhere"]"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+/// The plague (goals/sabotage_virus.dm): a Virologist saboteur works the flu up with the plasma, a look in the PanDEMIC after each drop,
+/// and spikes the drinks out on the bar
+/datum/bot_scenario/sabotage/virus
+	name = "sabotage: a virologist saboteur works up a plague at the PanDEMIC and spikes the drinks"
+	desc = "An undercover traitor virologist, the virus fridge (f) with its flu culture and plasma, the PanDEMIC (p) and two drinks on tables (d). It takes the flu and the plasma, pours the flu into its beaker, drops plasma in five units at a time and reads it at the PanDEMIC until it kills or the plasma's gone, then puts some in each drink. Nothing a bot did before."
+	job = "Virologist"
+	act_id = "virus"
+	time_limit = 120 SECONDS
+	kit_backpack = list(/obj/item/reagent_containers/glass/beaker/large)
+	layout = list(
+		"##############",
+		"#B..f..p.....#",
+		"#............#",
+		"#............#",
+		"#.......t..t.#",
+		"##############")
+
+/datum/bot_scenario/sabotage/virus/build_tile(turf/T, char)
+	switch(char)
+		if("f")
+			place(char, new /obj/machinery/smartfridge/chemistry/virology/preloaded(T))
+		if("p")
+			place(char, new /obj/machinery/computer/pandemic(T))
+		if("t")
+			new /obj/structure/table(T)
+			var/obj/item/reagent_containers/food/drinks/drinkingglass/G = new(T)
+			G.reagents.add_reagent(/datum/reagent/consumable/ethanol/beer, 20)
+			place(char, G)
+		else
+			return ..()
+
+/datum/bot_scenario/sabotage/virus/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/spiked = 0
+	for(var/obj/item/reagent_containers/food/drinks/drinkingglass/G in arena_area)
+		var/datum/disease/advance/D = bot_virus_in(G)
+		if(D && length(D.symptoms) > 1)
+			spiked++
+	return spiked >= 2 ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// The cure side (goals/sabotage_virus.dm): somebody sick in sight, what cures it read off an analyzer, a pill of it made and given
+/datum/bot_scenario/duty/cure_the_sick
+	name = "virus: a virologist sees somebody sick, makes the cure at the dispenser and doses them"
+	desc = "A crewmate with the flu, whose cure is sugar, standing in the lab, and a dispenser and ChemMaster. The Virologist makes a sugar pill and gives it to them. Nobody in the bot crew did more about a disease than say they'd noticed it."
+	duty_type = /datum/bot_duty/cure_the_sick
+	job = "Virologist"
+	time_limit = 90 SECONDS
+	kit_backpack = list(/obj/item/reagent_containers/glass/beaker/large)
+	layout = list(
+		"###########",
+		"#B..D...M.#",
+		"#.........#",
+		"#.......y.#",
+		"###########")
+	var/mob/living/carbon/human/patient
+	/// The cure the patient's disease is set to.
+	var/cure = /datum/reagent/consumable/sugar
+
+/datum/bot_scenario/duty/cure_the_sick/build_tile(turf/T, char)
+	switch(char)
+		if("D")
+			place(char, new /obj/machinery/chem_dispenser(T))
+		if("M")
+			place(char, new /obj/machinery/chem_master(T))
+		else
+			return ..()
+
+/datum/bot_scenario/duty/cure_the_sick/post_spawn()
+	..()
+	patient = stand_in(first_marker("y"), "Sid Sneezer")
+	patient.ForceContractDisease(new /datum/disease/advance/flu, FALSE, TRUE)
+	for(var/datum/disease/D in patient.diseases)
+		D.cures = list(cure)
+		D.cure_text = "something"
+		D.visibility_flags &= ~HIDDEN_SCANNER
+
+/datum/bot_scenario/duty/cure_the_sick/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(patient))
+		fail_reason = "the patient's gone"
+		return BOT_GYM_FAIL
+	return (patient.reagents.has_reagent(cure) || !length(patient.diseases)) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/cure_the_sick/release_run()
+	if(!QDELETED(patient))
+		qdel(patient)
+	return ..()
+
+/// Spaceacillin: there's antiviral in syringes in the virus fridge
+/datum/bot_scenario/duty/cure_the_sick/antiviral
+	name = "virus: a virologist takes an antiviral syringe out of the fridge for somebody whose cure is spaceacillin"
+	desc = "The same, but the flu's cure is spaceacillin, which the dispenser can't make: the virus fridge (f) has it in syringes. The Virologist takes one and injects them."
+	cure = /datum/reagent/medicine/spaceacillin
+	layout = list(
+		"###########",
+		"#B..f.....#",
+		"#.........#",
+		"#.......y.#",
+		"###########")
+
+/datum/bot_scenario/duty/cure_the_sick/antiviral/build_tile(turf/T, char)
+	if(char == "f")
+		place(char, new /obj/machinery/smartfridge/chemistry/virology/preloaded(T))
+		return
+	return ..()
+
+/// Hippie Station's Virology has two plasma sheets and a grinder: a plague that doesn't kill when the bottle's done gets eight more drops
+/datum/bot_scenario/sabotage/virus/grind
+	name = "sabotage: a virologist saboteur out of bottled plasma grinds the lab's plasma sheets for more"
+	desc = "The same, with a grinder (Q) and two plasma sheets (Z) in the lab, and only one drop's worth of plasma in the bottle. It grinds the sheets in the grinder's beaker, takes the beaker out and goes on dropping plasma in. Bots used what was in the bottle and stopped."
+	time_limit = 150 SECONDS
+	layout = list(
+		"##############",
+		"#B..f..p..Q..#",
+		"#.........Z..#",
+		"#............#",
+		"#.......t..t.#",
+		"##############")
+	var/obj/machinery/reagentgrinder/grinder
+
+/datum/bot_scenario/sabotage/virus/grind/build_tile(turf/T, char)
+	switch(char)
+		if("Q")
+			grinder = new(T)
+			place(char, grinder)
+		if("Z")
+			place(char, new /obj/item/stack/sheet/mineral/plasma(T, 2))
+		else
+			return ..()
+
+/datum/bot_scenario/sabotage/virus/grind/post_spawn()
+	..()
+	for(var/obj/machinery/smartfridge/F in arena_area)
+		for(var/obj/item/reagent_containers/glass/bottle/plasma/P in F)
+			P.reagents.remove_reagent(/datum/reagent/toxin/plasma, 25) //one drop: not enough to kill, near enough always
+
+/datum/bot_scenario/sabotage/virus/grind/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	. = ..()
+	if(. != BOT_GYM_PASS)
+		return
+	if(!bot_transcript_said("ground"))
+		fail_reason = bot_transcript_said("it kills now") ? "it killed off the bottle alone: nothing to grind for (a luckier run than this test is about)" : "spiked the drinks without grinding the sheets"
+		return BOT_GYM_FAIL

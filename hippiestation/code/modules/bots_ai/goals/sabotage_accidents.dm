@@ -1,10 +1,11 @@
 // Accidents (the user's ruling, 2026-11-06): at BOT_CHAOS 2 the ordinary crew get things wrong as well as the saboteurs getting them
-// right. Two of them, now and then, from the chaos director (bot_chaos.dm), each on somebody who's at that work:
+// right. Three of them, now and then, from the chaos director (bot_chaos.dm), each on somebody who's at that work:
 //
 //  - a slime out of Xenobiology: the scientist working the pens leaves the door, and a hungry slime ends up in the corridor. What
 //    the crew does about a loose slime is the same as for one let out on purpose (goals/sabotage_slimes.dm).
 //  - a chemist's beaker goes up: the wrong thing into the wrong beaker at the dispenser, a small blast in the lab (the potassium and
 //    water any chemist knows not to mix). The hurt go to Medbay as they would after any blast.
+//  - a careless virologist: a culture knocked over, and an experimental virus in the virologist (accident_virus_leak(), below).
 
 /// From the chaos director at level 2: a slime gets out past a scientist at the pens. TRUE if it happened.
 /datum/bot_chaos/proc/accident_slime_out()
@@ -53,5 +54,22 @@
 		var/datum/effect_system/reagents_explosion/boom = new()
 		boom.set_up(3, get_turf(B.owner), 0, 0)
 		boom.start()
+		return TRUE
+	return FALSE
+
+/// A careless virologist (the user's list): a culture knocked over in Virology, and an experimental virus in whoever was working
+/// on it. It says so on the radio; curing it is the medics' as for any other (goals/sabotage_virus.dm), the virologist's own included.
+/datum/bot_chaos/proc/accident_virus_leak()
+	for(var/datum/bot_brain/B as anything in shuffle(GLOB.bot_brains.Copy()))
+		if(B.owner.stat != CONSCIOUS || B.work_role() != "Virologist" || B.gym_run || B.saboteur || !istype(get_area(B.owner), /area/medical/virology))
+			continue
+		var/datum/disease/advance/random/D = new(rand(3, 5), 6)
+		if(!B.owner.ForceContractDisease(D, FALSE, TRUE))
+			continue
+		bot_log(B, "ACCIDENT: knocked over a culture - [D.name] ([bot_virus_symptoms(D)])")
+		log_game("BOT CHAOS: [key_name(B.owner)] knocked over a culture and caught [D.name] ([bot_virus_symptoms(D)]) at [AREACOORD(B.owner)]")
+		bot_say(B.owner, pick("Ugh, that went everywhere.", "Oh, that's not good."), TRUE)
+		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_say), B.owner, ";Virology here, I've had a spill. Anybody feeling ill, come and see me."), 3 SECONDS)
+		GLOB.bot_sick_known[WEAKREF(B.owner)] = world.time
 		return TRUE
 	return FALSE

@@ -356,3 +356,22 @@ GLOBAL_LIST_EMPTY(bot_door_buttons_out_of_reach)
 		return GOAL_STEP_FAIL
 	LAZYREMOVE(bot.door_button_presses, G.door)
 	return GOAL_STEP_SUCCESS
+
+/// A bolted airlock that's worked by an access button beside it (/obj/machinery/doorButtons/access_button: Hippie Station's Virology,
+/// whose two doors are bolted and cycled by its airlock controller): the button, pressed as a player presses it, if this bot's ID is
+/// let in. The Virologist couldn't get into its own lab: it swiped an emag at the bolted door, then went looking for tools to hack it.
+/datum/bot_brain/proc/press_access_button(obj/machinery/door/airlock/D)
+	if(!istype(D) || !D.id_tag)
+		return FALSE
+	for(var/obj/machinery/doorButtons/access_button/B in range(1, D))
+		if(B.idDoor != D.id_tag || (B.stat & (NOPOWER|BROKEN)) || !owner.Adjacent(B) || !B.allowed(owner))
+			continue
+		if(B.busy || B.controller?.busy)
+			return TRUE //cycling already: wait for it
+		human_pause(B)
+		owner.face_atom(B)
+		telemetry_clicked(B)
+		B.interact(owner)
+		bot_log(src, "pressed [B] for [D]")
+		return TRUE
+	return FALSE

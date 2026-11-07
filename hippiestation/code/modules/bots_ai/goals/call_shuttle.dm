@@ -27,6 +27,11 @@ GLOBAL_LIST_INIT(bot_shuttle_casualty_reasons, list(
 	"We've lost too many people. Evacuating the station.",
 ))
 
+/// goals/sabotage_engine.dm: the tesla (or a singularity) out of its cage, and somebody's said so
+GLOBAL_LIST_INIT(bot_shuttle_engine_reasons, list(
+	"The engine's loose and there's no stopping it. Evacuating the station.",
+	"Engine containment has failed. Everybody to the shuttle.",
+))
 GLOBAL_LIST_INIT(bot_shuttle_suit_reasons, list(
 	"A Syndicate agent in a nanosuit is killing the crew and Security can't stop them. Evacuating.",
 	"Hostile in a Syndicate suit, several dead. Getting everyone off the station.",
@@ -90,6 +95,8 @@ GLOBAL_LIST_INIT(bot_shuttle_called_lines, list(
 	var/ends_at = bot_shift_end_time()
 	if(ends_at == -1)
 		return null
+	if(GLOB.bot_engine_loose_called && bot_loose_engine())
+		return pick(GLOB.bot_shuttle_engine_reasons)
 	if(bot_crew_decimated())
 		return pick(GLOB.bot_shuttle_casualty_reasons)
 	if(bot_unstoppable_suit())

@@ -418,6 +418,8 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 			return TRUE
 		if(!door_opens_for_me(D) && !D.locked && is_security_job() && bot_armory_open_for_security() && bot_is_armory_door(D))
 			return TRUE //the Warden's holding it: in a moment (goals/security_tactics.dm)
+		if(D.locked && press_access_button(D)) //bot_doors.dm: a bolted airlock with an access button beside it (Hippie's Virology)
+			return TRUE
 		if(!door_opens_for_me(D) && swipe_door(D)) //a traitor's card (bot_doors.dm)
 			return TRUE
 		// A welded door no longer has to be smashed or given up on: unweld it first (4s with a

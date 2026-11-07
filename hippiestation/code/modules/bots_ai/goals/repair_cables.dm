@@ -47,7 +47,7 @@ GLOBAL_VAR_INIT(bot_emitters_down_called, 0)
 
 /// Emitters off on a running engine: every break anybody knows about comes up at once, and it goes out on the engineering channel.
 /datum/bot_brain/proc/notice_emitters_down()
-	if(!bot_emitter_trouble())
+	if(!bot_emitter_trouble(src) || saboteur)
 		return
 	for(var/turf/T in GLOB.bot_cable_breaks)
 		GLOB.bot_cable_breaks[T]["notice"] = 0

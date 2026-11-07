@@ -69,6 +69,8 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 	for(var/obj/singularity/S as anything in GLOB.singularities)
 		for(var/turf/T as anything in RANGE_TURFS(BOT_HAZARD_BALL_RANGE, S))
 			hazards[T] = BOT_HAZARD_BALL
+	if(length(GLOB.singularities))
+		bot_notice_loose_engine() //goals/sabotage_engine.dm
 	// A supermatter crystal dusts whatever touches it, lit or not.
 	var/obj/machinery/power/supermatter_crystal/crystal = GLOB.main_supermatter_engine
 	if(!QDELETED(crystal))

@@ -212,6 +212,8 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 
 /// Whether it hangs on to this rather than put it in the fridge.
 /datum/bot_brain/proc/keeps_for_self(obj/item/reagent_containers/C)
+	if(wanted_cure && C.reagents?.has_reagent(wanted_cure)) //goals/sabotage_virus.dm: for a patient
+		return TRUE
 	var/list/wanted = chem_wishlist()
 	var/kind = bot_chem_kind_of(C)
 	return kind && carried_chems(kind) <= wanted?[kind]
