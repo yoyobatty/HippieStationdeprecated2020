@@ -1,559 +1,254 @@
-/proc/create_message(type, target_key, admin_ckey, text, timestamp, server, secret, logged = 1, browse, expiry, note_severity)
-	if(!SSdbcore.Connect())
-		to_chat(usr, "<span class='danger'>Failed to establish database connection.</span>", confidential=TRUE)
+//Notes, messages, watchlist entries and memos: SSnotes keeps them (code/modules/admin/note_ledger.dm), in the database when
+//there is one and on this server when there isn't. They're read and written in the Bans window's Notes tab
+//(hippiestation/code/modules/admin/ban_window.dm); these procs are what the old links and other code call.
+
+//How long a note shows, as the window and the prompts offer it: name = seconds, 0 for always
+GLOBAL_LIST_INIT(note_expiry_choices, list("Never" = 0, "1 day" = 86400, "1 week" = 604800, "1 month" = 2592000, "3 months" = 7776000, "1 year" = 31536000))
+
+//The admin's Bans window on its Notes tab, if usr is an admin who can have one
+/proc/open_notes_window(view, target_ckey, kind, compose)
+	var/client/C = usr?.client
+	if(!C?.holder)
 		return
+	C.open_ban_window("notes", list("view" = view, "ckey" = target_ckey, "compose" = compose, "kind" = kind))
+
+//Who a ckey is, as written: the last connection's key, else the ckey
+/proc/note_key_of(target_ckey)
+	var/client/C = GLOB.directory[target_ckey]
+	if(C)
+		return C.key
+	var/list/entry = SSbans.seen[target_ckey]
+	if(entry && entry["key"])
+		return entry["key"]
+	return target_ckey
+
+/proc/note_is_for_player(kind)
+	return kind == "note" || kind == "message" || kind == "message sent" || kind == "watchlist entry"
+
+//With text, makes one; with none (an admin's link), opens the window to write it in. expiry: seconds it shows for, 0 for always.
+/proc/create_message(type, target_key, admin_ckey, text, timestamp, server, secret, logged = 1, browse, expiry, note_severity)
 	if(!type)
 		return
-	var/target_ckey = ckey(target_key)
-	if(!target_key && (type == "note" || type == "message" || type == "watchlist entry"))
-		var/new_key = input(usr,"Who would you like to create a [type] for?","Enter a key or ckey",null) as null|text
-		if(!new_key)
-			return
-		var/new_ckey = sanitizeSQL(ckey(new_key))
-		var/datum/DBQuery/query_find_ckey = SSdbcore.NewQuery("SELECT ckey FROM [format_table_name("player")] WHERE ckey = '[new_ckey]'")
-		if(!query_find_ckey.warn_execute())
-			qdel(query_find_ckey)
-			return
-		if(!query_find_ckey.NextRow())
-			if(alert(usr, "[new_key]/([new_ckey]) has not been seen before, are you sure you want to create a [type] for them?", "Unknown ckey", "Yes", "No", "Cancel") != "Yes")
-				qdel(query_find_ckey)
-				return
-		qdel(query_find_ckey)
-		target_ckey = new_ckey
-		target_key = new_key
-	if(usr && QDELETED(usr)) //an admin gone during the prompts; system notes (cid randomizer, note conversion) can come with no usr at all
+	if(!text)
+		open_notes_window(note_is_for_player(type) ? "player" : (type == "memo" ? "memos" : "watchlist"), ckey(target_key), type, TRUE)
 		return
-	if(target_ckey)
-		target_ckey = sanitizeSQL(target_ckey)
-	if(!target_key)
-		target_key = target_ckey
+	if(usr && QDELETED(usr)) //an admin gone mid-way; system notes (cid randomizer, note conversion) can come with no usr at all
+		return
+	var/target_ckey = ckey(target_key)
 	if(!admin_ckey)
-		admin_ckey = usr.ckey
+		admin_ckey = usr?.ckey
 		if(!admin_ckey)
 			return
-	admin_ckey = sanitizeSQL(admin_ckey)
+	var/admin_key = (usr?.ckey == admin_ckey) ? usr.key : note_key_of(admin_ckey)
 	if(!target_ckey)
-		target_ckey = admin_ckey
-	if(!text)
-		text = input(usr,"Write your [type]","Create [type]") as null|message
-		if(!text)
-			return
-	var/sql_text = sanitizeSQL(text) //the logs and admins see the text as written
-	if(!timestamp)
-		timestamp = SQLtime()
-	if(!server)
-		var/ssqlname = CONFIG_GET(string/serversqlname)
-		if (ssqlname)
-			server = ssqlname
-	server = sanitizeSQL(server)
-	if(isnull(secret))
-		switch(alert("Hide note from being viewed by players?", "Secret note?","Yes","No","Cancel"))
-			if("Yes")
-				secret = 1
-			if("No")
-				secret = 0
-			else
-				return
-	if(isnull(expiry))
-		if(alert(usr, "Set an expiry time? Expired messages are hidden like deleted ones.", "Expiry time?", "Yes", "No", "Cancel") == "Yes")
-			var/expire_time = input("Set expiry time for [type] as format YYYY-MM-DD HH:MM:SS. All times in server time. HH:MM:SS is optional and 24-hour. Must be later than current time for obvious reasons.", "Set expiry time", SQLtime()) as null|text
-			if(!expire_time)
-				return
-			expire_time = sanitizeSQL(expire_time)
-			var/datum/DBQuery/query_validate_expire_time = SSdbcore.NewQuery("SELECT IF(STR_TO_DATE('[expire_time]','%Y-%c-%d %T') > NOW(), STR_TO_DATE('[expire_time]','%Y-%c-%d %T'), 0)")
-			if(!query_validate_expire_time.warn_execute())
-				qdel(query_validate_expire_time)
-				return
-			if(query_validate_expire_time.NextRow())
-				var/checktime = text2num(query_validate_expire_time.item[1])
-				if(!checktime)
-					to_chat(usr, "Datetime entered is improperly formatted or not later than current server time.", confidential=TRUE)
-					qdel(query_validate_expire_time)
-					return
-				expiry = query_validate_expire_time.item[1]
-			qdel(query_validate_expire_time)
-	if(type == "note" && isnull(note_severity))
-		note_severity = input("Set the severity of the note.", "Severity", null, null) as null|anything in list("High", "Medium", "Minor", "None")
-		if(!note_severity)
-			return
-	if(note_severity)
-		note_severity = sanitizeSQL(note_severity)
-	else
-		note_severity = null //system notes pass 0, and '0' isn't one of the severity column's values, so strict mode refused the note
-	var/datum/DBQuery/query_create_message = SSdbcore.NewQuery("INSERT INTO [format_table_name("messages")] (type, targetckey, adminckey, text, timestamp, server, server_ip, server_port, round_id, secret, expire_timestamp, severity) VALUES ('[type]', '[target_ckey]', '[admin_ckey]', '[sql_text]', '[timestamp]', '[server]', INET_ATON(IF('[world.internet_address]' LIKE '', '0', '[world.internet_address]')), '[world.port]', '[GLOB.round_id]','[secret]', [expiry ? "'[expiry]'" : "NULL"], [note_severity ? "'[note_severity]'" : "NULL"])")
-	var/pm = "[key_name(usr)] has created a [type][(type == "note" || type == "message" || type == "watchlist entry") ? " for [target_key]" : ""]: [text]"
-	var/header = "[key_name_admin(usr)] has created a [type][(type == "note" || type == "message" || type == "watchlist entry") ? " for [target_key]" : ""]"
-	if(!query_create_message.warn_execute())
-		qdel(query_create_message)
+		target_ckey = admin_ckey //a memo is filed under its writer
+	if(!target_key)
+		target_key = note_key_of(target_ckey)
+	if(length_char(text) > NOTE_TEXT_MAX)
+		to_chat(usr, "<span class='danger'>That [type] is [length_char(text)] characters long; the most it can be is [NOTE_TEXT_MAX].</span>", confidential=TRUE)
 		return
-	qdel(query_create_message)
+	if(note_severity)
+		note_severity = lowertext(note_severity)
+		if(!(note_severity in list("none", "minor", "medium", "high")))
+			note_severity = null
+	else
+		note_severity = null //system notes pass 0
+	var/expire_rt = (isnum(expiry) && expiry > 0) ? world.realtime + expiry * 10 : null
+	var/stored = SSnotes.add(type, target_ckey, target_key, admin_ckey, admin_key, text, secret, expire_rt, note_severity, timestamp)
+	if(!stored)
+		return
+	if(stored == "local" && CONFIG_GET(flag/sql_enabled))
+		to_chat(usr, "<span class='danger'>The database couldn't be reached. The [type] is kept on this server and goes to the database when it's back.</span>", confidential=TRUE)
 	if(logged)
-		log_admin_private(pm)
-		message_admins("[header]:<br>[text]")
-		admin_ticket_log(target_ckey, "<font color='blue'>[header]</font>")
+		var/for_text = note_is_for_player(type) ? " for [target_key]" : ""
+		log_admin_private("[key_name(usr)] has created a [type][for_text]: [text]")
+		message_admins("[key_name_admin(usr)] has created a [type][for_text]:<br>[text]")
+		admin_ticket_log(target_ckey, "<font color='blue'>[key_name_admin(usr)] has created a [type][for_text]</font>")
 		admin_ticket_log(target_ckey, text)
 		if(browse)
-			browse_messages("[type]")
-		else
-			browse_messages(target_ckey = target_ckey, agegate = TRUE)
+			open_notes_window(type == "memo" ? "memos" : (type == "watchlist entry" ? "watchlist" : "player"), target_ckey)
+	return stored
+
+//The note before a change, or null (and a message) if it's gone
+/proc/note_before_change(message_id)
+	. = SSnotes.get_row(message_id)
+	if(!.)
+		to_chat(usr, "<span class='danger'>That note is gone: deleted, expired, or in a database that can't be reached.</span>", confidential=TRUE)
+
+/proc/note_about(list/row)
+	return "[row["kind"]][note_is_for_player(row["kind"]) ? " for [row["target_key"]]" : ""] made by [row["admin_key"]]"
+
+/proc/note_set_text(message_id, new_text)
+	var/list/row = note_before_change(message_id)
+	if(!row || !new_text || new_text == row["text"])
+		return
+	if(length_char(new_text) > NOTE_TEXT_MAX)
+		to_chat(usr, "<span class='danger'>That's [length_char(new_text)] characters long; the most it can be is [NOTE_TEXT_MAX].</span>", confidential=TRUE)
+		return
+	if(!SSnotes.change(message_id, list("text" = new_text), usr.ckey, usr.key, "Edited by [usr.key] on [SQLtime()] from<br>[row["text"]]<br>to<br>[new_text]<hr>"))
+		return
+	log_admin_private("[key_name(usr)] has edited a [note_about(row)] from [row["text"]] to [new_text]")
+	message_admins("[key_name_admin(usr)] has edited a [note_about(row)] from<br>[row["text"]]<br>to<br>[new_text]")
+	return TRUE
+
+//seconds: from now, 0 for never
+/proc/note_set_expiry(message_id, seconds)
+	var/list/row = note_before_change(message_id)
+	if(!row)
+		return
+	var/old_text = row["expires"] || "non-expiring"
+	var/new_text = seconds ? SQLtime(world.realtime + seconds * 10) : "non-expiring"
+	if(!SSnotes.change(message_id, list("expire_seconds" = seconds), usr.ckey, usr.key, "Expiration time edited by [usr.key] on [SQLtime()] from [old_text] to [new_text]<hr>"))
+		return
+	log_admin_private("[key_name(usr)] has edited the expiration time of a [note_about(row)] from [old_text] to [new_text]")
+	message_admins("[key_name_admin(usr)] has edited the expiration time of a [note_about(row)] from [old_text] to [new_text]")
+	return TRUE
+
+/proc/note_set_severity(message_id, severity)
+	var/list/row = note_before_change(message_id)
+	if(!row || !(severity in list("none", "minor", "medium", "high")) || severity == row["severity"])
+		return
+	var/old = row["severity"] || "NA"
+	if(!SSnotes.change(message_id, list("severity" = severity), usr.ckey, usr.key, "Note severity edited by [usr.key] on [SQLtime()] from [old] to [severity]<hr>"))
+		return
+	log_admin_private("[key_name(usr)] has edited the severity of a [note_about(row)] from [old] to [severity]")
+	message_admins("[key_name_admin(usr)] has edited the severity of a [note_about(row)] from [old] to [severity]")
+	return TRUE
+
+/proc/note_toggle_secret(message_id)
+	var/list/row = note_before_change(message_id)
+	if(!row)
+		return
+	var/now_secret = !row["secret"]
+	if(!SSnotes.change(message_id, list("secret" = now_secret), usr.ckey, usr.key, "Made [now_secret ? "secret" : "not secret"] by [usr.key] on [SQLtime()]<hr>"))
+		return
+	log_admin_private("[key_name(usr)] has toggled [row["target_key"]]'s [row["kind"]] made by [row["admin_key"]] to [now_secret ? "secret" : "not secret"]")
+	message_admins("[key_name_admin(usr)] has toggled [row["target_key"]]'s [row["kind"]] made by [row["admin_key"]] to [now_secret ? "secret" : "not secret"]")
+	return TRUE
+
+/proc/note_delete(message_id)
+	var/list/row = note_before_change(message_id)
+	if(!row)
+		return
+	if(!SSnotes.change(message_id, list("deleted" = TRUE)))
+		return
+	var/for_player = note_is_for_player(row["kind"])
+	var/whom = for_player ? "for [row["target_key"]]" : "made by [row["admin_key"]]"
+	log_admin_private("[key_name(usr)] has deleted a [row["kind"]] [whom]: [row["text"]]")
+	message_admins("[key_name_admin(usr)] has deleted a [row["kind"]] [whom]:<br>[row["text"]]")
+	return TRUE
+
+//Where the old links went back to after a change
+/proc/note_show_after(list/row, browse)
+	if(!row)
+		return
+	if(browse || !note_is_for_player(row["kind"]))
+		open_notes_window(row["kind"] == "memo" ? "memos" : "watchlist")
+	else
+		open_notes_window("player", row["target_ckey"])
 
 /proc/delete_message(message_id, logged = 1, browse)
-	if(!SSdbcore.Connect())
-		to_chat(usr, "<span class='danger'>Failed to establish database connection.</span>", confidential=TRUE)
-		return
-	message_id = text2num(message_id)
-	if(!message_id)
-		return
-	var/type
-	var/target_key
-	var/text
-	var/user_key_name = key_name(usr)
-	var/user_name_admin = key_name_admin(usr)
-	var/datum/DBQuery/query_find_del_message = SSdbcore.NewQuery("SELECT type, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = targetckey), targetckey), text FROM [format_table_name("messages")] WHERE id = [message_id] AND deleted = 0")
-	if(!query_find_del_message.warn_execute())
-		qdel(query_find_del_message)
-		return
-	if(query_find_del_message.NextRow())
-		type = query_find_del_message.item[1]
-		target_key = query_find_del_message.item[2]
-		text = query_find_del_message.item[3]
-	qdel(query_find_del_message)
-	var/datum/DBQuery/query_del_message = SSdbcore.NewQuery("UPDATE [format_table_name("messages")] SET deleted = 1 WHERE id = [message_id]")
-	if(!query_del_message.warn_execute())
-		qdel(query_del_message)
-		return
-	qdel(query_del_message)
-	if(logged)
-		var/m1 = "[user_key_name] has deleted a [type][(type == "note" || type == "message" || type == "watchlist entry") ? " for" : " made by"] [target_key]: [text]"
-		var/m2 = "[user_name_admin] has deleted a [type][(type == "note" || type == "message" || type == "watchlist entry") ? " for" : " made by"] [target_key]:<br>[text]"
-		log_admin_private(m1)
-		message_admins(m2)
-		if(browse)
-			browse_messages("[type]")
-		else
-			browse_messages(target_ckey = ckey(target_key), agegate = TRUE)
+	var/list/row = SSnotes.get_row(message_id)
+	if(note_delete(message_id))
+		note_show_after(row, browse)
 
 /proc/edit_message(message_id, browse)
-	if(!SSdbcore.Connect())
-		to_chat(usr, "<span class='danger'>Failed to establish database connection.</span>", confidential=TRUE)
+	var/list/row = note_before_change(message_id)
+	if(!row)
 		return
-	message_id = text2num(message_id)
-	if(!message_id)
-		return
-	var/editor_ckey = sanitizeSQL(usr.ckey)
-	var/editor_key = sanitizeSQL(usr.key)
-	var/kn = key_name(usr)
-	var/kna = key_name_admin(usr)
-	var/datum/DBQuery/query_find_edit_message = SSdbcore.NewQuery("SELECT type, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = targetckey), targetckey), IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = adminckey), adminckey), text FROM [format_table_name("messages")] WHERE id = [message_id] AND deleted = 0")
-	if(!query_find_edit_message.warn_execute())
-		qdel(query_find_edit_message)
-		return
-	if(query_find_edit_message.NextRow())
-		var/type = query_find_edit_message.item[1]
-		var/target_key = query_find_edit_message.item[2]
-		var/admin_key = query_find_edit_message.item[3]
-		var/old_text = query_find_edit_message.item[4]
-		var/new_text = input("Input new [type]", "New [type]", "[old_text]") as null|message
-		if(!new_text)
-			qdel(query_find_edit_message)
-			return
-		var/sql_new_text = sanitizeSQL(new_text)
-		var/edit_text = sanitizeSQL("Edited by [editor_key] on [SQLtime()] from<br>[old_text]<br>to<br>[new_text]<hr>") //from the raw text: escaping it twice put the backslashes into the log
-		var/datum/DBQuery/query_edit_message = SSdbcore.NewQuery("UPDATE [format_table_name("messages")] SET text = '[sql_new_text]', lasteditor = '[editor_ckey]', edits = CONCAT(IFNULL(edits,''),'[edit_text]') WHERE id = [message_id] AND deleted = 0")
-		if(!query_edit_message.warn_execute())
-			qdel(query_edit_message)
-			return
-		qdel(query_edit_message)
-		log_admin_private("[kn] has edited a [type] [(type == "note" || type == "message" || type == "watchlist entry") ? " for [target_key]" : ""] made by [admin_key] from [old_text] to [new_text]")
-		message_admins("[kna] has edited a [type] [(type == "note" || type == "message" || type == "watchlist entry") ? " for [target_key]" : ""] made by [admin_key] from<br>[old_text]<br>to<br>[new_text]")
-		if(browse)
-			browse_messages("[type]")
-		else
-			browse_messages(target_ckey = ckey(target_key), agegate = TRUE)
-	qdel(query_find_edit_message)
+	var/new_text = input(usr, "Input new [row["kind"]]", "New [row["kind"]]", row["text"]) as null|message
+	if(note_set_text(message_id, new_text))
+		note_show_after(row, browse)
 
 /proc/edit_message_expiry(message_id, browse)
-	if(!SSdbcore.Connect())
-		to_chat(usr, "<span class='danger'>Failed to establish database connection.</span>", confidential=TRUE)
+	var/list/row = note_before_change(message_id)
+	if(!row)
 		return
-	message_id = text2num(message_id)
-	if(!message_id)
+	var/choice = input(usr, "Show this [row["kind"]] for how long, from now?", "Expiry time") as null|anything in GLOB.note_expiry_choices
+	if(!choice)
 		return
-	var/editor_ckey = sanitizeSQL(usr.ckey)
-	var/editor_key = sanitizeSQL(usr.key)
-	var/kn = key_name(usr)
-	var/kna = key_name_admin(usr)
-	var/datum/DBQuery/query_find_edit_expiry_message = SSdbcore.NewQuery("SELECT type, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = targetckey), targetckey), IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = adminckey), adminckey), expire_timestamp FROM [format_table_name("messages")] WHERE id = [message_id] AND deleted = 0")
-	if(!query_find_edit_expiry_message.warn_execute())
-		qdel(query_find_edit_expiry_message)
-		return
-	if(query_find_edit_expiry_message.NextRow())
-		var/type = query_find_edit_expiry_message.item[1]
-		var/target_key = query_find_edit_expiry_message.item[2]
-		var/admin_key = query_find_edit_expiry_message.item[3]
-		var/old_expiry = query_find_edit_expiry_message.item[4]
-		var/new_expiry
-		var/expire_time = input("Set expiry time for [type] as format YYYY-MM-DD HH:MM:SS. All times in server time. HH:MM:SS is optional and 24-hour. Must be later than current time for obvious reasons. Enter -1 to remove expiry time.", "Set expiry time", old_expiry) as null|text
-		if(!expire_time)
-			qdel(query_find_edit_expiry_message)
-			return
-		if(expire_time == "-1")
-			new_expiry = "non-expiring"
-		else
-			expire_time = sanitizeSQL(expire_time)
-			var/datum/DBQuery/query_validate_expire_time_edit = SSdbcore.NewQuery("SELECT IF(STR_TO_DATE('[expire_time]','%Y-%c-%d %T') > NOW(), STR_TO_DATE('[expire_time]','%Y-%c-%d %T'), 0)")
-			if(!query_validate_expire_time_edit.warn_execute())
-				qdel(query_validate_expire_time_edit)
-				qdel(query_find_edit_expiry_message)
-				return
-			if(query_validate_expire_time_edit.NextRow())
-				var/checktime = text2num(query_validate_expire_time_edit.item[1])
-				if(!checktime)
-					to_chat(usr, "Datetime entered is improperly formatted or not later than current server time.", confidential=TRUE)
-					qdel(query_validate_expire_time_edit)
-					qdel(query_find_edit_expiry_message)
-					return
-				new_expiry = query_validate_expire_time_edit.item[1]
-			qdel(query_validate_expire_time_edit)
-		var/edit_text = sanitizeSQL("Expiration time edited by [editor_key] on [SQLtime()] from [old_expiry] to [new_expiry]<hr>")
-		var/datum/DBQuery/query_edit_message_expiry = SSdbcore.NewQuery("UPDATE [format_table_name("messages")] SET expire_timestamp = [expire_time == "-1" ? "NULL" : "'[new_expiry]'"], lasteditor = '[editor_ckey]', edits = CONCAT(IFNULL(edits,''),'[edit_text]') WHERE id = [message_id] AND deleted = 0")
-		if(!query_edit_message_expiry.warn_execute())
-			qdel(query_edit_message_expiry)
-			qdel(query_find_edit_expiry_message)
-			return
-		qdel(query_edit_message_expiry)
-		log_admin_private("[kn] has edited the expiration time of a [type] [(type == "note" || type == "message" || type == "watchlist entry") ? " for [target_key]" : ""] made by [admin_key] from [old_expiry] to [new_expiry]")
-		message_admins("[kna] has edited the expiration time of a [type] [(type == "note" || type == "message" || type == "watchlist entry") ? " for [target_key]" : ""] made by [admin_key] from [old_expiry] to [new_expiry]")
-		if(browse)
-			browse_messages("[type]")
-		else
-			browse_messages(target_ckey = ckey(target_key), agegate = TRUE)
-	qdel(query_find_edit_expiry_message)
+	if(note_set_expiry(message_id, GLOB.note_expiry_choices[choice]))
+		note_show_after(row, browse)
 
 /proc/edit_message_severity(message_id)
-	if(!SSdbcore.Connect())
-		to_chat(usr, "<span class='danger'>Failed to establish database connection.</span>", confidential=TRUE)
+	var/list/row = note_before_change(message_id)
+	if(!row)
 		return
-	message_id = text2num(message_id)
-	if(!message_id)
-		return
-	var/kn = key_name(usr)
-	var/kna = key_name_admin(usr)
-	var/datum/DBQuery/query_find_edit_note_severity = SSdbcore.NewQuery("SELECT type, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = targetckey), targetckey), IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = adminckey), adminckey), severity FROM [format_table_name("messages")] WHERE id = [message_id] AND deleted = 0")
-	if(!query_find_edit_note_severity.warn_execute())
-		qdel(query_find_edit_note_severity)
-		return
-	if(query_find_edit_note_severity.NextRow())
-		var/type = query_find_edit_note_severity.item[1]
-		var/target_key = query_find_edit_note_severity.item[2]
-		var/admin_key = query_find_edit_note_severity.item[3]
-		var/old_severity = query_find_edit_note_severity.item[4]
-		if(!old_severity)
-			old_severity = "NA"
-		var/editor_key = sanitizeSQL(usr.key)
-		var/editor_ckey = sanitizeSQL(usr.ckey)
-		var/new_severity = input("Set the severity of the note.", "Severity", null, null) as null|anything in list("high", "medium", "minor", "none") //lowercase for edit log consistency
-		if(!new_severity)
-			qdel(query_find_edit_note_severity)
-			return
-		new_severity = sanitizeSQL(new_severity)
-		var/edit_text = sanitizeSQL("Note severity edited by [editor_key] on [SQLtime()] from [old_severity] to [new_severity]<hr>")
-		var/datum/DBQuery/query_edit_note_severity = SSdbcore.NewQuery("UPDATE [format_table_name("messages")] SET severity = '[new_severity]', lasteditor = '[editor_ckey]', edits = CONCAT(IFNULL(edits,''),'[edit_text]') WHERE id = [message_id] AND deleted = 0")
-		if(!query_edit_note_severity.warn_execute(async = TRUE))
-			qdel(query_edit_note_severity)
-			qdel(query_find_edit_note_severity)
-			return
-		qdel(query_edit_note_severity)
-		log_admin_private("[kn] has edited the severity of a [type] for [target_key] made by [admin_key] from [old_severity] to [new_severity]")
-		message_admins("[kna] has edited the severity time of a [type] for [target_key] made by [admin_key] from [old_severity] to [new_severity]")
-		browse_messages(target_ckey = ckey(target_key), agegate = TRUE)
-	qdel(query_find_edit_note_severity)
+	var/new_severity = input(usr, "Set the severity of the note.", "Severity", null) as null|anything in list("high", "medium", "minor", "none")
+	if(note_set_severity(message_id, new_severity))
+		note_show_after(row)
 
 /proc/toggle_message_secrecy(message_id)
-	if(!SSdbcore.Connect())
-		to_chat(usr, "<span class='danger'>Failed to establish database connection.</span>", confidential=TRUE)
-		return
-	message_id = text2num(message_id)
-	if(!message_id)
-		return
-	var/editor_ckey = sanitizeSQL(usr.ckey)
-	var/editor_key = sanitizeSQL(usr.key)
-	var/kn = key_name(usr)
-	var/kna = key_name_admin(usr)
-	var/datum/DBQuery/query_find_message_secret = SSdbcore.NewQuery("SELECT type, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = targetckey), targetckey), IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = adminckey), adminckey), secret FROM [format_table_name("messages")] WHERE id = [message_id] AND deleted = 0")
-	if(!query_find_message_secret.warn_execute())
-		qdel(query_find_message_secret)
-		return
-	if(query_find_message_secret.NextRow())
-		var/type = query_find_message_secret.item[1]
-		var/target_key = query_find_message_secret.item[2]
-		var/admin_key = query_find_message_secret.item[3]
-		var/secret = text2num(query_find_message_secret.item[4])
-		var/edit_text = "Made [secret ? "not secret" : "secret"] by [editor_key] on [SQLtime()]<hr>"
-		var/datum/DBQuery/query_message_secret = SSdbcore.NewQuery("UPDATE [format_table_name("messages")] SET secret = NOT secret, lasteditor = '[editor_ckey]', edits = CONCAT(IFNULL(edits,''),'[edit_text]') WHERE id = [message_id]")
-		if(!query_message_secret.warn_execute())
-			qdel(query_find_message_secret)
-			qdel(query_message_secret)
-			return
-		qdel(query_message_secret)
-		log_admin_private("[kn] has toggled [target_key]'s [type] made by [admin_key] to [secret ? "not secret" : "secret"]")
-		message_admins("[kna] has toggled [target_key]'s [type] made by [admin_key] to [secret ? "not secret" : "secret"]")
-		browse_messages(target_ckey = ckey(target_key), agegate = TRUE)
-	qdel(query_find_message_secret)
+	var/list/row = SSnotes.get_row(message_id)
+	if(note_toggle_secret(message_id))
+		note_show_after(row)
 
+//Admins get the window; a player looking at their own notes (linkless) gets them as a page, secret ones left out
 /proc/browse_messages(type, target_ckey, index, linkless = FALSE, filter, agegate = FALSE)
-	if(!SSdbcore.Connect())
-		to_chat(usr, "<span class='danger'>Failed to establish database connection.</span>", confidential=TRUE)
-		return
-	var/list/output = list()
-	var/ruler = "<hr style='background:#000000; border:0; height:3px'>"
-	var/list/navbar = list("<a href='?_src_=holder;[HrefToken()];nonalpha=1'>All</a><a href='?_src_=holder;[HrefToken()];nonalpha=2'>#</a>")
-	for(var/letter in GLOB.alphabet)
-		navbar += "<a href='?_src_=holder;[HrefToken()];showmessages=[letter]'>[letter]</a>"
-	navbar += "<a href='?_src_=holder;[HrefToken()];showmemo=1'>Memos</a><a href='?_src_=holder;[HrefToken()];showwatch=1'>Watchlist</a>"
-	navbar += "<br><form method='GET' name='search' action='?'>\
-	<input type='hidden' name='_src_' value='holder'>\
-	[HrefTokenFormField()]\
-	<input type='text' name='searchmessages' value='[index]'>\
-	<input type='submit' value='Search'></form>"
 	if(!linkless)
-		output = navbar
-	if(type == "memo" || type == "watchlist entry")
 		if(type == "memo")
-			output += "<h2><center>Admin memos</h2>"
-			output += "<a href='?_src_=holder;[HrefToken()];addmemo=1'>Add memo</a></center>"
+			open_notes_window("memos")
 		else if(type == "watchlist entry")
-			output += "<h2><center>Watchlist entries</h2>"
-			output += "<a href='?_src_=holder;[HrefToken()];addwatchempty=1'>Add watchlist entry</a>"
-			if(filter)
-				output += "<a href='?_src_=holder;[HrefToken()];showwatch=1'>Unfilter clients</a></center>"
-			else
-				output += "<a href='?_src_=holder;[HrefToken()];showwatchfilter=1'>Filter offline clients</a></center>"
-		output += ruler
-		var/datum/DBQuery/query_get_type_messages = SSdbcore.NewQuery("SELECT id, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = targetckey), targetckey), targetckey, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = adminckey), adminckey), text, timestamp, server, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = lasteditor), lasteditor), expire_timestamp FROM [format_table_name("messages")] WHERE type = '[type]' AND deleted = 0 AND (expire_timestamp > NOW() OR expire_timestamp IS NULL)")
-		if(!query_get_type_messages.warn_execute())
-			qdel(query_get_type_messages)
-			return
-		while(query_get_type_messages.NextRow())
-			if(QDELETED(usr))
-				return
-			var/id = query_get_type_messages.item[1]
-			var/t_key = query_get_type_messages.item[2]
-			var/t_ckey = query_get_type_messages.item[3]
-			if(type == "watchlist entry" && filter && !(t_ckey in GLOB.directory))
-				continue
-			var/admin_key = query_get_type_messages.item[4]
-			var/text = query_get_type_messages.item[5]
-			var/timestamp = query_get_type_messages.item[6]
-			var/server = query_get_type_messages.item[7]
-			var/editor_key = query_get_type_messages.item[8]
-			var/expire_timestamp = query_get_type_messages.item[9]
-			output += "<b>"
-			if(type == "watchlist entry")
-				output += "[t_key] | "
-			output += "[timestamp] | [server] | [admin_key]"
-			if(expire_timestamp)
-				output += " | Expires [expire_timestamp]"
-			output += "</b>"
-			output += " <a href='?_src_=holder;[HrefToken()];editmessageexpiryempty=[id]'>Change Expiry Time</a>"
-			output += " <a href='?_src_=holder;[HrefToken()];deletemessageempty=[id]'>Delete</a>"
-			output += " <a href='?_src_=holder;[HrefToken()];editmessageempty=[id]'>Edit</a>"
-			if(editor_key)
-				output += " <font size='2'>Last edit by [editor_key] <a href='?_src_=holder;[HrefToken()];messageedits=[id]'>(Click here to see edit log)</a></font>"
-			output += "<br>[text]<hr style='background:#000000; border:0; height:1px'>"
-		qdel(query_get_type_messages)
-	if(target_ckey)
-		target_ckey = sanitizeSQL(target_ckey)
-		var/target_key
-		var/datum/DBQuery/query_get_messages = SSdbcore.NewQuery("SELECT type, secret, id, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = adminckey), adminckey), text, timestamp, server, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = lasteditor), lasteditor), DATEDIFF(NOW(), timestamp), IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = targetckey), targetckey), expire_timestamp, severity FROM [format_table_name("messages")] WHERE type <> 'memo' AND targetckey = '[target_ckey]' AND deleted = 0 AND (expire_timestamp > NOW() OR expire_timestamp IS NULL) ORDER BY timestamp DESC")
-		if(!query_get_messages.warn_execute())
-			qdel(query_get_messages)
-			return
-		var/list/messagedata = list()
-		var/list/watchdata = list()
-		var/list/notedata = list()
-		var/skipped = 0
-		while(query_get_messages.NextRow())
-			if(QDELETED(usr))
-				return
-			type = query_get_messages.item[1]
-			if(type == "memo")
-				continue
-			var/secret = text2num(query_get_messages.item[2])
-			if(linkless && secret)
-				continue
-			var/id = query_get_messages.item[3]
-			var/admin_key = query_get_messages.item[4]
-			var/text = query_get_messages.item[5]
-			var/timestamp = query_get_messages.item[6]
-			var/server = query_get_messages.item[7]
-			var/editor_key = query_get_messages.item[8]
-			var/age = text2num(query_get_messages.item[9])
-			target_key = query_get_messages.item[10]
-			var/expire_timestamp = query_get_messages.item[11]
-			var/severity = query_get_messages.item[12]
-			var/alphatext = ""
-			var/nsd = CONFIG_GET(number/note_stale_days)
-			var/nfd = CONFIG_GET(number/note_fresh_days)
-			if (agegate && type == "note" && isnum(nsd) && isnum(nfd) && nsd > nfd)
-				var/alpha = clamp(100 - (age - nfd) * (85 / (nsd - nfd)), 15, 100)
-				if (alpha < 100)
-					if (alpha <= 15)
-						if (skipped)
-							skipped++
-							continue
-						alpha = 10
-						skipped = TRUE
-					alphatext = "filter: alpha(opacity=[alpha]); opacity: [alpha/100];"
-			var/list/data = list("<div style='margin:0px;[alphatext]'><p class='severity'>")
-			if(severity)
-				data += "<img src='[severity]_button.png' height='24' width='24'></img> "
-			data += "<b>[timestamp] | [server] | [admin_key][secret ? " | <i>- Secret</i>" : ""]"
-			if(expire_timestamp)
-				data += " | Expires [expire_timestamp]"
-			data += "</b></p><center>"
-			if(!linkless)
-				if(type == "note")
-					if(severity)
-						data += "<a href='?_src_=holder;[HrefToken()];editmessageseverity=[id]'>[severity=="none" ? "No" : "[capitalize(severity)]"] Severity</a>"
-					else
-						data += "<a href='?_src_=holder;[HrefToken()];editmessageseverity=[id]'>N/A Severity</a>"
-				data += " <a href='?_src_=holder;[HrefToken()];editmessageexpiry=[id]'>Change Expiry Time</a>"
-				data += " <a href='?_src_=holder;[HrefToken()];deletemessage=[id]'>Delete</a>"
-				if(type == "note")
-					data += " <a href='?_src_=holder;[HrefToken()];secretmessage=[id]'>[secret ? "<b>Secret</b>" : "Not secret"]</a>"
-				if(type == "message sent")
-					data += " <font size='2'>Message has been sent</font>"
-					if(editor_key)
-						data += "|"
-				else
-					data += " <a href='?_src_=holder;[HrefToken()];editmessage=[id]'>Edit</a>"
-				if(editor_key)
-					data += " <font size='2'>Last edit by [editor_key] <a href='?_src_=holder;[HrefToken()];messageedits=[id]'>(Click here to see edit log)</a></font>"
-			data += "</div></center>"
-			data += "<p style='[alphatext]'>[text]</p><hr style='background:#000000; border:0; height:1px; [alphatext]'>"
-			switch(type)
-				if("message")
-					messagedata += data
-				if("message sent")
-					messagedata += data
-				if("watchlist entry")
-					watchdata += data
-				if("note")
-					notedata += data
-		qdel(query_get_messages)
-		if(!target_key)
-			var/datum/DBQuery/query_get_message_key = SSdbcore.NewQuery("SELECT byond_key FROM [format_table_name("player")] WHERE ckey = '[target_ckey]'")
-			if(!query_get_message_key.warn_execute())
-				qdel(query_get_message_key)
-				return
-			if(query_get_message_key.NextRow())
-				target_key = query_get_message_key.item[1]
-			qdel(query_get_message_key)
-		output += "<h2><center>[target_key]</center></h2><center>"
-		if(!linkless)
-			output += "<a href='?_src_=holder;[HrefToken()];addnote=[target_key]'>Add note</a>"
-			output += " <a href='?_src_=holder;[HrefToken()];addmessage=[target_key]'>Add message</a>"
-			output += " <a href='?_src_=holder;[HrefToken()];addwatch=[target_key]'>Add to watchlist</a>"
-			output += " <a href='?_src_=holder;[HrefToken()];showmessageckey=[target_ckey]'>Refresh page</a></center>"
+			open_notes_window(filter ? "watchlist_online" : "watchlist")
+		else if(target_ckey)
+			open_notes_window("player", ckey(target_ckey))
 		else
-			output += " <a href='?_src_=holder;[HrefToken()];showmessageckeylinkless=[target_ckey]'>Refresh page</a></center>"
-		output += ruler
-		if(messagedata)
-			output += "<h2>Messages</h2>"
-			output += messagedata
-		if(watchdata)
-			output += "<h2>Watchlist</h2>"
-			output += watchdata
-		if(notedata)
-			output += "<h2>Notes</h2>"
-			output += notedata
-			if(!linkless)
-				if (agegate)
-					if (skipped) //the first skipped message is still shown so that we can put this link over it.
-						output += "<center><a href='?_src_=holder;[HrefToken()];showmessageckey=[target_ckey];showall=1' style='position: relative; top: -3em;'>Show [skipped] hidden messages</a></center>"
-					else
-						output += "<center><a href='?_src_=holder;[HrefToken()];showmessageckey=[target_ckey];showall=1'>Show All</a></center>"
-				else
-					output += "<center><a href='?_src_=holder;[HrefToken()];showmessageckey=[target_ckey]'>Hide Old</a></center>"
-	if(index)
-		var/search
-		output += "<center><a href='?_src_=holder;[HrefToken()];addmessageempty=1'>Add message</a><a href='?_src_=holder;[HrefToken()];addwatchempty=1'>Add watchlist entry</a><a href='?_src_=holder;[HrefToken()];addnoteempty=1'>Add note</a></center>"
-		output += ruler
-		if(!isnum(index))
-			index = sanitizeSQL(index)
-		switch(index)
-			if(1)
-				search = "^."
-			if(2)
-				search = "^\[^\[:alpha:\]\]"
-			else
-				search = "^[index]"
-		var/datum/DBQuery/query_list_messages = SSdbcore.NewQuery("SELECT DISTINCT targetckey, (SELECT byond_key FROM [format_table_name("player")] WHERE ckey = targetckey) FROM [format_table_name("messages")] WHERE type <> 'memo' AND targetckey REGEXP '[search]' AND deleted = 0 AND (expire_timestamp > NOW() OR expire_timestamp IS NULL) ORDER BY targetckey")
-		if(!query_list_messages.warn_execute())
-			qdel(query_list_messages)
-			return
-		while(query_list_messages.NextRow())
-			if(QDELETED(usr))
-				return
-			var/index_ckey = query_list_messages.item[1]
-			var/index_key = query_list_messages.item[2]
-			if(!index_key)
-				index_key = index_ckey
-			output += "<a href='?_src_=holder;[HrefToken()];showmessageckey=[index_ckey]'>[index_key]</a><br>"
-		qdel(query_list_messages)
-	else if(!type && !target_ckey && !index)
-		output += "<center><a href='?_src_=holder;[HrefToken()];addmessageempty=1'>Add message</a><a href='?_src_=holder;[HrefToken()];addwatchempty=1'>Add watchlist entry</a><a href='?_src_=holder;[HrefToken()];addnoteempty=1'>Add note</a></center>"
-		output += ruler
-	var/datum/browser/browser = new(usr, "Note panel", "Manage player notes", 1000, 500)
-	var/datum/asset/notes_assets = get_asset_datum(/datum/asset/simple/notes)
-	notes_assets.send(usr.client)
+			open_notes_window("index")
+		return
+	target_ckey = ckey(target_ckey)
+	var/list/output = list("<h2><center>[note_key_of(target_ckey)]</center></h2>")
+	var/list/sections = list("Messages" = list(), "Watchlist" = list(), "Notes" = list())
+	for(var/list/row in SSnotes.rows_for(target_ckey))
+		if(row["secret"])
+			continue
+		var/entry = "<p><b>[row["timestamp"]] | [row["server"]] | [row["admin_key"]][row["expires"] ? " | Expires [row["expires"]]" : ""]</b></p><p>[row["text"]]</p><hr style='background:#000000; border:0; height:1px'>"
+		switch(row["kind"])
+			if("message", "message sent")
+				sections["Messages"] += entry
+			if("watchlist entry")
+				sections["Watchlist"] += entry
+			if("note")
+				sections["Notes"] += entry
+	var/any = FALSE
+	for(var/section in sections)
+		var/list/entries = sections[section]
+		if(entries.len)
+			any = TRUE
+			output += "<h2>[section]</h2>"
+			output += entries
+	if(!any)
+		output += "<center>Nothing here.</center>"
+	var/datum/browser/browser = new(usr, "Note panel", "Notes", 700, 500)
 	browser.set_content(jointext(output, ""))
 	browser.open()
 
+//At login: memos for admins, a player's unread messages (marked read), and admins told about anyone on the watchlist
 /proc/get_message_output(type, target_ckey)
-	if(!CONFIG_GET(flag/sql_enabled)) //called at every login: with no database there's nothing to show, and no failure to report
-		return
-	if(!SSdbcore.Connect())
-		to_chat(usr, "<span class='danger'>Failed to establish database connection.</span>", confidential=TRUE)
-		return
 	if(!type)
 		return
+	var/list/rows
+	if(type == "memo")
+		rows = SSnotes.rows_of_kind("memo")
+	else
+		rows = list()
+		for(var/list/row in SSnotes.rows_for(target_ckey))
+			if(row["kind"] == type)
+				rows += list(row)
 	var/output
-	if(target_ckey)
-		target_ckey = sanitizeSQL(target_ckey)
-	var/query = "SELECT id, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = adminckey), adminckey), text, timestamp, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = lasteditor), lasteditor) FROM [format_table_name("messages")] WHERE type = '[type]' AND deleted = 0 AND (expire_timestamp > NOW() OR expire_timestamp IS NULL)"
-	if(type == "message" || type == "watchlist entry")
-		query += " AND targetckey = '[target_ckey]'"
-	var/datum/DBQuery/query_get_message_output = SSdbcore.NewQuery(query)
-	if(!query_get_message_output.warn_execute())
-		qdel(query_get_message_output)
-		return
-	while(query_get_message_output.NextRow())
-		var/message_id = query_get_message_output.item[1]
-		var/admin_key = query_get_message_output.item[2]
-		var/text = query_get_message_output.item[3]
-		var/timestamp = query_get_message_output.item[4]
-		var/editor_key = query_get_message_output.item[5]
+	for(var/list/row in rows)
 		switch(type)
 			if("message")
-				output += "<font color='red' size='3'><b>Admin message left by <span class='prefix'>[admin_key]</span> on [timestamp]</b></font>"
-				output += "<br><font color='red'>[text]</font><br>"
-				var/datum/DBQuery/query_message_read = SSdbcore.NewQuery("UPDATE [format_table_name("messages")] SET type = 'message sent' WHERE id = [message_id]")
-				if(!query_message_read.warn_execute())
-					qdel(query_get_message_output)
-					qdel(query_message_read)
-					return
-				qdel(query_message_read)
+				output += "<font color='red' size='3'><b>Admin message left by <span class='prefix'>[row["admin_key"]]</span> on [row["timestamp"]]</b></font>"
+				output += "<br><font color='red'>[row["text"]]</font><br>"
+				SSnotes.change(row["id"], list("kind" = "message sent"))
 			if("watchlist entry")
-				message_admins("<font color='red'><B>Notice: </B></font><font color='blue'>[key_name_admin(target_ckey)] has been on the watchlist since [timestamp] and has just connected - Reason: [text]</font>")
-				send2irc_adminless_only("Watchlist", "[key_name(target_ckey)] is on the watchlist and has just connected - Reason: [text]")
+				message_admins("<font color='red'><B>Notice: </B></font><font color='blue'>[key_name_admin(target_ckey)] has been on the watchlist since [row["timestamp"]] and has just connected - Reason: [row["text"]]</font>")
+				send2irc_adminless_only("Watchlist", "[key_name(target_ckey)] is on the watchlist and has just connected - Reason: [row["text"]]")
 			if("memo")
-				output += "<span class='memo'>Memo by <span class='prefix'>[admin_key]</span> on [timestamp]"
-				if(editor_key)
-					output += "<br><span class='memoedit'>Last edit by [editor_key] <A href='?_src_=holder;[HrefToken()];messageedits=[message_id]'>(Click here to see edit log)</A></span>"
-				output += "<br>[text]</span><br>"
-	qdel(query_get_message_output)
+				output += "<span class='memo'>Memo by <span class='prefix'>[row["admin_key"]]</span> on [row["timestamp"]]"
+				if(row["editor_key"])
+					output += "<br><span class='memoedit'>Last edit by [row["editor_key"]] <A href='?_src_=holder;[HrefToken()];messageedits=[row["id"]]'>(Click here to see edit log)</A></span>"
+				output += "<br>[row["text"]]</span><br>"
 	return output
 
 #define NOTESFILE "data/player_notes.sav"

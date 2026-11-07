@@ -371,6 +371,7 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 	get_message_output("watchlist entry", ckey)
 	check_ip_intel()
 	validate_key_in_db()
+	SSbans.note_connection(src) //remembered with their IP and computer ID, so they can be banned by them after they've gone
 	build_ban_cache(src) //now, so a ban check later never has to query (or sleep) for it
 
 	send_resources()
@@ -438,6 +439,7 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 /client/Destroy()
 	GLOB.clients -= src
 	GLOB.directory -= ckey
+	SSbans.note_departure(src)
 	log_access("Logout: [key_name(src)]")
 	GLOB.ahelp_tickets.ClientLogout(src)
 	if(credits)

@@ -14,6 +14,7 @@ DB_PORT="${DB_PORT:-}"
 
 cp hippiestation.dme bancheck.mdme
 printf '#include "tools\\ban_check\\ban_selftest.dm"\r\n' >> bancheck.mdme
+printf '#include "tools\\ban_check\\ban_window_selftest.dm"\r\n' >> bancheck.mdme
 echo "Compiling..."
 "$BYOND_BIN/dm.exe" bancheck.mdme | grep -E "error|warning|dmb -" || true
 if [ ! -f bancheck.mdme.dmb ]; then echo "Compile failed"; rm -f bancheck.mdme; exit 1; fi

@@ -266,6 +266,8 @@
 	SSbans.save()
 	ban_check(out, "saving after that leaves the backup readable", SSbans.read_ledger("[SSbans.ledger_path].bak"))
 
+	run_ban_selftest_window(out, dir)
+
 	//the database configured but down: port 9, where nothing listens, so this never reaches a real database
 	var/db_port = CONFIG_GET(number/port)
 	SSdbcore.Disconnect()
@@ -284,11 +286,16 @@
 	ban_check(out, "database down: and the player gets in meanwhile", !world.IsBanned("DB Banned", "10.3.3.3", "333", "world"))
 	SSbans.load()
 	ban_check(out, "database down: the waiting unban survives a restart", length(SSbans.queued_ops) == 1 && SSbans.queued_ops[1]["op"] == "unban")
+	ban_check(out, "database down: a note is kept here", SSnotes.add("note", "pendingnote", "Pending Note", "bancheckadmin", "BanCheckAdmin", "made while it was down", FALSE, null, "minor") == "local")
+	ban_check(out, "database down: a note made here can still be changed", SSnotes.change(SSnotes.records[SSnotes.records.len], list("severity" = "high")))
+	ban_check(out, "database down: one already in the database waits for it, and says so", !SSnotes.change("900", list("severity" = "high")))
+	ban_check(out, "database down: notes made here wait to be sent", SSnotes.has_unsent())
 	CONFIG_SET(flag/sql_enabled, FALSE)
 	CONFIG_SET(number/port, db_port)
 
 	if(world.params["ban-selftest"] == "db")
 		run_ban_selftest_db(out, "[dir]db_", db_port)
+		run_ban_selftest_window_db(out, "[dir]db_", db_port)
 
 	var/passed = 0
 	for(var/line in out)

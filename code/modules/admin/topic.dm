@@ -583,18 +583,11 @@
 	else if(href_list["messageedits"])
 		if(!check_rights(R_ADMIN))
 			return
-		var/message_id = sanitizeSQL("[href_list["messageedits"]]")
-		var/datum/DBQuery/query_get_message_edits = SSdbcore.NewQuery("SELECT edits FROM [format_table_name("messages")] WHERE id = '[message_id]'")
-		if(!query_get_message_edits.warn_execute())
-			qdel(query_get_message_edits)
-			return
-		if(query_get_message_edits.NextRow())
-			var/edit_log = query_get_message_edits.item[1]
-			if(!QDELETED(usr))
-				var/datum/browser/browser = new(usr, "Note edits", "Note edits")
-				browser.set_content(jointext(edit_log, ""))
-				browser.open()
-		qdel(query_get_message_edits)
+		var/edit_log = SSnotes.edits_of(href_list["messageedits"])
+		if(edit_log && !QDELETED(usr))
+			var/datum/browser/browser = new(usr, "Note edits", "Note edits")
+			browser.set_content(edit_log)
+			browser.open()
 
 	else if(href_list["mute"])
 		if(!check_rights(R_ADMIN))
@@ -2130,12 +2123,6 @@
 		var/player_cid = href_list["newbancid"]
 		ban_panel(player_key, player_ip, player_cid)
 
-	else if(href_list["intervaltype"]) //check for ban panel, intervaltype is used as it's the only value which will always be present
-		if(href_list["roleban_delimiter"])
-			ban_parse_href(href_list)
-		else
-			ban_parse_href(href_list, TRUE)
-
 	else if(href_list["searchunbankey"] || href_list["searchunbanadminkey"] || href_list["searchunbanip"] || href_list["searchunbancid"])
 		var/player_key = href_list["searchunbankey"]
 		var/admin_key = href_list["searchunbanadminkey"]
@@ -2170,8 +2157,8 @@
 		var/player_ip = href_list["unbanip"]
 		var/player_cid = href_list["unbancid"]
 		var/role = href_list["unbanrole"]
-		var/page = href_list["unbanpage"]
-		unban(ban_id, player_key, player_ip, player_cid, role, page, href_list["unbansearchkey"], href_list["unbansearchadminkey"], href_list["unbansearchip"], href_list["unbansearchcid"])
+		if(unban(ban_id, player_key, player_ip, player_cid, role))
+			usr.client.open_ban_window("bans", list("search" = href_list["unbansearchkey"] || player_key))
 
 	else if(href_list["unbanlog"])
 		var/ban_id = href_list["unbanlog"]

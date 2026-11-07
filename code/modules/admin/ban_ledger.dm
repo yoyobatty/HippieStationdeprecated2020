@@ -43,6 +43,7 @@
 	var/unbanned_ip
 	var/unbanned_cid
 	var/unbanned_round_id
+	var/exact_bantime = FALSE //a role added to a ban already made: it goes to the database with that ban's time, so they stay together
 
 GENERAL_PROTECT_DATUM(/datum/ban_record)
 
@@ -52,9 +53,15 @@ GENERAL_PROTECT_DATUM(/datum/ban_record)
 /datum/ban_record/proc/is_active()
 	return !unbanned_datetime && (!expire_rt || expire_rt > world.realtime)
 
+//From the length it was given when there is one: world.realtime is a float about a minute coarse, so the two times alone make a
+//three-day ban 4319 minutes ("2 days and 23 hours and 59 minutes")
 /datum/ban_record/proc/duration_minutes()
-	if(expire_rt)
-		return round((expire_rt - bantime_rt) / 600)
+	if(!expire_rt)
+		return
+	var/list/intervals = BAN_INTERVALS
+	if(amount && (unit in intervals))
+		return round(amount * intervals[unit] / 60)
+	return round((expire_rt - bantime_rt) / 600)
 
 /datum/ban_record/proc/expiration_text()
 	if(expire_rt)
@@ -93,6 +100,8 @@ GENERAL_PROTECT_DATUM(/datum/ban_record)
 /datum/ban_record/proc/sql_values()
 	var/age = max(0, round((world.realtime - bantime_rt) / 10))
 	var/bantime_sql = age ? "(NOW() - INTERVAL [age] SECOND)" : "NOW()"
+	if(exact_bantime && bantime)
+		bantime_sql = "'[sanitizeSQL(bantime)]'"
 	var/expiration_sql = "NULL"
 	if(expire_rt)
 		if(amount && (unit in BAN_INTERVALS))
@@ -157,6 +166,12 @@ SUBSYSTEM_DEF(bans)
 	moved_ids = SSbans.moved_ids
 	refused = SSbans.refused
 	known_cids = SSbans.known_cids
+	seen = SSbans.seen
+	seen_by_ip = SSbans.seen_by_ip
+	seen_by_cid = SSbans.seen_by_cid
+	left_this_round = SSbans.left_this_round
+	seen_loaded = SSbans.seen_loaded
+	seen_dirty = SSbans.seen_dirty
 	next_local_id = SSbans.next_local_id
 	ledger_path = SSbans.ledger_path
 	last_saved = SSbans.last_saved
@@ -164,7 +179,7 @@ SUBSYSTEM_DEF(bans)
 
 //The lists hold every banned player's IP and computer ID
 /datum/controller/subsystem/bans/can_vv_get(var_name)
-	return !(var_name in list(NAMEOF(src, records), NAMEOF(src, by_ckey), NAMEOF(src, by_ip), NAMEOF(src, by_cid), NAMEOF(src, queued_ops), NAMEOF(src, last_saved), NAMEOF(src, known_cids))) && ..()
+	return !(var_name in list(NAMEOF(src, records), NAMEOF(src, by_ckey), NAMEOF(src, by_ip), NAMEOF(src, by_cid), NAMEOF(src, queued_ops), NAMEOF(src, last_saved), NAMEOF(src, known_cids), NAMEOF(src, seen), NAMEOF(src, seen_by_ip), NAMEOF(src, seen_by_cid))) && ..()
 
 /datum/controller/subsystem/bans/vv_edit_var(var_name, var_value)
 	return FALSE
@@ -173,6 +188,7 @@ SUBSYSTEM_DEF(bans)
 	return FALSE
 
 /datum/controller/subsystem/bans/fire()
+	save_seen()
 	if(!CONFIG_GET(flag/sql_enabled))
 		return
 	if(!db_busy && (length(queued_ops) || world.time >= next_sync || has_unsent()))
@@ -211,6 +227,8 @@ SUBSYSTEM_DEF(bans)
 		for(var/old_id in data["moved_ids"])
 			moved_ids[old_id] = data["moved_ids"][old_id]
 	log_world("Bans: [records.len] from [ledger_path][length(queued_ops) ? ", [queued_ops.len] changes waiting for the database" : ""]")
+	if(!seen_loaded)
+		load_seen()
 	if(CONFIG_GET(flag/sql_enabled))
 		INVOKE_ASYNC(src, PROC_REF(db_update))
 

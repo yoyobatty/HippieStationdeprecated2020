@@ -58,7 +58,7 @@
 			if (!ban)
 				to_chat(usr, "<span class='adminnotice'>Error: No sticky ban for [ckey] found!</span>", confidential=TRUE)
 				return
-			if (alert("Are you sure you want to remove the sticky ban on [ckey]?","Are you sure","Yes","No") == "No")
+			if (!data["confirmed"] && alert("Are you sure you want to remove the sticky ban on [ckey]?","Are you sure","Yes","No") == "No")
 				return
 			if (!get_stickyban_from_ckey(ckey))
 				to_chat(usr, "<span class='adminnotice'>Error: The ban disappeared.</span>", confidential=TRUE)
@@ -95,7 +95,7 @@
 				to_chat(usr, "<span class='adminnotice'>Error: [alt] is not linked to [ckey]'s sticky ban!</span>", confidential=TRUE)
 				return
 
-			if (alert("Are you sure you want to disassociate [alt] from [ckey]'s sticky ban? \nNote: Nothing stops byond from re-linking them, Use \[E] to exempt them","Are you sure","Yes","No") == "No")
+			if (!data["confirmed"] && alert("Are you sure you want to disassociate [alt] from [ckey]'s sticky ban? \nNote: Nothing stops byond from re-linking them, Use \[E] to exempt them","Are you sure","Yes","No") == "No")
 				return
 
 			//we have to do this again incase something changes
@@ -132,7 +132,9 @@
 				to_chat(usr, "<span class='adminnotice'>Error: No sticky ban for [ckey] found!</span>", confidential=TRUE)
 				return
 			var/oldreason = ban["message"]
-			var/reason = input(usr,"Reason","Reason","[ban["message"]]") as text|null
+			var/reason = data["newreason"]
+			if(!reason)
+				reason = input(usr,"Reason","Reason","[ban["message"]]") as text|null
 			if (!reason || reason == oldreason)
 				return
 			//we have to do this again incase something changed while we waited for input
@@ -171,7 +173,7 @@
 				to_chat(usr, "<span class='adminnotice'>Error: [alt] is not linked to [ckey]'s sticky ban!</span>", confidential=TRUE)
 				return
 
-			if (alert("Are you sure you want to exempt [alt] from [ckey]'s sticky ban?","Are you sure","Yes","No") == "No")
+			if (!data["confirmed"] && alert("Are you sure you want to exempt [alt] from [ckey]'s sticky ban?","Are you sure","Yes","No") == "No")
 				return
 
 			//we have to do this again incase something changes
@@ -218,7 +220,7 @@
 				to_chat(usr, "<span class='adminnotice'>Error: [alt] is not exempt from [ckey]'s sticky ban!</span>", confidential=TRUE)
 				return
 
-			if (alert("Are you sure you want to unexempt [alt] from [ckey]'s sticky ban?","Are you sure","Yes","No") == "No")
+			if (!data["confirmed"] && alert("Are you sure you want to unexempt [alt] from [ckey]'s sticky ban?","Are you sure","Yes","No") == "No")
 				return
 
 			//we have to do this again incase something changes
@@ -257,7 +259,7 @@
 
 			var/ckey = data["ckey"]
 
-			if (alert("Are you sure you want to put [ckey]'s stickyban on timeout until next round (or removed)?","Are you sure","Yes","No") == "No")
+			if (!data["confirmed"] && alert("Are you sure you want to put [ckey]'s stickyban on timeout until next round (or removed)?","Are you sure","Yes","No") == "No")
 				return
 			var/ban = get_stickyban_from_ckey(ckey)
 			if (!ban)
@@ -283,7 +285,7 @@
 				return
 			var/ckey = data["ckey"]
 
-			if (alert("Are you sure you want to lift the timeout on [ckey]'s stickyban?","Are you sure","Yes","No") == "No")
+			if (!data["confirmed"] && alert("Are you sure you want to lift the timeout on [ckey]'s stickyban?","Are you sure","Yes","No") == "No")
 				return
 
 			var/ban = get_stickyban_from_ckey(ckey)
@@ -308,7 +310,7 @@
 			if (!data["ckey"])
 				return
 			var/ckey = data["ckey"]
-			if (alert("Are you sure you want to revert the sticky ban on [ckey] to its state at round start (or last edit)?","Are you sure","Yes","No") == "No")
+			if (!data["confirmed"] && alert("Are you sure you want to revert the sticky ban on [ckey] to its state at round start (or last edit)?","Are you sure","Yes","No") == "No")
 				return
 			var/ban = get_stickyban_from_ckey(ckey)
 			if (!ban)
@@ -327,59 +329,10 @@
 			world.SetConfig("ban",ckey,list2stickyban(cached_ban))
 
 
-/datum/admins/proc/stickyban_gethtml(ckey)
-	var/ban = get_stickyban_from_ckey(ckey)
-	if (!ban)
-		return
-	var/timeout
-	if (SSdbcore.Connect())
-		timeout = "<a href='?_src_=holder;[HrefToken()];stickyban=[(ban["timeout"] ? "untimeout" : "timeout")]&ckey=[ckey]'>\[[(ban["timeout"] ? "untimeout" : "timeout" )]\]</a>"
-	else
-		timeout = "<a href='?_src_=holder;[HrefToken()];stickyban=revert&ckey=[ckey]'>\[revert\]</a>"
-	. = list({"
-		<a href='?_src_=holder;[HrefToken()];stickyban=remove&ckey=[ckey]'>\[-\]</a>
-		[timeout]
-		<b>[ckey]</b>
-		<br />"
-		[ban["message"]] <b><a href='?_src_=holder;[HrefToken()];stickyban=edit&ckey=[ckey]'>\[Edit\]</a></b><br />
-	"})
-	if (ban["admin"])
-		. += "[ban["admin"]]<br />"
-	else
-		. += "LEGACY<br />"
-	. += "Caught keys<br />\n<ol>"
-	for (var/key in ban["keys"])
-		if (ckey(key) == ckey)
-			continue
-		. += "<li><a href='?_src_=holder;[HrefToken()];stickyban=remove_alt&ckey=[ckey]&alt=[ckey(key)]'>\[-\]</a>[key]<a href='?_src_=holder;[HrefToken()];stickyban=exempt&ckey=[ckey]&alt=[ckey(key)]'>\[E\]</a></li>"
-
-	for (var/key in ban["whitelist"])
-		if (ckey(key) == ckey)
-			continue
-		. += "<li><a href='?_src_=holder;[HrefToken()];stickyban=remove_alt&ckey=[ckey]&alt=[ckey(key)]'>\[-\]</a>[key]<a href='?_src_=holder;[HrefToken()];stickyban=unexempt&ckey=[ckey]&alt=[ckey(key)]'>\[UE\]</a></li>"
-
-	. += "</ol>\n"
-
 /datum/admins/proc/stickyban_show()
 	if(!check_rights(R_BAN))
 		return
-	var/list/bans = sticky_banned_ckeys()
-	var/list/banhtml = list()
-	for(var/key in bans)
-		var/ckey = ckey(key)
-		banhtml += "<br /><hr />\n"
-		banhtml += stickyban_gethtml(ckey)
-
-	var/html = {"
-	<head>[UTF8HEADER]
-		<title>Sticky Bans</title>
-	</head>
-	<body>
-		<h2>All Sticky Bans:</h2> <a href='?_src_=holder;[HrefToken()];stickyban=add'>\[+\]</a><br>
-		[banhtml.Join("")]
-	</body>
-	"}
-	usr << browse(HTML_SKELETON(html),"window=stickybans;size=700x400")
+	usr.client.open_ban_window("sticky")
 
 /proc/sticky_banned_ckeys()
 	if (SSdbcore.Connect() || length(SSstickyban.dbcache))

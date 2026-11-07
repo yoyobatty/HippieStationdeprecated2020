@@ -9,6 +9,7 @@
 			verbs += GLOB.admin_verbs_economy
 			verbs += /client/proc/cmd_search_logs // log_search.dm
 			verbs += /client/proc/cmd_admin_find // admin_find.dm
+			verbs += /client/proc/cmd_admin_notes // ban_window.dm
 
 /client/remove_admin_verbs()
 	. = ..()
@@ -16,6 +17,7 @@
 	verbs.Remove(GLOB.admin_verbs_economy)
 	verbs.Remove(/client/proc/cmd_search_logs)
 	verbs.Remove(/client/proc/cmd_admin_find)
+	verbs.Remove(/client/proc/cmd_admin_notes)
 
 /// Economy and research admin verbs (hippiestation/code/modules/admin/verbs/economy_verbs.dm)
 GLOBAL_LIST_INIT(admin_verbs_economy, list(/client/proc/cmd_admin_give_money, /client/proc/cmd_admin_adjust_budget, /client/proc/cmd_admin_give_research_points))

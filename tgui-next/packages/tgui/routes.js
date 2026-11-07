@@ -12,6 +12,7 @@ import { AtmosControlConsole } from './interfaces/AtmosControlConsole';
 import { AtmosFilter } from './interfaces/AtmosFilter';
 import { AtmosMixer } from './interfaces/AtmosMixer';
 import { AtmosPump } from './interfaces/AtmosPump';
+import { BanWindow } from './interfaces/BanWindow';
 import { Biogenerator } from './interfaces/Biogenerator';
 import { BluespaceArtillery } from './interfaces/BluespaceArtillery';
 import { BorgPanel } from './interfaces/BorgPanel';
@@ -242,6 +243,10 @@ const ROUTES = {
   aux_base: {
     component: () => AuxBase,
     scrollable: true,
+  },
+  ban_window: {
+    component: () => BanWindow,
+    scrollable: false,
   },
   bank_vault: {
     component: () => BankVault,

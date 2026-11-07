@@ -1,0 +1,909 @@
+// hippie -- the Bans window (interfaces/BanWindow.js)
+
+$bw-line: rgba(255, 255, 255, 0.08);
+$bw-muted: #8a93a0;
+$bw-blue: #4f8fd6;
+$bw-red: #e05d5d;
+$bw-green: #4fae6a;
+$bw-amber: #d39b2a;
+$bw-panel: rgba(255, 255, 255, 0.03);
+
+.BanWindow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+}
+
+.BanWindow__tabs {
+  display: flex;
+  align-items: stretch;
+  padding: 0 10px;
+  border-bottom: 1px solid $bw-line;
+  background-color: rgba(0, 0, 0, 0.15);
+}
+
+.BanWindow__tab {
+  padding: 8px 14px 7px;
+  border-bottom: 2px solid transparent;
+  color: $bw-muted;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    color: #fff;
+  }
+}
+
+.BanWindow__tab--on {
+  border-bottom-color: $bw-blue;
+  color: #fff;
+}
+
+.BanWindow__spacer {
+  flex: 1;
+}
+
+.BanWindow__gap {
+  display: inline-block;
+  width: 10px;
+}
+
+.BanWindow__grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.BanWindow__db {
+  align-self: center;
+  font-size: 11px;
+  color: $bw-muted;
+}
+
+.BanWindow__db--up {
+  color: $bw-green;
+}
+
+.BanWindow__db--down {
+  color: $bw-amber;
+}
+
+.BanWindow__notice {
+  padding: 5px 12px;
+  background-color: rgba(79, 174, 106, 0.15);
+  border-bottom: 1px solid rgba(79, 174, 106, 0.35);
+}
+
+.BanWindow__notice--bad {
+  background-color: rgba(224, 93, 93, 0.15);
+  border-bottom-color: rgba(224, 93, 93, 0.4);
+}
+
+.BanWindow__body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.BanWindow__muted {
+  color: $bw-muted;
+}
+
+.BanWindow__small {
+  font-size: 11px;
+  margin: 2px 0 4px;
+}
+
+.BanWindow__warn {
+  color: $bw-amber;
+}
+
+.BanWindow__empty {
+  padding: 30px 10px;
+  text-align: center;
+  color: $bw-muted;
+}
+
+.BanWindow__badge {
+  display: inline-block;
+  margin: 0 4px;
+  padding: 0 5px;
+  border: 1px solid $bw-line;
+  border-radius: 3px;
+  font-size: 10px;
+  color: $bw-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.BanWindow__badge--red {
+  border-color: rgba(224, 93, 93, 0.6);
+  color: $bw-red;
+}
+
+.BanWindow__badge--green {
+  border-color: rgba(79, 174, 106, 0.6);
+  color: $bw-green;
+}
+
+// Form bits
+
+.BanWindow__field {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 7px;
+
+  .Input {
+    margin-right: 4px;
+  }
+
+  .Button {
+    margin-right: 2px;
+  }
+}
+
+.BanWindow__field--top {
+  align-items: flex-start;
+}
+
+.BanWindow__row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+
+  .Button {
+    margin-right: 2px;
+  }
+}
+
+.BanWindow__label {
+  flex: 0 0 70px;
+  color: $bw-muted;
+  font-size: 11px;
+}
+
+.BanWindow__label--short {
+  flex: 0 0 26px;
+  margin-left: 6px;
+}
+
+.BanWindow__hint {
+  margin-left: 8px;
+  font-size: 11px;
+}
+
+.BanWindow__keyBox {
+  width: 170px;
+}
+
+.BanWindow__ipBox {
+  width: 120px;
+}
+
+.BanWindow__cidBox {
+  width: 110px;
+}
+
+.BanWindow__number {
+  width: 52px;
+}
+
+.BanWindow__searchBox {
+  flex: 1;
+  min-width: 120px;
+}
+
+.BanWindow__select {
+  height: 20px;
+  margin-right: 4px;
+  padding: 0 2px;
+  border: 1px solid #88bfff;
+  border-radius: 2px;
+  background-color: #0a0a0a;
+  color: #fff;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.BanWindow__textarea {
+  flex: 1;
+  width: 100%;
+  min-height: 70px;
+  padding: 4px 6px;
+  border: 1px solid #88bfff;
+  border-radius: 2px;
+  background-color: #0a0a0a;
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.BanWindow__textarea--short {
+  min-height: 48px;
+}
+
+.BanWindow__check {
+  margin-right: 6px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  color: $bw-muted;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.BanWindow__check--on {
+  color: #fff;
+}
+
+.BanWindow__ends {
+  margin-top: 3px;
+  font-size: 11px;
+  color: $bw-muted;
+}
+
+.BanWindow__submit {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin: 4px 0 8px;
+  padding-top: 6px;
+  border-top: 1px solid $bw-line;
+
+  .BanWindow__muted {
+    flex: 1;
+    margin-left: 70px;
+  }
+}
+
+// Severities: a button tint, a dot, a tag, a note's edge
+
+.BanWindow__sev--none {
+  border-color: #6b7280;
+  background-color: #6b7280;
+}
+
+.BanWindow__sev--minor {
+  border-color: #4f8fd6;
+  background-color: #4f8fd6;
+}
+
+.BanWindow__sev--medium {
+  border-color: $bw-amber;
+  background-color: $bw-amber;
+}
+
+.BanWindow__sev--high {
+  border-color: $bw-red;
+  background-color: $bw-red;
+}
+
+.Button.BanWindow__sev {
+  background-color: transparent;
+  border: 1px solid transparent;
+}
+
+.Button.BanWindow__sev.Button--selected {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.Button.BanWindow__sev.BanWindow__sev--minor.Button--selected {
+  background-color: rgba(79, 143, 214, 0.55);
+}
+
+.Button.BanWindow__sev.BanWindow__sev--medium.Button--selected {
+  background-color: rgba(211, 155, 42, 0.6);
+}
+
+.Button.BanWindow__sev.BanWindow__sev--high.Button--selected {
+  background-color: rgba(224, 93, 93, 0.6);
+}
+
+.Button.BanWindow__sev.BanWindow__sev--none.Button--selected {
+  background-color: rgba(107, 114, 128, 0.6);
+}
+
+.BanWindow__sevDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 50%;
+}
+
+.BanWindow__sevTag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 5px;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+// Chips: roles, IPs, toggles
+
+.BanWindow__chip {
+  display: inline-block;
+  margin: 0 4px 4px 0;
+  padding: 1px 7px;
+  border: 1px solid $bw-line;
+  border-radius: 10px;
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.BanWindow__chip--on {
+  border-color: $bw-blue;
+  background-color: rgba(79, 143, 214, 0.25);
+}
+
+.BanWindow__chip--banned {
+  border-color: rgba(224, 93, 93, 0.7);
+  color: #ffb3b3;
+}
+
+.BanWindow__chip--on.BanWindow__chip--banned {
+  background-color: rgba(224, 93, 93, 0.2);
+}
+
+.BanWindow__chip--warn {
+  border-color: rgba(211, 155, 42, 0.7);
+  color: #f1cd84;
+}
+
+.BanWindow__chip--active {
+  border-color: rgba(224, 93, 93, 0.6);
+}
+
+.BanWindow__chip--expired {
+  color: $bw-muted;
+  text-decoration: line-through;
+  cursor: default;
+}
+
+.BanWindow__chip--lifted {
+  border-color: rgba(79, 174, 106, 0.5);
+  color: $bw-muted;
+  text-decoration: line-through;
+  cursor: default;
+}
+
+.BanWindow__chip--server {
+  border-color: rgba(224, 93, 93, 0.7);
+  font-weight: bold;
+  cursor: default;
+}
+
+.BanWindow__chip--armed {
+  background-color: rgba(224, 93, 93, 0.45);
+}
+
+.BanWindow__chipLeft {
+  margin-left: 5px;
+  color: $bw-red;
+  font-size: 10px;
+}
+
+.BanWindow__chipX {
+  margin-left: 5px;
+  color: $bw-muted;
+
+  &:hover {
+    color: #fff;
+  }
+}
+
+// New ban
+
+.BanWindow__newBan {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+}
+
+.BanWindow__form {
+  flex: 1.45;
+  min-width: 0;
+  padding: 10px 12px;
+  overflow-y: auto;
+}
+
+.BanWindow__record {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-left: 1px solid $bw-line;
+  background-color: $bw-panel;
+  overflow-y: auto;
+}
+
+.BanWindow__picker {
+  display: flex;
+  margin: -2px 0 8px 70px;
+  border: 1px solid $bw-line;
+  border-radius: 3px;
+  background-color: rgba(0, 0, 0, 0.25);
+  max-height: 210px;
+  overflow-y: auto;
+}
+
+.BanWindow__pickerCol {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+
+  & + & {
+    border-left: 1px solid $bw-line;
+  }
+}
+
+.BanWindow__pickerHead {
+  margin-bottom: 3px;
+  color: $bw-muted;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.BanWindow__pick {
+  padding: 3px 5px;
+  border-radius: 2px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: rgba(79, 143, 214, 0.2);
+  }
+}
+
+.BanWindow__pickTop {
+  display: flex;
+  align-items: baseline;
+}
+
+.BanWindow__pickKey {
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.BanWindow__pickName {
+  color: $bw-muted;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.BanWindow__roles {
+  margin-top: 4px;
+}
+
+.BanWindow__roleGroup {
+  margin-bottom: 6px;
+}
+
+.BanWindow__roleGroupName {
+  display: inline-block;
+  margin-bottom: 3px;
+  color: $bw-muted;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    color: #fff;
+  }
+}
+
+// The record
+
+.BanWindow__recordHead {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+.BanWindow__recordKey {
+  margin-right: 8px;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.BanWindow__presence {
+  font-size: 11px;
+  color: $bw-muted;
+}
+
+.BanWindow__presence--online {
+  color: $bw-green;
+}
+
+.BanWindow__presence--left {
+  color: $bw-amber;
+}
+
+.BanWindow__presence--unknown {
+  color: $bw-red;
+}
+
+.BanWindow__recordRow {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.BanWindow__recordSection {
+  display: flex;
+  align-items: center;
+  margin: 12px 0 4px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid $bw-line;
+  font-weight: bold;
+
+  .BanWindow__muted {
+    margin-left: 6px;
+    font-weight: normal;
+  }
+}
+
+.BanWindow__mini {
+  margin-bottom: 5px;
+  padding: 3px 6px;
+  border-left: 3px solid #6b7280;
+  background-color: rgba(255, 255, 255, 0.025);
+}
+
+.BanWindow__miniLine {
+  display: flex;
+  align-items: center;
+}
+
+.BanWindow__miniReason {
+  flex: 1;
+  min-width: 0;
+  margin: 0 6px 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #c9ced6;
+}
+
+.BanWindow__state {
+  margin-right: 6px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+// Status colours: an edge on cards, a colour on text
+
+.BanWindow__status--active {
+  border-left-color: $bw-red;
+
+  &.BanWindow__state {
+    color: $bw-red;
+  }
+}
+
+.BanWindow__status--expired {
+  border-left-color: #6b7280;
+
+  &.BanWindow__state {
+    color: $bw-muted;
+  }
+}
+
+.BanWindow__status--lifted {
+  border-left-color: $bw-green;
+
+  &.BanWindow__state {
+    color: $bw-green;
+  }
+}
+
+// The list
+
+.BanWindow__bans {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px 0;
+}
+
+.BanWindow__bar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+
+  .Input {
+    margin-right: 4px;
+  }
+
+  .BanWindow__chip {
+    margin-bottom: 0;
+  }
+}
+
+.BanWindow__status {
+  padding: 3px 0 6px;
+  border-bottom: 1px solid $bw-line;
+}
+
+.BanWindow__list {
+  flex: 1;
+  min-height: 0;
+  padding-top: 6px;
+  overflow-y: auto;
+}
+
+.BanWindow__group {
+  margin-bottom: 7px;
+  padding: 6px 9px;
+  border-left: 3px solid #6b7280;
+  border-radius: 2px;
+  background-color: rgba(255, 255, 255, 0.035);
+}
+
+.BanWindow__groupHead {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.BanWindow__target {
+  margin-right: 6px;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.BanWindow__groupRoles {
+  margin-left: 6px;
+
+  .BanWindow__chip {
+    margin-bottom: 2px;
+  }
+}
+
+.BanWindow__groupMeta {
+  margin-top: 1px;
+  color: $bw-muted;
+  font-size: 11px;
+}
+
+.BanWindow__progress {
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.BanWindow__progressBar {
+  flex: 0 0 160px;
+  height: 6px;
+  margin-right: 8px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.BanWindow__progressFill {
+  height: 100%;
+  background-color: $bw-red;
+}
+
+.BanWindow__left {
+  margin-right: 8px;
+  color: #ffb3b3;
+  font-weight: bold;
+}
+
+.BanWindow__reason {
+  margin-top: 4px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.BanWindow__groupActs {
+  margin-top: 5px;
+
+  .Button {
+    margin-right: 3px;
+  }
+}
+
+.BanWindow__edit {
+  margin-top: 6px;
+  padding: 7px 8px;
+  border: 1px solid $bw-line;
+  border-radius: 3px;
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.BanWindow__log {
+  margin: 6px 0 0;
+  padding: 6px 8px;
+  border-radius: 2px;
+  background-color: rgba(0, 0, 0, 0.3);
+  color: #c9ced6;
+  font-family: Consolas, monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
+}
+
+.BanWindow__caught {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 10px;
+
+  .Button {
+    margin-right: 2px;
+  }
+}
+
+// Notes
+
+.BanWindow__notes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+}
+
+.BanWindow__notesNav {
+  flex: 0 0 210px;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  border-right: 1px solid $bw-line;
+  background-color: $bw-panel;
+}
+
+.BanWindow__navButtons {
+  display: flex;
+  margin-bottom: 6px;
+
+  .Button {
+    flex: 1;
+    margin-right: 3px;
+    text-align: center;
+  }
+}
+
+.BanWindow__players {
+  flex: 1;
+  min-height: 0;
+  margin-top: 6px;
+  overflow-y: auto;
+}
+
+.BanWindow__player {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 6px;
+  border-radius: 2px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.BanWindow__player--on {
+  background-color: rgba(79, 143, 214, 0.25);
+}
+
+.BanWindow__notesMain {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  overflow-y: auto;
+}
+
+.BanWindow__notesHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+
+  .Button {
+    margin-left: 3px;
+  }
+}
+
+.BanWindow__compose {
+  margin-bottom: 10px;
+  padding: 8px;
+  border: 1px solid rgba(79, 143, 214, 0.45);
+  border-radius: 3px;
+  background-color: rgba(79, 143, 214, 0.06);
+}
+
+.BanWindow__note {
+  margin-bottom: 7px;
+  padding: 6px 9px;
+  border-left: 3px solid #6b7280;
+  border-radius: 2px;
+  background-color: rgba(255, 255, 255, 0.035);
+}
+
+.BanWindow__note--minor {
+  border-left-color: #4f8fd6;
+}
+
+.BanWindow__note--medium {
+  border-left-color: $bw-amber;
+}
+
+.BanWindow__note--high {
+  border-left-color: $bw-red;
+}
+
+.BanWindow__noteHead {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  font-size: 11px;
+
+  .BanWindow__badge {
+    margin: 0 6px 0 0;
+  }
+}
+
+.BanWindow__noteTarget {
+  margin-right: 8px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.BanWindow__noteText {
+  margin-top: 4px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.BanWindow__noteActs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 5px;
+
+  .Button {
+    margin-right: 3px;
+  }
+}
