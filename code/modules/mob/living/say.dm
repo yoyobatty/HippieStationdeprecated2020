@@ -220,9 +220,8 @@ GLOBAL_LIST_INIT(department_radio_keys, list(
 	return 1
 
 /mob/living/Hear(message, atom/movable/speaker, datum/language/message_language, raw_message, radio_freq, list/spans, message_mode)
-	. = ..()
-	if(!client)
-		return
+	if(!client) // hippie start -- the parent sends COMSIG_MOVABLE_HEAR. A mob with a client sends it below, after recomposing, so calling both made
+		return ..() // every handler run twice for players: two phobia freak-outs, a brainwashing codeword swapping there and straight back. hippie end
 	var/deaf_message
 	var/deaf_type
 	if(speaker != src)
