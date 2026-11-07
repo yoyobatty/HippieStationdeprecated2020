@@ -161,9 +161,23 @@ GLOBAL_VAR_INIT(bot_next_slime_call, 0)
 /proc/bot_loose_slime(mob/living/simple_animal/slime/S)
 	return istype(S) && S.stat != DEAD && !S.docile && !S.ckey && isturf(S.loc) && !istype(get_area(S), /area/science/xenobiology)
 
+/// The animals aboard when the round starts (REF() -> TRUE): the station's pets, some of them hostile kinds on paper (the janitor's
+/// lizard, the HoS's tarantula). Called in as loose and set on by Security in a batch, they're nobody's business.
+GLOBAL_LIST_EMPTY(bot_resident_animals)
+
+/proc/bot_note_resident_animals()
+	for(var/mob/living/simple_animal/M in GLOB.alive_mob_list)
+		GLOB.bot_resident_animals[REF(M)] = TRUE
+
+/datum/controller/subsystem/ticker/Initialize(timeofday)
+	. = ..()
+	OnRoundstart(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_note_resident_animals)))
+
 /// Something hostile loose on the station that nobody's playing: not the station's own animals, not Lavaland's.
 /proc/bot_loose_beast(mob/living/simple_animal/hostile/M)
 	if(!istype(M) || M.stat == DEAD || M.ckey || !isturf(M.loc) || !(is_station_level(M.z) || istype(get_area(M), /area/bot_gym)) || istype(M, /mob/living/simple_animal/hostile/asteroid))
+		return FALSE
+	if(GLOB.bot_resident_animals[REF(M)])
 		return FALSE
 	return !("neutral" in M.faction) && !("station" in M.faction)
 
@@ -271,11 +285,18 @@ GLOBAL_VAR_INIT(bot_loose_slime_any, FALSE)
 	if(!istype(S) || QDELETED(S) || S.stat == DEAD)
 		return FALSE
 	var/dist = get_dist(bot.owner, S)
-	// Anything but a slime: whatever gun it has (a laser's fine on a carp), or what's in its hand up close.
+	// Anything but a slime: a gun on a setting that hurts (a taser's electrodes did nothing to a space dragon: goals/security_tactics.dm's
+	// ready_lethal_gun(), or anything firing bullets), or what's in its hand up close.
 	if(!isslime(S))
-		if(dist <= BOT_SIGHT_RANGE && bot.has_clear_shot(S) && bot.try_shoot_at(S))
+		var/obj/item/gun/lethal = bot.ready_lethal_gun() || bot.slime_gun()
+		if(lethal && dist <= BOT_SIGHT_RANGE && bot.has_clear_shot(S) && world.time >= bot.next_taser_time && bot.ready_in_hand(lethal))
 			if(bot.pursuing_kind)
 				bot.stop_pursuit()
+			bot.owner.a_intent = INTENT_HARM
+			bot.owner.face_atom(S)
+			bot.next_taser_time = world.time + max(CLICK_CD_RANGE, lethal.fire_delay) + 5
+			bot_log(bot, "firing [lethal] at [S]")
+			INVOKE_ASYNC(lethal, TYPE_PROC_REF(/obj/item/gun, afterattack), S, bot.owner, FALSE, null)
 			wait_for = 5
 			return TRUE
 		if(dist <= 1)

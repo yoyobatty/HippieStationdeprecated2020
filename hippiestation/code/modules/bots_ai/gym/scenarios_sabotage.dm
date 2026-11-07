@@ -424,3 +424,56 @@
 	if(!QDELETED(carp))
 		qdel(carp)
 	return ..()
+
+/// The e-gun an officer starts with is on disable, and a disabler bolt does nothing to a carp (nor a taser's electrode to the space
+/// dragon a Bot Shift had Security firing them at): it goes to kill first
+/datum/bot_scenario/duty/loose_slime/carp/egun
+	name = "creatures: an officer with an e-gun on disable switches it to kill for a carp"
+	desc = "The same carp, and the officer's energy gun is on disable, as it starts. It switches to kill and shoots it dead. Security fired tasers at a space dragon all fight long."
+	kit_backpack = list(/obj/item/gun/energy/e_gun)
+
+/datum/bot_scenario/duty/loose_slime/carp/egun/check()
+	. = ..()
+	if(. != BOT_GYM_PASS)
+		return
+	var/obj/item/gun/energy/e_gun/G = locate() in bot.GetAllContents() //a simple animal's damage is all brute: what the gun's on says how
+	if(!G || brain.is_nonlethal_shot(G.ammo_type[G.select]))
+		fail_reason = "beat it to death: the gun stayed on disable"
+		return BOT_GYM_FAIL
+
+/// Hippie's superboom bomber (goals/sabotage_grenades.dm): the pill a chemist saboteur makes, swallowed running in among them
+/obj/item/reagent_containers/pill/bot_gym_superboom
+	name = "multivitamin pill"
+	list_reagents = list(/datum/reagent/superboom = 12)
+
+/datum/bot_scenario/sabotage/superboom
+	name = "sabotage: a chemist saboteur with a superboom pill walks into the crowd, runs and swallows it"
+	desc = "An undercover traitor chemist with the 12u superboom pill it made and three people stood at O. It walks in among them, breaks into a run, shouts and swallows it: superboom in somebody running goes off in their first few seconds of it."
+	job = "Chemist"
+	act_id = "superboom"
+	time_limit = 40 SECONDS
+	kit_backpack = list(/obj/item/reagent_containers/pill/bot_gym_superboom)
+	layout = list(
+		"#########################",
+		"#B......................#",
+		"#.......................#",
+		"#...............O.......#",
+		"#.......................#",
+		"#########################")
+	var/turf/last_turf
+
+/datum/bot_scenario/sabotage/superboom/post_spawn()
+	..()
+	brain.job_is_chemist_for_gym = TRUE
+	var/turf/O = first_marker("O")
+	for(var/turf/T in list(get_step(O, NORTH), get_step(O, EAST), get_step(O, SOUTH)))
+		stand_in(T, "Bar Patron")
+
+/datum/bot_scenario/sabotage/superboom/check()
+	if(!QDELETED(bot) && bot.stat != DEAD)
+		last_turf = get_turf(bot)
+		return BOT_GYM_PENDING
+	if(!last_turf || get_dist(last_turf, first_marker("O")) > 2)
+		fail_reason = "went up [last_turf ? "[get_dist(last_turf, first_marker("O"))] tiles from them" : "nowhere"]"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

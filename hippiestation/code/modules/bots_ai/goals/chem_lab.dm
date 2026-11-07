@@ -156,7 +156,7 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 	if(brew["form"] == "grenade" && !grenade_case() && !find_empty_case())
 		return FALSE
 	for(var/list/stage in brew["stages"])
-		if(stage[1] != "add" && stage[1] != "second beaker" && !chem_machine_for(stage[1]))
+		if(stage[1] != "add" && stage[1] != "second beaker" && stage[1] != "beaker" && stage[1] != "pour" && !chem_machine_for(stage[1]))
 			return FALSE
 	return TRUE
 
@@ -218,6 +218,8 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 
 /// The beaker it's working with: the one with something in it, or failing that any it's got.
 /datum/bot_brain/proc/brew_beaker()
+	if(brew_beaker_override && !QDELETED(brew_beaker_override) && brew_beaker_override.loc && get_turf(brew_beaker_override) == get_turf(owner))
+		return brew_beaker_override
 	var/obj/item/reagent_containers/glass/beaker/spare
 	for(var/obj/item/reagent_containers/glass/beaker/B in owner.GetAllContents(/obj/item/reagent_containers/glass/beaker))
 		if(B.reagents.total_volume)
@@ -248,6 +250,13 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 		steps += new /datum/bot_step/ensure_grenade_parts()
 	for(var/list/stage in G.recipe["stages"])
 		var/datum/bot_step/move_to/to_machine = new()
+		// More than one beaker on the go (goals/sabotage_grenades.dm's superboom): which one's being worked, and one poured into another
+		if(stage[1] == "beaker")
+			steps += new /datum/bot_step/use_beaker(stage[2])
+			continue
+		if(stage[1] == "pour")
+			steps += new /datum/bot_step/pour_beaker(stage[2], stage[3])
+			continue
 		if(stage[1] == "add" || stage[1] == "second beaker")
 			to_machine.step_target = G.dispenser
 			if(stage[1] == "second beaker")
@@ -265,7 +274,7 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 			steps += new /datum/bot_step/paced/grind_poppy(M)
 			continue
 		steps += to_machine
-		steps += new /datum/bot_step/paced/run_chem_machine(M, stage[1], length(stage) > 1 ? stage[2] : 0)
+		steps += new /datum/bot_step/paced/run_chem_machine(M, stage[1], length(stage) > 1 ? stage[2] : 0, length(stage) > 2 && stage[3] == "exact")
 	if(G.recipe["form"] == "grenade")
 		steps += new /datum/bot_step/paced/assemble_grenade()
 		return
@@ -297,11 +306,14 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 	var/job
 	var/value = 0
 	var/ends_at = 0
+	/// The heater set to just what it's after, not past it: for what goes off a few degrees on (superboom at 315 K)
+	var/exact = FALSE
 
-/datum/bot_step/paced/run_chem_machine/New(obj/machinery/M, stage, amount)
+/datum/bot_step/paced/run_chem_machine/New(obj/machinery/M, stage, amount, set_exact = FALSE)
 	. = ..()
 	machine = M
 	job = stage
+	exact = set_exact
 	value = stage == "press" ? CEILING(amount, 5) : amount //the gauge goes up in fives
 
 /datum/bot_step/paced/run_chem_machine/proc/machine_beaker()
@@ -329,7 +341,7 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 	bot.human_pause(machine)
 	var/obj/machinery/chem_heater/H = machine
 	if(istype(H))
-		H.target_temperature = value + (job == "cool" ? -30 : 30) //it only ever creeps up on what it's set to
+		H.target_temperature = value + (job == "cool" ? -1 : 1) * (exact ? 1 : 30) //it only ever creeps up on what it's set to
 	switch_machine(TRUE)
 	ends_at = world.time + BOT_CHEM_MACHINE_LIMIT
 	return TRUE
@@ -364,6 +376,11 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 	switch_machine(FALSE)
 	if(QDELETED(machine) || !machine_beaker())
 		return GOAL_STEP_FAIL
+	var/obj/item/reagent_containers/out = machine_beaker()
+	var/list/parts = list()
+	for(var/datum/reagent/R in out.reagents.reagent_list)
+		parts += "[R.name] [round(R.volume, 0.1)]"
+	bot_log_verbose(bot, "[job] [value] done: [round(out.reagents.chem_temp)] K, [out.reagents.chem_pressure] kPa: [jointext(parts, ", ")]")
 	var/timed_out = world.time > ends_at
 	var/obj/machinery/chem/C = machine
 	if(istype(C))
@@ -568,3 +585,76 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 #undef BOT_CHEM_GRENADE
 #undef BOT_CHEM_MACHINE_LIMIT
 #undef BOT_NEEDLE_REST
+
+// ---------------------------------------------------------------------------------------------
+// More than one beaker on the go
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_brain
+	/// The beaker a multi-beaker brew is working on right now (use_beaker): what brew_beaker() hands back while it's set.
+	var/obj/item/reagent_containers/glass/beaker/brew_beaker_override
+
+/datum/bot_goal/synthesize_medicine
+	/// "1", "2"... -> the beaker that number is, for a brew that wants more than one
+	var/list/numbered_beakers
+
+/// Work on beaker N from here on: the one already numbered that, or an empty one it's got, or one fetched.
+/datum/bot_step/use_beaker
+	var/number
+	var/tried_fetch = FALSE
+
+/datum/bot_step/use_beaker/New(N)
+	. = ..()
+	number = "[N]"
+
+/datum/bot_step/use_beaker/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/synthesize_medicine/G = bot.current_goal
+	if(!istype(G))
+		return GOAL_STEP_FAIL
+	var/obj/item/reagent_containers/glass/beaker/B = LAZYACCESS(G.numbered_beakers, number)
+	if(B && !QDELETED(B) && bot.is_carried(B))
+		bot.brew_beaker_override = B
+		return GOAL_STEP_SUCCESS
+	var/list/taken = list()
+	for(var/key in G.numbered_beakers)
+		taken += G.numbered_beakers[key]
+	for(var/obj/item/reagent_containers/glass/beaker/E in bot.owner.GetAllContents(/obj/item/reagent_containers/glass/beaker))
+		if(!E.reagents.total_volume && !(E in taken))
+			B = E
+			break
+	if(B)
+		LAZYSET(G.numbered_beakers, number, B)
+		bot.brew_beaker_override = B
+		return GOAL_STEP_SUCCESS
+	if(!tried_fetch)
+		tried_fetch = TRUE
+		var/datum/bot_goal/acquire_item_type/sub = new()
+		sub.item_type = /obj/item/reagent_containers/glass/beaker
+		sub.lawful = TRUE
+		if(bot.suspend_goal_for(sub))
+			return GOAL_STEP_PENDING
+	bot_log(bot, "no beaker [number] to be had")
+	return GOAL_STEP_FAIL
+
+/// One beaker into another, all of it, and the second one's worked on from there.
+/datum/bot_step/pour_beaker
+	var/from_number
+	var/to_number
+
+/datum/bot_step/pour_beaker/New(from_N, to_N)
+	. = ..()
+	from_number = "[from_N]"
+	to_number = "[to_N]"
+
+/datum/bot_step/pour_beaker/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/synthesize_medicine/G = bot.current_goal
+	var/obj/item/reagent_containers/glass/beaker/from = LAZYACCESS(G?.numbered_beakers, from_number)
+	var/obj/item/reagent_containers/glass/beaker/into = LAZYACCESS(G?.numbered_beakers, to_number)
+	if(!from || !into || QDELETED(from) || QDELETED(into))
+		return GOAL_STEP_FAIL
+	bot.human_pause(into)
+	bot.telemetry_ui_action(into, "pour beaker [from_number] into [to_number]")
+	from.reagents.trans_to(into, from.reagents.total_volume, transfered_by = bot.owner)
+	bot.brew_beaker_override = into
+	bot_log(bot, "poured beaker [from_number] into beaker [to_number]")
+	return GOAL_STEP_SUCCESS

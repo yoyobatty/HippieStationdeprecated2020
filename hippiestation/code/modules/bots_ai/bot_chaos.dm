@@ -81,7 +81,7 @@ GLOBAL_LIST_INIT(bot_quarrel_comebacks, list(
 	addtimer(CALLBACK(src, PROC_REF(next_incident)), rand(BOT_CHAOS_GAP_MIN, BOT_CHAOS_GAP_MAX) / GLOB.bot_chaos_level)
 	var/list/menu = list("quarrel" = 5, "brawl" = 3, "pickpocket" = 3, "riot" = 2, "mouth off" = 3)
 	if(GLOB.bot_chaos_level >= 2) //goals/sabotage_accidents.dm: the user's ruling, mayhem has its accidents too
-		menu += list("slime out" = 1, "chem mishap" = 1)
+		menu += list("slime out" = 2, "chem mishap" = 2) //1 each never came up in three chaos 2 shifts: they need somebody at the work as well
 	while(length(menu))
 		var/incident = pickweight(menu)
 		menu -= incident

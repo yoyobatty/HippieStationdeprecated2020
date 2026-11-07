@@ -254,3 +254,23 @@
 		fail_reason = "cyanide, for a toolbox"
 		return BOT_GYM_FAIL
 	return griefer.reagents.has_reagent(/datum/reagent/toxin/chloralhydrate) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// Hippie's superboom, the saboteur's way (goals/sabotage_grenades.dm): three beakers, every machine, and a pill of it at the end
+/datum/bot_scenario/chem_brew/superboom
+	name = "chem: superboom in three beakers, every machine in the lab, into a pill"
+	time_limit = 500 SECONDS
+	kit_backpack = list(/obj/item/reagent_containers/glass/beaker/large, /obj/item/reagent_containers/glass/beaker/large, /obj/item/reagent_containers/glass/beaker/large)
+
+/datum/bot_scenario/chem_brew/superboom/brew()
+	var/finder = text2path("/proc/bot_sabotage_brew") // the fix's: a build without it has no such brew
+	return finder ? call(finder)(/datum/reagent/superboom) : null
+
+/datum/bot_scenario/chem_brew/superboom/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/obj/item/reagent_containers/pill/P in bot.GetAllContents(/obj/item/reagent_containers/pill))
+		var/amount = P.reagents.get_reagent_amount(/datum/reagent/superboom)
+		if(amount >= 8)
+			log_line("made [P] with [round(amount, 0.1)]u of superboom")
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING

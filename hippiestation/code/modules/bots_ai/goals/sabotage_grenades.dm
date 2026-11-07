@@ -12,7 +12,40 @@ GLOBAL_LIST_INIT(bot_sabotage_brews, list(
 		list("add", list(/datum/reagent/potassium = 100)),
 		list("second beaker", list(/datum/reagent/water = 100)),
 	)),
+	// Hippie's superboom (N-amino azidotetrazole), worked out in a probe on 2026-11-07: sboom made hot and under pressure with the goop
+	// sodium fluoride leaves behind; the tabun_pb catalyst in after it, enough over to eat the dimethylamine that comes with the sboom;
+	// the diethyl zinc made cold in a beaker of its own (from 290 K it heats itself past 310 and
+	// boils off: the mercury goes into ethanol already at 200 K) and the ammonia in a third; both poured in, and the lot to 311 K
+	// exactly, still under the pressure from before. It goes off at 315 K. About 12u (kept under a large beaker's 100u at every stage), isolated into one pill (isolated, it's unstabilised: it can go off by itself a few minutes on). Every
+	// amount a whole number of the recipe it's for: a reaction only runs in whole batches, and half a batch made nothing. Only where there's a pressure chamber (Hippie Station).
+	list("label" = "multivitamin", "reagent" = /datum/reagent/superboom, "kind" = "sabotage", "form" = "pill", "stages" = list(
+		list("beaker", 1),
+		list("add", list(/datum/reagent/consumable/ethanol = 4, /datum/reagent/fluorine = 2)),
+		list("add", list(/datum/reagent/sodium = 4)),
+		list("heat", 480),
+		list("add", list(/datum/reagent/water = 12, /datum/reagent/carbon = 6, /datum/reagent/aluminium = 1)),
+		list("add", list(/datum/reagent/nitrogen = 12, /datum/reagent/carbon = 6)),
+		list("heat", 600),
+		list("press", 55),
+		list("cool", 300),
+		list("add", list(/datum/reagent/chlorine = 33, /datum/reagent/phosphorus = 11, /datum/reagent/oxygen = 11)),
+		list("beaker", 2),
+		list("add", list(/datum/reagent/consumable/ethanol = 6)),
+		list("cool", 200),
+		list("add", list(/datum/reagent/mercury = 3)),
+		list("beaker", 3),
+		list("add", list(/datum/reagent/hydrogen = 9, /datum/reagent/nitrogen = 3)),
+		list("pour", 2, 1),
+		list("pour", 3, 1),
+		list("heat", 311, "exact"), //still at the 55 kPa it was pressed to for the sboom: 35 will do. Pressing it back down to 40 never settled
+	)),
 ))
+
+/proc/bot_sabotage_brew(reagent_type)
+	for(var/list/brew in GLOB.bot_sabotage_brews)
+		if(brew["reagent"] == reagent_type)
+			return brew
+	return null
 
 /// Lines a bomber shouts with the pin out.
 GLOBAL_LIST_INIT(bot_bomber_lines, list("For the Syndicate!", "Death to Nanotrasen!", "Glory to the Syndicate!", "Nobody leaves!", "See you in hell, Nanotrasen!"))
@@ -20,6 +53,8 @@ GLOBAL_LIST_INIT(bot_bomber_lines, list("For the Syndicate!", "Death to Nanotras
 /datum/bot_brain
 	/// A saboteur wants an explosive grenade made: the next brew it starts is that (synthesize_medicine resolve_target()).
 	var/wants_bomb_grenade = FALSE
+	/// ...or a superboom pill.
+	var/wants_superboom = FALSE
 	/// Bot Gym: a bomber, not a thrower, whatever its temper.
 	var/gym_suicide_bomber = FALSE
 
@@ -42,11 +77,23 @@ GLOBAL_LIST_INIT(bot_bomber_lines, list("For the Syndicate!", "Death to Nanotras
 
 /// From synthesize_medicine's resolve_target(): the explosive brew, while a saboteur wants one and hasn't got one.
 /datum/bot_brain/proc/brew_for_sabotage()
+	if(wants_superboom)
+		var/list/boom = bot_sabotage_brew(/datum/reagent/superboom)
+		if(!superboom_pill() && can_brew(boom))
+			return boom
+		wants_superboom = FALSE
 	if(!wants_bomb_grenade || bot_ready_bomb_grenade())
 		wants_bomb_grenade = FALSE
 		return null
 	var/list/brew = GLOB.bot_sabotage_brews[1]
 	return can_brew(brew) ? brew : null
+
+/// A pill with enough superboom in it to matter, on it.
+/datum/bot_brain/proc/superboom_pill()
+	for(var/obj/item/reagent_containers/pill/P in owner.GetAllContents(/obj/item/reagent_containers/pill))
+		if(P.reagents?.get_reagent_amount(/datum/reagent/superboom) >= 5)
+			return P
+	return null
 
 /datum/bot_sabotage/grenade
 	id = "grenade"
@@ -184,3 +231,78 @@ GLOBAL_LIST_INIT(bot_bomber_lines, list("For the Syndicate!", "Death to Nanotras
 
 /datum/bot_brain
 	var/world_time_next_grenade_shout = 0
+
+// ---------------------------------------------------------------------------------------------
+// The superboom bomber: Hippie's own, in among them, running, and the pill down
+// ---------------------------------------------------------------------------------------------
+//
+// Superboom in somebody who's running goes off in their first few seconds of it (superboom on_mob_life(): run intent, the first five
+// cycles), as big as there is of it in them. So the bomber walks into the crowd, breaks into a run and swallows the pill there.
+
+/datum/bot_sabotage/superboom
+	id = "superboom"
+	name = "a superboom bomber"
+
+/datum/bot_sabotage/superboom/weight(datum/bot_brain/bot)
+	if(bot.superboom_pill())
+		return 10
+	var/static/list/chemists = list("Chemist", "Chief Medical Officer")
+	if(!(bot.work_role() in chemists) && !(bot.owner.mind?.assigned_role in chemists) && !bot.job_is_chemist_for_gym)
+		return 0
+	return bot.can_brew(bot_sabotage_brew(/datum/reagent/superboom)) ? 6 : 0
+
+/datum/bot_sabotage/superboom/start(datum/bot_brain/bot)
+	var/obj/item/reagent_containers/pill/P = bot.superboom_pill()
+	if(!P)
+		bot.wants_superboom = TRUE
+		return bot.assign_goal(new /datum/bot_goal/synthesize_medicine()) //it comes back once it's made (try_sabotage())
+	var/turf/spot = bot.sabotage_crowd_spot()
+	return spot ? bot.assign_goal(new /datum/bot_goal/sabotage_superboom(spot, src)) : FALSE
+
+/datum/bot_goal/sabotage_superboom
+	doing = "heading over"
+	breaks_in = TRUE
+	var/datum/bot_sabotage/act
+
+/datum/bot_goal/sabotage_superboom/New(turf/T, datum/bot_sabotage/A)
+	. = ..()
+	target = T
+	act = A
+
+/datum/bot_goal/sabotage_superboom/resolve_target(datum/bot_brain/bot)
+	if(!bot.superboom_pill())
+		target = null
+
+/datum/bot_goal/sabotage_superboom/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/sabotage/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/sabotage_swallow_superboom())
+	return list(S)
+
+/datum/bot_goal/sabotage_superboom/on_success(datum/bot_brain/bot)
+	bot.sabotage_finished(act, get_area_name(target, TRUE))
+
+/datum/bot_step/paced/sabotage_swallow_superboom
+	max_clicks = 12
+	var/swallowed = FALSE
+
+/datum/bot_step/paced/sabotage_swallow_superboom/do_click(datum/bot_brain/bot)
+	if(swallowed)
+		if(QDELETED(bot.owner) || bot.owner.stat == DEAD)
+			return FALSE
+		wait_for = 5 //a moment for it to take
+		return TRUE
+	var/obj/item/reagent_containers/pill/P = bot.superboom_pill()
+	if(!P || !bot.ready_in_hand(P))
+		return FALSE
+	if(bot.owner.m_intent != MOVE_INTENT_RUN)
+		bot.owner.toggle_move_intent()
+	bot_say(bot.owner, pick(GLOB.bot_bomber_lines), TRUE)
+	bot_log(bot, "SABOTAGE: swallowing [P] ([round(P.reagents.get_reagent_amount(/datum/reagent/superboom))]u of superboom), running, in [get_area_name(bot.owner, TRUE)]")
+	log_game("BOT SABOTAGE: [key_name(bot.owner)] swallowed a superboom pill at [AREACOORD(bot.owner)]")
+	P.attack(bot.owner, bot.owner)
+	swallowed = TRUE
+	wait_for = 5
+	return TRUE
+
+/datum/bot_step/paced/sabotage_swallow_superboom/finish(datum/bot_brain/bot)
+	return swallowed ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL

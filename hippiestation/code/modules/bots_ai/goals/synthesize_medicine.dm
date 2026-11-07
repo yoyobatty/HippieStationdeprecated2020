@@ -152,11 +152,13 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 /// a second later - a few hundred times a shift.
 /datum/bot_goal/synthesize_medicine/on_give_up(datum/bot_brain/bot)
 	bot.chemistry_blocked_until = world.time + 2 MINUTES
+	bot.brew_beaker_override = null //goals/chem_lab.dm
 
 /datum/bot_brain
 	var/chemistry_blocked_until = 0
 
 /datum/bot_goal/synthesize_medicine/on_success(datum/bot_brain/bot)
+	bot.brew_beaker_override = null //goals/chem_lab.dm
 	if(recipe["form"] == "beaker")
 		bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, deliver_chem_order), recipe)) //bot_collabs.dm
 		return
