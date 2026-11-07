@@ -219,6 +219,28 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 			return E
 	return null
 
+/// When somebody last set the chamber's air alarm cycling for a failing crystal.
+GLOBAL_VAR_INIT(bot_sm_purged_at, 0)
+
+/// The gas round the crystal, as hot as its air alarm reads it.
+/datum/bot_brain/proc/sm_chamber_temperature(obj/machinery/power/supermatter_crystal/S)
+	var/turf/T = get_turf(S)
+	var/datum/gas_mixture/air = T?.return_air()
+	return air ? air.return_temperature() : 0
+
+/// A failing crystal in its own hot gas (the user's ruling, 2026-11-07: build the purge): the chamber's air alarm to "Cycle - Siphons air
+/// before replacing", the hot gas out and the loop's cold gas in after it. The crystal takes damage while the gas round it is over
+/// ~313 K and mends under it; in next to no gas it only wears by its power, which falls with the emitters off. Engineers put a sabotaged
+/// loop back within seconds and switched the emitters off, and the crystal still went: its chamber was at 4,800 K and stayed hot.
+/datum/bot_brain/proc/sm_chamber_to_purge(obj/machinery/power/supermatter_crystal/S)
+	if(!sm_crystal_failing() || world.time < GLOB.bot_sm_purged_at + 90 SECONDS || sm_chamber_temperature(S) < 500)
+		return null
+	var/area/chamber = get_area(S)
+	for(var/obj/machinery/airalarm/A as anything in bot_instances_of(/obj/machinery/airalarm))
+		if(A.z == S.z && get_area(A) == chamber && A.mode != 4 && sm_part_free(A)) //AALARM_MODE_REPLACEMENT
+			return A
+	return null
+
 /// The next job on the list, in the guide's order, or null if there's nothing left.
 /datum/bot_brain/proc/next_sm_job(obj/machinery/power/supermatter_crystal/S)
 	. = sm_emitter_to_stop(S) || sm_canister_to_connect(S) || sm_canister_to_haul(S)
@@ -228,7 +250,8 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 	// what's taken the crystal sits in a vacuum, which wears it down lit or not. Delta lost half its integrity like that.
 	if(!sm_nitrogen_on_loop(S))
 		return null
-	. = sm_pump_to_set(S) || sm_bypass_to_shut(S) || sm_filter_to_set(S) || sm_alarm_to_set(S)
+	// The purge after the loop's back: its scrubbers empty into the loop, and with the pumps off nothing moves.
+	. = sm_pump_to_set(S) || sm_bypass_to_shut(S) || sm_filter_to_set(S) || sm_chamber_to_purge(S) || sm_alarm_to_set(S)
 	if(.)
 		return
 	if(sm_collector_to_load(S))
@@ -295,6 +318,10 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 /datum/bot_goal/setup_supermatter/resolve_target(datum/bot_brain/bot)
 	var/obj/machinery/power/supermatter_crystal/S = bot.station_crystal()
 	target = S ? bot.next_sm_job(S) : null
+	// A firing emitter to switch off for a failing crystal: the way to it may cross the other emitters' beams, which an ordinary errand
+	// won't (bot_steps_into_hazard()). A Box engineer gave up on all three in two milliseconds and the crystal went; this goes anyway.
+	var/obj/machinery/power/emitter/E = target
+	lawful = !(istype(E) && E.active)
 
 /datum/bot_goal/setup_supermatter/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/setup_supermatter/S = new
@@ -404,6 +431,17 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 	if(istype(A, /obj/machinery/airalarm))
 		var/obj/machinery/airalarm/alarm = A
 		var/area/chamber = get_area(alarm)
+		var/obj/machinery/power/supermatter_crystal/crystal = bot.station_crystal()
+		if(crystal && bot.sm_chamber_to_purge(crystal) == alarm)
+			bot.telemetry_ui_action(alarm, "cycle - siphons air before replacing")
+			alarm.mode = 4 //AALARM_MODE_REPLACEMENT: everything out, then it refills and goes back to scrubbing by itself
+			alarm.apply_mode(bot.owner)
+			GLOB.bot_sm_purged_at = world.time
+			bot_log(bot, "set [alarm] cycling: the crystal's in [round(bot.sm_chamber_temperature(crystal))] K gas")
+			bot_tally("crystal chamber purged")
+			if(!bot.gym_scripted)
+				bot_say(bot.owner, ":e Purging the chamber, the crystal's cooking in its own gas.")
+			return GOAL_STEP_SUCCESS
 		bot.telemetry_ui_action(alarm, "siphon the chamber, vent limits off")
 		for(var/id_tag in chamber.air_scrub_names)
 			alarm.send_signal(id_tag, list("scrubbing" = 0), bot.owner)
