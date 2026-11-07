@@ -14,6 +14,7 @@ unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every 
 # Environment: JOBS (servers at once for each build: 3 for run, 2 each for ab), NOCOMPILE=1, PROFILE=1, BASE_PORT, EXTRA_PARAMS,
 #   EVENTS=0/1 random events (on for run, off for ab: they change from run to run and blur small gains; the disasters always happen)
 #   EXTRA_A, EXTRA_B  world params for one side of an ab only, like EXTRA_B="lighting-engine=native" to set one build against itself
+#   EXTRA_PARAMS=stress-calm=1  an ordinary shift of the same length instead of the disasters (see stress_bench.dm)
 # Results: data/logs/shift_batch/stress-<label>/run<n>/stress.txt and stress.json; the report at the end is
 #   python tools/bot_gym/stress_report.py <label> [--vs <label>]
 set -u

@@ -14,7 +14,7 @@
 
 #define TILE_ENGINE_LIB (world.system_type == UNIX ? "./libhippie_atmos.so" : "hippie_atmos")
 /// The version of the lists passed back and forth; the library has to report this one
-#define TILE_ENGINE_VERSION 8
+#define TILE_ENGINE_VERSION 11
 
 /datum/controller/subsystem/air
 	/// TRUE when turfs are processed by the tile engine instead of LINDA
@@ -49,6 +49,23 @@
 	var/tile_engine_apply_ms = 0
 	/// The follow-up's time by part, for benches (stress_bench.dm)
 	var/list/tile_engine_apply_parts = list("air" = 0, "turns" = 0, "groups" = 0, "wind" = 0, "react" = 0, "redraw" = 0, "hot" = 0)
+	/// The engine keeps turfs' kinds and neighbours between ticks. This goes up every time it starts, and a turf whose
+	/// tile_engine_sent is the same has nothing new to send. 0 turns that off (-params "atmos-engine-cache=0", for testing).
+	var/tile_engine_generation = 0
+	/// -params "atmos-engine-cache=shadow": every turf sends its kind and neighbours anyway, for the engine to check what it
+	/// kept against
+	var/tile_engine_cache_shadow = FALSE
+	/// The engine writes the new air straight into turfs' gas lists, instead of handing it back for DM to write
+	/// (-params "atmos-engine-writes=dm" turns that off, for testing)
+	var/tile_engine_writes = FALSE
+	/// -params "atmos-engine-writes=check": the engine writes, then DM checks every value against what it would have written
+	/// itself, and that no reference count changed. Counts of what was checked and what was wrong.
+	var/list/tile_engine_writes_check
+
+/turf
+	/// SSair.tile_engine_generation when the tile engine was last sent our kind and neighbours, 0 if what it has is out of
+	/// date (our atmos_adjacent_turfs changed since)
+	var/tmp/tile_engine_sent = 0
 
 /turf/open
 	/// The overlay key the tile engine last drew this turf with, -1 for none
@@ -129,7 +146,151 @@
 		log_world("Atmos: running LINDA, the tile engine failed to start: [error]")
 		return
 	tile_engine = TRUE
-	log_world("Atmos: tile engine on, [length(tile_engine_gas_types)] gases, [length(gas_reactions)] reactions")
+	// A fresh start: the engine has no turfs yet, so every turf has to send its kind and neighbours again
+	var/cache = world.params["atmos-engine-cache"]
+	tile_engine_cache_shadow = cache == "shadow"
+	tile_engine_generation = cache == "0" ? 0 : tile_engine_generation + 1
+	tile_engine_write_setup()
+	log_world("Atmos: tile engine on, [length(tile_engine_gas_types)] gases, [length(gas_reactions)] reactions[tile_engine_generation ? "" : ", sending every turf's neighbours every tick"][tile_engine_cache_shadow ? ", checking what it keeps of turfs" : ""]")
+
+/// With atmos-engine-cache=shadow: how many turfs had what the engine kept of them checked against what was sent, and how
+/// many of those didn't match, as a list
+/datum/controller/subsystem/air/proc/tile_engine_cache_check()
+	. = list()
+	if(tile_engine)
+		call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_cache_check")(.)
+
+/// Has the engine write the new air into turfs itself, if it can. Reading a gas list from DM counts as a reference to it
+/// on some BYOND builds and not others, so the engine works out which from a probe, and the probe's count has to come out
+/// the same as it went in.
+/datum/controller/subsystem/air/proc/tile_engine_write_setup()
+	tile_engine_writes = FALSE
+	tile_engine_writes_check = null
+	var/mode = world.params["atmos-engine-writes"]
+	if(mode == "dm")
+		log_world("Atmos: the tile engine hands its air back for DM to write (atmos-engine-writes=dm)")
+		return
+	var/datum/probe = new
+	var/list/probe_list = list(probe)
+	var/before = refcount(probe)
+	var/result
+	try
+		result = call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_write_setup")(probe_list)
+	catch(var/exception/error)
+		result = "[error]"
+	var/after = refcount(probe)
+	if((result != 1 && result != 2) || before != after)
+		log_world("Atmos: DM writes the tile engine's air (the engine can't: [result], probe references [before] then [after])")
+		return
+	tile_engine_writes = TRUE
+	if(mode == "check")
+		tile_engine_writes_check = list("turfs" = 0, "values" = 0, "wrong" = 0, "references changed" = 0, "exposed" = 0, "exposed differently" = 0)
+	log_world("Atmos: the tile engine writes its air into turfs itself ([result == 1 ? "releasing what it reads" : "what it reads is temporary"])[mode == "check" ? ", checked against what DM would write" : ""]")
+
+/// Air first: the engine writes each changed turf's new air straight into its own gas list, then DM takes off the gases that
+/// ran out and does what it does for turfs whose air changed. Returns FALSE if the engine failed.
+/datum/controller/subsystem/air/proc/tile_engine_write_air(list/turf/open/changed, list/values, fired)
+	var/list/refs = new /list(length(changed) * 2)
+	var/list/listened = list() // positions of turfs with something listening on them, which get exposed whatever their temperature
+	var/i = 0
+	var/position = 0
+	for(var/turf/open/T as anything in changed)
+		position++
+		T.air_changed_at = fired // wakes idle machines on it (idle_machines.dm)
+		if(T.idle_atmos_machines)
+			atmos_wake_turf(T)
+		if(T.comp_lookup)
+			listened += position
+		var/datum/gas_mixture/air = T.air
+		refs[++i] = air
+		refs[++i] = air.moles
+	var/list/counts
+	if(tile_engine_writes_check)
+		counts = list()
+		for(var/k in 1 to length(refs)) // read the same way as after the write, so they compare
+			counts += refcount(refs[k])
+	var/list/removed = list()
+	var/list/hot = list()
+	var/status
+	try
+		status = call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_write")(refs, removed, hot)
+	catch(var/exception/error)
+		status = "[error]"
+	if(status != 1)
+		tile_engine_failed(status)
+		return FALSE
+	// Gases that ran out: only DM can take a key off a list
+	for(var/r = 1, r < length(removed), r += 2)
+		var/list/moles = refs[removed[r] * 2]
+		moles -= removed[r + 1]
+	if(tile_engine_writes_check)
+		tile_engine_check_writes(changed, values, refs, counts)
+		tile_engine_check_exposed(changed, refs, listened, hot)
+	// What's on a turf whose air changed feels its new temperature. LINDA exposed every active turf every tick, but all
+	// that does is tell things listening on the turf, and check if the turf itself melts (nothing open does under
+	// 10000 K). Things moving onto a turf check on arrival. Exposing changes no air, so it can wait till all of it is written,
+	// as long as the turfs go in the same order: the listened-to ones and the hot ones, merged.
+	var/listened_at = 1
+	var/hot_at = 1
+	var/listened_count = length(listened)
+	var/hot_count = length(hot)
+	while(listened_at <= listened_count || hot_at <= hot_count)
+		var/next_listened = listened_at <= listened_count ? listened[listened_at] : INFINITY
+		var/next_hot = hot_at <= hot_count ? hot[hot_at] : INFINITY
+		position = min(next_listened, next_hot)
+		if(next_listened == position)
+			listened_at++
+		if(next_hot == position)
+			hot_at++
+		var/turf/open/T = changed[position]
+		var/datum/gas_mixture/air = refs[position * 2 - 1]
+		T.temperature_expose(air, air.temperature)
+	return TRUE
+
+/// atmos-engine-writes=check: the turfs that get exposed, listened-to and hot ones merged, against every changed turf the old
+/// way (temperature 10000 K or more, or something listening on it), in order
+/datum/controller/subsystem/air/proc/tile_engine_check_exposed(list/turf/open/changed, list/refs, list/listened, list/hot)
+	var/list/expected = list()
+	var/position = 0
+	for(var/turf/open/T as anything in changed)
+		position++
+		var/datum/gas_mixture/air = refs[position * 2 - 1]
+		if(air.temperature >= 10000 || T.comp_lookup)
+			expected += position
+	var/list/merged = sortList(listened | hot, GLOBAL_PROC_REF(cmp_numeric_asc))
+	tile_engine_writes_check["exposed"] += length(expected)
+	if(merged.len != expected.len)
+		tile_engine_writes_check["exposed differently"]++
+		return
+	for(var/k in 1 to length(expected))
+		if(merged[k] != expected[k])
+			tile_engine_writes_check["exposed differently"]++
+			return
+
+/// atmos-engine-writes=check: every gas and temperature the engine wrote, against what DM's own write-back would have
+/// written (`values`, in atmos_engine_results()'s layout), and every reference count against what it was before
+/datum/controller/subsystem/air/proc/tile_engine_check_writes(list/turf/open/changed, list/values, list/refs, list/counts)
+	var/list/check = tile_engine_writes_check
+	var/at = 1
+	var/position = 0
+	for(var/turf/open/T as anything in changed)
+		position++
+		var/datum/gas_mixture/air = refs[position * 2 - 1]
+		var/list/moles = refs[position * 2]
+		check["turfs"]++
+		for(var/gas in 1 to values[at++])
+			var/path = values[at]
+			var/amount = values[at + 1]
+			at += 2
+			check["values"]++
+			if(amount ? moles[path] != amount : (path in moles))
+				check["wrong"]++
+		check["values"]++
+		if(air.temperature != values[at++])
+			check["wrong"]++
+	for(var/k in 1 to length(refs))
+		if(refcount(refs[k]) != counts[k])
+			check["references changed"]++
 
 /// The engine's number for a planetary gas string's mix, adding it if it's new
 /datum/controller/subsystem/air/proc/tile_engine_planetary(gas_string)
@@ -151,6 +312,8 @@
 
 /// Packs turfs the way atmos_engine_run() takes them. See tools/atmos_engine/src/lib.rs.
 /datum/controller/subsystem/air/proc/tile_engine_pack(list/turf/open/turfs, list/tiles, list/adjacent)
+	var/generation = tile_engine_generation
+	var/shadow = tile_engine_cache_shadow
 	for(var/turf/open/T as anything in turfs)
 		var/datum/gas_mixture/air = isopenturf(T) ? T.air : null
 		if(!air)
@@ -161,6 +324,11 @@
 		for(var/gas_type, amount in moles)
 			tiles += gas_type
 			tiles += amount
+		var/datum/excited_group/group = T.excited_group
+		var/sent = generation && T.tile_engine_sent == generation
+		if(sent && !shadow) // The engine still has our kind and neighbours
+			tiles.Add(air.temperature, -1, 0, group ? group.tile_engine_number : 0, T.significant_share_ticker, T.active_hotspot ? 1 : 0, T.tile_engine_drawn)
+			continue
 		var/kind = 0
 		if(istype(air, /datum/gas_mixture/immutable))
 			kind = istype(air, /datum/gas_mixture/immutable/space) ? 1 : 2
@@ -171,8 +339,12 @@
 		var/neighbour_count = length(neighbours)
 		if(neighbour_count)
 			adjacent += neighbours
-		var/datum/excited_group/group = T.excited_group
-		tiles.Add(air.temperature, neighbour_count, kind, group ? group.tile_engine_number : 0, T.significant_share_ticker, T.active_hotspot ? 1 : 0, T.tile_engine_drawn)
+		var/count = neighbour_count
+		if(sent) // shadow: the engine checks what it kept against these
+			count = -2 - neighbour_count
+		else if(generation)
+			T.tile_engine_sent = generation
+		tiles.Add(air.temperature, count, kind, group ? group.tile_engine_number : 0, T.significant_share_ticker, T.active_hotspot ? 1 : 0, T.tile_engine_drawn)
 
 /// Heat through walls works from turfs' archives, which nothing else needs, so the engine only hands over the ones it's
 /// about to read. Run before process_super_conductivity() goes through the conducting turfs. A turf the engine didn't
@@ -281,7 +453,8 @@
 	var/list/redraw_keys = list()
 	var/list/turf/open/hot = list()
 	try
-		status = call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_results")(active_turfs, changed, values, processed, tickers, woken, slept, joins, groups_big, groups_small, windy, wind_to, wind_force, react, redraw, redraw_keys, hot)
+		// values are only needed when DM writes the air, or checks what the engine wrote
+		status = call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_results")(active_turfs, changed, (tile_engine_writes && !tile_engine_writes_check) ? null : values, processed, tickers, woken, slept, joins, groups_big, groups_small, windy, wind_to, wind_force, react, redraw, redraw_keys, hot)
 	catch(var/exception/error)
 		status = "[error]"
 	tile_engine_native_ms += TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer)
@@ -300,7 +473,10 @@
 	var/part = TICK_USAGE_REAL
 	// Air first. Only the gases that changed get written, in the turf's own list.
 	var/at = 1
-	for(var/turf/open/T as anything in changed)
+	if(tile_engine_writes)
+		if(!tile_engine_write_air(changed, values, fired))
+			return
+	else for(var/turf/open/T as anything in changed)
 		T.air_changed_at = fired // wakes idle machines on it (idle_machines.dm)
 		if(T.idle_atmos_machines)
 			atmos_wake_turf(T)

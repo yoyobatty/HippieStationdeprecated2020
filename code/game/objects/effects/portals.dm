@@ -122,6 +122,8 @@
 		return FALSE
 	atmos_source.atmos_adjacent_turfs[atmos_destination] = TRUE
 	atmos_destination.atmos_adjacent_turfs[atmos_source] = TRUE
+	atmos_source.tile_engine_sent = 0 // hippie -- the tile engine's copy of their neighbours is out of date (tile_engine.dm)
+	atmos_destination.tile_engine_sent = 0
 	atmos_source.air_update_turf(FALSE, FALSE)
 	atmos_destination.air_update_turf(FALSE, FALSE)
 
@@ -129,11 +131,13 @@
 	if(istype(atmos_source))
 		if(istype(atmos_destination))
 			LAZYREMOVE(atmos_source.atmos_adjacent_turfs, atmos_destination)
+			atmos_source.tile_engine_sent = 0 // hippie -- the tile engine's copy of its neighbours is out of date (tile_engine.dm)
 			atmos_source.ImmediateCalculateAdjacentTurfs() //Just in case they were next to each other
 		atmos_source = null
 	if(istype(atmos_destination))
 		if(istype(atmos_source))
 			LAZYREMOVE(atmos_destination.atmos_adjacent_turfs, atmos_source)
+			atmos_destination.tile_engine_sent = 0 // hippie -- the tile engine's copy of its neighbours is out of date (tile_engine.dm)
 			atmos_destination.ImmediateCalculateAdjacentTurfs()
 		atmos_destination = null
 

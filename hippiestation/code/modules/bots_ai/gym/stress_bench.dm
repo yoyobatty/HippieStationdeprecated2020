@@ -4,6 +4,7 @@
 //   crew arriving, calm, aurora, grid check, rad storm, plasma fire, hull breaches, meteors, maxcap, tesla (taken away when the aftermath
 //   starts), aftermath
 // They stack: the fire still burns through the breaches, the station stays holed for the tesla.
+// stress-calm=1 runs an ordinary shift of the same length instead, no disasters, as four calm phases.
 // Every bot counts as a player for what waits until a player is near (SSlighting.test_eyes), where a plain Bot Shift counts one.
 // Spots are picked from a fixed seed before the crew arrives, so they're the same every run (and so is the crew's first roll of jobs).
 //
@@ -207,6 +208,8 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 	GLOB.stress_bench.go()
 
 /datum/stress_bench/proc/go()
+	if(world.params["stress-calm"]) // an ordinary shift instead: no disasters, the same length, in four parts so any drift shows
+		schedule = list("crew arriving" = 0, "calm 1" = 150, "calm 2" = 500, "calm 3" = 850, "calm 4" = 1200, "end" = 1560)
 	z = SSmapping.levels_by_trait(ZTRAIT_STATION)[1]
 	pick_spots()
 	station_turfs_start = GLOB.station_turfs.Copy()
@@ -269,6 +272,8 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 		text2file(world.Profile(PROFILE_REFRESH, format = "json"), "[dir]profile_[replacetext(current.name, " ", "_")].json")
 		world.Profile(PROFILE_STOP)
 	current.state = survey()
+	if(world.params["pack-bench"] == current.name)
+		pack_bench()
 	log_world("STRESS BENCH: [current.line()]")
 	current = null
 
@@ -540,6 +545,33 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 	if(light_shadow)
 		out += ""
 		out += "Light shadow check (light-shadow): [json_encode(light_shadow)]"
+	if(SSair.tile_engine_writes_check) // atmos-engine-writes=check: what the tile engine wrote into turfs, against what DM would have
+		out += ""
+		out += "Tile engine's writes, against what DM would have written: [json_encode(SSair.tile_engine_writes_check)]"
+	// References held to station turfs' air and gas lists: a leak would have them climb with every tick a turf's air changed
+	var/airs = 0
+	var/air_refs = 0
+	var/air_most = 0
+	var/list_refs = 0
+	var/list_most = 0
+	for(var/turf/open/T in GLOB.station_turfs)
+		var/datum/gas_mixture/air = T.air
+		if(!air)
+			continue
+		airs++
+		var/count = refcount(air)
+		air_refs += count
+		air_most = max(air_most, count)
+		var/list/moles = air.moles
+		count = refcount(moles)
+		list_refs += count
+		list_most = max(list_most, count)
+	out += ""
+	out += "References to station turfs' air: [airs] mixtures, [round(air_refs / max(1, airs), 0.01)] each on average, most [air_most]; their gas lists [round(list_refs / max(1, airs), 0.01)] on average, most [list_most]"
+	if(SSair.tile_engine_cache_shadow) // atmos-engine-cache=shadow: what the tile engine kept of turfs, against what DM sent
+		var/list/check = SSair.tile_engine_cache_check()
+		out += ""
+		out += "Tile engine's kept turf kinds and neighbours, against what DM sent: [length(check) == 2 ? "[check[1]] checked, [check[2]] different" : "no answer"]"
 	if(SSair.atmos_idle_shadow) // atmos-idle-shadow=1: the idle registry set against the old check, every machine every tick
 		out += ""
 		out += "Idle atmos machines, the registry against the old check: [json_encode(SSair.atmos_idle_shadow)]"
@@ -559,3 +591,83 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 #undef STRESS_BENCH_SEED
 #undef STRESS_BENCH_EYES
 #undef STRESS_BENCH_BUDGET_MS
+
+/// pack-bench=<phase name>: at the end of that phase, times the parts of the tile engine's packing on the turfs awake then and
+/// their neighbours, each part on its own, in turn, best of five. A note in the results; for deciding what to keep natively.
+/datum/stress_bench/proc/pack_bench()
+	var/list/turf/open/turfs = list()
+	for(var/turf/open/T as anything in SSair.active_turfs)
+		turfs |= T
+		for(var/turf/open/N as anything in T.atmos_adjacent_turfs)
+			turfs |= N
+	var/n = length(turfs)
+	if(!n)
+		note("pack bench: no awake turfs")
+		return
+	var/list/best = list()
+	for(var/rep in 1 to 5)
+		for(var/part in list("full", "no neighbours", "no neighbours or kind", "air only", "touch"))
+			var/start = TICK_USAGE_REAL
+			pack_bench_part(part, turfs)
+			var/us = TICK_DELTA_TO_MS(TICK_USAGE_REAL - start) * 1000 / n
+			if(!best[part] || us < best[part])
+				best[part] = us
+	var/list/parts = list()
+	for(var/part in best)
+		parts += "[part] [round(best[part], 0.01)]"
+	note("pack bench, [n] turfs, us a turf: [jointext(parts, ", ")]")
+
+/datum/stress_bench/proc/pack_bench_part(part, list/turf/open/turfs)
+	var/list/tiles = list()
+	var/list/adjacent = list()
+	switch(part)
+		if("full")
+			SSair.tile_engine_pack(turfs, tiles, adjacent)
+		if("no neighbours")
+			for(var/turf/open/T as anything in turfs)
+				var/datum/gas_mixture/air = isopenturf(T) ? T.air : null
+				if(!air)
+					tiles += -1
+					continue
+				var/list/moles = air.moles
+				tiles += length(moles)
+				for(var/gas_type, amount in moles)
+					tiles += gas_type
+					tiles += amount
+				var/kind = 0
+				if(istype(air, /datum/gas_mixture/immutable))
+					kind = istype(air, /datum/gas_mixture/immutable/space) ? 1 : 2
+				else if(T.planetary_atmos)
+					kind = 3 + SSair.tile_engine_planetary(T.initial_gas_mix)
+				var/datum/excited_group/group = T.excited_group
+				tiles.Add(air.temperature, kind, group ? group.tile_engine_number : 0, T.significant_share_ticker, T.active_hotspot ? 1 : 0, T.tile_engine_drawn)
+		if("no neighbours or kind")
+			for(var/turf/open/T as anything in turfs)
+				var/datum/gas_mixture/air = isopenturf(T) ? T.air : null
+				if(!air)
+					tiles += -1
+					continue
+				var/list/moles = air.moles
+				tiles += length(moles)
+				for(var/gas_type, amount in moles)
+					tiles += gas_type
+					tiles += amount
+				var/datum/excited_group/group = T.excited_group
+				tiles.Add(air.temperature, group ? group.tile_engine_number : 0, T.significant_share_ticker, T.active_hotspot ? 1 : 0, T.tile_engine_drawn)
+		if("air only")
+			for(var/turf/open/T as anything in turfs)
+				var/datum/gas_mixture/air = isopenturf(T) ? T.air : null
+				if(!air)
+					tiles += -1
+					continue
+				var/list/moles = air.moles
+				tiles += length(moles)
+				for(var/gas_type, amount in moles)
+					tiles += gas_type
+					tiles += amount
+				tiles += air.temperature
+		if("touch")
+			for(var/turf/open/T as anything in turfs)
+				var/datum/gas_mixture/air = isopenturf(T) ? T.air : null
+				if(air)
+					tiles += air.temperature
