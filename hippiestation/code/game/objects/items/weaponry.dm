@@ -312,7 +312,7 @@
 			catch_fail_effect(M) //Apply what happens when the person fails to catch the boomerang
 			catch_failed = 0
 		if(thrownby != null && !istype(src.loc, /mob/living)) //This timer makes the boomerang come back
-			addtimer(CALLBACK(src, /obj/item/boomerang/throw_at,sender,throw_range + 2,throw_speed - 2,null,TRUE), return_delay) //boomerang gets thrown back to you
+			addtimer(CALLBACK(src, TYPE_PROC_REF(/atom/movable, throw_at),sender,throw_range + 2,throw_speed - 2,null,TRUE), return_delay) //boomerang gets thrown back to you
 
 	else //repeaterang logic code below
 		var/obj/item/boomerang/repeat/R = src
@@ -363,11 +363,11 @@
 			catch_fail_effect(M)
 			catch_failed = 0
 		if(thrownby != null && !istype(src.loc, /mob/living))
-			addtimer(CALLBACK(src, /obj/item/boomerang/throw_at,thrownby,throw_range + 2,throw_speed - 2,null,TRUE), R.return_delay)
+			addtimer(CALLBACK(src, TYPE_PROC_REF(/atom/movable, throw_at),thrownby,throw_range + 2,throw_speed - 2,null,TRUE), R.return_delay)
 			return
 		else if(sender != null && !istype(src.loc, /mob/living))
 			if(hit_atom != sender) //If you get hit by your own repeaterang, it won't send it back to you since you're already hit.
-				addtimer(CALLBACK(src, /obj/item/boomerang/throw_at,sender,throw_range + 2,throw_speed - 2,null,TRUE), R.return_delay)
+				addtimer(CALLBACK(src, TYPE_PROC_REF(/atom/movable, throw_at),sender,throw_range + 2,throw_speed - 2,null,TRUE), R.return_delay)
 				R.returning_to_sender = 1
 			thrownby = null
 			R.return_turf = null
@@ -401,10 +401,10 @@
 	var/switch_turf = 0
 	var/returning_to_sender = 0
 
-/obj/item/boomerang/repeat/throw_at()
+/obj/item/boomerang/repeat/throw_at(atom/target, range, speed, mob/thrower, spin = TRUE, diagonals_first = FALSE, datum/callback/callback, force = MOVE_FORCE_STRONG, gentle = FALSE, quickstart = TRUE)
 	if(return_turf == null)
 		return_turf = get_turf(src)
-	..()
+	return ..()
 
 /obj/item/boomerang/delimbing
 	var/delimb_chance = 10

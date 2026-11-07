@@ -22,7 +22,7 @@ export NODE_VERSION=12
 # PHP version
 export PHP_VERSION=7.2
 
-# SpacemanDMM git tag
-export SPACEMAN_DMM_VERSION=suite-1.6
+# SpacemanDMM git tag (tools/lint/run_lint.sh fetches dreamchecker from this release)
+export SPACEMAN_DMM_VERSION=suite-1.12
 
 export QUICKWRITE_TAG=98b5183e3da5d14e59c38030a9b6824a615c8260

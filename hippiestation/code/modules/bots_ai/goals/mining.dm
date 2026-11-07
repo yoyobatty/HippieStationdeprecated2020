@@ -470,7 +470,8 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 
 /// Outdoors, beside rock, and not somewhere it has scanned from.
 /datum/bot_brain/proc/is_untried_rock_face(turf/T)
-	if(T == get_turf(owner) || LAZYACCESS(mining_scanned, T) || !T.loc.outdoors)
+	var/area/A = T.loc
+	if(T == get_turf(owner) || LAZYACCESS(mining_scanned, T) || !A.outdoors)
 		return FALSE
 	var/obj/docking_port/stationary/dock = bot_mining_dock(T.z)
 	if(dock && get_dist(T, dock) > BOT_MINER_RANGE)
@@ -550,7 +551,10 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 	var/turf/open/floor/plating/asteroid/ground
 	for(var/direction in GLOB.cardinals)
 		var/turf/open/floor/plating/asteroid/near = get_step(bot.owner, direction)
-		if(istype(near) && !near.dug && near.loc.outdoors && !is_blocked_turf(near, TRUE))
+		if(!istype(near) || near.dug)
+			continue
+		var/area/near_area = near.loc
+		if(near_area.outdoors && !is_blocked_turf(near, TRUE))
 			ground = near
 			break
 	if(!ground || !bot.use_tool_on(pick, ground))
@@ -645,7 +649,8 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 	return A?.outdoors
 
 /datum/bot_brain/proc/is_under_cover(turf/T)
-	return !T.loc.outdoors
+	var/area/A = T.loc
+	return !A.outdoors
 
 /datum/bot_duty/shelter_from_storm
 	name = "sheltering from the storm"
@@ -685,7 +690,8 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 	// the base. Nor when the door is a few steps off.
 	capsule_tried_on = storm
 	for(var/turf/T in range(BOT_MINER_NEAR_COVER, owner))
-		if(!T.density && !T.loc.outdoors)
+		var/area/A = T.loc
+		if(!T.density && !A.outdoors)
 			return FALSE
 	var/obj/item/survivalcapsule/capsule = find_carried_tool(/obj/item/survivalcapsule)
 	if(!capsule || capsule.used || !ready_in_hand(capsule))

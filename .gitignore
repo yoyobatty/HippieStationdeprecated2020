@@ -222,3 +222,4 @@ tts/
 /config/title_screens/images/*
 !/config/title_screens/images/exclude
 .claude/
+/tools/lint/bin/

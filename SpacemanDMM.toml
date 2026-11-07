@@ -1,2 +1,9 @@
+environment = "hippiestation.dme"
+
 [langserver]
 dreamchecker = true
+
+[dreamchecker]
+# Checks procs marked SHOULD_NOT_SLEEP(TRUE) (and SIGNAL_HANDLER) for anything that can sleep. 3 is suite-1.12's
+# default: a few more catches than 1, far fewer false alarms than 2.
+sleep_analysis_version = 3

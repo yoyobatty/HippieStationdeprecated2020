@@ -34,7 +34,7 @@
 	for(var/obj/item/I in imp_in.contents)
 		if(I == src || I == imp_in)
 			continue
-		 qdel(I)
+		qdel(I)
 	imp_in.dust()
 
 /obj/item/implant/dusting/on_mob_death(mob/living/L, gibbed)

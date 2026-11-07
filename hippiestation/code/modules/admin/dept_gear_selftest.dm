@@ -842,7 +842,7 @@
 		var/obj/structure/closet/crate/crate = crates[i]
 		crate.forceMove(spot(9, 5)) // beside both the pusher and the trolley
 		trolley.try_load(crate, H)
-	check("four crates load onto it", length(trolley.crates) == 4 && crates[1] in trolley, "[length(trolley.crates)] aboard")
+	check("four crates load onto it", length(trolley.crates) == 4 && (crates[1] in trolley),"[length(trolley.crates)] aboard")
 	COMPILE_OVERLAYS(trolley)
 	check("and stack up on its sprite, with the handle on top", length(trolley.overlays) == 5, "[length(trolley.overlays)] overlays")
 	var/obj/structure/closet/crate/fifth = crates[5]

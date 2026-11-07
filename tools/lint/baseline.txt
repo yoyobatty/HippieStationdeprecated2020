@@ -1,0 +1,24 @@
+# Known dreamchecker diagnostics: severity<TAB>file<TAB>message, one per occurrence.
+# Written by tools/lint/run_lint.sh --update-baseline. Remove a line when its diagnostic is fixed.
+warning	code/datums/brain_damage/severe.dm	Switch branches on rand() with range 1 to 6 but no case branch triggers for 6
+warning	code/datums/datacore.dm	field access requires static type: "prefs"
+warning	code/modules/mob/mob_helpers.dm	Switch branches on rand() with range 1 to 15 but no case branch triggers for 6
+warning	code/modules/mob/mob_helpers.dm	Switch branches on rand() with range 1 to 20 but no case branch triggers for 2
+warning	code/modules/surgery/advanced/lobotomy.dm	Switch branches on rand() with range 1 to 4 but no case branch triggers for 4
+warning	hippiestation/code/game/machinery/radio_station.dm	proc call requires static type: "stopmusic"
+warning	hippiestation/code/game/objects/items/devices/blast_calculator.dm	proc call requires static type: "remove_ratio"
+warning	hippiestation/code/modules/admin/dept_gear_selftest.dm	proc call requires static type: "remove_ratio"
+warning	hippiestation/code/modules/atmospherics/atmos_bench.dm	proc call requires static type: "Copy"
+warning	hippiestation/code/modules/bots_ai/bot_playstyles.dm	field access requires static type: "force"
+warning	hippiestation/code/modules/bots_ai/bot_witness.dm	field access requires static type: "force"
+warning	hippiestation/code/modules/bots_ai/goals/cult.dm	proc call requires static type: "check_completion"
+warning	hippiestation/code/modules/bots_ai/goals/synthesize_medicine.dm	proc call requires static type: "Copy"
+warning	hippiestation/code/modules/bots_ai/gym/scenarios_breach.dm	field access requires static type: "gc_destroyed"
+warning	hippiestation/code/modules/bots_ai/gym/scenarios_chaos.dm	field access requires static type: "x"
+warning	hippiestation/code/modules/bots_ai/gym/scenarios_chaos.dm	field access requires static type: "y"
+warning	hippiestation/code/modules/bots_ai/gym/scenarios_chaos.dm	field access requires static type: "z"
+warning	hippiestation/code/modules/bots_ai/gym/scenarios_law.dm	proc call requires static type: "try_start"
+warning	hippiestation/code/modules/bots_ai/gym/scenarios_law.dm	proc call requires static type: "try_start"
+warning	hippiestation/code/modules/bots_ai/gym/scenarios_station_requests.dm	field access requires static type: "x"
+warning	hippiestation/code/modules/bots_ai/gym/scenarios_station_requests.dm	field access requires static type: "y"
+warning	hippiestation/code/modules/bots_ai/gym/scenarios_station_requests.dm	field access requires static type: "z"

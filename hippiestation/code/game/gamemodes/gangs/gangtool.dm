@@ -512,7 +512,7 @@
 			value = 10
 	if(istype(I, /obj/item/clothing))
 		for(var/datum/team/gang/G in GLOB.gangs)
-			if(I.type in (G.outer_outfits) && I.armor["bullet"]>=35)
+			if((I.type in G.outer_outfits) && I.armor.bullet >= 35)
 				value = 5
 	if(!value)
 		to_chat(user, "<span class='notice'>No contraband detected!</span>")
