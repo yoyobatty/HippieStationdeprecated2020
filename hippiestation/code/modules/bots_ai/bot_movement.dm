@@ -395,6 +395,10 @@
 	var/list/path = bot_path_to(dest, /turf/proc/Distance_cardinal, /turf/proc/bot_reachable_strict, id_card, !can_path_through_space())
 	pathing_no_tailgating = FALSE
 	bot_log_verbose(src, "  pass 1 (legit route) to [dest] @ [bot_coord(dest)]: [path ? "[path.len] nodes" : "no path"]")
+	// Not back through a room it's just got out of for want of air (goals/refill_internals.dm).
+	if(path && path.len && path_crosses_bad_air(path))
+		bot_log_verbose(src, "  that way's through somewhere it couldn't breathe - not that way")
+		path = null
 	if(path && path.len)
 		return path
 	// Someone out for a stroll who finds the way barred just picks somewhere else - they don't hack a door or
@@ -414,6 +418,8 @@
 	// coordinates here too, not just in pass 1, so log traces can actually tell which
 	// specific turf a given pass/result belongs to.
 	bot_log_verbose(src, "  pass 2 (hack/break, no climb) to [dest] @ [bot_coord(dest)]: [path ? "[path.len] nodes" : "no path"]")
+	if(path && path.len && path_crosses_bad_air(path))
+		path = null
 	if(path && path.len)
 		bot_log(src, "no open route to [dest] - trying a route through a locked door instead")
 		return path
@@ -442,6 +448,8 @@
 	var/list/path = bot_path_to(dest, /turf/proc/bot_weighted_distance, /turf/proc/bot_reachable_permissive, id_card, !can_path_through_space())
 	pathing_climb_only = FALSE
 	bot_log_verbose(src, "  pass 3 (allow climbing) to [dest] @ [bot_coord(dest)]: [path ? "[path.len] nodes" : "no path"]")
+	if(path && path.len && path_crosses_bad_air(path))
+		return null
 	if(path && path.len)
 		bot_log(src, "no route to [dest] without climbing - climbing over furniture instead")
 	return path

@@ -523,12 +523,44 @@
 	if(!in_the_flames() && (turf_air_is_breathable(get_turf(owner)) || is_space_protected_without_boots()))
 		return
 	next_air_trip_time = world.time + 3 SECONDS //a fire spreads faster than the ten this used to wait
+	bad_air_area = get_area(owner)
+	LAZYSET(bad_air_areas, bad_air_area, world.time + 3 MINUTES)
 	if(state == BOT_STATE_GOAL)
 		drop_goals("can't breathe here")
 	if(state == BOT_STATE_WANDER)
 		bot_log(src, "can't breathe here - getting out")
 		stop_pursuit()
 		assign_goal(new /datum/bot_goal/seek_air())
+
+/datum/bot_brain
+	/// The room it last couldn't breathe in.
+	var/area/bad_air_area
+	/// Rooms it's had to get out of for want of air -> until when it keeps out of them.
+	var/list/bad_air_areas
+
+/// Whether this route goes through a room it's had to get out of for want of air in the last few minutes. Not the one it's in (it has to
+/// get out through it), not on its way to air or off the station, in a fight or an arrest, on a job that goes into bad air, or with a suit
+/// on. An officer out of a breached Brig Desk was sent straight back through it by every errand and stroll it picked, 263 times in a
+/// shift: getting out of a room was never the same as keeping out of it.
+/datum/bot_brain/proc/path_crosses_bad_air(list/path)
+	if(!length(bad_air_areas) || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST || current_goal?.braves_bad_air \
+		|| istype(current_goal, /datum/bot_goal/seek_air) || istype(current_goal, /datum/bot_goal/evacuate) || is_eva_ready())
+		return FALSE
+	var/area/here = get_area(owner)
+	for(var/turf/T as anything in path)
+		if(T.loc != here && LAZYACCESS(bad_air_areas, T.loc) > world.time)
+			return TRUE
+	return FALSE
+
+/// Out of it: that room's off its strolls for a few minutes, and it gets its breath back before going anywhere. An officer got out
+/// of a breached Brig Desk, picked somewhere to wander to on the far side of it and walked straight back in, 263 times in a shift.
+/datum/bot_goal/seek_air/on_success(datum/bot_brain/bot)
+	if(bot.bad_air_area && bot.bad_air_area != get_area(bot.owner))
+		LAZYSET(bot.failed_areas, bot.bad_air_area, world.time + 3 MINUTES)
+	for(var/area/A as anything in bot.bad_air_areas) //the stale ones go
+		if(bot.bad_air_areas[A] < world.time)
+			LAZYREMOVE(bot.bad_air_areas, A)
+	bot.next_wander_time = max(bot.next_wander_time, world.time + rand(20 SECONDS, 40 SECONDS))
 
 /datum/bot_goal/seek_air/resolve_target(datum/bot_brain/bot)
 	target = bot.find_breathable_turf()

@@ -264,15 +264,24 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 	var/datum/bot_goal/goal = bot.current_goal
 	if(goal?.never_rests || istype(goal, /datum/bot_goal/setup_supermatter) || istype(goal, /datum/bot_goal/acquire_item_type) || bot.saboteur)
 		return FALSE
-	var/obj/machinery/power/supermatter_crystal/S = bot.station_crystal()
 	// Not one out exploring a ruin 180 tiles off: it had no way back, and gave up on each emitter in turn, a fresh call each time.
-	return S && get_dist(bot.owner, S) <= 60 && bot.sm_crystal_failing() && bot.next_sm_job(S)
+	return bot.crystal_emergency_job()
 
 /datum/bot_duty/crystal_emergency/try_start(datum/bot_brain/bot)
-	var/obj/machinery/power/supermatter_crystal/S = bot.station_crystal()
-	if(!S || bot.saboteur || get_dist(bot.owner, S) > 60 || !bot.sm_crystal_failing() || !bot.next_sm_job(S))
+	if(bot.saboteur || !bot.crystal_emergency_job())
 		return FALSE
 	return bot.assign_goal(new /datum/bot_goal/setup_supermatter())
+
+/// The job on a failing crystal this engineer could take on now: near enough, and not somewhere it can't breathe without a suit it
+/// hasn't got. The engine room full of a saboteur's bad air had one dropping four errands in three seconds, each call refused for the air.
+/datum/bot_brain/proc/crystal_emergency_job()
+	var/obj/machinery/power/supermatter_crystal/S = station_crystal()
+	if(!S || get_dist(owner, S) > 60 || !sm_crystal_failing())
+		return null
+	var/atom/job = next_sm_job(S)
+	if(!job || (in_bad_air(job) && !is_eva_ready()))
+		return null
+	return job
 
 /datum/bot_brain/proc/continue_supermatter_round()
 	var/datum/bot_duty/supermatter/duty = bot_duty_of(/datum/bot_duty/supermatter)
