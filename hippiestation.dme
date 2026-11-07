@@ -3093,6 +3093,7 @@
 #include "hippiestation\code\game\machinery\reagent_material_manipulator.dm"
 #include "hippiestation\code\game\machinery\reagent_sheet.dm"
 #include "hippiestation\code\game\machinery\recharger.dm"
+#include "hippiestation\code\game\machinery\security_devices_tgui.dm"
 #include "hippiestation\code\game\machinery\service_tgui.dm"
 #include "hippiestation\code\game\machinery\turret_tgui.dm"
 #include "hippiestation\code\game\machinery\requests_console_requests.dm"

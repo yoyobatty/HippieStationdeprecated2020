@@ -1,55 +1,72 @@
-import { Fragment } from 'inferno';
 import { useBackend } from '../backend';
-import { Button, Section } from '../components';
+import { Icon } from '../components';
+
+// hippie -- the cell timer as a wall panel: the time left in big red
+// digits, keys to set it, presets, Start/Stop and the flash. Data and
+// actions from code/game/machinery/doors/brigdoors.dm, as before.
+
+const pad2 = n => (n < 10 ? '0' : '') + n;
+
+export const SecKey = props => {
+  const { className, on, disabled, onClick, children } = props;
+  return (
+    <div
+      className={'SecDev__key'
+        + (on ? ' SecDev__key--on' : '')
+        + (disabled ? ' SecDev__key--disabled' : '')
+        + (className ? ' ' + className : '')}
+      onClick={() => !disabled && onClick()}>
+      {children}
+    </div>
+  );
+};
 
 export const BrigTimer = props => {
   const { act, data } = useBackend(props);
+  const { timing, minutes, seconds, flash_charging } = data;
+  const adjust = value => act('time', { adjust: value });
   return (
-    <Section
-      title="Cell Timer"
-      buttons={(
-        <Fragment>
-          <Button
-            icon="clock-o"
-            content={data.timing ? 'Stop' : 'Start'}
-            selected={data.timing}
-            onClick={() => act(data.timing ? 'stop' : 'start')} />
-          <Button
-            icon="lightbulb-o"
-            content={data.flash_charging ? 'Recharging' : 'Flash'}
-            disabled={data.flash_charging}
-            onClick={() => act('flash')} />
-        </Fragment>
-      )}>
-      <Button
-        icon="fast-backward"
-        onClick={() => act('time', { adjust: -600 })} />
-      <Button
-        icon="backward"
-        onClick={() => act('time', { adjust: -100 })} />
-      {' '}
-      {String(data.minutes).padStart(2, '0')}:
-      {String(data.seconds).padStart(2, '0')}
-      {' '}
-      <Button
-        icon="forward"
-        onClick={() => act('time', { adjust: 100 })} />
-      <Button
-        icon="fast-forward"
-        onClick={() => act('time', { adjust: 600 })} />
-      <br />
-      <Button
-        icon="hourglass-start"
-        content="Short"
-        onClick={() => act('preset', { preset: 'short' })} />
-      <Button
-        icon="hourglass-start"
-        content="Medium"
-        onClick={() => act('preset', { preset: 'medium' })} />
-      <Button
-        icon="hourglass-start"
-        content="Long"
-        onClick={() => act('preset', { preset: 'long' })} />
-    </Section>
+    <div className="SecDev">
+      <div className={'BrigTimer__display'
+        + (timing ? ' BrigTimer__display--running' : '')}>
+        <span className="BrigTimer__ghost">88:88</span>
+        <span className="BrigTimer__digits">
+          {pad2(minutes) + ':' + pad2(seconds)}
+        </span>
+        <span className="BrigTimer__state">
+          {timing ? 'Running' : 'Stopped'}
+        </span>
+      </div>
+      <div className="SecDev__row">
+        <SecKey onClick={() => adjust(-600)}>-1m</SecKey>
+        <SecKey onClick={() => adjust(-100)}>-10s</SecKey>
+        <SecKey onClick={() => adjust(100)}>+10s</SecKey>
+        <SecKey onClick={() => adjust(600)}>+1m</SecKey>
+      </div>
+      <div className="SecDev__row">
+        {['short', 'medium', 'long'].map(preset => (
+          <SecKey
+            key={preset}
+            onClick={() => act('preset', { preset })}>
+            {preset}
+          </SecKey>
+        ))}
+      </div>
+      <div className="SecDev__row">
+        <SecKey
+          className={timing ? 'SecDev__key--stop' : 'SecDev__key--go'}
+          onClick={() => act(timing ? 'stop' : 'start')}>
+          <Icon name={timing ? 'stop' : 'play'} mr={1} />
+          {timing ? 'Stop' : 'Start'}
+        </SecKey>
+        <SecKey
+          className="SecDev__key--flash"
+          disabled={!!flash_charging}
+          onClick={() => act('flash')}>
+          <Icon name="lightbulb" mr={1} />
+          {flash_charging ? 'Charging' : 'Flash'}
+        </SecKey>
+      </div>
+    </div>
   );
 };

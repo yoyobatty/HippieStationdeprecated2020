@@ -748,7 +748,7 @@ const ROUTES = {
   },
   scanner_gate: {
     component: () => ScannerGate,
-    scrollable: true,
+    scrollable: false,
   },
   shuttle_manipulator: {
     component: () => ShuttleManipulator,
