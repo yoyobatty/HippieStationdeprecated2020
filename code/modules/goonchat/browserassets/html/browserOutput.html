@@ -4,11 +4,6 @@
 	<title>Chat</title>
 	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-	<link rel="stylesheet" type="text/css" href="font-awesome.css" />
-	<link id="sheetofstyles" rel="stylesheet" type="text/css" href="browserOutput.css" />
-	<link rel="stylesheet" type="text/css" href="spritesheet_chat.css" />
-	<script type="text/javascript" src="jquery.min.js"></script>
-	<script type="text/javascript" src="json2.min.js"></script>
 </head>
 <body>
 	<div id="loading">
@@ -19,39 +14,135 @@
 			If it <b>still</b> doesn't work, use the bug report button at the top right of the window.
 		</div>
 	</div>
-	<div id="messages">
-
+	<div id="bar">
+		<div id="tabs">
+			<a href="#" class="tab active" id="tab-all" data-tab="all">All</a>
+			<a href="#" class="tab" id="tab-local" data-tab="local">Local<span class="unread"></span></a>
+			<a href="#" class="tab" id="tab-radio" data-tab="radio">Radio<span class="unread"></span></a>
+			<a href="#" class="tab" id="tab-ooc" data-tab="ooc">OOC<span class="unread"></span></a>
+			<a href="#" class="tab" id="tab-combat" data-tab="combat">Combat<span class="unread"></span></a>
+			<a href="#" class="tab" id="tab-admin" data-tab="admin" style="display: none;">Admin<span class="unread"></span></a>
+		</div>
+		<div id="searchBox">
+			<i class="fas fa-search"></i>
+			<input type="text" id="searchInput" placeholder="Search" spellcheck="false" autocomplete="off" />
+			<a href="#" id="searchClose" title="Close"><i class="fas fa-times"></i></a>
+		</div>
+		<div id="tools">
+			<a href="#" class="tool" id="searchOpen" title="Search"><i class="fas fa-search"></i></a>
+			<span id="ping" title="Ping"><i class="fas fa-circle" id="pingDot"></i><span id="pingMs">--</span></span>
+			<a href="#" class="tool" id="toggleOptions" title="Settings"><i class="fas fa-cog"></i></a>
+		</div>
 	</div>
-	<div id="userBar" style="display: none;">
-		<div id="ping">
-			<i class="fas fa-circle" id="pingDot"></i>
-			<span class="ms" id="pingMs">--ms</span>
+	<div id="scroller">
+		<div id="messages" data-tab="all"></div>
+	</div>
+	<a href="#" id="newMessages" style="display: none;"><i class="fas fa-angle-double-down"></i> <span class="number">0</span> new</a>
+	<div id="settings" style="display: none;">
+		<div class="settingsHead">
+			<span>Settings</span>
+			<a href="#" id="settingsClose" title="Close"><i class="fas fa-times"></i></a>
 		</div>
-		<div id="darkmodething">
-			<a href="#" class="subCell toggle" id="darkmodetoggle" title="Darkmode"><i class="fas fa-adjust"></i></a>
-		</div>
-		<div id="audio">
-			<a href="#" class="subCell toggle" id="toggleAudio" title="Audio"><i class="fas fa-volume-up"></i></a>
-		</div>
-		<div id="options">
-			<a href="#" class="subCell toggle" id="toggleOptions" title="Options"><i class="fas fa-cog"></i></a>
-		</div>
-		<div class="sub" id="subOptions">
-			<a href="#" class="subCell decreaseFont topCell" id="decreaseFont"><span>Decrease font size</span> <i class="fas fa-font"></i></a>
-			<a href="#" class="subCell increaseFont" id="increaseFont"><span>Increase font size</span> <i class="fas fa-font"></i></a>
-			<a href="#" class="subCell decreaseLineHeight" id="decreaseLineHeight"><span>Decrease line height</span> <i class="fas fa-text-height"></i></a>
-			<a href="#" class="subCell increaseLineHeight" id="increaseLineHeight"><span>Increase line height</span> <i class="fas fa-text-height"></i></a>
-			<a href="#" class="subCell togglePing" id="togglePing"><span>Toggle ping display</span> <i class="fas fa-circle"></i></a>
-			<a href="#" class="subCell highlightTerm" id="highlightTerm"><span>Highlight string</span> <i class="fas fa-tag"></i></a>
-			<a href="#" class="subCell saveLog" id="saveLog"><span>Save chat log</span> <i class="fas fa-save"></i></a>
-			<a href="#" class="subCell toggleCombine" id="toggleCombine"><span>Toggle line combining</span> <i class="fas fa-filter"></i></a>
-			<a href="#" class="subCell clearMessages" id="clearMessages"><span>Clear all messages</span> <i class="fas fa-eraser"></i></a>
-		</div>
-		<div class="sub" id="subAudio">
-			<span class="subCell topCell" id="musicVolumeSpan"><input type="range" class="hidden" id="musicVolume"><span id="musicVolumeText">Admin music volume</span><i class="fas fa-music"></i></span>
+		<div class="settingsBody">
+			<div class="group">Text</div>
+			<div class="row"><span class="label">Font size</span><span class="stepper"><a href="#" id="decreaseFont">&minus;</a><span class="value" id="fontSizeValue">13px</span><a href="#" id="increaseFont">+</a></span></div>
+			<div class="row"><span class="label">Line height</span><span class="stepper"><a href="#" id="decreaseLineHeight">&minus;</a><span class="value" id="lineHeightValue">1.2</span><a href="#" id="increaseLineHeight">+</a></span></div>
+			<div class="group">Messages</div>
+			<div class="row"><span class="label">Timestamps</span><a href="#" class="switch" data-option="timestamps"></a></div>
+			<div class="row"><span class="label">Combine repeats</span><a href="#" class="switch" data-option="combine"></a></div>
+			<div class="row"><span class="label">Ping</span><a href="#" class="switch" data-option="ping"></a></div>
+			<div class="row"><span class="label">Theme</span><span class="segmented"><a href="#" id="themeDark">Dark</a><a href="#" id="themeLight">Light</a></span></div>
+			<div class="group">Highlight</div>
+			<div class="highlightTerms">
+				<input type="text" class="highlightTerm" maxlength="255" spellcheck="false" />
+				<input type="text" class="highlightTerm" maxlength="255" spellcheck="false" />
+				<input type="text" class="highlightTerm" maxlength="255" spellcheck="false" />
+				<input type="text" class="highlightTerm" maxlength="255" spellcheck="false" />
+				<input type="text" class="highlightTerm" maxlength="255" spellcheck="false" />
+			</div>
+			<div class="row"><span class="label">Colour</span><input type="color" id="highlightColor" value="#ffff00" /></div>
+			<div class="group">Admin music</div>
+			<div class="row"><span class="label">Volume</span><input type="range" id="musicVolume" min="0" max="100" /><span class="value" id="musicVolumeValue">25</span></div>
+			<div class="group">Log</div>
+			<div class="row buttons"><a href="#" class="button" id="saveLog"><i class="fas fa-save"></i> Save log</a><a href="#" class="button" id="clearMessages"><i class="fas fa-eraser"></i> Clear</a></div>
 		</div>
 	</div>
 	<audio class="hidden" id="adminMusic" autoplay></audio>
-	<script type="text/javascript" src="browserOutput.js"></script>
+	<script type="text/javascript">
+	// BYOND 516: a file this page asks for while it's still arriving from the server can go unanswered for good under its
+	// address, while the same file asked for as name?r=1 comes back at once (a stylesheet stuck like that held up every script
+	// after it, and the chat never came up). So the page's files are fetched here, each asked for again under a new address if
+	// it hasn't come in a second or so (until it does: on a slow line a file can really still be on its way, and anything asked
+	// for before it lands goes unanswered). The scripts are fetched as text and run in order, so a late copy never runs twice.
+	(function () {
+		var SHEET_RETRY_MS = 1000, RETRY_MS = 1500, TRIES = 200;
+		var started = Date.now();
+		var log = window.chatLoadLog = []; // what came when, for Fix chat reports and the self-test
+		function note(text) {
+			log.push(text + ' ' + (Date.now() - started) + 'ms');
+		}
+		function sheet(name, id, attempt) {
+			var link = document.createElement('link');
+			var loaded = false;
+			link.rel = 'stylesheet';
+			link.type = 'text/css';
+			link.href = attempt ? name + '?r=' + attempt : name;
+			if (id) {
+				link.id = id;
+			}
+			link.onload = function () { loaded = true; note(link.href.split('/').pop()); };
+			document.head.appendChild(link);
+			setTimeout(function () {
+				// not if the theme switch has pointed it at the other sheet since
+				if (!loaded && attempt < TRIES && link.parentNode && link.href.split('/').pop().split('?')[0] == name) {
+					note(name + ' again');
+					link.parentNode.removeChild(link);
+					sheet(name, id, attempt + 1);
+				}
+			}, SHEET_RETRY_MS);
+		}
+		function scripts(names, attempt) {
+			if (!names.length) {
+				return;
+			}
+			var xhr = new XMLHttpRequest();
+			var settled = false;
+			var timer = setTimeout(function () {
+				if (!settled && attempt < TRIES) {
+					settled = true;
+					note(names[0] + ' again');
+					xhr.abort();
+					scripts(names, attempt + 1);
+				}
+			}, RETRY_MS);
+			xhr.onreadystatechange = function () {
+				if (xhr.readyState !== 4 || settled) {
+					return;
+				}
+				settled = true;
+				clearTimeout(timer);
+				note(names[0] + (attempt ? '?r=' + attempt : '') + ' ' + xhr.status);
+				if (xhr.status < 200 || xhr.status >= 400) {
+					if (attempt < TRIES) {
+						setTimeout(function () { scripts(names, attempt + 1); }, RETRY_MS);
+					}
+					return;
+				}
+				var script = document.createElement('script');
+				script.text = xhr.responseText + '\n//# sourceURL=' + names[0];
+				document.body.appendChild(script);
+				note(names[0] + ' ran');
+				scripts(names.slice(1), 0);
+			};
+			xhr.open('GET', attempt ? names[0] + '?r=' + attempt : names[0], true);
+			xhr.send(null);
+		}
+		sheet('font-awesome.css', null, 0);
+		sheet('browserOutput.css', 'sheetofstyles', 0);
+		sheet('browserOutput_ui.css', null, 0);
+		sheet('spritesheet_chat.css', null, 0);
+		scripts(['jquery.min.js', 'json2.min.js', 'browserOutput.js'], 0);
+	})();
+	</script>
 </body>
 </html>

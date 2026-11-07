@@ -8,6 +8,12 @@ GLOBAL_DATUM_INIT(iconCache, /savefile, new("tmp/iconCache[world.port].sav")) //
 //Should match the value set in the browser js
 #define MAX_COOKIE_LENGTH 5
 
+/// hippie: tells one boot from the next, so the chat's kept messages know whether their links still point at the same things
+GLOBAL_VAR_INIT(chat_round_token, "[world.realtime]-[rand(1, 999999)]")
+/// hippie: each player's last chat messages this round, by ckey, as sent (url-encoded twice): a new page gets them back on a reconnect
+GLOBAL_LIST_EMPTY(chat_histories)
+#define CHAT_HISTORY_KEEP 200
+
 //On client, created on login
 /datum/chatOutput
 	var/client/owner	 //client ref
@@ -21,11 +27,25 @@ GLOBAL_DATUM_INIT(iconCache, /savefile, new("tmp/iconCache[world.port].sav")) //
 	var/broken       = FALSE
 	var/list/connectionHistory //Contains the connection history passed from chat cookie
 	var/adminMusicVolume = 25 //This is for the Play Global Sound verb
+	var/list/history // hippie: GLOB.chat_histories' list for this ckey
 
 /datum/chatOutput/New(client/C)
 	owner = C
 	messageQueue = list()
 	connectionHistory = list()
+	if(C?.ckey)
+		history = GLOB.chat_histories[C.ckey]
+		if(!history)
+			history = list()
+			GLOB.chat_histories[C.ckey] = history
+
+/// hippie: a message the page was sent, already url-encoded twice. Kept to give a new page after a reconnect.
+/datum/chatOutput/proc/remember(encoded)
+	if(!history)
+		return
+	history += encoded
+	if(history.len > CHAT_HISTORY_KEEP + 50)
+		history.Cut(1, history.len - CHAT_HISTORY_KEEP + 1)
 
 /datum/chatOutput/proc/start()
 	//Check for existing chat
@@ -48,7 +68,7 @@ GLOBAL_DATUM_INIT(iconCache, /savefile, new("tmp/iconCache[world.port].sav")) //
 
 	return TRUE
 
-/datum/chatOutput/proc/load()
+/datum/chatOutput/proc/load(attempt = 1)
 	set waitfor = FALSE
 	if(!owner)
 		return
@@ -57,6 +77,16 @@ GLOBAL_DATUM_INIT(iconCache, /savefile, new("tmp/iconCache[world.port].sav")) //
 	stuff.send(owner)
 
 	owner << browse(file('code/modules/goonchat/browserassets/html/browserOutput.html'), "window=browseroutput")
+	// hippie: on 516 the page can hang for good on a file that was still arriving when it asked for it (a stylesheet in its head
+	// holds up every script after it). The same page loaded again finds the file, so it's loaded again until it says it's up.
+	if(attempt < 5)
+		addtimer(CALLBACK(src, PROC_REF(retry_load), attempt), 8 SECONDS)
+
+/datum/chatOutput/proc/retry_load(attempt)
+	if(loaded || broken || QDELETED(owner))
+		return
+	log_world("Chat for [owner.ckey] hadn't loaded after [attempt * 8] s, loading it again")
+	load(attempt + 1)
 
 /datum/chatOutput/Topic(href, list/href_list)
 	if(usr.client != owner)
@@ -98,21 +128,24 @@ GLOBAL_DATUM_INIT(iconCache, /savefile, new("tmp/iconCache[world.port].sav")) //
 
 
 //Called on chat output done-loading by JS.
-/datum/chatOutput/proc/doneLoading()
+/datum/chatOutput/proc/doneLoading(fresh)
 	if(loaded)
 		return
 
 	testing("Chat loaded for [owner.ckey]")
 	loaded = TRUE
 	showChat()
+	sendClientData() //hippie: first, so the page knows the round before the history comes
 
+	// hippie: a page that came up empty (a new client, or Fix chat) gets this round's last messages back
+	if(fresh == "1" && length(history))
+		owner << output(jointext(history, "&"), "browseroutput:chatRestore")
 
 	for(var/message in messageQueue)
 		// whitespace has already been handled by the original to_chat
 		to_chat(owner, message, handle_whitespace=FALSE, confidential=TRUE)
 
 	messageQueue = null
-	sendClientData()
 
 	//do not convert to to_chat()
 	SEND_TEXT(owner, "<span class=\"userdanger\">Failed to load fancy chat, reverting to old chat. Certain features won't work.</span>")
@@ -152,8 +185,16 @@ GLOBAL_DATUM_INIT(iconCache, /savefile, new("tmp/iconCache[world.port].sav")) //
 	deets["clientData"]["ckey"] = owner.ckey
 	deets["clientData"]["ip"] = owner.address
 	deets["clientData"]["compid"] = owner.computer_id
+	deets["clientData"]["admin"] = owner.holder ? TRUE : FALSE //hippie: the chat's Admin tab
+	deets["clientData"]["round"] = GLOB.chat_round_token //hippie: links in messages kept from another round go nowhere
 	var/data = json_encode(deets)
 	ehjax_send(data = data)
+
+/// hippie: whether the chat shows its Admin tab, when someone gains or loses admin
+/datum/chatOutput/proc/sendChatState()
+	if(!loaded)
+		return
+	ehjax_send(data = list("chatAdmin" = owner?.holder ? TRUE : FALSE))
 
 //Called by client, sent data to investigate (cookie history so far)
 /datum/chatOutput/proc/analyzeClientData(cookie = "")
@@ -247,6 +288,7 @@ GLOBAL_DATUM_INIT(iconCache, /savefile, new("tmp/iconCache[world.port].sav")) //
 				continue
 
 			C << output(twiceEncoded, "browseroutput:output")
+			C.chatOutput.remember(twiceEncoded)
 	else
 		var/client/C = CLIENT_FROM_VAR(target) //Grab us a client if possible
 
@@ -265,7 +307,9 @@ GLOBAL_DATUM_INIT(iconCache, /savefile, new("tmp/iconCache[world.port].sav")) //
 			return
 
 		// url_encode it TWICE, this way any UTF-8 characters are able to be decoded by the Javascript.
-		C << output(url_encode(url_encode(message)), "browseroutput:output")
+		var/encoded = url_encode(url_encode(message))
+		C << output(encoded, "browseroutput:output")
+		C.chatOutput.remember(encoded)
 
 /proc/to_chat(target, message, handle_whitespace = TRUE, confidential = FALSE)
 	if(Master.current_runlevel == RUNLEVEL_INIT || !SSchat?.initialized)
@@ -280,3 +324,4 @@ GLOBAL_DATUM_INIT(iconCache, /savefile, new("tmp/iconCache[world.port].sav")) //
 	owner.force_dark_theme()
 
 #undef MAX_COOKIE_LENGTH
+#undef CHAT_HISTORY_KEEP

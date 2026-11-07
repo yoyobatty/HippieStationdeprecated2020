@@ -62,7 +62,7 @@ function Say($text) { [IO.File]::AppendAllText("$data\keycheck.txt", "$text`n") 
 $p = Get-Process dreamseeker -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
 if (-not $p) { Say "no DreamSeeker window"; exit 1 }
 $h = $p.MainWindowHandle
-$deadline = (Get-Date).AddMinutes(3)
+$deadline = (Get-Date).AddMinutes($(if ($env:SHOT_MINUTES) { [int]$env:SHOT_MINUTES } else { 3 }))
 while ((Get-Date) -lt $deadline -and -not (Test-Path "$data\keycheck_shots_done")) {
 	if (Test-Path "$data\keycheck_hover") { # window_check.dm: the mouse over the map, a few places, nothing global
 		Remove-Item "$data\keycheck_hover"

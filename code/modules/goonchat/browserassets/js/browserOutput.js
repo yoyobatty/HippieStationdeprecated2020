@@ -14,14 +14,14 @@ window.onerror = function(msg, url, line, col, error) {
 		extra += !error ? '' : ' | error: ' + error;
 		extra += !navigator.userAgent ? '' : ' | user agent: ' + navigator.userAgent;
 		var debugLine = 'Error: ' + msg + ' | url: ' + url + ' | line: ' + line + extra;
-		window.location = '?_src_=chat&proc=debug&param[error]='+escaper(debugLine);
+		runByond('?_src_=chat&proc=debug&param[error]='+escaper(debugLine));
 	}
 	return true;
 };
 
 //Globals
 window.status = 'Output';
-var $messages, $subOptions, $subAudio, $selectedSub, $contextMenu, $filterMessages, $last_message;
+var $messages, $scroller, $last_message;
 var opts = {
 	//General
 	'messageCount': 0, //A count...of messages...
@@ -30,19 +30,17 @@ var opts = {
 	'clickTolerance': 10, //Keep focus if outside x pixels of mousedown position on mouseup
 	'imageRetryDelay': 50, //how long between attempts to reload images (in ms)
 	'imageRetryLimit': 50, //how many attempts should we make?
-	'popups': 0, //Amount of popups opened ever
 	'wasd': false, //Is the user in wasd mode?
 	'priorChatHeight': 0, //Thing for height-resizing detection
 	'restarting': false, //Is the round restarting?
 	'darkmode':true, //Are we using darkmode? If not WHY ARE YOU LIVING IN 2009???
 
-	//Options menu
-	'selectedSubLoop': null, //Contains the interval loop for closing the selected sub menu
-	'suppressSubClose': false, //Whether or not we should be hiding the selected sub menu
+	//Options
 	'highlightTerms': [],
 	'highlightLimit': 5,
 	'highlightColor': '#FFFF00', //The color of the highlighted message
 	'pingDisabled': false, //Has the user disabled the ping counter
+	'timestamps': false,
 
 	//Ping display
 	'lastPang': 0, //Timestamp of the last response from the server.
@@ -71,25 +69,78 @@ var opts = {
 	'defaultMusicVolume': 25,
 
 	'messageCombining': true,
-
 };
 var replaceRegexes = {};
+
+/*****************************************
+*
+* TABS: what kind of message each is, by the classes it already carries
+*
+******************************************/
+
+// The first rule that matches decides. PMs and the mentor channel go before the admin classes they're dressed in.
+var MESSAGE_RULES = [
+	['admin', '.adminsay, .admin, .adminnotice, .mentor, .log_message, .prayer'],
+	['ooc', '.ooc, .looc, .adminooc, .adminobserverooc'],
+	['radio', '.radio, .sciradio, .comradio, .secradio, .medradio, .engradio, .suppradio, .servradio, .syndradio, .centcomradio, .aiprivradio, .redteamradio, .blueteamradio, .deptradio, .binarysay'],
+	['local', '.say, .emote, .deadsay'],
+	['combat', '.danger, .userdanger'],
+];
+var PM_TEXT = /^\s*(Admin PM|PM (from|to)-|Reply PM|Mentor PM|Mentor-PM|MENTOR:|Ticket #)/i;
+// Which kinds each tab shows. System lines (connection notices) show everywhere.
+var TABS = {
+	'all': null,
+	'local': ['local'],
+	'radio': ['radio'],
+	'ooc': ['ooc', 'pm'],
+	'combat': ['combat'],
+	'admin': ['admin', 'pm'],
+};
+var HISTORY_KEEP = 200;
+var HISTORY_KEY = 'goonchat_history';
+
+var chatui = {
+	tab: 'all',
+	unread: {local: 0, radio: 0, ooc: 0, combat: 0, admin: 0},
+	search: '',
+	admin: false,
+	round: null,
+	history: [], //what was shown, oldest first: {h: html, t: type, ts: time, n: repeats, r: round}
+	historyDirty: false,
+	newCount: 0,
+};
+
+function classifyMessage(entry, text) {
+	if (entry.querySelector('.internal, .connectionClosed')) {
+		return 'system';
+	}
+	if (PM_TEXT.test(text) || entry.querySelector('.adminhelp, .mentornotice')) {
+		return 'pm';
+	}
+	for (var i = 0; i < MESSAGE_RULES.length; i++) {
+		if (entry.querySelector(MESSAGE_RULES[i][1])) {
+			return MESSAGE_RULES[i][0];
+		}
+	}
+	return 'other';
+}
+
+function tabShows(tab, type) {
+	var kinds = TABS[tab];
+	return !kinds || type == 'system' || kinds.indexOf(type) != -1;
+}
 
 function clamp(val, min, max) {
 	return Math.max(min, Math.min(val, max))
 }
 
-//Polyfill for fucking date now because of course IE8 and below don't support it
-if (!Date.now) {
-	Date.now = function now() {
-		return new Date().getTime();
-	};
+function pad2(n) {
+	return (n < 10 ? '0' : '') + n;
 }
-//Polyfill for trim() (IE8 and below)
-if (typeof String.prototype.trim !== 'function') {
-	String.prototype.trim = function () {
-		return this.replace(/^\s+|\s+$/g, '');
-	};
+
+function timeText(when) {
+	var d = new Date(when);
+	return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
 }
 
 // Linkify the contents of a node, within its parent.
@@ -137,19 +188,6 @@ function linkify_node(node) {
 	}
 }
 
-//Shit fucking piece of crap that doesn't work god fuckin damn it
-function linkify_fallback(text) {
-	var rex = /((?:<a|<iframe|<img)(?:.*?(?:src="|href=").*?))?(?:(?:https?:\/\/)|(?:www\.))+(?:[^ ]*?\.[^ ]*?)+[-A-Za-z0-9+&@#\/%?=~_|$!:,.;]+/ig;
-	return text.replace(rex, function ($0, $1) {
-		if(/^https?:\/\/.+/i.test($0)) {
-			return $1 ? $0: '<a href="'+$0+'">'+$0+'</a>';
-		}
-		else {
-			return $1 ? $0: '<a href="http://'+$0+'">'+$0+'</a>';
-		}
-	});
-}
-
 function byondDecode(message) {
 	// Basically we url_encode twice server side so we can manually read the encoded version and actually do UTF-8.
 	// The replace for + is because FOR SOME REASON, BYOND replaces spaces with a + instead of %20, and a plus with %2b.
@@ -157,11 +195,7 @@ function byondDecode(message) {
 	message = message.replace(/\+/g, "%20");
 	try {
 		// This is a workaround for the above not always working when BYOND's shitty url encoding breaks. (byond bug id:2399401)
-		if (decodeURIComponent) {
-			message = decodeURIComponent(message);
-		} else {
-			throw new Error("Easiest way to trigger the fallback")
-		}
+		message = decodeURIComponent(message);
 	} catch (err) {
 		message = unescape(message);
 	}
@@ -177,62 +211,57 @@ function replaceRegex() {
 	$(this).removeAttr('replaceRegex');
 }
 
-// Get a highlight markup span
-function createHighlightMarkup() {
-	var extra = '';
-	if (opts.highlightColor) {
-		extra += ' style="background-color: ' + opts.highlightColor + '"';
-	}
-	return '<span class="highlight"' + extra + '></span>';
+function escapeRegex(text) {
+	return text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
 }
 
 // Get all child text nodes that match a regex pattern
 function getTextNodes(elem, pattern) {
-	var result = $([]);
-	$(elem).contents().each(function(idx, child) {
-		if (child.nodeType === 3 && /\S/.test(child.nodeValue) && pattern.test(child.nodeValue)) {
-			result = result.add(child);
+	var result = [];
+	(function walk(node) {
+		for (var child = node.firstChild; child; child = child.nextSibling) {
+			if (child.nodeType === 3) {
+				pattern.lastIndex = 0;
+				if (/\S/.test(child.nodeValue) && pattern.test(child.nodeValue)) {
+					result.push(child);
+				}
+			} else if (child.nodeType === 1 && !$(child).hasClass('ts')) {
+				walk(child);
+			}
 		}
-		else {
-			result = result.add(getTextNodes(child, pattern));
-		}
-	});
+	})(elem);
 	return result;
 }
 
-// Highlight all text terms matching the registered regex patterns
+// Highlight all text terms matching the registered patterns
 function highlightTerms(el) {
-	var pattern = new RegExp("(" + opts.highlightTerms.join('|') + ")", 'gi');
+	var terms = [];
+	for (var i = 0; i < opts.highlightTerms.length; i++) {
+		terms.push(escapeRegex(opts.highlightTerms[i]));
+	}
+	var pattern = new RegExp("(" + terms.join('|') + ")", 'gi');
 	var nodes = getTextNodes(el, pattern);
-
-	nodes.each(function (idx, node) {
-		var content = $(node).text();
-		var parent = $(node).parent();
-		var pre = $(node.previousSibling);
-		$(node).remove();
-		content.split(pattern).forEach(function (chunk) {
-			// Get our highlighted span/text node
-			var toInsert = null;
-			if (pattern.test(chunk)) {
-				var tmpElem = $(createHighlightMarkup());
-				tmpElem.text(chunk);
-				toInsert = tmpElem;
+	for (var n = 0; n < nodes.length; n++) {
+		var node = nodes[n];
+		var parts = node.nodeValue.split(pattern);
+		var frag = document.createDocumentFragment();
+		for (var p = 0; p < parts.length; p++) {
+			if (!parts[p]) {
+				continue;
 			}
-			else {
-				toInsert = document.createTextNode(chunk);
+			if (p % 2 == 1) { //split() with a group puts the matches at the odd places
+				var span = document.createElement('span');
+				span.className = 'highlight';
+				span.style.backgroundColor = opts.highlightColor;
+				span.style.color = '#000000';
+				span.textContent = parts[p];
+				frag.appendChild(span);
+			} else {
+				frag.appendChild(document.createTextNode(parts[p]));
 			}
-
-			// Insert back into our element
-			if (pre.length == 0) {
-				var result = parent.prepend(toInsert);
-				pre = $(result[0].firstChild);
-			}
-			else {
-				pre.after(toInsert);
-				pre = $(pre[0].nextSibling);
-			}
-		});
-	});
+		}
+		node.parentNode.replaceChild(frag, node);
+	}
 }
 
 function iconError(E) {
@@ -251,6 +280,149 @@ function iconError(E) {
 	}, opts.imageRetryDelay);
 }
 
+function isAtBottom() {
+	var s = $scroller[0];
+	return s.scrollHeight - s.scrollTop - s.clientHeight <= opts.scrollSnapTolerance;
+}
+
+function scrollToBottom() {
+	var s = $scroller[0];
+	s.scrollTop = s.scrollHeight;
+}
+
+function updateNewMessages() {
+	if (chatui.newCount > 0) {
+		$('#newMessages .number').text(chatui.newCount);
+		$('#newMessages').show();
+	} else {
+		$('#newMessages').hide();
+	}
+}
+
+function setUnread(tab, count) {
+	chatui.unread[tab] = count;
+	var $badge = $('#tab-' + tab + ' .unread');
+	$badge.text(count > 99 ? '99+' : count);
+	$badge.toggleClass('on', count > 0);
+}
+
+function matchesSearch(entry) {
+	return !chatui.search || (entry.textContent || '').toLowerCase().indexOf(chatui.search) != -1;
+}
+
+// The (repeat) badge and the time go back on after the message's html is put in again.
+function decorateEntry(entry, record) {
+	var ts = document.createElement('span');
+	ts.className = 'ts';
+	ts.textContent = record.ts ? timeText(record.ts) : '';
+	entry.insertBefore(ts, entry.firstChild);
+	if (record.n > 1) {
+		var badge = document.createElement('span');
+		badge.className = 'r';
+		badge.textContent = record.n;
+		entry.appendChild(badge);
+	}
+}
+
+function finishEntry(entry) {
+	$(entry).find('[replaceRegex]').each(replaceRegex);
+	$(entry).find("img.icon").on('error', iconError);
+	var to_linkify = entry.querySelectorAll('.linkify');
+	for (var i = 0; i < to_linkify.length; ++i) {
+		linkify_node(to_linkify[i]);
+	}
+	if (opts.highlightTerms && opts.highlightTerms.length > 0) {
+		highlightTerms(entry);
+	}
+}
+
+function dropOldest() {
+	var first = $messages[0].firstChild;
+	if (first) {
+		$messages[0].removeChild(first);
+	}
+	opts.messageCount--;
+}
+
+// One message into the chat. Returns whether it can be seen in the open tab.
+function addMessage(message, flag, record) {
+	// Messages from the server end with a line break: the next one starts on its own line anyway, and a repeat badge belongs on this one
+	message = message.replace(/(\s*<br\s*\/?>\s*)+$/i, '').trim();
+	if (!message.length) {
+		return false;
+	}
+
+	var entry = document.createElement('div');
+	entry.innerHTML = message;
+	var trimmed_message = entry.textContent || entry.innerText || "";
+	var type = record ? record.t : classifyMessage(entry, trimmed_message);
+
+	if (!record && opts.messageCombining && $last_message && $last_message == trimmed_message) {
+		var last = $messages[0].lastChild;
+		var lastRecord = chatui.history[chatui.history.length - 1];
+		if (last && lastRecord && last === chatui.lastEntry) {
+			lastRecord.n++;
+			lastRecord.h = message;
+			if (flag != 'recovered') {
+				lastRecord.ts = Date.now();
+			}
+			last.innerHTML = message;
+			decorateEntry(last, lastRecord);
+			finishEntry(last);
+			chatui.historyDirty = true;
+			var $badge = $(last).children('.r').last();
+			$badge.css('font-size', '0.9em');
+			setTimeout(function() { $badge.css('font-size', ''); }, 150);
+			return tabShows(chatui.tab, type) && matchesSearch(last);
+		}
+	}
+
+	// restored: kept by this page from before it was loaded again. recovered: sent back by the server for a page that came up empty.
+	var kept = flag == 'restored' || flag == 'recovered';
+	if (!record) {
+		record = {h: message, t: type, ts: flag == 'recovered' ? null : Date.now(), n: 1, r: chatui.round};
+	}
+	entry.className = 'entry t-' + type;
+	if (kept) {
+		entry.className += ' restored';
+		if (record.r !== chatui.round || !chatui.round) {
+			entry.className += ' stale';
+		}
+		entry.setAttribute('data-round', record.r || '');
+	}
+	decorateEntry(entry, record);
+	finishEntry(entry);
+	if (!matchesSearch(entry)) {
+		entry.className += ' nomatch';
+	}
+
+	opts.messageCount++;
+	if (opts.messageCount >= opts.messageLimit) {
+		dropOldest();
+	}
+	$messages[0].appendChild(entry);
+	$last_message = flag == 'restored' ? null : trimmed_message;
+	chatui.lastEntry = null;
+
+	if (type != 'system' && flag != 'restored') {
+		chatui.lastEntry = entry;
+		chatui.history.push(record);
+		if (chatui.history.length > HISTORY_KEEP + 50) {
+			chatui.history.splice(0, chatui.history.length - HISTORY_KEEP);
+		}
+		chatui.historyDirty = true;
+		// Unread: it arrived where it can't be seen
+		if (flag != 'recovered' && !tabShows(chatui.tab, type)) {
+			for (var tab in chatui.unread) {
+				if (tabShows(tab, type) && (tab != 'admin' || chatui.admin)) {
+					setUnread(tab, chatui.unread[tab] + 1);
+				}
+			}
+		}
+	}
+	return tabShows(chatui.tab, type) && matchesSearch(entry);
+}
+
 //Send a message to the client
 function output(message, flag) {
 	if (typeof message === 'undefined') {
@@ -259,174 +431,57 @@ function output(message, flag) {
 	if (typeof flag === 'undefined') {
 		flag = '';
 	}
-
 	if (flag !== 'internal')
 		opts.lastPang = Date.now();
 
-	message = byondDecode(message).trim();
+	var atBottom = isAtBottom();
+	var seen = addMessage(byondDecode(message), flag);
+	afterAdding(atBottom, seen ? 1 : 0);
+}
 
-	//The behemoth of filter-code (for Admin message filters)
-	//Note: This is proooobably hella inefficient
-	var filteredOut = false;
-	if (opts.hasOwnProperty('showMessagesFilters') && !opts.showMessagesFilters['All'].show) {
-		//Get this filter type (defined by class on message)
-		var messageHtml = $.parseHTML(message),
-			messageClasses;
-		if (opts.hasOwnProperty('filterHideAll') && opts.filterHideAll) {
-			var internal = false;
-			messageClasses = (!!$(messageHtml).attr('class') ? $(messageHtml).attr('class').split(/\s+/) : false);
-			if (messageClasses) {
-				for (var i = 0; i < messageClasses.length; i++) { //Every class
-					if (messageClasses[i] == 'internal') {
-						internal = true;
-						break;
-					}
-				}
-			}
-			if (!internal) {
-				filteredOut = 'All';
-			}
-		} else {
-			//If the element or it's child have any classes
-			if (!!$(messageHtml).attr('class') || !!$(messageHtml).children().attr('class')) {
-				messageClasses = $(messageHtml).attr('class').split(/\s+/);
-				if (!!$(messageHtml).children().attr('class')) {
-					messageClasses = messageClasses.concat($(messageHtml).children().attr('class').split(/\s+/));
-				}
-				var tempCount = 0;
-				for (var i = 0; i < messageClasses.length; i++) { //Every class
-					var thisClass = messageClasses[i];
-					$.each(opts.showMessagesFilters, function(key, val) { //Every filter
-						if (key !== 'All' && val.show === false && typeof val.match != 'undefined') {
-							for (var i = 0; i < val.match.length; i++) {
-								var matchClass = val.match[i];
-								if (matchClass == thisClass) {
-									filteredOut = key;
-									break;
-								}
-							}
-						}
-						if (filteredOut) return false;
-					});
-					if (filteredOut) break;
-					tempCount++;
-				}
-			} else {
-				if (!opts.showMessagesFilters['Misc'].show) {
-					filteredOut = 'Misc';
-				}
-			}
+// Several messages from one tick of the server's chat queue, each its own argument.
+function chatBatch() {
+	opts.lastPang = Date.now();
+	var atBottom = isAtBottom();
+	var seen = 0;
+	for (var i = 0; i < arguments.length; i++) {
+		if (addMessage(byondDecode(arguments[i]), '')) {
+			seen++;
 		}
 	}
+	afterAdding(atBottom, seen);
+}
 
-	//Stuff we do along with appending a message
-	var atBottom = false;
-	if (!filteredOut) {
-		var bodyHeight = $('body').height();
-		var messagesHeight = $messages.outerHeight();
-		var scrollPos = $('body,html').scrollTop();
-
-		//Should we snap the output to the bottom?
-		if (bodyHeight + scrollPos >= messagesHeight - opts.scrollSnapTolerance) {
-			atBottom = true;
-			if ($('#newMessages').length) {
-				$('#newMessages').remove();
-			}
-		//If not, put the new messages box in
-		} else {
-			if ($('#newMessages').length) {
-				var messages = $('#newMessages .number').text();
-				messages = parseInt(messages);
-				messages++;
-				$('#newMessages .number').text(messages);
-				if (messages == 2) {
-					$('#newMessages .messageWord').append('s');
-				}
-			} else {
-				$messages.after('<a href="#" id="newMessages"><span class="number">1</span> new <span class="messageWord">message</span> <i class="icon-double-angle-down"></i></a>');
-			}
-		}
+// This round's last messages, from the server, for a page that came up empty (a reconnect, Fix chat). Each its own argument.
+function chatRestore() {
+	if (!arguments.length) {
+		return;
 	}
+	for (var i = 0; i < arguments.length; i++) {
+		addMessage(byondDecode(arguments[i]), 'recovered');
+	}
+	addDivider();
+	$last_message = null;
+	chatui.lastEntry = null;
+	scrollToBottom();
+}
 
+function addDivider() {
+	var divider = document.createElement('div');
+	divider.className = 'entry t-system divider';
+	divider.textContent = 'Reconnected';
+	$messages[0].appendChild(divider);
 	opts.messageCount++;
+}
 
-	//Pop the top message off if history limit reached
-	if (opts.messageCount >= opts.messageLimit) {
-		$messages.children('div.entry:first-child').remove();
-		opts.messageCount--; //I guess the count should only ever equal the limit
+function afterAdding(atBottom, seen) {
+	if (atBottom) {
+		scrollToBottom();
+		chatui.newCount = 0;
+	} else if (seen) {
+		chatui.newCount += seen;
 	}
-
-	// Create the element - if combining is off, we use it, and if it's on, we
-	// might discard it bug need to check its text content. Some messages vary
-	// only in HTML markup, have the same text content, and should combine.
-	var entry = document.createElement('div');
-	entry.innerHTML = message;
-	var trimmed_message = entry.textContent || entry.innerText || "";
-
-	var handled = false;
-	if (opts.messageCombining) {
-		var lastmessages = $messages.children('div.entry:last-child').last();
-		if (lastmessages.length && $last_message && $last_message == trimmed_message) {
-			var badge = lastmessages.children('.r').last();
-			if (badge.length) {
-				badge = badge.detach();
-				badge.text(parseInt(badge.text()) + 1);
-			} else {
-				badge = $('<span/>', {'class': 'r', 'text': 2});
-			}
-			lastmessages.html(message);
-			lastmessages.find('[replaceRegex]').each(replaceRegex);
-			lastmessages.append(badge);
-			badge.animate({
-				"font-size": "0.9em"
-			}, 100, function() {
-				badge.animate({
-					"font-size": "0.7em"
-				}, 100);
-			});
-			opts.messageCount--;
-			handled = true;
-		}
-	}
-
-	if (!handled) {
-		//Actually append the message
-		entry.className = 'entry';
-
-		if (filteredOut) {
-			entry.className += ' hidden';
-			entry.setAttribute('data-filter', filteredOut);
-		}
-
-		$(entry).find('[replaceRegex]').each(replaceRegex);
-
-		$last_message = trimmed_message;
-		$messages[0].appendChild(entry);
-		$(entry).find("img.icon").error(iconError);
-
-		var to_linkify = $(entry).find(".linkify");
-		if (typeof Node === 'undefined') {
-			// Linkify fallback for old IE
-			for(var i = 0; i < to_linkify.length; ++i) {
-				to_linkify[i].innerHTML = linkify_fallback(to_linkify[i].innerHTML);
-			}
-		} else {
-			// Linkify for modern IE versions
-			for(var i = 0; i < to_linkify.length; ++i) {
-				linkify_node(to_linkify[i]);
-			}
-		}
-
-		//Actually do the snap
-		//Stuff we can do after the message shows can go here, in the interests of responsiveness
-		if (opts.highlightTerms && opts.highlightTerms.length > 0) {
-			highlightTerms($(entry));
-		}
-	}
-
-	if (!filteredOut && atBottom) {
-		$('body,html').scrollTop($messages.outerHeight());
-	}
+	updateNewMessages();
 }
 
 function internalOutput(message, flag)
@@ -473,15 +528,19 @@ function toHex(n) {
 }
 
 function swap() { //Swap to darkmode
+	// A new address each time: on 516 an address that once went unanswered stays that way (see the loader in browserOutput.html)
 	if (opts.darkmode){
-		document.getElementById("sheetofstyles").href = "browserOutput_white.css";
+		document.getElementById("sheetofstyles").href = "browserOutput_white.css?t=" + Date.now();
 		opts.darkmode = false;
 		runByond('?_src_=chat&proc=swaptolightmode');
 	} else {
-		document.getElementById("sheetofstyles").href = "browserOutput.css";
+		document.getElementById("sheetofstyles").href = "browserOutput.css?t=" + Date.now();
 		opts.darkmode = true;
 		runByond('?_src_=chat&proc=swaptodarkmode');
 	}
+	$('html').toggleClass('light', !opts.darkmode);
+	$('#themeDark').toggleClass('on', opts.darkmode);
+	$('#themeLight').toggleClass('on', !opts.darkmode);
 	setCookie('darkmode', (opts.darkmode ? 'true' : 'false'), 365);
 }
 
@@ -510,6 +569,27 @@ function handleClientData(ckey, ip, compid) {
 	setCookie('connData', JSON.stringify(opts.clientData), 365);
 }
 
+// Whether this player gets the Admin tab, and which round this is (links in messages kept from another round go nowhere).
+function setChatState(admin, round) {
+	chatui.admin = !!admin;
+	$('#tab-admin').toggle(chatui.admin);
+	if (chatui.admin && chatui.wantedTab == 'admin' && chatui.tab != 'admin') { //the tab they left open, now that it's there
+		chatui.selectTab('admin');
+	}
+	if (!chatui.admin) {
+		setUnread('admin', 0);
+		if (chatui.tab == 'admin') {
+			chatui.selectTab('all');
+		}
+	}
+	if (round) {
+		chatui.round = String(round);
+		$messages.children('.restored').each(function() {
+			$(this).toggleClass('stale', $(this).attr('data-round') !== chatui.round);
+		});
+	}
+}
+
 //Server calls this on ehjax response
 //Or, y'know, whenever really
 function ehjaxCallback(data) {
@@ -535,7 +615,8 @@ function ehjaxCallback(data) {
 
 	} else if (data == 'roundrestart') {
 		opts.restarting = true;
-		internalOutput('<div class="connectionClosed internal restarting">The connection has been closed because the server is restarting. Please wait while you automatically reconnect.</div>', 'internal');
+		chatui.saveHistory(true);
+		internalOutput('<div class="connectionClosed internal restarting">The server is restarting. You\'ll reconnect on your own.</div>', 'internal');
 	} else if (data == 'stopMusic') {
 		$('#adminMusic').prop('src', '');
 	} else {
@@ -553,8 +634,9 @@ function ehjaxCallback(data) {
 		if (data.clientData) {
 			if (opts.restarting) {
 				opts.restarting = false;
-				$('.connectionClosed.restarting:not(.restored)').addClass('restored').text('The round restarted and you successfully reconnected!');
+				$('.connectionClosed.restarting:not(.restored)').addClass('restored').text('Reconnected.');
 			}
+			setChatState(data.clientData.admin, data.clientData.round);
 			if (!data.clientData.ckey && !data.clientData.ip && !data.clientData.compid) {
 				//TODO: Call shutdown perhaps
 				return;
@@ -562,6 +644,8 @@ function ehjaxCallback(data) {
 				handleClientData(data.clientData.ckey, data.clientData.ip, data.clientData.compid);
 			}
 			sendVolumeUpdate();
+		} else if (typeof data.chatAdmin !== 'undefined') {
+			setChatState(data.chatAdmin, null);
 		} else if (data.adminMusic) {
 			if (typeof data.adminMusic === 'string') {
 				var adminMusic = byondDecode(data.adminMusic);
@@ -605,21 +689,6 @@ function ehjaxCallback(data) {
 	}
 }
 
-function createPopup(contents, width) {
-	opts.popups++;
-	$('body').append('<div class="popup" id="popup'+opts.popups+'" style="width: '+width+'px;">'+contents+' <a href="#" class="close"><i class="icon-remove"></i></a></div>');
-
-	//Attach close popup event
-	var $popup = $('#popup'+opts.popups);
-	var height = $popup.outerHeight();
-	$popup.css({'height': height+'px', 'margin': '-'+(height/2)+'px 0 0 -'+(width/2)+'px'});
-
-	$popup.on('click', '.close', function(e) {
-		e.preventDefault();
-		$popup.remove();
-	});
-}
-
 function toggleWasd(state) {
 	opts.wasd = (state == 'on' ? true : false);
 }
@@ -652,43 +721,279 @@ function adminMusicLoadedData(event) {
 	}
 }
 
-function subSlideUp() {
-	$(this).removeClass('scroll');
-	$(this).css('height', '');
+function focusMap() {
+	runByond('byond://winset?mapwindow.map.focus=true');
 }
 
-function startSubLoop() {
-	if (opts.selectedSubLoop) {
-		clearInterval(opts.selectedSubLoop);
+/*****************************************
+*
+* THE CHAT'S OWN CONTROLS
+*
+******************************************/
+
+chatui.selectTab = function(tab) {
+	if (!(tab in TABS) || (tab == 'admin' && !chatui.admin)) {
+		tab = 'all';
 	}
-	return setInterval(function() {
-		if (!opts.suppressSubClose && $selectedSub.is(':visible')) {
-			$selectedSub.slideUp('fast', subSlideUp);
-			clearInterval(opts.selectedSubLoop);
+	chatui.tab = tab;
+	$messages.attr('data-tab', tab);
+	$('#tabs .tab').removeClass('active');
+	$('#tab-' + tab).addClass('active');
+	if (tab in chatui.unread) {
+		setUnread(tab, 0);
+	}
+	setCookie('chattab', tab, 365);
+	chatui.newCount = 0;
+	updateNewMessages();
+	scrollToBottom();
+};
+
+chatui.setSearch = function(text) {
+	chatui.search = (text || '').toLowerCase().trim();
+	if ($('#searchInput').val() != text) {
+		$('#searchInput').val(text);
+	}
+	var entries = $messages[0].children;
+	for (var i = 0; i < entries.length; i++) {
+		$(entries[i]).toggleClass('nomatch', !matchesSearch(entries[i]));
+	}
+	scrollToBottom();
+};
+
+chatui.openSearch = function() {
+	$('body').addClass('searching');
+	$('#searchInput').focus().select();
+};
+
+chatui.closeSearch = function() {
+	$('body').removeClass('searching');
+	chatui.setSearch('');
+	focusMap();
+};
+
+chatui.setOption = function(name, on) {
+	if (name == 'timestamps') {
+		opts.timestamps = !!on;
+		$('body').toggleClass('show-ts', opts.timestamps);
+		setCookie('timestamps', opts.timestamps ? 'true' : 'false', 365);
+	} else if (name == 'combine') {
+		opts.messageCombining = !!on;
+		setCookie('messagecombining', opts.messageCombining ? 'true' : 'false', 365);
+	} else if (name == 'ping') {
+		opts.pingDisabled = !on;
+		$('#ping').toggleClass('off', opts.pingDisabled);
+		setCookie('pingdisabled', opts.pingDisabled ? 'true' : 'false', 365);
+	}
+	chatui.showOptions();
+};
+
+chatui.showOptions = function() {
+	$('.switch[data-option="timestamps"]').toggleClass('on', opts.timestamps);
+	$('.switch[data-option="combine"]').toggleClass('on', opts.messageCombining);
+	$('.switch[data-option="ping"]').toggleClass('on', !opts.pingDisabled);
+	$('#themeDark').toggleClass('on', opts.darkmode);
+	$('#themeLight').toggleClass('on', !opts.darkmode);
+	$('#fontSizeValue').text(parseInt(chatui.fontSize, 10) + 'px');
+	$('#lineHeightValue').text(parseFloat(chatui.lineHeight).toFixed(1));
+	var $terms = $('.highlightTerm');
+	for (var i = 0; i < $terms.length; i++) {
+		if (!$terms.eq(i).is(':focus')) {
+			$terms.eq(i).val(opts.highlightTerms[i] || '');
 		}
-	}, 5000); //every 5 seconds
+	}
+	$('#highlightColor').val(normalColor(opts.highlightColor));
+	$('#musicVolume').val(opts.updatedVolume || opts.defaultMusicVolume);
+	$('#musicVolumeValue').text(opts.updatedVolume || opts.defaultMusicVolume);
+};
+
+// <input type=color> takes only #rrggbb
+function normalColor(color) {
+	color = (color || '').trim();
+	if (/^#[0-9a-f]{3}$/i.test(color)) {
+		color = '#' + color.charAt(1) + color.charAt(1) + color.charAt(2) + color.charAt(2) + color.charAt(3) + color.charAt(3);
+	}
+	return /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : '#ffff00';
 }
 
-function handleToggleClick($sub, $toggle) {
-	if ($selectedSub !== $sub && $selectedSub.is(':visible')) {
-		$selectedSub.slideUp('fast', subSlideUp);
+chatui.openSettings = function() {
+	chatui.showOptions();
+	$('#settings').show();
+	$('#toggleOptions').addClass('on');
+};
+
+chatui.closeSettings = function() {
+	$('#settings').hide();
+	$('#toggleOptions').removeClass('on');
+	focusMap();
+};
+
+chatui.setFontSize = function(size) {
+	chatui.fontSize = clamp(parseInt(size, 10) || 13, 6, 40) + 'px';
+	$messages.css('font-size', chatui.fontSize);
+	setCookie('fontsize', chatui.fontSize, 365);
+	chatui.showOptions();
+};
+
+chatui.setLineHeight = function(height) {
+	chatui.lineHeight = clamp(parseFloat(height) || 1.2, 0.5, 3).toFixed(1);
+	$messages.css('line-height', chatui.lineHeight);
+	setCookie('lineheight', chatui.lineHeight, 365);
+	chatui.showOptions();
+};
+
+chatui.saveHighlights = function() {
+	var terms = [];
+	$('.highlightTerm').each(function() {
+		var term = $(this).val();
+		if (term !== null && /\S/.test(term)) {
+			terms.push(term.trim().toLowerCase());
+		}
+	});
+	opts.highlightTerms = terms.slice(0, opts.highlightLimit);
+	opts.highlightColor = normalColor($('#highlightColor').val());
+	setCookie('highlightterms', JSON.stringify(opts.highlightTerms), 365);
+	setCookie('highlightcolor', opts.highlightColor, 365);
+};
+
+chatui.clear = function() {
+	$messages.empty();
+	opts.messageCount = 0;
+	$last_message = null;
+	chatui.history = [];
+	chatui.historyDirty = true;
+	chatui.saveHistory(true);
+	for (var tab in chatui.unread) {
+		setUnread(tab, 0);
 	}
-	$selectedSub = $sub
-	if ($selectedSub.is(':visible')) {
-		$selectedSub.slideUp('fast', subSlideUp);
-		clearInterval(opts.selectedSubLoop);
-	} else {
-		$selectedSub.slideDown('fast', function() {
-			var windowHeight = $(window).height();
-			var toggleHeight = $toggle.outerHeight();
-			var priorSubHeight = $selectedSub.outerHeight();
-			var newSubHeight = windowHeight - toggleHeight;
-			$(this).height(newSubHeight);
-			if (priorSubHeight > (windowHeight - toggleHeight)) {
-				$(this).addClass('scroll');
+	chatui.newCount = 0;
+	updateNewMessages();
+};
+
+// What can be seen right now, as text (the self-test reads it).
+chatui.visibleText = function() {
+	var out = [];
+	var entries = $messages[0].children;
+	for (var i = 0; i < entries.length; i++) {
+		if (entries[i].offsetParent !== null) {
+			out.push(entries[i].textContent);
+		}
+	}
+	return out.join('\n');
+};
+
+/*****************************************
+*
+* HISTORY: the last messages, put back after a reconnect or a new round
+*
+******************************************/
+
+function historyStore() {
+	try {
+		var test = '__goonchat_test';
+		window.localStorage.setItem(test, test);
+		window.localStorage.removeItem(test);
+		return window.localStorage;
+	} catch (e) {
+		return null;
+	}
+}
+
+chatui.saveHistory = function(force) {
+	if (!chatui.historyDirty && !force) {
+		return;
+	}
+	var store = historyStore();
+	if (!store) {
+		return;
+	}
+	chatui.historyDirty = false;
+	var items = chatui.history.slice(-HISTORY_KEEP);
+	try {
+		store.setItem(HISTORY_KEY, JSON.stringify({v: 1, saved: Date.now(), items: items}));
+	} catch (e) { //full: keep what fits
+		try {
+			store.setItem(HISTORY_KEY, JSON.stringify({v: 1, saved: Date.now(), items: items.slice(-50)}));
+		} catch (e2) {}
+	}
+};
+
+chatui.restoreHistory = function() {
+	var store = historyStore();
+	if (!store) {
+		return 0;
+	}
+	var saved;
+	try {
+		saved = JSON.parse(store.getItem(HISTORY_KEY) || 'null');
+	} catch (e) {
+		saved = null;
+	}
+	if (!saved || saved.v !== 1 || !saved.items || !saved.items.length) {
+		return 0;
+	}
+	for (var i = 0; i < saved.items.length; i++) {
+		var item = saved.items[i];
+		if (item && typeof item.h === 'string' && item.t in {'local':1, 'radio':1, 'ooc':1, 'pm':1, 'combat':1, 'admin':1, 'other':1}) {
+			addMessage(item.h, 'restored', item);
+			chatui.history.push(item);
+		}
+	}
+	addDivider();
+	return saved.items.length;
+};
+
+/*****************************************
+*
+* SAVE LOG
+*
+******************************************/
+
+function saveLogFileName() {
+	var date = new Date();
+	return 'SS13 Chat Log ' + date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate()) + ' ' +
+		pad2(date.getHours()) + pad2(date.getMinutes()) + pad2(date.getSeconds()) + '.html';
+}
+
+chatui.saveLog = function() {
+	$.ajax({
+		type: 'GET',
+		url: 'browserOutput_white.css?t=' + Date.now(),
+		dataType: 'text',
+		success: function(styleData) { saveLogWith(styleData); },
+		error: function() { saveLogWith(''); },
+	});
+};
+
+function saveLogWith(styleData) {
+	var $copy = $messages.clone();
+	$copy.find('.entry').removeClass('nomatch').css('display', '');
+	$copy.removeAttr('data-tab');
+	var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Chat Log</title><style>' + styleData +
+		' .ts {color: #777; font-size: 0.8em; margin-right: 5px;} .r {margin-left: 5px; padding: 1px 5px; border-radius: 8px; background: #ddd; font-size: 0.72em;} .r:before {content: "x";}' +
+		'</style></head><body>' + $copy.html() + '</body></html>';
+	var blob = new Blob([html], {type: 'text/html'});
+	var name = saveLogFileName();
+	if (window.navigator.msSaveBlob) {
+		window.navigator.msSaveBlob(blob, name);
+	} else if (window.showSaveFilePicker) {
+		window.showSaveFilePicker({suggestedName: name, types: [{description: 'Chat log', accept: {'text/html': ['.html']}}]}).then(function(handle) {
+			return handle.createWritable().then(function(writable) {
+				return writable.write(blob).then(function() { return writable.close(); });
+			});
+		}).then(function() {
+			internalOutput('<span class="internal boldnshit">Chat log saved.</span>', 'internal');
+		}, function(e) {
+			if (e && e.name != 'AbortError') {
+				internalOutput('<span class="internal boldnshit">Couldn\'t save the log: ' + e + '</span>', 'internal');
 			}
 		});
-		opts.selectedSubLoop = startSubLoop();
+	} else {
+		var link = document.createElement('a');
+		link.href = URL.createObjectURL(blob);
+		link.download = name;
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
 	}
 }
 
@@ -703,11 +1008,10 @@ if (typeof $ === 'undefined') {
 	div += '<br><br>ERROR: Jquery did not load.';
 }
 
-$(function() {
+function chatInit() {
 	$messages = $('#messages');
-	$subOptions = $('#subOptions');
-	$subAudio = $('#subAudio');
-	$selectedSub = $subOptions;
+	$scroller = $('#scroller');
+	opts.lastPang = Date.now(); //not 'AFK or lagging' before the server has had a chance to answer
 
 	//Hey look it's a controller loop!
 	setInterval(function() {
@@ -718,10 +1022,13 @@ $(function() {
 					internalOutput('<div class="connectionClosed internal" data-count="'+opts.noResponseCount+'">You are either AFK, experiencing lag or the connection has closed.</div>', 'internal');
 				}
 		} else if (opts.noResponse) { //Previous ping attempt failed ohno
-				$('.connectionClosed[data-count="'+opts.noResponseCount+'"]:not(.restored)').addClass('restored').text('Your connection has been restored (probably)!');
+				$('.connectionClosed[data-count="'+opts.noResponseCount+'"]:not(.restored)').addClass('restored').text('Connection restored.');
 				opts.noResponse = false;
 		}
 	}, 2000); //2 seconds
+
+	setInterval(function() { chatui.saveHistory(false); }, 1500);
+	$(window).on('beforeunload', function() { chatui.saveHistory(true); });
 
 
 	/*****************************************
@@ -738,58 +1045,47 @@ $(function() {
 		'smusicVolume': getCookie('musicVolume'),
 		'smessagecombining': getCookie('messagecombining'),
 		'sdarkmode': getCookie('darkmode'),
+		'stimestamps': getCookie('timestamps'),
+		'schattab': getCookie('chattab'),
 	};
 
-	if (savedConfig.fontsize) {
-		$messages.css('font-size', savedConfig.fontsize);
-		internalOutput('<span class="internal boldnshit">Loaded font size setting of: '+savedConfig.fontsize+'</span>', 'internal');
-	}
-	if (savedConfig.lineheight) {
-		$("body").css('line-height', savedConfig.lineheight);
-		internalOutput('<span class="internal boldnshit">Loaded line height setting of: '+savedConfig.lineheight+'</span>', 'internal');
-	}
+	chatui.fontSize = savedConfig.fontsize || '13px';
+	chatui.lineHeight = savedConfig.lineheight || '1.2';
+	$messages.css({'font-size': chatui.fontSize, 'line-height': chatui.lineHeight});
 	if(savedConfig.sdarkmode == 'false'){ //dark from the start, the same as the skin around it
 		swap();
 	}
-	if (savedConfig.spingDisabled) {
-		if (savedConfig.spingDisabled == 'true') {
-			opts.pingDisabled = true;
-			$('#ping').hide();
-		}
-		internalOutput('<span class="internal boldnshit">Loaded ping display of: '+(opts.pingDisabled ? 'hidden' : 'visible')+'</span>', 'internal');
+	if (savedConfig.spingDisabled == 'true') {
+		opts.pingDisabled = true;
+		$('#ping').addClass('off');
 	}
 	if (savedConfig.shighlightTerms) {
-		var savedTerms = $.parseJSON(savedConfig.shighlightTerms).filter(function (entry) {
-			return entry !== null && /\S/.test(entry);
-		});
-		var actualTerms = savedTerms.length != 0 ? savedTerms.join(', ') : null;
-		if (actualTerms) {
-			internalOutput('<span class="internal boldnshit">Loaded highlight strings of: ' + actualTerms+'</span>', 'internal');
-			opts.highlightTerms = savedTerms;
+		try {
+			opts.highlightTerms = $.parseJSON(savedConfig.shighlightTerms).filter(function (entry) {
+				return entry !== null && /\S/.test(entry);
+			}).slice(0, opts.highlightLimit);
+		} catch (e) {
+			opts.highlightTerms = [];
 		}
 	}
 	if (savedConfig.shighlightColor) {
 		opts.highlightColor = savedConfig.shighlightColor;
-		internalOutput('<span class="internal boldnshit">Loaded highlight color of: '+savedConfig.shighlightColor+'</span>', 'internal');
 	}
 	if (savedConfig.smusicVolume) {
 		var newVolume = clamp(savedConfig.smusicVolume, 0, 100);
 		$('#adminMusic').prop('volume', newVolume / 100);
-		$('#musicVolume').val(newVolume);
 		opts.updatedVolume = newVolume;
 		sendVolumeUpdate();
-		internalOutput('<span class="internal boldnshit">Loaded music volume of: '+savedConfig.smusicVolume+'</span>', 'internal');
 	}
 	else{
 		$('#adminMusic').prop('volume', opts.defaultMusicVolume / 100);
 	}
-
-	if (savedConfig.smessagecombining) {
-		if (savedConfig.smessagecombining == 'false') {
-			opts.messageCombining = false;
-		} else {
-			opts.messageCombining = true;
-		}
+	if (savedConfig.smessagecombining == 'false') {
+		opts.messageCombining = false;
+	}
+	if (savedConfig.stimestamps == 'true') {
+		opts.timestamps = true;
+		$('body').addClass('show-ts');
 	}
 	(function() {
 		var dataCookie = getCookie('connData');
@@ -818,25 +1114,12 @@ $(function() {
 
 	$('body').on('mousedown', function(e) {
 		var $target = $(e.target);
-
-		if ($contextMenu && opts.hasOwnProperty('contextMenuTarget') && opts.contextMenuTarget) {
-			hideContextMenu();
-			return false;
-		}
-
-		if ($target.is('a') || $target.parent('a').length || $target.is('input') || $target.is('textarea')) {
+		if ($target.closest('a, input, textarea, #bar, #settings').length) {
 			opts.preventFocus = true;
 		} else {
 			opts.preventFocus = false;
 			opts.mouseDownX = e.pageX;
 			opts.mouseDownY = e.pageY;
-		}
-	});
-
-	$messages.on('mousedown', function(e) {
-		if ($selectedSub && $selectedSub.is(':visible')) {
-			$selectedSub.slideUp('fast', subSlideUp);
-			clearInterval(opts.selectedSubLoop);
 		}
 	});
 
@@ -847,14 +1130,24 @@ $(function() {
 		) {
 			opts.mouseDownX = null;
 			opts.mouseDownY = null;
-			runByond('byond://winset?mapwindow.map.focus=true');
+			if ($('#settings').is(':visible')) {
+				chatui.closeSettings();
+			} else {
+				focusMap();
+			}
 		}
 	});
 
 	$messages.on('click', 'a', function(e) {
 		var href = $(this).attr('href');
+		if (!href) {
+			return;
+		}
 		$(this).addClass('visited');
 		if (href[0] == '?' || (href.length >= 8 && href.substring(0,8) == 'byond://')) {
+			if ($(this).closest('.entry').hasClass('stale')) { //from another round: it points at nothing, or at something else now
+				return;
+			}
 			runByond(href);
 		} else {
 			href = escaper(href);
@@ -865,7 +1158,16 @@ $(function() {
 	//Fuck everything about this event. Will look into alternatives.
 	$('body').on('keydown', function(e) {
 		if (e.target.nodeName == 'INPUT' || e.target.nodeName == 'TEXTAREA') {
+			if (e.target.id == 'searchInput' && e.which == 27) { //Esc
+				chatui.closeSearch();
+			}
 			return;
+		}
+
+		if (e.ctrlKey && (e.key == 'f' || e.key == 'F')) {
+			e.preventDefault();
+			chatui.openSearch();
+			return false;
 		}
 
 		if (e.ctrlKey || e.altKey || e.shiftKey) { //Band-aid "fix" for allowing ctrl+c copy paste etc. Needs a proper fix.
@@ -878,7 +1180,11 @@ $(function() {
 		// Hardcoded because else there would be no feedback message.
 		if (k == 113) { // F2
 			runByond('byond://winset?screenshot=auto');
-			internalOutput('Screenshot taken', 'internal');
+			internalOutput('<span class="internal boldnshit">Screenshot taken</span>', 'internal');
+		}
+		if (k == 27 && $('#settings').is(':visible')) { // Esc
+			chatui.closeSettings();
+			return false;
 		}
 
 		// The keyboard goes back to the game, and the key that was pressed with it: the game will get its release from the map.
@@ -899,8 +1205,15 @@ $(function() {
 	//Mildly hacky fix for scroll issues on mob change (interface gets resized sometimes, messing up snap-scroll)
 	$(window).on('resize', function(e) {
 		if ($(this).height() !== opts.priorChatHeight) {
-			$('body,html').scrollTop($messages.outerHeight());
+			scrollToBottom();
 			opts.priorChatHeight = $(this).height();
+		}
+	});
+
+	$scroller.on('scroll', function() {
+		if (chatui.newCount && isAtBottom()) {
+			chatui.newCount = 0;
+			updateNewMessages();
 		}
 	});
 
@@ -911,162 +1224,53 @@ $(function() {
 	*
 	******************************************/
 
-	$('body').on('click', '#newMessages', function(e) {
-		var messagesHeight = $messages.outerHeight();
-		$('body,html').scrollTop(messagesHeight);
-		$('#newMessages').remove();
-		runByond('byond://winset?mapwindow.map.focus=true');
+	$('#newMessages').on('click', function(e) {
+		scrollToBottom();
+		chatui.newCount = 0;
+		updateNewMessages();
+		focusMap();
 	});
 
-	$('#toggleOptions').click(function(e) {
-		handleToggleClick($subOptions, $(this));
-	});
-	$('#darkmodetoggle').click(function(e) {
-		swap();
-	});
-	$('#toggleAudio').click(function(e) {
-		handleToggleClick($subAudio, $(this));
+	$('#tabs').on('click', '.tab', function(e) {
+		chatui.wantedTab = $(this).attr('data-tab');
+		chatui.selectTab(chatui.wantedTab);
+		focusMap();
 	});
 
-	$('.sub, .toggle').mouseenter(function() {
-		opts.suppressSubClose = true;
-	});
+	$('#searchOpen').on('click', function() { chatui.openSearch(); });
+	$('#searchClose').on('click', function() { chatui.closeSearch(); });
+	$('#searchInput').on('input', function() { chatui.setSearch($(this).val()); });
 
-	$('.sub, .toggle').mouseleave(function() {
-		opts.suppressSubClose = false;
-	});
-
-	$('#decreaseFont').click(function(e) {
-		savedConfig.fontsize = Math.max(parseInt(savedConfig.fontsize || 13) - 1, 1) + 'px';
-		$messages.css({'font-size': savedConfig.fontsize});
-		setCookie('fontsize', savedConfig.fontsize, 365);
-		internalOutput('<span class="internal boldnshit">Font size set to '+savedConfig.fontsize+'</span>', 'internal');
-	});
-
-	$('#increaseFont').click(function(e) {
-		savedConfig.fontsize = (parseInt(savedConfig.fontsize || 13) + 1) + 'px';
-		$messages.css({'font-size': savedConfig.fontsize});
-		setCookie('fontsize', savedConfig.fontsize, 365);
-		internalOutput('<span class="internal boldnshit">Font size set to '+savedConfig.fontsize+'</span>', 'internal');
-	});
-
-	$('#decreaseLineHeight').click(function(e) {
-		savedConfig.lineheight = Math.max(parseFloat(savedConfig.lineheight || 1.2) - 0.1, 0.1).toFixed(1);
-		$("body").css({'line-height': savedConfig.lineheight});
-		setCookie('lineheight', savedConfig.lineheight, 365);
-		internalOutput('<span class="internal boldnshit">Line height set to '+savedConfig.lineheight+'</span>', 'internal');
-	});
-
-	$('#increaseLineHeight').click(function(e) {
-		savedConfig.lineheight = (parseFloat(savedConfig.lineheight || 1.2) + 0.1).toFixed(1);
-		$("body").css({'line-height': savedConfig.lineheight});
-		setCookie('lineheight', savedConfig.lineheight, 365);
-		internalOutput('<span class="internal boldnshit">Line height set to '+savedConfig.lineheight+'</span>', 'internal');
-	});
-
-	$('#togglePing').click(function(e) {
-		if (opts.pingDisabled) {
-			$('#ping').slideDown('fast');
-			opts.pingDisabled = false;
+	$('#toggleOptions').on('click', function(e) {
+		if ($('#settings').is(':visible')) {
+			chatui.closeSettings();
 		} else {
-			$('#ping').slideUp('fast');
-			opts.pingDisabled = true;
+			chatui.openSettings();
 		}
-		setCookie('pingdisabled', (opts.pingDisabled ? 'true' : 'false'), 365);
 	});
+	$('#settingsClose').on('click', function() { chatui.closeSettings(); });
 
-	$('#saveLog').click(function(e) {
-		// Requires IE 10+ to issue download commands. Just opening a popup
-		// window will cause Ctrl+S to save a blank page, ignoring innerHTML.
-		if (!window.Blob) {
-			output('<span class="big red">This function is only supported on IE 10 and up. Upgrade if possible.</span>', 'internal');
-			return;
-		}
+	$('#decreaseFont').on('click', function() { chatui.setFontSize(parseInt(chatui.fontSize, 10) - 1); });
+	$('#increaseFont').on('click', function() { chatui.setFontSize(parseInt(chatui.fontSize, 10) + 1); });
+	$('#decreaseLineHeight').on('click', function() { chatui.setLineHeight(parseFloat(chatui.lineHeight) - 0.1); });
+	$('#increaseLineHeight').on('click', function() { chatui.setLineHeight(parseFloat(chatui.lineHeight) + 0.1); });
 
-		$.ajax({
-			type: 'GET',
-			url: 'browserOutput_white.css',
-			success: function(styleData) {
-				var blob = new Blob(['<head><title>Chat Log</title><style>', styleData, '</style></head><body>', $messages.html(), '</body>']);
-
-				var fname = 'SS13 Chat Log';
-				var date = new Date(), month = date.getMonth(), day = date.getDay(), hours = date.getHours(), mins = date.getMinutes(), secs = date.getSeconds();
-				fname += ' ' + date.getFullYear() + '-' + (month < 10 ? '0' : '') + month + '-' + (day < 10 ? '0' : '') + day;
-				fname += ' ' + (hours < 10 ? '0' : '') + hours + (mins < 10 ? '0' : '') + mins + (secs < 10 ? '0' : '') + secs;
-				fname += '.html';
-
-				window.navigator.msSaveBlob(blob, fname);
-			}
-		});
+	$('#settings').on('click', '.switch', function() {
+		var option = $(this).attr('data-option');
+		chatui.setOption(option, !$(this).hasClass('on'));
 	});
+	$('#themeDark').on('click', function() { if (!opts.darkmode) { swap(); } });
+	$('#themeLight').on('click', function() { if (opts.darkmode) { swap(); } });
 
-	$('#highlightTerm').click(function(e) {
-		if ($('.popup .highlightTerm').is(':visible')) {return;}
-		var termInputs = '';
-		for (var i = 0; i < opts.highlightLimit; i++) {
-			termInputs += '<div><input type="text" name="highlightTermInput'+i+'" id="highlightTermInput'+i+'" class="highlightTermInput'+i+'" maxlength="255" value="'+(opts.highlightTerms[i] ? opts.highlightTerms[i] : '')+'" /></div>';
-		}
-		var popupContent = '<div class="head">String Highlighting</div>' +
-			'<div class="highlightPopup" id="highlightPopup">' +
-				'<div>Choose up to '+opts.highlightLimit+' strings that will highlight the line when they appear in chat.</div>' +
-				'<form id="highlightTermForm">' +
-					termInputs +
-					'<div><input type="text" name="highlightColor" id="highlightColor" class="highlightColor" '+
-						'style="background-color: '+(opts.highlightColor ? opts.highlightColor : '#FFFF00')+'" value="'+(opts.highlightColor ? opts.highlightColor : '#FFFF00')+'" maxlength="7" /></div>' +
-					'<div><input type="submit" name="highlightTermSubmit" id="highlightTermSubmit" class="highlightTermSubmit" value="Save" /></div>' +
-				'</form>' +
-			'</div>';
-		createPopup(popupContent, 250);
-	});
+	$('.highlightTerm').on('change', function() { chatui.saveHighlights(); });
+	$('#highlightColor').on('input change', function() { chatui.saveHighlights(); });
 
-	$('body').on('keyup', '#highlightColor', function() {
-		var color = $('#highlightColor').val();
-		color = color.trim();
-		if (!color || color.charAt(0) != '#') return;
-		$('#highlightColor').css('background-color', color);
-	});
+	$('#saveLog').on('click', function() { chatui.saveLog(); });
+	$('#clearMessages').on('click', function() { chatui.clear(); });
 
-	$('body').on('submit', '#highlightTermForm', function(e) {
-		e.preventDefault();
-
-		opts.highlightTerms = [];
-		for (var count = 0; count < opts.highlightLimit; count++) {
-			var term = $('#highlightTermInput'+count).val();
-			if (term !== null && /\S/.test(term)) {
-				opts.highlightTerms.push(term.trim().toLowerCase());
-			}
-		}
-
-		var color = $('#highlightColor').val();
-		color = color.trim();
-		if (color == '' || color.charAt(0) != '#') {
-			opts.highlightColor = '#FFFF00';
-		} else {
-			opts.highlightColor = color;
-		}
-		var $popup = $('#highlightPopup').closest('.popup');
-		$popup.remove();
-
-		setCookie('highlightterms', JSON.stringify(opts.highlightTerms), 365);
-		setCookie('highlightcolor', opts.highlightColor, 365);
-	});
-
-	$('#clearMessages').click(function() {
-		$messages.empty();
-		opts.messageCount = 0;
-	});
-
-	$('#musicVolumeSpan').hover(function() {
-		$('#musicVolumeText').addClass('hidden');
-		$('#musicVolume').removeClass('hidden');
-	}, function() {
-		$('#musicVolume').addClass('hidden');
-		$('#musicVolumeText').removeClass('hidden');
-	});
-
-	$('#musicVolume').change(function() {
-		var newVolume = $('#musicVolume').val();
-		newVolume = clamp(newVolume, 0, 100);
+	$('#musicVolume').on('input change', function() {
+		var newVolume = clamp($('#musicVolume').val(), 0, 100);
+		$('#musicVolumeValue').text(newVolume);
 		$('#adminMusic').prop('volume', newVolume / 100);
 		setCookie('musicVolume', newVolume, 365);
 		opts.updatedVolume = newVolume;
@@ -1076,14 +1280,7 @@ $(function() {
 		}
 	});
 
-	$('#toggleCombine').click(function(e) {
-		opts.messageCombining = !opts.messageCombining;
-		setCookie('messagecombining', (opts.messageCombining ? 'true' : 'false'), 365);
-	});
-
-	$('img.icon').error(iconError);
-
-
+	$('img.icon').on('error', iconError);
 
 
 	/*****************************************
@@ -1092,10 +1289,23 @@ $(function() {
 	*
 	******************************************/
 
-	runByond('?_src_=chat&proc=doneLoading');
+	var restored = chatui.restoreHistory();
+	chatui.wantedTab = savedConfig.schattab || 'all';
+	chatui.selectTab(chatui.wantedTab);
+	chatui.showOptions();
+	runByond('?_src_=chat&proc=doneLoading&param[fresh]=' + (restored ? 0 : 1)); //an empty page gets the round's last messages from the server
 	if ($('#loading').is(':visible')) {
 		$('#loading').remove();
 	}
-	$('#userBar').show();
+	$('body').addClass('ready');
 	opts.priorChatHeight = $(window).height();
-});
+	scrollToBottom();
+}
+
+// Not $(function () {...}): the loader in browserOutput.html runs this after the page is parsed, and jQuery, loaded that late, waits
+// for the window's load event instead, which a file that went unanswered (see the loader) held back for 30 s.
+if (document.readyState === 'loading') {
+	document.addEventListener('DOMContentLoaded', chatInit);
+} else {
+	chatInit();
+}

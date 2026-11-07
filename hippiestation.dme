@@ -3418,6 +3418,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\janitor.dm"
 #include "hippiestation\code\modules\bots_ai\goals\leisure.dm"
 #include "hippiestation\code\modules\bots_ai\goals\mining.dm"
+#include "hippiestation\code\modules\bots_ai\goals\mining_requests.dm"
 #include "hippiestation\code\modules\bots_ai\goals\nuke_ops.dm"
 #include "hippiestation\code\modules\bots_ai\goals\nanites.dm"
 #include "hippiestation\code\modules\bots_ai\goals\orders.dm"

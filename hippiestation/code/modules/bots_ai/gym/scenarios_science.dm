@@ -272,6 +272,37 @@
 		var/list/wanted = GLOB.vars["bot_research_wanted"]
 		wanted.Cut()
 
+/// Mining asked for a material (goals/mining_requests.dm)
+/datum/bot_scenario/chat/mining_request
+	name = "mining: asked for silver, the miner says it'll dig some and puts silver first"
+	desc = "Somebody tells a shaft miner Science needs silver. It says it'll get some, and silver goes to the top of what the miners dig. The user asked Mining for materials and for silver over the radio in a played round, and nobody answered: there was no call for the miners."
+	job = "Shaft Miner"
+	layout = list(
+		"#########",
+		"#B.C....#",
+		"#########")
+	time_limit = 15 SECONDS
+
+/datum/bot_scenario/chat/mining_request/post_spawn()
+	..()
+	if("bot_wanted_minerals" in GLOB.vars)
+		var/list/wanted = GLOB.vars["bot_wanted_minerals"]
+		wanted.Cut()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "Mining, science needs silver"), 2 SECONDS)
+
+/datum/bot_scenario/chat/mining_request/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/list/wanted = GLOB.vars["bot_wanted_minerals"]
+	var/list/lines = spoken()
+	if(!length(lines) || !wanted?[MAT_SILVER])
+		return BOT_GYM_PENDING
+	if(findtext(lowertext(lines[1]), "where"))
+		fail_reason = "asked where: \"[lines[1]]\""
+		return BOT_GYM_FAIL
+	log_line("said \"[lines[1]]\"")
+	return BOT_GYM_PASS
+
 /datum/bot_scenario/chat/research_request
 	name = "science: asked to research stock parts, it says it's on it and researches the next of them"
 	desc = "Somebody asks Science to its face to research stock parts. The scientist says it'll do it and researches the next node on the way to better parts. The user asked Science that on the radio in a played round and got \"where?\", and then nothing."

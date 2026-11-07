@@ -113,6 +113,7 @@ GLOBAL_PROTECT(href_token)
 		owner.add_admin_verbs()	//TODO <--- todo what? the proc clearly exists and works since its the backbone to our entire admin system
 		owner.verbs -= /client/proc/readmin
 		GLOB.admins |= C
+		owner.chatOutput?.sendChatState() //hippie: the chat's Admin tab
 
 /datum/admins/proc/disassociate()
 	if(IsAdminAdvancedProcCall())
@@ -124,6 +125,7 @@ GLOBAL_PROTECT(href_token)
 		GLOB.admins -= owner
 		owner.remove_admin_verbs()
 		owner.holder = null
+		owner.chatOutput?.sendChatState() //hippie: the chat's Admin tab
 		owner = null
 
 /datum/admins/proc/check_for_rights(rights_required)

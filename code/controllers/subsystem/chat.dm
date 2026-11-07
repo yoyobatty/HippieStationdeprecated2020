@@ -11,7 +11,8 @@ SUBSYSTEM_DEF(chat)
 /datum/controller/subsystem/chat/fire()
 	for(var/i in payload)
 		var/client/C = i
-		C << output(payload[C], "browseroutput:output")
+		var/list/messages = payload[C]
+		C << output(jointext(messages, "&"), "browseroutput:chatBatch") //hippie: one argument each, so the chat sorts each one under its tab (they were one block)
 		payload -= C
 
 		if(MC_TICK_CHECK)
@@ -64,7 +65,8 @@ SUBSYSTEM_DEF(chat)
 				C.chatOutput.messageQueue += message
 				continue
 
-			payload[C] += twiceEncoded
+			LAZYADD(payload[C], twiceEncoded)
+			C.chatOutput.remember(twiceEncoded)
 
 	else
 		var/client/C = CLIENT_FROM_VAR(target) //Grab us a client if possible
@@ -82,4 +84,5 @@ SUBSYSTEM_DEF(chat)
 			C.chatOutput.messageQueue += message
 			return
 
-		payload[C] += twiceEncoded
+		LAZYADD(payload[C], twiceEncoded)
+		C.chatOutput.remember(twiceEncoded)

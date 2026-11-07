@@ -159,6 +159,7 @@
 		"browserOutput.js"         = 'code/modules/goonchat/browserassets/js/browserOutput.js',
 		"browserOutput.css"	       = 'code/modules/goonchat/browserassets/css/browserOutput.css',
 		"browserOutput_white.css"  = 'code/modules/goonchat/browserassets/css/browserOutput_white.css',
+		"browserOutput_ui.css"     = 'code/modules/goonchat/browserassets/css/browserOutput_ui.css',
 	)
 
 /datum/asset/simple/fontawesome
