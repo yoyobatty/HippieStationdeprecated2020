@@ -13,6 +13,8 @@
 	var/held_move_intent
 	/// Set while watch_held_keys() is going.
 	var/watching_held_keys = FALSE
+	/// Where the keyboard's focus was, while watch_held_keys() lets go of the keys it decided were lost there (for the player log).
+	var/held_keys_lost_to
 
 // Set a client's focus to an object and override these procs on that object to let it handle keypresses
 
@@ -24,11 +26,15 @@
 	set waitfor = FALSE
 	return
 
-/// Whether the keyboard is anywhere the game can hear it, going by winget(client, null, "focus"): the map, the chat bar, or a
-/// tgui window, which passes keys on and lets them go itself (tgui-next/packages/tgui/hotkeys.js). With the focus in another
-/// program, or any other browser popup, a key let go there never reaches keyUp().
+/// Whether a key let go now would reach keyUp(), going by winget(client, null, "focus"). The one place known to swallow releases
+/// is a browser control that isn't a tgui window (a browse() popup, the chat pane, the stat panel, the preferences page): their
+/// pages don't pass keys on. Everything else hears keys through the macros. That includes "mainwindow" and "", which is all BYOND
+/// says while the say prompt is open and also with the window minimised (is-minimized, pos and size read the same as normal, 516),
+/// so a minimised window can't be told apart and isn't tried. Asking "is it the map or the chat bar" instead let go of keys
+/// still held 43 times in 7 of the user's rounds (2026-11-02..05) and caught a lost release 0 times: they stopped dead in the
+/// middle of walking. tgui windows pass keys on and let them go themselves (tgui-next/packages/tgui/hotkeys.js).
 /client/proc/focus_hears_keys(focused)
-	if(findtext(focused, ".map") || findtext(focused, ".input"))
+	if(!findtext(focused, "browser"))
 		return TRUE
 	for(var/datum/tgui/ui as anything in mob?.open_uis)
 		if(findtext(focused, ui.window_id) == 1)
@@ -58,7 +64,9 @@
 		if(!src)
 			return
 		if(!focus_hears_keys(focused))
+			held_keys_lost_to = focused
 			reset_held_keys()
+			held_keys_lost_to = null
 	if(src)
 		watching_held_keys = FALSE
 

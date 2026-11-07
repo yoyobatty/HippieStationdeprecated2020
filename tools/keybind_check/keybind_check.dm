@@ -232,8 +232,10 @@ GLOBAL_LIST_EMPTY(keycheck_real_ups)
 	sleep(5)
 	kc_log("info focus with the window minimised: \"[winget(C, null, "focus")]\"")
 	sleep(25)
-	kc_log("[C.mob.m_intent == MOVE_INTENT_RUN ? "ok   " : "WRONG"] window lost the keyboard with Alt held: intent [C.mob.m_intent] after 3 seconds")
-	kc_log("[C.keys_held["Alt"] ? "WRONG" : "ok   "] and Alt is no longer down")
+	// BYOND reports this exactly as it reports the say prompt being open (focus "mainwindow", is-minimized false, same pos and size),
+	// and letting go there stopped the user dead 43 times in 7 rounds, so the watcher leaves it: Alt stays down until pressed again.
+	kc_log("[C.mob.m_intent == MOVE_INTENT_WALK ? "ok   " : "WRONG"] window minimised with Alt held, left alone (can't be told from the say prompt): intent [C.mob.m_intent] after 3 seconds")
+	kc_log("[C.keys_held["Alt"] ? "ok   " : "WRONG"] and Alt is still down")
 	C.keyUp("Alt")
 	winset(C, "mainwindow", "is-minimized=false")
 	sleep(10)

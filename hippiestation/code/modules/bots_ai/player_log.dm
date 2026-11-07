@@ -280,6 +280,8 @@ GLOBAL_DATUM(player_log, /datum/player_log)
 		record["chg"] = changed
 	if(via)
 		record["via"] = via
+	if(!isnull(C.held_keys_lost_to))
+		record["focus"] = C.held_keys_lost_to //where the held-key watcher thought the keyboard had gone
 	log_event("key_up", record)
 
 /datum/player_log/proc/tried_step(client/C, direct, atom/from)
