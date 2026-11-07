@@ -265,6 +265,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_experiments(C, H, label)
 		if("lobby")
 			cs_lobby(C, H, label)
+		if("lobbylooks")
+			cs_lobby_looks(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -6280,3 +6282,50 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 		return
 	winset(C, window, "[pos];title=[title]")
 	sleep(5)
+
+// The lobby's prototype looks: each one readied by a click on its own Ready control before the round, then during it
+/proc/cs_lobby_looks(client/C, mob/living/carbon/human/H, label)
+	var/mob/dead/new_player/NP = new()
+	NP.ckey = C.ckey
+	sleep(30)
+	var/datum/tgui/ui = cs_find_ui(NP, NP)
+	cs_check("looks: the lobby opens", ui)
+	if(!ui)
+		return
+	winset(C, ui.window_id, "pos=100,20")
+	var/portrait = NP.vars["lobby_portrait"]
+	cs_check("looks: it has the character's portrait", length(portrait) > 100, "[length(portrait)] characters")
+	var/old_state = SSticker.current_state
+	var/old_left = SSticker.timeLeft
+	var/old_immediately = SSticker.start_immediately
+	SSticker.start_immediately = FALSE
+	SSticker.timeLeft = 1235
+	SSticker.current_state = GAME_STATE_PREGAME
+	usr = NP
+	var/list/ready_controls = list("hud" = ".LobbyHud__big", "pass" = ".LobbyPass__row .LobbyPass__btn", \
+		"board" = ".LobbyBoard__btns .LobbyBoard__btn", "crt" = ".LobbyCrt__cmd")
+	for(var/design in ready_controls)
+		GLOB.vars["lobby_design"] = design
+		NP.ready = PLAYER_NOT_READY
+		SStgui.update_uis(NP)
+		sleep(15)
+		cs_tgui_do(C, ui.window_id, "css:[ready_controls[design]]")
+		sleep(15)
+		cs_check("looks: [design]: its Ready control readies them", NP.ready == PLAYER_READY_TO_PLAY)
+		sleep(10)
+		cs_shot("popup_lobbylook_[label]_[design]_pregame")
+	NP.ready = PLAYER_NOT_READY
+	SSticker.current_state = old_state
+	SSticker.timeLeft = old_left
+	SSticker.start_immediately = old_immediately
+	for(var/design in ready_controls)
+		GLOB.vars["lobby_design"] = design
+		SStgui.update_uis(NP)
+		sleep(25)
+		cs_shot("popup_lobbylook_[label]_[design]_round")
+	// Joining from the last look: its first command is Join Game
+	cs_tgui_do(C, ui.window_id, "css:.LobbyCrt__cmd")
+	sleep(20)
+	var/datum/menu = NP.vars["late_join_menu"]
+	cs_check("looks: crt: Join Game opens the job list", menu && cs_find_ui(NP, menu))
+	GLOB.vars["lobby_design"] = "hud"

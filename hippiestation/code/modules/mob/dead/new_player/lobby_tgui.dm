@@ -3,12 +3,40 @@
 // round's state; the job list is grouped by department and shows full and locked jobs too, greyed, with why. The
 // lobby window can't be closed, like the old one (can_close=0).
 
+/// Prototype lobby looks (Lobby.js): "hud", "pass", "board", "crt"
+GLOBAL_VAR_INIT(lobby_design, "hud")
+
 /mob/dead/new_player
 	/// Polls can be shown (not a guest, the DB is up); looked up when the lobby opens, as it queries the DB
 	var/lobby_has_polls = FALSE
 	/// There are polls this player hasn't answered
 	var/lobby_new_polls = FALSE
+	/// The character's front view as a PNG data URI, made when the lobby opens and when Character Setup closes
+	var/lobby_portrait
 	var/datum/late_join_menu/late_join_menu
+
+/mob/dead/new_player/proc/lobby_make_portrait()
+	lobby_portrait = null
+	var/datum/preferences/P = client?.prefs
+	if(!P)
+		return
+	P.update_preview_icon()
+	if(!P.preview_screen)
+		return
+	var/icon/flat = getFlatIcon(P.preview_screen, SOUTH, no_anim = TRUE)
+	if(flat)
+		lobby_portrait = "data:image/png;base64,[icon2base64(flat)]"
+
+/mob/dead/new_player/ui_static_data(mob/user)
+	return list("portrait" = lobby_portrait)
+
+/// Character Setup closed: the lobby's portrait and name follow what was picked
+/datum/preferences/ui_close(mob/user)
+	..()
+	var/mob/dead/new_player/NP = user
+	if(istype(NP) && NP.client && SStgui.get_open_ui(NP, NP, "lobby"))
+		NP.lobby_make_portrait()
+		NP.update_static_data(NP, null, "lobby")
 
 /mob/dead/new_player/Destroy()
 	QDEL_NULL(late_join_menu)
@@ -24,6 +52,7 @@
 	lobby_check_polls()
 	if(QDELETED(src) || !client)
 		return
+	lobby_make_portrait()
 	ui_interact(src)
 
 /mob/dead/new_player/proc/lobby_check_polls()
@@ -42,7 +71,7 @@
 									datum/tgui/master_ui = null, datum/ui_state/state = GLOB.always_state)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
-		ui = new(user, src, ui_key, "lobby", station_name(), 320, 300, master_ui, state)
+		ui = new(user, src, ui_key, "lobby", station_name(), 380, 480, master_ui, state)
 		ui.no_close = TRUE
 		ui.open()
 
@@ -56,10 +85,13 @@
 	data["ended"] = state >= GAME_STATE_FINISHED
 	data["map"] = SSmapping.config?.map_name
 	data["round_id"] = GLOB.round_id
+	data["station"] = station_name()
+	data["design"] = GLOB.lobby_design
 	if(state <= GAME_STATE_PREGAME)
 		var/left = SSticker.GetTimeLeft()
 		data["time_left"] = left > 0 ? round(left / 10) : 0
 		data["delayed"] = left == -10
+		data["countdown"] = CONFIG_GET(number/lobby_countdown)
 	else
 		data["round_time"] = round((world.time - SSticker.round_start_time) / 10)
 		data["crew"] = length(GLOB.data_core.general)

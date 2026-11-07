@@ -1,0 +1,947 @@
+// hippie -- the lobby's looks (interfaces/common/LobbyDesigns.js). Each
+// fills the window under the title bar.
+
+@mixin lobby-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+}
+
+@mixin lobby-row($gap) {
+  display: flex;
+
+  & > * {
+    flex: 1;
+    margin-left: $gap;
+  }
+
+  & > *:first-child {
+    margin-left: 0;
+  }
+}
+
+// 1. Hologram HUD
+
+$hud: #3ef0ff;
+$hud-dark: #050b12;
+
+.LobbyHud {
+  @include lobby-fill;
+  padding: 10px 14px;
+  font-family: 'Bahnschrift', 'Segoe UI', sans-serif;
+  color: #bff8ff;
+  background:
+    radial-gradient(ellipse at 50% 35%, rgba(30, 120, 150, 0.4), transparent 70%),
+    $hud-dark;
+}
+
+.LobbyHud > * {
+  position: relative;
+}
+
+.LobbyHud > .LobbyHud__grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image:
+    linear-gradient(rgba(62, 240, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(62, 240, 255, 0.06) 1px, transparent 1px);
+  background-size: 20px 20px;
+  pointer-events: none;
+}
+
+.LobbyHud__header {
+  text-align: center;
+}
+
+.LobbyHud__station {
+  font-size: 17px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: $hud;
+  text-shadow: 0 0 8px rgba(62, 240, 255, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.LobbyHud__sub {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.LobbyHud__middle {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  height: 156px;
+}
+
+.LobbyHud__holo {
+  position: relative;
+  width: 120px;
+  height: 150px;
+}
+
+.LobbyHud__beam {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 10px;
+  bottom: 18px;
+  background: linear-gradient(to top, rgba(62, 240, 255, 0.3), transparent);
+  clip-path: polygon(42% 100%, 58% 100%, 100% 0, 0 0);
+}
+
+.LobbyHud__holoImg {
+  position: absolute;
+  left: 12px;
+  top: 4px;
+  width: 96px;
+  height: 120px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: LobbyHud-flicker 5s infinite, LobbyHud-float 4s ease-in-out infinite;
+}
+
+.LobbyHud__holoImg img {
+  width: 96px;
+  height: 96px;
+  image-rendering: pixelated;
+  filter: grayscale(1) sepia(1) hue-rotate(140deg) saturate(4) brightness(1.15)
+    drop-shadow(0 0 6px rgba(62, 240, 255, 0.9));
+  opacity: 0.9;
+}
+
+.LobbyHud__holoImg::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(to bottom, transparent 0, transparent 2px,
+    rgba(5, 11, 18, 0.5) 2px, rgba(5, 11, 18, 0.5) 3px);
+  pointer-events: none;
+}
+
+.LobbyHud__projector {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 12px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(62, 240, 255, 0.8), transparent 70%);
+}
+
+@keyframes LobbyHud-flicker {
+  0%, 90%, 92%, 95%, 100% { opacity: 1; }
+  91% { opacity: 0.5; }
+  94% { opacity: 0.75; }
+}
+
+@keyframes LobbyHud-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.LobbyHud__ring {
+  position: relative;
+  width: 140px;
+  height: 140px;
+}
+
+.LobbyHud__ring svg {
+  width: 140px;
+  height: 140px;
+}
+
+.LobbyHud__ringTrack {
+  fill: none;
+  stroke: rgba(62, 240, 255, 0.15);
+  stroke-width: 6;
+}
+
+.LobbyHud__ringFill {
+  fill: none;
+  stroke: $hud;
+  stroke-width: 6;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 4px $hud);
+  transition: stroke-dashoffset 1s linear;
+}
+
+.LobbyHud__ringSpin {
+  fill: none;
+  stroke: rgba(62, 240, 255, 0.5);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 7;
+  transform-origin: 64px 64px;
+  animation: LobbyHud-spin 24s linear infinite;
+}
+
+@keyframes LobbyHud-spin {
+  to { transform: rotate(360deg); }
+}
+
+.LobbyHud__ringText {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.LobbyHud__time {
+  font-size: 30px;
+  color: #fff;
+  text-shadow: 0 0 10px $hud;
+  font-variant-numeric: tabular-nums;
+}
+
+.LobbyHud__timeLabel {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.LobbyHud__ident {
+  text-align: center;
+  margin: 2px 0 8px;
+}
+
+.LobbyHud__name {
+  font-size: 19px;
+  color: #fff;
+  letter-spacing: 1px;
+}
+
+.LobbyHud__job {
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: $hud;
+}
+
+.LobbyHud__stats {
+  display: flex;
+  border-top: 1px solid rgba(62, 240, 255, 0.3);
+  border-bottom: 1px solid rgba(62, 240, 255, 0.3);
+  margin-bottom: 10px;
+}
+
+.LobbyHud__stat {
+  flex: 1;
+  text-align: center;
+  padding: 4px 0;
+}
+
+.LobbyHud__stat + .LobbyHud__stat {
+  border-left: 1px solid rgba(62, 240, 255, 0.2);
+}
+
+.LobbyHud__statLabel {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.LobbyHud__statValue {
+  font-size: 14px;
+  color: #fff;
+}
+
+.LobbyHud__btn {
+  padding: 6px 0;
+  border: 1px solid rgba(62, 240, 255, 0.5);
+  background-color: rgba(62, 240, 255, 0.06);
+  color: $hud;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 12px;
+  cursor: pointer;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px),
+    calc(100% - 8px) 100%, 0 100%, 0 8px);
+  transition: background-color 0.2s;
+}
+
+.LobbyHud__btn:hover {
+  background-color: rgba(62, 240, 255, 0.18);
+}
+
+.LobbyHud__btn--on {
+  background-color: rgba(62, 240, 255, 0.85);
+  color: $hud-dark;
+  animation: LobbyHud-pulse 2.4s ease-in-out infinite;
+}
+
+.LobbyHud__btn--on:hover {
+  background-color: $hud;
+}
+
+.LobbyHud__btn--disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.LobbyHud__big {
+  margin-bottom: 6px;
+  padding: 10px 0;
+  font-size: 18px;
+  letter-spacing: 5px;
+}
+
+@keyframes LobbyHud-pulse {
+  0%, 100% { box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.4); }
+  50% { box-shadow: inset 0 0 18px rgba(255, 255, 255, 0.9); }
+}
+
+.LobbyHud__row {
+  @include lobby-row(6px);
+}
+
+// 2. Boarding pass
+
+$pass-paper: #f3efe4;
+$pass-ink: #1c2230;
+$pass-bg: #0f1422;
+
+.LobbyPass {
+  @include lobby-fill;
+  padding: 16px;
+  font-family: 'Bahnschrift', 'Segoe UI', sans-serif;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.35) 1px, transparent 1.5px) 0 0 / 31px 29px,
+    radial-gradient(circle, rgba(255, 255, 255, 0.2) 1px, transparent 1.5px) 13px 17px / 47px 43px,
+    $pass-bg;
+}
+
+.LobbyPass__ticket {
+  position: relative;
+  background-color: $pass-paper;
+  color: $pass-ink;
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+}
+
+.LobbyPass__band {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  background: linear-gradient(90deg, #1d4f8f, #2a6cc0);
+  color: #fff;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.LobbyPass__logo {
+  margin-right: 8px;
+  padding: 0 4px;
+  border: 2px solid #fff;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 0;
+}
+
+.LobbyPass__class {
+  margin-left: auto;
+  opacity: 0.85;
+}
+
+.LobbyPass__body {
+  position: relative;
+  display: flex;
+  padding: 10px;
+}
+
+.LobbyPass__photo {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 104px;
+  margin-right: 10px;
+  overflow: hidden;
+  background: linear-gradient(#e2e8ef, #c3ccd8);
+  border: 1px solid #9aa6b5;
+}
+
+.LobbyPass__photo img {
+  width: 96px;
+  height: 96px;
+  image-rendering: pixelated;
+}
+
+.LobbyPass__fields {
+  flex: 1;
+  min-width: 0;
+}
+
+.LobbyPass__field {
+  margin-bottom: 3px;
+  min-width: 0;
+}
+
+.LobbyPass__label {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #6b7487;
+}
+
+.LobbyPass__value {
+  font-family: 'Consolas', monospace;
+  font-size: 13px;
+  font-weight: bold;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.LobbyPass__value--big {
+  font-size: 16px;
+}
+
+.LobbyPass__pair {
+  display: flex;
+}
+
+.LobbyPass__pair > * {
+  flex: 1;
+}
+
+.LobbyPass__stamp {
+  position: absolute;
+  right: 12px;
+  top: 30px;
+  padding: 3px 10px;
+  border: 3px solid;
+  border-radius: 6px;
+  font-family: 'Impact', 'Bahnschrift', sans-serif;
+  font-size: 19px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transform: rotate(-14deg);
+  opacity: 0.8;
+  pointer-events: none;
+  animation: LobbyPass-stamp 0.25s ease-out;
+}
+
+.LobbyPass__stamp--good {
+  color: #1f8a3a;
+  border-color: #1f8a3a;
+}
+
+.LobbyPass__stamp--late {
+  color: #c2410c;
+  border-color: #c2410c;
+}
+
+@keyframes LobbyPass-stamp {
+  from {
+    transform: rotate(-14deg) scale(2.2);
+    opacity: 0;
+  }
+  to {
+    transform: rotate(-14deg) scale(1);
+    opacity: 0.8;
+  }
+}
+
+.LobbyPass__tear {
+  position: relative;
+  margin: 0 14px;
+  border-top: 2px dashed #b9b2a0;
+}
+
+.LobbyPass__tear::before,
+.LobbyPass__tear::after {
+  content: '';
+  position: absolute;
+  top: -11px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: $pass-bg;
+}
+
+.LobbyPass__tear::before {
+  left: -25px;
+}
+
+.LobbyPass__tear::after {
+  right: -25px;
+}
+
+.LobbyPass__stub {
+  display: flex;
+  align-items: center;
+  padding: 9px 12px 11px;
+}
+
+.LobbyPass__barcode {
+  display: flex;
+  height: 36px;
+  margin-right: 10px;
+}
+
+.LobbyPass__bar {
+  display: block;
+  background-color: $pass-ink;
+}
+
+.LobbyPass__status {
+  flex: 1;
+  text-align: right;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #4a5366;
+}
+
+.LobbyPass__statusBig {
+  font-size: 15px;
+  font-weight: bold;
+  color: $pass-ink;
+}
+
+.LobbyPass__btn {
+  padding: 8px 0;
+  border-radius: 6px;
+  background-color: #26324a;
+  color: #dbe4f3;
+  text-align: center;
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #0a0f1a;
+  transition: background-color 0.15s;
+}
+
+.LobbyPass__btn:hover {
+  background-color: #31405e;
+}
+
+.LobbyPass__btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #0a0f1a;
+}
+
+.LobbyPass__btn--on,
+.LobbyPass__btn--on:hover {
+  background-color: #2a6cc0;
+  color: #fff;
+}
+
+.LobbyPass__btn--disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.LobbyPass__go {
+  margin-top: 14px;
+  padding: 11px 0;
+  background-color: #1f8a3a;
+  color: #fff;
+  font-size: 17px;
+  letter-spacing: 3px;
+}
+
+.LobbyPass__go:hover {
+  background-color: #23a044;
+}
+
+.LobbyPass__quiet {
+  background-color: transparent;
+  border: 1px solid #3a4763;
+  box-shadow: none;
+}
+
+.LobbyPass__row {
+  @include lobby-row(6px);
+  margin-top: 10px;
+}
+
+// 3. Departures board
+
+$board-amber: #ffd21f;
+
+.LobbyBoard {
+  @include lobby-fill;
+  padding: 12px;
+  background-color: #0b0b0c;
+  font-family: 'Consolas', 'Lucida Console', monospace;
+  color: $board-amber;
+}
+
+.LobbyBoard__panel {
+  padding: 8px 10px 4px;
+  background-color: #141416;
+  border: 2px solid #2a2a2e;
+  border-radius: 6px;
+  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.9);
+}
+
+.LobbyBoard__title {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  font-family: 'Bahnschrift', 'Segoe UI', sans-serif;
+  font-size: 18px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.LobbyBoard__round {
+  margin-left: auto;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: $board-amber;
+}
+
+.LobbyBoard__row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.LobbyBoard__key {
+  width: 64px;
+  font-family: 'Bahnschrift', 'Segoe UI', sans-serif;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: #8a8a90;
+}
+
+.LobbyBoard__flaps {
+  display: inline-flex;
+}
+
+.LobbyBoard__flap {
+  position: relative;
+  display: inline-block;
+  width: 13px;
+  height: 22px;
+  margin-right: 2px;
+  border-radius: 2px;
+  background: linear-gradient(#26262a 0, #26262a 50%, #1c1c1f 50%, #1c1c1f 100%);
+  text-align: center;
+  line-height: 22px;
+  font-size: 15px;
+  font-weight: bold;
+  color: $board-amber;
+  animation: LobbyBoard-flip 0.35s ease-out;
+}
+
+.LobbyBoard__flap::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background-color: rgba(0, 0, 0, 0.85);
+}
+
+.LobbyBoard__flaps--good .LobbyBoard__flap {
+  color: #4ade80;
+}
+
+.LobbyBoard__flaps--bad .LobbyBoard__flap {
+  color: #f87171;
+}
+
+@keyframes LobbyBoard-flip {
+  0% {
+    transform: scaleY(0.05);
+    filter: brightness(2.2);
+  }
+  100% {
+    transform: scaleY(1);
+    filter: brightness(1);
+  }
+}
+
+.LobbyBoard__pax {
+  display: flex;
+  align-items: center;
+  margin: 10px 0;
+  padding: 6px 10px;
+  background-color: #141416;
+  border: 2px solid #2a2a2e;
+  border-radius: 6px;
+}
+
+.LobbyBoard__paxImg {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  margin-right: 10px;
+}
+
+.LobbyBoard__paxImg img {
+  width: 64px;
+  height: 64px;
+  image-rendering: pixelated;
+}
+
+.LobbyBoard__paxText {
+  flex: 1;
+  min-width: 0;
+}
+
+.LobbyBoard__paxName {
+  font-family: 'Bahnschrift', 'Segoe UI', sans-serif;
+  font-size: 16px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.LobbyBoard__paxJob {
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.LobbyBoard__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0;
+  border: 1px solid #3a3a40;
+  border-radius: 4px;
+  background: linear-gradient(#2b2b30, #1c1c20);
+  color: #e5e5e5;
+  font-family: 'Bahnschrift', 'Segoe UI', sans-serif;
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.LobbyBoard__btn:hover {
+  border-color: $board-amber;
+}
+
+.LobbyBoard__btn--on {
+  color: $board-amber;
+}
+
+.LobbyBoard__btn--disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.LobbyBoard__led {
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background-color: #3a3a40;
+}
+
+.LobbyBoard__btn--on .LobbyBoard__led {
+  background-color: $board-amber;
+  box-shadow: 0 0 8px $board-amber;
+}
+
+.LobbyBoard__go {
+  margin-bottom: 6px;
+  padding: 11px 0;
+  border-color: $board-amber;
+  background: linear-gradient($board-amber, #d9a800);
+  color: #111;
+  font-size: 17px;
+  letter-spacing: 3px;
+}
+
+.LobbyBoard__go:hover {
+  border-color: #fff;
+}
+
+.LobbyBoard__small {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  font-size: 15px;
+}
+
+.LobbyBoard__btns {
+  @include lobby-row(6px);
+  margin-bottom: 6px;
+}
+
+// 4. Green-screen terminal
+
+$crt: #39ff6a;
+
+.LobbyCrt {
+  @include lobby-fill;
+  padding: 10px;
+  background-color: #070907;
+}
+
+.LobbyCrt__screen {
+  position: relative;
+  height: 100%;
+  padding: 12px 16px;
+  overflow: hidden;
+  border-radius: 16px;
+  background: radial-gradient(ellipse at center, #0c2a12 0%, #051207 65%, #010401 100%);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.95), 0 0 0 3px #1b201b, 0 0 0 6px #0f120f;
+  font-family: 'Consolas', 'Lucida Console', monospace;
+  font-size: 12px;
+  line-height: 17px;
+  text-transform: uppercase;
+  color: $crt;
+  text-shadow: 0 0 4px rgba(57, 255, 106, 0.75);
+}
+
+.LobbyCrt__screen::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(to bottom, transparent 0, transparent 2px,
+    rgba(0, 0, 0, 0.28) 2px, rgba(0, 0, 0, 0.28) 3px);
+  pointer-events: none;
+}
+
+.LobbyCrt__screen::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 70px;
+  background: linear-gradient(transparent, rgba(57, 255, 106, 0.07), transparent);
+  animation: LobbyCrt-roll 7s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes LobbyCrt-roll {
+  from { top: -70px; }
+  to { top: 100%; }
+}
+
+.LobbyCrt__dim {
+  opacity: 0.6;
+}
+
+.LobbyCrt__rule {
+  margin: 7px 0;
+  border-top: 1px dashed rgba(57, 255, 106, 0.5);
+}
+
+.LobbyCrt__ident {
+  display: flex;
+}
+
+.LobbyCrt__photo {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 84px;
+  margin-right: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(57, 255, 106, 0.6);
+}
+
+.LobbyCrt__photo img {
+  width: 72px;
+  height: 72px;
+  image-rendering: pixelated;
+  filter: grayscale(1) sepia(1) hue-rotate(70deg) saturate(5) brightness(0.95) contrast(1.3);
+}
+
+.LobbyCrt__idText {
+  flex: 1;
+  min-width: 0;
+}
+
+.LobbyCrt__dots {
+  display: flex;
+  align-items: baseline;
+  white-space: nowrap;
+}
+
+.LobbyCrt__fill {
+  flex: 1;
+  min-width: 10px;
+  margin: 0 4px;
+  border-bottom: 1px dotted rgba(57, 255, 106, 0.5);
+}
+
+.LobbyCrt__label {
+  text-align: center;
+  letter-spacing: 3px;
+  opacity: 0.7;
+}
+
+.LobbyCrt__big {
+  text-align: center;
+  font-size: 48px;
+  line-height: 54px;
+  letter-spacing: 4px;
+  text-shadow: 0 0 12px rgba(57, 255, 106, 0.9);
+}
+
+.LobbyCrt__cmd {
+  display: inline-block;
+  margin: 3px 6px 3px 0;
+  padding: 0 3px;
+  cursor: pointer;
+}
+
+.LobbyCrt__cmd:hover {
+  background-color: rgba(57, 255, 106, 0.2);
+}
+
+.LobbyCrt__cmd--on,
+.LobbyCrt__cmd--on:hover {
+  background-color: $crt;
+  color: #021305;
+  text-shadow: none;
+}
+
+.LobbyCrt__cmd--disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.LobbyCrt__cursor {
+  animation: LobbyCrt-blink 1s steps(1) infinite;
+}
+
+@keyframes LobbyCrt-blink {
+  50% { opacity: 0; }
+}

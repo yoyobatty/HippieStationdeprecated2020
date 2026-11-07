@@ -1,6 +1,7 @@
 import { Fragment } from 'inferno';
 import { useBackend } from '../backend';
 import { Box, Button, Icon, LabeledList, NoticeBox, Section } from '../components';
+import { LobbyBoard, LobbyCrt, LobbyHud, LobbyPass } from './common/LobbyDesigns';
 
 // hippie -- the lobby and the late-join job list. Data from hippiestation/
 // code/modules/mob/dead/new_player/lobby_tgui.dm.
@@ -61,8 +62,24 @@ const RoundInfo = props => {
   );
 };
 
+const DESIGNS = {
+  hud: LobbyHud,
+  pass: LobbyPass,
+  board: LobbyBoard,
+  crt: LobbyCrt,
+};
+
 export const Lobby = props => {
   const { act, data } = useBackend(props);
+  const Design = DESIGNS[data.design];
+  if (Design) {
+    return <Design act={act} data={data} />;
+  }
+  return <LobbyPlain act={act} data={data} />;
+};
+
+const LobbyPlain = props => {
+  const { act, data } = props;
   const { ready, queue } = data;
   const readyButton = (value, text, icon, color) => (
     <Button

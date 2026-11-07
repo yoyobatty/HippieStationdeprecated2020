@@ -384,7 +384,7 @@ const ROUTES = {
   },
   lobby: {
     component: () => Lobby,
-    scrollable: true,
+    scrollable: false,
   },
   mass_driver_console: {
     component: () => MassDriverConsole,
