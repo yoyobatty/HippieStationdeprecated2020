@@ -25,6 +25,8 @@
 				modify_variables(target, target_var, 0)
 			if(href_list[VV_HK_BASIC_MASSEDIT])
 				cmd_mass_modify_object_variables(target, target_var)
+			if(href_list[VV_HK_BASIC_EDIT] || href_list[VV_HK_BASIC_CHANGE] || href_list[VV_HK_BASIC_MASSEDIT])
+				vv_refresh_var(target, target_var) // hippie -- its row shows the new value (vv_windows.dm)
 	if(check_rights(R_ADMIN, FALSE))
 		if(href_list[VV_HK_EXPOSE])
 			var/value = vv_get_value(VV_CLIENT)

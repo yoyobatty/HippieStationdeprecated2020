@@ -10,8 +10,18 @@
 		D.vv_do_topic(href_list)
 	else if(islist(target))
 		vv_do_list(target, href_list)
+		// hippie -- a list edited from its own page: the page again, with the change
+		for(var/key in list(VV_HK_LIST_ADD, VV_HK_LIST_EDIT, VV_HK_LIST_CHANGE, VV_HK_LIST_REMOVE, VV_HK_LIST_ERASE_NULLS, VV_HK_LIST_ERASE_DUPES, VV_HK_LIST_SHUFFLE, VV_HK_LIST_SET_LENGTH))
+			if(href_list[key] && href_list["vvwin"])
+				vv_show(target, href_list["vvwin"], FALSE)
+				break
+	// hippie -- in the window the link was clicked in (vv_windows.dm), unless shift-clicked for a new one
+	var/vv_window_id = href_list["vvnew"] ? null : href_list["vvwin"]
+	if(href_list["vvback"] || href_list["vvforward"])
+		vv_step(href_list["vvwin"], href_list["vvback"] ? -1 : 1)
+		return
 	if(href_list["Vars"])
-		debug_variables(locate(href_list["Vars"]))
+		vv_show(locate(href_list["Vars"]), vv_window_id)
 
 //Stuff below aren't in dropdowns/etc.
 
@@ -127,6 +137,6 @@
 	//Finally, refresh if something modified the list.
 	if(href_list["datumrefresh"])
 		var/datum/DAT = locate(href_list["datumrefresh"])
-		if(istype(DAT, /datum) || istype(DAT, /client))
-			debug_variables(DAT)
+		if(istype(DAT, /datum) || istype(DAT, /client) || islist(DAT)) // hippie -- a list's page too
+			vv_show(DAT, href_list["vvwin"], FALSE)
 

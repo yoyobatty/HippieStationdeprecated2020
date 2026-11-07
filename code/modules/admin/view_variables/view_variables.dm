@@ -2,6 +2,11 @@
 	set category = "Debug"
 	set name = "View Variables"
 	//set src in world
+	vv_show(D)
+
+/// hippie -- the page itself, in window_id if given (a link clicked in a VV window opens in that window: vv_windows.dm), else in
+/// the window already showing D or a new one. push: a new page in the window's history (not a refresh or Back/Forward).
+/client/proc/vv_show(datum/D, window_id, push = TRUE)
 	var/static/cookieoffset = rand(1, 9999) //to force cookies to reset after the round.
 
 	if(!usr.client || !usr.client.holder)		//This is usr because admins can call the proc on other clients, even if they're not admins, to show them VVs.
@@ -14,6 +19,11 @@
 	var/islist = islist(D)
 	if(!islist && !istype(D))
 		return
+
+	var/datum/vv_window/vv_window = vv_window_for(D, window_id) // hippie
+	var/fresh_window = !winexists(src, vv_window.id)
+	if(push && vv_window.current_ref() != REF(D))
+		vv_window.push(D)
 
 	var/title = ""
 	var/refid = REF(D)
@@ -176,11 +186,12 @@
 				updateSearch();
 			}
 
+			[vv_window_script(vv_window.id)]
 			// onchange
 			function handle_dropdown(list) {
 				var value = list.options\[list.selectedIndex].value;
 				if (value !== "") {
-					location.href = value;
+					location.href = vv_link(value, false);
 				}
 				list.selectedIndex = 0;
 				document.getElementById('filter').focus();
@@ -208,6 +219,7 @@
 						</table>
 						<div align='center'>
 							<b><font size='1'>[formatted_type]</font></b>
+				[islist ? "" : vv_where(D)]
 							<span id='marked'>[marked_line]</span>
 							<span id='varedited'>[varedited_line]</span>
 							<span id='deleted'>[deleted_line]</span>
@@ -215,7 +227,8 @@
 					</td>
 					<td width='50%'>
 						<div align='center'>
-							<a id='refresh_link' href='?_src_=vars;
+							[vv_nav_links(vv_window)]<br>
+				<a id='refresh_link' href='?_src_=vars;
 datumrefresh=[refid];[HrefToken()]'>Refresh</a>
 							<form>
 								<select name="file" size="1"
@@ -261,7 +274,8 @@ datumrefresh=[refid];[HrefToken()]'>Refresh</a>
 	</body>
 </html>
 "}
-	src << browse(html, "window=variables[refid];size=475x650")
+	src << browse(html, "window=[vv_window.id][fresh_window ? ";size=475x650" : ""]") // hippie -- the window it's in; sized only when new
 
 /client/proc/vv_update_display(datum/D, span, content)
-	src << output("[span]:[content]", "variables[REF(D)].browser:replace_span")
+	for(var/id in vv_windows_showing(D)) // hippie -- whichever windows show it now
+		src << output("[span]:[content]", "[id].browser:replace_span")
