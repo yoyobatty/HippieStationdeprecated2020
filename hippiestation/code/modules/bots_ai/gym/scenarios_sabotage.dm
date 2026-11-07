@@ -720,3 +720,36 @@
 	if(!QDELETED(patient))
 		qdel(patient)
 	return ..()
+
+/// Ill (goals/sabotage_virus.dm): well along with a virus, it goes to be seen
+/datum/bot_scenario/duty/feeling_ill
+	name = "virus: an assistant well along with a virus goes to be seen about it"
+	desc = "An assistant at stage 3 of a flu no scanner shows, and a PanDEMIC (p) at the far end standing in for Virology (there's no Medbay in the gym). It says it's ill and goes over to wait to be seen. Infected crew carried on with their day, and one burned to death of spontaneous combustion in Hydroponics."
+	job = "Assistant"
+	time_limit = 40 SECONDS
+	layout = list(
+		"##############",
+		"#B..........p#",
+		"##############")
+
+/datum/bot_scenario/duty/feeling_ill/setup()
+	duty_type = text2path("/datum/bot_duty/feeling_ill")
+
+/datum/bot_scenario/duty/feeling_ill/build_tile(turf/T, char)
+	if(char == "p")
+		place(char, new /obj/machinery/computer/pandemic(T))
+		return
+	return ..()
+
+/datum/bot_scenario/duty/feeling_ill/post_spawn()
+	..()
+	bot.ForceContractDisease(new /datum/disease/advance/flu, FALSE, TRUE)
+	for(var/datum/disease/D in bot.diseases)
+		D.visibility_flags |= HIDDEN_SCANNER
+		D.stage = 3
+		D.stage_prob = 0 //stays where it is for the test
+
+/datum/bot_scenario/duty/feeling_ill/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (bot_transcript_said("here to be seen") && get_dist(bot, first_marker("p")) <= 2) ? BOT_GYM_PASS : BOT_GYM_PENDING

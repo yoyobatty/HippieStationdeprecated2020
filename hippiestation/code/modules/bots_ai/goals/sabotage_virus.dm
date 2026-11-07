@@ -502,6 +502,21 @@ GLOBAL_LIST_EMPTY(bot_virus_cures_known)
 	priority = 24
 	interval_min = 40
 	interval_max = 80
+	interrupts = TRUE
+
+/// Somebody ill stood right by it (come to be seen: /datum/bot_duty/feeling_ill) is seen to before whatever it's on, short of a
+/// patient in a worse way. A Box CMO went on with its round while a man with spontaneous combustion stood in front of it asking.
+/datum/bot_duty/sample_the_sick/should_interrupt(datum/bot_brain/bot)
+	var/datum/bot_goal/goal = bot.current_goal
+	// Not its own sample's syringe fetch either (the sample goal's set aside for it): a Hippie CMO dropped that three times over.
+	if(bot.saboteur || goal?.never_rests || istype(goal, /datum/bot_goal/sample_virus) || istype(bot.suspended_goal, /datum/bot_goal/sample_virus) || istype(goal, /datum/bot_goal/revive_patient) \
+		|| istype(goal, /datum/bot_goal/escort_to_sleeper) || istype(goal, /datum/bot_goal/operate) || istype(goal, /datum/bot_goal/treat_patient) \
+		|| !bot.nearest_pandemic())
+		return FALSE
+	for(var/mob/living/carbon/human/H in view(3, bot.owner))
+		if(H != bot.owner && H.stat != DEAD && bot_unread_virus(H) && !(LAZYACCESS(bot.uncurable_patients, WEAKREF(H)) > world.time))
+			return TRUE
+	return FALSE
 
 /datum/bot_duty/sample_the_sick/try_start(datum/bot_brain/bot)
 	if(bot.saboteur || !bot.nearest_pandemic())
@@ -778,3 +793,105 @@ GLOBAL_LIST_EMPTY(bot_virus_cures_known)
 			bot_say(bot.owner, pick("That should clear it up.", "Give it a minute, you'll feel better.", "Stay away from the bar for a bit."))
 		return GOAL_STEP_SUCCESS
 	return GOAL_STEP_FAIL
+
+// ---------------------------------------------------------------------------------------------
+// The sick
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_brain
+	/// When it's next willing to go and be seen about feeling ill.
+	var/next_ill_visit = 0
+
+/// Well along with something (its own symptoms tell it, whether or not a scanner would): it says so and goes to find a medic in
+/// Medbay, and waits there a little to be seen. Infected crew carried on with their day and were only cured if a medic happened by:
+/// a man with spontaneous combustion burned to death in Hydroponics.
+/datum/bot_duty/feeling_ill
+	name = "feeling ill"
+	jobs = null //anybody
+	tier = BOT_DUTY_URGENT
+	priority = 14
+	interval_min = 60
+	interval_max = 120
+
+/datum/bot_duty/feeling_ill/applies_to(datum/bot_brain/bot)
+	return !bot.is_medical_job()
+
+/datum/bot_duty/feeling_ill/try_start(datum/bot_brain/bot)
+	if(world.time < bot.next_ill_visit || bot.saboteur || bot.gone_loud() || !bot_feels_ill(bot.owner))
+		return FALSE
+	var/atom/medic = bot.medic_to_see()
+	if(!medic)
+		return FALSE
+	bot.next_ill_visit = world.time + 6 MINUTES
+	return bot.assign_goal(new /datum/bot_goal/see_a_doctor(medic))
+
+/// Sick enough to feel it: a disease at stage 3 or more.
+/proc/bot_feels_ill(mob/living/carbon/human/H)
+	for(var/datum/disease/D as anything in H.diseases)
+		if(D.stage >= 3 && (D.disease_flags & CURABLE) && length(D.cures))
+			return D
+	return null
+
+/// Somebody in Medbay who'd know what to do: a Virologist or the CMO first, then a doctor. Failing anybody, Medbay itself.
+/datum/bot_brain/proc/medic_to_see()
+	var/mob/living/carbon/human/best
+	var/best_rank = 0
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		var/mob/living/carbon/human/H = B.owner
+		if(B == src || QDELETED(H) || H.stat != CONSCIOUS || H.z != owner.z || !istype(get_area(H), /area/medical) || B.saboteur)
+			continue
+		var/role = B.work_role()
+		var/rank = (role == "Virologist" || role == "Chief Medical Officer") ? 2 : (role == "Medical Doctor" ? 1 : 0)
+		if(rank > best_rank || (rank && rank == best_rank && get_dist(owner, H) < get_dist(owner, best)))
+			best = H
+			best_rank = rank
+	if(best)
+		return best
+	return nearest_pandemic() //Virology, then: the nearest, and in the Bot Gym its own arena's
+
+/datum/bot_goal/see_a_doctor
+	lawful = TRUE
+	doing = "going to see a doctor"
+
+/datum/bot_goal/see_a_doctor/New(atom/A)
+	. = ..()
+	target = A
+
+/datum/bot_goal/see_a_doctor/resolve_target(datum/bot_brain/bot)
+	if(QDELETED(target) || !bot_feels_ill(bot.owner))
+		target = null
+
+/datum/bot_goal/see_a_doctor/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/case_work/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/wait_to_be_seen())
+	return list(S)
+
+/// There: a word about it, and a minute's wait to be seen, unless it's been seen to first.
+/datum/bot_step/paced/wait_to_be_seen
+	max_clicks = 30
+	var/ends_at = 0
+
+/datum/bot_step/paced/wait_to_be_seen/start(datum/bot_brain/bot)
+	ends_at = world.time + 60 SECONDS
+	var/atom/A = bot.current_goal?.target
+	var/mob/living/carbon/human/medic = ismob(A) ? A : null
+	if(!bot.gym_scripted)
+		bot_say(bot.owner, medic ? pick("[medic.first_name()], I feel awful. I think I've caught something.", "Doc, I'm not well. Can you take a look?") : pick("I feel terrible. Is anybody here?", "Anybody in? I think I'm sick."))
+	bot_log(bot, "feeling ill: here to be seen ([medic || A])")
+	bot_tally("went to be seen, ill")
+	GLOB.bot_sick_known[WEAKREF(bot.owner)] = world.time //told them: they know who's sick, if not what with
+	return TRUE
+
+/datum/bot_step/paced/wait_to_be_seen/do_click(datum/bot_brain/bot)
+	if(world.time > ends_at || !bot_feels_ill(bot.owner))
+		return FALSE
+	var/datum/disease/D = bot_feels_ill(bot.owner)
+	if(D && length(D.cures) && bot.owner.reagents?.has_reagent(D.cures[1]))
+		return FALSE //dosed
+	bot.hold_still_for(3 SECONDS)
+	bot.idle_fidget()
+	wait_for = 20
+	return TRUE
+
+/datum/bot_step/paced/wait_to_be_seen/finish(datum/bot_brain/bot)
+	return GOAL_STEP_SUCCESS
