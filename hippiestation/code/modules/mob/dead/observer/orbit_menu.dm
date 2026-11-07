@@ -45,6 +45,8 @@
 			misc += list(entry)
 			continue
 		var/mob/M = target
+		if(M.mind?.assigned_role)
+			entry["job"] = M.mind.assigned_role
 		if(isobserver(M))
 			ghosts += list(entry)
 		else if(M.stat == DEAD)

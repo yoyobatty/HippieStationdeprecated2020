@@ -5,25 +5,32 @@ import { Box, Button, LabeledList, NoticeBox, ProgressBar, Section } from '../co
 // the slimeperson's body swap (were tgui/src/interfaces/notificationpanel.ract,
 // eightball.ract and slime_swap_body.ract)
 
+// A role's "enabled" is its pop-ups being ignored: lit ones still ask
 export const NotificationPanel = props => {
   const { act, data } = useBackend(props);
   const roles = data.ignore || [];
+  const asking = roles.filter(role => !role.enabled).length;
   return (
-    <Section title="Ghost role pop-ups">
-      <Box color="label" mb={1}>
-        Ticked ones you&apos;ll get asked about. Untick a role to stop its
-        pop-ups.
-      </Box>
-      {roles.map(role => (
-        <Button
-          key={role.key}
-          fluid
-          color="transparent"
-          icon={role.enabled ? 'square-o' : 'check-square-o'}
-          content={role.desc}
-          onClick={() => act('toggle_ignore', { key: role.key })} />
-      ))}
-    </Section>
+    <div className="GhostPops">
+      <div className="GhostPops__head">
+        Ghost role pop-ups
+        <span className="GhostPops__count">
+          {asking + ' / ' + roles.length + ' on'}
+        </span>
+      </div>
+      <div className="GhostPops__grid">
+        {roles.map(role => (
+          <div
+            key={role.key}
+            className={'GhostPops__role'
+              + (role.enabled ? '' : ' GhostPops__role--on')}
+            onClick={() => act('toggle_ignore', { key: role.key })}>
+            <span className="GhostPops__led" />
+            {role.desc}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 };
 

@@ -1,17 +1,29 @@
-import { Fragment } from 'inferno';
 import { useBackend } from '../backend';
-import { Button, ColorBox, Section, Table } from '../components';
+import { ColorBox, Icon } from '../components';
+
+// hippie -- the NtOS desktop: programs as tiles (a dot on the ones running,
+// an x to close them), and the flashlight as quick settings. Data and
+// actions from code/modules/modular_computers/computers/item/computer_ui.dm.
 
 const PROGRAM_ICONS = {
   compconfig: 'cog',
   ntndownloader: 'download',
-  filemanager: 'folder',
+  filemanager: 'folder-open',
   smmonitor: 'radiation',
   alarmmonitor: 'bell',
   cardmod: 'id-card',
   ntnrc_client: 'comment-alt',
   nttransfer: 'exchange-alt',
   powermonitor: 'plug',
+  aidiag: 'robot',
+  contract: 'file-signature',
+  uplink: 'user-secret',
+  ntmonitor: 'network-wired',
+  ntn_dos: 'bug',
+  revelation: 'skull',
+  stationmap: 'map',
+  trafficctrl: 'broadcast-tower',
+  trafficctrl_x: 'broadcast-tower',
 };
 
 export const NtosMain = props => {
@@ -23,56 +35,49 @@ export const NtosMain = props => {
     comp_light_color,
   } = data;
   return (
-    <Fragment>
+    <div className="NtosDesk">
       {!!has_light && (
-        <Section>
-          <Button
-            width="144px"
-            icon="lightbulb"
-            selected={light_on}
+        <div className="NtosDesk__quick">
+          <div
+            className={'NtosDesk__quickTile'
+              + (light_on ? ' NtosDesk__quickTile--on' : '')}
             onClick={() => act('PC_toggle_light')}>
-            Flashlight: {light_on ? 'ON' : 'OFF'}
-          </Button>
-          <Button
-            ml={1}
+            <Icon name="lightbulb" mr={1} />
+            Flashlight
+          </div>
+          <div
+            className="NtosDesk__quickTile"
             onClick={() => act('PC_light_color')}>
-            Color:
-            <ColorBox ml={1} color={comp_light_color} />
-          </Button>
-        </Section>
+            <ColorBox mr={1} color={comp_light_color} />
+            Colour
+          </div>
+        </div>
       )}
-      <Section title="Programs">
-        <Table>
-          {programs.map(program => (
-            <Table.Row key={program.name}>
-              <Table.Cell>
-                <Button
-                  fluid
-                  lineHeight="24px"
-                  color="transparent"
-                  icon={PROGRAM_ICONS[program.name] || 'window-maximize-o'}
-                  content={program.desc}
-                  onClick={() => act('PC_runprogram', {
-                    name: program.name,
-                  })} />
-              </Table.Cell>
-              <Table.Cell collapsing width={3}>
-                {!!program.running && (
-                  <Button
-                    lineHeight="24px"
-                    color="transparent"
-                    icon="times"
-                    tooltip="Close program"
-                    tooltipPosition="left"
-                    onClick={() => act('PC_killprogram', {
-                      name: program.name,
-                    })} />
-                )}
-              </Table.Cell>
-            </Table.Row>
-          ))}
-        </Table>
-      </Section>
-    </Fragment>
+      <div className="NtosDesk__grid">
+        {programs.map(program => (
+          <div
+            key={program.name}
+            className={'NtosDesk__app'
+              + (program.running ? ' NtosDesk__app--running' : '')}
+            onClick={() => act('PC_runprogram', { name: program.name })}>
+            <div className="NtosDesk__icon">
+              <Icon name={PROGRAM_ICONS[program.name] || 'window-maximize'} />
+            </div>
+            <div className="NtosDesk__label">{program.desc}</div>
+            {!!program.running && (
+              <div
+                className="NtosDesk__close"
+                title="Close"
+                onClick={e => {
+                  e.stopPropagation();
+                  act('PC_killprogram', { name: program.name });
+                }}>
+                <Icon name="times" />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 };

@@ -777,7 +777,7 @@ const ROUTES = {
   },
   spawners_menu: {
     component: () => SpawnersMenu,
-    scrollable: true,
+    scrollable: false,
   },
   station_alert: {
     component: () => StationAlertConsole,
@@ -863,7 +863,7 @@ const ROUTES = {
   },
   orbit: {
     component: () => Orbit,
-    scrollable: true,
+    scrollable: false,
   },
   rdconsole: {
     component: () => RdConsole,
@@ -918,7 +918,7 @@ const ROUTES = {
   },
   notificationpanel: {
     component: () => NotificationPanel,
-    scrollable: true,
+    scrollable: false,
   },
   eightball: {
     component: () => Eightball,

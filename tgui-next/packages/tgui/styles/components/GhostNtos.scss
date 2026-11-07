@@ -1,0 +1,396 @@
+// hippie -- the NtOS desktop (interfaces/NtosMain.js) and the ghost's menus
+// (Orbit.js, SpawnersMenu.js, GhostAndSlime.js NotificationPanel)
+
+// The NtOS desktop
+
+.NtosDesk {
+  min-height: 100%;
+  padding: 4px 2px;
+}
+
+.NtosDesk__quick {
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.NtosDesk__quickTile {
+  display: flex;
+  align-items: center;
+  margin-right: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.07);
+  cursor: pointer;
+}
+
+.NtosDesk__quickTile--on {
+  background-color: rgba(255, 214, 92, 0.85);
+  color: #1d1d1d;
+}
+
+.NtosDesk__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  grid-gap: 8px;
+}
+
+.NtosDesk__app {
+  position: relative;
+  padding: 8px 4px 6px;
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.NtosDesk__app:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.NtosDesk__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 6px;
+  border-radius: 12px;
+  background: linear-gradient(#3b74b8, #285a96);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-size: 22px;
+}
+
+.NtosDesk__app--running .NtosDesk__icon {
+  background: linear-gradient(#3fae6a, #2b8a52);
+}
+
+.NtosDesk__app--running::after {
+  content: '';
+  position: absolute;
+  top: 54px;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin-left: 18px;
+  border-radius: 50%;
+  background-color: #8cff9e;
+  box-shadow: 0 0 6px #8cff9e;
+}
+
+.NtosDesk__label {
+  font-size: 11px;
+  line-height: 13px;
+}
+
+.NtosDesk__close {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.55);
+  font-size: 10px;
+  line-height: 18px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.NtosDesk__app:hover .NtosDesk__close {
+  opacity: 1;
+}
+
+.NtosDesk__close:hover {
+  background-color: #c92a2a;
+}
+
+// Orbit
+
+.Orbit {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  background: linear-gradient(#1f2430, #171b24);
+}
+
+.Orbit__bar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+  color: #8a94a6;
+}
+
+.Orbit__search {
+  flex: 1;
+}
+
+.Orbit__refresh {
+  margin-left: 6px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.07);
+  cursor: pointer;
+}
+
+.Orbit__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.Orbit__tab {
+  display: flex;
+  align-items: center;
+  margin: 0 4px 4px 0;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #b4bcc8;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.Orbit__tab--on {
+  background-color: #3b5b8f;
+  color: #fff;
+}
+
+.Orbit__count {
+  margin-left: 5px;
+  opacity: 0.6;
+}
+
+.Orbit__list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.Orbit__group {
+  margin-bottom: 8px;
+}
+
+.Orbit__groupTitle {
+  margin-bottom: 4px;
+  color: #6f7a8c;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.Orbit__entries {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-gap: 4px;
+}
+
+.Orbit__entry {
+  display: flex;
+  align-items: center;
+  padding: 4px 6px;
+  border-radius: 5px;
+  background-color: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+
+.Orbit__entry:hover {
+  background-color: rgba(255, 255, 255, 0.11);
+}
+
+.Orbit__who {
+  min-width: 0;
+}
+
+.Orbit__name {
+  overflow: hidden;
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.Orbit__job {
+  overflow: hidden;
+  color: #7f8a9c;
+  font-size: 10px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.Orbit__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+}
+
+.Orbit__dot--alive { background-color: #51cf66; }
+.Orbit__dot--antag { background-color: #ff6b6b; }
+.Orbit__dot--npc { background-color: #fcc419; }
+.Orbit__dot--poi { background-color: #74c0fc; }
+.Orbit__dot--dead { background-color: #6c757d; }
+.Orbit__dot--ghost { background-color: #e5dbff; }
+
+// Spawners
+
+.Spawners {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  padding: 8px;
+  background: linear-gradient(#1f2430, #171b24);
+}
+
+.Spawners__none {
+  padding: 20px;
+  color: #6f7a8c;
+  text-align: center;
+}
+
+.Spawners__card {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border-left: 3px solid #9775fa;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.Spawners__head {
+  display: flex;
+  align-items: center;
+}
+
+.Spawners__name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: bold;
+  text-transform: capitalize;
+}
+
+.Spawners__left {
+  margin-right: 8px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background-color: rgba(151, 117, 250, 0.25);
+  color: #d0bfff;
+  font-size: 11px;
+}
+
+.Spawners__key {
+  margin-left: 4px;
+  padding: 3px 9px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.Spawners__key:hover {
+  background-color: rgba(255, 255, 255, 0.18);
+}
+
+.Spawners__key--go {
+  background-color: #6741d9;
+}
+
+.Spawners__key--go:hover {
+  background-color: #7950f2;
+}
+
+.Spawners__short {
+  margin-top: 6px;
+  font-size: 13px;
+  font-style: italic;
+  color: #e9ecef;
+}
+
+.Spawners__flavor {
+  margin-top: 4px;
+  color: #98a2b3;
+  font-size: 12px;
+}
+
+.Spawners__important {
+  margin-top: 6px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  background-color: rgba(224, 49, 49, 0.2);
+  color: #ffa8a8;
+  font-weight: bold;
+}
+
+// Ghost role pop-ups
+
+.GhostPops {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  padding: 10px;
+  background: linear-gradient(#1f2430, #171b24);
+}
+
+.GhostPops__head {
+  display: flex;
+  margin-bottom: 8px;
+  color: #b4bcc8;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.GhostPops__count {
+  margin-left: auto;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 0.7;
+}
+
+.GhostPops__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-gap: 6px;
+}
+
+.GhostPops__role {
+  display: flex;
+  align-items: center;
+  padding: 7px 9px;
+  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.04);
+  color: #7f8a9c;
+  cursor: pointer;
+}
+
+.GhostPops__role:hover {
+  background-color: rgba(255, 255, 255, 0.09);
+}
+
+.GhostPops__role--on {
+  background-color: rgba(151, 117, 250, 0.16);
+  color: #e9ecef;
+}
+
+.GhostPops__led {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background-color: #343a46;
+}
+
+.GhostPops__role--on .GhostPops__led {
+  background-color: #b197fc;
+  box-shadow: 0 0 6px #b197fc;
+}
