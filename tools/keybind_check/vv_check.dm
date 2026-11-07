@@ -94,6 +94,7 @@ GLOBAL_LIST_EMPTY(vc_probes)
 	vv_check_inline(C, H)
 	vv_check_logs(C, H)
 	vv_check_gaps(C, H)
+	vv_check_find(C, H)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -521,3 +522,70 @@ GLOBAL_LIST_EMPTY(vc_probes)
 	for(var/id in C.vv_windows)
 		C << browse(null, "window=[id]")
 	qdel(pen)
+
+/// Find: by name (carried things say who has them), type with subtypes, ref, player; near me; a tile and what's inside;
+/// Get; a turf's "Everything here"
+/proc/vv_check_find(client/C, mob/living/carbon/human/H)
+	var/mob/living/carbon/human/bob = new(get_step(H, EAST))
+	bob.fully_replace_character_name(null, "Bob Finder")
+	bob.equipOutfit(/datum/outfit/job/assistant)
+	var/obj/item/crowbar/held = new(bob)
+	bob.equip_to_slot_or_del(held, ITEM_SLOT_BACKPACK)
+	var/obj/item/crowbar/red/loose = new(get_step(H, NORTH))
+	loose.name = "findme crowbar"
+	held.name = "findme crowbar"
+	var/turf/far = locate(H.x + 10, H.y, H.z)
+	var/obj/item/wrench/faraway = new(far)
+	faraway.name = "faraway findme wrench"
+
+	C.open_admin_find()
+	var/datum/admin_find/AF = C.admin_find
+	var/datum/tgui/ui = vc_find_ui(H, AF)
+	vc_check("Find opens", ui)
+	if(ui)
+		winset(C, ui.window_id, "pos=20,10")
+	vc_act(AF, H, "search", list("mode" = "name", "query" = "findme", "scope" = "everywhere"))
+	var/list/rows = AF.ui_data(H)["rows"]
+	var/carried = FALSE
+	for(var/list/row in rows)
+		if(row["ref"] == REF(held) && findtext(row["carrier"], bob.name))
+			carried = TRUE
+	vc_check("by name, everywhere: the three findme things in [AF.took] s ([AF.matched])", AF.matched == 3)
+	vc_check("the one in Bob's backpack says Bob's carrying it", carried)
+	sleep(15)
+	vc_shot("find_name")
+	vc_act(AF, H, "search", list("mode" = "name", "query" = "findme", "scope" = "near", "radius" = "5"))
+	vc_check("near me (5 tiles) leaves out the far wrench ([AF.matched])", AF.matched == 2)
+	vc_act(AF, H, "search", list("mode" = "type", "query" = "/obj/item/crowbar", "scope" = "near", "radius" = "5"))
+	var/list/types = list()
+	for(var/datum/weakref/W as anything in AF.results)
+		var/datum/D = W.resolve()
+		types |= "[D?.type]"
+	vc_check("by type, with subtypes: the red crowbar too ([types.Join(", ")])", ("/obj/item/crowbar/red" in types) && ("/obj/item/crowbar" in types))
+	vc_act(AF, H, "search", list("mode" = "ref", "query" = REF(faraway), "scope" = "everywhere"))
+	vc_check("by ref ([AF.matched])", AF.matched == 1)
+	vc_act(AF, H, "search", list("mode" = "player", "query" = H.ckey, "scope" = "everywhere"))
+	var/datum/weakref/first = length(AF.results) ? AF.results[1] : null
+	vc_check("by player: the admin's own mob", first?.resolve() == H)
+	// a tile: everything there
+	vc_act(AF, H, "here")
+	var/list/tile_things = list()
+	for(var/datum/weakref/W as anything in AF.results)
+		tile_things += W.resolve()
+	vc_check("my tile: the turf, its area and me ([AF.matched] things)", (get_turf(H) in tile_things) && (get_area(H) in tile_things) && (H in tile_things))
+	var/without = AF.matched
+	vc_act(AF, H, "search", list("mode" = "name", "query" = "", "scope" = "tile", "tile" = "[H.x], [H.y], [H.z]", "inside" = "1"))
+	vc_check("inside things too: what I'm carrying as well ([without] -> [AF.matched])", AF.matched > without)
+	sleep(15)
+	vc_shot("find_tile")
+	// Get
+	vc_act(AF, H, "get", list("ref" = REF(faraway)))
+	vc_check("GET brings the far wrench here", get_turf(faraway) == get_turf(H))
+	// a turf's Everything here
+	C.holder.Topic("adminfindtile=[REF(far)]", list("adminfindtile" = REF(far), "admin_token" = C.holder.href_token))
+	sleep(10)
+	vc_check("a turf's Everything here opens Find on that tile ([AF.scope] [AF.tile_x],[AF.tile_y])", AF.scope == "tile" && AF.tile_x == far.x && AF.tile_y == far.y)
+	SStgui.close_user_uis(H)
+	qdel(loose)
+	qdel(faraway)
+	qdel(bob)

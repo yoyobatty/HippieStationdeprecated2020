@@ -131,7 +131,7 @@
 		return ""
 	if(isturf(A))
 		var/area/turf_area = get_area(A)
-		return "<br><font size='1'>[turf_area ? "<a href='?_src_=vars;[HrefToken()];Vars=[REF(turf_area)]'>[html_encode(turf_area.name)]</a> " : ""]([A.x], [A.y], [A.z]) [ADMIN_JMP(A)]</font>"
+		return "<br><font size='1'>[turf_area ? "<a href='?_src_=vars;[HrefToken()];Vars=[REF(turf_area)]'>[html_encode(turf_area.name)]</a> " : ""]([A.x], [A.y], [A.z]) [ADMIN_JMP(A)] (<a href='?_src_=holder;[HrefToken()];adminfindtile=[REF(A)]'>Everything here</a>)</font>"
 	if(!A.loc)
 		return "<br><font size='1'>Nowhere (in nullspace)</font>"
 	var/list/chain = list()

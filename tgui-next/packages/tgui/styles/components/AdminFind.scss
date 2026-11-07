@@ -1,0 +1,141 @@
+// hippie -- Find (interfaces/AdminFind.js)
+
+$af-line: rgba(255, 255, 255, 0.08);
+$af-muted: #8a93a0;
+
+.AdminFind {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px 0;
+}
+
+.AdminFind__bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.AdminFind__query {
+  flex: 1;
+  margin: 0 4px;
+}
+
+.AdminFind__label {
+  width: 50px;
+  color: $af-muted;
+  font-size: 11px;
+}
+
+.AdminFind__sub {
+  margin-left: 8px;
+  color: $af-muted;
+  font-size: 11px;
+
+  .Input {
+    margin: 0 4px;
+  }
+}
+
+.AdminFind__small {
+  width: 40px;
+}
+
+.AdminFind__tile {
+  width: 90px;
+}
+
+.AdminFind__counts {
+  margin-bottom: 4px;
+}
+
+.AdminFind__count {
+  display: inline-block;
+  margin: 0 4px 4px 0;
+  padding: 1px 7px;
+  border: 1px solid $af-line;
+  border-radius: 10px;
+  font-size: 11px;
+  color: $af-muted;
+  cursor: pointer;
+
+  b {
+    color: #dfe4ea;
+  }
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.AdminFind__status {
+  padding: 3px 0 5px;
+  border-bottom: 1px solid $af-line;
+  font-size: 12px;
+}
+
+.AdminFind__muted {
+  color: $af-muted;
+}
+
+.AdminFind__rows {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.AdminFind__row {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid $af-line;
+  font-size: 12px;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+  }
+}
+
+.AdminFind__what {
+  flex: 1;
+  min-width: 0;
+  word-wrap: break-word;
+
+  .AdminFind__muted {
+    font-size: 11px;
+  }
+}
+
+.AdminFind__tag {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.08);
+  color: $af-muted;
+  font-size: 10px;
+}
+
+.AdminFind__acts {
+  flex: 0 0 auto;
+  white-space: nowrap;
+
+  a {
+    margin-left: 7px;
+    color: #6ea8ff;
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .AdminFind__del {
+    color: #e66767;
+  }
+}

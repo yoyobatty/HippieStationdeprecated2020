@@ -32,6 +32,12 @@
 		log_admin("[key_name(usr)] failed to create an infiltration team.")
 
 /datum/admins/proc/hippieTopic(href, href_list)
+	if(href_list["adminfindtile"]) // "Everything here" in a turf's View Variables (admin_find.dm)
+		if(check_rights(R_ADMIN))
+			var/turf/T = locate(href_list["adminfindtile"])
+			if(isturf(T))
+				usr.client.open_admin_find(T)
+		return
 	if(href_list["searchlogs"]) // a player panel's SEARCH LOGS, or LOGS by an ahelp (log_search.dm): a ckey or name, or a ref
 		if(check_rights(R_ADMIN))
 			var/who = href_list["searchlogs"]

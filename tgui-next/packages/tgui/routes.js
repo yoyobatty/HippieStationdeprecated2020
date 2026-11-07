@@ -1,5 +1,6 @@
 import { AbductorConsole, AbductorExperiment, GlandDispenser } from './interfaces/Abductor';
 import { Achievements } from './interfaces/Achievements';
+import { AdminFind } from './interfaces/AdminFind';
 import { AiAirlock } from './interfaces/AiAirlock';
 import { AirAlarm } from './interfaces/AirAlarm';
 import { AirlockElectronics } from './interfaces/AirlockElectronics';
@@ -307,6 +308,10 @@ const ROUTES = {
   },
   acclimator: {
     component: () => ChemAcclimator,
+    scrollable: false,
+  },
+  admin_find: {
+    component: () => AdminFind,
     scrollable: false,
   },
   chem_dispenser: {

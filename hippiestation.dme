@@ -3319,6 +3319,7 @@
 #include "hippiestation\code\modules\admin\round_log.dm"
 #include "hippiestation\code\modules\admin\log_search.dm"
 #include "hippiestation\code\modules\admin\log_gaps.dm"
+#include "hippiestation\code\modules\admin\admin_find.dm"
 #include "hippiestation\code\modules\antagonists\_common\antag_datum.dm"
 #include "hippiestation\code\modules\antagonists\_common\antag_spawner.dm"
 #include "hippiestation\code\modules\antagonists\_common\tips.dm"
