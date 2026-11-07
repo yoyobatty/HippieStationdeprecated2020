@@ -96,45 +96,7 @@
 	return photo
 
 /obj/machinery/abductor/experiment/proc/experimentUI(mob/user)
-	var/dat
-	dat += "<h3> Experiment </h3>"
-	if(occupant)
-		var/obj/item/photo/P = new
-		P.picture = new
-		P.picture.picture_image = icon(dissection_icon(occupant), dir = SOUTH)
-		user << browse_rsc(P.picture.picture_image, "dissection_img")
-		dat += "<table><tr><td>"
-		dat += "<img src=dissection_img height=80 width=80>" //Avert your eyes
-		dat += "</td><td>"
-		dat += "<a href='?src=[REF(src)];experiment=1'>Probe</a><br>"
-		dat += "<a href='?src=[REF(src)];experiment=2'>Dissect</a><br>"
-		dat += "<a href='?src=[REF(src)];experiment=3'>Analyze</a><br>"
-		dat += "</td></tr></table>"
-	else
-		dat += "<span class='linkOff'>Experiment </span>"
-
-	if(!occupant)
-		dat += "<h3>Machine Unoccupied</h3>"
-	else
-		dat += "<h3>Subject Status : </h3>"
-		dat += "[occupant.name] => "
-		var/mob/living/mob_occupant = occupant
-		switch(mob_occupant.stat)
-			if(CONSCIOUS)
-				dat += "<span class='good'>Conscious</span>"
-			if(UNCONSCIOUS)
-				dat += "<span class='average'>Unconscious</span>"
-			else // DEAD
-				dat += "<span class='bad'>Deceased</span>"
-	dat += "<br>"
-	dat += "[flash]"
-	dat += "<br>"
-	dat += "<a href='?src=[REF(src)];refresh=1'>Scan</a>"
-	dat += "<a href='?src=[REF(src)];[state_open ? "close=1'>Close</a>" : "open=1'>Open</a>"]"
-	var/datum/browser/popup = new(user, "experiment", "Probing Console", 300, 300)
-	popup.set_title_image(user.browse_rsc_icon(icon, icon_state))
-	popup.set_content(dat)
-	popup.open()
+	ui_interact(user) //hippie: the console in tgui (hippiestation/code/modules/antagonists/abductor/abductor_tgui.dm)
 
 /obj/machinery/abductor/experiment/Topic(href, href_list)
 	if(..() || usr == occupant)

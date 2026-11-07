@@ -1,0 +1,186 @@
+// hippie -- a silicon's laws (interfaces/SiliconLaws.js): a law board of
+// modules, each in its kind's colour, with a stated/quiet switch.
+
+$lw-bg: #0b1220;
+$lw-panel: #111b2e;
+$lw-line: #22314d;
+$lw-text: #d6e2f5;
+$lw-muted: #7f90ad;
+$lw-blue: #5aa2ff;
+
+.Laws {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: $lw-text;
+  font-family: 'Segoe UI', Verdana, sans-serif;
+  background:
+    linear-gradient(rgba(90, 162, 255, 0.04) 1px, transparent 1px) 0 0 / 100% 18px,
+    $lw-bg;
+}
+
+.Laws__head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid $lw-line;
+}
+
+.Laws__title {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+
+  i {
+    color: $lw-blue;
+    margin-right: 6px;
+  }
+}
+
+.Laws__count {
+  color: $lw-muted;
+  font-size: 12px;
+}
+
+.Laws__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px;
+}
+
+.Laws__none {
+  color: $lw-muted;
+  text-align: center;
+  padding: 30px 0;
+}
+
+.Laws__law {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+  padding: 8px 10px 8px 0;
+  border: 1px solid $lw-line;
+  border-left: 4px solid #c9d6ea;
+  border-radius: 3px;
+  background: $lw-panel;
+  transition: opacity 0.15s;
+}
+
+.Laws__law--zeroth {
+  border-left-color: #ff4d4d;
+}
+
+.Laws__law--hacked {
+  border-left-color: #a31f2f;
+}
+
+.Laws__law--ion {
+  border-left-color: #547dfe;
+}
+
+.Laws__law--supplied {
+  border-left-color: #b65ccf;
+}
+
+.Laws__law--devil {
+  border-left-color: #cc5500;
+}
+
+.Laws__law--quiet {
+  opacity: 0.5;
+}
+
+.Laws__number {
+  flex: 0 0 auto;
+  width: 44px;
+  text-align: center;
+  font-family: 'Consolas', monospace;
+  font-size: 18px;
+  font-weight: bold;
+  color: $lw-muted;
+}
+
+.Laws__text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.Laws__kind {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: $lw-muted;
+}
+
+.Laws__switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 16px;
+  margin-left: 10px;
+  border-radius: 8px;
+  background: #2a3a58;
+  cursor: pointer;
+}
+
+.Laws__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: $lw-muted;
+  transition: left 0.12s;
+}
+
+.Laws__switch--on {
+  background: $lw-blue;
+
+  .Laws__knob {
+    left: 16px;
+    background: #fff;
+  }
+}
+
+.Laws__foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-top: 1px solid $lw-line;
+}
+
+.Laws__radio {
+  color: $lw-muted;
+  font-size: 12px;
+}
+
+.Laws__state {
+  margin-left: auto;
+  padding: 7px 16px;
+  border-radius: 4px;
+  background: $lw-blue;
+  color: #04101f;
+  font-weight: bold;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+
+  i {
+    margin-right: 6px;
+  }
+
+  &:hover {
+    filter: brightness(1.1);
+  }
+}

@@ -34,54 +34,7 @@
 			TeleporterSend()
 		return
 	user.set_machine(src)
-	var/dat = ""
-	dat += "<H3> Abductsoft 3000 </H3>"
-
-	if(experiment)
-		var/points = experiment.points
-		var/credits = experiment.credits
-		dat += "Collected Samples : [points] <br>"
-		dat += "Gear Credits: [credits] <br>"
-		dat += "<b>Transfer data in exchange for supplies:</b><br>"
-		dat += "<a href='?src=[REF(src)];dispense=baton'>Advanced Baton (2 Credits)</A><br>"
-		dat += "<a href='?src=[REF(src)];dispense=mind_device'>Mental Interface Device (2 Credits)</A><br>"
-		dat += "<a href='?src=[REF(src)];dispense=helmet'>Agent Helmet</A><br>"
-		dat += "<a href='?src=[REF(src)];dispense=vest'>Agent Vest</A><br>"
-		dat += "<a href='?src=[REF(src)];dispense=silencer'>Radio Silencer</A><br>"
-		dat += "<a href='?src=[REF(src)];dispense=tool'>Science Tool</A><br>"
-		dat += "<a href='?src=[REF(src)];dispense=tongue'>Superlingual Matrix</a><br>"
-	else
-		dat += "<span class='bad'>NO EXPERIMENT MACHINE DETECTED</span> <br>"
-
-	if(pad)
-		dat += "<span class='bad'>Emergency Teleporter System.</span>"
-		dat += "<span class='bad'>Consider using primary observation console first.</span>"
-		dat += "<a href='?src=[REF(src)];teleporter_send=1'>Activate Teleporter</A><br>"
-		if(gizmo && gizmo.marked)
-			dat += "<a href='?src=[REF(src)];teleporter_retrieve=1'>Retrieve Mark</A><br>"
-		else
-			dat += "<span class='linkOff'>Retrieve Mark</span><br>"
-	else
-		dat += "<span class='bad'>NO TELEPAD DETECTED</span></br>"
-
-	if(vest)
-		dat += "<h4> Agent Vest Mode </h4><br>"
-		var/mode = vest.mode
-		if(mode == VEST_STEALTH)
-			dat += "<a href='?src=[REF(src)];flip_vest=1'>Combat</A>"
-			dat += "<span class='linkOff'>Stealth</span>"
-		else
-			dat += "<span class='linkOff'>Combat</span>"
-			dat += "<a href='?src=[REF(src)];flip_vest=1'>Stealth</A>"
-
-		dat+="<br>"
-		dat += "<a href='?src=[REF(src)];select_disguise=1'>Select Agent Vest Disguise</a><br>"
-		dat += "<a href='?src=[REF(src)];toggle_vest=1'>[HAS_TRAIT_FROM(vest, TRAIT_NODROP, ABDUCTOR_VEST_TRAIT) ? "Unlock" : "Lock"] Vest</a><br>"
-	else
-		dat += "<span class='bad'>NO AGENT VEST DETECTED</span>"
-	var/datum/browser/popup = new(user, "computer", "Abductor Console", 400, 500)
-	popup.set_content(dat)
-	popup.open()
+	ui_interact(user) //hippie: the console in tgui (hippiestation/code/modules/antagonists/abductor/abductor_tgui.dm)
 
 /obj/machinery/abductor/console/Topic(href, href_list)
 	if(..())

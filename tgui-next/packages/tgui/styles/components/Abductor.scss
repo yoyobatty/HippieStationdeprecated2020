@@ -1,0 +1,350 @@
+// hippie -- the abductors' machines (interfaces/Abductor.js): smooth alien
+// surfaces, violet light, rounded pods for keys.
+
+$ab-bg: #0d0a14;
+$ab-panel: #171225;
+$ab-line: #2f2547;
+$ab-violet: #b38cff;
+$ab-cyan: #6fe7ff;
+$ab-text: #d9d0ee;
+$ab-muted: #8a7da8;
+$ab-bad: #ff6b8b;
+$ab-good: #74f0b1;
+
+.Abductor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: $ab-text;
+  font-family: 'Segoe UI', Verdana, sans-serif;
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(179, 140, 255, 0.22), transparent 60%),
+    radial-gradient(circle, rgba(179, 140, 255, 0.07) 1px, transparent 1.5px) 0 0 / 14px 14px,
+    $ab-bg;
+}
+
+.Abductor__head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid $ab-line;
+}
+
+.Abductor__logo {
+  flex: 1;
+  font-size: 18px;
+  font-weight: 300;
+  letter-spacing: 6px;
+  color: #efe6ff;
+  text-shadow: 0 0 10px rgba(179, 140, 255, 0.8);
+}
+
+.Abductor__team {
+  color: $ab-muted;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.Abductor__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 16px 14px;
+}
+
+.Abductor__label {
+  margin: 12px 0 6px;
+  color: $ab-muted;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.Abductor__counters {
+  display: flex;
+}
+
+.Abductor__counter {
+  flex: 1;
+  margin-right: 10px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(179, 140, 255, 0.16), rgba(111, 231, 255, 0.08));
+  border: 1px solid $ab-line;
+
+  &:last-child {
+    margin-right: 0;
+  }
+
+  b {
+    display: block;
+    font-size: 26px;
+    font-weight: 300;
+    color: $ab-cyan;
+    text-shadow: 0 0 8px rgba(111, 231, 255, 0.6);
+    line-height: 1.1;
+  }
+
+  span {
+    color: $ab-muted;
+    font-size: 11px;
+  }
+}
+
+.Abductor__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-gap: 6px;
+}
+
+.Abductor__supply {
+  display: flex;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 16px;
+  border: 1px solid $ab-line;
+  background: $ab-panel;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+
+  i {
+    width: 18px;
+    color: $ab-violet;
+    text-align: center;
+    margin-right: 8px;
+  }
+
+  &:hover {
+    border-color: $ab-violet;
+    box-shadow: 0 0 10px rgba(179, 140, 255, 0.35);
+  }
+}
+
+.Abductor__supply--off {
+  opacity: 0.4;
+}
+
+.Abductor__supplyName {
+  flex: 1;
+}
+
+.Abductor__supplyCost {
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: rgba(111, 231, 255, 0.14);
+  color: $ab-cyan;
+  font-size: 11px;
+  text-align: center;
+}
+
+.Abductor__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.Abductor__row--end {
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.Abductor__pod {
+  margin: 0 6px 6px 0;
+  padding: 6px 14px;
+  border-radius: 16px;
+  border: 1px solid $ab-line;
+  background: $ab-panel;
+  color: $ab-text;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+
+  i {
+    margin-right: 6px;
+    color: $ab-violet;
+  }
+
+  &:hover {
+    border-color: $ab-violet;
+    box-shadow: 0 0 10px rgba(179, 140, 255, 0.35);
+  }
+}
+
+.Abductor__pod--on {
+  border-color: $ab-cyan;
+  color: #e8fbff;
+
+  i {
+    color: $ab-cyan;
+  }
+}
+
+.Abductor__pod--off {
+  opacity: 0.35;
+  cursor: default;
+
+  &:hover {
+    border-color: $ab-line;
+    box-shadow: none;
+  }
+}
+
+.Abductor__toggle {
+  display: flex;
+  margin: 0 6px 6px 0;
+  border-radius: 16px;
+  border: 1px solid $ab-line;
+  overflow: hidden;
+}
+
+.Abductor__toggleSide {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: $ab-muted;
+  cursor: pointer;
+  user-select: none;
+
+  i {
+    margin-right: 5px;
+  }
+}
+
+.Abductor__toggleSide--on {
+  background: linear-gradient(135deg, rgba(179, 140, 255, 0.35), rgba(111, 231, 255, 0.2));
+  color: #f4efff;
+  cursor: default;
+}
+
+.Abductor__missing {
+  padding: 7px 12px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 107, 139, 0.5);
+  color: $ab-bad;
+  font-size: 12px;
+}
+
+// Gland storage
+
+.Abductor__glands {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  grid-gap: 10px;
+  padding-top: 4px;
+}
+
+.Abductor__gland {
+  position: relative;
+  height: 44px;
+  border-radius: 50% 50% 45% 55% / 55% 45% 55% 45%;
+  cursor: pointer;
+  user-select: none;
+  background-image: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.55), transparent 45%) !important;
+  transition: transform 0.12s;
+
+  span {
+    position: absolute;
+    right: -4px;
+    bottom: -4px;
+    min-width: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: $ab-bg;
+    border: 1px solid $ab-line;
+    color: $ab-text;
+    font-size: 11px;
+    text-align: center;
+  }
+
+  &:hover {
+    transform: scale(1.08);
+  }
+}
+
+.Abductor__gland--empty {
+  opacity: 0.25;
+  cursor: default;
+
+  &:hover {
+    transform: none;
+  }
+}
+
+// Probing console
+
+.Abductor__specimen {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.Abductor__picture {
+  flex: 0 0 auto;
+  width: 96px;
+  height: 96px;
+  margin-right: 14px;
+  border-radius: 18px;
+  border: 1px solid $ab-line;
+  background: radial-gradient(circle, rgba(179, 140, 255, 0.18), transparent 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $ab-muted;
+  font-size: 30px;
+
+  img {
+    width: 96px;
+    height: 96px;
+    image-rendering: pixelated;
+  }
+}
+
+.Abductor__specimenName {
+  font-size: 18px;
+  color: #efe6ff;
+}
+
+.Abductor__state {
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.Abductor__state--conscious {
+  color: $ab-good;
+}
+
+.Abductor__state--unconscious {
+  color: #ffd27a;
+}
+
+.Abductor__state--deceased {
+  color: $ab-bad;
+}
+
+.Abductor__result {
+  margin-top: 6px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid $ab-line;
+  font-size: 12px;
+  color: $ab-muted;
+  min-height: 18px;
+}
+
+.Abductor__result--bad {
+  color: $ab-bad;
+  border-color: rgba(255, 107, 139, 0.4);
+}
+
+.Abductor__result--good {
+  color: $ab-good;
+  border-color: rgba(116, 240, 177, 0.4);
+}

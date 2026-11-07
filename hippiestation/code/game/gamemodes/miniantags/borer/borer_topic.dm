@@ -10,7 +10,7 @@
 
 		for(var/D in typesof(/datum/borer_chem))
 			var/datum/borer_chem/test = D
-			if(initial(test.chemname) == topic_chem)
+			if("[initial(test.chemname)]" == "[topic_chem]") // the link carries the reagent's type as text: as a path it never matched
 				C = new D
 				break
 
@@ -29,6 +29,6 @@
 		chemicals -= C.chemuse
 		log_game("[src]/([src.ckey]) has injected [C.chemname] into their host [victim]/([victim.ckey])")
 
-		src << output(chemicals, "ViewBorer\ref[src]Chems.browser:update_chemicals")
+		SStgui.update_uis(src)
 
 	..()

@@ -1,3 +1,4 @@
+import { AbductorConsole, AbductorExperiment, GlandDispenser } from './interfaces/Abductor';
 import { Achievements } from './interfaces/Achievements';
 import { AiAirlock } from './interfaces/AiAirlock';
 import { AirAlarm } from './interfaces/AirAlarm';
@@ -153,15 +154,27 @@ import { CyborgFrame, TransferValve } from './interfaces/Items';
 import { SongEditor } from './interfaces/SongEditor';
 import { Blueprints, CameraBug, RcdAccess } from './interfaces/Tools';
 import { BibleStyle, BookReader, MimeBook, PhotoViewer } from './interfaces/Books';
+import { BorerChems } from './interfaces/BorerChems';
 import { MechSleeper, MechSyringeGun, PaiCard } from './interfaces/MechMedicalPai';
 import { ExperimentScanner } from './interfaces/Experiments';
 import { LateJoin, Lobby } from './interfaces/Lobby';
 import { RoundEnd } from './interfaces/RoundEnd';
 import { StationMap } from './interfaces/StationMap';
 import { BotCrewMonitor } from './interfaces/BotCrewMonitor';
+import { DiseaseMenu } from './interfaces/DiseaseMenu';
+import { SiliconLaws } from './interfaces/SiliconLaws';
+import { Spellbook } from './interfaces/Spellbook';
 // hippie end
 
 const ROUTES = {
+  abductor_console: {
+    component: () => AbductorConsole,
+    scrollable: false,
+  },
+  abductor_experiment: {
+    component: () => AbductorExperiment,
+    scrollable: false,
+  },
   achievements: {
     component: () => Achievements,
     scrollable: true,
@@ -1060,6 +1073,10 @@ const ROUTES = {
     component: () => ArcadeBattle,
     scrollable: false,
   },
+  borer_chems: {
+    component: () => BorerChems,
+    scrollable: false,
+  },
   teleporter: {
     component: () => Teleporter,
     scrollable: true,
@@ -1070,6 +1087,22 @@ const ROUTES = {
   },
   camera_console: {
     component: () => CameraConsole,
+    scrollable: false,
+  },
+  disease_menu: {
+    component: () => DiseaseMenu,
+    scrollable: false,
+  },
+  gland_dispenser: {
+    component: () => GlandDispenser,
+    scrollable: false,
+  },
+  silicon_laws: {
+    component: () => SiliconLaws,
+    scrollable: false,
+  },
+  spellbook: {
+    component: () => Spellbook,
     scrollable: false,
   },
   synd_contract: {

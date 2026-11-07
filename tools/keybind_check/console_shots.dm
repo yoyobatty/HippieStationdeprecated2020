@@ -291,6 +291,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_nanites(C, H, label)
 		if("orion")
 			cs_orion(C, H, label)
+		if("antags")
+			cs_antags(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -7103,3 +7105,478 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	cs_check("orion: back to the title ([A.gameStatus])", A.gameStatus == 1)
 	SStgui.close_user_uis(H)
 	qdel(A)
+
+// Antagonist panels: the wizard's spellbook (more to come in this section). The old windows are pictured by their titles from a build
+// without the new files (EXCLUDE=spellbook_tgui.dm and the rest), the new ones checked.
+/proc/cs_antags(client/C, mob/living/carbon/human/H, label)
+	usr = H
+	H.equipOutfit(/datum/outfit/wizard)
+	H.drop_all_held_items()
+	var/obj/item/spellbook/book = locate() in H.GetAllContents()
+	if(book)
+		qdel(book)
+	book = new(get_turf(H))
+	H.put_in_active_hand(book)
+	book.owner = H
+	book.attack_self(H)
+	sleep(20)
+	var/datum/tgui/ui = cs_find_ui(H, book)
+	if(!ui) // the old page
+		cs_shot("popup_antags_[label]_spellbook", "Spellbook")
+		H << browse(null, "window=spellbook")
+	else
+		winset(C, ui.window_id, "pos=60,20")
+		sleep(15)
+		cs_shot("popup_antags_[label]_spellbook")
+		var/fireball_index = 0
+		for(var/i in 1 to length(book.entries))
+			if(istype(book.entries[i], /datum/spellbook_entry/fireball))
+				fireball_index = i
+		var/points = book.uses
+		cs_act(book, H, "buy", list("index" = "[fireball_index]"))
+		var/learned = FALSE
+		for(var/obj/effect/proc_holder/spell/S in H.mind.spell_list)
+			if(istype(S, /obj/effect/proc_holder/spell/aimed/fireball))
+				learned = TRUE
+		cs_check("antags: the spellbook teaches fireball ([points] -> [book.uses] points)", learned && book.uses < points)
+		cs_act(book, H, "buy", list("index" = "[fireball_index]"))
+		var/improved = FALSE
+		for(var/obj/effect/proc_holder/spell/S in H.mind.spell_list)
+			if(istype(S, /obj/effect/proc_holder/spell/aimed/fireball) && S.spell_level == 1)
+				improved = TRUE
+		cs_check("antags: and improves it", improved)
+		cs_act(book, H, "page", list("tab" = "Mobility"))
+		cs_check("antags: a ribbon turns to its page ([book.tab])", book.tab == "Mobility")
+		sleep(10)
+		cs_shot("popup_antags_[label]_spellbook_mobility")
+		var/list/book_data = book.ui_data(H)
+		var/list/entries = book_data["entries"]
+		cs_check("antags: the book lists its entries with their costs ([length(entries)])", length(entries) > 20 && !isnull(entries[1]["cost"]))
+	SStgui.close_user_uis(H)
+	H.drop_all_held_items()
+	qdel(book)
+	cs_antags_abductors(C, H, label)
+	cs_antags_minds(C, H, label)
+
+/// The abductors' machines: the agent console linked to its pad, experiment machine, a science tool with a mark and a vest; the
+/// gland storage; the probing console with a specimen in it. "before" draws the old pages (cs_old_page, copied from HEAD).
+/proc/cs_antags_abductors(client/C, mob/living/carbon/human/H, label)
+	H.set_species(/datum/species/abductor)
+	ADD_TRAIT(H, TRAIT_ABDUCTOR_TRAINING, "harness")
+	var/list/taken = list()
+	var/turf/console_spot = cs_open_beside(H, taken)
+	taken += console_spot
+	var/obj/machinery/abductor/console/console = new(console_spot)
+	console.team_number = 7
+	var/turf/exp_spot = cs_open_beside(H, taken)
+	taken += exp_spot
+	var/obj/machinery/abductor/experiment/experiment = new(exp_spot)
+	experiment.team_number = 7
+	experiment.points = 3
+	experiment.credits = 5
+	var/turf/pad_spot = cs_open_beside(H, taken)
+	taken += pad_spot
+	var/obj/machinery/abductor/pad/pad = new(pad_spot)
+	pad.team_number = 7
+	console.LateInitialize()
+	var/mob/living/carbon/human/specimen = new(exp_spot)
+	specimen.real_name = "Rosa Delgado"
+	specimen.name = specimen.real_name
+	specimen.equipOutfit(/datum/outfit/job/assistant)
+	var/obj/item/abductor/gizmo/tool = new(get_turf(H))
+	console.AddGizmo(tool)
+	tool.marked = specimen
+	var/obj/item/clothing/suit/armor/abductor/vest/vest = new(get_turf(H))
+	console.AddVest(vest)
+	experiment.close_machine(specimen)
+	cs_check("antags: the console is linked to its machines", console.experiment == experiment && console.pad == pad)
+	var/turf/gland_spot = cs_open_beside(H, taken)
+	taken += gland_spot
+	var/obj/machinery/abductor/gland_dispenser/glands = new(gland_spot)
+
+	if(label == "before")
+		console.cs_old_page(H)
+		sleep(15)
+		cs_shot("popup_antags_[label]_abductor_console", "Abductor Console")
+		H << browse(null, "window=computer")
+		glands.cs_old_page(H)
+		sleep(15)
+		cs_shot("popup_antags_[label]_abductor_glands", "Gland Dispenser")
+		H << browse(null, "window=glands")
+		experiment.cs_old_page(H)
+		sleep(15)
+		cs_shot("popup_antags_[label]_abductor_probe", "Probing Console")
+		H << browse(null, "window=experiment")
+	else
+		cs_small_window_shot(C, H, console, "popup_antags_[label]_abductor_console")
+		cs_act(console, H, "dispense", list("id" = "baton"))
+		cs_check("antags: the console dispenses a baton for 2 credits ([experiment.credits] left)", experiment.credits == 3 && (locate(/obj/item/abductor/baton) in pad.loc))
+		var/stealth = vest.mode
+		cs_act(console, H, "flip_vest")
+		cs_check("antags: the vest flips mode", vest.mode != stealth)
+		cs_act(console, H, "toggle_vest")
+		cs_check("antags: and locks", HAS_TRAIT_FROM(vest, TRAIT_NODROP, ABDUCTOR_VEST_TRAIT))
+		SStgui.close_user_uis(H)
+		cs_small_window_shot(C, H, glands, "popup_antags_[label]_abductor_glands")
+		var/before = glands.amounts[1]
+		cs_act(glands, H, "dispense", list("index" = "1"))
+		cs_check("antags: a gland comes out ([before] -> [glands.amounts[1]])", glands.amounts[1] == before - 1)
+		SStgui.close_user_uis(H)
+		var/flash = experiment.flash
+		cs_act(experiment, H, "experiment", list("kind" = "1"))
+		sleep(15)
+		cs_check("antags: probing gives a result ([experiment.flash])", experiment.flash != flash)
+		cs_small_window_shot(C, H, experiment, "popup_antags_[label]_abductor_probe")
+		SStgui.close_user_uis(H)
+	qdel(console)
+	qdel(glands)
+	experiment.open_machine()
+	qdel(experiment)
+	qdel(pad)
+	qdel(specimen)
+	qdel(tool)
+	qdel(vest)
+	H.set_species(/datum/species/human)
+
+// The old pages, copied from HEAD before the tgui change, to picture them from this build ("before")
+/obj/machinery/abductor/console/proc/cs_old_page(mob/user)
+	var/dat = ""
+	dat += "<H3> Abductsoft 3000 </H3>"
+
+	if(experiment)
+		var/points = experiment.points
+		var/credits = experiment.credits
+		dat += "Collected Samples : [points] <br>"
+		dat += "Gear Credits: [credits] <br>"
+		dat += "<b>Transfer data in exchange for supplies:</b><br>"
+		dat += "<a href='?src=[REF(src)];dispense=baton'>Advanced Baton (2 Credits)</A><br>"
+		dat += "<a href='?src=[REF(src)];dispense=mind_device'>Mental Interface Device (2 Credits)</A><br>"
+		dat += "<a href='?src=[REF(src)];dispense=helmet'>Agent Helmet</A><br>"
+		dat += "<a href='?src=[REF(src)];dispense=vest'>Agent Vest</A><br>"
+		dat += "<a href='?src=[REF(src)];dispense=silencer'>Radio Silencer</A><br>"
+		dat += "<a href='?src=[REF(src)];dispense=tool'>Science Tool</A><br>"
+		dat += "<a href='?src=[REF(src)];dispense=tongue'>Superlingual Matrix</a><br>"
+	else
+		dat += "<span class='bad'>NO EXPERIMENT MACHINE DETECTED</span> <br>"
+
+	if(pad)
+		dat += "<span class='bad'>Emergency Teleporter System.</span>"
+		dat += "<span class='bad'>Consider using primary observation console first.</span>"
+		dat += "<a href='?src=[REF(src)];teleporter_send=1'>Activate Teleporter</A><br>"
+		if(gizmo && gizmo.marked)
+			dat += "<a href='?src=[REF(src)];teleporter_retrieve=1'>Retrieve Mark</A><br>"
+		else
+			dat += "<span class='linkOff'>Retrieve Mark</span><br>"
+	else
+		dat += "<span class='bad'>NO TELEPAD DETECTED</span></br>"
+
+	if(vest)
+		dat += "<h4> Agent Vest Mode </h4><br>"
+		var/mode = vest.mode
+		if(mode == VEST_STEALTH)
+			dat += "<a href='?src=[REF(src)];flip_vest=1'>Combat</A>"
+			dat += "<span class='linkOff'>Stealth</span>"
+		else
+			dat += "<span class='linkOff'>Combat</span>"
+			dat += "<a href='?src=[REF(src)];flip_vest=1'>Stealth</A>"
+
+		dat+="<br>"
+		dat += "<a href='?src=[REF(src)];select_disguise=1'>Select Agent Vest Disguise</a><br>"
+		dat += "<a href='?src=[REF(src)];toggle_vest=1'>[HAS_TRAIT_FROM(vest, TRAIT_NODROP, ABDUCTOR_VEST_TRAIT) ? "Unlock" : "Lock"] Vest</a><br>"
+	else
+		dat += "<span class='bad'>NO AGENT VEST DETECTED</span>"
+	var/datum/browser/popup = new(user, "computer", "Abductor Console", 400, 500)
+	popup.set_content(dat)
+	popup.open()
+/obj/machinery/abductor/gland_dispenser/proc/cs_old_page(mob/user)
+	var/box_css = {"
+	<style>
+	a.box.gland {
+		float: left;
+		width: 20px;
+		height: 20px;
+		margin: 5px;
+		border-width: 1px;
+		border-style: solid;
+		border-color: rgba(0,0,0,.2);
+		text-align: center;
+		}
+	</style>"}
+	var/dat = ""
+	var/item_count = 0
+	for(var/i=1,i<=gland_colors.len,i++)
+		item_count++
+		var/g_color = gland_colors[i]
+		var/amount = amounts[i]
+		dat += "<a class='box gland' style='background-color:[g_color]' href='?src=[REF(src)];dispense=[i]'>[amount]</a>"
+		if(item_count == 4) // Four boxes per line
+			dat +="</br></br>"
+			item_count = 0
+	var/datum/browser/popup = new(user, "glands", "Gland Dispenser", 200, 200)
+	popup.add_head_content(box_css)
+	popup.set_content(dat)
+	popup.open()
+/obj/machinery/abductor/experiment/proc/cs_old_page(mob/user)
+	var/dat
+	dat += "<h3> Experiment </h3>"
+	if(occupant)
+		var/obj/item/photo/P = new
+		P.picture = new
+		P.picture.picture_image = icon(dissection_icon(occupant), dir = SOUTH)
+		user << browse_rsc(P.picture.picture_image, "dissection_img")
+		dat += "<table><tr><td>"
+		dat += "<img src=dissection_img height=80 width=80>" //Avert your eyes
+		dat += "</td><td>"
+		dat += "<a href='?src=[REF(src)];experiment=1'>Probe</a><br>"
+		dat += "<a href='?src=[REF(src)];experiment=2'>Dissect</a><br>"
+		dat += "<a href='?src=[REF(src)];experiment=3'>Analyze</a><br>"
+		dat += "</td></tr></table>"
+	else
+		dat += "<span class='linkOff'>Experiment </span>"
+
+	if(!occupant)
+		dat += "<h3>Machine Unoccupied</h3>"
+	else
+		dat += "<h3>Subject Status : </h3>"
+		dat += "[occupant.name] => "
+		var/mob/living/mob_occupant = occupant
+		switch(mob_occupant.stat)
+			if(CONSCIOUS)
+				dat += "<span class='good'>Conscious</span>"
+			if(UNCONSCIOUS)
+				dat += "<span class='average'>Unconscious</span>"
+			else // DEAD
+				dat += "<span class='bad'>Deceased</span>"
+	dat += "<br>"
+	dat += "[flash]"
+	dat += "<br>"
+	dat += "<a href='?src=[REF(src)];refresh=1'>Scan</a>"
+	dat += "<a href='?src=[REF(src)];[state_open ? "close=1'>Close</a>" : "open=1'>Open</a>"]"
+	var/datum/browser/popup = new(user, "experiment", "Probing Console", 300, 300)
+	popup.set_title_image(user.browse_rsc_icon(icon, icon_state))
+	popup.set_content(dat)
+	popup.open()
+
+/// Into another body for a window only it has, and back
+/proc/cs_take(client/C, mob/M)
+	M.ckey = C.ckey
+	sleep(25)
+
+/// The sentient disease's menu, the borer's chemicals and a cyborg's laws, each with the client in the right body
+/proc/cs_antags_minds(client/C, mob/living/carbon/human/H, label)
+	var/list/taken = list()
+	var/turf/spot = cs_open_beside(H, taken)
+	taken += spot
+	var/mob/living/carbon/human/host = new(spot)
+	host.real_name = "Rosa Delgado"
+	host.name = host.real_name
+	host.equipOutfit(/datum/outfit/job/assistant)
+
+	// A sentient disease with a host
+	var/mob/camera/disease/D = new(get_turf(H))
+	D.force_infect(host)
+	D.points = 6
+	D.total_points = 9
+	cs_take(C, D)
+	if(label == "before")
+		usr = D
+		D.cs_old_page()
+		sleep(15)
+		cs_shot("popup_antags_[label]_disease", "Adaptation Menu")
+		D << browse(null, "window=disease_menu")
+	else
+		D.adaptation_menu()
+		sleep(20)
+		var/datum/tgui/ui = cs_find_ui(D, D)
+		if(ui)
+			winset(C, ui.window_id, "pos=60,20")
+			sleep(15)
+		cs_shot("popup_antags_[label]_disease")
+		var/datum/disease_ability/buyable
+		for(var/datum/disease_ability/A as anything in GLOB.disease_ability_singletons)
+			if(A.CanBuy(D))
+				buyable = A
+				break
+		var/points = D.points
+		if(buyable)
+			cs_act(D, D, "buy", list("ref" = REF(buyable)))
+		cs_check("antags: the disease adapts ([buyable?.name]: [points] -> [D.points] points)", buyable && D.purchased_abilities[buyable])
+		cs_act(D, D, "follow", list("ref" = REF(host)))
+		cs_check("antags: and follows its host", D.following_host == host)
+		SStgui.close_user_uis(D)
+
+	// A borer in that host
+	var/mob/living/simple_animal/borer/B = new(get_turf(host))
+	B.victim = host
+	B.chemicals = 120
+	cs_take(C, B)
+	if(label == "before")
+		usr = B
+		B.cs_old_page()
+		sleep(15)
+		cs_shot("popup_antags_[label]_borer", "Borer Chemicals")
+		B << browse(null, "window=ViewBorer[REF(B)]Chems")
+	else
+		B.secrete_chemicals()
+		sleep(20)
+		var/datum/tgui/ui = cs_find_ui(B, B)
+		if(ui)
+			winset(C, ui.window_id, "pos=60,20")
+			sleep(15)
+		cs_shot("popup_antags_[label]_borer")
+		cs_act(B, B, "secrete", list("id" = "[/datum/reagent/medicine/epinephrine]"))
+		cs_check("antags: the borer squirts epinephrine into its host ([B.chemicals] left; it refills as it goes)", B.chemicals <= 100 && host.reagents.has_reagent(/datum/reagent/medicine/epinephrine))
+		SStgui.close_user_uis(B)
+
+	// A cyborg's laws, with an ion law and an added one
+	var/mob/living/silicon/robot/R = new(get_turf(H))
+	R.laws.add_ion_law("THE BAR IS A RESTRICTED AREA.")
+	R.laws.add_supplied_law(15, "Keep the botanist happy.")
+	cs_take(C, R)
+	if(label == "before")
+		usr = R
+		R.cs_old_page()
+		sleep(15)
+		cs_shot("popup_antags_[label]_laws", "")
+		R << browse(null, "window=laws")
+	else
+		R.checklaws()
+		sleep(20)
+		var/datum/tgui/ui = cs_find_ui(R, R.law_panel)
+		if(ui)
+			winset(C, ui.window_id, "pos=60,20")
+			sleep(15)
+		cs_shot("popup_antags_[label]_laws")
+		var/before = R.lawcheck[2]
+		cs_act(R.law_panel, R, "toggle", list("key" = "lawc", "index" = "1"))
+		cs_check("antags: law 1's switch ([before] -> [R.lawcheck[2]])", R.lawcheck[2] != before)
+		before = R.ioncheck[1]
+		cs_act(R.law_panel, R, "toggle", list("key" = "lawi", "index" = "1"))
+		cs_check("antags: the ion law's switch ([before] -> [R.ioncheck[1]])", R.ioncheck[1] != before)
+		SStgui.close_user_uis(R)
+
+	cs_take(C, H)
+	qdel(R)
+	qdel(B)
+	qdel(D)
+	qdel(host)
+
+// More old pages from HEAD, for the "before" pictures
+/mob/camera/disease/proc/cs_old_page()
+	var/datum/disease/advance/sentient_disease/DT = disease_template
+	if(!DT)
+		return
+	var/list/dat = list()
+
+	if(examining_ability)
+		dat += "<a href='byond://?src=[REF(src)];main_menu=1'>Back</a><br>"
+		dat += "<h1>[examining_ability.name]</h1>"
+		dat += "[examining_ability.stat_block][examining_ability.long_desc][examining_ability.threshold_block]"
+		for(var/entry in examining_ability.threshold_block)
+			dat += "<b>[entry]</b>: [examining_ability.threshold_block[entry]]<br>"
+	else
+		dat += "<h1>Disease Statistics</h1><br>\
+			Resistance: [DT.totalResistance()]<br>\
+			Stealth: [DT.totalStealth()]<br>\
+			Stage Speed: [DT.totalStageSpeed()]<br>\
+			Transmissibility: [DT.totalTransmittable()]<hr>\
+			Cure: [DT.cure_text]"
+		dat += "<hr><h1>Adaptations</h1>\
+			Points: [points] / [total_points]\
+			<table border=1>\
+			<tr><td>Cost</td><td></td><td>Unlock</td><td width='180px'>Name</td><td>Type</td><td>Description</td></tr>"
+		for(var/V in GLOB.disease_ability_singletons)
+			var/datum/disease_ability/A = V
+			var/purchase_text
+			if(unpurchased_abilities[A])
+				if(A.CanBuy(src))
+					purchase_text = "<a href='byond://?src=[REF(src)];buy_ability=[REF(A)]'>Purchase</a>"
+				else
+					purchase_text = "<span class='linkOff'>Purchase</span>"
+			else
+				if(A.CanRefund(src))
+					purchase_text = "<a href='byond://?src=[REF(src)];refund_ability=[REF(A)]'>Refund</a>"
+				else
+					purchase_text = "<span class='linkOff'>Refund</span>"
+			dat += "<tr><td>[A.cost]</td><td>[purchase_text]</td><td>[A.required_total_points]</td><td><a href='byond://?src=[REF(src)];examine_ability=[REF(A)]'>[A.name]</a></td><td>[A.category]</td><td>[A.short_desc]</td></tr>"
+
+		dat += "</table><br>Infect many hosts at once to gain adaptation points.<hr><h1>Infected Hosts</h1>"
+		for(var/V in hosts)
+			var/mob/living/L = V
+			dat += "<br><a href='byond://?src=[REF(src)];follow_instance=[REF(L)]'>[L.real_name]</a>"
+
+	browser.set_content(dat.Join())
+	browser.open()
+	browser_open = TRUE
+/mob/living/simple_animal/borer/proc/cs_old_page()
+	var content = ""
+	content += "<p>Chemicals: <span id='chemicals'>[chemicals]</span></p>"
+
+	content += "<table>"
+
+	for(var/datum in typesof(/datum/borer_chem))
+		var/datum/borer_chem/C = new datum()
+		if(C.chemname)
+			content += "<tr><td><a class='chem-select' href='?_src_=\ref[src];src=\ref[src];borer_use_chem=[C.chemname]'>[C.chemname] ([C.chemuse])</a><p>[C.chem_desc]</p></td></tr>"
+
+	content += "</table>"
+
+	var/html = get_html_template(content)
+
+	usr << browse(null, "window=ViewBorer\ref[src]Chems;size=600x800")
+	usr << browse(html, "window=ViewBorer\ref[src]Chems;size=600x800")
+/mob/living/silicon/proc/cs_old_page()
+
+	var/list = "<b>Which laws do you want to include when stating them for the crew?</b><br><br>"
+
+	if (laws.devillaws && laws.devillaws.len)
+		for(var/index = 1, index <= laws.devillaws.len, index++)
+			if (!devillawcheck[index])
+				devillawcheck[index] = "No"
+			list += {"<A href='byond://?src=[REF(src)];lawdevil=[index]'>[devillawcheck[index]] 666:</A> <font color='#cc5500'>[laws.devillaws[index]]</font><BR>"}
+
+	if (laws.zeroth)
+		if (!lawcheck[1])
+			lawcheck[1] = "No" //Given Law 0's usual nature, it defaults to NOT getting reported. --NeoFite
+		list += {"<A href='byond://?src=[REF(src)];lawc=0'>[lawcheck[1]] 0:</A> <font color='#ff0000'><b>[laws.zeroth]</b></font><BR>"}
+
+	for (var/index = 1, index <= laws.hacked.len, index++)
+		var/law = laws.hacked[index]
+		if (length(law) > 0)
+			if (!hackedcheck[index])
+				hackedcheck[index] = "No"
+			list += {"<A href='byond://?src=[REF(src)];lawh=[index]'>[hackedcheck[index]] [ionnum()]:</A> <font color='#660000'>[law]</font><BR>"}
+			hackedcheck.len += 1
+
+	for (var/index = 1, index <= laws.ion.len, index++)
+		var/law = laws.ion[index]
+
+		if (length(law) > 0)
+			if (!ioncheck[index])
+				ioncheck[index] = "Yes"
+			list += {"<A href='byond://?src=[REF(src)];lawi=[index]'>[ioncheck[index]] [ionnum()]:</A> <font color='#547DFE'>[law]</font><BR>"}
+			ioncheck.len += 1
+
+	var/number = 1
+	for (var/index = 1, index <= laws.inherent.len, index++)
+		var/law = laws.inherent[index]
+
+		if (length(law) > 0)
+			lawcheck.len += 1
+
+			if (!lawcheck[number+1])
+				lawcheck[number+1] = "Yes"
+			list += {"<A href='byond://?src=[REF(src)];lawc=[number]'>[lawcheck[number+1]] [number]:</A> [law]<BR>"}
+			number++
+
+	for (var/index = 1, index <= laws.supplied.len, index++)
+		var/law = laws.supplied[index]
+		if (length(law) > 0)
+			lawcheck.len += 1
+			if (!lawcheck[number+1])
+				lawcheck[number+1] = "Yes"
+			list += {"<A href='byond://?src=[REF(src)];lawc=[number]'>[lawcheck[number+1]] [number]:</A> <font color='#990099'>[law]</font><BR>"}
+			number++
+	list += {"<br><br><A href='byond://?src=[REF(src)];laws=1'>State Laws</A>"}
+
+	usr << browse(HTML_SKELETON(list), "window=laws")

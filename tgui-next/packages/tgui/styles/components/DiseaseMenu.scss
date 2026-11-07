@@ -1,0 +1,321 @@
+// hippie -- the sentient disease's Adaptation Menu (interfaces/DiseaseMenu.js):
+// a culture under a microscope, green on near-black.
+
+$dz-bg: #0b100c;
+$dz-panel: #111a13;
+$dz-line: #22362a;
+$dz-green: #7ee06a;
+$dz-green-dim: #3d7a35;
+$dz-text: #d3e6d0;
+$dz-muted: #7e9a80;
+$dz-bad: #e46d5c;
+
+.Disease {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: $dz-text;
+  font-family: 'Segoe UI', Verdana, sans-serif;
+  background:
+    radial-gradient(circle at 75% 40%, rgba(126, 224, 106, 0.08), transparent 45%),
+    radial-gradient(circle at 20% 80%, rgba(126, 224, 106, 0.05), transparent 40%),
+    $dz-bg;
+}
+
+.Disease__head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid $dz-line;
+}
+
+.Disease__name {
+  flex: 1;
+  font-size: 18px;
+  font-weight: 600;
+  color: #eaffe4;
+
+  i {
+    color: $dz-green;
+    margin-right: 6px;
+    text-shadow: 0 0 8px rgba(126, 224, 106, 0.7);
+  }
+}
+
+.Disease__points {
+  color: $dz-muted;
+  font-size: 12px;
+
+  b {
+    color: $dz-green;
+    font-size: 18px;
+  }
+}
+
+.Disease__cooldown {
+  margin-left: 10px;
+  color: #e6c86a;
+}
+
+.Disease__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
+.Disease__side {
+  flex: 0 0 200px;
+  padding: 6px 12px 12px;
+  border-right: 1px solid $dz-line;
+  overflow-y: auto;
+}
+
+.Disease__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 12px 12px;
+  overflow-y: auto;
+}
+
+.Disease__detail {
+  flex: 0 0 240px;
+  padding: 12px;
+  border-left: 1px solid $dz-line;
+  background: rgba(0, 0, 0, 0.25);
+  overflow-y: auto;
+}
+
+.Disease__label {
+  margin: 10px 0 5px;
+  color: $dz-muted;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.Disease__stat {
+  margin-bottom: 7px;
+}
+
+.Disease__statLabel {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  color: $dz-muted;
+
+  i {
+    width: 16px;
+    margin-right: 4px;
+    color: $dz-green-dim;
+  }
+
+  b {
+    margin-left: auto;
+    color: $dz-text;
+  }
+}
+
+.Disease__statTrack {
+  position: relative;
+  height: 6px;
+  margin-top: 3px;
+  border-radius: 3px;
+  background: #18241a;
+}
+
+.Disease__statMid {
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: $dz-line;
+}
+
+.Disease__statFill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+  background: $dz-green;
+  box-shadow: 0 0 6px rgba(126, 224, 106, 0.6);
+}
+
+.Disease__statFill--neg {
+  background: $dz-bad;
+  box-shadow: none;
+}
+
+.Disease__cure {
+  font-size: 12px;
+  color: #eaffe4;
+}
+
+.Disease__host {
+  padding: 4px 8px;
+  margin-bottom: 3px;
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+
+  i {
+    width: 16px;
+    color: $dz-muted;
+    margin-right: 4px;
+  }
+
+  &:hover {
+    background: $dz-panel;
+  }
+}
+
+.Disease__host--on {
+  background: rgba(126, 224, 106, 0.12);
+
+  i {
+    color: $dz-green;
+  }
+}
+
+.Disease__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-gap: 5px;
+}
+
+.Disease__card {
+  padding: 6px 8px;
+  border: 1px solid $dz-line;
+  border-radius: 4px;
+  background: $dz-panel;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    border-color: $dz-green-dim;
+  }
+}
+
+.Disease__card--bought {
+  border-color: $dz-green;
+  background: rgba(126, 224, 106, 0.1);
+  box-shadow: inset 0 0 12px rgba(126, 224, 106, 0.15);
+}
+
+.Disease__card--locked {
+  opacity: 0.45;
+}
+
+.Disease__card--picked {
+  outline: 1px solid #eaffe4;
+}
+
+.Disease__cardName {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.Disease__cardMeta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  font-size: 10px;
+  color: $dz-muted;
+
+  i {
+    color: $dz-green;
+  }
+}
+
+.Disease__detailName {
+  font-size: 16px;
+  font-weight: 600;
+  color: #eaffe4;
+}
+
+.Disease__detailCat {
+  font-size: 11px;
+  color: $dz-muted;
+}
+
+.Disease__detailText {
+  margin: 8px 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.Disease__deltas {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.Disease__delta {
+  margin: 0 8px 4px 0;
+  font-size: 12px;
+  color: $dz-green;
+
+  i {
+    color: $dz-muted;
+  }
+}
+
+.Disease__delta--neg {
+  color: $dz-bad;
+}
+
+.Disease__threshold {
+  margin-bottom: 6px;
+  padding: 5px 7px;
+  border-left: 2px solid $dz-green-dim;
+  background: rgba(126, 224, 106, 0.05);
+  font-size: 11px;
+  line-height: 1.4;
+
+  b {
+    display: block;
+    color: $dz-green;
+  }
+}
+
+.Disease__actions {
+  margin-top: 10px;
+}
+
+.Disease__key {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 4px;
+  border: 1px solid $dz-line;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.Disease__key--buy {
+  border-color: $dz-green;
+  color: $dz-green;
+  background: rgba(126, 224, 106, 0.1);
+
+  &:hover {
+    background: $dz-green;
+    color: $dz-bg;
+  }
+}
+
+.Disease__key--off {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}

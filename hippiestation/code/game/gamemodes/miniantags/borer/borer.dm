@@ -249,8 +249,6 @@ GLOBAL_VAR_INIT(total_borer_hosts_needed, 10)
 /mob/living/simple_animal/borer/Life()
 
 	..()
-	if(client) // the chemicals window's count (the old stat panel's Stat() sent it, five times a second)
-		src << output(chemicals, "ViewBorer\ref[src]Chems.browser:update_chemicals")
 
 	if(victim)
 		if(stat != DEAD)
@@ -412,24 +410,7 @@ GLOBAL_VAR_INIT(total_borer_hosts_needed, 10)
 		to_chat(src, "<span class='warning'>You are feeling far too docile to do that.</span>")
 		return
 
-	var content = ""
-	content += "<p>Chemicals: <span id='chemicals'>[chemicals]</span></p>"
-
-	content += "<table>"
-
-	for(var/datum in typesof(/datum/borer_chem))
-		var/datum/borer_chem/C = new datum()
-		if(C.chemname)
-			content += "<tr><td><a class='chem-select' href='?_src_=\ref[src];src=\ref[src];borer_use_chem=[C.chemname]'>[C.chemname] ([C.chemuse])</a><p>[C.chem_desc]</p></td></tr>"
-
-	content += "</table>"
-
-	var/html = get_html_template(content)
-
-	usr << browse(null, "window=ViewBorer\ref[src]Chems;size=600x800")
-	usr << browse(html, "window=ViewBorer\ref[src]Chems;size=600x800")
-
-	return
+	ui_interact(src) // the window: borer_tgui.dm
 
 /mob/living/simple_animal/borer/verb/hide()
 	set category = "Borer"
