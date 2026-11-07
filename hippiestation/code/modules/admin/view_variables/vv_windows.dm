@@ -154,6 +154,21 @@
 	. = "<br><font size='1'>In: [out.Join(" &gt; ")][T ? " [ADMIN_JMP(T)]" : ""]</font>"
 	if(carrier)
 		. += "<br><font size='1'>Carried by: <a href='?_src_=vars;[HrefToken()];Vars=[REF(carrier)]'>[html_encode(carrier.name)]</a>[carrier.ckey ? " ([carrier.ckey])" : ""] [ADMIN_FLW(carrier)]</font>"
+	. += vv_touched_by(A)
+
+/// Who's touched it: the admin-only hidden prints (every player's first and last touch), for investigating
+/proc/vv_touched_by(atom/A)
+	var/datum/component/forensics/F = A.GetComponent(/datum/component/forensics)
+	var/list/prints = F?.hiddenprints
+	if(!length(prints))
+		return A.fingerprintslast ? "<br><font size='1'>Last touched by [html_encode(A.fingerprintslast)]</font>" : ""
+	var/list/rows = list()
+	for(var/key in prints)
+		rows += "[html_encode(key)]: [html_encode(prints[key])]"
+		if(rows.len >= 6)
+			rows += "and [prints.len - 6] more"
+			break
+	return "<br><details><summary><font size='1'>Touched by [prints.len] player[prints.len == 1 ? "" : "s"][A.fingerprintslast ? ", last [html_encode(A.fingerprintslast)]" : ""]</font></summary><font size='1'>[rows.Join("<br>")]</font></details>"
 
 /// Puts an edited var's row back with its new value, in every window of this client showing D
 /client/proc/vv_refresh_var(datum/D, var_name)

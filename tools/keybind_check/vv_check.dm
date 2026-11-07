@@ -93,6 +93,7 @@ GLOBAL_LIST_EMPTY(vc_probes)
 	vv_check_internals(C, H)
 	vv_check_inline(C, H)
 	vv_check_logs(C, H)
+	vv_check_gaps(C, H)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -429,3 +430,77 @@ GLOBAL_LIST_EMPTY(vc_probes)
 	qdel(bob)
 	qdel(alice)
 	qdel(monkey)
+
+/// The round log's newest line containing this, made after line number `after`
+/proc/vc_logged(after, text)
+	for(var/i in GLOB.round_log.len to 1 step -1)
+		var/list/entry = GLOB.round_log[i]
+		if(entry[RL_ID] <= after)
+			break
+		if(findtext(entry[RL_TEXT], text))
+			return entry
+
+/// Log gaps closed: the ID console, an APC's channels, a cell timer; and who touched a thing, in VV
+/proc/vv_check_gaps(client/C, mob/living/carbon/human/H)
+	var/turf/home = get_turf(H)
+	var/start = GLOB.round_log_total
+	// The ID console: access given, a job changed
+	var/obj/machinery/computer/card/console = new(get_step(H, NORTH))
+	console.stat &= ~(NOPOWER|BROKEN)
+	var/obj/item/card/id/card = new(console)
+	card.registered_name = "Carl Card"
+	card.assignment = "Assistant"
+	console.modify = card
+	console.authenticated = 2
+	usr = H
+	console.Topic(null, list("choice" = "access", "access_target" = "[ACCESS_CAPTAIN]", "allowed" = "1"))
+	var/list/gave = vc_logged(start, "gave Carl Card's ID")
+	vc_check("the ID console logs access given ([gave ? gave[RL_TEXT] : "nothing"])", gave && gave[RL_CAT] == "Access" && findtext(gave[RL_TEXT], "Captain"))
+	console.Topic(null, list("choice" = "assign", "assign_target" = "Clown"))
+	var/list/job = vc_logged(start, "changed Carl Card's ID job")
+	vc_check("and a job changed ([job ? job[RL_TEXT] : "nothing"])", job && findtext(job[RL_TEXT], "Clown"))
+	qdel(console)
+	// An APC's environment switched off
+	var/obj/machinery/power/apc/apc = locate() in get_area(H)
+	if(!apc)
+		for(var/obj/machinery/power/apc/other in GLOB.apcs_list)
+			if(other.z == H.z)
+				apc = other
+				break
+	if(apc)
+		H.forceMove(get_turf(apc))
+		apc.locked = FALSE
+		vc_act(apc, H, "channel", list("env" = "1"))
+		var/list/env = vc_logged(start, "'s environment from")
+		vc_check("an APC's environment switched off is logged ([env ? env[RL_TEXT] : "nothing"])", env && findtext(env[RL_TEXT], "to Off"))
+		vc_act(apc, H, "channel", list("env" = "3"))
+		H.forceMove(home)
+	else
+		vc_check("an APC to switch", FALSE)
+	// A cell timer started, then stopped early
+	var/obj/machinery/door_timer/timer = new(get_step(H, SOUTH))
+	timer.stat &= ~(NOPOWER|BROKEN)
+	timer.req_access = null
+	timer.req_one_access = null
+	timer.set_timer(3 MINUTES)
+	vc_act(timer, H, "start")
+	sleep(5)
+	vc_act(timer, H, "stop")
+	var/list/started = vc_logged(start, "started [timer]")
+	var/list/stopped = vc_logged(start, "opened the cell with")
+	vc_check("a cell timer started and stopped early are logged ([stopped ? stopped[RL_TEXT] : "nothing"])", started && stopped)
+	qdel(timer)
+	// Who touched it, in VV
+	var/obj/item/pen/pen = new(home)
+	pen.add_fingerprint(H)
+	C.debug_variables(pen)
+	var/window = vc_window_of(C, pen)
+	sleep(15)
+	var/touched = vc_ask(C, window, "touched", "document.body.innerText.match(/Touched by \[^\\n\]*/)")
+	vc_check("VV says who touched it ([touched])", findtext(touched, "Touched by 1 player") && findtext(touched, H.ckey))
+	vc_js(C, window, "document.querySelector('details summary').click();")
+	sleep(5)
+	vc_shot("touched")
+	for(var/id in C.vv_windows)
+		C << browse(null, "window=[id]")
+	qdel(pen)

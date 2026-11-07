@@ -135,10 +135,12 @@
 			if(!authenticated || !modify || !card_region_editable(region))
 				return
 			var/list/accesses = istype(src, /obj/machinery/computer/card/centcom) ? get_all_centcom_access() : get_region_accesses(region)
+			var/list/had = modify.access.Copy()
 			if(params["allowed"])
 				modify.access |= accesses
 			else
 				modify.access -= accesses
+			log_card_changes(usr, modify, had, modify.assignment, modify.registered_name) // log_gaps.dm
 			playsound(src, "terminal_type", 50, FALSE)
 			modify.update_label()
 		if("assign")
@@ -150,7 +152,9 @@
 			if(!title)
 				to_chat(usr, "<span class='error'>Invalid assignment.</span>")
 				return
+			var/old_job = modify.assignment
 			modify.assignment = title
+			log_card_changes(usr, modify, modify.access.Copy(), old_job, modify.registered_name) // log_gaps.dm
 			modify.update_label()
 			playsound(src, 'sound/machines/terminal_prompt_confirm.ogg', 50, FALSE)
 		if("demote")
