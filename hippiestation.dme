@@ -3902,6 +3902,7 @@
 #include "hippiestation\code\modules\research\experiments.dm"
 #include "hippiestation\code\modules\research\message_server.dm"
 #include "hippiestation\code\modules\research\rdconsole_tgui.dm"
+#include "hippiestation\code\modules\research\sample_requests.dm"
 #include "hippiestation\code\modules\research\rdmachines.dm"
 #include "hippiestation\code\modules\research\rped_tiers.dm"
 #include "hippiestation\code\modules\research\stock_parts.dm"

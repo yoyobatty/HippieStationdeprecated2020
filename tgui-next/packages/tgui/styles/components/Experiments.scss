@@ -1,4 +1,4 @@
-// hippie -- research experiments (interfaces/Experiments.js)
+// hippie -- research experiments and the sample board (interfaces/Experiments.js)
 
 .Experiments__card {
   margin-bottom: 6px;
@@ -12,4 +12,89 @@
 .Experiments__card--done {
   border-left-color: #5baa27;
   opacity: 0.75;
+}
+
+.SampleBoard__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-gap: 6px;
+}
+
+.SampleBoard__card {
+  position: relative;
+  min-width: 0;
+  padding: 6px 8px 18px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid #a333c8;
+  border-radius: 3px;
+}
+
+.SampleBoard__card--botany { border-left-color: #5baa27; }
+.SampleBoard__card--kitchen { border-left-color: #d9a441; }
+.SampleBoard__card--mining { border-left-color: #b98d5b; }
+.SampleBoard__card--lavaland { border-left-color: #d9612a; }
+.SampleBoard__card--medical { border-left-color: #4fb3d9; }
+.SampleBoard__card--chemistry { border-left-color: #6ccfb2; }
+.SampleBoard__card--atmos { border-left-color: #8fa8ff; }
+
+.SampleBoard__top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+
+.SampleBoard__dept {
+  color: #8b9bb0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.SampleBoard__reward {
+  color: #d9b45b;
+  font-weight: bold;
+}
+
+.SampleBoard__name {
+  font-weight: bold;
+}
+
+.SampleBoard__time {
+  position: absolute;
+  right: 8px;
+  bottom: 3px;
+  font-size: 10px;
+  color: #6f7d8f;
+}
+
+.SampleBoard__done {
+  display: flex;
+  align-items: baseline;
+  padding: 2px 0;
+  font-size: 11px;
+  color: #9fb0c4;
+
+  i {
+    color: #5baa27;
+  }
+}
+
+.SampleBoard__done--expired {
+  opacity: 0.6;
+
+  i {
+    color: #8b9bb0;
+  }
+}
+
+.SampleBoard__doneName {
+  flex: 1;
+  min-width: 0;
+}
+
+.SampleBoard__doneVia {
+  margin-left: 8px;
+  color: #6f7d8f;
+  white-space: nowrap;
 }

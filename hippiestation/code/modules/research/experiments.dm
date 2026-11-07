@@ -280,7 +280,7 @@
 	return out
 
 /obj/item/experi_scanner/ui_data(mob/user)
-	return list("experiments" = science_experiments_data())
+	return list("experiments" = science_experiments_data(), "samples" = GLOB.sample_board.board_data())
 
 // Printable at any protolathe from the start, and scientists carry one
 

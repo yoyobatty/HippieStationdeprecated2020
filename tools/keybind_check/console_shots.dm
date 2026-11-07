@@ -267,6 +267,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_mechpai(C, H, label)
 		if("experiments")
 			cs_experiments(C, H, label)
+		if("samples")
+			cs_samples(C, H, label)
 		if("lobby")
 			cs_lobby(C, H, label)
 		if("lobbylooks")
@@ -7580,3 +7582,183 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	list += {"<br><br><A href='byond://?src=[REF(src)];laws=1'>State Laws</A>"}
 
 	usr << browse(HTML_SKELETON(list), "window=laws")
+
+// Science's sample board (sample_requests.dm): one request of each kind made by hand, a thing that fills each, handed in at
+// an R&D console's analyzer and shipped through Cargo; partial loads, the Cargo fee and what's left of a stack, expiry and
+// the refill. Pictures: the console's Samples and Analyzer tabs, and the experiment scanner.
+/proc/cs_samples(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/scientist)
+	var/datum/sample_board/board = GLOB.sample_board
+	board.open(TRUE)
+	cs_check("samples: the board opens with five requests of five kinds ([board.requests.len])", board.requests.len == 5 && length(uniqueList(cs_sample_kinds(board))) == 5)
+	cs_check("samples: an announcer can call them out", board.radio_say("Sample board check.", RADIO_CHANNEL_SCIENCE))
+	for(var/datum/sample_request/R in board.requests.Copy())
+		board.requests -= R
+	var/datum/sample_request/chemistry/chem = board.new_request(TRUE, /datum/sample_request/chemistry)
+	var/datum/sample_request/mining/ore = board.new_request(TRUE, /datum/sample_request/mining)
+	var/datum/sample_request/botany/crop = board.new_request(TRUE, /datum/sample_request/botany)
+	var/datum/sample_request/atmos/gas = board.new_request(TRUE, /datum/sample_request/atmos)
+	var/datum/sample_request/medical/med = board.new_request(TRUE, /datum/sample_request/medical)
+
+	// The lab: a console with an analyzer beside it
+	var/turf/at = get_step(H, EAST)
+	var/obj/machinery/rnd/destructive_analyzer/analyzer = new(get_step(get_step(at, EAST), NORTH))
+	var/obj/machinery/computer/rdconsole/core/console = new(at)
+	console.stat &= ~(NOPOWER|BROKEN)
+	analyzer.stat &= ~(NOPOWER|BROKEN)
+	if(!console.linked_destroy)
+		console.SyncRDevices()
+	cs_check("samples: the console has its analyzer", console.linked_destroy == analyzer)
+	var/datum/techweb/web = SSresearch.science_tech
+
+	// 30u of the chemical in a beaker, at R&D: filled, and the beaker stays with what else was in it
+	var/obj/item/reagent_containers/glass/beaker/large/beaker = new(analyzer)
+	beaker.reagents.add_reagent(chem.reagent, 35)
+	beaker.reagents.add_reagent(/datum/reagent/water, 10)
+	analyzer.loaded_item = beaker
+	var/points = web.research_points[TECHWEB_POINT_TYPE_GENERIC]
+	var/list/analyzer_seen = console.analyzer_data()
+	var/list/sample = analyzer_seen["sample"]
+	cs_check("samples: the console sees the beaker's for [chem.name]", sample && sample["name"] == chem.name)
+	cs_act(console, H, "hand_in")
+	cs_check("samples: handed in at R&D, it's filled and paid ([points] -> [web.research_points[TECHWEB_POINT_TYPE_GENERIC]])", chem.filled_via == "R&D" && web.research_points[TECHWEB_POINT_TYPE_GENERIC] >= points + chem.reward - 1)
+	cs_check("samples: the beaker stays, with 5u of it and the water left ([beaker.reagents.total_volume]u)", analyzer.loaded_item == beaker && round(beaker.reagents.total_volume) == 15)
+	cs_check("samples: a refill is due", board.refills.len == 1)
+
+	// Part of the ore at R&D: counted, not filled; the stack used up, the analyzer empty
+	var/short = ore.needed - 2
+	var/obj/item/stack/part = new ore.sheet_type(analyzer, short)
+	analyzer.loaded_item = part
+	cs_act(console, H, "hand_in")
+	cs_check("samples: [short] of [ore.name] counted ([ore.got]/[ore.needed])", ore.got == short && !ore.filled_via)
+	cs_check("samples: the stack's used up and the analyzer's empty", QDELETED(part) && !analyzer.loaded_item)
+
+	// A crop for the picture, in the analyzer: the hand-in box
+	var/obj/item/seeds/seed = new crop.seed_type(null)
+	seed.potency = crop.potency
+	var/obj/item/reagent_containers/food/snacks/grown/fruit = new seed.product(analyzer, seed)
+	analyzer.loaded_item = fruit
+	usr = H
+	console.ui_interact(H)
+	sleep(30)
+	var/datum/tgui/ui = cs_find_ui(H, console)
+	if(ui)
+		winset(C, ui.window_id, "pos=60,20")
+		cs_tgui_do(C, ui.window_id, "click:Analyzer")
+		sleep(15)
+		cs_shot("popup_samples_[label]_analyzer")
+	cs_act(console, H, "hand_in")
+	cs_check("samples: [crop.name] handed in", crop.filled_via == "R&D" && QDELETED(fruit))
+
+	// Shipped through Cargo: the rest of the ore with five over, a tank of the gas, and medical's, in a crate
+	var/obj/structure/closet/crate/crate = new(get_turf(H))
+	var/obj/item/stack/rest = new ore.sheet_type(crate, 7)
+	var/obj/item/tank/internals/oxygen/tank = new(crate)
+	tank.air_contents.assert_gas(gas.gas)
+	tank.air_contents.moles[gas.gas] = gas.needed + 3
+	var/obj/item/medical_thing
+	if(med.blood_type)
+		var/obj/item/reagent_containers/blood/bag = new(crate)
+		bag.reagents.add_reagent(/datum/reagent/blood, 60, list("blood_type" = med.blood_type, "donor" = null, "blood_DNA" = "cs", "viruses" = list(), "resistances" = list()))
+		medical_thing = bag
+	else
+		var/list/organ_types = list(ORGAN_SLOT_HEART = /obj/item/organ/heart, ORGAN_SLOT_LUNGS = /obj/item/organ/lungs, ORGAN_SLOT_LIVER = /obj/item/organ/liver,
+			ORGAN_SLOT_STOMACH = /obj/item/organ/stomach, ORGAN_SLOT_EYES = /obj/item/organ/eyes, ORGAN_SLOT_TONGUE = /obj/item/organ/tongue,
+			ORGAN_SLOT_APPENDIX = /obj/item/organ/appendix)
+		var/organ_type = organ_types[med.organ_slot]
+		medical_thing = new organ_type(crate)
+	var/obj/item/stack/other = new /obj/item/stack/sheet/metal(crate, 10) // nothing wanted: sells as it always does
+	points = web.research_points[TECHWEB_POINT_TYPE_GENERIC]
+	var/datum/export_report/report = export_item_and_contents(crate, EXPORT_CARGO, apply_elastic = FALSE)
+	var/datum/export/science_sample/fee
+	for(var/datum/export/science_sample/E in GLOB.exports_list)
+		fee = E
+	var/fees = report.total_value[fee]
+	var/paid = ore.reward + gas.reward + med.reward
+	cs_check("samples: the crate's ore, gas and [med.name] fill theirs ([ore.filled_via], [gas.filled_via], [med.filled_via])", ore.filled_via == "Cargo" && gas.filled_via == "Cargo" && med.filled_via == "Cargo")
+	cs_check("samples: and pay their points ([points] -> [web.research_points[TECHWEB_POINT_TYPE_GENERIC]], [paid] due)", web.research_points[TECHWEB_POINT_TYPE_GENERIC] >= points + paid - 1)
+	cs_check("samples: Cargo gets three fees and the five spare sheets' price ([fees] credits)", fees > 3 * 250)
+	cs_check("samples: the metal nobody wanted sold as usual", report.total_amount.len >= 2 && QDELETED(other))
+	cs_check("samples: the sample export goes first", GLOB.exports_list[1] == fee)
+
+	// The other kinds, handed straight to the board: a dish, a Lavaland trophy, blood of a type (and the wrong type)
+	for(var/datum/sample_request/R in board.requests.Copy())
+		board.requests -= R
+	var/datum/sample_request/kitchen/dish = board.new_request(TRUE, /datum/sample_request/kitchen)
+	var/obj/item/food = new dish.dish(get_turf(H))
+	board.hand_in(food, H, "R&D")
+	cs_check("samples: [dish.name] from the kitchen", dish.filled_via == "R&D" && QDELETED(food))
+	var/datum/sample_request/lavaland/trophy = board.new_request(TRUE, /datum/sample_request/lavaland)
+	var/obj/item/found = ispath(trophy.want, /obj/item/stack) ? new trophy.want(get_turf(H), trophy.needed) : new trophy.want(get_turf(H))
+	board.hand_in(found, H, "R&D")
+	cs_check("samples: [trophy.name] off Lavaland", trophy.filled_via == "R&D")
+	var/datum/sample_request/medical/blood = new
+	blood.blood_type = "O-"
+	blood.needed = 50
+	blood.unit = "u"
+	blood.name = "50u of O- blood"
+	board.requests += blood
+	var/obj/item/reagent_containers/blood/wrong = new(get_turf(H))
+	wrong.reagents.add_reagent(/datum/reagent/blood, 60, list("blood_type" = "A+", "blood_DNA" = "cs", "viruses" = list(), "resistances" = list()))
+	cs_check("samples: A+ blood doesn't count for O-", !board.request_for(wrong))
+	var/obj/item/reagent_containers/blood/right = new(get_turf(H))
+	right.reagents.add_reagent(/datum/reagent/blood, 60, list("blood_type" = "O-", "blood_DNA" = "cs", "viruses" = list(), "resistances" = list()))
+	board.hand_in(right, H, "R&D")
+	cs_check("samples: O- blood does, and 10u stays in the bag ([right.reagents.total_volume]u)", blood.filled_via == "R&D" && round(right.reagents.total_volume) == 10)
+	qdel(wrong)
+	qdel(right)
+	while(board.requests.len < 5)
+		board.new_request(TRUE)
+
+	// Garlic, which the board can ask for, grows again (its seeds had no crop: harvesting runtimed)
+	var/obj/machinery/hydroponics/constructable/tray = new(get_step(H, SOUTH))
+	var/obj/item/seeds/garlic/garlic_seeds = new(tray)
+	tray.myseed = garlic_seeds
+	var/list/garlic = garlic_seeds.harvest(H)
+	cs_check("samples: harvested garlic is garlic ([length(garlic)])", length(garlic) && istype(garlic[1], /obj/item/reagent_containers/food/snacks/grown/garlic))
+	for(var/atom/movable/A in garlic)
+		qdel(A)
+	qdel(tray)
+
+	// Expiry and the refill
+	var/datum/sample_request/old = board.requests.len ? board.requests[1] : board.new_request(TRUE)
+	old.opened_at = world.time - 31 MINUTES
+	board.next_check = 0
+	board.process()
+	cs_check("samples: a stale one is swapped out ([old.name])", old.filled_via == "expired" && !(old in board.requests) && board.history[1] == old)
+	for(var/i in 1 to board.refills.len)
+		board.refills[i] = world.time
+	board.next_check = 0
+	board.process()
+	cs_check("samples: refills top the board up ([board.requests.len])", board.requests.len == 5 && !board.refills.len)
+
+	// The Samples tab, and the scanner
+	if(ui)
+		cs_tgui_do(C, ui.window_id, "click:Samples")
+		sleep(15)
+		cs_shot("popup_samples_[label]_board")
+	SStgui.close_user_uis(H)
+	var/obj/item/experi_scanner/scanner = locate() in H.GetAllContents()
+	if(!scanner)
+		scanner = new(get_turf(H))
+	H.drop_all_held_items()
+	H.put_in_active_hand(scanner) // tgui shuts a window on a thing in the backpack
+	scanner.attack_self(H)
+	sleep(25)
+	var/datum/tgui/scan_ui = cs_find_ui(H, scanner)
+	if(scan_ui)
+		winset(C, scan_ui.window_id, "pos=60,20")
+		sleep(10)
+	cs_shot("popup_samples_[label]_scanner")
+	SStgui.close_user_uis(H)
+	qdel(console)
+	qdel(analyzer)
+	qdel(beaker)
+	qdel(crate)
+	qdel(medical_thing)
+	qdel(rest)
+
+/proc/cs_sample_kinds(datum/sample_board/board)
+	. = list()
+	for(var/datum/sample_request/R in board.requests)
+		. += R.kind

@@ -1,6 +1,7 @@
 import { Component, Fragment } from 'inferno';
 import { useBackend } from '../backend';
 import { Box, Button, Icon, Input, NoticeBox, ProgressBar } from '../components';
+import { SampleBoard } from './Experiments';
 
 // The R&D console (hippiestation/code/modules/research/rdconsole_tgui.dm).
 // Research as cards, one search over every node, what it says and the
@@ -15,6 +16,7 @@ const TAB_RESEARCH = 'research';
 const TAB_LATHE = 'lathe';
 const TAB_IMPRINTER = 'imprinter';
 const TAB_ANALYZER = 'analyzer';
+const TAB_SAMPLES = 'samples';
 const TAB_DISKS = 'disks';
 const TAB_SETTINGS = 'settings';
 
@@ -913,6 +915,35 @@ const AnalyzerPanel = props => {
           disabled={analyzer.busy}
           onClick={() => act('eject_item')} />
       </Box>
+      {!!analyzer.sample && (
+        <Box
+          mb={1}
+          style={{
+            'display': 'flex',
+            'align-items': 'center',
+            'padding': '6px 8px',
+            'background-color': 'rgba(91, 170, 39, 0.12)',
+            'border-left': '3px solid #5baa27',
+          }}>
+          <Box style={{ 'flex-grow': 1 }}>
+            <Box color="label" fontSize="11px">Sample board</Box>
+            <Box bold>{analyzer.sample.name}</Box>
+            {analyzer.sample.needed > 1 && (
+              <Box color="label" fontSize="11px">
+                {analyzer.sample.got} / {analyzer.sample.needed}
+                {analyzer.sample.unit}, this gives {analyzer.sample.gives}
+              </Box>
+            )}
+          </Box>
+          <Button
+            icon="vial"
+            color="good"
+            content={'Hand in (' + formatNumber(analyzer.sample.reward)
+              + ' pts)'}
+            disabled={analyzer.busy}
+            onClick={() => act('hand_in')} />
+        </Box>
+      )}
       {(analyzer.options || []).length === 0 && (
         <Box color="label" italic mb={1}>
           Nothing in the research would be any the wiser for it.
@@ -1223,6 +1254,7 @@ class RdConsoleMenu extends Component {
       [TAB_LATHE, 'cubes', 'Protolathe', !!data.lathe],
       [TAB_IMPRINTER, 'microchip', 'Imprinter', !!data.imprinter],
       [TAB_ANALYZER, 'atom', 'Analyzer', !!data.analyzer],
+      [TAB_SAMPLES, 'vial', 'Samples', !!data.samples],
       [TAB_DISKS, 'save', 'Disks', !!data.tdisk || !!data.ddisk],
       [TAB_SETTINGS, 'cog', 'Settings', true],
     ];
@@ -1362,6 +1394,16 @@ class RdConsoleMenu extends Component {
                 analyzer={data.analyzer}
                 act={act}
                 onSelectNode={onSelect} />
+            </Box>
+          )}
+          {tab === TAB_SAMPLES && (
+            <Box
+              style={{
+                'overflow-y': 'auto',
+                'height': '100%',
+                'padding': '6px 8px',
+              }}>
+              <SampleBoard board={data.samples} />
             </Box>
           )}
           {tab === TAB_DISKS && (
