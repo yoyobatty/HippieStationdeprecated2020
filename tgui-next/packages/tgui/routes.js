@@ -47,6 +47,7 @@ import { EngravedMessage } from './interfaces/EngravedMessage';
 import { Exosuit } from './interfaces/Exosuit';
 import { ExosuitFabricator } from './interfaces/ExosuitFabricator';
 import { DestinationTagger, HandTeleporter, ImplantPad, Safe, SecureStorage } from './interfaces/Gadgets';
+import { GameMenu } from './interfaces/GameMenu';
 import { Gps } from './interfaces/Gps';
 import { GravityGenerator } from './interfaces/GravityGenerator';
 import { GulagItemReclaimer } from './interfaces/GulagItemReclaimer';
@@ -1122,6 +1123,10 @@ const ROUTES = {
   },
   tickets: {
     component: () => Tickets,
+    scrollable: false,
+  },
+  game_menu: {
+    component: () => GameMenu,
     scrollable: false,
   },
   admin_hub: {

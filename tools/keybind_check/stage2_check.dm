@@ -43,9 +43,9 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 /proc/s2_check(name, ok, detail = "")
 	kc_log("[ok ? "PASS" : "FAIL"] [name][detail ? " ([detail])" : ""]")
 
-/proc/s2_shot(name)
+/proc/s2_shot(name, whole_window)
 	fdel("data/keycheck_shot_title")
-	text2file("popup_stage2_[name]", "data/keycheck_shot")
+	text2file(whole_window ? "stage2_[name]" : "popup_stage2_[name]", "data/keycheck_shot") // not popup_: the game window
 	var/deadline = world.time + 15 SECONDS
 	while(fexists("data/keycheck_shot") && world.time < deadline)
 		sleep(1)
@@ -207,6 +207,7 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 		s2_hub(C, H, AH)
 		s2_hub_keys(C, H, AH)
 		s2_mentor_and_player(C, H, AH)
+		s2_game_menus(C, H, AH)
 		s2_history(C, H)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
@@ -797,6 +798,96 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 	sleep(5)
 	s2_shot("help_earlier")
 	s2_close(H, HW)
+
+/// Something run in the stat panel's page; what it works out comes back as the panel's "tab" (its Set-Tab message), read here
+/proc/s2_panel(client/C, js)
+	C.stat_panel.tab = null
+	C << output(url_encode(js), "statbrowser:eval")
+	var/deadline = world.time + 5 SECONDS
+	while(!C.stat_panel.tab && world.time < deadline)
+		sleep(1)
+	return C.stat_panel.tab
+
+/proc/s2_panel_probe(client/C, expression)
+	return s2_panel(C, "Byond.sendMessage('Set-Tab',{tab:'probe:'+([expression])});")
+
+/// Piece 6 (the user's rulings, 2026-11-07): the game menu on Esc with the chat bar empty and the stat panel's Menu button; the
+/// stat panel's tabs folded, its tab kept across rounds, counts and dots on tabs, the verb search's Enter and arrows
+/proc/s2_game_menus(client/C, mob/living/carbon/human/H, datum/admin_help/AH)
+	for(var/datum/tgui/open as anything in H.open_uis.Copy())
+		open.close()
+	sleep(5)
+	// Esc: the chat bar first, then the menu
+	winset(C, "input", "text=\"hello there\"")
+	sleep(3)
+	C.escape_key()
+	sleep(5)
+	var/left = winget(C, "input", "text")
+	s2_check("Esc with something in the chat bar clears it, no menu", !length(left) && !(C.game_menu && s2_ui_now(H, C.game_menu)), "[left]")
+	C.escape_key()
+	var/datum/tgui/ui = s2_ui(H, C.game_menu)
+	s2_check("Esc with the bar empty opens the menu", !!ui)
+	sleep(5)
+	s2_shot("menu")
+	s2_do(C, ui, "pick:.GameMenu__item|Keybindings")
+	sleep(1 SECONDS)
+	s2_check("the menu's Keybindings opens the keybind panel and closes the menu", C.keybind_menu && s2_ui(H, C.keybind_menu) && !s2_ui_now(H, C.game_menu))
+	s2_close(H, C.keybind_menu)
+	C.open_game_menu()
+	ui = s2_ui(H, C.game_menu)
+	s2_do(C, ui, "pick:.GameMenu__item|Disconnect")
+	sleep(5)
+	s2_check("Disconnect asks once before it quits", C.game_menu.disconnect_armed && s2_ui_now(H, C.game_menu))
+	s2_do(C, ui, "pick:.GameMenu__item|[C.current_ticket || C.current_question ? "Your ticket" : "Ask for help"]")
+	sleep(1 SECONDS)
+	s2_check("the menu's help item opens their ticket window", C.help_window && s2_ui(H, C.help_window) && !C.game_menu.disconnect_armed)
+	s2_close(H, C.help_window)
+	// the stat panel's Menu button
+	s2_panel(C, "document.getElementById('menubutton').click();setTimeout(function(){Byond.sendMessage('Set-Tab',{tab:'clicked'});},300);")
+	s2_check("the stat panel's Menu button opens the menu", !!s2_ui(H, C.game_menu))
+	s2_close(H, C.game_menu)
+	// folded tabs: the admin odds and ends are sections of Admin and Debug
+	var/tabs = s2_panel_probe(C, "verb_tabs.join(',')")
+	var/list/tab_list = splittext(copytext(tabs, 7), ",")
+	s2_check("small admin tabs fold into Admin and Debug", ("Admin" in tab_list) && ("Debug" in tab_list) && !("Fun" in tab_list) && !("Special Verbs" in tab_list) && !("Server" in tab_list) && !("Mapping" in tab_list), tabs)
+	var/sections = s2_panel_probe(C, "(tab_change('Admin',true),Array.prototype.slice.call(document.querySelectorAll('#statcontent h3')).map(function(h){return h.textContent;}).join(','))")
+	s2_check("and show as sections in Admin", findtext(sections, "Fun") && findtext(sections, "Server"), sections)
+	sleep(5)
+	s2_shot("panel_admin", TRUE)
+	// the Tickets count
+	SSstatpanels.set_tickets_tab(C)
+	sleep(5)
+	var/badge = s2_panel_probe(C, "(document.querySelector('#tab-Tickets .tab-badge')||{}).textContent+'|'+((document.querySelector('#tab-Tickets .tab-badge')||{className:''}).className)")
+	s2_check("Tickets shows how many are open, red with someone waiting", findtext(badge, "probe:[length(GLOB.ahelp_tickets.active_tickets)]|") && findtext(badge, "hot"), badge)
+	// the tab picked is kept: here, in their preferences
+	s2_panel(C, "document.getElementById('tab-OOC').click();")
+	sleep(5)
+	s2_check("a tab picked is kept in their preferences", C.prefs.last_stat_tab == "OOC", C.prefs.last_stat_tab)
+	// as next round: the panel loaded afresh comes back on it
+	C.stat_panel.initialize()
+	var/deadline = world.time + 15 SECONDS
+	while(!C.stat_panel.ready && world.time < deadline)
+		sleep(2)
+	sleep(2 SECONDS)
+	var/now = s2_panel_probe(C, "current_tab")
+	s2_check("a fresh panel opens on the kept tab", now == "probe:OOC", now)
+	// a tab that gets new verbs: a dot
+	C.verbs += /client/proc/cmd_s2_new_verb
+	C.init_verbs()
+	sleep(1 SECONDS)
+	var/dot = s2_panel_probe(C, "document.getElementById('tab-Other')?'other:'+document.getElementById('tab-Other').className:verb_tabs.join(',')")
+	s2_check("a verb in a tab of its own folds into Other, which gets a dot", findtext(dot, "other:") && findtext(dot, "changed"), dot)
+	// the verb search: Enter runs the top one
+	s2_panel(C, "var i=document.getElementById('verbsearch-input');i.focus();i.value='keybind';i.dispatchEvent(new Event('input'));i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));setTimeout(function(){Byond.sendMessage('Set-Tab',{tab:'ran'});},300);")
+	s2_check("the verb search: Enter runs the top verb (Keybindings)", C.keybind_menu && s2_ui(H, C.keybind_menu))
+	s2_close(H, C.keybind_menu)
+	var/order = s2_panel_probe(C, "(setSearch('ings'),search_found.map(function(p){return p\[1\];}).slice(0,2).join(','))")
+	s2_check("the verbs used lately come first", findtext(order, "probe:Keybindings") == 1, order)
+	s2_panel(C, "clearSearch(false);Byond.sendMessage('Set-Tab',{tab:'done'});")
+
+/client/proc/cmd_s2_new_verb()
+	set name = "S2 New Verb"
+	set category = "S2 Test Tab"
 
 /proc/s2_history(client/C, mob/living/carbon/human/H)
 	var/list/before = player_history_read(C.ckey)

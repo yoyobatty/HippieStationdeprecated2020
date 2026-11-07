@@ -75,6 +75,8 @@ GLOBAL_VAR(stat_panel_page)
 		owner << output(message, "statbrowser:byondMessage")
 	waiting = null
 	send_message("set_theme", owner.dark_theme ? "dark" : "light")
+	if(owner.prefs?.last_stat_tab)
+		send_message("restore_tab", owner.prefs.last_stat_tab)
 	owner.init_verbs()
 	SSstatpanels.immediate_send_stat_data(owner)
 
@@ -89,6 +91,8 @@ GLOBAL_VAR(stat_panel_page)
 			if(istext(payload?["tab"]))
 				tab = copytext(payload["tab"], 1, 100)
 				SSstatpanels.immediate_send_stat_data(owner)
+				if(payload["picked"]) // the player clicked it: kept across rounds (game_menu.dm)
+					owner.remember_stat_tab(tab)
 
 /// A click on something the page lists, as if on the map. Only what it was sent for this player.
 /datum/stat_panel/proc/item_click(atom/target, list/href_list)

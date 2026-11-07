@@ -1,6 +1,10 @@
 // The stat panel: tg's statbrowser.js (tgstation master ceb0ca2410d4b2bbade05f61a661ebdd684c0e79), on Hippie's 516 bridge.
 // Hippie: a small Byond shim instead of tgui's window bridge; spell and ability tabs, the text tabs some gear adds (SpiderOS,
 // Crynet Nanosuit), a verb search, Status as label/value rows, the theme from the skin, tabs reported to the server in one message.
+// Hippie, making the game easier to get around (the user's rulings, 2026-11-07): small tabs folded together (admin odds and ends
+// into Admin and Debug as sections, anyone's tab of three verbs or fewer into Other), the tab you picked kept across rounds, the
+// open tickets counted on Tickets and a dot on a tab that gets new verbs, the search's Enter running the top verb (arrows pick
+// another, the ones you used lately first), and a Menu button (the game menu, as Esc with the chat bar empty).
 
 // The bridge ----------------------------------------------------------------
 var Byond = (function () {
@@ -94,6 +98,30 @@ var split_admin_tabs = false;
 //The 'default' tab that everyone should have, that we swap to if the tab you're on is deleted or anything similar.
 var defaultTab = 'Status';
 var SEARCH_TAB = '__search';
+// hippie: folding. Tabs never folded; admin odds and ends folded into a parent as sections; the rest fold into Other at this size.
+var CORE_TABS = ['IC', 'OOC', 'Object', 'Preferences', 'Admin', 'Debug', 'Ghost', 'Mentor'];
+var FOLD_INTO = {
+  'Fun': 'Admin',
+  'Special Verbs': 'Admin',
+  'Server': 'Admin',
+  'Prefs - Admin': 'Admin',
+  'Event': 'Admin',
+  'Mapping': 'Debug',
+  'Profile': 'Debug',
+};
+var FOLD_SMALL = 3;
+var OTHER_TAB = 'Other';
+// hippie: the tab the server says was picked last round, until it exists or the player picks one
+var wanted_tab = null;
+// hippie: the search's results, the one Enter runs, and the verbs used lately (newest first)
+var search_found = [];
+var search_index = 0;
+var recent_verbs = [];
+try {
+  recent_verbs = JSON.parse(window.localStorage.getItem('recent_verbs') || '[]') || [];
+} catch (e) {
+  recent_verbs = [];
+}
 
 // Any BYOND commands that could result in the client's focus changing go through this
 // to ensure that when we relinquish our focus, we don't do it after the result of
@@ -121,7 +149,8 @@ function createStatusTab(name) {
   var button = document.createElement('DIV');
   button.onclick = function () {
     clearSearch(true);
-    tab_change(name);
+    wanted_tab = null;
+    tab_change(name, true);
     this.blur();
     statcontentdiv.focus();
   };
@@ -129,10 +158,73 @@ function createStatusTab(name) {
   button.setAttribute('data-tab', name);
   button.textContent = name;
   button.className = name == current_tab ? 'button active' : 'button';
+  button.title = name == OTHER_TAB ? 'Tabs with only a few verbs' : '';
   //ORDERING ALPHABETICALLY
   button.style.order = { Status: 1, MC: 2, Tickets: 3 }[name] || name.charCodeAt(0);
   //END ORDERING
+  if (name == OTHER_TAB) button.style.order = 900;
   menu.insertBefore(button, document.getElementById('verbsearch'));
+  if (wanted_tab == name) {
+    wanted_tab = null;
+    tab_change(name);
+  }
+}
+
+// hippie: a count on a tab (Tickets), red when someone is waiting
+function setTabBadge(name, count, hot) {
+  var button = document.getElementById(tabButtonId(name));
+  if (!button) return;
+  var badge = button.querySelector('.tab-badge');
+  if (!count) {
+    if (badge) button.removeChild(badge);
+    return;
+  }
+  if (!badge) {
+    badge = document.createElement('span');
+    button.appendChild(badge);
+  }
+  badge.className = 'tab-badge' + (hot ? ' hot' : '');
+  badge.textContent = count;
+}
+
+// hippie: a dot on a tab that got something new while another was open
+function markTab(name) {
+  var button = document.getElementById(tabButtonId(name));
+  if (button && name != current_tab) button.classList.add('changed');
+}
+
+// hippie: which tab a verb goes in. Folding is worked out from every verb the player has (part[2] is its own category).
+function refold() {
+  var counts = {};
+  for (var i = 0; i < verbs.length; i++) {
+    var raw = verbs[i][2] || verbs[i][0];
+    if (!raw) continue;
+    var base = raw.split('.')[0];
+    counts[base] = (counts[base] || 0) + 1;
+  }
+  var tabs = [];
+  for (var v = 0; v < verbs.length; v++) {
+    var part = verbs[v];
+    if (!part[1]) continue;
+    if (!part[2]) part[2] = part[0];
+    var own = part[2].split('.')[0];
+    var into = FOLD_INTO[own];
+    if (!into && !CORE_TABS.includes(own) && counts[own] <= FOLD_SMALL) into = OTHER_TAB;
+    part[0] = into ? into + '.' + own : part[2];
+    var tab = part[0].split('.')[0];
+    if (!tabs.includes(tab)) tabs.push(tab);
+  }
+  tabs.sort();
+  for (var t = verb_tabs.length - 1; t >= 0; t--) {
+    if (!tabs.includes(verb_tabs[t])) removeStatusTab(verb_tabs[t]);
+  }
+  verb_tabs = tabs;
+  for (var c = 0; c < verb_tabs.length; c++) createStatusTab(verb_tabs[c]);
+  if (current_tab && verb_tabs.indexOf(current_tab) == -1 && !permanent_tabs.includes(current_tab)
+    && !spell_tabs.includes(current_tab) && !extra_tabs[current_tab] && current_tab != SEARCH_TAB
+    && current_tab != turfname) {
+    tab_change(defaultTab);
+  }
 }
 
 function removeStatusTab(name) {
@@ -210,19 +302,22 @@ function wipe_verbs() {
   checkStatusTab(); // remove all empty verb tabs
 }
 
-function tab_change(tab) {
+function tab_change(tab, picked) {
   if (tab == current_tab) {
     draw_tab(tab);
     return;
   }
   var last = document.getElementById(tabButtonId(current_tab));
-  if (last) last.className = 'button'; // disable active on last button
+  if (last) last.classList.remove('active'); // disable active on last button
   current_tab = tab;
   if (tab != SEARCH_TAB) {
-    set_byond_tab(tab);
+    set_byond_tab(tab, picked);
   }
   var button = document.getElementById(tabButtonId(tab));
-  if (button) button.className = 'button active'; // make current button active
+  if (button) {
+    button.classList.add('active'); // make current button active
+    button.classList.remove('changed');
+  }
   draw_tab(tab);
 }
 
@@ -251,8 +346,8 @@ function draw_tab(tab) {
   }
 }
 
-function set_byond_tab(tab) {
-  Byond.sendMessage('Set-Tab', { tab: tab });
+function set_byond_tab(tab, picked) {
+  Byond.sendMessage('Set-Tab', picked ? { tab: tab, picked: 1 } : { tab: tab });
 }
 
 // hippie: "Label: value" lines become two columns; anything else spans both
@@ -519,19 +614,41 @@ function draw_tickets() {
   statcontentdiv.appendChild(table);
 }
 
-function make_verb_onclick(command) {
+function make_verb_onclick(command, name) {
   return (e) => {
     e.preventDefault();
+    if (name) used_verb(name);
     run_after_focus(() => {
       Byond.command(command);
     });
   };
 }
 
+// hippie: the verbs used lately, newest first, for the search
+function used_verb(name) {
+  var at = recent_verbs.indexOf(name);
+  if (at != -1) recent_verbs.splice(at, 1);
+  recent_verbs.unshift(name);
+  if (recent_verbs.length > 20) recent_verbs.length = 20;
+  try {
+    window.localStorage.setItem('recent_verbs', JSON.stringify(recent_verbs));
+  } catch (e) {
+    // no storage here: kept until the panel reloads
+  }
+}
+
+function run_verb(name) {
+  used_verb(name);
+  clearSearch(false);
+  run_after_focus(() => {
+    Byond.command(name.replace(/\s/g, '-'));
+  });
+}
+
 function verbButton(command, note) {
   var a = document.createElement('a');
   a.href = '#';
-  a.onclick = make_verb_onclick(command.replace(/\s/g, '-'));
+  a.onclick = make_verb_onclick(command.replace(/\s/g, '-'), command);
   a.className = 'grid-item';
   var t = document.createElement('span');
   t.textContent = command;
@@ -640,7 +757,18 @@ function draw_search() {
     }
     if (ok) found.push(part);
   }
-  found.sort((a, b) => (a[1].toUpperCase() < b[1].toUpperCase() ? -1 : 1));
+  found.sort((a, b) => {
+    var ra = recent_verbs.indexOf(a[1]);
+    var rb = recent_verbs.indexOf(b[1]);
+    if (ra != rb) {
+      if (ra == -1) return 1;
+      if (rb == -1) return -1;
+      return ra - rb;
+    }
+    return a[1].toUpperCase() < b[1].toUpperCase() ? -1 : 1;
+  });
+  search_found = found;
+  if (search_index >= found.length) search_index = 0;
   if (!found.length) {
     var none = document.createElement('div');
     none.className = 'search-none';
@@ -651,13 +779,16 @@ function draw_search() {
   var table = document.createElement('div');
   table.className = 'grid-container';
   for (var f = 0; f < found.length; f++) {
-    table.appendChild(verbButton(found[f][1], found[f][0].split('.')[0]));
+    var b = verbButton(found[f][1], found[f][0].split('.')[0]);
+    if (f == search_index) b.classList.add('picked');
+    table.appendChild(b);
   }
   statcontentdiv.appendChild(table);
 }
 
 function setSearch(text) {
   search_text = text;
+  search_index = 0;
   if (text.trim()) {
     if (current_tab != SEARCH_TAB) {
       tab_before_search = current_tab;
@@ -702,27 +833,25 @@ function restoreFocus(e) {
   });
 }
 
-function add_verb_list(payload) {
+// hippie: verbs keep their own category in part[2]; refold() puts each in its tab (folded or not)
+function add_verb_list(payload, initial) {
   var to_add = payload; // list of a list with category and verb inside it
   to_add.sort(); // sort what we're adding
+  var added = [];
   for (var i = 0; i < to_add.length; i++) {
     var part = to_add[i];
     if (!part[0]) continue;
-    var category = part[0];
-    if (category.indexOf('.') != -1) {
-      var splitName = category.split('.');
-      if (split_admin_tabs && splitName[0] === 'Admin') category = splitName[1];
-      else category = splitName[0];
-    }
     if (findVerbindex(part[1], verbs)) continue;
-    if (verb_tabs.includes(category)) {
-      verbs.push(part);
-    } else if (category) {
-      verb_tabs.push(category);
-      verbs.push(part);
-      createStatusTab(category);
-    }
+    verbs.push([part[0], part[1], part[0]]);
+    added.push(part[1]);
   }
+  if (initial) return;
+  refold();
+  for (var a = 0; a < added.length; a++) {
+    var at = findVerbindex(added[a], verbs);
+    if (at !== undefined) markTab(verbs[at][0].split('.')[0]);
+  }
+  if (verb_tabs.includes(current_tab)) draw_tab(current_tab);
 }
 
 // The search box sits at the end of the tab row
@@ -733,6 +862,7 @@ function add_verb_list(payload) {
   input.id = 'verbsearch-input';
   input.type = 'text';
   input.placeholder = 'Verbs';
+  input.title = 'Type part of a verb: Enter runs the top one, arrows pick another';
   input.spellcheck = false;
   input.autocomplete = 'off';
   input.oninput = () => setSearch(input.value);
@@ -740,10 +870,30 @@ function add_verb_list(payload) {
     if (e.key == 'Escape') {
       clearSearch(false);
       restoreFocus();
+    } else if (e.key == 'Enter' && search_found[search_index]) {
+      e.preventDefault();
+      input.value = '';
+      run_verb(search_found[search_index][1]);
+    } else if ((e.key == 'ArrowDown' || e.key == 'ArrowRight') && search_found.length) {
+      e.preventDefault();
+      search_index = Math.min(search_index + 1, search_found.length - 1);
+      draw_search();
+    } else if ((e.key == 'ArrowUp' || e.key == 'ArrowLeft') && search_found.length) {
+      e.preventDefault();
+      search_index = Math.max(search_index - 1, 0);
+      draw_search();
     }
   };
   box.appendChild(input);
   menu.appendChild(box);
+  // hippie: the game menu (game_menu.dm), as Esc with the chat bar empty
+  var menuButton = document.createElement('div');
+  menuButton.id = 'menubutton';
+  menuButton.className = 'button';
+  menuButton.textContent = 'Menu';
+  menuButton.title = 'Character Setup, Keybindings, Preferences, help, rules... (Esc)';
+  menuButton.onclick = () => Byond.command('Game-Menu');
+  menu.appendChild(menuButton);
 })();
 
 document.addEventListener('mouseup', restoreFocus);
@@ -763,11 +913,16 @@ Byond.subscribeTo('remove_verb_list', (v) => {
   for (var i = 0; i < to_remove.length; i++) {
     remove_verb(to_remove[i]);
   }
-  for (var c = verb_tabs.length - 1; c >= 0; c--) {
-    verbs_cat_check(verb_tabs[c]);
-  }
+  refold(); // hippie: a tab left small folds into Other, an empty one goes
   sortVerbs();
   if (verb_tabs.includes(current_tab)) draw_tab(current_tab);
+});
+
+// hippie: the tab picked last round
+Byond.subscribeTo('restore_tab', (tab) => {
+  if (!tab || tab == current_tab) return;
+  if (document.getElementById(tabButtonId(tab))) tab_change(tab);
+  else wanted_tab = tab;
 });
 
 function verbs_cat_check(cat) {
@@ -782,16 +937,20 @@ function verbs_cat_check(cat) {
 // passes a 2D list of (verbcategory, verbname) creates tabs and adds verbs to respective list
 // example (IC, Say)
 Byond.subscribeTo('init_verbs', (payload) => {
+  var had = verbs.length > 1 ? verbs.map((p) => p[1]) : null; // hippie: to mark tabs with new verbs
   wipe_verbs(); // remove all verb categories so we can replace them
   checkStatusTab(); // remove all status tabs
   verb_tabs = payload.panel_tabs;
   verb_tabs.sort(); // sort it
-  for (var i = 0; i < verb_tabs.length; i++) {
-    createStatusTab(verb_tabs[i]); // create a category if the verb doesn't exist yet
-  }
   if (payload.verblist) {
-    add_verb_list(payload.verblist);
+    add_verb_list(payload.verblist, true);
     sortVerbs(); // sort them
+  }
+  refold(); // hippie: makes the tabs, folded
+  if (had) {
+    for (var n = 0; n < verbs.length; n++) {
+      if (verbs[n][1] && had.indexOf(verbs[n][1]) == -1) markTab(verbs[n][0].split('.')[0]);
+    }
   }
   if (current_tab == SEARCH_TAB) {
     draw_search();
@@ -868,8 +1027,19 @@ Byond.subscribeTo('update_sdql2', (S) => {
 });
 
 Byond.subscribeTo('update_tickets', (T) => {
+  var before = JSON.stringify(tickets);
   tickets = T;
   addPermanentTab('Tickets');
+  // hippie: the open tickets on the tab, red when someone is waiting for an answer
+  var open = 0;
+  var waiting = false;
+  for (var i = 0; i < T.length; i++) {
+    var label = String(T[i][0]);
+    if (label == 'Active Tickets:') open = Number(T[i][1]) || 0; // the disconnected ones too
+    if (label == 'Admin hub:' && String(T[i][1]).indexOf('waiting') != -1) waiting = true;
+  }
+  setTabBadge('Tickets', open, waiting);
+  if (before != JSON.stringify(T) && before != '[]') markTab('Tickets');
   if (current_tab == 'Tickets') {
     draw_tickets();
   }

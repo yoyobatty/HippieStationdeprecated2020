@@ -1,0 +1,42 @@
+// hippie -- the game menu (interfaces/GameMenu.js)
+
+.GameMenu {
+  padding: 8px 6px;
+}
+
+.GameMenu__item {
+  display: flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    background-color: rgba(79, 143, 214, 0.25);
+  }
+}
+
+.GameMenu__item--bad:hover {
+  background-color: rgba(210, 76, 76, 0.35);
+}
+
+.GameMenu__icon {
+  width: 22px;
+  color: #8a93a0;
+}
+
+.GameMenu__label {
+  flex: 1;
+}
+
+.GameMenu__hint {
+  color: #8a93a0;
+  font-size: 11px;
+}
+
+.GameMenu__rule {
+  margin: 5px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}

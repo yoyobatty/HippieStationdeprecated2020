@@ -3566,6 +3566,7 @@
 #include "hippiestation\code\modules\client\preferences_savefile.dm"
 #include "hippiestation\code\modules\client\preferences_tgui.dm"
 #include "hippiestation\code\modules\client\stat_panel.dm"
+#include "hippiestation\code\modules\client\game_menu.dm"
 #include "hippiestation\code\modules\client\preferences_toggles.dm"
 #include "hippiestation\code\modules\client\loadout\glasses.dm"
 #include "hippiestation\code\modules\client\loadout\hands.dm"

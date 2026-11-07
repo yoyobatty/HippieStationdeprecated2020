@@ -127,6 +127,43 @@ img {
   border-bottom-color: var(--accent);
 }
 
+/* hippie: a tab's count, a dot on a tab that changed, the search's picked verb, the Menu button */
+.tab-badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--border);
+  color: var(--strong);
+  font-size: 9px;
+  line-height: 13px;
+}
+
+.tab-badge.hot {
+  background: #c9472f;
+  color: #fff;
+}
+
+.button.changed::after {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 4px;
+  margin-bottom: 1px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.grid-item.picked {
+  outline: 1px solid var(--accent);
+}
+
+#menubutton {
+  order: 10000;
+  color: var(--strong);
+}
+
 #verbsearch {
   order: 9999;
   margin-left: auto;

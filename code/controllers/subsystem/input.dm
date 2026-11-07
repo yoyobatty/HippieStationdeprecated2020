@@ -25,7 +25,7 @@ SUBSYSTEM_DEF(input)
 	// hippie -- O, T and M (ooc, say, me) are keybinds now, with a macro for whatever key each is on (client/set_talk_macros())
 	"Back" = "\".winset \\\"input.text=\\\"\\\"\\\"\"",
 	"Tab" = "\".winset \\\"input.focus=true?map.focus=true input.background-color=[COLOR_INPUT_DISABLED]:input.focus=true input.background-color=[COLOR_INPUT_ENABLED]\\\"\"",
-	"Escape" = "\".winset \\\"input.text=\\\"\\\"\\\"\"")
+	"Escape" = "Escape-Key") // hippie -- clears the chat bar, or with nothing in it opens the menu (game_menu.dm)
 
 // Badmins just wanna have fun ♪
 /datum/controller/subsystem/input/proc/refresh_client_macro_sets()
