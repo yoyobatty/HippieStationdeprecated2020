@@ -365,10 +365,13 @@
 // Logs the exact state right before and after the real close() call so the next in-game
 // test pins down which guard (locked/welded/operating/power) is actually catching it, or
 // confirms it isn't one of those at all. Remove once the real cause is found and fixed.
+// Logged only when it happens: a closed, idle door whose icon_state isn't "" (update_icon()'s finished state) is the
+// reported fault. Every close used to be logged, 2,500 of a live round's 5,700 game.log lines; 1 in ~4,900 was the fault.
 /obj/machinery/door/airlock/proc/debug_cyclelink_close()
-	log_game("CYCLELINK_DEBUG: [src] at [AREACOORD(src)] BEFORE close() - density=[density] operating=[operating] locked=[locked] welded=[welded] hasPower=[hasPower()] icon_state=[icon_state] overlays=[overlays.len]")
+	var/before = "density=[density] operating=[operating] locked=[locked] welded=[welded] hasPower=[hasPower()] icon_state=[icon_state] overlays=[overlays.len]"
 	var/result = close()
-	log_game("CYCLELINK_DEBUG: [src] at [AREACOORD(src)] AFTER close() - result=[result] density=[density] operating=[operating] icon_state=[icon_state] overlays=[overlays.len]")
+	if(density && !operating && icon_state)
+		log_game("CYCLELINK_DEBUG: [src] at [AREACOORD(src)] closed with a stale icon. BEFORE close(): [before]. AFTER: result=[result] icon_state=[icon_state] overlays=[overlays.len]")
 
 // See cyclelink_close_partner()'s comment above - this is the bot-only exception. Not
 // gated on issilicon()/AI the way bumpopen()'s shock check is: this is specifically

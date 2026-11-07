@@ -44,11 +44,19 @@ GLOBAL_VAR(bot_telemetry_log)
 // Lifecycle
 // ---------------------------------------------------------------------------------------------
 
+/// Whether this round writes bot_telemetry.jsonl. Test runs do (their checks read it). A live round only does with BOT_TELEMETRY,
+/// or with PLAYER_LOG_CKEY set, since that player's log is only any use beside the bots'. Otherwise it's ~53 MB a 20-bot round
+/// and the sampler's 2-3% of the server for files nobody reads. Events still reach the Bot Crew monitor (bot_crew_monitor.dm).
+/proc/bot_telemetry_wanted()
+	if((BOT_GYM_PARAMETER in world.params) || (BOT_SHIFT_PARAMETER in world.params) || ("bot-mode" in world.params))
+		return TRUE
+	return CONFIG_GET(flag/bot_telemetry) || length(CONFIG_GET(string/player_log_ckey))
+
 /datum/bot_brain/New(mob/living/carbon/human/new_owner)
 	. = ..()
 	GLOB.bot_brains += src
 	telemetry_last_activity = world.time
-	if(!GLOB.bot_telemetry_running)
+	if(!GLOB.bot_telemetry_running && bot_telemetry_wanted())
 		GLOB.bot_telemetry_running = TRUE
 		GLOB.bot_telemetry_log = "[GLOB.log_directory]/bot_telemetry.jsonl"
 		INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(bot_telemetry_loop))

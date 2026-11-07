@@ -67,6 +67,8 @@
 /datum/config_entry/string/player_log_ckey	// the one player whose actions get logged the way the bots' are (bots_ai/player_log.dm)
 	protection = CONFIG_ENTRY_LOCKED
 
+/datum/config_entry/flag/bot_telemetry	// write bots_ai's bot_telemetry.jsonl in a live round too (test runs always do, bots_ai/bot_telemetry.dm)
+
 /datum/config_entry/number/bot_chaos	// how much trouble the bot crew gets up to: 0 none, 1 a normal round, 2 mayhem (bots_ai/bot_chaos.dm)
 	config_entry_value = 1
 	min_val = 0

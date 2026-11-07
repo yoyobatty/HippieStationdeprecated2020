@@ -53,3 +53,7 @@ BOT_CREW_TRAITORS 2
 ## How much trouble the bot crew gets up to by itself: 0 none, 1 a normal round (greytide, quarrels, the odd riot), 2 mayhem.
 ## Unset is 1. Headless test runs leave it off unless they ask for it with bot-chaos=<level>.
 #BOT_CHAOS 1
+
+## Write the bots' telemetry (data/logs/<round>/bot_telemetry.jsonl: where each bot is, what it holds and does, twice a
+## second) in a live round too. Test runs always write it. Also on whenever PLAYER_LOG_CKEY is set.
+#BOT_TELEMETRY
