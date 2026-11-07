@@ -222,6 +222,8 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 	var/next = 1
 	var/last = timewarp_real_ms()
 	var/spike_log = world.params["spike-log"] // spike-log=1: what each tick over 60 ms went on, by subsystem
+	if(world.params["reconcile-check"]) // reconcile-check=1: every pipeline's sharing out of its gas against the old way's
+		GLOB.reconcile_check = list("same" = 0, "different" = 0)
 	if(world.params["tesla-zap-check"]) // tesla-zap-check=1: every tesla zap's choice against the old loop's
 		GLOB.tesla_zap_check = list("same" = 0, "different" = 0)
 	if(world.params["timer-census"]) // timer-census=1: what the Timer subsystem's time goes on, by the timers' procs
@@ -588,6 +590,9 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 	if(light_shadow)
 		out += ""
 		out += "Light shadow check (light-shadow): [json_encode(light_shadow)]"
+	if(GLOB.reconcile_check) // reconcile-check=1
+		out += ""
+		out += "Pipeline reconciles, gas mixtures against the old way's: [json_encode(GLOB.reconcile_check)]"
 	if(GLOB.tesla_zap_check) // tesla-zap-check=1
 		out += ""
 		out += "Tesla zaps, against what the old loop would have chosen: [json_encode(GLOB.tesla_zap_check)]"
@@ -814,3 +819,53 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 		else if(closest_structure)
 			continue
 	return closest_atom
+
+/// reconcile-check=1: reconcile_air()'s old sharing out, run on copies of what the new one was given, and every mixture compared
+/// exactly (each gas's amount, in order, the temperature and the volume)
+/datum/pipeline/proc/reconcile_check_against_old(list/datum/gas_mixture/GL, list/datum/gas_mixture/before)
+	var/total_thermal_energy = 0
+	var/total_heat_capacity = 0
+	var/datum/gas_mixture/total_gas_mixture = new(0)
+	var/list/total_gases = total_gas_mixture.moles
+	for(var/i in before)
+		var/datum/gas_mixture/G = i
+		total_gas_mixture.volume += G.volume
+		var/list/giver_gases = G.moles
+		for(var/giver_id in giver_gases)
+			var/giver_gas_amount = giver_gases[giver_id]
+			ASSERT_GAS(giver_id, total_gas_mixture)
+			total_gases[giver_id] += giver_gas_amount
+			total_heat_capacity += giver_gas_amount * GAS_META[META_GAS_SPECIFIC_HEAT][giver_id]
+		total_thermal_energy += THERMAL_ENERGY(G)
+	total_gas_mixture.temperature = total_heat_capacity ? (total_thermal_energy/total_heat_capacity) : 0
+	total_gas_mixture.garbage_collect()
+	if(total_gas_mixture.volume > 0)
+		for(var/i in before)
+			var/datum/gas_mixture/G = i
+			G.copy_from(total_gas_mixture)
+			var/list/G_gases = G.moles
+			for(var/id in G_gases)
+				G_gases[id] *= G.volume/total_gas_mixture.volume
+	for(var/n in 1 to length(GL))
+		var/datum/gas_mixture/now = GL[n]
+		var/datum/gas_mixture/old = before[n]
+		var/why
+		if(now.temperature != old.temperature)
+			why = "temperature [now.temperature] against [old.temperature]"
+		else if(now.volume != old.volume)
+			why = "volume [now.volume] against [old.volume]"
+		else if(length(now.moles) != length(old.moles))
+			why = "[length(now.moles)] gases against [length(old.moles)]"
+		else
+			for(var/k in 1 to length(now.moles))
+				var/id_now = now.moles[k]
+				var/id_old = old.moles[k]
+				if(id_now != id_old || now.moles[id_now] != old.moles[id_old])
+					why = "gas [k]: [id_now] [now.moles[id_now]] against [id_old] [old.moles[id_old]]"
+					break
+		if(why)
+			GLOB.reconcile_check["different"]++
+			if(!GLOB.reconcile_check["first"])
+				GLOB.reconcile_check["first"] = "[src] mixture [n] of [length(GL)] ([now.type]): [why]"
+		else
+			GLOB.reconcile_check["same"]++

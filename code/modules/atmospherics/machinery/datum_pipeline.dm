@@ -256,6 +256,9 @@
 		stack_trace("[src] has one or more null gas mixtures, which may cause bugs. Null mixtures will not be considered in reconcile_air().")
 		return removeNullsFromList(.)
 
+/// hippie -- the stress bench's reconcile-check=1: list("same" = n, "different" = n, "first" = what the first difference was)
+GLOBAL_LIST(reconcile_check)
+
 /datum/pipeline/proc/reconcile_air()
 	var/list/datum/gas_mixture/GL = list()
 	var/list/datum/pipeline/PL = list()
@@ -278,37 +281,63 @@
 				if(C.connected_device)
 					GL += C.connected_device.air_contents
 
+	// hippie -- the sharing out is its own proc now, with the stress bench's reconcile-check=1 setting it against the old one
+	var/list/datum/gas_mixture/before
+	if(GLOB.reconcile_check)
+		before = list()
+		for(var/datum/gas_mixture/G as anything in GL)
+			var/datum/gas_mixture/copy = G.copy()
+			copy.volume = G.volume
+			before += copy
+	reconcile_gases(GL)
+	if(before)
+		reconcile_check_against_old(GL, before)
+
+/// hippie -- reconcile_air()'s sharing out, the same sums in the same order with fewer steps: a plain gas mixture (every pipe's
+/// and machine's) is filled straight from the total, at its share of the volume, instead of copied and then scaled gas by gas,
+/// and the total's gases go in without first adding each at 0 (0 + x is x). Any other kind of mixture goes the old way. It was
+/// a third of the atmos subsystem's time in an ordinary shift (the vents topping rooms up set the whole distro loop going).
+/datum/pipeline/proc/reconcile_gases(list/datum/gas_mixture/GL)
 	var/total_thermal_energy = 0
 	var/total_heat_capacity = 0
 	var/datum/gas_mixture/total_gas_mixture = new(0)
 
 	var/list/total_gases = total_gas_mixture.moles
+	var/list/specific_heats = GAS_META[META_GAS_SPECIFIC_HEAT]
 
-	for(var/i in GL)
-		var/datum/gas_mixture/G = i
+	for(var/datum/gas_mixture/G as anything in GL)
 		total_gas_mixture.volume += G.volume
 
 		// This is sort of a combined merge + heat_capacity calculation
 
 		var/list/giver_gases = G.moles
 		//gas transfer
-		for(var/giver_id in giver_gases)
-			var/giver_gas_amount = giver_gases[giver_id]
-			ASSERT_GAS(giver_id, total_gas_mixture)
+		for(var/giver_id, giver_gas_amount in giver_gases)
 			total_gases[giver_id] += giver_gas_amount
-			total_heat_capacity += giver_gas_amount * GAS_META[META_GAS_SPECIFIC_HEAT][giver_id]
+			total_heat_capacity += giver_gas_amount * specific_heats[giver_id]
 
-		total_thermal_energy += THERMAL_ENERGY(G)
+		if(G.type == /datum/gas_mixture)
+			total_thermal_energy += G.temperature * values_dot(giver_gases, specific_heats) // THERMAL_ENERGY(G), without the call
+		else
+			total_thermal_energy += THERMAL_ENERGY(G)
 
 	total_gas_mixture.temperature = total_heat_capacity ? (total_thermal_energy/total_heat_capacity) : 0
-	
+
 	total_gas_mixture.garbage_collect()
 
-	if(total_gas_mixture.volume > 0)
+	var/total_volume = total_gas_mixture.volume
+	if(total_volume > 0)
+		var/total_temperature = total_gas_mixture.temperature
 		//Update individual gas_mixtures by volume ratio
-		for(var/i in GL)
-			var/datum/gas_mixture/G = i
-			G.copy_from(total_gas_mixture)
+		for(var/datum/gas_mixture/G as anything in GL)
 			var/list/G_gases = G.moles
-			for(var/id in G_gases)
-				G_gases[id] *= G.volume/total_gas_mixture.volume
+			if(G.type != /datum/gas_mixture)
+				G.copy_from(total_gas_mixture)
+				for(var/id in G_gases)
+					G_gases[id] *= G.volume/total_volume
+				continue
+			var/share = G.volume / total_volume
+			G.temperature = total_temperature
+			G_gases.Cut()
+			for(var/id, amount in total_gases)
+				G_gases[id] = amount * share
