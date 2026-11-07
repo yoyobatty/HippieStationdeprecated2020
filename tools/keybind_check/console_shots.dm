@@ -269,6 +269,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_lobby_looks(C, H, label)
 		if("passdark")
 			cs_pass_dark(C, H, label)
+		if("roundend")
+			cs_roundend(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -6392,3 +6394,79 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	// And back
 	cs_act(P, NP, "pass_dark")
 	cs_check("passdark: the sun turns it light again", !P.vars["pass_dark"])
+
+// The round-end report: a traitor engineer and four crew (one dead, one a changeling), reported as the round ends
+/proc/cs_roundend(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/engineer)
+	H.real_name = "Mikayla Collins"
+	H.name = H.real_name
+	H.mind.name = H.real_name
+	H.mind.assigned_role = "Station Engineer"
+	H.mind.add_antag_datum(/datum/antagonist/traitor)
+	var/turf/spot = cs_open_turf_by(H)
+	var/list/made = list()
+	made += cs_inject_crew(spot, "Rosa Delgado", "Medical Doctor", /datum/outfit/job/doctor)
+	made += cs_inject_crew(spot, "Kit Brannigan", "Security Officer", /datum/outfit/job/security)
+	made += cs_inject_crew(spot, "Ada Quill", "Scientist", /datum/outfit/job/scientist)
+	made += cs_inject_crew(spot, "Hugh Mann", "Captain", /datum/outfit/job/captain)
+	var/mob/living/carbon/human/dead = made[2]
+	dead.death()
+	SSblackbox.first_death = list("name" = dead.real_name, "role" = "Security Officer", "area" = "Brig (101, 87, 2)", "damage" = "", "last_words" = "Who's that in the vents?")
+	var/mob/living/carbon/human/ling = made[3]
+	ling.mind.add_antag_datum(/datum/antagonist/changeling)
+	usr = H
+	var/list/popcount = SSticker.gather_roundend_feedback()
+	SSticker.display_report(popcount)
+	sleep(20)
+	var/datum/report = C.vars["roundend_report_ui"]
+	var/datum/tgui/ui = report ? cs_find_ui(C.mob, report) : null
+	cs_check("roundend: the report opens at the round's end", ui)
+	if(!ui)
+		return
+	var/list/data = report.vars["data"]
+	var/list/personal = data["personal"]
+	cs_check("roundend: your own ending is stamped ([personal["outcome"]])", personal["outcome"] == "Survived")
+	var/list/titles = list()
+	for(var/list/section in data["sections"])
+		titles += section["title"]
+	cs_check("roundend: the antagonists get their card ([titles.Join(", ")])", "Antagonists" in titles)
+	var/rosa
+	var/kit
+	var/ada_antag
+	for(var/list/dept in data["crew"])
+		for(var/list/person in dept["people"])
+			if(person["name"] == "Rosa Delgado")
+				rosa = "[dept["name"]] [person["outcome"]]"
+			if(person["name"] == "Kit Brannigan")
+				kit = person["outcome"]
+			if(person["name"] == "Ada Quill")
+				ada_antag = person["antag"]
+	cs_check("roundend: the roll call has the crew by department ([rosa])", rosa == "Medical Survived")
+	cs_check("roundend: the dead are marked ([kit])", kit == "Died")
+	cs_check("roundend: and what they really were ([ada_antag])", findtext(ada_antag, "Changeling"))
+	var/list/death = data["first_death"]
+	cs_check("roundend: the first death and their last words", death && death["words"] == "Who's that in the vents?")
+	winset(C, ui.window_id, "pos=60,10")
+	sleep(25)
+	cs_shot("popup_roundend_[label]_light")
+	cs_tgui_do(C, ui.window_id, "scroll:900")
+	sleep(10)
+	cs_shot("popup_roundend_[label]_light_rollcall")
+	// Dark paper, as the player picked
+	C.prefs.vars["pass_dark"] = TRUE
+	SSticker.show_roundend_report(C, FALSE)
+	sleep(20)
+	report = C.vars["roundend_report_ui"]
+	ui = report ? cs_find_ui(C.mob, report) : null
+	if(ui)
+		winset(C, ui.window_id, "pos=60,10")
+		sleep(25)
+		cs_shot("popup_roundend_[label]_dark")
+	C.prefs.vars["pass_dark"] = FALSE
+	// Your Last Round: read back from the file
+	SSticker.show_roundend_report(C, TRUE)
+	sleep(20)
+	report = C.vars["roundend_report_ui"]
+	ui = report ? cs_find_ui(C.mob, report) : null
+	var/list/again = report?.vars["data"]
+	cs_check("roundend: Your Last Round reads it back", ui && again && again["station"] == data["station"])

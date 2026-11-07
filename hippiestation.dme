@@ -3898,6 +3898,7 @@
 #include "hippiestation\code\modules\research\techweb\_techweb.dm"
 #include "hippiestation\code\modules\research\techweb\all_nodes.dm"
 #include "hippiestation\code\modules\research\xenobiology\xenobiology.dm"
+#include "hippiestation\code\modules\roundend\roundend_tgui.dm"
 #include "hippiestation\code\modules\screentips\screentip_contexts.dm"
 #include "hippiestation\code\modules\screentips\screentips.dm"
 #include "hippiestation\code\modules\SCPmodular\scps\euclid\SCP-173.dm"

@@ -154,6 +154,7 @@ import { BibleStyle, BookReader, MimeBook, PhotoViewer } from './interfaces/Book
 import { MechSleeper, MechSyringeGun, PaiCard } from './interfaces/MechMedicalPai';
 import { ExperimentScanner } from './interfaces/Experiments';
 import { LateJoin, Lobby } from './interfaces/Lobby';
+import { RoundEnd } from './interfaces/RoundEnd';
 // hippie end
 
 const ROUTES = {
@@ -489,6 +490,10 @@ const ROUTES = {
   robotics_console: {
     component: () => RoboticsConsole,
     scrollable: true,
+  },
+  roundend_report: {
+    component: () => RoundEnd,
+    scrollable: false,
   },
   safe: {
     component: () => Safe,

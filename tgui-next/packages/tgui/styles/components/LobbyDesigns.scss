@@ -334,6 +334,7 @@ $pass-bg: #0f1422;
 // (prefs.pass_dark, the moon on Character Setup's Personnel File band)
 .LobbyPass,
 .LateJoinPass,
+.RoundEnd,
 .Preferences--pass {
   --pass-paper: #f3efe4;
   --pass-paper-a: rgba(243, 239, 228, 0.93);
@@ -359,6 +360,7 @@ $pass-bg: #0f1422;
 
 .LobbyPass.Pass--dark,
 .LateJoinPass.Pass--dark,
+.RoundEnd.Pass--dark,
 .Preferences--pass.Pass--dark {
   --pass-paper: #262d39;
   --pass-paper-a: rgba(38, 45, 57, 0.93);
@@ -1386,4 +1388,274 @@ $pass-blue: #2a6cc0;
 
 .Preferences__theme:hover {
   opacity: 1;
+}
+
+// The round-end report (RoundEnd.js): the shift report on the pass's paper
+
+.RoundEnd {
+  @include lobby-fill;
+  @include pass-backdrop;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.RoundEnd__head,
+.RoundEnd__card {
+  margin-bottom: 12px;
+  overflow: hidden;
+  border-radius: 10px;
+  background-color: var(--pass-paper);
+  color: var(--pass-ink);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+}
+
+.RoundEnd__top {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px 4px;
+}
+
+.RoundEnd__station {
+  flex: 1;
+  min-width: 0;
+}
+
+.RoundEnd__stationName {
+  font-family: 'Consolas', monospace;
+  font-size: 20px;
+  font-weight: bold;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.RoundEnd__you {
+  font-size: 13px;
+  color: var(--pass-soft);
+}
+
+.RoundEnd__stamp {
+  flex: none;
+  margin: 4px 10px 4px 16px;
+  padding: 2px 14px;
+  border: 4px solid;
+  border-radius: 8px;
+  font-family: 'Impact', 'Bahnschrift', sans-serif;
+  font-size: 30px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  transform: rotate(-8deg);
+  opacity: 0.85;
+  animation: RoundEnd-stamp 0.3s ease-out;
+}
+
+.RoundEnd__stamp--good {
+  color: var(--pass-green);
+  border-color: var(--pass-green);
+}
+
+.RoundEnd__stamp--warn {
+  color: var(--pass-orange);
+  border-color: var(--pass-orange);
+}
+
+.RoundEnd__stamp--bad {
+  color: var(--pass-red);
+  border-color: var(--pass-red);
+}
+
+.RoundEnd__stamp--quiet {
+  color: var(--pass-label);
+  border-color: var(--pass-label);
+}
+
+@keyframes RoundEnd-stamp {
+  from {
+    transform: rotate(-8deg) scale(2.4);
+    opacity: 0;
+  }
+  to {
+    transform: rotate(-8deg) scale(1);
+    opacity: 0.85;
+  }
+}
+
+.RoundEnd__facts {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 6px 14px 4px;
+  border-top: 1px dashed var(--pass-line);
+}
+
+.RoundEnd__fact {
+  flex: 1;
+  min-width: 80px;
+  margin-bottom: 4px;
+}
+
+.RoundEnd__death {
+  padding: 6px 14px 10px;
+  font-size: 12px;
+  border-top: 1px dashed var(--pass-line);
+}
+
+.RoundEnd__words {
+  font-style: italic;
+  color: var(--pass-soft);
+}
+
+.RoundEnd__cardTitle {
+  padding: 6px 14px;
+  background: linear-gradient(90deg, #1d4f8f, #2a6cc0);
+  color: #fff;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+// The game's own report HTML, on paper
+.RoundEnd__html {
+  padding: 8px 14px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.RoundEnd__html .panel {
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border: none;
+  border-bottom: 1px dashed var(--pass-line);
+}
+
+.RoundEnd__html .panel:last-child {
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.RoundEnd__html .header {
+  font-family: 'Bahnschrift', 'Segoe UI', sans-serif;
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.RoundEnd__html .greentext,
+.RoundEnd__html .greentext_alt {
+  color: var(--pass-green);
+  font-weight: bold;
+}
+
+.RoundEnd__html .redtext,
+.RoundEnd__html .codephrase {
+  color: var(--pass-red);
+  font-weight: bold;
+}
+
+.RoundEnd__html .marooned {
+  color: var(--pass-orange);
+  font-weight: bold;
+}
+
+.RoundEnd__html .bluetext {
+  color: #2a6cc0;
+  font-weight: bold;
+}
+
+.RoundEnd__html .big {
+  font-size: 16px;
+}
+
+.RoundEnd__html ul {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+.RoundEnd__html img {
+  vertical-align: middle;
+}
+
+// The roll call
+.RoundEnd .LateJoinPass__columns {
+  padding: 8px 10px 2px;
+}
+
+.RoundEnd__dept {
+  margin-bottom: 8px;
+  overflow: hidden;
+  border: 1px solid var(--pass-line);
+  border-radius: 6px;
+}
+
+.RoundEnd__deptName {
+  padding: 3px 8px;
+  background-color: var(--pass-hover);
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.RoundEnd__person {
+  display: flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-top: 1px dashed var(--pass-line-soft);
+}
+
+.RoundEnd__who {
+  flex: 1;
+  min-width: 0;
+}
+
+.RoundEnd__name {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.RoundEnd__job {
+  font-size: 10px;
+  color: var(--pass-label);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.RoundEnd__antag {
+  margin-left: 4px;
+  color: var(--pass-red);
+  font-weight: bold;
+}
+
+.RoundEnd__outcome {
+  flex: none;
+  margin-left: 6px;
+  padding: 0 4px;
+  border: 1.5px solid;
+  border-radius: 3px;
+  font-family: 'Impact', 'Bahnschrift', sans-serif;
+  font-size: 10px;
+  line-height: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transform: rotate(-4deg);
+}
+
+.RoundEnd__outcome--good {
+  color: var(--pass-green);
+}
+
+.RoundEnd__outcome--warn {
+  color: var(--pass-orange);
+}
+
+.RoundEnd__outcome--bad {
+  color: var(--pass-red);
+}
+
+.RoundEnd__outcome--quiet {
+  color: var(--pass-label);
 }
