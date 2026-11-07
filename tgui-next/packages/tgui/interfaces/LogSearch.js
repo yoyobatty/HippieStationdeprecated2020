@@ -20,7 +20,7 @@ const MINUTES = [[0, 'All round'], [5, '5 min'], [15, '15 min'],
   [30, '30 min'], [60, '1 hour']];
 
 // A line's kind as a colour swatch class (the Investigate ones share one)
-const kindClass = kind => {
+export const kindClass = kind => {
   if (kind.indexOf('Investigate') === 0) {
     return 'LogSearch__kind LogSearch__kind--investigate';
   }
@@ -28,7 +28,7 @@ const kindClass = kind => {
     + kind.toLowerCase().replace(/[^a-z]/g, '');
 };
 
-const Who = props => {
+export const Who = props => {
   const { act, row, prefix, ckey, name, alive, mob } = props;
   if (!ckey && !name) {
     return null;

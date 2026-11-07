@@ -1,0 +1,235 @@
+// hippie -- Ask for help (interfaces/HelpWindow.js)
+
+$hw-line: rgba(255, 255, 255, 0.1);
+$hw-muted: #8a93a0;
+
+.HelpWindow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+}
+
+.HelpWindow__notice {
+  padding: 5px 12px;
+  background-color: rgba(63, 163, 91, 0.25);
+}
+
+.HelpWindow__notice--bad {
+  background-color: rgba(210, 76, 76, 0.3);
+}
+
+.HelpWindow__tabs {
+  display: flex;
+  border-bottom: 1px solid $hw-line;
+}
+
+.HelpWindow__tab {
+  flex: 1;
+  padding: 7px 0 6px;
+  text-align: center;
+  color: $hw-muted;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.HelpWindow__tab--on {
+  color: #fff;
+  border-bottom-color: #4f8fd6;
+}
+
+.HelpWindow__form,
+.HelpWindow__ticket {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 14px;
+}
+
+.HelpWindow__label {
+  margin: 4px 0 6px;
+  color: $hw-muted;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.HelpWindow__kinds {
+  display: flex;
+}
+
+.HelpWindow__kind {
+  flex: 1;
+  margin-right: 6px;
+  padding: 9px 0 7px;
+  border: 1px solid $hw-line;
+  border-radius: 5px;
+  text-align: center;
+  cursor: pointer;
+
+  &:last-child {
+    margin-right: 0;
+  }
+
+  div {
+    margin-top: 4px;
+  }
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+}
+
+.HelpWindow__kind--on {
+  border-color: #4f8fd6;
+  background-color: rgba(79, 143, 214, 0.22);
+}
+
+.HelpWindow__to {
+  margin: 6px 0 4px;
+  color: $hw-muted;
+  font-size: 11px;
+}
+
+.HelpWindow__people {
+  margin-bottom: 6px;
+}
+
+.HelpWindow__person {
+  display: inline-block;
+  margin: 0 5px 5px 0;
+  padding: 2px 9px;
+  border: 1px solid $hw-line;
+  border-radius: 11px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.HelpWindow__person--on {
+  border-color: #4f8fd6;
+  background-color: rgba(79, 143, 214, 0.22);
+}
+
+.HelpWindow__why {
+  margin-left: 6px;
+  color: $hw-muted;
+  font-size: 10px;
+}
+
+.HelpWindow__textarea {
+  flex: 1;
+  min-height: 90px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 6px;
+  padding: 6px 7px;
+  resize: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  background-color: rgba(0, 0, 0, 0.25);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.HelpWindow__textarea--reply {
+  flex: 0 0 64px;
+  min-height: 64px;
+}
+
+.HelpWindow__actions {
+  display: flex;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.HelpWindow__spacer {
+  flex: 1;
+}
+
+.HelpWindow__muted {
+  color: $hw-muted;
+}
+
+.HelpWindow__head {
+  margin-bottom: 8px;
+}
+
+.HelpWindow__title {
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.HelpWindow__tag {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+  font-weight: normal;
+}
+
+.HelpWindow__status {
+  margin-top: 3px;
+  color: #7fd492;
+}
+
+.HelpWindow__status--waiting {
+  color: #f0b13c;
+}
+
+.HelpWindow__lines {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.HelpWindow__line {
+  margin-bottom: 7px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  border-left: 3px solid $hw-line;
+  background-color: rgba(255, 255, 255, 0.04);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.HelpWindow__line--player {
+  margin-right: 30px;
+  border-left-color: #e0703a;
+}
+
+.HelpWindow__line--staff {
+  margin-left: 30px;
+  border-left-color: #4f8fd6;
+  background-color: rgba(79, 143, 214, 0.1);
+}
+
+.HelpWindow__line--event {
+  border-left: none;
+  background-color: transparent;
+  text-align: center;
+  color: $hw-muted;
+  font-size: 11px;
+}
+
+.HelpWindow__who {
+  margin-bottom: 1px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.HelpWindow__time {
+  margin-left: 6px;
+  color: $hw-muted;
+  font-weight: normal;
+  font-family: Consolas, monospace;
+}

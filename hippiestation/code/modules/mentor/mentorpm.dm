@@ -33,7 +33,7 @@
 		if(is_mentor())
 			to_chat(src, "<font color='red'>Error: Mentor-PM: Client not found.</font>", confidential=TRUE)
 		else
-			mentorhelp(msg)	//Mentor we are replying to left. Mentorhelp instead(check below)
+			mentorhelp_send(msg)	//Mentor we are replying to left. Mentorhelp instead(check below) // hippie -- the proc: the verb may be cooling down
 			return
 	if(prefs.muted & MUTE_MENTOR)
 		to_chat(src, "<span class='danger'>Error: Mentor PM: You are unable to use mentor PM-s (muted).</span>", confidential=TRUE)
@@ -50,7 +50,7 @@
 			if(is_mentor())
 				to_chat(src, "<font color='red'>Error: Mentor-PM: Client not found.</font>", confidential=TRUE)
 			else
-				mentorhelp(msg)	//Mentor we are replying to has vanished, Mentorhelp instead (how the fuck does this work?let's hope it works,shrug)
+				mentorhelp_send(msg)	//Mentor we are replying to has vanished, Mentorhelp instead (how the fuck does this work?let's hope it works,shrug) // hippie -- the proc
 				return
 
 		// Neither party is a mentor, they shouldn't be PMing!
@@ -62,6 +62,7 @@
 		return
 
 	log_mentor("Mentor PM: [key_name(src)]->[key_name(C)]: [msg]")
+	help_question_pm(src, C, msg) // hippie -- questions.dm
 
 	msg = emoji_parse(msg)
 	C << 'sound/items/bikehorn.ogg'

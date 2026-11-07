@@ -373,7 +373,7 @@ export class BanWindow extends Component {
     this.compose = null;
     if (c) {
       this.compose = {
-        kind: c.kind, text: '', secret: c.kind !== 'message',
+        kind: c.kind, text: c.text || '', secret: c.kind !== 'message',
         severity: null, expiry: 'Never', key: '',
       };
     }

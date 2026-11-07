@@ -1,5 +1,6 @@
 import { AbductorConsole, AbductorExperiment, GlandDispenser } from './interfaces/Abductor';
 import { Achievements } from './interfaces/Achievements';
+import { AdminAlerts } from './interfaces/AdminAlerts';
 import { AdminFind } from './interfaces/AdminFind';
 import { AiAirlock } from './interfaces/AiAirlock';
 import { AirAlarm } from './interfaces/AirAlarm';
@@ -48,6 +49,7 @@ import { DestinationTagger, HandTeleporter, ImplantPad, Safe, SecureStorage } fr
 import { Gps } from './interfaces/Gps';
 import { GravityGenerator } from './interfaces/GravityGenerator';
 import { GulagItemReclaimer } from './interfaces/GulagItemReclaimer';
+import { HelpWindow } from './interfaces/HelpWindow';
 import { Holodeck } from './interfaces/Holodeck';
 import { IdConsole } from './interfaces/IdConsole';
 import { ImplantChair } from './interfaces/ImplantChair';
@@ -67,6 +69,8 @@ import { Pda } from './interfaces/Pda';
 import { Photocopier } from './interfaces/Photocopier';
 import { PipeDispenser } from './interfaces/PipeDispenser';
 import { PlantDnaManipulator } from './interfaces/PlantDnaManipulator';
+import { PlayerProfile } from './interfaces/PlayerProfile';
+import { Questions } from './interfaces/Questions';
 import { MedicalRecords, SecurityRecords } from './interfaces/RecordsConsole';
 import { Mint } from './interfaces/Mint';
 import { NaniteChamberControl } from './interfaces/NaniteChamberControl';
@@ -112,6 +116,7 @@ import { TelecommsMachine } from './interfaces/TelecommsMachine';
 import { TelecommsMonitor } from './interfaces/TelecommsMonitor';
 import { ThermoMachine } from './interfaces/ThermoMachine';
 import { ThermoelectricGenerator } from './interfaces/ThermoelectricGenerator';
+import { Tickets } from './interfaces/Tickets';
 import { TurbineComputer } from './interfaces/TurbineComputer';
 import { Uplink } from './interfaces/Uplink';
 import { VaultController } from './interfaces/VaultController';
@@ -1112,6 +1117,26 @@ const ROUTES = {
   },
   log_search: {
     component: () => LogSearch,
+    scrollable: false,
+  },
+  tickets: {
+    component: () => Tickets,
+    scrollable: false,
+  },
+  help_window: {
+    component: () => HelpWindow,
+    scrollable: false,
+  },
+  questions: {
+    component: () => Questions,
+    scrollable: false,
+  },
+  player_profile: {
+    component: () => PlayerProfile,
+    scrollable: false,
+  },
+  admin_alerts: {
+    component: () => AdminAlerts,
     scrollable: false,
   },
   research_dashboard: {

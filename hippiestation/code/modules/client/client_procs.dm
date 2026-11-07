@@ -17,6 +17,15 @@
 			cmd_mentor_pm(href_list["mentor_msg"],null)
 		return TRUE
 
+	if(href_list["mentor_questions"]) // QUESTION #n on a mentorhelp (questions.dm)
+		if(is_mentor())
+			open_questions(text2num(href_list["mentor_questions"]))
+		return TRUE
+
+	if(href_list["help_window"]) // "Your ticket" links to a player (help_window.dm)
+		open_help_window()
+		return TRUE
+
 	//Mentor Follow
 	if(href_list["mentor_follow"])
 		var/mob/living/M = locate(href_list["mentor_follow"])

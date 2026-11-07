@@ -51,6 +51,14 @@
 					who = M.ckey || M.real_name || M.name
 			usr.client.open_log_search(who)
 		return
+	if(href_list["playerprofile"]) // PROFILE in a player panel (player_profile.dm)
+		if(check_rights(R_ADMIN))
+			usr.client.open_player_profile(href_list["playerprofile"])
+		return
+	if(href_list["adminalerts"]) // ALERTS on an alert's chat line (admin_alerts.dm)
+		if(check_rights(R_ADMIN))
+			usr.client.open_admin_alerts(text2num(href_list["adminalerts"]))
+		return
 	if(href_list["makeAntag"] == "shadowling")
 		hippie_makeShadowling(src)
 	else if(href_list["makeAntag"] == "vampire")

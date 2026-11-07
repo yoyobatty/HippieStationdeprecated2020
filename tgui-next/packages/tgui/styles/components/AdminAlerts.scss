@@ -1,0 +1,189 @@
+// hippie -- Alerts (interfaces/AdminAlerts.js)
+
+$aa-line: rgba(255, 255, 255, 0.08);
+$aa-muted: #8a93a0;
+$aa-bad: #e05050;
+$aa-warn: #e8a33c;
+
+.AdminAlerts {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+}
+
+.AdminAlerts__bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 7px 10px 4px;
+  border-bottom: 1px solid $aa-line;
+}
+
+.AdminAlerts__kind {
+  display: inline-block;
+  margin: 0 5px 3px 0;
+  padding: 1px 8px;
+  border: 1px solid $aa-line;
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.AdminAlerts__kind--on {
+  border-color: #4f8fd6;
+  background-color: rgba(79, 143, 214, 0.22);
+}
+
+.AdminAlerts__count {
+  margin-left: 5px;
+  color: $aa-muted;
+}
+
+.AdminAlerts__bell {
+  margin-left: 7px;
+  color: #d8dde4;
+
+  &:hover {
+    color: #fff;
+  }
+}
+
+.AdminAlerts__bell--off {
+  color: $aa-muted;
+}
+
+.AdminAlerts__spacer {
+  flex: 1;
+}
+
+.AdminAlerts__muted {
+  margin-right: 6px;
+  color: $aa-muted;
+}
+
+.AdminAlerts__discord {
+  color: #d8dde4;
+}
+
+.AdminAlerts__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.AdminAlerts__empty {
+  padding: 40px 0;
+  text-align: center;
+  color: $aa-muted;
+}
+
+.AdminAlerts__row {
+  display: flex;
+  align-items: flex-start;
+  padding: 6px 10px 6px 8px;
+  border-bottom: 1px solid $aa-line;
+  border-left: 3px solid $aa-warn;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+  }
+}
+
+.AdminAlerts__row--bad {
+  border-left-color: $aa-bad;
+}
+
+.AdminAlerts__row--handled {
+  opacity: 0.6;
+}
+
+.AdminAlerts__row--picked {
+  background-color: rgba(79, 143, 214, 0.15);
+  opacity: 1;
+}
+
+.AdminAlerts__time {
+  flex: 0 0 64px;
+  font-family: Consolas, monospace;
+  font-size: 11px;
+}
+
+.AdminAlerts__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.AdminAlerts__badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 6px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.AdminAlerts__row--bad .AdminAlerts__badge {
+  background-color: rgba(224, 80, 80, 0.4);
+}
+
+.AdminAlerts__times {
+  margin-right: 6px;
+  color: $aa-warn;
+  font-weight: bold;
+}
+
+.AdminAlerts__text {
+  word-wrap: break-word;
+}
+
+.AdminAlerts__meta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: $aa-muted;
+
+  a {
+    margin-left: 5px;
+    color: #6ea8ff;
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.AdminAlerts__where,
+.AdminAlerts__who {
+  margin-right: 10px;
+}
+
+.AdminAlerts__whoName {
+  color: #c4cad3;
+}
+
+.AdminAlerts__link {
+  margin-left: 0 !important;
+}
+
+.AdminAlerts__handle {
+  flex: 0 0 auto;
+  margin-left: 8px;
+  text-align: right;
+}
+
+.AdminAlerts__on {
+  margin-bottom: 2px;
+  font-size: 11px;
+  color: #7fd492;
+  white-space: nowrap;
+}

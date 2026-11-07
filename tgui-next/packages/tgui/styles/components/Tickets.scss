@@ -1,0 +1,844 @@
+// hippie -- Tickets (interfaces/Tickets.js). The context lines borrow
+// Search Logs' line styles (LogSearch.scss).
+
+$tk-line: rgba(255, 255, 255, 0.08);
+$tk-muted: #8a93a0;
+$tk-player: #e0703a;
+$tk-admin: #4f8fd6;
+$tk-good: #3fa35b;
+$tk-bad: #d24c4c;
+$tk-warn: #c98500;
+
+.Tickets {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  font-size: 12px;
+}
+
+.Tickets__spacer {
+  flex: 1;
+}
+
+.Tickets__muted {
+  color: $tk-muted;
+}
+
+.Tickets__small {
+  font-size: 11px;
+}
+
+.Tickets__nowrap {
+  white-space: nowrap;
+}
+
+.Tickets__empty {
+  padding: 24px 0;
+  text-align: center;
+  color: $tk-muted;
+}
+
+.Tickets__empty--big {
+  padding-top: 120px;
+  font-size: 14px;
+}
+
+// The list
+
+.Tickets__list {
+  flex: 0 0 280px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid $tk-line;
+}
+
+.Tickets__tabs {
+  display: flex;
+  border-bottom: 1px solid $tk-line;
+}
+
+.Tickets__tab {
+  flex: 1;
+  padding: 8px 0 7px;
+  text-align: center;
+  color: $tk-muted;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+
+  &:hover {
+    color: #fff;
+  }
+}
+
+.Tickets__tab--on {
+  color: #fff;
+  border-bottom-color: $tk-admin;
+}
+
+.Tickets__count {
+  margin-left: 5px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.1);
+  font-size: 10px;
+}
+
+.Tickets__items {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.Tickets__item {
+  padding: 7px 10px 6px;
+  border-bottom: 1px solid $tk-line;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.Tickets__item--late {
+  border-left-color: $tk-warn;
+}
+
+.Tickets__item--selected {
+  background-color: rgba(79, 143, 214, 0.18);
+  border-left-color: $tk-admin;
+
+  &:hover {
+    background-color: rgba(79, 143, 214, 0.22);
+  }
+}
+
+.Tickets__itemTop,
+.Tickets__itemBottom {
+  display: flex;
+  align-items: center;
+}
+
+.Tickets__itemId {
+  margin-right: 6px;
+  color: $tk-muted;
+  font-family: Consolas, monospace;
+}
+
+.Tickets__itemKey {
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.Tickets__itemTitle {
+  margin: 2px 0 4px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  color: #d8dde4;
+}
+
+.Tickets__tag {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 0 6px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.08);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.Tickets__tag--mine {
+  background-color: rgba(63, 163, 91, 0.35);
+}
+
+.Tickets__tag--free {
+  color: $tk-muted;
+}
+
+.Tickets__tag--off {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.16);
+}
+
+.Tickets__tag--bad {
+  background-color: rgba(210, 76, 76, 0.45);
+}
+
+.Tickets__wait {
+  color: $tk-muted;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.Tickets__wait--late {
+  color: #f0b13c;
+}
+
+// The ticket
+
+.Tickets__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.Tickets__notice {
+  padding: 5px 12px;
+  background-color: rgba(63, 163, 91, 0.25);
+}
+
+.Tickets__notice--bad {
+  background-color: rgba(210, 76, 76, 0.3);
+}
+
+.Tickets__head {
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid $tk-line;
+}
+
+.Tickets__titleRow,
+.Tickets__metaRow,
+.Tickets__actRow,
+.Tickets__playerRow,
+.Tickets__colHead,
+.Tickets__namedRow,
+.Tickets__replyActs {
+  display: flex;
+  align-items: center;
+}
+
+.Tickets__bigId {
+  margin-right: 8px;
+  color: $tk-muted;
+  font-size: 15px;
+  font-family: Consolas, monospace;
+}
+
+.Tickets__title {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: bold;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.Tickets__pen {
+  font-size: 10px;
+  color: $tk-muted;
+  opacity: 0;
+}
+
+.Tickets__title:hover .Tickets__pen {
+  opacity: 1;
+}
+
+.Tickets__retitle {
+  flex: 1;
+}
+
+.Tickets__state {
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.Tickets__state--1 {
+  background-color: rgba(210, 76, 76, 0.5);
+}
+
+.Tickets__state--3 {
+  background-color: rgba(63, 163, 91, 0.45);
+}
+
+.Tickets__metaRow {
+  margin: 3px 0 6px;
+
+  & > * {
+    margin-right: 10px;
+  }
+
+  .Tickets__tag {
+    margin-left: 0;
+  }
+}
+
+.Tickets__actRow .Button {
+  margin-right: 3px;
+}
+
+// The player
+
+.Tickets__player {
+  padding: 6px 12px 6px;
+  border-bottom: 1px solid $tk-line;
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.Tickets__playerName {
+  font-weight: bold;
+  margin-right: 6px;
+}
+
+.Tickets__links a {
+  margin-left: 7px;
+  color: #6ea8ff;
+  font-size: 11px;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.Tickets__chips {
+  margin: 4px 0 2px;
+}
+
+.Tickets__chip {
+  display: inline-block;
+  margin: 0 4px 3px 0;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  border: 1px solid $tk-line;
+}
+
+.Tickets__chip--info {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.Tickets__chip--warn {
+  border-color: rgba(201, 133, 0, 0.6);
+  background-color: rgba(201, 133, 0, 0.18);
+}
+
+.Tickets__chip--bad {
+  border-color: rgba(210, 76, 76, 0.7);
+  background-color: rgba(210, 76, 76, 0.3);
+}
+
+.Tickets__note {
+  margin-top: 2px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.Tickets__sev {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background-color: #6b7280;
+}
+
+.Tickets__sev--minor { background-color: #d8b400; }
+.Tickets__sev--medium { background-color: #e0703a; }
+.Tickets__sev--high { background-color: $tk-bad; }
+
+// Conversation and context
+
+.Tickets__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.Tickets__convo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid $tk-line;
+}
+
+.Tickets__context {
+  flex: 1.25;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.Tickets__colHead {
+  padding: 6px 12px;
+  color: $tk-muted;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.Tickets__messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 12px 6px;
+}
+
+.Tickets__msg {
+  margin: 0 0 7px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  border-left: 3px solid $tk-line;
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.Tickets__msg--player {
+  margin-right: 30px;
+  border-left-color: $tk-player;
+}
+
+.Tickets__msg--admin {
+  margin-left: 30px;
+  border-left-color: $tk-admin;
+  background-color: rgba(79, 143, 214, 0.1);
+}
+
+.Tickets__msg--event {
+  padding: 1px 8px;
+  border-left: none;
+  background-color: transparent;
+  text-align: center;
+  color: $tk-muted;
+  font-size: 11px;
+
+  .Tickets__msgHead {
+    display: inline;
+    margin-right: 6px;
+  }
+
+  .Tickets__msgText {
+    display: inline;
+  }
+}
+
+.Tickets__msgHead {
+  margin-bottom: 1px;
+  font-size: 11px;
+}
+
+.Tickets__msgTime {
+  margin-right: 6px;
+  color: $tk-muted;
+  font-family: Consolas, monospace;
+}
+
+.Tickets__msgWho {
+  font-weight: bold;
+}
+
+.Tickets__msgText {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.Tickets__reply {
+  padding: 6px 12px 8px;
+  border-top: 1px solid $tk-line;
+}
+
+.Tickets__saved {
+  margin-bottom: 4px;
+}
+
+.Tickets__savedChip {
+  display: inline-block;
+  margin: 0 4px 3px 0;
+  padding: 1px 7px;
+  border-radius: 10px;
+  border: 1px solid $tk-line;
+  font-size: 11px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.07);
+  }
+}
+
+.Tickets__savedX {
+  color: $tk-bad;
+}
+
+.Tickets__savedEdit {
+  font-size: 11px;
+  color: $tk-muted;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.Tickets__textarea {
+  display: block;
+  width: 100%;
+  height: 64px;
+  box-sizing: border-box;
+  padding: 5px 6px;
+  resize: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  background-color: rgba(0, 0, 0, 0.25);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.Tickets__replyActs {
+  margin-top: 4px;
+
+  .Button {
+    margin-left: 3px;
+  }
+}
+
+.Tickets__saveTitle {
+  width: 120px;
+}
+
+.Tickets__min {
+  margin-left: 6px;
+  padding: 0 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: none;
+
+  &:hover {
+    color: #fff;
+  }
+}
+
+.Tickets__min--on {
+  color: #fff;
+  background-color: rgba(79, 143, 214, 0.4);
+}
+
+.Tickets__sources {
+  padding: 0 12px 4px;
+}
+
+.Tickets__named {
+  margin: 0 12px 4px;
+  padding: 3px 0;
+  border-top: 1px solid $tk-line;
+  border-bottom: 1px solid $tk-line;
+}
+
+.Tickets__namedRow {
+  padding: 1px 0;
+}
+
+.Tickets__namedName {
+  margin-right: 6px;
+  font-weight: bold;
+}
+
+.Tickets__lines {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 12px;
+}
+
+.Tickets__mark {
+  margin: 6px 0;
+  border-top: 1px dashed $tk-player;
+  text-align: center;
+  line-height: 0;
+
+  span {
+    padding: 0 8px;
+    background-color: #252525;
+    color: $tk-player;
+    font-size: 11px;
+  }
+}
+
+// Notes only admins see, and the warning about what the player mustn't hear
+
+.Tickets__msg--note {
+  margin-left: 15px;
+  margin-right: 15px;
+  border-left-color: #c9a400;
+  background-color: rgba(201, 164, 0, 0.1);
+  border-style: dashed;
+}
+
+.Tickets__noteTag {
+  margin-left: 6px;
+  color: #d8b400;
+  font-size: 10px;
+}
+
+.Tickets__secret {
+  margin-bottom: 5px;
+  padding: 5px 8px;
+  border-radius: 3px;
+  border: 1px solid rgba(210, 76, 76, 0.7);
+  background-color: rgba(210, 76, 76, 0.25);
+  font-size: 11px;
+}
+
+.Tickets__modeRow {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.Tickets__mode {
+  margin-right: 4px;
+  padding: 1px 9px;
+  border-radius: 3px;
+  color: $tk-muted;
+  font-size: 11px;
+  cursor: pointer;
+
+  &:hover {
+    color: #fff;
+  }
+}
+
+.Tickets__mode--on {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.Tickets__textarea--note {
+  border-color: rgba(201, 164, 0, 0.6);
+  background-color: rgba(201, 164, 0, 0.07);
+}
+
+// Lines: quoted, and who saw them
+
+.Tickets__line--quoted {
+  background-color: rgba(79, 143, 214, 0.14);
+  box-shadow: inset 3px 0 0 #4f8fd6;
+}
+
+.Tickets__seen {
+  margin-top: 1px;
+  color: #a7b0bc;
+  font-size: 11px;
+}
+
+.Tickets__quoteBar {
+  display: flex;
+  align-items: center;
+  margin: 0 12px 4px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  background-color: rgba(79, 143, 214, 0.18);
+  font-size: 11px;
+
+  a {
+    color: #6ea8ff;
+    cursor: pointer;
+  }
+}
+
+.Tickets__ctxTabs {
+  display: flex;
+  padding: 0 8px;
+  border-bottom: 1px solid $tk-line;
+  margin-bottom: 5px;
+}
+
+.Tickets__ctxTab {
+  padding: 6px 10px 5px;
+  color: $tk-muted;
+  font-size: 12px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+
+  &:hover {
+    color: #fff;
+  }
+}
+
+.Tickets__ctxTab--on {
+  color: #fff;
+  border-bottom-color: $tk-admin;
+}
+
+.Tickets__sources {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+// Kills
+
+.Tickets__killNote {
+  margin: 2px 0 8px;
+  color: #e6a0a0;
+  font-size: 11px;
+}
+
+.Tickets__kill {
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border-left: 3px solid $tk-bad;
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.Tickets__killHead {
+  margin-bottom: 3px;
+}
+
+.Tickets__killSide {
+  margin: 2px 0;
+
+  .Tickets__tag {
+    margin-left: 5px;
+  }
+}
+
+.Tickets__objective {
+  margin-left: 14px;
+  color: #c4cad3;
+  font-size: 11px;
+}
+
+.Tickets__reasons {
+  margin-top: 4px;
+}
+
+.Tickets__chip--ok {
+  border-color: rgba(63, 163, 91, 0.6);
+  background-color: rgba(63, 163, 91, 0.22);
+}
+
+.Tickets__tag--warn {
+  background-color: rgba(201, 133, 0, 0.4);
+}
+
+// Where everyone was
+
+.Tickets__mapPane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 12px 8px;
+}
+
+.Tickets__mapBar {
+  display: flex;
+  align-items: center;
+
+  a {
+    margin-left: 7px;
+    color: #6ea8ff;
+    font-size: 11px;
+    cursor: pointer;
+  }
+}
+
+.Tickets__mapTime {
+  flex: 0 0 52px;
+  font-family: Consolas, monospace;
+}
+
+.Tickets__slider {
+  flex: 1;
+  min-width: 0;
+}
+
+.Tickets__mapLegend {
+  margin: 3px 0 5px;
+  color: $tk-muted;
+  font-size: 11px;
+}
+
+.Tickets__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin: 0 3px 0 9px;
+  border-radius: 50%;
+}
+
+.Tickets__dot--player { background-color: #ff8a3d; }
+.Tickets__dot--named { background-color: #4fa3ff; }
+.Tickets__dot--other { background-color: #b9c0ca; }
+.Tickets__dot--dead { background-color: #e05050; }
+
+.Tickets__mapScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.Tickets__map {
+  position: relative;
+
+  canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+}
+
+.Tickets__mapDot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background-color: #b9c0ca;
+  cursor: pointer;
+}
+
+.Tickets__mapDot--named {
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  background-color: #4fa3ff;
+}
+
+.Tickets__mapDot--player {
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  background-color: #ff8a3d;
+  box-shadow: 0 0 0 2px rgba(255, 138, 61, 0.4);
+}
+
+.Tickets__mapDot--dead {
+  background-color: #e05050;
+}
+
+.Tickets__mapDot--picked {
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.Tickets__mapPicked {
+  padding-top: 5px;
+  border-top: 1px solid $tk-line;
+}
+
+.Tickets__listFoot {
+  padding: 5px 10px;
+  border-top: 1px solid $tk-line;
+  color: $tk-muted;
+  font-size: 11px;
+}
+
+.Tickets__tab {
+  font-size: 11px;
+}

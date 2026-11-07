@@ -121,6 +121,12 @@
 		if("new")
 			if(options && (options["key"] || options["ip"] || options["cid"]))
 				set_player(options["key"], options["ip"], options["cid"])
+			if(options && options["reason"]) // a ticket's Ban: the ticket and its quoted lines (tickets.dm)
+				var/list/form = prefill.Copy()
+				form["serial"] = prefill["serial"] + 1
+				form["full"] = TRUE
+				form["reason"] = copytext_char(options["reason"], 1, BAN_REASON_MAX)
+				prefill = form
 		if("bans")
 			if(options && !isnull(options["search"]))
 				search = options["search"] || ""
@@ -135,6 +141,8 @@
 		if("notes")
 			if(options)
 				notes_open(options["view"], options["ckey"], options["kind"], options["compose"])
+				if(compose && options["text"]) // a ticket's Note: the ticket and its quoted lines (tickets.dm)
+					compose["text"] = copytext_char(options["text"], 1, NOTE_TEXT_MAX)
 			else
 				notes_refresh()
 	ui_interact(user)

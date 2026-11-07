@@ -1,0 +1,242 @@
+// hippie -- Player profile (interfaces/PlayerProfile.js)
+
+$pp-line: rgba(255, 255, 255, 0.08);
+$pp-muted: #8a93a0;
+
+.PlayerProfile {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+
+  a {
+    color: #6ea8ff;
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.PlayerProfile__head {
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid $pp-line;
+}
+
+.PlayerProfile__titleRow,
+.PlayerProfile__nowRow,
+.PlayerProfile__actRow,
+.PlayerProfile__recordRow,
+.PlayerProfile__sectionHead,
+.PlayerProfile__cardHead,
+.PlayerProfile__row {
+  display: flex;
+  align-items: center;
+}
+
+.PlayerProfile__titleRow .Button {
+  margin-right: 6px;
+}
+
+.PlayerProfile__key {
+  margin-right: 10px;
+  font-size: 17px;
+  font-weight: bold;
+}
+
+.PlayerProfile__status {
+  margin-right: 8px;
+  padding: 1px 8px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+}
+
+.PlayerProfile__status--online {
+  background-color: rgba(63, 163, 91, 0.45);
+}
+
+.PlayerProfile__status--left {
+  background-color: rgba(201, 133, 0, 0.35);
+}
+
+.PlayerProfile__nowRow {
+  margin: 5px 0;
+
+  & > * {
+    margin-right: 14px;
+  }
+}
+
+.PlayerProfile__actRow .Button {
+  margin-right: 3px;
+}
+
+.PlayerProfile__recordRow {
+  margin-top: 6px;
+  flex-wrap: wrap;
+
+  & > span {
+    margin-right: 16px;
+  }
+}
+
+.PlayerProfile__spacer,
+.PlayerProfile__grow {
+  flex: 1;
+}
+
+.PlayerProfile__grow {
+  min-width: 0;
+  margin-right: 6px;
+}
+
+.PlayerProfile__muted {
+  color: $pp-muted;
+}
+
+.PlayerProfile__small {
+  font-size: 11px;
+}
+
+.PlayerProfile__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.PlayerProfile__col {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 0 12px 10px;
+
+  & + & {
+    border-left: 1px solid $pp-line;
+  }
+}
+
+.PlayerProfile__section {
+  margin-top: 10px;
+}
+
+.PlayerProfile__sectionHead {
+  margin-bottom: 4px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid $pp-line;
+  color: $pp-muted;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.PlayerProfile__count {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.1);
+  font-size: 10px;
+}
+
+.PlayerProfile__empty {
+  padding: 4px 0;
+  color: $pp-muted;
+}
+
+.PlayerProfile__row {
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+
+  & > * {
+    margin-right: 6px;
+  }
+}
+
+.PlayerProfile__row--top {
+  align-items: flex-start;
+}
+
+.PlayerProfile__name {
+  font-weight: bold;
+}
+
+.PlayerProfile__round {
+  flex: 0 0 104px;
+  color: $pp-muted;
+  font-family: Consolas, monospace;
+  font-size: 11px;
+}
+
+.PlayerProfile__chip {
+  display: inline-block;
+  padding: 0 7px;
+  border-radius: 10px;
+  border: 1px solid $pp-line;
+  background-color: rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.PlayerProfile__chip--bad {
+  border-color: rgba(210, 76, 76, 0.7);
+  background-color: rgba(210, 76, 76, 0.3);
+}
+
+.PlayerProfile__chip--warn {
+  border-color: rgba(201, 133, 0, 0.6);
+  background-color: rgba(201, 133, 0, 0.18);
+}
+
+.PlayerProfile__chip--good {
+  border-color: rgba(63, 163, 91, 0.6);
+  background-color: rgba(63, 163, 91, 0.25);
+}
+
+.PlayerProfile__card {
+  margin-bottom: 5px;
+  padding: 5px 8px;
+  border-left: 3px solid $pp-line;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.PlayerProfile__card--active {
+  border-left-color: #d24c4c;
+  background-color: rgba(210, 76, 76, 0.08);
+}
+
+.PlayerProfile__note {
+  padding: 3px 0 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.PlayerProfile__sev {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background-color: #6b7280;
+}
+
+.PlayerProfile__sev--minor { background-color: #d8b400; }
+.PlayerProfile__sev--medium { background-color: #e0703a; }
+.PlayerProfile__sev--high { background-color: #d24c4c; }
+
+.PlayerProfile__stats {
+  display: flex;
+  margin-bottom: 3px;
+
+  span {
+    margin-right: 14px;
+  }
+}
+
+.PlayerProfile__ticketLink {
+  color: #f0b13c !important;
+}

@@ -146,28 +146,68 @@ GLOBAL_LIST_INIT(log_search_presets, list(
 	var/s = t % 60
 	return "[h ? "[h]:" : ""][m < 10 ? "0[m]" : m]:[s < 10 ? "0[s]" : s]"
 
+/// A round log line as the windows show it (Search Logs, the Tickets window's context)
+/proc/round_log_row(list/entry)
+	var/datum/weakref/actor = entry[RL_REF]
+	var/datum/weakref/target = entry[RL_TREF]
+	return list(
+		"id" = entry[RL_ID],
+		"time" = log_search_clock(entry[RL_TIME]),
+		"kind" = entry[RL_CAT],
+		"text" = entry[RL_TEXT],
+		"ckey" = entry[RL_CKEY],
+		"name" = entry[RL_NAME],
+		"actor" = !!actor?.resolve(),
+		"actor_mob" = ismob(actor?.resolve()),
+		"tckey" = entry[RL_TCKEY],
+		"tname" = entry[RL_TNAME],
+		"target" = !!target?.resolve(),
+		"target_mob" = ismob(target?.resolve()),
+		"area" = entry[RL_AREA],
+		"where" = entry[RL_Z] ? "[entry[RL_X]], [entry[RL_Y]], [entry[RL_Z]]" : null,
+		"seen" = round_log_seen_text(entry),
+	)
+
+/// "Bob Barman (bobkey), Tara Tide (taratide)": who could see a fight, death or bomb
+/proc/round_log_seen_text(list/entry)
+	var/list/seen = entry[RL_SEEN]
+	if(!length(seen))
+		return null
+	var/list/names = list()
+	for(var/list/witness in seen)
+		names += "[witness[2]] ([witness[1]])"
+	return jointext(names, ", ")
+
+/// A line's buttons: pp/vv/flw on who did it, t_pp/t_vv/t_flw on who it was done to, jmp to where. TRUE if it was one.
+/proc/round_log_line_act(action, list/params, mob/user)
+	if(!(action in list("pp", "vv", "flw", "t_pp", "t_vv", "t_flw", "jmp")))
+		return FALSE
+	var/list/entry = round_log_entry(text2num(params["id"]))
+	if(!entry || !user?.client?.holder)
+		return TRUE
+	var/datum/weakref/W = entry[findtext(action, "t_") == 1 ? RL_TREF : RL_REF]
+	var/atom/thing = W?.resolve()
+	switch(action)
+		if("pp", "t_pp")
+			if(ismob(thing))
+				user.client.holder.show_player_panel(thing)
+		if("vv", "t_vv")
+			if(thing)
+				user.client.debug_variables(thing)
+		if("flw", "t_flw")
+			if(ismovable(thing) && (isobserver(user) || user.client.admin_ghost())) // as the player panel's FLW does
+				var/mob/dead/observer/ghost = user.client.mob
+				ghost.ManualFollow(thing)
+		if("jmp")
+			if(entry[RL_Z])
+				user.client.jumptocoord(entry[RL_X], entry[RL_Y], entry[RL_Z])
+	return TRUE
+
 /datum/log_search/ui_data(mob/user)
 	var/list/rows = list()
 	var/list/shown = oldest_first ? reverseRange(results.Copy()) : results
 	for(var/list/entry in shown)
-		var/datum/weakref/actor = entry[RL_REF]
-		var/datum/weakref/target = entry[RL_TREF]
-		rows += list(list(
-			"id" = entry[RL_ID],
-			"time" = log_search_clock(entry[RL_TIME]),
-			"kind" = entry[RL_CAT],
-			"text" = entry[RL_TEXT],
-			"ckey" = entry[RL_CKEY],
-			"name" = entry[RL_NAME],
-			"actor" = !!actor?.resolve(),
-			"actor_mob" = ismob(actor?.resolve()),
-			"tckey" = entry[RL_TCKEY],
-			"tname" = entry[RL_TNAME],
-			"target" = !!target?.resolve(),
-			"target_mob" = ismob(target?.resolve()),
-			"area" = entry[RL_AREA],
-			"where" = entry[RL_Z] ? "[entry[RL_X]], [entry[RL_Y]], [entry[RL_Z]]" : null,
-		))
+		rows += list(round_log_row(entry))
 	var/list/kind_list = list()
 	for(var/kind in GLOB.log_search_kinds)
 		kind_list += list(list("name" = kind, "desc" = GLOB.log_search_kinds[kind], "count" = GLOB.round_log_counts[kind] || 0, "on" = (kind in kinds)))
@@ -271,26 +311,7 @@ GLOBAL_LIST_INIT(log_search_presets, list(
 		if("refresh")
 			search()
 			return TRUE
-	// a line's buttons
-	var/list/entry = round_log_entry(text2num(params["id"]))
-	if(!entry)
-		return
-	var/datum/weakref/W = entry[findtext(action, "t_") == 1 ? RL_TREF : RL_REF]
-	var/atom/thing = W?.resolve()
-	switch(action)
-		if("pp", "t_pp")
-			if(ismob(thing))
-				usr.client.holder.show_player_panel(thing)
-		if("vv", "t_vv")
-			if(thing)
-				usr.client.debug_variables(thing)
-		if("flw", "t_flw")
-			if(ismovable(thing) && (isobserver(usr) || usr.client.admin_ghost())) // as the player panel's FLW does
-				var/mob/dead/observer/ghost = usr.client.mob
-				ghost.ManualFollow(thing)
-		if("jmp")
-			if(entry[RL_Z])
-				usr.client.jumptocoord(entry[RL_X], entry[RL_Y], entry[RL_Z])
+	round_log_line_act(action, params, usr)
 
 /// Lines kept, by kind (every one this round, not only the ones still kept)
 GLOBAL_LIST_EMPTY(round_log_counts)

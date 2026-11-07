@@ -79,7 +79,10 @@
 	if(M.client)
 		source = LOGSRC_CLIENT
 	body += "<a href='?_src_=holder;[HrefToken()];individuallog=[REF(M)];log_src=[source]'>LOGS</a> - "
-	body += "<a href='?_src_=holder;[HrefToken()];searchlogs=[M.ckey || M.real_name || M.name]'>SEARCH LOGS</a>\] <br>" // hippie -- log_search.dm
+	body += "<a href='?_src_=holder;[HrefToken()];searchlogs=[M.ckey || M.real_name || M.name]'>SEARCH LOGS</a>" // hippie -- log_search.dm
+	if(M.ckey) // hippie -- player_profile.dm
+		body += " - <a href='?_src_=holder;[HrefToken()];playerprofile=[M.ckey]'>PROFILE</a>"
+	body += "\] <br>"
 
 	body += "<b>Mob type</b> = [M.type]<br><br>"
 

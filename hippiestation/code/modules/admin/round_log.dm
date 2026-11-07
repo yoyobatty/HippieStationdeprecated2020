@@ -19,7 +19,9 @@
 #define RL_TCKEY 12
 #define RL_TNAME 13
 #define RL_TREF 14
-#define RL_LEN 14
+/// Fights, deaths and bombs: who could see it, list(list(ckey, name)) (the Tickets window's witnesses, tickets.dm)
+#define RL_SEEN 15
+#define RL_LEN 15
 
 #define ROUND_LOG_MAX 80000
 #define ROUND_LOG_TRIM 10000
@@ -105,11 +107,24 @@ GLOBAL_VAR_INIT(round_log_quiet, FALSE)
 			entry[RL_TCKEY] = TM.ckey
 	if(entry[RL_CAT] == "Attack" && findtext(entry[RL_TEXT], " has died "))
 		entry[RL_CAT] = "Death"
+	if(entry[RL_Z] && (entry[RL_CAT] == "Attack" || entry[RL_CAT] == "Death" || entry[RL_CAT] == "Bomb"))
+		entry[RL_SEEN] = round_log_witnesses(locate(entry[RL_X], entry[RL_Y], entry[RL_Z]), actor, target)
 	var/kind = findtext(entry[RL_CAT], "Investigate") == 1 ? "Investigate" : entry[RL_CAT]
 	GLOB.round_log_counts[kind]++
 	GLOB.round_log += list(entry)
 	if(GLOB.round_log.len > ROUND_LOG_MAX)
 		GLOB.round_log.Cut(1, ROUND_LOG_TRIM + 1)
+
+/// The players and bots who could see a place, but for the two the line's about: list(list(ckey, name))
+/proc/round_log_witnesses(turf/T, atom/actor, atom/target)
+	if(!T)
+		return null
+	var/list/seen
+	for(var/mob/living/M in viewers(7, T))
+		if(!M.ckey || M == actor || M == target || M.stat >= UNCONSCIOUS || M.eye_blind)
+			continue
+		LAZYADD(seen, list(list(M.ckey, M.real_name)))
+	return seen
 
 /// Who last hurt this mob, from the round log, for its death line: "last hurt by X, 12 s before"
 /proc/round_log_last_hurt(mob/living/victim)

@@ -13,13 +13,20 @@
 	verbs -= /client/verb/mentorhelp
 	spawn(300)
 		verbs += /client/verb/mentorhelp	// 30 second cool-down for mentorhelp
+	mentorhelp_send(msg)
 
+/// The mentorhelp itself (hippie -- questions.dm): the verb's cooldown takes the verb away, and a verb that's been taken away
+/// can't be called, so the Ask for help window and a mentor PM to someone who left call this instead
+/client/proc/mentorhelp_send(msg)
+	if(prefs.muted & MUTE_MENTOR)
+		return
 	msg = sanitize(copytext(msg,1,MAX_MESSAGE_LEN))
 	if(!msg)	return
 	if(!mob)	return						//this doesn't happen
 
+	var/datum/help_question/question = help_question_asked(src, msg) // hippie -- questions.dm
 	var/show_char = CONFIG_GET(flag/mentors_mobname_only)
-	var/mentor_msg = "<span class='mentornotice'><b><font color='purple'>MENTORHELP:</b> <b>[key_name_mentor(src, 1, 0, 1, show_char)]</b>: [msg]</font></span>"
+	var/mentor_msg = "<span class='mentornotice'><b><font color='purple'>MENTORHELP:</b> <b>[key_name_mentor(src, 1, 0, 1, show_char)]</b>: [msg]</font> (<a href='?_src_=mentor;mentor_questions=[question.id];[MentorHrefToken(TRUE)]'>QUESTION #[question.id]</a>)</span>"
 	log_mentor("MENTORHELP: [key_name_mentor(src, 0, 0, 0, 0)]: [msg]")
 
 	for(var/client/X in GLOB.mentors | GLOB.admins)

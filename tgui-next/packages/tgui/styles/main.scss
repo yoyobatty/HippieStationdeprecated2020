@@ -34,6 +34,10 @@
 @include meta.load-css('./components/OrionTrail.scss');
 @include meta.load-css('./components/AdminFind.scss');
 @include meta.load-css('./components/LogSearch.scss');
+@include meta.load-css('./components/Tickets.scss');
+@include meta.load-css('./components/HelpWindow.scss');
+@include meta.load-css('./components/PlayerProfile.scss');
+@include meta.load-css('./components/AdminAlerts.scss');
 @include meta.load-css('./components/BanWindow.scss');
 @include meta.load-css('./components/ResearchDashboard.scss');
 @include meta.load-css('./components/SiliconLaws.scss');
