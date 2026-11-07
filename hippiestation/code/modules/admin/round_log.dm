@@ -72,8 +72,13 @@ GLOBAL_VAR(round_log_category)
 		return
 	round_log_add(category, text)
 
+/// Set around things the round log shouldn't keep (a map's corpses being killed as they're made); the files still get them
+GLOBAL_VAR_INIT(round_log_quiet, FALSE)
+
 /// Keeps a line. actor and target are what did it and what it was done to, when the caller knows.
 /proc/round_log_add(category, text, atom/actor, atom/target)
+	if(GLOB.round_log_quiet)
+		return
 	var/list/entry = new /list(RL_LEN)
 	entry[RL_ID] = ++GLOB.round_log_total
 	entry[RL_TIME] = world.time

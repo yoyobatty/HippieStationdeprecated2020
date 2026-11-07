@@ -83,7 +83,9 @@
 	if(disease)
 		M.ForceContractDisease(new disease)
 	if(death)
+		GLOB.round_log_quiet = TRUE // hippie -- a map's corpse never lived: not a death for Search Logs (round_log.dm)
 		M.death(1) //Kills the new mob
+		GLOB.round_log_quiet = FALSE
 
 	M.adjustOxyLoss(oxy_damage)
 	M.adjustBruteLoss(brute_damage)

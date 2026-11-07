@@ -32,9 +32,18 @@
 		log_admin("[key_name(usr)] failed to create an infiltration team.")
 
 /datum/admins/proc/hippieTopic(href, href_list)
-	if(href_list["searchlogs"]) // a player panel's SEARCH LOGS (log_search.dm)
+	if(href_list["searchlogs"]) // a player panel's SEARCH LOGS, or LOGS by an ahelp (log_search.dm): a ckey or name, or a ref
 		if(check_rights(R_ADMIN))
-			usr.client.open_log_search(href_list["searchlogs"])
+			var/who = href_list["searchlogs"]
+			if(findtext(who, "\[0x") == 1 || findtext(who, "\[mob_") == 1)
+				var/datum/D = locate(who)
+				if(istype(D, /client))
+					var/client/target_client = D
+					who = target_client.ckey
+				else if(ismob(D))
+					var/mob/M = D
+					who = M.ckey || M.real_name || M.name
+			usr.client.open_log_search(who)
 		return
 	if(href_list["makeAntag"] == "shadowling")
 		hippie_makeShadowling(src)

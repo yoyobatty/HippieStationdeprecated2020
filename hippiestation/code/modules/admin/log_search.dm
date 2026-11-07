@@ -171,6 +171,18 @@ GLOBAL_LIST_INIT(log_search_presets, list(
 	var/list/kind_list = list()
 	for(var/kind in GLOB.log_search_kinds)
 		kind_list += list(list("name" = kind, "desc" = GLOB.log_search_kinds[kind], "count" = GLOB.round_log_counts[kind] || 0, "on" = (kind in kinds)))
+	// The last ten minutes at a glance: what a new admin most wants to know first
+	var/list/recent_counts = list("Death" = 0, "Bomb" = 0, "Attack" = 0, "Admin" = 0)
+	var/since = world.time - 10 MINUTES
+	for(var/i in GLOB.round_log.len to 1 step -1)
+		var/list/entry = GLOB.round_log[i]
+		if(entry[RL_TIME] < since)
+			break
+		if(entry[RL_CAT] in recent_counts)
+			recent_counts[entry[RL_CAT]]++
+	var/list/recent = list()
+	for(var/kind in recent_counts)
+		recent += list(list("kind" = kind, "count" = recent_counts[kind]))
 	var/list/presets = list()
 	for(var/name in GLOB.log_search_presets)
 		presets += list(list("name" = name, "desc" = GLOB.log_search_presets[name][4], "on" = preset == name))
@@ -182,6 +194,7 @@ GLOBAL_LIST_INIT(log_search_presets, list(
 		"oldest_first" = oldest_first,
 		"kinds" = kind_list,
 		"presets" = presets,
+		"recent" = recent,
 		"rows" = rows,
 		"matched" = matched,
 		"shown" = rows.len,
@@ -222,6 +235,14 @@ GLOBAL_LIST_INIT(log_search_presets, list(
 			else if(kind in GLOB.log_search_kinds)
 				kinds += kind
 			preset = null
+			search()
+			return TRUE
+		if("recent") // a count on the last-ten-minutes line
+			if(!(params["kind"] in GLOB.log_search_kinds))
+				return
+			reset()
+			kinds = list(params["kind"])
+			minutes = 10
 			search()
 			return TRUE
 		if("all_kinds")

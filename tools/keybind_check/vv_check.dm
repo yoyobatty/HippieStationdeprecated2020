@@ -400,6 +400,7 @@ GLOBAL_LIST_EMPTY(vc_probes)
 	vc_check("a player finds lines on either side ([LS.matched], [LS.matched ? LS.results[1][RL_NAME] : "-"])", LS.matched >= 1 && LS.results[1][RL_TNAME] == alice.name)
 	// a quick start, clicked in the page (a quick start keeps the player box: Clear first)
 	vc_act(LS, H, "clear")
+	sleep(15) // the page redraws after Clear: a click mid-redraw can land on a button being replaced
 	vc_js(C, ui?.window_id, "var b = Array.prototype.slice.call(document.querySelectorAll('.Button')).filter(function (e) { return e.textContent.trim() == 'Deaths'; })\[0\]; if (b) b.click();")
 	sleep(20)
 	vc_check("the Deaths quick start, clicked ([LS.preset], [LS.matched] lines)", LS.preset == "Deaths" && LS.matched >= 1 && LS.results[1][RL_CAT] == "Death")
@@ -419,10 +420,26 @@ GLOBAL_LIST_EMPTY(vc_probes)
 	vc_shot("logs_player")
 	var/shown_who = vc_ask(C, ui?.window_id, "who", "document.querySelectorAll('.LogSearch__whoBox input')\[0\].value")
 	vc_check("and its box says who ([shown_who])", shown_who == bob.name)
+	// LOGS by an ahelp (ADMIN_SEARCHLOGS): a ref, read as the player
+	C.holder.Topic("searchlogs=[REF(alice)]", list("searchlogs" = REF(alice), "admin_token" = C.holder.href_token))
+	sleep(10)
+	vc_check("an ahelp's LOGS link (a ref) opens on that player ([LS.who])", LS.who == alice.name)
+	// the last ten minutes line
+	vc_act(LS, H, "recent", list("kind" = "Death"))
+	vc_check("the last-ten-minutes Death count opens those deaths ([LS.matched], [LS.minutes] min)", LS.minutes == 10 && LS.matched >= 1 && LS.results[1][RL_CAT] == "Death")
+	sleep(10)
+	vc_shot("logs_recent")
+	vc_act(LS, H, "all_kinds") // the chips stay as they were left: back to everything
+	vc_act(LS, H, "search", list("text" = "", "who" = bob.name, "area" = "", "minutes" = "0"))
 	// a line's VV button
-	vc_act(LS, H, "vv", list("id" = "[LS.results[1][RL_ID]]"))
+	var/list/first = LS.results[1]
+	for(var/list/entry in LS.results) // a line Bob did, not one that only names him
+		if(entry[RL_NAME] == bob.name)
+			first = entry
+			break
+	vc_act(LS, H, "vv", list("id" = "[first[RL_ID]]"))
 	sleep(15)
-	vc_check("a line's VV opens who did it", length(C.vv_windows_showing(bob)) == 1)
+	vc_check("a line's VV opens who did it ([first[RL_NAME]]: [copytext(first[RL_TEXT], 1, 60)])", length(C.vv_windows_showing(bob)) == 1)
 	for(var/id in C.vv_windows)
 		C << browse(null, "window=[id]")
 	SStgui.close_user_uis(H)

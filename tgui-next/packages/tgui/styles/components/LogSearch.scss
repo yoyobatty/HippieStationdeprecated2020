@@ -187,3 +187,17 @@ $ls-muted: #8a93a0;
     text-decoration: underline;
   }
 }
+
+.LogSearch__recent {
+  margin-right: 14px;
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.LogSearch__recent--none {
+  color: $ls-muted;
+}

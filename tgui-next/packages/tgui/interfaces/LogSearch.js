@@ -8,6 +8,14 @@ import { Button, Icon, Input } from '../components';
 // it, who it was done to and where. Data and actions from
 // hippiestation/code/modules/admin/log_search.dm.
 
+// The last-ten-minutes line's words for each kind
+const RECENT_NAMES = {
+  Death: 'death',
+  Bomb: 'bomb',
+  Attack: 'attack',
+  Admin: 'admin action',
+};
+
 const MINUTES = [[0, 'All round'], [5, '5 min'], [15, '15 min'],
   [30, '30 min'], [60, '1 hour']];
 
@@ -122,6 +130,20 @@ export class LogSearch extends Component {
               selected={preset.on}
               title={preset.desc}
               onClick={() => act('preset', { name: preset.name })} />
+          ))}
+        </div>
+        <div className="LogSearch__row">
+          <span className="LogSearch__label">Last 10 min</span>
+          {(data.recent || []).map(item => (
+            <span
+              key={item.kind}
+              className={'LogSearch__recent'
+                + (item.count ? '' : ' LogSearch__recent--none')}
+              onClick={() => act('recent', { kind: item.kind })}>
+              <span className={kindClass(item.kind)} />
+              {item.count} {RECENT_NAMES[item.kind]
+                + (item.count === 1 ? '' : 's')}
+            </span>
           ))}
         </div>
         <div className="LogSearch__row">
