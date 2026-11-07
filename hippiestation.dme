@@ -3390,6 +3390,7 @@
 #include "hippiestation\code\modules\bots_ai\bot_requests.dm"
 #include "hippiestation\code\modules\bots_ai\bot_asks.dm"
 #include "hippiestation\code\modules\bots_ai\bot_shuttle.dm"
+#include "hippiestation\code\modules\bots_ai\bot_talk_more.dm"
 #include "hippiestation\code\modules\bots_ai\bot_telemetry.dm"
 #include "hippiestation\code\modules\bots_ai\bot_witness.dm"
 #include "hippiestation\code\modules\bots_ai\player_log.dm"

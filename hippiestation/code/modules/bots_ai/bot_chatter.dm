@@ -168,6 +168,10 @@ GLOBAL_LIST_EMPTY(bot_radio_lately)
 	var/addressed = named || (!radio_freq && is_spoken_to_by(talker))
 	if(!addressed && answer_whereabouts(talker, lower_msg, radio_freq)) //"where's Max?" to everybody, by somebody who can see them
 		return
+	// Somebody dead is news for whoever's in earshot, not just who it's said to: the first one near enough takes it up (bot_talk_more.dm).
+	if(!addressed && !radio_freq && get_dist(owner, talker) <= 7 && bot_is_death_news(lower_msg) && world.time >= GLOB.bot_death_news_taken + 5 SECONDS)
+		GLOB.bot_death_news_taken = world.time
+		addressed = TRUE
 	if(!addressed && (radio_freq || get_dist(owner, talker) > 3))
 		return
 	// Someone talking to it gets an answer every time; what it merely overhears, it reacts to now and then.
@@ -224,6 +228,15 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 			return waiting
 	if(bot_text_has_any(lower_msg, list("what you in for", "what are you in for", "what're you in for", "why are you in", "what did you do")))
 		return what_im_in_for() //bot_asks.dm
+	// bot_talk_more.dm: what the user said in played rounds and got nothing back for
+	if(bot_text_has_any(lower_msg, list("truce", "don't kill me", "dont kill me", "don't hurt me", "dont hurt me", "don't shoot", "dont shoot", "i'm friendly", "im friendly", "i surrender", "i give up")))
+		return peace_offered(talker)
+	if(bot_text_has_any(lower_msg, list("you need healing", "let me heal you", "let me patch you", "i'll heal you", "ill heal you", "you're hurt", "youre hurt", "you're bleeding", "youre bleeding", "patch you up", "need patching")))
+		return healing_offered(talker)
+	if(!over_radio && bot_text_has_any(lower_msg, list("give me back", "give it back", "give back my", "that's mine", "thats mine", "return my")))
+		return give_back_theirs(talker, lower_msg)
+	if(bot_is_death_news(lower_msg))
+		return death_news(talker, over_radio)
 	if(!over_radio)
 		if(bot_text_has_any(lower_msg, list("follow me", "come with me", "come here")))
 			return try_tag_along(talker)

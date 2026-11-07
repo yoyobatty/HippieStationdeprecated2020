@@ -330,3 +330,50 @@
 		fail_reason = "said \"[lines[1]]\" to its own name"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+// bot_talk_more.dm: the user's lines that got nothing or a shrug
+
+/datum/bot_scenario/chat/gives_back_id
+	name = "chat: told \"give me back my ID\" while carrying it, it hands it over"
+	desc = "The bot has the visitor's ID card in its bag. The visitor says give it back; it sets it down for them. The user's \"give me back my pda\" got \"Mm.\"."
+	layout = list(
+		"#########",
+		"#B.C....#",
+		"#########")
+	var/obj/item/card/id/card
+
+/datum/bot_scenario/chat/gives_back_id/post_spawn()
+	..()
+	card = new(bot)
+	card.registered_name = visitor.real_name
+	SEND_SIGNAL(bot.back, COMSIG_TRY_STORAGE_INSERT, card, null, TRUE, TRUE)
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "give me back my id"), 2 SECONDS)
+
+/datum/bot_scenario/chat/gives_back_id/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (isturf(card.loc) && get_dist(card, bot) <= 1) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/chat/body_seen
+	name = "chat: told somebody's dead with the body in sight, it calls Medical about it"
+	desc = "A body on the floor in the room, and somebody says \"she's dead!\". The bot calls Medical to it on the radio. The user's \"she's dead!\" got nothing."
+	layout = list(
+		"#########",
+		"#B.C..d.#",
+		"#########")
+
+/datum/bot_scenario/chat/body_seen/post_spawn()
+	..()
+	brain.gym_scripted = FALSE //call_for() keeps a scripted bot quiet
+	var/mob/living/carbon/human/body = stand_in(first_marker("d"), "Robin Deadman")
+	body.mind_initialize()
+	body.death()
+	var/mob/living/carbon/human/doctor = stand_in(first_marker("."), "Medbay Doctor")
+	doctor.mind_initialize()
+	doctor.mind.assigned_role = "Medical Doctor" //somebody to hear it
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "she's dead!"), 2 SECONDS)
+
+/datum/bot_scenario/chat/body_seen/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return bot_transcript_said("called for a medical") ? BOT_GYM_PASS : BOT_GYM_PENDING
