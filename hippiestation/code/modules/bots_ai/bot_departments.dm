@@ -444,14 +444,34 @@ GLOBAL_VAR_INIT(bot_next_engine_look, 0)
 
 /datum/bot_duty/check_the_engine/try_start(datum/bot_brain/bot)
 	var/turf/tesla = bot_caged_tesla_site() //goals/setup_tesla_engine.dm
+	// A lit supermatter's looked in on as well, at its cooling loop: a saboteur switching the pumps off one by one is caught at it by
+	// an engineer who's there (bot_witness_sabotage()), and nothing else saves the crystal (the user's ruling, 2026-11-07).
+	var/obj/machinery/power/supermatter_crystal/crystal = tesla ? null : bot.station_crystal() //goals/setup_supermatter.dm
+	if(crystal && crystal.power < 100)
+		crystal = null
 	var/on_rounds = FALSE
 	if(!bot.engine_alarm_at || world.time > bot.engine_alarm_at + 2 MINUTES)
 		// Now and then one goes and looks at a running tesla anyway: an emitter somebody's switched off is seen, not known
 		// (bot_emitter_trouble()), and in a Bot Shift nobody went near one in the five minutes a saboteur's field took to fail.
-		if(!tesla || bot.saboteur || world.time < GLOB.bot_next_engine_look || !prob(25))
+		if((!tesla && !crystal) || bot.saboteur || world.time < GLOB.bot_next_engine_look || !prob(25))
 			return FALSE
 		on_rounds = TRUE
 	bot.engine_alarm_at = 0
+	if(crystal)
+		var/obj/machinery/atmospherics/components/binary/pump/loop_pump
+		for(var/obj/machinery/atmospherics/components/binary/pump/P as anything in bot_instances_of(/obj/machinery/atmospherics/components/binary/pump))
+			if(P.z != crystal.z || get_dist(crystal, P) > 22 || !bot.sm_loop_pump(P) || bot_in_crystal_rads(P))
+				continue
+			if(!loop_pump || get_dist(bot.owner, P) < get_dist(bot.owner, loop_pump))
+				loop_pump = P
+		if(!loop_pump || !bot.can_walk_lawfully_to(loop_pump) || !bot.assign_goal(new /datum/bot_goal/stand_over_engine(loop_pump)))
+			if(on_rounds)
+				GLOB.bot_next_engine_look = world.time + 30 SECONDS
+			return FALSE
+		if(on_rounds)
+			GLOB.bot_next_engine_look = world.time + rand(3 MINUTES, 6 MINUTES)
+		bot_tally("engine checked")
+		return TRUE
 	var/obj/machinery/power/emitter/nearest
 	for(var/obj/machinery/power/emitter/E as anything in bot_instances_of(/obj/machinery/power/emitter))
 		// The engine's own, welded down by it: the nearest was as often as not a spare in Secure Storage behind a sealed door, the walk

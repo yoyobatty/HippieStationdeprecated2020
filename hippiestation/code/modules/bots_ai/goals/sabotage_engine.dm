@@ -132,6 +132,7 @@
 	var/atom/part
 	var/waiting_since = 0
 	var/switched = FALSE
+	var/caught = FALSE
 
 /datum/bot_step/paced/sabotage_switch_off/New(datum/bot_goal/sabotage_engine/G, atom/A)
 	. = ..()
@@ -144,6 +145,14 @@
 
 /datum/bot_step/paced/sabotage_switch_off/do_click(datum/bot_brain/bot)
 	if(switched || QDELETED(part) || !bot.owner.Adjacent(part))
+		return FALSE
+	// Caught at it by an engineer (bot_witness_sabotage()): it leaves off and the act's given up a while. A saboteur that had an engineer
+	// going for it switched off the rest of the loop all the same, and the crystal went up at full power.
+	if(bot.caught_at_it && world.time < bot.caught_at_it + 1 MINUTES)
+		caught = TRUE
+		bot_log(bot, "SABOTAGE: caught at it - leaving off")
+		LAZYSET(bot.sabotage_given_up, goal.act.id, world.time + 10 MINUTES)
+		bot.sabotage_underway = null
 		return FALSE
 	if(!bot.sabotage_unwatched(waiting_since))
 		wait_for = 10
@@ -172,10 +181,12 @@
 	goal.done++
 	bot_log(bot, "SABOTAGE: [istype(part, /obj/machinery/particle_accelerator/control_box) ? "turned [part] all the way up" : "switched off [part]"]")
 	log_game("BOT SABOTAGE: [key_name(bot.owner)] sabotaged [part] at [AREACOORD(part)]")
-	bot_witness_sabotage(bot.owner, "is messing with the engine")
+	bot_witness_sabotage(bot.owner, "is messing with the engine", TRUE)
 	return FALSE
 
 /datum/bot_step/paced/sabotage_switch_off/finish(datum/bot_brain/bot)
+	if(caught)
+		return GOAL_STEP_FAIL
 	return GOAL_STEP_SUCCESS //one it couldn't get at doesn't stop it going on to the next
 
 /// Into a radiation suit before going in among a running crystal's radiation: fetched from a radiation closet if it hasn't one.

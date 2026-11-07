@@ -47,6 +47,8 @@ GLOBAL_LIST_INIT(bot_sabotage_acts, init_bot_sabotage_acts())
 /datum/bot_brain
 	/// A traitor with sabotage on its mind as well as its objectives (still undercover: traitor_plan stays BOT_TRAITOR_UNDERCOVER).
 	var/saboteur = FALSE
+	/// When an engineer last caught it at the engine (bot_witness_sabotage()).
+	var/caught_at_it = 0
 	var/sabotage_acts_left = 0
 	var/next_sabotage_time = 0
 	/// Acts it's done, by id.
@@ -148,16 +150,38 @@ GLOBAL_LIST_INIT(bot_sabotage_acts, init_bot_sabotage_acts())
 	log_game("BOT SABOTAGE: [key_name(owner)] did [act.id] in [where]")
 
 /// Anybody who saw it calls it in: from the moment it's done in front of them.
-/proc/bot_witness_sabotage(mob/living/carbon/human/saboteur, details)
-	for(var/datum/bot_brain/B as anything in bot_witnesses_of(saboteur, list(saboteur)))
+/// `engine`: it's the engine they're at, and an engineer who sees it with any nerve goes for them there and then (the user's ruling,
+/// 2026-11-07: catch the saboteur in the act). Engineers put a sabotaged supermatter's loop back within seconds of the saboteur
+/// finishing, and it went up all the same: eight pumps off one by one had the chamber at thousands of kelvin first.
+/proc/bot_witness_sabotage(mob/living/carbon/human/saboteur, details, engine = FALSE)
+	var/called = FALSE
+	var/list/witnesses = bot_witnesses_of(saboteur, list(saboteur))
+	// At the engine, an engineer in the engine room with them knows who's switching the pumps off, sight line or no: a Chief Engineer
+	// put a supermatter's loop back on one side of its chamber while the saboteur switched the filters off on the other, five tiles off
+	// with the chamber walls between, and never knew it.
+	if(engine && istype(get_area(saboteur), /area/engine))
+		for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+			var/mob/living/carbon/human/H = B.owner
+			if(!(B in witnesses) && H != saboteur && !QDELETED(H) && H.stat == CONSCIOUS && H.z == saboteur.z && get_dist(H, saboteur) <= BOT_SIGHT_RANGE && istype(get_area(H), /area/engine))
+				witnesses += B
+	for(var/datum/bot_brain/B as anything in witnesses)
 		if(B.bot_traitor || B.owner.incapacitated() || B.state == BOT_STATE_ARREST)
 			continue
+		if(engine && (B.work_role() in GLOB.engineering_positions) && B.nerve >= 0.3 && B.state != BOT_STATE_COMBAT)
+			bot_say(B.owner, pick("Hey! Get away from that!", "What are you doing?! Leave the engine alone!", "Stop! Get off those pumps!"))
+			bot_tally("saboteurs caught at the engine")
+			log_game("BOT ENGINE: [key_name(B.owner)] caught [key_name(saboteur)] at the engine and went for them")
+			if(saboteur.bot_brain)
+				saboteur.bot_brain.caught_at_it = world.time
+			B.step_in_against(saboteur) //bot_witness.dm: a fight, and a saboteur in a fight isn't switching anything off
+		if(called)
+			continue
+		called = TRUE //one call does it: the rest heard it
 		if(B.is_security_job())
 			B.file_crime(saboteur, "Sabotage", "[capitalize(details)] in [get_area_name(saboteur, TRUE)].", BOT_CRIME_MAJOR)
 			B.begin_arrest(saboteur)
 		else
 			B.call_it_in(saboteur, "Sabotage", details, BOT_CRIME_MAJOR)
-		return //one call does it: the rest heard it
 
 /// Waits for the room to empty, for as long as it'll wait. TRUE once it's going ahead.
 /datum/bot_brain/proc/sabotage_unwatched(started_waiting)
