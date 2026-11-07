@@ -1,0 +1,548 @@
+// hippie -- the Auto-Doc (interfaces/Autodoc.js) and Hippie's chemistry
+// instruments (interfaces/ChemInstruments.js)
+
+$clinic-bg: #1d2a30;
+$clinic-panel: #24353c;
+$clinic-accent: #4fd1c5;
+
+// The Auto-Doc
+
+.Autodoc {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  padding: 10px;
+  background: linear-gradient(#22333a, #18232a);
+  font-family: 'Bahnschrift', 'Segoe UI', sans-serif;
+  color: #d5e4e8;
+}
+
+.Autodoc__left {
+  flex: none;
+  width: 200px;
+  margin-right: 10px;
+  padding: 8px;
+  border-radius: 8px;
+  background-color: $clinic-panel;
+  box-shadow: inset 0 0 0 1px rgba(79, 209, 197, 0.15);
+  text-align: center;
+}
+
+.Autodoc__patient {
+  margin-bottom: 6px;
+  text-align: left;
+}
+
+.Autodoc__patientName {
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.Autodoc__health {
+  position: relative;
+  height: 14px;
+  overflow: hidden;
+  border-radius: 7px;
+  background-color: #111a1e;
+}
+
+.Autodoc__healthFill {
+  height: 100%;
+  transition: width 0.5s;
+}
+
+.Autodoc__healthText {
+  position: absolute;
+  top: 0;
+  right: 6px;
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.Autodoc__figure {
+  width: 160px;
+  height: 240px;
+}
+
+.Autodoc__part {
+  fill: #35505a;
+  stroke: #4f7480;
+  stroke-width: 1;
+  cursor: pointer;
+  transition: fill 0.15s;
+}
+
+.Autodoc__part:hover {
+  fill: #44707c;
+}
+
+.Autodoc__part--small {
+  fill: #2a414a;
+}
+
+.Autodoc__part--on,
+.Autodoc__part--on:hover {
+  fill: $clinic-accent;
+  stroke: #b2f5ea;
+}
+
+.Autodoc__part--busy {
+  animation: Autodoc-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes Autodoc-pulse {
+  50% { fill: #2c7a7b; }
+}
+
+.Autodoc__target {
+  color: $clinic-accent;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.Autodoc__right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.Autodoc__heading {
+  margin-bottom: 8px;
+  color: #9fb8bf;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.Autodoc__cards {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.Autodoc__card {
+  margin-bottom: 5px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background-color: $clinic-panel;
+  border-left: 3px solid #35505a;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.Autodoc__card:hover {
+  background-color: #2b414a;
+}
+
+.Autodoc__card--on,
+.Autodoc__card--on:hover {
+  border-left-color: $clinic-accent;
+  background-color: #23474b;
+  color: #fff;
+}
+
+.Autodoc__start {
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 6px;
+  background: linear-gradient(#2f9e8f, #23756b);
+  box-shadow: 0 2px 0 #0f2a27;
+  color: #fff;
+  font-size: 14px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.Autodoc__start--off {
+  background: #2b3a40;
+  box-shadow: none;
+  color: #6c8790;
+  cursor: default;
+}
+
+.Autodoc__steps {
+  position: relative;
+  padding-left: 6px;
+}
+
+.Autodoc__step {
+  position: relative;
+  padding: 0 0 14px 22px;
+  font-size: 13px;
+}
+
+.Autodoc__step::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 14px;
+  bottom: 0;
+  width: 2px;
+  background-color: #35505a;
+}
+
+.Autodoc__step:last-child::before {
+  display: none;
+}
+
+.Autodoc__dot {
+  position: absolute;
+  left: 0;
+  top: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #35505a;
+}
+
+.Autodoc__step--done {
+  color: #7f9aa2;
+}
+
+.Autodoc__step--done .Autodoc__dot {
+  background-color: #2f9e8f;
+}
+
+.Autodoc__step--now {
+  color: #fff;
+  font-weight: bold;
+}
+
+.Autodoc__step--now .Autodoc__dot {
+  background-color: $clinic-accent;
+  box-shadow: 0 0 8px $clinic-accent;
+}
+
+.Autodoc__dim {
+  color: #6c8790;
+}
+
+// The chemistry instruments
+
+.ChemInst {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  padding: 10px;
+  background: linear-gradient(#2b3036, #1e2226);
+  font-family: 'Bahnschrift', 'Segoe UI', sans-serif;
+  color: #d8dee4;
+}
+
+.ChemInst__vesselBox {
+  flex: none;
+  width: 150px;
+  margin-right: 12px;
+  text-align: center;
+}
+
+.ChemInst__vessel {
+  position: relative;
+  width: 110px;
+  height: 220px;
+  margin: 6px auto 6px;
+  overflow: hidden;
+  border: 3px solid rgba(200, 225, 240, 0.55);
+  border-top: none;
+  border-radius: 0 0 22px 22px;
+  background-color: rgba(200, 225, 240, 0.06);
+  box-shadow: inset 6px 0 12px rgba(255, 255, 255, 0.08);
+}
+
+.ChemInst__vessel--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ChemInst__none {
+  color: #6c7680;
+  font-size: 12px;
+}
+
+.ChemInst__liquid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  transition: height 0.6s;
+}
+
+.ChemInst__layer {
+  width: 100%;
+  opacity: 0.85;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.ChemInst__marks {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  background: repeating-linear-gradient(to top, rgba(255, 255, 255, 0.4) 0, rgba(255, 255, 255, 0.4) 1px, transparent 1px, transparent 22px);
+}
+
+.ChemInst__volume {
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #aeb7c0;
+}
+
+.ChemInst__eject {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 5px;
+  background: linear-gradient(#4a5058, #363b41);
+  box-shadow: 0 2px 0 #15181b;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ChemInst__panel {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background-color: rgba(0, 0, 0, 0.25);
+  overflow-y: auto;
+}
+
+.ChemInst__head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.ChemInst__title {
+  flex: 1;
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #aeb7c0;
+}
+
+.ChemInst__power {
+  display: flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 5px;
+  background: linear-gradient(#4a5058, #363b41);
+  box-shadow: 0 2px 0 #15181b;
+  font-size: 12px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.ChemInst__power--on {
+  background: linear-gradient(#2f9e44, #237a34);
+}
+
+.ChemInst__power--disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ChemInst__powerLed {
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background-color: #1b2d1f;
+}
+
+.ChemInst__power--on .ChemInst__powerLed {
+  background-color: #8cff9e;
+  box-shadow: 0 0 6px #8cff9e;
+}
+
+.ChemInst__center {
+  display: flex;
+  justify-content: center;
+  margin: 4px 0 8px;
+}
+
+.ChemInst__gauge {
+  width: 130px;
+  margin: 0 auto 6px;
+  text-align: center;
+}
+
+.ChemInst__gauge svg {
+  width: 120px;
+  height: 120px;
+}
+
+.ChemInst__gaugeValue {
+  margin-top: -18px;
+  font-family: 'Consolas', monospace;
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.ChemInst__readout {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.ChemInst__readLabel {
+  width: 76px;
+  color: #8a949e;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.ChemInst__readValue {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  font-family: 'Consolas', monospace;
+}
+
+.ChemInst__bar {
+  flex: 1;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 5px;
+  background-color: #14171a;
+  overflow: hidden;
+}
+
+.ChemInst__barFill {
+  height: 100%;
+}
+
+.ChemInst__barFill--uranium {
+  background: linear-gradient(90deg, #5c940d, #94d82d);
+}
+
+.ChemInst__barText {
+  font-size: 11px;
+}
+
+.ChemInst__trefoil {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background-color: #2a2a14;
+  color: #6b6b2a;
+  font-size: 44px;
+}
+
+.ChemInst__trefoil--on {
+  background-color: #f2d024;
+  color: #1c1c1c;
+  box-shadow: 0 0 22px rgba(242, 208, 36, 0.7);
+  animation: ChemInst-glow 1.6s ease-in-out infinite;
+}
+
+@keyframes ChemInst-glow {
+  50% { box-shadow: 0 0 34px rgba(242, 208, 36, 0.95); }
+}
+
+.ChemInst__field {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: conic-gradient(#1c2b5a, #3b2a6b, #1c2b5a);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.7);
+}
+
+.ChemInst__field--on {
+  background: conic-gradient(#4dabf7, #9775fa, #e599f7, #4dabf7);
+  box-shadow: 0 0 22px rgba(151, 117, 250, 0.8);
+  animation: ChemInst-spin 1.4s linear infinite;
+}
+
+@keyframes ChemInst-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ChemInst__pip {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 3px;
+  border-radius: 2px;
+  background-color: #2a2f3a;
+}
+
+.ChemInst__pip--on {
+  background-color: #9775fa;
+  box-shadow: 0 0 4px #9775fa;
+}
+
+.ChemInst__rotor {
+  position: relative;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background-color: #2d3339;
+  box-shadow: inset 0 0 0 4px #4a5058;
+}
+
+.ChemInst__rotor span {
+  position: absolute;
+  top: 31px;
+  left: 6px;
+  width: 58px;
+  height: 8px;
+  border-radius: 4px;
+  background-color: #9aa5b1;
+}
+
+.ChemInst__rotor span:nth-child(2) {
+  transform: rotate(60deg);
+}
+
+.ChemInst__rotor span:nth-child(3) {
+  transform: rotate(120deg);
+}
+
+.ChemInst__rotor--on {
+  animation: ChemInst-spin 0.5s linear infinite;
+}
+
+.ChemInst__contents {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ChemInst__reagent {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.ChemInst__chip {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 2px;
+}
+
+.ChemInst__reagentName {
+  flex: 1;
+}
+
+.ChemInst__dim {
+  color: #7d8790;
+}

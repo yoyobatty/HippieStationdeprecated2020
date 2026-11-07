@@ -283,6 +283,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_radio_wires(C, H, label)
 		if("secdevices")
 			cs_sec_devices(C, H, label)
+		if("medlab")
+			cs_med_lab(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -6787,3 +6789,57 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	sleep(15)
 	cs_shot("popup_secdevices_[label]_gate_disease")
 	SStgui.close_user_uis(H)
+
+// The Auto-Doc with a patient in it (picking a part and a surgery, then running it) and Hippie's four chemistry
+// machines, each with a beaker of three reagents in it
+/proc/cs_med_lab(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/cmo)
+	var/obj/item/card/id/id = H.wear_id
+	if(istype(id))
+		id.access = get_all_accesses()
+	usr = H
+	var/list/taken = list()
+	// The Auto-Doc
+	var/turf/doc_spot = cs_open_beside(H)
+	taken += doc_spot
+	var/obj/machinery/autodoc/doc = new(doc_spot)
+	doc.stat &= ~(NOPOWER|BROKEN)
+	var/mob/living/carbon/human/patient = new(doc_spot)
+	patient.real_name = "Rosa Delgado"
+	patient.name = patient.real_name
+	patient.adjustBruteLoss(30)
+	doc.close_machine(patient)
+	cs_check("medlab: the patient is in the Auto-Doc", doc.occupant == patient)
+	cs_act(doc, H, "target", list("part" = BODY_ZONE_HEAD))
+	cs_check("medlab: a part picked ([doc.target_zone])", doc.target_zone == BODY_ZONE_HEAD)
+	var/list/doc_data = doc.ui_data(H)
+	var/list/surgeries = doc_data["surgeries"]
+	cs_check("medlab: it lists surgeries there ([length(surgeries)])", length(surgeries) > 0)
+	if(length(surgeries))
+		var/list/first = surgeries[1]
+		cs_act(doc, H, "surgery", list("path" = first["path"]))
+	cs_small_window_shot(C, H, doc, "popup_medlab_[label]_autodoc")
+	cs_act(doc, H, "start")
+	sleep(15)
+	cs_check("medlab: the surgery runs", doc.in_use)
+	SStgui.update_uis(doc)
+	sleep(10)
+	cs_shot("popup_medlab_[label]_autodoc_running")
+	SStgui.close_user_uis(H)
+	// The chemistry machines
+	for(var/path in list(/obj/machinery/chem/pressure, /obj/machinery/chem/radioactive, /obj/machinery/chem/bluespace, /obj/machinery/chem/centrifuge))
+		var/turf/spot = cs_open_beside(H, taken)
+		taken += spot
+		var/obj/machinery/chem/machine = new path(spot)
+		machine.stat &= ~(NOPOWER|BROKEN)
+		var/obj/item/reagent_containers/glass/beaker/large/B = new(machine)
+		B.reagents.add_reagent(/datum/reagent/water, 40)
+		B.reagents.add_reagent(/datum/reagent/oil, 25)
+		B.reagents.add_reagent(/datum/reagent/toxin/plasma, 15)
+		machine.beaker = B
+		var/short = replacetext("[path]", "/obj/machinery/chem/", "")
+		cs_act(machine, H, "power")
+		cs_check("medlab: the [short] machine switches on", machine.vars["on"])
+		cs_small_window_shot(C, H, machine, "popup_medlab_[label]_[short]")
+		cs_act(machine, H, "power")
+		SStgui.close_user_uis(H)

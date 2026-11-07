@@ -80,7 +80,7 @@
 /obj/machinery/chem/pressure/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
-		ui = new(user, src, ui_key, "chem_pressure", name, 400, 400, master_ui, state)
+		ui = new(user, src, ui_key, "chem_pressure", name, 540, 360, master_ui, state) // hippie redo: the beaker beside the instrument (ChemInstruments.js)
 		ui.open()
 
 /obj/machinery/chem/pressure/ui_data()
@@ -96,7 +96,7 @@
 	if(beaker)
 		for(var/I in beaker.reagents.reagent_list)
 			var/datum/reagent/R = I
-			beakerContents.Add(list(list("name" = R.name, "volume" = R.volume))) // list in a list because Byond merges the first list...
+			beakerContents.Add(list(list("name" = R.name, "volume" = R.volume, "color" = R.color))) // list in a list because Byond merges the first list...
 	data["beakerContents"] = beakerContents
 	return data
 
@@ -166,7 +166,7 @@
 /obj/machinery/chem/radioactive/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
-		ui = new(user, src, ui_key, "chem_radioactive", name, 400, 400, master_ui, state)
+		ui = new(user, src, ui_key, "chem_radioactive", name, 540, 360, master_ui, state) // hippie redo: the beaker beside the instrument (ChemInstruments.js)
 		ui.open()
 
 /obj/machinery/chem/radioactive/ui_data()
@@ -183,7 +183,7 @@
 	if(beaker)
 		for(var/I in beaker.reagents.reagent_list)
 			var/datum/reagent/R = I
-			beakerContents.Add(list(list("name" = R.name, "volume" = R.volume))) // list in a list because Byond merges the first list...
+			beakerContents.Add(list(list("name" = R.name, "volume" = R.volume, "color" = R.color))) // list in a list because Byond merges the first list...
 	data["beakerContents"] = beakerContents
 	return data
 
@@ -265,7 +265,7 @@
 /obj/machinery/chem/bluespace/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
-		ui = new(user, src, ui_key, "chem_bluespace", name, 400, 400, master_ui, state)
+		ui = new(user, src, ui_key, "chem_bluespace", name, 540, 360, master_ui, state) // hippie redo: the beaker beside the instrument (ChemInstruments.js)
 		ui.open()
 
 /obj/machinery/chem/bluespace/ui_data()
@@ -282,7 +282,7 @@
 	if(beaker)
 		for(var/I in beaker.reagents.reagent_list)
 			var/datum/reagent/R = I
-			beakerContents.Add(list(list("name" = R.name, "volume" = R.volume))) // list in a list because Byond merges the first list...
+			beakerContents.Add(list(list("name" = R.name, "volume" = R.volume, "color" = R.color))) // list in a list because Byond merges the first list...
 	data["beakerContents"] = beakerContents
 	return data
 
@@ -343,7 +343,7 @@
 /obj/machinery/chem/centrifuge/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
-		ui = new(user, src, ui_key, "chem_centrifuge", name, 400, 400, master_ui, state)
+		ui = new(user, src, ui_key, "chem_centrifuge", name, 540, 360, master_ui, state) // hippie redo: the beaker beside the instrument (ChemInstruments.js)
 		ui.open()
 
 /obj/machinery/chem/centrifuge/ui_data()
@@ -357,7 +357,7 @@
 	if(beaker)
 		for(var/I in beaker.reagents.reagent_list)
 			var/datum/reagent/R = I
-			beakerContents.Add(list(list("name" = R.name, "volume" = R.volume))) // list in a list because Byond merges the first list...
+			beakerContents.Add(list(list("name" = R.name, "volume" = R.volume, "color" = R.color))) // list in a list because Byond merges the first list...
 	data["beakerContents"] = beakerContents
 	return data
 

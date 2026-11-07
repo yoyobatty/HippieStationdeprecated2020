@@ -273,20 +273,28 @@ GLOBAL_LIST_INIT(autodoc_supported_surgery_steps, typecacheof(list(
 									datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
-		ui = new(user, src, ui_key, "autodoc", name, 455, 440, master_ui, state)
+		ui = new(user, src, ui_key, "autodoc", name, 560, 420, master_ui, state)
 		ui.open()
 
 /obj/machinery/autodoc/ui_data(mob/user)
 	. = list()
+	var/mob/living/patient = occupant
+	if(istype(patient))
+		.["patient"] = patient.name
+		.["health"] = round(max(0, patient.health) / patient.maxHealth * 100)
+	.["target"] = target_zone
 	if(in_use)
 		.["mode"] = 2
 		.["s_name"] = target_surgery.name
 		.["steps"] = list()
-		for(var/s in target_surgery.steps)
-			var/datum/surgery_step/S = s
+		// By place, not type: a surgery can have the same step twice (amputation clamps the bleeders twice), and the
+		// running surgery's status moves on as each step starts
+		var/current = active_surgery && active_step ? active_surgery.status - 1 : 0
+		for(var/i in 1 to length(target_surgery.steps))
+			var/datum/surgery_step/S = target_surgery.steps[i]
 			.["steps"] += list(list(
 				"name" = initial(S.name),
-				"current" = active_step ? (active_step.type == s) : FALSE
+				"current" = (i == current)
 			))
 		
 	else

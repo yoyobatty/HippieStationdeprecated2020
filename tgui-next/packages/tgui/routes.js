@@ -130,7 +130,8 @@ import { LaunchpadConsole, LaunchpadRemote } from './interfaces/Launchpad';
 import { GulagConsole, LaborClaimConsole } from './interfaces/LaborCamp';
 import { Intellicard, NtosAiRestorer } from './interfaces/AiCard';
 import { Eightball, NotificationPanel, SlimeBodySwapper } from './interfaces/GhostAndSlime';
-import { ChemBluespace, ChemCentrifuge, ChemPressure, ChemRadioactive, MaterialAnalyser, ReagentForge } from './interfaces/ChemLab';
+import { MaterialAnalyser, ReagentForge } from './interfaces/ChemLab';
+import { ChemBluespace, ChemCentrifuge, ChemPressure, ChemRadioactive } from './interfaces/ChemInstruments';
 import { ClockworkSlab } from './interfaces/ClockworkSlab';
 import { CameraConsole } from './interfaces/CameraConsole';
 import { Preferences } from './interfaces/Preferences';
@@ -878,7 +879,7 @@ const ROUTES = {
   },
   autodoc: {
     component: () => Autodoc,
-    scrollable: true,
+    scrollable: false,
   },
   mulebot: {
     component: () => Mule,
@@ -933,19 +934,19 @@ const ROUTES = {
   },
   chem_pressure: {
     component: () => ChemPressure,
-    scrollable: true,
+    scrollable: false,
   },
   chem_radioactive: {
     component: () => ChemRadioactive,
-    scrollable: true,
+    scrollable: false,
   },
   chem_bluespace: {
     component: () => ChemBluespace,
-    scrollable: true,
+    scrollable: false,
   },
   chem_centrifuge: {
     component: () => ChemCentrifuge,
-    scrollable: true,
+    scrollable: false,
   },
   chem_reagent_analysis: {
     component: () => MaterialAnalyser,
