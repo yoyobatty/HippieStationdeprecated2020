@@ -1,0 +1,83 @@
+// hippie -- Bot Crew (interfaces/BotCrewMonitor.js)
+
+.BotCrew__counts span {
+  margin-right: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.BotCrew__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.BotCrew__row {
+  cursor: pointer;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.BotCrew__row:hover,
+.BotCrew__row--open {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.BotCrew__row--dead {
+  opacity: 0.55;
+}
+
+.BotCrew__row td {
+  padding: 4px 6px;
+  vertical-align: middle;
+}
+
+.BotCrew__who {
+  width: 190px;
+}
+
+.BotCrew__name {
+  font-weight: bold;
+}
+
+.BotCrew__job,
+.BotCrew__goal {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.BotCrew__antag {
+  margin-left: 6px;
+  color: #db2828;
+  font-weight: bold;
+}
+
+.BotCrew__state {
+  width: 70px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.BotCrew__where {
+  width: 170px;
+}
+
+.BotCrew__health {
+  width: 90px;
+}
+
+.BotCrew__follow {
+  width: 70px;
+  text-align: right;
+}
+
+.BotCrew__detail td {
+  padding: 4px 6px 8px 24px;
+  background-color: rgba(0, 0, 0, 0.25);
+}
+
+.BotCrew__event {
+  line-height: 18px;
+}
+
+.BotCrew__ago {
+  display: inline-block;
+  width: 38px;
+  color: rgba(255, 255, 255, 0.45);
+}

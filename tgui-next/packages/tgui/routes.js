@@ -156,6 +156,7 @@ import { ExperimentScanner } from './interfaces/Experiments';
 import { LateJoin, Lobby } from './interfaces/Lobby';
 import { RoundEnd } from './interfaces/RoundEnd';
 import { StationMap } from './interfaces/StationMap';
+import { BotCrewMonitor } from './interfaces/BotCrewMonitor';
 // hippie end
 
 const ROUTES = {
@@ -245,6 +246,10 @@ const ROUTES = {
   },
   borgopanel: {
     component: () => BorgPanel,
+    scrollable: true,
+  },
+  bot_crew_monitor: {
+    component: () => BotCrewMonitor,
     scrollable: true,
   },
   bounty_console: {

@@ -277,6 +277,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_roundend(C, H, label)
 		if("stationmap")
 			cs_station_map(C, H, label)
+		if("botmonitor")
+			cs_bot_monitor(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -6580,3 +6582,52 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 		winset(C, ai_ui.window_id, "pos=40,10")
 		sleep(25)
 		cs_shot("popup_stationmap_[label]_ai")
+
+// Bot Crew: four bots join, one is made a traitor and one is killed; a ghost opens the monitor, opens a row and follows
+/proc/cs_bot_monitor(client/C, mob/living/carbon/human/H, label)
+	var/list/made = list()
+	for(var/rank in list("Station Engineer", "Medical Doctor", "Security Officer", "Assistant"))
+		var/mob/living/carbon/human/bot = spawn_bot_crew_member(rank, TRUE)
+		if(bot)
+			made += bot
+	cs_check("botmonitor: bots joined ([made.len])", made.len >= 3)
+	sleep(150) // long enough to take on some work
+	if(made.len >= 3)
+		var/mob/living/carbon/human/traitor = made[2]
+		traitor.mind.add_antag_datum(/datum/antagonist/traitor)
+		var/mob/living/carbon/human/doomed = made[3]
+		doomed.death()
+	var/mob/dead/observer/ghost = H.ghostize(FALSE)
+	sleep(10)
+	cs_check("botmonitor: a ghost to watch from", istype(ghost) && C.mob == ghost)
+	if(!istype(ghost))
+		return
+	usr = ghost
+	ghost.bot_crew()
+	var/datum/monitor = C.vars["bot_crew_monitor"]
+	var/datum/tgui/ui = monitor ? cs_find_ui(ghost, monitor) : null
+	cs_check("botmonitor: Ghost > Bot Crew opens it", ui)
+	if(!ui)
+		return
+	var/list/data = monitor.ui_data(ghost)
+	var/list/bots = data["bots"]
+	var/dead_seen
+	var/working = 0
+	for(var/list/bot in bots)
+		if(bot["status"] == "Dead")
+			dead_seen = TRUE
+		if(bot["doing"])
+			working++
+	cs_check("botmonitor: it lists the bots ([bots.len])", bots.len >= made.len)
+	cs_check("botmonitor: the dead one shows dead", dead_seen)
+	cs_check("botmonitor: and what the rest are doing ([working] say)", working >= 1)
+	cs_check("botmonitor: an admin sees the antagonists, so the window is told it's an admin ([data["admin"]])", !isnull(data["admin"]))
+	winset(C, ui.window_id, "pos=40,10")
+	sleep(20)
+	cs_tgui_do(C, ui.window_id, "css:.BotCrew__row")
+	sleep(15)
+	cs_shot("popup_botmonitor_[label]")
+	var/turf/before = get_turf(ghost)
+	cs_tgui_do(C, ui.window_id, "click:Follow")
+	sleep(15)
+	cs_check("botmonitor: Follow takes the ghost to a bot", ghost.orbiting || get_turf(ghost) != before)

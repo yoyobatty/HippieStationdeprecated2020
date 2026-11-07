@@ -3713,6 +3713,7 @@
 #include "hippiestation\code\modules\mob\dead\new_player\lobby_tgui.dm"
 #include "hippiestation\code\modules\mob\dead\new_player\new_player.dm"
 #include "hippiestation\code\modules\mob\dead\new_player\sprite_accessories.dm"
+#include "hippiestation\code\modules\mob\dead\observer\bot_crew_monitor.dm"
 #include "hippiestation\code\modules\mob\dead\observer\orbit_menu.dm"
 #include "hippiestation\code\modules\mob\dead\observer\say.dm"
 #include "hippiestation\code\modules\mob\living\emote.dm"
