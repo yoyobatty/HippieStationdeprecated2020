@@ -380,6 +380,7 @@ GLOBAL_PROTECT(VVpixelmovement)
 	if (O.vv_edit_var(variable, var_new) == FALSE)
 		to_chat(src, "Your edit was rejected by the object.", confidential=TRUE)
 		return
+	vv_note_edit(O, variable, var_value, src) // hippie -- what it was, for VV's undo (vv_changes.dm)
 	vv_update_display(O, "varedited", VV_MSG_EDITED)
 	log_world("### VarEdit by [key_name(src)]: [O.type] [variable]=[var_value] => [var_new]")
 	log_admin("[key_name(src)] modified [original_name]'s [variable] from [html_encode("[var_value]")] to [html_encode("[var_new]")]")

@@ -132,6 +132,17 @@
 
 			// main search functionality
 			var last_filter = "";
+			// hippie -- the search, and the Changed / Edited boxes (vv_changes.dm)
+			function vv_keep(li, filter) {
+				if (filter && li.innerText.toLowerCase().indexOf(filter) == -1) return false;
+				if (document.getElementById('only_changed').checked && !li.getAttribute('data-changed')) return false;
+				if (document.getElementById('only_edited').checked && !li.getAttribute('data-edited')) return false;
+				return true;
+			}
+			function vv_boxes() {
+				last_filter = '#reset#'; // matches no typed filter: the list is rebuilt
+				updateSearch();
+			}
 			function updateSearch() {
 				var filter = document.getElementById('filter').value.toLowerCase();
 				var vars_ol = document.getElementById("vars");
@@ -145,7 +156,7 @@
 					for (var i = children.length - 1; i >= 0; --i) {
 						try {
 							var li = children\[i];
-							if (li.innerText.toLowerCase().indexOf(filter) == -1) {
+							if (!vv_keep(li, filter)) {
 								vars_ol.removeChild(li);
 							}
 						} catch(err) {}
@@ -159,7 +170,7 @@
 					for (var i = 0; i < complete_list.length; ++i) {
 						try {
 							var li = complete_list\[i];
-							if (!filter || li.innerText.toLowerCase().indexOf(filter) != -1) {
+							if (vv_keep(li, filter)) {
 								vars_ol.appendChild(li);
 							}
 						} catch(err) {}
@@ -220,6 +231,7 @@
 						<div align='center'>
 							<b><font size='1'>[formatted_type]</font></b>
 				[islist ? "" : vv_where(D)]
+				[islist ? "" : vv_change_counts(D)]
 							<span id='marked'>[marked_line]</span>
 							<span id='varedited'>[varedited_line]</span>
 							<span id='deleted'>[deleted_line]</span>
@@ -259,6 +271,8 @@ datumrefresh=[refid];[HrefToken()]'>Refresh</a>
 				</td>
 				<td width='80%'>
 					<input type='text' id='filter' name='filter_text' value='' style='width:100%;'>
+					<font size='1'>[islist ? "<span style='display:none'>" : ""]<label><input type='checkbox' id='only_changed' onclick='vv_boxes()'>Changed</label>
+					<label><input type='checkbox' id='only_edited' onclick='vv_boxes()'>Edited</label>[islist ? "</span>" : ""]</font>
 				</td>
 			</tr>
 		</table>

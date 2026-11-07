@@ -89,6 +89,7 @@ GLOBAL_LIST_EMPTY(vc_probes)
 	sleep(2 SECONDS)
 	usr = H
 	vv_check_windows(C, H)
+	vv_check_changes(C, H)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -171,3 +172,40 @@ GLOBAL_LIST_EMPTY(vc_probes)
 		C << browse(null, "window=[id]")
 	qdel(pen)
 	qdel(bob)
+
+/// Changed from default and edited: the marks, the page's own undo and default links, the Changed / Edited boxes
+/proc/vv_check_changes(client/C, mob/living/carbon/human/H)
+	var/obj/item/pen/pen = new(get_turf(H))
+	pen.throwforce = 13 // set by the game, not an admin: changed, not edited
+	var/old_name = pen.name
+	vv_note_edit(pen, "name", pen.name, C) // what modify_variables() notes when an admin edits it
+	pen.vv_edit_var("name", "renamed pen")
+	C.debug_variables(pen)
+	var/window = vc_window_of(C, pen)
+	sleep(15)
+	var/marks = vc_ask(C, window, "marks", "(document.getElementById('vvar_throwforce').getAttribute('data-changed') || '-') + ' ' + (document.getElementById('vvar_name').getAttribute('data-edited') || '-') + ' ' + (document.getElementById('vvar_force').getAttribute('data-changed') || '-')")
+	vc_check("throwforce is marked changed, name edited, force (its default) neither ([marks])", marks == "1 1 -")
+	var/counts = vc_ask(C, window, "counts", "document.body.innerText.match(/\\d+ edited, \\d+ changed from default/)")
+	vc_check("the header counts them ([counts])", findtext(counts, "1 edited"))
+	// Only the changed ones
+	vc_js(C, window, "document.getElementById('only_changed').click();")
+	sleep(5)
+	var/shown = vc_ask(C, window, "shown", "document.getElementById('vars').children.length + ' of ' + complete_list.length + ', all changed: ' + Array.prototype.every.call(document.getElementById('vars').children, function (li) { return li.getAttribute('data-changed'); })")
+	vc_check("the Changed box shows only changed vars ([shown])", findtext(shown, "all changed: true") && text2num(shown) < 40)
+	vc_shot("changed")
+	vc_js(C, window, "document.getElementById('only_changed').click();")
+	sleep(5)
+	// undo, through the page's link
+	vc_js(C, window, "var a = document.querySelector('#vvar_name a\[href*=vvundo\]'); if (a) a.click();")
+	sleep(15)
+	vc_check("undo puts the name back ([pen.name])", pen.name == old_name && !length(LAZYACCESS(pen.vv_edits, "name")))
+	var/row = vc_ask(C, window, "namerow", "document.getElementById('vvar_name').innerText + ' / ' + (document.getElementById('vvar_name').getAttribute('data-edited') || 'not edited')")
+	vc_check("and its row says so ([row])", findtext(row, old_name) && findtext(row, "not edited"))
+	// default, through the page's link
+	vc_js(C, window, "var a = document.querySelector('#vvar_throwforce a\[href*=vvdefault\]'); if (a) a.click();")
+	sleep(15)
+	vc_check("default puts throwforce back ([pen.throwforce])", pen.throwforce == initial(pen.throwforce))
+	vc_check("and that can be undone too", length(LAZYACCESS(pen.vv_edits, "throwforce")) == 1)
+	for(var/id in C.vv_windows)
+		C << browse(null, "window=[id]")
+	qdel(pen)

@@ -25,7 +25,11 @@
 				modify_variables(target, target_var, 0)
 			if(href_list[VV_HK_BASIC_MASSEDIT])
 				cmd_mass_modify_object_variables(target, target_var)
-			if(href_list[VV_HK_BASIC_EDIT] || href_list[VV_HK_BASIC_CHANGE] || href_list[VV_HK_BASIC_MASSEDIT])
+			if(href_list["vvundo"]) // hippie -- vv_changes.dm
+				vv_undo_var(target, target_var)
+			if(href_list["vvdefault"])
+				vv_restore_default(target, target_var)
+			if(href_list[VV_HK_BASIC_EDIT] || href_list[VV_HK_BASIC_CHANGE] || href_list[VV_HK_BASIC_MASSEDIT] || href_list["vvundo"] || href_list["vvdefault"])
 				vv_refresh_var(target, target_var) // hippie -- its row shows the new value (vv_windows.dm)
 	if(check_rights(R_ADMIN, FALSE))
 		if(href_list[VV_HK_EXPOSE])
