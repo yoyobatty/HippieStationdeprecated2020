@@ -82,6 +82,9 @@
 		for(var/obj/screen/side as anything in preview_sides)
 			side.assigned_map = PREFS_PREVIEW_MAP
 			side.del_on_map_removal = FALSE
+	// The boarding pass look: photos on file paper
+	var/pass = GLOB.lobby_design == "pass"
+	preview_floor.color = pass ? "#e9e3d3" : "#1b1d21"
 	// Front, left side, back, right side, two by two, each drawn five times over
 	var/list/dirs = list(SOUTH, WEST, NORTH, EAST)
 	var/list/spots = list("4,10", "11,10", "4,3", "11,3")
@@ -93,6 +96,7 @@
 		side.screen_loc = "[PREFS_PREVIEW_MAP]:[spots[i]]"
 		var/obj/screen/card = preview_sides[i + 4]
 		card.screen_loc = "[PREFS_PREVIEW_MAP]:[spots[i]]"
+		card.color = pass ? "#c9d2de" : "#2c3038"
 
 /datum/preferences/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, datum/tgui/master_ui = null, datum/ui_state/state = GLOB.always_state)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
@@ -448,6 +452,7 @@
 	data["quirksEnabled"] = CONFIG_GET(flag/roundstart_traits)
 	data["plain"] = preview_plain
 	data["dirty"] = prefs_dirty
+	data["design"] = GLOB.lobby_design // the boarding pass look dresses this window as its personnel file
 	data["maxSlots"] = max_save_slots
 	switch(current_tab)
 		if(0)

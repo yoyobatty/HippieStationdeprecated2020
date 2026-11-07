@@ -1089,3 +1089,238 @@ $crt: #39ff6a;
 @keyframes LobbyCrt-blink {
   50% { opacity: 0; }
 }
+
+// Character Setup as the boarding pass's personnel file (Preferences.js with
+// the pass look): the same backdrop, the character on a file card, the tabs
+// as folder tabs over a paper sheet, the controls as paper forms.
+
+$pass-line: #b9b2a0;
+$pass-field: #fffdf7;
+$pass-navy: #26324a;
+$pass-blue: #2a6cc0;
+
+.Preferences--pass {
+  @include lobby-fill;
+  @include pass-backdrop;
+}
+
+.Preferences--pass .Preferences__left {
+  padding: 12px;
+  overflow-y: auto;
+  border-right: none;
+}
+
+.Preferences--pass .Preferences__file {
+  position: relative;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  overflow: hidden;
+  border-radius: 10px;
+  background-color: $pass-paper;
+  color: $pass-ink;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+}
+
+.Preferences--pass .Preferences__name {
+  margin: 7px 8px 6px;
+  overflow: hidden;
+  font-family: 'Consolas', monospace;
+  font-size: 15px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.Preferences--pass .Preferences__preview {
+  width: 224px;
+  height: 232px;
+  margin: 0 auto;
+  border: 1px solid $pass-line;
+  background-color: #e9e3d3;
+}
+
+.Preferences__stamp {
+  display: inline-block;
+  padding: 0 6px;
+  border: 2px solid #c0392b;
+  border-radius: 5px;
+  color: #c0392b;
+  font-family: 'Impact', 'Bahnschrift', sans-serif;
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transform: rotate(-6deg);
+  opacity: 0.9;
+  animation: Preferences-stamp 0.25s ease-out;
+}
+
+@keyframes Preferences-stamp {
+  from {
+    transform: rotate(-6deg) scale(2);
+    opacity: 0;
+  }
+  to {
+    transform: rotate(-6deg) scale(1);
+    opacity: 0.9;
+  }
+}
+
+// The saved characters, a card of their own
+.Preferences--pass .Preferences__left .Section {
+  overflow: hidden;
+  border-radius: 10px;
+  background-color: $pass-paper;
+  color: $pass-ink;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+}
+
+.Preferences--pass .Preferences__left .Section__content {
+  padding: 6px 8px;
+}
+
+.Preferences--pass .Preferences__right {
+  padding: 12px 12px 0 0;
+}
+
+.Preferences--pass .Tabs__content {
+  border-top: none;
+}
+
+// Tabs inside the sheet (the loadout's categories): ink on paper
+.Preferences--pass .Preferences__content .Tabs__tab,
+.Preferences--pass .Preferences__content .Tabs__tab:hover {
+  color: #6b7487;
+}
+
+.Preferences--pass .Preferences__content .Tabs__tab.Button--selected,
+.Preferences--pass .Preferences__content .Tabs__tab.Button--selected:hover {
+  background-color: transparent;
+  color: $pass-ink;
+  box-shadow: inset 0 -2px 0 #2a6cc0;
+}
+
+.Preferences--pass .Preferences__content .Tabs__content {
+  border-top: 1px dashed $pass-line;
+}
+
+.Preferences--pass .Preferences__left .Section__title {
+  padding: 5px 8px;
+}
+
+.Preferences--pass .Preferences__right > .Tabs > .Tabs__tabBox > .Tabs__tab,
+.Preferences--pass .Preferences__right > .Tabs > .Tabs__tabBox > .Tabs__tab:hover {
+  margin-right: 3px;
+  padding: 0 12px;
+  border-radius: 8px 8px 0 0;
+  background-color: rgba(243, 239, 228, 0.16);
+  color: #dbe4f3;
+  font-family: 'Bahnschrift', 'Segoe UI', sans-serif;
+  font-size: 11px;
+  letter-spacing: 1px;
+  line-height: 26px;
+  text-transform: uppercase;
+}
+
+.Preferences--pass .Preferences__right > .Tabs > .Tabs__tabBox > .Tabs__tab:hover {
+  background-color: rgba(243, 239, 228, 0.3);
+}
+
+.Preferences--pass .Preferences__right > .Tabs > .Tabs__tabBox > .Tabs__tab.Button--selected,
+.Preferences--pass .Preferences__right > .Tabs > .Tabs__tabBox > .Tabs__tab.Button--selected:hover {
+  background-color: $pass-paper;
+  color: $pass-ink;
+  font-weight: bold;
+}
+
+.Preferences--pass .Preferences__content {
+  top: 40px;
+  bottom: 12px;
+  left: 0;
+  right: 12px;
+  padding: 10px 12px;
+  border-radius: 0 10px 10px 10px;
+  background-color: $pass-paper;
+  color: $pass-ink;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+}
+
+// The forms
+.Preferences--pass .Preferences__content .Section {
+  margin-bottom: 8px;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.Preferences--pass .Section__title {
+  padding: 2px 0 4px;
+  border-bottom: 1px dashed $pass-line;
+}
+
+.Preferences--pass .Section__titleText {
+  color: $pass-ink;
+  font-family: 'Bahnschrift', 'Segoe UI', sans-serif;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.Preferences--pass .Preferences__content .Section__content {
+  padding: 6px 0;
+}
+
+.Preferences--pass .LabeledList__label {
+  color: #6b7487;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.Preferences--pass .Button--color--default,
+.Preferences--pass .Button--color--default:focus {
+  background-color: $pass-navy;
+  color: #dbe4f3;
+}
+
+.Preferences--pass .Button--color--default:hover {
+  background-color: #31405e;
+  color: #fff;
+}
+
+.Preferences--pass .Button--selected,
+.Preferences--pass .Button--selected:focus,
+.Preferences--pass .Button--selected:hover {
+  background-color: $pass-blue;
+  color: #fff;
+}
+
+.Preferences--pass .Input,
+.Preferences--pass .NumberInput,
+.Preferences--pass .Dropdown__control.Button--color--default,
+.Preferences--pass .Dropdown__control.Button--color--default:focus {
+  border: 1px solid $pass-line;
+  background-color: $pass-field;
+  color: $pass-ink;
+}
+
+.Preferences--pass .Dropdown__control.Button--color--default:hover {
+  border-color: #6b7487;
+  background-color: #fff;
+  color: $pass-ink;
+}
+
+.Preferences--pass .Input__input,
+.Preferences--pass .NumberInput__input {
+  color: $pass-ink;
+}
+
+.Preferences--pass .Dropdown__menu {
+  border: 1px solid $pass-line;
+  background-color: $pass-paper;
+  color: $pass-ink;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
+}
+
+.Preferences--pass .Dropdown__menuentry:hover {
+  background-color: #e2dbc6;
+}

@@ -556,32 +556,50 @@ export const Preferences = props => {
     ['OOC', TAB_OOC, { preference: 'tab', tab: TAB_OOC }],
     ['Keybindings', TAB_KEYS, { preference: 'tab', tab: TAB_KEYS }],
   ].filter(Boolean);
+  // The boarding pass look (Lobby.js) dresses this as its personnel file
+  const pass = data.design === 'pass';
+  const unsaved = !noAccount && !!data.dirty;
   return (
-    <div className="Preferences">
+    <div className={'Preferences' + (pass ? ' Preferences--pass' : '')}>
       <div className="Preferences__left">
-        <Box bold textAlign="center" mb={1}>{name}</Box>
-        <ByondUi
-          className="Preferences__preview"
-          params={{
-            id: previewMap,
-            parent: config.window,
-            type: 'map',
-            'background-color': '#1a1a1a',
-          }} />
-        <Box textAlign="center" mt={1}>
-          <Button
-            icon="user-tie"
-            selected={!data.plain}
-            content="Job outfit"
-            onClick={() => data.plain && act('outfit')} />
-          <Button
-            icon="tshirt"
-            selected={!!data.plain}
-            content="Plain"
-            onClick={() => !data.plain && act('outfit')} />
-        </Box>
+        <div className="Preferences__file">
+          {pass && (
+            <div className="LobbyPass__band">
+              <span className="LobbyPass__logo">NT</span>
+              <span>Personnel File</span>
+            </div>
+          )}
+          <Box bold textAlign="center" mb={1} className="Preferences__name">
+            {name}
+          </Box>
+          <ByondUi
+            className="Preferences__preview"
+            params={{
+              id: previewMap,
+              parent: config.window,
+              type: 'map',
+              'background-color': pass ? '#e9e3d3' : '#1a1a1a',
+            }} />
+          <Box textAlign="center" mt={1}>
+            <Button
+              icon="user-tie"
+              selected={!data.plain}
+              content="Job outfit"
+              onClick={() => data.plain && act('outfit')} />
+            <Button
+              icon="tshirt"
+              selected={!!data.plain}
+              content="Plain"
+              onClick={() => !data.plain && act('outfit')} />
+          </Box>
+        </div>
         {slots.length > 0 && (
-          <Section title="Characters" mt={1}>
+          <Section
+            title="Characters"
+            mt={1}
+            buttons={pass && unsaved && (
+              <span className="Preferences__stamp">Unsaved</span>
+            )}>
             {slots.map(each => (
               <SlotRow
                 key={each.num}
@@ -594,7 +612,7 @@ export const Preferences = props => {
         {!!noAccount && (
           <NoticeBox>Log in with a BYOND account to save.</NoticeBox>
         )}
-        {!noAccount && !!data.dirty && (
+        {!pass && unsaved && (
           <NoticeBox>Unsaved changes</NoticeBox>
         )}
         <Box mt={1}>
