@@ -150,7 +150,11 @@ GLOBAL_LIST_INIT(log_search_presets, list(
 /proc/round_log_row(list/entry)
 	var/datum/weakref/actor = entry[RL_REF]
 	var/datum/weakref/target = entry[RL_TREF]
+	var/atom/actor_atom = actor?.resolve()
+	var/atom/target_atom = target?.resolve()
 	return list(
+		"aref" = actor_atom ? REF(actor_atom) : null,
+		"tref" = target_atom ? REF(target_atom) : null,
 		"id" = entry[RL_ID],
 		"time" = log_search_clock(entry[RL_TIME]),
 		"kind" = entry[RL_CAT],
@@ -259,6 +263,8 @@ GLOBAL_LIST_INIT(log_search_presets, list(
 		return
 	if(!check_rights(R_ADMIN))
 		return
+	if(action == "player_menu") // a name's menu (player_menu.dm)
+		return player_menu_act(usr, params)
 	switch(action)
 		if("search")
 			text = params["text"] || ""

@@ -1,6 +1,7 @@
 import { Component } from 'inferno';
 import { useBackend } from '../backend';
 import { Button, Input } from '../components';
+import { PlayerLink } from './common/PlayerLink';
 
 // hippie -- Find: things searched by name, type, ref or player, everywhere,
 // on this z-level, near the admin or on one tile (everything there), with
@@ -168,7 +169,18 @@ export class AdminFind extends Component {
             <div key={row.ref} className="AdminFind__row">
               <div className="AdminFind__what">
                 <div>
-                  <b>{row.name}</b>
+                  <b>
+                    {row.ckey
+                      ? (
+                        <PlayerLink act={act} who={{
+                          name: row.name,
+                          ckey: row.ckey,
+                          ref: row.ref,
+                          mob: true,
+                        }} />
+                      )
+                      : row.name}
+                  </b>
                   {!!row.ckey && (
                     <span className="AdminFind__muted"> ({row.ckey})</span>
                   )}

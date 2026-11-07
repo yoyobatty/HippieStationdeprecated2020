@@ -886,6 +886,8 @@
 		return
 	if(!usr.client?.holder)
 		return
+	if(action == "player_menu") // a name's menu (player_menu.dm)
+		return player_menu_act(usr, params)
 	var/datum/admins/holder = usr.client.holder
 	notice = null
 	notice_bad = FALSE

@@ -429,7 +429,7 @@
 
 /// One side of a kill, for admins: what they are, their objectives, whether they're Security, wanted or cuffed
 /proc/kill_side(mob/living/M, name, side_ckey)
-	var/list/S = list("name" = name, "ckey" = side_ckey)
+	var/list/S = list("name" = name, "ckey" = side_ckey, "ref" = M ? REF(M) : null, "mob" = !!M)
 	var/datum/mind/mind = M?.mind
 	if(!mind && side_ckey)
 		var/mob/now = mob_of_ckey(side_ckey)
@@ -768,7 +768,7 @@ GLOBAL_LIST_EMPTY(ticket_windows)
 		var/mob/M = W.resolve()
 		if(!M)
 			continue
-		named += list(list("index" = i, "name" = M.real_name || M.name, "ckey" = M.ckey, "job" = M.mind?.assigned_role, "antag" = admin_antag_text(M), "state" = admin_mob_state(M), "bot" = M.is_bot_crew()))
+		named += list(list("index" = i, "ref" = REF(M), "name" = M.real_name || M.name, "ckey" = M.ckey, "job" = M.mind?.assigned_role, "antag" = admin_antag_text(M), "state" = admin_mob_state(M), "bot" = M.is_bot_crew()))
 	var/list/notes = list()
 	for(var/list/N in brief["notes"])
 		notes += list(list("kind" = N["kind"], "text" = N["text"], "admin" = N["admin_key"], "severity" = N["severity"], "age_days" = N["age_days"]))
@@ -792,6 +792,7 @@ GLOBAL_LIST_EMPTY(ticket_windows)
 		"opened_antag" = AH.opened_antag,
 		"messages" = messages,
 		"player" = list(
+			"who" = player_link(ticket_mob(AH), AH.initiator_ckey, brief["name"] || AH.initiator_key_name),
 			"name" = brief["name"],
 			"job" = brief["job"],
 			"state" = brief["state"],
@@ -917,6 +918,8 @@ GLOBAL_LIST_EMPTY(ticket_windows)
 		return
 	if(!check_rights(R_ADMIN))
 		return
+	if(action == "player_menu") // a name's menu (player_menu.dm)
+		return player_menu_act(usr, params)
 	if(round_log_line_act(action, params, usr))
 		return
 	notice = null

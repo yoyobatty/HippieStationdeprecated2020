@@ -201,6 +201,8 @@
 		return
 	if(!check_rights(R_ADMIN))
 		return
+	if(action == "player_menu") // a name's menu (player_menu.dm)
+		return player_menu_act(usr, params)
 	switch(action)
 		if("search")
 			mode = (params["mode"] in list("name", "type", "ref", "player")) ? params["mode"] : "name"

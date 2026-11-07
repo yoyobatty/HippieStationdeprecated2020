@@ -1,6 +1,7 @@
 import { Component } from 'inferno';
 import { useBackend } from '../backend';
 import { Button, Icon, Input } from '../components';
+import { PlayerLink } from './common/PlayerLink';
 
 // hippie -- Search Logs: everything logged this round, searched. Words (| for
 // any of them), a player, kinds of line, the last so many minutes, an area;
@@ -28,31 +29,20 @@ export const kindClass = kind => {
     + kind.toLowerCase().replace(/[^a-z]/g, '');
 };
 
+// Who did it or had it done: their name is a menu (common/PlayerLink.js)
 export const Who = props => {
-  const { act, row, prefix, ckey, name, alive, mob } = props;
+  const { act, ckey, name, refId, mob } = props;
   if (!ckey && !name) {
     return null;
   }
   return (
     <span className="LogSearch__who">
-      <span className="LogSearch__whoName">
-        {name}{ckey ? ' (' + ckey + ')' : ''}
-      </span>
-      {!!alive && (
-        <span className="LogSearch__acts">
-          {!!mob && (
-            <a onClick={() => act(prefix + 'pp', { id: row.id })}
-              title="Player panel">PP
-            </a>
-          )}
-          <a onClick={() => act(prefix + 'vv', { id: row.id })}
-            title="View variables">VV
-          </a>
-          <a onClick={() => act(prefix + 'flw', { id: row.id })}
-            title="Follow">FLW
-          </a>
-        </span>
-      )}
+      {(!!ckey || !!refId)
+        ? (
+          <PlayerLink act={act} showCkey
+            who={{ name, ckey, ref: refId, mob }} />
+        )
+        : <span className="LogSearch__whoName">{name}</span>}
     </span>
   );
 };
@@ -219,15 +209,13 @@ export class LogSearch extends Component {
               <div className="LogSearch__body">
                 <div className="LogSearch__text">{row.text}</div>
                 <div className="LogSearch__meta">
-                  <Who act={act} row={row} prefix=""
-                    ckey={row.ckey} name={row.name}
-                    alive={row.actor} mob={row.actor_mob} />
+                  <Who act={act} ckey={row.ckey} name={row.name}
+                    refId={row.aref} mob={row.actor_mob} />
                   {(!!row.tckey || !!row.tname) && (
                     <span className="LogSearch__arrowText">to</span>
                   )}
-                  <Who act={act} row={row} prefix="t_"
-                    ckey={row.tckey} name={row.tname}
-                    alive={row.target} mob={row.target_mob} />
+                  <Who act={act} ckey={row.tckey} name={row.tname}
+                    refId={row.tref} mob={row.target_mob} />
                   {!!row.where && (
                     <span className="LogSearch__where">
                       <Icon name="map-marker-alt" mr={0.5} />

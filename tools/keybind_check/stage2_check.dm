@@ -79,6 +79,9 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 	else if(findtext(action, "pickin:") == 1)
 		var/list/bits = splittext(copytext(action, 8), "|")
 		js = "var c=Array.prototype.slice.call(document.querySelectorAll([json_encode(bits[1])])).filter(function(e){return e.textContent.indexOf([json_encode(bits[3])])>=0;})\[0\];if(c){var t=[json_encode(bits[4])];var b=Array.prototype.slice.call(c.querySelectorAll([json_encode(bits[2])])).filter(function(e){return e.textContent.trim().indexOf(t)===0;})\[0\];if(b){b.click();}}"
+	else if(findtext(action, "down:") == 1) // a mousedown on it, as a real click starts with
+		var/list/bits = splittext(copytext(action, 6), "|")
+		js = "var t=[json_encode(bits[2])];var b=Array.prototype.slice.call(document.querySelectorAll([json_encode(bits[1])])).filter(function(e){return e.textContent.trim().indexOf(t)===0;})\[0\];if(b){b.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));}"
 	else if(findtext(action, "textarea:") == 1)
 		js = "var a=document.querySelector('textarea');if(a){a.focus();a.value=[json_encode(copytext(action, 10))];a.dispatchEvent(new Event('input',{bubbles:true}));}"
 	else if(action == "ctrlenter")
@@ -188,6 +191,7 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 	else
 		s2_tickets(C, H, AH, people)
 		s2_kills(C, H, AH, people)
+		s2_names(C, H, AH, people)
 		s2_alerts(C, H, AH, people)
 		s2_profile(C, H, AH)
 		s2_questions(C, H, AH)
@@ -354,6 +358,55 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 			heard = TRUE
 	s2_check("Heard adds what was said near them", W.show_heard && heard)
 
+/// Every name is a link (the user's ruling, 2026-11-07): a name in an admin window opens the same menu
+/proc/s2_names(client/C, mob/living/carbon/human/H, datum/admin_help/AH, list/people)
+	var/datum/ticket_window/W = C.ticket_window
+	var/datum/tgui/ui = s2_ui(H, W)
+	// the player's own name in the strip: Profile
+	s2_do(C, ui, "pick:.Tickets__playerName .PlayerLink__name|Alex Assistant")
+	sleep(5)
+	s2_do(C, ui, "pick:.PlayerLink__item|Profile")
+	sleep(1 SECONDS)
+	var/datum/player_profile/P = C.player_profile
+	s2_check("the player's name in a ticket: Profile opens theirs", P && P.shown_ckey == C.ckey && s2_ui(H, P), P?.shown_ckey)
+	s2_close(H, P)
+	// a named person's menu, pictured open
+	s2_do(C, ui, "pick:.Tickets__namedName .PlayerLink__name|Tara Tide")
+	sleep(5)
+	s2_shot("names_menu")
+	s2_do(C, ui, "pick:.PlayerLink__item|Profile")
+	sleep(1 SECONDS)
+	s2_check("a named person's menu: Profile opens theirs (no client, found by key)", P.shown_ckey == "taratide", P.shown_ckey)
+	s2_close(H, P)
+	// a log line's name: Logs, then in Search Logs a name's menu again
+	s2_do(C, ui, "pickin:.LogSearch__line|.PlayerLink__name|has punched|Bob Barman")
+	sleep(5)
+	s2_do(C, ui, "pick:.PlayerLink__item|Logs")
+	sleep(1 SECONDS)
+	var/datum/log_search/L = C.log_search
+	var/datum/tgui/log_ui = s2_ui(H, L)
+	s2_check("a log line's name: Logs opens Search Logs on them", L && L.who == "bobbarman" && log_ui, L?.who)
+	s2_do(C, log_ui, "pickin:.LogSearch__line|.PlayerLink__name|has punched|Bob Barman")
+	sleep(5)
+	s2_do(C, log_ui, "pick:.PlayerLink__item|Profile")
+	sleep(1 SECONDS)
+	s2_check("and in Search Logs the same menu: Profile", P.shown_ckey == "bobbarman", P.shown_ckey)
+	s2_close(H, P)
+	s2_close(H, L)
+	// the menu closes when you click elsewhere
+	s2_do(C, ui, "pick:.Tickets__namedName .PlayerLink__name|Bob Barman")
+	s2_do(C, ui, "down:.Tickets__colHead|Conversation")
+	sleep(5)
+	s2_do(C, ui, "pick:.PlayerLink__item|Profile")
+	sleep(1 SECONDS)
+	s2_check("a click elsewhere closes the menu (Profile can't be picked after)", P.shown_ckey == "bobbarman" && !s2_ui_now(H, P))
+
+/// Whether a window is open now, without waiting for one
+/proc/s2_ui_now(mob/user, datum/src_object)
+	for(var/datum/tgui/open as anything in user.open_uis)
+		if(open.src_object == src_object)
+			return open
+
 /proc/s2_alerts(client/C, mob/living/carbon/human/H, datum/admin_help/AH, list/people)
 	var/mob/living/carbon/human/bob = people["bob"]
 	s2_close(H, C.ticket_window) // the pictures take the biggest window: the next ones are smaller
@@ -403,7 +456,13 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 	sleep(5)
 	var/list/muted = SSadmin_alerts.mutes[C.ckey]
 	s2_check("the bell mutes Kill in their chat, kept in this run's file", muted && muted["kill"] && findtext(file2text("data/stage2_check/mutes.json"), "kill"))
-	s2_shot("alerts")
+	s2_do(C, ui, "pickin:.AdminAlerts__row|.PlayerLink__name|Rob Ott|Bob Barman")
+	sleep(5)
+	s2_shot("alerts_menu")
+	s2_do(C, ui, "pick:.PlayerLink__item|Logs")
+	sleep(1 SECONDS)
+	s2_check("an alert's name menu: Logs searches for them", C.log_search?.who == "bobbarman", C.log_search?.who)
+	s2_close(H, C.log_search)
 	s2_close(H, W)
 
 /proc/s2_profile(client/C, mob/living/carbon/human/H, datum/admin_help/AH)
@@ -429,9 +488,10 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 	s2_check("the earlier round", length(B["rounds"]) == 1 && B["rounds"][1]["job"] == "Cook")
 	s2_check("this round by the log: hit twice, died once", B["round_counts"]["attacked_by"] >= 3 && B["round_counts"]["deaths"] == 1, json_encode(B["round_counts"]))
 	s2_shot("profile")
-	s2_do(C, ui, "pick:.PlayerProfile__name|Alt Account")
+	s2_do(C, ui, "pick:.PlayerProfile__name .PlayerLink__name|Alt Account")
+	s2_do(C, ui, "pick:.PlayerLink__item|Profile")
 	sleep(1 SECONDS)
-	s2_check("an alt's name opens their profile", P.shown_ckey == "altaccount")
+	s2_check("an alt's name menu opens their profile", P.shown_ckey == "altaccount")
 	s2_do(C, ui, "pick:.PlayerProfile__titleRow .Button|")
 	sleep(1 SECONDS)
 	s2_check("Back goes back", P.shown_ckey == C.ckey)

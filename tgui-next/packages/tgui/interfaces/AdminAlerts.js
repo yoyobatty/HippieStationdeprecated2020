@@ -1,5 +1,6 @@
 import { useBackend } from '../backend';
 import { Button, Dropdown, Icon } from '../components';
+import { PlayerLink } from './common/PlayerLink';
 
 // hippie -- Alerts: kills by non-antagonists, mass deaths, explosions, loose
 // engines, gas, emags and waiting tickets this round, newest first. Each
@@ -23,41 +24,18 @@ const DISCORD_MODES = {
   never: 'Never',
 };
 
+// Who it's about: their name is a menu (common/PlayerLink.js)
 const Who = props => {
-  const { act, row, prefix, name, ckey, here, mob } = props;
+  const { act, name, ckey, refId, mob } = props;
   if (!name) {
     return null;
   }
   return (
     <span className="AdminAlerts__who">
       <span className="AdminAlerts__whoName">
-        {name}{ckey ? ' (' + ckey + ')' : ''}
+        <PlayerLink act={act} showCkey
+          who={{ name, ckey, ref: refId, mob }} />
       </span>
-      {!!here && !!mob && (
-        <a onClick={() => act(prefix + 'pp', { id: row.id })}
-          title="Player panel">PP
-        </a>
-      )}
-      {!!here && (
-        <a onClick={() => act(prefix + 'vv', { id: row.id })}
-          title="View variables">VV
-        </a>
-      )}
-      {!!here && (
-        <a onClick={() => act(prefix + 'flw', { id: row.id })}
-          title="Follow">FLW
-        </a>
-      )}
-      {!!ckey && (
-        <a onClick={() => act(prefix + 'profile', { id: row.id })}
-          title="Player profile">PROFILE
-        </a>
-      )}
-      {!!ckey && (
-        <a onClick={() => act(prefix + 'logs', { id: row.id })}
-          title="Search Logs for them">LOGS
-        </a>
-      )}
     </span>
   );
 };
@@ -151,15 +129,13 @@ export const AdminAlerts = props => {
                     </a>
                   </span>
                 )}
-                <Who act={act} row={row} prefix=""
-                  name={row.actor} ckey={row.actor_ckey}
-                  here={row.actor_here} mob={row.actor_mob} />
+                <Who act={act} name={row.actor} ckey={row.actor_ckey}
+                  refId={row.actor_ref} mob={row.actor_mob} />
                 {!!row.target && (
                   <span className="AdminAlerts__muted">and</span>
                 )}
-                <Who act={act} row={row} prefix="t_"
-                  name={row.target} ckey={row.target_ckey}
-                  here={row.target_here} mob={row.target_mob} />
+                <Who act={act} name={row.target} ckey={row.target_ckey}
+                  refId={row.target_ref} mob={row.target_mob} />
                 {!!row.ticket && (
                   <a className="AdminAlerts__link"
                     onClick={() => act('ticket', { id: row.id })}>

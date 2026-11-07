@@ -468,10 +468,12 @@ GLOBAL_LIST_EMPTY(admin_alerts_windows)
 			"actor_ckey" = A.actor_ckey,
 			"actor_here" = !!actor,
 			"actor_mob" = ismob(actor),
+			"actor_ref" = actor ? REF(actor) : null,
 			"target" = A.target_name,
 			"target_ckey" = A.target_ckey,
 			"target_here" = !!target,
 			"target_mob" = ismob(target),
+			"target_ref" = target ? REF(target) : null,
 			"ticket" = A.ticket_id,
 			"handled_by" = A.handled_by,
 			"mine" = !!owner && A.handled_ckey == owner.ckey,
@@ -495,6 +497,8 @@ GLOBAL_LIST_EMPTY(admin_alerts_windows)
 		return
 	if(!check_rights(R_ADMIN))
 		return
+	if(action == "player_menu") // a name's menu (player_menu.dm)
+		return player_menu_act(usr, params)
 	switch(action)
 		if("mute")
 			if(GLOB.admin_alert_kinds[params["kind"]])

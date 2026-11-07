@@ -1,6 +1,7 @@
 import { Component, Fragment } from 'inferno';
 import { useBackend } from '../backend';
 import { Button, Icon, Input } from '../components';
+import { PlayerLink } from './common/PlayerLink';
 
 // hippie -- the Bans window: New ban (length presets, the player's record,
 // who's online and who left, the role grid with their current role bans),
@@ -681,7 +682,10 @@ export class BanWindow extends Component {
     return (
       <Fragment>
         <div className="BanWindow__recordHead">
-          <span className="BanWindow__recordKey">{record.key}</span>
+          <span className="BanWindow__recordKey">
+            <PlayerLink act={act}
+              who={{ name: record.key, ckey: record.ckey }} />
+          </span>
           <span className={'BanWindow__presence BanWindow__presence--'
             + record.status}>
             {status}
@@ -920,7 +924,11 @@ export class BanWindow extends Component {
     return (
       <div key={g.id} className={'BanWindow__group ' + statusClass(g.status)}>
         <div className="BanWindow__groupHead">
-          <span className="BanWindow__target">{g.target}</span>
+          <span className="BanWindow__target">
+            {g.ckey
+              ? <PlayerLink act={act} who={{ name: g.target, ckey: g.ckey }} />
+              : g.target}
+          </span>
           {!!g.applies && (
             <span className="BanWindow__badge BanWindow__badge--red">
               admins too

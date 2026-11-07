@@ -1,6 +1,7 @@
 import { Fragment } from 'inferno';
 import { useBackend } from '../backend';
 import { Button, Icon } from '../components';
+import { PlayerLink } from './common/PlayerLink';
 
 // hippie -- Player profile, for admins: who they are now, how long they've
 // been coming, alt keys and whether those are banned, bans, notes, tickets
@@ -156,10 +157,10 @@ export const PlayerProfile = props => {
             {alts.length === 0 && <Empty text="None seen." />}
             {alts.map(alt => (
               <div key={alt.ckey} className="PlayerProfile__row">
-                <a className="PlayerProfile__name"
-                  onClick={() => act('profile', { ckey: alt.ckey })}>
-                  {alt.key || alt.ckey}
-                </a>
+                <span className="PlayerProfile__name">
+                  <PlayerLink act={act}
+                    who={{ name: alt.key || alt.ckey, ckey: alt.ckey }} />
+                </span>
                 <span className="PlayerProfile__muted">{alt.how}</span>
                 {!!alt.online && (
                   <span className="PlayerProfile__chip">online</span>

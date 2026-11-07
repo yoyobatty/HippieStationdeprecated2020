@@ -2,6 +2,7 @@ import { Component, createRef, Fragment } from 'inferno';
 import { useBackend } from '../backend';
 import { Button, Icon, Input } from '../components';
 import { kindClass, Who } from './LogSearch';
+import { PlayerLink } from './common/PlayerLink';
 
 // hippie -- Tickets: every ahelp ticket in one window. The list on the left
 // (waiting ones first), the conversation with a reply box and saved replies,
@@ -39,25 +40,6 @@ const MINUTES = [2, 5, 15, 30];
 const FIRST_STRIKE = {
   victim: 'the dead one',
   killer: 'the killer',
-};
-
-const MOB_BUTTONS = [
-  ['pp', 'PP', 'Player panel'],
-  ['vv', 'VV', 'View variables'],
-  ['flw', 'FLW', 'Follow'],
-  ['sm', 'SM', 'Subtle message'],
-  ['jmp', 'JMP', 'Jump to them'],
-];
-
-const MobLinks = props => {
-  const { onPick } = props;
-  return (
-    <span className="Tickets__links">
-      {MOB_BUTTONS.map(b => (
-        <a key={b[0]} title={b[2]} onClick={() => onPick(b[0])}>{b[1]}</a>
-      ))}
-    </span>
-  );
 };
 
 const Chip = props => (
@@ -341,24 +323,18 @@ export class Tickets extends Component {
   renderPlayer(t) {
     const { act } = useBackend(this.props);
     const p = t.player || {};
-    const who = [p.name, p.job].filter(x => !!x).join(', ');
     const pick = what => act('player', { what });
     return (
       <div className="Tickets__player">
         <div className="Tickets__playerRow">
           <Icon name="user" mr={1} />
           <span className="Tickets__playerName">
-            {who || (p.state === 'lobby' ? 'In the lobby' : 'No body')}
+            <PlayerLink act={act} who={p.who} />
+            {p.job ? ', ' + p.job : ''}
+            {!p.name && (p.state === 'lobby' ? ' (in the lobby)' : '')}
           </span>
-          {!!p.has_mob && <MobLinks onPick={pick} />}
           <span className="Tickets__spacer" />
           <span className="Tickets__links">
-            <a title="Everything known about them"
-              onClick={() => pick('profile')}>PROFILE
-            </a>
-            <a title="Search Logs for them" onClick={() => pick('logs')}>
-              LOGS
-            </a>
             <a title="Their notes" onClick={() => pick('notes')}>NOTES</a>
             <a title="New note on them, with this ticket and the quoted lines"
               onClick={() => pick('note_add')}>NOTE+
@@ -581,15 +557,13 @@ export class Tickets extends Component {
           <div className="LogSearch__body">
             <div className="LogSearch__text">{row.text}</div>
             <div className="LogSearch__meta">
-              <Who act={act} row={row} prefix=""
-                ckey={row.ckey} name={row.name}
-                alive={row.actor} mob={row.actor_mob} />
+              <Who act={act} ckey={row.ckey} name={row.name}
+                refId={row.aref} mob={row.actor_mob} />
               {(!!row.tckey || !!row.tname) && (
                 <span className="LogSearch__arrowText">to</span>
               )}
-              <Who act={act} row={row} prefix="t_"
-                ckey={row.tckey} name={row.tname}
-                alive={row.target} mob={row.target_mob} />
+              <Who act={act} ckey={row.tckey} name={row.tname}
+                refId={row.tref} mob={row.target_mob} />
               {!!row.where && (
                 <span className="LogSearch__where">
                   <Icon name="map-marker-alt" mr={0.5} />
@@ -666,7 +640,13 @@ export class Tickets extends Component {
             {named.map(n => (
               <div key={n.index} className="Tickets__namedRow">
                 <span className="Tickets__namedName">
-                  {n.name}{n.ckey ? ' (' + n.ckey + ')' : ''}
+                  <PlayerLink act={act} showCkey
+                    who={{
+                      name: n.name,
+                      ckey: n.ckey,
+                      ref: n.ref,
+                      mob: true,
+                    }} />
                 </span>
                 <span className="Tickets__muted Tickets__small">
                   {[n.job, n.state !== 'alive' ? n.state : null,
@@ -677,11 +657,6 @@ export class Tickets extends Component {
                     {n.antag}
                   </span>
                 )}
-                <span className="Tickets__spacer" />
-                <MobLinks onPick={what => act('named', {
-                  index: n.index,
-                  what,
-                })} />
               </div>
             ))}
           </div>
@@ -699,6 +674,7 @@ export class Tickets extends Component {
   }
 
   renderKills(t) {
+    const { act } = useBackend(this.props);
     const kills = t.kills || [];
     const side = (s, label) => {
       if (!s) {
@@ -711,7 +687,7 @@ export class Tickets extends Component {
       return (
         <div className="Tickets__killSide">
           <span className="Tickets__muted">{label} </span>
-          <b>{s.name}</b>
+          <b><PlayerLink act={act} who={s} /></b>
           {!!s.ckey && <span className="Tickets__muted"> ({s.ckey})</span>}
           {!!s.job && ', ' + s.job}
           {!!s.antag && (
@@ -854,12 +830,12 @@ export class Tickets extends Component {
         </div>
         {!!pickedDot && (
           <div className="Tickets__mapPicked">
-            <b>{pickedDot.name}</b> ({pickedDot.ckey}), {pickedDot.state}
-            {' '}at {pickedDot.x}, {pickedDot.y}
-            <MobLinks onPick={what => act('map_dot', {
-              ckey: pickedDot.ckey,
-              what,
-            })} />
+            <b>
+              <PlayerLink act={act} showCkey
+                who={{ name: pickedDot.name, ckey: pickedDot.ckey }} />
+            </b>
+            {', ' + pickedDot.state + ' at ' + pickedDot.x + ', '
+              + pickedDot.y}
           </div>
         )}
       </div>
