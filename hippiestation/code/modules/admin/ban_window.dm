@@ -12,11 +12,15 @@
 
 /client/var/datum/ban_window/ban_window
 
-/client/proc/open_ban_window(tab, list/options)
+/client/proc/open_ban_window(tab, list/options, via_hub)
 	if(!holder)
 		return
 	if(!ban_window)
 		ban_window = new
+	if(hub_wants(via_hub))
+		ban_window.open(mob, tab, options, FALSE)
+		open_admin_hub("bans")
+		return
 	ban_window.open(mob, tab, options)
 
 /client/proc/cmd_admin_notes()
@@ -113,7 +117,7 @@
 		ui = new(user, src, ui_key, "ban_window", "Bans", 1060, 720, master_ui, state)
 		ui.open()
 
-/datum/ban_window/proc/open(mob/user, new_tab, list/options)
+/datum/ban_window/proc/open(mob/user, new_tab, list/options, show = TRUE)
 	if(new_tab)
 		tab = new_tab
 	notice = null
@@ -145,7 +149,8 @@
 					compose["text"] = copytext_char(options["text"], 1, NOTE_TEXT_MAX)
 			else
 				notes_refresh()
-	ui_interact(user)
+	if(show)
+		ui_interact(user)
 
 /datum/ban_window/proc/say(text, bad = FALSE)
 	notice = text

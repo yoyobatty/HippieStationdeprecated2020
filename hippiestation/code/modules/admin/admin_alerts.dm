@@ -411,7 +411,7 @@ GLOBAL_LIST_EMPTY(admin_alerts_windows)
 		return
 	open_admin_alerts()
 
-/client/proc/open_admin_alerts(alert_id)
+/client/proc/open_admin_alerts(alert_id, via_hub)
 	if(!holder)
 		return
 	if(!admin_alerts_window)
@@ -419,6 +419,9 @@ GLOBAL_LIST_EMPTY(admin_alerts_windows)
 		admin_alerts_window.owner = src
 	if(alert_id)
 		admin_alerts_window.picked_id = alert_id
+	if(hub_wants(via_hub))
+		open_admin_hub("alerts")
+		return
 	admin_alerts_window.ui_interact(mob)
 
 /datum/admin_alerts_window

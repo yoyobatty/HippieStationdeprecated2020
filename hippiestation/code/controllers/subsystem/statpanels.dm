@@ -160,6 +160,7 @@ SUBSYSTEM_DEF(statpanels)
 	var/datum/stat_panel/panel = target.stat_panel
 	var/list/entries = list()
 	var/list/clickable = panel.clickable_admin
+	entries[++entries.len] = list("Admin hub:", admin_hub_stat_text(target), null, ticket_click(GLOB.admin_hub_statclick, clickable)) // admin_hub.dm
 	entries[++entries.len] = list("Active Tickets:", "[tickets.active_tickets.len]", null, ticket_click(tickets.astatclick, clickable))
 	var/num_disconnected = 0
 	for(var/datum/admin_help/AH as anything in tickets.active_tickets)

@@ -10,6 +10,7 @@
 			verbs += /client/proc/cmd_search_logs // log_search.dm
 			verbs += /client/proc/cmd_admin_find // admin_find.dm
 			verbs += /client/proc/cmd_admin_notes // ban_window.dm
+			verbs += /client/proc/cmd_admin_hub // admin_hub.dm
 			verbs += /client/proc/cmd_tickets // tickets.dm
 			verbs += /client/proc/cmd_admin_alerts // admin_alerts.dm
 			verbs += /client/proc/cmd_player_profile // player_profile.dm
@@ -21,6 +22,7 @@
 	verbs.Remove(/client/proc/cmd_search_logs)
 	verbs.Remove(/client/proc/cmd_admin_find)
 	verbs.Remove(/client/proc/cmd_admin_notes)
+	verbs.Remove(/client/proc/cmd_admin_hub)
 	verbs.Remove(/client/proc/cmd_tickets)
 	verbs.Remove(/client/proc/cmd_admin_alerts)
 	verbs.Remove(/client/proc/cmd_player_profile)

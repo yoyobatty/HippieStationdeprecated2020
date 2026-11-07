@@ -2,6 +2,7 @@ import { AbductorConsole, AbductorExperiment, GlandDispenser } from './interface
 import { Achievements } from './interfaces/Achievements';
 import { AdminAlerts } from './interfaces/AdminAlerts';
 import { AdminFind } from './interfaces/AdminFind';
+import { AdminHub } from './interfaces/AdminHub';
 import { AiAirlock } from './interfaces/AiAirlock';
 import { AirAlarm } from './interfaces/AirAlarm';
 import { AirlockElectronics } from './interfaces/AirlockElectronics';
@@ -1121,6 +1122,10 @@ const ROUTES = {
   },
   tickets: {
     component: () => Tickets,
+    scrollable: false,
+  },
+  admin_hub: {
+    component: () => AdminHub,
     scrollable: false,
   },
   help_window: {

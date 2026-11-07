@@ -16,7 +16,7 @@
 		return
 	open_admin_find()
 
-/client/proc/open_admin_find(turf/tile)
+/client/proc/open_admin_find(turf/tile, via_hub)
 	if(!admin_find)
 		admin_find = new
 	if(tile)
@@ -27,6 +27,9 @@
 		admin_find.tile_y = tile.y
 		admin_find.tile_z = tile.z
 		admin_find.search(mob)
+	if(hub_wants(via_hub))
+		open_admin_hub("find")
+		return
 	admin_find.ui_interact(mob)
 
 /datum/admin_find

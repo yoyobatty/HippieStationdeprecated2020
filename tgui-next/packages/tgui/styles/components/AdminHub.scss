@@ -1,0 +1,140 @@
+// hippie -- the admin hub (interfaces/AdminHub.js), and the profile's
+// compact look for its side panel
+
+$ah-line: rgba(255, 255, 255, 0.1);
+$ah-muted: #8a93a0;
+
+.AdminHub {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.AdminHub__tabs {
+  display: flex;
+  align-items: stretch;
+  padding: 0 6px;
+  border-bottom: 1px solid $ah-line;
+  background-color: rgba(0, 0, 0, 0.18);
+}
+
+.AdminHub__tab {
+  display: flex;
+  align-items: center;
+  padding: 8px 14px 7px;
+  color: $ah-muted;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  user-select: none;
+
+  &:hover {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.AdminHub__tab--on {
+  color: #fff;
+  border-bottom-color: #4f8fd6;
+}
+
+.AdminHub__count {
+  margin-left: 7px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background-color: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 11px;
+}
+
+.AdminHub__count--hot {
+  background-color: #c9472f;
+}
+
+.AdminHub__spacer {
+  flex: 1;
+}
+
+.AdminHub__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.AdminHub__tool {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.AdminHub__side {
+  position: relative;
+  flex: 0 0 380px;
+  border-left: 1px solid $ah-line;
+  background-color: rgba(0, 0, 0, 0.12);
+}
+
+.AdminHub__close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 5;
+  color: $ah-muted;
+  cursor: pointer;
+
+  &:hover {
+    color: #fff;
+  }
+}
+
+// The profile in the hub's side panel: one column, scrolled as a whole
+
+.PlayerProfile--compact {
+  overflow-y: auto;
+  display: block;
+
+  .PlayerProfile__head {
+    padding-right: 28px;
+  }
+
+  .PlayerProfile__titleRow .Button {
+    display: none;
+  }
+
+  .PlayerProfile__titleRow .PlayerProfile__back {
+    display: inline-block;
+  }
+
+  .PlayerProfile__actRow {
+    flex-wrap: wrap;
+
+    .Button {
+      margin-bottom: 3px;
+    }
+  }
+
+  .PlayerProfile__recordRow {
+    display: block;
+
+    & > span {
+      display: block;
+    }
+  }
+
+  .PlayerProfile__body {
+    display: block;
+  }
+
+  .PlayerProfile__col {
+    overflow: visible;
+
+    & + & {
+      border-left: none;
+    }
+  }
+}

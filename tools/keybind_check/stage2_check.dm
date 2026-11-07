@@ -195,6 +195,7 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 		s2_alerts(C, H, AH, people)
 		s2_profile(C, H, AH)
 		s2_questions(C, H, AH)
+		s2_hub(C, H, AH)
 		s2_history(C, H)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
@@ -232,10 +233,13 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 	s2_close(H, W)
 
 /proc/s2_tickets(client/C, mob/living/carbon/human/H, datum/admin_help/AH, list/people)
-	AH.TicketPanel()
+	AH.TicketPanel() // a ticket's #id link in chat: the admin hub, on that ticket (admin_hub.dm)
 	var/datum/ticket_window/W = C.ticket_window
+	s2_check("the ticket's own link opens the hub's Tickets tab on it", s2_ui(H, C.admin_hub) && C.admin_hub.tab == "tickets" && W.selected_id == AH.id && !s2_ui_now(H, W))
+	s2_close(H, C.admin_hub)
+	C.cmd_tickets() // the verb: the Tickets window of its own, the rest of these checks use it
 	var/datum/tgui/ui = s2_ui(H, W)
-	s2_check("the ticket's own link opens the Tickets window on it", ui && W.selected_id == AH.id)
+	s2_check("the Tickets verb opens its own window, on the same ticket", ui && W.selected_id == AH.id)
 	s2_do(C, ui, "click:Claim")
 	s2_check("Claim", AH.claimed_ckey == C.ckey)
 	s2_do(C, ui, "pick:.Tickets__savedChip|Details")
@@ -536,6 +540,64 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 	s2_check("the Tickets window's Questions list", listed)
 	TW.list_state = AHELP_ACTIVE
 	s2_close(H, W)
+
+/// The admin hub (the user's rulings, 2026-11-07): tabs across the top with counts, the profile as a side panel, the old windows
+/// still opening alone from their verbs, chat links and the stat panel going to the hub
+/proc/s2_hub(client/C, mob/living/carbon/human/H, datum/admin_help/AH)
+	for(var/datum/tgui/open as anything in H.open_uis.Copy()) // the pictures take the biggest window
+		open.close()
+	sleep(5)
+	C.cmd_admin_hub()
+	var/datum/admin_hub/hub = C.admin_hub
+	var/datum/tgui/ui = s2_ui(H, hub)
+	s2_check("the Admin verb opens the hub", ui && hub.tab == "tickets")
+	var/list/data = hub.ui_data(H)
+	var/list/counts = data["counts"]
+	s2_check("the Tickets tab counts the open tickets and the waiting ones", counts["tickets"]["count"] == length(GLOB.ahelp_tickets.active_tickets) && counts["tickets"]["hot"] >= 1, json_encode(counts["tickets"]))
+	s2_check("the Alerts tab counts the new alerts", counts["alerts"]["count"] == length(SSadmin_alerts.alerts), "[counts["alerts"]["count"]] of [length(SSadmin_alerts.alerts)]")
+	s2_check("the Tickets tab is the same window's state: the same ticket picked", data["tool"]["ticket"] && data["tool"]["ticket"]["id"] == C.ticket_window.selected_id)
+	s2_shot("hub_tickets")
+	// the Alerts tab: seen, and an alert's TICKET link moves the hub to the ticket, no window of its own
+	s2_do(C, ui, "pick:.AdminHub__tab|Alerts")
+	sleep(5)
+	data = hub.ui_data(H)
+	s2_check("Alerts: looking clears its count", hub.tab == "alerts" && data["counts"]["alerts"]["count"] == 0)
+	s2_do(C, ui, "pick:.AdminAlerts__link|TICKET")
+	sleep(1 SECONDS)
+	s2_check("an alert's TICKET link: the hub's Tickets tab on that ticket, no Tickets window", hub.tab == "tickets" && C.ticket_window.selected_id == AH.id && !s2_ui_now(H, C.ticket_window), hub.tab)
+	// a name's Profile: the side panel, no Profile window
+	s2_do(C, ui, "pick:.Tickets__namedName .PlayerLink__name|Bob Barman")
+	sleep(5)
+	s2_do(C, ui, "pick:.PlayerLink__item|Profile")
+	sleep(1 SECONDS)
+	s2_check("a name's Profile opens the side panel, not a window", hub.profile_open && C.player_profile.shown_ckey == "bobbarman" && !s2_ui_now(H, C.player_profile))
+	sleep(5)
+	s2_shot("hub_profile")
+	// the panel's own buttons: Logs moves the hub to its Logs tab on them
+	s2_do(C, ui, "pick:.PlayerProfile--compact .Button|Logs")
+	sleep(1 SECONDS)
+	s2_check("the panel's Logs: the hub's Logs tab on them", hub.tab == "logs" && C.log_search.who == "bobbarman" && !s2_ui_now(H, C.log_search), "[hub.tab] [C.log_search?.who]")
+	s2_shot("hub_logs")
+	s2_do(C, ui, "pick:.AdminHub__close|")
+	sleep(5)
+	s2_check("the panel closes", !hub.profile_open)
+	// a link in chat (LOGS) goes to the hub; the verb still opens the window alone
+	C.open_log_search("taratide", TRUE)
+	sleep(5)
+	s2_check("a chat link: the hub's tab", hub.tab == "logs" && C.log_search.who == "taratide" && !s2_ui_now(H, C.log_search))
+	hub.tab = "tickets"
+	C.cmd_search_logs()
+	sleep(1 SECONDS)
+	s2_check("the Search Logs verb: its own window, the hub left as it was", s2_ui(H, C.log_search) && hub.tab == "tickets")
+	s2_close(H, C.log_search)
+	// the stat panel's line
+	var/stat_text = admin_hub_stat_text(C)
+	s2_check("the stat panel's hub line", findtext(stat_text, "ticket") && findtext(stat_text, "alert"), stat_text)
+	s2_close(H, hub)
+	usr = H
+	GLOB.admin_hub_statclick.Click()
+	sleep(1 SECONDS)
+	s2_check("clicking it opens the hub", !!s2_ui(H, hub))
 
 /proc/s2_history(client/C, mob/living/carbon/human/H)
 	var/list/before = player_history_read(C.ckey)

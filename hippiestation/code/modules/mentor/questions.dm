@@ -213,7 +213,7 @@ GLOBAL_LIST_EMPTY(question_windows)
 		return
 	open_questions()
 
-/client/proc/open_questions(question_id)
+/client/proc/open_questions(question_id, via_hub)
 	if(!is_mentor())
 		return
 	if(!question_window)
@@ -224,6 +224,9 @@ GLOBAL_LIST_EMPTY(question_windows)
 		var/datum/help_question/Q = help_question_by_id(question_id)
 		if(Q)
 			question_window.show_open = Q.open
+	if(hub_wants(via_hub)) // an admin's: the hub's Questions tab
+		open_admin_hub("questions")
+		return
 	question_window.ui_interact(mob)
 
 /proc/help_question_by_id(id)

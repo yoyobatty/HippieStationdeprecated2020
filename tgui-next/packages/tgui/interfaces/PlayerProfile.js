@@ -51,8 +51,15 @@ const Empty = props => (
   <div className="PlayerProfile__empty">{props.text}</div>
 );
 
+// actPrefix and compact: shown as the admin hub's side panel (AdminHub.js),
+// its actions go with the prefix so the hub knows them from the tab's
+const prefixed = (sendAct, prefix) => (prefix
+  ? (action, params) => sendAct(prefix + action, params)
+  : sendAct);
+
 export const PlayerProfile = props => {
-  const { act, data } = useBackend(props);
+  const { act: sendAct, data } = useBackend(props);
+  const act = prefixed(sendAct, props.actPrefix);
   if (!data.ckey) {
     return null;
   }
@@ -65,11 +72,13 @@ export const PlayerProfile = props => {
   const rounds = data.rounds || [];
   const activeBans = bans.filter(b => b.status === 'active').length;
   return (
-    <div className="PlayerProfile">
+    <div className={'PlayerProfile'
+      + (props.compact ? ' PlayerProfile--compact' : '')}>
       <div className="PlayerProfile__head">
         <div className="PlayerProfile__titleRow">
           {!!data.can_back && (
             <Button icon="arrow-left" title="Back"
+              className="PlayerProfile__back"
               onClick={() => act('back')} />
           )}
           <span className="PlayerProfile__key">{data.key}</span>

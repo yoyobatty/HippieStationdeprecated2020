@@ -116,10 +116,10 @@
 
 /// The ticket's own page and the ticket lists both open the window now
 /datum/admin_help/TicketPanel()
-	usr?.client?.open_tickets(id)
+	usr?.client?.open_tickets(id, null, TRUE) // chat's #id links and the stat panel: the admin hub (admin_hub.dm)
 
 /datum/admin_help_tickets/BrowseTickets(state)
-	usr?.client?.open_tickets(null, state)
+	usr?.client?.open_tickets(null, state, TRUE)
 
 /datum/admin_help/proc/claim(client/C, silent = FALSE)
 	if(state != AHELP_ACTIVE || !C)
@@ -224,7 +224,7 @@
 	var/list/words = list()
 	for(var/word in splittext(msg, " "))
 		word = ckey(word)
-		if(word && !(word in ignored))
+		if(word && !(word in ignored) && isnull(text2num(word))) // "#2" isn't anyone: "MULEbot #2" was named by "Question #2"
 			words[word] = TRUE
 	if(!words.len)
 		return
@@ -240,7 +240,7 @@
 			var/surname_found = 0
 			for(var/i in L.len to 1 step -1)
 				var/word = ckey(L[i])
-				if(word)
+				if(word && isnull(text2num(word)))
 					surnames[word] = M
 					surname_found = i
 					break
@@ -581,12 +581,16 @@ GLOBAL_LIST_EMPTY(ticket_windows)
 		return
 	open_tickets()
 
-/client/proc/open_tickets(ticket_id, state)
+/client/proc/open_tickets(ticket_id, state, via_hub)
 	if(!holder)
 		return
 	if(!ticket_window)
 		ticket_window = new
 		ticket_window.owner = src
+	if(hub_wants(via_hub))
+		ticket_window.open(mob, ticket_id, state, FALSE)
+		open_admin_hub("tickets")
+		return
 	ticket_window.open(mob, ticket_id, state)
 
 /datum/ticket_window
@@ -628,7 +632,7 @@ GLOBAL_LIST_EMPTY(ticket_windows)
 	owner = null
 	return ..()
 
-/datum/ticket_window/proc/open(mob/user, ticket_id, state)
+/datum/ticket_window/proc/open(mob/user, ticket_id, state, show = TRUE)
 	notice = null
 	if(ticket_id)
 		var/datum/admin_help/AH = GLOB.ahelp_tickets.TicketByID(ticket_id)
@@ -637,7 +641,8 @@ GLOBAL_LIST_EMPTY(ticket_windows)
 			list_state = AH.state
 	else if(state)
 		list_state = state
-	ui_interact(user)
+	if(show)
+		ui_interact(user)
 
 /datum/ticket_window/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, datum/tgui/master_ui = null, datum/ui_state/state = GLOB.admin_state)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
@@ -1082,7 +1087,9 @@ GLOBAL_LIST_EMPTY(ticket_windows)
 			AH.Close()
 			return TRUE
 		if("reopen")
+			usr.client.hub_suppress = TRUE // Reopen() redraws the ticket's page: this window, not the hub
 			AH.Reopen()
+			usr.client.hub_suppress = FALSE
 			list_state = AH.state
 			return TRUE
 

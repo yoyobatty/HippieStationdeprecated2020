@@ -27,7 +27,7 @@
 	if(player_ckey)
 		open_player_profile(player_ckey)
 
-/client/proc/open_player_profile(player_ckey)
+/client/proc/open_player_profile(player_ckey, via_hub)
 	if(!holder)
 		return
 	player_ckey = ckey(player_ckey)
@@ -37,6 +37,9 @@
 		player_profile = new
 		player_profile.owner = src
 	player_profile.show(player_ckey)
+	if(hub_wants(via_hub)) // the hub's panel at the right, on whatever tab it's on
+		open_admin_hub(null, TRUE)
+		return
 	player_profile.ui_interact(mob)
 
 /datum/player_profile

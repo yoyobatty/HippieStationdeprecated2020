@@ -17,7 +17,7 @@
 	open_log_search()
 
 /// The window, filtered to a player when given one (a player panel's SEARCH LOGS)
-/client/proc/open_log_search(who)
+/client/proc/open_log_search(who, via_hub)
 	if(!log_search)
 		log_search = new
 		log_search.owner = src
@@ -25,6 +25,9 @@
 		log_search.reset()
 		log_search.who = who
 	log_search.search()
+	if(hub_wants(via_hub))
+		open_admin_hub("logs")
+		return
 	log_search.ui_interact(mob)
 
 /// Kinds of line, in the order the window shows them, and what each holds (the chips' tooltips)

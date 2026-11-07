@@ -36,7 +36,7 @@
 		if(check_rights(R_ADMIN))
 			var/turf/T = locate(href_list["adminfindtile"])
 			if(isturf(T))
-				usr.client.open_admin_find(T)
+				usr.client.open_admin_find(T, TRUE)
 		return
 	if(href_list["searchlogs"]) // a player panel's SEARCH LOGS, or LOGS by an ahelp (log_search.dm): a ckey or name, or a ref
 		if(check_rights(R_ADMIN))
@@ -49,15 +49,15 @@
 				else if(ismob(D))
 					var/mob/M = D
 					who = M.ckey || M.real_name || M.name
-			usr.client.open_log_search(who)
+			usr.client.open_log_search(who, TRUE)
 		return
 	if(href_list["playerprofile"]) // PROFILE in a player panel (player_profile.dm)
 		if(check_rights(R_ADMIN))
-			usr.client.open_player_profile(href_list["playerprofile"])
+			usr.client.open_player_profile(href_list["playerprofile"], TRUE)
 		return
 	if(href_list["adminalerts"]) // ALERTS on an alert's chat line (admin_alerts.dm)
 		if(check_rights(R_ADMIN))
-			usr.client.open_admin_alerts(text2num(href_list["adminalerts"]))
+			usr.client.open_admin_alerts(text2num(href_list["adminalerts"]), TRUE)
 		return
 	if(href_list["makeAntag"] == "shadowling")
 		hippie_makeShadowling(src)
