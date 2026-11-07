@@ -7,12 +7,22 @@
 // World params:  lighting-engine=dm      the DM code only
 //                lighting-engine=shadow  the DM code lights the station and the engine follows along with every change:
 //                                        native_shadow_check() compares every corner (tools/lighting_bench, stress bench)
+//                lighting-view=dm        lights look around with view(), as they always did. Otherwise (lighting-view=native,
+//                                        the default) the engine works out what each light can see itself, from the turfs'
+//                                        opacity, the way BYOND's view() does (tools/lighting_engine/src/view.rs): a light
+//                                        update's time went mostly on view(), and lighting took half as long without it
+//                lighting-view=shadow    view() as before, and the engine's own view set against it on every light update
+//                                        (data/lighting_view_check.txt, lighting_view_report())
+//                lighting-lib=<name>     the engine's library under another name (a build being tried out beside the one
+//                                        the running servers have open)
 //
 // The engine keeps four things about each turf (lighting_engine_flags()) and is told whenever one changes: the turf's
 // has_opaque_atom, its dynamic_lighting, whether it has light sources of its own, and whether it has a lighting object.
 
 /// How many lighting objects to draw per call to the engine
 #define LIGHTING_ENGINE_BATCH 400
+
+GLOBAL_VAR_INIT(lighting_engine_lib, world.params["lighting-lib"] || (world.system_type == UNIX ? "./libhippie_lighting.so" : "hippie_lighting"))
 
 /datum/controller/subsystem/lighting
 	/// The engine works the lighting out
@@ -23,6 +33,12 @@
 	var/native_flags_ready = FALSE
 	/// Why the engine is or isn't running
 	var/native_status = "not started"
+	/// How lights find what they can see while the engine runs: LIGHTING_VIEW_DM and co., with lighting_update()'s variant bits
+	var/native_view = LIGHTING_VIEW_DM
+	/// The z-levels there were when every turf's flags were handed over: the engine only looks around for lights on those
+	var/native_view_maxz = 0
+	/// The library can look around for lights (lighting_view_ready())
+	var/native_view_capable = FALSE
 	/// Light source ids, as the engine knows them -> the light source
 	var/list/datum/light_source/native_lights = list()
 	var/list/native_free_ids = list()
@@ -83,6 +99,28 @@ GLOBAL_LIST_EMPTY(lighting_sheet_list)
 	else
 		native = TRUE
 		native_status = "on"
+		native_view_setup()
+
+/// lighting-view=native or shadow, if the library can do it (lighting_view_ready())
+/datum/controller/subsystem/lighting/proc/native_view_setup()
+	var/ready
+	try
+		ready = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_view_ready")()
+	catch(var/exception/error)
+		ready = "[error]"
+	native_view_capable = ready == 1
+	var/wanted = world.params["lighting-view"] || "native"
+	if(wanted != "native" && wanted != "shadow")
+		return
+	if(!native_view_capable)
+		log_world("Lighting: lights look around with view() (the engine can't: [ready])")
+		return
+	native_view = wanted == "native" ? LIGHTING_VIEW_NATIVE : LIGHTING_VIEW_SHADOW
+	if(world.params["lighting-view-lamp"] == "two") // the other reading of how a wall takes lamp light, for the shadow check
+		native_view |= 4
+	if(world.params["lighting-view-undynamic"] == "lit") // turfs that aren't dynamically lit count as lit
+		native_view |= 8
+	native_status += ", lights look around [wanted == "native" ? "in the engine" : "with view(), checked against the engine"]"
 
 /// Hands every turf's flags over: from here on, turfs tell the engine when theirs change
 /datum/controller/subsystem/lighting/proc/native_ready()
@@ -99,6 +137,7 @@ GLOBAL_LIST_EMPTY(lighting_sheet_list)
 		native_failed("handing over turfs: [result]")
 		return
 	native_flags_ready = TRUE
+	native_view_maxz = world.maxz
 	log_world("Lighting: engine [native_status], [round(length(flags) / 2)] turfs handed over")
 
 /// Something went wrong with the engine: the DM code takes over, relighting everything from scratch
@@ -201,13 +240,16 @@ GLOBAL_LIST_EMPTY(lighting_sheet_list)
 	return TRUE
 
 /// update_corners() once it's looked around: the engine does the rest
-/datum/controller/subsystem/lighting/proc/native_update(datum/light_source/L, list/seen, vis_only, bounces, scatters)
+/// `seen` is what view() handed back, or null when the engine looks around itself (`view_mode`, from native_view). `eye_lum`
+/// is the luminosity update_corners() gives the light's turf to look around.
+/datum/controller/subsystem/lighting/proc/native_update(datum/light_source/L, list/seen, vis_only, bounces, scatters, eye_lum, view_mode = LIGHTING_VIEW_DM)
 	var/spill = scatters ? L.spill_sheet_id : L.sheet_id
 	if(!native_send_sheet(L.sheet_id) || !native_send_sheet(spill))
 		return
 	var/turf/T = L.source_turf
 	var/result = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_update")(L.native_id || native_id_for(L), T.x, T.y, T.z, L.light_reach, L.light_power, L.lum_r, L.lum_g, L.lum_b, \
-		L.sheet_id, spill, (vis_only ? 1 : 0) | (bounces ? 2 : 0) | (scatters ? 4 : 0), bounce_cutoff, bounce_strength, bounce_falloff, bounce_cutoff, bounce_depth, seen)
+		L.sheet_id, spill, (vis_only ? 1 : 0) | (bounces ? 2 : 0) | (scatters ? 4 : 0), bounce_cutoff, bounce_strength, bounce_falloff, bounce_cutoff, bounce_depth, seen, \
+		native ? view_mode : LIGHTING_VIEW_DM, eye_lum)
 	if(result != 1)
 		native_failed("update: [result]")
 

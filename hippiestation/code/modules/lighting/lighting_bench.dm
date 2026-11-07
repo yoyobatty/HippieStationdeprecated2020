@@ -53,6 +53,21 @@
 	lighting_bench_flush()
 	lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_relit.txt")
 	lines += "relighting everything: [lighting_bench_compare_snapshots("[LIGHTING_BENCH_DIR]snapshot_booted.txt", "[LIGHTING_BENCH_DIR]snapshot_relit.txt")]"
+	// The engine looking around for the lights (lighting-view=native) should light every tile as view() does: everything relit
+	// with view(), then straight after with the engine's own view, nothing in between to change a light
+	if(SSlighting.native && SSlighting.native_view_capable)
+		var/old_view = SSlighting.native_view
+		SSlighting.native_view = LIGHTING_VIEW_DM
+		SSlighting.relight_all()
+		lighting_bench_flush()
+		lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_view_dm.txt")
+		SSlighting.native_view = LIGHTING_VIEW_NATIVE
+		SSlighting.relight_all()
+		lighting_bench_flush()
+		lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_view_native.txt")
+		SSlighting.native_view = old_view
+		var/view_different = lighting_bench_count_differences("[LIGHTING_BENCH_DIR]snapshot_view_dm.txt", "[LIGHTING_BENCH_DIR]snapshot_view_native.txt")
+		lines += "the engine's own view against view(), everything relit with each: [view_different ? "[view_different] TILES DIFFER" : "every tile the same"]"
 	var/was_on = SSlighting.bounce_lighting
 	SSlighting.set_bounce_lighting(!was_on)
 	lighting_bench_flush()
@@ -782,6 +797,17 @@
 #undef LIGHTING_BENCH_DOORS
 
 /// Compares two snapshots from lighting_bench_snapshot(), tile by tile
+/// How many tiles two snapshots have differently lit (-1 if they don't have the same tiles)
+/proc/lighting_bench_count_differences(path_a, path_b)
+	var/list/a = splittext(file2text(path_a), "\n")
+	var/list/b = splittext(file2text(path_b), "\n")
+	if(length(a) != length(b))
+		return -1
+	. = 0
+	for(var/i in 1 to length(a))
+		if(a[i] != b[i])
+			.++
+
 /proc/lighting_bench_compare_snapshots(path_a, path_b)
 	var/list/a = splittext(file2text(path_a), "\n")
 	var/list/b = splittext(file2text(path_b), "\n")

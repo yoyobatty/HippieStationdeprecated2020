@@ -529,22 +529,30 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 	// as bounce light wherever that's brighter than its cone: see get_scatter_sheet()
 	var/scatters = bounces && light_dir && SSlighting.cone_scatter > 0
 
-	var/oldlum = source_turf.luminosity
 	// Lights up our surroundings so view() sees them. Luminosity N only lights N - 1 tiles out, so with just light_reach
 	// the square's outer ring would only count as visible where some other light happens to light it: a corner we reach
 	// only through a tile out there (the tile inside it a wall) would be lit or not depending on which lights around
 	// here worked their light out first, and relight_in_place() would keep whichever it was. Bounce light would also
 	// take those tiles for shadows. So light the whole square, always.
-	source_turf.luminosity = bounces ? ceil(light_reach * 1.5) : light_reach + 1
-	var/list/seen = view(light_reach, source_turf)
-	source_turf.luminosity = oldlum
+	var/eye_lum = bounces ? ceil(light_reach * 1.5) : light_reach + 1
+	var/list/seen
+	// hippie -- unless the lighting engine looks around for us (SSlighting.native_view): view() was most of a light's time.
+	// Not on a z-level made after the engine was handed every turf's opacity: it may not know where the walls are there.
+	var/view_mode = LIGHTING_VIEW_DM
+	if (LIGHTING_ENGINE_ON && SSlighting.native && source_turf.z <= SSlighting.native_view_maxz)
+		view_mode = SSlighting.native_view
+	if ((view_mode & 3) != LIGHTING_VIEW_NATIVE)
+		var/oldlum = source_turf.luminosity
+		source_turf.luminosity = eye_lum
+		seen = view(light_reach, source_turf)
+		source_turf.luminosity = oldlum
 
 	// hippie -- the lighting engine (hippiestation/code/modules/lighting/lighting_engine.dm) works out the rest from what we see
 	if (LIGHTING_ENGINE_ON)
 		get_sheet()
 		if (scatters)
 			get_scatter_sheet()
-		SSlighting.native_update(src, seen, vis_only, bounces, scatters)
+		SSlighting.native_update(src, seen, vis_only, bounces, scatters, eye_lum, view_mode)
 		if (SSlighting.native)
 			applied_lum_r = lum_r
 			applied_lum_g = lum_g
@@ -552,6 +560,11 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 			applied_bounces = bounces
 			vis_changed = FALSE
 			return
+	if (!seen) // the engine was to look around for us, and has stopped
+		var/oldlum = source_turf.luminosity
+		source_turf.luminosity = eye_lum
+		seen = view(light_reach, source_turf)
+		source_turf.luminosity = oldlum
 
 	var/stamp = ++SSlighting.lighting_stamp
 	if (stamp >= LIGHTING_STAMP_LIMIT)

@@ -6,8 +6,10 @@
 //! after. The two BYOND API functions it uses are looked up in byondcore.dll at first use.
 
 pub mod engine;
+pub mod view;
 
 use engine::{Engine, Update};
+use view::{ViewArgs, ViewScratch, BOUNDARY_AFTER, BOUNDARY_X_DOWN, BOUNDARY_X_UP, BOUNDARY_Y_DOWN, BOUNDARY_Y_UP, LAMP_FROM_ANY, LAMP_FROM_TWO};
 use std::ffi::c_void;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::Mutex;
@@ -165,6 +167,86 @@ struct State {
 	values: Vec<ByondValue>,
 	seen: Vec<u32>,
 	out: Vec<ByondValue>,
+	view: ViewScratch,
+	native_seen: Vec<u32>,
+	check: ViewCheck,
+}
+
+/// The shadow view check (view mode 2): every light's view() set against the engine's own
+#[derive(Default)]
+struct ViewCheck {
+	checked: u64,
+	/// What update_corners() uses: the clear turfs, in order
+	clear_same: u64,
+	clear_different_set: u64,
+	clear_different_order: u64,
+	clear_samples: Vec<String>,
+	same_set: u64,
+	same_order: u64,
+	/// Of those with the same set, how many came in another order
+	order_only: u64,
+	/// How many each other reading would have got right (the same turfs)
+	variants: Vec<(String, u64)>,
+	/// Turfs in the views that differed: seen by view() only, opaque and clear, and by the engine only
+	dm_only_opaque: u64,
+	dm_only_clear: u64,
+	native_only_opaque: u64,
+	native_only_clear: u64,
+	/// Views the engine worked out twice and got two answers for
+	unsteady: u64,
+	samples: Vec<String>,
+	orders: Vec<String>,
+}
+
+impl ViewCheck {
+	fn report(&self) -> String {
+		let mut s = format!(
+			"Clear turfs (all a light uses), the engine's against view()'s: {} views, the same turfs in the same order {}, different turfs {}, the same turfs in another order {}\n",
+			self.checked, self.clear_same, self.clear_different_set, self.clear_different_order
+		);
+		for sample in &self.clear_samples {
+			s.push_str(sample);
+			s.push_str("\n");
+		}
+		s += &format!(
+			"\nAll turfs, opaque ones too: views checked {}: same turfs {}, in the same order {}, same turfs in another order {}, different turfs {}\n\
+			 Turfs in those: view() only {} opaque and {} clear, the engine only {} opaque and {} clear; worked out twice and different {}\n",
+			self.checked,
+			self.same_set,
+			self.same_order,
+			self.order_only,
+			self.checked - self.same_set,
+			self.dm_only_opaque,
+			self.dm_only_clear,
+			self.native_only_opaque,
+			self.native_only_clear,
+			self.unsteady
+		);
+		for (name, same) in &self.variants {
+			s.push_str(&format!("  {name}: the same turfs {same}\n"));
+		}
+		for o in &self.orders {
+			s.push_str("\n");
+			s.push_str(o);
+		}
+		for sample in &self.samples {
+			s.push_str("\n");
+			s.push_str(sample);
+		}
+		s
+	}
+}
+
+/// The turfs as offsets from (tx, ty): "dx,dy dx,dy ..."
+fn offsets(turfs: &[u32], maxx: i32, tx: i32, ty: i32) -> String {
+	turfs
+		.iter()
+		.map(|&t| {
+			let (x, y) = (t as i32 % maxx + 1, t as i32 / maxx + 1);
+			format!("{},{}", x - tx, y - ty)
+		})
+		.collect::<Vec<_>>()
+		.join(" ")
 }
 
 impl State {
@@ -245,6 +327,9 @@ pub unsafe extern "C" fn lighting_setup(argc: u32, argv: *const ByondValue) -> B
 			values: Vec::new(),
 			seen: Vec::new(),
 			out: Vec::new(),
+			view: ViewScratch::default(),
+			native_seen: Vec::new(),
+			check: ViewCheck::default(),
 		});
 		Ok(ENGINE_VERSION)
 	})
@@ -308,8 +393,11 @@ pub unsafe extern "C" fn lighting_sheet(argc: u32, argv: *const ByondValue) -> B
 }
 
 /// lighting_update(id, x, y, z, reach, power, red, green, blue, sheet, spill sheet, flags, scatter cutoff, bounce strength,
-/// bounce falloff, bounce cutoff, bounce depth, seen): what update_corners() works out once it's looked around. Flags: 1 only
-/// what it can see has changed, 2 it bounces, 4 it scatters. `seen` is what view() handed back.
+/// bounce falloff, bounce cutoff, bounce depth, seen, view mode, eye luminosity): what update_corners() works out once it's
+/// looked around. Flags: 1 only what it can see has changed, 2 it bounces, 4 it scatters. View mode (bits 1-2): 0 `seen` is
+/// what view() handed back; 1 the engine works out what the light sees itself (view.rs) and `seen` isn't looked at; 2 as 0,
+/// and the engine's own view is set against it (lighting_view_report()). Bit 4: the other lamp rule; bit 8: turfs that
+/// aren't dynamically lit count as lit. Eye luminosity is what update_corners() set the light's turf's luminosity to.
 #[no_mangle]
 pub unsafe extern "C" fn lighting_update(argc: u32, argv: *const ByondValue) -> ByondValue {
 	let args = arguments(argc, argv);
@@ -337,20 +425,203 @@ pub unsafe extern "C" fn lighting_update(argc: u32, argv: *const ByondValue) -> 
 			bounce_cutoff: args[15].as_f32(),
 			bounce_depth: args[16].as_int(),
 		};
+		let view_mode = if args.len() > 18 { args[18].as_int() } else { 0 };
+		let view_args = ViewArgs {
+			tx: update.tx,
+			ty: update.ty,
+			range: update.reach,
+			eye_lum: if args.len() > 19 { args[19].as_int() } else { update.reach + 1 },
+			lamp_rule: if view_mode & 4 != 0 { LAMP_FROM_TWO } else { LAMP_FROM_ANY },
+			undynamic_lit: view_mode & 8 != 0,
+			boundary: ((view_mode >> 4) & 7) as u8,
+			clear_only: view_mode & 3 == 1,
+		};
+		let (maxx, maxy) = (state.engine.maxx, state.engine.maxy);
 		let mut values = std::mem::take(&mut state.values);
-		read_values(api, &args[17], &mut values)?;
 		let mut seen = std::mem::take(&mut state.seen);
 		seen.clear();
-		let first = (update.z as u32 - 1) * state.per_level;
-		for v in values.iter() {
-			if v.kind == TYPE_TURF && v.data >= first && v.data - first < state.per_level {
-				seen.push(v.data - first);
+		if view_mode & 3 == 1 {
+			let level = state.engine.level(update.z);
+			state.view.view(&level.flags, maxx, maxy, &view_args, &mut seen);
+		} else {
+			read_values(api, &args[17], &mut values)?;
+			let first = (update.z as u32 - 1) * state.per_level;
+			for v in values.iter() {
+				if v.kind == TYPE_TURF && v.data >= first && v.data - first < state.per_level {
+					seen.push(v.data - first);
+				}
+			}
+			if view_mode & 3 == 2 {
+				check_view(state, &update, &view_args, &seen);
 			}
 		}
 		let result = state.engine.update(&update, &seen);
 		state.values = values;
 		state.seen = seen;
 		result.map(|_| 1.0)
+	})
+}
+
+/// View mode 2: the engine's own view against view()'s, counted, and the first few that differ kept for the report
+fn check_view(state: &mut State, update: &Update, a: &ViewArgs, seen: &[u32]) {
+	let (maxx, maxy) = (state.engine.maxx, state.engine.maxy);
+	let mut native = std::mem::take(&mut state.native_seen);
+	let level = state.engine.level(update.z);
+	state.view.view(&level.flags, maxx, maxy, a, &mut native);
+	// What a light uses: the clear turfs, in order (update_corners() passes over opaque ones)
+	let mut clear = Vec::new();
+	let clear_args = ViewArgs { clear_only: true, ..*a };
+	{
+		let mut scratch2 = ViewScratch::default();
+		scratch2.view(&level.flags, maxx, maxy, &clear_args, &mut clear);
+	}
+	let dm_clear: Vec<u32> = seen.iter().copied().filter(|&t| level.flags[t as usize] & engine::OPAQUE == 0).collect();
+	let check = &mut state.check;
+	if clear == dm_clear {
+		check.clear_same += 1;
+	} else {
+		let mut c1 = clear.clone();
+		c1.sort_unstable();
+		let mut c2 = dm_clear.clone();
+		c2.sort_unstable();
+		if c1 == c2 {
+			check.clear_different_order += 1;
+		} else {
+			check.clear_different_set += 1;
+		}
+		if check.clear_samples.len() < 20 {
+			let dm_only: Vec<u32> = c2.iter().copied().filter(|t| c1.binary_search(t).is_err()).collect();
+			let native_only: Vec<u32> = c1.iter().copied().filter(|t| c2.binary_search(t).is_err()).collect();
+			check.clear_samples.push(format!(
+				"Clear turfs different at ({}, {}, {}) reach {}: view() only {} / engine only {}\n  view(): {}\n  engine: {}",
+				update.tx,
+				update.ty,
+				update.z,
+				update.reach,
+				offsets(&dm_only, maxx, update.tx, update.ty),
+				offsets(&native_only, maxx, update.tx, update.ty),
+				offsets(&dm_clear, maxx, update.tx, update.ty),
+				offsets(&clear, maxx, update.tx, update.ty)
+			));
+		}
+	}
+	check.checked += 1;
+	{
+		let mut again = Vec::new();
+		let mut scratch2 = ViewScratch::default();
+		scratch2.view(&level.flags, maxx, maxy, a, &mut again);
+		if again != native {
+			check.unsteady += 1;
+		}
+	}
+	let mut dm_sorted = seen.to_vec();
+	dm_sorted.sort_unstable();
+	let mut native_sorted = native.clone();
+	native_sorted.sort_unstable();
+	let same_set = dm_sorted == native_sorted;
+	if same_set {
+		check.same_set += 1;
+		if native.as_slice() == seen {
+			check.same_order += 1;
+		} else {
+			check.order_only += 1;
+		}
+	}
+	if check.orders.len() < 3 && native.as_slice() != seen {
+		check.orders.push(format!(
+			"Order at ({}, {}, {}) reach {}:\n  view(): {}\n  engine: {}\n",
+			update.tx,
+			update.ty,
+			update.z,
+			update.reach,
+			offsets(seen, maxx, update.tx, update.ty),
+			offsets(&native, maxx, update.tx, update.ty)
+		));
+	}
+	if !same_set {
+		let opaque = |t: u32| level.flags[t as usize] & engine::OPAQUE != 0;
+		for &t in dm_sorted.iter().filter(|t| native_sorted.binary_search(t).is_err()) {
+			if opaque(t) {
+				check.dm_only_opaque += 1;
+			} else {
+				check.dm_only_clear += 1;
+			}
+		}
+		for &t in native_sorted.iter().filter(|t| dm_sorted.binary_search(t).is_err()) {
+			if opaque(t) {
+				check.native_only_opaque += 1;
+			} else {
+				check.native_only_clear += 1;
+			}
+		}
+	}
+	if !same_set && check.samples.len() < 40 {
+		let dm_only: Vec<u32> = dm_sorted.iter().copied().filter(|t| native_sorted.binary_search(t).is_err()).collect();
+		let native_only: Vec<u32> = native_sorted.iter().copied().filter(|t| dm_sorted.binary_search(t).is_err()).collect();
+		let flags = &level.flags;
+		let picture = state.view.picture(maxx, a, |t| {
+			if dm_only.contains(&t) {
+				Some('D')
+			} else if native_only.contains(&t) {
+				Some('N')
+			} else if dm_sorted.binary_search(&t).is_ok() {
+				Some(if flags[t as usize] & engine::OPAQUE != 0 { 'W' } else { 'o' })
+			} else {
+				None
+			}
+		});
+		let dump = state.view.dump();
+		check.samples.push(format!(
+			"Different at ({}, {}, {}) reach {} luminosity {}{}: view() only {} / engine only {}\n(D view() only, N engine only, W/o seen by both opaque/clear, # opaque, . clear, @ the light)\n{}engine's vis/lamp:\n{}",
+			update.tx,
+			update.ty,
+			update.z,
+			update.reach,
+			a.eye_lum,
+			if update.vis_only { ", a door" } else { "" },
+			offsets(&dm_only, maxx, update.tx, update.ty),
+			offsets(&native_only, maxx, update.tx, update.ty),
+			picture,
+			dump
+		));
+	}
+	// The other readings, on every view, to see which BYOND agrees with
+	let variants: [(&str, ViewArgs); 7] = [
+		("other lamp rule", ViewArgs { lamp_rule: if a.lamp_rule == LAMP_FROM_ANY { LAMP_FROM_TWO } else { LAMP_FROM_ANY }, ..*a }),
+		("undynamic turfs lit (or not)", ViewArgs { undynamic_lit: !a.undynamic_lit, ..*a }),
+		("walls marked after", ViewArgs { boundary: BOUNDARY_AFTER, ..*a }),
+		("walls marked as found, x up", ViewArgs { boundary: BOUNDARY_X_UP, ..*a }),
+		("walls marked as found, x down", ViewArgs { boundary: BOUNDARY_X_DOWN, ..*a }),
+		("walls marked as found, y up", ViewArgs { boundary: BOUNDARY_Y_UP, ..*a }),
+		("walls marked as found, y down", ViewArgs { boundary: BOUNDARY_Y_DOWN, ..*a }),
+	];
+	if check.variants.is_empty() {
+		check.variants = variants.iter().map(|(name, _)| (name.to_string(), 0)).collect();
+	}
+	for (i, (_, args)) in variants.iter().enumerate() {
+		state.view.view(&level.flags, maxx, maxy, args, &mut native);
+		native.sort_unstable();
+		if native == dm_sorted {
+			check.variants[i].1 += 1;
+		}
+	}
+	state.native_seen = native;
+	let _ = maxy;
+}
+
+/// lighting_view_ready(): 1, from a library that can work out what a light sees itself (view modes 1 and 2 of lighting_update())
+#[no_mangle]
+pub unsafe extern "C" fn lighting_view_ready(_argc: u32, _argv: *const ByondValue) -> ByondValue {
+	ByondValue::num(1.0)
+}
+
+/// lighting_view_report(): writes what the shadow view check (view mode 2) has found to data/lighting_view_check.txt and
+/// returns how many views had different turfs
+#[no_mangle]
+pub unsafe extern "C" fn lighting_view_report(_argc: u32, _argv: *const ByondValue) -> ByondValue {
+	with_state("view report", |_, state| {
+		std::fs::write("data/lighting_view_check.txt", state.check.report()).map_err(|e| e.to_string())?;
+		Ok((state.check.checked - state.check.same_set) as f32)
 	})
 }
 

@@ -590,6 +590,10 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 	if(light_shadow)
 		out += ""
 		out += "Light shadow check (light-shadow): [json_encode(light_shadow)]"
+	if(SSlighting.native && SSlighting.native_view & LIGHTING_VIEW_SHADOW) // lighting-view=shadow
+		var/different = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_view_report")()
+		out += ""
+		out += "Light views, the engine's against view(): [different] with different turfs (data/lighting_view_check.txt)"
 	if(GLOB.reconcile_check) // reconcile-check=1
 		out += ""
 		out += "Pipeline reconciles, gas mixtures against the old way's: [json_encode(GLOB.reconcile_check)]"
