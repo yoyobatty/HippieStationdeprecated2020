@@ -54,6 +54,7 @@
 			return open
 	W = new
 	W.id = "vv[++vv_window_count]"
+	W.owner = src
 	vv_windows[W.id] = W
 	return W
 

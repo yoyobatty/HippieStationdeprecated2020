@@ -32,15 +32,15 @@
 		summary += "[rows.len] component[rows.len == 1 ? "" : "s"]"
 		sections += "<b>Components</b><br>[rows.Join("<br>")]"
 
-	// Signals it listens to: on what, and the proc that runs
+	// Signals it listens to: the signal, what sends it, the proc that runs
 	rows = list()
 	for(var/datum/target as anything in D.signal_procs)
 		var/list/procs = D.signal_procs[target]
 		for(var/sig in procs)
-			rows += "[html_encode(sig)] on [target == D ? "itself" : vv_link(target, vv_name_of(target))] &rarr; [html_encode("[procs[sig]]")]"
+			rows += "<tr><td>[html_encode(sig)]</td><td>[target == D ? "itself" : vv_link(target, vv_name_of(target))]</td><td>[html_encode("[procs[sig]]")]()</td></tr>"
 	if(rows.len)
 		summary += "listens to [rows.len] signal[rows.len == 1 ? "" : "s"]"
-		sections += "<b>Listens to</b><br>[rows.Join("<br>")]"
+		sections += "<b>Listens to</b><table class='vvi'><tr><th>Signal</th><th>From</th><th>Runs</th></tr>[rows.Join()]</table>"
 
 	// Who listens to its signals
 	rows = list()
@@ -51,10 +51,10 @@
 		for(var/datum/L in (islist(who) ? who : list(who)))
 			links += L == D ? "itself" : vv_link(L, vv_name_of(L))
 			listeners++
-		rows += "[html_encode(sig)]: [links.Join(", ")]"
+		rows += "<tr><td>[html_encode(sig)]</td><td>[links.Join(", ")]</td></tr>"
 	if(rows.len)
 		summary += "[listeners] listener[listeners == 1 ? "" : "s"]"
-		sections += "<b>Listened to by</b><br>[rows.Join("<br>")]"
+		sections += "<b>Listened to by</b><table class='vvi'><tr><th>Signal</th><th>Listeners</th></tr>[rows.Join()]</table>"
 
 	// Timers
 	rows = list()
@@ -117,10 +117,13 @@
 		gc += "tag [html_encode(D.tag)]"
 	if(gc.len)
 		sections += "<b>Deletion</b><br>[gc.Join("<br>")]"
+		if(!summary.len)
+			summary += gc.Join(", ")
 
 	if(!sections.len && !summary.len)
 		return "<font size='1'>Internals: none</font><hr>"
-	return {"<details id='vv_internals' ontoggle="document.cookie='vv_internals_open=' + (this.open ? 1 : 0) + ';path=/'">
+	return {"<style>.vvi { border-collapse: collapse; } .vvi td, .vvi th { font-size: 7pt; text-align: left; padding: 0 10px 1px 0; vertical-align: top; } .vvi th { color: #666666; font-weight: normal; }</style>
+	<details id='vv_internals' ontoggle="document.cookie='vv_internals_open=' + (this.open ? 1 : 0) + ';path=/'">
 		<summary><font size='1'><b>Internals:</b> [summary.Join(", ") || "see below"]</font></summary>
 		<font size='1'>[sections.Join("<br><br>")]</font>
 	</details>

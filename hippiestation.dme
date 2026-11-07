@@ -3314,6 +3314,8 @@
 #include "hippiestation\code\modules\admin\view_variables\vv_windows.dm"
 #include "hippiestation\code\modules\admin\view_variables\vv_changes.dm"
 #include "hippiestation\code\modules\admin\view_variables\vv_internals.dm"
+#include "hippiestation\code\modules\admin\view_variables\vv_inline_edit.dm"
+#include "hippiestation\code\modules\admin\view_variables\vv_watch.dm"
 #include "hippiestation\code\modules\antagonists\_common\antag_datum.dm"
 #include "hippiestation\code\modules\antagonists\_common\antag_spawner.dm"
 #include "hippiestation\code\modules\antagonists\_common\tips.dm"

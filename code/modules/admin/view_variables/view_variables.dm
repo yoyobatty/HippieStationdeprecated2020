@@ -24,6 +24,7 @@
 	var/fresh_window = !winexists(src, vv_window.id)
 	if(push && vv_window.current_ref() != REF(D))
 		vv_window.push(D)
+		vv_window.watching = null // watches are of the thing that was shown
 
 	var/title = ""
 	var/refid = REF(D)
@@ -105,6 +106,7 @@
 		<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
 		<title>[title]</title>
 		<link rel="stylesheet" type="text/css" href="view_variables.css">
+		[islist ? "" : vv_editor_head(D, src)]
 	</head>
 	<body onload='selectTextField()' onkeydown='return handle_keydown()' onkeyup='handle_keyup()'>
 		<script type="text/javascript">
@@ -255,11 +257,11 @@ datumrefresh=[refid];[HrefToken()]'>Refresh</a>
 				</tr>
 			</table>
 		</div>
+		[islist ? "" : vv_watch_html(vv_window)]
 		<hr>
 		<font size='1'>
-			<b>E</b> - Edit, tries to determine the variable type by itself.<br>
-			<b>C</b> - Change, asks you for the var type first.<br>
-			<b>M</b> - Mass modify: changes this variable for all objects of this type.<br>
+			[islist ? {"<b>E</b> - Edit, tries to determine the variable type by itself.<br>
+			<b>C</b> - Change, asks you for the var type first.<br>"} : "Click a value to edit it. Hover a var for edit and watch. Shift-click a link: new window.<br>"]
 		</font>
 		<hr>
 		[islist ? "" : vv_internals(D)]
@@ -290,6 +292,8 @@ datumrefresh=[refid];[HrefToken()]'>Refresh</a>
 </html>
 "}
 	src << browse(html, "window=[vv_window.id][fresh_window ? ";size=475x650" : ""]") // hippie -- the window it's in; sized only when new
+	if(fresh_window)
+		INVOKE_ASYNC(src, PROC_REF(vv_setup_onclose), vv_window)
 
 /client/proc/vv_update_display(datum/D, span, content)
 	for(var/id in vv_windows_showing(D)) // hippie -- whichever windows show it now

@@ -1,6 +1,8 @@
 #define VV_HTML_ENCODE(thing) ( sanitize ? html_encode(thing) : thing )
 /// Get displayed variable in VV variable list
 /proc/debug_variable(name, value, level, datum/D, sanitize = TRUE)			//if D is a list, name will be index, and value will be assoc value.
+	if(D && !islist(D)) // hippie -- a datum's var: a row edited in place, no E/C/M (vv_inline_edit.dm)
+		return vv_row_html(name, value, D, sanitize)
 	var/header
 	if(D)
 		if(islist(D))
@@ -11,8 +13,7 @@
 				value = D[name]
 			header = "<li id='vvar_[index]' style='backgroundColor:white'>([VV_HREF_TARGET_1V(D, VV_HK_LIST_EDIT, "E", index)]) ([VV_HREF_TARGET_1V(D, VV_HK_LIST_CHANGE, "C", index)]) ([VV_HREF_TARGET_1V(D, VV_HK_LIST_REMOVE, "-", index)]) "
 		else
-			var/list/marks = vv_var_marks(D, name) // hippie -- edited / changed from default, with undo and default links (vv_changes.dm)
-			header = "<li id='vvar_[name]'[marks[1]] style='backgroundColor:white'>([VV_HREF_TARGET_1V(D, VV_HK_BASIC_EDIT, "E", name)]) ([VV_HREF_TARGET_1V(D, VV_HK_BASIC_CHANGE, "C", name)]) ([VV_HREF_TARGET_1V(D, VV_HK_BASIC_MASSEDIT, "M", name)]) [marks[2]]"
+			header = "<li style='backgroundColor:white'>([VV_HREF_TARGET_1V(D, VV_HK_BASIC_EDIT, "E", name)]) ([VV_HREF_TARGET_1V(D, VV_HK_BASIC_CHANGE, "C", name)]) ([VV_HREF_TARGET_1V(D, VV_HK_BASIC_MASSEDIT, "M", name)]) "
 	else
 		header = "<li>"
 

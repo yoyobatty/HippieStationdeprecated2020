@@ -17,6 +17,9 @@
 				break
 	// hippie -- in the window the link was clicked in (vv_windows.dm), unless shift-clicked for a new one
 	var/vv_window_id = href_list["vvnew"] ? null : href_list["vvwin"]
+	if(href_list["vvwatch"]) // vv_watch.dm
+		vv_toggle_watch(target, href_list[VV_HK_VARNAME], href_list["vvwin"])
+		return
 	if(href_list["vvback"] || href_list["vvforward"])
 		vv_step(href_list["vvwin"], href_list["vvback"] ? -1 : 1)
 		return
