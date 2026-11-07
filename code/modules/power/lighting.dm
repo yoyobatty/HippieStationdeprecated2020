@@ -406,6 +406,8 @@
 	if(!QDELETED(src) && status == LIGHT_BROKEN && has_power() && Master.current_runlevel)
 		if(!start_only)
 			do_sparks(3, TRUE, src)
+			if(QDELETED(src)) //its own sparks can set off what's in the air round it, and that's the end of the fitting
+				return
 		var/delay = rand(BROKEN_SPARKS_MIN, BROKEN_SPARKS_MAX)
 		addtimer(CALLBACK(src, PROC_REF(broken_sparks)), delay, TIMER_UNIQUE | TIMER_NO_HASH_WAIT)
 

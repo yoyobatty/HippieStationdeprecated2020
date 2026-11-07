@@ -717,3 +717,60 @@
 		fail_reason = "stamped, but left at [manifest.loc] instead of the crate's spot"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+/// Sending one (goals/station_requests.dm try_console_request()): at a console, the quick request button rather than the radio
+/datum/bot_scenario/console_quick_request
+	name = "requests console: wanting a doctor at a requests console, it presses the console's Doctor button"
+	desc = "A bartender at the Bar's requests console wants a doctor. It presses the console's Doctor quick request, which goes to Medbay tracked on the consoles. The arena isn't on telecomms, so the console can't get it through and the bot calls on the radio after: what's judged is that it tried the console first. Bots never sent anything from a console."
+	job = "Bartender"
+	time_limit = 15 SECONDS
+	layout = list(
+		"#######",
+		"#B....#",
+		"#######")
+	var/obj/machinery/requests_console/console
+	var/requests_before = 0
+	var/asked = FALSE
+
+/datum/bot_scenario/console_quick_request/setup()
+	var/turf/T = get_step(first_marker("B"), EAST) //on the floor in front of the wall, as a mapped one is
+	console = new(T)
+	console.department = "Bar"
+	console.name = "Bar Requests Console"
+	console.pixel_y = 30
+	console.stat &= ~(NOPOWER|BROKEN) //an arena has no APC
+
+/datum/bot_scenario/console_quick_request/make_goal()
+	return null
+
+/datum/bot_scenario/console_quick_request/post_spawn()
+	brain.gym_scripted = FALSE //call_for() keeps a scripted bot quiet
+	var/mob/living/carbon/human/doctor = stand_in(locate(first_marker("B").x + 4, first_marker("B").y, first_marker("B").z), "Medbay Doctor")
+	doctor.mind_initialize()
+	doctor.mind.assigned_role = "Medical Doctor" //somebody to hear it, or nobody's asked
+	requests_before = length(GLOB.station_requests)
+
+/datum/bot_scenario/console_quick_request/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!asked)
+		asked = TRUE
+		brain.call_for(/datum/bot_request_kind/medical, "Could use a medic in the Bar.")
+		return BOT_GYM_PENDING
+	for(var/i in requests_before + 1 to length(GLOB.station_requests))
+		var/datum/station_request/R = GLOB.station_requests[i]
+		if(R.kind == "Doctor" && R.from_dept == "Bar")
+			log_line("sent \"[R.body]\" to [R.to_dept]")
+			return BOT_GYM_PASS
+	if(length(console.req_notice) && findtext(console.req_notice[1], "Medbay"))
+		log_line("pressed the console's Doctor button: [console.req_notice[1]]")
+		return BOT_GYM_PASS
+	if(bot_transcript_said("called for a medical"))
+		fail_reason = "called on the radio without trying the console"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/console_quick_request/release_run()
+	if(!QDELETED(console))
+		qdel(console)
+	return ..()

@@ -153,12 +153,22 @@ GLOBAL_VAR_INIT(bot_next_slime_call, 0)
 	return GOAL_STEP_SUCCESS
 
 // ---------------------------------------------------------------------------------------------
-// The crew's side: slimes loose
+// The crew's side: slimes loose, and anything else with teeth (carp, a morph, a space dragon that came in with nobody playing it,
+// goals/ghost_roles.dm). Nobody but the creature's victims did anything about any of them.
 // ---------------------------------------------------------------------------------------------
 
 /// A slime out of the lab that's not been tamed: what nobody wants about.
 /proc/bot_loose_slime(mob/living/simple_animal/slime/S)
 	return istype(S) && S.stat != DEAD && !S.docile && !S.ckey && isturf(S.loc) && !istype(get_area(S), /area/science/xenobiology)
+
+/// Something hostile loose on the station that nobody's playing: not the station's own animals, not Lavaland's.
+/proc/bot_loose_beast(mob/living/simple_animal/hostile/M)
+	if(!istype(M) || M.stat == DEAD || M.ckey || !isturf(M.loc) || !(is_station_level(M.z) || istype(get_area(M), /area/bot_gym)) || istype(M, /mob/living/simple_animal/hostile/asteroid))
+		return FALSE
+	return !("neutral" in M.faction) && !("station" in M.faction)
+
+/proc/bot_loose_creature(mob/living/simple_animal/M)
+	return bot_loose_slime(M) || bot_loose_beast(M)
 
 GLOBAL_VAR_INIT(bot_loose_slime_checked_at, -100)
 GLOBAL_VAR_INIT(bot_loose_slime_any, FALSE)
@@ -169,22 +179,25 @@ GLOBAL_VAR_INIT(bot_loose_slime_any, FALSE)
 		return GLOB.bot_loose_slime_any
 	GLOB.bot_loose_slime_checked_at = world.time
 	GLOB.bot_loose_slime_any = FALSE
-	for(var/mob/living/simple_animal/slime/S in GLOB.alive_mob_list)
-		if(bot_loose_slime(S))
+	for(var/mob/living/simple_animal/S in GLOB.alive_mob_list)
+		if(bot_loose_creature(S))
 			GLOB.bot_loose_slime_any = TRUE
 			break
 	return GLOB.bot_loose_slime_any
 
 /// From the look round (keep_an_eye_out(), bot_witness.dm): one in sight, it says so on the radio, unless somebody just has.
 /datum/bot_brain/proc/notice_loose_slimes()
-	for(var/mob/living/simple_animal/slime/S in view(BOT_SIGHT_RANGE, owner))
-		if(!bot_loose_slime(S))
+	for(var/mob/living/simple_animal/S in view(BOT_SIGHT_RANGE, owner))
+		if(!bot_loose_creature(S))
 			continue
 		var/area/A = get_area(S)
 		GLOB.bot_loose_slime_reports[A] = world.time
 		if(world.time >= GLOB.bot_next_slime_call && !gone_loud())
 			GLOB.bot_next_slime_call = world.time + BOT_SLIME_CALL_GAP
-			bot_say(owner, pick(";Slimes loose in [A.name]! Security!", ";There's slimes out in [A.name], somebody deal with them!", ";Slime out of Xenobiology, [A.name]! Stay away from it!"), TRUE)
+			if(isslime(S))
+				bot_say(owner, pick(";Slimes loose in [A.name]! Security!", ";There's slimes out in [A.name], somebody deal with them!", ";Slime out of Xenobiology, [A.name]! Stay away from it!"), TRUE)
+			else
+				bot_say(owner, pick(";There's a [S.name] loose in [A.name]! Security!", ";[capitalize(S.name)] in [A.name]! Somebody deal with it!", ";Security, [A.name], there's a [S.name]!"), TRUE)
 		return TRUE
 	return FALSE
 
@@ -200,10 +213,10 @@ GLOBAL_VAR_INIT(bot_loose_slime_any, FALSE)
 /datum/bot_duty/loose_slimes/try_start(datum/bot_brain/bot)
 	if(!length(GLOB.bot_loose_slime_reports))
 		return FALSE
-	var/mob/living/simple_animal/slime/best
+	var/mob/living/simple_animal/best
 	var/best_dist
-	for(var/mob/living/simple_animal/slime/S in GLOB.alive_mob_list)
-		if(!bot_loose_slime(S) || S.z != bot.owner.z || GLOB.bot_loose_slime_reports[get_area(S)] < world.time - 5 MINUTES || bot.taken_by_another(S))
+	for(var/mob/living/simple_animal/S in GLOB.alive_mob_list)
+		if(!bot_loose_creature(S) || S.z != bot.owner.z || GLOB.bot_loose_slime_reports[get_area(S)] < world.time - 5 MINUTES || bot.taken_by_another(S))
 			continue
 		var/dist = get_dist(bot.owner, S)
 		if(dist <= 60 && (!best || dist < best_dist))
@@ -216,18 +229,18 @@ GLOBAL_VAR_INIT(bot_loose_slime_any, FALSE)
 	exclusive = TRUE
 	never_rests = TRUE
 
-/datum/bot_goal/put_down_slime/New(mob/living/simple_animal/slime/S)
+/datum/bot_goal/put_down_slime/New(mob/living/simple_animal/S)
 	. = ..()
 	target = S
 
 /datum/bot_goal/put_down_slime/resolve_target(datum/bot_brain/bot)
-	if(!bot_loose_slime(target))
+	if(!bot_loose_creature(target))
 		target = null
 
 /datum/bot_goal/put_down_slime/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/sabotage/S = new
 	S.steps = list(new /datum/bot_step/paced/shoot_slime())
-	if(!bot.slime_gun())
+	if(isslime(target) && !bot.slime_gun())
 		S.steps.Insert(1, new /datum/bot_step/ensure_extinguisher()) //goals/respond_to_fire.dm: the cabinet in the hall
 	return list(S)
 
@@ -254,10 +267,31 @@ GLOBAL_VAR_INIT(bot_loose_slime_any, FALSE)
 	max_clicks = 60
 
 /datum/bot_step/paced/shoot_slime/do_click(datum/bot_brain/bot)
-	var/mob/living/simple_animal/slime/S = bot.current_goal?.target
+	var/mob/living/simple_animal/S = bot.current_goal?.target
 	if(!istype(S) || QDELETED(S) || S.stat == DEAD)
 		return FALSE
 	var/dist = get_dist(bot.owner, S)
+	// Anything but a slime: whatever gun it has (a laser's fine on a carp), or what's in its hand up close.
+	if(!isslime(S))
+		if(dist <= BOT_SIGHT_RANGE && bot.has_clear_shot(S) && bot.try_shoot_at(S))
+			if(bot.pursuing_kind)
+				bot.stop_pursuit()
+			wait_for = 5
+			return TRUE
+		if(dist <= 1)
+			bot.owner.a_intent = INTENT_HARM
+			bot.owner.face_atom(S)
+			var/obj/item/held = bot.owner.get_active_held_item()
+			if(held && held.force >= 5)
+				held.melee_attack_chain(bot.owner, S)
+			else
+				bot.owner.UnarmedAttack(S)
+			wait_for = 8
+			return TRUE
+		if(bot.pursuing_kind != "follow" || bot.pursue_target != S)
+			bot.pursue(S, "follow", force = TRUE)
+		wait_for = 5
+		return TRUE
 	var/obj/item/gun/G = bot.slime_gun()
 	if(G && dist <= BOT_SIGHT_RANGE && bot.has_clear_shot(S) && world.time >= bot.next_taser_time && bot.ready_in_hand(G))
 		if(bot.pursuing_kind)

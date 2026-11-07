@@ -231,3 +231,37 @@ GLOBAL_DATUM(bot_station_request_listener, /datum/bot_station_request_listener)
 	if(station_request && station_request.status != "done")
 		station_request.set_status("done", bot.station_request_name())
 		bot_log(bot, "done: the [station_request.from_dept] request")
+
+// ---------------------------------------------------------------------------------------------
+// Bots sending them
+// ---------------------------------------------------------------------------------------------
+
+/// At a requests console with a doctor, cleaning or repairs to ask for: the quick request button there and then, the way a player
+/// standing at one uses it, rather than the radio. It's tracked on the consoles, and what answers it is the same as for anybody's
+/// (above). TRUE if it went; with no console to hand, or the request not getting through, it's the radio as before (call_for()).
+/datum/bot_brain/proc/try_console_request(kind_type)
+	var/static/list/quick_for = list(/datum/bot_request_kind/medical = "Doctor", /datum/bot_request_kind/janitor = "Cleaning", /datum/bot_request_kind/engineer = "Repairs")
+	var/name = quick_for[kind_type]
+	if(!name || gym_scripted || owner.incapacitated())
+		return FALSE
+	var/obj/machinery/requests_console/console
+	for(var/obj/machinery/requests_console/C in range(1, owner))
+		if(!(C.stat & (NOPOWER|BROKEN)) && C.quick_ready[name] <= world.time && owner.Adjacent(C))
+			console = C
+			break
+	if(!console)
+		return FALSE
+	human_pause(console)
+	if(QDELETED(console) || !owner.Adjacent(console))
+		return FALSE
+	owner.face_atom(console)
+	telemetry_ui_action(console, "quick request: [name]")
+	usr = owner
+	var/before = length(GLOB.station_requests)
+	console.req_quick(name, owner)
+	if(length(GLOB.station_requests) <= before)
+		bot_log(src, "[console] didn't get the request through ([console.req_notice?[1]]) - the radio, then")
+		return FALSE
+	bot_log(src, "asked for [lowertext(name)] at [console]")
+	bot_tally("console requests sent")
+	return TRUE

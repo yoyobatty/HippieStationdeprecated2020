@@ -36,6 +36,8 @@
 	if(QDELETED(src)) //Start() runs async: its origin or target can be gone, and the beam with it, first (a tesla zap on something burning up)
 		return
 	Draw()
+	if(QDELETED(src)) //Draw() ends a beam whose origin or target has gone
+		return
 	recalculate_in(sleep_time)
 
 /datum/beam/proc/recalculate()

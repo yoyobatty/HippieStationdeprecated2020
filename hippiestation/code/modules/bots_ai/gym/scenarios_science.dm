@@ -446,3 +446,40 @@
 		if(C.rating >= 2 && !recharger.panel_open)
 			return BOT_GYM_PASS
 	return BOT_GYM_PENDING
+
+/// The research experiments (goals/experiment_rounds.dm): a scientist with the experiment scanner finds ore lying about and scans it
+/datum/bot_scenario/duty/experiment_ores
+	name = "science: a scientist takes its experiment scanner to the ore lying about and finishes the Geological Survey"
+	desc = "Five kinds of ore on the floor of the room, and a scientist with the experiment scanner every scientist starts with. It goes to each and scans it; five kinds finishes the Geological Survey, 7,500 points. Nobody used the experiments."
+	job = "Scientist"
+	time_limit = 60 SECONDS
+	kit_backpack = list(/obj/item/experi_scanner)
+	layout = list(
+		"###########",
+		"#B..1.2.3.#",
+		"#....4.5..#",
+		"###########")
+	var/datum/science_experiment/geology/survey
+
+/datum/bot_scenario/duty/experiment_ores/setup()
+	duty_type = text2path("/datum/bot_duty/experiment_rounds") // by name: a build without the fix has no such duty
+	var/list/ores = list("1" = /obj/item/stack/ore/iron, "2" = /obj/item/stack/ore/silver, "3" = /obj/item/stack/ore/gold, "4" = /obj/item/stack/ore/uranium, "5" = /obj/item/stack/ore/plasma)
+	for(var/mark in ores)
+		var/path = ores[mark]
+		place(mark, new path(first_marker(mark)))
+	for(var/datum/science_experiment/geology/G in science_experiments())
+		survey = G
+		survey.done = list()
+		survey.completed = FALSE
+
+/datum/bot_scenario/duty/experiment_ores/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!survey)
+		fail_reason = "no Geological Survey"
+		return BOT_GYM_FAIL
+	return survey.completed ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/experiment_ores/on_timeout()
+	fail_reason = "scanned [length(survey?.done)] of 5"
+	return BOT_GYM_FAIL

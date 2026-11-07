@@ -428,6 +428,10 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 			anyone = TRUE
 	if(!anyone)
 		return FALSE
+	// At a requests console: its button, not the radio (goals/station_requests.dm)
+	if(!let_out && try_console_request(kind_type))
+		next_call_time = world.time + 5 MINUTES
+		return TRUE
 	if(let_out)
 		next_let_out_call = world.time + 2 MINUTES
 		next_call_time = max(next_call_time, world.time + 1 MINUTES)

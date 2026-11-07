@@ -361,3 +361,66 @@
 	if(!QDELETED(slime))
 		qdel(slime)
 	return ..()
+
+/// A Bot Shift with bot-event=<event name>@<minutes> (bot-event=Blob@8): that event, run at that minute, the way the random events
+/// run one. It passes once the event says it spawned what it spawns: with no ghosts, the bot crew's stand-ins (goals/ghost_roles.dm).
+/datum/bot_shift_check/forced_event
+	name = "events: the forced event (bot-event) went ahead"
+	deadline = 60 MINUTES
+	var/fired = FALSE
+	var/datum/round_event/ghost_role/event
+
+/datum/bot_shift_check/forced_event/worker()
+	if(!world.params["bot-event"] || !length(shift.members))
+		return null
+	var/datum/bot_shift_member/member = shift.members[1]
+	return member.brain
+
+/datum/bot_shift_check/forced_event/done()
+	var/list/parts = splittext(replacetext("[world.params["bot-event"]]", "_", " "), "@")
+	var/at = length(parts) > 1 ? text2num(parts[2]) MINUTES : 5 MINUTES
+	if(!fired)
+		if(shift.elapsed() < at)
+			return FALSE
+		fired = TRUE
+		for(var/datum/round_event_control/C in SSevents.control)
+			if(C.name == parts[1])
+				var/datum/round_event/E = C.runEvent()
+				event = istype(E, /datum/round_event/ghost_role) ? E : null
+				shift.note("forced event [C.name] at [bot_shift_clock(shift.elapsed())]")
+				return !event //not a ghost role: running it is all there is to check
+		shift.note("forced event [parts[1]]: no such event")
+		return FALSE
+	return event?.status == SUCCESSFUL_SPAWN
+
+/datum/bot_shift_check/forced_event/progress()
+	return fired ? "event status [event?.status || "none"]" : "not fired yet"
+
+/// Anything else with teeth: a carp in the hall, called in, and the officer's laser is fine for it
+/datum/bot_scenario/duty/loose_slime/carp
+	name = "creatures: an officer told of a space carp loose in the hall shoots it"
+	desc = "A space carp's got in and been called in on the radio. The officer goes and shoots it with its laser. Nobody but the carp's victims did anything about loose creatures."
+	time_limit = 40 SECONDS
+	var/mob/living/simple_animal/hostile/carp/carp
+
+/datum/bot_scenario/duty/loose_slime/carp/setup()
+	duty_type = text2path("/datum/bot_duty/loose_slimes")
+	carp = new(first_marker("s"))
+	carp.Stun(100 SECONDS, ignore_canstun = TRUE)
+	slime = null
+
+/datum/bot_scenario/duty/loose_slime/carp/post_spawn()
+	brain.register_security()
+	if("bot_loose_slime_reports" in GLOB.vars)
+		var/list/reports = GLOB.vars["bot_loose_slime_reports"]
+		reports[get_area(carp)] = world.time
+
+/datum/bot_scenario/duty/loose_slime/carp/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (QDELETED(carp) || carp.stat == DEAD) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/loose_slime/carp/release_run()
+	if(!QDELETED(carp))
+		qdel(carp)
+	return ..()
