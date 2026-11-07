@@ -155,6 +155,7 @@ import { MechSleeper, MechSyringeGun, PaiCard } from './interfaces/MechMedicalPa
 import { ExperimentScanner } from './interfaces/Experiments';
 import { LateJoin, Lobby } from './interfaces/Lobby';
 import { RoundEnd } from './interfaces/RoundEnd';
+import { StationMap } from './interfaces/StationMap';
 // hippie end
 
 const ROUTES = {
@@ -423,6 +424,12 @@ const ROUTES = {
     component: () => Newscaster,
     scrollable: true,
   },
+  ntos_station_map: {
+    component: () => StationMap,
+    wrapper: () => NtosWrapper,
+    scrollable: false,
+    theme: 'ntos',
+  },
   ore_silo: {
     component: () => OreSilo,
     scrollable: true,
@@ -530,6 +537,10 @@ const ROUTES = {
   stack_crafting: {
     component: () => StackCrafting,
     scrollable: true,
+  },
+  station_map: {
+    component: () => StationMap,
+    scrollable: false,
   },
   strip_menu: {
     component: () => StripMenu,

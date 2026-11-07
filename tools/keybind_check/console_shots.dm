@@ -68,6 +68,10 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		// The first button whose whole text is this: one-letter buttons ("C" would find "Close Scanner")
 		var/text = copytext(action, 12)
 		js = "var t=[json_encode(text)];var b=Array.prototype.slice.call(document.querySelectorAll('.Button')).filter(function(e){return e.textContent.trim()===t;})\[0\];if(b){b.click();}"
+	else if(findtext(action, "clickat:") == 1)
+		// A click at a point inside an element (a fraction across and down), for canvases that read where they were clicked
+		var/list/bits = splittext(copytext(action, 9), "|")
+		js = "var e=document.querySelector([json_encode(bits[1])]);if(e){var r=e.getBoundingClientRect();var o={bubbles:true,clientX:r.left+r.width*[text2num(bits[2])],clientY:r.top+r.height*[text2num(bits[3])]};e.dispatchEvent(new MouseEvent('mousemove',o));e.dispatchEvent(new MouseEvent('click',o));}"
 	else if(findtext(action, "css:") == 1)
 		// The first element matching a CSS selector, for controls that aren't .Button
 		js = "var e=document.querySelector([json_encode(copytext(action, 5))]);if(e){e.click();}"
@@ -271,6 +275,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_pass_dark(C, H, label)
 		if("roundend")
 			cs_roundend(C, H, label)
+		if("stationmap")
+			cs_station_map(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -6470,3 +6476,107 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	ui = report ? cs_find_ui(C.mob, report) : null
 	var/list/again = report?.vars["data"]
 	cs_check("roundend: Your Last Round reads it back", ui && again && again["station"] == data["station"])
+
+// Station Map: an engineer's console with it preinstalled, a room vented, a fire alarm pulled, an APC's breaker off and
+// another's cell run down, each read off the map; then the AI's verb
+/proc/cs_station_map(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/engineer)
+	var/obj/machinery/modular_computer/console/preset/engineering/PC = new(cs_open_beside(H))
+	PC.stat &= ~(NOPOWER|BROKEN)
+	var/obj/item/modular_computer/processor/cpu = PC.cpu
+	var/obj/item/computer_hardware/hard_drive/drive = cpu.all_components[MC_HDD]
+	cs_check("stationmap: engineering consoles come with it", drive.find_file_by_name("stationmap"))
+	var/z = SSmapping.levels_by_trait(ZTRAIT_STATION)[1]
+	var/list/plan = station_map_plan(z)
+	var/list/index = plan["index"]
+	cs_check("stationmap: the plan is read ([plan["width"]]x[plan["height"]], [length(plan["areas"])] rooms)", plan["width"] > 50 && length(plan["areas"]) > 30)
+	// The staging, all through the game's own procs where there are any
+	var/area/vented
+	var/area/burning
+	for(var/area/A in index)
+		if(!vented && istype(A, /area/maintenance))
+			vented = A
+		else if(!burning && (locate(/obj/machinery/firealarm) in A))
+			burning = A
+	for(var/turf/open/T in vented)
+		var/datum/gas_mixture/air = T.return_air()
+		for(var/gas in air.moles)
+			air.moles[gas] = 0
+	var/obj/machinery/firealarm/alarm = locate() in burning
+	alarm.alarm()
+	var/obj/machinery/power/apc/off_apc
+	var/obj/machinery/power/apc/low_apc
+	for(var/obj/machinery/power/apc/apc in GLOB.apcs_list)
+		if(!apc.cell || !index[apc.area] || apc.area == vented || apc.area == burning)
+			continue
+		if(!off_apc)
+			off_apc = apc
+		else if(!low_apc)
+			low_apc = apc
+			break
+	off_apc.operating = FALSE
+	off_apc.update()
+	off_apc.update_icon()
+	low_apc.cell.charge = low_apc.cell.maxcharge * 0.1
+	// Run on the console, as a player would
+	var/obj/item/card/id/worn = cs_card("Mikayla Collins", "Station Engineer", list(ACCESS_ENGINE), get_turf(H))
+	H.equip_to_slot_or_del(worn, ITEM_SLOT_ID)
+	cpu.turn_on(H)
+	cs_act(cpu, H, "PC_runprogram", list("name" = "stationmap"))
+	var/datum/computer_file/program/station_map/app = cpu.active_program
+	cs_check("stationmap: it runs on engineering access", istype(app))
+	if(!istype(app))
+		return
+	cpu.ui_interact(H)
+	var/datum/tgui/ui = cs_find_ui(H, app)
+	cs_check("stationmap: the map opens", ui)
+	var/list/rooms = app.ui_data(H)["rooms"]
+	// Which rooms read out of the ordinary at the start of a round, and why
+	for(var/area/A in index)
+		var/list/R = rooms[index[A]]
+		if(A == vented || isnull(R["p"]))
+			continue
+		if(R["p"] < 81 || R["pmax"] > 121 || R["t"] < 273 || R["tmax"] > 313 || R["plasma"] > 0.2 || R["co2"] > 5)
+			kc_log("NOTE: [A] ([A.type]) [R["p"]]-[R["pmax"]] kPa, [R["t"]]-[R["tmax"]] K, plasma [R["plasma"]], alarm [R["air_alarm"]]")
+	var/list/vented_room = rooms[index[vented]]
+	var/list/burning_room = rooms[index[burning]]
+	var/list/off_room = rooms[index[off_apc.area]]
+	var/list/low_room = rooms[index[low_apc.area]]
+	cs_check("stationmap: the vented room reads vacuum ([vented]: [vented_room["p"]] kPa)", vented_room["p"] < 20)
+	cs_check("stationmap: the pulled fire alarm shows ([burning])", burning_room["fire"])
+	cs_check("stationmap: the breaker off shows ([off_apc.area])", !off_room["breaker"])
+	cs_check("stationmap: the run-down cell shows ([low_apc.area]: [low_room["charge"]]%)", low_room["charge"] <= 11)
+	if(!ui)
+		return
+	winset(C, ui.window_id, "pos=40,10")
+	sleep(25)
+	cs_shot("popup_stationmap_[label]_air")
+	// Click the vented room on the map, where the plan puts it
+	var/list/vented_samples = plan["samples"][index[vented]]
+	var/turf/spot = vented_samples[1]
+	var/fx = (spot.x - plan["x0"] + 0.5) / plan["width"]
+	var/fy = (plan["y0"] - spot.y + 0.5) / plan["height"]
+	cs_tgui_do(C, ui.window_id, "clickat:.StationMap__canvas|[fx]|[fy]")
+	sleep(15)
+	cs_shot("popup_stationmap_[label]_air_room")
+	cs_tgui_do(C, ui.window_id, "click:Power")
+	sleep(15)
+	cs_shot("popup_stationmap_[label]_power")
+	cs_tgui_do(C, ui.window_id, "click:Alarms")
+	sleep(15)
+	cs_shot("popup_stationmap_[label]_alarms")
+	SStgui.close_user_uis(H)
+	// The AI's own
+	var/mob/living/silicon/ai/AI = H.AIize()
+	sleep(20)
+	cs_check("stationmap: an AI to try it", istype(AI) && C.mob == AI)
+	if(!istype(AI))
+		return
+	usr = AI
+	AI.station_map()
+	var/datum/tgui/ai_ui = cs_find_ui(AI, AI.station_map_view)
+	cs_check("stationmap: the AI's verb opens the map", ai_ui)
+	if(ai_ui)
+		winset(C, ai_ui.window_id, "pos=40,10")
+		sleep(25)
+		cs_shot("popup_stationmap_[label]_ai")
