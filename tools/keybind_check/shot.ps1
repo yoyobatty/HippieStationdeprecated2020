@@ -31,7 +31,7 @@ public class WindowShot {
 			// Untitled, only window-sized ones (the PA console's is 230 high). tgui windows have no caption, so they're found this
 			// way; a title only picks out the old HTML windows
 			if (title == "" && (w <= 300 || w >= 1400 || ht <= 150)) return true;
-			if (title != "") {
+			if (title != "" && title != "*") { // "*": any popup, any size
 				var s = new System.Text.StringBuilder(256); GetWindowText(h, s, 256);
 				if (!string.Equals(s.ToString().Trim(), title, StringComparison.OrdinalIgnoreCase)) return true;
 			}
@@ -39,6 +39,19 @@ public class WindowShot {
 			return true;
 		}, IntPtr.Zero);
 		return found;
+	}
+	// Every visible popup of this DreamSeeker as "title" WxH, for when a title isn't found
+	public static string ListPopups(int pid, IntPtr main) {
+		var list = new System.Text.StringBuilder();
+		EnumWindows(delegate(IntPtr h, IntPtr p) {
+			uint owner; GetWindowThreadProcessId(h, out owner);
+			if (owner != pid || h == main || !IsWindowVisible(h)) return true;
+			RECT r; GetWindowRect(h, out r);
+			var s = new System.Text.StringBuilder(256); GetWindowText(h, s, 256);
+			list.Append(" \"" + s.ToString() + "\" " + (r.r - r.l) + "x" + (r.b - r.t) + ";");
+			return true;
+		}, IntPtr.Zero);
+		return list.ToString();
 	}
 	// The map is the biggest "Static" child (posted mouse messages only register on that one).
 	public static IntPtr FindMap(IntPtr main) {
@@ -97,7 +110,9 @@ while ((Get-Date) -lt $deadline -and -not (Test-Path "$data\keycheck_shots_done"
 			$title = ""
 			if (Test-Path "$data\keycheck_shot_title") { $title = ([IO.File]::ReadAllText("$data\keycheck_shot_title")).Trim() }
 			$shoot = [WindowShot]::FindPopup($p.Id, $h, $title)
+			if ($shoot -eq [IntPtr]::Zero -and $title -ne "") { Say "no popup titled '$title' (516 gives the old windows no caption); popups:$([WindowShot]::ListPopups($p.Id, $h))" }
 			if ($shoot -eq [IntPtr]::Zero) { $shoot = [WindowShot]::FindPopup($p.Id, $h, "") } # nothing by that title: the biggest
+			if ($shoot -eq [IntPtr]::Zero) { $shoot = [WindowShot]::FindPopup($p.Id, $h, "*") } # a small one: still the biggest
 			[WindowShot]::GetWindowRect($shoot, [ref]$r) | Out-Null
 		}
 		# A web page window that hasn't painted yet comes back pure white: wait and take it again, a few times
