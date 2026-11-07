@@ -11,6 +11,9 @@ SUBSYSTEM_DEF(timer)
 	flags = SS_TICKER|SS_NO_INIT
 
 	var/list/datum/timedevent/second_queue = list() //awe, yes, you've had first queue, but what about second queue?
+	/// hippie -- timer-census=1 on the stress bench: a timer's proc -> ms its timers took, and how many fired (stress_bench.dm)
+	var/list/census
+	var/list/census_count
 	var/list/hashes = list()
 
 	var/head_offset = 0 //world.time of the first entry in the the bucket.
@@ -135,7 +138,14 @@ SUBSYSTEM_DEF(timer)
 			if (!timer.spent)
 				spent += timer
 				timer.spent = world.time
-				callBack.InvokeAsync()
+				if(census) // hippie -- timer-census=1 on the stress bench: what each kind of timer costs (stress_bench.dm)
+					var/started = TICK_USAGE_REAL
+					callBack.InvokeAsync()
+					var/key = "[callBack.delegate]"
+					census[key] += TICK_USAGE_TO_MS(started)
+					census_count[key]++
+				else
+					callBack.InvokeAsync()
 				last_invoke_tick = world.time
 
 			if (MC_TICK_CHECK)

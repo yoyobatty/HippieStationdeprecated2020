@@ -221,6 +221,12 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 		names += name
 	var/next = 1
 	var/last = timewarp_real_ms()
+	var/spike_log = world.params["spike-log"] // spike-log=1: what each tick over 60 ms went on, by subsystem
+	if(world.params["timer-census"]) // timer-census=1: what the Timer subsystem's time goes on, by the timers' procs
+		SStimer.census = list()
+		SStimer.census_count = list()
+	var/list/ss_before
+	var/list/air_before
 	while(next <= length(names))
 		var/name = names[next]
 		if(shift.elapsed() >= schedule[name] SECONDS)
@@ -233,13 +239,47 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 			last = timewarp_real_ms() // what the survey took isn't counted, what setting the disaster off takes is
 			set_off(name)
 			continue
+		if(spike_log)
+			ss_before = list()
+			for(var/datum/controller/subsystem/SS as anything in Master.subsystems)
+				ss_before += SS.total_ms
+			air_before = atmos_totals()
 		sleep(world.tick_lag)
 		var/now = timewarp_real_ms()
 		current?.add_tick(now - last)
+		if(spike_log && current && now - last > 60)
+			note_spike(now - last, ss_before, air_before)
 		if(world.time >= next_eyes)
 			refresh_eyes()
 		last = timewarp_real_ms()
 	write_results()
+
+/// spike-log=1: a tick that took `gap` ms, and the subsystems that took the most of it
+/datum/stress_bench/proc/note_spike(gap, list/ss_before, list/air_before)
+	var/list/took = list()
+	var/in_mc = 0
+	var/i = 0
+	for(var/datum/controller/subsystem/SS as anything in Master.subsystems)
+		i++
+		var/ms = SS.total_ms - ss_before[i]
+		in_mc += ms
+		if(ms >= 2)
+			took["[SS.name]"] = ms
+	sortTim(took, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
+	var/list/parts = list()
+	for(var/name in took)
+		parts += "[name] [round(took[name], 0.1)]"
+		if(length(parts) >= 4)
+			break
+	lines += "spike in [current.name] at [round((world.time - current.started_at) / 10, 0.1)] s: [round(gap)] ms, [round(in_mc)] in the MC ([jointext(parts, ", ")]), [round(gap - in_mc)] outside it"
+	if(took["Atmospherics"] >= 20) // which of SSair's stages
+		var/list/air_now = atmos_totals()
+		var/list/stages = list()
+		for(var/key in air_now)
+			var/ms = air_now[key] - air_before[key]
+			if(!findtext(key, "#") && ms >= 2)
+				stages += "[key] [round(ms, 0.1)]"
+		lines += "    atmos stages: [jointext(stages, ", ")]"
 
 /datum/stress_bench/proc/note(text)
 	lines += text
@@ -545,6 +585,19 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 	if(light_shadow)
 		out += ""
 		out += "Light shadow check (light-shadow): [json_encode(light_shadow)]"
+	if(SStimer.census) // timer-census=1
+		var/list/census = SStimer.census.Copy()
+		sortTim(census, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
+		var/total = 0
+		for(var/key in census)
+			total += census[key]
+		out += ""
+		out += "Timers, by proc (ms over the whole run, how many fired), [round(total)] ms in all:"
+		var/shown = 0
+		for(var/key in census)
+			out += "  [round(census[key])] ms, [SStimer.census_count[key]] fired: [key]"
+			if(++shown >= 20)
+				break
 	if(SSair.tile_engine_writes_check) // atmos-engine-writes=check: what the tile engine wrote into turfs, against what DM would have
 		out += ""
 		out += "Tile engine's writes, against what DM would have written: [json_encode(SSair.tile_engine_writes_check)]"

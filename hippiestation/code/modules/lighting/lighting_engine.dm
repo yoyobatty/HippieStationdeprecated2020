@@ -91,6 +91,7 @@ GLOBAL_LIST_EMPTY(lighting_sheet_list)
 	var/list/flags = list()
 	for(var/turf/T in world)
 		var/turf_flags = T.lighting_engine_flags()
+		T.lighting_engine_pushed = turf_flags // what the engine will have, so a push that changes nothing can be skipped
 		if(turf_flags)
 			flags.Add(T, turf_flags)
 	var/result = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_flags")(flags)
@@ -269,10 +270,17 @@ GLOBAL_LIST_EMPTY(lighting_sheet_list)
 	if(lighting_object)
 		. |= LIGHTING_FLAG_OBJECT
 
-/// Tells the engine this turf's flags may have changed
+/turf
+	/// The flags the engine was last told for this turf, -1 if it may have something else (a turf made since it was told)
+	var/tmp/lighting_engine_pushed = -1
+
+/// Tells the engine this turf's flags, if they changed since it was last told
 /turf/proc/lighting_engine_push()
 	if(SSlighting.native_flags_ready)
-		call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_flag")(src, lighting_engine_flags())
+		var/flags = lighting_engine_flags()
+		if(flags != lighting_engine_pushed)
+			lighting_engine_pushed = flags
+			call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_flag")(src, flags)
 
 /// Compares the DM code's corners on a z-level with the engine's, every value exactly, in the shadow check. Returns a line.
 /datum/controller/subsystem/lighting/proc/native_shadow_check(z)
