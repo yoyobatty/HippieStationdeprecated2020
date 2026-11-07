@@ -49,9 +49,11 @@
 
 
 /datum/disease/pierrot_throat/Destroy()
-	UnregisterSignal(affected_mob, COMSIG_MOB_SAY)
+	if(affected_mob) // hippie -- one made to read (the medical records' virus list) has nobody: UnregisterSignal(null) runtimed
+		UnregisterSignal(affected_mob, COMSIG_MOB_SAY)
 	return ..()
 
 /datum/disease/pierrot_throat/remove_disease()
-	UnregisterSignal(affected_mob, COMSIG_MOB_SAY)
+	if(affected_mob) // hippie
+		UnregisterSignal(affected_mob, COMSIG_MOB_SAY)
 	return ..()
