@@ -3,6 +3,7 @@
 		return
 	var/F = file("[GLOB.log_directory]/[subject].html")
 	WRITE_FILE(F, "[time_stamp()] [REF(src)] ([x],[y],[z]) || [src] [message]<br>")
+	round_log_add("Investigate: [subject]", "[src] [message]", src) // hippie -- round_log.dm
 
 /client/proc/investigate_show()
 	set name = "Investigate"

@@ -78,7 +78,8 @@
 	var/source = LOGSRC_MOB
 	if(M.client)
 		source = LOGSRC_CLIENT
-	body += "<a href='?_src_=holder;[HrefToken()];individuallog=[REF(M)];log_src=[source]'>LOGS</a>\] <br>"
+	body += "<a href='?_src_=holder;[HrefToken()];individuallog=[REF(M)];log_src=[source]'>LOGS</a> - "
+	body += "<a href='?_src_=holder;[HrefToken()];searchlogs=[M.ckey || M.real_name || M.name]'>SEARCH LOGS</a>\] <br>" // hippie -- log_search.dm
 
 	body += "<b>Mob type</b> = [M.type]<br><br>"
 

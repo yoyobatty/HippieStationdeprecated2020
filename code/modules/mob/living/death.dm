@@ -58,6 +58,9 @@
 		deadchat_broadcast(" has died at <b>[get_area_name(T)]</b>.", "<b>[mind.name]</b>", follow_target = src, turf_target = T, message_type=DEADCHAT_DEATHRATTLE)
 	if(mind)
 		mind.store_memory("Time of death: [tod]", 0)
+	// hippie -- every player's death logged, not only a human's (human/death() logs its own, with its damage)
+	if(!ishuman(src) && (mind || ckey) && SSticker.HasRoundStarted())
+		log_message("has died ([round_log_last_hurt(src)])", LOG_ATTACK) // log_message() adds who and where
 	GLOB.alive_mob_list -= src
 	if(!gibbed && !QDELETED(src)) // hippie -- a bot deletes itself in death() before this: kept here, it was a hard delete
 		GLOB.dead_mob_list += src

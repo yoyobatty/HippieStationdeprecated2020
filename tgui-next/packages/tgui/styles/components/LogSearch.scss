@@ -1,0 +1,189 @@
+// hippie -- Search Logs (interfaces/LogSearch.js)
+
+$ls-line: rgba(255, 255, 255, 0.08);
+$ls-muted: #8a93a0;
+
+.LogSearch {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px 0;
+}
+
+.LogSearch__bar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+
+  .Input {
+    margin-right: 4px;
+  }
+}
+
+.LogSearch__textBox {
+  flex: 3;
+}
+
+.LogSearch__whoBox {
+  flex: 1.4;
+}
+
+.LogSearch__areaBox {
+  flex: 1;
+}
+
+.LogSearch__row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.LogSearch__label {
+  width: 72px;
+  color: $ls-muted;
+  font-size: 11px;
+}
+
+.LogSearch__spacer {
+  flex: 1;
+}
+
+.LogSearch__kinds {
+  margin: 2px 0 6px;
+}
+
+.LogSearch__chip {
+  display: inline-block;
+  margin: 0 4px 4px 0;
+  padding: 1px 7px;
+  border: 1px solid $ls-line;
+  border-radius: 10px;
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.LogSearch__chip--on {
+  border-color: #4f8fd6;
+  background-color: rgba(79, 143, 214, 0.22);
+}
+
+.LogSearch__count {
+  color: $ls-muted;
+}
+
+.LogSearch__status {
+  padding: 3px 0 5px;
+  border-bottom: 1px solid $ls-line;
+  font-size: 12px;
+}
+
+.LogSearch__muted {
+  color: $ls-muted;
+}
+
+.LogSearch__lines {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.LogSearch__empty {
+  padding: 30px 0;
+  text-align: center;
+  color: $ls-muted;
+}
+
+.LogSearch__line {
+  display: flex;
+  padding: 4px 0;
+  border-bottom: 1px solid $ls-line;
+  font-size: 12px;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+  }
+}
+
+.LogSearch__time {
+  flex: 0 0 58px;
+  color: $ls-muted;
+  font-family: Consolas, monospace;
+}
+
+.LogSearch__kindCol {
+  flex: 0 0 96px;
+  color: $ls-muted;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.LogSearch__kind {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 2px;
+  background-color: #6b7280;
+}
+
+.LogSearch__kind--attack { background-color: #d95926; }
+.LogSearch__kind--death { background-color: #e66767; }
+.LogSearch__kind--bomb { background-color: #c98500; }
+.LogSearch__kind--say,
+.LogSearch__kind--whisper,
+.LogSearch__kind--radio,
+.LogSearch__kind--pda,
+.LogSearch__kind--emote,
+.LogSearch__kind--deadchat,
+.LogSearch__kind--ooc { background-color: #3987e5; }
+.LogSearch__kind--admin,
+.LogSearch__kind--adminprivate,
+.LogSearch__kind--asay { background-color: #9085e9; }
+.LogSearch__kind--join { background-color: #199e70; }
+.LogSearch__kind--investigate { background-color: #d55181; }
+
+.LogSearch__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.LogSearch__text {
+  word-wrap: break-word;
+}
+
+.LogSearch__meta {
+  margin-top: 1px;
+  font-size: 11px;
+  color: $ls-muted;
+}
+
+.LogSearch__who,
+.LogSearch__where {
+  margin-right: 10px;
+}
+
+.LogSearch__arrowText {
+  margin-right: 6px;
+}
+
+.LogSearch__acts a {
+  margin-left: 5px;
+  color: #6ea8ff;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

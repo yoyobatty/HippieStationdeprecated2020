@@ -162,6 +162,7 @@ import { RoundEnd } from './interfaces/RoundEnd';
 import { StationMap } from './interfaces/StationMap';
 import { BotCrewMonitor } from './interfaces/BotCrewMonitor';
 import { DiseaseMenu } from './interfaces/DiseaseMenu';
+import { LogSearch } from './interfaces/LogSearch';
 import { ResearchDashboard } from './interfaces/ResearchDashboard';
 import { SiliconLaws } from './interfaces/SiliconLaws';
 import { Spellbook } from './interfaces/Spellbook';
@@ -1092,6 +1093,10 @@ const ROUTES = {
   },
   gland_dispenser: {
     component: () => GlandDispenser,
+    scrollable: false,
+  },
+  log_search: {
+    component: () => LogSearch,
     scrollable: false,
   },
   research_dashboard: {

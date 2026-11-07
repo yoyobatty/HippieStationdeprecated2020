@@ -770,6 +770,8 @@
 		return
 
 	var/log_text = "[key_name(src)] [message] [loc_name(src)]"
+	round_log_add(round_log_category_of(message_type), log_text, src, GLOB.round_log_target) // hippie -- with who and where (round_log.dm)
+	GLOB.round_log_in_message = TRUE
 	switch(message_type)
 		if(LOG_ATTACK)
 			log_attack(log_text)
@@ -806,6 +808,7 @@
 		else
 			stack_trace("Invalid individual logging type: [message_type]. Defaulting to [LOG_GAME] (LOG_GAME).")
 			log_game(log_text)
+	GLOB.round_log_in_message = FALSE
 
 // Helper for logging chat messages or other logs with arbitrary inputs (e.g. announcements)
 /atom/proc/log_talk(message, message_type, tag=null, log_globally=TRUE, forced_by=null)
@@ -849,7 +852,9 @@ Proc for attack log creation, because really why not
 	var/postfix = "[sobject][saddition][hp]"
 
 	var/message = "has [what_done] [starget][postfix]"
+	GLOB.round_log_target = target // hippie -- the round log knows who it was done to (round_log.dm)
 	user.log_message(message, LOG_ATTACK, color="red")
+	GLOB.round_log_target = null
 
 	if(user != target)
 		var/reverse_message = "has been [what_done] by [ssource][postfix]"

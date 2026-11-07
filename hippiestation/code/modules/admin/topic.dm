@@ -32,6 +32,10 @@
 		log_admin("[key_name(usr)] failed to create an infiltration team.")
 
 /datum/admins/proc/hippieTopic(href, href_list)
+	if(href_list["searchlogs"]) // a player panel's SEARCH LOGS (log_search.dm)
+		if(check_rights(R_ADMIN))
+			usr.client.open_log_search(href_list["searchlogs"])
+		return
 	if(href_list["makeAntag"] == "shadowling")
 		hippie_makeShadowling(src)
 	else if(href_list["makeAntag"] == "vampire")

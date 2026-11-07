@@ -92,6 +92,7 @@ GLOBAL_LIST_EMPTY(vc_probes)
 	vv_check_changes(C, H)
 	vv_check_internals(C, H)
 	vv_check_inline(C, H)
+	vv_check_logs(C, H)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -326,3 +327,105 @@ GLOBAL_LIST_EMPTY(vc_probes)
 	qdel(pen2)
 	qdel(blue)
 	qdel(box)
+
+/datum/tgui/vc_stub/New()
+	status = UI_INTERACTIVE
+
+/proc/vc_act(datum/src_object, mob/user, action, list/params = list())
+	var/datum/tgui/vc_stub/stub = new
+	usr = user
+	return src_object.ui_act(action, params, stub, GLOB.admin_state)
+
+/proc/vc_find_ui(mob/user, datum/src_object)
+	var/deadline = world.time + 15 SECONDS
+	while(world.time < deadline)
+		for(var/datum/tgui/open as anything in user.open_uis)
+			if(open.src_object == src_object && open.initialized)
+				return open
+		sleep(2)
+
+/// The round log and Search Logs: lines caught with who and where, a death with who last hurt them, the quick starts, a
+/// player, words with |, a player panel's SEARCH LOGS, a line's VV button
+/proc/vv_check_logs(client/C, mob/living/carbon/human/H)
+	var/mob/living/carbon/human/bob = new(get_step(H, EAST))
+	bob.fully_replace_character_name(null, "Bob Logger")
+	bob.equipOutfit(/datum/outfit/job/assistant)
+	var/mob/living/carbon/human/alice = new(get_step(H, WEST))
+	alice.fully_replace_character_name(null, "Alice Logged")
+	var/mob/living/carbon/monkey/monkey = new(get_step(H, NORTH))
+	monkey.mind_initialize()
+	var/before = GLOB.round_log_total
+	log_combat(bob, alice, "punched")
+	log_combat(bob, monkey, "kicked")
+	monkey.death()
+	bob.say("the harness was here")
+	var/obj/item/grenade/chem_grenade/grenade = new(get_turf(bob))
+	log_bomber(bob, "has primed a", grenade, message_admins = FALSE)
+	grenade.investigate_log("was tested by the harness", INVESTIGATE_ATMOS)
+	log_admin("Harness admin did an admin thing")
+	sleep(10)
+	var/list/kinds = list()
+	var/list/attack_entry
+	var/list/death_entry
+	for(var/list/entry in GLOB.round_log)
+		if(entry[RL_ID] <= before)
+			continue
+		kinds |= entry[RL_CAT]
+		if(entry[RL_CAT] == "Attack" && findtext(entry[RL_TEXT], "punched") && !attack_entry)
+			attack_entry = entry
+		if(entry[RL_CAT] == "Death" && findtext(entry[RL_TEXT], "monkey"))
+			death_entry = entry
+	vc_check("lines come in as Attack, Death, Say, Bomb, Investigate: atmos and Admin ([kinds.Join(", ")])", ("Attack" in kinds) && ("Death" in kinds) && ("Say" in kinds) && ("Bomb" in kinds) && ("Investigate: atmos" in kinds) && ("Admin" in kinds))
+	vc_check("an attack knows who and whom, and where ([attack_entry ? "[attack_entry[RL_NAME]] to [attack_entry[RL_TNAME]] in [attack_entry[RL_AREA]]" : "none"])", attack_entry && attack_entry[RL_NAME] == bob.name && attack_entry[RL_TNAME] == alice.name && attack_entry[RL_AREA])
+	vc_check("a monkey's death is logged, with who last hurt it ([death_entry ? death_entry[RL_TEXT] : "none"])", death_entry && findtext(death_entry[RL_TEXT], "last hurt by") && findtext(death_entry[RL_TEXT], bob.name))
+	var/said = 0
+	for(var/list/entry in GLOB.round_log)
+		if(entry[RL_ID] > before && findtext(entry[RL_TEXT], "the harness was here"))
+			said++
+	vc_check("a thing said is one line, not two ([said])", said == 1)
+
+	// The window
+	C.open_log_search()
+	var/datum/log_search/LS = C.log_search
+	var/datum/tgui/ui = vc_find_ui(H, LS)
+	vc_check("Search Logs opens", ui)
+	if(ui)
+		winset(C, ui.window_id, "pos=20,10")
+	vc_act(LS, H, "search", list("text" = "harness was here", "who" = "", "area" = "", "minutes" = "0"))
+	vc_check("words find the line ([LS.matched])", LS.matched == 1 && findtext(LS.results[1][RL_TEXT], "harness was here"))
+	vc_act(LS, H, "search", list("text" = "punched|primed", "who" = "", "area" = "", "minutes" = "0"))
+	vc_check("a | b finds either ([LS.matched])", LS.matched >= 2)
+	vc_act(LS, H, "search", list("text" = "", "who" = "Alice Logged", "area" = "", "minutes" = "5"))
+	vc_check("a player finds lines on either side ([LS.matched], [LS.matched ? LS.results[1][RL_NAME] : "-"])", LS.matched >= 1 && LS.results[1][RL_TNAME] == alice.name)
+	// a quick start, clicked in the page (a quick start keeps the player box: Clear first)
+	vc_act(LS, H, "clear")
+	vc_js(C, ui?.window_id, "var b = Array.prototype.slice.call(document.querySelectorAll('.Button')).filter(function (e) { return e.textContent.trim() == 'Deaths'; })\[0\]; if (b) b.click();")
+	sleep(20)
+	vc_check("the Deaths quick start, clicked ([LS.preset], [LS.matched] lines)", LS.preset == "Deaths" && LS.matched >= 1 && LS.results[1][RL_CAT] == "Death")
+	vc_shot("logs_deaths")
+	vc_act(LS, H, "preset", list("name" = "Fights"))
+	sleep(15)
+	vc_shot("logs_fights")
+	// the kinds as chips
+	vc_act(LS, H, "all_kinds")
+	vc_act(LS, H, "kind", list("name" = "Bomb"))
+	vc_check("the Bomb chip alone ([LS.matched])", LS.matched >= 1 && LS.results[1][RL_CAT] == "Bomb")
+	// a player panel's SEARCH LOGS
+	C.holder.Topic("searchlogs=[url_encode(bob.name)]", list("searchlogs" = bob.name, "admin_token" = C.holder.href_token))
+	sleep(15)
+	vc_check("a player panel's SEARCH LOGS shows that player's lines ([LS.who], [LS.matched])", LS.who == bob.name && LS.matched >= 3)
+	sleep(10)
+	vc_shot("logs_player")
+	var/shown_who = vc_ask(C, ui?.window_id, "who", "document.querySelectorAll('.LogSearch__whoBox input')\[0\].value")
+	vc_check("and its box says who ([shown_who])", shown_who == bob.name)
+	// a line's VV button
+	vc_act(LS, H, "vv", list("id" = "[LS.results[1][RL_ID]]"))
+	sleep(15)
+	vc_check("a line's VV opens who did it", length(C.vv_windows_showing(bob)) == 1)
+	for(var/id in C.vv_windows)
+		C << browse(null, "window=[id]")
+	SStgui.close_user_uis(H)
+	qdel(grenade)
+	qdel(bob)
+	qdel(alice)
+	qdel(monkey)
