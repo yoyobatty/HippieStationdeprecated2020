@@ -1,6 +1,7 @@
 import { Component, Fragment } from 'inferno';
 import { useBackend } from '../backend';
 import { Button, Icon, Input } from '../components';
+import { closePlayerMenus, MENTOR_ITEMS, PlayerLink } from './common/PlayerLink';
 
 // hippie -- Questions: mentorhelps as tickets, for mentors and admins. Who's
 // answering which, how long each has waited, the conversation and a box to
@@ -53,6 +54,81 @@ const QuestionItem = props => {
   );
 };
 
+// The keys (the user's ruling, as in the admin hub): J/K next and previous,
+// R the answer box, C claim, D done, Esc, while not typing in a box. Taken
+// ahead of the passthrough to the game (hotkeys.js).
+class QuestionKeys extends Component {
+  componentDidMount() {
+    this.handled = {};
+    this.down = e => this.onKey(e);
+    this.up = e => {
+      if (this.handled[e.keyCode]) {
+        e.preventDefault();
+        delete this.handled[e.keyCode];
+      }
+    };
+    window.addEventListener('keydown', this.down, true);
+    window.addEventListener('keyup', this.up, true);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('keydown', this.down, true);
+    window.removeEventListener('keyup', this.up, true);
+  }
+
+  onKey(e) {
+    const { act, data } = this.props;
+    if (e.defaultPrevented) {
+      return;
+    }
+    const target = e.target && e.target.localName;
+    const typing = target === 'input' || target === 'textarea';
+    if (e.keyCode === 27) {
+      closePlayerMenus();
+      if (typing) {
+        e.target.blur();
+      }
+      return;
+    }
+    if (typing || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) {
+      return;
+    }
+    const q = data.question;
+    const open = !!q && !!q.open;
+    let done = true;
+    if (e.key === 'j') {
+      act('step', { dir: 1 });
+    }
+    else if (e.key === 'k') {
+      act('step', { dir: -1 });
+    }
+    else if (e.key === 'r' && open) {
+      const box = document.querySelector('.Tickets__textarea');
+      if (box) {
+        box.focus();
+      }
+    }
+    else if (e.key === 'c' && open) {
+      act(q.mine ? 'unclaim' : 'claim');
+    }
+    else if (e.key === 'd' && open) {
+      act('done');
+    }
+    else {
+      done = false;
+    }
+    if (done) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.handled[e.keyCode] = true;
+    }
+  }
+
+  render() {
+    return null;
+  }
+}
+
 export class Questions extends Component {
   constructor() {
     super();
@@ -95,7 +171,10 @@ export class Questions extends Component {
             </span>
           </div>
           <div className="Tickets__metaRow">
-            <span>{q.key}</span>
+            <span>
+              <PlayerLink act={act} items={MENTOR_ITEMS}
+                who={{ name: q.key, ckey: q.ckey }} />
+            </span>
             {!!q.name && (
               <span className="Tickets__muted">
                 {q.name}{q.job ? ', ' + q.job : ''}
@@ -266,21 +345,30 @@ export class Questions extends Component {
     const q = data.question;
     return (
       <div className="Tickets">
+        <QuestionKeys act={act} data={data} />
         <div className="Tickets__list">
           <div className="Tickets__tabs">
             <span
               className={'Tickets__tab'
-                + (data.show_open ? ' Tickets__tab--on' : '')}
+                + (data.show_open && !data.filter ? ' Tickets__tab--on' : '')}
               onClick={() => act('list', { open: 1 })}>
               Open<span className="Tickets__count">{data.open_count}</span>
             </span>
             <span
               className={'Tickets__tab'
-                + (!data.show_open ? ' Tickets__tab--on' : '')}
+                + (!data.show_open && !data.filter ? ' Tickets__tab--on' : '')}
               onClick={() => act('list', { open: 0 })}>
               Done<span className="Tickets__count">{data.done_count}</span>
             </span>
           </div>
+          {!!data.filter && (
+            <div className="Tickets__quoteBar Tickets__filterBar">
+              <Icon name="filter" mr={1} />
+              Only {data.filter}&apos;s questions
+              <span className="Tickets__spacer" />
+              <a onClick={() => act('unfilter')}>all</a>
+            </div>
+          )}
           <div className="Tickets__items">
             {questions.length === 0 && (
               <div className="Tickets__empty">

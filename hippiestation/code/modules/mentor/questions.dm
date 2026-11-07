@@ -247,6 +247,8 @@ GLOBAL_DATUM_INIT(mentor_state, /datum/ui_state/mentor_state, new)
 	var/selected_id
 	var/notice
 	var/notice_bad = FALSE
+	/// Only this player's questions, open and done (a name's "Their questions")
+	var/player_filter
 
 /datum/question_window/New()
 	GLOB.question_windows += src
@@ -270,6 +272,7 @@ GLOBAL_DATUM_INIT(mentor_state, /datum/ui_state/mentor_state, new)
 		"open" = Q.open,
 		"title" = Q.name,
 		"key" = Q.initiator_key,
+		"ckey" = Q.initiator_ckey,
 		"name" = Q.char_name,
 		"job" = Q.job,
 		"online" = !!Q.initiator,
@@ -292,7 +295,7 @@ GLOBAL_DATUM_INIT(mentor_state, /datum/ui_state/mentor_state, new)
 			open_count++
 		else
 			done_count++
-		if(Q.open == show_open)
+		if(player_filter ? Q.initiator_ckey == player_filter : Q.open == show_open)
 			rows += list(question_row(Q))
 	sortTim(rows, GLOBAL_PROC_REF(cmp_ticket_rows))
 	var/list/data = list(
@@ -304,6 +307,7 @@ GLOBAL_DATUM_INIT(mentor_state, /datum/ui_state/mentor_state, new)
 		"notice" = notice,
 		"notice_bad" = notice_bad,
 		"is_admin" = !!owner?.holder,
+		"filter" = player_filter ? note_key_of(player_filter) || player_filter : null,
 		"mentors_on" = length(GLOB.mentors),
 		"admins_on" = length(GLOB.admins),
 	)
@@ -332,6 +336,40 @@ GLOBAL_DATUM_INIT(mentor_state, /datum/ui_state/mentor_state, new)
 	switch(action)
 		if("list")
 			show_open = !!text2num(params["open"])
+			player_filter = null
+			return TRUE
+		if("unfilter")
+			player_filter = null
+			return TRUE
+		if("player_menu") // a name's menu, mentor-safe: follow, a mentor PM, their questions (nothing an admin's menu has)
+			var/who_ckey = ckey(params["ckey"])
+			switch(params["what"])
+				if("mfollow")
+					var/mob/M = mob_of_ckey(who_ckey)
+					if(M)
+						usr.client.mentor_follow(M)
+				if("mpm")
+					var/client/them = GLOB.directory[who_ckey]
+					if(them)
+						usr.client.cmd_mentor_pm(them, null)
+				if("mquestions")
+					player_filter = who_ckey
+					return TRUE
+			return
+		if("step") // J and K: the next or previous question down the list
+			var/list/rows = list()
+			for(var/datum/help_question/listed in GLOB.help_questions)
+				if(player_filter ? listed.initiator_ckey == player_filter : listed.open == show_open)
+					rows += list(question_row(listed))
+			sortTim(rows, GLOBAL_PROC_REF(cmp_ticket_rows))
+			if(!rows.len)
+				return
+			var/at = 0
+			for(var/i in 1 to rows.len)
+				if(rows[i]["id"] == selected_id)
+					at = i
+			at = clamp(at + (text2num(params["dir"]) < 0 ? -1 : 1), 1, rows.len)
+			selected_id = rows[at]["id"]
 			return TRUE
 		if("select")
 			selected_id = text2num(params["id"])

@@ -124,7 +124,7 @@ SUBSYSTEM_DEF(statpanels)
 /datum/controller/subsystem/statpanels/proc/set_status_tab(client/target)
 	if(!global_data)
 		make_global_data()
-	var/list/lines = list("Ping: [round(target.lastping, 1)] ms (average [round(target.avgping, 1)] ms)") + global_data
+	var/list/lines = list("Ping: [round(target.lastping, 1)] ms (average [round(target.avgping, 1)] ms)") + help_status_lines(target) + global_data // hippie -- their ahelp and question (help_window.dm)
 	var/list/mine = target.mob?.get_status_tab_items()
 	if(length(mine))
 		lines += ""

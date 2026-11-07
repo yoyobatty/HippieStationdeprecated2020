@@ -38,7 +38,14 @@ const PLACEHOLDERS = {
 export class HelpWindow extends Component {
   constructor() {
     super();
-    this.state = { kind: 'report', about: 0, text: '', reply: '' };
+    this.state = {
+      kind: 'report',
+      about: 0,
+      text: '',
+      reply: '',
+      earlier: false,
+      openEarlier: null,
+    };
   }
 
   renderForm() {
@@ -182,9 +189,64 @@ export class HelpWindow extends Component {
     );
   }
 
+  // Their earlier tickets and questions this round, read only
+  renderEarlier() {
+    const { data } = useBackend(this.props);
+    const { openEarlier } = this.state;
+    const earlier = data.earlier || [];
+    return (
+      <div className="HelpWindow__earlier">
+        <div className="HelpWindow__earlierHead">
+          <span className="HelpWindow__label">Earlier this round</span>
+          <span className="HelpWindow__spacer" />
+          <a onClick={() => this.setState({ earlier: false })}>back</a>
+        </div>
+        {earlier.length === 0 && (
+          <div className="HelpWindow__muted">Nothing earlier.</div>
+        )}
+        {earlier.map(e => {
+          const key = e.kind + e.id;
+          const shown = openEarlier === key;
+          return (
+            <div key={key} className="HelpWindow__old">
+              <div className="HelpWindow__oldHead"
+                onClick={() => this.setState({
+                  openEarlier: shown ? null : key,
+                })}>
+                <Icon name={shown ? 'caret-down' : 'caret-right'} mr={1} />
+                <span className="HelpWindow__time">{e.at}</span>
+                <span className="HelpWindow__oldTitle">
+                  {e.kind}: {e.title}
+                </span>
+                <span className="HelpWindow__tag">{e.outcome}</span>
+              </div>
+              {shown && (e.lines || []).map((line, i) => (
+                <div key={i}
+                  className={'HelpWindow__line HelpWindow__line--'
+                    + line.kind}>
+                  {line.kind !== 'event' && (
+                    <div className="HelpWindow__who">
+                      {line.who}
+                      <span className="HelpWindow__time">{line.time}</span>
+                    </div>
+                  )}
+                  <div>{line.text}</div>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   render() {
     const { act, data } = useBackend(this.props);
     const showing = data.showing;
+    const earlier = data.earlier || [];
+    if (this.state.earlier) {
+      return <div className="HelpWindow">{this.renderEarlier()}</div>;
+    }
     return (
       <div className="HelpWindow">
         {!!data.notice && (
@@ -214,6 +276,14 @@ export class HelpWindow extends Component {
           && this.renderTicket('ahelp', data.ahelp)}
         {showing === 'question' && !!data.question
           && this.renderTicket('question', data.question)}
+        {earlier.length > 0 && (
+          <div className="HelpWindow__earlierLink">
+            <a onClick={() => this.setState({ earlier: true })}>
+              <Icon name="history" mr={1} />
+              Earlier this round ({earlier.length})
+            </a>
+          </div>
+        )}
       </div>
     );
   }

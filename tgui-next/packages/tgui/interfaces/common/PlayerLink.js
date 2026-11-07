@@ -17,6 +17,15 @@ const ITEMS = [
   ['jmp', 'Jump to', w => !!w.ref || !!w.ckey],
 ];
 
+// A mentor's menu (Questions): nothing an admin's has, nothing about
+// antagonists (the user's ruling, 2026-11-07). The Questions window's ui_act
+// takes these (hippiestation/code/modules/mentor/questions.dm).
+export const MENTOR_ITEMS = [
+  ['mfollow', 'Follow', w => !!w.ckey],
+  ['mpm', 'Mentor PM', w => !!w.ckey],
+  ['mquestions', 'Their questions', w => !!w.ckey],
+];
+
 const MENU_WIDTH = 150;
 const MENU_HEIGHT = 230;
 
@@ -76,7 +85,7 @@ export class PlayerLink extends Component {
   }
 
   render() {
-    const { act, who, showCkey, className } = this.props;
+    const { act, who, showCkey, className, items } = this.props;
     if (!who || (!who.name && !who.ckey)) {
       return null;
     }
@@ -117,7 +126,7 @@ export class PlayerLink extends Component {
                 <span className="PlayerLink__ckey">{who.ckey}</span>
               )}
             </div>
-            {ITEMS.filter(item => item[2](who)).map(item => (
+            {(items || ITEMS).filter(item => item[2](who)).map(item => (
               <div key={item[0]}
                 className="PlayerLink__item"
                 onClick={() => {

@@ -206,6 +206,7 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 		s2_questions(C, H, AH)
 		s2_hub(C, H, AH)
 		s2_hub_keys(C, H, AH)
+		s2_mentor_and_player(C, H, AH)
 		s2_history(C, H)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
@@ -729,6 +730,73 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 	F9.down(C)
 	sleep(1 SECONDS)
 	s2_check("F9 opens the hub", ("F9" in F9.hotkey_keys) && s2_ui(H, hub))
+
+/// Piece 5 (the user's rulings, 2026-11-07): mentors get a mentor-safe name menu and the same keys in Questions; players get a
+/// line in their stat panel and their earlier tickets this round
+/proc/s2_mentor_and_player(client/C, mob/living/carbon/human/H, datum/admin_help/AH)
+	for(var/datum/tgui/open as anything in H.open_uis.Copy())
+		open.close()
+	sleep(5)
+	// two open questions to step between: theirs, and one from someone gone
+	var/datum/help_question/mine = C.current_question
+	if(!mine || !mine.open)
+		C.current_question = null
+		mine = help_question_asked(C, "How do I open the vault?")
+	var/datum/help_question/gone = new(C, "Where do I find the bridge?")
+	gone.initiator = null
+	gone.initiator_ckey = "goneguy"
+	gone.initiator_key = "Gone Guy"
+	C.current_question = mine
+	C.open_questions(mine.id)
+	var/datum/question_window/W = C.question_window
+	var/datum/tgui/ui = s2_ui(H, W)
+	s2_do(C, ui, "pick:.Tickets__metaRow .PlayerLink__name|[C.key]")
+	sleep(5)
+	s2_shot("questions_menu")
+	s2_do(C, ui, "pick:.PlayerLink__item|Their questions")
+	sleep(5)
+	s2_check("a mentor's name menu: Their questions shows only theirs", W.player_filter == C.ckey)
+	s2_do(C, ui, "pick:.Tickets__filterBar a|all")
+	sleep(5)
+	s2_check("and 'all' goes back to the list", !W.player_filter)
+	var/claimed_before = mine.claimed_ckey
+	s2_do(C, ui, "press:c|67")
+	sleep(5)
+	var/flipped = mine.claimed_ckey != claimed_before
+	s2_do(C, ui, "press:c|67")
+	sleep(5)
+	s2_check("C claims and unclaims a question", flipped && mine.claimed_ckey == claimed_before)
+	var/first = W.selected_id
+	s2_do(C, ui, "press:j|74")
+	sleep(5)
+	var/after_j = W.selected_id
+	s2_do(C, ui, "press:k|75")
+	sleep(5)
+	s2_check("J and K step between questions", after_j != first && W.selected_id == first, "[first] [after_j] [W.selected_id]")
+	s2_do(C, ui, "press:d|68")
+	sleep(5)
+	s2_check("D marks it done", !mine.open)
+	s2_close(H, W)
+	// the player's stat panel line, and its link
+	var/list/lines = help_status_lines(C)
+	var/list/line = length(lines) ? lines[1] : null
+	s2_check("their stat panel says how their ahelp is going, with a link", line && findtext(line[1], "Your ahelp: ") == 1 && line[3] == "help_window=1", line ? line[1] : "none")
+	C.hippie_client_procs(list("help_window" = "1"))
+	var/datum/help_window/HW = C.help_window
+	var/datum/tgui/help_ui = s2_ui(H, HW)
+	s2_check("the link opens their ticket window", !!help_ui)
+	// their earlier ones this round: the questions answered and passed on
+	var/list/data = HW.ui_data(H)
+	var/list/kinds = list()
+	for(var/list/E in data["earlier"])
+		kinds += "[E["kind"]]:[E["outcome"]]"
+	s2_check("their earlier questions this round, with how each ended", ("Question:answered" in kinds) && ("Question:passed to the admins" in kinds), kinds.Join(", "))
+	s2_do(C, help_ui, "pick:.HelpWindow__earlierLink a|Earlier")
+	sleep(5)
+	s2_do(C, help_ui, "pick:.HelpWindow__oldHead|")
+	sleep(5)
+	s2_shot("help_earlier")
+	s2_close(H, HW)
 
 /proc/s2_history(client/C, mob/living/carbon/human/H)
 	var/list/before = player_history_read(C.ckey)

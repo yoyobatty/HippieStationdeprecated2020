@@ -233,3 +233,55 @@ $hw-muted: #8a93a0;
   font-weight: normal;
   font-family: Consolas, monospace;
 }
+
+// Earlier this round
+
+.HelpWindow__earlierLink {
+  padding: 0 14px 10px;
+  font-size: 11px;
+
+  a {
+    color: #6ea8ff;
+    cursor: pointer;
+  }
+}
+
+.HelpWindow__earlier {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 14px;
+
+  a {
+    color: #6ea8ff;
+    cursor: pointer;
+  }
+}
+
+.HelpWindow__earlierHead {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.HelpWindow__old {
+  margin-bottom: 6px;
+  border-bottom: 1px solid $hw-line;
+  padding-bottom: 5px;
+}
+
+.HelpWindow__oldHead {
+  display: flex;
+  align-items: center;
+  padding: 3px 0;
+  cursor: pointer;
+}
+
+.HelpWindow__oldTitle {
+  flex: 1;
+  min-width: 0;
+  margin-left: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

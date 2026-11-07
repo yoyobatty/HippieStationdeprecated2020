@@ -8,6 +8,42 @@
 
 GLOBAL_LIST_EMPTY(help_windows)
 
+/// The player's ticket and question as lines for their stat panel's Status tab, each with a link that opens their window (the
+/// user's ruling, 2026-11-07): list(list(text, link text, topic))
+/proc/help_status_lines(client/C)
+	. = list()
+	if(!C)
+		return
+	var/datum/admin_help/AH = C.current_ticket
+	if(AH && AH.state == AHELP_ACTIVE)
+		var/how = "waiting for an admin"
+		if(!AH.waiting_since)
+			how = "answered"
+		else if(AH.claimed_ckey)
+			how = "an admin is handling it"
+		. += list(list("Your ahelp: [how] ", "(open)", "help_window=1"))
+	var/datum/help_question/Q = C.current_question
+	if(Q && Q.open)
+		var/how = "waiting for a mentor"
+		if(!Q.waiting_since)
+			how = "answered"
+		else if(Q.claimed_ckey)
+			how = "a mentor is answering"
+		. += list(list("Your question: [how] ", "(open)", "help_window=1"))
+
+/// How a ticket or question ended, as the player is told it
+/proc/help_player_outcome(outcome)
+	switch(outcome)
+		if("IC issue")
+			return "IC issue"
+		if("rejected")
+			return "rejected"
+		if("resolved")
+			return "resolved"
+		if("closed")
+			return "closed"
+	return outcome
+
 /client/var/datum/help_window/help_window
 
 /client/verb/ask_for_help()
@@ -159,6 +195,28 @@ GLOBAL_LIST_INIT(help_kinds, list(
 				lines += list(shown)
 		data["question"] = list("id" = Q.id, "title" = Q.name, "claimed" = !!Q.claimed_ckey, "waiting" = !!Q.waiting_since, "lines" = lines)
 	data["showing"] = data[showing] ? showing : (data["ahelp"] ? "ahelp" : (data["question"] ? "question" : null))
+	// their earlier tickets and questions this round, read only (the user's ruling, 2026-11-07)
+	var/list/earlier = list()
+	if(C)
+		for(var/datum/admin_help/old in GLOB.ahelp_tickets.TicketsByCKey(C.ckey))
+			if(old.state == AHELP_ACTIVE)
+				continue
+			var/list/old_lines = list()
+			for(var/list/M in old.ticket_messages)
+				var/list/shown = help_player_line(M, "ahelp")
+				if(shown)
+					old_lines += list(shown)
+			earlier += list(list("kind" = "Ahelp", "id" = old.id, "title" = old.name, "outcome" = help_player_outcome(old.history_outcome()), "lines" = old_lines, "at" = log_search_clock(old.opened_at)))
+		for(var/datum/help_question/old_q in GLOB.help_questions)
+			if(old_q.open || old_q.initiator_ckey != C.ckey)
+				continue
+			var/list/old_lines = list()
+			for(var/list/M in old_q.messages)
+				var/list/shown = help_player_line(M, "question")
+				if(shown)
+					old_lines += list(shown)
+			earlier += list(list("kind" = "Question", "id" = old_q.id, "title" = old_q.name, "outcome" = old_q.ahelp_id ? "passed to the admins" : "answered", "lines" = old_lines, "at" = log_search_clock(old_q.opened_at)))
+	data["earlier"] = earlier
 	if(!data["showing"])
 		data["about"] = about_people()
 	return data
