@@ -6199,7 +6199,7 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 		if(ui)
 			cs_check("lobby: it has no close button", ui.vars["no_close"])
 			winset(C, ui.window_id, "pos=100,20")
-			cs_tgui_do(C, ui.window_id, "click:Ready")
+			cs_tgui_do(C, ui.window_id, "css:.LobbyPass__row .LobbyPass__btn")
 			sleep(10)
 	else
 		NP.Topic(null, list("ready" = "1"))
@@ -6208,7 +6208,7 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	cs_retitle_old(C, after, "playersetup", "pos=100,20", "LobbyOld")
 	cs_shot("popup_lobby_[label]_pregame", after ? null : "LobbyOld")
 	if(after && ui)
-		cs_tgui_do(C, ui.window_id, "click:Not Ready")
+		cs_tgui_do(C, ui.window_id, "css:.LobbyPass__row .LobbyPass__btn:nth-child(2)")
 		sleep(10)
 	else
 		NP.Topic(null, list("ready" = "0"))
@@ -6225,7 +6225,7 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	cs_shot("popup_lobby_[label]_round", after ? null : "LobbyOld")
 	var/datum/menu
 	if(after && ui)
-		cs_tgui_do(C, ui.window_id, "click:Join")
+		cs_tgui_do(C, ui.window_id, "css:.LobbyPass__go")
 		sleep(10)
 		menu = NP.vars["late_join_menu"]
 	else
@@ -6328,4 +6328,4 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	sleep(20)
 	var/datum/menu = NP.vars["late_join_menu"]
 	cs_check("looks: crt: Join Game opens the job list", menu && cs_find_ui(NP, menu))
-	GLOB.vars["lobby_design"] = "hud"
+	GLOB.vars["lobby_design"] = "pass"

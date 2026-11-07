@@ -263,9 +263,11 @@ export const LobbyPass = props => {
         <div className="LobbyPass__band">
           <span className="LobbyPass__logo">NT</span>
           <span>Crew Transfer</span>
-          <span className="LobbyPass__class">
-            {data.round_id ? 'Shift ' + data.round_id : 'Shift'}
-          </span>
+          {!!data.round_id && (
+            <span className="LobbyPass__class">
+              {'Shift ' + data.round_id}
+            </span>
+          )}
         </div>
         <div className="LobbyPass__body">
           <div className="LobbyPass__photo">
@@ -282,6 +284,10 @@ export const LobbyPass = props => {
               <PassField label="Gate" value={data.map} />
             </div>
           </div>
+        </div>
+        <div className="LobbyPass__tear" />
+        <div className="LobbyPass__stub">
+          <Barcode seed={(data.character || '') + data.round_id} />
           {!!stamp && (
             <div
               key={stamp[0]}
@@ -289,10 +295,6 @@ export const LobbyPass = props => {
               {stamp[0]}
             </div>
           )}
-        </div>
-        <div className="LobbyPass__tear" />
-        <div className="LobbyPass__stub">
-          <Barcode seed={(data.character || '') + data.round_id} />
           <div className="LobbyPass__status">
             <div className="LobbyPass__statusBig">{roundStatus(data)}</div>
             {headcount(data)} {data.pregame ? 'waiting' : 'aboard'}

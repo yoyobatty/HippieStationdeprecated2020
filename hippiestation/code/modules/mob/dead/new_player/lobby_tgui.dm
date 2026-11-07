@@ -3,8 +3,9 @@
 // round's state; the job list is grouped by department and shows full and locked jobs too, greyed, with why. The
 // lobby window can't be closed, like the old one (can_close=0).
 
-/// Prototype lobby looks (Lobby.js): "hud", "pass", "board", "crt"
-GLOBAL_VAR_INIT(lobby_design, "hud")
+/// The lobby's look (Lobby.js): "pass", the boarding pass the user picked; the other prototypes stay selectable by
+/// setting this: "hud", "board", "crt", or anything else for the plain panel
+GLOBAL_VAR_INIT(lobby_design, "pass")
 
 /mob/dead/new_player
 	/// Polls can be shown (not a guest, the DB is up); looked up when the lobby opens, as it queries the DB
