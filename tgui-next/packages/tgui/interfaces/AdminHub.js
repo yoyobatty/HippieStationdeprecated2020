@@ -1,6 +1,7 @@
 import { Component } from 'inferno';
 import { useBackend } from '../backend';
 import { Icon } from '../components';
+import { closePlayerMenus } from './common/PlayerLink';
 import { AdminAlerts } from './AdminAlerts';
 import { AdminFind } from './AdminFind';
 import { BanWindow } from './BanWindow';
@@ -141,6 +142,170 @@ class HubSearch extends Component {
   }
 }
 
+// The keys (the user's ruling: single keys, Gmail style), only while not
+// typing in a box. On the window, capturing, ahead of the passthrough to the
+// game (hotkeys.js), which leaves a key alone once it's been handled.
+const KEYS_HELP = 'Keys (when not typing): J/K next/previous ticket, '
+  + 'R reply, N note, C claim, Shift+R resolve, Shift+I IC issue, '
+  + '/ search, 1-6 tabs, B back, Esc leave a box or close a menu';
+
+const focusBox = (mode, selector) => {
+  if (mode) {
+    const tab = Array.prototype.slice
+      .call(document.querySelectorAll('.Tickets__mode'))
+      .find(el => el.textContent.trim().indexOf(mode) === 0);
+    if (tab) {
+      tab.click();
+    }
+  }
+  setTimeout(() => {
+    const box = document.querySelector(selector);
+    if (box) {
+      box.focus();
+    }
+  }, 30);
+};
+
+class HubKeys extends Component {
+  componentDidMount() {
+    this.handled = {};
+    this.down = e => this.onKey(e);
+    this.up = e => {
+      if (this.handled[e.keyCode]) {
+        e.preventDefault();
+        delete this.handled[e.keyCode];
+      }
+    };
+    window.addEventListener('keydown', this.down, true);
+    window.addEventListener('keyup', this.up, true);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('keydown', this.down, true);
+    window.removeEventListener('keyup', this.up, true);
+  }
+
+  onKey(e) {
+    const { act, data } = this.props;
+    const target = e.target && e.target.localName;
+    const typing = target === 'input' || target === 'textarea';
+    if (e.keyCode === 27) {
+      closePlayerMenus();
+      if (typing) {
+        e.target.blur();
+      }
+      return;
+    }
+    if (typing || e.ctrlKey || e.altKey || e.metaKey) {
+      return;
+    }
+    const tool = data.tool || {};
+    const ticket = data.tab === 'tickets' ? tool.ticket : null;
+    const open = !!ticket && ticket.state === 1;
+    const key = e.key;
+    let done = true;
+    if (key === 'j' && data.tab === 'tickets') {
+      act('step', { dir: 1 });
+    }
+    else if (key === 'k' && data.tab === 'tickets') {
+      act('step', { dir: -1 });
+    }
+    else if (key === 'r' && open) {
+      focusBox('Reply', '.Tickets__textarea');
+    }
+    else if (key === 'n' && ticket) {
+      focusBox('Note', '.Tickets__textarea');
+    }
+    else if (key === 'c' && open) {
+      act(ticket.mine ? 'unclaim' : 'claim');
+    }
+    else if (key === 'R' && open) {
+      act('resolve');
+    }
+    else if (key === 'I' && open) {
+      act('icissue');
+    }
+    else if (key === '/') {
+      focusBox(null, '.AdminHub__searchInput');
+    }
+    else if (key === 'b' && data.can_back) {
+      act('hub_back');
+    }
+    else if (key >= '1' && key <= String(TABS.length)) {
+      act('hub_tab', { tab: TABS[Number(key) - 1][0] });
+    }
+    else {
+      done = false;
+    }
+    if (done) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.handled[e.keyCode] = true;
+    }
+  }
+
+  render() {
+    return null;
+  }
+}
+
+// Recent: players and tickets looked at lately, newest first
+class HubRecent extends Component {
+  constructor() {
+    super();
+    this.state = { open: false };
+    this.onDocDown = e => {
+      if (this.box && !this.box.contains(e.target)) {
+        this.setState({ open: false });
+      }
+    };
+  }
+
+  componentDidMount() {
+    document.addEventListener('mousedown', this.onDocDown);
+  }
+
+  componentWillUnmount() {
+    document.removeEventListener('mousedown', this.onDocDown);
+  }
+
+  render() {
+    const { act, recent } = this.props;
+    const { open } = this.state;
+    return (
+      <span className="AdminHub__recent"
+        ref={el => {
+          this.box = el;
+        }}>
+        <span className="AdminHub__navButton"
+          title="Players and tickets you looked at lately"
+          onClick={() => this.setState({ open: !open })}>
+          <Icon name="history" mr={0.5} />Recent
+        </span>
+        {open && (
+          <div className="AdminHub__results AdminHub__results--left">
+            {recent.length === 0 && (
+              <div className="AdminHub__resultsEmpty">Nothing yet.</div>
+            )}
+            {recent.map((item, i) => (
+              <div key={item.kind + item.id}
+                className="AdminHub__result"
+                onClick={() => {
+                  act('hub_recent', { index: i + 1 });
+                  this.setState({ open: false });
+                }}>
+                <Icon name={item.kind === 'player' ? 'user' : 'question-circle'}
+                  mr={1} />
+                <span className="AdminHub__resultLabel">{item.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </span>
+    );
+  }
+}
+
 export const AdminHub = props => {
   const { act, data } = useBackend(props);
   const counts = data.counts || {};
@@ -153,7 +318,16 @@ export const AdminHub = props => {
   });
   return (
     <div className="AdminHub">
+      <HubKeys act={act} data={data} />
       <div className="AdminHub__tabs">
+        <span
+          className={'AdminHub__navButton'
+            + (data.can_back ? '' : ' AdminHub__navButton--off')}
+          title="Back (B)"
+          onClick={() => data.can_back && act('hub_back')}>
+          <Icon name="arrow-left" />
+        </span>
+        <HubRecent act={act} recent={data.recent || []} />
         {TABS.map(t => {
           const c = counts[t[0]];
           return (
@@ -174,6 +348,9 @@ export const AdminHub = props => {
           );
         })}
         <span className="AdminHub__spacer" />
+        <span className="AdminHub__keys" title={KEYS_HELP}>
+          <Icon name="keyboard" />
+        </span>
         <HubSearch act={act} search={data.search} />
       </div>
       <div className="AdminHub__body">

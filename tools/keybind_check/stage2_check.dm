@@ -85,6 +85,9 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 	else if(findtext(action, "key:") == 1) // "key:<css>|<keyCode>": a key pressed in the first element matching css
 		var/list/bits = splittext(copytext(action, 5), "|")
 		js = "var e=document.querySelector([json_encode(bits[1])]);if(e){e.focus();e.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,keyCode:[text2num(bits[2])]}));}"
+	else if(findtext(action, "press:") == 1) // "press:<key>|<keyCode>[|shift]": a key pressed with no box focused
+		var/list/bits = splittext(copytext(action, 7), "|")
+		js = "if(document.activeElement){document.activeElement.blur();}document.body.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,key:[json_encode(bits[1])],keyCode:[text2num(bits[2])],shiftKey:[length(bits) > 2 ? "true" : "false"]}));"
 	else if(findtext(action, "search:") == 1) // types in the hub's search box, keeping focus there
 		js = "var i=document.querySelector('.AdminHub__searchInput');if(i){i.focus();i.value=[json_encode(copytext(action, 8))];i.dispatchEvent(new Event('input',{bubbles:true}));}"
 	else if(findtext(action, "textarea:") == 1)
@@ -139,6 +142,7 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 	GLOB.mentor_replies_path = "data/stage2_check/mentor_replies.json"
 	GLOB.admin_alert_mutes_path = "data/stage2_check/mutes.json"
 	GLOB.player_history_dir = "data/stage2_check/history/"
+	GLOB.admin_layout_dir = "data/stage2_check/layout/"
 	GLOB.master_mode = "extended"
 	SSticker.start_immediately = TRUE
 	var/wait_for_round = world.time + 3 MINUTES
@@ -201,6 +205,7 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 		s2_profile(C, H, AH)
 		s2_questions(C, H, AH)
 		s2_hub(C, H, AH)
+		s2_hub_keys(C, H, AH)
 		s2_history(C, H)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
@@ -634,6 +639,96 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 	GLOB.admin_hub_statclick.Click()
 	sleep(1 SECONDS)
 	s2_check("clicking it opens the hub", !!s2_ui(H, hub))
+
+/// Getting around (the user's rulings, piece 4): single keys, Back, Recent, the layout kept across rounds, F9
+/proc/s2_hub_keys(client/C, mob/living/carbon/human/H, datum/admin_help/AH)
+	var/datum/admin_hub/hub = C.admin_hub
+	var/datum/tgui/ui = s2_ui(H, hub)
+	s2_do(C, ui, "press:1|49")
+	sleep(5)
+	s2_check("1: the Tickets tab", hub.tab == "tickets")
+	// a second open ticket, from someone gone, to step between
+	C.current_ticket = null
+	C.giveadminhelpverb()
+	C.adminhelp("Someone left the engine running")
+	var/datum/admin_help/other = C.current_ticket
+	other.initiator = null
+	other.initiator_ckey = "goneguy"
+	other.initiator_key_name = "Gone Guy"
+	C.current_ticket = AH
+	C.ticket_window.selected_id = AH.id
+	sleep(5)
+	var/list/rows = C.ticket_window.shown_rows()
+	var/list/ids = list()
+	for(var/list/row in rows)
+		ids += row["id"]
+	s2_do(C, ui, "press:j|74")
+	sleep(5)
+	var/after_j = C.ticket_window.selected_id
+	s2_do(C, ui, "press:k|75")
+	sleep(5)
+	var/at = ids.Find(AH.id)
+	var/expected_j = at < ids.len ? ids[at + 1] : ids[at]
+	var/expected_k = at < ids.len ? AH.id : ids[max(1, at - 1)]
+	s2_check("J and K step down and up the list", ids.len >= 2 && after_j == expected_j && C.ticket_window.selected_id == expected_k, "[ids.Join(",")]: [after_j] then [C.ticket_window.selected_id]")
+	s2_do(C, ui, "press:c|67")
+	sleep(5)
+	var/unclaimed = !AH.claimed_ckey
+	s2_do(C, ui, "press:c|67")
+	sleep(5)
+	s2_check("C unclaims and claims", unclaimed && AH.claimed_ckey == C.ckey)
+	var/notes_before = length(s2_messages_of(AH, "note"))
+	s2_do(C, ui, "press:n|78")
+	sleep(5)
+	s2_do(C, ui, "textarea:Keys check: a note by N and Ctrl+Enter.")
+	s2_do(C, ui, "ctrlenter")
+	sleep(5)
+	s2_check("N switches the box to a note: Ctrl+Enter adds it", length(s2_messages_of(AH, "note")) == notes_before + 1)
+	s2_do(C, ui, "press:2|50")
+	sleep(5)
+	s2_check("2: the Questions tab", hub.tab == "questions")
+	s2_do(C, ui, "press:b|66")
+	sleep(5)
+	s2_check("B goes back to where you were", hub.tab == "tickets")
+	// Recent: the players looked at
+	var/listed = FALSE
+	for(var/list/item in hub.recent)
+		if(item["kind"] == "player" && item["id"] == "bobbarman")
+			listed = TRUE
+	s2_check("Recent has the players looked at", listed, json_encode(hub.recent))
+	hub.profile_open = FALSE
+	s2_do(C, ui, "pick:.AdminHub__navButton|Recent")
+	sleep(5)
+	s2_shot("hub_recent")
+	s2_do(C, ui, "pick:.AdminHub__result|bobbarman")
+	sleep(1 SECONDS)
+	s2_check("a Recent player opens their profile in the panel", hub.profile_open && C.player_profile.shown_ckey == "bobbarman")
+	// kept across rounds: a fresh hub (as next round) is on the same tab, with the same context choices and Recent
+	s2_do(C, ui, "press:3|51")
+	sleep(5)
+	C.ticket_window.show_heard = FALSE
+	C.ticket_window.show_area = TRUE
+	C.ticket_window.save_layout()
+	s2_check("the layout is in this run's own file", fexists("data/stage2_check/layout/[C.ckey].json") && findtext(file2text("data/stage2_check/layout/[C.ckey].json"), "tickets_context"))
+	s2_close(H, hub)
+	GLOB.admin_layouts = list()
+	qdel(C.admin_hub)
+	C.admin_hub = null
+	var/datum/ticket_window/old_window = C.ticket_window
+	C.ticket_window = null
+	C.open_admin_hub()
+	hub = C.admin_hub
+	s2_check("next round's hub: the same tab", hub.tab == "alerts", hub.tab)
+	s2_check("and the same Recent players", length(hub.recent) >= 1)
+	var/datum/ticket_window/fresh = hub.tool("tickets")
+	fresh.ui_data(H)
+	s2_check("and the Tickets context choices", fresh.show_area && !fresh.show_heard && fresh.context_minutes == old_window.context_minutes)
+	// F9
+	s2_close(H, hub)
+	var/datum/keybinding/admin/admin_hub/F9 = new
+	F9.down(C)
+	sleep(1 SECONDS)
+	s2_check("F9 opens the hub", ("F9" in F9.hotkey_keys) && s2_ui(H, hub))
 
 /proc/s2_history(client/C, mob/living/carbon/human/H)
 	var/list/before = player_history_read(C.ckey)

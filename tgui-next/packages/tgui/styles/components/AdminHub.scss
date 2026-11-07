@@ -60,6 +60,56 @@ $ah-muted: #8a93a0;
   flex: 1;
 }
 
+// Back, Recent and the keys' hint
+
+.AdminHub__navButton {
+  display: flex;
+  align-items: center;
+  margin: 5px 4px 5px 0;
+  padding: 0 9px;
+  border-radius: 4px;
+  color: #c4cad3;
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+}
+
+.AdminHub__navButton--off {
+  color: rgba(255, 255, 255, 0.25);
+  cursor: default;
+
+  &:hover {
+    color: rgba(255, 255, 255, 0.25);
+    background-color: transparent;
+  }
+}
+
+.AdminHub__recent {
+  position: relative;
+  display: flex;
+  margin-right: 8px;
+  padding-right: 8px;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.AdminHub__results--left {
+  left: 0;
+  right: auto;
+  width: 360px;
+}
+
+.AdminHub__keys {
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+  color: $ah-muted;
+  cursor: help;
+}
+
 // The search box and its dropdown
 
 .AdminHub__search {

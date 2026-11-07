@@ -428,8 +428,9 @@ GLOBAL_LIST_EMPTY(admin_alerts_windows)
 	var/client/owner
 	/// The alert a chat line's ALERTS link opened it on
 	var/picked_id
-	/// Only these kinds listed, or all
+	/// Only these kinds listed, or all (kept across rounds, admin_hub.dm)
 	var/list/shown_kinds = list()
+	var/layout_loaded = FALSE
 
 /datum/admin_alerts_window/New()
 	GLOB.admin_alerts_windows += src
@@ -446,6 +447,12 @@ GLOBAL_LIST_EMPTY(admin_alerts_windows)
 		ui.open()
 
 /datum/admin_alerts_window/ui_data(mob/user)
+	if(!layout_loaded && owner)
+		layout_loaded = TRUE
+		var/list/kept = admin_layout(owner.ckey)["alerts_shown"]
+		for(var/kind in kept)
+			if(GLOB.admin_alert_kinds[kind])
+				shown_kinds[kind] = TRUE
 	var/list/rows = list()
 	var/list/counts = list()
 	var/list/alerts = SSadmin_alerts.alerts
@@ -516,6 +523,10 @@ GLOBAL_LIST_EMPTY(admin_alerts_windows)
 					shown_kinds -= kind
 				else
 					shown_kinds[kind] = TRUE
+			var/list/kept = list()
+			for(var/shown in shown_kinds)
+				kept += shown
+			admin_layout_set(usr.ckey, "alerts_shown", kept)
 			return TRUE
 		if("discord")
 			if(!check_rights(R_SERVER))

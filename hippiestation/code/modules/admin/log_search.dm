@@ -21,6 +21,7 @@
 	if(!log_search)
 		log_search = new
 		log_search.owner = src
+		log_search.oldest_first = !!admin_layout(ckey)["logs_oldest_first"]
 	if(who)
 		log_search.reset()
 		log_search.who = who
@@ -316,6 +317,7 @@ GLOBAL_LIST_INIT(log_search_presets, list(
 			return TRUE
 		if("order")
 			oldest_first = !oldest_first
+			admin_layout_set(usr.ckey, "logs_oldest_first", oldest_first) // kept across rounds (admin_hub.dm)
 			return TRUE
 		if("refresh")
 			search()

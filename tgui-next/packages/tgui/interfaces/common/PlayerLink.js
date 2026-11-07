@@ -23,6 +23,13 @@ const MENU_HEIGHT = 230;
 // One menu open at a time, whichever window part it's in
 let openLink = null;
 
+// Esc in the admin hub (AdminHub.js)
+export const closePlayerMenus = () => {
+  if (openLink) {
+    openLink.close();
+  }
+};
+
 export class PlayerLink extends Component {
   constructor() {
     super();

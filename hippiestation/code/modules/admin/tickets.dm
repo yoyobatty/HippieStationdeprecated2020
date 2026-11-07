@@ -617,6 +617,7 @@ GLOBAL_LIST_EMPTY(ticket_windows)
 	var/context_for
 	var/context_total = -1
 	var/context_time = 0
+	var/layout_loaded = FALSE
 	/// The player's brief, kept a while (it reads notes)
 	var/list/brief
 	var/brief_for
@@ -691,6 +692,30 @@ GLOBAL_LIST_EMPTY(ticket_windows)
 		"last" = last ? "[last["who"] ? "[last["kind"] == "admin" ? "Admin" : "Player"]: " : ""][last["text"]]" : null,
 	)
 
+/// The list as the window shows it
+/datum/ticket_window/proc/shown_rows()
+	. = list()
+	for(var/datum/admin_help/AH in tickets_in(list_state))
+		. += list(ticket_row(AH))
+	sortTim(., GLOBAL_PROC_REF(cmp_ticket_rows))
+
+/// Each admin's context choices, kept across rounds (admin_hub.dm)
+/datum/ticket_window/proc/load_layout()
+	layout_loaded = TRUE
+	var/list/L = admin_layout(owner?.ckey)["tickets_context"]
+	if(!islist(L))
+		return
+	if(L["minutes"] in list(2, 5, 15, 30))
+		context_minutes = L["minutes"]
+	show_player = !!L["player"]
+	show_named = !!L["named"]
+	show_area = !!L["area"]
+	show_seen = !!L["seen"]
+	show_heard = !!L["heard"]
+
+/datum/ticket_window/proc/save_layout()
+	admin_layout_set(owner?.ckey, "tickets_context", list("minutes" = context_minutes, "player" = show_player, "named" = show_named, "area" = show_area, "seen" = show_seen, "heard" = show_heard))
+
 /proc/cmp_ticket_rows(list/a, list/b)
 	if(!!a["wait_ds"] != !!b["wait_ds"])
 		return a["wait_ds"] ? -1 : 1
@@ -699,6 +724,8 @@ GLOBAL_LIST_EMPTY(ticket_windows)
 	return b["id"] - a["id"]
 
 /datum/ticket_window/ui_data(mob/user)
+	if(!layout_loaded && owner)
+		load_layout()
 	var/list/rows = list()
 	var/open_questions = 0
 	for(var/datum/help_question/Q in GLOB.help_questions)
@@ -956,6 +983,18 @@ GLOBAL_LIST_EMPTY(ticket_windows)
 					show_seen = !show_seen
 				if("heard")
 					show_heard = !show_heard
+			save_layout()
+			return TRUE
+		if("step") // J and K in the hub: the next or previous ticket down the list
+			var/list/rows = shown_rows()
+			if(!rows.len)
+				return
+			var/at = 0
+			for(var/i in 1 to rows.len)
+				if(rows[i]["id"] == selected_id)
+					at = i
+			at = clamp(at + (text2num(params["dir"]) < 0 ? -1 : 1), 1, rows.len)
+			selected_id = rows[at]["id"]
 			return TRUE
 		if("map_open")
 			map_open = !!text2num(params["open"])
