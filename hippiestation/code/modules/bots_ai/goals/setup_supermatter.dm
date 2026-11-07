@@ -195,7 +195,7 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 	return loop_pumps >= 2 && on >= BOT_SM_COLLECTORS_NEEDED
 
 /datum/bot_brain/proc/sm_emitter_to_fire(obj/machinery/power/supermatter_crystal/S)
-	if(!engine_room_ready(S))
+	if(!engine_room_ready(S) || sm_crystal_failing()) //not into a crystal that's losing integrity: sm_emitter_to_stop()
 		return null
 	var/firing = 0
 	var/obj/machinery/power/emitter/anchored/next
@@ -208,9 +208,20 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 			next = E
 	return firing < BOT_SM_EMITTERS_NEEDED ? next : null
 
+/// A crystal losing integrity: the emitters off, before anything else, as the guide has it for an emergency, so its power falls while
+/// the cooling catches up; they go back on once it's whole again (sm_emitter_to_fire()). Engineers kept three emitters firing into a
+/// crystal whose loop a saboteur had switched off, put the loop back within seconds, and lost it all the same, every time (Box, Meta).
+/datum/bot_brain/proc/sm_emitter_to_stop(obj/machinery/power/supermatter_crystal/S)
+	if(!sm_crystal_failing())
+		return null
+	for(var/obj/machinery/power/emitter/anchored/E as anything in bot_instances_of(/obj/machinery/power/emitter/anchored))
+		if(E.active && E.z == S.z && get_dist(S, E) <= BOT_SM_REACH && sm_part_free(E))
+			return E
+	return null
+
 /// The next job on the list, in the guide's order, or null if there's nothing left.
 /datum/bot_brain/proc/next_sm_job(obj/machinery/power/supermatter_crystal/S)
-	. = sm_canister_to_connect(S) || sm_canister_to_haul(S)
+	. = sm_emitter_to_stop(S) || sm_canister_to_connect(S) || sm_canister_to_haul(S)
 	if(.)
 		return
 	// Nothing else until there's nitrogen to work with: step 3 pumps the chamber out, and with nothing coming in to replace
@@ -238,6 +249,30 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 	if(S && bot.saboteur && S.power >= 100)
 		return FALSE
 	return S && bot.next_sm_job(S) ? bot.assign_goal(new /datum/bot_goal/setup_supermatter()) : FALSE
+
+/// The crystal losing integrity: an engineer drops what it's on for it (the supermatter duty only comes round when it's idle).
+/datum/bot_duty/crystal_emergency
+	name = "the crystal's failing"
+	jobs = list("Station Engineer", "Chief Engineer")
+	tier = BOT_DUTY_URGENT
+	priority = 55
+	interrupts = TRUE
+	interval_min = 20
+	interval_max = 40
+
+/datum/bot_duty/crystal_emergency/should_interrupt(datum/bot_brain/bot)
+	var/datum/bot_goal/goal = bot.current_goal
+	if(goal?.never_rests || istype(goal, /datum/bot_goal/setup_supermatter) || istype(goal, /datum/bot_goal/acquire_item_type) || bot.saboteur)
+		return FALSE
+	var/obj/machinery/power/supermatter_crystal/S = bot.station_crystal()
+	// Not one out exploring a ruin 180 tiles off: it had no way back, and gave up on each emitter in turn, a fresh call each time.
+	return S && get_dist(bot.owner, S) <= 60 && bot.sm_crystal_failing() && bot.next_sm_job(S)
+
+/datum/bot_duty/crystal_emergency/try_start(datum/bot_brain/bot)
+	var/obj/machinery/power/supermatter_crystal/S = bot.station_crystal()
+	if(!S || bot.saboteur || get_dist(bot.owner, S) > 60 || !bot.sm_crystal_failing() || !bot.next_sm_job(S))
+		return FALSE
+	return bot.assign_goal(new /datum/bot_goal/setup_supermatter())
 
 /datum/bot_brain/proc/continue_supermatter_round()
 	var/datum/bot_duty/supermatter/duty = bot_duty_of(/datum/bot_duty/supermatter)
@@ -398,6 +433,13 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 		return C.active ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 	if(istype(A, /obj/machinery/power/emitter))
 		var/obj/machinery/power/emitter/E = A
+		if(E.active) //only ever picked while it's firing to stop it (sm_emitter_to_stop())
+			bot.telemetry_ui_action(E, "switch off")
+			E.active = FALSE
+			E.update_icon()
+			bot_log(bot, "switched off [E]: the crystal's losing integrity")
+			bot_tally("emitters off for the crystal")
+			return GOAL_STEP_SUCCESS
 		var/obj/machinery/power/supermatter_crystal/S = bot.station_crystal()
 		if(!S || !bot.engine_room_ready(S))
 			return GOAL_STEP_FAIL //something has been switched off since this was picked: not with the cooling down
