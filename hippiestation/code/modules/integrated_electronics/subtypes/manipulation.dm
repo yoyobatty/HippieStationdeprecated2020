@@ -114,7 +114,8 @@
 		return
 	if(!installed_gun.cell.charge)
 		return
-	var/obj/item/ammo_casing/energy/shot = installed_gun.ammo_type[mode?2:1]
+	// A gun with the one kind of shot fires that in either mode: "lethal" on one used to index past the end of its list
+	var/obj/item/ammo_casing/energy/shot = installed_gun.ammo_type[(mode && length(installed_gun.ammo_type) > 1) ? 2 : 1]
 	if(installed_gun.cell.charge < shot.e_cost)
 		return
 	if(!shot)
@@ -128,6 +129,10 @@
 		A = new lethal_projectile(T)
 		playsound(loc, lethal_projectile_sound, 75, 1)
 	installed_gun.cell.use(shot.e_cost)
+	// A kinetic accelerator (the mini crossbow among them) charges itself up again after a shot, but only when it's fired the usual way
+	if(istype(installed_gun, /obj/item/gun/energy/kinetic_accelerator))
+		var/obj/item/gun/energy/kinetic_accelerator/accelerator = installed_gun
+		accelerator.attempt_reload()
 	//Shooting Code:
 	A.preparePixelProjectile(target, src)
 	A.fire()
@@ -228,6 +233,7 @@
 			dt = clamp(detonation_time.data, 1, 12)*10
 		else
 			dt = 15
+		attached_grenade.active = TRUE //primed once: pulsed again while it counts down, it queued another prime every time
 		addtimer(CALLBACK(attached_grenade, TYPE_PROC_REF(/obj/item/grenade, prime)), dt)
 		var/atom/holder = loc
 		message_admins("activated a grenade assembly. Last touches: Assembly: [holder.fingerprintslast] Circuit: [fingerprintslast] Grenade: [attached_grenade.fingerprintslast]")

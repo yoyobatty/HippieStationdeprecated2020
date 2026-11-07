@@ -175,7 +175,7 @@
 
 /obj/item/integrated_circuit/input/mmi_tank/Destroy()
 	RemoveBrain()
-	..()
+	return ..()
 
 /obj/item/integrated_circuit/input/mmi_tank/relaymove(var/n,var/dir)
 	set_pin_data(IC_OUTPUT, 2, dir)

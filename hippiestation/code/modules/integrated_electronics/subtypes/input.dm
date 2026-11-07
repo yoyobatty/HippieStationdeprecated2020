@@ -1361,7 +1361,7 @@
 /obj/item/integrated_circuit/input/tcomm_interceptor/Destroy()
 	qdel(receiver)
 	GLOB.ic_jammers -= src
-	..()
+	return ..()
 
 /obj/item/integrated_circuit/input/tcomm_interceptor/receive_signal(datum/signal/signal)
 	if((signal.transmission_method == TRANSMISSION_SUBSPACE) && get_pin_data(IC_INPUT, 1))

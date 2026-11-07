@@ -104,6 +104,11 @@
 	if(istype(O, /datum/objective/assassinate) || istype(O, /datum/objective/maroon))
 		if(plays_robust())
 			return null //next_victim() has them at the top of its list, goals/robust.dm
+		// A Scientist or Research Director sends a drone instead (goals/circuit_drones.dm): null while that waits on something, FALSE
+		// when it's not on or it's been given up, for the sword.
+		var/drone = drone_goal_for_kill(O)
+		if(drone || isnull(drone))
+			return drone
 		return O.target?.current ? new /datum/bot_goal/traitor_kill(O) : null
 	if(istype(O, /datum/objective/download))
 		return new /datum/bot_goal/traitor_download(O) //goals/traitor_objectives.dm

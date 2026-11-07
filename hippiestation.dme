@@ -3424,6 +3424,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\cloning.dm"
 #include "hippiestation\code\modules\bots_ai\goals\changeling.dm"
 #include "hippiestation\code\modules\bots_ai\goals\check_alert_console.dm"
+#include "hippiestation\code\modules\bots_ai\goals\circuit_drones.dm"
 #include "hippiestation\code\modules\bots_ai\goals\circuits.dm"
 #include "hippiestation\code\modules\bots_ai\goals\civilians.dm"
 #include "hippiestation\code\modules\bots_ai\goals\cook.dm"

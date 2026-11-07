@@ -30,13 +30,17 @@
 GLOBAL_LIST_INIT(bot_circuit_alarm_sites, list(/area/ai_monitored/turret_protected/ai_upload, /area/ai_monitored/nuke_storage, /area/ai_monitored/security/armory,
 	/area/storage/tech, /area/teleporter, /area/engine/gravity_generator))
 /// Where people come in and could do with a hello.
-GLOBAL_LIST_INIT(bot_circuit_greeter_sites, list(/area/crew_quarters/bar, /area/hallway/secondary/entry, /area/medical/medbay/lobby))
+GLOBAL_LIST_INIT(bot_circuit_greeter_sites, list(/area/crew_quarters/bar, /area/hallway/secondary/entry))
+/// Where somebody walking in might want to know how they're doing (the user's ruling, 2026-11-07: the Medbay health readout).
+GLOBAL_LIST_INIT(bot_circuit_readout_sites, list(/area/medical/medbay/lobby, /area/medical/medbay/central))
 /// Area type -> weakref to what's mounted there.
 GLOBAL_LIST_EMPTY(bot_circuit_sites)
 /// Area type -> when somebody set off to make something for it: spoken for a while, so two don't build for the same wall.
 GLOBAL_LIST_EMPTY(bot_circuit_reserved)
 /// Assemblies the bots made -> design id.
 GLOBAL_LIST_EMPTY(bot_circuit_made)
+/// Assemblies the bots made -> weakref to the bot that made it.
+GLOBAL_LIST_EMPTY(bot_circuit_makers)
 /// Area -> the airlocks that lead into it (worked out once).
 GLOBAL_LIST_EMPTY(bot_area_airlocks)
 
@@ -72,6 +76,12 @@ GLOBAL_LIST_EMPTY(bot_area_airlocks)
 	/// list(part, input pin): set with the debugger's ref scanner, slid over the builder (a person for the locator to look for).
 	var/list/scan_pins
 	var/wall_mounted = FALSE
+	/// The part a payload goes in (a grenade for the primer, a gun for the firing mechanism), and the payload's type.
+	var/payload_part
+	var/payload_type
+	/// No cell in it, and the panel left open, until it's put down where it's going: a drone that's live in the bag starts its
+	/// business from the bag (goals/circuit_drones.dm).
+	var/power_on_release = FALSE
 
 /// The save string to paste, with the context's words in place.
 /datum/bot_circuit_design/proc/save_string(list/context)
@@ -138,6 +148,43 @@ GLOBAL_LIST_EMPTY(bot_area_airlocks)
 	id = "greeter"
 	name = "greeter"
 	constants = list(list(1, 1, 1), list(2, 2, 2), list(4, 1, "empty"), list(5, 1, "empty"), list(7, 1, "empty"), list(8, 1, "prefix"), list(8, 3, "!"), list(11, 1, 1), list(11, 2, 3000))
+
+/// Medbay's front desk: whoever walks up to it, their name and how healthy they are, said once each (the same seen-list as the
+/// announcers), off a medical analyser, which only reads somebody right beside it.
+/datum/bot_circuit_design/health_readout
+	id = "health_readout"
+	name = "health readout"
+	case_name = "light wall-mounted electronic assembly"
+	wall_mounted = TRUE
+	parts = list("slow ticker", "advanced locator", "reference to string", "search circuit", "append circuit", "memory chip", "memory chip", "concatenator",
+		"text-to-speech circuit", "tesla power relay", "custom ticker", "integrated medical analyser", "number to string")
+	scan_pins = list(list(2, 1))
+	constants = list(list(1, 1, 1), list(2, 2, 1), list(4, 1, "empty"), list(5, 1, "empty"), list(7, 1, "empty"), list(8, 3, ": "), list(8, 5, "% health."),
+		list(11, 1, 1), list(11, 2, 3000))
+	wires = list(
+		list(1, "A", 1, 2, "A", 1), //tick: anybody right here?
+		list(2, "O", 1, 3, "I", 1),
+		list(2, "A", 2, 3, "A", 1),
+		list(3, "O", 1, 4, "I", 2), //read out already?
+		list(3, "O", 1, 5, "I", 2),
+		list(3, "O", 1, 8, "I", 2),
+		list(3, "A", 2, 4, "A", 1),
+		list(4, "A", 3, 5, "A", 1), //no: onto the list,
+		list(5, "O", 1, 6, "I", 1),
+		list(5, "A", 2, 6, "A", 1),
+		list(6, "O", 1, 4, "I", 1),
+		list(6, "O", 1, 5, "I", 1),
+		list(2, "O", 1, 12, "I", 1), //scanned,
+		list(5, "A", 2, 12, "A", 1),
+		list(12, "O", 1, 13, "I", 1),
+		list(12, "A", 2, 13, "A", 1),
+		list(13, "O", 1, 8, "I", 4),
+		list(13, "A", 2, 8, "A", 1), //and said
+		list(8, "O", 1, 9, "I", 1),
+		list(8, "A", 2, 9, "A", 1),
+		list(11, "A", 1, 7, "A", 1), //every five minutes: the list starts again
+		list(7, "O", 1, 6, "I", 1),
+		list(7, "A", 2, 6, "A", 1))
 
 /// A button, a list of things to say and a speaker.
 /datum/bot_circuit_design/pocket_pal
@@ -293,14 +340,29 @@ GLOBAL_LIST_INIT(bot_pocket_pal_lines, list("Beep boop!", "I am a circuit. I hav
 /datum/bot_brain/proc/next_circuit_build()
 	var/obj/item/card/id/card = owner.get_idcard(TRUE)
 	if(circuit_forced_design)
+		if(circuits_built)
+			return null
 		var/datum/bot_circuit_design/forced = GLOB.bot_circuit_designs[circuit_forced_design]
 		return list(forced, circuit_context(forced, circuit_forced_site), circuit_forced_site)
+	// A powergamer with an energy gun on it and somebody dangerous on the loose: a hunter drone, on stun, after them (the user's ruling,
+	// 2026-11-07; goals/circuit_drones.dm).
+	if(playstyle == BOT_STYLE_POWERGAMER && find_carried_tool(/obj/item/gun/energy))
+		var/mob/living/carbon/human/wanted = bot_dangerous_wanted(owner.z)
+		if(wanted && wanted != owner)
+			var/datum/bot_circuit_design/hunter = GLOB.bot_circuit_designs["hunter_drone"]
+			return list(hunter, drone_context(hunter, wanted, FALSE), null)
 	if(bot_circuit_count("motion_alarm") < BOT_CIRCUIT_MAX_ALARMS)
 		for(var/area_type in GLOB.bot_circuit_alarm_sites)
 			var/area/A = bot_find_area_of(list(area_type), owner.z)
 			if(A && !bot_circuit_site_taken(A) && bot_card_opens_area(card, A) && bot_circuit_mount_spot(A))
 				var/datum/bot_circuit_design/alarm = GLOB.bot_circuit_designs["motion_alarm"]
 				return list(alarm, circuit_context(alarm, A), A)
+	if(!bot_circuit_count("health_readout"))
+		for(var/area_type in GLOB.bot_circuit_readout_sites)
+			var/area/A = bot_find_area_of(list(area_type), owner.z)
+			if(A && !bot_circuit_site_taken(A) && bot_card_opens_area(card, A) && bot_circuit_mount_spot(A))
+				var/datum/bot_circuit_design/readout = GLOB.bot_circuit_designs["health_readout"]
+				return list(readout, circuit_context(readout, A), A)
 	if(bot_circuit_count("greeter") < BOT_CIRCUIT_MAX_GREETERS)
 		for(var/area_type in GLOB.bot_circuit_greeter_sites)
 			var/area/A = bot_find_area_of(list(area_type), owner.z)
@@ -342,6 +404,8 @@ GLOBAL_LIST_INIT(bot_pocket_pal_lines, list("Beep boop!", "I am a circuit. I hav
 		bot.circuit_tinkerer = bot.gym_run || prob(bot.work_role() == "Research Director" ? 60 : 35)
 	if(!bot.circuit_tinkerer || world.time < bot.circuit_blocked_until || bot.circuits_built >= BOT_CIRCUIT_MAX_PER_BOT)
 		return FALSE
+	if(bot.goal_chain_pending)
+		return FALSE //what it just built is on its way up the wall: asked in that tick, it started a second
 	if(!bot.gym_run && world.time - SSticker.round_start_time < BOT_CIRCUIT_SETTLE_IN)
 		return FALSE
 	var/list/build = bot.next_circuit_build()
@@ -349,47 +413,53 @@ GLOBAL_LIST_INIT(bot_pocket_pal_lines, list("Beep boop!", "I am a circuit. I hav
 		bot.circuit_blocked_until = world.time + BOT_CIRCUIT_REST * 2
 		return FALSE
 	var/datum/bot_circuit_design/D = build[1]
-	// The printer, first: printed at the lathe once it's been researched, or the starter crate from Cargo.
-	var/obj/item/integrated_circuit_printer/printer = bot.find_circuit_printer()
-	if(!printer)
-		return bot.get_circuit_printer()
-	// The advanced designs disk, if it isn't in yet: every design here wants the power relay.
-	if(!printer.upgraded && !bot.find_circuit_supply(/obj/item/disk/integrated_circuit/upgrade/advanced))
-		return bot.print_for_circuits("icupgadv")
-	// A cell for it.
-	if(!bot.find_circuit_supply(/obj/item/stock_parts/cell))
-		return bot.print_for_circuits("basic_cell")
-	// Metal: what's in the printer, and what's about.
-	var/datum/component/material_container/mats = printer.GetComponent(/datum/component/material_container)
-	var/list/program = SScircuit.validate_electronic_assembly(D.save_string(build[2]))
-	if(!islist(program))
-		bot_log(bot, "the [D.name] design doesn't load: [program]")
-		bot.circuit_blocked_until = world.time + BOT_CIRCUIT_REST * 10
+	var/prep = bot.circuit_prerequisite(D, build[2], /datum/bot_duty/circuitry)
+	if(istype(prep, /datum/bot_goal))
+		return bot.assign_goal(prep)
+	if(!istype(prep, /obj/item/integrated_circuit_printer))
 		return FALSE
-	if(mats.amount(MAT_METAL) < program["metal_cost"] + 400 && !bot.find_circuit_supply(/obj/item/stack/sheet/metal))
-		bot.ask_for_materials(list(MAT_METAL = TRUE))
-		bot.circuit_blocked_until = world.time + BOT_CIRCUIT_REST
-		return FALSE
-	var/datum/bot_goal/build_circuit/G = new(printer, D, build[2], build[3])
+	var/datum/bot_goal/build_circuit/G = new(prep, D, build[2], build[3])
 	if(!bot.assign_goal(G))
 		return FALSE
 	if(build[3])
 		GLOB.bot_circuit_reserved[G.site.type] = world.time
 	return TRUE
 
-/// No printer about: print one if it's been researched, or ask for the research, and Cargo for the crate.
-/datum/bot_brain/proc/get_circuit_printer()
-	if(bot_researched_design("icprinter"))
-		return print_for_circuits("icprinter")
-	GLOB.bot_research_wanted["adv_datatheory"] = world.time
-	if(!gym_scripted && world.time > circuit_crate_asked + 20 MINUTES)
-		circuit_crate_asked = world.time
-		ask_cargo_for(/datum/supply_pack/science/circuitry, "a circuitry starter pack", "science", /obj/item/integrated_circuit_printer)
-	circuit_blocked_until = world.time + BOT_CIRCUIT_REST
-	return FALSE
+/// What stands between this bot and printing a design: the printer when everything's there; a goal (not yet assigned) to print what's
+/// missing at the lathe, which goes back to `chain_duty` after; or FALSE, waiting on research, materials or Cargo.
+/datum/bot_brain/proc/circuit_prerequisite(datum/bot_circuit_design/D, list/context, chain_duty)
+	// The printer, first: printed at the lathe once it's been researched, or the starter crate from Cargo.
+	var/obj/item/integrated_circuit_printer/printer = find_circuit_printer()
+	if(!printer)
+		if(bot_researched_design("icprinter"))
+			return circuit_print_goal("icprinter", chain_duty)
+		GLOB.bot_research_wanted["adv_datatheory"] = world.time
+		if(!gym_scripted && world.time > circuit_crate_asked + 20 MINUTES)
+			circuit_crate_asked = world.time
+			ask_cargo_for(/datum/supply_pack/science/circuitry, "a circuitry starter pack", "science", /obj/item/integrated_circuit_printer)
+		circuit_blocked_until = world.time + BOT_CIRCUIT_REST
+		return FALSE
+	// The advanced designs disk, if it isn't in yet: every design here wants a power relay.
+	if(!printer.upgraded && !find_circuit_supply(/obj/item/disk/integrated_circuit/upgrade/advanced))
+		return circuit_print_goal("icupgadv", chain_duty)
+	// A cell for it.
+	if(!find_circuit_supply(/obj/item/stock_parts/cell))
+		return circuit_print_goal("basic_cell", chain_duty)
+	// Metal: what's in the printer, and what's about.
+	var/datum/component/material_container/mats = printer.GetComponent(/datum/component/material_container)
+	var/list/program = SScircuit.validate_electronic_assembly(D.save_string(context))
+	if(!islist(program))
+		bot_log(src, "the [D.name] design doesn't load: [program]")
+		circuit_blocked_until = world.time + BOT_CIRCUIT_REST * 10
+		return FALSE
+	if(mats.amount(MAT_METAL) < program["metal_cost"] + 400 && !find_circuit_supply(/obj/item/stack/sheet/metal))
+		ask_for_materials(list(MAT_METAL = TRUE))
+		circuit_blocked_until = world.time + BOT_CIRCUIT_REST
+		return FALSE
+	return printer
 
-/// One thing printed at the lathe for the circuits, after which it comes back here.
-/datum/bot_brain/proc/print_for_circuits(design_id)
+/// One thing printed at the lathe for the circuits, after which it goes back to `chain_duty`: the goal, or FALSE.
+/datum/bot_brain/proc/circuit_print_goal(design_id, chain_duty)
 	var/datum/design/D = bot_researched_design(design_id)
 	var/obj/machinery/rnd/production/protolathe/lathe = find_lathe()
 	if(!D || !lathe)
@@ -401,8 +471,8 @@ GLOBAL_LIST_INIT(bot_pocket_pal_lines, list("Beep boop!", "I am a circuit. I hav
 		circuit_blocked_until = world.time + BOT_CIRCUIT_REST
 		return FALSE
 	var/datum/bot_goal/print_design/P = new(lathe, D, 1)
-	P.chain_duty = /datum/bot_duty/circuitry
-	return assign_goal(P)
+	P.chain_duty = chain_duty
+	return P
 
 // ---------------------------------------------------------------------------------------------
 // Building one
@@ -447,11 +517,15 @@ GLOBAL_LIST_INIT(bot_pocket_pal_lines, list("Beep boop!", "I am a circuit. I hav
 /datum/bot_goal/build_circuit/on_success(datum/bot_brain/bot)
 	bot.circuits_built++
 	GLOB.bot_circuit_made[made] = design.id
+	GLOB.bot_circuit_makers[made] = WEAKREF(bot)
 	if(site)
 		GLOB.bot_circuit_sites[site.type] = WEAKREF(made)
 	bot_log(bot, "built a [design.name][site ? " for [site]" : ""]")
 	if(design.wall_mounted)
 		bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, mount_circuit), made, site, design))
+	else if(design.power_on_release)
+		var/datum/weakref/victim_ref = context["victim"]
+		bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, release_drone), made, victim_ref?.resolve()), TRUE) //goals/circuit_drones.dm
 	else
 		bot.put_away(made)
 
@@ -523,6 +597,7 @@ GLOBAL_LIST_INIT(bot_pocket_pal_lines, list("Beep boop!", "I am a circuit. I hav
 		for(var/obj/item/electronic_assembly/E in get_turf(P))
 			if(!(E in G.already_there))
 				G.made = E
+				GLOB.bot_circuit_makers[E] = WEAKREF(bot)
 				bot_log(bot, "the printer's done: [E]")
 				return again(bot)
 		if(!P.cloning || world.time > G.print_started + BOT_CIRCUIT_PRINT_WAIT)
@@ -633,13 +708,34 @@ GLOBAL_LIST_INIT(bot_pocket_pal_lines, list("Beep boop!", "I am a circuit. I hav
 		bot_log(bot, "scanned itself into [IC.displayed_name]'s [pin.name]")
 		bot.put_away(debugger)
 		return again(bot)
-	if(G.design.wall_mounted)
+	// The payload, into its circuit: the assembly's "which part does this go in" click, and the circuit takes it.
+	if(G.design.payload_part)
+		var/obj/item/integrated_circuit/slot = A.assembly_components[G.design.payload_part]
+		if(!bot_circuit_payload_in(slot))
+			var/obj/item/payload = bot.find_carried_tool(G.design.payload_type)
+			if(!payload)
+				return fetch(bot, bot.find_circuit_supply(G.design.payload_type)) //set down for a moment, to free a hand
+			if(!bot.ready_in_hand(payload))
+				return GOAL_STEP_FAIL
+			bot.human_pause(A)
+			bot.owner.face_atom(A)
+			bot.telemetry_ui_action(A, "put [payload] in [slot.displayed_name]")
+			slot.additem(payload, bot.owner)
+			if(!bot_circuit_payload_in(slot))
+				bot_log(bot, "[slot.displayed_name] wouldn't take [payload]")
+				return GOAL_STEP_FAIL
+			bot_log(bot, "put [payload] in [A]'s [slot.displayed_name]")
+			return again(bot)
+	if(G.design.wall_mounted || G.design.power_on_release)
 		// Its cell, carried up with it.
 		if(!bot.find_carried_tool(/obj/item/stock_parts/cell))
 			var/obj/item/stock_parts/cell/cell = bot.find_circuit_supply(/obj/item/stock_parts/cell)
 			if(!cell)
 				return GOAL_STEP_FAIL
 			return fetch(bot, cell)
+		// And the screwdriver to shut it, there: there's no going off for one with a drone switched on at your feet.
+		if(G.design.power_on_release && !bot.find_or_transform_tool(/obj/item/screwdriver))
+			return bot.seek_tool_for_obstacle(/obj/item/screwdriver) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
 		return GOAL_STEP_SUCCESS
 	if(!A.battery && !bot.find_carried_tool(/obj/item/stock_parts/cell))
 		var/obj/item/stock_parts/cell/loose = bot.find_circuit_supply(/obj/item/stock_parts/cell)
@@ -649,6 +745,16 @@ GLOBAL_LIST_INIT(bot_pocket_pal_lines, list("Beep boop!", "I am a circuit. I hav
 	if(bot.needs_screwdriver_for(A))
 		return bot.seek_tool_for_obstacle(/obj/item/screwdriver) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
 	return bot.power_and_close_circuit(A) ? (A.opened ? again(bot) : GOAL_STEP_SUCCESS) : GOAL_STEP_FAIL
+
+/// Whether the payload's in the circuit it goes in.
+/proc/bot_circuit_payload_in(obj/item/integrated_circuit/slot)
+	if(istype(slot, /obj/item/integrated_circuit/manipulation/grenade))
+		var/obj/item/integrated_circuit/manipulation/grenade/primer = slot
+		return !!primer.attached_grenade
+	if(istype(slot, /obj/item/integrated_circuit/manipulation/weapon_firing))
+		var/obj/item/integrated_circuit/manipulation/weapon_firing/mechanism = slot
+		return !!mechanism.installed_gun
+	return FALSE
 
 /// The cell's in and the panel wants shutting, and there's no screwdriver on it.
 /datum/bot_brain/proc/needs_screwdriver_for(obj/item/electronic_assembly/A)

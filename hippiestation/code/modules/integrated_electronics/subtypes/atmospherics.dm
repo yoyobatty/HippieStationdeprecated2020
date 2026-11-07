@@ -20,7 +20,7 @@
 
 /obj/item/integrated_circuit/atmospherics/Initialize()
 	air_contents = new(volume)
-	..()
+	. = ..() //the hint back, or every atmospherics circuit is "didn't return an Initialize hint" in initialize.log
 
 /obj/item/integrated_circuit/atmospherics/return_air()
 	return air_contents

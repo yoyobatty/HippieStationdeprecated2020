@@ -35,8 +35,9 @@
 	SIGNAL_HANDLER
 	var/atom/movable/speaker = hearing_args[HEARING_SPEAKER]
 	if(istype(speaker, /obj/item/electronic_assembly))
-		heard += "[hearing_args[HEARING_RAW_MESSAGE]]"
-		log_line("[speaker] said \"[hearing_args[HEARING_RAW_MESSAGE]]\"")
+		var/said = html_decode("[hearing_args[HEARING_RAW_MESSAGE]]") //"I&#39;m not a bomb" never matched the line it came from
+		heard += said
+		log_line("[speaker] said \"[said]\"")
 
 /datum/bot_scenario/duty/circuits/release_run()
 	UnregisterSignal(bot, COMSIG_MOVABLE_HEAR)
@@ -63,6 +64,8 @@
 	var/mob/living/carbon/human/visitor
 	var/up_at
 	var/greeted_at
+	/// What it says to the visitor, besides their name.
+	var/expect = "Welcome to"
 
 /// Up and wrenched down, and then somebody comes in: it says hello to them by name. (The builder may or may not get its own hello: the
 /// cell comes out of the lathe empty, and the first pulse can find it before the relay's put enough in it to speak.)
@@ -87,7 +90,7 @@
 	// random every tick, and a greeter that only remembered the last name said hello to each in turn, over and over.
 	if(!greeted_at)
 		for(var/line in heard)
-			if(findtext(line, "Welcome to") && findtext(line, "Casey Visitor"))
+			if(findtext(line, expect) && findtext(line, "Casey Visitor"))
 				greeted_at = world.time
 				log_line("the visitor's been greeted; both stay near it for 25 seconds")
 		return BOT_GYM_PENDING
@@ -202,3 +205,208 @@
 	if(intruder.handcuffed)
 		return BOT_GYM_PASS
 	return BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/circuits/greeter/readout
+	name = "circuits: scientist puts up the Medbay health readout"
+	desc = "The same bench and a wall. The scientist builds the health readout, puts it up and bolts it down, and when somebody walks up to it, it says their name and how healthy they are, once."
+	design_id = "health_readout"
+	expect = "% health."
+
+// ---------------------------------------------------------------------------------------------
+// Drones (goals/circuit_drones.dm). Letters: p a printer, d the advanced designs disk, e metal, o an empty cell, Q the target.
+// The special delivery carries a flashbang here: the real one's a minibomb, and the arenas sit side by side.
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/circuit_drone
+	job = "Scientist"
+	time_limit = 300 SECONDS
+	max_goal_attempts = 20
+	kit_backpack = list(/obj/item/screwdriver, /obj/item/grenade/flashbang)
+	var/plan = "delivery_drone"
+	var/mob/living/carbon/human/victim
+	var/list/heard = list()
+	var/obj/item/electronic_assembly/drone/drone
+	layout = list(
+		"#################",
+		"#B..p...........#",
+		"#.d.e.o.........#",
+		"#..............Q#",
+		"#################")
+
+/datum/bot_scenario/circuit_drone/setup()
+	CONFIG_SET(flag/ic_printing, TRUE)
+	for(var/turf/T in markers["p"])
+		place("p", new /obj/item/integrated_circuit_printer(T))
+	for(var/turf/T in markers["d"])
+		place("d", new /obj/item/disk/integrated_circuit/upgrade/advanced(T))
+	for(var/turf/T in markers["e"])
+		place("e", new /obj/item/stack/sheet/metal/fifty(T))
+	for(var/turf/T in markers["o"])
+		place("o", new /obj/item/stock_parts/cell/empty(T))
+
+/datum/bot_scenario/circuit_drone/post_spawn()
+	victim = stand_in(first_marker("Q"), "Vic Target")
+	brain.drone_plan = plan
+	brain.drone_plan_since = world.time
+	RegisterSignal(victim, COMSIG_MOVABLE_HEAR, PROC_REF(victim_heard))
+
+/datum/bot_scenario/circuit_drone/proc/victim_heard(datum/source, list/hearing_args)
+	SIGNAL_HANDLER
+	var/atom/movable/speaker = hearing_args[HEARING_SPEAKER]
+	if(istype(speaker, /obj/item/electronic_assembly))
+		heard += "[hearing_args[HEARING_RAW_MESSAGE]]"
+
+/// What a traitor's objective would hand it, as the traitor duty asks for it: the next step towards the drone.
+/datum/bot_scenario/circuit_drone/issue_goal()
+	if(brain.state != BOT_STATE_WANDER || brain.goal_chain_pending)
+		return
+	var/datum/bot_goal/G = brain.drone_goal_for_victim(victim)
+	if(istype(G) && brain.assign_goal(G))
+		goal_attempts++
+		log_line("drone plan: [G.type]")
+
+/datum/bot_scenario/circuit_drone/release_run()
+	if(victim)
+		UnregisterSignal(victim, COMSIG_MOVABLE_HEAR)
+	return ..()
+
+/datum/bot_scenario/circuit_drone/proc/find_drone()
+	if(!drone)
+		for(var/obj/item/electronic_assembly/drone/D in GLOB.bot_circuit_made)
+			if(!QDELETED(D) && get_area(D) == arena_area && GLOB.bot_circuit_made[D] == plan)
+				drone = D
+				log_line("built: [D]")
+	return drone
+
+/datum/bot_scenario/circuit_drone/delivery
+	name = "circuits: traitor scientist sends a special delivery after its target"
+	desc = "A traitor Scientist with a kill target across the room, a printer, the disk, metal and a cell lying about, and a grenade in its bag. It builds the special delivery with the grenade in its primer, walks it into sight of the target, puts it down, powers it up, shuts it, and gets clear. The drone finds the target by name, chases them saying a lot of polite things at once, and goes off beside them."
+
+/datum/bot_scenario/circuit_drone/delivery/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!find_drone())
+		return BOT_GYM_PENDING
+	var/obj/item/integrated_circuit/manipulation/grenade/primer = locate() in drone.assembly_components
+	if(primer?.attached_grenade && !QDELETED(primer.attached_grenade))
+		return BOT_GYM_PENDING
+	var/dist = get_dist(drone, victim)
+	log_line("it went off [dist] tiles from Vic; heard: [jointext(heard, " | ")]")
+	if(dist > 2)
+		fail_reason = "it went off [dist] tiles from its target"
+		return BOT_GYM_FAIL
+	if(!findtext(jointext(heard, "|"), "Vic Target! You have a package"))
+		fail_reason = "it never told Vic about the package"
+		return BOT_GYM_FAIL
+	if(length(uniqueList(heard)) < 5)
+		fail_reason = "only [length(uniqueList(heard))] different lines: it's meant to say lots at once"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/circuit_drone/hunter
+	name = "circuits: traitor scientist sends a hunter drone after its target"
+	desc = "The same, with a mini energy crossbow in the bag instead: a hunter drone that finds the target by name, closes in and shoots."
+	plan = "hunter_drone"
+	kit_backpack = list(/obj/item/screwdriver, /obj/item/gun/energy/kinetic_accelerator/crossbow)
+
+/datum/bot_scenario/circuit_drone/hunter/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!find_drone())
+		return BOT_GYM_PENDING
+	if(victim.getStaminaLoss() > 0 || victim.getToxLoss() > 0 || victim.IsKnockdown() || victim.IsParalyzed())
+		log_line("Vic's been shot: stamina [victim.getStaminaLoss()], tox [victim.getToxLoss()]")
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/// A special delivery already on its way, as somebody's left it: powered, shut, with a flashbang in it.
+/datum/bot_scenario/proc/gym_delivery_drone(turf/T, mob/living/carbon/human/victim)
+	var/datum/bot_circuit_design/D = GLOB.bot_circuit_designs["delivery_drone"]
+	var/list/program = SScircuit.validate_electronic_assembly(D.save_string(brain.drone_context(D, victim)))
+	if(!islist(program))
+		log_line("the delivery design doesn't load: [program]")
+		return null
+	var/obj/item/electronic_assembly/A = SScircuit.load_electronic_assembly(T, program)
+	var/obj/item/integrated_circuit/manipulation/grenade/primer = A.assembly_components[D.payload_part]
+	primer.attach_grenade(new /obj/item/grenade/flashbang(primer))
+	A.battery = new /obj/item/stock_parts/cell/high(A)
+	A.opened = FALSE
+	A.update_icon()
+	GLOB.bot_circuit_made[A] = D.id
+	return A
+
+/// Letters: A where the drone starts, Q its target.
+/datum/bot_scenario/circuit_drone_shot
+	name = "circuits: officer shoots down a drone with a bomb on it"
+	desc = "A special delivery trundling across the room after somebody, an officer with a laser between them. The officer shoots it to pieces before it gets there: a disabler does nothing to an assembly."
+	job = "Security Officer"
+	time_limit = 90 SECONDS
+	kit_backpack = list(/obj/item/gun/energy/laser)
+	layout = list(
+		"################",
+		"#A.....B.......#",
+		"#..............#",
+		"#.............Q#",
+		"################")
+	var/mob/living/carbon/human/victim
+	var/obj/item/electronic_assembly/drone
+
+/datum/bot_scenario/circuit_drone_shot/issue_goal()
+	return
+
+/datum/bot_scenario/circuit_drone_shot/post_spawn()
+	victim = stand_in(first_marker("Q"), "Vic Target")
+	drone = gym_delivery_drone(first_marker("A"), victim)
+
+/datum/bot_scenario/circuit_drone_shot/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!drone || QDELETED(drone))
+		return BOT_GYM_PASS
+	var/obj/item/integrated_circuit/manipulation/grenade/primer = locate() in drone.assembly_components
+	if(!primer?.attached_grenade || QDELETED(primer.attached_grenade))
+		fail_reason = "it got to Vic and went off ([drone.obj_integrity]/[drone.max_integrity] left)"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/// Letters: A where the drone starts, Q its target.
+/datum/bot_scenario/circuit_drone_flee
+	name = "circuits: an assistant gets away from a drone with a bomb on it"
+	desc = "A special delivery comes into the room after somebody else, talking about bombs. An unarmed assistant with no great nerve gets away from it."
+	job = "Assistant"
+	time_limit = 40 SECONDS
+	layout = list(
+		"##############",
+		"#A..B........#",
+		"#............#",
+		"#...........Q#",
+		"##############")
+	var/mob/living/carbon/human/victim
+	var/obj/item/electronic_assembly/drone
+	var/ran = FALSE
+
+/datum/bot_scenario/circuit_drone_flee/issue_goal()
+	return
+
+/datum/bot_scenario/circuit_drone_flee/post_spawn()
+	brain.nerve = 0.3
+	victim = stand_in(first_marker("Q"), "Vic Target")
+	drone = gym_delivery_drone(first_marker("A"), victim)
+
+/// By where it is, not what it's doing: it gets away inside a second, before a check has seen it go.
+/datum/bot_scenario/circuit_drone_flee/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(istype(brain.current_goal, /datum/bot_goal/run_from) || get_dist(bot, drone) >= 6)
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/circuit_drone_flee/release_run()
+	if(drone && !QDELETED(drone))
+		qdel(drone)
+	return ..()
+
+/datum/bot_scenario/circuit_drone_shot/release_run()
+	if(drone && !QDELETED(drone))
+		qdel(drone)
+	return ..()
