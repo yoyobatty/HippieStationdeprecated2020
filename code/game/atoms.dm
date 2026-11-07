@@ -70,6 +70,8 @@
 // /turf/open/space/Initialize
 
 /atom/proc/Initialize(mapload, ...)
+	SHOULD_NOT_SLEEP(TRUE) // atoms are made in batches at boot and when maps and templates load: one waiting holds them all up
+	SHOULD_CALL_PARENT(TRUE) // this marks it initialized; /turf and /turf/open/space copy it instead, for speed (SHOULD_CALL_PARENT(FALSE) there)
 	if(flags_1 & INITIALIZED_1)
 		stack_trace("Warning: [src]([type]) initialized multiple times!")
 	flags_1 |= INITIALIZED_1

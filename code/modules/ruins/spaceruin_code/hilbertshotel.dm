@@ -19,13 +19,15 @@ GLOBAL_VAR_INIT(hhmysteryRoomNumber, 1337)
 
 /obj/item/hilbertshotel/Initialize()
     . = ..()
-    //Load templates
-    hotelRoomTemp = new()
-    hotelRoomTempEmpty = new()
-    hotelRoomTempLore = new()
+    INVOKE_ASYNC(src, PROC_REF(load_room_templates)) // reading the room maps yields as it goes
     var/area/currentArea = get_area(src)
     if(currentArea.type == /area/ruin/space/has_grav/hilbertresearchfacility)
         ruinSpawned = TRUE
+
+/obj/item/hilbertshotel/proc/load_room_templates()
+    hotelRoomTemp = new()
+    hotelRoomTempEmpty = new()
+    hotelRoomTempLore = new()
 
 /obj/item/hilbertshotel/Destroy()
     ejectRooms()

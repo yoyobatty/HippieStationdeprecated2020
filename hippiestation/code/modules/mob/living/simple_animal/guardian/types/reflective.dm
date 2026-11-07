@@ -237,8 +237,8 @@ GLOBAL_LIST_INIT(reflect_blacklist, typecacheof(list(/obj/structure, /obj/machin
 
 /datum/component/hanged_man/Initialize(mob/living/simple_animal/hostile/guardian/reflective/G)
 	guardian = G
-	RegisterSignal(parent, COMSIG_PARENT_EXAMINE, .proc/examine)
-	RegisterSignal(parent, 	COMSIG_PARENT_PREQDELETED, .proc/oh_god_lets_get_out)
+	RegisterSignal(parent, COMSIG_PARENT_EXAMINE, PROC_REF(examine))
+	RegisterSignal(parent, 	COMSIG_PARENT_PREQDELETED, PROC_REF(oh_god_lets_get_out))
 	reflection = new(parent)
 
 /datum/component/hanged_man/UnregisterFromParent()

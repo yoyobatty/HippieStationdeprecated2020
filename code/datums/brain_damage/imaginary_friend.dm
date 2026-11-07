@@ -89,7 +89,7 @@
 	owner = trauma.owner
 	copy_known_languages_from(owner, TRUE)
 
-	setup_friend()
+	INVOKE_ASYNC(src, PROC_REF(setup_friend)) // its picture can wait for the human dummy another picture is using
 
 	join = new
 	join.Grant(src)

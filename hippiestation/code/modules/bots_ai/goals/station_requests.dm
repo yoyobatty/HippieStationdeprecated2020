@@ -25,6 +25,7 @@ GLOBAL_DATUM(bot_station_request_listener, /datum/bot_station_request_listener)
 	bot_listen_for_station_requests()
 
 /datum/bot_station_request_listener/proc/on_request(datum/source, datum/station_request/R)
+	SIGNAL_HANDLER
 	// A moment for somebody to read it, or for it to come over the radio
 	addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_take_up_station_request), R), rand(10, 30))
 

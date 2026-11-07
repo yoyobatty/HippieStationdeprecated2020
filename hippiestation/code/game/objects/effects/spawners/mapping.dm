@@ -12,6 +12,9 @@
 	var/turf/T = get_turf(src)
 	if(!T)
 		return
-	if(!template.load(T, centered = TRUE))
+	// Deliberately inside Initialize(): the map reader yields, so at boot this shows in initialize.log as "Slept during
+	// Initialize()". Loading async or from LateInitialize() would run the template's own atom pass in among SSatoms' pass
+	// (which saves and restores SSatoms.initialized) or its late loaders (a shared list it cuts).
+	if(!UNLINT(template.load(T, centered = TRUE)))
 		stack_trace("Failed to place structure \"[template_name]\" at [COORD(src)]!")
 	return INITIALIZE_HINT_QDEL

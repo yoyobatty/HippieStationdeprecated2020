@@ -204,6 +204,7 @@ GLOBAL_LIST_EMPTY(parasites) //all currently existing/living guardians
 	snapback()
 
 /mob/living/simple_animal/hostile/guardian/proc/OnMoved()
+	SIGNAL_HANDLER
 	snapback()
 	setup_barriers()
 

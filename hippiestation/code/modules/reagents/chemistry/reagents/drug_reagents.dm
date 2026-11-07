@@ -534,7 +534,7 @@
 			animate(whole_screen, transform = matrix(), time = 60, easing = SINE_EASING)
 			addtimer(VARSET_CALLBACK(whole_screen, filters, list()), 200) //reset filters
 			addtimer(VARSET_CALLBACK(whole_screen, color, null), 201) //reset any colour drift
-			addtimer(CALLBACK(whole_screen, /obj/screen/plane_master/.proc/backdrop, C), 201) //reset backdrop filters so they reappear
+			addtimer(CALLBACK(whole_screen, TYPE_PROC_REF(/obj/screen/plane_master, backdrop), C), 201) //reset backdrop filters so they reappear
 		PlaySpook(C, 'hippiestation/sound/misc/honk_echo_distant.ogg', 0, FALSE)
 
 //Your feet leave the ground for as long as the trip lasts
@@ -876,7 +876,7 @@
 	I.appearance_flags = APPEARANCE_UI_IGNORE_ALPHA
 	if(L)
 		L.Hear(message, src, L.get_default_language(), message)
-		INVOKE_ASYNC(GLOBAL_PROC, /.proc/flick_overlay, I, list(L.client), 30)
+		INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(flick_overlay), I, list(L.client), 30)
 	sleep(10)
 	animate(src, transform = matrix()*0.75, time = 5)
 	QDEL_IN(src, 30)

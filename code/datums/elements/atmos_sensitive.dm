@@ -36,6 +36,7 @@
 		microchipped_lad.check_atmos_process(null, new_spot.air, new_spot.temperature) //Make sure you're properly registered
 
 /atom/proc/check_atmos_process(datum/source, datum/gas_mixture/air, exposed_temperature)
+	SIGNAL_HANDLER
 	if(should_atmos_process(air, exposed_temperature))
 		if(flags_1 & ATMOS_IS_PROCESSING_1)
 			return

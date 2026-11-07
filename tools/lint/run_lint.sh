@@ -53,6 +53,10 @@ fi
 
 "$BIN_DIR/$EXE" -e "$DME" 2>&1 | "$PY" tools/lint/lint_diff.py tools/lint/baseline.txt $UPDATE
 STATUS="${PIPESTATUS[1]}"
+# Raw .proc/ references skip overrides (BYOND 515+): each one is an error.
+if [ -z "$UPDATE" ] && ! "$PY" tools/lint/raw_proc_refs.py; then
+	STATUS=1
+fi
 # Procs registered as signal handlers without SIGNAL_HANDLER, which the sleep check can't see into: listed, not failing.
 if [ -z "$UPDATE" ]; then
 	"$PY" tools/lint/signal_handlers.py | sed -n 's/^UNMARKED handler: \(.*\)$/NEW warning: \1 has no SIGNAL_HANDLER (python tools\/lint\/signal_handlers.py --apply)/p'

@@ -236,7 +236,7 @@
 /obj/item/disk/holodisk/Initialize(mapload)
 	. = ..()
 	if(preset_record_text)
-		build_record()
+		INVOKE_ASYNC(src, PROC_REF(build_record)) // can wait for the human dummy another record is using
 
 /obj/item/disk/holodisk/Destroy()
 	QDEL_NULL(record)

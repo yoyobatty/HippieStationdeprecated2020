@@ -41,13 +41,15 @@
 	jackpots = rand(1, 4) //false hope
 	plays = rand(75, 200)
 
-	toggle_reel_spin(1) //The reels won't spin unless we activate them
+	for(var/list/reel in reels) //The reels won't spin unless we activate them (not toggle_reel_spin(): it sleeps between reels)
+		reels[reel] = 1
 
 	var/list/reel = reels[1]
 	for(var/i = 0, i < reel.len, i++) //Populate the reels.
 		randomize_reels()
 
-	toggle_reel_spin(0)
+	for(var/list/reel_to_stop in reels)
+		reels[reel_to_stop] = 0
 
 	for(cointype in typesof(/obj/item/coin))
 		var/obj/item/coin/C = cointype

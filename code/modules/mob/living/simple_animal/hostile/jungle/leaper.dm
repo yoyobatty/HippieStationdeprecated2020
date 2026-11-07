@@ -80,7 +80,7 @@
 
 /obj/structure/leaper_bubble/Initialize()
 	. = ..()
-	float(on = TRUE)
+	INVOKE_ASYNC(src, TYPE_PROC_REF(/atom/movable, float), TRUE) // the bob waits a second between its two halves
 	QDEL_IN(src, 100)
 
 /obj/structure/leaper_bubble/Destroy()

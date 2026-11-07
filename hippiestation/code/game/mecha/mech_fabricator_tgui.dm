@@ -157,8 +157,8 @@
 		return
 	for(var/ui_key in by_key)
 		for(var/datum/tgui/ui in by_key[ui_key])
-			if(ui?.user)
-				ui.push_data(null, ui_static_data(ui.user), TRUE)
+			if(ui?.user) // async: pushing asks the client about its window, and RefreshParts() shouldn't wait on that
+				INVOKE_ASYNC(ui, TYPE_PROC_REF(/datum/tgui, push_data), null, ui_static_data(ui.user), TRUE)
 
 /obj/machinery/mecha_part_fabricator/RefreshParts()
 	. = ..()

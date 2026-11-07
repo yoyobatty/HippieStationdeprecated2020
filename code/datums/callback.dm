@@ -17,30 +17,19 @@
 		OR
 		INVOKE_ASYNC(<CALLBACK args>) to immediately create and call InvokeAsync
 
-	PROC TYPEPATH SHORTCUTS (these operate on paths, not types, so to these shortcuts, datum is NOT a parent of atom, etc...)
+	PROC REFERENCES (code/__DEFINES/callbacks.dm)
 
-		global proc while in another global proc:
-			.procname
-			Example:
-				CALLBACK(GLOBAL_PROC, .some_proc_here)
+		a proc on src, or on a parent of src:
+			CALLBACK(src, PROC_REF(some_proc_here))
 
-		proc defined on current(src) object (when in a /proc/ and not an override) OR overridden at src or any of it's parents:
-			.procname
-			Example:
-				CALLBACK(src, .some_proc_here)
+		a proc on some other type (or a parent of it):
+			CALLBACK(thing, TYPE_PROC_REF(/some/type, some_proc_here))
 
+		a global proc:
+			CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(some_proc_here))
 
-		when the above doesn't apply:
-			.proc/procname
-			Example:
-				CALLBACK(src, .proc/some_proc_here)
-
-		proc defined on a parent of a some type:
-			/some/type/.proc/some_proc_here
-
-
-
-		Other wise you will have to do the full typepath of the proc (/type/of/thing/proc/procname)
+		Not a raw .proc/some_proc_here or /some/type/.proc/some_proc_here: since BYOND 515 those call that exact proc,
+		skipping any override on the object's own type. tools/lint/run_lint.sh fails on them.
 
 */
 

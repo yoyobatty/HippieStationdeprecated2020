@@ -25,7 +25,7 @@
 	cached_designs = list()
 	stored_research = new
 	host_research = SSresearch.science_tech
-	update_research()
+	INVOKE_ASYNC(src, PROC_REF(update_research)) // copying the station's research yields between nodes: one built late copies hundreds
 	materials = AddComponent(/datum/component/remote_materials, "lathe", mapload)
 	RefreshParts()
 

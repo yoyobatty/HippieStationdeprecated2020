@@ -125,8 +125,10 @@ def registrations(files):
             col = raw.find("RegisterSignal(")
             if col < 0 or raw.lstrip().startswith("//") or "proc/RegisterSignal" in raw or "UnregisterSignal(" in raw[:col + 15]:
                 continue
-            if raw[col - 1:col] not in ("", "\t", " ", "(", "!", ","):
-                continue  # something.RegisterSignal(...) registers another datum; and RegisterSignals is a different proc
+            # something.RegisterSignal(...) registers another datum: followed only when the handler names its type
+            remote = raw[col - 1:col] == "."
+            if not remote and raw[col - 1:col] not in ("", "\t", " ", "(", "!", ","):
+                continue
             text = "".join(lines[i:i + 12])
             start = text.find("RegisterSignal(") + len("RegisterSignal(")
             args = split_args(text[start:].replace("\r", "").replace("\\\n", " "))
@@ -144,6 +146,8 @@ def registrations(files):
                 yield path, i + 1, m.group("ttype"), m.group("tname"), handler
             elif m.group("tpath"):
                 yield path, i + 1, m.group("tpath"), m.group("tpname"), handler
+            elif remote:
+                continue  # another datum's proc named relative to it: can't tell its type from here
             else:
                 name = m.group("str") or m.group("dot") or m.group("pref")
                 yield path, i + 1, enclosing_type(lines, i), name, handler

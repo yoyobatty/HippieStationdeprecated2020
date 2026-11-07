@@ -88,7 +88,7 @@
 	if(user.health >= 80)
 		to_chat(user, "<font color=purple><b>You enter your wraith form!</b></font>")
 		user.incorporeal_move = 2
-		addtimer(CALLBACK(user, /mob/living/.proc/soulsplit_wearoff), 35)
+		addtimer(CALLBACK(user, TYPE_PROC_REF(/mob/living, soulsplit_wearoff)), 35)
 	else
 		to_chat(user, "<span class='warning'>You cannot concentrate on casting soulsplit while injured!</span>")
 		charge_counter = initial(charge_counter)

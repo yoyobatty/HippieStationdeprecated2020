@@ -93,7 +93,7 @@ GLOBAL_LIST_INIT(reagent_recipes, list ( \
 						qdel(RR)
 
 			if(src && usr.machine==src) //do not reopen closed window
-				addtimer(CALLBACK(src, /atom/.proc/interact, usr), 0)
+				addtimer(CALLBACK(src, TYPE_PROC_REF(/atom, interact), usr), 0)
 			return
 
 		var/obj/O

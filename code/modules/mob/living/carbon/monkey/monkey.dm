@@ -167,4 +167,4 @@
 	if(prob(10))
 		var/obj/item/clothing/head/helmet/justice/escape/helmet = new(src)
 		equip_to_slot_or_del(helmet,ITEM_SLOT_HEAD)
-		helmet.attack_self(src) // todo encapsulate toggle
+		INVOKE_ASYNC(helmet, TYPE_PROC_REF(/obj/item, attack_self), src) // switches the siren on, which loops while it's up: Initialize() never finished

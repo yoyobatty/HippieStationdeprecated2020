@@ -157,15 +157,14 @@
 /datum/proximity_monitor/advanced/proc/post_setup_field()
 
 /datum/proximity_monitor/advanced/proc/setup_field()
+	// all in one go, like recalculate_field(): a few tiles across
 	update_new_turfs()
 	if(setup_field_turfs)
 		for(var/turf/T in field_turfs_new)
 			setup_field_turf(T)
-			CHECK_TICK
 	if(setup_edge_turfs)
 		for(var/turf/T in edge_turfs_new)
 			setup_edge_turf(T)
-			CHECK_TICK
 
 /datum/proximity_monitor/advanced/proc/cleanup_field_turf(turf/T)
 	qdel(field_turfs[T])

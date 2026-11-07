@@ -29,12 +29,12 @@
 		if(S.creation_update())
 			needs_update = TRUE
 	if(!set_slab || needs_update)
-		for(var/obj/item/clockwork/slab/S in GLOB.all_clockwork_objects)
-			SStgui.update_uis(S)
+		for(var/obj/item/clockwork/slab/S in GLOB.all_clockwork_objects) // windows refresh async: pushing asks each client about its window
+			INVOKE_ASYNC(SStgui, TYPE_PROC_REF(/datum/controller/subsystem/tgui, update_uis), S)
 			if(needs_update)
 				S.update_quickbind()
 	else
-		SStgui.update_uis(set_slab)
+		INVOKE_ASYNC(SStgui, TYPE_PROC_REF(/datum/controller/subsystem/tgui, update_uis), set_slab)
 		set_slab.update_quickbind()
 
 /proc/generate_all_scripture()

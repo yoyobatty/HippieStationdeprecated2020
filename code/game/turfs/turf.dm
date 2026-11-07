@@ -44,6 +44,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	. = ..()
 
 /turf/Initialize(mapload)
+	SHOULD_CALL_PARENT(FALSE) // copies /atom/Initialize() for speed: every turf on every map comes through here
 	if(flags_1 & INITIALIZED_1)
 		stack_trace("Warning: [src]([type]) initialized multiple times!")
 	flags_1 |= INITIALIZED_1

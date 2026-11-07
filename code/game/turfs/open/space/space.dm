@@ -110,6 +110,7 @@ GLOBAL_LIST_EMPTY(starlit_areas)
 	return
 
 /turf/open/space/Initialize()
+	SHOULD_CALL_PARENT(FALSE) // copies /turf/Initialize() for speed: most of every z-level is space
 	icon_state = SPACE_ICON_STATE
 	air = space_gas
 
@@ -275,13 +276,18 @@ GLOBAL_LIST_EMPTY(starlit_areas)
 			var/turf/T = get_step(A.loc,turn(A.dir, 180))
 			AM.can_be_z_moved = FALSE
 			AM.forceMove(T)
-			A.start_pulling(AM)
+			UNLINT(A.start_pulling(AM)) // moving AM broke the pull (doMove()), so this is a fresh pull, never a grab to tighten
 			AM.can_be_z_moved = TRUE
 
 		//now we're on the new z_level, proceed the space drifting
-		stoplag()//Let a diagonal move finish, if necessary
-		A.newtonian_move(A.inertia_dir)
+		INVOKE_ASYNC(src, PROC_REF(drift_after_crossing), A) // a tick later: whatever moved it carries on meanwhile
 
+
+/// Off the edge of the map onto another z-level: drift on once a diagonal move has finished, if it was one.
+/turf/open/space/proc/drift_after_crossing(atom/movable/A)
+	stoplag()
+	if(!QDELETED(A))
+		A.newtonian_move(A.inertia_dir)
 
 /turf/open/space/MakeSlippery(wet_setting, min_wet_time, wet_time_to_add, max_wet_time, permanent)
 	return
