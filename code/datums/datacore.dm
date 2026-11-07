@@ -298,7 +298,8 @@
 /datum/record_photo_pending/New(mob/living/carbon/human/H, client/C)
 	name = "[H]"
 	job = SSjob.GetJob(H.mind?.assigned_role)
-	prefs = (C || H.client)?.prefs
+	var/client/viewer = C || H.client
+	prefs = viewer?.prefs
 
 /// hippie -- the photo as an icon with both directions, for whatever wants the picture itself (the AI's hologram).
 /datum/record_photo_pending/proc/render()

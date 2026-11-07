@@ -95,6 +95,7 @@
 
 /// A copy of a gas mix, volume included (/datum/gas_mixture/proc/copy() leaves the copy at CELL_VOLUME)
 /proc/copy_tank_mix(datum/gas_mixture/air)
+	RETURN_TYPE(/datum/gas_mixture)
 	var/datum/gas_mixture/copy = air.copy()
 	copy.volume = air.volume
 	return copy

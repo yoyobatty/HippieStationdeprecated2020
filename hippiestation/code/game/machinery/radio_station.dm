@@ -289,7 +289,8 @@
 	var/i
 	for(i = 1; i <= GLOB.radio_list.len; i++) //This time it will stop the music for every radio listening to this radio station.
 		if(!istype(GLOB.radio_list[i], /obj/item/pda))
-			GLOB.radio_list[i].stopmusic(GLOB.radio_list[i].radio_holder, 3)
+			var/obj/item/radio/R = GLOB.radio_list[i]
+			R.stopmusic(R.radio_holder, 3)
 
 /obj/machinery/radio_station/Destroy()
 	stopRadioMusic()

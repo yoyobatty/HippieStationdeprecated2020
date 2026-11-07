@@ -247,7 +247,8 @@ GLOBAL_VAR(atmos_bench_updaters)
 		var/list/before = shadow.before[T]
 		var/list/guess = predicted[T]
 		var/expected_temperature = guess ? guess[1] : before[1]
-		var/list/expected_moles = before[2].Copy()
+		var/list/before_moles = before[2]
+		var/list/expected_moles = before_moles.Copy()
 		if(guess)
 			var/list/gases = guess[2]
 			for(var/gas_type in gases)

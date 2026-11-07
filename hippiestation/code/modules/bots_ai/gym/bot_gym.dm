@@ -132,10 +132,12 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 // ---------------------------------------------------------------------------------------------
 
 /datum/bot_scenario/proc/first_marker(char)
+	RETURN_TYPE(/turf)
 	var/list/L = markers[char]
 	return length(L) ? L[1] : null
 
 /datum/bot_scenario/proc/first_placed(char)
+	RETURN_TYPE(/atom)
 	var/list/L = placed[char]
 	return length(L) ? L[1] : null
 

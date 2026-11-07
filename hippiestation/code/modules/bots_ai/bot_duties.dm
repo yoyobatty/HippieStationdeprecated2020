@@ -31,6 +31,7 @@ GLOBAL_LIST_INIT(bot_duties, init_bot_duties())
 	return sorted
 
 /proc/bot_duty_of(duty_type)
+	RETURN_TYPE(/datum/bot_duty)
 	for(var/datum/bot_duty/D as anything in GLOB.bot_duties)
 		if(D.type == duty_type)
 			return D

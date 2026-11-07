@@ -112,6 +112,7 @@ GLOBAL_DATUM(bot_cult, /datum/bot_cult)
 	next_op = world.time + BOT_CULT_OP_GAP
 
 /datum/bot_cult/proc/sac_objective()
+	RETURN_TYPE(/datum/objective/sacrifice)
 	for(var/datum/objective/sacrifice/S in antag_team?.objectives)
 		return S
 

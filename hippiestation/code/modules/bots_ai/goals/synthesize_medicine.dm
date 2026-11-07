@@ -256,7 +256,8 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 		return GOAL_STEP_FAIL
 	if(!pending)
 		var/datum/bot_goal/synthesize_medicine/goal = bot.current_goal
-		pending = (stage_amounts || goal.recipe["ingredients"]).Copy()
+		var/list/amounts = stage_amounts || goal.recipe["ingredients"]
+		pending = amounts.Copy()
 		scale = stage_amounts ? dispenser.beaker.reagents.maximum_volume / 100 : 1
 	return dispense_next(bot)
 
