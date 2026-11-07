@@ -212,12 +212,25 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 /// the cooling catches up; they go back on once it's whole again (sm_emitter_to_fire()). Engineers kept three emitters firing into a
 /// crystal whose loop a saboteur had switched off, put the loop back within seconds, and lost it all the same, every time (Box, Meta).
 /datum/bot_brain/proc/sm_emitter_to_stop(obj/machinery/power/supermatter_crystal/S)
-	if(!sm_crystal_failing())
+	if(!sm_crystal_in_trouble(S))
 		return null
 	for(var/obj/machinery/power/emitter/anchored/E as anything in bot_instances_of(/obj/machinery/power/emitter/anchored))
 		if(E.active && E.z == S.z && get_dist(S, E) <= BOT_SM_REACH && sm_part_free(E))
 			return E
 	return null
+
+/// A lit crystal in trouble: losing integrity, or its cooling loop down (a pump on it switched off), which is the first anybody should
+/// know of it. By the time it's losing integrity its chamber is thousands of kelvin: a sabotaged loop put back within seconds, the
+/// chamber cycled, and the crystal went all the same, the emitters still firing because it read 100% when the loop came back.
+/datum/bot_brain/proc/sm_crystal_in_trouble(obj/machinery/power/supermatter_crystal/S)
+	if(sm_crystal_failing())
+		return TRUE
+	if(!S || S.power < 100)
+		return FALSE
+	for(var/obj/machinery/atmospherics/components/binary/pump/P as anything in bot_instances_of(/obj/machinery/atmospherics/components/binary/pump))
+		if(!P.on && P.z == S.z && get_dist(S, P) <= BOT_SM_REACH && sm_loop_pump(P))
+			return TRUE
+	return FALSE
 
 /// When somebody last set the chamber's air alarm cycling for a failing crystal.
 GLOBAL_VAR_INIT(bot_sm_purged_at, 0)
@@ -299,7 +312,7 @@ GLOBAL_VAR_INIT(bot_sm_purged_at, 0)
 /// hasn't got. The engine room full of a saboteur's bad air had one dropping four errands in three seconds, each call refused for the air.
 /datum/bot_brain/proc/crystal_emergency_job()
 	var/obj/machinery/power/supermatter_crystal/S = station_crystal()
-	if(!S || get_dist(owner, S) > 60 || !sm_crystal_failing())
+	if(!S || get_dist(owner, S) > 60 || !sm_crystal_in_trouble(S))
 		return null
 	var/atom/job = next_sm_job(S)
 	if(!job || (in_bad_air(job) && !is_eva_ready()))
