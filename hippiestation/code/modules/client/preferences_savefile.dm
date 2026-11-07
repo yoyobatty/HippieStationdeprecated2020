@@ -3,11 +3,22 @@
 	//toggles
 	S["hippie_toggles"] >> hippie_toggles
 	hippie_toggles = sanitize_integer(hippie_toggles, 0, 65535, initial(hippie_toggles))
+	//keybinds this save has seen: one added since gets its default key once (keybind_panel.dm)
+	S["known_keybinds"] >> known_keybinds
+	if(!islist(known_keybinds))
+		known_keybinds = null
+	if(add_new_keybind_defaults())
+		addtimer(CALLBACK(src, PROC_REF(save_preferences)), 1 SECONDS) //not from inside the load: the save file is open
 
 // Preferences save
 /datum/preferences/proc/hippie_pref_save(savefile/S)
 	//toggles
 	WRITE_FILE(S["hippie_toggles"], hippie_toggles)
+	if(!islist(known_keybinds)) //a new save starts on the defaults, so it has seen them all
+		known_keybinds = list()
+		for(var/kb_name in GLOB.keybindings_by_name)
+			known_keybinds += kb_name
+	WRITE_FILE(S["known_keybinds"], known_keybinds)
 
 // Character load
 /datum/preferences/proc/hippie_character_pref_load(savefile/S)

@@ -1348,6 +1348,17 @@ $pass-blue: #2a6cc0;
   color: #fff;
 }
 
+// The keybind panel's + and reset arrows: ink on the paper, not the dark theme's white
+.Preferences--pass .KeybindPanel .Button--color--transparent,
+.Preferences--pass .KeybindPanel .Button--color--transparent:focus {
+  color: var(--pass-label);
+}
+
+.Preferences--pass .KeybindPanel .Button--color--transparent:hover {
+  background-color: var(--pass-hover);
+  color: var(--pass-ink);
+}
+
 .Preferences--pass .Input,
 .Preferences--pass .NumberInput,
 .Preferences--pass .Dropdown__control.Button--color--default,

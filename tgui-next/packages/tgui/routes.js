@@ -123,6 +123,7 @@ import { ScrubberPack } from './interfaces/ScrubberPack';
 import { MasterMultitool } from './interfaces/MasterMultitool';
 import { Orbit } from './interfaces/Orbit';
 import { DisplaySettings } from './interfaces/DisplaySettings';
+import { Keybindings } from './interfaces/KeybindPanel';
 import { RdConsole, RdFabricator } from './interfaces/RdConsole';
 import { Sleeper } from './interfaces/Sleeper';
 import { Autodoc } from './interfaces/Autodoc';
@@ -873,6 +874,10 @@ const ROUTES = {
   display_settings: {
     component: () => DisplaySettings,
     scrollable: false,
+  },
+  keybindings: {
+    component: () => Keybindings,
+    scrollable: true,
   },
   scrubber_pack: {
     component: () => ScrubberPack,

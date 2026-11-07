@@ -127,6 +127,8 @@
 	var/mob/user = usr
 	if(!user.client || user.client != parent)
 		return
+	if(findtext(action, "kb_") == 1) //the keybind panel (keybind_panel.dm)
+		return keybind_act(action, params, user)
 	switch(action)
 		if("link")
 			var/list/href = params.Copy()
@@ -479,7 +481,7 @@
 		if(2)
 			data["sections"] = pref_ooc_sections(user)
 		if(3)
-			data["keybinds"] = pref_keybind_data()
+			data["keybinds"] = keybind_panel_data(user)
 			data["hotkeys"] = hotkeys
 		if(4)
 			data["loadout"] = pref_loadout_data()

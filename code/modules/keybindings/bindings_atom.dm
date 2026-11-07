@@ -19,4 +19,9 @@
 		if(movement_dir) //If we're not moving, don't compensate, as byond will auto-fill dir otherwise
 			movement_dir = turn(movement_dir, -dir2angle(user.dir)) //By doing this we ensure that our input direction is offset by the client (camera) direction
 
+		if(user.movement_locked) // hippie -- Block movement is held: turn to face the way, don't step
+			if((movement_dir in GLOB.cardinals) && user.mob && user.mob.dir != movement_dir && !user.mob.incapacitated())
+				user.mob.setDir(movement_dir)
+			return
+
 		user.Move(get_step(src, movement_dir), movement_dir)

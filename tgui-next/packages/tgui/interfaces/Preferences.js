@@ -1,6 +1,7 @@
 import { Component, Fragment } from 'inferno';
 import { useBackend } from '../backend';
 import { Box, Button, ByondUi, ColorBox, Dropdown, Icon, Input, LabeledList, NoticeBox, NumberInput, Section, Table, Tabs } from '../components';
+import { KeybindPanel } from './KeybindPanel';
 
 // hippie -- character setup (hippiestation/code/modules/client/
 // preferences_tgui.dm): the old window's tabs and settings, with occupations
@@ -368,65 +369,6 @@ const Quirks = props => {
   );
 };
 
-const Keybinds = props => {
-  const { act, keybinds = [] } = props;
-  const capture = (bind, key) => act('link', {
-    preference: 'keybindings_capture',
-    keybinding: bind.name,
-    old_key: key,
-  });
-  return (
-    <Fragment>
-      <Box mb={1}>
-        <Button
-          icon="undo"
-          content="Reset to defaults"
-          onClick={() => act('link', { preference: 'keybindings_reset' })} />
-        <Box inline color="label" ml={1}>
-          Click a key to rebind it.
-        </Box>
-      </Box>
-      {keybinds.map(category => (
-        <Section key={category.name} title={category.name}>
-          <Table>
-            {category.binds.map(bind => (
-              <Table.Row key={bind.name}>
-                <Table.Cell>{bind.fullName}</Table.Cell>
-                <Table.Cell collapsing>
-                  {bind.keys.length === 0 && (
-                    <Button
-                      color="transparent"
-                      content="Unbound"
-                      onClick={() => capture(bind, 'Unbound')} />
-                  )}
-                  {bind.keys.map(key => (
-                    <Button
-                      key={key}
-                      content={key}
-                      onClick={() => capture(bind, key)} />
-                  ))}
-                  {!!bind.canAdd && (
-                    <Button
-                      icon="plus"
-                      tooltip="Add a second key"
-                      onClick={() => act('link', {
-                        preference: 'keybindings_capture',
-                        keybinding: bind.name,
-                      })} />
-                  )}
-                </Table.Cell>
-                <Table.Cell collapsing color="label" pl={1}>
-                  {bind.defaults ? 'Default: ' + bind.defaults : ''}
-                </Table.Cell>
-              </Table.Row>
-            ))}
-          </Table>
-        </Section>
-      ))}
-    </Fragment>
-  );
-};
-
 const Loadout = props => {
   const { act, loadout = {} } = props;
   const items = loadout.items || [];
@@ -671,7 +613,7 @@ export const Preferences = props => {
             <Quirks act={act} quirkList={data.quirkList} />
           )}
           {tab === TAB_KEYS && (
-            <Keybinds act={act} keybinds={data.keybinds} />
+            <KeybindPanel act={act} data={data.keybinds} />
           )}
           {tab === TAB_LOADOUT && (
             <Loadout act={act} loadout={data.loadout} />

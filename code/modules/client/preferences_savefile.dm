@@ -5,7 +5,7 @@
 //	You do not need to raise this if you are adding new values that have sane defaults.
 //	Only raise this value when changing the meaning/format/name/layout of an existing value
 //	where you would want the updater procs below to run
-#define SAVEFILE_VERSION_MAX	28
+#define SAVEFILE_VERSION_MAX	29
 
 /*
 SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Carn
@@ -77,6 +77,18 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 		key_bindings["C"] += list("nanosuit_menu")
 	if(current_version < 28 && islist(key_bindings) && !length(key_bindings["F11"])) // hippie -- a new default, and nothing else on the key
 		key_bindings["F11"] = list("toggle_fullscreen")
+	if(current_version < 29 && islist(key_bindings)) // hippie -- facing is Ctrl+arrows only: Ctrl+S is scream's, and every scream turned you south as well
+		var/list/ctrl_wasd = list("CtrlW" = "face_north", "CtrlS" = "face_south", "CtrlA" = "face_west", "CtrlD" = "face_east")
+		var/moved = FALSE
+		for(var/key in ctrl_wasd)
+			if(!(ctrl_wasd[key] in key_bindings[key]))
+				continue
+			moved = TRUE
+			key_bindings[key] -= ctrl_wasd[key]
+			if(!length(key_bindings[key]))
+				key_bindings -= key
+		if(moved)
+			to_chat(parent, "<span class='notice'>Ctrl+W/A/S/D no longer turn you; Ctrl+arrow keys do. Ctrl+S is only Scream now.</span>")
 
 /datum/preferences/proc/update_character(current_version, savefile/S)
 	if(current_version < 19)
