@@ -116,12 +116,12 @@
 		if(changeling.chem_charges >= 76)
 			changeling.chem_charges = 75
 
-/mob/living/simple_animal/hostile/true_changeling/Stat()
-	..()
-	var/datum/antagonist/changeling/changeling = mind.has_antag_datum(/datum/antagonist/changeling)
+/mob/living/simple_animal/hostile/true_changeling/get_status_tab_items()
+	. = ..()
+	var/datum/antagonist/changeling/changeling = mind?.has_antag_datum(/datum/antagonist/changeling)
 	if(changeling)
-		stat("Chemical Storage", "[changeling.chem_charges]/[changeling.chem_storage]")
-		stat("Absorbed DNA", changeling.absorbedcount)
+		. += "Chemical Storage: [changeling.chem_charges]/[changeling.chem_storage]"
+		. += "Absorbed DNA: [changeling.absorbedcount]"
 
 /mob/living/simple_animal/hostile/true_changeling/emote(act, m_type=1, message = null)
 	if(stat)

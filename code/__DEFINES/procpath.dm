@@ -22,3 +22,5 @@
 	var/category as text
 	/// Only clients/mobs with `see_invisibility` higher can use the verb.
 	var/invisibility as num
+	/// Whether the verb is left out of the verb panel and the command bar (hippie: read by the HTML stat panel, as tg's does)
+	var/hidden as num

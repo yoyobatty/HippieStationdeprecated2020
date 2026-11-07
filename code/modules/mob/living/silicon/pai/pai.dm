@@ -168,13 +168,12 @@
 		else
 			client.eye = card
 
-/mob/living/silicon/pai/Stat()
-	..()
-	if(statpanel("Status"))
-		if(!stat)
-			stat(null, text("Emitter Integrity: [emitterhealth * (100/emittermaxhealth)]"))
-		else
-			stat(null, text("Systems nonfunctional"))
+/mob/living/silicon/pai/get_status_tab_items()
+	. = ..()
+	if(!stat)
+		. += "Emitter Integrity: [emitterhealth * (100/emittermaxhealth)]"
+	else
+		. += "Systems nonfunctional"
 
 /mob/living/silicon/pai/restrained(ignore_grab)
 	. = FALSE

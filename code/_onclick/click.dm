@@ -366,14 +366,14 @@
 	var/turf/T = get_turf(src)
 	if(T && user.client && user.TurfAdjacent(T)) //hippie -- a mob with no client alt-clicking (a bot turning an emitter) ran into the null client here
 		user.listed_turf = T
-		user.client.statpanel = T.name
+		user.client.stat_panel?.show_turf(T) //hippie: the HTML stat panel
 
 // Use this instead of /mob/proc/AltClickOn(atom/A) where you only want turf content listing without additional atom alt-click interaction
 /atom/proc/AltClickNoInteract(mob/user, atom/A)
 	var/turf/T = get_turf(A)
 	if(T && user.TurfAdjacent(T))
 		user.listed_turf = T
-		user.client.statpanel = T.name
+		user.client.stat_panel?.show_turf(T) //hippie: the HTML stat panel
 
 /mob/proc/TurfAdjacent(turf/T)
 	return T.Adjacent(src)

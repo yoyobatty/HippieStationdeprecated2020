@@ -989,28 +989,30 @@
 	. = ..()
 	nano_energy = null
 
-/mob/living/carbon/human/Stat()
-	..()
+/mob/living/carbon/human/get_stat_panel_extra_tabs()
+	. = ..()
 	if(istype(wear_suit, /obj/item/clothing/suit/space/hardsuit/nano))
 		var/obj/item/clothing/suit/space/hardsuit/nano/NS = wear_suit
 		var/datum/gas_mixture/environment = loc?.return_air()
-		if(environment && statpanel("Crynet Nanosuit"))
+		if(environment)
 			var/pressure = environment.return_pressure()
-			stat("Crynet Protocols : [!NS.shutdown?"Engaged":"Disengaged"]")
-			stat("Energy Charge:", "[NS.cellon?"[round(NS.cell.percent())]%":"offline"]")
-			stat("Medical Charges:", "[NS.healthon?"[NS.current_charges] of [NS.max_charges]":"offline"]")
-			stat("Mode:", "[NS.mode]")
-			stat("Overall Status:", "[NS.healthon?"[health]% healthy":"offline"]")
-			stat("Nutrition Status:", "[NS.healthon?"[nutrition]":"offline"]")
-			stat("Oxygen Loss:", "[NS.healthon?"[getOxyLoss()]":"offline"]")
-			stat("Toxin Levels:", "[NS.healthon?"[getToxLoss()]":"offline"]")
-			stat("Burn Severity:", "[NS.healthon?"[getFireLoss()]":"offline"]")
-			stat("Brute Trauma:", "[NS.healthon?"[getBruteLoss()]":"offline"]")
-			stat("Radiation Levels:","[NS.radon?"[radiation] rads":"offline"]")
-			stat("Body Temperature:","[NS.healthon?"["[bodytemperature-T0C] degrees C ([bodytemperature*1.8-459.67] degrees F)"]":"offline"]")
-			stat("Atmospheric Pressure:","[NS.atmoson?"[pressure] kPa":"offline"]")
-			stat("Atmoshperic Temperature:","[NS.atmoson?"<span class='[environment.temperature > FIRE_IMMUNITY_MAX_TEMP_PROTECT?"alert":"info"]'>[round(environment.temperature-T0C, 0.01)] &deg;C ([round(environment.temperature, 0.01)] K)</span>":"offline"]")
-			stat("Atmospheric Thermal Energy:","[NS.atmoson?"[THERMAL_ENERGY(environment)/1000] kJ":"offline"]")
+			var/list/lines = list()
+			lines += "Crynet Protocols: [!NS.shutdown?"Engaged":"Disengaged"]"
+			lines += "Energy Charge: [NS.cellon?"[round(NS.cell.percent())]%":"offline"]"
+			lines += "Medical Charges: [NS.healthon?"[NS.current_charges] of [NS.max_charges]":"offline"]"
+			lines += "Mode: [NS.mode]"
+			lines += "Overall Status: [NS.healthon?"[health]% healthy":"offline"]"
+			lines += "Nutrition Status: [NS.healthon?"[nutrition]":"offline"]"
+			lines += "Oxygen Loss: [NS.healthon?"[getOxyLoss()]":"offline"]"
+			lines += "Toxin Levels: [NS.healthon?"[getToxLoss()]":"offline"]"
+			lines += "Burn Severity: [NS.healthon?"[getFireLoss()]":"offline"]"
+			lines += "Brute Trauma: [NS.healthon?"[getBruteLoss()]":"offline"]"
+			lines += "Radiation Levels: [NS.radon?"[radiation] rads":"offline"]"
+			lines += "Body Temperature: [NS.healthon?"["[bodytemperature-T0C] degrees C ([bodytemperature*1.8-459.67] degrees F)"]":"offline"]"
+			lines += "Atmospheric Pressure: [NS.atmoson?"[pressure] kPa":"offline"]"
+			lines += "Atmospheric Temperature: [NS.atmoson?"[round(environment.temperature-T0C, 0.01)] C ([round(environment.temperature, 0.01)] K)[environment.temperature > FIRE_IMMUNITY_MAX_TEMP_PROTECT ? " (too hot)" : ""]":"offline"]"
+			lines += "Atmospheric Thermal Energy: [NS.atmoson?"[THERMAL_ENERGY(environment)/1000] kJ":"offline"]"
+			LAZYSET(., "Crynet Nanosuit", lines)
 
 /mob/living/carbon/human/Move(NewLoc, direct)
 	. = ..()

@@ -34,9 +34,7 @@ GLOBAL_LIST_INIT(skin_theme, list(
 	"tooltip" = list(list("background-color" = COLOR_DARKMODE_BACKGROUND, "text-color" = COLOR_DARKMODE_TEXT), list("background-color" = "none", "text-color" = "#000000")),
 	//Status and verb tabs
 	"statwindow" = list(list("background-color" = COLOR_DARKMODE_DARKBACKGROUND, "text-color" = COLOR_DARKMODE_TEXT), list("background-color" = "none", "text-color" = "#000000")),
-	"stat" = list(
-		list("background-color" = COLOR_DARKMODE_DARKBACKGROUND, "tab-background-color" = COLOR_DARKMODE_BACKGROUND, "text-color" = COLOR_DARKMODE_TEXT, "tab-text-color" = COLOR_DARKMODE_TEXT, "prefix-color" = COLOR_DARKMODE_TEXT, "suffix-color" = COLOR_DARKMODE_TEXT),
-		list("background-color" = "#FFFFFF", "tab-background-color" = "none", "text-color" = "#000000", "tab-text-color" = "#000000", "prefix-color" = "#000000", "suffix-color" = "#000000")),
+	"statbrowser" = list(list("background-color" = COLOR_DARKMODE_BACKGROUND), list("background-color" = "#FFFFFF")), //the HTML stat panel; its page is themed with set_theme
 	//Buttons
 	"options" = list(list("background-color" = SKIN_BUTTON, "text-color" = SKIN_BUTTON_TEXT), list("background-color" = "none", "text-color" = "#000000")),
 	"display" = list(list("background-color" = SKIN_BUTTON, "text-color" = SKIN_BUTTON_TEXT), list("background-color" = "none", "text-color" = "#000000")),
@@ -68,6 +66,7 @@ GLOBAL_LIST_INIT(skin_theme, list(
 		for(var/param in params)
 			changes["[control].[param]"] = params[param]
 	winset(src, null, list2params(changes))
+	stat_panel?.send_message("set_theme", dark ? "dark" : "light") //hippie: the HTML stat panel's page
 
 /client/proc/force_white_theme() //There's no way round it. We're essentially changing the skin by hand. It's painful but it works, and is the way Lummox suggested.
 	set_skin_theme(FALSE)

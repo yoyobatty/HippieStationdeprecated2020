@@ -44,7 +44,8 @@ GLOBAL_LIST_INIT(blacklisted_builds, list(
 			return
 
 	var/mtl = CONFIG_GET(number/minute_topic_limit)
-	if (!holder && mtl)
+	var/stat_panel_message = href_list["_src_"] == "statpanel" //hippie: the HTML stat panel's own messages
+	if (!holder && mtl && !stat_panel_message)
 		var/minute = round(world.time, 600)
 		if (!topiclimiter)
 			topiclimiter = new(LIMITER_SIZE)
@@ -63,7 +64,7 @@ GLOBAL_LIST_INIT(blacklisted_builds, list(
 			return
 
 	var/stl = CONFIG_GET(number/second_topic_limit)
-	if (!holder && stl)
+	if (!holder && stl && !stat_panel_message)
 		var/second = round(world.time, 10)
 		if (!topiclimiter)
 			topiclimiter = new(LIMITER_SIZE)
@@ -75,8 +76,8 @@ GLOBAL_LIST_INIT(blacklisted_builds, list(
 			to_chat(src, "<span class='danger'>Your previous action was ignored because you've done too many in a second</span>")
 			return
 
-	//Logs all hrefs, except chat pings
-	if(!(href_list["_src_"] == "chat" && href_list["proc"] == "ping" && LAZYLEN(href_list) == 2))
+	//Logs all hrefs, except chat pings and the stat panel's tab changes
+	if(!(href_list["_src_"] == "chat" && href_list["proc"] == "ping" && LAZYLEN(href_list) == 2) && !stat_panel_message)
 		log_href("[src] (usr:[usr]\[[COORD(usr)]\]) : [hsrc ? "[hsrc] " : ""][href]")
 
 	//byond bug ID:2256651
@@ -108,6 +109,8 @@ GLOBAL_LIST_INIT(blacklisted_builds, list(
 	if (hippie_client_procs(href_list))
 		return
 	// hippie end
+	if (stat_panel_topic(href_list, hsrc)) //hippie: the HTML stat panel's messages and clicks on what it lists
+		return
 	switch(href_list["_src_"])
 		if("holder")
 			hsrc = holder
@@ -289,6 +292,7 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 		update_movement_keys()
 
 	chatOutput.start() // Starts the chat
+	start_stat_panel() //hippie: the HTML stat panel
 
 	if(alert_mob_dupe_login)
 		spawn()

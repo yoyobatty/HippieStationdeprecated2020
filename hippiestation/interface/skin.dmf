@@ -464,20 +464,16 @@ window "statwindow"
 		anchor2 = none
 		saved-params = "pos;size;is-minimized;is-maximized"
 		is-pane = true
-	elem "stat"
-		type = INFO
+	elem "statbrowser"
+		type = BROWSER
 		pos = 0,0
 		size = 640x480
 		anchor1 = 0,0
 		anchor2 = 100,100
-		text-color = #a4bad6
 		background-color = #171717
-		is-default = true
+		is-visible = true
 		saved-params = ""
-		tab-text-color = #a4bad6
-		tab-background-color = #202020
-		prefix-color = #a4bad6
-		suffix-color = #a4bad6
+		auto-format = false
 	elem "hbest"
 		type = BROWSER
 		pos = 0,0

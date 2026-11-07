@@ -163,13 +163,9 @@ GLOBAL_VAR_INIT(total_borer_hosts_needed, 10)
 		return
 	transfer_personality(user.client)
 
-/mob/living/simple_animal/borer/Stat()
-	..()
-
-	if(statpanel("Status"))
-		stat(null, "Chemicals: [chemicals]")
-
-	src << output(chemicals, "ViewBorer\ref[src]Chems.browser:update_chemicals")
+/mob/living/simple_animal/borer/get_status_tab_items()
+	. = ..()
+	. += "Chemicals: [chemicals]"
 
 /mob/living/simple_animal/borer/verb/Communicate()
 	set category = "Borer"
@@ -253,6 +249,8 @@ GLOBAL_VAR_INIT(total_borer_hosts_needed, 10)
 /mob/living/simple_animal/borer/Life()
 
 	..()
+	if(client) // the chemicals window's count (the old stat panel's Stat() sent it, five times a second)
+		src << output(chemicals, "ViewBorer\ref[src]Chems.browser:update_chemicals")
 
 	if(victim)
 		if(stat != DEAD)
