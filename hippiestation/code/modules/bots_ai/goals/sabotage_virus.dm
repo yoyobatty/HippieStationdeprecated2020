@@ -509,9 +509,14 @@ GLOBAL_LIST_EMPTY(bot_sick_known)
 	if(GLOB.bot_cure_brews[cure])
 		bot.wanted_cure = cure
 		var/datum/bot_goal/synthesize_medicine/brew = new
-		bot_log(bot, "[patient] has [D.name]: making some [GLOB.bot_cure_brews[cure]["label"]] for it")
 		if(bot.assign_goal(brew))
+			bot_log(bot, "[patient] has [D.name]: making some [GLOB.bot_cure_brews[cure]["label"]] for it")
 			return TRUE
+		// The dispenser's somebody else's just now (one at a time), or out of reach: again in a couple of minutes. Three medics on
+		// Meta wrote a necrotizing fasciitis patient off for ten minutes each, the moment the Chemist had the dispenser.
+		bot_log(bot, "[patient] has [D.name]: [GLOB.bot_cure_brews[cure]["label"]] cures it, and the dispenser's not to be had just now")
+		LAZYSET(bot.uncurable_patients, WEAKREF(patient), world.time + 2 MINUTES)
+		return FALSE
 	var/datum/reagent/R = cure
 	bot_log(bot, "[patient] has [D.name], and there's no [initial(R.name)] to be had for it")
 	LAZYSET(bot.uncurable_patients, WEAKREF(patient), world.time + 10 MINUTES)
