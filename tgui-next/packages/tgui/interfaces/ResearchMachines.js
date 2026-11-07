@@ -2,68 +2,9 @@ import { Fragment } from 'inferno';
 import { useBackend } from '../backend';
 import { Box, Button, Icon, LabeledList, NoticeBox, Section, Table } from '../components';
 
-// hippie -- the R&D server controller and the experimentor
-// (hippiestation/code/modules/research/research_machines_tgui.dm)
-
-export const RdServerControl = props => {
-  const { data } = useBackend(props);
-  const { servers = [], points = [] } = data;
-  return (
-    <Fragment>
-      <Section title="Research">
-        <LabeledList>
-          {points.map(point => (
-            <LabeledList.Item key={point.type} label={point.type}>
-              <b>{point.points}</b> points
-              <Box inline color="label" ml={1}>
-                (+{point.rate}/s)
-              </Box>
-            </LabeledList.Item>
-          ))}
-        </LabeledList>
-      </Section>
-      <Section title="Servers">
-        {servers.length === 0 && (
-          <Box color="bad">No servers found.</Box>
-        )}
-        <Table>
-          {servers.length > 0 && (
-            <Table.Row header>
-              <Table.Cell>Server</Table.Cell>
-              <Table.Cell>Status</Table.Cell>
-              <Table.Cell textAlign="right">Room</Table.Cell>
-              <Table.Cell textAlign="right">Output</Table.Cell>
-            </Table.Row>
-          )}
-          {servers.map(server => (
-            <Table.Row key={server.id + server.name}>
-              <Table.Cell>
-                <Icon name="server" mr={1} />
-                {server.name}
-              </Table.Cell>
-              <Table.Cell color={server.working ? 'good' : 'bad'}>
-                {server.status}
-              </Table.Cell>
-              <Table.Cell
-                textAlign="right"
-                color={server.hot ? 'bad' : 'label'}>
-                {server.temperature}&deg;C
-              </Table.Cell>
-              <Table.Cell
-                textAlign="right"
-                color={server.output < server.best ? 'average' : 'good'}>
-                {server.output}
-              </Table.Cell>
-            </Table.Row>
-          ))}
-        </Table>
-        <Box color="label" mt={1}>
-          Servers make less research the hotter their room is.
-        </Box>
-      </Section>
-    </Fragment>
-  );
-};
+// hippie -- the experimentor
+// (hippiestation/code/modules/research/research_machines_tgui.dm). The R&D
+// server controller's window is ResearchDashboard.js.
 
 const TESTS = [
   [1, 'Poke', 'hand-point-up'],

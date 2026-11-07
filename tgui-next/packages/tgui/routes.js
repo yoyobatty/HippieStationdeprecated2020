@@ -140,7 +140,7 @@ import { Teleporter } from './interfaces/Teleporter';
 import { ArcadeBattle, ArcadeMinesweeper } from './interfaces/Arcade';
 import { ArcadeOrion } from './interfaces/OrionTrail';
 import { PortableTurret, TurretControl } from './interfaces/Turrets';
-import { Experimentor, RdServerControl } from './interfaces/ResearchMachines';
+import { Experimentor } from './interfaces/ResearchMachines';
 import { FoodCart, IcecreamVat, MagnetController, StackingConsole } from './interfaces/MiscMachines';
 import { NtosCard } from './interfaces/NtosCard';
 import { NtnetRelay, NtosConfiguration, NtosFileManager, NtosNetChat, NtosNetDos, NtosNetMonitor, NtosNetTransfer, NtosRevelation, SyndContract } from './interfaces/NtosPrograms';
@@ -162,6 +162,7 @@ import { RoundEnd } from './interfaces/RoundEnd';
 import { StationMap } from './interfaces/StationMap';
 import { BotCrewMonitor } from './interfaces/BotCrewMonitor';
 import { DiseaseMenu } from './interfaces/DiseaseMenu';
+import { ResearchDashboard } from './interfaces/ResearchDashboard';
 import { SiliconLaws } from './interfaces/SiliconLaws';
 import { Spellbook } from './interfaces/Spellbook';
 // hippie end
@@ -1041,10 +1042,6 @@ const ROUTES = {
     component: () => TurretControl,
     scrollable: true,
   },
-  rd_server_control: {
-    component: () => RdServerControl,
-    scrollable: true,
-  },
   experimentor: {
     component: () => Experimentor,
     scrollable: true,
@@ -1095,6 +1092,10 @@ const ROUTES = {
   },
   gland_dispenser: {
     component: () => GlandDispenser,
+    scrollable: false,
+  },
+  research_dashboard: {
+    component: () => ResearchDashboard,
     scrollable: false,
   },
   silicon_laws: {

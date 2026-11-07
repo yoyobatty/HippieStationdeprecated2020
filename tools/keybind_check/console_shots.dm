@@ -269,6 +269,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_experiments(C, H, label)
 		if("samples")
 			cs_samples(C, H, label)
+		if("dashboard")
+			cs_dashboard(C, H, label)
 		if("lobby")
 			cs_lobby(C, H, label)
 		if("lobbylooks")
@@ -4424,7 +4426,7 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 
 	var/obj/machinery/computer/rdservercontrol/R = new(cs_open_beside(H))
 	R.stat &= ~(NOPOWER|BROKEN)
-	cs_machine_open(C, H, R, label, "rd_server_control")
+	cs_machine_open(C, H, R, label, "research_dashboard")
 	SStgui.close_user_uis(H)
 	qdel(R)
 
@@ -7762,3 +7764,101 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	. = list()
 	for(var/datum/sample_request/R in board.requests)
 		. += R.kind
+
+// The research dashboard (research_dashboard.dm): points from a bomb on the research doppler, an experiment, a sample and the
+// servers land under their sources by who added them, research spent is counted, the nodes nearest to affordable come in
+// order. Then the last hour filled in (a quiet round has one minute of history) for the picture, with a bar hovered.
+/proc/cs_dashboard(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/rd)
+	var/datum/research_ledger/ledger = GLOB.research_ledger
+	var/datum/techweb/web = SSresearch.science_tech
+	var/list/before = ledger.totals.Copy()
+
+	// A bomb on the research doppler: Bombs (and the Explosive Yield experiment, if it's still open: Experiments)
+	var/obj/machinery/doppler_array/research/science/doppler = new(get_turf(H))
+	doppler.stat &= ~NOPOWER
+	doppler.setDir(NORTH)
+	var/turf/epicenter = locate(H.x, H.y + 3, H.z)
+	doppler.sense_explosion(null, epicenter, 5, 10, 20, 1, 5, 10, 20)
+	cs_check("dashboard: a bomb's points are Bombs ([(before["Bombs"] || 0)] -> [ledger.totals["Bombs"]])", ledger.totals["Bombs"] > (before["Bombs"] || 0))
+	qdel(doppler)
+
+	// An experiment finished: Experiments
+	var/datum/science_experiment/robotics/survey = locate() in science_experiments()
+	var/had = ledger.totals["Experiments"] || 0
+	if(survey && !survey.completed)
+		survey.complete(null)
+	cs_check("dashboard: an experiment's are Experiments ([had] -> [ledger.totals["Experiments"]])", ledger.totals["Experiments"] >= had + survey.reward)
+
+	// A sample: Samples
+	var/datum/sample_board/board = GLOB.sample_board
+	board.open(TRUE)
+	var/datum/sample_request/kitchen/dish = board.new_request(TRUE, /datum/sample_request/kitchen)
+	var/obj/item/food = new dish.dish(get_turf(H))
+	had = ledger.totals["Samples"] || 0
+	board.hand_in(food, H, "R&D")
+	cs_check("dashboard: a sample's are Samples ([had] -> [ledger.totals["Samples"]])", ledger.totals["Samples"] >= had + dish.reward)
+
+	// Something the ledger doesn't know: Other. And the servers, given a few seconds.
+	had = ledger.totals["Other"] || 0
+	web.add_point_type(TECHWEB_POINT_TYPE_GENERIC, 123)
+	cs_check("dashboard: points from anywhere else are Other ([had] -> [ledger.totals["Other"]])", ledger.totals["Other"] == had + 123)
+	had = ledger.totals["Servers"] || 0
+	sleep(30)
+	cs_check("dashboard: the servers' income is Servers ([had] -> [ledger.totals["Servers"]])", ledger.totals["Servers"] > had)
+
+	// Research spent
+	var/list/data = ledger.dashboard_data()
+	var/list/next = data["next"]
+	cs_check("dashboard: what's next comes cheapest first ([length(next)])", length(next) >= 2 && next[1]["cost"] <= next[2]["cost"])
+	var/spent = ledger.spent
+	var/datum/techweb_node/node
+	for(var/id in web.available_nodes)
+		if(!web.researched_nodes[id])
+			node = SSresearch.techweb_node_by_id(id)
+			break
+	var/list/price = node.get_price(web)
+	web.add_point_type(TECHWEB_POINT_TYPE_GENERIC, price[TECHWEB_POINT_TYPE_GENERIC])
+	web.research_node(node)
+	var/list/latest = ledger.researched[1]
+	cs_check("dashboard: researching [node.display_name] counts what it cost ([spent] -> [ledger.spent])", ledger.spent == spent + price[TECHWEB_POINT_TYPE_GENERIC] && latest[1] == node.display_name)
+
+	// The last hour filled in, for the picture: the servers' 3,258 a minute, two bombs, experiments and samples
+	var/list/sources = GLOB.research_sources
+	ledger.minutes = list()
+	for(var/i in 1 to 42)
+		var/list/minute = list("Servers" = 3258)
+		if(i == 12)
+			minute["Bombs"] = 9800
+		if(i == 31)
+			minute["Bombs"] = 4200
+		if(i in list(8, 19, 27, 38))
+			minute["Experiments"] = pick(5000, 7500, 10000)
+		if(i in list(15, 23, 35, 40))
+			minute["Samples"] = pick(2500, 3500, 4000)
+		if(i in list(5, 6, 21))
+			minute["Analysis"] = pick(500, 1000)
+		if(i > 25)
+			minute["Engines"] = rand(200, 700)
+		if(i in list(29, 30))
+			minute["Gas reactions"] = rand(300, 900)
+		ledger.minutes += list(minute)
+		for(var/source in minute)
+			ledger.totals[source] += minute[source]
+	cs_check("dashboard: eight sources in the server's order", sources.len == 8)
+
+	var/obj/machinery/computer/rdservercontrol/control = new(get_step(H, EAST))
+	control.stat &= ~(NOPOWER|BROKEN)
+	usr = H
+	control.ui_interact(H)
+	sleep(30)
+	var/datum/tgui/ui = cs_find_ui(H, control)
+	if(ui)
+		winset(C, ui.window_id, "pos=40,10")
+		sleep(10)
+		// Hover the bar of the first bomb
+		C << output(url_encode("var r=document.querySelectorAll('.RDash__chart rect\[fill=transparent\]');var b=r\[11\];if(b){b.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));}"), "[ui.window_id].browser:eval")
+		sleep(10)
+	cs_shot("popup_dashboard_[label]")
+	SStgui.close_user_uis(H)
+	qdel(control)

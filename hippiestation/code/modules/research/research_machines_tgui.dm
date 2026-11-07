@@ -1,44 +1,6 @@
-// The R&D server controller and the experimentor in tgui windows (tgui-next ResearchMachines.js). The controller only listed the
-// servers' names; it now watches them: working or not, the room's temperature and what each adds to research. The experimentor's
-// tests go through its old Topic(), which the science bots use too, so its checks and reactions stay the same.
-
-/obj/machinery/computer/rdservercontrol/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, \
-										datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)
-	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
-	if(!ui)
-		ui = new(user, src, ui_key, "rd_server_control", name, 520, 440, master_ui, state)
-		ui.open()
-
-/obj/machinery/computer/rdservercontrol/ui_data(mob/user)
-	var/list/data = list()
-	var/list/listed = list()
-	for(var/obj/machinery/rnd/server/S in GLOB.machines)
-		var/status = "Working"
-		if(S.stat & BROKEN)
-			status = "Broken"
-		else if(S.stat & NOPOWER)
-			status = "No power"
-		else if(S.stat & EMPED)
-			status = "Recovering from an EMP"
-		var/temperature = S.get_env_temp()
-		listed += list(list(
-			"name" = S.name,
-			"id" = S.server_id,
-			"status" = status,
-			"working" = S.working,
-			"temperature" = round(temperature - T0C, 0.1),
-			"hot" = temperature > S.temp_tolerance_high,
-			"output" = S.working ? round(S.mine(), 0.01) : 0,
-			"best" = S.base_mining_income,
-		))
-	data["servers"] = listed
-	var/list/points = list()
-	var/datum/techweb/web = SSresearch.science_tech
-	for(var/type in web.research_points)
-		points += list(list("type" = type, "points" = round(web.research_points[type]), "rate" = round(web.last_bitcoins[type] || 0, 0.1)))
-	data["points"] = points
-	data["access"] = allowed(user) || !!(obj_flags & EMAGGED)
-	return data
+// The experimentor in a tgui window (tgui-next ResearchMachines.js). Its tests go through its old Topic(), which the science bots
+// use too, so its checks and reactions stay the same. The R&D server controller's window is the research dashboard now
+// (research_dashboard.dm).
 
 /obj/machinery/rnd/experimentor/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, \
 										datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)
