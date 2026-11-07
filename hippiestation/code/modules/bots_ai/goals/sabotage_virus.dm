@@ -255,6 +255,7 @@ GLOBAL_LIST_INIT(bot_lethal_symptoms, typecacheof(list(/datum/symptom/fire, /dat
 	fetched = TRUE
 	var/datum/bot_goal/acquire_item_type/fetch = new
 	fetch.item_type = /obj/item/reagent_containers/glass/beaker
+	fetch.lawful = TRUE //one it can walk to: the nearest as the crow flies was across Xenobiology's maintenance, and it gave up there
 	return bot.suspend_goal_for(fetch) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
 
 /// At the PanDEMIC: the culture into the beaker, then the plasma five units at a time, and a look at what it's become after each.
@@ -306,10 +307,18 @@ GLOBAL_LIST_INIT(bot_lethal_symptoms, typecacheof(list(/datum/symptom/fire, /dat
 		done = TRUE
 		bot_log(bot, "SABOTAGE: it kills now: [bot_virus_symptoms(D)]")
 		return FALSE
-	if(!plasma || plasma.reagents.get_reagent_amount(/datum/reagent/toxin/plasma) < 1 || B.reagents.total_volume >= B.volume)
+	if(!plasma || plasma.reagents.get_reagent_amount(/datum/reagent/toxin/plasma) < 1)
 		done = TRUE
 		bot_log(bot, "SABOTAGE: out of plasma, and it doesn't kill: [bot_virus_symptoms(D)]")
 		return FALSE
+	// Full up (an ordinary 50u beaker is, after the bottle: the plasma turns to blood): some of it down the sink, enough left to go round.
+	// Box and Meta saboteurs ground the lab's sheets for more and couldn't put a drop of it in.
+	if(B.reagents.total_volume > B.volume - 5)
+		B.reagents.remove_reagent(/datum/reagent/blood, min(15, max(0, B.reagents.get_reagent_amount(/datum/reagent/blood) - 15)))
+		bot_log(bot, "SABOTAGE: poured some off to make room")
+		if(B.reagents.total_volume > B.volume - 5)
+			done = TRUE
+			return FALSE
 	bot.human_pause(B)
 	bot.telemetry_ui_action(B, "drop 5u plasma into [B.name]")
 	plasma.reagents.trans_to(B, 5, transfered_by = bot.owner)
@@ -469,7 +478,7 @@ GLOBAL_LIST_EMPTY(bot_virus_cures_known)
 /datum/bot_duty/sample_the_sick
 	name = "taking a blood sample"
 	tier = BOT_DUTY_URGENT
-	jobs = list("Virologist")
+	jobs = list("Virologist", "Chief Medical Officer") //the CMO has Virology's access too: the Virologist was the saboteur
 	priority = 24
 	interval_min = 40
 	interval_max = 80

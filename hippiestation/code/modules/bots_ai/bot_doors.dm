@@ -231,9 +231,21 @@ GLOBAL_LIST_EMPTY(bot_door_buttons_out_of_reach)
 		if(!density && H.bot_brain.pathing_no_tailgating && !emergency && !unres_sides && requiresID() && !check_access(ID) && !H.bot_brain.pressed_button_for(src))
 			return FALSE
 		return
-	if(!id_tag || locked || welded || !to_dir || !hasPower())
+	if(!id_tag || welded || !to_dir || !hasPower())
 		return
+	// Bolted, and cycled by an airlock controller from an access button beside it that this ID works (Hippie Station's Virology):
+	// a way through (press_access_button()). Searches never went through it, so a Virologist couldn't get into its own lab, or
+	// out again, on any lawful errand.
+	if(locked)
+		return bot_access_button_for(src, ID) ? TRUE : .
 	return H.bot_brain.door_button_for(src, get_step(src, to_dir)) ? TRUE : FALSE
+
+/// The working access button beside a bolted airlock that this ID opens.
+/proc/bot_access_button_for(obj/machinery/door/airlock/D, obj/item/card/id/ID)
+	for(var/obj/machinery/doorButtons/access_button/B in range(1, D))
+		if(B.idDoor == D.id_tag && !(B.stat & (NOPOWER|BROKEN)) && B.check_access(ID))
+			return B
+	return null
 
 /// The card it'll swipe at a door, if it's out on business that calls for one.
 /datum/bot_brain/proc/emag_for_doors()
