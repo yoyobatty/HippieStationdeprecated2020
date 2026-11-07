@@ -1,10 +1,11 @@
 /turf/closed/wall/mineral/cult
+	base_icon_state = "cult_wall"
+	smoothing_groups = SMOOTH_GROUP_CLOSED_TURFS + SMOOTH_GROUP_ANY_WALL + SMOOTH_GROUP_CULT_WALLS
+	canSmoothWith = SMOOTH_GROUP_CULT_WALLS
 	name = "runed metal wall"
 	desc = "A cold metal wall engraved with indecipherable symbols. Studying them causes your head to pound."
 	icon = 'icons/turf/walls/cult_wall.dmi'
 	icon_state = "cult"
-	canSmoothWith = null
-	smooth = SMOOTH_MORE
 	sheet_type = /obj/item/stack/sheet/runed_metal
 	sheet_amount = 1
 	girder_type = /obj/structure/girder/cult
@@ -35,6 +36,8 @@
 		addtimer(CALLBACK(src, TYPE_PROC_REF(/atom, update_atom_colour)), 8)
 
 /turf/closed/wall/mineral/cult/artificer
+	smoothing_groups = SMOOTH_GROUP_CLOSED_TURFS + SMOOTH_GROUP_ANY_WALL + SMOOTH_GROUP_CULT_ARTIFICER_WALLS
+	canSmoothWith = SMOOTH_GROUP_CULT_ARTIFICER_WALLS
 	name = "runed stone wall"
 	desc = "A cold stone wall engraved with indecipherable symbols. Studying them causes your head to pound."
 
@@ -47,6 +50,7 @@
 
 //Clockwork wall: Causes nearby tinkerer's caches to generate components.
 /turf/closed/wall/clockwork
+	smoothing_groups = SMOOTH_GROUP_CLOSED_TURFS + SMOOTH_GROUP_ANY_WALL + SMOOTH_GROUP_CLOCKWORK_WALL
 	name = "clockwork wall"
 	desc = "A huge chunk of warm metal. The clanging of machinery emanates from within."
 	explosion_block = 2
@@ -149,14 +153,18 @@
 
 
 /turf/closed/wall/vault
+	smoothing_flags = NONE
+	smoothing_groups = SMOOTH_GROUP_CLOSED_TURFS + SMOOTH_GROUP_ANY_WALL
 	icon = 'icons/turf/walls.dmi'
 	icon_state = "rockvault"
 
 /turf/closed/wall/ice
+	base_icon_state = "icedmetal_wall"
+	smoothing_groups = SMOOTH_GROUP_CLOSED_TURFS + SMOOTH_GROUP_ANY_WALL + SMOOTH_GROUP_ICED_WALLS
+	canSmoothWith = SMOOTH_GROUP_ICED_WALLS
 	icon = 'icons/turf/walls/icedmetal_wall.dmi'
 	icon_state = "iced"
 	desc = "A wall covered in a thick sheet of ice."
-	canSmoothWith = null
 	hardness = 35
 	slicing_duration = 150 //welding through the ice+metal
 	bullet_sizzle = TRUE
@@ -174,6 +182,9 @@
 	hardness = 15
 
 /turf/closed/wall/mineral/bronze
+	base_icon_state = "clockwork_wall"
+	smoothing_groups = SMOOTH_GROUP_CLOSED_TURFS + SMOOTH_GROUP_ANY_WALL + SMOOTH_GROUP_BRONZE_WALLS
+	canSmoothWith = SMOOTH_GROUP_BRONZE_WALLS
 	name = "clockwork wall"
 	desc = "A huge chunk of bronze, decorated like gears and cogs."
 	icon = 'icons/turf/walls/clockwork_wall.dmi'

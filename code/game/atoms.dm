@@ -86,8 +86,7 @@
 		T.has_opaque_atom = TRUE // No need to recalculate it in this case, it's guaranteed to be on afterwards anyways.
 		T.lighting_engine_push() // hippie -- the lighting engine keeps it too (lighting_engine.dm)
 
-	if (canSmoothWith)
-		canSmoothWith = typelist("canSmoothWith", canSmoothWith)
+	SETUP_SMOOTHING()
 
 	ComponentInitialize()
 

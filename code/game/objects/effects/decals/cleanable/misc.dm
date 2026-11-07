@@ -49,22 +49,22 @@
 	name = "dirt"
 	desc = "Someone should clean that up."
 	icon_state = "dirt"
-	canSmoothWith = list(/obj/effect/decal/cleanable/dirt, /turf/closed/wall, /obj/structure/falsewall)
-	smooth = SMOOTH_FALSE
+	base_icon_state = "dirt"
+	smoothing_groups = SMOOTH_GROUP_CLEANABLE_DIRT
+	canSmoothWith = SMOOTH_GROUP_ANY_WALL + SMOOTH_GROUP_CLEANABLE_DIRT + SMOOTH_GROUP_FALSEWALLS
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 
 /obj/effect/decal/cleanable/dirt/Initialize()
 	. = ..()
 	var/turf/T = get_turf(src)
-	if(T.tiled_dirt)
-		smooth = SMOOTH_MORE
+	if(T.tiled_dirt) // smooth tiled dirt only on floors that want it; plain dirt elsewhere (still joined by tiled dirt)
+		smoothing_flags |= SMOOTH_BITMASK
 		icon = 'icons/effects/dirt.dmi'
-		icon_state = ""
-		queue_smooth(src)
-	queue_smooth_neighbors(src)
+		QUEUE_SMOOTH(src)
+	QUEUE_SMOOTH_NEIGHBORS(src)
 
 /obj/effect/decal/cleanable/dirt/Destroy()
-	queue_smooth_neighbors(src)
+	QUEUE_SMOOTH_NEIGHBORS(src)
 	return ..()
 
 /obj/effect/decal/cleanable/dirt/dust

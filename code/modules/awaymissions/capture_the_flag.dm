@@ -587,6 +587,7 @@
 	icon_state = "trap-frost"
 
 /obj/structure/barricade/security/ctf
+	smoothing_groups = null
 	name = "barrier"
 	desc = "A barrier. Provides cover in fire fights."
 	deploy_time = 0

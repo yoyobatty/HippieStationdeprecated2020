@@ -308,6 +308,7 @@
 	return ..()
 
 /obj/structure/mineral_door/paperframe
+	smoothing_groups = SMOOTH_GROUP_PAPERFRAME
 	name = "paper frame door"
 	icon_state = "paperframe"
 	openSound = 'sound/effects/doorcreaky.ogg'

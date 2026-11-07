@@ -1,10 +1,12 @@
 /turf/closed/wall/mineral/reagent
+	base_icon_state = "silver_wall"
+	smoothing_groups = SMOOTH_GROUP_CLOSED_TURFS + SMOOTH_GROUP_ANY_WALL + SMOOTH_GROUP_REAGENT_WALLS
+	canSmoothWith = SMOOTH_GROUP_REAGENT_WALLS
 	name = "reagent wall"
 	desc = "A wall with reagent plating."
 	icon = 'icons/turf/walls/silver_wall.dmi'
 	icon_state = "silver"
 	sheet_type = /obj/item/stack/sheet/mineral/reagent
-	canSmoothWith = list(/turf/closed/wall/mineral/reagent)
 	var/datum/reagent/reagent_type
 	var/obj/effect/particle_effect/fakeholder
 	sheet_amount = 4

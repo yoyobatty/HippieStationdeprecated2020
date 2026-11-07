@@ -41,7 +41,7 @@ def render_map(space=True):
     print("Rendering the station map with dmm-tools...")
     with tempfile.TemporaryDirectory() as tmp:
         cmd = [mapviewer.get_dmm_tools(), "-e", mapviewer.DME, "minimap", "-o", tmp,
-               "--enable", "icon-smoothing-2016", "--disable", "icon-smoothing,hide-space" if space else "icon-smoothing", STATION_MAP]
+               "--disable", "icon-smoothing-2016,hide-space" if space else "icon-smoothing-2016", STATION_MAP]
         subprocess.run(cmd, cwd=ROOT, check=True, capture_output=True)
         rendered = glob.glob(os.path.join(tmp, "*.png"))[0]
         image = Image.open(rendered).convert("RGB")

@@ -431,4 +431,6 @@
 		new /obj/effect/temp_visual/hierophant/wall/crusher(otherT, user)
 
 /obj/effect/temp_visual/hierophant/wall/crusher
+	smoothing_groups = SMOOTH_GROUP_HIERO_WALL_CRUSHER
+	canSmoothWith = SMOOTH_GROUP_HIERO_WALL_CRUSHER
 	duration = 75

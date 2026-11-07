@@ -57,8 +57,8 @@
 	var/firedoors_last_closed_on = 0
 	/// Can the Xenobio management console transverse this area by default?
 	var/xenobiology_compatible = FALSE
-	/// typecache to limit the areas that atoms in this area can smooth with, used for shuttles IIRC
-	var/list/canSmoothWithAreas
+	/// Atoms in this area only smooth with atoms in areas of this type (and the other way round), used for shuttles
+	var/area_limited_icon_smoothing
 
 	var/list/power_usage
 
@@ -101,7 +101,6 @@ GLOBAL_LIST_EMPTY(teleportlocs)
 	layer = AREA_LAYER
 	uid = ++global_uid
 	map_name = name // Save the initial (the name set in the map) name of the area.
-	canSmoothWithAreas = typecacheof(canSmoothWithAreas)
 
 	if(requires_power)
 		luminosity = 0

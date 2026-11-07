@@ -50,6 +50,10 @@
  * Resin
  */
 /obj/structure/alien/resin
+	smoothing_flags = SMOOTH_BITMASK
+	base_icon_state = "resin_wall"
+	smoothing_groups = SMOOTH_GROUP_ALIEN_RESIN
+	canSmoothWith = SMOOTH_GROUP_ALIEN_RESIN
 	name = "resin"
 	desc = "Looks like some kind of thick resin."
 	icon = 'icons/obj/smooth_structures/alien/resin_wall.dmi'
@@ -57,9 +61,7 @@
 	density = TRUE
 	opacity = 1
 	anchored = TRUE
-	canSmoothWith = list(/obj/structure/alien/resin)
 	max_integrity = 200
-	smooth = SMOOTH_TRUE
 	var/resintype = null
 	CanAtmosPass = ATMOS_PASS_DENSITY
 
@@ -78,17 +80,21 @@
 	move_update_air(T)
 
 /obj/structure/alien/resin/wall
+	smoothing_groups = SMOOTH_GROUP_ALIEN_WALLS
+	canSmoothWith = SMOOTH_GROUP_ALIEN_WALLS
 	name = "resin wall"
 	desc = "Thick resin solidified into a wall."
 	icon = 'icons/obj/smooth_structures/alien/resin_wall.dmi'
 	icon_state = "smooth"	//same as resin, but consistency ho!
 	resintype = "wall"
-	canSmoothWith = list(/obj/structure/alien/resin/wall, /obj/structure/alien/resin/membrane)
 
 /obj/structure/alien/resin/wall/BlockSuperconductivity()
 	return 1
 
 /obj/structure/alien/resin/membrane
+	base_icon_state = "resin_membrane"
+	smoothing_groups = SMOOTH_GROUP_ALIEN_WALLS
+	canSmoothWith = SMOOTH_GROUP_ALIEN_WALLS
 	name = "resin membrane"
 	desc = "Resin just thin enough to let light pass through."
 	icon = 'icons/obj/smooth_structures/alien/resin_membrane.dmi'
@@ -96,7 +102,6 @@
 	opacity = 0
 	max_integrity = 160
 	resintype = "membrane"
-	canSmoothWith = list(/obj/structure/alien/resin/wall, /obj/structure/alien/resin/membrane)
 
 /obj/structure/alien/resin/attack_paw(mob/user)
 	return attack_hand(user)
@@ -113,6 +118,10 @@
 #define NODERANGE 3
 
 /obj/structure/alien/weeds
+	smoothing_flags = SMOOTH_BITMASK
+	base_icon_state = "weeds"
+	smoothing_groups = SMOOTH_GROUP_ALIEN_WEEDS
+	canSmoothWith = SMOOTH_GROUP_ANY_WALL + SMOOTH_GROUP_ALIEN_WEEDS
 	gender = PLURAL
 	name = "resin floor"
 	desc = "A thick resin surface covers the floor."
@@ -122,8 +131,6 @@
 	plane = FLOOR_PLANE
 	icon_state = "weeds"
 	max_integrity = 15
-	canSmoothWith = list(/obj/structure/alien/weeds, /turf/closed/wall)
-	smooth = SMOOTH_MORE
 	var/last_expand = 0 //last world.time this weed expanded
 	var/growth_cooldown_low = 150
 	var/growth_cooldown_high = 200
@@ -179,6 +186,7 @@
 
 //Weed nodes
 /obj/structure/alien/weeds/node
+	base_icon_state = "weednode"
 	name = "glowing resin"
 	desc = "Blue bioluminescence shines from beneath the surface."
 	icon_state = "weednode"

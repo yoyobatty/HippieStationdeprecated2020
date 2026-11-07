@@ -1,4 +1,5 @@
 /turf/closed/wall/r_wall
+	base_icon_state = "reinforced_wall"
 	name = "reinforced wall"
 	desc = "A huge chunk of reinforced metal used to separate rooms."
 	icon = 'icons/turf/walls/reinforced_wall.dmi'
@@ -204,14 +205,13 @@
 
 /turf/closed/wall/r_wall/proc/update_icon()
 	if(d_state != INTACT)
-		smooth = SMOOTH_FALSE
-		clear_smooth_overlays()
+		smoothing_flags = NONE
 		icon_state = "r_wall-[d_state]"
 	else
-		smooth = SMOOTH_TRUE
-		queue_smooth_neighbors(src)
-		queue_smooth(src)
-		icon_state = "r_wall"
+		smoothing_flags = initial(smoothing_flags) | (smoothing_flags & SMOOTH_OBJ)
+		icon_state = "[base_icon_state]-[smoothing_junction || 0]"
+		QUEUE_SMOOTH_NEIGHBORS(src)
+		QUEUE_SMOOTH(src)
 
 /turf/closed/wall/r_wall/singularity_pull(S, current_size)
 	..()
@@ -229,26 +229,28 @@
 		return ..()
 
 /turf/closed/wall/r_wall/syndicate
+	smoothing_flags = SMOOTH_BITMASK|SMOOTH_DIAGONAL_CORNERS
+	base_icon_state = "plastitanium_wall"
+	smoothing_groups = SMOOTH_GROUP_CLOSED_TURFS + SMOOTH_GROUP_ANY_WALL + SMOOTH_GROUP_SYNDICATE_WALLS
+	canSmoothWith = SMOOTH_GROUP_PLASTITANIUM_WALLS + SMOOTH_GROUP_SYNDICATE_WALLS + SMOOTH_GROUP_AIRLOCK + SMOOTH_GROUP_SHUTTLE_AIRLOCK + SMOOTH_GROUP_PLASTITANIUM_SHUTTLE_PARTS + SMOOTH_GROUP_SHUTTLE_ENGINE
 	name = "hull"
 	desc = "The armored hull of an ominous looking ship."
 	icon = 'icons/turf/walls/plastitanium_wall.dmi'
 	icon_state = "map-shuttle"
 	explosion_block = 20
 	sheet_type = /obj/item/stack/sheet/mineral/plastitanium
-	smooth = SMOOTH_MORE|SMOOTH_DIAGONAL
-	canSmoothWith = list(/turf/closed/wall/r_wall/syndicate, /turf/closed/wall/mineral/plastitanium, /obj/machinery/door/airlock/shuttle, /obj/machinery/door/airlock, /obj/structure/window/plastitanium, /obj/structure/shuttle/engine, /obj/structure/falsewall/plastitanium)
 
 /turf/closed/wall/r_wall/syndicate/rcd_vals(mob/user, obj/item/construction/rcd/the_rcd)
 	return FALSE
 
 /turf/closed/wall/r_wall/syndicate/nodiagonal
-	smooth = SMOOTH_MORE
+	smoothing_flags = SMOOTH_BITMASK
 	icon_state = "map-shuttle_nd"
 
 /turf/closed/wall/r_wall/syndicate/nosmooth
+	smoothing_flags = NONE
 	icon = 'icons/turf/shuttle.dmi'
 	icon_state = "wall"
-	smooth = SMOOTH_FALSE
 
 /turf/closed/wall/r_wall/syndicate/overspace
 	icon_state = "map-overspace"

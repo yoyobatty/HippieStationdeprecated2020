@@ -97,11 +97,12 @@
 
 //Window
 /obj/structure/window/shuttle/survival_pod
+	base_icon_state = "pod_window"
+	smoothing_groups = SMOOTH_GROUP_SURVIVAL_TITANIUM_POD + SMOOTH_GROUP_SHUTTLE_WINDOWS
+	canSmoothWith = SMOOTH_GROUP_SURVIVAL_TITANIUM_WALLS + SMOOTH_GROUP_SURVIVAL_TITANIUM_POD
 	name = "pod window"
 	icon = 'icons/obj/smooth_structures/pod_window.dmi'
 	icon_state = "smooth"
-	smooth = SMOOTH_MORE
-	canSmoothWith = list(/turf/closed/wall/mineral/titanium/survival, /obj/machinery/door/airlock/survival_pod, /obj/structure/window/shuttle/survival_pod)
 
 /obj/structure/window/shuttle/survival_pod/spawner/north
 	dir = NORTH
@@ -119,6 +120,7 @@
 
 //Door
 /obj/machinery/door/airlock/survival_pod
+	smoothing_groups = SMOOTH_GROUP_AIRLOCK + SMOOTH_GROUP_SURVIVAL_TITANIUM_POD
 	name = "airlock"
 	icon = 'icons/obj/doors/airlocks/survival/survival.dmi'
 	overlays_file = 'icons/obj/doors/airlocks/survival/survival_overlays.dmi'
@@ -144,9 +146,10 @@
 
 //Table
 /obj/structure/table/survival_pod
+	smoothing_flags = NONE
+	smoothing_groups = null
 	icon = 'icons/obj/lavaland/survival_pod.dmi'
 	icon_state = "table"
-	smooth = SMOOTH_FALSE
 
 //Sleeper
 /obj/machinery/sleeper/survival_pod

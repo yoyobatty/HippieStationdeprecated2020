@@ -161,14 +161,16 @@
 
 
 /turf/open/floor/carpet
+	smoothing_flags = SMOOTH_BITMASK
+	base_icon_state = "carpet"
+	smoothing_groups = SMOOTH_GROUP_CARPET + SMOOTH_GROUP_LATTICE
+	canSmoothWith = SMOOTH_GROUP_CARPET
 	name = "carpet"
 	desc = "Soft velvet carpeting. Feels good between your toes."
 	icon = 'icons/turf/floors/carpet.dmi'
 	icon_state = "carpet"
 	floor_tile = /obj/item/stack/tile/carpet
 	broken_states = list("damaged")
-	smooth = SMOOTH_TRUE
-	canSmoothWith = list(/turf/open/floor/carpet)
 	flags_1 = NONE
 	bullet_bounce_sound = null
 	footstep = FOOTSTEP_CARPET
@@ -189,17 +191,17 @@
 	if(!..())
 		return 0
 	if(!broken && !burnt)
-		if(smooth)
-			queue_smooth(src)
+		QUEUE_SMOOTH(src)
 	else
 		make_plating()
-		if(smooth)
-			queue_smooth_neighbors(src)
+		QUEUE_SMOOTH_NEIGHBORS(src)
 
 /turf/open/floor/carpet/black
+	base_icon_state = "carpet_black"
+	smoothing_groups = SMOOTH_GROUP_CARPET_BLACK + SMOOTH_GROUP_LATTICE
+	canSmoothWith = SMOOTH_GROUP_CARPET_BLACK
 	icon = 'icons/turf/floors/carpet_black.dmi'
 	floor_tile = /obj/item/stack/tile/carpet/black
-	canSmoothWith = list(/turf/open/floor/carpet/black)
 
 
 /turf/open/floor/carpet/narsie_act(force, ignore_mobs, probability = 20)
@@ -224,9 +226,11 @@
 
 
 /turf/open/floor/fakepit
+	smoothing_flags = SMOOTH_BITMASK|SMOOTH_BORDER
+	base_icon_state = "chasms"
+	smoothing_groups = SMOOTH_GROUP_FAKEPIT + SMOOTH_GROUP_LATTICE
+	canSmoothWith = SMOOTH_GROUP_FAKEPIT
 	desc = "A clever illusion designed to look like a bottomless pit."
-	smooth = SMOOTH_TRUE | SMOOTH_BORDER | SMOOTH_MORE
-	canSmoothWith = list(/turf/open/floor/fakepit)
 	icon = 'icons/turf/floors/Chasms.dmi'
 	icon_state = "smooth"
 	tiled_dirt = FALSE

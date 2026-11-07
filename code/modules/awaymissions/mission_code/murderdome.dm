@@ -16,6 +16,7 @@
 	spawn_list = list(/obj/structure/grille/indestructable, /obj/structure/window/reinforced/fulltile/indestructable)
 
 /obj/structure/barricade/security/murderdome
+	smoothing_groups = null
 	name = "respawnable barrier"
 	desc = "A barrier. Provides cover in firefights."
 	deploy_time = 0

@@ -14,8 +14,8 @@
 	unique = FALSE
 
 /area/shuttle/Initialize()
-	if(!canSmoothWithAreas)
-		canSmoothWithAreas = type
+	if(!area_limited_icon_smoothing)
+		area_limited_icon_smoothing = type
 	. = ..()
 
 /area/shuttle/PlaceOnTopReact(list/new_baseturfs, turf/fake_turf_type, flags)
@@ -33,7 +33,7 @@
 	name = "Syndicate Infiltrator"
 	blob_allowed = FALSE
 	ambientsounds = HIGHSEC
-	canSmoothWithAreas = /area/shuttle/syndicate
+	area_limited_icon_smoothing = /area/shuttle/syndicate
 
 /area/shuttle/syndicate/bridge
 	name = "Syndicate Infiltrator Control"
@@ -58,7 +58,7 @@
 	name = "Pirate Shuttle"
 	blob_allowed = FALSE
 	requires_power = TRUE
-	canSmoothWithAreas = /area/shuttle/pirate
+	area_limited_icon_smoothing = /area/shuttle/pirate
 
 ////////////////////////////Bounty Hunter Shuttles////////////////////////////
 
@@ -66,7 +66,7 @@
 	name = "Hunter Shuttle"
 	dynamic_lighting = DYNAMIC_LIGHTING_DISABLED
 	blob_allowed = FALSE
-	canSmoothWithAreas = /area/shuttle/hunter
+	area_limited_icon_smoothing = /area/shuttle/hunter
 
 ////////////////////////////White Ship////////////////////////////
 
@@ -74,7 +74,7 @@
 	name = "Abandoned Ship"
 	blob_allowed = FALSE
 	requires_power = TRUE
-	canSmoothWithAreas = /area/shuttle/abandoned
+	area_limited_icon_smoothing = /area/shuttle/abandoned
 
 /area/shuttle/abandoned/bridge
 	name = "Abandoned Ship Bridge"

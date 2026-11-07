@@ -1,14 +1,16 @@
 //Alium nests. Essentially beds with an unbuckle delay that only aliums can buckle mobs to.
 
 /obj/structure/bed/nest
+	smoothing_flags = SMOOTH_BITMASK
+	base_icon_state = "nest"
+	smoothing_groups = SMOOTH_GROUP_ALIEN_NEST
+	canSmoothWith = SMOOTH_GROUP_ALIEN_NEST
 	name = "alien nest"
 	desc = "It's a gruesome pile of thick, sticky resin shaped like a nest."
 	icon = 'icons/obj/smooth_structures/alien/nest.dmi'
 	icon_state = "nest"
 	max_integrity = 120
-	smooth = SMOOTH_TRUE
 	can_be_unanchored = FALSE
-	canSmoothWith = null
 	buildstacktype = null
 	flags_1 = NODECONSTRUCT_1
 	bolts = FALSE

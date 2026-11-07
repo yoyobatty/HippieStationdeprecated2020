@@ -13,8 +13,10 @@
 	return ..()
 
 /turf/open/floor/plasteel/christmas
-	smooth = SMOOTH_MORE | SMOOTH_BORDER
-	canSmoothWith = list(/turf/open/floor/plasteel/christmas)
+	smoothing_flags = SMOOTH_BITMASK|SMOOTH_BORDER
+	base_icon_state = "snow_turf"
+	smoothing_groups = SMOOTH_GROUP_CHRISTMAS_FLOOR + SMOOTH_GROUP_LATTICE
+	canSmoothWith = SMOOTH_GROUP_CHRISTMAS_FLOOR
 	floor_tile = /obj/item/stack/tile/plasteel/christmas
 	icon = 'icons/turf/floors/snow_turf.dmi'
 	icon_state = "smooth"

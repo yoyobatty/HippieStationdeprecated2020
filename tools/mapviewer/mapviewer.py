@@ -32,11 +32,11 @@ DMM_TOOLS_VERSION = "suite-1.12"
 DMM_TOOLS_SHA256 = {
     "win32": ("dmm-tools.exe", "e3967f7d954567497b297e4671d36baef50755126fea5db8608ba6d94042fb82"),
 }
-# Render passes (dmm-tools list-passes). This codebase predates tg's 2020 smoothing rewrite (walls use smooth =
-# SMOOTH_TRUE), and for mapping we want to see what's actually in the file: space, landmarks and mapping helpers,
-# and spawners as themselves rather than a random roll.
-ENABLE = ["icon-smoothing-2016"]
-DISABLE = ["icon-smoothing", "hide-space", "hide-invisible", "random", "spawners"]
+# Render passes (dmm-tools list-passes). Smoothing is tg's 2020 bitmask kind since 2026-11-07 (smoothing_flags,
+# smoothing_groups, base_icon_state), so the default "icon-smoothing" pass. For mapping we want to see what's actually in
+# the file: space, landmarks and mapping helpers, and spawners as themselves rather than a random roll.
+ENABLE = []
+DISABLE = ["icon-smoothing-2016", "hide-space", "hide-invisible", "random", "spawners"]
 RELEASE_URL = "https://github.com/SpaceManiac/SpacemanDMM/releases/download/%s/%s"
 
 
@@ -164,7 +164,7 @@ def render_all(dmm_tools, jobs, out_dir, region):
             with open(source, "w", encoding="utf-8", newline="") as f:
                 f.write(text)
             sources.append(source)
-        cmd = [dmm_tools, "-e", DME, "minimap", "-o", tmpdir, "--enable", ",".join(ENABLE), "--disable", ",".join(DISABLE)]
+        cmd = [dmm_tools, "-e", DME, "minimap", "-o", tmpdir] + (["--enable", ",".join(ENABLE)] if ENABLE else []) + ["--disable", ",".join(DISABLE)]
         if region:
             cmd += ["--min", region[0], "--max", region[1]]
         result = subprocess.run(cmd + sources, cwd=ROOT, capture_output=True, text=True)

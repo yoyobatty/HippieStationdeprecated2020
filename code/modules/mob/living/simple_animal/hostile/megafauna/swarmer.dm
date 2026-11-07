@@ -280,6 +280,9 @@ GLOBAL_LIST_INIT(AISwarmerCapsByType, list(/mob/living/simple_animal/hostile/swa
 //SWARMER CATWALKS
 //Used so they can survive lavaland better
 /obj/structure/lattice/catwalk/swarmer_catwalk
+	base_icon_state = "swarmer_catwalk"
+	smoothing_groups = SMOOTH_GROUP_LATTICE + SMOOTH_GROUP_SWARMER_CATWALK
+	canSmoothWith = SMOOTH_GROUP_SWARMER_CATWALK
 	name = "swarmer catwalk"
 	desc = "A catwalk-like mesh, produced by swarmers to allow them to navigate hostile terrain."
 	icon = 'icons/obj/smooth_structures/swarmer_catwalk.dmi'

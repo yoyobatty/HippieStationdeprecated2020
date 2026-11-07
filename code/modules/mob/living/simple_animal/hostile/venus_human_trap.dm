@@ -1,14 +1,14 @@
 
 
 /obj/structure/alien/resin/flower_bud_enemy //inheriting basic attack/damage stuff from alien structures
+	smoothing_flags = NONE
+	smoothing_groups = null
 	name = "flower bud"
 	desc = "A large pulsating plant..."
 	icon = 'icons/effects/spacevines.dmi'
 	icon_state = "flower_bud"
 	layer = SPACEVINE_MOB_LAYER
 	opacity = 0
-	canSmoothWith = list()
-	smooth = SMOOTH_FALSE
 	var/growth_time = 1200
 
 

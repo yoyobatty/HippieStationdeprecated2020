@@ -11,6 +11,7 @@
 	armor = list("melee" = 100, "bullet" = 10, "laser" = 10, "energy" = 0, "bomb" = 0, "bio" = 0, "rad" = 0, "fire" = 50, "acid" = 70) //default + ignores melee
 
 /obj/structure/shuttle/engine
+	smoothing_groups = SMOOTH_GROUP_SHUTTLE_ENGINE
 	name = "engine"
 	desc = "A bluespace engine used to make shuttles move."
 	density = TRUE
@@ -88,6 +89,7 @@
 			M.alter_engines(mod)
 
 /obj/structure/shuttle/engine/heater
+	smoothing_groups = SMOOTH_GROUP_SHUTTLE_ENGINE + SMOOTH_GROUP_SHUTTLE_HEATER
 	name = "engine heater"
 	icon_state = "heater"
 	desc = "Directs energy into compressed particles in order to power engines."

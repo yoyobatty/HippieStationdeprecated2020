@@ -71,10 +71,16 @@
 		T.add_blueprints_preround(src)
 	if(GLOB.bot_objs_indexed) // hippie -- keep bot AI target lists current, see bot_registry.dm
 		bot_registry_add(src)
+	// hippie -- something others smooth into but that doesn't smooth itself (an airlock, a shuttle engine, a barricade)
+	// tells its neighbours it's there; smoothing things already do this themselves
+	if(smoothing_groups && !(smoothing_flags & USES_SMOOTHING) && isturf(loc))
+		QUEUE_SMOOTH_NEIGHBORS(src)
 
 /obj/Destroy(force=FALSE)
 	if(GLOB.bot_objs_indexed) // hippie -- see bot_registry.dm
 		bot_registry_remove(src)
+	if(smoothing_groups && !(smoothing_flags & USES_SMOOTHING) && isturf(loc)) // hippie -- and that it's gone: a wall kept joining a blown-up airlock
+		QUEUE_SMOOTH_NEIGHBORS(src)
 	if(!ismachinery(src))
 		STOP_PROCESSING(SSobj, src) // TODO: Have a processing bitflag to reduce on unnecessary loops through the processing lists
 	SStgui.close_uis(src)
@@ -83,6 +89,8 @@
 /obj/proc/setAnchored(anchorvalue)
 	SEND_SIGNAL(src, COMSIG_OBJ_SETANCHORED, anchorvalue)
 	anchored = anchorvalue
+	if(smoothing_groups && isturf(loc)) // hippie -- neighbours only join anchored things
+		QUEUE_SMOOTH_NEIGHBORS(src)
 
 /obj/throw_at(atom/target, range, speed, mob/thrower, spin=1, diagonals_first = 0, datum/callback/callback, force, gentle = FALSE, quickstart = TRUE)
 	..()

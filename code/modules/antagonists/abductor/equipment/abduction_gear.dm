@@ -736,6 +736,9 @@ Congratulations! You are now trained for invasive xenobiology research!"}
 			qdel(src)
 
 /obj/structure/table/abductor
+	base_icon_state = "alien_table"
+	smoothing_groups = SMOOTH_GROUP_ABDUCTOR_TABLES
+	canSmoothWith = SMOOTH_GROUP_ABDUCTOR_TABLES
 	name = "alien table"
 	desc = "Advanced flat surface technology at work!"
 	icon = 'icons/obj/smooth_structures/alien_table.dmi'
@@ -744,7 +747,6 @@ Congratulations! You are now trained for invasive xenobiology research!"}
 	framestack = /obj/item/stack/sheet/mineral/abductor
 	buildstackamount = 1
 	framestackamount = 1
-	canSmoothWith = null
 	frame = /obj/structure/table_frame/abductor
 
 /obj/structure/table/optable/abductor

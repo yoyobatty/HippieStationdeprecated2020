@@ -99,13 +99,15 @@
 	icon_state = "speedspace_ns_[(x + 5*y + (y%2+1)*7)%15+1]"
 
 /turf/open/floor/holofloor/carpet
+	smoothing_flags = SMOOTH_BITMASK
+	base_icon_state = "carpet"
+	smoothing_groups = SMOOTH_GROUP_HOLOCARPET + SMOOTH_GROUP_LATTICE
+	canSmoothWith = SMOOTH_GROUP_HOLOCARPET
 	name = "carpet"
 	desc = "Electrically inviting."
 	icon = 'icons/turf/floors/carpet.dmi'
 	icon_state = "carpet"
 	floor_tile = /obj/item/stack/tile/carpet
-	smooth = SMOOTH_TRUE
-	canSmoothWith = null
 	bullet_bounce_sound = null
 	tiled_dirt = FALSE
 

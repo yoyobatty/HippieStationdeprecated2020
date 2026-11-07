@@ -1,0 +1,97 @@
+# Sheets baked by tools/smooth_bake/bake.py: <dmi> <prefix> [base=<state>] [diagonal]
+# <prefix> is the smoothing atom's base_icon_state: it shows "<prefix>-<junction>". Sheets that are versions of one
+# thing share a prefix (the three weed sheets, Hippie's own walls), so code that swaps the icon keeps base_icon_state.
+# base= draws that state under the corners, for an atom whose own icon_state showed through them (effects keep theirs).
+
+# walls
+hippiestation/icons/turf/walls/wall.dmi wall
+hippiestation/icons/turf/walls/reinforced_wall.dmi reinforced_wall
+icons/turf/walls/wall.dmi wall
+icons/turf/walls/reinforced_wall.dmi reinforced_wall
+icons/turf/walls/rusty_wall.dmi rusty_wall
+icons/turf/walls/rusty_reinforced_wall.dmi rusty_reinforced_wall
+icons/turf/walls/abductor_wall.dmi abductor_wall diagonal
+icons/turf/walls/bananium_wall.dmi bananium_wall
+icons/turf/walls/boss_wall.dmi boss_wall
+icons/turf/walls/clockwork_wall.dmi clockwork_wall
+icons/turf/walls/cult_wall.dmi cult_wall
+icons/turf/walls/diamond_wall.dmi diamond_wall
+icons/turf/walls/gold_wall.dmi gold_wall
+icons/turf/walls/hierophant_wall.dmi hierophant_wall
+icons/turf/walls/hierophant_wall_temp.dmi hierophant_wall_temp base=wall
+icons/turf/walls/icedmetal_wall.dmi icedmetal_wall
+icons/turf/walls/iron_wall.dmi iron_wall
+icons/turf/walls/plasma_wall.dmi plasma_wall
+icons/turf/walls/plastitanium_wall.dmi plastitanium_wall diagonal
+icons/turf/walls/riveted.dmi riveted
+icons/turf/walls/sandstone_wall.dmi sandstone_wall
+icons/turf/walls/shuttle_wall.dmi shuttle_wall diagonal
+icons/turf/walls/silver_wall.dmi silver_wall
+icons/turf/walls/snow_wall.dmi snow_wall
+icons/turf/walls/survival_pod_walls.dmi survival_pod_walls diagonal
+icons/turf/walls/uranium_wall.dmi uranium_wall
+icons/turf/walls/wood_wall.dmi wood_wall
+icons/turf/smooth_wall.dmi smooth_wall diagonal
+
+# rock
+icons/turf/smoothrocks.dmi smoothrocks
+icons/turf/walls/rock_wall.dmi rock_wall
+icons/turf/walls/mountain_wall.dmi mountain_wall
+icons/turf/walls/icerock_wall.dmi icerock_wall
+
+# floors
+icons/turf/floors/ash.dmi ash
+icons/turf/floors/rocky_ash.dmi rocky_ash
+icons/turf/floors/carpet.dmi carpet
+icons/turf/floors/carpet_black.dmi carpet_black
+icons/turf/floors/chasms.dmi chasms
+icons/turf/floors/junglechasm.dmi junglechasm
+icons/turf/floors/magic_chasm.dmi magic_chasm
+icons/turf/floors/hierophant_floor.dmi hierophant_floor
+icons/turf/floors/ice_turf.dmi ice_turf
+icons/turf/floors/lava.dmi lava
+icons/turf/floors/snow_turf.dmi snow_turf
+
+# windows
+icons/obj/smooth_structures/window.dmi window
+icons/obj/smooth_structures/reinforced_window.dmi reinforced_window
+icons/obj/smooth_structures/tinted_window.dmi tinted_window
+icons/obj/smooth_structures/plasma_window.dmi plasma_window
+icons/obj/smooth_structures/rplasma_window.dmi rplasma_window
+icons/obj/smooth_structures/rice_window.dmi rice_window
+icons/obj/smooth_structures/shuttle_window.dmi shuttle_window
+icons/obj/smooth_structures/plastitanium_window.dmi plastitanium_window
+icons/obj/smooth_structures/pod_window.dmi pod_window
+icons/obj/smooth_structures/clockwork_window.dmi clockwork_window
+icons/obj/smooth_structures/paperframes.dmi paperframes
+
+# tables
+icons/obj/smooth_structures/table.dmi table
+icons/obj/smooth_structures/reinforced_table.dmi reinforced_table
+icons/obj/smooth_structures/glass_table.dmi glass_table
+icons/obj/smooth_structures/wood_table.dmi wood_table
+icons/obj/smooth_structures/poker_table.dmi poker_table
+icons/obj/smooth_structures/fancy_table.dmi fancy_table
+icons/obj/smooth_structures/fancy_table_black.dmi fancy_table_black
+icons/obj/smooth_structures/brass_table.dmi brass_table
+icons/obj/smooth_structures/alien_table.dmi alien_table
+
+# lattices, catwalks
+icons/obj/smooth_structures/lattice.dmi lattice
+icons/obj/smooth_structures/lattice_clockwork.dmi lattice
+icons/obj/smooth_structures/lattice_clockwork_large.dmi lattice
+icons/obj/smooth_structures/catwalk.dmi catwalk
+icons/obj/smooth_structures/catwalk_clockwork.dmi catwalk
+icons/obj/smooth_structures/catwalk_clockwork_large.dmi catwalk
+
+# other
+icons/obj/smooth_structures/sandbags.dmi sandbags
+icons/obj/smooth_structures/alien/nest.dmi nest
+icons/obj/smooth_structures/alien/resin_wall.dmi resin_wall
+icons/obj/smooth_structures/alien/resin_membrane.dmi resin_membrane
+icons/obj/smooth_structures/alien/weeds1.dmi weeds
+icons/obj/smooth_structures/alien/weeds2.dmi weeds
+icons/obj/smooth_structures/alien/weeds3.dmi weeds
+icons/obj/smooth_structures/alien/weednode.dmi weednode
+icons/effects/dirt.dmi dirt
+icons/obj/smooth_structures/swarmer_catwalk.dmi swarmer_catwalk

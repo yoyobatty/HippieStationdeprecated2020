@@ -26,11 +26,13 @@
 	. = ..()
 
 /obj/effect/clockwork/overlay/wall
+	smoothing_flags = SMOOTH_BITMASK
+	base_icon_state = "clockwork_wall"
+	smoothing_groups = SMOOTH_GROUP_CLOCKWORK_OVERLAY_WALL
+	canSmoothWith = SMOOTH_GROUP_CLOCKWORK_OVERLAY_WALL + SMOOTH_GROUP_BRASS_FALSEWALL
 	name = "clockwork wall"
 	icon = 'icons/turf/walls/clockwork_wall.dmi'
 	icon_state = "clockwork_wall"
-	canSmoothWith = list(/obj/effect/clockwork/overlay/wall, /obj/structure/falsewall/brass)
-	smooth = SMOOTH_TRUE
 	layer = CLOSED_TURF_LAYER
 
 /obj/effect/clockwork/overlay/wall/Initialize()

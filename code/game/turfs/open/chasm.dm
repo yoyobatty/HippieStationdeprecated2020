@@ -1,12 +1,14 @@
 // Base chasm, defaults to oblivion but can be overridden
 /turf/open/chasm
+	smoothing_flags = SMOOTH_BITMASK|SMOOTH_BORDER
+	base_icon_state = "chasms"
+	smoothing_groups = SMOOTH_GROUP_TURF_CHASM
+	canSmoothWith = SMOOTH_GROUP_TURF_CHASM + SMOOTH_GROUP_FAKEPIT
 	name = "chasm"
 	desc = "Watch your step."
 	baseturfs = /turf/open/chasm
-	smooth = SMOOTH_TRUE | SMOOTH_BORDER | SMOOTH_MORE
 	icon = 'icons/turf/floors/chasms.dmi'
 	icon_state = "smooth"
-	canSmoothWith = list(/turf/open/floor/fakepit, /turf/open/chasm)
 	density = TRUE //This will prevent hostile mobs from pathing into chasms, while the canpass override will still let it function like an open turf
 	bullet_bounce_sound = null //abandon all hope ye who enter
 
@@ -91,6 +93,7 @@
 
 // Chasms for the jungle, with planetary atmos and a different icon
 /turf/open/chasm/jungle
+	base_icon_state = "junglechasm"
 	icon = 'icons/turf/floors/junglechasm.dmi'
 	initial_gas_mix = LAVALAND_DEFAULT_ATMOS
 	planetary_atmos = TRUE
@@ -104,6 +107,7 @@
 //For Bag of Holding Bombs
 
 /turf/open/chasm/magic
+	base_icon_state = "magic_chasm"
 	name = "tear in the fabric of reality"
 	desc = "Where does it lead?"
 	icon = 'icons/turf/floors/magic_chasm.dmi'

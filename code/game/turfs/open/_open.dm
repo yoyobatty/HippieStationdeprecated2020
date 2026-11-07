@@ -98,14 +98,19 @@
 	initial_gas_mix = OPENTURF_DEFAULT_ATMOS
 
 /turf/open/indestructible/hierophant
+	smoothing_flags = SMOOTH_BITMASK
+	base_icon_state = "hierophant_floor"
+	smoothing_groups = SMOOTH_GROUP_HIEROPHANT_FLOOR
+	canSmoothWith = SMOOTH_GROUP_HIEROPHANT_FLOOR
 	icon = 'icons/turf/floors/hierophant_floor.dmi'
 	planetary_atmos = TRUE
 	initial_gas_mix = LAVALAND_DEFAULT_ATMOS
 	baseturfs = /turf/open/indestructible/hierophant
-	smooth = SMOOTH_TRUE
 	tiled_dirt = FALSE
 
 /turf/open/indestructible/hierophant/two
+	smoothing_groups = SMOOTH_GROUP_HIEROPHANT_FLOOR_TWO
+	canSmoothWith = SMOOTH_GROUP_HIEROPHANT_FLOOR_TWO
 
 /turf/open/indestructible/hierophant/get_smooth_underlay_icon(mutable_appearance/underlay_appearance, turf/asking_turf, adjacency_dir)
 	return FALSE
@@ -136,6 +141,7 @@
 	baseturfs = /turf/open/indestructible/airblock
 
 /turf/open/indestructible/clock_spawn_room
+	smoothing_groups = SMOOTH_GROUP_CLOCK_SPAWN_ROOM
 	name = "cogmetal floor"
 	desc = "Brass plating that gently radiates heat. For some reason, it reminds you of blood."
 	icon_state = "reebe"

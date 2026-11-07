@@ -1,4 +1,8 @@
 /obj/structure/lattice
+	smoothing_flags = SMOOTH_BITMASK
+	base_icon_state = "lattice"
+	smoothing_groups = SMOOTH_GROUP_LATTICE
+	canSmoothWith = SMOOTH_GROUP_ANY_WALL + SMOOTH_GROUP_FALSEWALLS + SMOOTH_GROUP_LATTICE
 	name = "lattice"
 	desc = "A lightweight support lattice. These hold our station together."
 	icon = 'icons/obj/smooth_structures/lattice.dmi'
@@ -10,11 +14,6 @@
 	layer = LATTICE_LAYER //under pipes
 	plane = FLOOR_PLANE
 	var/number_of_rods = 1
-	canSmoothWith = list(/obj/structure/lattice,
-	/turf/open/floor,
-	/turf/closed/wall,
-	/obj/structure/falsewall)
-	smooth = SMOOTH_MORE
 	//	flags = CONDUCT_1
 
 /obj/structure/lattice/examine(mob/user)
@@ -70,12 +69,12 @@
 		deconstruct()
 
 /obj/structure/lattice/clockwork
+	canSmoothWith = SMOOTH_GROUP_ANY_WALL + SMOOTH_GROUP_CLOCK_SPAWN_ROOM + SMOOTH_GROUP_FALSEWALLS + SMOOTH_GROUP_LATTICE
 	name = "cog lattice"
 	desc = "A lightweight support lattice. These hold the Justicar's station together."
 	icon = 'icons/obj/smooth_structures/lattice_clockwork.dmi'
 
 /obj/structure/lattice/clockwork/Initialize(mapload)
-	canSmoothWith += /turf/open/indestructible/clock_spawn_room //list overrides are a terrible thing
 	. = ..()
 	ratvar_act()
 	if(is_reebe(z))
@@ -93,13 +92,14 @@
 	return TRUE
 
 /obj/structure/lattice/catwalk
+	base_icon_state = "catwalk"
+	smoothing_groups = SMOOTH_GROUP_LATTICE + SMOOTH_GROUP_CATWALK
+	canSmoothWith = SMOOTH_GROUP_CATWALK
 	name = "catwalk"
 	desc = "A catwalk for easier EVA maneuvering and cable placement."
 	icon = 'icons/obj/smooth_structures/catwalk.dmi'
 	icon_state = "catwalk"
 	number_of_rods = 2
-	smooth = SMOOTH_TRUE
-	canSmoothWith = null
 	obj_flags = CAN_BE_HIT | BLOCK_Z_FALL 
 
 /obj/structure/lattice/catwalk/deconstruction_hints(mob/user)
@@ -121,14 +121,10 @@
 	..()
 
 /obj/structure/lattice/catwalk/clockwork
+	smoothing_groups = SMOOTH_GROUP_LATTICE
+	canSmoothWith = SMOOTH_GROUP_ANY_WALL + SMOOTH_GROUP_CLOCK_SPAWN_ROOM + SMOOTH_GROUP_FALSEWALLS + SMOOTH_GROUP_LATTICE
 	name = "clockwork catwalk"
 	icon = 'icons/obj/smooth_structures/catwalk_clockwork.dmi'
-	canSmoothWith = list(/obj/structure/lattice,
-	/turf/open/floor,
-	/turf/open/indestructible/clock_spawn_room,
-	/turf/closed/wall,
-	/obj/structure/falsewall)
-	smooth = SMOOTH_MORE
 
 /obj/structure/lattice/catwalk/clockwork/Initialize(mapload)
 	. = ..()

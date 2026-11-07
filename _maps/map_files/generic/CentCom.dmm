@@ -6895,11 +6895,7 @@
 /area/centcom/ferry)
 "py" = (
 /obj/machinery/smartfridge,
-/turf/closed/indestructible{
-	icon = 'icons/turf/walls/wood_wall.dmi';
-	icon_state = "wood";
-	smooth = 1
-	},
+/turf/closed/indestructible/wood,
 /area/centcom/holding)
 "pz" = (
 /turf/open/space/basic,
@@ -12380,11 +12376,7 @@
 /area/wizard_station)
 "BV" = (
 /obj/machinery/chem_dispenser/drinks/beer,
-/turf/closed/indestructible{
-	icon = 'icons/turf/walls/wood_wall.dmi';
-	icon_state = "wood";
-	smooth = 1
-	},
+/turf/closed/indestructible/wood,
 /area/centcom/holding)
 "BY" = (
 /obj/item/toy/figure/syndie,
@@ -13732,11 +13724,7 @@
 /obj/machinery/vending/boozeomat{
 	req_access_txt = "0"
 	},
-/turf/closed/indestructible{
-	icon = 'icons/turf/walls/wood_wall.dmi';
-	icon_state = "wood";
-	smooth = 1
-	},
+/turf/closed/indestructible/wood,
 /area/centcom/holding)
 "EE" = (
 /obj/structure/closet/crate/bin,
@@ -17240,11 +17228,7 @@
 /turf/open/floor/plasteel/cafeteria,
 /area/centcom/holding)
 "Nd" = (
-/turf/closed/indestructible{
-	icon = 'icons/turf/walls/wood_wall.dmi';
-	icon_state = "wood";
-	smooth = 1
-	},
+/turf/closed/indestructible/wood,
 /area/centcom/holding)
 "Nh" = (
 /obj/structure/table/wood,
@@ -17688,11 +17672,7 @@
 /area/centcom/supplypod)
 "QT" = (
 /obj/machinery/chem_dispenser/drinks,
-/turf/closed/indestructible{
-	icon = 'icons/turf/walls/wood_wall.dmi';
-	icon_state = "wood";
-	smooth = 1
-	},
+/turf/closed/indestructible/wood,
 /area/centcom/holding)
 "QW" = (
 /obj/structure/closet/secure_closet/freezer/kitchen{

@@ -98,6 +98,10 @@
 
 
 /obj/structure/barricade/sandbags
+	smoothing_flags = SMOOTH_BITMASK
+	base_icon_state = "sandbags"
+	smoothing_groups = SMOOTH_GROUP_SANDBAGS
+	canSmoothWith = SMOOTH_GROUP_SANDBAGS + SMOOTH_GROUP_WALLS
 	name = "sandbags"
 	desc = "Bags of sand. Self explanatory."
 	icon = 'icons/obj/smooth_structures/sandbags.dmi'
@@ -107,11 +111,10 @@
 	pass_flags = LETPASSTHROW
 	material = SAND
 	climbable = TRUE
-	smooth = SMOOTH_TRUE
-	canSmoothWith = list(/obj/structure/barricade/sandbags, /turf/closed/wall, /turf/closed/wall/r_wall, /obj/structure/falsewall, /obj/structure/falsewall/reinforced, /turf/closed/wall/rust, /turf/closed/wall/r_wall/rust, /obj/structure/barricade/security)
 
 
 /obj/structure/barricade/security
+	smoothing_groups = SMOOTH_GROUP_SANDBAGS
 	name = "security barrier"
 	desc = "A deployable barrier. Provides good cover in fire fights."
 	icon = 'icons/obj/objects.dmi'

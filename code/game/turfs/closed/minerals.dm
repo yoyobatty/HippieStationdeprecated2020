@@ -1,12 +1,14 @@
 /**********************Mineral deposits**************************/
 
 /turf/closed/mineral //wall piece
+	smoothing_flags = SMOOTH_BITMASK|SMOOTH_BORDER
+	base_icon_state = "smoothrocks"
+	smoothing_groups = SMOOTH_GROUP_CLOSED_TURFS + SMOOTH_GROUP_MINERAL_WALLS
+	canSmoothWith = SMOOTH_GROUP_MINERAL_WALLS
 	name = "rock"
 	icon = 'icons/turf/mining.dmi'
 	icon_state = "rock"
 	var/smooth_icon = 'icons/turf/smoothrocks.dmi'
-	smooth = SMOOTH_MORE|SMOOTH_BORDER
-	canSmoothWith = null
 	baseturfs = /turf/open/floor/plating/asteroid/airless
 	initial_gas_mix = AIRLESS_ATMOS
 	opacity = 1
@@ -24,8 +26,6 @@
 	var/defer_change = 0
 
 /turf/closed/mineral/Initialize()
-	if (!canSmoothWith)
-		canSmoothWith = list(/turf/closed/mineral, /turf/closed/indestructible)
 	var/static/matrix/smooth_offset = matrix(1, 0, -4, 0, 1, -4) // hippie -- Translate(-4, -4), made once instead of per rock (~50k); transform copies it
 	transform = smooth_offset
 	icon = smooth_icon
@@ -234,6 +234,7 @@
 	defer_change = 1
 
 /turf/closed/mineral/iron/ice
+	base_icon_state = "icerock_wall"
 	environment_type = "snow_cavern"
 	icon_state = "icerock_iron"
 	smooth_icon = 'icons/turf/walls/icerock_wall.dmi'
@@ -271,6 +272,7 @@
 	defer_change = 1
 
 /turf/closed/mineral/diamond/ice
+	base_icon_state = "icerock_wall"
 	environment_type = "snow_cavern"
 	icon_state = "icerock_diamond"
 	smooth_icon = 'icons/turf/walls/icerock_wall.dmi'
@@ -336,6 +338,7 @@
 	defer_change = 1
 
 /turf/closed/mineral/plasma/ice
+	base_icon_state = "icerock_wall"
 	environment_type = "snow_cavern"
 	icon_state = "icerock_plasma"
 	smooth_icon = 'icons/turf/walls/icerock_wall.dmi'
@@ -382,12 +385,12 @@
 	defer_change = 1
 
 /turf/closed/mineral/ash_rock //wall piece
+	base_icon_state = "rock_wall"
+	canSmoothWith = SMOOTH_GROUP_CLOSED_TURFS
 	name = "rock"
 	icon = 'icons/turf/mining.dmi'
 	smooth_icon = 'icons/turf/walls/rock_wall.dmi'
 	icon_state = "rock2"
-	smooth = SMOOTH_MORE|SMOOTH_BORDER
-	canSmoothWith = list (/turf/closed)
 	baseturfs = /turf/open/floor/plating/ashplanet/wateryrock
 	initial_gas_mix = LAVALAND_DEFAULT_ATMOS
 	environment_type = "waste"
@@ -395,12 +398,12 @@
 	defer_change = 1
 
 /turf/closed/mineral/snowmountain
+	base_icon_state = "mountain_wall"
+	canSmoothWith = SMOOTH_GROUP_CLOSED_TURFS
 	name = "snowy mountainside"
 	icon = 'icons/turf/mining.dmi'
 	smooth_icon = 'icons/turf/walls/mountain_wall.dmi'
 	icon_state = "mountainrock"
-	smooth = SMOOTH_MORE|SMOOTH_BORDER
-	canSmoothWith = list (/turf/closed)
 	baseturfs = /turf/open/floor/plating/asteroid/snow
 	initial_gas_mix = FROZEN_ATMOS
 	environment_type = "snow"
@@ -408,12 +411,11 @@
 	defer_change = TRUE
 
 /turf/closed/mineral/snowmountain/cavern
+	base_icon_state = "icerock_wall"
 	name = "ice cavern rock"
 	icon = 'icons/turf/mining.dmi'
 	smooth_icon = 'icons/turf/walls/icerock_wall.dmi'
 	icon_state = "icerock"
-	smooth = SMOOTH_MORE|SMOOTH_BORDER
-	canSmoothWith = list (/turf/closed)
 	baseturfs = /turf/open/floor/plating/asteroid/snow/ice
 	environment_type = "snow_cavern"
 	turf_type = /turf/open/floor/plating/asteroid/snow/ice
