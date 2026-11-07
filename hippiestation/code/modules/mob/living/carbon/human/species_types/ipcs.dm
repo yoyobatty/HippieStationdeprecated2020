@@ -22,6 +22,7 @@
 	. = ..()
 
 /datum/species/ipc/proc/handle_speech(datum/source, list/speech_args)
+	SIGNAL_HANDLER
 	speech_args[SPEECH_SPANS] |= SPAN_ROBOT
 
 /datum/species/ipc/check_roundstart_eligible()

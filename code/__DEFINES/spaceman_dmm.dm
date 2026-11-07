@@ -28,6 +28,11 @@
 	#define VAR_PROTECTED var
 #endif
 
+/// First line of every proc passed to RegisterSignal. A handler that sleeps puts whatever sent the signal to sleep with
+/// it (an area's power update, an attack, a move), so the linter reports anything in one that can sleep: put that part
+/// in INVOKE_ASYNC. tools/lint/signal_handlers.py finds handlers without it.
+#define SIGNAL_HANDLER SHOULD_CALL_PARENT(FALSE); SHOULD_NOT_SLEEP(TRUE)
+
 /world/proc/enable_debugger()
     var/dll = world.GetConfig("env", "EXTOOLS_DLL")
     if (dll)

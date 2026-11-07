@@ -246,6 +246,7 @@ GLOBAL_LIST_INIT(reflect_blacklist, typecacheof(list(/obj/structure, /obj/machin
 	qdel(reflection)
 
 /datum/component/hanged_man/proc/examine(datum/source, mob/M)
+	SIGNAL_HANDLER
 	if(guardian.host == parent) //sanity check
 		if(!(M in guardian.examined_host))
 			LAZYADD(guardian.examined_host, M)
@@ -253,6 +254,7 @@ GLOBAL_LIST_INIT(reflect_blacklist, typecacheof(list(/obj/structure, /obj/machin
 		to_chat(M, "<span class='holoparasite'>You see something within \the [parent].</span>")
 
 /datum/component/hanged_man/proc/oh_god_lets_get_out()
+	SIGNAL_HANDLER
 	to_chat(guardian, "<span class='danger'>Your object was destroyed, so you returned to your summoner!</span>")
 	guardian.Goodbye()
 

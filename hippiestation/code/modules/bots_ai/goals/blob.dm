@@ -68,6 +68,7 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 	think_loop()
 
 /datum/bot_blob/proc/lost_overmind()
+	SIGNAL_HANDLER
 	GLOB.bot_blobs -= src
 	if(owner)
 		owner.bot_blob = null

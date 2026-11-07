@@ -6,4 +6,5 @@
 	.=..()
 
 /datum/component/spell_catalyst/proc/OnExamine(datum/source, mob/user)
+	SIGNAL_HANDLER
 	to_chat(user, "<span class='notice'>[parent] gives off a gentle, magical blue glow.</span>")

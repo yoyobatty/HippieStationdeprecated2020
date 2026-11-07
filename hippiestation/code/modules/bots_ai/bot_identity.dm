@@ -35,6 +35,7 @@
 	fake_prefs.real_name = persona_name
 
 /datum/bot_identity/proc/owner_deleted()
+	SIGNAL_HANDLER
 	owner = null
 
 /datum/bot_identity/Destroy()

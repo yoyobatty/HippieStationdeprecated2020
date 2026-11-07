@@ -26,6 +26,7 @@
 		_archdrops[I] += other_archdrops[I]
 
 /datum/component/archaeology/proc/Dig(datum/source, obj/item/I, mob/living/user)
+	SIGNAL_HANDLER
 	if(dug)
 		to_chat(user, "<span class='warning'>Looks like someone has dug here already!</span>")
 		return
@@ -34,14 +35,16 @@
 		return
 
 	if(I.tool_behaviour == TOOL_SHOVEL || I.tool_behaviour == TOOL_MINING)
-		to_chat(user, "<span class='notice'>You start digging...</span>")
+		INVOKE_ASYNC(src, PROC_REF(dig_with), I, user) // four seconds of digging
+		return COMPONENT_NO_AFTERATTACK
 
-		if(I.use_tool(parent, user, 40, volume=50))
-			to_chat(user, "<span class='notice'>You dig a hole.</span>")
-			gets_dug()
-			dug = TRUE
-			SSblackbox.record_feedback("tally", "pick_used_mining", 1, I.type)
-			return COMPONENT_NO_AFTERATTACK
+/datum/component/archaeology/proc/dig_with(obj/item/I, mob/living/user)
+	to_chat(user, "<span class='notice'>You start digging...</span>")
+	if(I.use_tool(parent, user, 40, volume=50))
+		to_chat(user, "<span class='notice'>You dig a hole.</span>")
+		gets_dug()
+		dug = TRUE
+		SSblackbox.record_feedback("tally", "pick_used_mining", 1, I.type)
 
 /datum/component/archaeology/proc/gets_dug()
 	if(dug)
@@ -73,6 +76,7 @@
 		callback.Invoke()
 
 /datum/component/archaeology/proc/SingDig(datum/source, S, current_size)
+	SIGNAL_HANDLER
 	switch(current_size)
 		if(STAGE_THREE)
 			if(prob(30))
@@ -85,6 +89,7 @@
 				gets_dug()
 
 /datum/component/archaeology/proc/BombDig(datum/source, severity, target)
+	SIGNAL_HANDLER
 	switch(severity)
 		if(3)
 			return

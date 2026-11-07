@@ -14,6 +14,7 @@
 	RegisterSignal(SSdcs, COMSIG_GLOB_EXPLOSION, PROC_REF(sense))
 
 /datum/ttv_bench/proc/sense(datum/source, turf/epicenter, devastation_range, heavy_impact_range, light_impact_range, took, orig_dev_range, orig_heavy_range, orig_light_range)
+	SIGNAL_HANDLER
 	last_light = orig_light_range
 	last_heavy = orig_heavy_range
 	last_dev = orig_dev_range

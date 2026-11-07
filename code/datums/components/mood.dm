@@ -254,6 +254,7 @@
 	insanity_effect = newval
 
 /datum/component/mood/proc/add_event(datum/source, category, type, param) //Category will override any events in the same category, should be unique unless the event is based on the same thing like hunger.
+	SIGNAL_HANDLER
 	var/datum/mood_event/the_event
 	if(!istext(category))
 		category = REF(category)
@@ -275,6 +276,7 @@
 		addtimer(CALLBACK(src, PROC_REF(clear_event), null, category), the_event.timeout, TIMER_UNIQUE|TIMER_OVERRIDE)
 
 /datum/component/mood/proc/clear_event(datum/source, category)
+	SIGNAL_HANDLER
 	if(!istext(category))
 		category = REF(category)
 	var/datum/mood_event/event = mood_events[category]
@@ -296,6 +298,7 @@
 
 
 /datum/component/mood/proc/modify_hud(datum/source)
+	SIGNAL_HANDLER
 	var/mob/living/owner = parent
 	var/datum/hud/hud = owner.hud_used
 	screen_obj = new
@@ -306,6 +309,7 @@
 	RegisterSignal(screen_obj, COMSIG_CLICK, PROC_REF(hud_click))
 
 /datum/component/mood/proc/unmodify_hud(datum/source)
+	SIGNAL_HANDLER
 	if(!screen_obj)
 		return
 	var/mob/living/owner = parent
@@ -317,6 +321,7 @@
 	QDEL_NULL(screen_obj_sanity)
 
 /datum/component/mood/proc/hud_click(datum/source, location, control, params, mob/user)
+	SIGNAL_HANDLER
 	print_mood(user)
 
 /datum/component/mood/proc/HandleNutrition(mob/living/L)

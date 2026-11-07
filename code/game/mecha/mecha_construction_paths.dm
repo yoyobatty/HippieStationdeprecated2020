@@ -481,7 +481,7 @@
 	)
 
 /datum/component/construction/mecha/gygax/action(datum/source, atom/used_atom, mob/user)
-	return check_step(used_atom,user)
+	return UNLINT(check_step(used_atom,user)) // as the parent's: its use_tool() calls have no delay
 
 /datum/component/construction/mecha/gygax/custom_action(obj/item/I, mob/living/user, diff)
 	if(!..())

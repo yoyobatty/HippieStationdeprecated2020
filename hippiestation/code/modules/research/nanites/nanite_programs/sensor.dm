@@ -14,6 +14,7 @@
 	extra_settings[NES_EMOTE] = new /datum/nanite_extra_setting/text("wink")
 
 /datum/nanite_program/sensor/emote/proc/on_emote(sent_emote)
+	SIGNAL_HANDLER
 	var/datum/nanite_extra_setting/emote = extra_settings[NES_EMOTE]
 	if(sent_emote == emote.get_value())
 		send_code()

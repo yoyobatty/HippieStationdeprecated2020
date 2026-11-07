@@ -170,14 +170,17 @@ GLOBAL_LIST_EMPTY(t_ray_views)
 	return ..()
 
 /datum/t_ray_view/proc/viewer_gone()
+	SIGNAL_HANDLER
 	qdel(src)
 
 /// Carbons send this at the end of update_sight(), once their eyes and glasses have set see_in_dark.
 /datum/t_ray_view/proc/widen_sight()
+	SIGNAL_HANDLER
 	if(range && viewer.see_in_dark < range)
 		viewer.see_in_dark = range
 
 /datum/t_ray_view/proc/viewer_moved(datum/source, atom/old_loc)
+	SIGNAL_HANDLER
 	if(!range || !viewer_client)
 		return
 	var/turf/old_turf = get_turf(old_loc)

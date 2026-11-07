@@ -39,6 +39,7 @@
 	return TRUE //copypasta from carp code
 
 /mob/living/simple_animal/ascendant_shadowling/proc/handle_speech(datum/source, list/speech_args)
+	SIGNAL_HANDLER
 	speech_args[SPEECH_SPANS] |= list(SPAN_REALLYBIG, SPAN_YELL) //MAKES THEM SHOUT WHEN THEY TALK
 
 /mob/living/simple_animal/ascendant_shadowling/ex_act(severity)

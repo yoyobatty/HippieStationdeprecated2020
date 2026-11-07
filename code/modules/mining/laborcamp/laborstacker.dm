@@ -132,6 +132,7 @@ GLOBAL_LIST(labor_sheet_values)
 /// hippie -- the labour shuttle's stacking console points at the same stacker, so this one isn't always its CONSOLE and kept
 /// pointing at it once it was gone: a hard delete (see stacking_unit_console/machine_gone())
 /obj/machinery/mineral/labor_claim_console/proc/stacking_machine_gone(datum/source)
+	SIGNAL_HANDLER
 	stacking_machine = null
 
 /obj/machinery/mineral/labor_claim_console/emag_act(mob/user)

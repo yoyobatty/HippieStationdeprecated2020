@@ -45,6 +45,7 @@
 /// If the owner's deleted, we will simply remove from them, but if the target's deleted, we will self-delete.
 /// Without this an action and its owner/target hold each other in a cycle BYOND can never collect.
 /datum/action/proc/clear_ref(datum/ref)
+	SIGNAL_HANDLER
 	if(ref == owner)
 		Remove(owner)
 	if(ref == target)

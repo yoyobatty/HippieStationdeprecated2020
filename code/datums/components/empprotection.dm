@@ -8,4 +8,5 @@
 	RegisterSignal(parent, list(COMSIG_ATOM_EMP_ACT), PROC_REF(getEmpFlags))
 
 /datum/component/empprotection/proc/getEmpFlags(datum/source, severity)
+	SIGNAL_HANDLER
 	return flags

@@ -47,6 +47,7 @@
 	add_splatter_floor(src.loc,FALSE)
 
 /mob/living/simple_animal/hostile/true_changeling/adminbus/gibs/proc/hurt_gibs()
+	SIGNAL_HANDLER
 	if(prob(40))
 		adjustBruteLoss(35)
 		visible_message("<span class='warning'>[src] shrivels in reaction to being cleaned!</span>", "<span class='danger'>You can feel your form being disintegrated!</span>")

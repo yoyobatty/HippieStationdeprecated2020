@@ -83,6 +83,7 @@
 	new /obj/effect/DPtarget(empty_pod_turf, empty_pod)
 
 /datum/syndicate_contract/proc/enter_check(datum/source, sent_mob)
+	SIGNAL_HANDLER
 	if (istype(source, /obj/structure/closet/supplypod/extractionpod))
 		if (isliving(sent_mob))
 			var/mob/living/M = sent_mob
@@ -116,37 +117,42 @@
 				M.transferItemToLoc(W)
 				victim_belongings.Add(W)
 
-			handleVictimExperience(M)
+			INVOKE_ASYNC(src, PROC_REF(finish_extraction), M) // half a minute of it: the pod that brought them shouldn't wait
 
-			// This is slightly delayed because of the sleep calls above to handle the narrative. 
-			// We don't want to tell the station instantly.
-			var/points_to_check
-			var/datum/bank_account/D = SSeconomy.get_dep_account(ACCOUNT_CAR)
-			if(D)
-				points_to_check = D.account_balance
-			if(points_to_check >= ransom)
-				D.adjust_money(-ransom)
-			else 
-				D.adjust_money(-points_to_check)
+/// The victim's ordeal, then the ransom and the contractor's cut, in that order.
+/datum/syndicate_contract/proc/finish_extraction(mob/living/M)
+	handleVictimExperience(M)
 
-			priority_announce("One of your crew was captured by a rival organisation - we've needed to pay their ransom to bring them back. \
-							As is policy we've taken a portion of the station's funds to offset the overall cost.", null, 'sound/ai/attention.ogg', null, "Nanotrasen Asset Protection")
+	// This is slightly delayed because of the sleep calls above to handle the narrative. 
+	// We don't want to tell the station instantly.
+	var/points_to_check
+	var/datum/bank_account/D = SSeconomy.get_dep_account(ACCOUNT_CAR)
+	if(D)
+		points_to_check = D.account_balance
+	if(points_to_check >= ransom)
+		D.adjust_money(-ransom)
+	else 
+		D.adjust_money(-points_to_check)
 
-			sleep(30)
+	priority_announce("One of your crew was captured by a rival organisation - we've needed to pay their ransom to bring them back. \
+					As is policy we've taken a portion of the station's funds to offset the overall cost.", null, 'sound/ai/attention.ogg', null, "Nanotrasen Asset Protection")
 
-			// Pay contractor their portion of ransom
-			if (status == CONTRACT_STATUS_COMPLETE)
-				var/mob/living/carbon/human/H
-				var/obj/item/card/id/C
-				if(ishuman(contract.owner.current))
-					H = contract.owner.current
-					C = H.get_idcard(TRUE)
+	sleep(30)
 
-				if(C && C.registered_account)
-					C.registered_account.adjust_money(ransom * 0.35)
+	// Pay contractor their portion of ransom
+	if (status == CONTRACT_STATUS_COMPLETE)
+		var/mob/living/carbon/human/H
+		var/obj/item/card/id/C
+		if(ishuman(contract.owner.current))
+			H = contract.owner.current
+			C = H.get_idcard(TRUE)
 
-					C.registered_account.bank_card_talk("We've processed the ransom, agent. Here's your cut - your balance is now \
-					$[C.registered_account.account_balance].")
+		if(C && C.registered_account)
+			C.registered_account.adjust_money(ransom * 0.35)
+
+			C.registered_account.bank_card_talk("We've processed the ransom, agent. Here's your cut - your balance is now \
+			$[C.registered_account.account_balance].")
+
 
 // They're off to holding - handle the return timer and give some text about what's going on.
 /datum/syndicate_contract/proc/handleVictimExperience(var/mob/living/M)

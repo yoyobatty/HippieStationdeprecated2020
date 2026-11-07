@@ -181,6 +181,7 @@
 	return
 
 /mob/proc/unset_machine()
+	SIGNAL_HANDLER
 	if(machine)
 		UnregisterSignal(machine, COMSIG_PARENT_QDELETING)
 		machine.on_unset_machine(src)

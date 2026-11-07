@@ -20,6 +20,7 @@
 	update_parent(index)
 
 /datum/component/construction/proc/examine(datum/source, mob/user, list/examine_list)
+	SIGNAL_HANDLER
 	if(desc)
 		examine_list += desc
 
@@ -30,7 +31,8 @@
 		update_parent(index)
 
 /datum/component/construction/proc/action(datum/source, obj/item/I, mob/living/user)
-	return check_step(I, user)
+	SIGNAL_HANDLER
+	return UNLINT(check_step(I, user)) // its use_tool() calls have no delay, so nothing in a step waits
 
 /datum/component/construction/proc/update_index(diff)
 	index += diff

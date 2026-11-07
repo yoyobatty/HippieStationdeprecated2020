@@ -75,9 +75,9 @@
 		D.visible_message("<span class='danger'>[A] has knocked [D] down!!</span>", \
 								"<span class='userdanger'>[A] has knocked [D] down!</span>")
 		D.apply_effect(40, EFFECT_KNOCKDOWN, armor_block)
-		D.forcesay(GLOB.hit_appends)
+		INVOKE_ASYNC(D, TYPE_PROC_REF(/mob/living/carbon/human, forcesay), GLOB.hit_appends) // waits on the client's input box
 	else if(!(D.mobility_flags & MOBILITY_STAND))
-		D.forcesay(GLOB.hit_appends)
+		INVOKE_ASYNC(D, TYPE_PROC_REF(/mob/living/carbon/human, forcesay), GLOB.hit_appends)
 	return 1
 
 /datum/martial_art/proc/teach(mob/living/carbon/human/H,make_temporary=0)

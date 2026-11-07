@@ -20,6 +20,7 @@
 /// hippie -- two consoles can point at one stacker (the labour shuttle's has a stacking console and the claim console), and the
 /// stacker only knows the last of them as its CONSOLE: the other kept pointing at it once it was gone, a hard delete
 /obj/machinery/mineral/stacking_unit_console/proc/machine_gone(datum/source)
+	SIGNAL_HANDLER
 	machine = null
 
 /obj/machinery/mineral/stacking_unit_console/Destroy() // hippie -- the stacker kept pointing at it: a hard delete, board and all

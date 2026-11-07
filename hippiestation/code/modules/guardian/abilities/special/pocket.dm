@@ -101,6 +101,7 @@ GLOBAL_LIST_EMPTY(pocket_mirrors)
 	addtimer(VARSET_CALLBACK(src, manifesting, FALSE), 3 SECONDS)
 
 /datum/guardian_ability/major/special/pocket/proc/check_if_teleport(mob/living/L)
+	SIGNAL_HANDLER
 	var/list/pocket_z = get_pocket_z()
 	if(!pocket_z)
 		return

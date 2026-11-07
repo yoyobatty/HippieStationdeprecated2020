@@ -77,6 +77,7 @@
 	UnregisterSignal(SSdcs, COMSIG_GLOB_EXPLOSION)
 
 /datum/dept_gear_test/proc/on_explosion(datum/source, turf/epicenter, devastation_range, heavy_impact_range, light_impact_range, took, orig_dev_range, orig_heavy_range, orig_light_range)
+	SIGNAL_HANDLER
 	explosions += list(list(epicenter.x, epicenter.y, orig_dev_range, orig_heavy_range, orig_light_range, world.time))
 
 /// A 12x12 room walled in with station air in the left of a reservation, and open space 40 tiles to its right

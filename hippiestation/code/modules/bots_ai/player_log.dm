@@ -66,6 +66,7 @@ GLOBAL_DATUM(player_log, /datum/player_log)
 	write(list("k" = "e", "ev" = "body", "type" = "[M.type]", "name" = "[M.real_name]"))
 
 /datum/player_log/proc/let_go_of_body()
+	SIGNAL_HANDLER
 	UnregisterSignal(body, list(COMSIG_PARENT_QDELETING, COMSIG_MOVABLE_MOVED))
 	body.player_log = null
 	body = null
@@ -310,6 +311,7 @@ GLOBAL_DATUM(player_log, /datum/player_log)
 
 /// Shoved, pulled, thrown, conveyed, teleported or carried: a move no key asked for.
 /datum/player_log/proc/moved_by_something_else(datum/source, atom/oldloc, dir)
+	SIGNAL_HANDLER
 	if(stepping)
 		return
 	var/turf/was = get_turf(oldloc)

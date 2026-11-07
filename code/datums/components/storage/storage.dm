@@ -170,6 +170,7 @@
 	return master? master.real_location() : null
 
 /datum/component/storage/proc/canreach_react(datum/source, list/next)
+	SIGNAL_HANDLER
 	var/datum/component/storage/concrete/master = master()
 	if(!master)
 		return
@@ -180,19 +181,22 @@
 		next += slave.parent
 
 /datum/component/storage/proc/on_move()
+	SIGNAL_HANDLER
 	var/atom/A = parent
 	for(var/mob/living/L in can_see_contents())
 		if(!L.CanReach(A))
 			hide_from(L)
 
 /datum/component/storage/proc/attack_self(datum/source, mob/M)
+	SIGNAL_HANDLER
 	if(locked)
 		to_chat(M, "<span class='warning'>[parent] seems to be locked!</span>")
 		return FALSE
 	if((M.get_active_held_item() == parent) && allow_quick_empty)
-		quick_empty(M)
+		INVOKE_ASYNC(src, PROC_REF(quick_empty), M) // empties a few at a time
 
 /datum/component/storage/proc/preattack_intercept(datum/source, obj/O, mob/M, params)
+	SIGNAL_HANDLER
 	if(!isitem(O) || !click_gather || SEND_SIGNAL(O, COMSIG_CONTAINS_STORAGE))
 		return FALSE
 	. = COMPONENT_NO_ATTACK
@@ -204,6 +208,10 @@
 		if(can_be_inserted(I, null, M))
 			handle_item_insertion(I, null, M)
 		return
+	INVOKE_ASYNC(src, PROC_REF(mass_pickup), I, M) // a few at a time, with a progress bar
+
+/// Clicked on a pile with the bag set to gather everything (or everything of a kind): picks it up a few at a time.
+/datum/component/storage/proc/mass_pickup(obj/item/I, mob/M)
 	if(!isturf(I.loc))
 		return
 	var/list/things = I.loc.contents.Copy()
@@ -306,6 +314,7 @@
 	return TRUE
 
 /datum/component/storage/proc/set_locked(datum/source, new_state)
+	SIGNAL_HANDLER
 	locked = new_state
 	if(locked)
 		close_all()
@@ -408,12 +417,14 @@
 	hide_from(M)
 
 /datum/component/storage/proc/close_all()
+	SIGNAL_HANDLER
 	. = FALSE
 	for(var/mob/M in can_see_contents())
 		close(M)
 		. = TRUE //returns TRUE if any mobs actually got a close(M) call
 
 /datum/component/storage/proc/emp_act(datum/source, severity)
+	SIGNAL_HANDLER
 	if(emp_shielded)
 		return
 	var/datum/component/storage/concrete/master = master()
@@ -448,6 +459,7 @@
 	return master._removal_reset(thing)
 
 /datum/component/storage/proc/_remove_and_refresh(datum/source, atom/movable/thing)
+	SIGNAL_HANDLER
 	_removal_reset(thing)
 	refresh_mob_views()
 
@@ -461,6 +473,7 @@
 	return master.remove_from_storage(AM, new_location)
 
 /datum/component/storage/proc/refresh_mob_views()
+	SIGNAL_HANDLER
 	var/list/seeing = can_see_contents()
 	for(var/i in seeing)
 		show_to(i)
@@ -490,6 +503,7 @@
 
 //This proc is called when you want to place an item into the storage item.
 /datum/component/storage/proc/attackby(datum/source, obj/item/I, mob/M, params)
+	SIGNAL_HANDLER
 	if(istype(I, /obj/item/hand_labeler))
 		var/obj/item/hand_labeler/labeler = I
 		if(labeler.mode)
@@ -519,12 +533,14 @@
 
 //Abuses the fact that lists are just references, or something like that.
 /datum/component/storage/proc/signal_return_inv(datum/source, list/interface, recursive = TRUE)
+	SIGNAL_HANDLER
 	if(!islist(interface))
 		return FALSE
 	interface |= return_inv(recursive)
 	return TRUE
 
 /datum/component/storage/proc/topic_handle(datum/source, user, href_list)
+	SIGNAL_HANDLER
 	if(href_list["show_valid_pocket_items"])
 		handle_show_valid_items(source, user)
 
@@ -532,6 +548,7 @@
 	to_chat(user, "<span class='notice'>[source] can hold: [can_hold_description]</span>")
 
 /datum/component/storage/proc/mousedrop_onto(datum/source, atom/over_object, mob/M)
+	SIGNAL_HANDLER
 	set waitfor = FALSE
 	. = COMPONENT_NO_MOUSEDROP
 	var/atom/A = parent
@@ -546,7 +563,7 @@
 			user_show_to_mob(M)
 		if(!M.incapacitated())
 			if(!istype(over_object, /obj/screen))
-				dump_content_at(over_object, M)
+				INVOKE_ASYNC(src, PROC_REF(dump_content_at), over_object, M)
 				return
 			if(A.loc != M)
 				return
@@ -569,6 +586,7 @@
 		show_to(M)
 
 /datum/component/storage/proc/mousedrop_receive(datum/source, atom/movable/O, mob/M)
+	SIGNAL_HANDLER
 	if(isitem(O))
 		var/obj/item/I = O
 		if(iscarbon(M) || isdrone(M))
@@ -669,26 +687,33 @@
 		O.update_icon()
 
 /datum/component/storage/proc/signal_insertion_attempt(datum/source, obj/item/I, mob/M, silent = FALSE, force = FALSE)
+	SIGNAL_HANDLER
 	if((!force && !can_be_inserted(I, TRUE, M)) || (I == parent))
 		return FALSE
 	return handle_item_insertion(I, silent, M)
 
 /datum/component/storage/proc/signal_can_insert(datum/source, obj/item/I, mob/M, silent = FALSE)
+	SIGNAL_HANDLER
 	return can_be_inserted(I, silent, M)
 
 /datum/component/storage/proc/show_to_ghost(datum/source, mob/dead/observer/M)
+	SIGNAL_HANDLER
 	return user_show_to_mob(M, TRUE)
 
 /datum/component/storage/proc/signal_show_attempt(datum/source, mob/showto, force = FALSE)
+	SIGNAL_HANDLER
 	return user_show_to_mob(showto, force)
 
 /datum/component/storage/proc/on_check()
+	SIGNAL_HANDLER
 	return TRUE
 
 /datum/component/storage/proc/check_locked()
+	SIGNAL_HANDLER
 	return locked
 
 /datum/component/storage/proc/signal_take_type(datum/source, type, atom/destination, amount = INFINITY, check_adjacent = FALSE, force = FALSE, mob/user, list/inserted)
+	SIGNAL_HANDLER
 	if(!force)
 		if(check_adjacent)
 			if(!user || !user.CanReach(destination) || !user.CanReach(parent))
@@ -710,17 +735,18 @@
 	return max(0, max_items - real_location.contents.len)
 
 /datum/component/storage/proc/signal_fill_type(datum/source, type, amount = 20, force = FALSE)
+	SIGNAL_HANDLER
 	var/atom/real_location = real_location()
 	if(!force)
 		amount = min(remaining_space_items(), amount)
+	// hippie -- all in one go: a box of matches or snap pops. It used to CHECK_TICK between items, which could sleep
+	// with the box half full and let it be destroyed meanwhile (by a tesla zap), and held up whatever was filling it.
 	for(var/i in 1 to amount)
-		if(QDELETED(parent)) // hippie -- the CHECK_TICK below can sleep, and what it's filling can be destroyed meanwhile (by a tesla zap)
-			return FALSE
 		handle_item_insertion(new type(real_location), TRUE)
-		CHECK_TICK
 	return TRUE
 
 /datum/component/storage/proc/on_attack_hand(datum/source, mob/user)
+	SIGNAL_HANDLER
 	var/atom/A = parent
 	if(!attack_hand_interact)
 		return
@@ -754,6 +780,7 @@
 			show_to(user)
 
 /datum/component/storage/proc/signal_on_pickup(datum/source, mob/user)
+	SIGNAL_HANDLER
 	var/atom/A = parent
 	update_actions()
 	for(var/mob/M in range(1, A))
@@ -761,17 +788,21 @@
 			close(M)
 
 /datum/component/storage/proc/signal_take_obj(datum/source, atom/movable/AM, new_loc, force = FALSE)
+	SIGNAL_HANDLER
 	if(!(AM in real_location()))
 		return FALSE
 	return remove_from_storage(AM, new_loc)
 
 /datum/component/storage/proc/signal_quick_empty(datum/source, atom/loctarget)
+	SIGNAL_HANDLER
 	return do_quick_empty(loctarget)
 
 /datum/component/storage/proc/signal_hide_attempt(datum/source, mob/target)
+	SIGNAL_HANDLER
 	return hide_from(target)
 
 /datum/component/storage/proc/on_alt_click(datum/source, mob/user)
+	SIGNAL_HANDLER
 	if(!isliving(user) || !user.CanReach(parent))
 		return
 	if(locked)
@@ -798,6 +829,7 @@
 		return
 
 /datum/component/storage/proc/action_trigger(datum/signal_source, datum/action/source)
+	SIGNAL_HANDLER
 	gather_mode_switch(source.owner)
 	return COMPONENT_ACTION_BLOCK_TRIGGER
 

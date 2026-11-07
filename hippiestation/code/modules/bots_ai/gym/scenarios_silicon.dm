@@ -16,6 +16,7 @@
 	RegisterSignal(borg, COMSIG_MOB_SAY, PROC_REF(borg_spoke))
 
 /datum/bot_scenario/griefed/borg/proc/borg_spoke(datum/source, list/speech_args)
+	SIGNAL_HANDLER
 	log_line("cyborg said: [speech_args[SPEECH_MESSAGE]]")
 
 /datum/bot_scenario/griefed/borg/check()

@@ -35,8 +35,9 @@
 
 	signal.data["compression"] = 0
 	signal.mark_done()
-	if(signal.data["slow"] > 0)
-		sleep(signal.data["slow"]) // simulate the network lag if necessary
+	if(signal.data["slow"] > 0) // simulate the network lag if necessary, without holding up whoever sent it
+		addtimer(CALLBACK(signal, TYPE_PROC_REF(/datum/signal/subspace, broadcast)), signal.data["slow"])
+		return
 	signal.broadcast()
 
 /obj/machinery/telecomms/allinone/attackby(obj/item/P, mob/user, params)

@@ -553,6 +553,7 @@
 
 /// One stun after another is what keeps someone down for good however short they are, so each one leaves a gap before the next can land.
 /obj/item/clothing/suit/space/hardsuit/nano/proc/on_stunned(datum/source, amount, updating, ignore_canstun)
+	SIGNAL_HANDLER
 	if(shutdown || ignore_canstun || amount <= 0)
 		return
 	if(world.time < next_stun)
@@ -734,6 +735,7 @@
 
 /obj/item/clothing/head/helmet/space/hardsuit/nano/proc/sense_explosion(datum/source, turf/epicenter, devastation_range, heavy_impact_range,
 		light_impact_range, took, orig_dev_range, orig_heavy_range, orig_light_range)
+	SIGNAL_HANDLER
 	var/turf/T = get_turf(src)
 	if(T.z != epicenter.z)
 		return
@@ -1263,6 +1265,7 @@
 	. = ..()
 
 /datum/martial_art/nanosuit/proc/on_attack_hand(mob/living/carbon/human/owner, atom/target, proximity)
+	SIGNAL_HANDLER
 	if(!proximity)
 		return
 	var/datum/martial_art/nanosuit/style = owner.mind?.has_martialart(MARTIALART_NANOSUIT)
@@ -1284,6 +1287,7 @@
 		NS.kill_cloak()
 
 /obj/item/clothing/suit/space/hardsuit/nano/proc/kill_cloak()
+	SIGNAL_HANDLER
 	if(mode == NANO_CLOAK)
 		var/obj/item/W = Wearer.get_active_held_item()
 		if(istype(W, /obj/item/gun))
@@ -1298,6 +1302,7 @@
 
 /// Afterattack runs for every click with something in hand. Guns fire from it, but a wrench on a pipe or a flashlight on the floor isn't an attack.
 /obj/item/clothing/suit/space/hardsuit/nano/proc/on_item_afterattack(datum/source, atom/target, mob/user, proximity_flag)
+	SIGNAL_HANDLER
 	if(ismob(target) || (!proximity_flag && istype(Wearer.get_active_held_item(), /obj/item/gun)))
 		kill_cloak()
 

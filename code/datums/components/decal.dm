@@ -61,6 +61,7 @@
 		addtimer(CALLBACK(master, /obj/item/.proc/update_slot_icon), 0, TIMER_UNIQUE)
 
 /datum/component/decal/proc/rotate_react(datum/source, old_dir, new_dir)
+	SIGNAL_HANDLER
 	if(old_dir == new_dir)
 		return
 	remove()
@@ -68,8 +69,10 @@
 	apply()
 
 /datum/component/decal/proc/clean_react(datum/source, strength)
+	SIGNAL_HANDLER
 	if(strength >= cleanable)
 		qdel(src)
 
 /datum/component/decal/proc/examine(datum/source, mob/user, list/examine_list)
+	SIGNAL_HANDLER
 	examine_list += description

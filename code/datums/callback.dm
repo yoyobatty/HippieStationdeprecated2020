@@ -92,7 +92,7 @@
 		else
 			calling_arguments = args
 	if(datum_flags & DF_VAR_EDITED)
-		return WrapAdminProcCall(object, delegate, calling_arguments)
+		return UNLINT(WrapAdminProcCall(object, delegate, calling_arguments)) // waits only behind another admin's proc call
 	if (object == GLOBAL_PROC)
 		return call(delegate)(arglist(calling_arguments))
 	return call(object, delegate)(arglist(calling_arguments))

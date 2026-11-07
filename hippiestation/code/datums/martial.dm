@@ -21,6 +21,7 @@
 		RegisterSignal(owner, COMSIG_PARENT_QDELETING, PROC_REF(owner_deleted), override = TRUE)
 
 /datum/martial_art/proc/owner_deleted(datum/source)
+	SIGNAL_HANDLER
 	set_owner(null)
 
 /datum/martial_art/add_to_streak(element,mob/living/carbon/human/D)

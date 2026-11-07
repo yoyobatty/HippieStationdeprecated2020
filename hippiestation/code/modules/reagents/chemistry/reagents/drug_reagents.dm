@@ -600,6 +600,7 @@
 
 //Leave a trail of coloured afterimages behind you
 /datum/reagent/drug/grape_blast/proc/on_moved(atom/movable/source, atom/oldloc, dir)
+	SIGNAL_HANDLER
 	if(!tripping || trail_cooldown > world.time || !isturf(oldloc))
 		return
 	trail_cooldown = world.time + 2
@@ -834,6 +835,7 @@
 
 //You can see the words you're saying, they float up and away
 /datum/reagent/drug/grape_blast/proc/on_say(datum/source, list/speech_args)
+	SIGNAL_HANDLER
 	var/mob/living/carbon/C = source
 	if(!tripping || !istype(C) || !C.client)
 		return

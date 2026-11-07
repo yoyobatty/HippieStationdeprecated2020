@@ -75,6 +75,7 @@
 	blacklistItems[I]++
 
 /mob/living/carbon/monkey/proc/forget_blacklisted_item(datum/source)
+	SIGNAL_HANDLER
 	blacklistItems -= source
 
 /mob/living/carbon/monkey/proc/equip_item(obj/item/I)
@@ -375,6 +376,7 @@
 
 /// hippie -- see retaliate()
 /mob/living/carbon/monkey/proc/forget_enemy(datum/source)
+	SIGNAL_HANDLER
 	enemies -= source
 
 // get angry are a mob

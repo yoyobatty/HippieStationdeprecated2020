@@ -295,6 +295,7 @@
 
 /// Every step either of them takes once one has got to the spot.
 /datum/bot_scenario/two_officers_lose_him/proc/stepped(atom/movable/mover)
+	SIGNAL_HANDLER
 	if(!spot)
 		return
 	if(!arrived_at)
@@ -345,6 +346,7 @@
 	return null //the arrest is the job
 
 /datum/bot_scenario/colleague_cuffs_him/proc/stepped()
+	SIGNAL_HANDLER
 	moves++
 
 /datum/bot_scenario/colleague_cuffs_him/check()

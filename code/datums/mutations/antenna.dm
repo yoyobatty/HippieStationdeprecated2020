@@ -27,6 +27,7 @@
 
 /// hippie -- the implant deleted with its owner (or cut out) stayed held here: a hard delete, radio and all
 /datum/mutation/human/antenna/proc/radio_gone(datum/source)
+	SIGNAL_HANDLER
 	linked_radio = null
 
 /datum/mutation/human/antenna/on_losing(mob/living/carbon/human/owner)

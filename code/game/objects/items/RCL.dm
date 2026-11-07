@@ -156,6 +156,7 @@
 
 
 /obj/item/twohanded/rcl/proc/trigger(mob/user)
+	SIGNAL_HANDLER
 	if(active)
 		layCable(user)
 	if(wiring_gui_menu) //update the wire options as you move

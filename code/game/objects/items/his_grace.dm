@@ -136,6 +136,7 @@
 	move_gracefully()
 
 /obj/item/his_grace/proc/move_gracefully()
+	SIGNAL_HANDLER
 	if(!awakened)
 		return
 	var/static/list/transforms

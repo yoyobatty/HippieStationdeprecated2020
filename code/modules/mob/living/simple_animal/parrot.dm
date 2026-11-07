@@ -107,6 +107,7 @@
 		RegisterSignal(parrot_perch, COMSIG_PARENT_QDELETING, PROC_REF(perch_deleted), override = TRUE)
 
 /mob/living/simple_animal/parrot/proc/perch_deleted(datum/source)
+	SIGNAL_HANDLER
 	set_perch(null)
 
 /mob/living/simple_animal/parrot/Initialize()

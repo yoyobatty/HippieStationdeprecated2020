@@ -34,6 +34,7 @@
 	. = ..()
 
 /datum/species/meeseeks/proc/handle_speech(datum/source, list/speech_args)
+	SIGNAL_HANDLER
 	if(copytext(speech_args[SPEECH_MESSAGE], 1, 2) != "*")
 		switch (stage_ticks)
 			if(MEESEEKS_TICKS_STAGE_THREE to INFINITY)

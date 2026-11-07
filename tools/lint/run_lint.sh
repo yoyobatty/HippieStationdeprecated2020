@@ -5,7 +5,8 @@
 # Usage: tools/lint/run_lint.sh [--update-baseline] [file.dme]      (default hippiestation.dme)
 #
 # Exit 1 on a new error, or when the parse stopped early; new warnings are listed but don't fail. After fixing old
-# diagnostics, --update-baseline rewrites the baseline from this run.
+# diagnostics, --update-baseline rewrites the baseline from this run. Signal handlers are checked for anything that can
+# sleep (SpacemanDMM.toml, SIGNAL_HANDLER in code/__DEFINES/spaceman_dmm.dm); handlers missing the mark are listed.
 # The dreamchecker binary is fetched once into tools/lint/bin/ (gitignored): the release named by SPACEMAN_DMM_VERSION
 # in dependencies.sh, checked against that release's sha256 list. Change the pin there and the next run fetches it.
 set -u
@@ -51,4 +52,9 @@ if [ ! -x "$BIN_DIR/$EXE" ] || [ "$(cat "$BIN_DIR/VERSION" 2>/dev/null)" != "$VE
 fi
 
 "$BIN_DIR/$EXE" -e "$DME" 2>&1 | "$PY" tools/lint/lint_diff.py tools/lint/baseline.txt $UPDATE
-exit "${PIPESTATUS[1]}"
+STATUS="${PIPESTATUS[1]}"
+# Procs registered as signal handlers without SIGNAL_HANDLER, which the sleep check can't see into: listed, not failing.
+if [ -z "$UPDATE" ]; then
+	"$PY" tools/lint/signal_handlers.py | sed -n 's/^UNMARKED handler: \(.*\)$/NEW warning: \1 has no SIGNAL_HANDLER (python tools\/lint\/signal_handlers.py --apply)/p'
+fi
+exit "$STATUS"

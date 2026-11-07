@@ -199,6 +199,7 @@
 	desc = "[M]'s bed! Looks comfy."
 
 /obj/structure/bed/dogbed/proc/owner_deleted()
+	SIGNAL_HANDLER
 	owner = null
 
 /obj/structure/bed/dogbed/buckle_mob(mob/living/M, force, check_loc)

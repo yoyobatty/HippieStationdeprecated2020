@@ -30,6 +30,7 @@
 	var/unwieldsound = null
 
 /obj/item/twohanded/proc/unwield(mob/living/carbon/user, show_message = TRUE)
+	SIGNAL_HANDLER
 	if(!wielded || !user)
 		return
 	wielded = 0

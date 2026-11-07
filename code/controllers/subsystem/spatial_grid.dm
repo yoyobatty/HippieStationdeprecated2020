@@ -120,10 +120,12 @@ SUBSYSTEM_DEF(spatial_grid)
 
 ///if a movable is inside our pre init queue before we're initialized and it gets deleted we need to remove that reference with this proc
 /datum/controller/subsystem/spatial_grid/proc/queued_item_deleted(atom/movable/movable_being_deleted)
+	SIGNAL_HANDLER
 	remove_from_pre_init_queue(movable_being_deleted, null)
 
 ///creates the spatial grid for a new z level
 /datum/controller/subsystem/spatial_grid/proc/propogate_spatial_grid_to_new_z(datum/source, datum/space_level/z_level)
+	SIGNAL_HANDLER
 	var/list/new_cell_grid = list()
 
 	grids_by_z_level += list(new_cell_grid)

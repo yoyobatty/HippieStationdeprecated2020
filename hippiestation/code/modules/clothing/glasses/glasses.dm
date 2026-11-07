@@ -29,6 +29,7 @@
 	UnregisterSignal(user, COMSIG_THREAT_SCAN_CLICK_CTRL_SHIFT)
 
 /obj/item/clothing/glasses/hud/threat/proc/ToggleThreat(mob/living/user, mob/living/carbon/human/H)
+	SIGNAL_HANDLER
 	LAZYINITLIST(threat_list)
 	if(threat_list.len && (H in threat_list))
 		threat_list -= H

@@ -106,10 +106,12 @@
 		selected_link = null
 
 /obj/item/multitool/master/proc/on_linked_examine(obj/machinery/source, mob/user, list/examine_list)
+	SIGNAL_HANDLER
 	if(remote_wires_exposed(source))
 		examine_list += "<span class='notice'>A small link probe is clipped to its wiring.</span>"
 
 /obj/item/multitool/master/proc/on_linked_deleted(obj/machinery/source)
+	SIGNAL_HANDLER
 	remove_link(source)
 
 /// The machines it still has probes on, dropping any that are gone

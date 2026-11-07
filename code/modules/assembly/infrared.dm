@@ -171,6 +171,7 @@
 	listeningTo = newloc
 
 /obj/item/assembly/infra/proc/check_exit(datum/source, atom/movable/offender)
+	SIGNAL_HANDLER
 	if(QDELETED(src))
 		return
 	if(offender == src || istype(offender,/obj/effect/beam/i_beam))
@@ -179,7 +180,7 @@
 		var/obj/item/I = offender
 		if (I.item_flags & ABSTRACT)
 			return
-	return refreshBeam()
+	INVOKE_ASYNC(src, PROC_REF(refreshBeam)) // a long beam is laid a tick at a time; whatever stepped out shouldn't wait
 
 /obj/item/assembly/infra/ui_interact(mob/user)//TODO: change this this to the wire control panel
 	. = ..()

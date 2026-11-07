@@ -335,7 +335,7 @@
 	else
 		transfer = min(transfer, S.max_amount - S.amount)
 	if(pulledby)
-		pulledby.start_pulling(S)
+		UNLINT(pulledby.start_pulling(S)) // a stack: never a mob, so never a grab to tighten (the only wait in there)
 	S.copy_evidences(src)
 	use(transfer, TRUE)
 	S.add(transfer)

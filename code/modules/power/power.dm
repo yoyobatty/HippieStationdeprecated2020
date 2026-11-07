@@ -117,6 +117,7 @@
   * Returns TRUE if the NOPOWER flag was toggled
   */
 /obj/machinery/proc/power_change()
+	SHOULD_NOT_SLEEP(TRUE) // a signal handler, but overrides must call this
 	SHOULD_CALL_PARENT(1)
 	if(stat & BROKEN)
 		return

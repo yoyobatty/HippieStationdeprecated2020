@@ -90,6 +90,7 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 	think_loop()
 
 /datum/bot_silicon/proc/lost_body()
+	SIGNAL_HANDLER
 	GLOB.bot_silicons -= src
 	if(owner)
 		owner.bot_silicon = null

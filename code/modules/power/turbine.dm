@@ -337,6 +337,7 @@
 
 /// hippie -- a compressor blown up stayed this computer's: a hard delete
 /obj/machinery/computer/turbine_computer/proc/compressor_gone(datum/source)
+	SIGNAL_HANDLER
 	if(compressor == source)
 		compressor = null
 

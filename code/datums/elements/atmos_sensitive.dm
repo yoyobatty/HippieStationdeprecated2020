@@ -26,6 +26,7 @@
 	return ..()
 
 /datum/element/atmos_sensitive/proc/handle_move(datum/source, atom/movable/oldloc, direction, forced)
+	SIGNAL_HANDLER
 	var/atom/microchipped_lad = source
 	if(oldloc) // moving out of nullspace
 		microchipped_lad.UnregisterSignal(oldloc, COMSIG_TURF_EXPOSE)

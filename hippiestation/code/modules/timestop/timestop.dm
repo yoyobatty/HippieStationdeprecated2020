@@ -136,6 +136,7 @@ GLOBAL_LIST_INIT(timestop_noz, typecacheof(list(/obj/screen)))
 		escape_the_negative_zone(A)
 
 /datum/timestop/proc/unfreeze_atom(atom/movable/A)
+	SIGNAL_HANDLER
 	if(A.throwing)
 		unfreeze_throwing(A)
 	if(isliving(A))

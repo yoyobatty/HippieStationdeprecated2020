@@ -107,6 +107,8 @@
 	if(!(ignore_movement_check || check_movement()) && (field_shape != FIELD_NO_SHAPE))
 		return
 	update_new_turfs()
+	// All in one go (no CHECK_TICK): it runs when the host moves, and a half-moved field would be set up again from the
+	// middle by the next move. The fields are a few tiles across.
 	var/list/turf/needs_setup = field_turfs_new.Copy()
 	if(setup_field_turfs)
 		for(var/turf/T in field_turfs)
@@ -114,17 +116,13 @@
 				cleanup_field_turf(T)
 			else
 				needs_setup -= T
-			CHECK_TICK
 		for(var/turf/T in needs_setup)
 			setup_field_turf(T)
-			CHECK_TICK
 	if(setup_edge_turfs)
 		for(var/turf/T in edge_turfs)
 			cleanup_edge_turf(T)
-			CHECK_TICK
 		for(var/turf/T in edge_turfs_new)
 			setup_edge_turf(T)
-			CHECK_TICK
 
 /datum/proximity_monitor/advanced/proc/field_turf_canpass(atom/movable/AM, obj/effect/abstract/proximity_checker/advanced/field_turf/F, turf/entering)
 	return TRUE
@@ -319,6 +317,7 @@
 		listeningTo = null
 
 /obj/item/multitool/field_debug/proc/on_mob_move()
+	SIGNAL_HANDLER
 	check_turf(get_turf(src))
 
 /obj/item/multitool/field_debug/process()

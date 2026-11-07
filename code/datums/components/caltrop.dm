@@ -14,6 +14,7 @@
 	RegisterSignal(parent, list(COMSIG_MOVABLE_CROSSED), PROC_REF(Crossed))
 
 /datum/component/caltrop/proc/Crossed(datum/source, atom/movable/AM)
+	SIGNAL_HANDLER
 	var/atom/A = parent
 	if(!A.has_gravity())
 		return

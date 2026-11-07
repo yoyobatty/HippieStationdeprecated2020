@@ -126,6 +126,7 @@
 		new_character.key = key		//now transfer the key to link the client to our new body
 
 /datum/mind/proc/set_death_time()
+	SIGNAL_HANDLER
 	last_death = world.time
 
 /datum/mind/proc/store_memory(new_text)

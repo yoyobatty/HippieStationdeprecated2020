@@ -78,7 +78,7 @@
 
 /obj/machinery/door/firedoor/power_change()
 	. = ..()
-	latetoggle()
+	INVOKE_ASYNC(src, PROC_REF(latetoggle)) // opening or closing takes a second; the rest of the area shouldn't wait for it
 
 /obj/machinery/door/firedoor/attack_hand(mob/user)
 	. = ..()

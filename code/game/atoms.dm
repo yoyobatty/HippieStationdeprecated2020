@@ -860,7 +860,9 @@ Proc for attack log creation, because really why not
 		var/reverse_message = "has been [what_done] by [ssource][postfix]"
 		target.log_message(reverse_message, LOG_ATTACK, color="orange", log_globally=FALSE)
 
-	bot_security_witness_combat(user, target, what_done, object) //hippie - lets security bots witness violence, see hippiestation/code/modules/bots_ai/goals/security_patrol.dm
+	//hippie - lets security bots witness violence, see hippiestation/code/modules/bots_ai/goals/security_patrol.dm
+	//async: a bot's answer can be an arrest with pauses in it, and whatever was logged (any attack) shouldn't wait for that
+	INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(bot_security_witness_combat), user, target, what_done, object)
 
 // Filter stuff
 /atom/movable/proc/add_filter(name,priority,list/params)

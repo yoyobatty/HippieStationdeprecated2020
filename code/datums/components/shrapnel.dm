@@ -19,7 +19,8 @@
 	UnregisterSignal(parent, list(COMSIG_PROJECTILE_ON_HIT))
 
 /datum/component/shrapnel/proc/projectile_hit(atom/fired_from, atom/movable/firer, atom/target, Angle)
-	do_shrapnel(firer, target)
+	SIGNAL_HANDLER
+	INVOKE_ASYNC(src, PROC_REF(do_shrapnel), firer, target) // fires projectiles of its own: the hit shouldn't wait on their flight
 
 /datum/component/shrapnel/proc/do_shrapnel(mob/firer, atom/target)
 	if(radius < 1)

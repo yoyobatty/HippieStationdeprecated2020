@@ -17,6 +17,7 @@
 		RegisterSignal(parent, COMSIG_ITEM_ATTACK_SELF, PROC_REF(apply_moodlet))
 
 /datum/component/art/proc/apply_moodlet(mob/M, impress)
+	SIGNAL_HANDLER
 	M.visible_message("[M] stops to admire [parent].", \
 						 "<span class='notice'>You take in [parent], admiring the fine craftsmanship.</span>")
 	switch(impress)
@@ -30,13 +31,19 @@
 			SEND_SIGNAL(M, COMSIG_ADD_MOOD_EVENT, "artbad", /datum/mood_event/artbad)
 
 /datum/component/art/proc/on_other_examine(datum/source, mob/M)
+	SIGNAL_HANDLER
 	apply_moodlet(M, impressiveness)
 
 /datum/component/art/proc/on_obj_examine(datum/source, mob/M)
+	SIGNAL_HANDLER
 	var/obj/O = parent
 	apply_moodlet(M, impressiveness *(O.obj_integrity/O.max_integrity))
 
 /datum/component/art/proc/on_attack_hand(datum/source, mob/M)
+	SIGNAL_HANDLER
+	INVOKE_ASYNC(src, PROC_REF(study), source, M) // two seconds of looking: the click shouldn't wait for it
+
+/datum/component/art/proc/study(datum/source, mob/M)
 	to_chat(M, "<span class='notice'>You start examining [parent]...</span>")
 	if(!do_after(M, 20, target = parent))
 		return

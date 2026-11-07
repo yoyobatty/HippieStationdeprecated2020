@@ -41,6 +41,7 @@
 	ui_y = 138 
 
 /obj/machinery/door_timer/proc/forget_target(datum/source) // hippie
+	SIGNAL_HANDLER
 	targets -= source
 
 /obj/machinery/door_timer/Initialize()

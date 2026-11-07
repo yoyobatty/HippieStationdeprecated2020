@@ -22,6 +22,7 @@
 	RegisterSignal(owner, COMSIG_MOB_SAY, PROC_REF(handle_speech))
 
 /datum/mutation/human/hulk/proc/on_attack_hand(mob/living/source, atom/target, proximity)
+	SIGNAL_HANDLER
 	if(!proximity)
 		return
 	if(source.a_intent != INTENT_HARM)
@@ -49,6 +50,7 @@
 	UnregisterSignal(owner, COMSIG_MOB_SAY)
 
 /datum/mutation/human/hulk/proc/handle_speech(original_message, wrapped_message)
+	SIGNAL_HANDLER
 	var/message = wrapped_message[1]
 	if(message)
 		message = "[replacetext(message, ".", "!")]!!"
