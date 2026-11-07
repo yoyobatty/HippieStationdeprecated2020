@@ -262,6 +262,7 @@ datumrefresh=[refid];[HrefToken()]'>Refresh</a>
 			<b>M</b> - Mass modify: changes this variable for all objects of this type.<br>
 		</font>
 		<hr>
+		[islist ? "" : vv_internals(D)]
 		<table width='100%'>
 			<tr>
 				<td width='20%'>
