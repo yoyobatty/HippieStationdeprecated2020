@@ -970,6 +970,9 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	if(istype(speaker, /atom/movable/virtualspeaker))
 		var/atom/movable/virtualspeaker/V = speaker
 		real_speaker = V.source
+	if(istype(real_speaker, /obj/item/electronic_assembly))
+		on_heard_circuit_alarm(real_speaker, raw_message, radio_freq) //goals/circuits.dm: a motion alarm calling it in
+		return
 	if(!isliving(real_speaker) || real_speaker == owner)
 		return
 	var/mob/living/L = real_speaker
