@@ -104,10 +104,11 @@
 	aim_at_worst_wound(P) //treat_patient.dm
 	var/obj/item/I = pick_treatment_item(P)
 	if(!I)
+		// They go to a doctor in their cuffs (process_prisoner, security_patrol.dm). Asking one to come to the cell got "come by Medbay
+		// when you can" back: a doctor's ID doesn't open a cell, and the officer left.
 		if(!S.told_medical)
 			S.told_medical = TRUE
 			bot_log(src, "[P] is bleeding and I've nothing to patch them with")
-			bot_say(owner, ":m [P.name] is bleeding in [S.goal.cell_timer.name] in the Brig and I've nothing to patch them up with. Can a doctor come?")
 		return FALSE
 	S.patched++
 	if(S.patched == 1)

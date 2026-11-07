@@ -1156,6 +1156,8 @@ GLOBAL_LIST_EMPTY(bot_keyword_areas)
 	// later and begin_arrest() upgrades to it. Animals, and other security (not a crime
 	// this module judges), still get ordinary combat below.
 	if(is_security_job() && ishuman(user) && !(user.mind?.assigned_role in GLOB.security_positions))
+		if(bot_note_fought_uncuffing(user)) //goals/released_prisoner.dm: the cuffs stay on next time
+			bot_log(src, "[user] went for me the moment the cuffs came off")
 		if(begin_arrest(user))
 			return
 	combat_last_seen = world.time

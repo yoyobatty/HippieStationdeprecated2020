@@ -1067,7 +1067,9 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 			return TRUE
 	return FALSE
 
-/datum/bot_brain/proc/find_free_brig_cell()
+/// prisoner: who it's for, who doesn't count as somebody already in there (stood in their own cell after a fight in it, they're
+/// arrested again and the cell they're in is the one to use: it used to read as taken).
+/datum/bot_brain/proc/find_free_brig_cell(mob/living/prisoner)
 	var/obj/machinery/door_timer/best
 	var/best_dist
 	for(var/obj/machinery/door_timer/T as anything in bot_instances_of(/obj/machinery/door_timer))
@@ -1079,7 +1081,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		var/occupied = FALSE
 		for(var/turf/I in interior)
 			for(var/mob/living/carbon/C in I)
-				if(C.stat != DEAD)
+				if(C.stat != DEAD && C != prisoner && C != owner)
 					occupied = TRUE
 					break
 			if(occupied)
@@ -1198,7 +1200,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 			prison_locker = bot_prison_locker(deep_turf)
 			target = prisoner
 			return
-	var/obj/machinery/door_timer/T = bot.find_free_brig_cell()
+	var/obj/machinery/door_timer/T = bot.find_free_brig_cell(prisoner)
 	if(!T)
 		bot_log(bot, "no free brig cell for [prisoner]")
 		if(world.time >= bot.next_cells_full_shout) // it tries again every minute: the channel had this 37 times in three shifts
@@ -1223,7 +1225,9 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 /datum/bot_goal/brig_prisoner/on_success(datum/bot_brain/bot)
 	bot.owner.stop_pulling()
 	if(then_medbay && !QDELETED(prisoner) && prisoner.stat != DEAD)
-		if(bot_prisoner_needs_medbay(prisoner))
+		if((bot_prisoner_needs_medbay(prisoner) || bot_bleeding_out(prisoner)) && bot_prisoner_dangerous(prisoner))
+			bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, start_brig_care), prisoner, cell_timer))
+		else if(bot_prisoner_needs_medbay(prisoner) || bot_bleeding_out(prisoner))
 			bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, start_medevac), prisoner, cell_timer))
 		else
 			bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, start_brig_escort), prisoner))
@@ -1311,9 +1315,12 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 						bot.owner.put_in_hands(I)
 						bot.put_away(I)
 						bot_log(bot, "took [I] off [P]")
-					else if(P.transferItemToLoc(I, drop))
-						P.visible_message("<span class='warning'>[bot.owner] confiscates [I] from [P].</span>")
-						bot_log(bot, "confiscated [I] from [P]")
+					else
+						var/slot = bot_slot_holding(P, I) //goals/released_prisoner.dm: theirs to take back when they're let out
+						if(P.transferItemToLoc(I, drop))
+							P.visible_message("<span class='warning'>[bot.owner] confiscates [I] from [P].</span>")
+							bot_log(bot, "confiscated [I] from [P]")
+							bot_note_confiscated(P, I, slot, locker)
 				return schedule(bot)
 			// Into orange, out of the locker: the brig lockers keep a prisoner's jumpsuit and shoes. Brig lockers start the round
 			// locked (secure closets), hence the unlock.
@@ -1334,13 +1341,25 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 			// Bleeding: patched up before they're left (security_brig_first_aid.dm)
 			if(bot.patch_up_prisoner(P, src))
 				return schedule(bot)
-			// "Uncuff the prisoner, leaving them to buckle cuffed is considered poor
-			// form" - and the bot needs its cuffs back for the next arrest anyway.
 			var/obj/item/restraints/handcuffs/cuffs = P.handcuffed
+			// Still bleeding with nothing to patch them with: not left in a cell no doctor's ID opens. Off to a doctor in their cuffs
+			// instead, or kept by Security's front door for one if they're dangerous (brig_prisoner on_success(), security_medevac.dm).
+			if(cuffs && told_medical && !goal.then_medbay && bot_bleeding_out(P))
+				bot_log(bot, "[P] is still bleeding and I've nothing to patch them with - to a doctor in the cuffs, no sentence yet")
+				goal.then_medbay = TRUE
 			if(cuffs && goal.then_medbay)
 				phase = 0
 				return GOAL_STEP_SUCCESS //to Medbay in them
+			// Went for the officer the last time the cuffs came off: they stay on (goals/released_prisoner.dm)
+			if(cuffs && bot_keep_cuffed(P))
+				bot_log(bot, "leaving [P] cuffed - they went for the officer the last time they were uncuffed")
+				bot_say(bot.owner, pick("You're keeping those on.", "Cuffs stay on. You had your chance.", "Not after last time. They stay on."))
+				phase = 0
+				return GOAL_STEP_SUCCESS
+			// "Uncuff the prisoner, leaving them to buckle cuffed is considered poor
+			// form" - and the bot needs its cuffs back for the next arrest anyway.
 			if(cuffs)
+				bot_note_uncuffed_in_cell(P)
 				P.uncuff()
 				P.visible_message("<span class='notice'>[bot.owner] removes [P]'s restraints.</span>")
 				if(!QDELETED(cuffs) && isturf(cuffs.loc) && !istype(cuffs, /obj/item/restraints/handcuffs/cable/zipties/used))
@@ -1374,6 +1393,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 /datum/bot_step/start_sentence/execute(datum/bot_brain/bot)
 	var/obj/machinery/door_timer/T = goal.cell_timer
 	var/mob/living/carbon/human/P = goal.prisoner
+	if(goal.then_medbay)
+		return GOAL_STEP_SUCCESS //decided in the cell: a doctor first, the sentence after
 	if(QDELETED(T) || QDELETED(P))
 		return GOAL_STEP_FAIL
 	if(!bot.owner.Adjacent(T))

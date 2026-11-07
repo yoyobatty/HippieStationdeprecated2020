@@ -211,25 +211,129 @@
 		return BOT_GYM_FAIL
 
 /datum/bot_scenario/brigged/bleeding/no_kit
-	name = "brig: with nothing to patch a bleeding prisoner with, it tells Medical"
-	desc = "The same, with no first aid kit anywhere. The officer brigs them and asks Medical for a doctor."
+	name = "brig: with nothing to patch a bleeding prisoner with, it takes them to a doctor in their cuffs"
+	desc = "The same, wanted for theft, with no first aid kit anywhere. The officer doesn't leave them in a cell no doctor's ID opens: it takes them to Medbay (M) in their cuffs. It used to call Medical, uncuff them and start the timer; the doctor said to come by Medbay, which a prisoner in a cell can't."
 	layout = list(
 		"#########",
-		"#BC..i..#",
+		"#BC..i.M#",
 		"####d####",
 		"###...###",
 		"###..l###",
 		"#########")
 
+/datum/bot_scenario/brigged/bleeding/no_kit/post_spawn()
+	..()
+	var/datum/bot_wanted/W = bot_get_wanted_entry(prisoner)
+	W.crime = "Theft" //not dangerous: they can go to Medbay
+	if("gym_medbay_spot" in brain.vars)
+		brain.vars["gym_medbay_spot"] = first_marker("M")
+
 /datum/bot_scenario/brigged/bleeding/no_kit/check()
 	if(bot_lost())
 		return BOT_GYM_FAIL
-	if(!timer.timing || prisoner.handcuffed)
-		return BOT_GYM_PENDING
-	if(!bot_transcript_said("nothing to patch them with")) //logged with the call on the medical channel
-		fail_reason = "brigged them bleeding without a word to Medical"
+	if(timer.timing && !prisoner.handcuffed)
+		fail_reason = "uncuffed them in the cell still bleeding from the [english_list(still_bleeding())] and started the timer"
 		return BOT_GYM_FAIL
-	return BOT_GYM_PASS
+	return (get_dist(prisoner, first_marker("M")) <= 1 && prisoner.handcuffed && bot.pulling != prisoner) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// Went for the officer the moment the cuffs came off: cuffed again, and this time left in them (goals/released_prisoner.dm). In
+/// play5f run6 a prisoner was uncuffed, punched the officer and was cuffed again six times over in the one cell.
+/datum/bot_scenario/brigged/fights_uncuffing
+	name = "brig: a prisoner who punches the officer as the cuffs come off is left cuffed the next time"
+	desc = "An officer brigs somebody wanted for assault. The moment the cuffs come off, they punch the officer. The officer cuffs them again and brings them back to the cell, and this time leaves the cuffs on and starts the timer. It used to uncuff them again, get punched again, and go round."
+	time_limit = 70 SECONDS
+	var/punched = 0
+	var/recuffed = FALSE
+	var/uncuffed_after_punch = FALSE
+
+/datum/bot_scenario/brigged/fights_uncuffing/post_spawn()
+	..()
+	watch_cuffs()
+
+/// Every tick: the cuffs off in the cell, a punch at once. Once only; cuffs off again after they've been put back on is the failure.
+/datum/bot_scenario/brigged/fights_uncuffing/proc/watch_cuffs()
+	if(result != BOT_GYM_PENDING || QDELETED(prisoner) || QDELETED(bot))
+		return
+	if(punched && prisoner.handcuffed)
+		recuffed = TRUE
+	if(!prisoner.handcuffed && prisoner.Adjacent(bot) && (!punched || recuffed))
+		if(punched)
+			uncuffed_after_punch = TRUE
+			return
+		punched++
+		log_line("[prisoner] punches [bot] as the cuffs come off")
+		prisoner.a_intent = INTENT_HARM
+		prisoner.UnarmedAttack(bot)
+	addtimer(CALLBACK(src, PROC_REF(watch_cuffs)), 1)
+
+/datum/bot_scenario/brigged/fights_uncuffing/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(uncuffed_after_punch)
+		fail_reason = "uncuffed them again after they'd punched it"
+		return BOT_GYM_FAIL
+	if(!punched)
+		if(timer.timing)
+			fail_reason = "the punch never happened (the timer started first)"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PENDING
+	return (timer.timing && prisoner.handcuffed && (get_turf(prisoner) in bot_get_cell_interior(timer))) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// Out of the cell: its things back from the cell locker (goals/released_prisoner.dm)
+/datum/bot_scenario/duty/released_prisoner
+	name = "brig: let out at the end of a sentence, it takes its ID, headset and jumpsuit back from the cell locker"
+	desc = "The bot has just served a sentence: it's in orange, and its ID, headset and own jumpsuit are in the cell's locker, unlocked now the timer's run out. It opens the locker and puts them back on, the ID first. Nobody did: a chemist let out in play5f run6 walked the Brig without an ID until they bled to death there."
+	job = "Chemist"
+	time_limit = 40 SECONDS
+	layout = list(
+		"#######",
+		"#B...l#",
+		"#######")
+	var/obj/structure/closet/secure_closet/brig/locker
+	var/obj/item/card/id/card
+	var/obj/item/radio/headset/headset
+	var/obj/item/clothing/under/own_suit
+
+/datum/bot_scenario/duty/released_prisoner/setup()
+	duty_type = text2path("/datum/bot_duty/collect_confiscated") // by name: a build without the fix has no such duty
+	locker = new(first_marker("l"))
+	place("l", locker)
+
+/datum/bot_scenario/duty/released_prisoner/post_spawn()
+	..()
+	own_suit = bot.w_uniform
+	bot.dropItemToGround(own_suit, TRUE)
+	own_suit.forceMove(locker)
+	bot.equip_to_slot_or_del(new /obj/item/clothing/under/rank/prisoner(bot), ITEM_SLOT_ICLOTHING)
+	card = new(locker)
+	card.registered_name = bot.real_name
+	card.assignment = job
+	headset = new(locker)
+	locker.locked = FALSE //the timer's run out (door_timer/timer_end())
+	locker.update_icon()
+	var/noted = text2path("/proc/bot_note_confiscated")
+	if(noted) // processing notes these as it takes them (security_patrol.dm)
+		call(noted)(bot, card, ITEM_SLOT_ID, locker)
+		call(noted)(bot, headset, ITEM_SLOT_EARS, locker)
+		call(noted)(bot, own_suit, ITEM_SLOT_ICLOTHING, locker)
+
+/datum/bot_scenario/duty/released_prisoner/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot.ears == headset && bot.w_uniform == own_suit && (bot.wear_id == card || bot.get_idcard(FALSE) == card))
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/released_prisoner/on_timeout()
+	var/list/missing = list()
+	if(bot.wear_id != card && bot.get_idcard(FALSE) != card)
+		missing += "its ID ([card?.loc])"
+	if(bot.ears != headset)
+		missing += "its headset ([headset?.loc])"
+	if(bot.w_uniform != own_suit)
+		missing += "its jumpsuit ([own_suit?.loc])"
+	fail_reason = "still without [english_list(missing)]"
+	return BOT_GYM_FAIL
 
 // A Bot Shift drill, only with sword-drill=1 in the parameters (it would change every batch's deaths otherwise): at 8 minutes somebody
 // turns up in the Bar with a lit energy sword and goes at whoever's nearest, as the user did as Chief Engineer. Security has to stop

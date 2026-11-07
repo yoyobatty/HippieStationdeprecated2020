@@ -320,6 +320,7 @@ GLOBAL_LIST_EMPTY(bot_seat_claims)
 	bot.evac_board_failures++
 	// No way to the shuttle from in here: somebody with the right ID might get the door (bot_requests.dm).
 	bot.next_call_time = min(bot.next_call_time, world.time)
+	bot.next_let_out_call = min(bot.next_let_out_call, world.time)
 	bot.maybe_ask_to_be_let_out()
 	if(seat)
 		LAZYOR(bot.evac_failed_seats, seat)
@@ -449,6 +450,7 @@ GLOBAL_LIST_EMPTY(bot_seat_claims)
 		for(var/mob/living/carbon/human/H in T2)
 			if(H.bot_brain)
 				H.bot_brain.next_call_time = 0
+				H.bot_brain.next_let_out_call = 0
 				H.bot_brain.next_shut_in_look = world.time + 2 SECONDS
 	if(!bot.gym_scripted)
 		bot_say(bot.owner, pick("Shuttle's coming - out you come, get to departures.", "Sentence is over. Evacuation - go.", "You're free to go. Don't miss the shuttle."))

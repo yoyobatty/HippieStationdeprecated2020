@@ -316,6 +316,8 @@ GLOBAL_VAR(bot_in_command)
 		if(worn)
 			if(HAS_TRAIT(worn, TRAIT_NODROP) || !P.transferItemToLoc(worn, locker_turf))
 				continue
+			var/obj/structure/closet/locker = locate() in locker_turf
+			bot_note_confiscated(P, worn, slot, locker) //goals/released_prisoner.dm: back on when they're let out
 			return TRUE
 		// Picked up, and put on them by the strip menu, as an officer does it: it takes a few seconds, and they're stood there for it.
 		// It used to go from the locker straight on to them, which no player can do.

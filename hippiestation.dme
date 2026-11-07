@@ -3425,6 +3425,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\quiet_jobs.dm"
 #include "hippiestation\code\modules\bots_ai\goals\rad_storm.dm"
 #include "hippiestation\code\modules\bots_ai\goals\refill_internals.dm"
+#include "hippiestation\code\modules\bots_ai\goals\released_prisoner.dm"
 #include "hippiestation\code\modules\bots_ai\goals\repair_cables.dm"
 #include "hippiestation\code\modules\bots_ai\goals\repair_damage.dm"
 #include "hippiestation\code\modules\bots_ai\goals\respond_to_contamination.dm"

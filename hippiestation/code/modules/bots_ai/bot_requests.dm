@@ -411,7 +411,10 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 
 /// Puts a call out over the radio for somebody of another trade: says the line, and has it answered like anyone's.
 /datum/bot_brain/proc/call_for(kind_type, line, detail)
-	if(world.time < next_call_time || gym_scripted || QDELETED(owner) || owner.stat != CONSCIOUS || gone_loud())
+	// Shut in is asked about on its own clock: one call for a medic used to keep a prisoner let out at the end of their sentence quiet
+	// for five minutes about the Brig door they couldn't open, and they bled to death behind it (play5f run6).
+	var/let_out = ispath(kind_type, /datum/bot_request_kind/let_out)
+	if((let_out ? world.time < next_let_out_call : world.time < next_call_time) || gym_scripted || QDELETED(owner) || owner.stat != CONSCIOUS || gone_loud())
 		return FALSE
 	var/datum/bot_request_kind/kind = locate(kind_type) in GLOB.bot_request_kinds
 	if(!kind || bot_open_request_from(owner, kind))
@@ -425,7 +428,11 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 			anyone = TRUE
 	if(!anyone)
 		return FALSE
-	next_call_time = world.time + 5 MINUTES
+	if(let_out)
+		next_let_out_call = world.time + 2 MINUTES
+		next_call_time = max(next_call_time, world.time + 1 MINUTES)
+	else
+		next_call_time = world.time + 5 MINUTES
 	var/datum/bot_request/R = bot_new_request(kind, owner, FREQ_COMMON, kind.walks_there ? owner : get_turf(owner))
 	R.detail = detail
 	bot_say(owner, ";[line]")
@@ -741,7 +748,7 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 /datum/bot_brain/proc/maybe_ask_to_be_let_out()
 	if(gym_scripted && !gym_asks_out)
 		return FALSE
-	if(world.time < next_call_time || owner.stat != CONSCIOUS || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST)
+	if(world.time < next_let_out_call || owner.stat != CONSCIOUS || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST)
 		return FALSE
 	if(owner.handcuffed || owner.bot_life_sentence || is_in_active_cell(owner) || !is_station_level(owner.z))
 		return FALSE //there on purpose, as far as anybody else is concerned
@@ -775,6 +782,8 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 	/// A Bot Gym bot keeps quiet about being shut in unless its scenario is about that.
 	var/gym_asks_out = FALSE
 	var/next_shut_in_look = 0
+	/// When it may next ask to be let out: apart from its other calls (call_for())
+	var/next_let_out_call = 0
 
 // ---------------------------------------------------------------------------------------------
 // Calls bots make
