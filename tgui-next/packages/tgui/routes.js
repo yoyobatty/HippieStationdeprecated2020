@@ -646,23 +646,23 @@ const ROUTES = {
   },
   nanite_chamber_control: {
     component: () => NaniteChamberControl,
-    scrollable: true,
+    scrollable: false,
   },
   nanite_cloud_control: {
     component: () => NaniteCloudControl,
-    scrollable: true,
+    scrollable: false,
   },
   nanite_program_hub: {
     component: () => NaniteProgramHub,
-    scrollable: true,
+    scrollable: false,
   },
   nanite_programmer: {
     component: () => NaniteProgrammer,
-    scrollable: true,
+    scrollable: false,
   },
   nanite_remote: {
     component: () => NaniteRemote,
-    scrollable: true,
+    scrollable: false,
   },
   ntos_main: {
     component: () => NtosMain,

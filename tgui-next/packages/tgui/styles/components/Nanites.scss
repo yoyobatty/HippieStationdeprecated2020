@@ -1,0 +1,877 @@
+// hippie -- the nanite windows (interfaces/Nanite*.js, parts in NaniteParts.js): a lab panel, the swarm as a meter of drifting
+// dots with its safety line, programs as chips with a detail pane, codes as keyed chips.
+
+$nanite-teal: #3fd0c9;
+$nanite-teal-dim: #1f7e7a;
+$nanite-amber: #e8b04a;
+$nanite-red: #e0605a;
+$nanite-text: #c9d6df;
+$nanite-muted: #71838f;
+$nanite-panel: #121a1f;
+$nanite-panel2: #182228;
+$nanite-line: #26343c;
+
+.Nanites {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(63, 208, 201, 0.07), transparent 55%),
+    linear-gradient(#0d1317, #0a0f12);
+  color: $nanite-text;
+  font-family: 'Segoe UI', Verdana, sans-serif;
+}
+
+.Nanites__bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 7px 10px;
+  border-bottom: 1px solid $nanite-line;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.Nanites__title {
+  flex: 1;
+  font-size: 15px;
+  font-weight: bold;
+  color: #e6f1f5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.Nanites__subtitle {
+  margin-left: 8px;
+  color: $nanite-muted;
+  font-size: 11px;
+  font-weight: normal;
+}
+
+.Nanites__body {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+.Nanites__col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 8px 10px;
+  overflow-y: auto;
+}
+
+.Nanites__col--side {
+  flex: 0 0 38%;
+  border-right: 1px solid $nanite-line;
+}
+
+.Nanites__col--main {
+  flex: 1 1 auto;
+}
+
+.Nanites__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 10px;
+}
+
+.Nanites__heading {
+  margin: 8px 0 5px;
+  color: $nanite-muted;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+}
+
+.Nanites__heading:first-child {
+  margin-top: 0;
+}
+
+.Nanites__headingRight {
+  margin-left: auto;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.Nanites__notice {
+  margin: 30px auto;
+  padding: 14px 18px;
+  max-width: 80%;
+  border: 1px dashed $nanite-line;
+  border-radius: 6px;
+  color: $nanite-muted;
+  text-align: center;
+}
+
+// Keys
+
+.Nanites__key {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  margin-left: 4px;
+  border: 1px solid $nanite-line;
+  border-radius: 4px;
+  background: $nanite-panel2;
+  color: $nanite-text;
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: $nanite-teal-dim;
+    color: #fff;
+  }
+
+  i {
+    margin-right: 5px;
+  }
+}
+
+.Nanites__key--on {
+  border-color: $nanite-teal;
+  background: rgba(63, 208, 201, 0.16);
+  color: #dffcf9;
+}
+
+.Nanites__key--danger:hover {
+  border-color: $nanite-red;
+  color: #ffd7d4;
+}
+
+.Nanites__key--armed {
+  border-color: $nanite-red;
+  background: rgba(224, 96, 90, 0.25);
+  color: #fff;
+  animation: nanite-pulse 0.8s ease-in-out infinite alternate;
+}
+
+.Nanites__key--disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+@keyframes nanite-pulse {
+  from {
+    box-shadow: 0 0 0 rgba(224, 96, 90, 0);
+  }
+  to {
+    box-shadow: 0 0 8px rgba(224, 96, 90, 0.7);
+  }
+}
+
+// The swarm
+
+.Nanites__meter {
+  position: relative;
+  height: 34px;
+  border-radius: 17px;
+  background: #0a1013;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 0 1px $nanite-line;
+  overflow: hidden;
+}
+
+.Nanites__fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  border-radius: 17px 0 0 17px;
+  background:
+    radial-gradient(circle, rgba(170, 255, 246, 0.85) 1px, transparent 1.6px) 0 0 / 7px 7px,
+    radial-gradient(circle, rgba(170, 255, 246, 0.4) 0.8px, transparent 1.3px) 3px 4px / 5px 5px,
+    linear-gradient(90deg, #0d4c4a, #1b9a93);
+  animation: nanite-drift 6s linear infinite;
+  transition: width 0.6s;
+}
+
+.Nanites__fill--low {
+  background:
+    radial-gradient(circle, rgba(255, 200, 190, 0.85) 1px, transparent 1.6px) 0 0 / 7px 7px,
+    linear-gradient(90deg, #4d1714, #9a2e27);
+}
+
+@keyframes nanite-drift {
+  from {
+    background-position: 0 0, 3px 4px, 0 0;
+  }
+  to {
+    background-position: 28px 7px, -17px 9px, 0 0;
+  }
+}
+
+.Nanites__safety {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 2px;
+  margin-left: -1px;
+  background: $nanite-red;
+  box-shadow: 0 0 4px rgba(224, 96, 90, 0.8);
+}
+
+.Nanites__meterText {
+  position: absolute;
+  top: 0;
+  right: 14px;
+  line-height: 34px;
+  font-family: 'Consolas', monospace;
+  font-size: 15px;
+  font-weight: bold;
+  color: #eafffd;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+.Nanites__meterLegend {
+  display: flex;
+  margin-top: 5px;
+  font-size: 11px;
+  color: $nanite-muted;
+
+  span + span {
+    margin-left: 14px;
+  }
+}
+
+.Nanites__legendSafety {
+  color: #ef8f89;
+}
+
+.Nanites__legendGrowth {
+  color: $nanite-teal;
+}
+
+// Settings rows
+
+.Nanites__settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 9px;
+}
+
+.Nanites__setting {
+  display: flex;
+  align-items: center;
+  margin-right: 14px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: $nanite-muted;
+
+  .NumberInput {
+    margin-left: 6px;
+  }
+}
+
+.Nanites__setting--right {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+// Program chips
+
+.Nanites__chips {
+  display: flex;
+  flex-direction: column;
+}
+
+.Nanites__chip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 0 0 5px 6px;
+  padding: 6px 8px 6px 10px;
+  border: 1px solid $nanite-line;
+  border-radius: 3px;
+  background: $nanite-panel;
+  cursor: pointer;
+  user-select: none;
+
+  // the chip's pins
+  &:before,
+  &:after {
+    content: '';
+    position: absolute;
+    left: -6px;
+    width: 5px;
+    height: 2px;
+    background: #3a4a52;
+    box-shadow: 0 6px 0 #3a4a52, 0 12px 0 #3a4a52;
+  }
+
+  &:before {
+    top: 7px;
+  }
+
+  &:after {
+    display: none;
+  }
+
+  &:hover {
+    border-color: #35505a;
+    background: $nanite-panel2;
+  }
+}
+
+.Nanites__chip--selected {
+  border-color: $nanite-teal;
+  background: #13282a;
+  box-shadow: 0 0 0 1px rgba(63, 208, 201, 0.25);
+}
+
+.Nanites__chipLed {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: #3a464c;
+}
+
+.Nanites__chipLed--on {
+  background: $nanite-teal;
+  box-shadow: 0 0 6px $nanite-teal;
+}
+
+.Nanites__chipName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.Nanites__chipMeta {
+  margin-left: 6px;
+  color: $nanite-muted;
+  font-size: 10px;
+  white-space: nowrap;
+
+  i {
+    color: $nanite-amber;
+    margin-left: 5px;
+  }
+}
+
+.Nanites__chipRemove {
+  margin-left: 6px;
+  padding: 0 3px;
+  color: $nanite-muted;
+
+  &:hover {
+    color: $nanite-red;
+  }
+}
+
+// A program's details
+
+.Nanites__detailName {
+  font-size: 15px;
+  font-weight: bold;
+  color: #e6f1f5;
+  display: flex;
+  align-items: center;
+}
+
+.Nanites__status {
+  margin-left: auto;
+  padding: 1px 8px;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: #2a343a;
+  color: $nanite-muted;
+}
+
+.Nanites__status--on {
+  background: rgba(63, 208, 201, 0.18);
+  color: $nanite-teal;
+}
+
+.Nanites__desc {
+  margin: 5px 0 8px;
+  color: #aebdc6;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.Nanites__stats {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.Nanites__stat {
+  margin: 0 6px 6px 0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: $nanite-panel2;
+  font-size: 10px;
+  color: $nanite-muted;
+
+  b {
+    display: block;
+    font-size: 13px;
+    color: $nanite-text;
+    font-family: 'Consolas', monospace;
+  }
+}
+
+.Nanites__codes {
+  display: flex;
+  margin-bottom: 4px;
+}
+
+.Nanites__code {
+  flex: 1;
+  margin-right: 5px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  border-top: 2px solid $nanite-teal;
+  background: $nanite-panel2;
+  text-align: center;
+
+  &:last-child {
+    margin-right: 0;
+  }
+}
+
+.Nanites__code--deactivation {
+  border-top-color: #8a9aa3;
+}
+
+.Nanites__code--kill {
+  border-top-color: $nanite-red;
+}
+
+.Nanites__code--trigger {
+  border-top-color: $nanite-amber;
+}
+
+.Nanites__codeLabel {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: $nanite-muted;
+  text-transform: uppercase;
+}
+
+.Nanites__codeValue {
+  font-family: 'Consolas', monospace;
+  font-size: 15px;
+  font-weight: bold;
+  color: #e6f1f5;
+
+  .NumberInput {
+    width: 100% !important;
+    text-align: center;
+  }
+}
+
+.Nanites__codeValue--unset {
+  color: #3f4c53;
+}
+
+.Nanites__rows {
+  font-size: 11px;
+}
+
+.Nanites__row {
+  display: flex;
+  align-items: center;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(38, 52, 60, 0.6);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.Nanites__rowLabel {
+  flex: 1;
+  color: $nanite-muted;
+}
+
+.Nanites__rowValue {
+  color: $nanite-text;
+  text-align: right;
+}
+
+.Nanites__rule {
+  display: flex;
+  align-items: center;
+  padding: 3px 6px;
+  margin-bottom: 3px;
+  border-radius: 3px;
+  background: $nanite-panel2;
+  font-size: 11px;
+
+  .fa-filter {
+    color: $nanite-amber;
+    margin-right: 6px;
+  }
+}
+
+// The disk slot
+
+.Nanites__disk {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border-radius: 5px;
+  background: $nanite-panel2;
+  border: 1px solid $nanite-line;
+}
+
+.Nanites__diskIcon {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  margin-right: 9px;
+  border-radius: 3px;
+  background: linear-gradient(#2c3c44, #1c272d);
+  border: 1px solid #3a4a52;
+  text-align: center;
+  line-height: 30px;
+  color: $nanite-teal;
+  font-size: 14px;
+}
+
+.Nanites__diskIcon--empty {
+  color: #3f4c53;
+}
+
+.Nanites__diskText {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: $nanite-muted;
+
+  b {
+    display: block;
+    color: #e6f1f5;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+// Cloud backups
+
+.Nanites__backup {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+  padding: 6px 9px;
+  border: 1px solid $nanite-line;
+  border-radius: 4px;
+  background: $nanite-panel;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    border-color: #35505a;
+  }
+
+  i {
+    color: $nanite-teal;
+    margin-right: 8px;
+  }
+}
+
+.Nanites__backup--selected {
+  border-color: $nanite-teal;
+  background: #13282a;
+}
+
+.Nanites__backupId {
+  font-family: 'Consolas', monospace;
+  font-weight: bold;
+  font-size: 13px;
+}
+
+// The hub's catalogue
+
+.Nanites__tabs {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  padding: 6px 10px 0;
+  border-bottom: 1px solid $nanite-line;
+}
+
+.Nanites__tab {
+  padding: 5px 10px;
+  margin-right: 2px;
+  border-bottom: 2px solid transparent;
+  color: $nanite-muted;
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    color: $nanite-text;
+  }
+}
+
+.Nanites__tab--on {
+  color: #e6f1f5;
+  border-bottom-color: $nanite-teal;
+}
+
+.Nanites__tabCount {
+  margin-left: 4px;
+  color: $nanite-muted;
+  font-size: 10px;
+}
+
+.Nanites__card {
+  display: flex;
+  margin-bottom: 6px;
+  padding: 7px 9px;
+  border: 1px solid $nanite-line;
+  border-left: 3px solid $nanite-teal-dim;
+  border-radius: 3px;
+  background: $nanite-panel;
+}
+
+.Nanites__cardText {
+  flex: 1;
+  min-width: 0;
+
+  b {
+    display: block;
+    font-size: 12px;
+    color: #e6f1f5;
+    margin-bottom: 2px;
+  }
+
+  span {
+    font-size: 11px;
+    color: #9fb0ba;
+    line-height: 1.35;
+  }
+}
+
+.Nanites__cardAction {
+  flex: 0 0 auto;
+  align-self: center;
+  margin-left: 8px;
+}
+
+// The programmer's power switch
+
+.Nanites__power {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 10px;
+  padding: 3px 10px 3px 4px;
+  border-radius: 14px;
+  background: #1f292e;
+  border: 1px solid $nanite-line;
+  font-size: 11px;
+  font-weight: bold;
+  color: $nanite-muted;
+  cursor: pointer;
+  user-select: none;
+}
+
+.Nanites__powerKnob {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: #3a464c;
+  transition: background 0.15s;
+}
+
+.Nanites__power--on {
+  color: $nanite-teal;
+  border-color: $nanite-teal-dim;
+
+  .Nanites__powerKnob {
+    background: $nanite-teal;
+    box-shadow: 0 0 8px $nanite-teal;
+  }
+}
+
+// The remote
+
+.NaniteRemote {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  background:
+    radial-gradient(circle, rgba(0, 0, 0, 0.3) 1.2px, transparent 1.6px) 0 0 / 6px 6px,
+    linear-gradient(#2b3a3f, #1b2428);
+  color: $nanite-text;
+  font-family: 'Segoe UI', Verdana, sans-serif;
+}
+
+.NaniteRemote__screen {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: linear-gradient(#0e2a28, #0a1d1c);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.06);
+  font-family: 'Consolas', monospace;
+  color: #7ff3e9;
+  text-shadow: 0 0 6px rgba(63, 208, 201, 0.6);
+}
+
+.NaniteRemote__screenTop {
+  display: flex;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.NaniteRemote__screenRight {
+  margin-left: auto;
+}
+
+.NaniteRemote__code {
+  font-size: 34px;
+  font-weight: bold;
+  line-height: 40px;
+  letter-spacing: 3px;
+  text-align: right;
+
+  .NumberInput {
+    font-size: 34px !important;
+  }
+}
+
+.NaniteRemote__name {
+  font-size: 13px;
+
+  input {
+    color: #7ff3e9 !important;
+    font-family: 'Consolas', monospace !important;
+  }
+}
+
+.NaniteRemote__modes {
+  display: flex;
+  margin: 10px 0 6px;
+}
+
+.NaniteRemote__mode {
+  flex: 1;
+  margin-right: 4px;
+  padding: 7px 0 5px;
+  border-radius: 5px;
+  background: linear-gradient(#3b4b51, #2a363b);
+  box-shadow: 0 2px 0 #151c1f, inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  text-align: center;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+
+  &:last-child {
+    margin-right: 0;
+  }
+
+  &:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 0 #151c1f;
+  }
+}
+
+.NaniteRemote__mode--on {
+  color: #0a1d1c;
+  background: linear-gradient(#69e6dc, #3fd0c9);
+}
+
+.NaniteRemote__fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: $nanite-muted;
+}
+
+.NaniteRemote__saved {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin-top: 4px;
+  padding: 6px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.NaniteRemote__preset {
+  display: flex;
+  align-items: center;
+  padding: 5px 7px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  background: $nanite-panel;
+  border: 1px solid $nanite-line;
+  font-size: 11px;
+}
+
+.NaniteRemote__presetName {
+  flex: 1;
+  font-weight: bold;
+  color: #e6f1f5;
+}
+
+.NaniteRemote__presetMeta {
+  color: $nanite-muted;
+  font-family: 'Consolas', monospace;
+  margin-right: 6px;
+}
+
+// Inputs that sit in a chip or on the remote's screen: no box of their own
+
+.Nanites__codeValue .NumberInput,
+.NaniteRemote__screen .NumberInput,
+.NaniteRemote__screen .Input {
+  border-color: transparent !important;
+  background-color: transparent !important;
+}
+
+.Nanites__codeValue .NumberInput__barContainer,
+.NaniteRemote__screen .NumberInput__barContainer {
+  display: none;
+}
+
+.Nanites__codeValue .NumberInput {
+  color: #e6f1f5;
+  font-family: 'Consolas', monospace;
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.NaniteRemote__screen .NumberInput,
+.NaniteRemote__screen .Input,
+.NaniteRemote__screen input {
+  color: #7ff3e9 !important;
+  text-shadow: 0 0 6px rgba(63, 208, 201, 0.6);
+}
+
+.NaniteRemote__screen .Input {
+  border-bottom: 1px dashed rgba(127, 243, 233, 0.3) !important;
+}

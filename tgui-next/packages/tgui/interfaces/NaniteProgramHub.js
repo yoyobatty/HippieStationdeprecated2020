@@ -1,125 +1,108 @@
-import { map } from 'common/collections';
-import { Fragment } from 'inferno';
+import { Component } from 'inferno';
 import { useBackend } from '../backend';
-import { Button, LabeledList, NoticeBox, Section, Tabs } from '../components';
+import { Icon } from '../components';
+import { DiskSlot, Key } from './NaniteParts';
 
-export const NaniteProgramHub = props => {
-  const { act, data } = useBackend(props);
-  const {
-    detail_view,
-    disk,
-    has_disk,
-    has_program,
-    programs = {},
-  } = data;
-  return (
-    <Fragment>
-      <Section
-        title="Program Disk"
-        buttons={(
-          <Fragment>
-            <Button
-              icon="eject"
-              content="Eject"
-              onClick={() => act('eject')} />
-            <Button
-              icon="minus-circle"
-              content="Delete Program"
-              onClick={() => act('clear')} />
-          </Fragment>
-        )}>
-        {has_disk ? (
-          has_program ? (
-            <LabeledList>
-              <LabeledList.Item label="Program Name">
-                {disk.name}
-              </LabeledList.Item>
-              <LabeledList.Item label="Description">
-                {disk.desc}
-              </LabeledList.Item>
-            </LabeledList>
-          ) : (
-            <NoticeBox>
-              No Program Installed
-            </NoticeBox>
-          )
-        ) : (
-          <NoticeBox>
-            Insert Disk
-          </NoticeBox>
-        )}
-      </Section>
-      <Section
-        title="Programs"
-        buttons={(
-          <Fragment>
-            <Button
-              icon={detail_view ? 'info' : 'list'}
-              content={detail_view ? 'Detailed' : 'Compact'}
-              onClick={() => act('toggle_details')} />
-            <Button
-              icon="sync"
-              content="Sync Research"
-              onClick={() => act('refresh')} />
-          </Fragment>
-        )}>
-        {programs !== null ? (
-          <Tabs vertical>
-            {map((cat_contents, category) => {
-              const progs = cat_contents || [];
-              // Backend was sending stupid data that would have been
-              // annoying to fix
-              const tabLabel = category.substring(0, category.length - 8);
-              return (
-                <Tabs.Tab
-                  key={category}
-                  label={tabLabel}>
-                  {detail_view ? (
-                    progs.map(program => (
-                      <Section
-                        key={program.id}
-                        title={program.name}
-                        level={2}
-                        buttons={(
-                          <Button
-                            icon="download"
-                            content="Download"
-                            disabled={!has_disk}
-                            onClick={() => act('download', {
-                              program_id: program.id,
-                            })} />
-                        )}>
-                        {program.desc}
-                      </Section>
-                    ))
-                  ) : (
-                    <LabeledList>
-                      {progs.map(program => (
-                        <LabeledList.Item
-                          key={program.id}
-                          label={program.name}
-                          buttons={(
-                            <Button
-                              icon="download"
-                              content="Download"
-                              disabled={!has_disk}
-                              onClick={() => act('download', {
-                                program_id: program.id,
-                              })} />
-                          )} />
-                      ))}
-                    </LabeledList>
-                  )}
-                </Tabs.Tab>
-              );
-            })(programs)}
-          </Tabs>
-        ) : (
-          <NoticeBox>
-            No nanite programs are currently researched.
-          </NoticeBox>
-        )}
-      </Section>
-    </Fragment>
-  );
+// hippie -- the program hub: the disk slot, then the researched programs by
+// category as cards, each with Download. The old
+// window's detailed/compact switch is gone: every card has its description.
+// Data and actions as before
+// (code/modules/research/nanites/nanite_program_hub.dm).
+
+const CATEGORY_ICONS = {
+  Utility: 'tools',
+  Medical: 'medkit',
+  Sensor: 'satellite-dish',
+  Augmentation: 'dumbbell',
+  Suppression: 'hand-paper',
+  Weaponized: 'skull-crossbones',
+  Protocols: 'project-diagram',
 };
+
+// The backend's categories end in " Nanites"
+const categoryLabel = category => category.replace(/ Nanites$/, '');
+
+export class NaniteProgramHub extends Component {
+  constructor() {
+    super();
+    this.state = { tab: null };
+  }
+
+  render() {
+    const { act, data } = useBackend(this.props);
+    const {
+      disk,
+      has_disk,
+      has_program,
+    } = data;
+    const programs = data.programs || {};
+    const categories = Object.keys(programs);
+    let tab = this.state.tab;
+    if (!tab || !programs[tab]) {
+      tab = categories[0];
+    }
+    const shown = (tab && programs[tab]) || [];
+    return (
+      <div className="Nanites">
+        <div className="Nanites__bar">
+          <div className="Nanites__title">Program Hub</div>
+          <Key
+            icon="sync"
+            content="Sync research"
+            onClick={() => act('refresh')} />
+        </div>
+        <div style={{ padding: '8px 10px' }}>
+          <DiskSlot has_disk={has_disk} has_program={has_program} disk={disk}>
+            {!!has_program && (
+              <Key
+                icon="eraser"
+                title="Wipe the disk"
+                onClick={() => act('clear')} />
+            )}
+            {!!has_disk && (
+              <Key icon="eject" title="Eject" onClick={() => act('eject')} />
+            )}
+          </DiskSlot>
+        </div>
+        {categories.length === 0 ? (
+          <div className="Nanites__notice">No programs researched</div>
+        ) : (
+          <div className="Nanites__tabs">
+            {categories.map(category => (
+              <div
+                key={category}
+                className={'Nanites__tab'
+                  + (category === tab ? ' Nanites__tab--on' : '')}
+                onClick={() => this.setState({ tab: category })}>
+                <Icon
+                  name={CATEGORY_ICONS[categoryLabel(category)] || 'microchip'}
+                  mr={1} />
+                {categoryLabel(category)}
+                <span className="Nanites__tabCount">
+                  {(programs[category] || []).length}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="Nanites__scroll">
+          {shown.map(program => (
+            <div key={program.id} className="Nanites__card">
+              <div className="Nanites__cardText">
+                <b>{program.name}</b>
+                <span>{program.desc}</span>
+              </div>
+              <div className="Nanites__cardAction">
+                <Key
+                  icon="download"
+                  content="Download"
+                  disabled={!has_disk}
+                  onClick={() => act('download', { program_id: program.id })} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+}

@@ -1,332 +1,186 @@
-import { Fragment } from 'inferno';
+import { Component } from 'inferno';
 import { useBackend } from '../backend';
-import { Box, Button, Collapsible, Grid, LabeledList, NoticeBox, NumberInput, Section } from '../components';
+import { Icon, NumberInput } from '../components';
+import { DiskSlot, Key, ProgramChip, ProgramDetail } from './NaniteParts';
 
-export const NaniteDiskBox = props => {
-  const { state } = props;
-  const { data } = state;
-  const {
-    has_disk,
-    has_program,
-    disk,
-  } = data;
-
-  if (!has_disk) {
-    return (
-      <NoticeBox>
-        No disk inserted
-      </NoticeBox>
-    );
+// hippie -- the cloud controller: the disk slot and the backups down one side,
+// the open backup's programs as chips with the
+// picked one's details and rules beside them. Data and actions as before
+// (code/modules/research/nanites/nanite_cloud_controller.dm).
+export class NaniteCloudControl extends Component {
+  constructor() {
+    super();
+    this.state = { picked: null };
   }
 
-  if (!has_program) {
+  render() {
+    const { act, data } = useBackend(this.props);
+    const {
+      has_disk,
+      has_program,
+      disk,
+      current_view,
+      new_backup_id,
+      cloud_backup,
+    } = data;
+    const backups = data.cloud_backups || [];
+    const programs = data.cloud_programs || [];
+    const canRule = !!(disk && disk.can_rule);
+    let picked = programs.find(program => program.id === this.state.picked);
+    if (!picked && programs.length) {
+      picked = programs[0];
+    }
     return (
-      <NoticeBox>
-        Inserted disk has no program
-      </NoticeBox>
-    );
-  }
-
-  return (
-    <NaniteInfoBox program={disk} />
-  );
-};
-
-export const NaniteInfoBox = props => {
-  const { program } = props;
-
-  const {
-    name,
-    desc,
-    activated,
-    use_rate,
-    can_trigger,
-    trigger_cost,
-    trigger_cooldown,
-    activation_code,
-    deactivation_code,
-    kill_code,
-    trigger_code,
-    timer_restart,
-    timer_shutdown,
-    timer_trigger,
-    timer_trigger_delay,
-  } = program;
-
-  const extra_settings = program.extra_settings || [];
-
-  return (
-    <Section
-      title={name}
-      level={2}
-      buttons={(
-        <Box
-          inline
-          bold
-          color={activated ? 'good' : 'bad'}>
-          {activated ? 'Activated' : 'Deactivated'}
-        </Box>
-      )}>
-      <Grid>
-        <Grid.Column mr={1}>
-          {desc}
-        </Grid.Column>
-        <Grid.Column size={0.5}>
-          <LabeledList>
-            <LabeledList.Item label="Use Rate">
-              {use_rate}
-            </LabeledList.Item>
-            {!!can_trigger && (
-              <Fragment>
-                <LabeledList.Item label="Trigger Cost">
-                  {trigger_cost}
-                </LabeledList.Item>
-                <LabeledList.Item label="Trigger Cooldown">
-                  {trigger_cooldown}
-                </LabeledList.Item>
-              </Fragment>
+      <div className="Nanites">
+        <div className="Nanites__bar">
+          <div className="Nanites__title">
+            Nanite Cloud
+            {!!current_view && (
+              <span className="Nanites__subtitle">backup #{current_view}</span>
             )}
-          </LabeledList>
-        </Grid.Column>
-      </Grid>
-      <Grid>
-        <Grid.Column>
-          <Section
-            title="Codes"
-            level={3}
-            mr={1}>
-            <LabeledList>
-              <LabeledList.Item label="Activation">
-                {activation_code}
-              </LabeledList.Item>
-              <LabeledList.Item label="Deactivation">
-                {deactivation_code}
-              </LabeledList.Item>
-              <LabeledList.Item label="Kill">
-                {kill_code}
-              </LabeledList.Item>
-              {!!can_trigger && (
-                <LabeledList.Item label="Trigger">
-                  {trigger_code}
-                </LabeledList.Item>
+          </div>
+          {!!current_view && (
+            <Key
+              icon="arrow-left"
+              content="Backups"
+              onClick={() => act('set_view', { view: 0 })} />
+          )}
+        </div>
+        <div className="Nanites__body">
+          <div className="Nanites__col Nanites__col--side">
+            <div className="Nanites__heading">Disk</div>
+            <DiskSlot has_disk={has_disk} has_program={has_program} disk={disk}>
+              {!!has_disk && (
+                <Key icon="eject" title="Eject" onClick={() => act('eject')} />
               )}
-            </LabeledList>
-          </Section>
-        </Grid.Column>
-        <Grid.Column>
-          <Section
-            title="Delays"
-            level={3}
-            mr={1}>
-            <LabeledList>
-              <LabeledList.Item label="Restart">
-                {timer_restart} s
-              </LabeledList.Item>
-              <LabeledList.Item label="Shutdown">
-                {timer_shutdown} s
-              </LabeledList.Item>
-              {!!can_trigger && (
-                <Fragment>
-                  <LabeledList.Item label="Trigger">
-                    {timer_trigger} s
-                  </LabeledList.Item>
-                  <LabeledList.Item label="Trigger Delay">
-                    {timer_trigger_delay} s
-                  </LabeledList.Item>
-                </Fragment>
-              )}
-            </LabeledList>
-          </Section>
-        </Grid.Column>
-      </Grid>
-      <Section
-        title="Extra Settings"
-        level={3}>
-        <LabeledList>
-          {extra_settings.map(setting => {
-            const naniteTypesDisplayMap = {
-              number: <Fragment>{setting.value}{setting.unit}</Fragment>,
-              text: setting.value,
-              type: setting.value,
-              boolean: (setting.value ? setting.true_text : setting.false_text),
-            };
-            return (
-              <LabeledList.Item key={setting.name} label={setting.name}>
-                {naniteTypesDisplayMap[setting.type]}
-              </LabeledList.Item>
-            );
-          })}
-        </LabeledList>
-      </Section>
-    </Section>
-  );
-};
-
-export const NaniteCloudBackupList = props => {
-  const { act, data } = useBackend(props);
-  const cloud_backups = data.cloud_backups || [];
-  return (
-    cloud_backups.map(backup => (
-      <Button
-        fluid
-        key={backup.cloud_id}
-        content={"Backup #" + backup.cloud_id}
-        textAlign="center"
-        onClick={() => act('set_view', {
-          view: backup.cloud_id,
-        })} />
-    ))
-  );
-};
-
-export const NaniteCloudBackupDetails = props => {
-  const { act, data } = useBackend(props);
-  const {
-    current_view,
-    disk,
-    has_program,
-    cloud_backup,
-  } = data;
-
-  const can_rule = (disk && disk.can_rule) || false;
-
-  if (!cloud_backup) {
-    return (
-      <NoticeBox>
-        ERROR: Backup not found
-      </NoticeBox>
-    );
-  }
-
-  const cloud_programs = data.cloud_programs || [];
-
-  return (
-    <Section
-      title={"Backup #" + current_view}
-      level={2}
-      buttons={(
-        !!has_program && (
-          <Button
-            icon="upload"
-            content="Upload From Disk"
-            color="good"
-            onClick={() => act('upload_program')} />
-        )
-      )}>
-      {cloud_programs.map(program => {
-        const rules = program.rules || [];
-        return (
-          <Collapsible
-            key={program.name}
-            title={program.name}
-            buttons={(
-              <Button
-                icon="minus-circle"
-                color="bad"
-                onClick={() => act('remove_program', {
-                  program_id: program.id,
-                })} />
-            )}>
-            <Section>
-              <NaniteInfoBox program={program} />
-              {!!can_rule && (
-                <Section
-                  mt={-2}
-                  title="Rules"
-                  level={2}
-                  buttons={(
-                    <Button
-                      icon="plus"
-                      content="Add Rule from Disk"
-                      color="good"
-                      onClick={() => act('add_rule', {
+            </DiskSlot>
+            <div className="Nanites__heading" style={{ 'margin-top': '12px' }}>
+              Backups
+              <span className="Nanites__headingRight">
+                <NumberInput
+                  value={new_backup_id}
+                  minValue={1}
+                  maxValue={100}
+                  stepPixelSize={4}
+                  width="38px"
+                  onChange={(e, value) => act('update_new_backup_value', {
+                    value,
+                  })} />
+                <Key
+                  icon="plus"
+                  title="New backup"
+                  onClick={() => act('create_backup')} />
+              </span>
+            </div>
+            {!current_view && backups.length === 0 && (
+              <div className="Nanites__desc">None</div>
+            )}
+            {!current_view && backups.map(backup => (
+              <div
+                key={backup.cloud_id}
+                className="Nanites__backup"
+                onClick={() => {
+                  this.setState({ picked: null });
+                  act('set_view', { view: backup.cloud_id });
+                }}>
+                <Icon name="cloud" />
+                <span className="Nanites__backupId">#{backup.cloud_id}</span>
+              </div>
+            ))}
+            {!!current_view && (
+              <div className="Nanites__backup Nanites__backup--selected">
+                <Icon name="cloud" />
+                <span className="Nanites__backupId">#{current_view}</span>
+                <span
+                  className="Nanites__headingRight"
+                  style={{ color: '#71838f', 'font-size': '11px' }}>
+                  {programs.length} program{programs.length === 1 ? '' : 's'}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="Nanites__col Nanites__col--main">
+            {!current_view ? (
+              <div className="Nanites__notice">Open a backup</div>
+            ) : !cloud_backup ? (
+              <div className="Nanites__notice">Backup not found</div>
+            ) : (
+              <div>
+                <div className="Nanites__heading">
+                  Programs
+                  <span className="Nanites__headingRight">
+                    <Key
+                      icon="upload"
+                      content="Upload disk"
+                      disabled={!has_program}
+                      onClick={() => act('upload_program')} />
+                  </span>
+                </div>
+                {programs.length === 0 && (
+                  <div className="Nanites__desc">None</div>
+                )}
+                <div className="Nanites__chips">
+                  {programs.map(program => (
+                    <ProgramChip
+                      key={program.id}
+                      program={program}
+                      selected={picked && picked.id === program.id}
+                      onClick={() => this.setState({ picked: program.id })}
+                      onRemove={() => act('remove_program', {
                         program_id: program.id,
                       })} />
-                  )}>
-                  {program.has_rules ? (
-                    rules.map(rule => (
-                      <Fragment key={rule.display}>
-                        <Button
-                          icon="minus-circle"
-                          color="bad"
-                          onClick={() => act('remove_rule', {
-                            program_id: program.id,
-                            rule_id: rule.id,
-                          })} />
-                        {rule.display}
-                      </Fragment>
-                    ))
-                  ) : (
-                    <Box color="bad">
-                      No Active Rules
-                    </Box>
-                  )}
-                </Section>
-              )}
-            </Section>
-          </Collapsible>
-        );
-      })}
-    </Section>
-  );
-};
-
-export const NaniteCloudControl = props => {
-  const { state } = props;
-  const { act, data } = useBackend(props);
-  const {
-    has_disk,
-    current_view,
-    new_backup_id,
-  } = data;
-
-  return (
-    <Fragment>
-      <Section
-        title="Program Disk"
-        buttons={(
-          <Button
-            icon="eject"
-            content="Eject"
-            disabled={!has_disk}
-            onClick={() => act('eject')} />
-        )}>
-        <NaniteDiskBox state={state} />
-      </Section>
-      <Section
-        title="Cloud Storage"
-        buttons={(
-          current_view ? (
-            <Button
-              icon="arrow-left"
-              content="Return"
-              onClick={() => act('set_view', {
-                view: 0,
-              })} />
-          ) : (
-            <Fragment>
-              {"New Backup: "}
-              <NumberInput
-                value={new_backup_id}
-                minValue={1}
-                maxValue={100}
-                stepPixelSize={4}
-                width="39px"
-                onChange={(e, value) => act('update_new_backup_value', {
-                  value: value,
-                })} />
-              <Button
-                icon="plus"
-                onClick={() => act('create_backup')} />
-            </Fragment>
-          )
-        )}>
-        {!data.current_view ? (
-          <NaniteCloudBackupList state={state} />
-        ) : (
-          <NaniteCloudBackupDetails state={state} />
-        )}
-      </Section>
-    </Fragment>
-  );
-};
+                  ))}
+                </div>
+                {!!picked && (
+                  <div style={{
+                    'margin-top': '10px',
+                    'padding-top': '8px',
+                    'border-top': '1px solid #26343c',
+                  }}>
+                    <ProgramDetail
+                      program={picked}
+                      rules={(
+                        <div>
+                          <div className="Nanites__heading">
+                            Rules
+                            {canRule && (
+                              <span className="Nanites__headingRight">
+                                <Key
+                                  icon="plus"
+                                  content="Add from disk"
+                                  onClick={() => act('add_rule', {
+                                    program_id: picked.id,
+                                  })} />
+                              </span>
+                            )}
+                          </div>
+                          {!(picked.rules && picked.rules.length) && (
+                            <div className="Nanites__desc">None</div>
+                          )}
+                          {(picked.rules || []).map(rule => (
+                            <div key={rule.id} className="Nanites__rule">
+                              <Icon name="filter" />
+                              <span style={{ flex: 1 }}>{rule.display}</span>
+                              <div
+                                className="Nanites__chipRemove"
+                                title="Remove"
+                                onClick={() => act('remove_rule', {
+                                  program_id: picked.id,
+                                  rule_id: rule.id,
+                                })}>
+                                <Icon name="times" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )} />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+}

@@ -5,8 +5,8 @@
 	var/obj/item/disk/nanite_program/disk
 	icon_screen = "nanite_chamber_control"
 	circuit = /obj/item/circuitboard/computer/nanite_chamber_control
-	ui_x = 380
-	ui_y = 570
+	ui_x = 620 //hippie: programs and the picked one's details side by side
+	ui_y = 600
 
 /obj/machinery/computer/nanite_chamber_control/Initialize()
 	. = ..()

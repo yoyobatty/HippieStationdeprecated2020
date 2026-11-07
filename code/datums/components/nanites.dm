@@ -313,6 +313,7 @@
 /datum/component/nanites/proc/nanite_ui_data(datum/source, list/data, scan_level)
 	data["has_nanites"] = TRUE
 	data["nanite_volume"] = nanite_volume
+	data["max_nanites"] = max_nanites //hippie: the chamber console draws the swarm against it
 	data["regen_rate"] = regen_rate
 	data["safety_threshold"] = safety_threshold
 	data["cloud_id"] = cloud_id

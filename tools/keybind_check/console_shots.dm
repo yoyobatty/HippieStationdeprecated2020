@@ -287,6 +287,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_med_lab(C, H, label)
 		if("ghostntos")
 			cs_ghost_ntos(C, H, label)
+		if("nanites")
+			cs_nanites(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -6923,3 +6925,124 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	SStgui.close_user_uis(ghost)
 	qdel(bum)
 	qdel(barkeep)
+
+// Nanites: the chamber console with a patient whose nanites run programs, the cloud controller with a backup, the program hub, the
+// programmer with a disk, the remote. Everything researched; the chamber scans at level 4 so every detail shows.
+/proc/cs_nanites(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/rd)
+	var/obj/item/card/id/id = H.wear_id
+	if(istype(id))
+		id.access = get_all_accesses()
+	H.drop_all_held_items()
+	usr = H
+	var/datum/techweb/web = SSresearch.science_tech
+	for(var/node_id in SSresearch.techweb_nodes)
+		web.research_node_id(node_id, TRUE, FALSE)
+	var/list/taken = list()
+
+	// The chamber console, the chamber beside it, a patient in it with nanites and programs
+	var/turf/console_spot = cs_open_beside(H, taken)
+	taken += console_spot
+	var/obj/machinery/computer/nanite_chamber_control/console = new(console_spot)
+	console.stat &= ~(NOPOWER|BROKEN)
+	var/turf/chamber_spot = cs_open_beside(console, taken + get_turf(H))
+	taken += chamber_spot
+	var/obj/machinery/nanite_chamber/chamber = new(chamber_spot)
+	chamber.stat &= ~(NOPOWER|BROKEN)
+	chamber.scan_level = 4
+	var/mob/living/carbon/human/patient = new(chamber_spot)
+	patient.real_name = "Rosa Delgado"
+	patient.name = patient.real_name
+	patient.equipOutfit(/datum/outfit/job/assistant)
+	patient.AddComponent(/datum/component/nanites, 340)
+	var/list/program_types = list(/datum/nanite_program/regenerative, /datum/nanite_program/sensor/health, /datum/nanite_program/temperature, /datum/nanite_program/adrenaline, /datum/nanite_program/mindshield)
+	for(var/type in program_types)
+		if(!ispath(type))
+			continue
+		var/datum/nanite_program/P = new type
+		if(type == /datum/nanite_program/adrenaline)
+			P.activated = FALSE
+			P.activation_code = 1101
+			P.trigger_code = 4242
+		SEND_SIGNAL(patient, COMSIG_NANITE_ADD_PROGRAM, P)
+	chamber.open_machine()
+	chamber.close_machine(patient)
+	console.find_chamber()
+	cs_check("nanites: the patient is in the chamber, the console sees it", chamber.occupant == patient && console.chamber == chamber)
+	var/list/chamber_data = console.ui_data(H)
+	cs_check("nanites: the console has the swarm ([chamber_data["nanite_volume"]]/[chamber_data["max_nanites"]]) and its programs ([length(chamber_data["mob_programs"])])", chamber_data["has_nanites"] && length(chamber_data["mob_programs"]) >= 4)
+	cs_small_window_shot(C, H, console, "popup_nanites_[label]_chamber")
+	cs_act(console, H, "set_safety", list("value" = 120))
+	var/datum/component/nanites/swarm = patient.GetComponent(/datum/component/nanites)
+	cs_check("nanites: the safety threshold sets ([swarm?.safety_threshold])", swarm?.safety_threshold == 120)
+	cs_act(console, H, "set_cloud", list("value" = 3))
+	cs_check("nanites: the cloud id sets ([swarm?.cloud_id])", swarm?.cloud_id == 3)
+	SStgui.close_user_uis(H)
+
+	// The cloud controller with backup #3: the same programs and a rule
+	var/turf/cloud_spot = cs_open_beside(H, taken)
+	taken += cloud_spot
+	var/obj/machinery/computer/nanite_cloud_controller/cloud = new(cloud_spot)
+	cloud.stat &= ~(NOPOWER|BROKEN)
+	cloud.generate_backup(3, H)
+	cloud.generate_backup(7, H)
+	var/datum/nanite_cloud_backup/backup = cloud.get_backup(3)
+	if(backup && swarm)
+		for(var/datum/nanite_program/P in swarm.programs)
+			var/datum/nanite_program/copy = P.copy()
+			backup.nanites.add_program(null, copy)
+		var/datum/nanite_program/first = backup.nanites.programs[1]
+		new /datum/nanite_rule/health(first)
+	cloud.disk = new /obj/item/disk/nanite_program/metabolic_synthesis(cloud)
+	cloud.current_view = 3
+	var/list/cloud_data = cloud.ui_data(H)
+	cs_check("nanites: backup #3 has its programs ([length(cloud_data["cloud_programs"])])", length(cloud_data["cloud_programs"]) >= 4)
+	cs_small_window_shot(C, H, cloud, "popup_nanites_[label]_cloud")
+	SStgui.close_user_uis(H)
+	cloud.current_view = 0
+	sleep(15) // a window opened again straight after closing comes up white
+	cs_small_window_shot(C, H, cloud, "popup_nanites_[label]_cloudlist")
+	SStgui.close_user_uis(H)
+
+	// The program hub, with a blank disk
+	var/turf/hub_spot = cs_open_beside(H, taken)
+	taken += hub_spot
+	var/obj/machinery/nanite_program_hub/hub = new(hub_spot)
+	hub.stat &= ~(NOPOWER|BROKEN)
+	hub.disk = new /obj/item/disk/nanite_program(hub)
+	var/list/hub_static = hub.ui_static_data(H)
+	cs_check("nanites: the hub lists researched programs ([length(hub_static["programs"])] categories)", length(hub_static["programs"]) >= 3)
+	cs_small_window_shot(C, H, hub, "popup_nanites_[label]_hub")
+	SStgui.close_user_uis(H)
+
+	// The programmer, with a program on its disk
+	var/turf/programmer_spot = cs_open_beside(H, taken)
+	taken += programmer_spot
+	var/obj/machinery/nanite_programmer/programmer = new(programmer_spot)
+	programmer.stat &= ~(NOPOWER|BROKEN)
+	var/obj/item/disk/nanite_program/disk = new /obj/item/disk/nanite_program/relay(programmer)
+	programmer.disk = disk
+	programmer.program = disk.program
+	cs_small_window_shot(C, H, programmer, "popup_nanites_[label]_programmer")
+	cs_act(programmer, H, "set_code", list("target_code" = "activation", "code" = 2468))
+	cs_check("nanites: the programmer sets a code ([programmer.program?.activation_code])", programmer.program?.activation_code == 2468)
+	SStgui.close_user_uis(H)
+
+	// The remote, with two saved settings
+	var/obj/item/nanite_remote/remote = new(get_turf(H))
+	H.put_in_active_hand(remote)
+	remote.code = 4242
+	remote.mode = "Targeted"
+	remote.current_program_name = "Calm down"
+	cs_act(remote, H, "save")
+	remote.code = 1101
+	remote.mode = "Area"
+	remote.current_program_name = "Wake up"
+	cs_act(remote, H, "save")
+	cs_check("nanites: the remote keeps saved settings ([length(remote.saved_settings)])", length(remote.saved_settings) == 2)
+	cs_small_window_shot(C, H, remote, "popup_nanites_[label]_remote")
+	cs_act(remote, H, "select_mode", list("mode" = "Relay"))
+	cs_check("nanites: the remote's mode keys ([remote.mode])", remote.mode == "Relay")
+	SStgui.close_user_uis(H)
+	H.drop_all_held_items()
+	qdel(remote)
