@@ -3026,6 +3026,7 @@
 #include "hippiestation\code\datums\traits\negative.dm"
 #include "hippiestation\code\datums\traits\neutral.dm"
 #include "hippiestation\code\datums\wires\wires.dm"
+#include "hippiestation\code\datums\wires\wires_radio_tgui.dm"
 #include "hippiestation\code\game\action.dm"
 #include "hippiestation\code\game\atoms.dm"
 #include "hippiestation\code\game\atoms_movable.dm"

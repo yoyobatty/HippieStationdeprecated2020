@@ -1,0 +1,426 @@
+// hippie -- the radio handset (interfaces/Radio.js) and the wiring panel
+// (interfaces/Wires.js)
+
+// The radio
+
+.Radio {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  padding: 10px 12px;
+  background:
+    radial-gradient(circle, rgba(0, 0, 0, 0.35) 1.2px, transparent 1.6px) 0 0 / 6px 6px,
+    linear-gradient(#34393f, #23272b);
+  font-family: 'Bahnschrift', 'Segoe UI', sans-serif;
+}
+
+.Radio__front {
+  display: flex;
+  align-items: stretch;
+  padding: 8px;
+  border-radius: 8px;
+  background-color: #191c1f;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.Radio__lcd {
+  flex: 1;
+  padding: 4px 10px 5px;
+  border-radius: 4px;
+  background: linear-gradient(#b4c8a6, #98b08b);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.45);
+  color: #1d2a1c;
+  cursor: text;
+}
+
+.Radio__digits {
+  position: relative;
+  height: 44px;
+  font-family: 'Consolas', 'Lucida Console', monospace;
+  font-size: 40px;
+  font-weight: bold;
+  line-height: 44px;
+  text-align: right;
+}
+
+.Radio__ghost {
+  position: absolute;
+  right: 0;
+  opacity: 0.1;
+}
+
+.Radio__value {
+  position: relative;
+}
+
+.Radio__lcdInput {
+  width: 100%;
+  height: 44px;
+  font-size: 30px;
+}
+
+.Radio__lcdLine {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.Radio__lock {
+  padding: 0 4px;
+  background-color: #1d2a1c;
+  color: #a9bf9c;
+}
+
+.Radio__tuner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-gap: 6px;
+  margin-left: 8px;
+}
+
+.Radio__tuneKey {
+  width: 34px;
+  height: 28px;
+  border-radius: 5px;
+  background: linear-gradient(#4a5058, #33383e);
+  box-shadow: 0 2px 0 #121417, inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: #d6dbe0;
+  font-size: 20px;
+  line-height: 26px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.Radio__tuneKey:active {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 #121417;
+}
+
+.Radio__tuneKey--locked {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.Radio__switches {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 10px;
+}
+
+.Radio__switch {
+  width: 72px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.Radio__led {
+  width: 8px;
+  height: 8px;
+  margin: 0 auto 4px;
+  border-radius: 50%;
+  background-color: #3a1a1a;
+}
+
+.Radio__switch--on .Radio__led {
+  background-color: #ff4b3a;
+  box-shadow: 0 0 6px #ff4b3a;
+}
+
+.Radio__toggle {
+  position: relative;
+  width: 40px;
+  height: 18px;
+  margin: 0 auto;
+  border-radius: 9px;
+  background-color: #15181b;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.Radio__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: linear-gradient(#d9dde1, #8d949b);
+  transition: left 0.15s;
+}
+
+.Radio__switch--on .Radio__knob {
+  left: 24px;
+}
+
+.Radio__switchLabel {
+  margin-top: 4px;
+  color: #aeb5bc;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.Radio__keys {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.Radio__keysLabel {
+  width: 100%;
+  margin-bottom: 4px;
+  color: #7f8790;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.Radio__empty {
+  color: #c05050;
+}
+
+.Radio__key {
+  display: flex;
+  align-items: center;
+  width: calc(33.33% - 6px);
+  margin: 0 6px 6px 0;
+  padding: 5px 8px;
+  border-radius: 5px;
+  background: linear-gradient(#3d4248, #2c3035);
+  box-shadow: 0 2px 0 #121417;
+  color: #8f979f;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.Radio__key--on {
+  color: #e9edf1;
+}
+
+.Radio__key:active {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 #121417;
+}
+
+.Radio__keyLed {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background-color: #1b1e21;
+}
+
+// The wiring panel
+
+.Wires {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  padding: 8px;
+  background-color: #1c1f22;
+  font-family: 'Bahnschrift', 'Segoe UI', sans-serif;
+}
+
+.Wires__panel {
+  position: relative;
+  padding: 14px 16px 10px;
+  border-radius: 6px;
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.025) 0, rgba(255, 255, 255, 0.025) 2px, transparent 2px, transparent 5px),
+    linear-gradient(#3a3f45, #2c3035);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.Wires__screw {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #c8cdd2, #6c737a);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+}
+
+.Wires__screw::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 1px;
+  width: 7px;
+  height: 1px;
+  background-color: #3c4248;
+  transform: rotate(35deg);
+}
+
+.Wires__screw--tl { top: 4px; left: 4px; }
+.Wires__screw--tr { top: 4px; right: 4px; }
+.Wires__screw--bl { bottom: 4px; left: 4px; }
+.Wires__screw--br { bottom: 4px; right: 4px; }
+
+.Wires__row {
+  display: flex;
+  align-items: center;
+  height: 33px;
+}
+
+.Wires__name {
+  width: 72px;
+  color: #c6ccd2;
+  font-size: 12px;
+  text-transform: capitalize;
+  line-height: 13px;
+}
+
+.Wires__purpose {
+  color: #e0b84a;
+  font-size: 10px;
+  font-style: italic;
+  text-transform: none;
+}
+
+.Wires__run {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  margin-right: 10px;
+}
+
+.Wires__terminal {
+  flex: none;
+  width: 10px;
+  height: 14px;
+  border-radius: 2px;
+  background: linear-gradient(#b8a26a, #7a6a3e);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+}
+
+.Wires__cable {
+  position: relative;
+  flex: 1;
+  height: 8px;
+}
+
+.Wires__whole,
+.Wires__half {
+  position: absolute;
+  top: 0;
+  height: 8px;
+  border-radius: 4px;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.5);
+}
+
+.Wires__whole::after,
+.Wires__half::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 4px;
+  background: linear-gradient(rgba(255, 255, 255, 0.45), transparent 45%, rgba(0, 0, 0, 0.35));
+}
+
+.Wires__whole {
+  left: 0;
+  right: 0;
+}
+
+.Wires__half--left {
+  left: 0;
+  right: 58%;
+  border-radius: 4px 0 0 4px;
+  clip-path: polygon(0 0, 100% 0, 92% 50%, 100% 100%, 0 100%);
+  transform: rotate(4deg);
+  transform-origin: left center;
+}
+
+.Wires__half--right {
+  left: 58%;
+  right: 0;
+  border-radius: 0 4px 4px 0;
+  clip-path: polygon(8% 0, 100% 0, 100% 100%, 0 100%, 8% 50%);
+  transform: rotate(-4deg);
+  transform-origin: right center;
+}
+
+.Wires__assembly {
+  position: absolute;
+  left: 40%;
+  top: -8px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background-color: #59616a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+  color: #e8ecef;
+  font-size: 11px;
+}
+
+.Wires__tools {
+  display: flex;
+}
+
+.Wires__tool {
+  margin-left: 4px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: linear-gradient(#4a5058, #363b41);
+  box-shadow: 0 2px 0 #15181b;
+  color: #dfe3e7;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.Wires__tool:hover {
+  background: linear-gradient(#58606a, #40464d);
+}
+
+.Wires__tool:active {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 #15181b;
+}
+
+.Wires__lights {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background-color: #141619;
+}
+
+.Wires__light {
+  display: flex;
+  align-items: center;
+  color: #b9c0c7;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.Wires__lamp {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background-color: #2c3136;
+}
+
+.Wires__lamp--on {
+  background-color: #6fe36f;
+  box-shadow: 0 0 6px #6fe36f;
+}
+
+.Wires__lamp--off {
+  background-color: #263a26;
+}
