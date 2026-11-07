@@ -21,8 +21,6 @@
 							//its inherent color, the colored paint applied on it, special color effect etc...
 
 	var/list/priority_overlays	//overlays that should remain on top and not normally removed when using cut_overlay functions, like c4.
-	var/list/remove_overlays // a very temporary list of overlays to remove
-	var/list/add_overlays // a very temporary list of overlays to add
 
 	var/list/managed_vis_overlays //vis overlays managed by SSvis_overlays to automaticaly turn them like other overlays
 	/// hippie -- how many of those SSvis_overlays turns by hand when we turn (the rest face our way by themselves)

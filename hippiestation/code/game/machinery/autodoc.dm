@@ -394,7 +394,6 @@ GLOBAL_LIST_INIT(autodoc_supported_surgery_steps, typecacheof(list(
 /// The patient from the front, flat. getFlatIcon() gives up on the whole thing (returns nothing) at the first overlay
 /// or underlay on a floating layer, and a live body has some, so it's given a copy of their appearance without those.
 /proc/autodoc_flat_patient(mob/living/carbon/body)
-	COMPILE_OVERLAYS(body) // a body dressed this tick has its look still queued
 	var/mutable_appearance/look = new(body)
 	look.dir = SOUTH
 	look.pixel_x = 0

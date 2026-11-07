@@ -637,7 +637,7 @@ But you can call procs that are of type /mob/living/carbon/human/proc/ for that 
 /client/proc/cmd_display_overlay_log()
 	set category = "Debug"
 	set name = "Display overlay Log"
-	set desc = "Display SSoverlays log of everything that's passed through it."
+	set desc = "Display SSoverlays log of everything that's passed through it (only kept with OVERLAY_STATS defined in code/controllers/subsystem/overlays.dm)."
 
 	render_stats(SSoverlays.stats, src)
 
