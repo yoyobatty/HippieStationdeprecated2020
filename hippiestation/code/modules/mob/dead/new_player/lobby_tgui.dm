@@ -75,6 +75,27 @@ GLOBAL_VAR_INIT(lobby_design, "pass")
 		ui = new(user, src, ui_key, "lobby", station_name(), 380, 480, master_ui, state)
 		ui.no_close = TRUE
 		ui.open()
+		if(user.client)
+			LAZYOR(user.client.lobby_windows, ui.window_id)
+
+/// Only the lobby mob's own player
+/mob/dead/new_player/ui_status(mob/user, datum/ui_state/state)
+	if(user != src)
+		return UI_CLOSE
+	return ..()
+
+/client
+	/// The lobby's windows on this client's screen. A client moved into another mob any way but joining or observing
+	/// (an admin putting them in a body) leaves the lobby mob without a client, so tgui's own close never reaches the
+	/// screen, and the lobby can't be closed by hand: they're closed when the client lands anywhere else.
+	var/list/lobby_windows
+
+/mob/Login()
+	. = ..()
+	if(client && length(client.lobby_windows) && !isnewplayer(src))
+		for(var/window in client.lobby_windows)
+			src << browse(null, "window=[window]")
+		client.lobby_windows = null
 
 /// What the round is doing, for both windows
 /proc/lobby_round_data()
@@ -186,6 +207,8 @@ GLOBAL_VAR_INIT(lobby_design, "pass")
 	if(!ui)
 		ui = new(user, src, ui_key, "late_join", "Choose Profession", 660, 590, master_ui, state)
 		ui.open()
+		if(user.client)
+			LAZYOR(user.client.lobby_windows, ui.window_id)
 
 /datum/late_join_menu/ui_status(mob/user, datum/ui_state/state)
 	if(user != owner || QDELETED(owner) || owner.spawning)
