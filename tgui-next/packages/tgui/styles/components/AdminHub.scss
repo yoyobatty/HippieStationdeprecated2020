@@ -60,6 +60,94 @@ $ah-muted: #8a93a0;
   flex: 1;
 }
 
+// The search box and its dropdown
+
+.AdminHub__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 5px 4px;
+}
+
+.AdminHub__searchIcon {
+  position: absolute;
+  left: 8px;
+  color: $ah-muted;
+  pointer-events: none;
+}
+
+.AdminHub__searchInput {
+  width: 300px;
+  padding: 4px 8px 4px 27px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+
+  &:focus {
+    border-color: #4f8fd6;
+  }
+}
+
+.AdminHub__results {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 900;
+  width: 420px;
+  max-height: 480px;
+  margin-top: 3px;
+  overflow-y: auto;
+  padding: 3px 0 5px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  background-color: #2a2e35;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+  font-size: 12px;
+}
+
+.AdminHub__resultsHead {
+  padding: 6px 12px 2px;
+  color: $ah-muted;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.AdminHub__resultsEmpty {
+  padding: 8px 12px;
+  color: $ah-muted;
+}
+
+.AdminHub__result {
+  display: flex;
+  align-items: baseline;
+  padding: 3px 12px;
+  cursor: pointer;
+}
+
+.AdminHub__result--on {
+  background-color: rgba(79, 143, 214, 0.35);
+}
+
+.AdminHub__resultLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.AdminHub__resultHint {
+  margin-left: 10px;
+  color: $ah-muted;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 .AdminHub__body {
   flex: 1;
   min-height: 0;

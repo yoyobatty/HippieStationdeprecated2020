@@ -82,6 +82,11 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 	else if(findtext(action, "down:") == 1) // a mousedown on it, as a real click starts with
 		var/list/bits = splittext(copytext(action, 6), "|")
 		js = "var t=[json_encode(bits[2])];var b=Array.prototype.slice.call(document.querySelectorAll([json_encode(bits[1])])).filter(function(e){return e.textContent.trim().indexOf(t)===0;})\[0\];if(b){b.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));}"
+	else if(findtext(action, "key:") == 1) // "key:<css>|<keyCode>": a key pressed in the first element matching css
+		var/list/bits = splittext(copytext(action, 5), "|")
+		js = "var e=document.querySelector([json_encode(bits[1])]);if(e){e.focus();e.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,keyCode:[text2num(bits[2])]}));}"
+	else if(findtext(action, "search:") == 1) // types in the hub's search box, keeping focus there
+		js = "var i=document.querySelector('.AdminHub__searchInput');if(i){i.focus();i.value=[json_encode(copytext(action, 8))];i.dispatchEvent(new Event('input',{bubbles:true}));}"
 	else if(findtext(action, "textarea:") == 1)
 		js = "var a=document.querySelector('textarea');if(a){a.focus();a.value=[json_encode(copytext(action, 10))];a.dispatchEvent(new Event('input',{bubbles:true}));}"
 	else if(action == "ctrlenter")
@@ -590,6 +595,37 @@ GLOBAL_VAR_INIT(s2_cleared, FALSE)
 	sleep(1 SECONDS)
 	s2_check("the Search Logs verb: its own window, the hub left as it was", s2_ui(H, C.log_search) && hub.tab == "tickets")
 	s2_close(H, C.log_search)
+	// the search box: a dropdown as you type (the user's ruling)
+	s2_do(C, ui, "search:bob")
+	sleep(1 SECONDS)
+	var/list/found = list()
+	for(var/list/G in hub.search_results)
+		for(var/list/item in G["items"])
+			found += "[item["kind"]]:[item["id"]]"
+	s2_check("typing 'bob' finds Bob, the ticket about him and the log lines", ("player:bobbarman" in found) && ("ticket:[AH.id]" in found) && ("logs:bob" in found), jointext(found, " "))
+	s2_shot("hub_search")
+	s2_do(C, ui, "key:.AdminHub__searchInput|13")
+	sleep(1 SECONDS)
+	s2_check("Enter goes to the first: Bob's profile in the panel", hub.profile_open && C.player_profile.shown_ckey == "bobbarman" && !hub.search_text, C.player_profile.shown_ckey)
+	s2_do(C, ui, "search:#[AH.id]")
+	sleep(1 SECONDS)
+	s2_do(C, ui, "pick:.AdminHub__result|#[AH.id]")
+	sleep(1 SECONDS)
+	s2_check("'#1' finds the ticket, and a click opens it", hub.tab == "tickets" && C.ticket_window.selected_id == AH.id, hub.tab)
+	s2_do(C, ui, "search:Primary Hallway")
+	sleep(1 SECONDS)
+	var/place = FALSE
+	for(var/list/G in hub.search_results)
+		for(var/list/item in G["items"])
+			if(item["kind"] == "place" && findtext(item["label"], "Primary Hallway"))
+				place = TRUE
+	s2_check("a place's name finds the place", place)
+	s2_do(C, ui, "search:punched")
+	sleep(1 SECONDS)
+	s2_do(C, ui, "key:.AdminHub__searchInput|40")
+	s2_do(C, ui, "pick:.AdminHub__result|")
+	sleep(1 SECONDS)
+	s2_check("a word's log lines open Logs on those words", hub.tab == "logs" && C.log_search.text == "punched" && C.log_search.matched >= 2, "[hub.tab] [C.log_search.text] [C.log_search.matched]")
 	// the stat panel's line
 	var/stat_text = admin_hub_stat_text(C)
 	s2_check("the stat panel's hub line", findtext(stat_text, "ticket") && findtext(stat_text, "alert"), stat_text)

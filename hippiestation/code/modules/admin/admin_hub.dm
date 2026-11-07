@@ -49,6 +49,9 @@ GLOBAL_LIST_INIT(admin_hub_tabs, list("tickets", "questions", "alerts", "logs", 
 	var/profile_open = FALSE
 	/// The newest alert seen on the Alerts tab: newer ones are counted on it
 	var/alerts_seen = 0
+	/// The search box (the user's ruling: a dropdown as you type, in the hub only): what was typed, and what it found
+	var/search_text = ""
+	var/list/search_results
 
 /datum/admin_hub/Destroy()
 	owner = null
@@ -132,7 +135,100 @@ GLOBAL_LIST_INIT(admin_hub_tabs, list("tickets", "questions", "alerts", "logs", 
 	var/datum/player_profile/P = owner?.player_profile
 	if(profile_open && P?.shown_ckey)
 		data["profile"] = P.ui_data(user)
+	data["search"] = search_text ? list("text" = search_text, "results" = search_results) : null
 	return data
+
+/// Everything a search box's text could mean: players (online, bots, and keys seen before), tickets and questions, places, and
+/// how many log lines have it. Each kind a few at most, best first.
+/datum/admin_hub/proc/search(text)
+	search_text = copytext_char(trim("[text]"), 1, 60)
+	search_results = list()
+	if(length(search_text) < 2 && !findtext(search_text, "#"))
+		return
+	var/plain = ckey(search_text)
+	// players: a key or name with the text in it; whoever's in the round first
+	var/list/players = list()
+	var/list/done = list()
+	for(var/mob/M in GLOB.mob_list)
+		if(!M.ckey || done[M.ckey] || isnewplayer(M) && !M.client)
+			continue
+		var/name = isobserver(M) ? (M.mind?.name || M.name) : M.real_name
+		if(!(plain && findtext(M.ckey, plain)) && !findtext(name, search_text))
+			continue
+		done[M.ckey] = TRUE
+		var/area/A = get_area(M)
+		players += list(list("kind" = "player", "id" = M.ckey, "label" = "[name] ([M.ckey])", "hint" = jointext(list(M.mind?.assigned_role, admin_mob_state(M) == "alive" ? A?.name : admin_mob_state(M)) - null, ", ")))
+		if(players.len >= 8)
+			break
+	if(players.len < 8 && plain)
+		for(var/seen_ckey in SSbans.seen)
+			if(done[seen_ckey] || !findtext(seen_ckey, plain))
+				continue
+			done[seen_ckey] = TRUE
+			players += list(list("kind" = "player", "id" = seen_ckey, "label" = note_key_of(seen_ckey), "hint" = "not here"))
+			if(players.len >= 8)
+				break
+	// tickets and questions: "#3", "q2", or words in the title or the player's key
+	var/list/tickets = list()
+	var/number = text2num(replacetext(replacetext(lowertext(search_text), "#", ""), "q", ""))
+	var/list/all_tickets = GLOB.ahelp_tickets.active_tickets + GLOB.ahelp_tickets.resolved_tickets + GLOB.ahelp_tickets.closed_tickets
+	for(var/datum/admin_help/AH in all_tickets)
+		if((number && AH.id == number && !findtext(lowertext(search_text), "q")) || findtext(AH.name, search_text) || (plain && findtext(AH.initiator_ckey, plain)))
+			tickets += list(list("kind" = "ticket", "id" = AH.id, "label" = "#[AH.id] [AH.name]", "hint" = "[AH.initiator_key_name], [AH.state == AHELP_ACTIVE ? "open" : AH.history_outcome()]"))
+			if(tickets.len >= 5)
+				break
+	for(var/datum/help_question/Q in GLOB.help_questions)
+		if(tickets.len >= 6)
+			break
+		if((number && Q.id == number && findtext(lowertext(search_text), "q")) || findtext(Q.name, search_text) || (plain && findtext(Q.initiator_ckey, plain)))
+			tickets += list(list("kind" = "question", "id" = Q.id, "label" = "Q[Q.id] [Q.name]", "hint" = "[Q.initiator_key], [Q.open ? "open" : "done"]"))
+	// places
+	var/list/places = list()
+	for(var/area/A in GLOB.sortedAreas)
+		if(!findtext(A.name, search_text) || !is_station_level(A.z))
+			continue
+		places += list(list("kind" = "place", "id" = REF(A), "label" = A.name))
+		if(places.len >= 5)
+			break
+	// log lines with it
+	var/lines = 0
+	var/list/log = GLOB.round_log
+	for(var/i in 1 to log.len)
+		if(findtext(log[i][RL_TEXT], search_text))
+			lines++
+		if(!(i % 5000))
+			CHECK_TICK
+	search_results = list(
+		list("name" = "Players", "items" = players),
+		list("name" = "Tickets", "items" = tickets),
+		list("name" = "Places", "items" = places),
+		list("name" = "Log lines", "items" = lines ? list(list("kind" = "logs", "id" = search_text, "label" = "[lines] line[lines == 1 ? "" : "s"] with \"[search_text]\"", "hint" = "Logs")) : list()),
+	)
+
+/// A search result picked: their profile, the ticket, the place, or the log lines
+/datum/admin_hub/proc/search_go(kind, id)
+	var/client/C = owner
+	switch(kind)
+		if("player")
+			C.open_player_profile(id)
+		if("ticket")
+			C.open_tickets(text2num(id))
+		if("question")
+			C.open_questions(text2num(id))
+		if("place")
+			var/area/A = locate(id)
+			if(istype(A))
+				C.jumptoarea(A)
+		if("logs")
+			if(!C.log_search)
+				C.log_search = new
+				C.log_search.owner = C
+			C.log_search.reset()
+			C.log_search.text = "[id]"
+			C.log_search.search()
+			tab = "logs"
+	search_text = ""
+	search_results = null
 
 /datum/admin_hub/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
 	if(..())
@@ -148,9 +244,18 @@ GLOBAL_LIST_INIT(admin_hub_tabs, list("tickets", "questions", "alerts", "logs", 
 		if("hub_profile_close")
 			profile_open = FALSE
 			return TRUE
+		if("hub_search")
+			search(params["text"])
+			return TRUE
+		if("hub_search_clear")
+			search_text = ""
+			search_results = null
+			return TRUE
 	C.hub_routing = TRUE
 	try
-		if(findtext(action, "p:") == 1) // the profile panel's own buttons
+		if(action == "hub_go") // a search result
+			search_go(params["kind"], params["id"])
+		else if(findtext(action, "p:") == 1) // the profile panel's own buttons
 			C.player_profile?.ui_act(copytext(action, 3), params, ui, state)
 		else
 			var/datum/T = tool(tab)
