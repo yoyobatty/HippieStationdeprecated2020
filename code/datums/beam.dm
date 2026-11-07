@@ -33,6 +33,8 @@
 		addtimer(CALLBACK(src,PROC_REF(End)), time)
 
 /datum/beam/proc/Start()
+	if(QDELETED(src)) //Start() runs async: its origin or target can be gone, and the beam with it, first (a tesla zap on something burning up)
+		return
 	Draw()
 	recalculate_in(sleep_time)
 

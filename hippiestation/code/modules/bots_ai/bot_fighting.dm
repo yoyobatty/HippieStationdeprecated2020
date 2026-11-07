@@ -266,12 +266,23 @@
 			target = outpost
 			return
 	var/best_score
-	for(var/i in 1 to 5)
-		var/turf/T = bot.gym_run ? bot.pick_local_destination() : (bot.pick_poi_destination() || bot.pick_local_destination())
+	// From a live bomb, out of what it'll blow: a tank bomb takes a room and the corridors round it, and running five tiles from a
+	// grenade, then wandering back past it, was no running at all.
+	var/radius = bot_blast_radius(foe)
+	var/list/away_spots = list()
+	if(radius)
+		// Down whatever corridor gets it furthest from it, as well as the places it knows of, which may all be the wrong side of it
+		// (or, in an arena, a few tiles off). Straight away from it ran into walls: from beside it on a diagonal, "away" is a wall.
+		var/turf/far = bot.furthest_open_floor_from(foe, radius)
+		if(far)
+			away_spots += far
+	for(var/i in 1 to (radius ? 10 + length(away_spots) : 5))
+		var/turf/T = i <= length(away_spots) ? away_spots[i] : (bot.gym_run ? bot.pick_local_destination() : (bot.pick_poi_destination() || bot.pick_local_destination()))
 		// Not into air it can't breathe from air it can: assign_goal() refuses that, and a bot that picked a breached room ran nowhere.
 		if(!T || (!braves_bad_air && bot.in_bad_air(T)))
 			continue
-		var/score = (foe ? get_dist(T, foe) : 0) - get_dist(T, bot.owner) / 2
+		var/away = foe ? get_dist(T, foe) : 0
+		var/score = (radius ? min(away, radius * 1.5) * 2 : away) - get_dist(T, bot.owner) / 2
 		if(!target || score > best_score)
 			target = T
 			best_score = score
@@ -279,7 +290,82 @@
 /datum/bot_goal/run_from/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/run_from/S = new
 	S.steps = list(new /datum/bot_step/move_to())
+	var/atom/foe = foe_ref?.resolve()
+	if(bot_blast_radius(foe))
+		S.steps += new /datum/bot_step/paced/keep_clear(foe)
 	return list(S)
+
+/// The open floor it can walk to, without a door, that's furthest from A: a flood out from where it stands, a few hundred tiles at
+/// most, stopping at the first one out of reach of it.
+/datum/bot_brain/proc/furthest_open_floor_from(atom/A, enough)
+	var/turf/start = get_turf(owner)
+	var/turf/from = get_turf(A)
+	if(!start || !from)
+		return null
+	var/list/seen = list()
+	seen[start] = TRUE
+	var/list/queue = list(start)
+	var/at = 1
+	var/turf/best
+	var/best_dist = get_dist(start, from)
+	while(at <= length(queue) && length(queue) < 400)
+		var/turf/T = queue[at++]
+		for(var/d in GLOB.cardinals)
+			var/turf/next = get_step(T, d)
+			if(!next || seen[next] || next.density || isspaceturf(next) || is_blocked_turf(next, TRUE))
+				continue
+			seen[next] = TRUE
+			queue += next
+			var/dist = get_dist(next, from)
+			if(dist > best_dist)
+				best = next
+				best_dist = dist
+				if(dist >= enough)
+					return best
+	return best
+
+/// Something that's about to go off: a grenade with its pin out, a tank bomb with its timer going or on a dead man's switch.
+/proc/bot_live_explosive(atom/A)
+	if(QDELETED(A))
+		return FALSE
+	if(istype(A, /obj/item/grenade))
+		var/obj/item/grenade/G = A
+		return G.active
+	if(istype(A, /obj/item/transfer_valve))
+		var/obj/item/transfer_valve/V = A
+		var/obj/item/assembly/timer/T = V.attached_device
+		return (istype(T) && T.timing) || istype(V.attached_device, /obj/item/assembly/health)
+	return FALSE
+
+/// How far off to be from a bomb or a grenade being run from: 0 for anything else. Not whether it's live: the bomber log the crew hears
+/// a grenade by (bot_note_bomb()) comes before the grenade's marked active, so one being primed read as a dud and nobody kept clear.
+/proc/bot_blast_radius(atom/A)
+	if(QDELETED(A))
+		return 0
+	if(istype(A, /obj/item/transfer_valve))
+		return 22
+	return istype(A, /obj/item/grenade) ? 7 : 0
+
+/// Out of the way of it until it's gone off or somebody's seen to it, a minute at most: not back past it on some errand.
+/datum/bot_step/paced/keep_clear
+	max_clicks = 60
+	var/datum/weakref/thing_ref
+	var/started = 0
+
+/datum/bot_step/paced/keep_clear/New(atom/A)
+	. = ..()
+	thing_ref = WEAKREF(A)
+
+/datum/bot_step/paced/keep_clear/start(datum/bot_brain/bot)
+	started = world.time
+	return TRUE
+
+/datum/bot_step/paced/keep_clear/do_click(datum/bot_brain/bot)
+	var/atom/A = thing_ref?.resolve()
+	if(QDELETED(A) || (!bot_live_explosive(A) && world.time > started + 2 SECONDS)) //a moment for the pin to come out
+		return FALSE
+	wait_for = 10
+	return TRUE
 
 /datum/bot_strategy/run_from/is_feasible(datum/bot_brain/bot)
 	return TRUE

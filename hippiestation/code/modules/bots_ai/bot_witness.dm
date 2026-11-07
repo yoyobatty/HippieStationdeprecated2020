@@ -322,6 +322,8 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 		look_out_for_trouble()
 	look_round_the_room() //bot_playstyles.dm
 	watch_the_door()
+	if(bot_any_loose_slime())
+		notice_loose_slimes() //goals/sabotage_slimes.dm
 
 /// Anybody in sight the crew knows to be dangerous. Anything less than a major crime is security's to deal with.
 /datum/bot_brain/proc/look_out_for_trouble()

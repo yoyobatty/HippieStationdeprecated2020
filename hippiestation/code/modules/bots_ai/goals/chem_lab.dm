@@ -162,7 +162,7 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 
 /datum/bot_brain/proc/bot_ready_grenade()
 	for(var/obj/item/grenade/chem_grenade/G in owner.GetAllContents(/obj/item/grenade/chem_grenade))
-		if(G.stage == GRENADE_READY && !G.active)
+		if(G.stage == GRENADE_READY && !G.active && !bot_grenade_explosive(G)) //a saboteur's (goals/sabotage_grenades.dm) isn't for a fight
 			return G
 	return null
 
@@ -493,8 +493,9 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 /datum/bot_step/paced/assemble_grenade/finish(datum/bot_brain/bot)
 	if(QDELETED(case) || case.stage != GRENADE_READY)
 		return GOAL_STEP_FAIL
-	bot_log(bot, "made a knockout smoke grenade")
-	bot_tally("smoke grenades made")
+	var/explosive = bot_grenade_explosive(case)
+	bot_log(bot, "made [explosive ? "an explosive" : "a knockout smoke"] grenade")
+	bot_tally(explosive ? "explosive grenades made" : "smoke grenades made")
 	bot.put_away(case)
 	return GOAL_STEP_SUCCESS
 

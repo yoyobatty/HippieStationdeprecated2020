@@ -392,6 +392,8 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 	mind_fauna() //goals/mining.dm
 	if(armed_bomb)
 		mind_armed_bomb() //goals/toxins.dm
+	if(length(GLOB.bot_ticking_bombs))
+		mind_ticking_bombs() //goals/sabotage_bomb.dm
 	if(floored)
 		floored = FALSE
 		if(!GLOB.bot_reflexes_off)

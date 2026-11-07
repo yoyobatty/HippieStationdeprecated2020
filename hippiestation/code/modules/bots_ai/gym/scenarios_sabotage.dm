@@ -1,0 +1,363 @@
+// Sabotage (goals/sabotage.dm and the acts beside it). Everything the fix adds is reached by name, so a build without it compiles and fails.
+
+/datum/bot_scenario/sabotage
+	job = "Station Engineer"
+	time_limit = 60 SECONDS
+	var/act_id
+	var/started = FALSE
+
+/datum/bot_scenario/sabotage/post_spawn()
+	brain.become_traitor()
+	if("saboteur" in brain.vars)
+		brain.vars["saboteur"] = TRUE
+		brain.vars["sabotage_acts_left"] = 1
+		if(length(markers["O"]))
+			brain.vars["gym_sabotage_spot"] = first_marker("O")
+
+/datum/bot_scenario/sabotage/make_goal()
+	return null
+
+/datum/bot_scenario/sabotage/issue_goal()
+	if(started || brain.current_goal)
+		return
+	var/finder = text2path("/proc/bot_sabotage_act")
+	var/datum/act = finder ? call(finder)(act_id) : null
+	if(!act)
+		log_line("no such act: [act_id]")
+		return
+	started = call(brain, "start_sabotage")(act)
+	log_line("started [act_id]: [started ? "yes" : "no"]")
+
+/datum/bot_scenario/sabotage/plasma
+	name = "sabotage: a saboteur drags a plasma canister to where people are, opens it and sets it alight"
+	desc = "An undercover traitor with sabotage in mind, a lighter and an emag. It pulls the plasma canister to the spot where people are (O), opens it all the way, steps back and throws its lighter in, lit. A plasma flood: nothing a bot did before."
+	act_id = "plasma"
+	kit_backpack = list(/obj/item/lighter/greyscale, /obj/item/card/emag)
+	layout = list(
+		"#########################",
+		"#B..k...................#",
+		"#.......................#",
+		"#.............O.........#",
+		"#.......................#",
+		"#.......................#",
+		"#########################")
+	var/obj/machinery/portable_atmospherics/canister/toxins/canister
+
+/datum/bot_scenario/sabotage/plasma/setup()
+	canister = new(first_marker("k"))
+	place("k", canister)
+
+/datum/bot_scenario/sabotage/plasma/check()
+	if(!canister || QDELETED(canister))
+		fail_reason = "the canister's gone"
+		return BOT_GYM_FAIL
+	if(!canister.valve_open)
+		return BOT_GYM_PENDING
+	if(get_dist(canister, first_marker("O")) > 3)
+		fail_reason = "opened it [get_dist(canister, first_marker("O"))] tiles from where the people are"
+		return BOT_GYM_FAIL
+	for(var/turf/open/T in arena_area)
+		if(T.active_hotspot)
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/sabotage/plasma/release_run()
+	if(!QDELETED(canister))
+		canister.valve_open = FALSE
+		qdel(canister)
+	return ..()
+
+// The chemist's grenades (goals/sabotage_grenades.dm). A small one for the arena: 30u a side, a 0/1/2 blast.
+
+/obj/item/grenade/chem_grenade/bot_gym_explosive
+	stage = GRENADE_READY
+
+/obj/item/grenade/chem_grenade/bot_gym_explosive/Initialize()
+	. = ..()
+	var/obj/item/reagent_containers/glass/beaker/one = new(src)
+	var/obj/item/reagent_containers/glass/beaker/two = new(src)
+	one.reagents.add_reagent(/datum/reagent/potassium, 30)
+	two.reagents.add_reagent(/datum/reagent/water, 30)
+	beakers += one
+	beakers += two
+
+/datum/bot_scenario/chem_brew/sabotage_grenade
+	name = "sabotage: a chemist saboteur makes an explosive grenade, potassium and water in beakers of their own"
+	desc = "The saboteur's brew: potassium in one large beaker, water in the other, into a case with cable and a screwdriver. They don't meet until it goes off."
+	time_limit = 90 SECONDS
+	kit_backpack = list(/obj/item/reagent_containers/glass/beaker/large, /obj/item/reagent_containers/glass/beaker/large, /obj/item/stack/cable_coil, /obj/item/screwdriver)
+
+/datum/bot_scenario/chem_brew/sabotage_grenade/brew()
+	if(!("bot_sabotage_brews" in GLOB.vars)) // the fix's: a build without it has no such list
+		return null
+	var/list/brews = GLOB.vars["bot_sabotage_brews"]
+	return brews[1]
+
+/datum/bot_scenario/chem_brew/sabotage_grenade/post_spawn()
+	..()
+	new /obj/item/grenade/chem_grenade(first_marker("."))
+
+/datum/bot_scenario/chem_brew/sabotage_grenade/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/obj/item/grenade/chem_grenade/G in bot.GetAllContents(/obj/item/grenade/chem_grenade))
+		if(G.stage != GRENADE_READY || length(G.beakers) < 2)
+			continue
+		var/obj/item/reagent_containers/one = G.beakers[1]
+		var/obj/item/reagent_containers/two = G.beakers[2]
+		var/potassium = one.reagents.get_reagent_amount(/datum/reagent/potassium) + two.reagents.get_reagent_amount(/datum/reagent/potassium)
+		var/water = one.reagents.get_reagent_amount(/datum/reagent/water) + two.reagents.get_reagent_amount(/datum/reagent/water)
+		if(potassium >= 50 && water >= 50 && !(one.reagents.has_reagent(/datum/reagent/potassium) && one.reagents.has_reagent(/datum/reagent/water)))
+			log_line("made it: [potassium]u potassium, [water]u water, apart")
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/// A saboteur with a grenade made: it goes where the people are (O, three of them stood there)
+/datum/bot_scenario/sabotage/grenade
+	name = "sabotage: a chemist saboteur throws its grenade into a crowd from a safe distance"
+	desc = "An undercover traitor chemist with an explosive grenade in its bag and three people stood at O. It walks to within throwing range, pulls the pin, throws it at them and is well clear when it goes."
+	job = "Chemist"
+	act_id = "grenade"
+	time_limit = 45 SECONDS
+	kit_backpack = list(/obj/item/grenade/chem_grenade/bot_gym_explosive)
+	layout = list(
+		"#########################",
+		"#B......................#",
+		"#.......................#",
+		"#...............O.......#",
+		"#.......................#",
+		"#########################")
+	var/obj/item/grenade/chem_grenade/bomb
+	var/turf/bomb_last_turf
+	var/bot_dist_at_blast = -1
+
+/datum/bot_scenario/sabotage/grenade/post_spawn()
+	..()
+	brain.job_is_chemist_for_gym = TRUE
+	brain.temper = 0.5
+	var/turf/O = first_marker("O")
+	for(var/turf/T in list(O, get_step(O, NORTH), get_step(O, EAST)))
+		stand_in(T, "Bar Patron")
+	bomb = locate() in bot.GetAllContents(/obj/item/grenade/chem_grenade/bot_gym_explosive)
+
+/datum/bot_scenario/sabotage/grenade/check()
+	if(!bomb)
+		fail_reason = "no grenade"
+		return BOT_GYM_FAIL
+	if(!QDELETED(bomb) && get_turf(bomb))
+		bomb_last_turf = get_turf(bomb)
+		bot_dist_at_blast = get_dist(bot, bomb_last_turf)
+		return BOT_GYM_PENDING
+	if(!bomb_last_turf || get_dist(bomb_last_turf, first_marker("O")) > 2)
+		fail_reason = "it went off [bomb_last_turf ? "[get_dist(bomb_last_turf, first_marker("O"))] tiles from them" : "nowhere"]"
+		return BOT_GYM_FAIL
+	if(bot_dist_at_blast < 3)
+		fail_reason = "it was [bot_dist_at_blast] tiles from it when it went off"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/sabotage/grenade/suicide
+	name = "sabotage: a hothead chemist saboteur walks into the crowd and holds its grenade"
+	desc = "The same, with a saboteur who's that sort: it walks into the middle of them, shouts, pulls the pin and holds on to it."
+
+/datum/bot_scenario/sabotage/grenade/suicide/post_spawn()
+	..()
+	if("gym_suicide_bomber" in brain.vars)
+		brain.vars["gym_suicide_bomber"] = TRUE
+
+/datum/bot_scenario/sabotage/grenade/suicide/check()
+	if(!bomb)
+		fail_reason = "no grenade"
+		return BOT_GYM_FAIL
+	if(!QDELETED(bomb) && get_turf(bomb))
+		bomb_last_turf = get_turf(bomb)
+		return BOT_GYM_PENDING
+	if(!bomb_last_turf || get_dist(bomb_last_turf, first_marker("O")) > 1)
+		fail_reason = "it went off [bomb_last_turf ? "[get_dist(bomb_last_turf, first_marker("O"))] tiles from them" : "nowhere"]"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// The crew's side: a live grenade turns up two tiles off, and it gets clear
+/datum/bot_scenario/clears_grenade
+	name = "grenade: a live grenade lands near it, it shouts and gets clear before it goes"
+	desc = "Somebody's grenade, pin out, lands two tiles from an assistant. It shouts a warning and runs, and is four or more tiles off when it goes. Nobody used to move."
+	job = "Assistant"
+	time_limit = 20 SECONDS
+	layout = list(
+		"#####################",
+		"#........B.g........#",
+		"#...................#",
+		"#...................#",
+		"#####################")
+	var/obj/item/grenade/chem_grenade/bot_gym_explosive/bomb
+	var/bot_dist_at_blast = -1
+
+/datum/bot_scenario/clears_grenade/make_goal()
+	return null
+
+/datum/bot_scenario/clears_grenade/post_spawn()
+	brain.gym_scripted = FALSE //a scripted bot has no reflexes
+	bomb = new(first_marker("g"))
+	bomb.preprime(null)
+
+/datum/bot_scenario/clears_grenade/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!QDELETED(bomb))
+		bot_dist_at_blast = get_dist(bot, bomb)
+		return BOT_GYM_PENDING
+	if(bot_dist_at_blast < 4)
+		fail_reason = "it was [bot_dist_at_blast] tiles off when it went"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+// Tank bombs (goals/sabotage_bomb.dm). Two tanks of air on the valve: nothing to go off, whatever the timer does.
+
+/proc/bot_gym_tank_bomb(turf/T, timing = FALSE, seconds = 60)
+	var/obj/item/transfer_valve/V = new(T)
+	V.tank_one = new /obj/item/tank/internals/emergency_oxygen/empty(V)
+	V.tank_two = new /obj/item/tank/internals/emergency_oxygen/empty(V)
+	var/obj/item/assembly/timer/timer = new(V)
+	timer.holder = V
+	V.attached_device = timer
+	if(!timer.secured)
+		timer.toggle_secure()
+	timer.time = seconds
+	timer.timing = timing
+	V.update_icon()
+	return V
+
+/datum/bot_scenario/sabotage/maxcap
+	name = "sabotage: a saboteur scientist leaves its timed tank bomb in Security and gets away"
+	desc = "An undercover traitor scientist with a tank bomb on a timer (the toxins lab's, made for this). It takes it to O (Security, as far as it knows), sets it down with a minute on it when nobody's looking, and leaves."
+	job = "Scientist"
+	act_id = "maxcap"
+	time_limit = 40 SECONDS
+	layout = list(
+		"#########################",
+		"#B......................#",
+		"#.......................#",
+		"#...............O.......#",
+		"#.......................#",
+		"#########################")
+	var/obj/item/transfer_valve/bomb
+
+/datum/bot_scenario/sabotage/maxcap/post_spawn()
+	..()
+	bomb = bot_gym_tank_bomb(get_turf(bot))
+	bot.put_in_hands(bomb)
+	if("armed_bomb" in brain.vars)
+		brain.vars["armed_bomb"] = bomb
+
+/datum/bot_scenario/sabotage/maxcap/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(bomb))
+		fail_reason = "the bomb's gone"
+		return BOT_GYM_FAIL
+	var/obj/item/assembly/timer/T = bomb.attached_device
+	if(!isturf(bomb.loc) || !T?.timing)
+		return BOT_GYM_PENDING
+	if(get_dist(bomb, first_marker("O")) > 2)
+		fail_reason = "left it [get_dist(bomb, first_marker("O"))] tiles from O"
+		return BOT_GYM_FAIL
+	return get_dist(bot, bomb) >= 6 ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/sabotage/maxcap/release_run()
+	if(!QDELETED(bomb))
+		qdel(bomb)
+	return ..()
+
+/// The crew's side: a bomb ticking where an officer can see it
+/datum/bot_scenario/defuses_bomb
+	name = "bomb: an officer who sees a ticking tank bomb goes and pulls its timer"
+	desc = "A tank bomb with 40 seconds on its timer, four tiles from a security officer. It shouts a warning on the radio, walks over and takes the timer off the valve, which stops it. Nobody used to do anything about one."
+	job = "Security Officer"
+	time_limit = 25 SECONDS
+	layout = list(
+		"###############",
+		"#B...g........#",
+		"#.............#",
+		"###############")
+	var/obj/item/transfer_valve/bomb
+
+/datum/bot_scenario/defuses_bomb/make_goal()
+	return null
+
+/datum/bot_scenario/defuses_bomb/post_spawn()
+	brain.register_security()
+	brain.nerve = 0.7
+	bomb = bot_gym_tank_bomb(first_marker("g"), TRUE, 40)
+
+/datum/bot_scenario/defuses_bomb/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(bomb))
+		fail_reason = "the bomb's gone"
+		return BOT_GYM_FAIL
+	return bomb.attached_device ? BOT_GYM_PENDING : BOT_GYM_PASS
+
+/datum/bot_scenario/defuses_bomb/release_run()
+	if(!QDELETED(bomb))
+		qdel(bomb)
+	return ..()
+
+/// Somebody without the nerve: away from it, and says so
+/datum/bot_scenario/defuses_bomb/runs
+	name = "bomb: an assistant who sees a ticking tank bomb shouts and gets away from it"
+	desc = "The same bomb, and a timid assistant. It shouts that there's a bomb and gets well away from it."
+	job = "Assistant"
+	layout = list(
+		"#######################",
+		"#.......B...g.........#",
+		"#.....................#",
+		"#######################")
+
+/datum/bot_scenario/defuses_bomb/runs/post_spawn()
+	brain.gym_scripted = FALSE //a scripted bot has no reflexes
+	brain.nerve = 0.2
+	bomb = bot_gym_tank_bomb(first_marker("g"), TRUE, 40)
+
+/datum/bot_scenario/defuses_bomb/runs/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!bomb.attached_device)
+		fail_reason = "went and pulled the timer, with no nerve for it"
+		return BOT_GYM_FAIL
+	return (get_dist(bot, bomb) >= 8 && bot_transcript_said("a ticking bomb")) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// The crew's side of the slimes let out (goals/sabotage_slimes.dm): one's been called in, and an officer deals with it
+/datum/bot_scenario/duty/loose_slime
+	name = "slimes: an officer told of a loose slime puts it down with an extinguisher, not its laser"
+	desc = "A hungry slime out of Xenobiology has been called in on the radio. The officer has a laser gun, which heals slimes, so it takes the extinguisher out of the cabinet, keeps a few tiles off and sprays it until it's dead. Nobody did anything about loose slimes."
+	job = "Security Officer"
+	time_limit = 50 SECONDS
+	kit_backpack = list(/obj/item/gun/energy/laser)
+	layout = list(
+		"##E##################",
+		"#B.................s#",
+		"#...................#",
+		"#####################")
+	var/mob/living/simple_animal/slime/slime
+
+/datum/bot_scenario/duty/loose_slime/setup()
+	duty_type = text2path("/datum/bot_duty/loose_slimes") // by name: a build without the fix has no such duty
+	slime = new(first_marker("s"))
+	slime.Stun(100 SECONDS, ignore_canstun = TRUE) //it stays put: this is about the officer, not a chase
+
+/datum/bot_scenario/duty/loose_slime/post_spawn()
+	..()
+	brain.register_security()
+	if("bot_loose_slime_reports" in GLOB.vars)
+		var/list/reports = GLOB.vars["bot_loose_slime_reports"]
+		reports[get_area(slime)] = world.time
+
+/datum/bot_scenario/duty/loose_slime/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (QDELETED(slime) || slime.stat == DEAD) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/loose_slime/release_run()
+	if(!QDELETED(slime))
+		qdel(slime)
+	return ..()

@@ -45,6 +45,18 @@
 	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
 		if(H.bot_brain && H.mind && H.stat != DEAD && bot_traitor_job_allowed(H.mind.assigned_role) && !length(H.mind.antag_datums))
 			candidates += H
+	// A test that wants traitors in particular jobs (bot-traitor-jobs=Chemist,Scientist): those first, then anybody.
+	var/list/wanted_jobs = world.params["bot-traitor-jobs"] ? splittext(replacetext(world.params["bot-traitor-jobs"], "_", " "), ",") : null
+	if(length(wanted_jobs))
+		var/list/first = list()
+		for(var/mob/living/carbon/human/H as anything in candidates)
+			if(H.mind.assigned_role in wanted_jobs)
+				first += H
+		while(length(first) && length(.) < count)
+			var/mob/living/carbon/human/H = pick_n_take(first)
+			candidates -= H
+			H.bot_brain.become_traitor()
+			. += H
 	while(length(candidates) && length(.) < count)
 		var/mob/living/carbon/human/H = pick_n_take(candidates)
 		H.bot_brain.become_traitor()
@@ -126,6 +138,8 @@
 			bot.traitor_shopped = FALSE //somebody watching and nowhere out of sight to go: the suit another time
 	if(bot.plays_robust())
 		return bot.robust_business() //goals/robust.dm
+	if(bot.try_sabotage()) //goals/sabotage.dm
+		return TRUE
 	for(var/datum/objective/O as anything in T.objectives)
 		if(LAZYACCESS(bot.objectives_parked, O) > world.time || bot.objective_finished(O))
 			continue

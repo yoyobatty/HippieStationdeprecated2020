@@ -115,9 +115,13 @@ GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor,
 /datum/bot_brain/proc/pick_traitor_plan()
 	uses_codewords = prob(BOT_CODEWORD_CHANCE)
 	var/forced = world.params["bot-traitor-plan"] //a Bot Shift that wants a particular kind
+	var/forced_saboteur = forced == BOT_TRAITOR_SABOTEUR
+	if(forced_saboteur)
+		forced = BOT_TRAITOR_UNDERCOVER
 	if(forced == BOT_TRAITOR_UNDERCOVER || (!forced && !plays_robust() && temper < BOT_HOTHEAD_TEMPER && !objective_wants_it_loud()))
 		traitor_plan = BOT_TRAITOR_UNDERCOVER
 		traitor_business_after = world.time + rand(BOT_UNDERCOVER_WAIT_MIN, BOT_UNDERCOVER_WAIT_MAX)
+		maybe_become_saboteur(forced_saboteur) //goals/sabotage.dm
 	else
 		traitor_plan = forced || ((nerve + temper) / 2 >= BOT_RAMPAGE_TEMPER ? BOT_TRAITOR_RAMPAGE : BOT_TRAITOR_HIT_LIST)
 		set_playstyle(BOT_STYLE_ROBUST)

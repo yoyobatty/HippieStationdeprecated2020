@@ -191,8 +191,19 @@ GLOBAL_LIST_EMPTY(bot_fire_reports)
 	var/turf/bot_turf = get_turf(owner)
 	if(!fire_turf || !bot_turf)
 		return null
-	var/approach_dir = get_dir(fire_turf, bot_turf) || SOUTH
-	return get_ranged_target_turf(fire_turf, approach_dir, range)
+	// Floor it can stand on that sees the fire, out of the flames, as far back as the extinguisher reaches, on its own side. Straight
+	// back along the way it came was often a wall or the middle of the fire: in a plasma flood in Hippie's Bar the engineers gave up on
+	// every fire they tried, and four of the crew burned.
+	var/turf/best
+	var/best_score
+	for(var/turf/open/T in view(range, fire_turf))
+		if(T == fire_turf || isspaceturf(T) || T.active_hotspot || is_blocked_turf(T, TRUE))
+			continue
+		var/score = get_dist(T, bot_turf) + (range - get_dist(T, fire_turf)) * 2
+		if(!best || score < best_score)
+			best = T
+			best_score = score
+	return best || get_ranged_target_turf(fire_turf, get_dir(fire_turf, bot_turf) || SOUTH, range)
 
 /datum/bot_brain/proc/try_fire_response_round()
 	if(!is_fire_response_job())

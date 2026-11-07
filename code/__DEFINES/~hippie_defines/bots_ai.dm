@@ -56,3 +56,4 @@
 #define BOT_TRAITOR_HIT_LIST "hit list" //the suit, its targets, the Captain and Security, and whoever gets in the way
 #define BOT_TRAITOR_RAMPAGE "rampage" //the suit, and everybody
 #define BOT_TRAITOR_CORNERED "cornered" //caught: fights whoever comes for it and still goes for its own target, and nobody else
+#define BOT_TRAITOR_SABOTEUR "saboteur" //undercover, with sabotage on top of its objectives (goals/sabotage.dm). Only ever asked for: the plan stays undercover

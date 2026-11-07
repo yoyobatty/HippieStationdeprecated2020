@@ -954,6 +954,8 @@ GLOBAL_DATUM(bot_toxins, /datum/bot_toxins)
 
 /// What goes on the valve: a health sensor, for a traitor who's taking it with them. A timer for the range.
 /datum/bot_brain/proc/bomb_trigger_type()
+	if(saboteur && wants_maxcap) //goals/sabotage_bomb.dm: a timer, for leaving it in Security
+		return /obj/item/assembly/timer
 	return owner.mind?.has_antag_datum(/datum/antagonist/traitor) ? /obj/item/assembly/health : /obj/item/assembly/timer
 
 /// A tank that ended up on the floor, with the bot's hands full when it came out of the machine.
@@ -1073,6 +1075,12 @@ GLOBAL_DATUM(bot_toxins, /datum/bot_toxins)
 		bot_log(bot, "TOXINS: armed a dead man's switch")
 		bot_tally("dead man's switches")
 		log_game("BOT TOXINS: [bot.owner.real_name] is carrying a tank bomb on a health sensor")
+	else if(bot.saboteur && bot.wants_maxcap)
+		// Not for the range: it's going to Security (goals/sabotage_bomb.dm), and the lab's done for the round.
+		lab.finished = TRUE
+		bot.armed_bomb = V
+		bot_log(bot, "TOXINS: SABOTAGE: a timer on it, and it's staying with me")
+		log_game("BOT TOXINS: [bot.owner.real_name] is keeping a tank bomb on a timer for sabotage")
 	return GOAL_STEP_SUCCESS
 
 /// A traitor doesn't leave that lying about.
