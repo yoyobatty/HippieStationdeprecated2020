@@ -103,6 +103,7 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 	var/ambientocclusion = TRUE
 	var/auto_fit_viewport = TRUE // hippie -- tg's default, and the map's the whole height of the window now
 	var/fullscreen_mode = FALSE // hippie -- no title bar, the Display panel or F11 (hippiestation/code/modules/client/display_settings.dm)
+	var/pass_dark = FALSE // hippie -- the boarding pass windows (lobby, job list, Character Setup) on dark paper (lobby_tgui.dm)
 	var/widescreenpref = TRUE
 
 	var/uplink_spawn_loc = UPLINK_PDA

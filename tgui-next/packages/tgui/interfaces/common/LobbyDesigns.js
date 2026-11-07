@@ -258,7 +258,7 @@ export const LobbyPass = props => {
   const a = actions(props.act, data);
   const stamp = passStamp(data);
   return (
-    <div className="LobbyPass">
+    <div className={'LobbyPass' + (data.dark ? ' Pass--dark' : '')}>
       <div className="LobbyPass__ticket">
         <div className="LobbyPass__band">
           <span className="LobbyPass__logo">NT</span>

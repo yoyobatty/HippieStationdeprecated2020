@@ -267,6 +267,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_lobby(C, H, label)
 		if("lobbylooks")
 			cs_lobby_looks(C, H, label)
+		if("passdark")
+			cs_pass_dark(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -6329,3 +6331,64 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	var/datum/menu = NP.vars["late_join_menu"]
 	cs_check("looks: crt: Join Game opens the job list", menu && cs_find_ui(NP, menu))
 	GLOB.vars["lobby_design"] = "pass"
+
+// Dark paper: the moon on Character Setup's file card turns it, the lobby and the job list dark, and the sun turns them back
+/proc/cs_pass_dark(client/C, mob/living/carbon/human/H, label)
+	var/datum/preferences/P = C.prefs
+	P.vars["pass_dark"] = FALSE
+	P.current_tab = 0
+	usr = H
+	P.ShowChoices(H)
+	var/datum/tgui/ui = cs_find_ui(H, P)
+	cs_check("passdark: Character Setup opens", ui)
+	if(!ui)
+		return
+	winset(C, ui.window_id, "pos=80,20")
+	sleep(20)
+	cs_tgui_do(C, ui.window_id, "css:.Preferences__theme")
+	cs_wait_until(P, "pass_dark", TRUE)
+	cs_check("passdark: the moon on the file card turns the paper dark", P.vars["pass_dark"])
+	sleep(20)
+	cs_shot("popup_passdark_[label]_prefs", "Character Setup")
+	cs_tgui_do(C, ui.window_id, "click:Occupations")
+	cs_wait_until(P, "current_tab", 5)
+	sleep(15)
+	cs_shot("popup_passdark_[label]_jobs", "Character Setup")
+	SStgui.close_user_uis(H, P)
+	// The lobby and the job list on the same paper
+	var/mob/dead/new_player/NP = new()
+	NP.ckey = C.ckey
+	sleep(30)
+	var/datum/tgui/lobby = cs_find_ui(NP, NP)
+	cs_check("passdark: the lobby opens", lobby)
+	if(lobby)
+		winset(C, lobby.window_id, "pos=100,20")
+		var/old_state = SSticker.current_state
+		var/old_left = SSticker.timeLeft
+		var/old_immediately = SSticker.start_immediately
+		SSticker.start_immediately = FALSE
+		SSticker.timeLeft = 1235
+		SSticker.current_state = GAME_STATE_PREGAME
+		NP.ready = PLAYER_READY_TO_PLAY
+		SStgui.update_uis(NP)
+		sleep(25)
+		cs_shot("popup_passdark_[label]_lobby")
+		NP.ready = PLAYER_NOT_READY
+		SSticker.current_state = old_state
+		SSticker.timeLeft = old_left
+		SSticker.start_immediately = old_immediately
+		SStgui.update_uis(NP)
+		sleep(20)
+		cs_shot("popup_passdark_[label]_lobby_round")
+		cs_tgui_do(C, lobby.window_id, "css:.LobbyPass__go")
+		sleep(20)
+		var/datum/menu = NP.vars["late_join_menu"]
+		var/datum/tgui/menu_ui = menu ? cs_find_ui(NP, menu) : null
+		cs_check("passdark: Join Game opens the job list", menu_ui)
+		if(menu_ui)
+			winset(C, menu_ui.window_id, "pos=440,20")
+			sleep(25)
+			cs_shot("popup_passdark_[label]_latejoin")
+	// And back
+	cs_act(P, NP, "pass_dark")
+	cs_check("passdark: the sun turns it light again", !P.vars["pass_dark"])

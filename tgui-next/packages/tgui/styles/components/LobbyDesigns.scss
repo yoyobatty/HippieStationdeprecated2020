@@ -330,6 +330,58 @@ $pass-bg: #0f1422;
     $pass-bg;
 }
 
+// The paper, light by default; Pass--dark is a player's dark paper
+// (prefs.pass_dark, the moon on Character Setup's Personnel File band)
+.LobbyPass,
+.LateJoinPass,
+.Preferences--pass {
+  --pass-paper: #f3efe4;
+  --pass-paper-a: rgba(243, 239, 228, 0.93);
+  --pass-ink: #1c2230;
+  --pass-soft: #4a5366;
+  --pass-label: #6b7487;
+  --pass-line: #b9b2a0;
+  --pass-line-soft: #d6cfbd;
+  --pass-field: #fffdf7;
+  --pass-hover: #e2dbc6;
+  --pass-closed: #a39d8f;
+  --pass-photo-a: #e2e8ef;
+  --pass-photo-b: #c3ccd8;
+  --pass-photo-line: #9aa6b5;
+  --pass-preview: #e9e3d3;
+  --pass-btn: #26324a;
+  --pass-btn-hover: #31405e;
+  --pass-btn-text: #dbe4f3;
+  --pass-green: #1f8a3a;
+  --pass-red: #c0392b;
+  --pass-orange: #c2410c;
+}
+
+.LobbyPass.Pass--dark,
+.LateJoinPass.Pass--dark,
+.Preferences--pass.Pass--dark {
+  --pass-paper: #262d39;
+  --pass-paper-a: rgba(38, 45, 57, 0.93);
+  --pass-ink: #dfe5ee;
+  --pass-soft: #a9b4c4;
+  --pass-label: #8592a6;
+  --pass-line: #4a5568;
+  --pass-line-soft: #3a4355;
+  --pass-field: #1b212b;
+  --pass-hover: #313a49;
+  --pass-closed: #66707f;
+  --pass-photo-a: #2f3846;
+  --pass-photo-b: #222a35;
+  --pass-photo-line: #4a5568;
+  --pass-preview: #1d232d;
+  --pass-btn: #34415d;
+  --pass-btn-hover: #405072;
+  --pass-btn-text: #e3eaf5;
+  --pass-green: #3cc469;
+  --pass-red: #ef6a57;
+  --pass-orange: #f0894f;
+}
+
 .LobbyPass {
   @include lobby-fill;
   @include pass-backdrop;
@@ -352,8 +404,8 @@ $pass-bg: #0f1422;
   margin-bottom: 12px;
   overflow: hidden;
   border-radius: 10px;
-  background-color: $pass-paper;
-  color: $pass-ink;
+  background-color: var(--pass-paper);
+  color: var(--pass-ink);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
 }
 
@@ -386,8 +438,8 @@ $pass-bg: #0f1422;
   margin-bottom: 10px;
   overflow: hidden;
   border-radius: 8px;
-  background-color: $pass-paper;
-  color: $pass-ink;
+  background-color: var(--pass-paper);
+  color: var(--pass-ink);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
 }
 
@@ -395,7 +447,7 @@ $pass-bg: #0f1422;
   display: flex;
   align-items: center;
   padding: 4px 10px;
-  color: $pass-ink;
+  color: #1c2230; // pastel bands: dark ink in both papers
   font-size: 12px;
   font-weight: bold;
   letter-spacing: 2px;
@@ -414,14 +466,14 @@ $pass-bg: #0f1422;
   display: flex;
   align-items: center;
   padding: 3px 10px;
-  border-top: 1px dashed #d6cfbd;
+  border-top: 1px dashed var(--pass-line-soft);
   font-size: 12px;
   line-height: 17px;
   transition: background-color 0.1s;
 }
 
 .LateJoinPass__job:not(.LateJoinPass__job--closed):hover {
-  background-color: #e2dbc6;
+  background-color: var(--pass-hover);
 }
 
 .LateJoinPass__title {
@@ -450,19 +502,19 @@ $pass-bg: #0f1422;
   padding-left: 6px;
   font-family: 'Consolas', monospace;
   font-size: 11px;
-  color: #4a5366;
+  color: var(--pass-soft);
 }
 
 .LateJoinPass__job--closed {
-  color: #a39d8f;
+  color: var(--pass-closed);
 }
 
 .LateJoinPass__why {
   margin-left: auto;
   padding: 0 4px;
-  border: 1.5px solid #c0392b;
+  border: 1.5px solid var(--pass-red);
   border-radius: 3px;
-  color: #c0392b;
+  color: var(--pass-red);
   font-family: 'Impact', 'Bahnschrift', sans-serif;
   font-size: 10px;
   line-height: 13px;
@@ -475,8 +527,8 @@ $pass-bg: #0f1422;
 
 .LobbyPass__ticket {
   position: relative;
-  background-color: $pass-paper;
-  color: $pass-ink;
+  background-color: var(--pass-paper);
+  color: var(--pass-ink);
   border-radius: 10px;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.7);
   overflow: hidden;
@@ -523,8 +575,8 @@ $pass-bg: #0f1422;
   height: 104px;
   margin-right: 10px;
   overflow: hidden;
-  background: linear-gradient(#e2e8ef, #c3ccd8);
-  border: 1px solid #9aa6b5;
+  background: linear-gradient(var(--pass-photo-a), var(--pass-photo-b));
+  border: 1px solid var(--pass-photo-line);
 }
 
 .LobbyPass__photo img {
@@ -547,7 +599,7 @@ $pass-bg: #0f1422;
   font-size: 9px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: #6b7487;
+  color: var(--pass-label);
 }
 
 .LobbyPass__value {
@@ -579,7 +631,7 @@ $pass-bg: #0f1422;
   padding: 2px 8px;
   border: 3px solid;
   border-radius: 6px;
-  background-color: rgba(243, 239, 228, 0.93);
+  background-color: var(--pass-paper-a);
   font-family: 'Impact', 'Bahnschrift', sans-serif;
   font-size: 16px;
   white-space: nowrap;
@@ -592,13 +644,13 @@ $pass-bg: #0f1422;
 }
 
 .LobbyPass__stamp--good {
-  color: #1f8a3a;
-  border-color: #1f8a3a;
+  color: var(--pass-green);
+  border-color: var(--pass-green);
 }
 
 .LobbyPass__stamp--late {
-  color: #c2410c;
-  border-color: #c2410c;
+  color: var(--pass-orange);
+  border-color: var(--pass-orange);
 }
 
 @keyframes LobbyPass-stamp {
@@ -615,7 +667,7 @@ $pass-bg: #0f1422;
 .LobbyPass__tear {
   position: relative;
   margin: 0 14px;
-  border-top: 2px dashed #b9b2a0;
+  border-top: 2px dashed var(--pass-line);
 }
 
 .LobbyPass__tear::before,
@@ -652,7 +704,7 @@ $pass-bg: #0f1422;
 
 .LobbyPass__bar {
   display: block;
-  background-color: $pass-ink;
+  background-color: var(--pass-ink);
 }
 
 .LobbyPass__status {
@@ -661,20 +713,20 @@ $pass-bg: #0f1422;
   font-size: 11px;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: #4a5366;
+  color: var(--pass-soft);
 }
 
 .LobbyPass__statusBig {
   font-size: 15px;
   font-weight: bold;
-  color: $pass-ink;
+  color: var(--pass-ink);
 }
 
 .LobbyPass__btn {
   padding: 8px 0;
   border-radius: 6px;
-  background-color: #26324a;
-  color: #dbe4f3;
+  background-color: var(--pass-btn);
+  color: var(--pass-btn-text);
   text-align: center;
   font-size: 13px;
   letter-spacing: 1px;
@@ -685,7 +737,7 @@ $pass-bg: #0f1422;
 }
 
 .LobbyPass__btn:hover {
-  background-color: #31405e;
+  background-color: var(--pass-btn-hover);
 }
 
 .LobbyPass__btn:active {
@@ -707,7 +759,7 @@ $pass-bg: #0f1422;
 .LobbyPass__go {
   margin-top: 14px;
   padding: 11px 0;
-  background-color: #1f8a3a;
+  background-color: var(--pass-green);
   color: #fff;
   font-size: 17px;
   letter-spacing: 3px;
@@ -1116,8 +1168,8 @@ $pass-blue: #2a6cc0;
   padding-bottom: 8px;
   overflow: hidden;
   border-radius: 10px;
-  background-color: $pass-paper;
-  color: $pass-ink;
+  background-color: var(--pass-paper);
+  color: var(--pass-ink);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
 }
 
@@ -1135,16 +1187,16 @@ $pass-blue: #2a6cc0;
   width: 224px;
   height: 232px;
   margin: 0 auto;
-  border: 1px solid $pass-line;
-  background-color: #e9e3d3;
+  border: 1px solid var(--pass-line);
+  background-color: var(--pass-preview);
 }
 
 .Preferences__stamp {
   display: inline-block;
   padding: 0 6px;
-  border: 2px solid #c0392b;
+  border: 2px solid var(--pass-red);
   border-radius: 5px;
-  color: #c0392b;
+  color: var(--pass-red);
   font-family: 'Impact', 'Bahnschrift', sans-serif;
   font-size: 13px;
   line-height: 18px;
@@ -1170,8 +1222,8 @@ $pass-blue: #2a6cc0;
 .Preferences--pass .Preferences__left .Section {
   overflow: hidden;
   border-radius: 10px;
-  background-color: $pass-paper;
-  color: $pass-ink;
+  background-color: var(--pass-paper);
+  color: var(--pass-ink);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
 }
 
@@ -1190,18 +1242,18 @@ $pass-blue: #2a6cc0;
 // Tabs inside the sheet (the loadout's categories): ink on paper
 .Preferences--pass .Preferences__content .Tabs__tab,
 .Preferences--pass .Preferences__content .Tabs__tab:hover {
-  color: #6b7487;
+  color: var(--pass-label);
 }
 
 .Preferences--pass .Preferences__content .Tabs__tab.Button--selected,
 .Preferences--pass .Preferences__content .Tabs__tab.Button--selected:hover {
   background-color: transparent;
-  color: $pass-ink;
+  color: var(--pass-ink);
   box-shadow: inset 0 -2px 0 #2a6cc0;
 }
 
 .Preferences--pass .Preferences__content .Tabs__content {
-  border-top: 1px dashed $pass-line;
+  border-top: 1px dashed var(--pass-line);
 }
 
 .Preferences--pass .Preferences__left .Section__title {
@@ -1214,7 +1266,7 @@ $pass-blue: #2a6cc0;
   padding: 0 12px;
   border-radius: 8px 8px 0 0;
   background-color: rgba(243, 239, 228, 0.16);
-  color: #dbe4f3;
+  color: var(--pass-btn-text);
   font-family: 'Bahnschrift', 'Segoe UI', sans-serif;
   font-size: 11px;
   letter-spacing: 1px;
@@ -1228,8 +1280,8 @@ $pass-blue: #2a6cc0;
 
 .Preferences--pass .Preferences__right > .Tabs > .Tabs__tabBox > .Tabs__tab.Button--selected,
 .Preferences--pass .Preferences__right > .Tabs > .Tabs__tabBox > .Tabs__tab.Button--selected:hover {
-  background-color: $pass-paper;
-  color: $pass-ink;
+  background-color: var(--pass-paper);
+  color: var(--pass-ink);
   font-weight: bold;
 }
 
@@ -1240,8 +1292,8 @@ $pass-blue: #2a6cc0;
   right: 12px;
   padding: 10px 12px;
   border-radius: 0 10px 10px 10px;
-  background-color: $pass-paper;
-  color: $pass-ink;
+  background-color: var(--pass-paper);
+  color: var(--pass-ink);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
 }
 
@@ -1254,11 +1306,11 @@ $pass-blue: #2a6cc0;
 
 .Preferences--pass .Section__title {
   padding: 2px 0 4px;
-  border-bottom: 1px dashed $pass-line;
+  border-bottom: 1px dashed var(--pass-line);
 }
 
 .Preferences--pass .Section__titleText {
-  color: $pass-ink;
+  color: var(--pass-ink);
   font-family: 'Bahnschrift', 'Segoe UI', sans-serif;
   font-size: 12px;
   letter-spacing: 2px;
@@ -1270,7 +1322,7 @@ $pass-blue: #2a6cc0;
 }
 
 .Preferences--pass .LabeledList__label {
-  color: #6b7487;
+  color: var(--pass-label);
   font-size: 11px;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -1278,12 +1330,12 @@ $pass-blue: #2a6cc0;
 
 .Preferences--pass .Button--color--default,
 .Preferences--pass .Button--color--default:focus {
-  background-color: $pass-navy;
-  color: #dbe4f3;
+  background-color: var(--pass-btn);
+  color: var(--pass-btn-text);
 }
 
 .Preferences--pass .Button--color--default:hover {
-  background-color: #31405e;
+  background-color: var(--pass-btn-hover);
   color: #fff;
 }
 
@@ -1298,29 +1350,40 @@ $pass-blue: #2a6cc0;
 .Preferences--pass .NumberInput,
 .Preferences--pass .Dropdown__control.Button--color--default,
 .Preferences--pass .Dropdown__control.Button--color--default:focus {
-  border: 1px solid $pass-line;
-  background-color: $pass-field;
-  color: $pass-ink;
+  border: 1px solid var(--pass-line);
+  background-color: var(--pass-field);
+  color: var(--pass-ink);
 }
 
 .Preferences--pass .Dropdown__control.Button--color--default:hover {
-  border-color: #6b7487;
+  border-color: var(--pass-label);
   background-color: #fff;
-  color: $pass-ink;
+  color: var(--pass-ink);
 }
 
 .Preferences--pass .Input__input,
 .Preferences--pass .NumberInput__input {
-  color: $pass-ink;
+  color: var(--pass-ink);
 }
 
 .Preferences--pass .Dropdown__menu {
-  border: 1px solid $pass-line;
-  background-color: $pass-paper;
-  color: $pass-ink;
+  border: 1px solid var(--pass-line);
+  background-color: var(--pass-paper);
+  color: var(--pass-ink);
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
 }
 
 .Preferences--pass .Dropdown__menuentry:hover {
-  background-color: #e2dbc6;
+  background-color: var(--pass-hover);
+}
+
+.Preferences__theme {
+  margin-left: auto;
+  padding: 0 2px;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.Preferences__theme:hover {
+  opacity: 1;
 }

@@ -1,6 +1,6 @@
 import { Component, Fragment } from 'inferno';
 import { useBackend } from '../backend';
-import { Box, Button, ByondUi, ColorBox, Dropdown, Input, LabeledList, NoticeBox, NumberInput, Section, Table, Tabs } from '../components';
+import { Box, Button, ByondUi, ColorBox, Dropdown, Icon, Input, LabeledList, NoticeBox, NumberInput, Section, Table, Tabs } from '../components';
 
 // hippie -- character setup (hippiestation/code/modules/client/
 // preferences_tgui.dm): the old window's tabs and settings, with occupations
@@ -559,14 +559,27 @@ export const Preferences = props => {
   // The boarding pass look (Lobby.js) dresses this as its personnel file
   const pass = data.design === 'pass';
   const unsaved = !noAccount && !!data.dirty;
+  let previewBack = '#1a1a1a';
+  if (pass) {
+    previewBack = data.dark ? '#1d232d' : '#e9e3d3';
+  }
   return (
-    <div className={'Preferences' + (pass ? ' Preferences--pass' : '')}>
+    <div
+      className={'Preferences'
+        + (pass ? ' Preferences--pass' : '')
+        + (pass && data.dark ? ' Pass--dark' : '')}>
       <div className="Preferences__left">
         <div className="Preferences__file">
           {pass && (
             <div className="LobbyPass__band">
               <span className="LobbyPass__logo">NT</span>
               <span>Personnel File</span>
+              <span
+                className="Preferences__theme"
+                title={data.dark ? 'Light paper' : 'Dark paper'}
+                onClick={() => act('pass_dark')}>
+                <Icon name={data.dark ? 'sun' : 'moon'} />
+              </span>
             </div>
           )}
           <Box bold textAlign="center" mb={1} className="Preferences__name">
@@ -578,7 +591,7 @@ export const Preferences = props => {
               id: previewMap,
               parent: config.window,
               type: 'map',
-              'background-color': pass ? '#e9e3d3' : '#1a1a1a',
+              'background-color': previewBack,
             }} />
           <Box textAlign="center" mt={1}>
             <Button

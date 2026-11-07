@@ -113,6 +113,7 @@ GLOBAL_VAR_INIT(lobby_design, "pass")
 		data["players_ready"] = SSticker.totalPlayersReady
 	var/datum/preferences/prefs = client?.prefs
 	if(prefs)
+		data["dark"] = prefs.pass_dark
 		data["character"] = prefs.be_random_name ? "Random" : prefs.real_name
 		for(var/title in prefs.job_preferences)
 			if(prefs.job_preferences[title] == JP_HIGH)
@@ -222,6 +223,7 @@ GLOBAL_VAR_INIT(lobby_design, "pass")
 			"jobs" = jobs,
 		))
 	data["departments"] = departments
+	data["dark"] = owner.client?.prefs?.pass_dark
 	data["can_join"] = SSticker.IsRoundInProgress() && GLOB.enter_allowed
 	data["queue"] = SSticker.queued_players.Find(owner)
 	return data

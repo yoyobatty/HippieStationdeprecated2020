@@ -82,9 +82,14 @@
 		for(var/obj/screen/side as anything in preview_sides)
 			side.assigned_map = PREFS_PREVIEW_MAP
 			side.del_on_map_removal = FALSE
-	// The boarding pass look: photos on file paper
+	// The boarding pass look: photos on file paper, light or dark
 	var/pass = GLOB.lobby_design == "pass"
-	preview_floor.color = pass ? "#e9e3d3" : "#1b1d21"
+	var/floor_color = "#1b1d21"
+	var/card_color = "#2c3038"
+	if(pass)
+		floor_color = pass_dark ? "#1d232d" : "#e9e3d3"
+		card_color = pass_dark ? "#2b3341" : "#c9d2de"
+	preview_floor.color = floor_color
 	// Front, left side, back, right side, two by two, each drawn five times over
 	var/list/dirs = list(SOUTH, WEST, NORTH, EAST)
 	var/list/spots = list("4,10", "11,10", "4,3", "11,3")
@@ -96,7 +101,7 @@
 		side.screen_loc = "[PREFS_PREVIEW_MAP]:[spots[i]]"
 		var/obj/screen/card = preview_sides[i + 4]
 		card.screen_loc = "[PREFS_PREVIEW_MAP]:[spots[i]]"
-		card.color = pass ? "#c9d2de" : "#2c3038"
+		card.color = card_color
 
 /datum/preferences/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, datum/tgui/master_ui = null, datum/ui_state/state = GLOB.always_state)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
@@ -141,6 +146,16 @@
 		if("outfit")
 			preview_plain = !preview_plain
 			ShowChoices(user)
+			return TRUE
+		if("pass_dark")
+			// The boarding pass windows on dark paper or light; kept at once, like the Display panel's choices
+			pass_dark = !pass_dark
+			save_preferences()
+			ShowChoices(user)
+			SStgui.update_uis(user) // the lobby and job list behind it
+			var/mob/dead/new_player/NP = user
+			if(istype(NP) && NP.late_join_menu)
+				SStgui.update_uis(NP.late_join_menu)
 			return TRUE
 		if("copy_slot", "delete_slot")
 			var/slot = text2num(params["num"])
@@ -453,6 +468,7 @@
 	data["plain"] = preview_plain
 	data["dirty"] = prefs_dirty
 	data["design"] = GLOB.lobby_design // the boarding pass look dresses this window as its personnel file
+	data["dark"] = pass_dark
 	data["maxSlots"] = max_save_slots
 	switch(current_tab)
 		if(0)

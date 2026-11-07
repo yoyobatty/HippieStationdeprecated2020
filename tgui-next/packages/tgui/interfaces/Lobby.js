@@ -283,7 +283,7 @@ const LateJoinPass = props => {
     status = 'Queued (' + data.queue + ')';
   }
   return (
-    <div className="LateJoinPass">
+    <div className={'LateJoinPass' + (data.dark ? ' Pass--dark' : '')}>
       <div className="LateJoinPass__head">
         <div className="LobbyPass__band">
           <span className="LobbyPass__logo">NT</span>
