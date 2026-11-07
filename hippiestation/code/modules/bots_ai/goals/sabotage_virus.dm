@@ -441,13 +441,140 @@ GLOBAL_LIST_EMPTY(bot_sick_known)
 	/// Patients it got nowhere with (weakref -> until when).
 	var/list/uncurable_patients
 
-/// What somebody's got that a health analyzer would show, and a cure it names: one cure, which is what an advanced virus has.
+/// Viruses whose cure Virology has read off the PanDEMIC from a blood sample (GetDiseaseID() -> TRUE): a stealthy one that a health
+/// analyzer doesn't show is known from then on, in whoever has it.
+GLOBAL_LIST_EMPTY(bot_virus_cures_known)
+
+/// What somebody's got that a health analyzer would show (or Virology has worked out from a sample), and a cure it names: one cure,
+/// which is what an advanced virus has.
 /proc/bot_curable_disease(mob/living/carbon/human/H)
 	for(var/datum/disease/D as anything in H.diseases)
-		if((D.visibility_flags & HIDDEN_SCANNER) || length(D.cures) != 1 || !(D.disease_flags & CURABLE))
+		if(length(D.cures) != 1 || !(D.disease_flags & CURABLE))
+			continue
+		if((D.visibility_flags & HIDDEN_SCANNER) && !GLOB.bot_virus_cures_known[D.GetDiseaseID()])
 			continue
 		return D
 	return null
+
+/// An advanced virus a health analyzer doesn't show, that's got far enough along to show in them: the coughing, the sneezing, the
+/// vomiting. A Virologist takes a sample of that to the PanDEMIC (/datum/bot_goal/sample_virus).
+/proc/bot_unread_virus(mob/living/carbon/human/H)
+	for(var/datum/disease/advance/D in H.diseases)
+		if((D.visibility_flags & HIDDEN_SCANNER) && D.stage >= 2 && !GLOB.bot_virus_cures_known[D.GetDiseaseID()])
+			return D
+	return null
+
+/// Somebody visibly ill with something the analyzer doesn't show: a blood sample to the PanDEMIC, and what cures it on the radio.
+/// Two of three plagues brewed in Bot Shifts were stealthy enough (vitiligo and the like) that no medic ever treated anybody for them.
+/datum/bot_duty/sample_the_sick
+	name = "taking a blood sample"
+	tier = BOT_DUTY_URGENT
+	jobs = list("Virologist")
+	priority = 24
+	interval_min = 40
+	interval_max = 80
+
+/datum/bot_duty/sample_the_sick/try_start(datum/bot_brain/bot)
+	if(bot.saboteur || !bot.nearest_pandemic())
+		return FALSE
+	for(var/mob/living/carbon/human/H in view(BOT_SIGHT_RANGE, bot.owner))
+		if(H.stat == DEAD || !bot_unread_virus(H) || LAZYACCESS(bot.uncurable_patients, WEAKREF(H)) > world.time)
+			continue
+		bot_log(bot, "[H] looks ill, and it isn't showing on the analyzer: a sample for the PanDEMIC")
+		return bot.assign_goal(new /datum/bot_goal/sample_virus(H))
+	return FALSE
+
+/datum/bot_goal/sample_virus
+	lawful = TRUE
+	doing = "taking a blood sample"
+	var/obj/item/reagent_containers/syringe/syringe
+
+/datum/bot_goal/sample_virus/New(mob/living/carbon/human/patient)
+	. = ..()
+	target = patient
+
+/datum/bot_goal/sample_virus/resolve_target(datum/bot_brain/bot)
+	var/mob/living/carbon/human/H = target
+	if(!istype(H) || QDELETED(H) || H.stat == DEAD)
+		target = null
+		return
+	H.bot_brain?.wait_for_doctor(bot)
+
+/datum/bot_goal/sample_virus/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/case_work/S = new
+	S.steps = list(new /datum/bot_step/get_sample_syringe(), new /datum/bot_step/move_to(), new /datum/bot_step/draw_sample())
+	var/obj/machinery/computer/pandemic/P = bot.nearest_pandemic()
+	if(P)
+		var/datum/bot_step/move_to/to_pandemic = new
+		to_pandemic.step_target = P
+		S.steps += to_pandemic
+		S.steps += new /datum/bot_step/read_sample()
+	return list(S)
+
+/datum/bot_goal/sample_virus/on_give_up(datum/bot_brain/bot)
+	if(target)
+		LAZYSET(bot.uncurable_patients, WEAKREF(target), world.time + 2 MINUTES)
+
+/datum/bot_step/get_sample_syringe
+	var/fetched = FALSE
+
+/datum/bot_step/get_sample_syringe/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/sample_virus/G = bot.current_goal
+	if(!istype(G))
+		return GOAL_STEP_FAIL
+	for(var/obj/item/reagent_containers/syringe/S in bot.owner.GetAllContents(/obj/item/reagent_containers/syringe))
+		if(!S.reagents.total_volume)
+			G.syringe = S
+			return GOAL_STEP_SUCCESS
+	if(fetched)
+		return GOAL_STEP_FAIL
+	fetched = TRUE
+	var/datum/bot_goal/acquire_item_type/fetch = new
+	fetch.item_type = /obj/item/reagent_containers/syringe
+	fetch.lawful = TRUE
+	return bot.suspend_goal_for(fetch) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
+
+/datum/bot_step/draw_sample/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/sample_virus/G = bot.current_goal
+	var/mob/living/carbon/human/patient = G?.target
+	if(!istype(patient) || QDELETED(G.syringe) || !bot.owner.Adjacent(patient))
+		return GOAL_STEP_FAIL
+	if(bot_virus_in(G.syringe))
+		return GOAL_STEP_SUCCESS
+	if(!bot.gym_scripted)
+		bot_say(bot.owner, pick("Hold still, [patient.first_name()], I need a little blood.", "[patient.first_name()], a quick sample. You don't look well."))
+	patient.bot_brain?.hold_still_for(10 SECONDS)
+	G.syringe.mode = SYRINGE_DRAW
+	bot.owner.changeNext_move(CLICK_CD_MELEE)
+	bot.use_item_on(G.syringe, patient)
+	if(!bot_virus_in(G.syringe))
+		bot_log(bot, "couldn't get a sample out of [patient]")
+		return GOAL_STEP_FAIL
+	bot_log(bot, "took a blood sample from [patient]")
+	return GOAL_STEP_SUCCESS
+
+/// At the PanDEMIC: the sample in, what it is and what cures it off the screen, and word on the radio for the rest of Medbay.
+/datum/bot_step/read_sample/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/sample_virus/G = bot.current_goal
+	var/obj/machinery/computer/pandemic/P = bot.nearest_pandemic()
+	var/datum/disease/advance/D = bot_virus_in(G?.syringe)
+	if(!P || !D || !bot.owner.Adjacent(P))
+		return GOAL_STEP_FAIL
+	bot.human_pause(P)
+	bot.owner.face_atom(P)
+	bot.telemetry_ui_action(P, "analyze the sample")
+	GLOB.bot_virus_cures_known[D.GetDiseaseID()] = TRUE
+	var/mob/living/carbon/human/patient = G.target
+	if(istype(patient))
+		GLOB.bot_sick_known[WEAKREF(patient)] = world.time
+	var/datum/reagent/cure = length(D.cures) ? D.cures[1] : null
+	var/cure_name = cure ? lowertext(initial(cure.name)) : "nothing we've got"
+	bot_log(bot, "SAMPLE: [D.name] ([bot_virus_symptoms(D)]): [cure_name] cures it")
+	bot_tally("viruses worked out")
+	if(!bot.gym_scripted)
+		bot_say(bot.owner, ";Virology here. [patient ? patient.first_name() : "Somebody"]'s got [D.name], it doesn't show on a scanner. [capitalize(cure_name)] cures it.")
+	G.syringe.reagents.clear_reagents()
+	return GOAL_STEP_SUCCESS
 
 /// Somebody sick this medic knows of: in sight now (and so known to all of them from here on), or seen before and still sick.
 /datum/bot_brain/proc/find_sick_patient()

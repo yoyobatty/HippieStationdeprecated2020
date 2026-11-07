@@ -673,3 +673,50 @@
 	if(!bot_transcript_said("ground"))
 		fail_reason = bot_transcript_said("it kills now") ? "it killed off the bottle alone: nothing to grind for (a luckier run than this test is about)" : "spiked the drinks without grinding the sheets"
 		return BOT_GYM_FAIL
+
+/// A virus that doesn't show on a scanner (goals/sabotage_virus.dm): the Virologist sees somebody ill, takes a blood sample to the PanDEMIC
+/datum/bot_scenario/duty/sample_the_sick
+	name = "virus: a virologist takes a blood sample from somebody ill with a virus no scanner shows, and reads it at the PanDEMIC"
+	desc = "A crewmate well along with a flu stealthy enough that a health analyzer doesn't show it, a PanDEMIC (p), and a syringe in the Virologist's bag. It draws blood, reads it at the PanDEMIC and says what cures it. Two of three brewed plagues in Bot Shifts hid from the analyzers and nobody ever treated anybody for them."
+	job = "Virologist"
+	time_limit = 60 SECONDS
+	kit_backpack = list(/obj/item/reagent_containers/syringe)
+	layout = list(
+		"###########",
+		"#B..p.....#",
+		"#.........#",
+		"#.......y.#",
+		"###########")
+	var/mob/living/carbon/human/patient
+
+/datum/bot_scenario/duty/sample_the_sick/setup()
+	duty_type = text2path("/datum/bot_duty/sample_the_sick")
+
+/datum/bot_scenario/duty/sample_the_sick/build_tile(turf/T, char)
+	if(char == "p")
+		place(char, new /obj/machinery/computer/pandemic(T))
+		return
+	return ..()
+
+/datum/bot_scenario/duty/sample_the_sick/post_spawn()
+	..()
+	patient = stand_in(first_marker("y"), "Wes Wheezer")
+	patient.ForceContractDisease(new /datum/disease/advance/flu, FALSE, TRUE)
+	for(var/datum/disease/D in patient.diseases)
+		D.visibility_flags |= HIDDEN_SCANNER
+		D.stage = 3
+		D.cures = list(/datum/reagent/consumable/sugar)
+
+/datum/bot_scenario/duty/sample_the_sick/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/list/known = ("bot_virus_cures_known" in GLOB.vars) ? GLOB.vars["bot_virus_cures_known"] : null //by name: a build without the fix has none
+	for(var/datum/disease/D in patient?.diseases)
+		if(known && known[D.GetDiseaseID()])
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/sample_the_sick/release_run()
+	if(!QDELETED(patient))
+		qdel(patient)
+	return ..()
