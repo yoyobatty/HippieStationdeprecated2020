@@ -113,18 +113,22 @@
 			Topic(null, list("refresh" = 1))
 	return TRUE
 
-// The Orion Trail. Its screens are the game's own HTML (each event writes its own, links and all), shown in the window; a link
-// clicked there comes back through ui_act to the game's Topic(). The screen is worked out once a move by orion_screen(), the
-// old ui_interact() body, since losing an emagged game hurts you while drawing the game-over screen.
+// The Orion Trail. The window draws the voyage from the game's state (which screen, the route, supplies, crew); an event's words
+// and choices come from the game's own HTML for it (each event writes its own, links and all). A choice comes back through
+// ui_act to the game's Topic(), unchanged. The screen is worked out once a move by orion_screen(), the old ui_interact() body,
+// since losing an emagged game hurts you while drawing the game-over screen.
 
 // The game's states (code/game/machinery/computer/arcade.dm undefines them at its end)
 #define ORION_STATUS_START		1
 #define ORION_STATUS_NORMAL		2
 #define ORION_STATUS_GAMEOVER	3
+#define ORION_STATUS_MARKET		4
 
 /obj/machinery/computer/arcade/orion_trail
 	/// The screen as last drawn, for the window
 	var/orion_screen_html = ""
+	/// Which screen that was: start, travel, event, market or gameover
+	var/orion_phase = "start"
 
 /// The old window's page, without opening it: the same checks and game-over effects, run once each time the game moves
 /obj/machinery/computer/arcade/orion_trail/proc/orion_screen(mob/user)
@@ -133,6 +137,7 @@
 		event = null
 	var/dat = ""
 	if(gameStatus == ORION_STATUS_GAMEOVER)
+		orion_phase = "gameover"
 		dat = "<center><h1>Game Over</h1></center>"
 		dat += "Like many before you, your crew never made it to Orion, lost to space... <br><b>Forever</b>."
 		if(!settlers.len)
@@ -161,8 +166,10 @@
 
 		dat += "<P ALIGN=Right><a href='byond://?src=[REF(src)];menu=1'>May They Rest In Peace</a></P>"
 	else if(event)
+		orion_phase = gameStatus == ORION_STATUS_MARKET ? "market" : "event"
 		dat = eventdat
 	else if(gameStatus == ORION_STATUS_NORMAL)
+		orion_phase = "travel"
 		var/title = stops[turns]
 		var/subtext = stopblurbs[turns]
 		dat = "<center><h1>[title]</h1></center>"
@@ -178,6 +185,7 @@
 		dat += "<P ALIGN=Right><a href='byond://?src=[REF(src)];killcrew=1'>Kill a Crewmember</a></P>"
 		dat += "<P ALIGN=Right><a href='byond://?src=[REF(src)];close=1'>Close</a></P>"
 	else
+		orion_phase = "start"
 		dat = "<center><h2>The Orion Trail</h2></center>"
 		dat += "<br><center><h3>Experience the journey of your ancestors!</h3></center><br><br>"
 		dat += "<center><b><a href='byond://?src=[REF(src)];newgame=1'>New Game</a></b></center>"
@@ -188,11 +196,26 @@
 	orion_screen_html = orion_screen(user)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
-		ui = new(user, src, ui_key, "arcade_orion", name, 440, 620, master_ui, state)
+		ui = new(user, src, ui_key, "arcade_orion", name, 460, 660, master_ui, state)
 		ui.open()
 
 /obj/machinery/computer/arcade/orion_trail/ui_data(mob/user)
-	return list("screen" = orion_screen_html, "emagged" = !!(obj_flags & EMAGGED))
+	var/list/data = list("screen" = orion_screen_html, "emagged" = !!(obj_flags & EMAGGED))
+	data["phase"] = orion_phase
+	data["title"] = name
+	data["food"] = food
+	data["fuel"] = fuel
+	data["engine"] = engine
+	data["hull"] = hull
+	data["electronics"] = electronics
+	data["crew"] = settlers.Copy()
+	data["turn"] = turns
+	data["stops"] = stops
+	data["blurb"] = (turns >= 1 && turns <= length(stopblurbs)) ? stopblurbs[turns] : ""
+	data["event"] = event
+	data["last_action"] = last_spaceport_action
+	data["raided"] = spaceport_raided
+	return data
 
 /obj/machinery/computer/arcade/orion_trail/ui_act(action, list/params)
 	if(..())
@@ -216,3 +239,4 @@
 #undef ORION_STATUS_START
 #undef ORION_STATUS_NORMAL
 #undef ORION_STATUS_GAMEOVER
+#undef ORION_STATUS_MARKET

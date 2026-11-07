@@ -289,6 +289,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_ghost_ntos(C, H, label)
 		if("nanites")
 			cs_nanites(C, H, label)
+		if("orion")
+			cs_orion(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -7046,3 +7048,58 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	SStgui.close_user_uis(H)
 	H.drop_all_held_items()
 	qdel(remote)
+
+// The Orion Trail: each screen, with a move played on it. The game's own moves (its Topic) run through the window's "link".
+/proc/cs_orion_move(obj/machinery/computer/arcade/orion_trail/A, mob/living/carbon/human/H, list/link)
+	cs_act(A, H, "link", link)
+	sleep(10)
+
+/proc/cs_orion_shot(client/C, obj/machinery/computer/arcade/orion_trail/A, mob/living/carbon/human/H, name)
+	A.ui_interact(H)
+	sleep(10)
+	var/datum/tgui/ui = cs_find_ui(H, A)
+	if(ui)
+		winset(C, ui.window_id, "pos=60,20")
+	sleep(15)
+	cs_shot(name)
+
+/proc/cs_orion(client/C, mob/living/carbon/human/H, label)
+	usr = H
+	var/obj/machinery/computer/arcade/orion_trail/A = new(cs_open_beside(H))
+	A.stat &= ~(NOPOWER|BROKEN)
+	A.interact(H)
+	sleep(20)
+	cs_orion_shot(C, A, H, "popup_orion_[label]_1_start")
+	cs_orion_move(A, H, list("newgame" = "1"))
+	cs_check("orion: a new game starts (status [A.gameStatus], crew [length(A.settlers)])", A.gameStatus == 2 && length(A.settlers) == 4)
+	cs_orion_shot(C, A, H, "popup_orion_[label]_2_travel")
+	// An engine breakdown, mended with a part
+	A.event = "Breakdown"
+	A.event()
+	cs_orion_shot(C, A, H, "popup_orion_[label]_3_event")
+	var/parts = A.engine
+	cs_orion_move(A, H, list("useengine" = "1"))
+	cs_check("orion: a part mends the engine ([parts] -> [A.engine])", A.engine == parts - 1 && !A.event)
+	// A spaceport
+	A.turns = 4
+	A.event = "Spaceport"
+	A.event()
+	cs_orion_shot(C, A, H, "popup_orion_[label]_4_market")
+	var/hull = A.hull
+	cs_orion_move(A, H, list("buyparts" = "2"))
+	cs_check("orion: hull plates bought at the spaceport ([hull] -> [A.hull])", A.hull == hull + 1)
+	cs_orion_move(A, H, list("leave_spaceport" = "1"))
+	cs_check("orion: and away ([A.gameStatus], [A.event])", A.gameStatus == 2 && !A.event)
+	// The black hole: two ways on
+	A.turns = 7
+	cs_orion_shot(C, A, H, "popup_orion_[label]_5_blackhole")
+	cs_orion_move(A, H, list("pastblack" = "1"))
+	cs_check("orion: going around the black hole ([A.turns])", A.turns == 8)
+	// Out of food
+	A.food = 0
+	cs_orion_shot(C, A, H, "popup_orion_[label]_6_gameover")
+	cs_check("orion: out of food is game over ([A.gameStatus])", A.gameStatus == 3)
+	cs_orion_move(A, H, list("menu" = "1"))
+	cs_check("orion: back to the title ([A.gameStatus])", A.gameStatus == 1)
+	SStgui.close_user_uis(H)
+	qdel(A)

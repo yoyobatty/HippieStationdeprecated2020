@@ -136,7 +136,8 @@ import { ClockworkSlab } from './interfaces/ClockworkSlab';
 import { CameraConsole } from './interfaces/CameraConsole';
 import { Preferences } from './interfaces/Preferences';
 import { Teleporter } from './interfaces/Teleporter';
-import { ArcadeBattle, ArcadeMinesweeper, ArcadeOrion } from './interfaces/Arcade';
+import { ArcadeBattle, ArcadeMinesweeper } from './interfaces/Arcade';
+import { ArcadeOrion } from './interfaces/OrionTrail';
 import { PortableTurret, TurretControl } from './interfaces/Turrets';
 import { Experimentor, RdServerControl } from './interfaces/ResearchMachines';
 import { FoodCart, IcecreamVat, MagnetController, StackingConsole } from './interfaces/MiscMachines';
@@ -1053,7 +1054,7 @@ const ROUTES = {
   },
   arcade_orion: {
     component: () => ArcadeOrion,
-    scrollable: true,
+    scrollable: false,
   },
   arcade_battle: {
     component: () => ArcadeBattle,
