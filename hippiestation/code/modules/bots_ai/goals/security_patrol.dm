@@ -48,6 +48,12 @@ GLOBAL_LIST_EMPTY(bot_security_brains) //every living security-job bot_brain, se
 GLOBAL_LIST_EMPTY(bot_security_wanted) //weakref(mob) -> /datum/bot_wanted
 GLOBAL_LIST_EMPTY(bot_recent_aggression) //"[REF(attacker)]>[REF(victim)]" -> world.time
 GLOBAL_LIST_EMPTY(bot_brig_sentences) //door_timer -> weakref(prisoner), see check_finished_sentences()
+
+/// Both brig lists here are keyed by the cell's timer: one blown up stayed in them, a hard delete (3-4 a disaster round)
+/obj/machinery/door_timer/Destroy()
+	GLOB.bot_brig_cell_interiors -= src
+	GLOB.bot_brig_sentences -= src
+	return ..()
 GLOBAL_LIST_EMPTY(bot_brig_cell_interiors) //door_timer -> list of turfs inside that cell
 
 // Substrings of log_combat()'s what_done that count as violence. Deliberately excludes

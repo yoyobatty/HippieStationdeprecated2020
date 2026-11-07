@@ -1033,8 +1033,17 @@ GLOBAL_LIST_INIT(hallucination_list, list(
 			feedback_details += "Type: [target.halitem.name]"
 			if(target.client)
 				target.client.screen += target.halitem
-			QDEL_IN(target.halitem, rand(150, 350))
+			addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(clear_hallucination_item), target, target.halitem), rand(150, 350)) // hippie -- was QDEL_IN
+		else // hippie -- nowhere to show it: it stayed in halitem for good, and they never saw another
+			QDEL_NULL(target.halitem)
 	qdel(src)
+
+/// hippie -- the fake item stayed in its target's halitem (and on their screen) after it was deleted: a hard delete each time
+/proc/clear_hallucination_item(mob/living/carbon/target, obj/item)
+	if(target.halitem == item)
+		target.halitem = null
+	target.client?.screen -= item
+	qdel(item)
 
 /datum/hallucination/dangerflash
 

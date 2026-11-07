@@ -21,6 +21,12 @@
 #define BOT_REQUEST_REPEAT (30 SECONDS)
 
 GLOBAL_LIST_EMPTY(bot_requests)
+
+/// A brain gone stayed on the requests it had set off for and given up on (failed_by): a hard delete
+/datum/bot_brain/Destroy()
+	for(var/datum/bot_request/R as anything in GLOB.bot_requests)
+		LAZYREMOVE(R.failed_by, src)
+	return ..()
 GLOBAL_LIST_INIT(bot_request_kinds, init_bot_request_kinds())
 /// Words that make a sentence with a trade in it a request for one.
 GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pls", "plz", "asap", "quick", "quickly", "hurry",

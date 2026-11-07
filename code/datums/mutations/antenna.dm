@@ -23,12 +23,17 @@
 		return
 	linked_radio = new(owner)
 	linked_radio.implant(owner, null, TRUE, TRUE)
+	RegisterSignal(linked_radio, COMSIG_PARENT_QDELETING, PROC_REF(radio_gone)) // hippie
+
+/// hippie -- the implant deleted with its owner (or cut out) stayed held here: a hard delete, radio and all
+/datum/mutation/human/antenna/proc/radio_gone(datum/source)
+	linked_radio = null
 
 /datum/mutation/human/antenna/on_losing(mob/living/carbon/human/owner)
 	if(..())
 		return
 	if(linked_radio)
-		linked_radio.Destroy()
+		QDEL_NULL(linked_radio) // hippie -- was linked_radio.Destroy(), which never let go of it
 
 /datum/mutation/human/antenna/New(class_ = MUT_OTHER, timer, datum/mutation/human/copymut)
 	..()

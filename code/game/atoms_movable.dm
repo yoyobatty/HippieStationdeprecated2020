@@ -543,7 +543,9 @@
 /atom/movable/Destroy(force)
 	QDEL_NULL(proximity_monitor)
 	QDEL_NULL(language_holder)
-	QDEL_NULL(em_block) // hippie -- it and what it's blocking for hold each other
+	if(em_block) // hippie -- it and what it's blocking for hold each other: out of our vis_contents too, or anything still
+		vis_contents -= em_block // holding us (a hard delete) takes it down with us, a second hard delete
+		QDEL_NULL(em_block)
 
 	unbuckle_all_mobs(force=1)
 

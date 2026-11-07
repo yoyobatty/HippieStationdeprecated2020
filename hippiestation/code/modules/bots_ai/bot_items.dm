@@ -61,10 +61,15 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	// straight off the floor or out of a locker - it goes through a hand (telemetry caught a
 	// wrench and a welder going floor -> belt directly).
 	if(I.loc != owner && I.loc?.loc != owner)
+		var/mob/holder = I.loc
+		if(ismob(holder) && !holder.temporarilyRemoveItemFromInventory(I)) // off another person: out of their slot first, or it
+			return FALSE // stays in it there as well (a crowbar left on someone's belt while the bot held it, then a hard delete)
 		if(owner.get_active_held_item() && owner.get_inactive_held_item())
 			put_away(owner.get_active_held_item()) //both hands full: put one thing back first, like a person would
 		if(!owner.put_in_hands(I))
 			return FALSE
+		if(QDELETED(I)) // a stack that merged into the one in hand: it's all there now (it went on to put the empty piece away)
+			return TRUE
 	if(owner.equip_to_appropriate_slot(I))
 		return TRUE
 	// equip_to_appropriate_slot() only WEARS an item into an empty slot - it can't put

@@ -110,7 +110,7 @@
 /// on (living_antag_player) is checked without asking for a client, so a bot that's still at it goes there.
 /datum/game_mode/check_finished(force_ending)
 	if(!living_antag_player || QDELETED(living_antag_player) || living_antag_player.stat == DEAD)
-		living_antag_player = bot_living_antagonist() || living_antag_player
+		living_antag_player = bot_living_antagonist() // not the old one back: dead or deleted, it can't keep the round going, and a deleted one was a hard delete
 	return ..()
 
 /// A bot still alive with an antagonist role that keeps the round going (prevent_roundtype_conversion, as check_finished() asks).

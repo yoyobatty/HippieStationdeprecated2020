@@ -154,7 +154,7 @@
 	var/datum/component/storage/concrete/master = master()
 	var/atom/parent = src.parent
 	var/moved = FALSE
-	if(!istype(I))
+	if(!istype(I) || QDELETED(I)) // hippie -- a deleted stack piece put in a toolbelt stayed there: a hard delete
 		return FALSE
 	if(M)
 		if(!M.temporarilyRemoveItemFromInventory(I))

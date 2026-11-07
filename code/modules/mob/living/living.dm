@@ -41,6 +41,9 @@
 		buckled.unbuckle_mob(src,force=1)
 
 	remove_from_all_data_huds()
+	for(var/datum/atom_hud/antag/hud in GLOB.all_huds) // hippie -- a deleted antagonist stayed in its antag HUD: a hard delete
+		if(src in hud.hudatoms)
+			hud.remove_from_hud(src)
 	GLOB.mob_living_list -= src
 	QDEL_LIST(diseases)
 	return ..()

@@ -369,14 +369,21 @@
 	// if we are not angry at our target, go back to idle
 	if(enemies[L] <= 0)
 		enemies.Remove(L)
+		UnregisterSignal(L, COMSIG_PARENT_QDELETING) // hippie
 		if( target == L )
 			back_to_idle()
+
+/// hippie -- see retaliate()
+/mob/living/carbon/monkey/proc/forget_enemy(datum/source)
+	enemies -= source
 
 // get angry are a mob
 /mob/living/carbon/monkey/proc/retaliate(mob/living/L)
 	mode = MONKEY_HUNT
 	target = L
 	if(L != src)
+		if(!enemies[L]) // hippie -- one deleted stayed an enemy (Pun Pun kept a body): a hard delete
+			RegisterSignal(L, COMSIG_PARENT_QDELETING, PROC_REF(forget_enemy), TRUE)
 		enemies[L] += MONKEY_HATRED_AMOUNT
 
 	if(a_intent != INTENT_HARM)

@@ -65,11 +65,24 @@
 	return
 
 /obj/item/tank/Destroy()
+	forget_breather(loc) // hippie
 	if(air_contents)
 		qdel(air_contents)
 
 	STOP_PROCESSING(SSobj, src)
 	. = ..()
+
+/// hippie -- whoever breathed from a tank kept it as their internals after it was deleted or taken off them till their next
+/// breath, and the dead don't breathe: the tank and its air were hard deleted. Letting go is what that breath would do.
+/obj/item/tank/proc/forget_breather(mob/living/carbon/C)
+	if(istype(C) && C.internal == src)
+		C.internal = null
+		C.update_internals_hud_icon(0)
+
+/obj/item/tank/Moved(atom/OldLoc, Dir, Forced = FALSE)
+	. = ..()
+	if(OldLoc != loc)
+		forget_breather(OldLoc)
 
 /obj/item/tank/examine(mob/user)
 	var/obj/icon = src

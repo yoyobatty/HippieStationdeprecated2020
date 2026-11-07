@@ -329,9 +329,16 @@
 		for(var/obj/machinery/power/compressor/C in GLOB.machines)
 			if(C.comp_id == id)
 				compressor = C
-				return
+				break // hippie -- was return, which skipped the signal below
 	else
 		compressor = locate(/obj/machinery/power/compressor) in range(7, src)
+	if(compressor) // hippie
+		RegisterSignal(compressor, COMSIG_PARENT_QDELETING, PROC_REF(compressor_gone), TRUE)
+
+/// hippie -- a compressor blown up stayed this computer's: a hard delete
+/obj/machinery/computer/turbine_computer/proc/compressor_gone(datum/source)
+	if(compressor == source)
+		compressor = null
 
 /obj/machinery/computer/turbine_computer/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, \
 									datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)

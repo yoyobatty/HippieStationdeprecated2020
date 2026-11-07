@@ -14,6 +14,14 @@ GLOBAL_LIST_EMPTY(tcomms_wiretap)
 	if(GLOB.tcomms_wiretap.len > TCOMMS_WIRETAP_KEEP)
 		GLOB.tcomms_wiretap.Cut(1, 2)
 
+/// A server blown up stayed in the feed's entries (which already hid it): its entries go with it, or it's a hard delete
+/obj/machinery/telecomms/server/Destroy()
+	for(var/i in GLOB.tcomms_wiretap.len to 1 step -1)
+		var/list/item = GLOB.tcomms_wiretap[i]
+		if(item[2] == src)
+			GLOB.tcomms_wiretap.Cut(i, i + 1)
+	return ..()
+
 /datum/computer_file/program/traffic_control
 	var/tab = "network"
 

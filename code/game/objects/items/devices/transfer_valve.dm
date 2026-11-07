@@ -160,6 +160,16 @@
 			if(sensor.on && sensor.visible)
 				add_overlay("proxy_beam")
 
+/// hippie -- a tank that blew while attached, or its timer gone with the blast, stayed the valve's: hard deletes, air and all
+/obj/item/transfer_valve/handle_atom_del(atom/A)
+	. = ..()
+	if(A == tank_one)
+		tank_one = null
+	if(A == tank_two)
+		tank_two = null
+	if(A == attached_device)
+		attached_device = null
+
 /obj/item/transfer_valve/proc/merge_gases(datum/gas_mixture/target, change_volume = TRUE)
 	var/target_self = FALSE
 	if(!target || (target == tank_one.air_contents))

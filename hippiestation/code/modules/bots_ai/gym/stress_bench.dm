@@ -397,6 +397,7 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 			if(!QDELETED(ball))
 				note("tesla taken away at [AREACOORD(ball)]")
 				qdel(ball)
+			ball = null // it was this bench's own reference that hard deleted the ball
 
 /// The same spots every run: everything is picked straight after seeding, before the crew arrives
 /datum/stress_bench/proc/pick_spots()

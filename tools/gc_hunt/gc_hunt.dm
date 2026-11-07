@@ -142,7 +142,9 @@ GLOBAL_VAR_INIT(gh_radio_checks, 0)
 /// Items and limbs turn up deleted but still in SSvis_overlays.signal_procs: who gave each its first managed overlay, for the hard delete to show
 GLOBAL_LIST_EMPTY(gh_vis_registered)
 
-/datum/controller/subsystem/vis_overlays/add_vis_overlay(atom/movable/thing, icon, iconstate, layer, plane, dir, alpha = 255, add_appearance_flags = NONE, unique = FALSE, bloom = TRUE)
+// Keep the arguments the same as the real proc's: a named one missing here (inherit_dir, 2026-11-06) is a runtime in every call
+// that names it, emissive blockers and bot actions included
+/datum/controller/subsystem/vis_overlays/add_vis_overlay(atom/movable/thing, icon, iconstate, layer, plane, dir, alpha = 255, add_appearance_flags = NONE, unique = FALSE, bloom = TRUE, inherit_dir = FALSE)
 	var/first = isitem(thing) && !thing.managed_vis_overlays
 	. = ..()
 	if(first && thing.managed_vis_overlays)
