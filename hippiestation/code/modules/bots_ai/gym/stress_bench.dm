@@ -222,6 +222,8 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 	var/next = 1
 	var/last = timewarp_real_ms()
 	var/spike_log = world.params["spike-log"] // spike-log=1: what each tick over 60 ms went on, by subsystem
+	if(world.params["tesla-zap-check"]) // tesla-zap-check=1: every tesla zap's choice against the old loop's
+		GLOB.tesla_zap_check = list("same" = 0, "different" = 0)
 	if(world.params["timer-census"]) // timer-census=1: what the Timer subsystem's time goes on, by the timers' procs
 		SStimer.census = list()
 		SStimer.census_count = list()
@@ -585,6 +587,9 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 	if(light_shadow)
 		out += ""
 		out += "Light shadow check (light-shadow): [json_encode(light_shadow)]"
+	if(GLOB.tesla_zap_check) // tesla-zap-check=1
+		out += ""
+		out += "Tesla zaps, against what the old loop would have chosen: [json_encode(GLOB.tesla_zap_check)]"
 	if(SStimer.census) // timer-census=1
 		var/list/census = SStimer.census.Copy()
 		sortTim(census, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
@@ -724,3 +729,87 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 				var/datum/gas_mixture/air = isopenturf(T) ? T.air : null
 				if(air)
 					tiles += air.temperature
+
+/// tesla-zap-check=1: what tesla_zap()'s old single loop chose from the same view, to set against what it chooses now
+/proc/tesla_zap_old_choice(atom/source, zap_range, tesla_flags, list/shocked_targets, list/seen, list/things_to_shock, list/blacklisted_tesla_types)
+	var/closest_dist = 0
+	var/closest_atom
+	var/obj/machinery/power/tesla_coil/closest_tesla_coil
+	var/obj/machinery/power/grounding_rod/closest_grounding_rod
+	var/mob/living/closest_mob
+	var/obj/machinery/closest_machine
+	var/obj/structure/closest_structure
+	var/obj/structure/blob/closest_blob
+	for(var/A in typecache_filter_multi_list_exclusion(seen, things_to_shock, blacklisted_tesla_types))
+		if(!(tesla_flags & TESLA_ALLOW_DUPLICATES) && LAZYACCESS(shocked_targets, A))
+			continue
+
+		if(istype(A, /obj/machinery/power/tesla_coil))
+			var/dist = get_dist(source, A)
+			var/obj/machinery/power/tesla_coil/C = A
+			if(dist <= zap_range && (dist < closest_dist || !closest_tesla_coil) && !(C.obj_flags & BEING_SHOCKED))
+				closest_dist = dist
+
+				//we use both of these to save on istype and typecasting overhead later on
+				//while still allowing common code to run before hand
+				closest_tesla_coil = C
+				closest_atom = C
+
+
+		else if(closest_tesla_coil)
+			continue //no need checking these other things
+
+		else if(istype(A, /obj/machinery/power/grounding_rod))
+			var/dist = get_dist(source, A)-2
+			if(dist <= zap_range && (dist < closest_dist || !closest_grounding_rod))
+				closest_grounding_rod = A
+				closest_atom = A
+				closest_dist = dist
+
+		else if(closest_grounding_rod)
+			continue
+
+		else if(isliving(A))
+			var/dist = get_dist(source, A)
+			var/mob/living/L = A
+			if(dist <= zap_range && (dist < closest_dist || !closest_mob) && L.stat != DEAD && !(L.flags_1 & TESLA_IGNORE_1))
+				closest_mob = L
+				closest_atom = A
+				closest_dist = dist
+
+		else if(closest_mob)
+			continue
+
+		else if(ismachinery(A))
+			var/obj/machinery/M = A
+			var/dist = get_dist(source, A)
+			if(dist <= zap_range && (dist < closest_dist || !closest_machine) && !(M.obj_flags & BEING_SHOCKED))
+				closest_machine = M
+				closest_atom = A
+				closest_dist = dist
+
+		else if(closest_machine)
+			continue
+
+		else if(istype(A, /obj/structure/blob))
+			var/obj/structure/blob/B = A
+			var/dist = get_dist(source, A)
+			if(dist <= zap_range && (dist < closest_dist || !closest_tesla_coil) && !(B.obj_flags & BEING_SHOCKED))
+				closest_blob = B
+				closest_atom = A
+				closest_dist = dist
+
+		else if(closest_blob)
+			continue
+
+		else if(isstructure(A))
+			var/obj/structure/S = A
+			var/dist = get_dist(source, A)
+			if(dist <= zap_range && (dist < closest_dist || !closest_tesla_coil) && !(S.obj_flags & BEING_SHOCKED))
+				closest_structure = S
+				closest_atom = A
+				closest_dist = dist
+
+		else if(closest_structure)
+			continue
+	return closest_atom

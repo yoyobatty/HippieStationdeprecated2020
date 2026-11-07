@@ -168,6 +168,9 @@
 	var/mob/living/carbon/C = A
 	C.dust()
 
+/// hippie -- the stress bench's tesla-zap-check=1: how many zaps chose the same as the old loop would have, and how many didn't
+GLOBAL_LIST(tesla_zap_check)
+
 /proc/tesla_zap(atom/source, zap_range = 3, power, tesla_flags = TESLA_DEFAULT_FLAGS, list/shocked_targets)
 	if(QDELETED(source))
 		return
@@ -207,78 +210,74 @@
 										/obj/machinery/the_singularitygen/tesla,
 										/obj/structure/frame/machine))
 
-	for(var/A in typecache_filter_multi_list_exclusion(oview(source, zap_range+2), things_to_shock, blacklisted_tesla_types))
-		if(!(tesla_flags & TESLA_ALLOW_DUPLICATES) && LAZYACCESS(shocked_targets, A))
+	// hippie -- each kind of thing gets its own pass over what's in view, best kind first, so the filtering is BYOND's own type
+	// check instead of a typecache lookup on every atom in view. It chooses what the single loop did: the best kind found wins,
+	// and within a kind, what comes first in oview()'s order settles ties (the last, for blobs and structures). The stress
+	// bench's tesla-zap-check=1 sets every choice against the old loop's (tesla_zap_old_choice() in stress_bench.dm).
+	var/list/seen = oview(source, zap_range+2)
+	var/old_choice
+	if(GLOB.tesla_zap_check)
+		old_choice = tesla_zap_old_choice(source, zap_range, tesla_flags, shocked_targets, seen, things_to_shock, blacklisted_tesla_types)
+	var/check_shocked = !(tesla_flags & TESLA_ALLOW_DUPLICATES) && shocked_targets
+	for(var/obj/machinery/power/tesla_coil/C in seen)
+		if(blacklisted_tesla_types[C.type] || (check_shocked && shocked_targets[C]))
 			continue
-
-		if(istype(A, /obj/machinery/power/tesla_coil))
-			var/dist = get_dist(source, A)
-			var/obj/machinery/power/tesla_coil/C = A
-			if(dist <= zap_range && (dist < closest_dist || !closest_tesla_coil) && !(C.obj_flags & BEING_SHOCKED))
-				closest_dist = dist
-
-				//we use both of these to save on istype and typecasting overhead later on
-				//while still allowing common code to run before hand
-				closest_tesla_coil = C
-				closest_atom = C
-
-
-		else if(closest_tesla_coil)
-			continue //no need checking these other things
-
-		else if(istype(A, /obj/machinery/power/grounding_rod))
-			var/dist = get_dist(source, A)-2
+		var/dist = get_dist(source, C)
+		if(dist <= zap_range && (dist < closest_dist || !closest_tesla_coil) && !(C.obj_flags & BEING_SHOCKED))
+			closest_dist = dist
+			closest_tesla_coil = C
+			closest_atom = C
+	if(!closest_tesla_coil)
+		for(var/obj/machinery/power/grounding_rod/R in seen)
+			if(blacklisted_tesla_types[R.type] || (check_shocked && shocked_targets[R]))
+				continue
+			var/dist = get_dist(source, R)-2
 			if(dist <= zap_range && (dist < closest_dist || !closest_grounding_rod))
-				closest_grounding_rod = A
-				closest_atom = A
+				closest_grounding_rod = R
+				closest_atom = R
 				closest_dist = dist
-
-		else if(closest_grounding_rod)
-			continue
-
-		else if(isliving(A))
-			var/dist = get_dist(source, A)
-			var/mob/living/L = A
+	if(!closest_tesla_coil && !closest_grounding_rod)
+		for(var/mob/living/L in seen)
+			if(blacklisted_tesla_types[L.type] || (check_shocked && shocked_targets[L]))
+				continue
+			var/dist = get_dist(source, L)
 			if(dist <= zap_range && (dist < closest_dist || !closest_mob) && L.stat != DEAD && !(L.flags_1 & TESLA_IGNORE_1))
 				closest_mob = L
-				closest_atom = A
+				closest_atom = L
 				closest_dist = dist
-
-		else if(closest_mob)
-			continue
-
-		else if(ismachinery(A))
-			var/obj/machinery/M = A
-			var/dist = get_dist(source, A)
+	if(!closest_tesla_coil && !closest_grounding_rod && !closest_mob)
+		for(var/obj/machinery/M in seen)
+			if(istype(M, /obj/machinery/power/tesla_coil) || istype(M, /obj/machinery/power/grounding_rod)) // had their own pass
+				continue
+			if(blacklisted_tesla_types[M.type] || (check_shocked && shocked_targets[M]))
+				continue
+			var/dist = get_dist(source, M)
 			if(dist <= zap_range && (dist < closest_dist || !closest_machine) && !(M.obj_flags & BEING_SHOCKED))
 				closest_machine = M
-				closest_atom = A
+				closest_atom = M
 				closest_dist = dist
-
-		else if(closest_machine)
-			continue
-
-		else if(istype(A, /obj/structure/blob))
-			var/obj/structure/blob/B = A
-			var/dist = get_dist(source, A)
+	if(!closest_tesla_coil && !closest_grounding_rod && !closest_mob && !closest_machine)
+		for(var/obj/structure/blob/B in seen)
+			if(blacklisted_tesla_types[B.type] || (check_shocked && shocked_targets[B]))
+				continue
+			var/dist = get_dist(source, B)
 			if(dist <= zap_range && (dist < closest_dist || !closest_tesla_coil) && !(B.obj_flags & BEING_SHOCKED))
 				closest_blob = B
-				closest_atom = A
+				closest_atom = B
 				closest_dist = dist
-
-		else if(closest_blob)
-			continue
-
-		else if(isstructure(A))
-			var/obj/structure/S = A
-			var/dist = get_dist(source, A)
+	if(!closest_tesla_coil && !closest_grounding_rod && !closest_mob && !closest_machine && !closest_blob)
+		for(var/obj/structure/S in seen)
+			if(istype(S, /obj/structure/blob)) // had its own pass
+				continue
+			if(blacklisted_tesla_types[S.type] || (check_shocked && shocked_targets[S]))
+				continue
+			var/dist = get_dist(source, S)
 			if(dist <= zap_range && (dist < closest_dist || !closest_tesla_coil) && !(S.obj_flags & BEING_SHOCKED))
 				closest_structure = S
-				closest_atom = A
+				closest_atom = S
 				closest_dist = dist
-
-		else if(closest_structure)
-			continue
+	if(GLOB.tesla_zap_check)
+		GLOB.tesla_zap_check[closest_atom == old_choice ? "same" : "different"]++
 
 	//Alright, we've done our loop, now lets see if was anything interesting in range
 	if(closest_atom)
