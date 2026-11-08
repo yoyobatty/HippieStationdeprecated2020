@@ -33,6 +33,7 @@ The DM side is in `hippiestation/code/modules/tgui_panel/`.
 - `packages/tgui-panel/Panel.tsx`: the search button and box.
 - `packages/tgui-panel/settings/{atoms,types}.ts`, `SettingsGeneral.tsx`: dark theme by default, and the time stamp
   setting.
+- `packages/common/storage.ts`: BYOND's storage notices are info, not warnings; tg printed them at the top of everyone's chat.
 - `assets/font-awesome/all.min.css`: trimmed to FA6's two @font-face rules (`trim_fa.py`).
 
 ## Our own files

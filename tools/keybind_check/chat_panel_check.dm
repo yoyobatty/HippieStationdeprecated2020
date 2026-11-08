@@ -117,6 +117,9 @@ GLOBAL_VAR(cp_ooc_last)
 	kc_log("info scripts: [probe]")
 	kc_log("info fatal shown:[cp_js(C, "var f=document.getElementById('FatalError');report(f?getComputedStyle(f).display+' '+(document.getElementById('FatalError__stack')||{}).textContent:'none');")]")
 
+	var/storage_line = cp_text_any(C, "\[Storage]")
+	cp_check("no storage notice printed in the chat", storage_line == "none", storage_line)
+
 	// messages of each kind come through, in order, as HTML
 	to_chat(C, "<span class='say'><span class='name'>Bob</span> says, \"cp-hello\"</span>")
 	to_chat(C, "<span class='radio'>\[Common] <span class='name'>Alice</span> says, \"cp-radio\"</span>")

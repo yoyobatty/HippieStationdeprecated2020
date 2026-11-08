@@ -257,12 +257,13 @@ class StorageProxy implements StorageBackend {
       }
 
       if (testHubStorage()) {
-        this.log('warn', 'Falling back to hubStorage (byondstorage)');
+        // hippie -- 'info': with no storage CDN this is the normal path here, not something to print in the chat
+        this.log('info', 'Falling back to hubStorage (byondstorage)');
         return new HubStorageBackend();
       }
 
       // IFrame hasn't worked out for us, we'll need to enable byondstorage
-      this.log('warn', 'Enabling byondstorage as last resort');
+      this.log('info', 'Enabling byondstorage as last resort'); // hippie -- see above
       Byond.winset(null, 'browser-options', '+byondstorage');
 
       return new Promise((resolve) => {
