@@ -1468,6 +1468,8 @@ GLOBAL_DATUM_INIT(dview_mob, /mob/dview, new)
 #define VARSET_CALLBACK(datum, var, var_value) CALLBACK(GLOBAL_PROC, /proc/___callbackvarset, ##datum, NAMEOF(##datum, ##var), ##var_value)
 
 /proc/___callbackvarset(list_or_datum, var_name, var_value)
+	if(isnull(list_or_datum)) // hippie -- deleted outright (del) before the timer came round
+		return
 	if(length(list_or_datum))
 		list_or_datum[var_name] = var_value
 		return

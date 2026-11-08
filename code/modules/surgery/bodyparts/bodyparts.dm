@@ -219,6 +219,8 @@
 
 //Checks disabled status thresholds
 /obj/item/bodypart/proc/update_disabled()
+	if(!owner) // hippie (as tg) -- come off already, mid-blast: nobody's to be disabled
+		return
 	set_disabled(is_disabled())
 
 /obj/item/bodypart/proc/is_disabled()
@@ -454,7 +456,7 @@
 	var/obj/item/cavity_item
 
 /obj/item/bodypart/chest/can_dismember(obj/item/I)
-	if(!((owner.stat == DEAD) || owner.InFullCritical()))
+	if(!owner || !((owner.stat == DEAD) || owner.InFullCritical())) // hippie -- no owner: nothing to come off
 		return FALSE
 	return ..()
 

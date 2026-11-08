@@ -114,7 +114,7 @@
 		"job" = speaker.job,
 		"message" = message,
 		"compression" = rand(35, 65),
-		"language" = lang_instance.name,
+		"language" = lang_instance?.name, // hippie -- said in no language at all
 		"spans" = spans
 	)
 	var/turf/T = get_turf(source)

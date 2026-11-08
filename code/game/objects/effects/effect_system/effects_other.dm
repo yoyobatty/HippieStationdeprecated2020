@@ -101,6 +101,8 @@
 	flashing_factor = flash_fact
 
 /datum/effect_system/reagents_explosion/start()
+	if(!location) // hippie -- set up somewhere with no turf (in nullspace)
+		return
 	if(explosion_message)
 		location.visible_message("<span class='danger'>The solution violently explodes!</span>", \
 								"<span class='italics'>You hear an explosion!</span>")

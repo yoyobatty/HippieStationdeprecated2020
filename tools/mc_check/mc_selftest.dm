@@ -127,7 +127,7 @@ SUBSYSTEM_DEF(mctest)
 	// dd -invisible reports world.sleep_offline as 1 and won't take 0, though the world keeps ticking: without this the watchdog
 	// takes the freezes for the world asleep with nobody on
 	MCWatchdog.watch_with_nobody_on = TRUE
-	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "asleep", "lag", "strikes", "timer_edge", "timers", "profile", "recover", "inits")
+	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "asleep", "lag", "strikes", "timer_edge", "timers", "profile", "recover", "inits", "status")
 	// init_fail runs only when asked (STEPS=init_fail): its subsystem breaks at boot
 	if(world.params["mc-steps"]) // STEPS=freeze_outside,lag on the runner: only those
 		steps = splittext(world.params["mc-steps"], ",")
@@ -535,3 +535,21 @@ SUBSYSTEM_DEF(mctest_init)
 	sleep(5 SECONDS)
 	fire_ms = SStimer.total_ms - ms_before
 	note("timer_cost: stoppable: addtimer() [round(made_ms / 20, 0.01)] us each, SStimer [round(fire_ms / 20, 0.01)] us each")
+
+/// Status effects with nothing to do over time aren't processed (the crusher tally on every mining mob was, 5 times a second)
+/datum/mc_selftest/proc/status()
+	var/turf/T = locate(world.maxx / 2, world.maxy / 2, SSmapping.levels_by_trait(ZTRAIT_STATION)[1])
+	var/mob/living/simple_animal/hostile/asteroid/goliath/G = new(T)
+	var/datum/status_effect/crusher_damage/C = G.has_status_effect(STATUS_EFFECT_CRUSHERDAMAGETRACKING)
+	check("status: a goliath has its crusher tally", C)
+	check("status: and it isn't processed", C && !(C in SSfastprocess.processing))
+	G.apply_damage(10)
+	C.total_damage += 10
+	check("status: the tally still counts", C?.total_damage == 10)
+	var/mob/living/carbon/human/H = new(T)
+	var/datum/status_effect/music = H.apply_status_effect(STATUS_EFFECT_GOOD_MUSIC)
+	check("status: a timed effect is processed", music && (music in SSfastprocess.processing))
+	sleep(8 SECONDS)
+	check("status: and ends on time", QDELETED(music) && !H.has_status_effect(STATUS_EFFECT_GOOD_MUSIC))
+	qdel(G)
+	qdel(H)

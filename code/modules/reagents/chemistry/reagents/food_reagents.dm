@@ -20,7 +20,7 @@
 		var/mob/living/carbon/human/H = M
 		if(!HAS_TRAIT(H, TRAIT_NOHUNGER))
 			H.adjust_nutrition(nutriment_factor)
-	holder.remove_reagent(type, metabolization_rate)
+	holder?.remove_reagent(type, metabolization_rate) // hippie -- purged from the holder by another reagent this same tick
 
 /datum/reagent/consumable/reaction_mob(mob/living/M, method=TOUCH, reac_volume)
 	if(method == INGEST)

@@ -5,7 +5,7 @@
 /datum/status_effect
 	var/id = "effect" //Used for screen alerts.
 	var/duration = -1 //How long the status effect lasts in DECISECONDS. Enter -1 for an effect that never ends unless removed through some means.
-	var/tick_interval = 10 //How many deciseconds between ticks, approximately. Leave at 10 for every second.
+	var/tick_interval = 10 //How many deciseconds between ticks, approximately. Leave at 10 for every second. -1: never ticks (hippie, as tg)
 	var/mob/living/owner //The mob affected by the status effect.
 	var/status_type = STATUS_EFFECT_UNIQUE //How many of the effect can be on one mob, and what happens when you try to add another
 	var/on_remove_on_mob_delete = FALSE //if we call on_remove() when the mob is deleted
@@ -26,12 +26,16 @@
 		return
 	if(duration != -1)
 		duration = world.time + duration
-	tick_interval = world.time + tick_interval
+	if(tick_interval != -1)
+		tick_interval = world.time + tick_interval
 	if(alert_type)
 		var/obj/screen/alert/status_effect/A = owner.throw_alert(id, alert_type)
 		A.attached_effect = src //so the alert can reference us, if it needs to
 		linked_alert = A //so we can reference the alert, if we need to
-	START_PROCESSING(SSfastprocess, src)
+	// hippie -- nothing to do over time (no ticks, no end): it isn't processed. The crusher damage tally on every mining mob
+	// and megafauna was processed 5 times a second all round for nothing, ~1 million calls a 30 minute shift.
+	if(duration != -1 || tick_interval != -1)
+		START_PROCESSING(SSfastprocess, src)
 	return TRUE
 
 /datum/status_effect/Destroy()
@@ -48,7 +52,7 @@
 	if(!owner)
 		qdel(src)
 		return
-	if(tick_interval < world.time)
+	if(tick_interval != -1 && tick_interval < world.time)
 		tick()
 		tick_interval = world.time + initial(tick_interval)
 	if(duration != -1 && duration < world.time)
