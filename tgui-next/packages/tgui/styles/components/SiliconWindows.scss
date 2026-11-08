@@ -1,0 +1,354 @@
+// hippie -- the AI's and cyborgs' windows (interfaces/SiliconWindows.js):
+// station alerts, robot control and the VOX words, in the law board's look
+// (SiliconLaws.scss).
+
+$sw-bg: #0b1220;
+$sw-panel: #111b2e;
+$sw-line: #22314d;
+$sw-text: #d6e2f5;
+$sw-muted: #7f90ad;
+$sw-blue: #5aa2ff;
+$sw-bad: #ff6b6b;
+$sw-warn: #f5b84a;
+$sw-good: #5ee08a;
+
+.Sil {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: $sw-text;
+  font-family: 'Segoe UI', Verdana, sans-serif;
+  background:
+    linear-gradient(rgba(90, 162, 255, 0.04) 1px, transparent 1px) 0 0 / 100% 18px,
+    $sw-bg;
+}
+
+.Sil__head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid $sw-line;
+}
+
+.Sil__head--sub {
+  padding: 6px 14px;
+  border-top: 1px solid $sw-line;
+}
+
+.Sil__title {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+
+  i {
+    color: $sw-blue;
+    margin-right: 6px;
+  }
+}
+
+.Sil__title--small {
+  font-size: 12px;
+  font-weight: normal;
+  color: $sw-muted;
+}
+
+.Sil__count {
+  color: $sw-good;
+  font-size: 12px;
+}
+
+.Sil__count--bad {
+  color: $sw-bad;
+  font-weight: 600;
+}
+
+.Sil__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px;
+}
+
+.Sil__none {
+  color: $sw-muted;
+  text-align: center;
+  padding: 30px 0;
+}
+
+.Sil__muted {
+  color: $sw-muted;
+}
+
+.Sil__bad {
+  color: $sw-bad;
+}
+
+.Sil__search,
+.Sil__sentence {
+  background: $sw-panel;
+  border: 1px solid $sw-line;
+  border-radius: 3px;
+  color: $sw-text;
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+
+  &:focus {
+    border-color: $sw-blue;
+  }
+}
+
+.Sil__search {
+  width: 200px;
+}
+
+.Sil__chip {
+  display: inline-block;
+  margin: 2px 0 2px 6px;
+  padding: 3px 8px;
+  border: 1px solid $sw-line;
+  border-radius: 3px;
+  background: #16243d;
+  color: $sw-text;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: $sw-blue;
+    background: #1c2f50;
+  }
+
+  i {
+    color: $sw-blue;
+  }
+}
+
+// Alerts
+
+.Sil__cat {
+  margin-bottom: 6px;
+  border: 1px solid $sw-line;
+  border-left: 4px solid #2b5a3c;
+  border-radius: 3px;
+  background: $sw-panel;
+}
+
+.Sil__cat--on {
+  border-left-color: $sw-bad;
+  background: #1a1420;
+}
+
+.Sil__catHead {
+  display: flex;
+  align-items: center;
+  padding: 7px 10px;
+
+  i {
+    width: 18px;
+    color: $sw-muted;
+  }
+}
+
+.Sil__cat--on .Sil__catHead i {
+  color: $sw-bad;
+}
+
+.Sil__catName {
+  flex: 1;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.Sil__catState {
+  font-size: 12px;
+  color: $sw-good;
+}
+
+.Sil__cat--on .Sil__catState {
+  color: $sw-bad;
+}
+
+.Sil__alarm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 5px 10px 5px 32px;
+  border-top: 1px solid $sw-line;
+}
+
+.Sil__alarmArea {
+  flex: 1;
+  min-width: 140px;
+}
+
+.Sil__chips {
+  text-align: right;
+}
+
+// Robot control
+
+.Sil__banner {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 6px 14px;
+  background: #13284a;
+  border-bottom: 1px solid $sw-line;
+  color: $sw-blue;
+
+  .Sil__chip {
+    margin-left: auto;
+  }
+}
+
+.Sil__banner--bad {
+  background: #2a1418;
+  color: $sw-bad;
+}
+
+.Sil__bot {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+  padding: 7px 10px;
+  border: 1px solid $sw-line;
+  border-radius: 3px;
+  background: $sw-panel;
+}
+
+.Sil__botMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.Sil__botName {
+  font-weight: 600;
+}
+
+.Sil__botWhere {
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.Sil__hacked {
+  color: $sw-bad;
+}
+
+// VOX
+
+.Sil__compose {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+}
+
+.Sil__sentence {
+  width: 100%;
+  font-size: 14px;
+  padding: 6px 8px;
+  box-sizing: border-box;
+}
+
+.Sil__words {
+  min-height: 22px;
+  margin-top: 6px;
+}
+
+.Sil__word {
+  display: inline-block;
+  margin: 0 4px 4px 0;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: #16324f;
+  color: #a9d1ff;
+  font-size: 12px;
+}
+
+.Sil__word--bad {
+  background: #3a1820;
+  color: $sw-bad;
+  text-decoration: underline wavy;
+}
+
+.Sil__word--over {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.Sil__composeFoot {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+}
+
+.Sil__announce {
+  margin-left: auto;
+  padding: 5px 14px;
+  border-radius: 3px;
+  background: $sw-blue;
+  color: #04101f;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: #7db7ff;
+  }
+}
+
+.Sil__announce--off {
+  background: #26334a;
+  color: $sw-muted;
+  cursor: default;
+
+  &:hover {
+    background: #26334a;
+  }
+}
+
+.Sil__rules {
+  margin-top: 8px;
+  font-size: 11px;
+  color: $sw-muted;
+}
+
+.Sil__wordList {
+  line-height: 1.9;
+}
+
+.Sil__vword {
+  display: inline-block;
+  margin: 0 4px 2px 0;
+  border: 1px solid $sw-line;
+  border-radius: 3px;
+  background: $sw-panel;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.Sil__vwordName {
+  padding: 1px 6px;
+  cursor: pointer;
+
+  &:hover {
+    color: $sw-blue;
+  }
+}
+
+.Sil__vwordAdd {
+  padding: 1px 6px;
+  border-left: 1px solid $sw-line;
+  color: $sw-muted;
+  cursor: pointer;
+
+  &:hover {
+    color: $sw-good;
+    background: #16324f;
+  }
+}

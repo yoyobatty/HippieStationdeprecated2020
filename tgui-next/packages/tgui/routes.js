@@ -39,6 +39,7 @@ import { CloningConsole } from './interfaces/CloningConsole';
 import { CommsConsole } from './interfaces/CommsConsole';
 import { Crayon } from './interfaces/Crayon';
 import { CrewConsole } from './interfaces/CrewConsole';
+import { CrewManifest } from './interfaces/CrewManifest';
 import { Cryo } from './interfaces/Cryo';
 import { DisposalUnit } from './interfaces/DisposalUnit';
 import { DnaConsole } from './interfaces/DnaConsole';
@@ -48,6 +49,8 @@ import { Exosuit } from './interfaces/Exosuit';
 import { ExosuitFabricator } from './interfaces/ExosuitFabricator';
 import { DestinationTagger, HandTeleporter, ImplantPad, Safe, SecureStorage } from './interfaces/Gadgets';
 import { GameMenu } from './interfaces/GameMenu';
+import { MindNotes } from './interfaces/MindNotes';
+import { AiBotControl, AiVox, SiliconAlerts } from './interfaces/SiliconWindows';
 import { TguiPrompt } from './interfaces/TguiPrompt';
 import { VotePanel } from './interfaces/VotePanel';
 import { CircuitAssembly } from './interfaces/CircuitAssembly';
@@ -1193,6 +1196,26 @@ const ROUTES = {
     scrollable: true,
   },
   // hippie end
+  crew_manifest: {
+    component: () => CrewManifest,
+    scrollable: false,
+  },
+  mind_notes: {
+    component: () => MindNotes,
+    scrollable: false,
+  },
+  silicon_alerts: {
+    component: () => SiliconAlerts,
+    scrollable: false,
+  },
+  ai_bot_control: {
+    component: () => AiBotControl,
+    scrollable: false,
+  },
+  ai_vox: {
+    component: () => AiVox,
+    scrollable: false,
+  },
 };
 
 export const getRoute = state => {

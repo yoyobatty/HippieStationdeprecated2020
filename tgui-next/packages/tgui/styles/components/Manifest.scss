@@ -1,0 +1,197 @@
+// hippie -- the crew manifest and Notes (interfaces/CrewManifest.js,
+// interfaces/MindNotes.js): departments as bands in their colours.
+
+$mf-bg: #1b1d22;
+$mf-panel: #23262d;
+$mf-line: #33373f;
+$mf-text: #dfe3ea;
+$mf-muted: #8a93a3;
+
+.Manifest {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: $mf-text;
+  background: $mf-bg;
+}
+
+.Manifest__head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid $mf-line;
+}
+
+.Manifest__title {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.Manifest__total {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: normal;
+  color: $mf-muted;
+}
+
+.Manifest__search {
+  width: 180px;
+  padding: 4px 8px;
+  border: 1px solid $mf-line;
+  border-radius: 3px;
+  background: $mf-panel;
+  color: $mf-text;
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+
+  &:focus {
+    border-color: #6b8fc7;
+  }
+}
+
+.Manifest__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 10px;
+}
+
+.Manifest__none {
+  color: $mf-muted;
+  text-align: center;
+  padding: 24px 0;
+}
+
+.Manifest__dept {
+  --dept: #8a93a3;
+  margin-bottom: 8px;
+  border: 1px solid $mf-line;
+  border-radius: 3px;
+  background: $mf-panel;
+  overflow: hidden;
+}
+
+.Manifest__dept--command { --dept: #e2b13c; }
+.Manifest__dept--security { --dept: #e05252; }
+.Manifest__dept--engineering { --dept: #f08a2e; }
+.Manifest__dept--medical { --dept: #3fc1c9; }
+.Manifest__dept--science { --dept: #a66ee0; }
+.Manifest__dept--supply { --dept: #b5875a; }
+.Manifest__dept--service { --dept: #5bb562; }
+.Manifest__dept--silicon { --dept: #7d9cc9; }
+.Manifest__dept--objectives { --dept: #e05252; }
+
+.Manifest__deptHead {
+  display: flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-left: 4px solid var(--dept);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.06), transparent);
+  color: var(--dept);
+  font-weight: 600;
+
+  i {
+    width: 18px;
+  }
+}
+
+.Manifest__deptCount {
+  margin-left: auto;
+  color: $mf-muted;
+  font-weight: normal;
+  font-size: 12px;
+}
+
+.Manifest__row {
+  display: flex;
+  padding: 3px 10px 3px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+
+  &:nth-child(odd) {
+    background: rgba(255, 255, 255, 0.02);
+  }
+}
+
+.Manifest__row--head .Manifest__name {
+  font-weight: 600;
+
+  i {
+    color: #e2b13c;
+  }
+}
+
+.Manifest__name {
+  flex: 1;
+}
+
+.Manifest__rank {
+  color: $mf-muted;
+}
+
+// Notes
+
+.Notes__note {
+  padding: 5px 10px 5px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  white-space: pre-wrap;
+}
+
+.Notes__objective {
+  display: flex;
+  padding: 6px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.Notes__number {
+  flex: 0 0 22px;
+  height: 22px;
+  margin-right: 8px;
+  border-radius: 11px;
+  background: rgba(224, 82, 82, 0.2);
+  color: #ff8a8a;
+  text-align: center;
+  line-height: 22px;
+  font-weight: 600;
+}
+
+.Notes__text {
+  flex: 1;
+}
+
+.Notes__with {
+  margin-top: 2px;
+  font-size: 12px;
+  color: $mf-muted;
+}
+
+.Notes__add {
+  flex: 0 0 auto;
+  display: flex;
+  padding: 8px 10px;
+  border-top: 1px solid $mf-line;
+}
+
+.Notes__input {
+  flex: 1;
+  width: auto;
+}
+
+.Notes__button {
+  margin-left: 6px;
+  padding: 4px 12px;
+  border-radius: 3px;
+  background: #4972a1;
+  cursor: pointer;
+
+  &:hover {
+    background: #5a86ba;
+  }
+}

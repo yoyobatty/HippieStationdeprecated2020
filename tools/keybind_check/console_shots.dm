@@ -301,6 +301,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_antags(C, H, label)
 		if("circuits")
 			cs_circuits(C, H, label)
+		if("silicon1")
+			cs_silicon1(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -8026,3 +8028,143 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	cs_circuit_window(C, H, loose, "scannernew", "popup_circuits_[label]_5_loose", loose.name)
 	SStgui.close_user_uis(H)
 	H << browse(null, "window=scannernew")
+
+// ---------------------------------------------------------------------------------------------
+// Old windows, batch 1: the crew manifest, Notes, and the AI's and cyborgs' windows
+// ---------------------------------------------------------------------------------------------
+
+/// The new window of D when there is one (after), or the old HTML popup (before, closed again after its picture)
+/// A var only the new code has (the before build doesn't), or null
+/proc/cs_var(datum/D, name)
+	if(!D || !(name in D.vars))
+		return null
+	return D.vars[name]
+
+/proc/cs_b1_shot(client/C, mob/M, datum/D, name, old_window, title = "")
+	var/datum/tgui/ui = D ? cs_find_ui(M, D) : null
+	if(ui)
+		winset(C, ui.window_id, "pos=60,20")
+		sleep(25)
+		cs_shot(name)
+		return ui
+	sleep(25)
+	cs_shot(name, title)
+	M << browse(null, "window=[old_window]")
+	return null
+
+/proc/cs_silicon1(client/C, mob/living/carbon/human/H, label)
+	// The manifest, from a ghost
+	H.equipOutfit(/datum/outfit/job/assistant)
+	var/mob/dead/observer/ghost = H.ghostize(TRUE)
+	sleep(15)
+	ghost.view_manifest()
+	var/datum/manifest_window = cs_var(GLOB, "crew_manifest_window")
+	var/datum/tgui/ui = cs_b1_shot(C, ghost, manifest_window, "popup_silicon1_[label]_1_manifest", "manifest")
+	if(ui)
+		cs_tgui_do(C, ui.window_id, "input0:engineer")
+		sleep(10)
+		cs_shot("popup_silicon1_[label]_2_manifest_search")
+		var/list/data = manifest_window.ui_data(ghost)
+		var/found = 0
+		for(var/list/dept in data["departments"])
+			if(dept["name"] == "Engineering")
+				found = length(dept["crew"])
+		cs_check("silicon1: the manifest lists Engineering ([found])", found >= 2)
+		SStgui.close_user_uis(ghost)
+	H.ckey = C.ckey
+	sleep(15)
+
+	// Notes, as a traitor with a note of their own
+	H.mind.store_memory("The <b>bar</b> keeps a spare crowbar under the counter.")
+	H.mind.store_memory("Locker code for the dorms: 4471")
+	H.mind.add_antag_datum(/datum/antagonist/traitor)
+	sleep(10)
+	H << browse(null, "window=antagTips")
+	sleep(5)
+	usr = H
+	H.memory()
+	var/datum/notes = cs_var(H.mind, "notes_window")
+	ui = cs_b1_shot(C, H, notes, "popup_silicon1_[label]_3_notes", "memory")
+	if(ui)
+		cs_act(notes, H, "add", list("text" = "Meet the QM at the vault at 12:30"))
+		cs_check("silicon1: a note added in the window", findtext(H.mind.memory, "Meet the QM"))
+		SStgui.update_uis(notes)
+		sleep(10)
+		cs_shot("popup_silicon1_[label]_4_notes_added")
+		SStgui.close_user_uis(H)
+	H.mind.remove_antag_datum(/datum/antagonist/traitor)
+
+	// A cyborg's alerts
+	var/mob/living/silicon/robot/R = new(get_turf(H))
+	var/area/fire_room
+	var/list/fire_cams = list()
+	for(var/obj/machinery/camera/cam in GLOB.cameranet.cameras)
+		if(is_station_level(cam.z))
+			var/area/A = get_area(cam)
+			if(!fire_room)
+				fire_room = A
+			if(A == fire_room)
+				fire_cams += cam
+	var/area/power_room = get_area(H)
+	cs_take(C, R)
+	R.triggerAlarm("Fire", fire_room, fire_cams, fire_room)
+	R.triggerAlarm("Power", power_room, list(), power_room)
+	usr = R
+	R.robot_alerts()
+	cs_b1_shot(C, R, cs_var(R, "alerts_window"), "popup_silicon1_[label]_5_cyborg_alerts", "robotalerts", "Current Station Alerts")
+	SStgui.close_user_uis(R)
+
+	// The AI: alerts, robot control and the VOX words
+	cs_take(C, H)
+	var/mob/living/silicon/ai/AI = H.AIize()
+	sleep(20)
+	cs_check("silicon1: an AI to try it", istype(AI) && C.mob == AI)
+	if(!istype(AI))
+		return
+	usr = AI
+	AI.triggerAlarm("Fire", fire_room, fire_cams, fire_room)
+	AI.triggerAlarm("Power", power_room, list(), power_room)
+	AI.ai_alerts()
+	var/datum/alerts = cs_var(AI, "alerts_window")
+	ui = cs_b1_shot(C, AI, alerts, "popup_silicon1_[label]_6_ai_alerts", "aialerts", "Current Station Alerts")
+	if(ui && length(fire_cams))
+		var/obj/machinery/camera/cam = fire_cams[1]
+		cs_tgui_do(C, ui.window_id, "css:.Sil__alarm .Sil__chip")
+		sleep(10)
+		cs_check("silicon1: a camera button moves the AI's eye ([get_area(AI.eyeobj)])", get_dist(AI.eyeobj, cam) <= 1)
+		SStgui.close_user_uis(AI)
+	AI.Topic(null, list("mach_close" = "aialerts"))
+
+	var/turf/near = get_turf(AI.eyeobj)
+	new /mob/living/simple_animal/bot/cleanbot(near)
+	new /mob/living/simple_animal/bot/medbot(near)
+	var/mob/living/simple_animal/bot/floorbot/hacked = new(near)
+	hacked.hacked = TRUE
+	sleep(10)
+	AI.botcall()
+	var/datum/bots = cs_var(AI, "bot_control_window")
+	ui = cs_b1_shot(C, AI, bots, "popup_silicon1_[label]_7_bot_control", "botcall", "Remote Robot Control")
+	if(ui)
+		cs_tgui_do(C, ui.window_id, "css:.Sil__bot .Sil__chip:nth-of-type(3)")
+		sleep(10)
+		cs_check("silicon1: Call waits for a waypoint", AI.waypoint_mode)
+		SStgui.update_uis(bots)
+		sleep(10)
+		cs_shot("popup_silicon1_[label]_8_bot_call")
+		AI.waypoint_mode = 0
+		SStgui.close_user_uis(AI)
+
+	AI.announcement_help()
+	var/datum/vox = cs_var(AI, "vox_window")
+	ui = cs_b1_shot(C, AI, vox, "popup_silicon1_[label]_9_vox", "announce_help", "Announcement Help")
+	if(ui)
+		cs_tgui_do(C, ui.window_id, "input0:attention all personnel xyzzy")
+		sleep(5)
+		cs_tgui_do(C, ui.window_id, "input1:sec")
+		sleep(10)
+		cs_shot("popup_silicon1_[label]_10_vox_typed")
+		cs_act(vox, AI, "announce", list("text" = "attention xyzzy"))
+		cs_check("silicon1: a word not in the list stops the announcement", cs_var(GLOB, "ai_vox_next") <= world.time)
+		cs_act(vox, AI, "announce", list("text" = "attention all personnel"))
+		cs_check("silicon1: the announcement goes and the cooldown starts", cs_var(GLOB, "ai_vox_next") > world.time)
+		SStgui.close_user_uis(AI)
