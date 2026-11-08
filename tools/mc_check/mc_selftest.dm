@@ -52,8 +52,17 @@ SUBSYSTEM_DEF(mctest)
 
 /// Keep the server busy for `ds` deciseconds of real time without sleeping
 /proc/mc_check_busy(ds)
-	var/end = REALTIMEOFDAY + ds
 	var/x = 0
+	// Under a decisecond by the tick's own clock: REALTIMEOFDAY is deciseconds since midnight (UTC), a number big enough by the
+	// afternoon (~600,000) that single precision only counts it in sixteenths, and a + 0.03 vanished: the lag test's workers did
+	// nothing after 16:00 UTC
+	if(ds < 1)
+		var/until = TICK_USAGE_REAL + ds / world.tick_lag * 100
+		while(TICK_USAGE_REAL < until)
+			for(var/i in 1 to 200)
+				x += sqrt(i)
+		return x
+	var/end = REALTIMEOFDAY + ds
 	while(REALTIMEOFDAY < end)
 		for(var/i in 1 to 2000)
 			x += sqrt(i)
@@ -624,6 +633,7 @@ SUBSYSTEM_DEF(mctest_init)
 	SSmctest.mode = "hog"
 	var/datum/admin_alert/A = wait_alert("froze for", 10 SECONDS)
 	check("native: the freeze report names what was running", A && findtext(A.text, "Running in those") && findtext(A.text, "mc_check_busy"), A?.text)
+	check("native: and how it got there (the heaviest stack)", A && findtext(A.text, "Mostly in:") && findtext(A.text, "mctest/fire > /proc/mc_check_busy"), A?.text)
 	var/list/rows = json_decode(hippie_prof("dump"))
 	check("native: the dump has the round's procs", length(rows) > 200, "[length(rows)] rows")
 	SSprofiler.DumpFile()

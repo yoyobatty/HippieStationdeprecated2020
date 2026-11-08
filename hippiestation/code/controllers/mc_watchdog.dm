@@ -242,6 +242,9 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 		var/top = profile_top(3, REALTIMEOFDAY - start_real + 5)
 		if(top)
 			parts += top
+		var/path = profile_stack(REALTIMEOFDAY - start_real + 5)
+		if(path)
+			parts += path
 	return jointext(parts, " ")
 
 ////////////////////
@@ -305,6 +308,9 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 	var/top_procs = profile_top(3, span_real)
 	if(top_procs)
 		parts += top_procs
+	var/path = profile_stack(span_real)
+	if(path)
+		parts += path
 	return jointext(parts, " ")
 
 ////////////////////
@@ -362,6 +368,21 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 		.[row["name"]] = row["self"]
 	profile_fetches++
 	profile_fetch_ms = MC_AVERAGE(profile_fetch_ms, TICK_DELTA_TO_MS(TICK_USAGE_REAL - started))
+
+/// What called what in the stack the server spent most of the window in, hippie_prof's last ~16 s (profiler.dm recent_stacks()): the top
+/// eight frames, so a freeze says not just which proc held it but how it got there
+/datum/mc_watchdog/proc/profile_stack(window_ds)
+	if(!SSprofiler?.profiling || SSprofiler.engine != "hippie")
+		return
+	var/list/stacks = SSprofiler.recent_stacks(window_ds * 100)
+	if(!length(stacks))
+		return
+	var/list/heaviest = stacks[1]
+	if(heaviest["ms"] < 100)
+		return
+	var/list/frames = heaviest["stack"]
+	var/list/shown = frames.Copy(max(1, length(frames) - 7))
+	return "Mostly in: [jointext(shown, " > ")] ([round(heaviest["ms"] / 1000, 0.1)] s)."
 
 /// The procs that took the most time since the last copy of the profiler's figures, when it's running
 /datum/mc_watchdog/proc/profile_top(count, window_ds = 30 SECONDS)
