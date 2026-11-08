@@ -42,9 +42,21 @@ $prefs-left-width: 270px;
   max-height: 260px;
 }
 
+// One job per row: a line under each and the whole row lit on hover, so the
+// level buttons on the right read with the name on the left; Never fades
 .Preferences__job td {
   padding-top: 1px;
   padding-bottom: 1px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.Preferences__job:hover td {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.Preferences__job--never td:first-child,
+.Preferences__job .Button--color--transparent {
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .Preferences__swatch {

@@ -1323,6 +1323,19 @@ $pass-blue: #2a6cc0;
   padding: 6px 0;
 }
 
+.Preferences--pass .Preferences__job td {
+  border-bottom-color: var(--pass-line-soft);
+}
+
+.Preferences--pass .Preferences__job:hover td {
+  background-color: var(--pass-hover);
+}
+
+.Preferences--pass .Preferences__job--never td:first-child,
+.Preferences--pass .Preferences__job .Button--color--transparent {
+  color: var(--pass-closed);
+}
+
 .Preferences--pass .LabeledList__label {
   color: var(--pass-label);
   font-size: 11px;

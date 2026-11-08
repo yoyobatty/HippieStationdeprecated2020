@@ -277,6 +277,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_lobby_looks(C, H, label)
 		if("passdark")
 			cs_pass_dark(C, H, label)
+		if("jobrows")
+			cs_job_rows(C, H, label)
 		if("roundend")
 			cs_roundend(C, H, label)
 		if("stationmap")
@@ -6359,6 +6361,34 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	var/datum/menu = NP.vars["late_join_menu"]
 	cs_check("looks: crt: Join Game opens the job list", menu && cs_find_ui(NP, menu))
 	GLOB.vars["lobby_design"] = "pass"
+
+// Character Setup's job list in the three looks (dark window, light paper, dark paper), still and with the mouse over a row
+/proc/cs_job_rows(client/C, mob/living/carbon/human/H, label)
+	var/datum/preferences/P = C.prefs
+	P.job_preferences = list("Chief Engineer" = JP_HIGH, "Station Engineer" = JP_MEDIUM, "Atmospheric Technician" = JP_LOW, "Medical Doctor" = JP_LOW)
+	usr = H
+	for(var/look in list("crt", "pass", "passdark"))
+		GLOB.vars["lobby_design"] = look == "crt" ? "crt" : "pass"
+		P.vars["pass_dark"] = look == "passdark"
+		P.current_tab = 5
+		P.ShowChoices(H)
+		var/datum/tgui/ui = cs_find_ui(H, P)
+		cs_check("jobrows: [look]: Character Setup opens on the jobs", ui && P.current_tab == 5)
+		if(!ui)
+			continue
+		winset(C, ui.window_id, "pos=80,20")
+		sleep(25)
+		cs_shot("popup_jobrows_[label]_[look]", "Character Setup")
+		text2file("0.75,0.4", "data/keycheck_hover_popup")
+		var/deadline = world.time + 5 SECONDS
+		while(fexists("data/keycheck_hover_popup") && world.time < deadline)
+			sleep(1)
+		sleep(5)
+		cs_shot("popup_jobrows_[label]_[look]_hover", "Character Setup")
+		SStgui.close_user_uis(H, P)
+		sleep(10)
+	GLOB.vars["lobby_design"] = "pass"
+	P.vars["pass_dark"] = FALSE
 
 // Dark paper: the moon on Character Setup's file card turns it, the lobby and the job list dark, and the sun turns them back
 /proc/cs_pass_dark(client/C, mob/living/carbon/human/H, label)

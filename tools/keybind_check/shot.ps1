@@ -65,6 +65,16 @@ public class WindowShot {
 		}, IntPtr.Zero);
 		return best;
 	}
+	// A web window's page: the child the browser draws into (posted mouse moves there light :hover)
+	public static IntPtr FindChild(IntPtr parent, string cls) {
+		IntPtr found = IntPtr.Zero;
+		EnumChildWindows(parent, delegate(IntPtr h, IntPtr p) {
+			var s = new System.Text.StringBuilder(64); GetClassName(h, s, 64);
+			if (s.ToString() == cls) { found = h; return false; }
+			return true;
+		}, IntPtr.Zero);
+		return found;
+	}
 }
 "@
 $data = Join-Path (Get-Location) "data"
@@ -84,6 +94,19 @@ while ((Get-Date) -lt $deadline -and -not (Test-Path "$data\keycheck_shots_done"
 			$lp = [IntPtr](($spot[1] -shl 16) -bor $spot[0])
 			[WindowShot]::PostMessage($map, 0x200, [IntPtr]::Zero, $lp) | Out-Null
 			Start-Sleep -Milliseconds 300
+		}
+	}
+	if (Test-Path "$data\keycheck_hover_popup") { # "fx,fy": the mouse over the biggest popup's page at that fraction of its size
+		$spot = ([IO.File]::ReadAllText("$data\keycheck_hover_popup")).Trim().Split(',')
+		Remove-Item "$data\keycheck_hover_popup"
+		$popup = [WindowShot]::FindPopup($p.Id, $h, "")
+		$page = [WindowShot]::FindChild($popup, "Chrome_RenderWidgetHostHWND")
+		if ($page -eq [IntPtr]::Zero) { Say "hover: no page in the popup" } else {
+			$pr = New-Object WindowShot+RECT
+			[WindowShot]::GetWindowRect($page, [ref]$pr) | Out-Null
+			$x = [int](($pr.r - $pr.l) * [double]$spot[0]); $y = [int](($pr.b - $pr.t) * [double]$spot[1])
+			[WindowShot]::PostMessage($page, 0x200, [IntPtr]::Zero, [IntPtr](($y -shl 16) -bor $x)) | Out-Null
+			Say "hover: page at $x,$y"
 		}
 	}
 	if (Test-Path "$data\keycheck_shot") {

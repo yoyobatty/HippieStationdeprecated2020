@@ -259,7 +259,10 @@ const Jobs = props => {
       </Box>
       <Table>
         {jobs.jobs.map(job => (
-          <Table.Row key={job.title} className="Preferences__job">
+          <Table.Row
+            key={job.title}
+            className={'Preferences__job'
+              + (job.level ? '' : ' Preferences__job--never')}>
             <Table.Cell
               style={{ 'border-left': '6px solid ' + job.color }}
               pl={1}
@@ -279,11 +282,12 @@ const Jobs = props => {
                   content={job.level > 0 ? 'Yes' : 'No'}
                   onClick={() => setLevel(job.title, 3)} />
               ) || LEVELS.map(level => (
+                // Only real picks light up: a picked Never stays quiet
                 <Button
                   key={level[0]}
-                  selected={job.level === level[2]}
+                  selected={job.level === level[2] && level[2] > 0}
                   color={job.level === level[2] && level[2] === 0
-                    ? 'bad'
+                    ? 'transparent'
                     : null}
                   content={level[0]}
                   onClick={() => setLevel(job.title, level[1])} />
