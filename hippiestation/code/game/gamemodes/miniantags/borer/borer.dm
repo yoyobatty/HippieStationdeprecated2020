@@ -156,7 +156,7 @@ GLOBAL_VAR_INIT(total_borer_hosts_needed, 10)
 		return
 	if(stat != CONSCIOUS)
 		return
-	var/be_borer = alert("Become a cortical borer? (Warning, You can no longer be cloned!)",,"Yes","No")
+	var/be_borer = tgui_alert(usr, "Become a cortical borer? (Warning, You can no longer be cloned!)", null, list("Yes", "No"))
 	if(be_borer == "No" || !src || QDELETED(src))
 		return
 	if(key)
@@ -344,7 +344,7 @@ GLOBAL_VAR_INIT(total_borer_hosts_needed, 10)
 
 	if(!choices.len)
 		return
-	var/mob/living/carbon/H = choices.len > 1 ? input(src,"Who do you wish to infest?") in null|choices : choices[1]
+	var/mob/living/carbon/H = choices.len > 1 ? tgui_input_list(src, "Who do you wish to infest?", null, choices) : choices[1]
 	if(!H || !src)
 		return
 
@@ -458,7 +458,7 @@ GLOBAL_VAR_INIT(total_borer_hosts_needed, 10)
 
 	if(!choices.len)
 		return
-	var/mob/living/carbon/M = choices.len > 1 ? input(src,"Who do you wish to dominate?") in null|choices : choices[1]
+	var/mob/living/carbon/M = choices.len > 1 ? tgui_input_list(src, "Who do you wish to dominate?", null, choices) : choices[1]
 
 
 	if(!M || !src || stat != CONSCIOUS || victim || (world.time - used_dominate < 150))
@@ -718,7 +718,7 @@ GLOBAL_VAR_INIT(total_borer_hosts_needed, 10)
 		to_chat(src, "<span class='warning'>You need 75 chems to punish your host.</span>")
 		return
 
-	var/punishment = input("Select a punishment:.", "Punish") as null|anything in list("Blindness","Deafness","Stun")
+	var/punishment = tgui_input_list(usr, "Select a punishment:.", "Punish", list("Blindness","Deafness","Stun"))
 
 	if(!punishment)
 		return

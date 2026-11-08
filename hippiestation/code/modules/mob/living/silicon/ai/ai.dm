@@ -43,7 +43,7 @@
 		to_chat(usr, "<span class='warning'>Wireless control is disabled!</span>")
 		return
 
-	var/reason = input(src, "What is the nature of your emergency? ([CALL_SHUTTLE_REASON_LENGTH] characters required and can't have more than [MAX_CALL_SHUTTLE_REASON_LENGTH] Characters.)", "Confirm Shuttle Call") as null|text
+	var/reason = tgui_input_text(src, "What is the nature of your emergency? ([CALL_SHUTTLE_REASON_LENGTH] characters required and can't have more than [MAX_CALL_SHUTTLE_REASON_LENGTH] Characters.)", "Confirm Shuttle Call")
 
 	if(incapacitated())
 		return

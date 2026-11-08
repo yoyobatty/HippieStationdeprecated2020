@@ -545,12 +545,12 @@
 				connected.toggle_open(usr)
 		if("setduration")
 			if(!num)
-				num = round(input(usr, "Choose pulse duration:", "Input an Integer", null) as num|null)
+				num = round(tgui_input_number(usr, "Choose pulse duration:", "Input an Integer"))
 			if(num)
 				radduration = WRAP(num, 1, RADIATION_DURATION_MAX+1)
 		if("setstrength")
 			if(!num)
-				num = round(input(usr, "Choose pulse strength:", "Input an Integer", null) as num|null)
+				num = round(tgui_input_number(usr, "Choose pulse strength:", "Input an Integer"))
 			if(num)
 				radstrength = WRAP(num, 1, RADIATION_STRENGTH_MAX+1)
 		if("screen")
@@ -564,7 +564,7 @@
 				viable_occupant.radiation += RADIATION_STRENGTH_MULTIPLIER*50/(connected.damage_coeff ** 2)
 
 		if("setbufferlabel")
-			var/text = sanitize(input(usr, "Input a new label:", "Input a Text", null) as text|null)
+			var/text = sanitize(tgui_input_text(usr, "Input a new label:", "Input a Text"))
 			if(num && text)
 				num = clamp(num, 1, NUMBER_OF_BUFFERS)
 				var/list/buffer_slot = buffer[num]
@@ -750,7 +750,7 @@
 						genes += "JOKER"
 					var/sequence = GET_GENE_STRING(path, viable_occupant.dna)
 					var/original = sequence[num]
-					var/new_gene = input("From [original] to-", "New block", original) as null|anything in genes
+					var/new_gene = tgui_input_list(usr, "From [original] to-", "New block", genes, original)
 					if(!new_gene)
 						new_gene = original
 					if(viable_occupant == get_viable_occupant()) //No cheesing
@@ -820,7 +820,7 @@
 					if(CM.can_apply(HM))
 						chromosomes += CM
 				if(chromosomes.len)
-					var/obj/item/chromosome/CM = input("Select a chromosome to apply", "Apply Chromosome") as null|anything in chromosomes
+					var/obj/item/chromosome/CM = tgui_input_list(usr, "Select a chromosome to apply", "Apply Chromosome", chromosomes)
 					if(CM)
 						to_chat(usr, "<span class='notice'>You apply [CM] to [HM.name].</span>")
 						stored_chromosomes -= CM

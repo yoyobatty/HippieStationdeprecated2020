@@ -31,6 +31,13 @@ public class WindowShot {
 			// Untitled, only window-sized ones (the PA console's is 230 high). tgui windows have no caption, so they're found this
 			// way; a title only picks out the old HTML windows
 			if (title == "" && (w <= 300 || w >= 1400 || ht <= 150)) return true;
+			var size = System.Text.RegularExpressions.Regex.Match(title, @"^(\d+)x(\d+)$"); // "WxH": the popup of about that size (DPI may scale it)
+			if (size.Success) {
+				double sw = double.Parse(size.Groups[1].Value), sh = double.Parse(size.Groups[2].Value);
+				double ratio = w / sw, scale = Math.Round(ratio * 4) / 4; // display scaling comes in 25% steps
+				if (scale < 1 || Math.Abs(ratio - scale) > 0.02 || Math.Abs(ht / sh - scale) > 0.02) return true;
+				found = h; return false;
+			}
 			if (title != "" && title != "*") { // "*": any popup, any size
 				var s = new System.Text.StringBuilder(256); GetWindowText(h, s, 256);
 				if (!string.Equals(s.ToString().Trim(), title, StringComparison.OrdinalIgnoreCase)) return true;

@@ -110,7 +110,7 @@
 	if(possible_targets.len == 1)
 		target = possible_targets[1]
 	else
-		target = input("Who do you wish to transmit to?", "Targeting") as null|mob in possible_targets
+		target = tgui_input_list(usr, "Who do you wish to transmit to?", "Targeting", tgui_list_of_type(possible_targets, /mob))
 
 	var/input = stripped_input(owner, "What do you wish to tell [target]?", null, "")
 	if(QDELETED(src) || !input || !IsAvailable())
@@ -155,7 +155,7 @@
 	if(faithful.len == 1)
 		target = faithful[1]
 	else
-		target = input("Which of your followers do you wish to jump to?", "Targeting") as null|mob in faithful
+		target = tgui_input_list(usr, "Which of your followers do you wish to jump to?", "Targeting", tgui_list_of_type(faithful, /mob))
 
 	var/turf/T = get_turf(target)
 	if(target && T)

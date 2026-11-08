@@ -140,7 +140,7 @@
 			question = "[player_key]/([player_ckey]) has never been seen here, so there's no IP or CID from a last connection. Do you want to [action] the ban without them?"
 		else
 			question = "[player_key]/([player_ckey]) has never been seen here. Are you sure you want to [action] a ban for them?"
-		if(alert(usr, question, "Unknown key", "Yes", "No", "Cancel") != "Yes")
+		if(tgui_alert(usr, question, "Unknown key", list("Yes", "No", "Cancel")) != "Yes")
 			return
 	return list(player_key, player_ip, player_cid)
 
@@ -258,7 +258,7 @@
 	if(!check_rights(R_BAN))
 		return
 	var/target = ban_target_string(player_key, player_ip, player_cid)
-	if(!confirmed && alert(usr, "Please confirm unban of [target] from [role].", "Unban confirmation", "Yes", "No") != "Yes")
+	if(!confirmed && tgui_alert(usr, "Please confirm unban of [target] from [role].", "Unban confirmation", list("Yes", "No")) != "Yes")
 		return
 	var/kn = key_name(usr)
 	var/kna = key_name_admin(usr)

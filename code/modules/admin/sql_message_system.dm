@@ -156,7 +156,7 @@ GLOBAL_LIST_INIT(note_expiry_choices, list("Never" = 0, "1 day" = 86400, "1 week
 	var/list/row = note_before_change(message_id)
 	if(!row)
 		return
-	var/new_text = input(usr, "Input new [row["kind"]]", "New [row["kind"]]", row["text"]) as null|message
+	var/new_text = tgui_input_text(usr, "Input new [row["kind"]]", "New [row["kind"]]", row["text"], multiline = TRUE)
 	if(note_set_text(message_id, new_text))
 		note_show_after(row, browse)
 
@@ -164,7 +164,7 @@ GLOBAL_LIST_INIT(note_expiry_choices, list("Never" = 0, "1 day" = 86400, "1 week
 	var/list/row = note_before_change(message_id)
 	if(!row)
 		return
-	var/choice = input(usr, "Show this [row["kind"]] for how long, from now?", "Expiry time") as null|anything in GLOB.note_expiry_choices
+	var/choice = tgui_input_list(usr, "Show this [row["kind"]] for how long, from now?", "Expiry time", GLOB.note_expiry_choices)
 	if(!choice)
 		return
 	if(note_set_expiry(message_id, GLOB.note_expiry_choices[choice]))
@@ -174,7 +174,7 @@ GLOBAL_LIST_INIT(note_expiry_choices, list("Never" = 0, "1 day" = 86400, "1 week
 	var/list/row = note_before_change(message_id)
 	if(!row)
 		return
-	var/new_severity = input(usr, "Set the severity of the note.", "Severity", null) as null|anything in list("high", "medium", "minor", "none")
+	var/new_severity = tgui_input_list(usr, "Set the severity of the note.", "Severity", list("high", "medium", "minor", "none"))
 	if(note_set_severity(message_id, new_severity))
 		note_show_after(row)
 

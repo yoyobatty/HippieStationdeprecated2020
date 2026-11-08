@@ -272,7 +272,7 @@ Turf and target are separate in case you want to teleport some distance from a t
 	var/list/borgs = active_free_borgs()
 	if(borgs.len)
 		if(user)
-			. = input(user,"Unshackled cyborg signals detected:", "Cyborg Selection", borgs[1]) in borgs
+			. = tgui_input_list(user, "Unshackled cyborg signals detected:", "Cyborg Selection", borgs, borgs[1], allow_cancel = FALSE)
 		else
 			. = pick(borgs)
 	return .
@@ -281,7 +281,7 @@ Turf and target are separate in case you want to teleport some distance from a t
 	var/list/ais = active_ais()
 	if(ais.len)
 		if(user)
-			. = input(user,"AI signals detected:", "AI Selection", ais[1]) in ais
+			. = tgui_input_list(user, "AI signals detected:", "AI Selection", ais, ais[1], allow_cancel = FALSE)
 		else
 			. = pick(ais)
 	return .
@@ -1158,7 +1158,7 @@ B --><-- A
 
 proc/pick_closest_path(value, list/matches = get_fancy_list_of_atom_types())
 	if (value == FALSE) //nothing should be calling us with a number, so this is safe
-		value = input("Enter type to find (blank for all, cancel to cancel)", "Search for type") as null|text
+		value = tgui_input_text(usr, "Enter type to find (blank for all, cancel to cancel)", "Search for type")
 		if (isnull(value))
 			return
 	value = trim(value)
@@ -1172,7 +1172,7 @@ proc/pick_closest_path(value, list/matches = get_fancy_list_of_atom_types())
 	if(matches.len==1)
 		chosen = matches[1]
 	else
-		chosen = input("Select a type", "Pick Type", matches[1]) as null|anything in matches
+		chosen = tgui_input_list(usr, "Select a type", "Pick Type", matches, matches[1])
 		if(!chosen)
 			return
 	chosen = matches[chosen]

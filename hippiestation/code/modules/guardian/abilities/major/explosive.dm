@@ -78,7 +78,7 @@
 	set name = "Detonate Bomb"
 	set category = "Guardian"
 	set desc = "Detonate an armed bomb manually."
-	var/picked_bomb = input(src, "Pick which bomb to detonate", "Detonate Bomb") as null|anything in src.bombs
+	var/picked_bomb = tgui_input_list(src, "Pick which bomb to detonate", "Detonate Bomb", src.bombs)
 	if(picked_bomb)
 		bombs -= picked_bomb
 		UnregisterSignal(picked_bomb, list(COMSIG_PARENT_ATTACKBY, COMSIG_ATOM_BUMPED, COMSIG_ATOM_ATTACK_HAND));

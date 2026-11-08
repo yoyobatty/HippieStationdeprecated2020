@@ -158,7 +158,7 @@ GLOBAL_VAR_INIT(dynamic_forced_threat_level, -1)
 	else if (href_list["classic_secret"])
 		GLOB.dynamic_classic_secret = !GLOB.dynamic_classic_secret
 	else if (href_list["adjustthreat"])
-		var/threatadd = input("Specify how much threat to add (negative to subtract). This can inflate the threat level.", "Adjust Threat", 0) as null|num
+		var/threatadd = tgui_input_number(usr, "Specify how much threat to add (negative to subtract). This can inflate the threat level.", "Adjust Threat", 0)
 		if(!threatadd)
 			return
 		if(threatadd > 0)
@@ -176,7 +176,7 @@ GLOBAL_VAR_INIT(dynamic_forced_threat_level, -1)
 	else if (href_list["threatlog"])
 		show_threatlog(usr)
 	else if (href_list["stacking_limit"])
-		GLOB.dynamic_stacking_limit = input(usr,"Change the threat limit at which round-endings rulesets will start to stack.", "Change stacking limit", null) as num
+		GLOB.dynamic_stacking_limit = tgui_input_number(usr, "Change the threat limit at which round-endings rulesets will start to stack.", "Change stacking limit", allow_cancel = FALSE)
 	
 	admin_panel() // Refreshes the window
 
@@ -249,7 +249,7 @@ GLOBAL_VAR_INIT(dynamic_forced_threat_level, -1)
 
 /datum/game_mode/dynamic/proc/show_threatlog(mob/admin)
 	if(!SSticker.HasRoundStarted())
-		alert("The round hasn't started yet!")
+		tgui_alert(usr, "The round hasn't started yet!")
 		return
 
 	if(!check_rights(R_ADMIN))

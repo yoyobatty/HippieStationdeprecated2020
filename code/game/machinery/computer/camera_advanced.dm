@@ -261,7 +261,7 @@
 			T["[netcam.c_tag][netcam.can_use() ? null : " (Deactivated)"]"] = netcam
 
 	playsound(origin, 'sound/machines/terminal_prompt.ogg', 25, 0)
-	var/camera = input("Choose which camera you want to view", "Cameras") as null|anything in T
+	var/camera = tgui_input_list(usr, "Choose which camera you want to view", "Cameras", T)
 	var/obj/machinery/camera/final = T[camera]
 	playsound(src, "terminal_type", 25, 0)
 	if(final)
@@ -349,7 +349,7 @@
 	if(!AR.clockwork_warp_allowed)
 		to_chat(user, "<span class='sevtug_small'>[AR.clockwork_warp_fail]</span>")
 		return
-	if(alert(user, "Are you sure you want to warp to [AR]?", target.name, "Warp", "Cancel") == "Cancel" || QDELETED(R) || !user.canUseTopic(R))
+	if(tgui_alert(user, "Are you sure you want to warp to [AR]?", target.name, list("Warp", "Cancel")) == "Cancel" || QDELETED(R) || !user.canUseTopic(R))
 		return
 	do_sparks(5, TRUE, user)
 	do_sparks(5, TRUE, T)

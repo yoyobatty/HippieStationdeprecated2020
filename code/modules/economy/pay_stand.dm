@@ -30,7 +30,7 @@
 				return
 		var/obj/item/card/id/vbucks = W
 		if(vbucks.registered_account)
-			var/momsdebitcard = input(user, "How much would you like to deposit?", "Money Deposit") as null|num
+			var/momsdebitcard = tgui_input_number(user, "How much would you like to deposit?", "Money Deposit")
 			if(momsdebitcard < 1)
 				to_chat(user, "<span class='warning'>ERROR: Invalid amount designated.</span>")
 				return
@@ -46,7 +46,7 @@
 			return
 	if(istype(W, /obj/item/holochip))
 		var/obj/item/holochip/H = W
-		var/cashmoney = input(user, "How much would you like to deposit?", "Money Deposit") as null|num
+		var/cashmoney = tgui_input_number(user, "How much would you like to deposit?", "Money Deposit")
 		if(H.spend(cashmoney, FALSE))
 			purchase(user, cashmoney)
 			to_chat(user, "Thanks for purchasing! The vendor has been informed.")
@@ -69,7 +69,7 @@
 			to_chat(user, "<span class='warning'>ERROR: No identification card has been assigned to this paystand yet!</span>")
 			return
 		if(!signaler)
-			var/cash_limit = input(user, "Enter the minimum amount of cash needed to deposit before the signaler is activated.", "Signaler Activation Threshold") as null|num
+			var/cash_limit = tgui_input_number(user, "Enter the minimum amount of cash needed to deposit before the signaler is activated.", "Signaler Activation Threshold")
 			if(cash_limit < 1)
 				to_chat(user, "<span class='warning'>ERROR: Invalid amount designated.</span>")
 				return

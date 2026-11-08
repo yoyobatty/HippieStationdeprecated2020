@@ -2,7 +2,7 @@
 //Allows the ninja to kidnap people
 /obj/item/clothing/suit/space/space_ninja/proc/ninjanet()
 	var/mob/living/carbon/human/H = affecting
-	var/mob/living/carbon/C = input("Select who to capture:","Capture who?",null) as null|mob in oview(H)
+	var/mob/living/carbon/C = tgui_input_list(usr, "Select who to capture:", "Capture who?", tgui_list_of_type(oview(H), /mob))
 
 	if(QDELETED(C)||!(C in oview(H)))
 		return 0

@@ -16,7 +16,7 @@
 			qdel(src)
 			user.put_in_hands(newSaber)
 	else if(istype(W, /obj/item/multitool))
-		var/color = input(user, "Select a color!", "Esword color") as null|anything in list("red", "green", "blue", "purple", "rainbow")
+		var/color = tgui_input_list(user, "Select a color!", "Esword color", list("red", "green", "blue", "purple", "rainbow"))
 		if(!color)
 			return
 		item_color = color

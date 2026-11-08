@@ -36,7 +36,7 @@
 	D.name = "Admin"
 	D.real_name = "Admin"
 	var/newname = ""
-	newname = copytext(sanitize(input(D, "Before you step out as an embodied god, what name do you wish for?", "Choose your name.", "Admin") as null|text),1,MAX_NAME_LEN)
+	newname = copytext(sanitize(tgui_input_text(D, "Before you step out as an embodied god, what name do you wish for?", "Choose your name.", "Admin")),1,MAX_NAME_LEN)
 	if (!newname)
 		newname = "Admin"
 	D.name = newname

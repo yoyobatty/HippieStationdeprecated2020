@@ -48,6 +48,7 @@ import { Exosuit } from './interfaces/Exosuit';
 import { ExosuitFabricator } from './interfaces/ExosuitFabricator';
 import { DestinationTagger, HandTeleporter, ImplantPad, Safe, SecureStorage } from './interfaces/Gadgets';
 import { GameMenu } from './interfaces/GameMenu';
+import { TguiPrompt } from './interfaces/TguiPrompt';
 import { CircuitAssembly } from './interfaces/CircuitAssembly';
 import { CircuitCode } from './interfaces/CircuitCode';
 import { CircuitPrinter } from './interfaces/CircuitPrinter';
@@ -1169,6 +1170,10 @@ const ROUTES = {
     wrapper: () => NtosWrapper,
     scrollable: true,
     theme: 'syndicate',
+  },
+  tgui_prompt: {
+    component: () => TguiPrompt,
+    scrollable: false,
   },
   circuit_assembly: {
     component: () => CircuitAssembly,

@@ -24,7 +24,7 @@
 /obj/item/holotool/ui_action_click(mob/user, datum/action/action)
 	if(istype(action, /datum/action/item_action/change_tool))
 		update_listing()
-		var/datum/holotool_mode/chosen = input("Choose tool settings", "Tool", null, null) as null|anything in available_modes
+		var/datum/holotool_mode/chosen = tgui_input_list(usr, "Choose tool settings", "Tool", available_modes)
 		switch_tool(user, chosen)
 	else
 		var/C = input(user, "Select Color", "Select color", "#48D1CC") as null|color

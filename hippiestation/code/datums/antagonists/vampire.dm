@@ -48,8 +48,8 @@
 	log_admin("[key_name(admin)] made [owner.current] a full power vampire..")
 
 /datum/antagonist/vampire/proc/admin_set_blood(mob/admin)
-	total_blood = input(admin, "Set Vampire Total Blood", "Total Blood", total_blood) as null|num
-	usable_blood = min((input(admin, "Set Vampire Usable Blood", "Usable Blood", usable_blood) as null|num), total_blood)
+	total_blood = tgui_input_number(admin, "Set Vampire Total Blood", "Total Blood", total_blood)
+	usable_blood = min((tgui_input_number(admin, "Set Vampire Usable Blood", "Usable Blood", usable_blood)), total_blood)
 	check_vampire_upgrade()
 	message_admins("[key_name_admin(admin)] set [owner.current]'s total blood to [total_blood], and usable blood to [usable_blood].")
 	log_admin("[key_name(admin)] set [owner.current]'s total blood to [total_blood], and usable blood to [usable_blood].")

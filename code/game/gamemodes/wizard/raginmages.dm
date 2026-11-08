@@ -90,7 +90,7 @@
 				if(!is_banned_from(G.ckey, list(ROLE_WIZARD, ROLE_SYNDICATE)))
 					if(age_check(G.client))
 						spawn(0)
-							switch(alert(G, "Do you wish to be considered for the position of Space Wizard Foundation 'diplomat'?","Please answer in 30 seconds!","Yes","No"))
+							switch(tgui_alert(G, "Do you wish to be considered for the position of Space Wizard Foundation 'diplomat'?", "Please answer in 30 seconds!", list("Yes", "No")))
 								if("Yes")
 									if((world.time-time_passed)>300)//If more than 30 game seconds passed.
 										continue

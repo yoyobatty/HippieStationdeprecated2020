@@ -29,7 +29,7 @@
 	var/list/standard_list = list("Traitor", "Vampire", "Devil", "Hivemind")
 	var/list/chaplain_list = list("Traitor", "Hivemind")
 	while(!choice)
-		choice = input(M.current, "Which antagonist would you like to be?", "Your lucky day!") as null|anything in (M.assigned_role == "Chaplain" ? chaplain_list : standard_list)
+		choice = tgui_input_list(M.current, "Which antagonist would you like to be?", "Your lucky day!", (M.assigned_role == "Chaplain" ? chaplain_list : standard_list))
 		if(!choice)
 			continue
 		switch(choice)

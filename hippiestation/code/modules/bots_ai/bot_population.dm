@@ -176,7 +176,7 @@ GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 
 	if(!check_rights(R_FUN))
 		return
-	var/new_target = input(usr, "Crew size to keep the round at, players included. 0 stops any more bots arriving; the ones aboard stay.", "Bot Crew Target", GLOB.bot_population.target) as null|num
+	var/new_target = tgui_input_number(usr, "Crew size to keep the round at, players included. 0 stops any more bots arriving; the ones aboard stay.", "Bot Crew Target", GLOB.bot_population.target)
 	if(isnull(new_target))
 		return
 	GLOB.bot_population.set_target(new_target)

@@ -201,7 +201,7 @@
 		if("PRG_edit")
 			if(computer && authorized())
 				if(params["name"])
-					var/temp_name = reject_bad_name(input("Enter name.", "Name", id_card.registered_name))
+					var/temp_name = reject_bad_name(tgui_input_text(usr, "Enter name.", "Name", id_card.registered_name, allow_cancel = FALSE))
 					if(temp_name)
 						id_card.registered_name = temp_name
 					else
@@ -213,7 +213,7 @@
 			if(computer && authorized() && id_card)
 				var/t1 = params["assign_target"]
 				if(t1 == "Custom")
-					var/temp_t = reject_bad_text(input("Enter a custom job assignment.","Assignment", id_card.assignment), 45)
+					var/temp_t = reject_bad_text(tgui_input_text(usr, "Enter a custom job assignment.", "Assignment", id_card.assignment, allow_cancel = FALSE), 45)
 					//let custom jobs function as an impromptu alt title, mainly for sechuds
 					if(temp_t)
 						id_card.assignment = temp_t

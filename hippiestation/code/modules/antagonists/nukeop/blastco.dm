@@ -12,7 +12,7 @@
 	if(!user || !user.mind || !user.mind.has_antag_datum(/datum/antagonist/nukeop))
 		to_chat(user, "<span class='danger'>Access denied.</span>")
 		return
-	var/choice = input(user, "Choose your BlastCo(tm) loadout!", "Choose your BlastCo(tm) loadout!") as anything in list("BlastCo(tm) RUSH B", "BlastCo(tm) BALANCED", "BlastCo(tm) WAR CRIMINAL", "BlastCo(tm) PYRO", "BlastCo(tm) EXPLOSIVE")
+	var/choice = tgui_input_list(user, "Choose your BlastCo(tm) loadout!", "Choose your BlastCo(tm) loadout!", list("BlastCo(tm) RUSH B", "BlastCo(tm) BALANCED", "BlastCo(tm) WAR CRIMINAL", "BlastCo(tm) PYRO", "BlastCo(tm) EXPLOSIVE"), allow_cancel = FALSE)
 	if(!choice)
 		to_chat(user, "<span class='notice'>Ah, waiting to choose?</span>")
 		return

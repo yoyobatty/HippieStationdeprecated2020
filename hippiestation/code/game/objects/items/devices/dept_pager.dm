@@ -108,7 +108,7 @@
 		"Return to the department" = "All [department] staff: return to your department.",
 		"Emergency, all hands" = "EMERGENCY: all [department] staff to [where], now!",
 		"Custom message..." = null)
-	var/choice = input(user, "Page the [department] department:", name) as null|anything in presets
+	var/choice = tgui_input_list(user, "Page the [department] department:", name, presets)
 	if(!choice)
 		return
 	var/message = presets[choice]

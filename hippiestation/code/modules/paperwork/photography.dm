@@ -47,7 +47,7 @@
 		var/obj/item/photo/photo = W
 		var/datum/picture/P = photo.picture
 		if (LAZYLEN(P.potential_disguises) > 0)
-			var/chosen = input("Select a target to disguise as", "Pick target") as null|anything in P.potential_disguises
+			var/chosen = tgui_input_list(usr, "Select a target to disguise as", "Pick target", P.potential_disguises)
 			if (chosen)
 				var/datum/photo_disguise/D = P.potential_disguises[chosen]
 				if (D)

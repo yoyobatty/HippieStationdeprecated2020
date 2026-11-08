@@ -119,7 +119,7 @@
 		if(allowed(usr))
 			var/mob/living/silicon/robot/R = locate(href_list["killbot"]) in GLOB.silicon_mobs
 			if(can_control(usr, R))
-				var/choice = input("Are you certain you wish to detonate [R.name]?") in list("Confirm", "Abort")
+				var/choice = tgui_input_list(usr, "Are you certain you wish to detonate [R.name]?", null, list("Confirm", "Abort"), allow_cancel = FALSE)
 				if(choice == "Confirm" && can_control(usr, R) && !..())
 					var/turf/T = get_turf(R)
 					message_admins("<span class='notice'>[ADMIN_LOOKUPFLW(usr)] detonated [key_name_admin(R, R.client)] at [ADMIN_VERBOSEJMP(T)]!</span>")
@@ -134,7 +134,7 @@
 		if(allowed(usr))
 			var/mob/living/silicon/robot/R = locate(href_list["stopbot"]) in GLOB.silicon_mobs
 			if(can_control(usr, R))
-				var/choice = input("Are you certain you wish to [!R.lockcharge ? "lock down" : "release"] [R.name]?") in list("Confirm", "Abort")
+				var/choice = tgui_input_list(usr, "Are you certain you wish to [!R.lockcharge ? "lock down" : "release"] [R.name]?", null, list("Confirm", "Abort"), allow_cancel = FALSE)
 				if(choice == "Confirm" && can_control(usr, R) && !..())
 					message_admins("<span class='notice'>[ADMIN_LOOKUPFLW(usr)] [!R.lockcharge ? "locked down" : "released"] [ADMIN_LOOKUPFLW(R)]!</span>")
 					log_game("[key_name(usr)] [!R.lockcharge ? "locked down" : "released"] [key_name(R)]!")

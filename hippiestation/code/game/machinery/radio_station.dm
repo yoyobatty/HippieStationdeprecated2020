@@ -153,7 +153,7 @@
 	if(cooldowntime > world.time)
 		to_chat(user, "<span class ='warning'>The broadcasting antenna needs time to recharge! It will be ready in [DisplayTimeText(cooldowntime - world.time)].</span>")
 		return
-	var/cooming = input(user, "Last played music: [music_name]", "Available Music") as null|anything in music_list
+	var/cooming = tgui_input_list(user, "Last played music: [music_name]", "Available Music", music_list)
 	if(!user.Adjacent(src))
 		to_chat(user, "<span class='warning'>You are too far away!")
 		return
@@ -448,7 +448,7 @@
 	if(inuse)
 		to_chat(user, "<span class ='warning'>A disk is currently being burned!</span>")
 		return
-	var/choice = input(user, "Disk: [R.name] \nChoose an option", "[src] menu") as null|anything in menu_options
+	var/choice = tgui_input_list(user, "Disk: [R.name] \nChoose an option", "[src] menu", menu_options)
 	if(!user.Adjacent(src))
 		to_chat(user, "<span class='warning'>You are too far away!")
 		return
@@ -465,7 +465,7 @@
 			R = null
 			return
 		if("Burn pre-coded music")
-			music_file = input(user, "Choose a pre-coded song", "[src] menu") as null|anything in music_to_burn
+			music_file = tgui_input_list(user, "Choose a pre-coded song", "[src] menu", music_to_burn)
 			if(inuse)
 				to_chat(user, "<span class ='warning'>A disk is currently being burned!</span>")
 				return
@@ -551,7 +551,7 @@
 				return
 			diskProcess()
 		if("Rename disk")
-			custom_name = input(user, "Enter new disk name") as null|text
+			custom_name = tgui_input_text(user, "Enter new disk name")
 			if(custom_name)
 				R.name = custom_name
 				src.audible_message("<span class='robot'><b>[src]</b> beeps, 'Record disk renamed to: [R.name]' </span>")

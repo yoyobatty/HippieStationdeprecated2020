@@ -92,7 +92,7 @@
 	if(cooldowntime > world.time)
 		to_chat(user, "<span class='cult italic'>The magic in [src] is weak, it will be ready to use again in [DisplayTimeText(cooldowntime - world.time)].</span>")
 		return
-	var/choice = alert(user,"You study the schematics etched into the altar...",,"Eldritch Whetstone","Construct Shell","Flask of Unholy Water")
+	var/choice = tgui_alert(user, "You study the schematics etched into the altar...", null, list("Eldritch Whetstone", "Construct Shell", "Flask of Unholy Water"))
 	var/list/pickedtype = list()
 	switch(choice)
 		if("Eldritch Whetstone")
@@ -130,9 +130,9 @@
 		return
 	var/choice
 	if(user.mind.has_antag_datum(/datum/antagonist/cult/master))
-		choice = alert(user,"You study the schematics etched into the forge...",,"Shielded Robe","Flagellant's Robe","Bastard Sword") // hippie -- readds the bastard sword
+		choice = tgui_alert(user, "You study the schematics etched into the forge...", null, list("Shielded Robe", "Flagellant's Robe", "Bastard Sword")) // hippie -- readds the bastard sword
 	else
-		choice = alert(user,"You study the schematics etched into the forge...",,"Shielded Robe","Flagellant's Robe","Mirror Shield")
+		choice = tgui_alert(user, "You study the schematics etched into the forge...", null, list("Shielded Robe", "Flagellant's Robe", "Mirror Shield"))
 	var/list/pickedtype = list()
 	switch(choice)
 		if("Shielded Robe")
@@ -254,7 +254,7 @@
 	if(cooldowntime > world.time)
 		to_chat(user, "<span class='cult italic'>The magic in [src] is weak, it will be ready to use again in [DisplayTimeText(cooldowntime - world.time)].</span>")
 		return
-	var/choice = alert(user,"You flip through the black pages of the archives...",,"Zealot's Blindfold","Shuttle Curse","Veil Walker Set")
+	var/choice = tgui_alert(user, "You flip through the black pages of the archives...", null, list("Zealot's Blindfold", "Shuttle Curse", "Veil Walker Set"))
 	var/list/pickedtype = list()
 	switch(choice)
 		if("Zealot's Blindfold")

@@ -84,7 +84,7 @@ Code:
 	if (href_list["set"])
 
 		if(href_list["set"] == "freq")
-			var/new_freq = input(usr, "Input a new signalling frequency", "Remote Signaller Frequency", format_frequency(frequency)) as num|null
+			var/new_freq = tgui_input_number(usr, "Input a new signalling frequency", "Remote Signaller Frequency", format_frequency(frequency))
 			if(!usr.canUseTopic(src, BE_CLOSE))
 				return
 			new_freq = unformat_frequency(new_freq)
@@ -92,7 +92,7 @@ Code:
 			set_frequency(new_freq)
 
 		if(href_list["set"] == "code")
-			var/new_code = input(usr, "Input a new signalling code", "Remote Signaller Code", code) as num|null
+			var/new_code = tgui_input_number(usr, "Input a new signalling code", "Remote Signaller Code", code)
 			if(!usr.canUseTopic(src, BE_CLOSE))
 				return
 			new_code = round(new_code)

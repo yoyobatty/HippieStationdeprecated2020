@@ -29,7 +29,7 @@
 		to_chat(src, "<span class='danger'>No getting out of your crabban that way!</span>")
 		return
 
-	if(alert("Are you sure you want to give your body up to ghosts?", "Confirm", "Yes", "No") == "Yes")
+	if(tgui_alert(usr, "Are you sure you want to give your body up to ghosts?", "Confirm", list("Yes", "No")) == "Yes")
 		if(world.time < g2g_next)
 			to_chat(src, "<span class='danger'>You need to wait for [DisplayTimeText(g2g_next-world.time)] to offer again.</span>")
 			return

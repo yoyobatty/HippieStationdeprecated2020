@@ -282,7 +282,7 @@
 			display_vending_names_paths = list()
 			for(var/path in vending_names_paths)
 				display_vending_names_paths[vending_names_paths[path]] = path
-		var/choice =  input(user,"Choose a new brand","Select an Item") as null|anything in display_vending_names_paths
+		var/choice =  tgui_input_list(user, "Choose a new brand", "Select an Item", display_vending_names_paths)
 		set_type(display_vending_names_paths[choice])
 	else
 		return ..()
@@ -795,7 +795,7 @@
 
 /obj/item/circuitboard/machine/public_nanite_chamber/multitool_act(mob/living/user)
 	. = ..()
-	var/new_cloud = input("Set the public nanite chamber's Cloud ID (1-100).", "Cloud ID", cloud_id) as num|null
+	var/new_cloud = tgui_input_number(usr, "Set the public nanite chamber's Cloud ID (1-100).", "Cloud ID", cloud_id)
 	if(new_cloud == null)
 		return
 	cloud_id = clamp(round(new_cloud, 1), 1, 100)

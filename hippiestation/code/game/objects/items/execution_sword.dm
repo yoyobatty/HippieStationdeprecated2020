@@ -23,7 +23,7 @@ obj/item/melee/execution_sword/attack_self(mob/living/user)
 		to_chat(user, "<span class='notice'>You have already pledged your allegiance to [execution_faction]!</span>")
 		return
 	else
-		var/custom_faction = alert(user, "Do you want to pledge allegiance to a new faction?", "Customize?", "Yes", "No")
+		var/custom_faction = tgui_alert(user, "Do you want to pledge allegiance to a new faction?", "Customize?", list("Yes", "No"))
 
 		if(custom_faction == "No")
 			to_chat(user, "You decide to stick with [execution_faction], all glory to [execution_faction]!")

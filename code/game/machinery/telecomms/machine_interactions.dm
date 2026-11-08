@@ -145,7 +145,7 @@
 
 	if(href_list["change_freq"])
 
-		var/newfreq = input(usr, "Specify a new frequency for new signals to change to. Enter null to turn off frequency changing. Decimals assigned automatically.", src, network) as null|num
+		var/newfreq = tgui_input_number(usr, "Specify a new frequency for new signals to change to. Enter null to turn off frequency changing. Decimals assigned automatically.", src, network)
 		if(canAccess(usr))
 			if(newfreq)
 				if(findtext(num2text(newfreq), "."))
@@ -201,7 +201,7 @@
 
 
 			if("freq")
-				var/newfreq = input(usr, "Specify a new frequency to filter (GHz). Decimals assigned automatically.", src, network) as null|num
+				var/newfreq = tgui_input_number(usr, "Specify a new frequency to filter (GHz). Decimals assigned automatically.", src, network)
 				if(newfreq && canAccess(usr))
 					if(findtext(num2text(newfreq), "."))
 						newfreq *= 10 // shift the decimal one place

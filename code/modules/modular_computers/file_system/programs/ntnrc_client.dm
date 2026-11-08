@@ -30,7 +30,7 @@
 			if(!channel)
 				return 1
 			var/mob/living/user = usr
-			var/message = reject_bad_text(input(user, "Enter message or leave blank to cancel: "))
+			var/message = reject_bad_text(tgui_input_text(user, "Enter message or leave blank to cancel: ", allow_cancel = FALSE))
 			if(!message || !channel)
 				return
 			channel.add_message(message, username)
@@ -53,7 +53,7 @@
 
 			if(C.password)
 				var/mob/living/user = usr
-				var/password = reject_bad_text(input(user,"Access Denied. Enter password:"))
+				var/password = reject_bad_text(tgui_input_text(user, "Access Denied. Enter password:", allow_cancel = FALSE))
 				if(C && (password == C.password))
 					C.add_client(src)
 					channel = C
@@ -68,7 +68,7 @@
 		if("PRG_newchannel")
 			. = 1
 			var/mob/living/user = usr
-			var/channel_title = reject_bad_text(input(user,"Enter channel name or leave blank to cancel:"))
+			var/channel_title = reject_bad_text(tgui_input_text(user, "Enter channel name or leave blank to cancel:", allow_cancel = FALSE))
 			if(!channel_title)
 				return
 			var/datum/ntnet_conversation/C = new/datum/ntnet_conversation()
@@ -87,7 +87,7 @@
 			var/mob/living/user = usr
 			if(can_run(usr, 1, ACCESS_NETWORK))
 				if(channel)
-					var/response = alert(user, "Really engage admin-mode? You will be disconnected from your current channel!", "NTNRC Admin mode", "Yes", "No")
+					var/response = tgui_alert(user, "Really engage admin-mode? You will be disconnected from your current channel!", "NTNRC Admin mode", list("Yes", "No"))
 					if(response == "Yes")
 						if(channel)
 							channel.remove_client(src)
@@ -98,7 +98,7 @@
 		if("PRG_changename")
 			. = 1
 			var/mob/living/user = usr
-			var/newname = sanitize(input(user,"Enter new nickname or leave blank to cancel:"))
+			var/newname = sanitize(tgui_input_text(user, "Enter new nickname or leave blank to cancel:", allow_cancel = FALSE))
 			if(!newname)
 				return 1
 			if(channel)
@@ -135,7 +135,7 @@
 			if(!operator_mode || !channel)
 				return 1
 			var/mob/living/user = usr
-			var/newname = reject_bad_text(input(user, "Enter new channel name or leave blank to cancel:"))
+			var/newname = reject_bad_text(tgui_input_text(user, "Enter new channel name or leave blank to cancel:", allow_cancel = FALSE))
 			if(!newname || !channel)
 				return
 			channel.add_status_message("Channel renamed from [channel.title] to [newname] by operator.")
@@ -151,7 +151,7 @@
 				return 1
 
 			var/mob/living/user = usr
-			var/newpassword = sanitize(input(user, "Enter new password for this channel. Leave blank to cancel, enter 'nopassword' to remove password completely:"))
+			var/newpassword = sanitize(tgui_input_text(user, "Enter new password for this channel. Leave blank to cancel, enter 'nopassword' to remove password completely:", allow_cancel = FALSE))
 			if(!channel || !newpassword || ((channel.operator != src) && !netadmin_mode))
 				return 1
 

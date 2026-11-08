@@ -72,7 +72,7 @@
 		for(var/i in 1 to GLOB.blob_nodes.len)
 			var/obj/structure/blob/node/B = GLOB.blob_nodes[i]
 			nodes["Blob Node #[i] ([get_area_name(B)])"] = B
-		var/node_name = input(src, "Choose a node to jump to.", "Node Jump") in nodes
+		var/node_name = tgui_input_list(src, "Choose a node to jump to.", "Node Jump", nodes, allow_cancel = FALSE)
 		var/obj/structure/blob/node/chosen_node = nodes[node_name]
 		if(chosen_node)
 			forceMove(chosen_node.loc)
@@ -326,7 +326,7 @@
 	set category = "Blob"
 	set name = "Blob Broadcast"
 	set desc = "Speak with your blob spores and blobbernauts as your mouthpieces."
-	var/speak_text = input(src, "What would you like to say with your minions?", "Blob Broadcast", null) as text
+	var/speak_text = tgui_input_text(src, "What would you like to say with your minions?", "Blob Broadcast", allow_cancel = FALSE)
 	if(!speak_text)
 		return
 	else
@@ -354,7 +354,7 @@
 		var/datum/blobstrain/bs = pick((GLOB.valid_blobstrains))
 		choices[initial(bs.name)] = bs
 
-	var/choice = input(usr, "Please choose a new strain","Strain") as anything in choices
+	var/choice = tgui_input_list(usr, "Please choose a new strain", "Strain", choices, allow_cancel = FALSE)
 	if (choice && choices[choice] && !QDELETED(src))
 		var/datum/blobstrain/bs = choices[choice]
 		set_strain(bs)

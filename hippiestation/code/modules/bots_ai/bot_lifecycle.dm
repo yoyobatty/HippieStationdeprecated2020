@@ -31,7 +31,7 @@ GLOBAL_VAR_INIT(bot_ai_verbose, bot_ai_logging_wanted())
 		return
 	available = sortList(available)
 
-	var/rank = input(usr, "Select a job for the bot crew member", "Spawn Bot Crew Member") as null|anything in available
+	var/rank = tgui_input_list(usr, "Select a job for the bot crew member", "Spawn Bot Crew Member", available)
 	if(!rank)
 		return
 

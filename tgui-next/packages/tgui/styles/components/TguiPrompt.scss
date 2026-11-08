@@ -1,0 +1,59 @@
+// hippie -- tgui prompts, the input()/alert() stand-ins (interfaces/TguiPrompt.js)
+
+.TguiPrompt__field {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 6px 0;
+  padding: 4px 6px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #ffffff;
+  background-color: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  outline: none;
+
+  &:focus {
+    border-color: rgba(79, 143, 214, 0.9);
+  }
+}
+
+.TguiPrompt__field--area {
+  height: 170px;
+  resize: none;
+}
+
+.TguiPrompt__field--bad,
+.TguiPrompt__field--bad:focus {
+  border-color: rgba(210, 76, 76, 0.9);
+}
+
+.TguiPrompt__list {
+  position: relative;
+  overflow-y: auto;
+  background-color: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.TguiPrompt__row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  padding: 0 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    background-color: rgba(79, 143, 214, 0.2);
+  }
+}
+
+.TguiPrompt__row--selected,
+.TguiPrompt__row--selected:hover {
+  background-color: rgba(79, 143, 214, 0.55);
+}

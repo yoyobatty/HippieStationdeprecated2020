@@ -12,7 +12,7 @@
 		to_chat(usr, "<span class='warning'>Error, shuttle is already disabled.</span>", confidential = TRUE)
 		return
 
-	if(alert(src, "You sure?", "Confirm", "Yes", "No") != "Yes") return
+	if(tgui_alert(src, "You sure?", "Confirm", list("Yes", "No")) != "Yes") return
 
 	message_admins("<span class='adminnotice'>[key_name_admin(usr)] disabled the shuttle.</span>")
 
@@ -32,7 +32,7 @@
 		to_chat(usr, "<span class='warning'>Error, shuttle not disabled.</span>", confidential = TRUE)
 		return
 
-	if(alert(src, "You sure?", "Confirm", "Yes", "No") != "Yes") return
+	if(tgui_alert(src, "You sure?", "Confirm", list("Yes", "No")) != "Yes") return
 
 	message_admins("<span class='adminnotice'>[key_name_admin(usr)] enabled the emergency shuttle.</span>")
 	SSshuttle.adminEmergencyNoRecall = FALSE
@@ -56,7 +56,7 @@
 
 	if(!check_rights(R_ADMIN))	return
 
-	var/confirm = alert(src, "You sure?", "Confirm", "Yes", "Yes (No Recall)", "No")
+	var/confirm = tgui_alert(src, "You sure?", "Confirm", list("Yes", "Yes (No Recall)", "No"))
 	if(confirm == "No")
 		return
 
@@ -78,7 +78,7 @@
 	set name = "Cancel Shuttle"
 	if(!check_rights(0))
 		return
-	if(alert(src, "You sure?", "Confirm", "Yes", "No") != "Yes")
+	if(tgui_alert(src, "You sure?", "Confirm", list("Yes", "No")) != "Yes")
 		return
 
 	if(SSshuttle.adminEmergencyNoRecall)
@@ -102,15 +102,15 @@
 	if(!check_rights(R_FUN))
 		return
 
-	var/range = input("Range of the flame front, 1 to [FIERY_EXPLOSION_MAX_RANGE]", text("Input"), 6) as num|null
+	var/range = tgui_input_number(usr, "Range of the flame front, 1 to [FIERY_EXPLOSION_MAX_RANGE]", text("Input"), 6)
 	if(isnull(range))
 		return
 	range = clamp(round(range), 1, FIERY_EXPLOSION_MAX_RANGE)
-	var/power = input("Power of the blast wave behind the flames. 0 for flames only, 1 is light, 3 breaks windows, 5+ devastates", text("Input"), 2) as num|null
+	var/power = tgui_input_number(usr, "Power of the blast wave behind the flames. 0 for flames only, 1 is light, 3 breaks windows, 5+ devastates", text("Input"), 2)
 	if(isnull(power))
 		return
 	power = max(power, 0)
-	var/burn_damage = input("Burn damage to mobs at the centre, falling off towards the edge", text("Input"), 20) as num|null
+	var/burn_damage = tgui_input_number(usr, "Burn damage to mobs at the centre, falling off towards the edge", text("Input"), 20)
 	if(isnull(burn_damage))
 		return
 	burn_damage = max(burn_damage, 0)

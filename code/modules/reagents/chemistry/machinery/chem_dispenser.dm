@@ -282,7 +282,7 @@
 		if("clear_recipes")
 			if(!is_operational())
 				return
-			var/yesno = alert("Clear all recipes?",, "Yes","No")
+			var/yesno = tgui_alert(usr, "Clear all recipes?", null, list("Yes", "No"))
 			if(yesno == "Yes")
 				saved_recipes = list()
 		if("add_recipe")
@@ -311,7 +311,7 @@
 						to_chat(usr, "<span class='danger'>[src] cannot find Chemical ID: <b>[chemid]</b>!</span>")
 						playsound(src, 'sound/machines/buzz-two.ogg', 50, 1)
 						return
-				if (resmismatch && alert("[src] is not yet capable of replicating this recipe with the precision it needs, do you want to save it anyway?",, "Yes","No") == "No")
+				if (resmismatch && tgui_alert(usr, "[src] is not yet capable of replicating this recipe with the precision it needs, do you want to save it anyway?", null, list("Yes", "No")) == "No")
 					return
 				saved_recipes += list(list("recipe_name" = name, "contents" = recipe))
 

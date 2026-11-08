@@ -198,7 +198,7 @@
 			var/target = params["target"]
 			var/adjust = text2num(params["adjust"])
 			if(target == "input")
-				target = input("New target radioactivity:", name, target_radioactivity) as num|null
+				target = tgui_input_number(usr, "New target radioactivity:", name, target_radioactivity)
 				if(!isnull(target) && !..())
 					. = TRUE
 			else if(adjust)
@@ -297,7 +297,7 @@
 			var/target = params["target"]
 			var/adjust = text2num(params["adjust"])
 			if(target == "input")
-				target = input("New emitter intensity:", name, intensity) as num|null
+				target = tgui_input_number(usr, "New emitter intensity:", name, intensity)
 				if(!isnull(target) && !..())
 					. = TRUE
 			else if(adjust)

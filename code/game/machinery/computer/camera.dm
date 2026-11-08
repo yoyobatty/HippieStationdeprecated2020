@@ -79,7 +79,7 @@
 
 /obj/machinery/computer/security/proc/use_camera_console(mob/user)
 	var/list/camera_list = get_available_cameras()
-	var/t = input(user, "Which camera should you change to?") as null|anything in camera_list
+	var/t = tgui_input_list(user, "Which camera should you change to?", null, camera_list)
 	if(user.machine != src) //while we were choosing we got disconnected from our computer or are using another machine.
 		return
 	if(!t)

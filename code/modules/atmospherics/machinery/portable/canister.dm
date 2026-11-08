@@ -415,7 +415,7 @@
 	atmos_wake() // hippie -- the valve or pressure may change
 	switch(action)
 		if("relabel")
-			var/label = input("New canister label:", name) as null|anything in label2types
+			var/label = tgui_input_list(usr, "New canister label:", name, label2types)
 			if(label && !..())
 				var/newtype = label2types[label]
 				if(newtype)
@@ -443,7 +443,7 @@
 				pressure = can_max_release_pressure
 				. = TRUE
 			else if(pressure == "input")
-				pressure = input("New release pressure ([can_min_release_pressure]-[can_max_release_pressure] kPa):", name, release_pressure) as num|null
+				pressure = tgui_input_number(usr, "New release pressure ([can_min_release_pressure]-[can_max_release_pressure] kPa):", name, release_pressure)
 				if(!isnull(pressure) && !..())
 					. = TRUE
 			else if(text2num(pressure) != null)
@@ -488,7 +488,7 @@
 				if("increase")
 					timer_set = min(maximum_timer_set, timer_set + 10)
 				if("input")
-					var/user_input = input(usr, "Set time to valve toggle.", name) as null|num
+					var/user_input = tgui_input_number(usr, "Set time to valve toggle.", name)
 					if(!user_input)
 						return
 					var/N = text2num(user_input)

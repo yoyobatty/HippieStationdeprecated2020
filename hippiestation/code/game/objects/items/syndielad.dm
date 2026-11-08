@@ -173,7 +173,7 @@ obj/item/clothing/gloves/syndielad/Destroy()
 		wearer = null
 
 /obj/item/clothing/gloves/syndielad/proc/toggle_detonation(mob/living/user)
-	var/prompt = alert("Confirm detonation?", "[syndilad_bombmessage]", "Yes", "No")
+	var/prompt = tgui_alert(usr, "Confirm detonation?", "[syndilad_bombmessage]", list("Yes", "No"))
 	if (prompt == "Yes" && !syndilad_detonating) // failsafe
 		playsound(src, 'sound/items/screwdriver2.ogg', 50, 1)
 		syndilad_detonating = TRUE

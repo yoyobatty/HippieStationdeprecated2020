@@ -13,11 +13,11 @@
 	if(!length(choices))
 		to_chat(usr, "<span class='warning'>There are no crew bank accounts yet.</span>", confidential = TRUE)
 		return
-	var/choice = input(usr, "Whose account?", "Give Money") as null|anything in sortList(choices)
+	var/choice = tgui_input_list(usr, "Whose account?", "Give Money", sortList(choices))
 	var/datum/bank_account/account = choices[choice]
 	if(!account)
 		return
-	var/amount = input(usr, "How much? Negative takes money away.", "Give Money", 1000) as null|num
+	var/amount = tgui_input_number(usr, "How much? Negative takes money away.", "Give Money", 1000)
 	if(!amount || QDELETED(account))
 		return
 	admin_adjust_account(account, amount)
@@ -31,11 +31,11 @@
 	var/list/choices = list()
 	for(var/datum/bank_account/department/account in SSeconomy.generated_accounts)
 		choices["[account.account_holder] ($[account.account_balance])"] = account
-	var/choice = input(usr, "Which budget?", "Adjust Department Budget") as null|anything in sortList(choices)
+	var/choice = tgui_input_list(usr, "Which budget?", "Adjust Department Budget", sortList(choices))
 	var/datum/bank_account/account = choices[choice]
 	if(!account)
 		return
-	var/amount = input(usr, "How much? Negative takes credits away.", "Adjust Department Budget", 5000) as null|num
+	var/amount = tgui_input_number(usr, "How much? Negative takes credits away.", "Adjust Department Budget", 5000)
 	if(!amount)
 		return
 	admin_adjust_account(account, amount)
@@ -63,10 +63,10 @@
 	var/list/choices = list("All types" = null)
 	for(var/type in types)
 		choices["[types[type]] ([round(web.research_points[type])])"] = type
-	var/choice = input(usr, "Which points?", "Give Research Points") as null|anything in choices
+	var/choice = tgui_input_list(usr, "Which points?", "Give Research Points", choices)
 	if(!choice)
 		return
-	var/amount = input(usr, "How many? Negative takes points away.", "Give Research Points", 10000) as null|num
+	var/amount = tgui_input_number(usr, "How many? Negative takes points away.", "Give Research Points", 10000)
 	if(!amount)
 		return
 	var/list/which = choices[choice] ? list(choices[choice]) : types

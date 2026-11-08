@@ -16,7 +16,7 @@
 /obj/item/antag_spawner/nuke_ops/proc/choose_kit(mob/living/carbon/human/H)
 	var/choice = null
 	while(!choice)
-		choice = input(H, "Choose your kit", "Choose your kit") as anything in list("C-20r bundle", "Bulldog bundle", "Bioterror bundle", "Sniper bundle", "Spetsnaz Pyro bundle", "Stealth bundle", "ALLAH ACKBAR")
+		choice = tgui_input_list(H, "Choose your kit", "Choose your kit", list("C-20r bundle", "Bulldog bundle", "Bioterror bundle", "Sniper bundle", "Spetsnaz Pyro bundle", "Stealth bundle", "ALLAH ACKBAR"), allow_cancel = FALSE)
 		if(!choice)
 			continue
 		switch(choice)

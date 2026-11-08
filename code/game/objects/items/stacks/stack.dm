@@ -370,7 +370,7 @@
 			return
 		//get amount from user
 		var/max = get_amount()
-		var/stackmaterial = round(input(user,"How many sheets do you wish to take out of this stack? (Maximum  [max])") as null|num)
+		var/stackmaterial = round(tgui_input_number(user, "How many sheets do you wish to take out of this stack? (Maximum  [max])"))
 		max = get_amount()
 		stackmaterial = min(max, stackmaterial)
 		if(stackmaterial == null || stackmaterial <= 0 || !user.canUseTopic(src, BE_CLOSE, ismonkey(user)))

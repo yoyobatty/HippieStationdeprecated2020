@@ -126,7 +126,7 @@
 		if("tdomereset")
 			if(!check_rights(R_ADMIN))
 				return
-			var/delete_mobs = alert("Clear all mobs?","Confirm","Yes","No","Cancel")
+			var/delete_mobs = tgui_alert(usr, "Clear all mobs?", "Confirm", list("Yes", "No", "Cancel"))
 			if(delete_mobs == "Cancel")
 				return
 
@@ -146,7 +146,7 @@
 
 		if("clear_virus")
 
-			var/choice = input("Are you sure you want to cure all disease?") in list("Yes", "Cancel")
+			var/choice = tgui_input_list(usr, "Are you sure you want to cure all disease?", null, list("Yes", "Cancel"), allow_cancel = FALSE)
 			if(choice == "Yes")
 				message_admins("[key_name_admin(usr)] has cured all diseases.")
 				for(var/thing in SSdisease.active_diseases)
@@ -155,7 +155,7 @@
 		if("set_name")
 			if(!check_rights(R_ADMIN))
 				return
-			var/new_name = input(usr, "Please input a new name for the station.", "What?", "") as text|null
+			var/new_name = tgui_input_text(usr, "Please input a new name for the station.", "What?", "")
 			if(!new_name)
 				return
 			set_station_name(new_name)
@@ -165,7 +165,7 @@
 		if("night_shift_set")
 			if(!check_rights(R_ADMIN))
 				return
-			var/val = alert(usr, "What do you want to set night shift to? This will override the automatic system until set to automatic again.", "Night Shift", "On", "Off", "Automatic")
+			var/val = tgui_alert(usr, "What do you want to set night shift to? This will override the automatic system until set to automatic again.", "Night Shift", list("On", "Off", "Automatic"))
 			switch(val)
 				if("Automatic")
 					if(CONFIG_GET(flag/enable_night_shifts))
@@ -257,10 +257,10 @@
 			if(!check_rights(R_ADMIN))
 				return
 			if(!SSticker.HasRoundStarted())
-				alert("The game hasn't started yet!")
+				tgui_alert(usr, "The game hasn't started yet!")
 			else if (SSticker.mode)
-				alert("The game mode is [SSticker.mode.name]")
-			else alert("For some reason there's a SSticker, but not a game mode")
+				tgui_alert(usr, "The game mode is [SSticker.mode.name]")
+			else tgui_alert(usr, "For some reason there's a SSticker, but not a game mode")
 		if("manifest")
 			if(!check_rights(R_ADMIN))
 				return
@@ -303,7 +303,7 @@
 		if("allspecies")
 			if(!check_rights(R_FUN))
 				return
-			var/result = input(usr, "Please choose a new species","Species") as null|anything in GLOB.species_list
+			var/result = tgui_input_list(usr, "Please choose a new species", "Species", GLOB.species_list)
 			if(result)
 				SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("Mass Species Change", "[result]"))
 				log_admin("[key_name(usr)] turned all humans into [result]", 1)
@@ -346,7 +346,7 @@
 			if(!check_rights(R_FUN))
 				return
 			if(!SSticker.HasRoundStarted())
-				alert("The game hasn't started yet!")
+				tgui_alert(usr, "The game hasn't started yet!")
 				return
 			var/objective = stripped_input(usr, "Enter an objective")
 			if(!objective)
@@ -374,7 +374,7 @@
 				return
 			SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("Bomb Cap"))
 
-			var/newBombCap = input(usr,"What would you like the new bomb cap to be. (entered as the light damage range (the 3rd number in common (1,2,3) notation)) Must be above 4)", "New Bomb Cap", GLOB.MAX_EX_LIGHT_RANGE) as num|null
+			var/newBombCap = tgui_input_number(usr, "What would you like the new bomb cap to be. (entered as the light damage range (the 3rd number in common (1,2,3) notation)) Must be above 4)", "New Bomb Cap", GLOB.MAX_EX_LIGHT_RANGE)
 			if (!CONFIG_SET(number/bombcap, newBombCap))
 				return
 
@@ -392,11 +392,11 @@
 		if("anime")
 			if(!check_rights(R_FUN))
 				return
-			var/animetype = alert("Would you like to have the clothes be changed?",,"Yes","No","Cancel")
+			var/animetype = tgui_alert(usr, "Would you like to have the clothes be changed?", null, list("Yes", "No", "Cancel"))
 
 			var/droptype
 			if(animetype =="Yes")
-				droptype = alert("Make the uniforms Nodrop?",,"Yes","No","Cancel")
+				droptype = tgui_alert(usr, "Make the uniforms Nodrop?", null, list("Yes", "No", "Cancel"))
 
 			if(animetype == "Cancel" || droptype == "Cancel")
 				return
@@ -444,13 +444,13 @@
 			if(!check_rights(R_FUN))
 				return
 			SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("Virus Outbreak"))
-			switch(alert("Do you want this to be a random disease or do you have something in mind?",,"Make Your Own","Random","Choose"))
+			switch(tgui_alert(usr, "Do you want this to be a random disease or do you have something in mind?", null, list("Make Your Own", "Random", "Choose")))
 				if("Make Your Own")
 					AdminCreateVirus(usr.client)
 				if("Random")
 					E = new /datum/round_event/disease_outbreak()
 				if("Choose")
-					var/virus = input("Choose the virus to spread", "BIOHAZARD") as null|anything in typesof(/datum/disease)
+					var/virus = tgui_input_list(usr, "Choose the virus to spread", "BIOHAZARD", typesof(/datum/disease))
 					E = new /datum/round_event/disease_outbreak{}()
 					var/datum/round_event/disease_outbreak/DO = E
 					DO.virus_type = virus
@@ -493,7 +493,7 @@
 				return
 			SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("Summon Guns"))
 			var/survivor_probability = 0
-			switch(alert("Do you want this to create survivors antagonists?",,"No Antags","Some Antags","All Antags!"))
+			switch(tgui_alert(usr, "Do you want this to create survivors antagonists?", null, list("No Antags", "Some Antags", "All Antags!")))
 				if("Some Antags")
 					survivor_probability = 25
 				if("All Antags!")
@@ -506,7 +506,7 @@
 				return
 			SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("Summon Magic"))
 			var/survivor_probability = 0
-			switch(alert("Do you want this to create survivors antagonists?",,"No Antags","Some Antags","All Antags!"))
+			switch(tgui_alert(usr, "Do you want this to create survivors antagonists?", null, list("No Antags", "Some Antags", "All Antags!")))
 				if("Some Antags")
 					survivor_probability = 25
 				if("All Antags!")
@@ -518,12 +518,12 @@
 			if(!check_rights(R_FUN))
 				return
 			if(!SSevents.wizardmode)
-				if(alert("Do you want to toggle summon events on?",,"Yes","No") == "Yes")
+				if(tgui_alert(usr, "Do you want to toggle summon events on?", null, list("Yes", "No")) == "Yes")
 					summonevents()
 					SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("Summon Events", "Activate"))
 
 			else
-				switch(alert("What would you like to do?",,"Intensify Summon Events","Turn Off Summon Events","Nothing"))
+				switch(tgui_alert(usr, "What would you like to do?", null, list("Intensify Summon Events", "Turn Off Summon Events", "Nothing")))
 					if("Intensify Summon Events")
 						summonevents()
 						SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("Summon Events", "Intensify"))
@@ -675,7 +675,7 @@
 	if(E)
 		E.processing = FALSE
 		if(E.announceWhen>0)
-			if(alert(usr, "Would you like to alert the crew?", "Alert", "Yes", "No") == "No")
+			if(tgui_alert(usr, "Would you like to alert the crew?", "Alert", list("Yes", "No")) == "No")
 				E.announceWhen = -1
 		E.processing = TRUE
 	if (usr)

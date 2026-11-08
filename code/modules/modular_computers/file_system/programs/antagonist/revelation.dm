@@ -52,7 +52,7 @@
 			activate()
 		if("PRG_obfuscate")
 			var/mob/living/user = usr
-			var/newname = sanitize(input(user, "Enter new program name: "))
+			var/newname = sanitize(tgui_input_text(user, "Enter new program name: ", allow_cancel = FALSE))
 			if(!newname)
 				return
 			filedesc = newname

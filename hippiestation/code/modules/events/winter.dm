@@ -19,13 +19,13 @@ GLOBAL_LIST_INIT(winter_blacklisted_tiles, typecacheof(list(/turf/open/floor/eng
 	var/first_time = TRUE
 	if(GLOB.winter_starttemp != T20C)
 		first_time = FALSE
-		if(alert("It appears winter has been ran previously. It stopped at [GLOB.winter_starttemp * (9/5) - 459.67] Fahrenheit. Keep this temperature?",,"Yes","No") == "No")
+		if(tgui_alert(usr, "It appears winter has been ran previously. It stopped at [GLOB.winter_starttemp * (9/5) - 459.67] Fahrenheit. Keep this temperature?", null, list("Yes", "No")) == "No")
 			GLOB.winter_starttemp = T20C
-	if(alert("Are you SURE you want to begin winter? This will cause station-wide effects!",,"Yes","No") == "No")
+	if(tgui_alert(usr, "Are you SURE you want to begin winter? This will cause station-wide effects!", null, list("Yes", "No")) == "No")
 		return
 	GLOB.winter = TRUE
 	GLOB.winter_starttime = world.time
-	if(alert("Announce winter to the station?",,"Yes","No") == "Yes")
+	if(tgui_alert(usr, "Announce winter to the station?", null, list("Yes", "No")) == "Yes")
 		priority_announce("The Central Command Space Weather Service has detected a space winter storm headed your way.\nExpect extremely low temperatures, and higher coffee prices.", "Space Weather Alert")
 	if(first_time)
 		for(var/obj/machinery/vending/V in GLOB.machines)
@@ -41,7 +41,7 @@ GLOBAL_LIST_INIT(winter_blacklisted_tiles, typecacheof(list(/turf/open/floor/eng
 	if(!GLOB.winter)	
 		to_chat(usr, "<span class='notice'>Winter isn't active.</span>")
 		return
-	if(alert("Are you SURE you want to stop winter?",,"Yes","No") == "No")
+	if(tgui_alert(usr, "Are you SURE you want to stop winter?", null, list("Yes", "No")) == "No")
 		return
 	GLOB.winter = FALSE
 	message_admins("[key_name_admin(usr)] has stopped winter.")

@@ -80,7 +80,7 @@
 	if(!isturf(loc) && loc != card)
 		to_chat(src, "<span class='boldwarning'>You can not change your holochassis composite while not on the ground or in your card!</span>")
 		return FALSE
-	var/choice = input(src, "What would you like to use for your holochassis composite?") as null|anything in possible_chassis
+	var/choice = tgui_input_list(src, "What would you like to use for your holochassis composite?", null, possible_chassis)
 	if(!choice)
 		return FALSE
 	chassis = choice

@@ -18,12 +18,12 @@
 	for(var/player_ckey in SSbans.left_this_round)
 		if(!GLOB.directory[player_ckey])
 			keys["[note_key_of(player_ckey)] (left)"] = player_ckey
-	var/picked = input(src, "Whose profile? Online and left this round; or type a key with Other.", "Player Profile") as null|anything in (sortList(keys) + "Other...")
+	var/picked = tgui_input_list(src, "Whose profile? Online and left this round; or type a key with Other.", "Player Profile", (sortList(keys) + "Other..."))
 	if(!picked)
 		return
 	var/player_ckey = keys[picked]
 	if(picked == "Other...")
-		player_ckey = ckey(input(src, "Key", "Player Profile") as null|text)
+		player_ckey = ckey(tgui_input_text(src, "Key", "Player Profile"))
 	if(player_ckey)
 		open_player_profile(player_ckey)
 

@@ -36,7 +36,7 @@ GLOBAL_LIST_EMPTY(scp294_reagents)
 		return
 
 	var/product = null
-	var/input_reagent = (input("Enter the name of any liquid") as text)
+	var/input_reagent = (tgui_input_text(usr, "Enter the name of any liquid", allow_cancel = FALSE))
 	product = find_reagent(input_reagent)
 
 	if(product)

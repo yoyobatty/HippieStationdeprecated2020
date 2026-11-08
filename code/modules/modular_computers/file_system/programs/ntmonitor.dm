@@ -37,7 +37,7 @@
 			var/mob/user = usr
 			if(!user)
 				return 1
-			var/response = alert(user, "Really disable NTNet wireless? If your computer is connected wirelessly you won't be able to turn it back on! This will affect all connected wireless devices.", "NTNet shutdown", "Yes", "No")
+			var/response = tgui_alert(user, "Really disable NTNet wireless? If your computer is connected wirelessly you won't be able to turn it back on! This will affect all connected wireless devices.", "NTNet shutdown", list("Yes", "No"))
 			if(response == "Yes")
 				SSnetworks.station_network.setting_disabled = 1
 			return 1
@@ -48,7 +48,7 @@
 		if("updatemaxlogs")
 			. = 1
 			var/mob/user = usr
-			var/logcount = text2num(input(user,"Enter amount of logs to keep in memory ([MIN_NTNET_LOGS]-[MAX_NTNET_LOGS]):"))
+			var/logcount = text2num(tgui_input_text(user, "Enter amount of logs to keep in memory ([MIN_NTNET_LOGS]-[MAX_NTNET_LOGS]):", allow_cancel = FALSE))
 			if(SSnetworks.station_network)
 				SSnetworks.station_network.update_max_log_count(logcount)
 		if("toggle_function")

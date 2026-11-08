@@ -154,7 +154,7 @@
 				empty_tiles()
 
 		if("linemode")
-			var/setdir = input("Select construction direction:") as null|anything in list("north","east","south","west","disable")
+			var/setdir = tgui_input_list(usr, "Select construction direction:", null, list("north","east","south","west","disable"))
 			switch(setdir)
 				if("north")
 					targetdirection = 1

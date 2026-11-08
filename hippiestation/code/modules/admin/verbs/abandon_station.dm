@@ -16,14 +16,14 @@
 	if(!check_rights(R_FUN))
 		return
 
-	var/choice = input(src, "How bad should it look?", "Abandon Station") as null|anything in list("Light", "Moderate", "Heavy")
+	var/choice = tgui_input_list(src, "How bad should it look?", "Abandon Station", list("Light", "Moderate", "Heavy"))
 	if(!choice)
 		return
 	var/intensity = (choice == "Light") ? 1 : (choice == "Moderate") ? 2 : 3
-	var/sabotage = alert(src, "Also wreck infrastructure? (break lights, APCs, consoles, vendors, interior windows; force open/bolt, weld or break some airlocks)", "Abandon Station", "Yes", "No", "Cancel")
+	var/sabotage = tgui_alert(src, "Also wreck infrastructure? (break lights, APCs, consoles, vendors, interior windows; force open/bolt, weld or break some airlocks)", "Abandon Station", list("Yes", "No", "Cancel"))
 	if(!sabotage || sabotage == "Cancel")
 		return
-	if(alert(src, "This will trash the whole station ([choice][sabotage == "Yes" ? ", with infrastructure damage" : ""]). It can't be undone. Continue?", "Abandon Station", "Yes", "No") != "Yes")
+	if(tgui_alert(src, "This will trash the whole station ([choice][sabotage == "Yes" ? ", with infrastructure damage" : ""]). It can't be undone. Continue?", "Abandon Station", list("Yes", "No")) != "Yes")
 		return
 
 	var/wreck = (sabotage == "Yes")

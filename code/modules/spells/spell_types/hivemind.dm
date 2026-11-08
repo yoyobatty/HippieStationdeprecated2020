@@ -33,7 +33,7 @@
 		if(range)
 			possible_targets &= view_or_range(range, user, selection_type)
 
-	var/mob/living/carbon/human/H = input("Choose the target for the spell.", "Targeting") as null|mob in possible_targets
+	var/mob/living/carbon/human/H = tgui_input_list(usr, "Choose the target for the spell.", "Targeting", tgui_list_of_type(possible_targets, /mob))
 	if(!H)
 		revert_cast()
 		return

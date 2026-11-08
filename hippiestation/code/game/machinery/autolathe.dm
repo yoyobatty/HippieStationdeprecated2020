@@ -16,7 +16,7 @@
 	if(!user.client) // nobody to ask, and alert() answers its first button for them: kept
 		return TRUE
 	var/what = materials.describe_materials(O.materials)
-	if(alert(user, "Melt down [O] for [what]?", name, "Melt it down", "Keep it") != "Melt it down")
+	if(tgui_alert(user, "Melt down [O] for [what]?", name, list("Melt it down", "Keep it")) != "Melt it down")
 		return TRUE
 	if(QDELETED(O) || QDELETED(src) || user.get_active_held_item() != O || !user.canUseTopic(src, BE_CLOSE))
 		return TRUE

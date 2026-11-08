@@ -76,7 +76,7 @@
 				to_chat(usr, "This can only be done to instances of type /mob/living/carbon/monkey")
 				return
 
-			if(alert("Confirm mob type change?",,"Transform","Cancel") != "Transform")
+			if(tgui_alert(usr, "Confirm mob type change?", null, list("Transform", "Cancel")) != "Transform")
 				return
 			if(!Mo)
 				to_chat(usr, "Mob doesn't exist anymore")
@@ -93,7 +93,7 @@
 
 			var/Text = href_list["adjustDamage"]
 
-			var/amount =  input("Deal how much damage to mob? (Negative values here heal)","Adjust [Text]loss",0) as num|null
+			var/amount =  tgui_input_number(usr, "Deal how much damage to mob? (Negative values here heal)", "Adjust [Text]loss", 0)
 
 			if (isnull(amount))
 				return

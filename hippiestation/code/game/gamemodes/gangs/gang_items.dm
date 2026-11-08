@@ -406,7 +406,7 @@
 	if(!(usrarea.type in gang.territories|gang.new_territories))
 		to_chat(user, "<span class='warning'>This device can only be spawned in territory controlled by your gang!</span>")
 		return FALSE
-	var/confirm_final = alert(user, "Your gang can only place ONE gateway, make sure it is in a well-secured location.", "Are you ready to place the gateway?", "This location is secure", "I should wait...")
+	var/confirm_final = tgui_alert(user, "Your gang can only place ONE gateway, make sure it is in a well-secured location.", "Are you ready to place the gateway?", list("This location is secure", "I should wait..."))
 	if(confirm_final == "I should wait...")
 		return FALSE
 	return ..()
@@ -661,7 +661,7 @@
 			I.plane = ABOVE_LIGHTING_PLANE
 			c_images += I
 			user.client.images += I
-		if(alert(user,"Are you sure you wish to place the dominator here?\nThere needs to be [DOM_REQUIRED_TURFS - open.len] more open tiles!","Confirm","Ready","Later") != "Ready")
+		if(tgui_alert(user, "Are you sure you wish to place the dominator here?\nThere needs to be [DOM_REQUIRED_TURFS - open.len] more open tiles!", "Confirm", list("Ready", "Later")) != "Ready")
 			for(var/image/I in c_images)
 				user.client.images -= I
 				qdel(I)

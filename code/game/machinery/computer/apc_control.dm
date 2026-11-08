@@ -146,7 +146,7 @@
 		result_filters["Name"] = new_filter
 	if(href_list["above_filter"])
 		playsound(src, 'sound/machines/terminal_prompt.ogg', 50, 0)
-		var/new_filter = input(usr, "Enter a percentage from 1-100 to sort by (greater than).", name) as null|num
+		var/new_filter = tgui_input_number(usr, "Enter a percentage from 1-100 to sort by (greater than).", name)
 		if(!src || !usr || !usr.canUseTopic(src, !issilicon(usr)) || stat || QDELETED(src))
 			return
 		log_activity("changed greater than charge filter to \"[new_filter]\"")
@@ -156,7 +156,7 @@
 		result_filters["Charge Above"] = new_filter
 	if(href_list["below_filter"])
 		playsound(src, 'sound/machines/terminal_prompt.ogg', 50, 0)
-		var/new_filter = input(usr, "Enter a percentage from 1-100 to sort by (lesser than).", name) as null|num
+		var/new_filter = tgui_input_number(usr, "Enter a percentage from 1-100 to sort by (lesser than).", name)
 		if(!src || !usr || !usr.canUseTopic(src, !issilicon(usr)) || stat || QDELETED(src))
 			return
 		log_activity("changed lesser than charge filter to \"[new_filter]\"")

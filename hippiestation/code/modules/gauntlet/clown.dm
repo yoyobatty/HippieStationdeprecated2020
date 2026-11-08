@@ -74,7 +74,7 @@
 	charge_max = 0
 
 /obj/effect/proc_holder/spell/self/infinity/party_popper/cast(list/targets, mob/user)
-	var/prompt = alert("Are you sure you'd like to pop? There's no way to be revived!", "Confirm", "Yes", "No")
+	var/prompt = tgui_alert(usr, "Are you sure you'd like to pop? There's no way to be revived!", "Confirm", list("Yes", "No"))
 	if(prompt != "Yes")
 		revert_cast()
 		return

@@ -319,7 +319,7 @@
 
 /obj/item/voodoo/attack_self(mob/user)
 	if(!target && possible.len)
-		target = input(user, "Select your victim!", "Voodoo") as null|anything in possible
+		target = tgui_input_list(user, "Select your victim!", "Voodoo", possible)
 		return
 
 	if(user.zone_selected == BODY_ZONE_CHEST)
@@ -334,7 +334,7 @@
 	if(target && cooldown < world.time)
 		switch(user.zone_selected)
 			if(BODY_ZONE_PRECISE_MOUTH)
-				var/wgw =  sanitize(input(user, "What would you like the victim to say", "Voodoo", null)  as text)
+				var/wgw =  sanitize(tgui_input_text(user, "What would you like the victim to say", "Voodoo", allow_cancel = FALSE))
 				target.say(wgw, forced = "voodoo doll")
 				log_game("[key_name(user)] made [key_name(target)] say [wgw] with a voodoo doll.")
 			if(BODY_ZONE_PRECISE_EYES)

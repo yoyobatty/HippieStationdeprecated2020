@@ -72,7 +72,7 @@
 		revert_cast()
 		to_chat(G, "<span class='notice'>You don't have anyone to track!</span>")
 		return
-	var/mob/living/carbon/human/prey = input(G, "Select your prey!", "All-Seeing Eyes") as null|anything in P.can_track
+	var/mob/living/carbon/human/prey = tgui_input_list(G, "Select your prey!", "All-Seeing Eyes", P.can_track)
 	if(!prey)
 		revert_cast()
 		to_chat(G, "<span class='notice'>You didn't select anyone to track!</span>")

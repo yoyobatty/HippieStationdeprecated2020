@@ -8,7 +8,7 @@
 		return
 
 	var/turf/T = get_turf(usr)
-	target = input("Any specific target in mind? Please note only live, non cluwned, human targets are valid.", "Target", target) as null|anything in GLOB.player_list
+	target = tgui_input_list(usr, "Any specific target in mind? Please note only live, non cluwned, human targets are valid.", "Target", GLOB.player_list, target)
 	if(target && ishuman(target))
 		var/mob/living/carbon/human/H = target
 		var/mob/living/simple_animal/hostile/floor_cluwne/FC = new /mob/living/simple_animal/hostile/floor_cluwne(T)

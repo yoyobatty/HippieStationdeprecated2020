@@ -219,7 +219,7 @@
 	if(potential_targets.len == 1)
 		lunch = potential_targets[1]
 	else
-		lunch = input(M, "Choose a human to devour.", "Lunch") as null|anything in potential_targets
+		lunch = tgui_input_list(M, "Choose a human to devour.", "Lunch", potential_targets)
 	if(!lunch && !ishuman(lunch))
 		return 0
 	M.devouring = TRUE

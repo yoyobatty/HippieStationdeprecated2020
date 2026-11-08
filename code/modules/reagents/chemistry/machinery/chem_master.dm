@@ -219,9 +219,7 @@
 		var/to_container = params["to"]
 		// Custom amount
 		if (amount == -1)
-			amount = text2num(input(
-				"Enter the amount you want to transfer:",
-				name, ""))
+			amount = text2num(tgui_input_text(usr, "Enter the amount you want to transfer:", name, "", allow_cancel = FALSE))
 		if (amount == null || amount <= 0)
 			return FALSE
 		if (to_container == "buffer")
@@ -251,9 +249,7 @@
 		// Get amount of items
 		var/amount = text2num(params["amount"])
 		if(amount == null)
-			amount = text2num(input(usr,
-				"Max 10. Buffer content will be split evenly.",
-				"How many to make?", 1))
+			amount = text2num(tgui_input_text(usr, "Max 10. Buffer content will be split evenly.", "How many to make?", 1, allow_cancel = FALSE))
 		amount = clamp(round(amount), 0, 10)
 		if (amount <= 0)
 			return FALSE
@@ -276,10 +272,7 @@
 		if(vol_each_text == "auto")
 			vol_each = vol_each_max
 		if(vol_each == null)
-			vol_each = text2num(input(usr,
-				"Maximum [vol_each_max] units per item.",
-				"How many units to fill?",
-				vol_each_max))
+			vol_each = text2num(tgui_input_text(usr, "Maximum [vol_each_max] units per item.", "How many units to fill?", vol_each_max, allow_cancel = FALSE))
 		vol_each = clamp(vol_each, 0, vol_each_max)
 		if(vol_each <= 0)
 			return FALSE

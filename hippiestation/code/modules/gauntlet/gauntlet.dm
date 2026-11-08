@@ -484,7 +484,7 @@ GLOBAL_VAR_INIT(telescroll_time, 0)
 	if(!istype(user))
 		return
 	if(!locked_on)
-		var/prompt = alert("Would you like to truly wear the Badmin Gauntlet? You will be unable to remove it!", "Confirm", "Yes", "No")
+		var/prompt = tgui_alert(usr, "Would you like to truly wear the Badmin Gauntlet? You will be unable to remove it!", "Confirm", list("Yes", "No"))
 		if (prompt == "Yes")
 			if(locked_on)
 				return
@@ -1021,7 +1021,7 @@ GLOBAL_VAR_INIT(telescroll_time, 0)
 	var/obj/item/badmin_gauntlet/IG = locate() in user
 	if(!IG || !istype(IG))
 		return
-	var/prompt = alert("Are you REALLY sure you'd like to erase half of all life in the universe?", "SNAP?", "YES!", "No")
+	var/prompt = tgui_alert(usr, "Are you REALLY sure you'd like to erase half of all life in the universe?", "SNAP?", list("YES!", "No"))
 	if(prompt == "YES!" && !QDELETED(src))
 		IG.spells -= src
 		IG.DoTheSnap(user)
@@ -1040,7 +1040,7 @@ GLOBAL_VAR_INIT(telescroll_time, 0)
 		return
 	var/datum/status_effect/agent_pinpointer/gauntlet/G = attached_effect
 	if(G && istype(G))
-		var/prompt = input(L, "Choose the Badmin Stone to track.", "Track Stone") as null|anything in GLOB.badmin_stones
+		var/prompt = tgui_input_list(L, "Choose the Badmin Stone to track.", "Track Stone", GLOB.badmin_stones)
 		if(prompt)
 			G.stone_target = prompt
 			G.scan_for_target()

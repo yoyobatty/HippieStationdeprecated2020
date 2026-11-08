@@ -126,7 +126,7 @@
 
 /datum/antagonist/ninja/admin_add(datum/mind/new_owner,mob/admin)
 	var/adj
-	switch(input("What kind of ninja?", "Ninja") as null|anything in list("Random","Syndicate","Nanotrasen","No objectives"))
+	switch(tgui_input_list(usr, "What kind of ninja?", "Ninja", list("Random","Syndicate","Nanotrasen","No objectives")))
 		if("Random")
 			helping_station = pick(TRUE,FALSE)
 			adj = ""

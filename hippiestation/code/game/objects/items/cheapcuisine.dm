@@ -34,7 +34,7 @@
 
 /obj/item/cheapcuisine/attack_self(mob/user)
 	if(!used)
-		var/choice = input(user, "What would you like to dispense?", "Carbonhell's Can of Cheap Cuisine") as null|anything in possibleFood
+		var/choice = tgui_input_list(user, "What would you like to dispense?", "Carbonhell's Can of Cheap Cuisine", possibleFood)
 		if(used)
 			return FALSE
 		else

@@ -17,15 +17,15 @@
 	if (item == "upgrade_machines")
 		if(!check_rights(R_FUN))
 			return
-		if(alert("Upgrade every machine, APC, SMES, mech and cyborg on the station to the best parts and cells?", "Upgrade Station", "Yes", "No") != "Yes")
+		if(tgui_alert(usr, "Upgrade every machine, APC, SMES, mech and cyborg on the station to the best parts and cells?", "Upgrade Station", list("Yes", "No")) != "Yes")
 			return
 		UpgradeAllMachinesSecret()
 	if (item == "plasma_flood")
 		if(!check_rights(R_FUN))
 			return
-		if(alert("Flood every pressurised area of the station with plasma?", "Plasma Flood", "Yes", "No") != "Yes")
+		if(tgui_alert(usr, "Flood every pressurised area of the station with plasma?", "Plasma Flood", list("Yes", "No")) != "Yes")
 			return
-		var/moles = input("Moles of plasma to add to every tile. A normal tile holds about [round(MOLES_CELLSTANDARD)] moles of air in total.", "Plasma Flood", 20) as null|num
+		var/moles = tgui_input_number(usr, "Moles of plasma to add to every tile. A normal tile holds about [round(MOLES_CELLSTANDARD)] moles of air in total.", "Plasma Flood", 20)
 		if(isnull(moles) || moles <= 0)
 			return
 		PlasmaFloodSecret(clamp(moles, 1, 200))

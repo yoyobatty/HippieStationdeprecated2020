@@ -444,7 +444,7 @@ GLOBAL_LIST_INIT(captains_id_required_tools, list(
 	if(!bots.len)
 		to_chat(usr, "<span class='warning'>No bot crew members exist.</span>")
 		return
-	var/picked = input(usr, "Pick a bot", "Assign Goal") as null|anything in bots
+	var/picked = tgui_input_list(usr, "Pick a bot", "Assign Goal", bots)
 	if(!picked)
 		return
 	var/mob/living/carbon/human/H = bots[picked]

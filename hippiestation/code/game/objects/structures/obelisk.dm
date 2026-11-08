@@ -28,9 +28,9 @@
 		return
 	var/choice
 	if(book)
-		choice = alert(user,"You stare deep into the obelisk and see a glimpse of the true power...",,"Magical inscripture","'p^ce","Nevermind")
+		choice = tgui_alert(user, "You stare deep into the obelisk and see a glimpse of the true power...", null, list("Magical inscripture", "'p^ce", "Nevermind"))
 	else
-		choice = alert(user,"You stare deep into the obelisk and see a glimpse of the true power...",,"Magical inscripture","Nevermind")
+		choice = tgui_alert(user, "You stare deep into the obelisk and see a glimpse of the true power...", null, list("Magical inscripture", "Nevermind"))
 	var/list/pickedtype = list()
 	switch(choice)
 		if("Magical inscripture")
@@ -91,9 +91,9 @@
 		return
 	var/choice
 	if(book)
-		choice = alert(user,"You stare deep into the obelisk and see a glimpse of the true power...",,"Magical inscripture","W^'ar-","Nevermind")
+		choice = tgui_alert(user, "You stare deep into the obelisk and see a glimpse of the true power...", null, list("Magical inscripture", "W^'ar-", "Nevermind"))
 	else
-		choice = alert(user,"You stare deep into the obelisk and see a glimpse of the true power...",,"Magical inscripture","Nevermind")
+		choice = tgui_alert(user, "You stare deep into the obelisk and see a glimpse of the true power...", null, list("Magical inscripture", "Nevermind"))
 	var/list/pickedtype = list()
 	switch(choice)
 		if("Magical inscripture")
@@ -152,9 +152,9 @@
 		return
 	var/choice
 	if(book)
-		choice = alert(user,"You stare deep into the obelisk and see a glimpse of the true power...",,"Magical inscripture","`e`er,t'~n","Nevermind")
+		choice = tgui_alert(user, "You stare deep into the obelisk and see a glimpse of the true power...", null, list("Magical inscripture", "`e`er,t'~n", "Nevermind"))
 	else
-		choice = alert(user,"You stare deep into the obelisk and see a glimpse of the true power...",,"Magical inscripture","Nevermind")
+		choice = tgui_alert(user, "You stare deep into the obelisk and see a glimpse of the true power...", null, list("Magical inscripture", "Nevermind"))
 	var/list/pickedtype = list()
 	switch(choice)
 		if("Magical inscripture")
@@ -199,7 +199,7 @@
 
 /obj/item/inscripture/attack_self(mob/living/user)
 	if(!used)
-		var/choice = alert(user,"You begin to fold the magical inscripture... (WARNING: This is a bad idea)",,"Yes, finish folding it.",,"On second thought...")
+		var/choice = tgui_alert(user, "You begin to fold the magical inscripture... (WARNING: This is a bad idea)", null, list("Yes, finish folding it.", "On second thought..."))
 		switch(choice)
 			if("Yes, finish folding it.")
 				used = 1

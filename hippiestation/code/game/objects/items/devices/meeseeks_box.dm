@@ -23,7 +23,7 @@
 	if(meeseeks)
 		var/datum/species/meeseeks/SMS = meeseeks.dna.species
 		to_chat(user, "<span class='warning'>A Mr. Meeseeks has already left this box!</span>")
-		switch(alert(user, "Do you wish to send Mr.Meeseeks away?","Mr. Meeseeks dismissal.","Yes","No"))
+		switch(tgui_alert(user, "Do you wish to send Mr.Meeseeks away?", "Mr. Meeseeks dismissal.", list("Yes", "No")))
 			if("Yes")
 				if(get_dist(meeseeks, user) <= 7)
 					if(SMS.stage_ticks < MEESEEKS_TICKS_STAGE_THREE)

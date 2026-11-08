@@ -51,7 +51,7 @@
 	power_draw_per_use = 4
 
 /obj/item/integrated_circuit/input/numberpad/ask_for_input(mob/user)
-	var/new_input = input(user, "Enter a number, please.",displayed_name) as null|num
+	var/new_input = tgui_input_number(user, "Enter a number, please.", displayed_name)
 	if(isnum(new_input) && user.IsAdvancedToolUser())
 		set_pin_data(IC_OUTPUT, 1, new_input)
 		push_data()
@@ -1430,7 +1430,7 @@
 		var/I = get_pin_data(IC_INPUT, k)
 		if(istext(I))
 			selection.Add(I)
-	var/selected = input(user,"Choose input.","Selection") in selection
+	var/selected = tgui_input_list(user, "Choose input.", "Selection", selection, allow_cancel = FALSE)
 	if(!selected)
 		return
 	set_pin_data(IC_OUTPUT, 1, selected)

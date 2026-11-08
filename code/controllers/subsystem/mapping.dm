@@ -416,14 +416,14 @@ GLOBAL_LIST_EMPTY(the_station_areas)
 
 
 	if(!GLOB.the_gateway)
-		if(alert("There's no home gateway on the station. You sure you want to continue ?", "Uh oh", "Yes", "No") != "Yes")
+		if(tgui_alert(usr, "There's no home gateway on the station. You sure you want to continue ?", "Uh oh", list("Yes", "No")) != "Yes")
 			return
 
 	var/list/possible_options = GLOB.potentialRandomZlevels + "Custom"
 	var/away_name
 	var/datum/space_level/away_level
 
-	var/answer = input("What kind ? ","Away") as null|anything in possible_options
+	var/answer = tgui_input_list(usr, "What kind ? ", "Away", possible_options)
 	switch(answer)
 		if("Custom")
 			var/mapfile = input("Pick file:", "File") as null|file

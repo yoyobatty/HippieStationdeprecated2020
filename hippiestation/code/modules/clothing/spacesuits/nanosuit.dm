@@ -895,7 +895,7 @@
 		to_chat(user, "<span class='warning'>Error: Interfaces offline</span>")
 		return
 	if(!hacked)
-		var/choice = alert(user, "Warning: This will DESTROY your emag, are you sure you want to continue?", "Warning", "Yes, continue", "No, abort")
+		var/choice = tgui_alert(user, "Warning: This will DESTROY your emag, are you sure you want to continue?", "Warning", list("Yes, continue", "No, abort"))
 		if(hacked || choice == "No, abort")
 			return
 		else
@@ -1332,7 +1332,7 @@
 		if(popup) //the warning's already up, and a second click isn't a yes
 			return FALSE
 		popup = TRUE
-		var/response = alert(imp_in, "Are you sure you want to activate your [name]? This will cause you to disintergrate!", "[name] Confirmation", "Yes", "No")
+		var/response = tgui_alert(imp_in, "Are you sure you want to activate your [name]? This will cause you to disintergrate!", "[name] Confirmation", list("Yes", "No"))
 		popup = FALSE
 		if(response == "No")
 			return FALSE

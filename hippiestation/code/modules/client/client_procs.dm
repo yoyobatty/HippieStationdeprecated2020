@@ -58,7 +58,7 @@
 		to_chat(usr, "<span='warning'>Text-to-Speech is not enabled!</span>")
 		return
 
-	var/input = input(usr, "Please enter a message to send to the server", "Text to Speech", "")
+	var/input = tgui_input_text(usr, "Please enter a message to send to the server", "Text to Speech", "", allow_cancel = FALSE)
 	if(input)
 		var/datum/tts/T = new /datum/tts()
 		T.say(src, input, is_global=TRUE)

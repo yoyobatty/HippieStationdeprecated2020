@@ -48,7 +48,7 @@
 	if(!is_servant_of_ratvar(user) || !can_access_clockwork_power(src, hierophant_cost) || !anchored)
 		to_chat(user, "<span class='warning'>You place your hand on [src], but it doesn't react.</span>")
 		return
-	var/choice = alert(user,"You place your hand on [src]...",,"Hierophant Broadcast","Spatial Gateway","Cancel")
+	var/choice = tgui_alert(user, "You place your hand on [src]...", null, list("Hierophant Broadcast", "Spatial Gateway", "Cancel"))
 	switch(choice)
 		if("Hierophant Broadcast")
 			if(active)

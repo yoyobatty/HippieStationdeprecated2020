@@ -1066,23 +1066,23 @@ GLOBAL_LIST_INIT(bot_botany_ancestors, list(
 	if(!length(bots))
 		to_chat(usr, "<span class='warning'>No living botanist bots - spawn one with Spawn Bot Crew Member (Botanist) first.</span>")
 		return
-	var/choice = input(usr, "Which botanist?", "Bot Botany Project") as null|anything in bots
+	var/choice = tgui_input_list(usr, "Which botanist?", "Bot Botany Project", bots)
 	var/datum/bot_brain/brain = bots[choice]
 	if(!brain)
 		return
 	var/list/recipes = list("Random" = null)
 	for(var/datum/botany_recipe/R as anything in GLOB.bot_botany_recipes)
 		recipes[R.name] = R
-	var/recipe_name = input(usr, "Which project?", "Bot Botany Project") as null|anything in recipes
+	var/recipe_name = tgui_input_list(usr, "Which project?", "Bot Botany Project", recipes)
 	if(!recipe_name || QDELETED(brain))
 		return
 	var/datum/botany_recipe/recipe = recipes[recipe_name] || pick(GLOB.bot_botany_recipes)
-	if(alert(usr, "Hand them a large beaker of 60u unstable mutagen? (Otherwise they mutate the slow way, with Left 4 Zed - about a 1 in 8 chance per harvest.)", "Bot Botany Project", "Yes", "No") == "Yes")
+	if(tgui_alert(usr, "Hand them a large beaker of 60u unstable mutagen? (Otherwise they mutate the slow way, with Left 4 Zed - about a 1 in 8 chance per harvest.)", "Bot Botany Project", list("Yes", "No")) == "Yes")
 		var/obj/item/reagent_containers/glass/beaker/large/B = new(get_turf(brain.owner))
 		B.reagents.add_reagent(/datum/reagent/toxin/mutagen, 60)
 		if(!brain.owner.equip_to_slot_if_possible(B, ITEM_SLOT_BACKPACK, FALSE, TRUE))
 			brain.owner.put_in_hands(B)
-	if(alert(usr, "Speed up the Hydroponics trays tenfold (a growth cycle every 2s instead of 20s)? Debug only - affects every tray in the bay.", "Bot Botany Project", "Yes", "No") == "Yes")
+	if(tgui_alert(usr, "Speed up the Hydroponics trays tenfold (a growth cycle every 2s instead of 20s)? Debug only - affects every tray in the bay.", "Bot Botany Project", list("Yes", "No")) == "Yes")
 		for(var/obj/machinery/hydroponics/H as anything in bot_instances_of(/obj/machinery/hydroponics))
 			if(istype(get_area(H), /area/hydroponics) && !istype(get_area(H), /area/hydroponics/garden))
 				H.cycledelay = 20

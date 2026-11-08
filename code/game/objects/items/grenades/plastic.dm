@@ -96,7 +96,7 @@
 	if(nadeassembly)
 		nadeassembly.attack_self(user)
 		return
-	var/newtime = input(usr, "Please set the timer.", "Timer", 10) as num
+	var/newtime = tgui_input_number(usr, "Please set the timer.", "Timer", 10, allow_cancel = FALSE)
 	if(user.get_active_held_item() == src)
 		newtime = clamp(newtime, 10, 60000)
 		det_time = newtime

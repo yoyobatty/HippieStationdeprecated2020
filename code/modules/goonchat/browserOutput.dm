@@ -57,7 +57,7 @@ GLOBAL_LIST_EMPTY(chat_histories)
 		broken = TRUE
 		message_admins("Couldn't start chat for [key_name_admin(owner)]!")
 		. = FALSE
-		alert(owner.mob, "Updated chat window does not exist. If you are using a custom skin file please allow the game to update.")
+		tgui_alert(owner.mob, "Updated chat window does not exist. If you are using a custom skin file please allow the game to update.")
 		return
 
 	if(winget(owner, "browseroutput", "is-visible") == "true") //Already setup

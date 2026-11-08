@@ -185,10 +185,10 @@
 		game_status = MINESWEEPER_GAME_PLAYING
 		reset_board = TRUE
 		difficulty = "Custom"
-		rows = text2num(input(usr, "How many rows do you want? (Maximum of 30 allowed)", "Minesweeper Rows"))+1	//+1 as dm arrays start at 1
-		columns = text2num(input(usr, "How many columns do you want? (Maximum of 50 allowed)", "Minesweeper Squares"))+1	//+1 as dm arrays start at 1
+		rows = text2num(tgui_input_text(usr, "How many rows do you want? (Maximum of 30 allowed)", "Minesweeper Rows", allow_cancel = FALSE))+1	//+1 as dm arrays start at 1
+		columns = text2num(tgui_input_text(usr, "How many columns do you want? (Maximum of 50 allowed)", "Minesweeper Squares", allow_cancel = FALSE))+1	//+1 as dm arrays start at 1
 		var/grid_area = (rows-1)*(columns-1)
-		mine_limit = text2num(input(usr, "How many mines do you want? (Maximum of [round(grid_area*0.85)] allowed)", "Minesweeper Mines"))
+		mine_limit = text2num(tgui_input_text(usr, "How many mines do you want? (Maximum of [round(grid_area*0.85)] allowed)", "Minesweeper Mines", allow_cancel = FALSE))
 		custom_generation()
 	if(href_list["Flag"])
 		playsound(loc, 'hippiestation/sound/arcade/minesweeper_boardpress.ogg', 50, 0, extrarange = -3, falloff = 10)
@@ -383,28 +383,28 @@
 /obj/machinery/computer/arcade/minesweeper/proc/custom_generation()
 	playsound(loc, 'hippiestation/sound/arcade/minesweeper_menuselect.ogg', 50, 0, extrarange = -3, falloff = 10)	//Entered into the menu so ping sound
 	if(rows < 4)
-		rows = text2num(input(usr, "You must put at least 4 rows! Pick a higher amount of rows", "Minesweeper Rows"))+1	//+1 as dm arrays start at 1
+		rows = text2num(tgui_input_text(usr, "You must put at least 4 rows! Pick a higher amount of rows", "Minesweeper Rows", allow_cancel = FALSE))+1	//+1 as dm arrays start at 1
 		playsound(loc, 'hippiestation/sound/arcade/minesweeper_menuselect.ogg', 50, 0, extrarange = -3, falloff = 10)
 		custom_generation()
 	if(columns < 4)
-		columns = text2num(input(usr, "You must put at least 4 columns! Pick a higher amount of columns", "Minesweeper Columns"))+1	//+1 as dm arrays start at 1
+		columns = text2num(tgui_input_text(usr, "You must put at least 4 columns! Pick a higher amount of columns", "Minesweeper Columns", allow_cancel = FALSE))+1	//+1 as dm arrays start at 1
 		playsound(loc, 'hippiestation/sound/arcade/minesweeper_menuselect.ogg', 50, 0, extrarange = -3, falloff = 10)
 		custom_generation()
 	if(rows > 31)
-		rows = text2num(input(usr, "A maximum of 30 rows are allowed! Pick a lower amount of rows", "Minesweeper Rows"))+1	//+1 as dm arrays start at 1
+		rows = text2num(tgui_input_text(usr, "A maximum of 30 rows are allowed! Pick a lower amount of rows", "Minesweeper Rows", allow_cancel = FALSE))+1	//+1 as dm arrays start at 1
 		playsound(loc, 'hippiestation/sound/arcade/minesweeper_menuselect.ogg', 50, 0, extrarange = -3, falloff = 10)
 		custom_generation()
 	if(columns > 51)
-		columns = text2num(input(usr, "A maximum of 50 columns are allowed! Pick a lower amount of columns", "Minesweeper Columns"))+1//+1 as dm arrays start at 1
+		columns = text2num(tgui_input_text(usr, "A maximum of 50 columns are allowed! Pick a lower amount of columns", "Minesweeper Columns", allow_cancel = FALSE))+1//+1 as dm arrays start at 1
 		playsound(loc, 'hippiestation/sound/arcade/minesweeper_menuselect.ogg', 50, 0, extrarange = -3, falloff = 10)
 		custom_generation()
 	var/grid_area = (rows-1)*(columns-1)	//Need a live update of this, won't update if we use the area var in topic
 	if(mine_limit > round(grid_area*0.85))
-		mine_limit = text2num(input(usr, "You can only put in [round(grid_area*0.85)] mines on this board! Pick a lower amount of mines to insert", "Minesweeper Mines"))
+		mine_limit = text2num(tgui_input_text(usr, "You can only put in [round(grid_area*0.85)] mines on this board! Pick a lower amount of mines to insert", "Minesweeper Mines", allow_cancel = FALSE))
 		playsound(loc, 'hippiestation/sound/arcade/minesweeper_menuselect.ogg', 50, 0, extrarange = -3, falloff = 10)
 		custom_generation()
 	if(mine_limit < round(grid_area/6.4))	//Same mine density as intermediate difficulty
-		mine_limit = text2num(input(usr, "You must at least put [round(grid_area/6.4)] mines on this board! Pick a higher amount of mines to insert", "Minesweeper Mines"))
+		mine_limit = text2num(tgui_input_text(usr, "You must at least put [round(grid_area/6.4)] mines on this board! Pick a higher amount of mines to insert", "Minesweeper Mines", allow_cancel = FALSE))
 		playsound(loc, 'hippiestation/sound/arcade/minesweeper_menuselect.ogg', 50, 0, extrarange = -3, falloff = 10)
 		custom_generation()
 

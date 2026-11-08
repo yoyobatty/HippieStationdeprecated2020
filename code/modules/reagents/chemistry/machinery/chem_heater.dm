@@ -127,7 +127,7 @@
 			var/target = params["target"]
 			var/adjust = text2num(params["adjust"])
 			if(target == "input")
-				target = input("New target temperature:", name, target_temperature) as num|null
+				target = tgui_input_number(usr, "New target temperature:", name, target_temperature)
 				if(!isnull(target) && !..())
 					. = TRUE
 			else if(adjust)

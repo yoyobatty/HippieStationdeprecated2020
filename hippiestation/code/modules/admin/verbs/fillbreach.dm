@@ -2,7 +2,7 @@
 	set name = "Clean Air"
 	set category = "Special Verbs"
 	set desc = "Cleans the air in a radius of harmful gasses like plasma and N2O"
-	var/size = input("How big?", "Input") in list(5, 10, 20, 50, 100, "Cancel")
+	var/size = tgui_input_list(usr, "How big?", "Input", list(5, 10, 20, 50, 100, "Cancel"), allow_cancel = FALSE)
 	if(size == "Cancel")
 		return 0
 	cleanair(size)
@@ -13,7 +13,7 @@
 	set name = "Fill Hull Breach"
 	set category = "Special Verbs"
 	set desc = "Spawns plating over space breachs"
-	var/size = input("How big?", "Input") in list(5, 10, "Cancel")
+	var/size = tgui_input_list(usr, "How big?", "Input", list(5, 10, "Cancel"), allow_cancel = FALSE)
 	if(size == "Cancel")
 		return 0
 	for(var/turf/open/space/T in range(size))

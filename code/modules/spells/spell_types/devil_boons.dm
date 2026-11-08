@@ -43,7 +43,7 @@
 	for(var/mob/C in targets)
 		if(!C.client)
 			continue
-		C.client.change_view(input("Select view range:", "Range", 4) in ranges)
+		C.client.change_view(tgui_input_list(usr, "Select view range:", "Range", ranges, 4, allow_cancel = FALSE))
 
 /obj/effect/proc_holder/spell/targeted/summon_friend
 	name = "Summon Friend"

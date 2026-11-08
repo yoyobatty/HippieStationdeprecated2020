@@ -6,7 +6,7 @@
 /obj/item/robot_module/proc/pick_skin(mob/living/silicon/robot/R, list/skins)
 	if(!R.client && R.bot_silicon)
 		return pick(skins)
-	return input(R, "Select an icon!", "Robot Icon", null) as null|anything in skins
+	return tgui_input_list(R, "Select an icon!", "Robot Icon", skins)
 
 /obj/item/robot_module/standard/be_transformed_to(obj/item/robot_module/old_module)
 	var/mob/living/silicon/robot/R = loc

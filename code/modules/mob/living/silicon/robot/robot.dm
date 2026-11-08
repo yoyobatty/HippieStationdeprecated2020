@@ -221,7 +221,7 @@
 	if(!CONFIG_GET(flag/disable_secborg))
 		modulelist["Security"] = /obj/item/robot_module/security
 
-	var/input_module = input("Please, select a module!", "Robot", null, null) as null|anything in modulelist
+	var/input_module = tgui_input_list(usr, "Please, select a module!", "Robot", modulelist)
 	if(!input_module || module.type != /obj/item/robot_module)
 		return
 
@@ -563,7 +563,7 @@
 	if(stat == DEAD)
 		return //won't work if dead
 	if(locked)
-		switch(alert("You cannot lock your cover again, are you sure?\n      (You can still ask for a human to lock it)", "Unlock Own Cover", "Yes", "No"))
+		switch(tgui_alert(usr, "You cannot lock your cover again, are you sure?\n      (You can still ask for a human to lock it)", "Unlock Own Cover", list("Yes", "No")))
 			if("Yes")
 				locked = FALSE
 				update_icons()

@@ -104,7 +104,7 @@
 						return
 					id = I
 		if("set_goal")
-			var/new_goal = input("Set the amount of points:", "Points", id.goal) as num|null
+			var/new_goal = tgui_input_number(usr, "Set the amount of points:", "Points", id.goal)
 			if(!isnum(new_goal))
 				return
 			if(!new_goal)

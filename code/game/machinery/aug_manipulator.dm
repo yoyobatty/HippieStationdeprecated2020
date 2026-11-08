@@ -107,7 +107,7 @@
 	add_fingerprint(user)
 
 	if(storedpart)
-		var/augstyle = input(user, "Select style.", "Augment Custom Fitting") as null|anything in style_list_icons
+		var/augstyle = tgui_input_list(user, "Select style.", "Augment Custom Fitting", style_list_icons)
 		if(!augstyle)
 			return
 		if(!in_range(src, user))

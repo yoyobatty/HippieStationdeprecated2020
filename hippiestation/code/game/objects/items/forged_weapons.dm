@@ -303,7 +303,7 @@
 /obj/item/ammo_casing/forged/attack_self(mob/user)
 	..()
 	if(!caliber)
-		caliber = input("Shape the bullet to which caliber? (You may only do this once!)", "Transform", caliber) as null|anything in calibers
+		caliber = tgui_input_list(usr, "Shape the bullet to which caliber? (You may only do this once!)", "Transform", calibers, caliber)
 		if(BB)
 			var/obj/item/projectile/bullet/forged/FF = BB
 			FF.reagent_type = reagent_type

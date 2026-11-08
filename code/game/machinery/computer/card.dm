@@ -395,7 +395,7 @@ GLOBAL_VAR_INIT(time_last_changed_position, 0)
 			if (authenticated == 2)
 				var/t1 = href_list["assign_target"]
 				if(t1 == "Custom")
-					var/newJob = reject_bad_text(input("Enter a custom job assignment.", "Assignment", modify ? modify.assignment : "Unassigned"), MAX_NAME_LEN)
+					var/newJob = reject_bad_text(tgui_input_text(usr, "Enter a custom job assignment.", "Assignment", modify ? modify.assignment : "Unassigned", allow_cancel = FALSE), MAX_NAME_LEN)
 					if(newJob)
 						t1 = newJob
 

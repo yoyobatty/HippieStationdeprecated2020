@@ -609,7 +609,7 @@ HIPPIE END*/
 			for(var/i in C.network)
 				cameralist[i] = i
 	var/old_network = network
-	network = input(U, "Which network would you like to view?") as null|anything in cameralist
+	network = tgui_input_list(U, "Which network would you like to view?", null, cameralist)
 
 	if(!U.eyeobj)
 		U.view_core()
@@ -641,7 +641,7 @@ HIPPIE END*/
 	if(incapacitated())
 		return
 	var/list/ai_emotions = list("Very Happy", "Happy", "Neutral", "Unsure", "Confused", "Sad", "BSOD", "Blank", "Problems?", "Awesome", "Facepalm", "Thinking", "Friend Computer", "Dorfy", "Blue Glow", "Red Glow")
-	var/emote = input("Please, select a status!", "AI Status", null, null) in ai_emotions
+	var/emote = tgui_input_list(usr, "Please, select a status!", "AI Status", ai_emotions, allow_cancel = FALSE)
 	for (var/each in GLOB.ai_status_displays) //change status of displays
 		var/obj/machinery/status_display/ai/M = each
 		M.emotion = emote
@@ -665,7 +665,7 @@ HIPPIE END*/
 	if(incapacitated())
 		return
 	var/input
-	switch(alert("Would you like to select a hologram based on a crew member, an animal, or switch to a unique avatar?",,"Crew Member","Unique","Animal"))
+	switch(tgui_alert(usr, "Would you like to select a hologram based on a crew member, an animal, or switch to a unique avatar?", null, list("Crew Member", "Unique", "Animal")))
 		if("Crew Member")
 			var/list/personnel_list = list()
 
@@ -673,7 +673,7 @@ HIPPIE END*/
 				personnel_list["[t.fields["name"]]: [t.fields["rank"]]"] = t.fields["image"]//Pull names, rank, and image.
 
 			if(personnel_list.len)
-				input = input("Select a crew member:") as null|anything in personnel_list
+				input = tgui_input_list(usr, "Select a crew member:", null, personnel_list)
 				var/icon/character_icon = personnel_list[input]
 				var/datum/record_photo_pending/pending = character_icon // hippie -- the records leave the photo to be taken when it's wanted (datacore.dm)
 				if(istype(pending))
@@ -682,7 +682,7 @@ HIPPIE END*/
 					qdel(holo_icon)//Clear old icon so we're not storing it in memory.
 					holo_icon = getHologramIcon(icon(character_icon))
 			else
-				alert("No suitable records found. Aborting.")
+				tgui_alert(usr, "No suitable records found. Aborting.")
 
 		if("Animal")
 			var/list/icon_list = list(
@@ -701,7 +701,7 @@ HIPPIE END*/
 			"spider" = 'icons/mob/animal.dmi'
 			)
 
-			input = input("Please select a hologram:") as null|anything in icon_list
+			input = tgui_input_list(usr, "Please select a hologram:", null, icon_list)
 			if(input)
 				qdel(holo_icon)
 				switch(input)
@@ -721,7 +721,7 @@ HIPPIE END*/
 				"horror" = 'icons/mob/ai.dmi'
 				)
 
-			input = input("Please select a hologram:") as null|anything in icon_list
+			input = tgui_input_list(usr, "Please select a hologram:", null, icon_list)
 			if(input)
 				qdel(holo_icon)
 				switch(input)
@@ -975,7 +975,7 @@ HIPPIE END*/
 		to_chat(src, "No usable AI shell beacons detected.")
 
 	if(!target || !(target in possible)) //If the AI is looking for a new shell, or its pre-selected shell is no longer valid
-		target = input(src, "Which body to control?") as null|anything in possible
+		target = tgui_input_list(src, "Which body to control?", null, possible)
 
 	if (!target || target.stat == DEAD || target.deployed || !(!target.connected_ai ||(target.connected_ai == src)))
 		return

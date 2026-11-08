@@ -209,7 +209,7 @@
 	var/C = input(owner, "Select Color", "Select color", "#ffffff") as color|null
 	if(!C || QDELETED(src) || QDELETED(user) || QDELETED(owner) || owner != user)
 		return
-	var/range = input(user, "Enter range (0 - [max_light_beam_distance])", "Range Select", 0) as null|num
+	var/range = tgui_input_number(user, "Enter range (0 - [max_light_beam_distance])", "Range Select", 0)
 
 	set_distance(clamp(range, 0, max_light_beam_distance))
 	assume_rgb(C)

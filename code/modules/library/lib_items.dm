@@ -120,7 +120,7 @@
 	if(!istype(user))
 		return
 	if(contents.len)
-		var/obj/item/book/choice = input(user, "Which book would you like to remove from the shelf?") as null|obj in contents
+		var/obj/item/book/choice = tgui_input_list(user, "Which book would you like to remove from the shelf?", null, tgui_list_of_type(contents, /obj))
 		if(choice)
 			if(!(user.mobility_flags & MOBILITY_USE) || user.stat || user.restrained() || !in_range(loc, user))
 				return
@@ -222,7 +222,7 @@
 		if(!literate)
 			to_chat(user, "<span class='notice'>You scribble illegibly on the cover of [src]!</span>")
 			return
-		var/choice = input("What would you like to change?") in list("Title", "Contents", "Author", "Cancel")
+		var/choice = tgui_input_list(usr, "What would you like to change?", null, list("Title", "Contents", "Author", "Cancel"), allow_cancel = FALSE)
 		if(!user.canUseTopic(src, BE_CLOSE, literate))
 			return
 		switch(choice)

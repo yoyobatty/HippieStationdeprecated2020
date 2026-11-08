@@ -218,7 +218,7 @@
 				scrubbing ^= path
 				. = TRUE
 		if("vent")
-			if(alert(usr, "Vent everything in [src]'s tank where you stand?", name, "Vent", "Cancel") != "Vent")
+			if(tgui_alert(usr, "Vent everything in [src]'s tank where you stand?", name, list("Vent", "Cancel")) != "Vent")
 				return
 			if(!usr.canUseTopic(src, BE_CLOSE))
 				return

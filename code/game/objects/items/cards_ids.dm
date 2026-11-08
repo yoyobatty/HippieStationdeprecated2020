@@ -189,7 +189,7 @@
 	if(!alt_click_can_use_id(user))
 		return
 	if(!registered_account)
-		var/new_bank_id = input(user, "Enter your account ID number.", "Account Reclamation", 111111) as num
+		var/new_bank_id = tgui_input_number(user, "Enter your account ID number.", "Account Reclamation", 111111, allow_cancel = FALSE)
 		if(!alt_click_can_use_id(user))
 			return
 		if(!new_bank_id || new_bank_id < 111111 || new_bank_id > 999999)
@@ -209,7 +209,7 @@
 		registered_account.bank_card_talk("<span class='warning'>ERROR: UNABLE TO LOGIN DUE TO SCHEDULED MAINTENANCE. MAINTENANCE IS SCHEDULED TO COMPLETE IN [(registered_account.withdrawDelay - world.time)/10] SECONDS.</span>", TRUE)
 		return
 
-	var/amount_to_remove =  FLOOR(input(user, "How much do you want to withdraw? Current Balance: [registered_account.account_balance]", "Withdraw Funds", 5) as num, 1)
+	var/amount_to_remove =  FLOOR(tgui_input_number(user, "How much do you want to withdraw? Current Balance: [registered_account.account_balance]", "Withdraw Funds", 5, allow_cancel = FALSE), 1)
 
 	if(!amount_to_remove || amount_to_remove < 0)
 		to_chat(user, "<span class='warning'>You're pretty sure that's not how money works.</span>")
@@ -310,11 +310,11 @@ update_label("John Doe", "Clowny")
 				anyone = TRUE
 			else
 				return ..()
-		if(alert(user, "Action", "Agent ID", "Show", "Forge") == "Forge")
+		if(tgui_alert(user, "Action", "Agent ID", list("Show", "Forge")) == "Forge")
 			var/t = stripped_input(user, "What name would you like to put on this card?", "Agent card name", registered_name ? registered_name : (ishuman(user) ? user.real_name : user.name), MAX_NAME_LEN)
 			if(!t || t == "Unknown" || t == "floor" || t == "wall" || t == "r-wall") //Same as mob/dead/new_player/prefrences.dm
 				if (t)
-					alert("Invalid name.")
+					tgui_alert(usr, "Invalid name.")
 				return
 			registered_name = t
 

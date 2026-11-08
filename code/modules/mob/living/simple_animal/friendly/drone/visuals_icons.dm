@@ -105,11 +105,11 @@
 
 /mob/living/simple_animal/drone/proc/pickVisualAppearence()
 	picked = FALSE
-	var/appearence = input("Choose your appearance!", "Appearance", "Maintenance Drone") in list("Maintenance Drone", "Repair Drone", "Scout Drone")
+	var/appearence = tgui_input_list(usr, "Choose your appearance!", "Appearance", list("Maintenance Drone", "Repair Drone", "Scout Drone"), "Maintenance Drone", allow_cancel = FALSE)
 	switch(appearence)
 		if("Maintenance Drone")
 			visualAppearence = MAINTDRONE
-			colour = input("Choose your colour!", "Colour", "grey") in list("grey", "blue", "red", "green", "pink", "orange")
+			colour = tgui_input_list(usr, "Choose your colour!", "Colour", list("grey", "blue", "red", "green", "pink", "orange"), "grey", allow_cancel = FALSE)
 			icon_state = "[visualAppearence]_[colour]"
 			icon_living = "[visualAppearence]_[colour]"
 			icon_dead = "[visualAppearence]_dead"

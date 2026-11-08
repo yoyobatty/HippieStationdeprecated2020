@@ -110,7 +110,7 @@
 
 	if(storedpda)
 		var/obj/item/pda/P
-		P = input(user, "Select your color!", "PDA Painting") as null|anything in colorlist
+		P = tgui_input_list(user, "Select your color!", "PDA Painting", colorlist)
 		if(!P)
 			return
 		if(!in_range(src, user))

@@ -367,7 +367,7 @@
 			var/target = params["target"]
 			var/adjust = text2num(params["adjust"])
 			if(target == "input")
-				target = input("New input target (0-[input_level_max]):", name, input_level) as num|null
+				target = tgui_input_number(usr, "New input target (0-[input_level_max]):", name, input_level)
 				if(!isnull(target) && !..())
 					. = TRUE
 			else if(target == "min")
@@ -389,7 +389,7 @@
 			var/target = params["target"]
 			var/adjust = text2num(params["adjust"])
 			if(target == "input")
-				target = input("New output target (0-[output_level_max]):", name, output_level) as num|null
+				target = tgui_input_number(usr, "New output target (0-[output_level_max]):", name, output_level)
 				if(!isnull(target) && !..())
 					. = TRUE
 			else if(target == "min")

@@ -233,7 +233,7 @@
 			if(mode == BOT_IDLE || mode == BOT_DELIVER)
 				start_home()
 		if("destination")
-			var/new_dest = input(user, "Enter Destination:", name, destination) as null|anything in GLOB.deliverybeacontags
+			var/new_dest = tgui_input_list(user, "Enter Destination:", name, GLOB.deliverybeacontags, destination)
 			if(new_dest)
 				set_destination(new_dest)
 		if("setid")
@@ -241,7 +241,7 @@
 			if(new_id)
 				set_id(new_id)
 		if("sethome")
-			var/new_home = input(user, "Enter Home:", name, home_destination) as null|anything in GLOB.deliverybeacontags
+			var/new_home = tgui_input_list(user, "Enter Home:", name, GLOB.deliverybeacontags, home_destination)
 			if(new_home)
 				home_destination = new_home
 		if("unload")

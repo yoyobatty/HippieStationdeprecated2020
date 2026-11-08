@@ -179,7 +179,7 @@
 
 		if("manual_x")
 			if(!current_pad.teleporting)
-				var/new_x = input("Set the X offset (Horizontal)","X Offset", current_pad.x_offset) as null|num
+				var/new_x = tgui_input_number(usr, "Set the X offset (Horizontal)", "X Offset", current_pad.x_offset)
 				if(!isnull(new_x))
 					new_x = clamp(new_x, current_pad.range * -1, current_pad.range)
 				. = TRUE
@@ -189,7 +189,7 @@
 
 		if("manual_y")
 			if(!current_pad.teleporting)
-				var/new_y = input("Set the Y offset (Vertical)","Y Offset", current_pad.y_offset) as null|num
+				var/new_y = tgui_input_number(usr, "Set the Y offset (Vertical)", "Y Offset", current_pad.y_offset)
 				if(!isnull(new_y))
 					new_y = clamp(new_y, current_pad.range * -1, current_pad.range)
 				. = TRUE
@@ -206,7 +206,7 @@
 
 		if("remove")
 			. = TRUE
-			if(usr && alert(usr, "Are you sure?", "Unlink Launchpad", "I'm Sure", "Abort") != "Abort")
+			if(usr && tgui_alert(usr, "Are you sure?", "Unlink Launchpad", list("I'm Sure", "Abort")) != "Abort")
 				launchpads -= current_pad
 				current_pad = null
 

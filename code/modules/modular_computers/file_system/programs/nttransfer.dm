@@ -95,7 +95,7 @@
 			if(!remote || !remote.provided_file)
 				return
 			if(remote.server_password)
-				var/pass = reject_bad_text(input(usr, "Code 401 Unauthorized. Please enter password:", "Password required"))
+				var/pass = reject_bad_text(tgui_input_text(usr, "Code 401 Unauthorized. Please enter password:", "Password required", allow_cancel = FALSE))
 				if(pass != remote.server_password)
 					error = "Incorrect Password"
 					return
@@ -113,7 +113,7 @@
 			provided_file = null
 			return 1
 		if("PRG_setpassword")
-			var/pass = reject_bad_text(input(usr, "Enter new server password. Leave blank to cancel, input 'none' to disable password.", "Server security", "none"))
+			var/pass = reject_bad_text(tgui_input_text(usr, "Enter new server password. Leave blank to cancel, input 'none' to disable password.", "Server security", "none", allow_cancel = FALSE))
 			if(!pass)
 				return
 			if(pass == "none")

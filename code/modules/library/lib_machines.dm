@@ -77,21 +77,21 @@
 		return
 
 	if(href_list["settitle"])
-		var/newtitle = input("Enter a title to search for:") as text|null
+		var/newtitle = tgui_input_text(usr, "Enter a title to search for:")
 		if(newtitle)
 			title = sanitize(newtitle)
 		else
 			title = null
 		title = sanitizeSQL(title)
 	if(href_list["setcategory"])
-		var/newcategory = input("Choose a category to search for:") in list("Any", "Fiction", "Non-Fiction", "Adult", "Reference", "Religion")
+		var/newcategory = tgui_input_list(usr, "Choose a category to search for:", null, list("Any", "Fiction", "Non-Fiction", "Adult", "Reference", "Religion"), allow_cancel = FALSE)
 		if(newcategory)
 			category = sanitize(newcategory)
 		else
 			category = "Any"
 		category = sanitizeSQL(category)
 	if(href_list["setauthor"])
-		var/newauthor = input("Enter an author to search for:") as text|null
+		var/newauthor = tgui_input_text(usr, "Enter an author to search for:")
 		if(newauthor)
 			author = sanitize(newauthor)
 		else
@@ -406,16 +406,16 @@ GLOBAL_LIST(cachedbooks) // List of our cached book datums
 		if(newauthor)
 			scanner.cache.author = newauthor
 	if(href_list["setcategory"])
-		var/newcategory = input("Choose a category: ") in list("Fiction", "Non-Fiction", "Adult", "Reference", "Religion","Technical")
+		var/newcategory = tgui_input_list(usr, "Choose a category: ", null, list("Fiction", "Non-Fiction", "Adult", "Reference", "Religion","Technical"), allow_cancel = FALSE)
 		if(newcategory)
 			upload_category = newcategory
 	if(href_list["upload"])
 		if(scanner)
 			if(scanner.cache)
-				var/choice = input("Are you certain you wish to upload this title to the Archive?") in list("Confirm", "Abort")
+				var/choice = tgui_input_list(usr, "Are you certain you wish to upload this title to the Archive?", null, list("Confirm", "Abort"), allow_cancel = FALSE)
 				if(choice == "Confirm")
 					if (!SSdbcore.Connect())
-						alert("Connection to Archive has been severed. Aborting.")
+						tgui_alert(usr, "Connection to Archive has been severed. Aborting.")
 					else
 
 						var/sqltitle = sanitizeSQL(scanner.cache.name)
@@ -427,15 +427,15 @@ GLOBAL_LIST(cachedbooks) // List of our cached book datums
 						var/datum/DBQuery/query_library_upload = SSdbcore.NewQuery("INSERT INTO [format_table_name("library")] (author, title, content, category, ckey, datetime, round_id_created) VALUES ('[sqlauthor]', '[sqltitle]', '[sqlcontent]', '[sqlcategory]', '[sqlckey]', Now(), '[GLOB.round_id]')")
 						if(!query_library_upload.Execute())
 							qdel(query_library_upload)
-							alert("Database error encountered uploading to Archive")
+							tgui_alert(usr, "Database error encountered uploading to Archive")
 							return
 						else
 							log_game(msg)
 							qdel(query_library_upload)
-							alert("Upload Complete. Uploaded title will be unavailable for printing for a short period")
+							tgui_alert(usr, "Upload Complete. Uploaded title will be unavailable for printing for a short period")
 	if(href_list["newspost"])
 		if(!GLOB.news_network)
-			alert("No news network found on station. Aborting.")
+			tgui_alert(usr, "No news network found on station. Aborting.")
 		var/channelexists = 0
 		for(var/datum/newscaster/feed_channel/FC in GLOB.news_network.network_channels)
 			if(FC.channel_name == "Nanotrasen Book Club")
@@ -444,12 +444,12 @@ GLOBAL_LIST(cachedbooks) // List of our cached book datums
 		if(!channelexists)
 			GLOB.news_network.CreateFeedChannel("Nanotrasen Book Club", "Library", null)
 		GLOB.news_network.SubmitArticle(scanner.cache.dat, "[scanner.cache.name]", "Nanotrasen Book Club", null)
-		alert("Upload complete. Your uploaded title is now available on station newscasters.")
+		tgui_alert(usr, "Upload complete. Your uploaded title is now available on station newscasters.")
 	if(href_list["orderbyid"])
 		if(cooldown > world.time)
 			say("Printer unavailable. Please allow a short time before attempting to print.")
 		else
-			var/orderid = input("Enter your order:") as num|null
+			var/orderid = tgui_input_number(usr, "Enter your order:")
 			if(orderid)
 				if(isnum(orderid) && ISINTEGER(orderid))
 					href_list["targetid"] = num2text(orderid)
@@ -460,7 +460,7 @@ GLOBAL_LIST(cachedbooks) // List of our cached book datums
 		if(!isnum(sqlid) || !ISINTEGER(sqlid))
 			return
 		if (!SSdbcore.Connect())
-			alert("Connection to Archive has been severed. Aborting.")
+			tgui_alert(usr, "Connection to Archive has been severed. Aborting.")
 			return
 		if(cooldown > world.time)
 			say("Printer unavailable. Please allow a short time before attempting to print.")

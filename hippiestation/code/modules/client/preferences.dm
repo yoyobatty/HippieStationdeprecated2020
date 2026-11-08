@@ -34,12 +34,12 @@
 			switch(href_list["preference"])
 				if("ipc_screen")
 					var/new_ipc_screen
-					new_ipc_screen = input(user, "Choose your character's screen:", "Character Preference") as null|anything in GLOB.ipc_screens_list
+					new_ipc_screen = tgui_input_list(user, "Choose your character's screen:", "Character Preference", GLOB.ipc_screens_list)
 					if(new_ipc_screen)
 						features["ipc_screen"] = new_ipc_screen
 				if("voice")
 					var/list/voices = ((gender == FEMALE) ? splittext(CONFIG_GET(string/tts_voice_female), ",") : splittext(CONFIG_GET(string/tts_voice_male), ","))
-					var/new_voice = input(user, "Choose your character's TTS voice:", "Character Preference") as null|anything in voices
+					var/new_voice = tgui_input_list(user, "Choose your character's TTS voice:", "Character Preference", voices)
 					if(new_voice)
 						voice = new_voice
 		else

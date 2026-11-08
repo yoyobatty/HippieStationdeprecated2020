@@ -167,7 +167,7 @@
 			// The window sends how many; anything else still asks
 			var/amount = round(text2num(params["amount"]))
 			if(isnull(params["amount"]))
-				amount = input("How many?", "How many would you like to forge?", 1) as null|num
+				amount = tgui_input_number(usr, "How many?", "How many would you like to forge?", 1)
 			if(amount <= 0)
 				return FALSE
 
