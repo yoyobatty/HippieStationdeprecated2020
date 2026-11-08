@@ -120,7 +120,8 @@
 
 /obj/machinery/atmospherics/components/pipeline_expansion(datum/pipeline/reference)
 	if(reference)
-		return list(nodes[parents.Find(reference)])
+		var/index = parents.Find(reference)
+		return index ? list(nodes[index]) : list() // hippie -- not one of ours any more (deleted mid-rebuild)
 	return ..()
 
 /obj/machinery/atmospherics/components/setPipenet(datum/pipeline/reference, obj/machinery/atmospherics/A)

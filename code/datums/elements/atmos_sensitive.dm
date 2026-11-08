@@ -32,7 +32,8 @@
 		microchipped_lad.UnregisterSignal(oldloc, COMSIG_TURF_EXPOSE)
 	if(isopenturf(microchipped_lad.loc))
 		var/turf/open/new_spot = microchipped_lad.loc
-		microchipped_lad.RegisterSignal(new_spot, COMSIG_TURF_EXPOSE, TYPE_PROC_REF(/atom, check_atmos_process))
+		// hippie -- override: this runs async, so two quick moves both land here with the same current turf ("turf_expose overridden" in every round with spiderlings, wormholes or the holiday events)
+		microchipped_lad.RegisterSignal(new_spot, COMSIG_TURF_EXPOSE, TYPE_PROC_REF(/atom, check_atmos_process), TRUE)
 		microchipped_lad.check_atmos_process(null, new_spot.air, new_spot.temperature) //Make sure you're properly registered
 
 /atom/proc/check_atmos_process(datum/source, datum/gas_mixture/air, exposed_temperature)

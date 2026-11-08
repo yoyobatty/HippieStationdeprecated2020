@@ -52,6 +52,8 @@ GLOBAL_LIST_EMPTY(telecomms_list)
 			continue
 		if(amount && send_count >= amount)
 			break
+		if(!machine.loc) // hippie -- deleted while the signal went round
+			continue
 		if(z != machine.loc.z && !long_range_link && !machine.long_range_link)
 			continue
 
