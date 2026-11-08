@@ -155,6 +155,7 @@ GLOBAL_LIST_INIT(bot_service_endings, list(
 
 /datum/bot_step/paced/hold_service/do_click(datum/bot_brain/bot)
 	var/turf/spot = bot.current_goal?.target
+	bot.telemetry_last_activity = world.time //waiting for people and speaking to them is the work, not standing about (gym/bot_shift.dm)
 	// Waits for people till the minute's up, or sooner once a few are sat.
 	var/list/here = list()
 	for(var/mob/living/carbon/human/H in view(6, bot.owner))
@@ -244,6 +245,7 @@ GLOBAL_LIST_INIT(bot_service_endings, list(
 	var/obj/structure/chair/C = locate(/obj/structure/chair) in get_turf(bot.owner)
 	if(C && !C.has_buckled_mobs())
 		C.buckle_mob(bot.owner)
+	bot.hangout_until = max(bot.hangout_until, GLOB.bot_chapel_service_until) //sat on purpose (gym/bot_shift.dm)
 	bot.services_attended++
 	return TRUE
 
