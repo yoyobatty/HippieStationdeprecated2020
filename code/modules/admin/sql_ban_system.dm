@@ -33,19 +33,8 @@
 /proc/is_banned_from_with_details(player_ckey, player_ip, player_cid, role)
 	if(!player_ckey && !player_ip && !player_cid)
 		return
-	role = sanitizeSQL(role)
-	var/list/where_list = list()
-	if(player_ckey)
-		player_ckey = sanitizeSQL(player_ckey)
-		where_list += "ckey = '[player_ckey]'"
-	if(player_ip)
-		player_ip = sanitizeSQL(player_ip)
-		where_list += "ip = INET_ATON('[player_ip]')"
-	if(player_cid)
-		player_cid = sanitizeSQL(player_cid)
-		where_list += "computerid = '[player_cid]'"
-	var/where = "([where_list.Join(" OR ")])"
-	var/datum/DBQuery/query_check_ban = SSdbcore.NewQuery("SELECT id, bantime, round_id, expiration_time, TIMESTAMPDIFF(MINUTE, bantime, expiration_time), applies_to_admins, reason, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE [format_table_name("player")].ckey = [format_table_name("ban")].ckey), ckey), INET_NTOA(ip), computerid, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE [format_table_name("player")].ckey = [format_table_name("ban")].a_ckey), a_ckey) FROM [format_table_name("ban")] WHERE role = '[role]' AND [where] AND unbanned_datetime IS NULL AND (expiration_time IS NULL OR expiration_time > NOW()) ORDER BY bantime DESC")
+	var/datum/DBQuery/query_check_ban = SSdbcore.NewQuery("SELECT id, bantime, round_id, expiration_time, TIMESTAMPDIFF(MINUTE, bantime, expiration_time), applies_to_admins, reason, IFNULL((SELECT byond_key FROM [format_table_name("player")] AS p WHERE p.ckey = b.ckey), ckey), INET_NTOA(ip), computerid, IFNULL((SELECT byond_key FROM [format_table_name("player")] AS p WHERE p.ckey = b.a_ckey), a_ckey) FROM [format_table_name("ban")] AS b WHERE role = :role AND (ckey = :ckey OR ip = INET_ATON(:ip) OR computerid = :cid) AND unbanned_datetime IS NULL AND (expiration_time IS NULL OR expiration_time > NOW()) ORDER BY bantime DESC",
+		list("role" = role, "ckey" = player_ckey || null, "ip" = player_ip || null, "cid" = player_cid || null)) //a NULL never matches, so a missing one checks nothing
 	if(!query_check_ban.Execute())
 		qdel(query_check_ban)
 		return
@@ -77,7 +66,7 @@
 	var/list/bantimes = list()
 	var/db_checked = FALSE
 	if(CONFIG_GET(flag/sql_enabled) && SSdbcore.Connect())
-		var/datum/DBQuery/query_check_adminban_count = SSdbcore.NewQuery("SELECT DISTINCT bantime FROM [format_table_name("ban")] WHERE a_ckey = '[sanitizeSQL(admin_ckey)]' AND applies_to_admins = 1 AND unbanned_datetime IS NULL AND (expiration_time IS NULL OR expiration_time > NOW())")
+		var/datum/DBQuery/query_check_adminban_count = SSdbcore.NewQuery("SELECT DISTINCT bantime FROM [format_table_name("ban")] WHERE a_ckey = :ckey AND applies_to_admins = 1 AND unbanned_datetime IS NULL AND (expiration_time IS NULL OR expiration_time > NOW())", list("ckey" = admin_ckey))
 		if(!query_check_adminban_count.warn_execute())
 			qdel(query_check_adminban_count)
 			return TRUE
@@ -102,7 +91,7 @@
 	var/player_ckey = ckey(player_key)
 	var/seen = FALSE
 	if(CONFIG_GET(flag/sql_enabled) && SSdbcore.Connect())
-		var/datum/DBQuery/query_ban_get_player = SSdbcore.NewQuery("SELECT byond_key, INET_NTOA(ip), computerid FROM [format_table_name("player")] WHERE ckey = '[sanitizeSQL(player_ckey)]'")
+		var/datum/DBQuery/query_ban_get_player = SSdbcore.NewQuery("SELECT byond_key, INET_NTOA(ip), computerid FROM [format_table_name("player")] WHERE ckey = :ckey", list("ckey" = player_ckey))
 		if(!query_ban_get_player.warn_execute())
 			qdel(query_ban_get_player)
 			return
@@ -311,7 +300,7 @@
 	var/list/op = list("id" = "[ban_id]", "mirror" = text2num(mirror_edit), "old_ckey" = ckey(old_key), "old_ip" = old_ip, "old_cid" = old_cid, "amount" = duration, "unit" = duration ? interval : null, "applies_to_admins" = applies_to_admins, "reason" = reason, "ckey" = player_ckey, "key" = player_key, "ip" = player_ip, "cid" = player_cid, "edit_text" = "[usr.client.key] edited the following [jointext(changes_text, ", ")]<hr>")
 	//a mirrored edit matches on the ban time, which the copy has, unless the ban was made elsewhere after it was last refreshed
 	if(op["mirror"] && !SSbans.get(ban_id) && CONFIG_GET(flag/sql_enabled) && SSdbcore.Connect())
-		var/datum/DBQuery/query_edit_ban_get_bantime = SSdbcore.NewQuery("SELECT bantime FROM [format_table_name("ban")] WHERE id = [text2num(ban_id)]")
+		var/datum/DBQuery/query_edit_ban_get_bantime = SSdbcore.NewQuery("SELECT bantime FROM [format_table_name("ban")] WHERE id = :id", list("id" = text2num(ban_id)))
 		if(!query_edit_ban_get_bantime.warn_execute())
 			qdel(query_edit_ban_get_bantime)
 			return
@@ -352,7 +341,7 @@
 		if(!SSdbcore.Connect())
 			to_chat(usr, "<span class='danger'>Failed to establish database connection.</span>", confidential=TRUE)
 			return
-		var/datum/DBQuery/query_get_ban_edits = SSdbcore.NewQuery("SELECT edits FROM [format_table_name("ban")] WHERE id = [db_id]")
+		var/datum/DBQuery/query_get_ban_edits = SSdbcore.NewQuery("SELECT edits FROM [format_table_name("ban")] WHERE id = :id", list("id" = db_id))
 		if(!query_get_ban_edits.warn_execute())
 			qdel(query_get_ban_edits)
 			return

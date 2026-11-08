@@ -39,17 +39,19 @@
 		library_search()
 		return TRUE
 
-/// The old page's search, run once: what it found is kept for the window. The filters are kept as typed and quoted here, for the
-/// query: quoting needs the database, and gives nothing without one.
+/// The book search both library consoles run: books whose author and title have the given text in them (any case; % and _ are
+/// just characters), in the category unless it's "Any".
+/proc/library_search_query(author, title, category)
+	return SSdbcore.NewQuery("SELECT author, title, category, id FROM [format_table_name("library")] WHERE isnull(deleted) AND INSTR(author, :author) > 0 AND INSTR(title, :title) > 0 AND (:category = 'Any' OR category = :category) ORDER BY id DESC LIMIT 1000",
+		list("author" = "[author]", "title" = "[title]", "category" = category || "Any"))
+
+/// The old page's search, run once: what it found is kept for the window.
 /obj/machinery/computer/libraryconsole/proc/library_search()
 	searched = TRUE
 	search_results = null
 	if(!SSdbcore.Connect())
 		return
-	var/query = "SELECT author, title, category, id FROM [format_table_name("library")] WHERE isnull(deleted) AND author LIKE '%[sanitizeSQL(author)]%' AND title LIKE '%[sanitizeSQL(title)]%'"
-	if(category != "Any")
-		query += " AND category='[sanitizeSQL(category)]'"
-	var/datum/DBQuery/query_library_list_books = SSdbcore.NewQuery(query)
+	var/datum/DBQuery/query_library_list_books = library_search_query(author, title, category)
 	search_results = list()
 	if(query_library_list_books.Execute())
 		while(query_library_list_books.NextRow() && length(search_results) < 200)
@@ -163,12 +165,13 @@
 	if(!SSdbcore.Connect())
 		say("Connection to the Archive has been severed. Aborting.")
 		return
-	var/sqltitle = sanitizeSQL(scanner.cache.name)
-	var/sqlauthor = sanitizeSQL(scanner.cache.author || "Anonymous")
-	var/sqlcontent = sanitizeSQL(scanner.cache.dat)
-	var/sqlcategory = sanitizeSQL(upload_category)
-	var/sqlckey = sanitizeSQL(user.ckey)
-	var/datum/DBQuery/query_library_upload = SSdbcore.NewQuery("INSERT INTO [format_table_name("library")] (author, title, content, category, ckey, datetime, round_id_created) VALUES ('[sqlauthor]', '[sqltitle]', '[sqlcontent]', '[sqlcategory]', '[sqlckey]', Now(), '[GLOB.round_id]')")
+	var/datum/DBQuery/query_library_upload = SSdbcore.NewQuery("INSERT INTO [format_table_name("library")] (author, title, content, category, ckey, datetime, round_id_created) VALUES (:author, :title, :content, :category, :ckey, Now(), :round_id)", list(
+		"author" = scanner.cache.author || "Anonymous",
+		"title" = scanner.cache.name,
+		"content" = "[scanner.cache.dat]",
+		"category" = upload_category,
+		"ckey" = user.ckey || "",
+		"round_id" = text2num(GLOB.round_id) || 0))
 	if(!query_library_upload.Execute())
 		say("Database error uploading to the Archive.")
 	else

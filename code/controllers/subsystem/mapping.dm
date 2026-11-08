@@ -243,7 +243,7 @@ SUBSYSTEM_DEF(mapping)
 	LoadGroup(FailedZs, "Station", config.map_path, config.map_file, config.traits, ZTRAITS_STATION)
 
 	if(SSdbcore.Connect())
-		var/datum/DBQuery/query_round_map_name = SSdbcore.NewQuery("UPDATE [format_table_name("round")] SET map_name = '[sanitizeSQL(config.map_name)]' WHERE id = [GLOB.round_id]")
+		var/datum/DBQuery/query_round_map_name = SSdbcore.NewQuery("UPDATE [format_table_name("round")] SET map_name = :map WHERE id = :round_id", list("map" = config.map_name, "round_id" = text2num(GLOB.round_id) || 0)) // hippie -- bound parameters (rust_g)
 		query_round_map_name.Execute()
 		qdel(query_round_map_name)
 

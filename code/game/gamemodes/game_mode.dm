@@ -94,15 +94,10 @@
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(reopen_roundstart_suicide_roles)), delay)
 
 	if(SSdbcore.Connect())
-		var/sql
-		if(SSticker.mode)
-			sql += "game_mode = '[SSticker.mode]'"
-		if(GLOB.revdata.originmastercommit)
-			if(sql)
-				sql += ", "
-			sql += "commit_hash = '[GLOB.revdata.originmastercommit]'"
-		if(sql)
-			var/datum/DBQuery/query_round_game_mode = SSdbcore.NewQuery("UPDATE [format_table_name("round")] SET [sql] WHERE id = [GLOB.round_id]")
+		// hippie -- bound parameters (rust_g): a NULL one leaves its column as it was
+		if(SSticker.mode || GLOB.revdata.originmastercommit)
+			var/datum/DBQuery/query_round_game_mode = SSdbcore.NewQuery("UPDATE [format_table_name("round")] SET game_mode = IFNULL(:mode, game_mode), commit_hash = IFNULL(:commit, commit_hash) WHERE id = :round_id",
+				list("mode" = SSticker.mode ? "[SSticker.mode]" : null, "commit" = GLOB.revdata.originmastercommit || null, "round_id" = text2num(GLOB.round_id) || 0))
 			query_round_game_mode.Execute()
 			qdel(query_round_game_mode)
 	if(report)

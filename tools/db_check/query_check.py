@@ -84,37 +84,42 @@ def line_of(src, i):
 	return src.count("\n", 0, i) + 1
 
 
+def built_files():
+	"""The .dm files hippiestation.dme includes: a file taken out of the build (rewritten under hippiestation/) isn't checked."""
+	with open(os.path.join(REPO, "hippiestation.dme"), encoding="utf-8", errors="replace") as fh:
+		return [m.group(1).replace("\\", "/") for m in re.finditer(r'^#include "([^"]+\.dm)"', fh.read(), re.M)]
+
+
 def find_queries():
 	found = []
-	for root in ROOTS:
-		for dirpath, _, files in os.walk(os.path.join(REPO, root)):
-			for f in files:
-				if not f.endswith(".dm"):
+	for rel in built_files():
+		if not rel.startswith(tuple(r + "/" for r in ROOTS)):
+			continue
+		path = os.path.join(REPO, rel)
+		if not os.path.exists(path):
+			continue
+		with open(path, encoding="utf-8", errors="replace") as fh:
+			src = fh.read()
+		for m in CALL.finditer(src):
+			i = m.end()
+			line = line_of(src, m.start())
+			# skip the proc definition itself and commented-out lines
+			ls = src.rfind("\n", 0, m.start()) + 1
+			head = src[ls:m.start()]
+			if "proc/" in head or "//" in head:
+				continue
+			while src[i] in " \t":
+				i += 1
+			if src[i] == '"' or src.startswith('{"', i):
+				try:
+					parts, _ = read_dm_string(src, i)
+				except ValueError as e:
+					found.append({"file": rel, "line": line, "kind": "unparsed", "error": str(e)})
 					continue
-				path = os.path.join(dirpath, f)
-				rel = os.path.relpath(path, REPO).replace("\\", "/")
-				with open(path, encoding="utf-8", errors="replace") as fh:
-					src = fh.read()
-				for m in CALL.finditer(src):
-					i = m.end()
-					line = line_of(src, m.start())
-					# skip the proc definition itself and commented-out lines
-					ls = src.rfind("\n", 0, m.start()) + 1
-					head = src[ls:m.start()]
-					if "proc/" in head or "//" in head:
-						continue
-					while src[i] in " \t":
-						i += 1
-					if src[i] == '"' or src.startswith('{"', i):
-						try:
-							parts, _ = read_dm_string(src, i)
-						except ValueError as e:
-							found.append({"file": rel, "line": line, "kind": "unparsed", "error": str(e)})
-							continue
-						found.append({"file": rel, "line": line, "kind": "literal", "parts": parts})
-					else:
-						arg = src[i:src.find("\n", i)].strip()
-						found.append({"file": rel, "line": line, "kind": "dynamic", "arg": arg})
+				found.append({"file": rel, "line": line, "kind": "literal", "parts": parts})
+			else:
+				arg = src[i:src.find("\n", i)].strip()
+				found.append({"file": rel, "line": line, "kind": "dynamic", "arg": arg})
 	return found
 
 
@@ -129,6 +134,7 @@ def to_sql(parts, prefix):
 	out = []
 	in_quote = False
 	templated = False
+	quoted = []
 	for kind, s in parts:
 		if kind == "text":
 			# track whether we're inside a SQL '...' string, honouring \' and ''
@@ -161,10 +167,11 @@ def to_sql(parts, prefix):
 				out.append(prefix + m.group(1))
 			elif in_quote:
 				out.append("x")
+				quoted.append(s)
 			else:
 				out.append("1")
 				templated = True
-	return "".join(out), templated
+	return "".join(out), templated, quoted
 
 
 def to_pattern(parts):
@@ -250,7 +257,7 @@ def main():
 	qs = find_queries()
 	literal = [q for q in qs if q["kind"] == "literal"]
 	for q in literal:
-		q["sql"], q["templated"] = to_sql(q["parts"], a.prefix)
+		q["sql"], q["templated"], q["quoted"] = to_sql(q["parts"], a.prefix)
 		q["pattern"] = to_pattern(q["parts"])
 		del q["parts"]
 	if a.list:
@@ -274,6 +281,11 @@ def main():
 			errors[(int(m.group(1)) - 2) // 2] = m.group(2)
 	bad = 0
 	unsure = 0
+	# a value spliced into the SQL text inside quotes: values go in as :name parameters, so nothing typed is ever SQL
+	spliced = [q for q in literal if q["quoted"]]
+	for q in spliced:
+		print(f'FAIL {q["file"]}:{q["line"]}  a value in the SQL text, not a :parameter: {", ".join("[" + e + "]" for e in q["quoted"])}')
+	bad += len(spliced)
 	for n, q in enumerate(literal):
 		if n in errors:
 			q["error"] = errors[n]

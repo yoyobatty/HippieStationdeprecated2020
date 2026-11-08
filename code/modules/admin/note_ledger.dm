@@ -58,24 +58,31 @@ GENERAL_PROTECT_DATUM(/datum/note_record)
 /datum/note_record/proc/row()
 	return note_row(id, kind, targetckey, target_key || targetckey, admin_key || adminckey, text, timestamp, server, round_id, secret, severity, expire_rt ? SQLtime(expire_rt) : null, max(0, round((world.realtime - timestamp_rt) / (24 HOURS))), lasteditor_key || lasteditor, edits, TRUE)
 
-//Column = SQL, for MassInsert(). Times are counted back from NOW(), so one kept here while the database was down lands on its clock.
-/datum/note_record/proc/sql_values()
-	var/age = max(0, round((world.realtime - timestamp_rt) / 10))
-	. = list("type" = "'[sanitizeSQL(kind)]'",
-		"targetckey" = "'[sanitizeSQL(targetckey)]'",
-		"adminckey" = "'[sanitizeSQL(adminckey)]'",
-		"text" = "'[sanitizeSQL(text)]'",
-		"timestamp" = age ? "(NOW() - INTERVAL [age] SECOND)" : "NOW()",
-		"server" = server ? "'[sanitizeSQL(server)]'" : "NULL",
-		"server_ip" = "INET_ATON(IF('[world.internet_address]' LIKE '', '0', '[world.internet_address]'))",
-		"server_port" = "[world.port]",
-		"round_id" = "'[text2num(round_id) || 0]'",
-		"secret" = secret ? "1" : "0",
-		"expire_timestamp" = expire_rt ? "(NOW() + INTERVAL [max(1, round((expire_rt - world.realtime) / 10))] SECOND)" : "NULL",
-		"severity" = (severity in list("none", "minor", "medium", "high")) ? "'[severity]'" : "NULL",
-		"lasteditor" = lasteditor ? "'[sanitizeSQL(lasteditor)]'" : "NULL",
-		"edits" = edits ? "'[sanitizeSQL(edits)]'" : "NULL",
-		"deleted" = deleted ? "1" : "0")
+//Into the database's messages table. Times are counted back from NOW(), so one kept here while the database was down lands on
+//its clock; exact_timestamp (an old note brought over) keeps its own date. TRUE if it went in.
+/datum/note_record/proc/db_insert(exact_timestamp, warn = FALSE, async = TRUE)
+	var/datum/DBQuery/query_note_insert = SSdbcore.NewQuery({"INSERT INTO [format_table_name("messages")]
+		(type, targetckey, adminckey, text, timestamp, server, server_ip, server_port, round_id, secret, expire_timestamp, severity, lasteditor, edits, deleted)
+		VALUES (:kind, :targetckey, :adminckey, :text, IFNULL(:exact_timestamp, NOW() - INTERVAL :age SECOND), :server, INET_ATON(:server_ip), :server_port, :round_id, :secret,
+		IF(:expire_seconds IS NULL, NULL, NOW() + INTERVAL :expire_seconds SECOND), :severity, :lasteditor, :edits, :deleted)"}, list(
+		"kind" = "[kind]", //NOT NULL columns: "" for a missing one, as the old quoted SQL gave
+		"targetckey" = "[targetckey]",
+		"adminckey" = "[adminckey]",
+		"text" = "[text]",
+		"exact_timestamp" = exact_timestamp || null,
+		"age" = max(0, round((world.realtime - timestamp_rt) / 10)),
+		"server" = server || null,
+		"server_ip" = world.internet_address || "0",
+		"server_port" = world.port,
+		"round_id" = text2num(round_id) || 0,
+		"secret" = secret ? 1 : 0,
+		"expire_seconds" = expire_rt ? max(1, round((expire_rt - world.realtime) / 10)) : null,
+		"severity" = (severity in list("none", "minor", "medium", "high")) ? severity : null,
+		"lasteditor" = lasteditor || null,
+		"edits" = edits || null,
+		"deleted" = deleted ? 1 : 0))
+	. = warn ? query_note_insert.warn_execute(async) : query_note_insert.Execute(async)
+	qdel(query_note_insert)
 
 //One note as every reader gets it
 /proc/note_row(id, kind, target_ckey, target_key, admin_key, text, timestamp, server, round_id, secret, severity, expires, age_days, editor_key, edits, local)
@@ -181,10 +188,7 @@ SUBSYSTEM_DEF(notes)
 	R.expire_rt = expire_rt
 	R.severity = severity
 	if(use_db())
-		var/list/values = R.sql_values()
-		if(timestamp) //an old note brought over keeps its date
-			values["timestamp"] = "'[sanitizeSQL(timestamp)]'"
-		if(!SSdbcore.MassInsert(format_table_name("messages"), list(values), warn = TRUE))
+		if(!R.db_insert(timestamp, warn = TRUE)) //an old note brought over keeps its date
 			return
 		return "database"
 	R.id = "L[next_local_id++]"
@@ -197,8 +201,11 @@ SUBSYSTEM_DEF(notes)
 	var/player = format_table_name("player")
 	return "id, type, targetckey, IFNULL((SELECT byond_key FROM [player] WHERE ckey = targetckey), targetckey), IFNULL((SELECT byond_key FROM [player] WHERE ckey = adminckey), adminckey), text, timestamp, server, round_id, secret, severity, expire_timestamp, DATEDIFF(NOW(), timestamp), IFNULL((SELECT byond_key FROM [player] WHERE ckey = lasteditor), lasteditor), edits"
 
-/datum/controller/subsystem/notes/proc/db_rows(where, limit)
-	var/datum/DBQuery/query_notes = SSdbcore.NewQuery("SELECT [db_columns()] FROM [format_table_name("messages")] WHERE [where] ORDER BY timestamp DESC[limit ? " LIMIT [limit]" : ""]")
+//where: SQL with :name for its values, which are in where_args
+/datum/controller/subsystem/notes/proc/db_rows(where, list/where_args, limit)
+	var/list/arguments = where_args ? where_args.Copy() : list()
+	arguments["limit"] = limit || 100000
+	var/datum/DBQuery/query_notes = SSdbcore.NewQuery("SELECT [db_columns()] FROM [format_table_name("messages")] WHERE [where] ORDER BY timestamp DESC LIMIT :limit", arguments)
 	if(!query_notes.warn_execute())
 		qdel(query_notes)
 		return
@@ -209,10 +216,10 @@ SUBSYSTEM_DEF(notes)
 	qdel(query_notes)
 
 //Showing notes: the database's (if it answers) and the ones kept here. db_ok: set to whether the database was read.
-/datum/controller/subsystem/notes/proc/rows(where_sql, datum/callback/local_check, limit)
+/datum/controller/subsystem/notes/proc/rows(where_sql, list/where_args, datum/callback/local_check, limit)
 	. = list()
 	if(use_db())
-		var/list/found = db_rows(where_sql, limit)
+		var/list/found = db_rows(where_sql, where_args, limit)
 		if(found)
 			. += found
 	for(var/id in records)
@@ -226,14 +233,14 @@ SUBSYSTEM_DEF(notes)
 	target_ckey = ckey(target_ckey)
 	if(!target_ckey)
 		return list()
-	return rows("type <> 'memo' AND targetckey = '[sanitizeSQL(target_ckey)]' AND deleted = 0 AND (expire_timestamp > NOW() OR expire_timestamp IS NULL)", CALLBACK(src, PROC_REF(local_for), target_ckey))
+	return rows("type <> 'memo' AND targetckey = :target_ckey AND deleted = 0 AND (expire_timestamp > NOW() OR expire_timestamp IS NULL)", list("target_ckey" = target_ckey), CALLBACK(src, PROC_REF(local_for), target_ckey))
 
 /datum/controller/subsystem/notes/proc/local_for(target_ckey, datum/note_record/R)
 	return R.kind != "memo" && R.targetckey == target_ckey
 
 //Every memo, or every watchlist entry
 /datum/controller/subsystem/notes/proc/rows_of_kind(kind)
-	return rows("type = '[sanitizeSQL(kind)]' AND deleted = 0 AND (expire_timestamp > NOW() OR expire_timestamp IS NULL)", CALLBACK(src, PROC_REF(local_of_kind), kind))
+	return rows("type = :kind AND deleted = 0 AND (expire_timestamp > NOW() OR expire_timestamp IS NULL)", list("kind" = kind), CALLBACK(src, PROC_REF(local_of_kind), kind))
 
 /datum/controller/subsystem/notes/proc/local_of_kind(kind, datum/note_record/R)
 	return R.kind == kind
@@ -244,7 +251,8 @@ SUBSYSTEM_DEF(notes)
 	var/list/found = list() //ckey = list
 	if(use_db())
 		var/player = format_table_name("player")
-		var/datum/DBQuery/query_note_players = SSdbcore.NewQuery("SELECT targetckey, IFNULL((SELECT byond_key FROM [player] WHERE ckey = targetckey), targetckey), COUNT(*) FROM [format_table_name("messages")] WHERE type <> 'memo' AND deleted = 0 AND (expire_timestamp > NOW() OR expire_timestamp IS NULL)[search ? " AND targetckey LIKE '%[sanitizeSQL(search)]%'" : ""] GROUP BY targetckey ORDER BY targetckey LIMIT 500")
+		var/datum/DBQuery/query_note_players = SSdbcore.NewQuery("SELECT targetckey, IFNULL((SELECT byond_key FROM [player] WHERE ckey = targetckey), targetckey), COUNT(*) FROM [format_table_name("messages")] WHERE type <> 'memo' AND deleted = 0 AND (expire_timestamp > NOW() OR expire_timestamp IS NULL) AND (:search IS NULL OR INSTR(targetckey, :search) > 0) GROUP BY targetckey ORDER BY targetckey LIMIT 500",
+			list("search" = search || null))
 		if(query_note_players.warn_execute())
 			while(query_note_players.NextRow())
 				found[query_note_players.item[1]] = list("ckey" = query_note_players.item[1], "key" = query_note_players.item[2], "count" = text2num(query_note_players.item[3]))
@@ -268,7 +276,7 @@ SUBSYSTEM_DEF(notes)
 		return R.is_shown() ? R.row() : null
 	var/db_id = text2num(id)
 	if(db_id && use_db())
-		var/list/found = db_rows("id = [db_id] AND deleted = 0")
+		var/list/found = db_rows("id = :id AND deleted = 0", list("id" = db_id))
 		if(length(found))
 			return found[1]
 
@@ -278,7 +286,7 @@ SUBSYSTEM_DEF(notes)
 		return R.edits
 	var/db_id = text2num(id)
 	if(db_id && use_db())
-		var/datum/DBQuery/query_note_edits = SSdbcore.NewQuery("SELECT edits FROM [format_table_name("messages")] WHERE id = [db_id]")
+		var/datum/DBQuery/query_note_edits = SSdbcore.NewQuery("SELECT edits FROM [format_table_name("messages")] WHERE id = :id", list("id" = db_id))
 		if(query_note_edits.warn_execute() && query_note_edits.NextRow())
 			. = query_note_edits.item[1]
 		qdel(query_note_edits)
@@ -314,25 +322,33 @@ SUBSYSTEM_DEF(notes)
 		to_chat(usr, "<span class='danger'>That one is in the database, which can't be reached right now. Notes made since it went are kept here; changing one already in it has to wait until it's back.</span>", confidential=TRUE)
 		return FALSE
 	var/list/sets = list()
+	var/list/arguments = list("id" = db_id)
 	if(!isnull(changes["text"]))
-		sets += "text = '[sanitizeSQL(changes["text"])]'"
+		sets += "text = :text"
+		arguments["text"] = changes["text"]
 	if(!isnull(changes["severity"]))
-		sets += "severity = '[sanitizeSQL(changes["severity"])]'"
+		sets += "severity = :severity"
+		arguments["severity"] = changes["severity"]
 	if(!isnull(changes["secret"]))
-		sets += "secret = [changes["secret"] ? 1 : 0]"
+		sets += "secret = :secret"
+		arguments["secret"] = changes["secret"] ? 1 : 0
 	if(!isnull(changes["expire_seconds"]))
-		sets += "expire_timestamp = [changes["expire_seconds"] ? "NOW() + INTERVAL [round(changes["expire_seconds"])] SECOND" : "NULL"]"
+		sets += "expire_timestamp = IF(:expire_seconds > 0, NOW() + INTERVAL :expire_seconds SECOND, NULL)"
+		arguments["expire_seconds"] = round(changes["expire_seconds"])
 	if(changes["deleted"])
 		sets += "deleted = 1"
 	if(changes["kind"])
-		sets += "type = '[sanitizeSQL(changes["kind"])]'"
+		sets += "type = :kind"
+		arguments["kind"] = changes["kind"]
 	if(editor_ckey)
-		sets += "lasteditor = '[sanitizeSQL(editor_ckey)]'"
+		sets += "lasteditor = :editor"
+		arguments["editor"] = editor_ckey
 	if(edit_text)
-		sets += "edits = CONCAT(IFNULL(edits,''),'[sanitizeSQL(edit_text)]')"
+		sets += "edits = CONCAT(IFNULL(edits, ''), :edit_text)"
+		arguments["edit_text"] = edit_text
 	if(!sets.len)
 		return FALSE
-	var/datum/DBQuery/query_note_change = SSdbcore.NewQuery("UPDATE [format_table_name("messages")] SET [sets.Join(", ")] WHERE id = [db_id] AND deleted = 0")
+	var/datum/DBQuery/query_note_change = SSdbcore.NewQuery("UPDATE [format_table_name("messages")] SET [sets.Join(", ")] WHERE id = :id AND deleted = 0", arguments)
 	. = query_note_change.warn_execute()
 	qdel(query_note_change)
 
@@ -349,7 +365,7 @@ SUBSYSTEM_DEF(notes)
 		var/datum/note_record/R = records[id]
 		if(!R || refused[id])
 			continue
-		if(!SSdbcore.MassInsert(format_table_name("messages"), list(R.sql_values()), async = FALSE))
+		if(!R.db_insert(async = FALSE))
 			if(!SSdbcore.IsConnected())
 				break
 			refused[id] = TRUE

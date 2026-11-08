@@ -7,7 +7,7 @@ unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every 
 #   3. bans:   tools/ban_check/run_ban_check.sh against the database (BANS=0 to skip)
 # Usage: tools/db_check/run_db_check.sh            (~4 min; the first run downloads MariaDB, ~20 s more)
 #        STATIC=1 tools/db_check/run_db_check.sh   (just the static half, a few seconds)
-#        KEEP_DB=1 ...                             (leave MariaDB running afterwards; it's stopped otherwise)
+#        STOP_DB=1 ...                             (stop MariaDB afterwards if this run started it; it is left running by default, as other sessions share it)
 # Results: data/db_check/ (report.txt, ran.json, steps.txt), server logs in data/logs/db_check_logs
 set -u
 cd "$(dirname "$0")/../.."
@@ -21,11 +21,15 @@ SETUP=tools/db_setup/db_setup.sh
 began=$(date +%s)
 fail=0
 
+#other sessions may be using this MariaDB too: it is left running unless STOP_DB=1 (and then only if this run started it)
+was_up=0
+$SETUP status > /dev/null 2>&1 && was_up=1
 $SETUP install start > /dev/null || { echo "couldn't start the test MariaDB"; exit 1; }
 $SETUP drop create > /dev/null || { echo "couldn't make the test database"; exit 1; }
 MARIADB="$DB_HOME/mariadb-11.4.13-winx64/bin/mariadb.exe"
 ROOT_PASS="$(sed -n 's/^root=//p' "$DB_HOME/credentials.txt")"
-USER_PASS="$(sed -n "s/^user_$DB_NAME=//p" "$DB_HOME/credentials.txt")"
+USER_PASS="$(sed -n 's/^login_hippie=//p' "$DB_HOME/credentials.txt")"
+stop_db() { [ "${STOP_DB:-0}" = 1 ] && [ $was_up = 0 ] && $SETUP stop > /dev/null; true; }
 rm -rf data/db_check data/logs/db_check_logs
 mkdir -p data/db_check
 
@@ -33,7 +37,7 @@ echo "== static: every query PREPAREd"
 python tools/db_check/query_check.py --mariadb "$MARIADB" --port "$DB_PORT" --password "$ROOT_PASS" --db "$DB_NAME" --json data/db_check/static.json | grep -v "^TEMPLATED\|^DYNAMIC" | tee data/db_check/report.txt
 [ "${PIPESTATUS[0]}" = 0 ] || fail=1
 if [ "${STATIC:-0}" = 1 ]; then
-	[ "${KEEP_DB:-0}" = 1 ] || $SETUP stop > /dev/null
+	stop_db
 	exit $fail
 fi
 
@@ -91,6 +95,6 @@ if [ "${BANS:-1}" = 1 ]; then
 	DB_NAME=hippie_bancheck $SETUP drop > /dev/null
 fi
 
-[ "${KEEP_DB:-0}" = 1 ] || $SETUP stop > /dev/null
+stop_db
 echo "took $(($(date +%s) - began)) s: $([ $fail = 0 ] && echo PASSED || echo FAILED)" | tee -a data/db_check/report.txt
 exit $fail

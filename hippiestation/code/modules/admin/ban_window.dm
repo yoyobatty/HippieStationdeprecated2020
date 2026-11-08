@@ -190,7 +190,7 @@
 	var/db_first
 	var/db_last
 	if(CONFIG_GET(flag/sql_enabled) && SSdbcore.Connect())
-		var/datum/DBQuery/query_ban_window_player = SSdbcore.NewQuery("SELECT byond_key, INET_NTOA(ip), computerid, firstseen, lastseen FROM [format_table_name("player")] WHERE ckey = '[sanitizeSQL(player_ckey)]'")
+		var/datum/DBQuery/query_ban_window_player = SSdbcore.NewQuery("SELECT byond_key, INET_NTOA(ip), computerid, firstseen, lastseen FROM [format_table_name("player")] WHERE ckey = :ckey", list("ckey" = player_ckey))
 		if(query_ban_window_player.warn_execute() && query_ban_window_player.NextRow())
 			key = query_ban_window_player.item[1]
 			if(query_ban_window_player.item[2])
@@ -395,16 +395,17 @@
 		if("lifted" in statuses)
 			status_sql += "(unbanned_datetime IS NOT NULL)"
 		var/list/where = list("([status_sql.Join(" OR ")])")
+		//the search text is a substring anywhere (INSTR: % and _ are just characters)
 		if(exact_ckey)
-			where += "ckey = '[sanitizeSQL(exact_ckey)]'"
+			where += "ckey = :exact_ckey"
 		if(needle)
-			var/n = sanitizeSQL(needle)
-			var/list/any = list("role LIKE '%[n]%'", "reason LIKE '%[n]%'", "INET_NTOA(ip) LIKE '%[n]%'", "computerid LIKE '%[n]%'")
+			var/list/any = list("INSTR(role, :needle) > 0", "INSTR(reason, :needle) > 0", "INSTR(INET_NTOA(ip), :needle) > 0", "INSTR(computerid, :needle) > 0")
 			if(needle_ckey)
-				any += "ckey LIKE '%[sanitizeSQL(needle_ckey)]%'"
-				any += "a_ckey LIKE '%[sanitizeSQL(needle_ckey)]%'"
+				any += "INSTR(ckey, :needle_ckey) > 0"
+				any += "INSTR(a_ckey, :needle_ckey) > 0"
 			where += "([any.Join(" OR ")])"
-		var/datum/DBQuery/query_ban_window = SSdbcore.NewQuery("SELECT id, role, ckey, IFNULL((SELECT byond_key FROM [player_table] WHERE [player_table].ckey = [ban_table].ckey), ckey), INET_NTOA(ip), computerid, bantime, TIMESTAMPDIFF(SECOND, bantime, NOW()), TIMESTAMPDIFF(SECOND, NOW(), expiration_time), applies_to_admins, reason, IFNULL((SELECT byond_key FROM [player_table] WHERE [player_table].ckey = [ban_table].a_ckey), a_ckey), round_id, unbanned_datetime, IFNULL((SELECT byond_key FROM [player_table] WHERE [player_table].ckey = [ban_table].unbanned_ckey), unbanned_ckey), unbanned_round_id, IF(edits IS NULL, 0, 1), TIMESTAMPDIFF(MINUTE, bantime, expiration_time) FROM [ban_table] WHERE [where.Join(" AND ")] ORDER BY id DESC LIMIT [limit]")
+		var/datum/DBQuery/query_ban_window = SSdbcore.NewQuery("SELECT id, role, ckey, IFNULL((SELECT byond_key FROM [player_table] WHERE [player_table].ckey = [ban_table].ckey), ckey), INET_NTOA(ip), computerid, bantime, TIMESTAMPDIFF(SECOND, bantime, NOW()), TIMESTAMPDIFF(SECOND, NOW(), expiration_time), applies_to_admins, reason, IFNULL((SELECT byond_key FROM [player_table] WHERE [player_table].ckey = [ban_table].a_ckey), a_ckey), round_id, unbanned_datetime, IFNULL((SELECT byond_key FROM [player_table] WHERE [player_table].ckey = [ban_table].unbanned_ckey), unbanned_ckey), unbanned_round_id, IF(edits IS NULL, 0, 1), TIMESTAMPDIFF(MINUTE, bantime, expiration_time) FROM [ban_table] WHERE [where.Join(" AND ")] ORDER BY id DESC LIMIT :limit",
+			list("exact_ckey" = exact_ckey, "needle" = "[needle]", "needle_ckey" = needle_ckey, "limit" = text2num(limit) || 200))
 		if(query_ban_window.warn_execute())
 			while(query_ban_window.NextRow())
 				var/list/i = query_ban_window.item
@@ -746,7 +747,7 @@
 	if(B && (B.is_local() || !CONFIG_GET(flag/sql_enabled) || !SSdbcore.Connect()))
 		edits = B.edits
 	else if(text2num(id) && CONFIG_GET(flag/sql_enabled) && SSdbcore.Connect())
-		var/datum/DBQuery/query_ban_window_edits = SSdbcore.NewQuery("SELECT edits FROM [format_table_name("ban")] WHERE id = [text2num(id)]")
+		var/datum/DBQuery/query_ban_window_edits = SSdbcore.NewQuery("SELECT edits FROM [format_table_name("ban")] WHERE id = :id", list("id" = text2num(id)))
 		if(query_ban_window_edits.warn_execute() && query_ban_window_edits.NextRow())
 			edits = query_ban_window_edits.item[1]
 		qdel(query_ban_window_edits)

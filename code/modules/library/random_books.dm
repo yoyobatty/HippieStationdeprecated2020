@@ -53,8 +53,8 @@
 		return
 	if(prob(25))
 		category = null
-	var/c = category? " AND category='[sanitizeSQL(category)]'" :""
-	var/datum/DBQuery/query_get_random_books = SSdbcore.NewQuery("SELECT * FROM [format_table_name("library")] WHERE isnull(deleted)[c] GROUP BY title ORDER BY rand() LIMIT [amount];") // isdeleted copyright (c) not me
+	// hippie -- bound parameters (rust_g)
+	var/datum/DBQuery/query_get_random_books = SSdbcore.NewQuery("SELECT * FROM [format_table_name("library")] WHERE isnull(deleted) AND (:category IS NULL OR category = :category) GROUP BY title ORDER BY rand() LIMIT :amount", list("category" = category || null, "amount" = round(amount))) // isdeleted copyright (c) not me
 	if(query_get_random_books.Execute())
 		while(query_get_random_books.NextRow())
 			var/obj/item/book/B = new(location)

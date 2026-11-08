@@ -13,9 +13,7 @@
  * SQL sanitization
  */
 
-// Run all strings to be used in an SQL query through this proc first to properly escape out injection attempts.
-/proc/sanitizeSQL(t)
-	return SSdbcore.Quote("[t]")
+// hippie -- sanitizeSQL() is gone: values go into queries as bound parameters (SSdbcore.NewQuery(sql, list("name" = value)))
 
 /proc/format_table_name(table as text)
 	return CONFIG_GET(string/feedback_tableprefix) + table

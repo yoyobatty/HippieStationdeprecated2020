@@ -274,7 +274,7 @@ GLOBAL_LIST_INIT(note_expiry_choices, list("Never" = 0, "1 day" = 86400, "1 week
 		var/timestamp = note.group[1]
 		notetext = note.group[2]
 		var/admin_ckey = note.group[3]
-		var/datum/DBQuery/query_convert_time = SSdbcore.NewQuery("SELECT ADDTIME(STR_TO_DATE('[timestamp]','%d-%b-%Y'), '0')")
+		var/datum/DBQuery/query_convert_time = SSdbcore.NewQuery("SELECT ADDTIME(STR_TO_DATE(:timestamp, '%d-%b-%Y'), '0')", list("timestamp" = timestamp))
 		if(!query_convert_time.Execute())
 			qdel(query_convert_time)
 			return

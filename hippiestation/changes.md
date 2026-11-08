@@ -14,13 +14,21 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/__HELPERS/icons.dm
 ## code/__HELPERS/mobs.dm
 ## code/__HELPERS/radiation.dm
+## code/__HELPERS/roundend.dm
+## code/__HELPERS/text.dm
 ## code/__HELPERS/unsorted.dm
 ## code/\_onclick/item_attack.dm
+## code/controllers/configuration/entries/dbconfig.dm
 ## code/controllers/failsafe.dm
 ## code/controllers/master.dm
 ## code/controllers/subsystem.dm
 ## code/controllers/subsystem/air.dm
+## code/controllers/subsystem/blackbox.dm
+## code/controllers/subsystem/dbcore.dm (out of the .dme: rewritten whole as hippiestation/code/controllers/subsystem/dbcore.dm, rust_g instead of BSQL)
+## code/controllers/subsystem/discord.dm
 ## code/controllers/subsystem/job.dm
+## code/controllers/subsystem/mapping.dm
+## code/controllers/subsystem/stickyban.dm
 ## code/controllers/subsystem/throwing.dm
 ## code/controllers/subsystem/ticker.dm
 ## code/controllers/subsystem/timer.dm
@@ -59,8 +67,16 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/turfs/open.dm
 ## code/game/world.dm !Needs modularization! This stuff is crap.
 ## code/modules/admin/admin.dm
+## code/modules/admin/admin_ranks.dm
 ## code/modules/admin/admin_verbs.dm
+## code/modules/admin/create_poll.dm
+## code/modules/admin/ipintel.dm
+## code/modules/admin/IsBanned.dm
+## code/modules/admin/permissionedit.dm
 ## code/modules/admin/secrets.dm
+## code/modules/admin/sql_ban_system.dm
+## code/modules/admin/sql_message_system.dm
+## code/modules/admin/stickyban.dm
 ## code/modules/admin/topic.dm
 ## code/modules/admin/verbs/one_click_antag.dm
 ## code/modules/antagonists/clockcult/clock_items/clockwork_armor.dm
@@ -80,7 +96,12 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/integrated_electronics/subtypes/input.dm
 ## code/modules/integrated_electronics/subtypes/manipulation.dm
 ## code/modules/integrated_electronics/subtypes/smart.dm
+## code/modules/jobs/job_exp.dm
+## code/modules/library/lib_machines.dm
+## code/modules/library/random_books.dm
 ## code/modules/mining/equipment/survival_pod.dm !Should be modularized. Can be done easily.
+## code/modules/mob/dead/new_player/new_player.dm
+## code/modules/mob/dead/new_player/poll.dm
 ## code/modules/mob/living/carbon/alien/alien.dm !Should be modularized. Can be done easily.
 ## code/modules/mob/living/carbon/carbon_defense.dm
 ## code/modules/mob/living/carbon/death.dm !Should be modularized. Can be done easily.
@@ -113,6 +134,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/reagents/chemistry/reagents/toxin_reagents.dm
 ## code/modules/reagents/chemistry/recipes/pyrotechnics.dm !Same as above.
 ## code/modules/reagents/reagent_containers.dm !Could be modularized.
+## code/modules/shuttle/emergency.dm
 ## code/modules/spells/spell.dm
 ## code/modules/surgery/bodyparts/bodyparts.dm
 ## code/modules/surgery/bodyparts/head.dm

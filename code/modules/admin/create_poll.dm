@@ -34,14 +34,13 @@
 	var/endtime = tgui_input_text(usr, "Set end time for poll as format YYYY-MM-DD HH:MM:SS. All times in server time. HH:MM:SS is optional and 24-hour. Must be later than starting time for obvious reasons.", "Set end time", SQLtime(), allow_cancel = FALSE)
 	if(!endtime)
 		return
-	endtime = sanitizeSQL(endtime)
-	var/datum/DBQuery/query_validate_time = SSdbcore.NewQuery("SELECT IF(STR_TO_DATE('[endtime]','%Y-%c-%d %T') > NOW(), STR_TO_DATE('[endtime]','%Y-%c-%d %T'), 0)")
+	//the date as text, or '' if it's malformed or past (an IF() of a date and 0 has no one column type to read)
+	var/datum/DBQuery/query_validate_time = SSdbcore.NewQuery("SELECT IF(STR_TO_DATE(:endtime, '%Y-%c-%d %T') > NOW(), DATE_FORMAT(STR_TO_DATE(:endtime, '%Y-%c-%d %T'), '%Y-%m-%d %H:%i:%s'), '')", list("endtime" = endtime))
 	if(!query_validate_time.warn_execute() || QDELETED(usr) || !src)
 		qdel(query_validate_time)
 		return
 	if(query_validate_time.NextRow())
-		var/checktime = text2num(query_validate_time.item[1])
-		if(!checktime)
+		if(!query_validate_time.item[1])
 			to_chat(src, "Datetime entered is improperly formatted or not later than current server time.", confidential=TRUE)
 			qdel(query_validate_time)
 			return
@@ -63,14 +62,12 @@
 			dontshow = 0
 		else
 			return
-	var/sql_ckey = sanitizeSQL(ckey)
 	var/question = tgui_input_text(usr, "Write your question", "Question", multiline = TRUE)
 	if(!question)
 		return
 	if(length(question) > 255) //the column sizes, which strict mode refuses to overflow rather than cut
 		to_chat(src, "The question can't be longer than 255 characters.", confidential=TRUE)
 		return
-	question = sanitizeSQL(question)
 	var/list/sql_option_list = list()
 	if(polltype != POLLTYPE_TEXT)
 		var/add_option = 1
@@ -81,7 +78,6 @@
 			if(length(option) > 255)
 				to_chat(src, "An option can't be longer than 255 characters.", confidential=TRUE)
 				continue
-			option = sanitizeSQL(option)
 			var/default_percentage_calc = 0
 			if(polltype != POLLTYPE_IRV)
 				switch(tgui_alert(usr, "Should this option be included by default when poll result percentages are generated?", null, list("Yes", "No", "Cancel")))
@@ -108,24 +104,18 @@
 					to_chat(src, "Maximum rating value can't be less than or equal to minimum rating value", confidential=TRUE)
 					continue
 				descmin = tgui_input_text(usr, "Optional: Set description for minimum rating", "Minimum rating description", multiline = TRUE)
-				if(descmin)
-					descmin = sanitizeSQL(descmin)
-				else if(descmin == null)
+				if(descmin == null)
 					return
 				descmid = tgui_input_text(usr, "Optional: Set description for median rating", "Median rating description", multiline = TRUE)
-				if(descmid)
-					descmid = sanitizeSQL(descmid)
-				else if(descmid == null)
+				if(descmid == null)
 					return
 				descmax = tgui_input_text(usr, "Optional: Set description for maximum rating", "Maximum rating description", multiline = TRUE)
-				if(descmax)
-					descmax = sanitizeSQL(descmax)
-				else if(descmax == null)
+				if(descmax == null)
 					return
 				if(length(descmin) > 32 || length(descmid) > 32 || length(descmax) > 32)
 					to_chat(src, "Rating descriptions can't be longer than 32 characters.", confidential=TRUE)
 					continue
-			sql_option_list += list(list("text" = "'[option]'", "minval" = "'[minval]'", "maxval" = "'[maxval]'", "descmin" = "'[descmin]'", "descmid" = "'[descmid]'", "descmax" = "'[descmax]'", "default_percentage_calc" = "'[default_percentage_calc]'"))
+			sql_option_list += list(list("text" = option, "minval" = minval, "maxval" = maxval, "descmin" = descmin, "descmid" = descmid, "descmax" = descmax, "default_percentage_calc" = default_percentage_calc))
 			switch(tgui_alert(usr, " ", null, list("Add option", "Finish", "Cancel")))
 				if("Add option")
 					add_option = 1
@@ -135,22 +125,19 @@
 					return 0
 	var/m1 = "[key_name(usr)] has created a new server poll. Poll type: [polltype] - Admin Only: [adminonly ? "Yes" : "No"] - Question: [question]"
 	var/m2 = "[key_name_admin(usr)] has created a new server poll. Poll type: [polltype] - Admin Only: [adminonly ? "Yes" : "No"]<br>Question: [question]"
-	var/datum/DBQuery/query_polladd_question = SSdbcore.NewQuery("INSERT INTO [format_table_name("poll_question")] (polltype, starttime, endtime, question, adminonly, multiplechoiceoptions, createdby_ckey, createdby_ip, dontshow) VALUES ('[polltype]', '[starttime]', '[endtime]', '[question]', '[adminonly]', '[choice_amount]', '[sql_ckey]', INET_ATON('[address]'), '[dontshow]')")
+	var/datum/DBQuery/query_polladd_question = SSdbcore.NewQuery("INSERT INTO [format_table_name("poll_question")] (polltype, starttime, endtime, question, adminonly, multiplechoiceoptions, createdby_ckey, createdby_ip, dontshow) VALUES (:polltype, :starttime, :endtime, :question, :adminonly, :choice_amount, :ckey, INET_ATON(:ip), :dontshow)",
+		list("polltype" = polltype, "starttime" = starttime, "endtime" = endtime, "question" = question, "adminonly" = adminonly, "choice_amount" = choice_amount || 0, "ckey" = ckey, "ip" = address || "127.0.0.1", "dontshow" = dontshow))
 	if(!query_polladd_question.warn_execute())
 		qdel(query_polladd_question)
 		return
+	//the id from the INSERT itself: a separate SELECT LAST_INSERT_ID() can land on another of the pool's connections
+	var/pollid = query_polladd_question.last_insert_id
 	qdel(query_polladd_question)
 	if(polltype != POLLTYPE_TEXT)
-		var/pollid = 0
-		var/datum/DBQuery/query_get_id = SSdbcore.NewQuery("SELECT LAST_INSERT_ID()")
-		if(!query_get_id.warn_execute())
-			qdel(query_get_id)
+		if(!pollid)
 			return
-		if(query_get_id.NextRow())
-			pollid = query_get_id.item[1]
-		qdel(query_get_id)
 		for(var/list/i in sql_option_list)
-			i |= list("pollid" = "'[pollid]'")
+			i["pollid"] = pollid
 		SSdbcore.MassInsert(format_table_name("poll_option"), sql_option_list, warn = 1)
 	log_admin(m1)
 	message_admins(m2)

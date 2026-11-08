@@ -14,7 +14,8 @@
 # Settings (environment):
 #   DB_HOME   where MariaDB and its data live         default %LOCALAPPDATA%\HippieDB
 #   DB_PORT   3306        DB_NAME   feedback        DB_USER   hippie        PREFIX   SS13_ (FEEDBACK_TABLEPREFIX)
-# Passwords are made up on first use and kept in DB_HOME/credentials.txt, never in the repo.
+# Passwords are made up on first use and kept in DB_HOME/credentials.txt (root=, login_<user>=), never in the repo.
+# One MariaDB can hold several databases (other sessions' test ones too): drop removes only DB_NAME, and a user keeps one password.
 #
 # Test harnesses use their own DB_HOME/DB_PORT/DB_NAME and skip "config", so config/ stays untouched:
 #   DB_HOME=... DB_PORT=3307 DB_NAME=hippie_check tools/db_setup/db_setup.sh install start create
@@ -55,9 +56,10 @@ root_pass() {
 	[ -n "$p" ] || die "no root password in $CRED (run install first)"
 	echo "$p"
 }
+# one password per user, whichever databases it's on: several test databases (other sessions' too) share one MariaDB
 user_pass() {
-	local p; p="$(cred_get "user_$DB_NAME")"
-	if [ -z "$p" ]; then p="$(new_password)"; cred_set "user_$DB_NAME" "$p"; fi
+	local p; p="$(cred_get "login_$DB_USER")"
+	if [ -z "$p" ]; then p="$(new_password)"; cred_set "login_$DB_USER" "$p"; fi
 	echo "$p"
 }
 
@@ -164,6 +166,7 @@ do_create() {
 		set -- $(schema_version)
 		sql_root "$DB_NAME" -e "INSERT INTO \`${PREFIX}schema_revision\` (major, minor) VALUES ($1, $2)"
 	fi
+	# ALTER too: a user left from before (another database, an older run) gets the password on file
 	sql_root -e "CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$up';
 CREATE USER IF NOT EXISTS '$DB_USER'@'127.0.0.1' IDENTIFIED BY '$up';
 ALTER USER '$DB_USER'@'localhost' IDENTIFIED BY '$up';
@@ -171,6 +174,7 @@ ALTER USER '$DB_USER'@'127.0.0.1' IDENTIFIED BY '$up';
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE TEMPORARY TABLES, EXECUTE ON \`$DB_NAME\`.* TO '$DB_USER'@'localhost';
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE TEMPORARY TABLES, EXECUTE ON \`$DB_NAME\`.* TO '$DB_USER'@'127.0.0.1';
 FLUSH PRIVILEGES;"
+	cred_set "user_$DB_NAME" "$up" #the older per-database key, for anything still reading it
 	local n; n="$(sql_root -N -e "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='$DB_NAME'")"
 	echo "Database $DB_NAME: $n tables, user $DB_USER (password in $CRED)"
 }
@@ -203,10 +207,10 @@ do_service() {
 
 do_shell() { is_up || die "MariaDB isn't running"; "$BIN/mariadb.exe" -h127.0.0.1 -P"$DB_PORT" -u"$DB_USER" -p"$(user_pass)" "$DB_NAME"; }
 
+# the database only: its user may be on others
 do_drop() {
 	is_up || die "MariaDB isn't running"
-	sql_root -e "DROP DATABASE IF EXISTS \`$DB_NAME\`; DROP USER IF EXISTS '$DB_USER'@'localhost'; DROP USER IF EXISTS '$DB_USER'@'127.0.0.1';"
-	[ -f "$CRED" ] && sed -i "/^user_$DB_NAME=/d" "$CRED"
+	sql_root -e "DROP DATABASE IF EXISTS \`$DB_NAME\`; REVOKE ALL PRIVILEGES ON \`$DB_NAME\`.* FROM '$DB_USER'@'localhost', '$DB_USER'@'127.0.0.1';" 2>/dev/null || true
 	echo "Dropped database $DB_NAME"
 }
 

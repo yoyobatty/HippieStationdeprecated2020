@@ -96,42 +96,53 @@ GENERAL_PROTECT_DATUM(/datum/ban_record)
 			value = text2num(value)
 		vars[field] = value
 
-//Column = SQL, for MassInsert(). Times are counted back from NOW(), so a ban kept here while the database was down lands on the database's clock at the time it was made.
-/datum/ban_record/proc/sql_values()
-	var/age = max(0, round((world.realtime - bantime_rt) / 10))
-	var/bantime_sql = age ? "(NOW() - INTERVAL [age] SECOND)" : "NOW()"
+#define BAN_SQL_COLUMNS "bantime, server_ip, server_port, round_id, role, expiration_time, applies_to_admins, reason, ckey, ip, computerid, a_ckey, a_ip, a_computerid, who, adminwho, edits, unbanned_datetime, unbanned_ckey, unbanned_ip, unbanned_computerid, unbanned_round_id"
+
+//One row of an INSERT of BAN_SQL_COLUMNS: its SQL, with this ban's values added to arguments as :name_n. Times are counted back
+//from NOW(), so a ban kept here while the database was down lands on the database's clock at the time it was made.
+/datum/ban_record/proc/sql_row(list/arguments, n)
+	var/bantime_sql = "(NOW() - INTERVAL :age_[n] SECOND)"
+	arguments["age_[n]"] = max(0, round((world.realtime - bantime_rt) / 10))
 	if(exact_bantime && bantime)
-		bantime_sql = "'[sanitizeSQL(bantime)]'"
+		bantime_sql = ":bantime_[n]"
+		arguments["bantime_[n]"] = bantime
 	var/expiration_sql = "NULL"
 	if(expire_rt)
-		if(amount && (unit in BAN_INTERVALS))
-			expiration_sql = "[bantime_sql] + INTERVAL [num2text(amount, 12)] [unit]"
+		if(amount && (unit in BAN_INTERVALS)) //unit is one of BAN_INTERVALS' keys, so it can be SQL
+			expiration_sql = "[bantime_sql] + INTERVAL :amount_[n] [unit]"
+			arguments["amount_[n]"] = amount
 		else
-			expiration_sql = "[bantime_sql] + INTERVAL [max(0, round((expire_rt - bantime_rt) / 10))] SECOND"
-	. = list("bantime" = bantime_sql,
-		"server_ip" = "INET_ATON(IF('[world.internet_address]' LIKE '', '0', '[world.internet_address]'))",
-		"server_port" = "[world.port]",
-		"round_id" = "'[text2num(round_id) || 0]'",
-		"role" = "'[sanitizeSQL(role)]'",
-		"expiration_time" = expiration_sql,
-		"applies_to_admins" = applies_to_admins ? "1" : "0",
-		"reason" = "'[sanitizeSQL(reason)]'",
-		"ckey" = ckey ? "'[sanitizeSQL(ckey)]'" : "NULL",
-		"ip" = ip ? "INET_ATON('[sanitizeSQL(ip)]')" : "NULL",
-		"computerid" = cid ? "'[sanitizeSQL(cid)]'" : "NULL",
-		"a_ckey" = "'[sanitizeSQL(a_ckey)]'",
-		"a_ip" = "IFNULL(INET_ATON('[sanitizeSQL(a_ip)]'), 0)", //the column is NOT NULL, and the host's address is empty
-		"a_computerid" = "'[sanitizeSQL(a_cid)]'",
-		"who" = "'[sanitizeSQL(copytext_char(who, 1, BAN_WHO_MAX))]'", //everyone online: a busy server's list is longer than the column
-		"adminwho" = "'[sanitizeSQL(copytext_char(adminwho, 1, BAN_WHO_MAX))]'",
-		"edits" = edits ? "'[sanitizeSQL(edits)]'" : "NULL")
+			expiration_sql = "[bantime_sql] + INTERVAL :length_[n] SECOND"
+			arguments["length_[n]"] = max(0, round((expire_rt - bantime_rt) / 10))
+	var/unbanned_sql = "NULL"
 	if(unbanned_datetime)
-		var/unban_age = max(0, round((world.realtime - unbanned_rt) / 10))
-		.["unbanned_datetime"] = unban_age ? "(NOW() - INTERVAL [unban_age] SECOND)" : "NOW()"
-		.["unbanned_ckey"] = "'[sanitizeSQL(unbanned_ckey)]'"
-		.["unbanned_ip"] = "INET_ATON('[sanitizeSQL(unbanned_ip)]')"
-		.["unbanned_computerid"] = "'[sanitizeSQL(unbanned_cid)]'"
-		.["unbanned_round_id"] = "'[text2num(unbanned_round_id) || 0]'"
+		unbanned_sql = "(NOW() - INTERVAL :unban_age_[n] SECOND)"
+		arguments["unban_age_[n]"] = max(0, round((world.realtime - unbanned_rt) / 10))
+	var/list/values = list(
+		"server_ip" = world.internet_address || "0",
+		"server_port" = world.port,
+		"round_id" = text2num(round_id) || 0,
+		//role, reason, a_ckey, a_computerid, who and adminwho are NOT NULL: "" for a missing one, as the old quoted SQL gave
+		"role" = "[role]",
+		"applies_to_admins" = applies_to_admins ? 1 : 0,
+		"reason" = "[reason]",
+		"ckey" = ckey || null,
+		"ip" = ip || null,
+		"cid" = cid || null,
+		"a_ckey" = "[a_ckey]",
+		"a_ip" = a_ip || null,
+		"a_cid" = "[a_cid]",
+		"who" = "[copytext_char(who, 1, BAN_WHO_MAX)]", //everyone online: a busy server's list is longer than the column
+		"adminwho" = "[copytext_char(adminwho, 1, BAN_WHO_MAX)]",
+		"edits" = edits || null,
+		"unbanned_ckey" = unbanned_datetime ? unbanned_ckey : null,
+		"unbanned_ip" = unbanned_datetime ? unbanned_ip : null,
+		"unbanned_cid" = unbanned_datetime ? unbanned_cid : null,
+		"unbanned_round_id" = unbanned_datetime ? (text2num(unbanned_round_id) || 0) : null)
+	for(var/name in values)
+		arguments["[name]_[n]"] = values[name]
+	//a_ip is NOT NULL, and the host's address is empty
+	return "([bantime_sql], INET_ATON(:server_ip_[n]), :server_port_[n], :round_id_[n], :role_[n], [expiration_sql], :applies_to_admins_[n], :reason_[n], :ckey_[n], INET_ATON(:ip_[n]), :cid_[n], :a_ckey_[n], IFNULL(INET_ATON(:a_ip_[n]), 0), :a_cid_[n], :who_[n], :adminwho_[n], :edits_[n], [unbanned_sql], :unbanned_ckey_[n], INET_ATON(:unbanned_ip_[n]), :unbanned_cid_[n], :unbanned_round_id_[n])"
 
 SUBSYSTEM_DEF(bans)
 	name = "Bans"
@@ -345,7 +356,8 @@ SUBSYSTEM_DEF(bans)
 
 //The database's role bans on a key or its computer, into a cache. FALSE if the database couldn't be asked.
 /datum/controller/subsystem/bans/proc/db_cache_rows(list/cache, match_ckey, match_cid, is_admin)
-	var/datum/DBQuery/query_build_ban_cache = SSdbcore.NewQuery("SELECT role, applies_to_admins, TIMESTAMPDIFF(SECOND, NOW(), expiration_time) FROM [format_table_name("ban")] WHERE (ckey = '[sanitizeSQL(match_ckey)]'[match_cid ? " OR computerid = '[sanitizeSQL(match_cid)]'" : ""]) AND unbanned_datetime IS NULL AND (expiration_time IS NULL OR expiration_time > NOW())")
+	var/datum/DBQuery/query_build_ban_cache = SSdbcore.NewQuery("SELECT role, applies_to_admins, TIMESTAMPDIFF(SECOND, NOW(), expiration_time) FROM [format_table_name("ban")] WHERE (ckey = :ckey OR (:cid IS NOT NULL AND computerid = :cid)) AND unbanned_datetime IS NULL AND (expiration_time IS NULL OR expiration_time > NOW())",
+		list("ckey" = match_ckey, "cid" = match_cid || null))
 	if(!query_build_ban_cache.Execute())
 		qdel(query_build_ban_cache)
 		return FALSE
@@ -391,10 +403,7 @@ SUBSYSTEM_DEF(bans)
 //Returns "database" or "local" (kept here: the database is off or out of reach), or null if the database refused them
 /datum/controller/subsystem/bans/proc/add_bans(list/new_bans)
 	if(CONFIG_GET(flag/sql_enabled) && SSdbcore.Connect())
-		var/list/rows = list()
-		for(var/datum/ban_record/B as anything in new_bans)
-			rows += list(B.sql_values())
-		if(!SSdbcore.MassInsert(format_table_name("ban"), rows, warn = TRUE))
+		if(!db_insert(new_bans, warn = TRUE))
 			return
 		var/datum/ban_record/first = new_bans[1]
 		db_sync(first.ckey, first.ip, first.cid) //back with their ids
@@ -480,7 +489,7 @@ SUBSYSTEM_DEF(bans)
 //Runs a change to a database ban, or keeps it for when the database is back
 /datum/controller/subsystem/bans/proc/run_or_queue(list/op)
 	if(CONFIG_GET(flag/sql_enabled) && SSdbcore.Connect())
-		var/datum/DBQuery/query_ban_change = SSdbcore.NewQuery(op_sql(op))
+		var/datum/DBQuery/query_ban_change = op_query(op)
 		if(query_ban_change.warn_execute())
 			. = "done"
 		qdel(query_ban_change)
@@ -488,28 +497,50 @@ SUBSYSTEM_DEF(bans)
 	queued_ops += list(op)
 	return "queued"
 
-//Built when it's run, not when it's made: sanitizeSQL() needs the connection
-/datum/controller/subsystem/bans/proc/op_sql(list/op)
+//Bans into the database, in one INSERT. Returns the first one's new id as text (TRUE if there's none to give), or FALSE if it failed.
+/datum/controller/subsystem/bans/proc/db_insert(list/bans, warn = FALSE, async = TRUE)
+	var/list/arguments = list()
+	var/list/rows = list()
+	for(var/i in 1 to length(bans))
+		var/datum/ban_record/B = bans[i]
+		rows += B.sql_row(arguments, i)
+	var/datum/DBQuery/query_ban_insert = SSdbcore.NewQuery("INSERT INTO [format_table_name("ban")] ([BAN_SQL_COLUMNS]) VALUES [rows.Join(", ")]", arguments)
+	var/ok = warn ? query_ban_insert.warn_execute(async) : query_ban_insert.Execute(async)
+	. = ok ? (query_ban_insert.last_insert_id ? num2text(query_ban_insert.last_insert_id, 12) : TRUE) : FALSE
+	qdel(query_ban_insert)
+
+//The query for a change to a database ban (op from lift() or edit())
+/datum/controller/subsystem/bans/proc/op_query(list/op)
 	var/ban_table = format_table_name("ban")
 	switch(op["op"])
 		if("unban")
-			var/age = max(0, round((world.realtime - text2num(op["rt"])) / 10))
-			return "UPDATE [ban_table] SET unbanned_datetime = [age ? "(NOW() - INTERVAL [age] SECOND)" : "NOW()"], unbanned_ckey = '[sanitizeSQL(op["ckey"])]', unbanned_ip = INET_ATON('[sanitizeSQL(op["ip"])]'), unbanned_computerid = '[sanitizeSQL(op["cid"])]', unbanned_round_id = '[text2num(op["round_id"]) || 0]' WHERE id = [text2num(op["id"])] AND unbanned_datetime IS NULL"
+			return SSdbcore.NewQuery("UPDATE [ban_table] SET unbanned_datetime = NOW() - INTERVAL :age SECOND, unbanned_ckey = :ckey, unbanned_ip = INET_ATON(:ip), unbanned_computerid = :cid, unbanned_round_id = :round_id WHERE id = :id AND unbanned_datetime IS NULL", list(
+				"age" = max(0, round((world.realtime - text2num(op["rt"])) / 10)),
+				"ckey" = op["ckey"],
+				"ip" = op["ip"] || null,
+				"cid" = op["cid"],
+				"round_id" = text2num(op["round_id"]) || 0,
+				"id" = text2num(op["id"])))
 		if("edit")
 			var/expiration_sql = "NULL"
-			if(op["amount"] && (op["unit"] in BAN_INTERVALS))
-				expiration_sql = "bantime + INTERVAL [num2text(op["amount"], 12)] [op["unit"]]"
-			var/where = "id = [text2num(op["id"])]"
+			if(op["amount"] && (op["unit"] in BAN_INTERVALS)) //unit is one of BAN_INTERVALS' keys, so it can be SQL
+				expiration_sql = "bantime + INTERVAL :amount [op["unit"]]"
+			var/where = "id = :id"
 			if(op["mirror"] && op["bantime"])
-				var/list/wherelist = list("bantime = '[sanitizeSQL(op["bantime"])]'")
-				if(op["old_ckey"])
-					wherelist += "ckey = '[sanitizeSQL(op["old_ckey"])]'"
-				if(op["old_ip"])
-					wherelist += "ip = INET_ATON('[sanitizeSQL(op["old_ip"])]')"
-				if(op["old_cid"])
-					wherelist += "computerid = '[sanitizeSQL(op["old_cid"])]'"
-				where = wherelist.Join(" AND ")
-			return "UPDATE [ban_table] SET expiration_time = [expiration_sql], applies_to_admins = [op["applies_to_admins"] ? 1 : 0], reason = '[sanitizeSQL(op["reason"])]', ckey = [op["ckey"] ? "'[sanitizeSQL(op["ckey"])]'" : "NULL"], ip = [op["ip"] ? "INET_ATON('[sanitizeSQL(op["ip"])]')" : "NULL"], computerid = [op["cid"] ? "'[sanitizeSQL(op["cid"])]'" : "NULL"], edits = CONCAT(IFNULL(edits,''),'[sanitizeSQL(op["edit_text"])]') WHERE [where]"
+				where = "bantime = :bantime AND (:old_ckey IS NULL OR ckey = :old_ckey) AND (:old_ip IS NULL OR ip = INET_ATON(:old_ip)) AND (:old_cid IS NULL OR computerid = :old_cid)"
+			return SSdbcore.NewQuery("UPDATE [ban_table] SET expiration_time = [expiration_sql], applies_to_admins = :applies_to_admins, reason = :reason, ckey = :ckey, ip = INET_ATON(:ip), computerid = :cid, edits = CONCAT(IFNULL(edits, ''), :edit_text) WHERE [where]", list(
+				"amount" = op["amount"],
+				"id" = text2num(op["id"]),
+				"bantime" = op["bantime"],
+				"old_ckey" = op["old_ckey"] || null,
+				"old_ip" = op["old_ip"] || null,
+				"old_cid" = op["old_cid"] || null,
+				"applies_to_admins" = op["applies_to_admins"] ? 1 : 0,
+				"reason" = op["reason"],
+				"ckey" = op["ckey"] || null,
+				"ip" = op["ip"] || null,
+				"cid" = op["cid"] || null,
+				"edit_text" = op["edit_text"]))
 
 //The minute's check: send what waited, then refresh the copy
 /datum/controller/subsystem/bans/proc/db_update()
@@ -527,7 +558,8 @@ SUBSYSTEM_DEF(bans)
 		var/datum/ban_record/B = records[id]
 		if(!B?.is_local() || refused[id])
 			continue
-		if(!SSdbcore.MassInsert(format_table_name("ban"), list(B.sql_values()), async = FALSE))
+		var/new_id = db_insert(list(B), async = FALSE)
+		if(!new_id)
 			if(!SSdbcore.IsConnected())
 				return FALSE
 			//the database answered and said no; the ban still holds here, and it's tried again next round
@@ -535,19 +567,14 @@ SUBSYSTEM_DEF(bans)
 			log_sql("Bans: the database refused ban [B.id] ([B.role] for [B.ckey || "[B.ip]-[B.cid]"]), keeping it on this server")
 			message_admins("The database refused ban [B.id] ([B.role] for [B.ckey || "[B.ip]-[B.cid]"]), made while it was out of reach. It's still enforced on this server; the server log has why.")
 			continue
-		var/datum/DBQuery/query_ban_id = SSdbcore.NewQuery("SELECT LAST_INSERT_ID()")
-		var/new_id
-		if(query_ban_id.Execute(async = FALSE) && query_ban_id.NextRow(async = FALSE))
-			new_id = query_ban_id.item[1]
-		qdel(query_ban_id)
 		remove(B)
-		if(text2num(new_id))
+		if(istext(new_id))
 			moved_ids[B.id] = new_id
 			B.id = new_id
 			add(B)
 		sent++
 	for(var/list/op as anything in queued_ops.Copy())
-		var/datum/DBQuery/query_ban_change = SSdbcore.NewQuery(op_sql(op))
+		var/datum/DBQuery/query_ban_change = op_query(op)
 		var/ok = query_ban_change.Execute()
 		qdel(query_ban_change)
 		if(!ok)
@@ -567,14 +594,13 @@ SUBSYSTEM_DEF(bans)
 /datum/controller/subsystem/bans/proc/db_sync(sync_ckey, sync_ip, sync_cid)
 	var/list/where = list()
 	if(sync_ckey)
-		where += "ckey = '[sanitizeSQL(sync_ckey)]'"
+		where += "ckey = :ckey"
 	if(sync_ip)
-		where += "ip = INET_ATON('[sanitizeSQL(sync_ip)]')"
+		where += "ip = INET_ATON(:ip)"
 	if(sync_cid)
-		where += "computerid = '[sanitizeSQL(sync_cid)]'"
-	var/ban_table = format_table_name("ban")
-	var/player_table = format_table_name("player")
-	var/datum/DBQuery/query_ban_sync = SSdbcore.NewQuery("SELECT id, role, ckey, IFNULL((SELECT byond_key FROM [player_table] WHERE [player_table].ckey = [ban_table].ckey), ckey), INET_NTOA(ip), computerid, TIMESTAMPDIFF(SECOND, bantime, NOW()), TIMESTAMPDIFF(SECOND, NOW(), expiration_time), applies_to_admins, reason, a_ckey, IFNULL((SELECT byond_key FROM [player_table] WHERE [player_table].ckey = [ban_table].a_ckey), a_ckey), round_id, bantime, edits FROM [ban_table] WHERE unbanned_datetime IS NULL AND (expiration_time IS NULL OR expiration_time > NOW())[where.len ? " AND ([where.Join(" OR ")])" : ""]")
+		where += "computerid = :cid"
+	var/datum/DBQuery/query_ban_sync = SSdbcore.NewQuery("SELECT id, role, ckey, IFNULL((SELECT byond_key FROM [format_table_name("player")] AS p WHERE p.ckey = b.ckey), ckey), INET_NTOA(ip), computerid, TIMESTAMPDIFF(SECOND, bantime, NOW()), TIMESTAMPDIFF(SECOND, NOW(), expiration_time), applies_to_admins, reason, a_ckey, IFNULL((SELECT byond_key FROM [format_table_name("player")] AS p WHERE p.ckey = b.a_ckey), a_ckey), round_id, bantime, edits FROM [format_table_name("ban")] AS b WHERE unbanned_datetime IS NULL AND (expiration_time IS NULL OR expiration_time > NOW())[where.len ? " AND ([where.Join(" OR ")])" : ""]",
+		list("ckey" = sync_ckey, "ip" = sync_ip, "cid" = sync_cid))
 	if(!query_ban_sync.Execute())
 		qdel(query_ban_sync)
 		return FALSE

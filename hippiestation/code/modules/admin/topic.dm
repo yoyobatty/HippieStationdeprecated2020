@@ -83,8 +83,7 @@
 		removeDonator(href_list["removedonator"])
 
 /datum/admins/proc/checkMentorEditList(ckey)
-	var/sql_key = sanitizeSQL("[ckey]")
-	var/datum/DBQuery/query_memoedits = SSdbcore.NewQuery("SELECT edits FROM [format_table_name("mentor_memo")] WHERE (ckey = '[sql_key]')")
+	var/datum/DBQuery/query_memoedits = SSdbcore.NewQuery("SELECT edits FROM [format_table_name("mentor_memo")] WHERE ckey = :ckey", list("ckey" = "[ckey]"))
 	if(!query_memoedits.warn_execute())
 		qdel(query_memoedits)
 		return
@@ -98,7 +97,7 @@
 		return
 	if (!check_rights(0))
 		return
-	ckey = ckey(ckey) //it goes into the queries unescaped, and the directory and the mentor list are by ckey
+	ckey = ckey(ckey) //the directory and the mentor list are by ckey
 	if(!ckey)
 		return
 	var/client/C = GLOB.directory[ckey]
@@ -107,7 +106,7 @@
 			to_chat(usr, "<span class='danger'>The client chosen is an admin! Cannot mentorize.</span>", confidential = TRUE)
 			return
 	if(SSdbcore.Connect())
-		var/datum/DBQuery/query_get_mentor = SSdbcore.NewQuery("SELECT id FROM [format_table_name("mentor")] WHERE ckey = '[ckey]'")
+		var/datum/DBQuery/query_get_mentor = SSdbcore.NewQuery("SELECT id FROM [format_table_name("mentor")] WHERE ckey = :ckey", list("ckey" = ckey))
 		if(!query_get_mentor.warn_execute()) //it was never run, so NextRow() below was a runtime and nobody could be made a mentor
 			qdel(query_get_mentor)
 			return
@@ -115,20 +114,12 @@
 			to_chat(usr, "<span class='danger'>[ckey] is already a mentor.</span>", confidential = TRUE)
 			qdel(query_get_mentor)
 			return
-		var/datum/DBQuery/query_add_mentor = SSdbcore.NewQuery("INSERT INTO `[format_table_name("mentor")]` (`id`, `ckey`) VALUES (null, '[ckey]')")
-		if(!query_add_mentor.warn_execute())
-			qdel(query_get_mentor)
-			qdel(query_add_mentor)
-			return
-		var/datum/DBQuery/query_add_admin_log = SSdbcore.NewQuery("INSERT INTO [format_table_name("admin_log")] (datetime, round_id, adminckey, adminip, operation, target, log) VALUES ('[SQLtime()]', '[GLOB.round_id]', '[sanitizeSQL(usr.ckey)]', INET_ATON('[sanitizeSQL(usr.client.address)]'), 'add rank', '[sanitizeSQL(ckey)]', 'New mentor added: [sanitizeSQL(ckey)]')")
-		if(!query_add_admin_log.warn_execute())
-			qdel(query_get_mentor)
-			qdel(query_add_mentor)
-			qdel(query_add_admin_log)
-			return
+		var/datum/DBQuery/query_add_mentor = SSdbcore.NewQuery("INSERT INTO [format_table_name("mentor")] (ckey) VALUES (:ckey)", list("ckey" = ckey))
+		var/ok = query_add_mentor.warn_execute()
 		qdel(query_get_mentor)
 		qdel(query_add_mentor)
-		qdel(query_add_admin_log)
+		if(!ok || !SSdbcore.admin_log("add rank", ckey, "New mentor added: [ckey]"))
+			return
 	else
 		to_chat(usr, "<span class='danger'>Failed to establish database connection. The changes will last only for the current round.</span>", confidential = TRUE)
 	new /datum/mentors(ckey)
@@ -151,17 +142,11 @@
 		C.mentor_datum = null
 		GLOB.mentors -= C
 	if(SSdbcore.Connect())
-		var/datum/DBQuery/query_remove_mentor = SSdbcore.NewQuery("DELETE FROM [format_table_name("mentor")] WHERE ckey = '[ckey]'")
-		if(!query_remove_mentor.warn_execute())
-			qdel(query_remove_mentor)
-			return
-		var/datum/DBQuery/query_add_admin_log = SSdbcore.NewQuery("INSERT INTO [format_table_name("admin_log")] (datetime, round_id, adminckey, adminip, operation, target, log) VALUES ('[SQLtime()]', '[GLOB.round_id]', '[sanitizeSQL(usr.ckey)]', INET_ATON('[sanitizeSQL(usr.client.address)]'), 'remove rank', '[sanitizeSQL(ckey)]', 'Mentor removed: [sanitizeSQL(ckey)]')")
-		if(!query_add_admin_log.warn_execute())
-			qdel(query_remove_mentor)
-			qdel(query_add_admin_log)
-			return
+		var/datum/DBQuery/query_remove_mentor = SSdbcore.NewQuery("DELETE FROM [format_table_name("mentor")] WHERE ckey = :ckey", list("ckey" = ckey))
+		var/ok = query_remove_mentor.warn_execute()
 		qdel(query_remove_mentor)
-		qdel(query_add_admin_log)
+		if(!ok || !SSdbcore.admin_log("remove rank", ckey, "Mentor removed: [ckey]"))
+			return
 	else
 		to_chat(usr, "<span class='danger'>Failed to establish database connection. The changes will last only for the current round.</span>", confidential = TRUE)
 	to_chat(usr, "<span class='adminnotice'>Mentor removed.</span>", confidential = TRUE)
@@ -189,8 +174,7 @@
 		log_admin("[key_name(usr)] tried to make [ckey] into a donator but they were already a donator.")
 		return
 	if(SSdbcore.Connect())
-		ckey = sanitizeSQL(ckey)
-		var/datum/DBQuery/query_add_donator = SSdbcore.NewQuery("INSERT INTO [format_table_name("donators")] (`ckey`) VALUES ('[ckey]')")
+		var/datum/DBQuery/query_add_donator = SSdbcore.NewQuery("INSERT INTO [format_table_name("donators")] (ckey) VALUES (:ckey)", list("ckey" = ckey))
 		if(!query_add_donator.warn_execute())
 			qdel(query_add_donator)
 			return
@@ -203,7 +187,7 @@
 		GLOB.donators += "[ckey]"
 		makedonator = TRUE
 		if(isfile(file("config/donators.txt")))
-			text2file("[ckey]", "config/donators.txt")
+			text2file("\n[ckey]", "config/donators.txt") //text2file appends: without the newline, the next one went on the same line
 			message_admins("[ckey] has been made into a donator in donators.txt by [key_name_admin(usr)].")
 			log_admin("[key_name(usr)] made [ckey] into a donator in donators.txt")
 		else
@@ -224,8 +208,7 @@
 		log_admin("[key_name(usr)] tried to remove [ckey] as a donator but they were not a donator.")
 		return
 	if(SSdbcore.Connect())
-		ckey = sanitizeSQL(ckey)
-		var/datum/DBQuery/query_remove_donator = SSdbcore.NewQuery("DELETE FROM [format_table_name("donators")] WHERE ckey = '[ckey]'")
+		var/datum/DBQuery/query_remove_donator = SSdbcore.NewQuery("DELETE FROM [format_table_name("donators")] WHERE ckey = :ckey", list("ckey" = ckey))
 		if(!query_remove_donator.warn_execute())
 			qdel(query_remove_donator)
 			return

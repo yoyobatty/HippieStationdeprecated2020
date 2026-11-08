@@ -11,11 +11,7 @@ SUBSYSTEM_DEF(ipstack)
 	if(cache[ip])
 		return cache[ip]
 	if(SSdbcore.Connect())
-		var/datum/DBQuery/query_get_ip = SSdbcore.NewQuery({"
-			SELECT country
-			FROM [format_table_name("ipstack")]
-			WHERE
-				ip = INET_ATON('[ip]')"})
+		var/datum/DBQuery/query_get_ip = SSdbcore.NewQuery("SELECT country FROM [format_table_name("ipstack")] WHERE ip = INET_ATON(:ip)", list("ip" = ip))
 		if(!query_get_ip.Execute())
 			qdel(query_get_ip)
 			return "???"
@@ -43,7 +39,7 @@ SUBSYSTEM_DEF(ipstack)
 			if(response && response["country_name"])
 				var/country = response["country_name"]
 				cache[ip] = country
-				var/datum/DBQuery/query_add_ip = SSdbcore.NewQuery("INSERT INTO [format_table_name("ipstack")] (ip, country) VALUES (INET_ATON('[ip]'), '[sanitizeSQL(country)]')")
+				var/datum/DBQuery/query_add_ip = SSdbcore.NewQuery("INSERT INTO [format_table_name("ipstack")] (ip, country) VALUES (INET_ATON(:ip), :country)", list("ip" = ip, "country" = country))
 				query_add_ip.Execute()
 				qdel(query_add_ip)
 				return country

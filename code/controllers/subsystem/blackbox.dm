@@ -46,7 +46,8 @@ SUBSYSTEM_DEF(blackbox)
 		if(M.client)
 			playercount += 1
 	var/admincount = GLOB.admins.len
-	var/datum/DBQuery/query_record_playercount = SSdbcore.NewQuery("INSERT INTO [format_table_name("legacy_population")] (playercount, admincount, time, server_ip, server_port, round_id) VALUES ([playercount], [admincount], '[SQLtime()]', INET_ATON(IF('[world.internet_address]' LIKE '', '0', '[world.internet_address]')), '[world.port]', '[GLOB.round_id]')")
+	var/datum/DBQuery/query_record_playercount = SSdbcore.NewQuery("INSERT INTO [format_table_name("legacy_population")] (playercount, admincount, time, server_ip, server_port, round_id) VALUES (:playercount, :admincount, :time, INET_ATON(:server_ip), :server_port, :round_id)",
+		list("playercount" = playercount, "admincount" = admincount, "time" = SQLtime(), "server_ip" = world.internet_address || "0", "server_port" = world.port, "round_id" = text2num(GLOB.round_id) || 0)) // hippie -- bound parameters (rust_g)
 	query_record_playercount.Execute()
 	qdel(query_record_playercount)
 
@@ -96,12 +97,13 @@ SUBSYSTEM_DEF(blackbox)
 		var/sqlversion = 1
 		if(FV.key in versions)
 			sqlversion = versions[FV.key]
-		sqlrowlist += list(list("datetime" = "Now()", "round_id" = GLOB.round_id, "key_name" =  "'[sanitizeSQL(FV.key)]'", "key_type" = "'[FV.key_type]'", "version" = "[sqlversion]", "json" = "'[sanitizeSQL(json_encode(FV.json))]'"))
+		sqlrowlist += list(list("datetime" = null, "round_id" = text2num(GLOB.round_id) || 0, "key_name" = FV.key, "key_type" = FV.key_type, "version" = sqlversion, "json" = json_encode(FV.json))) // hippie -- plain values (rust_g)
 
 	if (!length(sqlrowlist))
 		return
 
-	SSdbcore.MassInsert(format_table_name("feedback"), sqlrowlist, ignore_errors = TRUE, delayed = TRUE)
+	// hippie -- blocking: this runs as the world reboots, and dbcore's Shutdown() closes the connection right after
+	SSdbcore.MassInsert(format_table_name("feedback"), sqlrowlist, ignore_errors = TRUE, async = FALSE, special_columns = list("datetime" = "NOW()"))
 
 /datum/controller/subsystem/blackbox/proc/Seal()
 	if(sealed)
@@ -311,27 +313,16 @@ Versioning
 	if(!SSdbcore.Connect())
 		return
 
-	sqlname = sanitizeSQL(sqlname)
-	sqlkey = sanitizeSQL(sqlkey)
-	sqljob = sanitizeSQL(sqljob)
-	sqlspecial = sanitizeSQL(sqlspecial)
-	sqlpod = sanitizeSQL(sqlpod)
-	laname = sanitizeSQL(laname)
-	lakey = sanitizeSQL(lakey)
-	sqlbrute = sanitizeSQL(sqlbrute)
-	sqlfire = sanitizeSQL(sqlfire)
-	sqlbrain = sanitizeSQL(sqlbrain)
-	sqloxy = sanitizeSQL(sqloxy)
-	sqltox = sanitizeSQL(sqltox)
-	sqlclone = sanitizeSQL(sqlclone)
-	sqlstamina = sanitizeSQL(sqlstamina)
-	x_coord = sanitizeSQL(x_coord)
-	y_coord = sanitizeSQL(y_coord)
-	z_coord = sanitizeSQL(z_coord)
-	last_words = sanitizeSQL(last_words)
-	suicide = sanitizeSQL(suicide)
-	map = sanitizeSQL(map)
-	var/datum/DBQuery/query_report_death = SSdbcore.NewQuery("INSERT INTO [format_table_name("death")] (pod, x_coord, y_coord, z_coord, mapname, server_ip, server_port, round_id, tod, job, special, name, byondkey, laname, lakey, bruteloss, fireloss, brainloss, oxyloss, toxloss, cloneloss, staminaloss, last_words, suicide) VALUES ('[sqlpod]', '[x_coord]', '[y_coord]', '[z_coord]', '[map]', INET_ATON(IF('[world.internet_address]' LIKE '', '0', '[world.internet_address]')), '[world.port]', [GLOB.round_id], '[SQLtime()]', '[sqljob]', '[sqlspecial]', '[sqlname]', '[sqlkey]', '[laname]', '[lakey]', [sqlbrute], [sqlfire], [sqlbrain], [sqloxy], [sqltox], [sqlclone], [sqlstamina], '[last_words]', [suicide])")
+	// hippie start -- bound parameters (rust_g); damage in the columns' range (SMALLINT UNSIGNED), text columns '' as before
+	var/datum/DBQuery/query_report_death = SSdbcore.NewQuery({"INSERT INTO [format_table_name("death")] (pod, x_coord, y_coord, z_coord, mapname, server_ip, server_port, round_id, tod, job, special, name, byondkey, laname, lakey, bruteloss, fireloss, brainloss, oxyloss, toxloss, cloneloss, staminaloss, last_words, suicide)
+		VALUES (:pod, :x, :y, :z, :map, INET_ATON(:server_ip), :server_port, :round_id, :tod, :job, :special, :name, :key, :laname, :lakey, :brute, :fire, :brain, :oxy, :tox, :clone, :stamina, :last_words, :suicide)"}, list(
+		"pod" = "[sqlpod]", "x" = x_coord, "y" = y_coord, "z" = z_coord, "map" = "[map]",
+		"server_ip" = world.internet_address || "0", "server_port" = world.port, "round_id" = text2num(GLOB.round_id) || 0, "tod" = SQLtime(),
+		"job" = "[sqljob]", "special" = "[sqlspecial]", "name" = "[sqlname]", "key" = "[sqlkey]", "laname" = "[laname]", "lakey" = "[lakey]",
+		"brute" = clamp(round(sqlbrute), 0, 65535), "fire" = clamp(round(sqlfire), 0, 65535), "brain" = clamp(round(sqlbrain), 0, 65535), "oxy" = clamp(round(sqloxy), 0, 65535),
+		"tox" = clamp(round(sqltox), 0, 65535), "clone" = clamp(round(sqlclone), 0, 65535), "stamina" = clamp(round(sqlstamina), 0, 65535),
+		"last_words" = "[last_words]", "suicide" = suicide ? 1 : 0))
+	// hippie end
 	if(query_report_death)
 		query_report_death.Execute(async = TRUE)
 		qdel(query_report_death)

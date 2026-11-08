@@ -49,7 +49,7 @@
 				dat += "<table>"
 				dat += "<tr><td>AUTHOR</td><td>TITLE</td><td>CATEGORY</td><td>SS<sup>13</sup>BN</td></tr>"
 
-				var/datum/DBQuery/query_library_list_books = SSdbcore.NewQuery(SQLquery)
+				var/datum/DBQuery/query_library_list_books = library_search_query(author, title, category) // hippie -- bound parameters (rust_g)
 				if(!query_library_list_books.Execute())
 					dat += "<font color=red><b>ERROR</b>: Unable to retrieve book listings. Please contact your system administrator for assistance.</font><BR>"
 				else
@@ -82,27 +82,20 @@
 			title = sanitize(newtitle)
 		else
 			title = null
-		title = sanitizeSQL(title)
 	if(href_list["setcategory"])
 		var/newcategory = tgui_input_list(usr, "Choose a category to search for:", null, list("Any", "Fiction", "Non-Fiction", "Adult", "Reference", "Religion"), allow_cancel = FALSE)
 		if(newcategory)
 			category = sanitize(newcategory)
 		else
 			category = "Any"
-		category = sanitizeSQL(category)
 	if(href_list["setauthor"])
 		var/newauthor = tgui_input_text(usr, "Enter an author to search for:")
 		if(newauthor)
 			author = sanitize(newauthor)
 		else
 			author = null
-		author = sanitizeSQL(author)
 	if(href_list["search"])
-		SQLquery = "SELECT author, title, category, id FROM [format_table_name("library")] WHERE isnull(deleted) AND "
-		if(category == "Any")
-			SQLquery += "author LIKE '%[author]%' AND title LIKE '%[title]%'"
-		else
-			SQLquery += "author LIKE '%[author]%' AND title LIKE '%[title]%' AND category='[category]'"
+		SQLquery = TRUE // hippie -- the search is library_search_query(), with bound parameters
 		screenstate = 1
 
 	if(href_list["back"])
@@ -418,13 +411,10 @@ GLOBAL_LIST(cachedbooks) // List of our cached book datums
 						tgui_alert(usr, "Connection to Archive has been severed. Aborting.")
 					else
 
-						var/sqltitle = sanitizeSQL(scanner.cache.name)
-						var/sqlauthor = sanitizeSQL(scanner.cache.author)
-						var/sqlcontent = sanitizeSQL(scanner.cache.dat)
-						var/sqlcategory = sanitizeSQL(upload_category)
-						var/sqlckey = sanitizeSQL(usr.ckey)
 						var/msg = "[key_name(usr)] has uploaded the book titled [scanner.cache.name], [length(scanner.cache.dat)] signs"
-						var/datum/DBQuery/query_library_upload = SSdbcore.NewQuery("INSERT INTO [format_table_name("library")] (author, title, content, category, ckey, datetime, round_id_created) VALUES ('[sqlauthor]', '[sqltitle]', '[sqlcontent]', '[sqlcategory]', '[sqlckey]', Now(), '[GLOB.round_id]')")
+						// hippie -- bound parameters (rust_g)
+						var/datum/DBQuery/query_library_upload = SSdbcore.NewQuery("INSERT INTO [format_table_name("library")] (author, title, content, category, ckey, datetime, round_id_created) VALUES (:author, :title, :content, :category, :ckey, Now(), :round_id)",
+							list("author" = "[scanner.cache.author]", "title" = scanner.cache.name, "content" = "[scanner.cache.dat]", "category" = upload_category, "ckey" = usr.ckey || "", "round_id" = text2num(GLOB.round_id) || 0))
 						if(!query_library_upload.Execute())
 							qdel(query_library_upload)
 							tgui_alert(usr, "Database error encountered uploading to Archive")
@@ -455,7 +445,6 @@ GLOBAL_LIST(cachedbooks) // List of our cached book datums
 					href_list["targetid"] = num2text(orderid)
 
 	if(href_list["targetid"])
-		//a number or nothing: it goes into the query unquoted, and escaping quotes doesn't stop "0 UNION SELECT ..." from any player
 		var/sqlid = text2num(href_list["targetid"])
 		if(!isnum(sqlid) || !ISINTEGER(sqlid))
 			return
@@ -466,7 +455,7 @@ GLOBAL_LIST(cachedbooks) // List of our cached book datums
 			say("Printer unavailable. Please allow a short time before attempting to print.")
 		else
 			cooldown = world.time + PRINTER_COOLDOWN
-			var/datum/DBQuery/query_library_print = SSdbcore.NewQuery("SELECT * FROM [format_table_name("library")] WHERE id=[sqlid] AND isnull(deleted)")
+			var/datum/DBQuery/query_library_print = SSdbcore.NewQuery("SELECT * FROM [format_table_name("library")] WHERE id = :id AND isnull(deleted)", list("id" = sqlid))
 			if(!query_library_print.Execute())
 				qdel(query_library_print)
 				say("PRINTER ERROR! Failed to print document (0x0000000F)")

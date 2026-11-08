@@ -124,13 +124,14 @@
 	ban_check(out, "database back: the waiting unban was applied", ban_check_sql("SELECT COUNT(*) FROM [ban_table] WHERE ckey = 'dbroleban' AND unbanned_datetime IS NOT NULL") == "1")
 
 	//the earlier SQL fixes, against the real thing
-	var/datum/ban_record/full_row = ban_check_record("Chef", "nullcheck1", "Null Check", null, null)
-	var/datum/ban_record/short_row = ban_check_record("Chef", "nullcheck2", "Null Check", null, null)
-	var/list/row_a = full_row.sql_values()
-	var/list/row_b = short_row.sql_values()
+	var/list/row_a = list("bantime" = null, "server_ip" = "0", "server_port" = 1, "round_id" = 0, "role" = "Chef", "reason" = "ban check's 'quoted' \\ reason", "ckey" = "nullcheck1", "computerid" = "1234", "a_ckey" = "bancheckadmin", "a_ip" = "1.2.3.4", "a_computerid" = "1", "who" = "x", "adminwho" = "x", "applies_to_admins" = 0, "edits" = "e")
+	var/list/row_b = row_a.Copy()
+	row_b["ckey"] = "nullcheck2"
 	row_b -= "edits"
 	row_b -= "computerid"
-	ban_check(out, "MassInsert writes a missing column as NULL", SSdbcore.MassInsert(ban_table, list(row_a, row_b)) && ban_check_sql("SELECT COUNT(*) FROM [ban_table] WHERE ckey = 'nullcheck2' AND computerid IS NULL") == "1")
+	var/mass_ok = SSdbcore.MassInsert(ban_table, list(row_a, row_b), special_columns = list("bantime" = "NOW()", "server_ip" = "INET_ATON(?)", "a_ip" = "INET_ATON(?)"))
+	ban_check(out, "MassInsert writes a missing column as NULL", mass_ok && ban_check_sql("SELECT COUNT(*) FROM [ban_table] WHERE ckey = 'nullcheck2' AND computerid IS NULL") == "1")
+	ban_check(out, "MassInsert's values and special columns go in as given", ban_check_sql("SELECT CONCAT(reason, '|', INET_NTOA(a_ip)) FROM [ban_table] WHERE ckey = 'nullcheck1'") == "ban check's 'quoted' \\ reason|1.2.3.4")
 	create_message("note", "notetarget", "CID-Error", "ban check system note", null, null, 0, 0, null, 0, 0)
 	ban_check(out, "a system note (severity 0, no usr) is saved", ban_check_sql("SELECT COUNT(*) FROM [format_table_name("messages")] WHERE targetckey = 'notetarget' AND severity IS NULL") == "1")
 	SSstickyban.import_raw_stickyban_to_db("stickycheck", list("IP" = "1.2.3.4", "message" = "ban check", "admin" = "bancheckadmin"))
