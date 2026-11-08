@@ -3860,6 +3860,7 @@
 #include "hippiestation\code\modules\mob\living\silicon\ai\life.dm"
 #include "hippiestation\code\modules\mob\living\silicon\ai\vox_sounds.dm"
 #include "hippiestation\code\modules\mob\living\silicon\pai\pai_shell.dm"
+#include "hippiestation\code\modules\mob\living\silicon\pai\pai_tgui.dm"
 #include "hippiestation\code\modules\mob\living\silicon\laws_tgui.dm"
 #include "hippiestation\code\modules\mob\living\silicon\robot\login.dm"
 #include "hippiestation\code\modules\mob\living\silicon\robot\robot.dm"

@@ -162,15 +162,58 @@ export class PaiCard extends Component {
     const { laws, wiping } = this.state;
     const pai = data.pai;
     if (!pai) {
+      const candidates = data.candidates || [];
       return (
-        <Section>
-          <Box mb={1}>
-            No personality installed. Searching for a personality...
-          </Box>
-          <Button
-            icon="search"
-            content="View available personalities"
-            onClick={() => act('request')} />
+        <Section
+          title="No personality installed"
+          buttons={(
+            <Button
+              icon={data.searching ? 'sync' : 'search'}
+              content={data.searching ? 'Ask again' : 'Find a personality'}
+              onClick={() => act('request')} />
+          )}>
+          {!data.searching && (
+            <Box color="label">
+              Asking tells ghosts a personality is wanted, and lists the
+              ones on offer here.
+            </Box>
+          )}
+          {!!data.searching && candidates.length === 0 && (
+            <NoticeBox>
+              Nobody on offer yet. Personalities show up here as they are
+              offered.
+            </NoticeBox>
+          )}
+          {candidates.map(c => (
+            <Section
+              key={c.ref}
+              level={2}
+              title={c.name || 'Unnamed'}
+              buttons={(
+                <Button
+                  icon="download"
+                  content="Download"
+                  onClick={() => act('download', { ref: c.ref })} />
+              )}>
+              <LabeledList>
+                {!!c.description && (
+                  <LabeledList.Item label="Description">
+                    {decodeHtmlEntities(c.description)}
+                  </LabeledList.Item>
+                )}
+                {!!c.role && (
+                  <LabeledList.Item label="Preferred role">
+                    {decodeHtmlEntities(c.role)}
+                  </LabeledList.Item>
+                )}
+                {!!c.comments && (
+                  <LabeledList.Item label="OOC">
+                    {decodeHtmlEntities(c.comments)}
+                  </LabeledList.Item>
+                )}
+              </LabeledList>
+            </Section>
+          ))}
         </Section>
       );
     }

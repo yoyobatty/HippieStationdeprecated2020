@@ -50,6 +50,7 @@ import { ExosuitFabricator } from './interfaces/ExosuitFabricator';
 import { DestinationTagger, HandTeleporter, ImplantPad, Safe, SecureStorage } from './interfaces/Gadgets';
 import { GameMenu } from './interfaces/GameMenu';
 import { MindNotes } from './interfaces/MindNotes';
+import { PaiOs, PaiRecruit, SiliconPdaLog } from './interfaces/PaiOs';
 import { AiBotControl, AiVox, SiliconAlerts } from './interfaces/SiliconWindows';
 import { TguiPrompt } from './interfaces/TguiPrompt';
 import { VotePanel } from './interfaces/VotePanel';
@@ -1214,6 +1215,18 @@ const ROUTES = {
   },
   ai_vox: {
     component: () => AiVox,
+    scrollable: false,
+  },
+  pai_os: {
+    component: () => PaiOs,
+    scrollable: false,
+  },
+  pai_recruit: {
+    component: () => PaiRecruit,
+    scrollable: false,
+  },
+  silicon_pda_log: {
+    component: () => SiliconPdaLog,
     scrollable: false,
   },
 };

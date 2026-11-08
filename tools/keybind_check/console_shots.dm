@@ -303,6 +303,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_circuits(C, H, label)
 		if("silicon1")
 			cs_silicon1(C, H, label)
+		if("pai")
+			cs_pai(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -8168,3 +8170,125 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 		cs_act(vox, AI, "announce", list("text" = "attention all personnel"))
 		cs_check("silicon1: the announcement goes and the cooldown starts", cs_var(GLOB, "ai_vox_next") > world.time)
 		SStgui.close_user_uis(AI)
+
+// ---------------------------------------------------------------------------------------------
+// Old windows, batch 2: the pAI (personality form, the card's list, the pAI OS, a silicon's PDA log)
+// ---------------------------------------------------------------------------------------------
+
+// The harness has one client: a personality on offer needn't belong to a ghost that's connected
+/datum/controller/subsystem/pai/check_ready(datum/paiCandidate/C)
+	return C.ready ? C : FALSE
+
+/proc/cs_pai(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/scientist)
+	// A ghost fills in a personality
+	var/mob/dead/observer/ghost = H.ghostize(TRUE)
+	sleep(15)
+	SSpai.recruitWindow(ghost)
+	var/datum/paiCandidate/cand
+	for(var/datum/paiCandidate/c in SSpai.candidates)
+		if(c.key == ghost.key)
+			cand = c
+	cs_check("pai: the ghost has a personality to fill in", cand)
+	var/is_new = (label != "before")
+	if(is_new)
+		cs_act(cand, ghost, "set", list("field" = "name", "value" = "Pixel"))
+		cs_act(cand, ghost, "set", list("field" = "description", "value" = "Chirpy, a bit nosy, loves a good door to jack."))
+		cs_act(cand, ghost, "set", list("field" = "role", "value" = "Engineering sidekick"))
+		cs_act(cand, ghost, "set", list("field" = "comments", "value" = "Still learning the radio keys!"))
+		cs_check("pai: the fields are set from the window ([cand.name])", cand.name == "Pixel" && cand.role == "Engineering sidekick")
+	else
+		cand.name = "Pixel"
+		cand.description = "Chirpy, a bit nosy, loves a good door to jack."
+		cand.role = "Engineering sidekick"
+		cand.comments = "Still learning the radio keys!"
+		SSpai.recruitWindow(ghost)
+	cs_b1_shot(C, ghost, is_new ? cand : null, "popup_pai_[label]_1_recruit", "paiRecruit")
+	if(is_new)
+		cs_act(cand, ghost, "submit")
+	else
+		cand.ready = 1
+	cs_check("pai: the personality is on offer", cand.ready)
+	SStgui.close_user_uis(ghost)
+	// A second one on offer, for a fuller list
+	var/datum/paiCandidate/other = new
+	other.key = "someoneelse"
+	other.name = "B.O.B."
+	other.description = "Strictly business. Will remind you of Space Law."
+	other.role = "Security"
+	other.ready = 1
+	SSpai.candidates += other
+	H.ckey = C.ckey
+	sleep(15)
+
+	// An empty card asks for one
+	var/obj/item/paicard/card = new(get_turf(H))
+	H.put_in_active_hand(card)
+	usr = H
+	SSpai.findPAI(card, H)
+	var/datum/tgui/ui = cs_b1_shot(C, H, is_new ? card : null, "popup_pai_[label]_2_card_list", "findPai")
+	var/candidate_ref = REF(cand)
+	if(ui)
+		cs_tgui_do(C, ui.window_id, "click:Download")
+		sleep(15)
+	else
+		SSpai.Topic(null, list("download" = "1", "candidate" = candidate_ref, "device" = REF(card)))
+	cs_check("pai: a personality downloads into the card ([card.pai])", card.pai)
+	SStgui.close_user_uis(H)
+	var/mob/living/silicon/pai/P = card.pai
+	if(!P)
+		return
+	cs_take(C, P)
+	usr = P
+	P.ram = 100
+	var/mob/living/carbon/human/patient = cs_inject_crew(get_turf(H), "Maya Ferreira", "Medical Doctor", /datum/outfit/job/doctor)
+	sleep(10)
+	patient.forceMove(locate(1, 1, 1))
+	P.software = list()
+	P.paiInterface()
+	var/datum/os = cs_var(P, "os_window")
+	ui = cs_b1_shot(C, P, os, "popup_pai_[label]_3_home", "pai")
+	for(var/soft in list("digital messenger", "medical records", "door jack", "atmosphere sensor", "security HUD", "crew manifest"))
+		P.Topic(null, list("software" = "buy", "sub" = "1", "buy" = soft))
+	cs_check("pai: software bought ([P.ram] RAM left)", P.ram == 30 && ("door jack" in P.software))
+	var/list/screens = list("buy" = "4_shop", "pdamessage" = "5_messenger", "medicalrecord" = "6_records", "atmosensor" = "7_air", "doorjack" = "8_doorjack", "directives" = "9_directives")
+	// A message each way for the messenger
+	var/obj/item/pda/PDA = P.aiPDA
+	PDA.vars["pda_log"] = list(list("out" = FALSE, "name" = "Lena Kowalczyk", "job" = "Station Engineer", "text" = "Can you open the tool storage door for me?", "time" = "12:04"), \
+		list("out" = TRUE, "name" = "Lena Kowalczyk", "job" = "Station Engineer", "text" = "On my way, plug me in!", "time" = "12:05"))
+	PDA.tnote = "<i><b>&larr; From Lena Kowalczyk (Station Engineer):</b></i><br>Can you open the tool storage door for me?<br><i><b>&rarr; To Lena Kowalczyk (Station Engineer):</b></i><br>On my way, plug me in!<br>"
+	for(var/screen in screens)
+		if(ui)
+			cs_act(os, P, "screen", list("screen" = screen))
+		else
+			P.Topic(null, list("software" = screen, "sub" = "0"))
+		sleep(10)
+		if(screen == "medicalrecord")
+			var/datum/data/record/R = GLOB.data_core.medical[1]
+			if(ui)
+				cs_act(os, P, "record", list("id" = R.fields["id"]))
+			else
+				P.Topic(null, list("software" = "medicalrecord", "sub" = "1", "med_rec" = R.fields["id"]))
+			sleep(10)
+		if(ui)
+			SStgui.update_uis(os)
+			sleep(10)
+			cs_shot("popup_pai_[label]_[screens[screen]]")
+		else
+			sleep(15)
+			cs_shot("popup_pai_[label]_[screens[screen]]", "")
+	if(ui)
+		cs_act(os, P, "screen", list("screen" = "securityhud"))
+		cs_act(os, P, "toggle")
+		cs_check("pai: the facial recognition switch", P.secHUD)
+		cs_act(os, P, "screen", list("screen" = "doorjack"))
+		cs_act(os, P, "cable")
+		cs_check("pai: the door jack's cable comes out", P.cable)
+	SStgui.close_user_uis(P)
+	P << browse(null, "window=pai")
+
+	// A silicon's PDA log (the pAI's HUD button)
+	P.cmd_show_message_log(P)
+	ui = cs_b1_shot(C, P, cs_var(P, "pda_log_window"), "popup_pai_[label]_10_pda_log", "log")
+	SStgui.close_user_uis(P)
+	cs_take(C, H)

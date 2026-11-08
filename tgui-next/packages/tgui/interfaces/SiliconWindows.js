@@ -244,7 +244,7 @@ export class AiVox extends Component {
             </span>
             {unknown.length > 0 && (
               <span className="Sil__bad">
-                {' · not in the list: ' + unknown.join(', ')}
+                {'\u00a0· not in the list: ' + unknown.join(', ')}
               </span>
             )}
             <div

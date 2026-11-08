@@ -1,0 +1,559 @@
+// hippie -- the pAI's windows (interfaces/PaiOs.js) as an amber phosphor
+// terminal (the user's pick, 2026-11-08): monospace, a > prompt with a
+// blinking cursor, numbered programs, [ BRACKETED ] buttons, scanlines.
+
+$po-bg: #0c0700;
+$po-panel: #150c00;
+$po-line: #4a3000;
+$po-text: #ffb000;
+$po-bright: #ffd27a;
+$po-muted: #a86f00;
+$po-dim: #6b4600;
+$po-bad: #ff5a36;
+$po-glow: 0 0 6px rgba(255, 176, 0, 0.45);
+
+@keyframes PaiOs__blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.PaiOs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: $po-text;
+  font-family: Consolas, 'Lucida Console', 'Courier New', monospace;
+  font-size: 13px;
+  text-shadow: $po-glow;
+  background:
+    radial-gradient(ellipse at center, rgba(255, 150, 0, 0.07), transparent 70%),
+    $po-bg;
+
+  // Scanlines over everything
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.22) 0, rgba(0, 0, 0, 0.22) 1px, transparent 1px, transparent 3px);
+  }
+}
+
+.PaiOs--dead {
+  align-items: center;
+  justify-content: center;
+}
+
+.PaiOs__glitch {
+  color: $po-bad;
+  font-size: 20px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-shadow: 2px 0 #ffb000, -2px 0 #ff00aa;
+}
+
+.PaiOs__cursor {
+  display: inline-block;
+  width: 8px;
+  height: 14px;
+  margin-left: 3px;
+  vertical-align: -2px;
+  background: $po-text;
+  box-shadow: $po-glow;
+  animation: PaiOs__blink 1s infinite;
+}
+
+.PaiOs__top {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-bottom: 1px dashed $po-line;
+  background: rgba(40, 24, 0, 0.6);
+  text-transform: uppercase;
+
+  .PaiOs__btn {
+    margin-left: 6px;
+  }
+}
+
+.PaiOs__logo {
+  color: $po-bg;
+  background: $po-text;
+  padding: 0 6px;
+  margin-right: 10px;
+  font-weight: bold;
+  text-shadow: none;
+  white-space: nowrap;
+}
+
+.PaiOs__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: $po-bright;
+}
+
+.PaiOs__ram {
+  white-space: pre;
+}
+
+.PaiOs__body {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+.PaiOs__side {
+  flex: 0 0 230px;
+  overflow-y: auto;
+  padding: 6px 0;
+  border-right: 1px dashed $po-line;
+}
+
+.PaiOs__kind {
+  margin: 10px 12px 2px;
+  color: $po-dim;
+  text-transform: uppercase;
+
+  &::before {
+    content: '-- ';
+  }
+}
+
+.PaiOs__kind:empty::before {
+  content: '';
+}
+
+.PaiOs__nav {
+  display: flex;
+  align-items: center;
+  padding: 2px 12px;
+  cursor: pointer;
+  text-transform: uppercase;
+
+  &:hover {
+    background: rgba(255, 176, 0, 0.1);
+  }
+}
+
+.PaiOs__nav--on {
+  color: $po-bg;
+  background: $po-text;
+  text-shadow: none;
+
+  &:hover {
+    background: $po-bright;
+  }
+
+  .PaiOs__led {
+    color: $po-bg;
+  }
+}
+
+.PaiOs__num {
+  width: 30px;
+
+  &::before {
+    content: '[';
+  }
+
+  &::after {
+    content: ']';
+  }
+}
+
+.PaiOs__navLabel {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.PaiOs__led {
+  margin-left: 8px;
+  color: $po-dim;
+}
+
+.PaiOs__led--on {
+  color: $po-bright;
+}
+
+.PaiOs__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 10px 14px;
+}
+
+.PaiOs__main--solo {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.PaiOs__title {
+  margin-bottom: 10px;
+  color: $po-bright;
+  font-size: 15px;
+  text-transform: lowercase;
+}
+
+.PaiOs__h {
+  display: flex;
+  align-items: center;
+  margin: 12px 0 5px;
+  color: $po-bright;
+  text-transform: uppercase;
+
+  &::before {
+    content: '##';
+    margin-right: 8px;
+    color: $po-muted;
+  }
+
+  .PaiOs__search {
+    margin-left: auto;
+  }
+}
+
+.PaiOs__p {
+  margin: 6px 0;
+}
+
+.PaiOs__hint {
+  margin-top: 2px;
+}
+
+.PaiOs__muted {
+  color: $po-muted;
+}
+
+.PaiOs__big {
+  font-size: 18px;
+  color: $po-bright;
+}
+
+.PaiOs__notice {
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  border: 1px solid $po-bad;
+  color: $po-bad;
+  text-shadow: 0 0 6px rgba(255, 90, 54, 0.5);
+}
+
+.PaiOs__card {
+  margin: 4px 0 8px;
+  padding: 6px 10px;
+  border: 1px dashed $po-line;
+}
+
+.PaiOs__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 6px 0;
+
+  > * {
+    margin-right: 10px;
+  }
+}
+
+.PaiOs__line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 0;
+
+  > span:last-child {
+    text-align: right;
+  }
+}
+
+.PaiOs__line--click {
+  cursor: pointer;
+
+  &:hover {
+    color: $po-bg;
+    background: $po-text;
+    text-shadow: none;
+
+    .PaiOs__muted {
+      color: $po-panel;
+    }
+  }
+}
+
+.PaiOs__btn {
+  display: inline-block;
+  padding: 1px 2px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-transform: uppercase;
+
+  &::before {
+    content: '[ ';
+    color: $po-muted;
+  }
+
+  &::after {
+    content: ' ]';
+    color: $po-muted;
+  }
+
+  &:hover {
+    color: $po-bg;
+    background: $po-text;
+    text-shadow: none;
+
+    &::before,
+    &::after {
+      color: $po-bg;
+    }
+  }
+}
+
+.PaiOs__btn--off {
+  color: $po-dim;
+  cursor: default;
+
+  &:hover {
+    color: $po-dim;
+    background: transparent;
+
+    &::before,
+    &::after {
+      color: $po-muted;
+    }
+  }
+}
+
+.PaiOs__btn--danger {
+  color: $po-bad;
+}
+
+.PaiOs__state {
+  color: $po-bad;
+  text-transform: uppercase;
+
+  &::before {
+    content: '<';
+  }
+
+  &::after {
+    content: '>';
+  }
+}
+
+.PaiOs__state--on {
+  color: $po-bright;
+}
+
+.PaiOs__search {
+  padding: 2px 6px;
+  border: 1px solid $po-line;
+  background: $po-panel;
+  color: $po-text;
+  font-family: inherit;
+  font-size: 13px;
+  text-shadow: $po-glow;
+  outline: none;
+  caret-color: $po-text;
+
+  &::placeholder {
+    color: $po-dim;
+  }
+
+  &:focus {
+    border-color: $po-text;
+  }
+}
+
+.PaiOs__search--wide {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 6px;
+}
+
+.PaiOs__text {
+  width: 100%;
+  height: 64px;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.PaiOs__faces {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.PaiOs__face {
+  width: 86px;
+  margin: 0 6px 6px 0;
+  padding: 6px 0 4px;
+  border: 1px dashed $po-line;
+  text-align: center;
+  font-size: 11px;
+  text-transform: uppercase;
+  cursor: pointer;
+
+  &:hover {
+    border-color: $po-text;
+    background: rgba(255, 176, 0, 0.1);
+  }
+}
+
+.PaiOs__faceArt {
+  font-size: 18px;
+  color: $po-bright;
+  margin-bottom: 3px;
+}
+
+.PaiOs__law {
+  margin-bottom: 4px;
+  padding-left: 12px;
+
+  &::before {
+    content: '* ';
+    margin-left: -12px;
+    color: $po-muted;
+  }
+}
+
+.PaiOs__law--prime {
+  color: $po-bright;
+}
+
+.PaiOs__shop {
+  display: flex;
+  align-items: center;
+  padding: 1px 0;
+}
+
+.PaiOs__shopName {
+  flex: 1;
+  text-transform: uppercase;
+}
+
+.PaiOs__cost {
+  width: 40px;
+  margin-right: 10px;
+  text-align: right;
+  color: $po-muted;
+}
+
+.PaiOs__pdas {
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.PaiOs__pda {
+  padding: 1px 4px;
+  cursor: pointer;
+
+  &::before {
+    content: '-> ';
+    color: $po-muted;
+  }
+
+  &:hover {
+    color: $po-bg;
+    background: $po-text;
+    text-shadow: none;
+  }
+}
+
+.PaiOs__msg {
+  margin-bottom: 6px;
+  white-space: pre-wrap;
+}
+
+.PaiOs__msg--out {
+  color: $po-bright;
+}
+
+.PaiOs__msgHead {
+  color: $po-muted;
+
+  b {
+    color: $po-bright;
+    font-weight: normal;
+  }
+}
+
+.PaiOs__readings {
+  display: flex;
+  margin-bottom: 6px;
+
+  > div {
+    flex: 1;
+    text-align: center;
+  }
+}
+
+.PaiOs__cable {
+  text-transform: uppercase;
+}
+
+.PaiOs__cable--retracted {
+  color: $po-bad;
+}
+
+.PaiOs__cable--extended {
+  color: $po-text;
+}
+
+.PaiOs__cable--connected {
+  color: $po-bright;
+}
+
+.PaiOs__bar {
+  position: relative;
+  height: 18px;
+  margin: 8px 0;
+  border: 1px solid $po-line;
+  text-align: center;
+  line-height: 18px;
+
+  span {
+    position: relative;
+  }
+}
+
+.PaiOs__barFill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(90deg, rgba(255, 176, 0, 0.5) 0, rgba(255, 176, 0, 0.5) 6px, transparent 6px, transparent 8px);
+}
+
+.PaiOs__stepper {
+  display: inline-flex;
+  align-items: center;
+
+  b {
+    min-width: 60px;
+    text-align: center;
+    color: $po-bright;
+    font-weight: normal;
+  }
+}
+
+.PaiOs__field {
+  margin-bottom: 4px;
+}
