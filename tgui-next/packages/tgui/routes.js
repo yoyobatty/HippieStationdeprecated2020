@@ -6,6 +6,7 @@ import { AdminHub } from './interfaces/AdminHub';
 import { AiAirlock } from './interfaces/AiAirlock';
 import { AirAlarm } from './interfaces/AirAlarm';
 import { AirlockElectronics } from './interfaces/AirlockElectronics';
+import { AntagTips, ApprenticeContract, ArcaneTome, GangTool, MalfModules, PiratePad, RadLaser, TeleportScroll } from './interfaces/AntagWindows';
 import { Apc } from './interfaces/Apc';
 import { ApcControl } from './interfaces/ApcControl';
 import { Assembly } from './interfaces/Assembly';
@@ -1228,6 +1229,40 @@ const ROUTES = {
   silicon_pda_log: {
     component: () => SiliconPdaLog,
     scrollable: false,
+  },
+  malf_modules: {
+    component: () => MalfModules,
+    scrollable: true,
+    theme: 'syndicate',
+  },
+  arcane_tome: {
+    component: () => ArcaneTome,
+    scrollable: false,
+  },
+  gang_tool: {
+    component: () => GangTool,
+    scrollable: true,
+  },
+  apprentice_contract: {
+    component: () => ApprenticeContract,
+    scrollable: false,
+  },
+  teleport_scroll: {
+    component: () => TeleportScroll,
+    scrollable: false,
+  },
+  rad_laser: {
+    component: () => RadLaser,
+    scrollable: true,
+    theme: 'syndicate',
+  },
+  pirate_pad: {
+    component: () => PiratePad,
+    scrollable: true,
+  },
+  antag_tips: {
+    component: () => AntagTips,
+    scrollable: true,
   },
 };
 

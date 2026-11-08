@@ -3343,6 +3343,7 @@
 #include "hippiestation\code\modules\antagonists\_common\antag_datum.dm"
 #include "hippiestation\code\modules\antagonists\_common\antag_spawner.dm"
 #include "hippiestation\code\modules\antagonists\_common\tips.dm"
+#include "hippiestation\code\modules\antagonists\antag_windows_tgui.dm"
 #include "hippiestation\code\modules\antagonists\abductor\abductor_tgui.dm"
 #include "hippiestation\code\modules\antagonists\disease\disease_tgui.dm"
 #include "hippiestation\code\modules\antagonists\abductor\abductor.dm"

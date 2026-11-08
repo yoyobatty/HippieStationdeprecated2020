@@ -305,6 +305,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_silicon1(C, H, label)
 		if("pai")
 			cs_pai(C, H, label)
+		if("antags3")
+			cs_antags3(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -8292,3 +8294,134 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	ui = cs_b1_shot(C, P, cs_var(P, "pda_log_window"), "popup_pai_[label]_10_pda_log", "log")
 	SStgui.close_user_uis(P)
 	cs_take(C, H)
+
+// ---------------------------------------------------------------------------------------------
+// Old windows, batch 3: the antagonists' windows
+// ---------------------------------------------------------------------------------------------
+
+/// An item's window from its attack_self, old or new
+/proc/cs_b3_item(client/C, mob/living/carbon/human/H, obj/item/I, name, old_window, title = "")
+	H.drop_all_held_items()
+	H.put_in_active_hand(I)
+	usr = H
+	I.attack_self(H)
+	return cs_b1_shot(C, H, I, name, old_window, title)
+
+/proc/cs_antags3(client/C, mob/living/carbon/human/H, label)
+	var/is_new = (label != "before")
+	H.equipOutfit(/datum/outfit/job/assistant)
+	// The traitor's tips
+	H.mind.add_antag_datum(/datum/antagonist/traitor)
+	sleep(20)
+	var/datum/tips
+	for(var/datum/tgui/open in H.open_uis)
+		if(open.interface == "antag_tips")
+			tips = open.src_object
+	cs_b1_shot(C, H, tips, "popup_antags3_[label]_1_tips", "antagTips")
+	SStgui.close_user_uis(H)
+	H.mind.remove_antag_datum(/datum/antagonist/traitor)
+
+	// The radioactive microlaser
+	var/obj/item/healthanalyzer/rad_laser/laser = new(get_turf(H))
+	var/datum/tgui/ui = cs_b3_item(C, H, laser, "popup_antags3_[label]_2_radlaser", "radlaser")
+	if(ui)
+		cs_act(laser, H, "intensity", list("by" = "5"))
+		cs_act(laser, H, "stealth")
+		cs_check("antags3: the microlaser's intensity and stealth ([laser.intensity], [laser.stealth])", laser.intensity == 15 && laser.stealth)
+	SStgui.close_user_uis(H)
+
+	// The apprentice contract
+	var/obj/item/antag_spawner/contract/contract = new(get_turf(H))
+	cs_b3_item(C, H, contract, "popup_antags3_[label]_3_contract", "radio")
+	SStgui.close_user_uis(H)
+
+	// The teleportation scroll
+	var/obj/item/teleportation_scroll/scroll = new(get_turf(H))
+	ui = cs_b3_item(C, H, scroll, "popup_antags3_[label]_4_scroll", "scroll")
+	if(ui)
+		cs_tgui_do(C, ui.window_id, "input0:bar")
+		sleep(10)
+		cs_shot("popup_antags3_[label]_5_scroll_search")
+		var/area/before_area = get_area(H)
+		var/target_name
+		for(var/name in GLOB.teleportlocs)
+			if(GLOB.teleportlocs[name] != before_area)
+				target_name = name
+				break
+		cs_act(scroll, H, "teleport", list("area" = target_name))
+		sleep(10)
+		cs_check("antags3: the scroll teleports ([before_area] -> [get_area(H)], [scroll.uses] uses left)", get_area(H) != before_area && scroll.uses == 3)
+	SStgui.close_user_uis(H)
+
+	// The arcane tome, as a cultist
+	H.mind.add_antag_datum(/datum/antagonist/cult)
+	sleep(10)
+	var/obj/item/tome/tome = new(get_turf(H))
+	H.drop_all_held_items()
+	H.put_in_active_hand(tome)
+	usr = H
+	tome.read_tome(H)
+	ui = cs_b1_shot(C, H, is_new ? tome : null, "popup_antags3_[label]_6_tome", "tome")
+	if(ui)
+		cs_tgui_do(C, ui.window_id, "css:.Tome__tab:nth-child(2)")
+		sleep(10)
+		cs_shot("popup_antags3_[label]_7_tome_talismans")
+	SStgui.close_user_uis(H)
+	H.mind.remove_antag_datum(/datum/antagonist/cult)
+
+	// The gang boss's tool
+	H.mind.add_antag_datum(/datum/antagonist/gang/boss)
+	var/datum/antagonist/gang/boss/boss = H.mind.has_antag_datum(/datum/antagonist/gang/boss)
+	if(boss)
+		boss.gang.influence = 40
+		H.drop_all_held_items()
+		boss.equip_gang(TRUE, FALSE, FALSE, FALSE)
+		var/obj/item/gangtool/tool = locate() in H.contents
+		if(!tool)
+			for(var/obj/item/gangtool/T in H.GetAllContents())
+				tool = T
+		cs_check("antags3: a registered gang tool ([tool?.gang])", tool?.gang)
+		if(tool)
+			H.temporarilyRemoveItemFromInventory(tool, TRUE)
+			H.put_in_active_hand(tool)
+			usr = H
+			tool.attack_self(H)
+			ui = cs_b1_shot(C, H, is_new ? tool : null, "popup_antags3_[label]_8_gangtool", "gangtool")
+			SStgui.close_user_uis(H)
+		H.mind.remove_antag_datum(/datum/antagonist/gang/boss)
+
+	// The pirates' cargo hold console and its pad
+	var/turf/padspot = cs_open_beside(H)
+	var/obj/machinery/piratepad/pad = new(padspot)
+	var/obj/machinery/computer/piratepad_control/console = new(cs_open_beside(H, list(padspot)))
+	console.pad = pad
+	console.stat &= ~(NOPOWER|BROKEN)
+	new /obj/item/stack/sheet/mineral/gold(padspot, 5)
+	usr = H
+	console.Topic(null, list("recalc" = "1"))
+	console.interact(H)
+	cs_b1_shot(C, H, is_new ? console : null, "popup_antags3_[label]_9_piratepad", "piratepad")
+	SStgui.close_user_uis(H)
+
+	// The malfunctioning AI's modules
+	var/mob/living/silicon/ai/AI = H.AIize()
+	sleep(20)
+	if(!istype(AI))
+		cs_check("antags3: an AI", FALSE)
+		return
+	AI.add_malf_picker()
+	usr = AI
+	AI.malf_picker.use(AI)
+	ui = cs_b1_shot(C, AI, is_new ? AI.malf_picker : null, "popup_antags3_[label]_10_malf", "modpicker", "Malf Module Menu")
+	if(ui)
+		var/datum/AI_Module/cheapest
+		for(var/datum/AI_Module/AM in AI.malf_picker.possible_modules)
+			if(!cheapest || AM.cost < cheapest.cost)
+				cheapest = AM
+		var/before_points = AI.malf_picker.processing_time
+		cs_act(AI.malf_picker, AI, "buy", list("key" = cheapest.mod_pick_name))
+		cs_check("antags3: a module bought ([cheapest.module_name], [before_points] -> [AI.malf_picker.processing_time])", AI.malf_picker.processing_time == before_points - cheapest.cost)
+		SStgui.update_uis(AI.malf_picker)
+		sleep(10)
+		cs_shot("popup_antags3_[label]_11_malf_bought")
+	SStgui.close_user_uis(AI)
