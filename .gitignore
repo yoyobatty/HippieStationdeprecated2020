@@ -223,3 +223,6 @@ tts/
 !/config/title_screens/images/exclude
 .claude/
 /tools/lint/bin/
+
+# Database login written by tools/db_setup (holds the password)
+/config/dbconfig_local.txt

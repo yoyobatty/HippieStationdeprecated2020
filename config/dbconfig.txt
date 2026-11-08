@@ -43,3 +43,6 @@ BSQL_THREAD_LIMIT 50
 
 ## Uncomment to enable verbose BSQL communication logs
 #BSQL_DEBUG
+
+## Written by tools/db_setup/db_setup.sh (gitignored, holds the password). Read last, so it wins over the lines above.
+$include dbconfig_local.txt
