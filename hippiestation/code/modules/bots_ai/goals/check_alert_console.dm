@@ -36,6 +36,16 @@
 		return LAZYLEN(S.alarms["Fire"])
 	return FALSE //atmos_alert has no Fire category at all
 
+/// The places a station alert console lists fires in, now known to this bot (goals/respond_to_fire.dm): where it goes next.
+/datum/bot_brain/proc/learn_fires_on_console(obj/machinery/computer/station_alert/S)
+	if(!istype(S))
+		return
+	var/list/fires = S.alarms["Fire"]
+	for(var/area_name in fires)
+		var/list/alarm = fires[area_name]
+		if(islist(alarm) && length(alarm) && isarea(alarm[1]))
+			learn_of_fire(alarm[1], "read it on [S]")
+
 // atmos_alert's minor_alarms deliberately does NOT count here, unlike priority_alarms -
 // confirmed as a real starvation bug in-game: find_contaminated_air_alarm() (respond_to_
 // contamination.dm) only ever acts on danger_level == 2 (severe), so a room stuck at
@@ -138,6 +148,8 @@
 	bot.next_console_read_time = world.time + rand(600, 1200)
 	goal.saw_fire = bot.console_reports_fire(C)
 	goal.saw_atmos = bot.console_reports_atmos(C)
+	if(goal.saw_fire)
+		bot.learn_fires_on_console(C)
 	if(!goal.saw_fire && !goal.saw_atmos)
 		bot_log(bot, "checked [C] - nothing alarming anymore")
 	else

@@ -667,13 +667,15 @@
 	// 5-15s poll cadence below, the same way a real crew member doesn't wait out a
 	// schedule before reacting to flames in front of them. The timed/radio-pushed
 	// checks further down stay as-is for hazards the bot ISN'T currently looking at.
-	if(is_fire_response_job() && can_see_active_fire())
-		if(try_fire_response_round())
+	if(is_fire_response_job())
+		if(can_see_active_fire() && try_fire_response_round())
 			if(owner.buckled)
 				owner.buckled.unbuckle_mob(owner, force = TRUE)
 			return
-	else if(world.time >= next_fire_report_time && can_see_active_fire())
-		report_fire() //goals/respond_to_fire.dm
+	else if(world.time >= next_fire_report_time)
+		var/obj/effect/hotspot/fire_seen = can_see_active_fire()
+		if(fire_seen)
+			report_fire(get_area(fire_seen)) //goals/respond_to_fire.dm
 	if(is_atmos_response_job() && can_see_atmos_hazard())
 		if(try_contamination_round())
 			if(owner.buckled)

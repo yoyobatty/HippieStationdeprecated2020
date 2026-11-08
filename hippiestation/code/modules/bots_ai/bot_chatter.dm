@@ -114,6 +114,29 @@ GLOBAL_LIST_EMPTY(bot_radio_lately)
 			return FALSE
 	return TRUE
 
+/// Words that put a question to whoever hears it.
+GLOBAL_LIST_INIT(bot_you_words, list("you", "ya", "u", "your", "you're", "youre", "yall", "y'all"))
+
+/// A question put to whoever's there, nobody named ("what are you up to?" to two of them stood together, or from across the room): the
+/// nearest person to whoever asked takes it, if that's this bot. The user asked an engineer and an atmos tech just that from four tiles
+/// off, and neither said a word (is_spoken_to_by() wants one person, two tiles away).
+/datum/bot_brain/proc/asked_as_nearest(mob/living/talker, lower_msg)
+	if(!findtext(lower_msg, "?") || !bot_text_has_any(lower_msg, GLOB.bot_you_words))
+		return FALSE
+	if(get_dist(owner, talker) > 5)
+		return FALSE
+	// Every bot that hears it works this out the same way in the same tick, so just the one answers.
+	var/mob/living/carbon/human/nearest
+	var/nearest_dist
+	for(var/mob/living/carbon/human/H in view(5, talker))
+		if(H == talker || H.stat != CONSCIOUS)
+			continue
+		var/dist = get_dist(H, talker)
+		if(!nearest || dist < nearest_dist)
+			nearest = H
+			nearest_dist = dist
+	return nearest == owner
+
 /datum/bot_brain/proc/on_heard_speech(atom/movable/speaker, raw_message, radio_freq)
 	if(!raw_message || QDELETED(owner) || owner.stat != CONSCIOUS)
 		return
@@ -130,6 +153,7 @@ GLOBAL_LIST_EMPTY(bot_radio_lately)
 	if(gone_loud()) //nobody it's on speaking terms with, short of a deal
 		heard_team_offer(talker, lowertext(raw_message), radio_freq)
 		return
+	heard_of_fire(talker, lowertext(raw_message), radio_freq) //goals/respond_to_fire.dm: from bots as well, who radio the fires they see
 	// Bots talk to each other through make_small_talk() below. Answering whatever another bot says as well would
 	// have two of them alone in a room trading stock replies for the rest of the shift.
 	var/mob/living/carbon/human/crewmate = talker
@@ -171,6 +195,8 @@ GLOBAL_LIST_EMPTY(bot_radio_lately)
 	// Somebody dead is news for whoever's in earshot, not just who it's said to: the first one near enough takes it up (bot_talk_more.dm).
 	if(!addressed && !radio_freq && get_dist(owner, talker) <= 7 && bot_is_death_news(lower_msg) && world.time >= GLOB.bot_death_news_taken + 5 SECONDS)
 		GLOB.bot_death_news_taken = world.time
+		addressed = TRUE
+	if(!addressed && !radio_freq && asked_as_nearest(talker, lower_msg))
 		addressed = TRUE
 	if(!addressed && (radio_freq || get_dist(owner, talker) > 3))
 		return

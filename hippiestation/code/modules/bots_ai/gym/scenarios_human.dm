@@ -213,6 +213,243 @@
 	keep_burning()
 	return world.time >= start_time + 12 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+// ---------------------------------------------------------------------------------------------
+// Which fires are its to put out, and how it comes to know of one (goals/respond_to_fire.dm)
+// ---------------------------------------------------------------------------------------------
+
+/// A burn chamber for the gym: the toxins one's area, needing no power.
+/area/science/mixing/chamber/bot_gym
+	name = "Bot Gym Burn Chamber"
+	requires_power = FALSE
+	has_gravity = STANDARD_GRAVITY
+	dynamic_lighting = DYNAMIC_LIGHTING_DISABLED
+
+/// An engineer with an extinguisher in hand going about its day, no goal given, and a fire somewhere.
+/// Extra legend: K burn chamber (its area, engine floor), O the fire, A station alert console, a fire alarm (not set off by heat).
+/datum/bot_scenario/fire_news
+	job = "Station Engineer"
+	kit_hands = list(/obj/item/extinguisher)
+	time_limit = 20 SECONDS
+	var/area/science/mixing/chamber/bot_gym/chamber
+
+/datum/bot_scenario/fire_news/issue_goal()
+	return
+
+/datum/bot_scenario/fire_news/post_spawn()
+	..()
+	brain.gym_scripted = FALSE //a scripted bot has no fire response
+
+/datum/bot_scenario/fire_news/build_tile(turf/T, char)
+	switch(char)
+		if("K")
+			if(!chamber)
+				chamber = new
+			var/area/old_area = T.loc
+			old_area.contents -= T
+			chamber.contents += T
+			T.change_area(old_area, chamber)
+			T.ChangeTurf(/turf/open/floor/engine, flags = CHANGETURF_INHERIT_AIR)
+		if("A")
+			place(char, new /obj/machinery/computer/station_alert(T))
+		if("a")
+			var/obj/machinery/firealarm/alarm = new(T)
+			alarm.detecting = FALSE //it goes off when somebody pulls it, not on its own from the fire's heat
+			place(char, alarm)
+		else
+			return ..()
+
+/// The burn chamber's floor, or the one tile: lit again on every tile round it each second, the fire filled the room, and with no tile
+/// in it clear of flames to spray from the engineer was sent outside the arena.
+/datum/bot_scenario/fire_news/proc/fire_tiles()
+	var/list/chamber_floor = markers["K"]
+	if(length(chamber_floor))
+		return chamber_floor.Copy()
+	return list(first_marker("O"))
+
+/// A small fire burns out in seconds: lit again wherever it's gone out.
+/datum/bot_scenario/fire_news/proc/keep_burning()
+	var/list/turf/open/out = list()
+	for(var/turf/open/T as anything in fire_tiles())
+		if(!T.active_hotspot)
+			out += T
+	if(length(out))
+		start_fire(out, 3)
+
+/// It set off to put the fire out (the goal's own lines, which the code before this had too).
+/datum/bot_scenario/fire_news/proc/went_for_it()
+	if(istype(brain.current_goal, /datum/bot_goal/fight_fire))
+		return TRUE
+	for(var/line in transcript)
+		if(findtext(line, "going to put out the fire") || (findtext(line, "/datum/bot_goal/fight_fire") && !findtext(line, "couldn't find a target")))
+			return TRUE
+	return FALSE
+
+/// It put the fire out, or it's there putting it out.
+/datum/bot_scenario/fire_news/proc/at_the_fire()
+	if(bot_transcript_said("goal /datum/bot_goal/fight_fire succeeded"))
+		return TRUE
+	return istype(brain.current_goal, /datum/bot_goal/fight_fire) && get_dist(bot, first_marker("O")) <= 5
+
+/datum/bot_scenario/fire_news/burn_chamber
+	name = "fire: a burn chamber burning is left to burn"
+	desc = "A toxins burn behind the chamber's window, in plain sight. The engineer leaves it be. In the user's RD round an engineer and an atmos tech hacked four doors, the last the chamber's bolted airlock, and sprayed a scientist's burn through the glass until the round ended."
+	layout = list(
+		"##########",
+		"#KKKw....#",
+		"#KKKw.B..#",
+		"#KKKw....#",
+		"##########")
+
+/datum/bot_scenario/fire_news/burn_chamber/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	keep_burning()
+	if(went_for_it())
+		fail_reason = "went to put out the burn chamber's fire"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/fire_news/burn_chamber/on_timeout()
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/fire_news/unheard_of
+	name = "fire: one it's not seen or heard of is left to those who have"
+	desc = "A fire through a wall that nobody's radioed and no console shows. The engineer gets on with its day. Every engineer and atmos tech used to know of every fire on the station: an atmos tech having a drink 105 tiles away set off for a toxins burn 5 seconds after it was lit."
+	layout = list(
+		"#################",
+		"#.......#.......#",
+		"#...B...#...O...#",
+		"#.......#.......#",
+		"#################")
+
+/datum/bot_scenario/fire_news/unheard_of/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	keep_burning()
+	if(went_for_it())
+		fail_reason = "went for a fire it had no way of knowing about"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/fire_news/unheard_of/on_timeout()
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/fire_news/radioed
+	name = "fire: one radioed in is gone to"
+	desc = "Somebody radios a fire in the next room, by the room's name. The engineer, who can't see it, goes to put it out."
+	layout = list(
+		"#################",
+		"#C......#.......#",
+		"#...B...D...O...#",
+		"#.......#.......#",
+		"#################")
+	time_limit = 30 SECONDS
+	var/mob/living/carbon/human/radio_caller
+	var/told_at
+
+/datum/bot_scenario/fire_news/radioed/setup()
+	arena_area.name = "Boiler Room [run_index]" //a name of its own: every arena's is the same
+
+/datum/bot_scenario/fire_news/radioed/post_spawn()
+	..()
+	radio_caller = stand_in(first_marker("C"), "Casey Caller")
+	addtimer(CALLBACK(src, PROC_REF(call_it_in)), 1.5 SECONDS) //before it's wandered through the door and seen it
+
+/datum/bot_scenario/fire_news/radioed/proc/call_it_in()
+	if(result != BOT_GYM_PENDING || QDELETED(radio_caller))
+		return
+	told_at = world.time
+	var/line = "Fire in [arena_area.name]!"
+	log_line("caller, on the radio: \"[line]\"")
+	brain.on_heard_speech(radio_caller, line, FREQ_COMMON)
+
+/datum/bot_scenario/fire_news/radioed/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	keep_burning()
+	if(!told_at && went_for_it())
+		fail_reason = "went for the fire before anybody said a word about it"
+		return BOT_GYM_FAIL
+	return at_the_fire() ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/fire_news/on_the_console
+	name = "fire: one an alert console shows is gone to, and the alarm reset after"
+	desc = "The station alert console beside the engineer lights up with a fire in the next room. It reads it, goes and puts the fire out, and resets the room's fire alarm: left on, it shuts the room's firelocks every ten seconds."
+	layout = list(
+		"#################",
+		"#..A....#a......#",
+		"#...B...D...O...#",
+		"#.......#.......#",
+		"#################")
+	time_limit = 40 SECONDS
+	var/reached = FALSE
+
+/datum/bot_scenario/fire_news/on_the_console/setup()
+	arena_area.name = "Furnace Room [run_index]" //a console lists alarms by the place's name, and every arena's is the same
+
+/datum/bot_scenario/fire_news/on_the_console/post_spawn()
+	..()
+	var/obj/machinery/firealarm/alarm = first_placed("a")
+	alarm.alarm()
+
+/datum/bot_scenario/fire_news/on_the_console/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!reached)
+		keep_burning() //then it's left to go out
+	if(went_for_it())
+		var/read = FALSE
+		for(var/line in transcript)
+			if(findtext(line, "checked") && findtext(line, "fire"))
+				read = TRUE
+				break
+		if(!read)
+			fail_reason = "went for the fire without reading the console"
+			return BOT_GYM_FAIL
+	if(!reached)
+		reached = at_the_fire()
+		if(reached) //what's left of the fuel goes, and the fire with it: a sealed room's worth of plasma burns on through any extinguisher
+			for(var/turf/open/T in arena_area)
+				if(T.air?.moles[/datum/gas/plasma])
+					T.air.moles[/datum/gas/plasma] = 0
+					T.air_update_turf()
+		return BOT_GYM_PENDING
+	return arena_area.fire ? BOT_GYM_PENDING : BOT_GYM_PASS
+
+/datum/bot_scenario/fire_news/on_the_console/on_timeout()
+	fail_reason = reached ? "put the fire out and left the alarm going" : "never got to the fire"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/fire_news/on_the_console/release_run()
+	var/obj/machinery/firealarm/alarm = first_placed("a")
+	if(alarm && arena_area?.fire)
+		arena_area.firereset(alarm)
+	return ..()
+
+/datum/bot_scenario/fire_news/no_radio
+	name = "fire: seen with no radio to call it in, the room's fire alarm is pulled"
+	desc = "An assistant with no headset sees a fire. It pulls the room's fire alarm, which puts it on every alert console for the engineers. Both fires in a six-shift test were seen only by crew with no headset on, and no engineer heard of either."
+	job = "Assistant"
+	kit_hands = null
+	layout = list(
+		"############",
+		"#a.........#",
+		"#..B....O..#",
+		"#..........#",
+		"############")
+
+/datum/bot_scenario/fire_news/no_radio/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	keep_burning()
+	return (arena_area.fire && bot_transcript_said("pulled the fire alarm")) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/fire_news/no_radio/release_run()
+	var/obj/machinery/firealarm/alarm = first_placed("a")
+	if(alarm && arena_area?.fire)
+		arena_area.firereset(alarm)
+	return ..()
+
 /// A banana peel on the way: stepped round, when it's seen (the chance is set to a sure thing here; a shift has it missed now and then).
 /datum/bot_scenario/banana_peel
 	name = "footing: a banana peel in the way is stepped round, not run on to"

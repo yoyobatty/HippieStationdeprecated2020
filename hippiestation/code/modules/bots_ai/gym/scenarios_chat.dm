@@ -66,6 +66,44 @@
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
 
+/datum/bot_scenario/chat/asked_as_a_pair
+	name = "chat: a question put to two of them gets one answer"
+	desc = "Two crew stand together and somebody four tiles off asks \"what are you up to?\", naming nobody. The nearer one answers it and the other leaves it to them. The user asked an engineer and an atmos tech just that, and neither said a word."
+	layout = list(
+		"##########",
+		"#bB...C..#",
+		"##########")
+	time_limit = 15 SECONDS
+	var/mob/living/carbon/human/other
+	var/asked_at
+
+/datum/bot_scenario/chat/asked_as_a_pair/post_spawn()
+	..()
+	other = second_bot(first_marker("b"), "Riley Pairbot")
+	addtimer(CALLBACK(src, PROC_REF(ask)), 2 SECONDS)
+
+/datum/bot_scenario/chat/asked_as_a_pair/proc/ask()
+	asked_at = world.time
+	visitor_says("What are you up to?")
+
+/datum/bot_scenario/chat/asked_as_a_pair/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/list/lines = spoken()
+	if(length(lines) > 1)
+		fail_reason = "both answered: [english_list(lines)]"
+		return BOT_GYM_FAIL
+	if(!length(lines) || world.time < asked_at + 8 SECONDS)
+		return BOT_GYM_PENDING
+	if(!brain.in_conversation_with(visitor))
+		fail_reason = "the one further off answered: \"[lines[1]]\""
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/chat/asked_as_a_pair/on_timeout()
+	fail_reason = length(spoken()) ? "timed out" : "neither answered"
+	return BOT_GYM_FAIL
+
 /datum/bot_scenario/chat/not_meant_for_it
 	name = "chat: stays out of talk that isn't for it"
 	desc = "Two crew members talk to each other next to the bot, without its name. It doesn't chip in."
