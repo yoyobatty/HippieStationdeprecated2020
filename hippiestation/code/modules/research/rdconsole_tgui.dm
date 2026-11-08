@@ -44,6 +44,9 @@ GLOBAL_LIST_EMPTY(rd_ui_mat_names)
 				"build" = D.build_type,
 				"mats" = mats,
 				"cats" = D.category,
+				// One home each on the protolathe/techfabs and on the imprinter (design_groups.dm)
+				"lathe" = (D.build_type & PROTOLATHE) ? D.lathe_group() : null,
+				"board" = (D.build_type & IMPRINTER) ? D.board_group() : null,
 				"dept" = D.departmental_flags,
 				// Sheets and bluespace crystals cost the same whatever the manipulators (production/efficient_with()).
 				"flat" = ispath(D.build_path, /obj/item/stack/sheet) || ispath(D.build_path, /obj/item/stack/ore/bluespace_crystal),
@@ -111,6 +114,7 @@ GLOBAL_LIST_EMPTY(rd_ui_mat_names)
 		if(!from_nodes[design_id])
 			extra += design_id
 	.["extra_designs"] = extra
+	.["panel_prefs"] = lathe_panel_prefs(user)
 	.["lathe"] = linked_lathe?.fabricator_data()
 	.["imprinter"] = linked_imprinter?.fabricator_data()
 	.["analyzer"] = linked_destroy ? analyzer_data() : null
@@ -184,6 +188,9 @@ GLOBAL_LIST_EMPTY(rd_ui_mat_names)
 				unlock_console(usr)
 		else
 			to_chat(usr, "<span class='boldwarning'>Unauthorized Access.</span>")
+		return TRUE
+	if(action == "panel_pref")
+		lathe_panel_pref_set(usr, params["key"], params["value"])
 		return TRUE
 	if(locked)
 		return
@@ -339,6 +346,13 @@ GLOBAL_LIST_EMPTY(rd_ui_mat_names)
 	.["coeff"] = efficiency_coeff
 	.["buildtype"] = allowed_buildtypes
 	.["categories"] = categories //its own: designs carry the autolathe's "initial" and "hacked" as well
+	// Which of a design's groups this machine lists it under, the first it has: a techfab makes both kinds
+	var/list/grouping = list()
+	if(allowed_buildtypes & PROTOLATHE)
+		grouping += "lathe"
+	if(allowed_buildtypes & IMPRINTER)
+		grouping += "board"
+	.["grouping"] = grouping
 	.["dept"] = allowed_department_flags //null: anything at all, no department flags or not (user_try_print_id())
 	var/datum/component/material_container/mats = materials?.mat_container
 	var/list/mat_list = list()
@@ -387,10 +401,14 @@ GLOBAL_LIST_EMPTY(rd_ui_mat_names)
 		designs += D.id
 	.["researched"] = designs
 	.["name"] = name
+	.["panel_prefs"] = lathe_panel_prefs(user)
 
 /obj/machinery/rnd/production/ui_act(action, list/params)
 	if(..())
 		return
+	if(action == "panel_pref")
+		lathe_panel_pref_set(usr, params["key"], params["value"])
+		return TRUE
 	switch(action)
 		if("print")
 			print_or_queue(params["id"], text2num(params["amount"]) || 1)

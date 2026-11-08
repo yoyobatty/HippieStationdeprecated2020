@@ -53,10 +53,15 @@
 		queue += list(list("id" = entry[1], "name" = D ? D.name : entry[1], "amount" = entry[2]))
 	.["queue"] = queue
 	.["researched"] = assoc_list_strip_value(stored_research.researched_designs)
+	.["grouping"] = list("autolathe") // tg's own groups, filtered by .["categories"]
+	.["panel_prefs"] = lathe_panel_prefs(user)
 
 /obj/machinery/autolathe/ui_act(action, list/params)
 	if(..())
 		return
+	if(action == "panel_pref") // even with a cut wire: it's the page remembering where it was
+		lathe_panel_pref_set(usr, params["key"], params["value"])
+		return TRUE
 	if(disabled) // a cut wire: none of its controls answer
 		return
 	switch(action)

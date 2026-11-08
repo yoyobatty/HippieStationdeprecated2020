@@ -1,6 +1,6 @@
 import { Component, Fragment } from 'inferno';
 import { useBackend } from '../backend';
-import { Box, Button, Icon, Input, NoticeBox, ProgressBar } from '../components';
+import { Box, Button, Icon, Input, NoticeBox } from '../components';
 import { SampleBoard } from './Experiments';
 
 // The R&D console (hippiestation/code/modules/research/rdconsole_tgui.dm).
@@ -621,92 +621,207 @@ const NodeDetails = props => {
   );
 };
 
-// Materials, chemicals and the queue: the left side of a fabricator
-const FabricatorStores = props => {
-  const { fab, act, sheet } = props;
-  return (
-    <Fragment>
-      {!!fab.disabled && (
-        <NoticeBox>
-          The controls aren&apos;t responding: a wire inside is cut.
-        </NoticeBox>
-      )}
-      <Box bold mb={0.5}>
-        <Icon name="cubes" mr={0.5} />
-        Materials
-        {!!fab.silo && (
-          <Box inline color="label" ml={1} fontSize="11px">
-            from the ore silo
-          </Box>
+// What a design is listed under on this machine: its one group on the
+// protolathe, imprinter and techfabs (design_groups.dm), tg's own on the
+// autolathe, where a design can sit in several
+const groupsOf = (design, fab, own, hasOwn) => {
+  for (let key of fab.grouping || []) {
+    if (key === 'autolathe') {
+      break;
+    }
+    if (design[key]) {
+      return [design[key]];
+    }
+  }
+  return (design.cats || []).filter(cat => !hasOwn || own[cat]);
+};
+
+// What the player last had open and the hide toggle, kept by the server
+// for the round (an empty list comes over as an array)
+const panelPrefs = data => {
+  const prefs = data && data.panel_prefs;
+  return prefs && !Array.isArray(prefs) ? prefs : {};
+};
+
+const sheetsOf = (amount, sheet) => String(
+  Math.floor(amount / sheet * 10) / 10);
+
+// Materials and chemicals in one line across the top, ejecting in a drawer
+class FabricatorStrip extends Component {
+  constructor() {
+    super();
+    this.state = {
+      open: false,
+    };
+  }
+
+  render() {
+    const { fab, act } = this.props;
+    const { open } = this.state;
+    const sheet = fab.sheet || 2000;
+    const mats = (fab.mats || []).filter(mat => mat.amount > 0);
+    const chems = fab.chems || [];
+    return (
+      <Box
+        style={{
+          'flex': 'none',
+          'padding': '4px 6px',
+          'background-color': 'rgba(0, 0, 0, 0.33)',
+        }}>
+        {!!fab.disabled && (
+          <NoticeBox>
+            The controls aren&apos;t responding: a wire inside is cut.
+          </NoticeBox>
         )}
-      </Box>
-      {!!fab.on_hold && (
-        <NoticeBox>
-          The quartermaster has the silo on hold.
-        </NoticeBox>
-      )}
-      {!!fab.storage && (
-        <ProgressBar
-          mb={0.5}
-          value={fab.storage.total}
-          maxValue={fab.storage.max || 1}
-          content={formatNumber(fab.storage.total / sheet) + ' / '
-            + formatNumber(fab.storage.max / sheet) + ' sheets'} />
-      )}
-      {(fab.mats || []).filter(mat => mat.amount > 0).map(mat => (
+        {!!fab.on_hold && (
+          <NoticeBox>
+            The quartermaster has the silo on hold.
+          </NoticeBox>
+        )}
         <Box
-          key={mat.id}
           style={{
             'display': 'flex',
             'align-items': 'center',
-            'margin-bottom': '2px',
+            'flex-wrap': 'wrap',
+            'min-height': '22px',
           }}>
-          <Box style={{ 'flex-grow': 1 }}>
-            {mat.name}
-            <Box inline color="label" ml={0.5}>
-              {(Math.floor(mat.amount / sheet * 10) / 10) + ''}
+          <Box
+            inline
+            mr={1.5}
+            color="label"
+            style={{ 'white-space': 'nowrap' }}
+            title={fab.silo ? 'From the ore silo' : 'Sheets stored'}>
+            <Icon name="cubes" mr={0.5} />
+            {fab.storage
+              ? formatNumber(fab.storage.total / sheet) + ' / '
+                + formatNumber(fab.storage.max / sheet)
+              : ''}
+            {!!fab.silo && ' silo'}
+          </Box>
+          {mats.length === 0 && (
+            <Box inline mr={1.5} color="label" italic>
+              Empty
             </Box>
+          )}
+          {mats.map(mat => (
+            <Box
+              key={mat.id}
+              inline
+              mr={1.5}
+              style={{ 'white-space': 'nowrap' }}>
+              {mat.name + ' '}
+              <Box inline bold>
+                {sheetsOf(mat.amount, sheet)}
+              </Box>
+            </Box>
+          ))}
+          {!fab.no_chems && (
+            <Box
+              inline
+              mr={1.5}
+              style={{ 'white-space': 'nowrap' }}>
+              <Icon name="flask" mr={0.5} color="label" />
+              {fab.chem_volume + ' / ' + fab.chem_max + 'u'}
+            </Box>
+          )}
+          <Box style={{ 'flex-grow': 1 }} />
+          <Button
+            icon={open ? 'chevron-up' : 'eject'}
+            content="Eject"
+            selected={open}
+            onClick={() => this.setState({ open: !open })} />
+        </Box>
+        {!!open && (
+          <Box
+            mt={0.5}
+            style={{
+              'display': 'flex',
+              'flex-wrap': 'wrap',
+            }}>
+            {mats.length === 0 && chems.length === 0 && (
+              <Box color="label" italic>
+                Nothing to eject.
+              </Box>
+            )}
+            {mats.map(mat => (
+              <Box
+                key={mat.id}
+                mr={2}
+                mb={0.5}
+                style={{
+                  'display': 'flex',
+                  'align-items': 'center',
+                  'width': '210px',
+                }}>
+                <Box style={{ 'flex-grow': 1 }}>
+                  {mat.name}
+                  <Box inline color="label" ml={0.5}>
+                    {sheetsOf(mat.amount, sheet)}
+                  </Box>
+                </Box>
+                <Button
+                  icon="eject"
+                  content="1"
+                  disabled={mat.amount < sheet}
+                  onClick={() => act('eject_sheets', {
+                    mat: mat.id,
+                    amount: 1,
+                  })} />
+                <Button
+                  content="All"
+                  disabled={mat.amount < sheet}
+                  onClick={() => act('eject_sheets', {
+                    mat: mat.id,
+                    amount: 50,
+                  })} />
+              </Box>
+            ))}
+            {chems.map(chem => (
+              <Box
+                key={chem.id}
+                mr={2}
+                mb={0.5}
+                style={{
+                  'display': 'flex',
+                  'align-items': 'center',
+                  'width': '210px',
+                }}>
+                <Box style={{ 'flex-grow': 1 }}>
+                  {chem.name}
+                  <Box inline color="label" ml={0.5}>
+                    {chem.volume + 'u'}
+                  </Box>
+                </Box>
+                <Button
+                  icon="trash"
+                  content="Purge"
+                  onClick={() => act('purge', { chem: chem.id })} />
+              </Box>
+            ))}
+            {chems.length > 1 && (
+              <Box mb={0.5}>
+                <Button
+                  icon="trash"
+                  content="Purge all"
+                  onClick={() => act('purge_all')} />
+              </Box>
+            )}
           </Box>
-          <Button
-            icon="eject"
-            content="1"
-            disabled={mat.amount < sheet}
-            onClick={() => act('eject_sheets', { mat: mat.id, amount: 1 })} />
-          <Button
-            content="All"
-            disabled={mat.amount < sheet}
-            onClick={() => act('eject_sheets', {
-              mat: mat.id,
-              amount: 50,
-            })} />
-        </Box>
-      ))}
-      {!fab.no_chems && (
-        <Box bold mt={1} mb={0.5}>
-          <Icon name="flask" mr={0.5} />
-          {'Chemicals ' + fab.chem_volume + ' / ' + fab.chem_max}
-        </Box>
-      )}
-      {(fab.chems || []).map(chem => (
-        <Box key={chem.id} style={{ 'display': 'flex' }}>
-          <Box style={{ 'flex-grow': 1 }}>
-            {chem.name + ' ' + chem.volume + 'u'}
-          </Box>
-          <Button
-            icon="trash"
-            onClick={() => act('purge', { chem: chem.id })} />
-        </Box>
-      ))}
-      {(fab.chems || []).length > 0 && (
-        <Button
-          fluid
-          icon="trash"
-          content="Purge all"
-          onClick={() => act('purge_all')} />
-      )}
+        )}
+      </Box>
+    );
+  }
+}
+
+// The build queue, under the categories
+const FabricatorQueue = props => {
+  const { fab, act } = props;
+  const queue = fab.queue || [];
+  return (
+    <Fragment>
       <Box bold mt={1} mb={0.5}>
         <Icon name="list" mr={0.5} />
-        {'Queue (' + (fab.queue || []).length + ')'}
+        {'Queue (' + queue.length + ')'}
         {!!fab.busy && (
           <Box inline ml={1} color="average">
             <Icon name="cog" spin />
@@ -714,16 +829,24 @@ const FabricatorStores = props => {
           </Box>
         )}
       </Box>
-      {(fab.queue || []).length === 0 && (
+      {queue.length === 0 && (
         <Box color="label" italic>
           Nothing waiting.
         </Box>
       )}
-      {(fab.queue || []).map((entry, index) => (
+      {queue.map((entry, index) => (
         <Box
           key={index}
           style={{ 'display': 'flex', 'align-items': 'center' }}>
-          <Box style={{ 'flex-grow': 1 }}>
+          <Box
+            style={{
+              'flex-grow': 1,
+              'min-width': 0,
+              'overflow': 'hidden',
+              'text-overflow': 'ellipsis',
+              'white-space': 'nowrap',
+            }}
+            title={entry.name}>
             {(index + 1) + '. ' + entry.name}
             {entry.amount > 1 && (
               <Box inline color="label" ml={0.5}>
@@ -736,7 +859,7 @@ const FabricatorStores = props => {
             onClick={() => act('queue_remove', { index: index + 1 })} />
         </Box>
       ))}
-      {(fab.queue || []).length > 1 && (
+      {queue.length > 1 && (
         <Button
           fluid
           icon="times"
@@ -747,18 +870,50 @@ const FabricatorStores = props => {
   );
 };
 
+const SidebarEntry = props => {
+  const { name, count, selected, onClick } = props;
+  return (
+    <Button
+      fluid
+      selected={selected}
+      color={!selected && count === 0 ? 'transparent' : null}
+      onClick={onClick}>
+      <Box
+        style={{
+          'display': 'flex',
+          'justify-content': 'space-between',
+        }}>
+        <Box
+          style={{
+            'overflow': 'hidden',
+            'text-overflow': 'ellipsis',
+          }}>
+          {name}
+        </Box>
+        <Box ml={1} style={{ 'opacity': 0.6 }}>
+          {count}
+        </Box>
+      </Box>
+    </Button>
+  );
+};
+
 class FabricatorPanel extends Component {
   constructor() {
     super();
+    // undefined: what the server remembers for this player
     this.state = {
-      category: null,
+      category: undefined,
+      // A group picked while searching, for that search only
+      searchPick: null,
+      hide: undefined,
       pages: 1,
     };
   }
 
   render() {
     const { fab, data, research, act, search, onSelectNode } = this.props;
-    const { category, pages } = this.state;
+    const { pages } = this.state;
     if (!fab) {
       return (
         <NoticeBox>
@@ -766,6 +921,12 @@ class FabricatorPanel extends Component {
         </NoticeBox>
       );
     }
+    const prefs = panelPrefs(data);
+    const prefKey = (fab.grouping || [])[0] || 'lathe';
+    const oneHome = prefKey !== 'autolathe';
+    const hide = this.state.hide === undefined
+      ? !!prefs.hide
+      : this.state.hide;
     const designs = Object.keys(data.designs)
       .filter(id => research.researchedDesigns[id])
       .map(id => ({ ...data.designs[id], id }))
@@ -773,33 +934,74 @@ class FabricatorPanel extends Component {
     // Its own categories only: designs carry the autolathe's as well
     const own = toSet(fab.categories);
     const hasOwn = (fab.categories || []).length > 0;
-    const counts = {};
+    const groups = {};
     for (let design of designs) {
-      for (let cat of design.cats || []) {
-        if (!hasOwn || own[cat]) {
-          counts[cat] = (counts[cat] || 0) + 1;
-        }
+      design.groups = groupsOf(design, fab, own, hasOwn);
+      for (let group of design.groups) {
+        groups[group] = true;
       }
     }
-    const categories = Object.keys(counts).sort();
+    const names = Object.keys(groups).sort();
     const query = search.toLowerCase();
-    // A search goes by the design's name, or a category ("stock parts")
-    const matches = design => design.name.toLowerCase().includes(query)
-      || (design.cats || []).some(cat => (!hasOwn || own[cat])
-        && cat.toLowerCase().includes(query));
-    const shown = designs
-      .filter(design => (query
-        ? matches(design)
-        : !category || (design.cats || []).includes(category)))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const { searchPick } = this.state;
+    // A search goes by the design's name, or its group ("stock parts")
+    const matches = design => !query
+      || design.name.toLowerCase().includes(query)
+      || design.groups.some(group => group.toLowerCase().includes(query));
+    const listed = designs.filter(design => matches(design)
+      && (!hide || maxPrintable(design, fab) > 0));
+    const counts = {};
+    for (let design of listed) {
+      for (let group of design.groups) {
+        counts[group] = (counts[group] || 0) + 1;
+      }
+    }
+    let category;
+    if (query) {
+      // A new search starts over all the groups
+      category = searchPick && searchPick.query === query
+        ? searchPick.category
+        : null;
+    } else if (this.state.category !== undefined) {
+      category = this.state.category;
+    } else {
+      category = prefs[prefKey] || null;
+    }
+    if (category && !groups[category]) {
+      category = null;
+    }
+    const byGroup = (a, b) => (oneHome
+      ? (a.groups[0] || '').localeCompare(b.groups[0] || '')
+      : 0) || a.name.localeCompare(b.name);
+    const shown = listed
+      .filter(design => !category || design.groups.includes(category))
+      .sort(category ? (a, b) => a.name.localeCompare(b.name) : byGroup);
     const limit = pages * PAGE_SIZE;
-    const select = changes => {
+    const toTop = () => {
       const content = document.getElementById('RdConsole__fabricator');
       if (content) {
         content.scrollTop = 0;
       }
-      this.setState({ pages: 1, ...changes });
     };
+    const select = picked => {
+      toTop();
+      if (query) {
+        this.setState({
+          pages: 1,
+          searchPick: { query, category: picked },
+        });
+        return;
+      }
+      this.setState({ pages: 1, category: picked });
+      act('panel_pref', { key: prefKey, value: picked || '' });
+    };
+    const toggleHide = () => {
+      toTop();
+      this.setState({ pages: 1, hide: !hide });
+      act('panel_pref', { key: 'hide', value: hide ? 0 : 1 });
+    };
+    // Headings between the groups when they're all listed together
+    const headed = oneHome && !category;
     return (
       <Box
         style={{
@@ -808,71 +1010,95 @@ class FabricatorPanel extends Component {
           'bottom': 0,
           'left': 0,
           'right': 0,
+          'display': 'flex',
+          'flex-direction': 'column',
         }}>
+        <FabricatorStrip fab={fab} act={act} />
         <Box
           style={{
-            'position': 'absolute',
-            'top': 0,
-            'bottom': 0,
-            'left': 0,
-            'width': '250px',
-            'padding': '6px',
-            'box-sizing': 'border-box',
-            'overflow-y': 'auto',
-            'background-color': 'rgba(0, 0, 0, 0.33)',
+            'flex-grow': 1,
+            'min-height': 0,
+            'display': 'flex',
           }}>
-          <FabricatorStores fab={fab} act={act} sheet={fab.sheet || 2000} />
-        </Box>
-        <Box
-          id="RdConsole__fabricator"
-          style={{
-            'position': 'absolute',
-            'top': 0,
-            'bottom': 0,
-            'left': '250px',
-            'right': 0,
-            'padding': '6px',
-            'overflow-y': 'auto',
-          }}>
-          {!query && (
-            <Box mb={1}>
-              <Button
-                content={'All (' + designs.length + ')'}
-                selected={!category}
-                onClick={() => select({ category: null })} />
-              {categories.map(cat => (
-                <Button
-                  key={cat}
-                  content={cat + ' (' + counts[cat] + ')'}
-                  selected={category === cat}
-                  onClick={() => select({ category: cat })} />
-              ))}
+          <Box
+            style={{
+              'flex': 'none',
+              'width': '190px',
+              'padding': '6px',
+              'box-sizing': 'border-box',
+              'overflow-y': 'auto',
+              'background-color': 'rgba(0, 0, 0, 0.2)',
+            }}>
+            <SidebarEntry
+              name={query ? 'All matches' : 'All'}
+              count={listed.length}
+              selected={!category}
+              onClick={() => select(null)} />
+            {names.map(name => (
+              <SidebarEntry
+                key={name}
+                name={name}
+                count={counts[name] || 0}
+                selected={category === name}
+                onClick={() => select(name)} />
+            ))}
+            <Box mt={1}>
+              <Button.Checkbox
+                fluid
+                checked={hide}
+                content="Hide unaffordable"
+                onClick={toggleHide} />
             </Box>
-          )}
-          {shown.length === 0 && (
-            <NoticeBox>
-              {query
-                ? 'No designs it can make match that.'
-                : 'No designs here yet: research unlocks them.'}
-            </NoticeBox>
-          )}
-          {shown.slice(0, limit).map(design => (
-            <DesignRow
-              key={design.id}
-              design={design}
-              data={data}
-              research={research}
-              fab={fab}
-              onPrint={(id, amount) => act('print', { id, amount })}
-              onSelectNode={onSelectNode} />
-          ))}
-          {shown.length > limit && (
-            <Button
-              fluid
-              textAlign="center"
-              content={'Load more (' + (shown.length - limit) + ' left)'}
-              onClick={() => this.setState({ pages: pages + 1 })} />
-          )}
+            <FabricatorQueue fab={fab} act={act} />
+          </Box>
+          <Box
+            id="RdConsole__fabricator"
+            style={{
+              'flex-grow': 1,
+              'min-width': 0,
+              'padding': '6px',
+              'overflow-y': 'auto',
+            }}>
+            {shown.length === 0 && (
+              <NoticeBox>
+                {query && 'No designs it can make match that.'}
+                {!query && hide && 'Nothing here it has the materials for.'}
+                {!query && !hide
+                  && 'No designs here yet: research unlocks them.'}
+              </NoticeBox>
+            )}
+            {shown.slice(0, limit).map((design, index) => (
+              <Fragment key={design.id}>
+                {headed && (index === 0
+                  || shown[index - 1].groups[0] !== design.groups[0]) && (
+                  <Box
+                    bold
+                    color="label"
+                    mt={index === 0 ? 0 : 1}
+                    mb={0.5}
+                    style={{
+                      'border-bottom': '1px solid rgba(255, 255, 255, 0.1)',
+                    }}>
+                    {design.groups[0] || 'Other'}
+                  </Box>
+                )}
+                <DesignRow
+                  design={design}
+                  data={data}
+                  research={research}
+                  fab={fab}
+                  onPrint={(id, amount) => act('print', { id, amount })}
+                  onSelectNode={onSelectNode} />
+              </Fragment>
+            ))}
+            {shown.length > limit && (
+              <Button
+                fluid
+                textAlign="center"
+                content={'Load more (' + (shown.length - limit) + ' left)'}
+                onClick={() => this.setState({ pages: pages + 1 })} />
+            )}
+          </Box>
         </Box>
       </Box>
     );
@@ -1372,6 +1598,7 @@ class RdConsoleMenu extends Component {
           })}
           {tab === TAB_LATHE && (
             <FabricatorPanel
+              key="lathe"
               fab={data.lathe}
               data={data}
               research={research}
@@ -1381,6 +1608,7 @@ class RdConsoleMenu extends Component {
           )}
           {tab === TAB_IMPRINTER && (
             <FabricatorPanel
+              key="imprinter"
               fab={data.imprinter}
               data={data}
               research={research}
