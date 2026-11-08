@@ -4047,6 +4047,7 @@
 #include "hippiestation\code\modules\telescience\telepad.dm"
 #include "hippiestation\code\modules\telescience\telesci.dm"
 #include "hippiestation\code\modules\telescience\telesci_computer.dm"
+#include "hippiestation\code\modules\tgui_panel\command_bar.dm"
 #include "hippiestation\code\modules\tgui_panel\name_menu.dm"
 #include "hippiestation\code\modules\tgui_panel\tgui_panel.dm"
 #include "hippiestation\code\modules\tgui\tgui_prompt.dm"

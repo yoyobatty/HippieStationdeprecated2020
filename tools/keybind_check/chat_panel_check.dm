@@ -29,6 +29,34 @@ GLOBAL_VAR(cp_dom)
 		return
 	return ..()
 
+GLOBAL_LIST_EMPTY(cp_said)
+GLOBAL_VAR_INIT(cp_ooc_count, 0)
+GLOBAL_VAR(cp_ooc_last)
+
+/mob/say_verb(message as text)
+	GLOB.cp_said += message
+	return ..()
+
+/client/ooc(msg as text)
+	GLOB.cp_ooc_count++
+	GLOB.cp_ooc_last = msg
+	return ..()
+
+/// kb_panel.ps1 does one thing (a key, typing into what has the keyboard) and answers
+/proc/cp_cmd(text, timeout = 20 SECONDS)
+	fdel("data/kp_ack")
+	fdel("data/kp_cmd")
+	text2file(text, "data/kp_cmd")
+	var/deadline = world.time + timeout
+	while(!fexists("data/kp_ack") && world.time < deadline)
+		sleep(1)
+	. = fexists("data/kp_ack") ? trim(file2text("data/kp_ack")) : "no answer"
+	fdel("data/kp_ack")
+
+/// Whether any chat line contains text (short answer, for the byond:// length limit)
+/proc/cp_text_any(client/C, text)
+	return cp_js(C, "var n=document.querySelectorAll('.ChatMessage');var hit='';for(var i=0;i<n.length;i++){if(n\[i].textContent.indexOf('[text]')>=0){hit=n\[i].textContent.slice(0,80);}}report(hit||'none');")
+
 /proc/cp_check(name, ok, detail = "")
 	if(ok)
 		GLOB.cp_pass++
@@ -225,6 +253,44 @@ GLOBAL_VAR(cp_dom)
 	chat.name_menu_act(list("ref" = REF(speaker), "action" = "examine"))
 	cp_check("an entry it didn't offer is refused (no runtime)", TRUE)
 	qdel(speaker)
+
+	// the command bar: it has the verbs, typing a line in Say mode says it, OOC takes its text, any other verb runs as typed
+	t = cp_js(C, "var i=document.querySelector('.CommandBar input, input.CommandBar__input, \[class*=CommandBar] input');report(i?'bar':'none');")
+	cp_check("command bar is under the chat", t == "bar", t)
+	GLOB.cp_said = list()
+	cp_js(C, "var i=document.querySelector('.CommandBar input, input.CommandBar__input, \[class*=CommandBar] input');i.focus();report(document.activeElement===i?'focused':'not');")
+	winset(C, "browseroutput", "focus=true")
+	sleep(3)
+	// to OOC mode with the bar's mode button (Say -> Me -> OOC), so the typed line shows in the lobby
+	var/mode_js = "var b=document.querySelectorAll('\[class*=CommandBar] .Button, \[class*=CommandBar] button');var hit='none';for(var i=0;i<b.length;i++){var x=b\[i].textContent.trim();if(x==='Say'||x==='Me'){b\[i].click();hit=x;break;}}report(hit);"
+	var/m1 = cp_js(C, mode_js)
+	sleep(3)
+	var/m2 = cp_js(C, mode_js)
+	sleep(3)
+	var/mode_now = cp_js(C, "var b=document.querySelectorAll('\[class*=CommandBar] .Button, \[class*=CommandBar] button');var o=new Array();for(var i=0;i<b.length;i++){o.push(b\[i].textContent.trim());}var inp=document.querySelector('\[class*=CommandBar] input');report(o.join('/')+' | '+(inp?inp.value:''));")
+	kc_log("info mode clicks [m1], [m2]; bar now: [mode_now]")
+	cp_js(C, "var i=document.querySelector('\[class*=CommandBar] input');i.focus();var v=i.value;i.setSelectionRange(v.length,v.length);report('ok');")
+	winset(C, "browseroutput", "focus=true")
+	sleep(3)
+	// typed through the page's own input events (posted keys can't be aimed at the chat over the stat panel: both are
+	// browsers in the main window), then Enter
+	var/typed = cp_js(C, "var i=document.querySelector('\[class*=CommandBar] input');var set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(i,i.value+'cp-bar-typed');i.dispatchEvent(new Event('input',{bubbles:true}));setTimeout(function(){i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,bubbles:true}));report('sent: '+i.value);},200);")
+	sleep(15)
+	var/typed_line = cp_text_any(C, "cp-bar-typed")
+	cp_check("a line typed into the bar in OOC mode goes out", typed_line != "none", "[typed_line]; [typed]")
+	var/before_ooc = GLOB.cp_ooc_count
+	chat.on_panel_verbs("verbs/invoke", list("verb_type" = "/client/verb/ooc", "args" = list("msg" = "cp-bar-ooc")))
+	sleep(5)
+	var/ooc_line = cp_text_any(C, "cp-bar-ooc")
+	var/list/bar_names = chat.command_bar_verbs_by_name()
+	kc_log("info bar verbs ([length(bar_names)]), OOC is [bar_names["OOC"]], Say is [bar_names["Say"]]; ooc on: [GLOB.ooc_allowed]; muted: [C.prefs.muted]; last chat: [cp_text_any(C, "OOC")]")
+	cp_check("OOC from the bar gets its text", GLOB.cp_ooc_count > before_ooc || ooc_line != "none", "[GLOB.cp_ooc_last] / [ooc_line]")
+	chat.on_panel_verbs("verbs/invoke", list("verb_type" = "/client/verb/adminwho", "args" = list()))
+	sleep(10)
+	t = cp_text_any(C, "dmins")
+	cp_check("a verb with no text argument runs as typed (Adminwho)", findtext(t, "dmins"), t)
+	chat.on_panel_verbs("verbs/invoke", list("verb_type" = "/client/proc/init_verbs", "args" = list()))
+	cp_check("a verb the player doesn't have is refused (no runtime)", TRUE)
 
 	// Fix Chat / a reconnect: a new page gets this round's messages back under a marker, and new ones after
 	chat.load()

@@ -342,10 +342,6 @@ GLOBAL_VAR(tgui_panel_page)
 		LAZYADD(payload[C], message)
 		chat.remember(message)
 
-/// Command bar messages from the page (verbs/...); see command_bar.dm
-/datum/chatOutput/proc/on_panel_verbs(type, list/payload)
-	return
-
 /// The ping the page measures, for anything that wants it
 /client/var/chat_ping
 
