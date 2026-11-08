@@ -1,0 +1,70 @@
+// hippie -- this server's additions to the chat
+
+.Hippie__historyMark {
+  margin: 0.5em 0;
+  padding: 0.15em 0;
+  text-align: center;
+  font-size: 0.85em;
+  opacity: 0.6;
+  border-bottom: 1px dashed currentColor;
+}
+
+// Time stamps: always in the message, shown with the setting
+.Hippie__time {
+  display: none;
+  opacity: 0.55;
+  font-size: 0.9em;
+}
+
+.Hippie--times .Hippie__time {
+  display: inline;
+}
+
+// Search: lines that don't match
+.Hippie--filtered {
+  display: none !important;
+}
+
+// The new-messages pill
+.Hippie__newPill {
+  border-radius: 1em !important;
+  font-weight: bold;
+}
+
+// A speaker's name that opens a menu
+.name[data-ref] {
+  cursor: pointer;
+}
+
+.name[data-ref]:hover {
+  text-decoration: underline;
+}
+
+.Hippie__nameMenu {
+  position: fixed;
+  z-index: 100;
+  min-width: 8em;
+  padding: 0.25em 0;
+  background-color: #1f2228;
+  color: #e6e6e6;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  font-size: 12px;
+}
+
+.Hippie__nameMenuTitle {
+  padding: 0.2em 0.75em 0.35em;
+  opacity: 0.6;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 0.2em;
+}
+
+.Hippie__nameMenuItem {
+  padding: 0.25em 0.75em;
+  cursor: pointer;
+}
+
+.Hippie__nameMenuItem:hover {
+  background-color: rgba(79, 143, 214, 0.35);
+}

@@ -46,6 +46,10 @@ GLOBAL_LIST_INIT(freqtospan, list(
 	var/spanpart1 = "<span class='[radio_freq ? get_radio_span(radio_freq) : "game say"]'>"
 	//Start name span.
 	var/spanpart2 = "<span class='name'>"
+	//hippie -- the chat can open a menu on a speaker's name (tgui_panel/name_menu.dm). Only when the name shown is who they
+	//are: not over the radio, a disguise or a voice changer, where the ref would tell someone more than they can see
+	if(!radio_freq && !face_name && ismob(speaker) && speaker.GetVoice() == speaker.name)
+		spanpart2 = "<span class='name' data-ref='[REF(speaker)]'>"
 	//Radio freq/name display
 	var/freqpart = radio_freq ? "\[[get_radio_name(radio_freq)]\] " : ""
 	//Speaker name

@@ -268,8 +268,6 @@ GLOBAL_LIST_EMPTY(chat_histories)
 		SSdemo.write_chat(target, message)
 
 	if(islist(target))
-		// Do the double-encoding outside the loop to save nanoseconds
-		var/twiceEncoded = url_encode(url_encode(message))
 		for(var/I in target)
 			var/client/C = CLIENT_FROM_VAR(I) //Grab us a client if possible
 
@@ -287,8 +285,8 @@ GLOBAL_LIST_EMPTY(chat_histories)
 				C.chatOutput.messageQueue += message
 				continue
 
-			C << output(twiceEncoded, "browseroutput:output")
-			C.chatOutput.remember(twiceEncoded)
+			C.chatOutput.send_batch(list(message)) //hippie -- the tgui chat (hippiestation/code/modules/tgui_panel)
+			C.chatOutput.remember(message)
 	else
 		var/client/C = CLIENT_FROM_VAR(target) //Grab us a client if possible
 
@@ -306,10 +304,8 @@ GLOBAL_LIST_EMPTY(chat_histories)
 			C.chatOutput.messageQueue += message
 			return
 
-		// url_encode it TWICE, this way any UTF-8 characters are able to be decoded by the Javascript.
-		var/encoded = url_encode(url_encode(message))
-		C << output(encoded, "browseroutput:output")
-		C.chatOutput.remember(encoded)
+		C.chatOutput.send_batch(list(message)) //hippie -- the tgui chat (hippiestation/code/modules/tgui_panel)
+		C.chatOutput.remember(message)
 
 /proc/to_chat(target, message, handle_whitespace = TRUE, confidential = FALSE)
 	if(Master.current_runlevel == RUNLEVEL_INIT || !SSchat?.initialized)

@@ -1,0 +1,13 @@
+## NPM garbage
+node_modules
+*.log
+
+## Build artifacts
+/public/**/*
+!/public/*.html
+!/public/ntos-error.min.css
+!/public/helpers.min.js
+## hippie -- the built chat is committed, as tgui-next's bundle is: a server needs no build step
+!/public/tgui-panel.bundle.js
+!/public/tgui-panel.bundle.css
+!/public/hippie-loader.js
