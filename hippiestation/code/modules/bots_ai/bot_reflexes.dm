@@ -399,14 +399,16 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 	if(floored)
 		floored = FALSE
 		if(!GLOB.bot_reflexes_off)
-			for(var/datum/weakref/ref as anything in hands_were)
+			for(var/datum/weakref/ref in hands_were) //typed: an item mid-delete has no weakref (WEAKREF() of it is null)
 				var/obj/item/I = ref.resolve()
 				if(I && isturf(I.loc))
 					LAZYADD(knocked_away, ref)
 					knocked_away_at = world.time
 	hands_were = list()
 	for(var/obj/item/I in owner.held_items)
-		hands_were += WEAKREF(I)
+		var/datum/weakref/held = WEAKREF(I)
+		if(held)
+			hands_were += held
 	if(knocked_away && gym_scripted && state == BOT_STATE_WANDER)
 		try_recover_knocked_item() //otherwise after the reflexes in process(), where walking back for it holds everything else up
 
