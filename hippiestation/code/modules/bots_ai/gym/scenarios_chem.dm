@@ -102,6 +102,26 @@
 		return BOT_GYM_FAIL
 	return ..()
 
+/// Its own leftover beaker, full, in the bag beside an empty one: the empty one goes in the dispenser for a new batch.
+/datum/bot_scenario/chem_brew/own_full_beaker
+	name = "chem: a full leftover beaker in its bag beside an empty one, it uses the empty one for its bicaridine"
+	time_limit = 90 SECONDS
+
+/datum/bot_scenario/chem_brew/own_full_beaker/brew()
+	return GLOB.bot_medicine_recipes[1] //bicaridine, a pill
+
+/datum/bot_scenario/chem_brew/own_full_beaker/post_spawn()
+	..()
+	var/obj/item/storage/backpack/bag = bot.back
+	var/obj/item/reagent_containers/glass/beaker/large/full = new(bag)
+	full.reagents.add_reagent(/datum/reagent/water, full.reagents.maximum_volume)
+
+/datum/bot_scenario/chem_brew/own_full_beaker/check()
+	if(bot_transcript_said("the beaker's full"))
+		fail_reason = "loaded its full leftover beaker"
+		return BOT_GYM_FAIL
+	return ..()
+
 /datum/bot_scenario/chem_brew/sodiumf
 	name = "chem: sodium fluoride, through the heater twice"
 	label = "sodium fluoride"

@@ -187,7 +187,9 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	steps = list(
 		new /datum/bot_step/ensure_beaker(),
 		new /datum/bot_step/move_to(), //to dispenser (goal.target)
-		new /datum/bot_step/load_beaker_into_dispenser(D),
+		// The empty one ensure_beaker made sure of: a new batch from scratch. brew_beaker() (for brews in stages) picks the
+		// one with something in it, and a leftover full one went in - "the beaker's full", 45 batches given up in five shifts.
+		new /datum/bot_step/load_beaker_into_dispenser(D, TRUE),
 		new /datum/bot_step/dispense_ingredients(D),
 		new /datum/bot_step/retrieve_beaker_from_dispenser(D),
 		to_master,

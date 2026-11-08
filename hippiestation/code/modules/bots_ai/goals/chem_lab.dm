@@ -250,10 +250,15 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 		steps += new /datum/bot_step/ensure_syringes()
 	if(G.recipe["form"] == "grenade")
 		steps += new /datum/bot_step/ensure_grenade_parts()
+	// The first lot goes into an empty beaker (the one ensure_beaker made sure of), unless the brew picks its beakers itself
+	// ("beaker" stages): brew_beaker() picks one with something in it, and a full leftover from an earlier try went in -
+	// "the beaker's full", and the batch given up.
+	var/fresh_first = TRUE
 	for(var/list/stage in G.recipe["stages"])
 		var/datum/bot_step/move_to/to_machine = new()
 		// More than one beaker on the go (goals/sabotage_grenades.dm's superboom): which one's being worked, and one poured into another
 		if(stage[1] == "beaker")
+			fresh_first = FALSE
 			steps += new /datum/bot_step/use_beaker(stage[2])
 			continue
 		if(stage[1] == "pour")
@@ -264,7 +269,8 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 			if(stage[1] == "second beaker")
 				steps += new /datum/bot_step/ensure_beaker()
 			steps += to_machine
-			steps += new /datum/bot_step/load_beaker_into_dispenser(G.dispenser, stage[1] == "second beaker")
+			steps += new /datum/bot_step/load_beaker_into_dispenser(G.dispenser, stage[1] == "second beaker" || fresh_first)
+			fresh_first = FALSE
 			steps += new /datum/bot_step/dispense_ingredients(G.dispenser, stage[2])
 			steps += new /datum/bot_step/retrieve_beaker_from_dispenser(G.dispenser)
 			continue
