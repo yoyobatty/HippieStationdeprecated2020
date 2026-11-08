@@ -49,6 +49,7 @@ import { ExosuitFabricator } from './interfaces/ExosuitFabricator';
 import { DestinationTagger, HandTeleporter, ImplantPad, Safe, SecureStorage } from './interfaces/Gadgets';
 import { GameMenu } from './interfaces/GameMenu';
 import { TguiPrompt } from './interfaces/TguiPrompt';
+import { VotePanel } from './interfaces/VotePanel';
 import { CircuitAssembly } from './interfaces/CircuitAssembly';
 import { CircuitCode } from './interfaces/CircuitCode';
 import { CircuitPrinter } from './interfaces/CircuitPrinter';
@@ -1174,6 +1175,10 @@ const ROUTES = {
   tgui_prompt: {
     component: () => TguiPrompt,
     scrollable: false,
+  },
+  vote_panel: {
+    component: () => VotePanel,
+    scrollable: true,
   },
   circuit_assembly: {
     component: () => CircuitAssembly,

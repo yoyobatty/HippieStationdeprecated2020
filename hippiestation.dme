@@ -2975,6 +2975,7 @@
 #include "hippiestation\code\controllers\subsystem\ticker.dm"
 #include "hippiestation\code\controllers\subsystem\tts.dm"
 #include "hippiestation\code\controllers\subsystem\vote.dm"
+#include "hippiestation\code\controllers\subsystem\vote_tgui.dm"
 #include "hippiestation\code\controllers\subsystem\processing\circuit.dm"
 #include "hippiestation\code\datums\action.dm"
 #include "hippiestation\code\datums\cinematic.dm"
