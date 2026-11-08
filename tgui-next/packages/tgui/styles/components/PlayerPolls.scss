@@ -1,0 +1,89 @@
+// hippie -- player polls and the OOC notices
+// (interfaces/PlayerPolls.js).
+
+.Polls__item {
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border-left: 3px solid #4972a1;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(73, 114, 161, 0.25);
+  }
+}
+
+.Polls__question {
+  margin-bottom: 4px;
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.Polls__option {
+  padding: 5px 8px;
+  margin-bottom: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.Polls__option--on {
+  border-color: #5baa27;
+  background: rgba(91, 170, 39, 0.15);
+}
+
+.Polls__option--done {
+  cursor: default;
+}
+
+.Polls__text {
+  width: 100%;
+  height: 140px;
+  box-sizing: border-box;
+  padding: 6px;
+  border: 1px solid #40628a;
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.Polls__rating {
+  margin-bottom: 10px;
+}
+
+.Polls__scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  color: #8a93a3;
+  font-size: 11px;
+}
+
+.Polls__rank {
+  display: flex;
+  align-items: center;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.Polls__rankNo {
+  width: 26px;
+  font-weight: bold;
+  color: #8a93a3;
+}
+
+.Polls__rankText {
+  flex: 1;
+}
+
+.HtmlNotice {
+  line-height: 1.45;
+
+  a {
+    color: #6fa8ff;
+  }
+}

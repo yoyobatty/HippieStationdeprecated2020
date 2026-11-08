@@ -45,6 +45,13 @@ rm -rf data/keycheck_config
 cp -r config data/keycheck_config
 sed -i '/^GUEST_BAN/d' data/keycheck_config/config.txt
 sed -i '/^BOT_CREW/d' data/keycheck_config/hippiestation_config.txt
+# DB_PORT (with DB_NAME, DB_USER, DB_PASS): run against that database, a throwaway one from tools/db_setup, as the ban check does
+if [ -n "${DB_PORT:-}" ]; then
+	sed -i -E 's/^(SQL_ENABLED|ADDRESS|PORT|FEEDBACK_DATABASE|FEEDBACK_LOGIN|FEEDBACK_PASSWORD)\b/#&/' data/keycheck_config/dbconfig.txt
+	printf '\nSQL_ENABLED\nADDRESS 127.0.0.1\nPORT %s\nFEEDBACK_DATABASE %s\nFEEDBACK_LOGIN %s\nFEEDBACK_PASSWORD %s\n' "$DB_PORT" "${DB_NAME:-feedback}" "${DB_USER:-hippie}" "${DB_PASS:-}" >> data/keycheck_config/dbconfig.txt
+	rm -f data/keycheck_config/dbconfig_local.txt
+	echo "Database: $DB_NAME on port $DB_PORT"
+fi
 
 "$BYOND_BIN/dd.exe" keycheck.dmb "$PORT" -trusted -invisible -params "config=data/keycheck_config&keycheck=1${MAP:+&bot-map=$MAP}" > data/keycheck_dd.log 2>&1 &
 DD=$!

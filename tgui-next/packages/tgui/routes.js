@@ -55,6 +55,7 @@ import { CardHand, Locator, Newspaper, Valentine } from './interfaces/ItemsReadi
 import { AnalyzerHistory, ArtilleryControl, ExosuitMaint, PrototypeCloning, Telescience } from './interfaces/MachinesMore';
 import { MindNotes } from './interfaces/MindNotes';
 import { PaiOs, PaiRecruit, SiliconPdaLog } from './interfaces/PaiOs';
+import { HtmlNotice, PlayerPolls } from './interfaces/PlayerPolls';
 import { AiBotControl, AiVox, SiliconAlerts } from './interfaces/SiliconWindows';
 import { TguiPrompt } from './interfaces/TguiPrompt';
 import { VotePanel } from './interfaces/VotePanel';
@@ -1307,6 +1308,14 @@ const ROUTES = {
   bot_panel: {
     component: () => BotPanel,
     scrollable: false,
+  },
+  player_polls: {
+    component: () => PlayerPolls,
+    scrollable: true,
+  },
+  html_notice: {
+    component: () => HtmlNotice,
+    scrollable: true,
   },
 };
 

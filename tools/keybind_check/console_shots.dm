@@ -315,6 +315,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_machines5(C, H, label)
 		if("bots6")
 			cs_bots6(C, H, label)
+		if("polls7")
+			cs_polls7(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -8726,3 +8728,70 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	cs_b1_shot(C, H, cs_ui_named(H, "strip_menu")?.src_object, "popup_bots6_[label]_9_alien", "mob[REF(alien)]")
 	SStgui.close_user_uis(H)
 	qdel(alien)
+
+// ---------------------------------------------------------------------------------------------
+// Old windows, batch 7: player polls (needs DB_PORT etc. for run.sh and five seeded polls, one of each kind:
+// scratchpad polls_seed.sql) and the OOC notices
+// ---------------------------------------------------------------------------------------------
+
+/proc/cs_polls7(client/C, mob/living/carbon/human/H, label)
+	var/is_new = (label != "before")
+	// Policy and playtime, from the player's own verbs
+	usr = H
+	C.policy()
+	sleep(15)
+	var/datum/tgui/notice_ui = cs_ui_named(H, "html_notice")
+	cs_b1_shot(C, H, notice_ui?.src_object, "popup_polls7_[label]_1_policy", "policy")
+	SStgui.close_user_uis(H)
+
+	// The polls, from the lobby
+	var/mob/dead/new_player/NP = new()
+	NP.ckey = C.ckey
+	sleep(30)
+	SStgui.close_user_uis(NP)
+	NP << browse(null, "window=playersetup")
+	usr = NP
+	NP.handle_player_polling()
+	sleep(30)
+	var/datum/window = cs_var(NP, "poll_window")
+	var/datum/tgui/ui = cs_b1_shot(C, NP, window, "popup_polls7_[label]_2_list", "playerpolllist")
+	if(ui)
+		var/list/polls = window.vars["polls"]
+		cs_check("polls7: the five open polls listed ([length(polls)])", length(polls) == 5)
+	var/list/names = list("1" = "option", "2" = "text", "3" = "rating", "4" = "multi", "5" = "irv")
+	var/n = 2
+	for(var/id in 1 to 5)
+		n++
+		usr = NP
+		NP.poll_player(id)
+		sleep(30)
+		if(!ui)
+			sleep(10)
+			cs_shot("popup_polls7_[label]_[n]_[names["[id]"]]", "")
+			NP << browse(null, "window=playerpoll")
+			continue
+		cs_shot("popup_polls7_[label]_[n]_[names["[id]"]]")
+		// Vote from the window as a player would
+		switch(id)
+			if(1)
+				cs_act(window, NP, "vote", list("option" = "2"))
+			if(2)
+				cs_act(window, NP, "vote", list("text" = "More cleanbots, fewer clowns."))
+			if(3)
+				cs_act(window, NP, "vote", list("picked" = json_encode(list("4" = 4, "5" = 5, "6" = "abstain"))))
+			if(4)
+				cs_act(window, NP, "vote", list("picked" = json_encode(list("8" = TRUE, "10" = TRUE))))
+			if(5)
+				cs_act(window, NP, "vote", list("order" = "13,11,14,12"))
+		sleep(30)
+		var/list/poll = window.vars["poll"]
+		var/list/voted = poll?["voted"]
+		var/got = id == 2 ? poll?["reply"] : length(voted)
+		cs_check("polls7: the [names["[id]"]] poll took the vote ([json_encode(id == 2 ? got : voted)])", id == 2 ? (got == "More cleanbots, fewer clowns.") : (got > 0))
+		SStgui.update_uis(window)
+		sleep(10)
+		cs_shot("popup_polls7_[label]_[n]_[names["[id]"]]_voted")
+	SStgui.close_user_uis(NP)
+	NP << browse(null, "window=playerpolllist")
+	H.ckey = C.ckey
+	sleep(10)
