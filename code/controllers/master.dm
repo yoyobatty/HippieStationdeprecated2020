@@ -222,6 +222,12 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 		SS.Initialize(REALTIMEOFDAY)
 		CHECK_TICK
 	current_ticklimit = TICK_LIMIT_RUNNING
+	// hippie -- a runtime in a subsystem's Initialize() ends it there: it goes on firing half set up, and nobody was told
+	for (var/datum/controller/subsystem/SS in subsystems)
+		if (!(SS.flags & SS_NO_INIT) && !SS.initialized)
+			var/failed = "[SS.name] didn't finish initializing (a runtime in its Initialize(): see runtime.log). It may misbehave this round."
+			to_chat(world, "<span class='boldannounce'>[failed]</span>")
+			mc_watchdog_alert(failed)
 	var/time = (REALTIMEOFDAY - start_timeofday) / 10
 
 	var/msg = "Initializations complete within [time] second[time == 1 ? "" : "s"]!"

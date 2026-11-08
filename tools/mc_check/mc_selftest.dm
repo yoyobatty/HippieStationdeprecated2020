@@ -127,7 +127,8 @@ SUBSYSTEM_DEF(mctest)
 	// dd -invisible reports world.sleep_offline as 1 and won't take 0, though the world keeps ticking: without this the watchdog
 	// takes the freezes for the world asleep with nobody on
 	MCWatchdog.watch_with_nobody_on = TRUE
-	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "asleep", "lag", "strikes", "timer_edge", "timers", "profile", "recover")
+	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "asleep", "lag", "strikes", "timer_edge", "timers", "profile", "recover", "inits")
+	// init_fail runs only when asked (STEPS=init_fail): its subsystem breaks at boot
 	if(world.params["mc-steps"]) // STEPS=freeze_outside,lag on the runner: only those
 		steps = splittext(world.params["mc-steps"], ",")
 	for(var/step in steps)
@@ -474,3 +475,30 @@ SUBSYSTEM_DEF(mctest)
 	Recreate_MC()
 	sleep(5 SECONDS)
 	check("recover SSair: it fires", SSair.times_fired > 0 && SSair.initialized, "[SSair.times_fired] fires")
+
+/// Every subsystem that initializes did, after a plain boot (a runtime in Initialize() used to leave it firing uninitialized)
+/datum/mc_selftest/proc/inits()
+	var/list/not_done = list()
+	for(var/datum/controller/subsystem/SS as anything in Master.subsystems)
+		if(!(SS.flags & SS_NO_INIT) && !SS.initialized)
+			not_done += "[SS.name]"
+	check("inits: every subsystem that initializes did", !not_done.len, not_done.len ? jointext(not_done, ", ") : null)
+
+/// STEPS=init_fail only: a subsystem whose Initialize() runtimes at boot
+SUBSYSTEM_DEF(mctest_init)
+	name = "MC init test"
+	flags = SS_NO_FIRE
+
+/datum/controller/subsystem/mctest_init/Initialize(timeofday)
+	if(findtext(world.params["mc-steps"], "init_fail"))
+		var/list/nothing
+		nothing.Cut() // a runtime, as a broken Initialize() would have
+	return ..()
+
+/datum/mc_selftest/proc/init_fail()
+	var/datum/admin_alert/found
+	for(var/datum/admin_alert/A as anything in SSadmin_alerts.alerts)
+		if(A.kind == "server" && findtext(A.text, "MC init test didn't finish initializing"))
+			found = A
+	check("init_fail: admins told", found, found?.text)
+	check("init_fail: the rest initialized", Master.iteration > 0 && SSatoms.initialized)
