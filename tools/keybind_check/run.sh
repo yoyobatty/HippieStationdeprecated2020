@@ -11,6 +11,14 @@ PORT="${PORT:-45311}"
 BYOND_BIN="${BYOND_BIN:-/c/Program Files (x86)/BYOND/bin}"
 HERE="$(cd "$(dirname "$0")" && pwd -W)"
 cd "${CHECKOUT:-$(dirname "$0")/../..}"
+# A console_shots section that never uses the station (console_shots_testbench.txt) boots the small test map by itself.
+if [ -z "${MAP:-}" ] && [ "${HARNESS:-}" = "console_shots.dm" ] && [ -f data/console_shots_which ]; then
+	WHICH=$(tr -d '\r\n ' < data/console_shots_which)
+	if tr -d '\r' < "$HERE/console_shots_testbench.txt" | grep -qx "$WHICH"; then
+		MAP=testbench
+		echo "Section $WHICH doesn't use the station: booting the small test map (MAP=hippiestation to override)"
+	fi
+fi
 
 if tasklist 2>/dev/null | grep -qi dreamseeker; then
 	echo "A game window is open: close it first."

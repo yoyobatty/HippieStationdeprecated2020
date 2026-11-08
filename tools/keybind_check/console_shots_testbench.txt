@@ -1,0 +1,45 @@
+# console_shots sections that never use the station: run.sh boots the small test map (_maps/testbench.json) for these
+# unless MAP= is given. Made by checking each section (its cs_ proc and every cs_/kc_ proc it calls) for station areas,
+# world-wide searches, station machine lists, landmarks, telecomms, shuttles and crew records (2026-11-07). A section
+# added later is left on the Hippie map until it is added here.
+id
+cloning
+stack
+strip
+teg
+pipes
+mining
+biogen
+plantdna
+robotics
+exofab
+exosuit
+mechcontrol
+photocopier
+lockermech
+mechpaints
+assemblies
+oldlook
+prefs
+arcade
+machines
+vending
+chemistry
+medical
+crafting
+uplink
+samples
+dashboard
+lobby
+lobbylooks
+passdark
+jobrows
+botmonitor
+radiowires
+secdevices
+medlab
+ghostntos
+nanites
+orion
+antags
+circuits
