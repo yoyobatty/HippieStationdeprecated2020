@@ -15,6 +15,8 @@
 	while(processing_list.len)
 		var/atom/thing = processing_list[1]
 		processing_list -= thing
+		if(!thing) // hippie -- a wave past the map's edge asks about no turf at all: 304 runtimes in one code sweep
+			continue
 		if(ignored_things[thing.type])
 			continue
 		. += thing

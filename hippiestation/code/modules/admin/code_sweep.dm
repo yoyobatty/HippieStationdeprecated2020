@@ -600,13 +600,14 @@ GLOBAL_VAR_INIT(code_sweep_no_waiting, FALSE)
 			A.fire_act(1000, 500)
 		if("acid_act")
 			A.acid_act(50, 50)
-		if("tesla") // what tesla_zap() does to what it hits; the machines' own blast left out, the arena is needed for the next one
+		if("tesla") // what an energy ball's zap does to what it hits, at its power (TESLA_DEFAULT_POWER, energy_ball.dm: enough to break most
+			// things, which is when the costly parts happen); the machines' own blast left out, the arena is needed for the next one
 			if(isliving(A))
 				var/mob/living/L = A
 				L.electrocute_act(30, H, 1, tesla_shock = TRUE)
 			else if(isobj(A))
 				var/obj/O = A
-				O.tesla_act(20000, TESLA_OBJ_DAMAGE | TESLA_MOB_DAMAGE, list())
+				O.tesla_act(1738260, TESLA_OBJ_DAMAGE | TESLA_MOB_DAMAGE, list())
 		if("bullet_act")
 			var/obj/item/projectile/beam/laser/P = new(get_turf(A))
 			P.firer = H

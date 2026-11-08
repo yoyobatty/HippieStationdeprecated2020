@@ -260,6 +260,8 @@
 
 	// Nearby active jammers prevent the message from transmitting
 	var/turf/position = get_turf(src)
+	if(!position) // hippie -- a radio nowhere (in something being deleted): it has no z-level to go out on, and was a runtime
+		return
 	for(var/obj/item/jammer/jammer in GLOB.active_jammers)
 		var/turf/jammer_turf = get_turf(jammer)
 		if(position.z == jammer_turf.z && (get_dist(position, jammer_turf) <= jammer.range))

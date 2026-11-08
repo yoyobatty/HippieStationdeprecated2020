@@ -607,6 +607,8 @@
 	return update_icons()
 
 /mob/living/silicon/robot/update_icons()
+	if(!module) // hippie -- asked as it's deleted, its module gone already: a runtime every time
+		return
 	cut_overlays()
 	icon_state = module.cyborg_base_icon
 	if(stat != DEAD && !(IsUnconscious() || IsStun() || IsParalyzed() || low_power_mode)) //Not dead, not stunned.

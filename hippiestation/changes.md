@@ -13,6 +13,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/__HELPERS/AStar.dm
 ## code/__HELPERS/icons.dm
 ## code/__HELPERS/mobs.dm
+## code/__HELPERS/radiation.dm
 ## code/__HELPERS/unsorted.dm
 ## code/\_onclick/item_attack.dm
 ## code/controllers/failsafe.dm
