@@ -10,6 +10,9 @@
 // 5 Other code taking 2.5 ticks of every tick, 30 s: the lag alert. Then the MC finding each tick used up at its turn: with
 //   the cap and the forced turn, with the cap only, and as it was (no cap, no forced turn), compared.
 // 6 A subsystem that crashes the MC's RunQueue: strikes 1-4, offline 5 minutes then its last chance, then off until an admin.
+// 7 SStimer: a timer deleted a tick after joining the second queue at its edge; then 40 s of timers made and deleted at
+//   random (every live one fires once, on time; no deleted one fires; no runtimes).
+// 8 PROFILE 30 S (10 here) during lag: the alert names the proc that took the time, and the profiler goes off again.
 
 /datum/controller/master/Initialize(delay, init_sss, tgs_prime)
 	if("mc-selftest" in world.params)
@@ -122,7 +125,7 @@ SUBSYSTEM_DEF(mctest)
 	// dd -invisible reports world.sleep_offline as 1 and won't take 0, though the world keeps ticking: without this the watchdog
 	// takes the freezes for the world asleep with nobody on
 	MCWatchdog.watch_with_nobody_on = TRUE
-	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "asleep", "lag", "strikes")
+	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "asleep", "lag", "strikes", "timer_edge", "timers", "profile")
 	if(world.params["mc-steps"]) // STEPS=freeze_outside,lag on the runner: only those
 		steps = splittext(world.params["mc-steps"], ",")
 	for(var/step in steps)
@@ -332,3 +335,106 @@ SUBSYSTEM_DEF(mctest)
 	note("restart_count [Master.restart_count] (5 s more between restarts for each, halved after a quiet spell, 30 s at most)")
 
 #undef MC_CHECK_DIR
+
+////////////////////
+// SStimer under load: timers made and deleted at random, some right at the edge of the buckets' minute
+////////////////////
+
+/datum/timer_probe
+	/// key = list(due world.time, deleted, times fired, world.time it last fired)
+	var/list/timers = list()
+	var/made = 0
+
+/datum/timer_probe/proc/fired(key)
+	var/list/T = timers[key]
+	T[3]++
+	T[4] = world.time
+
+/// The second_queue edge case on its own: a timer that joins the second queue at the very edge, deleted a tick later
+/datum/mc_selftest/proc/timer_edge()
+	var/datum/timer_probe/P = new
+	var/left_behind = 0
+	var/tried = 0
+	for(var/n in 1 to 40)
+		// TIMER_MAX for a timer made now: the first time that goes to the second queue
+		var/limit = world.time + TICKS2DS(min(world.fps * 60 - (SStimer.practical_offset - DS2TICKS(world.time - SStimer.head_offset)) - 1, world.fps * 60 - 1))
+		var/wait = limit - world.time
+		var/key = "edge[n]"
+		P.timers[key] = list(world.time + wait, FALSE, 0, 0)
+		var/id = addtimer(CALLBACK(P, TYPE_PROC_REF(/datum/timer_probe, fired), key), wait, TIMER_STOPPABLE)
+		var/datum/timedevent/T = SStimer.timer_id_dict[id]
+		var/in_second = (T in SStimer.second_queue)
+		sleep(world.tick_lag)
+		P.timers[key][2] = TRUE
+		deltimer(id)
+		if(in_second)
+			tried++
+			if(T in SStimer.second_queue)
+				left_behind++
+	check("timer edge: a timer deleted a tick after joining the second queue at its edge leaves it", tried && !left_behind, "[left_behind] of [tried] still in the second queue after deltimer()")
+
+/datum/mc_selftest/proc/timers()
+	var/runtimes_before = GLOB.total_runtimes
+	var/datum/timer_probe/P = new
+	var/list/live_ids = list()
+	var/began = world.time
+	// 40 s of making 30 timers a tick, waits from a tick to 90 s, a third of them deleted later at random
+	while(world.time - began < 40 SECONDS)
+		for(var/n in 1 to 30)
+			var/wait = prob(50) ? rand(1, 40) * world.tick_lag : rand(1, 900)
+			var/key = "t[++P.made]"
+			var/due = world.time + max(CEILING(wait, world.tick_lag), world.tick_lag)
+			P.timers[key] = list(due, FALSE, 0, 0)
+			var/id = addtimer(CALLBACK(P, TYPE_PROC_REF(/datum/timer_probe, fired), key), wait, TIMER_STOPPABLE)
+			if(prob(33))
+				live_ids[key] = id
+		// delete some of the ones marked, at random moments, often the tick after they were made
+		for(var/key in live_ids)
+			if(prob(25))
+				var/list/T = P.timers[key]
+				if(!T[3])
+					T[2] = TRUE
+					deltimer(live_ids[key])
+				live_ids -= key
+		sleep(world.tick_lag)
+	note("timers: [P.made] made; waiting 95 s for the last of them")
+	sleep(95 SECONDS)
+	var/late = 0
+	var/worst = 0
+	var/never = 0
+	var/twice = 0
+	var/deleted_fired = 0
+	for(var/key in P.timers)
+		var/list/T = P.timers[key]
+		if(T[2])
+			if(T[3])
+				deleted_fired++
+			continue
+		if(!T[3])
+			never++
+			continue
+		if(T[3] > 1)
+			twice++
+		var/lateness = T[4] - T[1]
+		worst = max(worst, lateness)
+		if(lateness > 1 SECONDS)
+			late++
+	check("timers: every live timer fired", !never, "[never] never fired")
+	check("timers: none fired twice", !twice, "[twice] fired twice")
+	check("timers: no deleted timer fired", !deleted_fired, "[deleted_fired] fired after deltimer()")
+	check("timers: on time", !late, "[late] over a second late, worst [worst / 10] s")
+	check("timers: no runtimes meanwhile", GLOB.total_runtimes == runtimes_before, "[GLOB.total_runtimes - runtimes_before] runtimes (see runtime.log for Invalid timer)")
+
+/// PROFILE 30 S (here 10): the profiler on for a while during lag, then an alert naming the procs that took the time
+/datum/mc_selftest/proc/profile()
+	var/was = SSprofiler.profiling
+	SSmctest.hogging = TRUE
+	INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(mc_check_hog_ticks), 1.5, 15 SECONDS)
+	sleep(1 SECONDS)
+	MCWatchdog.profile_for(10, "testadmin")
+	var/datum/admin_alert/A = wait_alert("profiled the server", 20 SECONDS)
+	check("profile: alert after the time", A, A?.text)
+	check("profile: it names the busy proc", A && findtext(A.text, "mc_check_busy"))
+	check("profile: the profiler is off again", SSprofiler.profiling == was && !MCWatchdog.profiling_for)
+	while(SSmctest.hogging)
+		sleep(5)

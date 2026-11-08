@@ -179,7 +179,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 			mc_watchdog_take_offline(BadBoy, 0)
 		if(msg)
 			log_world(msg)
-			mc_watchdog_alert(msg, strikes > 2 ? BadBoy : null)
+			mc_watchdog_alert(msg, strikes > 2 ? BadBoy.watchdog_link("enable", "TURN IT ON") : null)
 	else
 		log_world("MC restarted with no subsystem to blame: it stopped outside every subsystem's fire().")
 

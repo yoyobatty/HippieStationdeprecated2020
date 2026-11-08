@@ -239,6 +239,8 @@ GLOBAL_DATUM_INIT(acid_overlay, /mutable_appearance, mutable_appearance('icons/e
 	obj_flags |= BEING_SHOCKED
 	var/power_bounced = power / 2
 	tesla_zap(src, 3, power_bounced, tesla_flags, shocked_targets)
+	if(QDELETED(src)) // hippie -- the zap it passed on broke what it's part of (a gravity generator's parts go with it)
+		return
 	addtimer(CALLBACK(src, PROC_REF(reset_shocked)), 10)
 
 //The surgeon general warns that being buckled to certain objects receiving powerful shocks is greatly hazardous to your health

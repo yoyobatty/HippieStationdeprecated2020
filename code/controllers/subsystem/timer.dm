@@ -192,6 +192,8 @@ SUBSYSTEM_DEF(timer)
 
 			bucket_count++
 			var/bucket_pos = max(1, BUCKET_POS(timer))
+			timer.bucket_pos = bucket_pos // hippie
+			timer.bucket_joined = TRUE
 
 			var/datum/timedevent/bucket_head = bucket_list[bucket_pos]
 			if (!bucket_head)
@@ -265,6 +267,11 @@ SUBSYSTEM_DEF(timer)
 	bucket_resolution = world.tick_lag
 
 	alltimers += second_queue
+	for (var/datum/timedevent/t as anything in alltimers) // hippie -- placed afresh below
+		t.bucket_joined = FALSE
+		t.bucket_pos = -1
+		t.prev = null
+		t.next = null
 	if (!length(alltimers))
 		return
 
@@ -295,6 +302,8 @@ SUBSYSTEM_DEF(timer)
 			continue
 
 		new_bucket_count++
+		timer.bucket_pos = bucket_pos // hippie
+		timer.bucket_joined = TRUE
 		var/datum/timedevent/bucket_head = bucket_list[bucket_pos]
 		if (!bucket_head)
 			bucket_list[bucket_pos] = timer
@@ -332,6 +341,12 @@ SUBSYSTEM_DEF(timer)
 	/// text by operator""() only when something prints the timer (as in tgstation). Building the whole string up front in New(),
 	/// \refs and all, cost ~50us a timer. Holds no datums, so it can't keep anything alive.
 	var/list/timer_info
+	/// hippie -- (from tg) whether it's in a bucket, and which: bucketEject() used to work that out again from TIMER_MAX, which
+	/// moves on every tick. A timer that joined the second queue right at its edge and was deleted a tick or more later looked
+	/// like it was in a bucket, so it was never taken out of the second queue; moved into a bucket later, spent and deleted, it
+	/// made SStimer runtime ("Invalid timer") and drop the rest of that tick's bucket until the buckets were rebuilt.
+	var/bucket_joined = FALSE
+	var/bucket_pos = -1
 	//cicular doublely linked list
 	var/datum/timedevent/next
 	var/datum/timedevent/prev
@@ -403,29 +418,35 @@ SUBSYSTEM_DEF(timer)
 	return QDEL_HINT_IWILLGC
 
 /datum/timedevent/proc/bucketEject()
-	var/bucketpos = BUCKET_POS(src)
+	// hippie -- where it joined, as bucketJoin() noted it (from tg), not worked out again now
 	var/list/bucket_list = SStimer.bucket_list
 	var/list/second_queue = SStimer.second_queue
 	var/datum/timedevent/buckethead
-	if(bucketpos > 0)
-		buckethead = bucket_list[bucketpos]
+	if(bucket_pos > 0)
+		buckethead = bucket_list[bucket_pos]
 	if(buckethead == src)
-		bucket_list[bucketpos] = next
+		bucket_list[bucket_pos] = (next == src) ? null : next
 		SStimer.bucket_count--
-	else if(timeToRun < TIMER_MAX || next || prev)
+	else if(bucket_joined)
 		SStimer.bucket_count--
 	else
 		var/l = length(second_queue)
 		second_queue -= src
 		if(l == length(second_queue))
 			SStimer.bucket_count--
-	if(prev != next)
-		prev.next = next
-		next.prev = prev
+	if(prev == next)
+		// one other timer in the ring (or none): it's alone now
+		if(prev && prev != src)
+			prev.next = null
+			prev.prev = null
 	else
-		prev?.next = null
-		next?.prev = null
+		if(prev && prev.next == src)
+			prev.next = next
+		if(next && next.prev == src)
+			next.prev = prev
 	prev = next = null
+	bucket_pos = -1
+	bucket_joined = FALSE
 
 /datum/timedevent/proc/bucketJoin()
 	var/list/L
@@ -443,7 +464,12 @@ SUBSYSTEM_DEF(timer)
 	var/list/bucket_list = SStimer.bucket_list
 
 	//calculate our place in the bucket list
-	var/bucket_pos = BUCKET_POS(src)
+	bucket_pos = BUCKET_POS(src)
+	// hippie -- (from tg) a bucket SStimer has already gone past this lap would hold it for a whole minute
+	if (bucket_pos < SStimer.practical_offset && timeToRun < (SStimer.head_offset + TICKS2DS(BUCKET_LEN)))
+		WARNING("Bucket pos in past: bucket_pos = [bucket_pos] < practical_offset = [SStimer.practical_offset] && timeToRun = [timeToRun] < [SStimer.head_offset + TICKS2DS(BUCKET_LEN)], Timer: [src]")
+		bucket_pos = SStimer.practical_offset
+	bucket_joined = TRUE
 
 	//get the bucket for our tick
 	var/datum/timedevent/bucket_head = bucket_list[bucket_pos]

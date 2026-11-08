@@ -12,7 +12,9 @@
 //	Offline   a subsystem that stopped the MC three times is off for 5 minutes, then gets one more chance; a fourth time keeps
 //	          it off until an admin turns it on (master.dm Recover(), the user's ruling). Its alert has a link to turn it on.
 // With the profiler running (AUTO_PROFILE or Toggle Profiling) the reports also name the procs that took the time: it keeps a
-// copy of the profiler's figures every 30 s to compare with.
+// copy of the profiler's figures every 30 s to compare with. The profiler slows every proc while it runs (2x30 min Bot Shifts
+// side by side, 2026-11-07: Timer +35%, Machines +45%, Processing +20%, Mobs +40%), so it stays off by default; a lag alert
+// has PROFILE 30 S instead, which turns it on for 30 s and then names the procs.
 // The watchdog and the Failsafe each restart the other if it stops.
 
 #define MC_WATCHDOG_FREEZE_LOG (1 SECONDS)
@@ -55,6 +57,8 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 	var/profile_baseline_real = 0
 	/// What reading the profiler costs (ms, average): the user wants it measured before the profiler goes on by default
 	var/profile_fetch_ms = 0
+	/// PROFILE 30 S is running (profile_for()): its baseline stays put
+	var/profiling_for = FALSE
 	var/profile_fetches = 0
 	/// What a tick of the watchdog itself costs (ms, average)
 	var/tick_cost_ms = 0
@@ -100,7 +104,7 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 		return
 	check_subsystems(now_time)
 	check_lag(now_real, now_time)
-	if(SSprofiler?.profiling && now_real - profile_baseline_real >= MC_WATCHDOG_PROFILE_EVERY)
+	if(SSprofiler?.profiling && !profiling_for && now_real - profile_baseline_real >= MC_WATCHDOG_PROFILE_EVERY)
 		profile_baseline = profile_read()
 		profile_baseline_real = now_real
 
@@ -109,7 +113,10 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 ////////////////////
 
 /datum/controller/subsystem/proc/watchdog_link(action, label)
-	return "(<a href='?_src_=holder;[HrefToken(TRUE)];mcwatchdog=[action];ss=[type]'>[label]</a>)"
+	return mc_watchdog_link(action, label, type)
+
+/proc/mc_watchdog_link(action, label, ss_type)
+	return "(<a href='?_src_=holder;[HrefToken(TRUE)];mcwatchdog=[action][ss_type ? ";ss=[ss_type]" : ""]'>[label]</a>)"
 
 /datum/mc_watchdog/proc/check_subsystems(now_time)
 	for(var/datum/controller/subsystem/SS as anything in Master.subsystems)
@@ -132,7 +139,7 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 		else if(asleep >= MC_WATCHDOG_ASLEEP_WARN && !SS.asleep_warned)
 			SS.asleep_warned = TRUE
 			log_world("MC watchdog: [SS.name]'s fire() has been asleep [round(asleep / 10)] s.")
-			mc_watchdog_alert("[SS.name]'s fire() slept and hasn't come back for [round(asleep / 10)] s: it doesn't run until it does. Started afresh at 60 s.", SS, "wake", "START IT NOW")
+			mc_watchdog_alert("[SS.name]'s fire() slept and hasn't come back for [round(asleep / 10)] s: it doesn't run until it does. Started afresh at 60 s.", SS.watchdog_link("wake", "START IT NOW"))
 
 /// Start a subsystem whose fire() is asleep afresh. Its old fire() may still wake: it finishes, but leaves the state alone.
 /proc/mc_watchdog_wake(datum/controller/subsystem/SS)
@@ -228,7 +235,7 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 	last_lag_alert = now_real
 	var/report = lag_report(oldest, ms, span_real, now_time)
 	log_world("MC watchdog: the game ran at [round(speed * 100)]% speed for [round(span_real / 10)] s. [report]")
-	mc_watchdog_alert("The game has run at [round(speed * 100)]% speed for the last [round(span_real / 10)] s. [report]")
+	mc_watchdog_alert("The game has run at [round(speed * 100)]% speed for the last [round(span_real / 10)] s. [report]", SSprofiler?.profiling ? null : mc_watchdog_link("profile", "PROFILE 30 S"))
 
 /datum/mc_watchdog/proc/lag_report(list/oldest, list/ms_now, span_real, now_time)
 	var/list/old_ms = oldest[3]
@@ -313,7 +320,7 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 
 /// The procs that took the most time since the last copy of the profiler's figures, when it's running
 /datum/mc_watchdog/proc/profile_top(count)
-	if(!SSprofiler?.profiling || !profile_baseline)
+	if(!SSprofiler?.profiling || isnull(profile_baseline))
 		return
 	var/list/now = profile_read()
 	var/list/took = list()
@@ -365,16 +372,48 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 // Telling admins
 ////////////////////
 
-/// An alert of the Server kind: admin chat, the Alerts window, Discord. Safe with the MC down; logged either way.
-/proc/mc_watchdog_alert(text, datum/controller/subsystem/SS, action = "enable", label = "TURN IT ON")
+/// An alert of the Server kind: admin chat, the Alerts window, Discord. Safe with the MC down; logged either way. `links`: admin
+/// links for its chat line (mc_watchdog_link())
+/proc/mc_watchdog_alert(text, links)
 	log_world("MC watchdog alert: [text]")
 	if(!istype(SSadmin_alerts))
 		return
-	var/links = SS ? SS.watchdog_link(action, label) : null
 	SSadmin_alerts.raise("server", text, TRUE, chat_links = links)
+
+/// PROFILE 30 S on a lag alert: the BYOND profiler on for 30 s of real time, then an alert with the procs that took the time.
+/// The profiler slows every proc while it runs (Bot Shifts, 2026-11-07: subsystems +20-45%), so it's on only for this.
+/datum/mc_watchdog/proc/profile_for(seconds, who)
+	set waitfor = FALSE
+	if(SSprofiler.profiling)
+		return FALSE
+	SSprofiler.profiling = TRUE
+	profiling_for = TRUE
+	world.Profile(PROFILE_CLEAR)
+	SSprofiler.StartProfiling()
+	profile_baseline = list()
+	profile_baseline_real = REALTIMEOFDAY
+	var/began = REALTIMEOFDAY
+	while(REALTIMEOFDAY - began < seconds * 10)
+		sleep(1 SECONDS)
+	var/top = profile_top(6)
+	if(!CONFIG_GET(flag/auto_profile))
+		SSprofiler.StopProfiling()
+		SSprofiler.profiling = FALSE
+	profile_baseline = null
+	profiling_for = FALSE
+	mc_watchdog_alert("[who] profiled the server for [seconds] s. [top || "No proc took 0.1 s or more."]")
+	return TRUE
 
 /// An alert's link (hippieTopic, topic.dm)
 /proc/mc_watchdog_admin_action(action, ss_type)
+	if(action == "profile")
+		if(SSprofiler.profiling)
+			to_chat(usr, "<span class='notice'>The profiler is already running: the next report names the procs.</span>", confidential = TRUE)
+			return
+		MCWatchdog.profile_for(30, key_name(usr))
+		log_admin("[key_name(usr)] started the profiler for 30 s.")
+		message_admins("[key_name_admin(usr)] started the profiler for 30 s.")
+		return
 	var/datum/controller/subsystem/SS
 	for(var/datum/controller/subsystem/candidate as anything in Master?.subsystems)
 		if(candidate.type == ss_type)
