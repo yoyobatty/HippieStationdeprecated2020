@@ -16,17 +16,79 @@
 #define BOT_RND_LOW_SHEETS 20
 /// How long between asking the department heads and the miners for something: nobody wants it every minute.
 #define BOT_RND_ASK_GAP (6 MINUTES)
-/// Spare parts in an RPED before the rest are scrap.
-#define BOT_RND_RPED_SCRAP_AT 12
+/// Spare parts of each kind kept in the RPED that aren't the best researched, for lesser machines: the rest are scrap (the user's ruling,
+/// 2026-11-08: "analyzer, keep a few").
+#define BOT_RPED_KEEP_SPARES 3
+/// Free room in the RPED below which the junk goes in the analyzer before anything more is printed.
+#define BOT_RPED_LOW_ROOM 8
+/// Machines in one upgrade round at most.
+#define BOT_ROUND_MACHINES 8
+/// How far a bluespace RPED is used from, in tiles, with the machine in sight.
+#define BOT_BRPED_RANGE 6
 
-/// Design ids for each kind of part, best first.
+/// Design ids for each kind of part, best first. Cells too (2026-11-08): the SMES, the cyborg chargers and the chem dispensers take them.
 GLOBAL_LIST_INIT(bot_part_designs, list(
 	/obj/item/stock_parts/manipulator = list("femto_mani", "pico_mani", "nano_mani"),
 	/obj/item/stock_parts/matter_bin = list("bluespace_matter_bin", "super_matter_bin", "adv_matter_bin"),
 	/obj/item/stock_parts/micro_laser = list("quadultra_micro_laser", "ultra_micro_laser", "high_micro_laser"),
 	/obj/item/stock_parts/scanning_module = list("triphasic_scanning", "phasic_scanning", "adv_scanning"),
 	/obj/item/stock_parts/capacitor = list("quadratic_capacitor", "super_capacitor", "adv_capacitor"),
+	/obj/item/stock_parts/cell = list("bluespace_cell", "hyper_cell", "super_cell", "high_cell"),
 ))
+
+/// The best part tier researched so far, of the five stock part kinds: 1 to 4.
+/proc/bot_best_researched_tier()
+	. = 1
+	for(var/kind in GLOB.bot_part_designs)
+		if(ispath(kind, /obj/item/stock_parts/cell))
+			continue
+		for(var/id in GLOB.bot_part_designs[kind])
+			var/datum/design/D = bot_researched_design(id)
+			if(D)
+				. = max(., bot_design_rating(D))
+				break
+
+/// The tier last announced on the radio: a new one starts a round right away.
+GLOBAL_VAR_INIT(bot_part_tier_announced, 1)
+
+/// Which of GLOB.bot_part_designs' kinds a part is, if any.
+/proc/bot_part_kind(obj/item/part)
+	for(var/kind in GLOB.bot_part_designs)
+		if(istype(part, kind))
+			return kind
+
+/// What the best researched design of a kind rates, or 0.
+/proc/bot_best_researched_value(kind)
+	for(var/id in GLOB.bot_part_designs[kind])
+		var/datum/design/D = bot_researched_design(id)
+		if(D)
+			return bot_design_rating(D)
+	return 0
+
+/// Free room in an RPED, in parts.
+/proc/bot_rped_room(obj/item/storage/part_replacer/rped)
+	var/datum/component/storage/S = rped.GetComponent(/datum/component/storage)
+	return S ? max(0, S.max_items - length(rped.contents)) : 0
+
+/// What in the RPED is junk: a tier 1 part (nothing it could go in is worse) or a basic cell, and of each kind, beyond the best few spares
+/// that aren't the best researched. The best researched never is: it's what the round is for. Worst first.
+/proc/bot_rped_junk(obj/item/storage/part_replacer/rped)
+	. = list()
+	var/list/kept = list()
+	for(var/obj/item/part in sortTim(rped.contents.Copy(), GLOBAL_PROC_REF(cmp_rped_sort)))
+		var/kind = bot_part_kind(part)
+		if(!kind)
+			continue
+		var/value = part.get_part_rating()
+		if(value >= bot_best_researched_value(kind))
+			continue
+		var/obj/item/stock_parts/cell/C = part
+		var/lowest = istype(C) ? C.maxcharge < 10000 : value <= 1
+		if(lowest || kept[kind] >= BOT_RPED_KEEP_SPARES)
+			. += part
+		else
+			kept[kind]++
+	reverseRange(.)
 
 /// What gets upgraded, first things first (the user's ruling, 2026-11-04): Science's own lathes and printers, which save materials on
 /// everything printed after them, and every other lathe; then Medbay; then the rest of Science; then the rest of the station, a
@@ -139,9 +201,12 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 	var/datum/design/D = SSresearch.techweb_design_by_id(id)
 	return (istype(D) && D != SSresearch.error_design) ? D : null
 
-/// The rating a design's part comes out at.
+/// What a design's part rates as the RPED sees it (get_part_rating()): its tier, or a cell's tier times its capacity.
 /proc/bot_design_rating(datum/design/D)
 	var/obj/item/stock_parts/part = D.build_path
+	if(ispath(part, /obj/item/stock_parts/cell))
+		var/obj/item/stock_parts/cell/C = part
+		return initial(C.rating) * initial(C.maxcharge)
 	return initial(part.rating)
 
 /// Design id -> how many of it would bring this machine up to the best that's been researched.
@@ -162,24 +227,27 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 				break
 			for(var/id in GLOB.bot_part_designs[kind])
 				var/datum/design/D = bot_researched_design(id)
-				if(D && bot_design_rating(D) > part.rating)
+				if(D && bot_design_rating(D) > part.get_part_rating())
 					.[id]++
 					break
 			break
 
 /// The RPED this bot has on it, or the one left by its own lathe: Science's for Science, its department's for anybody else. Three
-/// engineers set off one after another for the lab's, behind doors none of them could open.
+/// engineers set off one after another for the lab's, behind doors none of them could open. A bluespace one before a plain one.
 /datum/bot_brain/proc/find_rped()
-	var/obj/item/storage/part_replacer/R = find_carried_tool(/obj/item/storage/part_replacer)
+	var/obj/item/storage/part_replacer/R = find_carried_tool(/obj/item/storage/part_replacer/bluespace) || find_carried_tool(/obj/item/storage/part_replacer)
 	if(R)
 		return R
 	var/science = is_science_job()
+	var/obj/item/storage/part_replacer/plain
 	for(var/obj/item/storage/part_replacer/loose as anything in bot_instances_of(/obj/item/storage/part_replacer))
 		if(QDELETED(loose) || !isturf(loose.loc) || loose.z != owner.z || taken_by_another(loose))
 			continue
 		if(science ? in_science(loose) : (gym_run ? get_area(loose) == get_area(owner) : is_my_department(get_area(loose))))
-			return loose
-	return null
+			if(loose.works_from_distance)
+				return loose
+			plain = plain || loose
+	return plain
 
 /// Somebody else in its department out with the department's RPED just now: one at a time, as Science goes.
 /datum/bot_brain/proc/department_rped_in_use()
@@ -207,10 +275,14 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 			return TRUE
 	return FALSE
 
-/// What the RPED doesn't already hold and isn't waiting at the lathe, of a machine's upgrade list. Parts swapped out of a
-/// better machine do for a worse one.
-/datum/bot_brain/proc/parts_still_to_print(obj/machinery/M, obj/item/storage/part_replacer/rped, obj/machinery/rnd/production/L)
-	. = parts_to_upgrade(M)
+/// What the RPED doesn't already hold and isn't waiting at the lathe, of the upgrade lists of a machine or a round of them. Parts swapped
+/// out of a better machine do for a worse one.
+/datum/bot_brain/proc/parts_still_to_print(machines, obj/item/storage/part_replacer/rped, obj/machinery/rnd/production/L)
+	. = list()
+	for(var/obj/machinery/M in (islist(machines) ? machines : list(machines)))
+		var/list/need = parts_to_upgrade(M)
+		for(var/id in need)
+			.[id] += need[id]
 	if(!rped)
 		return
 	var/list/spares = rped.contents.Copy()
@@ -222,7 +294,7 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 		for(var/obj/item/stock_parts/part in spares)
 			if(!.[id])
 				break
-			if(istype(part, D.build_path) || (part.type == D.build_path) || (part.rating >= rating && bot_same_part_kind(part, D.build_path)))
+			if(istype(part, D.build_path) || (part.get_part_rating() >= rating && bot_same_part_kind(part, D.build_path)))
 				spares -= part
 				.[id]--
 		if(!.[id])
@@ -235,12 +307,12 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 	return FALSE
 
 /// The next machine that could do with better parts and that this bot can have a go at.
-/datum/bot_brain/proc/next_upgrade_target()
+/datum/bot_brain/proc/next_upgrade_target(list/exclude)
 	// Somewhere somebody asked for (bot_asks.dm) goes first.
 	if(upgrade_wanted_in && world.time < upgrade_wanted_until)
 		for(var/machine_type in GLOB.bot_upgrade_order)
 			for(var/obj/machinery/M as anything in bot_instances_of(machine_type))
-				if(QDELETED(M) || get_area(M) != upgrade_wanted_in || M.panel_open || (M.stat & BROKEN) || !length(M.component_parts))
+				if(QDELETED(M) || (M in exclude) || get_area(M) != upgrade_wanted_in || M.panel_open || (M.stat & BROKEN) || !length(M.component_parts))
 					continue
 				if(LAZYACCESS(upgrade_blocked, M) > world.time || taken_by_another(M) || !length(parts_to_upgrade(M)) || !can_walk_lawfully_to(M))
 					continue
@@ -248,7 +320,7 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 		upgrade_wanted_in = null
 	for(var/machine_type in GLOB.bot_upgrade_order)
 		for(var/obj/machinery/M as anything in bot_instances_of(machine_type))
-			if(QDELETED(M) || M.z != owner.z || M.panel_open || (M.stat & BROKEN) || !length(M.component_parts))
+			if(QDELETED(M) || (M in exclude) || M.z != owner.z || M.panel_open || (M.stat & BROKEN) || !length(M.component_parts))
 				continue
 			if(gym_run && !in_science(M))
 				continue
@@ -303,22 +375,112 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 		return FALSE
 	var/obj/item/storage/part_replacer/rped = bot.find_rped()
 	if(!rped)
-		var/datum/design/D = bot_researched_design("rped")
+		var/datum/design/D = bot_researched_design("bs_rped") || bot_researched_design("rped")
 		if(!D)
 			return FALSE
 		return bot.print_or_ask(lathe, D, 1)
-	if(bot_parts_to_collect(lathe))
+	// A new tier researched: said on the radio, and a round straight away with what's been printed of it (the user's ruling, 2026-11-08).
+	var/tier = bot_best_researched_tier()
+	if(tier > GLOB.bot_part_tier_announced)
+		GLOB.bot_part_tier_announced = tier
+		bot.upgrade_round = null
+		if(!bot.gym_scripted)
+			bot.say_after_typing(";[pick("Tier [tier] parts are researched. Doing an upgrade round.", "We've got tier [tier] parts now, going round upgrading.", "Tier [tier] stock parts are in. Upgrade round starting.")]")
+	// The bluespace RPED once it's researched, between rounds: it works from across the room, no screwdriver, no panel, no lathe unlinked.
+	if(!rped.works_from_distance && !length(bot.upgrade_round))
+		var/obj/item/storage/part_replacer/bluespace/brped = locate() in get_turf(lathe)
+		if(brped && !bot.taken_by_another(brped))
+			return bot.assign_goal(new /datum/bot_goal/switch_to_brped(brped, rped))
+		var/datum/design/BS = bot_researched_design("bs_rped")
+		if(BS && world.time >= bot.brped_print_after)
+			bot.brped_print_after = world.time + 10 MINUTES
+			if(bot.print_or_ask(lathe, BS, 1))
+				return TRUE
+	// Prints left on the tile go in first, with room made if it's full
+	var/obj/item/stock_parts/waiting = bot_parts_to_collect(lathe)
+	if(waiting && bot_rped_room(rped) < 1 && length(bot_rped_junk(rped)))
+		return bot.assign_goal(new /datum/bot_goal/put_rped_back/scrap_only(rped))
+	if(waiting)
 		return bot.assign_goal(new /datum/bot_goal/collect_prints(lathe))
-	var/obj/machinery/M = bot.next_upgrade_target()
+	bot.prune_upgrade_round(rped)
+	if(!length(bot.upgrade_round))
+		// Junk out before planning, so there's room for the next round's parts
+		if(bot_rped_room(rped) < BOT_RPED_LOW_ROOM && length(bot_rped_junk(rped)))
+			return bot.assign_goal(new /datum/bot_goal/put_rped_back/scrap_only(rped))
+		bot.upgrade_round = bot.plan_upgrade_round(rped)
+		bot.upgrade_round_fitting = FALSE
+		if(!length(bot.upgrade_round))
+			if(length(bot_rped_junk(rped)) || (rped in bot.owner.held_items))
+				return bot.assign_goal(new /datum/bot_goal/put_rped_back(rped))
+			return FALSE
+		bot_log(bot, "upgrade round: [english_list(bot.upgrade_round)]")
+	// Everything for the round printed first, then the machines one after another, the nearest next
+	if(!bot.upgrade_round_fitting)
+		var/list/to_print = bot.parts_still_to_print(bot.upgrade_round, rped, lathe)
+		if(length(to_print))
+			var/id = to_print[1]
+			// Only as much as the RPED will take
+			var/amount = min(to_print[id], max(1, bot_rped_room(rped) - bot_prints_waiting(lathe, /obj/item/stock_parts)))
+			if(bot.print_or_ask(lathe, SSresearch.techweb_design_by_id(id), amount))
+				return TRUE
+		// Printed, or the silo's short: off round with what there is
+		bot.upgrade_round_fitting = TRUE
+	var/obj/machinery/M = bot.next_in_round(rped)
 	if(!M)
-		if(length(rped.contents) >= BOT_RND_RPED_SCRAP_AT || (rped in bot.owner.held_items))
-			return bot.assign_goal(new /datum/bot_goal/put_rped_back(rped))
+		bot.upgrade_round = null
 		return FALSE
-	var/list/to_print = bot.parts_still_to_print(M, rped, lathe)
-	if(!length(to_print))
-		return bot.assign_goal(new /datum/bot_goal/fit_upgrades(M))
-	var/id = to_print[1]
-	return bot.print_or_ask(lathe, SSresearch.techweb_design_by_id(id), to_print[id])
+	return bot.assign_goal(new /datum/bot_goal/fit_upgrades(M))
+
+/datum/bot_brain
+	/// The machines this round's parts are for: printed for all at once, then fitted one after another.
+	var/list/upgrade_round
+	/// Fitting's begun: nothing more gets printed until the round's done.
+	var/upgrade_round_fitting = FALSE
+	/// When it'll next try printing a bluespace RPED.
+	var/brped_print_after = 0
+
+/// A round of machines, by the usual order: as many as the RPED has room for the parts of, BOT_ROUND_MACHINES at most. The first one
+/// always, whatever it needs.
+/datum/bot_brain/proc/plan_upgrade_round(obj/item/storage/part_replacer/rped, department = FALSE)
+	. = list()
+	var/budget = bot_rped_room(rped)
+	if(!budget) // full up with old parts: nothing printed would go in
+		return
+	var/parts = 0
+	while(length(.) < BOT_ROUND_MACHINES)
+		var/obj/machinery/M = department ? next_department_upgrade(.) : next_upgrade_target(.)
+		if(!M)
+			break
+		var/list/need = parts_to_upgrade(M)
+		var/n = 0
+		for(var/id in need)
+			n += need[id]
+		if(length(.) && parts + n > budget)
+			break
+		. += M
+		parts += n
+
+/// Drops what's done, gone, opened by somebody else or given up on from the round.
+/datum/bot_brain/proc/prune_upgrade_round(obj/item/storage/part_replacer/rped)
+	for(var/obj/machinery/M as anything in upgrade_round)
+		if(QDELETED(M) || M.panel_open || (M.stat & BROKEN) || LAZYACCESS(upgrade_blocked, M) > world.time || taken_by_another(M) || !length(parts_to_upgrade(M)))
+			upgrade_round -= M
+	if(!length(upgrade_round))
+		upgrade_round = null
+		upgrade_round_fitting = FALSE
+
+/// The nearest machine of the round the RPED has something better for.
+/datum/bot_brain/proc/next_in_round(obj/item/storage/part_replacer/rped)
+	var/obj/machinery/best
+	var/best_dist
+	for(var/obj/machinery/M as anything in upgrade_round)
+		if(!M.rped_upgrade_count(rped))
+			continue
+		var/dist = get_dist(owner, M) + (M.z != owner.z ? 1000 : 0)
+		if(!best || dist < best_dist)
+			best = M
+			best_dist = dist
+	return best
 
 /// Prints it if the lathe can, and says so on the radio if it can't.
 /datum/bot_brain/proc/print_or_ask(obj/machinery/rnd/production/L, datum/design/D, amount)
@@ -550,7 +712,11 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 
 /datum/bot_goal/fit_upgrades/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/robotics/S = new
-	S.steps = list(new /datum/bot_step/take_rped(), new /datum/bot_step/move_to(), new /datum/bot_step/paced/fit_upgrades())
+	var/obj/item/storage/part_replacer/rped = bot.find_rped()
+	if(rped?.works_from_distance)
+		S.steps = list(new /datum/bot_step/take_rped(), new /datum/bot_step/paced/fit_from_range())
+	else
+		S.steps = list(new /datum/bot_step/take_rped(), new /datum/bot_step/move_to(), new /datum/bot_step/paced/fit_upgrades())
 	return list(S)
 
 /datum/bot_goal/fit_upgrades/on_give_up(datum/bot_brain/bot)
@@ -576,12 +742,64 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 			return bot.suspend_goal_for(new /datum/bot_goal/take_item/exact(rped)) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
 		if(!bot.ready_in_hand(rped))
 			return GOAL_STEP_FAIL
-	if(bot.find_carried_tool(/obj/item/screwdriver))
+	if(rped.works_from_distance || bot.find_carried_tool(/obj/item/screwdriver)) // the bluespace one needs no panel open
 		return GOAL_STEP_SUCCESS
 	var/datum/bot_goal/acquire_item_type/fetch = new()
 	fetch.item_type = /obj/item/screwdriver
 	fetch.lawful = TRUE
 	return bot.suspend_goal_for(fetch) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
+
+/// The bluespace RPED: walking until the machine's in sight and near enough, then one click from there. No panel, no screwdriver.
+/datum/bot_step/paced/fit_from_range
+	max_clicks = 120
+	var/fitted = FALSE
+
+/datum/bot_step/paced/fit_from_range/start(datum/bot_brain/bot)
+	fitted = FALSE
+	return TRUE
+
+/datum/bot_step/paced/fit_from_range/do_click(datum/bot_brain/bot)
+	var/obj/machinery/M = bot.current_goal?.target
+	var/obj/item/storage/part_replacer/rped = bot.find_rped()
+	if(fitted || !istype(M) || QDELETED(M) || !rped || !(rped in bot.owner.held_items))
+		return FALSE
+	if(M.z != bot.owner.z || get_dist(bot.owner, M) > BOT_BRPED_RANGE || !can_see(bot.owner, M, BOT_BRPED_RANGE))
+		if(!bot.pursuing_kind)
+			bot.pursue(M, "follow", force = TRUE) //not "goal": that one's arrival would end the step
+		wait_for = 5
+		return TRUE
+	bot.stop_pursuit()
+	bot.human_pause(M)
+	if(QDELETED(M) || QDELETED(rped))
+		return FALSE
+	var/before = M.rped_upgrade_count(rped)
+	fitted = TRUE
+	if(!before)
+		return FALSE
+	bot.owner.face_atom(M)
+	bot.telemetry_ui_action(M, "upgrade parts")
+	if(bot.owner.Adjacent(M))
+		bot.use_tool_on(rped, M)
+	else
+		rped.afterattack(M, bot.owner, FALSE)
+	var/after = M.rped_upgrade_count(rped)
+	if(after >= before)
+		bot_log(bot, "[rped] did nothing to [M] from [get_dist(bot.owner, M)] tiles")
+		fitted = FALSE
+		return FALSE
+	bot.machines_upgraded++
+	bot_log(bot, "upgraded [before - after] part\s in [M] from [get_dist(bot.owner, M)] tiles")
+	return FALSE
+
+/datum/bot_step/paced/fit_from_range/finish(datum/bot_brain/bot)
+	var/obj/machinery/M = bot.current_goal?.target
+	if(bot.pursuing_kind)
+		bot.stop_pursuit()
+	if(!fitted)
+		return GOAL_STEP_FAIL
+	if(!bot.gym_scripted && istype(M) && !bot.in_science(M) && prob(30))
+		bot.say_after_typing(pick("Better parts in [M].", "[capitalize(M.name)]'s upgraded.", "That should help."))
+	return GOAL_STEP_SUCCESS
 
 /// Panel open, RPED, panel shut, the three clicks a player makes.
 /datum/bot_step/paced/fit_upgrades
@@ -756,9 +974,78 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 			return D
 	return null
 
-/// One lowest-tier part at a time, down to a dozen spares, and the RPED set down at the end.
+/// The bluespace RPED off the lathe, the plain one's parts tipped into it, and the plain one left at the bench for whoever wants it.
+/datum/bot_goal/switch_to_brped
+	lawful = TRUE
+	exclusive = TRUE
+	doing = "moving the parts into the bluespace RPED"
+	var/obj/item/storage/part_replacer/bluespace/brped
+	var/obj/item/storage/part_replacer/old
+
+/datum/bot_goal/switch_to_brped/New(obj/item/storage/part_replacer/bluespace/B, obj/item/storage/part_replacer/O)
+	. = ..()
+	brped = B
+	old = O
+	target = B
+
+/datum/bot_goal/switch_to_brped/resolve_target(datum/bot_brain/bot)
+	if(QDELETED(brped) || QDELETED(old))
+		target = null
+
+/datum/bot_goal/switch_to_brped/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/robotics/S = new
+	S.steps = list(new /datum/bot_step/fill_brped())
+	return list(S)
+
+/datum/bot_goal/switch_to_brped/on_success(datum/bot_brain/bot)
+	bot.continue_goal_chain(CALLBACK(bot_duty_of(/datum/bot_duty/rnd_bench), TYPE_PROC_REF(/datum/bot_duty, try_start), bot))
+
+/datum/bot_goal/switch_to_brped/on_give_up(datum/bot_brain/bot)
+	bot.rnd_bench_blocked_until = world.time + 2 MINUTES
+
+/// Fetches each RPED in turn, then tips the plain one into the bluespace one: a click, the whole lot.
+/datum/bot_step/fill_brped
+	var/tries = 0
+
+/datum/bot_step/fill_brped/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/switch_to_brped/G = bot.current_goal
+	if(!istype(G) || QDELETED(G.brped) || QDELETED(G.old) || ++tries > 6)
+		return GOAL_STEP_FAIL
+	for(var/obj/item/storage/part_replacer/R in list(G.old, G.brped))
+		if(R in bot.owner.held_items)
+			continue
+		if(isturf(R.loc) && !bot.owner.Adjacent(R))
+			return bot.suspend_goal_for(new /datum/bot_goal/take_item/exact(R)) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
+		if(!bot.ready_in_hand(R))
+			return GOAL_STEP_FAIL
+	bot.human_pause(G.brped)
+	if(QDELETED(G.brped) || QDELETED(G.old))
+		return GOAL_STEP_FAIL
+	var/moved = 0
+	for(var/obj/item/part in G.old.contents.Copy())
+		if(SEND_SIGNAL(G.old, COMSIG_TRY_STORAGE_TAKE, part, bot.owner.drop_location()) && SEND_SIGNAL(G.brped, COMSIG_TRY_STORAGE_INSERT, part, bot.owner, TRUE))
+			moved++
+	G.brped.play_rped_sound()
+	bot.telemetry_ui_action(G.brped, "tip [G.old] into it")
+	bot.owner.dropItemToGround(G.old)
+	bot_log(bot, "moved [moved] part\s into [G.brped] and left [G.old] by the bench")
+	return GOAL_STEP_SUCCESS
+
+/// Junk out of the RPED when it's filling up mid-round, the RPED kept in hand.
+/datum/bot_goal/put_rped_back/scrap_only
+	doing = "clearing old parts out of the RPED"
+
+/datum/bot_goal/put_rped_back/scrap_only/resolve_target(datum/bot_brain/bot)
+	if(QDELETED(rped))
+		return
+	target = bot.find_analyzer()
+
+/datum/bot_goal/put_rped_back/scrap_only/on_success(datum/bot_brain/bot)
+	bot.continue_goal_chain(CALLBACK(bot_duty_of(/datum/bot_duty/rnd_bench), TYPE_PROC_REF(/datum/bot_duty, try_start), bot))
+
+/// The junk (bot_rped_junk()) one part at a time, worst first, and the RPED set down at the end unless the round goes on.
 /datum/bot_step/paced/scrap_spare_parts
-	max_clicks = 30
+	max_clicks = 80
 	optional = TRUE
 
 /datum/bot_step/paced/scrap_spare_parts/do_click(datum/bot_brain/bot)
@@ -769,20 +1056,34 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 	if(D.busy || D.loaded_item)
 		wait_for = 10
 		return TRUE
-	if(length(G.rped.contents) < BOT_RND_RPED_SCRAP_AT)
+	var/list/junk = bot_rped_junk(G.rped)
+	if(!length(junk))
 		return FALSE
-	var/obj/item/stock_parts/worst
-	for(var/obj/item/stock_parts/part in G.rped)
-		if(!worst || part.rating < worst.rating)
-			worst = part
-	if(!worst)
+	// Mid-round, room for a round's parts is enough: each one through the analyzer is a few seconds
+	if(istype(G, /datum/bot_goal/put_rped_back/scrap_only) && bot_rped_room(G.rped) >= BOT_RPED_LOW_ROOM * 2)
 		return FALSE
+	var/obj/item/worst = junk[1]
+	// A hand free for the part: whatever's in the other one put away, the RPED kept
+	for(var/obj/item/held in bot.owner.held_items)
+		if(held == G.rped || length(bot.owner.held_items) - length(bot.owner.get_empty_held_indexes()) < 2)
+			continue
+		bot.stow_item(held)
+		if(held in bot.owner.held_items)
+			bot_log(bot, "setting [held] down for a moment")
+			bot.owner.dropItemToGround(held)
+			LAZYADD(bot.set_down_items, held)
 	bot.human_pause(D)
 	if(QDELETED(worst) || QDELETED(D) || !SEND_SIGNAL(G.rped, COMSIG_TRY_STORAGE_TAKE, worst, bot.owner.drop_location()))
+		bot_log(bot, "couldn't get [worst] out of [G.rped]")
 		return FALSE
 	if(!bot.owner.put_in_hands(worst))
+		bot_log(bot, "no free hand for [worst]: back in [G.rped]")
+		SEND_SIGNAL(G.rped, COMSIG_TRY_STORAGE_INSERT, worst, bot.owner, TRUE, TRUE)
 		return FALSE
 	if(!D.Insert_Item(worst, bot.owner) || D.loaded_item != worst)
+		bot_log(bot, "[D] wouldn't take [worst]")
+		if(worst.loc == bot.owner)
+			SEND_SIGNAL(G.rped, COMSIG_TRY_STORAGE_INSERT, worst, bot.owner, TRUE, TRUE)
 		return FALSE
 	bot.telemetry_ui_action(D, "deconstruct [worst]")
 	bot.items_analyzed++
@@ -792,14 +1093,13 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 
 /datum/bot_step/paced/scrap_spare_parts/finish(datum/bot_brain/bot)
 	var/datum/bot_goal/put_rped_back/G = bot.current_goal
-	if(istype(G) && !QDELETED(G.rped) && (G.rped in bot.owner.held_items))
+	if(istype(G) && !istype(G, /datum/bot_goal/put_rped_back/scrap_only) && !QDELETED(G.rped) && (G.rped in bot.owner.held_items))
 		bot.owner.dropItemToGround(G.rped)
 		bot_log(bot, "left [G.rped] by the bench")
 	return GOAL_STEP_SUCCESS
 
 #undef BOT_RND_LOW_SHEETS
 #undef BOT_RND_ASK_GAP
-#undef BOT_RND_RPED_SCRAP_AT
 
 // ---------------------------------------------------------------------------------------------
 // The departments' own
@@ -849,10 +1149,10 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 	return null
 
 /// The next machine in its own department that could do with the parts that have been researched.
-/datum/bot_brain/proc/next_department_upgrade()
+/datum/bot_brain/proc/next_department_upgrade(list/exclude)
 	for(var/machine_type in GLOB.bot_upgrade_order)
 		for(var/obj/machinery/M as anything in bot_instances_of(machine_type))
-			if(QDELETED(M) || M.z != owner.z || M.panel_open || (M.stat & BROKEN) || !length(M.component_parts))
+			if(QDELETED(M) || (M in exclude) || M.z != owner.z || M.panel_open || (M.stat & BROKEN) || !length(M.component_parts))
 				continue
 			if(gym_run ? (get_area(M) != get_area(owner)) : !is_my_department(get_area(M)))
 				continue
@@ -908,17 +1208,32 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 		var/datum/bot_goal/collect_prints/collect = new(fab)
 		collect.chain_duty = type
 		return bot.assign_goal(collect)
-	var/list/to_print = bot.parts_still_to_print(M, rped, fab)
-	if(!length(to_print))
-		var/datum/bot_goal/fit_upgrades/fit = new(M)
-		fit.chain_duty = type
-		return bot.assign_goal(fit)
-	var/id = to_print[1]
-	var/datum/design/part = SSresearch.techweb_design_by_id(id)
-	if(!fab.stored_research.researched_designs[id])
-		bot.telemetry_ui_action(fab, "sync")
-		fab.update_research()
-	return bot.print_for_department(fab, part, to_print[id])
+	// A round, as Science does it: the department's machines' parts printed at once, then fitted one after another
+	bot.prune_upgrade_round(rped)
+	if(!length(bot.upgrade_round))
+		bot.upgrade_round = bot.plan_upgrade_round(rped, TRUE)
+		bot.upgrade_round_fitting = FALSE
+		if(!length(bot.upgrade_round))
+			return FALSE
+	if(!bot.upgrade_round_fitting)
+		var/list/to_print = bot.parts_still_to_print(bot.upgrade_round, rped, fab)
+		if(length(to_print))
+			var/id = to_print[1]
+			var/datum/design/part = SSresearch.techweb_design_by_id(id)
+			if(!fab.stored_research.researched_designs[id])
+				bot.telemetry_ui_action(fab, "sync")
+				fab.update_research()
+			var/amount = min(to_print[id], max(1, bot_rped_room(rped) - bot_prints_waiting(fab, /obj/item/stock_parts)))
+			if(bot.print_for_department(fab, part, amount))
+				return TRUE
+		bot.upgrade_round_fitting = TRUE
+	var/obj/machinery/next = bot.next_in_round(rped)
+	if(!next)
+		bot.upgrade_round = null
+		return FALSE
+	var/datum/bot_goal/fit_upgrades/fit = new(next)
+	fit.chain_duty = type
+	return bot.assign_goal(fit)
 
 /// print_or_ask(), at the department's own techfab.
 /datum/bot_brain/proc/print_for_department(obj/machinery/rnd/production/fab, datum/design/D, amount)
@@ -933,3 +1248,8 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 	var/datum/bot_goal/print_design/G = new(fab, D, amount)
 	G.chain_duty = /datum/bot_duty/department_upgrades
 	return assign_goal(G)
+
+#undef BOT_RPED_KEEP_SPARES
+#undef BOT_RPED_LOW_ROOM
+#undef BOT_ROUND_MACHINES
+#undef BOT_BRPED_RANGE

@@ -70,6 +70,135 @@
 		return BOT_GYM_FAIL
 	return C.linked_lathe == L ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+// Upgrade rounds (2026-11-08). More letters: u a recharger, j a cell charger, A a destructive analyzer. An RPED waits on the lathe.
+/datum/bot_scenario/duty/bench/round
+	name = "upgrades: a scientist prints a whole round's parts, then fits the machines one after another"
+	desc = "The user's ruling: upgrade rounds. A lathe, two rechargers and a cell charger in the lab, an empty RPED on the lathe. Everything they need is printed first, then fitted machine after machine: no going back to the lathe between them."
+	layout = list(
+		"##############",
+		"#B.h.C.......#",
+		"#............#",
+		"#e.z.........#",
+		"#..........u.#",
+		"#.u........j.#",
+		"##############")
+	var/rped_type = /obj/item/storage/part_replacer
+	/// Prints by the time the first machine was fitted.
+	var/printed_at_first_fit
+
+/datum/bot_scenario/duty/bench/round/setup()
+	..()
+	for(var/turf/T in markers["u"])
+		place("u", new /obj/machinery/recharger(T))
+	for(var/turf/T in markers["j"])
+		place("j", new /obj/machinery/cell_charger(T))
+	new rped_type(get_turf(first_placed("h")))
+
+/// Whether every machine of this letter has its capacitors (or manipulators, for the lathe) past tier 1, panel shut.
+/datum/bot_scenario/duty/bench/proc/all_upgraded(mark, part_type)
+	for(var/obj/machinery/M in placed[mark])
+		if(M.panel_open)
+			return FALSE
+		for(var/obj/item/stock_parts/P in M.component_parts)
+			if(istype(P, part_type) && P.rating < 2)
+				return FALSE
+	return TRUE
+
+/datum/bot_scenario/duty/bench/round/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(brain.machines_upgraded && isnull(printed_at_first_fit))
+		printed_at_first_fit = brain.designs_printed
+	if(!isnull(printed_at_first_fit) && brain.designs_printed > printed_at_first_fit)
+		fail_reason = "went back to print after fitting the first machine ([printed_at_first_fit] printed by then, [brain.designs_printed] now)"
+		return BOT_GYM_FAIL
+	var/obj/machinery/computer/rdconsole/C = first_placed("C")
+	if(all_upgraded("u", /obj/item/stock_parts/capacitor) && all_upgraded("j", /obj/item/stock_parts/capacitor) && all_upgraded("h", /obj/item/stock_parts/manipulator) && C.linked_lathe == first_placed("h"))
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/bench/full_rped
+	name = "upgrades: an RPED full of old parts goes past the analyzer before more is printed into it"
+	desc = "The user saw printed parts left on the lathe. The lab's RPED is full: fifty tier 1 parts. The scientist puts the old ones through the destructive analyzer until there's room, prints, picks every print up and fits the recharger. Nothing is left on the lathe."
+	layout = list(
+		"############",
+		"#B.h.C.A...#",
+		"#..........#",
+		"#e.z.....u.#",
+		"############")
+	time_limit = 300 SECONDS // sixteen parts through the analyzer at a few seconds each, and the lathe can catch fire
+
+/datum/bot_scenario/duty/bench/full_rped/setup()
+	for(var/turf/T in markers["A"])
+		place("A", new /obj/machinery/rnd/destructive_analyzer(T))
+	..() // the console after the analyzer, so its Sync finds it
+	for(var/turf/T in markers["u"])
+		place("u", new /obj/machinery/recharger(T))
+	var/obj/item/storage/part_replacer/R = new(get_turf(first_placed("h")))
+	for(var/i in 1 to 10)
+		for(var/path in list(/obj/item/stock_parts/capacitor, /obj/item/stock_parts/scanning_module, /obj/item/stock_parts/manipulator, /obj/item/stock_parts/micro_laser, /obj/item/stock_parts/matter_bin))
+			new path(R)
+
+/datum/bot_scenario/duty/bench/full_rped/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!all_upgraded("u", /obj/item/stock_parts/capacitor) || !all_upgraded("h", /obj/item/stock_parts/manipulator))
+		return BOT_GYM_PENDING
+	if(bot_parts_to_collect(first_placed("h")))
+		return BOT_GYM_PENDING
+	if(!brain.items_analyzed)
+		fail_reason = "fitted with the RPED full and nothing through the analyzer"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/duty/bench/brped_range
+	name = "upgrades: a scientist with the bluespace RPED upgrades a machine from across the room, panel shut"
+	desc = "The user's ruling: the bluespace RPED from range. It's on the lathe, the recharger six tiles off in plain sight. The parts go in from a distance: no screwdriver, no panel, the scientist never stands beside it."
+	layout = list(
+		"############",
+		"#B.h.C.....#",
+		"#..........#",
+		"#e.z.......#",
+		"#..........#",
+		"#.........u#",
+		"############")
+	var/closest = 99
+	var/panel_opened = FALSE
+
+/datum/bot_scenario/duty/bench/brped_range/setup()
+	..()
+	for(var/turf/T in markers["u"])
+		place("u", new /obj/machinery/recharger(T))
+	new /obj/item/storage/part_replacer/bluespace(get_turf(first_placed("h")))
+
+/datum/bot_scenario/duty/bench/brped_range/post_spawn()
+	..()
+	RegisterSignal(bot, COMSIG_MOVABLE_MOVED, PROC_REF(stepped))
+
+/datum/bot_scenario/duty/bench/brped_range/proc/stepped(atom/movable/mover)
+	SIGNAL_HANDLER
+	var/obj/machinery/recharger/R = first_placed("u")
+	if(R)
+		closest = min(closest, get_dist(mover, R))
+
+/datum/bot_scenario/duty/bench/brped_range/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/machinery/recharger/R = first_placed("u")
+	if(R.panel_open)
+		panel_opened = TRUE
+	if(!all_upgraded("u", /obj/item/stock_parts/capacitor))
+		return BOT_GYM_PENDING
+	if(panel_opened || closest < 2)
+		fail_reason = "upgraded the recharger [panel_opened ? "with its panel open" : "standing beside it"] (closest [closest] tiles)"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/duty/bench/brped_range/release_run()
+	if(bot)
+		UnregisterSignal(bot, COMSIG_MOVABLE_MOVED)
+	return ..()
+
 // Slimes (goals/xenobiology.dm). Letters: X a slime console, y a slime behind glass, k a box of monkey cubes, a camera at n.
 /datum/bot_scenario/duty/slimes
 	duty_type = /datum/bot_duty/xenobiology

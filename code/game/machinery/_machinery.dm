@@ -474,7 +474,7 @@ Class Procs:
 					if(ispath(A.type, D))
 						P = D
 						break
-				for(var/obj/item/B in W.contents)
+				for(var/obj/item/B in sortTim(W.contents.Copy(), GLOBAL_PROC_REF(cmp_rped_sort))) // hippie -- the best part first, as frames do: the first better one left a tier 2 in where a tier 3 was carried
 					if(istype(B, P) && istype(A, P))
 						if(B.get_part_rating() > A.get_part_rating())
 							if(istype(B,/obj/item/stack)) //conveniently this will mean A is also a stack and I will kill the first person to prove me wrong

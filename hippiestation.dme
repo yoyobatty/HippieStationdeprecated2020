@@ -3989,6 +3989,7 @@
 #include "hippiestation\code\modules\research\rdmachines.dm"
 #include "hippiestation\code\modules\research\research_dashboard.dm"
 #include "hippiestation\code\modules\research\rped_tiers.dm"
+#include "hippiestation\code\modules\research\rped_targets.dm"
 #include "hippiestation\code\modules\research\stock_parts.dm"
 #include "hippiestation\code\modules\research\research_machines_tgui.dm"
 #include "hippiestation\code\modules\research\designs\autolathe_designs.dm"

@@ -52,6 +52,27 @@
 		passed++
 		lines += "PASS every protolathe and imprinter design has a home"
 
+	// The R&D console's Research tab: every node one group, from the table or the exosuit rule, none by guesswork
+	var/list/node_counts = list()
+	var/list/guessed = list()
+	for(var/id in SSresearch.techweb_nodes)
+		var/datum/techweb_node/N = SSresearch.techweb_nodes[id]
+		var/G = N.node_group()
+		node_counts[G] = (node_counts[G] || 0) + 1
+		tsv += "[id]\t[N.display_name]\tnode\t[G]\t\t"
+		if(id != "ERROR" && G != "Exosuits" && !(id in list("base", "anomaly_research", "alientech", "alien_bio", "alien_engi", "syndicate_basic")) && G == "Science" && !findtext(id, "nanite"))
+			guessed += id
+	var/list/node_parts = list()
+	for(var/G in node_counts)
+		node_parts += "[G] [node_counts[G]]"
+	lines += "INFO node groups ([length(SSresearch.techweb_nodes)] nodes): [jointext(node_parts, ", ")]"
+	if(length(guessed))
+		failed++
+		lines += "FAIL nodes that fell through to Science: [jointext(guessed, ", ")]"
+	else
+		passed++
+		lines += "PASS every research node has a group"
+
 	var/list/S = rd_ui_static_data()
 	var/list/designs = S["designs"]
 	var/list/crowbar = designs["crowbar"]

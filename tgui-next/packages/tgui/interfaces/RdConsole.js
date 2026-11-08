@@ -1434,11 +1434,33 @@ class RdConsoleMenu extends Component {
       selected: null,
       search: '',
       pages: 1,
+      // undefined: what the server remembers for this player
+      group: undefined,
+      // A group picked while searching, for that search only
+      searchGroup: null,
     };
   }
 
   setTab(tab) {
     this.setState({ tab, pages: 1 });
+  }
+
+  setGroup(group, query) {
+    const list = document.getElementById('RdConsole__list');
+    if (list) {
+      list.scrollTop = 0;
+    }
+    // The details go to the group's first node
+    if (query) {
+      this.setState({
+        pages: 1,
+        selected: null,
+        searchGroup: { query, group },
+      });
+      return;
+    }
+    this.setState({ pages: 1, selected: null, group });
+    this.props.act('panel_pref', { key: 'node', value: group || '' });
   }
 
   selectNode(id) {
@@ -1668,13 +1690,36 @@ class RdConsoleMenu extends Component {
     const query = search.toLowerCase();
     const visible = (data.nodes || [])
       .filter(node => research.statusOf(node.id) !== 'hidden');
+    const groupNames = {};
+    for (let node of visible) {
+      groupNames[node.group || 'Other'] = true;
+    }
+    const names = Object.keys(groupNames).sort();
+    let group;
+    if (query) {
+      // A new search starts over all the groups
+      const { searchGroup } = this.state;
+      group = searchGroup && searchGroup.query === query
+        ? searchGroup.group
+        : null;
+    } else if (this.state.group !== undefined) {
+      group = this.state.group;
+    } else {
+      group = panelPrefs(data).node || null;
+    }
+    if (group && !groupNames[group]) {
+      group = null;
+    }
+    const inGroup = node => !group || (node.group || 'Other') === group;
     const counts = {
       [FILTER_AVAILABLE]: 0,
       [FILTER_LOCKED]: 0,
       [FILTER_RESEARCHED]: 0,
     };
     for (let node of visible) {
-      counts[research.statusOf(node.id)] += 1;
+      if (inGroup(node)) {
+        counts[research.statusOf(node.id)] += 1;
+      }
     }
     const matchesNode = node => {
       if (node.name.toLowerCase().includes(query)
@@ -1687,10 +1732,18 @@ class RdConsoleMenu extends Component {
     // Searching looks through every node, whatever the filter: what can be
     // researched now first, then what's nearest, then what's done
     const statusOrder = { available: 0, locked: 1, researched: 2 };
-    const nodes = visible
+    // Before the group: the sidebar counts what's in each
+    const listed = visible
       .filter(node => (query
         ? matchesNode(node)
-        : research.statusOf(node.id) === filter))
+        : research.statusOf(node.id) === filter));
+    const groupCounts = {};
+    for (let node of listed) {
+      const name = node.group || 'Other';
+      groupCounts[name] = (groupCounts[name] || 0) + 1;
+    }
+    const nodes = listed
+      .filter(inGroup)
       .map(node => ({
         node,
         status: research.statusOf(node.id),
@@ -1703,7 +1756,8 @@ class RdConsoleMenu extends Component {
         || (research.costOf(a.node.id) - research.costOf(b.node.id))
         || a.node.name.localeCompare(b.node.name))
       .map(entry => entry.node);
-    const designs = query
+    // Designs match a search under All only: they aren't in the groups
+    const designs = query && !group
       ? Object.keys(data.designs)
         .filter(id => data.designs[id].name.toLowerCase().includes(query)
           && (research.researchedDesigns[id]
@@ -1718,13 +1772,39 @@ class RdConsoleMenu extends Component {
     return (
       <Fragment>
         <Box
-          id="RdConsole__list"
           style={{
             'position': 'absolute',
             'top': 0,
             'bottom': 0,
             'left': 0,
-            'width': '52%',
+            'width': '150px',
+            'padding': '6px',
+            'box-sizing': 'border-box',
+            'overflow-y': 'auto',
+            'background-color': 'rgba(0, 0, 0, 0.2)',
+          }}>
+          <SidebarEntry
+            name={query ? 'All matches' : 'All'}
+            count={listed.length}
+            selected={!group}
+            onClick={() => this.setGroup(null, query)} />
+          {names.map(name => (
+            <SidebarEntry
+              key={name}
+              name={name}
+              count={groupCounts[name] || 0}
+              selected={group === name}
+              onClick={() => this.setGroup(name, query)} />
+          ))}
+        </Box>
+        <Box
+          id="RdConsole__list"
+          style={{
+            'position': 'absolute',
+            'top': 0,
+            'bottom': 0,
+            'left': '150px',
+            'width': 'calc(58% - 150px)',
             'padding': '6px',
             'box-sizing': 'border-box',
             'overflow-y': 'auto',
@@ -1805,7 +1885,7 @@ class RdConsoleMenu extends Component {
             'position': 'absolute',
             'top': 0,
             'bottom': 0,
-            'left': '52%',
+            'left': '58%',
             'right': 0,
             'padding': '8px',
             'box-sizing': 'border-box',

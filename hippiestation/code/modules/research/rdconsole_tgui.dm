@@ -24,6 +24,7 @@ GLOBAL_LIST_EMPTY(rd_ui_mat_names)
 				"unlocks" = assoc_list_strip_value(N.unlock_ids),
 				"designs" = assoc_list_strip_value(N.design_ids),
 				"cost" = N.research_costs[TECHWEB_POINT_TYPE_GENERIC] || 0,
+				"group" = N.node_group(), // design_groups.dm
 			))
 	if(!length(GLOB.rd_ui_designs))
 		var/datum/asset/spritesheet/sheet = get_asset_datum(/datum/asset/spritesheet/research_designs)
