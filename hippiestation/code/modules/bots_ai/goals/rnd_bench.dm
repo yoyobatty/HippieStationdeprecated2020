@@ -427,7 +427,10 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 		bot.upgrade_round_fitting = TRUE
 	var/obj/machinery/M = bot.next_in_round(rped)
 	if(!M)
+		// Nothing to fit (the silo's short of something): the bench rests rather than planning the same round every few seconds, as a
+		// scientist did forty times in one shift
 		bot.upgrade_round = null
+		bot.rnd_bench_blocked_until = world.time + 3 MINUTES
 		return FALSE
 	return bot.assign_goal(new /datum/bot_goal/fit_upgrades(M))
 
@@ -721,7 +724,7 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 
 /datum/bot_goal/fit_upgrades/on_give_up(datum/bot_brain/bot)
 	if(target)
-		LAZYSET(bot.upgrade_blocked, target, world.time + 10 MINUTES)
+		LAZYSET(bot.upgrade_blocked, target, world.time + 30 MINUTES)
 
 /datum/bot_goal/fit_upgrades/on_success(datum/bot_brain/bot)
 	var/datum/bot_duty/duty = bot_duty_of(chain_duty)
@@ -1160,6 +1163,10 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 				continue
 			if(LAZYACCESS(upgrade_blocked, M) > world.time || taken_by_another(M) || !length(parts_to_upgrade(M)))
 				continue
+			// One it can't get to (an SMES behind the engine's shielding on Meta): engineers set off for it every ten minutes
+			if(!gym_run && !can_walk_lawfully_to(M))
+				LAZYSET(upgrade_blocked, M, world.time + 30 MINUTES)
+				continue
 			return M
 	return null
 
@@ -1187,9 +1194,9 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 	var/obj/machinery/M = bot.next_department_upgrade()
 	if(!M)
 		return FALSE
-	var/obj/item/storage/part_replacer/rped = bot.find_carried_tool(/obj/item/storage/part_replacer)
-	if(!rped)
-		rped = locate() in get_turf(fab)
+	// Carried, on the techfab, or wherever it was set down in the department: one dropped putting out a techfab fire had the engineer
+	// printing a second
+	var/obj/item/storage/part_replacer/rped = bot.find_rped() || (locate(/obj/item/storage/part_replacer) in get_turf(fab))
 	// What's been researched since the techfab last looked, as anybody does before printing: its Sync button.
 	if(!fab.stored_research.researched_designs["rped"] && SSresearch.science_tech.researched_designs["rped"])
 		bot.telemetry_ui_action(fab, "sync")
@@ -1230,6 +1237,7 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 	var/obj/machinery/next = bot.next_in_round(rped)
 	if(!next)
 		bot.upgrade_round = null
+		bot.rnd_bench_blocked_until = world.time + 3 MINUTES
 		return FALSE
 	var/datum/bot_goal/fit_upgrades/fit = new(next)
 	fit.chain_duty = type

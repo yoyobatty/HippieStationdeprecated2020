@@ -23,12 +23,23 @@
 		return
 	return ..()
 
-/// The best part of a kind it carries, if it beats `current` (anything does when there's nothing in).
-/obj/item/storage/part_replacer/proc/best_part_over(kind, obj/item/current)
+/// The best part of a kind it carries, if it beats `current` (anything does when there's nothing in). Of two cells that rate the same,
+/// the fuller; `min_charge` (a fraction) leaves out cells flatter than that: a cyborg or an exosuit can't run on a flat one, where an
+/// APC on the grid charges its own.
+/obj/item/storage/part_replacer/proc/best_part_over(kind, obj/item/current, min_charge = 0)
 	var/obj/item/best
 	for(var/obj/item/part in contents)
-		if(istype(part, kind) && (!best || part.get_part_rating() > best.get_part_rating()))
+		if(!istype(part, kind))
+			continue
+		var/obj/item/stock_parts/cell/C = part
+		if(istype(C) && min_charge && C.charge < C.maxcharge * min_charge)
+			continue
+		if(!best || part.get_part_rating() > best.get_part_rating())
 			best = part
+		else if(istype(C) && part.get_part_rating() == best.get_part_rating())
+			var/obj/item/stock_parts/cell/B = best
+			if(C.charge > B.charge)
+				best = part
 	if(best && (!current || best.get_part_rating() > current.get_part_rating()))
 		return best
 
@@ -83,7 +94,7 @@
 	if(!opened)
 		to_chat(user, "<span class='notice'>[src] has [rped_cell_line(cell)]. Open its cover to swap it.</span>")
 		return TRUE
-	var/obj/item/stock_parts/cell/better = rped.best_part_over(/obj/item/stock_parts/cell, cell)
+	var/obj/item/stock_parts/cell/better = rped.best_part_over(/obj/item/stock_parts/cell, cell, 0.1)
 	if(!better)
 		to_chat(user, "<span class='notice'>[src] has [rped_cell_line(cell)]. [rped] has nothing better.</span>")
 		return TRUE
@@ -143,7 +154,7 @@
 		to_chat(user, "<span class='notice'>[src] has [rped_cell_line(cell)][rped_scanmod ? ", \a [rped_scanmod]" : ""][rped_capacitor ? ", \a [rped_capacitor]" : ""]. Turn its maintenance protocols on to swap parts.</span>")
 		return TRUE
 	var/swapped = 0
-	var/obj/item/stock_parts/cell/better_cell = rped.best_part_over(/obj/item/stock_parts/cell, cell)
+	var/obj/item/stock_parts/cell/better_cell = rped.best_part_over(/obj/item/stock_parts/cell, cell, 0.1)
 	if(better_cell)
 		var/obj/item/stock_parts/cell/old = cell
 		if(rped.swap_part(old, better_cell, src, user))

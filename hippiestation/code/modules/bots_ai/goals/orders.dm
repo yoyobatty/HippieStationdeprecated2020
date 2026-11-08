@@ -127,7 +127,7 @@ GLOBAL_DATUM(bot_cargo_saving_for, /datum/bot_request)
 /// Whether an ask came from a person or a console, not a bot's own errand
 /proc/bot_cargo_request_for_people(datum/bot_request/R)
 	var/mob/living/carbon/human/asker = R.caller_ref?.resolve()
-	return !!(R.station_request || !istype(asker) || !asker.bot_brain) //a TRUE or FALSE: it's compared with one
+	return !!(R.station_request || R.crew_priority || !istype(asker) || !asker.bot_brain) //a TRUE or FALSE: it's compared with one
 
 /// The next crate somebody asked for that the budget covers, as the call it came in: people's asks first. The user's silver at
 /// Science's console sat behind a toolbox crate, a bot's medical supplies and the rest of the budget in three shifts of six.
@@ -148,7 +148,7 @@ GLOBAL_DATUM(bot_cargo_saving_for, /datum/bot_request)
 		// Somebody's own ask, or a console's, waits for the budget half an hour: the user's silver (2000 credits) at Science's console
 		// was "on it" in three shifts out of six and quietly dropped at ten minutes. A bot's own asks come round again anyway.
 		var/mob/living/carbon/human/asker = R.caller_ref?.resolve()
-		var/keep = (R.station_request || !istype(asker) || !asker.bot_brain) ? 30 MINUTES : 10 MINUTES
+		var/keep = (R.station_request || R.crew_priority || !istype(asker) || !asker.bot_brain) ? 30 MINUTES : 10 MINUTES
 		if(world.time > R.made + keep || !P)
 			GLOB.bot_cargo_requests -= R
 			continue

@@ -3476,6 +3476,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\rnd_bench.dm"
 #include "hippiestation\code\modules\bots_ai\goals\robotics.dm"
 #include "hippiestation\code\modules\bots_ai\goals\robust.dm"
+#include "hippiestation\code\modules\bots_ai\goals\rped_rounds.dm"
 #include "hippiestation\code\modules\bots_ai\goals\sabotage.dm"
 #include "hippiestation\code\modules\bots_ai\goals\sabotage_accidents.dm"
 #include "hippiestation\code\modules\bots_ai\goals\sabotage_bomb.dm"

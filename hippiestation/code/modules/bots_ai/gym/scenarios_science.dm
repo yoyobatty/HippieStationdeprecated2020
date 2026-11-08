@@ -576,6 +576,247 @@
 			return BOT_GYM_PASS
 	return BOT_GYM_PENDING
 
+/// An APC that's on the grid as far as anyone can tell: an arena has no grid to power it.
+/obj/machinery/power/apc/bot_gym_on_grid
+
+/obj/machinery/power/apc/bot_gym_on_grid/process()
+	main_status = 2 // APC_HAS_POWER
+
+// Letters: y the Engineering techfab, a an APC.
+/datum/bot_scenario/duty/apc_cells
+	name = "upgrades: an engineer prints a better cell and swaps it into the APC, cover unlocked, opened, shut and locked again"
+	desc = "The user's ruling: engineers put better cells in the APCs, only while the grid powers them (cells print empty). ID swipe, the cover lock off, crowbar, RPED, crowbar, ID swipe: the APC ends with the high-capacity cell, shut and locked."
+	duty_type = null //by name in New(): a build without the duty has none
+	job = "Station Engineer"
+	time_limit = 120 SECONDS
+	kit_backpack = list(/obj/item/crowbar, /obj/item/screwdriver)
+	layout = list(
+		"##########",
+		"#B..y...a#",
+		"#........#",
+		"##########")
+
+/datum/bot_scenario/duty/apc_cells/New()
+	. = ..()
+	duty_type = text2path("/datum/bot_duty/apc_cells")
+
+/datum/bot_scenario/duty/apc_cells/setup()
+	for(var/turf/T in markers["y"])
+		var/obj/machinery/rnd/production/techfab/department/engineering/fab = place("y", new /obj/machinery/rnd/production/techfab/department/engineering(T))
+		var/datum/component/material_container/mats = fab.materials?.mat_container
+		mats?.insert_amount(40000, MAT_METAL)
+		mats?.insert_amount(30000, MAT_GLASS)
+	for(var/turf/T in markers["a"])
+		var/obj/machinery/power/apc/A = place("a", new /obj/machinery/power/apc/bot_gym_on_grid(T))
+		A.main_status = 2
+		if(!A.cell) // a mapped APC gets its cell at map load
+			A.cell = new /obj/item/stock_parts/cell/upgraded(A)
+	SSresearch.science_tech.research_node_id("engineering", TRUE, FALSE)
+
+/datum/bot_scenario/duty/apc_cells/post_spawn()
+	..()
+	brain.diligence = 1
+	var/obj/item/card/id/C = new(bot)
+	C.registered_name = bot.real_name
+	C.assignment = "Station Engineer"
+	C.access = list(ACCESS_ENGINE, ACCESS_ENGINE_EQUIP)
+	bot.equip_to_slot_or_del(C, ITEM_SLOT_ID)
+
+/datum/bot_scenario/duty/apc_cells/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/machinery/power/apc/A = first_placed("a")
+	if(!istype(A?.cell, /obj/item/stock_parts/cell/high))
+		return BOT_GYM_PENDING
+	if(A.opened || !A.locked || !A.coverlocked)
+		return BOT_GYM_PENDING
+	return BOT_GYM_PASS
+
+// Roboticists (goals/rped_rounds.dm). Letters: F the exosuit fabricator, C an R&D console (the fabricator syncs from one in sight), k a cell charger, R an RPED, o a cyborg, q an exosuit.
+/datum/bot_scenario/duty/robotics_cells
+	name = "upgrades: a roboticist prints a better cell, charges it, and swaps it into the cyborg stood in Robotics"
+	desc = "The user's rulings: roboticists swap cyborg cells, and charge the new one first (lathes print them empty). The fabricator prints it, the charger fills it, the cyborg's cover is unlocked, opened, the RPED swaps the cell, and the cover is shut and locked again. The cyborg never gets a flat cell."
+	duty_type = null
+	job = "Roboticist"
+	time_limit = 240 SECONDS // the charger fills a super cell in a minute or so
+	kit_backpack = list(/obj/item/crowbar, /obj/item/screwdriver)
+	layout = list(
+		"###########",
+		"#B..F..k..#",
+		"#R..C.....#",
+		"#.......o.#",
+		"###########")
+
+/datum/bot_scenario/duty/robotics_cells/New()
+	. = ..()
+	duty_type = text2path("/datum/bot_duty/robotics_cells")
+
+/datum/bot_scenario/duty/robotics_cells/setup()
+	for(var/turf/T in markers["F"])
+		var/obj/machinery/mecha_part_fabricator/F = place("F", new /obj/machinery/mecha_part_fabricator(T))
+		var/datum/component/material_container/mats = F.rmat?.mat_container
+		mats?.insert_amount(40000, MAT_METAL)
+		mats?.insert_amount(30000, MAT_GLASS)
+		mats?.insert_amount(10000, MAT_GOLD)
+		mats?.insert_amount(10000, MAT_SILVER)
+	for(var/turf/T in markers["k"])
+		place("k", new /obj/machinery/cell_charger(T))
+	for(var/turf/T in markers["C"])
+		place("C", new /obj/machinery/computer/rdconsole/core(T))
+	for(var/turf/T in markers["R"])
+		place("R", new /obj/item/storage/part_replacer(T))
+	// A basic cell each, so the high-capacity one Industrial Engineering gives is better: research is the station's, shared by every
+	// arena, and a node researched here changed what every other scenario's bots print
+	for(var/turf/T in markers["o"])
+		var/mob/living/silicon/robot/R = place("o", new /mob/living/silicon/robot(T))
+		QDEL_NULL(R.cell)
+		R.cell = new /obj/item/stock_parts/cell(R)
+	for(var/turf/T in markers["q"])
+		var/obj/mecha/M = place("q", new /obj/mecha/working/ripley(T))
+		QDEL_NULL(M.cell)
+		M.cell = new /obj/item/stock_parts/cell(M)
+	SSresearch.science_tech.research_node_id("engineering", TRUE, FALSE)
+
+/datum/bot_scenario/duty/robotics_cells/post_spawn()
+	..()
+	brain.diligence = 1
+	var/obj/item/card/id/C = new(bot)
+	C.registered_name = bot.real_name
+	C.assignment = "Roboticist"
+	C.access = list(ACCESS_ROBOTICS, ACCESS_RESEARCH, ACCESS_MECH_SCIENCE)
+	bot.equip_to_slot_or_del(C, ITEM_SLOT_ID)
+
+/datum/bot_scenario/duty/robotics_cells/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/mob/living/silicon/robot/R = first_placed("o")
+	if(R.cell && R.cell.charge < R.cell.maxcharge * 0.1)
+		fail_reason = "the cyborg was given a flat cell ([R.cell.charge]/[R.cell.maxcharge])"
+		return BOT_GYM_FAIL
+	if(!R.cell || R.cell.maxcharge <= 1000 || R.opened || !R.locked) // it starts with a basic one
+		return BOT_GYM_PENDING
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/duty/robotics_cells/mech
+	name = "upgrades: a roboticist sits in the parked Ripley to permit maintenance, and swaps a charged better cell into it"
+	desc = "The user's ruling: a pilot has to permit maintenance protocols from the seat, so the roboticist climbs in to do it, climbs out, starts the protocols with its ID, swaps the cell with the RPED, ends the protocols, and takes the permission back."
+	layout = list(
+		"###########",
+		"#B..F..k..#",
+		"#R..C.....#",
+		"#.......q.#",
+		"###########")
+
+/datum/bot_scenario/duty/robotics_cells/mech
+	var/start_charge_max = 0
+
+/datum/bot_scenario/duty/robotics_cells/mech/post_spawn()
+	..()
+	var/obj/mecha/M = first_placed("q")
+	start_charge_max = M.cell?.maxcharge
+
+/datum/bot_scenario/duty/robotics_cells/mech/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/mecha/M = first_placed("q")
+	if(M.cell && M.cell.charge < M.cell.maxcharge * 0.1)
+		fail_reason = "the exosuit was given a flat cell"
+		return BOT_GYM_FAIL
+	if(!M.cell || M.cell.maxcharge <= start_charge_max || M.occupant || M.state || M.maint_access)
+		return BOT_GYM_PENDING
+	return BOT_GYM_PASS
+
+// Vending machines (goals/rped_rounds.dm). Letters: V a cola machine, K a crate with its refill canister in.
+/// Down to a tenth of its stock.
+/proc/bot_gym_empty_vendor(obj/machinery/vending/V)
+	for(var/datum/data/vending_product/R in V.product_records)
+		R.amount = round(R.max_amount * 0.1)
+
+/datum/bot_scenario/duty/restock_vendor
+	name = "cargo: a cargo tech opens the refill crate and restocks the nearly empty cola machine, service panel shut again"
+	desc = "The user's ruling: Cargo restocks vending machines that run low. The cola machine is down to a tenth, reported, and its refill crate is in the bay. The crate is opened, the canister carried over, the service panel opened, the canister clicked in, and the panel screwed shut."
+	duty_type = null
+	job = "Cargo Technician"
+	time_limit = 60 SECONDS
+	kit_backpack = list(/obj/item/screwdriver)
+	layout = list(
+		"##########",
+		"#B.K...V.#",
+		"#........#",
+		"##########")
+
+/datum/bot_scenario/duty/restock_vendor/New()
+	. = ..()
+	duty_type = text2path("/datum/bot_duty/restock_vendors")
+
+/datum/bot_scenario/duty/restock_vendor/setup()
+	var/obj/machinery/vending/V = first_placed("V")
+	bot_gym_empty_vendor(V)
+	var/list/low = GLOB.vars["bot_vendors_low"]
+	low?[V] = world.time
+	for(var/turf/T in markers["K"])
+		var/obj/structure/closet/crate/C = place("K", new /obj/structure/closet/crate(T))
+		new /obj/item/vending_refill/cola(C)
+
+/datum/bot_scenario/duty/restock_vendor/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/machinery/vending/V = first_placed("V")
+	var/have = 0
+	var/full = 0
+	for(var/datum/data/vending_product/R in V.product_records)
+		have += R.amount
+		full += R.max_amount
+	return (have >= full * 0.9 && !V.panel_open) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/restock_vendor/release_run()
+	var/list/low = GLOB.vars["bot_vendors_low"]
+	low?.Remove(first_placed("V"))
+	return ..()
+
+/datum/bot_scenario/vendor_report
+	name = "cargo: buying from a nearly empty cola machine, a bot tells Cargo on the radio and the refill crate is asked for"
+	desc = "The user's ruling: Cargo restocks vendors that run low. Nobody knows a vendor's stock without looking: whoever buys the last few cans says so, and Cargo has the cola refill crate to order."
+	job = "Assistant"
+	time_limit = 20 SECONDS
+	layout = list(
+		"######",
+		"#BV..#",
+		"######")
+
+/datum/bot_scenario/vendor_report
+	station_wide = TRUE // Cargo's ask cooldown and the request list are the station's: a second run alongside saw the first one's ask
+
+/datum/bot_scenario/vendor_report/setup()
+	bot_gym_empty_vendor(first_placed("V"))
+
+/datum/bot_scenario/vendor_report/post_spawn()
+	..()
+	give_job_id()
+	var/obj/machinery/vending/V = first_placed("V")
+	var/datum/data/vending_product/R = locate() in V.product_records
+	INVOKE_ASYNC(brain, TYPE_PROC_REF(/datum/bot_brain, vend_from), V, R.product_path)
+
+/datum/bot_scenario/vendor_report/make_goal()
+	return null
+
+/datum/bot_scenario/vendor_report/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/datum/bot_request/BR as anything in GLOB.bot_cargo_requests)
+		if(BR.detail == /datum/supply_pack/service/vending/cola && BR.caller_ref?.resolve() == bot)
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/vendor_report/release_run()
+	for(var/datum/bot_request/BR as anything in GLOB.bot_cargo_requests.Copy())
+		if(BR.caller_ref?.resolve() == bot)
+			GLOB.bot_cargo_requests -= BR
+	GLOB.bot_cargo_asked -= /datum/supply_pack/service/vending/cola
+	var/list/low = GLOB.vars["bot_vendors_low"]
+	low?.Remove(first_placed("V"))
+	return ..()
+
 /// The research experiments (goals/experiment_rounds.dm): a scientist with the experiment scanner finds ore lying about and scans it
 /datum/bot_scenario/duty/experiment_ores
 	name = "science: a scientist takes its experiment scanner to the ore lying about and finishes the Geological Survey"
