@@ -387,6 +387,10 @@
 		return GOAL_STEP_FAIL
 	var/obj/item/extinguisher/E = C.stored_extinguisher
 	bot.use_atom(C) //one click takes it (extinguisher_cabinet/attack_hand())
+	// What it could break things with has changed: the cached kit (2 s) still had the cabinet, now empty, and not the
+	// extinguisher in hand, so the replan straight after found no way through and the bot gave up three times over
+	// (gym "emergency, window, extinguisher cabinet", every run since the fetch got quick enough to beat the cache).
+	bot.breach_kit_cache = null
 	return bot.is_carried(E) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 
 // ---------------------------------------------------------------------------------------------

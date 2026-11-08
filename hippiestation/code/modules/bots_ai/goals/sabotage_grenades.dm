@@ -282,14 +282,17 @@ GLOBAL_LIST_INIT(bot_bomber_lines, list("For the Syndicate!", "Death to Nanotras
 	bot.sabotage_finished(act, get_area_name(target, TRUE))
 
 /datum/bot_step/paced/sabotage_swallow_superboom
-	max_clicks = 12
+	max_clicks = 80 // swallowed, it stays in among them till it goes: about 40 s at most
 	var/swallowed = FALSE
 
 /datum/bot_step/paced/sabotage_swallow_superboom/do_click(datum/bot_brain/bot)
 	if(swallowed)
 		if(QDELETED(bot.owner) || bot.owner.stat == DEAD)
 			return FALSE
-		wait_for = 5 //a moment for it to take
+		// It goes off on the body's next tick (superboom on_mob_life, running): stay put, still running, among them.
+		// With 12 clicks (6 s) a busy server's slower mob ticks let the step end first, and the bot walked off to
+		// whatever came next and went up seven tiles away (gym, full runs).
+		wait_for = 5
 		return TRUE
 	var/obj/item/reagent_containers/pill/P = bot.superboom_pill()
 	if(!P || !bot.ready_in_hand(P))

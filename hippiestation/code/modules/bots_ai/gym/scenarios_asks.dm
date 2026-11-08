@@ -167,6 +167,10 @@
 
 /datum/bot_scenario/chat/hop_access/post_spawn()
 	..()
+	// A name of its own: the HoP checks Security's records by name, and another arena's "Casey Visitor" was sometimes
+	// set to arrest in them - the HoP refused this one as wanted (a full-run flake, every run).
+	visitor.real_name = "Hollis Applicant"
+	visitor.name = visitor.real_name
 	addtimer(CALLBACK(src, PROC_REF(visitor_says), "hop, can I get a lot more access?"), 2 SECONDS)
 
 /datum/bot_scenario/chat/hop_access/check()

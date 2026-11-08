@@ -232,11 +232,17 @@ GLOBAL_VAR_INIT(bot_loose_slime_any, FALSE)
 	for(var/mob/living/simple_animal/S in GLOB.alive_mob_list)
 		if(!bot_loose_creature(S) || S.z != bot.owner.z || GLOB.bot_loose_slime_reports[get_area(S)] < world.time - 5 MINUTES || bot.taken_by_another(S))
 			continue
+		if(LAZYACCESS(bot.unreachable_creatures, S) > world.time) //tried, and there was no way to it from here
+			continue
 		var/dist = get_dist(bot.owner, S)
 		if(dist <= 60 && (!best || dist < best_dist))
 			best = S
 			best_dist = dist
 	return best ? bot.assign_goal(new /datum/bot_goal/put_down_slime(best)) : FALSE
+
+/datum/bot_brain
+	/// Loose creatures it tried for and found no way to: creature -> world.time it'll try again (loose_slimes duty)
+	var/list/unreachable_creatures
 
 /datum/bot_goal/put_down_slime
 	doing = "dealing with a loose slime"
@@ -279,6 +285,22 @@ GLOBAL_VAR_INIT(bot_loose_slime_any, FALSE)
 /// a spray, apply_water()), or a gun that does brute. A laser heals them: an officer shot one twelve times and it was the better for it.
 /datum/bot_step/paced/shoot_slime
 	max_clicks = 60
+	var/no_route = 0
+
+/// Goes after it; with no way there twice running, it's left for a while for one that can be got to. Officers stood
+/// trying for a route to a slime behind walls they couldn't get through, every half second for the whole step, while
+/// the carp they'd been told about went untouched (the nearest one reported is by straight line).
+/datum/bot_step/paced/shoot_slime/proc/go_after(datum/bot_brain/bot, mob/living/simple_animal/S)
+	if(bot.pursuing_kind == "follow" && bot.pursue_target == S)
+		return TRUE
+	if(bot.pursue(S, "follow", force = TRUE))
+		no_route = 0
+		return TRUE
+	if(++no_route < 2)
+		return TRUE
+	LAZYSET(bot.unreachable_creatures, S, world.time + 3 MINUTES)
+	bot_log(bot, "no way to [S] from here - leaving it for one that can be got to")
+	return FALSE
 
 /datum/bot_step/paced/shoot_slime/do_click(datum/bot_brain/bot)
 	var/mob/living/simple_animal/S = bot.current_goal?.target
@@ -309,8 +331,8 @@ GLOBAL_VAR_INIT(bot_loose_slime_any, FALSE)
 				bot.owner.UnarmedAttack(S)
 			wait_for = 8
 			return TRUE
-		if(bot.pursuing_kind != "follow" || bot.pursue_target != S)
-			bot.pursue(S, "follow", force = TRUE)
+		if(!go_after(bot, S))
+			return FALSE
 		wait_for = 5
 		return TRUE
 	var/obj/item/gun/G = bot.slime_gun()
@@ -341,8 +363,8 @@ GLOBAL_VAR_INIT(bot_loose_slime_any, FALSE)
 		bot.owner.UnarmedAttack(S)
 		wait_for = 8
 		return TRUE
-	if(dist > 3 && (bot.pursuing_kind != "follow" || bot.pursue_target != S))
-		bot.pursue(S, "follow", force = TRUE)
+	if(dist > 3 && !go_after(bot, S))
+		return FALSE
 	wait_for = 5
 	return TRUE
 

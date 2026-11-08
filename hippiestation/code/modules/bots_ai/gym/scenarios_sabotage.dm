@@ -119,6 +119,7 @@
 	job = "Chemist"
 	act_id = "grenade"
 	time_limit = 45 SECONDS
+	blast_margin = 4
 	kit_backpack = list(/obj/item/grenade/chem_grenade/bot_gym_explosive)
 	layout = list(
 		"#########################",
@@ -183,6 +184,7 @@
 	desc = "Somebody's grenade, pin out, lands two tiles from an assistant. It shouts a warning and runs, and is four or more tiles off when it goes. Nobody used to move."
 	job = "Assistant"
 	time_limit = 20 SECONDS
+	blast_margin = 4
 	layout = list(
 		"#####################",
 		"#........B.g........#",
@@ -500,6 +502,7 @@
 	job = "Chemist"
 	act_id = "superboom"
 	time_limit = 40 SECONDS
+	blast_margin = 9 // 12u: a light blast of about 7 tiles from wherever it goes
 	kit_backpack = list(/obj/item/reagent_containers/pill/bot_gym_superboom)
 	layout = list(
 		"#########################",

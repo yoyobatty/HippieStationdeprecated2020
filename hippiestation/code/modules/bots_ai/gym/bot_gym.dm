@@ -91,6 +91,12 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	/// It changes something every arena shares (the station's alert level, a plan only one of runs at a time): it runs once, and only
 	/// when it's asked for by name, not with the rest of the suite.
 	var/station_wide = FALSE
+	/// Extra empty space all round the arena, for a scenario that sets off a real explosion: the arenas sit a few tiles
+	/// apart, and a superboom's light blast (about 7 tiles) set off or destroyed the grenades in the arenas beside it -
+	/// three or four sabotage and grenade scenarios failed together in most full runs, and passed alone.
+	var/blast_margin = 0
+	/// A judging tick under way: some checks sleep (bot procs with pauses), and a second tick mustn't start beside it
+	var/judging = FALSE
 
 /datum/bot_scenario/proc/setup()
 	return
@@ -160,15 +166,16 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	var/width = 0
 	for(var/row in layout)
 		width = max(width, length(row))
-	reservation = SSmapping.RequestBlockReservation(width + BOT_GYM_MARGIN * 2, height + BOT_GYM_MARGIN * 2)
+	var/margin = BOT_GYM_MARGIN + blast_margin
+	reservation = SSmapping.RequestBlockReservation(width + margin * 2, height + margin * 2)
 	if(!reservation)
 		fail_reason = "couldn't reserve [width]x[height] of space"
 		return FALSE
 	arena_area = new
 	var/list/arena_turfs = list()
 	var/list/floors = list()
-	var/x0 = reservation.bottom_left_coords[1] + BOT_GYM_MARGIN
-	var/y0 = reservation.bottom_left_coords[2] + BOT_GYM_MARGIN
+	var/x0 = reservation.bottom_left_coords[1] + margin
+	var/y0 = reservation.bottom_left_coords[2] + margin
 	var/z = reservation.bottom_left_coords[3]
 	// Pass 1: turfs and area. Rows are top-down, so the first row is the highest y.
 	for(var/row_index in 1 to height)
@@ -330,6 +337,11 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	if(!brain.assign_goal(G))
 		log_line("assign_goal refused")
 
+/datum/bot_scenario/proc/judge()
+	judging = TRUE
+	tick()
+	judging = FALSE
+
 /// One tick of judging; also re-issues the goal if the bot gave up.
 /datum/bot_scenario/proc/tick()
 	if(result != BOT_GYM_PENDING)
@@ -440,28 +452,44 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	// A few per tick rather than all in the same one: a hundred bots asking for their first route in the same instant
 	// queue for the pathfinder's slots (get_path_to()), and the ones at the back stood for four seconds before
 	// taking a step - which the human-pace scenarios rightly fail.
+	// Judging starts with the first arena, not after the last one has started: the arenas that started first were
+	// left unwatched for their first seconds, and ones whose check has to see something happen (a grenade before it
+	// goes, a bomber alive before it goes up) found it already over and failed - three or four of them in most full
+	// runs, all passing alone.
 	var/started = 0
+	var/dispatch_started = world.time
+	var/next_judge = world.time + 1 SECONDS
 	for(var/datum/bot_scenario/S in active)
 		INVOKE_ASYNC(S, TYPE_PROC_REF(/datum/bot_scenario, start))
 		if(!(++started % 4))
 			sleep(world.tick_lag)
+			if(world.time >= next_judge)
+				next_judge = world.time + 1 SECONDS
+				bot_gym_judge(active)
+	log_world("BOT GYM: [length(active)] scenario\s started in [(world.time - dispatch_started) / 10]s")
 	var/deadline = world.time + 10 MINUTES
 	var/list/load = list("seconds" = 0, "sum" = 0, "peak" = 0, "over" = 0)
 	while(world.time < deadline)
 		sleep(1 SECONDS)
 		bot_gym_sample_load(load)
-		var/pending = 0
-		for(var/datum/bot_scenario/S in active)
-			if(S.brain) //judge only once the bot exists (arena build + settle take a few seconds)
-				S.tick()
-			if(S.result == BOT_GYM_PENDING)
-				pending++
-		if(!pending)
+		if(!bot_gym_judge(active))
 			break
 	write_bot_gym_results(active, load)
 	log_world("BOT GYM: done")
 	Master.Shutdown()
 	qdel(world)
+
+/// One second's judging of every run whose bot exists (arena build + settle take a few seconds), each on its own:
+/// half a dozen checks sleep (up to 3.4 s, the nanosuit witness one), and judged in turn they held up every run after
+/// them in the list - the last arenas went unwatched for their first 8 s, and the grenade and superboom runs, whose
+/// checks have to see the bomb before it goes, failed together in most full runs. Returns how many are still going.
+/proc/bot_gym_judge(list/datum/bot_scenario/active)
+	. = 0
+	for(var/datum/bot_scenario/S in active)
+		if(S.brain && !S.judging && S.result == BOT_GYM_PENDING)
+			INVOKE_ASYNC(S, TYPE_PROC_REF(/datum/bot_scenario, judge))
+		if(S.result == BOT_GYM_PENDING)
+			.++
 
 /// world.cpu is the share of a tick the server needed. Over 100 it can't keep up, and everything -
 /// bots included - runs slow in game time, whether the run is fast-forwarded (admin/timewarp.dm) or not.
@@ -485,28 +513,29 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	var/list/lines = list()
 	// A colon in a file name is an NTFS stream, not a file: "locker: take the gloves..." wrote its transcript into a stream of an empty file called "locker".
 	var/static/regex/not_for_filenames = regex(@'[\\/:*?"<>|]', "g")
+	// When the reserved map level fills up, the rest of the arenas go on another one. Each result says which it ran on,
+	// so a failure can be told apart from the level it was on.
+	var/list/levels = list()
+	for(var/datum/bot_scenario/S in active)
+		if(S.reservation)
+			levels["[S.reservation.bottom_left_coords[3]]"]++
+	var/main_level
+	for(var/level in levels)
+		if(!main_level || levels[level] > levels[main_level])
+			main_level = level
 	for(var/datum/bot_scenario/S in active)
 		var/outcome = S.outcome_text()
+		var/elsewhere = (length(levels) > 1 && S.reservation && "[S.reservation.bottom_left_coords[3]]" != main_level) ? "   \[level [S.reservation.bottom_left_coords[3]]\]" : ""
 		counts[outcome]++
 		var/seconds = S.end_time ? round((S.end_time - S.start_time) / 10, 0.1) : null
 		var/label = "[S.name][S.run_index > 1 ? " #[S.run_index]" : ""]"
-		lines += "[pad_bot_gym(outcome, 7)][pad_bot_gym(label, 54)][seconds != null ? "[seconds]s" : ""][S.fail_reason ? "   [S.fail_reason]" : ""][S.believability_text()]"
+		lines += "[pad_bot_gym(outcome, 7)][pad_bot_gym(label, 54)][seconds != null ? "[seconds]s" : ""][S.fail_reason ? "   [S.fail_reason]" : ""][S.believability_text()][elsewhere]"
 		json += list(list("name" = S.name, "run" = S.run_index, "outcome" = outcome, "seconds" = seconds, "reason" = S.fail_reason, "desc" = S.desc))
 		text2file(jointext(S.transcript, "\n"), "[dir]transcripts/[not_for_filenames.Replace(replacetext(S.name, " ", "_"), "")]_[S.run_index].log")
 	var/header = "BOT GYM  [counts["PASS"]] passed, [counts["FAIL"]] failed, [counts["XFAIL"]] expected failures, [counts["XPASS"]] unexpected passes[counts["PENDING"] ? ", [counts["PENDING"]] unfinished" : ""]"
 	if(load)
 		header += "\n[bot_gym_load_text(load)]"
-	// When the reserved map level fills up, the rest of the arenas go on a new one made on the spot - which the
-	// spatial grid and the air never finish setting up, and bots on it fail for reasons that aren't theirs.
-	var/list/levels = list()
-	for(var/datum/bot_scenario/S in active)
-		if(S.reservation)
-			levels["[S.reservation.bottom_left_coords[3]]"]++
 	if(length(levels) > 1)
-		var/main_level
-		for(var/level in levels)
-			if(!main_level || levels[level] > levels[main_level])
-				main_level = level
 		header += "\nWARNING: [length(active) - levels[main_level]] of [length(active)] arenas didn't fit on the reserved map level and were built on an extra one, where results can't be trusted. Run fewer passes at once."
 	var/summary = "[header]\n\n[jointext(lines, "\n")]\nFAILED: [counts["FAIL"] + counts["PENDING"]]\n"
 	text2file(summary, "[dir]summary.txt")

@@ -739,6 +739,10 @@
 	console.name = "Bar Requests Console"
 	console.pixel_y = 30
 	console.stat &= ~(NOPOWER|BROKEN) //an arena has no APC
+	// Medbay's own console is what makes "Medbay" a department to send to. Every station has one; the small test map
+	// has no consoles at all, and the request never got past the department check (a full-run flake on testbench).
+	if(!GLOB.req_console_ckey_departments["medbay"])
+		GLOB.req_console_ckey_departments["medbay"] = "Medbay"
 
 /datum/bot_scenario/console_quick_request/make_goal()
 	return null
