@@ -15,6 +15,8 @@
 //   uses       every obj and living mob, a fresh one for each of an empty hand, a crowbar, a wrench, a lit welder, a screwdriver,
 //              wirecutters and a multitool in the hand of somebody with all access, and every item picked up and used in the hand;
 //              do_after() doesn't wait. Timed like acts (not with the others either: ~90,000)
+//   inside     every item in a backpack, a shut locker and somebody's hand, then every job's outfit on somebody, blasted (3), EMP'd
+//              (2) and set alight through what holds it, timed (not with the others: ~110,000)
 // reagents, reactions and events are timed too: each sweep's slowest are listed.
 //
 // Run:      tools/code_sweep/run_code_sweep.sh [atoms,turfs,reagents,reactions,crafting,ui]
@@ -399,6 +401,72 @@ GLOBAL_DATUM(code_sweep, /datum/code_sweep)
 				H.forceMove(beside)
 				before = spot.contents.Copy()
 			CHECK_TICK
+
+// ---------------------------------------------------------------------------------------------
+// Things inside things, timed
+// ---------------------------------------------------------------------------------------------
+
+/// Blasts, EMPs and fire reach what's inside through what holds it: every item in a backpack on the floor, in a shut locker and in
+/// somebody's hand, each hit through that; then every job's outfit on somebody, hit the same ways. Timed like acts.
+/datum/code_sweep/proc/sweep_inside()
+	var/static/list/acts = list("ex_act 1", "ex_act 2", "ex_act 3", "emp_act heavy", "emp_act light", "fire_act")
+	var/static/list/holders = list("backpack", "locker", "hand")
+	var/list/before = spot.contents.Copy()
+	for(var/path in subtypesof(/obj/item) - uncreatable_atoms())
+		for(var/holder in holders)
+			for(var/act in acts)
+				if(!reach("[path] in a [holder]: [act]"))
+					continue
+				var/obj/item/thing = new path(spot)
+				if(QDELETED(thing))
+					break
+				var/atom/movable/outer
+				switch(holder)
+					if("backpack")
+						outer = new /obj/item/storage/backpack(spot)
+						thing.forceMove(outer)
+					if("locker")
+						var/obj/structure/closet/locker = new(spot)
+						thing.forceMove(locker)
+						outer = locker
+					if("hand")
+						var/mob/living/carbon/human/H = new(spot)
+						if(!H.put_in_hands(thing))
+							thing.forceMove(H)
+						outer = H
+				time_act(outer, act, "[path] in a [holder]: [act]")
+				for(var/atom/movable/A as anything in spot.contents - before)
+					qdel(A, force = TRUE)
+				if(!(tried[kind] % 50))
+					clear_arena()
+					before = spot.contents.Copy()
+				CHECK_TICK
+	for(var/outfit in subtypesof(/datum/outfit))
+		for(var/act in acts)
+			if(!reach("[outfit]: [act]"))
+				continue
+			var/mob/living/carbon/human/H = new(spot)
+			H.equipOutfit(outfit)
+			time_act(H, act, "[outfit]: [act]")
+			for(var/atom/movable/A as anything in spot.contents - before)
+				qdel(A, force = TRUE)
+			if(!(tried[kind] % 50))
+				clear_arena()
+				before = spot.contents.Copy()
+			CHECK_TICK
+
+/// One of do_act()'s acts on A, timed under `key` for this sweep (a stand-in beside it for the acts that want somebody)
+/datum/code_sweep/proc/time_act(atom/movable/A, act, key)
+	if(QDELETED(A))
+		return
+	var/time = world.time
+	var/mark = TICK_USAGE_REAL
+	do_act(A, act, null)
+	var/ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - mark)
+	if(world.time != time)
+		note_sleeper(key)
+	else
+		note_cost(key, ms)
 
 // ---------------------------------------------------------------------------------------------
 // What people do to things, timed
