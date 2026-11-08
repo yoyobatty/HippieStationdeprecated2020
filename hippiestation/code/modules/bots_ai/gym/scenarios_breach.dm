@@ -216,3 +216,63 @@
 	A.safety_mode = TRUE
 	A.stat |= NOPOWER
 	A.update_icon()
+
+/// A hole blown in the floor (goals/repair_hull.dm): suited up, rods and tiles in the bag, it patches it from beside it.
+/datum/bot_scenario/patch_hull
+	name = "engineering: a hole blown in the floor, it lays a lattice and a tile over it"
+	desc = "A Station Engineer in a space suit on internals, rods and floor tiles in its bag, and a hole to space in the middle of the room (S). It stands beside it, puts a rod down for a lattice and a tile on that. Holes used to stay open all round."
+	job = "Station Engineer"
+	time_limit = 60 SECONDS
+	kit_backpack = list(/obj/item/stack/rods/ten, /obj/item/stack/tile/plasteel)
+	layout = list(
+		"#########",
+		"#B......#",
+		"#.......#",
+		"#....S..#",
+		"#.......#",
+		"#########")
+	var/turf/hole
+
+/datum/bot_scenario/patch_hull/setup()
+	hole = first_marker("S")
+	bot_note_breach(hole)
+
+/datum/bot_scenario/patch_hull/post_spawn()
+	bot.equip_to_slot_or_del(new /obj/item/clothing/mask/breath(bot), ITEM_SLOT_MASK)
+	bot.equip_to_slot_or_del(new /obj/item/clothing/suit/space/eva(bot), ITEM_SLOT_OCLOTHING)
+	bot.equip_to_slot_or_del(new /obj/item/clothing/head/helmet/space/eva(bot), ITEM_SLOT_HEAD)
+	var/obj/item/tank/internals/emergency_oxygen/T = new(bot)
+	bot.equip_to_slot_or_del(T, ITEM_SLOT_SUITSTORE)
+	bot.internal = T
+
+/datum/bot_scenario/patch_hull/make_goal()
+	return new /datum/bot_goal/patch_hull(hole)
+
+/datum/bot_scenario/patch_hull/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return istype(hole, /turf/open/space) ? BOT_GYM_PENDING : BOT_GYM_PASS
+
+/datum/bot_scenario/patch_hull/fetches
+	name = "engineering: a hole blown in the floor, it fetches rods and a tile from across the room first"
+	desc = "The same with nothing in its bag: rods (q) and floor tiles (u) lie across the room. It gets them, then patches the hole."
+	kit_backpack = list()
+	layout = list(
+		"#########",
+		"#B......#",
+		"#.......#",
+		"#....S..#",
+		"#......q#",
+		"#......u#",
+		"#########")
+
+/datum/bot_scenario/patch_hull/fetches/setup()
+	..()
+	new /obj/item/stack/rods/ten(first_marker("q"))
+	new /obj/item/stack/tile/plasteel(first_marker("u"))
+
+/datum/bot_scenario/patch_hull/from_metal
+	name = "engineering: a hole blown in the floor, it makes rods and a tile from metal sheets and patches it"
+	desc = "Only metal sheets in its bag: it makes a couple of rods and floor tiles with the sheets' own menu, then patches the hole."
+	kit_backpack = list(/obj/item/stack/sheet/metal/ten)
+

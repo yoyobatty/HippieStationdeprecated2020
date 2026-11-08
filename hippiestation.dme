@@ -3466,6 +3466,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\released_prisoner.dm"
 #include "hippiestation\code\modules\bots_ai\goals\repair_cables.dm"
 #include "hippiestation\code\modules\bots_ai\goals\repair_damage.dm"
+#include "hippiestation\code\modules\bots_ai\goals\repair_hull.dm"
 #include "hippiestation\code\modules\bots_ai\goals\respond_to_contamination.dm"
 #include "hippiestation\code\modules\bots_ai\goals\respond_to_fire.dm"
 #include "hippiestation\code\modules\bots_ai\goals\revolution.dm"
