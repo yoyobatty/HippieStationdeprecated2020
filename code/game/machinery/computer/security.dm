@@ -828,8 +828,10 @@ What a mess.*/
 					R.fields["species"] = pick(GLOB.roundstart_races)
 				if(8)
 					var/datum/data/record/G = pick(GLOB.data_core.general)
-					R.fields["photo_front"] = record_photo(G, "photo_front")
-					R.fields["photo_side"] = record_photo(G, "photo_side")
+					// hippie -- the photos, or what takes them the first time somebody looks (record_photo()): taking them here, a whole
+					// human drawn flat, was 128 ms when a tesla zap EMP'd a security console (the stress bench, 2026-11-08)
+					R.fields["photo_front"] = G.fields["photo_front"]
+					R.fields["photo_side"] = G.fields["photo_side"]
 			continue
 
 		else if(prob(1))

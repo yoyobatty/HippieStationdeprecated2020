@@ -16,7 +16,10 @@
  * (BSD, (c) 2022 anon; ParadiseSS13 fork's offsets/windows.h) for 516.1666; for 516.1688 they were found from 1666's by
  * matching code (tools/hippie_prof/find_offsets.py). An unknown build is refused, not guessed at.
  *
- * Exports (call_ext string procs): start, stop, dump [clear], recent <ms>, status. Results are JSON.
+ * The last ~16 s of whole stacks are kept as well (the 32 frames nearest the top of each), so a spike can be put down to
+ * what called what, not just the proc it ended in: stacks <ms> [count].
+ *
+ * Exports (call_ext string procs): start, stop, dump [clear], recent <ms>, stacks <ms> [count], status. Results are JSON.
  * Build: tools/hippie_prof/build.bat (32-bit, like BYOND).
  */
 #define WIN32_LEAN_AND_MEAN
@@ -97,6 +100,13 @@ static CRITICAL_SECTION figures_lock;
 struct sample { long long at_us; unsigned top; unsigned dt_us; };
 static struct sample ring[RING];
 static volatile unsigned ring_pos;
+
+/* the last ~16 s of stacks: the top STACK_KEEP frames of each sample, bottom first */
+#define STACK_RING 16384
+#define STACK_KEEP 32
+struct stack_sample { long long at_us; unsigned dt_us; unsigned short kept; unsigned short depth; unsigned ids[STACK_KEEP]; };
+static struct stack_sample *stack_ring;
+static volatile unsigned stack_pos;
 
 static char *result;
 
@@ -182,6 +192,18 @@ static DWORD WINAPI sampler(LPVOID unused) {
 		ring[pos % RING].top = top;
 		ring[pos % RING].dt_us = dt;
 		ring_pos = pos + 1;
+		if(stack_ring) {
+			struct stack_sample *ss = &stack_ring[stack_pos % STACK_RING];
+			int from = d > STACK_KEEP ? d - STACK_KEEP : 0;
+			int kept = d > 0 ? d - from : 0;
+			for(int i = 0; i < kept; i++)
+				ss->ids[i] = shadow[from + i];
+			ss->kept = (unsigned short)kept;
+			ss->depth = (unsigned short)(d > 65535 ? 65535 : (d < 0 ? 0 : d));
+			ss->at_us = t;
+			ss->dt_us = dt;
+			stack_pos = stack_pos + 1;
+		}
 	}
 	if(timer)
 		CloseHandle(timer);
@@ -319,6 +341,7 @@ EXPORT const char *start(int n, char **v) {
 		self_us = (unsigned long long *)calloc(proc_count, sizeof(*self_us));
 		total_us = (unsigned long long *)calloc(proc_count, sizeof(*total_us));
 		seen_stamp = (unsigned *)calloc(proc_count, sizeof(*seen_stamp));
+		stack_ring = (struct stack_sample *)calloc(STACK_RING, sizeof(*stack_ring));
 	}
 	if(!sampling) {
 		sampling = 1;
@@ -420,6 +443,88 @@ EXPORT const char *recent(int n, char **v) {
 	}
 	put(&b, "]");
 	free(us);
+	return finish(&b);
+}
+
+/* stacks <ms> [count]: the stacks the game's thread was in over the last <ms> of real time, the same ones together, the
+   heaviest first (count of them, 5 by default): [{"ms":12.3,"depth":40,"stack":["bottom", ..., "top"]}, ...]. "depth" is how deep
+   it really was; "stack" is its top 32 frames. Time with no proc running isn't in it. */
+static unsigned stack_hash(const struct stack_sample *ss) {
+	unsigned h = 2166136261u ^ ss->kept;
+	for(int i = 0; i < ss->kept; i++)
+		h = (h ^ ss->ids[i]) * 16777619u;
+	return h;
+}
+
+static int same_stack(const struct stack_sample *a, const struct stack_sample *b) {
+	if(a->kept != b->kept)
+		return 0;
+	for(int i = 0; i < a->kept; i++)
+		if(a->ids[i] != b->ids[i])
+			return 0;
+	return 1;
+}
+
+EXPORT const char *stacks(int n, char **v) {
+	struct buf b = {0};
+	if(!hooked || !stack_ring)
+		return "[]";
+	long long window = (n >= 1 && v && v[0]) ? atoll(v[0]) * 1000 : 1000000;
+	int count = (n >= 2 && v && v[1]) ? atoi(v[1]) : 5;
+	if(count < 1)
+		count = 1;
+	if(count > 50)
+		count = 50;
+	long long since = now_us() - window;
+	unsigned end = stack_pos;
+	unsigned first = end > STACK_RING ? end - STACK_RING : 0;
+	/* the window's samples, newest first, grouped by stack in an open-addressed table */
+	unsigned slots = 1;
+	while(slots < 2 * (end - first) + 2)
+		slots <<= 1;
+	unsigned *group = (unsigned *)malloc(slots * sizeof(unsigned)); /* table: sample index + 1 of a group's first, 0 empty */
+	unsigned long long *group_us = (unsigned long long *)calloc(slots, sizeof(unsigned long long));
+	memset(group, 0, slots * sizeof(unsigned));
+	for(unsigned p = end; p > first; p--) {
+		unsigned idx = (p - 1) % STACK_RING;
+		struct stack_sample *ss = &stack_ring[idx];
+		if(ss->at_us < since)
+			break;
+		if(!ss->kept)
+			continue;
+		unsigned h = stack_hash(ss) & (slots - 1);
+		while(group[h] && !same_stack(&stack_ring[group[h] - 1], ss))
+			h = (h + 1) & (slots - 1);
+		if(!group[h])
+			group[h] = idx + 1;
+		group_us[h] += ss->dt_us;
+	}
+	char num[96];
+	put(&b, "[");
+	for(int k = 0; k < count; k++) {
+		unsigned best = 0xFFFFFFFFu;
+		unsigned long long best_us = 0;
+		for(unsigned h = 0; h < slots; h++)
+			if(group[h] && group_us[h] > best_us) {
+				best_us = group_us[h];
+				best = h;
+			}
+		if(best == 0xFFFFFFFFu)
+			break;
+		struct stack_sample *ss = &stack_ring[group[best] - 1];
+		snprintf(num, sizeof num, "%s{\"ms\":%.1f,\"depth\":%d,\"stack\":[", k ? "," : "", best_us / 1000.0, (int)ss->depth);
+		put(&b, num);
+		for(int i = 0; i < ss->kept; i++) {
+			if(i)
+				put(&b, ",");
+			put_name(&b, ss->ids[i] < proc_count ? proc_name(ss->ids[i]) : "?");
+		}
+		put(&b, "]}");
+		group_us[best] = 0;
+	}
+	put(&b, "]");
+	free(group);
+	free(group_us);
 	return finish(&b);
 }
 

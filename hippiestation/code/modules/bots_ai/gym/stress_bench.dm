@@ -325,6 +325,13 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 				break
 		if(length(procs))
 			lines += "    procs (ms): [jointext(procs, ", ")]"
+		// and what called what: the heaviest stack in it, its top ten frames
+		var/list/stacks = SSprofiler.recent_stacks(gap + 2)
+		if(length(stacks))
+			var/list/heaviest = stacks[1]
+			var/list/frames = heaviest["stack"]
+			var/list/shown = frames.Copy(max(1, length(frames) - 9))
+			lines += "    deepest path ([heaviest["ms"]] ms, [heaviest["depth"]] deep): [jointext(shown, " > ")]"
 	if(took["Atmospherics"] >= 20) // which of SSair's stages
 		var/list/air_now = atmos_totals()
 		var/list/stages = list()

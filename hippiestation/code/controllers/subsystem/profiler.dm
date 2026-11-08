@@ -109,6 +109,16 @@
 	for(var/list/row in rows)
 		.[row["name"]] = row["self"]
 
+/// The five stacks the server was in most over the last `ms` of real time, the heaviest first (hippie_prof only): list(list("ms",
+/// "depth", "stack" = list(bottom ... top)), ...). The top 32 frames of each; "depth" is how deep it really was.
+/datum/controller/subsystem/profiler/proc/recent_stacks(ms)
+	. = list()
+	if(engine != "hippie")
+		return
+	var/list/rows = json_decode(hippie_prof("stacks", round(ms)))
+	for(var/list/row in rows)
+		. += list(row)
+
 // tg's, from hippie_prof when it's doing the profiling, and with BYOND's stopped again right after the read in the cycle's off part
 /datum/controller/subsystem/profiler/DumpFile()
 	var/timer = TICK_USAGE_REAL
