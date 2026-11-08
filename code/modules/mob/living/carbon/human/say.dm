@@ -1,5 +1,6 @@
 /mob/living/carbon/human/say_mod(input, message_mode)
-	verb_say = dna.species.say_mod
+	if(dna?.species) // hippie -- a radio message composed after the speaker was deleted
+		verb_say = dna.species.say_mod
 	if(slurring)
 		return "slurs"
 	else

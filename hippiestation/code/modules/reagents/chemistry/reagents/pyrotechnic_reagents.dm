@@ -99,7 +99,11 @@
 
 /datum/reagent/emit_on/process()
 	if(holder)
-		playsound(get_turf(holder.my_atom), 'sound/weapons/emitter.ogg', 50, 1)
+		var/turf/here = get_turf(holder.my_atom)
+		if(!here) // hippie -- its container is off the map: four beams a tick with nowhere to start from
+			holder.remove_reagent(src.type, 10, safety = 1)
+			return ..()
+		playsound(here, 'sound/weapons/emitter.ogg', 50, 1)
 		for(var/direction in GLOB.cardinals)
 			var/obj/item/projectile/beam/emitter/P = new /obj/item/projectile/beam/emitter(get_turf(holder.my_atom))
 			switch(direction)

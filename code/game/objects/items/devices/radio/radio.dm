@@ -292,6 +292,8 @@
 
 /obj/item/radio/proc/backup_transmission(datum/signal/subspace/vocal/signal)
 	var/turf/T = get_turf(src)
+	if(!T) // hippie -- gone off the map (or deleted) in the 2 s since
+		return
 	if (signal.data["done"] && (T.z in signal.levels))
 		return
 

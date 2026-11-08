@@ -110,6 +110,9 @@ SUBSYSTEM_DEF(air)
 		cost_rebuilds = MC_AVERAGE(cost_rebuilds, TICK_DELTA_TO_MS(cached_cost))
 
 	if(currentpart == SSAIR_PIPENETS || !resumed)
+		// hippie -- a fresh fire after an interrupted one (MC restart, SoftReset) left currentpart at the stage it stopped in, so a
+		// turf woken during the pipenets (a pipe venting) went into currentrun - the pipenets' list - and SSair called settled() on it
+		currentpart = SSAIR_PIPENETS
 		timer = TICK_USAGE_REAL
 		if(!resumed)
 			cached_cost = 0

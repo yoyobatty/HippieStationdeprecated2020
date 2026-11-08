@@ -179,7 +179,9 @@
 	if(istype(reference, /obj/machinery/atmospherics/pipe))
 		var/obj/machinery/atmospherics/pipe/P = reference
 		P.destroy_network()
-	nodes[nodes.Find(reference)] = null
+	var/index = nodes.Find(reference)
+	if(index) // hippie -- not one of its nodes (both ends torn down at once)
+		nodes[index] = null
 	update_icon()
 
 /obj/machinery/atmospherics/attackby(obj/item/W, mob/user, params)
