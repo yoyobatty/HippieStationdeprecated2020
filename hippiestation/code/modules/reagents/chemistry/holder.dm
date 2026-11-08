@@ -1,3 +1,7 @@
+/// Whether reagent_state_check() could do anything: a gas below its boiling point, a solid above its melting point, a liquid either way.
+/// Otherwise it's sure to do nothing, and handle_reactions() would ask it of every reagent on every pass.
+#define STATE_MAY_CHANGE(R) (R.reagent_state == GAS ? chem_temp < R.boiling_point : (R.reagent_state == SOLID ? chem_temp > R.melting_point : (R.reagent_state != LIQUID || chem_temp > R.boiling_point || chem_temp < R.melting_point)))
+
 /datum/reagents
 	var/chem_pressure = 0
 	var/chem_radioactivity = 0
@@ -25,6 +29,14 @@
 
 		var/reaction_occurred = 0
 		var/turf/T = get_turf(cached_my_atom)
+		// Nothing new can happen (react_shortcut() below): the states checked as one pass would, and done
+		if(react_shortcut())
+			for(var/datum/reagent/R as anything in cached_reagents)
+				if(STATE_MAY_CHANGE(R))
+					reagent_state_check(R, cached_my_atom, T)
+			update_total()
+			return 0
+		stable_amounts = null
 		// What's in it by type, as has_reagent() and get_reagent_amount() read it (the first of a type, rounded to CHEMICAL_QUANTISATION_LEVEL),
 		// made once and again after each reaction (the only thing in here that changes the amounts) instead of both of them going down
 		// the whole list for every reagent of every recipe tried. A chem dispenser EMP'd by a tesla zap splashes a dozen chemicals onto
@@ -35,38 +47,8 @@
 			reaction_occurred = 0
 			for(var/reagent in cached_reagents)
 				var/datum/reagent/R = reagent
-
-				switch(R.reagent_state)//evaluating state of matter
-					if(GAS)
-						if(chem_temp < R.boiling_point)
-							R.reagent_state = LIQUID
-							if(!is_type_in_typecache(cached_my_atom, GLOB.no_reagent_message_typecache) && SSticker.HasRoundStarted())
-								for(var/mob/M in viewers(3, T))
-									to_chat(M, ("<span class='notice'>[icon2html(cached_my_atom, viewers(cached_my_atom))] The vapour condenses into a liquid!</span>"))
-
-					if(SOLID)
-						if(chem_temp > R.melting_point)
-							R.reagent_state = LIQUID
-							if(!is_type_in_typecache(cached_my_atom, GLOB.no_reagent_message_typecache) && SSticker.HasRoundStarted())
-								for(var/mob/M in viewers(3, T))
-									to_chat(M, ("<span class='notice'>[icon2html(cached_my_atom, viewers(cached_my_atom))] The solid chemicals melt into a liquid!</span>"))
-									//for(var/i = 1; i <= cached_reagents.len; i++)
-									//	message_admins("[cached_reagents[i]] melted into liquid of atom [my_atom] located in [my_atom.loc]")
-									///For debug purposes, feel free to uncomment in future. (YoYoBatty)
-
-					if(LIQUID)
-						if(!is_type_in_typecache(R, GLOB.statechange_reagent_blacklist)) //Reagent states are interchangeable, so one blacklist to rule them all.
-							if(chem_temp > R.boiling_point && !is_type_in_typecache(R, GLOB.vaporchange_reagent_blacklist))
-								R.reagent_state = GAS
-								if(!is_type_in_typecache(cached_my_atom, GLOB.no_reagent_message_typecache) && SSticker.HasRoundStarted())
-									for(var/mob/M in viewers(4, T))
-										to_chat(M, ("<span class='notice'>[icon2html(cached_my_atom, viewers(cached_my_atom))] The solution rapidly boils into a vapour!</span>"))
-
-							else if(chem_temp < R.melting_point && !is_type_in_typecache(R, GLOB.solidchange_reagent_blacklist))
-								R.reagent_state = SOLID
-								if(!is_type_in_typecache(cached_my_atom, GLOB.no_reagent_message_typecache) && SSticker.HasRoundStarted())
-									for(var/mob/M in viewers(3, T))
-										to_chat(M, ("<span class='notice'>[icon2html(cached_my_atom, viewers(cached_my_atom))] The solution solidifies!</span>"))
+				if(STATE_MAY_CHANGE(R))
+					reagent_state_check(R, cached_my_atom, T)
 
 				if(!amounts)
 					amounts = list()
@@ -184,8 +166,185 @@
 						break
 
 		while(reaction_occurred)
+		note_stable(amounts)
 		update_total()
 		return 0
+
+/datum/reagents
+	/// What was in it, by type (rounded as the recipes read it), when it last had nothing left to react, and what else the recipes go by
+	/// then; null when unknown. See react_shortcut().
+	var/list/stable_amounts
+	var/stable_temp
+	var/stable_pressure
+	var/stable_radioactivity
+	var/stable_bluespaced
+	var/stable_centrifuged
+	var/datum/stable_atom
+
+/// Its state of matter by the temperature (a GAS turns LIQUID below its boiling point, and so on), as each pass of handle_reactions() does
+/// for each reagent, with the messages
+/datum/reagents/proc/reagent_state_check(datum/reagent/R, datum/cached_my_atom, turf/T)
+	switch(R.reagent_state)//evaluating state of matter
+		if(GAS)
+			if(chem_temp < R.boiling_point)
+				R.reagent_state = LIQUID
+				if(!is_type_in_typecache(cached_my_atom, GLOB.no_reagent_message_typecache) && SSticker.HasRoundStarted())
+					for(var/mob/M in viewers(3, T))
+						to_chat(M, ("<span class='notice'>[icon2html(cached_my_atom, viewers(cached_my_atom))] The vapour condenses into a liquid!</span>"))
+
+		if(SOLID)
+			if(chem_temp > R.melting_point)
+				R.reagent_state = LIQUID
+				if(!is_type_in_typecache(cached_my_atom, GLOB.no_reagent_message_typecache) && SSticker.HasRoundStarted())
+					for(var/mob/M in viewers(3, T))
+						to_chat(M, ("<span class='notice'>[icon2html(cached_my_atom, viewers(cached_my_atom))] The solid chemicals melt into a liquid!</span>"))
+						//for(var/i = 1; i <= cached_reagents.len; i++)
+						//	message_admins("[cached_reagents[i]] melted into liquid of atom [my_atom] located in [my_atom.loc]")
+						///For debug purposes, feel free to uncomment in future. (YoYoBatty)
+
+		if(LIQUID)
+			if(!is_type_in_typecache(R, GLOB.statechange_reagent_blacklist)) //Reagent states are interchangeable, so one blacklist to rule them all.
+				if(chem_temp > R.boiling_point && !is_type_in_typecache(R, GLOB.vaporchange_reagent_blacklist))
+					R.reagent_state = GAS
+					if(!is_type_in_typecache(cached_my_atom, GLOB.no_reagent_message_typecache) && SSticker.HasRoundStarted())
+						for(var/mob/M in viewers(4, T))
+							to_chat(M, ("<span class='notice'>[icon2html(cached_my_atom, viewers(cached_my_atom))] The solution rapidly boils into a vapour!</span>"))
+
+				else if(chem_temp < R.melting_point && !is_type_in_typecache(R, GLOB.solidchange_reagent_blacklist))
+					R.reagent_state = SOLID
+					if(!is_type_in_typecache(cached_my_atom, GLOB.no_reagent_message_typecache) && SSticker.HasRoundStarted())
+						for(var/mob/M in viewers(3, T))
+							to_chat(M, ("<span class='notice'>[icon2html(cached_my_atom, viewers(cached_my_atom))] The solution solidifies!</span>"))
+
+/// handle_reactions() found nothing to react: what it went by, for react_shortcut()
+/datum/reagents/proc/note_stable(list/amounts)
+	if(!amounts || isliving(my_atom) || istype(my_atom, /obj/item/slime_extract))
+		stable_amounts = null
+		return
+	stable_amounts = amounts
+	stable_temp = chem_temp
+	stable_pressure = chem_pressure
+	stable_radioactivity = chem_radioactivity
+	stable_bluespaced = chem_bluespaced
+	stable_centrifuged = chem_centrifuged
+	stable_atom = my_atom
+
+/// TRUE when it's known that handle_reactions() would find nothing to react. When it last found nothing, and since then the container and
+/// the other things recipes go by are the same, a recipe can only happen now if it needs something there's more of than then (nothing a
+/// recipe needs has less of it than it had, and every other recipe failed then), or the temperature's changed and it has one. So only
+/// those are tried, as handle_reactions() tries them; if any would happen, the whole thing is done as before, so it's the same reaction
+/// that happens, the same way. Splashes add
+/// a dozen chemicals one after another to piles that already hold twenty-odd, each add reacted: every recipe of every one tried each time,
+/// 160 ms an EMP'd chem dispenser where a tesla kept hitting it (tools/chem_check SAME=1, 2026-11-08). Not in a mob or a slime extract,
+/// whose recipes have more to them (mob_react stops the whole proc; an extract's uses run out).
+/datum/reagents/proc/react_shortcut()
+	var/list/before = stable_amounts
+	if(!before || chem_pressure != stable_pressure || chem_radioactivity != stable_radioactivity \
+		|| chem_bluespaced != stable_bluespaced || chem_centrifuged != stable_centrifuged || my_atom != stable_atom || (my_atom && QDELETED(my_atom)))
+		return FALSE
+	var/list/amounts = list()
+	for(var/datum/reagent/present as anything in reagent_list)
+		if(isnull(amounts[present.type]))
+			amounts[present.type] = round(present.volume, CHEMICAL_QUANTISATION_LEVEL)
+	var/list/involving = GLOB.reactions_involving || build_reactions_involving()
+	var/list/hot_cold_by_first = GLOB.reactions_temp_by_first
+	// A temperature change only matters to a recipe whose temperature lies between the two: piles take each chemical at room temperature
+	// and drift a little with each one
+	var/temp_changed = FALSE
+	if(chem_temp != stable_temp)
+		var/low = min(chem_temp, stable_temp)
+		var/high = max(chem_temp, stable_temp)
+		for(var/threshold in GLOB.reaction_temp_thresholds)
+			if(threshold >= low && threshold <= high)
+				temp_changed = TRUE
+				break
+	// What to try, and whether that's less than handle_reactions() would try (every recipe under every reagent there): a reagent that goes
+	// into hundreds of recipes (ethanol, in the drinks) isn't worth it
+	var/list/to_try = list()
+	var/trying = 0
+	var/whole = 0
+	var/list/by_first = GLOB.chemical_reactions_list
+	for(var/type in amounts)
+		whole += length(by_first[type])
+		var/had = before[type]
+		var/list/tried
+		if(isnull(had) || amounts[type] > had)
+			tried = involving[type]
+		else if(temp_changed)
+			tried = hot_cold_by_first[type] // each once, under its first reagent, as handle_reactions() lists them
+		if(length(tried))
+			to_try += list(tried)
+			trying += length(tried)
+	if(trying >= whole)
+		return FALSE
+	for(var/list/tried as anything in to_try)
+		for(var/datum/chemical_reaction/C as anything in tried)
+			var/list/required = C.required_reagents
+			var/missing = FALSE
+			for(var/B in required) // the reagents first, here: nearly every recipe tried fails on them
+				var/needed = required[B]
+				var/have = amounts[B]
+				if(isnull(have) || (needed && have < needed))
+					missing = TRUE
+					break
+			if(!missing && reaction_possible(C, amounts))
+				return FALSE
+	stable_amounts = amounts
+	stable_temp = chem_temp
+	return TRUE
+
+/// Each recipe handle_reactions() can try, by every reagent it needs, catalysts too; those with a temperature to them by their first reagent;
+/// and every temperature a recipe has
+GLOBAL_LIST(reactions_involving)
+GLOBAL_LIST(reactions_temp_by_first)
+GLOBAL_LIST(reaction_temp_thresholds)
+
+/proc/build_reactions_involving()
+	var/list/index = list()
+	var/list/temp_index = list()
+	var/list/thresholds = list()
+	for(var/first in GLOB.chemical_reactions_list)
+		for(var/datum/chemical_reaction/C as anything in GLOB.chemical_reactions_list[first])
+			if(!C)
+				continue
+			for(var/type in C.required_reagents | C.required_catalysts)
+				if(!index[type])
+					index[type] = list()
+				index[type] |= C
+			if(C.required_temp)
+				if(!temp_index[first])
+					temp_index[first] = list()
+				temp_index[first] |= C
+				thresholds |= C.required_temp
+	GLOB.reactions_temp_by_first = temp_index
+	GLOB.reaction_temp_thresholds = thresholds
+	GLOB.reactions_involving = index
+	return index
+
+/// Whether handle_reactions() would set this recipe off, with these amounts, outside a mob or a slime extract
+/datum/reagents/proc/reaction_possible(datum/chemical_reaction/C, list/amounts)
+	for(var/B in C.required_reagents)
+		var/needed = C.required_reagents[B]
+		var/have = amounts[B]
+		if(isnull(have) || (needed && have < needed))
+			return FALSE
+	for(var/B in C.required_catalysts)
+		var/needed = C.required_catalysts[B]
+		var/have = amounts[B]
+		if(isnull(have) || (needed && have < needed))
+			return FALSE
+	if(C.required_container && (!my_atom || my_atom.type != C.required_container))
+		return FALSE
+	if(C.required_other)
+		return FALSE
+	var/required_temp = C.required_temp
+	if(!(required_temp == 0 || (C.is_cold_recipe && chem_temp <= required_temp) || (!C.is_cold_recipe && chem_temp >= required_temp)))
+		return FALSE
+	if(C.centrifuge_recipe == TRUE && !chem_centrifuged)
+		return FALSE
+	if(C.bluespace_recipe == TRUE && !chem_bluespaced)
+		return FALSE
+	return chem_pressure >= C.pressure_required && chem_radioactivity >= C.radioactivity_required
 
 /datum/reagents/reaction(atom/A, method = TOUCH, volume_modifier = 1, show_message = 1, special_modifier = 1)
 	var/datum/cached_my_atom = my_atom
@@ -225,3 +384,5 @@
 					R.handle_state_change(get_turf(A), R.volume * special_modifier, cached_my_atom)
 					if(method == VAPOR)
 						next_react = world.time + 1
+
+#undef STATE_MAY_CHANGE

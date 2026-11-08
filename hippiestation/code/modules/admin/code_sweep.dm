@@ -10,6 +10,12 @@
 //   crafting   every crafting recipe made from its own ingredients
 //   ui         every object's tgui data built for a person standing next to it
 //   events     every random event, fired on the live station (not with the others: it wrecks the place)
+//   acts       every obj and living mob, a fresh one for each of blasts (3), EMPs (2), fire, acid, a tesla's zap, a shot, a blob,
+//              radiation, an emag and a singularity, each timed: the slowest are listed (not with the others: ~150,000 of them)
+//   uses       every obj and living mob, a fresh one for each of an empty hand, a crowbar, a wrench, a lit welder, a screwdriver,
+//              wirecutters and a multitool in the hand of somebody with all access, and every item picked up and used in the hand;
+//              do_after() doesn't wait. Timed like acts (not with the others either: ~90,000)
+// reagents, reactions and events are timed too: each sweep's slowest are listed.
 //
 // Run:      tools/code_sweep/run_code_sweep.sh [atoms,turfs,reagents,reactions,crafting,ui]
 // Results:  data/code_sweep/report.txt, and progress.txt with each type as it was reached: the last line is the one to
@@ -190,6 +196,8 @@ GLOBAL_DATUM(code_sweep, /datum/code_sweep)
 	for(var/path in subtypesof(/datum/reagent))
 		if(!reach(path))
 			continue
+		var/time = world.time
+		var/mark = TICK_USAGE_REAL
 		// In the blood.
 		var/mob/living/carbon/human/H = make_person()
 		H.reagents.add_reagent(path, 30)
@@ -213,6 +221,8 @@ GLOBAL_DATUM(code_sweep, /datum/code_sweep)
 			B.reagents.reaction(spot, TOUCH)
 		if(!QDELETED(B) && !QDELETED(thing))
 			B.reagents.reaction(thing, TOUCH)
+		if(world.time == time)
+			note_cost("[path]", TICK_DELTA_TO_MS(TICK_USAGE_REAL - mark))
 		clear_arena()
 		CHECK_TICK
 
@@ -237,7 +247,11 @@ GLOBAL_DATUM(code_sweep, /datum/code_sweep)
 			B.reagents.add_reagent(catalyst, R.required_catalysts[catalyst], reagtemp = B.reagents.chem_temp, no_react = TRUE)
 		for(var/reagent in R.required_reagents)
 			B.reagents.add_reagent(reagent, R.required_reagents[reagent] * 5, reagtemp = B.reagents.chem_temp, no_react = TRUE)
+		var/time = world.time
+		var/mark = TICK_USAGE_REAL
 		B.reagents.handle_reactions()
+		if(world.time == time)
+			note_cost("[path]", TICK_DELTA_TO_MS(TICK_USAGE_REAL - mark))
 		var/worked = !length(R.results) //what it makes isn't a reagent: nothing to look for
 		for(var/result in R.results)
 			if(!QDELETED(B) && B.reagents?.get_reagent_amount(result) > 0)
@@ -325,6 +339,222 @@ GLOBAL_DATUM(code_sweep, /datum/code_sweep)
 		CHECK_TICK
 
 // ---------------------------------------------------------------------------------------------
+// What the world does to things, timed
+// ---------------------------------------------------------------------------------------------
+
+/datum/code_sweep
+	/// acts: "path: act" -> ms, for each that took 1 ms or more
+	var/list/act_costs = list()
+	/// acts: act -> list(ms in all, how many, how many slept)
+	var/list/act_totals = list()
+	/// acts: "path: act" for each that slept (a do_after, a timer it waited on)
+	var/list/act_slept = list()
+
+/// What happens to things in a round without anybody choosing it: blasts, EMPs, fire, acid, a tesla's zap, a shot, a blob, radiation,
+/// an emag, a singularity. Each on a fresh one of every obj and living mob, timed: the report lists the slowest, which is what freezes
+/// a server when it happens to the wrong thing (a chem dispenser EMP'd by a tesla zap spraying chemicals over 29 tiles took 130 ms,
+/// 2026-11-08), and whatever it broke goes in with the runtimes and the garbage like the other sweeps. Only what the act does there
+/// and then is timed: an explosion it sets off happens in SSexplosions afterwards.
+/datum/code_sweep/proc/sweep_acts()
+	var/static/list/acts = list("ex_act 1", "ex_act 2", "ex_act 3", "emp_act heavy", "emp_act light", "fire_act", "acid_act", "tesla", "bullet_act", "blob_act", "rad_act", "emag_act", "singularity_act")
+	var/turf/beside = get_step(spot, EAST)
+	var/mob/living/carbon/human/H = make_person()
+	H.forceMove(beside)
+	var/list/before = spot.contents.Copy()
+	for(var/path in subtypesof(/obj) + subtypesof(/mob/living) - uncreatable_atoms())
+		for(var/act in acts)
+			if(!reach("[path]: [act]"))
+				continue
+			var/atom/movable/made = new path(spot)
+			if(QDELETED(made))
+				break
+			var/time = world.time
+			var/mark = TICK_USAGE_REAL
+			do_act(made, act, H)
+			var/ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - mark)
+			var/list/totals = act_totals[act]
+			if(!totals)
+				totals = list(0, 0, 0)
+				act_totals[act] = totals
+			if(world.time != time)
+				totals[3]++
+				if(length(act_slept) < 200)
+					act_slept += "[path]: [act]"
+			else
+				totals[1] += ms
+				totals[2]++
+				if(ms >= 1)
+					act_costs["[path]: [act]"] = ms
+			if(!QDELETED(made))
+				qdel(made, force = TRUE)
+			made = null
+			for(var/atom/movable/A as anything in spot.contents - before)
+				qdel(A, force = TRUE)
+			if(QDELETED(H) || H.loc != beside)
+				H = make_person()
+				H.forceMove(beside)
+			if(!(tried[kind] % 50))
+				clear_arena()
+				H = make_person()
+				H.forceMove(beside)
+				before = spot.contents.Copy()
+			CHECK_TICK
+
+// ---------------------------------------------------------------------------------------------
+// What people do to things, timed
+// ---------------------------------------------------------------------------------------------
+
+/// Set during the uses sweep: do_after(), do_mob() and do_after_mob() don't wait (code/__HELPERS/mobs.dm)
+GLOBAL_VAR_INIT(code_sweep_no_waiting, FALSE)
+
+/datum/code_sweep
+	/// Sweep -> list("what: how" -> ms) for each that took 1 ms or more (all but acts, which keep their own)
+	var/list/costs = list()
+	/// Sweep -> how many slept (waited on something), and the first few
+	var/list/sleepers = list()
+	/// The use going now and the last one done, for one that sleeps (use_on())
+	var/use_serial = 0
+	var/use_finished = 0
+
+/datum/code_sweep/proc/note_cost(key, ms)
+	if(ms < 1)
+		return
+	var/list/here = costs[kind]
+	if(!here)
+		here = list()
+		costs[kind] = here
+	here[key] = ms
+
+/datum/code_sweep/proc/note_sleeper(key)
+	var/list/here = sleepers[kind]
+	if(!here)
+		here = list()
+		sleepers[kind] = here
+	here += key
+
+/// A person beside the room's middle, with an ID that opens everything, to use things
+/datum/code_sweep/proc/make_user(turf/where)
+	var/mob/living/carbon/human/H = new(where)
+	var/obj/item/card/id/card = new(H)
+	card.access = get_all_accesses() + get_all_centcom_access()
+	H.equip_to_slot_or_del(card, ITEM_SLOT_ID)
+	return H
+
+/// What a person does with their hands: an empty hand, each of the six tools, and (for an item) picked up and used in the hand. Each on a
+/// fresh one of every obj and living mob, timed, with no waiting on do_after(); one that sleeps anyway gets five seconds to finish
+/// before the next, so what it does late isn't put down to the next one.
+/datum/code_sweep/proc/sweep_uses()
+	var/static/list/uses = list("hand", "crowbar", "wrench", "welder", "screwdriver", "wirecutters", "multitool", "in hand")
+	var/static/list/tools = list("crowbar" = /obj/item/crowbar, "wrench" = /obj/item/wrench, "welder" = /obj/item/weldingtool/largetank,
+		"screwdriver" = /obj/item/screwdriver, "wirecutters" = /obj/item/wirecutters, "multitool" = /obj/item/multitool)
+	GLOB.code_sweep_no_waiting = TRUE
+	var/turf/beside = get_step(spot, EAST)
+	var/mob/living/carbon/human/H = make_user(beside)
+	var/list/before = spot.contents.Copy()
+	for(var/path in subtypesof(/obj) + subtypesof(/mob/living) - uncreatable_atoms())
+		for(var/use in uses)
+			if(use == "in hand" && !ispath(path, /obj/item))
+				continue
+			if(!reach("[path]: [use]"))
+				continue
+			var/atom/movable/made = new path(spot)
+			if(QDELETED(made))
+				break
+			if(QDELETED(H) || H.loc != beside || H.stat != CONSCIOUS)
+				if(!QDELETED(H))
+					qdel(H, force = TRUE)
+				H = make_user(beside)
+			var/obj/item/tool
+			if(tools[use])
+				var/tool_path = tools[use]
+				tool = new tool_path(beside)
+				H.put_in_active_hand(tool)
+				var/obj/item/weldingtool/welder = tool
+				if(istype(welder))
+					welder.switched_on(H)
+			var/time = world.time
+			var/mark = TICK_USAGE_REAL
+			var/serial = ++use_serial
+			use_on(made, use, H, tool, serial)
+			var/ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - mark)
+			if(use_finished != serial)
+				note_sleeper("[path]: [use]")
+				var/deadline = world.time + 5 SECONDS
+				while(use_finished != serial && world.time < deadline)
+					sleep(1)
+			else if(world.time == time)
+				note_cost("[path]: [use]", ms)
+			if(!QDELETED(made))
+				qdel(made, force = TRUE)
+			made = null
+			if(!QDELETED(H))
+				for(var/obj/item/held in H.held_items)
+					qdel(held, force = TRUE)
+			for(var/atom/movable/A as anything in spot.contents - before)
+				qdel(A, force = TRUE)
+			for(var/atom/movable/A as anything in beside)
+				if(A != H && !istype(A, /atom/movable/lighting_object))
+					qdel(A, force = TRUE)
+			if(!(tried[kind] % 50))
+				clear_arena()
+				H = make_user(beside)
+				before = spot.contents.Copy()
+			CHECK_TICK
+	GLOB.code_sweep_no_waiting = FALSE
+
+/datum/code_sweep/proc/use_on(atom/movable/A, use, mob/living/carbon/human/H, obj/item/tool, serial)
+	set waitfor = FALSE
+	switch(use)
+		if("hand")
+			A.attack_hand(H)
+		if("in hand")
+			var/obj/item/I = A
+			if(H.put_in_active_hand(I))
+				I.attack_self(H)
+		else
+			if(!QDELETED(tool) && tool.loc == H)
+				tool.melee_attack_chain(H, A)
+	use_finished = serial
+
+/datum/code_sweep/proc/do_act(atom/movable/A, act, mob/living/carbon/human/H)
+	switch(act)
+		if("ex_act 1")
+			A.ex_act(EXPLODE_DEVASTATE)
+		if("ex_act 2")
+			A.ex_act(EXPLODE_HEAVY)
+		if("ex_act 3")
+			A.ex_act(EXPLODE_LIGHT)
+		if("emp_act heavy")
+			A.emp_act(EMP_HEAVY)
+		if("emp_act light")
+			A.emp_act(EMP_LIGHT)
+		if("fire_act")
+			A.fire_act(1000, 500)
+		if("acid_act")
+			A.acid_act(50, 50)
+		if("tesla") // what tesla_zap() does to what it hits; the machines' own blast left out, the arena is needed for the next one
+			if(isliving(A))
+				var/mob/living/L = A
+				L.electrocute_act(30, H, 1, tesla_shock = TRUE)
+			else if(isobj(A))
+				var/obj/O = A
+				O.tesla_act(20000, TESLA_OBJ_DAMAGE | TESLA_MOB_DAMAGE, list())
+		if("bullet_act")
+			var/obj/item/projectile/beam/laser/P = new(get_turf(A))
+			P.firer = H
+			A.bullet_act(P, BODY_ZONE_CHEST)
+			if(!QDELETED(P))
+				qdel(P)
+		if("blob_act")
+			A.blob_act(null)
+		if("rad_act")
+			A.rad_act(2000)
+		if("emag_act")
+			A.emag_act(H)
+		if("singularity_act")
+			A.singularity_act()
+
+// ---------------------------------------------------------------------------------------------
 // Events
 // ---------------------------------------------------------------------------------------------
 
@@ -334,7 +564,11 @@ GLOBAL_DATUM(code_sweep, /datum/code_sweep)
 	for(var/datum/round_event_control/E as anything in SSevents.control)
 		if(!reach(E.type))
 			continue
+		var/time = world.time
+		var/mark = TICK_USAGE_REAL
 		E.runEvent()
+		if(world.time == time)
+			note_cost("[E.type]", TICK_DELTA_TO_MS(TICK_USAGE_REAL - mark))
 		sleep(10 SECONDS)
 
 // ---------------------------------------------------------------------------------------------
@@ -356,6 +590,42 @@ GLOBAL_DATUM(code_sweep, /datum/code_sweep)
 	lines += "CODE SWEEP took [round((REALTIMEOFDAY - started) / 600, 0.1)] minutes"
 	for(var/sweep in tried)
 		lines += "  [sweep]: [tried[sweep]] tried"
+	if(length(act_totals))
+		lines += ""
+		lines += "ACTS, timed (ms; only what happened there and then, the ones that slept left out)"
+		for(var/act in act_totals)
+			var/list/totals = act_totals[act]
+			lines += "  [act]: [totals[2]] done, [round(totals[1], 0.1)] ms in all[totals[3] ? ", [totals[3]] slept" : ""]"
+		var/list/slowest = act_costs.Copy()
+		sortTim(slowest, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
+		var/over_10 = 0
+		var/over_50 = 0
+		for(var/key in slowest)
+			if(slowest[key] >= 10)
+				over_10++
+			if(slowest[key] >= 50)
+				over_50++
+		lines += "  [over_10] took 10 ms or more, [over_50] 50 ms or more. The slowest:"
+		var/shown = 0
+		for(var/key in slowest)
+			lines += "    [round(slowest[key], 0.1)] ms  [key]"
+			if(++shown >= 60)
+				break
+		if(length(act_slept))
+			lines += "  Slept (not timed): [jointext(act_slept, ", ")]"
+	for(var/sweep in costs)
+		var/list/slowest = costs[sweep]
+		sortTim(slowest, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
+		lines += ""
+		lines += "SLOWEST in [sweep] ([length(slowest)] took 1 ms or more; ms, only what happened there and then)"
+		var/shown = 0
+		for(var/key in slowest)
+			lines += "    [round(slowest[key], 0.1)] ms  [key]"
+			if(++shown >= 40)
+				break
+		var/list/slept = sleepers[sweep]
+		if(length(slept))
+			lines += "  [length(slept)] slept (not timed): [jointext(slept.Copy(1, min(length(slept), 60) + 1), ", ")]"
 	lines += ""
 	lines += "RUNTIMES: [runtime_count] at [length(runtime_sites)] places"
 	var/list/ranked = list()

@@ -414,7 +414,7 @@
 
 /obj/item/organ/lungs/cybernetic/emp_act()
 	. = ..()
-	if(. & EMP_PROTECT_SELF)
+	if(. & EMP_PROTECT_SELF || !owner) // hippie -- not in anybody: a runtime
 		return
 	owner.losebreath = 20
 

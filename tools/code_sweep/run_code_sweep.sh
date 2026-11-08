@@ -1,7 +1,7 @@
 #!/bin/bash
 unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every file it opens until the next reboot
 # Code sweep: one of everything, to see what breaks (hippiestation/code/modules/admin/code_sweep.dm).
-# Usage: tools/code_sweep/run_code_sweep.sh [atoms,turfs,reagents,reactions,crafting,ui]
+# Usage: tools/code_sweep/run_code_sweep.sh [atoms,turfs,reagents,reactions,crafting,ui]   (acts, uses and events only when named)
 # Environment: NOCOMPILE=1, PORT=45300, MAP=boxstation
 # Results in data/code_sweep/: report.txt, progress.txt, crashers.txt.
 # If a type takes the server down, it goes in crashers.txt and the sweep carries on from the next one, up to 20 times.

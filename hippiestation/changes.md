@@ -12,6 +12,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/__DEFINES/role_preferences.dm
 ## code/__HELPERS/AStar.dm
 ## code/__HELPERS/icons.dm
+## code/__HELPERS/mobs.dm
 ## code/__HELPERS/unsorted.dm
 ## code/\_onclick/item_attack.dm
 ## code/controllers/failsafe.dm
@@ -59,6 +60,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/admin/secrets.dm
 ## code/modules/admin/topic.dm
 ## code/modules/admin/verbs/one_click_antag.dm
+## code/modules/antagonists/clockcult/clock_items/clockwork_armor.dm
 ## code/modules/antagonists/morph/morph.dm
 ## code/modules/atmospherics/machinery/atmosmachinery.dm
 ## code/modules/atmospherics/machinery/components/components_base.dm
@@ -98,6 +100,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/mob/living/simple_animal/friendly/dog.dm
 ## code/modules/mob/living/simple_animal/hostile/headcrab.dm
 ## code/modules/mob/living/simple_animal/slime/slime.dm
+## code/modules/mob/mob_helpers.dm
 ## code/modules/mob/mob_movement.dm !Horrible code alert, how did this even get merged?
 ## code/modules/photography/camera/camera_image_capturing.dm
 ## code/modules/reagents/chem_splash.dm !Could probably be improved to avoid cutting out the whole tg proc

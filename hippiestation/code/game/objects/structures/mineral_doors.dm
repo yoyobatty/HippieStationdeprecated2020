@@ -87,6 +87,8 @@
 	..()
 
 /obj/structure/mineral_door/transparent/reagent/ex_act()
+	if(!reagent_type) // one made without a reagent (spawned in): nothing to set off
+		return ..()
 	if(fakeholder && fakeholder.reagents && !QDELETED(fakeholder))
 		for(var/datum/reagent/R in fakeholder.reagents.reagent_list)
 			R.on_ex_act()

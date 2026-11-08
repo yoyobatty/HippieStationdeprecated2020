@@ -36,8 +36,11 @@
 		var/batched = (case % 2 == 0)
 		if(batched)
 			ENABLE_BITFIELD(holder.flags, NO_REACT)
-		for(var/i in 1 to rand(4, 12))
-			holder.add_reagent(pick(pool), rand(1, 30), null, holder.chem_temp)
+		// some from a short list, so the same ones go in again and again (recipes needing more of one); some at other temperatures
+		var/list/from = (case % 7 == 0) ? pool.Copy(1, 5) : pool
+		var/other_temps = (case % 3 == 0)
+		for(var/i in 1 to rand(4, 16))
+			holder.add_reagent(pick(from), rand(1, 30), null, other_temps ? pick(150, 300, 450, 700) : holder.chem_temp)
 		if(batched)
 			DISABLE_BITFIELD(holder.flags, NO_REACT)
 			holder.handle_reactions()
@@ -55,18 +58,20 @@
 		if(!F.density && !(locate(/obj/machinery) in F))
 			floors += F
 	var/list/spots = list()
+	var/turf/same = pick(floors)
 	for(var/i in 1 to 24)
-		spots += pick(floors)
+		spots += world.params["chem-same-spot"] ? same : pick(floors) // chem-same-spot=1: one dispenser after another in one place, as a tesla zaps the same one
 	var/list/lines = list()
 	var/total = 0
 	var/worst = 0
 	var/timer_total = 0
 	var/piles = 0
-	var/began_real = REALTIMEOFDAY
+	var/most_reagents = 0
 	var/list/emp_procs = list()
 	for(var/i in 1 to length(spots))
 		var/turf/T = spots[i]
-		var/obj/machinery/chem_dispenser/D = new(T)
+		var/dispenser_type = text2path(world.params["chem-type"]) || /obj/machinery/chem_dispenser
+		var/obj/machinery/chem_dispenser/D = new dispenser_type(T)
 		sleep(world.tick_lag)
 		var/timer_before = SStimer.total_ms
 		rand_seed(1000 + i)
@@ -83,8 +88,10 @@
 		worst = max(worst, ms)
 		for(var/obj/effect/decal/cleanable/chempile/C in range(4, T))
 			piles++
+			if(world.params["chem-same-spot"] && i == length(spots))
+				most_reagents = max(most_reagents, length(C.reagents?.reagent_list))
 		qdel(D)
-	lines += "[length(spots)] chem dispensers EMP'd: [round(total, 0.1)] ms in all, [round(total / length(spots), 0.1)] ms each, the worst [round(worst, 0.1)] ms; SStimer over the next ticks [round(timer_total, 0.1)] ms; [piles] piles about"
+	lines += "[length(spots)] chem dispensers EMP'd: [round(total, 0.1)] ms in all, [round(total / length(spots), 0.1)] ms each, the worst [round(worst, 0.1)] ms; SStimer over the next ticks [round(timer_total, 0.1)] ms; [piles] piles about[most_reagents ? ", the most chemicals in one at the end [most_reagents]" : ""]"
 	sortTim(emp_procs, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
 	var/list/top = list()
 	for(var/name in emp_procs)

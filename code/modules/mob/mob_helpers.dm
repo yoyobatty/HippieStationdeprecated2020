@@ -53,15 +53,19 @@
 		return phrase
 	phrase = html_decode(phrase)
 	var/leng = length(phrase)
-	. = ""
+	// hippie start -- the letters gathered in a list and joined once: adding each to a string copied all of it so far every time. A burning
+	// paper is starred again each time the fire gets to it, and a job guide took 106 ms a time (tools/code_sweep acts, 2026-11-08). The
+	// same letters starred, prob() asked in the same order.
+	var/list/letters = list()
 	var/char = ""
 	for(var/i = 1, i <= leng, i += length(char))
 		char = phrase[i]
 		if(char == " " || !prob(probability))
-			. += char
+			letters += char
 		else
-			. += "*"
-	return sanitize(.)
+			letters += "*"
+	return sanitize(jointext(letters, ""))
+	// hippie end
 
 /**
   * Makes you speak like you're drunk

@@ -177,6 +177,8 @@ GLOBAL_LIST_EMPTY(species_list)
 /proc/do_mob(mob/user , mob/target, time = 3 SECONDS, uninterruptible = FALSE, progress = TRUE, datum/callback/extra_checks = null,  ignorehelditem = FALSE)
 	if(!user || !target)
 		return FALSE
+	if(GLOB.code_sweep_no_waiting) // hippie -- the code sweep's uses pass does everything at once (hippiestation/code/modules/admin/code_sweep.dm)
+		return TRUE
 	var/user_loc = user.loc
 
 	var/drifting = FALSE
@@ -232,6 +234,8 @@ GLOBAL_LIST_EMPTY(species_list)
 /proc/do_after(mob/user, var/delay, needhand = TRUE, atom/target = null, progress = TRUE, datum/callback/extra_checks = null)
 	if(!user)
 		return FALSE
+	if(GLOB.code_sweep_no_waiting) // hippie -- the code sweep's uses pass does everything at once (hippiestation/code/modules/admin/code_sweep.dm)
+		return TRUE
 	var/atom/Tloc = null
 	if(target && !isturf(target))
 		Tloc = target.loc
@@ -302,6 +306,8 @@ GLOBAL_LIST_EMPTY(species_list)
 /proc/do_after_mob(mob/user, list/targets, time = 3 SECONDS, uninterruptible = FALSE, progress = TRUE, datum/callback/extra_checks, required_mobility_flags = MOBILITY_STAND)
 	if(!user)
 		return FALSE
+	if(GLOB.code_sweep_no_waiting) // hippie -- the code sweep's uses pass does everything at once (hippiestation/code/modules/admin/code_sweep.dm)
+		return TRUE
 	if(!islist(targets))
 		targets = list(targets)
 	if(!length(targets))
