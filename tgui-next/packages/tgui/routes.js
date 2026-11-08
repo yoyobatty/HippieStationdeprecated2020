@@ -19,6 +19,7 @@ import { BanWindow } from './interfaces/BanWindow';
 import { Biogenerator } from './interfaces/Biogenerator';
 import { BluespaceArtillery } from './interfaces/BluespaceArtillery';
 import { BorgPanel } from './interfaces/BorgPanel';
+import { BotPanel } from './interfaces/BotPanel';
 import { BrigTimer } from './interfaces/BrigTimer';
 import { Canister } from './interfaces/Canister';
 import { Cargo, CargoExpress } from './interfaces/Cargo';
@@ -1302,6 +1303,10 @@ const ROUTES = {
   artillery_control: {
     component: () => ArtilleryControl,
     scrollable: true,
+  },
+  bot_panel: {
+    component: () => BotPanel,
+    scrollable: false,
   },
 };
 

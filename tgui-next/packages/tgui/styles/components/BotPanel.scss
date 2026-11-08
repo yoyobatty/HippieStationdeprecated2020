@@ -1,0 +1,166 @@
+// hippie -- a bot's control panel (interfaces/BotPanel.js): a header card
+// in the bot's department colour, slide switches, steppers.
+
+.BotPanel {
+  --bp-accent: #7d9cc9;
+}
+
+.BotPanel--security { --bp-accent: #e05252; }
+.BotPanel--lasertag { --bp-accent: #4aa3ff; }
+.BotPanel--janitor { --bp-accent: #a66ee0; }
+.BotPanel--engineering { --bp-accent: #f08a2e; }
+.BotPanel--medical { --bp-accent: #3fc1c9; }
+.BotPanel--fire { --bp-accent: #ff6a3d; }
+.BotPanel--clown { --bp-accent: #ff7ad9; }
+
+.BotPanel__head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+  padding: 10px;
+  border-left: 4px solid var(--bp-accent);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.07), rgba(0, 0, 0, 0.2));
+}
+
+.BotPanel__sprite {
+  width: 64px;
+  height: 64px;
+  margin-right: 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bp-accent);
+
+  img {
+    width: 64px;
+    height: 64px;
+    image-rendering: pixelated;
+    -ms-interpolation-mode: nearest-neighbor;
+  }
+}
+
+.BotPanel__who {
+  flex: 1;
+  min-width: 0;
+}
+
+.BotPanel__name {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.BotPanel__model {
+  margin: 2px 0;
+  color: var(--bp-accent);
+}
+
+.BotPanel__power {
+  text-align: center;
+}
+
+.BotPanel__powerText {
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: bold;
+  color: #8a93a3;
+}
+
+.BotPanel__badges {
+  margin-bottom: 6px;
+}
+
+.BotPanel__badge {
+  display: inline-block;
+  margin: 0 4px 4px 0;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+  color: #b8c0cc;
+}
+
+.BotPanel__badge--warn {
+  background: rgba(240, 143, 17, 0.2);
+  color: #f5b84a;
+}
+
+.BotPanel__badge--bad {
+  background: rgba(219, 40, 40, 0.3);
+  color: #ff8a8a;
+}
+
+.BotPanel__locked {
+  margin: 6px 0;
+  padding: 8px 10px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  color: #b8c0cc;
+}
+
+.BotPanel__row {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.BotPanel__row--extra {
+  padding: 2px 10px;
+}
+
+.BotPanel__label {
+  flex: 1;
+}
+
+.BotPanel__control {
+  text-align: right;
+}
+
+.BotPanel__stepper {
+  display: inline-flex;
+  align-items: center;
+}
+
+.BotPanel__number {
+  min-width: 40px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.BotPanel__switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 20px;
+  border-radius: 10px;
+  background: #3a3f48;
+  cursor: pointer;
+  transition: background 0.15s;
+  vertical-align: middle;
+}
+
+.BotPanel__switch--on {
+  background: var(--bp-accent);
+}
+
+.BotPanel__switch--off {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.BotPanel__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: #fff;
+  transition: left 0.15s;
+}
+
+.BotPanel__switch--on .BotPanel__knob {
+  left: 20px;
+}

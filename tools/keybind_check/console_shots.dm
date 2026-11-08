@@ -95,6 +95,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		var/index = text2num(copytext(action, 6, colon))
 		var/text = copytext(action, colon + 1)
 		js = "var i=document.querySelectorAll('input')\[[index]\];if(i){i.value=[json_encode(text)];i.dispatchEvent(new Event('input',{bubbles:true}));}"
+	if(findtext(action, "js:") == 1)
+		js = copytext(action, 4)
 	if(js)
 		C << output(url_encode(js), "[window_id].browser:eval")
 
@@ -311,6 +313,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_items4a(C, H, label)
 		if("machines5")
 			cs_machines5(C, H, label)
+		if("bots6")
+			cs_bots6(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -8652,3 +8656,73 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 		sleep(10)
 		cs_shot("popup_machines5_[label]_7_artillery_target")
 	SStgui.close_user_uis(H)
+
+// ---------------------------------------------------------------------------------------------
+// Old windows, batch 6: bots' control panels and animals' strip menus
+// ---------------------------------------------------------------------------------------------
+
+/proc/cs_bots6(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/captain)
+	H.a_intent = INTENT_HELP
+	usr = H
+	var/n = 0
+	for(var/kind in list(/mob/living/simple_animal/bot/secbot, /mob/living/simple_animal/bot/medbot, /mob/living/simple_animal/bot/cleanbot, \
+		/mob/living/simple_animal/bot/floorbot, /mob/living/simple_animal/bot/firebot, /mob/living/simple_animal/bot/honkbot))
+		n++
+		var/mob/living/simple_animal/bot/B = new kind(cs_open_beside(H))
+		B.locked = FALSE
+		B.attack_hand(H)
+		var/datum/tgui/panel_ui = cs_ui_named(H, "bot_panel")
+		var/datum/tgui/ui = cs_b1_shot(C, H, panel_ui?.src_object, "popup_bots6_[label]_[n]_[B.name]", B.window_id)
+		if(ui && istype(B, /mob/living/simple_animal/bot/secbot))
+			var/before = B.auto_patrol
+			// The Patrol row's switch
+			cs_tgui_do(C, ui.window_id, "js:Array.prototype.slice.call(document.querySelectorAll('.BotPanel__row')).forEach(function(r){var l=r.querySelector('.BotPanel__label');if(l&&l.textContent=='Patrol'){r.querySelector('.BotPanel__switch').click();}});")
+			sleep(10)
+			cs_check("bots6: Beepsky's patrol switch clicked ([before] -> [B.auto_patrol])", B.auto_patrol != before)
+			cs_act(B, H, "topic", list("params" = "operation=hack"))
+			cs_check("bots6: a link the window didn't show is refused", !B.emagged)
+		if(ui && istype(B, /mob/living/simple_animal/bot/medbot))
+			var/mob/living/simple_animal/bot/medbot/M = B
+			var/before = M.heal_threshold
+			cs_tgui_do(C, ui.window_id, "clickexact:+5")
+			sleep(10)
+			cs_check("bots6: the medbot's healing threshold steps up from the window ([before] -> [M.heal_threshold])", M.heal_threshold == before + 5)
+			SStgui.update_uis(B)
+			sleep(5)
+			cs_shot("popup_bots6_[label]_[n]_[B.name]")
+		SStgui.close_user_uis(H)
+		qdel(B)
+
+	// A corgi in a hard hat
+	var/mob/living/simple_animal/pet/dog/corgi/dog = new(cs_open_beside(H))
+	var/obj/item/clothing/head/hardhat/hat = new(get_turf(H))
+	H.drop_all_held_items()
+	H.put_in_active_hand(hat)
+	usr = H
+	dog.Topic(null, list("add_inv" = "head"))
+	cs_check("bots6: the corgi wears the hat", dog.inventory_head == hat)
+	dog.show_inv(H)
+	var/datum/tgui/ui = cs_b1_shot(C, H, cs_ui_named(H, "strip_menu")?.src_object, "popup_bots6_[label]_7_corgi", "mob[REF(dog)]")
+	if(ui)
+		cs_tgui_do(C, ui.window_id, "click:[hat.name]")
+		sleep(10)
+		cs_check("bots6: the hat comes off from the window", dog.inventory_head == null && H.is_holding(hat))
+	SStgui.close_user_uis(H)
+	qdel(dog)
+
+	// A parrot with a headset
+	var/mob/living/simple_animal/parrot/bird = new(cs_open_beside(H))
+	if(!bird.ears)
+		bird.ears = new /obj/item/radio/headset(bird)
+	bird.show_inv(H)
+	cs_b1_shot(C, H, cs_ui_named(H, "strip_menu")?.src_object, "popup_bots6_[label]_8_parrot", "mob[REF(bird)]")
+	SStgui.close_user_uis(H)
+	qdel(bird)
+
+	// An alien drone
+	var/mob/living/carbon/alien/humanoid/drone/alien = new(cs_open_beside(H))
+	alien.show_inv(H)
+	cs_b1_shot(C, H, cs_ui_named(H, "strip_menu")?.src_object, "popup_bots6_[label]_9_alien", "mob[REF(alien)]")
+	SStgui.close_user_uis(H)
+	qdel(alien)
