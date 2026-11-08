@@ -101,7 +101,7 @@
 
 /obj/item/stack/proc/get_amount()
 	if(is_cyborg)
-		. = round(source.energy / cost)
+		. = source ? round(source.energy / cost) : 0 // hippie -- no source before its module has set it up
 	else
 		. = (amount)
 

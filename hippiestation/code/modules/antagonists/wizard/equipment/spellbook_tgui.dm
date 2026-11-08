@@ -42,8 +42,8 @@
 			"cost" = E.cost,
 			"buy_word" = E.buy_word,
 			"limit" = E.limit,
-			"can_buy" = ishuman(user) ? E.CanBuy(user, src) : FALSE,
-			"can_refund" = ishuman(user) ? E.CanRefund(user, src) : FALSE,
+			"can_buy" = (ishuman(user) && user.mind) ? E.CanBuy(user, src) : FALSE, // both read the mind's spells
+			"can_refund" = (ishuman(user) && user.mind) ? E.CanRefund(user, src) : FALSE,
 		)
 		if(istype(E, /datum/spellbook_entry/item))
 			entry["kind"] = "item"

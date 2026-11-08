@@ -32,7 +32,7 @@
 	if (istype(new_data) && !isweakref(new_data))
 		new_data = WEAKREF(new_data)
 	var/datum/integrated_io/pin = get_pin_ref(pin_type, pin_number)
-	return pin.write_data_to_pin(new_data)
+	return pin?.write_data_to_pin(new_data) // no such pin on this circuit
 
 /obj/item/integrated_circuit/proc/get_pin_data(pin_type, pin_number)
 	var/datum/integrated_io/pin = get_pin_ref(pin_type, pin_number)

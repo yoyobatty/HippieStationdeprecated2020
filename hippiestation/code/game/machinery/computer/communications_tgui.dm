@@ -58,7 +58,7 @@
 		// anyway. An AI can't recall, as before.
 		shuttle["can_call"] = E.mode == SHUTTLE_IDLE
 		shuttle["can_recall"] = !silicon && E.mode == SHUTTLE_CALL
-	shuttle["trace"] = SSshuttle.emergencyCallAmount ? (SSshuttle.emergencyLastCallLoc ? format_text(SSshuttle.emergencyLastCallLoc.name) : "untraceable") : null
+	shuttle["trace"] = SSshuttle.emergencyCallAmount ? (isarea(SSshuttle.emergencyLastCallLoc) ? format_text(SSshuttle.emergencyLastCallLoc.name) : "untraceable") : null
 	.["shuttle"] = shuttle
 	.["alert_level"] = get_security_level()
 	.["alert_num"] = GLOB.security_level

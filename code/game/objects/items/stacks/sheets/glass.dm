@@ -152,6 +152,8 @@ GLOBAL_LIST_INIT(reinforced_glass_recipes, list ( \
 	var/glacost = 500
 
 /obj/item/stack/sheet/rglass/cyborg/get_amount()
+	if(!source || !glasource) // hippie -- not set up by its module yet
+		return 0
 	return min(round(source.energy / metcost), round(glasource.energy / glacost))
 
 /obj/item/stack/sheet/rglass/cyborg/use(used, transfer = FALSE) // Requires special checks, because it uses two storages

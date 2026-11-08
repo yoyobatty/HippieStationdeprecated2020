@@ -65,7 +65,7 @@
 
 	SSshuttle.emergencyCallAmount++
 
-	if(prob(70))
+	if(prob(70) && isarea(signalOrigin)) // hippie -- only an area can be traced; callers have passed numbers here
 		SSshuttle.emergencyLastCallLoc = signalOrigin
 	else
 		SSshuttle.emergencyLastCallLoc = null
@@ -87,7 +87,7 @@
 	invertTimer()
 	mode = SHUTTLE_RECALL
 
-	if(prob(70))
+	if(prob(70) && isarea(signalOrigin)) // hippie -- only an area can be traced; callers have passed numbers here
 		SSshuttle.emergencyLastCallLoc = signalOrigin
 	else
 		SSshuttle.emergencyLastCallLoc = null

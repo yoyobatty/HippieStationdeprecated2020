@@ -181,7 +181,7 @@
 				if(!SSticker.mode.shadowling_ascended)
 					set_security_level(SEC_LEVEL_DELTA)
 					SSshuttle.emergencyCallTime = 1800
-					SSshuttle.emergency.request(null, 0.3)
+					SSshuttle.emergency.request(null, set_coefficient = 0.3) // hippie -- 0.3 went in as the call's traced origin, so the shuttle came at normal speed and comms consoles read .name off a number
 					SSshuttle.emergencyNoRecall = TRUE
 				SSticker.mode.shadowling_ascended = TRUE
 				A.mind.RemoveSpell(src)

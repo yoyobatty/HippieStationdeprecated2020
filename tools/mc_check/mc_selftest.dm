@@ -502,3 +502,36 @@ SUBSYSTEM_DEF(mctest_init)
 			found = A
 	check("init_fail: admins told", found, found?.text)
 	check("init_fail: the rest initialized", Master.iteration > 0 && SSatoms.initialized)
+
+/// STEPS=timer_cost only: what a timer costs apart from its callback (trivial callbacks, 20,000 of them)
+/datum/timer_probe/proc/nothing()
+	return
+
+/datum/mc_selftest/proc/timer_cost()
+	var/datum/timer_probe/P = new
+	sleep(2 SECONDS)
+	var/ms_before = SStimer.total_ms
+	var/fired_before = SStimer.times_fired
+	var/started = TICK_USAGE_REAL
+	var/made_ms = 0
+	for(var/batch in 1 to 20)
+		started = TICK_USAGE_REAL
+		for(var/n in 1 to 1000)
+			addtimer(CALLBACK(P, TYPE_PROC_REF(/datum/timer_probe, nothing)), rand(1, 40) * world.tick_lag)
+		made_ms += TICK_USAGE_TO_MS(started)
+		sleep(world.tick_lag)
+	sleep(5 SECONDS)
+	var/fire_ms = SStimer.total_ms - ms_before
+	note("timer_cost: 20,000 timers: addtimer() [round(made_ms / 20, 0.01)] us each, SStimer [round(fire_ms / 20, 0.01)] us each to run (trivial callback), [SStimer.times_fired - fired_before] SStimer fires")
+	// the same with TIMER_STOPPABLE, as bots' step timers are
+	ms_before = SStimer.total_ms
+	made_ms = 0
+	for(var/batch in 1 to 20)
+		started = TICK_USAGE_REAL
+		for(var/n in 1 to 1000)
+			addtimer(CALLBACK(P, TYPE_PROC_REF(/datum/timer_probe, nothing)), rand(1, 40) * world.tick_lag, TIMER_STOPPABLE)
+		made_ms += TICK_USAGE_TO_MS(started)
+		sleep(world.tick_lag)
+	sleep(5 SECONDS)
+	fire_ms = SStimer.total_ms - ms_before
+	note("timer_cost: stoppable: addtimer() [round(made_ms / 20, 0.01)] us each, SStimer [round(fire_ms / 20, 0.01)] us each")

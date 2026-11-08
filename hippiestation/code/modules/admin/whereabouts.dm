@@ -28,7 +28,7 @@ SUBSYSTEM_DEF(whereabouts)
 /datum/controller/subsystem/whereabouts/fire(resumed)
 	var/list/flat = list()
 	for(var/mob/M as anything in GLOB.mob_list)
-		if(!M.ckey || isnewplayer(M))
+		if(!M?.ckey || isnewplayer(M)) // a hard-deleted mob leaves a null in the list
 			continue
 		var/turf/T = get_turf(M)
 		if(!T)
