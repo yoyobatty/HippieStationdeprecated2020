@@ -225,6 +225,36 @@
 //usually called via datum/controller/subsystem/New() when replacing a subsystem (i.e. due to a recurring crash)
 //should attempt to salvage what it can from the old instance of subsystem
 /datum/controller/subsystem/Recover()
+	// hippie -- the default, for the subsystems with no Recover() of their own (51 that fire, 2026-11-07, SSprocessing and every
+	// processing subtype among them). The MC makes a fresh one after a subsystem stopped it twice (master.dm Recover()); without
+	// this the fresh one started from nothing: a fresh SSobj with an empty processing list, while every obj it was processing
+	// still had DF_ISPROCESSING set, so START_PROCESSING never put them back and they stopped for the round. Copies what the
+	// subtype keeps (its own vars) and the settings an admin may have changed; leaves the MC's bookkeeping, which is what
+	// went wrong, at its starting values.
+	var/datum/controller/subsystem/old
+	for(var/datum/controller/subsystem/candidate as anything in Master?.subsystems)
+		if(candidate.type == type && candidate != src)
+			old = candidate
+			break
+	if(!old)
+		return
+	var/static/list/base_vars
+	if(!base_vars)
+		base_vars = list()
+		var/datum/controller/subsystem/plain = new /datum/controller/subsystem
+		for(var/var_name in plain.vars)
+			base_vars[var_name] = TRUE
+		for(var/var_name in list("initialized", "wait", "priority", "runlevels"))
+			base_vars -= var_name
+	var/copied = 0
+	for(var/var_name in old.vars)
+		if(base_vars[var_name] || vars[var_name] == old.vars[var_name])
+			continue
+		try
+			vars[var_name] = old.vars[var_name]
+			copied++
+		catch // a const var
+	log_world("[name]: recovered [copied] var\s from the one it replaces.")
 
 /datum/controller/subsystem/vv_edit_var(var_name, var_value)
 	switch (var_name)

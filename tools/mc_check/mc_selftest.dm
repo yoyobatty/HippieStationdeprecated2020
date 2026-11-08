@@ -13,6 +13,8 @@
 // 7 SStimer: a timer deleted a tick after joining the second queue at its edge; then 40 s of timers made and deleted at
 //   random (every live one fires once, on time; no deleted one fires; no runtimes).
 // 8 PROFILE 30 S (10 here) during lag: the alert names the proc that took the time, and the profiler goes off again.
+// 9 A fresh subsystem in place of one that stopped the MC twice, as the MC makes it, for SSobj and SSair (no Recover() of
+//   their own): it keeps the old one's lists and goes on firing.
 
 /datum/controller/master/Initialize(delay, init_sss, tgs_prime)
 	if("mc-selftest" in world.params)
@@ -125,7 +127,7 @@ SUBSYSTEM_DEF(mctest)
 	// dd -invisible reports world.sleep_offline as 1 and won't take 0, though the world keeps ticking: without this the watchdog
 	// takes the freezes for the world asleep with nobody on
 	MCWatchdog.watch_with_nobody_on = TRUE
-	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "asleep", "lag", "strikes", "timer_edge", "timers", "profile")
+	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "asleep", "lag", "strikes", "timer_edge", "timers", "profile", "recover")
 	if(world.params["mc-steps"]) // STEPS=freeze_outside,lag on the runner: only those
 		steps = splittext(world.params["mc-steps"], ",")
 	for(var/step in steps)
@@ -438,3 +440,37 @@ SUBSYSTEM_DEF(mctest)
 	check("profile: the profiler is off again", SSprofiler.profiling == was && !MCWatchdog.profiling_for)
 	while(SSmctest.hogging)
 		sleep(5)
+
+/// Replace a subsystem the way the MC does after its second strike (master.dm Recover(), FireHim)
+/datum/mc_selftest/proc/replace_like_strike_two(datum/controller/subsystem/old)
+	Master.subsystems += new old.type
+	sleep(1) // let the MC pick it up next time round
+	var/datum/controller/subsystem/fresh
+	for(var/datum/controller/subsystem/SS as anything in Master.subsystems)
+		if(SS.type == old.type)
+			fresh = SS
+	return fresh
+
+/datum/mc_selftest/proc/recover()
+	// SSobj: what it's processing
+	var/datum/controller/subsystem/processing/obj/old_obj = SSobj
+	var/list/processing = old_obj.processing
+	var/count = processing.len
+	var/datum/controller/subsystem/processing/obj/fresh_obj = replace_like_strike_two(old_obj)
+	check("recover SSobj: a fresh one", fresh_obj && fresh_obj != old_obj && SSobj == fresh_obj)
+	check("recover SSobj: keeps the processing list", fresh_obj?.processing == processing && fresh_obj.processing.len >= count * 0.9, "[fresh_obj?.processing.len] of [count]")
+	// the MC lists it took subsystems from at Loop() start: a fresh one only fires once the MC goes round again with it in
+	// Master.subsystems, which RunQueue's lists don't follow until a restart; the strike path restarts the MC, so do that
+	Recreate_MC()
+	sleep(5 SECONDS)
+	check("recover SSobj: it fires", SSobj.times_fired > 0, "[SSobj.times_fired] fires")
+	// SSair: active turfs, networks, machinery
+	var/datum/controller/subsystem/air/old_air = SSair
+	var/list/networks = old_air.networks
+	var/list/machinery = old_air.atmos_machinery
+	var/datum/controller/subsystem/air/fresh_air = replace_like_strike_two(old_air)
+	check("recover SSair: keeps its networks and machinery", fresh_air?.networks == networks && fresh_air.atmos_machinery == machinery, "networks [fresh_air?.networks.len], machinery [fresh_air?.atmos_machinery.len]")
+	Master.restart_timeout = 0
+	Recreate_MC()
+	sleep(5 SECONDS)
+	check("recover SSair: it fires", SSair.times_fired > 0 && SSair.initialized, "[SSair.times_fired] fires")
