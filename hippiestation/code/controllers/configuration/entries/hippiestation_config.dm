@@ -73,3 +73,8 @@
 	config_entry_value = 1
 	min_val = 0
 	max_val = 2
+
+/datum/config_entry/number/profile_duty	// with AUTO_PROFILE: the share of the time (%) the BYOND profiler is on; it adds ~255 ns to every proc call while it is (profiler.dm)
+	config_entry_value = 10
+	min_val = 1
+	max_val = 100

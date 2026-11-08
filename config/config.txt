@@ -501,5 +501,8 @@ DEFAULT_VIEW 15x15
 DEFAULT_VIEW_SQUARE 15x15
 
 
-## Enable automatic profiling - Byond 513.1506 and newer only.
-#AUTO_PROFILE
+## Enable automatic profiling - Byond 513.1506 and newer only. On (2026-11-08): at PROFILE_DUTY 10 it costs ~7%, not ~28%.
+AUTO_PROFILE
+## With AUTO_PROFILE: the share of the time (%) the profiler is on, at random points in the round. It adds ~255 ns to every
+## proc call while it is on: 10 (the default) costs the server about 7%, 100 (always on) about 28% (Bot Shifts, 2026-11-08).
+#PROFILE_DUTY 10

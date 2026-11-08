@@ -6,19 +6,28 @@ The best practice to have while coding is to keep everything modularized, or the
 # Sorted alphabetically filepath-wise.
 
 ## code/__DEFINES/diseases.dm
+## code/__DEFINES/MC.dm
 ## code/__DEFINES/misc.dm
 ## code/__DEFINES/mobs.dm
 ## code/__DEFINES/role_preferences.dm
 ## code/__HELPERS/unsorted.dm
 ## code/\_onclick/item_attack.dm
+## code/controllers/failsafe.dm
+## code/controllers/master.dm
+## code/controllers/subsystem.dm
+## code/controllers/subsystem/air.dm
 ## code/controllers/subsystem/job.dm
 ## code/controllers/subsystem/throwing.dm
 ## code/controllers/subsystem/ticker.dm
+## code/controllers/subsystem/timer.dm
 ## code/controllers/subsystem/vote.dm
 ## code/datums/datumvars.dm
 ## code/datums/diseases/\_MobProcs.dm
+## code/datums/elements/atmos_sensitive.dm
 ## code/datums/hud.dm
 ## code/datums/progressbar.dm
+## code/datums/status_effects/neutral.dm
+## code/datums/status_effects/status_effect.dm
 ## code/datums/wires/airlock.dm
 ## code/game/gamemodes/changeling/changeling.dm !Should be modularized. Can be done easily.
 ## code/game/gamemodes/game_mode.dm
@@ -26,13 +35,21 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/machinery/computer/cloning.dm
 ## code/game/machinery/doors/airlock_types.dm !Should be modularized. Can be done easily.
 ## code/game/machinery/doors/brigdoors.dm
+## code/game/machinery/telecomms/broadcasting.dm
+## code/game/machinery/telecomms/telecomunications.dm
+## code/game/objects/effects/effect_system/effects_other.dm
 ## code/game/objects/effects/effect_system/effects_smoke.dm
 ## code/game/objects/empulse.dm !Should be modularized. Can be done easily.
 ## code/game/objects/items.dm
 ## code/game/objects/items/crayons.dm
 ## code/game/objects/items/devices/flashlight.dm !Should be modularized. Can be done easily.
+## code/game/objects/items/devices/radio/radio.dm
 ## code/game/objects/items/stacks/rods.dm
+## code/game/objects/items/stacks/sheets/glass.dm
+## code/game/objects/items/stacks/stack.dm
 ## code/game/objects/items/tools/wirecutters.dm !Should be modularized. Can be done easily.
+## code/game/objects/obj_defense.dm
+## code/game/objects/structures/grille.dm
 ## code/game/turfs/open.dm
 ## code/game/world.dm !Needs modularization! This stuff is crap.
 ## code/modules/admin/admin.dm
@@ -40,6 +57,9 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/admin/secrets.dm
 ## code/modules/admin/topic.dm
 ## code/modules/admin/verbs/one_click_antag.dm
+## code/modules/antagonists/morph/morph.dm
+## code/modules/atmospherics/machinery/atmosmachinery.dm
+## code/modules/atmospherics/machinery/components/components_base.dm
 ## code/modules/awaymissions/capture_the_flag.dm
 ## code/modules/awaymissions/corpse.dm
 ## code/modules/client/client_procs.dm
@@ -60,7 +80,10 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/mob/living/carbon/human/examine.dm
 ## code/modules/mob/living/carbon/human/human.dm !Should be modularized. Can be done easily.
 ## code/modules/mob/living/carbon/human/human_defense.dm
+## code/modules/mob/living/carbon/human/say.dm
 ## code/modules/mob/living/carbon/human/species.dm
+## code/modules/mob/living/carbon/human/species_types/jellypeople.dm
+## code/modules/mob/living/carbon/life.dm
 ## code/modules/mob/living/carbon/monkey/monkey.dm !Should be modularized. Can be done easily.
 ## code/modules/mob/living/carbon/update_icons.dm
 ## code/modules/mob/living/living.dm 
@@ -68,6 +91,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/mob/living/silicon/ai/ai.dm
 ## code/modules/mob/living/silicon/pai/pai_shell.dm
 ## code/modules/mob/living/silicon/robot/robot.dm
+## code/modules/mob/living/simple_animal/bot/ed209bot.dm
 ## code/modules/mob/living/simple_animal/bot/medbot.dm
 ## code/modules/mob/living/simple_animal/friendly/dog.dm
 ## code/modules/mob/living/simple_animal/hostile/headcrab.dm
@@ -76,10 +100,15 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/photography/camera/camera_image_capturing.dm
 ## code/modules/reagents/chem_splash.dm !Could probably be improved to avoid cutting out the whole tg proc
 ## code/modules/reagents/chemistry/holder.dm !Same as above.
+## code/modules/reagents/chemistry/reagents/food_reagents.dm
+## code/modules/reagents/chemistry/reagents/other_reagents.dm
+## code/modules/reagents/chemistry/reagents/toxin_reagents.dm
 ## code/modules/reagents/chemistry/recipes/pyrotechnics.dm !Same as above.
 ## code/modules/reagents/reagent_containers.dm !Could be modularized.
 ## code/modules/spells/spell.dm
+## code/modules/surgery/bodyparts/bodyparts.dm
 ## code/modules/surgery/bodyparts/head.dm
 ## code/modules/surgery/helpers.dm
+## code/modules/surgery/organs/lungs.dm
 ## code/modules/surgery/organs/vocal_cords.dm
 ## code/modules/unit_tests/reagent_recipe_collisions.dm

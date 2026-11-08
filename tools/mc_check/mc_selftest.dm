@@ -127,7 +127,7 @@ SUBSYSTEM_DEF(mctest)
 	// dd -invisible reports world.sleep_offline as 1 and won't take 0, though the world keeps ticking: without this the watchdog
 	// takes the freezes for the world asleep with nobody on
 	MCWatchdog.watch_with_nobody_on = TRUE
-	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "asleep", "lag", "strikes", "timer_edge", "timers", "profile", "recover", "inits", "status")
+	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "asleep", "lag", "strikes", "timer_edge", "timers", "profile", "recover", "inits", "status", "duty")
 	// init_fail runs only when asked (STEPS=init_fail): its subsystem breaks at boot
 	if(world.params["mc-steps"]) // STEPS=freeze_outside,lag on the runner: only those
 		steps = splittext(world.params["mc-steps"], ",")
@@ -556,3 +556,49 @@ SUBSYSTEM_DEF(mctest_init)
 	check("status: and ends on time", QDELETED(music) && !H.has_status_effect(STATUS_EFFECT_GOOD_MUSIC))
 	qdel(G)
 	qdel(H)
+
+/// AUTO_PROFILE's duty cycle: on 10% of the time, and PROFILE 30 S (10 here) fully on in the middle of it
+/datum/mc_selftest/proc/duty()
+	SSprofiler.profiling = TRUE
+	SSprofiler.duty = 10
+	world.Profile(PROFILE_CLEAR)
+	world.Profile(PROFILE_START)
+	SSprofiler.on_time = 0
+	SSprofiler.duty_cycle()
+	SSmctest.hogging = TRUE
+	INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(mc_check_hog_ticks), 0.5, 150 SECONDS)
+	sleep(40 SECONDS)
+	var/share = SSprofiler.sampled_share()
+	check("duty: on about 10% of the time", share > 0.05 && share < 0.16, "[round(share * 100, 0.1)]% (cycle running [SSprofiler.cycle_running], on [SSprofiler.on_time] ds)")
+	MCWatchdog.profile_for(10, "testadmin")
+	sleep(2 SECONDS)
+	for(var/n in 1 to 20) // work of its own in the window: 2 s of it, spread out
+		mc_check_busy(1)
+		sleep(2)
+	check("duty: PROFILE 30 S turns it fully on", SSprofiler.sampled_share() == 1)
+	var/datum/admin_alert/A = wait_alert("profiled the server", 20 SECONDS)
+	check("duty: and names the busy proc", A && findtext(A.text, "mc_check_busy"), A?.text)
+	var/on_before = SSprofiler.on_time
+	var/real_before = REALTIMEOFDAY
+	sleep(15 SECONDS)
+	var/share_after = (SSprofiler.on_time - on_before) / max(1, REALTIMEOFDAY - real_before)
+	check("duty: then back to the cycle", share_after > 0.03 && share_after < 0.2, "[round(share_after * 100, 0.1)]% in the 15 s after")
+	// a read turns the profiler on (PROFILE_REFRESH is PROFILE_START): in the off part it must go straight back off
+	while(SSprofiler.cycle_on)
+		sleep(1)
+	MCWatchdog.profile_read()
+	for(var/n in 1 to 1000)
+		mc_check_marker()
+	var/list/rows = json_decode(world.Profile(PROFILE_REFRESH, null, "json"))
+	SSprofiler.after_read()
+	var/marked = 0
+	for(var/list/row in rows)
+		if(row["name"] == "/proc/mc_check_marker")
+			marked = row["calls"]
+	check("duty: a read in the off part leaves it off", !marked, "[marked] marker calls counted")
+	SSprofiler.profiling = FALSE
+	while(SSmctest.hogging)
+		sleep(5)
+
+/proc/mc_check_marker()
+	return 1
