@@ -364,15 +364,16 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 		message_admins("New user: [key_name_admin(src)] just connected with an age of [cached_player_age] day[(player_age==1?"":"s")]")
 	if(CONFIG_GET(flag/use_account_age_for_jobs) && account_age >= 0)
 		player_age = account_age
-	if(account_age >= 0 && account_age < nnpa)
+	if(account_age >= 0 && account_age < nnpa) //a fresh fetch from byond.com tells the admins itself (fetch_account_age())
 		message_admins("[key_name_admin(src)] (IP: [address], ID: [computer_id]) is a new BYOND account [account_age] day[(account_age==1?"":"s")] old, created on [account_join_date].")
 		if (CONFIG_GET(flag/irc_first_connection_alert))
 			send2irc_adminless_only("new_byond_user", "[key_name(src)] (IP: [address], ID: [computer_id]) is a new BYOND account [account_age] day[(account_age==1?"":"s")] old, created on [account_join_date].")
 	get_message_output("watchlist entry", ckey)
 	check_ip_intel()
-	validate_key_in_db()
+	// hippie -- the key check is gone: the login's upsert saves their key as BYOND gives it (it asked byond.com, on the join path)
 	SSbans.note_connection(src) //remembered with their IP and computer ID, so they can be banned by them after they've gone
-	build_ban_cache(src) //now, so a ban check later never has to query (or sleep) for it
+	// hippie -- without holding the login up: until it's built, a ban check uses SSbans' copy, which never queries or sleeps
+	INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(build_ban_cache), src)
 
 	send_resources()
 
@@ -473,106 +474,109 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 	. = ..() //Even though we're going to be hard deleted there are still some things that want to know the destroy is happening
 	return QDEL_HINT_HARDDEL_NOW
 
+// hippie start -- faster login. It ran up to eight queries one after another (related IPs, related CIDs, the randomizer's
+// last CID, "seen before", their ages, the update, the connection log, the key check), and asked byond.com for a new player's
+// join date before letting them in. Now one read holds the login up; the writes and byond.com go on behind it.
 /client/proc/set_client_age_from_db(connectiontopic)
 	if (IsGuestKey(src.key))
 		return
 	if(!SSdbcore.Connect())
 		return
-	var/datum/DBQuery/query_get_related_ip = SSdbcore.NewQuery("SELECT ckey FROM [format_table_name("player")] WHERE ip = INET_ATON(:ip) AND ckey != :ckey", list("ip" = address || "127.0.0.1", "ckey" = ckey))
-	if(!query_get_related_ip.Execute())
-		qdel(query_get_related_ip)
+	var/list/row = db_login_read(ckey, address || "127.0.0.1", "[computer_id]")
+	if(!row)
 		return
-	related_accounts_ip = ""
-	while(query_get_related_ip.NextRow())
-		related_accounts_ip += "[query_get_related_ip.item[1]], "
-	qdel(query_get_related_ip)
-	var/datum/DBQuery/query_get_related_cid = SSdbcore.NewQuery("SELECT ckey FROM [format_table_name("player")] WHERE computerid = :cid AND ckey != :ckey", list("cid" = computer_id, "ckey" = ckey))
-	if(!query_get_related_cid.Execute())
-		qdel(query_get_related_cid)
-		return
-	related_accounts_cid = ""
-	while (query_get_related_cid.NextRow())
-		related_accounts_cid += "[query_get_related_cid.item[1]], "
-	qdel(query_get_related_cid)
+	related_accounts_ip = row["related_ip"]
+	related_accounts_cid = row["related_cid"]
 	var/admin_rank = "Player"
 	if (src.holder && src.holder.rank)
 		admin_rank = src.holder.rank.name
 	else
-		if (!GLOB.deadmins[ckey] && check_randomizer(connectiontopic))
+		if (!GLOB.deadmins[ckey] && check_randomizer(connectiontopic, row["last_cid"], TRUE))
 			return
-	var/new_player
-	var/datum/DBQuery/query_client_in_db = SSdbcore.NewQuery("SELECT 1 FROM [format_table_name("player")] WHERE ckey = :ckey", list("ckey" = ckey))
-	if(!query_client_in_db.Execute())
-		qdel(query_client_in_db)
+	var/new_player = !row["exists"]
+	if(new_player && CONFIG_GET(flag/panic_bunker) && !holder && !GLOB.deadmins[ckey])
+		log_access("Failed Login: [key] - New account attempting to connect during panic bunker")
+		message_admins("<span class='adminnotice'>Failed Login: [key] - New account attempting to connect during panic bunker</span>")
+		to_chat(src, CONFIG_GET(string/panic_bunker_message))
+		var/list/connectiontopic_a = params2list(connectiontopic)
+		var/list/panic_addr = CONFIG_GET(string/panic_server_address)
+		if(panic_addr && !connectiontopic_a["redirect"])
+			var/panic_name = CONFIG_GET(string/panic_server_name)
+			to_chat(src, "<span class='notice'>Sending you to [panic_name ? panic_name : panic_addr].</span>")
+			winset(src, null, "command=.options")
+			src << link("[panic_addr]?redirect=1")
+		qdel(src)
 		return
-	if(!query_client_in_db.NextRow())
-		if (CONFIG_GET(flag/panic_bunker) && !holder && !GLOB.deadmins[ckey])
-			log_access("Failed Login: [key] - New account attempting to connect during panic bunker")
-			message_admins("<span class='adminnotice'>Failed Login: [key] - New account attempting to connect during panic bunker</span>")
-			to_chat(src, CONFIG_GET(string/panic_bunker_message))
-			var/list/connectiontopic_a = params2list(connectiontopic)
-			var/list/panic_addr = CONFIG_GET(string/panic_server_address)
-			if(panic_addr && !connectiontopic_a["redirect"])
-				var/panic_name = CONFIG_GET(string/panic_server_name)
-				to_chat(src, "<span class='notice'>Sending you to [panic_name ? panic_name : panic_addr].</span>")
-				winset(src, null, "command=.options")
-				src << link("[panic_addr]?redirect=1")
-			qdel(query_client_in_db)
-			qdel(src)
-			return
-
-		new_player = 1
-		account_join_date = findJoinDate()
-		var/datum/DBQuery/query_add_player = SSdbcore.NewQuery("INSERT INTO [format_table_name("player")] (ckey, byond_key, firstseen, firstseen_round_id, lastseen, lastseen_round_id, ip, computerid, lastadminrank, accountjoindate) VALUES (:ckey, :key, Now(), :round_id, Now(), :round_id, INET_ATON(:ip), :cid, :rank, :joined)",
-			list("ckey" = ckey, "key" = key, "round_id" = text2num(GLOB.round_id) || 0, "ip" = address || "127.0.0.1", "cid" = "[computer_id]", "rank" = admin_rank, "joined" = account_join_date || null))
-		if(!query_add_player.Execute())
-			qdel(query_client_in_db)
-			qdel(query_add_player)
-			return
-		qdel(query_add_player)
-		if(!account_join_date)
-			account_join_date = "Error"
-			account_age = -1
-	qdel(query_client_in_db)
-	var/datum/DBQuery/query_get_client_age = SSdbcore.NewQuery("SELECT firstseen, DATEDIFF(Now(),firstseen), accountjoindate, DATEDIFF(Now(),accountjoindate) FROM [format_table_name("player")] WHERE ckey = :ckey", list("ckey" = ckey))
-	if(!query_get_client_age.Execute())
-		qdel(query_get_client_age)
-		return
-	if(query_get_client_age.NextRow())
-		player_join_date = query_get_client_age.item[1]
-		player_age = text2num(query_get_client_age.item[2])
-		if(!account_join_date)
-			account_join_date = query_get_client_age.item[3]
-			account_age = text2num(query_get_client_age.item[4])
-			if(!account_age)
-				account_join_date = findJoinDate()
-				if(!account_join_date)
-					account_age = -1
-				else
-					var/datum/DBQuery/query_datediff = SSdbcore.NewQuery("SELECT DATEDIFF(Now(), :joined)", list("joined" = account_join_date))
-					if(!query_datediff.Execute())
-						qdel(query_datediff)
-						return
-					if(query_datediff.NextRow())
-						account_age = text2num(query_datediff.item[1])
-					qdel(query_datediff)
-	qdel(query_get_client_age)
-	if(!new_player)
-		var/datum/DBQuery/query_log_player = SSdbcore.NewQuery("UPDATE [format_table_name("player")] SET lastseen = Now(), lastseen_round_id = :round_id, ip = INET_ATON(:ip), computerid = :cid, lastadminrank = :rank, accountjoindate = :joined WHERE ckey = :ckey",
-			list("round_id" = text2num(GLOB.round_id) || 0, "ip" = address || "127.0.0.1", "cid" = "[computer_id]", "rank" = admin_rank, "joined" = account_join_date || null, "ckey" = ckey))
-		if(!query_log_player.Execute())
-			qdel(query_log_player)
-			return
-		qdel(query_log_player)
-	if(!account_join_date)
-		account_join_date = "Error"
-	var/datum/DBQuery/query_log_connection = SSdbcore.NewQuery("INSERT INTO [format_table_name("connection_log")] (datetime, server_ip, server_port, round_id, ckey, ip, computerid) VALUES (Now(), INET_ATON(:server_ip), :server_port, :round_id, :ckey, INET_ATON(:ip), :cid)",
-		list("server_ip" = world.internet_address || "0", "server_port" = world.port, "round_id" = text2num(GLOB.round_id) || 0, "ckey" = ckey, "ip" = address || "127.0.0.1", "cid" = computer_id))
-	query_log_connection.Execute()
-	qdel(query_log_connection)
+	db_login_write(ckey, key, address || "127.0.0.1", "[computer_id]", admin_rank)
 	if(new_player)
-		player_age = -1
-	. = player_age
+		player_join_date = SQLtime()
+		player_age = 0
+	else
+		player_join_date = row["firstseen"]
+		player_age = text2num(row["age"])
+	account_join_date = row["joined"]
+	account_age = text2num(row["account_age"])
+	if(!account_join_date || !account_age) //never fetched, or made today (it may be a new account): ask byond.com, without waiting on it
+		account_join_date = "Checking..."
+		account_age = -1
+		INVOKE_ASYNC(src, PROC_REF(fetch_account_age))
+	. = new_player ? -1 : player_age
+
+/// What the login needs from the player table, in one query (one row even for a new player): exists, firstseen, age (days),
+/// joined (the BYOND account's date), account_age (days), last_cid, related_ip and related_cid (other ckeys seen on that IP or
+/// computer, "" if none). Null if the database didn't answer.
+/proc/db_login_read(ckey, ip, cid)
+	var/player = format_table_name("player")
+	var/datum/DBQuery/query_login = SSdbcore.NewQuery({"SELECT p.ckey IS NOT NULL, p.firstseen, DATEDIFF(NOW(), p.firstseen), p.accountjoindate, DATEDIFF(NOW(), p.accountjoindate), p.computerid,
+		(SELECT GROUP_CONCAT(r.ckey ORDER BY r.ckey SEPARATOR ', ') FROM [player] AS r WHERE r.ip = INET_ATON(:ip) AND r.ckey != :ckey),
+		(SELECT GROUP_CONCAT(r.ckey ORDER BY r.ckey SEPARATOR ', ') FROM [player] AS r WHERE r.computerid = :cid AND r.ckey != :ckey)
+		FROM (SELECT 1) AS one LEFT JOIN [player] AS p ON p.ckey = :ckey"}, list("ckey" = ckey, "ip" = ip, "cid" = cid))
+	if(!query_login.Execute() || !query_login.NextRow())
+		qdel(query_login)
+		return
+	var/list/i = query_login.item
+	. = list("exists" = text2num(i[1]), "firstseen" = i[2], "age" = i[3], "joined" = i[4], "account_age" = i[5], "last_cid" = i[6], "related_ip" = "[i[7]]", "related_cid" = "[i[8]]")
+	qdel(query_login)
+
+/// The login's writes, both at once and without holding the login up: the player's row (made, or seen again: key, IP, computer,
+/// rank) and the connection log.
+/proc/db_login_write(ckey, key, ip, cid, rank)
+	set waitfor = FALSE
+	var/round_id = text2num(GLOB.round_id) || 0
+	var/datum/DBQuery/query_login_player = SSdbcore.NewQuery({"INSERT INTO [format_table_name("player")] (ckey, byond_key, firstseen, firstseen_round_id, lastseen, lastseen_round_id, ip, computerid, lastadminrank)
+		VALUES (:ckey, :key, NOW(), :round_id, NOW(), :round_id, INET_ATON(:ip), :cid, :rank)
+		ON DUPLICATE KEY UPDATE byond_key = VALUES(byond_key), lastseen = VALUES(lastseen), lastseen_round_id = VALUES(lastseen_round_id), ip = VALUES(ip), computerid = VALUES(computerid), lastadminrank = VALUES(lastadminrank)"},
+		list("ckey" = ckey, "key" = key, "round_id" = round_id, "ip" = ip, "cid" = cid, "rank" = rank))
+	var/datum/DBQuery/query_login_connection = SSdbcore.NewQuery("INSERT INTO [format_table_name("connection_log")] (datetime, server_ip, server_port, round_id, ckey, ip, computerid) VALUES (NOW(), INET_ATON(:server_ip), :server_port, :round_id, :ckey, INET_ATON(:ip), :cid)",
+		list("server_ip" = world.internet_address || "0", "server_port" = world.port, "round_id" = round_id, "ckey" = ckey, "ip" = ip, "cid" = cid))
+	SSdbcore.QuerySelect(list(query_login_player, query_login_connection), qdel = TRUE)
+
+/// The BYOND account's join date from byond.com, after the login: saved, and the admins told if it's a new account
+/client/proc/fetch_account_age()
+	var/joined = findJoinDate()
+	if(QDELETED(src))
+		return
+	if(!joined)
+		account_join_date = "Error"
+		return
+	var/datum/DBQuery/query_account_age = SSdbcore.NewQuery("SELECT DATEDIFF(NOW(), :joined)", list("joined" = joined))
+	if(query_account_age.Execute() && query_account_age.NextRow() && !QDELETED(src))
+		account_join_date = joined
+		account_age = text2num(query_account_age.item[1])
+	qdel(query_account_age)
+	var/datum/DBQuery/query_save_joined = SSdbcore.NewQuery("UPDATE [format_table_name("player")] SET accountjoindate = :joined WHERE ckey = :ckey", list("joined" = joined, "ckey" = ckey))
+	query_save_joined.Execute()
+	qdel(query_save_joined)
+	if(QDELETED(src) || account_age < 0)
+		return
+	if(CONFIG_GET(flag/use_account_age_for_jobs))
+		player_age = account_age
+	var/nnpa = CONFIG_GET(number/notify_new_player_age)
+	if(account_age < nnpa)
+		message_admins("[key_name_admin(src)] (IP: [address], ID: [computer_id]) is a new BYOND account [account_age] day[(account_age==1?"":"s")] old, created on [account_join_date].")
+		if (CONFIG_GET(flag/irc_first_connection_alert))
+			send2irc_adminless_only("new_byond_user", "[key_name(src)] (IP: [address], ID: [computer_id]) is a new BYOND account [account_age] day[(account_age==1?"":"s")] old, created on [account_join_date].")
+// hippie end
 
 /client/proc/findJoinDate()
 	var/list/http = world.Export("http://byond.com/members/[ckey]?format=text")
@@ -611,7 +615,8 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 			else
 				CRASH("Key check regex failed for [ckey]")
 
-/client/proc/check_randomizer(topic)
+/// lastcid_known: the login's read already has their last computer ID (lastcid), so it isn't queried again
+/client/proc/check_randomizer(topic, lastcid, lastcid_known = FALSE)
 	. = FALSE
 	if (connection != "seeker")
 		return
@@ -622,13 +627,12 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 	var/static/tokens = list()
 	var/static/cidcheck_failedckeys = list() //to avoid spamming the admins if the same guy keeps trying.
 	var/static/cidcheck_spoofckeys = list()
-	var/datum/DBQuery/query_cidcheck = SSdbcore.NewQuery("SELECT computerid FROM [format_table_name("player")] WHERE ckey = :ckey", list("ckey" = ckey))
-	query_cidcheck.Execute()
-
-	var/lastcid
-	if (query_cidcheck.NextRow())
-		lastcid = query_cidcheck.item[1]
-	qdel(query_cidcheck)
+	if(!lastcid_known)
+		var/datum/DBQuery/query_cidcheck = SSdbcore.NewQuery("SELECT computerid FROM [format_table_name("player")] WHERE ckey = :ckey", list("ckey" = ckey))
+		query_cidcheck.Execute()
+		if (query_cidcheck.NextRow())
+			lastcid = query_cidcheck.item[1]
+		qdel(query_cidcheck)
 	var/oldcid = cidcheck[ckey]
 
 	if (oldcid)
