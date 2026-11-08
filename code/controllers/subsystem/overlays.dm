@@ -64,10 +64,9 @@ SUBSYSTEM_DEF(overlays)
 			new_overlays += icon2appearance(overlay)
 		else
 			appearance_bro.appearance = overlay //this works for images and atoms too!
-			// hippie -- BYOND stores every overlay with dir 0 (it follows its parent's), so one given any other dir is not
-			// the same appearance as the stored copy: |= added it again and "in" never found it. Copying the source's dir
-			// here (as this used to) made every image or mutable_appearance overlay pile up when re-added.
-			appearance_bro.dir = 0
+			// hippie -- leave dir alone: .appearance already carries the source's dir on 516. Setting it by hand made a
+			// different appearance from the stored copy (|= piled duplicates, the fire stacking), and zeroing it turned
+			// every overlay with its own dir (floor decals on a south-facing turf) to face south.
 			new_overlays += appearance_bro.appearance
 	return new_overlays
 
