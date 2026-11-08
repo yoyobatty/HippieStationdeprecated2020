@@ -1,0 +1,13 @@
+[package]
+name = "hippie_path"
+version = "1.0.0"
+edition = "2021"
+description = "Hippie's path engine: the bots' A* searches, with DM saying what each tile allows (hippiestation/code/modules/bots_ai/bot_path_engine.dm)"
+
+# No dependencies: it talks to BYOND through two functions it looks up in byondcore.dll itself (see src/lib.rs)
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 3
+panic = "unwind"

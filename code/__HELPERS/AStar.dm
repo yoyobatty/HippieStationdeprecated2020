@@ -170,6 +170,11 @@ GLOBAL_LIST_INIT(astar_tally, list("searches" = 0, "failed" = 0, "turfs" = 0, "f
 		if(call(start, dist)(end) > maxnodes)
 			return FALSE
 		maxnodedepth = maxnodes //no need to consider path longer than maxnodes
+	// hippie -- the bots' own searches go to the path engine, which finds the same path (hippiestation/code/modules/bots_ai/bot_path_engine.dm)
+	if(path_engine_takes(dist, adjacent, explored))
+		var/native = path_engine_astar(caller, start, end, dist, maxnodedepth, mintargetdist, adjacent, id, exclude, simulated_only, explored)
+		if(native != PATH_ENGINE_FALLBACK)
+			return native
 	var/list/open = list() //the open list - hippie -- a heap kept in a plain list, see astar_open_swim() above
 	var/list/openc = new() //open list for node check
 	var/list/path = null //the returned path, if any

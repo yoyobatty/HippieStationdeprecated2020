@@ -10,6 +10,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/__DEFINES/misc.dm
 ## code/__DEFINES/mobs.dm
 ## code/__DEFINES/role_preferences.dm
+## code/__HELPERS/AStar.dm
 ## code/__HELPERS/unsorted.dm
 ## code/\_onclick/item_attack.dm
 ## code/controllers/failsafe.dm

@@ -3411,6 +3411,7 @@
 #include "hippiestation\code\modules\bots_ai\bot_law.dm"
 #include "hippiestation\code\modules\bots_ai\bot_lifecycle.dm"
 #include "hippiestation\code\modules\bots_ai\bot_movement.dm"
+#include "hippiestation\code\modules\bots_ai\bot_path_engine.dm"
 #include "hippiestation\code\modules\bots_ai\bot_pathing_permissive.dm"
 #include "hippiestation\code\modules\bots_ai\bot_personality.dm"
 #include "hippiestation\code\modules\bots_ai\bot_playstyles.dm"
