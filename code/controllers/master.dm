@@ -45,7 +45,23 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 	var/initializations_finished_with_no_players_logged_in	//I wonder what this could be?
 
 	// The type of the last subsystem to be process()'d.
+	// hippie -- only while the MC is inside that subsystem's turn: cleared once its fire() hands back, so a restart blames a
+	// subsystem only when the MC really stopped in it (RunQueue runtimed on it), not whichever one happened to run last.
 	var/last_type_processed
+
+	/// hippie -- held by Loop()'s stack: the Failsafe restarts the MC straight away when that stack is gone (ported from tg)
+	var/datum/stack_end_detector/stack_end_detector
+	/// hippie -- average share of the tick (%) already used by other procs when the MC got its turn: the lag that isn't the MC's
+	var/pre_mc_usage = 0
+	/// hippie -- the last fire() that held the server for over 1 s (subsystem.dm ignite()): list(name, ms, world.time) (mc_watchdog.dm)
+	var/list/last_long_fire
+	/// hippie -- the most ticks Loop() backs off by when other procs keep using up the tick first (tools/mc_check lifts it to compare)
+	var/static/sleep_delta_max = MC_SLEEP_DELTA_MAX
+	/// hippie -- how many turns in a row Loop() skips because other code used up the tick, before it runs anyway (tools/mc_check
+	/// lifts it to compare)
+	var/static/contention_force_after = MC_CONTENTION_SKIPS_MAX
+	/// hippie -- tools/mc_check only: added to the tick usage Loop() finds at its turn, as if other code had used that much
+	var/static/contention_test_usage = 0
 
 	var/datum/controller/subsystem/queue_head //Start of queue linked list
 	var/datum/controller/subsystem/queue_tail //End of queue linked list (used for appending to the list)
@@ -111,10 +127,12 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 	. = -1 //so if we runtime, things know we failed
 	if (world.time < Master.restart_timeout)
 		return 0
-	if (world.time < Master.restart_clear)
+	// hippie -- quiet since the last restart: forget half of them. This was <, which halved the count on quick repeats instead, so
+	// an MC that kept dying was restarted every 10 s forever rather than given longer each time. Capped at 30 s between restarts.
+	if (world.time >= Master.restart_clear)
 		Master.restart_count *= 0.5
 
-	var/delay = 50 * ++Master.restart_count
+	var/delay = min(50 * ++Master.restart_count, 30 SECONDS)
 	Master.restart_timeout = world.time + delay
 	Master.restart_clear = world.time + (delay * 2)
 	Master.processing = FALSE //stop ticking this one
@@ -145,16 +163,25 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 	if(istype(BadBoy))
 		msg = null
 		LAZYINITLIST(BadBoy.failure_strikes)
-		switch(++BadBoy.failure_strikes[BadBoy.type])
+		// hippie -- the third strike takes it offline for 5 minutes, then it gets one more chance; another strike after that keeps
+		// it off until an admin turns it back on (the user's ruling, 2026-11-07). SS_NO_FIRE took it out of the MC's lists for the
+		// rest of the round: with SSair that was no atmos until the next round. can_fire = FALSE can be undone.
+		var/strikes = ++BadBoy.failure_strikes[BadBoy.type]
+		switch(strikes)
 			if(2)
-				msg = "The [BadBoy.name] subsystem was the last to fire for 2 controller restarts. It will be recovered now and disabled if it happens again."
+				msg = "The [BadBoy.name] subsystem stopped the MC for 2 controller restarts. It will be recovered now and taken offline if it happens again."
 				FireHim = TRUE
 			if(3)
-				msg = "The [BadBoy.name] subsystem seems to be destabilizing the MC and will be offlined."
-				BadBoy.flags |= SS_NO_FIRE
+				msg = "The [BadBoy.name] subsystem keeps stopping the MC. It's offline for 5 minutes, then it gets one more chance."
+				mc_watchdog_take_offline(BadBoy, MC_WATCHDOG_OFFLINE_RETRY)
+		if(strikes > 3)
+			msg = "The [BadBoy.name] subsystem stopped the MC again after its second chance. It stays offline until an admin turns it back on."
+			mc_watchdog_take_offline(BadBoy, 0)
 		if(msg)
-			to_chat(GLOB.admins, "<span class='boldannounce'>[msg]</span>")
 			log_world(msg)
+			mc_watchdog_alert(msg, strikes > 2 ? BadBoy : null)
+	else
+		log_world("MC restarted with no subsystem to blame: it stopped outside every subsystem's fire().")
 
 	if (istype(Master.subsystems))
 		if(FireHim)
@@ -313,6 +340,8 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 		SS.queued_time = 0
 		SS.queue_next = null
 		SS.queue_prev = null
+		if (SS.state == SS_SLEEPING || SS.state == SS_PAUSING)
+			SS.fire_generation++ // hippie -- its old fire() may still wake: it mustn't touch the state of runs after this
 		SS.state = SS_IDLE
 		if (SS.flags & SS_TICKER)
 			tickersubsystems += SS
@@ -349,12 +378,20 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 	iteration = 1
 	var/error_level = 0
 	var/sleep_delta = 1
+	var/contention_skips = 0 // hippie -- turns skipped in a row because other code had used up the tick
 	var/list/subsystems_to_check
+
+	// hippie -- the stack end detector (ported from tg): this local is the canary's only reference, so it's deleted the moment this
+	// proc's stack is gone, however that happened, and the Failsafe sees it at once instead of waiting out its countdown
+	stack_end_detector = new()
+	var/datum/stack_canary/canary = stack_end_detector.prime_canary()
+	canary.use_variable()
 	//the actual loop.
 
 	while (1)
 		tickdrift = max(0, MC_AVERAGE_FAST(tickdrift, (((REALTIMEOFDAY - init_timeofday) - (world.time - init_time)) / world.tick_lag)))
-		var/starting_tick_usage = TICK_USAGE
+		var/starting_tick_usage = TICK_USAGE + contention_test_usage
+		pre_mc_usage = MC_AVERAGE_FAST(pre_mc_usage, starting_tick_usage) // hippie
 		if (processing <= 0)
 			current_ticklimit = TICK_LIMIT_RUNNING
 			sleep(10)
@@ -363,11 +400,21 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 		//Anti-tick-contention heuristics:
 		//if there are mutiple sleeping procs running before us hogging the cpu, we have to run later.
 		//	(because sleeps are processed in the order received, longer sleeps are more likely to run first)
+		var/forced = FALSE
 		if (starting_tick_usage > TICK_LIMIT_MC) //if there isn't enough time to bother doing anything this tick, sleep a bit.
-			sleep_delta *= 2
-			current_ticklimit = TICK_LIMIT_RUNNING * 0.5
-			sleep(world.tick_lag * (processing * sleep_delta))
-			continue
+			// hippie -- but not for ever. When other code woke before the MC and used up every tick (a proc started from a
+			// subsystem's turn that keeps going, a griefer's), the MC skipped every turn without going round, so the
+			// Failsafe restarted it again and again and no subsystem ran at all. After 2 skips in a row it runs anyway, with
+			// one tick's normal budget on top of what's been used.
+			if (contention_skips < contention_force_after)
+				contention_skips++
+				// hippie -- capped: it doubled with every skip in a row, with no limit
+				sleep_delta = min(sleep_delta * 2, sleep_delta_max)
+				current_ticklimit = TICK_LIMIT_RUNNING * 0.5
+				sleep(world.tick_lag * (processing * sleep_delta))
+				continue
+			forced = TRUE
+		contention_skips = 0
 
 		//Byond resumed us late. assume it might have to do the same next tick
 		if (last_run + CEILING(world.tick_lag * (processing * sleep_delta), world.tick_lag) < world.time)
@@ -416,7 +463,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 			continue
 
 		if (queue_head)
-			if (RunQueue() <= 0)
+			if (RunQueue(forced) <= 0)
 				if (!SoftReset(tickersubsystems, runlevel_sorted_subsystems))
 					log_world("MC: SoftReset() failed, crashing")
 					return
@@ -473,7 +520,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 
 
 // Run thru the queue of subsystems to run, running them while balancing out their allocated tick precentage
-/datum/controller/master/proc/RunQueue()
+/datum/controller/master/proc/RunQueue(forced = FALSE)
 	. = 0
 	var/datum/controller/subsystem/queue_node
 	var/queue_node_flags
@@ -487,17 +534,23 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 	var/ran_non_ticker = FALSE
 	var/bg_calc //have we swtiched current_tick_budget to background mode yet?
 	var/tick_usage
+	var/mc_limit = TICK_LIMIT_MC
+	var/run_limit = TICK_LIMIT_RUNNING
+	if (forced) // hippie -- other code used up the tick twice running before the MC's turn (Loop()): one tick's normal budget on top
+		mc_limit += TICK_USAGE
+		run_limit += TICK_USAGE
 
 	//keep running while we have stuff to run and we haven't gone over a tick
 	//	this is so subsystems paused eariler can use tick time that later subsystems never used
-	while (ran && queue_head && TICK_USAGE < TICK_LIMIT_MC)
+	while (ran && queue_head && TICK_USAGE < mc_limit)
 		ran = FALSE
 		bg_calc = FALSE
 		current_tick_budget = queue_priority_count
 		queue_node = queue_head
 		while (queue_node)
-			if (ran && TICK_USAGE > TICK_LIMIT_RUNNING)
+			if (ran && TICK_USAGE > run_limit)
 				break
+			last_type_processed = queue_node // hippie -- from the start of its turn: a runtime anywhere in it is put down to it
 			queue_node_flags = queue_node.flags
 			queue_node_priority = queue_node.queued_priority
 
@@ -510,7 +563,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 			//(unless we haven't even ran anything this tick, since its unlikely they will ever be able run
 			//	in those cases, so we just let them run)
 			if (queue_node_flags & SS_NO_TICK_CHECK)
-				if (queue_node.tick_usage > TICK_LIMIT_RUNNING - TICK_USAGE && ran_non_ticker)
+				if (queue_node.tick_usage > run_limit - TICK_USAGE && ran_non_ticker)
 					if (!(queue_node_flags & SS_BACKGROUND))
 						queue_node.queued_priority += queue_priority_count * 0.1
 						queue_priority_count -= queue_node_priority
@@ -523,7 +576,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 				current_tick_budget = queue_priority_count_bg
 				bg_calc = TRUE
 
-			tick_remaining = TICK_LIMIT_RUNNING - TICK_USAGE
+			tick_remaining = run_limit - TICK_USAGE
 
 			if (current_tick_budget > 0 && queue_node_priority > 0)
 				tick_precentage = tick_remaining / (current_tick_budget / queue_node_priority)
@@ -539,7 +592,6 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 			ran = TRUE
 
 			queue_node_paused = (queue_node.state == SS_PAUSED || queue_node.state == SS_PAUSING)
-			last_type_processed = queue_node
 
 			queue_node.state = SS_RUNNING
 
@@ -557,6 +609,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 			queue_node.total_ms += TICK_DELTA_TO_MS(tick_usage) //hippie
 			queue_node.tick_overrun = max(0, MC_AVG_FAST_UP_SLOW_DOWN(queue_node.tick_overrun, tick_usage-tick_precentage))
 			queue_node.state = state
+			last_type_processed = null // hippie -- its turn is over: a stall from here on isn't its doing
 
 			if (state == SS_PAUSED)
 				queue_node.paused_ticks++
@@ -597,6 +650,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 
 			queue_node = queue_node.queue_next
 
+	last_type_processed = null // hippie -- nodes skipped above set it without running
 	. = 1
 
 //resets the queue, and all subsystems, while filtering out the subsystem lists
@@ -629,6 +683,8 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 		SS.queue_prev = null
 		SS.queued_priority = 0
 		SS.queued_time = 0
+		if (SS.state == SS_SLEEPING || SS.state == SS_PAUSING)
+			SS.fire_generation++ // hippie -- see Loop()
 		SS.state = SS_IDLE
 	if (queue_head && !istype(queue_head))
 		log_world("MC: SoftReset: Found bad data in subsystem queue, queue_head = '[queue_head]'")

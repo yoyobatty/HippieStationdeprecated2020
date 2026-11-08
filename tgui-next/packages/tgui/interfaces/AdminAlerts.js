@@ -16,6 +16,7 @@ const KIND_ICONS = {
   gas: 'smog',
   emag: 'credit-card',
   ticket: 'question-circle',
+  server: 'server',
 };
 
 const DISCORD_MODES = {

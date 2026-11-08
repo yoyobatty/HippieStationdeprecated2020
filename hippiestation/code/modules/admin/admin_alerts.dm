@@ -9,6 +9,8 @@
 //	Gas        a canister of plasma or another dangerous gas opened into the air
 //	Emag       an emag used by someone who isn't an antagonist
 //	Ticket     an ahelp waiting three minutes for an answer with admins on
+//	Server     the MC restarted or a subsystem taken offline, a subsystem stuck asleep, the server frozen or crawling
+//	           (hippiestation/code/controllers/mc_watchdog.dm)
 // An admin can mute a kind in their own chat; the window keeps every alert. Most rules read the round log (round_log.dm) as it's
 // written, so they sit here and not in the code they watch.
 
@@ -22,6 +24,7 @@ GLOBAL_LIST_INIT(admin_alert_kinds, list(
 	"gas" = "Gas",
 	"emag" = "Emag",
 	"ticket" = "Ticket",
+	"server" = "Server",
 ))
 
 /// Where each admin's muted kinds are kept (a check run points it elsewhere)
@@ -51,6 +54,8 @@ GLOBAL_VAR_INIT(admin_alert_mutes_path, "data/admin_alert_mutes.json")
 	/// The admin who said they're on it: their key as shown, and their ckey
 	var/handled_by
 	var/handled_ckey
+	/// Admin links for its chat line only, as HTML (the MC watchdog's "turn it back on")
+	var/chat_links
 
 SUBSYSTEM_DEF(admin_alerts)
 	name = "Admin Alerts"
@@ -279,7 +284,7 @@ SUBSYSTEM_DEF(admin_alerts)
 // Raising one
 ////////////////////
 
-/datum/controller/subsystem/admin_alerts/proc/raise(kind, text, bad, atom/where, atom/actor, atom/target, merge_key, merge_window = 2 MINUTES)
+/datum/controller/subsystem/admin_alerts/proc/raise(kind, text, bad, atom/where, atom/actor, atom/target, merge_key, merge_window = 2 MINUTES, chat_links)
 	if(merge_key)
 		for(var/i in alerts.len to max(1, alerts.len - 30) step -1)
 			var/datum/admin_alert/old = alerts[i]
@@ -296,6 +301,7 @@ SUBSYSTEM_DEF(admin_alerts)
 	A.text = text
 	A.bad = bad
 	A.merge_key = merge_key
+	A.chat_links = chat_links
 	var/turf/T = get_turf(where || actor)
 	if(T)
 		A.x = T.x
@@ -328,6 +334,8 @@ SUBSYSTEM_DEF(admin_alerts)
 		links += ADMIN_FLW(M)
 		if(M.ckey)
 			links += ADMIN_SEARCHLOGS(M)
+	if(A.chat_links)
+		links += A.chat_links
 	links += "(<a href='?_src_=holder;[HrefToken(TRUE)];adminalerts=[A.id]'>ALERTS</a>)"
 	var/line = "<span class='adminnotice'><b><font color='[A.bad ? "#e05050" : "#e8a33c"]'>ALERT</font> [GLOB.admin_alert_kinds[A.kind]]:</b> [html_encode(A.text)] [jointext(links, " ")]</span>"
 	load_mutes()

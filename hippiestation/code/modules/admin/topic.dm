@@ -59,6 +59,10 @@
 		if(check_rights(R_ADMIN))
 			usr.client.open_admin_alerts(text2num(href_list["adminalerts"]), TRUE)
 		return
+	if(href_list["mcwatchdog"]) // TURN IT ON / START IT NOW on a Server alert (mc_watchdog.dm)
+		if(check_rights(R_DEBUG))
+			mc_watchdog_admin_action(href_list["mcwatchdog"], text2path(href_list["ss"]))
+		return
 	if(href_list["makeAntag"] == "shadowling")
 		hippie_makeShadowling(src)
 	else if(href_list["makeAntag"] == "vampire")

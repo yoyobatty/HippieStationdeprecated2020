@@ -35,6 +35,17 @@
 	var/runlevels = RUNLEVELS_DEFAULT	//points of the game at which the SS can fire
 
 	var/static/list/failure_strikes //How many times we suspect a subsystem type has crashed the MC, 3 strikes and you're out!
+
+	// hippie -- MC health (hippiestation/code/controllers/mc_watchdog.dm)
+	/// Bumped when the MC gives up on a fire() that slept and never came back: that fire() may still wake, and mustn't touch the
+	/// state of the runs after it
+	var/fire_generation = 0
+	/// Taken offline for stopping the MC: the world.time it gets its last chance, or -1 for "until an admin turns it back on"
+	var/watchdog_offline = 0
+	/// When the watchdog first saw its fire() asleep (world.time), which fire() that was (times_fired), whether admins were told
+	var/asleep_since = 0
+	var/asleep_fire = 0
+	var/asleep_warned = FALSE
 	//Do not blindly add vars here to the bottom, put it where it goes above
 	//If your var only has two values, put it in as a flag.
 
@@ -52,7 +63,18 @@
 /datum/controller/subsystem/proc/ignite(resumed = FALSE)
 	set waitfor = FALSE
 	. = SS_SLEEPING
+	var/generation = fire_generation
+	var/started_real = REALTIMEOFDAY
+	var/started_time = world.time
 	fire(resumed)
+	// hippie -- held the server for over a second of real time beyond the game time that passed: the MC watchdog's freeze
+	// report names it. Timed around the whole call, because BYOND can pause a long busy proc and finish it later in the
+	// same tick or the next, outside the MC's own timing of this call.
+	var/held = (REALTIMEOFDAY - started_real) - (world.time - started_time)
+	if (held * 100 > MC_LONG_FIRE_MS && world.time - started_time <= world.tick_lag * 2) // a long sleep through lag isn't holding it
+		Master.last_long_fire = list(name, held * 100, world.time)
+	if (generation != fire_generation) // hippie -- woke after the MC gave up on it and started it afresh: the state is the new run's
+		return
 	. = state
 	if (state == SS_SLEEPING)
 		state = SS_IDLE
@@ -210,6 +232,7 @@
 			//this is so the subsystem doesn't rapid fire to make up missed ticks causing more lag
 			if (var_value)
 				next_fire = world.time + wait
+				watchdog_offline = 0 // hippie -- an admin turned it back on
 		if ("queued_priority") //editing this breaks things.
 			return 0
 	. = ..()

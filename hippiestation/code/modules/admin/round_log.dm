@@ -141,5 +141,20 @@ GLOBAL_VAR_INIT(round_log_quiet, FALSE)
 			return "last hurt by [entry[RL_CKEY] ? "[entry[RL_CKEY]]/" : ""]([entry[RL_NAME]]), [round((world.time - entry[RL_TIME]) / 10)] s before"
 	return "nobody hurt them in the last 3 minutes"
 
+/// The round log's lines between two world.times (of one category if given), at most `count`, newest last: the MC watchdog's
+/// freeze and lag reports (mc_watchdog.dm)
+/proc/round_log_between(from_time, to_time, count, category)
+	. = list()
+	var/list/log = GLOB.round_log
+	for(var/i in log.len to 1 step -1)
+		var/list/entry = log[i]
+		if(entry[RL_TIME] < from_time)
+			break
+		if(entry[RL_TIME] > to_time || (category && entry[RL_CAT] != category))
+			continue
+		. = list(copytext_char("[entry[RL_TEXT]]", 1, 120)) + .
+		if(length(.) >= count)
+			break
+
 #undef ROUND_LOG_MAX
 #undef ROUND_LOG_TRIM

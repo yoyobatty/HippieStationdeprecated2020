@@ -75,3 +75,13 @@
     PreInit();\
 }\
 /datum/controller/subsystem/processing/##X
+
+// hippie -- MC health (code/controllers/master.dm, failsafe.dm, hippiestation/code/controllers/mc_watchdog.dm)
+/// The most ticks the MC backs off by when other procs keep using up the tick before its turn
+#define MC_SLEEP_DELTA_MAX 8
+/// A single slice of a fire() longer than this (ms) is remembered for the freeze report
+#define MC_LONG_FIRE_MS 1000
+/// How long a subsystem that kept stopping the MC stays offline before its last chance
+#define MC_WATCHDOG_OFFLINE_RETRY (5 MINUTES)
+/// How many turns in a row the MC skips because other code used up the tick, before it runs anyway
+#define MC_CONTENTION_SKIPS_MAX 2

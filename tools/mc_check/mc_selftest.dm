@@ -1,0 +1,334 @@
+// MC health self-test: breaks the MC each way the watchdog and the Failsafe are meant to catch, in the real engine, headless.
+//
+// Run:      tools/mc_check/run_mc_check.sh   (builds its own copy, so hippiestation.dmb is left alone)
+// Results:  data/mc_check/results.txt, one PASS/FAIL line per check, with what each alert said.
+//
+// 1 The stack end detector, then the MC's loop "gone": the Failsafe restarts it at once, no subsystem blamed.
+// 2 A freeze outside the MC (an admin action and a click just before it): reported with both, no admin token in it.
+// 3 A freeze inside a subsystem's fire(): reported with the subsystem's name.
+// 4 A fire() that sleeps 75 s: warned at 10 s, started afresh at 60 s, and its old fire() waking later leaves the state alone.
+// 5 Other code taking 2.5 ticks of every tick, 30 s: the lag alert. Then the MC finding each tick used up at its turn: with
+//   the cap and the forced turn, with the cap only, and as it was (no cap, no forced turn), compared.
+// 6 A subsystem that crashes the MC's RunQueue: strikes 1-4, offline 5 minutes then its last chance, then off until an admin.
+
+/datum/controller/master/Initialize(delay, init_sss, tgs_prime)
+	if("mc-selftest" in world.params)
+		sleep_offline_after_initializations = FALSE //nobody connects to this, so the world has to keep ticking
+		INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(run_mc_selftest))
+	return ..()
+
+#define MC_CHECK_DIR "data/mc_check/"
+
+SUBSYSTEM_DEF(mctest)
+	name = "MC test"
+	wait = 1 SECONDS
+	flags = SS_NO_INIT
+	runlevels = RUNLEVEL_LOBBY | RUNLEVELS_DEFAULT
+	var/mode = "idle"
+	var/sleep_for = 0
+	var/hog_for = 0
+	var/stale_woke = FALSE
+	var/hogging = FALSE
+	var/fires = 0
+
+/datum/controller/subsystem/mctest/fire(resumed)
+	fires++
+	switch(mode)
+		if("sleep")
+			mode = "idle"
+			sleep(sleep_for)
+			stale_woke = TRUE
+		if("hog")
+			mode = "idle"
+			mc_check_busy(hog_for)
+		if("hog_ticks")
+			mode = "idle"
+			INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(mc_check_hog_ticks), 2.5, 30 SECONDS)
+
+/// Keep the server busy for `ds` deciseconds of real time without sleeping
+/proc/mc_check_busy(ds)
+	var/end = REALTIMEOFDAY + ds
+	var/x = 0
+	while(REALTIMEOFDAY < end)
+		for(var/i in 1 to 2000)
+			x += sqrt(i)
+	return x
+
+/proc/run_mc_selftest()
+	sleep(5 SECONDS)
+	fdel(MC_CHECK_DIR)
+	GLOB.master_mode = "extended"
+	SSticker.start_immediately = TRUE
+	var/round_deadline = world.time + 3 MINUTES
+	while(SSticker.current_state < GAME_STATE_PLAYING && world.time < round_deadline)
+		sleep(1 SECONDS)
+	sleep(5 SECONDS)
+	var/datum/mc_selftest/test = new
+	test.run_all()
+	text2file(jointext(test.lines, "\n"), "[MC_CHECK_DIR]results.txt")
+	log_world("MC CHECK: done, [test.passed] passed, [test.failed] failed")
+	Master.Shutdown()
+	qdel(world)
+
+/datum/mc_selftest
+	var/list/lines = list()
+	var/passed = 0
+	var/failed = 0
+	var/last_alert_id = 0
+	var/min_defcon = 5
+	var/watching_defcon = FALSE
+
+/datum/mc_selftest/proc/check(name, condition, detail)
+	if(condition)
+		passed++
+	else
+		failed++
+	lines += "[condition ? "PASS" : "FAIL"] [name][isnull(detail) ? "" : " - [detail]"]"
+	text2file("[condition ? "PASS" : "FAIL"] [name][isnull(detail) ? "" : " - [detail]"]", "[MC_CHECK_DIR]progress.txt")
+
+/datum/mc_selftest/proc/note(text)
+	lines += "     [text]"
+	text2file("     [text]", "[MC_CHECK_DIR]progress.txt")
+
+/// The first Server alert since the last one looked at whose text has `find`, waiting up to `timeout`
+/datum/mc_selftest/proc/wait_alert(find, timeout)
+	var/deadline = world.time + timeout
+	while(world.time <= deadline)
+		for(var/datum/admin_alert/A as anything in SSadmin_alerts.alerts)
+			if(A.id <= last_alert_id || A.kind != "server")
+				continue
+			if(findtext(A.text, find))
+				last_alert_id = A.id
+				return A
+		sleep(2)
+
+/datum/mc_selftest/proc/latest_alert_id()
+	var/list/alerts = SSadmin_alerts.alerts
+	return alerts.len ? alerts[alerts.len].id : 0
+
+/datum/mc_selftest/proc/watch_defcon()
+	set waitfor = FALSE
+	watching_defcon = TRUE
+	min_defcon = 5
+	while(watching_defcon)
+		min_defcon = min(min_defcon, Failsafe.defcon)
+		sleep(1)
+
+/datum/mc_selftest/proc/run_all()
+	check("round started", SSticker.current_state >= GAME_STATE_PLAYING, "state [SSticker.current_state]")
+	check("watchdog running", MCWatchdog && MCWatchdog.lasttick >= world.time - 1 SECONDS, "last woke [MCWatchdog ? world.time - MCWatchdog.lasttick : "never"] ds ago")
+	check("test subsystem firing", SSmctest.fires > 0, "[SSmctest.fires] fires")
+	last_alert_id = latest_alert_id()
+	// dd -invisible reports world.sleep_offline as 1 and won't take 0, though the world keeps ticking: without this the watchdog
+	// takes the freezes for the world asleep with nobody on
+	MCWatchdog.watch_with_nobody_on = TRUE
+	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "asleep", "lag", "strikes")
+	if(world.params["mc-steps"]) // STEPS=freeze_outside,lag on the runner: only those
+		steps = splittext(world.params["mc-steps"], ",")
+	for(var/step in steps)
+		try
+			call(src, step)()
+		catch(var/exception/e)
+			check("[step] ran to the end", FALSE, "[e] at [e.file]:[e.line]")
+	var/datum/mc_watchdog/W = MCWatchdog
+	note("watchdog tick cost [round(W.tick_cost_ms, 0.001)] ms average")
+
+/datum/mc_selftest/proc/hold_canary(datum/stack_end_detector/D, ds)
+	set waitfor = FALSE
+	var/datum/stack_canary/canary = D.prime_canary()
+	canary.use_variable()
+	sleep(ds)
+
+/datum/mc_selftest/proc/stack_end()
+	var/datum/stack_end_detector/D = new
+	hold_canary(D, 10)
+	sleep(2)
+	check("stack end detector: true while the stack holds the canary", D.check())
+	sleep(15)
+	check("stack end detector: false once that stack has ended", !D.check())
+	var/datum/controller/master/old_master = Master
+	var/strikes_before = length(SSmctest.failure_strikes)
+	var/old_iteration = Master.iteration
+	Master.stack_end_detector = D // as if Loop()'s stack were gone
+	var/began = world.time
+	while(Master == old_master && world.time - began < 10 SECONDS)
+		sleep(1)
+	check("the Failsafe restarts an MC whose loop is gone", Master != old_master, "in [(world.time - began) / 10] s (the DEFCON countdown took ~12 s)")
+	sleep(3 SECONDS)
+	check("the new MC runs", Master.iteration > 1 && Master.stack_end_detector?.check(), "iteration [Master.iteration], old one stopped at [old_iteration]")
+	var/datum/admin_alert/A = wait_alert("loop stopped", 2 SECONDS)
+	check("admins told the loop stopped", A, A?.text)
+	check("no subsystem blamed for it", length(SSmctest.failure_strikes) == strikes_before, "strikes [json_encode(SSmctest.failure_strikes)]")
+
+/datum/mc_selftest/proc/freeze_outside()
+	round_log_add("Admin", "Testadmin spawned 500 singularities at the bar.")
+	var/i = mc_watchdog_action_next
+	mc_watchdog_actions[i] = list(REALTIMEOFDAY, "testadmin", "?_src_=holder;admin_token=SECRETTOKEN;spawn_many=500")
+	mc_watchdog_action_next = i >= length(mc_watchdog_actions) ? 1 : i + 1
+	mc_check_busy(6 SECONDS)
+	var/datum/admin_alert/A = wait_alert("froze for", 3 SECONDS)
+	check("freeze outside the MC alerted", A, A?.text)
+	check("it names the admin action from the round log", A && findtext(A.text, "500 singularities"))
+	check("it names the click just before", A && findtext(A.text, "testadmin") && findtext(A.text, "spawn_many"))
+	check("no admin token in it", A && !findtext(A.text, "SECRETTOKEN"))
+	var/secs = A ? text2num(copytext(A.text, findtext(A.text, "froze for ") + 10)) : 0
+	check("it says how long", secs >= 5.5 && secs <= 7.5, "[secs] s for a 6 s freeze")
+
+/datum/mc_selftest/proc/freeze_inside()
+	sleep(16 SECONDS) // the watchdog holds back a second freeze alert for 15 s after one
+	SSmctest.hog_for = 6 SECONDS
+	SSmctest.mode = "hog"
+	var/datum/admin_alert/A = wait_alert("froze for", 10 SECONDS)
+	check("freeze inside a fire() alerted", A, A?.text)
+	check("it names the subsystem", A && findtext(A.text, "MC test's fire() held the server"))
+
+/datum/mc_selftest/proc/asleep()
+	sleep(2 SECONDS)
+	SSmctest.stale_woke = FALSE
+	SSmctest.sleep_for = 75 SECONDS
+	SSmctest.mode = "sleep"
+	var/began = world.time
+	var/datum/admin_alert/A = wait_alert("slept and hasn't come back", 20 SECONDS)
+	check("asleep fire() warned", A, A ? "after [(world.time - began) / 10] s: [A.text]" : null)
+	check("the warning has a START IT NOW link", A && findtext(A.chat_links, "mcwatchdog=wake"))
+	check("the MC didn't fire it meanwhile", SSmctest.state == SS_SLEEPING || SSmctest.state == SS_PAUSING, "state [SSmctest.state]")
+	var/datum/admin_alert/B = wait_alert("started it afresh", 70 SECONDS)
+	check("started afresh", B, B ? "after [(world.time - began) / 10] s: [B.text]" : null)
+	var/fires = SSmctest.fires
+	sleep(5 SECONDS)
+	check("it fires again", SSmctest.fires > fires, "[SSmctest.fires - fires] fires in 5 s")
+	while(!SSmctest.stale_woke && world.time - began < 90 SECONDS)
+		sleep(5)
+	check("the old fire() woke", SSmctest.stale_woke)
+	fires = SSmctest.fires
+	sleep(5 SECONDS)
+	check("and the state was left alone: it still fires", SSmctest.fires > fires && (SSmctest.state in list(SS_IDLE, SS_QUEUED)), "[SSmctest.fires - fires] fires in 5 s, state [SSmctest.state]")
+
+/// Other code taking `share` ticks of every tick, for `ds` of real time. Started from inside a subsystem's turn it goes to sleep
+/// before the MC does, so it wakes before the MC every tick and the MC finds the tick used up: the worst case.
+/// Twenty workers, each taking its share every tick, so that some of them wake before the MC whatever order BYOND runs
+/// sleepers in (one worker alone always ran after the MC)
+/proc/mc_check_hog_ticks(share, ds)
+	var/end = REALTIMEOFDAY + ds
+	for(var/n in 1 to 20)
+		INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(mc_check_hog_worker), share / 20, end)
+		sleep(world.tick_lag * 0.5) // spread over the tick
+	while(REALTIMEOFDAY < end)
+		sleep(1)
+	SSmctest.hogging = FALSE
+
+/proc/mc_check_hog_worker(share, end)
+	while(REALTIMEOFDAY < end)
+		mc_check_busy(world.tick_lag * share)
+		sleep(world.tick_lag)
+
+/datum/mc_selftest/proc/total_fires()
+	. = 0
+	for(var/datum/controller/subsystem/SS as anything in Master.subsystems)
+		. += SS.times_fired
+
+/// 30 game seconds with the MC finding 150% of each tick used when its turn comes (Master.contention_test_usage: sleeping procs
+/// never got ahead of it in these tests, BYOND resumes it first; players' commands can), its limits set as given. Returns
+/// list(subsystem fires a game second, lowest DEFCON, MC restarts)
+/datum/mc_selftest/proc/contention(label, cap, force_after)
+	Master.sleep_delta_max = cap
+	Master.contention_force_after = force_after
+	Master.contention_test_usage = 150
+	var/restarts = 0
+	var/datum/controller/master/seen = Master
+	var/fires = total_fires()
+	var/time = world.time
+	watch_defcon()
+	while(world.time - time < 30 SECONDS)
+		if(Master != seen)
+			restarts++
+			seen = Master
+		sleep(1)
+	watching_defcon = FALSE
+	Master.contention_test_usage = 0
+	Master.sleep_delta_max = MC_SLEEP_DELTA_MAX
+	Master.contention_force_after = MC_CONTENTION_SKIPS_MAX
+	var/rate = (total_fires() - fires) / 30
+	note("[label]: [round(rate, 0.1)] subsystem fires a game second, lowest DEFCON [min_defcon], MC restarted [restarts] time\s")
+	return list(rate, min_defcon, restarts)
+
+/datum/mc_selftest/proc/lag()
+	sleep(2 SECONDS)
+	var/fires = total_fires()
+	sleep(10 SECONDS)
+	var/calm_rate = (total_fires() - fires) / 10
+	note("calm: [round(calm_rate, 0.1)] subsystem fires a game second")
+	// real lag: other code taking 2.5 ticks of every tick for 30 s
+	var/time = world.time
+	var/real = REALTIMEOFDAY
+	SSmctest.hogging = TRUE
+	SSmctest.mode = "hog_ticks"
+	while(SSmctest.hogging && REALTIMEOFDAY - real < 60 SECONDS)
+		sleep(1)
+	note("other code taking 2.5 ticks of every tick: game ran [round((world.time - time) / (REALTIMEOFDAY - real) * 100)]% speed, other code before the MC's turn [round(Master.pre_mc_usage)]%")
+	var/datum/admin_alert/A = wait_alert("speed for the last", 5 SECONDS)
+	check("lag alerted", A, A?.text)
+	check("it says the time went outside the MC", A && findtext(A.text, "the rest went to code outside the MC"))
+	sleep(10 SECONDS)
+	// the MC's turn when other code has already used up the tick
+	var/strikes_before = json_encode(SSmctest.failure_strikes)
+	var/list/new_code = contention("cap and forced turn (new)", MC_SLEEP_DELTA_MAX, MC_CONTENTION_SKIPS_MAX)
+	check("new: the MC kept running (no restart)", new_code[3] == 0 && new_code[2] >= 3, "lowest DEFCON [new_code[2]], restarts [new_code[3]]")
+	check("new: subsystems still fire", new_code[1] >= calm_rate * 0.1, "[round(new_code[1], 0.1)] a game second vs [round(calm_rate, 0.1)] calm")
+	sleep(20 SECONDS)
+	var/list/cap_only = contention("cap only", MC_SLEEP_DELTA_MAX, INFINITY)
+	sleep(20 SECONDS)
+	var/list/old_code = contention("old code (no cap, no forced turn)", INFINITY, INFINITY)
+	check("old code: the MC stalled (the bug)", old_code[3] > 0 || old_code[2] <= 2, "lowest DEFCON [old_code[2]], restarts [old_code[3]]")
+	check("the new code beats both", new_code[1] > cap_only[1] && new_code[1] > old_code[1], "fires a game second: new [round(new_code[1], 0.1)], cap only [round(cap_only[1], 0.1)], old [round(old_code[1], 0.1)]")
+	check("nothing blamed for any of it", json_encode(SSmctest.failure_strikes) == strikes_before, "strikes [json_encode(SSmctest.failure_strikes)]")
+	sleep(20 SECONDS) // let a restart in progress finish
+
+/// Make the test subsystem crash RunQueue every time it's run, and wait for the MC restart that follows
+/datum/mc_selftest/proc/strike(n)
+	var/datum/controller/master/old_master = Master
+	var/datum/controller/subsystem/mctest/T = SSmctest
+	T.tick_overrun = "broken"
+	T.next_fire = world.time
+	var/began = world.time
+	while(Master == old_master && world.time - began < 60 SECONDS)
+		sleep(2)
+	var/strikes = T.failure_strikes ? T.failure_strikes[T.type] : 0
+	check("strike [n]: the MC restarted", Master != old_master, "after [(world.time - began) / 10] s, restart_count [Master.restart_count]")
+	check("strike [n]: the test subsystem blamed", strikes == n, "strikes [strikes]")
+	return T
+
+/datum/mc_selftest/proc/strikes()
+	Master.restart_timeout = 0 // the restarts above shouldn't hold these up
+	var/datum/controller/subsystem/mctest/T = strike(1)
+	// it's still broken, so it stops the MC again by itself: strike 2 makes a fresh one
+	var/datum/controller/master/old_master = Master
+	var/began = world.time
+	while(Master == old_master && world.time - began < 60 SECONDS)
+		sleep(2)
+	check("strike 2: the MC restarted again", Master != old_master, "after [(world.time - began) / 10] s, restart_count [Master.restart_count]")
+	check("strike 2: a fresh subsystem made", SSmctest != T && SSmctest.tick_overrun == 0, "same one: [SSmctest == T]")
+	sleep(3 SECONDS)
+	check("strike 2: the fresh one fires", SSmctest.fires > 0 && SSmctest.can_fire)
+	T = strike(3)
+	check("strike 3: offline", !T.can_fire && T.watchdog_offline > world.time + 4 MINUTES, "can_fire [T.can_fire], back in [(T.watchdog_offline - world.time) / 10] s")
+	var/datum/admin_alert/A = wait_alert("offline for 5 minutes", 5 SECONDS)
+	check("strike 3: admins told, with a TURN IT ON link", A && findtext(A.chat_links, "mcwatchdog=enable"), A?.text)
+	T.tick_overrun = 0
+	T.watchdog_offline = world.time + 1 // as if the 5 minutes were up
+	A = wait_alert("back on after 5 minutes", 5 SECONDS)
+	check("its last chance: back on", A && T.can_fire && !T.watchdog_offline, A?.text)
+	T = strike(4)
+	check("strike 4: off until an admin turns it on", !T.can_fire && T.watchdog_offline == -1, "can_fire [T.can_fire], watchdog_offline [T.watchdog_offline]")
+	A = wait_alert("until an admin", 5 SECONDS)
+	check("strike 4: admins told", A, A?.text)
+	T.tick_overrun = 0
+	sleep(20 SECONDS)
+	check("strike 4: it stays off", !T.can_fire)
+	mc_watchdog_admin_action("enable", T.type)
+	var/fires = T.fires
+	sleep(4 SECONDS)
+	check("an admin's TURN IT ON works", T.can_fire && T.fires > fires, "[T.fires - fires] fires in 4 s")
+	note("restart_count [Master.restart_count] (5 s more between restarts for each, halved after a quiet spell, 30 s at most)")
+
+#undef MC_CHECK_DIR

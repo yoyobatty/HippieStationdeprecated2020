@@ -2962,6 +2962,7 @@
 #include "hippiestation\code\_onclick\hud\tts.dm"
 #include "hippiestation\code\_onclick\hud\vampire.dm"
 #include "hippiestation\code\controllers\configuration\entries\hippiestation_config.dm"
+#include "hippiestation\code\controllers\mc_watchdog.dm"
 #include "hippiestation\code\controllers\subsystem\communications.dm"
 #include "hippiestation\code\controllers\subsystem\demo.dm"
 #include "hippiestation\code\controllers\subsystem\explosions.dm"
