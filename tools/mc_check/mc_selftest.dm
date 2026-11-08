@@ -127,7 +127,7 @@ SUBSYSTEM_DEF(mctest)
 	// dd -invisible reports world.sleep_offline as 1 and won't take 0, though the world keeps ticking: without this the watchdog
 	// takes the freezes for the world asleep with nobody on
 	MCWatchdog.watch_with_nobody_on = TRUE
-	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "asleep", "lag", "strikes", "timer_edge", "timers", "profile", "recover", "inits", "status", "duty")
+	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "native", "asleep", "lag", "strikes", "timer_edge", "timers", "profile", "recover", "inits", "status", "duty")
 	// init_fail runs only when asked (STEPS=init_fail): its subsystem breaks at boot
 	if(world.params["mc-steps"]) // STEPS=freeze_outside,lag on the runner: only those
 		steps = splittext(world.params["mc-steps"], ",")
@@ -433,6 +433,7 @@ SUBSYSTEM_DEF(mctest)
 
 /// PROFILE 30 S (here 10): the profiler on for a while during lag, then an alert naming the procs that took the time
 /datum/mc_selftest/proc/profile()
+	use_byond_profiler()
 	var/was = SSprofiler.profiling
 	SSmctest.hogging = TRUE
 	INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(mc_check_hog_ticks), 1.5, 15 SECONDS)
@@ -559,6 +560,7 @@ SUBSYSTEM_DEF(mctest_init)
 
 /// AUTO_PROFILE's duty cycle: on 10% of the time, and PROFILE 30 S (10 here) fully on in the middle of it
 /datum/mc_selftest/proc/duty()
+	use_byond_profiler()
 	SSprofiler.profiling = TRUE
 	SSprofiler.duty = 10
 	world.Profile(PROFILE_CLEAR)
@@ -602,3 +604,27 @@ SUBSYSTEM_DEF(mctest_init)
 
 /proc/mc_check_marker()
 	return 1
+
+/// The profile and duty steps are about BYOND's profiler: hippie_prof off for them
+/datum/mc_selftest/proc/use_byond_profiler()
+	if(SSprofiler.engine == "hippie")
+		hippie_prof("stop")
+		SSprofiler.engine = "byond"
+		SSprofiler.profiling = FALSE
+
+/// hippie_prof.dll (AUTO_PROFILE is on in config.txt): on, sampling, naming the proc behind a freeze, dumping every proc
+/datum/mc_selftest/proc/native()
+	check("native: hippie_prof is the profiler", SSprofiler.engine == "hippie", "engine [SSprofiler.engine]")
+	if(SSprofiler.engine != "hippie")
+		return
+	var/list/status = json_decode(hippie_prof("status"))
+	check("native: sampling", status["sampling"] && status["samples"] > 1000, "[status["samples"]] samples, [status["procs"]] procs, build [status["build"]]")
+	sleep(16 SECONDS) // past the last freeze alert's hold-back
+	SSmctest.hog_for = 6 SECONDS
+	SSmctest.mode = "hog"
+	var/datum/admin_alert/A = wait_alert("froze for", 10 SECONDS)
+	check("native: the freeze report names what was running", A && findtext(A.text, "Running in those") && findtext(A.text, "mc_check_busy"), A?.text)
+	var/list/rows = json_decode(hippie_prof("dump"))
+	check("native: the dump has the round's procs", length(rows) > 200, "[length(rows)] rows")
+	SSprofiler.DumpFile()
+	check("native: profiler.json written", fexists("[GLOB.log_directory]/profiler.json") && length(file2text("[GLOB.log_directory]/profiler.json")) > 1000)

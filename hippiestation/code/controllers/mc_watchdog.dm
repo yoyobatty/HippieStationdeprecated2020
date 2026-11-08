@@ -14,7 +14,9 @@
 // With the profiler running (AUTO_PROFILE or Toggle Profiling) the reports also name the procs that took the time: it keeps a
 // copy of the profiler's figures every 30 s to compare with. The profiler slows every proc while it runs (2x30 min Bot Shifts
 // side by side, 2026-11-07: Timer +35%, Machines +45%, Processing +20%, Mobs +40%), so it stays off by default; a lag alert
-// has PROFILE 30 S instead, which turns it on for 30 s and then names the procs.
+// has PROFILE 30 S instead, which turns it on for 30 s and then names the procs. With hippie_prof.dll doing the profiling
+// (profiler.dm) none of that is needed: it's on all round for ~3 ns a call and keeps the last ~65 s of samples, so a freeze report
+// names the procs that were running during the freeze itself, and a lag report the ones in its 30 s.
 // The watchdog and the Failsafe each restart the other if it stops.
 
 #define MC_WATCHDOG_FREEZE_LOG (1 SECONDS)
@@ -114,7 +116,7 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 	// A copy of the profiler's figures to compare reports with: every 5 minutes (a whole round's figures take ~66 ms to read and
 	// decode: every 30 s, as it was, that was a hitch every 30 s and 2% of the profiled time), and a fresh one as soon as the
 	// game starts slowing, so a lag report 30 s later covers about the lag
-	if(SSprofiler?.profiling && !profiling_for)
+	if(SSprofiler?.profiling && SSprofiler.engine == "byond" && !profiling_for)
 		var/stale = now_real - profile_baseline_real >= MC_WATCHDOG_PROFILE_EVERY
 		var/slowing = now_real - profile_baseline_real >= 1 MINUTES && recent_speed(now_real, now_time) < 0.8
 		if(stale || slowing)
@@ -237,7 +239,7 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 	if(before.len)
 		parts += "Just before: [jointext(before, "; ")]"
 	if(with_profile)
-		var/top = profile_top(3)
+		var/top = profile_top(3, REALTIMEOFDAY - start_real + 5)
 		if(top)
 			parts += top
 	return jointext(parts, " ")
@@ -276,7 +278,7 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 	lag_count++
 	var/report = lag_report(oldest, ms, span_real, now_time)
 	log_world("MC watchdog: the game ran at [round(speed * 100)]% speed for [round(span_real / 10)] s. [report]")
-	mc_watchdog_alert("The game has run at [round(speed * 100)]% speed for the last [round(span_real / 10)] s. [report]", (SSprofiler?.profiling && SSprofiler.duty >= 100) ? null : mc_watchdog_link("profile", "PROFILE 30 S"))
+	mc_watchdog_alert("The game has run at [round(speed * 100)]% speed for the last [round(span_real / 10)] s. [report]", (SSprofiler?.profiling && (SSprofiler.engine == "hippie" || SSprofiler.duty >= 100)) ? null : mc_watchdog_link("profile", "PROFILE 30 S"))
 
 /datum/mc_watchdog/proc/lag_report(list/oldest, list/ms_now, span_real, now_time)
 	var/list/old_ms = oldest[3]
@@ -300,7 +302,7 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 	var/list/admin_lines = round_log_between(oldest[2], now_time, 3, "Admin")
 	if(admin_lines.len)
 		parts += "Admin actions: [jointext(admin_lines, "; ")]."
-	var/top_procs = profile_top(3)
+	var/top_procs = profile_top(3, span_real)
 	if(top_procs)
 		parts += top_procs
 	return jointext(parts, " ")
@@ -362,7 +364,16 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 	profile_fetch_ms = MC_AVERAGE(profile_fetch_ms, TICK_DELTA_TO_MS(TICK_USAGE_REAL - started))
 
 /// The procs that took the most time since the last copy of the profiler's figures, when it's running
-/datum/mc_watchdog/proc/profile_top(count)
+/datum/mc_watchdog/proc/profile_top(count, window_ds = 30 SECONDS)
+	if(SSprofiler?.profiling && SSprofiler.engine == "hippie")
+		var/list/ran = SSprofiler.recent(window_ds * 100)
+		var/list/named = list()
+		for(var/name in ran)
+			if(ran[name] >= 0.1)
+				named += "[name] [round(ran[name], 0.1)] s"
+			if(named.len >= count)
+				break
+		return named.len ? "Running in those [round(window_ds / 10)] s: [jointext(named, ", ")]." : null
 	if(!SSprofiler?.profiling || isnull(profile_baseline))
 		return
 	var/list/now = profile_read()
@@ -431,6 +442,13 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 	set waitfor = FALSE
 	if(profiling_for)
 		return FALSE
+	if(SSprofiler.profiling && SSprofiler.engine == "hippie") // it's on anyway: just the 30 s from now
+		profiling_for = TRUE
+		sleep(seconds * 10)
+		var/ran = profile_top(6, seconds * 10)
+		profiling_for = FALSE
+		mc_watchdog_alert("[who] profiled the server for [seconds] s. [ran || "No proc took 0.1 s or more."]")
+		return TRUE
 	var/cycling = SSprofiler.profiling && SSprofiler.duty < 100
 	if(SSprofiler.profiling && !cycling) // always on: every report names the procs already
 		return FALSE
@@ -449,7 +467,7 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 	while(REALTIMEOFDAY - began < seconds * 10)
 		sleep(1 SECONDS)
 	var/top = profile_top(6)
-	if(!cycling && !CONFIG_GET(flag/auto_profile))
+	if(!cycling) // it was off before
 		SSprofiler.StopProfiling()
 		SSprofiler.profiling = FALSE
 	profile_baseline = null
@@ -460,7 +478,7 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 /// An alert's link (hippieTopic, topic.dm)
 /proc/mc_watchdog_admin_action(action, ss_type)
 	if(action == "profile")
-		if((SSprofiler.profiling && SSprofiler.duty >= 100) || MCWatchdog.profiling_for)
+		if(MCWatchdog.profiling_for)
 			to_chat(usr, "<span class='notice'>The profiler is already fully on: the next report names the procs.</span>", confidential = TRUE)
 			return
 		MCWatchdog.profile_for(30, key_name(usr))

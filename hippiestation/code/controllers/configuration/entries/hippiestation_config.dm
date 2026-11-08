@@ -78,3 +78,5 @@
 	config_entry_value = 10
 	min_val = 1
 	max_val = 100
+
+/datum/config_entry/flag/byond_profiler	// with AUTO_PROFILE: BYOND's own profiler (world.Profile) even when hippie_prof.dll can do it (profiler.dm)
