@@ -83,7 +83,7 @@ const alpha = (hex, a) => 'rgba(' + parseInt(hex.substr(1, 2), 16) + ', '
   + parseInt(hex.substr(3, 2), 16) + ', ' + parseInt(hex.substr(5, 2), 16)
   + ', ' + a + ')';
 
-const paintCss = paint => {
+export const paintCss = paint => {
   const p = PAINTS[paint] || PAINTS.ripley;
   const vars = Object.assign({
     'fg': p[0],

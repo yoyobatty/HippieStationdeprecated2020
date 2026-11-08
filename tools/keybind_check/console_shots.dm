@@ -309,6 +309,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_antags3(C, H, label)
 		if("items4a")
 			cs_items4a(C, H, label)
+		if("machines5")
+			cs_machines5(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -8556,3 +8558,97 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 		cs_check("items4a: the AI reads what was held up (new build only)", ai_ui || label == "before")
 		cs_b1_shot(C, AI, ai_ui?.src_object, "popup_items4a_[label]_9_ai_paper", "show_paper")
 		SStgui.close_user_uis(AI)
+
+// ---------------------------------------------------------------------------------------------
+// Old windows, batch 5: more machines
+// ---------------------------------------------------------------------------------------------
+
+/proc/cs_machines5(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/scientist)
+	usr = H
+	// An exosuit's maintenance panel, then its access panel
+	var/obj/mecha/working/ripley/mech = new(cs_open_beside(H))
+	mech.add_req_access = 1
+	mech.maint_access = 1
+	mech.operation_req_access = list(ACCESS_ENGINE)
+	var/obj/item/card/id/card = cs_card("Hugo Brandt", "Chief Engineer", list(ACCESS_ENGINE, ACCESS_CE, ACCESS_ROBOTICS, ACCESS_RESEARCH), get_turf(H))
+	mech.output_maintenance_dialog(card, H)
+	var/datum/tgui/ui = cs_b1_shot(C, H, cs_var(mech, "maint_window"), "popup_machines5_[label]_1_exo_maint", "exosuit_maint_console")
+	var/datum/window = cs_var(mech, "maint_window")
+	if(ui)
+		cs_act(window, H, "access")
+		cs_act(window, H, "add", list("id" = "[ACCESS_ROBOTICS]"))
+		cs_check("machines5: a keycode added ([english_list(mech.operation_req_access)])", (ACCESS_ROBOTICS in mech.operation_req_access))
+		cs_act(window, H, "remove", list("id" = "[ACCESS_ENGINE]"))
+		cs_check("machines5: and one deleted, which the old panel couldn't", !(ACCESS_ENGINE in mech.operation_req_access))
+		SStgui.update_uis(window)
+		sleep(10)
+		cs_shot("popup_machines5_[label]_2_exo_access")
+	else
+		mech.Topic(null, list("req_access" = "1", "id_card" = REF(card)))
+		sleep(20)
+		cs_shot("popup_machines5_[label]_2_exo_access")
+		H << browse(null, "window=exosuit_add_access")
+	SStgui.close_user_uis(H)
+	qdel(mech)
+
+	// The telepad console, with its pad and crystals
+	var/turf/padspot = cs_open_beside(H)
+	var/obj/machinery/telepad/pad = new(padspot)
+	var/obj/machinery/computer/telescience/telesci = new(cs_open_beside(H, list(padspot)))
+	telesci.telepad = pad
+	for(var/i in 1 to 3)
+		telesci.crystals += new /obj/item/stack/ore/bluespace_crystal/artificial(null)
+	telesci.stat &= ~(NOPOWER|BROKEN)
+	telesci.attack_hand(H)
+	ui = cs_b1_shot(C, H, telesci, "popup_machines5_[label]_3_telesci", "telesci")
+	if(ui)
+		cs_act(telesci, H, "rotation", list("value" = "137.5"))
+		cs_act(telesci, H, "angle", list("value" = "62.25"))
+		cs_check("machines5: bearing and elevation typed in ([telesci.rotation], [telesci.angle])", telesci.rotation == 137.5 && telesci.angle == 62.3)
+	SStgui.close_user_uis(H)
+	qdel(telesci)
+	qdel(pad)
+
+	// A gas analyzer with a few readings
+	var/obj/item/analyzer/analyzer = new(get_turf(H))
+	H.drop_all_held_items()
+	H.put_in_active_hand(analyzer)
+	analyzer.attack_self(H)
+	var/obj/machinery/portable_atmospherics/canister/toxins/can = new(cs_open_beside(H))
+	analyzer.record_scan(H, can.air_contents, can.name, REF(can))
+	can.air_contents.temperature += 40
+	analyzer.record_scan(H, can.air_contents, can.name, REF(can))
+	analyzer.attack_self(H)
+	analyzer.show_scan_history(H)
+	ui = cs_b1_shot(C, H, cs_var(analyzer, "history_window"), "popup_machines5_[label]_4_analyzer", "analyzer_history")
+	SStgui.close_user_uis(H)
+	qdel(can)
+
+	// The prototype cloning console, with a scanner beside it and somebody in it
+	var/turf/consolespot = cs_open_beside(H)
+	var/obj/machinery/computer/prototype_cloning/proto = new(consolespot)
+	proto.stat &= ~(NOPOWER|BROKEN)
+	var/obj/machinery/dna_scannernew/scanner = new(cs_open_beside(proto, list(get_turf(H))))
+	var/mob/living/carbon/human/patient = new(scanner)
+	patient.real_name = "Ola Svensson"
+	patient.name = patient.real_name
+	scanner.occupant = patient
+	proto.attack_hand(H)
+	cs_b1_shot(C, H, proto, "popup_machines5_[label]_5_protocloner", "cloning", "Prototype Cloning System Control")
+	SStgui.close_user_uis(H)
+	qdel(proto)
+
+	// The bluespace artillery control, charged
+	var/obj/machinery/artillerycontrol/art = new(cs_open_beside(H))
+	art.reload = art.reload_cooldown
+	art.stat &= ~(NOPOWER|BROKEN)
+	art.attack_hand(H)
+	ui = cs_b1_shot(C, H, art, "popup_machines5_[label]_6_artillery", "scroll")
+	if(ui)
+		cs_tgui_do(C, ui.window_id, "input0:bridge")
+		sleep(5)
+		cs_tgui_do(C, ui.window_id, "css:.Artillery__area")
+		sleep(10)
+		cs_shot("popup_machines5_[label]_7_artillery_target")
+	SStgui.close_user_uis(H)

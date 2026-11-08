@@ -51,6 +51,7 @@ import { ExosuitFabricator } from './interfaces/ExosuitFabricator';
 import { DestinationTagger, HandTeleporter, ImplantPad, Safe, SecureStorage } from './interfaces/Gadgets';
 import { GameMenu } from './interfaces/GameMenu';
 import { CardHand, Locator, Newspaper, Valentine } from './interfaces/ItemsReading';
+import { AnalyzerHistory, ArtilleryControl, ExosuitMaint, PrototypeCloning, Telescience } from './interfaces/MachinesMore';
 import { MindNotes } from './interfaces/MindNotes';
 import { PaiOs, PaiRecruit, SiliconPdaLog } from './interfaces/PaiOs';
 import { AiBotControl, AiVox, SiliconAlerts } from './interfaces/SiliconWindows';
@@ -1280,6 +1281,27 @@ const ROUTES = {
   valentine: {
     component: () => Valentine,
     scrollable: false,
+  },
+  exosuit_maint: {
+    component: () => ExosuitMaint,
+    scrollable: true,
+    theme: 'mecha',
+  },
+  telescience: {
+    component: () => Telescience,
+    scrollable: true,
+  },
+  analyzer_history: {
+    component: () => AnalyzerHistory,
+    scrollable: true,
+  },
+  prototype_cloning: {
+    component: () => PrototypeCloning,
+    scrollable: true,
+  },
+  artillery_control: {
+    component: () => ArtilleryControl,
+    scrollable: true,
   },
 };
 

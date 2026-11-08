@@ -1,0 +1,45 @@
+// hippie -- more machines (interfaces/MachinesMore.js): the exosuit's
+// maintenance panel rows, the telepad console's screen and the artillery's
+// target list.
+
+.ExoMaint__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.Telesci__screen {
+  padding: 8px 10px;
+  border: 1px solid rgba(80, 160, 255, 0.4);
+  background: rgba(10, 30, 60, 0.6);
+  color: #9fd0ff;
+  font-family: Consolas, 'Courier New', monospace;
+  white-space: pre-wrap;
+}
+
+.Artillery__search {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  border: 1px solid #40628a;
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font-family: inherit;
+  outline: none;
+}
+
+.Artillery__area {
+  padding: 3px 6px;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
+.Artillery__area--on {
+  background: rgba(219, 40, 40, 0.35);
+  color: #ffd0d0;
+}
