@@ -62,6 +62,11 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 	var/profile_fetches = 0
 	/// What a tick of the watchdog itself costs (ms, average)
 	var/tick_cost_ms = 0
+	/// For the MC tab: freezes and lag alerts this round, and the last freeze (seconds, world.time)
+	var/freeze_count = 0
+	var/lag_count = 0
+	var/last_freeze_secs = 0
+	var/last_freeze_time = 0
 
 /datum/mc_watchdog/New()
 	if(MCWatchdog != src)
@@ -69,6 +74,8 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 			MCWatchdog.running = FALSE
 		MCWatchdog = src
 	lasttick = world.time
+	if(world.params["mc-watch-all"]) // a headless run at real speed (no timewarp, which makes timeofday follow game time)
+		watch_with_nobody_on = TRUE
 	Loop()
 
 /datum/mc_watchdog/proc/Loop()
@@ -107,6 +114,22 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 	if(SSprofiler?.profiling && !profiling_for && now_real - profile_baseline_real >= MC_WATCHDOG_PROFILE_EVERY)
 		profile_baseline = profile_read()
 		profile_baseline_real = now_real
+
+/// The MC tab's line (statpanels.dm): what it's seen this round, and any subsystem asleep or taken offline
+/datum/mc_watchdog/proc/stat_line()
+	var/list/parts = list("Freezes [freeze_count][freeze_count ? " (last [last_freeze_secs] s, [round((world.time - last_freeze_time) / 600)] min ago)" : ""]", "Lag alerts [lag_count]")
+	var/list/asleep = list()
+	var/list/offline = list()
+	for(var/datum/controller/subsystem/SS as anything in Master?.subsystems)
+		if(SS.asleep_warned)
+			asleep += SS.name
+		if(SS.watchdog_offline)
+			offline += SS.name
+	if(asleep.len)
+		parts += "Asleep: [jointext(asleep, ", ")]"
+	if(offline.len)
+		parts += "Offline: [jointext(offline, ", ")]"
+	return jointext(parts, " | ")
 
 ////////////////////
 // Subsystems: asleep, and offline ones' last chance
@@ -189,6 +212,9 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 	var/pieces = freeze_pieces.len
 	freeze_pieces.Cut()
 	last_freeze_alert = now_real
+	freeze_count++
+	last_freeze_secs = round(total / 10, 0.1)
+	last_freeze_time = now_time
 	var/how = pieces > 1 ? " in [pieces] stretches over [round((now_real - first[3]) / 10)] s" : (ticks > 3 ? " over [ticks] ticks" : "")
 	mc_watchdog_alert("The server froze for [round(total / 10, 0.1)] s[how]. [freeze_report(first[3], first[4], now_time, TRUE)]")
 
@@ -233,6 +259,7 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 	if(!SSticker || SSticker.current_state < GAME_STATE_PLAYING)
 		return
 	last_lag_alert = now_real
+	lag_count++
 	var/report = lag_report(oldest, ms, span_real, now_time)
 	log_world("MC watchdog: the game ran at [round(speed * 100)]% speed for [round(span_real / 10)] s. [report]")
 	mc_watchdog_alert("The game has run at [round(speed * 100)]% speed for the last [round(span_real / 10)] s. [report]", SSprofiler?.profiling ? null : mc_watchdog_link("profile", "PROFILE 30 S"))

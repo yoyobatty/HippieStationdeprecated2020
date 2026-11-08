@@ -147,6 +147,7 @@ SUBSYSTEM_DEF(statpanels)
 		list("", "Byond:", "(FPS:[world.fps]) (TickCount:[world.time/world.tick_lag]) (TickDrift:[round(Master.tickdrift,1)]([round((Master.tickdrift/(world.time/world.tick_lag))*100,0.1)]%)) (Internal Tick Usage: [round(MAPTICK_LAST_INTERNAL_TICK_USAGE,0.1)]%)"),
 		list("", "Master Controller:", Master ? "(TickRate:[Master.processing]) (Iteration:[Master.iteration]) (TickLimit: [round(Master.current_ticklimit, 0.1)])" : "ERROR", Master ? REF(Master) : null),
 		list("", "Failsafe Controller:", Failsafe ? "Defcon: [Failsafe.defcon_pretty()] (Interval: [Failsafe.processing_interval] | Iteration: [Failsafe.master_iteration])" : "ERROR", Failsafe ? REF(Failsafe) : null),
+		list("", "Watchdog:", MCWatchdog ? MCWatchdog.stat_line() : "not running", MCWatchdog ? REF(MCWatchdog) : null), // hippie (mc_watchdog.dm)
 		list("", "", ""),
 	)
 	if(Master)
