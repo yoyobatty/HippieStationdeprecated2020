@@ -21,7 +21,7 @@
 	..()
 
 /datum/reagent/consumable/bluecherryshake/reaction_mob(mob/living/M)
-	M.reagents.add_reagent(/datum/reagent/consumable/sugar,2)
+	M.reagents?.add_reagent(/datum/reagent/consumable/sugar,2)
 	..()
 
 /datum/reagent/consumable/gibbfloats/on_mob_life(mob/living/M)
