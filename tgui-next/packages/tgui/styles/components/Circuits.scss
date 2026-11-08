@@ -1,0 +1,596 @@
+// hippie -- integrated circuits (interfaces/CircuitAssembly.js,
+// CircuitPrinter.js, CircuitCode.js): the assembly as a node graph on a
+// circuit board, the printer as a shop grid, the analyzer's code.
+
+$cg-top: 38px;
+$cg-side: 290px;
+$cg-board: #0b1a12;
+$cg-grid: rgba(80, 200, 120, 0.09);
+$cg-chip: #1d2621;
+$cg-chip-edge: #3f5a49;
+$cg-head: #2c4a38;
+$cg-data: #4fa3ff;
+$cg-pulse: #ffa94d;
+
+.CircuitGraph__top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: $cg-top;
+  padding: 5px 6px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.CircuitGraph__stat {
+  display: inline-block;
+  width: 120px;
+  margin-right: 6px;
+}
+
+.CircuitGraph__hint {
+  position: absolute;
+  bottom: 8px;
+  left: 120px;
+  z-index: 5;
+  padding: 3px 8px;
+  max-width: calc(100% - 130px);
+  background-color: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.CircuitGraph__hint--active {
+  border-color: $cg-pulse;
+}
+
+.CircuitGraph__zoom {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  z-index: 5;
+}
+
+.CircuitGraph__board {
+  position: absolute;
+  top: $cg-top;
+  bottom: 0;
+  left: 0;
+  right: $cg-side;
+  overflow: hidden;
+  cursor: grab;
+  background-color: $cg-board;
+  background-image:
+    radial-gradient(circle, $cg-grid 1px, transparent 1.5px);
+  background-size: 20px 20px;
+}
+
+.CircuitGraph__board--loose {
+  top: 0;
+}
+
+.CircuitGraph__board--panning {
+  cursor: grabbing;
+}
+
+.CircuitGraph__layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.CircuitGraph__wires {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.CircuitGraph__wire {
+  fill: none;
+  stroke-width: 2.5;
+  pointer-events: stroke;
+  cursor: pointer;
+  opacity: 0.85;
+
+  &:hover {
+    stroke-width: 5;
+    opacity: 1;
+  }
+}
+
+.CircuitGraph__wire--data {
+  stroke: $cg-data;
+}
+
+.CircuitGraph__wire--pulse {
+  stroke: $cg-pulse;
+  stroke-dasharray: 7 4;
+}
+
+.CircuitGraph__wire--lit {
+  stroke-width: 4;
+  opacity: 1;
+}
+
+.CircuitGraph__wire--pending {
+  stroke: #fff;
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.CircuitGraph__node {
+  position: absolute;
+  background-color: $cg-chip;
+  border: 1px solid $cg-chip-edge;
+  border-radius: 4px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.55);
+  font-size: 11px;
+  cursor: default;
+}
+
+.CircuitGraph__node--selected {
+  border-color: #8fe3a9;
+  box-shadow: 0 0 0 1px #8fe3a9, 0 3px 10px rgba(0, 0, 0, 0.6);
+}
+
+.CircuitGraph__nodeHead {
+  display: flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 4px;
+  background-color: $cg-head;
+  border-radius: 3px 3px 0 0;
+  cursor: move;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.CircuitGraph__nodeHead--builtin {
+  background-color: #3d3a2a;
+}
+
+.CircuitGraph__nodeIcon {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  overflow: hidden;
+  margin-right: 3px;
+
+  span {
+    display: block;
+    transform: scale(0.75);
+    transform-origin: 0 0;
+  }
+}
+
+.CircuitGraph__nodeName {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: bold;
+}
+
+.CircuitGraph__row {
+  position: relative;
+  display: flex;
+  height: 20px;
+  line-height: 20px;
+}
+
+.CircuitGraph__pulseRows {
+  border-top: 1px dashed rgba(255, 169, 77, 0.35);
+  margin-top: 4px;
+}
+
+.CircuitGraph__half {
+  flex: 0 0 50%;
+  width: 50%;
+  display: flex;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0 9px;
+}
+
+.CircuitGraph__half--right {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.CircuitGraph__pinName {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #c9d6cd;
+}
+
+.CircuitGraph__pinValue {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0 4px;
+  color: #8fe3a9;
+  cursor: pointer;
+  font-family: monospace;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.CircuitGraph__pinValue--null {
+  color: #6b7d71;
+}
+
+.CircuitGraph__dot {
+  position: absolute;
+  top: 5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid $cg-data;
+  background-color: $cg-board;
+  cursor: crosshair;
+  z-index: 2;
+
+  &:hover {
+    background-color: $cg-data;
+  }
+}
+
+.CircuitGraph__dot--left {
+  left: -6px;
+}
+
+.CircuitGraph__dot--right {
+  right: -6px;
+}
+
+.CircuitGraph__dot--pulse {
+  border-radius: 2px;
+  border-color: $cg-pulse;
+
+  &:hover {
+    background-color: $cg-pulse;
+  }
+}
+
+.CircuitGraph__dot--wired {
+  background-color: $cg-data;
+}
+
+.CircuitGraph__dot--pulse.CircuitGraph__dot--wired {
+  background-color: $cg-pulse;
+}
+
+.CircuitGraph__dot--held {
+  box-shadow: 0 0 0 3px #fff;
+}
+
+.CircuitGraph__side {
+  position: absolute;
+  top: $cg-top;
+  bottom: 0;
+  right: 0;
+  width: $cg-side;
+  padding: 6px;
+  overflow-y: auto;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.CircuitGraph__side--loose {
+  top: 0;
+}
+
+.CircuitGraph__parts {
+  margin-bottom: 6px;
+}
+
+.CircuitGraph__partRow {
+  display: flex;
+  align-items: center;
+  padding: 1px 2px;
+  cursor: pointer;
+  border-radius: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.07);
+  }
+}
+
+.CircuitGraph__partRow--selected {
+  background-color: rgba(143, 227, 169, 0.18);
+}
+
+.CircuitGraph__pinEdit {
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.CircuitGraph__pinEdit--open {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.CircuitGraph__field {
+  width: 100%;
+  padding: 2px 4px;
+  margin: 2px 0;
+  color: #fff;
+  background-color: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  font-family: monospace;
+  font-size: 12px;
+  outline: none;
+
+  &:focus {
+    border-color: #8fe3a9;
+  }
+}
+
+.CircuitGraph__listItem {
+  display: flex;
+  align-items: center;
+  font-family: monospace;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.CircuitGraph__swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  vertical-align: middle;
+}
+
+// The printer
+
+.CircuitPrinter__layout {
+  display: flex;
+  align-items: flex-start;
+}
+
+.CircuitPrinter__categories {
+  flex: 0 0 150px;
+  position: sticky;
+  top: 0;
+  margin-right: 6px;
+
+  .Button {
+    margin-bottom: 2px;
+  }
+}
+
+.CircuitPrinter__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.CircuitPrinter__grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.CircuitPrinter__tile {
+  position: relative;
+  width: 112px;
+  height: 92px;
+  margin: 0 4px 4px 0;
+  padding: 4px;
+  text-align: center;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  cursor: pointer;
+  overflow: hidden;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.CircuitPrinter__tile--picked {
+  border-color: #8fe3a9;
+  background-color: rgba(143, 227, 169, 0.12);
+}
+
+.CircuitPrinter__tile--locked {
+  opacity: 0.4;
+}
+
+.CircuitPrinter__picture {
+  width: 32px;
+  height: 32px;
+  margin: 2px auto 3px;
+}
+
+.CircuitPrinter__picture--big {
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+  margin: 0;
+
+  span {
+    display: block;
+    transform: scale(2);
+    transform-origin: 0 0;
+  }
+}
+
+.CircuitPrinter__tileName {
+  font-size: 11px;
+  line-height: 1.2;
+  height: 2.4em;
+  overflow: hidden;
+}
+
+.CircuitPrinter__cost {
+  font-size: 10px;
+  color: #9fb8a7;
+}
+
+.CircuitPrinter__panel {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 8px;
+  margin-bottom: 6px;
+  background-color: #17241c;
+  border: 1px solid rgba(143, 227, 169, 0.3);
+  border-radius: 3px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.CircuitPrinter__panelText {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: 10px;
+}
+
+.CircuitPrinter__code {
+  width: 100%;
+  padding: 4px;
+  color: #cfe9d7;
+  background-color: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  font-family: monospace;
+  font-size: 11px;
+  resize: none;
+  outline: none;
+}
+
+// The analyzer's code
+
+$cc-outline: 280px;
+
+.CircuitCode__bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 34px;
+  padding: 5px 6px;
+}
+
+.CircuitCode__pane {
+  position: absolute;
+  top: 34px;
+  bottom: 6px;
+  left: 6px;
+  right: $cc-outline + 12px;
+  overflow: auto;
+  background-color: #0d1117;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+
+.CircuitCode__pane--wide {
+  right: 6px;
+}
+
+.CircuitCode__lines {
+  padding: 4px 0;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre;
+  color: #c9d1d9;
+}
+
+.CircuitCode__line {
+  padding-right: 8px;
+}
+
+.CircuitCode__gutter {
+  display: inline-block;
+  width: 34px;
+  padding-right: 8px;
+  margin-right: 6px;
+  text-align: right;
+  color: #484f58;
+  border-right: 1px solid #21262d;
+  user-select: none;
+}
+
+.CircuitCode__key {
+  color: #79c0ff;
+}
+
+.CircuitCode__str {
+  color: #a5d6ff;
+}
+
+.CircuitCode__num {
+  color: #d2a8ff;
+}
+
+.CircuitCode__pin {
+  color: #ffa657;
+  font-weight: bold;
+}
+
+.CircuitCode__null {
+  color: #8b949e;
+  font-style: italic;
+}
+
+.CircuitCode__punc {
+  color: #8b949e;
+}
+
+.CircuitCode__outline {
+  position: absolute;
+  top: 34px;
+  bottom: 6px;
+  right: 6px;
+  width: $cc-outline;
+  padding: 6px;
+  overflow-y: auto;
+  background-color: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+
+.CircuitCode__part {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.CircuitCode__value {
+  margin-left: 45px;
+  font-family: monospace;
+  font-size: 11px;
+  color: #9fb8a7;
+}
+
+.CircuitCode__wire {
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+
+.CircuitCode__raw {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  opacity: 0;
+}

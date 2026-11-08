@@ -3717,6 +3717,7 @@
 #include "hippiestation\code\modules\hydroponics\grown\towercap.dm"
 #include "hippiestation\code\modules\integrated_electronics\core\analyzer.dm"
 #include "hippiestation\code\modules\integrated_electronics\core\assemblies.dm"
+#include "hippiestation\code\modules\integrated_electronics\core\circuits_tgui.dm"
 #include "hippiestation\code\modules\integrated_electronics\core\debugger.dm"
 #include "hippiestation\code\modules\integrated_electronics\core\detailer.dm"
 #include "hippiestation\code\modules\integrated_electronics\core\helpers.dm"

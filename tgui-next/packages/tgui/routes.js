@@ -48,6 +48,9 @@ import { Exosuit } from './interfaces/Exosuit';
 import { ExosuitFabricator } from './interfaces/ExosuitFabricator';
 import { DestinationTagger, HandTeleporter, ImplantPad, Safe, SecureStorage } from './interfaces/Gadgets';
 import { GameMenu } from './interfaces/GameMenu';
+import { CircuitAssembly } from './interfaces/CircuitAssembly';
+import { CircuitCode } from './interfaces/CircuitCode';
+import { CircuitPrinter } from './interfaces/CircuitPrinter';
 import { Gps } from './interfaces/Gps';
 import { GravityGenerator } from './interfaces/GravityGenerator';
 import { GulagItemReclaimer } from './interfaces/GulagItemReclaimer';
@@ -1166,6 +1169,18 @@ const ROUTES = {
     wrapper: () => NtosWrapper,
     scrollable: true,
     theme: 'syndicate',
+  },
+  circuit_assembly: {
+    component: () => CircuitAssembly,
+    scrollable: false,
+  },
+  circuit_code: {
+    component: () => CircuitCode,
+    scrollable: false,
+  },
+  circuit_printer: {
+    component: () => CircuitPrinter,
+    scrollable: true,
   },
   // hippie end
 };

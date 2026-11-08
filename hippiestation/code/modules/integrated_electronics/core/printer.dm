@@ -126,78 +126,6 @@
 /obj/item/integrated_circuit_printer/attack_self(mob/user)
 	interact(user)
 
-/obj/item/integrated_circuit_printer/interact(mob/user)
-	if(!(in_range(src, user) || issilicon(user)))
-		return
-
-	if(isnull(current_category))
-		current_category = SScircuit.circuit_fabricator_recipe_list[1]
-
-	var/datum/component/material_container/materials = GetComponent(/datum/component/material_container)
-
-	//Preparing the browser
-	var/datum/browser/popup = new(user, "printernew", "Integrated Circuit Printer", 800, 630) // Set up the popup browser window
-
-	var/HTML = "<center><h2>Integrated Circuit Printer</h2></center><br>"
-	if(debug)
-		HTML += "<center><h3>DEBUG PRINTER -- Infinite materials. Cloning available.</h3></center>"
-	else
-		HTML += "Metal: [materials.total_amount]/[materials.max_amount].<br><br>"
-
-	HTML += "Identity-lock: "
-	if(idlock)
-		var/obj/item/card/id = idlock.resolve()
-		HTML+= "[id.name] | <A href='?src=[REF(src)];id-lock=TRUE'>Reset</a><br>"
-	else
-		HTML += "None | Reset<br>"
-
-	if(CONFIG_GET(flag/ic_printing) || debug)
-		HTML += "Assembly cloning: [can_clone ? (fast_clone ? "Instant" : "Available") : "Unavailable"].<br>"
-
-	HTML += "Circuits available: [upgraded || debug ? "Advanced":"Regular"]."
-	if(!upgraded)
-		HTML += "<br>Crossed out circuits mean that the printer is not sufficiently upgraded to create that circuit."
-
-	HTML += "<hr>"
-	if((can_clone && CONFIG_GET(flag/ic_printing)) || debug)
-		HTML += "Here you can load script for your assembly.<br>"
-		if(!cloning)
-			HTML += " <A href='?src=[REF(src)];print=load'>Load Program</a> "
-		else
-			HTML += " Load Program"
-		if(!program)
-			HTML += " [fast_clone ? "Print" : "Begin Printing"] Assembly"
-		else if(cloning)
-			HTML += " <A href='?src=[REF(src)];print=cancel'>Cancel Print</a>"
-		else
-			HTML += " <A href='?src=[REF(src)];print=print'>[fast_clone ? "Print" : "Begin Printing"] Assembly</a>"
-
-		HTML += "<br><hr>"
-	HTML += "Categories:"
-	for(var/category in SScircuit.circuit_fabricator_recipe_list)
-		if(category != current_category)
-			HTML += " <a href='?src=[REF(src)];category=[category]'>[category]</a> "
-		else // Bold the button if it's already selected.
-			HTML += " <b>[category]</b> "
-	HTML += "<hr>"
-	HTML += "<center><h4>[current_category]</h4></center>"
-
-	var/list/current_list = SScircuit.circuit_fabricator_recipe_list[current_category]
-	for(var/path in current_list)
-		var/obj/O = path
-		var/can_build = TRUE
-		if(ispath(path, /obj/item/integrated_circuit))
-			var/obj/item/integrated_circuit/IC = path
-			if((initial(IC.spawn_flags) & IC_SPAWN_RESEARCH) && (!(initial(IC.spawn_flags) & IC_SPAWN_DEFAULT)) && !upgraded)
-				can_build = FALSE
-		if(can_build)
-			HTML += "<a href='?src=[REF(src)];build=[path]'>[initial(O.name)]</a>: [initial(O.desc)]<br>"
-		else
-			HTML += "<s>[initial(O.name)]</s>: [initial(O.desc)]<br>"
-
-	popup.set_content(HTML)
-	popup.open()
-
 /obj/item/integrated_circuit_printer/Topic(href, href_list)
 	if(!check_interactivity(usr))
 		return
@@ -214,6 +142,8 @@
 	if(href_list["build"])
 		var/build_type = text2path(href_list["build"])
 		if(!build_type || !ispath(build_type))
+			return TRUE
+		if(!can_print_type(build_type)) // the old page was trusted to offer only what the printer has (circuits_tgui.dm)
 			return TRUE
 
 		var/cost = 400

@@ -1,0 +1,11 @@
+{
+    "map_name": "Test Bench",
+    "map_path": "map_files/debug",
+    "map_file": "runtimestation.dmm",
+    "space_ruin_levels": 0,
+    "space_empty_levels": 1,
+    "minetype": null,
+    "shuttles": {
+        "cargo": "cargo_delta"
+    }
+}

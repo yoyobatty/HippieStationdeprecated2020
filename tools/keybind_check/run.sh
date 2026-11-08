@@ -6,6 +6,8 @@ unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every 
 set -u
 LABEL="${1:-now}"
 PORT="${PORT:-45311}"
+# MAP=testbench boots the small test map (_maps/testbench.json, ~4 s of init against ~17 s for the Hippie map) for
+# windows and checks that never use the station; leave it unset for anything that needs Hippie's rooms.
 BYOND_BIN="${BYOND_BIN:-/c/Program Files (x86)/BYOND/bin}"
 HERE="$(cd "$(dirname "$0")" && pwd -W)"
 cd "${CHECKOUT:-$(dirname "$0")/../..}"
@@ -36,7 +38,7 @@ cp -r config data/keycheck_config
 sed -i '/^GUEST_BAN/d' data/keycheck_config/config.txt
 sed -i '/^BOT_CREW/d' data/keycheck_config/hippiestation_config.txt
 
-"$BYOND_BIN/dd.exe" keycheck.dmb "$PORT" -trusted -invisible -params "config=data/keycheck_config&keycheck=1" > data/keycheck_dd.log 2>&1 &
+"$BYOND_BIN/dd.exe" keycheck.dmb "$PORT" -trusted -invisible -params "config=data/keycheck_config&keycheck=1${MAP:+&bot-map=$MAP}" > data/keycheck_dd.log 2>&1 &
 DD=$!
 echo "Server $DD booting..."
 for i in $(seq 1 240); do

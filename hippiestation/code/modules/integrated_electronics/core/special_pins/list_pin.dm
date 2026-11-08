@@ -6,24 +6,9 @@
 /datum/integrated_io/lists/ask_for_pin_data(mob/user)
 	interact(user)
 
+// The list is edited in the circuit's window now (circuits_tgui.dm, ui_list_act)
 /datum/integrated_io/lists/proc/interact(mob/user)
-	var/list/my_list = data
-	var/t = "<h2>[src]</h2><br>"
-	t += "List length: [my_list.len]<br>"
-	t += "<a href='?src=[REF(src)]'>\[Refresh\]</a>  |  "
-	t += "<a href='?src=[REF(src)];add=1'>\[Add\]</a>  |  "
-	t += "<a href='?src=[REF(src)];remove=1'>\[Remove\]</a>  |  "
-	t += "<a href='?src=[REF(src)];edit=1'>\[Edit\]</a>  |  "
-	t += "<a href='?src=[REF(src)];swap=1'>\[Swap\]</a>  |  "
-	t += "<a href='?src=[REF(src)];clear=1'>\[Clear\]</a><br>"
-	t += "<hr>"
-	var/i = 0
-	for(var/line in my_list)
-		i++
-		t += "#[i] | [display_data(line)]  |  "
-		t += "<a href='?src=[REF(src)];edit=1;pos=[i]'>\[Edit\]</a>  |  "
-		t += "<a href='?src=[REF(src)];remove=1;pos=[i]'>\[Remove\]</a><br>"
-	user << browse(t, "window=list_pin_[REF(src)];size=500x400")
+	holder.interact(user)
 
 /datum/integrated_io/lists/proc/add_to_list(mob/user, var/new_entry)
 	if(!new_entry && user)

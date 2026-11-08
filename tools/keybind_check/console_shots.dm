@@ -299,6 +299,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_orion(C, H, label)
 		if("antags")
 			cs_antags(C, H, label)
+		if("circuits")
+			cs_circuits(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -7892,3 +7894,135 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	cs_shot("popup_dashboard_[label]")
 	SStgui.close_user_uis(H)
 	qdel(control)
+
+// Integrated circuits (circuits_tgui.dm): the printer, an assembly's node graph with a multitool in hand, the analyzer's
+// code, and a loose circuit. The before pictures come from a HEAD worktree (the old procs were replaced, not excluded),
+// so nothing here names a var or proc only the new code has.
+
+/proc/cs_circuit_window(client/C, mob/living/carbon/human/H, atom/A, old_window, shot, title)
+	var/datum/tgui/ui = SStgui.get_open_ui(H, A, "main")
+	if(!ui)
+		sleep(15)
+		winset(C, old_window, "pos=200,40")
+		sleep(5)
+		cs_shot(shot)
+		return null
+	ui = cs_find_ui(H, A)
+	winset(C, ui.window_id, "pos=200,40")
+	sleep(15)
+	cs_shot(shot, title)
+	return ui
+
+/proc/cs_circuits(client/C, mob/living/carbon/human/H, label)
+	CONFIG_SET(flag/ic_printing, TRUE)
+	var/turf/here = get_turf(H)
+	var/obj/item/integrated_circuit_printer/printer = new(here)
+	var/datum/component/material_container/mats = printer.GetComponent(/datum/component/material_container)
+	var/obj/item/stack/sheet/metal/sheets = new(here, 50)
+	H.drop_all_held_items()
+	H.put_in_active_hand(sheets)
+	printer.attackby(sheets, H)
+	H.drop_all_held_items()
+	usr = H
+	printer.interact(H)
+	var/datum/tgui/ui = cs_circuit_window(C, H, printer, "printernew", "popup_circuits_[label]_0_printer", printer.name)
+	if(ui)
+		cs_check("printer window opens", TRUE)
+		cs_tgui_do(C, ui.window_id, "click:Arithmetic")
+		sleep(5)
+		cs_tgui_do(C, ui.window_id, "css:.CircuitPrinter__tile")
+		sleep(8)
+		cs_shot("popup_circuits_[label]_1_printer_picked", printer.name)
+		var/metal = mats.amount(MAT_METAL)
+		cs_tgui_do(C, ui.window_id, "click:Print (")
+		sleep(8)
+		cs_check("Print in the window prints", mats.amount(MAT_METAL) < metal, "[metal] -> [mats.amount(MAT_METAL)]")
+		H.drop_all_held_items()
+	SStgui.close_user_uis(H)
+	H << browse(null, "window=printernew")
+
+	// A doorbell: button -> adder -> memory -> number to text -> speaker, and a list circuit beside it
+	var/obj/item/electronic_assembly/medium/default/A = new(get_step(here, EAST))
+	A.name = "doorbell"
+	A.opened = TRUE
+	A.battery = new /obj/item/stock_parts/cell/high(A)
+	var/obj/item/integrated_circuit/input/button/button = new(A)
+	A.add_component(button)
+	var/obj/item/integrated_circuit/arithmetic/addition/adder = new(A)
+	A.add_component(adder)
+	var/obj/item/integrated_circuit/memory/memory = new(A)
+	A.add_component(memory)
+	var/obj/item/integrated_circuit/converter/num2text/to_text = new(A)
+	A.add_component(to_text)
+	var/obj/item/integrated_circuit/output/text_to_speech/speaker = new(A)
+	A.add_component(speaker)
+	var/list/wires = list(
+		list(button.activators[1], adder.activators[1]),
+		list(adder.outputs[1], memory.inputs[1]),
+		list(adder.activators[2], memory.activators[1]),
+		list(memory.outputs[1], to_text.inputs[1]),
+		list(memory.activators[2], to_text.activators[1]),
+		list(to_text.outputs[1], speaker.inputs[1]),
+		list(to_text.activators[2], speaker.activators[1]))
+	for(var/list/pair in wires)
+		var/datum/integrated_io/from = pair[1]
+		from.connect_pin(pair[2])
+	var/datum/integrated_io/in_a = adder.inputs[1]
+	var/datum/integrated_io/in_b = adder.inputs[2]
+	in_a.write_data_to_pin(2)
+	in_b.write_data_to_pin(3)
+	var/obj/item/multitool/multitool = new(here)
+	H.drop_all_held_items()
+	H.put_in_active_hand(multitool)
+	usr = H
+	A.interact(H)
+	ui = cs_circuit_window(C, H, A, "scannernew", "popup_circuits_[label]_2_assembly", A.name)
+	if(ui)
+		sleep(10)
+		cs_check("the window laid the parts out", !isnull(adder.vars["graph_x"]), "adder at [adder.vars["graph_x"]],[adder.vars["graph_y"]]")
+		SStgui.update_uis(A)
+		sleep(10)
+		cs_shot("popup_circuits_[label]_2_assembly", A.name)
+		// A pin's value clicked with the multitool: the editor in the side panel, and a pin held to wire
+		cs_tgui_do(C, ui.window_id, "css:.CircuitGraph__node:nth-of-type(2) .CircuitGraph__pinValue")
+		sleep(5)
+		multitool.selected_io = memory.outputs[1]
+		multitool.update_icon()
+		SStgui.update_uis(A)
+		sleep(10)
+		cs_shot("popup_circuits_[label]_3_assembly_editing", A.name)
+		cs_tgui_do(C, ui.window_id, "click:Cancel")
+		sleep(5)
+		cs_check("Cancel in the window lets go of the pin", !multitool.selected_io)
+	SStgui.close_user_uis(H)
+	H << browse(null, "window=scannernew")
+
+	// The analyzer's code
+	var/obj/item/integrated_electronics/analyzer/analyzer = new(here)
+	H.drop_all_held_items()
+	H.put_in_active_hand(analyzer)
+	analyzer.afterattack(A, H, TRUE)
+	sleep(15)
+	var/datum/tgui/code_ui
+	for(var/datum/tgui/open in H.open_uis)
+		if(open.interface == "circuit_code")
+			code_ui = open
+	if(code_ui)
+		winset(C, code_ui.window_id, "pos=200,40")
+		sleep(10)
+	else
+		winset(C, "circuit_scan", "pos=200,40")
+		sleep(5)
+	cs_shot("popup_circuits_[label]_4_code")
+	SStgui.close_user_uis(H)
+	H << browse(null, "window=circuit_scan")
+
+	// A loose circuit
+	var/obj/item/integrated_circuit/memory/loose = new(here)
+	H.drop_all_held_items()
+	H.put_in_active_hand(multitool)
+	usr = H
+	loose.interact(H)
+	cs_circuit_window(C, H, loose, "scannernew", "popup_circuits_[label]_5_loose", loose.name)
+	SStgui.close_user_uis(H)
+	H << browse(null, "window=scannernew")

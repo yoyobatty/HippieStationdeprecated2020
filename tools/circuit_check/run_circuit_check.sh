@@ -9,6 +9,9 @@ set -u
 cd "$(dirname "$0")/../.."
 BYOND_BIN="${BYOND_BIN:-/c/Program Files (x86)/BYOND/bin}"
 PORT="${PORT:-45391}"
+# Boots the small test map (_maps/testbench.json: Runtime Station, no Lavaland or ruins): the test builds its own room,
+# and loading the Hippie map costs ~17 s a boot. MAP=hippiestation (any _maps/*.json name) to boot another.
+MAP="${MAP:-testbench}"
 
 cp hippiestation.dme circuitcheck.mdme
 printf '#include "tools\\circuit_check\\circuit_selftest.dm"\r\n' >> circuitcheck.mdme
@@ -18,7 +21,7 @@ if [ ! -f circuitcheck.mdme.dmb ]; then echo "Compile failed"; rm -f circuitchec
 
 rm -rf data/circuit_check data/logs/circuit_check_logs
 began=$(date +%s)
-"$BYOND_BIN/dd.exe" circuitcheck.mdme.dmb "$PORT" -trusted -invisible -params "circuit-selftest=1&log-directory=circuit_check_logs" > /dev/null 2>&1 &
+"$BYOND_BIN/dd.exe" circuitcheck.mdme.dmb "$PORT" -trusted -invisible -params "circuit-selftest=1&log-directory=circuit_check_logs&bot-map=$MAP" > /dev/null 2>&1 &
 dd=$!
 while kill -0 $dd 2>/dev/null; do
 	sleep 2

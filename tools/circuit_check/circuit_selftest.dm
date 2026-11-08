@@ -63,6 +63,10 @@
 		player_path()
 	catch(var/exception/e)
 		check("player path ran to the end", FALSE, "[e] at [e.file]:[e.line]")
+	try
+		window_path()
+	catch(var/exception/e2)
+		check("window path ran to the end", FALSE, "[e2] at [e2.file]:[e2.line]")
 	microphone_check()
 	sweep_all_circuits()
 
@@ -339,6 +343,12 @@
 		A.opened = TRUE
 		A.ui_interact(H)
 		IC.ui_interact(H)
+		if(!istext(json_encode(A.ui_data(H))))
+			. = "[path]: the assembly window's data doesn't encode"
+		var/list/node = IC.ui_node_data()
+		var/pins = length(node["inputs"]) + length(node["outputs"]) + length(node["pulse_in"]) + length(node["pulse_out"])
+		if(pins != length(IC.inputs) + length(IC.outputs) + length(IC.activators))
+			. = "[path]: the graph shows [pins] pins of [length(IC.inputs) + length(IC.outputs) + length(IC.activators)]"
 	catch(var/exception/e)
 		. = "[path] ([where]): [e] at [e.file]:[e.line]"
 	if(A && !QDELETED(A))
@@ -400,5 +410,223 @@
 	if(istype(pin, /datum/integrated_io/selfref))
 		return null
 	return 1
+
+// The tgui windows (circuits_tgui.dm), driven through ui_act as their buttons do: a stub window that says interactive
+// stands in for a real one (nobody connects to this world)
+
+/datum/tgui/circuit_stub/New()
+	status = UI_INTERACTIVE
+
+/datum/circuit_selftest/proc/act(datum/D, mob/user, action, list/params = list())
+	var/datum/tgui/circuit_stub/stub = new
+	usr = user
+	return D.ui_act(action, params, stub, GLOB.default_state)
+
+/datum/circuit_selftest/proc/hold(mob/living/carbon/human/H, obj/item/I)
+	var/obj/item/old = H.get_active_held_item()
+	if(old && old != I)
+		H.dropItemToGround(old)
+	if(I && H.get_active_held_item() != I)
+		H.put_in_active_hand(I)
+
+/datum/circuit_selftest/proc/window_path()
+	var/mob/living/carbon/human/H = make_human(spot(4, 7), "Window Tester")
+	var/obj/item/integrated_circuit_printer/printer = new(spot(5, 7))
+	var/obj/item/stack/sheet/metal/sheets = new(spot(4, 7), 50)
+	hold(H, sheets)
+	printer.attackby(sheets, H)
+	hold(H, null)
+
+	// Printer window: the shop data, pictures, and printing from it
+	var/list/static_data = printer.ui_static_data(H)
+	var/list/categories = static_data["categories"]
+	var/items = 0
+	var/pictured = 0
+	var/datum/asset/spritesheet/sheet = get_asset_datum(/datum/asset/spritesheet/circuits)
+	var/research_path
+	for(var/list/cat in categories)
+		for(var/list/item in cat["items"])
+			items++
+			if(sheet.sprites[item["icon"]])
+				pictured++
+			if(item["research"] && !research_path)
+				research_path = item["path"]
+	check("printer window lists the parts with pictures", items > 100 && pictured > items * 0.9, "[length(categories)] categories, [items] parts, [pictured] pictured")
+	check("printer window data encodes", istext(json_encode(printer.ui_data(H))))
+	var/obj/item/electronic_assembly/A
+	var/datum/component/material_container/mats = printer.GetComponent(/datum/component/material_container)
+	var/metal_was = mats.amount(MAT_METAL)
+	var/acted = act(printer, H, "build", list("path" = "[/obj/item/electronic_assembly/medium/default]"))
+	A = locate() in H.held_items
+	if(!A)
+		A = locate() in range(1, printer)
+	check("Print from the printer window", istype(A), "ui_act [acted], metal [metal_was] -> [mats.amount(MAT_METAL)], adjacent [H.Adjacent(printer)], can use [H.canUseTopic(printer, BE_CLOSE)], printable [printer.can_print_type(/obj/item/electronic_assembly/medium/default)]")
+	if(!A)
+		return
+	H.dropItemToGround(A)
+	var/obj/item/stock_parts/cell/high/cell = new(spot(4, 7))
+	A.battery = cell
+	cell.forceMove(A)
+	var/turf/T = get_turf(printer)
+	var/count_before = length(T.contents) + length(H.held_items - null)
+	if(research_path)
+		act(printer, H, "build", list("path" = research_path))
+	act(printer, H, "build", list("path" = "[/obj/item/gun/energy/laser]"))
+	check("the printer won't print research parts without the disk, or things it doesn't list", length(T.contents) + length(H.held_items - null) == count_before && !(locate(/obj/item/gun/energy/laser) in range(1, printer)), "research part [research_path]")
+
+	// Parts in by hand
+	var/obj/item/integrated_circuit/input/button/button = new(spot(4, 7))
+	var/obj/item/integrated_circuit/arithmetic/addition/adder = new(spot(4, 7))
+	var/obj/item/integrated_circuit/memory/memory = new(spot(4, 7))
+	for(var/obj/item/integrated_circuit/IC in list(button, adder, memory))
+		hold(H, IC)
+		A.attackby(IC, H)
+	check("parts slot in", length(A.assembly_components) == 3)
+	var/list/data = A.ui_data(H)
+	check("assembly window lists the parts as nodes", length(data["components"]) == 3 && istext(json_encode(data)), "[length(data["components"])] nodes")
+	check("no tool: the window says look only", data["tool"]["kind"] == "none")
+
+	// Tool rules: no tool, nothing set
+	var/datum/integrated_io/in_a = adder.inputs[1]
+	var/datum/integrated_io/in_b = adder.inputs[2]
+	act(A, H, "set", list("ref" = REF(adder), "pin" = REF(in_a), "type" = "number", "value" = "2"))
+	check("no tool, no data written", isnull(in_a.data), "[in_a.data]")
+
+	// Multitool: wire button -> adder by clicking two dots, set numbers typed in the window
+	var/obj/item/multitool/multitool = new(spot(4, 7))
+	hold(H, multitool)
+	data = A.ui_data(H)
+	check("the window sees the multitool", data["tool"]["kind"] == "multitool")
+	var/datum/integrated_io/press = button.activators[1]
+	var/datum/integrated_io/compute = adder.activators[1]
+	act(A, H, "wire", list("ref" = REF(button), "pin" = REF(press)))
+	data = A.ui_data(H)
+	check("first dot: the multitool holds that pin", multitool.selected_io == press && data["tool"]["selected"] == REF(press))
+	act(A, H, "wire", list("ref" = REF(adder), "pin" = REF(compute)))
+	check("second dot: wired", (compute in press.linked) && !multitool.selected_io)
+	act(A, H, "set", list("ref" = REF(adder), "pin" = REF(in_a), "type" = "number", "value" = "2"))
+	act(A, H, "set", list("ref" = REF(adder), "pin" = REF(in_b), "type" = "number", "value" = "3"))
+	check("numbers typed in the window", in_a.data == 2 && in_b.data == 3, "[in_a.data], [in_b.data]")
+	var/datum/integrated_io/result = adder.outputs[1]
+	var/datum/integrated_io/mem_in = memory.inputs[1]
+	act(A, H, "wire", list("ref" = REF(adder), "pin" = REF(result)))
+	act(A, H, "wire", list("ref" = REF(memory), "pin" = REF(mem_in)))
+	act(A, H, "wire", list("ref" = REF(adder), "pin" = REF(adder.activators[2])))
+	act(A, H, "wire", list("ref" = REF(memory), "pin" = REF(memory.activators[1])))
+	act(A, H, "data", list("ref" = REF(adder), "pin" = REF(compute))) // a pulse pin's bolt pulses it
+	sleep(2)
+	check("pulse from the window: 2 + 3 stored", memory.get_pin_data(IC_OUTPUT, 1) == 5, "memory holds [memory.get_pin_data(IC_OUTPUT, 1)]")
+	act(A, H, "set", list("ref" = REF(memory), "pin" = REF(mem_in), "type" = "string", "value" = "hi <b>there</b>"))
+	check("text typed into an any pin, escaped", mem_in.data == html_encode("hi <b>there</b>"), "[mem_in.data]")
+	act(A, H, "set", list("ref" = REF(memory), "pin" = REF(mem_in), "type" = "null"))
+	check("null typed into an any pin", isnull(mem_in.data))
+	act(A, H, "unwire", list("ref" = REF(button), "pin" = REF(press), "link" = REF(compute)))
+	check("a wire clicked: cut", !(compute in press.linked))
+	act(A, H, "wire", list("ref" = REF(button), "pin" = REF(press)))
+	act(A, H, "cancel_wire", list("ref" = REF(button)))
+	check("Cancel lets go of the held pin", !multitool.selected_io)
+
+	// A list pin edited in the window
+	var/obj/item/integrated_circuit/lister
+	var/datum/integrated_io/lists/list_pin
+	for(var/path in SScircuit.cached_components)
+		var/obj/item/integrated_circuit/proto = SScircuit.cached_components[path]
+		if(!(proto.spawn_flags & IC_SPAWN_DEFAULT))
+			continue
+		for(var/datum/integrated_io/lists/L in proto.inputs)
+			lister = path
+			break
+		if(lister)
+			break
+	if(lister)
+		var/obj/item/integrated_circuit/LC = new lister(A)
+		A.add_component(LC)
+		for(var/datum/integrated_io/lists/L in LC.inputs)
+			list_pin = L
+			break
+		act(A, H, "list_add", list("ref" = REF(LC), "pin" = REF(list_pin), "type" = "number", "value" = "5"))
+		act(A, H, "list_add", list("ref" = REF(LC), "pin" = REF(list_pin), "type" = "string", "value" = "x"))
+		act(A, H, "list_swap", list("ref" = REF(LC), "pin" = REF(list_pin), "pos" = "2", "other" = "1"))
+		act(A, H, "list_edit", list("ref" = REF(LC), "pin" = REF(list_pin), "pos" = "2", "type" = "number", "value" = "7"))
+		var/list/L1 = list_pin.data
+		check("list pin: add, swap, edit", L1.len == 2 && L1[1] == "x" && L1[2] == 7, "[json_encode(L1)]")
+		act(A, H, "list_remove", list("ref" = REF(LC), "pin" = REF(list_pin), "pos" = "1"))
+		check("list pin: remove", L1.len == 1 && L1[1] == 7, "[json_encode(L1)]")
+		act(A, H, "list_clear", list("ref" = REF(LC), "pin" = REF(list_pin)))
+		check("list pin: clear", !L1.len)
+	else
+		check("a printable circuit with a list input", FALSE)
+
+	// Debugger: a value clicked writes its memory
+	var/obj/item/integrated_electronics/debugger/debugger = new(spot(4, 7))
+	debugger.data_to_write = 9
+	hold(H, debugger)
+	act(A, H, "data", list("ref" = REF(adder), "pin" = REF(in_a)))
+	check("debugger writes its memory to a clicked value", in_a.data == 9, "[in_a.data]")
+	data = A.ui_data(H)
+	check("the window sees the debugger", data["tool"]["kind"] == "debugger")
+
+	// Wirer: dots wire, a wire cuts only in unwire mode
+	var/obj/item/integrated_electronics/wirer/wirer = new(spot(4, 7))
+	hold(H, wirer)
+	act(A, H, "wire", list("ref" = REF(button), "pin" = REF(press)))
+	act(A, H, "wire", list("ref" = REF(adder), "pin" = REF(compute)))
+	check("wirer: two dots wire", compute in press.linked)
+	act(A, H, "unwire", list("ref" = REF(button), "pin" = REF(press), "link" = REF(compute)))
+	check("wirer in wire mode doesn't cut", compute in press.linked)
+	wirer.attack_self(H) // to unwire
+	act(A, H, "unwire", list("ref" = REF(button), "pin" = REF(press), "link" = REF(compute)))
+	check("wirer in unwire mode cuts", !(compute in press.linked))
+
+	// Layout, order, names, remove
+	act(A, H, "move", list("ref" = REF(adder), "x" = "120", "y" = "60"))
+	check("a dragged chip keeps its place", adder.graph_x == 120 && adder.graph_y == 60)
+	act(A, H, "arrange", list("layout" = "[REF(button)],10,20;[REF(memory)],400,30;junk"))
+	check("Arrange stores every chip's place", button.graph_x == 10 && button.graph_y == 20 && memory.graph_x == 400)
+	var/pos_before = A.assembly_components.Find(button)
+	act(A, H, "order", list("ref" = REF(button), "dir" = "down"))
+	check("parts move down the order", A.assembly_components.Find(button) == pos_before + 1)
+	act(A, H, "rename", list("name" = "Doorbell"))
+	check("assembly renamed in the window", A.name == "Doorbell", A.name)
+	act(A, H, "rename_component", list("ref" = REF(adder), "name" = "Sum"))
+	check("part renamed in the window", adder.displayed_name == "Sum", adder.displayed_name)
+	hold(H, null)
+	act(A, H, "remove", list("ref" = REF(memory)))
+	check("a part removed from the window", !(memory in A.assembly_components))
+	act(A, H, "remove_cell")
+	check("the cell removed from the window", !A.battery)
+
+	// A loose circuit gets a one-chip window
+	hold(H, multitool)
+	var/list/loose = memory.ui_data(H)
+	check("a loose circuit's window has one chip", loose["loose"] && length(loose["components"]) == 1)
+	act(memory, H, "set", list("ref" = REF(memory), "pin" = REF(mem_in), "type" = "number", "value" = "4"))
+	check("a loose circuit's pin set from its window", mem_in.data == 4, "[mem_in.data]")
+
+	// Load Program from the window
+	CONFIG_SET(flag/ic_printing, TRUE)
+	var/save = SScircuit.save_electronic_assembly(A)
+	act(printer, H, "load", list("code" = save))
+	var/list/pdata = printer.ui_data(H)
+	check("Load Program from the window", islist(printer.program) && pdata["program"], "[length(save)] chars")
+	act(printer, H, "unload")
+	check("Unload", !printer.program)
+	act(printer, H, "load", list("code" = "not a program"))
+	check("junk code isn't loaded", !printer.program)
+
+	// The analyzer's code window
+	var/datum/circuit_code_view/V = new("test", save)
+	var/list/vdata = V.ui_static_data(H)
+	check("code window carries the code", vdata["code"] == save)
+	qdel(V)
+	var/list/outline = circuit_outline(A)
+	var/list/outline_parts = outline["parts"]
+	var/list/first_values = outline_parts.len ? outline_parts[1]["values"] : list()
+	var/typed = 0
+	for(var/list/part in outline_parts)
+		typed += length(part["values"])
+	check("the code window's outline lists the parts, typed values and wires", outline_parts.len == length(A.assembly_components) && typed > 0 && istext(json_encode(outline)), "[outline_parts.len] parts, [typed] typed values ([length(first_values)] on the first), [length(outline["wires"])] wires")
+	qdel(A)
+	qdel(printer)
 
 #undef CIRCUIT_CHECK_DIR
