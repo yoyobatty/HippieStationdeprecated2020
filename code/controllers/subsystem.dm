@@ -46,6 +46,8 @@
 	var/asleep_since = 0
 	var/asleep_fire = 0
 	var/asleep_warned = FALSE
+	/// hippie -- has_work() says whether a fire would do anything; the MC doesn't queue it when it wouldn't (subsystem_idle.dm)
+	var/idle_check = FALSE
 	//Do not blindly add vars here to the bottom, put it where it goes above
 	//If your var only has two values, put it in as a flag.
 
@@ -64,13 +66,13 @@
 	set waitfor = FALSE
 	. = SS_SLEEPING
 	var/generation = fire_generation
-	var/started_real = REALTIMEOFDAY
+	var/started_real = world.timeofday // raw: REALTIMEOFDAY's midnight check costs a global and sometimes a proc call, every fire
 	var/started_time = world.time
 	fire(resumed)
 	// hippie -- held the server for over a second of real time beyond the game time that passed: the MC watchdog's freeze
 	// report names it. Timed around the whole call, because BYOND can pause a long busy proc and finish it later in the
 	// same tick or the next, outside the MC's own timing of this call.
-	var/held = (REALTIMEOFDAY - started_real) - (world.time - started_time)
+	var/held = (world.timeofday - started_real) - (world.time - started_time) // over midnight it's negative: never blamed
 	if (held * 100 > MC_LONG_FIRE_MS && world.time - started_time <= world.tick_lag * 2) // a long sleep through lag isn't holding it
 		Master.last_long_fire = list(name, held * 100, world.time)
 	if (generation != fire_generation) // hippie -- woke after the MC gave up on it and started it afresh: the state is the new run's
@@ -83,6 +85,11 @@
 		enqueue()
 		state = SS_PAUSED
 		queued_time = QT
+
+/// hippie -- with idle_check: FALSE when a fire would have nothing to do, so the MC doesn't queue one. Must be cheap: it's asked
+/// every time the subsystem is due.
+/datum/controller/subsystem/proc/has_work()
+	return TRUE
 
 //previously, this would have been named 'process()' but that name is used everywhere for different things!
 //fire() seems more suitable. This is the procedure that gets called every 'wait' deciseconds.

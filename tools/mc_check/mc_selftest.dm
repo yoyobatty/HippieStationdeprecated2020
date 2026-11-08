@@ -628,3 +628,52 @@ SUBSYSTEM_DEF(mctest_init)
 	check("native: the dump has the round's procs", length(rows) > 200, "[length(rows)] rows")
 	SSprofiler.DumpFile()
 	check("native: profiler.json written", fexists("[GLOB.log_directory]/profiler.json") && length(file2text("[GLOB.log_directory]/profiler.json")) > 1000)
+
+/// STEPS=census only: every subsystem's fires a second, cost and wait over 60 s, the MC's own bookkeeping time on top
+/datum/mc_selftest/proc/census()
+	var/list/fires = list()
+	var/list/ms = list()
+	for(var/datum/controller/subsystem/SS as anything in Master.subsystems)
+		fires[SS] = SS.times_fired
+		ms[SS] = SS.total_ms
+	var/time = world.time
+	var/iterations = Master.iteration
+	SStimer.census = list()
+	SStimer.census_count = list()
+	var/list/prof_before = list()
+	if(SSprofiler.engine == "hippie")
+		for(var/list/row in json_decode(hippie_prof("dump")))
+			prof_before[row["name"]] = row["self"]
+	sleep(60 SECONDS)
+	var/seconds = (world.time - time) / 10
+	var/list/census = SStimer.census.Copy()
+	sortTim(census, GLOBAL_PROC_REF(cmp_numeric_dsc), TRUE)
+	var/shown = 0
+	for(var/key in census)
+		note("  timer [key]: [round(census[key] / seconds, 0.01)] ms/s, [round(SStimer.census_count[key] / seconds, 0.1)] fired/s")
+		if(++shown >= 8)
+			break
+	SStimer.census = null
+	if(SSprofiler.engine == "hippie")
+		var/list/mc = list()
+		for(var/list/row in json_decode(hippie_prof("dump")))
+			var/d = row["self"] - (prof_before[row["name"]] || 0)
+			if(findtext(row["name"], "/datum/controller/master/") || findtext(row["name"], "/datum/controller/subsystem/proc/") || row["name"] == "/proc/stoplag")
+				mc += "[row["name"]] [round(d * 1000 / seconds, 0.01)] ms/s"
+		note("  the MC's own procs (self): [jointext(mc, "; ")]")
+	var/list/rows = list()
+	var/total_fires = 0
+	for(var/datum/controller/subsystem/SS as anything in Master.subsystems)
+		var/f = (SS.times_fired - (fires[SS] || 0)) / seconds
+		var/m = (SS.total_ms - (ms[SS] || 0)) / seconds
+		total_fires += f
+		if(f > 0)
+			rows["[SS.name]"] = list(f, m, SS.wait, (SS.flags & SS_TICKER) ? "ticker" : "", SS.can_fire)
+	note("census: [round(total_fires, 0.1)] fires a game second over [Master.subsystems.len] subsystems, MC went round [round((Master.iteration - iterations) / seconds, 0.1)] times a second")
+	var/list/order = list()
+	for(var/name in rows)
+		order[name] = rows[name][1]
+	sortTim(order, GLOBAL_PROC_REF(cmp_numeric_dsc), TRUE)
+	for(var/name in order)
+		var/list/r = rows[name]
+		note("  [name]: [round(r[1], 0.1)] fires/s, [round(r[2], 0.01)] ms/s, [round(r[2] / max(0.001, r[1]) * 1000, 1)] us a fire, wait [r[3]] [r[4]]")

@@ -89,3 +89,18 @@
 	if(..())
 		return
 	REMOVE_TRAIT(owner, TRAIT_ANTIMAGIC, GENETIC_MUTATION)
+
+// Glowy's light lives in its owner and goes when they do, while the mutation held on to it: a hard delete (24 ms, stress bench
+// 2026-11-08). Let go of it when it's deleted, and delete it with the mutation.
+/datum/mutation/human/glow/on_acquiring(mob/living/carbon/human/owner)
+	. = ..()
+	if(!. && glowth)
+		RegisterSignal(glowth, COMSIG_PARENT_QDELETING, PROC_REF(glow_gone))
+
+/datum/mutation/human/glow/proc/glow_gone()
+	SIGNAL_HANDLER
+	glowth = null
+
+/datum/mutation/human/glow/Destroy()
+	QDEL_NULL(glowth)
+	return ..()

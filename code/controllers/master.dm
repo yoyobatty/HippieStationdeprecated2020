@@ -505,21 +505,28 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 	var/datum/controller/subsystem/SS
 	var/SS_flags
 
+	var/now = world.time // hippie
 	for (var/thing in subsystemstocheck)
 		if (!thing)
 			subsystemstocheck -= thing
+			continue // hippie -- it went on to read .state off the null
 		SS = thing
+		if (SS.next_fire > now) // hippie -- first: most aren't due, and this way that's one read, not three
+			continue
 		if (SS.state != SS_IDLE)
 			continue
 		if (SS.can_fire <= 0)
-			continue
-		if (SS.next_fire > world.time)
 			continue
 		SS_flags = SS.flags
 		if (SS_flags & SS_NO_FIRE)
 			subsystemstocheck -= SS
 			continue
-		if ((SS_flags & (SS_TICKER|SS_KEEP_TIMING)) == SS_KEEP_TIMING && SS.last_fire + (SS.wait * 0.75) > world.time)
+		if ((SS_flags & (SS_TICKER|SS_KEEP_TIMING)) == SS_KEEP_TIMING && SS.last_fire + (SS.wait * 0.75) > now)
+			continue
+		// hippie -- nothing to do: not queued, so no enqueue, RunQueue bookkeeping, ignite() or fire() for nothing. ~240 of the
+		// ~315 fires a game second were tickers walking empty lists (subsystem_idle.dm)
+		if (SS.idle_check && !SS.has_work())
+			SS.next_fire = now + ((SS_flags & SS_TICKER) ? world.tick_lag * SS.wait : SS.wait)
 			continue
 		SS.enqueue()
 	. = 1

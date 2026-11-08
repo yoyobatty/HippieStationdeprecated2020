@@ -276,6 +276,17 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 		if(length(parts) >= 4)
 			break
 	lines += "spike in [current.name] at [round((world.time - current.started_at) / 10, 0.1)] s: [round(gap)] ms, [round(in_mc)] in the MC ([jointext(parts, ", ")]), [round(gap - in_mc)] outside it"
+	if(SSprofiler?.engine == "hippie") // the procs that ran in it, from hippie_prof's last samples (self time)
+		var/list/ran = SSprofiler.recent(gap + 2)
+		var/list/procs = list()
+		for(var/proc_name in ran)
+			if(findtext(proc_name, "(idle") == 1)
+				continue
+			procs += "[proc_name] [round(ran[proc_name] * 1000)]"
+			if(length(procs) >= 5)
+				break
+		if(length(procs))
+			lines += "    procs (ms): [jointext(procs, ", ")]"
 	if(took["Atmospherics"] >= 20) // which of SSair's stages
 		var/list/air_now = atmos_totals()
 		var/list/stages = list()

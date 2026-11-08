@@ -225,6 +225,14 @@ GLOBAL_LIST_INIT(bot_pocket_pal_lines, list("Beep boop!", "I am a circuit. I hav
 		. += D
 	GLOB.bot_area_airlocks[A] = .
 
+// Worked out once, so a door that's destroyed comes out of every list it's in: it held each one blown up for good, a hard delete
+// (75-90 ms each) for every airlock a tesla or a bomb took out, 16 in one stress round (2026-11-08)
+/obj/machinery/door/airlock/Destroy()
+	for(var/area/A as anything in GLOB.bot_area_airlocks)
+		var/list/doors = GLOB.bot_area_airlocks[A]
+		doors -= src
+	return ..()
+
 /// Whether this card would let its holder into the area: one of its doors opens to it, or it has no doors at all.
 /proc/bot_card_opens_area(obj/item/card/id/card, area/A)
 	var/list/doors = bot_area_airlocks(A)

@@ -304,8 +304,9 @@ GLOBAL_LIST_EMPTY(bot_fire_reports)
 		return GOAL_STEP_FAIL
 	if(E.safety)
 		bot.toggle_in_hand(E)
-	if(bot.owner.get_active_held_item() != E)
-		bot.owner.put_in_hands(E)
+	if(bot.owner.get_active_held_item() != E && !bot.ready_in_hand(E)) //put_in_hands() on one in a pocket left it in the pocket too: a hard delete
+		bot_log(bot, "couldn't get [E] into my hand")
+		return GOAL_STEP_FAIL
 	bot.owner.face_atom(fire_turf)
 	bot.telemetry_shortcut("afterattack", E, fire_turf) //telemetry
 	E.afterattack(fire_turf, bot.owner, 0) //internally cooldown-gated (last_use, extinguisher.dm) - harmless to call again before it's ready
