@@ -307,6 +307,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_pai(C, H, label)
 		if("antags3")
 			cs_antags3(C, H, label)
+		if("items4a")
+			cs_items4a(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -8425,3 +8427,132 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 		sleep(10)
 		cs_shot("popup_antags3_[label]_11_malf_bought")
 	SStgui.close_user_uis(AI)
+
+// ---------------------------------------------------------------------------------------------
+// Old windows, batch 4a: small things to read or pick from
+// ---------------------------------------------------------------------------------------------
+
+/// The first tgui window this mob has open with this interface, or null (the before build's old popups have none)
+/proc/cs_ui_named(mob/M, interface)
+	for(var/datum/tgui/open in M.open_uis)
+		if(open.interface == interface)
+			return open
+
+/proc/cs_items4a(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/assistant)
+	// A hand of cards
+	var/obj/item/toy/cards/deck/deck = new(get_turf(H))
+	var/obj/item/toy/cards/cardhand/hand = new(get_turf(H))
+	hand.currenthand = list("Ace of Hearts", "10 of Spades", "Queen of Diamonds", "3 of Clubs", "King of Hearts")
+	hand.parentdeck = deck
+	var/datum/tgui/ui = cs_b3_item(C, H, hand, "popup_items4a_[label]_1_cards", "cardhand", "Hand of Cards")
+	if(ui)
+		cs_tgui_do(C, ui.window_id, "css:.Cards__card")
+		sleep(10)
+		cs_check("items4a: a card taken from the hand ([length(hand.currenthand)] left)", length(hand.currenthand) == 4 && istype(H.get_inactive_held_item(), /obj/item/toy/cards/singlecard))
+	SStgui.close_user_uis(H)
+
+	// A valentine
+	var/obj/item/valentine/card = new(get_turf(H))
+	card.message = "Are you powering the station? Because you super matter to me."
+	card.name = "valentine - To: Maya From: Hugo"
+	usr = H
+	card.examine(H)
+	cs_b1_shot(C, H, cs_ui_named(H, "valentine") ? card : null, "popup_items4a_[label]_2_valentine", card.name, card.name)
+	SStgui.close_user_uis(H)
+
+	// A photo sent by PDA, opened from the message monitor's link
+	var/datum/picture/pic = new("the bar", "A photo of the bar.", list(), list(), icon('icons/obj/drinks.dmi', "beer"), null, 32, 32, null, "Opening night")
+	var/datum/data_pda_msg/msg = new("Hugo Brandt", "Maya Ferreira", "Look at this", pic)
+	usr = H
+	msg.Topic(null, list("photo" = "1"))
+	var/datum/tgui/photo_ui = cs_ui_named(H, "photo_viewer")
+	cs_b1_shot(C, H, photo_ui?.src_object, "popup_items4a_[label]_3_pda_photo", "pdaphoto", "PDA Photo")
+	SStgui.close_user_uis(H)
+
+	// The newspaper: a channel with two stories and a wanted notice, printed
+	GLOB.news_network.CreateFeedChannel("Station Gazette", "Lena Kowalczyk", FALSE)
+	GLOB.news_network.SubmitArticle("Engineering reports the supermatter is stable after a tense morning.", "Lena Kowalczyk", "Station Gazette", null)
+	GLOB.news_network.SubmitArticle("The bar's opening night was a hit.", "Luca Romano", "Station Gazette", pic)
+	var/obj/machinery/newscaster/caster = new(get_turf(H))
+	caster.paper_remaining = 5
+	caster.print_paper()
+	var/obj/item/newspaper/paper = locate() in get_turf(H)
+	cs_check("items4a: a newspaper printed", paper)
+	if(paper)
+		paper.scribble = "Call me - M."
+		paper.scribble_page = 1
+		ui = cs_b3_item(C, H, paper, "popup_items4a_[label]_4_newspaper", "newspaper_main")
+		if(ui)
+			cs_act(paper, H, "next")
+			SStgui.update_uis(paper)
+			sleep(15)
+			cs_check("items4a: the page turns ([paper.curr_page])", paper.curr_page == 1)
+			cs_shot("popup_items4a_[label]_5_newspaper_page")
+		else
+			usr = H
+			paper.Topic(null, list("next_page" = "1"))
+			paper.attack_self(H)
+			sleep(15)
+			cs_shot("popup_items4a_[label]_5_newspaper_page")
+			H << browse(null, "window=newspaper_main")
+		SStgui.close_user_uis(H)
+	qdel(caster)
+
+	// The locator, with a named beacon nearby
+	var/obj/item/beacon/beacon = new(cs_open_beside(H))
+	beacon.name = "Bar beacon"
+	beacon.renamed = TRUE
+	var/obj/item/locator/locator = new(get_turf(H))
+	ui = cs_b3_item(C, H, locator, "popup_items4a_[label]_6_locator_idle", "radio")
+	if(ui)
+		cs_act(locator, H, "refresh")
+		SStgui.update_uis(locator)
+		sleep(10)
+		var/list/scan = locator.vars["locator_scan"]
+		cs_check("items4a: the locator finds the beacon", scan && length(scan["beacons"]))
+		cs_shot("popup_items4a_[label]_7_locator")
+	else
+		usr = H
+		locator.Topic(null, list("refresh" = "1"))
+		locator.attack_self(H)
+		sleep(15)
+		cs_shot("popup_items4a_[label]_7_locator")
+		H << browse(null, "window=radio")
+	SStgui.close_user_uis(H)
+
+	// Paper held up to a camera, seen by the one watching through it
+	var/obj/machinery/camera/cam
+	for(var/obj/machinery/camera/K in GLOB.cameranet.cameras)
+		if(K.z == H.z && get_dist(K, H) < 30)
+			cam = K
+			break
+	if(!cam)
+		cam = locate() in GLOB.cameranet.cameras
+	var/obj/item/paper/note = new(get_turf(H))
+	note.info = "<h2>To the AI</h2>Please open the <b>tool storage</b> door.<br>Thanks, Lena"
+	H.drop_all_held_items()
+	H.put_in_active_hand(note)
+	C.eye = cam
+	cam.attackby(note, H)
+	sleep(20)
+	var/datum/tgui/snap_ui = cs_ui_named(H, "paper")
+	cs_b1_shot(C, H, snap_ui?.src_object, "popup_items4a_[label]_8_camera_paper", note.name, note.name)
+	SStgui.close_user_uis(H)
+	C.eye = H
+	// ...and by the AI
+	var/mob/living/carbon/human/holder = new(get_turf(H))
+	holder.real_name = "Lena Kowalczyk"
+	holder.name = "Lena Kowalczyk"
+	var/mob/living/silicon/ai/AI = H.AIize()
+	sleep(20)
+	if(istype(AI))
+		holder.put_in_active_hand(note)
+		cam.attackby(note, holder)
+		usr = AI
+		AI.Topic(null, list("show_paper" = "1"))
+		sleep(15)
+		var/datum/tgui/ai_ui = cs_ui_named(AI, "paper")
+		cs_check("items4a: the AI reads what was held up (new build only)", ai_ui || label == "before")
+		cs_b1_shot(C, AI, ai_ui?.src_object, "popup_items4a_[label]_9_ai_paper", "show_paper")
+		SStgui.close_user_uis(AI)

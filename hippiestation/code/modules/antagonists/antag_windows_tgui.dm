@@ -292,10 +292,13 @@
 		scroll_teleport(H, "[params["area"]]")
 		return TRUE
 
-/// teleportscroll() with the area picked in the window, not a list prompt
+/// teleportscroll() (and hippie scrolls.dm's wait) with the area picked in the window, not a list prompt
 /obj/item/teleportation_scroll/proc/scroll_teleport(mob/user, area_name)
 	var/area/thearea = GLOB.teleportlocs[area_name]
 	if(!thearea || !uses || user.incapacitated())
+		return
+	if(world.time < GLOB.telescroll_time) // hippie scrolls.dm's teleportscroll() gate: not before the round's wizards may go
+		to_chat(user, "<span class='notice bold'>It's too soon to go. You need to wait [DisplayTimeText(GLOB.telescroll_time - world.time)] to go!</span>")
 		return
 	var/datum/effect_system/smoke_spread/smoke = new
 	smoke.set_up(2, user.loc)

@@ -1,0 +1,274 @@
+// hippie -- small things to read or pick from (interfaces/ItemsReading.js):
+// a hand of cards on felt, the newspaper as newsprint, the locator and a
+// valentine.
+
+// A hand of cards
+
+.Cards {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 12px;
+  overflow: auto;
+  background: radial-gradient(ellipse at center, #1f6b3a, #0f3d20);
+}
+
+.Cards__hint {
+  margin-bottom: 10px;
+  color: #cfe8d6;
+  font-style: italic;
+}
+
+.Cards__fan {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.Cards__card {
+  position: relative;
+  width: 76px;
+  height: 108px;
+  margin: 0 8px 8px 0;
+  border-radius: 6px;
+  background: #fbfbf6;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: transform 0.1s;
+
+  &:hover {
+    transform: translateY(-6px);
+  }
+}
+
+.Cards__corner {
+  position: absolute;
+  top: 3px;
+  left: 6px;
+  font-size: 14px;
+}
+
+.Cards__mark {
+  margin-top: 18px;
+  text-align: center;
+  font-size: 32px;
+}
+
+.Cards__name {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 4px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: bold;
+  line-height: 1.1;
+}
+
+// The newspaper
+
+.News {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  background: #2b2b2b;
+}
+
+.News__paper {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 10px 10px 0;
+  padding: 14px 16px;
+  color: #1d1d1d;
+  font-family: Georgia, 'Times New Roman', serif;
+  background: #f1ecdf;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.News__masthead {
+  text-align: center;
+  font-family: 'Old English Text MT', Georgia, serif;
+  font-size: 34px;
+  font-weight: bold;
+}
+
+.News__tagline {
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 3px double #1d1d1d;
+  text-align: center;
+  font-size: 11px;
+}
+
+.News__h {
+  margin: 6px 0;
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.News__line {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  border-bottom: 1px dotted #999;
+}
+
+.News__line--wanted {
+  color: #a00000;
+  font-weight: bold;
+}
+
+.News__empty {
+  font-style: italic;
+  color: #555;
+}
+
+.News__channel {
+  font-size: 22px;
+  font-weight: bold;
+  border-bottom: 2px solid #1d1d1d;
+}
+
+.News__byline {
+  margin: 2px 0 8px;
+  color: #7a1f1f;
+  font-size: 11px;
+  font-style: italic;
+}
+
+.News__story {
+  margin-top: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #ccc4b0;
+}
+
+.News__img {
+  display: block;
+  width: 180px;
+  margin: 6px auto;
+  image-rendering: pixelated;
+  border: 1px solid #888;
+}
+
+.News__dnotice {
+  margin-top: 8px;
+  padding: 6px;
+  border: 2px solid #a00000;
+  color: #a00000;
+  font-weight: bold;
+}
+
+.News__wanted {
+  text-align: center;
+}
+
+.News__wantedHead {
+  color: #a00000;
+  font-size: 30px;
+  font-weight: bold;
+  letter-spacing: 6px;
+}
+
+.News__scribble {
+  margin-top: 12px;
+  color: #26408a;
+  font-family: 'Comic Sans MS', cursive;
+}
+
+.News__nav {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+}
+
+.News__pageNo {
+  color: #bbb;
+}
+
+// The locator
+
+.Locator__row {
+  display: flex;
+  align-items: center;
+  padding: 2px 0;
+}
+
+.Locator__name {
+  flex: 1;
+}
+
+.Locator__dir {
+  width: 80px;
+  color: #8a93a3;
+}
+
+.Locator__str {
+  width: 80px;
+  text-align: right;
+}
+
+.Locator__str--very-strong {
+  color: #5baa27;
+}
+
+.Locator__str--strong {
+  color: #a8c94a;
+}
+
+.Locator__str--weak {
+  color: #f08f11;
+}
+
+.Locator__str--very-weak {
+  color: #db2828;
+}
+
+// A valentine
+
+.Valentine {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, #ff9fb8, #c2185b);
+}
+
+.Valentine__card {
+  width: 82%;
+  padding: 16px;
+  border: 3px solid #fff;
+  border-radius: 12px;
+  background: #fff3f6;
+  color: #8a1538;
+  text-align: center;
+  box-shadow: 0 4px 14px rgba(120, 0, 40, 0.4);
+}
+
+.Valentine__heart {
+  color: #e0245e;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.Valentine__msg {
+  margin: 8px 0;
+  font-family: 'Segoe Script', 'Comic Sans MS', cursive;
+  font-size: 17px;
+}
+
+.Valentine__name {
+  font-size: 11px;
+  color: #b0476a;
+}

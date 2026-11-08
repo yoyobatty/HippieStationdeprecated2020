@@ -50,6 +50,7 @@ import { Exosuit } from './interfaces/Exosuit';
 import { ExosuitFabricator } from './interfaces/ExosuitFabricator';
 import { DestinationTagger, HandTeleporter, ImplantPad, Safe, SecureStorage } from './interfaces/Gadgets';
 import { GameMenu } from './interfaces/GameMenu';
+import { CardHand, Locator, Newspaper, Valentine } from './interfaces/ItemsReading';
 import { MindNotes } from './interfaces/MindNotes';
 import { PaiOs, PaiRecruit, SiliconPdaLog } from './interfaces/PaiOs';
 import { AiBotControl, AiVox, SiliconAlerts } from './interfaces/SiliconWindows';
@@ -1263,6 +1264,22 @@ const ROUTES = {
   antag_tips: {
     component: () => AntagTips,
     scrollable: true,
+  },
+  card_hand: {
+    component: () => CardHand,
+    scrollable: false,
+  },
+  newspaper: {
+    component: () => Newspaper,
+    scrollable: false,
+  },
+  locator: {
+    component: () => Locator,
+    scrollable: true,
+  },
+  valentine: {
+    component: () => Valentine,
+    scrollable: false,
   },
 };
 
