@@ -258,6 +258,35 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 		last = timewarp_real_ms()
 	write_results()
 
+/datum/stress_bench
+	/// spike-log=1: SSobj's time in its fire now going, by the type of thing processed (ms), for note_spike()
+	var/list/obj_slowest
+
+/// spike-log=1: SSobj's loop (processing.dm) with each thing timed, so a slow Objects tick says what it was
+/datum/controller/subsystem/processing/obj/fire(resumed = 0)
+	var/datum/stress_bench/B = GLOB.stress_bench
+	if(!B || !world.params["spike-log"])
+		return ..()
+	if(!resumed)
+		currentrun = processing.Copy()
+		B.obj_slowest = list()
+	var/list/current_run = currentrun
+	var/list/slowest = B.obj_slowest
+	while(current_run.len)
+		var/datum/thing = current_run[current_run.len]
+		current_run.len--
+		var/started = TICK_USAGE_REAL
+		var/kind = "[thing?.type]"
+		if(QDELETED(thing))
+			processing -= thing
+		else if(thing.process(wait) == PROCESS_KILL)
+			STOP_PROCESSING(src, thing)
+		var/ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - started)
+		if(ms >= 0.5)
+			slowest[kind] += ms
+		if(MC_TICK_CHECK)
+			return
+
 /// spike-log=1: a tick that took `gap` ms, and the subsystems that took the most of it
 /datum/stress_bench/proc/note_spike(gap, list/ss_before, list/air_before)
 	var/list/took = list()
@@ -276,6 +305,15 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 		if(length(parts) >= 4)
 			break
 	lines += "spike in [current.name] at [round((world.time - current.started_at) / 10, 0.1)] s: [round(gap)] ms, [round(in_mc)] in the MC ([jointext(parts, ", ")]), [round(gap - in_mc)] outside it"
+	if(took["Objects"] >= 30 && length(obj_slowest)) // and which things SSobj spent it on
+		var/list/kinds = obj_slowest.Copy()
+		sortTim(kinds, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
+		var/list/named = list()
+		for(var/kind in kinds)
+			named += "[kind] [round(kinds[kind], 0.1)]"
+			if(length(named) >= 4)
+				break
+		lines += "    Objects on: [jointext(named, ", ")]"
 	if(SSprofiler?.engine == "hippie") // the procs that ran in it, from hippie_prof's last samples (self time)
 		var/list/ran = SSprofiler.recent(gap + 2)
 		var/list/procs = list()

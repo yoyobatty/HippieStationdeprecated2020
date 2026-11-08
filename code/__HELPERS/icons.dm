@@ -307,7 +307,25 @@ world
 		Higher value means brighter color
  */
 
+// hippie start -- a colour is read once and kept. A chem dispenser hit by a tesla zap's EMP sprays 7-15 chemicals over 29 tiles, and
+// every pile on them mixed its colour again with each one added: ~13,000 reads of the same few strings in one tick, 113 ms of a 380 ms
+// freeze (the stress bench's tesla, 2026-11-08). Callers change the list they get (BlendRGB() adds the alpha), so each gets a copy.
 /proc/ReadRGB(rgb)
+	if(!istext(rgb))
+		return ReadRGB_uncached(rgb)
+	var/static/list/known = list()
+	var/list/parsed = known[rgb]
+	if(!parsed)
+		parsed = ReadRGB_uncached(rgb)
+		if(!parsed)
+			return
+		if(length(known) >= 4096) // made-up colours (a spray of mixes, say) don't pile up forever
+			known.Cut()
+		known[rgb] = parsed
+	return parsed.Copy()
+
+/proc/ReadRGB_uncached(rgb)
+// hippie end
 	if(!rgb)
 		return
 

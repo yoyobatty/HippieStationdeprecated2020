@@ -25,6 +25,12 @@
 
 		var/reaction_occurred = 0
 		var/turf/T = get_turf(cached_my_atom)
+		// What's in it by type, as has_reagent() and get_reagent_amount() read it (the first of a type, rounded to CHEMICAL_QUANTISATION_LEVEL),
+		// made once and again after each reaction (the only thing in here that changes the amounts) instead of both of them going down
+		// the whole list for every reagent of every recipe tried. A chem dispenser EMP'd by a tesla zap splashes a dozen chemicals onto
+		// 29 tiles' piles one after another, each reacted in turn: 1.4 s of 1.9 s in 24 of them was has_reagent(), get_reagent_amount()
+		// and this proc's own loop (2026-11-08). The same recipes tried in the same order, with the same answers.
+		var/list/amounts
 		do
 			reaction_occurred = 0
 			for(var/reagent in cached_reagents)
@@ -62,6 +68,11 @@
 									for(var/mob/M in viewers(3, T))
 										to_chat(M, ("<span class='notice'>[icon2html(cached_my_atom, viewers(cached_my_atom))] The solution solidifies!</span>"))
 
+				if(!amounts)
+					amounts = list()
+					for(var/datum/reagent/present as anything in cached_reagents)
+						if(isnull(amounts[present.type]))
+							amounts[present.type] = round(present.volume, CHEMICAL_QUANTISATION_LEVEL)
 				for(var/reaction in cached_reactions[R.type]) // Was a big list but now it should be smaller since we filtered it with our reagent id
 					if(!reaction)
 						continue
@@ -70,12 +81,26 @@
 					var/list/cached_required_reagents = C.required_reagents
 					var/total_required_reagents = cached_required_reagents.len
 					var/total_matching_reagents = 0
+					var/multiplier = null // min() of each required reagent's amount over what's required: as min(multipliers) was
+					for(var/B in cached_required_reagents)
+						var/needed = cached_required_reagents[B]
+						var/have = amounts[B]
+						if(isnull(have) || (needed && have < needed)) //!has_reagent(B, needed)
+							break
+						total_matching_reagents++
+						var/times = round(have / needed)
+						multiplier = isnull(multiplier) ? times : min(multiplier, times)
+					// Most recipes tried are missing something: on to the next before the rest is read. The one thing below that acts
+					// whether the recipe matches or not is the stop for recipes that don't happen in a mob, so that still happens here.
+					if(total_matching_reagents != total_required_reagents)
+						if(isliving(cached_my_atom) && !C.mob_react)
+							return
+						continue
 					var/list/cached_required_catalysts = C.required_catalysts
 					var/total_required_catalysts = cached_required_catalysts.len
 					var/total_matching_catalysts= 0
 					var/matching_container = 0
 					var/matching_other = 0
-					var/list/multipliers = new/list()
 					var/required_temp = C.required_temp
 					var/is_cold_recipe = C.is_cold_recipe
 					var/meets_temp_requirement = 0
@@ -85,13 +110,10 @@
 					var/bluespace_recipe = C.bluespace_recipe
 					var/list/cached_results = C.results
 
-					for(var/B in cached_required_reagents)
-						if(!has_reagent(B, cached_required_reagents[B]))
-							break
-						total_matching_reagents++
-						multipliers += round(get_reagent_amount(B) / cached_required_reagents[B])
 					for(var/B in cached_required_catalysts)
-						if(!has_reagent(B, cached_required_catalysts[B]))
+						var/needed = cached_required_catalysts[B]
+						var/have = amounts[B]
+						if(isnull(have) || (needed && have < needed))
 							break
 						total_matching_catalysts++
 					if(cached_my_atom)
@@ -129,7 +151,7 @@
 							continue
 
 					if(total_matching_reagents == total_required_reagents && total_matching_catalysts == total_required_catalysts && matching_container && matching_other && meets_temp_requirement && chem_pressure >= pressure_required && chem_radioactivity >= radioactivity_required)
-						var/multiplier = min(multipliers)
+						amounts = null // it's changing: read again before the next recipe
 						for(var/B in cached_required_reagents)
 							remove_reagent(B, (multiplier * cached_required_reagents[B]), safety = 1)
 

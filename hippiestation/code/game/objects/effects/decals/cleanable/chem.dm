@@ -37,6 +37,24 @@ GLOBAL_LIST_EMPTY(chempiles)
 	GLOB.chempiles -= src
 	return ..()
 
+/obj/effect/decal/cleanable/chempile
+	/// A recolour is waiting for the next tick
+	var/recolor_queued = FALSE
+
+/// Its colour from what's in it, once a tick however much is added: a chem splash adds a dozen chemicals to each pile one after another,
+/// and mixing the colour after each was most of a 380 ms freeze (a chem dispenser EMP'd by a tesla zap, stress bench 2026-11-08)
+/obj/effect/decal/cleanable/chempile/proc/queue_recolor()
+	if(recolor_queued)
+		return
+	recolor_queued = TRUE
+	addtimer(CALLBACK(src, PROC_REF(recolor)), 0)
+
+/obj/effect/decal/cleanable/chempile/proc/recolor()
+	recolor_queued = FALSE
+	if(QDELETED(src) || !reagents)
+		return
+	add_atom_colour(mix_color_from_reagents(reagents.reagent_list), FIXED_COLOUR_PRIORITY)
+
 /obj/effect/decal/cleanable/chempile/ex_act(severity)
 	if(prob(severity*2))
 		..()

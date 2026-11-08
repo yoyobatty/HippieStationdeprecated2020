@@ -75,8 +75,7 @@
 					if(touch_msg)
 						c.add_fingerprint(touch_mob)
 					c.reagents.add_reagent(type, volume)
-					var/mixcolor = mix_color_from_reagents(c.reagents.reagent_list)
-					c.add_atom_colour(mixcolor, FIXED_COLOUR_PRIORITY)
+					c.queue_recolor()
 					if(c.reagents && c.reagents.total_volume >= 5)
 						DISABLE_BITFIELD(c.reagents.flags, NO_REACT)
 					return TRUE
@@ -86,8 +85,7 @@
 				if(touch_msg)
 					C.add_fingerprint(touch_mob)
 				C.reagents.add_reagent(type, volume)
-				var/mixcolor = mix_color_from_reagents(C.reagents.reagent_list)
-				C.add_atom_colour(mixcolor, FIXED_COLOUR_PRIORITY)
+				C.queue_recolor()
 
 		if(reagent_state == SOLID) //SOLID
 			if(is_type_in_typecache(src, GLOB.solidchange_reagent_blacklist))
