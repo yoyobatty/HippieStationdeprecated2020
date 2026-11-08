@@ -259,3 +259,48 @@
 	if(QDELETED(body) || body.loc != M || brain.state != BOT_STATE_WANDER)
 		return BOT_GYM_PENDING
 	return BOT_GYM_PASS
+
+/// The Chaplain's service (goals/chapel.dm): called on the radio, held at the altar, and somebody comes and sits through it.
+/datum/bot_scenario/chapel_service
+	name = "chaplain: calls a service, holds it at the altar, and somebody comes and sits through it"
+	desc = "A Chaplain with an altar table (A) and a chair (h). It calls a service on the radio, walks to the altar, says its few words and ends it; a crewman told of it goes and sits in the chair till it's over."
+	job = "Chaplain"
+	time_limit = 180 SECONDS
+	layout = list(
+		"##########",
+		"#B.......#",
+		"#....A...#",
+		"#........#",
+		"#...h..C.#",
+		"##########")
+	var/mob/living/carbon/human/visitor
+	var/sent = FALSE
+
+/datum/bot_scenario/chapel_service/setup()
+	place("A", new /obj/structure/table/wood(first_marker("A")))
+	var/obj/structure/chair/C = new(first_marker("h"))
+	C.setDir(NORTH)
+	place("h", C)
+
+/datum/bot_scenario/chapel_service/post_spawn()
+	brain.gym_scripted = FALSE
+	visitor = second_bot(first_marker("C"), "Pat Pewsitter")
+	visitor.mind.assigned_role = "Assistant"
+
+/datum/bot_scenario/chapel_service/make_goal()
+	return new /datum/bot_goal/chapel_service(get_step(first_marker("A"), SOUTH))
+
+/datum/bot_scenario/chapel_service/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!sent && world.time < GLOB.bot_chapel_service_until)
+		sent = TRUE
+		visitor.bot_brain.gym_scripted = FALSE
+		visitor.bot_brain.assign_goal(new /datum/bot_goal/attend_service(first_marker("h")))
+	if(brain.services_held)
+		if(!visitor.bot_brain.services_attended)
+			fail_reason = "it was held, but nobody came and sat through it"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
