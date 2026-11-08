@@ -615,6 +615,8 @@
 
 /datum/species/jelly/stargazer/proc/unlink_mob(mob/living/M)
 	SIGNAL_HANDLER
+	if(!M) // hippie -- unlinked slots are nulled, not removed: Find(null) found one and its action was gone
+		return
 	var/link_id = linked_mobs.Find(M)
 	if(!(link_id))
 		return
