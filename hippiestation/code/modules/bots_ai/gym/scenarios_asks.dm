@@ -519,6 +519,23 @@
 		return BOT_GYM_FAIL
 	return (sleeper.occupant == patient && patient.reagents.has_reagent(/datum/reagent/medicine/epinephrine)) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/datum/bot_scenario/sleeper_crit/unreachable_first
+	name = "medical rounds: one in crit sealed off where it can't get, another it can: it takes the one it can reach"
+	desc = "Two people down in crit: the nearer one sealed in behind walls (Q), the other on the floor by the sleeper. It tries for the nearer one, finds no way, and takes the other to the sleeper. A doctor used to try for the same unreachable patient again and again, 23 times in one shift, and see to nobody else."
+	layout = list(
+		"##########",
+		"#B.....CY#",
+		"##########",
+		"#Q########",
+		"##########")
+	time_limit = 60 SECONDS
+	var/mob/living/carbon/human/sealed
+
+/datum/bot_scenario/sleeper_crit/unreachable_first/post_spawn()
+	..()
+	sealed = stand_in(first_marker("Q"), "Sealed Patient")
+	sealed.apply_damage(130, BRUTE, BODY_ZONE_CHEST)
+
 /datum/bot_scenario/red_alert
 	name = "security: a nanosuit at large, the HoS and the Captain take the station to red alert"
 	desc = "A murderer in a nanosuit is wanted. The Head of Security calls red alert with the Captain: each goes to a keycard device, the HoS presses Red Alert and the Captain swipes inside the two seconds the devices give it. Red is when Space Law allows lethal force, and the comms console only goes to blue."

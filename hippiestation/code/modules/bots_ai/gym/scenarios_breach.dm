@@ -99,6 +99,42 @@
 		"##########")
 	urgency_override = BOT_URGENCY_EMERGENCY
 
+/// Knocked off its way mid-walk (a shove, a slip, the arrivals shuttle moving under it) to the far side of a wall: it finds the
+/// way round. It used to keep stepping at the next tile of its old route, through the wall, until it counted itself stuck
+/// and gave up - 141 of 267 give-ups for being stuck in a three-shift batch.
+/datum/bot_scenario/knocked_off_route
+	name = "walking: knocked off its way to the far side of a wall, it finds the way round"
+	desc = "Walking along the top corridor to G, it's moved to the bottom one, the wall between, open only at the far end. It goes round to G without giving up."
+	layout = list(
+		"####################",
+		"#B................G#",
+		"#############.######",
+		"#..................#",
+		"####################")
+	time_limit = 30 SECONDS
+	var/knocked = FALSE
+
+/datum/bot_scenario/knocked_off_route/post_spawn()
+	addtimer(CALLBACK(src, PROC_REF(knock)), 6)
+
+/datum/bot_scenario/knocked_off_route/proc/knock()
+	if(QDELETED(bot))
+		return
+	var/turf/T = locate(bot.x, bot.y - 2, bot.z)
+	if(T && !T.density)
+		bot.forceMove(T)
+		knocked = TRUE
+		log_line("knocked to [bot_coord(T)], on the other side of the wall")
+
+/datum/bot_scenario/knocked_off_route/check()
+	if(bot_transcript_said("giving up on"))
+		fail_reason = "gave up after being knocked off its way"
+		return BOT_GYM_FAIL
+	. = ..()
+	if(. == BOT_GYM_PASS && !knocked)
+		fail_reason = "never knocked (it got there first)"
+		return BOT_GYM_FAIL
+
 /datum/bot_scenario/emergency_window_extinguisher_cabinet
 	name = "emergency, window, extinguisher cabinet"
 	desc = "Nothing carried or loose; an extinguisher sits in a wall cabinet behind the bot."

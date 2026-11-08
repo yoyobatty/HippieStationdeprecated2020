@@ -610,6 +610,8 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			continue
 		if(!isturf(H.loc) || (H.pulledby && H.pulledby != bot.owner) || bot.taken_by_another(H))
 			continue //in a machine already, being dragged in by somebody, or somebody's on their way
+		if(LAZYACCESS(bot.unreachable_patients, H) > world.time)
+			continue //just tried, and there was no way to them from here
 		var/score = bot.patient_injury_score(H) - get_dist(bot.owner, H)
 		if(!best || score > best_score)
 			best = H
@@ -631,6 +633,15 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 
 /datum/bot_goal/escort_to_sleeper/on_give_up(datum/bot_brain/bot)
 	bot.owner.stop_pulling()
+	// Never got to them: left a couple of minutes for somebody who can be reached (or another doctor). One doctor tried
+	// for a patient behind Engineering's doors 23 times in a shift, a route search each time, and saw nobody else.
+	var/mob/living/carbon/human/patient = target
+	if(istype(patient) && !QDELETED(patient) && !bot.owner.Adjacent(patient))
+		LAZYSET(bot.unreachable_patients, patient, world.time + 2 MINUTES)
+
+/datum/bot_brain
+	/// Patients it gave up getting to: patient -> world.time it'll try again (escort_to_sleeper)
+	var/list/unreachable_patients
 
 /datum/bot_strategy/escort
 	var/atom/machine_target

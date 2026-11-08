@@ -78,6 +78,30 @@
 	name = "chem: tricordrazine"
 	label = "tricordrazine"
 
+/// Somebody's beaker, full, left in the dispenser: out and set down, its own in, the batch made. It used to dispense into
+/// the full one, be refused, give up, and leave its own half-made batch in the machine for the next chemist.
+/datum/bot_scenario/chem_brew/left_beaker
+	name = "chem: somebody's full beaker left in the dispenser, it takes it out and makes its bicaridine"
+	time_limit = 90 SECONDS
+	var/obj/item/reagent_containers/glass/beaker/large/left
+
+/datum/bot_scenario/chem_brew/left_beaker/brew()
+	return GLOB.bot_medicine_recipes[1] //bicaridine, a pill
+
+/datum/bot_scenario/chem_brew/left_beaker/setup()
+	var/obj/machinery/chem_dispenser/D = first_placed("D")
+	left = new(D)
+	left.reagents.add_reagent(/datum/reagent/water, left.reagents.maximum_volume)
+	D.beaker = left
+	D.update_icon()
+
+/datum/bot_scenario/chem_brew/left_beaker/check()
+	var/obj/machinery/chem_dispenser/D = first_placed("D")
+	if(D && D.beaker == left && bot_transcript_said("wouldn't give me"))
+		fail_reason = "dispensed into the full beaker somebody left in it"
+		return BOT_GYM_FAIL
+	return ..()
+
 /datum/bot_scenario/chem_brew/sodiumf
 	name = "chem: sodium fluoride, through the heater twice"
 	label = "sodium fluoride"

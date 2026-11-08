@@ -115,6 +115,8 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	var/obj/machinery/chem_master/master
 	var/atom/fridge //may stay null - see find_reachable_chem_fridge()
 	var/list/produced_items
+	/// The beaker this batch put in the dispenser: anything else in there is somebody's left behind
+	var/obj/item/reagent_containers/loaded_beaker
 	/// Made for the bag, not the fridge (goals/chem_lab.dm).
 	var/for_self = FALSE
 
@@ -153,6 +155,12 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 /datum/bot_goal/synthesize_medicine/on_give_up(datum/bot_brain/bot)
 	bot.chemistry_blocked_until = world.time + 2 MINUTES
 	bot.brew_beaker_override = null //goals/chem_lab.dm
+	// Its beaker back out of the machine. Left in, the next chemist was handed it, half full of this batch: the dispenser
+	// had no room for their recipe, they gave up too and left it there in turn (40 batches given up in a three-shift batch,
+	// "wouldn't give me" carbon, oxygen, water...).
+	if(loaded_beaker && !QDELETED(loaded_beaker) && dispenser && !QDELETED(dispenser) && dispenser.beaker == loaded_beaker && bot.owner.Adjacent(dispenser))
+		dispenser.replace_beaker(bot.owner)
+	loaded_beaker = null
 
 /datum/bot_brain
 	var/chemistry_blocked_until = 0
@@ -224,14 +232,26 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 /datum/bot_step/load_beaker_into_dispenser/execute(datum/bot_brain/bot)
 	if(!dispenser || QDELETED(dispenser))
 		return GOAL_STEP_FAIL
-	if(dispenser.beaker)
+	var/datum/bot_goal/synthesize_medicine/goal = bot.current_goal
+	if(dispenser.beaker && (!istype(goal) || dispenser.beaker == goal.loaded_beaker))
 		return GOAL_STEP_SUCCESS
 	if(!bot.owner.Adjacent(dispenser))
 		return GOAL_STEP_FAIL
+	// Somebody else's (or an earlier try's) still in it: out, and set down on the side, as anyone at the machine would.
+	if(dispenser.beaker)
+		var/obj/item/reagent_containers/left = dispenser.beaker
+		dispenser.replace_beaker(bot.owner)
+		if(left.loc == bot.owner)
+			bot.owner.dropItemToGround(left)
+		bot_log(bot, "took [left] ([round(left.reagents?.total_volume)]u in it) somebody left in [dispenser] out and set it down")
+		if(dispenser.beaker)
+			return GOAL_STEP_FAIL
 	var/obj/item/reagent_containers/glass/beaker/B = fresh ? bot.find_empty_beaker() : bot.brew_beaker() //part way through a brew, it has something in it already
 	if(!B)
 		return GOAL_STEP_FAIL
 	bot.use_item_on(B, dispenser)
+	if(istype(goal) && dispenser.beaker)
+		goal.loaded_beaker = dispenser.beaker
 	return dispenser.beaker ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 
 // Pace-limited the same way pickup_tool_from_target (bot_goals.dm) grabs multiple tools
@@ -269,7 +289,13 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	var/amount = pending[reagent_type] * scale
 	pending -= reagent_type
 	if(!bot.dispense_into_beaker(dispenser, reagent_type, amount))
-		bot_log(bot, "[dispenser] wouldn't give me [reagent_type] - leaving this batch")
+		var/datum/reagents/R = dispenser.beaker?.reagents
+		var/why = "it's off or broken"
+		if(R && R.total_volume >= R.maximum_volume)
+			why = "the beaker's full ([R.total_volume]/[R.maximum_volume]u)"
+		else if(dispenser.cell && dispenser.cell.charge * dispenser.powerefficiency * 10 < amount)
+			why = "it's down to [round(dispenser.cell.charge * dispenser.powerefficiency * 10)]u of charge"
+		bot_log(bot, "[dispenser] wouldn't give me [reagent_type]: [why] - leaving this batch")
 		if(dispenser.cell && dispenser.cell.charge < 100)
 			bot.ask_for_poppies() //bot_collabs.dm
 		pending = null

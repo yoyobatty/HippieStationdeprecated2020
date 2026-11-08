@@ -694,12 +694,29 @@
 		stop_pursuit()
 		hauling_step.lost_hold(src)
 		return
-	while(current_path && current_path.len && current_path[1] == get_turf(owner))
-		current_path.Cut(1, 2)
+	// Carried along its own way (a conveyor, a shove the right way): on from where it is now.
+	var/turf/here = get_turf(owner)
+	var/at = current_path ? current_path.Find(here) : 0
+	if(at)
+		current_path.Cut(1, at + 1)
 	if(!current_path || !current_path.len)
 		finish_pursuit(TRUE)
 		return
 	var/turf/next_node = current_path[1]
+	// Knocked off it (shoved, slipped, pulled, thrown, or the arrivals shuttle moving under it): the next step isn't beside
+	// it any more, and a step can't get there. It went on pushing at it until it counted itself stuck and gave up - 141 of
+	// the 267 "still stuck" give-ups in a three-shift batch, half of Security's calls answered never. A person looks
+	// where they are and finds the way again.
+	if(here && (next_node.z != here.z || get_dist(here, next_node) > 1))
+		bot_log(src, "off the way I was going ([next_node.z == here.z ? "[get_dist(here, next_node)] tiles" : "another level"] from the next step) - finding the way again")
+		// The old route goes, as pursue() drops it: do_repath() only searches when there's none, and kept this one.
+		current_path = null
+		deltimer(stuck_timer_id)
+		if(repathing)
+			addtimer(CALLBACK(src, PROC_REF(repath)), 1) //as pursue() does with one already under way
+		else
+			repath()
+		return
 	bot_log_verbose(src, "step_next_node: [get_turf(owner)] -> [next_node] @ [bot_coord(next_node)], [current_path.len] nodes left")
 	// try_clear_obstruction() (bot_items.dm) checks against the real movement engine
 	// itself before touching anything, and can yield for real time (climbing a
