@@ -20,6 +20,8 @@ const PULSE_GAP = 5; // the pulse rows' margin and dashed line
 const FOOT = 6;
 const COL_GAP = 90;
 const ROW_GAP = 24;
+const BAND_COLS = 3;
+const BAND_GAP = 50;
 
 const plain = text => decodeHtmlEntities(String(
   text === null || text === undefined ? '' : text));
@@ -46,6 +48,7 @@ const buildPinMap = (nodes, posOf) => {
         io,
         x: side < 0 ? pos.x : pos.x + NODE_W,
         y: pos.y + 1 + base + i * ROW_H + ROW_H / 2,
+        top: pos.y,
       };
     });
     add(node.inputs, -1, HEAD_H, 'data');
@@ -57,7 +60,25 @@ const buildPinMap = (nodes, posOf) => {
   return map;
 };
 
+// A wire that runs backwards (an output into an input to its left, as when
+// a chain wraps to the next band) goes round like a trace on a board: out to
+// the right, along the gap above the chip it feeds, down and in. Others are
+// a curve.
 const wirePath = (a, b) => {
+  const from = a.side < 0 && b.side > 0 ? b : a;
+  const to = from === a ? b : a;
+  if (from.side > 0 && to.side < 0 && to.x < from.x + 30
+    && to.top !== undefined) {
+    const x1 = from.x + 18;
+    const x2 = to.x - 18;
+    const gy = to.top - 16;
+    return 'M ' + from.x + ' ' + from.y
+      + ' L ' + x1 + ' ' + from.y
+      + ' L ' + x1 + ' ' + gy
+      + ' L ' + x2 + ' ' + gy
+      + ' L ' + x2 + ' ' + to.y
+      + ' L ' + to.x + ' ' + to.y;
+  }
   const dx = Math.max(40, Math.abs(b.x - a.x) / 2);
   return 'M ' + a.x + ' ' + a.y
     + ' C ' + (a.x + a.side * dx) + ' ' + a.y
@@ -99,16 +120,45 @@ const autoLayout = (nodes, refs, startY) => {
       break;
     }
   }
+  // Each column stacks its chips; past BAND_COLS columns the chain wraps
+  // into a band below (the user's ruling: a long row zoomed out too far)
   const columnY = {};
+  const inColumn = {};
+  nodes.forEach(node => {
+    if (!refs[node.ref]) {
+      return;
+    }
+    const column = layer[node.ref];
+    const y = columnY[column] || 0;
+    inColumn[node.ref] = y;
+    columnY[column] = y + nodeHeight(node) + ROW_GAP;
+  });
+  const bandTop = [startY];
+  Object.keys(columnY).forEach(column => {
+    const band = Math.floor(column / BAND_COLS);
+    for (let b = bandTop.length; b <= band + 1; b++) {
+      bandTop.push(bandTop[b - 1]);
+    }
+  });
+  const bandHeight = [];
+  Object.keys(columnY).forEach(column => {
+    const band = Math.floor(column / BAND_COLS);
+    bandHeight[band] = Math.max(bandHeight[band] || 0, columnY[column]);
+  });
+  for (let b = 1; b < bandTop.length; b++) {
+    bandTop[b] = bandTop[b - 1] + (bandHeight[b - 1] || 0) + BAND_GAP;
+  }
   const positions = {};
   nodes.forEach(node => {
     if (!refs[node.ref]) {
       return;
     }
     const column = layer[node.ref];
-    const y = columnY[column] === undefined ? startY : columnY[column];
-    positions[node.ref] = { x: 20 + column * (NODE_W + COL_GAP), y };
-    columnY[column] = y + nodeHeight(node) + ROW_GAP;
+    const band = Math.floor(column / BAND_COLS);
+    positions[node.ref] = {
+      x: 20 + (column % BAND_COLS) * (NODE_W + COL_GAP),
+      y: bandTop[band] + inColumn[node.ref],
+    };
   });
   return positions;
 };

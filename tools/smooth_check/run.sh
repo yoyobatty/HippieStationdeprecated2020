@@ -4,6 +4,7 @@ unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every 
 #   tools/smooth_check/run.sh build <name> <harness.dm>   builds smoothcheck_<name>.dmb with the harness included
 #   tools/smooth_check/run.sh run <name> [params]         one boot; the harness writes data/smooth_check/ and ends the world
 #   tools/smooth_check/run.sh clean
+# Boots the small test map (_maps/testbench.json) by default: the harnesses build in a reservation. MAP=hippiestation for the station.
 set -u
 PORT="${PORT:-45317}"
 BYOND_BIN="${BYOND_BIN:-/c/Program Files (x86)/BYOND/bin}"
@@ -24,7 +25,7 @@ run() {
 	cp -r config data/smooth_check_config
 	sed -i '/^BOT_CREW/d' data/smooth_check_config/hippiestation_config.txt
 	local start=$SECONDS
-	"$BYOND_BIN/dd.exe" "smoothcheck_$1.dmb" "$PORT" -trusted -invisible -params "config=data/smooth_check_config${2:+&$2}" > "data/smooth_check/dd_$1.log" 2>&1 &
+	"$BYOND_BIN/dd.exe" "smoothcheck_$1.dmb" "$PORT" -trusted -invisible -params "config=data/smooth_check_config&bot-map=${MAP:-testbench}${2:+&$2}" > "data/smooth_check/dd_$1.log" 2>&1 &
 	local DD=$! i
 	for i in $(seq 1 900); do
 		kill -0 "$DD" 2>/dev/null || break

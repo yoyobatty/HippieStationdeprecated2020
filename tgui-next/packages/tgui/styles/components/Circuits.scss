@@ -95,6 +95,7 @@ $cg-pulse: #ffa94d;
 
 .CircuitGraph__wire {
   fill: none;
+  stroke-linejoin: round;
   stroke-width: 2.5;
   pointer-events: stroke;
   cursor: pointer;

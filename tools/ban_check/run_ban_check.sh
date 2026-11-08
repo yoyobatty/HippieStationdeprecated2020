@@ -10,6 +10,9 @@ set -u
 cd "$(dirname "$0")/../.."
 BYOND_BIN="${BYOND_BIN:-/c/Program Files (x86)/BYOND/bin}"
 PORT="${PORT:-45390}"
+# Boots the small test map (_maps/testbench.json: Runtime Station, no Lavaland or ruins): nothing here uses the station,
+# and loading the Hippie map costs ~13 s more a boot. MAP=hippiestation (any _maps/*.json name) to boot another.
+MAP="${MAP:-testbench}"
 DB_PORT="${DB_PORT:-}"
 
 cp hippiestation.dme bancheck.mdme
@@ -31,7 +34,7 @@ if [ -n "$DB_PORT" ]; then
 	for f in data/bans.json data/bans.json.bak; do [ -f "$f" ] && cp -f "$f" "$f.before_ban_check"; done
 fi
 began=$(date +%s)
-"$BYOND_BIN/dd.exe" bancheck.mdme.dmb "$PORT" -trusted -invisible -params "$params" > /dev/null 2>&1 &
+"$BYOND_BIN/dd.exe" bancheck.mdme.dmb "$PORT" -trusted -invisible -params "$params&bot-map=$MAP" > /dev/null 2>&1 &
 dd=$!
 while kill -0 $dd 2>/dev/null; do
 	sleep 2

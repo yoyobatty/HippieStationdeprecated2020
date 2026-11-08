@@ -16,6 +16,10 @@ SPEED="${SPEED:-0}"
 PARAMS="bot-gym=$FILTER&bot-gym-runs=$RUNS"
 if [ "$SPEED" != "1" ] && [ -f timewarp.dll ]; then PARAMS="$PARAMS&timewarp=$SPEED"; fi
 if [ -n "${EXTRA_PARAMS:-}" ]; then PARAMS="$PARAMS&$EXTRA_PARAMS"; fi
+# The small test map (_maps/testbench.json) unless MAP= names another: the arenas are built in a reservation, and the
+# Hippie map only cost boot time (2026-11-07, full gym once: 362 s on Hippie, 201 s on testbench, every failure on either
+# map passed on its own). MAP=hippiestation for a scenario that uses the station. A bot-map in EXTRA_PARAMS wins.
+case "&${EXTRA_PARAMS:-}" in *"&bot-map="*) ;; *) PARAMS="$PARAMS&bot-map=${MAP:-testbench}" ;; esac
 
 DMB="${DMB:-hippiestation}"
 if [ "${NOCOMPILE:-0}" != "1" ] && [ "$DMB" = "hippiestation" ]; then
