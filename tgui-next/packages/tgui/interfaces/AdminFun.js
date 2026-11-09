@@ -19,9 +19,9 @@ const seconds = s => {
 const TOGGLES = [
   ['forced_extended', 'Force extended', 'No rulesets drafted.'],
   ['no_stacking', 'No stacking',
-    'One round-ender unless threat passes the stacking limit.'],
+    'Only one round-ender unless threat goes over the stacking limit.'],
   ['classic_secret', 'Classic secret',
-    'One roundstart ruleset; only traitors and minor roles later.'],
+    'One roundstart ruleset, then only traitors and minor roles.'],
 ];
 
 // [key, label, unit, min, max, step, before the round only]
@@ -43,7 +43,8 @@ const DynamicOptions = props => {
   return (
     <Fragment>
       {!data.is_dynamic && (
-        <NoticeBox>The game mode is {data.started ? 'not' : 'not yet'} dynamic.
+        <NoticeBox>
+          {"The mode isn't dynamic" + (data.started ? '.' : ' yet.')}
         </NoticeBox>
       )}
       <Section title="Rules">
@@ -231,8 +232,8 @@ export class AdminEvents extends Component {
           </Tabs>
         )}
         <Box className="AdminFun__muted" mb={1}>
-          {data.players + ' players alive. The reasons shown stop an event'
-            + ' running on its own; Run starts it anyway.'}
+          {data.players + ' players alive. Grey tags are why an event'
+            + ' won\'t fire by itself, Run fires it anyway.'}
         </Box>
         {shown.map(e => (
           <Box key={e.ref} className="AdminFun__event">
@@ -345,7 +346,7 @@ class ContainerEditor extends Component {
           <ProgressBar value={capacity ? total / capacity : 0}
             color={total > capacity ? 'average' : 'good'}>
             {total + ' / ' + capacity + 'u'
-              + (total > capacity ? ', the container grows to fit' : '')}
+              + (total > capacity ? ' (the container gets bigger to fit)' : '')}
           </ProgressBar>
         </Box>
       </Section>

@@ -170,7 +170,7 @@ GLOBAL_DATUM(admin_newscaster, /obj/machinery/newscaster/admin_desk)
 		if("toggle")
 			// Midround as well as before: the old links only asked for dynamic
 			if(GLOB.master_mode != "dynamic")
-				notice = list("The game mode has to be dynamic.", FALSE)
+				notice = list("The mode has to be dynamic for that.", FALSE)
 				return TRUE
 			var/option = params["option"]
 			switch(option)
@@ -220,7 +220,7 @@ GLOBAL_DATUM(admin_newscaster, /obj/machinery/newscaster/admin_desk)
 /// One of the number settings, with the limits topic.dm's prompts had. Those before the round can't change once it's started.
 /datum/admin_tool_window/dynamic/proc/set_option(option, value)
 	if(GLOB.master_mode != "dynamic")
-		notice = list("The game mode has to be dynamic.", FALSE)
+		notice = list("The mode has to be dynamic for that.", FALSE)
 		return
 	if(isnull(value))
 		return
@@ -233,33 +233,33 @@ GLOBAL_DATUM(admin_newscaster, /obj/machinery/newscaster/admin_desk)
 			GLOB.dynamic_stacking_limit = value
 		if("high_pop_limit")
 			if(value < 0)
-				notice = list("Only positive values.", FALSE)
+				notice = list("Can't be negative.", FALSE)
 				return
 			GLOB.dynamic_high_pop_limit = value
 		if("forced_threat")
 			if(value > 100)
-				notice = list("The most it can be is 100.", FALSE)
+				notice = list("Can't go over 100.", FALSE)
 				return
 			GLOB.dynamic_forced_threat_level = value
 		if("curve_centre")
 			if(value < -5 || value > 5)
-				notice = list("Only values from -5 to 5.", FALSE)
+				notice = list("Has to be between -5 and 5.", FALSE)
 				return
 			GLOB.dynamic_curve_centre = value
 		if("curve_width")
 			if(value < 0.5 || value > 4)
-				notice = list("Only values from 0.5 to 4.", FALSE)
+				notice = list("Has to be between 0.5 and 4.", FALSE)
 				return
 			GLOB.dynamic_curve_width = value
 		if("latejoin_min", "latejoin_max", "midround_min", "midround_max")
 			if(value <= 0)
-				notice = list("It can't be zero or lower.", FALSE)
+				notice = list("Has to be more than 0.", FALSE)
 				return
 			var/list/delays = list("latejoin_min" = GLOB.dynamic_latejoin_delay_min, "latejoin_max" = GLOB.dynamic_latejoin_delay_max, \
 				"midround_min" = GLOB.dynamic_midround_delay_min, "midround_max" = GLOB.dynamic_midround_delay_max)
 			delays[option] = value MINUTES
 			if(delays["latejoin_min"] > delays["latejoin_max"] || delays["midround_min"] > delays["midround_max"])
-				notice = list("The minimum must be lower than the maximum.", FALSE)
+				notice = list("The min has to be lower than the max.", FALSE)
 				return
 			GLOB.dynamic_latejoin_delay_min = delays["latejoin_min"]
 			GLOB.dynamic_latejoin_delay_max = delays["latejoin_max"]

@@ -655,13 +655,13 @@ export const PaiOs = props => {
 
 const FIELDS = [
   { key: 'name', label: 'Name', multiline: false,
-    hint: 'What you call yourself: a station character name or an AI one.' },
+    hint: 'Your pAI name. A crew name or an AI-ish one, up to you.' },
   { key: 'description', label: 'Description', multiline: true,
-    hint: 'What sort of pAI you play: mannerisms, quirks.' },
+    hint: 'How you play your pAI, mannerisms, quirks, whatever.' },
   { key: 'role', label: 'Preferred role', multiline: false,
-    hint: 'Who you like to partner with, or what you like doing.' },
+    hint: 'Who you like being carried by, or what you like doing.' },
   { key: 'comments', label: 'OOC comments', multiline: true,
-    hint: 'Anything for the player reading this, out of character.' },
+    hint: 'Anything OOC for whoever picks you.' },
 ];
 
 export class PaiRecruit extends Component {
@@ -699,8 +699,7 @@ export class PaiRecruit extends Component {
         </div>
         <div className="PaiOs__main PaiOs__main--solo">
           <div className="PaiOs__p PaiOs__muted">
-            {'What you write here is what the person asking for a pAI reads'
-              + ' when choosing one.'}
+            {'This is what people see when they pick a pAI.'}
           </div>
           {FIELDS.map(f => (
             <div key={f.key} className="PaiOs__field">

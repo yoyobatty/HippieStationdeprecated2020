@@ -110,7 +110,7 @@ export const AirlockMaker = props => {
   return (
     <Fragment>
       <Box className="Sandbox__hint">
-        Move the model airlock where you want it, then Build.
+        Drag the airlock frame where you want it, then hit Build.
       </Box>
       <Section title="Door">
         <Box className="Sandbox__row">

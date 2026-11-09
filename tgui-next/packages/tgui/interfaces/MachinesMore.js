@@ -22,7 +22,7 @@ export const ExosuitMaint = props => {
               onClick={() => act('back')} />
           )}>
           {data.required.length === 0 && (
-            <Box color="label">None: anyone can pilot it.</Box>
+            <Box color="label">None, anyone can pilot it.</Box>
           )}
           {data.required.map(a => (
             <Box key={a.id} className="ExoMaint__row">

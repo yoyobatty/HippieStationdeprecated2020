@@ -53,7 +53,7 @@
 	if(tab != "log" && tab != "manage")
 		return
 	if(!SSdbcore.Connect())
-		db_error = "No database: the log and the rank checks are kept there."
+		db_error = "No database, so there's no log or rank checks."
 		return
 	if(tab == "log")
 		load_log()

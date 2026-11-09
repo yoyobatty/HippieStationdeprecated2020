@@ -284,7 +284,7 @@ export class AdminLogFiles extends Component {
           <Box className="AdminLogs__main">
             {!data.viewing && (
               <Box color="label" mt={2} textAlign="center">
-                Pick a file to read it here.
+                Click a file to read it.
               </Box>
             )}
             {!!data.viewing && (
@@ -295,7 +295,7 @@ export class AdminLogFiles extends Component {
                   </span>
                   <span className="AdminLogs__muted">
                     {fileSize(data.view_size)
-                      + (data.view_cut ? ', the last 256 KB shown' : '')}
+                      + (data.view_cut ? ' (showing the last 256 KB)' : '')}
                   </span>
                   <Box inline className="AdminLogs__barEnd">
                     <SearchBox value={this.state.search}
@@ -448,10 +448,10 @@ export const PlaytimeDetail = props => {
         </Box>
         <Box className="AdminLogs__totalFlags">
           {!!detail.exempt && (
-            <span className="AdminLogs__tag">Exempt: every job open</span>
+            <span className="AdminLogs__tag">Exempt, all jobs unlocked</span>
           )}
           {!!detail.admin_bypass && (
-            <span className="AdminLogs__tag">Admin: every job open</span>
+            <span className="AdminLogs__tag">Admin, all jobs unlocked</span>
           )}
           {!!act && (
             <Button

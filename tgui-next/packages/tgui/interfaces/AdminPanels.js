@@ -230,8 +230,9 @@ export const AdminGamePanel = props => {
         )}>
         <Box color="label" mb={1}>
           {secret
-            ? 'Players still see secret. Now: ' + (data.secret_force || '-')
-            : 'Now: ' + data.master_mode}
+            ? 'Players still see secret. Forced: '
+              + (data.secret_force || 'none')
+            : 'Current mode: ' + data.master_mode}
         </Box>
         {options.map(mode => (
           <Button

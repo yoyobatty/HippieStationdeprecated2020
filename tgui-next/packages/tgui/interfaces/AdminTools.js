@@ -83,7 +83,9 @@ export class AdminSpawner extends Component {
               </div>
             ))}
             {results.length >= 200 && (
-              <Box color="label" p={1}>First 200 shown: narrow it down.</Box>
+              <Box color="label" p={1}>
+                Only showing the first 200, narrow it down.
+              </Box>
             )}
           </div>
         </Section>
