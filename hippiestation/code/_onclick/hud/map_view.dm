@@ -91,9 +91,16 @@
 	masters += P
 
 	P = new
+	P.name = "light glow plane master" // the pools of light that pulse: hidden, and added into the lighting below (light_glow.dm)
+	P.plane = LIGHT_GLOW_PLANE
+	P.render_target = "*cam_glow[suffix]"
+	masters += P
+
+	P = new
 	P.name = "lighting plane master"
 	P.plane = LIGHTING_PLANE
 	P.blend_mode = BLEND_MULTIPLY
+	P.filters += filter(type = "layer", render_source = "*cam_glow[suffix]", blend_mode = BLEND_ADD)
 	P.filters += filter(type = "alpha", render_source = "*cam_emissive[suffix]", flags = MASK_INVERSE)
 	P.filters += filter(type = "alpha", render_source = "*cam_unblockable[suffix]", flags = MASK_INVERSE)
 	masters += P

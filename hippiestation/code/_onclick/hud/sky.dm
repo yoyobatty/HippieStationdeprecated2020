@@ -119,6 +119,8 @@
 /datum/controller/subsystem/parallax/proc/set_theme(datum/sky_theme/new_theme)
 	theme = new_theme
 	random_layer = theme.asteroids ? /obj/screen/parallax_layer/random/asteroids : null
+	// Space lights hulls, windows and breaches in the sky's colour. Aurora Caelus and Nar'Sie fade back to this base (space.dm)
+	INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(set_base_starlight), theme.starlight || COLOR_STARLIGHT)
 	// The sun to one side, the other world and the galaxy well away from it and from each other
 	var/sun_bearing = rand(0, 359)
 	var/world_bearing = sun_bearing + rand(110, 180)

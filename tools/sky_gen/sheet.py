@@ -66,7 +66,7 @@ def sheet(kind, size=560, columns=4):
 def main():
     args = sys.argv[1:]
     if not args:
-        for kind in ('1_space', '2_window'):
+        for kind in ('1_space', '2_window', '3_dark'):
             sheet(kind)
     elif args[0] == 'pair':
         a, b = map_of(shot(args[1])), map_of(shot(args[2]))

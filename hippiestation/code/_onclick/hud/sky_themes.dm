@@ -25,6 +25,8 @@
 	var/sun
 	/// A field of asteroids drifting close by
 	var/asteroids = FALSE
+	/// The colour of the light space gives off (hulls, windows, breaches): the sky's own cast. Null is the usual COLOR_STARLIGHT
+	var/starlight
 
 /// Every layer of this sky for one client, in no order: each layer knows its own depth.
 /datum/sky_theme/proc/build_layers()
@@ -63,6 +65,7 @@
 		list("haze1", "#3a1030", 200, 0.35, 0, list(0, 0)))
 	neighbour = "world_redrock"
 	sun = "#ffd2a8"
+	starlight = "#f08a6c"
 
 /datum/sky_theme/glacier
 	name = "Glacier Drift"
@@ -72,6 +75,7 @@
 		list("haze2", "#0c2440", 220, 0.35, 0, list(0, 0)))
 	neighbour = "world_ice"
 	galaxy = "galaxy3"
+	starlight = "#6cb6f5"
 
 /datum/sky_theme/violet
 	name = "Violet Deep"
@@ -81,6 +85,7 @@
 		list("wisp1", "#9fb4ff", 80, 0.58, 60, list(-1, 0)))
 	neighbour = "world_rock"
 	sun = "#d8dcff"
+	starlight = "#a97cf5"
 
 /datum/sky_theme/verdant
 	name = "Verdant Shoal"
@@ -90,6 +95,7 @@
 		list("haze1", "#062a3a", 225, 0.35, 0, list(0, 0)))
 	neighbour = "world_jungle"
 	galaxy = "galaxy4"
+	starlight = "#62d9b4"
 
 /datum/sky_theme/gold
 	name = "Gilded Band"
@@ -98,6 +104,7 @@
 		list("haze2", "#3a2410", 200, 0.35, 0, list(0, 0)))
 	sun = "#fff0c8"
 	asteroids = TRUE
+	starlight = "#f2cf86"
 
 /datum/sky_theme/rose
 	name = "Rose Nursery"
@@ -106,6 +113,7 @@
 		list("cloud3", "#2f6fe0", 200, 0.52, 36, list(1, 0)),
 		list("wisp2", "#ffd0e8", 75, 0.58, 60, list(0, 1)))
 	neighbour = "world_ocean"
+	starlight = "#f08ac2"
 
 /// The old look: black, a faint band, a galaxy. Likelier than any one of the others, so the rich skies stay an occasion
 /datum/sky_theme/quiet

@@ -10,6 +10,17 @@
 /// A parallax tile, in pixels: tg's sheets and ours are this size, and layers repeat this far apart unless they say otherwise
 #define PARALLAX_TILE 480
 
+// Lights that move (hippiestation/code/modules/lighting/light_glow.dm)
+/// Hidden plane of the soft pools of light that pulse by themselves. Each client's lighting plane adds it into itself, so where
+/// it sits among the planes doesn't matter: 10 was free
+#define LIGHT_GLOW_PLANE 10
+#define LIGHT_GLOW_RENDER_TARGET "*LIGHT_GLOW_PLANE"
+/// How far, in pixels, light and shadow are blurred into each other on Medium graphics and up
+#define LIGHTING_SOFTEN_SIZE 1.5
+/// The soft halo round whatever is bright on the floor and game planes, on Medium graphics and up. It's put on before the
+/// lighting darkens the screen, so white tiles under a lamp glow a little and the same tiles in the dark don't
+#define SCENE_BLOOM filter(type = "bloom", threshold = "#d0d0d0", size = 3, offset = 0, alpha = 45)
+
 // The sky (hippiestation/code/_onclick/hud/sky.dm). The first two match tools/sky_gen/sky_gen.py, which draws the art.
 /// Nebula clouds are drawn this many times their sprite's size: they're soft, so the pixels aren't missed, and they repeat half as often
 #define SKY_NEBULA_SCALE 2

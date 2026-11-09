@@ -106,6 +106,14 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	kc_log("window spot ([best?.x],[best?.y],[best?.z]) in [get_area(best)], [best_seen] space tiles in view")
 	return best
 
+/proc/sky_lights(turf/T, on)
+	var/list/areas = list()
+	for(var/turf/near in range(9, T))
+		areas |= get_area(near)
+	for(var/area/A as anything in areas)
+		A.lightswitch = on
+		A.power_change()
+
 /proc/sky_layer_text(client/C)
 	var/list/parts = list()
 	for(var/obj/screen/parallax_layer/L as anything in C.parallax_layers)
@@ -166,6 +174,13 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			H.forceMove(window_spot)
 			sleep(15)
 			sky_shot("sky_[tag]_2_window")
+			// and with the lamps off: what's left is the starlight coming in, in the sky's colour
+			sky_lights(window_spot, FALSE)
+			sleep(2 SECONDS)
+			kc_log("[tag]: starlight [GLOB.starlight_color] (base [GLOB.base_starlight_color]), [length(GLOB.starlight)] space tiles giving it off")
+			sky_shot("sky_[tag]_3_dark")
+			sky_lights(window_spot, TRUE)
+			sleep(1 SECONDS)
 
 	if(which == "ships") // a ship is a few pixels and its path is random: four of them, a still picture first to tell them from
 		H.forceMove(space_spot)

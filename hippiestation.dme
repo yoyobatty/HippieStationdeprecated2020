@@ -3805,6 +3805,8 @@
 #include "hippiestation\code\modules\library\books_tgui.dm"
 #include "hippiestation\code\modules\library\lib_machines.dm"
 #include "hippiestation\code\modules\library\library_tgui.dm"
+#include "hippiestation\code\modules\lighting\lamp_mood.dm"
+#include "hippiestation\code\modules\lighting\light_glow.dm"
 #include "hippiestation\code\modules\lighting\lighting_bench.dm"
 #include "hippiestation\code\modules\lighting\lighting_engine.dm"
 #include "hippiestation\code\modules\lighting\lighting_turf.dm"

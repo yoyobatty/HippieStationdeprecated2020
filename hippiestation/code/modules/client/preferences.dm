@@ -75,6 +75,7 @@
 					set_graphics_quality(WRAP(graphics_quality() + step, GRAPHICS_QUALITY_LOW, GRAPHICS_QUALITY_HIGH + 1))
 					if(parent?.mob?.hud_used)
 						parent.mob.hud_used.update_parallax_pref(parent.mob)
+						parent.mob.hud_used.plane_masters_update() // the lighting's glow and finish (light_glow.dm)
 				if("gear")
 					if(href_list["clear_loadout"])
 						LAZYCLEARLIST(chosen_gear)
