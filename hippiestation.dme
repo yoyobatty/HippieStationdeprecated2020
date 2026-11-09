@@ -3463,6 +3463,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\evacuate.dm"
 #include "hippiestation\code\modules\bots_ai\goals\experiment_rounds.dm"
 #include "hippiestation\code\modules\bots_ai\goals\experimentor.dm"
+#include "hippiestation\code\modules\bots_ai\goals\fight_the_suit.dm"
 #include "hippiestation\code\modules\bots_ai\goals\gear_up_eva.dm"
 #include "hippiestation\code\modules\bots_ai\goals\ghost_roles.dm"
 #include "hippiestation\code\modules\bots_ai\goals\greytide.dm"

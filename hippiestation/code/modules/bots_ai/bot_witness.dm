@@ -231,6 +231,10 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 	else if(world.time >= next_reaction_time)
 		next_reaction_time = world.time + 30
 		bot_say(owner, pick(GLOB.bot_saw_attack_lines))
+	// A nanosuit: anybody, any time, whatever their nerve and however many are on it already (goals/fight_the_suit.dm)
+	if(bot_suit_to_fight(assailant) && takes_on_suits(assailant))
+		take_on_the_suit(assailant)
+		return
 	if(courage >= 0.65 && bot_fighters_against(assailant) < BOT_DOGPILE_LIMIT)
 		step_in_against(assailant)
 	else if(courage < 0.3 && get_dist(owner, assailant) <= 5)
@@ -318,7 +322,7 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 	next_watch_time = world.time + BOT_WATCH_INTERVAL + rand(0, 2 SECONDS)
 	if(GLOB.bot_reflexes_off || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST || gym_scripted)
 		return
-	if(length(GLOB.bot_security_wanted))
+	if(length(GLOB.bot_security_wanted) || bot_any_suit_worn()) //goals/fight_the_suit.dm
 		look_out_for_trouble()
 	look_round_the_room() //bot_playstyles.dm
 	watch_the_door()
@@ -332,6 +336,14 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 	for(var/mob/living/carbon/human/H in view(6, owner))
 		if(H == owner || H.stat != CONSCIOUS || H.handcuffed)
 			continue
+		// A nanosuit in sight, wanted or not: it's Syndicate, and the crew goes for it (goals/fight_the_suit.dm)
+		if(bot_suit_to_fight(H) && takes_on_suits(H))
+			if(world.time >= next_sighting_call)
+				next_sighting_call = world.time + 1 MINUTES
+				var/who = H.name == "Unknown" ? "Somebody" : H.name //the helmet hides the face
+				bot_say(owner, ";[who]'s here in a Syndicate suit, [get_area_name(owner, TRUE)]!")
+			take_on_the_suit(H)
+			return
 		var/datum/bot_wanted/W = bot_get_wanted_entry(H)
 		if(!W || W.severity < BOT_CRIME_MAJOR || is_in_active_cell(H))
 			continue

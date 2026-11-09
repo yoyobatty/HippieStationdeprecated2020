@@ -347,16 +347,18 @@
 	// Crew fight to stop an attack, not to finish someone: once they're on the floor, cuffed or out cold, it's over. Two hunters
 	// kicked a greytider to death on a hallway floor, with a doctor one of them. Only somebody out for trouble puts the boot in.
 	var/mob/living/carbon/restrained = attacker
-	if(attacker.stat != CONSCIOUS || (istype(restrained) && restrained.handcuffed) || (ishuman(attacker) && !up_to_no_good() && is_subdued(attacker)))
+	// A nanosuit is the exception: it's up again in seconds and kills six more, so it's kept at until it's cuffed or dead (goals/fight_the_suit.dm)
+	var/finishing_suit = bot_in_nanosuit(attacker) && !restrained.handcuffed && takes_on_suits(attacker)
+	if(!finishing_suit && (attacker.stat != CONSCIOUS || (istype(restrained) && restrained.handcuffed) || (ishuman(attacker) && !up_to_no_good() && is_subdued(attacker))))
 		var/mob/living/foe = attacker
 		disengage_combat(attacker.stat != CONSCIOUS || !restrained.handcuffed ? "they're down" : "they're restrained")
 		after_the_fight(foe) //bot_playstyles.dm
 		return
-	if(fight_is_won(attacker)) //bot_fighting.dm
+	if(!finishing_suit && fight_is_won(attacker)) //bot_fighting.dm
 		disengage_combat("they've had enough")
 		return
 	// Self-defense ends when the threat does: they've stopped hitting us, so we stop too.
-	if(world.time - last_hit_by_attacker > BOT_COMBAT_CALM_DOWN)
+	if(!finishing_suit && world.time - last_hit_by_attacker > BOT_COMBAT_CALM_DOWN)
 		disengage_combat("they've stopped fighting")
 		return
 	// Fights are fought by sight, not by knowing where everyone is: lose them and it's off to where they were last
@@ -453,7 +455,9 @@
 	if((is_security_job() && !bot_too_dangerous(attacker)) || world.time < next_run_for_it) //goals/security_tactics.dm
 		return FALSE
 	var/hurt = owner.health <= owner.maxHealth * health_to_run_at()
-	if(!hurt && !(nerve < 0.7 && outmatched_by(attacker))) //bot_fighting.dm
+	// Against a nanosuit the crew stands and fights until they're hurt, whatever the odds (goals/fight_the_suit.dm)
+	var/stands_against_suit = bot_suit_to_fight(attacker) && takes_on_suits(attacker)
+	if(!hurt && (stands_against_suit || !(nerve < 0.7 && outmatched_by(attacker)))) //bot_fighting.dm
 		return FALSE
 	next_run_for_it = world.time + 30 SECONDS
 	var/mob/living/from = attacker

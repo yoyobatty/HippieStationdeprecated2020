@@ -618,3 +618,144 @@
 	if("bot_armory_ordered_until" in GLOB.vars)
 		GLOB.vars["bot_armory_ordered_until"] = 0
 	return ..()
+
+// ---------------------------------------------------------------------------------------------
+// The crew against a nanosuit (goals/fight_the_suit.dm). The user's ruling: anybody, any time, by any means.
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/griefed/suit
+	time_limit = 20 SECONDS
+	var/fought_for = 0
+
+/datum/bot_scenario/griefed/suit/post_spawn()
+	..()
+	var/obj/item/clothing/suit/space/hardsuit/nano/N = new(griefer.loc)
+	griefer.equip_to_slot_if_possible(N, ITEM_SLOT_OCLOTHING, FALSE, TRUE, TRUE)
+
+/datum/bot_scenario/griefed/suit/proc/punch(mob/living/at)
+	griefer_hand(INTENT_HARM, at)
+	return TRUE
+
+/datum/bot_scenario/griefed/suit/proc/ran()
+	return bot_transcript_has("run_from") || bot_transcript_has("running for it")
+
+/datum/bot_scenario/griefed/suit/hit_by_one
+	name = "nanosuit: hit by one, even somebody with no nerve stands and fights"
+	desc = "Robust traitors killed six to nine at a time while the crew ran, because anybody under 0.7 nerve ran from a suit straight away. Now they fight it, and only run once they're badly hurt."
+	layout = list(
+		"######################",
+		"#.CB.................#",
+		"######################")
+
+/datum/bot_scenario/griefed/suit/hit_by_one/post_spawn()
+	..()
+	brain.nerve = 0.2
+
+/datum/bot_scenario/griefed/suit/hit_by_one/grief()
+	keep_at_it("punch_bot", 20)
+
+/datum/bot_scenario/griefed/suit/hit_by_one/proc/punch_bot()
+	return punch(bot)
+
+/datum/bot_scenario/griefed/suit/hit_by_one/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(ran() && bot.health > bot.maxHealth * brain.health_to_run_at())
+		fail_reason = "ran from it before it was hurt"
+		return BOT_GYM_FAIL
+	if(brain.state == BOT_STATE_COMBAT && brain.attacker == griefer)
+		fought_for++
+	return fought_for >= 6 ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/suit/beating_somebody
+	name = "nanosuit: beating somebody, a bystander with no nerve grabs the toolbox and goes in"
+	desc = "The same coward who gets out of a fist fight goes for a suit: the toolbox a few tiles off first, then into it."
+	layout = list(
+		"#################",
+		"#...............#",
+		"#.T.B...VC......#",
+		"#...............#",
+		"#################")
+	var/mob/living/carbon/human/victim
+
+/datum/bot_scenario/griefed/suit/beating_somebody/post_spawn()
+	..()
+	victim = stand_in(first_marker("V"), "Vic Victim")
+	brain.nerve = 0.1
+
+/datum/bot_scenario/griefed/suit/beating_somebody/grief()
+	keep_at_it("beat", 15)
+
+/datum/bot_scenario/griefed/suit/beating_somebody/proc/beat()
+	punch(victim)
+	return victim.stat == CONSCIOUS
+
+/datum/bot_scenario/griefed/suit/beating_somebody/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(ran())
+		fail_reason = "ran from it"
+		return BOT_GYM_FAIL
+	var/armed = locate(/obj/item/storage/toolbox) in bot.held_items
+	return (armed && brain.state == BOT_STATE_COMBAT && brain.attacker == griefer) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/suit/knocked_down
+	name = "nanosuit: knocked down, the crew keep at it until it's cuffed or dead"
+	desc = "Crew stop when somebody's on the floor. A suit's up again in seconds: a captain knocked one down, stopped to hold it for Security, and was back fighting it every second after."
+	layout = list(
+		"##########",
+		"#.BC.....#",
+		"##########")
+	kit_backpack = list(/obj/item/extinguisher)
+	var/down_at = 0
+
+/datum/bot_scenario/griefed/suit/knocked_down/post_spawn()
+	..()
+	brain.nerve = 0.5
+
+/datum/bot_scenario/griefed/suit/knocked_down/grief()
+	keep_at_it("punch_back", 20)
+
+/datum/bot_scenario/griefed/suit/knocked_down/proc/punch_back()
+	if(griefer.stat == CONSCIOUS && !brain.is_subdued(griefer))
+		punch(bot)
+	return TRUE
+
+/datum/bot_scenario/griefed/suit/knocked_down/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(griefer.stat == DEAD)
+		return BOT_GYM_PASS
+	if(!down_at && brain.state == BOT_STATE_COMBAT && brain.attacker == griefer && ++fought_for >= 2)
+		griefer.Paralyze(10 SECONDS) //the suit's armour shrugs off an extinguisher: knock it down for it, the way a bola or a stunprod would
+		down_at = world.time
+		log_line("the suit's down")
+	if(!down_at)
+		return BOT_GYM_PENDING
+	if(brain.state != BOT_STATE_COMBAT || brain.attacker != griefer)
+		fail_reason = "stopped once it was down"
+		return BOT_GYM_FAIL
+	return world.time >= down_at + 4 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/suit/in_sight
+	name = "nanosuit: just stood there, wanted or not, the crew goes for it"
+	desc = "Nobody hurt yet and nothing on the records. It's Syndicate gear in plain sight: they call it in and go for it."
+	layout = list(
+		"#############",
+		"#.B....C....#",
+		"#############")
+
+/datum/bot_scenario/griefed/suit/in_sight/post_spawn()
+	..()
+	brain.nerve = 0.4
+
+/datum/bot_scenario/griefed/suit/in_sight/grief()
+	brain.look_out_for_trouble() //a scripted bot doesn't look round by itself (keep_an_eye_out())
+
+/datum/bot_scenario/griefed/suit/in_sight/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(ran())
+		fail_reason = "ran from it"
+		return BOT_GYM_FAIL
+	return (brain.state == BOT_STATE_COMBAT && brain.attacker == griefer) ? BOT_GYM_PASS : BOT_GYM_PENDING
