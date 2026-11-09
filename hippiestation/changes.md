@@ -11,6 +11,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/__DEFINES/mobs.dm
 ## code/__DEFINES/role_preferences.dm
 ## code/__DEFINES/rust_g.dm (rust-g 7.0.0's file as released; was a cut-down copy. The SQL defines moved out of ~hippie_defines/sql.dm into it)
+## code/__DEFINES/tgs.dm (TGS DMAPI 7.4.0, the upstream file as released; was 5.2.7)
 ## code/__HELPERS/\_logging.dm
 ## code/__HELPERS/AStar.dm
 ## code/__HELPERS/icons.dm
@@ -41,11 +42,14 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/datums/datumvars.dm
 ## code/datums/diseases/\_MobProcs.dm
 ## code/datums/elements/atmos_sensitive.dm
+## code/datums/helper_datums/getrev.dm
 ## code/datums/hud.dm
 ## code/datums/progressbar.dm
 ## code/datums/status_effects/neutral.dm
 ## code/datums/status_effects/status_effect.dm
+## code/datums/tgs_event_handler.dm
 ## code/datums/wires/airlock.dm
+## code/datums/world_topic.dm
 ## code/game/gamemodes/changeling/changeling.dm !Should be modularized. Can be done easily.
 ## code/game/gamemodes/game_mode.dm
 ## code/game/gamemodes/traitor/traitor.dm !Should be modularized. Can be done easily.
@@ -76,6 +80,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/admin/admin.dm
 ## code/modules/admin/admin_ranks.dm
 ## code/modules/admin/admin_verbs.dm
+## code/modules/admin/chat_commands.dm
 ## code/modules/admin/create_poll.dm
 ## code/modules/admin/ipintel.dm
 ## code/modules/admin/IsBanned.dm
@@ -85,6 +90,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/admin/sql_message_system.dm
 ## code/modules/admin/stickyban.dm
 ## code/modules/admin/topic.dm
+## code/modules/admin/verbs/adminhelp.dm
 ## code/modules/admin/verbs/individual_logging.dm
 ## code/modules/admin/verbs/one_click_antag.dm
 ## code/modules/antagonists/clockcult/clock_items/clockwork_armor.dm
@@ -100,6 +106,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/client/preferences_savefile.dm
 ## code/modules/client/verbs/ooc.dm
 ## code/modules/clothing/clothing.dm
+## code/modules/discord/tgs_commands.dm
 ## code/modules/food_and_drinks/drinks/drinks.dm !Should be modularized. Can be done easily.
 ## code/modules/food_and_drinks/drinks/drinks/drinkingglass.dm
 ## code/modules/hydroponics/grown/banana.dm !Should be modularized. Can be done easily.
@@ -154,4 +161,5 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/surgery/helpers.dm
 ## code/modules/surgery/organs/lungs.dm
 ## code/modules/surgery/organs/vocal_cords.dm
+## code/modules/tgs/ (TGS DMAPI 7.4.0, the upstream files as released; was 5.2.7)
 ## code/modules/unit_tests/reagent_recipe_collisions.dm

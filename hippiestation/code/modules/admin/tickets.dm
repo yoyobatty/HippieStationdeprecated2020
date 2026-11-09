@@ -425,7 +425,7 @@
 	var/text = jointext(lines, "\n")
 	if(length(text) > 1900)
 		text = copytext(text, 1, 1880) + "\n(cut short)"
-	world.TgsTargetedChatBroadcast(text, TRUE)
+	world.TgsTargetedChatBroadcast(new /datum/tgs_message_content(text), TRUE)
 
 /// One side of a kill, for admins: what they are, their objectives, whether they're Security, wanted or cuffed
 /proc/kill_side(mob/living/M, name, side_ckey)

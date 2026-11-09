@@ -4,3 +4,7 @@
 
 # force changelog merging to use union
 html/changelog.html merge=union
+
+# TGS event scripts: bash needs LF and cmd wants CRLF, whatever the checkout's autocrlf (tools/tgs_scripts/README.md)
+tools/tgs_scripts/*.sh text eol=lf
+tools/tgs_scripts/*.bat text eol=crlf

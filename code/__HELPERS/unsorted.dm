@@ -1571,13 +1571,20 @@ GLOBAL_DATUM_INIT(dview_mob, /mob/dview, new)
 //null - noop
 //empty string - use TgsTargetBroadcast with admin_only = FALSE
 //other string - use TgsChatBroadcast with the tag that matches config_setting, only works with TGS4, if using TGS3 the above method is used
-/proc/send2chat(message, config_setting)
+// hippie start -- TGS DMAPI 7 port (tg's later send2chat): async, takes text or a /datum/tgs_message_content,
+// matches channel.custom_tag split on commas (was channel.tag, the datum's own tag, so it never matched)
+// and really broadcasts (the old call passed no message or channels)
+/proc/send2chat(datum/tgs_message_content/message, config_setting)
+	set waitfor = FALSE
 	if(config_setting == null)
 		return
 
 	UNTIL(GLOB.tgs_initialized)
 	if(!world.TgsAvailable())
 		return
+
+	if(istext(message))
+		message = new /datum/tgs_message_content(message)
 
 	var/datum/tgs_version/version = world.TgsVersion()
 	if(config_setting == "" || version.suite == 3)
@@ -1587,10 +1594,11 @@ GLOBAL_DATUM_INIT(dview_mob, /mob/dview, new)
 	var/list/channels_to_use = list()
 	for(var/I in world.TgsChatChannelInfo())
 		var/datum/tgs_chat_channel/channel = I
-		if(channel.tag == config_setting)
+		if(config_setting in splittext(channel.custom_tag, ","))
 			channels_to_use += channel
 	if(channels_to_use.len)
-		world.TgsChatBroadcast()
+		world.TgsChatBroadcast(message, channels_to_use)
+// hippie end
 
 /proc/num2sign(numeric)
 	if(numeric > 0)

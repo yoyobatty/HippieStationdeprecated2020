@@ -573,9 +573,10 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 
 
 /proc/send2irc(msg,msg2)
+	set waitfor = FALSE // hippie -- a TGS bridge call sleeps; callers (ticker, round end, login) shouldn't wait on it
 	msg = replacetext(replacetext(msg, "\proper", ""), "\improper", "")
 	msg2 = replacetext(replacetext(msg2, "\proper", ""), "\improper", "")
-	world.TgsTargetedChatBroadcast("[msg] | [msg2]", TRUE)
+	world.TgsTargetedChatBroadcast(new /datum/tgs_message_content("[msg] | [msg2]"), TRUE) // hippie -- TGS DMAPI 7 takes a message datum
 
 /proc/send2otherserver(source,msg,type = "Ahelp")
 	var/comms_key = CONFIG_GET(string/comms_key)

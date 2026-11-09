@@ -121,11 +121,12 @@
 
 /datum/world_topic/namecheck/Run(list/input)
 	//Oh this is a hack, someone refactor the functionality out of the chat command PLS
-	var/datum/tgs_chat_command/namecheck/NC = new
+	var/datum/tgs_chat_command/validated/namecheck/NC = new // hippie -- the chat command is linked-admins only now
 	var/datum/tgs_chat_user/user = new
 	user.friendly_name = input["sender"]
 	user.mention = user.friendly_name
-	return NC.Run(user, input["namecheck"])
+	var/datum/tgs_message_content/response = NC.Validated_Run(user, input["namecheck"]) // hippie -- TGS DMAPI 7 message datum; the comms key already vouched for the sender
+	return response.text
 
 /datum/world_topic/adminwho
 	keyword = "adminwho"

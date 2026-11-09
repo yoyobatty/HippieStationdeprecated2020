@@ -483,7 +483,7 @@
 			switch(result)
 				if("Regular Restart")
 					SSticker.Reboot(init_by, "admin reboot - by [usr.key] [usr.client.holder.fakekey ? "(stealth)" : ""]", 10)
-				if("Hard Restart (No Delay, No Feeback Reason)")
+				if("Hard Restart (No Delay/Feeback Reason)") // hippie -- matched no option (was "No Delay, No Feeback Reason"), so this choice did nothing
 					to_chat(world, "World reboot - [init_by]")
 					world.Reboot()
 				if("Hardest Restart (No actions, just reboot)")

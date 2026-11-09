@@ -194,7 +194,11 @@
 	//Set news report and mode result
 	mode.set_round_result()
 
-	send2irc("Server", "Round just ended.")
+	// hippie start -- endnotify's pings were never sent; a round end notice for the announce channels (discord/round_notices.dm)
+	send2irc("Server", "Round just ended.[LAZYLEN(GLOB.round_end_notifiees) ? " [jointext(GLOB.round_end_notifiees, " ")]" : ""]")
+	GLOB.round_end_notifiees = null
+	send2chat(round_end_chat_message(popcount), CONFIG_GET(string/chat_announce_new_game))
+	// hippie end
 
 	if(length(CONFIG_GET(keyed_list/cross_server)))
 		send_news_report()
