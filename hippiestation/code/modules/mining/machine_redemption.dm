@@ -376,4 +376,4 @@ HIPPIE END */
 		icon_state = initial(icon_state)
 	else
 		icon_state = "[initial(icon_state)]-off"
-	return
+	update_state_glow() // the screen glows in the dark (see emissive_glow.dm)

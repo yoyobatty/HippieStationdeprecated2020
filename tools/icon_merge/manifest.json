@@ -1,4 +1,80 @@
 {
+ "icons/effects/160x160.dmi": {
+  "added": [],
+  "glow": [
+   "icons/effects/160x160.dmi: singularity_s5 bright=150"
+  ],
+  "glow_colours": {
+   "singularity_s5_glow": "#F100FF"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "singularity_s5_glow"
+  ],
+  "only": {},
+  "out": "5d1339a69f462975e3743f728d1cfcfeb7ca8f75",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "f6f87421d692f2e0e06d37009f5a9128bfb8c484"
+ },
+ "icons/effects/224x224.dmi": {
+  "added": [],
+  "glow": [
+   "icons/effects/224x224.dmi: singularity_s7 bright=150"
+  ],
+  "glow_colours": {
+   "singularity_s7_glow": "#6C00FF"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "singularity_s7_glow"
+  ],
+  "only": {},
+  "out": "2f805223c9693ca0e8c1f8ae43af2cebd50e5cd5",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "a1498c0a7ca665211be30e8b8c9a8aeadb6a529a"
+ },
+ "icons/effects/288x288.dmi": {
+  "added": [],
+  "glow": [
+   "icons/effects/288x288.dmi: singularity_s9 bright=150"
+  ],
+  "glow_colours": {
+   "singularity_s9_glow": "#FF0113"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "singularity_s9_glow"
+  ],
+  "only": {},
+  "out": "3ebb61e997b374dce4a59abd3f0eb35c46ea72e2",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "68c996e594849fe9c4a06c2cfeb8d10fbe523ea2"
+ },
+ "icons/effects/352x352.dmi": {
+  "added": [],
+  "glow": [
+   "icons/effects/352x352.dmi: singularity_s11 bright=150"
+  ],
+  "glow_colours": {
+   "singularity_s11_glow": "#FF9054"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "singularity_s11_glow"
+  ],
+  "only": {},
+  "out": "fbaa63efe96fa7f2984b18ddd3cf84008240b9ae",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "c0ab180894d38363021459394b5119e05677684d"
+ },
  "icons/effects/96x96.dmi": {
   "added": [
    "whirlpool",
@@ -6,8 +82,18 @@
    "waterspout",
    "zawarudo"
   ],
+  "glow": [
+   "icons/effects/96x96.dmi: singularity_s3 bright=150"
+  ],
+  "glow_colours": {
+   "singularity_s3_glow": "#FF001C"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "singularity_s3_glow"
+  ],
   "only": {},
-  "out": "09afb98dc330b9d47390f71b193f747138e2f352",
+  "out": "6c3b19a1226e954136ad331ad936a5c38174db76",
   "replaced": [],
   "skip": [],
   "sources": {
@@ -756,6 +842,44 @@
   },
   "tg": "7b73f73921fd7ea09c45adfb3386d0894ad71c74"
  },
+ "icons/mob/inhands/weapons/axes_lefthand.dmi": {
+  "added": [],
+  "glow": [
+   "icons/mob/inhands/weapons/axes_lefthand.dmi: axe1 - axe0"
+  ],
+  "glow_colours": {
+   "axe1_glow": "#45B8FF"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "axe1_glow"
+  ],
+  "only": {},
+  "out": "b60696b6b23d23db7af8fb53abac53dfcf34a2eb",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "7e6a7cc5adf83a1bc19fb4793e766bc54783ed7e"
+ },
+ "icons/mob/inhands/weapons/axes_righthand.dmi": {
+  "added": [],
+  "glow": [
+   "icons/mob/inhands/weapons/axes_righthand.dmi: axe1 - axe0"
+  ],
+  "glow_colours": {
+   "axe1_glow": "#46B2FF"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "axe1_glow"
+  ],
+  "only": {},
+  "out": "7cb3990607dbda145fbd1951257a5d207b2c9791",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "6e2164013079c9e2b9ad9b1f4d4fce42d66b91db"
+ },
  "icons/mob/inhands/weapons/guns_lefthand.dmi": {
   "added": [
    "gauss",
@@ -844,6 +968,86 @@
   },
   "tg": "1e9f7924c98ca1dcc759a2fc280d6d41bf4b9a0e"
  },
+ "icons/mob/inhands/weapons/swords_lefthand.dmi": {
+  "added": [],
+  "glow": [
+   "icons/mob/inhands/weapons/swords_lefthand.dmi: swordred swordblue swordgreen swordpurple swordrainbow swordyellow - sword0",
+   "icons/mob/inhands/weapons/swords_lefthand.dmi: dualsaber*1 - dualsaber0"
+  ],
+  "glow_colours": {
+   "dualsaberblue1_glow": "#72DBFF",
+   "dualsabergreen1_glow": "#49FF49",
+   "dualsaberpurple1_glow": "#AB6DFF",
+   "dualsaberrainbow1_glow": "#F7FFCF",
+   "dualsaberred1_glow": "#FF4949",
+   "swordblue_glow": "#5FD6FF",
+   "swordgreen_glow": "#40FF40",
+   "swordpurple_glow": "#A766FF",
+   "swordrainbow_glow": "#F1FFCF",
+   "swordred_glow": "#FF4040",
+   "swordyellow_glow": "#FFFF64"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "swordred_glow",
+   "swordblue_glow",
+   "swordgreen_glow",
+   "swordpurple_glow",
+   "swordrainbow_glow",
+   "swordyellow_glow",
+   "dualsaberblue1_glow",
+   "dualsaberred1_glow",
+   "dualsabergreen1_glow",
+   "dualsaberpurple1_glow",
+   "dualsaberrainbow1_glow"
+  ],
+  "only": {},
+  "out": "1657dd0374fb793eafcb70f3ae82780daec8f9a1",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "317b1695e4dbbe5374a63cadd4542805a2e8571a"
+ },
+ "icons/mob/inhands/weapons/swords_righthand.dmi": {
+  "added": [],
+  "glow": [
+   "icons/mob/inhands/weapons/swords_righthand.dmi: swordred swordblue swordgreen swordpurple swordrainbow swordyellow - sword0",
+   "icons/mob/inhands/weapons/swords_righthand.dmi: dualsaber*1 - dualsaber0"
+  ],
+  "glow_colours": {
+   "dualsaberblue1_glow": "#72DBFF",
+   "dualsabergreen1_glow": "#49FF49",
+   "dualsaberpurple1_glow": "#AB6DFF",
+   "dualsaberrainbow1_glow": "#F6FFCF",
+   "dualsaberred1_glow": "#FF4949",
+   "swordblue_glow": "#5FD6FF",
+   "swordgreen_glow": "#40FF40",
+   "swordpurple_glow": "#A766FF",
+   "swordrainbow_glow": "#F1FFCF",
+   "swordred_glow": "#FF4040",
+   "swordyellow_glow": "#FFFF4E"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "swordred_glow",
+   "swordblue_glow",
+   "swordgreen_glow",
+   "swordpurple_glow",
+   "swordrainbow_glow",
+   "swordyellow_glow",
+   "dualsaberblue1_glow",
+   "dualsaberred1_glow",
+   "dualsabergreen1_glow",
+   "dualsaberpurple1_glow",
+   "dualsaberrainbow1_glow"
+  ],
+  "only": {},
+  "out": "b0bfdfd3b9147681d4813820f6ce9406a61501f2",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "f4108782b20b5a6bcab9cecd694fc47b6e5a7cfa"
+ },
  "icons/mob/large-worn-icons/64x64/head.dmi": {
   "added": [
    "ganymede"
@@ -866,8 +1070,28 @@
    "spurdo",
    "menpo (movement)"
   ],
+  "glow": [
+   "icons/mob/mask.dmi: *on - *off"
+  ],
+  "glow_colours": {
+   "cigar2on_glow": "#FFD6A8",
+   "cigaron_glow": "#FFD6A8",
+   "cigon_glow": "#FFDBB3",
+   "cobpipeon_glow": "#FFFFFF",
+   "pipeon_glow": "#FFFFFF",
+   "spliffon_glow": "#FFDBB3"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "cigon_glow",
+   "cigaron_glow",
+   "cigar2on_glow",
+   "cobpipeon_glow",
+   "pipeon_glow",
+   "spliffon_glow"
+  ],
   "only": {},
-  "out": "d587a96e908f64609989cda651b22c2a500f3ab3",
+  "out": "62849c01893cb3b32493723d36eae73f0043e82d",
   "replaced": [],
   "skip": [],
   "sources": {
@@ -1197,6 +1421,119 @@
   },
   "tg": "3f45853e0e0bbed704667d78a17eb6f462a67e72"
  },
+ "icons/obj/airlock_machines.dmi": {
+  "added": [],
+  "glow": [
+   "icons/obj/airlock_machines.dmi: airlock_sensor_standby airlock_sensor_cycle airlock_sensor_alert - airlock_sensor_off",
+   "icons/obj/airlock_machines.dmi: airlock_control_standby airlock_control_process - airlock_control_off",
+   "icons/obj/airlock_machines.dmi: access_button_standby access_button_cycle - access_button_off",
+   "icons/obj/airlock_machines.dmi: access_control_standby access_control_process - access_control_off"
+  ],
+  "glow_colours": {
+   "access_button_cycle_glow": "#FFEC1F",
+   "access_button_standby_glow": "#9CFF1C",
+   "access_control_process_glow": "#74FF07",
+   "access_control_standby_glow": "#68FF0D",
+   "airlock_control_process_glow": "#74FF07",
+   "airlock_control_standby_glow": "#68FF0D",
+   "airlock_sensor_alert_glow": "#FF0525",
+   "airlock_sensor_cycle_glow": "#FF5D20",
+   "airlock_sensor_standby_glow": "#9CFF1C"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "airlock_sensor_standby_glow",
+   "airlock_sensor_cycle_glow",
+   "airlock_sensor_alert_glow",
+   "airlock_control_standby_glow",
+   "airlock_control_process_glow",
+   "access_button_standby_glow",
+   "access_button_cycle_glow",
+   "access_control_standby_glow",
+   "access_control_process_glow"
+  ],
+  "only": {},
+  "out": "428a5ffc8c15ab774502b966803df2116d405c6e",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "4f23449b623256a6396f7f621977bf97dff3a1e8"
+ },
+ "icons/obj/barsigns.dmi": {
+  "added": [],
+  "glow": [
+   "icons/obj/barsigns.dmi: * - empty"
+  ],
+  "glow_colours": {
+   "alohasnackbar_glow": "#FFA96E",
+   "combocafe_glow": "#74FF76",
+   "emergencyrumparty_glow": "#FFA8AD",
+   "empbarsign_glow": "#F8FFE2",
+   "honkednloaded_glow": "#FF433B",
+   "maidcafe_glow": "#FF0157",
+   "maltesefalcon_glow": "#A6B6FF",
+   "officerbeersky_glow": "#A7FFAA",
+   "oldcockinn_glow": "#FF7976",
+   "robustacafe_glow": "#FF5F73",
+   "scotchservinwill_glow": "#FFDEC1",
+   "slipperyshots_glow": "#58FF00",
+   "syndibarsign_glow": "#FF0000",
+   "the_lightbulb_glow": "#FCFFA8",
+   "theadminbus_glow": "#FFFFFF",
+   "thealenath_glow": "#FF3330",
+   "thebark_glow": "#FFB430",
+   "thecavern_glow": "#41FF29",
+   "thecoderbus_glow": "#FFFFFF",
+   "thedrunkcarp_glow": "#F994FF",
+   "thegreytide_glow": "#2DE6FF",
+   "theharmbaton_glow": "#FF8A63",
+   "thenest_glow": "#AC9BFF",
+   "thenet_glow": "#A6FF9D",
+   "theouterspess_glow": "#33FFEC",
+   "theshaken_glow": "#FFED91",
+   "thesingulo_glow": "#FF0EEC",
+   "thewretchedhive_glow": "#FFBCF5",
+   "vladssaladbar_glow": "#E9FF8F"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "thegreytide_glow",
+   "honkednloaded_glow",
+   "slipperyshots_glow",
+   "thesingulo_glow",
+   "maltesefalcon_glow",
+   "officerbeersky_glow",
+   "scotchservinwill_glow",
+   "thebark_glow",
+   "thecavern_glow",
+   "thedrunkcarp_glow",
+   "theharmbaton_glow",
+   "theouterspess_glow",
+   "syndibarsign_glow",
+   "empbarsign_glow",
+   "thenest_glow",
+   "thecoderbus_glow",
+   "theadminbus_glow",
+   "oldcockinn_glow",
+   "thewretchedhive_glow",
+   "robustacafe_glow",
+   "emergencyrumparty_glow",
+   "combocafe_glow",
+   "vladssaladbar_glow",
+   "theshaken_glow",
+   "thealenath_glow",
+   "alohasnackbar_glow",
+   "thenet_glow",
+   "maidcafe_glow",
+   "the_lightbulb_glow"
+  ],
+  "only": {},
+  "out": "33569588ed3afbfdf9505a7c835ffb37b6b9c799",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "8ea66948ad8c650a3accb7e4409dd8cfd272547c"
+ },
  "icons/obj/bureaucracy.dmi": {
   "added": [
    "tape",
@@ -1273,8 +1610,24 @@
    "chembar",
    "minidispenser-o"
   ],
+  "glow": [
+   "icons/obj/chemical.dmi: dispenser bright=150",
+   "icons/obj/chemical.dmi: mixer0 - mixer0_nopower",
+   "icons/obj/chemical.dmi: mixer1 - mixer1_nopower"
+  ],
+  "glow_colours": {
+   "dispenser_glow": "#FFF3CA",
+   "mixer0_glow": "#4FD9FF",
+   "mixer1_glow": "#30BAFF"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "dispenser_glow",
+   "mixer0_glow",
+   "mixer1_glow"
+  ],
   "only": {},
-  "out": "8fb5706c6b995a9400a7296f68ba8568f29551b4",
+  "out": "f03b4e7711a3e5cc9f6e01082edd800b06b43f55",
   "replaced": [
    "dispenser",
    "mixer0b",
@@ -1297,6 +1650,41 @@
    "hippiestation/icons/obj/chemical.dmi": "062264e053e126c96a218b38d4a5c7c3abf2ba72"
   },
   "tg": "c7f40777973bf9b6d79d6366f8e32ae712cb8599"
+ },
+ "icons/obj/cigarettes.dmi": {
+  "added": [],
+  "glow": [
+   "icons/obj/cigarettes.dmi: *-on - *"
+  ],
+  "glow_colours": {
+   "lighter-on_glow": "#FFB24F",
+   "lighter_overlay_dame-on_glow": "#EDFAFF",
+   "lighter_overlay_plain-on_glow": "#F1FAFF",
+   "lighter_overlay_slime-on_glow": "#00FF6D",
+   "lighter_overlay_snake-on_glow": "#EDFAFF",
+   "lighter_overlay_thirteen-on_glow": "#F0FAFF",
+   "lighter_overlay_zoppo-on_glow": "#FFFFFF",
+   "slighter-on_glow": "#60FFF6",
+   "zippo-on_glow": "#FFCD59"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "lighter-on_glow",
+   "zippo-on_glow",
+   "slighter-on_glow",
+   "lighter_overlay_zoppo-on_glow",
+   "lighter_overlay_plain-on_glow",
+   "lighter_overlay_dame-on_glow",
+   "lighter_overlay_thirteen-on_glow",
+   "lighter_overlay_snake-on_glow",
+   "lighter_overlay_slime-on_glow"
+  ],
+  "only": {},
+  "out": "0d8c6f5a030bce23f53ceb3f61e669599f7dd40f",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "23ae74095ead989e116f8c0b19fd89a0e43aba49"
  },
  "icons/obj/closet.dmi": {
   "added": [
@@ -1559,8 +1947,28 @@
    "mustache",
    "spurdo"
   ],
+  "glow": [
+   "icons/obj/clothing/masks.dmi: *on - *off"
+  ],
+  "glow_colours": {
+   "cigar2on_glow": "#FFD6AE",
+   "cigaron_glow": "#FFD4AA",
+   "cigon_glow": "#FFFDFD",
+   "cobpipeon_glow": "#FFFFFF",
+   "pipeon_glow": "#FFFFFF",
+   "spliffon_glow": "#FFF3D0"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "cigon_glow",
+   "cigaron_glow",
+   "cigar2on_glow",
+   "cobpipeon_glow",
+   "pipeon_glow",
+   "spliffon_glow"
+  ],
   "only": {},
-  "out": "dfd64440bbb8a2dfd63fc3e87126e81ca44d0d9c",
+  "out": "96aa6bb79205b353cd99213dbfdf3361d75b96a3",
   "replaced": [
    "yellow_vape",
    "white_vape",
@@ -2470,13 +2878,59 @@
    "disco_mine_off",
    "disco_mine"
   ],
+  "glow": [
+   "icons/obj/items_and_weapons.dmi: swordred swordblue swordgreen swordpurple swordrainbow swordyellow - sword0",
+   "icons/obj/items_and_weapons.dmi: cutlass1 - cutlass0",
+   "icons/obj/items_and_weapons.dmi: axe1 - axe0",
+   "icons/obj/items_and_weapons.dmi: dualsaber*1 - dualsaber0",
+   "icons/obj/items_and_weapons.dmi: *_active - *"
+  ],
+  "glow_colours": {
+   "axe1_glow": "#8DBBFF",
+   "cutlass1_glow": "#FF6266",
+   "dualsaberblue1_glow": "#6AD9FF",
+   "dualsabergreen1_glow": "#3AFF3A",
+   "dualsaberpurple1_glow": "#B278FF",
+   "dualsaberrainbow1_glow": "#F0FFC5",
+   "dualsaberred1_glow": "#FF3A3A",
+   "stunbaton_active_glow": "#FFFB00",
+   "stungun_active_glow": "#52FFF3",
+   "stunprod_active_glow": "#D0FF00",
+   "swordblue_glow": "#66D8FF",
+   "swordgreen_glow": "#32FF32",
+   "swordpurple_glow": "#AF73FF",
+   "swordrainbow_glow": "#F6FFC3",
+   "swordred_glow": "#FF3232",
+   "swordyellow_glow": "#FFFF49",
+   "teleprod_active_glow": "#EDFF00"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "swordred_glow",
+   "swordblue_glow",
+   "swordgreen_glow",
+   "swordpurple_glow",
+   "swordrainbow_glow",
+   "swordyellow_glow",
+   "cutlass1_glow",
+   "axe1_glow",
+   "dualsaberrainbow1_glow",
+   "dualsabergreen1_glow",
+   "dualsaberred1_glow",
+   "dualsaberblue1_glow",
+   "dualsaberpurple1_glow",
+   "teleprod_active_glow",
+   "stunprod_active_glow",
+   "stunbaton_active_glow",
+   "stungun_active_glow"
+  ],
   "only": {
    "hippiestation/icons/obj/storage.dmi": [
     "his_grace",
     "his_grace_awakened"
    ]
   },
-  "out": "0473d857246a12861e538422c58084e1a59ea35a",
+  "out": "569c0bf93dad55ab62c20cd987af8df134d1fe1d",
   "replaced": [
    "fireaxe0",
    "fireaxe1",
@@ -2546,6 +3000,73 @@
   },
   "tg": "9a5526347a9fb8b0d0418ab5ce10b7c790066d39"
  },
+ "icons/obj/lighting.dmi": {
+  "added": [],
+  "glow": [
+   "icons/obj/lighting.dmi: *-on - * colour"
+  ],
+  "glow_colours": {
+   "bananalamp-on_glow": "#FFFFFF",
+   "flare-on_glow": "#FF746B",
+   "flashdark-on_glow": "#00FF00",
+   "flashlight-on_glow": "#F5FF74",
+   "glowstick-on_glow": "#FFFFFF",
+   "lamp-on_glow": "#FFFEBF",
+   "lampgreen-on_glow": "#89FF5C",
+   "lantern-on_glow": "#FFDB57",
+   "markerbronze-on_glow": "#FFB366",
+   "markerburgundy-on_glow": "#FF6666",
+   "markercerulean-on_glow": "#66B2FF",
+   "markerfuchsia-on_glow": "#FF66B2",
+   "markerindigo-on_glow": "#6766FF",
+   "markerjade-on_glow": "#66FFB3",
+   "markerlime-on_glow": "#B2FF66",
+   "markerolive-on_glow": "#66FF67",
+   "markerpurple-on_glow": "#B366FF",
+   "markerteal-on_glow": "#66FFFF",
+   "markerviolet-on_glow": "#FF66FF",
+   "markeryellow-on_glow": "#FFFF66",
+   "penlight-on_glow": "#FFDD33",
+   "seclite-on_glow": "#FFFECD",
+   "slime-on_glow": "#FFFEAB",
+   "syndilantern-on_glow": "#FFC16C",
+   "torch-on_glow": "#FF9339"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "flashlight-on_glow",
+   "lamp-on_glow",
+   "lampgreen-on_glow",
+   "lantern-on_glow",
+   "flare-on_glow",
+   "slime-on_glow",
+   "penlight-on_glow",
+   "bananalamp-on_glow",
+   "seclite-on_glow",
+   "glowstick-on_glow",
+   "flashdark-on_glow",
+   "markerburgundy-on_glow",
+   "markerbronze-on_glow",
+   "markeryellow-on_glow",
+   "markerlime-on_glow",
+   "markerolive-on_glow",
+   "markerjade-on_glow",
+   "markerteal-on_glow",
+   "markercerulean-on_glow",
+   "markerindigo-on_glow",
+   "markerpurple-on_glow",
+   "markerviolet-on_glow",
+   "markerfuchsia-on_glow",
+   "torch-on_glow",
+   "syndilantern-on_glow"
+  ],
+  "only": {},
+  "out": "74ac56aba2199601fbc706b2a0df4dc8fe582125",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "5fcdd0fd8a8e1d074860828a4104197fa2707654"
+ },
  "icons/obj/machines/biogenerator.dmi": {
   "added": [],
   "only": {},
@@ -2562,10 +3083,73 @@
   },
   "tg": "3bd0b046b421db309bd78a7d1678114b706ba94b"
  },
+ "icons/obj/machines/camera.dmi": {
+  "added": [],
+  "glow": [
+   "icons/obj/machines/camera.dmi: camera camera_in_use - camera_off colour",
+   "icons/obj/machines/camera.dmi: xraycamera xraycamera_in_use - xraycamera_off colour"
+  ],
+  "glow_colours": {
+   "camera_glow": "#9FFF9F",
+   "camera_in_use_glow": "#FF0033",
+   "xraycamera_glow": "#85FFCB",
+   "xraycamera_in_use_glow": "#FF4788"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "camera_glow",
+   "camera_in_use_glow",
+   "xraycamera_glow",
+   "xraycamera_in_use_glow"
+  ],
+  "only": {},
+  "out": "04bbd63aa55920401fc66b329861ce982a3bc375",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "58cc38bb9c8924986d1f59cc3a76b657de7a124f"
+ },
+ "icons/obj/machines/cloning.dmi": {
+  "added": [],
+  "glow": [
+   "icons/obj/machines/cloning.dmi: scanner scanner_occupied - scanner_unpowered",
+   "icons/obj/machines/cloning.dmi: scanner_open - scanner_open_unpowered",
+   "icons/obj/machines/cloning.dmi: pod_1 - pod_0"
+  ],
+  "glow_colours": {
+   "pod_1_glow": "#D7FF77",
+   "scanner_glow": "#9CFFD2",
+   "scanner_occupied_glow": "#ACFF9F",
+   "scanner_open_glow": "#A7FFC2"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "scanner_glow",
+   "scanner_occupied_glow",
+   "scanner_open_glow",
+   "pod_1_glow"
+  ],
+  "only": {},
+  "out": "cd024a49a7aefba28e65e37a89c06c9c00d52596",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "3acaa239e92d36c225133ab85f184c1121df62d8"
+ },
  "icons/obj/machines/mining_machines.dmi": {
   "added": [],
+  "glow": [
+   "icons/obj/machines/mining_machines.dmi: ore_redemption - ore_redemption-off"
+  ],
+  "glow_colours": {
+   "ore_redemption_glow": "#F2FF91"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "ore_redemption_glow"
+  ],
   "only": {},
-  "out": "74c2ffdd78bd5cf6e26204ed08e87991aa7509c6",
+  "out": "a7156265c99486e9431bcafffba9cdb40025bbc0",
   "replaced": [
    "stacker",
    "console",
@@ -2626,8 +3210,48 @@
  },
  "icons/obj/machines/telecomms.dmi": {
   "added": [],
+  "glow": [
+   "icons/obj/machines/telecomms.dmi: * - *_off"
+  ],
+  "glow_colours": {
+   "broadcast receiver_glow": "#00FF00",
+   "broadcast receiver_o_glow": "#00FF00",
+   "broadcaster_glow": "#3399FF",
+   "broadcaster_o_glow": "#3399FF",
+   "bus_glow": "#28FFEB",
+   "bus_o_glow": "#28FFEB",
+   "comm_server_glow": "#0096FF",
+   "comm_server_o_glow": "#0096FF",
+   "hub_glow": "#7EFFFF",
+   "hub_o_glow": "#7EFFFF",
+   "message_server_glow": "#ABFF4D",
+   "message_server_o_glow": "#ABFF4D",
+   "processor_glow": "#30FFE4",
+   "processor_o_glow": "#30FFE4",
+   "relay_glow": "#5DFFD9",
+   "relay_o_glow": "#67FFDD"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "broadcast receiver_glow",
+   "broadcast receiver_o_glow",
+   "broadcaster_glow",
+   "broadcaster_o_glow",
+   "relay_glow",
+   "relay_o_glow",
+   "processor_glow",
+   "processor_o_glow",
+   "bus_glow",
+   "bus_o_glow",
+   "hub_glow",
+   "hub_o_glow",
+   "comm_server_glow",
+   "comm_server_o_glow",
+   "message_server_glow",
+   "message_server_o_glow"
+  ],
   "only": {},
-  "out": "232e4f4d7d085b936af0a450ebff02e617fb420b",
+  "out": "8810e1e4462272414a334ae8d6f3c4d4ef5a6614",
   "replaced": [
    "processor",
    "processor_off",
@@ -2676,6 +3300,29 @@
    "hippiestation/icons/obj/machines/teleporter.dmi": "401b5b13e41df0c7193ccbfc75a1a0ade871df2f"
   },
   "tg": "557cb44a9ed8ecff80d67adc7e8288c7d8228b4c"
+ },
+ "icons/obj/machines/turret_control.dmi": {
+  "added": [],
+  "glow": [
+   "icons/obj/machines/turret_control.dmi: control_standby control_stun control_kill - control_off"
+  ],
+  "glow_colours": {
+   "control_kill_glow": "#FF0000",
+   "control_standby_glow": "#00FF00",
+   "control_stun_glow": "#FF8000"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "control_standby_glow",
+   "control_stun_glow",
+   "control_kill_glow"
+  ],
+  "only": {},
+  "out": "2a700a54a42e37fb70fd788d55948822dcc2c803",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "2dbdceeaaf078e39cc1b11428ee3949e9ecdb8d6"
  },
  "icons/obj/machines/washing_machine.dmi": {
   "added": [],
@@ -2837,6 +3484,32 @@
   },
   "tg": "cad02d9b4b2003060a06f8507f9c81c74ad4db43"
  },
+ "icons/obj/monitors.dmi": {
+  "added": [],
+  "glow": [
+   "icons/obj/monitors.dmi: alarm0 alarm1 alarm2 - alarmp",
+   "icons/obj/monitors.dmi: auth_on - auth_off"
+  ],
+  "glow_colours": {
+   "alarm0_glow": "#4AFF8C",
+   "alarm1_glow": "#FF6288",
+   "alarm2_glow": "#FFCB82",
+   "auth_on_glow": "#2C47FF"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "alarm0_glow",
+   "alarm1_glow",
+   "alarm2_glow",
+   "auth_on_glow"
+  ],
+  "only": {},
+  "out": "d82fa9d05ea525741bcab248a2811b5ff1d74c00",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "80903e8344b121b30c6338a2f4920a965f2108c6"
+ },
  "icons/obj/objects.dmi": {
   "added": [
    "noose",
@@ -2883,8 +3556,20 @@
    "portgen2",
    "ccharger1"
   ],
+  "glow": [
+   "icons/obj/power.dmi: light1 light0 - light-p"
+  ],
+  "glow_colours": {
+   "light0_glow": "#FF0024",
+   "light1_glow": "#37FF37"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "light1_glow",
+   "light0_glow"
+  ],
   "only": {},
-  "out": "e77697eaa4c282ca3c8094f9028e4cdccf0b7806",
+  "out": "a5dcddbee70543348cab1fd1bb857d0e44809068",
   "replaced": [
    "apcox-0",
    "apcox-1",
@@ -2954,6 +3639,25 @@
   },
   "tg": "72724546d87d57828c8b512308ee9bc6e20ede86"
  },
+ "icons/obj/radio.dmi": {
+  "added": [],
+  "glow": [
+   "icons/obj/radio.dmi: intercom - intercom-p colour"
+  ],
+  "glow_colours": {
+   "intercom_glow": "#63FFF0"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "intercom_glow"
+  ],
+  "only": {},
+  "out": "7497d09c3b01de4e25fc9e9b69dc93c5549ccde5",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "a99845055648b21006a8a351cbe82fd7a7731266"
+ },
  "icons/obj/robotics.dmi": {
   "added": [],
   "only": {},
@@ -2979,6 +3683,25 @@
    "hippiestation/icons/obj/robotics.dmi": "ef8a6c3ecb7af3b283aad22a7dbef423c61cb407"
   },
   "tg": "46a3adfc0f207170f89d0b72fd034fab27f19b28"
+ },
+ "icons/obj/singularity.dmi": {
+  "added": [],
+  "glow": [
+   "icons/obj/singularity.dmi: singularity_s1 bright=150"
+  ],
+  "glow_colours": {
+   "singularity_s1_glow": "#FF001A"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "singularity_s1_glow"
+  ],
+  "only": {},
+  "out": "83d699bcf7764ad7bc2fda3d07792e323d2d25a5",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "244c52ec8cf7596223beaa49438beba774dfa669"
  },
  "icons/obj/stationobjs.dmi": {
   "added": [
@@ -3011,8 +3734,51 @@
    "mechfabr",
    "mechfabt"
   ],
+  "glow": [
+   "icons/obj/stationobjs.dmi: doorctrl doorctrl1 doorctrl-denied - doorctrl-p",
+   "icons/obj/stationobjs.dmi: launcher launcher1 launcher-denied - launcher-p",
+   "icons/obj/stationobjs.dmi: mflash1 mflash_flash - mflash1-p",
+   "icons/obj/stationobjs.dmi: pflash1 pflash_flash - pflash1-p",
+   "icons/obj/stationobjs.dmi: recharger0 recharger1 recharger2 - rechargeroff",
+   "icons/obj/stationobjs.dmi: holopad1 holopad_ringing - holopad0"
+  ],
+  "glow_colours": {
+   "doorctrl-denied_glow": "#FF5D2E",
+   "doorctrl1_glow": "#FF9A37",
+   "doorctrl_glow": "#FFED4F",
+   "holopad1_glow": "#B0E2FF",
+   "holopad_ringing_glow": "#2CFFE6",
+   "launcher-denied_glow": "#D3FFD6",
+   "launcher1_glow": "#B1FFA3",
+   "launcher_glow": "#FF914E",
+   "mflash1_glow": "#72FF7C",
+   "mflash_flash_glow": "#E8FF7E",
+   "pflash1_glow": "#23FF8C",
+   "pflash_flash_glow": "#CAFF93",
+   "recharger0_glow": "#FF1E1B",
+   "recharger1_glow": "#43FF59",
+   "recharger2_glow": "#FFE823"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "doorctrl_glow",
+   "doorctrl1_glow",
+   "doorctrl-denied_glow",
+   "launcher_glow",
+   "launcher1_glow",
+   "launcher-denied_glow",
+   "mflash1_glow",
+   "mflash_flash_glow",
+   "pflash1_glow",
+   "pflash_flash_glow",
+   "recharger0_glow",
+   "recharger1_glow",
+   "recharger2_glow",
+   "holopad1_glow",
+   "holopad_ringing_glow"
+  ],
   "only": {},
-  "out": "5b4e05d56984c4c88f9d276dd5b45338d3f1a7dd",
+  "out": "8b364c989e2a60d2c22fee7c04a1e9b05525b7ca",
   "replaced": [
    "plasticflaps",
    "morgue1",
@@ -3138,8 +3904,18 @@
    "shemostat",
    "sretractor"
   ],
+  "glow": [
+   "icons/obj/surgery.dmi: esaw_1 - esaw_0"
+  ],
+  "glow_colours": {
+   "esaw_1_glow": "#90FFCE"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "esaw_1_glow"
+  ],
   "only": {},
-  "out": "ab1db7a8c6a8639d6c0e572f5c0c2b1e8eabbe1a",
+  "out": "9cd77f47b73ccdda33e259e62898f9314e6a9dcc",
   "replaced": [
    "severedtail"
   ],
@@ -3161,6 +3937,36 @@
    "hippiestation/icons/obj/tank.dmi": "d0c7d56ab843b029adcd8bdcc46e10474582af3c"
   },
   "tg": "910ed4ac5416478a220ffce8da4f1bd5aa81ad94"
+ },
+ "icons/obj/terminals.dmi": {
+  "added": [],
+  "glow": [
+   "icons/obj/terminals.dmi: req_comp0 req_comp1 req_comp2 req_comp3 - req_comp_off",
+   "icons/obj/terminals.dmi: newscaster_normal newscaster_wanted - newscaster_off"
+  ],
+  "glow_colours": {
+   "newscaster_normal_glow": "#34FF97",
+   "newscaster_wanted_glow": "#39FF96",
+   "req_comp0_glow": "#0FFF7F",
+   "req_comp1_glow": "#2FFF8E",
+   "req_comp2_glow": "#8FFF83",
+   "req_comp3_glow": "#FFAF2D"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "req_comp0_glow",
+   "req_comp1_glow",
+   "req_comp2_glow",
+   "req_comp3_glow",
+   "newscaster_normal_glow",
+   "newscaster_wanted_glow"
+  ],
+  "only": {},
+  "out": "a2794f3f5b560ccc510ae8882b1372fc27d74d66",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "66f66996a50ad8a892563b62b4b8b523747b94a0"
  },
  "icons/obj/tools.dmi": {
   "added": [
@@ -3251,8 +4057,123 @@
    "citadelplush-off",
    "citadelplush-panel"
   ],
+  "glow": [
+   "icons/obj/vending.dmi: * - *-off changed",
+   "icons/obj/vending.dmi: smartfridge1 smartfridge2 smartfridge3 - smartfridge-off changed"
+  ],
+  "glow_colours": {
+   "Cola_Machine_glow": "#FFF5DB",
+   "MagiVend_glow": "#CFD2FF",
+   "atmosdrobe_glow": "#FFB90F",
+   "bardrobe_glow": "#FFFFFF",
+   "boozeomat_glow": "#8CFFF5",
+   "cargodrobe_glow": "#FFCA14",
+   "cart_glow": "#FFC1EF",
+   "chapdrobe_glow": "#FFFFFF",
+   "cigs_glow": "#EEFFFE",
+   "citadelplush_glow": "#FFEEC1",
+   "classicbeats_glow": "#FFDA94",
+   "clothes_glow": "#B3FF85",
+   "coffee_glow": "#FFD1A0",
+   "cola_black_glow": "#FFF5DB",
+   "curadrobe_glow": "#FFBF80",
+   "dinnerware_glow": "#C3EBFF",
+   "disktoaster_glow": "#67FF84",
+   "engi_glow": "#FDFFA8",
+   "engidrobe_glow": "#FFB90F",
+   "engivend_glow": "#FFE762",
+   "games_glow": "#FFF3EB",
+   "generic_glow": "#DEF0FF",
+   "hydrobe_glow": "#37FF1C",
+   "janidrobe_glow": "#B80DFF",
+   "liberationstation_glow": "#FFA8A0",
+   "med_glow": "#E6F9FF",
+   "modularpc_glow": "#FFB2C5",
+   "nutri_glow": "#DFFEFF",
+   "pwr_game_glow": "#FFF3C2",
+   "red_cola_glow": "#FFF9E9",
+   "robotics_glow": "#FEFFDC",
+   "sec_glow": "#FAFFA9",
+   "secdrobe_glow": "#FF2B00",
+   "seeds_glow": "#87FFB6",
+   "shamblers_juice_glow": "#FF1268",
+   "smartfridge1_glow": "#A2FFFD",
+   "smartfridge2_glow": "#A5FFFA",
+   "smartfridge3_glow": "#A6FFF7",
+   "smartfridge_glow": "#9CFFFE",
+   "snack_glow": "#D8FFEC",
+   "snackblue_glow": "#D8FFEC",
+   "snackgreen_glow": "#D8FFEC",
+   "snackorange_glow": "#D8FFEC",
+   "snackteal_glow": "#D8FFEC",
+   "soda_glow": "#FFEDC0",
+   "sovietsoda_glow": "#FFB795",
+   "space_up_glow": "#FFF4D5",
+   "starkist_glow": "#FFC378",
+   "sustenance_glow": "#F5F6FF",
+   "syndi_glow": "#FF2E29",
+   "theater_glow": "#FFF1C9",
+   "tool_glow": "#FDFF54",
+   "wallmed_glow": "#EBF9FF"
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "snack_glow",
+   "snackblue_glow",
+   "snackorange_glow",
+   "snackgreen_glow",
+   "snackteal_glow",
+   "sustenance_glow",
+   "smartfridge_glow",
+   "dinnerware_glow",
+   "cigs_glow",
+   "generic_glow",
+   "sec_glow",
+   "nutri_glow",
+   "seeds_glow",
+   "Cola_Machine_glow",
+   "cola_black_glow",
+   "shamblers_juice_glow",
+   "red_cola_glow",
+   "space_up_glow",
+   "pwr_game_glow",
+   "starkist_glow",
+   "soda_glow",
+   "sovietsoda_glow",
+   "coffee_glow",
+   "boozeomat_glow",
+   "MagiVend_glow",
+   "med_glow",
+   "wallmed_glow",
+   "tool_glow",
+   "engivend_glow",
+   "engi_glow",
+   "robotics_glow",
+   "cart_glow",
+   "theater_glow",
+   "clothes_glow",
+   "liberationstation_glow",
+   "syndi_glow",
+   "games_glow",
+   "bardrobe_glow",
+   "secdrobe_glow",
+   "chapdrobe_glow",
+   "engidrobe_glow",
+   "atmosdrobe_glow",
+   "hydrobe_glow",
+   "cargodrobe_glow",
+   "curadrobe_glow",
+   "janidrobe_glow",
+   "disktoaster_glow",
+   "modularpc_glow",
+   "classicbeats_glow",
+   "citadelplush_glow",
+   "smartfridge1_glow",
+   "smartfridge2_glow",
+   "smartfridge3_glow"
+  ],
   "only": {},
-  "out": "16cdc026311293e0ba97d0c94695a87edd96320a",
+  "out": "a8cfdb7e9a9f9785c187794fd8b592ab70e2f2ae",
   "replaced": [
    "coffee-vend",
    "coffee",

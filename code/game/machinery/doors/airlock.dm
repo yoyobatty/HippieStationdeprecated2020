@@ -627,6 +627,7 @@
 	add_overlay(sparks_overlay)
 	add_overlay(damag_overlay)
 	add_overlay(note_overlay)
+	airlock_glow(lights_overlay) // hippie -- the lights glow in the dark
 	check_unres()
 
 /proc/get_airlock_overlay(icon_state, icon_file)

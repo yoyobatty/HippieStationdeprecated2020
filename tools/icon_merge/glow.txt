@@ -1,0 +1,67 @@
+# Glowing parts of sprites with their lights painted in, cut out into "<state>_glow" at build time (see glow.py).
+#   <sheet>: <lit state> [<lit state> ...] - <off state>     the pixels brighter than in the off state
+#   <sheet>: <lit state> [<lit state> ...] bright[=N]         no off state: the pixels at least N bright (default 200)
+#   ... colour                                                 only coloured or near-white pixels (the off state dims it all)
+#   ... changed                                                also coloured pixels that clearly differ, brighter or not
+#   <sheet>: *<suffix> - *<other suffix>                       every state that has an off twin by that pattern ("* - *-off")
+# Draw a "<state>_glow" by hand in the Hippie twin to replace a made one.
+
+# Doors and wall fixtures
+icons/obj/monitors.dmi: alarm0 alarm1 alarm2 - alarmp
+icons/obj/monitors.dmi: auth_on - auth_off
+icons/obj/stationobjs.dmi: doorctrl doorctrl1 doorctrl-denied - doorctrl-p
+icons/obj/stationobjs.dmi: launcher launcher1 launcher-denied - launcher-p
+icons/obj/stationobjs.dmi: mflash1 mflash_flash - mflash1-p
+icons/obj/stationobjs.dmi: pflash1 pflash_flash - pflash1-p
+icons/obj/power.dmi: light1 light0 - light-p
+icons/obj/radio.dmi: intercom - intercom-p colour
+icons/obj/terminals.dmi: req_comp0 req_comp1 req_comp2 req_comp3 - req_comp_off
+icons/obj/terminals.dmi: newscaster_normal newscaster_wanted - newscaster_off
+icons/obj/machines/turret_control.dmi: control_standby control_stun control_kill - control_off
+icons/obj/airlock_machines.dmi: airlock_sensor_standby airlock_sensor_cycle airlock_sensor_alert - airlock_sensor_off
+icons/obj/airlock_machines.dmi: airlock_control_standby airlock_control_process - airlock_control_off
+icons/obj/airlock_machines.dmi: access_button_standby access_button_cycle - access_button_off
+icons/obj/airlock_machines.dmi: access_control_standby access_control_process - access_control_off
+icons/obj/machines/camera.dmi: camera camera_in_use - camera_off colour
+icons/obj/machines/camera.dmi: xraycamera xraycamera_in_use - xraycamera_off colour
+
+# Machines
+icons/obj/vending.dmi: * - *-off changed
+icons/obj/machines/telecomms.dmi: * - *_off
+icons/obj/stationobjs.dmi: recharger0 recharger1 recharger2 - rechargeroff
+icons/obj/stationobjs.dmi: holopad1 holopad_ringing - holopad0
+icons/obj/machines/mining_machines.dmi: ore_redemption - ore_redemption-off
+icons/obj/machines/cloning.dmi: scanner scanner_occupied - scanner_unpowered
+icons/obj/machines/cloning.dmi: scanner_open - scanner_open_unpowered
+icons/obj/machines/cloning.dmi: pod_1 - pod_0
+icons/obj/chemical.dmi: dispenser bright=150
+icons/obj/chemical.dmi: mixer0 - mixer0_nopower
+icons/obj/chemical.dmi: mixer1 - mixer1_nopower
+icons/obj/vending.dmi: smartfridge1 smartfridge2 smartfridge3 - smartfridge-off changed
+
+# Handheld, worn and eyes
+icons/obj/lighting.dmi: *-on - * colour
+icons/obj/cigarettes.dmi: *-on - *
+icons/obj/clothing/masks.dmi: *on - *off
+icons/mob/mask.dmi: *on - *off
+icons/obj/items_and_weapons.dmi: swordred swordblue swordgreen swordpurple swordrainbow swordyellow - sword0
+icons/obj/items_and_weapons.dmi: cutlass1 - cutlass0
+icons/obj/items_and_weapons.dmi: axe1 - axe0
+icons/obj/items_and_weapons.dmi: dualsaber*1 - dualsaber0
+icons/obj/items_and_weapons.dmi: *_active - *
+icons/obj/surgery.dmi: esaw_1 - esaw_0
+icons/mob/inhands/weapons/swords_lefthand.dmi: swordred swordblue swordgreen swordpurple swordrainbow swordyellow - sword0
+icons/mob/inhands/weapons/swords_righthand.dmi: swordred swordblue swordgreen swordpurple swordrainbow swordyellow - sword0
+icons/mob/inhands/weapons/swords_lefthand.dmi: dualsaber*1 - dualsaber0
+icons/mob/inhands/weapons/swords_righthand.dmi: dualsaber*1 - dualsaber0
+icons/mob/inhands/weapons/axes_lefthand.dmi: axe1 - axe0
+icons/mob/inhands/weapons/axes_righthand.dmi: axe1 - axe0
+
+# Signs and hazards
+icons/obj/barsigns.dmi: * - empty
+icons/obj/singularity.dmi: singularity_s1 bright=150
+icons/effects/96x96.dmi: singularity_s3 bright=150
+icons/effects/160x160.dmi: singularity_s5 bright=150
+icons/effects/224x224.dmi: singularity_s7 bright=150
+icons/effects/288x288.dmi: singularity_s9 bright=150
+icons/effects/352x352.dmi: singularity_s11 bright=150

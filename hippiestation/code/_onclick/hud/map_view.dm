@@ -75,6 +75,7 @@
 	P.name = "emissive blocker plane master"
 	P.plane = EMISSIVE_BLOCKER_PLANE
 	P.render_target = "*cam_blocker[suffix]"
+	P.filters += filter(type = "alpha", render_source = "*cam_unblockable[suffix]", flags = MASK_INVERSE) // as the main view's (emissive_glow.dm)
 	masters += P
 
 	P = new

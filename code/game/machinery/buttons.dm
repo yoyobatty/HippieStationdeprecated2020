@@ -65,6 +65,7 @@
 		else
 			to_chat(user, "<span class='alert'>Maintenance Access Denied.</span>")
 			flick("[skin]-denied", src)
+			flick_emissive_glow("[skin]-denied_glow", 2 SECONDS) // hippie -- the glow can't be flicked with the sprite
 		return
 
 	if(panel_open)
@@ -162,12 +163,14 @@
 	if(!allowed(user))
 		to_chat(user, "<span class='alert'>Access Denied.</span>")
 		flick("[skin]-denied", src)
+		flick_emissive_glow("[skin]-denied_glow", 2 SECONDS) // hippie -- the glow can't be flicked with the sprite
 		playsound(src, 'hippiestation/sound/halflife/button1.ogg', 100, 0)
 		return
 
 	playsound(src, pick('hippiestation/sound/halflife/button3.ogg', 'hippiestation/sound/halflife/button4.ogg', 'hippiestation/sound/halflife/button5.ogg', 'hippiestation/sound/halflife/button6.ogg', 'hippiestation/sound/halflife/button7.ogg', 'hippiestation/sound/halflife/button8.ogg', 'hippiestation/sound/halflife/button9.ogg', 'hippiestation/sound/halflife/button10.ogg', 'hippiestation/sound/halflife/button11.ogg'), 100, 0)
 	use_power(5)
 	flick("[skin]1", src)
+	flick_emissive_glow("[skin]1_glow", 5) // hippie -- the glow can't be flicked with the sprite
 
 	if(device)
 		device.pulsed()

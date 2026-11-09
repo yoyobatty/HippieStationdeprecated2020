@@ -11,9 +11,11 @@ tools/icon_merge/tg/ as the merge input.
   python tools/icon_merge/icon_merge.py check               lint: fail if a merged sheet is stale
   python tools/icon_merge/icon_merge.py adopt icons/x.dmi   a tg port replaced icons/x.dmi: keep it as the new tg original
   python tools/icon_merge/icon_merge.py preview             before/after sheets in data/previews/icon_merge/
+  python tools/icon_merge/icon_merge.py glow-review         the glow masks side by side in data/previews/glow/
 
 skip.txt strikes a whole sheet ("icons/obj/storage.dmi") or one state ("icons/obj/storage.dmi:box").
 extra.txt merges named Hippie states into a tg sheet that isn't their twin.
+glow.txt cuts "<state>_glow" masks out of sprites with their lights painted in (see glow.py).
 """
 import hashlib
 import json
@@ -24,7 +26,9 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, '..', '..'))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'mapmerge2'))
+sys.path.insert(0, HERE)  # lint runs this with python -I, which leaves the script's own folder off the path
 import dmi  # noqa: E402
+import glow  # noqa: E402
 
 HIPPIE_DIR = 'hippiestation/icons'
 TG_STORE = 'tools/icon_merge/tg'
@@ -123,17 +127,23 @@ def read_extras():
 
 
 def plan():
-    """{tg sheet: [(hippie sheet, states or None for all)]}: the twin first, then extra.txt."""
+    """{tg sheet: [(hippie sheet, states or None for all)]}: the twin first, then extra.txt; glow.txt sheets may have none."""
     sources = {tg: [(HIPPIE_DIR + tg[len('icons'):], None)] for tg in twins()}
     for tg, extra in read_extras().items():
         sources.setdefault(tg, []).extend(extra)
+    for tg in glow.read_rules():
+        sources.setdefault(tg, [])
     return dict(sorted(sources.items()))
 
 
-def merge(tg_path, sources, skipped_states):
+def glow_lines(tg, rules):
+    return [rule[0] for rule in rules.get(tg, [])]
+
+
+def merge(tg_path, sources, skipped_states, glow_rules=None):
     """Returns (merged Dmi or None, report dict)."""
     base = load(tg_path)
-    report = {'replaced': [], 'same': [], 'added': [], 'skipped': [], 'problem': None}
+    report = {'replaced': [], 'same': [], 'added': [], 'skipped': [], 'problem': None, 'glow': None}
     index = {}
     for i, state in enumerate(base.states):
         index.setdefault(key(state), i)
@@ -160,12 +170,15 @@ def merge(tg_path, sources, skipped_states):
                     and all(a.tobytes() == b.tobytes() for a, b in zip(old.frames, state.frames)))
             base.states[i] = state
             report['same' if same else 'replaced'].append(label(state))
+    if glow_rules:
+        report['glow'] = glow.apply(base, glow_rules)
     return base, report
 
 
 def build(out_dir=None, quiet=False):
     manifest = load_manifest()
     skip_files, skip_states = read_skips()
+    glow_rules = glow.read_rules()
     reports = {}
     new_manifest = {}
     for tg, sources in plan().items():
@@ -174,7 +187,7 @@ def build(out_dir=None, quiet=False):
             continue
         original = tg_original(tg, manifest, store=not out_dir)
         skipped = sorted(n for p, n in skip_states if p == tg)
-        sheet, report = merge(original, sources, set(skipped))
+        sheet, report = merge(original, sources, set(skipped), glow_rules.get(tg))
         reports[tg] = report
         if sheet is None:
             continue
@@ -186,6 +199,11 @@ def build(out_dir=None, quiet=False):
             'only': {h: only for h, only in sources if only is not None},
             'skip': skipped, 'replaced': report['replaced'], 'added': report['added'],
         }
+        if report['glow']:
+            new_manifest[tg]['glow'] = glow_lines(tg, glow_rules)
+            new_manifest[tg]['glow_made'] = report['glow']['made']
+            new_manifest[tg]['glow_hand'] = report['glow']['hand']
+            new_manifest[tg]['glow_colours'] = report['glow']['colours']
         if not out_dir:
             new_manifest[tg]['out'] = sha(target)
     if not out_dir:
@@ -196,20 +214,26 @@ def build(out_dir=None, quiet=False):
         with open(MANIFEST, 'w', encoding='utf-8', newline='\n') as f:
             json.dump(new_manifest, f, indent=1, sort_keys=True)
             f.write('\n')
+        with open(rel(glow.DM_COLOURS), 'w', encoding='utf-8', newline='\n') as f:
+            f.write(glow.render_colours(new_manifest))
     if not quiet:
         for tg, r in reports.items():
             if r.get('problem'):
                 print(f'{tg}: left alone ({r["problem"]})')
+            for problem in (r.get('glow') or {}).get('problems', []):
+                print(f'{tg}: glow.txt: {problem}')
         print(f'{len(new_manifest)} sheets merged: '
               f'{sum(len(r.get("replaced", [])) for r in reports.values())} states replaced, '
               f'{sum(len(r.get("added", [])) for r in reports.values())} added, '
-              f'{sum(len(r.get("same", [])) for r in reports.values())} identical')
+              f'{sum(len(r.get("same", [])) for r in reports.values())} identical, '
+              f'{sum(len((r.get("glow") or {}).get("made", [])) for r in reports.values())} glow masks made')
     return reports
 
 
 def check():
     manifest = load_manifest()
     skip_files, skip_states = read_skips()
+    glow_rules = glow.read_rules()
     errors = []
     for tg, sources in plan().items():
         entry = manifest.get(tg)
@@ -235,9 +259,14 @@ def check():
             errors.append(f'{tg}: not the merged sheet (a tg port? run icon_merge.py adopt {tg})')
         if entry.get('skip', []) != sorted(n for p, n in skip_states if p == tg):
             errors.append(f'skip.txt changed for {tg}, run icon_merge.py build')
+        if entry.get('glow', []) != glow_lines(tg, glow_rules):
+            errors.append(f'glow.txt changed for {tg}, run icon_merge.py build')
     for tg in manifest:
         if tg not in plan():
             errors.append(f'{tg}: no Hippie override any more, run icon_merge.py build')
+    dm_colours = rel(glow.DM_COLOURS)
+    if not os.path.exists(dm_colours) or open(dm_colours, encoding='utf-8').read() != glow.render_colours(manifest):
+        errors.append(f'{glow.DM_COLOURS}: not what the last merge made, run icon_merge.py build')
     for line in errors:
         print(line)
     print(f'icon_merge: {len(manifest)} merged sheets, {len(errors)} problems')
@@ -265,6 +294,9 @@ if __name__ == '__main__':
     elif cmd == 'preview':
         import preview
         preview.main()
+    elif cmd == 'glow-review':
+        glow.review(args[args.index('--from') + 1] if '--from' in args else None,
+                    args[args.index('--only') + 1] if '--only' in args else None)
     else:
         print(__doc__)
         sys.exit(2)
