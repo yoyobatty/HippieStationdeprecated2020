@@ -110,7 +110,4 @@
 	talk_macro_ids = null // hippie -- erase_all_macros() took those too
 	set_talk_macros() // hippie -- say, me, ooc and the rest on whatever keys they're bound to
 
-	if(prefs.hotkeys)
-		winset(src, null, "input.focus=true input.background-color=[COLOR_INPUT_ENABLED]")
-	else
-		winset(src, null, "input.focus=true input.background-color=[COLOR_INPUT_DISABLED]")
+	chat_bar_hotkey_mode() // hippie -- the chat bar has the keyboard in classic mode (the old input bar is gone)

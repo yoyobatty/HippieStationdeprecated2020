@@ -31,6 +31,15 @@ GLOBAL_VAR_INIT(kp_fail, 0)
 	kc_log("info say ran: \"[message]\"")
 	return ..()
 
+// The chat bar runs Say with call(), which skips the verb override above: what reaches say() is recorded too
+/mob/say(message, bubble_type, list/spans = list(), sanitize = TRUE, datum/language/language = null, ignore_spam = FALSE, forced = null)
+	GLOB.kp_said += "[message]"
+	return ..()
+
+/mob/living/say(message, bubble_type, list/spans = list(), sanitize = TRUE, datum/language/language = null, ignore_spam = FALSE, forced = null)
+	GLOB.kp_said += "[message]"
+	return ..()
+
 /client/Topic(href, list/href_list, hsrc)
 	if(href_list["kp_dom"])
 		GLOB.kp_dom = href_list["kp_dom"]
@@ -43,6 +52,19 @@ GLOBAL_VAR_INIT(kp_fail, 0)
 	else
 		GLOB.kp_fail++
 	kc_log("[ok ? "ok   " : "WRONG"] [name][detail ? " ([detail])" : ""]")
+
+/// Typing and Enter into the chat bar if the chat page has the keyboard (a talk key gave it), through the page's DOM: posted keys
+/// don't reach WebView2. With the keyboard elsewhere nothing is typed.
+/proc/kp_bar_type(client/C, text)
+	GLOB.kp_dom = null
+	var/js = "var report=function(x){Byond.topic({kp_dom:String(x)});};var a=document.activeElement;var state=document.hasFocus()+'|'+(a?a.tagName:'none')+'|'+(a&&a.value!==undefined?a.value:'');if(document.hasFocus()&&a&&a.tagName=='INPUT'){var set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(a,a.value+[json_encode(text)]);a.dispatchEvent(new Event('input',{bubbles:true}));setTimeout(function(){a.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true}));report(state+' -> typed');},50);}else{report(state+' -> not typed');}"
+	C << output(url_encode(js), "browseroutput:eval")
+	for(var/i in 1 to 15)
+		if(!isnull(GLOB.kp_dom))
+			break
+		sleep(1)
+	sleep(5)
+	return "chat page [GLOB.kp_dom]"
 
 /// kb_panel.ps1 does one thing (a key, typing into what has the keyboard, a picture) and answers
 /proc/kp_cmd(text, timeout = 20 SECONDS)
@@ -87,10 +109,10 @@ var press=function(type,key,code,mods){mods=mods||{};window.dispatchEvent(new Ke
 	for(var/i in 1 to 300)
 		if(!C)
 			return
-		if(SSticker.current_state >= GAME_STATE_PREGAME && C.mob && C.prefs)
+		if(SSticker.current_state >= GAME_STATE_PREGAME && C.mob && C.prefs && C.chatOutput?.loaded)
 			break
 		sleep(1)
-	sleep(20)
+	sleep(40) // the chat page has its verbs: a talk key opens the bar on one
 	var/datum/preferences/P = C.prefs
 	kc_log("info hotkeys [P.hotkeys], [length(P.key_bindings)] keys bound")
 
@@ -196,13 +218,13 @@ var press=function(type,key,code,mods){mods=mods||{};window.dispatchEvent(new Ke
 	winset(C, "mapwindow.map", "focus=true")
 	sleep(10)
 	kc_log("info [kp_cmd("key 54")]") //T
-	kc_log("info [kp_cmd("type hi")]")
+	kc_log("info [kp_bar_type(C, "hi")]")
 	sleep(10)
 	kp_check("T opened say: \"hi\" said", ("hi" in GLOB.kp_said))
 	winset(C, "mapwindow.map", "focus=true")
 	sleep(5)
 	kc_log("info [kp_cmd("key 59")]") //Y
-	kc_log("info [kp_cmd("type yo")]")
+	kc_log("info [kp_bar_type(C, "yo")]")
 	sleep(10)
 	kp_check("Y opened the radio prompt: \";yo\" said", (";yo" in GLOB.kp_said))
 	P.keybind_act("kb_capture", list("id" = "say", "old" = "T", "key" = "g", "code" = "KeyG"), C.mob)
@@ -212,13 +234,13 @@ var press=function(type,key,code,mods){mods=mods||{};window.dispatchEvent(new Ke
 	winset(C, "mapwindow.map", "focus=true")
 	sleep(5)
 	kc_log("info [kp_cmd("key 54")]") //T
-	kc_log("info [kp_cmd("type zz")]")
+	kc_log("info [kp_bar_type(C, "zz")]")
 	sleep(10)
 	kp_check("T does nothing now: \"zz\" never said", !("zz" in GLOB.kp_said))
 	winset(C, "mapwindow.map", "focus=true")
 	sleep(5)
 	kc_log("info [kp_cmd("key 47")]") //G
-	kc_log("info [kp_cmd("type gg")]")
+	kc_log("info [kp_bar_type(C, "gg")]")
 	sleep(10)
 	kp_check("G opens say: \"gg\" said", ("gg" in GLOB.kp_said))
 	P.keybind_act("kb_reset", list("id" = "say"), C.mob)

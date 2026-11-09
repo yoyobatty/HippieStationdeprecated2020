@@ -16,6 +16,7 @@ import {
   adminVerbsAtom,
   clearCommandBarAtom,
   focusCommandBarAtom,
+  focusRequestAtom,
   hotkeysAtom,
   initializeCommandBarAtom,
   typepathsAtom,
@@ -209,6 +210,7 @@ function useSuggestions(
 export function CommandBar() {
   const verbs = useAtomValue(adminVerbsAtom);
   const focusSignal = useAtomValue(focusCommandBarAtom);
+  const focusRequest = useAtomValue(focusRequestAtom);
   const clearSignal = useAtomValue(clearCommandBarAtom);
   const hotkeys = useAtomValue(hotkeysAtom);
   const { eagerCommandBarSuggestions } = useAtomValue(settingsAtom);
@@ -275,6 +277,29 @@ export function CommandBar() {
 
   useEffect(() => {
     if (focusSignal > 0) {
+      // hippie start -- the bar opened on a talk key's verb (Say, Me, OOC,
+      // Whisper, Pray; Radio is Say with ";"), or with a key typed on the map
+      // in classic mode. The chat pane takes the keyboard first.
+      const verb = focusRequest?.verb
+        ? verbs.find((v) => v.name === focusRequest.verb)
+        : undefined;
+      if (verb) {
+        setSelectedVerb(verb);
+        setFilledArgs([]);
+        setSelectedIndex(0);
+        setInput(
+          serializeInput(
+            verb,
+            [],
+            suffixForArg(verb.args[0], verb.args.length === 1),
+          ) + (focusRequest?.prefill || ''),
+        );
+      } else if (focusRequest?.prefill) {
+        const typed = focusRequest.prefill;
+        setInput((current) => current + typed);
+      }
+      Byond.winset('browseroutput', { focus: true });
+      // hippie end
       inputRef.current?.focus();
     }
   }, [focusSignal]);
@@ -609,10 +634,28 @@ export function CommandBar() {
         }
         return;
       }
-      case 'Escape':
+      case 'Escape': {
         e.preventDefault();
+        // hippie -- Esc clears what's typed first; with nothing typed (just
+        // the verb) it hands the keyboard back to the map, so the next Esc
+        // there opens the game menu
+        const bare = selectedVerb
+          ? serializeInput(
+              selectedVerb,
+              [],
+              suffixForArg(
+                selectedVerb.args[0],
+                selectedVerb.args.length === 1,
+              ),
+            )
+          : '';
+        const typed = input !== '' && input !== bare;
         dismissOrReset();
+        if (!typed) {
+          blurToMap();
+        }
         return;
+      }
     }
   };
 

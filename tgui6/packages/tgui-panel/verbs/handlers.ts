@@ -5,7 +5,9 @@ import {
   adminTargetsAtom,
   adminVerbsAtom,
   clearCommandBarAtom,
+  type FocusRequest,
   focusCommandBarAtom,
+  focusRequestAtom,
   hotkeysAtom,
   initializeCommandBarAtom,
   type Target,
@@ -57,7 +59,10 @@ export function handleTargets(payload: { targets: Target[] }) {
   store.set(adminTargetsAtom, payload.targets || []);
 }
 
-export function handleFocusCommandBar() {
+// hippie -- the talk keys, Tab and classic mode's typing send this (a talk
+// key's macro sends it from the client, with no trip to the server)
+export function handleFocusCommandBar(payload?: FocusRequest) {
+  store.set(focusRequestAtom, payload || null);
   store.set(focusCommandBarAtom, (n) => n + 1);
 }
 

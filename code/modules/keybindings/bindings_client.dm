@@ -38,7 +38,7 @@
 		
 	//Focus Chat failsafe. Overrides movement checks to prevent WASD.
 	if(!prefs.hotkeys && length(_key) == 1 && _key != "Alt" && _key != "Ctrl" && _key != "Shift")
-		winset(src, null, "input.focus=true ; input.text=[url_encode(_key)]")
+		focus_chat_bar(_key) // hippie -- the chat bar, not the old input bar
 		return
 
 	//offset by 1 because the buffer address is 0 indexed because the math was simpler

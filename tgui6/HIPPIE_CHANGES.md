@@ -33,6 +33,9 @@ The DM side is in `hippiestation/code/modules/tgui_panel/`.
 - `packages/tgui-panel/Panel.tsx`: the search button and box.
 - `packages/tgui-panel/settings/{atoms,types}.ts`, `SettingsGeneral.tsx`: dark theme by default, and the time stamp
   setting.
+- `packages/tgui-panel/verbs/{atoms,handlers}.ts`, `CommandBar.tsx`: `verbs/focus` can carry a verb and text to open the bar on
+  (the talk keys send it from the client: Say, Me, OOC, Whisper, Pray, Radio as Say with ";"), takes BYOND's keyboard for the
+  chat pane, and Esc with nothing typed hands the keyboard back to the map. Our skin has no input bar under the chat.
 - `packages/common/storage.ts`: BYOND's storage notices are info, not warnings; tg printed them at the top of everyone's chat.
 - `assets/font-awesome/all.min.css`: trimmed to FA6's two @font-face rules (`trim_fa.py`).
 

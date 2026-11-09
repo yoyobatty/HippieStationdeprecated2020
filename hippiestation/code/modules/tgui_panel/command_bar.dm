@@ -10,6 +10,7 @@ GLOBAL_LIST_INIT(command_bar_text_verbs, list(
 	"Me" = "message",
 	"Whisper" = "message",
 	"OOC" = "msg",
+	"Pray" = "msg",
 ))
 
 /// Hidden in the stat panel, so added here
@@ -18,7 +19,30 @@ GLOBAL_LIST_INIT(command_bar_chat_paths, list(
 	/mob/verb/me_verb,
 	/mob/verb/whisper_verb,
 	/client/verb/ooc,
+	/mob/verb/pray,
 ))
+
+/// The client-side command that opens the chat bar with the keyboard in it: on `verb_name` (with `prefill` after it) if given. A
+/// macro runs it in the client (the page's update() gets the message), so the bar opens with no trip to the server. It's in place
+/// of the old input bar under the chat, which talk keys typed `say "` into (2026-11-08: the user saw both bars and kept this one).
+/proc/chat_bar_command(verb_name, prefill)
+	var/list/payload = list()
+	if(verb_name)
+		payload["verb"] = verb_name
+	if(prefill)
+		payload["prefill"] = prefill
+	return ".output browseroutput:update [url_encode(json_encode(list("type" = "verbs/focus", "payload" = payload)))]"
+
+/// The chat bar takes the keyboard, sent from the server (classic mode's clicks and typing)
+/client/proc/focus_chat_bar(prefill)
+	var/list/payload = list()
+	if(prefill)
+		payload["prefill"] = prefill
+	chatOutput?.panel_send("verbs/focus", payload)
+
+/// Hotkey or classic mode changed: the bar keeps the keyboard in classic mode
+/client/proc/chat_bar_hotkey_mode()
+	chatOutput?.panel_send("verbs/hotkey_mode", list("hotkeys" = prefs?.hotkeys ? 1 : 0))
 
 #define COMMAND_BAR_ARG_TEXT (1<<0) // common/verb-constants.ts ARG_TYPE_TEXT
 
@@ -73,9 +97,12 @@ GLOBAL_LIST_INIT(command_bar_chat_paths, list(
 		return
 	var/arg_name = GLOB.command_bar_text_verbs[P.name]
 	var/list/arguments = payload["args"]
-	if(arg_name && islist(arguments) && istext(arguments[arg_name]))
-		var/target = (P in owner.verbs) ? owner : owner.mob
-		call(target, P)(arguments[arg_name])
+	if(arg_name)
+		// A chat verb sent empty does nothing: run bare, BYOND would ask for its text in a popup (there's no input bar to fill now)
+		var/text = (islist(arguments) && istext(arguments[arg_name])) ? arguments[arg_name] : null
+		if(length(trim(text)))
+			var/target = (P in owner.verbs) ? owner : owner.mob
+			call(target, P)(text)
 		return
 	// anything else runs as if typed into the input bar
 	winset(owner, null, "command=[replacetext(P.name, " ", "-")]")

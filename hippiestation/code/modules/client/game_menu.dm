@@ -5,15 +5,12 @@
 
 /client/var/datum/game_menu/game_menu
 
-/// Esc (the default macro, SSinput): clears the chat bar if there's anything in it, or opens the menu
+/// Esc (the default macro, SSinput) on the map opens the menu. In the chat bar Esc is the bar's own: it clears it and gives the
+/// map the keyboard back.
 /client/verb/escape_key()
 	set name = "Escape-Key"
 	set hidden = TRUE
 	set instant = TRUE
-	var/text = winget(src, "input", "text")
-	if(length(text))
-		winset(src, "input", "text=\"\"")
-		return
 	open_game_menu()
 
 /client/verb/game_menu_verb()

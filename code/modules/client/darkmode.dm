@@ -47,10 +47,7 @@ GLOBAL_LIST_INIT(skin_theme, list(
 	"github" = list(list("background-color" = SKIN_BUTTON, "text-color" = SKIN_BUTTON_TEXT), list("background-color" = "none", "text-color" = "#000000")),
 	"report-issue" = list(list("background-color" = "#4a2222", "text-color" = SKIN_BUTTON_TEXT), list("background-color" = "none", "text-color" = "#000000")),
 	"statbus" = list(list("background-color" = SKIN_BUTTON, "text-color" = SKIN_BUTTON_TEXT), list("background-color" = "none", "text-color" = "#000000")), // hippie - statbus
-	//Say, OOC, me Buttons etc.
-	"saybutton" = list(list("background-color" = SKIN_BUTTON, "text-color" = SKIN_BUTTON_TEXT), list("background-color" = "none", "text-color" = "#000000")),
-	"oocbutton" = list(list("background-color" = SKIN_BUTTON, "text-color" = SKIN_BUTTON_TEXT), list("background-color" = "none", "text-color" = "#000000")),
-	"mebutton" = list(list("background-color" = SKIN_BUTTON, "text-color" = SKIN_BUTTON_TEXT), list("background-color" = "none", "text-color" = "#000000")),
+	// hippie -- the Say, OOC and Me buttons went with the old input bar
 ))
 
 #undef SKIN_BUTTON

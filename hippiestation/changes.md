@@ -26,6 +26,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/subsystem/blackbox.dm
 ## code/controllers/subsystem/dbcore.dm (out of the .dme: rewritten whole as hippiestation/code/controllers/subsystem/dbcore.dm, rust_g instead of BSQL)
 ## code/controllers/subsystem/discord.dm
+## code/controllers/subsystem/input.dm
 ## code/controllers/subsystem/job.dm
 ## code/controllers/subsystem/mapping.dm
 ## code/controllers/subsystem/stickyban.dm
@@ -86,6 +87,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/awaymissions/capture_the_flag.dm
 ## code/modules/awaymissions/corpse.dm
 ## code/modules/client/client_procs.dm
+## code/modules/client/darkmode.dm
 ## code/modules/client/preferences.dm
 ## code/modules/client/preferences_savefile.dm
 ## code/modules/client/verbs/ooc.dm
@@ -97,6 +99,8 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/integrated_electronics/subtypes/manipulation.dm
 ## code/modules/integrated_electronics/subtypes/smart.dm
 ## code/modules/jobs/job_exp.dm
+## code/modules/keybindings/bindings_client.dm
+## code/modules/keybindings/setup.dm
 ## code/modules/library/lib_machines.dm
 ## code/modules/library/random_books.dm
 ## code/modules/mining/equipment/survival_pod.dm !Should be modularized. Can be done easily.

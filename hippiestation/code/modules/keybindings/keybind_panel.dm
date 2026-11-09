@@ -40,13 +40,14 @@ GLOBAL_LIST_INIT(keybinds_added_2026_11, list(
 GLOBAL_LIST_INIT(keybinds_always_added, list("say", "me", "ooc"))
 
 /// The verb each talk action's macro runs. BYOND asks for the text itself, before anything is sent.
+/// Each talk action's chat bar verb and the text after it (radio is say with ";"): its key opens the bar on that verb
 GLOBAL_LIST_INIT(talk_keybind_commands, list(
-	"say" = "say",
-	"me" = "me",
-	"ooc" = "ooc",
-	"radio" = "radio",
-	"pray" = "pray",
-	"whisper" = "whisper",
+	"say" = list("Say", null),
+	"me" = list("Me", null),
+	"ooc" = list("OOC", null),
+	"radio" = list("Say", ";"),
+	"pray" = list("Pray", null),
+	"whisper" = list("Whisper", null),
 	))
 
 /// The panel's sections, in order, and the actions in each. Anything not listed goes under its category.
@@ -114,23 +115,26 @@ GLOBAL_LIST_INIT(keybind_key_labels, list(
 	var/movement_locked = FALSE
 	var/datum/keybind_menu/keybind_menu
 
-/// One macro for each key bound to a talk action, running its verb. set_macros() wipes every macro, then calls this.
+/// One macro for each key bound to a talk action, opening the chat bar on its verb, and Tab, giving the bar the keyboard (it
+/// switched to the old input bar). set_macros() wipes every macro, then calls this.
 /client/proc/set_talk_macros()
 	if(length(talk_macro_ids))
 		var/list/erase = list()
 		for(var/id in talk_macro_ids)
 			erase += "[id].parent=null"
 		winset(src, null, erase.Join(";"))
-	talk_macro_ids = list()
+	talk_macro_ids = list("default-talk-tab")
+	winset(src, "default-talk-tab", list2params(list("parent" = "default", "name" = "Tab", "command" = chat_bar_command())))
 	if(!prefs?.key_bindings)
 		return
 	for(var/key in prefs.key_bindings)
 		if(key == "Unbound")
 			continue
 		for(var/kb_name in prefs.key_bindings[key])
-			var/command = GLOB.talk_keybind_commands[kb_name]
-			if(!command)
+			var/list/bar = GLOB.talk_keybind_commands[kb_name]
+			if(!bar)
 				continue
+			var/command = chat_bar_command(bar[1], bar[2])
 			var/id = "default-talk-[length(talk_macro_ids) + 1]"
 			winset(src, id, list2params(list("parent" = "default", "name" = keybind_macro_name(key), "command" = command)))
 			talk_macro_ids += id
@@ -367,8 +371,7 @@ GLOBAL_LIST_INIT(keybind_key_labels, list(
 			var/want = params["mode"] == "hotkey"
 			if(want != hotkeys)
 				hotkeys = want
-				if(parent)
-					winset(parent, null, "input.focus=true input.background-color=[hotkeys ? COLOR_INPUT_ENABLED : COLOR_INPUT_DISABLED]")
+				parent?.chat_bar_hotkey_mode()
 			return keybind_changed()
 
 /datum/preferences/proc/keybind_keys_of(kb_name)

@@ -264,12 +264,17 @@ GLOBAL_VAR(cp_ooc_last)
 	cp_js(C, "var i=document.querySelector('.CommandBar input, input.CommandBar__input, \[class*=CommandBar] input');i.focus();report(document.activeElement===i?'focused':'not');")
 	winset(C, "browseroutput", "focus=true")
 	sleep(3)
-	// to OOC mode with the bar's mode button (Say -> Me -> OOC), so the typed line shows in the lobby
-	var/mode_js = "var b=document.querySelectorAll('\[class*=CommandBar] .Button, \[class*=CommandBar] button');var hit='none';for(var i=0;i<b.length;i++){var x=b\[i].textContent.trim();if(x==='Say'||x==='Me'){b\[i].click();hit=x;break;}}report(hit);"
-	var/m1 = cp_js(C, mode_js)
-	sleep(3)
-	var/m2 = cp_js(C, mode_js)
-	sleep(3)
+	// to OOC mode with the bar's mode button (Command -> Say -> Me -> OOC; the mode is kept between runs), so the typed line
+	// shows in the lobby
+	var/mode_js = "var b=document.querySelectorAll('\[class*=CommandBar] .Button, \[class*=CommandBar] button');var hit='none';for(var i=0;i<b.length;i++){var x=b\[i].textContent.trim();if(x==='Command'||x==='Say'||x==='Me'){b\[i].click();hit=x;break;}}report(hit);"
+	var/m1 = ""
+	var/m2 = ""
+	for(var/click in 1 to 4)
+		m2 = cp_js(C, mode_js)
+		m1 += "[m2] "
+		sleep(3)
+		if(m2 == "none")
+			break
 	var/mode_now = cp_js(C, "var b=document.querySelectorAll('\[class*=CommandBar] .Button, \[class*=CommandBar] button');var o=new Array();for(var i=0;i<b.length;i++){o.push(b\[i].textContent.trim());}var inp=document.querySelector('\[class*=CommandBar] input');report(o.join('/')+' | '+(inp?inp.value:''));")
 	kc_log("info mode clicks [m1], [m2]; bar now: [mode_now]")
 	cp_js(C, "var i=document.querySelector('\[class*=CommandBar] input');i.focus();var v=i.value;i.setSelectionRange(v.length,v.length);report('ok');")

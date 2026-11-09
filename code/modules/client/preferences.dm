@@ -1459,10 +1459,7 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 
 				if("hotkeys")
 					hotkeys = !hotkeys
-					if(hotkeys)
-						winset(user, null, "input.focus=true input.background-color=[COLOR_INPUT_ENABLED]")
-					else
-						winset(user, null, "input.focus=true input.background-color=[COLOR_INPUT_DISABLED]")
+					parent?.chat_bar_hotkey_mode() // hippie -- the chat bar, not the old input bar
 
 				if("keybindings_capture")
 					var/datum/keybinding/kb = GLOB.keybindings_by_name[href_list["keybinding"]]

@@ -23,8 +23,7 @@ SUBSYSTEM_DEF(input)
 	"Any" = "\"KeyDown \[\[*\]\]\"",
 	"Any+UP" = "\"KeyUp \[\[*\]\]\"",
 	// hippie -- O, T and M (ooc, say, me) are keybinds now, with a macro for whatever key each is on (client/set_talk_macros())
-	"Back" = "\".winset \\\"input.text=\\\"\\\"\\\"\"",
-	"Tab" = "\".winset \\\"input.focus=true?map.focus=true input.background-color=[COLOR_INPUT_DISABLED]:input.focus=true input.background-color=[COLOR_INPUT_ENABLED]\\\"\"",
+	// hippie -- Back and Tab worked the old input bar under the chat, which is gone; Tab opens the chat bar (set_talk_macros())
 	"Escape" = "Escape-Key") // hippie -- clears the chat bar, or with nothing in it opens the menu (game_menu.dm)
 
 // Badmins just wanna have fun ♪
