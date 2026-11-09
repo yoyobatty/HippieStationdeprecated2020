@@ -484,8 +484,27 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 			reach_floods[key] = reached
 	return path
 
-/// Every turf AStar() could reach from `start` with this adjacency proc: breadth first, BOT_PATH_FLOOD_STEPS out.
+/// Every turf AStar() could reach from `start` with this adjacency proc: breadth first, BOT_PATH_FLOOD_STEPS out. A list, or a
+/// /datum/path_region from the path engine (bot_path_engine.dm), which floods the same tiles with the station picture.
 /proc/bot_flood_reachable(caller, turf/start, adjacent, id, simulated_only)
+	if(path_engine_takes_flood(adjacent))
+		var/shadow = world.params["path-flood"] == "shadow"
+		var/started = TICK_USAGE_REAL
+		var/native = path_engine_flood(caller, start, adjacent, id, simulated_only, BOT_PATH_FLOOD_STEPS, !shadow)
+		if(native != PATH_ENGINE_FALLBACK)
+			if(!shadow)
+				return native
+			// timed as it's used (a region), then again listing its tiles to check them
+			GLOB.path_engine_check["flood native us"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - started) * 1000
+			native = path_engine_flood(caller, start, adjacent, id, simulated_only, BOT_PATH_FLOOD_STEPS, FALSE, TRUE)
+			started = TICK_USAGE_REAL
+			var/list/dm = bot_flood_reachable_dm(caller, start, adjacent, id, simulated_only, FALSE) // in the same tick as the engine's
+			GLOB.path_engine_check["flood dm us"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - started) * 1000
+			path_flood_shadow_note("flood", dm, native, start, adjacent, caller, id, simulated_only)
+			return dm
+	return bot_flood_reachable_dm(caller, start, adjacent, id, simulated_only)
+
+/proc/bot_flood_reachable_dm(caller, turf/start, adjacent, id, simulated_only, yields = TRUE)
 	var/list/reached = list()
 	reached[start] = TRUE
 	var/list/frontier = list(start)
@@ -497,7 +516,8 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 				if(N && !reached[N] && call(T, adjacent)(caller, N, id, simulated_only))
 					reached[N] = TRUE
 					next += N
-			CHECK_TICK
+			if(yields)
+				CHECK_TICK
 		if(!length(next))
 			break
 		frontier = next
@@ -520,6 +540,21 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 /proc/bot_sealed_pocket(caller, turf/start, turf/dest, adjacent, id, simulated_only)
 	if(start == dest || start.z != dest.z)
 		return null
+	if(path_engine_takes_flood(adjacent)) // the same flood in the path engine (bot_path_engine.dm)
+		var/started = TICK_USAGE_REAL
+		var/native = path_engine_pocket(caller, start, dest, adjacent, id, simulated_only, BOT_SEALED_POCKET_TURFS)
+		if(native != PATH_ENGINE_FALLBACK)
+			if(world.params["path-flood"] != "shadow")
+				return native
+			GLOB.path_engine_check["pocket native us"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - started) * 1000
+			started = TICK_USAGE_REAL
+			var/list/dm = bot_sealed_pocket_dm(caller, start, dest, adjacent, id, simulated_only)
+			GLOB.path_engine_check["pocket dm us"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - started) * 1000
+			path_flood_shadow_note("pocket", dm, native, dest, adjacent, caller, id, simulated_only)
+			return dm
+	return bot_sealed_pocket_dm(caller, start, dest, adjacent, id, simulated_only)
+
+/proc/bot_sealed_pocket_dm(caller, turf/start, turf/dest, adjacent, id, simulated_only)
 	// A hallway reached from dest settles it: dest isn't shut in anywhere small. Most destinations are a room or two off one, and
 	// without this every one of them flooded the whole 300 turfs before saying so - 1.2 ms a route, 6% of a bot round's server time.
 	var/static/list/hubs = typecacheof(list(/area/hallway)) //not maintenance: there's no getting into it from a hallway without the access for it, which most bots haven't got
@@ -546,3 +581,46 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 #undef BOT_PATH_FLOOD_STEPS
 #undef BOT_REACH_FLOOD_TTL
 #undef BOT_REGION_FLOOD_TTL
+
+/// path-flood=shadow: the engine's flood against DM's, the same tick. Counts in GLOB.path_engine_check, written with the path checks.
+/proc/path_flood_shadow_note(kind, list/dm, native, turf/from, adjacent, caller, id, simulated_only)
+	var/list/check = GLOB.path_engine_check
+	check["[kind]s checked"]++
+	var/why
+	if(!dm != !native)
+		why = dm ? "DM found one, the engine none" : "the engine found one, DM none"
+	else if(dm)
+		var/list/tiles = native
+		if(length(dm) != length(tiles))
+			why = "[length(dm)] tiles against [length(tiles)]"
+		else
+			for(var/turf/T as anything in dm)
+				if(!tiles[T])
+					why = "the engine hasn't got [T.x],[T.y]"
+					break
+	if(!why)
+		check["[kind]s same"]++
+		if(!(check["[kind]s checked"] % 100))
+			path_engine_write_check()
+		return
+	check["[kind]s different"]++
+	if(length(GLOB.path_engine_samples) < 40)
+		GLOB.path_engine_samples += "[kind] different: [why]; from [from.x],[from.y],[from.z] ([adjacent == /turf/proc/bot_reachable_permissive ? "permissive" : "strict"], [caller], simulated_only [simulated_only])"
+		// which tiles only the engine has, and the steps joining them to the rest as DM's adjacency answers them
+		var/list/engine_tiles = islist(native) ? native : list()
+		var/shown = 0
+		for(var/turf/T as anything in engine_tiles)
+			if((dm && dm[T]) || shown >= 3)
+				continue
+			shown++
+			var/list/ways = list()
+			for(var/dir in GLOB.cardinals)
+				var/turf/N = get_step(T, dir)
+				if(N && engine_tiles[N])
+					ways += "[dir2text(dir)] [N.type]: T onto it [call(T, adjacent)(caller, N, id, simulated_only)], it onto T [call(N, adjacent)(caller, T, id, simulated_only)]"
+			var/list/things = list()
+			for(var/atom/movable/AM as anything in T)
+				if(isobj(AM) || ismob(AM))
+					things += "[AM.type][AM.density ? " (dense)" : ""]"
+			GLOB.path_engine_samples += "  engine only: [T.x],[T.y] [T.type] density [T.density] hazard [GLOB.bot_hazard_turfs[T]]; [jointext(ways, "; ")]; on it: [jointext(things, ", ")]"
+	path_engine_write_check()

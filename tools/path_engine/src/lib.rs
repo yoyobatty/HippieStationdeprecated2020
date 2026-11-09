@@ -5,9 +5,11 @@
 //! passes, and those only ever hold numbers and turfs: neither is reference counted, so it never has a BYOND reference to
 //! look after. The two BYOND API functions it uses are looked up in byondcore.dll at first use.
 
+pub mod flood;
 pub mod picture;
 pub mod search;
 
+use flood::{Flood, FloodOutcome, FloodSettings, NO_TILE};
 use picture::Picture;
 use search::{Cost, Outcome, Search, Settings};
 use std::collections::BTreeMap;
@@ -16,7 +18,7 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::{Mutex, OnceLock};
 
 /// Bumped whenever what DM and the engine pass each other changes. DM won't use a library that says anything else.
-pub const ENGINE_VERSION: f32 = 2.0;
+pub const ENGINE_VERSION: f32 = 3.0;
 
 /// Searches kept at once: a search DM gave up on (a runtime part way) is dropped when this many newer ones have started
 const MAX_SEARCHES: usize = 256;
@@ -31,6 +33,10 @@ const MODE_SIMULATED_ONLY: i32 = 16;
 const MODE_PICTURE_OFF: i32 = 32;
 const MODE_PICTURE_CHECK: i32 = 64;
 const MODE_RETURN_TILES: i32 = 128;
+/// path_flood_begin(): a backward flood (bot_sealed_pocket())
+const MODE_BACKWARD: i32 = 256;
+/// path_flood_begin(): stop at the first hallway tile too (path_hubs())
+const MODE_STOP_AT_HUB: i32 = 512;
 
 /// Answers that disagreed with the station picture kept for DM to describe, in the picture check
 const MAX_CHECK_SAMPLES: usize = 40;
@@ -180,6 +186,8 @@ unsafe fn arguments<'a>(argc: u32, argv: *const ByondValue) -> &'a [ByondValue] 
 #[derive(Default)]
 struct Stats {
 	searches: u64,
+	/// floods finished
+	floods: u64,
 	found: u64,
 	no_route: u64,
 	aborted: u64,
@@ -216,6 +224,7 @@ struct State {
 	maxy: i32,
 	per_level: u32,
 	searches: BTreeMap<u32, (Search, Flags)>,
+	floods: BTreeMap<u32, (Flood, Flags)>,
 	next_id: u32,
 	picture: Picture,
 	/// Region number -> its tiles, sorted
@@ -317,6 +326,7 @@ pub unsafe extern "C" fn path_setup(argc: u32, argv: *const ByondValue) -> Byond
 			maxy,
 			per_level,
 			searches: BTreeMap::new(),
+			floods: BTreeMap::new(),
 			next_id: 1,
 			picture: Picture::new(per_level as usize * maxz as usize),
 			regions: BTreeMap::new(),
@@ -418,25 +428,7 @@ pub unsafe extern "C" fn path_step(argc: u32, argv: *const ByondValue) -> ByondV
 			state.answers = answers;
 			return Err(format!("{} answers for {} tiles", state.answers.len(), search.asked.len()));
 		}
-		// Each answer's kind goes into the station picture, after the check has seen what the picture would have said
-		for (i, &turf) in search.asked.iter().enumerate() {
-			let kind = (answers[i] >> picture::KIND_SHIFT) as u8;
-			answers[i] &= picture::ANSWER_MASK;
-			if flags.check {
-				if let Some(predicted) = picture.answer(turf, flags.start, flags.simulated_only) {
-					stats.checked += 1;
-					if predicted != answers[i] {
-						stats.mismatched += 1;
-						if samples.len() < MAX_CHECK_SAMPLES {
-							samples.push(Mismatch { turf, predicted, actual: answers[i], kind: picture.kind(turf) });
-						}
-					}
-				}
-			}
-			if kind != picture::UNKNOWN {
-				picture.set(turf, kind);
-			}
-		}
+		take_answers(&search.asked, &mut answers, picture, stats, samples, flags);
 		let answered = search.answer(&answers);
 		state.answers = answers;
 		answered?;
@@ -496,6 +488,135 @@ pub unsafe extern "C" fn path_step(argc: u32, argv: *const ByondValue) -> ByondV
 	})
 }
 
+/// Each answer's kind goes into the station picture, after the picture check has seen what the picture would have said; the
+/// answers are left without their kinds
+fn take_answers(asked: &[u32], answers: &mut [u32], picture: &mut Picture, stats: &mut Stats, samples: &mut Vec<Mismatch>, flags: &Flags) {
+	for (i, &turf) in asked.iter().enumerate() {
+		let kind = (answers[i] >> picture::KIND_SHIFT) as u8;
+		answers[i] &= picture::ANSWER_MASK;
+		if flags.check {
+			if let Some(predicted) = picture.answer(turf, flags.start, flags.simulated_only) {
+				stats.checked += 1;
+				if predicted != answers[i] {
+					stats.mismatched += 1;
+					if samples.len() < MAX_CHECK_SAMPLES {
+						samples.push(Mismatch { turf, predicted, actual: answers[i], kind: picture.kind(turf) });
+					}
+				}
+			}
+		}
+		if kind != picture::UNKNOWN {
+			picture.set(turf, kind);
+		}
+	}
+}
+
+/// path_flood_begin(start, mode, max_steps, max_tiles, stop_at): a flood (flood.rs), not run yet. `mode` as path_begin()'s (16
+/// simulated_only, 32 picture off, 64 picture check, 128 list the tiles even forward), plus 256 for a backward flood. `stop_at` is
+/// a turf or null. Returns the flood's number, for path_flood_step().
+#[no_mangle]
+pub unsafe extern "C" fn path_flood_begin(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	with_state("flood_begin", |_api, state| {
+		if args.len() < 5 {
+			return Err(format!("{} arguments, wanted 5", args.len()));
+		}
+		if args[0].kind != TYPE_TURF {
+			return Err("the start must be a turf".into());
+		}
+		let mode = args[1].as_int();
+		let backward = mode & MODE_BACKWARD != 0;
+		let simulated_only = mode & MODE_SIMULATED_ONLY != 0;
+		// a backward flood asks "can that tile step onto this" of every tile: none is a search's start to DM
+		let start_for_answers = if backward { NO_TILE } else { args[0].data };
+		let flood = Flood::new(FloodSettings {
+			maxx: state.maxx,
+			maxy: state.maxy,
+			per_level: state.per_level,
+			start: args[0].data,
+			backward,
+			max_steps: args[2].as_int().max(0) as u32,
+			max_tiles: args[3].as_int().max(0) as usize,
+			stop_at: if args[4].kind == TYPE_TURF { args[4].data } else { NO_TILE },
+			stop_at_hub: mode & MODE_STOP_AT_HUB != 0,
+			simulated_only,
+			use_picture: mode & (MODE_PICTURE_OFF | MODE_PICTURE_CHECK) == 0,
+		});
+		let flags = Flags {
+			check: mode & MODE_PICTURE_CHECK != 0,
+			return_tiles: backward || mode & MODE_RETURN_TILES != 0,
+			start: start_for_answers,
+			simulated_only,
+		};
+		while state.floods.len() >= MAX_SEARCHES {
+			let oldest = *state.floods.keys().next().unwrap();
+			state.floods.remove(&oldest);
+		}
+		let id = state.next_id;
+		state.next_id = if state.next_id >= 1 << 23 { 1 } else { state.next_id + 1 };
+		state.floods.insert(id, (flood, flags));
+		Ok(id as f32)
+	})
+}
+
+/// path_flood_step(id, answers, out): like path_step(). Returns 1 with the tiles wanted in `out`, or 2 when done, `out` then being:
+/// how many tiles it reached, 1 if it reached stop_at, 1 if it grew past max_tiles, the number of a region of them (forward floods
+/// only, else 0), then every tile reached if it lists them (backward floods, or 128 in the mode).
+#[no_mangle]
+pub unsafe extern "C" fn path_flood_step(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	with_state("flood_step", |api, state| {
+		if args.len() < 3 {
+			return Err(format!("{} arguments, wanted 3", args.len()));
+		}
+		let id = args[0].as_int() as u32;
+		let mut values = std::mem::take(&mut state.values);
+		read_values(api, &args[1], &mut values)?;
+		let mut answers: Vec<u32> = values.iter().map(|v| v.as_f32() as u32).collect();
+		state.values = values;
+		let State { floods, picture, stats, samples, .. } = state;
+		let (flood, flags) = floods.get_mut(&id).ok_or_else(|| format!("no flood {id}"))?;
+		if answers.len() != flood.asked.len() {
+			return Err(format!("{} answers for {} tiles", answers.len(), flood.asked.len()));
+		}
+		take_answers(&flood.asked, &mut answers, picture, stats, samples, flags);
+		flood.answer(&answers)?;
+		let outcome = flood.step(picture);
+		let return_tiles = flags.return_tiles;
+		let backward = flags.start == NO_TILE;
+		let mut out = Vec::new();
+		let status = match outcome {
+			FloodOutcome::Need => {
+				out.extend(flood.asked.iter().map(|&t| ByondValue::turf(t)));
+				1.0
+			}
+			FloodOutcome::Done(tiles, stopped, big) => {
+				if let Some((flood, _)) = state.floods.remove(&id) {
+					state.stats.rounds += flood.rounds as u64;
+					state.stats.tiles_asked += flood.tiles_asked as u64;
+					state.stats.picture_hits += flood.picture_hits as u64;
+				}
+				state.stats.floods += 1;
+				out.push(ByondValue::num(tiles.len() as f32));
+				out.push(ByondValue::num(if stopped { 1.0 } else { 0.0 }));
+				out.push(ByondValue::num(if big { 1.0 } else { 0.0 }));
+				if return_tiles {
+					out.push(ByondValue::num(0.0));
+					out.extend(tiles.iter().map(|&t| ByondValue::turf(t)));
+				} else if !backward {
+					let region = state.keep_region(tiles);
+					out.push(ByondValue::num(region as f32));
+				} else {
+					out.push(ByondValue::num(0.0));
+				}
+				2.0
+			}
+		};
+		write_values(api, &args[2], &out)?;
+		Ok(status)
+	})
+}
+
 /// path_forget(id): drops a search DM is giving up on
 #[no_mangle]
 pub unsafe extern "C" fn path_forget(argc: u32, argv: *const ByondValue) -> ByondValue {
@@ -503,6 +624,7 @@ pub unsafe extern "C" fn path_forget(argc: u32, argv: *const ByondValue) -> Byon
 	with_state("forget", |_api, state| {
 		if let Some(id) = args.first() {
 			state.searches.remove(&(id.as_int() as u32));
+			state.floods.remove(&(id.as_int() as u32));
 		}
 		Ok(state.searches.len() as f32)
 	})
@@ -528,6 +650,23 @@ pub unsafe extern "C" fn path_dirty(argc: u32, argv: *const ByondValue) -> Byond
 		}
 		state.values = values;
 		state.stats.dirtied += count;
+		Ok(count as f32)
+	})
+}
+
+/// path_hubs(turfs): the hallway tiles, afresh (backward floods stop at them)
+#[no_mangle]
+pub unsafe extern "C" fn path_hubs(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	with_state("hubs", |api, state| {
+		let Some(list) = args.first() else {
+			return Ok(0.0);
+		};
+		let mut values = Vec::new();
+		read_values(api, list, &mut values)?;
+		let turfs: Vec<u32> = values.iter().filter(|v| v.kind == TYPE_TURF).map(|v| v.data).collect();
+		let count = turfs.len();
+		state.picture.set_hubs(turfs.into_iter());
 		Ok(count as f32)
 	})
 }

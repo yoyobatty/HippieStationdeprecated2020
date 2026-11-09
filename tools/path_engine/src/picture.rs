@@ -24,11 +24,13 @@ pub const ANSWER_MASK: u32 = (1 << KIND_SHIFT) - 1;
 #[derive(Default)]
 pub struct Picture {
 	kinds: Vec<u8>,
+	/// Tiles in a hallway, where bot_sealed_pocket() stops: nowhere small is shut in if it reaches one
+	hubs: Vec<bool>,
 }
 
 impl Picture {
 	pub fn new(size: usize) -> Picture {
-		Picture { kinds: vec![UNKNOWN; size] }
+		Picture { kinds: vec![UNKNOWN; size], hubs: Vec::new() }
 	}
 
 	pub fn kind(&self, turf: u32) -> u8 {
@@ -58,6 +60,22 @@ impl Picture {
 			OPEN_SPACE if !simulated_only => Some(0),
 			_ => None,
 		}
+	}
+
+	/// The hallway tiles, afresh
+	pub fn set_hubs(&mut self, turfs: impl Iterator<Item = u32>) {
+		self.hubs.clear();
+		for turf in turfs {
+			let at = turf as usize;
+			if at >= self.hubs.len() {
+				self.hubs.resize(at + 1, false);
+			}
+			self.hubs[at] = true;
+		}
+	}
+
+	pub fn is_hub(&self, turf: u32) -> bool {
+		*self.hubs.get(turf as usize).unwrap_or(&false)
 	}
 
 	/// How many tiles are known, by kind (OPEN, SOLID, OPEN_SPACE, VOLATILE)

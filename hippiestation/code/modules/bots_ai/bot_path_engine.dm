@@ -19,7 +19,7 @@
 // AStar()'s for every search, using AStar()'s (data/path_engine_check.txt); path-lib=<name> loads another build of the library;
 // path-picture=off|check (station_picture.dm).
 
-#define PATH_ENGINE_VERSION 2
+#define PATH_ENGINE_VERSION 3
 
 /// The station picture's kinds (tools/path_engine/src/picture.rs), sent above each answer, times this
 #define PATH_PICTURE_UNIT 1048576
@@ -32,6 +32,8 @@
 #define PATH_MODE_PICTURE_OFF 32
 #define PATH_MODE_PICTURE_CHECK 64
 #define PATH_MODE_RETURN_TILES 128
+#define PATH_MODE_BACKWARD 256
+#define PATH_MODE_STOP_AT_HUB 512
 
 GLOBAL_VAR_INIT(path_engine_lib, world.params["path-lib"] || "hippie_path")
 /// null until the first search, then TRUE if the engine is doing the bots' searches, FALSE if not
@@ -166,7 +168,42 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 	var/search = call_ext(GLOB.path_engine_lib, "byond:path_begin")(start, end, maxnodedepth || 0, mintargetdist || 0, mode, end_penalty, exclude)
 	if(!isnum(search) || search <= 0)
 		return null
-	// What doesn't change over the search
+	var/list/out = list()
+	var/status = path_engine_rounds(search, "byond:path_step", caller, start, id, simulated_only, permissive, weighted, yields, out)
+	switch(status)
+		if(2) // out: how many tiles it opened, then the path
+			var/opened = out[1]
+			out.Cut(1, 2)
+			return list(out, opened, null, FALSE)
+		if(3) // out: how many it opened, whether maxnodedepth cut it short, the region's number, then (return_tiles) every tile it opened
+			var/opened = out[1]
+			var/depth_cut = out[2]
+			if(!return_tiles)
+				return list(null, opened, new /datum/path_region(out[3], opened), depth_cut)
+			var/list/reached = list()
+			var/build_started = TICK_USAGE_REAL
+			var/build_ms = 0
+			for(var/i in 4 to length(out))
+				reached[out[i]] = TRUE
+				if(yields && !(i % 1000)) // tens of thousands of tiles after a breach: not all in one tick
+					build_ms += TICK_DELTA_TO_MS(TICK_USAGE_REAL - build_started)
+					CHECK_TICK
+					build_started = TICK_USAGE_REAL
+			build_ms += TICK_DELTA_TO_MS(TICK_USAGE_REAL - build_started)
+			if(build_ms > 20 && GLOB.path_engine_slow_noted < 20)
+				GLOB.path_engine_slow_noted++
+				log_world("Path engine: the [length(out) - 3] tiles a search opened took [round(build_ms, 0.1)] ms to list")
+			return list(null, opened, reached, depth_cut)
+		if(4) // AStar() would have had a runtime error here: let it
+			return null
+	call_ext(GLOB.path_engine_lib, "byond:path_forget")(search) // an error: logged in the server's output
+	return null
+
+/// The rounds of a search or a flood: the engine says which tiles it wants told about, DM says what each allows (and its kind for
+/// the station picture), until it's done. Returns the last status; `out` holds what the engine wrote last. `start` is the tile a
+/// blocked tile is still looked at for (a search's start), or null.
+/proc/path_engine_rounds(handle, step_fn, caller, turf/start, id, simulated_only, permissive, weighted, yields, list/out)
+	// What doesn't change over it
 	var/may_jump = bot_may_jump_in(caller)
 	var/mob/living/carbon/human/H = caller
 	var/space_ok = istype(H) && H.bot_brain && H.bot_brain.is_space_protected_without_boots()
@@ -184,7 +221,6 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 	var/static/list/one_side = typecacheof(list(/obj/structure/window, /obj/machinery/door))
 	var/list/cardinals = GLOB.cardinals
 	var/list/answers = list()
-	var/list/out = list()
 	var/status
 	var/list/timing = GLOB.path_engine_timing // tools/path_bench: where the time goes
 	var/mark
@@ -194,7 +230,7 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 		var/step_started = TICK_USAGE_REAL
 		if(timing)
 			mark = step_started
-		status = call_ext(GLOB.path_engine_lib, "byond:path_step")(search, answers, out)
+		status = call_ext(GLOB.path_engine_lib, step_fn)(handle, answers, out)
 		var/step_ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - step_started)
 		if(step_ms > 20 && GLOB.path_engine_slow_noted < 20)
 			GLOB.path_engine_slow_noted++
@@ -236,7 +272,16 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 				kind = special ? PATH_PICTURE_OPEN_SPACE : PATH_PICTURE_OPEN // odd: still to look at what's on it
 			if(blocked)
 				if(T != start)
-					answers[i] = 15 + (kind == PATH_PICTURE_SOLID ? PATH_PICTURE_SOLID : PATH_PICTURE_VOLATILE) * PATH_PICTURE_UNIT
+					// nothing steps onto it, but a backward flood (bot_sealed_pocket()) asks what can step off it, and DM's adjacency
+					// still minds a window on the tile stepped from: open space with windows round a hull, to a bot that can't cross it
+					var/blocked_exits = 0
+					if(!T.density)
+						for(var/obj/O in T)
+							if(O.density && (istype(O, /obj/structure/window) || istype(O, /obj/machinery/door/window)))
+								for(var/dir in cardinals)
+									if(!(blocked_exits & dir) && !O.CanAStarPass(id, dir) && !(permissive && bot_can_break_through(O, caller)))
+										blocked_exits |= dir
+					answers[i] = 15 + (blocked_exits << 4) + (kind == PATH_PICTURE_SOLID ? PATH_PICTURE_SOLID : PATH_PICTURE_VOLATILE) * PATH_PICTURE_UNIT
 					if(timing)
 						timing["blocked"]++
 					continue
@@ -344,34 +389,82 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 			timing["tiles"] += length(out)
 		if(yields)
 			CHECK_TICK
-	switch(status)
-		if(2) // out: how many tiles it opened, then the path
-			var/opened = out[1]
-			out.Cut(1, 2)
-			return list(out, opened, null, FALSE)
-		if(3) // out: how many it opened, whether maxnodedepth cut it short, the region's number, then (return_tiles) every tile it opened
-			var/opened = out[1]
-			var/depth_cut = out[2]
-			if(!return_tiles)
-				return list(null, opened, new /datum/path_region(out[3], opened), depth_cut)
-			var/list/reached = list()
-			var/build_started = TICK_USAGE_REAL
-			var/build_ms = 0
-			for(var/i in 4 to length(out))
-				reached[out[i]] = TRUE
-				if(yields && !(i % 1000)) // tens of thousands of tiles after a breach: not all in one tick
-					build_ms += TICK_DELTA_TO_MS(TICK_USAGE_REAL - build_started)
-					CHECK_TICK
-					build_started = TICK_USAGE_REAL
-			build_ms += TICK_DELTA_TO_MS(TICK_USAGE_REAL - build_started)
-			if(build_ms > 20 && GLOB.path_engine_slow_noted < 20)
-				GLOB.path_engine_slow_noted++
-				log_world("Path engine: the [length(out) - 3] tiles a search opened took [round(build_ms, 0.1)] ms to list")
-			return list(null, opened, reached, depth_cut)
-		if(4) // AStar() would have had a runtime error here: let it
+	return status
+
+/// Whether bot_flood_reachable() and bot_sealed_pocket() go to the engine for this adjacency (path-flood=dm leaves them in DM)
+/proc/path_engine_takes_flood(adjacent)
+	if(world.params["path-flood"] == "dm")
+		return FALSE
+	return path_engine_takes(/turf/proc/Distance_cardinal, adjacent, null)
+
+/// The mode bits a flood starts with
+/proc/path_engine_flood_mode(simulated_only, backward, return_tiles)
+	. = 0
+	if(simulated_only)
+		. += PATH_MODE_SIMULATED_ONLY
+	switch(GLOB.path_picture_mode)
+		if("off")
+			. += PATH_MODE_PICTURE_OFF
+		if("check")
+			. += PATH_MODE_PICTURE_CHECK
+	if(return_tiles)
+		. += PATH_MODE_RETURN_TILES
+	if(backward)
+		. += PATH_MODE_BACKWARD
+
+/// bot_flood_reachable() in the engine: every tile reachable from `start` within `max_steps` steps, as a /datum/path_region (or as
+/// keys of a list with `return_tiles`). PATH_ENGINE_FALLBACK if the engine couldn't.
+/proc/path_engine_flood(caller, turf/start, adjacent, id, simulated_only, max_steps, yields, return_tiles = FALSE)
+	if(GLOB.station_picture_kept)
+		station_picture_flush()
+	var/flood = call_ext(GLOB.path_engine_lib, "byond:path_flood_begin")(start, path_engine_flood_mode(simulated_only, FALSE, return_tiles), max_steps, 0, null)
+	if(!isnum(flood) || flood <= 0)
+		return PATH_ENGINE_FALLBACK
+	var/list/out = list()
+	var/status = path_engine_rounds(flood, "byond:path_flood_step", caller, start, id, simulated_only, adjacent == /turf/proc/bot_reachable_permissive, FALSE, yields, out)
+	if(status != 2)
+		call_ext(GLOB.path_engine_lib, "byond:path_forget")(flood)
+		return PATH_ENGINE_FALLBACK
+	if(!return_tiles)
+		return new /datum/path_region(out[4], out[1])
+	var/list/reached = list()
+	for(var/i in 5 to length(out))
+		reached[out[i]] = TRUE
+	return reached
+
+/// bot_sealed_pocket() in the engine: every tile that can reach `dest`, as keys, if there are at most `max_tiles` of them, `start`
+/// isn't one and none is in a hallway; else null. PATH_ENGINE_FALLBACK if the engine couldn't. Done in one go, as DM's is.
+/proc/path_engine_pocket(caller, turf/start, turf/dest, adjacent, id, simulated_only, max_tiles)
+	if(GLOB.station_picture_kept)
+		station_picture_flush()
+	var/static/list/hubs = typecacheof(list(/area/hallway)) // as bot_sealed_pocket()'s
+	// the hallway tiles, so the flood stops at the first one as DM's does: told again now and then, should an area change
+	var/static/hubs_told_at
+	if(isnull(hubs_told_at) || world.time > hubs_told_at + 5 MINUTES)
+		hubs_told_at = world.time
+		var/list/hub_turfs = list()
+		for(var/area/A as anything in GLOB.sortedAreas)
+			if(hubs[A.type])
+				for(var/turf/T in A)
+					hub_turfs += T
+		call_ext(GLOB.path_engine_lib, "byond:path_hubs")(hub_turfs)
+	var/flood = call_ext(GLOB.path_engine_lib, "byond:path_flood_begin")(dest, path_engine_flood_mode(simulated_only, TRUE, TRUE) + PATH_MODE_STOP_AT_HUB, 0, max_tiles, start)
+	if(!isnum(flood) || flood <= 0)
+		return PATH_ENGINE_FALLBACK
+	var/list/out = list()
+	var/status = path_engine_rounds(flood, "byond:path_flood_step", caller, null, id, simulated_only, adjacent == /turf/proc/bot_reachable_permissive, FALSE, FALSE, out)
+	if(status != 2)
+		call_ext(GLOB.path_engine_lib, "byond:path_forget")(flood)
+		return PATH_ENGINE_FALLBACK
+	if(out[2] || out[3]) // reached the bot, or too big to be shut in anywhere small
+		return null
+	var/list/pocket = list()
+	for(var/i in 5 to length(out))
+		var/turf/T = out[i]
+		if(T != dest && hubs[T.loc.type])
 			return null
-	call_ext(GLOB.path_engine_lib, "byond:path_forget")(search) // an error: logged in the server's output
-	return null
+		pocket[T] = TRUE
+	return pocket
 
 /// The tiles a search that found no route opened, kept in the path engine. The bots' region checks (bot_pathing_permissive.dm) ask
 /// it about a tile or two, which is all they ever did with the list of them AStar() made.
@@ -467,6 +560,9 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 	lines += "[check["checked"]] searches checked: the same [check["same"]], different [check["different"]], different with the world changed while AStar() yielded [check["different, the world moved on"]]"
 	if(check["native searches"])
 		lines += "Done in one go by both ([check["native searches"]]): the engine [round(check["native us"] / check["native searches"], 0.1)] us a search, AStar() [round(check["dm us"] / check["native searches"], 0.1)] us"
+	if(check["floods checked"] || check["pockets checked"])
+		lines += "Floods against DM's (path-flood=shadow): [check["floods checked"]] checked, the same [check["floods same"]], different [check["floods different"]]; pockets [check["pockets checked"]] checked, the same [check["pockets same"]], different [check["pockets different"]]"
+		lines += "  time, the same tick: floods the engine [round(check["flood native us"] / max(1, check["floods checked"]))] us, DM [round(check["flood dm us"] / max(1, check["floods checked"]))] us; pockets the engine [round(check["pocket native us"] / max(1, check["pockets checked"]), 0.1)] us, DM [round(check["pocket dm us"] / max(1, check["pockets checked"]), 0.1)] us"
 	lines += path_engine_stats_lines()
 	lines += GLOB.path_engine_samples
 	var/written = jointext(lines, "\n")
@@ -511,3 +607,5 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 #undef PATH_MODE_PICTURE_OFF
 #undef PATH_MODE_PICTURE_CHECK
 #undef PATH_MODE_RETURN_TILES
+#undef PATH_MODE_BACKWARD
+#undef PATH_MODE_STOP_AT_HUB
