@@ -371,7 +371,18 @@ GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor,
 		V = next_victim(T)
 		if(V && assign_goal(new /datum/bot_goal/traitor_kill/robust(null, V)))
 			return TRUE
-	return assign_goal(new /datum/bot_goal/lay_low())
+	// Nowhere quiet it can get to from here (shut in the Armory, it looked four times a second for minutes, stood still): it gets on with
+	// something else and looks again later
+	if(world.time < no_quiet_spot_until)
+		return FALSE
+	if(assign_goal(new /datum/bot_goal/lay_low()))
+		return TRUE
+	no_quiet_spot_until = world.time + 30 SECONDS
+	return FALSE
+
+/datum/bot_brain
+	/// Until when there's no point looking for somewhere to lay low again: there was nowhere it could get to
+	var/no_quiet_spot_until = 0
 
 /// Keeps to the maintenance tunnels, a stop at a time, until there's something worth coming out for. It doesn't stand about, and it doesn't
 /// stand about where people are.

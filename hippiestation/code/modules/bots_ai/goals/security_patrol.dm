@@ -557,6 +557,11 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	if(subdued && S.stat == CONSCIOUS && bot_too_dangerous(S) && S.AmountParalyzed() < 4 SECONDS && S.AmountUnconscious() <= 0 && S.getStaminaLoss() < 100)
 		subdued = FALSE
 
+	// Badly hurt on somebody dangerous: it falls back, seen or not. It used to only notice in sight of them, and one waiting just out
+	// of sight stayed put however hurt it was.
+	if(!subdued && bot_too_dangerous(S) && too_hurt_to_stay()) //goals/security_tactics.dm
+		fall_back_from(S)
+		return
 	if(visible && !subdued && bot_too_dangerous(S) && keep_it_at_range(S, dist)) //goals/security_tactics.dm
 		arrest_last_dist = dist
 		return
@@ -625,7 +630,10 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		return
 	if(!subdued && bot_too_dangerous(S)) //goals/security_tactics.dm
 		var/hold = hold_off_distance(S)
-		if(get_dist(owner, goal_turf) > hold)
+		// Waiting on the others out of sight, it stays put a couple of tiles past the hold distance too: the spot short of the last
+		// sighting moves with every step it takes, and with people about it was never free (security_tactics.dm wait_for_the_others())
+		var/slack = (!visible && short_of_the_others(S)) ? 2 : 0
+		if(get_dist(owner, goal_turf) > hold + slack)
 			var/turf/short = spot_short_of(goal_turf, hold)
 			if(short)
 				pursuit_goal = short
@@ -1089,6 +1097,11 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 			continue
 		var/occupied = FALSE
 		for(var/turf/I in interior)
+			// The trapdoor's still open from the last release (two minutes on the Hippie map): nobody can stand on it to swap a prisoner
+			// to the back. The Warden picked Cell 4 a second after its last prisoner went down it and failed eleven times.
+			if(GLOB.bot_open_trapdoors[I])
+				occupied = TRUE
+				break
 			for(var/mob/living/carbon/C in I)
 				if(C.stat != DEAD && C != prisoner && C != owner)
 					occupied = TRUE
@@ -1115,6 +1128,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/turf/best
 	var/best_score
 	for(var/turf/I in interior)
+		if(bot_turf_is_deadly(I)) //an open trapdoor: the route there never gets planned (bot_pathing_permissive.dm)
+			continue
 		var/blocked = FALSE
 		for(var/atom/movable/AM in I)
 			if(AM.density && !ismob(AM))

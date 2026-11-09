@@ -612,6 +612,41 @@
 		GLOB.deliverybeacontags -= beacon_tag
 	return ..()
 
+/// Somebody's emptied a delivered crate already: it comes off the list, not tried again and again
+/datum/bot_scenario/duty/collect_emptied
+	name = "science: a delivered crate somebody's already emptied comes off the list"
+	desc = "Shift base1108n: three engineers in turn opened the glass sheets crate at their door, found it empty, gave up, and it stayed on the list for the next one. Nothing left in it, there's nothing to come back for."
+	duty_type = /datum/bot_duty/collect_delivery
+	job = "Scientist"
+	time_limit = 30 SECONDS
+	layout = list(
+		"########",
+		"#B...Q.#",
+		"########")
+	var/obj/structure/closet/crate/crate
+
+/datum/bot_scenario/duty/collect_emptied/setup()
+	arena_area.department = "science"
+	crate = new(first_marker("Q"))
+	crate.name = "silver sheets crate"
+	GLOB.bot_delivered_crates[crate] = list("science", /obj/item/stack/sheet/mineral/silver)
+
+/datum/bot_scenario/duty/collect_emptied/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!crate.opened)
+		return BOT_GYM_PENDING
+	if(!(crate in GLOB.bot_delivered_crates))
+		return BOT_GYM_PASS
+	if(LAZYACCESS(brain.unpack_blocked, REF(crate)))
+		fail_reason = "gave up on the empty crate and left it on the list for the next one"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/collect_emptied/release_run()
+	GLOB.bot_delivered_crates -= crate
+	return ..()
+
 /// A crate somebody's waiting for is gone for once it's off the MULE (bot_collabs.dm collect_delivery)
 /datum/bot_scenario/duty/collect_off_mule
 	name = "science: a crate riding a MULE is left till it's set down, then unpacked"

@@ -24,6 +24,32 @@
 		return BOT_GYM_FAIL
 	return bot.back ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/datum/bot_scenario/duty/traitor/robust_nowhere_quiet
+	name = "robust: with nowhere quiet to get to, it doesn't ask again every tick"
+	desc = "Shift base1108n: a suited traitor shut in the Armory had no way out to the maintenance tunnels, and looked for somewhere to lay low four times a second for minutes on end, stood still. It gets on with something else and looks again later."
+	time_limit = 30 SECONDS
+	layout = list(
+		"######",
+		"#B...#",
+		"######")
+
+/datum/bot_scenario/duty/traitor/robust_nowhere_quiet/post_spawn()
+	..()
+	brain.set_playstyle(BOT_STYLE_ROBUST)
+	brain.traitor_shopped = TRUE
+
+/datum/bot_scenario/duty/traitor/robust_nowhere_quiet/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/asked = 0
+	for(var/line in transcript)
+		if(findtext(line, "couldn't find a target for /datum/bot_goal/lay_low"))
+			asked++
+	if(asked > 3)
+		fail_reason = "looked for somewhere to lay low [asked] times in [DisplayTimeText(world.time - start_time)]"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 20 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /datum/bot_scenario/duty/traitor/robust_kill
 	name = "robust: jumps the gap in strength mode and doesn't wait for the room to clear"
 	desc = "A suited traitor and somebody it's been told to kill, with a third person watching. It goes straight for them, in the open, and it uses the jump."
@@ -306,6 +332,71 @@
 		fail_reason = "went within [closest] tiles of the suit on its own"
 		return BOT_GYM_FAIL
 	return (world.time > start_time + 10 SECONDS && bot_transcript_said("holding back from")) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/officer/pair_waits
+	name = "security: two officers waiting on a nanosuit stand their ground instead of pacing"
+	desc = "Shift base1108n: an officer waiting for backup on a traitor in a nanosuit paced the same three tiles of a crowded Brig corridor for sixteen minutes, matching the suit's distance to the tile every time it shifted a step inside the Armory. Out of reach is a band, not a line: they should only move when it really comes at them or gets away."
+	time_limit = 40 SECONDS
+	layout = list(
+		"####################",
+		"#B.................#",
+		"#O.......YZ......C.#",
+		"#..................#",
+		"####################")
+	var/mob/living/carbon/human/partner
+	var/moves = 0
+	var/closest = 99
+
+/datum/bot_scenario/griefed/officer/pair_waits/grief()
+	..()
+	partner = second_bot(first_marker("O"), "Officer O")
+	partner.mind.assigned_role = "Security Officer"
+	partner.bot_brain.register_security()
+	partner.put_in_hands(new /obj/item/gun/energy/e_gun/advtaser(partner))
+	partner.put_in_hands(new /obj/item/restraints/handcuffs(partner))
+	partner.bot_brain.begin_arrest(griefer)
+	stand_in(first_marker("Y"), "Bystander Y")
+	stand_in(first_marker("Z"), "Bystander Z")
+	RegisterSignal(bot, COMSIG_MOVABLE_MOVED, PROC_REF(stepped))
+	RegisterSignal(partner, COMSIG_MOVABLE_MOVED, PROC_REF(stepped))
+	keep_at_it("shift_about", 1 SECONDS)
+
+/// The suit shifts a tile towards them and back, in plain sight, as Kit Brannigan did in the Armory
+/datum/bot_scenario/griefed/officer/pair_waits/proc/shift_about()
+	var/turf/C = first_marker("C")
+	var/turf/T = (griefer.x >= C.x) ? locate(C.x - 1, C.y, C.z) : C
+	if(T && !T.density)
+		griefer.forceMove(T)
+	return TRUE
+
+/// Steps either officer takes once they've had ten seconds to get into place
+/datum/bot_scenario/griefed/officer/pair_waits/proc/stepped(atom/movable/mover)
+	SIGNAL_HANDLER
+	if(world.time > start_time + 12 SECONDS)
+		moves++
+
+/datum/bot_scenario/griefed/officer/pair_waits/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!partner)
+		return BOT_GYM_PENDING
+	if(QDELETED(partner))
+		return BOT_GYM_FAIL
+	closest = min(closest, get_dist(bot, griefer), get_dist(partner, griefer))
+	if(closest < 4)
+		fail_reason = "an officer went within [closest] tiles of the suit with only two of them"
+		return BOT_GYM_FAIL
+	if(moves > 4)
+		fail_reason = "the two of them paced while waiting: [moves] steps after getting into place"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 32 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/officer/pair_waits/release_run()
+	if(bot)
+		UnregisterSignal(bot, COMSIG_MOVABLE_MOVED)
+	if(partner)
+		UnregisterSignal(partner, COMSIG_MOVABLE_MOVED)
+	return ..()
 
 /datum/bot_scenario/griefed/officer/range/check()
 	if(bot_lost())

@@ -192,10 +192,25 @@ GLOBAL_LIST_INIT(bot_drop_off_areas, list(
 	GLOB.bot_delivered_crates -= target
 	bot_tally("crates collected")
 
-/// Still somebody's crate: this bot leaves it a while, and it or a colleague goes back for it
+/// Still somebody's crate: this bot leaves it a while, and it or a colleague goes back for it. Open with nothing of what came left in it
+/// or under it, somebody's had it already: off the list. Three engineers in turn found the glass sheets crate empty and left it on.
 /datum/bot_goal/unpack_crate/on_give_up(datum/bot_brain/bot)
-	if(target)
-		LAZYSET(bot.unpack_blocked, REF(target), world.time + 2 MINUTES)
+	var/obj/structure/closet/crate/C = target
+	if(!C)
+		return
+	if(istype(C) && C.opened && !bot_crate_has_left(C, wanted))
+		GLOB.bot_delivered_crates -= C
+		bot_log(bot, "[C]'s been emptied already - nothing to collect")
+		return
+	LAZYSET(bot.unpack_blocked, REF(C), world.time + 2 MINUTES)
+
+/// Anything of `wanted` (any item, if null) still in the crate or on its tile
+/proc/bot_crate_has_left(obj/structure/closet/crate/C, wanted)
+	var/turf/T = get_turf(C)
+	for(var/obj/item/I in T ? C.contents + T.contents : C.contents)
+		if(!wanted || istype(I, wanted))
+			return TRUE
+	return FALSE
 
 /datum/bot_brain
 	/// Delivered crates it couldn't get at, by REF(), until when

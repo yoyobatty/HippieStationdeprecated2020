@@ -146,12 +146,15 @@ GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 	if(world.time >= next_waiting_note)
 		next_waiting_note = world.time + 20 SECONDS
 		bot_log(src, "holding back from [S]: [officers_with_me(S)] of us here, waiting for [BOT_SEC_GROUP]")
-	if(dist < BOT_SEC_WAIT_AWAY)
+	// Out of reach is a band: it backs off when the suit really comes at it, not for every step the suit takes. Matching its distance
+	// to the tile had an officer pace three tiles of the Brig corridor for sixteen minutes while a suit shuffled about the Armory.
+	if(dist < BOT_SEC_WAIT_AWAY - 1)
 		stop_pursuit()
 		step_back_from(S)
 		return TRUE
+	// Over to a colleague only if standing beside them is out of reach too, or it walks in and has to back off again
 	var/mob/living/carbon/human/mate = nearest_colleague_on(S)
-	if(mate && get_dist(owner, mate) > 2 && get_dist(mate, S) >= BOT_SEC_WAIT_AWAY - 2)
+	if(mate && get_dist(owner, mate) > 2 && get_dist(mate, S) >= BOT_SEC_WAIT_AWAY)
 		if(pursuing_kind != "arrest" || pursue_target != mate)
 			pursue(mate, "arrest", force = TRUE)
 		return TRUE
@@ -218,6 +221,10 @@ GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 	var/turf/T = get_step_away(owner, A)
 	if(T && !T.density && !is_blocked_turf(T, TRUE) && !bot_turf_is_deadly(T)) //not backwards into the lava
 		step_towards(owner, T)
+
+/// Hurt badly enough that it shouldn't stay on somebody dangerous, whether it can see them right now or not
+/datum/bot_brain/proc/too_hurt_to_stay()
+	return owner.health <= owner.maxHealth * BOT_SEC_FALL_BACK_AT
 
 /// Hurt, and there's nothing to be gained by staying. It says so, and goes and patches up.
 /datum/bot_brain/proc/fall_back_from(mob/living/carbon/human/S)

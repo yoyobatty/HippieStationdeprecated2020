@@ -130,10 +130,19 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 /datum/bot_brain/proc/go_back_for_set_down()
 	if(owner.get_active_held_item() && owner.get_inactive_held_item())
 		return FALSE
-	for(var/obj/item/I in set_down_items.Copy())
+	// The one it's already on its way to comes first, in view or not: it knows where it put it. Going for whichever came into view first
+	// each step, a botanist with two seed packs down went back and forth between them for over a minute.
+	var/list/order = set_down_items.Copy()
+	var/obj/item/heading_for = (pursuing_kind == "follow" && (pursue_target in order)) ? pursue_target : null
+	if(heading_for)
+		order -= heading_for
+		order.Insert(1, heading_for)
+	for(var/obj/item/I in order.Copy())
 		if(QDELETED(I) || !isturf(I.loc) || get_dist(owner, I) > 8)
 			LAZYREMOVE(set_down_items, I)
+			order -= I
 			continue
+		// Whatever's in reach first: arriving ends the walk, so on the next look nothing says which one it came for
 		if(owner.Adjacent(I))
 			if(pursue_target == I)
 				stop_pursuit()
@@ -141,7 +150,8 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 			bot_log(src, "back for [I]")
 			INVOKE_ASYNC(src, PROC_REF(take_back), I) //it pauses like a person does: process() can't wait on it
 			return TRUE
-		if(!(I in view(5, owner)))
+	for(var/obj/item/I in order)
+		if(I != heading_for && !(I in view(5, owner)))
 			continue
 		if(pursuing_kind != "follow" || pursue_target != I)
 			pursue(I, "follow", force = TRUE)

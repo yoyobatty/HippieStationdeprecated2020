@@ -301,6 +301,100 @@
 	GLOB.bot_brig_sentences -= timer
 	return ..()
 
+/datum/bot_scenario/brigged/trapdoor_open
+	name = "brig: a cell whose trapdoor is still open from the last release isn't free"
+	desc = "Shift base1108n: on the Hippie map every cell has a trapdoor that opens for two minutes when a sentence ends. The Warden picked Cell 4 a second after its last prisoner went down it, couldn't stand on the open trapdoor to swap with Lane Sorensen, and failed 'isn't inside Cell 4' eleven times before it closed. It takes the next cell."
+	layout = list(
+		"#############",
+		"#BC..i....j.#",
+		"####d#####k##",
+		"###...###...#",
+		"###.ql###..n#",
+		"#############")
+	var/obj/machinery/door_timer/timer_b
+	var/obj/machinery/disposal/trapdoor/trap
+
+/datum/bot_scenario/brigged/trapdoor_open/setup()
+	..()
+	var/id = "gymcellb[rand(1, 99999)]"
+	var/obj/machinery/door/window/brigdoor/door = new(first_marker("k"))
+	door.dir = SOUTH
+	door.id = id
+	place("k", door)
+	var/obj/structure/closet/secure_closet/brig/locker_b = new(first_marker("n"))
+	locker_b.id = id
+	place("n", locker_b)
+	timer_b = new(first_marker("j"))
+	timer_b.id = id
+	timer_b.targets = list(door, locker_b)
+	timer_b.stat &= ~BROKEN
+	place("j", timer_b)
+	trap = new(first_marker("q"))
+	place("q", trap)
+	trap.open() //the last prisoner's just gone down it
+
+/datum/bot_scenario/brigged/trapdoor_open/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("can't process them there"))
+		fail_reason = "tried the cell with the open trapdoor: [prisoner] wouldn't go in"
+		return BOT_GYM_FAIL
+	if(timer.timing)
+		fail_reason = "brigged them in the cell with the open trapdoor"
+		return BOT_GYM_FAIL
+	if(!timer_b.timing)
+		return BOT_GYM_PENDING
+	return (get_turf(prisoner) in bot_get_cell_interior(timer_b)) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/brigged/trapdoor_open/release_run()
+	if(!QDELETED(timer_b) && timer_b.timing)
+		timer_b.timer_end(forced = TRUE)
+	GLOB.bot_brig_sentences -= timer_b
+	if(trap)
+		GLOB.bot_open_trapdoors -= get_turf(trap)
+	return ..()
+
+/datum/bot_scenario/set_down_two
+	name = "set down: going back for one thing, it doesn't switch to another halfway"
+	desc = "Shift base1108n: a botanist with two seed packs set down went back and forth between them for over a minute, going for whichever came into view first each step. It finishes going for the one it set off for."
+	layout = list(
+		"############",
+		"#B...a...b.#",
+		"############")
+	time_limit = 20 SECONDS
+	var/obj/item/near_one
+	var/obj/item/far_one
+
+/datum/bot_scenario/set_down_two/post_spawn()
+	near_one = new /obj/item/screwdriver(first_marker("a"))
+	far_one = new /obj/item/wrench(first_marker("b"))
+	// The far one first, as the shift had it: set down earlier, further on
+	brain.set_down_items = list(far_one, near_one)
+	// What its own brain does between jobs (process(), bot_brain.dm), called here: a gym bot left to its own brain answers the other
+	// arenas' calls and requests, and twenty scenarios in the full run timed out
+	go_back_tick()
+
+/datum/bot_scenario/set_down_two/proc/go_back_tick()
+	if(result != BOT_GYM_PENDING || QDELETED(bot))
+		return
+	if(brain.set_down_items && brain.state == BOT_STATE_WANDER)
+		brain.go_back_for_set_down()
+	addtimer(CALLBACK(src, PROC_REF(go_back_tick)), 1)
+
+/datum/bot_scenario/set_down_two/make_goal()
+	return null
+
+/datum/bot_scenario/set_down_two/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/line in transcript)
+		if(findtext(line, "back for the wrench"))
+			fail_reason = "walked past the screwdriver it was going for, to the wrench that came into view"
+			return BOT_GYM_FAIL
+		if(findtext(line, "back for the screwdriver"))
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
 /datum/bot_scenario/barefoot_glass
 	name = "barefoot: it walks round broken glass, not over it"
 	desc = "A bot with no shoes on goes down a room with broken glass across the straight way. It goes round. Barefoot bots used to walk straight over it and cut their feet."

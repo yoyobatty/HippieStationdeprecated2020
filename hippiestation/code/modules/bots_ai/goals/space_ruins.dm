@@ -121,7 +121,8 @@
 /// The jetpack on it, if there is one.
 /datum/bot_brain/proc/worn_jetpack()
 	var/obj/item/tank/jetpack/J = owner.back
-	return istype(J) ? J : null
+	// Its own, on it: a back slot once still named a jetpack somebody else had taken, and switching it on from there was a runtime
+	return (istype(J) && J.loc == owner) ? J : null
 
 /// How much of a full charge of gas a jetpack has left, out of 1. Without gas it doesn't push, and somebody with an empty one out in
 /// space drifts: an explorer on its second trip on the same jetpack was left adrift past the station's edge until its air ran out.
