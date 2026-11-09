@@ -721,7 +721,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 // everything else. Bystanders matter most: an officer tasering into a crowd hits
 // whoever's in front, and the guide is emphatic about friendly fire.
 /datum/bot_brain/proc/has_clear_shot(mob/living/target)
-	for(var/turf/T in getline(owner, target))
+	var/list/line = getline(owner, target)
+	for(var/turf/T in line)
 		if(T == get_turf(owner) || T == get_turf(target))
 			continue
 		if(T.density)
@@ -733,7 +734,25 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 			// machines, closed doors - is treated as blocking.
 			if(AM.density && !istype(AM, /obj/structure/table))
 				return FALSE
-	return TRUE
+	return !crew_in_the_way(target, line)
+
+/// Somebody innocent right beside the line of fire, or next to the target: a shot that goes a little wide, or a target that steps
+/// aside, hits them instead. Officers shot a cargo tech beating on a nanosuit, twice with a disabler and twice with a laser, from
+/// across the room: the line itself was clear. Not somebody wanted or fighting this bot, and not somebody beside the shooter itself
+/// (a shot goes away from there).
+/datum/bot_brain/proc/crew_in_the_way(mob/living/target, list/line)
+	var/turf/mine = get_turf(owner)
+	for(var/turf/T in line)
+		if(T == mine)
+			continue
+		for(var/mob/living/carbon/human/H in range(1, T))
+			if(H == owner || H == target || H == attacker || H.stat == DEAD || get_dist(H, mine) <= 1)
+				continue
+			var/datum/bot_wanted/W = bot_get_wanted_entry(H)
+			if(W && W.severity >= BOT_CRIME_MAJOR)
+				continue //on the other side of this
+			return TRUE
+	return FALSE
 
 /datum/bot_brain/proc/try_taser(mob/living/carbon/human/S)
 	if(!has_clear_shot(S))

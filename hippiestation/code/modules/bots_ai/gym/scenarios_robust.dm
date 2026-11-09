@@ -759,3 +759,30 @@
 		fail_reason = "ran from it"
 		return BOT_GYM_FAIL
 	return (brain.state == BOT_STATE_COMBAT && brain.attacker == griefer) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/officer/range/holds_fire
+	name = "security: crew fighting a nanosuit up close, the officers don't shoot into them"
+	desc = "Officers shot a cargo tech who was beating on a suit, twice with a disabler and twice with a laser, from across the room. The line to the suit was clear, but a shot that goes wide hits whoever's next to it. Three officers, the ones who'd shoot it from range (security: a nanosuit gets shot from range...)."
+	time_limit = 15 SECONDS
+	layout = list(
+		"###########",
+		"#B.......C#",
+		"#O.......V#",
+		"#P........#",
+		"###########")
+	var/mob/living/carbon/human/crewman
+
+/datum/bot_scenario/griefed/officer/range/holds_fire/post_spawn()
+	..()
+	crewman = stand_in(first_marker("V"), "Cargo Cass")
+
+/datum/bot_scenario/griefed/officer/range/holds_fire/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("firing"))
+		fail_reason = "shot with Cargo Cass right beside the suit"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/officer/range/holds_fire/on_timeout()
+	return BOT_GYM_PASS
