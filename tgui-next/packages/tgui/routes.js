@@ -9,6 +9,7 @@ import { RoundStatus, TeamListing, TraitorPanel } from './interfaces/AdminPages'
 import { AdminGamePanel, AdminOneClickAntag, AdminPlayers, AdminStationGoals } from './interfaces/AdminPanels';
 import { AdminPlayerPanel } from './interfaces/AdminPlayerPanel';
 import { AdminEditLog, AdminPermissions, AdminRelatedAccounts, PlayerNotes } from './interfaces/AdminRecords';
+import { AdminDelLog, AdminReport } from './interfaces/AdminReports';
 import { AdminList, AdminSecrets } from './interfaces/AdminSecrets';
 import { AdminSpawner, JobSlots, OutfitEditor, OutfitManager } from './interfaces/AdminTools';
 import { AiAirlock } from './interfaces/AiAirlock';
@@ -1444,6 +1445,14 @@ const ROUTES = {
   },
   admin_sound_emitter: {
     component: () => AdminSoundEmitter,
+    scrollable: true,
+  },
+  admin_report: {
+    component: () => AdminReport,
+    scrollable: true,
+  },
+  admin_del_log: {
+    component: () => AdminDelLog,
     scrollable: true,
   },
 };

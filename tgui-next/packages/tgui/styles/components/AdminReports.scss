@@ -1,0 +1,152 @@
+// hippie -- debug and mapping reports (interfaces/AdminReports.js)
+
+.AdminReports__muted {
+  color: #8a93a3;
+}
+
+.AdminReports__summary {
+  margin-bottom: 6px;
+  color: #c9d1dd;
+}
+
+.AdminReports__groups {
+  margin-bottom: 6px;
+}
+
+.AdminReports__group {
+  display: inline-block;
+  margin: 0 4px 4px 0;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+}
+
+.AdminReports__group--bad {
+  background: rgba(219, 40, 40, 0.3);
+}
+
+.AdminReports__group--warn {
+  background: rgba(240, 150, 0, 0.28);
+}
+
+.AdminReports__group--info {
+  background: rgba(73, 114, 161, 0.35);
+}
+
+.AdminReports__group--none {
+  opacity: 0.45;
+}
+
+.AdminReports__group--on {
+  border-color: #fff;
+}
+
+.AdminReports__clear {
+  margin-top: 20px;
+  color: #5baa27;
+  font-size: 14px;
+  text-align: center;
+}
+
+.AdminReports__row {
+  display: flex;
+  align-items: center;
+  padding: 3px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+
+  > * {
+    margin-right: 8px;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.AdminReports__rowMain {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.AdminReports__tag {
+  flex: 0 0 auto;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.AdminReports__tag--bad {
+  background: rgba(219, 40, 40, 0.4);
+}
+
+.AdminReports__tag--warn {
+  background: rgba(240, 150, 0, 0.35);
+}
+
+.AdminReports__tag--info {
+  background: rgba(73, 114, 161, 0.45);
+}
+
+.AdminReports__where {
+  flex: 0 0 auto;
+  color: #9fc4ff;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// The del() log
+
+.AdminReports__table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    padding: 3px 6px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+    text-align: right;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:first-child {
+      text-align: left;
+    }
+
+    &:hover {
+      color: #9fc4ff;
+    }
+  }
+
+  td {
+    padding: 2px 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  }
+}
+
+.AdminReports__sorted {
+  color: #9fc4ff;
+}
+
+.AdminReports__path {
+  word-break: break-all;
+}
+
+.AdminReports__num {
+  text-align: right;
+  font-family: monospace;
+}
+
+.AdminReports__hard td {
+  background: rgba(219, 40, 40, 0.12);
+}

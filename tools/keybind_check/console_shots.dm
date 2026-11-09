@@ -331,6 +331,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_admin13(C, H, label)
 		if("admin14")
 			cs_admin14(C, H, label)
+		if("admin15")
+			cs_admin15(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -9417,3 +9419,46 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	cs_b1_shot(C, H, ui?.src_object, "popup_admin14_[label]_6_sound_emitter", "emitter")
 	SStgui.close_user_uis(H)
 	qdel(E, TRUE)
+
+/proc/cs_admin15(client/C, mob/living/carbon/human/H, label)
+	if(!C.holder)
+		var/datum/admins/A = new(new /datum/admin_rank("!localhost!", R_EVERYTHING, R_DBRANKS, R_EVERYTHING), C.ckey, 1, 1)
+		A.associate(C)
+	usr = H
+	SStgui.close_user_uis(H)
+	// name, how it opens, the old window, what the new one has to show
+	var/list/reports = list(
+		list("1_areas", "testareas", "areatest"),
+		list("2_atmos_consoles", "testatmoscontroller", "atmos"),
+		list("3_cameras", "airreport", "cameras"),
+		list("4_at_list", "at_list", "at"),
+		list("5_radio", "radioreport", "radio"),
+		list("6_init_log", "initlog", "init"),
+		list("7_del_log", "dellog", "del"),
+	)
+	for(var/list/R in reports)
+		usr = H
+		switch(R[3])
+			if("areatest")
+				C.cmd_admin_areatest(TRUE)
+			if("atmos")
+				C.cmd_admin_test_atmos_controllers()
+			if("cameras")
+				C.sec_camera_report()
+			if("at")
+				C.cmd_show_at_list()
+			if("radio")
+				C.radio_report()
+			if("init")
+				C.cmd_display_init_log()
+			if("del")
+				C.cmd_display_del_log()
+		sleep(20)
+		var/datum/tgui/ui = cs_ui_named(H, R[3] == "del" ? "admin_del_log" : "admin_report")
+		if(ui)
+			var/list/data = ui.src_object.ui_data(H)
+			var/n = length(data["rows"] || data["items"])
+			var/must = (R[3] in list("areatest", "radio", "del")) // the ones a test map always has something in
+			cs_check("admin15: [R[1]] opens ([n] lines)", !must || n > 0)
+		cs_b1_shot(C, H, ui?.src_object, "popup_admin15_[label]_[R[1]]", R[2])
+		SStgui.close_user_uis(H)
