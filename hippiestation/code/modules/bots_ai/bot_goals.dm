@@ -407,7 +407,7 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 	// nothing was actually duplicated.
 	if(!isturf(I.loc))
 		return GOAL_STEP_SUCCESS
-	return bot.try_pickup_target(I) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+	return bot.try_pickup_target(I, TRUE) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL //what the errand's for: room is made for it (make_room_for_item())
 
 /datum/bot_brain
 	var/datum/bot_goal/current_goal

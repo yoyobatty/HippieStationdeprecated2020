@@ -95,7 +95,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 // ACTIVE hand, so trying to free up the inactive one by "upgrading" it into a slot
 // always failed and just dropped it instead. equip_to_appropriate_slot() has no such
 // restriction.
-/datum/bot_brain/proc/make_room_for_item()
+/datum/bot_brain/proc/make_room_for_item(wanted = FALSE)
 	var/obj/item/active = owner.get_active_held_item()
 	var/obj/item/inactive = owner.get_inactive_held_item()
 	if(!active || !inactive)
@@ -113,8 +113,15 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	// silently-abandoned tool costs the whole trip that gathered it.
 	if(is_tool_or_toolbox(inactive))
 		// The other hand might not be: a scientist with a screwdriver in one and a radiation suit in the other, and a full bag, couldn't take a wrench.
-		if(!is_tool_or_toolbox(active) && !put_away(active, allow_equip = FALSE))
-			set_down(active)
+		if(!is_tool_or_toolbox(active))
+			if(!put_away(active, allow_equip = FALSE))
+				set_down(active)
+			return
+		// Both hands tools, and what's being picked up is what the errand is for (`wanted`, pickup_item): one tool goes down for it,
+		// and it's back for that after (go_back_for_set_down()). A chemist with a welder and wirecutters in its hands and a full bag
+		// couldn't pick up a beaker, so every brew it started failed: 24 times in one shift.
+		if(wanted && !put_away(inactive, allow_equip = FALSE))
+			set_down(inactive)
 		return
 	if(!put_away(inactive, allow_equip = FALSE))
 		set_down(inactive)
@@ -183,7 +190,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 			return C
 	return null
 
-/datum/bot_brain/proc/try_pickup_target(obj/item/I)
+/datum/bot_brain/proc/try_pickup_target(obj/item/I, wanted = FALSE)
 	if(!I || QDELETED(I))
 		bot_log_verbose(src, "try_pickup_target: [I] is null or deleted")
 		return FALSE
@@ -200,7 +207,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 		bot_log_verbose(src, "try_pickup_target: moved out of reach of [I] before picking it up")
 		return FALSE
 	owner.face_atom(get_turf(I)) //a player's click always turns them toward what they click
-	make_room_for_item()
+	make_room_for_item(wanted)
 	if(!stow_item(I))
 		bot_log_verbose(src, "try_pickup_target: stow_item([I]) failed - active=[owner.get_active_held_item()], inactive=[owner.get_inactive_held_item()], dist=[get_dist(owner, I)], active_hand_index=[owner.active_hand_index], held_items=[owner.held_items], mobility_pickup=[owner.mobility_flags & MOBILITY_PICKUP], I.loc=[I.loc], I.anchored=[I.anchored], I.item_flags=[I.item_flags]")
 		return FALSE

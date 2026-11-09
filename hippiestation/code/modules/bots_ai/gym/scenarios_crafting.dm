@@ -382,3 +382,46 @@
 /datum/bot_scenario/chem_brew/suit_grenade/toolbox/post_spawn()
 	..()
 	new /obj/item/storage/toolbox/electrical(first_marker("."))
+
+// ---------------------------------------------------------------------------------------------
+// Hands full of tools, and what the errand's for on the floor (make_room_for_item(), bot_items.dm)
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/hands_full_of_tools
+	name = "items: a welder and wirecutters in its hands and a full bag, and it still picks up the beaker it went for"
+	desc = "Tools are never dropped for something noticed in passing. But this beaker is the errand: one tool goes down for it, to be fetched after. A chemist in a real shift failed every brew this way, 24 times."
+	time_limit = 20 SECONDS
+	kit_hands = list(/obj/item/weldingtool, /obj/item/wirecutters)
+	kit_backpack = list(/obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher)
+	layout = list(
+		"##########",
+		"#B.....h.#",
+		"##########")
+
+/datum/bot_scenario/hands_full_of_tools/setup()
+	place("h", new /obj/item/reagent_containers/glass/beaker/large(first_marker("h")))
+
+/datum/bot_scenario/hands_full_of_tools/post_spawn()
+	..()
+	for(var/slot in list(ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET))
+		if(!bot.get_item_by_slot(slot))
+			bot.equip_to_slot_or_del(new /obj/item/flashlight(bot), slot)
+	if(!bot.get_item_by_slot(ITEM_SLOT_BELT))
+		bot.equip_to_slot_or_del(new /obj/item/storage/belt/fannypack(bot), ITEM_SLOT_BELT)
+	var/obj/item/storage/belt/fannypack/F = bot.get_item_by_slot(ITEM_SLOT_BELT)
+	if(istype(F))
+		for(var/i in 1 to 3)
+			new /obj/item/flashlight(F)
+
+/datum/bot_scenario/hands_full_of_tools/make_goal()
+	if(goal_attempts > 1)
+		return null
+	var/datum/bot_goal/acquire_item_type/get = new
+	get.item_type = /obj/item/reagent_containers/glass/beaker
+	get.lawful = TRUE
+	return get
+
+/datum/bot_scenario/hands_full_of_tools/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (locate(/obj/item/reagent_containers/glass/beaker/large) in bot.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING
