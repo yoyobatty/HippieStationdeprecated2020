@@ -90,6 +90,7 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 	for(var/mob/living/simple_animal/slime/S in GLOB.alive_mob_list)
 		if(!S.docile && !S.ckey && isturf(S.loc))
 			bot_mark_slime_pen(hazards, S)
+	station_picture_list_changed(GLOB.bot_hazard_turfs, hazards) // a hazard tile is asked about every search (station_picture.dm)
 	GLOB.bot_hazard_turfs = hazards
 
 /// The floor a slime could get to, which is the floor of its pen if the doors are shut: wherever the air goes, a few tiles out.

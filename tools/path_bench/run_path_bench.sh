@@ -4,6 +4,7 @@ unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every 
 # answers compared and both timed. About 2 minutes. Builds its own copy (pathbench.mdme), so hippiestation.dmb is left alone.
 # Usage: tools/path_bench/run_path_bench.sh    SEARCHES=600 SEED=1 LIB=hippie_path (a build under another name, see
 # tools/path_engine/build.sh OUT=) AHEAD=4 (path-ahead) KIND=permissive (one kind) NOCOMPILE=1 (reuse the build a KEEP=1 run left) PORT=45396
+# EXTRA_PARAMS="path-picture=off" (more world params)
 # Results: data/path_bench/results.txt, and the server's logs in data/logs/path_bench_logs
 set -u
 cd "$(dirname "$0")/../.."
@@ -21,7 +22,7 @@ mkdir -p data/path_bench
 
 rm -rf data/path_bench/results.txt data/logs/path_bench_logs
 began=$(date +%s)
-"$BYOND_BIN/dd.exe" pathbench.mdme.dmb "$PORT" -trusted -invisible -params "path-bench=1&log-directory=path_bench_logs&bot-map=hippiestation&searches=${SEARCHES:-600}&seed=${SEED:-1}&path-lib=${LIB:-hippie_path}&path-ahead=${AHEAD:-4}&kind=${KIND:-}" > /dev/null 2>&1 &
+"$BYOND_BIN/dd.exe" pathbench.mdme.dmb "$PORT" -trusted -invisible -params "path-bench=1&log-directory=path_bench_logs&bot-map=hippiestation&searches=${SEARCHES:-600}&seed=${SEED:-1}&path-lib=${LIB:-hippie_path}&path-ahead=${AHEAD:-4}&kind=${KIND:-}${EXTRA_PARAMS:+&$EXTRA_PARAMS}" > /dev/null 2>&1 &
 dd=$!
 while kill -0 $dd 2>/dev/null; do
 	sleep 2

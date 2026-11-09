@@ -420,10 +420,11 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 	var/list/known = LAZYACCESS(region_floods, rules)
 	if(!known || world.time > known[2])
 		return FALSE
-	var/list/region = known[1]
-	return region[start] && !region[dest]
+	// a list, or a /datum/path_region the path engine keeps (bot_path_engine.dm); one it has let go says neither
+	var/region = known[1]
+	return path_region_has(region, start) == 1 && path_region_has(region, dest) == 0
 
-/datum/bot_brain/proc/remember_region(list/reached, rules)
+/datum/bot_brain/proc/remember_region(reached, rules)
 	if(LAZYLEN(region_floods) > 8)
 		region_floods.Cut()
 	LAZYSET(region_floods, rules, list(reached, world.time + BOT_REGION_FLOOD_TTL))
@@ -441,8 +442,8 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 			reach_floods.Cut()
 			reach_floods_time = world.time
 		key = reach_key(start, adjacent, id_card, simulated_only)
-		var/list/reached = reach_floods[key]
-		if(reached && !reached[dest])
+		var/reached = reach_floods[key]
+		if(reached && path_region_has(reached, dest) == 0)
 			return list() //what get_path_to() returns when it finds nothing
 		var/list/sealed = reach_floods["sealed|[key]"]
 		if(sealed && sealed[dest])
@@ -472,7 +473,7 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 	// A failed search under these rules: remember what's reachable under them, so the rest of this decision can
 	// skip the hopeless tiles. Only if nothing moved or changed rules while get_path_to() was yielding.
 	if(key && !length(path) && reach_floods && !reach_floods[key] && get_turf(owner) == start && reach_key(start, adjacent, id_card, simulated_only) == key)
-		var/list/reached = explored["reached"]
+		var/reached = explored["reached"] //a list, or a /datum/path_region (bot_path_engine.dm)
 		if(!reached)
 			return path //AStar() gave up before searching (too far, other z) - nothing learned
 		// Usually free: a failed search that never hit its depth limit has already visited exactly everything

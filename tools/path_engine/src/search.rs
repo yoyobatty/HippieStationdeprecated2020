@@ -12,6 +12,7 @@
 //! - bits 4-7: stepping off it that way is refused (a window or windoor on it facing that way)
 //! - bits 8 and up: its penalty, for the bots' weighted searches (bot_turf_penalty())
 
+use crate::picture::Picture;
 use std::collections::HashMap;
 use std::hash::{BuildHasherDefault, Hasher};
 
@@ -83,6 +84,10 @@ pub struct Settings {
 	pub exclude: Option<u32>,
 	/// How many of the nodes next on the open list to ask about the tiles of too, when it has to ask (0: only what it needs now)
 	pub ahead: usize,
+	/// AStar()'s simulated_only: the station picture's open space is asked about then
+	pub simulated_only: bool,
+	/// Take what the station picture knows instead of asking DM (picture.rs)
+	pub use_picture: bool,
 }
 
 pub enum Outcome {
@@ -116,6 +121,8 @@ pub struct Search {
 	pub asked: Vec<u32>,
 	/// Tiles DM was asked about, for the stats
 	pub tiles_asked: usize,
+	/// Tiles the station picture answered instead
+	pub picture_hits: usize,
 	pub rounds: usize,
 }
 
@@ -139,6 +146,7 @@ impl Search {
 			ahead,
 			asked: Vec::new(),
 			tiles_asked: 0,
+			picture_hits: 0,
 			rounds: 0,
 		}
 	}
@@ -263,11 +271,19 @@ impl Search {
 		self.classes.get(&turf).is_some_and(|&c| c != ASKED)
 	}
 
-	/// Asks for this node's tile and its neighbours it will look at, if not known or asked for already
-	fn ask_around(&mut self, node: u32) {
+	/// Asks for this node's tile and its neighbours it will look at, if not known or asked for already. What the station picture
+	/// knows it takes from there.
+	fn ask_around(&mut self, picture: &Picture, node: u32) {
 		let n = self.nodes[node as usize];
 		let ask = |search: &mut Search, turf: u32| {
 			if !search.classes.contains_key(&turf) {
+				if search.s.use_picture {
+					if let Some(answer) = picture.answer(turf, search.s.start, search.s.simulated_only) {
+						search.classes.insert(turf, answer);
+						search.picture_hits += 1;
+						return;
+					}
+				}
 				search.classes.insert(turf, ASKED);
 				search.asked.push(turf);
 			}
@@ -317,7 +333,7 @@ impl Search {
 	}
 
 	/// Runs until it finishes or needs tiles told about (in `asked`)
-	pub fn step(&mut self) -> Outcome {
+	pub fn step(&mut self, picture: &Picture) -> Outcome {
 		if !self.started {
 			self.started = true;
 			let h = self.estimate(self.s.start);
@@ -350,16 +366,19 @@ impl Search {
 			}
 			if self.s.maxnodedepth == 0 || n.nt <= self.s.maxnodedepth {
 				if !self.has_all(cur) {
-					self.pending = cur;
-					self.ask_around(cur);
+					self.ask_around(picture, cur);
 					// and the tiles of the nodes likely to come off the open list next, more each time a search goes on
 					let ahead = self.ahead.min(self.heap.len() - 1);
 					for i in 1..=ahead {
 						let node = self.heap[i];
-						self.ask_around(node);
+						self.ask_around(picture, node);
 					}
-					self.tiles_asked += self.asked.len();
-					return Outcome::Need;
+					if !self.asked.is_empty() {
+						self.pending = cur;
+						self.tiles_asked += self.asked.len();
+						return Outcome::Need;
+					}
+					// the station picture knew them all: on without asking DM
 				}
 				if let Err(why) = self.expand(cur) {
 					return Outcome::Abort(why);
@@ -420,6 +439,11 @@ mod tests {
 
 	/// A grid with walls ('#') and answers made from it, searched start to end
 	fn run(map: &[&str], cost: Cost) -> (Outcome, usize) {
+		run_with(map, cost, false)
+	}
+
+	/// The same, with a station picture that knows every tile already if `pictured`
+	fn run_with(map: &[&str], cost: Cost, pictured: bool) -> (Outcome, usize) {
 		let maxy = map.len() as i32;
 		let maxx = map[0].len() as i32;
 		let mut start = 0;
@@ -449,10 +473,18 @@ mod tests {
 			end_penalty: 0.0,
 			exclude: None,
 			ahead: 0,
+			simulated_only: false,
+			use_picture: pictured,
 		});
+		let mut picture = Picture::new((maxx * maxy) as usize);
+		if pictured {
+			for id in 0..(maxx * maxy) as u32 {
+				picture.set(id, if walls.contains(&id) { crate::picture::SOLID } else { crate::picture::OPEN });
+			}
+		}
 		let mut rounds = 0;
 		loop {
-			match s.step() {
+			match s.step(&picture) {
 				Outcome::Need => {
 					rounds += 1;
 					let answers: Vec<u32> = s.asked.iter().map(|t| if walls.contains(t) { 15 } else { 0 }).collect();
@@ -481,6 +513,25 @@ mod tests {
 				assert!(!cut);
 			}
 			_ => panic!("found a path through a wall"),
+		}
+	}
+
+	/// What the picture knows gives the same path as asking, without asking
+	#[test]
+	fn picture_same_path_no_asking() {
+		let map = ["S.#......", "..#.###..", "..#...#..", "....#.#.E"];
+		for cost in [Cost::Cardinal, Cost::Weighted] {
+			let (asked, asked_rounds) = run_with(&map, cost, false);
+			let (pictured, pictured_rounds) = run_with(&map, cost, true);
+			match (asked, pictured) {
+				(Outcome::Found(a, opened_a), Outcome::Found(b, opened_b)) => {
+					assert_eq!(a, b);
+					assert_eq!(opened_a, opened_b);
+				}
+				_ => panic!("no path"),
+			}
+			assert!(asked_rounds > 0);
+			assert_eq!(pictured_rounds, 0, "the picture knew every tile");
 		}
 	}
 

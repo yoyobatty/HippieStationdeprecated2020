@@ -1,18 +1,37 @@
-// The bots' A* searches in the path engine (tools/path_engine, hippie_path.dll; the user's go 2026-11-08, "stage 1").
+// The bots' A* searches in the path engine (tools/path_engine, hippie_path.dll; the user's go 2026-11-08, "stage 1", and 2026-11-09,
+// "stage 2").
 //
 // Bot pathfinding was about a quarter of the server's time in the stress bench: 12,254 searches a round opened four million tiles,
 // ~21 us each, nearly all of it AStar()'s own loop, its nodes and its heap, and the route checks asked once per neighbour. The
 // engine runs the search itself, the same steps as AStar() (the same heap, the same single-precision node weights), so the path
 // is the same one, and asks DM what each tile allows the first time the search needs it, a batch at a time: one pass over the
 // tile's contents answers every way into and out of it (the loop in path_engine_search(), the same rules as bot_reachable_strict()
-// and bot_reachable_permissive()). Nothing is kept from one search to the next, so nothing it goes by is older than it would have
-// been. In a disaster round, shadowed: 10,025 searches, every one the same path (or none) as AStar()'s, in 505 us on average
-// against AStar()'s 1,052. What's left is mostly DM looking at the tiles (~3 us a tile); the engine itself is under 0.5 us.
+// and bot_reachable_permissive()). In a disaster round, shadowed: 10,025 searches, every one the same path (or none) as AStar()'s,
+// in 505 us on average against AStar()'s 1,052; most of what was left was DM looking at the tiles (~3 us a tile).
+//
+// Stage 2: the station picture (hippiestation/code/modules/station_picture/station_picture.dm) keeps, between searches, the tiles
+// whose answer is the same for every bot and every search (open floor with nothing in the way on it, solid turf), and hears when
+// they change, so DM is only asked about the rest (doors, windows, tables, machines...) and about tiles that changed. And a search
+// with no route leaves the tiles it opened in the engine as a region (/datum/path_region) for the bots' region checks to ask about,
+// instead of a list of 10,000-odd tiles built here.
 //
 // World params: path-engine=dm leaves AStar() as it was; path-engine=shadow runs both and checks the engine's answer against
-// AStar()'s for every search, using AStar()'s (data/path_engine_check.txt); path-lib=<name> loads another build of the library.
+// AStar()'s for every search, using AStar()'s (data/path_engine_check.txt); path-lib=<name> loads another build of the library;
+// path-picture=off|check (station_picture.dm).
 
-#define PATH_ENGINE_VERSION 1
+#define PATH_ENGINE_VERSION 2
+
+/// The station picture's kinds (tools/path_engine/src/picture.rs), sent above each answer, times this
+#define PATH_PICTURE_UNIT 1048576
+#define PATH_PICTURE_OPEN 1
+#define PATH_PICTURE_SOLID 2
+#define PATH_PICTURE_OPEN_SPACE 3
+#define PATH_PICTURE_VOLATILE 4
+/// path_begin()'s mode, besides the cost and the look-ahead (tools/path_engine/src/lib.rs)
+#define PATH_MODE_SIMULATED_ONLY 16
+#define PATH_MODE_PICTURE_OFF 32
+#define PATH_MODE_PICTURE_CHECK 64
+#define PATH_MODE_RETURN_TILES 128
 
 GLOBAL_VAR_INIT(path_engine_lib, world.params["path-lib"] || "hippie_path")
 /// null until the first search, then TRUE if the engine is doing the bots' searches, FALSE if not
@@ -21,9 +40,13 @@ GLOBAL_VAR_INIT(path_engine_shadow, FALSE)
 GLOBAL_VAR_INIT(path_engine_status, "not started")
 GLOBAL_VAR_INIT(path_engine_maxx, 0)
 GLOBAL_VAR_INIT(path_engine_maxy, 0)
+/// "on", "off" or "check": what the engine does with the station picture (path-picture)
+GLOBAL_VAR_INIT(path_picture_mode, "on")
 /// path-engine=shadow: what the checks found
 GLOBAL_LIST_INIT(path_engine_check, list("checked" = 0, "same" = 0, "different" = 0, "different, the world moved on" = 0, "native us" = 0, "dm us" = 0, "native searches" = 0, "dm searches" = 0))
 GLOBAL_LIST_EMPTY(path_engine_samples)
+/// path-picture=check: the tiles the picture would have answered differently, described
+GLOBAL_LIST_EMPTY(path_picture_samples)
 /// tools/path_bench sets this to a list to have path_engine_search() note where its time goes
 GLOBAL_VAR(path_engine_timing)
 /// Slow steps logged so far (world.log), up to 20
@@ -46,6 +69,7 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 
 /proc/path_engine_setup()
 	GLOB.path_engine_on = FALSE
+	GLOB.station_picture_kept = FALSE
 	var/mode = world.params["path-engine"]
 	if(mode == "dm")
 		GLOB.path_engine_status = "off (path-engine=dm)"
@@ -75,7 +99,12 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 	GLOB.path_engine_maxy = world.maxy
 	GLOB.path_engine_on = TRUE
 	GLOB.path_engine_shadow = (mode == "shadow")
-	GLOB.path_engine_status = GLOB.path_engine_shadow ? "shadowing AStar()" : "on"
+	var/picture = world.params["path-picture"]
+	GLOB.path_picture_mode = (picture == "off" || picture == "check") ? picture : "on"
+	// a fresh picture: nothing to hear of from before it (the engine starts it empty)
+	GLOB.station_picture_dirty.Cut()
+	GLOB.station_picture_kept = (GLOB.path_picture_mode != "off")
+	GLOB.path_engine_status = "[GLOB.path_engine_shadow ? "shadowing AStar()" : "on"], station picture [GLOB.path_picture_mode]"
 	log_world("Path engine: [GLOB.path_engine_status]")
 
 /// Whether this search is one the engine does: the bots' two kinds
@@ -100,6 +129,8 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 		return PATH_ENGINE_FALLBACK
 	var/list/tally = GLOB.astar_tally
 	tally["searches"]++
+	if(GLOB.path_picture_mode == "check" && !(tally["searches"] % 500))
+		path_engine_write_check() // what the picture check has found so far
 	tally["turfs"] += result[2]
 	if(result[1])
 		return result[1]
@@ -110,31 +141,47 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 		explored["depth_cut"] = result[4]
 	return null
 
-/// The search: list(path or null, tiles opened, every tile opened as keys (no path only), whether maxnodedepth cut it short), or
-/// null if the engine couldn't do it. Yields between batches like AStar() does if `yields`.
-/proc/path_engine_search(caller, turf/start, turf/end, dist, maxnodedepth, mintargetdist, adjacent, id, turf/exclude, simulated_only, yields)
+/// The search: list(path or null, tiles opened, what it opened (no path only: a /datum/path_region, or with `return_tiles` every tile
+/// opened as keys), whether maxnodedepth cut it short), or null if the engine couldn't do it. Yields between batches like AStar() does
+/// if `yields`.
+/proc/path_engine_search(caller, turf/start, turf/end, dist, maxnodedepth, mintargetdist, adjacent, id, turf/exclude, simulated_only, yields, return_tiles = FALSE)
 	var/weighted = (dist == /turf/proc/bot_weighted_distance)
 	var/permissive = (adjacent == /turf/proc/bot_reachable_permissive)
 	var/end_penalty = weighted ? bot_turf_penalty(end) : 0
 	// the next nodes on the open list to ask about the tiles of as well, when it has to ask (search.rs): 4 asked 40% less often for
 	// 2% more tiles than none (tools/path_bench, 2026-11-08). path-ahead=N to try another.
 	var/static/ahead = isnull(text2num(world.params["path-ahead"])) ? 4 : clamp(text2num(world.params["path-ahead"]), 0, 255)
-	var/search = call_ext(GLOB.path_engine_lib, "byond:path_begin")(start, end, maxnodedepth || 0, mintargetdist || 0, (weighted ? 2 : 1) + ahead * 256, end_penalty, exclude)
+	var/mode = (weighted ? 2 : 1) + ahead * 256
+	if(simulated_only)
+		mode += PATH_MODE_SIMULATED_ONLY
+	switch(GLOB.path_picture_mode)
+		if("off")
+			mode += PATH_MODE_PICTURE_OFF
+		if("check")
+			mode += PATH_MODE_PICTURE_CHECK
+	if(return_tiles)
+		mode += PATH_MODE_RETURN_TILES
+	if(GLOB.station_picture_kept)
+		station_picture_flush() // what's changed since the last search, before this one goes by the picture
+	var/search = call_ext(GLOB.path_engine_lib, "byond:path_begin")(start, end, maxnodedepth || 0, mintargetdist || 0, mode, end_penalty, exclude)
 	if(!isnum(search) || search <= 0)
 		return null
 	// What doesn't change over the search
 	var/may_jump = bot_may_jump_in(caller)
 	var/mob/living/carbon/human/H = caller
 	var/space_ok = istype(H) && H.bot_brain && H.bot_brain.is_space_protected_without_boots()
-	// the turf lists only when there's anything in them: mostly there isn't
-	var/list/trapdoors = length(GLOB.bot_open_trapdoors) ? GLOB.bot_open_trapdoors : null
-	var/list/field_turfs = length(GLOB.bot_field_turfs) ? GLOB.bot_field_turfs : null
-	var/list/generator_turfs = length(GLOB.bot_field_generator_turfs) ? GLOB.bot_field_generator_turfs : null
-	var/list/hazards = length(GLOB.bot_hazard_turfs) ? GLOB.bot_hazard_turfs : null
+	var/list/trapdoors
+	var/list/field_turfs
+	var/list/generator_turfs
+	var/list/hazards
 	var/list/space_types = SSpathfinder.space_type_cache
 	var/list/special_types = GLOB.path_engine_special_types
 	var/list/deadly_types = GLOB.path_engine_deadly_types
 	var/list/penalties = (weighted && permissive) ? GLOB.path_engine_penalties : null
+	var/list/inert = GLOB.station_picture_inert
+	// whose answer is for one side only: windows and windoors face a way, and a door's button is on one side of it
+	// (bot_doors.dm). Anything else answers the same from every side, so it's asked once.
+	var/static/list/one_side = typecacheof(list(/obj/structure/window, /obj/machinery/door))
 	var/list/cardinals = GLOB.cardinals
 	var/list/answers = list()
 	var/list/out = list()
@@ -142,6 +189,8 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 	var/list/timing = GLOB.path_engine_timing // tools/path_bench: where the time goes
 	var/mark
 	while(TRUE)
+		if(GLOB.station_picture_kept && length(GLOB.station_picture_dirty))
+			station_picture_flush() // changed while the search yielded
 		var/step_started = TICK_USAGE_REAL
 		if(timing)
 			mark = step_started
@@ -156,22 +205,38 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 		if(status != 1)
 			break
 		answers.len = length(out)
+		// the turf lists, only when there's anything in them (mostly there isn't), read each round: the hazards are a new list
+		// every few seconds, and one kept from before a yield told the station picture a new hazard tile was open floor
+		trapdoors = length(GLOB.bot_open_trapdoors) ? GLOB.bot_open_trapdoors : null
+		field_turfs = length(GLOB.bot_field_turfs) ? GLOB.bot_field_turfs : null
+		generator_turfs = length(GLOB.bot_field_generator_turfs) ? GLOB.bot_field_generator_turfs : null
+		hazards = length(GLOB.bot_hazard_turfs) ? GLOB.bot_hazard_turfs : null
 		// What a bot may do on each tile, as the engine wants it (tools/path_engine/src/search.rs): the ways onto it that are refused
 		// (bits 0-3, by the direction to the tile stepped from), the ways off it that are (bits 4-7) and, for the weighted cost, its
 		// penalty times 256. The same checks as bot_reachable_strict()/bot_link_blocked_strict() and bot_reachable_permissive()/
 		// bot_link_blocked_permissive(), each tile once for every way in and out of it, here and not in a proc of their own because
 		// a proc call is a fair part of the cost of most tiles. A tile nothing can step onto only matters as where the search starts.
+		// Above that, the tile's kind for the station picture (picture.rs): solid turf, open floor or space with nothing on it that
+		// could be in the way, or asked about every time.
 		for(var/i in 1 to length(out))
 			var/turf/T = out[i]
 			var/bits = 0
-			var/blocked = T.density || (trapdoors && trapdoors[T]) || (field_turfs && field_turfs[T]) || (generator_turfs && generator_turfs[T] && bot_turf_has_active_field(T))
+			var/listed = (trapdoors && trapdoors[T]) || (field_turfs && field_turfs[T]) || (generator_turfs && generator_turfs[T] && bot_turf_has_active_field(T))
+			var/blocked = T.density || listed
 			// space, the deadly kinds of floor (bot_turf_is_deadly()) and pools, in one look at the type
 			var/special = !blocked && special_types[T.type]
 			if(special)
 				blocked = (deadly_types[T.type] && bot_turf_is_deadly(T)) || (simulated_only && space_types[T.type] && !(space_ok && bot_turf_has_pushoff_backup(T)))
+			var/kind
+			if(T.density)
+				kind = PATH_PICTURE_SOLID
+			else if(listed || (hazards && hazards[T]) || (special && (!space_types[T.type] || deadly_types[T.type])))
+				kind = PATH_PICTURE_VOLATILE
+			else
+				kind = special ? PATH_PICTURE_OPEN_SPACE : PATH_PICTURE_OPEN // odd: still to look at what's on it
 			if(blocked)
 				if(T != start)
-					answers[i] = 15
+					answers[i] = 15 + (kind == PATH_PICTURE_SOLID ? PATH_PICTURE_SOLID : PATH_PICTURE_VOLATILE) * PATH_PICTURE_UNIT
 					if(timing)
 						timing["blocked"]++
 					continue
@@ -192,46 +257,74 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 			var/penalty = 0
 			if(permissive)
 				for(var/obj/O in T)
+					if((kind & 1) && (O.density || O.astar_always_asks || !inert[O.type]))
+						kind = PATH_PICTURE_VOLATILE
 					if(penalties) // bot_turf_penalty(), in the same pass
-						var/kind = penalties[O.type]
-						if(kind > 0)
-							penalty += kind
-						else if(kind == PATH_ENGINE_PENALTY_AIRLOCK)
+						var/kind_of_penalty = penalties[O.type]
+						if(kind_of_penalty > 0)
+							penalty += kind_of_penalty
+						else if(kind_of_penalty == PATH_ENGINE_PENALTY_AIRLOCK)
 							var/obj/machinery/door/airlock/A = O
 							if(A.density)
 								penalty += A.security_level ? 25 : 8
 								if(A.welded)
 									penalty += 15
-						else if(kind == PATH_ENGINE_PENALTY_FIREDOOR)
+						else if(kind_of_penalty == PATH_ENGINE_PENALTY_FIREDOOR)
 							var/obj/machinery/door/firedoor/F = O
 							if(F.density && F.welded)
 								penalty += 15
 					if(!O.density && !O.astar_always_asks)
 						continue // passed by bot_can_astar_pass_permissive(): their CanAStarPass() is !density
 					if(bits != 15)
-						for(var/dir in cardinals)
-							if(!(bits & dir) && !bot_can_astar_pass_permissive(O, id, dir, caller))
-								bits |= dir
+						if(!one_side[O.type])
+							if(!bot_can_astar_pass_permissive(O, id, NORTH, caller))
+								bits |= 15
+						else
+							for(var/dir in cardinals)
+								if(!(bits & dir) && !bot_can_astar_pass_permissive(O, id, dir, caller))
+									bits |= dir
 					if(O.density && (istype(O, /obj/structure/window) || istype(O, /obj/machinery/door/window))) // not dense: CanAStarPass() lets it by
 						for(var/dir in cardinals)
 							if(!(exits & dir) && !O.CanAStarPass(id, dir) && !bot_can_break_through(O, caller))
 								exits |= dir
+				if(kind & 1) // nobody sat on it either: the strict search's answer would be different then (below)
+					for(var/mob/M in T)
+						if(M.buckled)
+							kind = PATH_PICTURE_VOLATILE
+							break
 			else
 				for(var/atom/movable/AM as anything in T)
 					if(!AM.density)
-						if(bits != 15 && isobj(AM))
+						if(isobj(AM))
 							var/obj/door = AM
 							if(door.astar_always_asks)
-								for(var/dir in cardinals)
-									if(!(bits & dir) && !door.CanAStarPass(id, dir, caller))
-										bits |= dir
+								kind = (kind & 1) ? PATH_PICTURE_VOLATILE : kind
+								if(bits != 15)
+									if(!one_side[door.type])
+										if(!door.CanAStarPass(id, NORTH, caller))
+											bits |= 15
+									else
+										for(var/dir in cardinals)
+											if(!(bits & dir) && !door.CanAStarPass(id, dir, caller))
+												bits |= dir
+							else if((kind & 1) && !inert[door.type])
+								kind = PATH_PICTURE_VOLATILE
+						else if((kind & 1) && ismob(AM))
+							var/mob/lying = AM
+							if(lying.buckled)
+								kind = PATH_PICTURE_VOLATILE
 						continue
 					if(isobj(AM))
 						var/obj/O = AM
+						kind = (kind & 1) ? PATH_PICTURE_VOLATILE : kind
 						if(bits != 15)
-							for(var/dir in cardinals)
-								if(!(bits & dir) && !O.CanAStarPass(id, dir, caller))
-									bits |= dir
+							if(!one_side[O.type])
+								if(!O.CanAStarPass(id, NORTH, caller))
+									bits |= 15
+							else
+								for(var/dir in cardinals)
+									if(!(bits & dir) && !O.CanAStarPass(id, dir, caller))
+										bits |= dir
 						if(istype(O, /obj/structure/window) || istype(O, /obj/machinery/door/window))
 							for(var/dir in cardinals)
 								if(!(exits & dir) && !O.CanAStarPass(id, dir))
@@ -240,10 +333,11 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 						var/mob/living/L = AM
 						if(L.buckled) //bot_turf_has_seated_mob()
 							bits = 15
+							kind = (kind & 1) ? PATH_PICTURE_VOLATILE : kind
 			bits |= exits << 4
 			if(weighted && (bits & 15) != 15)
 				bits += (penalties ? penalty : bot_turf_penalty(T)) * 256
-			answers[i] = bits
+			answers[i] = bits + kind * PATH_PICTURE_UNIT
 		if(timing)
 			timing["tiles us"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - mark) * 1000
 			timing["rounds"]++
@@ -255,13 +349,15 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 			var/opened = out[1]
 			out.Cut(1, 2)
 			return list(out, opened, null, FALSE)
-		if(3) // out: how many it opened, whether maxnodedepth cut it short, then every tile it opened
+		if(3) // out: how many it opened, whether maxnodedepth cut it short, the region's number, then (return_tiles) every tile it opened
 			var/opened = out[1]
 			var/depth_cut = out[2]
+			if(!return_tiles)
+				return list(null, opened, new /datum/path_region(out[3], opened), depth_cut)
 			var/list/reached = list()
 			var/build_started = TICK_USAGE_REAL
 			var/build_ms = 0
-			for(var/i in 3 to length(out))
+			for(var/i in 4 to length(out))
 				reached[out[i]] = TRUE
 				if(yields && !(i % 1000)) // tens of thousands of tiles after a breach: not all in one tick
 					build_ms += TICK_DELTA_TO_MS(TICK_USAGE_REAL - build_started)
@@ -270,18 +366,45 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 			build_ms += TICK_DELTA_TO_MS(TICK_USAGE_REAL - build_started)
 			if(build_ms > 20 && GLOB.path_engine_slow_noted < 20)
 				GLOB.path_engine_slow_noted++
-				log_world("Path engine: the [length(out) - 2] tiles a search opened took [round(build_ms, 0.1)] ms to list")
+				log_world("Path engine: the [length(out) - 3] tiles a search opened took [round(build_ms, 0.1)] ms to list")
 			return list(null, opened, reached, depth_cut)
 		if(4) // AStar() would have had a runtime error here: let it
 			return null
 	call_ext(GLOB.path_engine_lib, "byond:path_forget")(search) // an error: logged in the server's output
 	return null
 
+/// The tiles a search that found no route opened, kept in the path engine. The bots' region checks (bot_pathing_permissive.dm) ask
+/// it about a tile or two, which is all they ever did with the list of them AStar() made.
+/datum/path_region
+	var/id
+	/// how many tiles
+	var/count
+
+/datum/path_region/New(id, count)
+	src.id = id
+	src.count = count
+
+/// 1 if the search opened T, 0 if it didn't, -1 if the engine has let the region go
+/datum/path_region/proc/has(turf/T)
+	var/answer = call_ext(GLOB.path_engine_lib, "byond:path_region_has")(id, T)
+	return answer == 1 ? 1 : (answer == 0 ? 0 : -1)
+
+/// Whether a search's opened tiles (a list from AStar() or a flood, or a /datum/path_region from the path engine) hold T: 1 if they
+/// do, 0 if they don't, -1 if that isn't known any more
+/proc/path_region_has(region, turf/T)
+	if(islist(region))
+		var/list/tiles = region
+		return tiles[T] ? 1 : 0
+	if(istype(region, /datum/path_region))
+		var/datum/path_region/kept = region
+		return kept.has(T)
+	return -1
+
 /// path-engine=shadow: the engine's search, then AStar()'s in the same tick, and every difference noted. AStar()'s answer is the one used.
 /proc/path_engine_shadow(caller, turf/start, turf/end, dist, maxnodedepth, mintargetdist, adjacent, id, turf/exclude, simulated_only, list/explored)
 	var/list/check = GLOB.path_engine_check
 	var/started = TICK_USAGE_REAL
-	var/list/native = path_engine_search(caller, start, end, dist, maxnodedepth, mintargetdist, adjacent, id, exclude, simulated_only, FALSE)
+	var/list/native = path_engine_search(caller, start, end, dist, maxnodedepth, mintargetdist, adjacent, id, exclude, simulated_only, FALSE, TRUE)
 	var/native_us = TICK_DELTA_TO_MS(TICK_USAGE_REAL - started) * 1000
 	var/time = world.time
 	var/list/dm_explored = list("dm_only" = TRUE)
@@ -344,14 +467,47 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 	lines += "[check["checked"]] searches checked: the same [check["same"]], different [check["different"]], different with the world changed while AStar() yielded [check["different, the world moved on"]]"
 	if(check["native searches"])
 		lines += "Done in one go by both ([check["native searches"]]): the engine [round(check["native us"] / check["native searches"], 0.1)] us a search, AStar() [round(check["dm us"] / check["native searches"], 0.1)] us"
+	lines += path_engine_stats_lines()
+	lines += GLOB.path_engine_samples
+	var/written = jointext(lines, "\n")
+	fdel("data/path_engine_check.txt")
+	text2file(written, "data/path_engine_check.txt")
+	if(GLOB.log_directory) // and the run's own, as servers running at once share data/
+		fdel("[GLOB.log_directory]/path_engine_check.txt")
+		text2file(written, "[GLOB.log_directory]/path_engine_check.txt")
+
+/// The engine's own counts, and in the picture check what it found
+/proc/path_engine_stats_lines()
+	. = list()
 	var/list/stats = list()
 	call_ext(GLOB.path_engine_lib, "byond:path_stats")(stats)
-	if(length(stats) >= 8)
-		lines += "Engine: [stats[1]] begun, [stats[2]] found, [stats[3]] no route, [stats[4]] handed back, [stats[5]] rounds, [stats[6]] tiles asked about, [stats[7]] opened, [stats[8]] open now"
-	lines += GLOB.path_engine_samples
-	fdel("data/path_engine_check.txt")
-	text2file(jointext(lines, "\n"), "data/path_engine_check.txt")
+	if(length(stats) >= 18)
+		. += "Engine: [stats[1]] begun, [stats[2]] found, [stats[3]] no route, [stats[4]] handed back, [stats[5]] rounds, [stats[6]] tiles asked about, [stats[7]] opened, [stats[8]] open now"
+		. += "Station picture ([GLOB.path_picture_mode]): [stats[9]] tiles answered from it, [stats[10]] told it had changed; it knows [stats[11]] open, [stats[12]] solid, [stats[13]] open space, [stats[14]] asked about every time; [stats[15]] regions kept, [stats[16]] tiles in them"
+		if(GLOB.path_picture_mode == "check")
+			. += "Picture check: [stats[17]] answers it would have given, [stats[18]] of them not what DM said"
+			var/list/samples = list()
+			call_ext(GLOB.path_engine_lib, "byond:path_check_samples")(samples)
+			for(var/i in 1 to length(samples) step 4)
+				var/turf/T = samples[i]
+				if(length(GLOB.path_picture_samples) >= 40)
+					break
+				var/list/on_it = list()
+				for(var/atom/movable/AM as anything in T)
+					if(isobj(AM) || ismob(AM))
+						on_it += "[AM.type][AM.density ? " (dense)" : ""][ismob(AM) && AM:buckled ? " (buckled)" : ""]"
+				GLOB.path_picture_samples += "  [T.x],[T.y],[T.z] [T.type]: kept as [samples[i + 3]] answering [samples[i + 1]], DM said [samples[i + 2]]; on it: [jointext(on_it, ", ") || "nothing"]"
+			. += GLOB.path_picture_samples
 
 #undef PATH_ENGINE_VERSION
 #undef PATH_ENGINE_PENALTY_AIRLOCK
 #undef PATH_ENGINE_PENALTY_FIREDOOR
+#undef PATH_PICTURE_UNIT
+#undef PATH_PICTURE_OPEN
+#undef PATH_PICTURE_SOLID
+#undef PATH_PICTURE_OPEN_SPACE
+#undef PATH_PICTURE_VOLATILE
+#undef PATH_MODE_SIMULATED_ONLY
+#undef PATH_MODE_PICTURE_OFF
+#undef PATH_MODE_PICTURE_CHECK
+#undef PATH_MODE_RETURN_TILES

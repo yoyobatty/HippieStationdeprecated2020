@@ -101,9 +101,16 @@
 								break
 				else
 					var/list/dm_reached = dm_explored["reached"]
-					var/list/reached = native[3]
-					if(length(dm_reached) != length(reached) || !!dm_explored["depth_cut"] != !!native[4])
-						why = "no path either way, opened [length(dm_reached)] against [length(reached)]"
+					var/reached = native[3] // a /datum/path_region, kept in the engine
+					var/datum/path_region/region = reached
+					var/native_count = islist(reached) ? length(reached) : (istype(region) ? region.count : 0)
+					if(length(dm_reached) != native_count || !!dm_explored["depth_cut"] != !!native[4])
+						why = "no path either way, opened [length(dm_reached)] against [native_count]"
+					else
+						for(var/turf/X as anything in dm_reached)
+							if(path_region_has(reached, X) != 1)
+								why = "no path either way, the engine's region hasn't got [X.x],[X.y]"
+								break
 				if(!why && dm_opened != native[2])
 					why = "the same answer, opened [dm_opened] against [native[2]]"
 				if(why)
@@ -111,14 +118,14 @@
 					if(length(samples) < 10)
 						samples += "    [why]: [start.x],[start.y] to [end.x],[end.y][id ? " with all access" : ""] (search [i])"
 						// the same tick still: is either side not the same twice, and where do they part?
-						var/list/native2 = path_engine_search(walker, start, end, kind[3], 250, 0, kind[2], id, null, TRUE, FALSE)
+						var/list/native2 = path_engine_search(walker, start, end, kind[3], 250, 0, kind[2], id, null, TRUE, FALSE, TRUE)
 						var/list/dm_explored2 = list("dm_only" = TRUE)
 						var/before2 = GLOB.astar_tally["turfs"]
 						var/list/path2 = AStar(walker, end, kind[3], 0, 250, 0, kind[2], id, null, TRUE, dm_explored2)
 						samples += "      again: the engine opened [native2?[2]] (first [native[2]]), AStar() [GLOB.astar_tally["turfs"] - before2] (first [dm_opened]); paths [length(native2?[1])]/[length(native[1])] and [length(path2)]/[length(path)]; hazards redrawn [refreshed] -> [GLOB.bot_hazards_refresh_at], [hazard_list == GLOB.bot_hazard_turfs ? "the same list" : "a new list"], world.time [time] -> [world.time]"
 						if(!path && !native[1])
 							var/list/dm_reached = dm_explored["reached"]
-							var/list/reached = native[3]
+							var/list/reached = native2[3] // the tiles themselves this time
 							var/shown = 0
 							for(var/turf/X as anything in reached)
 								if(dm_reached[X] || shown >= 3)
@@ -148,6 +155,7 @@
 			lines += "    of the engine's: in the library [round(timing["engine us"] / n, 0.1)] us, telling it about tiles [round(timing["tiles us"] / n, 0.1)] us, [round(timing["rounds"] / n, 0.1)] rounds and [round(timing["tiles"] / n, 0.1)] tiles a search ([round(timing["tiles us"] / max(1, timing["tiles"]), 0.01)] us a tile)"
 			lines += "    tiles asked: [round(timing["blocked"] / max(1, timing["tiles"]) * 100)]% blocked outright, the rest [round(timing["contents"] / max(1, timing["tiles"] - timing["blocked"]), 0.1)] things on them on average"
 			lines += samples
+	lines += path_engine_stats_lines()
 	fdel("data/path_bench/results.txt")
 	text2file(jointext(lines, "\n"), "data/path_bench/results.txt")
 	log_world("PATH BENCH: done")

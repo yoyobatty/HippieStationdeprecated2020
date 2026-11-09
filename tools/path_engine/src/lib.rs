@@ -1,12 +1,14 @@
 //! Hippie's path engine, called from AStar() for the bots' searches (hippiestation/code/modules/bots_ai/bot_path_engine.dm).
-//! The search is in search.rs; this is just the BYOND side of it.
+//! The search is in search.rs, the station picture it keeps between searches in picture.rs; this is the BYOND side of them.
 //!
 //! Like the lighting engine (tools/lighting_engine) it only reads lists and arguments DM passes, and writes into lists DM
 //! passes, and those only ever hold numbers and turfs: neither is reference counted, so it never has a BYOND reference to
 //! look after. The two BYOND API functions it uses are looked up in byondcore.dll at first use.
 
+pub mod picture;
 pub mod search;
 
+use picture::Picture;
 use search::{Cost, Outcome, Search, Settings};
 use std::collections::BTreeMap;
 use std::ffi::c_void;
@@ -14,10 +16,24 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::{Mutex, OnceLock};
 
 /// Bumped whenever what DM and the engine pass each other changes. DM won't use a library that says anything else.
-pub const ENGINE_VERSION: f32 = 1.0;
+pub const ENGINE_VERSION: f32 = 2.0;
 
 /// Searches kept at once: a search DM gave up on (a runtime part way) is dropped when this many newer ones have started
 const MAX_SEARCHES: usize = 256;
+
+/// Regions (the tiles a search that found no route opened) kept at once, and their tiles in all: the oldest go first. DM keeps
+/// them for seconds at most (bot_pathing_permissive.dm), and a region asked about after it's gone just answers "not known".
+const MAX_REGIONS: usize = 4096;
+const MAX_REGION_TILES: usize = 8_000_000;
+
+/// The mode argument of path_begin(), above the cost (bits 0-3) and below the look-ahead (bits 8-15)
+const MODE_SIMULATED_ONLY: i32 = 16;
+const MODE_PICTURE_OFF: i32 = 32;
+const MODE_PICTURE_CHECK: i32 = 64;
+const MODE_RETURN_TILES: i32 = 128;
+
+/// Answers that disagreed with the station picture kept for DM to describe, in the picture check
+const MAX_CHECK_SAMPLES: usize = 40;
 
 const TYPE_NULL: u8 = 0x00;
 const TYPE_TURF: u8 = 0x01;
@@ -170,14 +186,43 @@ struct Stats {
 	rounds: u64,
 	tiles_asked: u64,
 	opened: u64,
+	/// Tiles the station picture answered instead of DM
+	picture_hits: u64,
+	/// Tiles DM told it had changed
+	dirtied: u64,
+	/// The picture check: answers it would have given and DM gave, and how many of them differed
+	checked: u64,
+	mismatched: u64,
+}
+
+/// What a search was started with that the engine needs to know besides the search itself
+struct Flags {
+	check: bool,
+	return_tiles: bool,
+	start: u32,
+	simulated_only: bool,
+}
+
+/// A tile the station picture would have answered differently from DM, in the picture check
+struct Mismatch {
+	turf: u32,
+	predicted: u32,
+	actual: u32,
+	kind: u8,
 }
 
 struct State {
 	maxx: i32,
 	maxy: i32,
 	per_level: u32,
-	searches: BTreeMap<u32, Search>,
+	searches: BTreeMap<u32, (Search, Flags)>,
 	next_id: u32,
+	picture: Picture,
+	/// Region number -> its tiles, sorted
+	regions: BTreeMap<u32, Vec<u32>>,
+	region_tiles: usize,
+	next_region: u32,
+	samples: Vec<Mismatch>,
 	values: Vec<ByondValue>,
 	out: Vec<ByondValue>,
 	answers: Vec<u32>,
@@ -209,9 +254,33 @@ fn with_state(name: &str, call: impl FnOnce(&Api, &mut State) -> Result<f32, Str
 	})
 }
 
+impl State {
+	/// Keeps the tiles a search with no route opened, and returns the region's number
+	fn keep_region(&mut self, mut tiles: Vec<u32>) -> u32 {
+		tiles.sort_unstable();
+		tiles.dedup();
+		let id = self.next_region;
+		self.next_region = if self.next_region >= 1 << 23 { 1 } else { self.next_region + 1 };
+		self.region_tiles += tiles.len();
+		if let Some(old) = self.regions.insert(id, tiles) {
+			self.region_tiles -= old.len(); // wrapped round onto one still kept
+		}
+		while self.regions.len() > MAX_REGIONS || (self.region_tiles > MAX_REGION_TILES && self.regions.len() > 1) {
+			let oldest = *self.regions.keys().next().unwrap();
+			if oldest == id {
+				break;
+			}
+			if let Some(gone) = self.regions.remove(&oldest) {
+				self.region_tiles -= gone.len();
+			}
+		}
+		id
+	}
+}
+
 /// call_ext("hippie_path", "byond:path_setup")(maxx, maxy, maxz, turfs, coordinates): starts afresh for a world this size.
 /// `turfs` are a few turfs and `coordinates` their x, y and z, to check turfs are numbered the way the engine thinks.
-/// Returns ENGINE_VERSION.
+/// Returns ENGINE_VERSION. The station picture starts empty: every tile is asked about once.
 #[no_mangle]
 pub unsafe extern "C" fn path_setup(argc: u32, argv: *const ByondValue) -> ByondValue {
 	let args = arguments(argc, argv);
@@ -249,6 +318,11 @@ pub unsafe extern "C" fn path_setup(argc: u32, argv: *const ByondValue) -> Byond
 			per_level,
 			searches: BTreeMap::new(),
 			next_id: 1,
+			picture: Picture::new(per_level as usize * maxz as usize),
+			regions: BTreeMap::new(),
+			region_tiles: 0,
+			next_region: 1,
+			samples: Vec::new(),
 			values: Vec::new(),
 			out: Vec::new(),
 			answers: Vec::new(),
@@ -258,8 +332,10 @@ pub unsafe extern "C" fn path_setup(argc: u32, argv: *const ByondValue) -> Byond
 	})
 }
 
-/// path_begin(start, end, maxnodedepth, mintargetdist, cost, end_penalty, exclude): a new search, not run yet. `cost` is 1 for
-/// Distance_cardinal(), 2 for bot_weighted_distance(); add 256 times how
+/// path_begin(start, end, maxnodedepth, mintargetdist, mode, end_penalty, exclude): a new search, not run yet. `mode` is 1 for
+/// Distance_cardinal(), 2 for bot_weighted_distance(); plus 16 for a simulated_only search, 32 to leave the station picture out
+/// (ask DM about every tile, as before it was kept), 64 for the picture check (ask DM about every tile and count where the
+/// picture would have said something else), 128 to have a search with no route list the tiles it opened; plus 256 times how
 /// many of the next nodes on the open list to ask about the tiles of as well when it has to ask (search.rs). `exclude` is a
 /// turf or null. Returns the search's number, for path_step().
 #[no_mangle]
@@ -279,6 +355,8 @@ pub unsafe extern "C" fn path_begin(argc: u32, argv: *const ByondValue) -> Byond
 			_ => return Err(format!("no cost {mode}")),
 		};
 		let exclude = if args[6].kind == TYPE_TURF { Some(args[6].data) } else { None };
+		let simulated_only = mode & MODE_SIMULATED_ONLY != 0;
+		let check = mode & MODE_PICTURE_CHECK != 0;
 		let search = Search::new(Settings {
 			maxx: state.maxx,
 			maxy: state.maxy,
@@ -291,24 +369,33 @@ pub unsafe extern "C" fn path_begin(argc: u32, argv: *const ByondValue) -> Byond
 			end_penalty: args[5].as_f32(),
 			exclude,
 			ahead: ((mode >> 8) & 255) as usize,
+			simulated_only,
+			use_picture: mode & (MODE_PICTURE_OFF | MODE_PICTURE_CHECK) == 0,
 		});
+		let flags = Flags {
+			check,
+			return_tiles: mode & MODE_RETURN_TILES != 0,
+			start: args[0].data,
+			simulated_only,
+		};
 		while state.searches.len() >= MAX_SEARCHES {
 			let oldest = *state.searches.keys().next().unwrap();
 			state.searches.remove(&oldest);
 		}
 		let id = state.next_id;
 		state.next_id = if state.next_id >= 1 << 23 { 1 } else { state.next_id + 1 };
-		state.searches.insert(id, search);
+		state.searches.insert(id, (search, flags));
 		state.stats.searches += 1;
 		Ok(id as f32)
 	})
 }
 
-/// path_step(id, answers, out): the answers (numbers, search.rs says what they mean) for the tiles it asked about last, an
-/// empty list the first time. Runs the search on and returns:
+/// path_step(id, answers, out): the answers (numbers, search.rs says what they mean, with the tile's kind for the station picture
+/// above them: picture.rs) for the tiles it asked about last, an empty list the first time. Runs the search on and returns:
 /// - 1: it wants tiles told about: `out` holds them
 /// - 2: found: `out` is how many tiles it opened, then the path, start to end
-/// - 3: no route: `out` is how many tiles it opened, 1 if maxnodedepth stopped it expanding any (else 0), then every tile it opened
+/// - 3: no route: `out` is how many tiles it opened, 1 if maxnodedepth stopped it expanding any (else 0), the number of the region
+///   of tiles it opened (path_region_has()), then every tile it opened if the search was begun with 128 in its mode
 /// - 4: AStar() would have had a runtime error: run DM's own search
 /// The search is forgotten once it returns anything but 1.
 #[no_mangle]
@@ -325,13 +412,41 @@ pub unsafe extern "C" fn path_step(argc: u32, argv: *const ByondValue) -> ByondV
 		answers.clear();
 		answers.extend(values.iter().map(|v| v.as_f32() as u32));
 		state.values = values;
-		let search = state.searches.get_mut(&id).ok_or_else(|| format!("no search {id}"))?;
+		let State { searches, picture, stats, samples, .. } = state;
+		let (search, flags) = searches.get_mut(&id).ok_or_else(|| format!("no search {id}"))?;
+		if answers.len() != search.asked.len() {
+			state.answers = answers;
+			return Err(format!("{} answers for {} tiles", state.answers.len(), search.asked.len()));
+		}
+		// Each answer's kind goes into the station picture, after the check has seen what the picture would have said
+		for (i, &turf) in search.asked.iter().enumerate() {
+			let kind = (answers[i] >> picture::KIND_SHIFT) as u8;
+			answers[i] &= picture::ANSWER_MASK;
+			if flags.check {
+				if let Some(predicted) = picture.answer(turf, flags.start, flags.simulated_only) {
+					stats.checked += 1;
+					if predicted != answers[i] {
+						stats.mismatched += 1;
+						if samples.len() < MAX_CHECK_SAMPLES {
+							samples.push(Mismatch { turf, predicted, actual: answers[i], kind: picture.kind(turf) });
+						}
+					}
+				}
+			}
+			if kind != picture::UNKNOWN {
+				picture.set(turf, kind);
+			}
+		}
 		let answered = search.answer(&answers);
 		state.answers = answers;
 		answered?;
-		let outcome = search.step();
+		let State { searches, picture, .. } = state;
+		let (search, flags) = searches.get_mut(&id).ok_or_else(|| format!("no search {id}"))?;
+		let outcome = search.step(picture);
+		let return_tiles = flags.return_tiles;
 		let mut out = std::mem::take(&mut state.out);
 		out.clear();
+		let mut finished = None;
 		let status = match outcome {
 			Outcome::Need => {
 				out.extend(search.asked.iter().map(|&t| ByondValue::turf(t)));
@@ -345,11 +460,16 @@ pub unsafe extern "C" fn path_step(argc: u32, argv: *const ByondValue) -> ByondV
 				2.0
 			}
 			Outcome::NoRoute(opened, depth_cut) => {
-				out.push(ByondValue::num(opened.len() as f32));
-				out.push(ByondValue::num(if depth_cut { 1.0 } else { 0.0 }));
-				out.extend(opened.iter().map(|&t| ByondValue::turf(t)));
 				state.stats.no_route += 1;
 				state.stats.opened += opened.len() as u64;
+				out.push(ByondValue::num(opened.len() as f32));
+				out.push(ByondValue::num(if depth_cut { 1.0 } else { 0.0 }));
+				if return_tiles {
+					out.push(ByondValue::num(0.0));
+					out.extend(opened.iter().map(|&t| ByondValue::turf(t)));
+				} else {
+					finished = Some(opened);
+				}
 				3.0
 			}
 			Outcome::Abort(why) => {
@@ -359,9 +479,15 @@ pub unsafe extern "C" fn path_step(argc: u32, argv: *const ByondValue) -> ByondV
 			}
 		};
 		if status != 1.0 {
-			state.stats.rounds += search.rounds as u64;
-			state.stats.tiles_asked += search.tiles_asked as u64;
-			state.searches.remove(&id);
+			if let Some((search, _)) = state.searches.remove(&id) {
+				state.stats.rounds += search.rounds as u64;
+				state.stats.tiles_asked += search.tiles_asked as u64;
+				state.stats.picture_hits += search.picture_hits as u64;
+			}
+		}
+		if let Some(opened) = finished {
+			let region = state.keep_region(opened);
+			out.push(ByondValue::num(region as f32));
 		}
 		let written = write_values(api, &args[2], &out);
 		state.out = out;
@@ -382,19 +508,121 @@ pub unsafe extern "C" fn path_forget(argc: u32, argv: *const ByondValue) -> Byon
 	})
 }
 
-/// path_stats(out): searches begun, found, no route, handed back, rounds, tiles asked about, tiles opened, searches open now
+/// path_dirty(turfs): these tiles have changed since DM last said what they were (station_picture.dm): the station picture forgets
+/// them, so the next search that needs one asks. Returns how many.
+#[no_mangle]
+pub unsafe extern "C" fn path_dirty(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	with_state("dirty", |api, state| {
+		let Some(list) = args.first() else {
+			return Ok(0.0);
+		};
+		let mut values = std::mem::take(&mut state.values);
+		read_values(api, list, &mut values)?;
+		let mut count = 0u64;
+		for value in &values {
+			if value.kind == TYPE_TURF {
+				state.picture.forget(value.data);
+				count += 1;
+			}
+		}
+		state.values = values;
+		state.stats.dirtied += count;
+		Ok(count as f32)
+	})
+}
+
+/// path_region_has(region, turf): 1 if the search that found no route opened this tile, 0 if it didn't, 2 if the region isn't
+/// kept any more (DM then doesn't know, and searches)
+#[no_mangle]
+pub unsafe extern "C" fn path_region_has(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	with_state("region_has", |_api, state| {
+		if args.len() < 2 || args[1].kind != TYPE_TURF {
+			return Ok(0.0);
+		}
+		Ok(match state.regions.get(&(args[0].as_int() as u32)) {
+			Some(tiles) => {
+				if tiles.binary_search(&args[1].data).is_ok() {
+					1.0
+				} else {
+					0.0
+				}
+			}
+			None => 2.0,
+		})
+	})
+}
+
+/// path_region_forget(region): DM is done with it
+#[no_mangle]
+pub unsafe extern "C" fn path_region_forget(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	with_state("region_forget", |_api, state| {
+		if let Some(id) = args.first() {
+			if let Some(gone) = state.regions.remove(&(id.as_int() as u32)) {
+				state.region_tiles -= gone.len();
+			}
+		}
+		Ok(state.regions.len() as f32)
+	})
+}
+
+/// path_stats(out): searches begun, found, no route, handed back, rounds, tiles asked about, tiles opened, searches open now, tiles
+/// the station picture answered, tiles DM said had changed, the picture's open, solid, open space and asked-every-time tiles,
+/// regions kept and their tiles, and the picture check's answers compared and how many differed
 #[no_mangle]
 pub unsafe extern "C" fn path_stats(argc: u32, argv: *const ByondValue) -> ByondValue {
 	let args = arguments(argc, argv);
 	with_state("stats", |api, state| {
 		let s = &state.stats;
-		let values: Vec<ByondValue> = [s.searches, s.found, s.no_route, s.aborted, s.rounds, s.tiles_asked, s.opened, state.searches.len() as u64]
-			.iter()
-			.map(|&n| ByondValue::num(n as f32))
-			.collect();
+		let kinds = state.picture.counts();
+		let values: Vec<ByondValue> = [
+			s.searches,
+			s.found,
+			s.no_route,
+			s.aborted,
+			s.rounds,
+			s.tiles_asked,
+			s.opened,
+			state.searches.len() as u64,
+			s.picture_hits,
+			s.dirtied,
+			kinds[0],
+			kinds[1],
+			kinds[2],
+			kinds[3],
+			state.regions.len() as u64,
+			state.region_tiles as u64,
+			s.checked,
+			s.mismatched,
+		]
+		.iter()
+		.map(|&n| ByondValue::num(n as f32))
+		.collect();
 		if let Some(out) = args.first() {
 			write_values(api, out, &values)?;
 		}
 		Ok(ENGINE_VERSION)
+	})
+}
+
+/// path_check_samples(out): the picture check's disagreements so far, four numbers each: the tile, what the picture would have
+/// answered, what DM answered, and the kind the picture had for it. Clears them.
+#[no_mangle]
+pub unsafe extern "C" fn path_check_samples(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	with_state("check_samples", |api, state| {
+		let mut values = Vec::new();
+		for sample in state.samples.drain(..) {
+			values.push(ByondValue::turf(sample.turf));
+			values.push(ByondValue::num(sample.predicted as f32));
+			values.push(ByondValue::num(sample.actual as f32));
+			values.push(ByondValue::num(sample.kind as f32));
+		}
+		if let Some(out) = args.first() {
+			write_values(api, out, &values)?;
+		}
+		Ok((values.len() / 4) as f32)
 	})
 }
