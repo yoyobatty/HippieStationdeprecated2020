@@ -166,30 +166,7 @@ GLOBAL_LIST_EMPTY(bot_hull_breaches)
 /// One lot of `result_type` (rods, floor tiles) from a metal sheet in hand, through the stack's own menu (stack/Topic
 /// "make"), and picked up off the floor where it lands.
 /datum/bot_brain/proc/make_from_metal(result_type)
-	var/obj/item/stack/sheet/metal/M = carried_stack(/obj/item/stack/sheet/metal, 1)
-	if(!M || !ready_in_hand(M))
-		return FALSE
-	var/index = 0
-	for(var/i in 1 to length(M.recipes))
-		var/datum/stack_recipe/R = M.recipes[i]
-		if(istype(R) && R.result_type == result_type)
-			index = i
-			break
-	if(!index)
-		return FALSE
-	human_pause(M)
-	if(QDELETED(M) || owner.get_active_held_item() != M)
-		return FALSE
-	usr = owner //the menu goes by whoever clicked it
-	M.Topic(null, list("make" = "[index]", "multiplier" = "1"))
-	var/obj/item/stack/made = locate(result_type) in owner.drop_location()
-	if(made && owner.put_in_hands(made))
-		put_away(made, allow_equip = FALSE) //in the bag: the other hand's wanted for the next lot
-	if(!carried_stack(result_type, 1))
-		return FALSE
-	var/atom/what = result_type
-	bot_log(src, "made [initial(what.name)] from a metal sheet")
-	return TRUE
+	return make_from_stack(/obj/item/stack/sheet/metal, result_type) //goals/crafting.dm
 
 /datum/bot_step/get_hull_materials/proc/fetch(datum/bot_brain/bot, stack_type)
 	var/datum/bot_goal/acquire_item_type/get = new

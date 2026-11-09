@@ -860,8 +860,9 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 // Anything that stows/holds other tools afterwards (use_item_on() frees hands) can
 // unwield it, so callers about to swing call this again rather than assuming it stuck.
 // Returns the wielded axe, or null if there's none carried / it couldn't be wielded.
-/datum/bot_brain/proc/ready_fireaxe()
-	var/obj/item/twohanded/fireaxe/F = find_carried_tool(/obj/item/twohanded/fireaxe)
+/datum/bot_brain/proc/ready_fireaxe(obj/item/twohanded/F)
+	if(!F) //any other two-hander it's given (a spear, goals/crafting.dm) is wielded the same way
+		F = find_carried_tool(/obj/item/twohanded/fireaxe)
 	if(!F || QDELETED(F))
 		return null
 	if(F.wielded && owner.get_active_held_item() == F)

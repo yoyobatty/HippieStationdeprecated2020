@@ -414,7 +414,7 @@
 		return
 	if(try_smoke_grenade(attacker) || try_chem_weapon(attacker)) //goals/chem_lab.dm
 		return
-	if(try_flash(attacker)) //bot_playstyles.dm
+	if(try_flash(attacker) || try_suit_kit(attacker)) //bot_playstyles.dm, goals/fight_the_suit.dm
 		return
 	reach_for_weapon() //bot_fighting.dm
 	if(owner.Adjacent(attacker))

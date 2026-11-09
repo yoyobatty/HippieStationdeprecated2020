@@ -18,8 +18,8 @@
 /proc/bot_weapon_force(obj/item/I)
 	if(I.item_flags & (NOBLUDGEON|ABSTRACT))
 		return 0
-	var/obj/item/twohanded/fireaxe/axe = I
-	return istype(axe) ? axe.force_wielded : I.force
+	var/obj/item/twohanded/two = I //a fire axe, a spear: wielded before it's swung
+	return istype(two) && two.force_wielded ? two.force_wielded : I.force
 
 /// Gets something to hit with into its hands: from the bag, or within arm's reach. Nobody in a fight leaves a toolbox in
 /// their backpack, or steps over the crowbar they just knocked out of somebody's hand.
@@ -32,7 +32,10 @@
 		if(!sword.active)
 			INVOKE_ASYNC(src, PROC_REF(toggle_in_hand), sword)
 		return
-	if(weapon_to_hand())
+	var/obj/item/twohanded/in_hand = weapon_to_hand()
+	if(in_hand)
+		if(istype(in_hand) && in_hand.force_wielded && !in_hand.wielded) //a spear in one hand is half the weapon
+			INVOKE_ASYNC(src, PROC_REF(ready_fireaxe), in_hand)
 		return
 	breach_kit_cache = null
 	var/obj/item/best
@@ -50,8 +53,9 @@
 	if(!best)
 		return
 	bot_log(src, "reaching for [best]")
-	if(istype(best, /obj/item/twohanded/fireaxe) && is_carried(best))
-		INVOKE_ASYNC(src, PROC_REF(ready_fireaxe))
+	var/obj/item/twohanded/two = best
+	if(istype(two) && two.force_wielded && is_carried(best))
+		INVOKE_ASYNC(src, PROC_REF(ready_fireaxe), best)
 	else if(is_carried(best))
 		ready_in_hand(best)
 	else
