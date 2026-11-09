@@ -627,6 +627,32 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 /datum/bot_shift_member/proc/label()
 	return "[name] ([job])"
 
+/datum/bot_shift_member
+	/// bag_text() at wrap_up()
+	var/bag_note
+
+/// What it's carrying at the end of the shift: its hands, and what's in its bag and how full that is. Bots fill their bags over a shift
+/// and then every new thing pushes another out (set_down(), bot_items.dm): this is what fills them.
+/datum/bot_shift_member/proc/bag_text()
+	if(QDELETED(body) || body.stat == DEAD)
+		return null
+	var/list/held = list()
+	for(var/obj/item/I in body.held_items)
+		held += "[I.name]"
+	var/obj/item/storage/pack = body.get_item_by_slot(ITEM_SLOT_BACK)
+	var/datum/component/storage/S = pack?.GetComponent(/datum/component/storage)
+	if(!S)
+		return "in hand: [length(held) ? jointext(held, ", ") : "nothing"]; no bag"
+	var/list/counts = list()
+	var/used = 0
+	for(var/obj/item/I in pack.contents)
+		counts["[I.name]"]++
+		used += I.w_class
+	var/list/things = list()
+	for(var/name in counts)
+		things += counts[name] > 1 ? "[name] x[counts[name]]" : name
+	return "in hand: [length(held) ? jointext(held, ", ") : "nothing"]; bag [used]/[S.max_combined_w_class], [length(pack.contents)]/[S.max_items] things: [jointext(things, ", ")]"
+
 /datum/bot_shift_member/proc/where()
 	var/turf/T = get_turf(body) || last_turf
 	return T ? "in [get_area(T)] ([T.x],[T.y],[T.z])" : "nowhere"
@@ -723,6 +749,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	tells = brain.telemetry_flags ? brain.telemetry_flags.Copy() : list()
 	if(!QDELETED(body))
 		final_health = round(body.health)
+	bag_note = bag_text() //before the body's let go of, just below
 	var/datum/bot_goal/open = brain.current_goal
 	if(open?.shift_started_at && isnull(died_at))
 		note_goal_time(open, world.time - open.shift_started_at)
@@ -1868,6 +1895,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 			lines += "         ? [worry]"
 		if(!isnull(member.tells))
 			lines += "         goals (done/tried): [member.goal_text()]"
+		if(member.bag_note)
+			lines += "         bag: [member.bag_note]"
 		json_crew += list(list("name" = member.name, "job" = member.job, "outcome" = outcome, "problems" = problems, "warnings" = worries,
 			"died_at" = isnull(member.died_at) ? null : member.died_at / 10, "health" = member.final_health, "tiles_walked" = member.tiles_walked,
 			"areas" = length(member.areas_seen), "longest_still" = member.longest_still / 10, "longest_still_note" = member.longest_still_note,

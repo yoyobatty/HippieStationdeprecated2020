@@ -425,3 +425,64 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return (locate(/obj/item/reagent_containers/glass/beaker/large) in bot.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// A full bag cleared out (goals/clear_bag.dm)
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/clear_bag
+	name = "items: a bag nearly full of junk, the rubbish goes in the bin and the rest on a table, and what it needs stays"
+	desc = "134 of 143 bags were full at the end of a shift, and every new thing pushed another out onto the floor. Cigarette butts to the bin; the salt, pepper, spare shoes, third drink, second screwdriver and second first-aid kit onto the table; one of each and two drinks kept."
+	time_limit = 30 SECONDS
+	kit_backpack = list(/obj/item/cigbutt, /obj/item/cigbutt, /obj/item/cigbutt, /obj/item/reagent_containers/food/condiment/saltshaker, /obj/item/reagent_containers/food/condiment/peppermill,
+		/obj/item/clothing/shoes/sneakers/black, /obj/item/reagent_containers/food/drinks/soda_cans/cola, /obj/item/reagent_containers/food/drinks/soda_cans/cola, /obj/item/reagent_containers/food/drinks/soda_cans/cola,
+		/obj/item/screwdriver, /obj/item/screwdriver, /obj/item/storage/firstaid/regular, /obj/item/storage/firstaid/regular)
+	layout = list(
+		"###########",
+		"#B........#",
+		"#....n..t.#",
+		"###########")
+
+/datum/bot_scenario/clear_bag/setup()
+	place("n", new /obj/machinery/disposal/bin(first_marker("n")))
+
+/datum/bot_scenario/clear_bag/make_goal()
+	if(goal_attempts > 1)
+		return null
+	var/datum/bot_duty/D = bot_duty_of(text2path("/datum/bot_duty/clear_bag")) //only there with the fix
+	if(!D?.try_start(brain)) //a scripted bot doesn't look for its own duties
+		var/obj/item/storage/pack = bot.get_item_by_slot(ITEM_SLOT_BACK)
+		var/datum/component/storage/S = pack?.GetComponent(/datum/component/storage)
+		var/used = 0
+		for(var/obj/item/I in pack?.contents)
+			used += I.w_class
+		log_line("the duty didn't start: [pack] holds [length(pack?.contents)] things, [used] of [S?.max_combined_w_class] ([S?.max_items] items max)")
+	return null
+
+/datum/bot_scenario/clear_bag/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/machinery/disposal/bin/B = first_placed("n")
+	var/turf/table = first_marker("t")
+	var/list/carried = bot.GetAllContents()
+	var/butts_binned = 0
+	for(var/obj/item/cigbutt/C in B)
+		butts_binned++
+	var/on_table = 0
+	for(var/obj/item/I in table)
+		on_table++
+	var/screwdrivers = 0
+	var/kits = 0
+	var/drinks = 0
+	for(var/obj/item/I in carried)
+		if(istype(I, /obj/item/screwdriver))
+			screwdrivers++
+		else if(istype(I, /obj/item/storage/firstaid))
+			kits++
+		else if(istype(I, /obj/item/reagent_containers/food/drinks))
+			drinks++
+	if(screwdrivers < 1 || kits < 1 || drinks < 2)
+		fail_reason = "cleared out what it needs (screwdrivers [screwdrivers], kits [kits], drinks [drinks])"
+		return BOT_GYM_FAIL
+	// salt, pepper, shoes, the third drink, the second screwdriver, the second kit
+	return (butts_binned == 3 && on_table >= 6 && screwdrivers == 1 && kits == 1 && drinks == 2) ? BOT_GYM_PASS : BOT_GYM_PENDING

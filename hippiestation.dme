@@ -3455,6 +3455,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\circuit_drones.dm"
 #include "hippiestation\code\modules\bots_ai\goals\circuits.dm"
 #include "hippiestation\code\modules\bots_ai\goals\civilians.dm"
+#include "hippiestation\code\modules\bots_ai\goals\clear_bag.dm"
 #include "hippiestation\code\modules\bots_ai\goals\crafting.dm"
 #include "hippiestation\code\modules\bots_ai\goals\cook.dm"
 #include "hippiestation\code\modules\bots_ai\goals\cult.dm"
