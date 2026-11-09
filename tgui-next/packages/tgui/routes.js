@@ -6,6 +6,7 @@ import { AdminHub } from './interfaces/AdminHub';
 import { RoundStatus, TeamListing, TraitorPanel } from './interfaces/AdminPages';
 import { AdminGamePanel, AdminOneClickAntag, AdminPlayers, AdminStationGoals } from './interfaces/AdminPanels';
 import { AdminPlayerPanel } from './interfaces/AdminPlayerPanel';
+import { AdminEditLog, AdminPermissions, AdminRelatedAccounts, PlayerNotes } from './interfaces/AdminRecords';
 import { AdminList, AdminSecrets } from './interfaces/AdminSecrets';
 import { AdminSpawner, JobSlots, OutfitEditor, OutfitManager } from './interfaces/AdminTools';
 import { AiAirlock } from './interfaces/AiAirlock';
@@ -1381,6 +1382,22 @@ const ROUTES = {
   },
   admin_station_goals: {
     component: () => AdminStationGoals,
+    scrollable: true,
+  },
+  admin_permissions: {
+    component: () => AdminPermissions,
+    scrollable: true,
+  },
+  admin_edit_log: {
+    component: () => AdminEditLog,
+    scrollable: true,
+  },
+  admin_related_accounts: {
+    component: () => AdminRelatedAccounts,
+    scrollable: true,
+  },
+  player_notes: {
+    component: () => PlayerNotes,
     scrollable: true,
   },
 };
