@@ -3,6 +3,7 @@ import { Achievements } from './interfaces/Achievements';
 import { AdminAlerts } from './interfaces/AdminAlerts';
 import { AdminFind } from './interfaces/AdminFind';
 import { AdminHub } from './interfaces/AdminHub';
+import { RoundStatus, TeamListing, TraitorPanel } from './interfaces/AdminPages';
 import { AdminPlayerPanel } from './interfaces/AdminPlayerPanel';
 import { AdminList, AdminSecrets } from './interfaces/AdminSecrets';
 import { AiAirlock } from './interfaces/AiAirlock';
@@ -1334,6 +1335,18 @@ const ROUTES = {
   },
   admin_list: {
     component: () => AdminList,
+    scrollable: true,
+  },
+  admin_round_status: {
+    component: () => RoundStatus,
+    scrollable: true,
+  },
+  admin_traitor_panel: {
+    component: () => TraitorPanel,
+    scrollable: true,
+  },
+  admin_team_listing: {
+    component: () => TeamListing,
     scrollable: true,
   },
 };

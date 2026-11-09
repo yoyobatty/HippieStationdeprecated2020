@@ -319,6 +319,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_polls7(C, H, label)
 		if("admin8")
 			cs_admin8(C, H, label)
+		if("admin9")
+			cs_admin9(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -8866,3 +8868,66 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 		C << browse(null, "window=manifest")
 		C << browse(null, "window=secrets")
 	SStgui.close_user_uis(H)
+
+// ---------------------------------------------------------------------------------------------
+// Old windows, batch 9: Check Antagonists, the traitor panel, Check Teams
+// ---------------------------------------------------------------------------------------------
+
+/proc/cs_admin9(client/C, mob/living/carbon/human/H, label)
+	if(!C.holder)
+		var/datum/admins/A = new(new /datum/admin_rank("!localhost!", R_EVERYTHING, R_DBRANKS, R_EVERYTHING), C.ckey, 1, 1)
+		A.associate(C)
+	H.equipOutfit(/datum/outfit/job/scientist)
+	H.mind.assigned_role = "Scientist"
+	H.mind.add_antag_datum(/datum/antagonist/traitor)
+	H << browse(null, "window=antagTips")
+	SStgui.close_user_uis(H)
+	// A second antagonist, of another kind, for the listing
+	var/mob/living/carbon/human/other = new(cs_open_beside(H))
+	other.real_name = "Ola Svensson"
+	other.name = other.real_name
+	other.mind_initialize()
+	other.mind.assigned_role = "Assistant"
+	other.mind.add_antag_datum(/datum/antagonist/changeling)
+	sleep(10)
+	usr = H
+	C.holder.check_antagonists()
+	sleep(20)
+	var/datum/tgui/ui = cs_ui_named(H, "admin_round_status")
+	cs_b1_shot(C, H, ui?.src_object, "popup_admin9_[label]_1_round_status", "roundstatus")
+	if(ui)
+		var/list/data = ui.src_object.ui_data(H)
+		var/titles = ""
+		for(var/list/S in data["groups"])
+			titles += "[S["name"]], "
+		cs_check("admin9: round status has the traitors and changelings ([titles])", findtext(titles, "Traitor") && findtext(titles, "Changeling"))
+	SStgui.close_user_uis(H)
+
+	usr = H
+	H.mind.traitor_panel()
+	sleep(20)
+	ui = cs_ui_named(H, "admin_traitor_panel")
+	cs_b1_shot(C, H, ui?.src_object, "popup_admin9_[label]_2_traitor_panel", "traitorpanel")
+	if(ui)
+		// Removing the traitor from the window's own Remove button
+		var/datum/antagonist/traitor/T = H.mind.has_antag_datum(/datum/antagonist/traitor)
+		var/datum/window = ui.src_object
+		window.ui_data(H)
+		cs_act(window, H, "remove_antag", list("ref" = REF(T)))
+		sleep(10)
+		cs_check("admin9: Remove takes the traitor off", !H.mind.has_antag_datum(/datum/antagonist/traitor))
+		cs_act(window, H, "add_antag", list("type" = "/datum/antagonist"))
+		sleep(5)
+		cs_check("admin9: a type the panel doesn't offer is refused", length(H.mind.antag_datums) == 0)
+		SStgui.update_uis(window)
+		sleep(10)
+		cs_shot("popup_admin9_[label]_3_traitor_panel_after")
+	SStgui.close_user_uis(H)
+
+	usr = H
+	C.holder.check_teams()
+	sleep(20)
+	ui = cs_ui_named(H, "admin_team_listing")
+	cs_b1_shot(C, H, ui?.src_object, "popup_admin9_[label]_4_teams", "teams")
+	SStgui.close_user_uis(H)
+	qdel(other)

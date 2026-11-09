@@ -1,0 +1,115 @@
+// hippie -- admin pages designed for tgui (interfaces/AdminPages.js): Check
+// Antagonists, the traitor panel and Check Teams.
+
+.AdminPages__muted {
+  color: #8a93a3;
+}
+
+.AdminPages__bad {
+  color: #ff6b6b;
+}
+
+.AdminPages__antag {
+  display: flex;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.AdminPages__antag--dead {
+  opacity: 0.6;
+}
+
+.AdminPages__antagMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.AdminPages__buttons {
+  white-space: nowrap;
+}
+
+.AdminPages__stats {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.AdminPages__stat {
+  width: 33%;
+  padding: 4px 0;
+}
+
+.AdminPages__statValue {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.AdminPages__head {
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  border-left: 4px solid #db2828;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.07), transparent);
+
+  > div {
+    margin-bottom: 3px;
+  }
+}
+
+.AdminPages__name {
+  font-size: 17px;
+  font-weight: bold;
+}
+
+.AdminPages__tag {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: rgba(219, 40, 40, 0.3);
+  font-size: 11px;
+}
+
+.AdminPages__tag--good {
+  background: rgba(91, 170, 39, 0.3);
+}
+
+.AdminPages__active .Section__title {
+  border-left: 4px solid #db2828;
+  padding-left: 6px;
+}
+
+.AdminPages__objective {
+  display: flex;
+  align-items: center;
+  padding: 2px 0;
+}
+
+.AdminPages__objectiveNo {
+  width: 20px;
+  color: #8a93a3;
+  font-weight: bold;
+}
+
+.AdminPages__objectiveText {
+  flex: 1;
+  margin-right: 6px;
+}
+
+.AdminPages__pre {
+  white-space: pre-wrap;
+  color: #c9d1dd;
+}
+
+.AdminPages__category {
+  display: flex;
+  align-items: flex-start;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.AdminPages__categoryName {
+  width: 120px;
+  flex-shrink: 0;
+  padding-top: 2px;
+  color: #8a93a3;
+}
