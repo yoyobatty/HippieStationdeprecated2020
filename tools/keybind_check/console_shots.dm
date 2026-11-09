@@ -321,6 +321,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_admin8(C, H, label)
 		if("admin9")
 			cs_admin9(C, H, label)
+		if("admin10")
+			cs_admin10(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -8931,3 +8933,91 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	cs_b1_shot(C, H, ui?.src_object, "popup_admin9_[label]_4_teams", "teams")
 	SStgui.close_user_uis(H)
 	qdel(other)
+
+// ---------------------------------------------------------------------------------------------
+// Old windows, batch 10: the spawner, the outfit manager and editor, job slots
+// ---------------------------------------------------------------------------------------------
+
+/proc/cs_admin10(client/C, mob/living/carbon/human/H, label)
+	if(!C.holder)
+		var/datum/admins/A = new(new /datum/admin_rank("!localhost!", R_EVERYTHING, R_DBRANKS, R_EVERYTHING), C.ckey, 1, 1)
+		A.associate(C)
+	H.equipOutfit(/datum/outfit/job/assistant)
+	H.drop_all_held_items()
+	usr = H
+	// Create Object: a search, two picks, then spawned into the hand
+	C.holder.create_object(H)
+	sleep(15)
+	var/datum/tgui/ui = cs_ui_named(H, "admin_spawner")
+	if(ui)
+		var/datum/W = ui.src_object
+		cs_act(W, H, "search", list("query" = "crowbar"))
+		cs_act(W, H, "pick", list("path" = "/obj/item/crowbar/red"))
+		cs_act(W, H, "pick", list("path" = "/obj/item/crowbar/large"))
+		cs_act(W, H, "pick", list("path" = "/datum/not_a_thing"))
+		cs_act(W, H, "set", list("field" = "where", "value" = "inhand"))
+		SStgui.update_uis(W)
+		sleep(15)
+	cs_b1_shot(C, H, ui?.src_object, "popup_admin10_[label]_1_spawner", "create_object")
+	if(ui)
+		var/datum/W = ui.src_object
+		cs_act(W, H, "pick", list("path" = "/obj/item/crowbar/large"))
+		cs_act(W, H, "spawn")
+		sleep(15)
+		cs_check("admin10: the red crowbar spawned into the hand", istype(H.get_active_held_item(), /obj/item/crowbar/red) || istype(H.get_inactive_held_item(), /obj/item/crowbar/red))
+		var/list/picked = W.vars["picked"]
+		cs_check("admin10: a path outside the root can't be picked", !("/datum/not_a_thing" in picked))
+	SStgui.close_user_uis(H)
+
+	// The outfit editor and manager
+	usr = H
+	C.holder.create_outfit(H)
+	sleep(15)
+	ui = cs_ui_named(H, "admin_outfit_editor")
+	if(ui)
+		var/datum/W = ui.src_object
+		cs_act(W, H, "name", list("value" = "Party Engineer"))
+		cs_act(W, H, "edit", list("slot" = "uniform"))
+		cs_act(W, H, "search", list("query" = "engineering"))
+		var/list/found = W.vars["results"]
+		if(length(found))
+			cs_act(W, H, "choose", list("path" = found[1]))
+		cs_act(W, H, "edit", list("slot" = "head"))
+		cs_act(W, H, "search", list("query" = "hardhat"))
+		found = W.vars["results"]
+		if(length(found))
+			cs_act(W, H, "choose", list("path" = found[1]))
+		cs_act(W, H, "edit", list("slot" = "shoes"))
+		cs_act(W, H, "search", list("query" = "magboots"))
+		SStgui.update_uis(W)
+		sleep(15)
+	cs_b1_shot(C, H, ui?.src_object, "popup_admin10_[label]_2_outfit_editor", "Create Outfit", "Create Outfit")
+	if(ui)
+		var/before = length(GLOB.custom_outfits)
+		cs_act(ui.src_object, H, "create")
+		sleep(15)
+		cs_check("admin10: the outfit is made ([length(GLOB.custom_outfits) - before])", length(GLOB.custom_outfits) == before + 1)
+	SStgui.close_user_uis(H)
+	H << browse(null, "window=dressup")
+	usr = H
+	C.holder.outfit_manager(H)
+	sleep(15)
+	ui = cs_ui_named(H, "admin_outfit_manager")
+	cs_b1_shot(C, H, ui?.src_object, "popup_admin10_[label]_3_outfit_manager", "outfitmanager")
+	SStgui.close_user_uis(H)
+
+	// Manage Free Slots
+	usr = H
+	C.holder.manage_free_slots()
+	sleep(15)
+	ui = cs_ui_named(H, "admin_job_slots")
+	if(ui)
+		var/datum/job/cook = SSjob.GetJob("Cook")
+		var/before = cook.total_positions
+		cs_act(ui.src_object, H, "add", list("job" = "Cook"))
+		sleep(10)
+		cs_check("admin10: a cook slot added ([before] -> [cook.total_positions])", cook.total_positions == before + 1)
+		SStgui.update_uis(ui.src_object)
+		sleep(10)
+	cs_b1_shot(C, H, ui?.src_object, "popup_admin10_[label]_4_job_slots", "jobmanagement")
+	SStgui.close_user_uis(H)

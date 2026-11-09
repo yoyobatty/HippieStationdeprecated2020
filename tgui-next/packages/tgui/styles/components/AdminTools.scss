@@ -1,0 +1,109 @@
+// hippie -- admin tools (interfaces/AdminTools.js): the spawner, the outfit
+// editor and job slots.
+
+.AdminTools__searchRow {
+  display: flex;
+  margin-bottom: 6px;
+}
+
+.AdminTools__search {
+  flex: 1;
+  margin-right: 4px;
+  padding: 4px 8px;
+  border: 1px solid #40628a;
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font-family: inherit;
+  outline: none;
+}
+
+.AdminTools__results {
+  height: 220px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.AdminTools__results--short {
+  height: 160px;
+}
+
+.AdminTools__result {
+  padding: 2px 8px;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
+.AdminTools__result--on {
+  background: rgba(91, 170, 39, 0.3);
+}
+
+.AdminTools__picked {
+  display: flex;
+  align-items: center;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.AdminTools__pickedPath {
+  flex: 1;
+  margin: 0 6px;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 12px;
+}
+
+.AdminTools__pic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  image-rendering: pixelated;
+  -ms-interpolation-mode: nearest-neighbor;
+}
+
+.AdminTools__pic--none {
+  color: #555;
+}
+
+.AdminTools__slots {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.AdminTools__slot {
+  display: flex;
+  align-items: center;
+  width: 50%;
+  padding: 3px 4px 3px 0;
+  box-sizing: border-box;
+}
+
+.AdminTools__slot--on {
+  background: rgba(73, 114, 161, 0.3);
+}
+
+.AdminTools__slotMain {
+  flex: 1;
+  min-width: 0;
+  margin-left: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+
+  &:hover {
+    color: #9fc4ff;
+  }
+}
+
+.AdminTools__slotLabel {
+  color: #8a93a3;
+  font-size: 11px;
+}
