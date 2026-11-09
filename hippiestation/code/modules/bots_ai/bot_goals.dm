@@ -380,6 +380,11 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 	// blacklist (on_give_up(), goals/acquire_tool.dm) a perfectly good, still-useful
 	// toolbox for the crime of the bot getting lucky on the way there.
 	var/result = got_any || (saw_any_tool && !had_pending)
+	// Came for one thing in particular, got nothing, and still hasn't got one: that's a wasted trip, whatever else was in the box. Counted
+	// as a success, the box was never put aside (on_give_up(), goals/acquire_tool.dm), and a bot after wirecutters it didn't know where to
+	// find went back to the same emergency toolbox 76 times in one shift (2026-11-09, bot_knowledge.dm).
+	if(!got_any && bot.needs_specific_tool_still())
+		result = FALSE
 	pending_items = null
 	got_any = FALSE
 	saw_any_tool = FALSE

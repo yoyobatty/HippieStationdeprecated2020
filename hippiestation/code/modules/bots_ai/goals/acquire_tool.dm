@@ -41,6 +41,8 @@
 // Each tier only runs if the previous one found nothing, and within a tier the closest
 // reachable candidate wins.
 /datum/bot_goal/acquire_tool/resolve_target(datum/bot_brain/bot)
+	// only what it knows of: where tools are kept, or where it saw them (bot_knowledge.dm). A look round first, as anybody does.
+	bot.glance_at_items()
 	if(needed_tool_type)
 		var/atom/typed = resolve_typed_target(bot)
 		if(typed)
@@ -81,13 +83,13 @@
 	var/list/box_candidates = list()
 	var/list/box_dists = list()
 	for(var/obj/item/storage/toolbox/TB as anything in bot_instances_of(/obj/item/storage/toolbox))
-		if(!isturf(TB.loc) || TB.anchored || bot.is_failed_tool_target(TB) || !same_z(bot, TB))
+		if(!isturf(TB.loc) || TB.anchored || bot.is_failed_tool_target(TB) || !same_z(bot, TB) || !bot.knows_of(TB))
 			continue
 		// An artistic/crayon toolbox holds no tools at all - "succeeding" at grabbing from
 		// it left the bot exactly as empty-handed as before.
 		var/has_useful = FALSE
 		for(var/obj/item/I in TB)
-			if(bot.is_tool_or_toolbox(I) && !bot.already_carries_matching_tool(I))
+			if(bot.is_tool_or_toolbox(I) && !bot.already_carries_matching_tool(I) && bot.knows_of(I))
 				has_useful = TRUE
 				break
 		if(!has_useful)
@@ -102,7 +104,7 @@
 	var/list/item_dists = list()
 	for(var/tool_root in GLOB.bot_tool_item_roots)
 		for(var/obj/item/I as anything in bot_instances_of(tool_root))
-			if(!isturf(I.loc) || I.anchored || bot.is_failed_tool_target(I) || !same_z(bot, I))
+			if(!isturf(I.loc) || I.anchored || bot.is_failed_tool_target(I) || !same_z(bot, I) || !bot.knows_of(I))
 				continue
 			// already_carries_matching_tool() (bot_items.dm): one screwdriver is exactly as
 			// useful as two - this generic "grab anything useful" tier (reached when a
@@ -120,6 +122,7 @@
 		// whether that's a genuine "nothing exists reachable anywhere" case or just
 		// every candidate in a capped list happening to be behind locked doors (see
 		// MAX_TOOL_CANDIDATES's comment) while something open sat just past the cutoff.
+		bot_log(bot, "knows of no [needed_tool_type || "tool"] to get (bot_knowledge.dm)")
 		bot_log_verbose(bot, "acquire_tool: resolve_target found nothing - box candidates: [box_candidates.len], item candidates: [item_candidates.len]")
 
 // Closet first, then toolbox, then a loose item of the exact needed type - see
@@ -142,19 +145,23 @@
 			continue
 		if(!closet_accessible(bot, C))
 			continue
-		if(!(locate(needed_tool_type) in C))
+		if(!bot.knows_of_inside(C, needed_tool_type))
 			continue
 		insert_by_distance(candidates, dists, C, get_dist(bot.owner, C))
 	for(var/obj/item/storage/toolbox/TB as anything in bot_instances_of(/obj/item/storage/toolbox))
-		if(!isturf(TB.loc) || TB.anchored || bot.is_failed_tool_target(TB) || !same_z(bot, TB))
+		if(!isturf(TB.loc) || TB.anchored || bot.is_failed_tool_target(TB) || !same_z(bot, TB) || !bot.knows_of(TB))
 			continue
-		if(!(locate(needed_tool_type) in TB))
+		if(!bot.knows_of_inside(TB, needed_tool_type))
 			continue
 		insert_by_distance(candidates, dists, TB, get_dist(bot.owner, TB))
 	for(var/obj/item/I as anything in bot_instances_of(needed_tool_type))
-		if(!isturf(I.loc) || I.anchored || bot.is_failed_tool_target(I) || !same_z(bot, I))
+		if(!isturf(I.loc) || I.anchored || bot.is_failed_tool_target(I) || !same_z(bot, I) || !bot.knows_of(I))
 			continue
 		insert_by_distance(candidates, dists, I, get_dist(bot.owner, I) + 8)
+	var/list/vendors = bot.vendors_selling(needed_tool_type) //or buy one (bot_knowledge.dm)
+	for(var/obj/machinery/vending/V as anything in vendors)
+		if(!bot.is_failed_tool_target(V))
+			insert_by_distance(candidates, dists, V, vendors[V] + 3) //one tool, like a loose one
 	return pick_reachable(bot, candidates)
 
 // A candidate on a different z-level than the bot is never reachable through
@@ -194,12 +201,12 @@
 		if(istype(A, /obj/structure/closet) && !closet_accessible(bot, A))
 			continue //got re-secured/locked since it last worked, or access changed
 		if(needed_tool_type)
-			if(!(locate(needed_tool_type) in A))
+			if(!bot.knows_of_inside(A, needed_tool_type))
 				continue
 		else
 			var/has_any = FALSE
 			for(var/obj/item/I in A)
-				if(bot.is_tool_or_toolbox(I))
+				if(bot.is_tool_or_toolbox(I) && bot.knows_of(I))
 					has_any = TRUE
 					break
 			if(!has_any)
@@ -451,6 +458,8 @@
 	// tools out of it.
 	if(istype(target, /obj/item/storage/toolbox))
 		return list(new /datum/bot_strategy/grab_tools_from_toolbox())
+	if(istype(target, /obj/machinery/vending))
+		return list(new /datum/bot_strategy/buy_item(needed_tool_type))
 	return list(new /datum/bot_strategy/grab_item())
 
 /datum/bot_strategy/grab_tool_from_locker/New()

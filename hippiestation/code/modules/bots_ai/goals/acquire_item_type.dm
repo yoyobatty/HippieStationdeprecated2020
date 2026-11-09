@@ -17,13 +17,15 @@
 // do_repath() is for) - but same-z + nearest first means a genuinely reachable local
 // item is tried before a farther/off-map one of the same type.
 /datum/bot_goal/acquire_item_type/resolve_target(datum/bot_brain/bot)
+	// only what it knows of: where things are kept, or where it saw them (bot_knowledge.dm). A look round first, as anybody does.
+	bot.glance_at_items()
 	if(lawful)
 		target = nearest_lawful_source(bot)
 		return
 	var/obj/item/best
 	var/best_dist
 	for(var/obj/item/I as anything in bot_instances_of(item_type))
-		if(!isturf(I.loc) || I.anchored || bot.on_a_shuttle_without_me(I))
+		if(!isturf(I.loc) || I.anchored || bot.on_a_shuttle_without_me(I) || !bot.knows_of(I))
 			continue //already held/worn/bagged, or fixed in place - not freely takeable
 		var/turf/T = I.loc
 		if(T.z != bot.owner.z)
@@ -48,13 +50,21 @@
 			continue
 		if(C.secure && C.locked && !C.allowed(bot.owner))
 			continue //can't open it anyway - not a real candidate
-		if(!(locate(item_type) in C))
+		if(!bot.knows_of_inside(C, item_type))
 			continue
 		var/dist = get_dist(bot.owner, C)
 		if(!best_closet || dist < best_closet_dist)
 			best_closet = C
 			best_closet_dist = dist
 	target = best_closet
+	// or a machine that sells them, if that's nearer (bot_knowledge.dm)
+	var/list/vendors = bot.vendors_selling(item_type)
+	for(var/obj/machinery/vending/V as anything in vendors)
+		if(!target || vendors[V] < best_closet_dist)
+			target = V
+			best_closet_dist = vendors[V]
+	if(!target)
+		bot_log(bot, "knows of no [item_type] to get (bot_knowledge.dm)")
 
 /// For an everyday fetch (`lawful`): the nearest one this bot can simply walk up to - loose, or in a locker it may
 /// open. The nearest as the crow flies is as often as not on somebody else's desk, behind a door this bot has no
@@ -62,7 +72,7 @@
 /datum/bot_goal/acquire_item_type/proc/nearest_lawful_source(datum/bot_brain/bot)
 	var/list/found = list() //source -> how far off
 	for(var/obj/item/I as anything in bot_instances_of(item_type))
-		if(QDELETED(I) || !isturf(I.loc) || I.anchored || I.z != bot.owner.z || bot.on_a_shuttle_without_me(I))
+		if(QDELETED(I) || !isturf(I.loc) || I.anchored || I.z != bot.owner.z || bot.on_a_shuttle_without_me(I) || !bot.knows_of(I))
 			continue
 		found[I] = get_dist(bot.owner, I)
 	for(var/obj/structure/closet/C as anything in bot_instances_of(/obj/structure/closet))
@@ -70,9 +80,12 @@
 			continue
 		if(C.secure && C.locked && !C.allowed(bot.owner))
 			continue
-		if(!(locate(item_type) in C))
+		if(!bot.knows_of_inside(C, item_type))
 			continue
 		found[C] = get_dist(bot.owner, C) + 3 //a loose one is less bother than rummaging
+	var/list/vendors = bot.vendors_selling(item_type) //or buy one (bot_knowledge.dm)
+	for(var/obj/machinery/vending/V as anything in vendors)
+		found[V] = vendors[V]
 	var/tries = 0
 	while(length(found) && tries++ < lawful_tries)
 		var/atom/nearest
@@ -82,6 +95,7 @@
 		found -= nearest
 		if(bot.can_walk_lawfully_to(nearest))
 			return nearest
+	bot_log(bot, "knows of no [item_type] to get, lawfully (bot_knowledge.dm)")
 	return null
 
 /// On a shuttle it isn't aboard, which could leave with it before it gets there: Cargo's own aside, which is Cargo's to unload. An assistant
@@ -93,6 +107,8 @@
 /datum/bot_goal/acquire_item_type/get_strategies(datum/bot_brain/bot)
 	if(istype(target, /obj/structure/closet))
 		return list(new /datum/bot_strategy/grab_item_from_locker(item_type))
+	if(istype(target, /obj/machinery/vending))
+		return list(new /datum/bot_strategy/buy_item(item_type))
 	return list(new /datum/bot_strategy/grab_item())
 
 /datum/bot_strategy/grab_item/New()
