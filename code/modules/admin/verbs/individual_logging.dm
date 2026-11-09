@@ -1,6 +1,11 @@
 /proc/show_individual_logging_panel(mob/M, source = LOGSRC_CLIENT, type = INDIVIDUAL_ATTACK_LOG)
 	if(!M || !ismob(M))
 		return
+	// hippie start -- a tgui window (hippiestation/code/modules/admin/admin_logs_tgui.dm)
+	if(usr?.client?.holder)
+		open_individual_log_window(M, source, type)
+		return
+	// hippie end
 
 	var/ntype = text2num(type)
 

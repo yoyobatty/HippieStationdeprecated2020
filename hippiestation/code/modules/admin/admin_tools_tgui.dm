@@ -100,7 +100,8 @@
 	return (user.client?.holder && user.client.holder == holder && check_rights_for(user.client, rights)) ? UI_INTERACTIVE : UI_CLOSE
 
 /datum/admin_tool_window/ui_close(mob/user)
-	qdel(src)
+	if(!QDELETED(src)) // Destroy() closing the window lands here too
+		qdel(src)
 
 // ---------------------------------------------------------------------------------------------
 // The spawner

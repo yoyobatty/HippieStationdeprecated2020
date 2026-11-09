@@ -85,6 +85,7 @@
 @include meta.load-css('./components/AdminTools.scss');
 @include meta.load-css('./components/AdminPanels.scss');
 @include meta.load-css('./components/AdminRecords.scss');
+@include meta.load-css('./components/AdminLogs.scss');
 @include meta.load-css('./components/ProgressBar.scss');
 @include meta.load-css('./components/Section.scss');
 @include meta.load-css('./components/Table.scss');

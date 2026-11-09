@@ -61,4 +61,5 @@
 	if(!CONFIG_GET(flag/use_exp_tracking))
 		to_chat(usr, "<span class='notice'>Sorry, tracking is currently disabled.</span>")
 		return
-	show_html_notice(src, "Playtime for [key]", get_exp_report(), "clock", 560, 620)
+	var/datum/playtime_window/W = new(src) // admin_logs_tgui.dm: the admin's playtime report, without the admin's buttons
+	W.ui_interact(mob)

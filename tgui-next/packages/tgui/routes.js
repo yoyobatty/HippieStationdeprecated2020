@@ -3,6 +3,7 @@ import { Achievements } from './interfaces/Achievements';
 import { AdminAlerts } from './interfaces/AdminAlerts';
 import { AdminFind } from './interfaces/AdminFind';
 import { AdminHub } from './interfaces/AdminHub';
+import { AdminIndividualLog, AdminInvestigate, AdminLogFiles, AdminPlaytime, AdminSdqlResults, AdminUpgradeReport, PlayerPlaytime } from './interfaces/AdminLogs';
 import { RoundStatus, TeamListing, TraitorPanel } from './interfaces/AdminPages';
 import { AdminGamePanel, AdminOneClickAntag, AdminPlayers, AdminStationGoals } from './interfaces/AdminPanels';
 import { AdminPlayerPanel } from './interfaces/AdminPlayerPanel';
@@ -1398,6 +1399,34 @@ const ROUTES = {
   },
   player_notes: {
     component: () => PlayerNotes,
+    scrollable: true,
+  },
+  admin_investigate: {
+    component: () => AdminInvestigate,
+    scrollable: false,
+  },
+  admin_individual_log: {
+    component: () => AdminIndividualLog,
+    scrollable: true,
+  },
+  admin_log_files: {
+    component: () => AdminLogFiles,
+    scrollable: false,
+  },
+  admin_sdql_results: {
+    component: () => AdminSdqlResults,
+    scrollable: true,
+  },
+  admin_playtime: {
+    component: () => AdminPlaytime,
+    scrollable: false,
+  },
+  player_playtime: {
+    component: () => PlayerPlaytime,
+    scrollable: true,
+  },
+  admin_upgrade_report: {
+    component: () => AdminUpgradeReport,
     scrollable: true,
   },
 };

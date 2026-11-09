@@ -1,11 +1,5 @@
 /datum/admins/proc/HippieMentorLogSecret()
-	var/dat = "<B>Mentor Log<HR></B>"
-	for(var/l in GLOB.mentorlog)
-		dat += "<li>[l]</li>"
-
-	if(!GLOB.mentorlog.len)
-		dat += "No mentors have done anything this round!"
-	usr << browse(HTML_SKELETON(dat), "window=mentor_log")
+	show_admin_list(usr, "Mentor log", admin_list_lines(GLOB.mentorlog)) // the list window (secrets_tgui.dm), as Secrets opens it
 
 /datum/admins/Secrets_topic(item,href_list)
 	. = ..()
@@ -214,15 +208,10 @@
 		out += "[change][changes[change] > 1 ? " x[changes[change]]" : ""]"
 	return out.Join(", ")
 
-//One titled block of the upgrade report
-/proc/hippie_report_section(title, list/lines)
-	var/list/out = list("<B>[title] ([lines.len])</B><BR>")
-	if(!lines.len)
-		out += "&nbsp;&nbsp;Nothing needed upgrading<BR>"
-	for(var/line in lines)
-		out += "&nbsp;&nbsp;[line]<BR>"
-	out += "<BR>"
-	return out.Join()
+//One upgraded thing for the report window: its group, name, where it is and what changed
+/proc/hippie_upgrade_row(group, atom/A, change)
+	var/turf/T = get_turf(A)
+	return list("group" = group, "name" = "[A.name]", "ref" = REF(A), "area" = T ? "[get_area(T)]" : "", "x" = T?.x, "y" = T?.y, "z" = T?.z, "change" = "[change]")
 
 //Swaps every stock part in a machine for the best one of its kind and refreshes it, returns how many were replaced.
 //If a list is passed as changes, every swap is recorded in it as "old part -> new part" with a count
@@ -281,6 +270,7 @@
 //each kind of machine saying what upgrading it does
 /proc/hippie_upgrade_all_station_machines(list/report)
 	var/list/machine_lines = list()
+	var/list/rows = list() // the same, for the report window: what, where and what changed
 	var/list/apc_lines = list()
 	var/list/mech_lines = list()
 	var/list/borg_lines = list()
@@ -316,6 +306,7 @@
 				machines++
 				parts += replaced
 				machine_lines += "[html_encode(M.name)] [ADMIN_VERBOSEJMP(M)]: [hippie_format_changes(changes)]"
+				rows += list(hippie_upgrade_row("Machines", M, hippie_format_changes(changes)))
 				for(var/change in changes)
 					totals[change] += changes[change]
 				hippie_note_machine(groups, others, M, entry, before)
@@ -330,6 +321,7 @@
 				A.update_icon()
 				apcs++
 				apc_lines += "[html_encode(A.name)] [ADMIN_VERBOSEJMP(A)]: [html_encode(old_cell)] -&gt; [A.cell.name] ([A.cell.maxcharge])"
+				rows += list(hippie_upgrade_row("APCs", A, "[old_cell] -> [A.cell.name] ([A.cell.maxcharge])"))
 		CHECK_TICK
 
 	for(var/obj/mecha/M in GLOB.mechas_list)
@@ -358,6 +350,7 @@
 		if(upgraded)
 			mechs++
 			mech_lines += "[html_encode(M.name)] [ADMIN_VERBOSEJMP(M)]: [notes.Join(", ")]"
+			rows += list(hippie_upgrade_row("Mechs", M, notes.Join(", ")))
 			if(M.occupant)
 				to_chat(M.occupant, "<span class='notice'>Your exosuit's systems hum as they're upgraded.</span>")
 		CHECK_TICK
@@ -373,6 +366,7 @@
 			R.diag_hud_set_borgcell()
 			borgs++
 			borg_lines += "[html_encode(R.name)] [ADMIN_VERBOSEJMP(R)]: [html_encode(old_cell)] -&gt; [R.cell.name] ([R.cell.maxcharge])"
+			rows += list(hippie_upgrade_row("Cyborgs", R, "[old_cell] -> [R.cell.name] ([R.cell.maxcharge])"))
 		CHECK_TICK
 
 	if(report)
@@ -392,6 +386,7 @@
 		report["borgs"] = borg_lines
 		report["totals"] = totals
 		report["explanations"] = explanations
+		report["rows"] = rows
 	return "[machines] machines ([parts] parts), [apcs] APCs, [mechs] mechs and [borgs] cyborgs"
 
 /datum/admins/proc/UpgradeAllMachinesSecret()
@@ -401,10 +396,6 @@
 	log_admin("[key_name(usr)] upgraded all station machines: [summary]", 1)
 	message_admins("<span class='adminnotice'>[key_name_admin(usr)] upgraded all station machines: [summary]</span>")
 
-	var/list/totals = report["totals"]
-	var/list/total_lines = list()
-	for(var/change in totals)
-		total_lines += "[change] x[totals[change]]"
 	var/list/explanations = report["explanations"]
 
 	to_chat(usr, "<span class='notice'>Upgraded [summary].</span>")
@@ -416,18 +407,7 @@
 			to_chat(usr, "<span class='notice'>&nbsp;&nbsp;...and [explanations.len - 10] more kinds of machine, in the report window.</span>")
 	to_chat(usr, "<span class='notice'>The full list of what was upgraded, with jump links, is in the report window.</span>")
 
-	var/list/dat = list("<B>Station upgrade report</B><BR>[summary]<HR>")
-	dat += "<B>What the upgrades do</B><BR>"
-	for(var/explanation in explanations)
-		dat += "&nbsp;&nbsp;[explanation]<BR><BR>"
-	if(!explanations.len)
-		dat += "&nbsp;&nbsp;Nothing needed upgrading<BR><BR>"
-	dat += hippie_report_section("Parts replaced, by kind", total_lines)
-	dat += hippie_report_section("Machines", report["machines"])
-	dat += hippie_report_section("APCs", report["apcs"])
-	dat += hippie_report_section("Mechs", report["mechs"])
-	dat += hippie_report_section("Cyborgs", report["borgs"])
-	usr << browse(HTML_SKELETON(dat.Join()), "window=upgrade_report;size=800x650")
+	open_admin_tool("upgrade_report", /datum/admin_tool_window/upgrade_report, list("summary" = summary, "report" = report)) // admin_logs_tgui.dm
 
 //Adds plasma to every floor tile on the station levels that isn't out in space, at room temperature and with nothing lit
 /datum/admins/proc/PlasmaFloodSecret(moles)

@@ -58,7 +58,8 @@
 	return (user.client?.holder && user.client.holder == holder && check_rights_for(user.client, R_ADMIN)) ? UI_INTERACTIVE : UI_CLOSE
 
 /datum/admin_page_window/ui_close(mob/user)
-	qdel(src)
+	if(!QDELETED(src)) // Destroy() closing the window lands here too
+		qdel(src)
 
 /// An antagonist as the pages show one
 /proc/admin_page_antag(datum/antagonist/A)

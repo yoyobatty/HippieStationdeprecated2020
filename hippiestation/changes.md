@@ -79,6 +79,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/admin/sql_message_system.dm
 ## code/modules/admin/stickyban.dm
 ## code/modules/admin/topic.dm
+## code/modules/admin/verbs/individual_logging.dm
 ## code/modules/admin/verbs/one_click_antag.dm
 ## code/modules/antagonists/clockcult/clock_items/clockwork_armor.dm
 ## code/modules/antagonists/morph/morph.dm

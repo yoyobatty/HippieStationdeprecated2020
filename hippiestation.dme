@@ -3342,6 +3342,7 @@
 #include "hippiestation\code\modules\admin\help_window.dm"
 #include "hippiestation\code\modules\admin\player_menu.dm"
 #include "hippiestation\code\modules\admin\admin_hub.dm"
+#include "hippiestation\code\modules\admin\admin_logs_tgui.dm"
 #include "hippiestation\code\modules\admin\log_gaps.dm"
 #include "hippiestation\code\modules\admin\admin_find.dm"
 #include "hippiestation\code\modules\admin\ban_window.dm"

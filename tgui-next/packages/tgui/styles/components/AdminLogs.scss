@@ -1,0 +1,384 @@
+// hippie -- the admin's log and report windows (interfaces/AdminLogs.js)
+
+.AdminLogs__muted {
+  color: #8a93a3;
+}
+
+.AdminLogs__title {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.AdminLogs__name {
+  font-weight: bold;
+}
+
+.AdminLogs__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 6px;
+
+  > * {
+    margin-right: 8px;
+  }
+}
+
+.AdminLogs__barEnd {
+  margin-left: auto;
+  margin-right: 0;
+  white-space: nowrap;
+}
+
+// A list on the left, what it opens on the right
+
+.AdminLogs__split {
+  display: flex;
+  height: 100%;
+}
+
+.AdminLogs__split--files {
+  height: calc(100% - 32px);
+}
+
+.AdminLogs__side {
+  flex: 0 0 170px;
+  margin-right: 8px;
+  padding-right: 6px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  overflow-y: auto;
+}
+
+.AdminLogs__side--wide {
+  flex-basis: 230px;
+}
+
+.AdminLogs__side--files {
+  flex-basis: 300px;
+}
+
+.AdminLogs__main {
+  flex: 1;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.AdminLogs__sideItem {
+  padding: 3px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.07);
+  }
+}
+
+.AdminLogs__sideItem--on {
+  background: rgba(73, 114, 161, 0.5);
+}
+
+.AdminLogs__sideItem--empty {
+  color: #5f6673;
+}
+
+// Log lines
+
+.AdminLogs__line {
+  display: flex;
+  align-items: baseline;
+  padding: 2px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  &:hover .AdminLogs__lineButton {
+    visibility: visible;
+  }
+}
+
+.AdminLogs__lineButton {
+  visibility: hidden;
+  margin-left: 6px;
+  padding: 0 4px;
+}
+
+.AdminLogs__time {
+  flex: 0 0 auto;
+  margin-right: 8px;
+  color: #8a93a3;
+  font-family: monospace;
+}
+
+.AdminLogs__where {
+  flex: 0 0 76px;
+  margin-right: 8px;
+  color: #9fc4ff;
+  font-family: monospace;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.AdminLogs__text {
+  flex: 1;
+  word-break: break-word;
+}
+
+.AdminLogs__entry {
+  padding: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.AdminLogs__who {
+  margin-top: 1px;
+  padding-left: 2px;
+  color: #6f7887;
+  font-size: 11px;
+}
+
+.AdminLogs__kind {
+  margin-right: 6px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.AdminLogs__kind--bad {
+  background: rgba(219, 40, 40, 0.4);
+}
+
+.AdminLogs__kind--say {
+  background: rgba(73, 114, 161, 0.5);
+}
+
+.AdminLogs__kind--emote {
+  background: rgba(150, 100, 200, 0.4);
+}
+
+.AdminLogs__kind--ooc {
+  background: rgba(240, 150, 0, 0.35);
+}
+
+// Files
+
+.AdminLogs__crumb {
+  color: #9fc4ff;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.AdminLogs__file {
+  display: flex;
+  align-items: center;
+  padding: 3px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.AdminLogs__file--on {
+  background: rgba(73, 114, 161, 0.45);
+}
+
+.AdminLogs__file--other {
+  color: #5f6673;
+  cursor: default;
+}
+
+.AdminLogs__fileName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.AdminLogs__viewer {
+  padding: 4px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.3);
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.AdminLogs__viewLine {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.AdminLogs__lineNo {
+  display: inline-block;
+  width: 44px;
+  margin-right: 6px;
+  color: #5f6673;
+  text-align: right;
+  user-select: none;
+}
+
+// SDQL
+
+.AdminLogs__query {
+  margin-bottom: 6px;
+  padding: 4px 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.3);
+  font-family: monospace;
+  white-space: pre-wrap;
+}
+
+.AdminLogs__table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    padding: 3px 6px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+    text-align: left;
+  }
+
+  td {
+    padding: 2px 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  }
+}
+
+.AdminLogs__rowButtons {
+  text-align: right;
+  white-space: nowrap;
+}
+
+// Playtime
+
+.AdminLogs__player {
+  margin-top: 2px;
+  padding: 4px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.AdminLogs__player--on {
+  background: rgba(73, 114, 161, 0.45);
+}
+
+.AdminLogs__totals {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.AdminLogs__total {
+  margin-right: 10px;
+  padding: 6px 14px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  text-align: center;
+}
+
+.AdminLogs__totalValue {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.AdminLogs__totalFlags {
+  margin-left: auto;
+  text-align: right;
+
+  > * {
+    margin-left: 6px;
+  }
+}
+
+.AdminLogs__tag {
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(91, 170, 39, 0.3);
+  font-size: 11px;
+}
+
+.AdminLogs__heading {
+  margin: 10px 0 4px;
+  color: #9fc4ff;
+  font-weight: bold;
+}
+
+.AdminLogs__barRow {
+  display: flex;
+  align-items: center;
+  margin-bottom: 3px;
+}
+
+.AdminLogs__barName {
+  flex: 0 0 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.AdminLogs__barTrack {
+  flex: 1;
+  height: 10px;
+  margin: 0 8px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.AdminLogs__barFill {
+  height: 100%;
+  border-radius: 3px;
+  background: #4972a1;
+}
+
+.AdminLogs__barValue {
+  flex: 0 0 90px;
+  text-align: right;
+}
+
+.AdminLogs__lockBar {
+  flex: 1;
+  margin-left: 8px;
+}
+
+// Upgrade report
+
+.AdminLogs__explain {
+  margin-bottom: 4px;
+  padding: 4px 8px;
+  border-left: 3px solid #5baa27;
+  background: rgba(91, 170, 39, 0.08);
+}
+
+.AdminLogs__chips {
+  margin: 6px 0;
+}
+
+.AdminLogs__chip {
+  display: inline-block;
+  margin: 0 4px 4px 0;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(73, 114, 161, 0.35);
+  font-size: 11px;
+}
+
+.AdminLogs__change {
+  margin-top: 1px;
+  color: #c9d1dd;
+  font-size: 11px;
+}
