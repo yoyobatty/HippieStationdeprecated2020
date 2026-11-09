@@ -23,6 +23,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/master.dm
 ## code/controllers/subsystem.dm
 ## code/controllers/subsystem/air.dm
+## code/controllers/subsystem/assets.dm
 ## code/controllers/subsystem/blackbox.dm
 ## code/controllers/subsystem/dbcore.dm (out of the .dme: rewritten whole as hippiestation/code/controllers/subsystem/dbcore.dm, rust_g instead of BSQL)
 ## code/controllers/subsystem/discord.dm

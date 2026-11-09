@@ -10,6 +10,12 @@ SUBSYSTEM_DEF(assets)
 	var/list/build_queue = list()
 
 /datum/controller/subsystem/assets/Initialize(timeofday)
+	// hippie start -- a Bot Gym never has a client, so nothing is sent: build nothing ahead (1.35 s of every gym server's boot,
+	// 2026-11-09). Anything that asks for an asset still gets it built then, by get_asset_datum().
+	if(BOT_GYM_PARAMETER in world.params)
+		can_fire = FALSE
+		return ..()
+	// hippie end
 	for(var/type in typesof(/datum/asset))
 		var/datum/asset/A = type
 		if (type != initial(A._abstract))

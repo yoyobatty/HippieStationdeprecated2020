@@ -427,6 +427,9 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	while(SSticker.current_state < GAME_STATE_PLAYING && world.time < round_deadline)
 		sleep(1 SECONDS)
 	log_world("BOT GYM: round state [SSticker.current_state], starting scenarios")
+	fdel(bot_gym_results_dir()) //a last run's transcripts
+	if(world.params["bot-gym-boot-profile"]) //what the boot cost, proc by proc (hippie_prof.dll, on from the profiler's init)
+		text2file(SSprofiler.engine == "hippie" ? hippie_prof("dump") : world.Profile(PROFILE_REFRESH, format = "json"), "[bot_gym_results_dir()]boot_profile.json")
 	var/list/datum/bot_scenario/active = list()
 	var/list/wanted = (filter && filter != "all") ? splittext(filter, "|") : null //"chat|hop" runs both
 	for(var/path in subtypesof(/datum/bot_scenario))
@@ -568,8 +571,7 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 		. += " The server couldn't keep up, so bots ran slow in game time - timeouts and idle tells in this run may not be their doing."
 
 /proc/write_bot_gym_results(list/datum/bot_scenario/active, list/load)
-	var/dir = bot_gym_results_dir()
-	fdel(dir)
+	var/dir = bot_gym_results_dir() //emptied when the run started
 	var/list/json = list()
 	var/list/counts = list("PASS" = 0, "FAIL" = 0, "XFAIL" = 0, "XPASS" = 0, "PENDING" = 0)
 	var/list/lines = list()
