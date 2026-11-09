@@ -65,6 +65,7 @@ import { AnalyzerHistory, ArtilleryControl, ExosuitMaint, PrototypeCloning, Tele
 import { MindNotes } from './interfaces/MindNotes';
 import { PaiOs, PaiRecruit, SiliconPdaLog } from './interfaces/PaiOs';
 import { HtmlNotice, PlayerPolls } from './interfaces/PlayerPolls';
+import { AirlockMaker, SandboxPanel } from './interfaces/Sandbox';
 import { AiBotControl, AiVox, SiliconAlerts } from './interfaces/SiliconWindows';
 import { TguiPrompt } from './interfaces/TguiPrompt';
 import { VotePanel } from './interfaces/VotePanel';
@@ -1453,6 +1454,14 @@ const ROUTES = {
   },
   admin_del_log: {
     component: () => AdminDelLog,
+    scrollable: true,
+  },
+  sandbox_panel: {
+    component: () => SandboxPanel,
+    scrollable: true,
+  },
+  airlock_maker: {
+    component: () => AirlockMaker,
     scrollable: true,
   },
 };

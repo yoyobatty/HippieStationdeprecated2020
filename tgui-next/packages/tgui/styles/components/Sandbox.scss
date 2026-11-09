@@ -1,0 +1,74 @@
+// hippie -- sandbox mode's windows (interfaces/Sandbox.js)
+
+.Sandbox__button {
+  margin: 0 4px 4px 0;
+}
+
+.Sandbox__results {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.Sandbox__item {
+  width: 86px;
+  margin: 0 4px 4px 0;
+  padding: 4px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  text-align: center;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(73, 114, 161, 0.4);
+  }
+}
+
+.Sandbox__pic {
+  width: 32px;
+  height: 32px;
+  -ms-interpolation-mode: nearest-neighbor;
+  image-rendering: pixelated;
+}
+
+.Sandbox__itemName {
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.Sandbox__hint {
+  margin-bottom: 6px;
+  color: #8a93a3;
+}
+
+.Sandbox__row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.Sandbox__label {
+  flex: 0 0 60px;
+  color: #8a93a3;
+}
+
+.Sandbox__swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+.Sandbox__region {
+  margin-bottom: 6px;
+}
+
+.Sandbox__regionName {
+  margin-bottom: 2px;
+  color: #9fc4ff;
+  font-weight: bold;
+}

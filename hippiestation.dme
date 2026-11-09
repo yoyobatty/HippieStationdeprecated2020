@@ -3048,6 +3048,7 @@
 #include "hippiestation\code\game\gamemodes\game_mode.dm"
 #include "hippiestation\code\game\gamemodes\objective.dm"
 #include "hippiestation\code\game\gamemodes\objective_items.dm"
+#include "hippiestation\code\game\gamemodes\sandbox\sandbox_tgui.dm"
 #include "hippiestation\code\game\gamemodes\clock_cult\clock_scriptures\neovgre.dm"
 #include "hippiestation\code\game\gamemodes\cult\needed_players.dm"
 #include "hippiestation\code\game\gamemodes\dynamic\dynamic_rulesets_midround.dm"
