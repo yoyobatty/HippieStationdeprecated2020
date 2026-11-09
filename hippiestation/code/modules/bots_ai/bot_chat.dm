@@ -14,7 +14,11 @@
 	H.say(H.bot_brain ? H.bot_brain.in_own_words(line) : line) //bot_chatter.dm
 
 /proc/bot_log(datum/bot_brain/B, msg)
-	B?.gym_run?.log_line(msg) //Bot Gym transcript (gym/bot_gym.dm), captured even with logging off
+	if(B?.gym_run)
+		// Bot Gym transcript (gym/bot_gym.dm), the run's whole record. A copy to admins nobody is and to game.log as well, where
+		// nobody reads a gym's lines, was 4% of a full gym's server time (2026-11-09).
+		B.gym_run.log_line(msg)
+		return
 	if(!GLOB.bot_ai_debug || !B || QDELETED(B.owner))
 		return
 	message_admins("<span class='notice'>Bot AI: [ADMIN_FLW(B.owner)] [B.owner.real_name]: [msg]</span>")
@@ -28,7 +32,9 @@
 // straight to disk via log_admin(), never message_admins(), so it can stay on by
 // default without flooding anyone watching the live admin feed.
 /proc/bot_log_verbose(datum/bot_brain/B, msg)
-	B?.gym_run?.log_line("  [msg]")
+	if(B?.gym_run)
+		B.gym_run.log_line("  [msg]") //the transcript, as bot_log()
+		return
 	if(!GLOB.bot_ai_verbose || !B || QDELETED(B.owner))
 		return
 	log_admin("BOT AI VERBOSE: [B.owner.real_name]: [msg]")

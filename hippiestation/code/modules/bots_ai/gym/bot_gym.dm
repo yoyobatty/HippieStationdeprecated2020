@@ -430,6 +430,9 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	fdel(bot_gym_results_dir()) //a last run's transcripts
 	if(world.params["bot-gym-boot-profile"]) //what the boot cost, proc by proc (hippie_prof.dll, on from the profiler's init)
 		text2file(SSprofiler.engine == "hippie" ? hippie_prof("dump") : world.Profile(PROFILE_REFRESH, format = "json"), "[bot_gym_results_dir()]boot_profile.json")
+	var/profile_scenarios = world.params["bot-gym-profile"] && SSprofiler.engine == "hippie" //what the scenarios cost: profile.json, from here to the end
+	if(profile_scenarios)
+		hippie_prof("dump", "clear")
 	var/list/datum/bot_scenario/active = list()
 	var/list/wanted = (filter && filter != "all") ? splittext(filter, "|") : null //"chat|hop" runs both
 	for(var/path in subtypesof(/datum/bot_scenario))
@@ -492,6 +495,8 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 		bot_gym_sample_load(load)
 		if(!bot_gym_judge(active))
 			break
+	if(profile_scenarios)
+		text2file(hippie_prof("dump"), "[bot_gym_results_dir()]profile.json")
 	write_bot_gym_results(active, load)
 	log_world("BOT GYM: done")
 	Master.Shutdown()
@@ -595,7 +600,11 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 		var/label = "[S.name][S.run_index > 1 ? " #[S.run_index]" : ""]"
 		lines += "[pad_bot_gym(outcome, 7)][pad_bot_gym(label, 54)][seconds != null ? "[seconds]s" : ""][S.fail_reason ? "   [S.fail_reason]" : ""][S.believability_text()][elsewhere]"
 		json += list(list("name" = S.name, "run" = S.run_index, "outcome" = outcome, "seconds" = seconds, "reason" = S.fail_reason, "desc" = S.desc, "order" = S.suite_index))
-		text2file(jointext(S.transcript, "\n"), "[dir]transcripts/[not_for_filenames.Replace(replacetext(S.name, " ", "_"), "")]_[S.run_index].log")
+		// run_bot_gym.sh's servers write deep in data/bot_gym_work/, where a long scenario name took the path past Windows' 260 characters
+		// and the transcript was never written (41 of 395, 2026-11-09): there it's named by its place in the suite, and
+		// tools/bot_gym/merge_gym_shards.py gives it its name where the results end up.
+		var/file_name = world.params[BOT_SHIFT_RESULTS_PARAMETER] ? "[S.suite_index]" : "[not_for_filenames.Replace(replacetext(S.name, " ", "_"), "")]_[S.run_index]"
+		text2file(jointext(S.transcript, "\n"), "[dir]transcripts/[file_name].log")
 	var/header = "BOT GYM  [counts["PASS"]] passed, [counts["FAIL"]] failed, [counts["XFAIL"]] expected failures, [counts["XPASS"]] unexpected passes[counts["PENDING"] ? ", [counts["PENDING"]] unfinished" : ""]"
 	if(load)
 		header += "\n[bot_gym_load_text(load)]"

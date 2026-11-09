@@ -24,6 +24,8 @@
 GLOBAL_LIST_EMPTY(bot_brains)
 GLOBAL_VAR_INIT(bot_telemetry_running, FALSE)
 GLOBAL_VAR(bot_telemetry_log)
+/// Whether the sampler writes its twice-a-second lines: not in a Bot Gym (telemetry_sample()) unless bot-gym-samples is set.
+GLOBAL_VAR_INIT(bot_telemetry_samples, !(BOT_GYM_PARAMETER in world.params) || ("bot-gym-samples" in world.params))
 
 /datum/bot_brain
 	/// What the bot is doing right now that isn't walking - set around interactions, so samples
@@ -167,6 +169,24 @@ GLOBAL_VAR(bot_telemetry_log)
 	telemetry_last_turf = T
 	if(moved || telemetry_action)
 		telemetry_touch()
+	// A Bot Gym's verdicts read the tells and the idle stretches below, not these lines, and nothing reads a gym's file back: writing
+	// them was 10% of a full gym's server time (2026-11-09). bot-gym-samples=1 keeps them.
+	if(GLOB.bot_telemetry_samples)
+		telemetry_write_sample(T, moved)
+	// Idle tracking: report a stretch once it ends, with what the bot was supposedly doing.
+	var/idle_for = world.time - telemetry_last_activity
+	if(idle_for >= BOT_TELEMETRY_IDLE_THRESHOLD && owner.stat == CONSCIOUS && !owner.incapacitated())
+		if(!telemetry_idle_since)
+			telemetry_idle_since = telemetry_last_activity
+	else if(telemetry_idle_since)
+		var/duration = world.time - telemetry_idle_since
+		telemetry_idle_since = 0
+		telemetry_flag("idle_3s")
+		telemetry_write(list("k" = "e", "ev" = "idle", "dur" = duration, "x" = T?.x, "y" = T?.y, "z" = T?.z,
+			"g" = bot_telemetry_short(current_goal?.type), "st" = state, "pk" = pursuing_kind))
+
+/// The twice-a-second "where and what" line.
+/datum/bot_brain/proc/telemetry_write_sample(turf/T, moved)
 	var/list/record = list(
 		"k" = "s",
 		"x" = T?.x, "y" = T?.y, "z" = T?.z,
@@ -186,17 +206,6 @@ GLOBAL_VAR(bot_telemetry_log)
 	)
 	record += telemetry_hands()
 	telemetry_write(record)
-	// Idle tracking: report a stretch once it ends, with what the bot was supposedly doing.
-	var/idle_for = world.time - telemetry_last_activity
-	if(idle_for >= BOT_TELEMETRY_IDLE_THRESHOLD && owner.stat == CONSCIOUS && !owner.incapacitated())
-		if(!telemetry_idle_since)
-			telemetry_idle_since = telemetry_last_activity
-	else if(telemetry_idle_since)
-		var/duration = world.time - telemetry_idle_since
-		telemetry_idle_since = 0
-		telemetry_flag("idle_3s")
-		telemetry_write(list("k" = "e", "ev" = "idle", "dur" = duration, "x" = T?.x, "y" = T?.y, "z" = T?.z,
-			"g" = bot_telemetry_short(current_goal?.type), "st" = state, "pk" = pursuing_kind))
 
 // ---------------------------------------------------------------------------------------------
 // Body hooks - every item movement on a bot, whichever code path caused it

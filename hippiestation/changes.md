@@ -66,6 +66,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/objects/items/tools/wirecutters.dm !Should be modularized. Can be done easily.
 ## code/game/objects/obj_defense.dm
 ## code/game/objects/structures/grille.dm
+## code/game/turfs/change_turf.dm
 ## code/game/turfs/open.dm
 ## code/game/world.dm !Needs modularization! This stuff is crap.
 ## code/modules/admin/admin.dm
@@ -105,6 +106,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/keybindings/setup.dm
 ## code/modules/library/lib_machines.dm
 ## code/modules/library/random_books.dm
+## code/modules/mapping/space_management/space_reservation.dm
 ## code/modules/mining/equipment/survival_pod.dm !Should be modularized. Can be done easily.
 ## code/modules/mob/dead/new_player/new_player.dm
 ## code/modules/mob/dead/new_player/poll.dm

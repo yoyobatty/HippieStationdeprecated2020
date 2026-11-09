@@ -51,6 +51,11 @@ def result_lines(summary_path):
     return lines
 
 
+def transcript_name(scenario):
+    """bot_gym.dm's file name for a scenario: spaces to underscores, then no \\ / : * ? " < > | (a colon is an NTFS stream)."""
+    return re.sub(r'[\\/:*?"<>|]', "", scenario.replace(" ", "_"))
+
+
 def load_from_summary(summary_path):
     """A build from before split gyms writes no load.json: its summary's load line, near enough."""
     try:
@@ -123,10 +128,15 @@ def main():
             if load["over"] > load["seconds"] * 0.1:
                 slow_servers.append(index)
         elsewhere += load.get("elsewhere") or 0
+        # A server writes each transcript as <its place in the suite>.log (a scenario's name made the path too long for Windows there);
+        # here it gets the name bot_gym.dm gives it in data/bot_gym. A build from before that wrote names itself: those move as they are.
         transcripts = os.path.join(path, "transcripts")
         if os.path.isdir(transcripts):
+            by_order = {str(r.get("order")): r for r in results}
             for name in os.listdir(transcripts):
-                os.replace(os.path.join(transcripts, name), os.path.join(out, "transcripts", name))
+                r = by_order.get(name[:-4]) if name.endswith(".log") else None
+                target = f"{transcript_name(r['name'])}_{r['run']}.log" if r else name
+                os.replace(os.path.join(transcripts, name), os.path.join(out, "transcripts", target))
 
     entries.sort(key=lambda e: e[0])
     counts = {k: 0 for k in OUTCOMES}

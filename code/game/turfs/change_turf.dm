@@ -139,8 +139,16 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 				lighting_clear_overlay()
 		lighting_engine_push() // hippie -- a new turf: the lighting engine's flags for it (lighting_engine.dm)
 
-		for(var/turf/open/space/S in RANGE_TURFS(1, src)) //RANGE_TURFS is in code\__HELPERS\game.dm
-			S.update_starlight()
+		// hippie start -- space into space (a reservation claiming /turf/open/space/basic, shuttle transit) changes nothing a
+		// neighbour's starlight depends on (whether a turf beside it isn't space), so only this turf's own is worked out. Nine
+		// update_starlight()s a turf, each looking at nine turfs, were 5% of a Bot Gym's server time (2026-11-09).
+		if(ispath(old_type, /turf/open/space) && isspaceturf(W))
+			var/turf/open/space/self = W
+			self.update_starlight()
+		else
+			for(var/turf/open/space/S in RANGE_TURFS(1, src)) //RANGE_TURFS is in code\__HELPERS\game.dm
+				S.update_starlight()
+		// hippie end
 
 	return W
 
