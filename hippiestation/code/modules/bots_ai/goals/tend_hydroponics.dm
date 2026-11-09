@@ -289,6 +289,13 @@ GLOBAL_LIST_INIT(bot_botany_crops, list(
 			put_away_botany(held)
 	return ready_in_hand(I)
 
+/// Somewhere for it without putting anything else down: a free hand, or room in the bag.
+/datum/bot_brain/proc/has_room_for(obj/item/I)
+	if(!owner.get_active_held_item() || !owner.get_inactive_held_item())
+		return TRUE
+	var/obj/item/storage/pack = owner.get_item_by_slot(ITEM_SLOT_BACK)
+	return pack && SEND_SIGNAL(pack, COMSIG_TRY_STORAGE_CAN_INSERT, I, owner, TRUE)
+
 /// Picks a loose item up off the floor/table/vendor tray and puts it in the bag.
 /datum/bot_brain/proc/take_botany_item(obj/item/I)
 	if(!I || QDELETED(I) || !isturf(I.loc) || get_dist(owner, I) > 1)
@@ -718,10 +725,12 @@ GLOBAL_LIST_INIT(bot_botany_crops, list(
 	if(QDELETED(tray) || !bot.owner.Adjacent(tray))
 		return FALSE
 	var/turf/here = get_turf(bot.owner)
-	// Picked by hand (no plant bag): gather up what fell at our feet.
+	// Picked by hand (no plant bag): gather up what fell at our feet, as much as there's room for. With both hands full and the
+	// bag full it used to pick each one up and set the last one down: thirteen pumpkins, one after another, ending where they
+	// started. The rest stay by the tray for the plant bag.
 	if(harvested && !bot.carried_plant_bag())
 		var/obj/item/reagent_containers/food/snacks/grown/G = locate() in here
-		if(G)
+		if(G && bot.has_room_for(G))
 			return bot.take_botany_item(G)
 	var/plant = tray.myseed?.plantname
 	if(tray.dead)

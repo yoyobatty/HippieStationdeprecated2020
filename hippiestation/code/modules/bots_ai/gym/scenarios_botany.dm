@@ -192,3 +192,40 @@
 /datum/bot_scenario/botany/flush_toxic_tray/botany_check()
 	var/obj/machinery/hydroponics/H = first_placed("H")
 	return H.toxic < 20 ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/botany/hands_full_harvest
+	name = "botanist with its hands full and no plant bag harvests by hand without juggling the crop"
+	desc = "A bucket and a cultivator in its hands, a full bag, no plant bag to be had, and eight pumpkins ripe. It used to pick each one up and set the last one down: thirteen pumpkins in a real shift, one after another, ending where they started. As many as there's room for, and the rest stay by the tray."
+	layout = list(
+		"#########",
+		"#B..H...#",
+		"#########")
+	time_limit = 40 SECONDS
+	kit_hands = list(/obj/item/reagent_containers/glass/bucket, /obj/item/cultivator)
+	kit_backpack = list(/obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher)
+
+/datum/bot_scenario/botany/hands_full_harvest
+	var/harvested_at = 0
+
+/datum/bot_scenario/botany/hands_full_harvest/setup()
+	var/obj/machinery/hydroponics/H = first_placed("H")
+	plant(H, /obj/item/seeds/pumpkin)
+	H.myseed.yield = 8
+	H.age = 10
+	H.harvest = TRUE
+	H.update_icon()
+
+/datum/bot_scenario/botany/hands_full_harvest/botany_check()
+	var/obj/machinery/hydroponics/H = first_placed("H")
+	var/set_downs = 0
+	for(var/line in transcript)
+		if(findtext(line, "setting the pumpkin down"))
+			set_downs++
+	if(set_downs > 1)
+		fail_reason = "juggled the crop: set a pumpkin down [set_downs] times"
+		return BOT_GYM_FAIL
+	if(H.harvest)
+		return BOT_GYM_PENDING
+	if(!harvested_at)
+		harvested_at = world.time
+	return world.time >= harvested_at + 8 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING //the gathering up comes after
