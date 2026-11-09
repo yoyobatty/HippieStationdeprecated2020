@@ -33,6 +33,10 @@ map ministation
 	votable
 endmap
 
+map perihelion
+	votable
+endmap
+
 map boxstation
 endmap
 
