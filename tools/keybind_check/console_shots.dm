@@ -317,6 +317,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_bots6(C, H, label)
 		if("polls7")
 			cs_polls7(C, H, label)
+		if("admin8")
+			cs_admin8(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -8795,3 +8797,72 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	NP << browse(null, "window=playerpolllist")
 	H.ckey = C.ckey
 	sleep(10)
+
+// ---------------------------------------------------------------------------------------------
+// Old windows, batch 8: the admin player options panel
+// ---------------------------------------------------------------------------------------------
+
+/proc/cs_admin8(client/C, mob/living/carbon/human/H, label)
+	if(!C.holder)
+		var/datum/admins/A = new(new /datum/admin_rank("!localhost!", R_EVERYTHING, R_DBRANKS, R_EVERYTHING), C.ckey, 1, 1)
+		A.associate(C)
+	H.equipOutfit(/datum/outfit/job/scientist)
+	H.mind.assigned_role = "Scientist"
+	usr = H
+	C.holder.show_player_panel(H)
+	sleep(20)
+	var/datum/tgui/ui = cs_ui_named(H, "admin_player_panel")
+	cs_b1_shot(C, H, ui?.src_object, "popup_admin8_[label]_1_panel", "adminplayeropts")
+	if(ui)
+		var/datum/panel = ui.src_object
+		var/before = C.prefs.muted & MUTE_IC
+		cs_act(panel, H, "link", list("kind" = "holder", "params" = "mute=[H.ckey];mute_type=[MUTE_IC]"))
+		sleep(5)
+		cs_check("admin8: mute IC from the panel ([before] -> [C.prefs.muted & MUTE_IC])", (C.prefs.muted & MUTE_IC) != before)
+		cs_act(panel, H, "link", list("kind" = "holder", "params" = "mute=[H.ckey];mute_type=[MUTE_IC]"))
+		cs_act(panel, H, "link", list("kind" = "holder", "params" = "revive=[REF(H)]"))
+		H.adjustBruteLoss(30)
+		cs_act(panel, H, "link", list("kind" = "holder", "params" = "revive=[REF(H)]"))
+		sleep(5)
+		cs_check("admin8: Heal from the panel ([H.getBruteLoss()] brute)", H.getBruteLoss() == 0)
+		var/turf/was = get_turf(H)
+		cs_act(panel, H, "link", list("kind" = "holder", "params" = "tdome1=[REF(H)];x=1"))
+		cs_check("admin8: a link the panel didn't show is refused", get_turf(H) == was)
+		SStgui.update_uis(panel)
+		sleep(10)
+		cs_tgui_do(C, ui.window_id, "scroll:600")
+		sleep(10)
+		cs_shot("popup_admin8_[label]_2_panel_lower")
+	else
+		C << browse(null, "window=adminplayeropts-[REF(H)]")
+	SStgui.close_user_uis(H)
+
+	// Secrets, and a list it opens
+	usr = H
+	C.holder.Secrets()
+	sleep(15)
+	var/datum/tgui/secrets_ui = cs_ui_named(H, "admin_secrets")
+	cs_b1_shot(C, H, secrets_ui?.src_object, "popup_admin8_[label]_3_secrets", "secrets")
+	if(secrets_ui)
+		cs_act(secrets_ui.src_object, H, "secret", list("id" = "show_admins"))
+		sleep(15)
+		var/datum/tgui/list_ui = cs_ui_named(H, "admin_list")
+		cs_check("admin8: Secrets' admin list opens in the list window", list_ui)
+		cs_act(secrets_ui.src_object, H, "secret", list("id" = "not_a_secret"))
+		cs_check("admin8: an unknown secret is refused", TRUE)
+		SStgui.close_user_uis(H)
+		cs_act(secrets_ui.src_object, H, "secret", list("id" = "manifest"))
+		sleep(15)
+		list_ui = cs_ui_named(H, "admin_list")
+		if(list_ui)
+			winset(C, list_ui.window_id, "pos=60,20")
+			sleep(15)
+		cs_shot("popup_admin8_[label]_4_secrets_manifest")
+	else
+		usr = H
+		C.holder.Secrets_topic("manifest", list())
+		sleep(15)
+		cs_shot("popup_admin8_[label]_4_secrets_manifest", "")
+		C << browse(null, "window=manifest")
+		C << browse(null, "window=secrets")
+	SStgui.close_user_uis(H)

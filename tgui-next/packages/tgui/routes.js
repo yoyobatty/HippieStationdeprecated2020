@@ -3,6 +3,8 @@ import { Achievements } from './interfaces/Achievements';
 import { AdminAlerts } from './interfaces/AdminAlerts';
 import { AdminFind } from './interfaces/AdminFind';
 import { AdminHub } from './interfaces/AdminHub';
+import { AdminPlayerPanel } from './interfaces/AdminPlayerPanel';
+import { AdminList, AdminSecrets } from './interfaces/AdminSecrets';
 import { AiAirlock } from './interfaces/AiAirlock';
 import { AirAlarm } from './interfaces/AirAlarm';
 import { AirlockElectronics } from './interfaces/AirlockElectronics';
@@ -183,7 +185,6 @@ import { MechSleeper, MechSyringeGun, PaiCard } from './interfaces/MechMedicalPa
 import { ExperimentScanner } from './interfaces/Experiments';
 import { LateJoin, Lobby } from './interfaces/Lobby';
 import { RoundEnd } from './interfaces/RoundEnd';
-import { RoundStats } from './interfaces/RoundStats';
 import { StationMap } from './interfaces/StationMap';
 import { BotCrewMonitor } from './interfaces/BotCrewMonitor';
 import { DiseaseMenu } from './interfaces/DiseaseMenu';
@@ -556,10 +557,6 @@ const ROUTES = {
   roundend_report: {
     component: () => RoundEnd,
     scrollable: false,
-  },
-  round_stats: {
-    component: () => RoundStats,
-    scrollable: true,
   },
   safe: {
     component: () => Safe,
@@ -1320,6 +1317,18 @@ const ROUTES = {
   },
   html_notice: {
     component: () => HtmlNotice,
+    scrollable: true,
+  },
+  admin_player_panel: {
+    component: () => AdminPlayerPanel,
+    scrollable: true,
+  },
+  admin_secrets: {
+    component: () => AdminSecrets,
+    scrollable: true,
+  },
+  admin_list: {
+    component: () => AdminList,
     scrollable: true,
   },
 };
