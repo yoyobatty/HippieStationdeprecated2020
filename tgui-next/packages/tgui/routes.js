@@ -2,6 +2,7 @@ import { AbductorConsole, AbductorExperiment, GlandDispenser } from './interface
 import { Achievements } from './interfaces/Achievements';
 import { AdminAlerts } from './interfaces/AdminAlerts';
 import { AdminFind } from './interfaces/AdminFind';
+import { AdminBeakers, AdminDynamic, AdminEvents, AdminSoundEmitter } from './interfaces/AdminFun';
 import { AdminHub } from './interfaces/AdminHub';
 import { AdminIndividualLog, AdminInvestigate, AdminLogFiles, AdminPlaytime, AdminSdqlResults, AdminUpgradeReport, PlayerPlaytime } from './interfaces/AdminLogs';
 import { RoundStatus, TeamListing, TraitorPanel } from './interfaces/AdminPages';
@@ -1427,6 +1428,22 @@ const ROUTES = {
   },
   admin_upgrade_report: {
     component: () => AdminUpgradeReport,
+    scrollable: true,
+  },
+  admin_dynamic: {
+    component: () => AdminDynamic,
+    scrollable: true,
+  },
+  admin_events: {
+    component: () => AdminEvents,
+    scrollable: true,
+  },
+  admin_beakers: {
+    component: () => AdminBeakers,
+    scrollable: true,
+  },
+  admin_sound_emitter: {
+    component: () => AdminSoundEmitter,
     scrollable: true,
   },
 };

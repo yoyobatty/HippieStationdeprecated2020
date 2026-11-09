@@ -3345,6 +3345,7 @@
 #include "hippiestation\code\modules\admin\admin_logs_tgui.dm"
 #include "hippiestation\code\modules\admin\log_gaps.dm"
 #include "hippiestation\code\modules\admin\admin_find.dm"
+#include "hippiestation\code\modules\admin\admin_fun_tgui.dm"
 #include "hippiestation\code\modules\admin\ban_window.dm"
 #include "hippiestation\code\modules\antagonists\_common\antag_datum.dm"
 #include "hippiestation\code\modules\antagonists\_common\antag_spawner.dm"

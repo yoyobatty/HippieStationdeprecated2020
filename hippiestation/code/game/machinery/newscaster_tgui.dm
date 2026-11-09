@@ -9,6 +9,8 @@
 /obj/machinery/newscaster
 	/// What the last button did, shown at the top until the next: list(text, "good"/"bad")
 	var/list/news_notice
+	/// The admins' newscaster (Access Newscaster Network, admin_fun_tgui.dm): anyone with a holder, from anywhere, signing as Nanotrasen
+	var/admin_desk = FALSE
 
 /obj/machinery/newscaster/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)
 	if(!(ishuman(user) || issilicon(user)) || !user.client)
@@ -164,7 +166,7 @@
 /obj/machinery/newscaster/ui_act(action, params)
 	if(..())
 		return
-	if(!(ishuman(usr) || issilicon(usr)))
+	if(!(ishuman(usr) || issilicon(usr) || (admin_desk && usr.client?.holder)))
 		return
 	scan_user(usr)
 	news_notice = null
@@ -176,17 +178,17 @@
 	switch(action)
 		// What the old Topic did as it was
 		if("view", "create_channel", "create_feed_story", "menu_wanted", "view_wanted", "set_channel_lock", "set_attachment", "set_comment")
-			Topic(null, list("[action]" = "1"))
+			news_topic(list("[action]" = "1"))
 		if("screen")
 			var/to_screen = text2num(params["screen"])
 			if(!(to_screen in list(0, 1, 2, 3)))
 				return
-			Topic(null, list("setScreen" = "[to_screen]"))
+			news_topic(list("setScreen" = "[to_screen]"))
 		if("show_channel")
 			var/datum/newscaster/feed_channel/FC = locate(params["ref"]) in network.network_channels
 			if(!FC)
 				return
-			Topic(null, list("show_channel" = REF(FC)))
+			news_topic(list("show_channel" = REF(FC)))
 		if("print_paper")
 			// One click: where you are, with what happened at the top
 			if(!paper_remaining)
@@ -208,7 +210,7 @@
 			if(body)
 				msg = body
 			var/posted_to = channel_name
-			Topic(null, list("submit_new_message" = "1"))
+			news_topic(list("submit_new_message" = "1"))
 			if(screen == 4) // posted: on to the channel, to see it there
 				news_show_channel(posted_to)
 				news_notice = list("Feed story successfully submitted to [posted_to].", "good")
@@ -301,6 +303,10 @@
 	add_fingerprint(usr)
 	return TRUE
 
+/// The old Topic's buttons the window still uses (the admins' desk does them itself: the old Topic wants you next to the unit)
+/obj/machinery/newscaster/proc/news_topic(list/href_list)
+	Topic(null, href_list)
+
 /obj/machinery/newscaster/proc/news_show_channel(name)
 	for(var/datum/newscaster/feed_channel/FC in GLOB.news_network.network_channels)
 		if(FC.channel_name == name)
@@ -320,7 +326,7 @@
 	if(channel_name == "" || channel_name == "\[REDACTED\]" || scanned_user == "Unknown" || taken || (scanned_user in existing_authors))
 		screen = 7
 		return
-	network.CreateFeedChannel(channel_name, scanned_user, c_locked)
+	network.CreateFeedChannel(channel_name, scanned_user, c_locked, admin_desk)
 	SSblackbox.record_feedback("text", "newscaster_channels", 1, "[channel_name]")
 	screen = 5
 
@@ -331,10 +337,10 @@
 		screen = 16
 		return FALSE
 	if(input_param == 1)
-		network.submitWanted(channel_name, msg, scanned_user, picture, 0, 1)
+		network.submitWanted(channel_name, msg, scanned_user, picture, admin_desk, 1)
 		return TRUE
-	if(network.wanted_issue.isAdminMsg)
+	if(network.wanted_issue.isAdminMsg && !admin_desk)
 		to_chat(usr, "<span class='warning'>The wanted issue has been distributed by a Nanotrasen higherup. You cannot edit it.</span>")
 		return FALSE
-	network.submitWanted(channel_name, msg, scanned_user, picture)
+	network.submitWanted(channel_name, msg, scanned_user, picture, admin_desk)
 	return TRUE

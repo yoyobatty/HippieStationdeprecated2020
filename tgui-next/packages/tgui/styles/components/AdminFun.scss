@@ -1,0 +1,153 @@
+// hippie -- more admin windows (interfaces/AdminFun.js)
+
+.AdminFun__muted {
+  color: #8a93a3;
+}
+
+.AdminFun__option {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.AdminFun__optionText {
+  flex: 1;
+  min-width: 0;
+}
+
+.AdminFun__notice {
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  border-left: 3px solid #5baa27;
+  background: rgba(91, 170, 39, 0.12);
+}
+
+.AdminFun__notice--bad {
+  border-left-color: #db2828;
+  background: rgba(219, 40, 40, 0.15);
+}
+
+// Dynamic
+
+.AdminFun__stats {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+
+  > * {
+    margin-right: 8px;
+  }
+}
+
+.AdminFun__stat {
+  padding: 6px 12px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  text-align: center;
+}
+
+.AdminFun__stat--wide {
+  flex: 1;
+  text-align: left;
+}
+
+.AdminFun__statValue {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.AdminFun__ruleset {
+  padding: 2px 0;
+}
+
+.AdminFun__tag {
+  margin-right: 6px;
+  padding: 0 6px;
+  border-radius: 3px;
+  background: rgba(73, 114, 161, 0.45);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.AdminFun__logLine {
+  padding: 3px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+// Events
+
+.AdminFun__event {
+  display: flex;
+  align-items: center;
+  padding: 5px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.AdminFun__eventMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.AdminFun__stop {
+  display: inline-block;
+  margin: 2px 4px 0 0;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #b0b8c4;
+  font-size: 10px;
+}
+
+// Reagent containers
+
+.AdminFun__pair {
+  display: flex;
+
+  > * {
+    flex: 1;
+    min-width: 0;
+  }
+
+  > *:first-child {
+    margin-right: 6px;
+  }
+}
+
+.AdminFun__picked {
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.AdminFun__pick {
+  padding: 2px 6px;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(73, 114, 161, 0.35);
+  }
+}
+
+.AdminFun__heading {
+  margin: 8px 0 4px;
+  color: #9fc4ff;
+  font-weight: bold;
+}
+
+.AdminFun__reagent {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.AdminFun__reagentName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

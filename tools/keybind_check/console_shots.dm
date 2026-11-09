@@ -329,6 +329,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_admin12(C, H, label)
 		if("admin13")
 			cs_admin13(C, H, label)
+		if("admin14")
+			cs_admin14(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -9309,3 +9311,109 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 		var/list/data = ui.src_object.ui_data(H)
 		cs_check("admin13: the upgrade report lists what was upgraded ([length(data["rows"])])", length(data["rows"]) >= 1)
 	SStgui.close_user_uis(H)
+
+/proc/cs_admin14(client/C, mob/living/carbon/human/H, label)
+	if(!C.holder)
+		var/datum/admins/A = new(new /datum/admin_rank("!localhost!", R_EVERYTHING, R_DBRANKS, R_EVERYTHING), C.ckey, 1, 1)
+		A.associate(C)
+	H.equipOutfit(/datum/outfit/job/assistant)
+	usr = H
+	SStgui.close_user_uis(H)
+
+	// The admins' newscaster, with a story already on the network
+	GLOB.news_network.CreateFeedChannel("Station Announcements", "Captain Reyes (Captain)", FALSE)
+	GLOB.news_network.SubmitArticle("Atmospherics reports the plasma leak in the bar is sealed. Please stop opening canisters.", "Captain Reyes (Captain)", "Station Announcements", null, 0, 1)
+	C.holder.access_news_network()
+	sleep(20)
+	var/datum/tgui/ui = cs_ui_named(H, "newscaster")
+	if(ui)
+		var/list/data = ui.src_object.ui_data(H)
+		cs_check("admin14: the admin newscaster signs as Nanotrasen ([data["user"]])", findtext("[data["user"]]", "Nanotrasen"))
+		cs_act(ui.src_object, H, "create_feed_story")
+		cs_act(ui.src_object, H, "set_channel_receiving", list("text" = "Station Announcements"))
+		ui.src_object.vars["msg"] = "Central Command thanks the crew for keeping the station breathable."
+		cs_act(ui.src_object, H, "submit_story")
+		var/found = FALSE
+		for(var/datum/newscaster/feed_channel/FC in GLOB.news_network.network_channels)
+			for(var/datum/newscaster/feed_message/M in FC.messages)
+				if(findtext(M.returnBody(-1), "breathable") && M.is_admin_message)
+					found = TRUE
+		cs_check("admin14: a story from it goes out as Nanotrasen's", found)
+		cs_act(ui.src_object, H, "screen", list("screen" = 0))
+		SStgui.update_uis(ui.src_object)
+		sleep(10)
+	cs_b1_shot(C, H, ui?.src_object, "popup_admin14_[label]_1_newscaster", "admincaster_main")
+	SStgui.close_user_uis(H)
+
+	// Dynamic mode: the options, then the live panel on a made-up dynamic round
+	var/old_master = GLOB.master_mode
+	GLOB.master_mode = "dynamic"
+	C.holder.dynamic_mode_options(H)
+	sleep(15)
+	ui = cs_ui_named(H, "admin_dynamic")
+	if(ui)
+		cs_act(ui.src_object, H, "set", list("option" = "stacking_limit", "value" = 60))
+		cs_check("admin14: dynamic's stacking limit set in the window ([GLOB.dynamic_stacking_limit])", GLOB.dynamic_stacking_limit == 60)
+		SStgui.update_uis(ui.src_object)
+		sleep(5)
+	cs_b1_shot(C, H, ui?.src_object, "popup_admin14_[label]_2_dynamic_options", "dyn_mode_options")
+	SStgui.close_user_uis(H)
+	var/datum/game_mode/old_mode = SSticker.mode
+	var/datum/game_mode/dynamic/D = new
+	D.threat_level = 62
+	D.threat = 18
+	D.peaceful_percentage = 71
+	D.current_players = list(list(H), list(), list(), list()) // living, living antags, dead, observers (dynamic.dm's order)
+	D.latejoin_injection_cooldown = world.time + 7 MINUTES
+	D.midround_injection_cooldown = world.time + 21 MINUTES
+	D.threat_log = list("[worldtime2text()]: Roundstart Traitors spent 18", "[worldtime2text()]: Midround Blob spent 26")
+	SSticker.mode = D
+	D.admin_panel()
+	sleep(15)
+	ui = cs_ui_named(H, "admin_dynamic")
+	cs_b1_shot(C, H, ui?.src_object || D, "popup_admin14_[label]_3_dynamic_round", "gamemode_panel")
+	SStgui.close_user_uis(H)
+	SSticker.mode = old_mode
+	GLOB.master_mode = old_master
+
+	// Trigger Event
+	C.holder.forceEvent()
+	sleep(15)
+	ui = cs_ui_named(H, "admin_events")
+	if(ui)
+		var/list/data = ui.src_object.ui_data(H)
+		cs_check("admin14: Trigger Event lists the events ([length(data["events"])])", length(data["events"]) >= 10)
+	cs_b1_shot(C, H, ui?.src_object, "popup_admin14_[label]_4_events", "forceevent")
+	SStgui.close_user_uis(H)
+
+	// Spawn reagent container: a large beaker of water under me
+	C.holder.beaker_panel()
+	sleep(20)
+	ui = cs_ui_named(H, "admin_beakers")
+	if(ui)
+		cs_act(ui.src_object, H, "spawn_container", list("container" = list("container" = "/obj/item/reagent_containers/glass/beaker/large", "reagents" = list(list("reagent" = "/datum/reagent/water", "volume" = 30)))))
+		var/made = FALSE
+		for(var/obj/item/reagent_containers/glass/beaker/large/B in get_turf(H))
+			if(B.reagents.has_reagent(/datum/reagent/water, 30))
+				made = TRUE
+		cs_check("admin14: the spawner makes a beaker of 30u water", made)
+		cs_tgui_do(C, ui.window_id, "input1:water")
+		sleep(10)
+	cs_b1_shot(C, H, ui?.src_object, "popup_admin14_[label]_5_beakers", "beakerpanel")
+	SStgui.close_user_uis(H)
+
+	// A sound emitter
+	var/obj/effect/sound_emitter/E = new(cs_open_beside(H))
+	E.edit_emitter(H)
+	sleep(15)
+	ui = cs_ui_named(H, "admin_sound_emitter")
+	if(ui)
+		cs_act(ui.src_object, H, "volume", list("value" = 80))
+		cs_act(ui.src_object, H, "mode", list("value" = "direct"))
+		cs_act(ui.src_object, H, "range", list("value" = "radius"))
+		cs_check("admin14: the emitter's settings change in the window", E.sound_volume == 80 && E.motus_operandi == "direct" && E.emitter_range == "radius")
+		SStgui.update_uis(ui.src_object)
+		sleep(5)
+	cs_b1_shot(C, H, ui?.src_object, "popup_admin14_[label]_6_sound_emitter", "emitter")
+	SStgui.close_user_uis(H)
+	qdel(E, TRUE)
