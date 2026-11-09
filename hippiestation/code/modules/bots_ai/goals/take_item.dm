@@ -32,12 +32,14 @@
 	owner.dropItemToGround(active)
 	LAZYADD(set_down_items, active)
 
-/// The nearest loose item of item_type within `reach` tiles that the bot might walk to. A Bot Gym bot only sees its own arena's.
+/// The nearest loose item of item_type within `reach` tiles that the bot might walk to, of those it knows of (bot_knowledge.dm). A Bot
+/// Gym bot only sees its own arena's.
 /datum/bot_brain/proc/find_loose_item(item_type, reach = 60)
+	glance_at_items()
 	var/obj/item/best
 	var/best_dist
 	for(var/obj/item/I as anything in bot_instances_of(item_type))
-		if(QDELETED(I) || !isturf(I.loc) || I.anchored || I.z != owner.z || on_a_shuttle_without_me(I))
+		if(QDELETED(I) || !isturf(I.loc) || I.anchored || I.z != owner.z || on_a_shuttle_without_me(I) || !knows_of(I))
 			continue
 		var/dist = get_dist(owner, I)
 		if(dist > reach || (best && dist >= best_dist))

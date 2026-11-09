@@ -414,10 +414,11 @@ GLOBAL_LIST_INIT(bot_botany_crops, list(
 /// vendor that sells it, whichever is closer - a player grabs the bucket by the water tank
 /// rather than walking to a machine for a new one.
 /datum/bot_brain/proc/find_botany_supply(item_type)
+	glance_at_items()
 	var/atom/best
 	var/best_dist
 	for(var/obj/item/I as anything in bot_instances_of(item_type))
-		if(!isturf(I.loc) || I.anchored || !botany_in_reach(I))
+		if(!isturf(I.loc) || I.anchored || !botany_in_reach(I) || !knows_of(I)) //what it knows of (bot_knowledge.dm)
 			continue
 		if(I.reagents && istype(I, /obj/item/reagent_containers/spray) && !I.reagents.total_volume)
 			continue //an empty spray bottle is no use

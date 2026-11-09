@@ -395,8 +395,9 @@ GLOBAL_LIST_INIT(bot_botany_ancestors, list(
 	return null
 
 /datum/bot_brain/proc/find_loose_mutagen()
+	glance_at_items()
 	for(var/obj/item/reagent_containers/C as anything in bot_instances_of(/obj/item/reagent_containers/glass))
-		if(isturf(C.loc) && botany_in_reach(C) && C.reagents?.get_reagent_amount(/datum/reagent/toxin/mutagen) >= 5)
+		if(isturf(C.loc) && botany_in_reach(C) && C.reagents?.get_reagent_amount(/datum/reagent/toxin/mutagen) >= 5 && knows_of(C)) //bot_knowledge.dm
 			return C
 	return null
 

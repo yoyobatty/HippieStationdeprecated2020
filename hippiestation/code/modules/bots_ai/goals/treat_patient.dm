@@ -822,9 +822,10 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 // effective. Doesn't synthesize cryoxadone itself (stable_plasma + acetone + mutagen at
 // a chem dispenser) - that's a chemist's job, not folded into doctor behavior here.
 /datum/bot_brain/proc/find_reachable_healing_beaker()
+	glance_at_items()
 	var/obj/item/reagent_containers/glass/fallback
 	for(var/obj/item/reagent_containers/glass/B as anything in bot_instances_of(/obj/item/reagent_containers/glass))
-		if(!isturf(B.loc) || B.anchored)
+		if(!isturf(B.loc) || B.anchored || !knows_of(B)) //what it knows of (bot_knowledge.dm)
 			continue
 		if(!B.reagents || !B.reagents.total_volume)
 			continue

@@ -389,6 +389,8 @@
 		var/atom/movable/holder = bot_outermost_holder(I)
 		if(QDELETED(I) || bot_on_somebody(I) || !isturf(holder.loc) || holder.z != bot.owner.z || istype(holder, /obj/structure/safe)) //nobody here cracks a safe
 			continue
+		if(!bot.knows_of(I))
+			continue //where it's kept, as any traitor knows, or where it was seen since (bot_knowledge.dm)
 		var/dist = get_dist(bot.owner, holder)
 		if(!best || dist < best_dist)
 			best = holder

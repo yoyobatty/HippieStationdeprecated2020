@@ -7,7 +7,7 @@
 // has seen it there: a glance round every few seconds (keep_an_eye_out()), and a look inside a locker or box it opens. A thing moved
 // since isn't known any more: nobody follows something they can't see.
 //
-// Gym arenas count what a scenario has laid out by the time it hands the bot its goal as mapped, so the scenarios keep their setups.
+// Gym arenas count what a scenario has laid out by the time the bot arrives as mapped, so the scenarios keep their setups.
 // Goals ask through knows_of() and knows_of_inside(); converted so far: acquire_item_type.dm, acquire_tool.dm. Those two also know what
 // the vending machines sell (vendors_selling()), as anybody on the crew does.
 
@@ -88,9 +88,10 @@ GLOBAL_VAR_INIT(bot_knowledge_off, world.params["bot-knowledge"] == "off")
 		H.bot_brain.look_inside(src)
 	return ..()
 
-/// The gym: what the arena has in it when the bot gets its goal is the arena's "map"
-/datum/bot_scenario/issue_goal()
-	if(!goal_attempts && arena_area)
+/// The gym: what the arena has in it when the bot arrives is the arena's "map". At the spawn, not the first goal: a duty scenario's
+/// issue_goal() doesn't call its parent, and nothing else overrides spawn_bot().
+/datum/bot_scenario/spawn_bot()
+	if(arena_area)
 		for(var/turf/T in arena_area)
 			for(var/obj/item/I in T.GetAllContents())
 				bot_note_mapped(I)

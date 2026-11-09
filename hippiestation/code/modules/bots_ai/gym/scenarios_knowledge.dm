@@ -136,3 +136,14 @@
 		fail_reason = "went for the kept one without trying the machine beside it"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+/datum/bot_scenario/knows_kept_not_unseen/take_in_hand
+	name = "knowledge: asked to take a screwdriver in hand, it goes where one's kept, not for a nearer one dropped out of sight"
+	desc = "The same for an errand that wants the thing in a hand (goals/take_item.dm), as the janitor's mop and the nanite disks do."
+
+/datum/bot_scenario/knows_kept_not_unseen/take_in_hand/make_goal()
+	if(goal_attempts > 1)
+		return null
+	if(!dropped)
+		dropped = new(first_marker("q"))
+	return new /datum/bot_goal/take_item(/obj/item/screwdriver)

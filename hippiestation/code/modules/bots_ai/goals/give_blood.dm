@@ -36,6 +36,8 @@
 			continue
 		if(!isturf(B.loc) && !istype(B.loc, /obj/structure/closet))
 			continue //in somebody's hands, or a drip already
+		if(!knows_of(B))
+			continue //where the freezer keeps them, or where it saw one (bot_knowledge.dm)
 		var/dist = get_dist(owner, B)
 		if(!best || dist < best_dist)
 			best = B
