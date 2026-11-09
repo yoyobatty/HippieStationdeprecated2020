@@ -79,7 +79,7 @@
 	if (isturf(loc))
 		myarea = get_area(src)
 		LAZYADD(myarea.cameras, src)
-	proximity_monitor = new(src, 1)
+	// hippie -- only a motion camera makes its proximity monitor now, in upgradeMotion() (hippiestation/code/game/machinery/camera/motion.dm)
 
 	if(mapload && is_station_level(z) && prob(3) && !start_active)
 		toggle_cam()

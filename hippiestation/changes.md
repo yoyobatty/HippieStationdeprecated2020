@@ -48,6 +48,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/gamemodes/game_mode.dm
 ## code/game/gamemodes/traitor/traitor.dm !Should be modularized. Can be done easily.
 ## code/game/machinery/\_machinery.dm
+## code/game/machinery/camera/camera.dm
 ## code/game/machinery/computer/cloning.dm
 ## code/game/machinery/computer/security.dm
 ## code/game/machinery/doors/airlock_types.dm !Should be modularized. Can be done easily.
