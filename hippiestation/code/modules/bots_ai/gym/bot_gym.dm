@@ -8,7 +8,8 @@
 // Run it:   tools/bot_gym/run_bot_gym.sh [name filter] [runs per scenario]
 // or boot:  DreamDaemon hippiestation.dmb -params "bot-gym=all&bot-gym-runs=1"
 //           add &timewarp=0 to fast-forward it (admin/timewarp.dm) - the script does
-// Results:  data/bot_gym/summary.txt, results.json, and a transcript per run in transcripts/.
+// Results:  data/bot_gym/summary.txt, results.json, and a transcript per run in transcripts/ (bot-results=<dir>/ for another folder).
+// Split:    bot-gym-shard=2/8 runs the second of eight parts of the suite, so eight servers can share it (run_bot_gym.sh JOBS=8).
 //
 // For bots left to work a whole shift on the real station, see bot_shift.dm.
 //
@@ -22,6 +23,10 @@
 /// each arena walled, two arenas' floors are never nearer than 2 * margin + 3 tiles, and nothing a bot does looks
 /// further than 7. It was 4 until three passes of every scenario stopped fitting on the one reserved map level.
 #define BOT_GYM_MARGIN 3
+/// "i/n": this server runs part i of n of the suite (bot_gym_shard()).
+#define BOT_GYM_SHARD_PARAMETER "bot-gym-shard"
+/// How long each scenario took last time, in game seconds, for sharing the suite out evenly; tools/bot_gym/merge_gym_shards.py keeps it.
+#define BOT_GYM_TIMES_FILE "data/bot_gym_times.json"
 
 GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 
@@ -67,6 +72,8 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 
 	// --- runtime state ---
 	var/run_index = 1
+	/// Place in the whole suite's list, the same on every shard, so merged results come out in the one order.
+	var/suite_index = 0
 	var/datum/turf_reservation/reservation
 	var/area/bot_gym/arena_area
 	/// Layout character -> list of turfs with it.
@@ -438,7 +445,15 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 		for(var/i in 1 to (probe.station_wide ? 1 : runs))
 			var/datum/bot_scenario/S = (i == 1) ? probe : new path
 			S.run_index = i
+			S.suite_index = length(active) + 1
 			active += S
+	if(world.params[BOT_GYM_SHARD_PARAMETER])
+		active = bot_gym_shard(active, world.params[BOT_GYM_SHARD_PARAMETER])
+	// What this server was given, before anything can go wrong: a server that dies or hangs leaves this, and the merge reports its runs as unfinished.
+	var/list/planned = list()
+	for(var/datum/bot_scenario/S in active)
+		planned += list(list("name" = S.name, "run" = S.run_index, "order" = S.suite_index))
+	text2file(json_encode(planned), "[bot_gym_results_dir()]planned.json")
 	log_world("BOT GYM: running [length(active)] scenario run(s)")
 	// Arenas are built one after another, and only then does everything start at once. Asking for all the map space
 	// in the same tick had a hundred reservation searches (turf_reservation/Reserve(), a slow first-fit scan that
@@ -479,6 +494,53 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	Master.Shutdown()
 	qdel(world)
 
+/// Where results go: data/bot_gym/, or the folder bot-results names (each shard has its own).
+/proc/bot_gym_results_dir()
+	. = world.params[BOT_SHIFT_RESULTS_PARAMETER] || "data/bot_gym/"
+	if(copytext(., -1) != "/")
+		. += "/"
+
+/// The runs that part `shard` ("i/n") of the suite gets. Every shard works the same list out alike: longest first, each to the part with the
+/// least so far, by how long the scenario took last time (BOT_GYM_TIMES_FILE), or its time limit if it has no time yet. A server takes as
+/// long as its slowest scenario plus what all its bots cost a tick, so the long ones are spread first.
+/proc/bot_gym_shard(list/datum/bot_scenario/active, shard)
+	var/list/bits = splittext("[shard]", "/")
+	var/index = text2num(bits[1])
+	var/count = length(bits) > 1 ? text2num(bits[2]) : 0
+	if(!count || !index || index < 1 || index > count)
+		log_world("BOT GYM: bad shard \"[shard]\" (want i/n), running everything")
+		return active
+	var/list/times
+	if(fexists(BOT_GYM_TIMES_FILE))
+		times = json_decode(file2text(BOT_GYM_TIMES_FILE))
+	if(!islist(times))
+		times = list()
+	var/list/weights = list()
+	for(var/datum/bot_scenario/S in active)
+		var/seconds = times[S.name]
+		weights[S] = isnum(seconds) ? max(seconds, 1) : S.time_limit / 10
+	sortTim(weights, /proc/cmp_numeric_dsc, TRUE) //stable, so ties keep the suite's order on every shard
+	var/list/loads = list()
+	for(var/i in 1 to count)
+		loads += 0
+	var/list/datum/bot_scenario/mine = list()
+	var/total = 0
+	for(var/datum/bot_scenario/S as anything in weights)
+		var/least = 1
+		for(var/i in 2 to count)
+			if(loads[i] < loads[least])
+				least = i
+		loads[least] += weights[S]
+		total += weights[S]
+		if(least == index)
+			mine[S] = TRUE
+	log_world("BOT GYM: shard [index] of [count]: [length(mine)] of [length(active)] runs, [round(loads[index])] of [round(total)] game seconds")
+	// Back in the suite's order, so arenas are built and started the way an unsplit run does it.
+	. = list()
+	for(var/datum/bot_scenario/S in active)
+		if(mine[S])
+			. += S
+
 /// One second's judging of every run whose bot exists (arena build + settle take a few seconds), each on its own:
 /// half a dozen checks sleep (up to 3.4 s, the nanosuit witness one), and judged in turn they held up every run after
 /// them in the list - the last arenas went unwatched for their first 8 s, and the grenade and superboom runs, whose
@@ -506,7 +568,7 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 		. += " The server couldn't keep up, so bots ran slow in game time - timeouts and idle tells in this run may not be their doing."
 
 /proc/write_bot_gym_results(list/datum/bot_scenario/active, list/load)
-	var/dir = "data/bot_gym/"
+	var/dir = bot_gym_results_dir()
 	fdel(dir)
 	var/list/json = list()
 	var/list/counts = list("PASS" = 0, "FAIL" = 0, "XFAIL" = 0, "XPASS" = 0, "PENDING" = 0)
@@ -530,7 +592,7 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 		var/seconds = S.end_time ? round((S.end_time - S.start_time) / 10, 0.1) : null
 		var/label = "[S.name][S.run_index > 1 ? " #[S.run_index]" : ""]"
 		lines += "[pad_bot_gym(outcome, 7)][pad_bot_gym(label, 54)][seconds != null ? "[seconds]s" : ""][S.fail_reason ? "   [S.fail_reason]" : ""][S.believability_text()][elsewhere]"
-		json += list(list("name" = S.name, "run" = S.run_index, "outcome" = outcome, "seconds" = seconds, "reason" = S.fail_reason, "desc" = S.desc))
+		json += list(list("name" = S.name, "run" = S.run_index, "outcome" = outcome, "seconds" = seconds, "reason" = S.fail_reason, "desc" = S.desc, "order" = S.suite_index))
 		text2file(jointext(S.transcript, "\n"), "[dir]transcripts/[not_for_filenames.Replace(replacetext(S.name, " ", "_"), "")]_[S.run_index].log")
 	var/header = "BOT GYM  [counts["PASS"]] passed, [counts["FAIL"]] failed, [counts["XFAIL"]] expected failures, [counts["XPASS"]] unexpected passes[counts["PENDING"] ? ", [counts["PENDING"]] unfinished" : ""]"
 	if(load)
@@ -540,6 +602,8 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	var/summary = "[header]\n\n[jointext(lines, "\n")]\nFAILED: [counts["FAIL"] + counts["PENDING"]]\n"
 	text2file(summary, "[dir]summary.txt")
 	text2file(json_encode(json), "[dir]results.json")
+	if(load) //for adding up shards (tools/bot_gym/merge_gym_shards.py)
+		text2file(json_encode(load + list("levels" = length(levels), "elsewhere" = length(levels) > 1 ? length(active) - levels[main_level] : 0)), "[dir]load.json")
 	log_world(summary)
 
 /proc/pad_bot_gym(text, width)

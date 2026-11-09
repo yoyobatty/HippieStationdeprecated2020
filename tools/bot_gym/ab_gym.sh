@@ -49,12 +49,16 @@ OUT=$("$BYOND_BIN/dm.exe" hippiestation.dme 2>&1 | grep -E "dmb - ")
 echo "  $OUT"
 case "$OUT" in *" 0 errors"*) ;; *) echo "After doesn't compile"; exit 1 ;; esac
 
+# Both at once, each on its own servers: before's results in data/bot_gym_before/, after's in data/bot_gym/. Not when bot_gym.dm itself is
+# one of the files, since a build from before split gyms writes data/bot_gym whatever it's told and the two would collide.
 echo
+DMB="$SAVE/before" OUT=data/bot_gym_before RERUN=0 tools/bot_gym/run_bot_gym.sh "$FILTER" "$RUNS" > "$SAVE/before.out" 2>&1 &
+case " $* " in *bot_gym.dm*) wait ;; esac
+NOCOMPILE=1 RERUN=0 tools/bot_gym/run_bot_gym.sh "$FILTER" "$RUNS" > "$SAVE/after.out" 2>&1 &
+wait
 echo "BEFORE"
-DMB="$SAVE/before" RERUN=0 tools/bot_gym/run_bot_gym.sh "$FILTER" "$RUNS" 2>&1 | grep -E "^(PASS|FAIL|XFAIL|XPASS) |^BOT GYM" | cut -c1-220
-# The after run starts by deleting data/bot_gym: what the old code did is kept beside it.
-rm -rf data/bot_gym_before
-cp -r data/bot_gym/transcripts data/bot_gym_before 2>/dev/null && echo "(before's transcripts: data/bot_gym_before/)"
+grep -E "^(PASS|FAIL|XFAIL|XPASS|PENDING) |^BOT GYM|^Took|^WARNING" "$SAVE/before.out" | cut -c1-220
+echo "(before's transcripts: data/bot_gym_before/transcripts/)"
 echo
 echo "AFTER"
-NOCOMPILE=1 RERUN=0 tools/bot_gym/run_bot_gym.sh "$FILTER" "$RUNS" 2>&1 | grep -E "^(PASS|FAIL|XFAIL|XPASS) |^BOT GYM" | cut -c1-220
+grep -E "^(PASS|FAIL|XFAIL|XPASS|PENDING) |^BOT GYM|^Took|^WARNING" "$SAVE/after.out" | cut -c1-220
