@@ -3389,6 +3389,7 @@
 #include "hippiestation\code\modules\assembly\assembly_tgui.dm"
 #include "hippiestation\code\modules\assembly\flash.dm"
 #include "hippiestation\code\modules\assembly\gadgets_tgui.dm"
+#include "hippiestation\code\modules\asset_cache\spritesheet_forge.dm"
 #include "hippiestation\code\modules\atmospherics\atmos_bench.dm"
 #include "hippiestation\code\modules\atmospherics\atmos_tgui.dm"
 #include "hippiestation\code\modules\atmospherics\idle_machines.dm"

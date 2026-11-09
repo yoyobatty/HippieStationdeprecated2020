@@ -10,6 +10,8 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/__DEFINES/misc.dm
 ## code/__DEFINES/mobs.dm
 ## code/__DEFINES/role_preferences.dm
+## code/__DEFINES/rust_g.dm (rust-g 7.0.0's file as released; was a cut-down copy. The SQL defines moved out of ~hippie_defines/sql.dm into it)
+## code/__HELPERS/\_logging.dm
 ## code/__HELPERS/AStar.dm
 ## code/__HELPERS/icons.dm
 ## code/__HELPERS/mobs.dm

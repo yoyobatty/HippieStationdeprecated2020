@@ -10,7 +10,6 @@
 	build_after_init = TRUE
 
 /datum/asset/spritesheet/uplink/register()
-	var/list/states_of = list() // icon_states() is slow on the big files, and many items share one
 	for(var/type in subtypesof(/datum/uplink_item))
 		var/datum/uplink_item/U = type
 		var/atom/item = initial(U.item)
@@ -18,21 +17,14 @@
 			continue
 		var/icon_file = initial(item.icon)
 		var/icon_state = initial(item.icon_state)
-		if(!icon_file)
+		if(!icon_file || !(icon_state in spritesheet_icon_states(icon_file)))
 			continue
-		var/list/states = states_of["[icon_file]"]
-		if(!states)
-			states = icon_states(icon_file)
-			states_of["[icon_file]"] = states
-		if(!(icon_state in states))
-			continue
-		var/icon/I = icon(icon_file, icon_state, SOUTH, 1)
-		if(I.Width() != 32 || I.Height() != 32)
-			I.Scale(32, 32)
+		// iconforge makes the sheet from these (spritesheet_forge.dm): scaled to 32x32 if bigger, then the item's colour
+		var/list/transforms = spritesheet_scale_to_32(icon_file)
 		var/c = initial(item.color)
 		if(!isnull(c) && c != "#FFFFFF")
-			I.Blend(c, ICON_MULTIPLY)
-		Insert(uplink_icon_key(type), I)
+			LAZYADD(transforms, list(list("type" = RUSTG_ICONFORGE_BLEND_COLOR, "color" = c, "blend_mode" = ICON_MULTIPLY)))
+		Insert(uplink_icon_key(type), icon_file, icon_state, SOUTH, 1, FALSE, transforms)
 	return ..()
 
 /datum/component/uplink/ui_base_html(html)

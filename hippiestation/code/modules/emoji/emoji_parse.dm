@@ -30,4 +30,6 @@
 
 /datum/asset/simple/icon_states/emojis
 	icon = 'hippiestation/icons/emoji.dmi'
-	build_after_init = TRUE // hippie -- chat renders emojis with icon2html(), not these
+	// Not built: chat draws emojis with icon2html() above, and nothing asks for these PNGs, so building them only cost a tick
+	// ~60 ms after init and sent every client the lot when it connected
+	_abstract = /datum/asset/simple/icon_states/emojis

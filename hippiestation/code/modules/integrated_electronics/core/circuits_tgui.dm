@@ -31,19 +31,10 @@
 	var/atom/A = path
 	var/icon_file = initial(A.icon)
 	var/icon_state = initial(A.icon_state)
-	if(!icon_file)
+	if(!icon_file || !(icon_state in spritesheet_icon_states(icon_file)))
 		return
-	var/static/list/states_of = list()
-	var/list/states = states_of["[icon_file]"]
-	if(!states)
-		states = icon_states(icon_file)
-		states_of["[icon_file]"] = states
-	if(!(icon_state in states))
-		return
-	var/icon/I = icon(icon_file, icon_state, SOUTH, 1)
-	if(I.Width() != 32 || I.Height() != 32)
-		I.Scale(32, 32)
-	Insert(key, I)
+	// iconforge makes the sheet from these (spritesheet_forge.dm), scaled to 32x32 if bigger
+	Insert(key, icon_file, icon_state, SOUTH, 1, FALSE, spritesheet_scale_to_32(icon_file))
 
 /// The page head for the windows that show parts' pictures
 /proc/circuit_sheet_html(html)

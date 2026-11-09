@@ -10,8 +10,8 @@ export BYOND_MAJOR=${LIST[0]}
 export BYOND_MINOR=${LIST[1]}
 unset LIST
 
-#rust_g git tag
-export RUST_G_VERSION=0.4.2
+#rust_g git tag (rust_g.dll at the repo root is this release's i686 build, the same file tg master uses)
+export RUST_G_VERSION=7.0.0
 
 #bsql git tag
 export BSQL_VERSION=v1.4.0.0
