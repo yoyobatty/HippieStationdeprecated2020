@@ -151,6 +151,17 @@ GLOBAL_LIST_EMPTY(db_check_steps)
 
 	db_check_login()
 
+	//Round Stats, every tab, as a player (no client: not an admin)
+	var/datum/round_stats/stats = new("dbcheckviewer")
+	for(var/tab in list("rounds", "deaths", "modes", "playtime"))
+		stats.tab = tab
+		stats.load()
+		sleep(1)
+		UNTIL(!stats.loading)
+		db_check_step("round stats: [tab]", !stats.error, stats.error)
+	db_check_step("round stats: a player doesn't see the round being played", !length(stats.rounds) || stats.rounds[1]["id"] != text2num(GLOB.round_id))
+	qdel(stats)
+
 	SSipstack.check_ip("8.8.8.8")
 	SSdiscord.lookup_id("dbcheckplayer")
 	SSdiscord.lookup_ckey("12345")

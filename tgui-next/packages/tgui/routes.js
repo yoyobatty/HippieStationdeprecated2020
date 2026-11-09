@@ -183,6 +183,7 @@ import { MechSleeper, MechSyringeGun, PaiCard } from './interfaces/MechMedicalPa
 import { ExperimentScanner } from './interfaces/Experiments';
 import { LateJoin, Lobby } from './interfaces/Lobby';
 import { RoundEnd } from './interfaces/RoundEnd';
+import { RoundStats } from './interfaces/RoundStats';
 import { StationMap } from './interfaces/StationMap';
 import { BotCrewMonitor } from './interfaces/BotCrewMonitor';
 import { DiseaseMenu } from './interfaces/DiseaseMenu';
@@ -555,6 +556,10 @@ const ROUTES = {
   roundend_report: {
     component: () => RoundEnd,
     scrollable: false,
+  },
+  round_stats: {
+    component: () => RoundStats,
+    scrollable: true,
   },
   safe: {
     component: () => Safe,
