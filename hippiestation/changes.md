@@ -20,6 +20,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/__HELPERS/roundend.dm
 ## code/__HELPERS/text.dm
 ## code/__HELPERS/unsorted.dm
+## code/_onclick/hud/parallax.dm (out of the .dme: rewritten whole as hippiestation/code/_onclick/hud/parallax.dm, the sky's layers come from the round's theme and slide with the eye's glide)
 ## code/\_onclick/item_attack.dm
 ## code/controllers/configuration/entries/dbconfig.dm
 ## code/controllers/failsafe.dm

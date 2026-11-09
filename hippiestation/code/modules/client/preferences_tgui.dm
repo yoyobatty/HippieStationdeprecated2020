@@ -606,6 +606,9 @@
 	rows += list(pref_row("Parallax (fancy space)", parallax_name, "info", extra = list(
 		"prev" = list("preference" = "parallaxdown"),
 		"next" = list("preference" = "parallaxup"))))
+	rows += list(pref_row("Graphics", list("Low", "Medium", "High")[graphics_quality() + 1], "info", extra = list(
+		"prev" = list("preference" = "graphics_down"),
+		"next" = list("preference" = "graphics_up"))))
 	rows += list(pref_toggle("Ambient occlusion", ambientocclusion ? "Enabled" : "Disabled", "ambientocclusion", ambientocclusion))
 	rows += list(pref_toggle("Fit viewport", auto_fit_viewport ? "Auto" : "Manual", "auto_fit_viewport", auto_fit_viewport))
 	if(CONFIG_GET(string/default_view) != CONFIG_GET(string/default_view_square))

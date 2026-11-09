@@ -17,6 +17,22 @@
 	..()
 	LAZYINITLIST(chosen_gear)
 
+/// The Graphics quality in the Display preferences: how much of what moves by itself gets drawn (GRAPHICS_QUALITY_*).
+/datum/preferences/proc/graphics_quality()
+	if(hippie_toggles & GRAPHICS_LOW)
+		return GRAPHICS_QUALITY_LOW
+	if(hippie_toggles & GRAPHICS_MEDIUM)
+		return GRAPHICS_QUALITY_MEDIUM
+	return GRAPHICS_QUALITY_HIGH
+
+/datum/preferences/proc/set_graphics_quality(quality)
+	hippie_toggles &= ~(GRAPHICS_LOW|GRAPHICS_MEDIUM)
+	switch(quality)
+		if(GRAPHICS_QUALITY_LOW)
+			hippie_toggles |= GRAPHICS_LOW
+		if(GRAPHICS_QUALITY_MEDIUM)
+			hippie_toggles |= GRAPHICS_MEDIUM
+
 /datum/preferences/proc/add_hippie_choices(dat)
 	if("ipc_screen" in pref_species.mutant_bodyparts)
 		dat += "<td valign='top' width='7%'>"
@@ -54,6 +70,11 @@
 					hippie_toggles ^= SCREENTIPS_DISABLED
 					if((hippie_toggles & SCREENTIPS_DISABLED) && parent?.mob?.hud_used?.screentip_text)
 						parent.mob.hud_used.screentip_text.show(parent, null)
+				if("graphics_up", "graphics_down")
+					var/step = href_list["preference"] == "graphics_up" ? 1 : -1
+					set_graphics_quality(WRAP(graphics_quality() + step, GRAPHICS_QUALITY_LOW, GRAPHICS_QUALITY_HIGH + 1))
+					if(parent?.mob?.hud_used)
+						parent.mob.hud_used.update_parallax_pref(parent.mob)
 				if("gear")
 					if(href_list["clear_loadout"])
 						LAZYCLEARLIST(chosen_gear)
