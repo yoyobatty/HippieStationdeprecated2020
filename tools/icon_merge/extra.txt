@@ -1,0 +1,6 @@
+# Hippie states merged into a tg sheet that isn't their own path's twin:
+#   <tg sheet> <- <hippie sheet>: state state ...
+# Same rules as the twins: the named states replace or join the tg sheet's own.
+
+# His Grace and the wind-up toy draw from items_and_weapons; Hippie's sprite is in its storage sheet
+icons/obj/items_and_weapons.dmi <- hippiestation/icons/obj/storage.dmi: his_grace his_grace_awakened

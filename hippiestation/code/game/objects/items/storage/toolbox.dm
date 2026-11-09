@@ -1,12 +1,3 @@
-/obj/item/storage/toolbox
-	icon_hippie = 'hippiestation/icons/obj/storage.dmi'
-
-/obj/item/toy/windupToolbox
-	icon_hippie = 'hippiestation/icons/obj/storage.dmi'
-
-/obj/item/his_grace
-	icon_hippie = 'hippiestation/icons/obj/storage.dmi'
-
 /obj/item/storage/toolbox/syndicate/PopulateContents()
 
 	new /obj/item/screwdriver/nuke(src)

@@ -11,7 +11,6 @@
 */
 
 /obj/machinery/vending
-	icon_hippie = 'hippiestation/icons/obj/vending.dmi'
 	light_color = LIGHT_COLOR_WHITE
 	var/brightness_on = 1
 	var/hippie_products = list()
@@ -67,11 +66,6 @@
 	. = ..()
 	if(.)
 		set_light(0)
-
-/// The hippie sprite is only the working one. The off and broken ones are in the normal file.
-/obj/machinery/vending/wardrobe/sec_wardrobe/update_icon()
-	..()
-	icon = (icon_state == initial(icon_state)) ? icon_hippie : initial(icon)
 
 /obj/machinery/vending/ui_base_html(html)
 	var/datum/asset/spritesheet/assets = get_asset_datum(/datum/asset/spritesheet/vending)

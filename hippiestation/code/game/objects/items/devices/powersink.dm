@@ -1,8 +1,5 @@
 GLOBAL_VAR_INIT(powersink_transmitted, 0)
 
-/obj/item/powersink
-	icon_hippie = 'hippiestation/icons/obj/device.dmi'
-
 /obj/item/powersink/process()
 	if(!attached)
 		set_mode(DISCONNECTED)

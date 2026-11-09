@@ -57,6 +57,11 @@ STATUS="${PIPESTATUS[1]}"
 if [ -z "$UPDATE" ] && ! "$PY" tools/lint/raw_proc_refs.py; then
 	STATUS=1
 fi
+# Hippie sprites merged into tg's sheets (tools/icon_merge): a stale or hand-edited merged sheet is an error.
+if [ -z "$UPDATE" ] && ! ICON_MERGE="$("$PY" -I tools/icon_merge/icon_merge.py check)"; then
+	echo "$ICON_MERGE"
+	STATUS=1
+fi
 # Procs registered as signal handlers without SIGNAL_HANDLER, which the sleep check can't see into: listed, not failing.
 if [ -z "$UPDATE" ]; then
 	"$PY" tools/lint/signal_handlers.py | sed -n 's/^UNMARKED handler: \(.*\)$/NEW warning: \1 has no SIGNAL_HANDLER (python tools\/lint\/signal_handlers.py --apply)/p'

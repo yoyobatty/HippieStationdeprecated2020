@@ -19,8 +19,3 @@
 					R.pinned = null
 		pinned = null
 	return ..()
-
-/turf/Initialize()
-	. = ..() // hippie -- base /turf/Initialize(mapload) never calls ..() up to /atom/Initialize(), so this is the only place turfs get their hippie icon applied - do not remove
-	if(icon_hippie)
-		check_hippie_icon()

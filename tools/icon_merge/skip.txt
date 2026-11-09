@@ -1,0 +1,7 @@
+# Hippie sprites that keep tg art. One per line:
+#   icons/obj/storage.dmi          the whole sheet stays tg
+#   icons/obj/storage.dmi:box      one state stays tg
+# The review page's strikes are copied here (icon_merge.py preview publishes it).
+
+# user, 2026-11-08: tg's vents and scrubbers look better
+icons/obj/atmospherics/components/unary_devices.dmi

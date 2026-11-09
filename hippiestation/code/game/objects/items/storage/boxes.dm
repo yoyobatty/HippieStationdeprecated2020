@@ -1,6 +1,3 @@
-/obj/item/storage/box
-	icon_hippie = 'hippiestation/icons/obj/storage.dmi'
-
 /obj/item/storage/box/update_icon()
 	. = ..()
 	if(illustration)
@@ -29,9 +26,6 @@
 
 /obj/item/storage/toolbox/brass
 	icon = 'icons/obj/storage.dmi'
-
-/obj/item/storage/box/lights
-	icon_hippie = 'hippiestation/icons/obj/storage.dmi'
 
 /obj/item/storage/box/seclarp
 	name = "\improper Medieval Officer Kit"

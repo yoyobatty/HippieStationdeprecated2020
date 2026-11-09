@@ -1,0 +1,3616 @@
+{
+ "icons/effects/96x96.dmi": {
+  "added": [
+   "whirlpool",
+   "beamin",
+   "waterspout",
+   "zawarudo"
+  ],
+  "only": {},
+  "out": "09afb98dc330b9d47390f71b193f747138e2f352",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/effects/96x96.dmi": "c065c131d06745f158991acd16190f07b0ab643b"
+  },
+  "tg": "feb5297ace5d1fc58ed5bb4ce6d591a5e9da892b"
+ },
+ "icons/effects/beam.dmi": {
+  "added": [
+   "light_beam"
+  ],
+  "only": {},
+  "out": "43c383154d5addd7c9d79ae7228b6a6858db16e1",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/effects/beam.dmi": "df155333b34ab68de61e84de321237f67c1d6a7a"
+  },
+  "tg": "bd48576752f0ba83ef34953364436a7fea072a3b"
+ },
+ "icons/effects/blood.dmi": {
+  "added": [
+   "hitsplatter1",
+   "hitsplatter2",
+   "hitsplatter3"
+  ],
+  "only": {},
+  "out": "0d0558cead664fe360747755b6444c175e644eef",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/effects/blood.dmi": "1c6d581b18805dadb8cd5580ce3125d324cb223f"
+  },
+  "tg": "6f928cc4832136e5e4c8bf210315730b88dd706b"
+ },
+ "icons/effects/crayondecal.dmi": {
+  "added": [
+   "H",
+   "Rigatoni family",
+   "Weed"
+  ],
+  "only": {},
+  "out": "e4f09eb6a3529569d1737e1ecfb0f839d8daced0",
+  "replaced": [
+   "Omni",
+   "Newton",
+   "Clandestine",
+   "Prima",
+   "Zero-G",
+   "Osiron",
+   "Psyke",
+   "Diablo",
+   "Blasto",
+   "North",
+   "Donk",
+   "Sleeping Carp",
+   "Gene",
+   "Cyber",
+   "Tunnel",
+   "Sirius",
+   "Waffle",
+   "Max",
+   "Gib"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/effects/crayondecal.dmi": "56c4d010ec9d1ede712ac664744b2ff4dadd0e01"
+  },
+  "tg": "5ae4bbd8768d56b3f191d014c69b4434496ef6db"
+ },
+ "icons/effects/effects.dmi": {
+  "added": [
+   "checkmark",
+   "barrier"
+  ],
+  "only": {},
+  "out": "6f4eff11e0c69a4647fed54b738d502d5b4f2e2c",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/effects/effects.dmi": "0cee5d15bbbb0f198944ab093ec30b212516b9a2"
+  },
+  "tg": "5898e3959d8d88972ee6a31aca46db8d2ffb7e20"
+ },
+ "icons/effects/station_explosion.dmi": {
+  "added": [
+   "intro_thanosnuke"
+  ],
+  "only": {},
+  "out": "a1a23d30eaae9bf4a5870877c36a0131a8f021a1",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/effects/station_explosion.dmi": "5521245e84aff2a06a674110c2f06630de3d3f37"
+  },
+  "tg": "216e72514885b638d878f19d7818caf3c3742482"
+ },
+ "icons/emoji.dmi": {
+  "added": [
+   "box",
+   "winner",
+   "gaybow",
+   "420",
+   "failfiish",
+   "kappa",
+   "winwaker",
+   "frankerz",
+   "kappahd",
+   "op",
+   "dildo1",
+   "dildo2",
+   "lube",
+   "chron",
+   "dude",
+   "td",
+   "topcaw",
+   "nipple",
+   "what",
+   "scared",
+   "relaxed",
+   "hot",
+   "taser",
+   "spoi",
+   "sphee",
+   "spange",
+   "soywow",
+   "smug_seiko",
+   "smug",
+   "smoke",
+   "scheming",
+   "rofling",
+   "realcurse",
+   "pogchamp",
+   "pepescheming",
+   "pepeok",
+   "pepegrim",
+   "omegalul",
+   "hypers",
+   "jew",
+   "mistake",
+   "mistakearmcross",
+   "monkas",
+   "nibba",
+   "nice",
+   "noanime",
+   "oldshrug",
+   "hoovy",
+   "heck",
+   "gachihyper",
+   "gachigasm",
+   "flex1",
+   "exhale",
+   "ebin",
+   "cupofjoe",
+   "comfy",
+   "agesilaus",
+   "agony",
+   "angrytodd",
+   "armcross",
+   "asskek",
+   "atpcarl",
+   "beetconnect",
+   "biglurch",
+   "byko",
+   "captain",
+   "feelsoldman"
+  ],
+  "only": {},
+  "out": "3e934717d920cf158bf74c19420124f2c656f249",
+  "replaced": [
+   "heart",
+   "salt",
+   "salt"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/emoji.dmi": "2abdbf0ace90c40719db5b751e89d1cc2ae7204e"
+  },
+  "tg": "8f3b778f73e4c2e0eed2827884b22311d398d921"
+ },
+ "icons/misc/language.dmi": {
+  "added": [
+   "dwarf"
+  ],
+  "only": {},
+  "out": "3e5d1ce70fd9ac6e2a1404579172ee24d14d3538",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/misc/language.dmi": "2ba4e7012c3c94237752c75009e32b1b3f28026e"
+  },
+  "tg": "55705248f2ac7a692bb073e69f74fa849d79741b"
+ },
+ "icons/mob/actions.dmi": {
+  "added": [
+   "wrassle_drop",
+   "wrassle_throw",
+   "wrassle_slam",
+   "wrassle_kick",
+   "wrassle_strike",
+   "bg_spell",
+   "cluwne",
+   "bg_default",
+   "bg_default_on",
+   "soulflare",
+   "raisedead",
+   "soulsplit",
+   "eruption",
+   "jesus_repent",
+   "jesus_knock",
+   "jesus_btw",
+   "jesus_revive",
+   "jesus_ascend",
+   "annihilate",
+   "collective_mind",
+   "commune",
+   "enthrall",
+   "glare",
+   "hatch",
+   "icy_veins",
+   "regen_armor",
+   "revive_thrall",
+   "screech",
+   "shadow_walk",
+   "black_smoke",
+   "transmit",
+   "veil",
+   "ascend",
+   "lightning_storm",
+   "darksight",
+   "extend_shuttle",
+   "bg_special",
+   "gore",
+   "horse_stance",
+   "reflect",
+   "predator"
+  ],
+  "only": {},
+  "out": "a3c07db25cf31c6a6d3df7cefabb1f598c1d937e",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/actions.dmi": "e48f8eec3cac27ec6e28a379851a17d9ce9c2711"
+  },
+  "tg": "c8bde03d5e133b79a916ad0029240ef60450e49b"
+ },
+ "icons/mob/actions/actions_vehicle.dmi": {
+  "added": [
+   "firetruck_controls"
+  ],
+  "only": {},
+  "out": "1179a4cd72a52d76ccabcc22704aa0737f453d8d",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/actions/actions_vehicle.dmi": "3270b3edb666ce7d56688d304adb8878d2e5582a"
+  },
+  "tg": "18fbc313e9226ecc3a96e1391b912d59076e5fed"
+ },
+ "icons/mob/animal.dmi": {
+  "added": [
+   "pot_lean",
+   "pot_lean_dead",
+   "horror",
+   "horror_dead",
+   "Hedgehog_ball",
+   "Hedgehog",
+   "Sonic_ball",
+   "Sonic",
+   "Hedgehog_dead"
+  ],
+  "only": {},
+  "out": "a774847b1dda451db020ad3c794c75a9005f743a",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/animal.dmi": "f68d946d8d15b9a243870b377bf9990be6d595a0"
+  },
+  "tg": "ca99689f51beb94d9649288e37c26c85ec9ddbaf"
+ },
+ "icons/mob/back.dmi": {
+  "added": [
+   "hockey_bag",
+   "forged_hammer0"
+  ],
+  "only": {},
+  "out": "68400f0919e3dec1207e1234616331b0c156b188",
+  "replaced": [
+   "fireaxe0"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/back.dmi": "cd09951fb1ed4211f0694dbcdb29f512019b0111"
+  },
+  "tg": "5e0ace3cfcf664c1f053f511d708be6cbf95a5ce"
+ },
+ "icons/mob/belt.dmi": {
+  "added": [
+   "hockey_belt",
+   "forged_sword",
+   "forged_mace",
+   "dwarftank",
+   "daisho_obi (movement)",
+   "daisho_obi_samurai_sword (movement)",
+   "daisho_obi_tanto (movement)",
+   "daisho_obi_both (movement)",
+   "samurai_sword (movement)"
+  ],
+  "only": {},
+  "out": "ac025fed127e994c8cd128ae4cd677809e5e3fb5",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/belt.dmi": "8303803cb67f985a234af42f9338a750398983a9"
+  },
+  "tg": "890d709f7c14315581f1a53440da16e895abc0e1"
+ },
+ "icons/mob/ears.dmi": {
+  "added": [],
+  "only": {},
+  "out": "9974968e043c049db5f791a8b96ce7001a29681b",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/ears.dmi": "a3256e6216468b51ce36760f356bfbac7722dc05"
+  },
+  "tg": "9d2a83d5f96e7b5d46d4d9edaf0f5522e15ca871"
+ },
+ "icons/mob/eyes.dmi": {
+  "added": [
+   "wrestlinggoggles",
+   "MiamiShades"
+  ],
+  "only": {},
+  "out": "fcc17afa9b54d243f4ec4b32d4fee0889c387a1b",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/eyes.dmi": "ade6804f01a2c19eddf4143ffbb6ba7394a7db97"
+  },
+  "tg": "d0bf8a90723cf00d42c9377853612340515ecff1"
+ },
+ "icons/mob/feet.dmi": {
+  "added": [
+   "cluwne",
+   "bowlingshoes",
+   "hockey_shoes",
+   "buttshoes",
+   "guardboots",
+   "crowbarshoes",
+   "dwarf",
+   "dress-white",
+   "suneate (movement)",
+   "hoboswep (movement)",
+   "funk"
+  ],
+  "only": {},
+  "out": "da30c619c56cb64a5648f4dab8991be09f11cd46",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/feet.dmi": "5c26b69b52fdbb2a04e7374900bbad9d1d9473cb"
+  },
+  "tg": "34ed09e5fea6e280fc7cd9d3498aa521aa3ceff3"
+ },
+ "icons/mob/hands.dmi": {
+  "added": [
+   "stungloves",
+   "knife_boxing",
+   "kote (movement)"
+  ],
+  "only": {},
+  "out": "684117feaadebcd2eea267db90f6bd49a2977cbb",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/hands.dmi": "425a81f462f9367db3b26c92e45f8c38fd1a4680"
+  },
+  "tg": "f3d295d679dd9ce809c44af8fdd589060b4e8478"
+ },
+ "icons/mob/head.dmi": {
+  "added": [
+   "butt",
+   "bluebutt",
+   "xenobutt",
+   "hockey_helmet",
+   "necrolord",
+   "hardsuit0-blastco",
+   "hardsuit1-blastco",
+   "halo",
+   "football_head",
+   "hardhat0_syndicate",
+   "hardhat1_syndicate",
+   "zoothat",
+   "toad",
+   "guardhelm",
+   "turban",
+   "spurdo",
+   "metal_helmet",
+   "plasteel_helmet",
+   "crude_armor_helmet",
+   "plate_armor_helmet_spikey",
+   "juggernaut_armor_helmet",
+   "kabuto (movement)",
+   "hoboswep (movement)",
+   "deadmau5",
+   "daftpunk1",
+   "daftpunk2"
+  ],
+  "only": {},
+  "out": "62e4b7a1b12d9578a78959571069b41650695bd3",
+  "replaced": [
+   "hardsuit0-syndielite",
+   "hardsuit1-syndielite",
+   "hev"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/head.dmi": "2e565044781b193aadf5847cc32b14134a5b68b3"
+  },
+  "tg": "c325edf560637d4ce99e38c24426bb0adacdd795"
+ },
+ "icons/mob/hud.dmi": {
+  "added": [
+   "hudill",
+   "hudlibrarian",
+   "changling",
+   "vampire"
+  ],
+  "only": {},
+  "out": "ab5a8805704205306100b793a64201763f3edd0e",
+  "replaced": [
+   "hudhealthy",
+   "hudbuff",
+   "huddead",
+   "hudxeno",
+   "hudhealth100",
+   "hudhealth93.75",
+   "hudhealth87.5",
+   "hudhealth81.25",
+   "hudhealth75",
+   "hudhealth68.75",
+   "hudhealth62.5",
+   "hudhealth56.25",
+   "hudhealth50",
+   "hudhealth43.75",
+   "hudhealth37.5",
+   "hudhealth31.25",
+   "hudhealth25",
+   "hudhealth18.75",
+   "hudhealth12.5",
+   "hudhealth6.25",
+   "hudhealth0",
+   "hudhealth-50",
+   "hudhealth-85",
+   "hudhealth-100",
+   "hudcaptain",
+   "hudheadofpersonnel",
+   "hudchiefengineer",
+   "hudresearchdirector",
+   "hudchiefmedicalofficer",
+   "hudheadofsecurityOld",
+   "hudheadofsecurity",
+   "hudchemist",
+   "hudscientist",
+   "hudroboticist",
+   "hudvirologist",
+   "hudgeneticist",
+   "hudmedicaldoctor",
+   "hudatmospherictechnician",
+   "hudstationengineer",
+   "hudshaftminer",
+   "hudsecurityofficerOld",
+   "hudsecurityofficer",
+   "huddetective",
+   "hudwarden",
+   "hudbotanist",
+   "hudlawyer",
+   "hudchaplain",
+   "hudbartender",
+   "hudcook",
+   "hudchef",
+   "hudjanitor",
+   "hudclown",
+   "hudmime",
+   "hudquartermaster",
+   "hudcargotechnician",
+   "hudassistant",
+   "hudcentcom",
+   "hudprisoner",
+   "hudunknown",
+   "hudno_id",
+   "hudninja",
+   "hudalien",
+   "hudchangeling",
+   "huddeathsquad",
+   "hudoperative",
+   "hudwizard",
+   "hudmalborg",
+   "hudmalai",
+   "hudcultist",
+   "hudtraitor",
+   "hudrevolutionary",
+   "hudunknown1",
+   "hud_imp_loyal",
+   "hud_imp_unknown",
+   "hud_imp_tracking",
+   "hudwanted",
+   "hudincarcerated",
+   "hudparolled",
+   "hudreleased",
+   "huddischarged",
+   "hud_imp_chem",
+   "rev",
+   "rev_head",
+   "synd",
+   "cult",
+   "gangster",
+   "gang_boss",
+   "wizard",
+   "apprentice",
+   "thrall",
+   "shadowling",
+   "hudstat",
+   "hudoffline",
+   "huddead2",
+   "hudwarn",
+   "hudtrackingai",
+   "hudtracking",
+   "huddiagmax",
+   "huddiaggood",
+   "huddiaghigh",
+   "huddiagmed",
+   "huddiaglow",
+   "huddiagcrit",
+   "huddiagdead",
+   "hudbattmax",
+   "hudbattgood",
+   "hudbatthigh",
+   "hudbattmed",
+   "hudbattlow",
+   "hudbattcrit",
+   "hudnobatt",
+   "hudbattdead",
+   "hog-blue-0",
+   "hog-blue-1",
+   "hog-blue-2",
+   "hog-red-0",
+   "hog-red-1",
+   "hog-red-2",
+   "hudworking",
+   "hudpatrol",
+   "hudcalled",
+   "hudsentient",
+   "hudalert",
+   "hudmove",
+   "traitor",
+   "ninja",
+   "abductor",
+   "abductee",
+   "devil",
+   "sintouched",
+   "clockwork",
+   "hudbrainworm",
+   "electrified",
+   "cultmaster"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/hud.dmi": "325e05e3f47be02bb1bd8742fb119aae1da99a12"
+  },
+  "tg": "ae689a6d71f4268def6a3b8a8fe4fc3e53dcf044"
+ },
+ "icons/mob/human_face.dmi": {
+  "added": [
+   "hair_birdnest",
+   "hair_duelist",
+   "hair_fastline",
+   "hair_quadcurls",
+   "hair_rapunzel",
+   "hair_unshavenmohawk",
+   "hair_twincurl",
+   "hair_twincurl2",
+   "hair_exclaim"
+  ],
+  "only": {},
+  "out": "f911d95c8c9d1536a5655dc212fbd0eac4cc568d",
+  "replaced": [
+   "hair_pigtails",
+   "hair_unkept",
+   "hair_modern"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/human_face.dmi": "1554bb2f892ce40d16ac802556bf1100cbadb600"
+  },
+  "tg": "a5e510d0683effb2037cef29f47ff85ae72f4a7d"
+ },
+ "icons/mob/inhands/64x64_lefthand.dmi": {
+  "added": [
+   ""
+  ],
+  "only": {},
+  "out": "aabab080f98d8ff0fd73fe6725ce59e1cf536388",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/inhands/64x64_lefthand.dmi": "44e5d7e2d59dc925dd5c82d37f308a6401589053"
+  },
+  "tg": "99c200c61a4d5ea5c66970aa88d1b7e5e8a818f4"
+ },
+ "icons/mob/inhands/64x64_righthand.dmi": {
+  "added": [
+   ""
+  ],
+  "only": {},
+  "out": "2c68163395775712686fccd639165babe9b294a5",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/inhands/64x64_righthand.dmi": "655e1ad5b87f9489b96337cc635b85d86d236b18"
+  },
+  "tg": "6dcc6f0a53f66ef967e0c21e28d09a357083fca6"
+ },
+ "icons/mob/inhands/equipment/custodial_lefthand.dmi": {
+  "added": [
+   "energymop_1",
+   "energymop_0"
+  ],
+  "only": {},
+  "out": "3694baf9edaa612e2caae667103df20bebbcb100",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/inhands/equipment/custodial_lefthand.dmi": "c32672ee3f5b30f7ba70126df9a8bdcaa8425da6"
+  },
+  "tg": "be9ed068c7c4cbe1abdf69323344a14415005c70"
+ },
+ "icons/mob/inhands/equipment/custodial_righthand.dmi": {
+  "added": [
+   "energymop_1",
+   "energymop_0"
+  ],
+  "only": {},
+  "out": "52f4237643433f9fa4b92a527c558c752e6dae5b",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/inhands/equipment/custodial_righthand.dmi": "31410f20a25816b3516f923bf79541d01cb695fd"
+  },
+  "tg": "c2230d4994c22ea6dae2288e3d3fcbaa41de9f6f"
+ },
+ "icons/mob/inhands/equipment/medical_lefthand.dmi": {
+  "added": [
+   "sscalpel",
+   "ssaw",
+   "sdrill"
+  ],
+  "only": {},
+  "out": "0065f33f9dbc11e8c21315fdf6e0aa357c60e5c9",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/inhands/equipment/medical_lefthand.dmi": "5fca7be24f8e992843d5cb95f0072f0306baf422"
+  },
+  "tg": "d27fcc043d5a25d408cadd82281de3c95eca5956"
+ },
+ "icons/mob/inhands/equipment/medical_righthand.dmi": {
+  "added": [
+   "sscalpel",
+   "ssaw",
+   "sdrill"
+  ],
+  "only": {},
+  "out": "37ee4af306663ab091dcaee6569d07342edabca1",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/inhands/equipment/medical_righthand.dmi": "3f14f6639d171d9fdaa2accf380c26d818e17d6f"
+  },
+  "tg": "a36165b95c9f9cd2f2833de6fae206bf30e27649"
+ },
+ "icons/mob/inhands/equipment/shields_lefthand.dmi": {
+  "added": [
+   "ngshield",
+   "paper-star"
+  ],
+  "only": {},
+  "out": "f9db0508f0450ae5dd5d5f3e3038fb59472f7a80",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/inhands/equipment/shields_lefthand.dmi": "e324abff04e237799ba407bd1f889c3fcd5c16c8"
+  },
+  "tg": "1da3f3cec23f974bb69f51ad38e1896b565839fd"
+ },
+ "icons/mob/inhands/equipment/shields_righthand.dmi": {
+  "added": [
+   "ngshield",
+   "paper-star"
+  ],
+  "only": {},
+  "out": "5a80ae6005803837fef9d13aa5e1235c1b38d97e",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/inhands/equipment/shields_righthand.dmi": "bfdd02b9d4597bcee8866ebbbf0531b2f0f50b5a"
+  },
+  "tg": "a685b99c8336204b90fd949f58ca141949fd38df"
+ },
+ "icons/mob/inhands/equipment/tools_lefthand.dmi": {
+  "added": [
+   "goldcrowbar",
+   "goldwirecutters",
+   "goldscrewdriver",
+   "goldwrench",
+   "goldenwelder",
+   "goldenwelder1",
+   "goldlargecrowbar"
+  ],
+  "only": {},
+  "out": "7ff119884a9948b13f6c764e99d0162cd555fabe",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/inhands/equipment/tools_lefthand.dmi": "b1de599c964d98fee9cf5453a020c3125fccfae2"
+  },
+  "tg": "bb10047b71a91fcc81ed3669eb546f7b878cbdea"
+ },
+ "icons/mob/inhands/equipment/tools_righthand.dmi": {
+  "added": [
+   "goldcrowbar",
+   "goldwirecutters",
+   "goldscrewdriver",
+   "goldwrench",
+   "goldenwelder",
+   "goldenwelder1",
+   "goldlargecrowbar"
+  ],
+  "only": {},
+  "out": "a51871026380b846de340ff3791fedc121b63467",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/inhands/equipment/tools_righthand.dmi": "b3c318f9058f080d2743ceefd20a7c9b3a9b90f7"
+  },
+  "tg": "7b73f73921fd7ea09c45adfb3386d0894ad71c74"
+ },
+ "icons/mob/inhands/weapons/guns_lefthand.dmi": {
+  "added": [
+   "gauss",
+   "makeshiftlas"
+  ],
+  "only": {},
+  "out": "d401653a87b419696a52aaabf634c9d0799526ac",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/inhands/weapons/guns_lefthand.dmi": "bcaf5bc605d64191dd82de44239ef13f996ca53d"
+  },
+  "tg": "459019392187f5e8ee20273d43272e043f76724d"
+ },
+ "icons/mob/inhands/weapons/guns_righthand.dmi": {
+  "added": [
+   "gauss",
+   "makeshiftlas"
+  ],
+  "only": {},
+  "out": "02dd2c020088c8868bd8a515cf54bbcf9aac5550",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/inhands/weapons/guns_righthand.dmi": "e82a30654ba964f94606969194fedec10166d0b1"
+  },
+  "tg": "c4c01d5a77022ac6b39937d94e6080987a70d9f1"
+ },
+ "icons/mob/inhands/weapons/melee_lefthand.dmi": {
+  "added": [
+   "hfblade",
+   "hfblade-red",
+   "paper_sword",
+   "samurai_sword (movement)",
+   "tanto (movement)"
+  ],
+  "only": {},
+  "out": "7f95a99260080055f378361c96fb4c0f5221387c",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/inhands/weapons/melee_lefthand.dmi": "5cfe925788d6e20023ce97bb26de604f7b5a44fc"
+  },
+  "tg": "223de812cdc425b3fb6e5c9f0b3f04d12926aecb"
+ },
+ "icons/mob/inhands/weapons/melee_righthand.dmi": {
+  "added": [
+   "hfblade",
+   "hfblade-red",
+   "paper_sword",
+   "samurai_sword (movement)",
+   "tanto (movement)"
+  ],
+  "only": {},
+  "out": "528062264de0594c46cf5930876d204cd256bc28",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/inhands/weapons/melee_righthand.dmi": "6ff7f03f7ed6770a960a32f1d26bc157e789158d"
+  },
+  "tg": "e30ef76abf88493af9b7b0d0952184c6c2aada71"
+ },
+ "icons/mob/inhands/weapons/plants_lefthand.dmi": {
+  "added": [
+   "stunnettle"
+  ],
+  "only": {},
+  "out": "9eae1842f2dac8a975d259b91d722f3856bcdbd8",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/inhands/weapons/plants_lefthand.dmi": "0aa932044eb328eef6af99867d3fe34c54ab1589"
+  },
+  "tg": "4705366c1ac7dcaa72612dfa72fd3fff6cecd53b"
+ },
+ "icons/mob/inhands/weapons/plants_righthand.dmi": {
+  "added": [
+   "stunnettle"
+  ],
+  "only": {},
+  "out": "101bece1e9c59563a729111497f0d9acba1f4fa8",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/inhands/weapons/plants_righthand.dmi": "d56148ef8305c962c4a3392d061ef6ce426768e5"
+  },
+  "tg": "1e9f7924c98ca1dcc759a2fc280d6d41bf4b9a0e"
+ },
+ "icons/mob/large-worn-icons/64x64/head.dmi": {
+  "added": [
+   "ganymede"
+  ],
+  "only": {},
+  "out": "5c32b43f3d58fa0a15c4db6a29b98c67f0a2f3e0",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/large-worn-icons/64x64/head.dmi": "e6b5b82d92955de56ea7eab36ea3ef5bec92fa54"
+  },
+  "tg": "2fcafc10c5718da76432ce6ca45b73bd325269eb"
+ },
+ "icons/mob/mask.dmi": {
+  "added": [
+   "cluwne",
+   "tape",
+   "mustache",
+   "hockey_mask",
+   "spurdo",
+   "menpo (movement)"
+  ],
+  "only": {},
+  "out": "d587a96e908f64609989cda651b22c2a500f3ab3",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/mask.dmi": "91828550714496cdc3a3b7e8792f84264fee87f9"
+  },
+  "tg": "d137cc945e081a06f7bbb881f5c5f25c4c3b728e"
+ },
+ "icons/mob/mob.dmi": {
+  "added": [
+   "gremlin",
+   "gremlin_dead"
+  ],
+  "only": {},
+  "out": "7d065525087dc5fd619f245f809c17b1648d9bab",
+  "replaced": [
+   "shadowling_ascended"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/mob.dmi": "5eb23af915f0a5f1918f9614d8904f365dfcb773"
+  },
+  "tg": "3131cbfeebde6e11f74799430fda832dff5c9f70"
+ },
+ "icons/mob/mutant_bodyparts.dmi": {
+  "added": [
+   "m_tail_tcat_FRONT",
+   "m_waggingtail_tcat_FRONT",
+   "m_tail_tcat_BEHIND",
+   "m_waggingtail_tcat_BEHIND",
+   "",
+   "tarajan_head_f",
+   "tarajan_head_m",
+   "tarajan_r_arm",
+   "tarajan_l_arm",
+   "tarajan_r_leg",
+   "tarajan_l_leg",
+   "tarajan_chest_f",
+   "tarajan_chest_m",
+   "avian_r_arm",
+   "avian_l_arm",
+   "avian_r_leg",
+   "avian_l_leg",
+   "ipc_r_arm",
+   "ipc_l_arm",
+   "ipc_r_leg",
+   "ipc_l_leg",
+   "ipc_chest",
+   "ipc_head",
+   "m_ipc_screen_static_ADJ",
+   "m_ipc_screen_sunburst_ADJ",
+   "m_ipc_screen_rainbow_ADJ",
+   "m_ipc_screen_blaze_ADJ",
+   "m_ipc_screen_help_ADJ",
+   "m_ipc_screen_harm_ADJ",
+   "m_ears_tcat_FRONT",
+   "m_ears_tcat_ADJ",
+   "meeseeks_r_arm",
+   "meeseeks_l_arm",
+   "meeseeks_l_leg",
+   "meeseeks_r_leg",
+   "meeseeks_chest",
+   "meeseeks_head",
+   "moth_r_arm",
+   "moth_l_arm",
+   "moth_r_leg",
+   "moth_l_leg",
+   "moth_chest_m",
+   "moth_chest_f",
+   "moth_head_m",
+   "moth_head_f",
+   "avian_chest_m",
+   "avian_chest_f",
+   "avian_head_m",
+   "avian_head_f",
+   "l_shadowling_chest",
+   "l_shadowling_head",
+   "l_shadowling_r_arm",
+   "l_shadowling_l_arm",
+   "l_shadowling_r_leg",
+   "l_shadowling_l_leg",
+   "shadowling_r_arm",
+   "shadowling_l_arm",
+   "shadowling_r_leg",
+   "shadowling_l_leg",
+   "shadowling_head",
+   "shadowling_chest",
+   "old_ganymede",
+   "ganymede_head",
+   "ganymede_chest",
+   "ganymede_r_leg",
+   "ganymede_l_leg",
+   "ganymede_r_arm",
+   "ganymede_l_arm",
+   "dwarf_r_arm",
+   "dwarf_l_arm",
+   "dwarf_r_leg",
+   "dwarf_l_leg",
+   "dwarf_head_m",
+   "dwarf_head_f",
+   "dwarf_chest_m",
+   "dwarf_chest_f"
+  ],
+  "only": {},
+  "out": "7af4e2b1245799b1da12b4cbfb56f45ce93cdaa7",
+  "replaced": [
+   ""
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/mutant_bodyparts.dmi": "00e9a10645fb536b19eaf9717bf8a6c72d7676cc"
+  },
+  "tg": "a1fba43552ca510ae6a2db4ad4b7c8dd595f72e1"
+ },
+ "icons/mob/neck.dmi": {
+  "added": [
+   "coiltie"
+  ],
+  "only": {},
+  "out": "c14f7c70e2621c76b29f146e9a8c4ec4eaa59ed5",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/neck.dmi": "bc747da2ec12f33e75fe6a07dde601b572ab9ff1"
+  },
+  "tg": "682671ca161a8d43a753a0c0c32f51e02de1e2a0"
+ },
+ "icons/mob/pets.dmi": {
+  "added": [
+   "catmime",
+   "catmime_dead",
+   "catmime_rest",
+   "catmime_sit",
+   "catmime2",
+   "catmime2_rest",
+   "catmime2_sit",
+   "catmime2_dead",
+   "catmime_defeated"
+  ],
+  "only": {},
+  "out": "a3c851845a1b32e4fef44464abeab9212b81be88",
+  "replaced": [
+   "cat_rest",
+   "cat_sit",
+   "cat",
+   "cat_dead"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/pets.dmi": "bc372e3df0e7a4c94a4e4e2fb70ff9df3babfab8"
+  },
+  "tg": "51bc5a48a75b0b2bbd6c4347c0d90f97912077db"
+ },
+ "icons/mob/robots.dmi": {
+  "added": [
+   "hosborg_e",
+   "cmoborg_e",
+   "ceborg_e",
+   "Engineering_old_e (movement)",
+   "Miner_old_e",
+   "Medbot_e",
+   "Hydrobot_e",
+   "JanBot2_e",
+   "Engineering_old",
+   "Miner_old",
+   "Miner+j_old",
+   "Hydrobot",
+   "Medbot",
+   "secborg",
+   "JanBot2",
+   "eyes-Miner",
+   "Engineering2old",
+   "Engineering2old_e",
+   "Engineering3-e",
+   "Engineering3",
+   "Engineering2",
+   "Engineering2_e",
+   "engineering_drone",
+   "servoskull",
+   "secbot0",
+   "secbot1",
+   "secbot-c",
+   "borgi",
+   "eyes-borgi",
+   "eyes-borgi-lights",
+   "borgi (movement)",
+   "eyes-borgi (movement)",
+   "eyes-borgi-lights (movement)",
+   "borgi-wreck"
+  ],
+  "only": {},
+  "out": "fb35e15ed40320484c5cb722b82b0815386cf9bd",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/robots.dmi": "f92caba844108bcdee4bf49a76eea3f3b3ddb703"
+  },
+  "tg": "a0cbae1164a188ae14e5b15c604afc1eb1abc4cd"
+ },
+ "icons/mob/screen_full.dmi": {
+  "added": [
+   "banned",
+   "snap"
+  ],
+  "only": {},
+  "out": "babddb125113195bd78e8f80cd3afd4ec1c28d45",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/screen_full.dmi": "6006222ad12e3bd83ea6747971143a256ff0214a"
+  },
+  "tg": "3304b4287b22d8419861e9aa923b4e8721d1b3c2"
+ },
+ "icons/mob/screen_gen.dmi": {
+  "added": [
+   "oldstamina1",
+   "oldstamina2",
+   "oldstamina3",
+   "oldstamina4",
+   "oldstamina5",
+   "stamina0",
+   "stamina1",
+   "stamina2",
+   "stamina3",
+   "stamina4",
+   "stamina5",
+   "stamina6",
+   "combo",
+   "combo_E",
+   "combo_D",
+   "combo_G",
+   "combo_H",
+   "tts_ready",
+   "tts_cooldown",
+   "sting_fart"
+  ],
+  "only": {},
+  "out": "c5fe121edd829fa92d4324d3b5f3d6bbcc5621af",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/screen_gen.dmi": "503853bfd8e73b5df96d8c69f12b06a302468160"
+  },
+  "tg": "67691b1b4dcae05c4dff5342cf29384a70d7fb1a"
+ },
+ "icons/mob/suit.dmi": {
+  "added": [
+   "hockey_suit",
+   "necrolord",
+   "hardsuit1-blastco",
+   "hardsuit0-blastco",
+   "jesus",
+   "football_chest",
+   "firesuit_syndicate",
+   "sl_shell",
+   "sl_head",
+   "guardarmor",
+   "spurdo_suit",
+   "thor",
+   "ganymede",
+   "wifebeater",
+   "crude_armor",
+   "plate_armor",
+   "plate_armor_spikey",
+   "juggernaut_armor",
+   "plate_armor_plasteel",
+   "vice-jacket",
+   "hev",
+   "haramaki (movement)",
+   "CrocketSuit1",
+   "CrocketSuit2",
+   "TubbsSuit1",
+   "TubbsSuit1_t",
+   "TubbsSuit2"
+  ],
+  "only": {},
+  "out": "51c18926a53b3ce314d86154532e1f54f745fc72",
+  "replaced": [
+   "draculacoat",
+   "hardsuit0-syndielite",
+   "hardsuit1-syndielite"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/suit.dmi": "b3032ede2a9cafe8fa209e96410cb6798662a57e"
+  },
+  "tg": "2257a70817afee154eeb5b20cd27f23f75b995ce"
+ },
+ "icons/mob/uniform.dmi": {
+  "added": [
+   "cosby",
+   "cluwne",
+   "bowlinguniform",
+   "unitard",
+   "zootsuit",
+   "robbie",
+   "telvis",
+   "dwarf",
+   "yakama (movement)",
+   "CrocketUniform1",
+   "CrocketUniform2",
+   "CrocketUniform3",
+   "TubbsUniform1",
+   "TubbsUniform2",
+   "TubbsUniform3"
+  ],
+  "only": {},
+  "out": "db2449cd008179a30680c9bc4e5535b85431a3ee",
+  "replaced": [
+   "hl_scientist"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/mob/uniform.dmi": "9ccc9c41ab853b058bb33f779eec76670bbf92f7"
+  },
+  "tg": "f6163a5f43b94708df4d8a454dd7193d63a38e8a"
+ },
+ "icons/obj/3x3.dmi": {
+  "added": [
+   "arc_forge"
+  ],
+  "only": {},
+  "out": "be6ec973cf1795ff0d2462668ea74197df4a4fe8",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/3x3.dmi": "f1186647ce67c3cb0b366f1a15296afecd2c4335"
+  },
+  "tg": "3f45853e0e0bbed704667d78a17eb6f462a67e72"
+ },
+ "icons/obj/bureaucracy.dmi": {
+  "added": [
+   "tape",
+   "paper_bin_0"
+  ],
+  "only": {},
+  "out": "061250ee0c4b5b113938fdf3a73b920c4c37053c",
+  "replaced": [
+   "chestdrawer",
+   "chestdrawer-open",
+   "tallcabinet",
+   "tallcabinet-open",
+   "filingcabinet",
+   "filingcabinet-open",
+   "paper_binc",
+   "paper_bin1",
+   "pen",
+   "pen_blink",
+   "pen_blue",
+   "pen_red",
+   "employmentcabinet",
+   "employmentcabinet-open",
+   "edagger"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/bureaucracy.dmi": "5675ccf0517a544a5000a664bc8030a334724013"
+  },
+  "tg": "55fa26eeee1dba1a9df96ccd0c9c6ba9f089d862"
+ },
+ "icons/obj/card.dmi": {
+  "added": [
+   "paperid"
+  ],
+  "only": {},
+  "out": "ab85d269b5c3556938af85819219fffad3d0e5fa",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/card.dmi": "afa57dc19ee5f7571a6005fe126ffdfb95ee06c0"
+  },
+  "tg": "0e1dd3cdfbcddb80b6c9578f7b44dd64c22adfcb"
+ },
+ "icons/obj/chairs.dmi": {
+  "added": [],
+  "only": {},
+  "out": "294eceb8a4335812799cfe80847d0a71dd00e2db",
+  "replaced": [
+   "echair0",
+   "echair1",
+   "echair_over",
+   "echair_shock",
+   "chair",
+   "chair_toppled",
+   "shuttle_chair",
+   "shuttle_chair_armrest"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/chairs.dmi": "02b3c40078256aeb08f94472623fd19049d8c8fb"
+  },
+  "tg": "bf4d21922d35f7f2329cd9599890a2aea5a469d9"
+ },
+ "icons/obj/chemical.dmi": {
+  "added": [
+   "distill",
+   "cent_off",
+   "cent_on",
+   "press",
+   "radio",
+   "blue",
+   "radio_on",
+   "blue_on",
+   "chembar",
+   "minidispenser-o"
+  ],
+  "only": {},
+  "out": "8fb5706c6b995a9400a7296f68ba8568f29551b4",
+  "replaced": [
+   "dispenser",
+   "mixer0b",
+   "mixer1b",
+   "mixer0",
+   "mixer1",
+   "mixer0_nopower",
+   "mixer1_nopower",
+   "mixer1_b",
+   "mixer0_b",
+   "waitlight",
+   "genesploicer0",
+   "genesploicer1",
+   "minidispenser",
+   "booze_dispenser",
+   "soda_dispenser"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/chemical.dmi": "062264e053e126c96a218b38d4a5c7c3abf2ba72"
+  },
+  "tg": "c7f40777973bf9b6d79d6366f8e32ae712cb8599"
+ },
+ "icons/obj/closet.dmi": {
+  "added": [
+   "off",
+   "coffin_door",
+   "coffin",
+   "coffin_open",
+   "mime_door",
+   "mime",
+   "mime_open",
+   "clown_door",
+   "clown",
+   "clown_open",
+   "DJ_door",
+   "DJ",
+   "DJ_open"
+  ],
+  "only": {},
+  "out": "f9f3e60af678ca2710dee861c11e7ef89903c486",
+  "replaced": [
+   "unlocked",
+   "locked",
+   "sparking",
+   "welded",
+   "generic_door",
+   "blue_door",
+   "mixed_door",
+   "grey_door",
+   "green_door",
+   "orange_door",
+   "pink_door",
+   "red_door",
+   "white_door",
+   "yellow_door",
+   "black_door",
+   "atmos_wardrobe_door",
+   "generic",
+   "generic_open",
+   "bio_door",
+   "bio",
+   "bio_open",
+   "bio_viro_door",
+   "bio_viro",
+   "bio_viro_open",
+   "bio_sec_door",
+   "bio_sec",
+   "bio_sec_open",
+   "bio_jan_door",
+   "bio_jan",
+   "bio_jan_open",
+   "syndicate_door",
+   "syndicate",
+   "syndicate_open",
+   "emergency_door",
+   "emergency",
+   "emergency_open",
+   "secure_door",
+   "secure",
+   "secure_open",
+   "med_door",
+   "med",
+   "med_open",
+   "chemical_door",
+   "freezer_door",
+   "freezer",
+   "freezer_open",
+   "fire_door",
+   "fire",
+   "fire_open",
+   "eng_tool_door",
+   "eng_rad_door",
+   "eng_elec_door",
+   "eng_weld_door",
+   "eng",
+   "eng_open",
+   "eng_secure_door",
+   "eng_secure",
+   "eng_secure_open",
+   "mining_door",
+   "mining",
+   "mining_open",
+   "bomb_door",
+   "bomb",
+   "bomb_open",
+   "alien_door",
+   "alien",
+   "alien_open",
+   "ce_door",
+   "ce",
+   "ce_open",
+   "med_secure_door",
+   "med_secure",
+   "med_secure_open",
+   "science_door",
+   "science",
+   "science_open",
+   "cargo_door",
+   "cargo",
+   "cargo_open",
+   "qm_door",
+   "qm",
+   "qm_open",
+   "sec_door",
+   "sec",
+   "sec_open",
+   "warden_door",
+   "warden",
+   "warden_open",
+   "hos_door",
+   "hos",
+   "hos_open",
+   "armory_door",
+   "armory",
+   "armory_open",
+   "tac_door",
+   "tac",
+   "tac_open",
+   "cap_door",
+   "cap",
+   "cap_open",
+   "hop_door",
+   "hop",
+   "hop_open",
+   "cmo_door",
+   "cmo",
+   "cmo_open",
+   "rd_door",
+   "rd",
+   "rd_open",
+   "hydro_door",
+   "hydro",
+   "hydro_open",
+   "atmos_door",
+   "atmos",
+   "atmos_open",
+   "cabinet_door",
+   "cabinet",
+   "cabinet_open",
+   "shotguncase_door",
+   "shotguncase",
+   "shotguncase_open",
+   "shotgun",
+   "ecase_door",
+   "ecase",
+   "ecase_open",
+   "egun",
+   "abductor",
+   "abductor_open",
+   "abductor_door",
+   "cardboard_special",
+   "cardboard",
+   "cardboard_open",
+   "oldcloset",
+   "metalbox",
+   "metalbox_open"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/closet.dmi": "1862235db5ac658f579df43dcd962220e2eaf9ab"
+  },
+  "tg": "5d2d64f661f915e10ea669f7347d9149647fe288"
+ },
+ "icons/obj/clothing/accessories.dmi": {
+  "added": [
+   "TubbsPendant"
+  ],
+  "only": {},
+  "out": "88819f3768a9530473a8349abd7a2eca9661e808",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/clothing/accessories.dmi": "07526b7f4385d22b7fae017c41779bd3faa51cb2"
+  },
+  "tg": "fd08d85e3cb20cd2d32e416278af237d1d9c37e4"
+ },
+ "icons/obj/clothing/belts.dmi": {
+  "added": [
+   "hockey_belt"
+  ],
+  "only": {},
+  "out": "8915a9570d058cb5924f48a832033264e2cdc5fa",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/clothing/belts.dmi": "8c264040068708f9502365288398ca9536fa9da2"
+  },
+  "tg": "e5ca88963236f704bba7bb7076780802f8445f0e"
+ },
+ "icons/obj/clothing/glasses.dmi": {
+  "added": [
+   "wrestlinggoggles",
+   "MiamiShades"
+  ],
+  "only": {},
+  "out": "d4f6e20cbfed4572f0c54233f0afc9d483b36242",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/clothing/glasses.dmi": "ae489d4f5c42f590db8791fad991d6080fbfb550"
+  },
+  "tg": "7b986fd49d3aa32ca887e50b69c52d02e401efe2"
+ },
+ "icons/obj/clothing/gloves.dmi": {
+  "added": [
+   "",
+   "knife_boxing"
+  ],
+  "only": {},
+  "out": "095f59bef138125221559da1fda230b77776be7c",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/clothing/gloves.dmi": "d0d64629c10add4c135ad4795f71dfde0379f793"
+  },
+  "tg": "80ee72ce819f4317dbc907602e8ba942feea785d"
+ },
+ "icons/obj/clothing/hats.dmi": {
+  "added": [
+   "hockey_helmet",
+   "necrolord",
+   "hardsuit0-blastco",
+   "hardsuit1-blastco",
+   "halo",
+   "football_head",
+   "hardhat0_syndicate",
+   "hardhat1_syndicate",
+   "zoothat",
+   "toad",
+   "guardhelm",
+   "turban",
+   "ganymede",
+   "metal_helmet",
+   "plasteel_helmet",
+   "crude_armor_helmet",
+   "plate_armor_helmet_spikey",
+   "juggernaut_armor_helmet",
+   "hev1",
+   "hev",
+   "deadmau5",
+   "daftpunk1",
+   "daftpunk2"
+  ],
+  "only": {},
+  "out": "5850dfe21a90e5923640f122314f3e4da69327be",
+  "replaced": [
+   "hardsuit0-syndielite",
+   "hardsuit1-syndielite"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/clothing/hats.dmi": "40a3409947a430df3b2b9626d1a3ceecb2bc50f8"
+  },
+  "tg": "06e98d86d902e85e6c744366b6d193c4d9f81234"
+ },
+ "icons/obj/clothing/masks.dmi": {
+  "added": [
+   "cluwne",
+   "tape",
+   "hockey_mask",
+   "mustache",
+   "spurdo"
+  ],
+  "only": {},
+  "out": "dfd64440bbb8a2dfd63fc3e87126e81ca44d0d9c",
+  "replaced": [
+   "yellow_vape",
+   "white_vape",
+   "red_vape",
+   "purple_vape",
+   "orange_vape",
+   "green_vape",
+   "black_vape",
+   "blue_vape",
+   "vapeopen_low",
+   "vapeopen_med",
+   "vapeopen_high"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/clothing/masks.dmi": "07089fbc2f06d89409096ede944b52341238b427"
+  },
+  "tg": "2cee3a4ccb08c0b8e4f6234ea4688654065bd391"
+ },
+ "icons/obj/clothing/neck.dmi": {
+  "added": [
+   "talisman",
+   "coiltie"
+  ],
+  "only": {},
+  "out": "12a4460b8cdeeb8069c99ef28904bef7dd53c03d",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/clothing/neck.dmi": "0979dc9c6628ba4e17bab695c9ca7e8fd6e1e910"
+  },
+  "tg": "91967bbdaf25bbab493caf0714406cf918a526b3"
+ },
+ "icons/obj/clothing/shoes.dmi": {
+  "added": [
+   "cluwne",
+   "hockey_shoes",
+   "bowlingshoes",
+   "buttshoes",
+   "guardboots",
+   "crowbarshoes",
+   "dwarf",
+   "hoboswep",
+   "unused",
+   "funk"
+  ],
+  "only": {},
+  "out": "22c8039182c9b8d798e69bfa33a77d54e5b8eabc",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/clothing/shoes.dmi": "a0150aae4ba50a2fe4aa580e6fd7bf0683177d53"
+  },
+  "tg": "fc5cdaeff6fe762d686828c52fb2b1463e313c7d"
+ },
+ "icons/obj/clothing/suits.dmi": {
+  "added": [
+   "hockey_suit",
+   "necrolord",
+   "hardsuit1-blastco",
+   "hardsuit0-blastco",
+   "jesus",
+   "football_chest",
+   "firesuit_syndicate",
+   "sl_shell",
+   "mh_item",
+   "guardarmor",
+   "spurdo_suit",
+   "thor",
+   "ganymede",
+   "wifebeater",
+   "plate_armor",
+   "plate_armor_plasteel",
+   "crude_armor",
+   "plate_armor_spikey",
+   "juggernaut_armor",
+   "hev",
+   "CrocketSuit1",
+   "CrocketSuit2",
+   "TubbsSuit1",
+   "TubbsSuit1_t",
+   "TubbsSuit2"
+  ],
+  "only": {},
+  "out": "e58613a1cf31214c2cd157c7172b2cd85b509799",
+  "replaced": [
+   "draculacoat",
+   "hardsuit0-syndielite",
+   "hardsuit1-syndielite"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/clothing/suits.dmi": "7bbe33aca84c7917b4da34e715f7d2a5756946ed"
+  },
+  "tg": "59b10a12b4535fa5a3d6aae1ad0b554c9fd59d3a"
+ },
+ "icons/obj/clothing/uniforms.dmi": {
+  "added": [
+   "cosby",
+   "cluwne",
+   "unitard",
+   "bowlinguniform",
+   "robbie",
+   "zootsuit",
+   "telvis",
+   "dwarf",
+   "CrocketUniform1",
+   "CrocketUniform2",
+   "CrocketUniform3",
+   "TubbsUniform1",
+   "TubbsUniform2",
+   "TubbsUniform3"
+  ],
+  "only": {},
+  "out": "a57383b75c5f9e794fbffd5f84b9f900ee322bed",
+  "replaced": [
+   "hl_scientist"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/clothing/uniforms.dmi": "19643a6dbbac434f1fd484bfed488d3a8d0bbb22"
+  },
+  "tg": "a5056baf072760ca056efd71d23b5f738e85ac55"
+ },
+ "icons/obj/computer.dmi": {
+  "added": [
+   "solcon-o",
+   "hell",
+   "satan",
+   "satan_broken",
+   "test"
+  ],
+  "only": {},
+  "out": "0419946a24660661fbf26fef5ab57f9a7c00e883",
+  "replaced": [
+   "arcade",
+   "arcade_broken",
+   "invaders",
+   "tcstation",
+   "tcstation_broken",
+   "tcstation_key",
+   "tcstation_key_off",
+   "tcstation-closed",
+   "syndie",
+   "oldcomp",
+   "oldcomp_broken",
+   "library",
+   "stock_computer",
+   "computer",
+   "computer_broken",
+   "generic",
+   "generic_key",
+   "generic_key_off",
+   "ai-fixer",
+   "tech_key",
+   "tech_key_off",
+   "ai-fixer-empty",
+   "ai-fixer-404",
+   "ai-fixer-full",
+   "ai-fixer-on",
+   "turbinecomp",
+   "tank",
+   "area_atmos",
+   "alert:0",
+   "alert:1",
+   "alert:2",
+   "atmos_key",
+   "atmos_key_off",
+   "comm",
+   "crew",
+   "med_key",
+   "med_key_off",
+   "dna",
+   "id",
+   "idminor",
+   "idcmo",
+   "idhos",
+   "idce",
+   "idrd",
+   "id_key",
+   "id_key_off",
+   "medcomp",
+   "mining",
+   "mining_key",
+   "mining_key_off",
+   "power",
+   "shuttle",
+   "solar",
+   "power_key",
+   "power_key_off",
+   "teleport",
+   "teleport_key",
+   "teleport_key_off",
+   "security",
+   "cameras",
+   "explosive",
+   "security_key",
+   "security_key_off",
+   "supply",
+   "request",
+   "rdcomp",
+   "slime_comp",
+   "scannercomp",
+   "rd_key",
+   "rd_key_off",
+   "recharge_comp",
+   "recharge_comp_on",
+   "robot",
+   "mecha",
+   "command",
+   "comm_monitor",
+   "comm_logs",
+   "forensic",
+   "holocontrol",
+   "syndishuttle",
+   "tcboss",
+   "syndie_key",
+   "syndie_key_off",
+   "laptop",
+   "laptop_broken",
+   "laptop_key",
+   "laptop_key_off",
+   "medlaptop"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/computer.dmi": "3156e03aeadf6b4ffae40a7cf9eb19b5c6432544"
+  },
+  "tg": "99504c980b644ec96ba8c38b3aae43fd97917ad6"
+ },
+ "icons/obj/contraband.dmi": {
+  "added": [
+   "poster36_legit"
+  ],
+  "only": {},
+  "out": "d829c3e8a0055530e31535f0fc704d9d26a83ebf",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/contraband.dmi": "10a5d2d78de638a69526438120d994e829d1e99d"
+  },
+  "tg": "30e98364f4ef9ede14ae8f2e13e29e482a940f6a"
+ },
+ "icons/obj/device.dmi": {
+  "added": [
+   "meeseeks_box",
+   "gangtool",
+   "gangtool-overlay",
+   "shitty_antenna",
+   "pinpointer_upgraded",
+   "extra_arm",
+   "extra_arm_none"
+  ],
+  "only": {},
+  "out": "ddee177466d9241dcf6a17abecc51710008d64cd",
+  "replaced": [
+   "powersink0",
+   "powersink1",
+   "forensicnew"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/device.dmi": "ead141cf47ad3b6a0ece1f5188320d036bb8a5d9"
+  },
+  "tg": "f6dbfa7ebc675604820c2ee70f852f2769cf8f10"
+ },
+ "icons/obj/drinks.dmi": {
+  "added": [
+   "lean",
+   "woodenmug"
+  ],
+  "only": {},
+  "out": "fedb2b009d39cdba5d07745e7fa36111d9c2d2ce",
+  "replaced": [
+   "glass_empty",
+   "glass_clear",
+   "glass_white"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/drinks.dmi": "65d1b513f7c54ff362cae0a57695ce54c96da7b0"
+  },
+  "tg": "cde52dfb7050b39f5b63f62370de17a4fd5848a6"
+ },
+ "icons/obj/economy.dmi": {
+  "added": [],
+  "only": {},
+  "out": "f67eb9eb6f2f7ae8e5bfd76a05fece49bae6a7e9",
+  "replaced": [
+   "holochip-color",
+   "holochip",
+   "holochip_kilo-color",
+   "holochip_kilo",
+   "holochip_mega-color",
+   "holochip_mega",
+   "holochip_giga-color",
+   "holochip_giga"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/economy.dmi": "3463952f5cb9d06201c9881e29dc032b00d2da6a"
+  },
+  "tg": "1baf918c43691836033aaaeef2e7f52678aef813"
+ },
+ "icons/obj/food/food.dmi": {
+  "added": [
+   "neep_tatty_haggis",
+   "haggis_chunk",
+   "haggis",
+   "hearthytoast",
+   "legtaco",
+   "buttkebab",
+   "ham_disk",
+   "gondoface",
+   "gondoleg",
+   "oldbeans",
+   "prisonchips",
+   "cowcube",
+   "chickencube"
+  ],
+  "only": {},
+  "out": "f4a0c421f6fb115257f7c483764ae9aa0e8cfd4b",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/food/food.dmi": "d58b47b79dc82f58fedf3d4a13eccdbec50c7d03"
+  },
+  "tg": "3b65551b64eb8a3836666af2545a7ffcbdcdef1e"
+ },
+ "icons/obj/food/piecake.dmi": {
+  "added": [
+   "asspie"
+  ],
+  "only": {},
+  "out": "8b8cf9d194ab9db1eb60fba87d18fb098943845f",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/food/piecake.dmi": "31f2f8c32caa0da7c7b6342e0370c5c219aa5ec4"
+  },
+  "tg": "248ca7115b3eceae1fe31d78c00b84a7f1a97c8c"
+ },
+ "icons/obj/food/pizzaspaghetti.dmi": {
+  "added": [
+   "pizzacornpotato",
+   "pizzacornpotatoslice"
+  ],
+  "only": {},
+  "out": "717df080a0afcbb0ad28df4f2a2bf78dec4cbc78",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/food/pizzaspaghetti.dmi": "7b086a72946ca4a4a427b0d17fc1e48f911f5920"
+  },
+  "tg": "03782f6fdb61c95675f9c3265c8103a0c662e258"
+ },
+ "icons/obj/food/soupsalad.dmi": {
+  "added": [
+   "sopadegondola",
+   "sopademacaco"
+  ],
+  "only": {},
+  "out": "8054475bb9a6d7e1d4407302d7957f8d0c120cae",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/food/soupsalad.dmi": "1844d81c808940d04394ee0a31c860e14010008c"
+  },
+  "tg": "f3965387667627c8021b4fc1ad5c1787d060fd6a"
+ },
+ "icons/obj/guns/energy.dmi": {
+  "added": [
+   "taser_charge1",
+   "taser_charge2",
+   "taser_charge3",
+   "taser_charge4",
+   "energy2_charge1",
+   "energy2_charge2",
+   "energy2_charge3",
+   "energy2_charge4",
+   "energy1_charge1",
+   "energy1_charge2",
+   "energy1_charge3",
+   "energy1_charge4",
+   "xray_charge1",
+   "xray_charge2",
+   "xray_charge3",
+   "xray_charge4",
+   "energytac3_charge1",
+   "energytac3_charge2",
+   "energytac3_charge3",
+   "energytac3_charge4",
+   "energytac2_charge1",
+   "energytac2_charge2",
+   "energytac2_charge3",
+   "energytac2_charge4",
+   "energytac1_charge1",
+   "energytac1_charge2",
+   "energytac1_charge3",
+   "energytac1_charge4",
+   "freezegun_charge1",
+   "freezegun_charge2",
+   "freezegun_charge3",
+   "freezegun_charge4",
+   "decloner_charge1",
+   "decloner_charge2",
+   "decloner_charge3",
+   "decloner_charge4",
+   "lasercannon_charge1",
+   "lasercannon_charge2",
+   "lasercannon_charge3",
+   "lasercannon_charge4",
+   "ionrifle_charge1",
+   "ionrifle_charge2",
+   "ionrifle_charge3",
+   "ionrifle_charge4",
+   "pulse1_charge1",
+   "pulse1_charge2",
+   "pulse1_charge3",
+   "pulse1_charge4",
+   "pulse2_charge1",
+   "pulse2_charge2",
+   "pulse2_charge3",
+   "pulse2_charge4",
+   "pulse3_charge1",
+   "pulse3_charge2",
+   "pulse3_charge3",
+   "pulse3_charge4",
+   "advtaser1_charge1",
+   "advtaser1_charge2",
+   "advtaser1_charge3",
+   "advtaser1_charge4",
+   "advtaser2_charge1",
+   "advtaser2_charge2",
+   "advtaser2_charge3",
+   "advtaser2_charge4",
+   "pulse_carbine1_charge1",
+   "pulse_carbine1_charge2",
+   "pulse_carbine1_charge3",
+   "pulse_carbine1_charge4",
+   "pulse_carbine2_charge1",
+   "pulse_carbine2_charge2",
+   "pulse_carbine2_charge3",
+   "pulse_carbine2_charge4",
+   "pulse_carbine3_charge1",
+   "pulse_carbine3_charge2",
+   "pulse_carbine3_charge3",
+   "pulse_carbine3_charge4",
+   "m1911_charge1",
+   "m1911_charge2",
+   "m1911_charge3",
+   "m1911_charge4",
+   "pulse_pistol1_charge1",
+   "pulse_pistol1_charge2",
+   "pulse_pistol1_charge3",
+   "pulse_pistol1_charge4",
+   "pulse_pistol2_charge1",
+   "pulse_pistol2_charge2",
+   "pulse_pistol2_charge3",
+   "pulse_pistol2_charge4",
+   "pulse_pistol3_charge1",
+   "pulse_pistol3_charge2",
+   "pulse_pistol3_charge3",
+   "pulse_pistol3_charge4",
+   "ioncarbine_charge1",
+   "ioncarbine_charge2",
+   "ioncarbine_charge3",
+   "ioncarbine_charge4",
+   "stunrevolver_charge1",
+   "stunrevolver_charge2",
+   "stunrevolver_charge3",
+   "stunrevolver_charge4",
+   "hoslaser3_charge1",
+   "hoslaser3_charge2",
+   "hoslaser3_charge3",
+   "hoslaser3_charge4",
+   "hoslaser2_charge1",
+   "hoslaser2_charge2",
+   "hoslaser2_charge3",
+   "hoslaser2_charge4",
+   "hoslaser1_charge1",
+   "hoslaser1_charge2",
+   "hoslaser1_charge3",
+   "hoslaser1_charge4",
+   "turretlaser1_charge1",
+   "turretlaser1_charge2",
+   "turretlaser1_charge3",
+   "turretlaser1_charge4",
+   "turretlaser2_charge1",
+   "turretlaser2_charge2",
+   "turretlaser2_charge3",
+   "turretlaser2_charge4",
+   "nucgun1_charge1",
+   "nucgun1_charge2",
+   "nucgun1_charge3",
+   "nucgun1_charge4",
+   "nucgun2_charge1",
+   "nucgun2_charge2",
+   "nucgun2_charge3",
+   "nucgun2_charge4",
+   "alienpistol_charge1",
+   "alienpistol_charge2",
+   "alienpistol_charge3",
+   "alienpistol_charge4",
+   "mini1_charge1",
+   "mini1_charge2",
+   "mini1_charge3",
+   "mini2_charge1",
+   "mini2_charge2",
+   "mini2_charge3",
+   "protolaser2_charge1",
+   "protolaser2_charge2",
+   "protolaser2_charge3",
+   "protolaser2_charge4",
+   "protolaser1_charge1",
+   "protolaser1_charge2",
+   "protolaser1_charge3",
+   "protolaser1_charge4",
+   "disabler_charge1",
+   "disabler_charge2",
+   "disabler_charge3",
+   "disabler_charge4",
+   "gauss",
+   "gauss1_charge1",
+   "gauss1_charge2",
+   "gauss1_charge3",
+   "gauss1_charge4",
+   "gauss2_charge1",
+   "gauss2_charge2",
+   "gauss2_charge3",
+   "gauss2_charge4",
+   "gauss3_charge1",
+   "gauss3_charge2",
+   "gauss3_charge3",
+   "gauss3_charge4",
+   "gauss_empty",
+   "watcherprojector",
+   "lasrifle"
+  ],
+  "only": {},
+  "out": "9859d32d83239e15a657f0bdfa3da45036b89ace",
+  "replaced": [
+   "energy_empty",
+   "energytac_empty",
+   "ionrifle",
+   "pulse_empty",
+   "advtaser_empty",
+   "pulse_carbine_empty",
+   "m1911_empty",
+   "pulse_pistol_empty",
+   "crossbow"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/guns/energy.dmi": "34c036a0f1b426ee563aa9ce23769da1b2d00d08"
+  },
+  "tg": "3923bde814f9e2fbcab6616dba416021c1e200ff"
+ },
+ "icons/obj/guns/projectile.dmi": {
+  "added": [
+   "saber-e",
+   "saber-21",
+   "saber-21-e",
+   "saber-suppressed",
+   "saber-e-suppressed",
+   "saber-21-suppressed",
+   "saber-21-e-suppressed",
+   "deagleg-e",
+   "deagle-e",
+   "c20r-e",
+   "c20r-24",
+   "c20r-20",
+   "c20r-16",
+   "c20r-12",
+   "c20r-8",
+   "c20r-4",
+   "c20r-0",
+   "c20r-0-e",
+   "c20r-suppressed",
+   "c20r-e-suppressed",
+   "c20r-24-suppressed",
+   "c20r-20-suppressed",
+   "c20r-16-suppressed",
+   "c20r-12-suppressed",
+   "c20r-8-suppressed",
+   "c20r-4-suppressed",
+   "c20r-0-suppressed",
+   "c20r-0-e-suppressed",
+   "gyropistolloaded",
+   "l6closed-empty",
+   "l6closed100",
+   "l6closed75",
+   "l6closed50",
+   "l6closed25",
+   "l6closed0",
+   "l6open-empty",
+   "l6open100",
+   "l6open75",
+   "l6open50",
+   "l6open25",
+   "l6open0",
+   "pistol-e",
+   "pistol-suppressed",
+   "pistol-e-suppressed",
+   "tommygun-50",
+   "tommygun-50-e",
+   "tommygun-e",
+   "bulldog-e",
+   "m12gb-8",
+   "m12gb-0",
+   "m12gs-8",
+   "m12gs-0",
+   "m12gbc-8",
+   "m12gbc-0",
+   "m1911-e",
+   "sabersemi",
+   "saberburst",
+   "c20rsemi",
+   "c20rburst",
+   "tommygunsemi",
+   "tommygunburst",
+   "bulldogsemi",
+   "bulldogburst",
+   "m90-e",
+   "m90semi",
+   "m90burst",
+   "m90gren",
+   "arg-e",
+   "arg-30",
+   "arg-30-e",
+   "mini-uzi-e",
+   "mini-uzi",
+   "mini-uzi-32-e",
+   "mini-uzi-32",
+   "mini-uz-e-suppressed",
+   "mini-uzi-suppressed",
+   "mini-uzi-32-e-suppressed",
+   "mini-uzi-32-suppressed",
+   "m12gt-8",
+   "m12gt-0",
+   "oldrifle-20",
+   "oldrifle-16",
+   "oldrifle-12",
+   "oldrifle-8",
+   "oldrifle-4",
+   "oldrifle-0",
+   "wt550-20",
+   "wt550-16",
+   "wt550-12",
+   "wt550-8",
+   "wt550-4",
+   "wt550-0",
+   "sniper-mag",
+   "nagant-suppressed",
+   "aps-e",
+   "rocketlauncher-1",
+   "rocketlauncher-0",
+   "glock17",
+   "glock17-e",
+   "glock17-suppressed",
+   "glock17-e-suppressed",
+   "mgl",
+   "contender-s",
+   "blood_debt",
+   "triplethreat",
+   "m_glock",
+   "m_glock-e"
+  ],
+  "only": {},
+  "out": "33fe27c2b92c808988c06ff9eae52ec9a1c3f8d1",
+  "replaced": [
+   "revolver",
+   "mateba",
+   "detective",
+   "detective_panther",
+   "detective_leopard",
+   "detective_gold",
+   "detective_peacemaker",
+   "shotgun",
+   "cshotgun",
+   "cshotgunc",
+   "riotshotgun",
+   "riotshotgun_sawn",
+   "dshotgun",
+   "dshotgun_sawn",
+   "saber",
+   "deagleg",
+   "deaglecamo",
+   "deaglecamo-e",
+   "deagle",
+   "c20r",
+   "pistol",
+   "tommygun",
+   "ishotgun_sawn",
+   "ishotgun",
+   "ishotgunsling",
+   "m1911",
+   "m90",
+   "moistnugget",
+   "dshotgun_d",
+   "dshotgun_f",
+   "dshotgun_g",
+   "dshotgun_l",
+   "dshotgun_p",
+   "dshotgun_d_sawn",
+   "dshotgun_f_sawn",
+   "dshotgun_g_sawn",
+   "dshotgun_l_sawn",
+   "dshotgun_p_sawn",
+   "wt550",
+   "goldrevolver",
+   "nagant",
+   "aps",
+   "bow_unloaded",
+   "bow_loaded",
+   "bow_firing"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/guns/projectile.dmi": "59cb4226ae81c9b03833bf1cca8a3660c1b170e9"
+  },
+  "tg": "ec664aef6cb6fbabc5cf9b459820a061f50a82cb"
+ },
+ "icons/obj/guns/toy.dmi": {
+  "added": [
+   "shotgun",
+   "pistol",
+   "pistol-e",
+   "pistol-suppressed",
+   "pistol-e-suppressed",
+   "saber",
+   "saber-e",
+   "saber-20",
+   "saber-20-e",
+   "saber-suppressed",
+   "saber-e-suppressed",
+   "saber-20-suppressed",
+   "saber-20-e-suppressed",
+   "c20r",
+   "c20r-e",
+   "c20r-20",
+   "c20r-16",
+   "c20r-12",
+   "c20r-8",
+   "c20r-4",
+   "c20r-0",
+   "c20r-0-e",
+   "c20r-suppressed",
+   "c20r-e-suppressed",
+   "c20r-20-suppressed",
+   "c20r-16-suppressed",
+   "c20r-12-suppressed",
+   "c20r-8-suppressed",
+   "c20r-4-suppressed",
+   "c20r-0-suppressed",
+   "c20r-0-e-suppressed",
+   "l6closed100",
+   "l6closed75",
+   "l6closed50",
+   "l6closed25",
+   "l6closed0",
+   "l6closed-empty",
+   "l6open-empty",
+   "l6open100",
+   "l6open75",
+   "l6open50",
+   "l6open25",
+   "l6open0",
+   "sabersemi",
+   "saberburst",
+   "c20rsemi",
+   "c20rburst"
+  ],
+  "only": {},
+  "out": "e728d13245e1dfea715afb068249d1d36cbb702f",
+  "replaced": [
+   "foamdart_proj",
+   "foamdart_riot_proj",
+   "foamdart_empty_proj"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/guns/toy.dmi": "42dacd1b6a47ad102ffa16718795886d249fa554"
+  },
+  "tg": "bcc2f72bf29420c758ab3e75ade12c010483428a"
+ },
+ "icons/obj/hydroponics/equipment.dmi": {
+  "added": [
+   "drying_rack_on"
+  ],
+  "only": {},
+  "out": "0b9363c86c19fce335703d3ddd5cde8412ba9d44",
+  "replaced": [
+   "drying_rack",
+   "sextractor",
+   "sextractor_open"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/hydroponics/equipment.dmi": "5dc6190c21eb78b071f37ee02eff3ae7673fc2dc"
+  },
+  "tg": "8c301a9966bd23af0171bce8d9acd9bf10668523"
+ },
+ "icons/obj/hydroponics/growing.dmi": {
+  "added": [
+   "butt-grow1",
+   "butt-grow2",
+   "butt-grow3",
+   "butt-harvest",
+   "butt-dead",
+   "limb-grow1",
+   "limb-grow2",
+   "limb-grow3",
+   "limb-harvest",
+   "limb-dead",
+   "stunnettle-grow1",
+   "stunnettle-grow2",
+   "stunnettle-grow3",
+   "stunnettle-grow4",
+   "stunnettle-grow5",
+   "stunnettle-harvest",
+   "stunnettle-dead"
+  ],
+  "only": {},
+  "out": "0c8a0e3ba5574d89d685baa0301c143987f69950",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/hydroponics/growing.dmi": "684e6690b56ed028fbc71198e9d74321555ba372"
+  },
+  "tg": "107d188dc55b1c1c054d5257917dde52e13617c3"
+ },
+ "icons/obj/hydroponics/harvest.dmi": {
+  "added": [
+   "buttflower",
+   "limbflower",
+   "banana_peel_lube"
+  ],
+  "only": {},
+  "out": "acc2294cac91a9b4b2f086a9d325bbfb3b846a11",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/hydroponics/harvest.dmi": "06cd93e7d2989a5bfd4b09c8091e1467a4b73f6d"
+  },
+  "tg": "c11774e3077f51754ed1a96aeff7d0581f187c19"
+ },
+ "icons/obj/hydroponics/seeds.dmi": {
+  "added": [
+   "seed-limb",
+   "seed-butt",
+   "seed-stunnettle"
+  ],
+  "only": {},
+  "out": "bf5cd6a87dc96acacf6f3c25c3f9bd4cad341115",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/hydroponics/seeds.dmi": "2925b2e6b85849403ad913c2b88458da8ec1b6d0"
+  },
+  "tg": "f29d2c52fb89f01b5da2dabdb5c1fdde8095b7a0"
+ },
+ "icons/obj/items_and_weapons.dmi": {
+  "added": [
+   "hockeystick0",
+   "hockeystick1",
+   "bowling_ball",
+   "bowling_ball_spin",
+   "bookofdarkness",
+   "staffofrevenant",
+   "whisk",
+   "stirring_rod",
+   "football",
+   "football_air",
+   "football_hot",
+   "butterflyknife0",
+   "butterflyknife1",
+   "butterflyknife_syndie",
+   "stungun_active",
+   "stungun_charge1",
+   "stungun_charge2",
+   "stungun_charge3",
+   "stungun_empty",
+   "stungun",
+   "echainsaw_off",
+   "echainsaw_on",
+   "toyhammertagged",
+   "carboncan-on",
+   "carboncan-off",
+   "carboncan-open",
+   "pimpstick",
+   "hippie_bbat_spike",
+   "hippie_bbat_metal",
+   "bonesword",
+   "stunnettle",
+   "nanoram",
+   "nanolaser",
+   "mjollnir",
+   "ntshield",
+   "standarrow",
+   "vuvuzaela",
+   "papercuff",
+   "inscripture",
+   "super_binoculars",
+   "usedinscripture",
+   "magicsoap",
+   "disco_mine_off",
+   "disco_mine"
+  ],
+  "only": {
+   "hippiestation/icons/obj/storage.dmi": [
+    "his_grace",
+    "his_grace_awakened"
+   ]
+  },
+  "out": "0473d857246a12861e538422c58084e1a59ea35a",
+  "replaced": [
+   "fireaxe0",
+   "fireaxe1",
+   "baseball_bat",
+   "his_grace",
+   "his_grace_awakened"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/items_and_weapons.dmi": "0bc5d89194ab73f92d1f56202dd5a0f7016ef858",
+   "hippiestation/icons/obj/storage.dmi": "8658c9b189e1a78a1844bf68be9eca81f6af0810"
+  },
+  "tg": "fe05435e89af55e85e3436bddcb1de53f4ea7cf1"
+ },
+ "icons/obj/janitor.dmi": {
+  "added": [
+   "energymop_1",
+   "energymop_0"
+  ],
+  "only": {},
+  "out": "f36ce15520dde85909e597ff302b1e1640a2f9d4",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/janitor.dmi": "824d63cc265460de4dc9e0692e91a05869df3f23"
+  },
+  "tg": "489a678f41f82c41888bf98549be9e02e36e5777"
+ },
+ "icons/obj/kitchen.dmi": {
+  "added": [],
+  "only": {},
+  "out": "94897af4d2a2c76ec8ff8e27444cb51dc7bee849",
+  "replaced": [
+   "mw",
+   "mwo",
+   "mw1",
+   "mw0",
+   "mwb",
+   "mwbloody",
+   "mwbloodyo",
+   "mwbloody1",
+   "mwbloody0",
+   "mw-o"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/kitchen.dmi": "2432168e8e7f58be32d03fb1f25d408231555d85"
+  },
+  "tg": "ceba74f5c196f287b23c8e942040b67dc3d37e20"
+ },
+ "icons/obj/library.dmi": {
+  "added": [
+   "inkcartridge",
+   "Straight outta compton"
+  ],
+  "only": {},
+  "out": "ddae020fd02b0a34ec52c2be6f510c2c8a233e39",
+  "replaced": [
+   "photocopier",
+   "photocopier1",
+   "binder",
+   "c_minor_manual"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/library.dmi": "4ce13f85861811c5de08aac40073a696da3a8dd8"
+  },
+  "tg": "9a5526347a9fb8b0d0418ab5ce10b7c790066d39"
+ },
+ "icons/obj/machines/biogenerator.dmi": {
+  "added": [],
+  "only": {},
+  "out": "9440f7c78ef7e5acc40d3e7cbcb484eeb3a659e8",
+  "replaced": [
+   "biogen-empty",
+   "biogen-stand",
+   "biogen-work",
+   "biogen-empty-o"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/machines/biogenerator.dmi": "69bccbd7713b8559a267f9bd1cb53f22530f8792"
+  },
+  "tg": "3bd0b046b421db309bd78a7d1678114b706ba94b"
+ },
+ "icons/obj/machines/mining_machines.dmi": {
+  "added": [],
+  "only": {},
+  "out": "74c2ffdd78bd5cf6e26204ed08e87991aa7509c6",
+  "replaced": [
+   "stacker",
+   "console",
+   "unloader-corner",
+   "furnace",
+   "unloader-corner2",
+   "unloader"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/machines/mining_machines.dmi": "4d25404758af74b00a40714b54f28342e518e899"
+  },
+  "tg": "2889debc33c27523a3f2d6e93317d45e3b1a6e03"
+ },
+ "icons/obj/machines/research.dmi": {
+  "added": [],
+  "only": {},
+  "out": "9e26edb1fd0c032a0a6f770ceb09742927f9390a",
+  "replaced": [
+   "circuit_imprinter",
+   "circuit_imprinter_t",
+   "circuit_imprinter_ani",
+   "protolathe",
+   "protolathe_t",
+   "protolathe_n",
+   "protolathe_glass",
+   "protolathe_metal",
+   "protolathe_gold",
+   "protolathe_silver",
+   "protolathe_bluespace",
+   "protolathe_diamond",
+   "protolathe_uranium",
+   "protolathe_solid plasma",
+   "protolathe_bananium",
+   "protolathe_adamantine",
+   "d_analyzer_la",
+   "d_analyzer_l",
+   "d_analyzer",
+   "d_analyzer_t",
+   "d_analyzer_process",
+   "server",
+   "server_t",
+   "server-on",
+   "server-off",
+   "server-nopower",
+   "tdoppler",
+   "tdoppler-off",
+   "tdoppler-broken",
+   "doppler",
+   "doppler-off",
+   "doppler_open"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/machines/research.dmi": "1663ab903d65c27a222f767059e999a0c88919f7"
+  },
+  "tg": "cfdfc9f44ae30fee86130c09332d1a4048d5a895"
+ },
+ "icons/obj/machines/telecomms.dmi": {
+  "added": [],
+  "only": {},
+  "out": "232e4f4d7d085b936af0a450ebff02e617fb420b",
+  "replaced": [
+   "processor",
+   "processor_off",
+   "processor_o",
+   "processor_o_off",
+   "bus",
+   "bus_off",
+   "bus_o",
+   "bus_o_off",
+   "comm_server",
+   "comm_server_off",
+   "comm_server_o",
+   "comm_server_o_off",
+   "relay",
+   "relay_off",
+   "relay_o",
+   "relay_o_off",
+   "hub",
+   "hub_off",
+   "hub_o",
+   "hub_o_off",
+   "AAS_On",
+   "AAS_Off",
+   "Error_Red",
+   "Light_Green",
+   "Light_Pink",
+   "AAS_On_Open",
+   "AAS_Off_Open"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/machines/telecomms.dmi": "c5d2016416e8e1c67a38ef8b05af5c95112b3bf7"
+  },
+  "tg": "a97ebc891c3b6dee7fe324138c5d523a7d8bcb84"
+ },
+ "icons/obj/machines/teleporter.dmi": {
+  "added": [
+   "gang_teleporter_off",
+   "gang_teleporter_on"
+  ],
+  "only": {},
+  "out": "abaf1c52258b7dc0a44646f9005f99e6caa5a68f",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/machines/teleporter.dmi": "401b5b13e41df0c7193ccbfc75a1a0ade871df2f"
+  },
+  "tg": "557cb44a9ed8ecff80d67adc7e8288c7d8228b4c"
+ },
+ "icons/obj/machines/washing_machine.dmi": {
+  "added": [],
+  "only": {},
+  "out": "965883d7077899c1d2a9a94d757e24fd8fd7783e",
+  "replaced": [
+   "wm_1_0",
+   "wm_0_0",
+   "wm_1_1",
+   "wm_0_1",
+   "wm_running_0",
+   "wm_1_blood",
+   "wm_0_blood",
+   "wm_running_1",
+   "wm_panel"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/machines/washing_machine.dmi": "dc09837abedb2e3e7d6167a11686fe2485fea860"
+  },
+  "tg": "a952b8634271cebdf192c5adb8f62de4a864b01e"
+ },
+ "icons/obj/modular_console.dmi": {
+  "added": [
+   "operating"
+  ],
+  "only": {},
+  "out": "7bfe5aad52e24dbf284235262d8b60d541d2bec3",
+  "replaced": [
+   "console-off",
+   "broken",
+   "console",
+   "__MASK__",
+   "command",
+   "ai-fixer-empty",
+   "ai-fixer-full",
+   "upload",
+   "alert-green",
+   "alert-red",
+   "comm",
+   "medical",
+   "dna",
+   "engine",
+   "id",
+   "medcomp",
+   "shuttle",
+   "solar",
+   "teleport",
+   "security",
+   "cameras",
+   "supply",
+   "request",
+   "explosive",
+   "hostile",
+   "research",
+   "robot",
+   "dummy",
+   "mecha",
+   "comm_monitor",
+   "comm_logs",
+   "forensic",
+   "holocontrol",
+   "entertainment",
+   "game",
+   "crew",
+   "generic",
+   "menu",
+   "power_monitor",
+   "power_monitor_warn",
+   "alarm_monitor",
+   "atmos_control",
+   "standby",
+   "bsod",
+   "smmon_0",
+   "smmon_1",
+   "smmon_2",
+   "smmon_3",
+   "smmon_4",
+   "smmon_5",
+   "smmon_6"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/modular_console.dmi": "f62fb6f48f9ec66e83980487872266eb583fe7fb"
+  },
+  "tg": "af8d1f5b7df47619b8060cdc860d7633b2ff782a"
+ },
+ "icons/obj/modular_laptop.dmi": {
+  "added": [],
+  "only": {},
+  "out": "77d6fcc6be1119989a8fdf2cec8ae073cbd22230",
+  "replaced": [
+   "laptop-closed",
+   "laptop-off",
+   "laptop",
+   "broken",
+   "__MASK__",
+   "command",
+   "ai-fixer-empty",
+   "ai-fixer-full",
+   "upload",
+   "alert-green",
+   "alert-red",
+   "comm",
+   "generic",
+   "crew",
+   "medical",
+   "dna",
+   "engine",
+   "id",
+   "medcomp",
+   "operating",
+   "shuttle",
+   "solar",
+   "teleport",
+   "security",
+   "cameras",
+   "supply",
+   "request",
+   "explosive",
+   "hostile",
+   "research",
+   "robot",
+   "dummy",
+   "mecha",
+   "comm_monitor",
+   "comm_logs",
+   "forensic",
+   "holocontrol",
+   "entertainment",
+   "game",
+   "menu",
+   "power_monitor",
+   "power_monitor_warn",
+   "alarm_monitor",
+   "atmos_control",
+   "standby",
+   "bsod",
+   "startup",
+   "load"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/modular_laptop.dmi": "48387d4aa63dc854e43afae7cae6e93363100531"
+  },
+  "tg": "0f45045fb539f5ff39f21b84bb61a85ed2c8a665"
+ },
+ "icons/obj/module.dmi": {
+  "added": [
+   "ai_hijack",
+   "ai_hijack_overlay"
+  ],
+  "only": {},
+  "out": "38102865983f78adb15549969a959f3225f0c5d0",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/module.dmi": "577d134c90688c713ddea460ddce422c613affe0"
+  },
+  "tg": "cad02d9b4b2003060a06f8507f9c81c74ad4db43"
+ },
+ "icons/obj/objects.dmi": {
+  "added": [
+   "noose",
+   "noose_overlay",
+   "tankfilling1",
+   "tankfilling2",
+   "tankfilling3",
+   "tankfilling4",
+   "chem",
+   "chemlid"
+  ],
+  "only": {},
+  "out": "47394dbce7dfa01747a34700d082f3fc24beb83d",
+  "replaced": [
+   "water_high",
+   "beer",
+   "virus_food",
+   "pepper",
+   "beertankTEMP",
+   "dispenser",
+   "plasma-1",
+   "plasma-2",
+   "plasma-3",
+   "plasma-4",
+   "plasma-5",
+   "oxygen-1",
+   "oxygen-2",
+   "oxygen-3",
+   "oxygen-4",
+   "rack",
+   "fuel",
+   "water"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/objects.dmi": "e8974ebe3241d32a9cde9ed5024e1044129c00f4"
+  },
+  "tg": "7f6f82e0c725ad9078072ef86516ffbda6f8ec24"
+ },
+ "icons/obj/power.dmi": {
+  "added": [
+   "portgen0",
+   "portgen1",
+   "portgen2",
+   "ccharger1"
+  ],
+  "only": {},
+  "out": "e77697eaa4c282ca3c8094f9028e4cdccf0b7806",
+  "replaced": [
+   "apcox-0",
+   "apcox-1",
+   "apco0-0",
+   "apco0-1",
+   "apco0-2",
+   "apco0-3",
+   "apco1-0",
+   "apco1-1",
+   "apco1-2",
+   "apco1-3",
+   "apco2-0",
+   "apco2-1",
+   "apco2-2",
+   "apco2-3",
+   "term",
+   "term-f",
+   "apc0",
+   "apco3-0",
+   "apco3-1",
+   "apco3-2",
+   "apc-spark",
+   "apcewires",
+   "apcemag",
+   "apc1",
+   "apc1-b-nocover",
+   "apc1-nocover",
+   "apc2",
+   "apc2-b-nocover",
+   "apc2-nocover",
+   "apc-b",
+   "apcmaint",
+   "ccharger",
+   "ccharger-o0",
+   "ccharger-o1",
+   "ccharger-o2",
+   "ccharger-o3",
+   "ccharger-o4"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/power.dmi": "f6bb9edf9adb113c23823ce616d2716a92fbec71"
+  },
+  "tg": "67f1c9d20e86c18d1c0bf9d04e536997951a6307"
+ },
+ "icons/obj/projectiles.dmi": {
+  "added": [
+   "freeze",
+   "honkbeam",
+   "darkshard",
+   "lightshard",
+   "focused",
+   "hyperlaser",
+   "flareshot",
+   "plasmoid",
+   "gauss_low",
+   "gauss_normal",
+   "gauss_overdrive",
+   "knife"
+  ],
+  "only": {},
+  "out": "b9088efc1b7f5f4bfb89ab6a5f778763fb2bf214",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/projectiles.dmi": "f8112287125f910165f0391c96ead0ea411ba30c"
+  },
+  "tg": "72724546d87d57828c8b512308ee9bc6e20ede86"
+ },
+ "icons/obj/robotics.dmi": {
+  "added": [],
+  "only": {},
+  "out": "ba95c61977faf736bb75af4cc00dfa6e36d8ad07",
+  "replaced": [
+   "fab-active",
+   "fab-idle",
+   "fab-o",
+   "fab-load-metal",
+   "fab-load-glass",
+   "fab-load-gold",
+   "fab-load-silver",
+   "fab-load-uranium",
+   "fab-load-plasma",
+   "fab-load-bananium",
+   "fab-load-adamantium",
+   "fab-load-diamond",
+   "fab-load-titanium",
+   "fab-load-bluespace"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/robotics.dmi": "ef8a6c3ecb7af3b283aad22a7dbef423c61cb407"
+  },
+  "tg": "46a3adfc0f207170f89d0b72fd034fab27f19b28"
+ },
+ "icons/obj/stationobjs.dmi": {
+  "added": [
+   "keypad",
+   "keypad-denied",
+   "keypad1",
+   "keypad-p",
+   "keypad-open",
+   "keypad-wired",
+   "keypad-device",
+   "keypad-device2",
+   "tele1-old",
+   "tele0-old",
+   "controller-old",
+   "controller-p-old",
+   "glassbox1",
+   "glassboxb1",
+   "labcageb0",
+   "labcage0",
+   "labcage1",
+   "Shield_Gen",
+   "Shield_Gen +a",
+   "tele-o",
+   "controller-o",
+   "tele1",
+   "controller",
+   "controller-p",
+   "tele0",
+   "mechfabo",
+   "mechfabr",
+   "mechfabt"
+  ],
+  "only": {},
+  "out": "5b4e05d56984c4c88f9d276dd5b45338d3f1a7dd",
+  "replaced": [
+   "plasticflaps",
+   "morgue1",
+   "morgue0",
+   "morguet",
+   "crema1",
+   "crema2",
+   "crema0",
+   "cremat",
+   "crema_active",
+   "morgue2",
+   "morgue3",
+   "morgue4",
+   "recharger0",
+   "recharger1",
+   "recharger2",
+   "recharger3",
+   "autolathe_n",
+   "autolathe",
+   "autolathe_t",
+   "autolathe_r",
+   "autolathe_o",
+   "pipe_d",
+   "pipe_d_l",
+   "blackbox",
+   "rechargeroff",
+   "rechargeropen",
+   "mechfab1",
+   "mechfab3"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/stationobjs.dmi": "05aea87daf9ca283c72b3a3e36556a9e43e84d7a"
+  },
+  "tg": "011d4962742f1851b6b504b1cf7ec17b7fd5582b"
+ },
+ "icons/obj/statue.dmi": {
+  "added": [
+   "asstue"
+  ],
+  "only": {},
+  "out": "0961703f96467868458e6ab133d45ceec7b736c8",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/statue.dmi": "729b74d0055646f10e0defa13811cef92b20f92e"
+  },
+  "tg": "9a5dc35e74e3a1ef5539f8abceca45ca5284ee2d"
+ },
+ "icons/obj/stock_parts.dmi": {
+  "added": [
+   "screen"
+  ],
+  "only": {},
+  "out": "22701a639fb6d8a8b0d03d70eb57f72813831638",
+  "replaced": [
+   "capacitor",
+   "scan_module",
+   "0",
+   "1",
+   "2",
+   "3",
+   "4",
+   "box_0",
+   "box_1",
+   "box_2",
+   "vbox_0",
+   "vbox_1",
+   "vbox_2",
+   "vbox_3",
+   "adv_capacitor",
+   "super_capacitor",
+   "adv_scan_module",
+   "super_scan_module"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/stock_parts.dmi": "7beec6681531e44daa1168f31511bdc56a26ec17"
+  },
+  "tg": "e4f719820e6527d056b4318ba91a1cfdbfcf6984"
+ },
+ "icons/obj/storage.dmi": {
+  "added": [
+   "inf",
+   "his_grace",
+   "his_grace_awakened",
+   "cowcubebox",
+   "chickencubebox",
+   "inkbox",
+   "glowstick_box",
+   "laserpointer_box"
+  ],
+  "only": {},
+  "out": "bfad4bc436a1a1463b8389aba764d6e9ffa9b960",
+  "replaced": [
+   "syndiebox",
+   "box",
+   "hugbox",
+   "alienbox",
+   "secbox",
+   "red",
+   "yellow",
+   "blue",
+   "green",
+   "syndicate",
+   "single_latch",
+   "double_latch",
+   "triple_latch"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/storage.dmi": "8658c9b189e1a78a1844bf68be9eca81f6af0810"
+  },
+  "tg": "630d77f17c83273d491d71018d5d55eacbd31e54"
+ },
+ "icons/obj/surgery.dmi": {
+  "added": [
+   "kitty",
+   "ssaw",
+   "sscalpel",
+   "scautery",
+   "sdrill",
+   "shemostat",
+   "sretractor"
+  ],
+  "only": {},
+  "out": "ab1db7a8c6a8639d6c0e572f5c0c2b1e8eabbe1a",
+  "replaced": [
+   "severedtail"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/surgery.dmi": "a5d031ab869b4a841f3b739bf5d1cf59d17b8d31"
+  },
+  "tg": "d3cfe7a75635dec5e2d02b350ba2457deaea89c8"
+ },
+ "icons/obj/tank.dmi": {
+  "added": [
+   "dwarftank"
+  ],
+  "only": {},
+  "out": "8ef47c802be278660cb26aa4c6dde77b8370f296",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/tank.dmi": "d0c7d56ab843b029adcd8bdcc46e10474582af3c"
+  },
+  "tg": "910ed4ac5416478a220ffce8da4f1bd5aa81ad94"
+ },
+ "icons/obj/tools.dmi": {
+  "added": [
+   "cutters_nuke",
+   "crowbar_nuke",
+   "wrench_nuke",
+   "welder_nuke75",
+   "welder_nuke50",
+   "welder_nuke25",
+   "welder_nuke0",
+   "welder_nuke100",
+   "welder_nuke-on",
+   "multitool_nuke",
+   "welder_nuke",
+   "goldenwelder",
+   "goldenwelder100",
+   "goldenwelder75",
+   "goldenwelder50",
+   "goldenwelder25",
+   "goldenwelder0",
+   "goldcrowbar",
+   "goldlargecrowbar",
+   "goldwirecutters",
+   "goldscrewdriver",
+   "goldwrench",
+   "goldenwelder-on",
+   "welder_ghetto",
+   "welder_ghetto-on",
+   "screwdriver_ghetto",
+   "wrench_ghetto",
+   "crowbar_ghetto",
+   "cutters_ghetto",
+   "multitool_ghetto",
+   "glue",
+   "glue_used"
+  ],
+  "only": {},
+  "out": "45938bda88dd926cb8d36fe1a04c060076cf6024",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/tools.dmi": "ea5285b0fb05e51faa43d038cbd51c3afb24dd31"
+  },
+  "tg": "b0b375df980167dbd0943b34a8393da54d055096"
+ },
+ "icons/obj/toy.dmi": {
+  "added": [
+   "noodle",
+   "goat"
+  ],
+  "only": {},
+  "out": "9d3d41a12e908f29240379837c9bfca1d308c537",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/toy.dmi": "3adfd4d056a93ca553310a04c9e016ffc2790720"
+  },
+  "tg": "798eaeeb96ffd9576bfac55277480d4aaaa93304"
+ },
+ "icons/obj/vehicles.dmi": {
+  "added": [
+   "lawnmower",
+   "firetruck"
+  ],
+  "only": {},
+  "out": "951b80b374455880a4a81a53513cc0a200a870cb",
+  "replaced": [
+   "clowncar (movement)",
+   "clowncar"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/vehicles.dmi": "2d2a09b72507f76fbd4c313b04e6c753ccad5aee"
+  },
+  "tg": "cc10a1afc175e6b13b6e45263c8d9a0c1fad92d6"
+ },
+ "icons/obj/vending.dmi": {
+  "added": [
+   "template",
+   "snackorange-panel",
+   "honk_cooler",
+   "classicbeats",
+   "classicbeats-broken",
+   "classicbeats-off",
+   "classicbeats-panel",
+   "citadelplush",
+   "citadelplush-broken",
+   "citadelplush-off",
+   "citadelplush-panel"
+  ],
+  "only": {},
+  "out": "16cdc026311293e0ba97d0c94695a87edd96320a",
+  "replaced": [
+   "coffee-vend",
+   "coffee",
+   "coffee-off",
+   "coffee-broken",
+   "coffee-panel",
+   "nutri",
+   "nutri_deny",
+   "nutri-off",
+   "nutri-broken",
+   "nutri-panel",
+   "snack",
+   "snack-off",
+   "snack-broken",
+   "snack-panel",
+   "snackblue",
+   "snackblue-broken",
+   "snackblue-off",
+   "snackblue-panel",
+   "snackorange",
+   "snackorange-broken",
+   "snackorange-off",
+   "snackgreen",
+   "snackgreen-off",
+   "snackgreen-broken",
+   "snackgreen-panel",
+   "snackteal",
+   "snackteal-off",
+   "snackteal-broken",
+   "snackteal-panel",
+   "cigs",
+   "cigs-off",
+   "cigs-broken",
+   "cigs-panel",
+   "generic",
+   "generic-off",
+   "generic-broken",
+   "generic-panel",
+   "med",
+   "med-off",
+   "med-broken",
+   "med-deny",
+   "med-panel",
+   "sec",
+   "sec-deny",
+   "sec-broken",
+   "sec-off",
+   "sec-panel",
+   "seeds",
+   "seeds-off",
+   "seeds-broken",
+   "seeds-panel",
+   "Cola_Machine",
+   "Cola_Machine-off",
+   "Cola_Machine-broken",
+   "Cola_Machine-panel",
+   "cola_black",
+   "cola_black-off",
+   "cola_black-broken",
+   "cola_black-panel",
+   "shamblers_juice",
+   "shamblers_juice-off",
+   "shamblers_juice-broken",
+   "shamblers_juice-panel",
+   "red_cola",
+   "red_cola-off",
+   "red_cola-broken",
+   "red_cola-panel",
+   "space_up",
+   "space_up-off",
+   "space_up-broken",
+   "space_up-panel",
+   "pwr_game",
+   "pwr_game-off",
+   "pwr_game-broken",
+   "pwr_game-panel",
+   "water_cooler",
+   "MagiVend",
+   "MagiVend-off",
+   "MagiVend-broken",
+   "MagiVend-panel",
+   "dinnerware",
+   "dinnerware-off",
+   "dinnerware-broken",
+   "dinnerware-panel",
+   "sovietsoda",
+   "sovietsoda-off",
+   "sovietsoda-broken",
+   "sovietsoda-panel",
+   "tool",
+   "tool-off",
+   "tool-deny",
+   "tool-broken",
+   "tool-panel",
+   "engivend",
+   "engivend-off",
+   "engivend-broken",
+   "engivend-deny",
+   "engivend-panel",
+   "robotics",
+   "robotics-off",
+   "robotics-broken",
+   "robotics-deny",
+   "starkist",
+   "starkist-off",
+   "starkist-broken",
+   "starkist-panel",
+   "soda",
+   "soda-off",
+   "soda-broken",
+   "soda-panel",
+   "theater",
+   "theater-deny",
+   "theater-off",
+   "theater-broken",
+   "theater-panel",
+   "sustenance",
+   "sustenance-off",
+   "sustenance-broken",
+   "sustenance-panel",
+   "clothes",
+   "clothes-off",
+   "clothes-broken",
+   "clothes-panel",
+   "liberationstation-panel",
+   "liberationstation",
+   "liberationstation-off",
+   "liberationstation-broken",
+   "syndi-panel",
+   "syndi-deny",
+   "syndi-off",
+   "syndi-broken",
+   "syndi",
+   "cart",
+   "cart-off",
+   "cart-broken",
+   "games",
+   "games-off",
+   "games-broken",
+   "games-panel",
+   "secdrobe"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/vending.dmi": "10b9b171f1be94e3f563e6b41e42753ec824b9e4"
+  },
+  "tg": "9b074837c193431d38c5e4c09d9a542784420036"
+ },
+ "icons/obj/wallframe.dmi": {
+  "added": [],
+  "only": {},
+  "out": "329c513bd2f0a582a8a0306b3e1365d95ad7c4d0",
+  "replaced": [
+   "apc"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/obj/wallframe.dmi": "4611c09af1e05034baeb5b10275b927a6529d590"
+  },
+  "tg": "369f1e81b2c9a771275b2aa97dd6515923df22c7"
+ },
+ "icons/turf/areas.dmi": {
+  "added": [
+   "pool",
+   "clown",
+   "mime",
+   "scichem"
+  ],
+  "only": {},
+  "out": "dc52e8f0a1f0e036b74f0ddda6631626d6ec461a",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/turf/areas.dmi": "17b5061bd3630494abe9a94a656bf5fd82c44cf5"
+  },
+  "tg": "a8e0fd5b7eaf5eca3b9bd2d1d619d98476b6da9d"
+ },
+ "icons/turf/floors.dmi": {
+  "added": [
+   "fcluwne_manifest",
+   "fcluwne_open",
+   "red_blue_penis"
+  ],
+  "only": {},
+  "out": "e7da2d88bf81f56f86aed392a61a893c34460d0e",
+  "replaced": [],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/turf/floors.dmi": "56bcee82c4a3c9205b7287e1c68107892b9e00f6"
+  },
+  "tg": "01e084f4dd995a05f9adcaf9863a76b7105c2a4f"
+ },
+ "icons/turf/walls/reinforced_wall.dmi": {
+  "added": [],
+  "only": {},
+  "out": "683fe42d22c30230d8faa6313bfdabb76c4af823",
+  "replaced": [
+   "1-i",
+   "2-i",
+   "3-i",
+   "4-i",
+   "1-n",
+   "2-n",
+   "3-s",
+   "4-s",
+   "1-w",
+   "2-e",
+   "3-w",
+   "4-e",
+   "1-nw",
+   "2-ne",
+   "3-sw",
+   "4-se",
+   "1-f",
+   "2-f",
+   "3-f",
+   "4-f",
+   "r_wall",
+   "fwall_opening",
+   "fwall_closing",
+   "fwall_open",
+   "r_wall-5",
+   "r_wall-6",
+   "reinforced_wall-0",
+   "reinforced_wall-1",
+   "reinforced_wall-2",
+   "reinforced_wall-3",
+   "reinforced_wall-4",
+   "reinforced_wall-5",
+   "reinforced_wall-6",
+   "reinforced_wall-7",
+   "reinforced_wall-8",
+   "reinforced_wall-9",
+   "reinforced_wall-10",
+   "reinforced_wall-11",
+   "reinforced_wall-12",
+   "reinforced_wall-13",
+   "reinforced_wall-14",
+   "reinforced_wall-15",
+   "reinforced_wall-21",
+   "reinforced_wall-23",
+   "reinforced_wall-29",
+   "reinforced_wall-31",
+   "reinforced_wall-38",
+   "reinforced_wall-39",
+   "reinforced_wall-46",
+   "reinforced_wall-47",
+   "reinforced_wall-55",
+   "reinforced_wall-63",
+   "reinforced_wall-74",
+   "reinforced_wall-75",
+   "reinforced_wall-78",
+   "reinforced_wall-79",
+   "reinforced_wall-95",
+   "reinforced_wall-110",
+   "reinforced_wall-111",
+   "reinforced_wall-127",
+   "reinforced_wall-137",
+   "reinforced_wall-139",
+   "reinforced_wall-141",
+   "reinforced_wall-143",
+   "reinforced_wall-157",
+   "reinforced_wall-159",
+   "reinforced_wall-175",
+   "reinforced_wall-191",
+   "reinforced_wall-203",
+   "reinforced_wall-207",
+   "reinforced_wall-223",
+   "reinforced_wall-239",
+   "reinforced_wall-255"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/turf/walls/reinforced_wall.dmi": "683fe42d22c30230d8faa6313bfdabb76c4af823"
+  },
+  "tg": "44c99c01168138c508b5cc945bb346a5954493ac"
+ },
+ "icons/turf/walls/wall.dmi": {
+  "added": [],
+  "only": {},
+  "out": "d6e04e72dfc2fa31b6b28fa3fa05d51ab0e34a35",
+  "replaced": [
+   "1-i",
+   "2-i",
+   "3-i",
+   "4-i",
+   "1-n",
+   "2-n",
+   "3-s",
+   "4-s",
+   "1-w",
+   "2-e",
+   "3-w",
+   "4-e",
+   "1-nw",
+   "2-ne",
+   "3-sw",
+   "4-se",
+   "1-f",
+   "2-f",
+   "3-f",
+   "4-f",
+   "wall",
+   "fwall_opening",
+   "fwall_closing",
+   "fwall_open",
+   "wall-0",
+   "wall-1",
+   "wall-2",
+   "wall-3",
+   "wall-4",
+   "wall-5",
+   "wall-6",
+   "wall-7",
+   "wall-8",
+   "wall-9",
+   "wall-10",
+   "wall-11",
+   "wall-12",
+   "wall-13",
+   "wall-14",
+   "wall-15",
+   "wall-21",
+   "wall-23",
+   "wall-29",
+   "wall-31",
+   "wall-38",
+   "wall-39",
+   "wall-46",
+   "wall-47",
+   "wall-55",
+   "wall-63",
+   "wall-74",
+   "wall-75",
+   "wall-78",
+   "wall-79",
+   "wall-95",
+   "wall-110",
+   "wall-111",
+   "wall-127",
+   "wall-137",
+   "wall-139",
+   "wall-141",
+   "wall-143",
+   "wall-157",
+   "wall-159",
+   "wall-175",
+   "wall-191",
+   "wall-203",
+   "wall-207",
+   "wall-223",
+   "wall-239",
+   "wall-255"
+  ],
+  "skip": [],
+  "sources": {
+   "hippiestation/icons/turf/walls/wall.dmi": "d6e04e72dfc2fa31b6b28fa3fa05d51ab0e34a35"
+  },
+  "tg": "f4f5f542a847585f8be24085fc3addb521af39c4"
+ }
+}

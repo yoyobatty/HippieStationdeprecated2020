@@ -30,8 +30,6 @@ GLOBAL_LIST_INIT(vv_uncompared_vars, list(
 		if(var_name == "obj_integrity" && value == D.vars["max_integrity"]) // set to max_integrity as it's made: only damage is news
 			return FALSE
 		return abs(value - default) > 0.00001
-	if(var_name == "icon" && ("icon_hippie" in D.vars) && value == D.vars["icon_hippie"]) // Hippie's own sprite swapped in as it's made
-		return FALSE
 	return value != default
 
 /// The li's attributes and the marks after a var's edit links

@@ -1,9 +1,3 @@
-/obj/machinery/libraryscanner
-	icon_hippie = 'hippiestation/icons/obj/library.dmi'
-
-/obj/machinery/bookbinder
-	icon_hippie = 'hippiestation/icons/obj/library.dmi'
-
 /obj/item/inkcartridge
 	name = "Spacestar-brand ink cartridge"
 	desc = "Compatible with Spacestar Ordering Book Catalogs, like the one in the library!"

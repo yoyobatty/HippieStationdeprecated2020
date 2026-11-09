@@ -1,6 +1,3 @@
-/obj/machinery/autolathe
-	icon_hippie = 'hippiestation/icons/obj/stationobjs.dmi'
-
 /// hippie -- anything that isn't a sheet or another stack asks before it's melted down. On help intent a wrench, a toolbox with
 /// everything in it, or somebody's gun went in without a word. The checks are the ones the autolathe's own attackby() makes before
 /// it lets the material container have the item: a screwdriver still opens it, wire tools and a crowbar still work with the panel
