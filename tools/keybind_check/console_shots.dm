@@ -323,6 +323,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_admin9(C, H, label)
 		if("admin10")
 			cs_admin10(C, H, label)
+		if("admin11")
+			cs_admin11(C, H, label)
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")
@@ -9021,3 +9023,86 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 		sleep(10)
 	cs_b1_shot(C, H, ui?.src_object, "popup_admin10_[label]_4_job_slots", "jobmanagement")
 	SStgui.close_user_uis(H)
+
+// ---------------------------------------------------------------------------------------------
+// Old windows, batch 11: the Player Panel, the Game Panel, Create Antagonist, Station Goals
+// ---------------------------------------------------------------------------------------------
+
+/proc/cs_admin11(client/C, mob/living/carbon/human/H, label)
+	if(!C.holder)
+		var/datum/admins/A = new(new /datum/admin_rank("!localhost!", R_EVERYTHING, R_DBRANKS, R_EVERYTHING), C.ckey, 1, 1)
+		A.associate(C)
+	H.equipOutfit(/datum/outfit/job/assistant)
+	// A few more players (keyed, no client)
+	var/list/fakes = list()
+	for(var/list/who in list(list("Lena Kowalczyk", "lenak", /datum/outfit/job/engineer, FALSE), list("Tomas Reyes", "tomasr", /datum/outfit/job/security, TRUE), \
+		list("Maya Ferreira", "mayaf", /datum/outfit/job/doctor, FALSE)))
+		var/mob/living/carbon/human/F = new(cs_open_beside(H))
+		F.real_name = who[1]
+		F.name = who[1]
+		F.equipOutfit(who[3])
+		F.mind_initialize()
+		F.ckey = who[2]
+		if(who[4])
+			F.mind.add_antag_datum(/datum/antagonist/traitor)
+		fakes += F
+	var/mob/dead/observer/ghost = new(get_turf(H))
+	ghost.ckey = "deadguy"
+	fakes += ghost
+	SStgui.close_user_uis(H)
+	usr = H
+	C.holder.player_panel_new()
+	sleep(15)
+	var/datum/tgui/ui = cs_ui_named(H, "admin_players")
+	cs_b1_shot(C, H, ui?.src_object, "popup_admin11_[label]_1_players", "players")
+	if(ui)
+		var/list/data = ui.src_object.ui_data(H)
+		cs_check("admin11: the player panel lists everyone with a key ([length(data["players"])])", length(data["players"]) >= 5)
+		// A row opened: its buttons and old names under it, sorted by job
+		cs_tgui_do(C, ui.window_id, "js:var h=Array.prototype.slice.call(document.querySelectorAll('th')).filter(function(e){return e.textContent.trim()==='Job';})\[0\];if(h){h.click();}")
+		sleep(5)
+		cs_tgui_do(C, ui.window_id, "js:var r=Array.prototype.slice.call(document.querySelectorAll('.AdminPanels__row')).filter(function(e){return e.textContent.indexOf('Tomas')>=0;})\[0\];if(r){r.click();}")
+		sleep(10)
+		cs_shot("popup_admin11_[label]_1b_players_open")
+		var/mob/target = fakes[1]
+		cs_act(ui.src_object, H, "pp", list("ref" = REF(target)))
+		sleep(10)
+		cs_check("admin11: PP from the list opens the player panel", cs_ui_named(H, "admin_player_panel"))
+	SStgui.close_user_uis(H)
+
+	usr = H
+	C.holder.Game()
+	sleep(15)
+	ui = cs_ui_named(H, "admin_game_panel")
+	cs_b1_shot(C, H, ui?.src_object, "popup_admin11_[label]_2_game_panel", "admin2", "Game Panel")
+	if(ui)
+		cs_act(ui.src_object, H, "page", list("page" = "mode"))
+		SStgui.update_uis(ui.src_object)
+		sleep(10)
+		cs_shot("popup_admin11_[label]_3_change_mode")
+	else
+		usr = H
+		C.holder.HandleCMode()
+		sleep(15)
+		cs_shot("popup_admin11_[label]_3_change_mode", "")
+		C << browse(null, "window=c_mode")
+	SStgui.close_user_uis(H)
+	C << browse(null, "window=admin2")
+
+	usr = H
+	C.holder.one_click_antag()
+	sleep(15)
+	ui = cs_ui_named(H, "admin_one_click_antag")
+	cs_b1_shot(C, H, ui?.src_object, "popup_admin11_[label]_4_one_click", "oneclickantag", "Quick-Create Antagonist")
+	SStgui.close_user_uis(H)
+
+	if(SSticker.mode)
+		SSticker.mode.station_goals += new /datum/station_goal/bluespace_cannon
+	usr = H
+	C.holder.modify_goals()
+	sleep(15)
+	ui = cs_ui_named(H, "admin_station_goals")
+	cs_b1_shot(C, H, ui?.src_object, "popup_admin11_[label]_5_goals", "goals")
+	SStgui.close_user_uis(H)
+	for(var/mob/F in fakes)
+		qdel(F)

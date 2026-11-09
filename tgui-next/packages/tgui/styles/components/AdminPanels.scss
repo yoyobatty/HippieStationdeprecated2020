@@ -1,0 +1,186 @@
+// hippie -- admin panels (interfaces/AdminPanels.js): the Player Panel, the
+// Game Panel, Create Antagonist and Station Goals.
+
+.AdminPanels__muted {
+  color: #8a93a3;
+}
+
+.AdminPanels__player {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 3px 4px;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.AdminPanels__player--antag {
+  border-left-color: #db2828;
+}
+
+.AdminPanels__player--open {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.AdminPanels__playerMain {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+
+  > span {
+    margin-right: 8px;
+  }
+}
+
+.AdminPanels__playerName {
+  font-weight: bold;
+}
+
+.AdminPanels__job {
+  color: #9fc4ff;
+}
+
+.AdminPanels__antag {
+  padding: 0 6px;
+  border-radius: 8px;
+  background: rgba(219, 40, 40, 0.35);
+  font-size: 11px;
+}
+
+.AdminPanels__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: #777;
+}
+
+.AdminPanels__dot--alive {
+  background: #5baa27;
+}
+
+.AdminPanels__dot--dead {
+  background: #db2828;
+}
+
+.AdminPanels__dot--ghost {
+  background: #8a93a3;
+}
+
+.AdminPanels__dot--lobby {
+  background: #4972a1;
+}
+
+.AdminPanels__buttons {
+  white-space: nowrap;
+
+  .Button {
+    padding: 0 4px;
+  }
+}
+
+.AdminPanels__details {
+  width: 100%;
+  padding: 4px 0 2px 16px;
+}
+
+.AdminPanels__grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.AdminPanels__card {
+  width: 120px;
+  margin: 0 6px 6px 0;
+  padding: 10px 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  text-align: center;
+  cursor: pointer;
+
+  i {
+    margin-bottom: 6px;
+    color: #ff7777;
+  }
+
+  &:hover {
+    border-color: #db2828;
+    background: rgba(219, 40, 40, 0.15);
+  }
+}
+
+.AdminPanels__pre {
+  white-space: pre-wrap;
+  color: #c9d1dd;
+}
+
+// The Player Panel's table: sortable headers, the row's own buttons on hover
+// or when it's open
+
+.AdminPanels__table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    padding: 4px 6px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+      color: #9fc4ff;
+    }
+  }
+
+  td {
+    padding: 3px 6px;
+    white-space: nowrap;
+  }
+}
+
+.AdminPanels__sorted {
+  color: #9fc4ff;
+}
+
+.AdminPanels__row {
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  &:hover .AdminPanels__rowActions {
+    visibility: visible;
+  }
+}
+
+.AdminPanels__row--antag td:first-child {
+  box-shadow: inset 3px 0 0 #db2828;
+}
+
+.AdminPanels__row--open {
+  background: rgba(73, 114, 161, 0.2);
+
+  .AdminPanels__rowActions {
+    visibility: visible;
+  }
+}
+
+.AdminPanels__rowActions {
+  visibility: hidden;
+  text-align: right;
+
+  .Button {
+    padding: 0 4px;
+  }
+}
+
+.AdminPanels__openRow td {
+  padding: 4px 6px 8px 12px;
+  background: rgba(73, 114, 161, 0.1);
+}

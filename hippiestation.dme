@@ -3337,6 +3337,7 @@
 #include "hippiestation\code\modules\admin\secrets_tgui.dm"
 #include "hippiestation\code\modules\admin\admin_pages_tgui.dm"
 #include "hippiestation\code\modules\admin\admin_tools_tgui.dm"
+#include "hippiestation\code\modules\admin\admin_panels_tgui.dm"
 #include "hippiestation\code\modules\admin\help_window.dm"
 #include "hippiestation\code\modules\admin\player_menu.dm"
 #include "hippiestation\code\modules\admin\admin_hub.dm"

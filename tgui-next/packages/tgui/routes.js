@@ -4,6 +4,7 @@ import { AdminAlerts } from './interfaces/AdminAlerts';
 import { AdminFind } from './interfaces/AdminFind';
 import { AdminHub } from './interfaces/AdminHub';
 import { RoundStatus, TeamListing, TraitorPanel } from './interfaces/AdminPages';
+import { AdminGamePanel, AdminOneClickAntag, AdminPlayers, AdminStationGoals } from './interfaces/AdminPanels';
 import { AdminPlayerPanel } from './interfaces/AdminPlayerPanel';
 import { AdminList, AdminSecrets } from './interfaces/AdminSecrets';
 import { AdminSpawner, JobSlots, OutfitEditor, OutfitManager } from './interfaces/AdminTools';
@@ -1364,6 +1365,22 @@ const ROUTES = {
   },
   admin_job_slots: {
     component: () => JobSlots,
+    scrollable: true,
+  },
+  admin_players: {
+    component: () => AdminPlayers,
+    scrollable: true,
+  },
+  admin_game_panel: {
+    component: () => AdminGamePanel,
+    scrollable: true,
+  },
+  admin_one_click_antag: {
+    component: () => AdminOneClickAntag,
+    scrollable: true,
+  },
+  admin_station_goals: {
+    component: () => AdminStationGoals,
     scrollable: true,
   },
 };
