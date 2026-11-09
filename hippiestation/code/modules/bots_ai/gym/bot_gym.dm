@@ -35,6 +35,12 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	var/datum/bot_scenario/gym_run
 	/// Scripted bots do nothing on their own while idle - no wandering, rounds or chatter.
 	var/gym_scripted = FALSE
+	/// Its run has been judged and its arena frozen (bot_scenario/freeze_arena()): no thinking, no telemetry.
+	var/gym_frozen = FALSE
+
+/mob/living
+	/// In a Bot Gym arena whose run has been judged: SSmobs skips its Life() (skip_unobserved_life()).
+	var/bot_gym_frozen = FALSE
 
 /area/bot_gym
 	name = "Bot Gym Arena"
@@ -363,6 +369,7 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 			fail_reason = "succeeded but looked robotic: [tells]"
 	if(result != BOT_GYM_PENDING)
 		end_time = world.time
+		freeze_arena()
 		release_run()
 		return
 	if(brain && brain.state == BOT_STATE_WANDER && !brain.current_goal && goal_attempts < max_goal_attempts)
@@ -377,6 +384,30 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 		if(LAZYACCESS(brain.telemetry_flags, tell))
 			found += "[tell] x[brain.telemetry_flags[tell]]"
 	return length(found) ? jointext(found, ", ") : null
+
+/// A judged run's mobs stop living: they went on breathing, digesting and, with a goal still on, pathing until the server's last run was
+/// over - often 200-400 game seconds after a 14 s run, and 40% of a full gym's server time (2026-11-09). Nothing about them is judged or
+/// reported after this. They aren't deleted (the bot may still be in start(), and gym bots are never deleted, see release_run()).
+/datum/bot_scenario/proc/freeze_arena()
+	var/list/mob/living/frozen = list()
+	if(bot)
+		frozen += bot
+	for(var/turf/T as anything in reservation?.reserved_turfs)
+		for(var/atom/movable/AM as anything in T)
+			if(isliving(AM))
+				frozen |= AM
+			else if(length(AM.contents)) //in a locker, a sleeper, a cloning pod
+				frozen |= AM.GetAllContents(/mob/living)
+	for(var/mob/living/L as anything in frozen)
+		L.bot_gym_frozen = TRUE
+		if(isanimal(L))
+			var/mob/living/simple_animal/animal = L
+			animal.toggle_ai(AI_OFF)
+		if(ishuman(L))
+			var/mob/living/carbon/human/H = L
+			if(H.bot_brain)
+				H.bot_brain.gym_frozen = TRUE
+				STOP_PROCESSING(SSprocessing, H.bot_brain)
 
 /// Scenario datums live until every run has finished (the report is written at the end), but a judged run
 /// only needs its text and brain. Letting go of its other atoms (arena objects, a scenario's own mouse or

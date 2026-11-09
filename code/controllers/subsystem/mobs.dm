@@ -48,6 +48,8 @@ SUBSYSTEM_DEF(mobs)
 /// fauna), and wakes it as soon as one arrives. Nobody can see it until then, so its Life() only runs on one fire
 /// in UNOBSERVED_LIFE_INTERVAL - its AI is already off entirely. Fires are staggered per mob so the cost stays even.
 /datum/controller/subsystem/mobs/proc/skip_unobserved_life(mob/living/L, times_fired)
+	if(L.bot_gym_frozen) //a Bot Gym arena whose run is over (bot_scenario/freeze_arena())
+		return TRUE
 	if(!isanimal(L))
 		return FALSE
 	var/mob/living/simple_animal/animal = L

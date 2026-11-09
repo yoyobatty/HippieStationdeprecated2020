@@ -75,7 +75,7 @@ GLOBAL_LIST_EMPTY(asset_datums)
 	ensure_stripped()
 
 	var/res_name = "spritesheet_[name].css"
-	var/fname = "data/spritesheets/[res_name]"
+	var/fname = "data/spritesheets/[world.port]_[res_name]" // hippie -- the port: another test server in this folder could fdel() it mid-copy ("invalid asset sent to asset cache"). The asset keeps res_name.
 	fdel(fname)
 	text2file(generate_css(), fname)
 	register_asset(res_name, fcopy_rsc(fname))
@@ -100,7 +100,7 @@ GLOBAL_LIST_EMPTY(asset_datums)
 			continue
 
 		// save flattened version
-		var/fname = "data/spritesheets/[name]_[size_id].png"
+		var/fname = "data/spritesheets/[name]_[size_id]_[world.port].png" // hippie -- the port: test servers share this folder, and one's fdel() below took the file from under another's icon() ("bad icon operation", then a division by zero in generate_css(); Bot Gym 2026-11-09)
 		fcopy(size[SPRSZ_ICON], fname)
 		var/error = rustg_dmi_strip_metadata(fname)
 		if(length(error))

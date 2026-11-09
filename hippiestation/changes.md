@@ -30,6 +30,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/subsystem/input.dm
 ## code/controllers/subsystem/job.dm
 ## code/controllers/subsystem/mapping.dm
+## code/controllers/subsystem/mobs.dm
 ## code/controllers/subsystem/stickyban.dm
 ## code/controllers/subsystem/throwing.dm
 ## code/controllers/subsystem/ticker.dm
@@ -85,6 +86,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/admin/verbs/one_click_antag.dm
 ## code/modules/antagonists/clockcult/clock_items/clockwork_armor.dm
 ## code/modules/antagonists/morph/morph.dm
+## code/modules/asset_cache/asset_list.dm
 ## code/modules/atmospherics/machinery/atmosmachinery.dm
 ## code/modules/atmospherics/machinery/components/components_base.dm
 ## code/modules/awaymissions/capture_the_flag.dm

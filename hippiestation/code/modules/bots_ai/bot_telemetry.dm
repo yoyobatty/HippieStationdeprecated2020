@@ -71,7 +71,7 @@ GLOBAL_VAR_INIT(bot_telemetry_samples, !(BOT_GYM_PARAMETER in world.params) || (
 /proc/bot_telemetry_loop()
 	while(TRUE)
 		for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
-			if(QDELETED(B) || QDELETED(B.owner))
+			if(QDELETED(B) || QDELETED(B.owner) || B.gym_frozen) //gym_frozen: its Bot Gym run is over (gym/bot_gym.dm)
 				continue
 			if(B.owner.stat == DEAD) //a corpse says the same thing twice a second, and that was 46% of a round where everybody died
 				B.telemetry_touch()
