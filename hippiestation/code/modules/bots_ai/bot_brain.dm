@@ -430,6 +430,8 @@
 /datum/bot_brain/proc/weapon_to_hand()
 	var/obj/item/best
 	for(var/obj/item/I in owner.held_items)
+		if(istype(I, /obj/item/twohanded/spear/explosive))
+			continue //for a nanosuit only (try_suit_kit(), goals/fight_the_suit.dm): it goes off on whatever it hits
 		if(I.force >= BOT_COMBAT_WEAPON_FORCE && (!best || I.force > best.force))
 			best = I
 	if(best && owner.get_active_held_item() != best)

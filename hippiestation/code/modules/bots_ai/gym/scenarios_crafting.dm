@@ -247,3 +247,138 @@
 
 /datum/bot_scenario/craft/spiked_bat/leftovers()
 	return null //a spare plank or two is fine
+
+// ---------------------------------------------------------------------------------------------
+// Explosives against a suit (goals/chem_lab.dm, goals/fight_the_suit.dm)
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/chem_brew/suit_grenade
+	name = "chem: a suit's been seen, so the chemist's next brew for itself is an explosive grenade for it"
+	desc = "Potassium in one beaker, water in the other, into a case with cable and a screwdriver. Ahead of the heals: there's a suit about."
+	label = "explosive"
+	time_limit = 90 SECONDS
+	station_wide = TRUE //"a suit's been seen" is the whole station's, and the chemist would take another arena's mutagen order: run by name, alone
+	kit_backpack = list(/obj/item/reagent_containers/glass/beaker/large, /obj/item/reagent_containers/glass/beaker/large, /obj/item/stack/cable_coil, /obj/item/screwdriver)
+
+/datum/bot_scenario/chem_brew/suit_grenade/post_spawn()
+	..()
+	brain.set_playstyle(BOT_STYLE_NORMAL) //not a powergamer: it's the suit that has it making one
+	GLOB.bot_suit_seen_at["gym suit"] = world.time
+	new /obj/item/grenade/chem_grenade(first_marker("."))
+
+/datum/bot_scenario/chem_brew/suit_grenade/make_goal()
+	return new /datum/bot_goal/synthesize_medicine() //its own choice of brew (brew_for_self())
+
+/datum/bot_scenario/chem_brew/suit_grenade/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return brain.bot_ready_bomb_grenade() ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/chem_brew/suit_grenade/release_run()
+	GLOB.bot_suit_seen_at -= "gym suit"
+	return ..()
+
+/datum/bot_scenario/griefed/suit/grenade
+	name = "nanosuit: an explosive grenade thrown at it from a safe distance, and it holds back till it goes"
+	desc = "Six tiles off with nobody else near it. Primed, thrown, and the thrower waits for the blast rather than walking into it."
+	blast_margin = 4
+	time_limit = 20 SECONDS
+	kit_backpack = list(/obj/item/grenade/chem_grenade/bot_gym_explosive)
+	layout = list(
+		"##############",
+		"#............#",
+		"#.B.....C....#",
+		"#............#",
+		"##############")
+	var/blasted = FALSE
+
+/datum/bot_scenario/griefed/suit/grenade/post_spawn()
+	..()
+	brain.nerve = 0.5
+
+/datum/bot_scenario/griefed/suit/grenade/grief()
+	brain.look_out_for_trouble() //a scripted bot doesn't look round by itself
+
+/datum/bot_scenario/griefed/suit/grenade/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(griefer.getBruteLoss() + griefer.getFireLoss() >= 10 && bot_transcript_has("throwing the chemical grenade")) //the gym's grenade is small: a light blast
+		blasted = TRUE
+	if(!blasted)
+		return BOT_GYM_PENDING
+	if(bot.getBruteLoss() + bot.getFireLoss() >= 20)
+		fail_reason = "caught in its own blast"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/griefed/suit/no_grenade_in_a_crowd
+	name = "nanosuit: with somebody fighting it, the grenade stays in the bag"
+	desc = "It's for the suit, not the crew round it: somebody's right next to it, so no grenade."
+	blast_margin = 4
+	time_limit = 12 SECONDS
+	kit_backpack = list(/obj/item/grenade/chem_grenade/bot_gym_explosive)
+	layout = list(
+		"##############",
+		"#............#",
+		"#.B.....VC...#",
+		"#............#",
+		"##############")
+	var/mob/living/carbon/human/victim
+
+/datum/bot_scenario/griefed/suit/no_grenade_in_a_crowd/post_spawn()
+	..()
+	victim = stand_in(first_marker("V"), "Vic Victim")
+	brain.nerve = 0.5
+
+/datum/bot_scenario/griefed/suit/no_grenade_in_a_crowd/grief()
+	brain.look_out_for_trouble()
+
+/datum/bot_scenario/griefed/suit/no_grenade_in_a_crowd/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot_transcript_has("throwing the grenade") || bot_transcript_has("throwing the chemical grenade"))
+		fail_reason = "grenaded the crew along with it"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/suit/no_grenade_in_a_crowd/on_timeout()
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/griefed/suit/lance
+	name = "nanosuit: a hothead with a spear and an explosive grenade makes a lance and drives it in"
+	desc = "The spear and the grenade tied together at the crafting menu, then wielded and driven into the suit. It goes off on the suit, and on the one holding it."
+	blast_margin = 4
+	time_limit = 25 SECONDS
+	kit_hands = list(/obj/item/twohanded/spear)
+	kit_backpack = list(/obj/item/grenade/chem_grenade/bot_gym_explosive)
+	layout = list(
+		"##############",
+		"#............#",
+		"#.B.....C....#",
+		"#............#",
+		"##############")
+
+/datum/bot_scenario/griefed/suit/lance/post_spawn()
+	..()
+	brain.nerve = 0.8
+	brain.temper = 0.9
+
+/datum/bot_scenario/griefed/suit/lance/grief()
+	brain.look_out_for_trouble()
+
+/datum/bot_scenario/griefed/suit/lance/check()
+	if(!bot || QDELETED(bot))
+		return BOT_GYM_FAIL
+	if(bot.stat == DEAD)
+		fail_reason = "killed itself with it"
+		return BOT_GYM_FAIL
+	return (bot_transcript_has("driving the explosive lance") && griefer.getBruteLoss() + griefer.getFireLoss() >= 20) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/chem_brew/suit_grenade/toolbox
+	name = "chem: a suit grenade with no cable or screwdriver on it, so it fetches an electrical toolbox for both"
+	desc = "Chemists don't carry tools, and the nearest loose ones are usually behind Engineering's doors: a chemist in a real shift tried eight times and never made the grenade. An electrical toolbox has both."
+	kit_backpack = list(/obj/item/reagent_containers/glass/beaker/large, /obj/item/reagent_containers/glass/beaker/large)
+
+/datum/bot_scenario/chem_brew/suit_grenade/toolbox/post_spawn()
+	..()
+	new /obj/item/storage/toolbox/electrical(first_marker("."))

@@ -130,6 +130,8 @@
 	var/obj/item/made
 	/// Parts set down on the floor to work with, and picked back up after.
 	var/list/laid_out
+	/// The one it means to use, where it has more than one of that kind (the explosive grenade for a lance, not the knockout one)
+	var/obj/item/chosen_part
 
 /datum/bot_goal/craft/New(recipe_type, keep_in_hand = FALSE, no_fetching = FALSE)
 	. = ..()
@@ -212,7 +214,15 @@
 		return GOAL_STEP_FAIL
 	// The crafting menu only sees what's in hand, in a pocket or within reach. Hands empty for the work: a part in one goes down on
 	// the floor with the rest, anything else in the bag. What's in the bag comes out onto the floor.
+	var/chosen_type //the recipe's part type the chosen one is for
+	if(G.chosen_part)
+		for(var/part_type in R.reqs)
+			if(istype(G.chosen_part, part_type))
+				chosen_type = part_type
 	for(var/obj/item/I in H.held_items)
+		if(chosen_type && istype(I, chosen_type) && I != G.chosen_part)
+			bot.stow_or_drop(I) //not that one
+			continue
 		if(is_type_in_list(I, R.reqs))
 			if(H.dropItemToGround(I))
 				LAZYADD(G.laid_out, I)
@@ -222,6 +232,8 @@
 		for(var/obj/item/I in H.GetAllContents())
 			if(!istype(I, part_type) || isturf(I.loc) || I == H.l_store || I == H.r_store || I == H.handcuffed)
 				continue //already down, or in a pocket (within reach anyway)
+			if(part_type == chosen_type && I != G.chosen_part)
+				continue
 			if(I.loc == H)
 				if(!H.dropItemToGround(I)) //on the belt or in suit storage
 					continue
@@ -246,10 +258,17 @@
 		G.pick_up_laid_out(bot)
 		return GOAL_STEP_FAIL
 	menu.on_recipe_crafted(H, R)
-	G.made = locate(R.result) in H.held_items
-	if(!G.made)
-		G.made = locate(R.result) in H.drop_location()
-		if(G.made && !H.put_in_hands(G.made))
+	// What came out: in hand, or on the floor. Not one of its own parts, and not something already gone: a spear given a grenade
+	// replaces itself with a new explosive lance on the floor (spear/CheckParts()) and deletes the spear it put in the hand.
+	G.made = null
+	var/turf/floor = H.drop_location()
+	for(var/obj/item/I in H.held_items + floor.contents)
+		if(istype(I, R.result) && !QDELETED(I) && !(I in G.laid_out))
+			G.made = I
+			break
+	if(G.made && !(G.made in H.held_items))
+		bot.free_hand_for(G.made)
+		if(!H.put_in_hands(G.made))
 			G.made = null
 	G.pick_up_laid_out(bot)
 	if(!G.made)

@@ -16,7 +16,7 @@
 
 /// How hard this hits in a bot's hands.
 /proc/bot_weapon_force(obj/item/I)
-	if(I.item_flags & (NOBLUDGEON|ABSTRACT))
+	if(I.item_flags & (NOBLUDGEON|ABSTRACT) || istype(I, /obj/item/twohanded/spear/explosive)) //a lance is for a nanosuit only (goals/fight_the_suit.dm)
 		return 0
 	var/obj/item/twohanded/two = I //a fire axe, a spear: wielded before it's swung
 	return istype(two) && two.force_wielded ? two.force_wielded : I.force

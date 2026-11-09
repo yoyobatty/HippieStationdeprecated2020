@@ -55,6 +55,37 @@ GLOBAL_LIST_EMPTY(bot_nanosuits)
 /datum/bot_brain/proc/try_suit_kit(mob/living/carbon/human/suit)
 	if(!bot_suit_to_fight(suit) || !takes_on_suits(suit))
 		return FALSE
+	// A chemist's explosive grenade (goals/chem_lab.dm) from four to seven tiles off, clear of the light blast itself, and only with
+	// nobody else within two tiles of the suit: it's for the suit, not the crew round it.
+	var/dist = get_dist(owner, suit)
+	if(world.time < grenade_out_until && !owner.Adjacent(suit))
+		stop_pursuit()
+		return TRUE //one's on its way: not walking into it
+	if(dist >= 4 && dist <= 7 && world.time >= next_bola_time)
+		var/obj/item/grenade/chem_grenade/G = bot_ready_bomb_grenade() //goals/sabotage_grenades.dm
+		if(G && has_clear_shot(suit) && !anybody_else_near(suit, 2) && ready_in_hand(G))
+			next_bola_time = world.time + 4 SECONDS
+			owner.face_atom(suit)
+			owner.changeNext_move(CLICK_CD_RANGE)
+			bot_log(src, "throwing [G] at [suit] (dist [dist])")
+			bot_tally("threw a grenade at a nanosuit")
+			bot_say(owner, pick("Grenade!", "Fire in the hole!", "Everybody back!"))
+			G.attack_self(owner) //primed
+			owner.throw_item(suit)
+			grenade_out_until = world.time + G.det_time + 1 SECONDS
+			return TRUE
+	// An explosive lance, wielded and driven in: it goes off on the suit, and on whoever's holding it
+	var/obj/item/twohanded/spear/explosive/lance = find_carried_tool(/obj/item/twohanded/spear/explosive)
+	if(lance && owner.Adjacent(suit))
+		var/obj/item/twohanded/wielded = ready_fireaxe(lance) //bot_items.dm
+		if(wielded == lance)
+			owner.changeNext_move(CLICK_CD_MELEE)
+			owner.face_atom(suit)
+			owner.a_intent = INTENT_HARM
+			bot_log(src, "driving [lance] into [suit]")
+			bot_tally("drove a lance into a nanosuit")
+			lance.melee_attack_chain(owner, suit)
+			return TRUE
 	if(!suit.legcuffed && world.time >= next_bola_time && get_dist(owner, suit) <= 6)
 		var/obj/item/restraints/legcuffs/bola/B = find_carried_tool(/obj/item/restraints/legcuffs/bola)
 		if(B && has_clear_shot(suit) && ready_in_hand(B)) //bot_fighting.dm
@@ -84,8 +115,17 @@ GLOBAL_LIST_EMPTY(bot_nanosuits)
 			return TRUE
 	return FALSE
 
+/// Anybody but the suit and this bot within range of it, up and about.
+/datum/bot_brain/proc/anybody_else_near(mob/living/carbon/human/suit, range)
+	for(var/mob/living/carbon/human/H in range(range, suit))
+		if(H != suit && H != owner && H.stat != DEAD)
+			return TRUE
+	return FALSE
+
 /datum/bot_brain
 	var/next_bola_time = 0
+	/// A grenade it's thrown is still to go off: it holds back till then
+	var/grenade_out_until = 0
 	/// Whether it's had its go at making something for the bag this shift (/datum/bot_duty/make_kit)
 	var/made_kit = FALSE
 	/// Its roll, once, for being the kind to (/datum/bot_duty/make_kit)
@@ -109,6 +149,15 @@ GLOBAL_LIST_EMPTY(bot_nanosuits)
 /datum/bot_brain/proc/take_on_the_suit(mob/living/carbon/human/suit)
 	if(busy_with_suit(suit))
 		return
+	// A hothead with a spear and an explosive grenade on it ties the one to the other: an explosive lance (goals/crafting.dm)
+	if(get_dist(owner, suit) >= 3 && temper >= 0.6 && find_carried_tool(/obj/item/twohanded/spear) && !find_carried_tool(/obj/item/twohanded/spear/explosive) && bot_ready_bomb_grenade())
+		var/datum/bot_goal/craft/for_suit/lance = new /datum/bot_goal/craft/for_suit(/datum/crafting_recipe/lance, TRUE, TRUE)
+		lance.suit = suit
+		lance.chosen_part = bot_ready_bomb_grenade()
+		if(assign_goal(lance))
+			bot_log(src, "making an explosive lance for [suit]")
+			bot_say(owner, pick("Hold on, I've got an idea.", "Somebody cover me, I'm making a lance!"))
+			return
 	if(get_dist(owner, suit) >= 3 && !find_carried_tool(/obj/item/restraints/legcuffs/bola) && can_craft_now(/datum/crafting_recipe/bola))
 		var/datum/bot_goal/craft/for_suit/bola = new /datum/bot_goal/craft/for_suit(/datum/crafting_recipe/bola, TRUE, TRUE)
 		bola.suit = suit

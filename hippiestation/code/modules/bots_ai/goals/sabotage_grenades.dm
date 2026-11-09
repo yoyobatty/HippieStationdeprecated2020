@@ -71,7 +71,7 @@ GLOBAL_LIST_INIT(bot_bomber_lines, list("For the Syndicate!", "Death to Nanotras
 
 /datum/bot_brain/proc/bot_ready_bomb_grenade()
 	for(var/obj/item/grenade/chem_grenade/G in owner.GetAllContents(/obj/item/grenade/chem_grenade))
-		if(G.stage == GRENADE_READY && !G.active && bot_grenade_explosive(G))
+		if(G.stage == GRENADE_READY && !G.active && bot_grenade_explosive(G) && !istype(G.loc, /obj/item/twohanded/spear/explosive)) //not the one tied to a lance
 			return G
 	return null
 

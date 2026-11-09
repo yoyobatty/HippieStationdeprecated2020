@@ -3,6 +3,9 @@
 // reuse this exact goal type with its target item later).
 /datum/bot_goal/acquire_item_type
 	var/item_type
+	/// How many of the nearest it checks it can walk to, lawfully: past that it gives up. Six is plenty for most things; a chemist's
+	/// screwdriver (goals/chem_lab.dm) has the nearest ones behind Engineering's and Robotics' doors.
+	var/lawful_tries = 6
 
 // Picks the NEAREST reachable-looking candidate on the bot's own z-level, not just the
 // first match world// happens to iterate to. A plain "first in world" scan used to
@@ -71,7 +74,7 @@
 			continue
 		found[C] = get_dist(bot.owner, C) + 3 //a loose one is less bother than rummaging
 	var/tries = 0
-	while(length(found) && tries++ < 6)
+	while(length(found) && tries++ < lawful_tries)
 		var/atom/nearest
 		for(var/atom/A as anything in found)
 			if(!nearest || found[A] < found[nearest])

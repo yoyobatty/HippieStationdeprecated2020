@@ -15,6 +15,8 @@
 #define BOT_CHEM_KNOCKOUT "knockout"
 #define BOT_CHEM_LETHAL "lethal"
 #define BOT_CHEM_GRENADE "grenade"
+/// An explosive grenade for a nanosuit (goals/fight_the_suit.dm)
+#define BOT_CHEM_SUIT "suit"
 /// The longest a machine gets to do what it's asked.
 #define BOT_CHEM_MACHINE_LIMIT (2 MINUTES)
 /// Between one needle and the next.
@@ -73,6 +75,13 @@ GLOBAL_LIST_INIT(bot_brews, list(
 		list("add", list(/datum/reagent/potassium = 20, /datum/reagent/consumable/sugar = 20)),
 		list("second beaker", list(/datum/reagent/phosphorus = 20)),
 	)),
+	// For a nanosuit (the user's ruling, 2026-11-09: chemists make "super deadly" things against it): the saboteur's explosive, potassium
+	// and water in beakers of their own (goals/sabotage_grenades.dm). Through the suit's bomb armour the heavy blast still does about 40
+	// brute and 40 burn and puts it out for a couple of seconds. Gas, smoke and needles get nowhere: it's sealed and on its own air.
+	list("label" = "explosive", "reagent" = /datum/reagent/potassium, "kind" = BOT_CHEM_SUIT, "form" = "grenade", "stages" = list(
+		list("add", list(/datum/reagent/potassium = 100)),
+		list("second beaker", list(/datum/reagent/water = 100)),
+	)),
 ))
 
 /// What each kind of chemist keeps on it: BOT_CHEM_* -> how many.
@@ -115,6 +124,11 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 	. = 0
 	if(kind == BOT_CHEM_GRENADE)
 		return bot_ready_grenade() ? 1 : 0
+	if(kind == BOT_CHEM_SUIT)
+		for(var/obj/item/grenade/chem_grenade/G in owner.GetAllContents(/obj/item/grenade/chem_grenade))
+			if(G.stage == GRENADE_READY && !G.active && bot_grenade_explosive(G) && !istype(G.loc, /obj/item/twohanded/spear/explosive)) //goals/sabotage_grenades.dm
+				.++
+		return
 	for(var/obj/item/reagent_containers/C in owner.GetAllContents(/obj/item/reagent_containers))
 		if((istype(C, /obj/item/reagent_containers/pill) || istype(C, /obj/item/reagent_containers/syringe)) && bot_chem_kind_of(C) == kind)
 			.++
@@ -127,6 +141,16 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 	wanted = wanted.Copy()
 	if(temper < 0.3)
 		wanted -= BOT_CHEM_LETHAL
+	// A nanosuit's been seen this shift (goals/security_tactics.dm): every chemist makes something for it, first, and the keen ones two.
+	// The powergamers and the paranoid have one in the bag ahead of time anyway, just in case.
+	var/keen = playstyle == BOT_STYLE_POWERGAMER || is_paranoid() || plays_robust() || playstyle == BOT_STYLE_HUNTER
+	var/suit_grenades = length(GLOB.bot_suit_seen_at) ? (keen ? 2 : 1) : (playstyle == BOT_STYLE_POWERGAMER || is_paranoid() ? 1 : 0)
+	if(suit_grenades && !owner.mind?.has_antag_datum(/datum/antagonist/traitor))
+		var/list/first = list(BOT_CHEM_SUIT = suit_grenades)
+		if(length(GLOB.bot_suit_seen_at))
+			wanted = first + wanted
+		else
+			wanted += first
 	return wanted
 
 /datum/bot_brain
@@ -162,7 +186,7 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 
 /datum/bot_brain/proc/bot_ready_grenade()
 	for(var/obj/item/grenade/chem_grenade/G in owner.GetAllContents(/obj/item/grenade/chem_grenade))
-		if(G.stage == GRENADE_READY && !G.active && !bot_grenade_explosive(G)) //a saboteur's (goals/sabotage_grenades.dm) isn't for a fight
+		if(G.stage == GRENADE_READY && !G.active && !bot_grenade_explosive(G) && !istype(G.loc, /obj/item/twohanded/spear/explosive)) //a saboteur's (goals/sabotage_grenades.dm) isn't for a fight, nor one tied to a lance
 			return G
 	return null
 
@@ -467,6 +491,7 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 	var/tried_case = FALSE
 	var/tried_coil = FALSE
 	var/tried_driver = FALSE
+	var/tried_toolbox = FALSE
 
 /datum/bot_step/ensure_grenade_parts/execute(datum/bot_brain/bot)
 	if(!bot.grenade_case() && !tried_case)
@@ -486,10 +511,21 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 		var/datum/bot_goal/acquire_item_type/fetch = new()
 		fetch.item_type = needed
 		fetch.lawful = TRUE
+		fetch.lawful_tries = 16
 		if(bot.suspend_goal_for(fetch))
 			return GOAL_STEP_PENDING
 	if(bot.grenade_case() && bot.find_carried_tool(/obj/item/stack/cable_coil) && bot.find_carried_tool(/obj/item/screwdriver))
 		return GOAL_STEP_SUCCESS
+	// No loose cable or screwdriver it can get at: an electrical toolbox has both. A chemist in a real shift (boom1109r) looked for the six
+	// nearest of each, every one behind a door its ID doesn't open, eight times, and never made the grenade.
+	if(bot.grenade_case() && !tried_toolbox)
+		tried_toolbox = TRUE
+		var/datum/bot_goal/acquire_item_type/kit = new()
+		kit.item_type = /obj/item/storage/toolbox/electrical
+		kit.lawful = TRUE
+		kit.lawful_tries = 16
+		if(bot.suspend_goal_for(kit))
+			return GOAL_STEP_PENDING
 	bot_log(bot, "can't get what it takes to make a grenade")
 	return GOAL_STEP_FAIL
 
@@ -591,6 +627,7 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 #undef BOT_CHEM_KNOCKOUT
 #undef BOT_CHEM_LETHAL
 #undef BOT_CHEM_GRENADE
+#undef BOT_CHEM_SUIT
 #undef BOT_CHEM_MACHINE_LIMIT
 #undef BOT_NEEDLE_REST
 
