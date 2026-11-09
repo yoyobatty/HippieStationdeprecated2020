@@ -566,33 +566,31 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 		return TRUE
 	return is_security_job() && istype(where, /area/security)
 
-/datum/bot_brain/proc/find_reachable_healing_machine(mob/living/patient)
-	var/obj/machinery/sleeper/best_sleeper
-	var/best_sleeper_dist
-	for(var/obj/machinery/sleeper/S as anything in bot_instances_of(/obj/machinery/sleeper))
-		if(S.z != owner.z || S.occupant || !healing_machine_is_ours(S))
-			continue
-		var/dist = get_dist(patient, S)
-		if(dist > 60)
-			continue
-		if(!best_sleeper || dist < best_sleeper_dist)
-			best_sleeper = S
-			best_sleeper_dist = dist
-	if(best_sleeper)
-		return best_sleeper
-
-	var/obj/machinery/atmospherics/components/unary/cryo_cell/best_cryo
-	var/best_cryo_dist
-	for(var/obj/machinery/atmospherics/components/unary/cryo_cell/C as anything in bot_instances_of(/obj/machinery/atmospherics/components/unary/cryo_cell))
-		if(C.z != owner.z || C.occupant || !healing_machine_is_ours(C))
-			continue
-		var/dist = get_dist(patient, C)
-		if(dist > 60)
-			continue
-		if(!best_cryo || dist < best_cryo_dist)
-			best_cryo = C
-			best_cryo_dist = dist
-	return best_cryo
+/// The nearest free sleeper, or cryo cell if there's no sleeper. walking_in: it's going in on its own feet, so only one it can walk to by
+/// a lawful route. Hurt crew were sent for the nearest sleeper behind Medbay's doors, found no way in, and gave up (shift fix1109a, 7 times).
+/datum/bot_brain/proc/find_reachable_healing_machine(mob/living/patient, walking_in = FALSE)
+	for(var/path in list(/obj/machinery/sleeper, /obj/machinery/atmospherics/components/unary/cryo_cell))
+		var/list/by_dist = list()
+		for(var/obj/machinery/M as anything in bot_instances_of(path))
+			if(M.z != owner.z || !healing_machine_is_ours(M))
+				continue
+			var/obj/machinery/sleeper/S = M
+			var/obj/machinery/atmospherics/components/unary/cryo_cell/C = M
+			if((istype(S) && S.occupant) || (istype(C) && C.occupant))
+				continue
+			var/dist = get_dist(patient, M)
+			if(dist <= 60)
+				by_dist[M] = dist
+		sortTim(by_dist, GLOBAL_PROC_REF(cmp_numeric_asc), associative = TRUE)
+		var/tries = 0
+		for(var/obj/machinery/M as anything in by_dist)
+			if(!walking_in)
+				return M
+			if(tries++ >= 4)
+				break
+			if(can_walk_lawfully_to(M))
+				return M
+	return null
 
 /datum/bot_goal/escort_to_sleeper
 	exclusive = TRUE //one doctor to a patient: two went for the same one, and the second found them gone from where they'd lain

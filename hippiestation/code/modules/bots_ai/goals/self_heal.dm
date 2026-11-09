@@ -150,7 +150,7 @@
 	// just sitting still in the one it's already in.
 	if(istype(bot.owner.loc, /obj/machinery/sleeper) || istype(bot.owner.loc, /obj/machinery/atmospherics/components/unary/cryo_cell))
 		return
-	var/atom/M = bot.find_reachable_healing_machine(bot.owner)
+	var/atom/M = bot.find_reachable_healing_machine(bot.owner, TRUE)
 	if(!M)
 		return
 	target = bot.owner

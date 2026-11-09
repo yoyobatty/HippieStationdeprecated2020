@@ -354,6 +354,44 @@
 		GLOB.bot_open_trapdoors -= get_turf(trap)
 	return ..()
 
+/datum/bot_scenario/sleeper_it_can_get_to
+	name = "hurt: it goes to a sleeper it can get to, not the nearest one behind a door it can't open"
+	desc = "Shift fix1109a: hurt crew with nothing to treat themselves with were sent to the nearest sleeper, behind Medbay's doors, found no way in and gave up, seven times. It picks one it can walk to."
+	layout = list(
+		"##########",
+		"#B.....2.#",
+		"#D########",
+		"#.1#######",
+		"##########")
+	time_limit = 30 SECONDS
+	var/obj/machinery/sleeper/locked_away
+	var/obj/machinery/sleeper/open_one
+
+/datum/bot_scenario/sleeper_it_can_get_to/setup()
+	var/obj/machinery/door/airlock/A = locate() in first_marker("D")
+	if(A)
+		A.req_access = list(ACCESS_MEDICAL) //nobody without Medbay access gets in
+	locked_away = new(first_marker("1"))
+	place("1", locked_away)
+	open_one = new(first_marker("2"))
+	place("2", open_one)
+
+/datum/bot_scenario/sleeper_it_can_get_to/post_spawn()
+	bot.adjustBruteLoss(60)
+
+/datum/bot_scenario/sleeper_it_can_get_to/make_goal()
+	return new /datum/bot_goal/seek_medbay_healing()
+
+/datum/bot_scenario/sleeper_it_can_get_to/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot.loc == open_one)
+		return BOT_GYM_PASS
+	if(bot_transcript_said("giving up on /datum/bot_goal/seek_medbay_healing"))
+		fail_reason = "went for the sleeper behind the door it can't open, and gave up"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
 /datum/bot_scenario/set_down_two
 	name = "set down: going back for one thing, it doesn't switch to another halfway"
 	desc = "Shift base1108n: a botanist with two seed packs set down went back and forth between them for over a minute, going for whichever came into view first each step. It finishes going for the one it set off for."
