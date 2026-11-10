@@ -27,6 +27,8 @@
 	var/janitor_wardrobe_retry = 0
 	/// Until when it's known there's no water to be had for the mop (janitor_has_water()).
 	var/janitor_dry_until = 0
+	/// Until when it's known there's no mop it can get to (janitor_can_get_mop()).
+	var/janitor_no_mop_until = 0
 	/// Tiles this janitor has mopped clean, for the Bot Shift report.
 	var/tiles_mopped = 0
 	var/lights_replaced = 0
@@ -199,7 +201,7 @@
 		if(length(wanted) && bot.find_janidrobe(wanted) && bot.assign_goal(new /datum/bot_goal/janitor_wardrobe()))
 			return TRUE
 	// No mop to be had (there is one on the whole station, and two janitors): no mopping, until one turns up.
-	var/can_mop = bot.find_carried_tool(/obj/item/mop) || bot.find_loose_item(/obj/item/mop)
+	var/can_mop = bot.find_carried_tool(/obj/item/mop) || bot.janitor_can_get_mop()
 	var/obj/effect/decal/cleanable/mess = can_mop ? bot.pick_mess() : null
 	if(mess && !bot.janitor_has_water())
 		mess = null
@@ -316,6 +318,20 @@
 		if(!best || B.reagents.total_volume > best.reagents.total_volume)
 			best = B
 	return best
+
+/// A mop lying about that it can walk to: the one the fetch would go for (take_item(), the nearest). The station has one, and it was
+/// as often as not in the Brig or behind a maintenance door: a janitor took up each mess, set off for the mop, found no way there,
+/// and gave the mess up, 40 times in twelve shifts.
+/datum/bot_brain/proc/janitor_can_get_mop()
+	if(world.time < janitor_no_mop_until)
+		return FALSE
+	var/obj/item/mop/M = find_loose_item(/obj/item/mop)
+	if(M && can_walk_lawfully_to(M))
+		return TRUE
+	janitor_no_mop_until = world.time + 3 MINUTES
+	if(M)
+		bot_log(src, "no way to the mop in [get_area_name(M, TRUE)]")
+	return FALSE
 
 /// Water to mop with: on the mop, in a bucket it has, or a tap or tank it can get to. With none, there's no mopping: each mess was
 /// taken up, given up for want of water, and the next taken up, 29 times in a shift.

@@ -137,6 +137,29 @@
 			return BOT_GYM_FAIL
 	return world.time > start_time + 25 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/datum/bot_scenario/duty/janitor/mop_out_of_reach
+	name = "janitor with the only mop behind a door it can't open leaves the mess, and doesn't give it up again and again"
+	desc = "The mop's behind a door its ID doesn't open, as when it's left in the Brig. It took up each mess, set off for the mop, found no way there and gave the mess up, then took up the next."
+	layout = list(
+		"#############",
+		"#MD.BU.o.o..#",
+		"#############")
+	time_limit = 30 SECONDS
+
+/datum/bot_scenario/duty/janitor/mop_out_of_reach/setup()
+	..()
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	A.req_access = list(ACCESS_CAPTAIN)
+
+/datum/bot_scenario/duty/janitor/mop_out_of_reach/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/line in transcript)
+		if(findtext(line, "nowhere to get a mop"))
+			fail_reason = "took up a mess with no mop it could get to"
+			return BOT_GYM_FAIL
+	return world.time > start_time + 25 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /datum/bot_scenario/duty/janitor/galoshes
 	name = "janitor puts on galoshes from the JaniDrobe"
 	desc = "A JaniDrobe in the room. Before anything else the janitor buys galoshes and puts them on, bagging its own shoes - then mops at a run, and takes the light replacer while it's there."
