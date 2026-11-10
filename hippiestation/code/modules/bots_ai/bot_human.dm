@@ -78,6 +78,17 @@
 	LAZYREMOVE(set_down_items, I) //taken up again: it's not something set down for a moment any more (bot_items.dm)
 	return owner.get_active_held_item() == I
 
+/datum/bot_brain
+	/// After a tool it couldn't take in passing, when it next tries (grab_passing_tools(), bot_items.dm).
+	var/next_passing_grab = 0
+
+/// Whether it has a hand that works with nothing in it.
+/datum/bot_brain/proc/hand_free_for_pickup()
+	for(var/i in 1 to length(owner.held_items))
+		if(!owner.held_items[i] && owner.has_hand_for_held_index(i))
+			return TRUE
+	return FALSE
+
 /// Whether the hand that isn't active can hold anything: an arm that's been lost, or hurt past use, can't (has_hand_for_held_index()).
 /datum/bot_brain/proc/other_hand_works()
 	return owner.has_hand_for_held_index(owner.get_inactive_hand_index())

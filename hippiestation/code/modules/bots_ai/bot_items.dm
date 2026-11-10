@@ -67,11 +67,19 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	// straight off the floor or out of a locker - it goes through a hand (telemetry caught a
 	// wrench and a welder going floor -> belt directly).
 	if(I.loc != owner && I.loc?.loc != owner)
+		// No hand for it, cuffed, or down: it's left where it is. put_in_hands() with no hand free drops what it's given at the bot's
+		// feet, from wherever it was: a bot walking past wirecutters it wanted, its hands and its bag full, dragged them along under it a
+		// tile a step, 215 times in a shift, and a cuffed one did the same with a crowbar 415 times.
+		if(owner.handcuffed || !(owner.mobility_flags & MOBILITY_PICKUP))
+			return FALSE
+		use_a_working_hand() //bot_human.dm
+		if(!hand_free_for_pickup())
+			put_away(owner.get_active_held_item()) //both hands full: put one thing back first, like a person would
+		if(!hand_free_for_pickup())
+			return FALSE
 		var/mob/holder = I.loc
 		if(ismob(holder) && !holder.temporarilyRemoveItemFromInventory(I)) // off another person: out of their slot first, or it
 			return FALSE // stays in it there as well (a crowbar left on someone's belt while the bot held it, then a hard delete)
-		if(owner.get_active_held_item() && owner.get_inactive_held_item())
-			put_away(owner.get_active_held_item()) //both hands full: put one thing back first, like a person would
 		if(!owner.put_in_hands(I))
 			return FALSE
 		if(QDELETED(I)) // a stack that merged into the one in hand: it's all there now (it went on to put the empty piece away)
@@ -1348,7 +1356,7 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 // handling try_clear_obstruction() already does, not a raw step - not worth the
 // complexity for a passing-by nicety, so this stays limited to what's already in reach.
 /datum/bot_brain/proc/grab_passing_tools()
-	if(state != BOT_STATE_GOAL)
+	if(state != BOT_STATE_GOAL || world.time < next_passing_grab)
 		return
 	for(var/obj/item/I in oview(1, owner))
 		if(!isturf(I.loc) || I.anchored || istype(I, /obj/item/storage/toolbox))
@@ -1358,12 +1366,14 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 		for(var/tool_type in GLOB.captains_id_required_tools)
 			if(!istype(I, tool_type) || can_eventually_provide_tool(tool_type))
 				continue
-			if(try_pickup_target(I))
-				bot_log(src, "grabbed [I] in passing")
-				if(tool_need_already_satisfied())
-					bot_log(src, "that's what I was going for - no need to go any further")
-					goal_succeeded()
-					return
+			if(!try_pickup_target(I))
+				next_passing_grab = world.time + 15 SECONDS //nowhere to put it: not again every step, with a pause each time to reach for it
+				return
+			bot_log(src, "grabbed [I] in passing")
+			if(tool_need_already_satisfied())
+				bot_log(src, "that's what I was going for - no need to go any further")
+				goal_succeeded()
+				return
 			break
 
 // Real security etiquette, not just a courtesy - a solid airlock left open behind a bot

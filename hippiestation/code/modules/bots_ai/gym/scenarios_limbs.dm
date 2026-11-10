@@ -182,3 +182,41 @@
 		return BOT_GYM_FAIL
 	var/obj/item/bodypart/arm = bot.get_bodypart(BODY_ZONE_R_ARM)
 	return (arm?.status == BODYPART_ROBOTIC) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/no_hand_free_leaves_it
+	name = "hands: hands full and nowhere to put anything, it leaves the wirecutters where they lie"
+	desc = "A crowbar and a welder in its hands, no bag, a full toolbelt and its pockets full, and wirecutters a step off that it reaches for three times. With no hand free the game drops what it's given at your feet, so each try moved the wirecutters under the bot: walking along, it dragged them a tile a step."
+	job = "Assistant"
+	layout = list(
+		"#######",
+		"#B.w..#",
+		"#######")
+	time_limit = 6 SECONDS
+	var/obj/item/wirecutters/cutters
+
+/datum/bot_scenario/no_hand_free_leaves_it/setup()
+	cutters = place("w", new /obj/item/wirecutters(first_marker("w")))
+
+/datum/bot_scenario/no_hand_free_leaves_it/post_spawn()
+	qdel(bot.back)
+	bot.equip_to_slot_or_del(new /obj/item/storage/belt/utility/full(bot), ITEM_SLOT_BELT)
+	bot.equip_to_slot_or_del(new /obj/item/flashlight(bot), ITEM_SLOT_LPOCKET)
+	bot.equip_to_slot_or_del(new /obj/item/flashlight(bot), ITEM_SLOT_RPOCKET)
+	bot.put_in_hands(new /obj/item/crowbar(bot))
+	bot.put_in_hands(new /obj/item/weldingtool(bot))
+	bot.forceMove(get_step(first_marker("w"), WEST))
+	for(var/i in 1 to 3)
+		addtimer(CALLBACK(brain, TYPE_PROC_REF(/datum/bot_brain, try_pickup_target), cutters), i SECONDS)
+
+/datum/bot_scenario/no_hand_free_leaves_it/make_goal()
+	return null
+
+/datum/bot_scenario/no_hand_free_leaves_it/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!QDELETED(cutters) && (cutters in bot.GetAllContents()))
+		return BOT_GYM_PASS //found room for them after all
+	if(QDELETED(cutters) || get_turf(cutters) != first_marker("w"))
+		fail_reason = "the wirecutters were moved to [QDELETED(cutters) ? "nowhere" : "its feet"] with no hand to take them"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 5 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
