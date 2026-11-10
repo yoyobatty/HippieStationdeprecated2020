@@ -708,7 +708,7 @@ GLOBAL_LIST_INIT(bot_botany_crops, list(
 		. = GOAL_STEP_SUCCESS
 
 /datum/bot_step/paced/proc/continue_clicks(datum/bot_brain/bot)
-	if(QDELETED(bot) || bot.state != BOT_STATE_GOAL || bot.current_strategy?.steps?[bot.current_step_index] != src)
+	if(QDELETED(bot) || bot.state != BOT_STATE_GOAL || !bot.on_this_step(src))
 		return //goal moved on while we were waiting - don't act on stale state
 	var/result = next_click(bot)
 	if(result != GOAL_STEP_PENDING)
@@ -1093,3 +1093,9 @@ GLOBAL_LIST_INIT(bot_botany_crops, list(
 #undef BOT_TRAY_TOXIC_OK
 #undef BOT_BOTANY_SUPPLY_REACH
 #undef BOT_BOTANY_BAG_FULL
+
+/// Whether this step is the one the bot's on: the strategy may have moved on, or been swapped for a shorter one, while a click
+/// waited on its timer (an index past the end was a runtime: a job round's stops, in a shift where the crew came and went).
+/datum/bot_brain/proc/on_this_step(datum/bot_step/S)
+	var/list/steps = current_strategy?.steps
+	return steps && current_step_index >= 1 && current_step_index <= length(steps) && steps[current_step_index] == S

@@ -98,7 +98,8 @@ GLOBAL_VAR(bot_in_command)
 /// Whether somebody can give orders: alive, aboard and not in cuffs.
 /proc/bot_fit_to_command(mob/living/carbon/human/H)
 	var/turf/T = get_turf(H)
-	return T && H.stat != DEAD && !H.handcuffed && !H.bot_life_sentence && (is_station_level(T.z) || H.bot_brain?.gym_run)
+	// A bot that's logged off (gym/bot_shift_population.dm) runs nothing: the next head along does
+	return T && H.stat != DEAD && !H.handcuffed && !H.bot_life_sentence && !H.bot_logged_off && (is_station_level(T.z) || H.bot_brain?.gym_run)
 
 /// The Captain, or the head filling in. Null if there's no command staff left aboard. Bot Gym: whoever's asking only knows their own arena.
 /proc/bot_find_in_command(mob/living/carbon/human/asking)
