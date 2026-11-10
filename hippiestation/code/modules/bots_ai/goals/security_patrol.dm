@@ -41,6 +41,8 @@
 #define BOT_ARREST_LOST_TIMEOUT 300
 // Hard cap on one arrest attempt, however it's going.
 #define BOT_ARREST_MAX_DURATION 3000
+// After giving one up for taking too long, before it starts on the same suspect again (unless they come at it).
+#define BOT_ARREST_RETRY_REST (3 MINUTES)
 // Retaliating against someone who hit you within this window is self-defense, not a crime.
 #define BOT_SELF_DEFENSE_WINDOW 300
 
@@ -86,6 +88,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/arrest_hailed = FALSE
 	var/arrest_resisted = FALSE
 	var/arrest_started = 0
+	/// weakref(suspect) -> when it'll start on them again, after an arrest given up for taking too long
+	var/list/arrest_rests
 	var/arrest_last_seen = 0
 	var/turf/arrest_last_seen_turf
 	var/arrest_last_dist = 0
@@ -425,6 +429,11 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		return FALSE
 	if(world.time < fallen_back_until && bot_too_dangerous(H)) //goals/security_tactics.dm
 		return FALSE
+	// Given up on for taking too long: not straight back on to them. An officer waiting on two more for a traitor in a nanosuit
+	// started the same arrest over the moment it timed out, seven times running (27 minutes in the Brig, "Couldn't bring in" on
+	// the radio every time, 79 pacing flags, shift batch ask1 run8). Somebody coming at it is a fight, not this.
+	if(LAZYACCESS(arrest_rests, WEAKREF(H)) > world.time)
+		return FALSE
 	// Nothing to arrest them with. An officer who'd used up its cuffs started and ended the same arrest thousands of times,
 	// stood next to the suspect for five minutes. It can fight (on_attacked()) or go and get some (try_security_round()).
 	if(!H.handcuffed && !find_restraints())
@@ -530,6 +539,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		return
 	if(world.time - arrest_started > BOT_ARREST_MAX_DURATION)
 		bot_say(owner, ":s Couldn't bring in [S.name], they're still at large. Last seen in [get_area_name(arrest_last_seen_turf, TRUE)].")
+		LAZYSET(arrest_rests, WEAKREF(S), world.time + BOT_ARREST_RETRY_REST)
 		end_arrest("took too long")
 		return
 	var/turf/suspect_turf = get_turf(S) // S.z is 0 while they're hiding in a locker - that used to end the arrest on the spot
@@ -635,6 +645,11 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		var/slack = (!visible && short_of_the_others(S)) ? 2 : 0
 		if(get_dist(owner, goal_turf) > hold + slack)
 			var/turf/short = spot_short_of(goal_turf, hold)
+			// Waiting on the others, a spot a step off isn't worth the step: the same officer shuffled between two Brig tiles
+			// for half an hour of waiting (ask1 run8)
+			if(slack && short && get_dist(owner, short) <= 1)
+				stop_pursuit()
+				return
 			if(short)
 				pursuit_goal = short
 				goal_turf = short
@@ -884,6 +899,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 			continue
 		var/cooldown = LAZYACCESS(failed_brig_targets, H)
 		if(cooldown && world.time < cooldown)
+			continue
+		if(LAZYACCESS(arrest_rests, WEAKREF(H)) > world.time) //given up on for taking too long (begin_arrest())
 			continue
 		var/d = get_dist(owner, H)
 		if(!best || d < best_dist)
@@ -1517,4 +1534,5 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 #undef BOT_SEC_VIEW_RANGE
 #undef BOT_ARREST_LOST_TIMEOUT
 #undef BOT_ARREST_MAX_DURATION
+#undef BOT_ARREST_RETRY_REST
 #undef BOT_SELF_DEFENSE_WINDOW

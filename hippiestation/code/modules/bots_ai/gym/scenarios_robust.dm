@@ -786,3 +786,31 @@
 
 /datum/bot_scenario/griefed/officer/range/holds_fire/on_timeout()
 	return BOT_GYM_PASS
+
+/datum/bot_scenario/griefed/officer/alone/gives_it_a_rest
+	name = "security: an officer that gives up waiting on a nanosuit doesn't start the same arrest over at once"
+	desc = "Shift batch ask1 run8: officers waiting on two more for a suit gave the arrest up after five minutes and started it again the same moment, seven times running, saying \"Couldn't bring them in\" on the radio every time and pacing two Brig tiles for half an hour."
+	time_limit = 45 SECONDS
+	var/gave_up_at = 0
+
+/datum/bot_scenario/griefed/officer/alone/gives_it_a_rest/grief()
+	..()
+	brain.arrest_started = world.time - 290 SECONDS //the five minutes nearly up (BOT_ARREST_MAX_DURATION, goals/security_patrol.dm)
+	brain.gym_scripted = FALSE //on patrol between arrests, eyes open (try_spot_wanted()), as in a round
+
+/datum/bot_scenario/griefed/officer/alone/gives_it_a_rest/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/arrests = 0
+	for(var/line in transcript)
+		if(findtext(line, "moving to arrest"))
+			arrests++
+		if(!gave_up_at && findtext(line, "took too long"))
+			gave_up_at = world.time
+			var/turf/near = locate(bot.x + 5, bot.y, bot.z) //in plain sight, as the suit in the Brig was
+			if(near && !near.density)
+				griefer.forceMove(near)
+	if(arrests > 1)
+		fail_reason = "started the same arrest again after giving it up"
+		return BOT_GYM_FAIL
+	return (gave_up_at && world.time > gave_up_at + 20 SECONDS) ? BOT_GYM_PASS : BOT_GYM_PENDING
