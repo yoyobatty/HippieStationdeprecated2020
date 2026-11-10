@@ -317,3 +317,82 @@
 	if(!findtext(all_of_it, "is on it"))
 		return "nothing about who's on it"
 	return findtext(all_of_it, "pale") ? null : "nothing about their blood"
+
+/datum/bot_scenario/content/blood_synth
+	name = "machines: a blood synthesiser fills an empty pack with universal blood, and turns down a pack of somebody's own"
+	desc = "A pack of A+ offered, then an empty one hung on it and run with the power off, on, and past full."
+
+/datum/bot_scenario/content/blood_synth/try_it(turf/T)
+	var/obj/machinery/blood_synth/synth = place("K", new /obj/machinery/blood_synth(T))
+	var/list/missing = list()
+	bot.forceMove(get_step(T, WEST))
+	var/obj/item/reagent_containers/blood/typed = place("K", new /obj/item/reagent_containers/blood/APlus(T))
+	synth.attackby(typed, bot)
+	if(synth.pack)
+		missing += "it took a pack of A+"
+		synth.drop_pack()
+	var/obj/item/reagent_containers/blood/pack = place("K", new /obj/item/reagent_containers/blood(T))
+	synth.attackby(pack, bot)
+	if(synth.pack != pack)
+		return "the empty pack didn't go on"
+	synth.stat |= NOPOWER
+	synth.process()
+	if(pack.reagents.total_volume)
+		missing += "it made blood with no power"
+	synth.stat &= ~NOPOWER
+	for(var/i in 1 to 30)
+		synth.process()
+	if(pack.reagents.total_volume != 30)
+		missing += "thirty cycles made [pack.reagents.total_volume] units"
+	if(pack.blood_type != "U")
+		missing += "the blood's of type [pack.blood_type]"
+	for(var/i in 1 to 250)
+		synth.process()
+	if(pack.reagents.total_volume != pack.reagents.maximum_volume)
+		missing += "left running it holds [pack.reagents.total_volume] of [pack.reagents.maximum_volume]"
+	synth.drop_pack()
+	synth.attackby(pack, bot)
+	if(synth.pack != pack)
+		missing += "it turned down a pack of its own blood"
+	synth.attack_hand(bot)
+	if(synth.pack || pack.loc == synth)
+		missing += "the pack didn't come off by hand"
+	var/datum/techweb_node/node = SSresearch.techweb_node_by_id("adv_biotech")
+	if(!node || !("blood_synth" in node.design_ids) || !SSresearch.techweb_design_by_id("blood_synth"))
+		missing += "its board isn't in research"
+	return length(missing) ? english_list(missing) : null
+
+/datum/bot_scenario/content/machine_readouts
+	name = "machines: a drip, a field generator, an emitter, a power store and the gravity generator say how they are when looked at"
+	desc = "One of each, looked at."
+
+/datum/bot_scenario/content/machine_readouts/try_it(turf/T)
+	var/list/missing = list()
+	bot.forceMove(T)
+	var/obj/machinery/iv_drip/drip = place("K", new /obj/machinery/iv_drip(T))
+	var/mob/living/carbon/human/patient = stand_in(T, "Pale Patient")
+	patient.blood_volume = 300
+	drip.attached = patient
+	if(!findtext(jointext(drip.examine(bot), " "), "looks pale"))
+		missing += "the drip says nothing of their blood"
+	drip.attached = null
+	var/obj/machinery/field/generator/gen = place("K", new /obj/machinery/field/generator(T))
+	var/said = jointext(gen.examine(bot), " ")
+	if(!findtext(said, "loose on the floor") || !findtext(said, "It's off"))
+		missing += "the field generator: [said]"
+	var/obj/machinery/power/emitter/emitter = place("K", new /obj/machinery/power/emitter(T))
+	said = jointext(emitter.examine(bot), " ")
+	if(!findtext(said, "loose on the floor") || !findtext(said, "It's off"))
+		missing += "the emitter: [said]"
+	emitter.active = TRUE
+	if(!findtext(jointext(emitter.examine(bot), " "), "no power to fire"))
+		missing += "an emitter on with no power doesn't say so"
+	emitter.active = FALSE
+	var/obj/machinery/power/smes/store = place("K", new /obj/machinery/power/smes(T))
+	store.charge = store.capacity / 2
+	if(!findtext(jointext(store.examine(bot), " "), "50%"))
+		missing += "the power store's meter"
+	var/obj/machinery/gravity_generator/main/gravity = place("K", new /obj/machinery/gravity_generator/main(T))
+	if(!findtext(jointext(gravity.examine(bot), " "), "charged to 100%"))
+		missing += "the gravity generator's charge"
+	return length(missing) ? english_list(missing) : null

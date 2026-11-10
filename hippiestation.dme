@@ -3101,6 +3101,7 @@
 #include "hippiestation\code\game\machinery\medical_tgui.dm"
 #include "hippiestation\code\game\machinery\misc_machines_tgui.dm"
 #include "hippiestation\code\game\machinery\newscaster_tgui.dm"
+#include "hippiestation\code\game\machinery\prototype_machines.dm"
 #include "hippiestation\code\game\machinery\radio_station.dm"
 #include "hippiestation\code\game\machinery\reagent_forge.dm"
 #include "hippiestation\code\game\machinery\reagent_material_manipulator.dm"
