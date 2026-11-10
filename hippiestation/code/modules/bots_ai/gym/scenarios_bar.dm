@@ -71,6 +71,30 @@
 			return BOT_GYM_FAIL
 	return length(poured()) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/datum/bot_scenario/duty/bar/dispensers_flat
+	name = "bartender doesn't mix a drink at dispensers that have run flat"
+	desc = "The bar's dispensers have poured all their cells will give. It walked over, put a glass in, got nothing, and gave the drink up, every time it came round."
+	layout = list(
+		"###########",
+		"#O.b.s.t..#",
+		"#B........#",
+		"###########")
+	time_limit = 20 SECONDS
+
+/datum/bot_scenario/duty/bar/dispensers_flat/setup()
+	..()
+	for(var/obj/machinery/chem_dispenser/D in arena_area)
+		D.cell.charge = 0
+
+/datum/bot_scenario/duty/bar/dispensers_flat/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/line in transcript)
+		if(findtext(line, "wouldn't pour"))
+			fail_reason = "went to a dispenser with nothing in its cell"
+			return BOT_GYM_FAIL
+	return world.time > start_time + 15 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /datum/bot_scenario/duty/bar/customer
 	name = "customer has the drink that's out on the bar"
 	desc = "A gin and tonic on the bar and a machine further off. The bot walks to the bar, picks the glass up, drinks it a gulp at a time and puts the empty back on the bar."

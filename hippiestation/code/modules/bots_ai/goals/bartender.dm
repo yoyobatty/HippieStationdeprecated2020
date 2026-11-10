@@ -70,6 +70,10 @@ GLOBAL_LIST_INIT(bot_bar_menu, init_bot_bar_menu())
 	for(var/obj/machinery/chem_dispenser/drinks/D as anything in bot_instances_of(/obj/machinery/chem_dispenser/drinks))
 		if(!in_bar(D) || !D.is_operational() || !D.cell || !D.dispensable_reagents.Find(reagent_type) || LAZYACCESS(bar_blocked, D) > world.time)
 			continue
+		// Charge for a pour: its cell runs down after a dozen drinks and fills again slowly, and a bartender walked over, put a glass
+		// in, got nothing and gave the drink up, 18 times in a batch (dispense_into_beaker(), goals/synthesize_medicine.dm).
+		if(D.cell.charge * D.powerefficiency * 10 < 30)
+			continue
 		var/dist = get_dist(owner, D)
 		if(dist > BOT_BAR_REACH || (best && dist >= best_dist))
 			continue
