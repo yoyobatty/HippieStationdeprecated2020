@@ -83,6 +83,10 @@
 	for(var/obj/mecha/working/ripley/R in GLOB.mechas_list)
 		if(QDELETED(R) || R.occupant || R.z != my_z() || R.obj_integrity < R.max_integrity / 2 || taken_by_another(R))
 			continue
+		// Half a cell at least: drilling through the rock runs one down, and two of the three drives that gave up in the rock last
+		// time stopped there with it flat, the pilot on foot among the goliaths. There's no charging it on Lavaland.
+		if(!R.cell || R.cell.charge < R.cell.maxcharge * 0.5)
+			continue
 		if(bot_aboard_mining_shuttle(R) || (dock && get_dist(R, dock) <= BOT_MECH_PARK_RANGE))
 			return R
 	return null
@@ -303,6 +307,10 @@
 			return bot.suspend_goal_for(new /datum/bot_goal/drive_to_ruin(G.ruin)) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
 		if("out")
 			if(!spot || get_dist(get_turf(bot.owner), spot) > 6)
+				var/obj/mecha/M = bot.in_mech()
+				if(M?.cell && M.cell.charge < M.cell.maxcharge * 0.25)
+					stage = "home" //turned back on a low cell: home to park it, not left in the rock
+					return again(bot)
 				return GOAL_STEP_FAIL //never got there
 			if(bot_storm_over(bot.my_z()))
 				stage = "home" //a storm on its way: no getting out in it
@@ -418,6 +426,10 @@
 		return FALSE
 	if(get_dist(here, spot) <= 2)
 		return FALSE //there
+	// A quarter of the cell left and still in the rock: back while it'll still get there (mech_ruin_trip's "out" turns for home).
+	if(M.cell && M.cell.charge < M.cell.maxcharge * 0.25)
+		bot_log(bot, "MECH: [M]'s cell is down to a quarter - turning back")
+		return FALSE
 	if(bot.pursuing_kind)
 		wait_for = 10
 		return TRUE
