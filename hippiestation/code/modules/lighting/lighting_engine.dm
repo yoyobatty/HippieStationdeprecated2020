@@ -93,6 +93,15 @@ GLOBAL_LIST_EMPTY(lighting_sheet_list)
 		return
 	native_maxx = world.maxx
 	native_maxy = world.maxy
+	// The tone curve: a library from before it has the old cut-off, and the DM code falls in with it so they still agree
+	var/tone
+	try
+		tone = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_tone")(GLOB.lighting_tone_knee)
+	catch(var/exception/tone_error)
+		tone = "[tone_error]"
+	if(!isnum(tone) || tone < 0)
+		log_world("Lighting: the engine has no tone curve ([tone]), lights are cut off at full as tg had them")
+		GLOB.lighting_tone_knee = 1
 	if(mode == "shadow")
 		native_shadow = TRUE
 		native_status = "shadowing the DM code"
@@ -121,6 +130,23 @@ GLOBAL_LIST_EMPTY(lighting_sheet_list)
 	if(world.params["lighting-view-undynamic"] == "lit") // turfs that aren't dynamically lit count as lit
 		native_view |= 8
 	native_status += ", lights look around [wanted == "native" ? "in the engine" : "with view(), checked against the engine"]"
+
+/// Moves the tone curve's knee (lighting_tone.dm): every lit corner works out what it draws again, and the lighting objects
+/// that change are redrawn as SSlighting gets to them. Returns how many corners that is.
+/datum/controller/subsystem/lighting/proc/set_tone(knee)
+	GLOB.lighting_tone_knee = knee
+	. = 0
+	if(LIGHTING_ENGINE_ON)
+		var/queued = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_tone")(knee)
+		if(!isnum(queued) || queued < 0)
+			native_failed("tone: [queued]")
+		else if(native)
+			return queued
+	for(var/datum/lighting_corner/C)
+		if(!C.needs_update && LAZYLEN(C.affecting))
+			C.needs_update = TRUE
+			corners_queue += C
+			.++
 
 /// Hands every turf's flags over: from here on, turfs tell the engine when theirs change
 /datum/controller/subsystem/lighting/proc/native_ready()

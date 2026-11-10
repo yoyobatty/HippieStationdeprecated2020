@@ -107,8 +107,16 @@
 		lum_b += bounce_b * clamp(1 - lum_b, 0, 1)
 	var/largest_color_luminosity = max(lum_r, lum_g, lum_b) // Scale it so one of them is the strongest lum, if it is above 1.
 	. = 1 // factor
-	if (largest_color_luminosity > 1)
-		. = 1 / largest_color_luminosity
+	// hippie start -- the tone curve: past the knee, light eases toward full instead of being cut off at 1 (lighting_tone.dm).
+	// Same sums in the same order as tone_factor() in tools/lighting_engine/src/engine.rs, which the shadow check holds it to
+	var/knee = GLOB.lighting_tone_knee
+	if (largest_color_luminosity > knee)
+		if (knee >= 1)
+			. = 1 / largest_color_luminosity
+		else
+			var/t = (largest_color_luminosity - knee) / (1 - knee)
+			. = (knee + (1 - knee) * (1 - 1 / (1 + t * (1 + t * (0.5 + t / 6))))) / largest_color_luminosity
+	// hippie end
 
 	var/old_r = cache_r
 	var/old_g = cache_g

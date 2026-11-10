@@ -750,6 +750,59 @@ pub unsafe extern "C" fn lighting_lumcount(argc: u32, argv: *const ByondValue) -
 	})
 }
 
+/// lighting_tone(knee): where the tone curve starts from here on (engine::tone_factor(), GLOB.lighting_tone_knee). Every lit
+/// corner works out what it draws again at the next flush. Returns how many corners were queued.
+#[no_mangle]
+pub unsafe extern "C" fn lighting_tone(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	with_state("tone", |_, state| {
+		let knee = args.first().ok_or("no knee")?.as_f32();
+		if !(knee > 0.0) {
+			return Err(format!("knee {knee}, wanted above 0"));
+		}
+		Ok(state.engine.set_tone(knee) as f32)
+	})
+}
+
+/// lighting_eye(turf, range_x, range_y): how bright what can be seen from the turf looks, for eye adaptation
+/// (hippiestation/code/modules/lighting/eye_adapt.dm). The clear turfs in sight of it (the lights' own view, view.rs) up to
+/// range_x tiles east and west and range_y north and south, those with a lighting object, each the average luminance of its
+/// corners as drawn: their average, 0 to 1. With nothing lit dynamically in sight, 1 (nothing to adjust to).
+#[no_mangle]
+pub unsafe extern "C" fn lighting_eye(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	with_state("eye", |_, state| {
+		if args.len() < 3 {
+			return Err("wanted a turf and two ranges".into());
+		}
+		let (z, t) = state.place(&args[0])?;
+		let (rx, ry) = (args[1].as_int().clamp(0, 32), args[2].as_int().clamp(0, 32));
+		let (tx, ty) = state.engine.turf_xy(t);
+		let range = rx.max(ry);
+		let view_args = ViewArgs {
+			tx,
+			ty,
+			range,
+			eye_lum: range + 1,
+			lamp_rule: LAMP_FROM_ANY,
+			undynamic_lit: false,
+			boundary: BOUNDARY_AFTER,
+			clear_only: true,
+		};
+		let (maxx, maxy) = (state.engine.maxx, state.engine.maxy);
+		let mut seen = std::mem::take(&mut state.seen);
+		let level = state.engine.level(z);
+		state.view.view(&level.flags, maxx, maxy, &view_args, &mut seen);
+		seen.retain(|&s| {
+			let (x, y) = (s as i32 % maxx + 1, s as i32 / maxx + 1);
+			(x - tx).abs() <= rx && (y - ty).abs() <= ry
+		});
+		let brightness = state.engine.brightness(z, &seen);
+		state.seen = seen;
+		Ok(brightness.unwrap_or(1.0))
+	})
+}
+
 /// lighting_corners(turf, out): the turf's corners NE, SE, SW, NW, each as light (3), bounce light (3), colour drawn (3) and
 /// the brightest channel drawn
 #[no_mangle]

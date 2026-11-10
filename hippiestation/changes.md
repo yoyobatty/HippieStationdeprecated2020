@@ -124,6 +124,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/keybindings/setup.dm
 ## code/modules/library/lib_machines.dm
 ## code/modules/library/random_books.dm
+## code/modules/lighting/lighting_corner.dm (the tone curve in update_objects(): light past the knee eases toward full instead of being cut off at 1, see ~hippie_defines/lighting_tone.dm)
 ## code/modules/mapping/space_management/space_reservation.dm
 ## code/modules/mining/equipment/survival_pod.dm !Should be modularized. Can be done easily.
 ## code/modules/mob/dead/new_player/new_player.dm

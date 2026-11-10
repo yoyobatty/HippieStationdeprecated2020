@@ -104,6 +104,8 @@ pub struct Engine {
 	pub corner_queue: Vec<(u32, u32)>,
 	/// SSlighting's objects_queue, by turf: (z, turf)
 	pub object_queue: Vec<(u32, u32)>,
+	/// GLOB.lighting_tone_knee: where the tone curve starts (tone_factor()). 1, the old cut-off, until DM says otherwise
+	pub tone_knee: f32,
 	// Kept between updates so they aren't made afresh every time
 	reached: Vec<u32>,
 	bounced: Vec<u32>,
@@ -132,6 +134,7 @@ impl Engine {
 			frontier_round: 0,
 			corner_queue: Vec::new(),
 			object_queue: Vec::new(),
+			tone_knee: 1.0,
 			reached: Vec::new(),
 			bounced: Vec::new(),
 			lit: Vec::new(),
@@ -781,6 +784,7 @@ impl Engine {
 		let mut queue = std::mem::take(&mut self.corner_queue);
 		let maxx = self.maxx;
 		let maxy = self.maxy;
+		let knee = self.tone_knee;
 		for &(z, c) in queue.iter() {
 			let z = z as usize;
 			let Some(level) = self.levels.get_mut(z).and_then(|l| l.as_mut()) else {
@@ -788,7 +792,7 @@ impl Engine {
 			};
 			let corner = &mut level.corners[c as usize];
 			corner.needs_update = false;
-			let changed = update_cache(corner);
+			let changed = update_cache(corner, knee);
 			let unlit = corner.affecting.is_empty();
 			if changed {
 				let cx = c as i32 % (maxx + 1);
@@ -880,6 +884,49 @@ impl Engine {
 		total
 	}
 
+	/// A new knee for the tone curve: every lit corner is queued to work out what it draws again. Returns how many were.
+	pub fn set_tone(&mut self, knee: f32) -> usize {
+		self.tone_knee = knee;
+		let mut queued = 0;
+		for (z, level) in self.levels.iter_mut().enumerate() {
+			let Some(level) = level else { continue };
+			for (c, corner) in level.corners.iter_mut().enumerate() {
+				if corner.affecting.is_empty() || corner.needs_update {
+					continue;
+				}
+				corner.needs_update = true;
+				self.corner_queue.push((z as u32, c as u32));
+				queued += 1;
+			}
+		}
+		queued
+	}
+
+	/// How bright these turfs on a z-level look, for eye adaptation: each turf with a lighting object counts as the average
+	/// luminance of its four corners' colours as drawn, and this is the average of those. None if there are none.
+	pub fn brightness(&self, z: usize, turfs: &[u32]) -> Option<f32> {
+		let level = self.levels.get(z).and_then(|l| l.as_ref())?;
+		let mut total = 0.0f32;
+		let mut counted = 0u32;
+		for &t in turfs {
+			if level.flags[t as usize] & OBJECT == 0 {
+				continue;
+			}
+			let (x, y) = self.turf_xy(t);
+			let mut here = 0.0f32;
+			for c in self.turf_corners(x, y) {
+				here += luminance(level.corners[c as usize].cache);
+			}
+			total += here * 0.25;
+			counted += 1;
+		}
+		if counted == 0 {
+			None
+		} else {
+			Some(total / counted as f32)
+		}
+	}
+
 	/// The lights on a turf's corners, each once
 	pub fn affecting(&mut self, z: usize, turf: u32) -> Vec<u32> {
 		let (x, y) = self.turf_xy(turf);
@@ -950,8 +997,9 @@ impl Engine {
 	}
 }
 
-/// lighting_corner/update_objects()'s sums: returns whether what it draws changed
-pub fn update_cache(corner: &mut Corner) -> bool {
+/// lighting_corner/update_objects()'s sums: returns whether what it draws changed. `knee` is GLOB.lighting_tone_knee: see
+/// tone_factor().
+pub fn update_cache(corner: &mut Corner, knee: f32) -> bool {
 	let mut lum_r = corner.lum[0];
 	let mut lum_g = corner.lum[1];
 	let mut lum_b = corner.lum[2];
@@ -961,14 +1009,34 @@ pub fn update_cache(corner: &mut Corner) -> bool {
 		lum_b += corner.bounce[2] * (1.0 - lum_b).clamp(0.0, 1.0);
 	}
 	let largest = lum_r.max(lum_g).max(lum_b);
-	let mut factor = 1.0f32;
-	if largest > 1.0 {
-		factor = 1.0 / largest;
-	}
+	let factor = tone_factor(largest, knee);
 	let old = corner.cache;
 	corner.cache = [round_to(lum_r * factor), round_to(lum_g * factor), round_to(lum_b * factor)];
 	corner.largest = round_to(largest);
 	old != corner.cache
+}
+
+/// What a corner's colour is multiplied by before it's drawn, from its brightest channel: the tone curve, as
+/// lighting_corner/update_objects() has it. Up to the knee light is drawn as it is. Past it, it eases toward full brightness
+/// (1 - 1/(1 + t + t^2/2 + t^3/6), close to 1 - e^-t, at the same slope where it starts), so two lamps overlapping still
+/// look brighter than one instead of both being cut off at 1. A knee of 1 or more is that old cut-off. The colour's
+/// channels are all scaled by the same factor, so a lamp keeps its hue. Same sums, in the same order, as DM.
+#[inline]
+pub fn tone_factor(largest: f32, knee: f32) -> f32 {
+	if largest <= knee {
+		return 1.0;
+	}
+	if knee >= 1.0 {
+		return 1.0 / largest;
+	}
+	let t = (largest - knee) / (1.0 - knee);
+	(knee + (1.0 - knee) * (1.0 - 1.0 / (1.0 + t * (1.0 + t * (0.5 + t / 6.0))))) / largest
+}
+
+/// Luminance of a colour drawn on the lighting plane (Rec. 709 weights)
+#[inline]
+fn luminance(c: [f32; 3]) -> f32 {
+	0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
 }
 
 /// round(value, LIGHTING_ROUND_VALUE)
@@ -1035,6 +1103,54 @@ mod tests {
 		e.remove(1);
 		assert_eq!(e.levels[1].as_ref().unwrap().corners[c as usize].lum, [0.0, 0.0, 0.0]);
 		assert!(e.check().is_empty());
+	}
+
+	#[test]
+	fn the_tone_curve_eases_into_full() {
+		// A knee of 1: the old cut-off
+		assert_eq!(tone_factor(0.5, 1.0), 1.0);
+		assert_eq!(tone_factor(2.0, 1.0), 0.5);
+		// Below the knee, nothing changes; past it, brighter light still draws brighter, never past 1
+		let knee = 0.75;
+		assert_eq!(tone_factor(0.75, knee), 1.0);
+		let mut last = 0.0;
+		for i in 76..400 {
+			let l = i as f32 / 100.0;
+			let drawn = l * tone_factor(l, knee);
+			assert!(drawn > last && drawn < 1.0, "{l} draws {drawn}");
+			last = drawn;
+		}
+		// The same slope either side of the knee: no kink where the curve starts
+		let below = 0.749 * tone_factor(0.749, knee);
+		let above = 0.751 * tone_factor(0.751, knee);
+		assert!(((above - below) / 0.002 - 1.0).abs() < 0.01);
+	}
+
+	#[test]
+	fn a_new_knee_queues_every_lit_corner() {
+		let mut e = Engine::new(10, 10, 1);
+		let sheet = flat_sheet(2, 1.0);
+		e.set_sheet(0, sheet.dim, sheet.values.clone());
+		for t in 0..100 {
+			e.set_flags(1, t, DYNAMIC | OBJECT);
+		}
+		let seen: Vec<u32> = (0..100)
+			.filter(|&t| {
+				let (x, y) = (t as i32 % 10 + 1, t as i32 / 10 + 1);
+				(x - 5).abs() <= 2 && (y - 5).abs() <= 2
+			})
+			.collect();
+		e.update(&update(1, 5, 5, 2), &seen).unwrap();
+		e.flush_corners();
+		let c = e.corner_index(5, 5) as usize;
+		assert_eq!(e.levels[1].as_ref().unwrap().corners[c].cache, [1.0, 0.5, 0.25]);
+		assert_eq!(e.set_tone(0.5), 36);
+		e.flush_corners();
+		let cache = e.levels[1].as_ref().unwrap().corners[c].cache;
+		assert!(cache[0] < 1.0 && cache[0] > 0.75, "{cache:?}");
+		assert_eq!(cache[1], round_to(0.5 * tone_factor(1.0, 0.5)));
+		assert!(e.brightness(1, &seen).unwrap() > 0.0);
+		assert_eq!(e.brightness(1, &[]), None);
 	}
 
 	#[test]

@@ -46,6 +46,16 @@
 	doors.Cut(min(length(doors), LIGHTING_BENCH_DOORS) + 1)
 	lines += "[length(spots)] spots for the moving lights, [length(doors)] airlocks"
 
+	if(option == "tone") // the tone curve and eye adaptation alone
+		lines += ""
+		lines += "== the tone curve and eye adaptation =="
+		lines += lighting_bench_tone(z)
+		text2file(jointext(lines, "\n"), "[LIGHTING_BENCH_DIR]results.txt")
+		log_world("LIGHTING BENCH: done")
+		Master.Shutdown()
+		qdel(world)
+		return
+
 	// Lighting worked out afresh should match lighting as it booted: nothing should depend on which lights worked theirs
 	// out first. Nor should turning bounce lighting off and back on (the admin verb) leave any tile changed.
 	lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_booted.txt")
@@ -615,6 +625,113 @@
 	lighting_bench_flush()
 
 /// Processes everything SSlighting has queued, right now, without yielding
+/**
+ * The tone curve and eye adaptation (lighting_tone.dm, eye_adapt.dm): how bright corners get on the station before the curve;
+ * snapshots with tg's cut-off and the curve at a few knees, for
+ *   python tools/lighting_bench/render.py --before tone_1 --after tone_0.75
+ * and how bright a player's view looks round the station, with the exposure their eyes would settle on (data/lighting_bench/
+ * tone_eyes_<knee>.txt, every spot by area).
+ */
+/proc/lighting_bench_tone(z)
+	. = list()
+	var/old_knee = GLOB.lighting_tone_knee
+	// The brightest channel of each lit corner, bounce light added as update_objects() adds it: what the curve goes by
+	var/list/brightest = list()
+	if(SSlighting.native)
+		var/list/dump = list()
+		call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_dump")(z, dump)
+		for(var/i = 1, i <= length(dump), i += 11)
+			var/largest = 0
+			for(var/k in 0 to 2)
+				var/lum = dump[i + 2 + k]
+				largest = max(largest, lum + dump[i + 5 + k] * clamp(1 - lum, 0, 1))
+			if(largest > 0)
+				brightest += largest
+	else
+		for(var/datum/lighting_corner/C)
+			if(C.z != z || QDELETED(C))
+				continue
+			var/largest = max(C.lum_r + C.bounce_r * clamp(1 - C.lum_r, 0, 1), C.lum_g + C.bounce_g * clamp(1 - C.lum_g, 0, 1), C.lum_b + C.bounce_b * clamp(1 - C.lum_b, 0, 1))
+			if(largest > 0)
+				brightest += largest
+	var/list/edges = list(0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3)
+	var/list/counts = list()
+	counts.len = length(edges) + 1
+	for(var/i in 1 to length(counts))
+		counts[i] = 0
+	for(var/largest in brightest)
+		var/bin = length(edges) + 1
+		for(var/e in 1 to length(edges))
+			if(largest <= edges[e])
+				bin = e
+				break
+		counts[bin]++
+	var/list/hist = list()
+	var/low = 0
+	for(var/i in 1 to length(counts))
+		hist += "[low]-[i <= length(edges) ? edges[i] : "up"]: [round(100 * counts[i] / max(1, length(brightest)), 0.1)]%"
+		if(i <= length(edges))
+			low = edges[i]
+	. += "[length(brightest)] lit corners, by brightest channel: [jointext(hist, ", ")]"
+
+	// Spots for eyes: up to four clear lit tiles in every area on the z-level, the same ones each run
+	rand_seed(4242)
+	var/list/area_spots = list()
+	for(var/turf/T as anything in block(locate(1, 1, z), locate(world.maxx, world.maxy, z)))
+		if(!T.lighting_object || IS_OPAQUE_TURF(T) || isspaceturf(T))
+			continue
+		var/area/A = T.loc
+		LAZYADD(area_spots[A], T)
+	for(var/area/A as anything in area_spots)
+		var/list/turfs = area_spots[A]
+		shuffle_inplace(turfs)
+		turfs.Cut(min(length(turfs), 4) + 1)
+
+	var/fake_view = "19x15" // the default widescreen view: 9 tiles each way, 7 up and down
+	for(var/knee in list(1, 0.85, 0.75))
+		SSlighting.set_tone(knee)
+		var/old_limit = Master.current_ticklimit
+		Master.current_ticklimit = INFINITY
+		SSlighting.fire(FALSE, TRUE)
+		Master.current_ticklimit = old_limit
+		lighting_bench_flush()
+		var/path = "[LIGHTING_BENCH_DIR]snapshot_tone_[knee].txt"
+		lighting_bench_snapshot(z, path)
+		if(SSlighting.native_shadow) // booted with lighting-engine=shadow: the DM curve and the engine's, every corner
+			. += "knee [knee], [SSlighting.native_shadow_check(z)]"
+		var/list/tiles = splittext(file2text(path), "\n")
+		var/full = 0
+		for(var/line in tiles)
+			if(copytext(line, -1) == "L")
+				full++
+		// Eyes round the station
+		var/list/eyes = list()
+		var/list/exposures = list()
+		var/list/by_band = list(0, 0, 0, 0)
+		for(var/area/A as anything in area_spots)
+			var/total_brightness = 0
+			var/total_exposure = 0
+			var/list/turfs = area_spots[A]
+			for(var/turf/T as anything in turfs)
+				var/brightness = SSeye_adapt.eye_brightness_at(T, 9, 7)
+				var/exposure = brightness < 0 ? 1 : clamp(EYE_ADAPT_KEY / max(brightness, 0.01), 1, EYE_ADAPT_MAX)
+				total_brightness += brightness
+				total_exposure += exposure
+				exposures += exposure
+				by_band[exposure <= 1 ? 1 : exposure < 1.25 ? 2 : exposure < EYE_ADAPT_MAX ? 3 : 4]++
+			eyes += "[round(total_brightness / length(turfs), 0.01)]\t[round(total_exposure / length(turfs), 0.01)]\t[A.name] ([A.type])"
+		eyes = sortList(eyes)
+		text2file("brightness\texposure\tarea ([length(exposures)] spots, view [fake_view], knee [knee])\n[jointext(eyes, "\n")]", "[LIGHTING_BENCH_DIR]tone_eyes_[knee].txt")
+		. += "knee [knee]: [full] of [length(tiles)] lit tiles drawn at full; eyes at [length(exposures)] spots in [length(area_spots)] areas: \
+			[round(100 * by_band[1] / max(1, length(exposures)))]% left as they are, [round(100 * by_band[2] / max(1, length(exposures)))]% turned up under 1.25x, \
+			[round(100 * by_band[3] / max(1, length(exposures)))]% 1.25x up to [EYE_ADAPT_MAX]x, [round(100 * by_band[4] / max(1, length(exposures)))]% at [EYE_ADAPT_MAX]x"
+	SSlighting.set_tone(old_knee)
+	var/old_limit = Master.current_ticklimit
+	Master.current_ticklimit = INFINITY
+	SSlighting.fire(FALSE, TRUE)
+	Master.current_ticklimit = old_limit
+	lighting_bench_flush()
+
 /proc/lighting_bench_flush()
 	var/old_limit = Master.current_ticklimit
 	Master.current_ticklimit = INFINITY // init_tick_checks mode only stops for CHECK_TICK, which this turns off
