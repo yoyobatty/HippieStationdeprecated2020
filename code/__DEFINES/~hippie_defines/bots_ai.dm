@@ -62,8 +62,10 @@
 
 /// How a traitor goes about it (goals/robust.dm).
 #define BOT_TRAITOR_UNDERCOVER "undercover" //an emag and its objectives, and nobody the wiser until it's caught
-#define BOT_TRAITOR_HIT_LIST "hit list" //the suit, its targets, the Captain and Security, and whoever gets in the way
+#define BOT_TRAITOR_HIT_LIST "hit list" //an emag and a pistol (no suit, since 2026-11-10), its targets, the Captain and Security, and whoever gets in the way
 #define BOT_TRAITOR_RAMPAGE "rampage" //the suit, and everybody
+/// The chance a rampaging traitor suits up with another traitor already in one, divided by how many are (goals/traitor.dm wants_nanosuit())
+#define BOT_EXTRA_SUIT_CHANCE 35
 #define BOT_TRAITOR_CORNERED "cornered" //caught: fights whoever comes for it and still goes for its own target, and nobody else
 #define BOT_TRAITOR_SABOTEUR "saboteur" //undercover, with sabotage on top of its objectives (goals/sabotage.dm). Only ever asked for: the plan stays undercover
 

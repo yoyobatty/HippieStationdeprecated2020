@@ -12,6 +12,7 @@
 /datum/bot_scenario/duty/traitor/robust_shop/post_spawn()
 	..()
 	brain.set_playstyle(BOT_STYLE_ROBUST)
+	brain.traitor_plan = BOT_TRAITOR_RAMPAGE //a rampage is done in a suit; a hit list isn't (below)
 
 /datum/bot_scenario/duty/traitor/robust_shop/check()
 	if(bot_lost())
@@ -23,6 +24,31 @@
 		fail_reason = "left its ID on the floor"
 		return BOT_GYM_FAIL
 	return bot.back ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// The user's ruling (2026-11-10): hit-list traitors buy stealth gear. All three traitors in their Captain round were in suits.
+/datum/bot_scenario/duty/traitor/hit_list_shop
+	name = "robust: a traitor with a hit list buys an emag and a pistol, not a nanosuit"
+	desc = "A robust traitor on the hit-list plan goes shopping. It comes away with an emag and a pistol, and no nanosuit."
+	time_limit = 40 SECONDS
+	layout = list(
+		"#####",
+		"#B..#",
+		"#####")
+
+/datum/bot_scenario/duty/traitor/hit_list_shop/post_spawn()
+	..()
+	brain.set_playstyle(BOT_STYLE_ROBUST)
+	brain.traitor_plan = BOT_TRAITOR_HIT_LIST
+
+/datum/bot_scenario/duty/traitor/hit_list_shop/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(brain.nanosuit_on() || brain.find_carried_tool(/obj/item/storage/box/syndie_kit/nanosuit))
+		fail_reason = "bought a nanosuit"
+		return BOT_GYM_FAIL
+	if(!brain.traitor_shopped)
+		return BOT_GYM_PENDING
+	return (brain.find_carried_tool(/obj/item/card/emag) && brain.find_carried_tool(/obj/item/gun/ballistic/automatic/pistol)) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
 /datum/bot_scenario/duty/traitor/robust_nowhere_quiet
 	name = "robust: with nowhere quiet to get to, it doesn't ask again every tick"

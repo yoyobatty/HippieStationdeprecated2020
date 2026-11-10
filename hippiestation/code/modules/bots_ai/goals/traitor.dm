@@ -224,7 +224,7 @@
 		var/obj/item/sword = bot.find_carried_tool(/obj/item/melee/transforming/energy/sword) //a shuttle full of people to get through (goals/traitor_objectives.dm)
 		bot_log(bot, "bought [sword || "nothing"] off the uplink")
 		bot.put_away(sword)
-	if(bot.plays_robust())
+	if(bot.plays_robust() && bot.wants_nanosuit())
 		if(!bot.nanosuit_on() && bot.watched_by_anyone())
 			bot.traitor_shopped = FALSE //somebody's turned up: another spot, another go
 			return GOAL_STEP_FAIL
@@ -235,7 +235,34 @@
 		var/obj/item/card/emag/E = bot.find_carried_tool(/obj/item/card/emag)
 		bot_log(bot, "bought [E || "nothing"] off the uplink")
 		bot.put_away(E)
+	// A hit list is quiet work: a pistol for the target, no suit for the whole station to hear about
+	if(bot.plays_robust() && !bot.find_carried_tool(/obj/item/gun/ballistic/automatic/pistol) && bot.buy_from_uplink(/obj/item/gun/ballistic/automatic/pistol))
+		var/obj/item/gun/P = bot.find_carried_tool(/obj/item/gun/ballistic/automatic/pistol)
+		bot_log(bot, "bought [P || "nothing"] off the uplink")
+		bot.put_away(P)
 	return GOAL_STEP_SUCCESS
+
+/datum/bot_brain
+	/// Whether it's buying the suit: decided once, the first time it shops (wants_nanosuit())
+	var/suit_choice
+
+/// Only a rampage is done in a nanosuit (the user's ruling, 2026-11-10): a hit list is stealth gear. With somebody already suited it's a
+/// rarer thing. All three traitors in the user's Captain round bought one, the one with a hit list too.
+/datum/bot_brain/proc/wants_nanosuit()
+	if(nanosuit_on() || find_carried_tool(/obj/item/storage/box/syndie_kit/nanosuit))
+		return TRUE
+	if(isnull(suit_choice))
+		suit_choice = FALSE
+		if(traitor_plan == BOT_TRAITOR_RAMPAGE)
+			var/others = 0
+			for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+				if(B == src || !B.bot_traitor || QDELETED(B.owner) || B.owner.stat == DEAD || (gym_run && get_area(B.owner) != get_area(owner)))
+					continue
+				if(B.nanosuit_on() || B.suit_choice)
+					others++
+			suit_choice = !others || prob(BOT_EXTRA_SUIT_CHANCE / others)
+			bot_log(src, suit_choice ? "going in a nanosuit" : "[others] in a suit already: doing it without one")
+	return suit_choice
 
 // ---------------------------------------------------------------------------------------------
 // Stealing
