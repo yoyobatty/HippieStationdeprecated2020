@@ -101,3 +101,47 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return bot.get_bodypart(BODY_ZONE_R_ARM) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/limb_call_not_taken_unreachable
+	name = "limbs: a doctor with no way to the operating table doesn't take the call for an arm"
+	desc = "A bot's on the operating table with its arm beside it and calls for somebody. The only doctor is behind a door their ID doesn't open: they said they were coming, and never could."
+	job = "Assistant"
+	layout = list(
+		"#########",
+		"#B.a.O.t#",
+		"#.......#",
+		"####D####",
+		"#...C...#",
+		"#########")
+	time_limit = 40 SECONDS
+	var/mob/living/carbon/human/doctor
+	var/obj/item/bodypart/arm
+
+/datum/bot_scenario/limb_call_not_taken_unreachable/setup()
+	surgery_room()
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	A.req_access = list(ACCESS_CAPTAIN)
+
+/datum/bot_scenario/limb_call_not_taken_unreachable/post_spawn()
+	arm = bot.get_bodypart(BODY_ZONE_R_ARM)
+	arm.drop_limb()
+	arm.forceMove(first_marker("a"))
+	brain.gym_scripted = FALSE
+	doctor = second_bot(first_marker("C"), "Doc Locked")
+	doctor.mind.assigned_role = "Medical Doctor"
+
+/datum/bot_scenario/limb_call_not_taken_unreachable/make_goal()
+	var/obj/structure/table/optable/table = first_placed("O")
+	return (bot.get_bodypart(BODY_ZONE_R_ARM) || QDELETED(arm)) ? null : new /datum/bot_goal/get_limb_back(BODY_ZONE_R_ARM, arm, table)
+
+/datum/bot_scenario/limb_call_not_taken_unreachable/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/called = FALSE
+	for(var/line in transcript)
+		if(findtext(line, "taking a limb call"))
+			fail_reason = "the doctor behind the locked door took the call"
+			return BOT_GYM_FAIL
+		if(findtext(line, "called for a limb"))
+			called = TRUE
+	return (called && world.time > start_time + 30 SECONDS) ? BOT_GYM_PASS : BOT_GYM_PENDING

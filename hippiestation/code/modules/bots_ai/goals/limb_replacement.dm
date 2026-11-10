@@ -90,11 +90,44 @@ GLOBAL_LIST_INIT(bot_limb_jobs, list("Medical Doctor", "Chief Medical Officer", 
 	if(!L)
 		bot_log(bot, "lost my [parse_zone(zone)], and there's none about to have put back on")
 		return FALSE
-	var/obj/structure/table/optable/table = bot.find_free_optable() //goals/surgery.dm
+	var/obj/structure/table/optable/table = bot.find_limb_table()
 	if(!table)
-		bot_log(bot, "lost my [parse_zone(zone)], and there's no operating table free")
+		bot_log(bot, "lost my [parse_zone(zone)], and there's no operating table free where somebody could see to it")
 		return FALSE
 	return bot.assign_goal(new /datum/bot_goal/get_limb_back(zone, L, table))
+
+/// A free operating table it can get to, in a department with somebody on duty who'd put an arm on: Medbay's for the doctors, Robotics'
+/// for a roboticist. The nearest was taken, and a scientist lay on Robotics' table and called four times over, with the one doctor who
+/// heard having no way into Robotics.
+/datum/bot_brain/proc/find_limb_table()
+	var/doctors = bot_on_duty(list("Medical Doctor", "Chief Medical Officer"), owner)
+	var/roboticists = bot_on_duty(list("Roboticist"), owner)
+	var/list/tables = list()
+	for(var/obj/structure/table/optable/T as anything in bot_instances_of(/obj/structure/table/optable))
+		if(QDELETED(T) || T.z != owner.z || (gym_run && get_area(T) != get_area(owner)))
+			continue
+		if(!gym_run)
+			var/department = bot_department_of(get_area(T))
+			if(!((department == "medical" && doctors) || (department == "science" && roboticists)))
+				continue
+		var/occupied = FALSE
+		for(var/mob/living/L in T.loc)
+			if(L.stat != DEAD)
+				occupied = TRUE
+				break
+		if(!occupied)
+			tables[T] = get_dist(owner, T)
+	for(var/tries in 1 to 3) //nearest first, a route search each
+		var/obj/structure/table/optable/nearest
+		for(var/obj/structure/table/optable/T as anything in tables)
+			if(!nearest || tables[T] < tables[nearest])
+				nearest = T
+		if(!nearest)
+			return null
+		if(can_walk_lawfully_to(nearest))
+			return nearest
+		tables -= nearest
+	return null
 
 /// The arm picked up, on to the table, lying down with the arm beside it, and a call for somebody to come and put it on.
 /datum/bot_goal/get_limb_back
@@ -229,10 +262,14 @@ GLOBAL_LIST_INIT(bot_limb_jobs, list("Medical Doctor", "Chief Medical Officer", 
 	doing = "putting somebody's arm back on"
 	precedence = 2
 
-/// Only while they're on the table with the arm beside them: a doctor who said "on my way" and then found no arm to put on didn't come.
+/// Only while they're on the table with the arm beside them, and by somebody with a way to that table: a doctor who said "on my way"
+/// with no arm to put on, or no way into Robotics where they lay, didn't come, and the call was spent.
 /datum/bot_request_kind/limb/answered_by(datum/bot_brain/bot, datum/bot_request/R)
 	var/mob/living/carbon/human/who = R.caller_ref?.resolve()
-	return ..() && istype(who) && bot_limb_beside(who)
+	if(!..() || !istype(who) || !bot_limb_beside(who))
+		return FALSE
+	var/obj/structure/table/optable/table = locate() in who.loc
+	return table && bot.can_walk_lawfully_to(table)
 
 /datum/bot_request_kind/limb/attend(datum/bot_brain/bot, datum/bot_request/R)
 	var/mob/living/carbon/human/who = R.caller_ref?.resolve()
