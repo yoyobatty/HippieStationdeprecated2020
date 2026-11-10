@@ -11,3 +11,15 @@
 /obj/machinery/camera/removeMotion()
 	..()
 	QDEL_NULL(proximity_monitor)
+
+// A camera's assembly is part of the camera: it goes when the camera does (Destroy()), and not before. A bomb going off on a
+// camera's own tile blows up what's inside everything on the tile as well (SSexplosions, for bombs in bags), and that took the
+// assembly out of the bomb range's camera at every test. That camera can't be destroyed, so it went on holding an assembly that
+// had been deleted: a hard delete for every bomb the scientists set off, 6 in 12 shifts.
+/obj/machinery/camera/prevent_content_explosion()
+	return TRUE
+
+/obj/machinery/camera/handle_atom_del(atom/A)
+	if(A == assembly)
+		assembly = null
+	return ..()

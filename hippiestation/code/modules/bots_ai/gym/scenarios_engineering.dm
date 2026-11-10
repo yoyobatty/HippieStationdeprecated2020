@@ -328,3 +328,33 @@
 	if(bot.x != emitter.x)
 		return BOT_GYM_PASS
 	return BOT_GYM_PENDING
+
+// Not a bot's doing, but the Bot Gym is where there's a world to try it in. Layout letter K: the camera.
+/datum/bot_scenario/camera_assembly
+	name = "cameras: a bomb on a camera's tile leaves what's inside it alone, and one that loses its assembly lets go of it"
+	desc = "The bomb range's camera can't be destroyed, but every bomb landed on its tile took out the assembly inside it, and the camera kept hold of the deleted assembly: a hard delete for every test."
+	time_limit = 10 SECONDS
+	layout = list(
+		"#####",
+		"#B.K#",
+		"#####")
+	var/kept_whole
+	var/let_go
+
+/datum/bot_scenario/camera_assembly/issue_goal()
+	return
+
+/datum/bot_scenario/camera_assembly/post_spawn()
+	var/obj/machinery/camera/C = place("K", new /obj/machinery/camera(first_marker("K")))
+	kept_whole = C.prevent_content_explosion()
+	qdel(C.assembly)
+	let_go = isnull(C.assembly)
+
+/datum/bot_scenario/camera_assembly/check()
+	if(!kept_whole)
+		fail_reason = "a bomb on its tile would blow the assembly up inside it"
+		return BOT_GYM_FAIL
+	if(!let_go)
+		fail_reason = "kept hold of an assembly that had been deleted"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
