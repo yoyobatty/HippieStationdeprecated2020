@@ -540,6 +540,11 @@ GLOBAL_LIST_INIT(bot_raid_wishlist, list(
 	doing = "on an errand"
 	var/item_type
 
+/datum/bot_brain
+	/// Where a raid found no way to what it was after -> until when it isn't tried again. A greytider set off for the electrical
+	/// toolbox on the AI satellite, out in space, 44 times in a batch, and gave up at the end of the route search each time.
+	var/list/raid_unreachable
+
 /datum/bot_goal/tide/raid/New(wanted)
 	. = ..()
 	item_type = wanted
@@ -558,6 +563,8 @@ GLOBAL_LIST_INIT(bot_raid_wishlist, list(
 		// A locked locker takes a fire axe, and no raider stops to go and get one. What's on the tables is what goes missing.
 		var/obj/structure/closet/C = holder
 		if(istype(C) && C.locked && !C.allowed(bot.owner))
+			continue
+		if(LAZYACCESS(bot.raid_unreachable, holder.loc) > world.time)
 			continue
 		var/dist = get_dist(bot.owner, holder)
 		if(!best || dist < best_dist)
@@ -611,6 +618,12 @@ GLOBAL_LIST_INIT(bot_raid_wishlist, list(
 		bot.next_door_work = world.time + 20 MINUTES //nothing to do it with: not thought of again for a good while (nine tries a shift at five minutes)
 		return GOAL_STEP_FAIL
 	return GOAL_STEP_SUCCESS
+
+/datum/bot_goal/tide/raid/on_give_up(datum/bot_brain/bot)
+	. = ..()
+	var/turf/T = get_turf(target)
+	if(T && get_dist(bot.owner, T) > 2) //never got near it: no way there, as far as it can tell
+		LAZYSET(bot.raid_unreachable, T, world.time + 10 MINUTES)
 
 /datum/bot_goal/tide/raid/on_success(datum/bot_brain/bot)
 	..()

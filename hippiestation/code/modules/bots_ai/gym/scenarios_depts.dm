@@ -193,6 +193,23 @@
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
 
+/datum/bot_scenario/raid/unreachable
+	name = "dept: a greytider gives up on gloves it has no way to and takes the ones it can get"
+	desc = "Insulated gloves walled up two steps off, as on the AI satellite, and another pair across the room. It set off for the nearer every time and gave up at the end of the route search."
+	layout = list(
+		"###########",
+		"#..#y#....#",
+		"#B.###...y#",
+		"#.........#",
+		"###########")
+	time_limit = 40 SECONDS
+	max_goal_attempts = 3
+
+/datum/bot_scenario/raid/unreachable/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return istype(bot.gloves, /obj/item/clothing/gloves/color/yellow) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /datum/bot_scenario/drop_off
 	name = "collab: something left on another department's counter"
 	desc = "A defibrillator for Medbay, carried over and left on the table, with a word on the radio."
