@@ -58,6 +58,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/machinery/\_machinery.dm
 ## code/game/machinery/buttons.dm
 ## code/game/machinery/camera/camera.dm
+## code/game/machinery/computer/atmos_control.dm (out of the .dme: rewritten whole as hippiestation/code/game/machinery/computer/atmos_control.dm, tg's later tank sensors and consoles: the sensor holds its tank's injector and vent, linked by multitool or by sharing a sealed tank, and the consoles drive them directly instead of by radio)
 ## code/game/machinery/computer/cloning.dm
 ## code/game/machinery/computer/communications.dm (the alert swipe reads a worn ID; a change locks the level for a minute, communications_tgui.dm)
 ## code/game/machinery/computer/security.dm

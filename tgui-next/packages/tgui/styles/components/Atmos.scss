@@ -1,5 +1,15 @@
 // hippie -- the atmos windows (interfaces/AirAlarm.js, Canister.js,
-// PortableAtmos.js, ThermoMachine.js, SpaceHeater.js)
+// PortableAtmos.js, ThermoMachine.js, SpaceHeater.js, AtmosControlConsole.js)
+
+// A chamber or loop on the monitoring console
+.Atmos__row {
+  padding: 4px 0 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.Atmos__row:last-child {
+  border-bottom: none;
+}
 
 .Atmos__gasBar {
   display: flex;

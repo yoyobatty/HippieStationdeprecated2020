@@ -152,15 +152,20 @@
 	)
 	var/list/rows = list()
 	var/count = 0
+	// the tank consoles find their chamber's gas sensor, which holds the injector and vent (hippiestation/code/game/machinery/computer/atmos_control.dm)
 	for(var/obj/machinery/computer/atmos_control/tank/console in GLOB.atmos_air_controllers)
 		count++
 		var/list/wrong = list()
-		if(console.input_tag == console.output_tag)
-			wrong += "input and output both tagged \"[console.input_tag]\""
-		if(!LAZYLEN(console.input_info))
-			wrong += "no injector tagged [console.input_tag]"
-		if(!LAZYLEN(console.output_info))
-			wrong += "no vent tagged [console.output_tag]"
+		var/obj/machinery/air_sensor/sensor = console.find_sensor()
+		if(!console.chamber_id)
+			wrong += "no chamber"
+		else if(!sensor)
+			wrong += "no gas sensor for [atmos_chamber_name(console.chamber_id)]"
+		else
+			if(!sensor.get_inlet())
+				wrong += "no injector linked"
+			if(!sensor.get_outlet())
+				wrong += "no vent linked"
 		rows += list(admin_report_row(length(wrong) ? "bad" : "ok", "[console]", console, length(wrong) ? jointext(wrong, "; ") : null))
 		CHECK_TICK
 	open_admin_report("atmos_consoles", "Atmos monitoring consoles", "[count] tank consoles", groups, rows)

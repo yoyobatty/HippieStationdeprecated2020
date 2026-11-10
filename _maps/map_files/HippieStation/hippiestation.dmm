@@ -5371,7 +5371,7 @@
 "czh" = (/obj/effect/turf_decal/stripes/line{dir = 8},/turf/open/floor/plasteel,/area/engine/engineering)
 "czj" = (/obj/machinery/camera{dir = 8; c_tag = "Engineering East"},/obj/effect/turf_decal/bot,/obj/machinery/vending/wardrobe/engi_wardrobe,/turf/open/floor/plasteel/dark,/area/engine/engineering)
 "czk" = (/obj/machinery/atmospherics/components/unary/outlet_injector/atmos/incinerator_input{dir = 1},/turf/open/floor/engine/vacuum,/area/maintenance/disposal/incinerator)
-"czl" = (/obj/structure/cable,/obj/machinery/igniter{id = "Incinerator"},/obj/machinery/air_sensor{pixel_x = -32; pixel_y = -32},/turf/open/floor/engine/vacuum,/area/maintenance/disposal/incinerator)
+"czl" = (/obj/structure/cable,/obj/machinery/igniter{id = "Incinerator"},/obj/machinery/air_sensor/atmos/incinerator_tank{pixel_x = -32; pixel_y = -32},/turf/open/floor/engine/vacuum,/area/maintenance/disposal/incinerator)
 "czm" = (/obj/machinery/atmospherics/components/unary/vent_pump/siphon/atmos/incinerator_output{dir = 1},/obj/structure/sign/warning/vacuum/external{pixel_y = -32},/turf/open/floor/engine/vacuum,/area/maintenance/disposal/incinerator)
 "czn" = (/obj/machinery/door/poddoor{name = "Auxiliary Incinerator Vent"; id = "auxincineratorvent"},/turf/open/floor/engine/vacuum,/area/maintenance/disposal/incinerator)
 "czo" = (/obj/machinery/atmospherics/pipe/simple/scrubbers/hidden,/obj/effect/spawner/structure/window/reinforced,/turf/open/floor/plating,/area/maintenance/aft)
