@@ -20,6 +20,8 @@
 		// nobody reads a gym's lines, was 4% of a full gym's server time (2026-11-09).
 		B.gym_run.log_line(msg)
 		return
+	if(GLOB.bot_crew_panel_open && B)
+		B.remember_line(msg) //admin/bot_crew_panel.dm
 	if(!GLOB.bot_ai_debug || !B || QDELETED(B.owner))
 		return
 	message_admins("<span class='notice'>Bot AI: [ADMIN_FLW(B.owner)] [B.owner.real_name]: [msg]</span>")

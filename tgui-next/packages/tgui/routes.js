@@ -28,6 +28,7 @@ import { BanWindow } from './interfaces/BanWindow';
 import { Biogenerator } from './interfaces/Biogenerator';
 import { BluespaceArtillery } from './interfaces/BluespaceArtillery';
 import { BorgPanel } from './interfaces/BorgPanel';
+import { BotCrew } from './interfaces/BotCrew';
 import { BotPanel } from './interfaces/BotPanel';
 import { BrigTimer } from './interfaces/BrigTimer';
 import { Canister } from './interfaces/Canister';
@@ -1374,6 +1375,10 @@ const ROUTES = {
   },
   admin_players: {
     component: () => AdminPlayers,
+    scrollable: true,
+  },
+  bot_crew: {
+    component: () => BotCrew,
     scrollable: true,
   },
   admin_game_panel: {

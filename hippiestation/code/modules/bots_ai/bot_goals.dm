@@ -630,6 +630,7 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 	end_goal()
 
 /datum/bot_brain/proc/give_up_goal()
+	note_gave_up(current_goal) //admin/bot_crew_panel.dm: before the line below, which would be the last line it has
 	bot_log(src, "giving up on [current_goal?.type] (target: [current_goal?.target] @ [bot_coord(get_turf(current_goal?.target))])")
 	note_give_up(current_goal)
 	current_goal?.on_give_up(src)

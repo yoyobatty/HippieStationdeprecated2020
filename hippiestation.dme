@@ -3343,6 +3343,7 @@
 #include "hippiestation\code\modules\admin\admin_find.dm"
 #include "hippiestation\code\modules\admin\admin_fun_tgui.dm"
 #include "hippiestation\code\modules\admin\ban_window.dm"
+#include "hippiestation\code\modules\admin\bot_crew_panel.dm"
 #include "hippiestation\code\modules\antagonists\_common\antag_datum.dm"
 #include "hippiestation\code\modules\antagonists\_common\antag_spawner.dm"
 #include "hippiestation\code\modules\antagonists\_common\tips.dm"
