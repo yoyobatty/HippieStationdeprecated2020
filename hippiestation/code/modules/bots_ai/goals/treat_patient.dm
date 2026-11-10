@@ -15,6 +15,9 @@
 	if(!H.handcuffed && (bot_is_wanted(H) || is_type_in_typecache(H.wear_suit, GLOB.bot_contraband)))
 		return FALSE //nobody patches up a nuclear operative, or anybody Security's after, until they're in cuffs: a doctor once took
 		//an operative's hardsuit off them in the middle of the bridge to get at a cut
+	if(sore_at(H))
+		return FALSE //they've just been hitting it (bot_reflexes.dm): it keeps clear, and another doctor can see to them. A robust traitor
+		//fought two doctors in Medbay, and both went on dragging it to the sleeper between punches.
 	if(H.getBruteLoss() > 10 || H.getFireLoss() > 10)
 		return TRUE
 	if(H.stat == SOFT_CRIT || H.stat == UNCONSCIOUS)
@@ -731,6 +734,12 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			continue //in a machine already, being dragged in by somebody, or somebody's on their way
 		if(LAZYACCESS(bot.unreachable_patients, H) > world.time)
 			continue //just tried, and there was no way to them from here
+		if(!bot.patient_needs_treatment(H))
+			continue
+		// Out cold with nothing wrong (asleep, sedated): a sleeper does nothing for them, and the next doctor round lets them straight
+		// out (find_machine_to_empty(), medical_rounds.dm). Somebody asleep on morphine went in and out of one 94 times in four minutes.
+		if(bot_sleeper_done_with(H) && !(bot_needs_blood(H) && bot.blood_pack_for(H)))
+			continue
 		var/score = bot.patient_injury_score(H) - get_dist(bot.owner, H)
 		if(!best || score > best_score)
 			best = H
@@ -743,6 +752,8 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 		M = bot.free_iv_drip_near(best, 200)
 		if(M && get_dist(best, M) <= 2)
 			return //there already: the drip's next (give_blood/urgent)
+	if(!M && bot_sleeper_done_with(best))
+		return //only short of blood, and no drip for it: not into a sleeper, which would let them out at once
 	M = M || bot.find_reachable_healing_machine(best)
 	if(!M)
 		return

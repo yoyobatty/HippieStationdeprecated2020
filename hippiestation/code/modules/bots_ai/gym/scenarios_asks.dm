@@ -216,6 +216,58 @@
 		return BOT_GYM_FAIL
 	return (!sleeper.occupant && isturf(patient.loc)) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/datum/bot_scenario/sleeper_check/asleep
+	name = "medical rounds: somebody asleep and unhurt isn't put in a sleeper"
+	desc = "Somebody is out cold on the floor with nothing wrong with them, asleep on morphine. A sleeper does nothing for that, and a doctor going round lets anybody that well straight out of one: in a played round two doctors put a sleeping traitor in and out of a sleeper 94 times in four minutes. The doctor leaves them be."
+	layout = list(
+		"#########",
+		"#B..P..Y#",
+		"#########")
+
+/datum/bot_scenario/sleeper_check/asleep/post_spawn()
+	give_job_id(list(ACCESS_MEDICAL))
+	patient = stand_in(first_marker("P"), "Sage Sleeper")
+	patient.SetSleeping(60 SECONDS)
+
+/datum/bot_scenario/sleeper_check/asleep/make_goal()
+	return new /datum/bot_goal/escort_to_sleeper()
+
+/datum/bot_scenario/sleeper_check/asleep/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(sleeper.occupant == patient || bot.pulling == patient)
+		fail_reason = "took them [sleeper.occupant == patient ? "into the sleeper" : "in hand for the sleeper"], asleep and unhurt"
+		return BOT_GYM_FAIL
+	return world.time - start_time > 12 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/sleeper_check/punched
+	name = "medical rounds: a doctor doesn't drag off somebody down who's just been hitting it"
+	desc = "Somebody who has been punching the doctor is down in crit. It keeps clear of them rather than taking them to the sleeper between punches, as two doctors did with a robust traitor in a played round; another doctor can see to them."
+	layout = list(
+		"#########",
+		"#B..P..Y#",
+		"#########")
+
+/datum/bot_scenario/sleeper_check/punched/post_spawn()
+	give_job_id(list(ACCESS_MEDICAL))
+	patient = stand_in(first_marker("P"), "Sage Puncher")
+	patient.adjustBruteLoss(120)
+	bot.bot_brain.add_grudge(patient, 8) //the punches it's had from them
+
+/datum/bot_scenario/sleeper_check/punched/make_goal()
+	return new /datum/bot_goal/escort_to_sleeper()
+
+/datum/bot_scenario/sleeper_check/punched/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(sleeper.occupant == patient || bot.pulling == patient)
+		fail_reason = "took them [sleeper.occupant == patient ? "into the sleeper" : "in hand for the sleeper"] straight after their punches"
+		return BOT_GYM_FAIL
+	if(patient.stat == CONSCIOUS)
+		fail_reason = "the patient isn't down (health [patient.health])"
+		return BOT_GYM_FAIL
+	return world.time - start_time > 12 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /datum/bot_scenario/brigged
 	name = "brig: a prisoner's things go in the locker, and they go in orange"
 	desc = "An officer brigs somebody it's cuffed. Everything but their clothes goes in the cell's locker (bag, ID, headset, gloves, what's in their hands and what a thorough officer finds hidden up their back), and they're put in the prison jumpsuit and shoes, then uncuffed and the timer started."

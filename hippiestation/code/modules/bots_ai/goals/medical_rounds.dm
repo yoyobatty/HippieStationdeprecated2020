@@ -8,6 +8,11 @@
 /// Patched up enough to be let out of a sleeper or a cryo cell.
 #define BOT_SLEEPER_DONE 0.9
 
+/// Dead, or as good as new: who a doctor going round lets out of a sleeper (below), so nobody like that is put in one either
+/// (escort_to_sleeper, treat_patient.dm).
+/proc/bot_sleeper_done_with(mob/living/carbon/human/H)
+	return H.stat == DEAD || H.health >= H.maxHealth * BOT_SLEEPER_DONE
+
 /// A sleeper or cryo cell with somebody in it who's finished with it: dead, or as good as new.
 /datum/bot_brain/proc/find_machine_to_empty()
 	var/best

@@ -232,6 +232,10 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 		return 0
 	return max(0, points - (world.time - grudge_times[ref]) / BOT_GRUDGE_FADE)
 
+/// Sore at them just now: they've been shoving or hitting it. A doctor doesn't go and patch them up (patient_needs_treatment()).
+/datum/bot_brain/proc/sore_at(mob/living/who)
+	return grudge_with(who) >= BOT_GRUDGE_SHOVE
+
 /datum/bot_brain/proc/add_grudge(mob/living/who, points)
 	var/now = grudge_with(who) + points
 	var/datum/weakref/ref = WEAKREF(who)
