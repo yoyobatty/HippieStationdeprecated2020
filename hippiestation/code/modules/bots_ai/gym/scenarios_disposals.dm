@@ -128,3 +128,22 @@
 	if(istype(victim.loc, /obj/structure/disposalholder) || (isturf(victim.loc) && victim.x > B.x + 1) || (victim.loc == B && B.flush))
 		return BOT_GYM_PASS
 	return BOT_GYM_PENDING
+
+/datum/bot_scenario/disposals_shut_in/no_air
+	name = "disposals: shut in with the air gone, it gets out by the bin"
+	desc = "The same room with the air gone out of it, and the bot on its emergency tank. It turned the bin down as somewhere it couldn't breathe, which was the room it was stood in."
+	time_limit = 100 SECONDS
+
+/datum/bot_scenario/disposals_shut_in/no_air/setup()
+	..()
+	var/turf/door = first_marker("D")
+	for(var/turf/open/floor/F in arena_area)
+		if(F.x < door.x)
+			F.air.parse_gas_string("TEMP=2.7")
+			F.update_visuals()
+			SSair.add_to_active(F)
+
+/datum/bot_scenario/disposals_shut_in/no_air/post_spawn()
+	..()
+	bot.equip_to_slot_or_del(new /obj/item/clothing/mask/breath(bot), ITEM_SLOT_MASK)
+	bot.equip_to_slot_or_del(new /obj/item/tank/internals/emergency_oxygen/engi(bot), ITEM_SLOT_LPOCKET)

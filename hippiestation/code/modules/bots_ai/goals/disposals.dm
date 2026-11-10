@@ -232,6 +232,9 @@
 	lawful = TRUE
 	exclusive = TRUE
 	never_rests = TRUE
+	/// A way out, and as often as not out of somewhere with no air: a Head of Security shut in a Chemistry with the air gone out of it
+	/// turned down the bin beside it 14 times as "somewhere I can't breathe", the room it was stood in.
+	braves_bad_air = TRUE
 	doing = "getting out by the disposal bin"
 	var/obj/machinery/disposal/bin/bin
 	var/why

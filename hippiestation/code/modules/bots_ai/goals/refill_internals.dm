@@ -552,6 +552,13 @@
 			return TRUE
 	return FALSE
 
+/// No way out of the bad air at all (shut in, or an island of floor in the vacuum): a little while before it tries again, on internals
+/// if it has them, while what it does when shut in (bot_requests.dm, goals/disposals.dm) gets its turn. A Head of Security shut in a
+/// Chemistry with no air set off for the nearest air and gave up at the end of the route search 268 times in eighteen minutes.
+/datum/bot_goal/seek_air/on_give_up(datum/bot_brain/bot)
+	if(!bot.in_the_flames())
+		bot.next_air_trip_time = world.time + 20 SECONDS
+
 /// Out of it: that room's off its strolls for a few minutes, and it gets its breath back before going anywhere. An officer got out
 /// of a breached Brig Desk, picked somewhere to wander to on the far side of it and walked straight back in, 263 times in a shift.
 /datum/bot_goal/seek_air/on_success(datum/bot_brain/bot)
