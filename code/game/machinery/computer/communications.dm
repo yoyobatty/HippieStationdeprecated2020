@@ -89,12 +89,14 @@
 
 		if("swipeidseclevel")
 			var/mob/M = usr
-			var/obj/item/card/id/I = M.get_active_held_item()
+			var/obj/item/card/id/I = M.get_idcard(TRUE) // hippie -- the ID worn or in hand, as logging in reads it (was the active hand only)
 			if (istype(I, /obj/item/pda))
 				var/obj/item/pda/pda = I
 				I = pda.id
 			if (I && istype(I))
-				if(ACCESS_CAPTAIN in I.access)
+				if((ACCESS_CAPTAIN in I.access) && alert_change_locked(usr)) // hippie -- a change locks the level for a while (communications_tgui.dm)
+					tmp_alertlevel = 0
+				else if(ACCESS_CAPTAIN in I.access)
 					var/old_level = GLOB.security_level
 					if(!tmp_alertlevel)
 						tmp_alertlevel = SEC_LEVEL_GREEN
@@ -104,6 +106,7 @@
 						tmp_alertlevel = SEC_LEVEL_BLUE //Cannot engage delta with this
 					set_security_level(tmp_alertlevel)
 					if(GLOB.security_level != old_level)
+						lock_alert_change() // hippie
 						to_chat(usr, "<span class='notice'>Authorization confirmed. Modifying security level.</span>")
 						playsound(src, 'sound/machines/terminal_prompt_confirm.ogg', 50, 0)
 						//Only notify people if an actual change happened
@@ -381,8 +384,10 @@
 				tmp_alertlevel = SEC_LEVEL_GREEN
 			if(tmp_alertlevel > SEC_LEVEL_BLUE)
 				tmp_alertlevel = SEC_LEVEL_BLUE //Cannot engage delta with this
-			set_security_level(tmp_alertlevel)
+			if(!alert_change_locked(usr)) // hippie -- a change locks the level for a while (communications_tgui.dm)
+				set_security_level(tmp_alertlevel)
 			if(GLOB.security_level != old_level)
+				lock_alert_change() // hippie
 				//Only notify people if an actual change happened
 				var/security_level = get_security_level()
 				log_game("[key_name(usr)] has changed the security level to [security_level] from [src] at [AREACOORD(usr)].")

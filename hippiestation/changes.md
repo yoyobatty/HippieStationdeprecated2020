@@ -59,6 +59,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/machinery/buttons.dm
 ## code/game/machinery/camera/camera.dm
 ## code/game/machinery/computer/cloning.dm
+## code/game/machinery/computer/communications.dm (the alert swipe reads a worn ID; a change locks the level for a minute, communications_tgui.dm)
 ## code/game/machinery/computer/security.dm
 ## code/game/machinery/doors/airlock.dm
 ## code/game/machinery/doors/airlock_types.dm !Should be modularized. Can be done easily.
@@ -83,6 +84,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/objects/structures/window.dm
 ## code/game/turfs/change_turf.dm
 ## code/game/turfs/open.dm
+## code/game/turfs/open/space/space.dm (set_starlight() retints the camera pictures' starlight copies, map_view.dm)
 ## code/game/world.dm !Needs modularization! This stuff is crap.
 ## code/modules/admin/admin.dm
 ## code/modules/admin/admin_ranks.dm

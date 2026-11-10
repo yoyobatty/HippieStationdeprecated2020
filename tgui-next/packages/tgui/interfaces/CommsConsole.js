@@ -454,17 +454,23 @@ export const CommsConsole = props => {
                       <Button
                         content="Green"
                         color="good"
+                        disabled={data.alert_lock > 0}
                         onClick={() => act('alert', {
                           level: data.levels.green,
                         })} />
                       <Button
                         content="Blue"
+                        disabled={data.alert_lock > 0}
                         onClick={() => act('alert', {
                           level: data.levels.blue,
                         })} />
-                      {!silicon && (
+                      {data.alert_lock > 0 ? (
+                        <Box inline ml={1} color="average">
+                          Locked: {data.alert_lock}s
+                        </Box>
+                      ) : !silicon && (
                         <Box inline ml={1} color="label">
-                          with a Captain&apos;s ID in hand
+                          Captain&apos;s ID
                         </Box>
                       )}
                     </Fragment>

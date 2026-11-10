@@ -5,6 +5,24 @@
 // checks, cooldowns and logs. The AI gets the same window with its own functions, as it had its own menu. Bots don't use the
 // window (bots_ai goals/call_shuttle.dm, civilians.dm, repair_damage.dm call the procs).
 
+/// How long after one alert level change from a console the next waits. Every change is a station-wide announcement and alarm, and a
+/// Captain could flick green-blue-green twenty times in ten seconds. One lock for every console and the AI, so moving to another
+/// console doesn't get round it. The keycard device's red alert doesn't go through here.
+#define COMMS_ALERT_CHANGE_LOCK (60 SECONDS)
+GLOBAL_VAR_INIT(comms_alert_change_ready_at, 0)
+
+/// TRUE, and the user is told how long, while a recent change has the level locked
+/obj/machinery/computer/communications/proc/alert_change_locked(mob/user)
+	var/left = GLOB.comms_alert_change_ready_at - world.time
+	if(left <= 0)
+		return FALSE
+	to_chat(user, "<span class='warning'>Alert level locked: [DisplayTimeText(left)].</span>")
+	playsound(src, 'sound/machines/terminal_prompt_deny.ogg', 50, 0)
+	return TRUE
+
+/obj/machinery/computer/communications/proc/lock_alert_change()
+	GLOB.comms_alert_change_ready_at = world.time + COMMS_ALERT_CHANGE_LOCK
+
 /obj/machinery/computer/communications/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)
 	add_fingerprint(user)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
@@ -62,6 +80,7 @@
 	.["shuttle"] = shuttle
 	.["alert_level"] = get_security_level()
 	.["alert_num"] = GLOB.security_level
+	.["alert_lock"] = max(0, round((GLOB.comms_alert_change_ready_at - world.time) / 10))
 	.["delta"] = GLOB.security_level == SEC_LEVEL_DELTA
 	.["emergency_access"] = !!GLOB.emergency_access
 	.["stat_msg1"] = stat_msg1
@@ -107,7 +126,7 @@
 			if(silicon)
 				Topic(null, list("operation" = "ai-securitylevel", "newalertlevel" = "[level]"))
 			else if(authenticated == 2)
-				// The old menu's steps: pick the level, then swipe a Captain's ID (the one in hand) to confirm it
+				// The old menu's steps: pick the level, then swipe a Captain's ID (worn or in hand) to confirm it
 				Topic(null, list("operation" = "securitylevel", "newalertlevel" = "[level]"))
 				Topic(null, list("operation" = "swipeidseclevel"))
 		if("emergency_access")
