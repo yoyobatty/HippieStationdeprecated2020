@@ -49,23 +49,47 @@
 	var/pathing_assume_nearby_weapons = FALSE
 	/// Last urgency level logged, so transitions are logged once instead of every check.
 	var/last_logged_urgency = BOT_URGENCY_CALM
+	/// What get_urgency() made of things, and the tick and the tile that was for.
+	var/urgency_known = BOT_URGENCY_CALM
+	var/urgency_known_at = -1
+	var/turf/urgency_known_on
 
 // ---------------------------------------------------------------------------------------------
 // Urgency
 // ---------------------------------------------------------------------------------------------
 
-/// How much danger the bot is in right now, from its own tile and immediate surroundings.
-/// Deliberately cheap - pathing calls this per candidate turf through destruction_allowed().
+/// World param bot-urgency-shadow: every remembered answer is worked out again as well, and a difference logged ("URGENCY SHADOW").
+GLOBAL_VAR_INIT(bot_urgency_shadow, ("bot-urgency-shadow" in world.params))
+
+/// How much danger the bot is in right now, from its own tile and immediate surroundings. Worked out once a tick for the tile it's
+/// on: pathing asks through destruction_allowed() for every blocked tile it looks at and reach_rules() for every search, and
+/// working it out each time (the air, and every fire within two tiles) was 2.9% of a shift's server time, the third most of any
+/// proc.
 /datum/bot_brain/proc/get_urgency()
 	if(urgency_override >= 0)
 		return urgency_override
+	var/turf/T = get_turf(owner)
+	if(urgency_known_at == world.time && urgency_known_on == T)
+		if(GLOB.bot_urgency_shadow)
+			var/static/checked = 0
+			if(!(checked++ % 100000))
+				log_game("URGENCY SHADOW: on, [checked] remembered answers checked so far")
+			var/fresh = work_out_urgency(T)
+			if(fresh != urgency_known)
+				log_game("URGENCY SHADOW: [owner] at [AREACOORD(T)] remembered [bot_urgency_name(urgency_known)], now [bot_urgency_name(fresh)]")
+		return urgency_known
+	urgency_known = work_out_urgency(T)
+	urgency_known_at = world.time
+	urgency_known_on = T
+	return urgency_known
+
+/datum/bot_brain/proc/work_out_urgency(turf/T)
 	var/mob/living/carbon/human/H = owner
 	if(!istype(H) || H.stat == DEAD)
 		return BOT_URGENCY_CALM
 	if(H.on_fire)
 		return BOT_URGENCY_PANIC
 	. = BOT_URGENCY_CALM
-	var/turf/T = get_turf(H)
 	var/datum/gas_mixture/air = T?.return_air()
 	if(air)
 		// calculate_affecting_pressure() accounts for a sealed suit+helmet, same as the damage code
@@ -77,7 +101,7 @@
 		var/temperature = air.return_temperature()
 		if(temperature > BODYTEMP_HEAT_DAMAGE_LIMIT && !bot_is_heat_immune_to(temperature))
 			. = max(., temperature > BOT_PANIC_TEMPERATURE ? BOT_URGENCY_PANIC : BOT_URGENCY_EMERGENCY)
-	if(. < BOT_URGENCY_EMERGENCY)
+	if(. < BOT_URGENCY_EMERGENCY && length(SSair.hotspots)) //with nothing burning anywhere there's none to look for: every fire is on that list (LINDA_fire.dm)
 		for(var/obj/effect/hotspot/fire in range(2, H))
 			if(QDELETED(fire) || bot_is_heat_immune_to(fire.temperature))
 				continue
