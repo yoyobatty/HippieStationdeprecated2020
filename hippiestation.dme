@@ -3134,6 +3134,7 @@
 #include "hippiestation\code\game\machinery\computer\dna_console_tgui.dm"
 #include "hippiestation\code\game\machinery\computer\gulag_tgui.dm"
 #include "hippiestation\code\game\machinery\computer\records_tgui.dm"
+#include "hippiestation\code\game\machinery\computer\station_alert_tgui.dm"
 #include "hippiestation\code\game\machinery\doors\airlock.dm"
 #include "hippiestation\code\game\machinery\doors\blastco.dm"
 #include "hippiestation\code\game\machinery\doors\poddoor.dm"

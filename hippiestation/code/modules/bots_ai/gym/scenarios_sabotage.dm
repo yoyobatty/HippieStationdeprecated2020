@@ -756,3 +756,37 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return (bot_transcript_said("here to be seen") && get_dist(bot, first_marker("p")) <= 2) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// With an emag and a station alert console (a) on the way, the saboteur blinds the fire alarms where it'll burn first
+/// (goals/sabotage.dm sabotage_alert_console_for(), station_alert_tgui.dm)
+/datum/bot_scenario/sabotage/plasma/blinds_alarms
+	name = "sabotage: a saboteur with an emag turns the fire alarms off at the alert console before the burn"
+	desc = "As the plasma flood, with a station alert console in the room. The saboteur goes to it first, emags it and turns the room's hot trip point off, so the fire it starts doesn't trip the alarms. Then the canister, as before."
+	layout = list(
+		"#########################",
+		"#B..k...a...............#",
+		"#.......................#",
+		"#.............O.........#",
+		"#.......................#",
+		"#.......................#",
+		"#########################")
+	var/obj/machinery/computer/station_alert/console
+
+/datum/bot_scenario/sabotage/plasma/blinds_alarms/setup()
+	..()
+	console = new(first_marker("a"))
+	place("a", console)
+
+/datum/bot_scenario/sabotage/plasma/blinds_alarms/post_spawn()
+	..()
+	brain.competence = 1
+
+/datum/bot_scenario/sabotage/plasma/blinds_alarms/check()
+	. = ..()
+	if(. == BOT_GYM_PASS && arena_area.vars["fire_trip_hot"] != -1)
+		fail_reason = "lit it with the fire alarms still on"
+		return BOT_GYM_FAIL
+
+/datum/bot_scenario/sabotage/plasma/blinds_alarms/release_run()
+	arena_area.vars["fire_trip_hot"] = null
+	return ..()

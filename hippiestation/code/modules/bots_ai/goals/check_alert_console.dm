@@ -146,6 +146,7 @@
 		return GOAL_STEP_FAIL
 	var/datum/bot_goal/check_alert_console/goal = bot.current_goal
 	bot.next_console_read_time = world.time + rand(600, 1200)
+	bot.settle_cold_false_alarms(C)
 	goal.saw_fire = bot.console_reports_fire(C)
 	goal.saw_atmos = bot.console_reports_atmos(C)
 	if(goal.saw_fire)
@@ -155,3 +156,39 @@
 	else
 		bot_log(bot, "checked [C] - [goal.saw_fire ? "fire" : ""][(goal.saw_fire && goal.saw_atmos) ? " and " : ""][goal.saw_atmos ? "an atmosphere alarm" : ""] reported - heading over")
 	return GOAL_STEP_SUCCESS
+
+// ---- The Chief Engineer's fire alarm controls (hippiestation/code/game/machinery/computer/station_alert_tgui.dm)
+
+/// Rooms kept cold on purpose: their fire alarms go off on the cold. In the batch of 2026-11-08 every one of 52 console reads was the
+/// Kitchen Cold Room or a server room, and the engineers walked to each to find nothing.
+GLOBAL_LIST_INIT(bot_cold_by_design_areas, typecacheof(list(/area/crew_quarters/kitchen/coldroom, /area/server, /area/science/server, /area/tcommsat/server)))
+
+/// The Chief Engineer at a station alert console, reading a fire alarm that's a cold room being cold: it turns that room's cold trip
+/// point down below how cold it is and clears the alarm, as a CE who knows the station would (the user's ruling, 2026-11-10). Air
+/// that's thin as well as cold is a breach, and is left alarming. How many it settled.
+/datum/bot_brain/proc/settle_cold_false_alarms(obj/machinery/computer/station_alert/S)
+	if(!istype(S) || work_role() != "Chief Engineer" || !S.can_set_trips(owner))
+		return 0
+	. = 0
+	var/list/fires = S.alarms["Fire"]
+	for(var/area_name in fires?.Copy())
+		var/list/alarm = fires[area_name]
+		if(!islist(alarm) || !isarea(alarm[1]))
+			continue
+		var/area/A = alarm[1]
+		if(!is_type_in_typecache(A, GLOB.bot_cold_by_design_areas))
+			continue
+		var/obj/machinery/firealarm/F = locate() in A.firealarms
+		var/turf/T = get_turf(F)
+		var/datum/gas_mixture/air = T?.return_air()
+		if(!air || air.return_pressure() < WARNING_LOW_PRESSURE || air.return_temperature() >= A.fire_trip_cold_point())
+			continue
+		var/cold = max(0, round(air.return_temperature() - 20, 5))
+		human_pause(S)
+		telemetry_ui_action(S, "cold trip point")
+		S.set_trip(A, "cold", cold, owner)
+		S.reset_fire_alarm(area_name, owner)
+		bot_log(src, "the fire alarm in [area_name] was the cold: its cold trip point down to [cold] K and cleared")
+		bot_tally("cold fire alarms settled at the console")
+		bot_say(owner, ":e [pick("Fire alarm in", "The alarm in")] [area_name]'s just the cold. Turned its cold trip down and cleared it.")
+		.++

@@ -153,7 +153,7 @@ GLOBAL_LIST_INIT(bot_sabotage_acts, init_bot_sabotage_acts())
 /// `engine`: it's the engine they're at, and an engineer who sees it with any nerve goes for them there and then (the user's ruling,
 /// 2026-11-07: catch the saboteur in the act). Engineers put a sabotaged supermatter's loop back within seconds of the saboteur
 /// finishing, and it went up all the same: eight pumps off one by one had the chamber at thousands of kelvin first.
-/proc/bot_witness_sabotage(mob/living/carbon/human/saboteur, details, engine = FALSE)
+/proc/bot_witness_sabotage(mob/living/carbon/human/saboteur, details, engine = FALSE, crime = "Sabotage", severity = BOT_CRIME_MAJOR)
 	var/called = FALSE
 	var/list/witnesses = bot_witnesses_of(saboteur, list(saboteur))
 	// At the engine, an engineer in the engine room with them knows who's switching the pumps off, sight line or no: a Chief Engineer
@@ -165,7 +165,7 @@ GLOBAL_LIST_INIT(bot_sabotage_acts, init_bot_sabotage_acts())
 			if(!(B in witnesses) && H != saboteur && !QDELETED(H) && H.stat == CONSCIOUS && H.z == saboteur.z && get_dist(H, saboteur) <= BOT_SIGHT_RANGE && istype(get_area(H), /area/engine))
 				witnesses += B
 	for(var/datum/bot_brain/B as anything in witnesses)
-		if(B.bot_traitor || B.owner.incapacitated() || B.state == BOT_STATE_ARREST)
+		if(B.bot_traitor || B.owner.incapacitated() || (B.state == BOT_STATE_ARREST && B.arrest_suspect != saboteur)) //arresting them already: the charge goes up
 			continue
 		if(engine && (B.work_role() in GLOB.engineering_positions) && B.nerve >= 0.3 && B.state != BOT_STATE_COMBAT)
 			bot_say(B.owner, pick("Hey! Get away from that!", "What are you doing?! Leave the engine alone!", "Stop! Get off those pumps!"))
@@ -178,10 +178,10 @@ GLOBAL_LIST_INIT(bot_sabotage_acts, init_bot_sabotage_acts())
 			continue
 		called = TRUE //one call does it: the rest heard it
 		if(B.is_security_job())
-			B.file_crime(saboteur, "Sabotage", "[capitalize(details)] in [get_area_name(saboteur, TRUE)].", BOT_CRIME_MAJOR)
+			B.file_crime(saboteur, crime, "[capitalize(details)] in [get_area_name(saboteur, TRUE)].", severity)
 			B.begin_arrest(saboteur)
 		else
-			B.call_it_in(saboteur, "Sabotage", details, BOT_CRIME_MAJOR)
+			B.call_it_in(saboteur, crime, details, severity)
 
 /// Waits for the room to empty, for as long as it'll wait. TRUE once it's going ahead.
 /datum/bot_brain/proc/sabotage_unwatched(started_waiting)
@@ -298,6 +298,12 @@ GLOBAL_LIST_INIT(bot_sabotage_acts, init_bot_sabotage_acts())
 	var/datum/bot_step/move_to/to_spot = new
 	to_spot.step_target = spot
 	S.steps = list()
+	// With an emag on it, a station alert console on the way blinds the fire alarms where it'll burn first (station_alert_tgui.dm)
+	var/obj/machinery/computer/station_alert/console = bot.sabotage_alert_console_for(spot)
+	if(console)
+		var/datum/bot_step/move_to/to_console = new
+		to_console.step_target = console
+		S.steps += list(to_console, new /datum/bot_step/sabotage_blind_alarms(console, get_area(spot)))
 	if(canister.connected_port)
 		S.steps += new /datum/bot_step/ensure_wrench()
 	S.steps += list(new /datum/bot_step/move_to(), new /datum/bot_step/free_portable(canister), new /datum/bot_step/grab_portable(canister), to_spot,
@@ -429,6 +435,49 @@ GLOBAL_LIST_INIT(bot_sabotage_acts, init_bot_sabotage_acts())
 	return FALSE
 
 /datum/bot_step/paced/sabotage_light_it/finish(datum/bot_brain/bot)
+	return GOAL_STEP_SUCCESS
+
+/// An alert console worth the detour before a burn at `spot`: it has an emag and knows what one does to a console (competence), the
+/// console's on its level and not far, and the room it'll burn hasn't had its alarms blinded already. The user's ruling, 2026-11-10.
+/datum/bot_brain/proc/sabotage_alert_console_for(turf/spot)
+	var/area/room = get_area(spot)
+	if(!room || competence < 0.4 || !find_carried_tool(/obj/item/card/emag) || room.fire_trip_hot_point() == FIRE_TRIP_OFF)
+		return null
+	var/obj/machinery/computer/station_alert/best
+	for(var/obj/machinery/computer/station_alert/C as anything in GLOB.alert_consoles)
+		if(C.z != owner.z || (C.stat & (NOPOWER|BROKEN)) || get_dist(owner, C) > 40)
+			continue
+		if(gym_run && get_area(C) != get_area(owner)) // Bot Gym: another arena's, behind its walls
+			continue
+		if(!best || get_dist(owner, C) < get_dist(owner, best))
+			best = C
+	return best
+
+/// At the console: the emag through it if it hasn't been, and the burn room's hot trip point off. Whatever comes of it, the burn goes on.
+/datum/bot_step/sabotage_blind_alarms
+	var/obj/machinery/computer/station_alert/console
+	var/area/room
+
+/datum/bot_step/sabotage_blind_alarms/New(obj/machinery/computer/station_alert/C, area/A)
+	. = ..()
+	console = C
+	room = A
+
+/datum/bot_step/sabotage_blind_alarms/execute(datum/bot_brain/bot)
+	if(QDELETED(console) || !room || !bot.owner.Adjacent(console))
+		return GOAL_STEP_SUCCESS
+	if(!(console.obj_flags & EMAGGED))
+		var/obj/item/card/emag/E = bot.find_carried_tool(/obj/item/card/emag)
+		if(!E || !bot.ready_in_hand(E))
+			return GOAL_STEP_SUCCESS
+		bot.human_pause(console)
+		console.emag_act(bot.owner)
+	bot.human_pause(console)
+	bot.telemetry_ui_action(console, "hot trip point off")
+	console.set_trip(room, "hot", FIRE_TRIP_OFF, bot.owner)
+	bot_log(bot, "SABOTAGE: blinded the fire alarms in [room.name] at [console]")
+	log_game("BOT SABOTAGE: [key_name(bot.owner)] turned the fire alarms in [room.name] off at [console] ([AREACOORD(console)])")
+	bot_tally("fire alarms blinded before a burn")
 	return GOAL_STEP_SUCCESS
 
 #undef BOT_SABOTAGE_FIRST_MIN

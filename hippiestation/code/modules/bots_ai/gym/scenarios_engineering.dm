@@ -638,3 +638,94 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return istype(bot.wear_suit, /obj/item/clothing/suit/space/hardsuit) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// The Chief Engineer's fire alarm controls on the station alert console (station_alert_tgui.dm, goals/check_alert_console.dm
+// settle_cold_false_alarms()). The cold room (q) is walled off, with a fire alarm in it going off on the cold.
+/datum/bot_scenario/cold_room_alarm
+	job = "Chief Engineer"
+	time_limit = 30 SECONDS
+	layout = list(
+		"##########",
+		"#B..A....#",
+		"#........#",
+		"##########",
+		"#qq#######",
+		"##########")
+	var/area/crew_quarters/kitchen/coldroom/cold_room
+	var/obj/machinery/computer/station_alert/console
+	/// The room's air: cold, and thin too for a breach
+	var/temperature = 240
+	var/thin = FALSE
+
+/datum/bot_scenario/cold_room_alarm/build_tile(turf/T, char)
+	switch(char)
+		if("q")
+			if(!cold_room)
+				cold_room = new
+				cold_room.name = "Kitchen Cold Room [copytext(md5("[type] [run_index]"), 1, 6)]" //a console lists alarms by the place's name: one per scenario and run
+			var/area/old_area = T.loc
+			old_area.contents -= T
+			cold_room.contents += T
+			T.change_area(old_area, cold_room)
+			T.ChangeTurf(/turf/open/floor/plasteel, flags = CHANGETURF_INHERIT_AIR)
+		if("A")
+			console = new(T)
+			place(char, console)
+		else
+			return ..()
+
+/datum/bot_scenario/cold_room_alarm/setup()
+	for(var/turf/open/T in markers["q"])
+		T.air.temperature = temperature
+		if(thin)
+			for(var/gas in T.air.moles)
+				T.air.moles[gas] *= 0.1
+		T.air_update_turf()
+	var/obj/machinery/firealarm/alarm = new(first_marker("q"))
+	alarm.detecting = FALSE //pulled below, not tripped by the atmos ticking on its own
+	place("a", alarm)
+
+/datum/bot_scenario/cold_room_alarm/post_spawn()
+	..()
+	brain.gym_scripted = FALSE
+	var/obj/item/card/id/card = new(bot)
+	card.access = list(ACCESS_CE, ACCESS_ENGINE)
+	card.assignment = "Chief Engineer"
+	card.registered_name = bot.real_name
+	bot.equip_to_slot_or_del(card, ITEM_SLOT_ID)
+	var/obj/machinery/firealarm/alarm = first_placed("a")
+	alarm.alarm()
+
+/datum/bot_scenario/cold_room_alarm/make_goal()
+	return new /datum/bot_goal/check_alert_console
+
+/datum/bot_scenario/cold_room_alarm/release_run()
+	if(cold_room)
+		for(var/obj/machinery/firealarm/F in cold_room.firealarms)
+			cold_room.firereset(F)
+	return ..()
+
+/datum/bot_scenario/cold_room_alarm/settled
+	name = "fire alarms: the CE reads a cold room's alarm at the console, turns its cold trip point down and clears it"
+	desc = "The Kitchen Cold Room's fire alarm is going off on the cold, as it did every shift. The Chief Engineer reads it on the station alert console, sets that room's cold trip point below how cold it is, and clears it, instead of walking there to find nothing."
+
+/datum/bot_scenario/cold_room_alarm/settled/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!(cold_room.name in console.alarms["Fire"]) && !isnull(cold_room.fire_trip_cold) && cold_room.fire_trip_cold < temperature)
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/cold_room_alarm/breach
+	name = "fire alarms: a cold room that's lost its air stays alarming"
+	desc = "The same cold room's alarm, but the air in it is thin as well as cold: that's a breach, not the freezer. The Chief Engineer leaves its trip point alone and the alarm on."
+	thin = TRUE
+	time_limit = 20 SECONDS
+
+/datum/bot_scenario/cold_room_alarm/breach/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!isnull(cold_room.fire_trip_cold) || !(cold_room.name in console.alarms["Fire"]))
+		fail_reason = "treated a breach as the freezer"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 12 SECONDS && bot_transcript_said("checked") ? BOT_GYM_PASS : BOT_GYM_PENDING
