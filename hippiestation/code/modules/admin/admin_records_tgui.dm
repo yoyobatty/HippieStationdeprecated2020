@@ -62,10 +62,9 @@
 
 /datum/admin_tool_window/permissions/proc/load_log()
 	log_rows = list()
-	var/search = " WHERE (:target IS NULL OR target = :target) AND (:operation IS NULL OR operation = :operation)"
 	var/list/search_args = list("target" = log_target || null, "operation" = log_operation || null)
 	var/per_page = 20
-	var/datum/DBQuery/query_count = SSdbcore.NewQuery("SELECT COUNT(id) FROM [format_table_name("admin_log")][search]", search_args)
+	var/datum/DBQuery/query_count = SSdbcore.NewQuery("SELECT COUNT(id) FROM [format_table_name("admin_log")] WHERE (:target IS NULL OR target = :target) AND (:operation IS NULL OR operation = :operation)", search_args)
 	if(!query_count.warn_execute())
 		qdel(query_count)
 		db_error = "The log couldn't be read."
@@ -78,7 +77,7 @@
 	log_page = clamp(log_page, 0, log_pages - 1)
 	search_args["skip"] = per_page * log_page
 	search_args["count"] = per_page
-	var/datum/DBQuery/query_log = SSdbcore.NewQuery("SELECT datetime, round_id, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = adminckey), adminckey), operation, IF(ckey IS NULL, target, byond_key), log FROM [format_table_name("admin_log")] LEFT JOIN [format_table_name("player")] ON target = ckey[search] ORDER BY datetime DESC LIMIT :skip, :count", search_args)
+	var/datum/DBQuery/query_log = SSdbcore.NewQuery("SELECT datetime, round_id, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = adminckey), adminckey), operation, IF(ckey IS NULL, target, byond_key), log FROM [format_table_name("admin_log")] LEFT JOIN [format_table_name("player")] ON target = ckey WHERE (:target IS NULL OR target = :target) AND (:operation IS NULL OR operation = :operation) ORDER BY datetime DESC LIMIT :skip, :count", search_args)
 	if(!query_log.warn_execute())
 		qdel(query_log)
 		db_error = "The log couldn't be read."

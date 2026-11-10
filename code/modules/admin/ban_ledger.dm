@@ -511,10 +511,9 @@ SUBSYSTEM_DEF(bans)
 
 //The query for a change to a database ban (op from lift() or edit())
 /datum/controller/subsystem/bans/proc/op_query(list/op)
-	var/ban_table = format_table_name("ban")
 	switch(op["op"])
 		if("unban")
-			return SSdbcore.NewQuery("UPDATE [ban_table] SET unbanned_datetime = NOW() - INTERVAL :age SECOND, unbanned_ckey = :ckey, unbanned_ip = INET_ATON(:ip), unbanned_computerid = :cid, unbanned_round_id = :round_id WHERE id = :id AND unbanned_datetime IS NULL", list(
+			return SSdbcore.NewQuery("UPDATE [format_table_name("ban")] SET unbanned_datetime = NOW() - INTERVAL :age SECOND, unbanned_ckey = :ckey, unbanned_ip = INET_ATON(:ip), unbanned_computerid = :cid, unbanned_round_id = :round_id WHERE id = :id AND unbanned_datetime IS NULL", list(
 				"age" = max(0, round((world.realtime - text2num(op["rt"])) / 10)),
 				"ckey" = op["ckey"],
 				"ip" = op["ip"] || null,
@@ -522,13 +521,11 @@ SUBSYSTEM_DEF(bans)
 				"round_id" = text2num(op["round_id"]) || 0,
 				"id" = text2num(op["id"])))
 		if("edit")
-			var/expiration_sql = "NULL"
-			if(op["amount"] && (op["unit"] in BAN_INTERVALS)) //unit is one of BAN_INTERVALS' keys, so it can be SQL
-				expiration_sql = "bantime + INTERVAL :amount [op["unit"]]"
-			var/where = "id = :id"
-			if(op["mirror"] && op["bantime"])
-				where = "bantime = :bantime AND (:old_ckey IS NULL OR ckey = :old_ckey) AND (:old_ip IS NULL OR ip = INET_ATON(:old_ip)) AND (:old_cid IS NULL OR computerid = :old_cid)"
-			return SSdbcore.NewQuery("UPDATE [ban_table] SET expiration_time = [expiration_sql], applies_to_admins = :applies_to_admins, reason = :reason, ckey = :ckey, ip = INET_ATON(:ip), computerid = :cid, edits = CONCAT(IFNULL(edits, ''), :edit_text) WHERE [where]", list(
+			//One fixed query text: the interval's unit is picked by CASE (an INTERVAL's unit can't be a parameter), and a mirrored ban
+			//by its bantime and old identity rather than its id.
+			return SSdbcore.NewQuery("UPDATE [format_table_name("ban")] SET expiration_time = CASE :unit WHEN 'SECOND' THEN bantime + INTERVAL :amount SECOND WHEN 'MINUTE' THEN bantime + INTERVAL :amount MINUTE WHEN 'HOUR' THEN bantime + INTERVAL :amount HOUR WHEN 'DAY' THEN bantime + INTERVAL :amount DAY WHEN 'WEEK' THEN bantime + INTERVAL :amount WEEK WHEN 'MONTH' THEN bantime + INTERVAL :amount MONTH WHEN 'YEAR' THEN bantime + INTERVAL :amount YEAR ELSE NULL END, applies_to_admins = :applies_to_admins, reason = :reason, ckey = :ckey, ip = INET_ATON(:ip), computerid = :cid, edits = CONCAT(IFNULL(edits, ''), :edit_text) WHERE ((:mirror = 0 AND id = :id) OR (:mirror = 1 AND bantime = :bantime AND (:old_ckey IS NULL OR ckey = :old_ckey) AND (:old_ip IS NULL OR ip = INET_ATON(:old_ip)) AND (:old_cid IS NULL OR computerid = :old_cid)))", list(
+				"unit" = (op["amount"] && (op["unit"] in BAN_INTERVALS)) ? op["unit"] : null,
+				"mirror" = (op["mirror"] && op["bantime"]) ? 1 : 0,
 				"amount" = op["amount"],
 				"id" = text2num(op["id"]),
 				"bantime" = op["bantime"],
@@ -592,15 +589,8 @@ SUBSYSTEM_DEF(bans)
 
 //Refresh the copy of the database's active bans: all of them, or just those with one of a ckey, ip and cid
 /datum/controller/subsystem/bans/proc/db_sync(sync_ckey, sync_ip, sync_cid)
-	var/list/where = list()
-	if(sync_ckey)
-		where += "ckey = :ckey"
-	if(sync_ip)
-		where += "ip = INET_ATON(:ip)"
-	if(sync_cid)
-		where += "computerid = :cid"
-	var/datum/DBQuery/query_ban_sync = SSdbcore.NewQuery("SELECT id, role, ckey, IFNULL((SELECT byond_key FROM [format_table_name("player")] AS p WHERE p.ckey = b.ckey), ckey), INET_NTOA(ip), computerid, TIMESTAMPDIFF(SECOND, bantime, NOW()), TIMESTAMPDIFF(SECOND, NOW(), expiration_time), applies_to_admins, reason, a_ckey, IFNULL((SELECT byond_key FROM [format_table_name("player")] AS p WHERE p.ckey = b.a_ckey), a_ckey), round_id, bantime, edits FROM [format_table_name("ban")] AS b WHERE unbanned_datetime IS NULL AND (expiration_time IS NULL OR expiration_time > NOW())[where.len ? " AND ([where.Join(" OR ")])" : ""]",
-		list("ckey" = sync_ckey, "ip" = sync_ip, "cid" = sync_cid))
+	var/datum/DBQuery/query_ban_sync = SSdbcore.NewQuery("SELECT id, role, ckey, IFNULL((SELECT byond_key FROM [format_table_name("player")] AS p WHERE p.ckey = b.ckey), ckey), INET_NTOA(ip), computerid, TIMESTAMPDIFF(SECOND, bantime, NOW()), TIMESTAMPDIFF(SECOND, NOW(), expiration_time), applies_to_admins, reason, a_ckey, IFNULL((SELECT byond_key FROM [format_table_name("player")] AS p WHERE p.ckey = b.a_ckey), a_ckey), round_id, bantime, edits FROM [format_table_name("ban")] AS b WHERE unbanned_datetime IS NULL AND (expiration_time IS NULL OR expiration_time > NOW()) AND ((:ckey IS NULL AND :ip IS NULL AND :cid IS NULL) OR ckey = :ckey OR ip = INET_ATON(:ip) OR computerid = :cid)",
+		list("ckey" = sync_ckey || null, "ip" = sync_ip || null, "cid" = sync_cid || null))
 	if(!query_ban_sync.Execute())
 		qdel(query_ban_sync)
 		return FALSE
@@ -638,10 +628,10 @@ SUBSYSTEM_DEF(bans)
 		var/datum/ban_record/B = records[id]
 		if(B.is_local() || seen[id])
 			continue
-		if(where.len && !B.matches(sync_ckey, sync_ip, sync_cid))
+		if((sync_ckey || sync_ip || sync_cid) && !B.matches(sync_ckey, sync_ip, sync_cid))
 			continue
 		remove(B)
-	if(!where.len)
+	if(!sync_ckey && !sync_ip && !sync_cid)
 		next_sync = world.time + BAN_SYNC_INTERVAL
 	save()
 	return TRUE

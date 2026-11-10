@@ -16,13 +16,12 @@
 		output += "<br><a href='?_src_=holder;[HrefToken()];editrightsbrowserlog=1;editrightspage=0'>\[Log\]</a><br><a href='?_src_=holder;[HrefToken()];editrightsbrowsermanage=1'>\[Management\]</a>"
 	if(action == 1)
 		// hippie start -- bound parameters (rust_g); admin_log has no ckey column, so a search by target failed the count
-		var/search = " WHERE (:target IS NULL OR target = :target) AND (:operation IS NULL OR operation = :operation)"
 		var/list/search_args = list("target" = target || null, "operation" = operation || null)
 		var/logcount = 0
 		var/logssperpage = 20
 		var/pagecount = 0
 		page = max(0, round(text2num(page)))
-		var/datum/DBQuery/query_count_admin_logs = SSdbcore.NewQuery("SELECT COUNT(id) FROM [format_table_name("admin_log")][search]", search_args)
+		var/datum/DBQuery/query_count_admin_logs = SSdbcore.NewQuery("SELECT COUNT(id) FROM [format_table_name("admin_log")] WHERE (:target IS NULL OR target = :target) AND (:operation IS NULL OR operation = :operation)", search_args)
 		// hippie end
 		if(!query_count_admin_logs.warn_execute())
 			qdel(query_count_admin_logs)
@@ -39,7 +38,7 @@
 			output += "|"
 		search_args["skip"] = logssperpage * page
 		search_args["count"] = logssperpage
-		var/datum/DBQuery/query_search_admin_logs = SSdbcore.NewQuery("SELECT datetime, round_id, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = adminckey), adminckey), operation, IF(ckey IS NULL, target, byond_key), log FROM [format_table_name("admin_log")] LEFT JOIN [format_table_name("player")] ON target = ckey[search] ORDER BY datetime DESC LIMIT :skip, :count", search_args)
+		var/datum/DBQuery/query_search_admin_logs = SSdbcore.NewQuery("SELECT datetime, round_id, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = adminckey), adminckey), operation, IF(ckey IS NULL, target, byond_key), log FROM [format_table_name("admin_log")] LEFT JOIN [format_table_name("player")] ON target = ckey WHERE (:target IS NULL OR target = :target) AND (:operation IS NULL OR operation = :operation) ORDER BY datetime DESC LIMIT :skip, :count", search_args)
 		if(!query_search_admin_logs.warn_execute())
 			qdel(query_search_admin_logs)
 			return

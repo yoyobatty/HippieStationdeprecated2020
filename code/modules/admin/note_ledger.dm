@@ -250,8 +250,7 @@ SUBSYSTEM_DEF(notes)
 	search = ckey(search)
 	var/list/found = list() //ckey = list
 	if(use_db())
-		var/player = format_table_name("player")
-		var/datum/DBQuery/query_note_players = SSdbcore.NewQuery("SELECT targetckey, IFNULL((SELECT byond_key FROM [player] WHERE ckey = targetckey), targetckey), COUNT(*) FROM [format_table_name("messages")] WHERE type <> 'memo' AND deleted = 0 AND (expire_timestamp > NOW() OR expire_timestamp IS NULL) AND (:search IS NULL OR INSTR(targetckey, :search) > 0) GROUP BY targetckey ORDER BY targetckey LIMIT 500",
+		var/datum/DBQuery/query_note_players = SSdbcore.NewQuery("SELECT targetckey, IFNULL((SELECT byond_key FROM [format_table_name("player")] WHERE ckey = targetckey), targetckey), COUNT(*) FROM [format_table_name("messages")] WHERE type <> 'memo' AND deleted = 0 AND (expire_timestamp > NOW() OR expire_timestamp IS NULL) AND (:search IS NULL OR INSTR(targetckey, :search) > 0) GROUP BY targetckey ORDER BY targetckey LIMIT 500",
 			list("search" = search || null))
 		if(query_note_players.warn_execute())
 			while(query_note_players.NextRow())
@@ -321,34 +320,20 @@ SUBSYSTEM_DEF(notes)
 	if(!use_db())
 		to_chat(usr, "<span class='danger'>That one is in the database, which can't be reached right now. Notes made since it went are kept here; changing one already in it has to wait until it's back.</span>", confidential=TRUE)
 		return FALSE
-	var/list/sets = list()
-	var/list/arguments = list("id" = db_id)
-	if(!isnull(changes["text"]))
-		sets += "text = :text"
-		arguments["text"] = changes["text"]
-	if(!isnull(changes["severity"]))
-		sets += "severity = :severity"
-		arguments["severity"] = changes["severity"]
-	if(!isnull(changes["secret"]))
-		sets += "secret = :secret"
-		arguments["secret"] = changes["secret"] ? 1 : 0
-	if(!isnull(changes["expire_seconds"]))
-		sets += "expire_timestamp = IF(:expire_seconds > 0, NOW() + INTERVAL :expire_seconds SECOND, NULL)"
-		arguments["expire_seconds"] = round(changes["expire_seconds"])
-	if(changes["deleted"])
-		sets += "deleted = 1"
-	if(changes["kind"])
-		sets += "type = :kind"
-		arguments["kind"] = changes["kind"]
-	if(editor_ckey)
-		sets += "lasteditor = :editor"
-		arguments["editor"] = editor_ckey
-	if(edit_text)
-		sets += "edits = CONCAT(IFNULL(edits, ''), :edit_text)"
-		arguments["edit_text"] = edit_text
-	if(!sets.len)
+	//One fixed query text: each column is set only when its set_ flag is 1, and keeps what it had otherwise.
+	var/list/arguments = list(
+		"id" = db_id,
+		"set_text" = isnull(changes["text"]) ? 0 : 1, "text" = changes["text"],
+		"set_severity" = isnull(changes["severity"]) ? 0 : 1, "severity" = changes["severity"],
+		"set_secret" = isnull(changes["secret"]) ? 0 : 1, "secret" = changes["secret"] ? 1 : 0,
+		"set_expire" = isnull(changes["expire_seconds"]) ? 0 : 1, "expire_seconds" = isnull(changes["expire_seconds"]) ? 0 : round(changes["expire_seconds"]),
+		"set_deleted" = changes["deleted"] ? 1 : 0,
+		"kind" = changes["kind"] || null,
+		"editor" = editor_ckey || null,
+		"edit_text" = edit_text || null)
+	if(!arguments["set_text"] && !arguments["set_severity"] && !arguments["set_secret"] && !arguments["set_expire"] && !arguments["set_deleted"] && !arguments["kind"] && !arguments["editor"] && !arguments["edit_text"])
 		return FALSE
-	var/datum/DBQuery/query_note_change = SSdbcore.NewQuery("UPDATE [format_table_name("messages")] SET [sets.Join(", ")] WHERE id = :id AND deleted = 0", arguments)
+	var/datum/DBQuery/query_note_change = SSdbcore.NewQuery("UPDATE [format_table_name("messages")] SET text = IF(:set_text = 1, :text, text), severity = IF(:set_severity = 1, :severity, severity), secret = IF(:set_secret = 1, :secret, secret), expire_timestamp = IF(:set_expire = 1, IF(:expire_seconds > 0, NOW() + INTERVAL :expire_seconds SECOND, NULL), expire_timestamp), deleted = IF(:set_deleted = 1, 1, deleted), type = IFNULL(:kind, type), lasteditor = IFNULL(:editor, lasteditor), edits = IF(:edit_text IS NULL, edits, CONCAT(IFNULL(edits, ''), :edit_text)) WHERE id = :id AND deleted = 0", arguments)
 	. = query_note_change.warn_execute()
 	qdel(query_note_change)
 

@@ -55,7 +55,7 @@
 			var/isadmin = 0
 			if(src.client && src.client.holder)
 				isadmin = 1
-			var/datum/DBQuery/query_get_new_polls = SSdbcore.NewQuery("SELECT id FROM [format_table_name("poll_question")] WHERE [(isadmin ? "" : "adminonly = false AND")] Now() BETWEEN starttime AND endtime AND id NOT IN (SELECT pollid FROM [format_table_name("poll_vote")] WHERE ckey = :ckey) AND id NOT IN (SELECT pollid FROM [format_table_name("poll_textreply")] WHERE ckey = :ckey)", list("ckey" = ckey)) // hippie -- bound parameters (rust_g)
+			var/datum/DBQuery/query_get_new_polls = SSdbcore.NewQuery("SELECT id FROM [format_table_name("poll_question")] WHERE (:admin = 1 OR adminonly = false) AND Now() BETWEEN starttime AND endtime AND id NOT IN (SELECT pollid FROM [format_table_name("poll_vote")] WHERE ckey = :ckey) AND id NOT IN (SELECT pollid FROM [format_table_name("poll_textreply")] WHERE ckey = :ckey)", list("ckey" = ckey, "admin" = isadmin)) // hippie -- bound parameters (rust_g), one fixed query text
 			var/rs = REF(src)
 			if(query_get_new_polls.Execute())
 				var/newpoll = 0

@@ -588,14 +588,15 @@
 		if(!flags.len)
 			continue
 		var/sql_rank = R.name
-		var/flags_to_check = flags.Join(" != [R_EVERYTHING] AND ") + " != [R_EVERYTHING]" //column names and a constant
-		var/datum/DBQuery/query_check_everything_ranks = SSdbcore.NewQuery("SELECT flags, exclude_flags, can_edit_flags FROM [format_table_name("admin_ranks")] WHERE rank = :rank AND ([flags_to_check])", list("rank" = sql_rank))
+		// hippie start -- one fixed query text, the columns picked by parameters (tools/db_check PREPAREs it as written)
+		var/list/flag_args = list("rank" = sql_rank, "everything" = R_EVERYTHING, "f" = ("flags" in flags) ? 1 : 0, "e" = ("exclude_flags" in flags) ? 1 : 0, "c" = ("can_edit_flags" in flags) ? 1 : 0)
+		var/datum/DBQuery/query_check_everything_ranks = SSdbcore.NewQuery("SELECT flags, exclude_flags, can_edit_flags FROM [format_table_name("admin_ranks")] WHERE rank = :rank AND (:f = 0 OR flags != :everything) AND (:e = 0 OR exclude_flags != :everything) AND (:c = 0 OR can_edit_flags != :everything)", flag_args)
 		if(!query_check_everything_ranks.Execute())
 			qdel(query_check_everything_ranks)
 			return
 		if(query_check_everything_ranks.NextRow()) //no row is returned if the rank already has the correct flag value
-			var/flags_to_update = flags.Join(" = [R_EVERYTHING], ") + " = [R_EVERYTHING]"
-			var/datum/DBQuery/query_update_everything_ranks = SSdbcore.NewQuery("UPDATE [format_table_name("admin_ranks")] SET [flags_to_update] WHERE rank = :rank", list("rank" = sql_rank))
+			var/datum/DBQuery/query_update_everything_ranks = SSdbcore.NewQuery("UPDATE [format_table_name("admin_ranks")] SET flags = IF(:f = 1, :everything, flags), exclude_flags = IF(:e = 1, :everything, exclude_flags), can_edit_flags = IF(:c = 1, :everything, can_edit_flags) WHERE rank = :rank", flag_args)
+		// hippie end
 			if(!query_update_everything_ranks.Execute())
 				qdel(query_update_everything_ranks)
 				return

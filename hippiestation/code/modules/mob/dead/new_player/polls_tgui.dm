@@ -64,7 +64,7 @@
 	if(!SSdbcore.Connect())
 		error = "Failed to establish database connection."
 	else
-		var/datum/DBQuery/query_poll_get = SSdbcore.NewQuery("SELECT id, question FROM [format_table_name("poll_question")] WHERE Now() BETWEEN starttime AND endtime [(player?.client?.holder ? "" : "AND adminonly = false")]")
+		var/datum/DBQuery/query_poll_get = SSdbcore.NewQuery("SELECT id, question FROM [format_table_name("poll_question")] WHERE Now() BETWEEN starttime AND endtime AND (:admin = 1 OR adminonly = false)", list("admin" = player?.client?.holder ? 1 : 0))
 		if(query_poll_get.warn_execute())
 			while(query_poll_get.NextRow())
 				. += list(list("id" = text2num(query_poll_get.item[1]), "question" = query_poll_get.item[2]))

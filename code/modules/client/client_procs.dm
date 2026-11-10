@@ -526,11 +526,10 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 /// joined (the BYOND account's date), account_age (days), last_cid, related_ip and related_cid (other ckeys seen on that IP or
 /// computer, "" if none). Null if the database didn't answer.
 /proc/db_login_read(ckey, ip, cid)
-	var/player = format_table_name("player")
 	var/datum/DBQuery/query_login = SSdbcore.NewQuery({"SELECT p.ckey IS NOT NULL, p.firstseen, DATEDIFF(NOW(), p.firstseen), p.accountjoindate, DATEDIFF(NOW(), p.accountjoindate), p.computerid,
-		(SELECT GROUP_CONCAT(r.ckey ORDER BY r.ckey SEPARATOR ', ') FROM [player] AS r WHERE r.ip = INET_ATON(:ip) AND r.ckey != :ckey),
-		(SELECT GROUP_CONCAT(r.ckey ORDER BY r.ckey SEPARATOR ', ') FROM [player] AS r WHERE r.computerid = :cid AND r.ckey != :ckey)
-		FROM (SELECT 1) AS one LEFT JOIN [player] AS p ON p.ckey = :ckey"}, list("ckey" = ckey, "ip" = ip, "cid" = cid))
+		(SELECT GROUP_CONCAT(r.ckey ORDER BY r.ckey SEPARATOR ', ') FROM [format_table_name("player")] AS r WHERE r.ip = INET_ATON(:ip) AND r.ckey != :ckey),
+		(SELECT GROUP_CONCAT(r.ckey ORDER BY r.ckey SEPARATOR ', ') FROM [format_table_name("player")] AS r WHERE r.computerid = :cid AND r.ckey != :ckey)
+		FROM (SELECT 1) AS one LEFT JOIN [format_table_name("player")] AS p ON p.ckey = :ckey"}, list("ckey" = ckey, "ip" = ip, "cid" = cid))
 	if(!query_login.Execute() || !query_login.NextRow())
 		qdel(query_login)
 		return

@@ -6,7 +6,7 @@
 	if(!SSdbcore.Connect())
 		to_chat(usr, "<span class='danger'>Failed to establish database connection.</span>")
 		return
-	var/datum/DBQuery/query_poll_get = SSdbcore.NewQuery("SELECT id, question FROM [format_table_name("poll_question")] WHERE Now() BETWEEN starttime AND endtime [(client.holder ? "" : "AND adminonly = false")]")
+	var/datum/DBQuery/query_poll_get = SSdbcore.NewQuery("SELECT id, question FROM [format_table_name("poll_question")] WHERE Now() BETWEEN starttime AND endtime AND (:admin = 1 OR adminonly = false)", list("admin" = client.holder ? 1 : 0)) // hippie -- one fixed query text
 	if(!query_poll_get.warn_execute())
 		qdel(query_poll_get)
 		return
@@ -347,13 +347,16 @@
 
 //Returns null on failure, TRUE if already voted, FALSE if not voted yet.
 /mob/dead/new_player/proc/poll_check_voted(pollid, text = FALSE, silent = FALSE)
-	var/table = "poll_vote"
-	if (text)
-		table = "poll_textreply"
 	if (!SSdbcore.Connect())
 		to_chat(usr, "<span class='danger'>Failed to establish database connection.</span>")
 		return
-	var/datum/DBQuery/query_hasvoted = SSdbcore.NewQuery("SELECT id FROM `[format_table_name(table)]` WHERE pollid = :pollid AND ckey = :ckey", list("pollid" = pollid, "ckey" = ckey))
+	// hippie start -- one fixed query text per table
+	var/datum/DBQuery/query_hasvoted
+	if(text)
+		query_hasvoted = SSdbcore.NewQuery("SELECT id FROM [format_table_name("poll_textreply")] WHERE pollid = :pollid AND ckey = :ckey", list("pollid" = pollid, "ckey" = ckey))
+	else
+		query_hasvoted = SSdbcore.NewQuery("SELECT id FROM [format_table_name("poll_vote")] WHERE pollid = :pollid AND ckey = :ckey", list("pollid" = pollid, "ckey" = ckey))
+	// hippie end
 	if(!query_hasvoted.warn_execute())
 		qdel(query_hasvoted)
 		return
@@ -392,7 +395,7 @@
 	if (!pollid || pollid < 0)
 		return 0
 	//validate the poll is actually the right type of poll and its still active
-	var/datum/DBQuery/query_validate_poll = SSdbcore.NewQuery("SELECT id FROM [format_table_name("poll_question")] WHERE id = :pollid AND Now() BETWEEN starttime AND endtime AND polltype = :type [(holder ? "" : "AND adminonly = false")]", list("pollid" = pollid, "type" = type))
+	var/datum/DBQuery/query_validate_poll = SSdbcore.NewQuery("SELECT id FROM [format_table_name("poll_question")] WHERE id = :pollid AND Now() BETWEEN starttime AND endtime AND polltype = :type AND (:admin = 1 OR adminonly = false)", list("pollid" = pollid, "type" = type, "admin" = holder ? 1 : 0)) // hippie -- one fixed query text
 	if(!query_validate_poll.warn_execute())
 		qdel(query_validate_poll)
 		return 0
