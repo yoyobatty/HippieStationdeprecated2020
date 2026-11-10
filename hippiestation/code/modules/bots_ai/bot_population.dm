@@ -105,6 +105,8 @@ GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 	if(H)
 		joined++
 		log_game("BOT CREW: [H.real_name] [at_post ? "started" : "joined"] as [title] ([joined] bot\s, target [target])")
+		if(!at_post)
+			bot_latecomer_role_chance(H) //bot_round_type.dm: the round type's chance at a role, as a player joining late has
 	return H
 
 /// Everyone on shift when the round starts: at their posts, as though they'd readied up with everybody else.

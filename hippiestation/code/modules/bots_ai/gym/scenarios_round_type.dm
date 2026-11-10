@@ -231,3 +231,49 @@
 	if(reloaded && gun.magazine?.ammo_count() < gun.magazine?.max_ammo)
 		return BOT_GYM_PASS //and it's been firing it since
 	return BOT_GYM_PENDING
+
+/// A latecomer's chance at the round's roles (bot_round_type.dm). The mode is one of the scenario's own, so the round's isn't touched,
+/// and it's asked by name, since the proc is the fix.
+/datum/bot_scenario/latecomer_role
+	name = "latecomers: one off the shuttle can be the round's traitor"
+	desc = "A traitor round with room for more, and a bot joins late. A player who did would have the mode's chance at the role; a bot had none, having no client for the game to ask. An officer joining late gets nothing, and nor does anybody once the round has its fill."
+	layout = list(
+		"#######",
+		"#.B.O.#",
+		"#######")
+	job = "Station Engineer"
+	time_limit = 15 SECONDS
+	var/datum/game_mode/traitor/mode
+	var/mob/living/carbon/human/other
+	var/problem
+
+/datum/bot_scenario/latecomer_role/issue_goal()
+	return
+
+/datum/bot_scenario/latecomer_role/post_spawn()
+	..()
+	mode = new
+	other = second_bot(first_marker("O"), "Olly Other")
+	other.mind.assigned_role = "Security Officer"
+	if(!hascall(mode, "bot_latecomer_role"))
+		problem = "a bot joining late gets no chance at a role"
+		return
+	// A crew of thirty has room for four traitors, and this round has none: the chance is a certainty.
+	if(call(mode, "bot_latecomer_role")(other, 30))
+		problem = "an officer joining late was made a traitor"
+		return
+	if(call(mode, "bot_latecomer_role")(bot, 30) != "traitor" || !brain.bot_traitor)
+		problem = "the latecomer wasn't made a traitor in a round with room for four"
+		return
+	other.mind.assigned_role = "Chemist"
+	mode.num_modifier = -10 //no room for any
+	if(call(mode, "bot_latecomer_role")(other, 30))
+		problem = "made a traitor in a round that had its fill"
+
+/datum/bot_scenario/latecomer_role/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(problem)
+		fail_reason = problem
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

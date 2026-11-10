@@ -226,6 +226,79 @@
 			return TRUE
 	return FALSE
 
+// ---------------------------------------------------------------------------------------------
+// Latecomers
+// ---------------------------------------------------------------------------------------------
+
+// A player who joins late gets the round type's chance at a role (make_antag_chance(), from AttemptLateSpawn() in new_player.dm).
+// Every mode's version asks the client on the way for its preferences, its bans and the age of its account, and a bot has no client,
+// so new_player.dm leaves bots out. A round's traitors were only ever the ones it started with: with a bot crew nobody off the
+// arrivals shuttle was worth a second look. A bot joining late now gets the same chance by the same sums, the crew counted as the
+// round has it, bots and players.
+
+/// How many have joined the round, bots among them: what a mode's cap on its latecomers goes by. The game's own count
+/// (GLOB.joined_player_list) is of ckeys, and a bot has none.
+/proc/bot_crew_joined()
+	return GLOB.bot_population.player_count() + GLOB.bot_population.joined
+
+/// A bot off the arrivals shuttle gets the round type's chance at a role (bot_population.dm, for each latecomer). TRUE if it took one.
+/proc/bot_latecomer_role_chance(mob/living/carbon/human/H)
+	if(!CONFIG_GET(flag/allow_latejoin_antagonists) || !SSticker.mode || !H?.mind || !H.bot_brain || length(H.mind.antag_datums))
+		return FALSE
+	if(!EMERGENCY_IDLE_OR_RECALLED) //as for a player: nobody's sent to a station that's being left
+		return FALSE
+	var/role = SSticker.mode.bot_latecomer_role(H, bot_crew_joined())
+	if(!role)
+		return FALSE
+	SSticker.mode.bots_picked++
+	log_game("BOT ROLES: [H.real_name], the [H.mind.assigned_role], joined late and is a [role]")
+	return TRUE
+
+/// The role a bot joining late is given, if any: the mode's make_antag_chance() over again, less what that asks of a client.
+/// `crew` is how many have joined the round.
+/datum/game_mode/proc/bot_latecomer_role(mob/living/carbon/human/H, crew)
+	if(replacementmode && round_converted == 2)
+		return replacementmode.bot_latecomer_role(H, crew)
+	return null
+
+/datum/game_mode/traitor/bot_latecomer_role(mob/living/carbon/human/H, crew)
+	var/tsc = CONFIG_GET(number/traitor_scaling_coeff)
+	var/cap = min(round(crew / (tsc * 2)) + 2 + num_modifier, round(crew / tsc) + num_modifier)
+	var/have = length(traitors) + length(pre_traitors)
+	if(have >= cap)
+		return null
+	if(have > cap - 2 && !prob(100 / (tsc * 2)))
+		return null
+	if((H.mind.assigned_role in restricted_jobs) || !bot_traitor_job_allowed(H.mind.assigned_role)) //goals/traitor.dm
+		return null
+	add_latejoin_traitor(H.mind)
+	return "traitor"
+
+/datum/game_mode/changeling/bot_latecomer_role(mob/living/carbon/human/H, crew)
+	var/csc = CONFIG_GET(number/changeling_scaling_coeff)
+	var/cap = min(round(crew / (csc * 2)) + 2, round(crew / csc))
+	if(length(changelings) >= cap)
+		return null
+	if(length(changelings) > cap - 2 && !prob(100 - (csc * 2)))
+		return null
+	if((H.mind.assigned_role in restricted_jobs) || !bot_traitor_job_allowed(H.mind.assigned_role))
+		return null
+	H.bot_brain.become_changeling() //goals/changeling.dm
+	changelings |= H.mind
+	return "changeling"
+
+/// Traitors and changelings: the changeling's chance first, then the traitor's. A player can come out of the game's version as both;
+/// a bot plays one role.
+/datum/game_mode/traitor/changeling/bot_latecomer_role(mob/living/carbon/human/H, crew)
+	var/csc = CONFIG_GET(number/changeling_scaling_coeff)
+	var/cap = min(round(crew / (csc * 4)) + 2, round(crew / (csc * 2)))
+	if(length(changelings) < cap && (length(changelings) <= cap - 2 || prob(100 / (csc * 4))))
+		if(!(H.mind.assigned_role in restricted_jobs) && bot_traitor_job_allowed(H.mind.assigned_role))
+			H.bot_brain.become_changeling()
+			changelings |= H.mind
+			return "changeling"
+	return ..()
+
 /// A live test round (tools/bot_gym/run_live_round.sh) gives its round type on the command line: "secret" rolls as a server does.
 /datum/controller/subsystem/ticker/load_mode()
 	..()
