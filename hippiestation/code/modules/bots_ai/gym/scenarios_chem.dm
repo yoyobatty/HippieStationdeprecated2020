@@ -122,6 +122,29 @@
 		return BOT_GYM_FAIL
 	return ..()
 
+/// No beaker anywhere, and Medbay's techfab by the dispenser: it prints one. It used to give the batch up.
+/datum/bot_scenario/chem_brew/prints_beaker
+	name = "chem: no empty beaker anywhere, it prints one at Medbay's techfab and makes its bicaridine"
+	layout = list(
+		"#########",
+		"#D.H.P.C#",
+		"#.......#",
+		"#.B...b.#",
+		"#y.....M#",
+		"#########")
+	time_limit = 120 SECONDS
+	kit_backpack = list(/obj/item/reagent_containers/syringe)
+
+/datum/bot_scenario/chem_brew/prints_beaker/brew()
+	return GLOB.bot_medicine_recipes[1] //bicaridine, a pill
+
+/datum/bot_scenario/chem_brew/prints_beaker/build_tile(turf/T, char)
+	if(char == "y")
+		var/obj/machinery/rnd/production/techfab/department/medical/fab = place(char, new /obj/machinery/rnd/production/techfab/department/medical(T))
+		fab.materials?.mat_container?.insert_amount(10000, MAT_GLASS)
+		return
+	return ..()
+
 /datum/bot_scenario/chem_brew/sodiumf
 	name = "chem: sodium fluoride, through the heater twice"
 	label = "sodium fluoride"

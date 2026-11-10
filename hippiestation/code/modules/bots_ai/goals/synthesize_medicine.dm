@@ -207,6 +207,10 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 
 /datum/bot_step/ensure_beaker
 	var/tried_fetch = FALSE
+	var/tried_print = FALSE
+	/// The lathe a beaker's being printed at, and how long it's been waited on.
+	var/obj/machinery/rnd/production/printed_at
+	var/print_waits = 0
 
 /datum/bot_step/ensure_beaker/execute(datum/bot_brain/bot)
 	if(bot.find_empty_beaker())
@@ -219,8 +223,44 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 		sub.lawful = TRUE //one of Medbay's, or one lying about - not the kitchen's or Robotics'
 		if(bot.suspend_goal_for(sub))
 			return GOAL_STEP_PENDING
+	// None to be had: by the middle of a shift every beaker in Chemistry has something in it, and a chemist with none gave the batch up,
+	// 33 times in twelve shifts. A player prints one: Medbay's techfab makes them, out of a little glass.
+	if(!QDELETED(printed_at))
+		for(var/obj/item/reagent_containers/glass/beaker/B in get_turf(printed_at))
+			if(!B.reagents.total_volume)
+				printed_at = null
+				return bot.suspend_goal_for(new /datum/bot_goal/take_item/exact(B)) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
+		if(++print_waits <= 15) //it takes the lathe a moment
+			addtimer(CALLBACK(src, PROC_REF(look_again), bot, bot.current_goal), 1 SECONDS)
+			return GOAL_STEP_PENDING
+	else if(!tried_print)
+		tried_print = TRUE
+		var/datum/design/D = SSresearch.techweb_design_by_id("beaker")
+		var/obj/machinery/rnd/production/L = D && bot.lathe_for(D) //goals/powergame.dm
+		if(L && bot.suspend_goal_for(new /datum/bot_goal/print_design/beaker(L, D, 1)))
+			printed_at = L
+			bot_log(bot, "no empty beaker about - printing one at [L]")
+			return GOAL_STEP_PENDING
 	bot_log(bot, "no empty beaker reachable to synthesize medicine with")
 	return GOAL_STEP_FAIL
+
+/datum/bot_step/ensure_beaker/proc/look_again(datum/bot_brain/bot, datum/bot_goal/goal)
+	if(QDELETED(bot) || bot.current_goal != goal || bot.current_strategy?.steps?[bot.current_step_index] != src)
+		return
+	var/result = execute(bot)
+	if(result != GOAL_STEP_PENDING)
+		bot.advance_goal_step(result == GOAL_STEP_SUCCESS)
+
+/// A beaker at a lathe, for a brew: nothing chained after it, the brew picks it up.
+/datum/bot_goal/print_design/beaker
+	doing = "printing a beaker"
+	chain_duty = null
+
+/datum/bot_goal/print_design/beaker/on_success(datum/bot_brain/bot)
+	return //back to the brew (suspend_goal_for())
+
+/datum/bot_goal/print_design/beaker/on_give_up(datum/bot_brain/bot)
+	return //not the R&D bench's business
 
 /datum/bot_step/load_beaker_into_dispenser
 	var/obj/machinery/chem_dispenser/dispenser
