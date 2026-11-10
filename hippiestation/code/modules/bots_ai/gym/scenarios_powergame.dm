@@ -221,3 +221,44 @@
 		if(findtext(line, "no good to me"))
 			return BOT_GYM_PASS
 	return BOT_GYM_PENDING
+
+/datum/bot_scenario/self_heal_patch
+	name = "self-heal: one patch, and a wait for it to work"
+	desc = "Hurt with three brute patches in its bag. It puts one on and lets it work, rather than three in a row and a give-up because it wasn't better the moment after each."
+	job = "Assistant"
+	layout = list(
+		"#######",
+		"#B....#",
+		"#######")
+	time_limit = 25 SECONDS
+
+/datum/bot_scenario/self_heal_patch/post_spawn()
+	for(var/i in 1 to 3)
+		bot.equip_to_slot_or_del(new /obj/item/reagent_containers/pill/patch/styptic(bot), ITEM_SLOT_BACKPACK)
+	bot.adjustBruteLoss(40)
+
+/datum/bot_scenario/self_heal_patch/make_goal()
+	if(goal_attempts > 1)
+		return null
+	if(!brain.try_self_heal_round())
+		log_line("didn't start healing")
+	return null
+
+/datum/bot_scenario/self_heal_patch/proc/patches_left()
+	. = 0
+	for(var/obj/item/reagent_containers/pill/patch/styptic/P in bot.GetAllContents())
+		.++
+
+/datum/bot_scenario/self_heal_patch/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(patches_left() < 2)
+		fail_reason = "used [3 - patches_left()] patches"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/self_heal_patch/on_timeout()
+	if(patches_left() == 2)
+		return BOT_GYM_PASS
+	fail_reason = "used [3 - patches_left()] patches"
+	return BOT_GYM_FAIL

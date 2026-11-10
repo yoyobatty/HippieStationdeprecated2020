@@ -25,9 +25,16 @@
 //    sleeper.dm and cryo.dm gate on `!state_open`), so the bot can walk itself back out
 //    for ordinary duty the instant something else needs it, without any extra eject logic.
 
+/// Healing medicine still in somebody's blood, working (goals/chem_lab.dm's kinds: tricordrazine, the fluorides, styptic, silver sulf...).
+/proc/bot_healing_in_blood(mob/living/L)
+	for(var/datum/reagent/R in L.reagents?.reagent_list)
+		if(R.volume >= 1 && bot_chem_kind(R.type) == "heal")
+			return TRUE
+	return FALSE
+
 /datum/bot_brain/proc/try_self_heal_round()
-	if(!patient_needs_treatment(owner))
-		return FALSE
+	if(!patient_needs_treatment(owner) || bot_healing_in_blood(owner))
+		return FALSE //a pill or a patch it took is still at work: another on top does nothing more
 	// In a hardsuit or a firesuit, a bandage does nothing (clothing_in_the_way(), treat_patient.dm) and there may be no
 	// patch to stick on over it. The suit isn't coming off out here: medbay's sleeper works through anything.
 	aim_at_worst_wound(owner)
@@ -111,6 +118,11 @@
 	// defibrillate()/paddles.attack() elsewhere in this system.
 	bot.use_item_on(I, bot.owner)
 	if(!bot.patient_needs_treatment(bot.owner))
+		return GOAL_STEP_SUCCESS
+	// A pill or a patch works as it goes, not on the spot: three in a row, no less hurt the moment after each, used to be "this isn't
+	// doing anything for me" and a give-up, 87 times in three long shifts, with three patches gone each time.
+	if(istype(I, /obj/item/reagent_containers))
+		bot_log(bot, "[I]'s in - it'll work as it goes")
 		return GOAL_STEP_SUCCESS
 	useless_clicks = (bot.owner.getBruteLoss() + bot.owner.getFireLoss() + bot.owner.getToxLoss() < hurt_before) ? 0 : useless_clicks + 1
 	if(useless_clicks >= 3)
