@@ -347,6 +347,39 @@
 		return BOT_GYM_FAIL
 	return world.time > start_time + 8 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/datum/bot_scenario/griefed/asks_for_casualty
+	name = "a doctor that can't get to somebody down asks for them to be brought out"
+	desc = "Somebody out cold and badly hurt behind a door the doctor's ID doesn't open, and nobody's called. It gave up on getting to them and said nothing, again and again, until they died where they lay. It says so now, and they go on the list of people to be brought out to Medbay."
+	job = "Medical Doctor"
+	griefer_job = "Station Engineer"
+	griefer_name = "Cas Casualty"
+	time_limit = 20 SECONDS
+	layout = list(
+		"###########",
+		"#B.T..D.C.#",
+		"###########")
+
+/datum/bot_scenario/griefed/asks_for_casualty/setup()
+	for(var/turf/T in markers["T"])
+		place("T", new /obj/structure/table/optable(T))
+	for(var/turf/T in markers["D"])
+		for(var/obj/machinery/door/airlock/A in T)
+			A.req_access = list(ACCESS_ENGINE_EQUIP)
+
+/datum/bot_scenario/griefed/asks_for_casualty/grief()
+	griefer.adjustBruteLoss(90)
+	griefer.Unconscious(180 SECONDS)
+	brain.assign_goal(new /datum/bot_goal/operate())
+
+/datum/bot_scenario/griefed/asks_for_casualty/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return GLOB.bot_stranded_casualties[WEAKREF(griefer)] ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/asks_for_casualty/release_run()
+	GLOB.bot_stranded_casualties -= WEAKREF(griefer)
+	return ..()
+
 // Layout letter N: a NanoMed, as on a hallway wall.
 /datum/bot_scenario/self_patch
 	name = "somebody hurt with no first aid in reach buys a patch from the NanoMed on the wall"

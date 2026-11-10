@@ -23,6 +23,29 @@ GLOBAL_LIST_EMPTY(bot_stranded_casualties)
 	if(istype(who) && who.stat != DEAD)
 		GLOB.bot_stranded_casualties[WEAKREF(who)] = world.time
 
+/// Casualties already asked about on the radio: weakref -> when.
+GLOBAL_LIST_EMPTY(bot_stranded_asked)
+
+/// A doctor on its round has found somebody down that it can't get to. Nobody had called: three engineers shot unconscious in Box's
+/// laser room never said a word, the doctors gave up on getting to them 52 times in the shift ("no way to them from here"), and
+/// they lay there twenty minutes until they died. It asks for them to be brought out, the same as for a call it can't answer.
+/datum/bot_brain/proc/cant_reach_casualty(mob/living/carbon/human/H)
+	if(!istype(H) || QDELETED(H) || H.stat == DEAD || H.stat == CONSCIOUS || bot_in_medbay(H))
+		return
+	bot_note_stranded(H)
+	var/datum/weakref/W = WEAKREF(H)
+	if(world.time < GLOB.bot_stranded_asked[W] + 3 MINUTES)
+		return //somebody's said so already
+	for(var/datum/weakref/old as anything in GLOB.bot_stranded_asked)
+		if(world.time > GLOB.bot_stranded_asked[old] + BOT_STRANDED_FOR)
+			GLOB.bot_stranded_asked -= old
+	GLOB.bot_stranded_asked[W] = world.time
+	bot_log(src, "can't get to [H] in [get_area_name(H, TRUE)] - asking for them to be brought out")
+	bot_tally("casualties asked for")
+	if(!gym_scripted)
+		var/where = get_area_name(H, TRUE)
+		say_after_typing(";" + pick("[H.first_name()]'s down in [where] and I can't get in there. Can somebody with access bring them out to Medbay?", "Somebody's down in [where] and it's not a door I can open. Whoever can, bring them to Medbay?", "I can't get to [H.first_name()] in [where]. Can anyone in there drag them out to Medbay?"))
+
 /datum/bot_duty/bring_casualty_out
 	name = "bringing somebody out for the doctors"
 	tier = BOT_DUTY_URGENT

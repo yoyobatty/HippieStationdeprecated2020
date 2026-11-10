@@ -701,6 +701,7 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 	var/mob/living/carbon/human/patient = target
 	if(istype(patient) && !QDELETED(patient) && !bot.owner.Adjacent(patient))
 		LAZYSET(bot.unreachable_patients, patient, world.time + 2 MINUTES)
+		bot.cant_reach_casualty(patient) //goals/carry_casualty.dm: somebody who can get to them is asked to bring them out
 
 /datum/bot_brain
 	/// Patients it gave up getting to: patient -> world.time it'll try again (escort_to_sleeper)

@@ -46,7 +46,7 @@ GLOBAL_LIST_INIT(bot_surgery_tools, list(/obj/item/scalpel, /obj/item/retractor,
 	for(var/mob/living/carbon/human/H in GLOB.alive_mob_list)
 		if(H == owner || H.z != owner.z || H.stat == CONSCIOUS || H.stat == DEAD || !isturf(H.loc) || H.handcuffed)
 			continue
-		if(max(H.getBruteLoss(), H.getFireLoss()) < BOT_SURGERY_HURT)
+		if(max(H.getBruteLoss(), H.getFireLoss()) < BOT_SURGERY_HURT || LAZYACCESS(unreachable_patients, H) > world.time)
 			continue
 		var/dist = get_dist(owner, H)
 		if(dist > BOT_SURGERY_RANGE || (gym_run && get_area(H) != get_area(owner)))
@@ -66,6 +66,12 @@ GLOBAL_LIST_INIT(bot_surgery_tools, list(/obj/item/scalpel, /obj/item/retractor,
 /datum/bot_goal/operate/resolve_target(datum/bot_brain/bot)
 	var/mob/living/carbon/human/patient = bot.find_surgery_patient()
 	if(!patient)
+		return
+	// Somebody it can walk to. It used to fetch all four tools first and then find the patient was in the engine room, behind doors
+	// its ID doesn't open: six of the six operations that got their tools in a batch ended at "no path" to the patient.
+	if(!bot.can_walk_lawfully_to(patient))
+		LAZYSET(bot.unreachable_patients, patient, world.time + 2 MINUTES) //goals/treat_patient.dm
+		bot.cant_reach_casualty(patient) //goals/carry_casualty.dm
 		return
 	table = bot.find_free_optable()
 	if(table)
