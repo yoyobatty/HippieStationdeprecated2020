@@ -507,6 +507,15 @@
 		return BOT_GYM_FAIL
 	return (litter.loc == bin) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/datum/bot_scenario/duty/tidies_up/pockets_full
+	name = "pursuits: with its pockets full the litter goes in its bag, and still gets to the bin"
+	desc = "Something in each pocket, as most of the crew have by mid-shift, so the crisp packet goes in the bag. That counted as not having picked it up: it gave up there and carried the rubbish about."
+
+/datum/bot_scenario/duty/tidies_up/pockets_full/post_spawn()
+	..()
+	bot.equip_to_slot_or_del(new /obj/item/pen(bot), ITEM_SLOT_LPOCKET)
+	bot.equip_to_slot_or_del(new /obj/item/pen(bot), ITEM_SLOT_RPOCKET)
+
 /datum/bot_scenario/duty/tidies_up/locked_bin
 	name = "pursuits: the nearest bin is through a door it has no access to, so the litter goes in the one it can get to"
 	desc = "Keeping the station nice, it picks up a crisp packet. The nearest bin is behind the kitchen door, which its ID doesn't open; the other is a few steps further along the corridor. An assistant set off for the kitchen's bin ten times in a shift, found no way to it, and gave up each time with the rubbish in its hand."

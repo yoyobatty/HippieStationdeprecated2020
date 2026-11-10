@@ -180,16 +180,19 @@ GLOBAL_LIST_INIT(bot_litter_types, typecacheof(list(/obj/item/trash, /obj/item/c
 /datum/bot_strategy/tidy_litter/is_feasible(datum/bot_brain/bot)
 	return bot.current_goal?.target && !QDELETED(bot.current_goal.target)
 
+/// On it somewhere, the bag included (is_carried()): with its pockets full a pick-up goes in the bag, and "in its hands or pockets"
+/// called that a failure. It picked the litter up, gave up, and walked off with a bag of cigarette butts and plates, about sixty
+/// times in twelve shifts.
 /datum/bot_step/pick_up_litter/execute(datum/bot_brain/bot)
 	var/obj/item/I = bot.current_goal?.target
 	if(QDELETED(I))
 		return GOAL_STEP_FAIL
-	if(I.loc == bot.owner)
+	if(bot.is_carried(I))
 		return GOAL_STEP_SUCCESS
 	if(!isturf(I.loc) || !bot.owner.Adjacent(I))
 		return GOAL_STEP_FAIL
 	bot.try_pickup_target(I)
-	return I.loc == bot.owner ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+	return bot.is_carried(I) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 
 /datum/bot_step/bin_litter
 	var/obj/machinery/disposal/bin/bin
@@ -200,10 +203,10 @@ GLOBAL_LIST_INIT(bot_litter_types, typecacheof(list(/obj/item/trash, /obj/item/c
 
 /datum/bot_step/bin_litter/execute(datum/bot_brain/bot)
 	var/obj/item/I = bot.current_goal?.target
-	if(QDELETED(I) || QDELETED(bin) || I.loc != bot.owner || !bot.owner.Adjacent(bin))
+	if(QDELETED(I) || QDELETED(bin) || !bot.is_carried(I) || !bot.owner.Adjacent(bin))
 		return GOAL_STEP_FAIL
-	bot.use_item_on(I, bin)
-	if(I.loc == bot.owner)
+	bot.use_item_on(I, bin) //out of the bag and into the hand first, if that's where it went
+	if(bot.is_carried(I))
 		return GOAL_STEP_FAIL
 	bot_tally("litter binned")
 	return GOAL_STEP_SUCCESS
