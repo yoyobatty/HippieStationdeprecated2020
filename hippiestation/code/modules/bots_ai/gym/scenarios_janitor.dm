@@ -69,6 +69,28 @@
 	bucket_water = 0
 	time_limit = 120 SECONDS
 
+/datum/bot_scenario/duty/janitor/water_it_can_reach
+	name = "janitor fills its bucket where it can get to"
+	desc = "The bucket's empty. The nearer water tank is behind a door the janitor's ID doesn't open; the other is down the corridor. It goes to the one down the corridor, without first trying the door."
+	layout = list(
+		"###############",
+		"#KD.BMU.o.o..K#",
+		"###############")
+	bucket_water = 0
+	time_limit = 120 SECONDS
+
+/datum/bot_scenario/duty/janitor/water_it_can_reach/setup()
+	..()
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	A.req_access = list(ACCESS_CAPTAIN)
+
+/datum/bot_scenario/duty/janitor/water_it_can_reach/check()
+	for(var/line in transcript)
+		if(findtext(line, "giving up on /datum/bot_goal/fill_bucket"))
+			fail_reason = "went for the water behind the locked door first"
+			return BOT_GYM_FAIL
+	return ..()
+
 /datum/bot_scenario/duty/janitor/galoshes
 	name = "janitor puts on galoshes from the JaniDrobe"
 	desc = "A JaniDrobe in the room. Before anything else the janitor buys galoshes and puts them on, bagging its own shoes - then mops at a run, and takes the light replacer while it's there."

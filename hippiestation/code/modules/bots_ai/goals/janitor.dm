@@ -155,24 +155,27 @@
 
 /// Water for the bucket: a tank or a sink, further afield than the botanist's version looks - the janitor's own tank
 /// is back in the closet, wherever on the station the bucket ran dry.
+/// The nearest it can get to: the nearest as the crow flies was often behind a door a janitor's ID doesn't open (the Captain's sink,
+/// the kitchen's), and every mop job on the way failed with it, about seventy in twelve shifts.
 /datum/bot_brain/proc/find_janitor_water()
-	var/atom/best
-	var/best_dist
+	var/list/by_dist = list()
 	for(var/obj/structure/reagent_dispensers/watertank/T as anything in bot_instances_of(/obj/structure/reagent_dispensers/watertank))
 		if(!janitor_in_reach(T) || T.reagents?.get_reagent_amount(/datum/reagent/water) < 20 || LAZYACCESS(janitor_blocked, T) > world.time)
 			continue
-		var/dist = get_dist(owner, T)
-		if(!best || dist < best_dist)
-			best = T
-			best_dist = dist
+		by_dist[T] = get_dist(owner, T)
 	for(var/obj/structure/sink/S as anything in bot_instances_of(/obj/structure/sink))
 		if(!janitor_in_reach(S) || S.dispensedreagent != /datum/reagent/water || LAZYACCESS(janitor_blocked, S) > world.time)
 			continue
-		var/dist = get_dist(owner, S)
-		if(!best || dist < best_dist)
-			best = S
-			best_dist = dist
-	return best
+		by_dist[S] = get_dist(owner, S)
+	sortTim(by_dist, GLOBAL_PROC_REF(cmp_numeric_asc), TRUE)
+	var/tries = 0
+	for(var/atom/A as anything in by_dist)
+		if(can_walk_lawfully_to(A))
+			return A
+		LAZYSET(janitor_blocked, A, world.time + 10 MINUTES) //behind a door it can't open: not looked at again for a while
+		if(++tries >= 5)
+			break
+	return null
 
 // ---------------------------------------------------------------------------------------------
 // The round
