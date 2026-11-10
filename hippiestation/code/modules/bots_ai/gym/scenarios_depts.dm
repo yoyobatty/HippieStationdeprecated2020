@@ -126,6 +126,35 @@
 		return BOT_GYM_PASS
 	return BOT_GYM_PENDING
 
+/datum/bot_scenario/set_door/no_tools
+	name = "dept: with no tools for the wires, it doesn't walk over to the door"
+	desc = "Out to bolt the department's door open, with no screwdriver or multitool on it and none anywhere to fetch. It walked to the door and stood there, fifty times in twelve shifts."
+	time_limit = 12 SECONDS
+	max_goal_attempts = 1
+	kit_backpack = null
+	var/moves = 0
+
+/datum/bot_scenario/set_door/no_tools/post_spawn()
+	..()
+	RegisterSignal(bot, COMSIG_MOVABLE_MOVED, PROC_REF(stepped))
+
+/datum/bot_scenario/set_door/no_tools/proc/stepped()
+	SIGNAL_HANDLER
+	moves++
+
+/datum/bot_scenario/set_door/no_tools/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(moves)
+		fail_reason = "set off for the door with nothing to open its panel with"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 6 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/set_door/no_tools/release_run()
+	if(bot)
+		UnregisterSignal(bot, COMSIG_MOVABLE_MOVED)
+	return ..()
+
 /datum/bot_scenario/raid
 	name = "dept: a greytider hacks into a locked room for the gloves"
 	desc = "Insulated gloves on a table behind a door its ID doesn't open. It goes in anyway, comes out wearing them, and leaves the door bolted open behind it."

@@ -587,6 +587,14 @@ GLOBAL_LIST_INIT(bot_raid_wishlist, list(
 /// A screwdriver and a multitool for the door, from wherever anybody can get them.
 /datum/bot_step/ensure_raid_tools
 	var/list/tried = list()
+	/// The job is the door's wires and nothing else, so without both tools there's no going over. A raid goes on without: the door
+	/// may open to its ID, or stand open already. A chemist with neither tool, and none it knew of to fetch, walked to Virology's
+	/// airlock to bolt it open and stood there: 50 trips to a door in twelve shifts.
+	var/must_have = FALSE
+
+/datum/bot_step/ensure_raid_tools/New(needs_both = FALSE)
+	. = ..()
+	must_have = needs_both
 
 /datum/bot_step/ensure_raid_tools/execute(datum/bot_brain/bot)
 	for(var/needed in list(/obj/item/screwdriver, /obj/item/multitool))
@@ -598,6 +606,9 @@ GLOBAL_LIST_INIT(bot_raid_wishlist, list(
 		fetch.lawful = TRUE
 		if(bot.suspend_goal_for(fetch))
 			return GOAL_STEP_PENDING
+	if(must_have && !(bot.find_carried_tool(/obj/item/multitool) && bot.find_or_transform_tool(/obj/item/screwdriver)))
+		bot_log(bot, "no screwdriver and multitool to be had for [bot.current_goal?.target] - leaving the door alone")
+		return GOAL_STEP_FAIL
 	return GOAL_STEP_SUCCESS
 
 /datum/bot_goal/tide/raid/on_success(datum/bot_brain/bot)
@@ -731,7 +742,7 @@ GLOBAL_LIST_INIT(bot_raid_wishlist, list(
 
 /datum/bot_goal/set_door/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/case_work/S = new
-	S.steps = list(new /datum/bot_step/ensure_raid_tools(), new /datum/bot_step/move_to(), new /datum/bot_step/paced/set_door(opening))
+	S.steps = list(new /datum/bot_step/ensure_raid_tools(TRUE), new /datum/bot_step/move_to(), new /datum/bot_step/paced/set_door(opening))
 	return list(S)
 
 /// No tools to be had, or the wires are live: that's the end of that idea for a while.
