@@ -274,3 +274,46 @@
 	B.reagents.add_reagent(text2path("/datum/reagent/lumen"), 10)
 	B.reagents.reaction(patient, TOUCH)
 	return (locate(/obj/effect/dummy/lighting_obj/moblight) in patient) ? null : "no light on them"
+
+/datum/bot_scenario/content/batch_four
+	name = "chemistry: voltagel sparks in water, lumen gel refuels a glowstick, vitrium takes up the glass on a floor"
+	desc = "Ten units of voltagel into water; lumen gel on a spent glowstick; vitrium splashed on a floor with a shard on it."
+
+/datum/bot_scenario/content/batch_four/try_it(turf/T)
+	var/list/missing = list()
+	var/obj/item/reagent_containers/B = mix(T, list(text2path("/datum/reagent/voltagel") = 10, /datum/reagent/water = 10))
+	if(B.reagents.has_reagent(text2path("/datum/reagent/voltagel")) || B.reagents.has_reagent(/datum/reagent/water))
+		missing += "the gel and the water are still sat there together"
+	var/obj/item/flashlight/glowstick/stick = place("K", new /obj/item/flashlight/glowstick(T))
+	stick.fuel = 0
+	B = place("K", new /obj/item/reagent_containers/glass/beaker(T))
+	B.reagents.add_reagent(text2path("/datum/reagent/lumen"), 10)
+	B.reagents.reaction(stick, TOUCH)
+	if(stick.fuel < 300)
+		missing += "the glowstick's still spent"
+	for(var/obj/effect/decal/cleanable/greenglow/puddle in T)
+		qdel(puddle)
+	place("K", new /obj/item/shard(T))
+	B = place("K", new /obj/item/reagent_containers/glass/beaker(T))
+	B.reagents.add_reagent(text2path("/datum/reagent/vitrium"), 10)
+	B.reagents.reaction(T, TOUCH)
+	if(locate(/obj/item/shard) in T)
+		missing += "the shard's still on the floor"
+	var/obj/item/stack/sheet/glass/sheet = locate() in T
+	if(sheet)
+		place("K", sheet)
+	return length(missing) ? english_list(missing) : null
+
+/datum/bot_scenario/content/optable_readout
+	name = "machines: an operating table says who's on it and when they're short of blood"
+	desc = "Somebody on the table with two thirds of their blood."
+
+/datum/bot_scenario/content/optable_readout/try_it(turf/T)
+	var/obj/structure/table/optable/table = place("K", new /obj/structure/table/optable(T))
+	var/mob/living/carbon/human/patient = stand_in(T, "Pale Patient")
+	patient.blood_volume = 370
+	var/list/told = table.examine(bot)
+	var/all_of_it = jointext(told, " ")
+	if(!findtext(all_of_it, "is on it"))
+		return "nothing about who's on it"
+	return findtext(all_of_it, "pale") ? null : "nothing about their blood"

@@ -80,6 +80,13 @@
 	W.obj_integrity = min(W.max_integrity, W.obj_integrity + volume * 10)
 	W.update_nearby_icons()
 
+/// Splashed over a floor, it takes up the broken glass lying there.
+/datum/reagent/vitrium/reaction_turf(turf/T, volume)
+	if(volume < 5)
+		return
+	for(var/obj/item/shard/shard in T)
+		reaction_obj(shard, volume)
+
 /datum/chemical_reaction/vitrium
 	name = "Vitrium"
 	id = "vitrium"
@@ -176,6 +183,15 @@
 /datum/reagent/lumen/Destroy()
 	QDEL_NULL(inner_glow)
 	return ..()
+
+/// A spent glowstick takes it up: two minutes of light a unit, up to a full one.
+/datum/reagent/lumen/reaction_obj(obj/O, volume)
+	var/obj/item/flashlight/glowstick/stick = O
+	if(!istype(stick) || volume < 1)
+		return ..()
+	stick.fuel = min(stick.fuel + volume * 60, 1800)
+	stick.update_icon()
+	stick.visible_message("<span class='notice'>[stick] soaks the gel up.</span>")
 
 /datum/reagent/lumen/reaction_turf(turf/T, volume)
 	if(!isopenturf(T) || isspaceturf(T) || volume < 5 || (locate(/obj/effect/decal/cleanable/greenglow/lumen) in T))
@@ -284,3 +300,48 @@
 	if(S.has_reagent(/datum/reagent/vitrium, 5))
 		myseed.adjust_endurance(10)
 		adjustHealth(10)
+
+// ---------------------------------------------------------------------------------------------
+// Voltagel and water
+// ---------------------------------------------------------------------------------------------
+
+/// The gel gives its charge up to water all at once: sparks, and a jolt for whoever's holding the beaker or stood by it.
+/datum/chemical_reaction/voltagel_discharge
+	name = "Static discharge"
+	id = "voltagel_discharge"
+	required_reagents = list(/datum/reagent/voltagel = 1, /datum/reagent/water = 1)
+	mix_message = "The mixture snaps and crackles!"
+
+/datum/chemical_reaction/voltagel_discharge/on_reaction(datum/reagents/holder, created_volume)
+	var/turf/T = get_turf(holder.my_atom)
+	if(!T)
+		return
+	do_sparks(3, TRUE, T)
+	playsound(T, 'sound/magic/lightningshock.ogg', 40, 1)
+	var/jolt = min(created_volume * 2, 20)
+	for(var/mob/living/L in range(1, T))
+		L.electrocute_act(jolt, "a static discharge", 1, FALSE, FALSE, FALSE, jolt >= 10)
+
+// ---------------------------------------------------------------------------------------------
+// What looking at things tells you
+// ---------------------------------------------------------------------------------------------
+
+/obj/structure/window/examine(mob/user)
+	. = ..()
+	if(vitrified)
+		. += "<span class='notice'>The glass has the hard clear sheen of vitrium.</span>"
+
+/// The operating table says who's on it and how they are: their state, and whether they've the blood for an operation.
+/obj/structure/table/optable/examine(mob/user)
+	. = ..()
+	var/mob/living/carbon/human/on_it = locate() in loc
+	if(!on_it)
+		return
+	. += "<span class='notice'>[on_it] is on it: [on_it.stat == DEAD ? "dead" : (on_it.stat == CONSCIOUS ? "awake" : "out cold")].</span>"
+	if(on_it.stat != DEAD && !(NOBLOOD in on_it.dna?.species?.species_traits))
+		var/blood = round(on_it.blood_volume / BLOOD_VOLUME_NORMAL * 100)
+		if(blood < 85)
+			. += "<span class='warning'>They look pale: about [blood]% of their blood. They want a drip before the knife.</span>"
+	if(length(on_it.surgeries))
+		var/datum/surgery/S = on_it.surgeries[1]
+		. += "<span class='notice'>[S.name] is under way.</span>"
