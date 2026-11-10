@@ -9,6 +9,8 @@ import collections
 import json
 import sys
 
+import logread
+
 WINDOW = 200  # deciseconds of game time (telemetry's "t")
 MIN_MOVES = 8
 MAX_TILES = 3
@@ -18,20 +20,18 @@ def scan(run):
     """(state, goal, step) -> list of "bot t=... tiles" for one run's telemetry."""
     found = collections.defaultdict(list)
     samples = collections.defaultdict(list)
-    try:
-        f = open(run + "/bot_telemetry.jsonl", encoding="utf-8", errors="replace")
-    except OSError:
+    path = logread.find(run, "telemetry")
+    if not path:
         return found
-    with f:
-        for line in f:
-            i = line.find("{")
-            if i < 0 or '"k":"s"' not in line:
-                continue
-            try:
-                j = json.loads(line[i:])
-            except ValueError:
-                continue
-            samples[j["b"]].append((j["t"], (j["x"], j["y"], j["z"]), j.get("st"), j.get("g"), j.get("step")))
+    for line in logread.lines(path):
+        i = line.find("{")
+        if i < 0 or '"k":"s"' not in line:
+            continue
+        try:
+            j = json.loads(line[i:])
+        except ValueError:
+            continue
+        samples[j["b"]].append((j["t"], (j["x"], j["y"], j["z"]), j.get("st"), j.get("g"), j.get("step")))
     for bot, seq in samples.items():
         start = 0
         flagged_until = -1

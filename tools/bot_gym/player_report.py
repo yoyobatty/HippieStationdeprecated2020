@@ -11,6 +11,8 @@ import json
 import re
 import statistics
 import sys
+
+import logread
 from collections import Counter, defaultdict
 
 # Longest a tap or a press can wait for its step before it counts as lost: one step at walking speed, and a tick or two.
@@ -31,7 +33,7 @@ def clock(ms):
 
 def load(folder):
     rows = []
-    for line in open(folder + "/player_telemetry.jsonl", encoding="utf8", errors="replace"):
+    for line in logread.lines(logread.find(folder, "player")):
         try:
             r = json.loads(line[line.index("{"):])
         except ValueError:

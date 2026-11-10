@@ -17,6 +17,8 @@ import os
 import re
 import sys
 
+import logread
+
 LINE = re.compile(r"^\[[^\]]+\] ADMIN: BOT AI( VERBOSE)?: ([^:]+): (.*)$")
 TAG = re.compile(r"<[^>]+>")
 COORDS = re.compile(r"\s*@ \(\d+,\s*\d+,\s*\d+\)(\s*\(JMP\))?")
@@ -50,31 +52,29 @@ def newest_round():
 
 def read_round(directory, counts, targets, reasons, by_bot, lead_ups, goal_filter, keep):
     history = collections.defaultdict(lambda: collections.deque(maxlen=HISTORY))
-    path = os.path.join(directory, "game.log")
-    with open(path, encoding="utf-8", errors="replace") as log:
-        for raw in log:
-            found = LINE.match(raw)
-            if not found:
-                continue
-            verbose, bot, text = bool(found.group(1)), found.group(2), clean(found.group(3))
-            given_up = GIVE_UP.match(text)
-            if not given_up:
-                history[bot].append((verbose, text))
-                continue
-            goal = short_goal(given_up.group(1))
-            counts[goal] += 1
-            by_bot[(goal, bot)] += 1
-            target = given_up.group(2) or "nothing"
-            targets[goal][shape(target)] += 1
-            # What the bot said itself before its step-by-step walking diagnostics (VERBOSE): those are the last lines nearly every
-            # time, and the digest put "obstruction check ... found nothing blocking" against give-ups that were about money or air.
-            said = [t for v, t in history[bot] if not NOISE.match(t)]
-            plain = [t for v, t in history[bot] if not v and not NOISE.match(t)]
-            reason = (plain or said or ["(nothing logged)"])[-1]
-            reasons[goal][shape(reason)] += 1
-            if goal_filter and goal_filter in goal and len(lead_ups) < keep:
-                lead_ups.append((bot, target, [t for v, t in history[bot]]))
-            history[bot].clear()
+    for raw in logread.bot_lines(directory):  # game.log, and the trace (bot_trace.log.zst) as "ADMIN: BOT AI VERBOSE:" lines
+        found = LINE.match(raw)
+        if not found:
+            continue
+        verbose, bot, text = bool(found.group(1)), found.group(2), clean(found.group(3))
+        given_up = GIVE_UP.match(text)
+        if not given_up:
+            history[bot].append((verbose, text))
+            continue
+        goal = short_goal(given_up.group(1))
+        counts[goal] += 1
+        by_bot[(goal, bot)] += 1
+        target = given_up.group(2) or "nothing"
+        targets[goal][shape(target)] += 1
+        # What the bot said itself before its step-by-step walking diagnostics (VERBOSE): those are the last lines nearly every
+        # time, and the digest put "obstruction check ... found nothing blocking" against give-ups that were about money or air.
+        said = [t for v, t in history[bot] if not NOISE.match(t)]
+        plain = [t for v, t in history[bot] if not v and not NOISE.match(t)]
+        reason = (plain or said or ["(nothing logged)"])[-1]
+        reasons[goal][shape(reason)] += 1
+        if goal_filter and goal_filter in goal and len(lead_ups) < keep:
+            lead_ups.append((bot, target, [t for v, t in history[bot]]))
+        history[bot].clear()
 
 
 def main():

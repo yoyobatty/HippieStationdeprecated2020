@@ -13,6 +13,8 @@ import re
 import sys
 from datetime import datetime, timedelta
 
+import logread
+
 STAMP = re.compile(r"^\[(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\.\d+)\] ")
 LINK = re.compile(r"\s*\(?<a href[^>]*>JMP</a>\)?")
 NOISY = ("step_next_node", "obstruction check: the", "is_eva_ready", "adjacent fallback", "  pass ", "repath:")
@@ -66,7 +68,7 @@ def main(argv):
             t = stamp(line)
             if t:
                 events.append((t, "ATK", LINK.sub("", line[STAMP.match(line).end():]).replace("ATTACK: ", "")))
-    for line in open(run + "/game.log", encoding="utf-8", errors="replace"):
+    for line in logread.bot_lines(run):  # game.log, and the trace (bot_trace.log.zst) as "ADMIN: BOT AI VERBOSE:" lines
         if name not in line:
             continue
         t = stamp(line)
@@ -82,7 +84,7 @@ def main(argv):
             events.append((t, body.split(":")[0][:3], body.split(") ", 1)[-1]))
     last = None
     try:
-        for line in open(run + "/bot_telemetry.jsonl", encoding="utf-8", errors="replace"):
+        for line in logread.lines(logread.find(run, "telemetry")):
             if '"b":"%s"' % name not in line:
                 continue
             t = stamp(line)

@@ -9,6 +9,8 @@ import json
 import os
 import re
 import sys
+
+import logread
 from collections import Counter, defaultdict
 
 
@@ -39,7 +41,7 @@ def run_report(folder):
     ends = defaultdict(Counter)
     samples = defaultdict(int)
     first = None
-    for line in lines(folder + "/bot_telemetry.jsonl"):
+    for line in logread.lines(logread.find(folder, "telemetry")):
         i = line.find("{")
         if i < 0:
             continue

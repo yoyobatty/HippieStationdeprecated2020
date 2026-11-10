@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """Believability report for bot telemetry (hippiestation/code/modules/bots_ai/bot_telemetry.dm).
 
-Reads data/logs/<round>/bot_telemetry.jsonl and reports, per bot, the things a watching player
+Reads data/logs/<round>/bot_telemetry.jsonl(.zst) and reports, per bot, the things a watching player
 would notice: standing still with nothing going on, using tools that aren't in hand, operating
 things it isn't facing, items teleporting or grabbed in bursts, walking rhythm and backtracking,
 and how long each goal took.
 
 Usage:
   python tools/bot_gym/analyze_telemetry.py                      # newest round with telemetry
-  python tools/bot_gym/analyze_telemetry.py <path to jsonl>      # a specific file
+  python tools/bot_gym/analyze_telemetry.py <round dir or file>  # a specific round (.jsonl or .jsonl.zst)
   python tools/bot_gym/analyze_telemetry.py --bot "Jordan"       # one bot only
 """
 import argparse, collections, glob, json, os, re, statistics
+import logread
 
 PREFIX = re.compile(r'^\[[^\]]*\]\s*')
 IDLE_SECONDS = 3.0
@@ -19,7 +20,7 @@ IDLE_SECONDS = 3.0
 
 def load(path):
     bots = collections.defaultdict(lambda: {'s': [], 'e': []})
-    for raw in open(path, encoding='utf-8', errors='ignore'):
+    for raw in logread.lines(path):
         raw = PREFIX.sub('', raw.strip())
         if not raw.startswith('{'):
             continue
@@ -180,7 +181,7 @@ def report(name, data, verbose):
 
 
 def newest_telemetry():
-    files = glob.glob('data/logs/**/bot_telemetry.jsonl', recursive=True)
+    files = glob.glob('data/logs/**/bot_telemetry.jsonl', recursive=True) + glob.glob('data/logs/**/bot_telemetry.jsonl.zst', recursive=True)
     return max(files, key=os.path.getmtime) if files else None
 
 
@@ -192,6 +193,8 @@ def main():
     ap.add_argument('-v', '--verbose', action='store_true')
     args = ap.parse_args()
     path = args.path or newest_telemetry()
+    if path and os.path.isdir(path):
+        path = logread.find(path, 'telemetry')
     if not path:
         raise SystemExit('No bot_telemetry.jsonl found under data/logs/')
     print(f"Bot telemetry: {path}")
