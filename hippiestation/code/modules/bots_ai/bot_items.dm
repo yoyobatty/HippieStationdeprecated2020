@@ -1582,7 +1582,8 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 // The only direction that actually matters is the bot's real next path step - check
 // that one specifically, via LinkBlockedWithAccess() (the same real passability check
 // the pathfinder itself uses, code/__HELPERS/AStar.dm), not "is anything dense nearby."
-/datum/bot_brain/proc/try_clear_obstruction()
+/// `stuck`: called because the bot hasn't moved (on_stuck_timeout()), not the look ahead step_next_node() takes before every step.
+/datum/bot_brain/proc/try_clear_obstruction(stuck = FALSE)
 	if(!current_path || !current_path.len)
 		return FALSE
 	var/turf/here = get_turf(owner)
@@ -1614,7 +1615,10 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 	// when the bot tries to step there, by construction.
 	var/atom/movable/blocker = real_move_blocker(here, T)
 	if(!blocker)
-		bot_log_verbose(src, "obstruction check: [here] -> [T] @ [bot_coord(T)] - real engine check found nothing blocking, something else stalled movement")
+		// Only worth a line when the bot is stuck: before every step, nothing in the way is the usual answer, and it was a line a
+		// step, 118,000 in a shift, each saying something had stalled the bot when nothing had (2026-11-10).
+		if(stuck)
+			bot_log_verbose(src, "obstruction check: [here] -> [T] @ [bot_coord(T)] - real engine check found nothing blocking, something else stalled movement")
 		return FALSE
 	bot_log_verbose(src, "obstruction check: [blocker] ([blocker.type]) actually blocks [here] -> [T] @ [bot_coord(T)] - clearing")
 	if(istype(blocker, /obj))

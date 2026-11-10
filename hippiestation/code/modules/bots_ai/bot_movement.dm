@@ -1038,7 +1038,7 @@
 	bot_log(src, "stuck heading to [expected_node], rerouting")
 	busy_clearing = TRUE
 	try
-		if(try_clear_obstruction())
+		if(try_clear_obstruction(stuck = TRUE))
 			busy_clearing = FALSE
 			return //pursuit was redirected (e.g. toward a tool) - it already repathed itself
 	catch(var/exception/e)

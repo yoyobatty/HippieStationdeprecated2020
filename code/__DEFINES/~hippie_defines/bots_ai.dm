@@ -2,10 +2,11 @@
 // them regardless of include order - Dream Maker re-sorts the .dme alphabetically, which put bot_breach.dm first.
 
 // bot_log() and bot_log_verbose() are macros so that a line is only put together when something will keep it: a test run's
-// transcript or log, or a live round with bot AI logging turned on. As procs their 940-odd callers built every line first, half
-// a million a shift, and a live round threw each one away. So nothing in a log line may do anything but read. While an admin has
-// the Bot Crew panel open, each bot keeps its last few lines for it (hippiestation/code/modules/admin/bot_crew_panel.dm).
-#define bot_log(B, msg) if(GLOB.bot_ai_debug || GLOB.bot_crew_panel_open || B?.gym_run) bot_log_line(B, msg)
+// transcript, game.log and bot_trace.log.zst (every round since 2026-11-10 but a bot-quiet one), admin chat with bot AI logging
+// turned on. As procs their 940-odd callers built every line first, half a million a shift, even where nothing kept it. So nothing
+// in a log line may do anything but read. While an admin has the Bot Crew panel open, each bot keeps its last few lines for it
+// (hippiestation/code/modules/admin/bot_crew_panel.dm).
+#define bot_log(B, msg) if(GLOB.bot_ai_log || GLOB.bot_ai_debug || GLOB.bot_crew_panel_open || B?.gym_run) bot_log_line(B, msg)
 #define bot_log_verbose(B, msg) if(GLOB.bot_ai_verbose || B?.gym_run) bot_log_verbose_line(B, msg)
 
 // What a /datum/bot_step's execute() returns

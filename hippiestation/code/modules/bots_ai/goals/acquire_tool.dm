@@ -294,7 +294,7 @@
 			found++
 			if(found >= 3 || best_cost <= get_dist(bot.owner, A) + 5)
 				break
-		else if(GLOB.bot_ai_verbose || bot.gym_run) //a route search per candidate, just for the log, and arguments get worked out whether or not it logs them
+		else if((GLOB.bot_ai_verbose && GLOB.bot_ai_test_round) || bot.gym_run) //a route search per candidate, just for the log, and arguments get worked out whether or not it logs them: a test round's, not a live one's, though the trace is on there too
 			bot_log_verbose(bot, "pick_reachable: [A] ([get_area_name(A)], dist [get_dist(bot.owner, A)]) is NOT reachable - [describe_blocker(bot, A)]")
 	if(best)
 		cached_path = best_path

@@ -1,15 +1,22 @@
-/// The bot AI logs are for reading test rounds back, so only those start with them on. In a live round they'd send every
-/// bot's every step to admin chat, and put 155,000 lines in game.log every half hour; the admin verbs below turn them on.
-/// bot-quiet turns them off in a test too, for measuring what a crew costs without the logging in the way.
+/// A test round: a Bot Gym, a Bot Shift or tools/bot_gym/run_live_round.sh (bot-mode), and not bot-quiet, which turns the bot
+/// logs off for measuring what a crew costs without them.
 /proc/bot_ai_logging_wanted()
 	return ((BOT_GYM_PARAMETER in world.params) || (BOT_SHIFT_PARAMETER in world.params) || ("bot-mode" in world.params)) && !(BOT_QUIET_PARAMETER in world.params) //bot-mode: tools/bot_gym/run_live_round.sh
 
+/// The bots' logs go to the files in every round but a bot-quiet one: since 2026-11-10 they cost the game little (bot_chat.dm), and
+/// the user's own rounds are read back as test rounds are. bot-quiet turns them off.
+/proc/bot_ai_files_wanted()
+	return !(BOT_QUIET_PARAMETER in world.params)
+
+/// Set once: a test round (bot_ai_logging_wanted()). For what only a test round pays for, like a route search just for a log line.
+GLOBAL_VAR_INIT(bot_ai_test_round, bot_ai_logging_wanted())
+/// bot_log()'s lines in admin chat as well: a test round's, or with the admin verb below
 GLOBAL_VAR_INIT(bot_ai_debug, bot_ai_logging_wanted())
-// Separate from bot_ai_debug - this is the noisy, per-decision trace (pathing pass
-// results, per-node stuck diagnostics, etc.) meant for post-round log analysis, not
-// live admin chat. bot_log_verbose() (bot_chat.dm) writes it to game.log only, never
-// message_admins(), so it doesn't flood anyone watching the live feed.
-GLOBAL_VAR_INIT(bot_ai_verbose, bot_ai_logging_wanted())
+/// bot_log()'s lines in game.log ("ADMIN: BOT AI: name: line"), the bots' decisions in plain English
+GLOBAL_VAR_INIT(bot_ai_log, bot_ai_files_wanted())
+/// The noisy, per-decision trace (pathing pass results, per-node stuck diagnostics, etc.), for reading a round back: bot_log_verbose()
+/// (bot_chat.dm) writes it compressed to bot_trace.log.zst, never to admin chat or game.log.
+GLOBAL_VAR_INIT(bot_ai_verbose, bot_ai_files_wanted())
 
 /client/proc/admin_spawn_bot_crew()
 	set name = "Spawn Bot Crew Member"
@@ -44,17 +51,17 @@ GLOBAL_VAR_INIT(bot_ai_verbose, bot_ai_logging_wanted())
 /client/proc/admin_toggle_bot_ai_log()
 	set name = "Toggle Bot AI Log"
 	set category = "Fun"
-	set desc = "Streams bot AI decisions/actions to admin chat in realtime."
+	set desc = "Streams bot AI decisions/actions to admin chat in realtime (game.log has them either way)."
 
 	if(!check_rights(R_FUN))
 		return
 	GLOB.bot_ai_debug = !GLOB.bot_ai_debug
-	message_admins("[key_name(usr)] turned bot AI logging [GLOB.bot_ai_debug ? "ON" : "OFF"].")
+	message_admins("[key_name(usr)] turned bot AI logging in admin chat [GLOB.bot_ai_debug ? "ON" : "OFF"].")
 
 /client/proc/admin_toggle_bot_ai_verbose()
 	set name = "Toggle Bot AI Verbose Log"
 	set category = "Fun"
-	set desc = "Writes detailed bot AI pathing/decision traces to game.log for post-round analysis (silent - doesn't stream to admin chat)."
+	set desc = "Writes detailed bot AI pathing/decision traces to bot_trace.log.zst for post-round analysis (silent - doesn't stream to admin chat)."
 
 	if(!check_rights(R_FUN))
 		return

@@ -15,8 +15,11 @@
 //  - idle events: stretches of 3s+ with no movement, no action and no event
 //  - goal start/success/give-up
 //
-// Output: data/logs/<round>/bot_telemetry.jsonl, one JSON object per line.
-// Read it with: tools/bot_gym/analyze_telemetry.py <that file>
+// Output: data/logs/<round>/bot_telemetry.jsonl.zst, one JSON object per line, zstd-compressed by the log writer's thread (24 times
+// smaller; plain bot_telemetry.jsonl when rust_g writes the logs, see __HELPERS/log_writer.dm). Samples are whole lines, the same
+// fields every time: leaving out what hadn't changed cost the game more than it saved (5.8 us a sample against 3.9 measured,
+// 2026-11-10), and the compression takes the repeats out anyway.
+// Read it with: tools/bot_gym/analyze_telemetry.py <round dir or file>, or tools/bot_gym/logread.py
 
 #define BOT_TELEMETRY_SAMPLE_INTERVAL 5 //deciseconds
 #define BOT_TELEMETRY_IDLE_THRESHOLD 30 //deciseconds without movement, action or event
@@ -60,7 +63,7 @@ GLOBAL_VAR_INIT(bot_telemetry_samples, !(BOT_GYM_PARAMETER in world.params) || (
 	telemetry_last_activity = world.time
 	if(!GLOB.bot_telemetry_running && bot_telemetry_wanted())
 		GLOB.bot_telemetry_running = TRUE
-		GLOB.bot_telemetry_log = "[GLOB.log_directory]/bot_telemetry.jsonl"
+		GLOB.bot_telemetry_log = hippie_log_compressed("[GLOB.log_directory]/bot_telemetry.jsonl")
 		INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(bot_telemetry_loop))
 	telemetry_event("spawn", list("job" = owner?.mind?.assigned_role))
 
@@ -79,18 +82,28 @@ GLOBAL_VAR_INIT(bot_telemetry_samples, !(BOT_GYM_PARAMETER in world.params) || (
 				B.telemetry_sample()
 		// A test round's checks (Bot Gym tells, Bot Shift idle stretches) read it at this rate; reading back a live round doesn't need
 		// it, and it was 2-3% of the server's time there.
-		sleep(GLOB.bot_ai_debug ? BOT_TELEMETRY_SAMPLE_INTERVAL : BOT_TELEMETRY_SAMPLE_INTERVAL * 2)
+		sleep(GLOB.bot_ai_test_round ? BOT_TELEMETRY_SAMPLE_INTERVAL : BOT_TELEMETRY_SAMPLE_INTERVAL * 2)
 
 // ---------------------------------------------------------------------------------------------
 // Writing
 // ---------------------------------------------------------------------------------------------
 
+/// A type's path without the usual start ("/datum/bot_goal/repair_hull" -> "repair_hull"). Worked out once a type: it was a
+/// search for six prefixes, three or four times a sample and once an event, 1.4 s of a shift's server time (2026-11-10).
 /proc/bot_telemetry_short(path)
+	if(!path)
+		return ""
+	var/static/list/known = list()
+	. = known[path]
+	if(!isnull(.))
+		return
 	var/text = "[path]"
+	. = text
 	for(var/prefix in list("/datum/bot_goal/", "/datum/bot_strategy/", "/datum/bot_step/", "/obj/item/", "/obj/structure/", "/obj/machinery/"))
 		if(findtext(text, prefix) == 1)
-			return copytext(text, length(prefix) + 1)
-	return text
+			. = copytext(text, length(prefix) + 1)
+			break
+	known[path] = .
 
 /datum/bot_brain/proc/telemetry_write(list/record)
 	if(!GLOB.bot_telemetry_log)
@@ -169,13 +182,14 @@ GLOBAL_VAR_INIT(bot_telemetry_samples, !(BOT_GYM_PARAMETER in world.params) || (
 	telemetry_last_turf = T
 	if(moved || telemetry_action)
 		telemetry_touch()
+	var/incapacitated = owner.incapacitated()
 	// A Bot Gym's verdicts read the tells and the idle stretches below, not these lines, and nothing reads a gym's file back: writing
 	// them was 10% of a full gym's server time (2026-11-09). bot-gym-samples=1 keeps them.
 	if(GLOB.bot_telemetry_samples)
-		telemetry_write_sample(T, moved)
+		telemetry_write_sample(T, moved, incapacitated)
 	// Idle tracking: report a stretch once it ends, with what the bot was supposedly doing.
 	var/idle_for = world.time - telemetry_last_activity
-	if(idle_for >= BOT_TELEMETRY_IDLE_THRESHOLD && owner.stat == CONSCIOUS && !owner.incapacitated())
+	if(idle_for >= BOT_TELEMETRY_IDLE_THRESHOLD && owner.stat == CONSCIOUS && !incapacitated)
 		if(!telemetry_idle_since)
 			telemetry_idle_since = telemetry_last_activity
 	else if(telemetry_idle_since)
@@ -185,8 +199,9 @@ GLOBAL_VAR_INIT(bot_telemetry_samples, !(BOT_GYM_PARAMETER in world.params) || (
 		telemetry_write(list("k" = "e", "ev" = "idle", "dur" = duration, "x" = T?.x, "y" = T?.y, "z" = T?.z,
 			"g" = bot_telemetry_short(current_goal?.type), "st" = state, "pk" = pursuing_kind))
 
-/// The twice-a-second "where and what" line.
-/datum/bot_brain/proc/telemetry_write_sample(turf/T, moved)
+/// The twice-a-second "where and what" line. "u" is the urgency the brain last worked out (get_urgency() would work out the air
+/// again whenever the brain hadn't this tick).
+/datum/bot_brain/proc/telemetry_write_sample(turf/T, moved, incapacitated)
 	var/list/record = list(
 		"k" = "s",
 		"x" = T?.x, "y" = T?.y, "z" = T?.z,
@@ -199,9 +214,9 @@ GLOBAL_VAR_INIT(bot_telemetry_samples, !(BOT_GYM_PARAMETER in world.params) || (
 		"act" = telemetry_action,
 		"pk" = pursuing_kind,
 		"pl" = length(current_path),
-		"u" = get_urgency(),
+		"u" = urgency_override >= 0 ? urgency_override : urgency_known,
 		"hp" = owner.health,
-		"inc" = owner.incapacitated() ? 1 : 0,
+		"inc" = incapacitated ? 1 : 0,
 		"int" = owner.a_intent,
 	)
 	record += telemetry_hands()

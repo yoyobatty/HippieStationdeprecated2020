@@ -200,28 +200,43 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 	var/obj/item/clothing/head/helmet/space/HM = owner.head
 	return istype(S) && !istype(S, /obj/item/clothing/suit/space/hardsuit) && istype(HM) && (S.clothing_flags & STOPSPRESSUREDAMAGE) && (HM.clothing_flags & STOPSPRESSUREDAMAGE)
 
+// is_eva_ready() is asked many times a tick (pathing, gearing up), and logging every FALSE was 136,000 lines in a shift, 13 MB, ten
+// of them often in the same millisecond. Now a reason is logged when it's new: when it changes, or after a TRUE, which is logged
+// too, so flapping still shows ("FALSE - no internals tank", "TRUE", "FALSE - no internals tank").
+#define EVA_NOT_READY(why) if(GLOB.bot_ai_verbose || gym_run) eva_not_ready(why)
+
+/datum/bot_brain
+	/// The reason is_eva_ready() last gave for FALSE, if it hasn't said TRUE since: "" when it last said TRUE, null before it's said
+	var/eva_unready_logged
+
+/datum/bot_brain/proc/eva_not_ready(why)
+	if(why == eva_unready_logged)
+		return
+	eva_unready_logged = why
+	bot_log_verbose_line(src, "is_eva_ready: FALSE - [why]")
+
 /datum/bot_brain/proc/is_eva_ready()
 	if(is_miner())
 		return ready_for_lavaland() //goals/mining.dm: thin air down there, not vacuum
 	var/obj/item/clothing/suit/space/hardsuit/suit = owner.wear_suit
 	if(!istype(suit) && !in_plain_space_suit())
-		bot_log_verbose(src, "is_eva_ready: FALSE - wear_suit is [owner.wear_suit] (not a hardsuit, nor a space suit with its helmet on)")
+		EVA_NOT_READY("wear_suit is [owner.wear_suit] (not a hardsuit, nor a space suit with its helmet on)")
 		return FALSE
 	if(istype(suit) && !suit.suittoggled)
-		bot_log_verbose(src, "is_eva_ready: FALSE - [suit] helmet not toggled")
+		EVA_NOT_READY("[suit] helmet not toggled")
 		return FALSE
 	if(istype(suit) && (!(suit.clothing_flags & STOPSPRESSUREDAMAGE) || !(suit.helmet?.clothing_flags & STOPSPRESSUREDAMAGE)))
-		bot_log_verbose(src, "is_eva_ready: FALSE - [suit] is in combat mode") //a syndicate hardsuit's: no good in space like that
+		EVA_NOT_READY("[suit] is in combat mode") //a syndicate hardsuit's: no good in space like that
 		return FALSE
 	var/mask_type = get_job_mask_type()
 	if(mask_type && !istype(owner.wear_mask, mask_type))
-		bot_log_verbose(src, "is_eva_ready: FALSE - wear_mask is [owner.wear_mask], need [mask_type]")
+		EVA_NOT_READY("wear_mask is [owner.wear_mask], need [mask_type]")
 		return FALSE
 	// A tank on the body, where its valve can be reached - not one already open. This used to be "owner.internal
 	// is set", which made being ready for space the same thing as breathing from the tank all shift
 	// (manage_internals(), refill_internals.dm, opens it when the air calls for it).
 	if(!eva_tank())
-		bot_log_verbose(src, "is_eva_ready: FALSE - no internals tank on me")
+		EVA_NOT_READY("no internals tank on me")
 		return FALSE
 	// Wearing magboots alone isn't enough to move purposefully in zero-g - negates_gravity()
 	// (magboots.dm) only returns TRUE once the mag-pulse is actually toggled ON. Without
@@ -236,12 +251,17 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 	if(boots_type)
 		var/obj/item/clothing/shoes/magboots/boots = owner.shoes
 		if(!istype(boots, boots_type))
-			bot_log_verbose(src, "is_eva_ready: FALSE - shoes is [owner.shoes], need [boots_type]")
+			EVA_NOT_READY("shoes is [owner.shoes], need [boots_type]")
 			return FALSE
 		if(boots.magpulse != needs_mag_pulse())
-			bot_log_verbose(src, "is_eva_ready: FALSE - [boots] mag-pulse is [boots.magpulse ? "on" : "off"], needs to be [needs_mag_pulse() ? "on" : "off"]")
+			EVA_NOT_READY("[boots] mag-pulse is [boots.magpulse ? "on" : "off"], needs to be [needs_mag_pulse() ? "on" : "off"]")
 			return FALSE
+	if(eva_unready_logged)
+		eva_unready_logged = ""
+		bot_log_verbose(src, "is_eva_ready: TRUE")
 	return TRUE
+
+#undef EVA_NOT_READY
 
 // Same as is_eva_ready() minus the magboots/mag-pulse check - TRUE once suit+helmet+
 // mask+tank are all set, regardless of boots. Used by bot_turf_crossable_without_boots()

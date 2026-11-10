@@ -5,7 +5,8 @@
 //
 // Hits, throws, strips and speech aren't here: attack.log, game.log and telecomms.log already have them, on the same clock.
 //
-// Output: data/logs/<round>/player_telemetry.jsonl, in bot_telemetry.jsonl's format: "k":"s" a sample every half second, "k":"e" an event.
+// Output: data/logs/<round>/player_telemetry.jsonl.zst, in bot_telemetry.jsonl's format: "k":"s" a sample every half second, "k":"e" an
+// event; zstd-compressed by the log writer's thread (plain .jsonl when rust_g writes the logs). Read it with tools/bot_gym/logread.py.
 
 #define PLAYER_LOG_SAMPLE_INTERVAL 5 //deciseconds, the same as the bots
 #define PLAYER_LOG_VIEW_RANGE 7
@@ -37,7 +38,7 @@ GLOBAL_DATUM(player_log, /datum/player_log)
 
 /datum/player_log/New()
 	. = ..()
-	log_file = "[GLOB.log_directory]/player_telemetry.jsonl"
+	log_file = hippie_log_compressed("[GLOB.log_directory]/player_telemetry.jsonl")
 	sample_loop()
 
 /datum/player_log/proc/sample_loop()

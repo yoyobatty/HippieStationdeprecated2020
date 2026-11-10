@@ -22,45 +22,65 @@
 		return
 	if(GLOB.bot_crew_panel_open && B)
 		B.remember_line(msg) //admin/bot_crew_panel.dm
-	if(!GLOB.bot_ai_debug || !B || QDELETED(B.owner))
+	if(!B || QDELETED(B.owner))
 		return
-	message_admins("<span class='notice'>Bot AI: [ADMIN_FLW(B.owner)] [B.owner.real_name]: [msg]</span>")
-	// message_admins() alone never touches disk - there was no way to grep a round's
-	// bot behavior after the fact, only watch it live. log_admin() writes to game.log
-	// the same way every other admin-visible action already does.
-	log_admin("BOT AI: [B.owner.real_name]: [msg]")
+	// Nobody to read it, no line: message_admins() put together and queued each one for chat whether or not an admin was on, ~45 us
+	// a line, 2.3 s of a test shift's server time (2026-11-10).
+	if(GLOB.bot_ai_debug && length(GLOB.admins))
+		message_admins("<span class='notice'>Bot AI: [ADMIN_FLW(B.owner)] [B.owner.real_name]: [bot_coord_links(msg)]</span>")
+	// game.log, the line log_admin() writes. Not its two copies for the round (GLOB.admin_log, and Search Logs' round log, which the
+	// alerts subsystem reads through), now that every round has them: a live round's Search Logs would be bot lines from end to end.
+	if(GLOB.bot_ai_log && CONFIG_GET(flag/log_admin))
+		WRITE_LOG(GLOB.world_game_log, "ADMIN: BOT AI: [B.owner.real_name]: [msg]")
 
-// The noisy sibling of bot_log() - pathing pass results, per-node stuck diagnostics,
-// and other detail that's only useful for grepping game.log after the fact. Written
-// straight to disk via log_admin(), never message_admins(), so it can stay on by
-// default without flooding anyone watching the live admin feed.
+/datum/bot_brain
+	/// The last line of the bot's trace (bot_log_verbose_line()), and how many times it's been said again since
+	var/trace_last
+	var/trace_repeats = 0
+
+/datum/bot_brain/Destroy()
+	if(trace_repeats && GLOB.bot_trace_log)
+		WRITE_LOG(GLOB.bot_trace_log, "[owner?.real_name]: (and [trace_repeats] more of that)")
+		trace_repeats = 0
+	return ..()
+
+/// bot_trace.log.zst, the round's bot trace (see bot_log_verbose_line())
+GLOBAL_VAR(bot_trace_log)
+
+// The noisy sibling of bot_log() - pathing pass results, per-node stuck diagnostics, and other detail that's only useful for
+// reading a round back. It went to game.log until 2026-11-10: 487,000 lines a shift, 92% of a 130 MB game.log. Now it's its own
+// file, zstd-compressed by the log writer's thread (hippie_log_compressed(), __HELPERS/log_writer.dm), "[time] Name: line", and
+// a line the bot has just written is counted instead of written again (20% of them were): "Name: (and 9 more of that)" before
+// the next one. Never admin chat. Read it with tools/bot_gym/logread.py.
 /proc/bot_log_verbose_line(datum/bot_brain/B, msg)
 	if(B?.gym_run)
 		B.gym_run.log_line("  [msg]") //the transcript, as bot_log()
 		return
 	if(!GLOB.bot_ai_verbose || !B || QDELETED(B.owner))
 		return
-	// The line log_admin() writes, without the two copies it keeps for the round (GLOB.admin_log, and Search Logs' round log, which
-	// the alerts subsystem then reads through): 450,000 of these a shift filled both, and keeping and reading them was 3% of a
-	// test shift's server time. bot_log()'s lines, a tenth as many, still go to Search Logs.
-	if(CONFIG_GET(flag/log_admin))
-		WRITE_LOG(GLOB.world_game_log, "ADMIN: BOT AI VERBOSE: [B.owner.real_name]: [msg]")
+	if(msg == B.trace_last)
+		B.trace_repeats++
+		return
+	if(!GLOB.bot_trace_log)
+		GLOB.bot_trace_log = hippie_log_compressed("[GLOB.log_directory]/bot_trace.log")
+	if(B.trace_repeats)
+		WRITE_LOG(GLOB.bot_trace_log, "[B.owner.real_name]: (and [B.trace_repeats] more of that)")
+		B.trace_repeats = 0
+	B.trace_last = msg
+	WRITE_LOG(GLOB.bot_trace_log, "[B.owner.real_name]: [msg]")
 
-// Same idea as the admin.dm ADMIN_COORDJMP() macro, but as a proc - the macro form
-// expands to a full quoted string literal, which breaks if used nested inside another
-// interpolated string (the compiler sees mismatched quotes). This is safe to nest.
-// Includes the same clickable "(JMP)" link explosion logging already uses
-// (message_admins() calls with ADMIN_VERBOSEJMP(), explosions.dm) - same
-// adminplayerobservecoodjump href action ADMIN_JMP() itself builds, just inlined here so
-// it can nest. Only meaningful in bot_log()'s message_admins() copy (rendered, clickable,
-// in the live admin chat panel) - the log_admin() disk copy gets the same literal text
-// either way, same as every other ADMIN_VERBOSEJMP()-tagged message_admins() call in the
-// codebase already writes raw markup to game.log; the coordinates themselves stay
-// grep-able there regardless.
+/// "(x,y,z)" for a log line. The JMP link that used to follow (adminplayerobservecoodjump, as ADMIN_JMP()) was 45 MB of a shift's
+/// 130 MB game.log and a token per line; admin chat's copy of a line gets it back from bot_coord_links().
 /proc/bot_coord(turf/T)
 	if(!T)
 		return "nonexistent location"
-	return "([T.x],[T.y],[T.z]) (<a href='?_src_=holder;[HrefToken(TRUE)];adminplayerobservecoodjump=1;X=[T.x];Y=[T.y];Z=[T.z]'>JMP</a>)"
+	return "([T.x],[T.y],[T.z])"
+
+/// A log line for admin chat: each "(x,y,z)" from bot_coord() with its clickable JMP link
+/proc/bot_coord_links(msg)
+	var/static/regex/coords = regex(@"\((\d+),(\d+),(\d+)\)", "g")
+	var/token = HrefToken(TRUE)
+	return coords.Replace(msg, "($1,$2,$3) (<a href='?_src_=holder;[token];adminplayerobservecoodjump=1;X=$1;Y=$2;Z=$3'>JMP</a>)")
 
 // Shared by every async entry point (timer callbacks, signal handlers) that isn't
 // covered by process()'s own try/catch - those run in their own call stack, so an
