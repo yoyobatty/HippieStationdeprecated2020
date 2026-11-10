@@ -98,6 +98,7 @@ GLOBAL_LIST_EMPTY(vapour)
 		return
 	if(isspaceturf(t_loc) || isnull(reagent_type) || isnull(VM))
 		kill_vapour()
+		return //gone: the rest reads VM, which may be what's missing (Cannot read null.volume, five at once in a shift)
 
 	if(!QDELETED(src) && spread_cooldown <= world.time)
 		spread_vapour()
