@@ -104,6 +104,14 @@
 // ensure_wrench/ensure_tools use for tools, just for medical supplies instead.
 /datum/bot_brain/proc/restock_medical_supplies(antitox = FALSE)
 	var/list/wanted = antitox ? list(/obj/item/storage/pill_bottle/charcoal, /obj/item/storage/firstaid/toxin) : list(/obj/item/storage/firstaid, /obj/item/stack/medical/bruise_pack, /obj/item/stack/medical/ointment)
+	if(!antitox)
+		// And failing those, a patch from a NanoMed on the wall: there's one in most hallways, anybody's card buys from it, and
+		// a patch is what it sells for cuts (styptic) and burns (silver sulfadiazine). Somebody hurt with no kit in reach by
+		// its own doors gave up on itself with one of those a few steps away: 66 times in twelve shifts.
+		if(owner.getFireLoss() > owner.getBruteLoss())
+			wanted += list(/obj/item/reagent_containers/pill/patch/silver_sulf, /obj/item/reagent_containers/pill/patch/styptic)
+		else
+			wanted += list(/obj/item/reagent_containers/pill/patch/styptic, /obj/item/reagent_containers/pill/patch/silver_sulf)
 	for(var/wanted_type in wanted)
 		var/datum/bot_goal/acquire_item_type/sub = new()
 		sub.item_type = wanted_type

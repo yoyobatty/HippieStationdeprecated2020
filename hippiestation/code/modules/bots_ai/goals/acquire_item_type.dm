@@ -97,6 +97,7 @@
 	for(var/obj/machinery/vending/V as anything in vendors)
 		found[V] = vendors[V]
 	var/tries = 0
+	var/known = length(found)
 	while(length(found) && tries++ < lawful_tries)
 		var/atom/nearest
 		for(var/atom/A as anything in found)
@@ -105,7 +106,8 @@
 		found -= nearest
 		if(bot.can_walk_lawfully_to(nearest))
 			return nearest
-	bot_log(bot, "knows of no [item_type] to get, lawfully (bot_knowledge.dm)")
+	// Which it was: nothing known of at all, or known and behind somebody else's door
+	bot_log(bot, "knows of no [item_type] to get, lawfully (bot_knowledge.dm) - [known ? "[known] known of, and no way to the nearest [min(known, lawful_tries)] by its own doors" : "none known of"]")
 	bot.ask_where(item_type) //"anyone seen one?" (bot_knowledge.dm)
 	return null
 

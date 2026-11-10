@@ -346,3 +346,32 @@
 		fail_reason = "dragged off somebody who could walk"
 		return BOT_GYM_FAIL
 	return world.time > start_time + 8 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// Layout letter N: a NanoMed, as on a hallway wall.
+/datum/bot_scenario/self_patch
+	name = "somebody hurt with no first aid in reach buys a patch from the NanoMed on the wall"
+	desc = "Cut about, nothing on it to treat itself with and no kit it can get to, and a NanoMed down the corridor that sells patches to anybody. It gave up on itself."
+	job = "Assistant"
+	time_limit = 60 SECONDS
+	max_goal_attempts = 2
+	layout = list(
+		"#########",
+		"#B.....N#",
+		"#########")
+
+/datum/bot_scenario/self_patch/setup()
+	for(var/turf/T in markers["N"])
+		place("N", new /obj/machinery/vending/wallmed(T))
+
+/datum/bot_scenario/self_patch/post_spawn()
+	give_job_id()
+	bot.apply_damage(45, BRUTE, BODY_ZONE_CHEST)
+
+/datum/bot_scenario/self_patch/make_goal()
+	return new /datum/bot_goal/self_heal()
+
+/datum/bot_scenario/self_patch/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	// The patch on, and the styptic in it at work
+	return (bot.reagents.has_reagent(/datum/reagent/medicine/styptic_powder) || bot.getBruteLoss() < 35) ? BOT_GYM_PASS : BOT_GYM_PENDING
