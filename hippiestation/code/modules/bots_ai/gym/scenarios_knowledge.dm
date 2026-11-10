@@ -384,3 +384,36 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return (wanted in bot.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/put_down_for_good
+	name = "items: something set down, taken up again and then left on purpose isn't gone back for"
+	desc = "Whatever a bot sets down for a moment it goes back for. Taken up again in the middle of a job, it stayed on that list, so the next place it was put was somewhere to go back to as well: a scientist left a bomb on the mass driver with the timer running, went back for it, and it went off in maintenance."
+	job = "Assistant"
+	time_limit = 20 SECONDS
+	layout = list(
+		"#######",
+		"#B....#",
+		"#######")
+	var/obj/item/screwdriver/thing
+	var/left_at = 0
+
+/datum/bot_scenario/put_down_for_good/issue_goal()
+	return
+
+// All in one go, as within one job: nothing gets a look at the list in between
+/datum/bot_scenario/put_down_for_good/post_spawn()
+	thing = new(bot.loc)
+	bot.put_in_hands(thing)
+	brain.set_down(thing) //for a moment: on the list to go back for
+	brain.ready_in_hand(thing) //taken up again, the way a step does
+	bot.dropItemToGround(thing) //and left, as the bomb is on the driver
+	left_at = world.time
+
+/datum/bot_scenario/put_down_for_good/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	// What a bot with nothing on does every second (bot_brain.dm process()); a Bot Gym bot with no errand doesn't get that far
+	if(brain.set_down_items && brain.go_back_for_set_down())
+		fail_reason = "went back for something it had put down on purpose"
+		return BOT_GYM_FAIL
+	return world.time > left_at + 4 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING

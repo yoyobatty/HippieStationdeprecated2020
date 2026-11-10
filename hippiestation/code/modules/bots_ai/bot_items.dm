@@ -211,6 +211,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	if(!stow_item(I))
 		bot_log_verbose(src, "try_pickup_target: stow_item([I]) failed - active=[owner.get_active_held_item()], inactive=[owner.get_inactive_held_item()], dist=[get_dist(owner, I)], active_hand_index=[owner.active_hand_index], held_items=[owner.held_items], mobility_pickup=[owner.mobility_flags & MOBILITY_PICKUP], I.loc=[I.loc], I.anchored=[I.anchored], I.item_flags=[I.item_flags]")
 		return FALSE
+	LAZYREMOVE(set_down_items, I) //in hand again: where it goes down next is no longer "for a moment"
 	bot_log(src, "picked up [I]")
 	return TRUE
 

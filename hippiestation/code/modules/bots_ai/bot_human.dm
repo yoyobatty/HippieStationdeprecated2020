@@ -75,6 +75,7 @@
 			return FALSE
 		if(owner.get_active_held_item() != I)
 			owner.swap_hand()
+	LAZYREMOVE(set_down_items, I) //taken up again: it's not something set down for a moment any more (bot_items.dm)
 	return owner.get_active_held_item() == I
 
 /// Whether the hand that isn't active can hold anything: an arm that's been lost, or hurt past use, can't (has_hand_for_held_index()).

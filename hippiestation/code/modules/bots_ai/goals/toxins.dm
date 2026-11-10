@@ -1164,6 +1164,10 @@ GLOBAL_DATUM(bot_toxins, /datum/bot_toxins)
 		T.timing = TRUE
 		T.update_icon()
 	bot.owner.dropItemToGround(V)
+	// Left there on purpose. It had been set down for a moment while the tanks went on, which put it on the list of things to go
+	// back for (bot_items.dm), and nothing took it off: a scientist put the bomb on the driver, set the timer, walked out, went
+	// "back for the tank transfer valve", and carried it into the station. It went off in maintenance and killed five.
+	LAZYREMOVE(bot.set_down_items, V)
 	bot_log(bot, "TOXINS: bomb on the driver, [BOT_TOXINS_FUSE] seconds on the timer")
 	bot_say(bot.owner, ";Toxins launching. Clear the range.")
 	return GOAL_STEP_SUCCESS
