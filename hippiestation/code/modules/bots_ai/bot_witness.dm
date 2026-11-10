@@ -639,3 +639,185 @@ GLOBAL_VAR(bot_throw_aimed_at)
 		if(is_type_in_typecache(I, GLOB.bot_contraband))
 			return TRUE
 	return FALSE
+
+// ---- Players griefing, seen (the user's ruling, 2026-11-10): griefing is the admins' business, but bots subdue anybody who's blatantly
+// at it, the Captain too: murdering crew who aren't valid (bot_classify_crime() already makes that murder), flooding plasma, wrecking
+// the engine. A bot saboteur reports itself (goals/sabotage.dm); these are a player doing the same, seen by whoever's there, and called
+// in the same way: Security arrests for Sabotage, an engineer at the engine goes for them there and then.
+
+/// A player (not a bot) caught at one of these. Bots report their own.
+/proc/bot_saw_player_sabotage(mob/living/carbon/human/H, details, engine = FALSE, crime = "Sabotage", severity = BOT_CRIME_MAJOR)
+	if(!istype(H) || H.bot_brain)
+		return
+	log_game("BOT WITNESS: [key_name(H)] [details] at [AREACOORD(H)] ([crime])")
+	bot_witness_sabotage(H, details, engine, crime, severity)
+
+/// The station's running supermatter, if it's this part's: a loop pump or filter in its engine room (not Atmospherics next door)
+/proc/bot_running_crystal_part(obj/machinery/M)
+	var/obj/machinery/power/supermatter_crystal/S = GLOB.main_supermatter_engine
+	var/area/room = get_area(M)
+	if(QDELETED(S) || S.power < 100 || S.z != M.z || get_dist(S, M) > 22)
+		return FALSE
+	return istype(room, /area/engine) && !istype(room, /area/engine/atmos)
+
+/// Engineering staff at their own engine are working on it, whatever they switch: it's the rest who've no business there
+/proc/bot_engine_staff(mob/living/carbon/human/H)
+	return H?.mind?.assigned_role in GLOB.engineering_positions
+
+// Gas let out where people are, judged by what it does there (the user, 2026-11-10):
+//  - Sabotage, as plasma or N2O is: anything that isn't air (freon, water vapour for its slips, CO2 and the rest); gas hot or cold enough
+//    to hurt, let into a room it doesn't help back to a safe temperature; oxygen let in where there's plasma, which can't burn on its own.
+//  - Vandalism, arrestable but no flood: a canister's worth of plain oxygen, nitrogen or air dumped past the room's pressure (too much
+//    nitrogen and there's nothing to breathe). The scrubbers put a room's pressure right, so it's the lesser charge.
+//  - Fine: air let out at a normal pressure, a little of it, or into a room that's lost its own (that's putting it back).
+// From a canister's valve, a portable pump pumping out, or a canister or pipe broken open by whoever hit it last. Never in Atmospherics or
+// Toxins, where gas is the work.
+
+/// Below this many moles of what isn't air, it's a whiff, not a flood
+#define BOT_GAS_FLOOD_MOLES 50
+/// A canister's worth of plain air or what it's made of, dumped
+#define BOT_AIR_DUMP_MOLES 500
+/// Plasma already in a room that oxygen let in would feed
+#define BOT_PLASMA_IN_ROOM 5
+/// How long after somebody's hit it a machine breaking is put down to them
+#define BOT_DAMAGE_BLAME_TIME (10 SECONDS)
+
+/// What's in air and does no harm let out: air's own, and pluoxium and hyper-noblium
+GLOBAL_LIST_INIT(bot_harmless_gases, typecacheof(list(/datum/gas/oxygen, /datum/gas/nitrogen, /datum/gas/pluoxium, /datum/gas/hypernoblium)))
+
+/// The gas there's most of in this air that isn't harmless, by name, if there's a flood's worth of what isn't. Null for plain air.
+/proc/bot_harmful_gas_in(datum/gas_mixture/G)
+	if(!G)
+		return null
+	var/total = 0
+	var/worst
+	var/worst_amount = 0
+	for(var/id in G.moles)
+		if(GLOB.bot_harmless_gases[id])
+			continue
+		var/amount = G.moles[id]
+		total += amount
+		if(amount > worst_amount)
+			worst = id
+			worst_amount = amount
+	if(total < BOT_GAS_FLOOD_MOLES)
+		return null
+	return lowertext(GAS_META[META_GAS_NAME][worst])
+
+/// What letting this gas out at `where` comes to: list(crime, what they're doing, severity), or null if it's fine. `dumping`: out past
+/// the room's own pressure (a high release pressure, or broken open), not just topping it up.
+/proc/bot_gas_release_verdict(datum/gas_mixture/G, atom/where, dumping, how)
+	var/turf/T = get_turf(where)
+	if(!G || !T || G.total_moles() < BOT_GAS_FLOOD_MOLES || bot_air_meant_to_be_bad(T))
+		return null
+	var/datum/gas_mixture/room = T.return_air()
+	var/gas = bot_harmful_gas_in(G)
+	if(gas)
+		return list("Sabotage", "is letting [gas] out of [how]", BOT_CRIME_MAJOR)
+	var/temperature = G.return_temperature()
+	var/room_temperature = room ? room.return_temperature() : T20C
+	// Hot into a room that isn't freezing, cold into one that isn't sweltering: it hurts people, it isn't putting the room right
+	if(temperature > BODYTEMP_HEAT_DAMAGE_LIMIT && room_temperature >= BODYTEMP_COLD_DAMAGE_LIMIT)
+		return list("Sabotage", "is letting scalding gas out of [how]", BOT_CRIME_MAJOR)
+	if(temperature < BODYTEMP_COLD_DAMAGE_LIMIT && room_temperature <= BODYTEMP_HEAT_DAMAGE_LIMIT)
+		return list("Sabotage", "is letting freezing gas out of [how]", BOT_CRIME_MAJOR)
+	if(G.moles[/datum/gas/oxygen] >= BOT_GAS_FLOOD_MOLES && room?.moles[/datum/gas/plasma] >= BOT_PLASMA_IN_ROOM)
+		return list("Sabotage", "is letting oxygen into the plasma from [how]", BOT_CRIME_MAJOR)
+	if(dumping && G.total_moles() >= BOT_AIR_DUMP_MOLES && room && room.return_pressure() >= WARNING_LOW_PRESSURE)
+		var/main = G.moles[/datum/gas/nitrogen] > G.moles[/datum/gas/oxygen] ? "nitrogen" : "oxygen"
+		if(G.moles[/datum/gas/nitrogen] && G.moles[/datum/gas/oxygen] && abs(G.moles[/datum/gas/nitrogen] - 4 * G.moles[/datum/gas/oxygen]) < G.total_moles() * 0.2)
+			main = "air"
+		return list("Vandalism", "is dumping [main] out of [how]", BOT_CRIME_MINOR)
+	return null
+
+/// A player at it, if the verdict says so
+/proc/bot_judge_gas_release(mob/living/carbon/human/H, datum/gas_mixture/G, atom/where, dumping, how)
+	var/list/verdict = bot_gas_release_verdict(G, where, dumping, how)
+	if(verdict)
+		bot_saw_player_sabotage(H, verdict[2], FALSE, verdict[1], verdict[3])
+
+/obj/machinery
+	/// Who last hit it with something, and when: who it breaking open is put down to
+	var/datum/weakref/last_damager
+	var/last_damaged_at = 0
+
+/obj/machinery/attacked_by(obj/item/I, mob/living/user)
+	. = ..()
+	if(I?.force && ishuman(user))
+		last_damager = WEAKREF(user)
+		last_damaged_at = world.time
+
+/obj/machinery/bullet_act(obj/item/projectile/P, def_zone)
+	. = ..()
+	if(ishuman(P?.firer) && !P.nodamage)
+		last_damager = WEAKREF(P.firer)
+		last_damaged_at = world.time
+
+/// Who broke this, if anybody did, just now
+/obj/machinery/proc/broken_by()
+	if(world.time > last_damaged_at + BOT_DAMAGE_BLAME_TIME)
+		return null
+	return last_damager?.resolve()
+
+/obj/machinery/portable_atmospherics/canister/ui_act(action, params)
+	var/was_open = valve_open
+	var/was_pressure = release_pressure
+	. = ..()
+	if(!valve_open || holding)
+		return
+	// Opened, or its release pressure turned up while open (a dump starts as an ordinary top-up as often as not)
+	var/dumping = release_pressure > ONE_ATMOSPHERE * 1.5
+	if(was_open && !(dumping && was_pressure <= ONE_ATMOSPHERE * 1.5))
+		return
+	bot_judge_gas_release(usr, air_contents, src, dumping, "a canister")
+
+/obj/machinery/portable_atmospherics/pump/ui_act(action, params)
+	var/was_releasing = on && direction == "out" && !holding
+	var/was_pressure = pump?.target_pressure
+	. = ..()
+	if(!on || direction != "out" || holding)
+		return
+	var/dumping = pump?.target_pressure > ONE_ATMOSPHERE * 1.5
+	if(was_releasing && !(dumping && was_pressure <= ONE_ATMOSPHERE * 1.5))
+		return
+	bot_judge_gas_release(usr, air_contents, src, dumping, "a portable pump")
+
+/obj/machinery/portable_atmospherics/canister/canister_break()
+	var/datum/gas_mixture/inside = air_contents?.copy()
+	var/mob/living/carbon/human/breaker = broken_by()
+	. = ..()
+	if(breaker)
+		bot_judge_gas_release(breaker, inside, src, TRUE, "a canister broken open")
+
+/obj/machinery/atmospherics/pipe/releaseAirToTurf()
+	var/datum/gas_mixture/inside = air_temporary?.copy()
+	var/mob/living/carbon/human/breaker = broken_by()
+	. = ..()
+	if(breaker)
+		bot_judge_gas_release(breaker, inside, src, TRUE, "a broken pipe")
+
+#undef BOT_GAS_FLOOD_MOLES
+#undef BOT_AIR_DUMP_MOLES
+#undef BOT_PLASMA_IN_ROOM
+#undef BOT_DAMAGE_BLAME_TIME
+
+/obj/machinery/atmospherics/components/binary/pump/ui_act(action, params)
+	var/was_on = on
+	. = ..()
+	if(action == "power" && was_on && !on && bot_running_crystal_part(src) && !bot_engine_staff(usr))
+		bot_saw_player_sabotage(usr, "is messing with the engine", TRUE)
+
+/obj/machinery/atmospherics/components/trinary/filter/ui_act(action, params)
+	var/was_on = on
+	. = ..()
+	if(action == "power" && was_on && !on && bot_running_crystal_part(src) && !bot_engine_staff(usr))
+		bot_saw_player_sabotage(usr, "is messing with the engine", TRUE)
+
+/obj/machinery/power/emitter/interact(mob/user)
+	var/was_active = active
+	. = ..()
+	if(!was_active || active || bot_engine_staff(user))
+		return
+	var/turf/site = bot_caged_tesla_site() //setup_tesla_engine.dm
+	if(site && site.z == z && get_dist(src, site) <= 40)
+		bot_saw_player_sabotage(user, "is messing with the engine", TRUE)

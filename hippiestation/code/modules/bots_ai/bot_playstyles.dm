@@ -80,7 +80,7 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 		if(H.stat == DEAD)
 			note_body(H)
 			continue
-		if(H.stat != CONSCIOUS || H.handcuffed || greytider || bot_is_officer(H) || bot_means_well(H))
+		if(H.stat != CONSCIOUS || H.handcuffed || greytider || bot_is_officer(H) || bot_is_the_captain(H) || bot_means_well(H))
 			continue
 		var/obj/item/thing = bot_contraband_on(H)
 		if(thing && !is_security_job() && menaced_by(H, thing))

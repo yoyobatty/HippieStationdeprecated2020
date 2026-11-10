@@ -143,6 +143,13 @@ GLOBAL_VAR(bot_in_command)
 // The Captain's ID
 // ---------------------------------------------------------------------------------------------
 
+/// The Captain, the station's highest authority (the user, 2026-11-10, after Security arrested them as Captain for a punch and
+/// ignored "im cap"). Security leaves them be over a minor charge. Worse is dealt with as for anybody: player griefing is for the
+/// admins, but somebody murdering crew who aren't valid, flooding plasma or wrecking the engine gets subdued, the Captain too.
+/// The Captain can't be a traitor (traitor.dm protected_jobs), so nothing they carry is held against them as Syndicate either.
+/proc/bot_is_the_captain(mob/living/carbon/human/H)
+	return H?.mind?.assigned_role == "Captain"
+
 /proc/bot_is_captains_id(obj/item/card/id/C)
 	return istype(C, /obj/item/card/id/captains_spare) || (istype(C) && C.assignment == "Captain")
 

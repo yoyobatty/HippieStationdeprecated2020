@@ -142,6 +142,9 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 
 // Mirrors what the sec HUD's "status" and "add_crime" hrefs (human.dm Topic()) do.
 /datum/bot_brain/proc/file_crime(mob/living/carbon/human/H, crime, details, severity, mob/living/victim)
+	if(severity < BOT_CRIME_MAJOR && bot_is_the_captain(H)) //bot_law.dm
+		bot_log(src, "not putting the Captain on record for [lowertext(crime)]")
+		return
 	var/datum/bot_wanted/W = bot_get_wanted_entry(H)
 	if(!W)
 		W = new
@@ -322,6 +325,13 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 /proc/bot_classify_crime(mob/living/carbon/human/attacker, mob/living/carbon/human/victim, what_done, atom/object)
 	var/lower = lowertext(what_done)
 	var/weapon_force = 0
+	// tg's item attacks log the weapon by name (item_attack.dm: log_combat(user, M, "attacked", src.name)), so a toolbox to the head read
+	// as a bare-handed "Assault", a minor charge, for every player: it's the thing in their hands of that name
+	if(istext(object))
+		for(var/obj/item/held in attacker.held_items)
+			if(held.name == object)
+				object = held
+				break
 	if(isitem(object))
 		var/obj/item/I = object
 		weapon_force = I.force
@@ -405,6 +415,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		var/list/rec = bot_describe_record_crimes(H)
 		crime = rec[1]
 		severity = rec[2]
+	if(severity < BOT_CRIME_MAJOR && bot_is_the_captain(H)) // even on the records (a player officer's): bot_law.dm
+		return FALSE
 
 	if(state == BOT_STATE_ARREST)
 		if(arrest_suspect == H)

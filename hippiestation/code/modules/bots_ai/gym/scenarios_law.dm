@@ -581,3 +581,219 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return brain.is_carried(gun) && world.time > start_time + 5 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// The Captain, the highest authority (bot_is_the_captain(), bot_law.dm). The user, as Captain, punched somebody in the Bar: Security
+// came for them for assault, ignored "im cap", and it ended with the Captain killing the HoS and an officer (round-08.58.42, 2026-11-10).
+/datum/bot_scenario/griefed/captain
+	job = "Security Officer"
+	griefer_name = "Cora Captain"
+	griefer_job = "Captain"
+	kit_backpack = list(/obj/item/restraints/handcuffs)
+	layout = list(
+		"##########",
+		"#B...C.V.#",
+		"##########")
+	var/mob/living/carbon/human/victim
+	var/hits = 0
+
+/datum/bot_scenario/griefed/captain/post_spawn()
+	..()
+	brain.gym_scripted = FALSE
+	victim = stand_in(first_marker("V"), "Vic Victim")
+
+/datum/bot_scenario/griefed/captain/release_run()
+	GLOB.bot_security_wanted -= WEAKREF(victim)
+	return ..()
+
+/datum/bot_scenario/griefed/captain/proc/arrested()
+	return (brain.state == BOT_STATE_ARREST && brain.arrest_suspect == griefer) || bot_get_wanted_entry(griefer)
+
+/datum/bot_scenario/griefed/captain/punch
+	name = "law: the Captain throwing a punch isn't Security's to arrest"
+	desc = "The Captain punches a crewman three times in front of an officer. Assault is a minor charge, and Security leaves the station's highest authority be over one: no record, no arrest. The officer used to cuff them for it."
+	time_limit = 15 SECONDS
+
+/datum/bot_scenario/griefed/captain/punch/grief()
+	keep_at_it("punch", 1 SECONDS)
+
+/datum/bot_scenario/griefed/captain/punch/proc/punch()
+	if(++hits > 3)
+		return FALSE
+	griefer.forceMove(get_step(victim, WEST))
+	griefer_hand(INTENT_HARM, victim)
+	return TRUE
+
+/datum/bot_scenario/griefed/captain/punch/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(arrested())
+		fail_reason = "went to arrest the Captain for a punch"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 12 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/captain/toolbox
+	name = "law: the Captain beating somebody with a toolbox is arrested like anybody"
+	desc = "The Captain beats a crewman with a toolbox in front of an officer: Assault with a Deadly Weapon, a major charge. That's dealt with as it would be for anybody: the officer goes to arrest them."
+	time_limit = 20 SECONDS
+
+/datum/bot_scenario/griefed/captain/toolbox/grief()
+	griefer_holds(/obj/item/storage/toolbox/mechanical)
+	keep_at_it("hit", 1 SECONDS)
+
+/datum/bot_scenario/griefed/captain/toolbox/proc/hit()
+	if(++hits > 3 || arrested())
+		return FALSE
+	griefer.forceMove(get_step(victim, WEST))
+	griefer_swing(griefer.get_active_held_item(), victim)
+	return TRUE
+
+/datum/bot_scenario/griefed/captain/toolbox/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return arrested() ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// A player griefing, not a bot (bot_witness.dm bot_saw_player_sabotage()): the user's ruling, 2026-11-10, bots subdue anybody blatantly
+// at it. Only bot saboteurs were ever seen at it before: a player could open plasma in a hallway in front of an officer.
+/datum/tgui/bot_gym_stub/New()
+	status = UI_INTERACTIVE
+
+/datum/bot_scenario/griefed/player_plasma
+	name = "law: a player letting plasma out of a canister in front of an officer is arrested for sabotage"
+	desc = "Somebody who isn't a bot opens a full plasma canister in a hallway, an officer watching. The officer calls it in as Sabotage and goes to arrest them."
+	job = "Security Officer"
+	griefer_name = "Greg Griefer"
+	time_limit = 20 SECONDS
+	kit_backpack = list(/obj/item/restraints/handcuffs)
+	layout = list(
+		"###########",
+		"#B....Ck..#",
+		"#.........#",
+		"###########")
+	var/obj/machinery/portable_atmospherics/canister/toxins/canister
+
+/datum/bot_scenario/griefed/player_plasma/setup()
+	canister = new(first_marker("k"))
+	place("k", canister)
+
+/datum/bot_scenario/griefed/player_plasma/post_spawn()
+	..()
+	brain.gym_scripted = FALSE
+
+/datum/bot_scenario/griefed/player_plasma/grief()
+	usr = griefer
+	canister.ui_act("valve", list(), new /datum/tgui/bot_gym_stub)
+	log_line("valve [canister.valve_open ? "open" : "shut"]")
+
+/datum/bot_scenario/griefed/player_plasma/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/datum/bot_wanted/W = bot_get_wanted_entry(griefer)
+	return (W?.crime == "Sabotage" || (brain.state == BOT_STATE_ARREST && brain.arrest_suspect == griefer)) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/player_plasma/release_run()
+	if(!QDELETED(canister))
+		canister.valve_open = FALSE
+		qdel(canister)
+	return ..()
+
+/// The same, done other ways: what's let out that isn't air is a flood, however it's let out (the user, 2026-11-10)
+/datum/bot_scenario/griefed/player_plasma/smashed
+	name = "law: a player smashing a plasma canister open in front of an officer is arrested for sabotage"
+	desc = "Somebody who isn't a bot beats a plasma canister with a toolbox till it bursts. The officer calls it in as Sabotage and goes to arrest them."
+
+/datum/bot_scenario/griefed/player_plasma/smashed/grief()
+	var/obj/item/T = griefer_holds(/obj/item/storage/toolbox/mechanical)
+	griefer_swing(T, canister)
+	canister.take_damage(canister.max_integrity) //the rest of the beating
+	log_line("canister [(canister.stat & BROKEN) ? "broken" : "whole"]")
+
+/datum/bot_scenario/griefed/player_plasma/pumped
+	name = "law: a player pumping N2O out of a portable pump in front of an officer is arrested for sabotage"
+	desc = "Somebody who isn't a bot switches on a portable pump full of sleeping gas, pumping out into the hallway. The officer calls it in as Sabotage."
+	var/obj/machinery/portable_atmospherics/pump/pump
+
+/datum/bot_scenario/griefed/player_plasma/pumped/setup()
+	..()
+	pump = new(get_step(first_marker("k"), SOUTH))
+	place("p", pump)
+	pump.air_contents.moles[/datum/gas/nitrous_oxide] = 600
+
+/datum/bot_scenario/griefed/player_plasma/pumped/grief()
+	usr = griefer
+	pump.ui_act("power", list(), new /datum/tgui/bot_gym_stub)
+	log_line("pump [pump.on ? "on" : "off"], [pump.direction]")
+
+/datum/bot_scenario/griefed/player_plasma/pumped/release_run()
+	if(!QDELETED(pump))
+		pump.on = FALSE
+		qdel(pump)
+	return ..()
+
+/datum/bot_scenario/griefed/player_plasma/oxygen
+	name = "law: a player letting oxygen out of a canister isn't griefing"
+	desc = "Somebody opens an oxygen canister in the hallway, an officer watching. Air and what it's made of is no flood: nobody's called in."
+	time_limit = 12 SECONDS
+
+/datum/bot_scenario/griefed/player_plasma/oxygen/setup()
+	canister = new /obj/machinery/portable_atmospherics/canister/oxygen(first_marker("k"))
+	place("k", canister)
+
+/datum/bot_scenario/griefed/player_plasma/oxygen/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot_get_wanted_entry(griefer) || (brain.state == BOT_STATE_ARREST && brain.arrest_suspect == griefer))
+		fail_reason = "called oxygen a flood"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 10 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/player_plasma/smashed/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/datum/bot_wanted/W = bot_get_wanted_entry(griefer)
+	return W?.crime == "Sabotage" ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// Plain air judged by what it does (the user, 2026-11-10): dumped, the lesser charge; into plasma or scalding, as bad as plasma
+/datum/bot_scenario/griefed/player_plasma/judged
+	name = "unnamed" //a parent type, for its children
+	/// The charge it should come to
+	var/expect_crime = "Vandalism"
+
+/datum/bot_scenario/griefed/player_plasma/judged/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/datum/bot_wanted/W = bot_get_wanted_entry(griefer)
+	if(W && W.crime != expect_crime)
+		fail_reason = "charged with [W.crime]"
+		return BOT_GYM_FAIL
+	return W ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/player_plasma/judged/nitrogen
+	name = "law: a player dumping a nitrogen canister at full pressure is arrested for vandalism"
+	desc = "A nitrogen canister let out at its highest release pressure into a hallway with its air: no flood, but nothing left to breathe if it goes on. The lesser charge, Vandalism."
+
+/datum/bot_scenario/griefed/player_plasma/judged/nitrogen/setup()
+	canister = new /obj/machinery/portable_atmospherics/canister/nitrogen(first_marker("k"))
+	place("k", canister)
+	canister.release_pressure = canister.can_max_release_pressure
+
+/datum/bot_scenario/griefed/player_plasma/judged/into_plasma
+	name = "law: a player letting oxygen into a room with plasma in it is arrested for sabotage"
+	desc = "Plasma hangs in the hallway already, which can't burn on its own. Opening an oxygen canister into it gives it what it needs: as bad as the plasma itself."
+	expect_crime = "Sabotage"
+
+/datum/bot_scenario/griefed/player_plasma/judged/into_plasma/setup()
+	canister = new /obj/machinery/portable_atmospherics/canister/oxygen(first_marker("k"))
+	place("k", canister)
+	for(var/turf/open/T in arena_area)
+		T.air.moles[/datum/gas/plasma] += 20
+		T.air_update_turf()
+
+/datum/bot_scenario/griefed/player_plasma/judged/scalding
+	name = "law: a player letting scalding air out of a canister is arrested for sabotage"
+	desc = "An air canister heated to 600 K, let out into the hallway: it burns whoever's in it. Sabotage."
+	expect_crime = "Sabotage"
+
+/datum/bot_scenario/griefed/player_plasma/judged/scalding/setup()
+	canister = new /obj/machinery/portable_atmospherics/canister/air(first_marker("k"))
+	place("k", canister)
+	canister.air_contents.temperature = 600
