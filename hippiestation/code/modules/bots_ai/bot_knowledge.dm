@@ -128,6 +128,20 @@ GLOBAL_LIST_EMPTY(bot_vendor_sells)
 	/// "[REF(vendor)] [item type]" -> until when it remembers that machine couldn't give it one
 	var/list/sold_out_seen
 
+/// Kinds the game files under a type that nobody would take for one. A bottle of water is a beaker to the game, and every drinks
+/// machine sells them: chemists with no beaker went and bought one, 56 times in 12 shifts, found it full of water, and gave the
+/// brew up.
+GLOBAL_LIST_INIT(bot_kinds_in_name_only, list(
+	/obj/item/reagent_containers/glass/beaker = list(/obj/item/reagent_containers/glass/beaker/waterbottle),
+))
+
+/// Whether something of this path is what anybody asking for a `type` means
+/proc/bot_counts_as(path, type)
+	for(var/not_one in GLOB.bot_kinds_in_name_only[type])
+		if(ispath(path, not_one))
+			return FALSE
+	return TRUE
+
 /// What V sells of `type` (that type itself before a kind of it), going by what's on its front, or null
 /proc/bot_vendor_product(obj/machinery/vending/V, type)
 	var/key = "[V.type] [type]"
@@ -138,7 +152,7 @@ GLOBAL_LIST_EMPTY(bot_vendor_sells)
 			if(path == type)
 				known = path
 				break
-			if(!known && ispath(path, type))
+			if(!known && ispath(path, type) && bot_counts_as(path, type))
 				known = path
 		GLOB.bot_vendor_sells[key] = known
 	return known || null

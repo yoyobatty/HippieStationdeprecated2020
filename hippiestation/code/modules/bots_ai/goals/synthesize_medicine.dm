@@ -215,6 +215,7 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 		tried_fetch = TRUE
 		var/datum/bot_goal/acquire_item_type/sub = new()
 		sub.item_type = /obj/item/reagent_containers/glass/beaker
+		sub.empty_only = TRUE
 		sub.lawful = TRUE //one of Medbay's, or one lying about - not the kitchen's or Robotics'
 		if(bot.suspend_goal_for(sub))
 			return GOAL_STEP_PENDING

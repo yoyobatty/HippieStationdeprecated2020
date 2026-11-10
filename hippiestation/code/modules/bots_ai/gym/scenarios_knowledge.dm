@@ -201,3 +201,59 @@
 		if(findtext(line, "Bot Gym Arena"))
 			return BOT_GYM_PASS
 	return BOT_GYM_PENDING
+
+// Layout letter V is a cola machine (bot_gym.dm), which sells bottles of water: /obj/item/reagent_containers/glass/beaker/waterbottle.
+/datum/bot_scenario/knows_what_machines_sell/not_bottled_water
+	name = "knowledge: a chemist after a beaker doesn't buy bottled water"
+	desc = "The game files a bottle of water under beakers. A chemist with no beaker went to the nearest drinks machine and bought one, found it full of water, and gave the brew up: 56 bottles in 12 shifts."
+	job = "Chemist"
+	time_limit = 15 SECONDS
+	layout = list(
+		"########",
+		"#B....V#",
+		"########")
+
+/// A beaker for a fresh brew, as the dispenser steps ask for one. `empty_only` by name: it's part of the fix.
+/datum/bot_scenario/knows_what_machines_sell/not_bottled_water/make_goal()
+	if(goal_attempts > 1)
+		return null
+	var/datum/bot_goal/acquire_item_type/get = new
+	get.item_type = /obj/item/reagent_containers/glass/beaker
+	get.lawful = TRUE
+	if("empty_only" in get.vars)
+		get.vars["empty_only"] = TRUE
+	return get
+
+/datum/bot_scenario/knows_what_machines_sell/not_bottled_water/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(locate(/obj/item/reagent_containers/glass/beaker/waterbottle) in bot.GetAllContents())
+		fail_reason = "bought a bottle of water for a beaker"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 10 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/knows_what_machines_sell/not_bottled_water/empty_one
+	name = "knowledge: a chemist after a beaker takes an empty one"
+	desc = "A beaker somebody's left half full on the side, and an empty one further off. For a fresh brew it's the empty one: it picked up the nearest, found something in it, and gave the brew up."
+	time_limit = 30 SECONDS
+	layout = list(
+		"#########",
+		"#B.h...e#",
+		"#########")
+	var/obj/item/reagent_containers/glass/beaker/half_full
+	var/obj/item/reagent_containers/glass/beaker/empty
+
+/datum/bot_scenario/knows_what_machines_sell/not_bottled_water/empty_one/setup()
+	. = ..()
+	half_full = new(first_marker("h"))
+	half_full.reagents.add_reagent(/datum/reagent/water, 20)
+	empty = new(first_marker("e"))
+
+/datum/bot_scenario/knows_what_machines_sell/not_bottled_water/empty_one/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/list/carried = bot.GetAllContents()
+	if(half_full in carried)
+		fail_reason = "took the beaker with something in it"
+		return BOT_GYM_FAIL
+	return (empty in carried) ? BOT_GYM_PASS : BOT_GYM_PENDING

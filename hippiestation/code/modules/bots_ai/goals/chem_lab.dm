@@ -675,6 +675,7 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 		tried_fetch = TRUE
 		var/datum/bot_goal/acquire_item_type/sub = new()
 		sub.item_type = /obj/item/reagent_containers/glass/beaker
+		sub.empty_only = TRUE
 		sub.lawful = TRUE
 		if(bot.suspend_goal_for(sub))
 			return GOAL_STEP_PENDING

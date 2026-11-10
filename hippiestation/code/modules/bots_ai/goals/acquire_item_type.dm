@@ -6,6 +6,15 @@
 	/// How many of the nearest it checks it can walk to, lawfully: past that it gives up. Six is plenty for most things; a chemist's
 	/// screwdriver (goals/chem_lab.dm) has the nearest ones behind Engineering's and Robotics' doors.
 	var/lawful_tries = 6
+	/// Only one with nothing in it: a beaker for a fresh brew, not the one somebody left half full on the side
+	var/empty_only = FALSE
+
+/// Whether this one, lying about, is what's wanted. Kinds the game files under the type that nobody would take for one aren't
+/// (bot_counts_as(), bot_knowledge.dm).
+/datum/bot_goal/acquire_item_type/proc/will_do(obj/item/I)
+	if(!bot_counts_as(I.type, item_type))
+		return FALSE
+	return !empty_only || !I.reagents?.total_volume
 
 // Picks the NEAREST reachable-looking candidate on the bot's own z-level, not just the
 // first match world// happens to iterate to. A plain "first in world" scan used to
@@ -25,7 +34,7 @@
 	var/obj/item/best
 	var/best_dist
 	for(var/obj/item/I as anything in bot_instances_of(item_type))
-		if(!isturf(I.loc) || I.anchored || bot.on_a_shuttle_without_me(I) || !bot.knows_of(I))
+		if(!isturf(I.loc) || I.anchored || bot.on_a_shuttle_without_me(I) || !bot.knows_of(I) || !will_do(I))
 			continue //already held/worn/bagged, or fixed in place - not freely takeable
 		var/turf/T = I.loc
 		if(T.z != bot.owner.z)
@@ -73,7 +82,7 @@
 /datum/bot_goal/acquire_item_type/proc/nearest_lawful_source(datum/bot_brain/bot)
 	var/list/found = list() //source -> how far off
 	for(var/obj/item/I as anything in bot_instances_of(item_type))
-		if(QDELETED(I) || !isturf(I.loc) || I.anchored || I.z != bot.owner.z || bot.on_a_shuttle_without_me(I) || !bot.knows_of(I))
+		if(QDELETED(I) || !isturf(I.loc) || I.anchored || I.z != bot.owner.z || bot.on_a_shuttle_without_me(I) || !bot.knows_of(I) || !will_do(I))
 			continue
 		found[I] = get_dist(bot.owner, I)
 	for(var/obj/structure/closet/C as anything in bot_instances_of(/obj/structure/closet))
