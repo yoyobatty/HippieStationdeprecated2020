@@ -376,3 +376,31 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return (bot_has_nanites(bot) && isturf(bot.loc)) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/self_heal_aim
+	name = "self-heal: the bruise pack goes on the cut, not on the burnt arm"
+	desc = "A cut on the chest and a worse burn on the right arm, and only a bruise pack on it. It aimed at the arm, the worst off of the two, where a bruise pack does nothing, three times over, and gave up."
+	job = "Assistant"
+	time_limit = 30 SECONDS
+	max_goal_attempts = 1
+	kit_backpack = list(/obj/item/stack/medical/bruise_pack)
+	layout = list(
+		"######",
+		"#B...#",
+		"######")
+
+/datum/bot_scenario/self_heal_aim/post_spawn()
+	bot.apply_damage(12, BRUTE, BODY_ZONE_CHEST)
+	bot.apply_damage(13, BURN, BODY_ZONE_R_ARM)
+
+/datum/bot_scenario/self_heal_aim/make_goal()
+	return new /datum/bot_goal/self_heal()
+
+/datum/bot_scenario/self_heal_aim/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/line in transcript)
+		if(findtext(line, "isn't doing anything for me"))
+			fail_reason = "bandaged the burnt arm, where a bruise pack does nothing"
+			return BOT_GYM_FAIL
+	return bot.getBruteLoss() < 5 ? BOT_GYM_PASS : BOT_GYM_PENDING

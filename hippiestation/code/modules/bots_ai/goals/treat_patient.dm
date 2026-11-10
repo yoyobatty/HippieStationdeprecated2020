@@ -87,7 +87,31 @@
 		else if(istype(M, /obj/item/stack/medical/ointment) && !burn_pick)
 			burn_pick = M
 	var/obj/item/stack/medical/picked = burn_first ? (burn_pick || brute_pick) : (brute_pick || burn_pick)
+	// Only what heals what they've got, aimed where it does. A bruise pack does nothing for a burn and ointment nothing for a cut
+	// (stack/medical heal_carbon()), and the aim was at the limb worst off in both together: three bruise packs on a burnt arm was
+	// "this isn't doing anything for me", 58 of the 62 self-heals given up that way in a batch.
+	if(picked && !aim_for_stack(patient, picked))
+		picked = (picked == brute_pick) ? burn_pick : brute_pick
+		if(picked && !aim_for_stack(patient, picked))
+			picked = null
 	return picked || find_healing_pill()
+
+/// The aim on the organic limb worst off in what this stack heals. FALSE if no limb has any of it.
+/datum/bot_brain/proc/aim_for_stack(mob/living/carbon/human/patient, obj/item/stack/medical/M)
+	var/brute = istype(M, /obj/item/stack/medical/bruise_pack)
+	var/obj/item/bodypart/worst
+	var/worst_damage = 0
+	for(var/obj/item/bodypart/B in patient.bodyparts)
+		if(B.status != BODYPART_ORGANIC)
+			continue
+		var/dam = brute ? B.brute_dam : B.burn_dam
+		if(dam > worst_damage)
+			worst_damage = dam
+			worst = B
+	if(!worst)
+		return FALSE
+	owner.zone_selected = worst.body_zone
+	return TRUE
 
 /// A pill or a patch with something healing in it, for when the first aid kit's run out or there never was one (goals/chem_lab.dm).
 /datum/bot_brain/proc/find_healing_pill()
