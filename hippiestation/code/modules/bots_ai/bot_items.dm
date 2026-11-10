@@ -583,6 +583,8 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 		if(pursuit_is_lawful())
 			bot_log(src, "[D] won't open for me - going another way")
 			return FALSE
+		if(medical_kept_out_of(D))
+			return FALSE
 		if(try_pry_door(D))
 			return TRUE
 		if(should_smash_instead(D))
@@ -707,6 +709,39 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 // real wire-panel UI calls per click, so this is the real hack, not a shortcut - it
 // just skips needing to know the (possibly randomized) on-screen wire color/position,
 // since pulse() takes the wire constant directly. Welded doors have no wire fix.
+/datum/bot_brain
+	/// When a doctor shut out of Security may next ask on the radio to be let in
+	var/next_security_knock = 0
+
+/// Somebody on Security up and about on this level to open a door
+/proc/bot_security_standing(z)
+	for(var/mob/living/carbon/human/H in GLOB.alive_mob_list)
+		if(H.z == z && H.stat == CONSCIOUS && !H.handcuffed && (H.mind?.assigned_role in GLOB.security_positions))
+			return TRUE
+	return FALSE
+
+/// Medical doesn't break into Security (the user's ruling, 2026-11-10): a doctor asks the AI or Security to open up, and waits. Only with
+/// nobody left in Security to open a door does it let itself in. A doctor hacked the Courtroom and the Brig to get at prisoners, and left
+/// both doors bolted open behind it.
+/datum/bot_brain/proc/medical_kept_out_of(obj/machinery/door/D)
+	if(!(work_role() in GLOB.medical_positions))
+		return FALSE
+	var/area/beyond = get_area(get_step(D, get_dir(owner, D))) || get_area(D)
+	var/list/needs = list()
+	if(islist(D.req_access))
+		needs += D.req_access
+	if(islist(D.req_one_access))
+		needs += D.req_one_access
+	if(!istype(beyond, /area/security) && !istype(beyond, /area/ai_monitored/security) && !(ACCESS_SECURITY in needs) && !(ACCESS_BRIG in needs))
+		return FALSE
+	if(!bot_security_standing(owner.z))
+		return FALSE
+	bot_log(src, "[D] is Security's - asking to be let in, not breaking in")
+	if(world.time >= next_security_knock)
+		next_security_knock = world.time + 30 SECONDS
+		say_after_typing(pick(";AI, could you open the door to [beyond.name]? Doctor here, I've a patient in there.", ";Security, doctor at your door, [beyond.name]. Let me in?"))
+	return TRUE
+
 /datum/bot_brain/proc/try_hack_door(obj/machinery/door/D)
 	if(up_to_no_good())
 		owner.bot_broke_in_at = world.time //bot_departments.dm

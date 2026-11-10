@@ -29,6 +29,14 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 	var/next_explore_access_ask = 0
 	var/explore_blocked_until = 0
 
+/// Somebody in crit on the doctor's level, waiting for a doctor (in its own arena, in the Bot Gym)
+/proc/bot_casualty_waiting(mob/living/doctor, gym)
+	for(var/mob/living/carbon/human/H in GLOB.alive_mob_list)
+		if(H == doctor || H.z != doctor.z || H.stat == DEAD || H.health > H.crit_threshold || (gym && get_area(H) != get_area(doctor)))
+			continue
+		return TRUE
+	return FALSE
+
 /datum/bot_duty/explore
 	name = "exploring"
 	tier = BOT_DUTY_WORK
@@ -44,6 +52,12 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 
 /datum/bot_duty/explore/try_start(datum/bot_brain/bot)
 	if(bot.state == BOT_STATE_GOAL && bot.current_goal)
+		return FALSE
+	// Not with people dying: the only doctor left his ID at the HoP's door for EVA access, "Want to go exploring", with three of the
+	// crew in crit and the Captain killing the rest (2026-11-10). Anybody else stays put once the bodies are piling up.
+	if(!bot.gym_run && bot_shift_gone_bad())
+		return FALSE
+	if((bot.work_role() in GLOB.medical_positions) && bot_casualty_waiting(bot.owner, bot.gym_run))
 		return FALSE
 	if(bot.on_lavaland())
 		if(bot_storm_over(bot.owner.z))

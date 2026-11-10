@@ -488,3 +488,113 @@
 		return BOT_GYM_FAIL
 	// The patch on, and the styptic in it at work
 	return (bot.reagents.has_reagent(/datum/reagent/medicine/styptic_powder) || bot.getBruteLoss() < 35) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// From the user's Captain round (2026-11-10)
+
+/// The only doctor hacked into the Courtroom and the Brig for patients and left both bolted open. Medical asks Security or the AI to open up.
+/datum/bot_scenario/no_hacking_security
+	name = "doctor: a patient behind a Security door, it asks to be let in rather than hacking it"
+	desc = "A casualty lies behind a door that only opens for Security, and an officer's about. The doctor has the tools to hack it, but asks on the radio to be let in instead."
+	job = "Medical Doctor"
+	layout = list(
+		"##########",
+		"#sB.D.C..#",
+		"#O########",
+		"##########")
+	kit_backpack = list(/obj/item/screwdriver, /obj/item/multitool, /obj/item/wirecutters, /obj/item/clothing/gloves/color/yellow)
+	time_limit = 25 SECONDS
+	var/mob/living/carbon/human/patient
+
+/datum/bot_scenario/no_hacking_security/setup()
+	var/obj/machinery/door/airlock/A = locate() in first_marker("D")
+	if(A)
+		A.req_access = list(ACCESS_BRIG)
+		A.req_one_access = null
+	place("s", new /obj/machinery/sleeper(first_marker("s")))
+
+/datum/bot_scenario/no_hacking_security/post_spawn()
+	give_job_id(list(ACCESS_MEDICAL))
+	patient = stand_in(first_marker("C"), "Pat Prisoner")
+	patient.apply_damage(130, BRUTE, BODY_ZONE_CHEST)
+	var/mob/living/carbon/human/officer = stand_in(first_marker("O"), "Sam Officer")
+	officer.mind_initialize()
+	officer.mind.assigned_role = "Security Officer"
+
+/datum/bot_scenario/no_hacking_security/make_goal()
+	return new /datum/bot_goal/escort_to_sleeper()
+
+/datum/bot_scenario/no_hacking_security/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("trying to hack it"))
+		fail_reason = "hacked its way into Security"
+		return BOT_GYM_FAIL
+	return bot_transcript_said("asking to be let in") ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// A cuffed traitor in crit was kept by the Brig door for Medical. The doctor got there, found "nobody" to treat because an engineer was
+/// holding him and the Head of Security had him, and went; he suffocated a minute later.
+/datum/bot_scenario/patient/held_for_security
+	name = "doctor: a casualty in cuffs that somebody's holding for Security still gets seen to"
+	desc = "A cuffed prisoner lies in crit, held by a crew member waiting for Security. The doctor sees to them anyway: somebody holding them isn't somebody treating them."
+	layout = list(
+		"#########",
+		"#B..CH..#",
+		"#########")
+	kit_backpack = list(/obj/item/reagent_containers/hypospray/medipen, /obj/item/reagent_containers/hypospray/medipen)
+	time_limit = 25 SECONDS
+	var/mob/living/carbon/human/holder
+
+/datum/bot_scenario/patient/held_for_security/post_spawn()
+	..()
+	patient.apply_damage(100, BRUTE, BODY_ZONE_CHEST)
+	patient.handcuffed = new /obj/item/restraints/handcuffs(patient)
+	patient.update_handcuffed()
+	holder = stand_in(first_marker("H"), "Bailey Holder")
+	holder.start_pulling(patient)
+
+/datum/bot_scenario/patient/held_for_security/make_goal()
+	return new /datum/bot_goal/stabilise()
+
+/datum/bot_scenario/patient/held_for_security/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("goal /datum/bot_goal/stabilise succeeded") || patient.reagents.has_reagent(/datum/reagent/medicine/epinephrine))
+		return BOT_GYM_PASS
+	if(bot_transcript_said("couldn't find a target for /datum/bot_goal/stabilise"))
+		fail_reason = "found nobody to treat"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/// An engineer at -0.3 climbed out of a sleeper two seconds after being given saline, to hold a traitor for Security, and suffocated.
+/datum/bot_scenario/stays_in_sleeper
+	name = "hurt: badly hurt in a sleeper, it stays put rather than getting up for a job"
+	desc = "The bot lies in a sleeper at 30 health, with medicine in it. It's handed an errand (a toolbox across the room). It stays in the sleeper."
+	job = "Station Engineer"
+	layout = list(
+		"#########",
+		"#sB....T#",
+		"#########")
+	time_limit = 12 SECONDS
+	var/obj/machinery/sleeper/sleeper
+
+/datum/bot_scenario/stays_in_sleeper/setup()
+	sleeper = new(first_marker("s"))
+	place("s", sleeper)
+
+/datum/bot_scenario/stays_in_sleeper/post_spawn()
+	brain.nerve = 0.5
+	bot.apply_damage(70, BRUTE, BODY_ZONE_CHEST)
+	bot.reagents.add_reagent(/datum/reagent/medicine/bicaridine, 10)
+	sleeper.close_machine(bot)
+
+/datum/bot_scenario/stays_in_sleeper/make_goal()
+	var/obj/item/storage/toolbox/T = locate() in first_marker("T")
+	return T ? new /datum/bot_goal/take_item/exact(T) : null
+
+/datum/bot_scenario/stays_in_sleeper/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot.loc != sleeper)
+		fail_reason = "got out of the sleeper at [round(bot.health)] health"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 10 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING

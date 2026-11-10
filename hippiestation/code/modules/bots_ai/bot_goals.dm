@@ -505,6 +505,28 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 	/// this long has passed, in case it never is).
 	var/resolving_goal_until = 0
 
+/// Lying in a sleeper or cryo cell, and not well enough yet to get up: below three quarters of its health for the timid, down to a sixth
+/// for somebody with all the nerve in the world.
+/// Left in there three minutes with nothing in its blood to mend it, nobody's seeing to it: it gets up.
+/datum/bot_brain/proc/convalescing()
+	if(!istype(owner.loc, /obj/machinery/sleeper) && !istype(owner.loc, /obj/machinery/atmospherics/components/unary/cryo_cell))
+		convalescing_since = 0
+		return FALSE
+	if(!convalescing_since)
+		convalescing_since = world.time
+	if(owner.health >= owner.maxHealth * clamp(0.75 - 0.6 * nerve, 0.15, 0.75))
+		return FALSE
+	if(world.time < convalescing_since + 3 MINUTES)
+		return TRUE
+	for(var/datum/reagent/R as anything in owner.reagents?.reagent_list)
+		if(istype(R, /datum/reagent/medicine))
+			return TRUE
+	return FALSE
+
+/datum/bot_brain
+	/// When it was first found lying in a sleeper or cryo cell (convalescing())
+	var/convalescing_since = 0
+
 /datum/bot_brain/proc/assign_goal(datum/bot_goal/goal)
 	if(!goal)
 		return FALSE
@@ -512,6 +534,13 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 	if(QDELETED(owner) || owner.stat == DEAD)
 		return FALSE
 	if(state == BOT_STATE_GOAL && current_goal)
+		return FALSE
+	// In a sleeper or cryo and still badly hurt: it stays to get better. How badly depends on its nerve (the user's ruling, 2026-11-10).
+	// An engineer at -0.3 climbed out of a sleeper two seconds after the Captain gave him saline, to hold a traitor for Security, and suffocated.
+	if(convalescing() && !istype(goal, /datum/bot_goal/run_from) && !istype(goal, /datum/bot_goal/self_heal) && !istype(goal, /datum/bot_goal/seek_medbay_healing))
+		if(world.time >= next_keep_clear_note)
+			next_keep_clear_note = world.time + 1 MINUTES
+			bot_log(src, "still being seen to in [owner.loc] at [round(owner.health)] health - not getting up for [goal.type]")
 		return FALSE
 	// Finding the target can take real time (checking there's a way to it yields inside the route search), and the
 	// bot's next tick doesn't wait. Only one goal is weighed up at a time, and one that comes back to find the bot

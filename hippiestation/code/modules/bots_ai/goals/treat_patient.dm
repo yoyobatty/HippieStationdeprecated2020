@@ -537,8 +537,8 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			continue
 		if(!paddles.can_defib(H)) //reuses the paddles' own revivability check (time limit, damage caps, brain state, etc) rather than duplicating it
 			continue
-		if((H.pulledby && H.pulledby != bot.owner) || bot.taken_by_another(H) || LAZYACCESS(bot.unreachable_patients, H) > world.time)
-			continue //somebody has them, or it's just tried
+		if(bot.another_medic_has(H) || LAZYACCESS(bot.unreachable_patients, H) > world.time)
+			continue //another doctor has them, or it's just tried
 		if(locate(/obj/item/clothing/suit/space) in H.contents)
 			continue //"Patient's chest is obscured": the paddles won't go through a space suit
 		// Bled out: the paddles would bring them back at fifty under with no blood to live on, and they'd be dead again in twenty
@@ -1197,6 +1197,17 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 		return H //CPR
 	return null
 
+/// Another medic seeing to them, holding them or on the way: a doctor leaves them to it. Security holding a prisoner by the Brig door for
+/// Medical, or somebody holding a downed traitor for Security, is no reason to walk off. A doctor reached a cuffed traitor kept by the Brig
+/// door, found nobody to treat because an engineer was holding him and the Head of Security had him, and went; he suffocated (2026-11-10).
+/datum/bot_brain/proc/another_medic_has(mob/living/carbon/human/H)
+	if(H.pulledby && H.pulledby != owner && bot_is_medic(H.pulledby))
+		return TRUE
+	if(!taken_by_another(H))
+		return FALSE
+	var/datum/bot_brain/other = GLOB.bot_work_claims[REF(H)]
+	return !other || bot_is_medic(other.owner)
+
 /datum/bot_goal/stabilise
 	lawful = TRUE
 	exclusive = TRUE //one to a casualty
@@ -1212,7 +1223,7 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			continue
 		if(!bot.patient_needs_treatment(H) || get_dist(bot.owner, H) > 40)
 			continue //nobody Security's after until they're in cuffs, as for any patient
-		if((H.pulledby && H.pulledby != bot.owner) || bot.taken_by_another(H) || LAZYACCESS(bot.unreachable_patients, H) > world.time)
+		if(bot.another_medic_has(H) || LAZYACCESS(bot.unreachable_patients, H) > world.time)
 			continue
 		if(!bot.first_aid_for(H))
 			continue
