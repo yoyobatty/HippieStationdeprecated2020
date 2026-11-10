@@ -609,6 +609,8 @@
 						H.adjustBruteLoss((mobhealth - HALFWAYCRITDEATH) * (total_brute / overall_damage), 0)
 					H.updatehealth() // Previous "adjust" procs don't update health, so we do it manually.
 					user.visible_message("<span class='notice'>[req_defib ? "[defib]" : "[src]"] pings: Resuscitation successful.</span>")
+					if(H.blood_volume < BLOOD_VOLUME_SAFE && !(NOBLOOD in H.dna?.species?.species_traits)) // hippie -- back at fifty under with no blood to live on, they're dead again in twenty seconds and nothing said why
+						user.visible_message("<span class='warning'>[req_defib ? "[defib]" : "[src]"] buzzes: Warning - patient's blood volume is low. Transfuse at once.</span>")
 					playsound(src, 'sound/machines/defib_success.ogg', 50, 0)
 					H.set_heartattack(FALSE)
 					H.revive()

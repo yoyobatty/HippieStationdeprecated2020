@@ -93,6 +93,8 @@
 	var/list/wanted = list()
 	if(H.health <= 0)
 		wanted += /datum/reagent/medicine/epinephrine
+	if(bot_needs_blood(H)) //goals/give_blood.dm: saline, which a sleeper stocks now (prototype_chems.dm)
+		wanted += /datum/reagent/medicine/salglu_solution
 	if(H.radiation > RAD_MOB_SAFE)
 		wanted += /datum/reagent/medicine/pen_acid
 	if(H.getToxLoss() > 20)

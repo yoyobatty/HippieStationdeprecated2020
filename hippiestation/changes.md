@@ -71,6 +71,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/objects/empulse.dm !Should be modularized. Can be done easily.
 ## code/game/objects/items.dm
 ## code/game/objects/items/crayons.dm
+## code/game/objects/items/defib.dm
 ## code/game/objects/items/devices/flashlight.dm !Should be modularized. Can be done easily.
 ## code/game/objects/items/devices/radio/radio.dm
 ## code/game/objects/items/stacks/rods.dm
