@@ -303,6 +303,14 @@ GLOBAL_LIST_INIT(bot_bar_menu, init_bot_bar_menu())
 	if(QDELETED(target))
 		target = null
 
+/// Where it couldn't get one is left a few minutes, so the next look goes elsewhere. A Booze-O-Mat set into the bar's wall passed the
+/// route check from where the bartender stood and then had "no path to the wall": rested after a few tries, it went on being chosen and
+/// turned down, and the drink given up, 14 times in a shift.
+/datum/bot_goal/fetch_glass/on_give_up(datum/bot_brain/bot)
+	var/turf/T = get_turf(target)
+	if(T)
+		LAZYSET(bot.bar_blocked, T, world.time + 3 MINUTES)
+
 /datum/bot_goal/fetch_glass/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/bartender/S = new
 	if(istype(target, /obj/machinery/vending))
@@ -326,10 +334,18 @@ GLOBAL_LIST_INIT(bot_bar_menu, init_bot_bar_menu())
 /datum/bot_step/pour_at_dispenser/execute(datum/bot_brain/bot)
 	var/datum/bot_goal/mix_drink/G = bot.current_goal
 	var/obj/item/reagent_containers/glass = G?.glass
-	if(!istype(G) || QDELETED(glass) || QDELETED(dispenser) || !bot.owner.Adjacent(dispenser))
+	if(!istype(G) || QDELETED(glass) || QDELETED(dispenser))
+		return GOAL_STEP_FAIL
+	// Each way this goes wrong says so: 41 drinks in a batch were given up here with nothing in the log to say why.
+	if(!bot.owner.Adjacent(dispenser))
+		bot_log(bot, "can't reach [dispenser] from here ([get_dist(bot.owner, dispenser)] tiles, [get_dist(bot.owner, dispenser) <= 1 ? "something in the way across the corner" : "not beside it"])")
 		return GOAL_STEP_FAIL
 	if(dispenser.beaker != glass)
-		if(!bot.is_carried(glass) || !bot.use_tool_on(glass, dispenser) || dispenser.beaker != glass)
+		if(!bot.is_carried(glass))
+			bot_log(bot, "lost hold of [glass] on the way to [dispenser] ([glass.loc])")
+			return GOAL_STEP_FAIL
+		if(!bot.use_tool_on(glass, dispenser) || dispenser.beaker != glass)
+			bot_log(bot, "[glass] wouldn't go in [dispenser] (in my hands: [english_list(bot.owner.held_items, "nothing")], in it: [dispenser.beaker || "nothing"])")
 			return GOAL_STEP_FAIL
 	bot.human_pause(dispenser)
 	if(QDELETED(dispenser) || dispenser.beaker != glass || !bot.owner.Adjacent(dispenser))
