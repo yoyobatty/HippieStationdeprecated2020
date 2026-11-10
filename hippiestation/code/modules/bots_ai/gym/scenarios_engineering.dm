@@ -370,12 +370,10 @@
 	time_limit = 40 SECONDS
 
 /datum/bot_scenario/repair_reachable_cable/proc/gaps()
-	. = list()
 	var/list/L = markers["x"]
-	. += L[1]
-	. += L[2]
-	if(.[1].x > .[2].x)
-		. = list(.[2], .[1])
+	var/turf/a = L[1]
+	var/turf/b = L[2]
+	return a.x <= b.x ? list(a, b) : list(b, a)
 
 /datum/bot_scenario/repair_reachable_cable/setup()
 	var/obj/machinery/door/airlock/A = first_placed("D")
