@@ -4,7 +4,7 @@
 #define SEND_SOUND(target, sound) DIRECT_OUTPUT(target, sound)
 #define SEND_TEXT(target, text) DIRECT_OUTPUT(target, text)
 #define WRITE_FILE(file, text) DIRECT_OUTPUT(file, text)
-#define WRITE_LOG(log, text) rustg_log_write(log, text, "true") // hippie -- rust_g 7 takes the timestamp flag; "true" keeps the [time] lines as before
+#define WRITE_LOG(log, text) hippie_log_write(log, text) // hippie -- written off the game's thread (hippiestation/code/__HELPERS/log_writer.dm), or by rust_g as before
 
 //print a warning message to world.log
 #define WARNING(MSG) warning("[MSG] in [__FILE__] at line [__LINE__] src: [UNLINT(src)] usr: [usr].")
