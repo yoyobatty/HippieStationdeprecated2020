@@ -13,5 +13,6 @@
 		"med", "kulet", "ngalák", "kuthdêng", "cenäth", "ustos", "oshnïl", "nural", "nazush"
 	)
 	space_chance = 35
-	icon = 'hippiestation/icons/misc/language.dmi'
+	// No icon of its own: the build merges hippiestation/icons/misc/language.dmi into tg's sheet (tools/icon_merge), and
+	// naming the Hippie file here put "language-dwarf" on the chat spritesheet twice, a runtime at every boot.
 	icon_state = "dwarf"
