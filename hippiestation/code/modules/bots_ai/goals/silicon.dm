@@ -1128,15 +1128,37 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 			return security_job()
 	return FALSE
 
+/// Whoever's doing the attacking in a fight going on now: a confirmed antagonist, or somebody who started on somebody who isn't one.
+/// A medical cyborg patches the one being hit, never the one hitting (the user's ruling, 2026-11-10). Somebody fighting a nanosuit is
+/// being hit, as far as it's concerned.
+/proc/bot_aggressor_now(mob/living/carbon/human/H)
+	if(H.stat != CONSCIOUS)
+		return FALSE
+	if(bot_is_fair_game(H)) //goals/security_patrol.dm
+		return TRUE
+	var/prefix = "[REF(H)]>"
+	var/prefix_len = length(prefix)
+	for(var/key in GLOB.bot_recent_aggression)
+		if(copytext(key, 1, prefix_len + 1) != prefix || world.time - GLOB.bot_recent_aggression[key] > 30 SECONDS) //security_patrol.dm's self-defense window
+			continue
+		var/victim_ref = copytext(key, prefix_len + 1)
+		var/mob/living/carbon/human/V = locate(victim_ref)
+		if(!istype(V) || bot_is_fair_game(V))
+			continue
+		var/their_first = GLOB.bot_recent_aggression["[victim_ref]>[REF(H)]"]
+		if(!their_first || their_first > GLOB.bot_recent_aggression[key])
+			return TRUE
+	return FALSE
+
 /datum/bot_silicon/borg/proc/medical_job()
 	var/mob/living/carbon/human/best = patient_ref?.resolve() //somebody who asked comes first
 	var/best_dist
-	if(best && (world.time > patient_until || best.stat == DEAD || best.z != owner.z || best.getBruteLoss() + best.getFireLoss() < 5 || skipping(best)))
+	if(best && (world.time > patient_until || best.stat == DEAD || best.z != owner.z || best.getBruteLoss() + best.getFireLoss() < 5 || skipping(best) || bot_aggressor_now(best)))
 		patient_ref = null
 		best = null
 	for(var/mob/living/carbon/human/H in (best ? list() : GLOB.alive_mob_list))
 		var/in_crit = H.health <= H.crit_threshold
-		if(H.z != owner.z || H.stat == DEAD || (!in_crit && max(H.getBruteLoss(), H.getFireLoss()) < BOT_BORG_HURT) || skipping(H))
+		if(H.z != owner.z || H.stat == DEAD || (!in_crit && max(H.getBruteLoss(), H.getFireLoss()) < BOT_BORG_HURT) || skipping(H) || bot_aggressor_now(H))
 			continue
 		var/dist = get_dist(owner, H)
 		if(dist > BOT_BORG_RANGE)

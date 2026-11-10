@@ -245,6 +245,13 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 
 /// Called from log_combat() (through bot_security_witness_combat(), goals/security_patrol.dm) for anything done to a person
 /// that isn't a blow. Runs inside the other person's click, so it never sleeps.
+/// Somebody whose needle is medicine: Medical's crew, or a medical cyborg.
+/proc/bot_is_medic(mob/living/user)
+	if(user?.mind?.assigned_role in GLOB.medical_positions)
+		return TRUE
+	var/mob/living/silicon/robot/R = user
+	return istype(R) && istype(R.module, /obj/item/robot_module/medical)
+
 /proc/bot_note_handling(mob/living/user, mob/living/carbon/human/target, what_done, atom/object)
 	if(!target.bot_brain || !istext(what_done))
 		return
@@ -277,7 +284,8 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 	if(bot_is_officer(user) && !resists_arrest())
 		return //being searched, moved along or held down by security: on_attacked() has the protesting
 	// A doctor's needle in somebody hurt is the doctor doing their job, whatever it looks like to the patient.
-	if((handled_verb in list("injected", "attempted to inject", "sprayed", "splashed", "fed")) && owner.health < owner.maxHealth * 0.75 && (user.mind?.assigned_role in GLOB.medical_positions))
+	// A medical cyborg's hypospray too: a janitor fighting a traitor took one for an attack, beat the cyborg, and was booked for it (2026-11-10).
+	if((handled_verb in list("injected", "attempted to inject", "sprayed", "splashed", "fed")) && owner.health < owner.maxHealth * 0.75 && bot_is_medic(user))
 		return
 	add_grudge(user, anger)
 	addtimer(CALLBACK(src, PROC_REF(answer_handling), WEAKREF(user), handled_verb, object), rand(3, 8))

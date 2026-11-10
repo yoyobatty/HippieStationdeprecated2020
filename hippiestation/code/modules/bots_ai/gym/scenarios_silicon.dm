@@ -495,3 +495,43 @@
 		fail_reason = "the fuel tank went up"
 		return BOT_GYM_FAIL
 	return ..()
+
+/// The user's ruling (2026-11-10): a medical cyborg patches the one being hit, never the one hitting.
+/datum/bot_scenario/griefed/borg/medical/aggressor
+	name = "cyborg: a medical cyborg doesn't patch somebody who's just started on an innocent"
+	desc = "Somebody hurt has just started on the bot at B, who's done nothing. The medical cyborg leaves them be: it patches whoever's being hit, never whoever's hitting."
+	time_limit = 15 SECONDS
+
+/datum/bot_scenario/griefed/borg/medical/aggressor/grief()
+	griefer.adjustBruteLoss(60)
+	bot_record_aggression(griefer, bot)
+
+/datum/bot_scenario/griefed/borg/medical/aggressor/check()
+	if(QDELETED(borg) || borg.stat == DEAD)
+		fail_reason = "the cyborg is gone"
+		return BOT_GYM_FAIL
+	if(griefer.reagents.has_reagent(/datum/reagent/medicine/bicaridine))
+		fail_reason = "patched up the one doing the hitting"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 13 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// A janitor fighting a traitor took a medical cyborg's hypospray for an attack, beat the cyborg, and was booked for it (2026-11-10).
+/datum/bot_scenario/griefed/borg/medical/needle_not_attack
+	name = "cyborg: somebody hurt doesn't take a medical cyborg's hypospray for an attack"
+	desc = "The bot at B is hurt. The medical cyborg comes over and injects it. The bot doesn't hold it against the cyborg, since that's medicine."
+	time_limit = 30 SECONDS
+	var/dosed_at
+
+/datum/bot_scenario/griefed/borg/medical/needle_not_attack/grief()
+	bot.adjustBruteLoss(55)
+
+/datum/bot_scenario/griefed/borg/medical/needle_not_attack/check()
+	if(QDELETED(borg) || borg.stat == DEAD)
+		fail_reason = "the cyborg is gone"
+		return BOT_GYM_FAIL
+	if(brain.grudge_with(borg) > 0)
+		fail_reason = "took the needle badly (grudge [brain.grudge_with(borg)])"
+		return BOT_GYM_FAIL
+	if(!dosed_at && bot.reagents.has_reagent(/datum/reagent/medicine/bicaridine))
+		dosed_at = world.time
+	return (dosed_at && world.time > dosed_at + 4 SECONDS) ? BOT_GYM_PASS : BOT_GYM_PENDING
