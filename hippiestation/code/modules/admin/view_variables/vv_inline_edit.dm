@@ -5,12 +5,63 @@
 // that type. A reference or list's value opens it, as before; "edit" by the row (shown on hover) edits it instead, next to
 // "watch". The user picked this over E/C/M, with mass edits reaching the exact type only, 2026-11-07.
 
+/// Vars holding a list of access numbers: shown with the name each stands for
+GLOBAL_LIST_INIT(vv_access_lists, list("req_access", "req_one_access", "access", "accesses"))
+
+/// An access number's name, station or CentCom
+/proc/vv_access_name(access)
+	return get_access_desc(access) || get_centcom_access_desc(access) || "?"
+
+/// The flag names a number var's bits stand for (name = bit), for the page: tg's table, which goes by the var's name alone
+/// (code/_globalvars/bitfields.dm), then the ones it hasn't got. Those are flags only on some types, so they go by type too: a
+/// machine's stat is flags, a mob's is its state, and an alien's heat_protection is a fraction.
+/proc/vv_bitfield(var_name, datum/D)
+	if(GLOB.bitfields[var_name])
+		return GLOB.bitfields[var_name]
+	if(isitem(D))
+		switch(var_name)
+			if("slot_flags")
+				var/static/list/slots = list("ITEM_SLOT_OCLOTHING" = ITEM_SLOT_OCLOTHING, "ITEM_SLOT_ICLOTHING" = ITEM_SLOT_ICLOTHING, "ITEM_SLOT_GLOVES" = ITEM_SLOT_GLOVES,
+					"ITEM_SLOT_EYES" = ITEM_SLOT_EYES, "ITEM_SLOT_EARS" = ITEM_SLOT_EARS, "ITEM_SLOT_MASK" = ITEM_SLOT_MASK, "ITEM_SLOT_HEAD" = ITEM_SLOT_HEAD,
+					"ITEM_SLOT_FEET" = ITEM_SLOT_FEET, "ITEM_SLOT_ID" = ITEM_SLOT_ID, "ITEM_SLOT_BELT" = ITEM_SLOT_BELT, "ITEM_SLOT_BACK" = ITEM_SLOT_BACK,
+					"ITEM_SLOT_DEX_STORAGE" = ITEM_SLOT_DEX_STORAGE, "ITEM_SLOT_NECK" = ITEM_SLOT_NECK, "ITEM_SLOT_HANDS" = ITEM_SLOT_HANDS,
+					"ITEM_SLOT_BACKPACK" = ITEM_SLOT_BACKPACK, "ITEM_SLOT_SUITSTORE" = ITEM_SLOT_SUITSTORE, "ITEM_SLOT_LPOCKET" = ITEM_SLOT_LPOCKET,
+					"ITEM_SLOT_RPOCKET" = ITEM_SLOT_RPOCKET, "ITEM_SLOT_HANDCUFFED" = ITEM_SLOT_HANDCUFFED, "ITEM_SLOT_LEGCUFFED" = ITEM_SLOT_LEGCUFFED)
+				return slots
+			if("body_parts_covered", "heat_protection", "cold_protection")
+				var/static/list/parts = list("HEAD" = HEAD, "CHEST" = CHEST, "GROIN" = GROIN, "LEG_LEFT" = LEG_LEFT, "LEG_RIGHT" = LEG_RIGHT,
+					"FOOT_LEFT" = FOOT_LEFT, "FOOT_RIGHT" = FOOT_RIGHT, "ARM_LEFT" = ARM_LEFT, "ARM_RIGHT" = ARM_RIGHT, "HAND_LEFT" = HAND_LEFT,
+					"HAND_RIGHT" = HAND_RIGHT, "NECK" = NECK)
+				return parts
+			if("flags_inv", "visor_flags_inv")
+				var/static/list/hides = list("HIDEGLOVES" = HIDEGLOVES, "HIDESUITSTORAGE" = HIDESUITSTORAGE, "HIDEJUMPSUIT" = HIDEJUMPSUIT,
+					"HIDESHOES" = HIDESHOES, "HIDEMASK" = HIDEMASK, "HIDEEARS" = HIDEEARS, "HIDEEYES" = HIDEEYES, "HIDEFACE" = HIDEFACE,
+					"HIDEHAIR" = HIDEHAIR, "HIDEFACIALHAIR" = HIDEFACIALHAIR, "HIDENECK" = HIDENECK)
+				return hides
+			if("flags_cover", "visor_flags_cover")
+				var/static/list/covers = list("GLASSESCOVERSEYES" = GLASSESCOVERSEYES, "MASKCOVERSEYES" = MASKCOVERSEYES, "HEADCOVERSEYES" = HEADCOVERSEYES,
+					"MASKCOVERSMOUTH" = MASKCOVERSMOUTH, "HEADCOVERSMOUTH" = HEADCOVERSMOUTH)
+				return covers
+			if("visor_flags")
+				return GLOB.bitfields["clothing_flags"]
+	if(ismob(D) && var_name == "status_flags")
+		var/static/list/status = list("CANSTUN" = CANSTUN, "CANKNOCKDOWN" = CANKNOCKDOWN, "CANUNCONSCIOUS" = CANUNCONSCIOUS, "CANPUSH" = CANPUSH, "GODMODE" = GODMODE)
+		return status
+	if(istype(D, /obj/machinery) && var_name == "stat")
+		var/static/list/machine_stat = list("BROKEN" = BROKEN, "NOPOWER" = NOPOWER, "MAINT" = MAINT, "EMPED" = EMPED)
+		return machine_stat
+	if(istype(D, /datum/reagents) && var_name == "flags")
+		var/static/list/reagent_flags = list("INJECTABLE" = INJECTABLE, "DRAWABLE" = DRAWABLE, "REFILLABLE" = REFILLABLE, "DRAINABLE" = DRAINABLE,
+			"TRANSPARENT" = TRANSPARENT, "AMOUNT_VISIBLE" = AMOUNT_VISIBLE, "NO_REACT" = NO_REACT)
+		return reagent_flags
+	return null
+
 /// What kind of value a var holds, for the page's editor
-/proc/vv_value_kind(var_name, value)
+/proc/vv_value_kind(var_name, value, datum/D)
 	if(isnull(value))
 		return "null"
 	if(isnum(value))
-		return (var_name in GLOB.bitfields) ? "bitfield" : "num"
+		return vv_bitfield(var_name, D) ? "bitfield" : "num"
 	if(istext(value))
 		return findtext(value, "\n") ? "message" : "text"
 	if(ispath(value))
@@ -24,7 +75,7 @@
 /// A datum's var as a row: its marks, name, value (clickable to edit when it's plain), and the hover actions
 /proc/vv_row_html(name, value, datum/D, sanitize = TRUE)
 	var/safe_name = sanitize ? html_encode(name) : name
-	var/kind = vv_value_kind(name, value)
+	var/kind = vv_value_kind(name, value, D)
 	var/list/marks = vv_var_marks(D, name)
 	var/list/attrs = list("id='vvar_[name]'", "data-var='[name]'", "data-kind='[kind]'")
 	var/value_html
@@ -34,17 +85,31 @@
 		if("num")
 			attrs += "data-raw=\"[value]\""
 			value_html = "<span class='value vvv'>[value]</span>"
+			if(name == "dir" && value)
+				value_html += " <font size='1'>[dir2text(value) || "?"]</font>"
 		if("bitfield")
+			var/list/bits = vv_bitfield(name, D)
 			attrs += "data-raw=\"[value]\""
-			attrs += "data-bits=\"[html_encode(json_encode(GLOB.bitfields[name]))]\""
+			attrs += "data-bits=\"[html_encode(json_encode(bits))]\""
 			var/list/flags = list()
-			for(var/flag in GLOB.bitfields[name])
-				if(value & GLOB.bitfields[name][flag])
+			var/known = 0
+			for(var/flag in bits)
+				known |= bits[flag]
+				if(value & bits[flag])
 					flags += flag
-			value_html = "<span class='vvv'>[flags.len ? html_encode(jointext(flags, ", ")) : "none"]</span>"
+			if(value & ~known)
+				flags += "[value & ~known]" //bits nothing here has a name for, as a number
+			value_html = "<span class='vvv'>[flags.len ? html_encode(jointext(flags, ", ")) : "none"]</span> <font size='1'>[value]</font>"
 		if("text", "message")
 			attrs += "data-raw=\"[html_encode(value)]\""
 			value_html = "<span class='value vvv'>\"[sanitize ? html_encode(value) : value]\"</span>"
+			if(findtext(name, "access_txt"))
+				var/list/names = list()
+				for(var/n in splittext(value, ";"))
+					if(text2num(n))
+						names += vv_access_name(text2num(n))
+				if(names.len)
+					value_html += " <font size='1'>[html_encode(jointext(names, ", "))]</font>"
 		if("path")
 			attrs += "data-raw=\"[value]\""
 			value_html = "<span class='value vvv'>[value]</span>"
@@ -56,7 +121,12 @@
 		if("list")
 			var/list/L = value
 			value_html = "<a href='?_src_=vars;[HrefToken()];Vars=[REF(L)]'>/list ([L.len])</a>"
-			if(L.len > 0 && !(name == "underlays" || name == "overlays" || L.len > (IS_NORMAL_LIST(L) ? VV_NORMAL_LIST_NO_EXPAND_THRESHOLD : VV_SPECIAL_LIST_NO_EXPAND_THRESHOLD)))
+			if(L.len > 0 && (name in GLOB.vv_access_lists))
+				var/list/items = list() //an access list's numbers, with the name each stands for
+				for(var/i in 1 to L.len)
+					items += "<li>[i] = <span class='value'>[html_encode("[L[i]]")]</span> <font size='1'>[isnum(L[i]) ? html_encode(vv_access_name(L[i])) : ""]</font></li>"
+				value_html += "<ul>[items.Join()]</ul>"
+			else if(L.len > 0 && !(name == "underlays" || name == "overlays" || L.len > (IS_NORMAL_LIST(L) ? VV_NORMAL_LIST_NO_EXPAND_THRESHOLD : VV_SPECIAL_LIST_NO_EXPAND_THRESHOLD)))
 				var/list/items = list()
 				for(var/i in 1 to L.len)
 					var/key = L[i]
