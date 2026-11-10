@@ -80,10 +80,66 @@ GLOBAL_LIST_INIT(bot_surgery_tools, list(/obj/item/scalpel, /obj/item/retractor,
 
 /datum/bot_goal/operate/on_success(datum/bot_brain/bot)
 	bot.owner.stop_pulling()
-	bot.continue_medical_round()
+	bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, after_operating), table))
 
 /datum/bot_goal/operate/on_give_up(datum/bot_brain/bot)
 	bot.owner.stop_pulling()
+	bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, after_operating), table))
+
+// The tools go back when it's done with them, or has given up. There's one set in Surgery, and whoever went for it first kept what
+// it had got in its bag: on MetaStation a doctor who found the scalpel and not the retractor walked off with the scalpel, and the
+// other two doctors tried the same patient eight times between them with "knows of no scalpel".
+
+/// The table by an operating table that the tools are kept on: the nearest to this bot that isn't an operating table itself.
+/datum/bot_brain/proc/surgery_tray(obj/structure/table/optable/near)
+	var/obj/structure/table/best
+	var/best_dist
+	for(var/obj/structure/table/T in range(4, near))
+		if(QDELETED(T) || istype(T, /obj/structure/table/optable))
+			continue
+		var/dist = get_dist(owner, T)
+		if(!best || dist < best_dist)
+			best = T
+			best_dist = dist
+	return best
+
+/// After an operation, done or given up: the tools back on the tray, then the rest of the round.
+/datum/bot_brain/proc/after_operating(obj/structure/table/optable/near)
+	if(state != BOT_STATE_WANDER || current_goal)
+		return
+	var/list/tools = list()
+	for(var/tool_type in GLOB.bot_surgery_tools)
+		var/obj/item/I = find_carried_tool(tool_type)
+		if(I)
+			tools += I
+	var/obj/structure/table/tray = (length(tools) && !QDELETED(near)) ? surgery_tray(near) : null
+	if(tray && assign_goal(new /datum/bot_goal/return_surgery_tools(tray, tools)))
+		return
+	try_medical_round()
+
+/datum/bot_goal/return_surgery_tools
+	lawful = TRUE
+	doing = "putting the surgery tools back"
+	var/obj/structure/table/tray
+	var/list/tools
+
+/datum/bot_goal/return_surgery_tools/New(obj/structure/table/T, list/L)
+	tray = T
+	tools = L
+
+/datum/bot_goal/return_surgery_tools/resolve_target(datum/bot_brain/bot)
+	target = QDELETED(tray) ? null : tray
+
+/datum/bot_goal/return_surgery_tools/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/return_surgery_tools/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/empty_into(tray, tools)) //goals/clear_bag.dm
+	return list(S)
+
+/datum/bot_strategy/return_surgery_tools/is_feasible(datum/bot_brain/bot)
+	return TRUE
+
+/datum/bot_goal/return_surgery_tools/on_success(datum/bot_brain/bot)
+	bot.continue_medical_round()
 
 /datum/bot_strategy/operate/is_feasible(datum/bot_brain/bot)
 	var/datum/bot_goal/operate/G = bot.current_goal

@@ -482,6 +482,25 @@
 	bot.put_in_hands(new /obj/item/toy/plush/carpplushie(bot.loc))
 	..()
 
+/datum/bot_scenario/griefed/surgeon/tools_back
+	name = "surgery: the tools go back on the table when the operation's done"
+	desc = "The same, with the tools on tables as they are in Surgery. There's one set, and a doctor kept what it had picked up in its bag: the next doctor with somebody to operate on knew of no scalpel."
+
+/datum/bot_scenario/griefed/surgeon/tools_back/setup()
+	..()
+	for(var/char in list("s", "r", "h", "c"))
+		for(var/turf/T in markers[char])
+			place(char, new /obj/structure/table(T))
+
+/datum/bot_scenario/griefed/surgeon/tools_back/check()
+	. = ..()
+	if(. != BOT_GYM_PASS)
+		return
+	for(var/char in list("s", "r", "h", "c"))
+		for(var/obj/item/I in placed[char])
+			if(is_type_in_list(I, GLOB.bot_surgery_tools) && !(isturf(I.loc) && (locate(/obj/structure/table) in I.loc)))
+				return BOT_GYM_PENDING
+
 /datum/bot_scenario/griefed/bug/exposed/suit_shuttle
 	name = "security: a suit at large and four of the crew dead is reason to call the shuttle early"
 	desc = "The user's ruling: with a nanosuit nobody's stopped and several dead, the Captain or acting captain calls the shuttle. Not for the suit alone, and not for the dead alone."
