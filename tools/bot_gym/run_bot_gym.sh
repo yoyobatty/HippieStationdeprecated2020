@@ -51,6 +51,20 @@ mkdir -p "$OUT"
 # BYOND keeps a <name>.dyn.rsc beside each .dmb and two servers on one name fight over it. The copies sit in the repo root because a
 # world's files (config/, data/) are found from where its .dmb is.
 COPY="gymrun_$$"
+# Not while somebody's compiling it. Other sessions build the same hippiestation.dmb, and Dream Maker writes it over several
+# seconds: a copy taken part way is 3 MB of a 34 MB build, and a server started on that goes round in circles for good, a whole
+# core and not a line of log (twice on 2026-11-10, eleven minutes each before anybody looked). Wait until it's a second old and
+# has stopped growing.
+steady() {
+	local before after
+	while :; do
+		before="$(stat -c '%s %Y' "$1" 2>/dev/null)"
+		sleep 1
+		after="$(stat -c '%s %Y' "$1" 2>/dev/null)"
+		[ -n "$after" ] && [ "$before" = "$after" ] && [ "$(( $(date +%s) - ${after##* } ))" -ge 1 ] && break
+	done
+}
+steady "$DMB.dmb"
 cp "$DMB.dmb" "$COPY.dmb"
 cp "$DMB.rsc" "$COPY.rsc"
 trap 'rm -f "$COPY".* "$COPY"_*.*' EXIT

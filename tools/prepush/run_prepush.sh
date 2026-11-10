@@ -21,6 +21,18 @@ DM="/c/Program Files (x86)/BYOND/bin/dm.exe"
 [ -x "$DM" ] || DM="$(command -v DreamMaker 2>/dev/null || command -v dm.exe 2>/dev/null)"
 [ -n "$DM" ] || { echo "prepush: can't find Dream Maker"; exit 1; }
 
+# One at a time in a checkout. Two sessions share the default one, and each resets it to its own commit and builds: the second's
+# compile overwrote the dmb the first was about to hand to its gym, which then hung on half a build. Stale after half an hour.
+LOCK="$WT.lock"
+until mkdir "$LOCK" 2>/dev/null; do
+	if [ -n "$(find "$LOCK" -maxdepth 0 -mmin +30 2>/dev/null)" ]; then
+		rmdir "$LOCK" 2>/dev/null
+		continue
+	fi
+	sleep 5
+done
+trap 'rmdir "$LOCK" 2>/dev/null' EXIT
+
 START=$SECONDS
 if [ -e "$WT/.git" ]; then
 	# Ours to throw away: back to exactly the commit, whatever the last run left in it
