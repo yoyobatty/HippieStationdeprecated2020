@@ -286,3 +286,31 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return (!QDELETED(foe) && foe.getFireLoss() > 0) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/powergame_hulk_gun
+	name = "powergame: a hulk with a gun closes in and punches"
+	desc = "A bot with Hulk and a laser gun in its hand is attacked from across the room. A hulk's fingers don't fit the trigger, so it goes in with its fists instead of clicking the gun at them."
+	job = "Assistant"
+	layout = list(
+		"##########",
+		"#B.....C.#",
+		"##########")
+	time_limit = 20 SECONDS
+	var/mob/living/carbon/human/foe
+
+/datum/bot_scenario/powergame_hulk_gun/post_spawn()
+	bot.dna.add_mutation(HULK, MUT_EXTRA)
+	bot.put_in_hands(new /obj/item/gun/energy/laser(bot))
+	foe = stand_in(first_marker("C"), "Casey Assailant")
+	brain.on_attacked(foe, "shot", null)
+
+/datum/bot_scenario/powergame_hulk_gun/make_goal()
+	return null
+
+/datum/bot_scenario/powergame_hulk_gun/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/line in transcript)
+		if(findtext(line, "attacking Casey Assailant") || findtext(line, "hitting Casey Assailant"))
+			return BOT_GYM_PASS //in with its hands: a shove or a punch
+	return BOT_GYM_PENDING

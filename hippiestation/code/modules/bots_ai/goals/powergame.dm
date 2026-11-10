@@ -715,6 +715,13 @@ GLOBAL_LIST_INIT(bot_harmless_symptoms, typecacheof(list(/datum/symptom/beard, /
 	bot_log(bot, "put [G.thing] down for [who]")
 	return GOAL_STEP_SUCCESS
 
+/// A hulk's fingers won't go in a trigger guard, nor a martial artist's who's sworn off guns (human/can_use_guns()): with a gun it
+/// clicked it at them every second, to no effect, instead of closing in, where a hulk is at its best.
+/datum/bot_brain/try_shoot_at(mob/living/target)
+	if(owner.dna?.check_mutation(HULK) || HAS_TRAIT(owner, TRAIT_NOGUNS) || owner.mind?.martial_art?.no_guns)
+		return FALSE
+	return ..()
+
 /// Laser eyes off Genetics, and no gun to hand: the eyes, at range. Harm intent and a click at them, the way a player fires them
 /// (RangedAttack(), laser_eyes/on_ranged_attack()).
 /datum/bot_brain/try_attack_from_range(mob/living/target)
