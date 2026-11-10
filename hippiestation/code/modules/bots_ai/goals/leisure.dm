@@ -253,39 +253,44 @@
 	bot.human_pause(machine)
 	if(QDELETED(machine) || machine.gameover || machine.blocked || !bot.owner.Adjacent(machine))
 		return FALSE
-	bot.owner.face_atom(machine)
-	machine.blocked = TRUE
-	if(machine.player_hp <= 10 && machine.player_mp >= 4)
-		bot.telemetry_ui_action(machine, "heal")
+	// The step's own `machine` is cleared when the game's given up (finish()), and a move sleeps a second in the middle: a game
+	// given up during that second was a null read here, once in twelve shifts. The move's own hold on it sees the move out.
+	var/obj/machinery/computer/arcade/battle/game = machine
+	bot.owner.face_atom(game)
+	game.blocked = TRUE
+	if(game.player_hp <= 10 && game.player_mp >= 4)
+		bot.telemetry_ui_action(game, "heal")
 		var/cost = rand(1, 3)
 		var/healed = rand(6, 8)
-		machine.temp = "You use [cost] magic to heal for [healed] damage!"
-		playsound(machine.loc, 'sound/arcade/heal.ogg', 50, 1, extrarange = -3, falloff = 10)
-		machine.turtle++
+		game.temp = "You use [cost] magic to heal for [healed] damage!"
+		playsound(game.loc, 'sound/arcade/heal.ogg', 50, 1, extrarange = -3, falloff = 10)
+		game.turtle++
 		sleep(10)
-		machine.player_mp -= cost
-		machine.player_hp += healed
-	else if(machine.player_mp <= 3)
-		bot.telemetry_ui_action(machine, "recharge")
+		game.player_mp -= cost
+		game.player_hp += healed
+	else if(game.player_mp <= 3)
+		bot.telemetry_ui_action(game, "recharge")
 		var/charged = rand(4, 7)
-		machine.temp = "You regain [charged] points"
-		playsound(machine.loc, 'sound/arcade/mana.ogg', 50, 1, extrarange = -3, falloff = 10)
-		machine.player_mp += charged
-		if(machine.turtle > 0)
-			machine.turtle--
+		game.temp = "You regain [charged] points"
+		playsound(game.loc, 'sound/arcade/mana.ogg', 50, 1, extrarange = -3, falloff = 10)
+		game.player_mp += charged
+		if(game.turtle > 0)
+			game.turtle--
 		sleep(10)
 	else
-		bot.telemetry_ui_action(machine, "attack")
+		bot.telemetry_ui_action(game, "attack")
 		var/hit = rand(2, 6)
-		machine.temp = "You attack for [hit] damage!"
-		playsound(machine.loc, 'sound/arcade/hit.ogg', 50, 1, extrarange = -3, falloff = 10)
-		if(machine.turtle > 0)
-			machine.turtle--
+		game.temp = "You attack for [hit] damage!"
+		playsound(game.loc, 'sound/arcade/hit.ogg', 50, 1, extrarange = -3, falloff = 10)
+		if(game.turtle > 0)
+			game.turtle--
 		sleep(10)
-		machine.enemy_hp -= hit
-	if(QDELETED(machine))
+		game.enemy_hp -= hit
+	if(QDELETED(game))
 		return FALSE
-	machine.arcade_action(bot.owner)
+	game.arcade_action(bot.owner)
+	if(machine != game)
+		return FALSE
 	moves++
 	wait_for = rand(3, 10)
 	return TRUE
