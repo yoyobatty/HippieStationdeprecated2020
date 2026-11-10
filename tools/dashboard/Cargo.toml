@@ -1,0 +1,13 @@
+[package]
+name = "hippie_dashboard"
+version = "1.0.0"
+edition = "2021"
+description = "The admins' live dashboard: a small web server inside the game's process, fed by DM (hippiestation/code/modules/admin/dashboard.dm)"
+
+# No dependencies: the HTTP server, the event stream and the page are all here, on std
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 3
+panic = "unwind"
