@@ -13,7 +13,8 @@
 		return
 	H.say(H.bot_brain ? H.bot_brain.in_own_words(line) : line) //bot_chatter.dm
 
-/proc/bot_log(datum/bot_brain/B, msg)
+// Called through the bot_log() macro (~hippie_defines/bots_ai.dm), which only gets this far when the line is wanted.
+/proc/bot_log_line(datum/bot_brain/B, msg)
 	if(B?.gym_run)
 		// Bot Gym transcript (gym/bot_gym.dm), the run's whole record. A copy to admins nobody is and to game.log as well, where
 		// nobody reads a gym's lines, was 4% of a full gym's server time (2026-11-09).
@@ -31,7 +32,7 @@
 // and other detail that's only useful for grepping game.log after the fact. Written
 // straight to disk via log_admin(), never message_admins(), so it can stay on by
 // default without flooding anyone watching the live admin feed.
-/proc/bot_log_verbose(datum/bot_brain/B, msg)
+/proc/bot_log_verbose_line(datum/bot_brain/B, msg)
 	if(B?.gym_run)
 		B.gym_run.log_line("  [msg]") //the transcript, as bot_log()
 		return
