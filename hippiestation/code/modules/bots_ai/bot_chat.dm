@@ -38,7 +38,11 @@
 		return
 	if(!GLOB.bot_ai_verbose || !B || QDELETED(B.owner))
 		return
-	log_admin("BOT AI VERBOSE: [B.owner.real_name]: [msg]")
+	// The line log_admin() writes, without the two copies it keeps for the round (GLOB.admin_log, and Search Logs' round log, which
+	// the alerts subsystem then reads through): 450,000 of these a shift filled both, and keeping and reading them was 3% of a
+	// test shift's server time. bot_log()'s lines, a tenth as many, still go to Search Logs.
+	if(CONFIG_GET(flag/log_admin))
+		WRITE_LOG(GLOB.world_game_log, "ADMIN: BOT AI VERBOSE: [B.owner.real_name]: [msg]")
 
 // Same idea as the admin.dm ADMIN_COORDJMP() macro, but as a proc - the macro form
 // expands to a full quoted string literal, which breaks if used nested inside another
