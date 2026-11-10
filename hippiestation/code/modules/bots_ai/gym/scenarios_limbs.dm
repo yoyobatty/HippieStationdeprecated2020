@@ -145,3 +145,40 @@
 		if(findtext(line, "called for a limb"))
 			called = TRUE
 	return (called && world.time > start_time + 30 SECONDS) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/robot_arm_from_robotics
+	name = "limbs: an arm burnt away, Robotics prints a robot arm and puts it on"
+	desc = "A bot's right arm is gone with nothing left of it. It lies on Robotics' operating table and asks for a robot arm; the roboticist gets the tools, feeds the fabricator its metal, prints the arm and fits it."
+	job = "Assistant"
+	layout = list(
+		"###########",
+		"#B...O.t..#",
+		"#.........#",
+		"#.R....C..#",
+		"#e........#",
+		"###########")
+	time_limit = 150 SECONDS
+	var/mob/living/carbon/human/roboticist
+
+/datum/bot_scenario/robot_arm_from_robotics/setup()
+	surgery_room()
+	place("R", new /obj/machinery/mecha_part_fabricator(first_marker("R")))
+	place("e", new /obj/item/stack/sheet/metal/fifty(first_marker("e")))
+
+/datum/bot_scenario/robot_arm_from_robotics/post_spawn()
+	var/obj/item/bodypart/arm = bot.get_bodypart(BODY_ZONE_R_ARM)
+	arm.drop_limb()
+	qdel(arm) //burnt to nothing
+	brain.gym_scripted = FALSE
+	roboticist = second_bot(first_marker("C"), "Robo Ticist")
+	roboticist.mind.assigned_role = "Roboticist"
+
+/datum/bot_scenario/robot_arm_from_robotics/make_goal()
+	var/obj/structure/table/optable/table = first_placed("O")
+	return bot.get_bodypart(BODY_ZONE_R_ARM) ? null : new /datum/bot_goal/get_limb_back(BODY_ZONE_R_ARM, null, table)
+
+/datum/bot_scenario/robot_arm_from_robotics/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/item/bodypart/arm = bot.get_bodypart(BODY_ZONE_R_ARM)
+	return (arm?.status == BODYPART_ROBOTIC) ? BOT_GYM_PASS : BOT_GYM_PENDING

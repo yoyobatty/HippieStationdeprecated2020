@@ -21,11 +21,19 @@ GLOBAL_LIST_INIT(bot_limb_jobs, list("Medical Doctor", "Chief Medical Officer", 
 
 /// An arm it's lost, that could be put back on.
 /datum/bot_brain/proc/missing_arm_zone()
-	var/list/missing = owner.get_missing_limbs()
+	return bot_missing_arm(owner)
+
+/// An arm H has lost, or null.
+/proc/bot_missing_arm(mob/living/carbon/human/H)
+	var/list/missing = H.get_missing_limbs()
 	for(var/zone in list(BODY_ZONE_R_ARM, BODY_ZONE_L_ARM))
 		if(zone in missing)
 			return zone
 	return null
+
+/// The robot arm Robotics prints for that side.
+/proc/bot_robot_arm_for(zone)
+	return zone == BODY_ZONE_R_ARM ? /obj/item/bodypart/r_arm/robot : /obj/item/bodypart/l_arm/robot
 
 /// Whether a loose limb would go on H where it's missing one (add_prosthetic): the right arm or leg, robotic or of H's own kind.
 /proc/bot_limb_fits(obj/item/bodypart/L, mob/living/carbon/human/H, zone)
@@ -59,7 +67,9 @@ GLOBAL_LIST_INIT(bot_limb_jobs, list("Medical Doctor", "Chief Medical Officer", 
 		var/dist = get_dist(owner, L)
 		if(dist <= BOT_LIMB_RANGE && (!gym_run || get_area(L) == get_area(owner)))
 			near[L] = dist
-	while(length(near)) //nearest first, a route search each
+	for(var/tries in 1 to 3) //nearest first, a route search each
+		if(!length(near))
+			break
 		var/obj/item/bodypart/best
 		for(var/obj/item/bodypart/L as anything in near)
 			if(!best || near[L] < near[best])
@@ -87,10 +97,12 @@ GLOBAL_LIST_INIT(bot_limb_jobs, list("Medical Doctor", "Chief Medical Officer", 
 		return FALSE
 	bot.next_limb_try = world.time + BOT_LIMB_RETRY
 	var/obj/item/bodypart/L = bot.find_limb_for(zone)
-	if(!L)
+	// None to be had (burnt to nothing, blown apart, or somewhere it can't get): Robotics prints a robot one, if there's anybody in it.
+	var/robot_arm = !L && bot_on_duty(list("Roboticist"), H)
+	if(!L && !robot_arm)
 		bot_log(bot, "lost my [parse_zone(zone)], and there's none about to have put back on")
 		return FALSE
-	var/obj/structure/table/optable/table = bot.find_limb_table()
+	var/obj/structure/table/optable/table = bot.find_limb_table(robot_arm)
 	if(!table)
 		bot_log(bot, "lost my [parse_zone(zone)], and there's no operating table free where somebody could see to it")
 		return FALSE
@@ -98,9 +110,9 @@ GLOBAL_LIST_INIT(bot_limb_jobs, list("Medical Doctor", "Chief Medical Officer", 
 
 /// A free operating table it can get to, in a department with somebody on duty who'd put an arm on: Medbay's for the doctors, Robotics'
 /// for a roboticist. The nearest was taken, and a scientist lay on Robotics' table and called four times over, with the one doctor who
-/// heard having no way into Robotics.
-/datum/bot_brain/proc/find_limb_table()
-	var/doctors = bot_on_duty(list("Medical Doctor", "Chief Medical Officer"), owner)
+/// heard having no way into Robotics. For a robot arm, only Robotics' table: that's where it's printed.
+/datum/bot_brain/proc/find_limb_table(robotics_only = FALSE)
+	var/doctors = !robotics_only && bot_on_duty(list("Medical Doctor", "Chief Medical Officer"), owner)
 	var/roboticists = bot_on_duty(list("Roboticist"), owner)
 	var/list/tables = list()
 	for(var/obj/structure/table/optable/T as anything in bot_instances_of(/obj/structure/table/optable))
@@ -137,15 +149,21 @@ GLOBAL_LIST_INIT(bot_limb_jobs, list("Medical Doctor", "Chief Medical Officer", 
 	var/zone
 	var/obj/item/bodypart/limb
 	var/obj/structure/table/optable/table
+	/// No arm to be had: Robotics is asked to print one.
+	var/robot_arm = FALSE
 
 /datum/bot_goal/get_limb_back/New(zone, obj/item/bodypart/L, obj/structure/table/optable/T)
 	. = ..()
 	src.zone = zone
 	limb = L
 	table = T
+	robot_arm = !L
 
 /datum/bot_goal/get_limb_back/resolve_target(datum/bot_brain/bot)
 	if(!(zone in bot.owner.get_missing_limbs()) || QDELETED(table))
+		return
+	if(robot_arm)
+		target = table
 		return
 	if(QDELETED(limb) || (!bot.is_carried(limb) && !isturf(limb.loc)))
 		limb = bot.find_limb_for(zone)
@@ -165,7 +183,7 @@ GLOBAL_LIST_INIT(bot_limb_jobs, list("Medical Doctor", "Chief Medical Officer", 
 
 /datum/bot_strategy/get_limb_back/is_feasible(datum/bot_brain/bot)
 	var/datum/bot_goal/get_limb_back/G = bot.current_goal
-	return istype(G) && !QDELETED(G.table) && !QDELETED(G.limb)
+	return istype(G) && !QDELETED(G.table) && (G.robot_arm || !QDELETED(G.limb))
 
 /// Put down where it is and left there: out of the hands and off the list of things knocked out of them, and of things set down for
 /// a moment (bot_items.dm), so nothing has it picked up again.
@@ -189,6 +207,8 @@ GLOBAL_LIST_INIT(bot_limb_jobs, list("Medical Doctor", "Chief Medical Officer", 
 
 /datum/bot_step/limb_in_hand/execute(datum/bot_brain/bot)
 	var/datum/bot_goal/get_limb_back/G = bot.current_goal
+	if(istype(G) && G.robot_arm)
+		return GOAL_STEP_SUCCESS //nothing to bring: Robotics prints it
 	if(!istype(G) || QDELETED(G.limb))
 		return GOAL_STEP_FAIL
 	if(bot.is_carried(G.limb))
@@ -237,7 +257,9 @@ GLOBAL_LIST_INIT(bot_limb_jobs, list("Medical Doctor", "Chief Medical Officer", 
 		called_at = world.time
 		var/where = get_area_name(G.table, TRUE)
 		var/limb_name = parse_zone(G.zone)
-		if(!bot.call_for(/datum/bot_request_kind/limb, pick("Could somebody put my [limb_name] back on? I'm on the operating table in [where].", "Lost my [limb_name]. I've got it here, on the table in [where] - can somebody put it back on?", "Medbay, I need my [limb_name] back on. On the table in [where].")))
+		var/line = G.robot_arm ? pick("Robotics, could I get a robot arm? Lost my [limb_name] - I'm on your table.", "Robotics, any chance of a new arm? I'm on the operating table in [where].", "Could somebody in Robotics print me a [limb_name]? I'm on the table.") \
+			: pick("Could somebody put my [limb_name] back on? I'm on the operating table in [where].", "Lost my [limb_name]. I've got it here, on the table in [where] - can somebody put it back on?", "Medbay, I need my [limb_name] back on. On the table in [where].")
+		if(!bot.call_for(/datum/bot_request_kind/limb, line))
 			bot_log(bot, "nobody to call to put my [limb_name] back on")
 			return FALSE
 		wait_for = 3 SECONDS
@@ -256,20 +278,25 @@ GLOBAL_LIST_INIT(bot_limb_jobs, list("Medical Doctor", "Chief Medical Officer", 
 /datum/bot_request_kind/limb
 	name = "limb"
 	jobs = list("Medical Doctor", "Chief Medical Officer", "Roboticist")
-	strong_words = list("arm back on", "leg back on", "reattach my", "new arm", "new leg", "prosthetic")
+	strong_words = list("arm back on", "leg back on", "reattach my", "new arm", "new leg", "prosthetic", "robot arm")
 	ack_lines = list("Coming, stay on the table.", "On my way with the tools.", "Be right there, hold still.")
 	walks_there = FALSE //the tools first (goals/surgery.dm)
 	doing = "putting somebody's arm back on"
 	precedence = 2
 
-/// Only while they're on the table with the arm beside them, and by somebody with a way to that table: a doctor who said "on my way"
-/// with no arm to put on, or no way into Robotics where they lay, didn't come, and the call was spent.
+/// Only while they're on the table with the arm beside them (or, for a roboticist with a fabricator, an arm gone that it can print),
+/// and by somebody with a way to that table: a doctor who said "on my way" with no arm to put on, or no way into Robotics where they
+/// lay, didn't come, and the call was spent.
 /datum/bot_request_kind/limb/answered_by(datum/bot_brain/bot, datum/bot_request/R)
 	var/mob/living/carbon/human/who = R.caller_ref?.resolve()
-	if(!..() || !istype(who) || !bot_limb_beside(who))
+	if(!..() || !istype(who))
 		return FALSE
 	var/obj/structure/table/optable/table = locate() in who.loc
-	return table && bot.can_walk_lawfully_to(table)
+	if(!table)
+		return FALSE
+	if(!bot_limb_beside(who) && (bot.work_role() != "Roboticist" || !bot_missing_arm(who) || !bot.find_exofab()))
+		return FALSE
+	return bot.can_walk_lawfully_to(table)
 
 /datum/bot_request_kind/limb/attend(datum/bot_brain/bot, datum/bot_request/R)
 	var/mob/living/carbon/human/who = R.caller_ref?.resolve()
@@ -287,6 +314,8 @@ GLOBAL_LIST_INIT(bot_limb_jobs, list("Medical Doctor", "Chief Medical Officer", 
 	var/datum/weakref/patient_ref
 	var/zone
 	var/obj/item/bodypart/limb
+	/// A robot arm to print first, with no arm to be had (goals/robotics.dm's fabricator, bot_collabs.dm's print_limb).
+	var/print_type
 
 /datum/bot_goal/operate/limb/New(mob/living/carbon/human/patient)
 	. = ..()
@@ -304,7 +333,10 @@ GLOBAL_LIST_INIT(bot_limb_jobs, list("Medical Doctor", "Chief Medical Officer", 
 	if(!limb || !bot.is_carried(limb) || !(zone in missing))
 		limb = bot_limb_beside(patient)
 		zone = limb?.body_zone
-	if(!limb)
+	if(!limb && bot.work_role() == "Roboticist" && (print_type || bot.find_exofab()))
+		zone = bot_missing_arm(patient)
+		print_type = zone && bot_robot_arm_for(zone)
+	if(!limb && !print_type)
 		bot_log_verbose(bot, "no limb by [patient] that would go on (missing [english_list(missing)])")
 	else if(bot.can_walk_lawfully_to(table)) //the table, not them: a route doesn't end on a table, and they're lying on it
 		target = patient
@@ -313,8 +345,54 @@ GLOBAL_LIST_INIT(bot_limb_jobs, list("Medical Doctor", "Chief Medical Officer", 
 
 /datum/bot_goal/operate/limb/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/operate/S = new
-	S.steps = list(new /datum/bot_step/surgery_tools(), new /datum/bot_step/move_to(), new /datum/bot_step/take_limb(), new /datum/bot_step/move_to(), new /datum/bot_step/paced/attach_limb())
+	S.steps = list(new /datum/bot_step/surgery_tools(), new /datum/bot_step/print_arm(), new /datum/bot_step/move_to(), new /datum/bot_step/take_limb(), new /datum/bot_step/move_to(), new /datum/bot_step/paced/attach_limb())
 	return list(S)
+
+/// A robot arm printed at the fabricator, when there's no arm to be had, into its hands.
+/datum/bot_step/print_arm
+	var/tries = 0
+	var/fetches = 0
+	var/walks = 0
+
+/datum/bot_step/print_arm/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/operate/limb/G = bot.current_goal
+	if(!istype(G))
+		return GOAL_STEP_FAIL
+	if(!QDELETED(G.limb))
+		return GOAL_STEP_SUCCESS
+	if(!G.print_type)
+		return GOAL_STEP_FAIL
+	var/obj/item/bodypart/made = bot.find_carried_tool(G.print_type)
+	if(made)
+		G.limb = made
+		return GOAL_STEP_SUCCESS
+	var/obj/machinery/mecha_part_fabricator/F = bot.find_exofab() //goals/robotics.dm
+	var/datum/design/D = F && bot.fabricator_design(F, G.print_type) //bot_collabs.dm
+	if(!D)
+		bot_log(bot, "no fabricator to print a robot arm at")
+		return GOAL_STEP_FAIL
+	// The fabricator's metal first, from the lab's stacks, from here: the printing is a fetch of its own, and one fetch can't send
+	// for another (suspend_goal_for()), so print_limb's own stocking of the machine fell through at once.
+	if(!F.check_resources(D))
+		var/obj/item/stack/sheet/metal/sheets = bot.find_carried_tool(/obj/item/stack/sheet/metal)
+		if(!sheets)
+			var/obj/item/stack/sheet/metal/loose = bot.find_lab_part(/obj/item/stack/sheet/metal) //goals/robotics.dm
+			if(!loose || ++fetches > 2)
+				bot_log(bot, "no metal for the fabricator to print a robot arm")
+				return GOAL_STEP_FAIL
+			return bot.suspend_goal_for(new /datum/bot_goal/take_item/exact(loose)) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
+		if(!bot.owner.Adjacent(F))
+			if(++walks > 2)
+				return GOAL_STEP_FAIL
+			return bot.suspend_goal_for(new /datum/bot_goal/walk_up_to(F)) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
+		bot_log(bot, "feeding [sheets] to [F]")
+		if(!bot.use_tool_on(sheets, F) || !F.check_resources(D))
+			return GOAL_STEP_FAIL
+	if(++tries > 1)
+		bot_log(bot, "couldn't print a robot arm")
+		return GOAL_STEP_FAIL
+	bot_log(bot, "printing a robot arm for [G.target]")
+	return bot.suspend_goal_for(new /datum/bot_goal/print_limb(F, G.print_type)) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
 
 /// The limb off the table and into its hands.
 /datum/bot_step/take_limb
