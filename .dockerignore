@@ -33,3 +33,13 @@ rust_g.dll
 BSQL.dll
 appveyor.yml
 Dockerfile
+# build folders and side builds: gigabytes the image doesn't need
+tools/*/target
+**/node_modules
+.claude
+*.mdme*
+*.dmb
+*.rsc
+*.int
+*.lk
+*.dll.part

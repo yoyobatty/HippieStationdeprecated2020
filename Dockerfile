@@ -2,18 +2,20 @@
 # the committed rust_g.dll), and our own libraries, which are committed (libhippie_atmos.so, libhippie_lighting.so, libhippie_path.so,
 # libquickwrite.so: tools/*/build.sh LINUX=1 cross-builds them on Windows). The tgui bundle is committed too, so DreamMaker is the
 # whole build. No BSQL: the database goes through rust_g. The same packages as a Linux TGS box (tools/tgs_scripts/InstallDeps.sh).
+# Ubuntu 24.04, not Debian 12: rust_g's 7.0.0 release wants glibc 2.39 ("version `GLIBC_2.39' not found", and then every rust_g
+# call looks in BYOND's own library: "libbyond.so: undefined symbol: log_write"). Checked by tools/linux_check/docker_check.sh.
 #
 # dependencies.sh reads the BYOND version from this line: byond:516.1688
-FROM debian:bookworm-slim AS base
+FROM ubuntu:24.04 AS base
 ARG BYOND_MAJOR=516
 ARG BYOND_MINOR=1688
 ENV BYOND_SYSTEM=/byond PATH=/byond/bin:$PATH LD_LIBRARY_PATH=/byond/bin
 RUN dpkg --add-architecture i386 \
     && apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl unzip make lib32z1 lib32stdc++6 libssl3:i386 \
+    && apt-get install -y --no-install-recommends ca-certificates curl unzip make lib32z1 lib32stdc++6 libssl3:i386 libcurl4:i386 \
     && curl -fsSL "https://www.byond.com/download/build/${BYOND_MAJOR}/${BYOND_MAJOR}.${BYOND_MINOR}_byond_linux.zip" -o /tmp/byond.zip \
     && unzip -q /tmp/byond.zip -d / \
-    && make -C /byond here \
+    && cd /byond && make here && cd / \
     && rm -f /tmp/byond.zip \
     && rm -rf /var/lib/apt/lists/*
 
