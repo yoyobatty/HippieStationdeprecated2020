@@ -135,7 +135,16 @@ GLOBAL_LIST_EMPTY(bot_vendor_sells)
 /// brew up.
 GLOBAL_LIST_INIT(bot_kinds_in_name_only, list(
 	/obj/item/reagent_containers/glass/beaker = list(/obj/item/reagent_containers/glass/beaker/waterbottle),
+	// The Warden went to the armory for "something heavier" with three nanosuits loose and came back with a practice laser (2026-11-10)
+	/obj/item/gun/energy/laser = list(/obj/item/gun/energy/laser/practice, /obj/item/gun/energy/laser/bluetag, /obj/item/gun/energy/laser/redtag),
 ))
+
+/// Something of `type` it's carrying that counts as one (bot_counts_as()): a practice laser isn't a laser
+/datum/bot_brain/proc/carries_real(type)
+	for(var/obj/item/I in owner.GetAllContents())
+		if(istype(I, type) && bot_counts_as(I.type, type))
+			return I
+	return null
 
 /// Whether something of this path is what anybody asking for a `type` means
 /proc/bot_counts_as(path, type)

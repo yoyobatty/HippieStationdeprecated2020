@@ -335,6 +335,27 @@
 	fail_reason = "still without [english_list(missing)]"
 	return BOT_GYM_FAIL
 
+/// Uncuffed in the cell as it's processed, the officer still to set the timer: that's no release, and its things stay in the locker
+/datum/bot_scenario/duty/released_prisoner/not_yet
+	name = "brig: just uncuffed in the cell before the timer's set, it leaves its things in the locker"
+	desc = "As above, but the bot has only just been uncuffed in the cell, and the officer hasn't set the timer yet, so the locker isn't locked. It leaves its things alone. A janitor took everything back out 0.03 s before his sentence started."
+	time_limit = 12 SECONDS
+
+/datum/bot_scenario/duty/released_prisoner/not_yet/post_spawn()
+	..()
+	bot_note_uncuffed_in_cell(bot)
+
+/datum/bot_scenario/duty/released_prisoner/not_yet/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot.ears == headset || bot.w_uniform == own_suit || bot.wear_id == card || bot.get_idcard(FALSE) == card)
+		fail_reason = "took its things back before its sentence started"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 10 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/released_prisoner/not_yet/on_timeout()
+	return BOT_GYM_PASS
+
 // A Bot Shift drill, only with sword-drill=1 in the parameters (it would change every batch's deaths otherwise): at 8 minutes somebody
 // turns up in the Bar with a lit energy sword and goes at whoever's nearest, as the user did as Chief Engineer. Security has to stop
 // them - cuffed or dead - within 6 minutes. Who they cut and who died of it are counted.

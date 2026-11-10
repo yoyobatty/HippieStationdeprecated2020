@@ -591,6 +591,35 @@
 		return BOT_GYM_FAIL
 	return (hit_at && world.time > hit_at + 3 SECONDS) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/// The Warden went for "something heavier" with three nanosuits loose and came back with a practice laser (2026-11-10)
+/datum/bot_scenario/heavier_not_practice
+	name = "security: sent for a laser, an officer takes the real one, not the practice laser beside it"
+	desc = "A practice laser lies two tiles off and a real laser gun further on. Asked for a laser, the officer walks past the practice one and takes the real one."
+	job = "Warden"
+	layout = list(
+		"##########",
+		"#B.q....k#",
+		"##########")
+	time_limit = 20 SECONDS
+
+/datum/bot_scenario/heavier_not_practice/setup()
+	place("q", new /obj/item/gun/energy/laser/practice(first_marker("q")))
+	place("k", new /obj/item/gun/energy/laser(first_marker("k")))
+
+/datum/bot_scenario/heavier_not_practice/make_goal()
+	var/datum/bot_goal/acquire_item_type/G = new()
+	G.item_type = /obj/item/gun/energy/laser
+	return G
+
+/datum/bot_scenario/heavier_not_practice/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(brain.find_carried_tool(/obj/item/gun/energy/laser/practice))
+		fail_reason = "took the practice laser"
+		return BOT_GYM_FAIL
+	var/obj/item/real = first_placed("k")
+	return (real && real.loc && get(real.loc, /mob) == bot) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /datum/bot_scenario/fighting_a_suit/release_run()
 	GLOB.bot_security_wanted -= WEAKREF(crew)
 	GLOB.bot_security_wanted -= WEAKREF(suited)

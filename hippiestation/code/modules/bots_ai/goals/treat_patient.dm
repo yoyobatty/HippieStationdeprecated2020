@@ -250,11 +250,19 @@
 /// Patient (weakref) -> when they may next be asked over the radio to come to Medbay. Shared, so two doctors don't both ask.
 GLOBAL_LIST_EMPTY(bot_patient_summons)
 
+/datum/bot_brain
+	/// When this doctor may next ask somebody on the radio to come to Medbay
+	var/next_patient_summons = 0
+
 /// Asks a patient the doctor can't get to, to come to Medbay.
 /datum/bot_brain/proc/call_patient_in(mob/living/carbon/human/patient)
 	var/datum/weakref/ref = WEAKREF(patient)
 	if(gym_scripted || GLOB.bot_patient_summons[ref] > world.time)
 		return
+	// One at a time: a doctor asked five people in two seconds, all on Common (2026-11-10). Whoever's left gets asked on the next go.
+	if(world.time < next_patient_summons)
+		return
+	next_patient_summons = world.time + 20 SECONDS
 	GLOB.bot_patient_summons[ref] = world.time + 5 MINUTES
 	say_after_typing(";[patient.first_name()], come by Medbay when you can and I'll patch you up.")
 

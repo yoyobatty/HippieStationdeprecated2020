@@ -317,7 +317,7 @@ GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 	// helmet is a space helmet's, flash-proof (_spacesuits.dm).
 	if(suited && !carried_grenade(/obj/item/grenade/empgrenade) && armory_has(/obj/item/grenade/empgrenade))
 		return /obj/item/grenade/empgrenade
-	if((dangerous || length(GLOB.blob_cores)) && !find_carried_tool(/obj/item/gun/energy/laser)) //a blob takes a laser's whole burn
+	if((dangerous || length(GLOB.blob_cores)) && !carries_real(/obj/item/gun/energy/laser)) //a blob takes a laser's whole burn
 		return /obj/item/gun/energy/laser
 	return null
 

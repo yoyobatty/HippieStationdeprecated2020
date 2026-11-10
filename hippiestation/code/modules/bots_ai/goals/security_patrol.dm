@@ -140,6 +140,9 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/datum/data/record/R = bot_find_security_record(H)
 	return R && R.fields["criminal"] == "*Arrest*"
 
+/// When any officer may next say the cells are full
+GLOBAL_VAR_INIT(bot_cells_full_shouted, 0)
+
 /// What makes somebody a confirmed antagonist on the record: killing, wrecking the station, owning up to the Syndicate.
 GLOBAL_LIST_INIT(bot_antag_crimes, list("Murder", "Sabotage", "Subversion of the Chain of Command"))
 
@@ -1292,8 +1295,11 @@ GLOBAL_LIST_INIT(bot_antag_crimes, list("Murder", "Sabotage", "Subversion of the
 	var/obj/machinery/door_timer/T = bot.find_free_brig_cell(prisoner)
 	if(!T)
 		bot_log(bot, "no free brig cell for [prisoner]")
-		if(world.time >= bot.next_cells_full_shout) // it tries again every minute: the channel had this 37 times in three shifts
+		// it tries again every minute: the channel had this 37 times in three shifts. Once for all of Security: three officers said it
+		// in the same second (2026-11-10).
+		if(world.time >= bot.next_cells_full_shout && world.time >= GLOB.bot_cells_full_shouted)
 			bot.next_cells_full_shout = world.time + 5 MINUTES
+			GLOB.bot_cells_full_shouted = world.time + 1 MINUTES
 			bot_say(bot.owner, ":s All the cells are full, I need somewhere to put [prisoner.name]!")
 		LAZYSET(bot.failed_brig_targets, prisoner, world.time + 600)
 		return

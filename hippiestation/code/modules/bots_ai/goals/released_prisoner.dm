@@ -97,6 +97,11 @@ GLOBAL_LIST_EMPTY(bot_keep_cuffed_until)
 /datum/bot_duty/collect_confiscated/try_start(datum/bot_brain/bot)
 	if(!length(bot.confiscated) || bot.owner.handcuffed || bot.owner.bot_life_sentence || bot.is_in_active_cell(bot.owner))
 		return FALSE
+	// Just uncuffed in the cell, with the officer on its way to the timer: the locker's not locked yet, but that's no release. A janitor
+	// had everything back out of it 0.03 s before his sentence started (2026-11-10).
+	var/uncuffed = GLOB.bot_uncuffed_at[WEAKREF(bot.owner)]
+	if(uncuffed && world.time < uncuffed + 1 MINUTES)
+		return FALSE
 	var/obj/structure/closet/L = bot.confiscated_locker?.resolve()
 	if(!L || QDELETED(L) || L.z != bot.owner.z || get_dist(bot.owner, L) > 40)
 		return FALSE
