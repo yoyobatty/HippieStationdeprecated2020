@@ -578,6 +578,12 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 		request.taken_by = null
 	var/mob/living/who = request.caller_ref?.resolve()
 	if(who && who != bot.owner)
+		// A doctor that can't get to somebody asks for them to be brought out, and whoever can get to them does once they're
+		// down (goals/carry_casualty.dm)
+		if(istype(request.kind, /datum/bot_request_kind/medical) && ishuman(who) && who.stat != DEAD)
+			bot_note_stranded(who)
+			bot.say_after_typing(bot_radio_prefix(request.radio_freq) + pick("I can't get to you. Can somebody bring them out to Medbay?", "Can't get in there. Somebody with access, bring them to Medbay?", "No way through to you from here. Can anyone get them out to us?"))
+			return
 		bot.say_after_typing(bot_radio_prefix(request.radio_freq) + pick("I can't get to you.", "Can't get in there, sorry.", "No way through to you from here."))
 
 /datum/bot_strategy/answer_call/is_feasible(datum/bot_brain/bot)

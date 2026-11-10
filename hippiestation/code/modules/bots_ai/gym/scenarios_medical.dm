@@ -292,3 +292,57 @@
 		fail_reason = "set about reviving somebody there was no time for"
 		return BOT_GYM_FAIL
 	return world.time > start_time + 8 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// Somebody down where no doctor can get to them (goals/carry_casualty.dm). C: the casualty. G: Medbay's door.
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/duty/carry_casualty
+	name = "a colleague brings somebody down in the department out to Medbay, after the doctor says it can't get in"
+	desc = "An engineer out cold on the engine room floor, and a doctor who's said on the radio it can't get to them. They lay there until they died, with the department walking past. Somebody who can get to them takes hold, drags them to Medbay's door and tells the doctors."
+	duty_type = /datum/bot_duty/bring_casualty_out
+	job = "Station Engineer"
+	time_limit = 40 SECONDS
+	layout = list(
+		"##############",
+		"#B..C.......G#",
+		"##############")
+	var/mob/living/carbon/human/casualty
+
+/datum/bot_scenario/duty/carry_casualty/post_spawn()
+	casualty = stand_in(first_marker("C"), "Cas Casualty")
+	casualty.adjustOxyLoss(130)
+	casualty.updatehealth()
+	casualty.update_stat()
+	brain.gym_medbay_spot = first_marker("G")
+	bot_note_stranded(casualty)
+
+/datum/bot_scenario/duty/carry_casualty/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(casualty) || casualty.stat == DEAD)
+		fail_reason = "the casualty died"
+		return BOT_GYM_FAIL
+	if(casualty.stat == CONSCIOUS)
+		fail_reason = "the casualty came round: nothing tried"
+		return BOT_GYM_FAIL
+	return (get_dist(casualty, first_marker("G")) <= 1 && bot.pulling != casualty) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/carry_casualty/on_their_feet
+	name = "somebody hurt but on their feet isn't dragged off to Medbay"
+	desc = "The doctor couldn't get to them, and they're still standing: they can walk there. Nobody takes hold of them."
+	time_limit = 15 SECONDS
+
+/datum/bot_scenario/duty/carry_casualty/on_their_feet/post_spawn()
+	casualty = stand_in(first_marker("C"), "Cas Casualty")
+	casualty.adjustBruteLoss(40)
+	brain.gym_medbay_spot = first_marker("G")
+	bot_note_stranded(casualty)
+
+/datum/bot_scenario/duty/carry_casualty/on_their_feet/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot.pulling == casualty || get_dist(casualty, first_marker("C")) > 0)
+		fail_reason = "dragged off somebody who could walk"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 8 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
