@@ -314,3 +314,33 @@
 		if(findtext(line, "attacking Casey Assailant") || findtext(line, "hitting Casey Assailant"))
 			return BOT_GYM_PASS //in with its hands: a shove or a punch
 	return BOT_GYM_PENDING
+
+/datum/bot_scenario/self_heal_right_kit
+	name = "self-heal: the kit with bandages in it, not the nearer oxygen kit"
+	desc = "Cut about, nothing on it, an oxygen kit two steps off and a first-aid kit with bruise packs further along. It took the nearest kit of any kind, found nothing in it for cuts, and gave itself up."
+	job = "Assistant"
+	time_limit = 40 SECONDS
+	max_goal_attempts = 1
+	layout = list(
+		"##########",
+		"#B.o....k#",
+		"##########")
+
+/datum/bot_scenario/self_heal_right_kit/setup()
+	place("o", new /obj/item/storage/firstaid/o2(first_marker("o")))
+	place("k", new /obj/item/storage/firstaid/regular(first_marker("k")))
+
+/datum/bot_scenario/self_heal_right_kit/post_spawn()
+	bot.apply_damage(45, BRUTE, BODY_ZONE_CHEST)
+
+/datum/bot_scenario/self_heal_right_kit/make_goal()
+	return new /datum/bot_goal/self_heal()
+
+/datum/bot_scenario/self_heal_right_kit/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/line in transcript)
+		if(findtext(line, "nothing reachable to restock"))
+			fail_reason = "went for the oxygen kit and found nothing for cuts in it"
+			return BOT_GYM_FAIL
+	return bot.getBruteLoss() < 35 ? BOT_GYM_PASS : BOT_GYM_PENDING

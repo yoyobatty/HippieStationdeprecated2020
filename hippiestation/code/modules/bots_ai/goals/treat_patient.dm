@@ -103,22 +103,41 @@
 // acquire_item_type.dm) via suspend_goal_for() - same suspend/resume dance
 // ensure_wrench/ensure_tools use for tools, just for medical supplies instead.
 /datum/bot_brain/proc/restock_medical_supplies(antitox = FALSE)
-	var/list/wanted = antitox ? list(/obj/item/storage/pill_bottle/charcoal, /obj/item/storage/firstaid/toxin) : list(/obj/item/storage/firstaid, /obj/item/stack/medical/bruise_pack, /obj/item/stack/medical/ointment)
+	var/burn_first = owner.getFireLoss() > owner.getBruteLoss()
+	// A kit with something in it for cuts or burns: the kinds that have (wound_kit, below), the one for the worse of them first.
+	var/list/wanted = antitox ? list(/obj/item/storage/pill_bottle/charcoal, /obj/item/storage/firstaid/toxin) : (burn_first ? list(/obj/item/storage/firstaid/fire, /obj/item/storage/firstaid/regular) : list(/obj/item/storage/firstaid/brute, /obj/item/storage/firstaid/regular))
 	if(!antitox)
+		wanted += list(/obj/item/storage/firstaid/ancient, /obj/item/storage/firstaid/tactical, burn_first ? /obj/item/storage/firstaid/brute : /obj/item/storage/firstaid/fire, /obj/item/stack/medical/bruise_pack, /obj/item/stack/medical/ointment)
 		// And failing those, a patch from a NanoMed on the wall: there's one in most hallways, anybody's card buys from it, and
 		// a patch is what it sells for cuts (styptic) and burns (silver sulfadiazine). Somebody hurt with no kit in reach by
 		// its own doors gave up on itself with one of those a few steps away: 66 times in twelve shifts.
-		if(owner.getFireLoss() > owner.getBruteLoss())
+		if(burn_first)
 			wanted += list(/obj/item/reagent_containers/pill/patch/silver_sulf, /obj/item/reagent_containers/pill/patch/styptic)
 		else
 			wanted += list(/obj/item/reagent_containers/pill/patch/styptic, /obj/item/reagent_containers/pill/patch/silver_sulf)
 	for(var/wanted_type in wanted)
-		var/datum/bot_goal/acquire_item_type/sub = new()
+		var/datum/bot_goal/acquire_item_type/sub = ispath(wanted_type, /obj/item/storage/firstaid) && !antitox ? new /datum/bot_goal/acquire_item_type/wound_kit() : new()
 		sub.item_type = wanted_type
 		sub.lawful = TRUE
 		if(suspend_goal_for(sub))
 			return TRUE
 	ask_cargo_for(/datum/supply_pack/medical/supplies, "medical supplies", "medical", /obj/item/storage/firstaid) //bot_collabs.dm
+	return FALSE
+
+/// A first-aid kit with something in it for cuts or burns. The nearest kit of any kind was taken (any /obj/item/storage/firstaid), and
+/// as often as not it was the oxygen kit (perfluorodecalin and a medipen), the toxin kit, or one already picked over: somebody hurt
+/// walked to it, found nothing to put on, and gave itself up, 55 times in twelve shifts. Now it's the kinds that hold bandages or
+/// patches, and of those lying about, one that still does.
+/datum/bot_goal/acquire_item_type/wound_kit
+
+/datum/bot_goal/acquire_item_type/wound_kit/will_do(obj/item/I)
+	if(!..())
+		return FALSE
+	for(var/obj/item/thing in I.contents)
+		if(istype(thing, /obj/item/stack/medical/bruise_pack) || istype(thing, /obj/item/stack/medical/ointment))
+			return TRUE
+		if(istype(thing, /obj/item/reagent_containers/pill) && bot_chem_kind_of(thing) == "heal") //goals/chem_lab.dm: styptic, silver sulf
+			return TRUE
 	return FALSE
 
 // Aims at whichever organic limb is currently worst off, instead of always healing
