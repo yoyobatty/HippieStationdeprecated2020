@@ -121,6 +121,8 @@
 				loc.assume_air(removed)
 				air_update_turf(FALSE, FALSE)
 				update_parents()
+				if(transfer_moles > PARTICLE_VENT_PUFF_MOLES) // hippie -- a puff you can see when it's filling a room back up (particle_fx.dm)
+					puff()
 
 	else // external -> internal
 		var/pressure_delta = 10000

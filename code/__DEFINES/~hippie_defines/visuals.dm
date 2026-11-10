@@ -21,6 +21,16 @@
 /// lighting darkens the screen, so white tiles under a lamp glow a little and the same tiles in the dark don't
 #define SCENE_BLOOM filter(type = "bloom", threshold = "#d0d0d0", size = 3, offset = 0, alpha = 45)
 
+// Particles (hippiestation/code/modules/particles/particle_fx.dm)
+/// Every particle is drawn on this plane: over the game world, under the lighting, and not at all for a client on Low graphics
+#define PARTICLE_PLANE 9
+/// Wind this strong shows as a gust on its tile (the pressure difference that starts shoving things about is 20 or so)
+#define PARTICLE_GUST_PRESSURE 25
+/// Tiles showing a gust at once, at most: a big breach is hundreds of windy tiles
+#define PARTICLE_GUST_TILES 120
+/// A vent letting this many moles into a room in one go puffs: about 8 kPa short of what it's set to
+#define PARTICLE_VENT_PUFF_MOLES 8
+
 // The sky (hippiestation/code/_onclick/hud/sky.dm). The first two match tools/sky_gen/sky_gen.py, which draws the art.
 /// Nebula clouds are drawn this many times their sprite's size: they're soft, so the pixels aren't missed, and they repeat half as often
 #define SKY_NEBULA_SCALE 2

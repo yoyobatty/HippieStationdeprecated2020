@@ -102,6 +102,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/asset_cache/asset_list.dm
 ## code/modules/atmospherics/machinery/atmosmachinery.dm
 ## code/modules/atmospherics/machinery/components/components_base.dm
+## code/modules/atmospherics/machinery/components/unary_devices/vent_pump.dm
 ## code/modules/awaymissions/capture_the_flag.dm
 ## code/modules/awaymissions/corpse.dm
 ## code/modules/client/client_procs.dm

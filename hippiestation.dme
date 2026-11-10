@@ -3901,6 +3901,7 @@
 #include "hippiestation\code\modules\NTNet\netdata.dm"
 #include "hippiestation\code\modules\modular_computers\station_map.dm"
 #include "hippiestation\code\modules\paperwork\photocopier_tgui.dm"
+#include "hippiestation\code\modules\particles\particle_fx.dm"
 #include "hippiestation\code\modules\paperwork\paperwork_tgui.dm"
 #include "hippiestation\code\modules\paperwork\photography.dm"
 #include "hippiestation\code\modules\photography\camera\other.dm"
