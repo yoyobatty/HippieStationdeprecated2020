@@ -105,12 +105,16 @@
 				best = C
 		messes -= best
 		var/area/where = get_area(best)
-		if(LAZYACCESS(janitor_open_areas, where) > world.time)
+		// Maintenance is one area in pieces, a door its ID doesn't open between them: a stain there gets a route search of its own.
+		// One way into Port Maintenance had every stain in it taken for one there was a way to, 22 mops given up in a batch.
+		var/in_pieces = istype(where, /area/maintenance)
+		if(!in_pieces && LAZYACCESS(janitor_open_areas, where) > world.time)
 			return best
 		if(can_walk_lawfully_to(best))
-			LAZYSET(janitor_open_areas, where, world.time + 3 MINUTES) //a route search for each of its stains would be a waste
+			if(!in_pieces)
+				LAZYSET(janitor_open_areas, where, world.time + 3 MINUTES) //a route search for each of its stains would be a waste
 			return best
-		LAZYSET(janitor_blocked, where, world.time + 10 MINUTES)
+		LAZYSET(janitor_blocked, in_pieces ? get_turf(best) : where, world.time + 10 MINUTES)
 	return null
 
 /// A light fixture with a dead, broken or missing tube that the replacer can do something about.
@@ -339,7 +343,15 @@
 	var/obj/item/mop/mop = find_carried_tool(/obj/item/mop)
 	if(mop?.reagents.total_volume >= 1)
 		return TRUE
-	var/obj/item/reagent_containers/glass/bucket/bucket = fullest_carried_bucket() || find_loose_item(/obj/item/reagent_containers/glass/bucket) //the one it would fetch (prepare_to_mop)
+	var/obj/item/reagent_containers/glass/bucket/bucket = fullest_carried_bucket()
+	if(!bucket) //the one it would fetch (prepare_to_mop), if it can get to it: "nowhere to get a bucket" was 14 messes given up
+		bucket = find_loose_item(/obj/item/reagent_containers/glass/bucket)
+		if(bucket && !can_walk_lawfully_to(bucket))
+			bucket = null
+			if(world.time >= janitor_dry_until)
+				janitor_dry_until = world.time + 3 MINUTES
+				bot_log(src, "no bucket it can get to")
+			return FALSE
 	if(bucket?.reagents.total_volume >= 5)
 		return TRUE
 	if(world.time < janitor_dry_until)

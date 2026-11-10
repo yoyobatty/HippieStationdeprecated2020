@@ -160,6 +160,30 @@
 			return BOT_GYM_FAIL
 	return world.time > start_time + 25 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/datum/bot_scenario/duty/janitor/bucket_out_of_reach
+	name = "janitor with the only bucket behind a door it can't open leaves the mess, and doesn't give it up again and again"
+	desc = "A dry mop to hand and blood about, and the bucket behind a door its ID doesn't open. It took up each mess, set off for the bucket, found no way there and gave the mess up."
+	layout = list(
+		"#############",
+		"#UD.BM.o.o.K#",
+		"#############")
+	bucket_water = 0
+	time_limit = 30 SECONDS
+
+/datum/bot_scenario/duty/janitor/bucket_out_of_reach/setup()
+	..()
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	A.req_access = list(ACCESS_CAPTAIN)
+
+/datum/bot_scenario/duty/janitor/bucket_out_of_reach/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/line in transcript)
+		if(findtext(line, "nowhere to get a bucket"))
+			fail_reason = "took up a mess with no bucket it could get to"
+			return BOT_GYM_FAIL
+	return world.time > start_time + 25 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /datum/bot_scenario/duty/janitor/galoshes
 	name = "janitor puts on galoshes from the JaniDrobe"
 	desc = "A JaniDrobe in the room. Before anything else the janitor buys galoshes and puts them on, bagging its own shoes - then mops at a run, and takes the light replacer while it's there."
