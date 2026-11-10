@@ -38,8 +38,20 @@
 #define AIR_DUST_NONE 0
 #define AIR_DUST_LIGHT 1
 #define AIR_DUST_HEAVY 2
-/// One emitter every this many tiles each way, on the tiles where x and y are 2 more than a multiple of it. It covers the square round it
-#define AIR_DUST_SPACING 4
+/// One floor in each square this many tiles a side holds dust, picked at random so they don't line up: light dust, heavy dust
+#define AIR_DUST_CELL_LIGHT 3
+#define AIR_DUST_CELL_HEAVY 2
+/// Specks a dust floor lets go a tick (BYOND keeps the fraction): living 6 to 10 seconds, one or two over it at a time
+#define AIR_DUST_SPAWNING 0.02
+/// Air thinner than this (kPa) holds no dust: a room losing its air lets its specks settle
+#define AIR_DUST_MIN_PRESSURE HAZARD_LOW_PRESSURE
+/// Air this hot (K) burns it up, as a fire on its floor does, and none comes back for AIR_DUST_BURNT_FOR
+#define AIR_DUST_BURN_TEMPERATURE FIRE_MINIMUM_TEMPERATURE_TO_EXIST
+#define AIR_DUST_BURNT_FOR (2 MINUTES)
+/// SSair_dust (a fire a second) looks at each dust floor, vent and scrubber once in this many fires: longer than a speck lives
+#define AIR_DUST_CHECK_FIRES 10
+/// How long a scrubber keeps the sides it draws dust in from before looking at them again
+#define AIR_DUST_SPOKES_FOR (1 MINUTES)
 /// The share of a speck's speed the air takes off it each tick: what holds a speck in wind to the wind's speed
 #define AIR_DUST_FRICTION 0.025
 /// Wind (an SSair pressure difference) this strong over a dust square's floor carries its specks: gently, briskly from the second,

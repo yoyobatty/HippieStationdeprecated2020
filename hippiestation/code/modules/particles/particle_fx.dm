@@ -71,6 +71,10 @@ GLOBAL_LIST_EMPTY(particle_fx)
 		if("air_dust_vent") //a vent blowing (air_dust.dm)
 			set_type = /particles/fx/air_dust/vent
 			plane = AIR_DUST_PLANE
+		if("air_dust_burn") //dust burning up (air_dust.dm): on this plane, not the dust's, which the fire's own sprite masks
+			set_type = /particles/fx/air_dust_burn
+			blend_mode = BLEND_ADD
+			burst_time = 10
 		else
 			if(findtext(kind, "air_dust_pull") == 1) //"air_dust_pull" and a direction: one spoke of the specks a scrubber draws in, from that side
 				var/static/list/spokes = list(
@@ -261,28 +265,38 @@ GLOBAL_LIST_EMPTY(particle_fx)
 	scale = generator("vector", list(0.5, 0.5), list(0.7, 0.7))
 	grow = 0.07
 
-/// Dust hanging in a room's air, over a square of floor round its emitter (air_dust.dm). Specks fade in, wander a few pixels and
-/// fade out again; some catch more light than others. Each square has a set of its own, which wind gives a gravity
+/// Dust hanging in a room's air, over the floor of its emitter (air_dust.dm): one or two specks at a time. They fade in, wander a
+/// few pixels and fade out again, faint, some catching more light than others. Each floor has a set of its own, which wind gives
+/// a gravity; the drawing is big enough for the wind to carry them a few tiles on
 /particles/fx/air_dust
 	icon_state = "mote"
-	width = 288
-	height = 288
-	count = 5
-	spawning = 0.06
+	width = 224
+	height = 224
+	count = 2
+	spawning = AIR_DUST_SPAWNING
 	lifespan = generator("num", 60, 100)
 	fade = 25
 	fadein = 25
-	position = generator("box", list(-AIR_DUST_SPACING * 16, -AIR_DUST_SPACING * 16, 0), list(AIR_DUST_SPACING * 16, AIR_DUST_SPACING * 16, 0))
-	velocity = generator("circle", 0.1, 0.2) //a pixel or two a second, curving: still air, but not stopped
-	drift = generator("circle", 0, 0.01)
+	position = generator("box", list(-12, -12, 0), list(12, 12, 0))
+	velocity = generator("circle", 0.05, 0.12) //a pixel a second, curving: still air, but not stopped
+	drift = generator("circle", 0, 0.006)
 	friction = AIR_DUST_FRICTION
-	gradient = list(0, "#fff3dc50", 1, "#fff6e8d0")
+	gradient = list(0, "#fff3dc2c", 1, "#fff6e878")
 	color = generator("num", 0, 1)
-	scale = generator("vector", list(0.75, 0.75), list(1.15, 1.15))
+	scale = generator("vector", list(0.7, 0.7), list(1.05, 1.05))
 
-/particles/fx/air_dust/heavy
-	count = 14
-	spawning = 0.17
+/// Dust burning up in a fire or air too hot for it: a spark or two over its floor, gone in a moment
+/particles/fx/air_dust_burn
+	count = 3
+	spawning = 3
+	lifespan = generator("num", 5, 9)
+	fade = 5
+	position = generator("box", list(-12, -12, 0), list(12, 12, 0))
+	velocity = generator("box", list(-0.15, 0.1, 0), list(0.15, 0.5, 0))
+	gradient = list(0, "#fff4c8", 0.5, "#ffa040", 1, "#a03000")
+	color = 0
+	color_change = 0.15
+	scale = generator("vector", list(0.5, 0.5), list(0.9, 0.9))
 
 /// Blown out of a running vent: quick at the grille, slowing over a couple of tiles and left to hang
 /particles/fx/air_dust/vent

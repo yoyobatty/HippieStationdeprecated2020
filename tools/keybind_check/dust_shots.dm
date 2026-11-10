@@ -3,6 +3,9 @@
 // Uses the real station (maintenance, the chapel, the library, a hallway, medbay). Pictures in data/previews/dust_*.png, notes in
 // data/keycheck_dust.txt. Each place twice: dust on (High graphics), then off (Medium), from the same spot a moment apart.
 // data/dust_shots_which holding "flow" skips the places and the walk: only the vent and the scrubber.
+// "pass2" (the 2026-11-10 pass: fainter, spread out, none in airless chambers or over things, burnt by fire) pictures the
+// places, the atmos chambers and a fire lit in maintenance instead (data/previews/dust2_<label>_*.png, the label from
+// data/dust_shots_label), and counts what the dust is doing; the same pictures before and after a change.
 // Then the air moving it: bursts of pictures by a running vent, by a scrubber, and in a hallway with wind blown east across it
 // (data/previews/dust_flow_*), and a walk up and down a hallway with the dust and without it, for world.map_cpu.
 
@@ -149,7 +152,11 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	var/obj/screen/plane_master/air_dust/PM = H.hud_used.plane_masters["[AIR_DUST_PLANE]"]
 	kc_log("hwmode [winget(C, null, "hwmode")], view [C.view], dust plane master [PM ? "there" : "missing"], filters [PM ? length(PM.filters) : 0]")
 
-	var/flow_only = fexists("data/dust_shots_which") && trim(file2text("data/dust_shots_which")) == "flow"
+	var/which = fexists("data/dust_shots_which") ? trim(file2text("data/dust_shots_which")) : ""
+	if(which == "pass2")
+		dust_pass2(C, H, spots, holders)
+		return
+	var/flow_only = which == "flow"
 	for(var/name in spots)
 		if(flow_only)
 			break
@@ -219,12 +226,12 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			T.pressure_difference = 0
 		if(pass == 10)
 			var/obj/effect/particle_fx/air_dust/sample = windy[1]?.air_dust_fx
-			kc_log("wind: [length(windy)] squares, [length(GLOB.windy_dust)] showing it, the first going [sample?.wind_dir] at [sample?.wind_speed]")
+			kc_log("wind: [length(windy)] squares, [length(SSair_dust.windy)] showing it, the first going [sample?.wind_dir] at [sample?.wind_speed]")
 			dust_burst("dust_flow_wind")
 		sleep(5)
 	sleep(5 SECONDS)
 	var/obj/effect/particle_fx/air_dust/after = windy[1]?.air_dust_fx
-	kc_log("wind over: [length(GLOB.windy_dust)] still showing it, the first going [after?.wind_dir] at [after?.wind_speed]")
+	kc_log("wind over: [length(SSair_dust.windy)] still showing it, the first going [after?.wind_dir] at [after?.wind_speed]")
 
 	// What it costs to send: a walk up and down the hallway with the dust held, then with it taken off every floor
 	var/with_dust = dust_walk(H, first, 20)
@@ -236,6 +243,216 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		T.vis_contents += holders[T]
 
 	dust_finish(C)
+
+/// What the dust holders are doing, for the notes: works with the dust before the 2026-11-10 pass too (no states then)
+/proc/dust_states(list/holders, turf/middle, reach_x = 10, reach_y = 7)
+	var/list/states = list()
+	for(var/turf/T as anything in holders)
+		if(middle && (T.z != middle.z || abs(T.x - middle.x) > reach_x || abs(T.y - middle.y) > reach_y))
+			continue
+		var/obj/effect/particle_fx/air_dust/dust = holders[T]
+		if(QDELETED(dust))
+			states["gone"]++
+		else if(!("burnt_until" in dust.vars))
+			states["held"]++
+		else if(dust.vars["burnt_until"] > world.time)
+			states["burnt"]++
+		else if(!dust.particles)
+			states["off"]++
+		else if(!dust.particles.spawning)
+			states["settling"]++
+		else
+			states["on"]++
+	return json_encode(states)
+
+/proc/dust_pass2(client/C, mob/living/carbon/human/H, list/spots, list/holders)
+	var/label = fexists("data/dust_shots_label") ? trim(file2text("data/dust_shots_label")) : "now"
+	C.prefs.set_graphics_quality(GRAPHICS_QUALITY_HIGH)
+	H.hud_used.plane_masters_update()
+	kc_log("all: [dust_states(holders)]")
+	// Dust holders over something, in the chambers, and on floors with special air
+	var/blocked = 0
+	var/special = 0
+	for(var/turf/open/floor/T as anything in holders)
+		for(var/obj/O in T) //air_dust_blocked()'s rule, written out so this still builds without it
+			if(O.density || ((isstructure(O) || ismachinery(O)) && O.layer >= LOW_OBJ_LAYER && O.layer < WALL_OBJ_LAYER && abs(O.pixel_x) < 16 && abs(O.pixel_y) < 16))
+				blocked++
+				break
+		if(T.initial_gas_mix != OPENTURF_DEFAULT_ATMOS)
+			special++
+	kc_log("holders on a floor with something on it: [blocked]; on a floor with mapped air that isn't station air: [special]")
+
+	for(var/name in spots)
+		var/turf/T = spots[name]
+		if(!T)
+			continue
+		H.forceMove(T)
+		sleep(14 SECONDS) //the specks fill in over about eight seconds once a square comes into view
+		kc_log("[name] at ([T.x],[T.y]): [dust_states(holders, T)]")
+		dust_shot("dust2_[label]_[name]")
+
+	// The atmos chambers: the mix chamber (vacuum) and the gas tanks, from the atmos floor nearest the mix chamber
+	var/turf/chamber
+	for(var/turf/open/floor/engine/vacuum/V in world)
+		if(istype(V.loc, /area/engine/atmos) && is_station_level(V.z))
+			chamber = V
+			break
+	if(chamber)
+		var/turf/stand
+		var/best = INFINITY
+		for(var/turf/open/floor/plasteel/F in range(7, chamber))
+			if(!istype(F.loc, /area/engine/atmos) || is_blocked_turf(F, TRUE))
+				continue
+			var/d = get_dist(F, chamber)
+			if(d >= 3 && d < best)
+				best = d
+				stand = F
+		if(stand)
+			H.forceMove(stand)
+			sleep(14 SECONDS)
+			kc_log("atmos at ([stand.x],[stand.y]), mix chamber ([chamber.x],[chamber.y]): [dust_states(holders, stand)]")
+			var/list/chamber_holders = list()
+			for(var/turf/open/floor/engine/E in holders)
+				chamber_holders["[E.type]"]++
+			kc_log("holders on engine floors: [json_encode(chamber_holders)]")
+			dust_shot("dust2_[label]_atmos")
+
+	// A fire: plasma lit on the maintenance floor a few tiles from the viewer, pictures as it takes and once it's burning
+	var/turf/maint = spots["maint"]
+	if(maint)
+		H.forceMove(maint)
+		sleep(14 SECONDS)
+		var/list/patch = list()
+		for(var/turf/open/floor/F in range(2, locate(maint.x + 3, maint.y, maint.z)))
+			if(!is_blocked_turf(F, TRUE) && istype(F.loc, /area/maintenance))
+				patch += F
+		kc_log("fire: [length(patch)] floors lit near ([maint.x + 3],[maint.y]); before: [dust_states(holders, maint)]")
+		dust_shot("dust2_[label]_fire_0")
+		for(var/turf/open/floor/F as anything in patch)
+			F.atmos_spawn_air("plasma=4;TEMP=600")
+			F.hotspot_expose(1000, CELL_VOLUME)
+		for(var/i in 1 to 3)
+			sleep(3)
+			dust_shot("dust2_[label]_fire_[i]")
+		sleep(4 SECONDS)
+		kc_log("fire after 5 s: [dust_states(holders, maint)], [length(SSair.hotspots)] hotspots")
+		dust_shot("dust2_[label]_fire_4")
+	kc_log("dust subsystem: [json_encode(dust_subsystem_cost())]")
+	dust_pass2_logic(holders, spots["hallway"])
+	dust_finish(C)
+
+/// One dust floor in the hallway put through heat, thin air and a locker, and every scrubber's spokes against the walls round it.
+/// Only with the 2026-11-10 dust (check() and the rest), called by name so this still builds without it.
+/proc/dust_pass2_logic(list/holders, turf/near)
+	var/obj/effect/particle_fx/air_dust/dust
+	for(var/turf/open/floor/T as anything in holders)
+		var/obj/effect/particle_fx/air_dust/D = holders[T]
+		if(!QDELETED(D) && D.particles && T.z == near?.z && get_dist(T, near) <= 6 && hascall(D, "check"))
+			dust = D
+			break
+	if(!dust)
+		kc_log("logic: no dust floor showing near the hallway spot, or no check()")
+		return
+	var/turf/open/floor/T = dust.vars["home"]
+	var/datum/gas_mixture/G = T.air
+	var/datum/gas_mixture/saved = G.copy()
+	var/list/steps = list()
+	var/state = /proc/dust_state_of
+	G.temperature = 500
+	call(dust, "check")()
+	steps += "hot [call(state)(dust)]"
+	G.copy_from(saved)
+	call(dust, "check")()
+	steps += "cooled, burnt a while yet [call(state)(dust)]"
+	dust.vars["burnt_until"] = 0
+	call(dust, "check")()
+	steps += "burnt time over [call(state)(dust)]"
+	G.remove_ratio(0.95)
+	call(dust, "check")()
+	steps += "thin air [call(state)(dust)]"
+	call(dust, "check")()
+	steps += "thin air, next look [call(state)(dust)]"
+	G.copy_from(saved)
+	call(dust, "check")()
+	steps += "air back [call(state)(dust)]"
+	var/obj/structure/closet/locker = new(T)
+	call(dust, "check")()
+	call(dust, "check")()
+	steps += "locker on it [call(state)(dust)]"
+	qdel(locker)
+	call(dust, "check")()
+	steps += "locker gone [call(state)(dust)]"
+	kc_log("logic at ([T.x],[T.y]): [steps.Join(", ")]")
+
+	var/scrubbers = 0
+	var/spokes = 0
+	var/from_walls = 0
+	var/none = 0
+	for(var/obj/machinery/atmospherics/components/unary/U in GLOB.machines)
+		if(U.dust_flow != "air_dust_scrubber")
+			continue
+		scrubbers++
+		var/list/shown = U.vars["dust_shown"]
+		if(!length(shown))
+			none++
+		for(var/obj/effect/particle_fx/F in shown)
+			spokes++
+			for(var/dir in GLOB.alldirs)
+				if(F == GLOB.particle_fx["air_dust_pull[dir]"] && isclosedturf(get_step(U, dir)))
+					from_walls++
+	kc_log("scrubbers drawing dust in: [scrubbers], [spokes] spokes of a possible [scrubbers * 8], [from_walls] from a wall, [none] with none")
+
+	// What stops the dust floors that are off: the first thing on each, by kind
+	var/list/blockers = list()
+	for(var/obj/effect/particle_fx/air_dust/D as anything in SSair_dust.seeds)
+		if(D.particles)
+			continue
+		var/what = "nothing (air?)"
+		for(var/obj/O in D.home)
+			if(O.density || ((isstructure(O) || ismachinery(O)) && O.layer >= LOW_OBJ_LAYER && O.layer < WALL_OBJ_LAYER && abs(O.pixel_x) < 16 && abs(O.pixel_y) < 16))
+				var/path = "[O.type]"
+				var/list/parts = splittext(path, "/")
+				what = "[parts.Copy(1, min(length(parts), 5) + 1).Join("/")][O.density ? "" : " (not solid)"]"
+				break
+		blockers[what]++
+	sortTim(blockers, GLOBAL_PROC_REF(cmp_numeric_dsc), TRUE)
+	var/list/top = list()
+	for(var/what in blockers)
+		top += "[what] [blockers[what]]"
+		if(length(top) >= 16)
+			break
+	kc_log("dust floors off, by what's on them: [top.Join("; ")]")
+
+	// What a look costs: every dust floor once, every vent and scrubber once (fresh, then with its sides kept)
+	var/start = TICK_USAGE_REAL
+	for(var/obj/effect/particle_fx/air_dust/D as anything in SSair_dust.seeds)
+		D.check()
+	var/seeds_ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - start)
+	for(var/obj/machinery/atmospherics/components/unary/U as anything in SSair_dust.flows)
+		U.dust_flow_emitters_until = 0
+	start = TICK_USAGE_REAL
+	for(var/obj/machinery/atmospherics/components/unary/U as anything in SSair_dust.flows)
+		U.update_dust_flow()
+	var/fresh_ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - start)
+	start = TICK_USAGE_REAL
+	for(var/obj/machinery/atmospherics/components/unary/U as anything in SSair_dust.flows)
+		U.update_dust_flow()
+	var/kept_ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - start)
+	kc_log("a look at all [length(SSair_dust.seeds)] dust floors: [round(seeds_ms, 0.01)] ms; all [length(SSair_dust.flows)] vents and scrubbers: [round(fresh_ms, 0.01)] ms looking at their sides, [round(kept_ms, 0.01)] ms with them kept")
+
+/proc/dust_state_of(obj/effect/particle_fx/air_dust/dust)
+	if(dust.vars["burnt_until"] > world.time)
+		return "burnt[dust.particles ? " (still showing!)" : ""]"
+	if(!dust.particles)
+		return "off"
+	return dust.particles.spawning ? "on" : "settling"
+
+/// What the dust's subsystem has cost, if there is one (there wasn't before the 2026-11-10 pass)
+/proc/dust_subsystem_cost()
+	for(var/datum/controller/subsystem/S as anything in Master.subsystems)
+		if(S.name == "Air dust")
+			return list("ms a fire" = round(S.cost, 0.001), "fired" = S.times_fired, "seeds" = length(S.vars["seeds"]), "flows" = length(S.vars["flows"]))
+	return list("none")
 
 /proc/dust_finish(client/C)
 	text2file("done", "data/keycheck_shots_done")

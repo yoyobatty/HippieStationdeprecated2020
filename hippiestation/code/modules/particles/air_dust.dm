@@ -1,13 +1,18 @@
 // Dust in the air: specks hanging over the floor and wandering about, seen where the light catches them. More of it in
 // maintenance, storage, the chapel and the library; none in medical. The air moves it: a running vent blows specks out, a
-// scrubber (or a vent siphoning) draws them in, and wind carries them along.
+// scrubber (or a vent siphoning) draws them in, and wind carries them along. It needs air to hang in, and burns up in a fire.
 //
-// One emitter every AIR_DUST_SPACING tiles each way, held in a floor's vis_contents, covers the square round it. Each has its own
-// particle set, so wind over its floor bends the specks already in the air (a new gravity) instead of starting them over.
-// Vents and scrubbers hold shared emitters of their own while they run. Everything is drawn on a plane of its own
-// (AIR_DUST_PLANE) that a client masks twice: by the floor plane, so there's no dust over space or out past a window, and by the
-// game plane turned inside out, so none over a wall or in front of a locker or a person. Under the lighting, so dust in the dark
-// can't be seen. High graphics only.
+// One floor in each little square of the station (AIR_DUST_CELL_LIGHT tiles a side, AIR_DUST_CELL_HEAVY where it's dusty, the
+// floor picked at random so they don't line up) holds an emitter in its vis_contents that lets specks go over that floor alone,
+// so they're spread out evenly and none start in a wall or over a table. Each has its own particle set, so wind over its floor
+// bends the specks already in the air (a new gravity) instead of starting them over. SSair_dust looks at each now and then:
+// with something standing on its floor (anything solid, a table, a machine, a locker) or air too thin to hold dust, it lets no
+// more go and the ones in the air settle; a fire or air too hot burns them up at once, and none come back for a while. Floors
+// the map gave air of their own (the mix and burn chambers, the gas tanks, telecomms) never hold any.
+// Vents and scrubbers hold shared emitters of their own while they run, a scrubber drawing in only from sides that are open
+// floor. Everything is drawn on a plane of its own (AIR_DUST_PLANE) that a client masks twice: by the floor plane, so there's
+// no dust over space or out past a window, and by the game plane turned inside out, so none over a wall or in front of a
+// locker or a person. Under the lighting, so dust in the dark can't be seen. High graphics only.
 
 /area
 	/// How dusty the air is: AIR_DUST_NONE, AIR_DUST_LIGHT or AIR_DUST_HEAVY
@@ -56,20 +61,141 @@
 		filter(type = "alpha", render_source = FLOOR_PLANE_RENDER_TARGET),
 		filter(type = "alpha", render_source = GAME_PLANE_RENDER_TARGET, flags = MASK_INVERSE))
 
-// ---- The dust over a square of floor
+// ---- Keeping it up: what's on each dust floor, its air, and the wind dying down
+
+SUBSYSTEM_DEF(air_dust)
+	name = "Air dust"
+	wait = 1 SECONDS
+	flags = SS_NO_INIT | SS_BACKGROUND
+	priority = FIRE_PRIORITY_VIS
+	runlevels = RUNLEVEL_GAME | RUNLEVEL_POSTGAME
+	/// Every floor's dust emitter
+	var/list/seeds = list()
+	/// Vents and scrubbers running where there's dust, as keys
+	var/list/flows = list()
+	/// Dust showing wind, as keys
+	var/list/windy = list()
+	/// Where the looks have got to in seeds and flows, and how many are left this time round
+	var/seed_at = 1
+	var/flow_at = 1
+	var/seeds_left = 0
+	var/flows_left = 0
+
+/datum/controller/subsystem/air_dust/stat_entry(msg)
+	return ..("S:[length(seeds)] F:[length(flows)] W:[length(windy)]")
+
+/datum/controller/subsystem/air_dust/fire(resumed)
+	if(!resumed)
+		// Calms the dust that's had no wind for a while
+		for(var/obj/effect/particle_fx/air_dust/dust as anything in windy)
+			if(dust.wind_until <= world.time)
+				dust.blow(0, 0)
+				windy -= dust
+		seeds_left = CEILING(length(seeds) / AIR_DUST_CHECK_FIRES, 1)
+		flows_left = CEILING(length(flows) / AIR_DUST_CHECK_FIRES, 1)
+	while(seeds_left > 0 && length(seeds))
+		if(seed_at > length(seeds))
+			seed_at = 1
+		var/obj/effect/particle_fx/air_dust/dust = seeds[seed_at++]
+		seeds_left--
+		dust.check()
+		if(MC_TICK_CHECK)
+			return
+	while(flows_left > 0 && length(flows))
+		if(flow_at > length(flows))
+			flow_at = 1
+		var/obj/machinery/atmospherics/components/unary/U = flows[flow_at++]
+		flows_left--
+		U.update_dust_flow()
+		if(MC_TICK_CHECK)
+			return
+
+/// Something on a floor that dust doesn't hang over: anything solid, or a table, a machine, a chair or the like standing on it.
+/// Not what's under the floor (pipes, wires, a vent) or hung on a wall, and not a mob or an item.
+/proc/air_dust_blocked(turf/T)
+	for(var/obj/O in T)
+		if(O.density)
+			return TRUE
+		if((isstructure(O) || ismachinery(O)) && O.layer >= LOW_OBJ_LAYER && O.layer < WALL_OBJ_LAYER && abs(O.pixel_x) < 16 && abs(O.pixel_y) < 16)
+			return TRUE
+	return FALSE
+
+/// Whether a floor's air keeps dust: not too thin, not too hot, no fire. Read straight off the turf, not with return_air(),
+/// which marks the air as handed out and has the tile engine send it again.
+/proc/air_dust_air_ok(turf/open/T)
+	if(T.active_hotspot)
+		return FALSE
+	var/datum/gas_mixture/G = T.air
+	return !G || (G.temperature < AIR_DUST_BURN_TEMPERATURE && G.return_pressure() >= AIR_DUST_MIN_PRESSURE)
+
+/// Whether a floor is the one in its square of the dust grid (cell tiles a side) that holds dust. Each square's floor is picked at
+/// random the first time it's asked about, for each size of square and each z-level.
+/proc/air_dust_picked(x, y, z, cell)
+	var/static/list/grids = list()
+	var/list/picks = grids["[cell] [z]"]
+	var/columns = CEILING(world.maxx / cell, 1)
+	if(!picks)
+		picks = new /list(columns * CEILING(world.maxy / cell, 1))
+		grids["[cell] [z]"] = picks
+	var/square = round((x - 1) / cell) + round((y - 1) / cell) * columns + 1
+	if(square > length(picks))
+		picks.len = square
+	if(!picks[square])
+		picks[square] = rand(1, cell * cell)
+	return picks[square] == ((x - 1) % cell) + ((y - 1) % cell) * cell + 1
+
+// ---- The dust over a floor
 
 /obj/effect/particle_fx/air_dust
 	plane = AIR_DUST_PLANE
+	/// The floor it's over
+	var/turf/open/floor/home
+	/// Its own set of specks, kept while it shows none
+	var/particles/fx/air_dust/specks
+	/// Burnt up: none again before this
+	var/burnt_until = 0
 	/// The wind it's showing: which way, and how fast its specks go, in pixels a tick (0 in still air)
 	var/wind_dir = 0
 	var/wind_speed = 0
 	/// When the wind it's showing dies down, if none comes before then
 	var/wind_until = 0
 
-/obj/effect/particle_fx/air_dust/proc/become(strength)
-	// the type in a var of its own: new (a ? b : c) makes the var's own type, a bare /particles, whose specks sit in one white dot
-	var/set_type = strength == AIR_DUST_HEAVY ? /particles/fx/air_dust/heavy : /particles/fx/air_dust
-	particles = new set_type
+/obj/effect/particle_fx/air_dust/Destroy()
+	SSair_dust.seeds -= src
+	SSair_dust.windy -= src
+	home = null
+	particles = null
+	specks = null
+	return ..()
+
+/// Looks at its floor: lets specks go, lets them settle, or burns them up
+/obj/effect/particle_fx/air_dust/proc/check()
+	var/turf/open/floor/T = home
+	var/datum/gas_mixture/G = T.air
+	if(T.active_hotspot || G?.temperature >= AIR_DUST_BURN_TEMPERATURE)
+		burn_up()
+		return
+	if(world.time < burnt_until)
+		return
+	if((!G || G.return_pressure() >= AIR_DUST_MIN_PRESSURE) && !air_dust_blocked(T))
+		if(!particles)
+			specks.spawning = AIR_DUST_SPAWNING
+			particles = specks
+		else if(!specks.spawning)
+			specks.spawning = AIR_DUST_SPAWNING
+	else if(particles)
+		if(specks.spawning)
+			specks.spawning = 0 //no more: the ones in the air see out their time
+		else
+			particles = null //settling since the last look, AIR_DUST_CHECK_FIRES seconds ago: longer than a speck lives
+
+/// Burns its specks up: they flare and are gone, and none come back for AIR_DUST_BURNT_FOR
+/obj/effect/particle_fx/air_dust/proc/burn_up()
+	burnt_until = world.time + AIR_DUST_BURNT_FOR
+	if(!particles)
+		return
+	particles = null
+	new /obj/effect/particle_fx/burst(home, "air_dust_burn")
 
 /// Wind of a pressure difference over its floor, from SSair. The specks lean into it at once and keep going for a while after it stops,
 /// at the strongest the last couple of seconds have had, so a gusty draft doesn't make them flutter.
@@ -78,13 +204,11 @@
 	if(world.time < wind_until && dir == wind_dir && speed < wind_speed)
 		speed = wind_speed
 	wind_until = world.time + AIR_DUST_WIND_HOLD
-	if(!length(GLOB.windy_dust))
-		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(sweep_windy_dust)), 1 SECONDS)
-	GLOB.windy_dust[src] = TRUE
+	SSair_dust.windy[src] = TRUE
 	blow(dir, speed)
 
-/// Gives its specks a push one way (gravity, held back by friction, so they reach the speed and keep it) and lets new ones in
-/// upwind, so they cross the square instead of all leaving it. Direction 0 is still air.
+/// Gives its specks a push one way (gravity, held back by friction, so they reach the speed and keep it). They still start over
+/// its own floor, and fly on over the next ones. Direction 0 is still air.
 /obj/effect/particle_fx/air_dust/proc/blow(dir, speed)
 	if(dir == wind_dir && speed == wind_speed)
 		return
@@ -95,45 +219,30 @@
 	if(along_x && along_y)
 		along_x *= 0.71
 		along_y *= 0.71
-	var/particles/fx/air_dust/specks = particles
 	specks.gravity = list(along_x * speed * AIR_DUST_FRICTION, along_y * speed * AIR_DUST_FRICTION)
-	// fast ones live shorter, so they stay in the square's drawing
+	// fast ones live shorter, so they stay in its drawing
 	specks.lifespan = speed >= 1 ? generator("num", 30, 50) : generator("num", 60, 100)
-	var/half = AIR_DUST_SPACING * 16
-	var/back = min(speed * 30, half)
-	specks.position = generator("box", list(-half - along_x * back, -half - along_y * back, 0), list(half - along_x * back, half - along_y * back, 0))
-
-GLOBAL_LIST_EMPTY(windy_dust)
-
-/// Calms the dust that's had no wind for a while, once a second, for as long as there's any still showing wind
-/proc/sweep_windy_dust()
-	for(var/obj/effect/particle_fx/air_dust/dust as anything in GLOB.windy_dust)
-		if(QDELETED(dust))
-			GLOB.windy_dust -= dust
-		else if(dust.wind_until <= world.time)
-			dust.blow(0, 0)
-			GLOB.windy_dust -= dust
-	if(length(GLOB.windy_dust))
-		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(sweep_windy_dust)), 1 SECONDS)
-
-/obj/effect/particle_fx/air_dust/Destroy()
-	GLOB.windy_dust -= src
-	return ..()
 
 /turf/open/floor
-	/// The dust over the square round this floor, if it's one on the grid that has some
+	/// The dust over this floor, if it's the one in its square of the grid that has some
 	var/obj/effect/particle_fx/air_dust/air_dust_fx
 
-// A floor laid where there was none gets dust too, if it's on the grid: built, or put back after a breach
+// A floor laid where there was none gets dust too, if it's the one in its square: built, or put back after a breach
 /turf/open/floor/Initialize(mapload)
 	. = ..()
-	if(x % AIR_DUST_SPACING != 2 || y % AIR_DUST_SPACING != 2)
-		return
 	var/area/A = loc
-	if(A.air_dust && is_station_level(z))
-		air_dust_fx = new
-		air_dust_fx.become(A.air_dust)
-		vis_contents += air_dust_fx
+	if(!A.air_dust || initial_gas_mix != OPENTURF_DEFAULT_ATMOS || !is_station_level(z))
+		return
+	if(!air_dust_picked(x, y, z, A.air_dust == AIR_DUST_HEAVY ? AIR_DUST_CELL_HEAVY : AIR_DUST_CELL_LIGHT))
+		return
+	var/obj/effect/particle_fx/air_dust/dust = new
+	dust.home = src
+	dust.specks = new /particles/fx/air_dust
+	air_dust_fx = dust
+	vis_contents += dust
+	SSair_dust.seeds += dust
+	if(!air_dust_blocked(src) && air_dust_air_ok(src))
+		dust.particles = dust.specks
 
 /turf/open/floor/Destroy()
 	if(air_dust_fx)
@@ -146,33 +255,84 @@ GLOBAL_LIST_EMPTY(windy_dust)
 	if(air_dust_fx && pressure_direction && pressure_difference >= AIR_DUST_WIND_PRESSURE)
 		air_dust_fx.feel_wind(pressure_direction, pressure_difference)
 
+// A fire burns up the dust on its floor at once, and stops a vent or scrubber there moving any
+/obj/effect/hotspot/Initialize(mapload, starting_volume, starting_temperature)
+	. = ..()
+	var/turf/open/floor/T = loc
+	if(!istype(T))
+		return
+	T.air_dust_fx?.burn_up()
+	for(var/obj/machinery/atmospherics/components/unary/U in T)
+		if(U.dust_flow)
+			U.update_dust_flow()
+
 // ---- Vents and scrubbers moving it
 
 /obj/machinery/atmospherics/components/unary
 	/// The air it's moving, as dust, while it runs: "air_dust_vent" blowing out or "air_dust_scrubber" drawing in
 	var/dust_flow
+	/// The shared emitters it holds for that now: none while the air over it can't hold dust
+	var/list/dust_shown
+	/// The emitters for its flow with the air fine: a scrubber's spokes are worked out again once a while (AIR_DUST_SPOKES_FOR),
+	/// since what's round it seldom changes and looking at all eight sides is most of SSair_dust's work
+	var/list/dust_flow_emitters
+	var/dust_flow_emitters_until = 0
 
-/// The shared emitters for a flow: a vent's one, or the eight spokes a scrubber draws specks in along (held straight in the
-/// machine's vis_contents: particles in vis_contents nested a level deeper weren't drawn)
-/proc/air_dust_flow_fx(kind)
-	if(kind == "air_dust_vent")
-		return list(particle_fx(kind))
-	. = list()
-	for(var/dir in GLOB.alldirs)
-		. += particle_fx("air_dust_pull[dir]")
+/obj/machinery/atmospherics/components/unary/Destroy()
+	SSair_dust.flows -= src
+	dust_shown = null
+	dust_flow_emitters = null
+	return ..()
 
-/// Shows the dust it moves, or stops: kind is the flow it has now, or null
+/// Runs or stops: kind is the flow it has now, or null
 /obj/machinery/atmospherics/components/unary/proc/set_dust_flow(kind)
 	var/area/A = loc?.loc
 	if(!A?.air_dust || !is_station_level(z))
 		kind = null
 	if(kind == dust_flow)
 		return
-	if(dust_flow)
-		vis_contents -= air_dust_flow_fx(dust_flow)
 	dust_flow = kind
+	dust_flow_emitters_until = 0
 	if(kind)
-		vis_contents += air_dust_flow_fx(kind)
+		SSair_dust.flows[src] = TRUE
+	else
+		SSair_dust.flows -= src
+	update_dust_flow()
+
+/// The shared emitters for its flow as things are: a vent's one, or a scrubber's spokes from each side that's open floor with
+/// nothing on it (held straight in the machine's vis_contents: particles in vis_contents nested a level deeper weren't drawn)
+/obj/machinery/atmospherics/components/unary/proc/dust_flow_fx()
+	var/turf/open/T = loc
+	if(!dust_flow || !istype(T) || air_dust_blocked(T) || !air_dust_air_ok(T))
+		return null
+	if(world.time < dust_flow_emitters_until)
+		return dust_flow_emitters
+	dust_flow_emitters_until = world.time + AIR_DUST_SPOKES_FOR
+	if(dust_flow == "air_dust_vent")
+		dust_flow_emitters = list(particle_fx(dust_flow))
+		return dust_flow_emitters
+	var/static/list/spoke_kinds
+	if(!spoke_kinds)
+		spoke_kinds = list()
+		for(var/dir in GLOB.alldirs)
+			spoke_kinds["[dir]"] = "air_dust_pull[dir]"
+	dust_flow_emitters = null
+	for(var/dir in GLOB.alldirs)
+		var/turf/open/floor/side = get_step(T, dir)
+		if(istype(side) && !air_dust_blocked(side))
+			LAZYADD(dust_flow_emitters, particle_fx(spoke_kinds["[dir]"]))
+	return dust_flow_emitters
+
+/// Shows the dust it moves as things are now: when it starts or stops, when a fire starts over it, and now and then from SSair_dust
+/obj/machinery/atmospherics/components/unary/proc/update_dust_flow()
+	var/list/now = dust_flow_fx()
+	if(now == dust_shown || (length(now) == length(dust_shown) && !length(now - dust_shown)))
+		return
+	if(dust_shown)
+		vis_contents -= dust_shown
+	dust_shown = now
+	if(now)
+		vis_contents += now
 
 /obj/machinery/atmospherics/components/unary/vent_pump/update_icon_nopipes()
 	. = ..()
