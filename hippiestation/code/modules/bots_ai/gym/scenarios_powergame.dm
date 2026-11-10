@@ -344,3 +344,35 @@
 			fail_reason = "went for the oxygen kit and found nothing for cuts in it"
 			return BOT_GYM_FAIL
 	return bot.getBruteLoss() < 35 ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/powergame_nanites
+	name = "powergame: gets in the nanite chamber and asks Science, and comes out with nanites"
+	desc = "A powergamer with no nanites, a nanite chamber with its console, and a scientist about. It gets in, asks on the radio, the scientist works the console, and it comes out on the cloud."
+	job = "Assistant"
+	layout = list(
+		"##########",
+		"#B...NK..#",
+		"#......C.#",
+		"##########")
+	time_limit = 60 SECONDS
+	var/mob/living/carbon/human/scientist
+
+/datum/bot_scenario/powergame_nanites/setup()
+	place("N", new /obj/machinery/nanite_chamber(first_marker("N")))
+	var/obj/machinery/computer/nanite_chamber_control/C = place("K", new /obj/machinery/computer/nanite_chamber_control(first_marker("K")))
+	C.find_chamber()
+
+/datum/bot_scenario/powergame_nanites/post_spawn()
+	brain.set_playstyle(BOT_STYLE_POWERGAMER)
+	brain.gym_scripted = FALSE //it asks on the radio (call_for())
+	scientist = second_bot(first_marker("C"), "Sci Entist")
+	scientist.mind.assigned_role = "Scientist"
+
+/datum/bot_scenario/powergame_nanites/make_goal()
+	var/obj/machinery/nanite_chamber/N = first_placed("N")
+	return bot_has_nanites(bot) ? null : new /datum/bot_goal/get_nanites(N)
+
+/datum/bot_scenario/powergame_nanites/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (bot_has_nanites(bot) && isturf(bot.loc)) ? BOT_GYM_PASS : BOT_GYM_PENDING

@@ -211,7 +211,7 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 /// Whether being inside this is something to get out of. The medical machines are where it was put to get better.
 /proc/bot_should_leave(obj/O)
 	return !(istype(O, /obj/machinery/sleeper) || istype(O, /obj/machinery/atmospherics/components/unary/cryo_cell) || istype(O, /obj/machinery/clonepod) \
-		|| istype(O, /obj/machinery/dna_scannernew) || istype(O, /obj/mecha) || istype(O, /obj/vehicle))
+		|| istype(O, /obj/machinery/dna_scannernew) || istype(O, /obj/mecha) || istype(O, /obj/vehicle) || istype(O, /obj/machinery/nanite_chamber))
 
 // ---------------------------------------------------------------------------------------------
 // Handling

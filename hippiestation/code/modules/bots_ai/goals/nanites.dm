@@ -161,6 +161,8 @@ GLOBAL_LIST_INIT(bot_nanite_programs, list("research_nanites", "researchplus_nan
 	wait_for = 10
 	if(!asked)
 		asked = TRUE
+		if(N.occupant == H) //in already, and asked for it (goals/powergame.dm get_nanites)
+			return TRUE
 		if(QDELETED(H) || !H.bot_brain || !H.bot_brain.assign_goal(new /datum/bot_goal/step_into_chamber(N, bot.owner)))
 			return FALSE
 		if(!bot.gym_scripted)

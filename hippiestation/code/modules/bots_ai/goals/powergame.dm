@@ -62,7 +62,7 @@ GLOBAL_LIST_INIT(bot_power_mutations, list(/datum/mutation/human/hulk, /datum/mu
 	if(owner.incapacitated() || gone_loud() || bot_shuttle_boarding())
 		return FALSE
 	inject_activators()
-	for(var/rung in list("access", "genes", "virus", "heals", "gun"))
+	for(var/rung in list("access", "genes", "virus", "heals", "nanites", "gun"))
 		if(LAZYACCESS(power_rests, rung) > world.time)
 			continue
 		var/started = FALSE
@@ -75,6 +75,8 @@ GLOBAL_LIST_INIT(bot_power_mutations, list(/datum/mutation/human/hulk, /datum/mu
 				started = try_power_virus()
 			if("heals")
 				started = try_power_heals()
+			if("nanites")
+				started = try_power_nanites()
 			if("gun")
 				started = try_power_gun()
 		if(started)
@@ -811,6 +813,125 @@ GLOBAL_LIST_INIT(bot_harmless_symptoms, typecacheof(list(/datum/symptom/beard, /
 	if(!QDELETED(I) && isturf(I.loc) && assign_goal(new /datum/bot_goal/take_item/exact(I)))
 		bot_log(src, "POWER: printed [I], picking it up")
 		bot_tally("powergaming: printed a gun")
+
+// ---------------------------------------------------------------------------------------------
+// Nanites
+// ---------------------------------------------------------------------------------------------
+
+/// Nanites in it, on the department's cloud: whatever Science puts on the cloud (regeneration, blood, purging, goals/nanites.dm) it
+/// gets by itself from then on. A player gets in the chamber and asks; somebody in Science works the console outside.
+/datum/bot_brain/proc/try_power_nanites()
+	if(bot_has_nanites(owner)) //goals/nanites.dm
+		return FALSE
+	LAZYSET(power_rests, "nanites", world.time + BOT_POWER_RUNG_REST)
+	if(!bot_on_duty(list("Scientist", "Research Director"), owner))
+		return FALSE
+	var/obj/machinery/computer/nanite_chamber_control/C = find_nanite_console()
+	if(!C || !can_walk_lawfully_to(C.chamber))
+		return FALSE
+	return assign_goal(new /datum/bot_goal/get_nanites(C.chamber))
+
+/datum/bot_goal/get_nanites
+	lawful = TRUE
+	exclusive = TRUE
+	doing = "getting nanites put in"
+
+/datum/bot_goal/get_nanites/New(obj/machinery/nanite_chamber/N)
+	. = ..()
+	target = N
+
+/datum/bot_goal/get_nanites/resolve_target(datum/bot_brain/bot)
+	if(QDELETED(target))
+		target = null
+
+/datum/bot_goal/get_nanites/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/nanites/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/wait_in_chamber())
+	return list(S)
+
+/// In, a call to Science, and a wait. It lets itself out if nobody comes.
+/datum/bot_step/paced/wait_in_chamber
+	max_clicks = 120
+	var/got_in = FALSE
+	var/called_at = 0
+	var/until = 0
+
+/datum/bot_step/paced/wait_in_chamber/start(datum/bot_brain/bot)
+	until = world.time + 2 MINUTES
+	return TRUE
+
+/datum/bot_step/paced/wait_in_chamber/do_click(datum/bot_brain/bot)
+	var/obj/machinery/nanite_chamber/N = bot.current_goal?.target
+	if(!istype(N) || QDELETED(N) || world.time > until || bot_has_nanites(bot.owner))
+		return FALSE
+	wait_for = 1 SECONDS
+	if(!got_in)
+		if(!bot.owner.Adjacent(N))
+			return FALSE
+		bot.human_pause(N)
+		if(QDELETED(N) || (N.occupant && N.occupant != bot.owner))
+			return FALSE
+		if(!N.state_open)
+			N.toggle_open(bot.owner)
+			return TRUE
+		N.MouseDrop_T(bot.owner, bot.owner)
+		got_in = bot.owner.loc == N
+		return got_in
+	if(bot.owner.loc != N)
+		return FALSE
+	if(!called_at)
+		called_at = world.time
+		if(!bot.call_for(/datum/bot_request_kind/nanites, pick("Science, could somebody put some nanites in me? I'm in the chamber.", "Anyone in Science free? I'm in the nanite chamber, could you do me?", "Science, nanites please - I'm sat in the chamber.")))
+			bot_log(bot, "nobody to put nanites in me")
+			return FALSE
+		wait_for = 3 SECONDS
+		return TRUE
+	if(world.time > called_at + BOT_POWER_WAIT_FOR_ANSWER * 2 && !bot.call_answered(/datum/bot_request_kind/nanites))
+		bot_log(bot, "nobody's coming to put nanites in me")
+		return FALSE
+	return TRUE
+
+/datum/bot_step/paced/wait_in_chamber/finish(datum/bot_brain/bot)
+	var/obj/machinery/nanite_chamber/N = bot.current_goal?.target
+	if(istype(N) && bot.owner.loc == N && !N.busy && !N.locked)
+		N.open_machine() //out again, either way
+	return bot_has_nanites(bot.owner) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+
+/// "Science, could somebody put some nanites in me? I'm in the chamber.": whoever's free works the console.
+/datum/bot_request_kind/nanites
+	name = "nanites"
+	jobs = list("Scientist", "Research Director")
+	strong_words = list("nanites")
+	ack_lines = list("Sure, be right there.", "On my way, stay put.", "Coming, don't touch anything.")
+	walks_there = FALSE //to the console, not to them (goals/nanites.dm run_nanite_chamber)
+	doing = "putting nanites in somebody"
+	precedence = 1
+
+/// The console of the chamber somebody's sitting in, if this bot can get to it.
+/datum/bot_request_kind/nanites/proc/console_for(datum/bot_brain/bot, mob/living/who)
+	for(var/obj/machinery/computer/nanite_chamber_control/C as anything in bot_instances_of(/obj/machinery/computer/nanite_chamber_control))
+		if(QDELETED(C) || (C.stat & (BROKEN|NOPOWER)) || bot.taken_by_another(C))
+			continue
+		if(!C.chamber)
+			C.find_chamber()
+		if(C.chamber?.occupant == who && !C.chamber.busy)
+			return bot.can_walk_lawfully_to(C) ? C : null
+	return null
+
+/datum/bot_request_kind/nanites/answered_by(datum/bot_brain/bot, datum/bot_request/R)
+	var/mob/living/who = R.caller_ref?.resolve()
+	return ..() && istype(who) && !bot_has_nanites(who) && console_for(bot, who)
+
+/datum/bot_request_kind/nanites/attend(datum/bot_brain/bot, datum/bot_request/R)
+	var/mob/living/carbon/human/who = R.caller_ref?.resolve()
+	var/obj/machinery/computer/nanite_chamber_control/C = istype(who) && console_for(bot, who)
+	if(!C)
+		return
+	if(bot.state == BOT_STATE_GOAL && !bot.current_goal?.exclusive)
+		bot.drop_goals("somebody's waiting in the nanite chamber")
+	if(bot.state != BOT_STATE_WANDER || !bot.assign_goal(new /datum/bot_goal/run_nanite_chamber(C, who)))
+		R.taken_by = null
+		LAZYOR(R.failed_by, bot)
 
 #undef BOT_POWER_RUNG_REST
 #undef BOT_POWER_ACCESS_REST
