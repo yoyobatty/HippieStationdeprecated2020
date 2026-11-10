@@ -1,16 +1,17 @@
 /obj/item/robot_module
     var/hippie_cyborg_base_icon
 
-/// The skin menu. A cyborg nobody's playing (bots_ai/goals/silicon.dm) gets any of them: input() would wait on a client it hasn't got and
-/// come back empty, and the module change with it.
-/obj/item/robot_module/proc/pick_skin(mob/living/silicon/robot/R, list/skins)
+/// The skin menu. A cyborg nobody's playing (bots_ai/goals/silicon.dm) picks for itself: input() would wait on a client it hasn't got and
+/// come back empty, and the module change with it. It picks one of `hippie_skins`, the ones drawn for Hippie (not in tg's sheet): the
+/// rest are tg's art, and the user saw the bot crew's cyborgs looking tg (2026-11-10).
+/obj/item/robot_module/proc/pick_skin(mob/living/silicon/robot/R, list/skins, list/hippie_skins)
 	if(!R.client && R.bot_silicon)
-		return pick(skins)
+		return pick(length(hippie_skins) ? hippie_skins : skins)
 	return tgui_input_list(R, "Select an icon!", "Robot Icon", skins)
 
 /obj/item/robot_module/standard/be_transformed_to(obj/item/robot_module/old_module)
 	var/mob/living/silicon/robot/R = loc
-	var/borg_icon = pick_skin(R, list("Standard", "Classic Style", "Hydro-bot", "Captain"))
+	var/borg_icon = pick_skin(R, list("Standard", "Classic Style", "Hydro-bot", "Captain"), list("Hydro-bot"))
 	if(!borg_icon)
 		return FALSE
 	switch(borg_icon)
@@ -26,7 +27,7 @@
 
 /obj/item/robot_module/medical/be_transformed_to(obj/item/robot_module/old_module)
 	var/mob/living/silicon/robot/R = loc
-	var/borg_icon = pick_skin(R, list("Standard", "Classic", "Humanoid"))
+	var/borg_icon = pick_skin(R, list("Standard", "Classic", "Humanoid"), list("Classic"))
 	if(!borg_icon)
 		return FALSE
 	switch(borg_icon)
@@ -40,7 +41,7 @@
 
 /obj/item/robot_module/security/be_transformed_to(obj/item/robot_module/old_module)
 	var/mob/living/silicon/robot/R = loc
-	var/borg_icon = pick_skin(R, list("Standard", "Classic", "Humanoid", "Black Scheme Humanoid", "PISSED OFF BEEPSKY"))
+	var/borg_icon = pick_skin(R, list("Standard", "Classic", "Humanoid", "Black Scheme Humanoid", "PISSED OFF BEEPSKY"), list("Classic", "PISSED OFF BEEPSKY"))
 	if(!borg_icon)
 		return FALSE
 	switch(borg_icon)
@@ -59,7 +60,7 @@
 
 /obj/item/robot_module/engineering/be_transformed_to(obj/item/robot_module/old_module)
 	var/mob/living/silicon/robot/R = loc
-	var/borg_icon = pick_skin(R, list("Standard", "Classic Style", "Tech-Priest", "Super Oldschool", "Thicc", "Humanoid"))
+	var/borg_icon = pick_skin(R, list("Standard", "Classic Style", "Tech-Priest", "Super Oldschool", "Thicc", "Humanoid"), list("Classic Style", "Tech-Priest", "Super Oldschool", "Thicc"))
 	if(!borg_icon)
 		return FALSE
 	switch(borg_icon)
@@ -83,7 +84,7 @@
 
 /obj/item/robot_module/janitor/be_transformed_to(obj/item/robot_module/old_module)
 	var/mob/living/silicon/robot/R = loc
-	var/borg_icon = pick_skin(R, list("Standard", "Classic", "Botany Style"))
+	var/borg_icon = pick_skin(R, list("Standard", "Classic", "Botany Style"), list("Classic"))
 	if(!borg_icon)
 		return FALSE
 	switch(borg_icon)
@@ -98,7 +99,7 @@
 
 /obj/item/robot_module/miner/be_transformed_to(obj/item/robot_module/old_module)
 	var/mob/living/silicon/robot/R = loc
-	var/borg_icon = pick_skin(R, list("Lavaland Colours", "Asteroid Colours", "Classic Skin", "Humanoid Borg"))
+	var/borg_icon = pick_skin(R, list("Lavaland Colours", "Asteroid Colours", "Classic Skin", "Humanoid Borg"), list("Classic Skin"))
 	if(!borg_icon)
 		return FALSE
 	switch(borg_icon)
