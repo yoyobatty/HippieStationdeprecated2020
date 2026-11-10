@@ -172,7 +172,15 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 	loose_contraband = null
 	if(!I || state != BOT_STATE_WANDER || !isturf(I.loc) || I.anchored || !keeps_found_contraband())
 		return
+	if(LAZYACCESS(contraband_rests, WEAKREF(I)) > world.time)
+		return //tried, and couldn't get it or keep it: an emag seen through the Brig's glass was gone for every five seconds
+	if(!hand_free_for_pickup())
+		return //both hands full: 22 of 29 that went for it and didn't get it
 	assign_goal(new /datum/bot_goal/pocket_contraband(I))
+
+/datum/bot_brain
+	/// weakref of a traitor's kit it went for and didn't get -> when it might again
+	var/list/contraband_rests
 
 /datum/bot_goal/pocket_contraband
 	lawful = TRUE
@@ -193,6 +201,10 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 	if(!QDELETED(found) && isturf(found.loc) && found.z == bot.owner.z && get_dist(bot.owner, found) <= BOT_SIGHT_RANGE + 3 && !bot.taken_by_another(found))
 		target = found
 
+/datum/bot_goal/pocket_contraband/on_give_up(datum/bot_brain/bot)
+	if(target)
+		LAZYSET(bot.contraband_rests, WEAKREF(target), world.time + 5 MINUTES)
+
 /datum/bot_goal/pocket_contraband/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/pocket_contraband/S = new
 	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/pocket_contraband())
@@ -204,9 +216,14 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 /datum/bot_step/pocket_contraband/execute(datum/bot_brain/bot)
 	var/obj/item/I = bot.current_goal?.target
 	if(!istype(I) || QDELETED(I) || !isturf(I.loc))
+		bot_log(bot, "[I] isn't lying there any more")
 		return GOAL_STEP_FAIL
 	bot.human_pause(I)
-	if(QDELETED(I) || !isturf(I.loc) || !bot.stow_item(I))
+	if(QDELETED(I) || !isturf(I.loc))
+		bot_log(bot, "[I] went before it got it")
+		return GOAL_STEP_FAIL
+	if(!bot.stow_item(I))
+		bot_log(bot, "couldn't take [I]: [bot.owner.handcuffed ? "cuffed" : (bot.hand_free_for_pickup() ? "it wouldn't come" : "hands full")]")
 		return GOAL_STEP_FAIL
 	bot_log(bot, "kept [I], found lying about")
 	bot_tally("traitor kit kept")
