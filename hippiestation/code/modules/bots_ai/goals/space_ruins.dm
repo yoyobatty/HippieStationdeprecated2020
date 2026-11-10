@@ -325,7 +325,7 @@ GLOBAL_LIST_EMPTY(bot_jetpack_cases_refused)
 /datum/bot_brain/proc/nearest_free_jetpack()
 	var/obj/item/tank/jetpack/best
 	for(var/obj/item/tank/jetpack/J as anything in bot_instances_of(/obj/item/tank/jetpack))
-		if(QDELETED(J) || !isturf(J.loc) || J.z != owner.z || taken_by_another(J) || get_dist(owner, J) > 60 || bot_jetpack_fuel(J) < BOT_JETPACK_SET_OUT)
+		if(QDELETED(J) || !isturf(J.loc) || J.z != owner.z || taken_by_another(J) || get_dist(owner, J) > 60 || bot_jetpack_fuel(J) < BOT_JETPACK_SET_OUT || !knows_of(J)) //what it knows of (bot_knowledge.dm)
 			continue
 		var/obj/machinery/door/window/shut_in = locate() in get_turf(J)
 		if(shut_in?.density && !shut_in.allowed(owner) && GLOB.bot_jetpack_cases_refused[REF(shut_in)] > world.time)

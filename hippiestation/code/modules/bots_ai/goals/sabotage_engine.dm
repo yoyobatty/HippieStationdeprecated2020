@@ -74,7 +74,11 @@
 		var/turf/T = get_turf(R)
 		if(QDELETED(R) || !T || T.z != owner.z)
 			continue
-		if(R.loc == owner || (R in owner.GetAllContents()) || isturf(R.loc))
+		if(R.loc == owner || (R in owner.GetAllContents()))
+			return R
+		if(!knows_of(R))
+			continue //what it knows of (bot_knowledge.dm)
+		if(isturf(R.loc))
 			return R
 		var/obj/structure/closet/C = R.loc
 		if(istype(C) && (!C.secure || !C.locked || C.allowed(owner)))

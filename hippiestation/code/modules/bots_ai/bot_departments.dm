@@ -546,11 +546,12 @@ GLOBAL_LIST_INIT(bot_raid_wishlist, list(
 
 /// The nearest one of these that isn't on somebody: the thing itself, or the locker it's in.
 /datum/bot_goal/tide/raid/resolve_target(datum/bot_brain/bot)
+	bot.glance_at_items()
 	var/atom/movable/best
 	var/best_dist
 	for(var/obj/item/I as anything in bot_instances_of(item_type))
 		var/atom/movable/holder = bot_outermost_holder(I)
-		if(QDELETED(I) || ismob(holder) || !isturf(holder.loc) || holder.z != bot.owner.z)
+		if(QDELETED(I) || ismob(holder) || !isturf(holder.loc) || holder.z != bot.owner.z || !bot.knows_of(I)) //what it knows of (bot_knowledge.dm)
 			continue
 		if(bot.gym_run && get_area(holder) != get_area(bot.owner) && !istype(get_area(holder), /area/bot_gym))
 			continue

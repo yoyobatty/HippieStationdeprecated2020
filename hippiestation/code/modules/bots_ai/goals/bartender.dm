@@ -87,8 +87,9 @@ GLOBAL_LIST_INIT(bot_bar_menu, init_bot_bar_menu())
 /datum/bot_brain/proc/find_glass_source()
 	var/atom/best
 	var/best_dist
+	glance_at_items()
 	for(var/obj/item/reagent_containers/food/drinks/drinkingglass/G as anything in bot_instances_of(/obj/item/reagent_containers/food/drinks/drinkingglass))
-		if(!isturf(G.loc) || !in_bar(G) || G.reagents.total_volume || istype(G, /obj/item/reagent_containers/food/drinks/drinkingglass/shotglass))
+		if(!isturf(G.loc) || !in_bar(G) || G.reagents.total_volume || istype(G, /obj/item/reagent_containers/food/drinks/drinkingglass/shotglass) || !knows_of_in_room(G)) //what it knows of, or can see round the bar (bot_knowledge.dm)
 			continue
 		var/dist = get_dist(owner, G)
 		if(!best || dist < best_dist)

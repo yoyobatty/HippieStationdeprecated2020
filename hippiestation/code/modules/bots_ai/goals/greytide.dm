@@ -264,8 +264,9 @@ GLOBAL_LIST_INIT(bot_radio_mouthing, list(
 
 /datum/bot_goal/tide/arm_up/resolve_target(datum/bot_brain/bot)
 	var/list/sources = list() //source -> how far off
+	bot.glance_at_items()
 	for(var/obj/item/storage/toolbox/T as anything in bot_instances_of(/obj/item/storage/toolbox))
-		if(!QDELETED(T) && isturf(T.loc) && T.z == bot.owner.z)
+		if(!QDELETED(T) && isturf(T.loc) && T.z == bot.owner.z && bot.knows_of(T)) //what it knows of (bot_knowledge.dm)
 			sources[T] = get_dist(bot.owner, T)
 	for(var/obj/structure/extinguisher_cabinet/C as anything in bot_instances_of(/obj/structure/extinguisher_cabinet))
 		if(!QDELETED(C) && C.stored_extinguisher && C.z == bot.owner.z && !C.opened)

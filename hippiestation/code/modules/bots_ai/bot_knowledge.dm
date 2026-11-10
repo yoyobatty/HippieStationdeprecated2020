@@ -46,6 +46,12 @@ GLOBAL_VAR_INIT(bot_knowledge_off, world.params["bot-knowledge"] == "off")
 	var/datum/weakref/W = I.weak_reference
 	return W && LAZYACCESS(seen_items, W) == T
 
+/// For a lookup in its own workplace: what it knows of, or anything in the room it's stood in, which it can look round. A bartender
+/// in a bar wider than its screen went to the Booze-O-Mat for glasses with empties at the far end of the bar (mix_drink gave up 86 ->
+/// 200 times in twelve shifts on knows_of() alone).
+/datum/bot_brain/proc/knows_of_in_room(obj/item/I)
+	return knows_of(I) || get_area(I) == get_area(owner)
+
 /// Something of `type` inside `container` this bot knows is there, or null
 /datum/bot_brain/proc/knows_of_inside(atom/container, type)
 	for(var/obj/item/I in container)

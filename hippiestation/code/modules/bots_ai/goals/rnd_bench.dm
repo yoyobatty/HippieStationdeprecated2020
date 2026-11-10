@@ -240,8 +240,9 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 		return R
 	var/science = is_science_job()
 	var/obj/item/storage/part_replacer/plain
+	glance_at_items()
 	for(var/obj/item/storage/part_replacer/loose as anything in bot_instances_of(/obj/item/storage/part_replacer))
-		if(QDELETED(loose) || !isturf(loose.loc) || loose.z != owner.z || taken_by_another(loose))
+		if(QDELETED(loose) || !isturf(loose.loc) || loose.z != owner.z || taken_by_another(loose) || !knows_of_in_room(loose)) //what it knows of, or can see round the room (bot_knowledge.dm)
 			continue
 		if(science ? in_science(loose) : (gym_run ? get_area(loose) == get_area(owner) : is_my_department(get_area(loose))))
 			if(loose.works_from_distance)

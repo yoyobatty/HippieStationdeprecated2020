@@ -287,10 +287,11 @@ GLOBAL_LIST_INIT(bot_pocket_pal_lines, list("Beep boop!", "I am a circuit. I hav
 	var/obj/item/carried = find_carried_tool(item_type)
 	if(carried)
 		return carried
+	glance_at_items()
 	var/obj/item/best
 	var/best_dist
 	for(var/obj/item/I as anything in bot_instances_of(item_type))
-		if(QDELETED(I) || !isturf(I.loc) || I.anchored || I.z != owner.z || (!in_science(I) && !in_robotics(I)))
+		if(QDELETED(I) || !isturf(I.loc) || I.anchored || I.z != owner.z || (!in_science(I) && !in_robotics(I)) || !knows_of_in_room(I)) //what it knows of, or can see round the room (bot_knowledge.dm)
 			continue
 		if(check_type && !istype(I, check_type))
 			continue

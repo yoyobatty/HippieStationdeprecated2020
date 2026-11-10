@@ -89,7 +89,7 @@ GLOBAL_LIST_EMPTY(bot_slime_colours)
 	if(box)
 		return box
 	for(var/obj/item/storage/box/monkeycubes/B as anything in bot_instances_of(/obj/item/storage/box/monkeycubes))
-		if(!QDELETED(B) && isturf(B.loc) && B.z == owner.z && in_xenobiology(B) && (locate(/obj/item/reagent_containers/food/snacks/monkeycube) in B))
+		if(!QDELETED(B) && isturf(B.loc) && B.z == owner.z && in_xenobiology(B) && knows_of_in_room(B) && (locate(/obj/item/reagent_containers/food/snacks/monkeycube) in B)) //what it knows of, or can see round the room (bot_knowledge.dm)
 			return B
 	return null
 
