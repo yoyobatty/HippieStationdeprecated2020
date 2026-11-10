@@ -26,8 +26,23 @@
 	if(!here || next_node.z != here.z || get_dist(here, next_node) > 1 || bot_turf_is_deadly(next_node))
 		return FALSE
 	var/d = get_dir(here, next_node)
+	// Still moving from the last step, or from the drill (its own wait): a moment's wait, as a pilot's key is held down. Pressed early it
+	// counted as stuck, and the walk gave up on Lavaland in 26 of 34 refusals.
+	var/wait = M.can_move - world.time
+	if(wait > 0 && wait <= 2 SECONDS)
+		addtimer(CALLBACK(src, PROC_REF(mech_step_later), M, d), wait + 1) //not a sleep: pursue() steps from inside the brain's tick
+		return TRUE
 	M.setDir(d) //facing it first, so the press is a step and not a turn (a turn costs a step's wait of its own)
-	return M.relaymove(owner, d)
+	. = M.relaymove(owner, d)
+	if(!. && world.time >= next_mech_step_note)
+		next_mech_step_note = world.time + 5 SECONDS
+		bot_log(src, "MECH: [M] wouldn't step to [bot_coord(next_node)]: [M.can_move >= world.time ? "still moving" : (!M.has_charge(M.step_energy_drain) ? "no charge ([M.get_charge()])" : (M.state ? "maintenance" : "blocked: [next_node.density ? "wall" : "something on it"]"))]")
+
+/datum/bot_brain/proc/mech_step_later(obj/mecha/M, d)
+	if(QDELETED(M) || owner?.loc != M)
+		return
+	M.setDir(d)
+	M.relaymove(owner, d)
 
 /// Climbs in: the climb takes a few seconds (MouseDrop_T's do_after); TRUE once it's in.
 /datum/bot_brain/proc/climb_into_mech(obj/mecha/M)
@@ -135,6 +150,7 @@
 
 /datum/bot_brain
 	var/mech_down_tried_until = 0
+	var/next_mech_step_note = 0
 
 /// The nearest ruin down here nobody's been through that the exosuit can drive to: further out than on foot (BOT_EXPLORE_RANGE), the
 /// exosuit being quicker and harder to kill, but the same deadly ones left alone.
