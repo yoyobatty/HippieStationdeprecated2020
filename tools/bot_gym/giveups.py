@@ -27,7 +27,7 @@ NOISE = re.compile(
     r"^(trying /|pursue\(|repath: |on_goal_pursuit_finished|run_current_step|resuming |need something for |"
     r"goal /|is_eva_ready|going to |picked up |/datum/bot_strategy/\S+ failed)"
 )
-HISTORY = 12
+HISTORY = 40 #the verbose walking lines come a dozen at a time
 
 
 def clean(text):
@@ -56,20 +56,24 @@ def read_round(directory, counts, targets, reasons, by_bot, lead_ups, goal_filte
             found = LINE.match(raw)
             if not found:
                 continue
-            bot, text = found.group(2), clean(found.group(3))
+            verbose, bot, text = bool(found.group(1)), found.group(2), clean(found.group(3))
             given_up = GIVE_UP.match(text)
             if not given_up:
-                history[bot].append(text)
+                history[bot].append((verbose, text))
                 continue
             goal = short_goal(given_up.group(1))
             counts[goal] += 1
             by_bot[(goal, bot)] += 1
             target = given_up.group(2) or "nothing"
             targets[goal][shape(target)] += 1
-            reason = next((t for t in reversed(history[bot]) if not NOISE.match(t)), "(nothing logged)")
+            # What the bot said itself before its step-by-step walking diagnostics (VERBOSE): those are the last lines nearly every
+            # time, and the digest put "obstruction check ... found nothing blocking" against give-ups that were about money or air.
+            said = [t for v, t in history[bot] if not NOISE.match(t)]
+            plain = [t for v, t in history[bot] if not v and not NOISE.match(t)]
+            reason = (plain or said or ["(nothing logged)"])[-1]
             reasons[goal][shape(reason)] += 1
             if goal_filter and goal_filter in goal and len(lead_ups) < keep:
-                lead_ups.append((bot, target, list(history[bot])))
+                lead_ups.append((bot, target, [t for v, t in history[bot]]))
             history[bot].clear()
 
 
