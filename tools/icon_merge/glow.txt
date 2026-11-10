@@ -3,6 +3,9 @@
 #   <sheet>: <lit state> [<lit state> ...] bright[=N]         no off state: the pixels at least N bright (default 200)
 #   ... colour                                                 only coloured or near-white pixels (the off state dims it all)
 #   ... changed                                                also coloured pixels that clearly differ, brighter or not
+#   ... saturated                                              only strongly coloured pixels (no smoke, blades, grey casing)
+#   ... box=x0,y0,x1,y1                                        only pixels inside that rectangle
+#   <sheet>: !<state> ...                                      never a mask for those, whatever pattern would
 #   <sheet>: *<suffix> - *<other suffix>                       every state that has an off twin by that pattern ("* - *-off")
 # Draw a "<state>_glow" by hand in the Hippie twin to replace a made one.
 
@@ -40,10 +43,14 @@ icons/obj/chemical.dmi: mixer1 - mixer1_nopower
 icons/obj/vending.dmi: smartfridge1 smartfridge2 smartfridge3 - smartfridge-off changed
 
 # Handheld, worn and eyes
+icons/obj/lighting.dmi: lampgreen-on - lampgreen box=13,2,27,11
+icons/obj/lighting.dmi: !bananalamp-on
 icons/obj/lighting.dmi: *-on - * colour
-icons/obj/cigarettes.dmi: *-on - *
-icons/obj/clothing/masks.dmi: *on - *off
-icons/mob/mask.dmi: *on - *off
+icons/obj/cigarettes.dmi: zippo-on - zippo
+icons/obj/cigarettes.dmi: lighter-on - lighter
+icons/obj/cigarettes.dmi: slighter-on - slighter
+icons/obj/clothing/masks.dmi: *on - *off saturated
+icons/mob/mask.dmi: *on - *off saturated
 icons/obj/items_and_weapons.dmi: swordred swordblue swordgreen swordpurple swordrainbow swordyellow - sword0
 icons/obj/items_and_weapons.dmi: cutlass1 - cutlass0
 icons/obj/items_and_weapons.dmi: axe1 - axe0
@@ -68,3 +75,38 @@ icons/effects/352x352.dmi: singularity_s11 bright=150
 
 # Disposal bins: only the lamps on their light overlays, not the vent panel drawn with them
 icons/obj/atmospherics/pipes/disposal.dmi: dispover-ready dispover-charge dispover-full bright=1 colour
+
+# More machines and structures
+icons/obj/singularity.dmi: emitter_+a emitter_+u - emitter
+icons/obj/stationobjs.dmi: Shield_Gen* - Shield_Gen
+icons/obj/machines/particle_accelerator.dmi: *p0 - *c
+icons/obj/machines/particle_accelerator.dmi: *p1 - *c
+icons/obj/machines/particle_accelerator.dmi: *p2 - *c
+icons/obj/machines/particle_accelerator.dmi: *p3 - *c
+icons/obj/machines/particle_accelerator.dmi: *p - *c
+icons/obj/atmos.dmi: psiphon:1 - psiphon:0 saturated
+icons/obj/atmos.dmi: pscrubber:1 - pscrubber:0 saturated
+icons/obj/atmos.dmi: scrubber:1 - scrubber:0 saturated
+icons/obj/atmos.dmi: sheater-heat sheater-cool sheater-standby - sheater-off
+icons/obj/atmospherics/components/thermomachine.dmi: freezer_1 - freezer
+icons/obj/atmospherics/components/thermomachine.dmi: heater_1 - heater
+icons/obj/turrets.dmi: standard_stun standard_lethal - standard_off
+icons/obj/turrets.dmi: red_stun red_lethal - red_off
+icons/obj/turrets.dmi: blue_stun blue_lethal - blue_off
+icons/obj/machines/research.dmi: tdoppler - tdoppler-off
+icons/obj/machines/research.dmi: protolathe protolathe_n circuit_imprinter circuit_imprinter_ani bright=170 colour
+icons/obj/machines/teleporter.dmi: tele1 - tele0
+icons/obj/machines/teleporter.dmi: controller controller-c - controller-p
+icons/obj/machines/gateway.dmi: on - off
+icons/obj/machines/gateway.dmi: oncenter - offcenter
+icons/obj/machines/nanite_chamber.dmi: nanite_chamber_active - nanite_chamber
+icons/obj/kitchen.dmi: mw1 - mw
+icons/obj/kitchen.dmi: grill_on - grill colour
+icons/obj/stationobjs.dmi: autolathe autolathe_n bright=170 colour
+icons/obj/stationobjs.dmi: morgue1 morgue2 morgue3 morgue4 bright=150 colour
+icons/obj/stationobjs.dmi: crema_active - crema1
+icons/obj/machines/telecomms.dmi: AAS_On - AAS_Off
+icons/obj/machines/telecomms.dmi: AAS_On_Open - AAS_Off_Open
+icons/obj/recycling.dmi: grinder-o1 - grinder-o0 saturated
+icons/obj/recycling.dmi: grinder-o1bld - grinder-o0bld saturated
+icons/obj/chemical.dmi: mixer0b mixer1b bright=1 saturated box=12,8,18,8

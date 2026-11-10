@@ -3,10 +3,12 @@
 #define EMISSIVE_GLOW_FULL 255
 /// Bar signs and the tesla ball: at full strength their letters and arcs blur into one
 #define EMISSIVE_GLOW_SIGN 170
-/// Indicator lights and small panels: airlocks, air alarms, buttons, intercoms, cameras, chargers, telecomms...
+/// Indicator lights and small panels: air alarms, buttons, intercoms, cameras, chargers, telecomms...
 #define EMISSIVE_GLOW_INDICATOR 140
 /// Disposal bins
 #define EMISSIVE_GLOW_FAINT 110
+/// Airlock lights: a pair of small lamps whose halos would otherwise spread across the whole door
+#define EMISSIVE_GLOW_DIM 80
 
 /// A glow smaller than this many pixels (a camera's lens, a button's lamp) casts no light of its own
 #define EMISSIVE_GLOW_LIGHT_MIN_PIXELS 12

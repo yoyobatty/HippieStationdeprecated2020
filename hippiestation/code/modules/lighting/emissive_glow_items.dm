@@ -39,13 +39,14 @@
 	. = ..()
 	set_emissive_glow(null, icon, on && fuel ? emissive_glow(icon, "glowstick-glow") : null)
 
+// The flame; the lighter's decorated body (its overlay) doesn't glow
 /obj/item/lighter/update_icon()
 	. = ..()
-	update_state_glow(lit ? emissive_glow_list(icon, "lighter_overlay_[overlay_state]-on") : null)
+	update_state_glow()
 
 /obj/item/lighter/greyscale/update_icon()
 	. = ..()
-	update_state_glow(lit ? emissive_glow_list(icon, "lighter_overlay_[overlay_state]-on") : null)
+	update_state_glow()
 
 /obj/item/clothing/mask/cigarette/light(flavor_text)
 	. = ..()

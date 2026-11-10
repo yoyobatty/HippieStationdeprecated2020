@@ -3801,6 +3801,7 @@
 #include "hippiestation\code\modules\lighting\emissive_glow_hazards.dm"
 #include "hippiestation\code\modules\lighting\emissive_glow_items.dm"
 #include "hippiestation\code\modules\lighting\emissive_glow_machines.dm"
+#include "hippiestation\code\modules\lighting\emissive_glow_more.dm"
 #include "hippiestation\code\modules\lighting\eye_adapt.dm"
 #include "hippiestation\code\modules\lighting\lighting_bench.dm"
 #include "hippiestation\code\modules\lighting\lighting_engine.dm"

@@ -11,6 +11,9 @@ tg draws most screens and indicator lights into the machine's own sprite, so tho
 "colour" at the end of a line keeps only coloured or near-white pixels: for off states that dim the whole sprite
 (intercom-p), where the grey casing comes out brighter too. "changed" also keeps coloured pixels that clearly differ from
 the off state, brighter or not: for off states that blank the screen with a flat bright panel (some vending machines).
+"saturated" keeps only strongly coloured pixels, not even near-white ones: a lamp's light, not the smoke, fan blades or
+grey casing that change with it. "box=x0,y0,x1,y1" keeps only pixels inside that rectangle (0,0 top left): a row of LEDs.
+"<sheet>: !<state> ..." never makes a mask for those states, whatever pattern would: things with no light of their own.
 
 A "<lit>_glow" state already in the merged sheet (drawn by hand in the Hippie twin) wins over the made one, which is how a
 bad mask gets fixed. Masks keep the lit sprite's own colours, so the bloom comes out coloured.
@@ -46,8 +49,11 @@ def read_rules():
             continue
         sheet, rest = [x.strip() for x in line.split(':', 1)]
         words = rest.split()
+        if words and all(w.startswith('!') for w in words):
+            rules.setdefault(sheet, []).append((' '.join(line.split()), [w[1:] for w in words], None, None, {'never'}))
+            continue
         flags = set()
-        while words and words[-1] in ('colour', 'changed'):
+        while words and (words[-1] in ('colour', 'changed', 'saturated') or words[-1].startswith('box=')):
             flags.add(words.pop())
         off, cut = None, None
         if '-' in words:
@@ -95,9 +101,13 @@ def mask_frame(lit_im, off_im, cut, flags=frozenset()):
     op = off_im.load() if off_im is not None else None
     dst = out.load()
     w, h = lit_im.size
+    box = (0, 0, w - 1, h - 1)
+    for flag in flags:
+        if flag.startswith('box='):
+            box = tuple(int(n) for n in flag[4:].split(','))
     kept = 0
-    for y in range(h):
-        for x in range(w):
+    for y in range(box[1], min(h, box[3] + 1)):
+        for x in range(box[0], min(w, box[2] + 1)):
             p = lp[x, y]
             if cut is not None:
                 keep = p[3] >= SOLID and max(p[0], p[1], p[2]) >= cut
@@ -105,6 +115,8 @@ def mask_frame(lit_im, off_im, cut, flags=frozenset()):
                 keep = lit_pixel(p, op[x, y], 'changed' in flags)
             if keep and 'colour' in flags:
                 keep = coloured(p)
+            if keep and 'saturated' in flags:
+                keep = max(p[0], p[1], p[2]) - min(p[0], p[1], p[2]) >= COLOURED
             if keep:
                 dst[x, y] = p
                 kept += 1
@@ -194,9 +206,15 @@ def apply(sheet, rules):
     for state in sheet.states:
         if not state.movement:
             by_name.setdefault(state.name, state)
+    never = set()
+    for rule in rules:
+        if 'never' in rule[4]:
+            never.update(rule[1])
     for rule in rules:
         line, _, _, cut, flags = rule
-        pairs = expand(rule, list(by_name))
+        if 'never' in flags:
+            continue
+        pairs = [(n, o) for n, o in expand(rule, list(by_name)) if n not in never]
         if not pairs:
             report['problems'].append(f'{line}: matches no states')
         for name, off_name in pairs:

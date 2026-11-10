@@ -34,6 +34,17 @@ GLOBAL_VAR_INIT(glow_group, "fixtures")
 
 /// {type: "state" (glows by its state's mask, checked) or "count" (lights of its own, only counted)} for the group
 /proc/glow_group_types()
+	if(GLOB.glow_group == "more")
+		return list(/obj/machinery/power/emitter = "count", /obj/machinery/power/rad_collector = "count",
+			/obj/machinery/field/generator = "count", /obj/structure/particle_accelerator = "count",
+			/obj/machinery/particle_accelerator = "count", /obj/machinery/power/shieldwallgen = "count",
+			/obj/machinery/portable_atmospherics = "count", /obj/machinery/space_heater = "count",
+			/obj/machinery/atmospherics/components/unary/thermomachine = "count", /obj/machinery/rnd/production = "count",
+			/obj/machinery/teleport = "count", /obj/machinery/gateway = "count", /obj/machinery/doppler_array = "count",
+			/obj/machinery/nanite_chamber = "count", /obj/structure/bodycontainer = "count", /obj/machinery/microwave = "count",
+			/obj/machinery/grill = "count", /obj/machinery/chem_heater = "count", /obj/machinery/autolathe = "count",
+			/obj/machinery/recycler = "count", /obj/machinery/announcement_system = "count", /obj/machinery/porta_turret = "count",
+			/obj/machinery/hydroponics = "count")
 	if(GLOB.glow_group == "hazards")
 		return list(/obj/structure/sign/barsign = "count", /obj/structure/holosign = "count",
 			/obj/machinery/power/supermatter_crystal = "count", /obj/singularity = "count")
@@ -223,6 +234,8 @@ GLOBAL_VAR_INIT(glow_group, "fixtures")
 	glow_shot("glow_[name]_2_lit_after")
 	glow_lights(spot, FALSE)
 	sleep(3 SECONDS)
+	glow_reforce_states()
+	sleep(5)
 	stripped = glow_strip(spot)
 	sleep(1 SECONDS)
 	glow_shot("glow_[name]_3_dark_before")
@@ -232,18 +245,182 @@ GLOBAL_VAR_INIT(glow_group, "fixtures")
 	glow_lights(spot, TRUE)
 	sleep(2 SECONDS)
 
-/// A clear 5x3 strip of hallway floor, the first one found at least 15 tiles from avoid
-/proc/glow_clear_strip(turf/avoid)
+/// A clear 5x3 strip of hallway floor, the first one found at least 15 tiles from avoid (a turf or a list of them)
+/proc/glow_clear_strip(avoid, anywhere = FALSE)
 	for(var/turf/open/floor/F in world)
-		if(!is_station_level(F.z) || !istype(get_area(F), /area/hallway/primary))
+		if(!is_station_level(F.z) || !istype(get_area(F), anywhere ? /area : /area/hallway) || istype(get_area(F), /area/space))
 			continue
 		var/clear = TRUE
 		for(var/turf/T in block(locate(F.x - 2, F.y - 1, F.z), locate(F.x + 2, F.y + 1, F.z)))
 			if(!istype(T, /turf/open/floor) || T.density || (locate(/obj/structure) in T) || (locate(/obj/machinery) in T))
 				clear = FALSE
 				break
-		if(clear && (!avoid || get_dist(F, avoid) >= 15))
+		if(!clear)
+			continue
+		var/far = TRUE
+		for(var/turf/A in (islist(avoid) ? avoid : list(avoid)))
+			if(get_dist(F, A) < 12)
+				far = FALSE
+		if(far)
 			return F
+
+/// Lays things in a row along a strip: the top row of five, then the bottom row of five
+/proc/glow_lay_row(turf/spot, list/kinds)
+	. = list()
+	var/i = 0
+	for(var/kind in kinds)
+		var/turf/T = locate(spot.x - 2 + (i % 5), spot.y + (i < 5 ? 1 : -1), spot.z)
+		var/obj/O = new kind(T)
+		STOP_PROCESSING(SSmachines, O)
+		STOP_PROCESSING(SSobj, O)
+		. += O
+		i++
+
+/// Three rows of the machines and structures that glow since the "more" pass, each set going as it would in a round
+/proc/glow_more_scene()
+	. = list()
+	var/turf/one = glow_clear_strip()
+	var/turf/two = one && (glow_clear_strip(list(one)) || glow_clear_strip(list(one), TRUE))
+	var/turf/three = two && (glow_clear_strip(list(one, two)) || glow_clear_strip(list(one, two), TRUE))
+	if(!three)
+		kc_log("more: not enough clear floor")
+		return
+	sleep(1)
+	// Engines and atmospherics
+	var/list/row = glow_lay_row(one, list(/obj/machinery/power/emitter, /obj/machinery/power/rad_collector, /obj/machinery/field/generator,
+		/obj/structure/particle_accelerator/power_box, /obj/machinery/portable_atmospherics/canister/air, /obj/machinery/portable_atmospherics/pump,
+		/obj/machinery/space_heater, /obj/machinery/atmospherics/components/unary/thermomachine/freezer, /obj/machinery/porta_turret))
+	sleep(5)
+	var/obj/machinery/power/emitter/E = row[1]
+	glow_force_state(E, "emitter_+a")
+	var/obj/machinery/power/rad_collector/C = row[2]
+	C.active = TRUE
+	C.update_icon()
+	var/obj/machinery/field/generator/G = row[3]
+	G.power_level = 6
+	G.warming_up = 3
+	G.update_icon()
+	var/obj/structure/particle_accelerator/PA = row[4]
+	PA.construction_state = 3 // PA_CONSTRUCTION_COMPLETE
+	PA.powered = TRUE
+	PA.strength = 2
+	PA.update_icon()
+	var/obj/machinery/portable_atmospherics/pump/P = row[6]
+	P.on = TRUE
+	P.update_icon()
+	var/obj/machinery/space_heater/H = row[7]
+	H.on = TRUE
+	H.mode = "heat"
+	H.update_icon()
+	var/obj/machinery/atmospherics/components/unary/thermomachine/F = row[8]
+	F.on = TRUE
+	F.update_icon()
+	var/obj/machinery/porta_turret/T = row[9]
+	T.on = TRUE
+	T.raised = TRUE
+	T.mode = 0 // TURRET_STUN
+	T.update_icon()
+	glow_more_log(row)
+	.[one] = "engines"
+	// Science, the morgue, botany, telecomms
+	row = glow_lay_row(two, list(/obj/machinery/rnd/production/protolathe, /obj/machinery/teleport/hub, /obj/machinery/nanite_chamber,
+		/obj/structure/bodycontainer/morgue, /obj/structure/bodycontainer/crematorium, /obj/machinery/autolathe, /obj/machinery/recycler,
+		/obj/machinery/hydroponics/constructable, /obj/machinery/doppler_array, /obj/machinery/announcement_system))
+	sleep(5)
+	var/obj/machinery/teleport/hub/hub = row[2]
+	glow_force_state(hub, "tele1")
+	var/obj/structure/bodycontainer/morgue/M = row[4]
+	M.update_icon()
+	var/obj/structure/bodycontainer/crematorium/CR = row[5]
+	CR.icon_state = "crema_active"
+	CR.update_state_glow()
+	var/obj/machinery/hydroponics/tray = row[8]
+	tray.myseed = new /obj/item/seeds/tomato(tray)
+	tray.waterlevel = 5
+	tray.harvest = TRUE
+	tray.update_icon()
+	glow_more_log(row)
+	.[two] = "science"
+	// The kitchen, a gateway section, a shield wall generator
+	row = glow_lay_row(three, list(/obj/machinery/microwave, /obj/machinery/chem_heater, /obj/machinery/grill, /obj/machinery/gateway,
+		/obj/machinery/power/shieldwallgen))
+	sleep(5)
+	var/obj/machinery/microwave/MW = row[1]
+	MW.operating = TRUE
+	MW.update_icon()
+	var/obj/machinery/chem_heater/HT = row[2]
+	HT.on = TRUE
+	HT.update_icon()
+	var/obj/machinery/grill/GR = row[3]
+	GR.grill_fuel = 100
+	GR.update_icon()
+	var/obj/machinery/gateway/GW = row[4]
+	GW.active = TRUE
+	GW.update_icon()
+	var/obj/machinery/power/shieldwallgen/SW = row[5]
+	SW.icon_state = "shield_wall_gen_on" // what process() sets while it runs; the hook turns it into the sheet's own sprite
+	SW.active = TRUE
+	SW.process()
+	if(SW.icon_state != "Shield_Gen +a") // switched itself off for want of power or a partner: picture the running sprite anyway
+		SW.icon_state = "Shield_Gen +a"
+		SW.update_state_glow()
+	glow_more_log(row)
+	.[three] = "kitchen"
+
+/// Sprites the scene sets by hand, which a power_change() (the lights going off) would redraw as idle: put back after
+GLOBAL_LIST_EMPTY(glow_forced_states)
+
+/proc/glow_force_state(obj/O, state)
+	O.icon_state = state
+	O.update_state_glow()
+	GLOB.glow_forced_states[O] = state
+
+/proc/glow_reforce_states()
+	for(var/obj/O as anything in GLOB.glow_forced_states)
+		if(!QDELETED(O))
+			O.icon_state = GLOB.glow_forced_states[O]
+			O.update_state_glow()
+
+/// What makes a bolted door's lights look as they do in the dark: the same door with its glow at full, at its own strength, with
+/// no glow but still drawn (luminosity 1), and with neither
+/proc/glow_airlock_probe(client/C)
+	var/turf/spot = glow_clear_strip()
+	var/obj/machinery/door/airlock/D
+	for(var/obj/machinery/door/airlock/A in range(12, spot))
+		if(A.density && A.hasPower())
+			D = A
+			break
+	if(!D)
+		kc_log("airprobe: no door")
+		return
+	var/mob/living/carbon/human/H = new(locate(D.x, D.y - 3, D.z))
+	H.equipOutfit(/datum/outfit/job/assistant)
+	H.ckey = C.ckey
+	D.bolt()
+	glow_lights(get_turf(D), FALSE)
+	sleep(3 SECONDS)
+	kc_log("airprobe: [D] ([D.x],[D.y]) alpha [D.emissive_glow_alpha], glow [length(D.emissive_glow_shown)], lum [D.luminosity], light [D.light_range]")
+	var/list/glow = D.emissive_glow_shown
+	D.cut_overlay(glow)
+	D.add_overlay(emissive_glow(D.overlays_file, "lights_bolts", SOUTH, 255))
+	sleep(1 SECONDS)
+	glow_shot("glow_airprobe_1_full")
+	D.cut_overlay(emissive_glow(D.overlays_file, "lights_bolts", SOUTH, 255))
+	D.add_overlay(glow)
+	sleep(1 SECONDS)
+	glow_shot("glow_airprobe_2_own_[D.emissive_glow_alpha]")
+	D.cut_overlay(glow)
+	sleep(1 SECONDS)
+	glow_shot("glow_airprobe_3_no_glow_lum1")
+	D.luminosity = 0
+	sleep(1 SECONDS)
+	glow_shot("glow_airprobe_4_no_glow_lum0")
+	D.add_overlay(glow)
+	D.luminosity = 1
+
+/proc/glow_more_log(list/row)
+	for(var/obj/O in row)
+		kc_log("  [O.type] [O.icon_state]: glow [length(O.emissive_glow_shown)], light [O.emissive_glow_lit ? "[round(O.light_range, 0.1)]/[round(O.light_power, 0.01)]" : "none"]")
 
 /// Holosigns, a bar sign, lava, a supermatter shard, a tesla miniball and a singularity, the last two stopped so they don't zap or eat
 /proc/glow_hazards_scene()
@@ -362,7 +539,12 @@ GLOBAL_VAR_INIT(glow_group, "fixtures")
 	for(var/group in groups)
 		GLOB.glow_group = group
 		var/list/spots = list()
-		if(group == "items" || group == "hazards")
+		if(group == "airprobe")
+			glow_airlock_probe(C)
+			continue
+		if(group == "more")
+			spots = glow_more_scene()
+		else if(group == "items" || group == "hazards")
 			var/turf/scene = group == "items" ? glow_items_scene() : glow_hazards_scene()
 			if(scene)
 				spots[scene] = "scene"

@@ -107,7 +107,7 @@
 	if(!charging || (stat & (BROKEN|NOPOWER)))
 		set_emissive_glow(null)
 		return
-	set_emissive_glow(null, icon, emissive_glow(icon, "ccharger-on", SOUTH, emissive_glow_alpha) + emissive_glow(icon, "ccharger-o[chargelevel]", SOUTH, emissive_glow_alpha))
+	set_emissive_glow(null, icon, emissive_glow(icon, "ccharger-o[chargelevel]", SOUTH, emissive_glow_alpha)) // the charge lights; "ccharger-on" is its wires
 
 /obj/machinery/disposal/bin/update_icon()
 	. = ..()

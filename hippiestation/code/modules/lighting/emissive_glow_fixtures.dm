@@ -2,7 +2,7 @@
 
 // Airlocks: the bolt, emergency, deny and opening/closing lights, and the green arrows of an unrestricted side
 /obj/machinery/door/airlock
-	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
+	emissive_glow_alpha = EMISSIVE_GLOW_DIM
 
 /obj/machinery/door/airlock/proc/airlock_glow(mutable_appearance/lights_overlay)
 	var/list/arrows

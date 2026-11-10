@@ -25,7 +25,8 @@ GLOBAL_LIST_EMPTY(emissive_glow_overlays)
 		return
 	var/list/pair = list()
 	for(var/glow_plane in list(unblockable ? EMISSIVE_UNBLOCKABLE_PLANE : EMISSIVE_PLANE, EMISSIVE_BLOOM_PLANE)) // what glows, and the glow itself
-		var/mutable_appearance/glow = mutable_appearance(maptext ? null : icon, maptext ? null : icon_state, FLOAT_LAYER, glow_plane, alpha)
+		var/mutable_appearance/glow = mutable_appearance(maptext ? null : icon, maptext ? null : icon_state, FLOAT_LAYER, glow_plane)
+		glow.alpha = alpha // mutable_appearance() takes no alpha: passed to it, the strength was silently dropped
 		glow.dir = dir // overlays keep their own dir, they don't follow the thing's
 		glow.pixel_x = pixel_x
 		glow.pixel_y = pixel_y
