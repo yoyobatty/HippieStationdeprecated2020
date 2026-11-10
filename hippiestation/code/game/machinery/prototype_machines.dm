@@ -221,3 +221,51 @@
 		. += "<span class='warning'>It's broken.</span>"
 		return
 	. += "<span class='notice'>It's [the_main.on ? "on" : "off"], charged to [the_main.charge_count]%.</span>"
+
+/// A PACMAN says how long its fuel lasts at the setting it's on.
+/obj/machinery/power/port_gen/pacman/examine(mob/user)
+	. = ..()
+	if(!consumption || !time_per_sheet || (sheets + sheet_left) <= 0)
+		return
+	var/a_cycle = power_output / (time_per_sheet * consumption)
+	var/minutes = round((sheets + sheet_left) / a_cycle * SSmachines.wait / 600)
+	. += "<span class='notice'>That's about [minutes] minute\s of fuel at this setting.</span>"
+
+// ---------------------------------------------------------------------------------------------
+// Chargers that say when they're done
+// ---------------------------------------------------------------------------------------------
+
+/obj/machinery/recharger
+	/// What's in it was full last time it looked: the ping is for the moment it gets there
+	var/said_full = FALSE
+
+/// A ping when what's in it is charged, once.
+/obj/machinery/recharger/process()
+	. = ..()
+	if(!charging || (stat & (NOPOWER|BROKEN)) || !anchored)
+		said_full = FALSE
+		return
+	var/full = FALSE
+	var/obj/item/ammo_box/magazine/recharge/R = charging
+	if(istype(R))
+		full = length(R.stored_ammo) >= R.max_ammo
+	else
+		var/obj/item/stock_parts/cell/C = charging.get_cell()
+		full = C && C.charge >= C.maxcharge
+	if(full && !said_full)
+		playsound(src, 'sound/machines/ping.ogg', 25, TRUE)
+	said_full = full
+
+/obj/machinery/cell_charger
+	/// The cell in it was full last time it looked
+	var/said_full = FALSE
+
+/obj/machinery/cell_charger/process()
+	. = ..()
+	if(!charging || !anchored || (stat & (BROKEN|NOPOWER)))
+		said_full = FALSE
+		return
+	var/full = charging.percent() >= 100
+	if(full && !said_full)
+		playsound(src, 'sound/machines/ping.ogg', 25, TRUE)
+	said_full = full

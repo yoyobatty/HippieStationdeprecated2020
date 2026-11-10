@@ -345,3 +345,37 @@
 	if(length(on_it.surgeries))
 		var/datum/surgery/S = on_it.surgeries[1]
 		. += "<span class='notice'>[S.name] is under way.</span>"
+
+// ---------------------------------------------------------------------------------------------
+// Voltagel for ethereals, and a chemical light
+// ---------------------------------------------------------------------------------------------
+
+/// An ethereal takes voltagel's charge the way it takes liquid electricity's, and isn't hurt by it.
+/datum/reagent/voltagel/reaction_mob(mob/living/M, method = TOUCH, reac_volume, show_message = 1, touch_protection = 0)
+	if((method == INGEST || method == INJECT || method == PATCH) && iscarbon(M))
+		var/mob/living/carbon/C = M
+		var/obj/item/organ/stomach/ethereal/stomach = C.getorganslot(ORGAN_SLOT_STOMACH)
+		if(istype(stomach))
+			stomach.adjust_charge(reac_volume * REM)
+	return ..()
+
+/datum/reagent/voltagel/on_mob_life(mob/living/carbon/M)
+	if(isethereal(M))
+		holder.remove_reagent(type, metabolization_rate)
+		return
+	return ..()
+
+/// Lumen gel with a charge put through it burns bright and cold where it's mixed: a room's worth of light for two minutes, more
+/// of it the more that's mixed.
+/datum/chemical_reaction/lumen_arc
+	name = "Arc light"
+	id = "lumen_arc"
+	required_reagents = list(/datum/reagent/lumen = 1, /datum/reagent/voltagel = 1)
+	mix_message = "The gel blazes with a hard white-green light!"
+
+/datum/chemical_reaction/lumen_arc/on_reaction(datum/reagents/holder, created_volume)
+	var/turf/T = get_turf(holder.my_atom)
+	if(!T)
+		return
+	new /obj/effect/dummy/lighting_obj(T, "#D8FFE0", min(4 + round(created_volume / 5), 8), 2, 2 MINUTES)
+	do_sparks(1, TRUE, T)

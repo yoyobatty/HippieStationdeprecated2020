@@ -244,11 +244,14 @@
 	var/obj/machinery/hydroponics/constructable/tray = place("K", new /obj/machinery/hydroponics/constructable(T))
 	tray.myseed = new /obj/item/seeds/tomato(tray)
 	var/hardy = tray.myseed.endurance
-	var/obj/item/reagent_containers/glass/beaker/B = place("K", new /obj/item/reagent_containers/glass/beaker(T))
+	// A beaker each: lumen gel and voltagel in one beaker burn each other up as light
+	var/obj/item/reagent_containers/glass/beaker/B
+	for(var/gel in list("/datum/reagent/lumen", "/datum/reagent/voltagel", "/datum/reagent/vitrium"))
+		B = place("K", new /obj/item/reagent_containers/glass/beaker(T))
+		B.reagents.add_reagent(text2path(gel), 5)
+		tray.applyChemicals(B.reagents, bot)
+	B = place("K", new /obj/item/reagent_containers/glass/beaker(T))
 	B.reagents.add_reagent(text2path("/datum/reagent/lumen"), 5)
-	B.reagents.add_reagent(text2path("/datum/reagent/voltagel"), 5)
-	B.reagents.add_reagent(text2path("/datum/reagent/vitrium"), 5)
-	tray.applyChemicals(B.reagents, bot)
 	var/list/missing = list()
 	if(!tray.myseed.get_gene(/datum/plant_gene/trait/glow))
 		missing += "no glow"
@@ -395,4 +398,63 @@
 	var/obj/machinery/gravity_generator/main/gravity = place("K", new /obj/machinery/gravity_generator/main(T))
 	if(!findtext(jointext(gravity.examine(bot), " "), "charged to 100%"))
 		missing += "the gravity generator's charge"
+	return length(missing) ? english_list(missing) : null
+
+/datum/bot_scenario/content/batch_six
+	name = "machines: chargers ping when done, a PACMAN says how long its fuel lasts, voltagel charges an ethereal and lights with lumen gel"
+	desc = "A full gun in a recharger and a full cell in a cell charger; ten sheets in a PACMAN; voltagel into an ethereal; the two gels mixed."
+
+/datum/bot_scenario/content/batch_six/try_it(turf/T)
+	var/list/missing = list()
+	bot.forceMove(get_step(T, WEST))
+	var/obj/machinery/recharger/rech = place("K", new /obj/machinery/recharger(T))
+	var/obj/item/gun/energy/e_gun/gun = place("K", new /obj/item/gun/energy/e_gun(rech))
+	rech.charging = gun
+	rech.stat &= ~NOPOWER
+	gun.cell.charge = 0
+	rech.process()
+	if(rech.said_full)
+		missing += "the recharger called an empty gun full"
+	gun.cell.charge = gun.cell.maxcharge
+	rech.process()
+	if(!rech.said_full)
+		missing += "the recharger didn't mark a full gun"
+	rech.charging = null
+	gun.forceMove(T)
+	var/obj/machinery/cell_charger/charger = place("K", new /obj/machinery/cell_charger(T))
+	var/obj/item/stock_parts/cell/high/cell = place("K", new /obj/item/stock_parts/cell/high(charger))
+	charger.charging = cell
+	charger.stat &= ~NOPOWER
+	cell.charge = cell.maxcharge
+	charger.process()
+	if(!charger.said_full)
+		missing += "the cell charger didn't mark a full cell"
+	charger.charging = null
+	cell.forceMove(T)
+	var/obj/machinery/power/port_gen/pacman/pacman = place("K", new /obj/machinery/power/port_gen/pacman(T))
+	pacman.sheets = 10
+	var/said = jointext(pacman.examine(bot), " ")
+	if(!findtext(said, "of fuel at this setting"))
+		missing += "the PACMAN: [said]"
+	var/mob/living/carbon/human/patient = stand_in(T, "Ethereal Patient")
+	patient.set_species(/datum/species/ethereal)
+	var/obj/item/organ/stomach/ethereal/stomach = patient.getorganslot(ORGAN_SLOT_STOMACH)
+	if(!istype(stomach))
+		missing += "the stand-in has no ethereal stomach"
+	else
+		stomach.crystal_charge = 10
+		var/obj/item/reagent_containers/glass/beaker/B = place("K", new /obj/item/reagent_containers/glass/beaker(T))
+		B.reagents.add_reagent(/datum/reagent/voltagel, 10)
+		B.reagents.reaction(patient, INGEST)
+		if(stomach.crystal_charge <= 10)
+			missing += "the ethereal got no charge of it"
+	var/obj/item/reagent_containers/mixed = mix(T, list(/datum/reagent/lumen = 10, /datum/reagent/voltagel = 10))
+	if(mixed.reagents.total_volume)
+		missing += "the two gels are still sat there together"
+	var/lit = FALSE
+	for(var/obj/effect/dummy/lighting_obj/light in T)
+		if(light.type == /obj/effect/dummy/lighting_obj)
+			lit = TRUE
+	if(!lit)
+		missing += "no light where they were mixed"
 	return length(missing) ? english_list(missing) : null
