@@ -922,3 +922,72 @@
 		fail_reason = "its scanner still reads [brain.mining_scan_range()] tiles"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+// The first nanites (goals/nanites.dm /datum/bot_duty/nanites/first). Letters: N a nanite chamber, K its console, C a Research Director.
+// The duty is named by text: the build before it has no such type. Run these by name: whether anybody has nanites is station-wide.
+/datum/bot_scenario/duty/first_nanites
+	job = "Scientist"
+	time_limit = 60 SECONDS
+	layout = list(
+		"##########",
+		"#B...NK..#",
+		"#......C.#",
+		"##########")
+	var/obj/machinery/nanite_chamber/chamber
+
+/datum/bot_scenario/duty/first_nanites/New()
+	. = ..()
+	duty_type = text2path("/datum/bot_duty/nanites/first")
+
+/datum/bot_scenario/duty/first_nanites/setup()
+	chamber = place("N", new /obj/machinery/nanite_chamber(first_marker("N")))
+	var/obj/machinery/computer/nanite_chamber_control/K = place("K", new /obj/machinery/computer/nanite_chamber_control(first_marker("K")))
+	K.find_chamber()
+	SSresearch.science_tech.research_node_id("nanite_base", TRUE)
+
+/datum/bot_scenario/duty/first_nanites/rd
+	name = "science: nobody has nanites yet, so the scientist puts them in the Research Director first thing"
+	desc = "Basic Nanite Programming researched, nobody with nanites, and the RD about. The scientist asks the RD into the chamber and works the console: nanite points only come from hosts, and the nanite nodes past the first cost them."
+	var/mob/living/carbon/human/rd
+
+/datum/bot_scenario/duty/first_nanites/rd/post_spawn()
+	..()
+	rd = second_bot(first_marker("C"), "Rhoda Director")
+	rd.mind.assigned_role = "Research Director"
+	GLOB.bot_crew_members |= rd //a round's bots are on the crew list, and that's where volunteers are looked for; second_bot()'s aren't
+	if("first_nanites_next" in brain.vars) //by name: the build before it has no such var
+		brain.vars["first_nanites_next"] = world.time + 3 SECONDS //the RD up and about before it's looked for
+
+/datum/bot_scenario/duty/first_nanites/rd/release_run()
+	GLOB.bot_crew_members -= rd
+	return ..()
+
+/datum/bot_scenario/duty/first_nanites/rd/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/mob/living/carbon/human/H in arena_area)
+		if(bot_has_nanites(H))
+			log_line("[H] has nanites")
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/first_nanites/alone
+	name = "science: nobody free to step in, the scientist gets in the chamber itself and asks, once"
+	desc = "Basic Nanite Programming researched, nobody with nanites and nobody else about. The scientist gets in the chamber and asks Science on the radio; nobody comes, so it lets itself out, and it doesn't climb straight back in."
+	var/times_in = 0
+	var/was_in = FALSE
+
+/datum/bot_scenario/duty/first_nanites/alone/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/in_now = bot.loc == chamber
+	if(in_now && !was_in)
+		times_in++
+		log_line("in the chamber ([times_in])")
+	was_in = in_now
+	if(times_in > 1)
+		fail_reason = "back in the chamber [times_in] times"
+		return BOT_GYM_FAIL
+	if(times_in == 1 && isturf(bot.loc) && world.time - start_time > 40 SECONDS)
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING

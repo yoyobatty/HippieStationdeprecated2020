@@ -68,6 +68,8 @@ GLOBAL_LIST_INIT(bot_nanite_programs, list("research_nanites", "researchplus_nan
 			continue
 		var/role = H.mind?.assigned_role
 		var/score = dist - ((role in list("Scientist", "Research Director", "Roboticist")) ? 30 : 0)
+		if(role == "Research Director")
+			score -= 10 //the department's own head first
 		if(!best || score < best_score)
 			best = H
 			best_score = score
@@ -105,6 +107,39 @@ GLOBAL_LIST_INIT(bot_nanite_programs, list("research_nanites", "researchplus_nan
 
 /proc/bot_nanite_hosts_exist()
 	return bot_nanite_host_count() > 0
+
+/datum/bot_brain
+	/// The first nanites have been tried for, and not again before this.
+	var/first_nanites_next = 0
+
+/// Nobody with nanites yet, and Basic Nanite Programming researched: a scientist sees to the first ones before the rest of the day's
+/// work, as players do to get the nanite points coming. The nanite nodes past the first cost Nanite Research, which only hosts make,
+/// so without them that half of the tree never opens. In the user's round (2026-11-10) the one scientist went through experiments,
+/// slimes, printing and upgrades and the duty above never once got a look in: no nanites, and the user's R&D console said "not
+/// enough research points". Somebody free to step in goes first, the RD before anybody; with nobody free, the scientist gets in
+/// itself and asks Science on the radio (goals/powergame.dm get_nanites), as somebody on their own would.
+/datum/bot_duty/nanites/first
+	name = "the first nanites"
+	priority = 30
+	interval_min = 200
+	interval_max = 400
+
+/datum/bot_duty/nanites/first/try_start(datum/bot_brain/bot)
+	if(world.time < bot.first_nanites_next || world.time < bot.nanite_blocked_until || bot_nanite_hosts_exist())
+		return FALSE
+	if(!SSresearch.science_tech.researched_nodes["nanite_base"])
+		return FALSE
+	var/obj/machinery/computer/nanite_chamber_control/C = bot.find_nanite_console()
+	if(!C)
+		return FALSE
+	bot.first_nanites_next = world.time + 4 MINUTES //whichever way it goes, not straight back at it
+	var/mob/living/carbon/human/volunteer = bot.find_nanite_volunteer(C.chamber)
+	if(volunteer)
+		return bot.assign_goal(new /datum/bot_goal/run_nanite_chamber(C, volunteer))
+	if(bot_has_nanites(bot.owner) || !bot.can_walk_lawfully_to(C.chamber))
+		return FALSE
+	bot_log(bot, "nobody about to put nanites in: getting in the chamber myself")
+	return bot.assign_goal(new /datum/bot_goal/get_nanites(C.chamber))
 
 // ---------------------------------------------------------------------------------------------
 // The chamber
