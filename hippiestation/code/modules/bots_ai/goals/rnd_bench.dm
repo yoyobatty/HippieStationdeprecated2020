@@ -366,6 +366,7 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 		var/obj/machinery/computer/rdconsole/console = bot.find_rd_console()
 		if(console && !console.linked_lathe)
 			return bot.assign_goal(new /datum/bot_goal/sync_console())
+		bot_log_verbose(bot, "R&D bench: no lathe to work at")
 		return FALSE
 	for(var/mat in list(MAT_METAL = /obj/item/stack/sheet/metal, MAT_GLASS = /obj/item/stack/sheet/glass))
 		if(bot_lathe_sheets(lathe, mat) < BOT_RND_LOW_SHEETS)
@@ -373,13 +374,24 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 			if(S)
 				return bot.assign_goal(new /datum/bot_goal/stock_lathe(S))
 	if(lathe.busy || bot.rped_in_use_by_another())
+		bot_log_verbose(bot, "R&D bench: [lathe.busy ? "the lathe's busy" : "somebody in Science is out with the RPED"]")
 		return FALSE
 	var/obj/item/storage/part_replacer/rped = bot.find_rped()
 	if(!rped)
-		var/datum/design/D = bot_researched_design("bs_rped") || bot_researched_design("rped")
+		// The bluespace one if the silo runs to it, and the plain one if not. With the bluespace RPED researched and no silver
+		// (it takes 2,500) a lab with no RPED asked for nothing else: it called for silver all shift with the metal and glass
+		// for a plain one in the lathe, and upgraded nothing, in seven shifts of twelve. Research heads for that node first.
+		var/datum/design/plain = bot_researched_design("rped")
+		var/datum/design/D = bot_researched_design("bs_rped")
+		if(!D || (plain && !bot_lathe_can_afford(lathe, D, 1)))
+			D = plain
 		if(!D)
+			bot_log_verbose(bot, "R&D bench: no RPED in the lab, and none researched to print")
 			return FALSE
-		return bot.print_or_ask(lathe, D, 1)
+		. = bot.print_or_ask(lathe, D, 1)
+		if(!.)
+			bot_log_verbose(bot, "R&D bench: no RPED in the lab, and [lathe] wouldn't print one")
+		return
 	// A new tier researched: said on the radio, and a round straight away with what's been printed of it (the user's ruling, 2026-11-08).
 	var/tier = bot_best_researched_tier()
 	if(tier > GLOB.bot_part_tier_announced)
@@ -413,6 +425,7 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 		if(!length(bot.upgrade_round))
 			if(length(bot_rped_junk(rped)) || (rped in bot.owner.held_items))
 				return bot.assign_goal(new /datum/bot_goal/put_rped_back(rped))
+			bot_log_verbose(bot, "R&D bench: nothing worth an upgrade round (best researched tier [bot_best_researched_tier()])")
 			return FALSE
 		bot_log(bot, "upgrade round: [english_list(bot.upgrade_round)]")
 	// Everything for the round printed first, then the machines one after another, the nearest next
@@ -432,6 +445,7 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 		// scientist did forty times in one shift
 		bot.upgrade_round = null
 		bot.rnd_bench_blocked_until = world.time + 3 MINUTES
+		bot_log_verbose(bot, "R&D bench: a round planned and nothing in the RPED to fit - resting it")
 		return FALSE
 	return bot.assign_goal(new /datum/bot_goal/fit_upgrades(M))
 

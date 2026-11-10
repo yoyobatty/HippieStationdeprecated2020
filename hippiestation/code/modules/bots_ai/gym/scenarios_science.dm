@@ -70,6 +70,15 @@
 		return BOT_GYM_FAIL
 	return C.linked_lathe == L ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/datum/bot_scenario/duty/bench/upgrade/no_silver
+	name = "upgrades: with the bluespace RPED researched and no silver for it, the lab prints a plain one"
+	desc = "No RPED in the lab, the bluespace one researched, and metal and glass but no silver. It asked Mining for silver all shift and upgraded nothing, with a plain RPED there to be printed."
+
+/datum/bot_scenario/duty/bench/upgrade/no_silver/setup()
+	..()
+	SSresearch.science_tech.research_node_id("bluespace_basic", TRUE, FALSE)
+	SSresearch.science_tech.research_node_id("practical_bluespace", TRUE, FALSE)
+
 // Upgrade rounds (2026-11-08). More letters: u a recharger, j a cell charger, A a destructive analyzer. An RPED waits on the lathe.
 /datum/bot_scenario/duty/bench/round
 	name = "upgrades: a scientist prints a whole round's parts, then fits the machines one after another"
