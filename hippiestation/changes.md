@@ -167,6 +167,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/reagents/chemistry/reagents/toxin_reagents.dm
 ## code/modules/reagents/chemistry/recipes/pyrotechnics.dm !Same as above.
 ## code/modules/reagents/reagent_containers.dm !Could be modularized.
+## code/modules/research/rdconsole.dm (research_node() says which points are short)
 ## code/modules/shuttle/emergency.dm
 ## code/modules/spells/spell.dm
 ## code/modules/surgery/bodyparts/bodyparts.dm

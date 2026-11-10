@@ -113,6 +113,28 @@ const getResearch = data => {
     const node = lookups.byId[id];
     return node ? node.cost : 0;
   };
+  // hippie -- the nanite nodes past the first cost Nanite Research as well,
+  // which crew carrying nanites earn: shown and counted alongside
+  const naniteCosts = data.nanite_costs || {};
+  const naniteCostOf = id => {
+    if (naniteCosts[id] !== undefined) {
+      return naniteCosts[id];
+    }
+    const node = lookups.byId[id];
+    return node ? (node.nanite || 0) : 0;
+  };
+  const shortOf = id => {
+    const short = [];
+    const general = costOf(id) - (data.points || 0);
+    const nanite = naniteCostOf(id) - (data.nanite_points || 0);
+    if (general > 0) {
+      short.push(formatNumber(general) + ' points');
+    }
+    if (nanite > 0) {
+      short.push(formatNumber(nanite) + ' nanite points');
+    }
+    return short.length ? short.join(' and ') + ' short' : null;
+  };
   return {
     ...lookups,
     researched,
@@ -121,8 +143,15 @@ const getResearch = data => {
     researchedDesigns: designs,
     statusOf,
     costOf,
+    naniteCostOf,
+    canAfford: id => !shortOf(id),
+    shortOf,
   };
 };
+
+// "2,500 pts", or "500 pts + 500 nanite"
+const costText = (general, nanite) => formatNumber(general) + ' pts'
+  + (nanite ? ' + ' + formatNumber(nanite) + ' nanite' : '');
 
 // The nodes still to research on the way to `id`, prerequisites first
 const getPath = (id, research) => {
@@ -148,6 +177,9 @@ const getPath = (id, research) => {
 
 const pathCost = (path, research) => path
   .reduce((sum, id) => sum + research.costOf(id), 0);
+
+const pathNaniteCost = (path, research) => path
+  .reduce((sum, id) => sum + research.naniteCostOf(id), 0);
 
 // Costs the machine's parts don't change: sheets on the R&D machines, every
 // stack on the autolathe
@@ -235,7 +267,7 @@ const Chip = props => {
 };
 
 const StatusChip = props => {
-  const { status, cost, affordable } = props;
+  const { status, cost, nanite, affordable } = props;
   if (status === 'researched') {
     return (
       <Chip color={STATUS_COLORS.researched}>
@@ -247,14 +279,14 @@ const StatusChip = props => {
   if (status === 'available') {
     return (
       <Chip color={affordable ? STATUS_COLORS.available : '#db2828'}>
-        {formatNumber(cost) + ' pts'}
+        {costText(cost, nanite)}
       </Chip>
     );
   }
   return (
     <Chip>
       <Icon name="lock" mr={0.5} />
-      {formatNumber(cost) + ' pts'}
+      {costText(cost, nanite)}
     </Chip>
   );
 };
@@ -263,7 +295,8 @@ const NodeCard = props => {
   const { node, research, data, selected, onSelect, act } = props;
   const status = research.statusOf(node.id);
   const cost = research.costOf(node.id);
-  const affordable = data.points >= cost;
+  const nanite = research.naniteCostOf(node.id);
+  const affordable = research.canAfford(node.id);
   const path = status === 'locked' ? getPath(node.id, research) : null;
   const shown = node.designs.slice(0, 12);
   return (
@@ -282,16 +315,18 @@ const NodeCard = props => {
         <Box bold fontSize="13px" style={{ 'flex-grow': 1 }}>
           {node.name}
         </Box>
-        <StatusChip status={status} cost={cost} affordable={affordable} />
+        <StatusChip
+          status={status}
+          cost={cost}
+          nanite={nanite}
+          affordable={affordable} />
         {status === 'available' && !!data.research_control && (
           <Button
             ml={0.5}
             icon="flask"
             content="Research"
             disabled={!affordable}
-            tooltip={affordable
-              ? null
-              : formatNumber(cost - data.points) + ' points short'}
+            tooltip={research.shortOf(node.id)}
             tooltipPosition="left"
             onClick={e => {
               e.stopPropagation();
@@ -328,7 +363,8 @@ const NodeCard = props => {
         <Box color="label" fontSize="11px" mt={0.5}>
           <Icon name="route" mr={0.5} />
           {path.length + ' nodes to go, '
-            + formatNumber(pathCost(path, research)) + ' pts in all'}
+            + costText(pathCost(path, research),
+              pathNaniteCost(path, research)) + ' in all'}
         </Box>
       )}
     </Box>
@@ -361,7 +397,7 @@ const NodeLink = props => {
       <Box inline color="label" ml={1} fontSize="11px">
         {status === 'researched'
           ? 'researched'
-          : formatNumber(research.costOf(id)) + ' pts'}
+          : costText(research.costOf(id), research.naniteCostOf(id))}
       </Box>
     </Box>
   );
@@ -500,8 +536,10 @@ const NodeDetails = props => {
   }
   const status = research.statusOf(node.id);
   const cost = research.costOf(node.id);
+  const nanite = research.naniteCostOf(node.id);
   const path = status === 'researched' ? [] : getPath(node.id, research);
   const total = pathCost(path, research);
+  const totalNanite = pathNaniteCost(path, research);
   const next = path.find(id => research.available[id]);
   const boosted = cost < node.cost;
   return (
@@ -516,7 +554,8 @@ const NodeDetails = props => {
         <StatusChip
           status={status}
           cost={cost}
-          affordable={data.points >= cost} />
+          nanite={nanite}
+          affordable={research.canAfford(node.id)} />
         {boosted && (
           <Chip color="#2185d0">
             {'Boosted from ' + formatNumber(node.cost)}
@@ -526,8 +565,9 @@ const NodeDetails = props => {
       {status === 'available' && !!data.research_control && (
         <Button
           icon="flask"
-          content={'Research for ' + formatNumber(cost) + ' points'}
-          disabled={data.points < cost}
+          content={'Research for ' + costText(cost, nanite)}
+          disabled={!research.canAfford(node.id)}
+          tooltip={research.shortOf(node.id)}
           onClick={() => act('research', { id: node.id })} />
       )}
       {path.length > 1 && (
@@ -541,7 +581,7 @@ const NodeDetails = props => {
           <Box bold mb={0.5}>
             <Icon name="route" mr={0.5} />
             {'The way there: ' + path.length + ' nodes, '
-              + formatNumber(total) + ' points'}
+              + costText(total, totalNanite)}
           </Box>
           {path.map(id => (
             <NodeLink
@@ -555,11 +595,8 @@ const NodeDetails = props => {
               mt={0.5}
               icon="forward"
               content={'Research next: ' + research.byId[next].name}
-              disabled={data.points < research.costOf(next)}
-              tooltip={data.points < research.costOf(next)
-                ? formatNumber(research.costOf(next) - data.points)
-                  + ' points short'
-                : null}
+              disabled={!research.canAfford(next)}
+              tooltip={research.shortOf(next)}
               onClick={() => act('research', { id: next })} />
           )}
           {!next && (
@@ -1574,6 +1611,15 @@ class RdConsoleMenu extends Component {
               <Box color="label" fontSize="11px">
                 {'General Research, +' + formatNumber(data.per_minute)
                   + ' a minute'}
+              </Box>
+            </Box>
+            <Box textAlign="right" mr={1}>
+              <Box fontSize="18px" bold color="teal">
+                <Icon name="microchip" mr={0.5} />
+                {formatNumber(data.nanite_points || 0)}
+              </Box>
+              <Box color="label" fontSize="11px">
+                Nanite Research
               </Box>
             </Box>
           </Box>

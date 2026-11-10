@@ -24,6 +24,8 @@ GLOBAL_LIST_EMPTY(rd_ui_mat_names)
 				"unlocks" = assoc_list_strip_value(N.unlock_ids),
 				"designs" = assoc_list_strip_value(N.design_ids),
 				"cost" = N.research_costs[TECHWEB_POINT_TYPE_GENERIC] || 0,
+				// Nanite Research too, for the nanite nodes past the first: crew carrying nanites earn it (components/nanites.dm add_research())
+				"nanite" = N.research_costs[TECHWEB_POINT_TYPE_NANITES] || 0,
 				"group" = N.node_group(), // design_groups.dm
 			))
 	if(!length(GLOB.rd_ui_designs))
@@ -83,6 +85,7 @@ GLOBAL_LIST_EMPTY(rd_ui_mat_names)
 	.["research_control"] = research_control
 	.["org"] = stored_research.organization
 	.["points"] = round(stored_research.research_points[TECHWEB_POINT_TYPE_GENERIC] || 0)
+	.["nanite_points"] = round(stored_research.research_points[TECHWEB_POINT_TYPE_NANITES] || 0)
 	var/last = stored_research.last_bitcoins[TECHWEB_POINT_TYPE_GENERIC] || 0
 	.["per_minute"] = round(last * ((SSresearch.flags & SS_TICKER) ? (600 / (world.tick_lag * SSresearch.wait)) : (600 / SSresearch.wait)))
 	var/list/researched = list()
@@ -104,11 +107,15 @@ GLOBAL_LIST_EMPTY(rd_ui_mat_names)
 	.["hidden"] = hidden
 	// Costs a boost has brought down, by node: the rest cost what they always do.
 	var/list/costs = list()
+	var/list/nanite_costs = list()
 	for(var/id in stored_research.boosted_nodes)
 		var/datum/techweb_node/N = SSresearch.techweb_node_by_id(id)
 		if(N)
-			costs[id] = N.get_price(stored_research)[TECHWEB_POINT_TYPE_GENERIC] || 0
+			var/list/price = N.get_price(stored_research)
+			costs[id] = price[TECHWEB_POINT_TYPE_GENERIC] || 0
+			nanite_costs[id] = price[TECHWEB_POINT_TYPE_NANITES] || 0
 	.["costs"] = costs
+	.["nanite_costs"] = nanite_costs
 	// Designs it has that no researched node gave it: off a disk, or given.
 	var/list/extra = list()
 	for(var/design_id in stored_research.researched_designs)

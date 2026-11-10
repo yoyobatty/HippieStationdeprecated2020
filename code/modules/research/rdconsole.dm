@@ -175,7 +175,14 @@ Nothing else in the console has ID requirements.
 		else
 			say("Failed to research node: Internal database error!")
 			return FALSE
-	say("Not enough research points...")
+	// hippie start -- says which points are short: the nanite nodes cost Nanite Research as well, and "not enough" left a player with plenty of General Research guessing
+	var/list/short = list()
+	for(var/kind in price)
+		var/have = stored_research.research_points[kind] || 0
+		if(have < price[kind])
+			short += "[round(price[kind] - have)] [kind]"
+	say("Not enough research points: [length(short) ? english_list(short) : "some"] short.")
+	// hippie end
 	return FALSE
 
 /obj/machinery/computer/rdconsole/on_deconstruction()
