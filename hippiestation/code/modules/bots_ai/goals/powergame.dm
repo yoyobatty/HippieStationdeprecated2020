@@ -10,6 +10,7 @@
 //     asked for on the radio if not, and the Geneticist prints one and brings it over. Injected on the spot.
 //  3. Heals. Brute and burn patches off a NanoMed, a couple of each, for the fights to come.
 //  4. A gun. Printed at a lathe its card gets it to, the best the station's researched that the lathe will make.
+//  5. For a Virologist, a virus of its own: the lab's flu and plasma until it heals, and a gulp of it.
 // And it relies on them: hurt in a fight it slaps a patch on and fights on instead of running while it's got one, and it shoots
 // with whatever it printed (try_shoot_at(), bot_fighting.dm).
 
@@ -21,6 +22,8 @@
 #define BOT_POWER_HEAL_GAP (12 SECONDS)
 /// How long it waits for the Geneticist to bring an activator over.
 #define BOT_POWER_WAIT_FOR_GENES (3 MINUTES)
+/// goals/chem_lab.dm's BOT_CHEM_HEAL: what a heal pill is for (bot_chem_kind_of()).
+#define BOT_POWER_HEAL_KIND "heal"
 /// Patches of each kind it likes to have on it.
 #define BOT_POWER_PATCHES 2
 
@@ -57,7 +60,7 @@ GLOBAL_LIST_INIT(bot_power_mutations, list(/datum/mutation/human/hulk, /datum/mu
 	if(owner.incapacitated() || gone_loud() || bot_shuttle_boarding())
 		return FALSE
 	inject_activators()
-	for(var/rung in list("access", "genes", "heals", "gun"))
+	for(var/rung in list("access", "genes", "virus", "heals", "gun"))
 		if(LAZYACCESS(power_rests, rung) > world.time)
 			continue
 		var/started = FALSE
@@ -66,6 +69,8 @@ GLOBAL_LIST_INIT(bot_power_mutations, list(/datum/mutation/human/hulk, /datum/mu
 				started = try_power_access()
 			if("genes")
 				started = try_power_genes()
+			if("virus")
+				started = try_power_virus()
 			if("heals")
 				started = try_power_heals()
 			if("gun")
@@ -425,6 +430,93 @@ GLOBAL_LIST_INIT(bot_power_mutations, list(/datum/mutation/human/hulk, /datum/mu
 	return istype(G) && !G.injector ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 
 // ---------------------------------------------------------------------------------------------
+// A virus
+// ---------------------------------------------------------------------------------------------
+
+// A Virologist's own: the saboteur's brew (goals/sabotage_virus.dm: the flu culture and plasma a drop at a time, a new symptom each), kept
+// at until it does the drinker good and nothing worse than a cough, and then a gulp of it. In Bot Shifts the saboteur's brews came out
+// healing more often than killing.
+
+/// Symptoms a powergamer wants in its own blood.
+GLOBAL_LIST_INIT(bot_good_symptoms, typecacheof(list(/datum/symptom/heal, /datum/symptom/oxygen, /datum/symptom/mind_restoration, /datum/symptom/sensory_restoration, /datum/symptom/youth)))
+/// Ones that do no harm worth minding.
+GLOBAL_LIST_INIT(bot_harmless_symptoms, typecacheof(list(/datum/symptom/beard, /datum/symptom/cough, /datum/symptom/sneeze, /datum/symptom/itching, /datum/symptom/headache,
+	/datum/symptom/voice_change, /datum/symptom/vitiligo, /datum/symptom/revitiligo, /datum/symptom/shedding, /datum/symptom/undead_adaptation,
+	/datum/symptom/inorganic_adaptation, /datum/symptom/viraladaptation, /datum/symptom/viralevolution)))
+
+/// A virus with something good in it and nothing bad.
+/proc/bot_virus_good(datum/disease/advance/D)
+	if(!D)
+		return FALSE
+	. = FALSE
+	for(var/datum/symptom/S as anything in D.symptoms)
+		if(GLOB.bot_good_symptoms[S.type])
+			. = TRUE
+		else if(!GLOB.bot_harmless_symptoms[S.type])
+			return FALSE
+
+/datum/bot_brain/proc/has_good_virus()
+	for(var/datum/disease/advance/D in owner.diseases)
+		if(bot_virus_good(D))
+			return TRUE
+	return FALSE
+
+/datum/bot_brain/proc/try_power_virus()
+	if(work_role() != "Virologist" || has_good_virus())
+		return FALSE
+	LAZYSET(power_rests, "virus", world.time + 20 MINUTES)
+	var/obj/machinery/smartfridge/F = virus_fridge()
+	return F ? assign_goal(new /datum/bot_goal/sabotage_virus/power(F)) : FALSE
+
+/datum/bot_goal/sabotage_virus/power
+	doing = "working on a virus"
+	breaks_in = FALSE
+
+/datum/bot_goal/sabotage_virus/power/New(obj/machinery/smartfridge/F)
+	. = ..(F, null)
+
+/datum/bot_goal/sabotage_virus/power/get_strategies(datum/bot_brain/bot)
+	. = ..()
+	var/datum/bot_strategy/S = .[1]
+	S.steps[length(S.steps)] = new /datum/bot_step/paced/evolve_virus/power(src)
+
+/datum/bot_goal/sabotage_virus/power/on_success(datum/bot_brain/bot)
+	var/datum/disease/advance/D = bot_virus_in(brew)
+	if(!bot_virus_good(D))
+		bot_log(bot, "POWER: the virus came out [bot_virus_symptoms(D)], no good to me")
+		return
+	bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, drink_own_virus), brew))
+
+/datum/bot_step/paced/evolve_virus/power/virus_done(datum/disease/advance/D)
+	return bot_virus_good(D)
+
+/datum/bot_step/paced/evolve_virus/power/virus_done_words()
+	return "does me good"
+
+/datum/bot_step/paced/evolve_virus/power/unwatched(datum/bot_brain/bot)
+	return TRUE //nothing to hide
+
+/datum/bot_step/paced/evolve_virus/power/finish(datum/bot_brain/bot)
+	var/datum/disease/advance/D = bot_virus_in(goal.brew)
+	return (D && length(D.symptoms) > 1) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+
+/// A gulp of it: blood swallowed passes on what's in it (blood's reaction_mob(), ForceContractDisease()).
+/datum/bot_brain/proc/drink_own_virus(obj/item/reagent_containers/glass/beaker/B)
+	if(QDELETED(B) || !is_carried(B) || owner.incapacitated())
+		return
+	var/datum/disease/advance/D = bot_virus_in(B)
+	if(!ready_in_hand(B))
+		return
+	owner.a_intent = INTENT_HELP
+	use_item_on(B, owner)
+	if(has_good_virus())
+		bot_log(src, "POWER: infected myself with [bot_virus_symptoms(D)]")
+		bot_tally("powergaming: a good virus")
+		telemetry_event("power_gained", list("power" = "virus: [bot_virus_symptoms(D)]"))
+		if(prob(60))
+			bot_say(owner, pick("Got myself a nice little virus going.", "[D?.name || "This"]'s a keeper.", "Self-improvement, virology style."))
+
+// ---------------------------------------------------------------------------------------------
 // Heals
 // ---------------------------------------------------------------------------------------------
 
@@ -444,14 +536,21 @@ GLOBAL_LIST_INIT(bot_power_mutations, list(/datum/mutation/human/hulk, /datum/mu
 
 /datum/bot_brain/proc/try_power_heals()
 	var/list/have = power_patches()
-	if(have[1] >= BOT_POWER_PATCHES && have[2] >= BOT_POWER_PATCHES)
+	var/patched = have[1] >= BOT_POWER_PATCHES && have[2] >= BOT_POWER_PATCHES
+	if(patched && carried_chems(BOT_POWER_HEAL_KIND) >= BOT_POWER_PATCHES)
 		return FALSE
-	var/obj/machinery/vending/V = find_nanomed()
-	if(!V || !can_afford_from(V, /obj/item/reagent_containers/pill/patch/styptic)) //bot_knowledge.dm: the Plus charges, and broke is broke
-		LAZYSET(power_rests, "heals", world.time + BOT_POWER_RUNG_REST)
+	var/obj/machinery/vending/V = patched ? null : find_nanomed()
+	if(V && can_afford_from(V, /obj/item/reagent_containers/pill/patch/styptic)) //bot_knowledge.dm: the Plus charges, and broke is broke
+		LAZYSET(power_rests, "heals", world.time + BOT_POWER_RUNG_REST / 2)
+		return assign_goal(new /datum/bot_goal/patch_up/power(V))
+	// The good stuff: Chemistry's own pills (tricordrazine, the fluorides, goals/chem_lab.dm), asked for on the radio.
+	LAZYSET(power_rests, "heals", world.time + BOT_POWER_RUNG_REST)
+	if(carried_chems(BOT_POWER_HEAL_KIND) >= BOT_POWER_PATCHES || work_role() == "Chemist" || !bot_someone_on_job("Chemist", owner))
 		return FALSE
-	LAZYSET(power_rests, "heals", world.time + BOT_POWER_RUNG_REST / 2)
-	return assign_goal(new /datum/bot_goal/patch_up/power(V))
+	var/where = get_area_name(owner, TRUE)
+	if(!call_for(/datum/bot_request_kind/heal_chems, pick(";Chemistry, could I get a couple of tricord pills? I'm in [where].", ";Chem, any healing pills going? I'll be in [where].", ";Chemistry, could you spare some heals? [where].")))
+		return FALSE
+	return assign_goal(new /datum/bot_goal/await_activator/pills)
 
 /datum/bot_goal/patch_up/power
 	doing = "stocking up on patches"
@@ -490,10 +589,125 @@ GLOBAL_LIST_INIT(bot_power_mutations, list(/datum/mutation/human/hulk, /datum/mu
 	bot_log(bot, "POWER: got [got] patches out of [V]")
 	return got ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 
+/// Somebody alive and playing on this job (not the asker).
+/proc/bot_someone_on_job(title, mob/asking)
+	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
+		if(H != asking && H.stat != DEAD && H.mind?.assigned_role == title && !H.bot_logged_off && (H.client || H.bot_brain) && H.z == asking.z)
+			return H
+	return null
+
+/// Stood waiting for Chemistry: a heal pill put down beside it is picked up.
+/datum/bot_goal/await_activator/pills
+	doing = "waiting for Chemistry"
+
+/datum/bot_goal/await_activator/pills/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/case_work/S = new
+	S.steps = list(new /datum/bot_step/paced/await_pills())
+	return list(S)
+
+/datum/bot_step/paced/await_pills
+	max_clicks = 3
+	var/give_up_at = 0
+	var/had = 0
+
+/datum/bot_step/paced/await_pills/start(datum/bot_brain/bot)
+	give_up_at = world.time + BOT_POWER_WAIT_FOR_GENES
+	had = bot.carried_chems(BOT_POWER_HEAL_KIND)
+	return TRUE
+
+/datum/bot_step/paced/await_pills/do_click(datum/bot_brain/bot)
+	if(world.time > give_up_at || bot.carried_chems(BOT_POWER_HEAL_KIND) > had)
+		return FALSE
+	for(var/obj/item/reagent_containers/pill/P in range(1, bot.owner))
+		if(isturf(P.loc) && bot_chem_kind_of(P) == BOT_POWER_HEAL_KIND && !bot.taken_by_another(P))
+			bot.try_pickup_target(P)
+			return TRUE
+	wait_for = 2 SECONDS
+	return TRUE
+
+/datum/bot_step/paced/await_pills/finish(datum/bot_brain/bot)
+	return bot.carried_chems(BOT_POWER_HEAL_KIND) > had ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+
+/// "Chemistry, could I get some tricord?": a chemist with a heal pill to spare takes it over; one without makes a couple more next time
+/// round, on top of its own (chem_wishlist()), and says so.
+/datum/bot_request_kind/heal_chems
+	name = "heal chems"
+	jobs = list("Chemist")
+	strong_words = list("tricord", "healing pills", "heal pills", "spare some heals", "healing chems")
+	role_words = list("chemistry", "chemist", "chem")
+	ack_lines = list("Sure, bringing some over.", "Yeah, coming.", "On my way with them.")
+	walks_there = FALSE
+	needs_place = FALSE
+	doing = "taking somebody some pills"
+	precedence = 1
+
+/datum/bot_request_kind/heal_chems/attend(datum/bot_brain/bot, datum/bot_request/R)
+	var/mob/living/carbon/human/who = R.caller_ref?.resolve()
+	if(!istype(who) || who == bot.owner || bot.state != BOT_STATE_WANDER)
+		return
+	var/obj/item/reagent_containers/pill/spare
+	if(bot.carried_chems(BOT_POWER_HEAL_KIND) > 1)
+		for(var/obj/item/reagent_containers/pill/P in bot.owner.GetAllContents())
+			if(bot_chem_kind_of(P) == BOT_POWER_HEAL_KIND)
+				spare = P
+				break
+	if(!spare)
+		bot.heals_owed = min(bot.heals_owed + 2, 4)
+		bot.say_after_typing(bot_radio_prefix(R.radio_freq) + pick("None spare right now, I'll make more.", "Out of them. Give me ten minutes.", "Just used the last. I'll brew some."))
+		return
+	bot.assign_goal(new /datum/bot_goal/hand_over(spare, who))
+
+/datum/bot_brain
+	/// Heal pills a chemist means to make for others, on top of its own stock.
+	var/heals_owed = 0
+
+/datum/bot_brain/chem_wishlist()
+	. = ..()
+	var/list/wanted = .
+	if(wanted && heals_owed)
+		wanted[BOT_POWER_HEAL_KIND] = (wanted[BOT_POWER_HEAL_KIND] || 0) + heals_owed
+
+/// Something taken over to somebody and put down at their feet with a word.
+/datum/bot_goal/hand_over
+	lawful = TRUE
+	doing = "taking somebody something"
+	var/obj/item/thing
+	var/datum/weakref/for_ref
+
+/datum/bot_goal/hand_over/New(obj/item/I, mob/living/who)
+	. = ..()
+	thing = I
+	for_ref = WEAKREF(who)
+
+/datum/bot_goal/hand_over/resolve_target(datum/bot_brain/bot)
+	var/mob/living/who = for_ref?.resolve()
+	target = (!who || QDELETED(thing) || !bot.is_carried(thing) || who.stat == DEAD) ? null : who
+
+/datum/bot_goal/hand_over/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/case_work/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/put_down_for())
+	return list(S)
+
+/datum/bot_goal/hand_over/on_success(datum/bot_brain/bot)
+	bot_tally("things handed over")
+	if(bot.heals_owed && bot_chem_kind_of(thing) == BOT_POWER_HEAL_KIND)
+		bot.heals_owed = max(0, bot.heals_owed - 1)
+
+/datum/bot_step/put_down_for/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/hand_over/G = bot.current_goal
+	var/mob/living/who = G?.target
+	if(!istype(G) || !who || QDELETED(G.thing) || !bot.owner.Adjacent(who) || !bot.ready_in_hand(G.thing))
+		return GOAL_STEP_FAIL
+	bot.human_pause(who)
+	bot.owner.dropItemToGround(G.thing)
+	bot_say(bot.owner, pick("There you go, [who.name].", "Here, [who.name].", "That's yours, [who.name]. Don't eat it all at once."))
+	bot_log(bot, "put [G.thing] down for [who]")
+	return GOAL_STEP_SUCCESS
+
 /// Hurt in a fight with a patch on it: a step out of it, the patch on (three seconds, self_delay), and back in when they come on again,
 /// instead of running for Medbay. The run's for when the patches are gone. try_run_for_it()'s TRUE is "the fight's off for now".
 /datum/bot_brain/try_run_for_it()
-	if(is_powergamer() && attacker && world.time >= next_power_heal && owner.health <= owner.maxHealth * health_to_run_at() && owner.health > HEALTH_THRESHOLD_CRIT + 20 && pick_treatment_item(owner, TRUE))
+	if(is_powergamer() && attacker && world.time >= next_power_heal && owner.health <= owner.maxHealth * health_to_run_at() && owner.health > HEALTH_THRESHOLD_CRIT + 20 && pick_treatment_item(owner))
 		next_power_heal = world.time + BOT_POWER_HEAL_GAP
 		var/mob/living/from = attacker
 		state_before_combat = null
@@ -566,3 +780,4 @@ GLOBAL_LIST_INIT(bot_power_mutations, list(/datum/mutation/human/hulk, /datum/mu
 #undef BOT_POWER_HEAL_GAP
 #undef BOT_POWER_WAIT_FOR_GENES
 #undef BOT_POWER_PATCHES
+#undef BOT_POWER_HEAL_KIND

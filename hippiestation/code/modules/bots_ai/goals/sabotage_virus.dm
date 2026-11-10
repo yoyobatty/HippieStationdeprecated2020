@@ -290,7 +290,7 @@ GLOBAL_LIST_INIT(bot_lethal_symptoms, typecacheof(list(/datum/symptom/fire, /dat
 	var/obj/item/reagent_containers/glass/beaker/B = goal.brew
 	if(done || QDELETED(B))
 		return FALSE
-	if(!bot.sabotage_unwatched(waiting_since))
+	if(!unwatched(bot))
 		wait_for = 10
 		return TRUE
 	var/obj/item/reagent_containers/glass/bottle/culture = (locate(/obj/item/reagent_containers/glass/bottle/flu_virion) in bot.owner.GetAllContents()) || (locate(/obj/item/reagent_containers/glass/bottle/cold) in bot.owner.GetAllContents())
@@ -314,9 +314,9 @@ GLOBAL_LIST_INIT(bot_lethal_symptoms, typecacheof(list(/datum/symptom/fire, /dat
 	var/datum/disease/advance/D = bot_virus_in(B)
 	if(!D)
 		return FALSE
-	if(bot_virus_kills(D))
+	if(virus_done(D))
 		done = TRUE
-		bot_log(bot, "SABOTAGE: it kills now: [bot_virus_symptoms(D)]")
+		bot_log(bot, "SABOTAGE: it [virus_done_words()] now: [bot_virus_symptoms(D)]")
 		return FALSE
 	if(!plasma || plasma.reagents.get_reagent_amount(/datum/reagent/toxin/plasma) < 1)
 		done = TRUE
@@ -342,6 +342,17 @@ GLOBAL_LIST_INIT(bot_lethal_symptoms, typecacheof(list(/datum/symptom/fire, /dat
 	bot_log(bot, "SABOTAGE: plasma drop [drops]: [bot_virus_symptoms(bot_virus_in(B))]")
 	wait_for = 20
 	return TRUE
+
+/// Whether the brew's what it's after: for a saboteur, it kills (a powergamer's is goals/powergame.dm's).
+/datum/bot_step/paced/evolve_virus/proc/virus_done(datum/disease/advance/D)
+	return bot_virus_kills(D)
+
+/datum/bot_step/paced/evolve_virus/proc/virus_done_words()
+	return "kills"
+
+/// Nobody watching: a saboteur waits for that, up to a point.
+/datum/bot_step/paced/evolve_virus/proc/unwatched(datum/bot_brain/bot)
+	return bot.sabotage_unwatched(waiting_since)
 
 /datum/bot_step/paced/evolve_virus/finish(datum/bot_brain/bot)
 	var/datum/disease/advance/D = bot_virus_in(goal.brew)
