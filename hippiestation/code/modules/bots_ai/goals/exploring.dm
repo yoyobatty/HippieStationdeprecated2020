@@ -77,7 +77,8 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 		return FALSE
 	// Lavaland is the miners' (the user's ruling, 2026-11-04): about one explorer a batch from the station was killed by a goliath
 	// down there. Anybody else out exploring goes for the space ruins instead.
-	if(!bot.is_miner())
+	// Except on a quiet shift (goals/low_pop.dm): exploring Lavaland is what one is for, the user's own way of playing one (2026-11-09).
+	if(!bot.is_miner() && !bot.low_pop_lavaland())
 		return bot.try_space_ruin()
 	if(world.time < GLOB.bot_lavaland_done_until)
 		bot.pick_pursuit("nothing left to explore down there") //maintenance is still there for an explorer (maint_crawl), or something else

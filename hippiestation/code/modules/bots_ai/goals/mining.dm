@@ -341,6 +341,11 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 		for(var/mob/living/carbon/human/P in orange(2, A))
 			if(P.stat == CONSCIOUS && !P.handcuffed && !bot_aboard_mining_shuttle(P))
 				return P
+		// Somebody driving an exosuit aboard (goals/mech_pilot.dm) is further off and slower in the doorway: the shuttle went without one,
+		// the Ripley's driver left standing where the floor had been.
+		for(var/obj/mecha/M in orange(5, A))
+			if(M.occupant && !bot_aboard_mining_shuttle(M))
+				return M.occupant
 	return null
 
 /datum/bot_step/paced/ride_mining_shuttle/do_click(datum/bot_brain/bot)

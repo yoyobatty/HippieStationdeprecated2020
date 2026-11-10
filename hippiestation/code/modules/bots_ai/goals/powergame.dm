@@ -20,8 +20,10 @@
 #define BOT_POWER_ACCESS_REST (20 MINUTES)
 /// Between patches slapped on mid-fight.
 #define BOT_POWER_HEAL_GAP (12 SECONDS)
-/// How long it waits for the Geneticist to bring an activator over.
-#define BOT_POWER_WAIT_FOR_GENES (3 MINUTES)
+/// How long it waits for the Geneticist or a chemist to bring something over: past this a player goes and does something else.
+#define BOT_POWER_WAIT_FOR_GENES (90 SECONDS)
+/// How long it waits for anybody to answer the call at all.
+#define BOT_POWER_WAIT_FOR_ANSWER (20 SECONDS)
 /// goals/chem_lab.dm's BOT_CHEM_HEAL: what a heal pill is for (bot_chem_kind_of()).
 #define BOT_POWER_HEAL_KIND "heal"
 /// Patches of each kind it likes to have on it.
@@ -290,8 +292,8 @@ GLOBAL_LIST_INIT(bot_power_mutations, list(/datum/mutation/human/hulk, /datum/mu
 	return TRUE
 
 /datum/bot_step/paced/await_activator/do_click(datum/bot_brain/bot)
-	if(world.time > give_up_at)
-		return FALSE
+	if(world.time > give_up_at || (world.time > give_up_at - BOT_POWER_WAIT_FOR_GENES + BOT_POWER_WAIT_FOR_ANSWER && !bot.call_answered(/datum/bot_request_kind/genes)))
+		return FALSE //nobody's coming: two bots stood in maintenance for minutes on end waiting on nobody
 	for(var/obj/item/dnainjector/activator/I in range(1, bot.owner))
 		if(isturf(I.loc) && bot.activator_gives(I))
 			bot.try_pickup_target(I)
@@ -589,6 +591,13 @@ GLOBAL_LIST_INIT(bot_harmless_symptoms, typecacheof(list(/datum/symptom/beard, /
 	bot_log(bot, "POWER: got [got] patches out of [V]")
 	return got ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 
+/// Whether somebody's taken this bot's latest call of this kind (bot_requests.dm), and it's still open.
+/datum/bot_brain/proc/call_answered(kind_type)
+	for(var/datum/bot_request/R as anything in GLOB.bot_requests)
+		if(R.caller_ref?.resolve() == owner && istype(R.kind, kind_type) && R.taken_by)
+			return TRUE
+	return FALSE
+
 /// Somebody alive and playing on this job (not the asker).
 /proc/bot_someone_on_job(title, mob/asking)
 	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
@@ -618,6 +627,8 @@ GLOBAL_LIST_INIT(bot_harmless_symptoms, typecacheof(list(/datum/symptom/beard, /
 /datum/bot_step/paced/await_pills/do_click(datum/bot_brain/bot)
 	if(world.time > give_up_at || bot.carried_chems(BOT_POWER_HEAL_KIND) > had)
 		return FALSE
+	if(world.time > give_up_at - BOT_POWER_WAIT_FOR_GENES + BOT_POWER_WAIT_FOR_ANSWER && !bot.call_answered(/datum/bot_request_kind/heal_chems))
+		return FALSE //nobody took the call
 	for(var/obj/item/reagent_containers/pill/P in range(1, bot.owner))
 		if(isturf(P.loc) && bot_chem_kind_of(P) == BOT_POWER_HEAL_KIND && !bot.taken_by_another(P))
 			bot.try_pickup_target(P)
@@ -779,5 +790,6 @@ GLOBAL_LIST_INIT(bot_harmless_symptoms, typecacheof(list(/datum/symptom/beard, /
 #undef BOT_POWER_ACCESS_REST
 #undef BOT_POWER_HEAL_GAP
 #undef BOT_POWER_WAIT_FOR_GENES
+#undef BOT_POWER_WAIT_FOR_ANSWER
 #undef BOT_POWER_PATCHES
 #undef BOT_POWER_HEAL_KIND
