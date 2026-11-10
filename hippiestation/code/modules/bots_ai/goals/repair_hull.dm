@@ -38,6 +38,9 @@ GLOBAL_LIST_EMPTY(bot_hull_breaches)
 	var/hull_patched = 0
 	/// Breach -> when it's worth another look.
 	var/list/breaches_blocked
+	/// No suit or no metal to be had: no hole is worth trying before this. Blocking only the hole it gave up on sent a Chief
+	/// Engineer straight to the next of a bombed station's holes, to find no metal again, 12 times in 17 minutes (2026-11-10).
+	var/hull_work_blocked_until = 0
 
 /// The nearest hole this bot can get to and nobody else is seeing to.
 /datum/bot_brain/proc/pick_breach()
@@ -71,7 +74,7 @@ GLOBAL_LIST_EMPTY(bot_hull_breaches)
 	interval_max = 900
 
 /datum/bot_duty/patch_hull/try_start(datum/bot_brain/bot)
-	if(!length(GLOB.bot_hull_breaches))
+	if(!length(GLOB.bot_hull_breaches) || world.time < bot.hull_work_blocked_until)
 		return FALSE
 	var/turf/hole = bot.pick_breach()
 	return hole ? bot.assign_goal(new /datum/bot_goal/patch_hull(hole)) : FALSE
@@ -125,6 +128,7 @@ GLOBAL_LIST_EMPTY(bot_hull_breaches)
 		return GOAL_STEP_SUCCESS
 	if(tried)
 		bot_log(bot, "no suit to be had for the hole at [bot_coord(G?.target)] - leaving it")
+		bot.hull_work_blocked_until = world.time + 5 MINUTES
 		return GOAL_STEP_FAIL
 	tried = TRUE
 	return bot.suspend_goal_for(new /datum/bot_goal/gear_up_for_eva()) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
@@ -161,6 +165,7 @@ GLOBAL_LIST_EMPTY(bot_hull_breaches)
 		if(fetch(bot, /obj/item/stack/tile/plasteel))
 			return GOAL_STEP_PENDING
 	bot_log(bot, "nothing to patch the hull with: no metal, rods or floor tiles to be had")
+	bot.hull_work_blocked_until = world.time + 5 MINUTES
 	return GOAL_STEP_FAIL
 
 /// One lot of `result_type` (rods, floor tiles) from a metal sheet in hand, through the stack's own menu (stack/Topic
