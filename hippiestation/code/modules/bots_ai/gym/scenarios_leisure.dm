@@ -107,3 +107,40 @@
 		fail_reason = "finished a whole game in [(world.time - start_time) / 10]s"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+// Layout letter l: a weight machine. p: a punching bag.
+/datum/bot_scenario/duty/leisure/work_out
+	name = "somebody who keeps fit does a set on the weight machine"
+	desc = "A weight machine down the corridor, which nobody ever used. It walks over, does a set or two, about ten seconds each that it's on the machine for, and comes away feeling better for it."
+	duty_type = /datum/bot_duty/work_out
+	layout = list(
+		"#########",
+		"#B.....l#",
+		"#########")
+	time_limit = 90 SECONDS
+	var/kit_type = /obj/structure/weightmachine/weightlifter
+
+/datum/bot_scenario/duty/leisure/work_out/setup()
+	. = ..()
+	for(var/char in list("l", "p"))
+		for(var/turf/T in markers[char])
+			place(char, new kit_type(T))
+
+/datum/bot_scenario/duty/leisure/work_out/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(brain.state != BOT_STATE_WANDER || !bot.has_status_effect(STATUS_EFFECT_EXERCISED))
+		return BOT_GYM_PENDING
+	if(world.time - start_time < 8 SECONDS && kit_type != /obj/structure/punching_bag)
+		fail_reason = "a set done in [(world.time - start_time) / 10]s"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/duty/leisure/work_out/bag
+	name = "somebody who keeps fit goes a round with the punching bag"
+	desc = "A punching bag on the wall. A dozen or so punches, a moment apart."
+	layout = list(
+		"#########",
+		"#B.....p#",
+		"#########")
+	kit_type = /obj/structure/punching_bag

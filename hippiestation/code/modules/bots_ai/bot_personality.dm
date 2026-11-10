@@ -58,7 +58,7 @@
 		temper = max(temper, 0.6)
 		nerve = max(nerve, 0.5)
 	habits = list()
-	var/list/pool = list(BOT_HABIT_SMOKER, BOT_HABIT_GAMER, BOT_HABIT_ANIMAL_LOVER, BOT_HABIT_BARFLY, BOT_HABIT_MUSICIAN, BOT_HABIT_GAMBLER)
+	var/list/pool = list(BOT_HABIT_SMOKER, BOT_HABIT_GAMER, BOT_HABIT_ANIMAL_LOVER, BOT_HABIT_BARFLY, BOT_HABIT_MUSICIAN, BOT_HABIT_GAMBLER, BOT_HABIT_FIT)
 	for(var/i in 1 to rand(1, 3))
 		habits |= pick(pool)
 	roll_playstyle(role)

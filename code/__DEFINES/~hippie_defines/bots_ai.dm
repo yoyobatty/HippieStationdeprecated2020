@@ -36,6 +36,7 @@
 #define BOT_HABIT_BARFLY "barfly"
 #define BOT_HABIT_MUSICIAN "musician"
 #define BOT_HABIT_GAMBLER "gambler"
+#define BOT_HABIT_FIT "keeps fit"
 
 // How long the accelerator is held back for a coil or rod nobody can get to (goals/setup_tesla_engine.dm)
 #define BOT_CAGE_PATIENCE (5 MINUTES)

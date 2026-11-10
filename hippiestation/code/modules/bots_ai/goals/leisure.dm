@@ -313,3 +313,92 @@
 		bot.say_after_typing(pick("Damn.", "Rigged.", "One more go and I'd have had him."))
 	machine = null
 	return GOAL_STEP_SUCCESS
+
+// ---------------------------------------------------------------------------------------------
+// Keeping fit
+// ---------------------------------------------------------------------------------------------
+
+// The weight machines and the punching bag (mining/lavaland/ruins/gym.dm, which is where the game keeps them: the station's
+// fitness room has the same ones). A click on a weight machine puts whoever clicked on it for a set, about ten seconds they
+// can't move for; a click on the bag is a punch. Either leaves them feeling better for a while (the exercise mood). Nobody
+// used them: somebody who keeps fit does a set or two, or a minute on the bag, when it has nothing on.
+
+/// The nearest weight machine nobody's on, or a punching bag, that it can walk to.
+/datum/bot_brain/proc/find_fitness_kit()
+	var/obj/structure/best
+	var/best_dist
+	for(var/path in list(/obj/structure/weightmachine, /obj/structure/punching_bag))
+		for(var/obj/structure/S as anything in bot_instances_of(path))
+			if(QDELETED(S) || S.z != owner.z || (S.obj_flags & IN_USE) || taken_by_another(S))
+				continue
+			if(gym_run && get_area(S) != get_area(owner))
+				continue
+			var/dist = get_dist(owner, S)
+			if(dist > 40 || (best && dist >= best_dist))
+				continue
+			if(can_walk_lawfully_to(S))
+				best = S
+				best_dist = dist
+	return best
+
+/datum/bot_duty/work_out
+	name = "keeping fit"
+	tier = BOT_DUTY_LEISURE
+	interval_min = 3000
+	interval_max = 6000
+
+/datum/bot_duty/work_out/applies_to(datum/bot_brain/bot)
+	return ..() && bot.has_habit(BOT_HABIT_FIT)
+
+/datum/bot_duty/work_out/try_start(datum/bot_brain/bot)
+	return bot.find_fitness_kit() ? bot.assign_goal(new /datum/bot_goal/work_out()) : FALSE
+
+/datum/bot_goal/work_out
+	lawful = TRUE
+	exclusive = TRUE //one to a machine
+	doing = "working out"
+
+/datum/bot_goal/work_out/resolve_target(datum/bot_brain/bot)
+	target = bot.find_fitness_kit()
+
+/datum/bot_goal/work_out/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/leisure/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/work_out())
+	return list(S)
+
+/// A set or two on the machine, or a dozen or so at the bag.
+/datum/bot_step/paced/work_out
+	max_clicks = 30
+	var/done = 0
+	var/wanted = 1
+
+/datum/bot_step/paced/work_out/start(datum/bot_brain/bot)
+	var/obj/structure/kit = bot.current_goal?.target
+	done = 0
+	wanted = istype(kit, /obj/structure/punching_bag) ? rand(8, 16) : rand(1, 2)
+	return !QDELETED(kit) && bot.owner.Adjacent(kit)
+
+/datum/bot_step/paced/work_out/do_click(datum/bot_brain/bot)
+	var/obj/structure/kit = bot.current_goal?.target
+	// After a set it's stood on the machine's own tile, which is as near as it gets
+	if(done >= wanted || QDELETED(kit) || (get_dist(bot.owner, kit) > 1) || bot.owner.incapacitated())
+		return FALSE
+	if(kit.obj_flags & IN_USE)
+		wait_for = 20
+		return TRUE
+	bot.owner.a_intent = INTENT_HELP
+	if(!done)
+		bot_log(bot, "working out on [kit]")
+	if(!bot.use_atom(kit)) //a weight machine's click only comes back when the set's done (weightmachine/attack_hand())
+		return FALSE
+	done++
+	wait_for = istype(kit, /obj/structure/punching_bag) ? rand(4, 12) : rand(20, 50)
+	return TRUE
+
+/datum/bot_step/paced/work_out/finish(datum/bot_brain/bot)
+	if(!done)
+		return GOAL_STEP_FAIL
+	bot_tally("workouts")
+	if(prob(30) && !bot.gym_scripted)
+		bot.say_after_typing(pick("That's better.", "Needed that.", "Right, back to it.", "Feel the burn."))
+	return GOAL_STEP_SUCCESS

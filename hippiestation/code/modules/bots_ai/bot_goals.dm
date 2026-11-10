@@ -44,6 +44,9 @@
 /datum/bot_goal/play_arcade
 	off_duty = TRUE
 
+/datum/bot_goal/work_out
+	off_duty = TRUE
+
 /datum/bot_goal/have_meal
 	off_duty = TRUE
 
