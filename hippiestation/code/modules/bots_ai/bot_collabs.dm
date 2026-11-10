@@ -221,21 +221,37 @@ GLOBAL_LIST_INIT(bot_drop_off_areas, list(
 // ---------------------------------------------------------------------------------------------
 
 /// A table in this kind of area that this bot can walk up to, the counter of a department it can't get into included. Null if there isn't one.
+/// Counters first, the nearest six, then the nearest six of the rest: it took the six nearest tables whatever they were, and where
+/// those were all inside a lab it had no way into it gave up, with the lab's counter a little further along the hall.
 /datum/bot_brain/proc/find_drop_off(area_type)
-	var/list/found = list() //table -> how far off
+	var/list/counters = list() //table -> how far off
+	var/list/inside = list()
 	for(var/obj/structure/table/T as anything in bot_instances_of(/obj/structure/table))
-		if(!QDELETED(T) && T.z == owner.z && istype(get_area(T), area_type))
-			found[T] = get_dist(owner, T)
-	var/tries = 0
-	while(length(found) && tries++ < 6)
-		var/atom/nearest
-		for(var/atom/A as anything in found)
-			if(!nearest || found[A] < found[nearest])
-				nearest = A
-		found -= nearest
-		if(can_walk_lawfully_to(nearest))
-			return nearest
+		if(QDELETED(T) || T.z != owner.z || !istype(get_area(T), area_type))
+			continue
+		if(bot_is_counter(T, area_type))
+			counters[T] = get_dist(owner, T)
+		else
+			inside[T] = get_dist(owner, T)
+	for(var/list/found in list(counters, inside))
+		var/tries = 0
+		while(length(found) && tries++ < 6)
+			var/atom/nearest
+			for(var/atom/A as anything in found)
+				if(!nearest || found[A] < found[nearest])
+					nearest = A
+			found -= nearest
+			if(can_walk_lawfully_to(nearest))
+				return nearest
 	return null
+
+/// Whether a department's table is a counter: one with somewhere to stand beside it that isn't the department's.
+/proc/bot_is_counter(obj/structure/table/T, area_type)
+	for(var/direction in GLOB.cardinals)
+		var/turf/beside = get_step(T, direction)
+		if(isopenturf(beside) && !istype(get_area(beside), area_type) && !is_blocked_turf(beside, TRUE))
+			return TRUE
+	return FALSE
 
 /// Over to their counter with it, on the table, and a word on the radio.
 /datum/bot_goal/drop_off

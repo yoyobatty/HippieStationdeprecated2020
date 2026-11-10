@@ -182,6 +182,44 @@
 		return BOT_GYM_FAIL
 	return (locate(/obj/item/healthanalyzer) in get_turf(first_placed("t"))) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/// A department of the arena's own, to have a counter on
+/area/bot_gym/drop_lab
+	name = "Bot Gym lab"
+
+/datum/bot_scenario/drop_off/counter
+	name = "collab: left on the counter of a department it can't get into"
+	desc = "Seven tables in a lab with no way in, and the lab's counter further along the hall than any of them. It looked at the six nearest tables, found no way to one, and gave up."
+	layout = list(
+		"##############",
+		"#B...........#",
+		"###########k##",
+		"#iiiiiiilllll#",
+		"##############")
+	var/obj/structure/table/counter
+
+/// i a table inside the lab, l the lab's floor, k its counter, in the wall between it and the hall
+/datum/bot_scenario/drop_off/counter/setup()
+	var/area/bot_gym/drop_lab/lab = new
+	for(var/char in list("i", "l", "k"))
+		for(var/turf/T as anything in markers[char])
+			var/area/old_area = T.loc
+			old_area.contents -= T
+			lab.contents += T
+			T.change_area(old_area, lab)
+			if(char == "l")
+				continue
+			var/obj/structure/table/made = new(T)
+			if(char == "k")
+				counter = made
+
+/datum/bot_scenario/drop_off/counter/make_goal()
+	return new /datum/bot_goal/drop_off(brain.find_carried_tool(/obj/item/healthanalyzer), /area/bot_gym/drop_lab, "Science")
+
+/datum/bot_scenario/drop_off/counter/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (locate(/obj/item/healthanalyzer) in get_turf(counter)) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /datum/bot_scenario/griefed/dead_mans_switch
 	name = "toxins: a valve on a health sensor goes off when its carrier goes down"
 	desc = "The traitor's trick: a health sensor on the transfer valve, held in the hand, because it won't fit in a bag. Beaten into crit, it falls from the hand, the sensor reads them as it goes, and the valve opens by itself. Tanks of nothing here: the arena's got to last."
