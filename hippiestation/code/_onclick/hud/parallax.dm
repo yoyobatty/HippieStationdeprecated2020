@@ -108,6 +108,10 @@
 /datum/hud/proc/update_parallax_pref(mob/viewmob)
 	remove_parallax(viewmob)
 	create_parallax(viewmob)
+	// New layers start in the middle of the screen: forgetting the last turf has update_parallax() put every one where it goes
+	// (the planet, the nebulae's shift for the round) instead of waiting for the eye to move
+	if(mymob.client)
+		mymob.client.previous_turf = null
 	update_parallax()
 
 // This sets which way the current shuttle is moving (returns true if the shuttle has stopped moving so the caller can append their animation)

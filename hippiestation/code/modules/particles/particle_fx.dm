@@ -22,9 +22,11 @@ GLOBAL_LIST_EMPTY(particle_fx)
 
 /obj/effect/particle_fx
 	name = ""
+	icon = null //nothing of its own to draw: only its particles
 	plane = PARTICLE_PLANE
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	appearance_flags = RESET_COLOR | RESET_ALPHA | RESET_TRANSFORM
+	vis_flags = NONE //its own plane, not the holder's: /obj/effect inherits the plane by default, which put particles held in vis_contents on the holder's
 	anchored = TRUE
 	/// How long a burst of this kind takes to be over, in deciseconds
 	var/burst_time = 10

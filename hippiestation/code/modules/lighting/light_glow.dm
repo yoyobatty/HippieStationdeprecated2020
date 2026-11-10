@@ -27,6 +27,7 @@ GLOBAL_LIST_EMPTY(light_glows)
 	plane = LIGHT_GLOW_PLANE
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	appearance_flags = RESET_COLOR | RESET_ALPHA | RESET_TRANSFORM // a fire is tinted, faded and turned: its light isn't
+	vis_flags = NONE //its own plane, not the holder's: /obj/effect inherits the plane by default, which drew the pools on the game plane
 	anchored = TRUE
 	pixel_x = (32 - LIGHT_GLOW_SIZE) / 2
 	pixel_y = (32 - LIGHT_GLOW_SIZE) / 2
