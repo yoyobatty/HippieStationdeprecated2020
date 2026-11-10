@@ -69,7 +69,15 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 	if(hazard == BOT_HAZARD_GLASS)
 		return !caller.shoes
 	if(hazard == BOT_HAZARD_RADS)
-		return !bot_rad_suited(caller)
+		if(bot_rad_suited(caller))
+			return FALSE
+		// Somebody the radiation has shut in walks out through it. Both doors of MetaStation's emitter room are inside the ring
+		// round a crystal at full power: an engineer in there when it came up had no way to anywhere, and being shut in may cross a
+		// beam (below), which was all there was left to do. Two of them paced the room across the beams until they dropped, five
+		// hits each. A few tiles of radiation on the way out is the lesser thing. Not while is_shut_in() is measuring (bot_doors.dm):
+		// the ring is what shuts them in.
+		var/datum/bot_brain/shut_in = caller.bot_brain
+		return !(shut_in?.shut_in_result && !shut_in.measuring_shut_in)
 	return hazard == BOT_HAZARD_BALL || caller.bot_brain?.pathing_no_tailgating
 
 /// Dressed for radiation: the radiation suit. Not the engineering hardsuit: its armour takes three quarters of a dose off its wearer, but

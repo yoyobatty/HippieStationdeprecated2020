@@ -409,7 +409,7 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 
 /// reach_key() without where it starts from.
 /datum/bot_brain/proc/reach_rules(adjacent, obj/item/card/id/id_card, simulated_only)
-	return "[adjacent]|[REF(id_card)]|[simulated_only]|[pathing_allow_climb]|[pathing_climb_only]|[pathing_no_tailgating]|[pathing_allow_smash_tables]|[pathing_assume_welder]|[pathing_assume_nearby_weapons]|[get_urgency()]|[pathing_emag ? 1 : 0]|[bot_may_jump_in(owner) ? 1 : 0]"
+	return "[adjacent]|[REF(id_card)]|[simulated_only]|[pathing_allow_climb]|[pathing_climb_only]|[pathing_no_tailgating]|[pathing_allow_smash_tables]|[pathing_assume_welder]|[pathing_assume_nearby_weapons]|[get_urgency()]|[pathing_emag ? 1 : 0]|[bot_may_jump_in(owner) ? 1 : 0]|[shut_in_result ? 1 : 0]"
 
 // A whole region, kept a little while. A failed search that wasn't cut short has visited everything reachable from where it began, and
 // from anywhere inside that, nothing outside it is reachable either: whatever such a tile reaches, the first one reached through it. So

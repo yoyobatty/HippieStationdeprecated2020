@@ -407,3 +407,52 @@
 
 
 // Layout letter Y: a crystal at power, behind a wall. Its radiation reaches two tiles, across the corridor.
+/datum/bot_scenario/out_through_rads
+	name = "hazards: somebody shut in by a crystal's radiation walks out through it"
+	desc = "A dead end with the only way out through the radiation round a running crystal, as MetaStation's emitter room is once the crystal's at power. Nobody without a radiation suit steps into that, so there was no way to anywhere, and two engineers paced the room across the emitters' beams until they dropped."
+	job = "Station Engineer"
+	station_wide = TRUE //it stands in for the station's own crystal while it runs
+	time_limit = 30 SECONDS
+	layout = list(
+		"#############",
+		"#B.........s#",
+		"#############",
+		"######Y######",
+		"#############")
+	var/obj/item/screwdriver/wanted
+	var/obj/machinery/power/supermatter_crystal/crystal
+	var/obj/machinery/power/supermatter_crystal/stations_own
+
+/datum/bot_scenario/out_through_rads/setup()
+	wanted = new(first_marker("s"))
+	crystal = place("Y", new /obj/machinery/power/supermatter_crystal/shard/hugbox(first_marker("Y")))
+	crystal.anchored = TRUE
+	SSair.stop_processing_machine(crystal) //it's only here for where its radiation would reach
+	crystal.power = 160
+	stations_own = GLOB.main_supermatter_engine
+	GLOB.main_supermatter_engine = crystal
+	bot_refresh_hazards()
+
+/datum/bot_scenario/out_through_rads/make_goal()
+	if(goal_attempts > 2)
+		return null
+	var/datum/bot_goal/acquire_item_type/get = new
+	get.item_type = /obj/item/screwdriver
+	get.lawful = TRUE
+	return get
+
+/datum/bot_scenario/out_through_rads/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/turf/by_the_crystal = first_marker("Y")
+	var/turf/start = first_marker("B")
+	if(!bot_in_crystal_rads(locate(by_the_crystal.x, start.y, start.z)))
+		fail_reason = "the corridor isn't in the crystal's radiation: nothing tried"
+		return BOT_GYM_FAIL
+	return (wanted in bot.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/out_through_rads/release_run()
+	if(GLOB.main_supermatter_engine == crystal)
+		GLOB.main_supermatter_engine = stations_own
+	. = ..()
+	bot_refresh_hazards()
