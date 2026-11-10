@@ -86,6 +86,11 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 /proc/bot_rad_suited(mob/living/carbon/human/H)
 	return istype(H.wear_suit, /obj/item/clothing/suit/radiation)
 
+/// Whether the station's crystal is running hard enough to have radiation round it that the routes keep out of.
+/proc/bot_crystal_rads_out()
+	var/obj/machinery/power/supermatter_crystal/crystal = GLOB.main_supermatter_engine
+	return !QDELETED(crystal) && crystal.power >= BOT_HAZARD_RADS_FROM
+
 /// Where a running crystal's radiation reaches (bot_refresh_hazards()).
 /proc/bot_in_crystal_rads(atom/A)
 	var/turf/T = get_turf(A)

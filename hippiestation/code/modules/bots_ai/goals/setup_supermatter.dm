@@ -352,7 +352,11 @@ GLOBAL_VAR_INIT(bot_sm_purged_at, 0)
 		S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/sm_take_hold(), to_port, new /datum/bot_step/move_to/step_off(), let_go)
 	else
 		S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/sm_work())
-	if(bot_in_crystal_rads(target) && !bot_rad_suited(bot.owner))
+	// Into a radiation suit first, for something in the radiation, and for an emitter of a failing crystal's whatever side of it the
+	// emitter stands: MetaStation's are a tile outside the ring, in a room whose two doors are both inside it. With the crystal
+	// losing integrity three engineers went for each emitter in turn, "no path" every time, and it delaminated a minute later; a
+	// radiation suit was in the closet down the hall, and the one engineer wearing one was off fetching a first-aid kit.
+	if(!bot_rad_suited(bot.owner) && (bot_in_crystal_rads(target) || (istype(target, /obj/machinery/power/emitter) && bot_crystal_rads_out() && bot.sm_crystal_failing())))
 		S.steps.Insert(1, new /datum/bot_step/suit_up_for_rads())
 	return list(S)
 

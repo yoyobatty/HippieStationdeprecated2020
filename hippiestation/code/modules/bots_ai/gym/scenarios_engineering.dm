@@ -513,3 +513,57 @@
 		fail_reason = "still fastened after the screwdriver, the crowbar and the screwdriver again"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+/datum/bot_scenario/suit_for_emitter
+	name = "supermatter: for a failing crystal's emitter the far side of its radiation, a radiation suit goes on first"
+	desc = "The crystal's losing integrity and its emitter is to be switched off. The emitter's a tile outside the radiation and the only way to it is through. The suit was only put on for something standing in the radiation itself, so there was no way to the emitter, and the crystal went."
+	job = "Station Engineer"
+	station_wide = TRUE //it stands in for the station's own crystal while it runs
+	time_limit = 10 SECONDS
+	layout = list(
+		"###########",
+		"#B.......e#",
+		"###########",
+		"#####Y#####",
+		"###########")
+	var/obj/machinery/power/supermatter_crystal/crystal
+	var/obj/machinery/power/supermatter_crystal/stations_own
+	var/suits_up
+	var/failing
+
+/datum/bot_scenario/suit_for_emitter/issue_goal()
+	return
+
+/datum/bot_scenario/suit_for_emitter/setup()
+	crystal = place("Y", new /obj/machinery/power/supermatter_crystal/shard/hugbox(first_marker("Y")))
+	crystal.anchored = TRUE
+	SSair.stop_processing_machine(crystal)
+	crystal.power = 160
+	crystal.damage = crystal.explosion_point * 0.3
+	stations_own = GLOB.main_supermatter_engine
+	GLOB.main_supermatter_engine = crystal
+	bot_refresh_hazards()
+
+/datum/bot_scenario/suit_for_emitter/post_spawn()
+	var/obj/machinery/power/emitter/E = place("e", new /obj/machinery/power/emitter(first_marker("e")))
+	failing = brain.sm_crystal_failing() && !bot_in_crystal_rads(E)
+	var/datum/bot_goal/setup_supermatter/G = new
+	G.target = E
+	var/list/strategies = G.get_strategies(brain)
+	var/datum/bot_strategy/first = length(strategies) ? strategies[1] : null
+	suits_up = first && istype(first.steps[1], /datum/bot_step/suit_up_for_rads)
+
+/datum/bot_scenario/suit_for_emitter/check()
+	if(!failing)
+		fail_reason = "the crystal doesn't read as failing with its emitter outside the radiation: nothing tried"
+		return BOT_GYM_FAIL
+	if(!suits_up)
+		fail_reason = "set off for the emitter with no radiation suit in the plan"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/suit_for_emitter/release_run()
+	if(GLOB.main_supermatter_engine == crystal)
+		GLOB.main_supermatter_engine = stations_own
+	. = ..()
+	bot_refresh_hazards()
