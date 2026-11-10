@@ -111,6 +111,59 @@
 		"#B...........................#",
 		"##############################")
 
+/datum/bot_scenario/blob_emitter/waits_in_the_doorway
+	name = "engineer hauling an emitter waits for somebody stood in the doorway"
+	desc = "The emitter is in a side room off a corridor one tile wide. Once the engineer has hold of it, somebody comes and stands just outside the door, the way a player stops there to talk. Walking into them swaps places and leaves the emitter behind, as nothing dragged can come on to a tile with somebody on it. The engineer says it's coming through and waits; fifteen seconds on they step out of the way, and the emitter goes on to the blob."
+	layout = list(
+		"##############################",
+		"#B...e####...................#",
+		"#.T...Dh.....................#",
+		"#######p=================.bbk#",
+		"#............................#",
+		"##############################")
+	var/mob/living/carbon/human/in_the_way
+	/// when the engineer first had hold of the emitter
+	var/hauling_at
+	var/swapped = 0
+
+/datum/bot_scenario/blob_emitter/waits_in_the_doorway/setup()
+	. = ..()
+	in_the_way = stand_in(first_marker("h"), "Glenn Asker")
+	RegisterSignal(in_the_way, COMSIG_MOVABLE_MOVED, PROC_REF(moved_while_waiting))
+
+/// Moved by the engineer: swapped places with it. Not on the way over to the emitter, empty-handed: only with it in tow.
+/datum/bot_scenario/blob_emitter/waits_in_the_doorway/proc/moved_while_waiting()
+	SIGNAL_HANDLER
+	if(bot?.pulling)
+		swapped++
+
+/datum/bot_scenario/blob_emitter/waits_in_the_doorway/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(swapped)
+		fail_reason = "walked into Glenn Asker outside the door and swapped places with him"
+		return BOT_GYM_FAIL
+	var/obj/machinery/power/emitter/E = first_placed("e")
+	if(!hauling_at && E && bot.pulling == E)
+		hauling_at = world.time
+	else if(hauling_at && world.time - hauling_at > 15 SECONDS && !QDELETED(in_the_way) && get_turf(in_the_way) == first_marker("h"))
+		UnregisterSignal(in_the_way, COMSIG_MOVABLE_MOVED)
+		var/turf/h = first_marker("h")
+		in_the_way.forceMove(locate(h.x + 3, h.y, h.z))
+		log_line("Glenn Asker steps out of the way")
+	if(!emitter_on_the_blob())
+		return BOT_GYM_PENDING
+	if(!bot_transcript_said("waiting for them to move"))
+		fail_reason = "the emitter got there, but it never waited on Glenn Asker"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/blob_emitter/waits_in_the_doorway/release_run()
+	if(!QDELETED(in_the_way))
+		UnregisterSignal(in_the_way, COMSIG_MOVABLE_MOVED)
+		qdel(in_the_way)
+	return ..()
+
 /datum/bot_scenario/blob_emitter/turns_it_to_face
 	name = "engineer turns an emitter to face the blob"
 	desc = "The cable runs along under the blob, so the emitter is dragged along it and comes to the spot facing the way it was dragged, side on to the blob. The engineer alt-clicks it round a quarter at a time until it faces the blob, then wrenches, welds and switches it on."

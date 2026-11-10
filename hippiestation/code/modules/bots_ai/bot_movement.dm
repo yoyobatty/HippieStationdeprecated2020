@@ -161,6 +161,8 @@
 		return FALSE
 	pursuing_kind = kind
 	pursue_target = target
+	haul_load = state == BOT_STATE_GOAL ? owner.pulling : null
+	haul_waiting_since = 0
 	last_stuck_turf = null
 	stuck_repeat_count = 0
 	last_failed_blocker = null
@@ -615,9 +617,40 @@
 		if(L != owner && L.pulling?.density && !isliving(L.pulling))
 			return FALSE
 	make_way_through(next_node)
-	if(owner.pulling?.density && !isliving(owner.pulling) && (locate(/mob/living) in next_node) && haul_round(next_node))
-		return TRUE
+	// Somebody stood on the next tile with something heavy in tow (a crate, a canister, a prisoner on their feet): walking into them
+	// swaps places, and what's dragged can't come on to the tile they're now on, so the pull breaks. A crate went that way in a
+	// doorway twelve times in twelve shifts, each with somebody stood in it. Round them if there's room; if not, "coming through"
+	// and a wait for them to move, as a person dragging a crate would.
+	if(owner.pulling?.density)
+		var/mob/living/in_way = haul_blocker(next_node)
+		if(in_way)
+			if(haul_round(next_node))
+				return TRUE
+			if(!haul_waiting_since)
+				haul_waiting_since = world.time
+				bot_log(src, "[in_way] is in the way with [owner.pulling] in tow - waiting for them to move")
+			coming_through(in_way)
+			return FALSE
+	haul_waiting_since = 0
 	return step_towards(owner, next_node)
+
+/// Waiting with something in tow for somebody to move out of the way (bot_step_towards()): since when. A wait, not being stuck, for
+/// HAUL_WAIT; after that it counts as stuck as anything else does.
+/datum/bot_brain/var/haul_waiting_since = 0
+#define HAUL_WAIT (20 SECONDS)
+
+/// Somebody on the tile who'd be swapped with: on their feet (a body lying there is walked over, and what's dragged follows on)
+/datum/bot_brain/proc/haul_blocker(turf/next_node)
+	for(var/mob/living/L in next_node)
+		if(L != owner && L != owner.pulling && L.density)
+			return L
+
+/datum/bot_brain/proc/coming_through(mob/living/in_way)
+	if(world.time < next_coming_through)
+		return
+	next_coming_through = world.time + 30 SECONDS
+	owner.face_atom(in_way)
+	bot_say(owner, pick("Coming through!", "Mind your back!", "Heavy load, make way.", "Excuse me, coming through."))
 
 /// Space where the way on was and no suit: a person steps back from the edge rather than wait on the lip while the air rushes out past
 /// them. A bot stood there for its reroute, and the rush of air threw it out into the gap (gym: the floor ahead turns to space).
@@ -645,7 +678,7 @@
 /// shooting stayed on harm. Two operatives holding by the nuke stood in the infiltrator's doorway, and the one with the disk was stuck
 /// four tiles from it until it gave up. It goes on help, and a bot there that isn't fighting does too, as a teammate would at "coming through".
 /datum/bot_brain/proc/make_way_through(turf/next_node)
-	if(owner.pulling?.density && !isliving(owner.pulling))
+	if(owner.pulling?.density)
 		haul_past(next_node)
 	if(state == BOT_STATE_COMBAT || owner.a_intent == INTENT_HELP && !(locate(/mob/living/carbon/human) in next_node))
 		return
@@ -673,9 +706,7 @@
 			if(!T || T == here || T == behind || T == after || T.density || isspaceturf(T) || is_blocked_turf(T))
 				continue
 			if(H.Move(T, d))
-				if(world.time > next_coming_through)
-					next_coming_through = world.time + 30 SECONDS
-					bot_say(owner, pick("Coming through!", "Mind your back!", "Heavy load, make way.", "Excuse me, coming through."))
+				coming_through(H)
 				break
 
 /// Dragging something big with somebody still stood on the next tile, who didn't step aside (a player, somebody busy): round them, on to
@@ -694,6 +725,70 @@
 				current_path.Cut(1, 2)
 			return TRUE
 	return FALSE
+
+/// A bot's pull that it didn't end itself goes in the log with what ended it. Pulls came to nothing with no line at all, and the give-up
+/// that followed was put down to whatever had been said before. The proc that let go is read off the call stack (caller); a bot
+/// letting go itself is a bot proc calling stop_pulling() directly, and isn't logged.
+/mob/living/carbon/human/stop_pulling()
+	if(bot_brain && pulling)
+		bot_brain.pull_ended(pulling, caller)
+	return ..()
+
+/// What a goal's walk set off dragging (pursue()); the walk stops if it's lost on the way (do_step_next_node())
+/datum/bot_brain/var/atom/movable/haul_load
+
+/datum/bot_brain/proc/pull_ended(atom/movable/AM, callee/from)
+	var/callee/first = from
+	if(!first)
+		return
+	var/first_proc = "[first.proc]"
+	// Its own hand: a bot proc letting go, or taking hold of something else.
+	if(findtext(first_proc, "/bot_") || findtext(first_proc, "/start_pulling") && first.src == owner && findtext("[first.caller?.proc]", "/bot_"))
+		if(AM == haul_load)
+			haul_load = null
+		return
+	var/cause
+	var/dist = get_dist(owner, AM)
+	switch(copytext(first_proc, findlasttext(first_proc, "/") + 1))
+		if("start_pulling")
+			cause = "taken off it by [first.src]"
+		if("update_mobility")
+			cause = "knocked down"
+		if("PushAM")
+			cause = "walked into it"
+		if("check_pulling", "Move_Pulled", "Move")
+			if(AM.anchored || AM.move_resist > owner.move_force)
+				cause = "it's fixed down"
+			else if(!isturf(owner.loc))
+				cause = "inside [owner.loc]"
+			else if(dist > 1)
+				cause = "left behind, [dist] tiles back"
+	if(!cause)
+		var/list/chain = list()
+		var/callee/c = first
+		while(c && length(chain) < 3)
+			var/p = "[c.proc]"
+			chain += copytext(p, findlasttext(p, "/") + 1)
+			c = c.caller
+		cause = "let go in [jointext(chain, " < ")]"
+	var/list/near = list()
+	for(var/mob/living/L in range(1, AM))
+		if(L != owner && L != AM)
+			near += "[L]"
+	// Reported a moment later: a move that lets go (forceMove() into the sleeper, on to the operating table) does so before the thing
+	// has gone anywhere, so where it ends up is only known after.
+	addtimer(CALLBACK(src, PROC_REF(report_pull_lost), AM, cause, near), 1)
+
+/datum/bot_brain/proc/report_pull_lost(atom/movable/AM, cause, list/near)
+	if(QDELETED(AM) || QDELETED(owner))
+		return
+	var/mob/M = AM
+	var/atom/buckled_to = ismob(M) ? M.buckled : null
+	if(!isturf(AM.loc) || buckled_to || owner.pulling == AM)
+		bot_log_verbose(src, "let go of [AM]: [isturf(AM.loc) ? (buckled_to ? "buckled to [buckled_to]" : "held again") : "into [AM.loc]"]")
+		return
+	bot_log(src, "lost hold of [AM]: [cause][length(near) ? " ([english_list(near)] by it)" : ""]")
+	telemetry_event("pull_lost", list("target" = "[AM]", "cause" = cause, "by" = length(near)))
 
 // step_next_node() re-invokes itself via addtimer to keep walking (see its own
 // comment) - previously that self-perpetuation went through on_pursuit_moved(), which
@@ -750,6 +845,15 @@
 	var/datum/bot_step/hauling_step = (state == BOT_STATE_GOAL && current_strategy && current_step_index <= length(current_strategy.steps)) ? current_strategy.steps[current_step_index] : null
 	if(hauling_step?.hauling && current_goal?.target && owner.pulling != current_goal.target)
 		bot_log(src, "let go of [current_goal.target] on the way")
+		stop_pursuit()
+		hauling_step.lost_hold(src)
+		return
+	// The same for any goal's walk that set off with something in tow (pursue()): a crate, a prisoner, a body. It walked the rest of
+	// the way with nothing, and the step at the end failed there instead ("lost them somewhere on the way over").
+	if(hauling_step && haul_load && owner.pulling != haul_load)
+		var/atom/movable/lost = haul_load
+		haul_load = null
+		bot_log(src, "let go of [lost] on the way - the walk stops here")
 		stop_pursuit()
 		hauling_step.lost_hold(src)
 		return
@@ -862,6 +966,8 @@
 		// Lag parameter used to provide, just driven explicitly instead of trusted to
 		// its own internal continuation.
 		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), max(1, owner.movement_delay()), TIMER_STOPPABLE)
+	else if(haul_waiting_since && world.time - haul_waiting_since < HAUL_WAIT)
+		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), 5, TIMER_STOPPABLE) //somebody in the way of what's in tow: wait on them
 	else if(quick_step_retries < BOT_QUICK_STEP_RETRIES)
 		// Didn't move this attempt - usually a door still finishing its opening animation.
 		// Step through the moment it's passable, like a person walking into it, instead of
@@ -958,3 +1064,5 @@
 	current_path = null
 	pursuing_kind = null
 	pursue_target = null
+
+#undef HAUL_WAIT
