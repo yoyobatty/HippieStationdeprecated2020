@@ -239,3 +239,56 @@
 	if(bot_lost() || bot.getOxyLoss() > 60)
 		return BOT_GYM_FAIL
 	return bot.internal ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// The defibrillator on the wall (goals/treat_patient.dm). Layout letter K: the mount. C: the body.
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/revive
+	name = "doctor drags somebody just dead to the defibrillator on the wall and shocks them back"
+	desc = "The paddles reach a tile from the mount. The doctor took them down and set off for the body with them, they came out of its hands on the second step, and in twelve shifts nobody was ever shocked. The body's brought to the mount."
+	job = "Medical Doctor"
+	time_limit = 60 SECONDS
+	max_goal_attempts = 1
+	layout = list(
+		"############",
+		"#B....C...K#",
+		"############")
+	var/mob/living/carbon/human/patient
+
+/datum/bot_scenario/revive/setup()
+	for(var/turf/T in markers["K"])
+		place("K", new /obj/machinery/defibrillator_mount/loaded(T))
+
+/datum/bot_scenario/revive/post_spawn()
+	patient = stand_in(first_marker("C"), "Pat Patient")
+	patient.adjustOxyLoss(200)
+	patient.death()
+
+/datum/bot_scenario/revive/make_goal()
+	return new /datum/bot_goal/revive_patient()
+
+/datum/bot_scenario/revive/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(patient))
+		fail_reason = "the patient's gone"
+		return BOT_GYM_FAIL
+	return patient.stat != DEAD ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/revive/too_late
+	name = "doctor leaves somebody dead too long for the defibrillator to the cloner"
+	desc = "Dead a minute and fifty seconds, with the paddles good for two minutes: no time to drag them over. It tried anyway, a dozen times a body."
+	time_limit = 15 SECONDS
+
+/datum/bot_scenario/revive/too_late/post_spawn()
+	..()
+	patient.timeofdeath = world.time - 110 SECONDS
+
+/datum/bot_scenario/revive/too_late/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot.pulling == patient || (locate(/obj/item/twohanded/shockpaddles) in bot.held_items) || bot_transcript_said("bot_strategy/revive"))
+		fail_reason = "set about reviving somebody there was no time for"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 8 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING

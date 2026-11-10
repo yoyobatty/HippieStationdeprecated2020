@@ -408,10 +408,18 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 	continue_goal_chain(CALLBACK(src, PROC_REF(try_medical_round)))
 
 // ============================================================
-// Revival: fetch paddles from a wall-mounted defibrillator, wield them, and shock a
-// dead patient back to life - same as a real doctor grabbing the mount's paddles
-// instead of carrying their own defib on every shift.
+// Revival: the body dragged to a wall-mounted defibrillator, its paddles taken down and wielded, and the patient shocked back to
+// life, as a doctor does who isn't wearing a defibrillator of their own.
+//
+// The paddles reach one tile from their unit and come out of the hands past that (defib.dm check_range()), and they bring nobody
+// back who's been dead two minutes (tlimit). A doctor took the paddles at the mount and walked off to the body with them, up to
+// sixty tiles: 38 tries in twelve shifts, and not one got as far as a shock. So the body comes to the mount, and only one there's
+// still time for: the rest are for the cloner (goals/cloning.dm).
 // ============================================================
+
+/// What a tile of the way costs, to the body and back with it in tow, and what the paddles take once there, in deciseconds.
+#define BOT_REVIVE_TILE_TIME 3
+#define BOT_REVIVE_AT_MOUNT (10 SECONDS)
 
 /datum/bot_brain/proc/find_reachable_defib_mount()
 	var/obj/machinery/defibrillator_mount/best
@@ -420,6 +428,8 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 		if(M.z != owner.z || !M.defib || !M.defib.paddles || !M.defib.powered)
 			continue
 		if(M.defib.paddles.loc != M.defib) //someone else already has the paddles out
+			continue
+		if(gym_run && get_area(M) != get_area(owner))
 			continue
 		var/dist = get_dist(owner, M)
 		if(dist > 30)
@@ -441,21 +451,32 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			owner.dropItemToGround(I)
 
 /datum/bot_goal/revive_patient
+	exclusive = TRUE //one doctor to a body
 	var/obj/machinery/defibrillator_mount/mount
 
 /datum/bot_goal/revive_patient/resolve_target(datum/bot_brain/bot)
 	var/obj/machinery/defibrillator_mount/M = bot.find_reachable_defib_mount()
 	if(!M)
 		return
+	var/obj/item/twohanded/shockpaddles/paddles = M.defib.paddles
 	var/mob/living/carbon/human/best
 	var/best_dist
 	for(var/mob/living/carbon/human/H in GLOB.dead_mob_list)
-		if(H.z != bot.owner.z)
+		if(H.z != bot.owner.z || !isturf(H.loc))
 			continue
-		if(!M.defib.paddles.can_defib(H)) //reuses the paddles' own revivability check (time limit, damage caps, brain state, etc) rather than duplicating it
+		if(bot.gym_run && get_area(H) != get_area(bot.owner))
 			continue
+		if(!paddles.can_defib(H)) //reuses the paddles' own revivability check (time limit, damage caps, brain state, etc) rather than duplicating it
+			continue
+		if((H.pulledby && H.pulledby != bot.owner) || bot.taken_by_another(H) || LAZYACCESS(bot.unreachable_patients, H) > world.time)
+			continue //somebody has them, or it's just tried
+		if(locate(/obj/item/clothing/suit/space) in H.contents)
+			continue //"Patient's chest is obscured": the paddles won't go through a space suit
 		var/dist = get_dist(bot.owner, H)
 		if(dist > 60)
+			continue
+		// Whether there's time: to the body, back to the mount with it, and the paddles on, inside what's left of the two minutes
+		if(world.time - H.timeofdeath + (dist + get_dist(H, M)) * BOT_REVIVE_TILE_TIME + BOT_REVIVE_AT_MOUNT > paddles.tlimit)
 			continue
 		if(!best || dist < best_dist)
 			best = H
@@ -474,6 +495,11 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 
 /datum/bot_goal/revive_patient/on_give_up(datum/bot_brain/bot)
 	return_paddles(bot)
+	bot.owner.stop_pulling()
+	// Not this one again for a couple of minutes, which for the paddles is for good: the cloner's next (goals/cloning.dm)
+	var/mob/living/carbon/human/patient = target
+	if(istype(patient) && !QDELETED(patient) && patient.stat == DEAD)
+		LAZYSET(bot.unreachable_patients, patient, world.time + 2 MINUTES)
 
 /datum/bot_goal/revive_patient/proc/return_paddles(datum/bot_brain/bot)
 	if(!mount || QDELETED(mount) || !mount.defib)
@@ -492,10 +518,37 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 	mount = M
 	var/datum/bot_step/move_to/to_mount = new()
 	to_mount.step_target = M
-	steps = list(to_mount, new /datum/bot_step/grab_paddles(M), new /datum/bot_step/move_to(), new /datum/bot_step/defibrillate())
+	// To the body, hold of it, to the mount with it, the paddles down, and the shock
+	steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/grab_body(M), to_mount, new /datum/bot_step/grab_paddles(M), new /datum/bot_step/defibrillate())
 
 /datum/bot_strategy/revive/is_feasible(datum/bot_brain/bot)
 	return mount && !QDELETED(mount)
+
+/// The body taken hold of, for the mount.
+/datum/bot_step/grab_body
+	var/obj/machinery/defibrillator_mount/mount
+
+/datum/bot_step/grab_body/New(obj/machinery/defibrillator_mount/M)
+	. = ..()
+	mount = M
+
+/datum/bot_step/grab_body/execute(datum/bot_brain/bot)
+	var/mob/living/carbon/human/patient = bot.current_goal?.target
+	if(!istype(patient) || QDELETED(patient))
+		return GOAL_STEP_FAIL
+	if(patient.stat != DEAD)
+		return GOAL_STEP_SUCCESS //somebody's brought them round already
+	if(!bot.owner.Adjacent(patient))
+		return GOAL_STEP_FAIL
+	if(bot.owner.pulling == patient)
+		return GOAL_STEP_SUCCESS
+	if(!patient.can_be_pulled(bot.owner, 0, bot.owner.move_force))
+		return GOAL_STEP_FAIL
+	bot.owner.start_pulling(patient)
+	if(bot.owner.pulling != patient) //start_pulling() returns nothing either way (grab_patient)
+		return GOAL_STEP_FAIL
+	bot_log(bot, "dragging [patient] to [mount] - dead [round((world.time - patient.timeofdeath) / 10)] s")
+	return GOAL_STEP_SUCCESS
 
 /datum/bot_step/grab_paddles
 	var/obj/machinery/defibrillator_mount/mount
@@ -531,6 +584,7 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 		return GOAL_STEP_SUCCESS //already revived (by someone/something else)
 	if(!bot.owner.Adjacent(patient))
 		return GOAL_STEP_FAIL
+	bot.owner.stop_pulling() //clear: whoever has hold of the patient gets the shock too (shock_touching())
 	var/obj/item/twohanded/shockpaddles/paddles = locate(/obj/item/twohanded/shockpaddles) in bot.owner.held_items
 	if(!paddles)
 		return GOAL_STEP_FAIL
@@ -543,7 +597,10 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 	bot.owner.changeNext_move(CLICK_CD_MELEE)
 	bot_log(bot, "shocking [patient] with the defibrillator")
 	paddles.attack(patient, bot.owner) //yields for real time (do_after chain) - fine, same as climb_structure() elsewhere in this system
-	return patient.stat != DEAD ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+	if(QDELETED(patient) || patient.stat == DEAD)
+		return GOAL_STEP_FAIL
+	bot_tally("revived with the defibrillator")
+	return GOAL_STEP_SUCCESS
 
 // ============================================================
 // Escort: drag an incapacitated (but alive) patient to the nearest sleeper, or a cryo
