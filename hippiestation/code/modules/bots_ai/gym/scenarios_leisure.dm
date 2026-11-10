@@ -144,3 +144,36 @@
 		"#B.....p#",
 		"#########")
 	kit_type = /obj/structure/punching_bag
+
+/datum/bot_scenario/arcade_it_can_reach
+	name = "leisure: a game of Orion at the machine it can get to, not the nearer one walled off"
+	desc = "Two arcade machines, the nearer behind walls, as the Captain's is behind his door. It set off for the nearer and gave the game up at the end of the route search."
+	job = "Assistant"
+	layout = list(
+		"###########",
+		"#..#a#....#",
+		"#B.###...a#",
+		"#.........#",
+		"###########")
+	time_limit = 30 SECONDS
+	max_goal_attempts = 1
+	var/obj/machinery/computer/arcade/battle/far
+
+/datum/bot_scenario/arcade_it_can_reach/setup()
+	var/turf/start = first_marker("B")
+	for(var/turf/T in markers["a"])
+		var/obj/machinery/computer/arcade/battle/A = place("a", new /obj/machinery/computer/arcade/battle(T))
+		if(!far || get_dist(start, T) > get_dist(start, far))
+			far = A
+
+/datum/bot_scenario/arcade_it_can_reach/make_goal()
+	return new /datum/bot_goal/play_arcade()
+
+/datum/bot_scenario/arcade_it_can_reach/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/line in transcript)
+		if(findtext(line, "giving up on /datum/bot_goal/play_arcade"))
+			fail_reason = "set off for the walled-off machine"
+			return BOT_GYM_FAIL
+	return (far && get_dist(bot, far) <= 1) ? BOT_GYM_PASS : BOT_GYM_PENDING

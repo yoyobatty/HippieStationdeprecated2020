@@ -179,19 +179,27 @@
 // ---------------------------------------------------------------------------------------------
 
 /datum/bot_brain/proc/find_arcade_machine()
-	var/obj/machinery/computer/arcade/battle/best
-	var/best_dist
+	var/list/near = list()
 	for(var/obj/machinery/computer/arcade/battle/A as anything in bot_instances_of(/obj/machinery/computer/arcade/battle))
 		if(QDELETED(A) || A.z != owner.z || (A.stat & (BROKEN|NOPOWER)) || (A.obj_flags & EMAGGED) || taken_by_another(A))
 			continue //a rigged machine kills whoever loses on it
 		var/dist = get_dist(owner, A)
-		if(dist > 25 || (best && dist >= best_dist))
+		if(dist > 25 || (gym_run && get_area(A) != get_area(owner)))
 			continue
-		if(gym_run && get_area(A) != get_area(owner))
-			continue
-		best = A
-		best_dist = dist
-	return best
+		near[A] = dist
+	// The nearest it has a way to: the Captain's Office has one, and a game of Orion there was set off for and given up at the end of the
+	// route search 37 times in a batch, and one in a maintenance room behind a door 17 more.
+	for(var/tries in 1 to 3)
+		var/obj/machinery/computer/arcade/battle/best
+		for(var/obj/machinery/computer/arcade/battle/A as anything in near)
+			if(!best || near[A] < near[best])
+				best = A
+		if(!best)
+			return null
+		if(can_walk_lawfully_to(best))
+			return best
+		near -= best
+	return null
 
 /datum/bot_duty/play_arcade
 	name = "playing the arcade"
