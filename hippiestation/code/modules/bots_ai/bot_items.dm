@@ -495,6 +495,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 		// shuttle having just left, and drifted off into space.
 		if(istype(D, /obj/machinery/door/airlock) && !is_space_protected_without_boots() && bot_door_opens_on_vacuum(D, get_turf(owner)))
 			bot_log(src, "[D] opens on to vacuum - not without a suit")
+			LAZYSET(vacuum_doors, D, world.time + 2 MINUTES) //bot_doors.dm: the next route goes another way
 			return FALSE
 		bot_log(src, "opening [O]")
 		// A windoor gets walked into, the way players go through them: that opens it and it shuts itself behind

@@ -77,6 +77,8 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 #define BOT_SHUT_IN_WIDE_TILES 1500
 
 /datum/bot_brain
+	/// Airlocks it's found open on to vacuum -> until when its routes keep clear of them (the airlock CanAStarPass() below).
+	var/list/vacuum_doors
 	/// Set while a route is planned for a stroll or an everyday errand by a bot that's free to come and go: an
 	/// airlock its ID doesn't open counts as shut, even stood open (the airlock CanAStarPass() below). A door
 	/// somebody else has just walked through shuts again behind whoever follows them in - a clown, a doctor and
@@ -219,6 +221,11 @@ GLOBAL_LIST_EMPTY(bot_door_buttons_out_of_reach)
 	var/mob/living/carbon/human/H = caller
 	if(!istype(H) || !H.bot_brain)
 		return
+	// One it's just found opens on to vacuum, with no suit on: no way through, for a couple of minutes. It wouldn't open it, gave the
+	// errand up at the door, and the next errand's route was through the same door: after a bomb on MetaStation one bot walked up
+	// to the same two doors 160 times in what was left of the shift.
+	if(LAZYACCESS(H.bot_brain.vacuum_doors, src) > world.time && !H.bot_brain.is_space_protected_without_boots())
+		return FALSE
 	if(H.bot_brain.pathing_emag && !H.bot_brain.measuring_shut_in)
 		return . || (!welded && hasPower() && !(obj_flags & EMAGGED) && (!istype(src, /obj/machinery/door/airlock/external) || H.bot_brain.op_team)) //it stays open: not onto space, unless it's an operative in a hardsuit coming in from it
 	// The armory, open to Security at red alert (goals/security_tactics.dm): an officer goes through it, open or swung to.

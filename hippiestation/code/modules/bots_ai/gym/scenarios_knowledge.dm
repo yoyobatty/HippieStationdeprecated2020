@@ -356,3 +356,31 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return (wanted in bot.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/round_vacuum_door
+	name = "walking: a door that opens on to vacuum is gone round the next time"
+	desc = "The short way to something is through an airlock with no air behind it, and there's a long way round. Nobody without a suit opens that door, but the errand was given up there and the next try was planned through the same door: one bot went up to the same two doors 160 times after a bomb."
+	job = "Assistant"
+	time_limit = 60 SECONDS
+	max_goal_attempts = 4
+	layout = list(
+		"###########",
+		"#B..DvvD.s#",
+		"#.#######.#",
+		"#.........#",
+		"###########")
+	var/obj/item/screwdriver/wanted
+
+/datum/bot_scenario/round_vacuum_door/setup()
+	wanted = new(first_marker("s"))
+
+/datum/bot_scenario/round_vacuum_door/make_goal()
+	var/datum/bot_goal/acquire_item_type/get = new
+	get.item_type = /obj/item/screwdriver
+	get.lawful = TRUE
+	return get
+
+/datum/bot_scenario/round_vacuum_door/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (wanted in bot.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING
