@@ -3,10 +3,10 @@
 
 // Softer: at full strength a bar sign's letters blur together and the tesla ball's arcs bloom into one white blob
 /obj/structure/sign/barsign
-	emissive_glow_alpha = 170
+	emissive_glow_alpha = EMISSIVE_GLOW_SIGN
 
 /obj/singularity/energy_ball
-	emissive_glow_alpha = 170
+	emissive_glow_alpha = EMISSIVE_GLOW_SIGN
 
 /obj/structure/sign/barsign/set_sign(datum/barsign/sign)
 	. = ..()

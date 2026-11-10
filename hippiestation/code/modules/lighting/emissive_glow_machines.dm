@@ -1,43 +1,37 @@
 // Machines that glow in the dark (see emissive_glow.dm). Masks are in tools/icon_merge/glow.txt; the ore redemption machine's
 // hook is in its own Hippie file, which replaces tg's update_icon() whole.
 
-#define VENDING_LIGHT_RANGE 1.5
-#define VENDING_LIGHT_POWER 0.4
-
-/// A vending machine also casts a faint light of its screen's colour (the glow mask's colour, made at build time)
 /obj/machinery/vending/update_icon()
 	. = ..()
 	update_state_glow()
-	var/glow = emissive_glow_state(icon, icon_state)
-	if(glow)
-		set_light(VENDING_LIGHT_RANGE, VENDING_LIGHT_POWER, GLOB.emissive_glow_colours["[icon]|[glow]"] || LIGHT_COLOR_HALOGEN)
-	else
-		set_light(0)
 
-#undef VENDING_LIGHT_RANGE
-#undef VENDING_LIGHT_POWER
-
-// Small indicator lights glow a bit less than screens
+// Indicator lights and glass fronts glow less than screens; disposal bins least
 /obj/machinery/chem_dispenser
-	emissive_glow_alpha = 170
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
 
 /obj/machinery/recharger
-	emissive_glow_alpha = 170
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
 
 /obj/machinery/cell_charger
-	emissive_glow_alpha = 170
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
 
 /obj/machinery/disposal/bin
-	emissive_glow_alpha = 170
+	emissive_glow_alpha = EMISSIVE_GLOW_FAINT
 
 /obj/machinery/power/smes
-	emissive_glow_alpha = 170
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
 
 /obj/machinery/telecomms
-	emissive_glow_alpha = 170
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
 
 /obj/machinery/holopad
-	emissive_glow_alpha = 170
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
+
+/obj/machinery/smartfridge
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
+
+/obj/machinery/dna_scannernew
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
 
 /obj/machinery/smartfridge/update_icon()
 	. = ..()
@@ -120,13 +114,19 @@
 	if(stat & (BROKEN|NOPOWER) || panel_open)
 		set_emissive_glow(null)
 		return
+	// The lamps only: the ready and charging overlays carry the vent panel too, so they glow by their masks
 	var/list/lights = list()
-	if(contents.len)
-		lights += emissive_glow(icon, "dispover-full", SOUTH, emissive_glow_alpha)
+	var/list/lamp
+	if(contents.len && (lamp = emissive_glow_list(icon, "dispover-full", SOUTH, emissive_glow_alpha)))
+		lights += lamp
 	if(pressure_charging)
-		lights += emissive_glow(icon, "dispover-charge", SOUTH, emissive_glow_alpha)
+		lamp = emissive_glow_list(icon, "dispover-charge", SOUTH, emissive_glow_alpha)
 	else if(full_pressure)
-		lights += emissive_glow(icon, "dispover-ready", SOUTH, emissive_glow_alpha)
+		lamp = emissive_glow_list(icon, "dispover-ready", SOUTH, emissive_glow_alpha)
+	else
+		lamp = null
+	if(lamp)
+		lights += lamp
 	set_emissive_glow(null, icon, length(lights) ? lights : null)
 
 // The UV lamps while it cleans

@@ -155,15 +155,22 @@ GLOBAL_VAR_INIT(glow_group, "fixtures")
 /proc/glow_strip(turf/T, list/stripped)
 	if(stripped)
 		for(var/atom/A as anything in stripped)
-			A.add_overlay(stripped[A])
+			var/list/kept = stripped[A]
+			A.add_overlay(kept[1])
 			A.luminosity = 1
+			if(kept[2])
+				A.set_light(kept[2], kept[3], kept[4])
 		return
 	. = list()
 	for(var/atom/A in range(10, T))
 		if(length(A.emissive_glow_shown) && glow_in_group(A))
-			.[A] = A.emissive_glow_shown
+			var/obj/O = A
+			var/glow_lit = istype(O) && O.emissive_glow_lit // the faint light the glow casts goes too
+			.[A] = list(A.emissive_glow_shown, glow_lit ? A.light_range : 0, A.light_power, A.light_color)
 			A.cut_overlay(A.emissive_glow_shown)
 			A.luminosity = 0
+			if(glow_lit)
+				A.set_light(0)
 
 /// The floor with the most kinds of new glowing fixtures round it, in a hallway or the brig
 /proc/glow_pick_spot(area_type, avoid)

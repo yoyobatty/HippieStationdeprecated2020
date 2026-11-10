@@ -50,33 +50,68 @@ GLOBAL_LIST_EMPTY(emissive_glow_overlays)
 /atom
 	/// The glow overlays set_emissive_glow() put on, so the next call can take them off
 	var/list/emissive_glow_shown
-	/// How strongly it glows, 0-255: small indicator lights (airlocks, chem dispensers, chargers) glow a bit less than screens
-	var/emissive_glow_alpha = 255
+	/// How strongly it glows, 0-255 (EMISSIVE_GLOW_FULL, _SIGN, _INDICATOR, _FAINT): things that obviously give off light glow
+	/// fully, indicator lights and small panels less
+	var/emissive_glow_alpha = EMISSIVE_GLOW_FULL
 
 /**
   * Makes the thing glow with that state of its icon (or another icon), or stops it glowing with null.
   *
   * The thing gets luminosity 1 while it glows: BYOND draws nothing on a dark tile further off than the viewer's see_in_dark
   * (2 tiles for a human), so without it a glowing wall fixture across a dark room would be as invisible as the rest of it.
-  * Safe to call after cut_overlays() took the old glow off.
+  * Safe to call after cut_overlays() took the old glow off. transient: a flick, which casts no light (see update_glow_light()).
+  * alpha: another strength than the thing's own, for a moment (a flasher's flash).
   */
-/atom/proc/set_emissive_glow(icon_state, icon_file = icon, list/extra)
+/atom/proc/set_emissive_glow(icon_state, icon_file = icon, list/extra, transient = FALSE, alpha)
 	if(emissive_glow_shown)
 		cut_overlay(emissive_glow_shown)
 		emissive_glow_shown = null
 	if(!icon_state && !extra)
 		luminosity = initial(luminosity)
 		return
+	if(isnull(alpha))
+		alpha = emissive_glow_alpha
 	emissive_glow_shown = list()
 	if(icon_state)
 		if(ismob(src)) // a mob turns without redrawing: SOUTH follows it, like its other overlays
-			emissive_glow_shown += emissive_glow(icon_file, icon_state, SOUTH, emissive_glow_alpha, unblockable = TRUE)
+			emissive_glow_shown += emissive_glow(icon_file, icon_state, SOUTH, alpha, unblockable = TRUE)
 		else
-			emissive_glow_shown += emissive_glow(icon_file, icon_state, dir, emissive_glow_alpha)
+			emissive_glow_shown += emissive_glow(icon_file, icon_state, dir, alpha)
 	if(extra)
 		emissive_glow_shown += extra
 	add_overlay(emissive_glow_shown)
 	luminosity = 1
+
+/obj
+	/// TRUE while the obj's light is its glow's (update_glow_light()), not a light of its own
+	var/emissive_glow_lit = FALSE
+
+/obj/set_emissive_glow(icon_state, icon_file = icon, list/extra, transient = FALSE, alpha)
+	. = ..()
+	if(!transient)
+		update_glow_light(icon_file, icon_state)
+
+/**
+  * The light a glow gives off, in its mask's colour (emissive_glow_colours.dm, made at build time) and as strong as the glow is
+  * big and bright: a vending machine lights a soft pool round itself like a real one (range about 2.3, power 0.55), a screen less,
+  * an air alarm a hint, a camera's lens or a button's lamp nothing. Only for things without a light of their own (a requests
+  * console, a lit flashlight keep theirs). A vending machine's plain light from hippiestation/code/modules/vending gives way to it.
+  */
+/obj/proc/update_glow_light(icon_file, mask_state)
+	var/list/light = mask_state && GLOB.emissive_glow_lights["[icon_file]|[mask_state]"]
+	if(!light || light[2] < EMISSIVE_GLOW_LIGHT_MIN_PIXELS)
+		if(emissive_glow_lit)
+			emissive_glow_lit = FALSE
+			set_light(0)
+		return
+	if(light_range && !emissive_glow_lit)
+		return
+	var/pixels = light[2]
+	var/range = MINIMUM_USEFUL_LIGHT_RANGE + min(0.9, pixels / 160)
+	var/power = 0.75 * (emissive_glow_alpha / 255) * min(0.8, 0.15 + pixels / 250)
+	emissive_glow_lit = TRUE
+	if(light_range != range || light_power != power || light_color != light[1]) // set_light() relights even when nothing changed
+		set_light(range, power, light[1])
 
 /// {icon file: {state: "<state>_glow"}}: the states of each sheet that have a glow mask
 GLOBAL_LIST_EMPTY(emissive_glow_states)
@@ -106,6 +141,6 @@ GLOBAL_LIST_EMPTY(emissive_glow_states)
 
 /// flick() for the glow: another state's glow for a moment (the length of the flicked animation), then update_icon() puts the
 /// right one back. An overlay can't be flicked, and a button's pressed or denied flick would glow with the idle light otherwise.
-/obj/proc/flick_emissive_glow(icon_state, duration)
-	set_emissive_glow(icon_state)
+/obj/proc/flick_emissive_glow(icon_state, duration, alpha)
+	set_emissive_glow(icon_state, icon, null, TRUE, alpha)
 	addtimer(CALLBACK(src, PROC_REF(update_icon)), duration, TIMER_UNIQUE | TIMER_OVERRIDE)

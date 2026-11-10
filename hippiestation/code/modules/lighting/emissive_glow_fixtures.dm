@@ -2,7 +2,7 @@
 
 // Airlocks: the bolt, emergency, deny and opening/closing lights, and the green arrows of an unrestricted side
 /obj/machinery/door/airlock
-	emissive_glow_alpha = 170
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
 
 /obj/machinery/door/airlock/proc/airlock_glow(mutable_appearance/lights_overlay)
 	var/list/arrows
@@ -18,6 +18,40 @@
 		if(unres_sides & WEST)
 			arrows += emissive_glow(arrow_icon, "unres_w", SOUTH, emissive_glow_alpha, -32, 0)
 	set_emissive_glow(lights_overlay?.icon_state, overlays_file, arrows)
+
+// Indicator lights and small panels glow less than screens (requests consoles, newscasters, status displays stay full)
+/obj/machinery/airalarm
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
+
+/obj/machinery/button
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
+
+/obj/machinery/light_switch
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
+
+/obj/machinery/flasher
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
+
+/obj/machinery/turretid
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
+
+/obj/machinery/camera
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
+
+/obj/machinery/airlock_sensor
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
+
+/obj/machinery/embedded_controller
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
+
+/obj/machinery/doorButtons
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
+
+/obj/machinery/keycard_auth
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
+
+/obj/item/radio/intercom
+	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
 
 /obj/machinery/airalarm/update_icon()
 	. = ..()

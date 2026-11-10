@@ -65,3 +65,6 @@ icons/effects/160x160.dmi: singularity_s5 bright=150
 icons/effects/224x224.dmi: singularity_s7 bright=150
 icons/effects/288x288.dmi: singularity_s9 bright=150
 icons/effects/352x352.dmi: singularity_s11 bright=150
+
+# Disposal bins: only the lamps on their light overlays, not the vent panel drawn with them
+icons/obj/atmospherics/pipes/disposal.dmi: dispover-ready dispover-charge dispover-full bright=1 colour

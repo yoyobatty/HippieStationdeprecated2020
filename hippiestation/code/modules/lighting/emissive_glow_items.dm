@@ -3,7 +3,7 @@
 
 /// Lit, an item doesn't need its emissive blocker: a copy of its own sprite on the blocker plane, which would hide its glow.
 /// It gets it back when it goes out.
-/atom/movable/set_emissive_glow(icon_state, icon_file = icon, list/extra)
+/atom/movable/set_emissive_glow(icon_state, icon_file = icon, list/extra, transient = FALSE, alpha)
 	. = ..()
 	if(blocks_emissive != EMISSIVE_BLOCK_GENERIC)
 		return

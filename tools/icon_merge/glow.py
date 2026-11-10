@@ -147,8 +147,9 @@ def expand(rule, names):
 
 
 def colour(state):
-    """A mask's colour as a light would cast it: the average of its lit pixels, weighted by alpha, brightened so its
-    strongest channel is full (the light's power says how bright). None if the mask is empty."""
+    """[colour, size] of the light a mask would cast: the average of its lit pixels, weighted by alpha, brightened so its
+    strongest channel is full, and how many pixels a frame lights on average (the game scales the light by it). None if the
+    mask is empty."""
     total = [0, 0, 0]
     weight = 0
     for frame in state.frames:
@@ -164,7 +165,8 @@ def colour(state):
     top = max(avg)
     if top <= 0:
         return None
-    return '#%02X%02X%02X' % tuple(min(255, round(c * 255 / top)) for c in avg)
+    hex_colour = '#%02X%02X%02X' % tuple(min(255, round(c * 255 / top)) for c in avg)
+    return [hex_colour, round(weight / 255 / len(state.frames))]
 
 
 DM_COLOURS = 'hippiestation/code/modules/lighting/emissive_glow_colours.dm'
@@ -173,13 +175,13 @@ DM_COLOURS = 'hippiestation/code/modules/lighting/emissive_glow_colours.dm'
 def render_colours(manifest):
     """The DM list of every mask's colour, from the merge manifest (so check can compare it without loading sheets)."""
     lines = ["// Made by tools/icon_merge/icon_merge.py build from the glow masks; don't edit by hand.",
-             "// Each mask's colour as a light would cast it (\"<icon>|<mask state>\"), for things that cast a faint light",
-             "// of their glow's colour (vending machines).",
-             'GLOBAL_LIST_INIT(emissive_glow_colours, list(']
+             "// The faint light each mask casts (\"<icon>|<mask state>\" = list(colour, lit pixels per frame)): its pixels'",
+             "// average colour at full strength, and how much of the sprite glows, which sets how strong (see emissive_glow.dm).",
+             'GLOBAL_LIST_INIT(emissive_glow_lights, list(']
     entries = []
     for tg in sorted(manifest):
-        for state, hex_colour in sorted(manifest[tg].get('glow_colours', {}).items()):
-            entries.append(f'\t"{tg}|{state}" = "{hex_colour}",')
+        for state, (hex_colour, pixels) in sorted(manifest[tg].get('glow_colours', {}).items()):
+            entries.append(f'\t"{tg}|{state}" = list("{hex_colour}", {pixels}),')
     if entries:
         entries[-1] = entries[-1].rstrip(',')
     return '\n'.join(lines + entries + ['))', ''])

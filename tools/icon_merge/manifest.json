@@ -5,7 +5,10 @@
    "icons/effects/160x160.dmi: singularity_s5 bright=150"
   ],
   "glow_colours": {
-   "singularity_s5_glow": "#F100FF"
+   "singularity_s5_glow": [
+    "#F100FF",
+    3905
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -24,7 +27,10 @@
    "icons/effects/224x224.dmi: singularity_s7 bright=150"
   ],
   "glow_colours": {
-   "singularity_s7_glow": "#6C00FF"
+   "singularity_s7_glow": [
+    "#6C00FF",
+    2498
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -43,7 +49,10 @@
    "icons/effects/288x288.dmi: singularity_s9 bright=150"
   ],
   "glow_colours": {
-   "singularity_s9_glow": "#FF0113"
+   "singularity_s9_glow": [
+    "#FF0113",
+    17
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -62,7 +71,10 @@
    "icons/effects/352x352.dmi: singularity_s11 bright=150"
   ],
   "glow_colours": {
-   "singularity_s11_glow": "#FF9054"
+   "singularity_s11_glow": [
+    "#FF9054",
+    78733
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -86,7 +98,10 @@
    "icons/effects/96x96.dmi: singularity_s3 bright=150"
   ],
   "glow_colours": {
-   "singularity_s3_glow": "#FF001C"
+   "singularity_s3_glow": [
+    "#FF001C",
+    1378
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -848,7 +863,10 @@
    "icons/mob/inhands/weapons/axes_lefthand.dmi: axe1 - axe0"
   ],
   "glow_colours": {
-   "axe1_glow": "#45B8FF"
+   "axe1_glow": [
+    "#45B8FF",
+    22
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -867,7 +885,10 @@
    "icons/mob/inhands/weapons/axes_righthand.dmi: axe1 - axe0"
   ],
   "glow_colours": {
-   "axe1_glow": "#46B2FF"
+   "axe1_glow": [
+    "#46B2FF",
+    22
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -975,17 +996,50 @@
    "icons/mob/inhands/weapons/swords_lefthand.dmi: dualsaber*1 - dualsaber0"
   ],
   "glow_colours": {
-   "dualsaberblue1_glow": "#72DBFF",
-   "dualsabergreen1_glow": "#49FF49",
-   "dualsaberpurple1_glow": "#AB6DFF",
-   "dualsaberrainbow1_glow": "#F7FFCF",
-   "dualsaberred1_glow": "#FF4949",
-   "swordblue_glow": "#5FD6FF",
-   "swordgreen_glow": "#40FF40",
-   "swordpurple_glow": "#A766FF",
-   "swordrainbow_glow": "#F1FFCF",
-   "swordred_glow": "#FF4040",
-   "swordyellow_glow": "#FFFF64"
+   "dualsaberblue1_glow": [
+    "#72DBFF",
+    63
+   ],
+   "dualsabergreen1_glow": [
+    "#49FF49",
+    69
+   ],
+   "dualsaberpurple1_glow": [
+    "#AB6DFF",
+    69
+   ],
+   "dualsaberrainbow1_glow": [
+    "#F7FFCF",
+    68
+   ],
+   "dualsaberred1_glow": [
+    "#FF4949",
+    69
+   ],
+   "swordblue_glow": [
+    "#5FD6FF",
+    28
+   ],
+   "swordgreen_glow": [
+    "#40FF40",
+    28
+   ],
+   "swordpurple_glow": [
+    "#A766FF",
+    28
+   ],
+   "swordrainbow_glow": [
+    "#F1FFCF",
+    28
+   ],
+   "swordred_glow": [
+    "#FF4040",
+    28
+   ],
+   "swordyellow_glow": [
+    "#FFFF64",
+    29
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -1015,17 +1069,50 @@
    "icons/mob/inhands/weapons/swords_righthand.dmi: dualsaber*1 - dualsaber0"
   ],
   "glow_colours": {
-   "dualsaberblue1_glow": "#72DBFF",
-   "dualsabergreen1_glow": "#49FF49",
-   "dualsaberpurple1_glow": "#AB6DFF",
-   "dualsaberrainbow1_glow": "#F6FFCF",
-   "dualsaberred1_glow": "#FF4949",
-   "swordblue_glow": "#5FD6FF",
-   "swordgreen_glow": "#40FF40",
-   "swordpurple_glow": "#A766FF",
-   "swordrainbow_glow": "#F1FFCF",
-   "swordred_glow": "#FF4040",
-   "swordyellow_glow": "#FFFF4E"
+   "dualsaberblue1_glow": [
+    "#72DBFF",
+    62
+   ],
+   "dualsabergreen1_glow": [
+    "#49FF49",
+    68
+   ],
+   "dualsaberpurple1_glow": [
+    "#AB6DFF",
+    68
+   ],
+   "dualsaberrainbow1_glow": [
+    "#F6FFCF",
+    67
+   ],
+   "dualsaberred1_glow": [
+    "#FF4949",
+    68
+   ],
+   "swordblue_glow": [
+    "#5FD6FF",
+    28
+   ],
+   "swordgreen_glow": [
+    "#40FF40",
+    28
+   ],
+   "swordpurple_glow": [
+    "#A766FF",
+    28
+   ],
+   "swordrainbow_glow": [
+    "#F1FFCF",
+    28
+   ],
+   "swordred_glow": [
+    "#FF4040",
+    28
+   ],
+   "swordyellow_glow": [
+    "#FFFF4E",
+    29
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -1074,12 +1161,30 @@
    "icons/mob/mask.dmi: *on - *off"
   ],
   "glow_colours": {
-   "cigar2on_glow": "#FFD6A8",
-   "cigaron_glow": "#FFD6A8",
-   "cigon_glow": "#FFDBB3",
-   "cobpipeon_glow": "#FFFFFF",
-   "pipeon_glow": "#FFFFFF",
-   "spliffon_glow": "#FFDBB3"
+   "cigar2on_glow": [
+    "#FFD6A8",
+    2
+   ],
+   "cigaron_glow": [
+    "#FFD6A8",
+    2
+   ],
+   "cigon_glow": [
+    "#FFDBB3",
+    3
+   ],
+   "cobpipeon_glow": [
+    "#FFFFFF",
+    2
+   ],
+   "pipeon_glow": [
+    "#FFFFFF",
+    2
+   ],
+   "spliffon_glow": [
+    "#FFDBB3",
+    3
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -1430,15 +1535,42 @@
    "icons/obj/airlock_machines.dmi: access_control_standby access_control_process - access_control_off"
   ],
   "glow_colours": {
-   "access_button_cycle_glow": "#FFEC1F",
-   "access_button_standby_glow": "#9CFF1C",
-   "access_control_process_glow": "#74FF07",
-   "access_control_standby_glow": "#68FF0D",
-   "airlock_control_process_glow": "#74FF07",
-   "airlock_control_standby_glow": "#68FF0D",
-   "airlock_sensor_alert_glow": "#FF0525",
-   "airlock_sensor_cycle_glow": "#FF5D20",
-   "airlock_sensor_standby_glow": "#9CFF1C"
+   "access_button_cycle_glow": [
+    "#FFEC1F",
+    4
+   ],
+   "access_button_standby_glow": [
+    "#9CFF1C",
+    4
+   ],
+   "access_control_process_glow": [
+    "#74FF07",
+    9
+   ],
+   "access_control_standby_glow": [
+    "#68FF0D",
+    12
+   ],
+   "airlock_control_process_glow": [
+    "#74FF07",
+    9
+   ],
+   "airlock_control_standby_glow": [
+    "#68FF0D",
+    12
+   ],
+   "airlock_sensor_alert_glow": [
+    "#FF0525",
+    9
+   ],
+   "airlock_sensor_cycle_glow": [
+    "#FF5D20",
+    16
+   ],
+   "airlock_sensor_standby_glow": [
+    "#9CFF1C",
+    4
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -1459,41 +1591,160 @@
   "sources": {},
   "tg": "4f23449b623256a6396f7f621977bf97dff3a1e8"
  },
+ "icons/obj/atmospherics/pipes/disposal.dmi": {
+  "added": [],
+  "glow": [
+   "icons/obj/atmospherics/pipes/disposal.dmi: dispover-ready dispover-charge dispover-full bright=1 colour"
+  ],
+  "glow_colours": {
+   "dispover-charge_glow": [
+    "#FF521F",
+    3
+   ],
+   "dispover-full_glow": [
+    "#0099FF",
+    4
+   ],
+   "dispover-ready_glow": [
+    "#55FF00",
+    4
+   ]
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "dispover-ready_glow",
+   "dispover-charge_glow",
+   "dispover-full_glow"
+  ],
+  "only": {},
+  "out": "b6b00e6ee4d305bfda502eba5dc5a2459318b71e",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "d2e483593c1dfb568f1eb6bdd4dea900aa1b7a3a"
+ },
  "icons/obj/barsigns.dmi": {
   "added": [],
   "glow": [
    "icons/obj/barsigns.dmi: * - empty"
   ],
   "glow_colours": {
-   "alohasnackbar_glow": "#FFA96E",
-   "combocafe_glow": "#74FF76",
-   "emergencyrumparty_glow": "#FFA8AD",
-   "empbarsign_glow": "#F8FFE2",
-   "honkednloaded_glow": "#FF433B",
-   "maidcafe_glow": "#FF0157",
-   "maltesefalcon_glow": "#A6B6FF",
-   "officerbeersky_glow": "#A7FFAA",
-   "oldcockinn_glow": "#FF7976",
-   "robustacafe_glow": "#FF5F73",
-   "scotchservinwill_glow": "#FFDEC1",
-   "slipperyshots_glow": "#58FF00",
-   "syndibarsign_glow": "#FF0000",
-   "the_lightbulb_glow": "#FCFFA8",
-   "theadminbus_glow": "#FFFFFF",
-   "thealenath_glow": "#FF3330",
-   "thebark_glow": "#FFB430",
-   "thecavern_glow": "#41FF29",
-   "thecoderbus_glow": "#FFFFFF",
-   "thedrunkcarp_glow": "#F994FF",
-   "thegreytide_glow": "#2DE6FF",
-   "theharmbaton_glow": "#FF8A63",
-   "thenest_glow": "#AC9BFF",
-   "thenet_glow": "#A6FF9D",
-   "theouterspess_glow": "#33FFEC",
-   "theshaken_glow": "#FFED91",
-   "thesingulo_glow": "#FF0EEC",
-   "thewretchedhive_glow": "#FFBCF5",
-   "vladssaladbar_glow": "#E9FF8F"
+   "alohasnackbar_glow": [
+    "#FFA96E",
+    1528
+   ],
+   "combocafe_glow": [
+    "#74FF76",
+    1286
+   ],
+   "emergencyrumparty_glow": [
+    "#FFA8AD",
+    1176
+   ],
+   "empbarsign_glow": [
+    "#F8FFE2",
+    897
+   ],
+   "honkednloaded_glow": [
+    "#FF433B",
+    875
+   ],
+   "maidcafe_glow": [
+    "#FF0157",
+    384
+   ],
+   "maltesefalcon_glow": [
+    "#A6B6FF",
+    570
+   ],
+   "officerbeersky_glow": [
+    "#A7FFAA",
+    362
+   ],
+   "oldcockinn_glow": [
+    "#FF7976",
+    570
+   ],
+   "robustacafe_glow": [
+    "#FF5F73",
+    291
+   ],
+   "scotchservinwill_glow": [
+    "#FFDEC1",
+    357
+   ],
+   "slipperyshots_glow": [
+    "#58FF00",
+    575
+   ],
+   "syndibarsign_glow": [
+    "#FF0000",
+    267
+   ],
+   "the_lightbulb_glow": [
+    "#FCFFA8",
+    726
+   ],
+   "theadminbus_glow": [
+    "#FFFFFF",
+    806
+   ],
+   "thealenath_glow": [
+    "#FF3330",
+    449
+   ],
+   "thebark_glow": [
+    "#FFB430",
+    452
+   ],
+   "thecavern_glow": [
+    "#41FF29",
+    1568
+   ],
+   "thecoderbus_glow": [
+    "#FFFFFF",
+    614
+   ],
+   "thedrunkcarp_glow": [
+    "#F994FF",
+    410
+   ],
+   "thegreytide_glow": [
+    "#2DE6FF",
+    1596
+   ],
+   "theharmbaton_glow": [
+    "#FF8A63",
+    288
+   ],
+   "thenest_glow": [
+    "#AC9BFF",
+    484
+   ],
+   "thenet_glow": [
+    "#A6FF9D",
+    732
+   ],
+   "theouterspess_glow": [
+    "#33FFEC",
+    639
+   ],
+   "theshaken_glow": [
+    "#FFED91",
+    368
+   ],
+   "thesingulo_glow": [
+    "#FF0EEC",
+    274
+   ],
+   "thewretchedhive_glow": [
+    "#FFBCF5",
+    1184
+   ],
+   "vladssaladbar_glow": [
+    "#E9FF8F",
+    475
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -1616,9 +1867,18 @@
    "icons/obj/chemical.dmi: mixer1 - mixer1_nopower"
   ],
   "glow_colours": {
-   "dispenser_glow": "#FFF3CA",
-   "mixer0_glow": "#4FD9FF",
-   "mixer1_glow": "#30BAFF"
+   "dispenser_glow": [
+    "#FFF3CA",
+    34
+   ],
+   "mixer0_glow": [
+    "#4FD9FF",
+    108
+   ],
+   "mixer1_glow": [
+    "#30BAFF",
+    101
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -1657,15 +1917,42 @@
    "icons/obj/cigarettes.dmi: *-on - *"
   ],
   "glow_colours": {
-   "lighter-on_glow": "#FFB24F",
-   "lighter_overlay_dame-on_glow": "#EDFAFF",
-   "lighter_overlay_plain-on_glow": "#F1FAFF",
-   "lighter_overlay_slime-on_glow": "#00FF6D",
-   "lighter_overlay_snake-on_glow": "#EDFAFF",
-   "lighter_overlay_thirteen-on_glow": "#F0FAFF",
-   "lighter_overlay_zoppo-on_glow": "#FFFFFF",
-   "slighter-on_glow": "#60FFF6",
-   "zippo-on_glow": "#FFCD59"
+   "lighter-on_glow": [
+    "#FFB24F",
+    8
+   ],
+   "lighter_overlay_dame-on_glow": [
+    "#EDFAFF",
+    53
+   ],
+   "lighter_overlay_plain-on_glow": [
+    "#F1FAFF",
+    53
+   ],
+   "lighter_overlay_slime-on_glow": [
+    "#00FF6D",
+    53
+   ],
+   "lighter_overlay_snake-on_glow": [
+    "#EDFAFF",
+    53
+   ],
+   "lighter_overlay_thirteen-on_glow": [
+    "#F0FAFF",
+    53
+   ],
+   "lighter_overlay_zoppo-on_glow": [
+    "#FFFFFF",
+    43
+   ],
+   "slighter-on_glow": [
+    "#60FFF6",
+    6
+   ],
+   "zippo-on_glow": [
+    "#FFCD59",
+    6
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -1951,12 +2238,30 @@
    "icons/obj/clothing/masks.dmi: *on - *off"
   ],
   "glow_colours": {
-   "cigar2on_glow": "#FFD6AE",
-   "cigaron_glow": "#FFD4AA",
-   "cigon_glow": "#FFFDFD",
-   "cobpipeon_glow": "#FFFFFF",
-   "pipeon_glow": "#FFFFFF",
-   "spliffon_glow": "#FFF3D0"
+   "cigar2on_glow": [
+    "#FFD6AE",
+    49
+   ],
+   "cigaron_glow": [
+    "#FFD4AA",
+    52
+   ],
+   "cigon_glow": [
+    "#FFFDFD",
+    1
+   ],
+   "cobpipeon_glow": [
+    "#FFFFFF",
+    7
+   ],
+   "pipeon_glow": [
+    "#FFFFFF",
+    7
+   ],
+   "spliffon_glow": [
+    "#FFF3D0",
+    2
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -2886,23 +3191,74 @@
    "icons/obj/items_and_weapons.dmi: *_active - *"
   ],
   "glow_colours": {
-   "axe1_glow": "#8DBBFF",
-   "cutlass1_glow": "#FF6266",
-   "dualsaberblue1_glow": "#6AD9FF",
-   "dualsabergreen1_glow": "#3AFF3A",
-   "dualsaberpurple1_glow": "#B278FF",
-   "dualsaberrainbow1_glow": "#F0FFC5",
-   "dualsaberred1_glow": "#FF3A3A",
-   "stunbaton_active_glow": "#FFFB00",
-   "stungun_active_glow": "#52FFF3",
-   "stunprod_active_glow": "#D0FF00",
-   "swordblue_glow": "#66D8FF",
-   "swordgreen_glow": "#32FF32",
-   "swordpurple_glow": "#AF73FF",
-   "swordrainbow_glow": "#F6FFC3",
-   "swordred_glow": "#FF3232",
-   "swordyellow_glow": "#FFFF49",
-   "teleprod_active_glow": "#EDFF00"
+   "axe1_glow": [
+    "#8DBBFF",
+    27
+   ],
+   "cutlass1_glow": [
+    "#FF6266",
+    61
+   ],
+   "dualsaberblue1_glow": [
+    "#6AD9FF",
+    105
+   ],
+   "dualsabergreen1_glow": [
+    "#3AFF3A",
+    102
+   ],
+   "dualsaberpurple1_glow": [
+    "#B278FF",
+    102
+   ],
+   "dualsaberrainbow1_glow": [
+    "#F0FFC5",
+    102
+   ],
+   "dualsaberred1_glow": [
+    "#FF3A3A",
+    102
+   ],
+   "stunbaton_active_glow": [
+    "#FFFB00",
+    5
+   ],
+   "stungun_active_glow": [
+    "#52FFF3",
+    13
+   ],
+   "stunprod_active_glow": [
+    "#D0FF00",
+    4
+   ],
+   "swordblue_glow": [
+    "#66D8FF",
+    81
+   ],
+   "swordgreen_glow": [
+    "#32FF32",
+    76
+   ],
+   "swordpurple_glow": [
+    "#AF73FF",
+    77
+   ],
+   "swordrainbow_glow": [
+    "#F6FFC3",
+    79
+   ],
+   "swordred_glow": [
+    "#FF3232",
+    82
+   ],
+   "swordyellow_glow": [
+    "#FFFF49",
+    61
+   ],
+   "teleprod_active_glow": [
+    "#EDFF00",
+    5
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -3006,31 +3362,106 @@
    "icons/obj/lighting.dmi: *-on - * colour"
   ],
   "glow_colours": {
-   "bananalamp-on_glow": "#FFFFFF",
-   "flare-on_glow": "#FF746B",
-   "flashdark-on_glow": "#00FF00",
-   "flashlight-on_glow": "#F5FF74",
-   "glowstick-on_glow": "#FFFFFF",
-   "lamp-on_glow": "#FFFEBF",
-   "lampgreen-on_glow": "#89FF5C",
-   "lantern-on_glow": "#FFDB57",
-   "markerbronze-on_glow": "#FFB366",
-   "markerburgundy-on_glow": "#FF6666",
-   "markercerulean-on_glow": "#66B2FF",
-   "markerfuchsia-on_glow": "#FF66B2",
-   "markerindigo-on_glow": "#6766FF",
-   "markerjade-on_glow": "#66FFB3",
-   "markerlime-on_glow": "#B2FF66",
-   "markerolive-on_glow": "#66FF67",
-   "markerpurple-on_glow": "#B366FF",
-   "markerteal-on_glow": "#66FFFF",
-   "markerviolet-on_glow": "#FF66FF",
-   "markeryellow-on_glow": "#FFFF66",
-   "penlight-on_glow": "#FFDD33",
-   "seclite-on_glow": "#FFFECD",
-   "slime-on_glow": "#FFFEAB",
-   "syndilantern-on_glow": "#FFC16C",
-   "torch-on_glow": "#FF9339"
+   "bananalamp-on_glow": [
+    "#FFFFFF",
+    23
+   ],
+   "flare-on_glow": [
+    "#FF746B",
+    115
+   ],
+   "flashdark-on_glow": [
+    "#00FF00",
+    2
+   ],
+   "flashlight-on_glow": [
+    "#F5FF74",
+    39
+   ],
+   "glowstick-on_glow": [
+    "#FFFFFF",
+    32
+   ],
+   "lamp-on_glow": [
+    "#FFFEBF",
+    36
+   ],
+   "lampgreen-on_glow": [
+    "#89FF5C",
+    118
+   ],
+   "lantern-on_glow": [
+    "#FFDB57",
+    109
+   ],
+   "markerbronze-on_glow": [
+    "#FFB366",
+    38
+   ],
+   "markerburgundy-on_glow": [
+    "#FF6666",
+    38
+   ],
+   "markercerulean-on_glow": [
+    "#66B2FF",
+    38
+   ],
+   "markerfuchsia-on_glow": [
+    "#FF66B2",
+    38
+   ],
+   "markerindigo-on_glow": [
+    "#6766FF",
+    38
+   ],
+   "markerjade-on_glow": [
+    "#66FFB3",
+    38
+   ],
+   "markerlime-on_glow": [
+    "#B2FF66",
+    38
+   ],
+   "markerolive-on_glow": [
+    "#66FF67",
+    38
+   ],
+   "markerpurple-on_glow": [
+    "#B366FF",
+    38
+   ],
+   "markerteal-on_glow": [
+    "#66FFFF",
+    38
+   ],
+   "markerviolet-on_glow": [
+    "#FF66FF",
+    38
+   ],
+   "markeryellow-on_glow": [
+    "#FFFF66",
+    38
+   ],
+   "penlight-on_glow": [
+    "#FFDD33",
+    3
+   ],
+   "seclite-on_glow": [
+    "#FFFECD",
+    21
+   ],
+   "slime-on_glow": [
+    "#FFFEAB",
+    68
+   ],
+   "syndilantern-on_glow": [
+    "#FFC16C",
+    99
+   ],
+   "torch-on_glow": [
+    "#FF9339",
+    55
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -3090,10 +3521,22 @@
    "icons/obj/machines/camera.dmi: xraycamera xraycamera_in_use - xraycamera_off colour"
   ],
   "glow_colours": {
-   "camera_glow": "#9FFF9F",
-   "camera_in_use_glow": "#FF0033",
-   "xraycamera_glow": "#85FFCB",
-   "xraycamera_in_use_glow": "#FF4788"
+   "camera_glow": [
+    "#9FFF9F",
+    2
+   ],
+   "camera_in_use_glow": [
+    "#FF0033",
+    2
+   ],
+   "xraycamera_glow": [
+    "#85FFCB",
+    3
+   ],
+   "xraycamera_in_use_glow": [
+    "#FF4788",
+    3
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -3117,10 +3560,22 @@
    "icons/obj/machines/cloning.dmi: pod_1 - pod_0"
   ],
   "glow_colours": {
-   "pod_1_glow": "#D7FF77",
-   "scanner_glow": "#9CFFD2",
-   "scanner_occupied_glow": "#ACFF9F",
-   "scanner_open_glow": "#A7FFC2"
+   "pod_1_glow": [
+    "#D7FF77",
+    148
+   ],
+   "scanner_glow": [
+    "#9CFFD2",
+    466
+   ],
+   "scanner_occupied_glow": [
+    "#ACFF9F",
+    352
+   ],
+   "scanner_open_glow": [
+    "#A7FFC2",
+    387
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -3142,7 +3597,10 @@
    "icons/obj/machines/mining_machines.dmi: ore_redemption - ore_redemption-off"
   ],
   "glow_colours": {
-   "ore_redemption_glow": "#F2FF91"
+   "ore_redemption_glow": [
+    "#F2FF91",
+    58
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -3214,22 +3672,70 @@
    "icons/obj/machines/telecomms.dmi: * - *_off"
   ],
   "glow_colours": {
-   "broadcast receiver_glow": "#00FF00",
-   "broadcast receiver_o_glow": "#00FF00",
-   "broadcaster_glow": "#3399FF",
-   "broadcaster_o_glow": "#3399FF",
-   "bus_glow": "#28FFEB",
-   "bus_o_glow": "#28FFEB",
-   "comm_server_glow": "#0096FF",
-   "comm_server_o_glow": "#0096FF",
-   "hub_glow": "#7EFFFF",
-   "hub_o_glow": "#7EFFFF",
-   "message_server_glow": "#ABFF4D",
-   "message_server_o_glow": "#ABFF4D",
-   "processor_glow": "#30FFE4",
-   "processor_o_glow": "#30FFE4",
-   "relay_glow": "#5DFFD9",
-   "relay_o_glow": "#67FFDD"
+   "broadcast receiver_glow": [
+    "#00FF00",
+    40
+   ],
+   "broadcast receiver_o_glow": [
+    "#00FF00",
+    40
+   ],
+   "broadcaster_glow": [
+    "#3399FF",
+    12
+   ],
+   "broadcaster_o_glow": [
+    "#3399FF",
+    12
+   ],
+   "bus_glow": [
+    "#28FFEB",
+    29
+   ],
+   "bus_o_glow": [
+    "#28FFEB",
+    29
+   ],
+   "comm_server_glow": [
+    "#0096FF",
+    4
+   ],
+   "comm_server_o_glow": [
+    "#0096FF",
+    4
+   ],
+   "hub_glow": [
+    "#7EFFFF",
+    36
+   ],
+   "hub_o_glow": [
+    "#7EFFFF",
+    36
+   ],
+   "message_server_glow": [
+    "#ABFF4D",
+    8
+   ],
+   "message_server_o_glow": [
+    "#ABFF4D",
+    8
+   ],
+   "processor_glow": [
+    "#30FFE4",
+    32
+   ],
+   "processor_o_glow": [
+    "#30FFE4",
+    32
+   ],
+   "relay_glow": [
+    "#5DFFD9",
+    17
+   ],
+   "relay_o_glow": [
+    "#67FFDD",
+    18
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -3307,9 +3813,18 @@
    "icons/obj/machines/turret_control.dmi: control_standby control_stun control_kill - control_off"
   ],
   "glow_colours": {
-   "control_kill_glow": "#FF0000",
-   "control_standby_glow": "#00FF00",
-   "control_stun_glow": "#FF8000"
+   "control_kill_glow": [
+    "#FF0000",
+    7
+   ],
+   "control_standby_glow": [
+    "#00FF00",
+    5
+   ],
+   "control_stun_glow": [
+    "#FF8000",
+    14
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -3491,10 +4006,22 @@
    "icons/obj/monitors.dmi: auth_on - auth_off"
   ],
   "glow_colours": {
-   "alarm0_glow": "#4AFF8C",
-   "alarm1_glow": "#FF6288",
-   "alarm2_glow": "#FFCB82",
-   "auth_on_glow": "#2C47FF"
+   "alarm0_glow": [
+    "#4AFF8C",
+    34
+   ],
+   "alarm1_glow": [
+    "#FF6288",
+    18
+   ],
+   "alarm2_glow": [
+    "#FFCB82",
+    19
+   ],
+   "auth_on_glow": [
+    "#2C47FF",
+    4
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -3560,8 +4087,14 @@
    "icons/obj/power.dmi: light1 light0 - light-p"
   ],
   "glow_colours": {
-   "light0_glow": "#FF0024",
-   "light1_glow": "#37FF37"
+   "light0_glow": [
+    "#FF0024",
+    3
+   ],
+   "light1_glow": [
+    "#37FF37",
+    3
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -3645,7 +4178,10 @@
    "icons/obj/radio.dmi: intercom - intercom-p colour"
   ],
   "glow_colours": {
-   "intercom_glow": "#63FFF0"
+   "intercom_glow": [
+    "#63FFF0",
+    26
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -3690,7 +4226,10 @@
    "icons/obj/singularity.dmi: singularity_s1 bright=150"
   ],
   "glow_colours": {
-   "singularity_s1_glow": "#FF001A"
+   "singularity_s1_glow": [
+    "#FF001A",
+    61
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -3743,21 +4282,66 @@
    "icons/obj/stationobjs.dmi: holopad1 holopad_ringing - holopad0"
   ],
   "glow_colours": {
-   "doorctrl-denied_glow": "#FF5D2E",
-   "doorctrl1_glow": "#FF9A37",
-   "doorctrl_glow": "#FFED4F",
-   "holopad1_glow": "#B0E2FF",
-   "holopad_ringing_glow": "#2CFFE6",
-   "launcher-denied_glow": "#D3FFD6",
-   "launcher1_glow": "#B1FFA3",
-   "launcher_glow": "#FF914E",
-   "mflash1_glow": "#72FF7C",
-   "mflash_flash_glow": "#E8FF7E",
-   "pflash1_glow": "#23FF8C",
-   "pflash_flash_glow": "#CAFF93",
-   "recharger0_glow": "#FF1E1B",
-   "recharger1_glow": "#43FF59",
-   "recharger2_glow": "#FFE823"
+   "doorctrl-denied_glow": [
+    "#FF5D2E",
+    6
+   ],
+   "doorctrl1_glow": [
+    "#FF9A37",
+    9
+   ],
+   "doorctrl_glow": [
+    "#FFED4F",
+    9
+   ],
+   "holopad1_glow": [
+    "#B0E2FF",
+    86
+   ],
+   "holopad_ringing_glow": [
+    "#2CFFE6",
+    65
+   ],
+   "launcher-denied_glow": [
+    "#D3FFD6",
+    7
+   ],
+   "launcher1_glow": [
+    "#B1FFA3",
+    9
+   ],
+   "launcher_glow": [
+    "#FF914E",
+    2
+   ],
+   "mflash1_glow": [
+    "#72FF7C",
+    22
+   ],
+   "mflash_flash_glow": [
+    "#E8FF7E",
+    22
+   ],
+   "pflash1_glow": [
+    "#23FF8C",
+    32
+   ],
+   "pflash_flash_glow": [
+    "#CAFF93",
+    32
+   ],
+   "recharger0_glow": [
+    "#FF1E1B",
+    1
+   ],
+   "recharger1_glow": [
+    "#43FF59",
+    9
+   ],
+   "recharger2_glow": [
+    "#FFE823",
+    8
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -3908,7 +4492,10 @@
    "icons/obj/surgery.dmi: esaw_1 - esaw_0"
   ],
   "glow_colours": {
-   "esaw_1_glow": "#90FFCE"
+   "esaw_1_glow": [
+    "#90FFCE",
+    36
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -3945,12 +4532,30 @@
    "icons/obj/terminals.dmi: newscaster_normal newscaster_wanted - newscaster_off"
   ],
   "glow_colours": {
-   "newscaster_normal_glow": "#34FF97",
-   "newscaster_wanted_glow": "#39FF96",
-   "req_comp0_glow": "#0FFF7F",
-   "req_comp1_glow": "#2FFF8E",
-   "req_comp2_glow": "#8FFF83",
-   "req_comp3_glow": "#FFAF2D"
+   "newscaster_normal_glow": [
+    "#34FF97",
+    200
+   ],
+   "newscaster_wanted_glow": [
+    "#39FF96",
+    200
+   ],
+   "req_comp0_glow": [
+    "#0FFF7F",
+    185
+   ],
+   "req_comp1_glow": [
+    "#2FFF8E",
+    189
+   ],
+   "req_comp2_glow": [
+    "#8FFF83",
+    189
+   ],
+   "req_comp3_glow": [
+    "#FFAF2D",
+    187
+   ]
   },
   "glow_hand": [],
   "glow_made": [
@@ -4062,59 +4667,218 @@
    "icons/obj/vending.dmi: smartfridge1 smartfridge2 smartfridge3 - smartfridge-off changed"
   ],
   "glow_colours": {
-   "Cola_Machine_glow": "#FFF5DB",
-   "MagiVend_glow": "#CFD2FF",
-   "atmosdrobe_glow": "#FFB90F",
-   "bardrobe_glow": "#FFFFFF",
-   "boozeomat_glow": "#8CFFF5",
-   "cargodrobe_glow": "#FFCA14",
-   "cart_glow": "#FFC1EF",
-   "chapdrobe_glow": "#FFFFFF",
-   "cigs_glow": "#EEFFFE",
-   "citadelplush_glow": "#FFEEC1",
-   "classicbeats_glow": "#FFDA94",
-   "clothes_glow": "#B3FF85",
-   "coffee_glow": "#FFD1A0",
-   "cola_black_glow": "#FFF5DB",
-   "curadrobe_glow": "#FFBF80",
-   "dinnerware_glow": "#C3EBFF",
-   "disktoaster_glow": "#67FF84",
-   "engi_glow": "#FDFFA8",
-   "engidrobe_glow": "#FFB90F",
-   "engivend_glow": "#FFE762",
-   "games_glow": "#FFF3EB",
-   "generic_glow": "#DEF0FF",
-   "hydrobe_glow": "#37FF1C",
-   "janidrobe_glow": "#B80DFF",
-   "liberationstation_glow": "#FFA8A0",
-   "med_glow": "#E6F9FF",
-   "modularpc_glow": "#FFB2C5",
-   "nutri_glow": "#DFFEFF",
-   "pwr_game_glow": "#FFF3C2",
-   "red_cola_glow": "#FFF9E9",
-   "robotics_glow": "#FEFFDC",
-   "sec_glow": "#FAFFA9",
-   "secdrobe_glow": "#FF2B00",
-   "seeds_glow": "#87FFB6",
-   "shamblers_juice_glow": "#FF1268",
-   "smartfridge1_glow": "#A2FFFD",
-   "smartfridge2_glow": "#A5FFFA",
-   "smartfridge3_glow": "#A6FFF7",
-   "smartfridge_glow": "#9CFFFE",
-   "snack_glow": "#D8FFEC",
-   "snackblue_glow": "#D8FFEC",
-   "snackgreen_glow": "#D8FFEC",
-   "snackorange_glow": "#D8FFEC",
-   "snackteal_glow": "#D8FFEC",
-   "soda_glow": "#FFEDC0",
-   "sovietsoda_glow": "#FFB795",
-   "space_up_glow": "#FFF4D5",
-   "starkist_glow": "#FFC378",
-   "sustenance_glow": "#F5F6FF",
-   "syndi_glow": "#FF2E29",
-   "theater_glow": "#FFF1C9",
-   "tool_glow": "#FDFF54",
-   "wallmed_glow": "#EBF9FF"
+   "Cola_Machine_glow": [
+    "#FFF5DB",
+    55
+   ],
+   "MagiVend_glow": [
+    "#CFD2FF",
+    158
+   ],
+   "atmosdrobe_glow": [
+    "#FFB90F",
+    27
+   ],
+   "bardrobe_glow": [
+    "#FFFFFF",
+    110
+   ],
+   "boozeomat_glow": [
+    "#8CFFF5",
+    338
+   ],
+   "cargodrobe_glow": [
+    "#FFCA14",
+    48
+   ],
+   "cart_glow": [
+    "#FFC1EF",
+    260
+   ],
+   "chapdrobe_glow": [
+    "#FFFFFF",
+    108
+   ],
+   "cigs_glow": [
+    "#EEFFFE",
+    149
+   ],
+   "citadelplush_glow": [
+    "#FFEEC1",
+    150
+   ],
+   "classicbeats_glow": [
+    "#FFDA94",
+    23
+   ],
+   "clothes_glow": [
+    "#B3FF85",
+    153
+   ],
+   "coffee_glow": [
+    "#FFD1A0",
+    115
+   ],
+   "cola_black_glow": [
+    "#FFF5DB",
+    55
+   ],
+   "curadrobe_glow": [
+    "#FFBF80",
+    3
+   ],
+   "dinnerware_glow": [
+    "#C3EBFF",
+    259
+   ],
+   "disktoaster_glow": [
+    "#67FF84",
+    84
+   ],
+   "engi_glow": [
+    "#FDFFA8",
+    182
+   ],
+   "engidrobe_glow": [
+    "#FFB90F",
+    27
+   ],
+   "engivend_glow": [
+    "#FFE762",
+    87
+   ],
+   "games_glow": [
+    "#FFF3EB",
+    51
+   ],
+   "generic_glow": [
+    "#DEF0FF",
+    150
+   ],
+   "hydrobe_glow": [
+    "#37FF1C",
+    31
+   ],
+   "janidrobe_glow": [
+    "#B80DFF",
+    53
+   ],
+   "liberationstation_glow": [
+    "#FFA8A0",
+    220
+   ],
+   "med_glow": [
+    "#E6F9FF",
+    266
+   ],
+   "modularpc_glow": [
+    "#FFB2C5",
+    232
+   ],
+   "nutri_glow": [
+    "#DFFEFF",
+    149
+   ],
+   "pwr_game_glow": [
+    "#FFF3C2",
+    83
+   ],
+   "red_cola_glow": [
+    "#FFF9E9",
+    90
+   ],
+   "robotics_glow": [
+    "#FEFFDC",
+    220
+   ],
+   "sec_glow": [
+    "#FAFFA9",
+    177
+   ],
+   "secdrobe_glow": [
+    "#FF2B00",
+    145
+   ],
+   "seeds_glow": [
+    "#87FFB6",
+    187
+   ],
+   "shamblers_juice_glow": [
+    "#FF1268",
+    177
+   ],
+   "smartfridge1_glow": [
+    "#A2FFFD",
+    408
+   ],
+   "smartfridge2_glow": [
+    "#A5FFFA",
+    408
+   ],
+   "smartfridge3_glow": [
+    "#A6FFF7",
+    408
+   ],
+   "smartfridge_glow": [
+    "#9CFFFE",
+    408
+   ],
+   "snack_glow": [
+    "#D8FFEC",
+    147
+   ],
+   "snackblue_glow": [
+    "#D8FFEC",
+    147
+   ],
+   "snackgreen_glow": [
+    "#D8FFEC",
+    147
+   ],
+   "snackorange_glow": [
+    "#D8FFEC",
+    147
+   ],
+   "snackteal_glow": [
+    "#D8FFEC",
+    147
+   ],
+   "soda_glow": [
+    "#FFEDC0",
+    35
+   ],
+   "sovietsoda_glow": [
+    "#FFB795",
+    156
+   ],
+   "space_up_glow": [
+    "#FFF4D5",
+    49
+   ],
+   "starkist_glow": [
+    "#FFC378",
+    111
+   ],
+   "sustenance_glow": [
+    "#F5F6FF",
+    145
+   ],
+   "syndi_glow": [
+    "#FF2E29",
+    42
+   ],
+   "theater_glow": [
+    "#FFF1C9",
+    38
+   ],
+   "tool_glow": [
+    "#FDFF54",
+    110
+   ],
+   "wallmed_glow": [
+    "#EBF9FF",
+    180
+   ]
   },
   "glow_hand": [],
   "glow_made": [
