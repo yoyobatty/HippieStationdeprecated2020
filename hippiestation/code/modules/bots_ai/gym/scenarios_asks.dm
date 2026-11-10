@@ -1147,6 +1147,42 @@
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS //on it, then off it once they'd had enough
 
+// Layout letter Z: a sleeper.
+/datum/bot_scenario/give_blood/down
+	name = "medical rounds: somebody out cold and short of blood goes on the drip, not into the sleeper"
+	desc = "Down in Medbay with a third of their blood gone, a sleeper free and a drip free. The sleeper was first and does nothing for blood: they went on losing health to it in there and died."
+	layout = list(
+		"##########",
+		"#B..K..I.#",
+		"#Z...C...#",
+		"##########")
+	var/obj/machinery/sleeper/sleeper
+
+/datum/bot_scenario/give_blood/down/setup()
+	..()
+	sleeper = place("Z", new /obj/machinery/sleeper(first_marker("Z")))
+
+/datum/bot_scenario/give_blood/down/post_spawn()
+	..()
+	patient.adjustOxyLoss(110)
+	patient.updatehealth()
+	patient.update_stat()
+
+/datum/bot_scenario/give_blood/down/make_goal()
+	brain.try_medical_round() //the round's own order is what's being tried
+	return null
+
+/datum/bot_scenario/give_blood/down/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(patient.loc == sleeper)
+		fail_reason = "put them in the sleeper, short of blood"
+		return BOT_GYM_FAIL
+	if(patient.stat == DEAD)
+		fail_reason = "the patient died"
+		return BOT_GYM_FAIL
+	return drip.attached == patient ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /datum/bot_scenario/give_blood/drifts
 	name = "medical rounds: the pale patient is asked to stay put before the doctor goes for the blood"
 	desc = "A patient who'd wander off unless asked. The doctor tells them to stay there, then fetches the pack and the drip. It used to ask only once the needle was in, and patients had walked off, or been put in a sleeper, by the time it got back: 10 of the 11 tries that failed in four batches of shifts."

@@ -1140,6 +1140,9 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	var/list/wanted = list()
 	if(H.health <= H.crit_threshold && H.reagents.get_reagent_amount(/datum/reagent/medicine/epinephrine) < 3)
 		wanted += /datum/reagent/medicine/epinephrine
+	// Short of blood: saline stands in for it at once (five of blood a unit, while it's in them), where a drip takes a minute
+	if(bot_needs_blood(H) && H.reagents.get_reagent_amount(/datum/reagent/medicine/salglu_solution) < 15) //goals/give_blood.dm
+		wanted += /datum/reagent/medicine/salglu_solution
 	if(H.getOxyLoss() >= 20 && H.reagents.get_reagent_amount(/datum/reagent/medicine/dexalin) < 10)
 		wanted += /datum/reagent/medicine/dexalin
 	var/worse = H.getBruteLoss() >= H.getFireLoss() ? /datum/reagent/medicine/bicaridine : /datum/reagent/medicine/kelotane

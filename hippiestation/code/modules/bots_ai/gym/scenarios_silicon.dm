@@ -283,6 +283,19 @@
 	if(had_epinephrine && get_dist(griefer, first_marker("G")) <= 2 && !griefer.pulledby)
 		return BOT_GYM_PASS
 
+/datum/bot_scenario/griefed/borg/medical/saline
+	name = "cyborg: somebody short of blood gets saline from a medical cyborg"
+	desc = "Cut about and a third of their blood gone. Bicaridine closes the cuts and does nothing for the blood, which went on costing them breath: saline stands in for it at once."
+
+/datum/bot_scenario/griefed/borg/medical/saline/grief()
+	..()
+	griefer.blood_volume = 350
+
+/datum/bot_scenario/griefed/borg/medical/saline/check()
+	. = ..()
+	if(. == BOT_GYM_PASS && !griefer.reagents.has_reagent(/datum/reagent/medicine/salglu_solution))
+		return BOT_GYM_PENDING
+
 // Layout letter e: an emitter, pointed down the arena (bot_hazards.dm).
 /datum/bot_scenario/griefed/borg/out_of_beam
 	name = "cyborg: stood where an emitter comes on, it gets out of the line of fire"

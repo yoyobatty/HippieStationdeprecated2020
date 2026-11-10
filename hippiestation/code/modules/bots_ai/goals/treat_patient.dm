@@ -377,6 +377,8 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 		// around hurt.
 		if(assign_goal(new /datum/bot_goal/revive_patient()))
 			return TRUE
+		if(assign_goal(new /datum/bot_goal/give_blood/urgent())) //goals/give_blood.dm: down, in Medbay and short of blood
+			return TRUE
 		if(assign_goal(new /datum/bot_goal/escort_to_sleeper()))
 			return TRUE
 		if(assign_goal(new /datum/bot_goal/operate())) //goals/surgery.dm: the sleepers are full, or there aren't any
@@ -689,7 +691,13 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			best_score = score
 	if(!best)
 		return
-	var/atom/M = bot.find_reachable_healing_machine(best)
+	// Short of blood, with a pack they can take and a drip free: to the drip, not into a sleeper, which does nothing for blood
+	var/atom/M
+	if(bot_needs_blood(best) && bot.blood_pack_for(best)) //goals/give_blood.dm
+		M = bot.free_iv_drip_near(best, 200)
+		if(M && get_dist(best, M) <= 2)
+			return //there already: the drip's next (give_blood/urgent)
+	M = M || bot.find_reachable_healing_machine(best)
 	if(!M)
 		return
 	target = best
@@ -802,6 +810,10 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 		return GOAL_STEP_FAIL
 	if(bot.owner.pulling != patient && !bot.owner.Adjacent(patient))
 		return GOAL_STEP_FAIL //lost them somewhere on the way over
+	if(istype(machine_target, /obj/machinery/iv_drip)) //brought over for blood: set down beside it, and the drip's next
+		bot.owner.stop_pulling()
+		bot_log(bot, "brought [patient] to [machine_target] for blood")
+		return GOAL_STEP_SUCCESS
 	if(istype(machine_target, /obj/machinery/sleeper))
 		var/obj/machinery/sleeper/S = machine_target
 		if(S.occupant)

@@ -48,14 +48,14 @@
 	return best
 
 /// An IV drip in Medbay with nobody on it, the nearest to the patient
-/datum/bot_brain/proc/free_iv_drip_near(atom/A)
+/datum/bot_brain/proc/free_iv_drip_near(atom/A, reach = 25)
 	var/obj/machinery/iv_drip/best
 	var/best_dist
 	for(var/obj/machinery/iv_drip/D as anything in bot_instances_of(/obj/machinery/iv_drip))
 		if(QDELETED(D) || D.attached || D.anchored || D.z != A.z || !isturf(D.loc) || istype(D, /obj/machinery/iv_drip/saline) || !in_my_medbay(D))
 			continue
 		var/dist = get_dist(A, D)
-		if(dist <= 25 && (!best || dist < best_dist))
+		if(dist <= reach && (!best || dist < best_dist))
 			best = D
 			best_dist = dist
 	return best
@@ -68,12 +68,22 @@
 	var/obj/machinery/iv_drip/drip
 	/// Told the patient to stay put (ask_to_stay_put())
 	var/asked_to_wait = FALSE
+	/// Only for somebody who's down (give_blood/urgent)
+	var/only_down = FALSE
+
+/// Somebody out cold in Medbay and short of blood gets the drip before anything else is tried. The sleeper was first, and a sleeper
+/// does nothing for blood: with epinephrine in them and their wounds closed they went on losing a point or two a tick to it, and
+/// four or five a batch of twelve shifts died in Medbay that way (one at 70 brute and 131 suffocation, in the sleeper).
+/datum/bot_goal/give_blood/urgent
+	only_down = TRUE
 
 /datum/bot_goal/give_blood/resolve_target(datum/bot_brain/bot)
 	var/mob/living/carbon/human/patient
 	var/best_dist
 	for(var/mob/living/carbon/human/H in GLOB.alive_mob_list)
 		if(H == bot.owner || H.z != bot.owner.z || !bot_needs_blood(H) || !bot.in_my_medbay(H) || bot_on_a_drip(H))
+			continue
+		if(only_down && H.stat == CONSCIOUS)
 			continue
 		if(bot.gym_run && get_area(H) != get_area(bot.owner))
 			continue
