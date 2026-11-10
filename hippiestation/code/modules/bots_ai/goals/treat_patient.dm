@@ -351,10 +351,13 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 	if(!bot.owner.Adjacent(patient))
 		// They've walked on since. A doctor asks them to hold still and goes after them - a couple of times, not
 		// round and round the station.
-		if(chases >= 3 || patient.stat != CONSCIOUS || patient.z != bot.owner.z || get_dist(bot.owner, patient) > 12)
+		// Somebody down gets walked up to again as well: dragged a step since, or met across the corner of a table, they were given up
+		// on the spot, 31 of the batch's treatments, and nothing in the log to say so.
+		if(chases >= 3 || patient.z != bot.owner.z || get_dist(bot.owner, patient) > 12)
+			bot_log(bot, "couldn't get beside [patient] ([get_dist(bot.owner, patient)] tiles off[chases >= 3 ? ", after three tries" : ""])")
 			return GOAL_STEP_FAIL
 		chases++
-		if(chases == 1 && !bot.gym_scripted && (patient in view(7, bot.owner)))
+		if(chases == 1 && patient.stat == CONSCIOUS && !bot.gym_scripted && (patient in view(7, bot.owner)))
 			bot_say(bot.owner, pick("Hold still a second, [patient.first_name()].", "[patient.first_name()], stay there - let me look at that.", "Wait up, [patient.first_name()]."))
 		patient.bot_brain?.hold_still_for(12 SECONDS)
 		bot.current_step_index = 1
