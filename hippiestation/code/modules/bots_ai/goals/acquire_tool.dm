@@ -48,6 +48,7 @@
 		if(typed)
 			target = typed
 			return
+		bot.ask_where(needed_tool_type) //"anyone seen one?" (bot_knowledge.dm)
 		// Fall through to the generic tiers below if nothing anywhere actually has the
 		// specific type - still better to grab something useful than nothing at all;
 		// ensure_tools will just ask again next time it re-checks.

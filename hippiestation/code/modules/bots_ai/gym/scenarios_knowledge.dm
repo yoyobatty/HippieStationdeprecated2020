@@ -147,3 +147,57 @@
 	if(!dropped)
 		dropped = new(first_marker("q"))
 	return new /datum/bot_goal/take_item(/obj/item/screwdriver)
+
+// Layout letter h: a second bot, who's seen the screwdriver.
+/datum/bot_scenario/asks_around
+	name = "knowledge: knowing of no screwdriver, it asks on the radio and goes where another bot says it saw one"
+	desc = "Nothing kept, nothing in sight. It asks \"anyone seen a screwdriver?\", the one who saw one dropped round the corner says where, and it goes and gets it."
+	time_limit = 40 SECONDS
+	layout = list(
+		"###########",
+		"#B.......h#",
+		"#########.#",
+		"#q........#",
+		"###########")
+	var/obj/item/screwdriver/dropped
+	var/mob/living/carbon/human/helper
+
+/datum/bot_scenario/asks_around/post_spawn()
+	bot.equip_to_slot_or_del(new /obj/item/radio/headset(bot), ITEM_SLOT_EARS)
+	helper = second_bot(first_marker("h"), "Helpful Hal")
+	helper.equip_to_slot_or_del(new /obj/item/radio/headset(helper), ITEM_SLOT_EARS)
+	dropped = new(first_marker("q")) //after the arena became the "map": nobody knows of it but who sees it
+	helper.bot_brain?.note_seen(dropped)
+
+/datum/bot_scenario/asks_around/make_goal()
+	if(goal_attempts > 1)
+		return null
+	var/datum/bot_goal/acquire_item_type/get = new
+	get.item_type = /obj/item/screwdriver
+	get.lawful = TRUE
+	return get
+
+/datum/bot_scenario/asks_around/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (dropped in bot.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/chat/tells_where_to_get
+	name = "knowledge: asked \"anyone seen a crowbar?\", it says where there's one"
+	desc = "Somebody asks the room. A bot that knows of a crowbar, kept or seen, says where; one that knows of a machine that sells them says that instead."
+	layout = list(
+		"##########",
+		"#B.C...c.#",
+		"##########")
+
+/datum/bot_scenario/chat/tells_where_to_get/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "Anyone seen a crowbar?"), 2 SECONDS)
+
+/datum/bot_scenario/chat/tells_where_to_get/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/line in spoken())
+		if(findtext(line, "Bot Gym Arena"))
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING

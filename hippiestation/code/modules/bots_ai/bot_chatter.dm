@@ -192,6 +192,8 @@ GLOBAL_LIST_INIT(bot_you_words, list("you", "ya", "u", "your", "you're", "youre"
 	var/addressed = named || (!radio_freq && is_spoken_to_by(talker))
 	if(!addressed && answer_whereabouts(talker, lower_msg, radio_freq)) //"where's Max?" to everybody, by somebody who can see them
 		return
+	if(answer_where_to_get(talker, lower_msg, radio_freq)) //"anyone seen a crowbar?" (bot_knowledge.dm)
+		return
 	// Somebody dead is news for whoever's in earshot, not just who it's said to: the first one near enough takes it up (bot_talk_more.dm).
 	if(!addressed && !radio_freq && get_dist(owner, talker) <= 7 && bot_is_death_news(lower_msg) && world.time >= GLOB.bot_death_news_taken + 5 SECONDS)
 		GLOB.bot_death_news_taken = world.time

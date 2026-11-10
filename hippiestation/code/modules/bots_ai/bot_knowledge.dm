@@ -59,8 +59,9 @@ GLOBAL_VAR_INIT(bot_knowledge_off, world.params["bot-knowledge"] == "off")
 			return I
 	return null
 
-/datum/bot_brain/proc/note_seen(obj/item/I)
-	var/turf/T = get_turf(I)
+/// It saw I, or was told it's on T (tell_where_seen())
+/datum/bot_brain/proc/note_seen(obj/item/I, turf/T)
+	T = T || get_turf(I)
 	if(!T || I.bot_mapped_turf == T)
 		return // known to everybody already
 	LAZYINITLIST(seen_items)
@@ -209,6 +210,160 @@ GLOBAL_LIST_EMPTY(bot_vendor_sells)
 		return GOAL_STEP_FAIL
 	return bot.try_pickup_target(bought, TRUE) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 
+// ---------------------------------------------------------------------------------------------
+// Asking around
+// ---------------------------------------------------------------------------------------------
+// Nothing it knows of to get: now and then it asks on the radio, and a bot that's seen one says where, as players tell each other.
+// Players ask too ("anyone seen a crowbar?"): a bot that knows of one, kept or seen, or a machine that sells them, tells them.
+
+/// Before it asks after the same thing again
+#define BOT_ASK_WHERE_REST (20 MINUTES)
+/// Between anybody's asks, station-wide, so the common channel isn't all "anyone seen a..."
+#define BOT_ASK_WHERE_QUIET (3 MINUTES)
+
+GLOBAL_VAR_INIT(bot_last_where_ask, 0)
+/// "[REF(asker)] [item type]" -> until when that question has had its answer
+GLOBAL_LIST_EMPTY(bot_where_answered)
+
+/datum/bot_brain
+	/// item type -> when it may ask after one again
+	var/list/asked_where
+
+/datum/bot_brain/proc/has_headset()
+	return istype(owner?.ears, /obj/item/radio/headset)
+
+/// "a crowbar", "an emergency toolbox", "any insulated gloves"
+/proc/bot_some(what)
+	var/static/regex/plural = regex("(gloves|cuffs|cutters|zipties|restraints|goggles|glasses)$")
+	if(plural.Find(what))
+		return "any [what]"
+	return (lowertext(copytext(what, 1, 2)) in list("a", "e", "i", "o", "u")) ? "an [what]" : "a [what]"
+
+/// Where a fetch finds nothing it knows of: "anyone seen a crowbar?" on the radio. A bot that's seen one says where in a few seconds.
+/datum/bot_brain/proc/ask_where(item_type)
+	if(GLOB.bot_knowledge_off || QDELETED(owner) || owner.stat != CONSCIOUS || !has_headset() || gone_loud())
+		return FALSE
+	if(LAZYACCESS(asked_where, item_type) > world.time)
+		return FALSE
+	if(!gym_run && world.time < GLOB.bot_last_where_ask + BOT_ASK_WHERE_QUIET)
+		return FALSE
+	LAZYSET(asked_where, item_type, world.time + BOT_ASK_WHERE_REST)
+	if(!gym_run) //arenas run side by side: one arena's ask doesn't quieten another's
+		GLOB.bot_last_where_ask = world.time
+	var/obj/item/kind = item_type
+	var/what = bot_some(initial(kind.name))
+	var/question = ";" + pick("Anyone seen [what] about?", "Has anybody got [what] going spare?", "Where can I get [what]?")
+	say_after_typing(question)
+	bot_log(src, "asked on the radio after [item_type] (bot_knowledge.dm)")
+	bot_tally("asked where something is")
+	for(var/datum/bot_brain/B as anything in shuffle(GLOB.bot_brains.Copy()))
+		if(B == src || QDELETED(B.owner) || B.owner.stat != CONSCIOUS || B.owner.z != owner.z || !B.has_headset() || B.gym_run != gym_run || B.gone_loud())
+			continue
+		var/list/seen = B.where_seen(item_type)
+		if(seen)
+			addtimer(CALLBACK(B, PROC_REF(tell_where_seen), src, seen[1], seen[2]), bot_typing_time(question) + rand(2, 6) SECONDS) //once it's been asked
+			break
+	return TRUE
+
+/// The last thing of `type` it saw lying about and still knows of (knows_of()), and where: list(item, turf), or null. Answering with
+/// whatever it had ever seen, 235 of 244 asks in twelve shifts got an answer, and three bots could use one: the thing had moved on.
+/datum/bot_brain/proc/where_seen(type)
+	for(var/i in length(seen_items) to 1 step -1)
+		var/datum/weakref/W = seen_items[i]
+		var/obj/item/I = W.resolve()
+		if(istype(I, type) && knows_of(I) && !ismob(bot_outermost_holder(I)))
+			return list(I, seen_items[W])
+	return null
+
+/// The answer to somebody's ask_where(): said on the radio, and the asker knows it from then on
+/datum/bot_brain/proc/tell_where_seen(datum/bot_brain/asker, obj/item/I, turf/T)
+	if(QDELETED(owner) || owner.stat != CONSCIOUS || QDELETED(asker) || QDELETED(I) || !T)
+		return
+	var/where = get_area_name(T, TRUE)
+	var/answer = ";" + pick("Saw one in [where] a while back.", "There was one in [where].", "Try [where], I saw one there.")
+	say_after_typing(answer)
+	addtimer(CALLBACK(asker, PROC_REF(told_where), I, T), bot_typing_time(answer) + 1 SECONDS) //once it's been said
+
+/datum/bot_brain/proc/told_where(obj/item/I, turf/T)
+	if(QDELETED(owner) || owner.stat != CONSCIOUS || QDELETED(I))
+		return
+	note_seen(I, T)
+	bot_log(src, "told there's [I] in [get_area_name(T, TRUE)] (bot_knowledge.dm)")
+	if(state != BOT_STATE_WANDER || current_goal || !knows_of(I))
+		return //busy, or it's moved since: what it was told is no use now, and it can't know that till it gets there
+	var/datum/bot_goal/acquire_item_type/G = new
+	G.item_type = I.type
+	G.lawful = TRUE
+	if(assign_goal(G))
+		say_after_typing(";" + pick("Thanks.", "Cheers.", "Ta, on my way."))
+
+/// Words that start a question about where to get something
+GLOBAL_LIST_INIT(bot_where_to_get_words, list("anyone seen", "anybody seen", "has anyone seen", "where can i get", "where can i find", "where do i get",
+	"where do i find", "where's a", "wheres a", "where is a", "anyone got a", "anyone got an", "anybody got a", "does anyone have", "anyone have a"))
+
+/// The item a question names, or null: the tools people borrow (bot_tool_words, bot_chatter.dm) and a few more
+/proc/bot_item_asked_after(lower_msg)
+	var/static/list/words
+	if(!words)
+		words = GLOB.bot_tool_words.Copy()
+		words["flash"] = /obj/item/assembly/flash/handheld
+		words["first aid kit"] = /obj/item/storage/firstaid
+		words["first-aid kit"] = /obj/item/storage/firstaid
+		words["medkit"] = /obj/item/storage/firstaid
+		words["handcuffs"] = /obj/item/restraints/handcuffs
+		words["cuffs"] = /obj/item/restraints/handcuffs
+		words["gas mask"] = /obj/item/clothing/mask/gas
+		words["toolbelt"] = /obj/item/storage/belt/utility
+		words["tool belt"] = /obj/item/storage/belt/utility
+		words["toolbox"] = /obj/item/storage/toolbox
+		words["oxygen tank"] = /obj/item/tank/internals/oxygen
+		words["jetpack"] = /obj/item/tank/jetpack
+		words["fire axe"] = /obj/item/twohanded/fireaxe
+	for(var/word in words)
+		if(bot_text_word_at(lower_msg, word))
+			return words[word]
+	return null
+
+/// "Anyone seen a crowbar?" from a player: where it knows of one, nearest them, or a machine that sells them. One bot answers.
+/datum/bot_brain/proc/answer_where_to_get(mob/living/talker, lower_msg, radio_freq)
+	if(GLOB.bot_knowledge_off || !bot_text_has_any(lower_msg, GLOB.bot_where_to_get_words))
+		return FALSE
+	var/item_type = bot_item_asked_after(lower_msg)
+	if(!item_type)
+		return FALSE
+	var/key = "[REF(talker)] [item_type]"
+	if(GLOB.bot_where_answered[key] > world.time)
+		return TRUE //somebody's told them
+	var/turf/near = get_turf(talker)
+	if(!near)
+		return FALSE
+	var/atom/best
+	var/best_dist
+	for(var/obj/item/I as anything in bot_instances_of(item_type))
+		var/atom/movable/holder = bot_outermost_holder(I)
+		if(QDELETED(I) || ismob(holder) || holder.z != near.z || !knows_of(I))
+			continue
+		var/dist = get_dist(near, holder)
+		if(!best || dist < best_dist)
+			best = I
+			best_dist = dist
+	for(var/obj/machinery/vending/V as anything in bot_instances_of(/obj/machinery/vending))
+		if(QDELETED(V) || V.z != near.z || istype(V, /obj/machinery/vending/custom) || !bot_vendor_product(V, item_type))
+			continue
+		var/dist = get_dist(near, V) + BOT_VEND_BOTHER
+		if(!best || dist < best_dist)
+			best = V
+			best_dist = dist
+	if(!best)
+		return FALSE //nothing it knows of: somebody else may
+	GLOB.bot_where_answered[key] = world.time + 30 SECONDS
+	var/where = get_area_name(best, TRUE)
+	var/answer = istype(best, /obj/machinery/vending) ? "[best] in [where] sells them." : pick("There's one in [where].", "Try [where].", "[where] had one, last I saw.")
+	say_after_typing(bot_radio_prefix(radio_freq) + answer)
+	return TRUE
+
+#undef BOT_ASK_WHERE_REST
+#undef BOT_ASK_WHERE_QUIET
 #undef BOT_SOLD_OUT_MEMORY
 #undef BOT_VEND_BOTHER
 #undef BOT_SEEN_ITEMS_MAX

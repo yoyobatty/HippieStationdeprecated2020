@@ -65,6 +65,7 @@
 			best_closet_dist = vendors[V]
 	if(!target)
 		bot_log(bot, "knows of no [item_type] to get (bot_knowledge.dm)")
+		bot.ask_where(item_type) //"anyone seen one?" (bot_knowledge.dm)
 
 /// For an everyday fetch (`lawful`): the nearest one this bot can simply walk up to - loose, or in a locker it may
 /// open. The nearest as the crow flies is as often as not on somebody else's desk, behind a door this bot has no
@@ -96,6 +97,7 @@
 		if(bot.can_walk_lawfully_to(nearest))
 			return nearest
 	bot_log(bot, "knows of no [item_type] to get, lawfully (bot_knowledge.dm)")
+	bot.ask_where(item_type) //"anyone seen one?" (bot_knowledge.dm)
 	return null
 
 /// On a shuttle it isn't aboard, which could leave with it before it gets there: Cargo's own aside, which is Cargo's to unload. An assistant
