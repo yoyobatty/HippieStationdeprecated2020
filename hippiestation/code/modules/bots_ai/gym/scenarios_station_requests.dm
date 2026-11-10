@@ -560,6 +560,12 @@
 	var/pack_type
 	var/rode = FALSE
 
+/// A delivery beacon as a map has one, with its codes on it from the start: a beacon made with none reads them in Initialize()
+/// all the same (navbeacon.dm), and that was a "bad index" runtime in every full gym run.
+/obj/machinery/navbeacon/bot_gym_delivery
+	location = "Gym Science"
+	codes_txt = "delivery;dir=2"
+
 /datum/bot_scenario/mule_delivery/setup()
 	arena_area.department = "science"
 	var/static/list/packs = list(/datum/supply_pack/materials/diamond20, /datum/supply_pack/materials/titanium20, /datum/supply_pack/materials/metal50)
@@ -571,10 +577,9 @@
 	mule.auto_return = FALSE
 	mule.home_destination = null
 	beacon_tag = "Gym Science [REF(src)]"
-	beacon = new(first_marker("Z"))
+	beacon = new /obj/machinery/navbeacon/bot_gym_delivery(first_marker("Z"))
+	GLOB.deliverybeacontags -= beacon.location //the one it's mapped with
 	beacon.location = beacon_tag
-	beacon.codes_txt = "delivery;dir=2"
-	beacon.set_codes()
 	GLOB.deliverybeacons |= beacon
 	GLOB.deliverybeacontags |= beacon_tag
 	GLOB.bot_cargo_deliveries[pack_type] = list("science", null)
