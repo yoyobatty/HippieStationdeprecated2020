@@ -550,6 +550,9 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 	if(goal_is_resting(goal))
 		bot_log_verbose(src, "not trying [goal.type] on [goal.target] again just yet - it hasn't worked")
 		return FALSE
+	if(goal.lawful && !goal.never_rests && no_way_in_lately(goal.target)) //bot_movement.dm
+		bot_log_verbose(src, "no way into where [goal.target] is a minute ago - not trying [goal.type] there yet")
+		return FALSE
 	if(goal.exclusive)
 		if(taken_by_another(goal.target))
 			bot_log_verbose(src, "[goal.target] is already being seen to - leaving [goal.type] to them")

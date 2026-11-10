@@ -103,6 +103,37 @@
 	return pursuing_kind == "goal" && current_goal?.lawful
 
 /datum/bot_brain
+	/// Places an everyday errand lately found no way into -> until when errands there are let be (no_way_in_lately()).
+	var/list/no_way_into
+
+/// What a place is, for no_way_into: the room, but not maintenance (one area in pieces, doors between them) nor the room it's in
+/// (a way it can't get across its own room is something in the way, not a locked door). A Bot Gym arena is all one room: the tile.
+/datum/bot_brain/proc/no_way_key(atom/A)
+	var/turf/T = get_turf(A)
+	if(!T)
+		return null
+	if(gym_run)
+		return T
+	var/area/where = T.loc
+	if(istype(where, /area/maintenance) || where == get_area(owner))
+		return null
+	return where
+
+/// An everyday errand found no way there: errands in the same room are let be for two minutes. Turning each one down after a few
+/// tries only rested that one thing, and a room is full of them: a botanist cut off from Hydroponics by bad air went for one tray
+/// after another and gave up 76 times, an engineer outside Engineering 72 times on the supermatter's kit.
+/datum/bot_brain/proc/note_no_way_in(atom/destination)
+	var/key = no_way_key(destination)
+	if(key)
+		LAZYSET(no_way_into, key, world.time + 2 MINUTES)
+
+/datum/bot_brain/proc/no_way_in_lately(atom/A)
+	if(!no_way_into)
+		return FALSE
+	var/key = no_way_key(A)
+	return key && LAZYACCESS(no_way_into, key) > world.time
+
+/datum/bot_brain
 	/// A Bot Gym scenario's stand-in for being somewhere its ID has no business (stray_without_access()).
 	var/gym_strayed = FALSE
 
@@ -347,6 +378,8 @@
 		current_path = null
 		last_path_fail_reason = "no path found in any pass (dist=[get_dist(owner, destination)], area=[get_area_name(destination)])"
 		bot_log(src, "no path to [destination] @ [bot_coord(get_turf(destination))] ([get_area_name(destination)])")
+		if(pursuing_kind == "goal" && pursuit_is_lawful())
+			note_no_way_in(destination)
 		dump_neighbor_diagnostics(get_turf(owner))
 		finish_pursuit(FALSE)
 		return FALSE

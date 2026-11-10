@@ -64,6 +64,38 @@
 		return BOT_GYM_FAIL
 	return (far in bot.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/datum/bot_scenario/no_way_in_lately
+	name = "knowledge: after no way to one thing behind a locked door, it doesn't set off for the next thing beside it"
+	desc = "Four rolling pins on one tile behind a door its ID doesn't open, and an errand for each in turn. It set off for each, found no way there at the end of the route search, and gave it up: four errands, four give-ups. The place is let be for a while after the first."
+	time_limit = 20 SECONDS
+	max_goal_attempts = 4
+	layout = list(
+		"#########",
+		"#B..D..i#",
+		"#########")
+	var/list/pins = list()
+
+/datum/bot_scenario/no_way_in_lately/setup()
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	A.req_access = list(ACCESS_CAPTAIN)
+	for(var/i in 1 to 4)
+		pins += place("i", new /obj/item/kitchen/rollingpin(first_marker("i")))
+
+/datum/bot_scenario/no_way_in_lately/make_goal()
+	return goal_attempts <= length(pins) ? new /datum/bot_goal/take_item/exact(pins[goal_attempts]) : null
+
+/datum/bot_scenario/no_way_in_lately/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/gave_up = 0
+	for(var/line in transcript)
+		if(findtext(line, "giving up on /datum/bot_goal/take_item"))
+			gave_up++
+	if(gave_up > 1)
+		fail_reason = "set off for [gave_up] things behind the same locked door"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 15 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /datum/bot_scenario/knows_what_it_sees
 	name = "knowledge: after a screwdriver it takes the nearer one it can see lying about"
 	desc = "Something dropped since the round began is known to whoever sees it."
