@@ -237,6 +237,49 @@
 		return BOT_GYM_FAIL
 	return (pin in bot.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/// stray_doors() (bot_requests.dm) is for somewhere too big to count as shut in, which no arena is: the scenario asks it for the doors
+/// and makes the call itself, as maybe_ask_to_be_let_out() does, and the rest is the bots'.
+/datum/bot_scenario/strayed_asks_out
+	name = "dept: somebody strayed into maintenance with no access asks to be let out, and walks out through the door held for it"
+	desc = "No maintenance access, and in maintenance: it isn't shut in by the measure of a room, so it never asked, and every errand was given up at the end of the route search. It asks at the door out, and the colleague with access opens it and holds it."
+	job = "Cook"
+	layout = list(
+		"###########",
+		"#B...D...C#",
+		"###########")
+	time_limit = 60 SECONDS
+	var/asked = FALSE
+	var/mob/living/carbon/human/rescuer
+
+/datum/bot_scenario/strayed_asks_out/setup()
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	A.req_access = list(ACCESS_CAPTAIN)
+
+/datum/bot_scenario/strayed_asks_out/post_spawn()
+	brain.gym_strayed = TRUE
+	brain.gym_scripted = FALSE
+	brain.gym_asks_out = TRUE
+	rescuer = second_bot(first_marker("C"), "Res Cuer")
+	var/obj/item/card/id/C = new(rescuer)
+	C.access = list(ACCESS_CAPTAIN)
+	rescuer.equip_to_slot_or_del(C, ITEM_SLOT_ID)
+
+/datum/bot_scenario/strayed_asks_out/make_goal()
+	return null
+
+/datum/bot_scenario/strayed_asks_out/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/turf/door = first_marker("D")
+	if(!asked && world.time > start_time + 2 SECONDS)
+		asked = TRUE
+		var/list/doors = brain.stray_doors()
+		if(!length(doors))
+			fail_reason = "found no door to ask at"
+			return BOT_GYM_FAIL
+		brain.call_for(/datum/bot_request_kind/let_out, "I'm stuck in here with no maintenance access - could somebody let me out?", doors)
+	return (isturf(bot.loc) && bot.x > door.x) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /datum/bot_scenario/drop_off
 	name = "collab: something left on another department's counter"
 	desc = "A defibrillator for Medbay, carried over and left on the table, with a word on the radio."

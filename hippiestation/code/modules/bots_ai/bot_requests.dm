@@ -759,6 +759,49 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 	if(length(ways_out)) //and not the door to Brig Control, which only gets it further in
 		return ways_out
 
+/// In maintenance with no maintenance access (stray_without_access(), bot_movement.dm), where there's room enough to walk about that it
+/// isn't shut in by the measure above: the doors near it out of there that it can walk up to and not open. A greytider hacks its way out
+/// (pursuit_is_lawful()); anybody else got in behind somebody and was there for the rest of the shift, every errand given up at the
+/// end of the route search. While it waits it counts as shut in, so the door held open for it is one it walks through.
+/datum/bot_brain/proc/stray_doors()
+	. = list()
+	if(greytider || !stray_without_access())
+		return
+	var/turf/here = get_turf(owner)
+	var/list/near = list()
+	for(var/obj/machinery/door/airlock/D as anything in bot_instances_of(/obj/machinery/door/airlock))
+		if(QDELETED(D) || D.z != here.z || !D.density || D.welded || D.locked || !D.hasPower() || D.allowed(owner) || get_dist(here, D) > 15)
+			continue
+		if(gym_run && get_area(D) != get_area(owner))
+			continue
+		near[D] = get_dist(here, D)
+	var/list/inside = list()
+	inside[here] = TRUE
+	for(var/tries in 1 to 3) //nearest first, a route search each
+		var/obj/machinery/door/airlock/D
+		for(var/obj/machinery/door/airlock/A as anything in near)
+			if(!D || near[A] < near[D])
+				D = A
+		if(!D)
+			break
+		near -= D
+		for(var/d in GLOB.cardinals)
+			var/turf/mine = get_step(D, d)
+			var/turf/out = get_step(D, turn(d, 180))
+			if(!isopenturf(mine) || mine.density || !isopenturf(out) || out.density)
+				continue
+			if(!gym_run && (istype(out.loc, /area/maintenance) || !istype(mine.loc, /area/maintenance)))
+				continue //the way out of maintenance, not further in
+			if(can_walk_lawfully_to(mine))
+				. += D
+				inside[mine] = TRUE
+				break
+	if(length(.))
+		shut_in_result = TRUE
+		shut_in_region = inside
+		shut_in_checked_at = world.time
+		shut_in_wide_until = world.time + 70 SECONDS
+
 /// Shut in, with a door somebody else could open: asks to be let out. Now and then - not for the first minute, in
 /// case whoever it followed in comes back out.
 /datum/bot_brain/proc/maybe_ask_to_be_let_out()
@@ -771,6 +814,11 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 	if(is_shut_in(TRUE) && shove_aside_what_shuts_me_in())
 		return TRUE
 	var/list/doors = doors_shutting_me_in()
+	if(!length(doors))
+		doors = stray_doors()
+		if(length(doors))
+			var/stuck_in = get_area_name(owner, TRUE)
+			return call_for(/datum/bot_request_kind/let_out, pick("I'm stuck in [stuck_in] with no maintenance access - could somebody let me out?", "Can somebody open up for me? I'm in [stuck_in] and my ID won't get me out.", "Anyone near [stuck_in]? I've no access to get out of here."), doors)
 	if(!length(doors))
 		return FALSE
 	var/where = get_area_name(owner, TRUE)
