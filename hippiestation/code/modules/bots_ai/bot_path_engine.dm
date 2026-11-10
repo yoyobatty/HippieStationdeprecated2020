@@ -338,7 +338,7 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 								exits |= dir
 				if(kind & 1) // nobody sat on it either: the strict search's answer would be different then (below)
 					for(var/mob/M in T)
-						if(M.buckled)
+						if(M.buckled || istype(M, /mob/living/simple_animal/bot/mulebot))
 							kind = PATH_PICTURE_VOLATILE
 							break
 			else
@@ -383,6 +383,11 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 						if(L.buckled) //bot_turf_has_seated_mob()
 							bits = 15
 							kind = (kind & 1) ? PATH_PICTURE_VOLATILE : kind
+						else if(istype(L, /mob/living/simple_animal/bot/mulebot)) // bot_parked_mule(): whether it's parked can change with nothing heard of it
+							var/mob/living/simple_animal/bot/mulebot/mule = L
+							kind = (kind & 1) ? PATH_PICTURE_VOLATILE : kind
+							if(!mule.on || mule.mode == BOT_IDLE)
+								bits = 15
 			bits |= exits << 4
 			if(weighted && (bits & 15) != 15)
 				bits += (penalties ? penalty : bot_turf_penalty(T)) * 256

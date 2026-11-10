@@ -290,3 +290,38 @@
 		fail_reason = "went into the room with no air for it"
 		return BOT_GYM_FAIL
 	return (other in carried) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/round_parked_mule
+	name = "walking: a parked MULE in the way is walked round"
+	desc = "Something to fetch straight down the room, a MULE parked on the line to it, and open floor beside. Nobody swaps places with a MULE or pushes one, and the route was planned through it all the same: three walks into it, the errand given up, and the next one planned the same way."
+	job = "Assistant"
+	time_limit = 30 SECONDS
+	layout = list(
+		"#########",
+		"#B..M..s#",
+		"#.......#",
+		"#########")
+	var/obj/item/screwdriver/wanted
+	var/mob/living/simple_animal/bot/mulebot/mule
+
+/datum/bot_scenario/round_parked_mule/setup()
+	wanted = new(first_marker("s"))
+	mule = place("M", new /mob/living/simple_animal/bot/mulebot(first_marker("M")))
+	mule.auto_return = FALSE
+	mule.home_destination = null
+
+/datum/bot_scenario/round_parked_mule/make_goal()
+	if(goal_attempts > 2)
+		return null
+	var/datum/bot_goal/acquire_item_type/get = new
+	get.item_type = /obj/item/screwdriver
+	get.lawful = TRUE
+	return get
+
+/datum/bot_scenario/round_parked_mule/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("stuck heading to"))
+		fail_reason = "walked into the MULE"
+		return BOT_GYM_FAIL
+	return (wanted in bot.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING

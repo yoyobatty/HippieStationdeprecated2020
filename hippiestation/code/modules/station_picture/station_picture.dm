@@ -73,7 +73,7 @@ GLOBAL_LIST_INIT(station_picture_inert, station_picture_inert_types())
 		return !GLOB.station_picture_inert[AM.type] || AM.density
 	if(ismob(AM))
 		var/mob/M = AM
-		return !!M.buckled
+		return M.buckled || istype(M, /mob/living/simple_animal/bot/mulebot) // a parked MULE fills its tile (bot_parked_mule())
 	return FALSE
 
 /proc/station_picture_changed(turf/T)
