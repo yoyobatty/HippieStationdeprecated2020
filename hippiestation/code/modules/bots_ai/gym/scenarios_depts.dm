@@ -210,6 +210,33 @@
 		return BOT_GYM_FAIL
 	return istype(bot.gloves, /obj/item/clothing/gloves/color/yellow) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/datum/bot_scenario/raid/strayed_gets_out
+	name = "dept: a greytider strayed in somewhere it has no access hacks its way back out for an everyday errand"
+	desc = "In maintenance it hacked its way into, with no access, and an ordinary errand on the far side of a door its ID doesn't open. It gave the errand up at the end of the route search, and every errand after it for the rest of the shift."
+	layout = list(
+		"#########",
+		"#B..D..i#",
+		"#########")
+	time_limit = 40 SECONDS
+	max_goal_attempts = 1
+	var/obj/item/kitchen/rollingpin/pin
+
+/datum/bot_scenario/raid/strayed_gets_out/setup()
+	..()
+	pin = place("i", new /obj/item/kitchen/rollingpin(first_marker("i")))
+
+/datum/bot_scenario/raid/strayed_gets_out/post_spawn()
+	..()
+	brain.gym_strayed = TRUE
+
+/datum/bot_scenario/raid/strayed_gets_out/make_goal()
+	return new /datum/bot_goal/take_item/exact(pin)
+
+/datum/bot_scenario/raid/strayed_gets_out/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (pin in bot.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /datum/bot_scenario/drop_off
 	name = "collab: something left on another department's counter"
 	desc = "A defibrillator for Medbay, carried over and left on the table, with a word on the radio."

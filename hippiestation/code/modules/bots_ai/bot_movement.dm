@@ -94,9 +94,26 @@
 /// Whether the walk in progress keeps to where the bot is allowed to go: a stroll, keeping up with someone it's
 /// tagging along with (bot_chatter.dm), or everyday work (bot_goal.lawful).
 /datum/bot_brain/proc/pursuit_is_lawful()
+	// A greytider that hacked its way somewhere it has no access to gets back out the same way. One cook got into maintenance on a raid
+	// and spent the rest of the shift in there, giving up 24 dishes at the end of the route search for want of a door its ID opened.
+	if(greytider && stray_without_access())
+		return FALSE
 	if(pursuing_kind == "wander" || pursuing_kind == "follow" || pursuing_kind == "item" || pursuing_kind == "locker") //a scientist once hacked the kitchen door for a bottle of enzyme
 		return TRUE
 	return pursuing_kind == "goal" && current_goal?.lawful
+
+/datum/bot_brain
+	/// A Bot Gym scenario's stand-in for being somewhere its ID has no business (stray_without_access()).
+	var/gym_strayed = FALSE
+
+/// Somewhere its ID doesn't let it in or out of: maintenance, with no maintenance access.
+/datum/bot_brain/proc/stray_without_access()
+	if(gym_run)
+		return gym_strayed
+	if(!istype(get_area(owner), /area/maintenance))
+		return FALSE
+	var/obj/item/card/id/card = route_card()
+	return !(ACCESS_MAINT_TUNNELS in card?.access)
 
 // precomputed_path: an already-verified route (acquire_tool's is_reachable(),
 // goals/acquire_tool.dm, is the current source) to use AS-IS instead of running a
