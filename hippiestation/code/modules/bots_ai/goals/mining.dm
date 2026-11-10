@@ -106,13 +106,14 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 	var/obj/item/clothing/mask/mask = owner.wear_mask
 	return istype(mask) && (mask.clothing_flags & MASKINTERNALS) && eva_tank()
 
-/// How far this miner's scanner reads, or 0 without one.
+/// How far this miner's scanner reads, or 0 without one: the best of what it's carrying. The locker's automatic one reads four
+/// tiles, and the one the vendor sells for points (goals/mining_points.dm) the whole screen.
 /datum/bot_brain/proc/mining_scan_range()
 	if(find_carried_tool(/obj/item/mining_scanner))
 		return BOT_MINER_MANUAL_SCANNER_RANGE
-	if(find_carried_tool(/obj/item/t_scanner/adv_mining_scanner))
-		return BOT_MINER_SCANNER_RANGE
-	return 0
+	. = 0
+	for(var/obj/item/t_scanner/adv_mining_scanner/S in owner.GetAllContents(/obj/item/t_scanner/adv_mining_scanner))
+		. = max(., S.range)
 
 // ---------------------------------------------------------------------------------------------
 // The round
@@ -140,6 +141,8 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 		return FALSE
 	if(bot.ore_in_satchel())
 		return bot.assign_goal(new /datum/bot_goal/deliver_ore())
+	if(bot.try_mining_points()) //goals/mining_points.dm: the voucher, the points in the machine, the vendor
+		return TRUE
 	if(bot_going_home_soon())
 		return FALSE //nobody sets off for the mine with the shuttle on its way
 	if(world.time < bot.mining_gear_blocked_until)

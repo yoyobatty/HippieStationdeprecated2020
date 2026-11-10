@@ -853,3 +853,63 @@
 /datum/bot_scenario/duty/experiment_ores/on_timeout()
 	fail_reason = "scanned [length(survey?.done)] of 5"
 	return BOT_GYM_FAIL
+
+// ---------------------------------------------------------------------------------------------
+// Mining points (goals/mining_points.dm). Layout letter R: the ore redemption machine. M: the equipment vendor.
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/mining_points
+	name = "miner cashes its voucher, claims the points in the machine and spends them at the vendor"
+	desc = "A miner back from a trip with its voucher still in its bag and 1,500 points waiting in the redemption machine. The voucher goes to the vendor for the capsule and webbing, the card into the machine for the points, then into the vendor for the scanner that reads the whole screen and a first-aid kit, and back on its chest each time. Miners never went near either screen."
+	job = "Shaft Miner"
+	time_limit = 90 SECONDS
+	max_goal_attempts = 8
+	kit_backpack = list(/obj/item/mining_voucher)
+	layout = list(
+		"###########",
+		"#B...M...R#",
+		"#.........#",
+		"###########")
+	var/obj/item/card/id/card
+	var/obj/machinery/mineral/ore_redemption/machine
+
+/datum/bot_scenario/mining_points/build_tile(turf/T, char)
+	switch(char)
+		if("R")
+			machine = place(char, new /obj/machinery/mineral/ore_redemption(T))
+		if("M")
+			place(char, new /obj/machinery/mineral/equipment_vendor(T))
+		else
+			return ..()
+
+/datum/bot_scenario/mining_points/post_spawn()
+	card = give_job_id()
+	machine.points = 1500
+
+/// The round a miner does between trips, as the mining duty asks it on the station (the gym's level isn't one)
+/datum/bot_scenario/mining_points/issue_goal()
+	goal_attempts++
+	if(!brain.try_mining_points())
+		log_line("nothing to do about points (attempt [goal_attempts]/[max_goal_attempts])")
+
+/datum/bot_scenario/mining_points/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(card))
+		fail_reason = "its card's gone"
+		return BOT_GYM_FAIL
+	if(card.mining_points != 100 || machine.points) //1,500 less the scanner (800) and the kit (600)
+		return BOT_GYM_PENDING
+	if(bot.get_idcard(FALSE) != card || !bot.wear_id)
+		fail_reason = "it isn't wearing its card"
+		return BOT_GYM_FAIL
+	if(brain.find_carried_tool(/obj/item/mining_voucher))
+		fail_reason = "the voucher's still in its bag"
+		return BOT_GYM_FAIL
+	if(!brain.find_carried_tool(/obj/item/storage/belt/mining/vendor) || !brain.find_carried_tool(/obj/item/storage/firstaid/brute))
+		fail_reason = "it left what it got at the vendor"
+		return BOT_GYM_FAIL
+	if(brain.mining_scan_range() < 7)
+		fail_reason = "its scanner still reads [brain.mining_scan_range()] tiles"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
