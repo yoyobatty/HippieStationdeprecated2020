@@ -20,6 +20,8 @@
 		place("u", new /obj/machinery/microwave(T))
 	for(var/turf/T in markers["p"])
 		place("p", new /obj/machinery/processor(T))
+	for(var/turf/T in markers["y"])
+		place("y", new /obj/machinery/deepfryer(T))
 	for(var/turf/T in markers["e"])
 		place("e", new /obj/item/storage/fancy/egg_box(T))
 	for(var/turf/T in markers["k"])
@@ -76,3 +78,24 @@
 		"#B........#",
 		"###########")
 	dish_type = /obj/item/reagent_containers/food/snacks/meat/steak
+
+// Layout letter y: a deep fryer.
+/datum/bot_scenario/duty/cook/fried_potatoes
+	name = "cook fries potatoes in the deep fryer, one at a time, and takes each out when it dings"
+	desc = "Potatoes in the smartfridge and a deep fryer, which no cook went near. One potato in, a wait for the ding, out with an empty hand before it burns, the next one in, and the lot set out on the counter."
+	time_limit = 300 SECONDS
+	layout = list(
+		"###########",
+		"#R.y...t..#",
+		"#B........#",
+		"###########")
+	dish_type = /obj/item/reagent_containers/food/snacks/deepfryholder
+	fridge_stock = list(/obj/item/reagent_containers/food/snacks/grown/potato, /obj/item/reagent_containers/food/snacks/grown/potato, /obj/item/reagent_containers/food/snacks/grown/potato)
+
+/datum/bot_scenario/duty/cook/fried_potatoes/check()
+	for(var/turf/T in markers["t"])
+		for(var/obj/item/reagent_containers/food/snacks/deepfryholder/fried in T)
+			if(findtext(fried.name, "physical manifestation")) //what a minute in the oil comes out as (deepfryholder/fry())
+				fail_reason = "left one in the oil until it was past eating"
+				return BOT_GYM_FAIL
+	return ..()

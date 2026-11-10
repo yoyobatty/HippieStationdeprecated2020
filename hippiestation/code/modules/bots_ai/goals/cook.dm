@@ -2,14 +2,17 @@
 // helps themselves (goals/eat_and_drink.dm).
 //
 // The menu is the food a new cook starts on - one kind of ingredient, one machine, one button:
-// eggs, meat or corn in the microwave; potatoes or carrots through the food processor. Produce comes
-// out of the smartfridge the botanists stock, eggs and meat out of the kitchen's own fridges.
+// eggs, meat or corn in the microwave; potatoes or carrots through the food processor; potatoes in the
+// deep fryer. Produce comes out of the smartfridge the botanists stock, eggs and meat out of the
+// kitchen's own fridges.
 //
 // One batch is one goal: gather a few of the ingredient (each fetch its own small errand, like the
 // botanist's supplies), carry them to the machine, put them in one at a time, start it, wait, take
 // what comes out over to the counter and set it down. All with the player's clicks: food on the
 // microwave puts it in (microwave/attackby()) and Alt-click starts it; food on the processor puts it
-// in and an empty-handed click runs it (processor/interact()); a dish on a table sets it down.
+// in and an empty-handed click runs it (processor/interact()); a dish on a table sets it down. The fryer
+// takes one thing at a time: in with a click, out with an empty hand once it dings (deepfryer/attackby(),
+// attack_hand()), and left twice as long it's burnt.
 
 /// Ingredients in one batch.
 #define BOT_COOK_BATCH 3
@@ -47,6 +50,14 @@
 	name = "carrot fries"
 	ingredient = /obj/item/reagent_containers/food/snacks/grown/carrot
 	machine_type = /obj/machinery/processor
+
+/datum/bot_recipe/fried_potatoes
+	name = "fried potatoes"
+	ingredient = /obj/item/reagent_containers/food/snacks/grown/potato
+	machine_type = /obj/machinery/deepfryer
+
+/// Cooking oil a fryer wants in it to be worth starting a batch: one thing fried takes about five units.
+#define BOT_FRYER_OIL 15
 
 GLOBAL_LIST_INIT(bot_cook_menu, init_bot_cook_menu())
 
@@ -99,6 +110,10 @@ GLOBAL_LIST_INIT(bot_cook_menu, init_bot_cook_menu())
 			var/obj/machinery/processor/P = M
 			if(P.processing || istype(P, /obj/machinery/processor/slime))
 				continue
+		if(istype(M, /obj/machinery/deepfryer))
+			var/obj/machinery/deepfryer/F = M
+			if(F.frying || F.reagents?.get_reagent_amount(/datum/reagent/consumable/cooking_oil) < BOT_FRYER_OIL)
+				continue //somebody's frying in it, or it's all but out of oil
 		var/dist = get_dist(owner, M)
 		if(!best || dist < best_dist)
 			best = M
@@ -356,10 +371,47 @@ GLOBAL_LIST_INIT(bot_cook_menu, init_bot_cook_menu())
 	var/obj/machinery/processor/P = machine
 	return istype(P) && P.processing
 
+/// The fryer: one in, a wait for the ding, out with an empty hand and into the bag, and the next one in.
+/datum/bot_step/paced/run_kitchen_machine/proc/fry_click(datum/bot_brain/bot, datum/bot_goal/cook_dish/G)
+	var/obj/machinery/deepfryer/fryer = machine
+	if(fryer.frying)
+		if(!fryer.frying_fried)
+			if(++waited > 150)
+				return FALSE
+			wait_for = 10
+			if(prob(30))
+				bot.idle_fidget()
+			return TRUE
+		var/obj/item/done = fryer.frying
+		bot.make_hand_free() //goals/take_item.dm: it comes out into the hand
+		bot.human_pause(fryer)
+		if(QDELETED(fryer) || !bot.owner.Adjacent(fryer) || fryer.frying != done)
+			return FALSE
+		bot.use_atom(fryer)
+		if(fryer.frying || QDELETED(done))
+			return FALSE
+		if(!bot.is_carried(done) && !bot.take_in_hand(done))
+			return FALSE
+		LAZYADD(G.dishes, done)
+		bot.put_away(done, allow_equip = FALSE)
+		waited = 0
+		return TRUE
+	var/list/ingredients = bot.carried_ingredients(G.recipe.ingredient)
+	if(!length(ingredients) || loaded >= BOT_COOK_BATCH)
+		return FALSE //the batch is done
+	if(!loaded)
+		bot_log(bot, "frying [G.recipe.name] in [fryer]")
+	if(!bot.use_tool_on(ingredients[1], fryer) || !fryer.frying)
+		return FALSE //it wouldn't go in
+	loaded++
+	return TRUE
+
 /datum/bot_step/paced/run_kitchen_machine/do_click(datum/bot_brain/bot)
 	var/datum/bot_goal/cook_dish/G = bot.current_goal
 	if(!istype(G) || QDELETED(machine) || !bot.owner.Adjacent(machine))
 		return FALSE
+	if(istype(machine, /obj/machinery/deepfryer))
+		return fry_click(bot, G)
 	if(!started)
 		var/list/ingredients = bot.carried_ingredients(G.recipe.ingredient)
 		if(length(ingredients) && loaded < BOT_COOK_BATCH)
@@ -438,5 +490,6 @@ GLOBAL_LIST_INIT(bot_cook_menu, init_bot_cook_menu())
 	return served ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 
 #undef BOT_COOK_BATCH
+#undef BOT_FRYER_OIL
 #undef BOT_COOK_COUNTER_TARGET
 #undef BOT_KITCHEN_REACH
