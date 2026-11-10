@@ -1053,6 +1053,8 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 		return
 	if(follow_ref && follow_leader())
 		return
+	if(carry_ref && carry_on())
+		return
 	if(wandering && world.time >= next_job_look)
 		next_job_look = world.time + BOT_SILICON_TICK
 		if(job())
@@ -1104,25 +1106,156 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 		patient_ref = null
 		best = null
 	for(var/mob/living/carbon/human/H in (best ? list() : GLOB.alive_mob_list))
-		if(H.z != owner.z || H.stat == DEAD || max(H.getBruteLoss(), H.getFireLoss()) < BOT_BORG_HURT || skipping(H))
+		var/in_crit = H.health <= H.crit_threshold
+		if(H.z != owner.z || H.stat == DEAD || (!in_crit && max(H.getBruteLoss(), H.getFireLoss()) < BOT_BORG_HURT) || skipping(H))
 			continue
 		var/dist = get_dist(owner, H)
-		if(dist <= BOT_BORG_RANGE && (!best || dist < best_dist))
+		if(dist > BOT_BORG_RANGE)
+			continue
+		if(in_crit)
+			dist -= BOT_BORG_RANGE //whoever's dying first
+		if(!best || dist < best_dist)
 			best = H
 			best_dist = dist
 	if(!best)
 		return FALSE
 	if(owner.Adjacent(best))
 		var/obj/item/reagent_containers/borghypo/hypo = tool(/obj/item/reagent_containers/borghypo)
-		var/datum/reagent/medicine = best.getBruteLoss() >= best.getFireLoss() ? /datum/reagent/medicine/bicaridine : /datum/reagent/medicine/kelotane
-		if(!hypo || best.reagents.get_reagent_amount(medicine) >= 10) //a dose is working: give it time
+		var/medicine = hypo ? medicine_for(best, hypo) : null
+		if(medicine)
+			hypo.mode = hypo.reagent_ids.Find(medicine) //what its menu does
+			use_on(hypo, best)
 			return TRUE
-		var/i = hypo.reagent_ids.Find(medicine)
-		if(i)
-			hypo.mode = i //what its menu does
-		use_on(hypo, best)
+		// Their doses are working. Somebody in crit isn't left where they fell for that: Medbay, where the doctors and sleepers are
+		if(best.health <= best.crit_threshold)
+			start_carrying(best)
 		return TRUE
 	return go_to(best)
+
+/// What somebody needs next out of the hypospray, if it has any of it left: epinephrine for anybody in crit (it stops the
+/// suffocating, which is what they die of), dexalin for what suffocating they've done, then bicaridine or kelotane for whichever
+/// of bruises and burns is worse. It used to be the last of those and nothing else: a cyborg stood over an engineer in crit with
+/// burns for twenty minutes giving kelotane every two seconds, and they suffocated.
+/datum/bot_silicon/borg/proc/medicine_for(mob/living/carbon/human/H, obj/item/reagent_containers/borghypo/hypo)
+	var/list/wanted = list()
+	if(H.health <= H.crit_threshold && H.reagents.get_reagent_amount(/datum/reagent/medicine/epinephrine) < 3)
+		wanted += /datum/reagent/medicine/epinephrine
+	if(H.getOxyLoss() >= 20 && H.reagents.get_reagent_amount(/datum/reagent/medicine/dexalin) < 10)
+		wanted += /datum/reagent/medicine/dexalin
+	var/worse = H.getBruteLoss() >= H.getFireLoss() ? /datum/reagent/medicine/bicaridine : /datum/reagent/medicine/kelotane
+	if(max(H.getBruteLoss(), H.getFireLoss()) >= 5 && H.reagents.get_reagent_amount(worse) < 10) //past ten, a dose is working: give it time
+		wanted += worse
+	for(var/medicine in wanted)
+		var/i = hypo.reagent_ids.Find(medicine)
+		if(!i)
+			continue
+		var/datum/reagents/store = hypo.reagent_list[i]
+		if(store.total_volume >= 1) //it makes more as it goes, and an empty one injects nothing
+			return medicine
+	return null
+
+// A medical cyborg takes somebody in crit to Medbay. Its doors all open for it, which is more than a doctor can say: the three
+// engineers shot in Box's laser room had a cyborg at their side within a minute and the doctors never got in.
+
+/datum/bot_silicon/borg
+	/// Somebody in crit it's taking to Medbay, where to, and until when.
+	var/datum/weakref/carry_ref
+	var/turf/carry_to
+	var/carry_until = 0
+	/// Not again before this, after a try that got nowhere.
+	var/next_carry = 0
+	/// The Bot Gym's stand-in for Medbay.
+	var/turf/gym_medbay_spot
+
+/// The nearest bit of Medbay's floor it has a way to.
+/datum/bot_silicon/borg/proc/medbay_spot()
+	if(gym_medbay_spot)
+		return gym_medbay_spot
+	for(var/area_type in list(/area/medical/medbay/lobby, /area/medical/medbay/central))
+		var/area/A = GLOB.areas_by_type[area_type]
+		if(!A)
+			continue
+		var/list/spots = list()
+		for(var/turf/open/floor/T in A)
+			if(T.z == owner.z && !is_blocked_turf(T, TRUE) && !(locate(/obj/machinery/door) in T))
+				spots[T] = get_dist(owner, T)
+		for(var/tries in 1 to 3)
+			var/turf/nearest
+			for(var/turf/T as anything in spots)
+				if(!nearest || spots[T] < spots[nearest])
+					nearest = T
+			if(!nearest)
+				break
+			spots -= nearest
+			if(length(get_path_to(owner, nearest, /turf/proc/Distance_cardinal, 0, 400, 0, adjacent = /turf/proc/bot_borg_reachable, id = route_card)))
+				return nearest
+	return null
+
+/datum/bot_silicon/borg/proc/start_carrying(mob/living/carbon/human/H)
+	if(world.time < next_carry || bot_in_medbay(H) || H.buckled || !isturf(H.loc) || (H.pulledby && H.pulledby != owner)) //goals/security_medevac.dm
+		return FALSE
+	var/turf/spot = medbay_spot()
+	if(!spot)
+		next_carry = world.time + 2 MINUTES
+		return FALSE
+	carry_ref = WEAKREF(H)
+	carry_to = spot
+	carry_until = world.time + 3 MINUTES
+	owner.start_pulling(H)
+	note("taking [H] to Medbay from [get_area_name(H, TRUE)]")
+	return TRUE
+
+/datum/bot_silicon/borg/proc/stop_carrying(why)
+	var/mob/living/carbon/human/H = carry_ref?.resolve()
+	if(H && owner.pulling == H)
+		owner.stop_pulling()
+	if(why)
+		note("not taking [H || "them"] any further: [why]")
+		next_carry = world.time + 2 MINUTES
+	carry_ref = null
+	carry_to = null
+	route = null
+	heading_for = null
+	return FALSE
+
+/// On the way to Medbay with somebody: hold of them kept, the epinephrine kept up, and set down when it's there.
+/datum/bot_silicon/borg/proc/carry_on()
+	var/mob/living/carbon/human/H = carry_ref.resolve()
+	if(!H || !carry_to || H.z != owner.z)
+		return stop_carrying("lost them")
+	if(H.stat == DEAD)
+		return stop_carrying("they've died")
+	if(H.stat == CONSCIOUS)
+		return stop_carrying() //come round: they can walk
+	if(world.time > carry_until)
+		return stop_carrying("it's taking too long")
+	if(owner.pulling != H)
+		if(!owner.Adjacent(H) || (H.pulledby && H.pulledby != owner))
+			return stop_carrying("lost hold of them")
+		owner.start_pulling(H)
+	if(get_dist(owner, carry_to) <= 1 || bot_in_medbay(H))
+		owner.stop_pulling()
+		note("brought [H] to Medbay")
+		bot_tally("casualties brought to Medbay")
+		say_it(";Medbay, I've brought [H.first_name()] in. [pick("They're in a bad way.", "They need a doctor now.", "Somebody see to them.")]")
+		stop_carrying()
+		return TRUE
+	var/obj/item/reagent_containers/borghypo/hypo = tool(/obj/item/reagent_containers/borghypo)
+	if(hypo && H.reagents.get_reagent_amount(/datum/reagent/medicine/epinephrine) < 2 && medicine_for(H, hypo) == /datum/reagent/medicine/epinephrine)
+		hypo.mode = hypo.reagent_ids.Find(/datum/reagent/medicine/epinephrine)
+		use_on(hypo, H)
+		return TRUE
+	if(length(route) && heading_for == carry_to && keep_walking())
+		return TRUE
+	if(get_dist(owner, carry_to) <= 1)
+		return TRUE //there: set down on the next look
+	route = get_path_to(owner, carry_to, /turf/proc/Distance_cardinal, 0, 400, 0, adjacent = /turf/proc/bot_borg_reachable, id = route_card)
+	if(!length(route))
+		return stop_carrying("no way to Medbay from here")
+	heading_for = carry_to
+	give_up_at = world.time + 2 MINUTES
+	keep_walking()
+	return TRUE
 
 /datum/bot_silicon/borg/proc/janitor_job()
 	var/obj/effect/decal/cleanable/best

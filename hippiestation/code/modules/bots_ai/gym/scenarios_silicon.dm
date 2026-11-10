@@ -248,6 +248,41 @@
 	if(borg.x > griefer.x - 4 && (griefer.reagents.has_reagent(/datum/reagent/medicine/bicaridine) || bot.reagents.has_reagent(/datum/reagent/medicine/bicaridine)))
 		return BOT_GYM_PASS
 
+// Layout letter G: where Medbay is, for this.
+/datum/bot_scenario/griefed/borg/crit
+	name = "cyborg: somebody in crit gets epinephrine first, and is taken to Medbay"
+	desc = "Somebody burned into crit and suffocating. A medical cyborg gave them kelotane and nothing else, every two seconds for twenty minutes, stood over them where they fell, until they'd suffocated. It gives the epinephrine that stops that first, and takes them to Medbay."
+	borg_module = /obj/item/robot_module/medical
+	time_limit = 90 SECONDS
+	layout = list(
+		"###############",
+		"#R..C........G#",
+		"#B............#",
+		"###############")
+	var/had_epinephrine = FALSE
+
+/datum/bot_scenario/griefed/borg/crit/post_spawn()
+	. = ..()
+	var/datum/bot_silicon/borg/mind = borg.bot_silicon
+	mind.vars["gym_medbay_spot"] = first_marker("G") //by name: the build before this has no such var
+
+/datum/bot_scenario/griefed/borg/crit/grief()
+	griefer.adjustFireLoss(135)
+	griefer.updatehealth()
+	griefer.update_stat()
+
+/datum/bot_scenario/griefed/borg/crit/check()
+	. = ..()
+	if(. != BOT_GYM_PENDING)
+		return
+	if(griefer.stat == DEAD)
+		fail_reason = had_epinephrine ? "the patient died on the way" : "the patient died without any epinephrine"
+		return BOT_GYM_FAIL
+	if(griefer.reagents.has_reagent(/datum/reagent/medicine/epinephrine))
+		had_epinephrine = TRUE
+	if(had_epinephrine && get_dist(griefer, first_marker("G")) <= 2 && !griefer.pulledby)
+		return BOT_GYM_PASS
+
 // Layout letter e: an emitter, pointed down the arena (bot_hazards.dm).
 /datum/bot_scenario/griefed/borg/out_of_beam
 	name = "cyborg: stood where an emitter comes on, it gets out of the line of fire"
