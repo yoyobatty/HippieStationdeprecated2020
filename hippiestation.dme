@@ -3273,6 +3273,7 @@
 #include "hippiestation\code\game\objects\items\tools\wirecutters.dm"
 #include "hippiestation\code\game\objects\items\tools\wrench.dm"
 #include "hippiestation\code\game\objects\structures\aliens.dm"
+#include "hippiestation\code\game\objects\structures\displaycase.dm"
 #include "hippiestation\code\game\objects\structures\flora.dm"
 #include "hippiestation\code\game\objects\structures\ghost_role_spawners.dm"
 #include "hippiestation\code\game\objects\structures\guillotine.dm"
