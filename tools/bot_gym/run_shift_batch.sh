@@ -19,6 +19,9 @@ unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every 
 #   DMB=x.dmb    run this build instead (its .rsc beside it); implies NOCOMPILE. For before/after batches side by side
 #   EXTRA_PARAMS="a=1&b=2"  more world params, like lighting-unseen=off to update every light at once
 #   BASE_PORT=45200
+#   KEEP_DAYS=2  game.log and bot_telemetry.jsonl older than this are pruned from data/logs as the batch starts
+#                (tools/bot_gym/prune_logs.sh, in the background; results and summaries stay). 0 prunes nothing
+#   KEEP_BATCHES=3  but batches keep them only in the newest this many, this one included, whatever their age
 # Each shift runs from its own copy of the .dmb, so the code can be edited and recompiled while a batch runs.
 # Everything is inside main() so that editing this file during a batch can't change what the batch does next:
 # bash reads a script as it goes, and would otherwise carry on from the same byte of the new text.
@@ -110,6 +113,11 @@ main() {
 
 	rm -rf "$DIR" #a name used before with more runs left its extra runN folders, and the report counted them in
 	mkdir -p "$DIR"
+	# Each shift writes about 100 MB of logs; they took 130 GB before this. Disowned, so it isn't one of the batch's jobs.
+	if [ "${KEEP_DAYS:-2}" != "0" ]; then
+		bash tools/bot_gym/prune_logs.sh "${KEEP_DAYS:-2}" "${KEEP_BATCHES:-3}" >> data/logs/prune.log 2>&1 &
+		disown
+	fi
 	# One copy for each slot: a server writes icons it builds at runtime into <name>.dyn.rsc, and two sharing one fail
 	# with "cannot open savefile buffer" the first time both want it.
 	COPY="shiftbatch_${NAME//[^A-Za-z0-9_-]/_}_$stamp" #the name too: two batches started in the same second shared copies
