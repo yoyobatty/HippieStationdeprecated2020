@@ -68,7 +68,18 @@ GLOBAL_LIST_EMPTY(particle_fx)
 			set_type = /particles/fx/puff/breath
 		if("vent_puff")
 			set_type = /particles/fx/puff
+		if("air_dust_vent") //a vent blowing (air_dust.dm)
+			set_type = /particles/fx/air_dust/vent
+			plane = AIR_DUST_PLANE
 		else
+			if(findtext(kind, "air_dust_pull") == 1) //"air_dust_pull" and a direction: one spoke of the specks a scrubber draws in, from that side
+				var/static/list/spokes = list(
+					"[NORTH]" = /particles/fx/air_dust/pull/north, "[SOUTH]" = /particles/fx/air_dust/pull/south,
+					"[EAST]" = /particles/fx/air_dust/pull/east, "[WEST]" = /particles/fx/air_dust/pull/west,
+					"[NORTHEAST]" = /particles/fx/air_dust/pull/northeast, "[NORTHWEST]" = /particles/fx/air_dust/pull/northwest,
+					"[SOUTHEAST]" = /particles/fx/air_dust/pull/southeast, "[SOUTHWEST]" = /particles/fx/air_dust/pull/southwest)
+				set_type = spokes[copytext(kind, 14)]
+				plane = AIR_DUST_PLANE
 			if(findtext(kind, "gust") == 1) //"gust" and a direction: air rushing that way
 				var/dir = text2num(copytext(kind, 5))
 				var/particles/fx/gust/wind = new
@@ -249,6 +260,86 @@ GLOBAL_LIST_EMPTY(particle_fx)
 	color = "#ffffffa8"
 	scale = generator("vector", list(0.5, 0.5), list(0.7, 0.7))
 	grow = 0.07
+
+/// Dust hanging in a room's air, over a square of floor round its emitter (air_dust.dm). Specks fade in, wander a few pixels and
+/// fade out again; some catch more light than others. Each square has a set of its own, which wind gives a gravity
+/particles/fx/air_dust
+	icon_state = "mote"
+	width = 288
+	height = 288
+	count = 5
+	spawning = 0.06
+	lifespan = generator("num", 60, 100)
+	fade = 25
+	fadein = 25
+	position = generator("box", list(-AIR_DUST_SPACING * 16, -AIR_DUST_SPACING * 16, 0), list(AIR_DUST_SPACING * 16, AIR_DUST_SPACING * 16, 0))
+	velocity = generator("circle", 0.1, 0.2) //a pixel or two a second, curving: still air, but not stopped
+	drift = generator("circle", 0, 0.01)
+	friction = AIR_DUST_FRICTION
+	gradient = list(0, "#fff3dc50", 1, "#fff6e8d0")
+	color = generator("num", 0, 1)
+	scale = generator("vector", list(0.75, 0.75), list(1.15, 1.15))
+
+/particles/fx/air_dust/heavy
+	count = 14
+	spawning = 0.17
+
+/// Blown out of a running vent: quick at the grille, slowing over a couple of tiles and left to hang
+/particles/fx/air_dust/vent
+	count = 9
+	spawning = 0.15
+	lifespan = generator("num", 40, 60)
+	fadein = 4
+	position = generator("circle", 0, 5)
+	velocity = generator("circle", 1.5, 2)
+	friction = 0.03
+
+/// Drawn in to a scrubber from one side (setup() aims each spoke's), fading as they reach it
+/particles/fx/air_dust/pull
+	width = 160
+	height = 160
+	count = 3
+	spawning = 0.06
+	lifespan = generator("num", 48, 56)
+	fadein = 8
+	fade = 14
+	drift = generator("circle", 0, 0.004)
+	friction = 0
+
+// One spoke from each side, AIR_DUST_PULL_REACH (40) pixels out, heading in. Written out, since generators made while the map
+// loads (a scrubber's first spoke) drew nothing on the client
+
+/particles/fx/air_dust/pull/north
+	position = generator("box", list(-10, 30, 0), list(10, 50, 0))
+	velocity = generator("box", list(-0.08, -0.93, 0), list(0.08, -0.57, 0))
+
+/particles/fx/air_dust/pull/south
+	position = generator("box", list(-10, -50, 0), list(10, -30, 0))
+	velocity = generator("box", list(-0.08, 0.57, 0), list(0.08, 0.93, 0))
+
+/particles/fx/air_dust/pull/east
+	position = generator("box", list(30, -10, 0), list(50, 10, 0))
+	velocity = generator("box", list(-0.93, -0.08, 0), list(-0.57, 0.08, 0))
+
+/particles/fx/air_dust/pull/west
+	position = generator("box", list(-50, -10, 0), list(-30, 10, 0))
+	velocity = generator("box", list(0.57, -0.08, 0), list(0.93, 0.08, 0))
+
+/particles/fx/air_dust/pull/northeast
+	position = generator("box", list(18.4, 18.4, 0), list(38.4, 38.4, 0))
+	velocity = generator("box", list(-0.683, -0.683, 0), list(-0.381, -0.381, 0))
+
+/particles/fx/air_dust/pull/northwest
+	position = generator("box", list(-38.4, 18.4, 0), list(-18.4, 38.4, 0))
+	velocity = generator("box", list(0.381, -0.683, 0), list(0.683, -0.381, 0))
+
+/particles/fx/air_dust/pull/southeast
+	position = generator("box", list(18.4, -38.4, 0), list(38.4, -18.4, 0))
+	velocity = generator("box", list(-0.683, 0.381, 0), list(-0.381, 0.683, 0))
+
+/particles/fx/air_dust/pull/southwest
+	position = generator("box", list(-38.4, -38.4, 0), list(-18.4, -18.4, 0))
+	velocity = generator("box", list(0.381, 0.381, 0), list(0.683, 0.683, 0))
 
 /// Air on its way to a breach: setup() gives a copy of this its direction
 /particles/fx/gust

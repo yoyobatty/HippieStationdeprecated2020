@@ -31,6 +31,27 @@
 /// A vent letting this many moles into a room in one go puffs: about 8 kPa short of what it's set to
 #define PARTICLE_VENT_PUFF_MOLES 8
 
+// Dust in the air (hippiestation/code/modules/particles/air_dust.dm)
+/// Its own plane, so a client can mask it to the floor and out from behind walls and things: over the game world, under the lighting
+#define AIR_DUST_PLANE 8
+/// An area's air_dust
+#define AIR_DUST_NONE 0
+#define AIR_DUST_LIGHT 1
+#define AIR_DUST_HEAVY 2
+/// One emitter every this many tiles each way, on the tiles where x and y are 2 more than a multiple of it. It covers the square round it
+#define AIR_DUST_SPACING 4
+/// The share of a speck's speed the air takes off it each tick: what holds a speck in wind to the wind's speed
+#define AIR_DUST_FRICTION 0.025
+/// Wind (an SSair pressure difference) this strong over a dust square's floor carries its specks: gently, briskly from the second,
+/// and fast from the third (where a breach starts shoving things about, the gust's PARTICLE_GUST_PRESSURE)
+#define AIR_DUST_WIND_PRESSURE 1
+#define AIR_DUST_WIND_BRISK 8
+#define AIR_DUST_WIND_STRONG 25
+/// How long specks keep going with the wind after it stops
+#define AIR_DUST_WIND_HOLD (2 SECONDS)
+/// How far from a scrubber, in pixels, the specks it draws in come from
+#define AIR_DUST_PULL_REACH 40
+
 // The sky (hippiestation/code/_onclick/hud/sky.dm). The first two match tools/sky_gen/sky_gen.py, which draws the art.
 /// Nebula clouds are drawn this many times their sprite's size: they're soft, so the pixels aren't missed, and they repeat half as often
 #define SKY_NEBULA_SCALE 2

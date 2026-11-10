@@ -55,6 +55,7 @@ def build_particles(path):
     dmi.state('dot').frame(blob(1.3))     # an ember, a spark, a mote
     dmi.state('puff').frame(blob(5.0))    # steam, breath, dust
     dmi.state('chip').frame(blob(1.6, hard=True))  # debris, a drop of blood
+    dmi.state('mote').frame(blob(1.7))    # dust hanging in the air: soft, a few pixels across
     dmi.to_file(path)
 
 
