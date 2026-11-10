@@ -715,6 +715,25 @@ GLOBAL_LIST_INIT(bot_harmless_symptoms, typecacheof(list(/datum/symptom/beard, /
 	bot_log(bot, "put [G.thing] down for [who]")
 	return GOAL_STEP_SUCCESS
 
+/// Laser eyes off Genetics, and no gun to hand: the eyes, at range. Harm intent and a click at them, the way a player fires them
+/// (RangedAttack(), laser_eyes/on_ranged_attack()).
+/datum/bot_brain/try_attack_from_range(mob/living/target)
+	. = ..()
+	if(. || !owner.dna?.get_mutation(/datum/mutation/human/laser_eyes) || world.time < next_taser_time)
+		return
+	var/dist = get_dist(owner, target)
+	if(dist < 2 || dist > BOT_SIGHT_RANGE || !has_clear_shot(target))
+		return
+	owner.a_intent = INTENT_HARM
+	owner.face_atom(target)
+	owner.changeNext_move(CLICK_CD_RANGE)
+	next_taser_time = world.time + CLICK_CD_RANGE + 5
+	bot_log(src, "POWER: laser eyes at [target] (dist [dist])")
+	telemetry_clicked(target)
+	usr = owner //LaserEyes() plays its sound at usr's feet: a click always has one, and the callback carries it
+	INVOKE_ASYNC(owner, TYPE_PROC_REF(/mob, RangedAttack), target, "")
+	return TRUE
+
 /// Hurt in a fight with a patch on it: a step out of it, the patch on (three seconds, self_delay), and back in when they come on again,
 /// instead of running for Medbay. The run's for when the patches are gone. try_run_for_it()'s TRUE is "the fight's off for now".
 /datum/bot_brain/try_run_for_it()

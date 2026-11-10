@@ -262,3 +262,27 @@
 		return BOT_GYM_PASS
 	fail_reason = "used [3 - patches_left()] patches"
 	return BOT_GYM_FAIL
+
+/datum/bot_scenario/powergame_laser_eyes
+	name = "powergame: laser eyes at somebody across the room"
+	desc = "A bot with the laser eyes mutation and no gun is attacked from across the room. It fires its eyes at them rather than only running in to punch."
+	job = "Assistant"
+	layout = list(
+		"##########",
+		"#B.....C.#",
+		"##########")
+	time_limit = 15 SECONDS
+	var/mob/living/carbon/human/foe
+
+/datum/bot_scenario/powergame_laser_eyes/post_spawn()
+	bot.dna.add_mutation(/datum/mutation/human/laser_eyes, MUT_EXTRA)
+	foe = stand_in(first_marker("C"), "Casey Assailant")
+	brain.on_attacked(foe, "shot", null)
+
+/datum/bot_scenario/powergame_laser_eyes/make_goal()
+	return null
+
+/datum/bot_scenario/powergame_laser_eyes/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (!QDELETED(foe) && foe.getFireLoss() > 0) ? BOT_GYM_PASS : BOT_GYM_PENDING
