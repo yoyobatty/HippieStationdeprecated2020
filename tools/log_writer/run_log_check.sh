@@ -28,6 +28,18 @@ for mode in native rustg; do
 	echo "== $mode: $(( $(date +%s) - began )) s, runtimes: $(grep -c 'runtime error' "data/logs/log_check_$mode/runtime.log" 2>/dev/null)"
 	grep -h -A3 'runtime error' "data/logs/log_check_$mode/runtime.log" 2>/dev/null | head -20
 	cat "data/log_check/results_$mode.txt" 2>/dev/null || echo "no results"
+	if [ "$mode" = "native" ]; then
+		# The compressed log, read back as the tools read it (tools/bot_gym/logread.py), against the same lines from rust_g
+		python - <<'EOF'
+import re, sys
+sys.path.insert(0, "tools/bot_gym")
+import logread
+stamp = re.compile(r"^\[[^\]]+\] ")
+got = [stamp.sub("", l) for l in logread.lines("data/log_check/native/zst.log.zst")]
+want = [stamp.sub("", l) for l in logread.lines("data/log_check/native/zst_expected.log")]
+print("%s compressed log reads back line for line, as rust_g wrote them - %d / %d lines" % ("PASS" if got == want and len(want) == 3000 else "FAIL", len(got), len(want)))
+EOF
+	fi
 done
 sleep 2
 rm -f logcheck.mdme logcheck.mdme.dmb logcheck.mdme.rsc logcheck.mdme.int logcheck.mdme.lk logcheck.mdme.dyn.rsc logcheck.mdme.rsc.lk logcheck.mdme.dyn.rsc.lk

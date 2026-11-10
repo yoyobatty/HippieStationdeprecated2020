@@ -2,41 +2,122 @@
 //!
 //! rust_g's log_write writes each line to the file there and then, on the game's own thread. When the drive stalls, so
 //! does the game: in a round on 2026-11-10, with the drive 99% full, single log lines held the server for 3 to 7
-//! seconds at a time. Here log_write only takes the time and queues the line; a thread of its own does the writing and
-//! flushes each time it has caught up, so the lines are on disk as quickly as before when the drive keeps up.
+//! seconds at a time. Here log_write only takes the time and adds the line to a queue; a thread of its own picks the queue up
+//! every 20 ms (POLL), writes it and flushes, so the lines are on the drive within a tick of rust_g's when the drive keeps up.
+//! The game never wakes that thread for a line: with lines a few at a time between game work, a wake for each one (a channel
+//! with the writer asleep on it) cost 1.4 us of the game's time a line, more than the rest of log_write (2026-11-10).
 //!
 //! The lines are written exactly as rust_g 7.0.0 writes them: "[YYYY-MM-DD HH:MM:SS.mmm] first line", then " - " before
 //! each further line, the time in UTC and taken when log_write is called. With "false" as the third argument the text
 //! goes in as it is.
 //!
 //! BYOND calls these through call_ext's text interface (count, array of C strings), as it calls rust_g.
+//!
+//! A path ending in ".zst" is written compressed (zstd, level 6), on the same thread: the bot trace and the telemetry, which were
+//! ~170 MB a Bot Shift as plain text, come out ~25 times smaller. The stream is flushed at most once a second, so a server that's
+//! killed leaves a file that reads to within a second of the end (python -m zstandard, or tools/bot_gym/logread.py). Closing the
+//! files ends the frame; writing to the same file again afterwards adds another frame, which zstd reads as one stream.
+//!
+//! log_replace(path, text) writes a whole file instead (profiler.json every 5 minutes), also on the writer thread: to path.tmp,
+//! then over the old one.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::{c_char, c_int, CStr, CString};
 use std::fs::{self, File, OpenOptions};
-use std::io::{BufWriter, Write};
+use std::io::{self, BufWriter, Write};
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::{Mutex, OnceLock};
+use std::sync::mpsc::{channel, Sender};
+use std::sync::{Condvar, Mutex, OnceLock};
 use std::thread;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+/// Unchanged from the first version: what it had (log_write, log_flush, log_close_all, log_status) still works the same, so a
+/// game built before the rest keeps using it. What came since is in log_features.
 pub const VERSION: &str = "hippie_log 1";
+/// ".zst" files and log_replace
+pub const FEATURES: &str = "zst replace";
 
 /// Past this many lines waiting, new ones are dropped (and counted) rather than held: the drive has been gone a while
 const MAX_QUEUED: u64 = 2_000_000;
 /// How long closing the files waits for the queue to empty
 const CLOSE_WAIT: Duration = Duration::from_secs(10);
+/// zstd's level for ".zst" files. 6 was 27x on a shift's trace, 9 only 29x for four times the memory (~20 MB a file, in a 32-bit
+/// process); 3 was 23x. The writer compresses a shift's ~170 MB at a few hundred MB/s, on its own thread.
+const ZST_LEVEL: i32 = 6;
+/// How often a ".zst" file is flushed while lines keep coming. Each flush ends a block, which costs a little of the ratio.
+const ZST_FLUSH_EVERY: Duration = Duration::from_secs(1);
+/// How often the writer picks up the queue. Asking for a flush or a close wakes it at once.
+const POLL: Duration = Duration::from_millis(20);
 
 enum Msg {
-	Line(PathBuf, Vec<u8>),
+	/// A line as log_write was given it, put in rust_g's form by the writer (format_line()), not on the game's time
+	Line { path: Vec<u8>, data: Vec<u8>, timestamped: bool, at: SystemTime },
+	/// A whole file, written over the old one
+	Replace(Vec<u8>, Vec<u8>),
 	/// Flush everything written so far and answer
 	Flush(Sender<()>),
 	/// Flush, close every file, and answer
 	CloseAll(Sender<()>),
+}
+
+/// An open log: plain text as rust_g writes it, or the same text zstd-compressed
+enum Sink {
+	Plain(BufWriter<File>),
+	Zst {
+		encoder: zstd::stream::write::Encoder<'static, BufWriter<File>>,
+		/// Written to since the last flush
+		dirty: bool,
+		flushed: Instant,
+	},
+}
+
+impl Sink {
+	fn open(path: &Path) -> io::Result<Sink> {
+		let file = BufWriter::with_capacity(64 * 1024, open(path)?);
+		if is_compressed(path) {
+			return Ok(Sink::Zst { encoder: zstd::stream::write::Encoder::new(file, ZST_LEVEL)?, dirty: false, flushed: Instant::now() });
+		}
+		Ok(Sink::Plain(file))
+	}
+
+	fn write(&mut self, bytes: &[u8]) -> io::Result<()> {
+		match self {
+			Sink::Plain(file) => file.write_all(bytes),
+			Sink::Zst { encoder, dirty, .. } => {
+				*dirty = true;
+				encoder.write_all(bytes)
+			}
+		}
+	}
+
+	/// Out to the drive: a plain file every time, a compressed one if it's been ZST_FLUSH_EVERY (or `now`)
+	fn flush(&mut self, now: bool) -> io::Result<()> {
+		match self {
+			Sink::Plain(file) => file.flush(),
+			Sink::Zst { encoder, dirty, flushed } => {
+				if !*dirty || (!now && flushed.elapsed() < ZST_FLUSH_EVERY) {
+					return Ok(());
+				}
+				*dirty = false;
+				*flushed = Instant::now();
+				encoder.flush()
+			}
+		}
+	}
+
+	fn close(self) -> io::Result<()> {
+		match self {
+			Sink::Plain(mut file) => file.flush(),
+			Sink::Zst { encoder, .. } => encoder.finish()?.flush(),
+		}
+	}
+}
+
+pub fn is_compressed(path: &Path) -> bool {
+	path.extension().is_some_and(|e| e.eq_ignore_ascii_case("zst"))
 }
 
 struct Stats {
@@ -58,25 +139,38 @@ static STATS: Stats = Stats {
 	last_error: Mutex::new(String::new()),
 };
 
-static QUEUE: OnceLock<Mutex<Sender<Msg>>> = OnceLock::new();
+/// What the game has handed over and the writer hasn't picked up yet
+struct Queue {
+	items: Mutex<Vec<Msg>>,
+	/// Rung for a flush or a close, never for a line
+	ring: Condvar,
+}
 
-fn queue() -> &'static Mutex<Sender<Msg>> {
+static QUEUE: OnceLock<Queue> = OnceLock::new();
+
+fn queue() -> &'static Queue {
 	QUEUE.get_or_init(|| {
 		pin_self();
-		let (tx, rx) = channel();
-		thread::Builder::new()
-			.name("hippie_log writer".into())
-			.spawn(move || writer(rx))
-			.expect("hippie_log: no writer thread");
-		Mutex::new(tx)
+		thread::Builder::new().name("hippie_log writer".into()).spawn(writer).expect("hippie_log: no writer thread");
+		Queue { items: Mutex::new(Vec::with_capacity(4096)), ring: Condvar::new() }
 	})
 }
 
-fn send(msg: Msg) -> bool {
-	match queue().lock() {
-		Ok(tx) => tx.send(msg).is_ok(),
-		Err(_) => false,
+/// Onto the queue; `now` wakes the writer for it
+fn send(msg: Msg, now: bool) -> bool {
+	let queue = queue();
+	match queue.items.lock() {
+		Ok(mut items) => items.push(msg),
+		Err(_) => return false,
 	}
+	if now {
+		queue.ring.notify_one();
+	}
+	true
+}
+
+fn path_text(path: &[u8]) -> String {
+	String::from_utf8_lossy(path).into_owned()
 }
 
 fn note_error(text: String) {
@@ -86,65 +180,110 @@ fn note_error(text: String) {
 	}
 }
 
-fn writer(rx: Receiver<Msg>) {
-	let mut files: HashMap<PathBuf, BufWriter<File>> = HashMap::new();
-	while let Ok(msg) = rx.recv() {
-		handle(msg, &mut files);
-		while let Ok(msg) = rx.try_recv() {
+fn writer() {
+	let queue = queue();
+	let mut files: HashMap<Vec<u8>, Sink> = HashMap::new();
+	// Swapped with the queue each time round, so neither side allocates once they've grown
+	let mut taken: Vec<Msg> = Vec::with_capacity(4096);
+	loop {
+		{
+			let Ok(mut items) = queue.items.lock() else { return };
+			if items.is_empty() {
+				items = match queue.ring.wait_timeout(items, POLL) {
+					Ok((items, _)) => items,
+					Err(_) => return,
+				};
+			}
+			std::mem::swap(&mut *items, &mut taken);
+		}
+		for msg in taken.drain(..) {
 			handle(msg, &mut files);
 		}
-		flush_all(&mut files); // caught up: out to the drive
+		flush_all(&mut files, false); // caught up: out to the drive (a compressed file once a second)
 	}
 }
 
-fn flush_all(files: &mut HashMap<PathBuf, BufWriter<File>>) {
+fn flush_all(files: &mut HashMap<Vec<u8>, Sink>, now: bool) {
 	for (path, file) in files.iter_mut() {
-		if let Err(e) = file.flush() {
-			note_error(format!("{}: {e}", path.display()));
+		if let Err(e) = file.flush(now) {
+			note_error(format!("{}: {e}", path_text(path)));
 		}
 	}
 }
 
-fn handle(msg: Msg, files: &mut HashMap<PathBuf, BufWriter<File>>) {
+fn close_all(files: &mut HashMap<Vec<u8>, Sink>) {
+	for (path, file) in files.drain() {
+		if let Err(e) = file.close() {
+			note_error(format!("{}: {e}", path_text(&path)));
+		}
+	}
+}
+
+fn handle(msg: Msg, files: &mut HashMap<Vec<u8>, Sink>) {
 	match msg {
-		Msg::Line(path, bytes) => {
+		Msg::Line { path, data, timestamped, at } => {
 			let stall = STATS.stall_ms.load(Ordering::Relaxed);
 			if stall > 0 {
 				thread::sleep(Duration::from_millis(stall));
 			}
 			STATS.queued.fetch_sub(1, Ordering::Relaxed);
 			if !files.contains_key(&path) {
-				match open(&path) {
+				match Sink::open(&PathBuf::from(path_text(&path))) {
 					Ok(file) => {
-						files.insert(path.clone(), BufWriter::with_capacity(64 * 1024, file));
+						files.insert(path.clone(), file);
 					}
 					Err(e) => {
-						note_error(format!("{}: {e}", path.display()));
+						note_error(format!("{}: {e}", path_text(&path)));
 						return;
 					}
 				}
 			}
 			let file = files.get_mut(&path).unwrap();
-			match file.write_all(&bytes) {
+			match file.write(&format_line(&data, timestamped, at)) {
 				Ok(()) => {
 					STATS.written.fetch_add(1, Ordering::Relaxed);
 				}
-				Err(e) => note_error(format!("{}: {e}", path.display())),
+				Err(e) => note_error(format!("{}: {e}", path_text(&path))),
+			}
+		}
+		Msg::Replace(path, bytes) => {
+			STATS.queued.fetch_sub(1, Ordering::Relaxed);
+			if let Some(file) = files.remove(&path) {
+				let _ = file.close(); // it was being appended to as well: what was written goes first, then this over it
+			}
+			match replace(&PathBuf::from(path_text(&path)), &bytes) {
+				Ok(()) => {
+					STATS.written.fetch_add(1, Ordering::Relaxed);
+				}
+				Err(e) => note_error(format!("{}: {e}", path_text(&path))),
 			}
 		}
 		Msg::Flush(answer) => {
-			flush_all(files);
+			flush_all(files, true);
 			let _ = answer.send(());
 		}
 		Msg::CloseAll(answer) => {
-			flush_all(files);
-			files.clear();
+			close_all(files);
 			let _ = answer.send(());
 		}
 	}
 }
 
-fn open(path: &PathBuf) -> std::io::Result<File> {
+/// The whole file, to path.tmp and then over path, so a reader never sees half of it
+fn replace(path: &Path, bytes: &[u8]) -> io::Result<()> {
+	if let Some(parent) = path.parent() {
+		if !parent.as_os_str().is_empty() {
+			fs::create_dir_all(parent)?;
+		}
+	}
+	let mut temp = path.as_os_str().to_owned();
+	temp.push(".tmp");
+	let temp = PathBuf::from(temp);
+	fs::write(&temp, bytes)?;
+	fs::rename(&temp, path)
+}
+
+fn open(path: &Path) -> io::Result<File> {
 	if let Some(parent) = path.parent() {
 		if !parent.as_os_str().is_empty() {
 			fs::create_dir_all(parent)?;
@@ -229,6 +368,9 @@ thread_local! {
 }
 
 fn answer(text: &str) -> *const c_char {
+	if text.is_empty() {
+		return c"".as_ptr(); // log_write's answer, nearly always: no allocation for it
+	}
 	ANSWER.with(|cell| {
 		*cell.borrow_mut() = CString::new(text.replace('\0', "")).unwrap_or_default();
 		cell.borrow().as_ptr()
@@ -258,6 +400,12 @@ pub extern "C" fn log_version(_argc: c_int, _argv: *const *const c_char) -> *con
 	answer(VERSION)
 }
 
+/// What this build can do beyond log_write: "zst" (paths ending in .zst are compressed) and "replace" (log_replace)
+#[no_mangle]
+pub extern "C" fn log_features(_argc: c_int, _argv: *const *const c_char) -> *const c_char {
+	answer(FEATURES)
+}
+
 /// log_write(path, text, "true"/"false"): queued, written by the writer thread
 #[no_mangle]
 pub unsafe extern "C" fn log_write(argc: c_int, argv: *const *const c_char) -> *const c_char {
@@ -271,9 +419,24 @@ pub unsafe extern "C" fn log_write(argc: c_int, argv: *const *const c_char) -> *
 			STATS.dropped.fetch_add(1, Ordering::Relaxed);
 			return String::new();
 		}
-		let path = PathBuf::from(String::from_utf8_lossy(path).into_owned());
 		STATS.queued.fetch_add(1, Ordering::Relaxed);
-		if !send(Msg::Line(path, format_line(data, timestamped, now))) {
+		if !send(Msg::Line { path: path.to_vec(), data: data.to_vec(), timestamped, at: now }, false) {
+			STATS.queued.fetch_sub(1, Ordering::Relaxed);
+			return "hippie_log: the writer is gone".into();
+		}
+		String::new()
+	})
+}
+
+/// log_replace(path, text): the whole file, queued like a line and written over the old one by the writer thread
+#[no_mangle]
+pub unsafe extern "C" fn log_replace(argc: c_int, argv: *const *const c_char) -> *const c_char {
+	guarded(|| {
+		let (Some(path), Some(data)) = (arg(argc, argv, 0), arg(argc, argv, 1)) else {
+			return "hippie_log: log_replace wants a path and some text".into();
+		};
+		STATS.queued.fetch_add(1, Ordering::Relaxed);
+		if !send(Msg::Replace(path.to_vec(), data.to_vec()), false) {
 			STATS.queued.fetch_sub(1, Ordering::Relaxed);
 			return "hippie_log: the writer is gone".into();
 		}
@@ -283,7 +446,7 @@ pub unsafe extern "C" fn log_write(argc: c_int, argv: *const *const c_char) -> *
 
 fn wait_for(make: fn(Sender<()>) -> Msg, wait: Duration) -> String {
 	let (tx, rx) = channel();
-	if !send(make(tx)) {
+	if !send(make(tx), true) {
 		return "hippie_log: the writer is gone".into();
 	}
 	match rx.recv_timeout(wait) {
@@ -375,6 +538,59 @@ mod tests {
 		let written = fs::read_to_string(&path).unwrap();
 		let expected: String = (0..1000).map(|i| format!("line {i}")).collect();
 		assert_eq!(written, expected);
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	fn write_line(path: &CString, text: &str) {
+		let text = CString::new(text).unwrap();
+		let flag = CString::new("false").unwrap();
+		let argv = [path.as_ptr(), text.as_ptr(), flag.as_ptr()];
+		unsafe { log_write(3, argv.as_ptr()) };
+	}
+
+	#[test]
+	fn compressed_files_read_back_whole_across_flushes_and_reopens() {
+		let dir = std::env::temp_dir().join(format!("hippie_log_zst_{}", std::process::id()));
+		let path = dir.join("trace.log.zst");
+		let path_text = CString::new(path.to_string_lossy().into_owned()).unwrap();
+		let mut expected = String::new();
+		for i in 0..5000 {
+			let line = format!("Nico Faulkner: step_next_node: the floor -> the floor ({i},34,2), 12 nodes left\n");
+			write_line(&path_text, &line);
+			expected += &line;
+		}
+		// flushed but not closed: what a killed server leaves, readable to the flush
+		let flush_answer = unsafe { CStr::from_ptr(log_flush(0, std::ptr::null())) }.to_string_lossy().into_owned();
+		assert_eq!(flush_answer, "");
+		let flushed = fs::read(&path).unwrap();
+		let mut partial = Vec::new();
+		let mut decoder = zstd::stream::read::Decoder::new(&flushed[..]).unwrap();
+		let _ = std::io::Read::read_to_end(&mut decoder, &mut partial); // no end of frame yet: reads what's there, then errors
+		assert_eq!(String::from_utf8(partial).unwrap(), expected);
+		log_close_all(0, std::ptr::null());
+		// written again after closing: a second frame, the same stream
+		write_line(&path_text, "after closing\n");
+		expected += "after closing\n";
+		log_close_all(0, std::ptr::null());
+		let bytes = fs::read(&path).unwrap();
+		assert!(bytes.len() * 20 < expected.len(), "{} bytes for {}", bytes.len(), expected.len());
+		assert_eq!(String::from_utf8(zstd::stream::decode_all(&bytes[..]).unwrap()).unwrap(), expected);
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn replace_writes_the_whole_file_over_the_old_one() {
+		let dir = std::env::temp_dir().join(format!("hippie_log_replace_{}", std::process::id()));
+		let path = dir.join("profiler.json");
+		let path_text = CString::new(path.to_string_lossy().into_owned()).unwrap();
+		for text in ["[{\"name\":\"first, and longer\"}]", "[{\"name\":\"second\"}]"] {
+			let text = CString::new(text).unwrap();
+			let argv = [path_text.as_ptr(), text.as_ptr()];
+			unsafe { log_replace(2, argv.as_ptr()) };
+		}
+		log_close_all(0, std::ptr::null());
+		assert_eq!(fs::read_to_string(&path).unwrap(), "[{\"name\":\"second\"}]");
+		assert!(!dir.join("profiler.json.tmp").exists());
 		let _ = fs::remove_dir_all(&dir);
 	}
 }

@@ -132,11 +132,10 @@
 	CHECK_TICK
 	if(!length(current_profile_data)) //Would be nice to have explicit proc to check this
 		stack_trace("Warning, profiling stopped manually before dump.")
-	var/json_file = file("[GLOB.log_directory]/profiler.json")
-	if(fexists(json_file))
-		fdel(json_file)
+	// Written over the old one by the log writer's thread (hippie_log_replace(), __HELPERS/log_writer.dm), not fdel() and WRITE_FILE()
+	// here and now: 0.4-0.9 MB every 5 minutes, on the game's thread, was the one write left that a slow drive could still stall it on.
 	timer = TICK_USAGE_REAL
-	WRITE_FILE(json_file, current_profile_data)
+	hippie_log_replace("[GLOB.log_directory]/profiler.json", current_profile_data)
 	write_cost = MC_AVERAGE(write_cost, TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer))
 
 #undef HIPPIE_PROF_DLL

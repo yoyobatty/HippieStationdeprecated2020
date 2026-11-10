@@ -637,6 +637,7 @@ SUBSYSTEM_DEF(mctest_init)
 	var/list/rows = json_decode(hippie_prof("dump"))
 	check("native: the dump has the round's procs", length(rows) > 200, "[length(rows)] rows")
 	SSprofiler.DumpFile()
+	hippie_log_flush(5000) // the log writer's thread writes it (hippie_log_replace())
 	check("native: profiler.json written", fexists("[GLOB.log_directory]/profiler.json") && length(file2text("[GLOB.log_directory]/profiler.json")) > 1000)
 
 /// STEPS=census only: every subsystem's fires a second, cost and wait over 60 s, the MC's own bookkeeping time on top

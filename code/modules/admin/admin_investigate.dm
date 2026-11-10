@@ -1,8 +1,7 @@
 /atom/proc/investigate_log(message, subject)
 	if(!message || !subject)
 		return
-	var/F = file("[GLOB.log_directory]/[subject].html")
-	WRITE_FILE(F, "[time_stamp()] [REF(src)] ([x],[y],[z]) || [src] [message]<br>")
+	hippie_log_append("[GLOB.log_directory]/[subject].html", "[time_stamp()] [REF(src)] ([x],[y],[z]) || [src] [message]<br>") // hippie -- written by the log writer's thread, as WRITE_FILE() did here (__HELPERS/log_writer.dm): a slow drive can't stall the game on it
 	round_log_add("Investigate: [subject]", "[src] [message]", src) // hippie -- round_log.dm
 
 /client/proc/investigate_show()

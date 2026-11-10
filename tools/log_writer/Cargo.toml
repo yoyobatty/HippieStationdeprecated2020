@@ -4,7 +4,10 @@ version = "1.0.0"
 edition = "2021"
 description = "Hippie's log writer: rust_g's log_write, with the writing done on a thread of its own so a slow drive can't freeze the game"
 
-# No dependencies: BYOND calls it through call_ext's text interface, as it does rust_g
+# BYOND calls it through call_ext's text interface, as it does rust_g. zstd for the ".zst" logs (the C library, built by cc).
+[dependencies]
+zstd = { version = "0.13", default-features = false }
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 

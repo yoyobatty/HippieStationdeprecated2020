@@ -88,6 +88,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/turfs/open/space/space.dm (set_starlight() retints the camera pictures' starlight copies, map_view.dm)
 ## code/game/world.dm !Needs modularization! This stuff is crap.
 ## code/modules/admin/admin.dm
+## code/modules/admin/admin_investigate.dm (investigate_log() writes through the log writer's thread)
 ## code/modules/admin/admin_ranks.dm
 ## code/modules/admin/admin_verbs.dm
 ## code/modules/admin/chat_commands.dm

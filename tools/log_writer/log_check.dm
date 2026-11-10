@@ -29,6 +29,10 @@ GLOBAL_LIST_EMPTY(log_check_lines)
 	if(mode == "rustg")
 		WRITE_LOG("[out]plain.log", "one line")
 		lc_check("booted with log-writer=rustg, rust_g writes the logs", hippie_log_native == FALSE, "[hippie_log_native]")
+		lc_check("compressed logs are plain ones then", hippie_log_compressed("[out]zst.log") == "[out]zst.log", hippie_log_compressed("[out]zst.log"))
+		hippie_log_replace("[out]replaced.json", "one")
+		hippie_log_replace("[out]replaced.json", "two")
+		lc_check("and replace writes them here", findtext(file2text("[out]replaced.json"), "two") == 1 && !findtext(file2text("[out]replaced.json"), "one"), file2text("[out]replaced.json"))
 		lc_check("and they're still written", findtext(file2text("[out]plain.log"), "] one line"))
 		lc_check("the round's own logs too", findtext(file2text(GLOB.world_game_log), "Starting up round ID"))
 	else
@@ -90,6 +94,39 @@ GLOBAL_LIST_EMPTY(log_check_lines)
 		var/native_took = REALTIMEOFDAY - began
 		hippie_log_flush(10000)
 		GLOB.log_check_lines += "     20000 lines: rust_g [rustg_took * 100000 / 20000] us each, hippie_log [native_took * 100000 / 20000] us each (game's side)"
+
+		// compressed logs (the bot trace and telemetry): run_log_check.sh reads zst.log.zst back against zst_expected.log
+		lc_check("the library compresses and replaces", findtext(hippie_log_features, "zst") && findtext(hippie_log_features, "replace"), "[hippie_log_features]")
+		var/zst_path = hippie_log_compressed("[out]zst.log")
+		lc_check("a compressed log's path ends in .zst", zst_path == "[out]zst.log.zst", zst_path)
+		for(var/i in 1 to 3000)
+			var/text = "Nico Faulkner: step_next_node: the floor -> the floor ([i],34,2), [i % 40] nodes left \"quoted\" ünïcödé"
+			WRITE_LOG(zst_path, text)
+			rustg_log_write("[out]zst_expected.log", text, "true")
+		hippie_log_flush(10000)
+		lc_check("compressed: written smaller than a tenth", length(file("[zst_path]")) * 10 < length(file("[out]zst_expected.log")), "[length(file("[zst_path]"))] / [length(file("[out]zst_expected.log"))] bytes")
+
+		// a whole file written over the old one (profiler.json)
+		hippie_log_replace("[out]replaced.json", "\[{\"name\":\"the first, and longer\"}\]")
+		hippie_log_replace("[out]replaced.json", "\[{\"name\":\"second\"}\]")
+		lc_check("replace: answers at once", TRUE)
+		hippie_log_flush(10000)
+		lc_check("replace: the second over the first", file2text("[out]replaced.json") == "\[{\"name\":\"second\"}\]", file2text("[out]replaced.json"))
+		lc_check("replace: no temporary file left", !fexists("[out]replaced.json.tmp"))
+		// investigate_log()'s .html files: the same bytes WRITE_FILE() wrote, line ends and all
+		hippie_log_append("[out]appended.html", "first <b>line</b><br>")
+		hippie_log_append("[out]appended.html", "second line<br>")
+		WRITE_FILE(file("[out]write_file.html"), "first <b>line</b><br>")
+		WRITE_FILE(file("[out]write_file.html"), "second line<br>")
+		hippie_log_flush(10000)
+		lc_check("append: the same bytes as WRITE_FILE()", file2text("[out]appended.html") == file2text("[out]write_file.html") && length(file("[out]appended.html")) == length(file("[out]write_file.html")), "[length(file("[out]appended.html"))] / [length(file("[out]write_file.html"))] bytes")
+		var/turf/somewhere = locate(1, 1, 1)
+		somewhere.investigate_log("was checked by the log check", "log_check")
+		hippie_log_flush(10000)
+		lc_check("investigate_log() goes through it", findtext(file2text("[GLOB.log_directory]/log_check.html"), "was checked by the log check<br>"))
+		SSprofiler.DumpFile()
+		hippie_log_flush(10000)
+		lc_check("profiler.json goes through it", !SSprofiler.profiling || length(file2text("[GLOB.log_directory]/profiler.json")) > 100, "profiling [SSprofiler.profiling]")
 	var/passed = 0
 	var/checks = 0
 	for(var/line in GLOB.log_check_lines)
