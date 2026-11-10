@@ -583,6 +583,26 @@
 		return BOT_GYM_FAIL
 	return (!prisoner.handcuffed && !bot_get_wanted_entry(prisoner)) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/// The same, in a nanosuit: kept. In the user's round (2026-11-10) an officer cuffed a nanosuit, searched it, found nothing and let it go.
+/datum/bot_scenario/brigged/searched_clean/suited
+	name = "brig: somebody in a nanosuit, arrested for dangerous equipment, isn't searched and let go"
+	desc = "As above, but the prisoner's wearing a nanosuit. A search turns up nothing, since the suit's worn and not carried. The officer keeps them cuffed and on the wanted list."
+	time_limit = 20 SECONDS
+
+/datum/bot_scenario/brigged/searched_clean/suited/post_spawn()
+	..()
+	prisoner.equip_to_slot_or_del(new /obj/item/clothing/suit/space/hardsuit/nano(prisoner), ITEM_SLOT_OCLOTHING)
+
+/datum/bot_scenario/brigged/searched_clean/suited/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(timer.timing || istype(brain.current_goal, /datum/bot_goal/brig_prisoner))
+		return BOT_GYM_PASS //uncuffed in the cell, once processed: that's the Brig, not letting them go
+	if(!bot_get_wanted_entry(prisoner))
+		fail_reason = "searched them and let them go"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
 /datum/bot_scenario/brigged/collapsed
 	name = "brig: a prisoner who's collapsed in a cell is let out and taken to Medbay"
 	desc = "A prisoner is down in crit in a cell with the timer running, and an officer sees them through the door. It stops the timer, gets them out and takes them to Medbay. They used to be left in there until they died."

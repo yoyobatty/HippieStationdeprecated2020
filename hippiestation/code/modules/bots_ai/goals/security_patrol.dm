@@ -140,6 +140,19 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/datum/data/record/R = bot_find_security_record(H)
 	return R && R.fields["criminal"] == "*Arrest*"
 
+/// What makes somebody a confirmed antagonist on the record: killing, wrecking the station, owning up to the Syndicate.
+GLOBAL_LIST_INIT(bot_antag_crimes, list("Murder", "Sabotage", "Subversion of the Chain of Command"))
+
+/// A confirmed antagonist: in a nanosuit, or wanted for one of bot_antag_crimes. Fighting them is no crime, and killing them isn't either.
+/// The user's ruling (2026-11-10): "Known valids and antags killers are always innocent". In their round an officer cuffed a nanosuit,
+/// searched it, found "nothing on them" (the suit's worn, not carried) and let it go, and the next officer along booked the cook and the
+/// atmos tech who were fighting it for Assault with a Deadly Weapon. One was hunted as a criminal for the rest of the round.
+/proc/bot_is_fair_game(mob/living/carbon/human/H)
+	if(bot_in_nanosuit(H)) //goals/security_tactics.dm
+		return TRUE
+	var/datum/bot_wanted/W = bot_get_wanted_entry(H)
+	return W && (W.severity >= BOT_CRIME_MURDER || (W.crime in GLOB.bot_antag_crimes))
+
 // Mirrors what the sec HUD's "status" and "add_crime" hrefs (human.dm Topic()) do.
 /datum/bot_brain/proc/file_crime(mob/living/carbon/human/H, crime, details, severity, mob/living/victim)
 	if(severity < BOT_CRIME_MAJOR && bot_is_the_captain(H)) //bot_law.dm
@@ -296,7 +309,10 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/our_first = GLOB.bot_recent_aggression["[REF(attacker)]>[REF(victim)]"]
 	if(their_first && world.time - their_first <= BOT_SELF_DEFENSE_WINDOW && their_first < our_first)
 		return
-	// Somebody Security's already after is fair game: hitting them is no crime, down or cuffed or not. Killing them still is.
+	// A confirmed antagonist is fair game, killing them included (bot_is_fair_game()).
+	if(bot_is_fair_game(victim))
+		return
+	// Somebody Security's already after for less is fair game too: hitting them is no crime, down or cuffed or not. Killing them still is.
 	if(bot_is_wanted(victim) && victim.stat != DEAD)
 		return
 
@@ -1209,8 +1225,9 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 		bot_log(src, "let [H] go for the evacuation")
 		return FALSE
 	// Wanted only for something they were seen carrying, and searched with nothing on them: let go. The user was arrested for an
-	// energy sword they'd got rid of three minutes before, which the HoP was carrying by then.
-	if(W?.crime == "Possession of Dangerous Equipment" && H.handcuffed && owner.Adjacent(H) && !bot_carrying_contraband(H))
+	// energy sword they'd got rid of three minutes before, which the HoP was carrying by then. Never somebody in a nanosuit: it's worn, so
+	// the search turns up nothing, and an officer let one go that way (2026-11-10).
+	if(W?.crime == "Possession of Dangerous Equipment" && H.handcuffed && owner.Adjacent(H) && !bot_carrying_contraband(H) && !bot_in_nanosuit(H))
 		human_pause(H)
 		if(!QDELETED(H) && owner.Adjacent(H) && !bot_carrying_contraband(H))
 			H.uncuff()

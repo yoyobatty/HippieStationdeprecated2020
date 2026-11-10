@@ -550,6 +550,52 @@
 		return BOT_GYM_FAIL
 	return world.time > start_time + 10 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/// Fighting a nanosuit is no crime, whether or not it's on the wanted list. In the user's round (2026-11-10) the suit had just been let go,
+/// and the officer who saw the cook and the atmos tech hitting it booked both for Assault with a Deadly Weapon.
+/datum/bot_scenario/fighting_a_suit
+	name = "security: an officer who sees somebody hit a nanosuit with a toolbox doesn't book them"
+	desc = "Somebody in a nanosuit, not on the wanted list, is hit with a toolbox in front of an officer. Hitting a confirmed antagonist is no crime: the officer files nothing against whoever hit it."
+	job = "Security Officer"
+	layout = list(
+		"#########",
+		"#B..C.N.#",
+		"#########")
+	time_limit = 12 SECONDS
+	var/mob/living/carbon/human/crew
+	var/mob/living/carbon/human/suited
+	var/hit_at
+
+/datum/bot_scenario/fighting_a_suit/post_spawn()
+	brain.register_security()
+	crew = stand_in(first_marker("C"), "Devon Cook")
+	suited = stand_in(first_marker("N"), "Nano Suit")
+	suited.equip_to_slot_or_del(new /obj/item/clothing/suit/space/hardsuit/nano(suited), ITEM_SLOT_OCLOTHING)
+	crew.put_in_hands(new /obj/item/storage/toolbox/mechanical(crew))
+	addtimer(CALLBACK(src, PROC_REF(hit_it)), 2 SECONDS)
+
+/datum/bot_scenario/fighting_a_suit/make_goal()
+	return null
+
+/datum/bot_scenario/fighting_a_suit/proc/hit_it()
+	bot_clear_wanted(suited) //let go after a search, as in the round
+	var/obj/item/storage/toolbox/T = locate() in crew.held_items
+	log_combat(crew, suited, "attacked", T)
+	hit_at = world.time
+
+/datum/bot_scenario/fighting_a_suit/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/datum/bot_wanted/W = bot_get_wanted_entry(crew)
+	if(W)
+		fail_reason = "booked them for [W.crime]"
+		return BOT_GYM_FAIL
+	return (hit_at && world.time > hit_at + 3 SECONDS) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/fighting_a_suit/release_run()
+	GLOB.bot_security_wanted -= WEAKREF(crew)
+	GLOB.bot_security_wanted -= WEAKREF(suited)
+	return ..()
+
 /datum/bot_scenario/knocked_gun_back
 	name = "security: knocked flat and the gun dropped, it goes back a few steps for it"
 	desc = "An officer with an energy gun out is knocked down, the gun falls, and it's three tiles on by the time it's up. It walks back and picks the gun up. An officer knocked down by a nanosuit went on with the arrest and left his gun on the floor where he fell."
