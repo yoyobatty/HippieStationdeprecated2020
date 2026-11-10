@@ -62,6 +62,8 @@ GLOBAL_DATUM_INIT(starlight_overlay, /mutable_appearance, make_starlight_overlay
 	GLOB.starlight_color = star_color
 	var/old_star_color = GLOB.starlight_object.color
 	GLOB.starlight_object.color = star_color //the space tiles' own tint (see /obj/starlight_appearance)
+	for(var/obj/screen/map_view_starlight/copy as anything in GLOB.map_view_starlights) // hippie -- camera pictures' copies (map_view.dm)
+		copy.color = star_color
 	// range/power are deliberately not stored (as in tgstation): the globals stay the normal values, so a temporary
 	// change like Aurora Caelus' brightening can fade back to them.
 	// set light color on all lit turfs
