@@ -1137,3 +1137,35 @@
 		fail_reason = "took them off the drip at [round(patient.blood_volume)] blood with some left in the pack"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS //on it, then off it once they'd had enough
+
+/datum/bot_scenario/give_blood/drifts
+	name = "medical rounds: the pale patient is asked to stay put before the doctor goes for the blood"
+	desc = "A patient who'd wander off unless asked. The doctor tells them to stay there, then fetches the pack and the drip. It used to ask only once the needle was in, and patients had walked off, or been put in a sleeper, by the time it got back: 10 of the 11 tries that failed in four batches of shifts."
+	layout = list(
+		"############",
+		"#B..K..I...#",
+		"#w...C....v#",
+		"############")
+	/// Where the patient's drifting to next
+	var/turf/drift_to
+	var/told = FALSE
+
+/datum/bot_scenario/give_blood/drifts/post_spawn()
+	give_job_id(list(ACCESS_MEDICAL))
+	patient = second_bot(first_marker("C"), "Pale Drifter")
+	patient.blood_volume = 350
+	drift_to = first_marker("w")
+
+/datum/bot_scenario/give_blood/drifts/check()
+	if(!given && drip.attached != patient)
+		var/datum/bot_brain/held = patient.bot_brain
+		if(held && held.stand_still_until > world.time)
+			told = TRUE
+		else if(!patient.pulledby && !patient.buckled)
+			if(get_turf(patient) == drift_to)
+				drift_to = (drift_to == first_marker("w")) ? first_marker("v") : first_marker("w")
+			step_towards(patient, drift_to) //pacing about, as a bored patient does
+	. = ..()
+	if(. == BOT_GYM_PASS && !told)
+		fail_reason = "never asked them to stay put before going for the blood"
+		return BOT_GYM_FAIL

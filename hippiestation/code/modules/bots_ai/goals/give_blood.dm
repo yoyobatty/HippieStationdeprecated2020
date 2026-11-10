@@ -4,6 +4,9 @@
 // slowly, and under BLOOD_VOLUME_OKAY losing it goes on costing breath: patients who'd been patched up still suffocated in Medbay,
 // one with 32 brute and 168 suffocation. About one death in twelve across five batches of six shifts looked like that.
 
+/// How long a patient's asked to stay put while the doctor fetches the blood and the drip
+#define BOT_BLOOD_WAIT (90 SECONDS)
+
 /// Short of blood and not about to get it any other way: alive, not in a machine, and the kind of blood a pack holds
 /proc/bot_needs_blood(mob/living/carbon/human/H)
 	if(!istype(H) || H.stat == DEAD || !isturf(H.loc) || !H.dna?.species || H.dna.species.exotic_blood || (NOBLOOD in H.dna.species.species_traits))
@@ -63,6 +66,8 @@
 	doing = "giving somebody blood"
 	var/obj/item/reagent_containers/blood/pack
 	var/obj/machinery/iv_drip/drip
+	/// Told the patient to stay put (ask_to_stay_put())
+	var/asked_to_wait = FALSE
 
 /datum/bot_goal/give_blood/resolve_target(datum/bot_brain/bot)
 	var/mob/living/carbon/human/patient
@@ -92,6 +97,7 @@
 	target = patient
 
 /datum/bot_goal/give_blood/get_strategies(datum/bot_brain/bot)
+	ask_to_stay_put(bot)
 	var/datum/bot_strategy/give_blood/S = new
 	var/datum/bot_step/move_to/to_drip = new
 	to_drip.step_target = drip
@@ -102,9 +108,29 @@
 		S.steps.Insert(1, to_pack)
 	return list(S)
 
+/// Before going for the blood and the drip: "stay there". Asked only once the stand was beside them, patients had wandered off, or
+/// been put in a sleeper, by the time the doctor got back: 10 of the 11 tries that failed in four batches of shifts (2026-11-09).
+/// Said to them if they're in sight, on the radio if not.
+/datum/bot_goal/give_blood/proc/ask_to_stay_put(datum/bot_brain/bot)
+	var/mob/living/carbon/human/patient = target
+	if(!istype(patient) || patient.stat != CONSCIOUS)
+		return
+	asked_to_wait = TRUE
+	patient.bot_brain?.hold_still_for(BOT_BLOOD_WAIT)
+	if(bot.gym_scripted)
+		return
+	var/name = patient.first_name()
+	if(patient in view(7, bot.owner))
+		bot_say(bot.owner, pick("[name], stay there - I'm getting you some blood.", "Don't go anywhere, [name]. You need blood, I'll bring it.", "Sit tight, [name], I'll get a drip for you."))
+	else
+		bot_say(bot.owner, ";[name], stay where you are in [get_area_name(patient, TRUE)] - I'm bringing you blood.")
+
 /datum/bot_goal/give_blood/on_give_up(datum/bot_brain/bot)
 	if(bot.owner.pulling == drip)
 		bot.owner.stop_pulling()
+	var/mob/living/carbon/human/patient = target
+	if(asked_to_wait && istype(patient) && patient.bot_brain)
+		patient.bot_brain.stand_still_until = world.time //never mind
 
 /datum/bot_strategy/give_blood/is_feasible(datum/bot_brain/bot)
 	var/datum/bot_goal/give_blood/G = bot.current_goal
@@ -225,3 +251,5 @@
 		if(!bot.gym_scripted)
 			bot_say(bot.owner, pick("There you go, [patient.first_name()].", "That's you done. Take it easy.", "All done - you should feel better soon."))
 	bot.advance_goal_step(TRUE)
+
+#undef BOT_BLOOD_WAIT
