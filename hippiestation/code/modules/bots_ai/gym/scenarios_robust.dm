@@ -467,6 +467,21 @@
 		return (locate(/obj/structure/table/optable) in griefer.loc) ? BOT_GYM_PASS : BOT_GYM_FAIL
 	return BOT_GYM_PENDING
 
+/datum/bot_scenario/griefed/surgeon/full_bag
+	name = "surgery: with its hands, pockets and bag full, a doctor makes room for the tools"
+	desc = "The same, late in a shift: a bag with no room left, something in each pocket and each hand. A tool left in the hand was what it put down to pick the next one up, and no operation got past fetching the tools."
+
+/datum/bot_scenario/griefed/surgeon/full_bag/grief()
+	var/obj/item/storage/bag = bot.get_item_by_slot(ITEM_SLOT_BACK)
+	for(var/i in 1 to 7) //not sheets: a stack put in a bag joins the one that's in it
+		SEND_SIGNAL(bag, COMSIG_TRY_STORAGE_INSERT, new /obj/item/extinguisher(bot.loc), bot, TRUE, TRUE)
+	for(var/slot in list(ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET))
+		if(!bot.get_item_by_slot(slot))
+			bot.equip_to_slot_or_del(new /obj/item/lighter(bot), slot)
+	bot.put_in_hands(new /obj/item/stock_parts/cell/high(bot.loc))
+	bot.put_in_hands(new /obj/item/toy/plush/carpplushie(bot.loc))
+	..()
+
 /datum/bot_scenario/griefed/bug/exposed/suit_shuttle
 	name = "security: a suit at large and four of the crew dead is reason to call the shuttle early"
 	desc = "The user's ruling: with a nanosuit nobody's stopped and several dead, the Captain or acting captain calls the shuttle. Not for the suit alone, and not for the dead alone."

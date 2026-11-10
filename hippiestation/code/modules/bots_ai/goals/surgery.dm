@@ -89,6 +89,45 @@ GLOBAL_LIST_INIT(bot_surgery_tools, list(/obj/item/scalpel, /obj/item/retractor,
 	var/datum/bot_goal/operate/G = bot.current_goal
 	return G?.table && !QDELETED(G.table) && G.target && !QDELETED(G.target)
 
+/// What doesn't come out of a doctor's bag to make room for the tools: the tools, and what it treats people with.
+/datum/bot_brain/proc/keeps_for_surgery(obj/item/I)
+	if(keeps_in_bag(I) || is_type_in_list(I, GLOB.bot_surgery_tools)) //goals/traitor.dm
+		return TRUE
+	return istype(I, /obj/item/storage/firstaid) || istype(I, /obj/item/stack/medical) || istype(I, /obj/item/reagent_containers/pill) \
+		|| istype(I, /obj/item/reagent_containers/hypospray) || istype(I, /obj/item/reagent_containers/medspray) || istype(I, /obj/item/reagent_containers/syringe)
+
+/// A surgery tool out of the hand: a pocket, the bag, and with the bag full the smallest thing in it that isn't a doctor's comes out for
+/// it, left on the table the tool came off if there's one in reach. By the end of a shift nearly every bag is full, and a tool left in
+/// the hand was what got set down to pick the next one up: scalpel down for the retractor, retractor down for the scalpel, twice each,
+/// and "no scalpel to be had". Every operation tried in six shifts ended there.
+/datum/bot_brain/proc/bag_surgery_tool(obj/item/I)
+	if(!(I in owner.held_items) || put_away(I, allow_equip = FALSE))
+		return TRUE
+	for(var/slot in list(ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET))
+		if(!owner.get_item_by_slot(slot) && owner.equip_to_slot_if_possible(I, slot, FALSE, TRUE))
+			return TRUE
+	var/obj/item/storage/bag = worn_bag() //goals/clear_bag.dm
+	if(!bag)
+		return FALSE
+	var/atom/onto = owner.drop_location()
+	for(var/obj/structure/table/tray in range(1, owner))
+		if(!istype(tray, /obj/structure/table/optable))
+			onto = get_turf(tray)
+			break
+	for(var/size in WEIGHT_CLASS_TINY to WEIGHT_CLASS_GIGANTIC)
+		for(var/obj/item/junk in bag)
+			if(junk.w_class != size || keeps_for_surgery(junk))
+				continue
+			human_pause(bag)
+			if(QDELETED(I) || !(I in owner.held_items))
+				return FALSE
+			if(QDELETED(junk) || junk.loc != bag || !SEND_SIGNAL(bag, COMSIG_TRY_STORAGE_TAKE, junk, onto))
+				continue
+			bot_log(src, "taking [junk] out of the bag to make room for [I]")
+			if(put_away(I, allow_equip = FALSE))
+				return TRUE
+	return FALSE
+
 /// Every tool on it before it sets off, in the bag: a doctor doesn't find out halfway through that there's no cautery.
 /datum/bot_step/surgery_tools
 	var/list/fetches
@@ -98,7 +137,7 @@ GLOBAL_LIST_INIT(bot_surgery_tools, list(/obj/item/scalpel, /obj/item/retractor,
 		var/obj/item/I = bot.find_carried_tool(tool_type)
 		if(I)
 			if(I in bot.owner.held_items)
-				bot.put_away(I, allow_equip = FALSE)
+				bot.bag_surgery_tool(I)
 			continue
 		if(LAZYACCESS(fetches, tool_type) >= BOT_SURGERY_FETCHES)
 			bot_log(bot, "no [tool_type] to be had")
