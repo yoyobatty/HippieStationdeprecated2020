@@ -115,12 +115,23 @@
 	var/picked = pickweight(themes)
 	set_theme(new picked)
 
+/datum/controller/subsystem/parallax/Initialize(timeofday)
+	// The starlight for the theme PreInit() picked: the globals set_starlight() works on don't exist yet at PreInit
+	apply_starlight()
+	return ..()
+
+/// Space lights hulls, windows and breaches in the sky's colour. Aurora Caelus and Nar'Sie fade back to this base (space.dm).
+/// Space turfs lit after this take the colour as they light; the ones already lit are recoloured.
+/datum/controller/subsystem/parallax/proc/apply_starlight()
+	if(!GLOB.starlight_object)
+		return //before the globals: Initialize() does it
+	INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(set_base_starlight), theme.starlight || COLOR_STARLIGHT)
+
 /// Changes the sky for everyone, there and then.
 /datum/controller/subsystem/parallax/proc/set_theme(datum/sky_theme/new_theme)
 	theme = new_theme
 	random_layer = theme.asteroids ? /obj/screen/parallax_layer/random/asteroids : null
-	// Space lights hulls, windows and breaches in the sky's colour. Aurora Caelus and Nar'Sie fade back to this base (space.dm)
-	INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(set_base_starlight), theme.starlight || COLOR_STARLIGHT)
+	apply_starlight()
 	// The sun to one side, the other world and the galaxy well away from it and from each other
 	var/sun_bearing = rand(0, 359)
 	var/world_bearing = sun_bearing + rand(110, 180)
