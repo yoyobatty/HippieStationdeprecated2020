@@ -324,6 +324,13 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 /datum/bot_brain/proc/continue_eva_round()
 	continue_goal_chain(CALLBACK(src, PROC_REF(try_eva_gearing_round)))
 
+/// Any hardsuit at all, but not one that would have Security after whoever was wearing it (bot_law.dm).
+/datum/bot_goal/acquire_item_type/any_hardsuit
+	item_type = /obj/item/clothing/suit/space/hardsuit
+
+/datum/bot_goal/acquire_item_type/any_hardsuit/will_do(obj/item/I)
+	return ..() && !is_type_in_typecache(I, GLOB.bot_contraband)
+
 /datum/bot_goal/gear_up_for_eva/resolve_target(datum/bot_brain/bot)
 	target = bot.owner //no real "target" atom for this goal - just needs to be non-null so assign_goal() doesn't reject it
 
@@ -356,6 +363,8 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 	// storage unit either has what's needed or it doesn't, no point re-checking every
 	// single re-entry into this step.
 	var/tried_ssu = FALSE
+	/// Its own kind of hardsuit wasn't to be had, so it went for any it could lawfully get.
+	var/tried_any_hardsuit = FALSE
 
 /datum/bot_step/equip_eva_gear/execute(datum/bot_brain/bot)
 	var/mob/living/carbon/human/H = bot.owner
@@ -385,6 +394,11 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 
 	if(suit_type && !istype(H.wear_suit, suit_type))
 		var/obj/item/clothing/suit/space/hardsuit/suit = locate(suit_type) in H.GetAllContents()
+		if(!suit && tried_any_hardsuit)
+			for(var/obj/item/clothing/suit/space/hardsuit/other in H.GetAllContents())
+				if(!is_type_in_typecache(other, GLOB.bot_contraband))
+					suit = other
+					break
 		// Any hardsuit keeps the vacuum out, and that's all is_eva_ready() asks. One already on (the nearest storage
 		// unit was somebody else's) stays on unless the bot's own is to hand: a bot sent after its own type here
 		// walked past a perfectly good suit on its own back for a whole shift.
@@ -394,6 +408,15 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 			sub.item_type = suit_type
 			if(bot.suspend_goal_for(sub))
 				return GOAL_STEP_PENDING
+			// None of its own kind to be had: Atmospherics' two gone with the techs before it, and the third tech gave up suiting
+			// up, 80 times in a batch. Any hardsuit it may take keeps the vacuum out as well (is_eva_ready()), if it isn't one
+			// that would have Security after it.
+			if(!tried_any_hardsuit)
+				tried_any_hardsuit = TRUE
+				var/datum/bot_goal/acquire_item_type/any_hardsuit/other = new()
+				other.lawful = TRUE
+				if(bot.suspend_goal_for(other))
+					return GOAL_STEP_PENDING
 			bot_log(bot, "no hardsuit reachable to gear up with")
 			return GOAL_STEP_FAIL
 		// wear() (engineer_gear.dm), not a bare equip: out of the bag or box into a hand first, then on,

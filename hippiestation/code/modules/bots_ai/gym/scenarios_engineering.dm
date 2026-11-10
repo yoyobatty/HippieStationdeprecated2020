@@ -615,3 +615,26 @@
 		fail_reason = english_list(wrong)
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+/datum/bot_scenario/any_hardsuit
+	name = "eva: an atmos tech with no atmos hardsuit to be had suits up in an engineering one"
+	desc = "The Atmospherics hardsuits are gone, and an engineering hardsuit lies a few steps off. It went only for its own kind, found none, and gave up suiting up."
+	job = "Atmospheric Technician"
+	layout = list(
+		"########",
+		"#B...h.#",
+		"########")
+	time_limit = 30 SECONDS
+	max_goal_attempts = 1
+	kit_backpack = list(/obj/item/clothing/mask/gas, /obj/item/tank/internals/emergency_oxygen/engi)
+
+/datum/bot_scenario/any_hardsuit/setup()
+	place("h", new /obj/item/clothing/suit/space/hardsuit/engine(first_marker("h")))
+
+/datum/bot_scenario/any_hardsuit/make_goal()
+	return new /datum/bot_goal/gear_up_for_eva()
+
+/datum/bot_scenario/any_hardsuit/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return istype(bot.wear_suit, /obj/item/clothing/suit/space/hardsuit) ? BOT_GYM_PASS : BOT_GYM_PENDING
