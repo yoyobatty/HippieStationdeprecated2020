@@ -454,3 +454,25 @@
 		GLOB.main_supermatter_engine = stations_own
 	. = ..()
 	bot_refresh_hazards()
+
+/datum/bot_scenario/griefed/thrown_forgets
+	name = "items: something thrown forgets who threw it once it's landed"
+	desc = "A toolbox thrown across the room. It kept its thrower for good, which is what held on to a body deleted after: a hard delete for anybody gibbed or cremated who'd thrown something that was still about."
+	time_limit = 10 SECONDS
+	layout = list(
+		"########",
+		"#B.C...#",
+		"########")
+	var/obj/item/storage/toolbox/mechanical/thrown
+
+/datum/bot_scenario/griefed/thrown_forgets/grief()
+	thrown = place("C", new /obj/item/storage/toolbox/mechanical(griefer.loc))
+	thrown.throw_at(get_step(get_step(griefer, EAST), EAST), 3, 1, griefer)
+
+/datum/bot_scenario/griefed/thrown_forgets/check()
+	if(!thrown || thrown.throwing || world.time < start_time + 5 SECONDS)
+		return BOT_GYM_PENDING
+	if(thrown.thrownby)
+		fail_reason = "the toolbox still has [thrown.thrownby] as its thrower, lying on the floor"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

@@ -706,6 +706,9 @@ GLOBAL_LIST_INIT(bot_botany_crops, list(
 	. = finish(bot)
 	if(optional)
 		. = GOAL_STEP_SUCCESS
+	// Done with it: what was deleted under it is let go of (bot_brain.dm). The barricade a bot had just broken up for planks and the
+	// boiled egg it had just eaten were each a hard delete, held by the step that finished them off.
+	bot_forget_deleted_in(src)
 
 /datum/bot_step/paced/proc/continue_clicks(datum/bot_brain/bot)
 	if(QDELETED(bot) || bot.state != BOT_STATE_GOAL || !bot.on_this_step(src))

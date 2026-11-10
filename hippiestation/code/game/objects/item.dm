@@ -41,3 +41,10 @@
 				playsound(user, dropped_sound, 50, 0)
 				interact_sound_timeout = world.time + interact_sound_cooldown
 
+
+// Who threw it is wanted while it's in the air and when it lands: who hit whom, a splashed beaker's name in the logs, a boomerang's
+// way back. Kept after that, it was what still held on to somebody deleted: anybody gibbed or cremated who'd thrown something that
+// was still lying about was a hard delete, about 35 ms each (a hunt build named a stack of rods, a pipe dispenser and a toolbox).
+/obj/item/after_throw(datum/callback/callback)
+	. = ..()
+	thrownby = null
