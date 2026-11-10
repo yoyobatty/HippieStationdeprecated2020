@@ -247,3 +247,48 @@
 		return
 	if(borg.x > griefer.x - 4 && (griefer.reagents.has_reagent(/datum/reagent/medicine/bicaridine) || bot.reagents.has_reagent(/datum/reagent/medicine/bicaridine)))
 		return BOT_GYM_PASS
+
+// Layout letter e: an emitter, pointed down the arena (bot_hazards.dm).
+/datum/bot_scenario/griefed/borg/out_of_beam
+	name = "cyborg: stood where an emitter comes on, it gets out of the line of fire"
+	desc = "A cyborg stood on the tile an emitter starts firing across. The cyborgs had no rule about beams at all: a medical one took 597 of them in a shift, seeing to somebody shot in the same spot."
+	borg_module = /obj/item/robot_module/janitor
+	time_limit = 20 SECONDS
+	layout = list(
+		"#######",
+		"#..e..#",
+		"#B.R.C#",
+		"#.....#",
+		"#######")
+	var/obj/machinery/power/emitter/emitter
+	var/lit = FALSE
+
+/datum/bot_scenario/griefed/borg/out_of_beam/setup()
+	emitter = place("e", new /obj/machinery/power/emitter(first_marker("e")))
+	emitter.anchored = TRUE
+	emitter.state = 2 //EMITTER_WELDED
+	emitter.active_power_usage = 0 //there's no wire under it here
+	emitter.setDir(SOUTH)
+
+/datum/bot_scenario/griefed/borg/out_of_beam/grief()
+	addtimer(CALLBACK(src, PROC_REF(light_it)), 10)
+
+/datum/bot_scenario/griefed/borg/out_of_beam/proc/light_it()
+	if(result != BOT_GYM_PENDING || QDELETED(emitter))
+		return
+	emitter.active = TRUE
+	lit = TRUE
+	bot_refresh_hazards()
+
+/datum/bot_scenario/griefed/borg/out_of_beam/check()
+	. = ..()
+	if(. != BOT_GYM_PENDING || !lit)
+		return
+	if(borg.x != emitter.x)
+		return BOT_GYM_PASS
+
+/datum/bot_scenario/griefed/borg/out_of_beam/release_run()
+	if(!QDELETED(emitter))
+		emitter.active = FALSE
+	bot_refresh_hazards()
+	return ..()

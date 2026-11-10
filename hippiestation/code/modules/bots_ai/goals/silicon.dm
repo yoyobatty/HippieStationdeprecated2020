@@ -991,7 +991,7 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 /// the tube itself (bot_turf_has_pushoff_backup(), the same as a suited crew member). It needs no air, so that's all it takes; Hippie's
 /// AI satellite, where they start, has no other way off but the tube.
 /turf/proc/bot_borg_reachable(caller, turf/T, ID, simulated_only)
-	if(!T || T.density || bot_turf_is_deadly(T))
+	if(!T || T.density || bot_turf_is_deadly(T) || bot_borg_steps_into_hazard(src, T)) //bot_hazards.dm
 		return FALSE
 	if(SSpathfinder.space_type_cache[T.type] && !bot_turf_has_pushoff_backup(T))
 		return FALSE
@@ -1023,9 +1023,26 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 		route.Cut(1, 2)
 	return TRUE
 
+/// Stood in an emitter's line of fire: off it, on to the nearest floor that isn't. Whatever it was at is found again from there.
+/datum/bot_silicon/borg/proc/step_out_of_beam()
+	var/turf/here = get_turf(owner)
+	if(!here || !bot_turf_in_beam(here))
+		return FALSE
+	for(var/turf/open/out in get_adjacent_open_turfs(here))
+		if(GLOB.bot_hazard_turfs[out] || isspaceturf(out) || is_blocked_turf(out, TRUE) || bot_turf_is_deadly(out))
+			continue
+		note("in an emitter's line of fire at [AREACOORD(here)]: out of it")
+		route = null
+		heading_for = null
+		step_towards(owner, out)
+		return TRUE
+	return FALSE
+
 /datum/bot_silicon/borg/think()
 	var/mob/living/silicon/robot/R = owner
 	if(R.incapacitated() || R.lockcharge)
+		return
+	if(step_out_of_beam())
 		return
 	if(tube_stage)
 		ride_tube()

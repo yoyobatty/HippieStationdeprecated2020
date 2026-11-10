@@ -141,6 +141,13 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 /proc/bot_turf_in_beam(turf/T)
 	return GLOB.bot_hazard_turfs[T] == BOT_HAZARD_BEAM
 
+/// Whether a cyborg's route would step into a line of fire or up to a ball from outside one (goals/silicon.dm). The cyborgs
+/// had no such rule: a medical cyborg stood in the supermatter's beam on Meta seeing to somebody who'd been shot there, and
+/// took 597 beams in a shift.
+/proc/bot_borg_steps_into_hazard(turf/from, turf/T)
+	var/hazard = GLOB.bot_hazard_turfs[T]
+	return (hazard == BOT_HAZARD_BEAM || hazard == BOT_HAZARD_BALL) && !GLOB.bot_hazard_turfs[from]
+
 /// Stood in an emitter's line of fire, going nowhere: out of it, to the nearest floor that isn't. Everybody an emitter killed
 /// took the first beam walking and the rest standing where it hit them, four or five beams over ten seconds.
 /datum/bot_brain/proc/try_step_out_of_beam()
