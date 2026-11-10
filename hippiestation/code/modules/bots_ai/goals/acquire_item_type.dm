@@ -9,6 +9,12 @@
 	/// Only one with nothing in it: a beaker for a fresh brew, not the one somebody left half full on the side
 	var/empty_only = FALSE
 
+/// Whether a place to get one is somewhere this bot can stand: assign_goal() (bot_goals.dm) turns down anything in air it can't
+/// breathe, and it turned down the whole fetch for the nearest one. A doctor after a scalpel for somebody on the floor was told the
+/// nearest was in a room with no air, and never looked at the one on the next table: three of four operations tried went that way.
+/datum/bot_goal/acquire_item_type/proc/can_stand_at(datum/bot_brain/bot, atom/source)
+	return braves_bad_air || !bot.in_bad_air(source) || bot.is_eva_ready()
+
 /// Whether this one, lying about, is what's wanted. Kinds the game files under the type that nobody would take for one aren't
 /// (bot_counts_as(), bot_knowledge.dm).
 /datum/bot_goal/acquire_item_type/proc/will_do(obj/item/I)
@@ -34,7 +40,7 @@
 	var/obj/item/best
 	var/best_dist
 	for(var/obj/item/I as anything in bot_instances_of(item_type))
-		if(!isturf(I.loc) || I.anchored || bot.on_a_shuttle_without_me(I) || !bot.knows_of(I) || !will_do(I))
+		if(!isturf(I.loc) || I.anchored || bot.on_a_shuttle_without_me(I) || !bot.knows_of(I) || !will_do(I) || !can_stand_at(bot, I))
 			continue //already held/worn/bagged, or fixed in place - not freely takeable
 		var/turf/T = I.loc
 		if(T.z != bot.owner.z)
@@ -59,7 +65,7 @@
 			continue
 		if(C.secure && C.locked && !C.allowed(bot.owner))
 			continue //can't open it anyway - not a real candidate
-		if(!bot.knows_of_inside(C, item_type))
+		if(!bot.knows_of_inside(C, item_type) || !can_stand_at(bot, C))
 			continue
 		var/dist = get_dist(bot.owner, C)
 		if(!best_closet || dist < best_closet_dist)
@@ -69,6 +75,8 @@
 	// or a machine that sells them, if that's nearer (bot_knowledge.dm)
 	var/list/vendors = bot.vendors_selling(item_type)
 	for(var/obj/machinery/vending/V as anything in vendors)
+		if(!can_stand_at(bot, V))
+			continue
 		if(!target || vendors[V] < best_closet_dist)
 			target = V
 			best_closet_dist = vendors[V]
@@ -82,7 +90,7 @@
 /datum/bot_goal/acquire_item_type/proc/nearest_lawful_source(datum/bot_brain/bot)
 	var/list/found = list() //source -> how far off
 	for(var/obj/item/I as anything in bot_instances_of(item_type))
-		if(QDELETED(I) || !isturf(I.loc) || I.anchored || I.z != bot.owner.z || bot.on_a_shuttle_without_me(I) || !bot.knows_of(I) || !will_do(I))
+		if(QDELETED(I) || !isturf(I.loc) || I.anchored || I.z != bot.owner.z || bot.on_a_shuttle_without_me(I) || !bot.knows_of(I) || !will_do(I) || !can_stand_at(bot, I))
 			continue
 		found[I] = get_dist(bot.owner, I)
 	for(var/obj/structure/closet/C as anything in bot_instances_of(/obj/structure/closet))
@@ -90,12 +98,13 @@
 			continue
 		if(C.secure && C.locked && !C.allowed(bot.owner))
 			continue
-		if(!bot.knows_of_inside(C, item_type))
+		if(!bot.knows_of_inside(C, item_type) || !can_stand_at(bot, C))
 			continue
 		found[C] = get_dist(bot.owner, C) + 3 //a loose one is less bother than rummaging
 	var/list/vendors = bot.vendors_selling(item_type) //or buy one (bot_knowledge.dm)
 	for(var/obj/machinery/vending/V as anything in vendors)
-		found[V] = vendors[V]
+		if(can_stand_at(bot, V))
+			found[V] = vendors[V]
 	var/tries = 0
 	var/known = length(found)
 	while(length(found) && tries++ < lawful_tries)

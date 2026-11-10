@@ -257,3 +257,36 @@
 		fail_reason = "took the beaker with something in it"
 		return BOT_GYM_FAIL
 	return (empty in carried) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/fetch_past_bad_air
+	name = "knowledge: the nearest one being in a room with no air, it goes for the next"
+	desc = "A screwdriver three tiles off behind a door, in a room with no air, and another further down the corridor. Any fetch for something in air it can't breathe is turned down, and it turned the whole errand down for the nearest: a doctor after a scalpel never looked at the one on the next table."
+	job = "Assistant"
+	time_limit = 30 SECONDS
+	layout = list(
+		"############",
+		"#vvD.B....s#",
+		"############")
+	var/obj/item/screwdriver/airless_one
+	var/obj/item/screwdriver/other
+
+/datum/bot_scenario/fetch_past_bad_air/setup()
+	airless_one = new(first_marker("v"))
+	other = new(first_marker("s"))
+
+/datum/bot_scenario/fetch_past_bad_air/make_goal()
+	if(goal_attempts > 2)
+		return null
+	var/datum/bot_goal/acquire_item_type/get = new
+	get.item_type = /obj/item/screwdriver
+	get.lawful = TRUE
+	return get
+
+/datum/bot_scenario/fetch_past_bad_air/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/list/carried = bot.GetAllContents()
+	if(airless_one in carried)
+		fail_reason = "went into the room with no air for it"
+		return BOT_GYM_FAIL
+	return (other in carried) ? BOT_GYM_PASS : BOT_GYM_PENDING
