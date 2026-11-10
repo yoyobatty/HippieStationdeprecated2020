@@ -449,6 +449,7 @@ SUBSYSTEM_DEF(air)
 /datum/controller/subsystem/air/proc/add_to_active(turf/open/T, blockchanges = FALSE)
 	if(istype(T) && T.air)
 		T.air_changed_at = times_fired // hippie -- wakes idle machines on it (hippiestation/code/modules/atmospherics/idle_machines.dm)
+		T.air_touched = tile_engine_air_clock // hippie -- its air changed, so the tile engine gets it again (tile_engine.dm)
 		if(T.idle_atmos_machines)
 			atmos_wake_turf(T)
 		T.significant_share_ticker = 0

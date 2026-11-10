@@ -509,6 +509,8 @@ GLOBAL_VAR(atmos_bench_updaters)
 	var/total_rounds = SSair.tile_engine_total_rounds
 	var/total_changed = SSair.tile_engine_total_changed
 	var/total_turns = SSair.tile_engine_total_turns
+	var/air_sent = SSair.tile_engine_air_sent_count
+	var/air_kept = SSair.tile_engine_air_kept_count
 	var/list/series = list()
 	GLOB.atmos_bench_recording = TRUE
 	while(world.time < start_time + length)
@@ -536,6 +538,16 @@ GLOBAL_VAR(atmos_bench_updaters)
 	if(SSair.tile_engine && fires)
 		. += "  tile engine, ms per SSair fire: packing [round((SSair.tile_engine_pack_ms - pack_ms) / fires, 0.01)], the engine itself [round((SSair.tile_engine_native_ms - native_ms) / fires, 0.01)], following up [round((SSair.tile_engine_apply_ms - apply_ms) / fires, 0.01)]"
 		. += "  tile engine, per SSair fire: [round((SSair.tile_engine_total_packed - total_packed) / fires, 0.1)] turfs packed, [round((SSair.tile_engine_total_turns - total_turns) / fires, 0.1)] had a turn, [round((SSair.tile_engine_total_changed - total_changed) / fires, 0.1)] changed, [round((SSair.tile_engine_total_rounds - total_rounds) / fires, 0.1)] rounds"
+		. += "  tile engine keeping air ([SSair.tile_engine_air]), per SSair fire: [round((SSair.tile_engine_air_sent_count - air_sent) / fires, 0.1)] turfs sent their air, [round((SSair.tile_engine_air_kept_count - air_kept) / fires, 0.1)] the engine had"
+		if(SSair.tile_engine_air == "shadow")
+			var/list/check = SSair.tile_engine_air_check()
+			if(length(check) >= 2)
+				var/list/where = list()
+				for(var/i in 3 to length(check))
+					var/turf/T = check[i]
+					if(isturf(T))
+						where += "[T.x],[T.y],[T.z] [get_area_name(T, TRUE)]"
+				. += "  kept air checked so far: [check[1]] turfs, [check[2]] different[length(where) ? ": [jointext(where, "; ")]" : ""]"
 	var/list/machine_ms = GLOB.atmos_bench_machine_ms
 	if(length(machine_ms) && fires)
 		sortTim(machine_ms, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)

@@ -417,6 +417,29 @@ impl Tick {
 		Some(self.temperature_archived[i])
 	}
 
+	/// What DM holds of tile `i`'s air once this tick's changes are written (finish() has run): the turf's number and its
+	/// temperature, with (gas index, moles) for the gases it has in `gases`, all as DM's 32-bit numbers. A tile a share touched
+	/// gets what the engine worked out, rounded the way DM keeps it; any other keeps what DM sent. None for no air.
+	/// For lib.rs to keep between ticks, so DM only sends a turf's air again when DM changes it.
+	pub fn final_air(&self, i: usize, gases: &mut Vec<(u8, f32)>) -> Option<(u32, f32)> {
+		// planetary mixes' own tiles have no turf (u32::MAX)
+		if i >= self.count || self.kind[i] == KIND_NO_AIR || self.id[i] == u32::MAX {
+			return None;
+		}
+		let g = self.gases;
+		let worked_out = self.touched[i] && mutable(self.kind[i]);
+		gases.clear();
+		for gas in 0..g {
+			let index = i * g + gas;
+			let amount = if worked_out { self.moles[index] } else { self.start[index] } as f32;
+			if amount != 0.0 {
+				gases.push((gas as u8, amount));
+			}
+		}
+		let temperature = if worked_out { self.temperature[i] } else { self.start_temperature[i] } as f32;
+		Some((self.id[i], temperature))
+	}
+
 	/// How many tiles have been packed this tick
 	pub fn packed(&self) -> usize {
 		self.count

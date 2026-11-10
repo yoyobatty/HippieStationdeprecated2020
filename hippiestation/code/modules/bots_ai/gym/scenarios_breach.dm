@@ -171,6 +171,7 @@
 /datum/bot_scenario/emergency_window_into_vacuum/setup()
 	var/turf/open/goal = first_marker("G")
 	goal.air.parse_gas_string("TEMP=2.7")
+	SSair.add_to_active(goal) // so atmos hears it's empty now
 
 /datum/bot_scenario/emergency_window_into_vacuum/check()
 	if(placed_destroyed("W"))

@@ -222,6 +222,10 @@ unsafe fn arguments<'a>(argc: u32, argv: *const ByondValue) -> &'a [ByondValue] 
 struct Known {
 	kind: Vec<u32>,
 	adjacent: Vec<Vec<u32>>,
+	/// Its air as DM holds it after the last tick it was in (temperature, then (gas index, moles)): DM only sends it again
+	/// when DM has changed it (a gas count of -2 says use this). NaN temperature for none kept.
+	air_temperature: Vec<f32>,
+	air_gases: Vec<Vec<(u8, f32)>>,
 }
 
 impl Known {
@@ -234,6 +238,25 @@ impl Known {
 		self.kind[i] = kind;
 		self.adjacent[i].clear();
 		self.adjacent[i].extend_from_slice(adjacent);
+	}
+
+	fn set_air(&mut self, id: u32, temperature: f32, gases: &[(u8, f32)]) {
+		let i = id as usize;
+		if i >= self.air_temperature.len() {
+			self.air_temperature.resize(i + 1, f32::NAN);
+			self.air_gases.resize_with(i + 1, Vec::new);
+		}
+		self.air_temperature[i] = temperature;
+		self.air_gases[i].clear();
+		self.air_gases[i].extend_from_slice(gases);
+	}
+
+	fn air(&self, id: u32) -> Option<(f32, &[(u8, f32)])> {
+		let i = id as usize;
+		match self.air_temperature.get(i) {
+			Some(&t) if !t.is_nan() => Some((t, &self.air_gases[i])),
+			_ => None,
+		}
 	}
 
 	fn get(&self, id: u32) -> Option<(u32, &[u32])> {
@@ -253,6 +276,14 @@ struct State {
 	/// of those didn't match
 	shadow_checked: u64,
 	shadow_mismatches: u64,
+	/// atmos-engine-air=shadow: turfs whose kept air was checked against what DM sent, how many didn't match, and a few of
+	/// those that didn't (turf numbers) for DM to say where they are
+	air_checked: u64,
+	air_mismatches: u64,
+	air_samples: Vec<u32>,
+	/// Turfs sent as kept that the engine has no air for, this call
+	missing: Vec<u32>,
+	final_gases: Vec<(u8, f32)>,
 	/// atmos_engine_write_setup() found writing works: the id of the string "temperature", and whether references read out
 	/// of a list have to be released (they're temporary on older 516 builds, and count until released on newer ones)
 	write_ready: bool,
@@ -337,6 +368,11 @@ pub unsafe extern "C" fn atmos_engine_setup(argc: u32, argv: *const ByondValue) 
 			adjacent: Vec::new(),
 			gases: Vec::new(),
 			wanted: Vec::new(),
+			air_checked: 0,
+			air_mismatches: 0,
+			air_samples: Vec::new(),
+			missing: Vec::new(),
+			final_gases: Vec::new(),
 			out: Vec::new(),
 		});
 		Ok(gases)
@@ -352,7 +388,12 @@ pub unsafe extern "C" fn atmos_engine_setup(argc: u32, argv: *const ByondValue) 
 /// The engine keeps each turf's kind and neighbours. A neighbour count of -1 means use what it has (nothing in
 /// `adjacent`, kind ignored). -2 - N means the same, but here are the N neighbours and the kind anyway, to check what it
 /// has against (atmos-engine-cache=shadow).
-/// Returns 1 when the tick is done, or 2 with the turfs it still needs in `wanted`, for calling this again with those.
+/// It keeps their air too, as DM holds it after each tick (atmos_engine_kept_air). A gas count of -2 means use that: no
+/// gases and no temperature follow. -3 - N means the same, but here are the N gases and the temperature anyway, to check
+/// what it has against (atmos-engine-air=shadow); the sent air is the one used.
+/// Returns 1 when the tick is done, or 2 with the turfs it still needs in `wanted`, for calling this again with those. 3 if
+/// it has no air for some turfs sent as kept: those are in `wanted`, and nothing from this call was taken, so DM sends the
+/// same call again with their air.
 /// A negative number if it failed.
 #[no_mangle]
 pub unsafe extern "C" fn atmos_engine_run(argc: u32, argv: *const ByondValue) -> ByondValue {
@@ -377,6 +418,34 @@ pub unsafe extern "C" fn atmos_engine_run(argc: u32, argv: *const ByondValue) ->
 		for neighbour in &state.neighbours {
 			state.adjacent.push(turf_number(neighbour)?);
 		}
+		// Turfs sent as kept that there's no kept air for: asked for before anything of this call is taken in
+		state.missing.clear();
+		{
+			let mut at = 0;
+			for turf in state.turfs.iter() {
+				let gas_count = state.rows[at].as_number() as i64;
+				at += 1;
+				if gas_count == -1 {
+					continue;
+				}
+				if gas_count == -2 {
+					let id = turf_number(turf)?;
+					if state.known.air(id).is_none() {
+						state.missing.push(id);
+					}
+					at += 6;
+				} else {
+					let n = if gas_count <= -3 { -3 - gas_count } else { gas_count } as usize;
+					at += 2 * n + 7;
+				}
+			}
+		}
+		if !state.missing.is_empty() {
+			state.out.clear();
+			state.out.extend(state.missing.iter().map(|&id| ByondValue::turf(id)));
+			write_values(api, &args[5], &state.out)?;
+			return Ok(3.0);
+		}
 		{
 		let State {
 			tick,
@@ -388,6 +457,9 @@ pub unsafe extern "C" fn atmos_engine_run(argc: u32, argv: *const ByondValue) ->
 			gas_lookup,
 			shadow_checked,
 			shadow_mismatches,
+			air_checked,
+			air_mismatches,
+			air_samples,
 			..
 		} = &mut *state;
 		let mut at = 0;
@@ -396,7 +468,7 @@ pub unsafe extern "C" fn atmos_engine_run(argc: u32, argv: *const ByondValue) ->
 			let id = turf_number(turf)?;
 			let gas_count = rows[at].as_number() as i32;
 			at += 1;
-			if gas_count < 0 {
+			if gas_count == -1 {
 				tick.add(NewTile {
 					id,
 					gases: &[],
@@ -411,8 +483,11 @@ pub unsafe extern "C" fn atmos_engine_run(argc: u32, argv: *const ByondValue) ->
 				});
 				continue;
 			}
+			let kept_row = gas_count == -2;
+			let check_row = gas_count <= -3;
+			let sent_gases = if kept_row { 0 } else if check_row { -3 - gas_count } else { gas_count } as usize;
 			gases.clear();
-			for _ in 0..gas_count {
+			for _ in 0..sent_gases {
 				let gas = gas_lookup.get(rows[at].data as usize).copied().unwrap_or(NO_GAS);
 				if gas == NO_GAS {
 					return Err(format!("a gas setup wasn't told about (type {}, {})", rows[at].kind, rows[at].data));
@@ -420,8 +495,29 @@ pub unsafe extern "C" fn atmos_engine_run(argc: u32, argv: *const ByondValue) ->
 				gases.push((gas as usize, rows[at + 1].as_number()));
 				at += 2;
 			}
-			let count = rows[at + 1].as_number() as i64;
-			let sent_kind = rows[at + 2].as_number() as u32;
+			let temperature = if kept_row {
+				let (kept_temperature, kept_gases) = known.air(id).ok_or_else(|| format!("turf {id}'s air was never sent"))?;
+				gases.extend(kept_gases.iter().map(|&(gas, amount)| (gas as usize, amount as f64)));
+				kept_temperature as f64
+			} else {
+				let sent_temperature = rows[at].as_number();
+				at += 1;
+				if check_row {
+					*air_checked += 1;
+					if !kept_matches(known.air(id), sent_temperature, gases) {
+						*air_mismatches += 1;
+						if air_samples.len() < 40 {
+							air_samples.push(id);
+						}
+						if *air_mismatches <= 10 {
+							eprintln!("hippie_atmos air: turf {id} kept {:?}, DM has {sent_temperature} K and {gases:?}", known.air(id));
+						}
+					}
+				}
+				sent_temperature
+			};
+			let count = rows[at].as_number() as i64;
+			let sent_kind = rows[at + 1].as_number() as u32;
 			if count >= 0 {
 				// Its kind and neighbours, new or changed: kept for next time
 				let n = count as usize;
@@ -445,16 +541,16 @@ pub unsafe extern "C" fn atmos_engine_run(argc: u32, argv: *const ByondValue) ->
 			tick.add(NewTile {
 				id,
 				gases,
-				temperature: rows[at].as_number(),
+				temperature,
 				adjacent: kept,
 				kind,
-				group: rows[at + 3].as_number() as u32,
-				ticker: rows[at + 4].as_number(),
-				hotspot: rows[at + 5].as_number() != 0.0,
-				drawn: rows[at + 6].as_number(),
+				group: rows[at + 2].as_number() as u32,
+				ticker: rows[at + 3].as_number(),
+				hotspot: rows[at + 4].as_number() != 0.0,
+				drawn: rows[at + 5].as_number(),
 				awake,
 			});
-			at += 7;
+			at += 6;
 		}
 		if at != rows.len() || adjacent_at != adjacent.len() {
 			return Err(format!("read {at} of {} numbers and {adjacent_at} of {} neighbours", rows.len(), adjacent.len()));
@@ -464,6 +560,13 @@ pub unsafe extern "C" fn atmos_engine_run(argc: u32, argv: *const ByondValue) ->
 		state.wanted.clear();
 		if state.tick.run(&state.config, &planetary, &mut state.wanted) {
 			state.tick.finish(&state.config);
+			// What DM will hold of every turf in the tick, kept for next time
+			let State { tick, known, final_gases, .. } = &mut *state;
+			for i in 0..tick.packed() {
+				if let Some((id, temperature)) = tick.final_air(i, final_gases) {
+					known.set_air(id, temperature, final_gases);
+				}
+			}
 			return Ok(1.0);
 		}
 		if state.wanted.is_empty() {
@@ -605,6 +708,50 @@ pub unsafe extern "C" fn atmos_engine_results(argc: u32, argv: *const ByondValue
 			out.extend(tick.redraw.iter().map(|redraw| ByondValue::num(redraw.1 as f32)));
 			write_values(api, &args[15], out)?;
 		}
+		Ok(1.0)
+	})
+}
+
+/// Whether the kept air is the same as what DM sent: every gas, and the temperature, as DM's 32-bit numbers (a gas DM
+/// has at 0 is the same as one it hasn't got)
+fn kept_matches(kept: Option<(f32, &[(u8, f32)])>, temperature: f64, sent: &[(usize, f64)]) -> bool {
+	let Some((kept_temperature, kept_gases)) = kept else {
+		return false;
+	};
+	if kept_temperature != temperature as f32 {
+		return false;
+	}
+	let sent_nonzero = sent.iter().filter(|&&(_, amount)| amount as f32 != 0.0).count();
+	if sent_nonzero != kept_gases.len() {
+		return false;
+	}
+	sent.iter().filter(|&&(_, amount)| amount as f32 != 0.0).all(|&(gas, amount)| {
+		kept_gases.iter().any(|&(kept_gas, kept_amount)| kept_gas as usize == gas && kept_amount == amount as f32)
+	})
+}
+
+/// call_ext("hippie_atmos", "byond:atmos_engine_kept_air")(): 1. That the library keeps turfs' air (a gas count of -2 in
+/// atmos_engine_run), so DM only sends a turf's air when DM changed it. An older library hasn't got this.
+#[no_mangle]
+pub unsafe extern "C" fn atmos_engine_kept_air(_argc: u32, _argv: *const ByondValue) -> ByondValue {
+	ByondValue::num(1.0)
+}
+
+/// call_ext("hippie_atmos", "byond:atmos_engine_air_check")(out): with atmos-engine-air=shadow, how many turfs had their
+/// kept air checked against what DM sent and how many didn't match, then some of those turfs, written into `out`
+#[no_mangle]
+pub unsafe extern "C" fn atmos_engine_air_check(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	guarded("air_check", || {
+		let api = api().ok_or("byondcore.dll doesn't have Byond_ReadList and Byond_WriteList")?;
+		let guard = STATE.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+		let state = guard.as_ref().ok_or("air_check before setup")?;
+		let Some(out) = args.first() else {
+			return Err("no list to write into".into());
+		};
+		let mut values = vec![ByondValue::num(state.air_checked as f32), ByondValue::num(state.air_mismatches as f32)];
+		values.extend(state.air_samples.iter().map(|&id| ByondValue::turf(id)));
+		write_values(api, out, &values)?;
 		Ok(1.0)
 	})
 }

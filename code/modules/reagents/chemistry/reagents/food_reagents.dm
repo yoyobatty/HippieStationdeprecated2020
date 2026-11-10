@@ -269,6 +269,7 @@
 			var/turf/open/OT = T
 			OT.MakeSlippery(wet_setting=TURF_WET_ICE, min_wet_time=100, wet_time_to_add=reac_volume SECONDS) // Is less effective in high pressure/high heat capacity environments. More effective in low pressure.
 			OT.air.temperature -= MOLES_CELLSTANDARD*100*reac_volume/OT.air.heat_capacity() // reduces environment temperature by 5K per unit.
+			SSair.add_to_active(OT) // hippie -- atmos hears the air got colder (the tile engine keeps air it isn't told about)
 
 /datum/reagent/consumable/condensedcapsaicin
 	name = "Condensed Capsaicin"

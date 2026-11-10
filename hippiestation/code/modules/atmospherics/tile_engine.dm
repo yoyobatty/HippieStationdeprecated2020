@@ -3,16 +3,22 @@
 //
 // - The maths, the order turfs go in and LINDA's quirks are all process_cell()'s, so air behaves the way it always has.
 //   Excited groups stay in DM as they were: the engine says who joins up, and process_excited_groups() does the rest.
-// - Each turf's air stays the only copy of it. Every tick SSair packs the awake turfs, the engine asks for the turfs next
-//   to them, and next to any it wakes, and SSair writes back what changed. Nothing is kept between ticks, so nothing can
-//   go stale, and anything can change a turf's air at any time the way it always could.
+// - Every tick SSair packs the awake turfs, the engine asks for the turfs next to them, and next to any it wakes, and the
+//   engine writes back what changed. The engine keeps each turf's kind and neighbours, and its air as DM holds it after
+//   the tick: a turf only sends its air again if DM has touched it since (air_touched, set wherever DM hands out or
+//   changes a turf's air: return_air(), assume_air(), reactions, excited groups, heat through walls). DM's air stays the
+//   one everything else reads. -params "atmos-engine-air=shadow" sends every turf's air anyway and has the engine check
+//   what it kept against it, which is how a way of changing air that doesn't say so gets found; "off" sends it all.
 // - Reactions run after the sweep instead of during it, and the engine says which turfs need one, a new gas overlay or
 //   heat through walls, so SSair only does those for the turfs that need them.
 // - If the library is missing or a different version, or a tick fails, SSair runs LINDA as before. Everything LINDA needs
 //   is kept up to date, so that can happen at any time. Boot with -params "atmos-engine=linda" to choose LINDA anyway
 //   (for comparing the two).
 
-#define TILE_ENGINE_LIB (world.system_type == UNIX ? "./libhippie_atmos.so" : "hippie_atmos")
+#define TILE_ENGINE_LIB (GLOB.tile_engine_lib)
+/// The library: hippie_atmos.dll, ./libhippie_atmos.so on Linux, or another build of it (-params "atmos-lib=hippie_atmos_test",
+/// for testing a build while running servers have hippie_atmos.dll open)
+GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type == UNIX ? "./libhippie_atmos.so" : "hippie_atmos"))
 /// The version of the lists passed back and forth; the library has to report this one
 #define TILE_ENGINE_VERSION 11
 
@@ -58,6 +64,17 @@
 	/// The engine writes the new air straight into turfs' gas lists, instead of handing it back for DM to write
 	/// (-params "atmos-engine-writes=dm" turns that off, for testing)
 	var/tile_engine_writes = FALSE
+	/// The engine keeps turfs' air (an older library doesn't): "on", "shadow" (sends it all and has the engine check what it
+	/// kept), or "off"
+	var/tile_engine_air = "off"
+	/// Goes up before each tick is packed and again once the engine has written its air: a turf touched at or after the clock
+	/// it was last sent at sends its air again (/turf/open air_touched, tile_engine_air_sent)
+	var/tile_engine_air_clock = 1
+	/// The clock when the engine last started: air sent before that is gone
+	var/tile_engine_air_epoch = 0
+	/// Turfs whose air was sent this tick, and kept, so far (for benches)
+	var/tile_engine_air_sent_count = 0
+	var/tile_engine_air_kept_count = 0
 	/// -params "atmos-engine-writes=check": the engine writes, then DM checks every value against what it would have written
 	/// itself, and that no reference count changed. Counts of what was checked and what was wrong.
 	var/list/tile_engine_writes_check
@@ -68,6 +85,10 @@
 	var/tmp/tile_engine_sent = 0
 
 /turf/open
+	/// SSair.tile_engine_air_clock when DM last handed out or changed our air (return_air(), assume_air()...)
+	var/tmp/air_touched = 0
+	/// SSair.tile_engine_air_clock when the tile engine was last sent our air: it keeps it from then on, until we're touched
+	var/tmp/tile_engine_air_sent = 0
 	/// The overlay key the tile engine last drew this turf with, -1 for none
 	var/tile_engine_drawn = -1
 	/// times_fired when a reaction last redrew this turf
@@ -99,8 +120,8 @@
 	if(world.params["atmos-engine"] == "linda")
 		log_world("Atmos: running LINDA, the tile engine was turned off with atmos-engine=linda")
 		return
-	if(world.system_type != UNIX && !fexists("hippie_atmos.dll"))
-		log_world("Atmos: running LINDA, hippie_atmos.dll isn't there (build it with tools/atmos_engine/build.sh)")
+	if(world.system_type != UNIX && !fexists("[TILE_ENGINE_LIB].dll"))
+		log_world("Atmos: running LINDA, [TILE_ENGINE_LIB].dll isn't there (build it with tools/atmos_engine/build.sh)")
 		return
 	try
 		var/version = call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_version")()
@@ -151,7 +172,42 @@
 	tile_engine_cache_shadow = cache == "shadow"
 	tile_engine_generation = cache == "0" ? 0 : tile_engine_generation + 1
 	tile_engine_write_setup()
-	log_world("Atmos: tile engine on, [length(tile_engine_gas_types)] gases, [length(gas_reactions)] reactions[tile_engine_generation ? "" : ", sending every turf's neighbours every tick"][tile_engine_cache_shadow ? ", checking what it keeps of turfs" : ""]")
+	tile_engine_air_setup()
+	log_world("Atmos: tile engine on, [length(tile_engine_gas_types)] gases, [length(gas_reactions)] reactions[tile_engine_generation ? "" : ", sending every turf's neighbours every tick"][tile_engine_cache_shadow ? ", checking what it keeps of turfs" : ""], keeping turfs' air: [tile_engine_air]")
+
+/// Whether the engine keeps turfs' air (a library from before that hasn't got atmos_engine_kept_air()). A fresh start of the
+/// engine has none kept, so the epoch moves past every turf's tile_engine_air_sent.
+/datum/controller/subsystem/air/proc/tile_engine_air_setup()
+	tile_engine_air = "off"
+	var/wanted = world.params["atmos-engine-air"] || "on"
+	if(wanted == "off")
+		return
+	try
+		if(call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_kept_air")() != 1)
+			return
+	catch
+		return
+	tile_engine_air = wanted == "shadow" ? "shadow" : "on"
+	tile_engine_air_clock += 2
+	tile_engine_air_epoch = tile_engine_air_clock
+
+/// With atmos-engine-air=shadow, in the world log: how the kept air has checked out so far, and where it hasn't
+/datum/controller/subsystem/air/proc/tile_engine_air_log()
+	var/list/check = tile_engine_air_check()
+	if(length(check) < 2)
+		return
+	var/list/where = list()
+	for(var/i in 3 to length(check))
+		var/turf/T = check[i]
+		if(isturf(T))
+			where += "[T.x],[T.y],[T.z] [get_area_name(T, TRUE)]"
+	log_world("Atmos: kept air checked [check[1]] turfs, [check[2]] different[length(where) ? ": [jointext(where, "; ")]" : ""]")
+
+/// With atmos-engine-air=shadow: list(turfs checked, how many didn't match, then some of those turfs)
+/datum/controller/subsystem/air/proc/tile_engine_air_check()
+	. = list()
+	if(tile_engine && tile_engine_air == "shadow")
+		call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_air_check")(.)
 
 /// With atmos-engine-cache=shadow: how many turfs had what the engine kept of them checked against what was sent, and how
 /// many of those didn't match, as a list
@@ -314,20 +370,36 @@
 /datum/controller/subsystem/air/proc/tile_engine_pack(list/turf/open/turfs, list/tiles, list/adjacent)
 	var/generation = tile_engine_generation
 	var/shadow = tile_engine_cache_shadow
+	var/kept_air = tile_engine_air != "off"
+	var/air_shadow = tile_engine_air == "shadow"
+	var/clock = tile_engine_air_clock
+	var/epoch = tile_engine_air_epoch
 	for(var/turf/open/T as anything in turfs)
 		var/datum/gas_mixture/air = isopenturf(T) ? T.air : null
 		if(!air)
 			tiles += -1
 			continue
-		var/list/moles = air.moles
-		tiles += length(moles)
-		for(var/gas_type, amount in moles)
-			tiles += gas_type
-			tiles += amount
+		// The engine has this turf's air as it is, unless something's touched it since it was sent
+		var/air_kept = kept_air && T.tile_engine_air_sent > epoch && T.air_touched < T.tile_engine_air_sent
+		var/sent_air = !air_kept || air_shadow
+		if(sent_air)
+			var/list/moles = air.moles
+			tiles += air_kept ? -3 - length(moles) : length(moles) // shadow: here it is anyway, to check against
+			for(var/gas_type, amount in moles)
+				tiles += gas_type
+				tiles += amount
+			tiles += air.temperature
+			if(!air_kept)
+				T.tile_engine_air_sent = clock
+				tile_engine_air_sent_count++
+		else
+			tiles += -2
+		if(air_kept)
+			tile_engine_air_kept_count++ // in the shadow too: what it would have kept
 		var/datum/excited_group/group = T.excited_group
 		var/sent = generation && T.tile_engine_sent == generation
 		if(sent && !shadow) // The engine still has our kind and neighbours
-			tiles.Add(air.temperature, -1, 0, group ? group.tile_engine_number : 0, T.significant_share_ticker, T.active_hotspot ? 1 : 0, T.tile_engine_drawn)
+			tiles.Add(-1, 0, group ? group.tile_engine_number : 0, T.significant_share_ticker, T.active_hotspot ? 1 : 0, T.tile_engine_drawn)
 			continue
 		var/kind = 0
 		if(istype(air, /datum/gas_mixture/immutable))
@@ -344,7 +416,7 @@
 			count = -2 - neighbour_count
 		else if(generation)
 			T.tile_engine_sent = generation
-		tiles.Add(air.temperature, count, kind, group ? group.tile_engine_number : 0, T.significant_share_ticker, T.active_hotspot ? 1 : 0, T.tile_engine_drawn)
+		tiles.Add(count, kind, group ? group.tile_engine_number : 0, T.significant_share_ticker, T.active_hotspot ? 1 : 0, T.tile_engine_drawn)
 
 /// Heat through walls works from turfs' archives, which nothing else needs, so the engine only hands over the ones it's
 /// about to read. Run before process_super_conductivity() goes through the conducting turfs. A turf the engine didn't
@@ -408,6 +480,9 @@
 		tile_engine_changed = 0
 		return
 	var/timer = TICK_USAGE_REAL
+	tile_engine_air_clock++
+	if(tile_engine_air == "shadow" && !(times_fired % 1200)) // every few minutes of a round, for checking it in shift batches
+		tile_engine_air_log()
 	var/list/need = active_turfs
 	var/awake = 1
 	var/packed = 0
@@ -428,6 +503,11 @@
 			status = "[error]"
 		tile_engine_native_ms += TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer)
 		timer = TICK_USAGE_REAL
+		if(status == 3) // it has no air for some turfs we said it kept (it started afresh): the same again, with theirs
+			for(var/turf/open/T as anything in wanted)
+				T.tile_engine_air_sent = 0
+			status = 2
+			continue
 		need = wanted
 		awake = 0
 	if(status != 1)
@@ -471,6 +551,8 @@
 	var/fired = times_fired
 	tile_engine_swept_at = fired
 	var/part = TICK_USAGE_REAL
+	// The engine's writes aren't touches. Anything DM does to a turf's air from here on is (exposing, reactions...).
+	tile_engine_air_clock++
 	// Air first. Only the gases that changed get written, in the turf's own list.
 	var/at = 1
 	if(tile_engine_writes)
@@ -559,6 +641,7 @@
 		if(!isopenturf(T))
 			continue
 		var/datum/gas_mixture/air = T.air
+		T.air_touched = tile_engine_air_clock
 		if(air.react(T))
 			T.tile_engine_reacted = fired
 			T.update_visuals()
@@ -583,6 +666,69 @@
 		T.consider_superconductivity(TRUE)
 	tile_engine_apply_parts["hot"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - part)
 	tile_engine_apply_ms += TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer)
+
+
+// ---------------------------------------------------------------------------------------------
+// Touching a turf's air: the tile engine keeps every turf's air between ticks, and DM sends it again when it's been touched
+// ---------------------------------------------------------------------------------------------
+
+/turf/open/return_air()
+	RETURN_TYPE(/datum/gas_mixture)
+	air_touched = SSair.tile_engine_air_clock // whoever has it may change it
+	return air
+
+/turf/open/assume_air(datum/gas_mixture/giver)
+	air_touched = SSair.tile_engine_air_clock
+	return ..()
+
+/turf/open/copy_air_with_tile(turf/open/T)
+	air_touched = SSair.tile_engine_air_clock
+	return ..()
+
+/turf/open/copy_air(datum/gas_mixture/copy)
+	air_touched = SSair.tile_engine_air_clock
+	return ..()
+
+/// An excited group breaking down evens out its turfs' air
+/datum/excited_group/self_breakdown(roundstart = FALSE, poke_turfs = FALSE)
+	var/clock = SSair.tile_engine_air_clock
+	for(var/turf/open/T as anything in turf_list)
+		T.air_touched = clock
+	return ..()
+
+/// Heat through walls changes the temperature of the air either side
+/turf/open/temperature_share_open_to_solid(turf/sharer)
+	air_touched = SSair.tile_engine_air_clock
+	return ..()
+
+/turf/neighbor_conduct_with_src(turf/open/other)
+	var/clock = SSair.tile_engine_air_clock
+	if(isopenturf(other))
+		other.air_touched = clock
+	var/turf/open/us = src
+	if(isopenturf(us))
+		us.air_touched = clock
+	return ..()
+
+/// Through a window the air either side shares heat straight, open turf to open turf (the plasma fire's shadow check found it)
+/turf/open/neighbor_conduct_with_src(turf/other)
+	var/clock = SSair.tile_engine_air_clock
+	air_touched = clock
+	if(isopenturf(other))
+		var/turf/open/them = other
+		them.air_touched = clock
+	return ..()
+
+/// Gas made on the spot, by a plasma floor burning say, goes straight into the turf's air
+/turf/open/atmos_spawn_air(text)
+	air_touched = SSair.tile_engine_air_clock
+	return ..()
+
+/turf/super_conduct()
+	var/turf/open/us = src
+	if(isopenturf(us))
+		us.air_touched = SSair.tile_engine_air_clock
+	return ..()
 
 #undef TILE_ENGINE_LIB
 #undef TILE_ENGINE_VERSION

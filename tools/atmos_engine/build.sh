@@ -9,7 +9,7 @@ if [ -n "${TEST:-}" ]; then
 	cargo test --lib --target i686-pc-windows-msvc
 fi
 cargo build --release --target i686-pc-windows-msvc
-cp target/i686-pc-windows-msvc/release/hippie_atmos.dll ../../hippie_atmos.dll
+cp target/i686-pc-windows-msvc/release/hippie_atmos.dll "../../${OUT:-hippie_atmos}.dll"
 if [ -n "${LINUX:-}" ]; then
 	# The Linux library too (BYOND's Linux server is 32-bit as well), cross-built here with zig as the linker. Needs zig, cargo-zigbuild
 	# (cargo install cargo-zigbuild) and rustup target add i686-unknown-linux-gnu. Asking for glibc 2.17 keeps it to what any Linux
@@ -19,4 +19,4 @@ if [ -n "${LINUX:-}" ]; then
 	cp target/i686-unknown-linux-gnu/release/libhippie_atmos.so ../../libhippie_atmos.so
 	echo "Built ../../libhippie_atmos.so"
 fi
-echo "Built ../../hippie_atmos.dll"
+echo "Built ../../${OUT:-hippie_atmos}.dll"
