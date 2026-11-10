@@ -94,7 +94,26 @@
 		return ..()
 	if(!has_gravity(src))
 		return ..()
+	// A cyborg can't swim up to the edge and drag itself out: it walks into the edge and its floaters lift it out. It used to be
+	// stuck for good unless its player knew to drag itself onto the floor, and the bot crew's cyborgs sat in it for 25 minutes.
+	if(issilicon(A))
+		INVOKE_ASYNC(A, TYPE_PROC_REF(/mob/living/silicon, pool_floaters), src)
 	return FALSE
+
+/mob/living/silicon
+	/// Its emergency floaters are lifting it out of a pool
+	var/pool_climbing = FALSE
+
+/// Out of the pool onto `F`, an edge it's next to: two seconds stood still (pool_main.dm, /turf/open/floor/CanPass())
+/mob/living/silicon/proc/pool_floaters(turf/open/floor/F)
+	if(pool_climbing || stat || !istype(loc, /turf/open/pool) || !Adjacent(F))
+		return
+	pool_climbing = TRUE
+	visible_message("<span class='notice'>[src] begins to float.</span>", "<span class='notice'>You start your emergency floaters.</span>")
+	if(do_after(src, 20, FALSE, F) && istype(loc, /turf/open/pool) && Adjacent(F))
+		forceMove(F)
+		to_chat(src, "<span class='notice'>You get out of the pool.</span>")
+	pool_climbing = FALSE
 
 /turf/open/pool/proc/wash_obj(obj/O)
 	. = SEND_SIGNAL(O, COMSIG_COMPONENT_CLEAN_ACT, CLEAN_WEAK)

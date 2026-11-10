@@ -993,9 +993,36 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 /turf/proc/bot_borg_reachable(caller, turf/T, ID, simulated_only)
 	if(!T || T.density || bot_turf_is_deadly(T) || bot_borg_steps_into_hazard(src, T)) //bot_hazards.dm
 		return FALSE
+	if(bot_steps_into_pool(src, T)) // round it, as the crew go: one in is two seconds of floaters to get out again
+		return FALSE
 	if(SSpathfinder.space_type_cache[T.type] && !bot_turf_has_pushoff_backup(T))
 		return FALSE
 	return !LinkBlockedWithAccess(T, caller, ID)
+
+/// In a pool: to the edge and out, as a player's cyborg gets out (walking into the edge starts its floaters, pool_main.dm). Routes go
+/// round the water, but a shove or a throw still lands one in, and two sat in it for 25 minutes in the user's round (2026-11-10).
+/datum/bot_silicon/borg/proc/climb_out_of_pool()
+	var/mob/living/silicon/robot/R = owner
+	if(!istype(R.loc, /turf/open/pool))
+		return FALSE
+	if(R.pool_climbing)
+		return TRUE
+	route = null
+	var/turf/here = R.loc
+	for(var/d in GLOB.cardinals)
+		var/turf/open/floor/F = get_step(R, d)
+		if(istype(F) && !istype(F, /turf/open/pool) && !F.density && !here.LinkBlockedWithAccess(F, R, route_card))
+			note("climbing out of the pool onto [COORD(F)]")
+			step(R, d)
+			return TRUE
+	var/turf/nearest
+	for(var/turf/open/floor/F in view(7, R))
+		if(!istype(F, /turf/open/pool) && !F.density && (!nearest || get_dist(R, F) < get_dist(R, nearest)))
+			nearest = F
+	if(nearest)
+		step_towards(R, nearest)
+		return TRUE
+	return FALSE
 
 /datum/bot_silicon/borg/proc/skipping(atom/A)
 	return LAZYACCESS(skip_until, REF(A)) > world.time
@@ -1043,6 +1070,8 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	if(R.incapacitated() || R.lockcharge)
 		return
 	if(step_out_of_beam())
+		return
+	if(climb_out_of_pool())
 		return
 	if(tube_stage)
 		ride_tube()

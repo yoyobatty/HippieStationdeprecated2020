@@ -340,3 +340,73 @@
 		emitter.active = FALSE
 	bot_refresh_hazards()
 	return ..()
+
+// The pool (pool_main.dm): a cyborg can't swim to the edge and drag itself out as a person does. In the user's round (2026-11-10) the
+// bot crew's two cyborgs routed through the water and sat in it for 25 minutes, until the user killed them there.
+/datum/bot_scenario/griefed/borg/pool
+	borg_module = /obj/item/robot_module/janitor
+	time_limit = 40 SECONDS
+	/// How many times the cyborg stepped into the water from dry floor
+	var/went_in = 0
+	/// It starts in the water (R is a pool tile too)
+	var/starts_in_water = FALSE
+
+/datum/bot_scenario/griefed/borg/pool/setup()
+	var/list/water = list()
+	water += markers["q"]
+	if(starts_in_water)
+		water += markers["R"]
+	for(var/turf/T in water)
+		T.ChangeTurf(/turf/open/pool)
+	for(var/turf/T in markers["b"])
+		place("b", new /obj/effect/decal/cleanable/blood(T))
+
+/datum/bot_scenario/griefed/borg/pool/post_spawn()
+	. = ..()
+	RegisterSignal(borg, COMSIG_MOVABLE_MOVED, PROC_REF(borg_moved))
+
+/datum/bot_scenario/griefed/borg/pool/proc/borg_moved(atom/movable/source, atom/old_loc)
+	SIGNAL_HANDLER
+	if(istype(borg.loc, /turf/open/pool) && !istype(old_loc, /turf/open/pool))
+		went_in++
+		log_line("cyborg stepped into the water at [COORD(borg)]")
+	else if(!istype(borg.loc, /turf/open/pool) && istype(old_loc, /turf/open/pool))
+		log_line("cyborg out of the water at [COORD(borg)]")
+
+/datum/bot_scenario/griefed/borg/pool/check()
+	. = ..()
+	if(. != BOT_GYM_PENDING)
+		return
+	for(var/obj/effect/decal/cleanable/C in placed["b"])
+		if(!QDELETED(C))
+			return
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/griefed/borg/pool/fallen_in
+	name = "cyborg: knocked into the pool, a cyborg's floaters get it out and it gets on with its job"
+	desc = "A janitor cyborg starts in the middle of the pool with blood on the floor beyond it. It works its way to the edge, its floaters lift it out, and it mops the blood up."
+	starts_in_water = TRUE
+	layout = list(
+		"##########",
+		"#B.......#",
+		"#qqqq..b.#",
+		"#qRqq....#",
+		"#qqqq...C#",
+		"##########")
+
+/datum/bot_scenario/griefed/borg/pool/round_it
+	name = "cyborg: a cyborg goes round the pool, not through it"
+	desc = "Blood on the far side of a pool, with dry floor round it. The janitor cyborg walks round the water to mop it up, and never goes in."
+	layout = list(
+		"###########",
+		"#.........#",
+		"#Rqqqqq.b.#",
+		"#Bqqqqq..C#",
+		"#.........#",
+		"###########")
+
+/datum/bot_scenario/griefed/borg/pool/round_it/check()
+	if(went_in)
+		fail_reason = "it walked into the pool"
+		return BOT_GYM_FAIL
+	return ..()
