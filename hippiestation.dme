@@ -3571,6 +3571,7 @@
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_janitor.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_law.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_leisure.dm"
+#include "hippiestation\code\modules\bots_ai\gym\scenarios_limbs.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_meals.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_mech.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_requests.dm"

@@ -63,7 +63,8 @@
 	// Picking up a space suit had the game put it straight on (stow_item()), and getting it ready to wear left it in both places.
 	if(holder == owner && I.loc == owner && !(I in owner.held_items) && !owner.temporarilyRemoveItemFromInventory(I))
 		return FALSE
-	if(owner.get_active_held_item() && !owner.get_inactive_held_item())
+	use_a_working_hand()
+	if(owner.get_active_held_item() && !owner.get_inactive_held_item() && other_hand_works())
 		owner.swap_hand() //the other hand is free - use it rather than putting something away
 	if(owner.get_active_held_item())
 		stow_item(owner.get_active_held_item())
@@ -75,6 +76,23 @@
 		if(owner.get_active_held_item() != I)
 			owner.swap_hand()
 	return owner.get_active_held_item() == I
+
+/// Whether the hand that isn't active can hold anything: an arm that's been lost, or hurt past use, can't (has_hand_for_held_index()).
+/datum/bot_brain/proc/other_hand_works()
+	return owner.has_hand_for_held_index(owner.get_inactive_hand_index())
+
+/// The active hand on one that works, if it's on one that doesn't. swap_hand() goes to a hand that isn't there as readily as one that
+/// is, and a scientist who'd lost an arm to the experimentor's fireball, switched to it to eat, held a tank transfer valve in the
+/// other for the last forty minutes of the shift: everything it went to pick up after that "wouldn't go in its hand" (22 times),
+/// and every job that needed a part was given up. A player whose hand isn't there switches back. FALSE with no hand that works.
+/datum/bot_brain/proc/use_a_working_hand()
+	if(owner.has_active_hand())
+		return TRUE
+	for(var/i in 1 to length(owner.held_items))
+		if(owner.has_hand_for_held_index(i))
+			owner.swap_hand(i)
+			return owner.has_active_hand()
+	return FALSE
 
 /// Puts a held item away - an equipment slot, the belt, backpack or pocket storage - never on the
 /// floor and never back into a hand. Returns TRUE if it left the hands.

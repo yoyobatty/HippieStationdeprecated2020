@@ -16,17 +16,20 @@
 	owner.face_atom(I)
 	make_hand_free()
 	if(!owner.put_in_hands(I))
+		bot_log(src, "[I] wouldn't go in my hand ([owner.has_active_hand() ? "holding [owner.get_active_held_item() || "nothing"]" : "no hand that works"])")
 		return FALSE
 	bot_log(src, "picked up [I]")
 	return TRUE
 
 /// One hand empty, whatever it takes: into the bag if the bag will have it, either hand's load, or else set down for a
 /// moment (set_down_items). put_in_hands() with both hands full tips what it's given onto the floor, and with a full
-/// bag and a toolbox in hand that was a bot's dinner, off the counter and down at its feet.
+/// bag and a toolbox in hand that was a bot's dinner, off the counter and down at its feet. A hand that isn't there, or is
+/// hurt past use, counts as full: one-handed, it's the one hand that's freed.
 /datum/bot_brain/proc/make_hand_free()
+	use_a_working_hand()
 	var/obj/item/active = owner.get_active_held_item()
 	var/obj/item/inactive = owner.get_inactive_held_item()
-	if(!active || !inactive || put_away(active, allow_equip = FALSE) || put_away(inactive, allow_equip = FALSE))
+	if(!active || (!inactive && other_hand_works()) || put_away(active, allow_equip = FALSE) || (inactive && put_away(inactive, allow_equip = FALSE)))
 		return
 	bot_log(src, "setting [active] down for a moment")
 	owner.dropItemToGround(active)

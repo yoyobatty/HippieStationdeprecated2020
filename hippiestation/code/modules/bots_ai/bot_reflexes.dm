@@ -388,6 +388,8 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 		return
 
 /datum/bot_brain/proc/mind_hands()
+	if(!owner.has_active_hand())
+		use_a_working_hand() //bot_human.dm: an arm lost or hurt past use, and the other one used
 	mind_slime()
 	mind_fauna() //goals/mining.dm
 	if(armed_bomb)
