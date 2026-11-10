@@ -12,7 +12,11 @@
 /// Whether a place to get one is somewhere this bot can stand: assign_goal() (bot_goals.dm) turns down anything in air it can't
 /// breathe, and it turned down the whole fetch for the nearest one. A doctor after a scalpel for somebody on the floor was told the
 /// nearest was in a room with no air, and never looked at the one on the next table: three of four operations tried went that way.
+/// Nor one it's given up on a few times running (note_give_up(), bot_goals.dm): the goal was turned down at that one and nothing else
+/// was looked at, so the nearest pair of zipties, in a maintenance room nobody had a way into, stood between a Warden and the next pair.
 /datum/bot_goal/acquire_item_type/proc/can_stand_at(datum/bot_brain/bot, atom/source)
+	if(bot.give_up_rests && world.time < LAZYACCESS(bot.give_up_rests, "[type] [REF(source)]"))
+		return FALSE
 	return braves_bad_air || !bot.in_bad_air(source) || bot.is_eva_ready()
 
 /// Whether this one, lying about, is what's wanted. Kinds the game files under the type that nobody would take for one aren't

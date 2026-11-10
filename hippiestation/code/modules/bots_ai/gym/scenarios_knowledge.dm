@@ -37,6 +37,33 @@
 		return BOT_GYM_FAIL
 	return (kept in carried) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/datum/bot_scenario/rested_source_skipped
+	name = "knowledge: zipties it keeps failing to get to are passed over for the next nearest"
+	desc = "A pair of zipties walled up two steps off and another across the room. It went for the walled-up pair every time, and when it had given up on them it went on turning the errand down instead of looking at the other pair."
+	time_limit = 30 SECONDS
+	max_goal_attempts = 7
+	layout = list(
+		"###########",
+		"#..#p#....#",
+		"#B.###...z#",
+		"#.........#",
+		"###########")
+	var/obj/item/restraints/handcuffs/cable/zipties/far
+
+/datum/bot_scenario/rested_source_skipped/setup()
+	place("p", new /obj/item/restraints/handcuffs/cable/zipties(first_marker("p")))
+	far = place("z", new /obj/item/restraints/handcuffs/cable/zipties(first_marker("z")))
+
+/datum/bot_scenario/rested_source_skipped/make_goal()
+	var/datum/bot_goal/acquire_item_type/get = new
+	get.item_type = /obj/item/restraints/handcuffs/cable/zipties
+	return get
+
+/datum/bot_scenario/rested_source_skipped/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (far in bot.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /datum/bot_scenario/knows_what_it_sees
 	name = "knowledge: after a screwdriver it takes the nearer one it can see lying about"
 	desc = "Something dropped since the round began is known to whoever sees it."
