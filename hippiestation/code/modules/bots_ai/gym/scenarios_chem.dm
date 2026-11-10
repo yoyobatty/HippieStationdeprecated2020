@@ -126,6 +126,21 @@
 	name = "chem: sodium fluoride, through the heater twice"
 	label = "sodium fluoride"
 
+/// A bottle of water in its pocket, as a chemist had who'd bought one for want of a beaker: the game files it under beakers, and
+/// between machines the bottle was taken for the brew.
+/datum/bot_scenario/chem_brew/sodiumf/water_bottle
+	name = "chem: sodium fluoride with a bottle of water in its pocket, the brew stays in its own beaker"
+
+/datum/bot_scenario/chem_brew/sodiumf/water_bottle/post_spawn()
+	..()
+	bot.equip_to_slot_or_del(new /obj/item/reagent_containers/glass/beaker/waterbottle(bot), ITEM_SLOT_LPOCKET)
+
+/datum/bot_scenario/chem_brew/sodiumf/water_bottle/check()
+	if(bot_transcript_said("didn't yield"))
+		fail_reason = "took the bottle of water through the machines in place of its brew"
+		return BOT_GYM_FAIL
+	return ..()
+
 /datum/bot_scenario/chem_brew/aluminiumf
 	name = "chem: aluminium fluorate, chilled and under pressure"
 	label = "aluminium fluorate"

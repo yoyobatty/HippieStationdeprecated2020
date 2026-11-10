@@ -242,12 +242,21 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 	var/kind = bot_chem_kind_of(C)
 	return kind && carried_chems(kind) <= wanted?[kind]
 
-/// The beaker it's working with: the one with something in it, or failing that any it's got.
+/// The beaker it's working with: the one this brew has had in the dispenser, then one with something in it, or failing that any it's
+/// got. Anything else it was carrying with something in it could be picked up part way through: a chemist with a bottle of water in
+/// its bag heated the water, added to the water, and took the water to the ChemMaster ("the mix didn't yield any", 59 times in 12
+/// shifts, nearly all of them chemists who'd bought a bottle), with the brew left in the other beaker.
 /datum/bot_brain/proc/brew_beaker()
 	if(brew_beaker_override && !QDELETED(brew_beaker_override) && brew_beaker_override.loc && get_turf(brew_beaker_override) == get_turf(owner))
 		return brew_beaker_override
+	var/datum/bot_goal/synthesize_medicine/brewing = current_goal
+	var/obj/item/reagent_containers/glass/beaker/own = istype(brewing) ? brewing.loaded_beaker : null
+	if(istype(own) && is_carried(own) && !istype(own.loc, /obj/item/grenade)) //not one that's gone into the grenade it's putting together: the other one's next
+		return own
 	var/obj/item/reagent_containers/glass/beaker/spare
 	for(var/obj/item/reagent_containers/glass/beaker/B in owner.GetAllContents(/obj/item/reagent_containers/glass/beaker))
+		if(!bot_counts_as(B.type, /obj/item/reagent_containers/glass/beaker))
+			continue //a drinks bottle (bot_knowledge.dm)
 		if(B.reagents.total_volume)
 			return B
 		spare = spare || B
@@ -664,7 +673,7 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 	for(var/key in G.numbered_beakers)
 		taken += G.numbered_beakers[key]
 	for(var/obj/item/reagent_containers/glass/beaker/E in bot.owner.GetAllContents(/obj/item/reagent_containers/glass/beaker))
-		if(!E.reagents.total_volume && !(E in taken))
+		if(!E.reagents.total_volume && !(E in taken) && bot_counts_as(E.type, /obj/item/reagent_containers/glass/beaker))
 			B = E
 			break
 	if(B)

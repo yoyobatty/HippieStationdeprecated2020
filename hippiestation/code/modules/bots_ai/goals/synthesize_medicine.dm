@@ -81,7 +81,7 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 
 /datum/bot_brain/proc/find_empty_beaker()
 	for(var/obj/item/reagent_containers/glass/beaker/B in owner.GetAllContents())
-		if(!B.reagents || !B.reagents.total_volume)
+		if((!B.reagents || !B.reagents.total_volume) && bot_counts_as(B.type, /obj/item/reagent_containers/glass/beaker)) //not an empty drinks bottle (bot_knowledge.dm)
 			return B
 	return null
 
