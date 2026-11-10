@@ -30,6 +30,7 @@ GLOBAL_VAR_INIT(explosion_shape_differed, 0)
 	var/mode = GLOB.explosion_shape_mode
 	if(mode == "line")
 		return null
+	range = CEILING(range, 1) //a delaminating supermatter's is 27.37 and the like: the grid's in whole tiles
 	var/size = range * 2 + 1
 	var/list/grid = new(size * size)
 	for(var/i in 1 to length(grid))
