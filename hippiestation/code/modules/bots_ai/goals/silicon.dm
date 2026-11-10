@@ -1131,7 +1131,7 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 /datum/bot_silicon/borg/proc/medical_job()
 	var/mob/living/carbon/human/best = patient_ref?.resolve() //somebody who asked comes first
 	var/best_dist
-	if(best && (world.time > patient_until || best.stat == DEAD || best.z != owner.z || best.getBruteLoss() + best.getFireLoss() < 5))
+	if(best && (world.time > patient_until || best.stat == DEAD || best.z != owner.z || best.getBruteLoss() + best.getFireLoss() < 5 || skipping(best)))
 		patient_ref = null
 		best = null
 	for(var/mob/living/carbon/human/H in (best ? list() : GLOB.alive_mob_list))
@@ -1146,20 +1146,138 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 		if(!best || dist < best_dist)
 			best = H
 			best_dist = dist
+	// Somebody the paddles can still bring back, if there's time, before anybody who isn't dying, and before somebody dying
+	// further off. A cyborg stood by while somebody it had been dosing died, and went on its way (the user's round, 2026-11-10).
+	var/obj/item/twohanded/shockpaddles/paddles = tool(/obj/item/twohanded/shockpaddles)
+	var/mob/living/carbon/human/body = paddles ? revivable_body(paddles) : null
+	if(body && (!best || best.health > best.crit_threshold || get_dist(owner, body) < get_dist(owner, best)))
+		return revive(body, paddles)
 	if(!best)
 		return FALSE
 	if(owner.Adjacent(best))
 		var/obj/item/reagent_containers/borghypo/hypo = tool(/obj/item/reagent_containers/borghypo)
+		var/zone = hypo ? injection_zone(best, hypo) : null
+		if(hypo && !zone)
+			return cant_inject(best)
 		var/medicine = hypo ? medicine_for(best, hypo) : null
 		if(medicine)
+			owner.zone_selected = zone
 			hypo.mode = hypo.reagent_ids.Find(medicine) //what its menu does
 			use_on(hypo, best)
 			return TRUE
 		// Their doses are working. Somebody in crit isn't left where they fell for that: Medbay, where the doctors and sleepers are
-		if(best.health <= best.crit_threshold)
-			start_carrying(best)
+		if(best.health <= best.crit_threshold && !start_carrying(best))
+			call_doctors(best, "they're in crit") //in Medbay already, or no way there: stays with them, and the doctors are told
 		return TRUE
 	return go_to(best)
+
+/// Where a needle gets through to them: the body, or else the head (a bio suit's hood off, a hardsuit's helmet down). Null if
+/// it's nowhere: the hypospray says "You inject them" and logs it as given through a thick suit, but nothing goes in. In the
+/// user's round a cyborg "dosed" a janitor in a bio suit with epinephrine every two seconds for two minutes, the epinephrine never
+/// came up, so it never moved on to the dexalin, and he suffocated in Medbay with it stood over him; another got 41 doses of
+/// kelotane through a suit with his health never moving.
+/datum/bot_silicon/borg/proc/injection_zone(mob/living/carbon/human/H, obj/item/reagent_containers/borghypo/hypo)
+	for(var/zone in list(BODY_ZONE_CHEST, BODY_ZONE_HEAD))
+		if(H.can_inject(owner, FALSE, zone, hypo.bypass_protection))
+			return zone
+	return null
+
+/// No way through what they've got on, as a player's cyborg would find. Somebody dying goes to Medbay, where a doctor can get it
+/// off them; otherwise the doctors are told, and it leaves them be for a while.
+/datum/bot_silicon/borg/proc/cant_inject(mob/living/carbon/human/H)
+	var/obj/item/covering = H.wear_suit || H.head
+	var/what = covering ? covering.name : "suit"
+	if(H.health <= H.crit_threshold && start_carrying(H))
+		note("can't get a needle through [H]'s [what]: taking them to Medbay")
+		return TRUE
+	note("can't get a needle through [H]'s [what]")
+	if(H.stat == CONSCIOUS) // up and about: told to their face, as a player's cyborg would, not called in on the radio
+		say_it(pick("[H.first_name()], take the [what] off and I'll patch you up.", "I can't treat you through that [what]."))
+	else
+		call_doctors(H, "I can't get a needle through [H.p_their()] [what].")
+	skip(H)
+	return TRUE
+
+/datum/bot_silicon/borg
+	/// REF() of somebody it's told Medical about -> when it'd tell them again
+	var/list/doctors_called
+
+/// Medical told on the radio, and a request made that the doctors answer (bot_requests.dm), once in a while for anybody.
+/datum/bot_silicon/borg/proc/call_doctors(mob/living/carbon/human/H, why)
+	if(LAZYACCESS(doctors_called, REF(H)) > world.time)
+		return
+	for(var/ref in doctors_called)
+		if(doctors_called[ref] <= world.time)
+			doctors_called -= ref
+	LAZYSET(doctors_called, REF(H), world.time + 3 MINUTES)
+	var/datum/bot_request_kind/medical/M = locate() in GLOB.bot_request_kinds
+	if(M && !bot_open_request_from(H, M))
+		bot_offer_request(bot_new_request(M, H, FREQ_MEDICAL, H))
+	note("telling Medical about [H]: [why]")
+	say_it(":m [H.first_name()] needs a doctor, [get_area_name(H, TRUE)]. [why]")
+
+/datum/bot_silicon/borg
+	/// REF() of a body -> how many times it's been shocked
+	var/list/shocks_given
+
+/// The nearest body its paddles could bring back, with time to get there and shock it: what the doctors' own revival goes by
+/// (goals/treat_patient.dm), the paddles' own check, no space suit over the chest, enough blood to live on.
+/datum/bot_silicon/borg/proc/revivable_body(obj/item/twohanded/shockpaddles/paddles)
+	var/best_dist
+	for(var/mob/living/carbon/human/H in GLOB.dead_mob_list)
+		if(H.z != owner.z || !isturf(H.loc) || skipping(H) || (H.pulledby && H.pulledby != owner))
+			continue
+		var/dist = get_dist(owner, H)
+		if(dist > BOT_BORG_RANGE || (. && dist >= best_dist))
+			continue
+		if(!paddles.can_defib(H) || (locate(/obj/item/clothing/suit/space) in H.contents))
+			continue
+		if(H.blood_volume < BLOOD_VOLUME_SAFE && !(NOBLOOD in H.dna?.species?.species_traits))
+			continue //it'd bleed out again in seconds: a body for the cloner
+		// The paddles take the suffocation off and nothing else: past this they're shocked back and dead again within the second,
+		// as one was three times over in a live round (2026-11-10). A body for the doctors' kits or the cloner.
+		if(H.getBruteLoss() + H.getFireLoss() + H.getToxLoss() + H.getCloneLoss() >= 170)
+			continue
+		if(world.time - H.timeofdeath + dist * BOT_BORG_STEP + 8 SECONDS > paddles.tlimit)
+			continue
+		. = H
+		best_dist = dist
+
+/// Over to them, the paddles on, and a shock, as a player's medical cyborg does: the paddles in its module, activated (they take
+/// the whole module, which is what wielding is to a cyborg), the chest aimed at. A few goes, then the cloner's welcome to them.
+/datum/bot_silicon/borg/proc/revive(mob/living/carbon/human/H, obj/item/twohanded/shockpaddles/paddles)
+	if(!owner.Adjacent(H))
+		return go_to(H)
+	if(carry_ref)
+		stop_carrying()
+	if(owner.pulling)
+		owner.stop_pulling() //whoever has hold of them gets the shock too
+	if(paddles.busy || paddles.cooldown)
+		return TRUE //charging
+	var/ref = REF(H)
+	if(LAZYACCESS(shocks_given, ref) >= 3)
+		skip(H)
+		return FALSE
+	LAZYSET(shocks_given, ref, LAZYACCESS(shocks_given, ref) + 1)
+	var/mob/living/silicon/robot/R = owner
+	if(!R.held_items.Find(paddles))
+		R.activate_module(paddles)
+	if(R.module_active != paddles)
+		R.select_module(R.held_items.Find(paddles))
+	if(!paddles.wielded)
+		paddles.attack_self(R) //activated in the module
+	if(!paddles.wielded)
+		note("can't get [paddles] going")
+		skip(H)
+		return FALSE
+	owner.zone_selected = BODY_ZONE_CHEST
+	note("shocking [H], dead [round((world.time - H.timeofdeath) / 10)] s")
+	use_on(paddles, H)
+	if(H.stat != DEAD)
+		note("brought [H] back")
+		bot_tally("brought back by a cyborg")
+		LAZYREMOVE(shocks_given, ref)
+	return TRUE
 
 /// What somebody needs next out of the hypospray, if it has any of it left: epinephrine for anybody in crit (it stops the
 /// suffocating, which is what they die of), dexalin for what suffocating they've done, then bicaridine or kelotane for whichever
@@ -1273,7 +1391,9 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 		stop_carrying()
 		return TRUE
 	var/obj/item/reagent_containers/borghypo/hypo = tool(/obj/item/reagent_containers/borghypo)
-	if(hypo && H.reagents.get_reagent_amount(/datum/reagent/medicine/epinephrine) < 2 && medicine_for(H, hypo) == /datum/reagent/medicine/epinephrine)
+	var/zone = hypo ? injection_zone(H, hypo) : null //through a suit it can't: it'd stand there "dosing" them all the way
+	if(zone && H.reagents.get_reagent_amount(/datum/reagent/medicine/epinephrine) < 2 && medicine_for(H, hypo) == /datum/reagent/medicine/epinephrine)
+		owner.zone_selected = zone
 		hypo.mode = hypo.reagent_ids.Find(/datum/reagent/medicine/epinephrine)
 		use_on(hypo, H)
 		return TRUE
@@ -1309,7 +1429,16 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 		return TRUE
 	return go_to(best, 0) //onto it
 
+/datum/bot_silicon/borg
+	/// The window it's welding, how sound it was when it last got better, and the goes since
+	var/datum/weakref/weld_ref
+	var/weld_integrity = 0
+	var/weld_goes = 0
+
 /datum/bot_silicon/borg/proc/engineer_job()
+	var/obj/item/weldingtool/welder = tool(/obj/item/weldingtool)
+	if(welder && welder.get_fuel() < 1)
+		return refuel(welder)
 	var/obj/structure/window/best
 	for(var/obj/structure/window/W in view(BOT_BORG_SIGHT, owner))
 		if(W.obj_integrity < W.max_integrity && !skipping(W))
@@ -1318,12 +1447,55 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	if(!best)
 		return FALSE
 	if(owner.Adjacent(best))
-		var/obj/item/weldingtool/welder = tool(/obj/item/weldingtool)
+		// A window that's no better for three goes isn't getting any better: one reached from the wrong side, or anything else
+		// window/attackby() turns away saying nothing. Each click with the welder lit burns fuel all the same: a cyborg welded one
+		// in Aft Maintenance 141 times, to the end of the user's round (2026-11-10).
+		if(weld_ref?.resolve() != best)
+			weld_ref = WEAKREF(best)
+			weld_integrity = best.obj_integrity
+			weld_goes = 0
+		else if(best.obj_integrity > weld_integrity)
+			weld_integrity = best.obj_integrity
+			weld_goes = 0
+		if(++weld_goes > 3)
+			note("giving up on [best] ([get_area_name(best, TRUE)]): no better for three goes")
+			skip(best)
+			weld_ref = null
+			return FALSE
 		if(welder && !welder.welding)
 			welder.attack_self(owner)
 		use_on(welder, best)
 		return TRUE
 	return go_to(best)
+
+/// Out of fuel: the nearest welding fuel tank, and the welder filled from it, off (a lit one sets the tank off, reagent_dispenser.dm).
+/// FALSE with no tank to go to: there's no welding without fuel.
+/datum/bot_silicon/borg/proc/refuel(obj/item/weldingtool/welder)
+	var/obj/structure/reagent_dispensers/fueltank/best
+	var/best_dist
+	for(var/obj/structure/reagent_dispensers/fueltank/T as anything in bot_instances_of(/obj/structure/reagent_dispensers/fueltank))
+		if(QDELETED(T) || T.z != owner.z || skipping(T) || !T.reagents?.has_reagent(/datum/reagent/fuel))
+			continue
+		var/dist = get_dist(owner, T)
+		if(dist <= BOT_BORG_RANGE && (!best || dist < best_dist))
+			best = T
+			best_dist = dist
+	if(!best)
+		return FALSE
+	if(!owner.Adjacent(best))
+		return go_to(best)
+	if(welder.welding)
+		welder.attack_self(owner)
+	if(welder.welding)
+		note("can't switch [welder] off: not refilling it at [best]")
+		skip(best)
+		return FALSE
+	use_on(welder, best)
+	if(welder.get_fuel() < 1)
+		skip(best)
+		return FALSE
+	note("refilled [welder] at [best] ([get_area_name(best, TRUE)])")
+	return TRUE
 
 /// Stops them, and leaves the rest to Security: it doesn't drag anybody to the Brig.
 /datum/bot_silicon/borg/proc/security_job()

@@ -410,3 +410,88 @@
 		fail_reason = "it walked into the pool"
 		return BOT_GYM_FAIL
 	return ..()
+
+// Medical cyborgs and what's in the way of a needle (goals/silicon.dm injection_zone()). In the user's round (2026-11-10) the
+// hypospray "injected" a janitor in a bio suit every two seconds for two minutes, nothing went in, and he suffocated in Medbay.
+/datum/bot_scenario/griefed/borg/medical/bio_suit
+	name = "cyborg: somebody hurt in a bio suit, hood off, gets the needle in the neck"
+	desc = "Bruised and out cold in a bio suit with the hood down. The suit's too thick for a needle, so the cyborg aims for the head and gets the bicaridine in."
+
+/datum/bot_scenario/griefed/borg/medical/bio_suit/grief()
+	..()
+	griefer.equip_to_slot_or_del(new /obj/item/clothing/suit/bio_suit(griefer), ITEM_SLOT_OCLOTHING)
+
+/datum/bot_scenario/griefed/borg/medical/bio_suit/sealed
+	name = "cyborg: somebody hurt and sealed in a bio suit gets a doctor called, not a hypospray poked at them"
+	desc = "Bruised and out cold in a bio suit and hood: no needle gets through anywhere. The cyborg tells Medical where they are and why, and stops trying."
+	var/called = FALSE
+
+/datum/bot_scenario/griefed/borg/medical/bio_suit/sealed/grief()
+	..()
+	griefer.equip_to_slot_or_del(new /obj/item/clothing/head/bio_hood(griefer), ITEM_SLOT_HEAD)
+
+/datum/bot_scenario/griefed/borg/medical/bio_suit/sealed/borg_spoke(datum/source, list/speech_args)
+	. = ..()
+	if(findtext(speech_args[SPEECH_MESSAGE], "needs a doctor"))
+		called = TRUE
+
+/datum/bot_scenario/griefed/borg/medical/bio_suit/sealed/check()
+	if(griefer.reagents.has_reagent(/datum/reagent/medicine/bicaridine))
+		fail_reason = "bicaridine got through a sealed bio suit: the test's wrong"
+		return BOT_GYM_FAIL
+	if(called)
+		return BOT_GYM_PASS
+	return ..()
+
+/datum/bot_scenario/griefed/borg/revive
+	name = "cyborg: somebody who's just died is shocked back with its paddles"
+	desc = "Somebody suffocated a moment ago, intact. A medical cyborg's module has defibrillator paddles: it goes over, activates them and shocks them back, as a player would, then sees to them."
+	borg_module = /obj/item/robot_module/medical
+	layout = list(
+		"##########",
+		"#R......C#",
+		"#B.......#",
+		"##########")
+
+/datum/bot_scenario/griefed/borg/revive/grief()
+	griefer.adjustOxyLoss(210)
+	griefer.updatehealth()
+	if(griefer.stat != DEAD)
+		griefer.death()
+	log_line("patient [griefer.stat == DEAD ? "dead" : "not dead"], [griefer.health] health")
+
+/datum/bot_scenario/griefed/borg/revive/check()
+	. = ..()
+	if(. != BOT_GYM_PENDING)
+		return
+	if(griefer.stat != DEAD && griefer.timeofdeath)
+		log_line("patient back, [griefer.health] health")
+		return BOT_GYM_PASS
+
+// Layout letter j: a welding fuel tank.
+/datum/bot_scenario/griefed/borg/engineer/refuel
+	name = "cyborg: an engineering cyborg out of fuel fills its welder at the fuel tank, then mends the window"
+	desc = "A cracked window and an empty welder. Clicking with an empty welder does nothing, and one cyborg did it 141 times: it fills the welder at the tank, switched off, and then mends the window."
+	layout = list(
+		"##########",
+		"#R.....k.#",
+		"#B..j...C#",
+		"##########")
+
+/datum/bot_scenario/griefed/borg/engineer/refuel/setup()
+	..()
+	for(var/turf/T in markers["j"])
+		place("j", new /obj/structure/reagent_dispensers/fueltank(T))
+
+/datum/bot_scenario/griefed/borg/engineer/refuel/post_spawn()
+	. = ..()
+	var/obj/item/weldingtool/W = locate() in borg.module.modules
+	W?.reagents.remove_reagent(/datum/reagent/fuel, W.max_fuel)
+	log_line("welder fuel [W?.get_fuel()]")
+
+/datum/bot_scenario/griefed/borg/engineer/refuel/check()
+	var/obj/structure/reagent_dispensers/fueltank/tank = first_placed("j")
+	if(QDELETED(tank))
+		fail_reason = "the fuel tank went up"
+		return BOT_GYM_FAIL
+	return ..()
