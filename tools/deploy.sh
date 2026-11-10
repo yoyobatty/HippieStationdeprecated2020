@@ -37,5 +37,7 @@ cp -r strings/* $1/strings/
 
 #dlls on windows
 cp rust_g* $1/ || true
-cp *BSQL.* $1/ || true
 cp *quickwrite.* $1/ || true
+#our native engines: atmos, lighting, the bots' path engine (Windows DLLs and the Linux libraries, tools/*/build.sh LINUX=1)
+cp hippie_atmos.dll hippie_lighting.dll hippie_path.dll $1/ 2>/dev/null || true
+cp libhippie_*.so $1/ 2>/dev/null || true

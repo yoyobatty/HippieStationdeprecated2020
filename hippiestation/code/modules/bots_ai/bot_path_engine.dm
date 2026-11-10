@@ -16,7 +16,8 @@
 // instead of a list of 10,000-odd tiles built here.
 //
 // World params: path-engine=dm leaves AStar() as it was; path-engine=shadow runs both and checks the engine's answer against
-// AStar()'s for every search, using AStar()'s (data/path_engine_check.txt); path-lib=<name> loads another build of the library;
+// AStar()'s for every search, using AStar()'s (data/path_engine_check.txt); path-lib=<name> loads another build of the library (on
+// Linux a path, ./libhippie_path_test.so say);
 // path-picture=off|check (station_picture.dm).
 
 #define PATH_ENGINE_VERSION 3
@@ -35,7 +36,9 @@
 #define PATH_MODE_BACKWARD 256
 #define PATH_MODE_STOP_AT_HUB 512
 
-GLOBAL_VAR_INIT(path_engine_lib, world.params["path-lib"] || "hippie_path")
+/// The library: hippie_path.dll on Windows, ./libhippie_path.so on Linux (tools/path_engine/build.sh LINUX=1), as the atmos and
+/// lighting engines' are
+GLOBAL_VAR_INIT(path_engine_lib, world.params["path-lib"] || (world.system_type == UNIX ? "./libhippie_path.so" : "hippie_path"))
 /// null until the first search, then TRUE if the engine is doing the bots' searches, FALSE if not
 GLOBAL_VAR(path_engine_on)
 GLOBAL_VAR_INIT(path_engine_shadow, FALSE)
@@ -77,8 +80,9 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 		GLOB.path_engine_status = "off (path-engine=dm)"
 		log_world("Path engine: [GLOB.path_engine_status]")
 		return
-	if(world.system_type != MS_WINDOWS || !fexists("[GLOB.path_engine_lib].dll"))
-		GLOB.path_engine_status = "off: no [GLOB.path_engine_lib].dll"
+	var/library_file = world.system_type == UNIX ? GLOB.path_engine_lib : "[GLOB.path_engine_lib].dll"
+	if(!fexists(library_file))
+		GLOB.path_engine_status = "off: no [library_file]"
 		log_world("Path engine: [GLOB.path_engine_status]")
 		return
 	var/list/turfs = list()

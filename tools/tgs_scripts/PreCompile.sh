@@ -1,7 +1,8 @@
 #!/bin/bash
 # TGS PreCompile (Linux): $1 is the new deployment folder. Puts librust_g.so in it: the prebuilt i686 library from the
 # rust-g release named by RUST_G_VERSION in dependencies.sh, kept in a cache beside this script so each version is
-# downloaded once. Everything else the game loads on Linux (libhippie_atmos.so, libhippie_lighting.so, libquickwrite.so)
+# downloaded once. Everything else the game loads on Linux (libhippie_atmos.so, libhippie_lighting.so, libhippie_path.so,
+# libquickwrite.so)
 # is committed, and the tgui bundle is committed too, so there's nothing to build.
 # Windows needs no PreCompile: rust_g.dll and the other DLLs are committed.
 set -euo pipefail
