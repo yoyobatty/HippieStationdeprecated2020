@@ -202,7 +202,7 @@
 				if(!window_check)
 					rows += list(admin_report_row("wall", "[C1.c_tag]", C1, "network [jointext(C1.network, ", ")]"))
 		CHECK_TICK
-	open_admin_report("cameras", "Camera report", "[length(cameras)] cameras. Same tile ones might be on purpose.", groups, rows)
+	open_admin_report("cameras", "Camera report", "[length(cameras)] cameras", groups, rows)
 	SSblackbox.record_feedback("tally", "admin_verb", 1, "Show Camera Report")
 
 // ---------------------------------------------------------------------------------------------
@@ -213,7 +213,7 @@
 	var/list/rows = list()
 	for(var/turf/T in GLOB.active_turfs_startlist)
 		rows += list(admin_report_row("turf", "[T]", T, "[T.type]"))
-	open_admin_report("at_list", "Roundstart active turfs", "Turfs that were already active when the round started. For live ones check SSair's active_turfs.", \
+	open_admin_report("at_list", "Roundstart active turfs", "[length(rows)] turfs. Live: SSair.active_turfs", \
 		list(list("id" = "turf", "label" = "Active at roundstart", "level" = "warn")), rows)
 	SSblackbox.record_feedback("tally", "admin_verb", 1, "Show Roundstart Active Turfs")
 
@@ -250,7 +250,7 @@
 	for(var/line in splittext(SSatoms.InitLog(), "\n"))
 		if(length(trim(line)))
 			rows += list(admin_report_row("line", line))
-	open_admin_report("init_log", "Initialize() log", "Things that didn't handle Initialize() properly", \
+	open_admin_report("init_log", "Initialize() log", "[length(rows)] problems", \
 		list(list("id" = "line", "label" = "Problems", "level" = "warn")), rows)
 
 // ---------------------------------------------------------------------------------------------

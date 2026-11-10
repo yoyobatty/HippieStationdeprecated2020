@@ -55,7 +55,7 @@ export class SandboxPanel extends Component {
                 onClick={() => search(kind, this.state.query)} />
             ))}
           </Tabs>
-          <Input fluid placeholder="Type at least two letters..."
+          <Input fluid placeholder="Search items..."
             value={this.state.query}
             onInput={(e, value) => this.setState({ query: value })}
             onChange={(e, value) => search(data.search_kind, value)} />
