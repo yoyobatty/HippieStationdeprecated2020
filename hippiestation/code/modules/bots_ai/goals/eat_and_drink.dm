@@ -86,11 +86,13 @@ GLOBAL_LIST_INIT(bot_inedible_food, typecacheof(list(
 		best_dist = dist
 	return best
 
-/// What V has in stock that's a kind of base_type, as product records.
+/// What V has in stock that's a kind of base_type and that the bot can pay for, as product records. A crew member who'd spent their
+/// money walked to the snack machine anyway and was turned away at it, again and again: 21 times one assistant in an hour of a low-pop
+/// shift, two dozen meals given up a shift, with nothing in the log to say why (the machine's "You do not possess the funds").
 /datum/bot_brain/proc/vendor_fare(obj/machinery/vending/V, base_type)
 	. = list()
 	for(var/datum/data/vending_product/R in V.product_records)
-		if(R.amount > 0 && ispath(R.product_path, base_type))
+		if(R.amount > 0 && ispath(R.product_path, base_type) && can_afford_from(V, R.product_path)) //bot_knowledge.dm
 			. += R
 
 /// The nearest working machine of one of vendor_types with something of base_type to sell.

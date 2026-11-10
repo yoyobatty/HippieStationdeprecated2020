@@ -487,21 +487,25 @@ GLOBAL_LIST_INIT(bot_botany_crops, list(
 /// where a player picks it up from) or null.
 /datum/bot_brain/proc/vend_from(obj/machinery/vending/V, product_path)
 	if(QDELETED(V) || V.panel_open || (V.stat & (BROKEN|NOPOWER)) || !owner.Adjacent(V))
+		bot_log(src, "couldn't use [V]: [QDELETED(V) ? "gone" : (V.panel_open ? "panel open" : (V.stat & (BROKEN|NOPOWER) ? "broken or unpowered" : "not beside it"))]")
 		return null
 	var/list/records = vendor_stock(V, list(product_path))
 	if(!length(records))
+		bot_log(src, "[V] has no [product_path] left")
 		return null
 	var/datum/data/vending_product/R = records[1]
 	telemetry_action = "vend [R.name] from [V]"
 	human_pause(V)
 	telemetry_action = null
 	if(QDELETED(V) || !owner.Adjacent(V) || R.amount <= 0)
+		bot_log(src, "lost [V] while reaching for it: [QDELETED(V) ? "gone" : (R.amount <= 0 ? "sold out" : "not beside it")]")
 		return null
 	owner.face_atom(V)
 	telemetry_ui_action(V, "vend")
 	if(V.onstation)
 		var/obj/item/card/id/C = owner.get_idcard(TRUE)
 		if(!C || !C.registered_account)
+			bot_log(src, "[V] wouldn't sell: [C ? "no account on my card" : "no card"]")
 			V.say(C ? "No account found." : "No card found.")
 			if(V.icon_deny)
 				flick(V.icon_deny, V)
@@ -513,6 +517,7 @@ GLOBAL_LIST_INIT(bot_botany_crops, list(
 		if(R in V.hidden_records)
 			price = R.custom_premium_price || V.extra_price //contraband costs even staff
 		if(price && !account.adjust_money(-price))
+			bot_log(src, "can't afford [R.name] from [V] ([price] cr, [account.account_balance] on my card)")
 			V.say("You do not possess the funds to purchase [R.name].")
 			if(V.icon_deny)
 				flick(V.icon_deny, V)

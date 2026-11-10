@@ -447,7 +447,7 @@ GLOBAL_LIST_INIT(bot_power_mutations, list(/datum/mutation/human/hulk, /datum/mu
 	if(have[1] >= BOT_POWER_PATCHES && have[2] >= BOT_POWER_PATCHES)
 		return FALSE
 	var/obj/machinery/vending/V = find_nanomed()
-	if(!V)
+	if(!V || !can_afford_from(V, /obj/item/reagent_containers/pill/patch/styptic)) //bot_knowledge.dm: the Plus charges, and broke is broke
 		LAZYSET(power_rests, "heals", world.time + BOT_POWER_RUNG_REST)
 		return FALSE
 	LAZYSET(power_rests, "heals", world.time + BOT_POWER_RUNG_REST / 2)
