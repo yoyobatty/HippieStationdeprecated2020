@@ -59,6 +59,14 @@
 	taste_description = "sand"
 
 /datum/reagent/vitrium/reaction_obj(obj/O, volume)
+	// A shard of glass: five units fuse it back into a sheet
+	var/obj/item/shard/shard = O
+	if(istype(shard) && volume >= 5)
+		var/sheet = istype(shard, /obj/item/shard/plasma) ? /obj/item/stack/sheet/plasmaglass : /obj/item/stack/sheet/glass
+		new sheet(shard.drop_location())
+		shard.visible_message("<span class='notice'>The resin draws [shard] together into a clean sheet.</span>")
+		qdel(shard)
+		return
 	var/obj/structure/window/W = O
 	if(!istype(W) || volume < 1)
 		return ..()
@@ -80,6 +88,19 @@
 	required_temp = 500
 	mix_message = "The mixture goes glassy and clear."
 
+/// Baked hotter, it's glass: a sheet for every ten units.
+/datum/chemical_reaction/vitrium_glass
+	name = "Vitrium glass"
+	id = "vitrium_glass"
+	required_reagents = list(/datum/reagent/vitrium = 10)
+	required_temp = 800
+	mix_message = "The resin sets solid in the heat."
+
+/datum/chemical_reaction/vitrium_glass/on_reaction(datum/reagents/holder, created_volume)
+	var/turf/T = get_turf(holder.my_atom)
+	if(T && created_volume >= 1)
+		new /obj/item/stack/sheet/glass(T, round(created_volume))
+
 // ---------------------------------------------------------------------------------------------
 // Voltagel
 // ---------------------------------------------------------------------------------------------
@@ -95,6 +116,8 @@
 
 /datum/reagent/voltagel/reaction_obj(obj/O, volume)
 	var/obj/item/stock_parts/cell/C = O
+	if(!istype(C))
+		C = O.get_cell() //whatever keeps one: a stun baton, an energy gun, an APC
 	if(!istype(C) || volume < 1)
 		return ..()
 	var/given = C.give(min(volume * charge_per_unit, C.maxcharge - C.charge))
@@ -169,3 +192,43 @@
 		return
 	var/mob/living/mob_occupant = occupant
 	return mob_occupant?.reagents && mob_occupant.reagents.get_reagent_amount(chem) + 10 <= 20 * efficiency
+
+// ---------------------------------------------------------------------------------------------
+// A saline autoinjector
+// ---------------------------------------------------------------------------------------------
+
+/// Fifteen units of saline in a pen: what somebody bleeding out wants while the blood's fetched. The NanoMeds sell them.
+/obj/item/reagent_containers/hypospray/medipen/saline
+	name = "saline autoinjector"
+	desc = "A pen of saline-glucose solution for somebody who's lost a lot of blood. It stands in for blood until the real thing can be got into them."
+	icon_state = "lepopen"
+	amount_per_transfer_from_this = 15
+	volume = 15
+	list_reagents = list(/datum/reagent/medicine/salglu_solution = 15)
+	custom_price = 30
+
+/obj/machinery/vending/medical/Initialize(mapload)
+	products[/obj/item/reagent_containers/hypospray/medipen/saline] = 4
+	return ..()
+
+/obj/machinery/vending/wallmed/Initialize(mapload)
+	products[/obj/item/reagent_containers/hypospray/medipen/saline] = 2
+	return ..()
+
+// ---------------------------------------------------------------------------------------------
+// An IV drip says when its bag's run dry
+// ---------------------------------------------------------------------------------------------
+
+/obj/machinery/iv_drip
+	/// Beeped for the empty bag already
+	var/said_empty = FALSE
+
+/obj/machinery/iv_drip/process()
+	. = ..()
+	if(. == PROCESS_KILL || !attached || !beaker || !mode || beaker.reagents.total_volume) //mode: giving, not taking (iv_drip.dm's IV_INJECTING)
+		said_empty = FALSE
+		return
+	if(!said_empty)
+		said_empty = TRUE
+		playsound(src, 'sound/machines/twobeep.ogg', 50, 1)
+		visible_message("<span class='notice'>[src] beeps: its bag is empty.</span>")

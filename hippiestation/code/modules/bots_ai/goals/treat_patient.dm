@@ -1138,6 +1138,11 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 		for(var/obj/item/reagent_containers/hypospray/medipen/pen in owner.GetAllContents())
 			if(pen.reagents?.has_reagent(/datum/reagent/medicine/epinephrine))
 				return pen
+	// Short of blood: the saline pen (prototype_chems.dm), which stands in for it until a drip's on them
+	if(bot_needs_blood(H) && !H.reagents?.has_reagent(/datum/reagent/medicine/salglu_solution))
+		for(var/obj/item/reagent_containers/hypospray/medipen/pen in owner.GetAllContents())
+			if(pen.reagents?.has_reagent(/datum/reagent/medicine/salglu_solution))
+				return pen
 	if(H.getBruteLoss() + H.getFireLoss() > 20)
 		var/obj/item/I = pick_treatment_item(H, !!clothing_in_the_way(H))
 		if(I)

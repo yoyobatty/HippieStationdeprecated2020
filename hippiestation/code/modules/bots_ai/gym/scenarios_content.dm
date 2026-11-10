@@ -162,3 +162,76 @@
 	if(!S.inject_chem(/datum/reagent/medicine/salglu_solution))
 		return "it won't give saline at forty under"
 	return patient.reagents.has_reagent(/datum/reagent/medicine/salglu_solution) ? null : "the saline didn't go in"
+
+/datum/bot_scenario/content/more_reactions
+	name = "chemistry: vitrium fuses a shard and bakes to glass, and voltagel charges what has a cell in it"
+	desc = "Five units of vitrium on a shard of glass; ten heated past 800 K; and voltagel splashed on a stun baton that's flat."
+
+/datum/bot_scenario/content/more_reactions/try_it(turf/T)
+	var/list/missing = list()
+	var/obj/item/shard/shard = place("K", new /obj/item/shard(T))
+	var/obj/item/reagent_containers/glass/beaker/B = place("K", new /obj/item/reagent_containers/glass/beaker(T))
+	B.reagents.add_reagent(text2path("/datum/reagent/vitrium"), 5)
+	B.reagents.reaction(shard, TOUCH)
+	var/obj/item/stack/sheet/glass/sheet = locate() in T
+	if(!QDELETED(shard) || !sheet)
+		missing += "the shard's still a shard"
+	if(sheet)
+		qdel(sheet)
+	B = mix(T, list(text2path("/datum/reagent/vitrium") = 20), 820)
+	sheet = locate() in T
+	if(!sheet || B.reagents.has_reagent(text2path("/datum/reagent/vitrium")))
+		missing += "no glass out of the heated resin"
+	if(sheet)
+		place("K", sheet)
+	var/obj/item/melee/baton/loaded/baton = place("K", new /obj/item/melee/baton/loaded(T))
+	var/obj/item/stock_parts/cell/inside = baton.get_cell()
+	inside.charge = 0
+	B = place("K", new /obj/item/reagent_containers/glass/beaker(T))
+	B.reagents.add_reagent(text2path("/datum/reagent/voltagel"), 10)
+	B.reagents.reaction(baton, TOUCH)
+	if(!inside.charge)
+		missing += "the baton's cell is still flat"
+	return length(missing) ? english_list(missing) : null
+
+/datum/bot_scenario/content/saline_pen
+	name = "items: the saline autoinjector is in the NanoMeds and puts saline into whoever it's used on"
+	desc = "A pen of saline for somebody bleeding out: sold by the NanoMed Plus and the wall NanoMed."
+
+/datum/bot_scenario/content/saline_pen/try_it(turf/T)
+	var/pen_type = text2path("/obj/item/reagent_containers/hypospray/medipen/saline")
+	if(!pen_type)
+		return "no such pen"
+	var/obj/machinery/vending/medical/plus = place("K", new /obj/machinery/vending/medical(T))
+	if(!plus.products[pen_type])
+		return "the NanoMed Plus doesn't stock it"
+	var/found = FALSE
+	for(var/datum/data/vending_product/record in plus.product_records)
+		if(record.product_path == pen_type)
+			found = TRUE
+	if(!found)
+		return "the NanoMed Plus lists it and has none"
+	qdel(plus)
+	var/mob/living/carbon/human/patient = stand_in(T, "Pale Patient")
+	var/obj/item/reagent_containers/hypospray/medipen/pen = place("K", new pen_type(bot.loc))
+	bot.put_in_hands(pen)
+	bot.forceMove(get_step(T, WEST))
+	pen.attack(patient, bot)
+	return patient.reagents.get_reagent_amount(/datum/reagent/medicine/salglu_solution) >= 10 ? null : "no saline went in"
+
+/datum/bot_scenario/content/drip_beeps
+	name = "machines: an IV drip beeps once when its bag has run dry"
+	desc = "A drip on somebody with an empty bag hung on it."
+
+/datum/bot_scenario/content/drip_beeps/try_it(turf/T)
+	var/obj/machinery/iv_drip/drip = place("K", new /obj/machinery/iv_drip(T))
+	var/mob/living/carbon/human/patient = stand_in(T, "Pale Patient")
+	drip.beaker = new /obj/item/reagent_containers/blood(drip)
+	drip.beaker.reagents.clear_reagents()
+	drip.attached = patient
+	drip.process()
+	if(!drip.vars["said_empty"])
+		return "no beep for the empty bag"
+	drip.beaker.reagents.add_reagent(/datum/reagent/blood, 20)
+	drip.process()
+	return drip.vars["said_empty"] ? "still calling the bag empty with blood in it" : null
