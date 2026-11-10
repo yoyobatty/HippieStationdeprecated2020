@@ -235,3 +235,42 @@
 	drip.beaker.reagents.add_reagent(/datum/reagent/blood, 20)
 	drip.process()
 	return drip.vars["said_empty"] ? "still calling the bag empty with blood in it" : null
+
+/datum/bot_scenario/content/tray_chems
+	name = "botany: lumen gel makes a plant glow, voltagel makes it hold a charge and vitrium makes it hardier"
+	desc = "Five units of each in a tray with a tomato plant in it."
+
+/datum/bot_scenario/content/tray_chems/try_it(turf/T)
+	var/obj/machinery/hydroponics/constructable/tray = place("K", new /obj/machinery/hydroponics/constructable(T))
+	tray.myseed = new /obj/item/seeds/tomato(tray)
+	var/hardy = tray.myseed.endurance
+	var/obj/item/reagent_containers/glass/beaker/B = place("K", new /obj/item/reagent_containers/glass/beaker(T))
+	B.reagents.add_reagent(text2path("/datum/reagent/lumen"), 5)
+	B.reagents.add_reagent(text2path("/datum/reagent/voltagel"), 5)
+	B.reagents.add_reagent(text2path("/datum/reagent/vitrium"), 5)
+	tray.applyChemicals(B.reagents, bot)
+	var/list/missing = list()
+	if(!tray.myseed.get_gene(/datum/plant_gene/trait/glow))
+		missing += "no glow"
+	if(!tray.myseed.get_gene(/datum/plant_gene/trait/cell_charge))
+		missing += "no charge"
+	if(tray.myseed.endurance <= hardy)
+		missing += "no hardier"
+	tray.applyChemicals(B.reagents, bot)
+	var/glows = 0
+	for(var/datum/plant_gene/trait/glow/G in tray.myseed.genes)
+		glows++
+	if(glows > 1)
+		missing += "a second dose gave it the glow twice"
+	return length(missing) ? english_list(missing) : null
+
+/datum/bot_scenario/content/lumen_on_people
+	name = "chemistry: lumen gel splashed on somebody makes them glow"
+	desc = "Ten units over a bystander."
+
+/datum/bot_scenario/content/lumen_on_people/try_it(turf/T)
+	var/mob/living/carbon/human/patient = stand_in(T, "Glowing Patient")
+	var/obj/item/reagent_containers/glass/beaker/B = place("K", new /obj/item/reagent_containers/glass/beaker(T))
+	B.reagents.add_reagent(text2path("/datum/reagent/lumen"), 10)
+	B.reagents.reaction(patient, TOUCH)
+	return (locate(/obj/effect/dummy/lighting_obj/moblight) in patient) ? null : "no light on them"

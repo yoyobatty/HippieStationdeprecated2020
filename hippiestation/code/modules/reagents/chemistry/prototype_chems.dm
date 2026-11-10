@@ -152,6 +152,31 @@
 	color = "#7FFFD4"
 	taste_description = "glow sticks"
 
+/datum/reagent/lumen
+	/// The light of somebody who's drunk it
+	var/obj/effect/dummy/lighting_obj/moblight/inner_glow
+
+/// Splashed on somebody, they glow for a minute. Drunk, for as long as it's in them.
+/datum/reagent/lumen/reaction_mob(mob/living/M, method = TOUCH, reac_volume, show_message = 1, touch_protection = 0)
+	if(method == TOUCH && isliving(M) && reac_volume >= 5)
+		M.mob_light(color, 3, 1, 60 SECONDS)
+		if(show_message)
+			to_chat(M, "<span class='notice'>The gel on you gives off a cold light.</span>")
+	return ..()
+
+/datum/reagent/lumen/on_mob_metabolize(mob/living/L)
+	..()
+	if(!inner_glow)
+		inner_glow = L.mob_light(color, 2, 1)
+
+/datum/reagent/lumen/on_mob_end_metabolize(mob/living/L)
+	QDEL_NULL(inner_glow)
+	..()
+
+/datum/reagent/lumen/Destroy()
+	QDEL_NULL(inner_glow)
+	return ..()
+
 /datum/reagent/lumen/reaction_turf(turf/T, volume)
 	if(!isopenturf(T) || isspaceturf(T) || volume < 5 || (locate(/obj/effect/decal/cleanable/greenglow/lumen) in T))
 		return
@@ -232,3 +257,30 @@
 		said_empty = TRUE
 		playsound(src, 'sound/machines/twobeep.ogg', 50, 1)
 		visible_message("<span class='notice'>[src] beeps: its bag is empty.</span>")
+
+// ---------------------------------------------------------------------------------------------
+// In a hydroponics tray
+// ---------------------------------------------------------------------------------------------
+
+/// Five units of lumen gel in a tray and the plant glows (the bioluminescence gene); of voltagel, and it holds a charge (electrical
+/// activity); of vitrium, and it's hardier, ten of endurance a dose.
+/obj/machinery/hydroponics/applyChemicals(datum/reagents/S, mob/user)
+	. = ..()
+	if(!myseed)
+		return
+	var/static/list/gene_for = list(/datum/reagent/lumen = /datum/plant_gene/trait/glow, /datum/reagent/voltagel = /datum/plant_gene/trait/cell_charge)
+	for(var/chem in gene_for)
+		if(!S.has_reagent(chem, 5))
+			continue
+		var/gene_type = gene_for[chem]
+		var/datum/plant_gene/trait/gene = new gene_type
+		if(!gene.can_add(myseed))
+			qdel(gene)
+			continue
+		myseed.genes += gene
+		gene.apply_vars(myseed)
+		visible_message("<span class='notice'>[myseed.plantname] in [src] takes something up out of the mixture: [lowertext(gene.get_name())].</span>")
+		update_icon()
+	if(S.has_reagent(/datum/reagent/vitrium, 5))
+		myseed.adjust_endurance(10)
+		adjustHealth(10)
