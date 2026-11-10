@@ -513,6 +513,7 @@ GLOBAL_VAR_INIT(bot_sm_purged_at, 0)
 		E.fire_delay = E.maximum_fire_delay
 		E.update_icon()
 		bot_refresh_hazards() //bot_hazards.dm: its line of fire is out of bounds from now, not from the next redraw
+		bot.watch_emitter_fire()
 		bot_log(bot, "fired up [E]")
 		return GOAL_STEP_SUCCESS
 	return GOAL_STEP_FAIL

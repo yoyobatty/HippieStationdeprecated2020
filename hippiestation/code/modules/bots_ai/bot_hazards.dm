@@ -46,6 +46,17 @@ GLOBAL_LIST_EMPTY(bot_beam_seen)
 	. = ..()
 	if(isturf(loc))
 		GLOB.bot_beam_seen[loc] = world.time
+		// Out of bounds from the first beam across it, not from the next redraw up to three seconds on. In Box's laser room the
+		// beams turn at reflectors two tiles from the muzzle: three engineers each switched an emitter on, strolled on to the
+		// turned part of its line inside those seconds and took four beams apiece there before the map had it.
+		if(!GLOB.bot_hazard_turfs[loc])
+			GLOB.bot_hazard_turfs[loc] = BOT_HAZARD_BEAM
+			station_picture_changed(loc)
+
+/// Having switched an emitter on, it stands where it is and sees where the beam goes before it strolls anywhere: the first shot is
+/// a couple of seconds coming, and where that goes past the first reflector isn't known until it's gone there.
+/datum/bot_brain/proc/watch_emitter_fire()
+	next_wander_time = max(next_wander_time, world.time + 6 SECONDS)
 GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 
 /// The bots' route planners ask this once a tile, and on nearly every tile it's two list reads.

@@ -255,6 +255,58 @@
 	bot_refresh_hazards()
 	return ..()
 
+// Layout letters: R a reflector that turns the beam north, G a tile on the turned part of it.
+/datum/bot_scenario/beam_on_stroll/turned
+	name = "hazards: a beam turned by a reflector is out of bounds from its first shot"
+	desc = "An emitter firing east at a reflector that sends the beam north, as in Box's laser room. Only the line from the muzzle to the reflector is known when it's switched on. The rest went on the map at the next redraw, up to three seconds after the beam had been up it, and three engineers were shot there in one shift in those seconds."
+	layout = list(
+		"##########",
+		"#........#",
+		"#...G....#",
+		"#........#",
+		"#.e.R....#",
+		"#B.......#",
+		"##########")
+
+	/// Whether the tile was out of bounds a tenth of a second after the first beam crossed it. Looked at then and not at the next
+	/// check(): every arena's emitter coming on redraws the one map, and with a few of these running the old code passed by luck.
+	var/on_the_map
+	var/beam_crossed = FALSE
+
+/datum/bot_scenario/beam_on_stroll/turned/setup()
+	..()
+	emitter.setDir(EAST)
+	var/obj/structure/reflector/single/anchored/mirror = place("R", new /obj/structure/reflector/single/anchored(first_marker("R")))
+	mirror.setAngle(315) //what dir = 9 gives the ones on the map
+	RegisterSignal(first_marker("G"), COMSIG_ATOM_ENTERED, PROC_REF(crossed))
+
+/datum/bot_scenario/beam_on_stroll/turned/post_spawn()
+	addtimer(CALLBACK(src, PROC_REF(light_it)), 10)
+
+/datum/bot_scenario/beam_on_stroll/turned/proc/crossed(datum/source, atom/movable/AM)
+	SIGNAL_HANDLER
+	if(beam_crossed || !istype(AM, /obj/item/projectile/beam/emitter))
+		return
+	beam_crossed = TRUE
+	addtimer(CALLBACK(src, PROC_REF(look_at_map)), 1)
+
+/datum/bot_scenario/beam_on_stroll/turned/proc/look_at_map()
+	on_the_map = bot_turf_in_beam(first_marker("G"))
+
+/datum/bot_scenario/beam_on_stroll/turned/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(isnull(on_the_map))
+		return BOT_GYM_PENDING //no beam's been turned up it yet
+	if(on_the_map)
+		return BOT_GYM_PASS
+	fail_reason = "a beam had been across the tile and it wasn't yet somewhere to keep out of"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/beam_on_stroll/turned/release_run()
+	UnregisterSignal(first_marker("G"), COMSIG_ATOM_ENTERED)
+	return ..()
+
 /datum/bot_scenario/beam_on_stroll/stood_in_it
 	name = "hazards: stood where an emitter comes on, it steps out of the line of fire"
 	desc = "Stood still on the tile an emitter starts firing across. Everybody an emitter killed took the first beam walking and the rest standing where it hit them."
