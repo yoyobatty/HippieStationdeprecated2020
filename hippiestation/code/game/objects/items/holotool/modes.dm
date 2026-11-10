@@ -3,6 +3,8 @@
 	var/sound
 	var/behavior
 	var/speed = 0.125
+	/// Clicks go through the holotool's own multitool (holotool.dm): the one mode a machine asks the type of.
+	var/hands_to_buffer_tool = FALSE
 
 /datum/holotool_mode/proc/can_be_used(var/obj/item/holotool/H)
 	return TRUE
@@ -33,6 +35,7 @@
 	name = "holo-multitool"
 	sound = 'sound/items/rped.ogg'
 	behavior = TOOL_MULTITOOL
+	hands_to_buffer_tool = TRUE
 
 /datum/holotool_mode/wrench
 	name = "holo-wrench"
@@ -48,6 +51,24 @@
 	name = "holo-welder"
 	sound = 'sound/items/rped.ogg'
 	behavior = TOOL_WELDER
+
+// A welder that's lit: hot enough to light a cigarette or set plasma off, and it burns what it's swung at. It welded and was
+// stone cold, so nothing that wants a flame took it for one.
+/datum/holotool_mode/welder/on_set(var/obj/item/holotool/H)
+	..()
+	H.heat = 3800
+	H.damtype = BURN
+	H.force = 12
+	H.hitsound = 'sound/items/welder.ogg'
+	H.attack_verb = list("burned", "seared")
+
+/datum/holotool_mode/welder/on_unset(var/obj/item/holotool/H)
+	..()
+	H.heat = initial(H.heat)
+	H.damtype = initial(H.damtype)
+	H.force = initial(H.force)
+	H.hitsound = initial(H.hitsound)
+	H.attack_verb = initial(H.attack_verb)
 
 ////////////////////////////////////////////////
 

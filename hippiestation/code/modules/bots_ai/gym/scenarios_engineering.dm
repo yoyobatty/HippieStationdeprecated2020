@@ -567,3 +567,51 @@
 		GLOB.main_supermatter_engine = stations_own
 	. = ..()
 	bot_refresh_hazards()
+
+/datum/bot_scenario/holotool_works
+	name = "holotool: the colour button, the off switch, a multitool that links and a welder that's hot"
+	desc = "The RD's holotool. Its two buttons were the same proc written twice, so the colour one opened the tool menu; there was no switching it off; its multitool had no buffer, so it linked nothing; and its welder was cold."
+	time_limit = 10 SECONDS
+	layout = list(
+		"#####",
+		"#B.K#",
+		"#####")
+	var/list/wrong
+	/// Got to the end of it: the build before this throws part way, having none of the vars
+	var/tried = FALSE
+
+/datum/bot_scenario/holotool_works/issue_goal()
+	return
+
+/datum/bot_scenario/holotool_works/post_spawn()
+	wrong = list()
+	var/obj/item/holotool/H = place("K", new /obj/item/holotool(bot.loc))
+	bot.put_in_hands(H)
+	var/list/modes = H.vars["modes"] //by name: the build before this keeps none, and stops here
+	var/datum/holotool_mode/multi = locate(/datum/holotool_mode/multitool) in modes
+	var/datum/holotool_mode/weld = locate(/datum/holotool_mode/welder) in modes
+	H.switch_tool(bot, multi)
+	var/obj/machinery/computer/telecomms/monitor/machine = place("K", new /obj/machinery/computer/telecomms/monitor(first_marker("K")))
+	var/obj/item/clicked_with
+	if(H.vars["buffer_tool"])
+		clicked_with = H.vars["buffer_tool"]
+	if(!machine.multitool_check_buffer(null, clicked_with || H, TRUE))
+		wrong += "the multitool has no buffer"
+	H.switch_tool(bot, weld)
+	if(!H.is_hot())
+		wrong += "the welder is cold"
+	H.switch_tool(bot, null)
+	if(H.current_tool || H.tool_behaviour)
+		wrong += "it doesn't switch off"
+	if(!hascall(H, "open_menu")) //one menu, off the tool button and a use in hand
+		wrong += "no menu to open"
+	tried = TRUE
+
+/datum/bot_scenario/holotool_works/check()
+	if(!tried)
+		fail_reason = "it has no modes of its own to try, nor a multitool"
+		return BOT_GYM_FAIL
+	if(length(wrong))
+		fail_reason = english_list(wrong)
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
