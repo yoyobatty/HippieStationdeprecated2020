@@ -80,18 +80,138 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 		if(H.stat == DEAD)
 			note_body(H)
 			continue
-		if(H.stat != CONSCIOUS || H.handcuffed || greytider || world.time < next_sighting_call || bot_is_officer(H) || bot_means_well(H))
+		if(H.stat != CONSCIOUS || H.handcuffed || greytider || bot_is_officer(H) || bot_means_well(H))
+			continue
+		var/obj/item/thing = bot_contraband_on(H)
+		if(thing && !is_security_job() && menaced_by(H, thing))
+			return
+		if(world.time < next_sighting_call)
 			continue
 		var/datum/bot_wanted/W = bot_get_wanted_entry(H)
 		if(W?.severity >= BOT_CRIME_MAJOR)
 			continue
-		var/obj/item/thing = bot_contraband_on(H)
 		if(thing)
 			next_sighting_call = world.time + 1 MINUTES
-			saw_something_on(H, "Possession of Dangerous Equipment", "has got [thing.name]", BOT_CRIME_MAJOR)
+			if(is_security_job())
+				saw_something_on(H, "Possession of Dangerous Equipment", "has got [thing.name]", BOT_CRIME_MAJOR)
+			else
+				saw_contraband(H, thing)
 		else if(get_dist(owner, H) <= 3 && bot_has_stolen_captains_id(H)) //close enough to read the card
 			next_sighting_call = world.time + 1 MINUTES
 			saw_something_on(H, "Grand Larceny", "has the Captain's ID", BOT_CRIME_MURDER)
+	pocket_loose_contraband()
+
+// ---------------------------------------------------------------------------------------------
+// A traitor's kit in sight
+// ---------------------------------------------------------------------------------------------
+// The user's rulings (2026-11-10, after playing: they picked an energy sword up off the floor and a Science bot called Security on
+// them on the spot): nobody but Security runs to Security over seeing it. Word gets round, the more so the more the bot talks, and
+// it acts itself only if they come at it with it (menaced_by()) or go for it (on_attacked(), bot_brain.dm). Security, and the kinds
+// that would want one, pick up a traitor's kit they find lying about and keep it.
+
+/datum/bot_brain
+	/// weakref of somebody it saw with a traitor's kit -> list(how far off they were last look, whether it's called it in)
+	var/list/contraband_seen
+	/// A traitor's kit it saw lying loose at its last glance (glance_at_items()), as a weakref
+	var/datum/weakref/loose_contraband
+
+/// Out and ready to use: an energy sword lit, a gun or a grenade in hand. An emag or a suit is no threat to anybody stood there.
+/proc/bot_item_out(obj/item/I)
+	if(istype(I, /obj/item/melee/transforming))
+		var/obj/item/melee/transforming/T = I
+		return T.active
+	return istype(I, /obj/item/gun) || istype(I, /obj/item/grenade)
+
+/// Somebody who isn't Security seeing it: the news goes round (bot_news(), bot_chatter.dm), and by its nature it says so on the
+/// radio, to whoever's about, or nothing. The radio line is a heads-up, not a call: Security answers "help" and "security"
+/// (on_heard_security_call()), and an officer goes by what it sees.
+/datum/bot_brain/proc/saw_contraband(mob/living/carbon/human/H, obj/item/thing)
+	var/who = H.name == "Unknown" ? "Somebody" : H.name
+	var/where = get_area_name(H, TRUE)
+	bot_news("[who] was seen with \a [thing] in [where]", H)
+	bot_tally("traitor kit seen")
+	if(playstyle == BOT_STYLE_HUNTER || playstyle == BOT_STYLE_PARANOID || hardened)
+		bot_log(src, "saw [H] with [thing] in [where] - saying so on the radio")
+		bot_say(owner, ";Heads up, [who]'s walking about with \a [thing] in [where].")
+		return
+	for(var/mob/living/carbon/human/other in view(5, owner))
+		if(other != owner && other != H && other.stat == CONSCIOUS)
+			if(prob(sociability * 70))
+				bot_log(src, "saw [H] with [thing] in [where] - saying so to [other]")
+				owner.face_atom(other)
+				bot_say(owner, pick("Is that \a [thing]? Where'd [who] get that?", "Uh. [who]'s got \a [thing].", "Anyone else see what [who]'s carrying?"))
+				return
+			break
+	bot_log(src, "saw [H] with [thing] in [where] - keeping it to itself")
+
+/// Coming at it with it out: within a couple of tiles, and closer than at its last look. Then it calls Security, once, and gets
+/// away, unless it has the nerve and something to hit back with.
+/datum/bot_brain/proc/menaced_by(mob/living/carbon/human/H, obj/item/thing)
+	var/datum/weakref/ref = WEAKREF(H)
+	var/dist = get_dist(owner, H)
+	var/list/seen = LAZYACCESS(contraband_seen, ref)
+	var/was = seen ? seen[1] : INFINITY
+	var/list/now = list(dist, seen ? seen[2] : FALSE)
+	LAZYSET(contraband_seen, ref, now)
+	if(dist > 2 || dist >= was || !bot_item_out(thing))
+		return FALSE
+	bot_log(src, "[H] came at me with [thing] out")
+	if(!now[2])
+		now[2] = TRUE
+		call_it_in(H, "Possession of Dangerous Equipment", "came at me with \a [thing]", BOT_CRIME_MAJOR)
+	if(nerve < 0.7 || !has_a_weapon())
+		run_from(H, "[H] came at me with [thing]")
+	return TRUE
+
+/// Who picks up a traitor's kit found lying about and keeps it: Security, and the kinds that would want one.
+/datum/bot_brain/proc/keeps_found_contraband()
+	return is_security_job() || greytider || (playstyle in list(BOT_STYLE_POWERGAMER, BOT_STYLE_HUNTER, BOT_STYLE_PARANOID, BOT_STYLE_ROBUST))
+
+/datum/bot_brain/proc/pocket_loose_contraband()
+	var/obj/item/I = loose_contraband?.resolve()
+	loose_contraband = null
+	if(!I || state != BOT_STATE_WANDER || !isturf(I.loc) || I.anchored || !keeps_found_contraband())
+		return
+	assign_goal(new /datum/bot_goal/pocket_contraband(I))
+
+/datum/bot_goal/pocket_contraband
+	lawful = TRUE
+	exclusive = TRUE
+	doing = "picking something up"
+	var/obj/item/found
+
+/datum/bot_goal/pocket_contraband/New(obj/item/I)
+	. = ..()
+	found = I
+
+/datum/bot_goal/pocket_contraband/resolve_target(datum/bot_brain/bot)
+	if(!found)
+		for(var/obj/item/I in view(BOT_SIGHT_RANGE, bot.owner))
+			if(GLOB.bot_contraband[I.type] && isturf(I.loc))
+				found = I
+				break
+	if(!QDELETED(found) && isturf(found.loc) && found.z == bot.owner.z && get_dist(bot.owner, found) <= BOT_SIGHT_RANGE + 3 && !bot.taken_by_another(found))
+		target = found
+
+/datum/bot_goal/pocket_contraband/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/pocket_contraband/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/pocket_contraband())
+	return list(S)
+
+/datum/bot_strategy/pocket_contraband/is_feasible(datum/bot_brain/bot)
+	return bot.current_goal?.target && !QDELETED(bot.current_goal.target)
+
+/datum/bot_step/pocket_contraband/execute(datum/bot_brain/bot)
+	var/obj/item/I = bot.current_goal?.target
+	if(!istype(I) || QDELETED(I) || !isturf(I.loc))
+		return GOAL_STEP_FAIL
+	bot.human_pause(I)
+	if(QDELETED(I) || !isturf(I.loc) || !bot.stow_item(I))
+		return GOAL_STEP_FAIL
+	bot_log(bot, "kept [I], found lying about")
+	bot_tally("traitor kit kept")
+	bot_say(bot.owner, bot.is_security_job() ? pick("Confiscated.", "I'll be holding on to this.", "Evidence.") : pick("Finders keepers.", "Ooh. Mine now.", "Don't mind if I do."))
+	return GOAL_STEP_SUCCESS
 
 /datum/bot_brain/proc/saw_something_on(mob/living/carbon/human/H, crime, details, severity)
 	owner.face_atom(H)

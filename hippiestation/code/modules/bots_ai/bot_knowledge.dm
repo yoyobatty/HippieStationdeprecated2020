@@ -78,6 +78,8 @@ GLOBAL_VAR_INIT(bot_knowledge_off, world.params["bot-knowledge"] == "off")
 	next_item_glance = world.time + 1 SECONDS
 	for(var/obj/item/I in view(BOT_SIGHT_RANGE, owner))
 		note_seen(I)
+		if(GLOB.bot_contraband[I.type] && isturf(I.loc))
+			loose_contraband = WEAKREF(I) //a traitor's kit lying about: kept by the kinds that would (pocket_loose_contraband(), bot_playstyles.dm)
 
 /// What's inside something it has opened or is going through
 /datum/bot_brain/proc/look_inside(atom/container)

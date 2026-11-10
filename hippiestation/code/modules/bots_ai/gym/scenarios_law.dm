@@ -58,23 +58,85 @@
 	return griefer.handcuffed ? BOT_GYM_PASS : BOT_GYM_PENDING
 
 /datum/bot_scenario/griefed/contraband
-	name = "law: syndicate gear out in the open gets called in"
-	desc = "Somebody stood in plain sight with an energy sword. A bot sees it and gets on the radio."
+	name = "law: syndicate gear out in the open isn't called in, but the word goes round"
+	desc = "Somebody stood in plain sight with an energy sword, not lit. An ordinary crewmember doesn't run to Security over it (the user, after a Science bot did that the moment they picked one up): it notices, and it's news for whoever it talks to next."
 	layout = list(
 		"#########",
-		"#..B.C..#",
+		"#.B...C.#",
 		"#########")
 	time_limit = 20 SECONDS
 
 /datum/bot_scenario/griefed/contraband/post_spawn()
 	..()
 	brain.gym_scripted = FALSE
+	brain.set_playstyle(BOT_STYLE_NORMAL)
+	brain.next_sighting_call = 0
 	griefer_holds(/obj/item/melee/transforming/energy/sword/saber)
 
 /datum/bot_scenario/griefed/contraband/check()
 	if(bot_lost())
 		return BOT_GYM_FAIL
-	return bot_transcript_said("called in") ? BOT_GYM_PASS : BOT_GYM_PENDING
+	if(bot_transcript_said("called in"))
+		fail_reason = "called Security on them for having it"
+		return BOT_GYM_FAIL
+	if(world.time - start_time < 12 SECONDS)
+		return BOT_GYM_PENDING
+	for(var/list/item as anything in GLOB.bot_news)
+		if(findtext(item[1], griefer_name) && findtext(item[1], "was seen with"))
+			return BOT_GYM_PASS
+	fail_reason = "never noticed it"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/griefed/contraband_charge
+	name = "law: somebody coming at it with an energy sword lit is called in, and it gets away"
+	desc = "Somebody with a lit energy sword walks up to an ordinary crewmember. That is reason enough: it calls Security and gets away from them."
+	layout = list(
+		"###############",
+		"#.......B....C#",
+		"###############")
+	time_limit = 30 SECONDS
+	var/obj/item/melee/transforming/energy/sword/saber/sword
+
+/datum/bot_scenario/griefed/contraband_charge/post_spawn()
+	..()
+	brain.gym_scripted = FALSE
+	brain.set_playstyle(BOT_STYLE_NORMAL)
+	brain.nerve = 0.3
+	sword = griefer_holds(/obj/item/melee/transforming/energy/sword/saber)
+	sword.transform_weapon(griefer, TRUE)
+
+/datum/bot_scenario/griefed/contraband_charge/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!QDELETED(griefer) && get_dist(griefer, bot) > 1)
+		step_towards(griefer, bot) //a step a second, at it
+	if(bot_transcript_said("called in") && bot_transcript_said("getting away from"))
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/contraband_kept
+	name = "law: an officer keeps an energy sword left lying on the floor"
+	desc = "An energy sword on the floor of the room, nobody's. Security picks a traitor's kit like that up and keeps it (the user, 2026-11-10), as do the kinds that would want one."
+	job = "Security Officer"
+	layout = list(
+		"#########",
+		"#B.....s#",
+		"#########")
+	time_limit = 20 SECONDS
+	var/obj/item/melee/transforming/energy/sword/saber/sword
+
+/datum/bot_scenario/contraband_kept/setup()
+	sword = new(first_marker("s"))
+	place("s", sword)
+
+/datum/bot_scenario/contraband_kept/make_goal()
+	var/path = text2path("/datum/bot_goal/pocket_contraband") //named, so the build before it compiles
+	return path ? new path() : null
+
+/datum/bot_scenario/contraband_kept/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (!QDELETED(sword) && (sword in bot.GetAllContents())) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
 /datum/bot_scenario/griefed/captains_id
 	name = "law: somebody with the Captain's ID gets called in"
