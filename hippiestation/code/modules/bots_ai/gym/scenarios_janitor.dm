@@ -91,6 +91,52 @@
 			return BOT_GYM_FAIL
 	return ..()
 
+/datum/bot_scenario/duty/janitor/bucket_off_head
+	name = "janitor wets the mop with its hands full and keeps the water in the bucket"
+	desc = "Bucket of water in one hand, the light replacer in the other, the mop in its bag, and blood down the corridor. Getting the mop out to wet it, it put the bucket away on its head, water and all, and had none left to mop with."
+	layout = list(
+		"###########",
+		"#B...o.o..#",
+		"###########")
+	kit_backpack = list(/obj/item/mop)
+
+/datum/bot_scenario/duty/janitor/bucket_off_head/post_spawn()
+	..()
+	var/obj/item/reagent_containers/glass/bucket/B = new(bot)
+	B.reagents.add_reagent(/datum/reagent/water, 50)
+	bot.put_in_active_hand(B)
+	bot.put_in_inactive_hand(new /obj/item/lightreplacer(bot))
+
+/datum/bot_scenario/duty/janitor/bucket_off_head/check()
+	if(istype(bot?.head, /obj/item/reagent_containers/glass/bucket))
+		fail_reason = "put the bucket on its head"
+		return BOT_GYM_FAIL
+	return ..()
+
+/datum/bot_scenario/duty/janitor/no_water
+	name = "janitor with no water to be had leaves the mess, and doesn't give it up again and again"
+	desc = "A mop, an empty bucket and blood, and the only water tank behind a door its ID doesn't open. It took up each mess, gave it up for want of water, and took up the next: 29 times in one shift. It leaves them until there's water."
+	layout = list(
+		"#############",
+		"#KD.BMU.o.o.#",
+		"#############")
+	bucket_water = 0
+	time_limit = 30 SECONDS
+
+/datum/bot_scenario/duty/janitor/no_water/setup()
+	..()
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	A.req_access = list(ACCESS_CAPTAIN)
+
+/datum/bot_scenario/duty/janitor/no_water/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/line in transcript)
+		if(findtext(line, "no water for the mop bucket"))
+			fail_reason = "took up a mess with no water to be had"
+			return BOT_GYM_FAIL
+	return world.time > start_time + 25 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /datum/bot_scenario/duty/janitor/galoshes
 	name = "janitor puts on galoshes from the JaniDrobe"
 	desc = "A JaniDrobe in the room. Before anything else the janitor buys galoshes and puts them on, bagging its own shoes - then mops at a run, and takes the light replacer while it's there."

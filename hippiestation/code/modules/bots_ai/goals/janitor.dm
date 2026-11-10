@@ -25,6 +25,8 @@
 	var/list/janitor_open_areas
 	/// When to next think about the JaniDrobe.
 	var/janitor_wardrobe_retry = 0
+	/// Until when it's known there's no water to be had for the mop (janitor_has_water()).
+	var/janitor_dry_until = 0
 	/// Tiles this janitor has mopped clean, for the Bot Shift report.
 	var/tiles_mopped = 0
 	var/lights_replaced = 0
@@ -199,6 +201,8 @@
 	// No mop to be had (there is one on the whole station, and two janitors): no mopping, until one turns up.
 	var/can_mop = bot.find_carried_tool(/obj/item/mop) || bot.find_loose_item(/obj/item/mop)
 	var/obj/effect/decal/cleanable/mess = can_mop ? bot.pick_mess() : null
+	if(mess && !bot.janitor_has_water())
+		mess = null
 	var/obj/machinery/light/dead_light = bot.pick_dead_light()
 	// Something foul on the floor comes before a dead light; a dead light before everyday dirt.
 	if(mess && (!dead_light || bot_mess_priority(mess) >= 3) && bot.assign_goal(new /datum/bot_goal/mop_mess(mess)))
@@ -281,7 +285,7 @@
 		return fetch(bot, "mop", /obj/item/mop)
 	if(mop.reagents.total_volume >= 1)
 		return GOAL_STEP_SUCCESS
-	var/obj/item/reagent_containers/glass/bucket/bucket = bot.find_carried_tool(/obj/item/reagent_containers/glass/bucket)
+	var/obj/item/reagent_containers/glass/bucket/bucket = bot.fullest_carried_bucket()
 	if(!bucket)
 		return fetch(bot, "bucket", /obj/item/reagent_containers/glass/bucket)
 	if(bucket.reagents.total_volume < 5)
@@ -302,6 +306,33 @@
 	if(bot.suspend_goal_for(new /datum/bot_goal/take_item(item_type))) //goals/take_item.dm - into a hand, never onto the head
 		return GOAL_STEP_PENDING
 	return GOAL_STEP_FAIL
+
+/// Of the buckets it's carrying, the one with the most in it. A janitor with two filled one at the tap (the first it came to in its
+/// things, fill_bucket) and looked in the other for the water (the first in its hands or bag): "no water for the mop bucket" 27 times
+/// in a shift, straight after 25 fills.
+/datum/bot_brain/proc/fullest_carried_bucket()
+	var/obj/item/reagent_containers/glass/bucket/best
+	for(var/obj/item/reagent_containers/glass/bucket/B in owner.GetAllContents())
+		if(!best || B.reagents.total_volume > best.reagents.total_volume)
+			best = B
+	return best
+
+/// Water to mop with: on the mop, in a bucket it has, or a tap or tank it can get to. With none, there's no mopping: each mess was
+/// taken up, given up for want of water, and the next taken up, 29 times in a shift.
+/datum/bot_brain/proc/janitor_has_water()
+	var/obj/item/mop/mop = find_carried_tool(/obj/item/mop)
+	if(mop?.reagents.total_volume >= 1)
+		return TRUE
+	var/obj/item/reagent_containers/glass/bucket/bucket = fullest_carried_bucket() || find_loose_item(/obj/item/reagent_containers/glass/bucket) //the one it would fetch (prepare_to_mop)
+	if(bucket?.reagents.total_volume >= 5)
+		return TRUE
+	if(world.time < janitor_dry_until)
+		return FALSE
+	if(find_janitor_water())
+		return TRUE
+	janitor_dry_until = world.time + 3 MINUTES
+	bot_log(src, "no water to be had for the mop")
+	return FALSE
 
 /// The bucket in the off hand and the mop dunked in it until it's full - 5u a dunk, 15u to the mop.
 /datum/bot_brain/proc/wet_mop(obj/item/mop/mop, obj/item/reagent_containers/glass/bucket/bucket)

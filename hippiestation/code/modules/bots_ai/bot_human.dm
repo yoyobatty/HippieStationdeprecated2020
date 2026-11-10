@@ -100,7 +100,7 @@
 /datum/bot_brain/proc/put_away(obj/item/I, allow_equip = TRUE)
 	if(!I || !(I in owner.held_items))
 		return FALSE
-	if(allow_equip && owner.equip_to_appropriate_slot(I))
+	if(allow_equip && bot_stows_by_wearing(I) && owner.equip_to_appropriate_slot(I)) //bot_items.dm
 		return TRUE
 	for(var/obj/item/storage/S in list(owner.get_item_by_slot(ITEM_SLOT_BELT), owner.get_item_by_slot(ITEM_SLOT_BACK), owner.get_item_by_slot(ITEM_SLOT_DEX_STORAGE)))
 		if(S && SEND_SIGNAL(S, COMSIG_TRY_STORAGE_INSERT, I, owner))

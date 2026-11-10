@@ -54,6 +54,12 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 // captain's-office hack alone needs 5. Try the real slot-finder FIRST (no hands needed
 // at all), and only fall back to a bare hand if every worn storage slot is full too,
 // same as a player who's out of pockets just holds the extra tool instead.
+/// Whether putting something away may mean wearing it. Not a bucket: one fits on the head (bucket/equipped()), and whatever's in it
+/// goes down the wearer's neck. A janitor wetting its mop had the bucket in the hand it wanted, put it "away" on its head 28 times in a
+/// shift, each time with the water it had just fetched, and gave up the mess for want of water 27 times.
+/proc/bot_stows_by_wearing(obj/item/I)
+	return !istype(I, /obj/item/reagent_containers/glass/bucket)
+
 /datum/bot_brain/proc/stow_item(obj/item/I)
 	if(!I || QDELETED(I))
 		return FALSE
@@ -70,7 +76,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 			return FALSE
 		if(QDELETED(I)) // a stack that merged into the one in hand: it's all there now (it went on to put the empty piece away)
 			return TRUE
-	if(owner.equip_to_appropriate_slot(I))
+	if(bot_stows_by_wearing(I) && owner.equip_to_appropriate_slot(I))
 		return TRUE
 	// equip_to_appropriate_slot() only WEARS an item into an empty slot - it can't put
 	// one into a belt/backpack that's already being worn (mob_can_equip() refuses two
@@ -100,7 +106,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	var/obj/item/inactive = owner.get_inactive_held_item()
 	if(!active || !inactive)
 		return
-	if(owner.equip_to_appropriate_slot(inactive))
+	if(bot_stows_by_wearing(inactive) && owner.equip_to_appropriate_slot(inactive))
 		return
 	// A tool already in hand represents real progress toward whatever goal actually
 	// needed it (often gathered at real cost - a whole trip, maybe a door hacked open
