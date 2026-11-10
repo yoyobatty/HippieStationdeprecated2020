@@ -278,7 +278,9 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	var/datum/bot_goal/synthesize_medicine/goal = bot.current_goal
 	if(dispenser.beaker && (!istype(goal) || dispenser.beaker == goal.loaded_beaker))
 		return GOAL_STEP_SUCCESS
+	// Each way this goes wrong says so: 40 brews in a batch were given up here with nothing in the log to say why.
 	if(!bot.owner.Adjacent(dispenser))
+		bot_log(bot, "can't reach [dispenser] from here ([get_dist(bot.owner, dispenser)] tiles)")
 		return GOAL_STEP_FAIL
 	// Somebody else's (or an earlier try's) still in it: out, and set down on the side, as anyone at the machine would.
 	if(dispenser.beaker)
@@ -288,13 +290,17 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 			bot.owner.dropItemToGround(left)
 		bot_log(bot, "took [left] ([round(left.reagents?.total_volume)]u in it) somebody left in [dispenser] out and set it down")
 		if(dispenser.beaker)
+			bot_log(bot, "[dispenser.beaker] wouldn't come out of [dispenser]")
 			return GOAL_STEP_FAIL
 	var/obj/item/reagent_containers/glass/beaker/B = fresh ? bot.find_empty_beaker() : bot.brew_beaker() //part way through a brew, it has something in it already
 	if(!B)
+		bot_log(bot, "no [fresh ? "empty beaker" : "beaker with the brew in it"] on me to put in [dispenser]")
 		return GOAL_STEP_FAIL
 	bot.use_item_on(B, dispenser)
 	if(istype(goal) && dispenser.beaker)
 		goal.loaded_beaker = dispenser.beaker
+	if(!dispenser.beaker)
+		bot_log(bot, "[B] wouldn't go in [dispenser] (in my hands: [english_list(bot.owner.held_items, "nothing")], B in [B.loc])")
 	return dispenser.beaker ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 
 // Pace-limited the same way pickup_tool_from_target (bot_goals.dm) grabs multiple tools
