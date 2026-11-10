@@ -287,6 +287,8 @@
 	// If the radio is subspace-only, that's all it can do
 	if (subspace_transmission)
 		return
+	if(QDELETED(src)) // hippie -- sending waits on telecomms, and a delaminating supermatter's last words were still on their way when the blast took its radio: a timer on a deleted object, three runtimes a delamination
+		return
 
 	// Non-subspace radios will check in a couple of seconds, and if the signal
 	// was never received, send a mundane broadcast (no headsets).
