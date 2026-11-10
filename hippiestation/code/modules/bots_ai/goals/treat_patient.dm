@@ -381,6 +381,8 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			return TRUE
 		if(assign_goal(new /datum/bot_goal/operate())) //goals/surgery.dm: the sleepers are full, or there aren't any
 			return TRUE
+		if(assign_goal(new /datum/bot_goal/stabilise())) //no sleeper and no table for them: kept alive where they lie
+			return TRUE
 		if(assign_goal(new /datum/bot_goal/treat_patient()))
 			return TRUE
 		if(assign_goal(new /datum/bot_goal/give_blood())) //goals/give_blood.dm: patched up, but short of blood
@@ -1090,3 +1092,115 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 	bot.use_item_on(B, cell)
 	bot_log(bot, "loaded [B] into [cell]")
 	return cell.beaker ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+
+// ============================================================
+// First aid on the spot. Somebody in crit went to a sleeper if one was free, on to the operating table if they were cut or burnt
+// enough and not in cuffs, and otherwise nowhere: treat_patient is for people on their feet. A traitor beaten down in the Bar,
+// cuffed and carried to Medbay's door, lay there three and a half minutes with three doctors on shift and died of it. What a
+// doctor does for somebody like that is what anybody can: the epinephrine pen out of the first-aid kit, something on the wounds,
+// and CPR, which gives back seven of suffocation a go against the two or three they lose in that time.
+// ============================================================
+
+/// Whether there's anything this bot can do for somebody in crit, here and now.
+/datum/bot_brain/proc/first_aid_for(mob/living/carbon/human/H)
+	if(!H.reagents?.has_reagent(/datum/reagent/medicine/epinephrine))
+		for(var/obj/item/reagent_containers/hypospray/medipen/pen in owner.GetAllContents())
+			if(pen.reagents?.has_reagent(/datum/reagent/medicine/epinephrine))
+				return pen
+	if(H.getBruteLoss() + H.getFireLoss() > 20)
+		var/obj/item/I = pick_treatment_item(H, !!clothing_in_the_way(H))
+		if(I)
+			return I
+	if(H.getOxyLoss() > 0 && !owner.is_mouth_covered() && !H.is_mouth_covered())
+		return H //CPR
+	return null
+
+/datum/bot_goal/stabilise
+	lawful = TRUE
+	exclusive = TRUE //one to a casualty
+	doing = "keeping somebody alive"
+
+/datum/bot_goal/stabilise/resolve_target(datum/bot_brain/bot)
+	var/mob/living/carbon/human/best
+	var/best_score
+	for(var/mob/living/carbon/human/H in GLOB.alive_mob_list)
+		if(H == bot.owner || H.z != bot.owner.z || H.stat == CONSCIOUS || H.stat == DEAD || !isturf(H.loc) || H.health > H.crit_threshold)
+			continue
+		if(bot.gym_run && get_area(H) != get_area(bot.owner))
+			continue
+		if(!bot.patient_needs_treatment(H) || get_dist(bot.owner, H) > 40)
+			continue //nobody Security's after until they're in cuffs, as for any patient
+		if((H.pulledby && H.pulledby != bot.owner) || bot.taken_by_another(H) || LAZYACCESS(bot.unreachable_patients, H) > world.time)
+			continue
+		if(!bot.first_aid_for(H))
+			continue
+		var/score = bot.patient_injury_score(H) + H.getOxyLoss() - get_dist(bot.owner, H)
+		if(!best || score > best_score)
+			best = H
+			best_score = score
+	if(!best)
+		return
+	if(!bot.can_walk_lawfully_to(best))
+		LAZYSET(bot.unreachable_patients, best, world.time + 2 MINUTES)
+		bot.cant_reach_casualty(best) //goals/carry_casualty.dm
+		return
+	target = best
+
+/datum/bot_goal/stabilise/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/stabilise/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/stabilise())
+	return list(S)
+
+/datum/bot_strategy/stabilise/is_feasible(datum/bot_brain/bot)
+	return bot.current_goal?.target && !QDELETED(bot.current_goal.target)
+
+/datum/bot_goal/stabilise/on_success(datum/bot_brain/bot)
+	bot.continue_medical_round()
+
+/datum/bot_goal/stabilise/on_give_up(datum/bot_brain/bot)
+	var/mob/living/carbon/human/patient = target
+	if(istype(patient) && !QDELETED(patient))
+		LAZYSET(bot.unreachable_patients, patient, world.time + 2 MINUTES)
+
+/// The pen, the dressings, then CPR for as long as it's doing any good.
+/datum/bot_step/paced/stabilise
+	max_clicks = 12
+	var/mob/living/carbon/human/patient
+	var/breaths = 0
+	var/did_something = FALSE
+
+/datum/bot_step/paced/stabilise/start(datum/bot_brain/bot)
+	patient = bot.current_goal?.target
+	return istype(patient) && !QDELETED(patient) && bot.owner.Adjacent(patient)
+
+/datum/bot_step/paced/stabilise/do_click(datum/bot_brain/bot)
+	if(QDELETED(patient) || patient.stat == DEAD || patient.stat == CONSCIOUS || patient.health > patient.crit_threshold || !isturf(patient.loc) || !bot.owner.Adjacent(patient))
+		return FALSE
+	var/atom/with = bot.first_aid_for(patient)
+	if(!with)
+		return FALSE
+	if(with == patient)
+		if(breaths >= 40)
+			return FALSE
+		if(!breaths)
+			bot_log(bot, "CPR on [patient], who's at [round(patient.health)]")
+		breaths++
+		did_something = TRUE
+		bot.owner.face_atom(patient)
+		bot.telemetry_clicked(patient)
+		INVOKE_ASYNC(bot.owner, TYPE_PROC_REF(/mob/living/carbon/human, do_cpr), patient) //what a help-intent click on somebody in crit does
+		wait_for = 35 //it takes three seconds, stood still
+		return TRUE
+	bot.aim_at_worst_wound(patient)
+	bot_log(bot, "[with] for [patient], down at [round(patient.health)] with nowhere to take them")
+	did_something = TRUE
+	bot.use_item_on(with, patient)
+	return TRUE
+
+/datum/bot_step/paced/stabilise/finish(datum/bot_brain/bot)
+	if(!did_something)
+		return GOAL_STEP_FAIL
+	if(!QDELETED(patient) && patient.stat != DEAD)
+		bot_log(bot, "[patient] is at [round(patient.health)] after first aid[breaths ? ", [breaths] goes of CPR" : ""]")
+		bot_tally("given first aid where they lay")
+	return GOAL_STEP_SUCCESS

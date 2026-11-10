@@ -343,6 +343,36 @@
 		return BOT_GYM_FAIL
 	return world.time > start_time + 8 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/datum/bot_scenario/griefed/first_aid
+	name = "a doctor with no sleeper and no table for somebody in crit keeps them alive where they lie"
+	desc = "Somebody suffocating in crit, and nothing in the room to put them in or on. Doctors only took such a patient to a sleeper or the operating table, and with neither there walked on: one lay at Medbay's door for three and a half minutes and died. CPR, at the least."
+	job = "Medical Doctor"
+	griefer_job = "Assistant"
+	griefer_name = "Pat Patient"
+	time_limit = 90 SECONDS
+	layout = list(
+		"#########",
+		"#B....C.#",
+		"#########")
+	var/down = FALSE
+
+/datum/bot_scenario/griefed/first_aid/grief()
+	griefer.adjustOxyLoss(165) //past breathing for themselves: at twenty-five under they come round on their own
+	griefer.updatehealth()
+	griefer.update_stat()
+	down = TRUE
+	brain.try_medical_round()
+
+/datum/bot_scenario/griefed/first_aid/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!down)
+		return BOT_GYM_PENDING
+	if(griefer.stat == DEAD)
+		fail_reason = "the patient died"
+		return BOT_GYM_FAIL
+	return griefer.health > griefer.crit_threshold ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 // ---------------------------------------------------------------------------------------------
 // Somebody down where no doctor can get to them (goals/carry_casualty.dm). C: the casualty. G: Medbay's door.
 // ---------------------------------------------------------------------------------------------
