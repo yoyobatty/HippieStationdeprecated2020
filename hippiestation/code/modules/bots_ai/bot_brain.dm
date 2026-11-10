@@ -182,6 +182,7 @@
 			if(!try_escape_flames())
 				try_put_self_out()
 			try_drift_back() //bot_hazards.dm: like putting itself out, not an errand
+			try_step_out_of_beam() //bot_hazards.dm
 			if(world.time >= next_air_check_time)
 				next_air_check_time = world.time + 10
 				manage_internals()
@@ -216,6 +217,8 @@
 	if(!rads_noted && owner.radiation > RAD_MOB_SAFE)
 		note_radiation() //bot_hazards.dm
 	if(try_escape_radiation()) //bot_hazards.dm
+		return
+	if(try_step_out_of_beam()) //bot_hazards.dm
 		return
 	if(try_put_self_out())
 		return
@@ -910,6 +913,9 @@
 		return FALSE
 	// Bare plating out in the open, like the floor round the tesla: nobody takes a stroll in a vacuum.
 	if(istype(A, /area/space))
+		return FALSE
+	// Or to a spot an emitter's firing across (bot_hazards.dm)
+	if(bot_turf_in_beam(T))
 		return FALSE
 	for(var/obj/structure/S in T)
 		if(!S.density)

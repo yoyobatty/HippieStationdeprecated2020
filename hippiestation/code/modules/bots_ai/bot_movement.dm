@@ -774,6 +774,13 @@
 	if(!next_node)
 		finish_pursuit(TRUE) //beside it is as good as on it
 		return
+	// An emitter that's come on across the way since this stroll was planned (bot_hazards.dm): it isn't worth it, and the
+	// next one's planned with the beam on the map.
+	if(beam_ahead(next_node))
+		bot_log(src, "an emitter's firing across the way ahead - not going that way")
+		bot_tally("kept out of a beam")
+		finish_pursuit(FALSE)
+		return
 	var/turf/left_turf = get_turf(owner)
 	if(bot_step_towards(next_node))
 		quick_step_retries = 0

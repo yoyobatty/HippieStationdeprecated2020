@@ -867,6 +867,7 @@ GLOBAL_VAR_INIT(bot_cage_wait_over, FALSE)
 	E.shot_number = 0
 	E.fire_delay = E.maximum_fire_delay
 	E.update_icon()
+	bot_refresh_hazards() //bot_hazards.dm: its line of fire is out of bounds from now, not from the next redraw
 	bot_log(bot, "activated [E]")
 	return GOAL_STEP_SUCCESS
 

@@ -32,8 +32,20 @@
 #define BOT_HAZARD_RADS_FROM 150
 #define BOT_HAZARD_RADS_RANGE(power) clamp(round(sqrt(power) / 6), 2, 6)
 
+/// How long a tile an emitter's beam crossed stays out of bounds. They fire every ten seconds at the slowest.
+#define BOT_HAZARD_BEAM_SEEN (30 SECONDS)
+
 /// Turf -> BOT_HAZARD_*, for everywhere a bot won't step into.
 GLOBAL_LIST_EMPTY(bot_hazard_turfs)
+/// Turf -> when an emitter's beam last crossed it. The engines turn their beams with reflectors (all three maps), and the line
+/// drawn out from each muzzle (bot_mark_beam()) stops at the first one: the far side of it was open ground to the bots, and on
+/// Meta an engineer a shift strolled on to it and died there. Where a beam has been is where the next one's going.
+GLOBAL_LIST_EMPTY(bot_beam_seen)
+
+/obj/item/projectile/beam/emitter/Moved(atom/OldLoc, Dir)
+	. = ..()
+	if(isturf(loc))
+		GLOB.bot_beam_seen[loc] = world.time
 GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 
 /// The bots' route planners ask this once a tile, and on nearly every tile it's two list reads.
@@ -66,6 +78,11 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 	for(var/obj/machinery/power/emitter/E as anything in bot_instances_of(/obj/machinery/power/emitter))
 		if(E.active && !QDELETED(E))
 			bot_mark_beam(hazards, E)
+	for(var/turf/T as anything in GLOB.bot_beam_seen)
+		if(world.time > GLOB.bot_beam_seen[T] + BOT_HAZARD_BEAM_SEEN)
+			GLOB.bot_beam_seen -= T
+		else
+			hazards[T] = BOT_HAZARD_BEAM
 	for(var/obj/singularity/S as anything in GLOB.singularities)
 		for(var/turf/T as anything in RANGE_TURFS(BOT_HAZARD_BALL_RANGE, S))
 			hazards[T] = BOT_HAZARD_BALL
@@ -108,6 +125,39 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 					next += out
 		frontier = next
 
+/// On a stroll, about to step into a running emitter's line of fire from outside it. The routes keep off the beams, but a route is
+/// planned once and walked for as long as it takes, and the map of them is three seconds old at worst: an engineer on Meta switched
+/// the supermatter's emitter on, set off on a stroll planned a second later across the line it had just lit, took four beams and
+/// went down, in every Meta shift of a batch. So the tile ahead is looked at as it's stepped on to. Only a stroll: somebody setting
+/// the engine up has to cross them (the top of this file). And not somebody the beams have shut in, who crosses to get out as the
+/// routes let them: two engineers turned back from every way out of Meta's engine room stood in it for the rest of the shift.
+/datum/bot_brain/proc/beam_ahead(turf/next)
+	if(pursuing_kind != "wander" || GLOB.bot_hazard_turfs[next] != BOT_HAZARD_BEAM)
+		return FALSE
+	var/turf/here = get_turf(owner)
+	return here && !GLOB.bot_hazard_turfs[here] && !is_shut_in()
+
+/// Whether an emitter's beam crosses this tile: nowhere to stroll to, or stand.
+/proc/bot_turf_in_beam(turf/T)
+	return GLOB.bot_hazard_turfs[T] == BOT_HAZARD_BEAM
+
+/// Stood in an emitter's line of fire, going nowhere: out of it, to the nearest floor that isn't. Everybody an emitter killed
+/// took the first beam walking and the rest standing where it hit them, four or five beams over ten seconds.
+/datum/bot_brain/proc/try_step_out_of_beam()
+	var/turf/open/here = owner.loc
+	if(!istype(here) || GLOB.bot_hazard_turfs[here] != BOT_HAZARD_BEAM || owner.buckled || owner.incapacitated())
+		return FALSE
+	if(pursuing_kind && length(current_path))
+		return FALSE //on its way through
+	for(var/turf/open/out as anything in here.atmos_adjacent_turfs)
+		if(GLOB.bot_hazard_turfs[out] || isspaceturf(out) || is_blocked_turf(out, TRUE) || bot_turf_is_deadly(out))
+			continue
+		bot_log(src, "stood in an emitter's line of fire at [bot_coord(here)] - out of it")
+		bot_tally("stepped out of a beam")
+		owner.Move(out, get_dir(here, out))
+		return TRUE
+	return FALSE
+
 /// Follows an emitter's muzzle out to the first thing that would stop its beam.
 /proc/bot_mark_beam(list/hazards, obj/machinery/power/emitter/E)
 	var/turf/T = get_turf(E)
@@ -121,6 +171,7 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 		hazards[T] = BOT_HAZARD_BEAM
 
 #undef BOT_HAZARD_REFRESH
+#undef BOT_HAZARD_BEAM_SEEN
 #undef BOT_HAZARD_BALL_RANGE
 #undef BOT_HAZARD_BEAM_RANGE
 #undef BOT_HAZARD_PEN_REACH

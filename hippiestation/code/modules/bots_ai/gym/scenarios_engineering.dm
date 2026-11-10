@@ -182,3 +182,97 @@
 		fail_reason = "cable laid but the run isn't reconnected"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+// ---------------------------------------------------------------------------------------------
+// An emitter's line of fire (bot_hazards.dm). Layout letter e: an emitter, pointed down the arena.
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/beam_on_stroll
+	name = "hazards: an emitter switched on across the way stops a stroll planned before it was"
+	desc = "Strolling down a corridor when an emitter comes on across it, a few tiles ahead. The route was planned before there was a beam to keep off: an engineer on Meta lit the supermatter's emitter, strolled across its line a second later and went down to four beams, every shift."
+	// Room enough that it isn't shut in (bot_doors.dm is_shut_in(), sixty tiles): somebody shut in crosses a beam to get out
+	layout = list(
+		"####################",
+		"#..............e...#",
+		"#B................G#",
+		"#..................#",
+		"#..................#",
+		"#..................#",
+		"####################")
+	time_limit = 12 SECONDS
+	var/obj/machinery/power/emitter/emitter
+	/// Since when it's been on. Its own `active` goes off again by itself: there's no wire under it here.
+	var/lit = FALSE
+	var/stepped_in = FALSE
+
+/datum/bot_scenario/beam_on_stroll/setup()
+	emitter = place("e", new /obj/machinery/power/emitter(first_marker("e")))
+	emitter.anchored = TRUE
+	emitter.state = 2 //EMITTER_WELDED
+	emitter.active_power_usage = 0 //there's no wire under it here, and without one it switches itself off again
+	emitter.setDir(SOUTH)
+
+/datum/bot_scenario/beam_on_stroll/issue_goal()
+	return
+
+/datum/bot_scenario/beam_on_stroll/post_spawn()
+	RegisterSignal(bot, COMSIG_MOVABLE_MOVED, PROC_REF(stepped))
+	brain.pursue(first_marker("G"), "wander", force = TRUE)
+	addtimer(CALLBACK(src, PROC_REF(light_it)), 3)
+
+/// Switched on, and on the map of places to keep out of, with the bot already on its way
+/datum/bot_scenario/beam_on_stroll/proc/light_it()
+	if(result != BOT_GYM_PENDING || QDELETED(emitter))
+		return
+	emitter.active = TRUE
+	lit = TRUE
+	bot_refresh_hazards()
+	log_line("the emitter's on; the bot's at [bot.x - first_marker("B").x] tiles along")
+
+/datum/bot_scenario/beam_on_stroll/proc/stepped()
+	SIGNAL_HANDLER
+	if(lit && bot.x == emitter.x && bot.y < emitter.y)
+		stepped_in = TRUE
+
+/datum/bot_scenario/beam_on_stroll/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(stepped_in)
+		fail_reason = "walked into the emitter's line of fire"
+		return BOT_GYM_FAIL
+	if(!lit)
+		return BOT_GYM_PENDING
+	if(bot.x >= emitter.x)
+		fail_reason = "was past the emitter before it came on: nothing tried"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 6 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/beam_on_stroll/release_run()
+	if(bot)
+		UnregisterSignal(bot, COMSIG_MOVABLE_MOVED)
+	if(!QDELETED(emitter))
+		emitter.active = FALSE
+	bot_refresh_hazards()
+	return ..()
+
+/datum/bot_scenario/beam_on_stroll/stood_in_it
+	name = "hazards: stood where an emitter comes on, it steps out of the line of fire"
+	desc = "Stood still on the tile an emitter starts firing across. Everybody an emitter killed took the first beam walking and the rest standing where it hit them."
+	layout = list(
+		"#######",
+		"#..e..#",
+		"#..B..#",
+		"#.....#",
+		"#######")
+
+/datum/bot_scenario/beam_on_stroll/stood_in_it/post_spawn()
+	addtimer(CALLBACK(src, PROC_REF(light_it)), 10)
+
+/datum/bot_scenario/beam_on_stroll/stood_in_it/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!lit)
+		return BOT_GYM_PENDING
+	if(bot.x != emitter.x)
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
