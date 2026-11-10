@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""Builds the generated sky art: star fields, twinkle groups, nebula clouds, dust, sun glare, comet and gas giants.
+"""Builds the generated sky art: star fields, twinkle groups, nebula clouds, dust, sun glare, comet and gas giants, and the
+far things a round's sky can have (nebulae seen whole, a quasar).
 
-    python tools/sky_gen/sky_gen.py build      writes hippiestation/icons/effects/sky.dmi, sky_nebula.dmi and sky_bodies.dmi
-    python tools/sky_gen/sky_gen.py preview    writes data/previews/sky_<theme>.png, one composite per sky theme
+    python tools/sky_gen/sky_gen.py build      writes hippiestation/icons/effects/sky.dmi, sky_nebula.dmi, sky_bodies.dmi,
+                                               sky_flyby.dmi and sky_deep.dmi
+    python tools/sky_gen/sky_gen.py preview    writes data/previews/sky_<theme>.png, one composite per sky theme, and
+                                               data/previews/deep_<state>.png, each far thing over a sky
     python tools/sky_gen/sky_gen.py check      fails if the committed sheets differ from what this script builds
 
 Everything is seeded, so a rebuild gives the same pixels. Every tile wraps on both axes: the noise is made in frequency space
@@ -325,6 +328,188 @@ def ship(blink):
     return canvas
 
 
+# ---------------------------------------------------------------- far things: nebulae and quasars, one to a sprite
+
+DEEP = 384  # the deep sky sheet: the game turns and sizes each one for the round (SSparallax.deep_sky in sky.dm)
+QUASAR_FRAMES = 10  # the quasar's jets: knots run outward along them, one spacing per loop
+QUASAR_DELAY = 4  # ticks a frame
+
+
+def deep_grid(n=DEEP):
+    yy, xx = np.mgrid[0:n, 0:n].astype(float)
+    return xx - n / 2 + 0.5, yy - n / 2 + 0.5
+
+
+def shell(r, inner, outer):
+    """A glowing hollow sphere seen through, as a fraction of its brightest: the path through the shell at radius r, so the rim
+    (where the line of sight runs along the shell) is brightest and the middle is faint."""
+    path = np.sqrt(np.clip(outer ** 2 - r ** 2, 0, None)) - np.sqrt(np.clip(inner ** 2 - r ** 2, 0, None))
+    return path / np.sqrt(outer ** 2 - inner ** 2)
+
+
+def colour(field, rgb):
+    return field[..., None] * np.array(rgb)
+
+
+def ridges(field, sharp):
+    """Thin bright lines where noise crosses its middle: filaments."""
+    return (1 - np.abs(2 * field - 1)) ** sharp
+
+
+def polar_noise(field, theta, r, around, out):
+    """Samples a tile of noise wrapped round the middle: around repeats per turn, out is how fast it changes going outward."""
+    return sample_wrap(field, (theta / (2 * np.pi)) % 1.0 * field.shape[0] * around, r * out)
+
+
+def edge_fade(x, y, margin=30, n=DEEP):
+    """Nothing left by the sheet's edge, so a turned sprite shows no corners."""
+    r = np.hypot(x, y)
+    return smoothstep(n / 2.0, n / 2.0 - margin, r)
+
+
+def central_star(x, y, size, rgb):
+    r = np.hypot(x, y)
+    return colour(1.4 * np.exp(-(r / size) ** 2) + 0.25 * np.exp(-r / (size * 3)), rgb)
+
+
+def ring_nebula(seed):
+    """A planetary nebula seen down its middle: a dying star's shed shell. Blue-green inside, a yellow-green ring, a red rim
+    with rays coming through it, a faint older shell further out."""
+    x, y = deep_grid()
+    wobble = spectral(DEEP, 3.2, seed, 1, 6) - 0.5
+    r = np.hypot(x / 60.0, y / 47.0) * (1 + 0.12 * wobble)  # 1 at the main ring
+    theta = np.arctan2(y, x)
+    knots = 0.45 + 0.9 * spectral(DEEP, 2.0, seed + 1, 8, None)
+    knots2 = 0.45 + 0.9 * spectral(DEEP, 2.0, seed + 2, 8, None)
+    rays = polar_noise(spectral(DEEP, 1.4, seed + 3, 6, None), theta, r, 1, 18)
+    inside = np.exp(-(r / 0.72) ** 4) * (0.35 + 0.65 * knots) * (0.45 + 0.55 * smoothstep(0.0, 0.7, r))
+    ring = shell(r, 0.60, 0.96) * knots
+    rim = shell(r, 0.82, 1.10) * knots2 * (0.6 + 0.8 * rays)
+    old = shell(r, 1.45, 1.80) * (0.4 + 0.9 * spectral(DEEP, 2.4, seed + 4, 4, None)) * (0.5 + 0.8 * rays)
+    lit = (colour(inside, (0.20, 0.55, 0.85)) * 0.32 + colour(ring, (0.55, 0.95, 0.55)) * 0.42 + colour(rim, (1.0, 0.30, 0.22)) * 0.70
+           + colour(old, (0.85, 0.22, 0.38)) * 0.16)
+    lit = shoulder(blur_plain(lit, 0.9), 1.6) * 0.85
+    return (lit + central_star(x, y, 1.6, (0.85, 0.92, 1.0))) * edge_fade(x, y)[..., None]
+
+
+def blur_plain(rgb, sigma):
+    """blur() for each channel of a picture."""
+    return np.stack([blur(rgb[..., c], sigma) for c in range(rgb.shape[2])], axis=2)
+
+
+def bipolar_nebula(seed):
+    """Two lobes blown out either side of a star, pinched at the waist by a dark ring of dust: an hourglass. Red rims, blue
+    along the axis, a hot yellow-white waist."""
+    x, y = deep_grid()
+    x = x + (spectral(DEEP, 3.0, seed, 2, 14) - 0.5) * 9
+    y = y + (spectral(DEEP, 3.0, seed + 1, 2, 14) - 0.5) * 9
+    knots = 0.45 + 0.9 * spectral(DEEP, 2.0, seed + 2, 8, None)
+    rims = np.zeros(x.shape)
+    fills = np.zeros(x.shape)
+    for side, reach, width in ((1, 62.0, 50.0), (-1, 54.0, 45.0)):
+        along = side * y
+        # each lobe an egg, its narrow end at the star
+        r = np.hypot(x / (width * (0.25 + 0.75 * smoothstep(-6, reach * 0.65, along))), (along - reach) / reach)
+        rims += (shell(r, 0.70, 1.0) + 0.45 * np.exp(-((r - 1.0) / 0.10) ** 2) * (r > 1.0)) * (along > -4)
+        fills += np.exp(-(r / 0.85) ** 2) * (along > -4)
+    axis = np.exp(-(x / 9.0) ** 2) * np.exp(-np.abs(y) / 80.0) * np.exp(-(np.abs(y) / 105.0) ** 4)
+    waist = np.exp(-(np.hypot(x / 16.0, y / 9.0)) ** 2)
+    lane = 1 - 0.75 * np.exp(-(y / 5.0) ** 2) * np.exp(-(x / 34.0) ** 2)
+    lit = (colour(rims * knots, (1.0, 0.32, 0.45)) * 0.55 + colour(fills * knots, (0.55, 0.30, 0.65)) * 0.16
+           + colour(axis * (0.5 + 0.5 * knots), (0.45, 0.65, 1.0)) * 0.40 + colour(waist, (1.0, 0.88, 0.62)) * 0.75)
+    lit = shoulder(blur_plain(lit, 1.0), 1.5) * 0.95 * lane[..., None]
+    xs, ys = deep_grid()
+    return (lit + central_star(xs, ys, 1.4, (1.0, 0.97, 0.9)) * 0.7) * edge_fade(xs, ys)[..., None]
+
+
+def supernova_remnant(seed):
+    """What's left of a star that blew up: a broken shell of fine filaments, red and green twisted together, brighter on the
+    side that's running into more gas, with a faint blue glow inside."""
+    x, y = deep_grid()
+    theta = np.arctan2(y, x)
+    r = np.hypot(x, y)
+    base = 112.0 * (1 + 0.10 * (polar_noise(spectral(DEEP, 3.4, seed, 1, 5), theta, r, 1, 0.02) - 0.5) * 2)
+    across = (r - base)
+    # strands drawn running one way across a tile, then wrapped round the shell so they run along it, bent here and there
+    red = smoothstep(0.50, 0.92, polar_noise(streaks(DEEP, seed + 1, 0.0, 36), theta, across, 1, 1.6)) ** 2.2
+    green = smoothstep(0.50, 0.92, polar_noise(streaks(DEEP, seed + 3, 0.0, 36), theta, across + 4, 1, 1.6)) ** 2.2
+    band = np.exp(-(across / 16.0) ** 2) + 0.45 * np.exp(-((across + 24) / 12.0) ** 2)
+    arcs = smoothstep(0.30, 0.62, polar_noise(spectral(DEEP, 3.0, seed + 5, 1, 4), theta, r, 1, 0.01))
+    lean = 0.35 + 0.65 * (0.5 + 0.5 * np.cos(theta - 0.9)) ** 1.4
+    inside = np.exp(-(r / base) ** 6) * (0.4 + 0.6 * spectral(DEEP, 2.8, seed + 6, 2, 20))
+    lit = (colour(red * band * arcs * lean, (1.0, 0.30, 0.28)) * 1.0 + colour(green * band * arcs * lean, (0.35, 0.95, 0.75)) * 0.75
+           + colour(inside, (0.30, 0.42, 0.95)) * 0.035)
+    lit = shoulder(blur_plain(lit, 0.6) + blur_plain(lit, 5.0) * 0.5, 1.4) * 0.95
+    return lit * edge_fade(x, y)[..., None]
+
+
+def quasar():
+    """A quasar, far beyond the galaxy: a disc of gas falling into a black hole, lit white-hot and leaning toward us, in the
+    faint smudge of its galaxy, and the two glowing lobes its jets end in. The jets (quasar_jets()) and the blinding middle
+    (quasar_core()) are apart: the game runs the one and makes the other flicker."""
+    x, y = deep_grid()
+    host = colour(np.exp(-np.hypot(x / 52.0, y / 36.0) ** 1.3 * 2.2), (1.0, 0.85, 0.72)) * 0.10
+    rd = np.hypot(x / 25.0, y / 7.0)
+    disc = np.exp(-((rd - 0.45) / 0.30) ** 2) * (1 + 0.6 * np.clip(x / 25.0, -1, 1))  # brighter on the side coming at us
+    warmth = np.clip(rd / 1.2, 0, 1)[..., None]
+    disc = disc[..., None] * ((1 - warmth) * np.array([1.0, 0.92, 0.75]) + warmth * np.array([1.0, 0.50, 0.28])) * 0.70
+    lobes = np.zeros(x.shape)
+    for side, power in ((1, 1.0), (-1, 0.42)):
+        lobes += power * np.exp(-((x / 20.0) ** 2 + ((side * y - 145) / 13.0) ** 2))
+    lit = host + disc + colour(lobes, (0.55, 0.40, 1.0)) * 0.22
+    return shoulder(blur_plain(lit, 0.6), 1.3) * edge_fade(x, y)[..., None]
+
+
+def quasar_jets(phase):
+    """The quasar's jets, shot out along its axis with knots running outward. The near one is brighter than the far one.
+    phase is how far the knots are along their spacing, 0 to 1."""
+    x, y = deep_grid()
+    jets = np.zeros(x.shape)
+    spacing = 30.0
+    uneven = spectral(DEEP, 2.2, 331, 3, 40)
+    for side, power in ((1, 1.0), (-1, 0.42)):
+        out = side * y
+        width = 1.3 + np.clip(out, 0, None) * 0.04
+        bend = 2.5 * np.sin(np.clip(out, 0, None) / 38.0)
+        along = np.exp(-out / 115.0) * smoothstep(5, 16, out) * (out > 0)
+        steady = 0.45 + 0.9 * sample_wrap(uneven, np.full(x.shape, side * 97.0), np.abs(y) * 1.0)
+        knots = 0.60 + 0.40 * (0.5 + 0.5 * np.cos(2 * np.pi * (out / spacing - phase))) ** 2
+        core = np.exp(-((x - bend) / width) ** 2)
+        sheath = np.exp(-((x - bend) / (width * 3.5)) ** 2) * 0.18
+        jets += power * along * knots * steady * (core + sheath)
+    return shoulder(blur_plain(colour(jets, (0.62, 0.76, 1.0)) * 0.95, 0.6), 1.3) * edge_fade(x, y)[..., None]
+
+
+def quasar_core():
+    """The quasar's blinding middle: a point, a halo, and four short spikes on the diagonals (the sun's are square on)."""
+    x, y = deep_grid()
+    r = np.hypot(x, y)
+    glow = 2.0 * np.exp(-(r / 2.2) ** 2) + 0.55 * np.exp(-r / 6.0) + 0.10 * np.exp(-r / 26.0)
+    spikes = (np.exp(-np.abs(x - y) / 1.0) + np.exp(-np.abs(x + y) / 1.0)) * np.exp(-r / 22.0) * 0.38
+    return colour(np.clip(glow + spikes, 0, None), (0.88, 0.94, 1.0)) * edge_fade(x, y)[..., None]
+
+
+def deep_image(rgb, seed):
+    """additive_image() with the faintest light dropped: a far thing's glow fades out over a wide area, and half a step of
+    dither noise there is most of what the sheet would weigh."""
+    return additive_image(np.where(rgb < 1.5 / 255, 0, rgb), seed)
+
+
+def deep_sky():
+    """The deep sky sheet's states: each far thing; the quasar's body, its jets running (and still, for Low graphics), its core."""
+    out = {
+        'nebula_ring': deep_image(ring_nebula(301), 51),
+        'nebula_bipolar': deep_image(bipolar_nebula(311), 52),
+        'nebula_remnant': deep_image(supernova_remnant(321), 53),
+        'quasar': deep_image(quasar(), 54),
+    }
+    frames = [deep_image(quasar_jets(f / QUASAR_FRAMES), 60 + f) for f in range(QUASAR_FRAMES)]
+    out['quasar_jets'] = frames
+    out['quasar_jets_still'] = frames[0]
+    out['quasar_core'] = deep_image(quasar_core(), 59)
+    return out
+
+
 def premultiplied_resize(image, scale):
     """Resizes an RGBA image without the dark fringe a straight resize leaves round soft edges."""
     arr = np.asarray(image.convert('RGBA'), dtype=float) / 255.0
@@ -437,7 +622,7 @@ def build_tiles():
         'comet': additive_image(comet(), 42),
         'ship': [additive_image(ship(False), 43), additive_image(ship(True), 44)],
     }
-    return {'sky': sky, 'sky_nebula': nebula, 'sky_bodies': bodies, 'sky_flyby': flyby}
+    return {'sky': sky, 'sky_nebula': nebula, 'sky_bodies': bodies, 'sky_flyby': flyby, 'sky_deep': deep_sky()}
 
 
 def write_sheets(tiles, out_dir):
@@ -447,9 +632,9 @@ def write_sheets(tiles, out_dir):
         dmi = Dmi(size[0], size[1])
         for name, image in states.items():
             state = dmi.state(name)
-            if isinstance(image, list):  # an animated state: the ship's light blinks
+            if isinstance(image, list):  # an animated state: the ship's light blinks, the quasar's jets run
                 for frame in image:
-                    state.frame(frame, delay=6)
+                    state.frame(frame, delay=QUASAR_DELAY if name == 'quasar_jets' else 6)
             else:
                 state.frame(image)
         dmi.to_file(os.path.join(out_dir, sheet + '.dmi'))
@@ -499,6 +684,18 @@ def compose(tiles, theme, w=608, h=480, seed=0):
     return Image.fromarray((np.clip(out, 0, 1) * 255).astype(np.uint8), 'RGB')
 
 
+def deep_preview(tiles, state, theme, seed=0):
+    """A far thing over a theme's sky, as big as the game draws it at its largest."""
+    sky = as_float(compose(tiles, theme, seed=seed))
+    art = as_float(tiles['sky_deep'][state])
+    if state == 'quasar':
+        art = art + as_float(tiles['sky_deep']['quasar_jets_still']) + as_float(tiles['sky_deep']['quasar_core'])
+    h, w = sky.shape[:2]
+    top, left = (h - DEEP) // 2, (w - DEEP) // 2
+    sky[top:top + DEEP, left:left + DEEP] += art
+    return Image.fromarray((np.clip(sky, 0, 1) * 255).astype(np.uint8), 'RGB')
+
+
 THEME_FILE = os.path.join(ROOT, 'hippiestation', 'code', '_onclick', 'hud', 'sky_themes.dm')
 
 
@@ -533,6 +730,10 @@ def main():
         for name, theme in read_themes().items():
             compose(tiles, theme, seed=sum(map(ord, name))).save(os.path.join(out, 'sky_%s.png' % name))
             print('data/previews/sky_%s.png' % name)
+        themes = read_themes()
+        for state, theme in (('nebula_ring', 'quiet'), ('nebula_bipolar', 'glacier'), ('nebula_remnant', 'quiet'), ('quasar', 'violet')):
+            deep_preview(tiles, state, themes[theme], seed=7).save(os.path.join(out, 'deep_%s.png' % state))
+            print('data/previews/deep_%s.png' % state)
     elif mode == 'check':
         import tempfile
         with tempfile.TemporaryDirectory() as tmp:

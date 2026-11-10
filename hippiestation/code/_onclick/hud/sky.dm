@@ -38,6 +38,15 @@
 	animate(src, alpha = 45, time = half, loop = -1, easing = SINE_EASING)
 	animate(alpha = 255, time = half, easing = SINE_EASING)
 
+/// Brightens and dims unevenly, for good: a quasar's core. The steps are uneven so the loop (22 seconds) doesn't show.
+/obj/screen/sky_art/proc/flicker()
+	animate(src, alpha = 255, time = 30, loop = -1, easing = SINE_EASING)
+	animate(alpha = 170, time = 45, easing = SINE_EASING)
+	animate(alpha = 235, time = 20, easing = SINE_EASING)
+	animate(alpha = 140, time = 60, easing = SINE_EASING)
+	animate(alpha = 215, time = 25, easing = SINE_EASING)
+	animate(alpha = 160, time = 40, easing = SINE_EASING)
+
 /// The one thing crossing the sky at the moment, if anything is. Its sprites point east.
 /obj/screen/sky_art/flyby
 	icon = 'hippiestation/icons/effects/sky_flyby.dmi'
@@ -104,6 +113,9 @@
 	var/list/body_places = list()
 	/// Which part of each of the theme's nebula clouds is overhead this round: one list(x, y) in pixels for each
 	var/list/nebula_shifts = list()
+	/// The far things in this round's sky, whatever its theme: list(icon state of sky_deep.dmi, degrees turned, size, speed) each.
+	/// Where each sits is body_places["deep1"] and on
+	var/list/deep_sky = list()
 
 //These are cached per client so needs to be done asap so people joining at roundstart do not miss these.
 /datum/controller/subsystem/parallax/PreInit()
@@ -140,6 +152,7 @@
 		"sun" = list(cos(sun_bearing) * 170, sin(sun_bearing) * 170),
 		"world" = list(cos(world_bearing) * 130, sin(world_bearing) * 130),
 		"galaxy" = list(cos(galaxy_bearing) * 120, sin(galaxy_bearing) * 120))
+	pick_deep_sky(list(sun_bearing, world_bearing, galaxy_bearing))
 	nebula_shifts = list()
 	var/half_repeat = PARALLAX_TILE * SKY_NEBULA_SCALE / 2
 	for(var/cloud in theme.nebula)
@@ -150,6 +163,59 @@
 	for(var/client/C as anything in GLOB.clients)
 		if(C.mob?.hud_used)
 			C.mob.hud_used.update_parallax_pref(C.mob) //the layers were made for the old theme: this makes them again
+
+/// The round's far things: mostly one, sometimes two or none, each turned and sized its own way and set at a bearing clear of
+/// the sun, the other world, the galaxy and each other, round an oval a little wider than it is tall.
+/datum/controller/subsystem/parallax/proc/pick_deep_sky(list/taken)
+	deep_sky = list()
+	// kind = list(smallest, largest) size, in hundredths: the hourglass and the remnant are wide, so they're kept smaller
+	var/static/list/sizes = list("nebula_ring" = list(70, 95), "nebula_bipolar" = list(55, 80), "nebula_remnant" = list(55, 80), "quasar" = list(75, 100))
+	var/list/kinds = sizes.Copy()
+	for(var/index in 1 to pick(0, 1, 1, 1, 2, 2))
+		var/kind = pick_n_take(kinds)
+		var/bearing
+		var/best_gap = -1
+		for(var/attempt in 1 to 24)
+			var/maybe = rand(0, 359)
+			var/gap = 180
+			for(var/other in taken)
+				gap = min(gap, abs(((maybe - other) % 360 + 540) % 360 - 180))
+			if(gap > best_gap)
+				best_gap = gap
+				bearing = maybe
+			if(gap >= 60)
+				break
+		taken += bearing
+		var/reach = rand(75, 100) / 100
+		var/list/size = sizes[kind]
+		body_places["deep[index]"] = list(cos(bearing) * 210 * reach, sin(bearing) * 160 * reach)
+		deep_sky += list(list(kind, rand(0, 359), rand(size[1], size[2]) / 100, rand(25, 35) / 100))
+
+/// The art of one far thing, in a list for a layer's vis_contents: its sprite, and for a quasar its jets and its core. The
+/// jets run and the core flickers unless it's for Low graphics.
+/datum/controller/subsystem/parallax/proc/deep_art(index, moving)
+	var/list/far_thing = deep_sky[index]
+	var/kind = far_thing[1]
+	var/list/states = list(kind)
+	if(kind == "quasar")
+		states += moving ? "quasar_jets" : "quasar_jets_still"
+		states += "quasar_core"
+	var/matrix/turned = matrix(far_thing[3], 0, 0, 0, far_thing[3], 0)
+	turned.Turn(far_thing[2])
+	. = list()
+	for(var/state in states)
+		var/name = "deep [index] [state][moving ? "" : " still"]"
+		var/obj/screen/sky_art/A = sky_art[name]
+		if(!A)
+			A = new
+			A.icon = 'hippiestation/icons/effects/sky_deep.dmi'
+			A.icon_state = state
+			A.layer = 5.5 + index * 0.01 + length(.) * 0.001
+			A.transform = turned
+			if(moving && state == "quasar_core")
+				A.flicker()
+			sky_art[name] = A
+		. += A
 
 /// One of the theme's nebula clouds, in its colour: the one that drifts, or the one that stays put for Low graphics.
 /datum/controller/subsystem/parallax/proc/nebula_art(index, moving)

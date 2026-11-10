@@ -51,6 +51,10 @@
 		var/obj/screen/parallax_layer/body/world/other_world = new
 		other_world.icon_state = neighbour
 		. += other_world
+	for(var/index in 1 to length(SSparallax.deep_sky)) //the round's far things, whatever the theme
+		var/obj/screen/parallax_layer/body/deep/far_thing = new
+		far_thing.setup(index)
+		. += far_thing
 	. += new /obj/screen/parallax_layer/body/planet
 	. += new /obj/screen/parallax_layer/flybys
 	if(SSparallax.random_layer)

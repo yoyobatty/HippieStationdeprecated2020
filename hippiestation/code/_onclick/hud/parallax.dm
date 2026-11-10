@@ -445,6 +445,25 @@
 	layer = 6
 	place = "galaxy"
 
+/// Something far beyond this system: a nebula or a quasar (SSparallax.deep_sky). Its art is shared, turned and sized for the round.
+/obj/screen/parallax_layer/body/deep
+	icon_state = null
+	blend_mode = BLEND_ADD
+	speed = 0.3
+	layer = 5.5
+	/// Which of the round's far things it is
+	var/index = 1
+
+/obj/screen/parallax_layer/body/deep/proc/setup(new_index)
+	index = new_index
+	place = "deep[index]"
+	var/list/far_thing = SSparallax.deep_sky[index]
+	speed = far_thing[4]
+	layer = initial(layer) + index * 0.01
+
+/obj/screen/parallax_layer/body/deep/set_quality(quality)
+	vis_contents = SSparallax.deep_art(index, quality >= GRAPHICS_QUALITY_MEDIUM)
+
 // ---- Near things
 
 /// Specks of dust close by: they slide past fast, which is what gives a spacewalk its speed

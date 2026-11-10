@@ -2,8 +2,9 @@
 // Not part of the game: HARNESS=sky_shots.dm SENDER=shot.ps1 MAP=testbench tools/keybind_check/run.sh sky
 // Pictures in data/previews/sky_*.png, notes in data/keycheck_sky.txt.
 // The "before" pictures are the old layers put back as a theme of their own (below), in the same boot and from the same spots.
-// data/sky_shots_which holds what to shoot: "all" (default), "before", a theme's type name ("ember"), or "motion" (pairs of
-// pictures a second apart, a walk, and each kind of fly-by).
+// data/sky_shots_which holds what to shoot: "all" (default), "before", a theme's type name ("ember"), "motion" (pairs of
+// pictures a second apart, a walk, and each kind of fly-by), or "deep" (each far thing, the quasar running and on Low, and what
+// a few rounds would pick).
 
 GLOBAL_VAR_INIT(keycheck_running, FALSE)
 
@@ -120,6 +121,29 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		parts += "[replacetext("[L.type]", "/obj/screen/parallax_layer/", "")]([L.icon_state], [L.speed], vis [length(L.vis_contents)], at [L.pixel_w],[L.pixel_z])"
 	return parts.Join("; ")
 
+/// Puts far things in the sky where they're sure to be seen from where H is: list(kind, x, y) each, in pixels from the middle
+/// of the view. Everything else single is moved out of the way.
+/proc/sky_deep_show(mob/living/carbon/human/H, list/things)
+	var/datum/controller/subsystem/parallax/P = SSparallax
+	P.deep_sky = list()
+	for(var/place in list("sun", "world", "galaxy"))
+		P.body_places[place] = list(5000, 5000)
+	P.planet_x_offset = H.x + 200
+	var/index = 0
+	for(var/list/thing as anything in things)
+		index++
+		var/speed = 0.3
+		P.deep_sky += list(list(thing[1], 25, 1, speed))
+		P.body_places["deep[index]"] = list(thing[2] + (H.x - world.maxx / 2) * speed, thing[3] + (H.y - world.maxy / 2) * speed)
+	for(var/name in P.sky_art)
+		if(findtext(name, "deep ") == 1)
+			qdel(P.sky_art[name])
+			P.sky_art -= name
+	var/client/C = H.client
+	C.parallax_theme = null //makes the layers again
+	H.hud_used.update_parallax_pref(H)
+	sleep(10)
+
 /proc/sky_shots_run(client/C)
 	fdel("data/keycheck_shot")
 	fdel("data/keycheck_shots_done")
@@ -159,7 +183,7 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			themes += path
 			if(which != "all")
 				break
-	else if(which != "before")
+	else if(which != "before" && which != "deep")
 		themes += text2path("/datum/sky_theme/[which]")
 
 	for(var/path in themes)
@@ -192,6 +216,49 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			sleep(18)
 			sky_shot("sky_ships_[i]")
 			sleep(30)
+
+	if(which == "deep")
+		SSparallax.set_theme(new /datum/sky_theme/quiet)
+		H.forceMove(space_spot)
+		sleep(15)
+		for(var/kind in list("nebula_ring", "nebula_bipolar", "nebula_remnant", "quasar"))
+			sky_deep_show(H, list(list(kind, -60, 30)))
+			kc_log("deep [kind]: [sky_layer_text(C)]")
+			sky_shot("sky_deep_[kind]")
+		// The quasar's jets run and its core flickers: two pictures a second and a half apart, then the same on Low
+		sky_deep_show(H, list(list("quasar", -60, 30)))
+		sleep(20)
+		sky_shot("sky_deep_quasar_motion_a")
+		sleep(15)
+		sky_shot("sky_deep_quasar_motion_b")
+		C.prefs.set_graphics_quality(GRAPHICS_QUALITY_LOW)
+		H.hud_used.update_parallax_pref(H)
+		sleep(10)
+		kc_log("deep on Low: [sky_layer_text(C)]")
+		sky_shot("sky_deep_quasar_low_a")
+		sleep(15)
+		sky_shot("sky_deep_quasar_low_b")
+		C.prefs.set_graphics_quality(GRAPHICS_QUALITY_HIGH)
+		// Two at once, as a round can have
+		sky_deep_show(H, list(list("nebula_remnant", -150, 60), list("quasar", 170, -70)))
+		sky_shot("sky_deep_two")
+		// What rounds pick, and the sky of three of them as it would be
+		var/list/counts = list()
+		for(var/i in 1 to 200)
+			SSparallax.pick_deep_sky(list(0, 120, 240))
+			counts["[length(SSparallax.deep_sky)]"]++
+			for(var/list/thing as anything in SSparallax.deep_sky)
+				counts[thing[1]]++
+		kc_log("200 rounds' picks: [json_encode(counts)]")
+		for(var/i in 1 to 3)
+			SSparallax.set_theme(new /datum/sky_theme/quiet)
+			H.forceMove(space_spot)
+			sleep(15)
+			var/list/picked = list()
+			for(var/list/thing as anything in SSparallax.deep_sky)
+				picked += "[thing[1]] turned [thing[2]] size [thing[3]] at [json_encode(SSparallax.body_places["deep[length(picked) + 1]"])]"
+			kc_log("round [i]: [picked.Join("; ")]")
+			sky_shot("sky_deep_round_[i]")
 
 	if(which == "motion")
 		H.forceMove(space_spot)
