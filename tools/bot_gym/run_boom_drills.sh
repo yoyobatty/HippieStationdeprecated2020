@@ -3,7 +3,7 @@
 # the drills' lines side by side. Usage: tools/bot_gym/run_boom_drills.sh <label> [drills...]
 #   tools/bot_gym/run_boom_drills.sh before                         # all five
 #   tools/bot_gym/run_boom_drills.sh after maxcap nuke              # just these
-# Environment: CREW=fill:40, AT_ONCE=3, BASE_PORT=45600, NOCOMPILE=1. Results: data/logs/shift_batch/boom-<label>-<drill>/
+# Environment: CREW=fill:40, AT_ONCE=3, BASE_PORT=45600, NOCOMPILE=1, DMB=<build> (with NOCOMPILE=1), BOOM_EXTRA="a=1&b=2" (more world params). Results: data/logs/shift_batch/boom-<label>-<drill>/
 set -u
 cd "$(dirname "$0")/../.."
 LABEL="${1:?a label for this set}"
@@ -20,7 +20,7 @@ fi
 i=0
 for d in "${DRILLS[@]}"; do
 	while [ "$(jobs -rp | wc -l)" -ge "$AT_ONCE" ]; do wait -n; done
-	NOCOMPILE=1 NAME="boom-$LABEL-$d" JOBS=1 BASE_PORT=$((BASE_PORT + i * 10)) EXTRA_PARAMS="boom-drill=$d" \
+	NOCOMPILE=1 NAME="boom-$LABEL-$d" JOBS=1 BASE_PORT=$((BASE_PORT + i * 10)) EXTRA_PARAMS="boom-drill=$d${BOOM_EXTRA:+&$BOOM_EXTRA}" \
 		tools/bot_gym/run_shift_batch.sh 1 9 "$CREW" > "data/boom-$LABEL-$d.out" 2>&1 &
 	i=$((i + 1))
 	sleep 3

@@ -5,6 +5,7 @@
 //! passes, and those only ever hold numbers and turfs: neither is reference counted, so it never has a BYOND reference to
 //! look after. The two BYOND API functions it uses are looked up in byondcore.dll at first use.
 
+pub mod blast;
 pub mod flood;
 pub mod picture;
 pub mod search;
@@ -668,6 +669,35 @@ pub unsafe extern "C" fn path_hubs(argc: u32, argv: *const ByondValue) -> ByondV
 		let count = turfs.len();
 		state.picture.set_hubs(turfs.into_iter());
 		Ok(count as f32)
+	})
+}
+
+/// call_ext("hippie_path", "byond:path_blast")(blocks, size, out): a shaped explosion (blast.rs). `blocks` is size * size numbers, rows
+/// bottom to top and x fastest, the epicenter in the middle, a negative number (or not a number) where there's no tile; `out` gets
+/// each tile's extra distance over the straight line, in the same order. Needs nothing set up. Returns the number of tiles.
+#[no_mangle]
+pub unsafe extern "C" fn path_blast(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	guarded("blast", || {
+		let api = api().ok_or("byondcore.dll doesn't have Byond_ReadList and Byond_WriteList")?;
+		if args.len() < 3 {
+			return Err(format!("{} arguments, wanted 3", args.len()));
+		}
+		let size = args[1].as_int();
+		if size <= 0 || size > 1001 || size % 2 == 0 {
+			return Err(format!("size {size}"));
+		}
+		let size = size as usize;
+		let mut values = Vec::new();
+		read_values(api, &args[0], &mut values)?;
+		if values.len() != size * size {
+			return Err(format!("{} blocks for a {size} square", values.len()));
+		}
+		let blocks: Vec<f32> = values.iter().map(|v| if v.kind == TYPE_NUMBER { f32::from_bits(v.data) } else { -1.0 }).collect();
+		let extra = blast::shape(&blocks, size);
+		let out: Vec<ByondValue> = extra.iter().map(|&e| ByondValue::num(e)).collect();
+		write_values(api, &args[2], &out)?;
+		Ok((size * size) as f32)
 	})
 }
 

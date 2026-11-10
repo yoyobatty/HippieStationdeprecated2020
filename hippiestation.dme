@@ -2969,6 +2969,7 @@
 #include "hippiestation\code\controllers\subsystem\dbcore.dm"
 #include "hippiestation\code\controllers\subsystem\demo.dm"
 #include "hippiestation\code\controllers\subsystem\explosions.dm"
+#include "hippiestation\code\controllers\subsystem\explosions_shape.dm"
 #include "hippiestation\code\controllers\subsystem\ipstack.dm"
 #include "hippiestation\code\controllers\subsystem\job.dm"
 #include "hippiestation\code\controllers\subsystem\profiler.dm"

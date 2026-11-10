@@ -109,36 +109,23 @@ SUBSYSTEM_DEF(explosions)
 			heavy = tgui_input_number(usr, "Heavy impact range (Tiles):", allow_cancel = FALSE)
 			light = tgui_input_number(usr, "Light impact range (Tiles):", allow_cancel = FALSE)
 
-	var/max_range = max(dev, heavy, light)
-	var/x0 = epicenter.x
-	var/y0 = epicenter.y
+	// hippie start -- what explode() itself works out (explosion_severity_map(), explosions_shape.dm): this had its own copy, which
+	// added up what was on the tile being checked at every step instead of what was in the way, and ignored the shape
 	var/list/wipe_colours = list()
-	for(var/turf/T in spiral_range_turfs(max_range, epicenter))
+	var/list/severity = explosion_severity_map(epicenter, dev, heavy, light, newmode == "Yes" ? null : "none")
+	for(var/turf/T as anything in severity)
 		wipe_colours += T
-		var/dist = cheap_hypotenuse(T.x, T.y, x0, y0)
-
-		if(newmode == "Yes")
-			var/turf/TT = T
-			while(TT != epicenter)
-				TT = get_step_towards(TT,epicenter)
-				if(TT.density)
-					dist += TT.explosion_block
-
-				for(var/obj/O in T)
-					var/the_block = O.explosion_block
-					dist += the_block == EXPLOSION_BLOCK_PROC ? O.GetExplosionBlock() : the_block
-
-		if(dist < dev)
-			T.color = "red"
-			T.maptext = "Dev"
-		else if (dist < heavy)
-			T.color = "yellow"
-			T.maptext = "Heavy"
-		else if (dist < light)
-			T.color = "blue"
-			T.maptext = "Light"
-		else
-			continue
+		switch(severity[T])
+			if(EXPLODE_DEVASTATE)
+				T.color = "red"
+				T.maptext = "Dev"
+			if(EXPLODE_HEAVY)
+				T.color = "yellow"
+				T.maptext = "Heavy"
+			if(EXPLODE_LIGHT)
+				T.color = "blue"
+				T.maptext = "Light"
+	// hippie end
 
 	addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(wipe_color_and_text), wipe_colours), 100)
 
@@ -274,9 +261,11 @@ SUBSYSTEM_DEF(explosions)
 	var/list/cached_exp_block
 	var/list/path_block //hippie -- turf -> what's in the way between it and the epicenter
 
+	var/list/shape_extra //hippie -- turf -> how much further the blast comes round to reach it (explosions_shape.dm)
 	if(reactionary)
 		cached_exp_block = CaculateExplosionBlock(affected_turfs)
 		path_block = list()
+		shape_extra = explosion_shape(epicenter, max_range, cached_exp_block) //hippie -- null with explosion-shape=line
 
 	//lists are guaranteed to contain at least 1 turf at this point
 
@@ -285,7 +274,9 @@ SUBSYSTEM_DEF(explosions)
 		var/init_dist = cheap_hypotenuse(T.x, T.y, x0, y0)
 		var/dist = init_dist
 
-		if(reactionary)
+		if(shape_extra) //hippie -- shaped: round what blocks it, through openings (explosions_shape.dm)
+			dist += shape_extra[T]
+		else if(reactionary)
 			// hippie start -- this walked every tile's whole way back to the epicenter, adding up what blocked it. Its first step lands on a tile
 			// one ring nearer (get_dir() never leaves a step that doesn't close the larger gap), and the rings come in order from the middle,
 			// so that tile's own sum is already known: its block plus its sum is the same total, without the walk.
