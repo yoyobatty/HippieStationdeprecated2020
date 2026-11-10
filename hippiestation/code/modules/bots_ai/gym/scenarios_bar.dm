@@ -50,6 +50,27 @@
 		return BOT_GYM_PASS
 	return BOT_GYM_PENDING
 
+/datum/bot_scenario/duty/bar/glass_it_can_reach
+	name = "bartender gets its glass from the Booze-O-Mat it can get to, not the nearer one walled off"
+	desc = "Two Booze-O-Mats: one two steps off behind a wall, as the Speakeasy's is, and one across the bar. It went for the nearer, found at the end of its route search there was no way there, and gave up the drink."
+	layout = list(
+		"############",
+		"#O#b.s.t...#",
+		"###........#",
+		"#B.........#",
+		"#.........O#",
+		"############")
+	time_limit = 60 SECONDS
+
+/datum/bot_scenario/duty/bar/glass_it_can_reach/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/line in transcript)
+		if(findtext(line, "giving up on /datum/bot_goal/fetch_glass"))
+			fail_reason = "set off for the glass it had no way to"
+			return BOT_GYM_FAIL
+	return length(poured()) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /datum/bot_scenario/duty/bar/customer
 	name = "customer has the drink that's out on the bar"
 	desc = "A gin and tonic on the bar and a machine further off. The bot walks to the bar, picks the glass up, drinks it a gulp at a time and puts the empty back on the bar."

@@ -83,28 +83,43 @@ GLOBAL_LIST_INIT(bot_bar_menu, init_bot_bar_menu())
 			return G
 	return null
 
-/// Where to get a glass: an empty left on a table in the bar, or the Booze-O-Mat.
+/// Where to get a glass: an empty left on a table in the bar, or the Booze-O-Mat. Only one it has a way to: the nearest was taken
+/// whatever stood between, and a bartender set off for the Speakeasy's Booze-O-Mat behind a wall, or across a bar with the air
+/// gone out of it, and gave up at the end of the route search (51 times in twelve shifts, and a drink given up each time). One it
+/// can't get to is left a few minutes.
 /datum/bot_brain/proc/find_glass_source()
-	var/atom/best
-	var/best_dist
+	var/list/glasses = list()
 	glance_at_items()
 	for(var/obj/item/reagent_containers/food/drinks/drinkingglass/G as anything in bot_instances_of(/obj/item/reagent_containers/food/drinks/drinkingglass))
 		if(!isturf(G.loc) || !in_bar(G) || G.reagents.total_volume || istype(G, /obj/item/reagent_containers/food/drinks/drinkingglass/shotglass) || !knows_of_in_room(G)) //what it knows of, or can see round the bar (bot_knowledge.dm)
 			continue
-		var/dist = get_dist(owner, G)
-		if(!best || dist < best_dist)
-			best = G
-			best_dist = dist
-	if(best)
-		return best
+		if(LAZYACCESS(bar_blocked, G.loc) <= world.time)
+			glasses[G] = get_dist(owner, G)
+	. = nearest_reachable_bar_thing(glasses)
+	if(.)
+		return
+	var/list/vendors = list()
 	for(var/obj/machinery/vending/boozeomat/V as anything in bot_instances_of(/obj/machinery/vending/boozeomat))
-		if(!in_bar(V) || V.panel_open || (V.stat & (BROKEN|NOPOWER)) || !length(vendor_stock(V, list(/obj/item/reagent_containers/food/drinks/drinkingglass))))
+		if(!in_bar(V) || V.panel_open || (V.stat & (BROKEN|NOPOWER)) || LAZYACCESS(bar_blocked, V.loc) > world.time || !length(vendor_stock(V, list(/obj/item/reagent_containers/food/drinks/drinkingglass))))
 			continue
-		var/dist = get_dist(owner, V)
-		if(!best || dist < best_dist)
-			best = V
-			best_dist = dist
-	return best
+		vendors[V] = get_dist(owner, V)
+	return nearest_reachable_bar_thing(vendors)
+
+/// Of things and their distances, the nearest this bot has a way to; where the ones it hasn't are is left alone three minutes (bar_blocked).
+/// A few route searches at most.
+/datum/bot_brain/proc/nearest_reachable_bar_thing(list/things)
+	for(var/tries in 1 to 3)
+		var/atom/nearest
+		for(var/atom/A as anything in things)
+			if(!nearest || things[A] < things[nearest])
+				nearest = A
+		if(!nearest)
+			return null
+		if(can_walk_lawfully_to(nearest))
+			return nearest
+		things -= nearest
+		LAZYSET(bar_blocked, get_turf(nearest), world.time + 3 MINUTES) //the turf: a glass is gone soon enough, and a list holding it is a hard delete
+	return null
 
 /// A drink that's been poured and left out: a filled glass on a table in the bar. `reach` is how far this bot would walk for one.
 /datum/bot_brain/proc/find_served_drink(reach)
@@ -181,7 +196,9 @@ GLOBAL_LIST_INIT(bot_bar_menu, init_bot_bar_menu())
 	var/datum/bot_drink/D = order?.detail
 	if(!D || !bot.can_mix(D))
 		D = bot.pick_drink_to_mix()
-	if(!D || !bot.find_bar_counter() || (!bot.carried_empty_glass() && !bot.find_glass_source()))
+	var/obj/structure/table/counter = bot.find_bar_counter()
+	// A bar it can't get to (the air gone out of it, or shut in somewhere else) is no bar to tend.
+	if(!D || !counter || (!bot.carried_empty_glass() && !bot.find_glass_source()) || !bot.can_walk_lawfully_to(counter))
 		return FALSE
 	var/datum/bot_goal/mix_drink/G = new(D)
 	G.order = order
