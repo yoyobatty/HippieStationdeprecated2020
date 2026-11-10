@@ -293,6 +293,56 @@
 		return BOT_GYM_FAIL
 	return world.time > start_time + 8 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/datum/bot_scenario/revive/kept_alive
+	name = "somebody shocked back is kept alive after"
+	desc = "The paddles bring somebody back at fifty under, too far gone to breathe. A doctor shocked them, went on to the next patient, and they were dead again in twenty seconds: one body was shocked back twenty times in a shift."
+	time_limit = 90 SECONDS
+	max_goal_attempts = 6
+	var/back_at = 0
+
+/datum/bot_scenario/revive/kept_alive/make_goal()
+	if(back_at)
+		brain.try_medical_round() //what a doctor's round goes on to
+		return null
+	return ..()
+
+/datum/bot_scenario/revive/kept_alive/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(patient))
+		fail_reason = "the patient's gone"
+		return BOT_GYM_FAIL
+	if(!back_at)
+		if(patient.stat != DEAD)
+			back_at = world.time
+		return BOT_GYM_PENDING
+	var/list/in_them = list()
+	for(var/datum/reagent/R as anything in patient.reagents.reagent_list)
+		in_them += "[R.name] [round(R.volume, 0.1)]"
+	if(!(round((world.time - back_at) / 10) % 5))
+		log_line("[round((world.time - back_at) / 10)]s after the shock: health [round(patient.health, 0.1)], suffocation [round(patient.getOxyLoss(), 0.1)], missed breaths [patient.losebreath], heart [patient.undergoing_cardiac_arrest() ? "stopped" : "beating"], in [patient.loc], [length(in_them) ? jointext(in_them, ", ") : "nothing in them"]")
+	if(patient.stat == DEAD)
+		fail_reason = "dead again [round((world.time - back_at) / 10)] s after the shock"
+		return BOT_GYM_FAIL
+	return world.time > back_at + 45 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/revive/bled_out
+	name = "doctor leaves somebody who bled to death to the cloner"
+	desc = "Just dead, with less than half their blood left. The paddles bring them back with nothing to live on and they're dead again in twenty seconds: one body was shocked back twenty times in a shift."
+	time_limit = 15 SECONDS
+
+/datum/bot_scenario/revive/bled_out/post_spawn()
+	..()
+	patient.blood_volume = 250
+
+/datum/bot_scenario/revive/bled_out/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot.pulling == patient || (locate(/obj/item/twohanded/shockpaddles) in bot.held_items) || bot_transcript_said("bot_strategy/revive"))
+		fail_reason = "set about shocking back somebody with no blood to live on"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 8 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 // ---------------------------------------------------------------------------------------------
 // Somebody down where no doctor can get to them (goals/carry_casualty.dm). C: the casualty. G: Medbay's door.
 // ---------------------------------------------------------------------------------------------

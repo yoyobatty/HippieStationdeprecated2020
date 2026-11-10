@@ -480,6 +480,12 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			continue //somebody has them, or it's just tried
 		if(locate(/obj/item/clothing/suit/space) in H.contents)
 			continue //"Patient's chest is obscured": the paddles won't go through a space suit
+		// Bled out: the paddles would bring them back at fifty under with no blood to live on, and they'd be dead again in twenty
+		// seconds (blood.dm takes five or six of health a tick below BLOOD_VOLUME_OKAY). There's no putting blood back inside the
+		// two minutes the paddles are good for, so that's a body for the cloner. One who'd been beaten to death was shocked back
+		// twenty times in a shift by three doctors in turn, and died twenty times.
+		if(H.blood_volume < BLOOD_VOLUME_SAFE && !(NOBLOOD in H.dna?.species?.species_traits))
+			continue
 		var/dist = get_dist(bot.owner, H)
 		if(dist > 60)
 			continue
