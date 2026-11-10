@@ -476,3 +476,40 @@
 		fail_reason = "the toolbox still has [thrown.thrownby] as its thrower, lying on the floor"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+// Layout letter K: the window.
+/datum/bot_scenario/plasma_window_frame
+	name = "windows: a plasma window takes the same undoing as a reinforced one"
+	desc = "A plasma window came loose from the floor with one turn of a screwdriver, where a reinforced one has to be unscrewed from its frame, pried out and then unscrewed from the floor."
+	time_limit = 10 SECONDS
+	layout = list(
+		"#####",
+		"#B.K#",
+		"#####")
+	var/still_fastened
+	var/comes_out
+
+/datum/bot_scenario/plasma_window_frame/issue_goal()
+	return
+
+/datum/bot_scenario/plasma_window_frame/post_spawn()
+	var/obj/structure/window/plasma/W = place("K", new /obj/structure/window/plasma(first_marker("K"), WEST))
+	var/obj/item/screwdriver/screwdriver = place("K", new /obj/item/screwdriver(bot.loc))
+	var/obj/item/crowbar/crowbar = place("K", new /obj/item/crowbar(bot.loc))
+	screwdriver.toolspeed = 0
+	crowbar.toolspeed = 0
+	bot.forceMove(get_step(W, WEST))
+	W.attackby(screwdriver, bot) //one turn
+	still_fastened = W.anchored
+	W.attackby(crowbar, bot) //out of the frame
+	W.attackby(screwdriver, bot) //and off the floor
+	comes_out = !W.anchored
+
+/datum/bot_scenario/plasma_window_frame/check()
+	if(!still_fastened)
+		fail_reason = "loose from the floor after one turn of a screwdriver"
+		return BOT_GYM_FAIL
+	if(!comes_out)
+		fail_reason = "still fastened after the screwdriver, the crowbar and the screwdriver again"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

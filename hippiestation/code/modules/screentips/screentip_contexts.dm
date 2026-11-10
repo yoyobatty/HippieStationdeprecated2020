@@ -217,7 +217,7 @@
 	if(flags_1 & NODECONSTRUCT_1)
 		return
 	if(tool == TOOL_SCREWDRIVER)
-		if(!reinf)
+		if(!in_a_frame())
 			context[SCREENTIP_LMB] = anchored ? "Unscrew from floor" : "Screw to floor"
 		else if(state == WINDOW_SCREWED_TO_FRAME)
 			context[SCREENTIP_LMB] = "Unscrew from frame"
@@ -225,7 +225,7 @@
 			context[SCREENTIP_LMB] = "Screw to frame"
 		else if(state == WINDOW_OUT_OF_FRAME)
 			context[SCREENTIP_LMB] = anchored ? "Unscrew frame from floor" : "Screw frame to floor"
-	else if(tool == TOOL_CROWBAR && reinf && (state == WINDOW_OUT_OF_FRAME || state == WINDOW_IN_FRAME))
+	else if(tool == TOOL_CROWBAR && in_a_frame() && (state == WINDOW_OUT_OF_FRAME || state == WINDOW_IN_FRAME))
 		context[SCREENTIP_LMB] = (state == WINDOW_OUT_OF_FRAME) ? "Pry into frame" : "Pry out of frame"
 	else if(tool == TOOL_WRENCH && !anchored)
 		context[SCREENTIP_LMB] = "Disassemble"

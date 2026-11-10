@@ -29,9 +29,15 @@
 	var/hitsound = 'sound/effects/Glasshit.ogg'
 
 
+// hippie start -- a plasma window is fastened into a frame like a reinforced one: screwed, pried out, then unscrewed from the floor.
+// With reinf off it came loose from the floor with one turn of a screwdriver, the weakest fastening on the strongest glass.
+/obj/structure/window/proc/in_a_frame()
+	return reinf
+// hippie end
+
 /obj/structure/window/examine(mob/user)
 	. = ..()
-	if(reinf)
+	if(in_a_frame()) // hippie -- was reinf
 		if(anchored && state == WINDOW_SCREWED_TO_FRAME)
 			. += "<span class='notice'>The window is <b>screwed</b> to the frame.</span>"
 		else if(anchored && state == WINDOW_IN_FRAME)
@@ -50,7 +56,7 @@
 	. = ..()
 	if(direct)
 		setDir(direct)
-	if(reinf && anchored)
+	if(in_a_frame() && anchored) // hippie -- was reinf
 		state = WINDOW_SCREWED_TO_FRAME
 
 	ini_dir = dir
@@ -184,7 +190,7 @@
 	if(!(flags_1&NODECONSTRUCT_1))
 		if(I.tool_behaviour == TOOL_SCREWDRIVER)
 			I.play_tool_sound(src, 75)
-			if(reinf)
+			if(in_a_frame()) // hippie -- was reinf
 				if(state == WINDOW_SCREWED_TO_FRAME || state == WINDOW_IN_FRAME)
 					to_chat(user, "<span class='notice'>You begin to [state == WINDOW_SCREWED_TO_FRAME ? "unscrew the window from":"screw the window to"] the frame...</span>")
 					if(I.use_tool(src, user, decon_speed, extra_checks = CALLBACK(src, PROC_REF(check_state_and_anchored), state, anchored)))
@@ -203,7 +209,7 @@
 			return
 
 
-		else if(I.tool_behaviour == TOOL_CROWBAR && reinf && (state == WINDOW_OUT_OF_FRAME || state == WINDOW_IN_FRAME))
+		else if(I.tool_behaviour == TOOL_CROWBAR && in_a_frame() && (state == WINDOW_OUT_OF_FRAME || state == WINDOW_IN_FRAME)) // hippie -- was reinf
 			to_chat(user, "<span class='notice'>You begin to lever the window [state == WINDOW_OUT_OF_FRAME ? "into":"out of"] the frame...</span>")
 			I.play_tool_sound(src, 75)
 			if(I.use_tool(src, user, decon_speed, extra_checks = CALLBACK(src, PROC_REF(check_state_and_anchored), state, anchored)))
@@ -418,6 +424,9 @@
 /obj/structure/window/plasma/ComponentInitialize()
 	. = ..()
 	RemoveElement(/datum/element/atmos_sensitive)
+
+/obj/structure/window/plasma/in_a_frame() // hippie
+	return TRUE
 
 /obj/structure/window/plasma/spawnDebris(location)
 	. = list()
