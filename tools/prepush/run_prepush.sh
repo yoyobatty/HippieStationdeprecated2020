@@ -58,7 +58,19 @@ else
 	FAILED=1
 fi
 
-# 3. A short gym on that build, if asked
+# 3. No type names an icon_state its sheet doesn't have, beyond the known ones (tools/icon_check)
+if [ -f "$WT/tools/icon_check/icon_check.py" ]; then
+	ICONS="$(cd "$WT" && python tools/icon_check/icon_check.py 2>&1)"
+	if [ $? -eq 0 ]; then
+		echo "PASS   $(echo "$ICONS" | tail -1)"
+	else
+		echo "FAIL   $(echo "$ICONS" | tail -1)"
+		echo "$ICONS" | head -15 | sed 's/^/         /'
+		FAILED=1
+	fi
+fi
+
+# 4. A short gym on that build, if asked
 if [ "${GYM:-0}" = "1" ] && [ "$FAILED" = "0" ]; then
 	GYM_OUT="$(cd "$WT" && NOCOMPILE=1 tools/bot_gym/run_bot_gym.sh "${GYM_FILTER:-dept:|knowledge:}" 1 2>&1)"
 	LINE="$(echo "$GYM_OUT" | grep "BOT GYM" | tail -1)"
