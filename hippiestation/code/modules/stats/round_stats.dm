@@ -31,6 +31,11 @@
 	var/search
 	/// admins: whose playtime
 	var/playtime_ckey
+	/// the round tab: which round's page, and the page
+	var/page_round
+	var/list/page
+	/// admins: runtimes by site over the last rounds
+	var/list/runtimes
 
 /datum/round_stats/New(ckey)
 	owner_ckey = ckey
@@ -73,16 +78,27 @@
 			.["rows"] = modes
 		if("playtime")
 			.["rows"] = playtime
+		if("round")
+			.["page"] = page
+		if("runtimes")
+			.["rows"] = runtimes
 
 /datum/round_stats/ui_act(action, list/params)
 	if(..())
 		return
 	switch(action)
 		if("tab")
-			if(params["tab"] in list("rounds", "deaths", "modes", "playtime"))
+			if((params["tab"] in list("rounds", "deaths", "modes", "playtime")) || params["tab"] == "runtimes" && is_admin())
 				tab = params["tab"]
 				if(tab == "deaths" && params["round"] != null)
 					round_filter = text2num(params["round"])
+				load()
+			return TRUE
+		if("round")
+			page_round = text2num(params["round"])
+			if(page_round)
+				tab = "round"
+				page = null
 				load()
 			return TRUE
 		if("round_filter")
@@ -122,6 +138,10 @@
 				modes = load_modes()
 			if("playtime")
 				playtime = load_playtime()
+			if("round")
+				page = load_round(page_round)
+			if("runtimes")
+				runtimes = is_admin() ? load_runtimes() : null
 	loading = FALSE
 	SStgui.update_uis(src)
 
@@ -136,14 +156,15 @@
 		. += list(query_round_stats.item.Copy())
 	qdel(query_round_stats)
 
-/datum/round_stats/proc/load_rounds()
+/// The rounds, newest first, or just the one (only: its id)
+/datum/round_stats/proc/load_rounds(only)
 	var/admin = is_admin()
 	var/list/found = query_rows(SSdbcore.NewQuery({"SELECT r.id, r.start_datetime, r.end_datetime, TIMESTAMPDIFF(MINUTE, r.start_datetime, IFNULL(r.end_datetime, r.shutdown_datetime)),
 		r.game_mode, r.game_mode_result, r.end_state, r.map_name, r.station_name, r.shuttle_name,
 		(SELECT COUNT(*) FROM [format_table_name("death")] AS d WHERE d.round_id = r.id), CONCAT(INET_NTOA(r.server_ip), ':', r.server_port), r.commit_hash
 		FROM [format_table_name("round")] AS r
-		WHERE r.start_datetime IS NOT NULL AND (:admin = 1 OR r.id != :current)
-		ORDER BY r.id DESC LIMIT [ROUND_STATS_ROWS]"}, list("admin" = admin ? 1 : 0, "current" = text2num(GLOB.round_id) || 0)))
+		WHERE r.start_datetime IS NOT NULL AND (:admin = 1 OR r.id != :current) AND (:only IS NULL OR r.id = :only)
+		ORDER BY r.id DESC LIMIT :rows"}, list("admin" = admin ? 1 : 0, "current" = text2num(GLOB.round_id) || 0, "only" = only, "rows" = ROUND_STATS_ROWS)))
 	if(!found)
 		return
 	. = list()
@@ -162,8 +183,8 @@
 		WHERE (:admin = 1 OR round_id != :current) AND (:round IS NULL OR round_id = :round)
 		AND (:search IS NULL OR INSTR(name, :search) > 0 OR INSTR(job, :search) > 0 OR INSTR(pod, :search) > 0 OR INSTR(laname, :search) > 0
 			OR (:admin = 1 AND (INSTR(byondkey, :search) > 0 OR INSTR(lakey, :search) > 0)))
-		ORDER BY id DESC LIMIT [ROUND_STATS_ROWS]"},
-		list("admin" = admin ? 1 : 0, "current" = text2num(GLOB.round_id) || 0, "round" = round_filter, "search" = search)))
+		ORDER BY id DESC LIMIT :rows"},
+		list("admin" = admin ? 1 : 0, "current" = text2num(GLOB.round_id) || 0, "round" = round_filter, "search" = search, "rows" = ROUND_STATS_ROWS)))
 	if(!found)
 		return
 	. = list()
@@ -205,5 +226,79 @@
 	. = list()
 	for(var/list/i in found)
 		. += list(list("job" = i[1], "minutes" = text2num(i[2])))
+
+/// One round's page: the round, its antagonists and how their objectives went, the round-end numbers (blackbox feedback, written at
+/// shutdown), its deaths in order, and for admins its runtimes (round_history.dm). The round being played isn't there for players.
+/datum/round_stats/proc/load_round(id)
+	var/list/found = load_rounds(id)
+	if(!length(found))
+		if(!error)
+			error = "No round [id]"
+		return
+	var/admin = is_admin()
+	. = list("round" = found[1], "antags" = list(), "stats" = null, "deaths" = list())
+	var/list/feedback = query_rows(SSdbcore.NewQuery("SELECT key_name, json FROM [format_table_name("feedback")] WHERE round_id = :id AND key_name IN ('antagonists', 'round_end_stats')", list("id" = id)))
+	for(var/list/i in feedback)
+		var/list/data
+		try
+			var/list/json = json_decode(i[2])
+			data = json["data"]
+		catch
+			continue
+		if(!islist(data))
+			continue
+		if(i[1] == "antagonists")
+			for(var/n in data)
+				var/list/A = data[n]
+				if(!islist(A))
+					continue
+				var/list/objectives = list()
+				if(islist(A["objectives"]))
+					for(var/list/O in A["objectives"])
+						objectives += list(list("text" = O["text"], "result" = O["result"]))
+				var/list/team = A["team"]
+				var/list/antag = list("name" = A["name"], "role" = A["antagonist_name"], "team" = islist(team) ? team["name"] : null, "objectives" = objectives)
+				if(admin)
+					antag["key"] = A["key"]
+				.["antags"] += list(antag)
+		else
+			var/list/players = data["players"]
+			var/list/survivors = data["survivors"]
+			var/list/escapees = data["escapees"]
+			.["stats"] = list(
+				"players" = islist(players) ? players["total"] : null,
+				"dead" = islist(players) ? players["dead"] : null,
+				"survivors" = islist(survivors) ? survivors["total"] : null,
+				"escapees" = islist(escapees) ? escapees["total"] : null)
+	var/list/deaths = query_rows(SSdbcore.NewQuery("SELECT tod, name, job, special, pod, laname, suicide, byondkey, lakey FROM [format_table_name("death")] WHERE round_id = :id ORDER BY tod, id LIMIT :rows",
+		list("id" = id, "rows" = ROUND_STATS_ROWS)))
+	for(var/list/i in deaths)
+		var/list/row = list("time" = i[1], "name" = i[2], "job" = i[3], "special" = i[4], "where" = i[5], "killer" = i[6], "suicide" = text2num(i[7]))
+		if(admin)
+			row["key"] = i[8]
+			row["killer_key"] = i[9]
+		.["deaths"] += list(row)
+	if(admin)
+		.["runtimes"] = list()
+		var/had_error = error
+		var/list/ran = query_rows(SSdbcore.NewQuery("SELECT file, line, message, count, first_seen FROM [format_table_name("runtime")] WHERE round_id = :id ORDER BY count DESC LIMIT :rows",
+			list("id" = id, "rows" = ROUND_STATS_ROWS)))
+		for(var/list/i in ran)
+			.["runtimes"] += list(list("file" = i[1], "line" = text2num(i[2]), "message" = i[3], "count" = text2num(i[4]), "first" = text2num(i[5])))
+		error = had_error //a database with no runtime table yet still shows the page
+
+/// Admins: runtimes by file and line over the last 20 rounds that had any, the most first. New: first seen in the latest of them.
+/datum/round_stats/proc/load_runtimes()
+	//SUM() is a DECIMAL, which rust_g reads as null: as text. round_id is unsigned, so the subtraction is done signed.
+	var/list/found = query_rows(SSdbcore.NewQuery({"SELECT file, line, MIN(message), COUNT(DISTINCT round_id), CAST(SUM(count) AS CHAR), MAX(round_id), MIN(round_id), (SELECT MAX(round_id) FROM [format_table_name("runtime")])
+		FROM [format_table_name("runtime")]
+		WHERE round_id IN (SELECT round_id FROM (SELECT DISTINCT round_id FROM [format_table_name("runtime")] ORDER BY round_id DESC LIMIT 20) AS latest)
+		GROUP BY file, line ORDER BY SUM(count) DESC LIMIT :rows"}, list("rows" = ROUND_STATS_ROWS)))
+	if(!found)
+		return
+	. = list()
+	for(var/list/i in found)
+		. += list(list("file" = i[1], "line" = text2num(i[2]), "message" = i[3], "rounds" = text2num(i[4]), "count" = text2num(i[5]), "last" = text2num(i[6]),
+			"new" = i[7] == i[8]))
 
 #undef ROUND_STATS_ROWS

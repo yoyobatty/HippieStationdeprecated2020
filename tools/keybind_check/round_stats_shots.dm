@@ -127,6 +127,17 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	rs_check("player: their playtime", length(stats.playtime) == 8 && stats.playtime[1]["job"] == "Living", json_encode(stats.playtime?[1]))
 	rs_shot("roundstats_playtime")
 
+	//a round's page (round_stats_seed.sql gives round 4 its antagonists, round-end numbers and runtimes)
+	rs_act(stats, "round", list("round" = 4))
+	var/list/antags = stats.page?["antags"]
+	rs_check("player: a round's page, its antagonists and objectives", length(antags) == 2 && length(antags[1]["objectives"]) == 3 && !antags[1]["key"], json_encode(antags?[1]))
+	rs_check("player: its round-end numbers and deaths, no runtimes", stats.page?["stats"]?["escapees"] == 14 && length(stats.page?["deaths"]) == 5 && !stats.page?["runtimes"])
+	rs_shot("roundstats_round_page")
+	rs_act(stats, "round", list("round" = current))
+	rs_check("player: the round being played has no page", !stats.page && stats.error, stats.error)
+	rs_tab(stats, "runtimes")
+	rs_check("player: no runtimes tab", stats.tab != "runtimes")
+
 	//as an admin
 	var/datum/admins/was = GLOB.deadmins[C.ckey]
 	if(was)
@@ -148,6 +159,13 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	rs_tab(stats, "playtime")
 	rs_act(stats, "playtime_ckey", list("ckey" = "Nobody Here"))
 	rs_check("admin: another key's playtime", stats.playtime_ckey == "nobodyhere" && !length(stats.playtime))
+	rs_act(stats, "round", list("round" = 4))
+	rs_check("admin: a round's page, with keys and runtimes", stats.page?["antags"]?[1]?["key"] == "Shotsplayer" && length(stats.page?["runtimes"]) == 3, json_encode(stats.page?["runtimes"]))
+	rs_shot("roundstats_admin_round_page")
+	rs_tab(stats, "runtimes")
+	var/list/sites = stats.runtimes
+	rs_check("admin: runtimes by site, the most first", length(sites) >= 4 && sites[1]["count"] >= sites[2]["count"], json_encode(sites?[1]))
+	rs_shot("roundstats_admin_runtimes")
 
 	text2file("done", "data/keycheck_shots_done")
 	sleep(2 SECONDS)

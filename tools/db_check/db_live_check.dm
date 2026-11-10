@@ -173,10 +173,30 @@ GLOBAL_LIST_EMPTY(db_check_steps)
 	UNTIL(SSticker.current_state == GAME_STATE_FINISHED)
 	sleep(10 SECONDS) //the round-end report and feedback
 	db_check_step("round end written", text2num(db_check_value("SELECT end_datetime IS NOT NULL FROM [format_table_name("round")] WHERE id = [text2num(GLOB.round_id)]")) == 1)
-	//what the reboot does: the feedback goes in, then the round's shutdown time
+	//a runtime for the round's ledger (round_history.dm), counted as world/Error() counts one, without throwing
+	for(var/i in 1 to 3)
+		runtime_ledger_note(new /exception("db check: a runtime for the ledger", "tools/db_check/db_live_check.dm", 1))
+	//what the reboot does: the feedback and the runtimes go in, then the round's shutdown time
 	SSblackbox.Shutdown()
 	sleep(2 SECONDS)
 	db_check_step("feedback rows", text2num(db_check_value("SELECT COUNT(*) FROM [format_table_name("feedback")] WHERE round_id = [text2num(GLOB.round_id)]")) >= 1)
+	db_check_step("runtime rows", text2num(db_check_value("SELECT count FROM [format_table_name("runtime")] WHERE round_id = [text2num(GLOB.round_id)] AND file = 'tools/db_check/db_live_check.dm'")) == 3,
+		db_check_value("SELECT COUNT(*) FROM [format_table_name("runtime")] WHERE round_id = [text2num(GLOB.round_id)]"))
+	//the round's page and the runtimes tab, as an admin (the round being played is hidden from players)
+	var/datum/round_stats/db_check_admin/page_stats = new("dbcheckadmin")
+	page_stats.tab = "round"
+	page_stats.page_round = text2num(GLOB.round_id)
+	page_stats.load()
+	sleep(1)
+	UNTIL(!page_stats.loading)
+	db_check_step("round stats: a round's page", !page_stats.error && page_stats.page?["round"]?["id"] == text2num(GLOB.round_id), page_stats.error)
+	db_check_step("round stats: its deaths and runtimes", length(page_stats.page?["deaths"]) >= 1 && length(page_stats.page?["runtimes"]) >= 1, "[length(page_stats.page?["deaths"])] deaths, [length(page_stats.page?["runtimes"])] runtimes")
+	page_stats.tab = "runtimes"
+	page_stats.load()
+	sleep(1)
+	UNTIL(!page_stats.loading)
+	db_check_step("round stats: runtimes", !page_stats.error && length(page_stats.runtimes) >= 1, page_stats.error || "[length(page_stats.runtimes)] sites")
+	qdel(page_stats)
 	SSdbcore.Shutdown()
 	var/sql_errors = 0
 	for(var/s in GLOB.db_check_ran)
@@ -184,3 +204,7 @@ GLOBAL_LIST_EMPTY(db_check_steps)
 			sql_errors++
 	db_check_step("no query failed", !sql_errors, "[sql_errors] of [length(GLOB.db_check_ran)]")
 	db_check_save(TRUE)
+
+/// Round Stats as an admin sees it, with no client to be one
+/datum/round_stats/db_check_admin/is_admin()
+	return TRUE

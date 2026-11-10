@@ -1,11 +1,12 @@
 import { decodeHtmlEntities } from 'common/string';
 import { Fragment } from 'inferno';
 import { useBackend } from '../backend';
-import { Box, Button, Input, NoticeBox, Section, Table } from '../components';
+import { Box, Button, Input, LabeledList, NoticeBox, Section, Table } from '../components';
 
 // hippie -- Round Stats: past rounds, deaths, game modes and playtime, from
 // hippiestation/code/modules/stats/round_stats.dm. Admins also get the round
-// being played, keys, and anyone's playtime.
+// being played, keys, anyone's playtime, and runtimes. A round's id opens its
+// page: antagonists and objectives, the round-end numbers, its deaths.
 
 const TABS = [
   ['rounds', 'Rounds', 'list'],
@@ -13,6 +14,20 @@ const TABS = [
   ['modes', 'Modes', 'chess'],
   ['playtime', 'Playtime', 'clock'],
 ];
+
+const ADMIN_TABS = [
+  ['runtimes', 'Runtimes', 'bug'],
+];
+
+// seconds -> "12:05"
+const clock = seconds => {
+  if (seconds === null || seconds === undefined) {
+    return '-';
+  }
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return m + ':' + (s < 10 ? '0' : '') + s;
+};
 
 const text = value => decodeHtmlEntities(String(value || ''));
 
@@ -71,7 +86,11 @@ const Rounds = props => {
       {rows.map(row => (
         <Table.Row key={row.id}>
           <Table.Cell>
-            {row.id}
+            <Button
+              compact
+              color="transparent"
+              content={row.id}
+              onClick={() => act('round', { round: row.id })} />
             {row.id === data.current_round && (
               <Box inline ml={1} color="average">now</Box>
             )}
@@ -256,20 +275,228 @@ const Playtime = props => {
   );
 };
 
+const Objective = props => {
+  const { objective, n } = props;
+  const done = objective.result === 'SUCCESS';
+  return (
+    <Box>
+      <Box inline color="label">#{n}</Box>{' '}
+      {text(objective.text)}{' '}
+      <Box inline bold color={done ? 'good' : 'bad'}>
+        {done ? 'Success' : 'Fail'}
+      </Box>
+    </Box>
+  );
+};
+
+const RoundPage = props => {
+  const { data, act } = props;
+  const page = data.page;
+  if (!page || !page.round) {
+    return <Box color="label">Reading</Box>;
+  }
+  const r = page.round;
+  const s = page.stats || {};
+  const antags = page.antags || [];
+  const deaths = page.deaths || [];
+  const runtimes = page.runtimes || [];
+  return (
+    <Fragment>
+      <Box mb={1}>
+        <Button
+          icon="arrow-left"
+          content="Rounds"
+          onClick={() => act('tab', { tab: 'rounds' })} />
+        {!!deaths.length && (
+          <Button
+            icon="skull"
+            content="Deaths"
+            onClick={() => act('tab', { tab: 'deaths', round: r.id })} />
+        )}
+      </Box>
+      <LabeledList>
+        <LabeledList.Item label="Round">
+          {r.id}
+          {r.id === data.current_round && (
+            <Box inline ml={1} color="average">now</Box>
+          )}
+        </LabeledList.Item>
+        <LabeledList.Item label="Mode">
+          {text(r.mode) || '-'}
+          {(r.result || r.end_state) && (
+            <Box inline ml={1} color="label">
+              {text(r.result) || text(r.end_state)}
+            </Box>
+          )}
+        </LabeledList.Item>
+        <LabeledList.Item label="Map">
+          {text(r.map) || '-'}
+          {!!r.station && (
+            <Box inline ml={1} color="label">{text(r.station)}</Box>
+          )}
+        </LabeledList.Item>
+        <LabeledList.Item label="Length">
+          {length(r.minutes)}
+          <Box inline ml={1} color="label">
+            {when(r.start)} - {when(r.end)}
+          </Box>
+        </LabeledList.Item>
+        {!!r.shuttle && (
+          <LabeledList.Item label="Shuttle">{text(r.shuttle)}</LabeledList.Item>
+        )}
+        <LabeledList.Item label="Crew">
+          {(s.players === null || s.players === undefined) && '-'}
+          {s.players !== null && s.players !== undefined && (
+            <Fragment>
+              {s.players}
+              <Box inline ml={2} color="good">Survived {s.survivors || 0}</Box>
+              <Box inline ml={2} color="average">Escaped {s.escapees || 0}</Box>
+              <Box inline ml={2} color="bad">Dead {r.deaths || 0}</Box>
+            </Fragment>
+          )}
+        </LabeledList.Item>
+        {!!data.admin && !!r.server && (
+          <LabeledList.Item label="Server">
+            <Box color="label">{r.server} {r.commit}</Box>
+          </LabeledList.Item>
+        )}
+      </LabeledList>
+      <Section title={'Antagonists (' + antags.length + ')'} level={2} mt={1}>
+        {!antags.length && <Box color="label">None</Box>}
+        {antags.map((a, i) => (
+          <Box key={i} mb={1}>
+            <Box>
+              <b>{text(a.name)}</b>
+              <Box inline ml={1} color="average">{text(a.role)}</Box>
+              {!!a.team && (
+                <Box inline ml={1} color="label">{text(a.team)}</Box>
+              )}
+              {!!data.admin && !!a.key && (
+                <Box inline ml={1} color="label">- {a.key}</Box>
+              )}
+            </Box>
+            {(a.objectives || []).map((o, n) => (
+              <Objective key={n} objective={o} n={n + 1} />
+            ))}
+            {!(a.objectives || []).length && (
+              <Box color="label">No objectives</Box>
+            )}
+          </Box>
+        ))}
+      </Section>
+      <Section title={'Deaths (' + deaths.length + ')'} level={2}>
+        {!deaths.length && <Box color="label">None</Box>}
+        {!!deaths.length && (
+          <Table>
+            {deaths.map((d, i) => (
+              <Table.Row key={i}>
+                <Table.Cell collapsing color="label">
+                  {String(d.time || '').slice(11, 16)}
+                </Table.Cell>
+                <Table.Cell>
+                  <b>{text(d.name)}</b>
+                  <Box inline ml={1} color="label">
+                    {text(d.job)}
+                    {d.special ? ' (' + text(d.special) + ')' : ''}
+                    {!!data.admin && d.key ? ' - ' + d.key : ''}
+                  </Box>
+                </Table.Cell>
+                <Table.Cell>{text(d.where)}</Table.Cell>
+                <Table.Cell>
+                  {d.suicide
+                    ? <Box color="bad">Suicide</Box>
+                    : (text(d.killer) || '-')}
+                  {!!data.admin && d.killer_key && (
+                    <Box inline ml={1} color="label">{d.killer_key}</Box>
+                  )}
+                </Table.Cell>
+              </Table.Row>
+            ))}
+          </Table>
+        )}
+      </Section>
+      {!!data.admin && (
+        <Section title={'Runtimes (' + runtimes.length + ')'} level={2}>
+          {!runtimes.length && <Box color="label">None</Box>}
+          {!!runtimes.length && (
+            <Table>
+              {runtimes.map((e, i) => (
+                <Table.Row key={i}>
+                  <Table.Cell collapsing textAlign="right">
+                    {e.count}
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Box color="label">{e.file}:{e.line}</Box>
+                    {text(e.message)}
+                  </Table.Cell>
+                  <Table.Cell collapsing color="label">
+                    {clock(e.first)}
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table>
+          )}
+        </Section>
+      )}
+    </Fragment>
+  );
+};
+
+const Runtimes = props => {
+  const { data, act } = props;
+  const rows = data.rows || [];
+  if (!rows.length) {
+    return <Box color="label">No runtimes</Box>;
+  }
+  return (
+    <Table>
+      <Table.Row header>
+        <Table.Cell>Count</Table.Cell>
+        <Table.Cell>Site</Table.Cell>
+        <Table.Cell>Rounds</Table.Cell>
+        <Table.Cell>Last</Table.Cell>
+      </Table.Row>
+      {rows.map(row => (
+        <Table.Row key={row.file + ':' + row.line}>
+          <Table.Cell collapsing textAlign="right">{row.count}</Table.Cell>
+          <Table.Cell>
+            <Box color="label">
+              {row.file}:{row.line}
+              {!!row.new && <Box inline ml={1} color="average">new</Box>}
+            </Box>
+            {text(row.message)}
+          </Table.Cell>
+          <Table.Cell collapsing>{row.rounds}</Table.Cell>
+          <Table.Cell collapsing>
+            <Button
+              compact
+              color="transparent"
+              content={row.last}
+              onClick={() => act('round', { round: row.last })} />
+          </Table.Cell>
+        </Table.Row>
+      ))}
+    </Table>
+  );
+};
+
 const PANES = {
   rounds: Rounds,
   deaths: Deaths,
   modes: Modes,
   playtime: Playtime,
+  round: RoundPage,
+  runtimes: Runtimes,
 };
 
 export const RoundStats = props => {
   const { act, data } = useBackend(props);
   const Pane = PANES[data.tab] || Rounds;
+  const tabs = data.admin ? TABS.concat(ADMIN_TABS) : TABS;
   return (
     <Fragment>
       <Box mb={1}>
-        {TABS.map(([key, name, icon]) => (
+        {tabs.map(([key, name, icon]) => (
           <Button
             key={key}
             icon={icon}
