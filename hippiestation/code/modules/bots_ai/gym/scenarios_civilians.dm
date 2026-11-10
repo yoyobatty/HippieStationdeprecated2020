@@ -198,6 +198,20 @@
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
 
+/datum/bot_scenario/duty/civilian/call_shuttle/reachable
+	name = "head of personnel calls the shuttle from a console it can get to, not the nearer one behind the Captain's door"
+	desc = "Two communications consoles: the nearer behind a door only the Captain's ID opens, as the Captain's office's is on the Hippie map, and one further off in the open. In the user's round three heads went for the Captain's eleven times and the shuttle never came."
+	layout = list(
+		"##############",
+		"#K.D.B......K#",
+		"##############")
+
+/datum/bot_scenario/duty/civilian/call_shuttle/reachable/setup()
+	..()
+	for(var/obj/machinery/door/airlock/A in placed["D"])
+		A.req_access = list(ACCESS_CAPTAIN)
+		A.req_one_access = null
+
 /datum/bot_scenario/duty/civilian/detective
 	name = "detective works a body and names the killer"
 	desc = "A body on the floor, last hit by somebody with bare hands. The detective walks over, scans it, thinks, and calls it in. Bare hands mean most scans name a suspect; the scenario only asks for the case to be closed."

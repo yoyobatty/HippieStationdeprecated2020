@@ -281,19 +281,54 @@ GLOBAL_LIST_INIT(bot_captain_greetings, list(
 /datum/bot_brain
 	var/captain_blocked_until = 0
 
+/// The nearest working comms console it has a way to, else the nearest. Nearest as the crow flies wasn't enough: on the Hippie map
+/// the Captain's office console is nearer than the Bridge's for most of the station, and only the Captain's ID gets in there. In
+/// the user's round (2026-11-10, the user was Captain) three heads went for it eleven times over half an hour to call the shuttle,
+/// never got in, and the shuttle never came.
 /datum/bot_brain/proc/find_comms_console()
-	var/obj/machinery/computer/communications/best
-	var/best_dist
+	var/list/consoles = list()
 	for(var/obj/machinery/computer/communications/C as anything in bot_instances_of(/obj/machinery/computer/communications))
 		if(QDELETED(C) || C.z != owner.z || (C.stat & (BROKEN|NOPOWER)))
 			continue
 		if(gym_run && get_area(C) != get_area(owner))
 			continue
-		var/dist = get_dist(owner, C)
-		if(!best || dist < best_dist)
-			best = C
-			best_dist = dist
-	return best
+		consoles[C] = get_dist(owner, C)
+	var/obj/machinery/computer/communications/nearest
+	while(length(consoles))
+		var/obj/machinery/computer/communications/best
+		for(var/obj/machinery/computer/communications/C as anything in consoles)
+			if(!best || consoles[C] < consoles[best])
+				best = C
+		consoles -= best
+		nearest = nearest || best
+		if(has_way_to(best))
+			return best
+	return nearest
+
+/datum/bot_brain
+	/// REF() of something it's asked has_way_to() about -> list(when it found out, the answer)
+	var/list/way_to_known
+
+/// Whether there's a route it may walk, with its own ID, to beside that (the first of the move_to cascade's passes,
+/// bot_movement.dm): the way a player knows the doors they can open. Remembered a couple of minutes.
+/datum/bot_brain/proc/has_way_to(atom/A)
+	var/turf/there = get_turf(A)
+	if(!there)
+		return FALSE
+	if(get_dist(owner, there) <= 1)
+		return TRUE
+	var/list/known = LAZYACCESS(way_to_known, REF(A))
+	if(known && world.time < known[1] + 2 MINUTES)
+		return known[2]
+	. = FALSE
+	var/obj/item/card/id/id_card = route_card()
+	for(var/turf/open/T in orange(1, there))
+		if(is_blocked_turf(T, TRUE))
+			continue
+		if(T == get_turf(owner) || length(bot_path_to(T, /turf/proc/Distance_cardinal, /turf/proc/bot_reachable_strict, id_card, !can_path_through_space())))
+			. = TRUE
+			break
+	LAZYSET(way_to_known, REF(A), list(world.time, .))
 
 /datum/bot_duty/captain
 	name = "the captain's business"
