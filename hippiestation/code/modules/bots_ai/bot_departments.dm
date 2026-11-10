@@ -608,6 +608,7 @@ GLOBAL_LIST_INIT(bot_raid_wishlist, list(
 			return GOAL_STEP_PENDING
 	if(must_have && !(bot.find_carried_tool(/obj/item/multitool) && bot.find_or_transform_tool(/obj/item/screwdriver)))
 		bot_log(bot, "no screwdriver and multitool to be had for [bot.current_goal?.target] - leaving the door alone")
+		bot.next_door_work = world.time + 20 MINUTES //nothing to do it with: not thought of again for a good while (nine tries a shift at five minutes)
 		return GOAL_STEP_FAIL
 	return GOAL_STEP_SUCCESS
 
@@ -747,7 +748,7 @@ GLOBAL_LIST_INIT(bot_raid_wishlist, list(
 
 /// No tools to be had, or the wires are live: that's the end of that idea for a while.
 /datum/bot_goal/set_door/on_give_up(datum/bot_brain/bot)
-	bot.next_door_work = world.time + 5 MINUTES
+	bot.next_door_work = max(bot.next_door_work, world.time + 5 MINUTES)
 
 /datum/bot_step/paced/set_door
 	max_clicks = 3
