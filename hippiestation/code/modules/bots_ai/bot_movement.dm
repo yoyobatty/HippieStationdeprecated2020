@@ -347,36 +347,45 @@
 /datum/bot_brain/proc/adjacent_turf_candidates(turf/dest)
 	var/list/candidates = list()
 	var/list/dists = list()
-	for(var/d in GLOB.cardinals)
-		var/turf/neighbor = get_step(dest, d)
-		if(!neighbor || neighbor == get_turf(owner))
-			continue
-		if(neighbor.density || !istype(neighbor, /turf/open))
-			continue
-		if(isspaceturf(neighbor) && !can_path_through_space() && !bot_turf_crossable_without_boots(neighbor, owner))
-			continue //somewhere the bot could stand and still move - the same rule the route search goes by
-		if(bot_turf_has_active_field(neighbor))
-			continue //an active containment field/generator shocks on every step or bump attempt (bot_pathing_permissive.dm) - never a genuinely open candidate
-		var/blocked = FALSE
-		for(var/atom/movable/AM in neighbor)
-			if(!AM.density)
+	// The four straight neighbours, and only with none of those to stand on, the corners it can be reached from (the game's own
+	// Adjacent(): across a table, not round a wall). The cautery in Hippie's and Box's Surgery is on the table in the corner, with
+	// a table either side of it: a player takes it across the corner, and to a bot there was "no way to it by its own doors", so no
+	// operation there could ever have its tools.
+	for(var/corners in 0 to 1)
+		if(corners && length(candidates))
+			break
+		for(var/d in (corners ? GLOB.diagonals : GLOB.cardinals))
+			var/turf/neighbor = get_step(dest, d)
+			if(!neighbor || neighbor == get_turf(owner))
 				continue
-			// Somebody standing there moves, or swaps places. Counted as in the way, a machine with one tile free beside it
-			// couldn't be reached while they were: the Booze-O-Mat is one, and a bartender with Pun Pun behind the bar went minutes without a glass.
-			var/mob/living/stood_there = AM
-			if(!istype(stood_there) || stood_there.buckled)
-				blocked = TRUE
-				break
-		if(blocked)
-			continue
-		var/d2 = get_dist(owner, neighbor)
-		var/insert_at = candidates.len + 1
-		for(var/i in 1 to candidates.len)
-			if(d2 < dists[i])
-				insert_at = i
-				break
-		candidates.Insert(insert_at, neighbor)
-		dists.Insert(insert_at, d2)
+			if(neighbor.density || !istype(neighbor, /turf/open))
+				continue
+			if(isspaceturf(neighbor) && !can_path_through_space() && !bot_turf_crossable_without_boots(neighbor, owner))
+				continue //somewhere the bot could stand and still move - the same rule the route search goes by
+			if(bot_turf_has_active_field(neighbor))
+				continue //an active containment field/generator shocks on every step or bump attempt (bot_pathing_permissive.dm) - never a genuinely open candidate
+			var/blocked = FALSE
+			for(var/atom/movable/AM in neighbor)
+				if(!AM.density)
+					continue
+				// Somebody standing there moves, or swaps places. Counted as in the way, a machine with one tile free beside it
+				// couldn't be reached while they were: the Booze-O-Mat is one, and a bartender with Pun Pun behind the bar went minutes without a glass.
+				var/mob/living/stood_there = AM
+				if(!istype(stood_there) || stood_there.buckled)
+					blocked = TRUE
+					break
+			if(blocked)
+				continue
+			if(corners && !dest.Adjacent(neighbor))
+				continue
+			var/d2 = get_dist(owner, neighbor)
+			var/insert_at = candidates.len + 1
+			for(var/i in 1 to candidates.len)
+				if(d2 < dists[i])
+					insert_at = i
+					break
+			candidates.Insert(insert_at, neighbor)
+			dists.Insert(insert_at, d2)
 	return candidates
 
 // Passes 1-2 of the pathfind cascade: a legit (fully unlocked) route, then one

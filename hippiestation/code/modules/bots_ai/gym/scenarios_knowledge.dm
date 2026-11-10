@@ -325,3 +325,34 @@
 		fail_reason = "walked into the MULE"
 		return BOT_GYM_FAIL
 	return (wanted in bot.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// Layout letter k: the table in the corner, with what's wanted on it.
+/datum/bot_scenario/fetch_off_corner_table
+	name = "knowledge: something on the table in the corner, a table either side of it, is taken across the corner"
+	desc = "A screwdriver on a corner table that no floor touches except at the corner. That's where the cautery is in Hippie's and Box's Surgery: a player reaches across, and a bot only looked at the four tiles straight beside it, found tables and walls, and said there was no way to it."
+	job = "Assistant"
+	time_limit = 30 SECONDS
+	layout = list(
+		"######",
+		"#B..t#",
+		"#..tk#",
+		"######")
+	var/obj/item/screwdriver/wanted
+
+/datum/bot_scenario/fetch_off_corner_table/setup()
+	var/turf/corner = first_marker("k")
+	place("k", new /obj/structure/table(corner))
+	wanted = new(corner)
+
+/datum/bot_scenario/fetch_off_corner_table/make_goal()
+	if(goal_attempts > 2)
+		return null
+	var/datum/bot_goal/acquire_item_type/get = new
+	get.item_type = /obj/item/screwdriver
+	get.lawful = TRUE
+	return get
+
+/datum/bot_scenario/fetch_off_corner_table/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (wanted in bot.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING
