@@ -358,3 +358,52 @@
 		fail_reason = "kept hold of an assembly that had been deleted"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+/datum/bot_scenario/repair_reachable_cable
+	name = "engineer fixes the cable break it can get to, not the nearer one behind a locked door"
+	desc = "Two chewed gaps in a yellow run. The nearer is behind a door the engineer's ID doesn't open; it goes to the other one and fixes it, without setting out for the first and giving up at the end of the route."
+	layout = list(
+		"###############",
+		"#=x=D.B....=x=#",
+		"###############")
+	job = "Station Engineer"
+	time_limit = 40 SECONDS
+
+/datum/bot_scenario/repair_reachable_cable/proc/gaps()
+	. = list()
+	var/list/L = markers["x"]
+	. += L[1]
+	. += L[2]
+	if(.[1].x > .[2].x)
+		. = list(.[2], .[1])
+
+/datum/bot_scenario/repair_reachable_cable/setup()
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	A.req_access = list(ACCESS_CAPTAIN)
+	for(var/turf/T in gaps())
+		bot_record_cable_break(T, /obj/structure/cable)
+		var/list/info = GLOB.bot_cable_breaks[T]
+		info["notice"] = 0
+
+/datum/bot_scenario/repair_reachable_cable/post_spawn()
+	give_job_id(list(ACCESS_ENGINE))
+
+/datum/bot_scenario/repair_reachable_cable/make_goal()
+	if(goal_attempts > 2)
+		return null
+	if(!brain.try_cable_repair_round())
+		log_line("no repair started")
+	return null
+
+/datum/bot_scenario/repair_reachable_cable/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/line in transcript)
+		if(findtext(line, "giving up on /datum/bot_goal/repair_cable"))
+			fail_reason = "set out for the break it couldn't get to"
+			return BOT_GYM_FAIL
+	var/list/G = gaps()
+	return bot_cable_break_fixed(G[2], /obj/structure/cable) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+
+// Layout letter Y: a crystal at power, behind a wall. Its radiation reaches two tiles, across the corridor.

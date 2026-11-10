@@ -62,8 +62,7 @@ GLOBAL_VAR_INIT(bot_emitters_down_called, 0)
 		return FALSE
 	notice_cable_gaps()
 	notice_emitters_down()
-	var/turf/best
-	var/best_dist
+	var/list/by_dist = list()
 	var/list/stale = list()
 	for(var/turf/T in GLOB.bot_cable_breaks)
 		var/list/info = GLOB.bot_cable_breaks[T]
@@ -79,12 +78,21 @@ GLOBAL_VAR_INIT(bot_emitters_down_called, 0)
 			continue //another engineer is already on it
 		if(world.time < info["time"] + info["notice"] && !(T in view(7, owner)))
 			continue //hasn't come up on the alarms yet, and not in sight
-		var/d = get_dist(owner, T)
-		if(!best || d < best_dist)
-			best = T
-			best_dist = d
+		by_dist[T] = get_dist(owner, T)
 	for(var/turf/T in stale)
 		GLOB.bot_cable_breaks -= T
+	// The nearest one there's a way to. With none, the nearest was set out for, failed at the end of its route search, and was set out
+	// for again three minutes later: 29 give-ups to 3 repairs in a three-hour shift.
+	sortTim(by_dist, GLOBAL_PROC_REF(cmp_numeric_asc), TRUE)
+	var/turf/best
+	var/tries = 0
+	for(var/turf/T as anything in by_dist)
+		if(can_walk_lawfully_to(T))
+			best = T
+			break
+		LAZYSET(failed_cable_repairs, T, world.time + 15 MINUTES)
+		if(++tries >= 3)
+			break
 	if(!best)
 		return FALSE
 	var/list/info = GLOB.bot_cable_breaks[best]
