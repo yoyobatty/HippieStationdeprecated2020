@@ -560,6 +560,12 @@
 	if(do_time())
 		return
 
+	// In a sleeper or cryo cell and not fit to get up yet (convalescing(), bot_goals.dm): nothing but what can't wait, and no strolls. A
+	// clone that had climbed into cryo walked back out on its next wander and in again, every half second (Bot Shift capt1110).
+	if(convalescing())
+		run_duties(BOT_DUTY_URGENT)
+		return
+
 	// Whatever can't wait for anything below - the shuttle is leaving, the room is on fire (bot_duties.dm).
 	if(run_duties(BOT_DUTY_URGENT))
 		if(owner.buckled && state == BOT_STATE_GOAL) //up and off - unless the duty is to stay sat (aboard the shuttle)

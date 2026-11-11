@@ -256,6 +256,8 @@ GLOBAL_LIST_INIT(bot_clone_dress_order, list(ITEM_SLOT_ICLOTHING, ITEM_SLOT_FEET
 	var/mob/living/carbon/human/H = bot.owner
 	if(H.getCloneLoss() < 10 || bot.old_body || istype(H.loc, /obj/machinery/atmospherics/components/unary/cryo_cell) || bot.state == BOT_STATE_COMBAT)
 		return FALSE
+	if(world.time < bot.next_clone_recovery) //been in once lately: a cell that isn't cold enough mends nothing, and it isn't going back every few minutes
+		return FALSE
 	if(H.health >= H.maxHealth * clamp(0.75 - 0.6 * bot.nerve, 0.15, 0.75))
 		return FALSE //the fearless shrug it off
 	var/obj/machinery/atmospherics/components/unary/cryo_cell/C = bot.cryo_for_cloning_damage()
@@ -295,6 +297,11 @@ GLOBAL_LIST_INIT(bot_clone_dress_order, list(ITEM_SLOT_ICLOTHING, ITEM_SLOT_FEET
 
 /datum/bot_goal/clone_recovery/on_success(datum/bot_brain/bot)
 	bot_log(bot, "in [cell] for the cloning damage")
+	bot.next_clone_recovery = world.time + 10 MINUTES
+
+/datum/bot_brain
+	/// Not into cryo for the cloning damage again before this (the duty above)
+	var/next_clone_recovery = 0
 
 /datum/bot_duty/reclaim_belongings
 	name = "getting my things back"

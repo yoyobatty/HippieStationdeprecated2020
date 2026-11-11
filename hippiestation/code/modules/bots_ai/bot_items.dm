@@ -732,7 +732,9 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 		needs += D.req_access
 	if(islist(D.req_one_access))
 		needs += D.req_one_access
-	if(!istype(beyond, /area/security) && !istype(beyond, /area/ai_monitored/security) && !(ACCESS_SECURITY in needs) && !(ACCESS_BRIG in needs))
+	// A maintenance door that wants a Brig card isn't Security's door: a doctor knocked on the radio at one in Fore Maintenance (capt1110)
+	var/securitys = istype(beyond, /area/security) || istype(beyond, /area/ai_monitored/security)
+	if(!securitys && (istype(beyond, /area/maintenance) || (!(ACCESS_SECURITY in needs) && !(ACCESS_BRIG in needs))))
 		return FALSE
 	if(!bot_security_standing(owner.z))
 		return FALSE
