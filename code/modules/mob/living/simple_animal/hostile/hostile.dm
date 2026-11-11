@@ -525,6 +525,8 @@ mob/living/simple_animal/hostile/proc/DestroySurroundings() // for use with mega
 //These two procs handle losing our target if we've failed to attack them for
 //more than lose_patience_timeout deciseconds, which probably means we're stuck
 /mob/living/simple_animal/hostile/proc/GainPatience()
+	if(QDELETED(src)) // hippie -- a vending mimic (Brand Intelligence) found a target as it was being deleted
+		return
 	if(lose_patience_timeout)
 		LosePatience()
 		lose_patience_timer_id = addtimer(CALLBACK(src, "LoseTarget"), lose_patience_timeout, TIMER_STOPPABLE)

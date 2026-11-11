@@ -176,6 +176,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/mob/living/simple_animal/bot/medbot.dm
 ## code/modules/mob/living/simple_animal/friendly/dog.dm
 ## code/modules/mob/living/simple_animal/hostile/headcrab.dm
+## code/modules/mob/living/simple_animal/hostile/hostile.dm (GainPatience() on a mob being deleted)
 ## code/modules/mob/living/simple_animal/hostile/jungle/leaper.dm
 ## code/modules/mob/living/simple_animal/slime/slime.dm
 ## code/modules/mob/mob_helpers.dm
