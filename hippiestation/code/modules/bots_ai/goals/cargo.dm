@@ -113,6 +113,24 @@ GLOBAL_LIST_EMPTY(bot_cargo_going_back)
 				.++
 
 GLOBAL_VAR_INIT(bot_cargo_air_asked, -INFINITY)
+/// When the loading doors are next worth opening for the shuttle's air
+GLOBAL_VAR_INIT(bot_cargo_vent_tried, -INFINITY)
+
+/// The bay's loading blast door onto the docked supply shuttle, shut: the one whose button lets the bay's air into it.
+/proc/bot_supply_loading_door()
+	var/obj/docking_port/mobile/supply/S = SSshuttle.supply
+	if(!S || !bot_supply_shuttle_docked())
+		return null
+	var/list/aboard = list()
+	for(var/turf/T as anything in S.return_turfs())
+		aboard[T] = TRUE
+	for(var/obj/machinery/door/poddoor/P as anything in bot_instances_of(/obj/machinery/door/poddoor))
+		if(QDELETED(P) || P.z != S.z || !P.density || !P.id || aboard[get_turf(P)] || get_dist(P, S) > 20)
+			continue
+		for(var/d in GLOB.cardinals)
+			if(aboard[get_step(P, d)])
+				return P //onto the shuttle: its own loading door (Hippie) or its flaps (Meta)
+	return null
 
 /// A crate in air this bot can't breathe, with no suit on: left for a couple of minutes. assign_goal() turned these down every time
 /// it was asked, and it was asked every few seconds: two cargo technicians asked 183 times between them in one shift over a crate of
@@ -221,6 +239,19 @@ GLOBAL_VAR_INIT(bot_cargo_air_asked, -INFINITY)
 	var/aboard = bot_supply_shuttle_crates()
 	if(bot_supply_shuttle_docked() && !aboard && S.canMove())
 		return bot.assign_goal(new /datum/bot_goal/work_cargo_console("send"))
+	// It came in without air: it vents through its loading doors on the way (left open at the other end). The way the crew deal with it:
+	// the loading blast doors opened, and the bay's air rushes in. Until then the external airlock onto it won't be opened by anybody
+	// without a suit, and in the overnight batches of 2026-11-10 the crates sat aboard in two shifts out of three (30 to 90 "no path to
+	// the shuttle floor" a shift).
+	if(aboard && !length(bot.crates_on_shuttle()) && world.time > GLOB.bot_cargo_vent_tried)
+		var/obj/machinery/door/poddoor/gate = bot_supply_loading_door()
+		var/obj/machinery/button/door/button = gate ? bot.blast_door_button_for(gate) : null
+		if(button)
+			GLOB.bot_cargo_vent_tried = world.time + 2 MINUTES
+			GLOB.bot_cargo_air_asked = world.time //Engineering isn't asked while the bay's air is going in
+			bot_log(bot, "the supply shuttle came in without air: opening [gate] to let the bay's in")
+			if(bot.assign_goal(new /datum/bot_goal/open_blast_door(button, gate)))
+				return TRUE
 	if(aboard && !length(bot.crates_on_shuttle()) && world.time > GLOB.bot_cargo_air_asked + 5 MINUTES)
 		GLOB.bot_cargo_air_asked = world.time
 		bot_log(bot, "crates on the supply shuttle in air I can't work in")
