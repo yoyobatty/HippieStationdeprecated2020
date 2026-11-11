@@ -272,9 +272,21 @@ export function CommandBar() {
   }, [input]);
 
   useEffect(() => {
-    if (mode !== 'Command') {
-      enterChatMode(mode);
+    if (mode === 'Command') return;
+    // hippie start -- a fresh verb list comes whenever the mob's verbs change:
+    // every item with verbs of its own taken off, over and over while being
+    // stripped in a cell. Setting the mode up again wiped what was being typed
+    // each time. Only a bar with nothing typed in it is set up again.
+    if (selectedVerb) {
+      const bare = serializeInput(
+        selectedVerb,
+        [],
+        suffixForArg(selectedVerb.args[0], selectedVerb.args.length === 1),
+      );
+      if (input !== '' && input !== bare) return;
     }
+    // hippie end
+    enterChatMode(mode);
   }, [initializeSignal]);
 
   useEffect(() => {
