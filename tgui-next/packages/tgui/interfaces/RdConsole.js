@@ -24,6 +24,9 @@ const FILTER_AVAILABLE = 'available';
 const FILTER_LOCKED = 'locked';
 const FILTER_RESEARCHED = 'researched';
 
+// Fabricator groups that also list what's still to research, greyed
+const LOCKED_SHOWN = { 'Stock Parts': true };
+
 const STATUS_COLORS = {
   researched: '#5baa27',
   available: '#d9b804',
@@ -1012,6 +1015,19 @@ class FabricatorPanel extends Component {
     const shown = listed
       .filter(design => !category || design.groups.includes(category))
       .sort(category ? (a, b) => a.name.localeCompare(b.name) : byGroup);
+    // The tiers still to research, greyed, with the node that gives them
+    const locked = (!category || !LOCKED_SHOWN[category] || hide)
+      ? []
+      : Object.keys(data.designs)
+        .filter(id => !research.researchedDesigns[id]
+          && (research.nodesOfDesign[id] || []).length > 0)
+        .map(id => ({ ...data.designs[id], id }))
+        .filter(design => buildsHere(design, fab))
+        .filter(design => {
+          design.groups = groupsOf(design, fab, own, hasOwn);
+          return design.groups.includes(category) && matches(design);
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
     const limit = pages * PAGE_SIZE;
     const toTop = () => {
       const content = document.getElementById('RdConsole__fabricator');
@@ -1133,6 +1149,30 @@ class FabricatorPanel extends Component {
                 textAlign="center"
                 content={'Load more (' + (shown.length - limit) + ' left)'}
                 onClick={() => this.setState({ pages: pages + 1 })} />
+            )}
+            {shown.length <= limit && locked.length > 0 && (
+              <Fragment>
+                <Box
+                  bold
+                  color="label"
+                  mt={1}
+                  mb={0.5}
+                  style={{
+                    'border-bottom': '1px solid rgba(255, 255, 255, 0.1)',
+                  }}>
+                  Not researched
+                </Box>
+                {locked.map(design => (
+                  <DesignRow
+                    key={design.id}
+                    design={design}
+                    data={data}
+                    research={research}
+                    fab={fab}
+                    showNodes
+                    onSelectNode={onSelectNode} />
+                ))}
+              </Fragment>
             )}
           </Box>
         </Box>

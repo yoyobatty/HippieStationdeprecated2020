@@ -50,6 +50,8 @@
 		return "Computer Parts"
 	if("Bluespace Designs" in C)
 		return "Bluespace"
+	if(ispath(build_path, /obj/item/stock_parts/cell)) // the user looked for them with the parts (2026-11-11); the research tab has them there too
+		return "Stock Parts"
 	if("Power Designs" in C)
 		return "Power"
 	if("Mining Designs" in C)
