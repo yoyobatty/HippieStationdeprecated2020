@@ -136,7 +136,7 @@ SUBSYSTEM_DEF(mctest)
 	// dd -invisible reports world.sleep_offline as 1 and won't take 0, though the world keeps ticking: without this the watchdog
 	// takes the freezes for the world asleep with nobody on
 	MCWatchdog.watch_with_nobody_on = TRUE
-	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "native", "asleep", "lag", "strikes", "timer_edge", "timers", "profile", "recover", "inits", "status", "duty")
+	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "native", "asleep", "lag", "strikes", "tgui_strikes", "timer_edge", "timers", "profile", "recover", "inits", "status", "duty")
 	// init_fail runs only when asked (STEPS=init_fail): its subsystem breaks at boot
 	if(world.params["mc-steps"]) // STEPS=freeze_outside,lag on the runner: only those
 		steps = splittext(world.params["mc-steps"], ",")
@@ -348,6 +348,31 @@ SUBSYSTEM_DEF(mctest)
 	sleep(4 SECONDS)
 	check("an admin's TURN IT ON works", T.can_fire && T.fires > fires, "[T.fires - fires] fires in 4 s")
 	note("restart_count [Master.restart_count] (5 s more between restarts for each, halved after a quiet spell, 30 s at most)")
+
+/// SStgui's strikes only count blames in a row: a pass through every window clears them. A pass cut short doesn't, and the other
+/// subsystems' strikes (the same static list) stay as they were.
+/datum/mc_selftest/proc/tgui_strikes()
+	LAZYINITLIST(SStgui.failure_strikes)
+	var/list/strikes = SStgui.failure_strikes
+	var/other = /datum/controller/subsystem/mctest
+	var/other_before = strikes[other]
+	strikes[other] = 1
+	// a pass cut short: called outside the MC, so MC_TICK_CHECK pauses it after the first window (state stays SS_IDLE)
+	strikes[SStgui.type] = 2
+	var/list/run_before = SStgui.currentrun
+	SStgui.currentrun = list(null, null, null)
+	SStgui.fire(TRUE)
+	var/left = length(SStgui.currentrun)
+	SStgui.currentrun = run_before
+	check("tgui: a pass cut short keeps its strikes", left > 0 && strikes[SStgui.type] == 2, "[left] windows left, strikes [strikes[SStgui.type]]")
+	// a whole pass: a window gone, which the next fire drops
+	SStgui.processing_uis += null
+	var/began = world.time
+	while(strikes[SStgui.type] && world.time - began < 10 SECONDS)
+		sleep(1)
+	check("tgui: a whole pass clears its strikes", !strikes[SStgui.type], "strikes [strikes[SStgui.type]] after [(world.time - began) / 10] s, [length(SStgui.processing_uis)] processing")
+	check("tgui: other subsystems' strikes stay", strikes[other] == 1, "mctest strikes [strikes[other]]")
+	strikes[other] = other_before
 
 #undef MC_CHECK_DIR
 
