@@ -2,15 +2,17 @@
 @use '../colors.scss';
 @use '../functions.scss' as *;
 
-$color-danger: colors.bg(colors.$red) !default;
-$color-caution: colors.bg(colors.$yellow) !default;
+// Vivid keys on the retro panel (OKLab: the most chroma sRGB has at L 0.55 red and L 0.84 yellow)
+$color-danger: #d2161e !default;
+$color-caution: #ecc828 !default;
 
 $background-beige: #d8d1b7;
 
 .NuclearBomb__displayBox {
-  background-color: #002007;
+  background-color: #031c08;
   border: 4px inset $background-beige;
-  color: #00c855;
+  color: #27e263;
+  text-shadow: 0 0 6px rgba(39, 226, 99, 0.6);
   font-size: 24px;
   font-family: monospace;
   padding: 6px;

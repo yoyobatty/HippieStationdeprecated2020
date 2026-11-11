@@ -22,8 +22,8 @@
   @include meta.load-css('../components/Button.scss', $with: (
     'color-default': #E8E4C9,
     'color-disabled': #363636,
-    'color-selected': #9d0808,
-    'color-caution': #be6209,
+    'color-selected': #b91119,
+    'color-caution': #d97315,
     'color-danger': #9a9d00,
   ));
   @include meta.load-css('../components/Layout.scss');
@@ -35,7 +35,9 @@
     'color-background': #585337,
   ));
 
+  // The chunky keys stay square
   .Button {
+    border-radius: 0;
     font-family: monospace;
     color: #161613;
     border-width: 8px;
