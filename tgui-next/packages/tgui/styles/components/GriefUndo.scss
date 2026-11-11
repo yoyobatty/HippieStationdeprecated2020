@@ -1,0 +1,183 @@
+// hippie -- Grief undo (interfaces/GriefUndo.js)
+
+$gu-line: rgba(255, 255, 255, 0.08);
+$gu-muted: #8a93a0;
+$gu-restore: #7fcf86;
+$gu-air: #7fb3e6;
+$gu-added: #e6927f;
+
+.GriefUndo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px 0;
+}
+
+.GriefUndo__bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.GriefUndo__gap {
+  flex: 1;
+}
+
+.GriefUndo__label {
+  margin: 0 4px;
+  color: $gu-muted;
+  font-size: 11px;
+}
+
+.GriefUndo__area {
+  position: relative;
+  margin-left: 4px;
+}
+
+.GriefUndo__areaInput {
+  width: 170px;
+}
+
+.GriefUndo__hits {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 10;
+  min-width: 220px;
+  background-color: #1f2328;
+  border: 1px solid $gu-line;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.GriefUndo__hit {
+  padding: 3px 8px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+}
+
+.GriefUndo__ckey {
+  width: 120px;
+}
+
+.GriefUndo__minutes {
+  width: 36px;
+}
+
+.GriefUndo__filter {
+  width: 140px;
+  margin-left: 6px;
+}
+
+.GriefUndo__status {
+  padding: 3px 0 5px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid $gu-line;
+  font-size: 12px;
+}
+
+.GriefUndo__message {
+  margin-top: 3px;
+  color: #e6d17f;
+}
+
+.GriefUndo__muted {
+  color: $gu-muted;
+  font-size: 11px;
+}
+
+.GriefUndo__restore {
+  color: $gu-restore;
+}
+
+.GriefUndo__air {
+  color: $gu-air;
+}
+
+.GriefUndo__added {
+  color: $gu-added;
+}
+
+.GriefUndo__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.GriefUndo__tiles {
+  flex: 2;
+  min-width: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.GriefUndo__adds {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding-left: 8px;
+  border-left: 1px solid $gu-line;
+}
+
+.GriefUndo__head {
+  padding: 2px 0 4px;
+  color: $gu-muted;
+  font-size: 11px;
+}
+
+.GriefUndo__empty {
+  padding: 8px 0;
+  color: $gu-muted;
+}
+
+.GriefUndo__row {
+  display: flex;
+  align-items: center;
+  padding: 3px 0;
+  border-bottom: 1px solid $gu-line;
+
+  .Button {
+    flex-shrink: 0;
+  }
+}
+
+.GriefUndo__row--skipped {
+  opacity: 0.45;
+}
+
+.GriefUndo__what {
+  flex: 1;
+  min-width: 0;
+  padding: 0 6px;
+  word-wrap: break-word;
+}
+
+.GriefUndo__tag {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background-color: rgba(230, 146, 127, 0.2);
+  color: $gu-added;
+  font-size: 10px;
+}
+
+.GriefUndo__foot {
+  display: flex;
+  align-items: center;
+  padding: 6px 0 8px;
+  border-top: 1px solid $gu-line;
+}
+
+.GriefUndo__undoWhat {
+  margin-left: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

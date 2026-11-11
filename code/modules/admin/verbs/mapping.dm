@@ -107,6 +107,7 @@ GLOBAL_LIST_EMPTY(dirty_vars)
 /client/proc/sec_camera_report()
 	set category = "Mapping"
 	set name = "Camera Report"
+	if(usr) return sec_camera_report() // hippie -- a verb runs this definition (verbs go in by path); by name it's hippie's window (admin_reports_tgui.dm)
 
 	if(!Master)
 		tgui_alert(usr, "Master_controller not found.", "Sec Camera Report")
@@ -166,6 +167,7 @@ GLOBAL_LIST_EMPTY(dirty_vars)
 	set category = "Mapping"
 	set name = "Show roundstart AT list"
 	set desc = "Displays a list of active turfs coordinates at roundstart"
+	if(usr) return cmd_show_at_list() // hippie -- a verb runs this definition (verbs go in by path); by name it's hippie's window (admin_reports_tgui.dm)
 
 	var/dat = {"<b>Coordinate list of Active Turfs at Roundstart</b>
 	 <br>Real-time Active Turfs list you can see in Air Subsystem at active_turfs var<br>"}

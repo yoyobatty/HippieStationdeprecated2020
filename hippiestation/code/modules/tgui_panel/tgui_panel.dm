@@ -36,6 +36,9 @@ GLOBAL_VAR(tgui_panel_page)
 	// In tg's assets spot, before the page's last script: that one says "ready" by navigating to a byond:// link, and the
 	// page stops reading anything after it. The loader only fetches, so the bundle runs (and makes its React root) after
 	// the page is all there. Messages that come before it does wait in the helpers' queue.
+	// The bundle's md5 in the loader's addresses: the game window's browser keeps a file by its address from one connection to
+	// the next, so a rebuilt chat bar didn't show until the address changed (the same trap as tgui.bundle.js, subsystem/tgui.dm)
+	loader = replacetextEx(loader, "HIPPIE_PANEL_VERSION", md5("[md5('tgui6/public/tgui-panel.bundle.js')][md5('tgui6/public/tgui-panel.bundle.css')]"))
 	html = replacetextEx(html, "<!-- tgui:assets -->", "<script>[loader]</script>")
 	GLOB.tgui_panel_page = html
 	return html

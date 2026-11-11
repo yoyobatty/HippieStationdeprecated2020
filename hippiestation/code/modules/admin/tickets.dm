@@ -1059,6 +1059,9 @@ GLOBAL_LIST_EMPTY(ticket_windows)
 				if("where")
 					if(AH.opened_z)
 						usr.client.jumptocoord(AH.opened_x, AH.opened_y, AH.opened_z)
+				if("grief") // grief_undo.dm: the area the ticket was sent from
+					if(AH.opened_z)
+						usr.client.open_grief_undo("point", list(AH.opened_x, AH.opened_y, AH.opened_z))
 				else
 					mob_act(what, ticket_mob(AH), usr)
 			return

@@ -405,6 +405,9 @@
 		bot_log(src, "bashing [hideout] - [attacker] is hiding in it")
 		return
 
+	// A tank bomb in their hands: from range or not at all (bot_fighting.dm)
+	if(bot_held_bomb(attacker) && stand_off_bomber(attacker))
+		return
 	// A botanist reaches for what it grew first - a death nettle up close, an acid melon or a
 	// primed combustible lemon from range (goals/botany_projects.dm).
 	if(try_botany_weapon(attacker))

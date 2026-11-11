@@ -790,3 +790,85 @@
 /datum/bot_scenario/sabotage/plasma/blinds_alarms/release_run()
 	arena_area.vars["fire_trip_hot"] = null
 	return ..()
+
+// The user's ruling after their Captain round (round-20.37.50, 2026-11-10): somebody with a tank bomb in their hands is kept away from.
+
+/// A tank bomb on a dead man's switch, in somebody's hands. Two tanks of air: nothing to go off.
+/proc/bot_gym_dead_mans_bomb(mob/living/carbon/human/holder)
+	var/obj/item/transfer_valve/V = new(get_turf(holder))
+	V.tank_one = new /obj/item/tank/internals/emergency_oxygen/empty(V)
+	V.tank_two = new /obj/item/tank/internals/emergency_oxygen/empty(V)
+	var/obj/item/assembly/health/sensor = new(V)
+	sensor.holder = V
+	V.attached_device = sensor
+	V.update_icon()
+	holder.put_in_hands(V)
+	return V
+
+/datum/bot_scenario/bomber_crew
+	name = "bomb: somebody walks up holding a tank bomb on a dead man's switch, and the crew calls it out and gets away"
+	desc = "An assistant, and three tiles off somebody holding a tank bomb with a health sensor on it. It says so on the radio and gets well away. In the user's Captain round three officers piled on to a Captain holding one, and it took all three."
+	job = "Assistant"
+	time_limit = 20 SECONDS
+	layout = list(
+		"#########################",
+		"#.........B..M..........#",
+		"#.......................#",
+		"#########################")
+	var/mob/living/carbon/human/bomber
+
+/datum/bot_scenario/bomber_crew/make_goal()
+	return null
+
+/datum/bot_scenario/bomber_crew/post_spawn()
+	brain.gym_scripted = FALSE //a scripted bot has no reflexes
+	bomber = stand_in(first_marker("M"), "Bo Bomber")
+	bot_gym_dead_mans_bomb(bomber)
+
+/datum/bot_scenario/bomber_crew/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (get_dist(bot, bomber) >= 8 && bot_transcript_said("has a bomb in their hands")) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/bomber_officer
+	name = "bomb: an officer with no gun, after somebody holding a tank bomb, holds off rather than walking up to cuff them"
+	desc = "Somebody wanted for Assault with a Deadly Weapon is holding a tank bomb. The officer has cuffs and nothing to shoot with. It calls it in and keeps five tiles or more off. It used to walk up and go for the cuffs."
+	job = "Security Officer"
+	kit_backpack = list(/obj/item/restraints/handcuffs)
+	time_limit = 15 SECONDS
+	layout = list(
+		"##############",
+		"#B.........M.#",
+		"##############")
+	var/mob/living/carbon/human/bomber
+	var/closest = 99
+
+/datum/bot_scenario/bomber_officer/make_goal()
+	return null
+
+/datum/bot_scenario/bomber_officer/post_spawn()
+	brain.register_security()
+	bomber = stand_in(first_marker("M"), "Bo Bomber")
+	bot_gym_tank_bomb(get_turf(bomber))
+	var/obj/item/transfer_valve/V = locate() in get_turf(bomber)
+	bomber.put_in_hands(V)
+	brain.file_crime(bomber, "Assault with a Deadly Weapon", "Gym.", BOT_CRIME_MAJOR)
+	brain.begin_arrest(bomber)
+
+/datum/bot_scenario/bomber_officer/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	closest = min(closest, get_dist(bot, bomber))
+	if(closest < 4)
+		fail_reason = "came within [closest] tiles of them"
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 12 SECONDS)
+		return BOT_GYM_PENDING
+	if(!bot_transcript_said("has a bomb in their hands"))
+		fail_reason = "never said they had a bomb"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/bomber_officer/release_run()
+	GLOB.bot_security_wanted -= WEAKREF(bomber)
+	return ..()

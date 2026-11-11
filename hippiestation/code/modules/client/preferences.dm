@@ -70,6 +70,10 @@
 					hippie_toggles ^= SCREENTIPS_DISABLED
 					if((hippie_toggles & SCREENTIPS_DISABLED) && parent?.mob?.hud_used?.screentip_text)
 						parent.mob.hud_used.screentip_text.show(parent, null)
+				if("floor_depth")
+					hippie_toggles ^= FLOOR_DEPTH_DISABLED
+					var/obj/screen/plane_master/floor_depth_draw/PM = parent?.mob?.hud_used?.plane_masters["[FLOOR_DEPTH_DRAW_PLANE]"]
+					PM?.backdrop(parent.mob)
 				if("graphics_up", "graphics_down")
 					var/step = href_list["preference"] == "graphics_up" ? 1 : -1
 					set_graphics_quality(WRAP(graphics_quality() + step, GRAPHICS_QUALITY_LOW, GRAPHICS_QUALITY_HIGH + 1))

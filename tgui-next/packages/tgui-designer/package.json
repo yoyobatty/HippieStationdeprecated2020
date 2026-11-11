@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "name": "tgui-designer",
+  "version": "0.1.0",
+  "description": "Design tgui-next windows in the browser and save them into the repo",
+  "main": "server.js"
+}

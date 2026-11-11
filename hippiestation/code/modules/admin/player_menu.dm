@@ -53,6 +53,9 @@
 				C.cmd_admin_subtle_message(M)
 		if("logs")
 			C.open_log_search(player_ckey || target?.name)
+		if("grief") // grief_undo.dm: where their logged actions were
+			if(player_ckey)
+				C.open_grief_undo("player", player_ckey)
 		if("jmp")
 			var/turf/T = get_turf(target)
 			if(T)

@@ -14,6 +14,8 @@
 	/// Real name of the last person to hurt this one, and whether they wore gloves. Set by bot_security_witness_combat().
 	var/last_assailant
 	var/last_assailant_gloved = FALSE
+	/// When they last did it (world.time): somebody who dies of it later is that person's murder (bot_victim_died(), goals/security_patrol.dm)
+	var/last_assailant_at = 0
 
 /// Bodies a detective has been over, by REF: a case stays closed however long the body lies there.
 GLOBAL_LIST_EMPTY(bot_closed_cases)

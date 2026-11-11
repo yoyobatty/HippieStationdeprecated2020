@@ -85,6 +85,7 @@
 	item_state = null
 	ammo_type = list(/obj/item/ammo_casing/energy/mindflayer)
 	ammo_x_offset = 2
+	shaded_charge = TRUE // the X-ray gun's art, xray_charge1-4
 
 /obj/item/gun/energy/kinetic_accelerator/crossbow
 	name = "mini energy crossbow"

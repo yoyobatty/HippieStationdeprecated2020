@@ -1,0 +1,7 @@
+# The designer is a dev tool and never goes into the game's bundle, so a
+# few style rules are relaxed for its own code. The interfaces it writes
+# into packages/tgui are linted with the full set.
+rules:
+  multiline-ternary: off
+  complexity: off
+  react/jsx-handler-names: off

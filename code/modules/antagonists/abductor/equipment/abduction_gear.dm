@@ -506,7 +506,7 @@ Congratulations! You are now trained for invasive xenobiology research!"}
 	L.lastattackerckey = user.ckey
 
 	L.Paralyze(140)
-	L.apply_effect(EFFECT_STUTTER, 7)
+	L.apply_effect(7, EFFECT_STUTTER) // hippie -- arguments were reversed, so no stutter was ever applied
 	SEND_SIGNAL(L, COMSIG_LIVING_MINOR_SHOCK)
 
 	L.visible_message("<span class='danger'>[user] has stunned [L] with [src]!</span>", \

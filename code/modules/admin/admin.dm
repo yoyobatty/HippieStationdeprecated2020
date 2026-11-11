@@ -15,6 +15,11 @@
 	set category = "Admin"
 	set name = "Show Player Panel"
 	set desc="Edit player (respawn, ban, heal, etc)"
+	// hippie start -- a verb runs this definition (verbs go in by path), with the client as src; by name it's hippie's window (player_panel_tgui.dm)
+	var/datum/admins/hippie_holder = istype(src, /datum/admins) ? src : usr?.client?.holder
+	if(hippie_holder)
+		return hippie_holder.show_player_panel(M)
+	// hippie end
 
 	if(!check_rights())
 		return
@@ -212,6 +217,7 @@
 	if (!istype(src, /datum/admins))
 		to_chat(usr, "Error: you are not an admin!", confidential=TRUE)
 		return
+	if(usr) return access_news_network() // hippie -- a verb runs this definition (verbs go in by path); by name it's hippie's window (admin_fun_tgui.dm)
 	var/dat
 	dat = text("<HEAD>[UTF8HEADER]<TITLE>Admin Newscaster</TITLE></HEAD><H3>Admin Newscaster Unit</H3>")
 

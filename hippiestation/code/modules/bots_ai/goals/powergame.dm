@@ -266,7 +266,7 @@ GLOBAL_LIST_INIT(bot_power_mutations, list(/datum/mutation/human/hulk, /datum/mu
 	// Behind a door it can't open: the Geneticist's asked, and it waits where it is.
 	var/datum/mutation/human/A = GET_INITIALIZED_MUTATION(I ? activator_gives(I) : at_console[2])
 	var/where = get_area_name(owner, TRUE)
-	if(!call_for(/datum/bot_request_kind/genes, pick(";Genetics, could I get a [A.name] mutator? I'm in [where].", ";Genetics, any chance of [A.name]? I'll be in [where].", ";Genetics, could you sort me out with [A.name]? I'm in [where].")))
+	if(!call_for(/datum/bot_request_kind/genes, pick("Genetics, could I get a [A.name] mutator? I'm in [where].", "Genetics, any chance of [A.name]? I'll be in [where].", "Genetics, could you sort me out with [A.name]? I'm in [where].")))
 		return FALSE
 	return assign_goal(new /datum/bot_goal/await_activator)
 
@@ -552,7 +552,7 @@ GLOBAL_LIST_INIT(bot_harmless_symptoms, typecacheof(list(/datum/symptom/beard, /
 	if(carried_chems(BOT_POWER_HEAL_KIND) >= BOT_POWER_PATCHES || work_role() == "Chemist" || !bot_someone_on_job("Chemist", owner))
 		return FALSE
 	var/where = get_area_name(owner, TRUE)
-	if(!call_for(/datum/bot_request_kind/heal_chems, pick(";Chemistry, could I get a couple of tricord pills? I'm in [where].", ";Chem, any healing pills going? I'll be in [where].", ";Chemistry, could you spare some heals? [where].")))
+	if(!call_for(/datum/bot_request_kind/heal_chems, pick("Chemistry, could I get a couple of tricord pills? I'm in [where].", "Chem, any healing pills going? I'll be in [where].", "Chemistry, could you spare some heals? [where].")))
 		return FALSE
 	return assign_goal(new /datum/bot_goal/await_activator/pills)
 

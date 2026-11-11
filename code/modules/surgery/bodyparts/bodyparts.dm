@@ -166,13 +166,13 @@
 		if(ALIEN_BODYPART,LARVA_BODYPART) //aliens take double burn //nothing can burn with so much snowflake code around
 			burn *= 2
 
-	var/can_inflict = max_damage - get_damage()
-	if(can_inflict <= 0)
+	var/can_inflict = max(max_damage - get_damage(), 0) // hippie start -- a limb at its brute+burn cap still takes stamina: a baton to a wrecked leg did nothing
+	if(!can_inflict && !stamina)
 		return FALSE
 
 	var/total_damage = brute + burn
 
-	if(total_damage > can_inflict)
+	if(total_damage > can_inflict) // hippie end
 		brute = round(brute * (can_inflict / total_damage),DAMAGE_PRECISION)
 		burn = round(burn * (can_inflict / total_damage),DAMAGE_PRECISION)
 

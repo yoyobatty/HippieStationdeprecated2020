@@ -6,42 +6,43 @@
 
 /datum/martial_art/the_sleeping_carp
 	name = "The Sleeping Carp"
+	id = MARTIALART_SLEEPINGCARP // without it every mind "already knew" the art, so the carp book (Lavaland loot) couldn't be read
 	deflection_chance = 100
 	no_guns = TRUE
 	allow_temp_override = FALSE
 	help_verb = /mob/living/carbon/human/proc/sleeping_carp_help
 
 /datum/martial_art/the_sleeping_carp/proc/check_streak(mob/living/carbon/human/A, mob/living/carbon/human/D)
-	A.hud_used.combo_object.update_icon(streak, 60)
+	A.hud_used?.combo_object?.update_icon(streak, 60)
 	if(findtext(streak,WRIST_WRENCH_COMBO))
 		streak = ""
-		A.hud_used.combo_object.update_icon(streak)
+		A.hud_used?.combo_object?.update_icon(streak)
 		wristWrench(A,D)
 		return TRUE
 	if(findtext(streak,BACK_KICK_COMBO))
 		streak = ""
-		A.hud_used.combo_object.update_icon(streak)
+		A.hud_used?.combo_object?.update_icon(streak)
 		backKick(A,D)
 		return TRUE
 	if(findtext(streak,STOMACH_KNEE_COMBO))
 		streak = ""
-		A.hud_used.combo_object.update_icon(streak)
+		A.hud_used?.combo_object?.update_icon(streak)
 		kneeStomach(A,D)
 		return TRUE
 	if(findtext(streak,HEAD_KICK_COMBO))
 		streak = ""
-		A.hud_used.combo_object.update_icon(streak)
+		A.hud_used?.combo_object?.update_icon(streak)
 		headKick(A,D)
 		return TRUE
 	if(findtext(streak,ELBOW_DROP_COMBO))
 		streak = ""
-		A.hud_used.combo_object.update_icon(streak)
+		A.hud_used?.combo_object?.update_icon(streak)
 		elbowDrop(A,D)
 		return TRUE
 	return FALSE
 
 /datum/martial_art/the_sleeping_carp/proc/wristWrench(mob/living/carbon/human/A, mob/living/carbon/human/D)
-	if(!D.stat && !D.IsStun() && D.IsParalyzed())
+	if(!D.stat && !D.IsStun() && !D.IsParalyzed()) // the ! was lost: it only worked on someone already paralyzed
 		A.do_attack_animation(D, ATTACK_EFFECT_PUNCH)
 		D.visible_message("<span class='warning'>[A] grabs [D]'s wrist and wrenches it sideways!</span>", \
 						  "<span class='userdanger'>[A] grabs your wrist and violently wrenches it to the side!</span>")
@@ -50,8 +51,8 @@
 		D.dropItemToGround(D.get_active_held_item())
 		D.apply_damage(5, BRUTE, pick("l_arm", "r_arm"))
 		D.Stun(60)
+		log_combat(A, D, "wrist wrenched (Sleeping Carp)") // logged when the move lands: it was logged when it missed and fell back to a punch
 		return TRUE
-	log_combat(A, D, "wrist wrenched (Sleeping Carp)")
 	return basic_hit(A,D)
 
 /datum/martial_art/the_sleeping_carp/proc/backKick(mob/living/carbon/human/A, mob/living/carbon/human/D)
@@ -62,8 +63,8 @@
 		step_to(D,get_step(D,D.dir),1)
 		D.Paralyze(80)
 		playsound(get_turf(D), 'sound/weapons/punch1.ogg', 50, 1, -1)
+		log_combat(A, D, "back-kicked (Sleeping Carp)") // logged when the move lands: it was logged when it missed and fell back to a punch
 		return TRUE
-	log_combat(A, D, "back-kicked (Sleeping Carp)")
 	return basic_hit(A,D)
 
 /datum/martial_art/the_sleeping_carp/proc/kneeStomach(mob/living/carbon/human/A, mob/living/carbon/human/D)
@@ -75,8 +76,8 @@
 		D.losebreath += 3
 		D.Stun(40)
 		playsound(get_turf(D), 'sound/weapons/punch1.ogg', 50, 1, -1)
+		log_combat(A, D, "stomach kneed (Sleeping Carp)") // logged when the move lands: it was logged when it missed and fell back to a punch
 		return TRUE
-	log_combat(A, D, "stomach kneed (Sleeping Carp)")
 	return basic_hit(A,D)
 
 /datum/martial_art/the_sleeping_carp/proc/headKick(mob/living/carbon/human/A, mob/living/carbon/human/D)
@@ -88,8 +89,8 @@
 		D.dropItemToGround(D.get_active_held_item())
 		playsound(get_turf(D), 'sound/weapons/punch1.ogg', 50, 1, -1)
 		D.Stun(80)
+		log_combat(A, D, "head kicked (Sleeping Carp)") // logged when the move lands: it was logged when it missed and fell back to a punch
 		return TRUE
-	log_combat(A, D, "head kicked (Sleeping Carp)")
 	return basic_hit(A,D)
 
 /datum/martial_art/the_sleeping_carp/proc/elbowDrop(mob/living/carbon/human/A, mob/living/carbon/human/D)
@@ -101,8 +102,8 @@
 			D.death() //FINISH HIM!
 		D.apply_damage(50, BRUTE, "chest")
 		playsound(get_turf(D), 'sound/weapons/punch1.ogg', 75, 1, -1)
+		log_combat(A, D, "elbow dropped (Sleeping Carp)") // logged when the move lands: it was logged when it missed and fell back to a punch
 		return TRUE
-	log_combat(A, D, "elbow dropped (Sleeping Carp)")
 	return basic_hit(A,D)
 
 /datum/martial_art/the_sleeping_carp/grab_act(mob/living/carbon/human/A, mob/living/carbon/human/D)

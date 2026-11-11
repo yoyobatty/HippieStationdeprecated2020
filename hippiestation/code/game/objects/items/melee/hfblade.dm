@@ -71,9 +71,9 @@
 			return FALSE
 		var/mob/living/carbon/C = target
 		var/obj/item/bodypart/BP = pick(parts)
-		BP.dismember()
-		playsound(C,pick('sound/misc/desceration-01.ogg','sound/misc/desceration-02.ogg','sound/misc/desceration-01.ogg') ,50, 1, -1)
-		C.adjustBruteLoss(-15) //dismembering a limb deals 15 brute, this heals you instantly after that
+		if(BP.dismember()) // the heal only makes up for a dismember that happened: a no-dismember or godmode target was healed 15 for nothing
+			playsound(C,pick('sound/misc/desceration-01.ogg','sound/misc/desceration-02.ogg','sound/misc/desceration-01.ogg') ,50, 1, -1)
+			C.adjustBruteLoss(-15) //dismembering a limb deals 15 brute, this heals you instantly after that
 		user.changeNext_move(CLICK_CD_CLICK_ABILITY)
 		return ..()
 	. = ..()

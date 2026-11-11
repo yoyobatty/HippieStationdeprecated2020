@@ -64,9 +64,15 @@ SUBSYSTEM_DEF(overlays)
 			new_overlays += icon2appearance(overlay)
 		else
 			appearance_bro.appearance = overlay //this works for images and atoms too!
-			// hippie -- leave dir alone: .appearance already carries the source's dir on 516. Setting it by hand made a
-			// different appearance from the stored copy (|= piled duplicates, the fire stacking), and zeroing it turned
-			// every overlay with its own dir (floor decals on a south-facing turf) to face south.
+			// hippie -- leave dir alone for a mutable_appearance: its .appearance carries its dir on 516. Setting it by hand
+			// made a different appearance from the stored copy (|= piled duplicates, the fire stacking), and zeroing it
+			// turned every overlay with its own dir (floor decals on a south-facing turf) to face south.
+			// hippie -- but an /image's .appearance doesn't carry its dir at all: the copy kept whatever dir this shared
+			// image had from the overlay before. A pipe manifold's three arms, image(..., dir = X) each, came out with one
+			// dir between them and merged into one arm (tools/smooth_check/pipe_check.dm).
+			if(istype(overlay, /image) && !istype(overlay, /mutable_appearance))
+				var/image/source = overlay
+				appearance_bro.dir = source.dir
 			new_overlays += appearance_bro.appearance
 	return new_overlays
 

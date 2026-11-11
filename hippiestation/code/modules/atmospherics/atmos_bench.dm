@@ -403,6 +403,11 @@ GLOBAL_VAR(atmos_bench_updaters)
 		atmos_bench_finish(lines)
 		return
 
+	if(option == "door-check")
+		lines += atmos_bench_door_check(z)
+		atmos_bench_finish(lines)
+		return
+
 	if(option == "storage-fire")
 		lines += atmos_bench_storage_fire(z)
 		atmos_bench_finish(lines)
@@ -676,15 +681,16 @@ GLOBAL_VAR(atmos_bench_updaters)
 				problems += line
 	atmos_bench_clean_tile(spot)
 
-	// An inflatable door has to let air through while it's open, and only then
+	// An inflatable door has to let air through while it's open, and shut only to the one side its tile keeps (door_seals.dm)
 	var/obj/structure/inflatable/door/flap = new(spot)
 	sleep(0.5 SECONDS)
+	var/shut_sides = GLOB.door_seals ? 1 : 0
 	var/sides_shut = length(spot.atmos_adjacent_turfs)
 	flap.SwitchState()
 	var/sides_open = length(spot.atmos_adjacent_turfs)
 	flap.SwitchState()
 	var/sides_shut_again = length(spot.atmos_adjacent_turfs)
-	var/flap_line = "inflatable door: [sides_shut] sides connected shut, [sides_open] open, [sides_shut_again] shut again[(sides_shut || sides_open != 4 || sides_shut_again) ? " - WRONG" : ""]"
+	var/flap_line = "inflatable door: [sides_shut] sides connected shut, [sides_open] open, [sides_shut_again] shut again[(sides_shut != shut_sides || sides_open != 4 || sides_shut_again != shut_sides) ? " - WRONG" : ""]"
 	. += "  [flap_line]"
 	if(findtext(flap_line, "WRONG"))
 		problems += flap_line

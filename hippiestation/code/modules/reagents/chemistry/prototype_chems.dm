@@ -320,7 +320,7 @@
 	playsound(T, 'sound/magic/lightningshock.ogg', 40, 1)
 	var/jolt = min(created_volume * 2, 20)
 	for(var/mob/living/L in range(1, T))
-		L.electrocute_act(jolt, "a static discharge", 1, FALSE, FALSE, FALSE, jolt >= 10)
+		L.electrocute_act(jolt, "a static discharge", 1, stun = (jolt >= 10)) // named: a human's version has an extra override argument, so the 7th slot was illusion there (stamina, not burn, and always a stun)
 
 // ---------------------------------------------------------------------------------------------
 // What looking at things tells you

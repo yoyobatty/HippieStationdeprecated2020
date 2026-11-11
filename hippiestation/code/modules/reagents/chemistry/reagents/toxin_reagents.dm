@@ -199,7 +199,7 @@
 
 /datum/reagent/toxin/sarin/on_mob_life(mob/living/M)
 	M.Jitter(50)
-	M.apply_effect(EFFECT_STUTTER, 5)
+	M.apply_effect(5, EFFECT_STUTTER) // arguments were reversed, so no stutter was ever applied
 	if(current_cycle % 10 == 0)
 		if(iscarbon(M))
 			var/mob/living/carbon/C = M

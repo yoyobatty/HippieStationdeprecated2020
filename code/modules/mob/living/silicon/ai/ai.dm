@@ -476,6 +476,7 @@ HIPPIE END*/
 	set category = "AI Commands"
 	set name = "Access Robot Control"
 	set desc = "Wirelessly control various automatic robots."
+	if(usr) return botcall() // hippie -- a verb runs this definition (verbs go in by path); by name it's hippie's window (silicon_windows_tgui.dm)
 	if(incapacitated())
 		return
 

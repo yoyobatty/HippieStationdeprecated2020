@@ -14,7 +14,7 @@
 	var/charge_sections = 4
 	ammo_x_offset = 2
 	var/shaded_charge = FALSE //if this gun uses a stateful charge bar for more detail
-	var/old_ratio = 0 // stores the gun's previous ammo "ratio" to see if it needs an updated icon
+	var/old_ratio = -1 // the bars last drawn (0 for empty) to see if it needs an updated icon; -1 so a gun spawned empty still draws
 	var/selfcharge = 0
 	var/charge_tick = 0
 	var/charge_delay = 4
@@ -111,12 +111,9 @@
 	if(chambered && !chambered.BB) //if BB is null, i.e the shot has been fired...
 		var/obj/item/ammo_casing/energy/shot = chambered
 		cell.use(shot.e_cost)//... drain the cell cell
-		if(cell.charge < shot.e_cost)
-			cut_overlays()
-			add_overlay("[icon_state]_empty")
 	chambered = null //either way, released the prepared shot
 	recharge_newshot() //try to charge a new shot
-	update_icon()
+	update_icon() // draws the empty state itself now; the cut_overlays() here also took off a subtype's own overlays
 
 /obj/item/gun/energy/process_fire(atom/target, mob/living/user, message = TRUE, params = null, zone_override = "", bonus_spread = 0)
 	if(!chambered && can_shoot())
@@ -150,19 +147,23 @@
 	..()
 	if(!automatic_charge_overlays)
 		return
-	var/ratio = CEILING(clamp(cell.charge / cell.maxcharge, 0, 1) * charge_sections, 1)
-	if(ratio == old_ratio && !force_update)
-		return
-	old_ratio = ratio
-	cut_overlays()
 	var/obj/item/ammo_casing/energy/shot = ammo_type[select]
+	var/ratio = CEILING(clamp(cell.charge / cell.maxcharge, 0, 1) * charge_sections, 1)
+	// Empty counts as its own reading. Keyed on the bar count alone, a gun recharged from its last few points to one bar
+	// (a laser at 4 -> 104 of 1000, a shot costs 83) never redrew, and showed empty with a shot in it.
+	var/drawn = cell.charge < shot.e_cost ? 0 : ratio
+	if(drawn == old_ratio && !force_update)
+		return
+	old_ratio = drawn
+	cut_overlays()
 	var/iconState = "[icon_state]_charge"
 	var/itemState = null
 	if(!initial(item_state))
 		itemState = icon_state
 	if (modifystate)
-		add_overlay("[icon_state]_[shot.select_name]")
-		iconState += "_[shot.select_name]"
+		if(!shaded_charge && multistate == 0) // per-mode overlays are legacy art; shaded and multistate sheets show the mode in their charge states
+			add_overlay("[icon_state]_[shot.select_name]")
+			iconState += "_[shot.select_name]"
 		if(itemState)
 			itemState += "[shot.select_name]"
 	if(cell.charge < shot.e_cost)

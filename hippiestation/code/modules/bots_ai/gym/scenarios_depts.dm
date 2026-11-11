@@ -428,3 +428,45 @@
 		fail_reason = english_list(wrong)
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+/datum/bot_scenario/duty/panel/bridge_hos
+	name = "dept: the HoS drops the Bridge blast doors from inside, then has somewhere to be, and lets itself out with the button"
+	desc = "A murderer is about. The HoS, strict, drops the blast doors on a room too big for the quick look for being shut in (over 60 tiles). Then it's sent out past them. It goes out by the button rather than finding no way out: in the user's Captain round every errand came back \"no path\" for a minute and a half."
+	job = "Head of Security"
+	button_name = "Bridge Blast Door Control"
+	time_limit = 30 SECONDS
+	layout = list(
+		"###############",
+		"#B...........b#",
+		"#.............#",
+		"#.............#",
+		"#.............#",
+		"#.............#",
+		"#######p#######",
+		"#......o......#",
+		"###############")
+	var/shut_at = 0
+
+/datum/bot_scenario/duty/panel/bridge_hos/post_spawn()
+	..()
+	arena_area.department = "command"
+	brain.strictness = 0.9
+	make_threat()
+
+/datum/bot_scenario/duty/panel/bridge_hos/issue_goal()
+	if(!shut_at)
+		return ..()
+	if(!brain.current_goal && brain.state != BOT_STATE_COMBAT)
+		goal_attempts++
+		brain.assign_goal(new /datum/bot_goal/walk_up_to(first_marker("o")))
+
+/datum/bot_scenario/duty/panel/bridge_hos/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/machinery/door/poddoor/D = first_placed("p")
+	if(!shut_at)
+		if(D.density && !D.operating)
+			shut_at = world.time
+			log_line("doors down: now out past them")
+		return BOT_GYM_PENDING
+	return get_dist(bot, first_marker("o")) <= 1 ? BOT_GYM_PASS : BOT_GYM_PENDING

@@ -34,7 +34,7 @@ GLOBAL_LIST_INIT(gravity_lens_layers, list(list("gravity_lens_disc", 1, 0.5), li
 	. = list()
 	if(!M || !M.hud_used)
 		return
-	var/list/planes = list(PLANE_SPACE, PLANE_SPACE_PARALLAX, FLOOR_PLANE)
+	var/list/planes = list(PLANE_SPACE, PLANE_SPACE_PARALLAX, FLOOR_PLANE, FLOOR_DEPTH_PLANE, FLOOR_DEPTH_MASK_PLANE) // the holes in the floor bend with it (floor_depth.dm)
 	if(!background_only)
 		planes += list(GAME_PLANE, LIGHTING_PLANE)
 	for(var/plane in planes)

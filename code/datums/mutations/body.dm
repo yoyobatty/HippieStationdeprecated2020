@@ -245,7 +245,7 @@
 	power_coeff = 1
 
 /datum/mutation/human/fire/on_life()
-	if(prob((1+(100-dna.stability)/10)) * GET_MUTATION_SYNCHRONIZER(src))
+	if(prob((1+(100-dna.stability)/10) * GET_MUTATION_SYNCHRONIZER(src))) // hippie -- the synchronizer sat outside prob() and changed nothing
 		owner.adjust_fire_stacks(2 * GET_MUTATION_POWER(src))
 		owner.IgniteMob()
 

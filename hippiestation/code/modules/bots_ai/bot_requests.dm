@@ -445,6 +445,10 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 		next_call_time = world.time + 5 MINUTES
 	var/datum/bot_request/R = bot_new_request(kind, owner, FREQ_COMMON, kind.walks_there ? owner : get_turf(owner))
 	R.detail = detail
+	// The prefix is this proc's to add: a line that came with its own went out as ";;Chem, any healing pills going?", and say()
+	// takes only the first, so the crew around heard the second one said out loud (2026-11-10).
+	if(copytext(line, 1, 2) == ";")
+		line = copytext(line, 2)
 	bot_say(owner, ";[line]")
 	bot_log(src, "called for a [kind.name]: \"[line]\"")
 	addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_offer_request), R), rand(25, 50))

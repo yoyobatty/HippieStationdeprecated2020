@@ -5,29 +5,30 @@
 
 /datum/martial_art/plasma_fist
 	name = "Plasma Fist"
+	id = MARTIALART_PLASMAFIST // without it every mind "already knew" the art, so the plasma fist book couldn't be read
 	help_verb = /mob/living/carbon/human/proc/plasma_fist_help
 
 
 /datum/martial_art/plasma_fist/proc/check_streak(mob/living/carbon/human/A, mob/living/carbon/human/D)
-	A.hud_used.combo_object.update_icon(streak, 60)
+	A.hud_used?.combo_object?.update_icon(streak, 60)
 	if(findtext(streak,KNOCKOUT_COMBO))
 		streak = ""
-		A.hud_used.combo_object.update_icon(streak)
+		A.hud_used?.combo_object?.update_icon(streak)
 		Knockout(A,D)
 		return TRUE
 	if(findtext(streak,TORNADO_COMBO))
 		streak = ""
-		A.hud_used.combo_object.update_icon(streak)
+		A.hud_used?.combo_object?.update_icon(streak)
 		Tornado(A,D)
 		return TRUE
 	if(findtext(streak,THROWBACK_COMBO))
 		streak = ""
-		A.hud_used.combo_object.update_icon(streak)
+		A.hud_used?.combo_object?.update_icon(streak)
 		Throwback(A,D)
 		return TRUE
 	if(findtext(streak,PLASMA_COMBO))
 		streak = ""
-		A.hud_used.combo_object.update_icon(streak)
+		A.hud_used?.combo_object?.update_icon(streak)
 		Plasma(A,D)
 		return TRUE
 	return FALSE

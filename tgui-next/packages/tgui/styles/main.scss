@@ -33,6 +33,7 @@
 @include meta.load-css('./components/Minesweeper.scss');
 @include meta.load-css('./components/OrionTrail.scss');
 @include meta.load-css('./components/AdminFind.scss');
+@include meta.load-css('./components/GriefUndo.scss');
 @include meta.load-css('./components/LogSearch.scss');
 @include meta.load-css('./components/Tickets.scss');
 @include meta.load-css('./components/GameMenu.scss');

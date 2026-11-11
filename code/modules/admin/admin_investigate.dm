@@ -7,6 +7,7 @@
 /client/proc/investigate_show()
 	set name = "Investigate"
 	set category = "Admin"
+	if(usr) return investigate_show() // hippie -- a verb runs this definition (verbs go in by path); by name it's hippie's window (admin_logs_tgui.dm)
 	if(!holder)
 		return
 

@@ -21,7 +21,7 @@
 		var/light_amount = T.get_lumcount()
 
 		if(light_amount > SHADOW_SPECIES_LIGHT_THRESHOLD) //if there's enough light, start dying
-			H.take_overall_damage(1,1, 0, BODYPART_ORGANIC)
+			H.take_overall_damage(1,1, 0, TRUE, BODYPART_ORGANIC) // hippie -- BODYPART_ORGANIC sat in the updating_health slot, so light burned robotic limbs too
 		else if (light_amount < SHADOW_SPECIES_LIGHT_THRESHOLD) //heal in the dark
 			H.heal_overall_damage(1,1, 0, BODYPART_ORGANIC)
 

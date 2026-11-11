@@ -45,6 +45,8 @@
 
 			for (var/i = 1; i < range; i++)
 				var/turf/new_turf = get_step(target, pick(throw_directions))
+				if (!new_turf) // off the map's edge
+					break
 				target = new_turf
 				if (new_turf.density)
 					break

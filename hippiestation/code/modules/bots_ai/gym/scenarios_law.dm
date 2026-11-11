@@ -977,3 +977,78 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return max.handcuffed ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// The user's second Captain round (round-20.37.50, 2026-11-10): the Captain's Attempted Murder was written over by Assaulting an Officer, a
+// charge of the same weight, and the Warden he shot bled out two minutes later without it ever becoming murder.
+
+/datum/bot_scenario/command_order/kos_keeps_charge
+	name = "security: somebody kill on sight for attempted murder who then hits an officer is still wanted for attempted murder"
+	desc = "Max is wanted for Attempted Murder, kill on sight. He punches the officer, which on its own is Assaulting an Officer, a charge of the same weight. The record still says Attempted Murder and Max is still fair game. In the user's Captain round the second charge wrote over the first."
+	var/hit_at = 0
+
+/datum/bot_scenario/command_order/kos_keeps_charge/post_spawn()
+	..()
+	brain.file_crime(max, "Attempted Murder", "Gym.", BOT_CRIME_MAJOR)
+	addtimer(CALLBACK(src, PROC_REF(punch)), 2 SECONDS)
+
+/datum/bot_scenario/command_order/kos_keeps_charge/proc/punch()
+	if(result != BOT_GYM_PENDING || QDELETED(max))
+		return
+	max.forceMove(get_step(bot, EAST))
+	log_combat(max, bot, "punched")
+	hit_at = world.time
+	log_line("Max punched the officer")
+
+/datum/bot_scenario/command_order/kos_keeps_charge/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!hit_at || world.time < hit_at + 3 SECONDS)
+		return BOT_GYM_PENDING
+	var/datum/bot_wanted/W = bot_get_wanted_entry(max)
+	if(W?.crime != "Attempted Murder" || !bot_is_fair_game(max))
+		fail_reason = "the record says [W?.crime || "nothing"], fair game [bot_is_fair_game(max)]"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/command_order/died_of_it
+	name = "security: somebody wanted for beating a man who dies of it later is wanted for murder"
+	desc = "Max beats Vic with a toolbox in front of the officer: Assault with a Deadly Weapon. Vic dies of it a few seconds later. Max is wanted for Murder now, and the officer says so on the radio. In the user's Captain round the Warden bled out two minutes after being shot, and the Captain stayed wanted for Assaulting an Officer."
+	var/mob/living/carbon/human/vic
+	var/died_at = 0
+
+/datum/bot_scenario/command_order/died_of_it/post_spawn()
+	..()
+	vic = stand_in(first_marker("."), "Vic Okafor")
+	vic.mind_initialize()
+	vic.mind.assigned_role = "Assistant"
+	max.put_in_hands(new /obj/item/storage/toolbox/mechanical(max))
+	addtimer(CALLBACK(src, PROC_REF(beat)), 2 SECONDS)
+	addtimer(CALLBACK(src, PROC_REF(dies)), 5 SECONDS)
+
+/datum/bot_scenario/command_order/died_of_it/proc/beat()
+	if(result != BOT_GYM_PENDING || QDELETED(max) || QDELETED(vic))
+		return
+	max.forceMove(get_step(vic, EAST))
+	vic.apply_damage(40, BRUTE, BODY_ZONE_CHEST)
+	var/obj/item/storage/toolbox/T = locate() in max.held_items
+	log_combat(max, vic, "attacked", T)
+	var/datum/bot_wanted/W = bot_get_wanted_entry(max)
+	log_line("Max beat Vic with the toolbox: [W?.crime]")
+
+/datum/bot_scenario/command_order/died_of_it/proc/dies()
+	if(result != BOT_GYM_PENDING || QDELETED(vic))
+		return
+	vic.death()
+	died_at = world.time
+	log_line("Vic died of it")
+
+/datum/bot_scenario/command_order/died_of_it/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!died_at || world.time < died_at + 3 SECONDS)
+		return BOT_GYM_PENDING
+	var/datum/bot_wanted/W = bot_get_wanted_entry(max)
+	if(W?.crime != "Murder")
+		fail_reason = "the record says [W?.crime || "nothing"]"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

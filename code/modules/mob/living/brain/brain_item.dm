@@ -202,7 +202,7 @@
 	adjusted_amount = round(adjusted_amount * BRAIN_DAMAGE_INTEGRITY_MULTIPLIER, DAMAGE_PRECISION)
 	if(adjusted_amount)
 		if(adjusted_amount >= DAMAGE_PRECISION)
-			take_damage(adjusted_amount)
+			take_damage(adjusted_amount, sound_effect = FALSE) // hippie -- every point of brain damage played a glass smash at the mob
 		else if(adjusted_amount <= -DAMAGE_PRECISION)
 			obj_integrity = min(max_integrity, obj_integrity-adjusted_amount)
 	. = adjusted_amount

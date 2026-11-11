@@ -2,9 +2,29 @@
 /mob/living/proc/hippie_equip_mob_with_items(rand_int)
 	return
 
+/datum/thrownthing
+	/// The zone this throw hit, rolled once by throw_hit_zone() so the hit and an embed land in the same limb
+	var/hit_zone
+
+/// Where a thrown thing hits: the zone its thrower aimed at, with melee's accuracy (ran_zone, 80%); a throw nobody aimed
+/// (thrown by a machine, an explosion) keeps the old chest-weighted roll. Rolled once per throw: a human's embed check and
+/// the hit's damage both read it, so the thing lodges in the limb it hurt.
+/mob/living/proc/throw_hit_zone(datum/thrownthing/throwingdatum)
+	if(throwingdatum?.hit_zone)
+		return throwingdatum.hit_zone
+	var/mob/thrower = throwingdatum?.thrower
+	var/zone
+	if(istype(thrower) && thrower.zone_selected)
+		zone = ran_zone(thrower.zone_selected)
+	else
+		zone = ran_zone(BODY_ZONE_CHEST, 65)
+	if(throwingdatum)
+		throwingdatum.hit_zone = zone
+	return zone
+
 /mob/living/resist_grab(moving_resist)
 	if(pulledby.grab_state)
-		if(prob(30) && pulledby.grab_state != GRAB_KILL)
+		if(prob(pulledby.grab_state >= GRAB_KILL ? 10 : 30)) // a strangling grab could never be broken; 10% a try now (user, 2026-11-10)
 			visible_message("<span class='danger'>[src] has broken free of [pulledby]'s grip!</span>")
 			log_combat(pulledby, src, "broke grab")
 			pulledby.stop_pulling()

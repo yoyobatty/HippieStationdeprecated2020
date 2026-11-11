@@ -26,6 +26,9 @@
 	shaded_charge = 0
 	multistate = 1
 
+/obj/item/gun/energy/e_gun/advtaser/mounted
+	multistate = 0 // items_cyborg.dmi has the per-mode art (taser_stun, taser_charge_stun), not taser1_charge1-4
+
 /obj/item/gun/energy/e_gun/advtaser/cyborg
 	name = "cyborg taser"
 	desc = "An integrated hybrid taser that draws directly from a cyborg's power cell. The weapon contains a limiter to prevent the cyborg's power cell from overheating."

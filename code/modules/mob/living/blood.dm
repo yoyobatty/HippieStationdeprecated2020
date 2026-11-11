@@ -76,6 +76,8 @@
 		//Bleeding out
 		for(var/X in bodyparts)
 			var/obj/item/bodypart/BP = X
+			if(BP.status != BODYPART_ORGANIC) // hippie -- a prosthetic doesn't bleed
+				continue
 			var/brutedamage = BP.brute_dam
 
 			//We want an accurate reading of .len

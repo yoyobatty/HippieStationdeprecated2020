@@ -7,7 +7,7 @@
 			var/obj/item/bodypart/bp = def_zone
 			if(bp)
 				return checkarmor(def_zone, type)
-		var/obj/item/bodypart/affecting = get_bodypart(ran_zone(def_zone))
+		var/obj/item/bodypart/affecting = get_bodypart(check_zone(def_zone)) // hippie -- was ran_zone(): a fifth of hits read another limb's armor than the one they hurt
 		if(affecting)
 			return checkarmor(affecting, type)
 		//If a specific bodypart is targetted, check how that bodypart is protected and return the value.
@@ -157,11 +157,11 @@
 			if(can_embed(I))
 				if(prob(I.embedding.embed_chance) && !HAS_TRAIT(src, TRAIT_PIERCEIMMUNE) && !(status_flags & GODMODE)) //hippie edit -- godmode mobs can't be impaled
 					throw_alert("embeddedobject", /obj/screen/alert/embeddedobject)
-					var/obj/item/bodypart/L = pick(bodyparts)
+					var/obj/item/bodypart/L = get_bodypart(throw_hit_zone(throwingdatum)) || get_bodypart(BODY_ZONE_CHEST) // hippie start -- in the limb the throw hit, not any limb
 					L.embedded_objects |= I
 					I.add_mob_blood(src)//it embedded itself in you, of course it's bloody!
 					I.forceMove(src)
-					L.receive_damage(I.w_class*I.embedding.embedded_impact_pain_multiplier)
+					L.receive_damage(I.w_class*I.embedding.embedded_impact_pain_multiplier, blocked = max(0, getarmor(L, "melee") - I.armour_penetration)) // and armor softens it // hippie end
 					visible_message("<span class='danger'>[I] embeds itself in [src]'s [L.name]!</span>","<span class='userdanger'>[I] embeds itself in your [L.name]!</span>")
 					SEND_SIGNAL(src, COMSIG_ADD_MOOD_EVENT, "embedded", /datum/mood_event/embedded)
 					hitpush = FALSE
@@ -202,7 +202,7 @@
 	var/hulk_verb = pick("smash","pummel")
 	if(check_shields(user, 15, "the [hulk_verb]ing"))
 		return
-	..()
+	// hippie -- a second ..() here sent the hulk-attack signal twice
 	playsound(loc, user.dna.species.attack_sound, 25, 1, -1)
 	var/message = "[user] has [hulk_verb]ed [src]!"
 	visible_message("<span class='danger'>[message]</span>", \
@@ -259,7 +259,7 @@
 		return 1
 
 /mob/living/carbon/human/attack_alien(mob/living/carbon/alien/humanoid/M)
-	if(check_shields(M, 0, "the M.name"))
+	if(check_shields(M, 0, "the [M.name]")) // hippie -- printed the words "the M.name"
 		visible_message("<span class='danger'>[M] attempted to touch [src]!</span>")
 		return 0
 
@@ -360,14 +360,15 @@
 		if(temp)
 			var/update = 0
 			var/dmg = rand(M.force/2, M.force)
+			var/armor = run_armor_check(temp, "melee") // hippie -- a mech's punch ignored armor
 			switch(M.damtype)
 				if("brute")
 					if(M.force > 20)
 						Unconscious(20)
-					update |= temp.receive_damage(dmg, 0)
+					update |= temp.receive_damage(dmg, 0, blocked = armor) // hippie
 					playsound(src, 'sound/weapons/punch4.ogg', 50, 1)
 				if("fire")
-					update |= temp.receive_damage(0, dmg)
+					update |= temp.receive_damage(0, dmg, blocked = armor) // hippie
 					playsound(src, 'sound/items/welder.ogg', 50, 1)
 				if("tox")
 					M.mech_toxin_damage(src)
@@ -475,10 +476,10 @@
 				total_coeff -= 0.5
 		if(wear_suit)
 			var/obj/item/clothing/suit/S = wear_suit
-			if(S.siemens_coefficient <= 0)
-				total_coeff -= 0.95
-			else if(S.siemens_coefficient == (-1))
+			if(S.siemens_coefficient == (-1)) // hippie -- checked first: "<= 0" caught -1 too, so this never ran
 				total_coeff -= 1
+			else if(S.siemens_coefficient <= 0)
+				total_coeff -= 0.95
 		siemens_coeff = total_coeff
 		if(flags_1 & TESLA_IGNORE_1)
 			siemens_coeff = 0
@@ -519,10 +520,10 @@
 			switch(severity)
 				if(1)
 					L.receive_damage(0,10)
-					Paralyze(200)
+					Paralyze(50) // hippie -- was 20 s, now 5 s (user's ruling)
 				if(2)
 					L.receive_damage(0,5)
-					Paralyze(100)
+					Paralyze(25) // hippie -- was 10 s, now 2.5 s
 
 /mob/living/carbon/human/acid_act(acidpwr, acid_volume, bodyzone_hit) //todo: update this to utilize check_obscured_slots() //and make sure it's check_obscured_slots(TRUE) to stop aciding through visors etc
 	var/list/damaged = list()
@@ -640,7 +641,7 @@
 	for(var/obj/item/bodypart/affecting in damaged)
 		affecting.receive_damage(acidity, 2*acidity)
 
-		if(affecting.name == BODY_ZONE_HEAD)
+		if(affecting.body_zone == BODY_ZONE_HEAD) // hippie -- was its name, which a robotic head doesn't share
 			if(prob(min(acidpwr*acid_volume/10, 90))) //Applies disfigurement
 				affecting.receive_damage(acidity, 2*acidity)
 				emote("scream")
@@ -761,20 +762,20 @@
 		else
 			to_chat(src, "<span class='info'>You feel fatigued.</span>")
 	if(HAS_TRAIT(src, TRAIT_SELF_AWARE))
-		if(toxloss)
-			if(toxloss > 10)
-				to_chat(src, "<span class='danger'>You feel sick.</span>")
+		if(toxloss) // hippie start -- worst first: smallest first made the others unreachable
+			if(toxloss > 40)
+				to_chat(src, "<span class='danger'>You feel very unwell!</span>")
 			else if(toxloss > 20)
 				to_chat(src, "<span class='danger'>You feel nauseated.</span>")
-			else if(toxloss > 40)
-				to_chat(src, "<span class='danger'>You feel very unwell!</span>")
+			else if(toxloss > 10)
+				to_chat(src, "<span class='danger'>You feel sick.</span>")
 		if(oxyloss)
-			if(oxyloss > 10)
-				to_chat(src, "<span class='danger'>You feel lightheaded.</span>")
+			if(oxyloss > 30)
+				to_chat(src, "<span class='danger'>You're choking!</span>")
 			else if(oxyloss > 20)
 				to_chat(src, "<span class='danger'>Your thinking is clouded and distant.</span>")
-			else if(oxyloss > 30)
-				to_chat(src, "<span class='danger'>You're choking!</span>")
+			else if(oxyloss > 10)
+				to_chat(src, "<span class='danger'>You feel lightheaded.</span>") // hippie end
 
 	if(!HAS_TRAIT(src, TRAIT_NOHUNGER))
 		switch(nutrition)

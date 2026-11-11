@@ -322,6 +322,8 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 	next_watch_time = world.time + BOT_WATCH_INTERVAL + rand(0, 2 SECONDS)
 	if(GLOB.bot_reflexes_off || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST || gym_scripted)
 		return
+	if(look_out_for_bombers()) //bot_fighting.dm
+		return
 	if(length(GLOB.bot_security_wanted) || bot_any_suit_worn()) //goals/fight_the_suit.dm
 		look_out_for_trouble()
 	look_round_the_room() //bot_playstyles.dm

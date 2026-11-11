@@ -78,6 +78,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	/// What they did, as it went on the record, and who to: what an officer tells them, and weighs what they say against (bot_asks.dm).
 	var/details
 	var/datum/weakref/victim
+	/// Everybody they're on the record for hurting (weakrefs): one of them dying of it later is murder (bot_victim_died())
+	var/list/victims
 	/// Called out on the radio as one to kill on sight (bot_law.dm bot_call_kill_on_sight()), and how senior whoever last said
 	/// otherwise, or said it again, was (bot_authority_rank()): 0 is Security's own call.
 	var/kill_on_sight = FALSE
@@ -170,7 +172,13 @@ GLOBAL_LIST_INIT(bot_antag_crimes, list("Murder", "Attempted Murder", "Sabotage"
 		W = new
 		W.time_reported = world.time
 		GLOB.bot_security_wanted[WEAKREF(H)] = W
-	if(severity >= W.severity || !W.crime)
+	// A confirmed antagonist's charge isn't written over by a lesser one of the same weight. In the user's Captain round (round-20.37.50)
+	// Wren called the Captain kill on sight for Attempted Murder, the HoS saw him shoot her a minute later and filed Assaulting an Officer
+	// over it, and from then on he wasn't fair game (bot_is_fair_game()) and every officer cuffed him "for assaulting an officer".
+	var/keeps_charge = W.crime && severity == W.severity && (W.crime in GLOB.bot_antag_crimes) && !(crime in GLOB.bot_antag_crimes)
+	if(victim)
+		LAZYOR(W.victims, WEAKREF(victim))
+	if((severity >= W.severity || !W.crime) && !keeps_charge)
 		W.crime = crime
 		W.severity = severity
 		W.details = details
@@ -200,6 +208,84 @@ GLOBAL_LIST_INIT(bot_antag_crimes, list("Murder", "Attempted Murder", "Sabotage"
 /// A murder on the records (the severity defines stop at the end of this file).
 /datum/bot_brain/proc/file_murder(mob/living/carbon/human/H, details)
 	file_crime(H, "Murder", details, BOT_CRIME_MURDER)
+
+/// How long after the last blow a death is still put down to it
+#define BOT_DIED_OF_IT_WINDOW (3 MINUTES)
+
+GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
+
+/datum/bot_death_listener/proc/on_death(datum/source, mob/living/M, gibbed)
+	SIGNAL_HANDLER
+	if(ishuman(M))
+		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_victim_died), M), 1)
+
+/// Listens for deaths, from the first bot on (SSdcs isn't up when globals are made)
+/datum/bot_brain/New()
+	. = ..()
+	if(!GLOB.bot_death_listener)
+		GLOB.bot_death_listener = new
+		GLOB.bot_death_listener.RegisterSignal(SSdcs, COMSIG_GLOB_MOB_DEATH, TYPE_PROC_REF(/datum/bot_death_listener, on_death))
+
+/// Somebody who died of what was done to them after the fact, bleeding out or choking in crit, while whoever did it is already wanted:
+/// that's murder now. In the user's Captain round (round-20.37.50) the Warden bled out two minutes after the Captain shotgunned him,
+/// the crew monitor read it out on the radio, and the Captain stayed wanted for Assaulting an Officer. A death in front of an officer
+/// is called at the time (bot_classify_crime()).
+/proc/bot_victim_died(mob/living/carbon/human/victim)
+	if(QDELETED(victim) || victim.stat != DEAD || !victim.mind?.assigned_role || !victim.last_assailant || victim.last_assailant == victim.real_name)
+		return
+	if(world.time - victim.last_assailant_at > BOT_DIED_OF_IT_WINDOW || bot_is_fair_game(victim))
+		return
+	// Whoever's on the record for hurting this one, and was the last to: Security knows who did it, not just that somebody died. A bartender
+	// wanted for a punch at somebody else, who killed the Captain where nobody saw, was booked for it all the same (shift batch capt2_1110).
+	var/mob/living/carbon/human/killer
+	var/datum/bot_wanted/W
+	var/datum/weakref/victim_ref = WEAKREF(victim)
+	for(var/datum/weakref/ref as anything in GLOB.bot_security_wanted)
+		var/mob/living/carbon/human/H = ref.resolve()
+		var/datum/bot_wanted/entry = GLOB.bot_security_wanted[ref]
+		if(H && H != victim && H.real_name == victim.last_assailant && (victim_ref in entry.victims))
+			killer = H
+			W = entry
+			break
+	if(!killer)
+		return
+	// Security's own force, as when it's seen (bot_security_judge_combat())
+	if(bot_is_officer(killer) && (killer.bot_brain || bot_is_wanted(victim)))
+		return
+	// They went for the killer first: that's self-defense, however it ended (bot_security_judge_combat())
+	var/their_first = GLOB.bot_recent_aggression["[REF(victim)]>[REF(killer)]"]
+	var/our_first = GLOB.bot_recent_aggression["[REF(killer)]>[REF(victim)]"]
+	if(their_first && (!our_first || their_first < our_first))
+		return
+	var/list/verdict = bot_classify_crime(killer, victim, "killed", null)
+	if(W.crime == verdict[1])
+		return
+	// Whoever keeps the records: the nearest officer who's up, else the nearest of anybody (Bot Gym: the one in that arena)
+	var/datum/bot_brain/clerk
+	var/clerk_dist
+	var/turf/where = get_turf(victim)
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		if(QDELETED(B.owner) || B.owner.stat != CONSCIOUS || B.owner == killer)
+			continue
+		var/dist = (B.owner.z == where?.z ? get_dist(B.owner, where) : 500) + (B.is_security_job() ? 0 : 1000)
+		if(!clerk || dist < clerk_dist)
+			clerk = B
+			clerk_dist = dist
+	if(!clerk)
+		return
+	var/old_crime = W.crime
+	clerk.file_crime(killer, verdict[1], "[victim.real_name] died of it. [verdict[3]]", verdict[2], victim)
+	if(W.crime == old_crime)
+		return
+	bot_log(clerk, "[victim] died of what [killer] did to them: [lowertext(old_crime)] is [lowertext(W.crime)] now")
+	for(var/datum/bot_brain/B as anything in GLOB.bot_security_brains)
+		if(B.arrest_suspect == killer && W.severity >= B.arrest_severity)
+			B.arrest_crime = W.crime
+			B.arrest_severity = W.severity
+	if(clerk.is_security_job())
+		bot_say(clerk.owner, ":s [victim.real_name] didn't make it. [killer.real_name]'s wanted for [lowertext(W.crime)] now.")
+
+#undef BOT_DIED_OF_IT_WINDOW
 
 /proc/bot_set_criminal_status(mob/living/carbon/human/H, status)
 	var/datum/data/record/R = bot_find_security_record(H)
@@ -273,6 +359,7 @@ GLOBAL_LIST_INIT(bot_antag_crimes, list("Murder", "Attempted Murder", "Sabotage"
 		var/mob/living/carbon/human/marked = target
 		marked.last_assailant = assailant.real_name //what a forensic scan can turn up (goals/detective.dm)
 		marked.last_assailant_gloved = !!assailant.gloves
+		marked.last_assailant_at = world.time
 	// A bot notices being hurt however it happened - fists, feet, teeth, bullets, thrown junk - not just item hits
 	// (this used to hang off attacked_by(), which only item attacks reach).
 	var/mob/living/carbon/human/victim = target

@@ -13,7 +13,7 @@
 /obj/item/borg/stun/attack(mob/living/M, mob/living/user)
 	if(ishuman(M))
 		var/mob/living/carbon/human/H = M
-		if(H.check_shields(src, 0, "[M]'s [name]", MELEE_ATTACK))
+		if(H.check_shields(src, 0, "[user]'s [name]", MELEE_ATTACK)) // hippie -- named the victim as the arm's owner
 			playsound(M, 'sound/weapons/genhit.ogg', 50, 1)
 			return FALSE
 	if(iscyborg(user))
@@ -23,7 +23,7 @@
 
 	user.do_attack_animation(M)
 	M.Paralyze(100)
-	M.apply_effect(EFFECT_STUTTER, 5)
+	M.apply_effect(5, EFFECT_STUTTER) // hippie -- arguments were reversed, so no stutter was ever applied
 
 	M.visible_message("<span class='danger'>[user] has prodded [M] with [src]!</span>", \
 					"<span class='userdanger'>[user] has prodded you with [src]!</span>")
@@ -124,7 +124,8 @@
 							user.visible_message("<span class='userdanger'>[user] shocks [M]. It does not seem to have an effect</span>", \
 								"<span class='danger'>You shock [M] to no effect.</span>")
 					playsound(loc, 'sound/effects/sparks2.ogg', 50, 1, -1)
-					user.cell.charge -= 500
+					log_combat(user, M, "shocked", src) // hippie -- an emagged hug module's shock went unlogged
+					user.cell.charge = max(user.cell.charge - 500, 0) // hippie -- could go below zero
 					scooldown = world.time + 20
 		if(3)
 			if(ccooldown < world.time)
@@ -137,7 +138,8 @@
 								"<span class='danger'>You crush [M]!</span>")
 					playsound(loc, 'sound/weapons/smash.ogg', 50, 1, -1)
 					M.adjustBruteLoss(15)
-					user.cell.charge -= 300
+					log_combat(user, M, "crushed", src) // hippie -- went unlogged
+					user.cell.charge = max(user.cell.charge - 300, 0) // hippie -- could go below zero
 					ccooldown = world.time + 10
 
 /obj/item/borg/cyborghug/peacekeeper

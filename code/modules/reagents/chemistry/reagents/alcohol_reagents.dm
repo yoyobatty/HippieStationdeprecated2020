@@ -1707,7 +1707,8 @@ All effects don't start immediately, but rather get worse over time; the rate is
 		M.adjustToxLoss(1*REM, 0)
 	M.adjust_nutrition(-5)
 	M.overeatduration = 0
-	return ..()
+	..()
+	return TRUE // hippie -- the toxin damage above skips the health update, so ask for one
 
 /datum/reagent/consumable/ethanol/fernet_cola
 	name = "Fernet Cola"
@@ -1725,7 +1726,8 @@ All effects don't start immediately, but rather get worse over time; the rate is
 		M.adjustToxLoss(0.5*REM, 0)
 	M.adjust_nutrition(- 3)
 	M.overeatduration = 0
-	return ..()
+	..()
+	return TRUE // hippie -- the toxin damage above skips the health update, so ask for one
 
 /datum/reagent/consumable/ethanol/fanciulli
 

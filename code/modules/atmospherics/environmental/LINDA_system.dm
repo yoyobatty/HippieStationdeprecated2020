@@ -44,7 +44,9 @@
 	return FALSE
 
 /turf/proc/ImmediateCalculateAdjacentTurfs()
-	var/canpass = CANATMOSPASS(src, src) 
+	if(seal_dir) // hippie -- a door here has shut: which side its tile still shares air with (door_seals.dm)
+		update_seal()
+	var/canpass = CANATMOSPASS(src, src)
 	var/canvpass = CANVERTICALATMOSPASS(src, src)
 	tile_engine_sent = 0 // hippie -- the tile engine's copy of our neighbours may be out of date (tile_engine.dm)
 	for(var/direction in GLOB.cardinals_multiz)
@@ -64,6 +66,9 @@
 			if (T.atmos_adjacent_turfs)
 				T.atmos_adjacent_turfs -= src
 			UNSETEMPTY(T.atmos_adjacent_turfs)
+			if(T.seal_dir == REVERSE_DIR(direction)) // hippie start -- a shut door's tile that shared air through here can't any more, so it picks another side (door_seals.dm)
+				T.seal_dir = SEAL_PENDING
+				CALCULATE_ADJACENT_TURFS(T, NORMAL_TURF) // hippie end
 	UNSETEMPTY(atmos_adjacent_turfs)
 	src.atmos_adjacent_turfs = atmos_adjacent_turfs
 

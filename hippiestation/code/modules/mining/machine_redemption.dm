@@ -220,36 +220,50 @@ HIPPIE END */
 /obj/machinery/mineral/ore_redemption/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
-		ui = new(user, src, ui_key, "ore_redemption_machine", "Ore Redemption Machine", 440, 550, master_ui, state)
+		ui = new(user, src, ui_key, "ore_redemption_machine", "Ore Redemption Machine", 540, 660, master_ui, state)
 		ui.set_autoupdate(TRUE)
 		ui.open()
 
 /obj/machinery/mineral/ore_redemption/ui_data(mob/user)
 	var/list/data = list()
 	data["unclaimedPoints"] = points
+	data["pointRate"] = point_upgrade
+	data["sheetsPerOre"] = sheet_per_ore
 	if(inserted_id)
 		data["hasID"] = TRUE
+		data["idName"] = inserted_id.registered_name || inserted_id.name
 		data["claimedPoints"] = inserted_id.mining_points
+	else
+		// Claim with the slot empty goes to the card the user has on them
+		var/obj/item/card/id/worn = user.get_idcard(TRUE)
+		if(worn)
+			data["wornName"] = worn.registered_name || worn.name
+			data["wornPoints"] = worn.mining_points
+	data["access"] = (check_access(inserted_id) || allowed(user)) ? TRUE : FALSE
+
+	// Where the stock lives. On a silo it's the silo's: the lathes on it draw from the same sheets, and what goes into
+	// any of them shows up here again (players took that for the machine copying sheets, 2026-11-10).
+	var/datum/component/material_container/mat_container = materials.mat_container
+	data["storage"] = !mat_container ? "none" : (materials.silo ? "silo" : "local")
+	if(materials.silo)
+		data["siloArea"] = get_area_name(materials.silo, TRUE)
+		data["sharedWith"] = max(length(materials.silo.connected) - 1, 0)
+		data["onHold"] = materials.on_hold() ? TRUE : FALSE
 
 	data["materials"] = list()
-	var/datum/component/material_container/mat_container = materials.mat_container
+	data["alloys"] = list()
 	if (mat_container)
 		for(var/mat_id in mat_container.materials)
 			var/datum/material/M = mat_container.materials[mat_id]
-			var/sheet_amount = M.amount ? M.amount / MINERAL_MATERIAL_AMOUNT : "0"
-			data["materials"] += list(list("name" = M.name, "id" = M.id, "amount" = sheet_amount, "value" = ore_values[M.id] * point_upgrade))
+			data["materials"] += list(list("name" = M.name, "id" = M.id, "amount" = round(M.amount / MINERAL_MATERIAL_AMOUNT), "value" = round((ore_values[M.id] || 0) * point_upgrade, 0.1)))
 
-		data["alloys"] = list()
 		for(var/v in stored_research.researched_designs)
 			var/datum/design/D = SSresearch.techweb_design_by_id(v)
-			data["alloys"] += list(list("name" = D.name, "id" = D.id, "amount" = can_smelt_alloy(D)))
-
-	if (!mat_container)
-		data["disconnected"] = "local mineral storage is unavailable"
-	else if (!materials.silo)
-		data["disconnected"] = "no ore silo connection is available; storing locally"
-	else if (materials.on_hold())
-		data["disconnected"] = "mineral withdrawal is on hold"
+			var/list/cost = list()
+			for(var/mat_id in D.materials)
+				var/datum/material/M = mat_container.materials[mat_id]
+				cost += list(list("name" = M ? M.name : "[mat_id]", "sheets" = D.materials[mat_id] / MINERAL_MATERIAL_AMOUNT))
+			data["alloys"] += list(list("name" = D.name, "id" = D.id, "amount" = can_smelt_alloy(D) || 0, "cost" = cost))
 
 	data["diskDesigns"] = list()
 	if(inserted_disk)
@@ -283,9 +297,13 @@ HIPPIE END */
 				to_chat(usr, "<span class='warning'>Not a valid ID!</span>")
 			return TRUE
 		if("Claim")
-			if(inserted_id)
-				inserted_id.mining_points += points
-				points = 0
+			// The card in the slot, or with the slot empty the one the user has on them
+			var/obj/item/card/id/claimant = inserted_id || usr.get_idcard(TRUE)
+			if(!claimant)
+				to_chat(usr, "<span class='warning'>No ID to claim to.</span>")
+				return TRUE
+			claimant.mining_points += points
+			points = 0
 			return TRUE
 		if("Release")
 			if(!mat_container)
@@ -305,12 +323,17 @@ HIPPIE END */
 					return
 
 				var/desired = 0
-				if (params["sheets"])
+				if (params["all"])
+					desired = stored_amount
+				else if (!isnull(params["sheets"])) // any count the window sends, 0 included; the prompt only when it sends none
 					desired = text2num(params["sheets"])
 				else
 					desired = tgui_input_number(usr, "How many sheets?", "How many sheets would you like to smelt?", 1)
 
-				var/sheets_to_remove = round(min(desired,50,stored_amount))
+				// No 50 cap any more: retrieve_sheets() puts it out in stacks of 50
+				var/sheets_to_remove = round(min(desired, stored_amount))
+				if(sheets_to_remove < 1)
+					return TRUE
 				var/count = mat_container.retrieve_sheets(sheets_to_remove, mat_id, get_step(src, output_dir))
 				var/list/mats = list()
 				mats[mat_id] = MINERAL_MATERIAL_AMOUNT
@@ -346,19 +369,24 @@ HIPPIE END */
 			if((check_access(inserted_id) || allowed(usr)) && alloy)
 				var/smelt_amount = can_smelt_alloy(alloy)
 				var/desired = 0
-				if (params["sheets"])
+				if (params["all"])
+					desired = smelt_amount
+				else if (!isnull(params["sheets"])) // any count the window sends, 0 included; the prompt only when it sends none
 					desired = text2num(params["sheets"])
 				else
 					desired = tgui_input_number(usr, "How many sheets?", "How many sheets would you like to smelt?", 1)
-				var/amount = round(min(desired,50,smelt_amount))
-				mat_container.use_amount(alloy.materials, amount)
+				var/is_sheets = ispath(alloy.build_path, /obj/item/stack/sheet)
+				// Checked again after the prompt, and never below 1: a negative count made use_amount() ADD materials
+				var/amount = is_sheets ? round(min(desired, can_smelt_alloy(alloy))) : 1
+				if(amount < 1 || !mat_container.use_amount(alloy.materials, amount))
+					return TRUE
 				materials.silo_log(src, "released", -amount, "sheets", alloy.materials)
-				var/output
-				if(ispath(alloy.build_path, /obj/item/stack/sheet))
-					output = new alloy.build_path(src, amount)
+				if(is_sheets)
+					// In stacks of 50: a bigger stack splits itself inside the machine, where the rest was lost
+					for(var/left = amount, left > 0, left -= MAX_STACK_SIZE)
+						unload_mineral(new alloy.build_path(src, min(left, MAX_STACK_SIZE)))
 				else
-					output = new alloy.build_path(src)
-				unload_mineral(output)
+					unload_mineral(new alloy.build_path(src))
 			else
 				to_chat(usr, "<span class='warning'>Required access not found.</span>")
 			return TRUE

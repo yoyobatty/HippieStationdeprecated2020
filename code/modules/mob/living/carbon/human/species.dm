@@ -1148,7 +1148,7 @@ GLOBAL_LIST_EMPTY(roundstart_races)
 
 /datum/species/proc/help(mob/living/carbon/human/user, mob/living/carbon/human/target, datum/martial_art/attacker_style)
 // hippie start -- martial arts check because this was never implemented. sorry not sorry
-	if(attacker_style && attacker_style.help_act(user,target))
+	if(user != target && attacker_style && attacker_style.help_act(user,target)) // hippie -- clicking yourself checks injuries; Armstrong punched its own user
 		return 1
 // hippie end
 	if(!((target.health < 0 || HAS_TRAIT(target, TRAIT_FAKEDEATH)) && !(target.mobility_flags & MOBILITY_STAND)))
@@ -1230,6 +1230,8 @@ GLOBAL_LIST_EMPTY(roundstart_races)
 		var/damage = rand(user.dna.species.punchdamagelow, user.dna.species.punchdamagehigh)
 
 		var/obj/item/bodypart/affecting = target.get_bodypart(ran_zone(user.zone_selected))
+		if(!affecting) // hippie -- a punch at a missing limb lands on the chest instead of always missing
+			affecting = target.get_bodypart(BODY_ZONE_CHEST)
 
 		var/miss_chance = 100//calculate the odds that a punch misses entirely. considers stamina and brute damage of the puncher. punches miss by default to prevent weird cases
 		if(user.dna.species.punchdamagelow)
@@ -1451,15 +1453,15 @@ hippie end */
 			var/dmg_to_deal = I.force
 			if(defense_roll == 2)
 				dmg_to_deal *= 2
-				H.send_item_attack_message(I, user)
-			apply_damage(dmg_to_deal, I.damtype, blocked = armor_block)
+			H.send_item_attack_message(I, user, hit_area) // hippie -- every landed hit says so, not only a critical one
+			apply_damage(dmg_to_deal, I.damtype, def_zone, armor_block, H) // hippie -- H was missing: the hit read null.physiology and did nothing, so monks took no weapon damage
 			if(I.damtype == BRUTE)
 				if(prob(33))
-					I.add_mob_blood(src)
-					var/turf/location = get_turf(src)
+					I.add_mob_blood(H) // hippie start -- src is the species datum here, not the mob
+					var/turf/location = get_turf(H)
 					H.add_splatter_floor(location)
-					if(get_dist(user, src) <= 1)
-						user.add_mob_blood(src)
+					if(get_dist(user, H) <= 1)
+						user.add_mob_blood(H) // hippie end
 			return TRUE
 		else
 			H.visible_message("<span class='danger'>[H] dodges the [I]!</span>",\
@@ -1505,7 +1507,7 @@ hippie end */
 						var/mob/living/carbon/human/dirtyboy = user
 						dirtyboy.adjust_hygiene(-10)
 
-		switch(hit_area)
+		switch(def_zone) // hippie -- was hit_area, the limb's name: a "cyborg head" or "cyborg torso" never matched
 			if(BODY_ZONE_HEAD)
 				if(!I.is_sharp() && armor_block < 50)
 					if(prob(I.force))
@@ -1692,7 +1694,7 @@ hippie end */
 				else
 					H.throw_alert("temp", /obj/screen/alert/hot, 3)
 		burn_damage = burn_damage * heatmod * H.physiology.heat_mod
-		if (H.stat < UNCONSCIOUS && (prob(burn_damage) * 10) / 4) //40% for level 3 damage on humans
+		if (H.stat < UNCONSCIOUS && prob(burn_damage * 10 / 4)) //40% for level 3 damage on humans // hippie -- the bracket closed after prob(), so the chance was only burn_damage%
 			H.emote("scream")
 		H.apply_damage(burn_damage, BURN)
 

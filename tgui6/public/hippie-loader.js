@@ -4,6 +4,9 @@
 // this), so each is asked for again under a new name until it comes. Placed at the end of the body by tgui_panel.dm.
 (function () {
   var RETRY_MS = 1500;
+  // The bundle's md5, filled in by tgui_panel.dm: the game window's browser keeps a file by its address from one
+  // connection to the next, so after a rebuild it ran the old chat bar until the address changed.
+  var VERSION = 'HIPPIE_PANEL_VERSION';
   var TRIES = 200;
   var started = Date.now();
   var log = (window.chatLoadLog = []);
@@ -38,7 +41,7 @@
       }
       done(xhr.responseText);
     };
-    xhr.open('GET', attempt ? name + '?r=' + attempt : name, true);
+    xhr.open('GET', name + '?v=' + VERSION + (attempt ? '&r=' + attempt : ''), true);
     xhr.send(null);
   }
   fetchText('tgui-panel.bundle.css', 0, function (css) {

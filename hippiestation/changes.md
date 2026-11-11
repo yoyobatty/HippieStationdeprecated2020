@@ -41,11 +41,14 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/subsystem/ticker.dm
 ## code/controllers/subsystem/timer.dm
 ## code/controllers/subsystem/vote.dm
+## code/datums/components/material_container.dm
 ## code/datums/datumvars.dm
 ## code/datums/diseases/\_MobProcs.dm
 ## code/datums/elements/atmos_sensitive.dm
 ## code/datums/helper_datums/getrev.dm
 ## code/datums/hud.dm
+## code/datums/mutations/actions.dm
+## code/datums/mutations/body.dm
 ## code/datums/progressbar.dm
 ## code/datums/status_effects/neutral.dm
 ## code/datums/status_effects/status_effect.dm
@@ -68,6 +71,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/machinery/flasher.dm
 ## code/game/machinery/telecomms/broadcasting.dm
 ## code/game/machinery/telecomms/telecomunications.dm
+## code/game/mecha/equipment/tools/mining_tools.dm
 ## code/game/objects/effects/effect_system/effects_other.dm
 ## code/game/objects/effects/effect_system/effects_smoke.dm
 ## code/game/objects/empulse.dm !Should be modularized. Can be done easily.
@@ -76,9 +80,11 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/objects/items/defib.dm
 ## code/game/objects/items/devices/flashlight.dm !Should be modularized. Can be done easily.
 ## code/game/objects/items/devices/radio/radio.dm
+## code/game/objects/items/robot/robot_items.dm
 ## code/game/objects/items/stacks/rods.dm
 ## code/game/objects/items/stacks/sheets/glass.dm
 ## code/game/objects/items/stacks/stack.dm
+## code/game/objects/items/stunbaton.dm
 ## code/game/objects/items/tools/wirecutters.dm !Should be modularized. Can be done easily.
 ## code/game/objects/obj_defense.dm
 ## code/game/objects/structures/grille.dm
@@ -102,11 +108,19 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/admin/stickyban.dm
 ## code/modules/admin/topic.dm
 ## code/modules/admin/verbs/adminhelp.dm
+## code/modules/admin/verbs/beakerpanel.dm (a verb hands over to hippie's window: verbs run tg's definition)
+## code/modules/admin/verbs/debug.dm (verbs hand over to hippie's windows: verbs run tg's definition)
 ## code/modules/admin/verbs/individual_logging.dm
+## code/modules/admin/verbs/mapping.dm (verbs hand over to hippie's windows: verbs run tg's definition)
 ## code/modules/admin/verbs/one_click_antag.dm
+## code/modules/admin/verbs/randomverbs.dm (a verb hands over to hippie's window: verbs run tg's definition)
+## code/modules/antagonists/abductor/equipment/abduction_gear.dm
+## code/modules/antagonists/changeling/powers/mutations.dm
 ## code/modules/antagonists/clockcult/clock_items/clockwork_armor.dm
+## code/modules/antagonists/cult/blood_magic.dm
 ## code/modules/antagonists/morph/morph.dm
 ## code/modules/asset_cache/asset_list.dm
+## code/modules/atmospherics/environmental/LINDA_system.dm (tile engine neighbour cache; shut doors' tiles pick their side, door_seals.dm)
 ## code/modules/atmospherics/machinery/atmosmachinery.dm
 ## code/modules/atmospherics/machinery/components/components_base.dm
 ## code/modules/atmospherics/machinery/components/unary_devices/vent_pump.dm
@@ -136,6 +150,8 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/mining/equipment/survival_pod.dm !Should be modularized. Can be done easily.
 ## code/modules/mob/dead/new_player/new_player.dm
 ## code/modules/mob/dead/new_player/poll.dm
+## code/modules/mob/living/blood.dm
+## code/modules/mob/living/brain/brain_item.dm
 ## code/modules/mob/living/carbon/alien/alien.dm !Should be modularized. Can be done easily.
 ## code/modules/mob/living/carbon/carbon_defense.dm
 ## code/modules/mob/living/carbon/death.dm !Should be modularized. Can be done easily.
@@ -145,10 +161,12 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/mob/living/carbon/human/say.dm
 ## code/modules/mob/living/carbon/human/species.dm
 ## code/modules/mob/living/carbon/human/species_types/jellypeople.dm
+## code/modules/mob/living/carbon/human/species_types/shadowpeople.dm
 ## code/modules/mob/living/carbon/life.dm
 ## code/modules/mob/living/carbon/monkey/monkey.dm !Should be modularized. Can be done easily.
 ## code/modules/mob/living/carbon/update_icons.dm
 ## code/modules/mob/living/living.dm 
+## code/modules/mob/living/living_defense.dm
 ## code/modules/mob/living/say.dm
 ## code/modules/mob/living/silicon/ai/ai.dm
 ## code/modules/mob/living/silicon/pai/pai_shell.dm
@@ -157,12 +175,14 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/mob/living/simple_animal/bot/medbot.dm
 ## code/modules/mob/living/simple_animal/friendly/dog.dm
 ## code/modules/mob/living/simple_animal/hostile/headcrab.dm
+## code/modules/mob/living/simple_animal/hostile/jungle/leaper.dm
 ## code/modules/mob/living/simple_animal/slime/slime.dm
 ## code/modules/mob/mob_helpers.dm
 ## code/modules/mob/mob_movement.dm !Horrible code alert, how did this even get merged?
 ## code/modules/photography/camera/camera_image_capturing.dm
 ## code/modules/reagents/chem_splash.dm !Could probably be improved to avoid cutting out the whole tg proc
 ## code/modules/reagents/chemistry/holder.dm !Same as above.
+## code/modules/reagents/chemistry/reagents/alcohol_reagents.dm
 ## code/modules/reagents/chemistry/reagents/food_reagents.dm
 ## code/modules/reagents/chemistry/reagents/other_reagents.dm
 ## code/modules/reagents/chemistry/reagents/toxin_reagents.dm

@@ -23,7 +23,9 @@
 
 
 /datum/martial_art/elite_cqc/proc/Gib(mob/living/carbon/human/A, mob/living/carbon/human/D)
-	if (D.stat)
+	// The help text's rule (user's ruling, 2026-11-10): it gibs the dead and stomps the living. It was the other way round:
+	// anyone still standing was gibbed outright and a downed target only stomped.
+	if (D.stat != DEAD)
 		D.visible_message("<span class='danger'>[A] stomps and slams [D]!</span>", \
 		"<span class='userdanger'>[A] stomps and slams you!</span>")
 		D.adjustBruteLoss(90)
@@ -36,7 +38,7 @@
 	return TRUE
 
 /datum/martial_art/elite_cqc/proc/Knockout(mob/living/carbon/human/A, mob/living/carbon/human/D)
-	if (!D.stat)
+	if (D.stat) // was !D.stat: it only "knocked out" someone already down
 		return FALSE
 	D.visible_message("<span class='danger'>[A] grabs [D] and slams them on the neck, knocking them out!</span>", \
 	"<span class='userdanger'>[A] grabs you and slams you on the neck, knocking you out!</span>")
@@ -45,10 +47,10 @@
 	return TRUE
 
 /datum/martial_art/elite_cqc/proc/Exhaustion(mob/living/carbon/human/A, mob/living/carbon/human/D)
-	if (!D.stat)
+	if (D.stat) // was !D.stat: it only subdued someone already down
 		return FALSE
 	D.visible_message("<span class='danger'>[A] subdues [D] and squeezes pressure points on their neck, exhausting them!</span>", \
-	"<span class='userdanger'>[A] grabs you and spressure points on your neck, exhausting you!</span>")
+	"<span class='userdanger'>[A] grabs you and squeezes pressure points on your neck, exhausting you!</span>")
 	D.adjustStaminaLoss(100)
 	return TRUE
 
@@ -98,5 +100,5 @@
 	to_chat(usr, "<b><i>You try to remember your training.</i></b>")
 
 	to_chat(usr, "<span class='notice'>Stomp and Slam</span>: Disarm Harm Harm Harm Harm. Stomp and slams the opponent, dealing major damage and gibbing if dead.")
-	to_chat(usr, "<span class='notice'>Subdue</span>: Disarm Grab Grab. Subdues the opponent, stunning and dealing stamina damage.")
+	to_chat(usr, "<span class='notice'>Subdue</span>: Disarm Disarm Grab. Subdues the opponent, stunning and dealing stamina damage.")
 	to_chat(usr, "<span class='notice'>Knockout</span>: Harm Harm Grab. Knocks out the opponent.")

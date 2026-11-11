@@ -134,7 +134,7 @@ GLOBAL_LIST_INIT(keybind_key_labels, list(
 			var/list/bar = GLOB.talk_keybind_commands[kb_name]
 			if(!bar)
 				continue
-			var/command = chat_bar_command(bar[1], bar[2])
+			var/command = chat_bar_command(bar[1], bar[2], length(key) == 1 ? lowertext(key) : null) //command_bar.dm: a letter key's letter
 			var/id = "default-talk-[length(talk_macro_ids) + 1]"
 			winset(src, id, list2params(list("parent" = "default", "name" = keybind_macro_name(key), "command" = command)))
 			talk_macro_ids += id

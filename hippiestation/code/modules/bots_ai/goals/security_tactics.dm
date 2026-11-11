@@ -45,6 +45,8 @@
 		return FALSE
 	if(istype(S.wear_suit, /obj/item/clothing/suit/space/hardsuit/nano))
 		return TRUE
+	if(bot_held_bomb(S)) //bot_fighting.dm
+		return TRUE
 	if(bot_armed_and_dangerous(S))
 		return TRUE
 	var/datum/bot_wanted/W = bot_get_wanted_entry(S)
@@ -75,6 +77,8 @@
 		S.answer_call(T)
 
 /datum/bot_brain/proc/call_for_backup(mob/living/carbon/human/S)
+	if(bot_held_bomb(S))
+		warn_of_bomber(S) //bot_fighting.dm
 	if(world.time < next_dispatch_call)
 		return
 	next_dispatch_call = world.time + BOT_BACKUP_GAP
@@ -136,7 +140,7 @@ GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 /// How far short of somebody dangerous an officer stops: out of a suit's reach while there aren't enough of them, in shooting range
 /// otherwise.
 /datum/bot_brain/proc/hold_off_distance(mob/living/carbon/human/S)
-	return short_of_the_others(S) ? BOT_SEC_WAIT_AWAY : BOT_SEC_HOLD_AT
+	return short_of_the_others(S) || bot_held_bomb(S) ? BOT_SEC_WAIT_AWAY : BOT_SEC_HOLD_AT
 
 /// Short of three against a suit: out of reach, nothing fired to draw it, the others called, and over to the nearest of them. TRUE while
 /// it waits.
@@ -243,29 +247,33 @@ GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 		return TRUE
 	if(wait_for_the_others(S, dist))
 		return TRUE
+	// A tank bomb in their hands: further off, and nobody goes in on them while they're up (bot_fighting.dm)
+	var/bomb = bot_held_bomb(S)
+	var/hold = hold_off_distance(S)
+	var/keep_away = bomb ? BOT_BOMB_KEEP_AWAY : BOT_SEC_KEEP_AWAY
 	if(!find_usable_gun())
 		// Nothing to shoot with. With another officer by it, or somebody being cut down in front of it, it goes in: the flash first
 		// (a sword doesn't stop that), then the baton and the cuffs, the ordinary arrest. Otherwise it doesn't go in alone: it keeps
 		// its distance and waits for the others to come.
-		if(should_go_in_unarmed(S))
+		if(!bomb && should_go_in_unarmed(S))
 			if(world.time >= next_going_in_note)
 				next_going_in_note = world.time + 20 SECONDS
 				bot_log(src, "out of shots - going in on [S] with [carried_flash() ? "the flash" : "the baton"]")
 			return FALSE
-		if(dist <= BOT_SEC_HOLD_AT)
+		if(dist <= hold)
 			stop_pursuit()
-			if(dist < BOT_SEC_KEEP_AWAY)
+			if(dist < keep_away)
 				step_back_from(S)
 			return TRUE
 		return FALSE
 	if(!try_suit_grenade(S, dist))
 		shoot_at_range(S)
-	if(dist <= BOT_SEC_HOLD_AT)
+	if(dist <= hold)
 		stop_pursuit()
-		if(dist < BOT_SEC_KEEP_AWAY)
+		if(dist < keep_away)
 			step_back_from(S)
 		return TRUE
-	var/turf/spot = spot_short_of(S)
+	var/turf/spot = spot_short_of(S, hold)
 	if(!spot)
 		return FALSE
 	if(pursuing_kind != "arrest" || pursue_target != spot)

@@ -224,6 +224,8 @@ export function CommandBar() {
   const historyRef = useRef<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // hippie -- when a talk key last opened the bar
+  const talkOpenedAtRef = useRef(0);
 
   const verbArgs = selectedVerb?.args || [];
   const currentArgIndex = selectedVerb ? filledArgs.length : -1;
@@ -280,9 +282,32 @@ export function CommandBar() {
       // hippie start -- the bar opened on a talk key's verb (Say, Me, OOC,
       // Whisper, Pray; Radio is Say with ";"), or with a key typed on the map
       // in classic mode. The chat pane takes the keyboard first.
+      // A talk key just after one opened the bar was a letter typed before the
+      // keyboard got here: the O in "ok" landed on the map as the OOC key and
+      // switched the bar to OOC. It goes in as the letter it is.
+      const now = Date.now();
+      if (
+        focusRequest?.verb &&
+        focusRequest.typed &&
+        now - talkOpenedAtRef.current < 1000
+      ) {
+        const letter = focusRequest.typed;
+        setInput((current) => current + letter);
+        inputRef.current?.focus();
+        return;
+      }
+      if (focusRequest?.verb) {
+        talkOpenedAtRef.current = now;
+      }
       const verb = focusRequest?.verb
         ? verbs.find((v) => v.name === focusRequest.verb)
         : undefined;
+      // and the bar stays on what the key opened it on (Say for Say), not the
+      // mode it was left in last (OOC, once, and every line after was OOC)
+      if (verb && (MODES as readonly string[]).includes(verb.name)) {
+        setMode(verb.name as Mode);
+        storage.set('tgui-commandbar-mode', verb.name);
+      }
       if (verb) {
         setSelectedVerb(verb);
         setFilledArgs([]);
@@ -620,6 +645,7 @@ export function CommandBar() {
               args: {},
             });
             dismissOrReset();
+            blurToMap(); // hippie -- done: the keyboard goes back to the game
           } else {
             selectVerb(verb);
           }
@@ -631,6 +657,7 @@ export function CommandBar() {
           selectCurrentSuggestion();
         } else if (selectedVerb) {
           invokeVerb();
+          blurToMap(); // hippie -- said: the keyboard goes back to the game
         }
         return;
       }

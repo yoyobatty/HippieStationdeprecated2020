@@ -63,6 +63,11 @@
 /datum/admins/proc/beaker_panel()
 	set category = "Debug"
 	set name = "Spawn reagent container"
+	// hippie start -- a verb runs this definition (verbs go in by path), with the client as src; by name it's hippie's window (admin_fun_tgui.dm)
+	var/datum/admins/hippie_holder = istype(src, /datum/admins) ? src : usr?.client?.holder
+	if(hippie_holder)
+		return hippie_holder.beaker_panel()
+	// hippie end
 	if(!check_rights())
 		return
 

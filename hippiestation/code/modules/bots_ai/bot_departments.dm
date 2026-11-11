@@ -385,6 +385,12 @@ GLOBAL_LIST_EMPTY(bot_panels_known)
 		return GOAL_STEP_FAIL
 	panel.shut_for_threat = shutting && panel.kind != BOT_PANEL_SPACE
 	panel.last_worked = world.time
+	// Shut in by its own hand, with the button beside it: it knows, and its routes go out through those doors by the button (bot_doors.dm).
+	// The quick look for being shut in stops at 60 tiles and the Bridge is bigger, so it waited on the once-a-minute wide one: in the user's
+	// Captain round (round-20.37.50) the HoS dropped the Bridge's blast doors from inside and every errand came back "no path" for a minute
+	// and a half, the fight in Chemistry with the Captain one of them.
+	if(shutting && panel.kind == BOT_PANEL_LOCKDOWN)
+		bot.is_shut_in(TRUE)
 	bot_log(bot, "[shutting ? "shut" : "opened"] [panel.name]")
 	bot_tally(shutting ? "doors shut" : "doors opened")
 	if(panel.kind == BOT_PANEL_LOCKDOWN)

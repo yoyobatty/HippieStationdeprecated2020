@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>tgui preview</title>
+<link rel="stylesheet" type="text/css" href="/tgui/tgui.bundle.css">
+<link rel="stylesheet" type="text/css" href="/fa/css/all.min.css">
+<link rel="stylesheet" type="text/css" href="/fa/css/v4-shims.min.css">
+<style>
+/* Designer aids, only in design mode */
+.dz-empty {
+  margin: 2px 0;
+  padding: 6px 8px;
+  min-height: 12px;
+  border: 1px dashed rgba(120, 180, 255, 0.55);
+  border-radius: 2px;
+  color: rgba(160, 200, 255, 0.75);
+  font-size: 11px;
+  text-align: center;
+  background-color: rgba(70, 130, 220, 0.06);
+}
+.dz-slot {
+  display: inline-block;
+  padding: 0 6px;
+  margin-left: 2px;
+  line-height: 18px;
+  border: 1px dashed rgba(120, 180, 255, 0.7);
+  border-radius: 2px;
+  color: rgba(160, 200, 255, 0.9);
+  font-size: 10px;
+  font-weight: normal;
+  vertical-align: middle;
+}
+.dz-ghost {
+  opacity: 0.4;
+}
+body.dz-design * {
+  cursor: default !important;
+}
+body.dz-design .Layout__titleBar,
+body.dz-design .TitleBar__close {
+  cursor: default !important;
+}
+</style>
+</head>
+<body>
+<div id="react-root"></div>
+<script src="/build/preview.bundle.js"></script>
+</body>
+</html>

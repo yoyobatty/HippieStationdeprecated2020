@@ -110,3 +110,31 @@ obj/item/projectile/rod/proc/Impale(mob/living/carbon/human/H)
 	if(isliving(target))
 		var/mob/living/L = target
 		L.adjust_bodytemperature(((100-blocked)/100)*(temperature - L.bodytemperature)) // the new body temperature is adjusted by 100-blocked % of the delta between body temperature and the bullet's effect temperature
+
+/// TRUE while the rod that pinned this human to a wall is still lodged in them.
+/mob/living/carbon/human/proc/pinning_rod_in()
+	for(var/X in bodyparts)
+		var/obj/item/bodypart/BP = X
+		for(var/obj/item/I in BP.embedded_objects)
+			if(I.pinned)
+				return TRUE
+	return FALSE
+
+/// Frees a human pinned to a wall. Only surgery used to, and only while the rod was still in: a rod that fell out on its
+/// own (embedded things do), was ripped out by hand, or went with a severed limb left them stuck to the wall for good.
+/mob/living/carbon/human/proc/unpin_from_wall()
+	var/turf/T = pinned_to
+	pinned_to = null
+	if(T && T.pinned == src)
+		T.pinned = null
+	anchored = FALSE
+	do_pindown(T, 0)
+	update_mobility()
+
+/mob/living/carbon/human/Destroy()
+	if(pinned_to) // the wall's tile held on to a deleted body
+		var/turf/T = pinned_to
+		if(T.pinned == src)
+			T.pinned = null
+		pinned_to = null
+	return ..()

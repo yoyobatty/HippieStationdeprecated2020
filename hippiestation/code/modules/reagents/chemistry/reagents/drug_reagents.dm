@@ -321,9 +321,9 @@
 	var/list/screens = list()
 	if(!C || !C.hud_used)
 		return screens
-	var/list/planes = list(FLOOR_PLANE, GAME_PLANE)
+	var/list/planes = list(FLOOR_PLANE, GAME_PLANE, FLOOR_DEPTH_PLANE) // the plating in the floor's holes too (floor_depth.dm)
 	if(!color_only) //colour matrices would mess with the multiply-blended planes, so those only get warped
-		planes += list(LIGHTING_PLANE, CAMERA_STATIC_PLANE, PLANE_SPACE_PARALLAX, PLANE_SPACE)
+		planes += list(LIGHTING_PLANE, CAMERA_STATIC_PLANE, PLANE_SPACE_PARALLAX, PLANE_SPACE, FLOOR_DEPTH_MASK_PLANE) // the holes' shapes bend, never recolour
 	for(var/plane in planes)
 		var/obj/screen/plane_master/PM = C.hud_used.plane_masters["[plane]"]
 		if(PM)

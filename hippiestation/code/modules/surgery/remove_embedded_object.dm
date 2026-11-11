@@ -8,11 +8,9 @@
 				I.forceMove(get_turf(H))
 				L.embedded_objects -= I
 				if (I.pinned)
-					target.do_pindown(target.pinned_to, 0)
-					target.pinned_to = null
-					target.anchored = 0
-					target.update_mobility()
 					I.pinned = null
+					if (H.pinned_to)
+						H.unpin_from_wall() // also clears the wall's hold on them, which this left behind
 			if(!H.has_embedded_objects())
 				H.clear_alert("embeddedobject")
 			if(objects > 0)

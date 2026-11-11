@@ -254,6 +254,7 @@ GLOBAL_VAR_INIT(normal_ooc_colour, "#002eb8")
 	set name = "View Admin Remarks"
 	set category = "OOC"
 	set desc = "View the notes that admins have written about you"
+	if(usr) return self_notes() // hippie -- a verb runs this definition (verbs go in by path); by name it's hippie's window (admin_records_tgui.dm)
 
 	if(!CONFIG_GET(flag/see_own_notes))
 		to_chat(usr, "<span class='notice'>Sorry, that function is not enabled on this server.</span>")
@@ -265,6 +266,7 @@ GLOBAL_VAR_INIT(normal_ooc_colour, "#002eb8")
 	set name = "View tracked playtime"
 	set category = "OOC"
 	set desc = "View the amount of playtime for roles the server has tracked."
+	if(usr) return self_playtime() // hippie -- a verb runs this definition (verbs go in by path); by name it's hippie's window (notices_tgui.dm)
 
 	if(!CONFIG_GET(flag/use_exp_tracking))
 		to_chat(usr, "<span class='notice'>Sorry, tracking is currently disabled.</span>")

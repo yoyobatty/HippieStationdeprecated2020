@@ -295,6 +295,7 @@
 	M.adjustFireLoss(1, 0)		//Hence the other damages... ain't I a bastard?
 	M.adjustBrainLoss(5, 150)
 	holder.remove_reagent(type, 1)
+	return TRUE // hippie -- the damage above skips the health update, so ask for one
 
 /datum/reagent/medicine/omnizine/godblood
 	name = "Godblood"

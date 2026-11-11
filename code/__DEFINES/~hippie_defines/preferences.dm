@@ -4,3 +4,4 @@
 
 #define HIPPIE_TOGGLES_DEFAULT	(SOUND_TTS|SOUND_VOX)
 #define SCREENTIPS_DISABLED		(1<<3) // off rather than on, so existing savefiles get screentips
+#define FLOOR_DEPTH_DISABLED	(1<<4) // plating where a tile came off drawn flat (floor_depth.dm)

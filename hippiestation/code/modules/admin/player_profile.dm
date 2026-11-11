@@ -249,6 +249,8 @@
 				usr.client.cmd_admin_pm(C, null)
 		if("logs")
 			usr.client.open_log_search(shown_ckey)
+		if("grief")
+			usr.client.open_grief_undo("player", shown_ckey)
 		if("notes")
 			usr.client.open_ban_window("notes", list("view" = "player", "ckey" = shown_ckey))
 		if("add_note")

@@ -39,7 +39,7 @@ var/horse_stance_effects = FALSE // ensures the horse stance gains it effect
 	var/level_cap = 30
 
 /datum/martial_art/armstrong/proc/check_streak(mob/living/carbon/human/A, mob/living/carbon/human/D)
-	A.hud_used.combo_object.update_icon(streak, 60)
+	A.hud_used?.combo_object?.update_icon(streak, 60)
 	if(findtext(streak,BUSTER_COMBO) && current_level >= 2)
 		Buster(A,D)
 	else if(findtext(streak,SLOPPY_HARM) || findtext (streak,SLOPPY_HELP) || findtext(streak,SLOPPY_DISARM) || findtext(streak,SLOPPY_GRAB)) // they all funnel into the same combo
@@ -63,7 +63,7 @@ var/horse_stance_effects = FALSE // ensures the horse stance gains it effect
 	else
 		return 0
 	streak = ""
-	A.hud_used.combo_object.update_icon(streak)
+	A.hud_used?.combo_object?.update_icon(streak)
 	return 1
 
 //special effects
@@ -249,6 +249,10 @@ var/horse_stance_effects = FALSE // ensures the horse stance gains it effect
 // Help/Hurt/Grab/Disarm acts
 
 /datum/martial_art/armstrong/help_act(mob/living/carbon/human/A, mob/living/carbon/human/D)
+	// Help is a combo key, but someone down or in crit gets ordinary help (shaking them up, CPR): an Armstrong user
+	// punched a friend they were trying to revive (user's ruling, 2026-11-10). Self-clicks never get here (species help()).
+	if(D.stat != CONSCIOUS || !(D.mobility_flags & MOBILITY_STAND))
+		return FALSE
 	if(D.stat != DEAD) // Checks if they're dead.
 		add_to_streak("E",D)
 		if(check_streak(A,D))

@@ -158,7 +158,7 @@
 			return 0
 
 	L.Paralyze(stunforce)
-	L.apply_effect(EFFECT_STUTTER, stunforce)
+	L.apply_effect(stunforce, EFFECT_STUTTER) // hippie -- arguments were reversed, so no stutter was ever applied
 	SEND_SIGNAL(L, COMSIG_LIVING_MINOR_SHOCK)
 	if(user)
 		L.lastattacker = user.real_name

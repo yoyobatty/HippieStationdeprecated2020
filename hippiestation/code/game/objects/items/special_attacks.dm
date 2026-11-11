@@ -36,14 +36,14 @@
 			if(active && get_dist(user, target) <= 1)
 				HT.Stun(15)
 				HT.blood_volume -= 15
-				var/armor_block = HT.run_armor_check("chest", "melee")
-				HT.apply_damage(25, BRUTE, HT.get_bodypart("chest") , armor_block - armour_penetration)
+				var/armor_block = HT.run_armor_check("chest", "melee", armour_penetration = armour_penetration) // the pen goes in here: taken off afterwards it went below zero and added damage (25 -> ~34 on bare skin)
+				HT.apply_damage(25, BRUTE, HT.get_bodypart("chest"), armor_block)
 				HT.visible_message("<span class='danger'>[user] lunges sword first at [HT] and impales them with [src]!</span>", "<span class='userdanger'>[user] impales you with the full length of [src]!</span>")
 				playsound(HT, 'sound/weapons/slice.ogg', 100, 1)
 				user.do_attack_animation(target)
 
 				if(do_after(user, 15, target = target) && get_dist(user, target) <= 1)
-					HT.apply_damage(25, BRUTE, HT.get_bodypart("chest"), armor_block - armour_penetration)
+					HT.apply_damage(25, BRUTE, HT.get_bodypart("chest"), armor_block)
 					var/obj/item/organ/stomach/S = HT.getorganslot("stomach")
 					if(S)
 						S.Remove(HT)
@@ -127,9 +127,10 @@
 /obj/item/melee/baseball_bat/do_special_attack(atom/target, mob/living/carbon/user, proximity_flag)
 	if(iscarbon(target) && proximity_flag)
 		var/mob/living/carbon/C = target
-		C.adjustBrainLoss(30)
-		C.confused += 25
 		var/armor_block = C.run_armor_check("head", "melee")
+		var/through_helmet = (100 - clamp(armor_block, 0, 100)) / 100 // a helmet takes the edge off the brain damage and daze too (user's ruling, 2026-11-10)
+		C.adjustBrainLoss(30 * through_helmet)
+		C.confused += round(25 * through_helmet)
 		C.apply_damage(force, BRUTE, C.get_bodypart("head"), armor_block)
 		C.visible_message("<span class='danger'>[user] smashes [C]'s head hard with [src]!</span>", "<span class='userdanger'>[user] smashes your skull in with [src]!</span>")
 		user.say("Ey, is somebody keepin' track of my heads batted in?", forced = "baseball bat")

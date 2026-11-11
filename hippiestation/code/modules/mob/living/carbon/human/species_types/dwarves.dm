@@ -46,6 +46,7 @@
 			var/datum/reagent/consumable/ethanol/theGoodStuff = chem
 			var/boozePower = sqrt(theGoodStuff.volume) * theGoodStuff.boozepwr * DWARF_ALCOHOL_RATE
 			dwarfDrunkness = clamp(dwarfDrunkness + boozePower, 0, 100)
+			H.reagents.remove_reagent(chem.type, chem.metabolization_rate * H.metabolism_efficiency) // still used up: TRUE skips on_mob_life, which is what removes it, so one drink stayed in the blood for good
 			return TRUE // Don't metabolize alcohol like normal humans do.
 
 /datum/species/dwarf/spec_life(mob/living/carbon/human/H)

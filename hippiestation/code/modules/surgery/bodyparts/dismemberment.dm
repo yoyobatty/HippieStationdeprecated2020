@@ -14,3 +14,9 @@
 		LB.brainmob.forceMove(LB)
 		LB.brainmob.stat = DEAD
 		C.set_species()
+
+// The chest's own dismember() (organs spilling out) skipped the godmode check the other limbs make
+/obj/item/bodypart/chest/dismember()
+	if(owner && (owner.status_flags & GODMODE))
+		return FALSE
+	return ..()

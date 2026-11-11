@@ -25,12 +25,16 @@ GLOBAL_LIST_INIT(command_bar_chat_paths, list(
 /// The client-side command that opens the chat bar with the keyboard in it: on `verb_name` (with `prefill` after it) if given. A
 /// macro runs it in the client (the page's update() gets the message), so the bar opens with no trip to the server. It's in place
 /// of the old input bar under the chat, which talk keys typed `say "` into (2026-11-08: the user saw both bars and kept this one).
-/proc/chat_bar_command(verb_name, prefill)
+/// `typed` is the letter the key types: a talk key pressed again just after the bar opened was a letter typed before the keyboard
+/// got there (the O in "ok" landed on the map as the OOC key and switched the bar to OOC), and the bar puts it in as text.
+/proc/chat_bar_command(verb_name, prefill, typed)
 	var/list/payload = list()
 	if(verb_name)
 		payload["verb"] = verb_name
 	if(prefill)
 		payload["prefill"] = prefill
+	if(typed)
+		payload["typed"] = typed
 	return ".output browseroutput:update [url_encode(json_encode(list("type" = "verbs/focus", "payload" = payload)))]"
 
 /// The chat bar takes the keyboard, sent from the server (classic mode's clicks and typing)

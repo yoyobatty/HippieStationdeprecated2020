@@ -120,7 +120,7 @@
 	else
 		//drill makes a hole
 		var/obj/item/bodypart/target_part = target.get_bodypart(ran_zone(BODY_ZONE_CHEST))
-		target.apply_damage(10, BRUTE, BODY_ZONE_CHEST, target.run_armor_check(target_part, "melee"))
+		target.apply_damage(10, BRUTE, target_part || BODY_ZONE_CHEST, target.run_armor_check(target_part || BODY_ZONE_CHEST, "melee")) // hippie -- the damage always went to the chest while the armor and the dismember roll came from the rolled limb
 
 		//blood splatters
 		var/splatter_dir = get_dir(chassis, target)

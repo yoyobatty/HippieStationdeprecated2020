@@ -6,6 +6,7 @@
 
 /datum/martial_art/cqc
 	name = "CQC"
+	id = MARTIALART_CQC // without it every mind "already knew" CQC (has_martialart("") matches the default art), so the CQC book couldn't be read
 	help_verb = /mob/living/carbon/human/proc/CQC_help
 	block_chance = 75
 	var/just_a_cook = FALSE
@@ -25,32 +26,38 @@
 			return FALSE
 	return TRUE
 
+// What blocking (check_block) and bullet deflection ask. Only the moves checked can_cook(), so the cook's kitchen-only CQC
+// blocked 75% of attacks anywhere on the station in throw mode.
+/datum/martial_art/cqc/can_use(mob/living/carbon/human/H)
+	return can_cook(H)
+
 /datum/martial_art/cqc/proc/check_streak(mob/living/carbon/human/A, mob/living/carbon/human/D)
-	A.hud_used.combo_object.update_icon(streak, 60)
+	A.hud_used?.combo_object?.update_icon(streak, 60)
 	if(findtext(streak,SLAM_COMBO))
 		streak = ""
-		A.hud_used.combo_object.update_icon(streak)
+		A.hud_used?.combo_object?.update_icon(streak)
 		Slam(A,D)
 		return TRUE
 	if(findtext(streak,KICK_COMBO))
 		streak = ""
-		A.hud_used.combo_object.update_icon(streak)
+		A.hud_used?.combo_object?.update_icon(streak)
 		Kick(A,D)
 		return TRUE
 	if(findtext(streak,RESTRAIN_COMBO))
 		streak = ""
-		A.hud_used.combo_object.update_icon(streak)
+		A.hud_used?.combo_object?.update_icon(streak)
 		Restrain(A,D)
 		return TRUE
 	if(findtext(streak,PRESSURE_COMBO))
 		streak = ""
-		A.hud_used.combo_object.update_icon(streak)
+		A.hud_used?.combo_object?.update_icon(streak)
 		Pressure(A,D)
 		return TRUE
 	if(findtext(streak,CONSECUTIVE_COMBO))
 		streak = ""
-		A.hud_used.combo_object.update_icon(streak)
+		A.hud_used?.combo_object?.update_icon(streak)
 		Consecutive(A,D)
+		return TRUE // it fell through to FALSE, so the combo also landed a normal CQC hit (13 more brute)
 	return FALSE
 
 /datum/martial_art/cqc/proc/Slam(mob/living/carbon/human/A, mob/living/carbon/human/D)
@@ -199,7 +206,7 @@
 	to_chat(usr, "<b><i>You try to remember some of the basics of CQC.</i></b>")
 
 	to_chat(usr, "<span class='notice'>Slam</span>: Grab Harm. Slam opponent into the ground, knocking them down.")
-	to_chat(usr, "<span class='notice'>CQC Kick</span>: Harm Disarm Harm. Knocks opponent away. Knocks out stunned or knocked down opponents.")
+	to_chat(usr, "<span class='notice'>CQC Kick</span>: Harm Harm. Knocks opponent away. Knocks out stunned or knocked down opponents.")
 	to_chat(usr, "<span class='notice'>Restrain</span>: Grab Grab. Locks opponents into a restraining position, disarm to knock them out with a choke hold.")
 	to_chat(usr, "<span class='notice'>Pressure</span>: Disarm Grab. Decent stamina damage.")
 	to_chat(usr, "<span class='notice'>Consecutive CQC</span>: Disarm Disarm Harm. Mainly offensive move, huge damage and decent stamina damage.")

@@ -610,6 +610,7 @@
 		"prev" = list("preference" = "graphics_down"),
 		"next" = list("preference" = "graphics_up"))))
 	rows += list(pref_toggle("Ambient occlusion", ambientocclusion ? "Enabled" : "Disabled", "ambientocclusion", ambientocclusion))
+	rows += list(pref_toggle("Floor depth", (hippie_toggles & FLOOR_DEPTH_DISABLED) ? "Disabled" : "Enabled", "floor_depth", !(hippie_toggles & FLOOR_DEPTH_DISABLED)))
 	rows += list(pref_toggle("Fit viewport", auto_fit_viewport ? "Auto" : "Manual", "auto_fit_viewport", auto_fit_viewport))
 	if(CONFIG_GET(string/default_view) != CONFIG_GET(string/default_view_square))
 		rows += list(pref_toggle("Widescreen", widescreenpref ? "Enabled ([CONFIG_GET(string/default_view)])" : "Disabled ([CONFIG_GET(string/default_view_square)])", "widescreenpref", widescreenpref))

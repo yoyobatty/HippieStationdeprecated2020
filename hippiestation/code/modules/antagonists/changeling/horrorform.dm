@@ -26,7 +26,7 @@
 	 "OP's mom")
 	new_mob.name = new_mob.real_name
 	new_mob.stored_changeling = user
-	user.loc = new_mob
+	user.forceMove(new_mob) // was user.loc =, which skipped Exited/Entered (the tile, lights and anything watching it never knew)
 	user.status_flags |= GODMODE
 	user.mind.transfer_to(new_mob)
 	user.transfer_observers_to(new_mob)
@@ -155,7 +155,7 @@
 	if(stored_changeling && mind)
 		visible_message("<span class='warning'>[src] lets out a furious scream as it shrinks into its human form.</span>", \
 						"<span class='userdanger'>We lack the power to maintain this form! We helplessly turn back into a human...</span>")
-		stored_changeling.loc = get_turf(src)
+		stored_changeling.forceMove(get_turf(src)) // was a raw loc =
 		mind.transfer_to(stored_changeling)
 		transfer_observers_to(stored_changeling)
 		stored_changeling.AdjustUnconscious(250)
@@ -188,7 +188,7 @@
 	usr.visible_message("<span class='warning'>[M] suddenly crunches and twists into a smaller form!</span>", \
 						"<span class='danger'>We return to our lesser form.</span>")
 	var/mob/living/carbon/human/C = M.stored_changeling
-	C.loc = get_turf(M)
+	C.forceMove(get_turf(M)) // was a raw loc =
 	M.mind.transfer_to(C)
 	C.Knockdown(100)
 	C.status_flags &= ~GODMODE

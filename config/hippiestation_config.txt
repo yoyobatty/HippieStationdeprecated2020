@@ -62,3 +62,7 @@ BOT_CREW_TRAITORS 2
 ## Write the bots' telemetry (data/logs/<round>/bot_telemetry.jsonl: where each bot is, what it holds and does, twice a
 ## second) in a live round too. Test runs always write it. Also on whenever PLAYER_LOG_CKEY is set.
 #BOT_TELEMETRY
+
+## One player's actions get logged the way the bots' are, in data/logs/<round>/player_telemetry.jsonl: where they are, what they
+## click, press and carry. It's how bots get compared with a person. Nobody else is ever recorded. Unset is nobody.
+PLAYER_LOG_CKEY yoyobatty

@@ -12,10 +12,13 @@ import { AdminEditLog, AdminPermissions, AdminRelatedAccounts, PlayerNotes } fro
 import { AdminDelLog, AdminReport } from './interfaces/AdminReports';
 import { AdminList, AdminSecrets } from './interfaces/AdminSecrets';
 import { AdminSpawner, JobSlots, OutfitEditor, OutfitManager } from './interfaces/AdminTools';
+import { AntagTips, ApprenticeContract, ArcaneTome, GangTool, MalfModules, PiratePad, RadLaser, TeleportScroll } from './interfaces/AntagWindows';
+import { BotPanel } from './interfaces/BotPanel';
+import { CrewManifest } from './interfaces/CrewManifest';
+import { GriefUndo } from './interfaces/GriefUndo';
 import { AiAirlock } from './interfaces/AiAirlock';
 import { AirAlarm } from './interfaces/AirAlarm';
 import { AirlockElectronics } from './interfaces/AirlockElectronics';
-import { AntagTips, ApprenticeContract, ArcaneTome, GangTool, MalfModules, PiratePad, RadLaser, TeleportScroll } from './interfaces/AntagWindows';
 import { Apc } from './interfaces/Apc';
 import { ApcControl } from './interfaces/ApcControl';
 import { Assembly } from './interfaces/Assembly';
@@ -29,7 +32,6 @@ import { Biogenerator } from './interfaces/Biogenerator';
 import { BluespaceArtillery } from './interfaces/BluespaceArtillery';
 import { BorgPanel } from './interfaces/BorgPanel';
 import { BotCrew } from './interfaces/BotCrew';
-import { BotPanel } from './interfaces/BotPanel';
 import { BrigTimer } from './interfaces/BrigTimer';
 import { Canister } from './interfaces/Canister';
 import { Cargo, CargoExpress } from './interfaces/Cargo';
@@ -51,7 +53,6 @@ import { CloningConsole } from './interfaces/CloningConsole';
 import { CommsConsole } from './interfaces/CommsConsole';
 import { Crayon } from './interfaces/Crayon';
 import { CrewConsole } from './interfaces/CrewConsole';
-import { CrewManifest } from './interfaces/CrewManifest';
 import { Cryo } from './interfaces/Cryo';
 import { DisposalUnit } from './interfaces/DisposalUnit';
 import { DnaConsole } from './interfaces/DnaConsole';
@@ -351,6 +352,10 @@ const ROUTES = {
   },
   admin_find: {
     component: () => AdminFind,
+    scrollable: false,
+  },
+  grief_undo: {
+    component: () => GriefUndo,
     scrollable: false,
   },
   chem_dispenser: {

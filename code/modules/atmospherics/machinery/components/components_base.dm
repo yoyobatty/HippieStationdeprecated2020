@@ -34,6 +34,8 @@
 	if(level == 2 || (istype(T) && !T.intact))
 		showpipe = TRUE
 		plane = GAME_PLANE
+		if(level == 1 && IS_SUNKEN_FLOOR(T)) // hippie -- down in a pulled tile's hole with the plating (floor_depth.dm)
+			floor_depth_sink()
 	else
 		showpipe = FALSE
 		plane = FLOOR_PLANE

@@ -76,8 +76,9 @@
 			update_icon()
 
 /obj/item/melee/baton/stungun/baton_stun()
-	..()
-	playsound(loc, 'hippiestation/sound/weapons/stungun.ogg', 75, 1, -1)
+	. = ..()
+	if(.) // its own sound only when the stun landed: a blocked or flat stungun played it too
+		playsound(loc, 'hippiestation/sound/weapons/stungun.ogg', 75, 1, -1)
 	update_icon()
 
 /obj/item/melee/baton
@@ -107,7 +108,7 @@
 			return 0
 
 	L.adjustStaminaLoss(stamforce)
-	L.apply_effect(EFFECT_STUTTER, stunforce)
+	L.apply_effect(stunforce, EFFECT_STUTTER) // arguments were reversed, so no stutter was ever applied
 	SEND_SIGNAL(L, COMSIG_LIVING_MINOR_SHOCK)
 	if(user)
 		L.lastattacker = user.real_name
@@ -121,3 +122,4 @@
 	if(ishuman(L))
 		var/mob/living/carbon/human/H = L
 		H.forcesay(GLOB.hit_appends)
+	return TRUE // the baton's attack() takes a true return as "stunned" (attack animation); it returned nothing

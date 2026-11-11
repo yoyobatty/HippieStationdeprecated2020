@@ -346,9 +346,93 @@
 /proc/bot_blast_radius(atom/A)
 	if(QDELETED(A))
 		return 0
+	if(ishuman(A))
+		return bot_held_bomb(A) ? BOT_BOMB_RUN_FROM : 0 //somebody with one in their hands
 	if(istype(A, /obj/item/transfer_valve))
 		return 22
 	return istype(A, /obj/item/grenade) ? 7 : 0
+
+// ---------------------------------------------------------------------------------------------
+// Somebody with a tank bomb in their hands
+// ---------------------------------------------------------------------------------------------
+// The user's ruling (2026-11-10): bots who see one keep away, warn the radio, and fight from range. In the user's Captain round
+// (round-20.37.50) three officers piled into Chemistry on a Captain holding a tank bomb on a health sensor, and it took all three.
+
+/// A tank bomb in their hands with both tanks on it, or null.
+/proc/bot_held_bomb(mob/living/carbon/human/H)
+	if(!istype(H))
+		return null
+	for(var/obj/item/transfer_valve/V in H.held_items)
+		if(V.tank_one && V.tank_two)
+			return V
+	return null
+
+/// Somebody nobody walks up to whatever they're doing: a tank bomb in their hands on a dead man's switch (a health sensor: it goes off when
+/// they go down), or held by somebody Security's after. A scientist taking a test bomb to the range is neither.
+/proc/bot_bomber(mob/living/carbon/human/H)
+	var/obj/item/transfer_valve/V = bot_held_bomb(H)
+	if(!V)
+		return null
+	if(istype(V.attached_device, /obj/item/assembly/health) || bot_get_wanted_entry(H) || bot_in_nanosuit(H))
+		return V
+	return null
+
+/// Whether anybody at all is walking about with one: a look round a few valves, before anybody looks round the room for it.
+/proc/bot_any_bomber()
+	for(var/obj/item/transfer_valve/V as anything in bot_instances_of(/obj/item/transfer_valve))
+		if(!QDELETED(V) && ishuman(V.loc) && bot_bomber(V.loc))
+			return TRUE
+	return FALSE
+
+/// REF(holder) -> when anybody can next call them out
+GLOBAL_LIST_EMPTY(bot_bomber_warned)
+
+/// On the radio, once a minute between everybody: who has it, and where, and the crew are to keep out of there.
+/datum/bot_brain/proc/warn_of_bomber(mob/living/carbon/human/H)
+	if(GLOB.bot_bomber_warned[REF(H)] > world.time)
+		return
+	GLOB.bot_bomber_warned[REF(H)] = world.time + 1 MINUTES
+	GLOB.bot_keep_clear[get_area(H)] = world.time + 2 MINUTES //goals/security_tactics.dm
+	bot_log(src, "[H] has a bomb in their hands")
+	bot_say(owner, ";[pick("[H.name]'s got a bomb", "Bomb! [H.name]'s holding a tank bomb", "[H.name] has a bomb in their hands")], [get_area_name(H, TRUE)]! Keep clear!")
+
+/// A look round for anybody with one, from keep_an_eye_out() (bot_witness.dm). The crew say so and get away; Security goes to arrest
+/// somebody it wants, from range (goals/security_tactics.dm keep_it_at_range()). TRUE if somebody was seen.
+/datum/bot_brain/proc/look_out_for_bombers()
+	if(!bot_any_bomber())
+		return FALSE
+	for(var/mob/living/carbon/human/H in view(BOT_SIGHT_RANGE, owner))
+		if(H == owner || H.stat == DEAD || H.handcuffed || !bot_bomber(H))
+			continue
+		warn_of_bomber(H)
+		if(is_security_job() && bot_get_wanted_entry(H) && begin_arrest(H))
+			return TRUE
+		if(get_dist(owner, H) < BOT_BOMB_RUN_FROM && !istype(current_goal, /datum/bot_goal/run_from))
+			run_from(H, "[H.name] has a bomb")
+		return TRUE
+	return FALSE
+
+/// In a fight with somebody holding a tank bomb: shot at from out of its reach if there's a gun to hand, otherwise away from them. Nobody
+/// trades punches with that.
+/datum/bot_brain/proc/stand_off_bomber(mob/living/carbon/human/H)
+	warn_of_bomber(H)
+	if(!find_usable_gun()) //goals/security_tactics.dm
+		state_before_combat = null
+		disengage_combat("they've got a bomb")
+		run_from(H, "they've got a bomb")
+		return TRUE
+	var/dist = get_dist(owner, H)
+	if(dist < BOT_BOMB_KEEP_AWAY)
+		stop_pursuit()
+		step_back_from(H)
+	else if(dist > BOT_SIGHT_RANGE)
+		var/turf/spot = spot_short_of(H, BOT_BOMB_KEEP_AWAY)
+		if(spot)
+			combat_chase(spot)
+	else
+		stop_pursuit()
+	try_shoot_at(H)
+	return TRUE
 
 /// Out of the way of it until it's gone off or somebody's seen to it, a minute at most: not back past it on some errand.
 /datum/bot_step/paced/keep_clear
@@ -366,7 +450,7 @@
 
 /datum/bot_step/paced/keep_clear/do_click(datum/bot_brain/bot)
 	var/atom/A = thing_ref?.resolve()
-	if(QDELETED(A) || (!bot_live_explosive(A) && world.time > started + 2 SECONDS)) //a moment for the pin to come out
+	if(QDELETED(A) || (!bot_live_explosive(A) && !bot_held_bomb(A) && world.time > started + 2 SECONDS)) //a moment for the pin to come out
 		return FALSE
 	wait_for = 10
 	return TRUE

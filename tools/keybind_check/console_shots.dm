@@ -181,6 +181,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			cs_req(C, H, label)
 		if("mining")
 			cs_mining(C, H, label)
+		if("orm")
+			cs_orm(C, H, label)
 		if("biogen")
 			cs_biogen(C, H, label)
 		if("plantdna")
@@ -9522,3 +9524,59 @@ GLOBAL_VAR_INIT(cs_trules_noise, 0)
 	SStgui.close_user_uis(H)
 	qdel(cart)
 	qdel(press)
+
+/// The ore redemption machine on a silo it shares with a techfab: a miner with points to claim and stock to release.
+/proc/cs_orm(client/C, mob/living/carbon/human/H, label)
+	H.equipOutfit(/datum/outfit/job/miner)
+	var/obj/machinery/ore_silo/silo = new(cs_open_beside(H))
+	var/obj/machinery/mineral/ore_redemption/orm = new(cs_open_beside(H, list(get_turf(silo))))
+	var/obj/machinery/rnd/production/techfab/department/cargo/fab = new(cs_open_beside(H, list(get_turf(silo), get_turf(orm))))
+	orm.stat &= ~(NOPOWER|BROKEN)
+	for(var/datum/component/remote_materials/R in list(orm.materials, fab.materials))
+		if(R.mat_container && !R.silo)
+			qdel(R.mat_container)
+		R.silo = silo
+		silo.connected += R
+		R.mat_container = silo.GetComponent(/datum/component/material_container)
+	var/datum/component/material_container/stock = orm.materials.mat_container
+	var/list/sheets = list(MAT_METAL = 98, MAT_GLASS = 40, MAT_PLASMA = 25, MAT_SILVER = 21, MAT_GOLD = 12, MAT_URANIUM = 18, MAT_TITANIUM = 14, MAT_DIAMOND = 3)
+	for(var/id in sheets)
+		var/datum/material/M = stock.materials[id]
+		M.amount = sheets[id] * MINERAL_MATERIAL_AMOUNT
+		stock.total_amount += M.amount
+	orm.points = 1240
+	var/obj/item/card/id/card = H.get_idcard()
+	card.mining_points = 3200
+	usr = H
+	orm.interact(H)
+	sleep(3 SECONDS)
+	var/datum/tgui/ui = cs_find_ui(H, orm)
+	if(!ui)
+		cs_check("the ORM's window opened", FALSE)
+		return
+	winset(C, ui.window_id, "pos=200,40")
+	sleep(10)
+	cs_shot("popup_orm_[label]_1_main", orm.name)
+	cs_tgui_do(C, ui.window_id, "scroll:2000")
+	sleep(10)
+	cs_shot("popup_orm_[label]_2_lower", orm.name)
+	cs_tgui_do(C, ui.window_id, "scroll:0")
+	sleep(5)
+	if(label != "after")
+		SStgui.close_user_uis(H)
+		return
+	// One click releases a whole material, in stacks of 50
+	var/datum/material/metal = stock.materials[MAT_METAL]
+	cs_tgui_do(C, ui.window_id, "clickexact:All")
+	cs_wait_until(metal, "amount", 0)
+	var/out = 0
+	for(var/obj/item/stack/sheet/metal/S in get_step(orm, orm.output_dir))
+		out += S.amount
+	cs_check("All releases every metal sheet, as stacks", metal.amount == 0 && out == 98, "[metal.amount / MINERAL_MATERIAL_AMOUNT] left, [out] out")
+	// Claim with no ID in the slot goes to the one the miner's wearing
+	cs_tgui_do(C, ui.window_id, "click:Claim")
+	cs_wait_until(orm, "points", 0)
+	cs_check("Claim puts the points on the worn ID", orm.points == 0 && card.mining_points == 4440, "[card.mining_points] on the card")
+	sleep(10)
+	cs_shot("popup_orm_[label]_3_claimed", orm.name)
+	SStgui.close_user_uis(H)

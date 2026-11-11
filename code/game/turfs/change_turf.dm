@@ -84,6 +84,7 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 	var/old_lighting_corner_SW = lighting_corner_SW
 	var/old_lighting_corner_NW = lighting_corner_NW
 	var/list/old_idle_atmos_machines = idle_atmos_machines // hippie -- idle atmos machines still wait on this place (idle_machines.dm)
+	var/old_seal_dir = seal_dir // hippie -- a shut door here keeps the side its tile shares air with (door_seals.dm)
 
 	var/old_exl = explosion_level
 	var/old_exi = explosion_id
@@ -114,6 +115,7 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 	W.explosion_id = old_exi
 	W.explosion_level = old_exl
 	W.idle_atmos_machines = old_idle_atmos_machines
+	W.seal_dir = old_seal_dir // hippie
 	for(var/obj/machinery/M as anything in old_idle_atmos_machines)
 		M.atmos_idle_turf = W
 

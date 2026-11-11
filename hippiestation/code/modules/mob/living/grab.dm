@@ -24,12 +24,14 @@
 			shift = -10
 			adir = assailant.dir
 			setDir(assailant.dir)
-			loc = assailant.loc
+			if(loc != assailant.loc && !density) // Move, as tg's neck grab does: setting loc skipped Entered/Exited (a victim carried over a chasm or a trap never set it off), and forceMove would end the grab
+				Move(assailant.loc)
 		if(GRAB_KILL)
 			shift = 0
 			adir = 1
 			setDir(SOUTH)//face up
-			loc = assailant.loc
+			if(loc != assailant.loc && !density) // Move, as tg's neck grab does: setting loc skipped Entered/Exited (a victim carried over a chasm or a trap never set it off), and forceMove would end the grab
+				Move(assailant.loc)
 		else
 			shift = 0
 

@@ -95,6 +95,20 @@ GLOBAL_VAR_INIT(oc_failed, 0)
 			decal_dirs += "[M.dir]"
 	sortTim(decal_dirs, GLOBAL_PROC_REF(cmp_text_asc))
 	oc_check("floor decals keep their own dir", decal_dirs.Join(",") == "1,2,4,8", decal_dirs.Join(","))
+
+	// image() overlays, the way a pipe manifold draws its arms: an /image's .appearance doesn't carry its dir, so they came out with
+	// one dir between them (whatever the shared builder image had last) and merged into one arm
+	var/obj/item/manifold = new(T)
+	manifold.dir = SOUTH
+	for(var/d in list(NORTH, EAST, WEST))
+		manifold.add_overlay(image('icons/obj/atmospherics/pipes/manifold.dmi', "pipe-2", dir = d))
+	var/list/arm_dirs = list()
+	for(var/mutable_appearance/M as anything in manifold.overlays)
+		arm_dirs += "[M.dir]"
+	sortTim(arm_dirs, GLOBAL_PROC_REF(cmp_text_asc))
+	oc_check("image() overlays keep their own dir (a manifold's three arms)", arm_dirs.Join(",") == "1,4,8", arm_dirs.Join(","))
+	manifold.cut_overlay(image('icons/obj/atmospherics/pipes/manifold.dmi', "pipe-2", dir = EAST))
+	oc_check("and one comes off by itself", length(manifold.overlays) == 2, "[length(manifold.overlays)] left")
 	var/obj/item/burning = new(T)
 	var/mutable_appearance/flames = mutable_appearance('icons/effects/effects.dmi', "fire")
 	var/mutable_appearance/turned = new(image('icons/effects/effects.dmi', null, "shield", ABOVE_OBJ_LAYER, EAST))

@@ -48,6 +48,10 @@
 #define BOT_CRIME_MAJOR 2
 #define BOT_CRIME_MURDER 3
 
+// Somebody with a tank bomb in their hands (bot_fighting.dm): how close nobody comes, and how far the crew run from them
+#define BOT_BOMB_KEEP_AWAY 5
+#define BOT_BOMB_RUN_FROM 10
+
 // What whoever's in charge rules for a capital charge (bot_law.dm)
 #define BOT_VERDICT_PERMABRIG "permabrig"
 #define BOT_VERDICT_INJECTION "lethal injection"

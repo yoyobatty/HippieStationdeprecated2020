@@ -19,7 +19,13 @@
 		return
 	return ..()
 
+/// Hurt voice clips are off for now: there are only male ones (male_hurt1-21), and every mob used them (user, 2026-11-10).
+/// Set TRUE to bring them back.
+GLOBAL_VAR_INIT(hurt_sounds_enabled, FALSE)
+
 /datum/species/proc/queue_hurt_sound(mob/living/carbon/human/H)
+	if (!GLOB.hurt_sounds_enabled)
+		return
 	if (hurt_sound_cd > world.time)
 		return
 
@@ -41,6 +47,8 @@
 	playsound(H, "male_hurt", 75, 1, frequency = rand(11025*0.75, 11025*1.25))
 
 /datum/species/proc/disarm(mob/living/carbon/human/user, mob/living/carbon/human/target, datum/martial_art/attacker_style)
+	if(user == target) // disarm-clicking your own sprite knocked you down a quarter of the time, or dropped what you held
+		return FALSE
 	if(target.check_block())
 		target.visible_message("<span class='warning'>[target] blocks [user]'s disarm attempt!</span>")
 		return 0

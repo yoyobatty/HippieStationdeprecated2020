@@ -242,6 +242,7 @@ But you can call procs that are of type /mob/living/carbon/human/proc/ for that 
 /client/proc/cmd_admin_test_atmos_controllers()
 	set category = "Mapping"
 	set name = "Test Atmos Monitoring Consoles"
+	if(usr) return cmd_admin_test_atmos_controllers() // hippie -- a verb runs this definition (verbs go in by path); by name it's hippie's window (admin_reports_tgui.dm)
 
 	var/list/dat = list()
 
@@ -609,6 +610,7 @@ But you can call procs that are of type /mob/living/carbon/human/proc/ for that 
 	set category = "Debug"
 	set name = "Display del() Log"
 	set desc = "Display del's log of everything that's passed through it."
+	if(usr) return cmd_display_del_log() // hippie -- a verb runs this definition (verbs go in by path); by name it's hippie's window (admin_reports_tgui.dm)
 
 	var/list/dellog = list("<B>List of things that have gone through qdel this round</B><BR><BR><ol>")
 	sortTim(SSgarbage.items, cmp=/proc/cmp_qdel_item_time, associative = TRUE)
@@ -645,6 +647,7 @@ But you can call procs that are of type /mob/living/carbon/human/proc/ for that 
 	set category = "Debug"
 	set name = "Display Initialize() Log"
 	set desc = "Displays a list of things that didn't handle Initialize() properly"
+	if(usr) return cmd_display_init_log() // hippie -- a verb runs this definition (verbs go in by path); by name it's hippie's window (admin_reports_tgui.dm)
 
 	usr << browse(HTML_SKELETON(replacetext(SSatoms.InitLog(), "\n", "<br>")), "window=initlog")
 

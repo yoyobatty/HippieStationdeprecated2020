@@ -327,7 +327,8 @@
 		for(var/obj/item/I in H.held_items)
 			if(I.is_sharp())
 				C.visible_message("<span class='danger'>[H] impales [C] with [H.p_their()] [I.name]!</span>", "<span class='userdanger'>[H] impales you with [H.p_their()] [I.name]!</span>")
-				C.apply_damage(I.force, BRUTE, BODY_ZONE_CHEST)
+				C.apply_damage(I.force, BRUTE, BODY_ZONE_CHEST, C.run_armor_check(BODY_ZONE_CHEST, "melee", armour_penetration = I.armour_penetration)) // hippie start -- armor counted for nothing
+				log_combat(H, C, "impaled", I, "(tentacle)") // hippie end
 				H.do_item_attack_animation(C, used_item = I)
 				H.add_mob_blood(C)
 				playsound(get_turf(H),I.hitsound,75,1)
@@ -347,6 +348,9 @@
 
 	else if(isliving(target))
 		var/mob/living/L = target
+		if(ismob(firer)) // hippie -- this on_hit doesn't call the parent's, so tentacle hits were never logged
+			var/mob/tentacler = firer
+			log_combat(tentacler, L, "hit with a tentacle", null, "(INTENT: [uppertext(tentacler.a_intent)])")
 		if(!L.anchored && !L.throwing)//avoid double hits
 			if(iscarbon(L))
 				var/mob/living/carbon/C = L

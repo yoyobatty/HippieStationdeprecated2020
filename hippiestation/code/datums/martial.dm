@@ -29,7 +29,6 @@
 	addtimer(CALLBACK(src, PROC_REF(reset_streak)), 100, TIMER_OVERRIDE|TIMER_UNIQUE)
 
 /datum/martial_art/proc/reset_streak()
-	if(owner && owner.client && owner.hud_used)
-		if(owner.hud_used.combo_object)
-			owner.hud_used.combo_object.reset_streak()
-			streak = ""
+	streak = "" // cleared whoever's fighting: it sat inside the client check, so a bot's combo never ran out
+	if(owner?.client && owner.hud_used?.combo_object)
+		owner.hud_used.combo_object.reset_streak()
