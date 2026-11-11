@@ -142,7 +142,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/integrated_electronics/subtypes/manipulation.dm
 ## code/modules/integrated_electronics/subtypes/smart.dm
 ## code/modules/jobs/job_exp.dm
-## code/modules/keybindings/bindings_client.dm
+## code/modules/keybindings/bindings_client.dm (keyDown() ignores a key already held: a held key could come in twice, through a tgui window and from the map)
 ## code/modules/keybindings/setup.dm
 ## code/modules/library/lib_machines.dm
 ## code/modules/library/random_books.dm

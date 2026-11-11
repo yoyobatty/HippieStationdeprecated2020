@@ -41,6 +41,13 @@
 		focus_chat_bar(_key) // hippie -- the chat bar, not the old input bar
 		return
 
+	// hippie start -- a key that's already down can't go down again. Held while a tgui window had the keyboard it came in through
+	// the window, and again from the map once the map got the keyboard back: two copies, one release, and the other walked on by itself.
+	for(var/i in 1 to HELD_KEY_BUFFER_LENGTH)
+		if(keys_held[i] == _key)
+			return
+	// hippie end
+
 	//offset by 1 because the buffer address is 0 indexed because the math was simpler
 	keys_held[current_key_address + 1] = _key
 	//the time a key was pressed isn't actually used anywhere (as of 2019-9-10) but this allows easier access usage/checking
