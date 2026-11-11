@@ -58,3 +58,38 @@
 		return ..()
 	replace_beaker(user)
 	to_chat(user, "<span class='notice'>You take the beaker out of [src].</span>")
+
+// People into machines: dragging them onto it was the only way, so somebody you'd pulled up to a sleeper still had to be dragged the last
+// tile with the mouse. A click on it with them in tow does the same now (the drag's own checks and do_after() all still apply).
+
+/obj/machinery/proc/take_pulled_in(mob/living/user)
+	var/mob/living/carbon/C = user?.pulling
+	if(!istype(C) || !state_open || occupant || !Adjacent(user) || !user.Adjacent(C) || user.incapacitated())
+		return FALSE
+	INVOKE_ASYNC(src, TYPE_PROC_REF(/atom, MouseDrop_T), C, user)
+	return TRUE
+
+/obj/machinery/sleeper/attack_hand(mob/user)
+	if(take_pulled_in(user))
+		return TRUE
+	return ..()
+
+/obj/machinery/atmospherics/components/unary/cryo_cell/attack_hand(mob/user)
+	if(take_pulled_in(user))
+		return TRUE
+	return ..()
+
+/obj/machinery/autodoc/attack_hand(mob/user)
+	if(take_pulled_in(user))
+		return TRUE
+	return ..()
+
+/obj/machinery/implantchair/attack_hand(mob/user)
+	if(take_pulled_in(user))
+		return TRUE
+	return ..()
+
+/obj/machinery/nanite_chamber/attack_hand(mob/user)
+	if(take_pulled_in(user))
+		return TRUE
+	return ..()

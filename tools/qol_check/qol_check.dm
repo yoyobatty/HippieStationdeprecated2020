@@ -52,6 +52,18 @@
 			qdel(M)
 			qdel(first)
 			qdel(second)
+		// Somebody pulled up to a sleeper, and a click on it: they go in.
+		var/obj/machinery/sleeper/S = new(get_step(H, EAST))
+		var/mob/living/carbon/human/patient = new(get_step(H, NORTH))
+		H.start_pulling(patient)
+		S.attack_hand(H)
+		sleep(5)
+		var/in_sleeper = S.occupant == patient
+		if(in_sleeper)
+			passed++
+		else
+			failed++
+		lines += "[in_sleeper ? "PASS" : "FAIL"] a click on a sleeper while pulling somebody puts them in (occupant [S.occupant || "none"])"
 	catch(var/exception/e)
 		failed++
 		lines += "FAIL exception: [e] at [e.file]:[e.line]"
