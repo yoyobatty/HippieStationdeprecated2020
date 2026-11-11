@@ -46,6 +46,59 @@
 		var/datum/tlv/tlv = TLV[gas_path]
 		gas["danger"] = tlv ? tlv.get_danger_level(environment.moles[gas_path] * partial_pressure) : 0
 	.["gases"] = gases
+	// The air at each vent and scrubber, not just at the alarm (the user's ask, 2026-11-11): an alarm reads its own tile, like a
+	// thermostat, so a vent across the room blowing plasma or a dead scrubber in a pocket of CO2 didn't show.
+	if(A)
+		for(var/list/vent in .["vents"])
+			var/datum/weakref/ref = LAZYACCESS(A.air_vent_refs, vent["id_tag"])
+			vent["air"] = device_air_data(ref?.resolve())
+		for(var/list/scrubber in .["scrubbers"])
+			var/datum/weakref/ref = LAZYACCESS(A.air_scrub_refs, scrubber["id_tag"])
+			scrubber["air"] = device_air_data(ref?.resolve())
+
+/// The air on a vent's or scrubber's tile, judged by this alarm's thresholds, and the pressure in the pipe behind it.
+/obj/machinery/airalarm/proc/device_air_data(obj/machinery/atmospherics/components/unary/device)
+	if(QDELETED(device))
+		return null
+	var/turf/T = get_turf(device)
+	var/datum/gas_mixture/air = T?.return_air()
+	if(!air)
+		return null
+	var/pressure = air.return_pressure()
+	var/datum/tlv/pressure_tlv = TLV["pressure"]
+	var/datum/tlv/temp_tlv = TLV["temperature"]
+	var/list/gases = tgui_gas_list(air)
+	var/partial_pressure = R_IDEAL_GAS_EQUATION * air.temperature / air.volume
+	for(var/list/gas in gases)
+		var/gas_path = gas_id2path(gas["id"])
+		var/datum/tlv/tlv = TLV[gas_path]
+		gas["danger"] = tlv ? tlv.get_danger_level(air.moles[gas_path] * partial_pressure) : 0
+	var/datum/gas_mixture/pipe = device.airs[1]
+	return list(
+		"pressure" = round(pressure, 0.1),
+		"pressure_danger" = pressure_tlv ? pressure_tlv.get_danger_level(pressure) : 0,
+		"temperature" = round(air.temperature, 0.1),
+		"temperature_danger" = temp_tlv ? temp_tlv.get_danger_level(air.temperature) : 0,
+		"gases" = gases,
+		"pipe" = pipe ? round(pipe.return_pressure(), 0.1) : null,
+	)
+
+/// Vents and scrubbers by id_tag, so an air alarm can read the air where each one is. Weak: an area outlives its vents.
+/area
+	var/list/air_vent_refs
+	var/list/air_scrub_refs
+
+/obj/machinery/atmospherics/components/unary/vent_pump/broadcast_status()
+	. = ..()
+	var/area/A = get_area(src)
+	if(A && id_tag)
+		LAZYSET(A.air_vent_refs, id_tag, WEAKREF(src))
+
+/obj/machinery/atmospherics/components/unary/vent_scrubber/broadcast_status()
+	. = ..()
+	var/area/A = get_area(src)
+	if(A && id_tag)
+		LAZYSET(A.air_scrub_refs, id_tag, WEAKREF(src))
 
 // "threshold_set" takes the value from the window (the old "threshold" asks with a pop-up)
 /obj/machinery/airalarm/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)

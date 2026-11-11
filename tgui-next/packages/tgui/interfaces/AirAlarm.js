@@ -173,6 +173,39 @@ const Vents = props => {
   ));
 };
 
+// The air on a vent's or scrubber's own tile, and its pipe
+const DeviceAir = props => {
+  const { air } = props;
+  if (!air) {
+    return (
+      <Box color="label" mt={0.5}>No reading.</Box>
+    );
+  }
+  const pressureDanger = DANGER[air.pressure_danger] || DANGER[0];
+  const tempDanger = DANGER[air.temperature_danger] || DANGER[0];
+  return (
+    <Box mt={0.5}>
+      <Box>
+        <Box inline bold color={pressureDanger.color}>
+          {toFixed(air.pressure, 1)} kPa
+        </Box>
+        <Box inline bold ml={1.5} color={tempDanger.color}>
+          {kelvinToCelsius(air.temperature)} °C
+        </Box>
+        {air.pipe !== null && air.pipe !== undefined && (
+          <Box inline ml={1.5} color="label">
+            Pipe {toFixed(air.pipe, 1)} kPa
+          </Box>
+        )}
+      </Box>
+      <Box mt={0.5}>
+        <GasBar gases={air.gases} height="8px" />
+      </Box>
+      <GasLegend gases={air.gases} />
+    </Box>
+  );
+};
+
 const PressureCheck = props => {
   const { act, vent, label, title, checked, checkAction, value,
     setAction, resetAction, isDefault } = props;
@@ -232,6 +265,7 @@ const Vent = props => {
         <Icon name={pressurizing ? 'sign-out-alt' : 'sign-in-alt'} mr={1} />
         {pressurizing ? 'Pressurizing' : 'Siphoning'}
       </Box>
+      <DeviceAir air={vent.air} />
       <PressureCheck
         act={act}
         vent={vent}
@@ -300,6 +334,7 @@ const Scrubber = props => {
             val: Number(!scrubber.power),
           })} />
       </Box>
+      <DeviceAir air={scrubber.air} />
       <Box mt={0.5}>
         <Button
           icon="filter"
