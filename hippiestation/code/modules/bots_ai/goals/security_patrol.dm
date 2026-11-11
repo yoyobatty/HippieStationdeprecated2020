@@ -1544,9 +1544,16 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 				phase = 0
 				return GOAL_STEP_SUCCESS //to Medbay in them
 			// Went for the officer the last time the cuffs came off: they stay on (goals/released_prisoner.dm)
-			if(cuffs && bot_keep_cuffed(P))
-				bot_log(bot, "leaving [P] cuffed - they went for the officer the last time they were uncuffed")
-				bot_say(bot.owner, pick("You're keeping those on.", "Cuffs stay on. You had your chance.", "Not after last time. They stay on."))
+			// A confirmed antagonist stays cuffed too: a wizard cuffed for attempted murder was uncuffed in its cell two seconds later
+			// (live round n0_wizard, 2026-11-10). Capital prisoners are held for the Captain's word (bot_law.dm).
+			if(cuffs && (bot_keep_cuffed(P) || bot_is_fair_game(P)))
+				if(bot_keep_cuffed(P))
+					bot_log(bot, "leaving [P] cuffed - they went for the officer the last time they were uncuffed")
+					bot_say(bot.owner, pick("You're keeping those on.", "Cuffs stay on. You had your chance.", "Not after last time. They stay on."))
+				else
+					var/datum/bot_wanted/W = bot_get_wanted_entry(P)
+					bot_log(bot, "leaving [P] cuffed - wanted for [W ? W.crime : "something serious"]")
+					bot_say(bot.owner, pick("Those stay on.", "You're not going anywhere.", "Cuffs stay on."))
 				phase = 0
 				return GOAL_STEP_SUCCESS
 			// "Uncuff the prisoner, leaving them to buckle cuffed is considered poor

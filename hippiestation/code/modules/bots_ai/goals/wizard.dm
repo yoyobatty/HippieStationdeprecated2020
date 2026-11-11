@@ -119,7 +119,11 @@ GLOBAL_LIST_INIT(bot_wizard_no_landing, typecacheof(list(/area/engine/engineerin
 	var/obj/item/teleportation_scroll/scroll = locate() in owner.GetAllContents()
 	if(!scroll || scroll.uses <= 0)
 		return FALSE
+	// A room with people in it, but not Security: a wizard who picked the busiest room at the start of the shift landed in the Security
+	// Office with four officers at their briefing, was cuffed and stripped of the robe in two seconds, and couldn't cast a spell for the
+	// rest of the round (live round n0_wizard, 2026-11-10). A player picks somewhere with a crowd and no guns.
 	var/list/crowd = list() //area name -> how many
+	var/list/guarded = list() //area name -> TRUE where Security is
 	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
 		if(H.stat == DEAD || !is_station_level(H.z) || !H.mind?.assigned_role)
 			continue
@@ -129,7 +133,11 @@ GLOBAL_LIST_INIT(bot_wizard_no_landing, typecacheof(list(/area/engine/engineerin
 		for(var/name in GLOB.teleportlocs)
 			if(GLOB.teleportlocs[name] == A)
 				crowd[name]++
+				if((H.mind.assigned_role in GLOB.security_positions) || istype(A, /area/security) || istype(A, /area/ai_monitored/security))
+					guarded[name] = TRUE
 				break
+	for(var/name in guarded)
+		crowd -= name
 	if(!length(crowd))
 		return FALSE
 	var/best

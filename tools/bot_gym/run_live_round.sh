@@ -12,6 +12,7 @@ unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every 
 #   RUNS=1       rounds, all at once (each wants about 1.6 GB and one core)
 #   SPEED=0      timewarp's limit, 0 for none      NAME=label   results in data/logs/live_round/<name>/run<n>/
 #   NOCOMPILE=1  use the hippiestation.dmb there   PORT=45300   the first one's port
+#   SILICONS=0   an AI and SILICONS-1 cyborgs on top of the crew
 # The map is the one data/next_map.json names, as on a server. MAPROTATION is off in the copied config, so it isn't changed.
 set -u
 cd "$(dirname "$0")/../.."
@@ -38,6 +39,9 @@ cp config/*.txt config/*.json "$DIR/config/"
 # What the test sets, out of wherever the real config has it, and then ours.
 sed -i -E 's/^(BOT_CREW_TARGET|LOBBY_COUNTDOWN|MAPROTATION|RESUME_AFTER_INITIALIZATIONS)\b/#&/' "$DIR"/config/*.txt
 printf '\nBOT_CREW_TARGET %s\nLOBBY_COUNTDOWN 15\nRESUME_AFTER_INITIALIZATIONS\n' "$CREW" >> "$DIR/config/config.txt"
+# SILICONS=N: an AI and N-1 cyborgs on top of the crew (BOT_CREW_SILICONS, bots_ai/goals/silicon.dm)
+sed -i -E 's/^(BOT_CREW_SILICONS)\b/#&/' "$DIR"/config/*.txt
+printf '\nBOT_CREW_SILICONS %s\n' "${SILICONS:-0}" >> "$DIR/config/hippiestation_config.txt"
 cp -f data/next_map.json "$DIR/next_map.json.bak" 2>/dev/null || true
 
 run_one() {

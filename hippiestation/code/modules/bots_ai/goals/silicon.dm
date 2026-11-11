@@ -601,22 +601,26 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 /datum/bot_silicon/borg/proc/serve_master()
 	var/mob/living/master = master_ref.resolve()
 	if(!master || master.stat == DEAD)
+		var/mob/living/killer = master ? master_attacker(master) : null //goals/silicon_work.dm
+		if(killer)
+			avenge_ref = WEAKREF(killer)
+			note("master [master] is dead: going after [killer]")
 		master_ref = null
+		order_ref = null
 		return FALSE
 	var/mob/living/target = order_ref?.resolve()
 	if(target && target.stat == DEAD)
 		say_it(pick("Target neutralised.", "Done, master."))
 		order_ref = null
 		target = null
+	// Somebody going for its master is the target, ahead of any order.
+	var/mob/living/attacker = master_attacker(master)
+	if(attacker && attacker != target)
+		target = attacker
+		order_ref = WEAKREF(attacker)
+		note("defending [master] from [attacker]")
 	if(target && target.z == owner.z)
-		if(owner.Adjacent(target))
-			use_on(hardest_hitter(), target, INTENT_HARM)
-			return TRUE
-		var/obj/item/gun/G = tool(/obj/item/gun)
-		if(G && (target in view(BOT_BORG_SIGHT, owner)))
-			use_on(G, target, INTENT_HARM)
-			return TRUE
-		return go_to(target)
+		return attack(target)
 	if(get_dist(owner, master) > 2)
 		return go_to(master)
 	return TRUE //at its master's side
@@ -809,7 +813,7 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	return ..()
 
 /datum/bot_silicon/borg/next_look()
-	return (length(route) || follow_ref || flee_ref || tube_stage) ? BOT_BORG_STEP : BOT_SILICON_TICK
+	return (length(route) || follow_ref || flee_ref || tube_stage || charger_ref) ? step_delay() : BOT_SILICON_TICK //goals/silicon_work.dm
 
 /datum/bot_silicon/borg/hit_by(mob/living/user)
 	if(master_ref?.resolve() == user || !..())
@@ -1045,6 +1049,7 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 		return FALSE
 	if(!owner.Process_Spacemove(get_dir(owner, next)))
 		return TRUE //drifting, or nothing to push off: what a player's key press runs into out there (mob_movement.dm)
+	owner.set_glide_size(DELAY_TO_GLIDE_SIZE(step_delay())) //what client/Move() sets for a player's
 	step_towards(owner, next)
 	if(get_turf(owner) == next)
 		route.Cut(1, 2)
@@ -1076,7 +1081,18 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	if(tube_stage)
 		ride_tube()
 		return
+	if(see_to_charge()) //goals/silicon_work.dm: low on charge, or in a station
+		return
 	if(master_ref && serve_master())
+		return
+	if(!master_ref && avenge_ref && avenge())
+		return
+	var/mob/living/carbon/human/hated = master_ref ? null : law_target() //its laws naming somebody to go for
+	if(hated)
+		if(order_ref?.resolve() != hated)
+			order_ref = WEAKREF(hated)
+			note("its laws name [hated]: going for them")
+		attack(hated)
 		return
 	if(flee_ref && flee_from())
 		return
@@ -1088,22 +1104,21 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 		next_job_look = world.time + BOT_SILICON_TICK
 		if(job())
 			wandering = FALSE
+			patrol_spot = null
 			return
 	if(keep_walking())
 		return
 	wandering = FALSE
 	if(job())
+		patrol_spot = null
 		return
-	var/list/crew = GLOB.bot_crew_members
-	if(length(crew))
-		var/mob/living/carbon/human/H = pick(crew)
-		if(!QDELETED(H) && H.stat != DEAD && H.z == owner.z)
-			if(go_to(H))
-				wander_fails = 0
-				wandering = TRUE
-				next_job_look = world.time + BOT_SILICON_TICK
-			else if(++wander_fails >= 3 && world.time >= tube_next_ride && board_tube())
-				wander_fails = 0
+	// Its rounds: its own department and the halls round it, where its work turns up. It used to set off for a random crew member,
+	// usually a hundred tiles off, give up within the minute and pick another, all shift (round-20.37.50: 120 of 135 lines).
+	if(patrol())
+		wander_fails = 0
+		return
+	if(++wander_fails >= 3 && world.time >= tube_next_ride && board_tube())
+		wander_fails = 0
 
 /// Security's radio call (bot_dispatch_security()): a security cyborg goes too, looking out for whoever it's about on the way.
 /datum/bot_silicon/borg/proc/answer_call(turf/T)
@@ -1119,11 +1134,11 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	var/mob/living/silicon/robot/R = owner
 	switch(R.module.type)
 		if(/obj/item/robot_module/medical)
-			return medical_job()
+			return medical_job() || put_out_fire()
 		if(/obj/item/robot_module/janitor)
-			return janitor_job()
+			return janitor_job() || pick_up_litter() || replace_lights() || put_out_fire()
 		if(/obj/item/robot_module/engineering)
-			return engineer_job()
+			return put_out_fire() || patch_breach() || engineer_job() || fix_cyborg()
 		if(/obj/item/robot_module/security)
 			return security_job()
 	return FALSE

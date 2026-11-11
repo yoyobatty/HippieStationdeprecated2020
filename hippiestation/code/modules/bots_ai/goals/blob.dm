@@ -1551,3 +1551,19 @@ GLOBAL_LIST_EMPTY(bot_storage_asked)
 #undef BOT_BLOB_EMITTER_REACH
 #undef BOT_BLOB_GEN_PENALTY
 #undef BOT_BLOB_GEN_SHEETS
+
+/// Blob rounds: the mode turns the picked crew member into an overmind by handing over its key (transform_procs.dm). A bot's goes nowhere, so
+/// the overmind came out with no mind, no blob antagonist and nobody playing it: the mode's post_setup() stopped on "Cannot modify
+/// null.name", and the camera wrote "null.healths" to the runtime log 340 times a round with no HUD (live round n0_blob, 2026-11-10).
+/// A bot's mind goes over instead, and the bot blob plays it.
+/mob/living/carbon/human/become_overmind(starting_points = 60)
+	if(!mind || !bot_brain) //a bot has a key of its own (bot_identity.dm) but no client, and setting that on the camera moves nothing
+		return ..()
+	var/mob/camera/blob/B = new /mob/camera/blob(get_turf(src), starting_points)
+	mind.transfer_to(B)
+	if(!B.mind.has_antag_datum(/datum/antagonist/blob))
+		B.mind.add_antag_datum(/datum/antagonist/blob)
+	new /datum/bot_blob(B)
+	log_game("BOT BLOB: [B.mind.name] is the blob, from the round's pick")
+	qdel(src)
+	return B
