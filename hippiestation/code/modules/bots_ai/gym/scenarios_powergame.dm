@@ -404,3 +404,16 @@
 			fail_reason = "bandaged the burnt arm, where a bruise pack does nothing"
 			return BOT_GYM_FAIL
 	return bot.getBruteLoss() < 5 ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// Asked while busy. In round-13.09.35 the chemist took three calls for pills while brewing, said "On my way with them" to each, and
+/// brought none: the hand-over only started for a chemist with nothing on. The atmos tech who asked stood 90 s in Engineering SMES.
+/datum/bot_scenario/powergame_chemist/busy
+	name = "powergame: a chemist asked for heal pills while busy brings them"
+	desc = "The same call, while the chemist's standing waiting on something of its own. It leaves that and takes a pill over. It used to say \"On my way\" and never come."
+
+/datum/bot_scenario/powergame_chemist/busy/make_goal()
+	return new /datum/bot_goal/await_activator
+
+/datum/bot_scenario/powergame_chemist/busy/ask()
+	log_line("chemist busy: [brain.state == BOT_STATE_GOAL ? "yes, [brain.current_goal?.type]" : "no"]")
+	return ..()

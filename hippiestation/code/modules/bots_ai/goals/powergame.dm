@@ -324,15 +324,18 @@ GLOBAL_LIST_INIT(bot_power_mutations, list(/datum/mutation/human/hulk, /datum/mu
 
 /datum/bot_request_kind/genes/attend(datum/bot_brain/bot, datum/bot_request/R)
 	var/mob/living/carbon/human/who = R.caller_ref?.resolve()
-	if(!istype(who) || who == bot.owner || bot.state != BOT_STATE_WANDER)
+	if(!istype(who) || who == bot.owner)
 		return
-	var/obj/item/dnainjector/activator/I = bot_injector_for(who, bot)
-	if(I && bot.can_walk_lawfully_to(I))
-		bot.assign_goal(new /datum/bot_goal/power_injector(who, I))
+	if(bot.state == BOT_STATE_GOAL && !bot.current_goal?.exclusive) //taken while busy, as heal_chems: it said so and didn't come
+		bot.drop_goals("somebody's waiting on an injector")
+	var/obj/item/dnainjector/activator/I = bot.state == BOT_STATE_WANDER && bot_injector_for(who, bot)
+	if(I && bot.can_walk_lawfully_to(I) && bot.assign_goal(new /datum/bot_goal/power_injector(who, I)))
 		return
-	var/list/at_console = bot_power_console_for(who, bot)
-	if(at_console && bot.can_walk_lawfully_to(at_console[1]))
-		bot.assign_goal(new /datum/bot_goal/power_injector(who, null, at_console[1], at_console[2]))
+	var/list/at_console = bot.state == BOT_STATE_WANDER && bot_power_console_for(who, bot)
+	if(at_console && bot.can_walk_lawfully_to(at_console[1]) && bot.assign_goal(new /datum/bot_goal/power_injector(who, null, at_console[1], at_console[2])))
+		return
+	R.taken_by = null
+	LAZYOR(R.failed_by, bot)
 
 /// An injector for somebody, this bot or another: picked up where it lies, or printed at a console off a stored gene, and then
 /// injected, or taken over to them.
@@ -656,7 +659,7 @@ GLOBAL_LIST_INIT(bot_harmless_symptoms, typecacheof(list(/datum/symptom/beard, /
 
 /datum/bot_request_kind/heal_chems/attend(datum/bot_brain/bot, datum/bot_request/R)
 	var/mob/living/carbon/human/who = R.caller_ref?.resolve()
-	if(!istype(who) || who == bot.owner || bot.state != BOT_STATE_WANDER)
+	if(!istype(who) || who == bot.owner)
 		return
 	var/obj/item/reagent_containers/pill/spare
 	if(bot.carried_chems(BOT_POWER_HEAL_KIND) > 1)
@@ -665,10 +668,20 @@ GLOBAL_LIST_INIT(bot_harmless_symptoms, typecacheof(list(/datum/symptom/beard, /
 				spare = P
 				break
 	if(!spare)
+		// Said instead of "On my way" (bot_claims.dm say_ack() wants it still taken), and the call's closed: the asker stood
+		// 90 s in Engineering SMES waiting on a chemist with none (round-13.09.35).
+		GLOB.bot_requests -= R
+		R.taken_by = null
 		bot.heals_owed = min(bot.heals_owed + 2, 4)
 		bot.say_after_typing(bot_radio_prefix(R.radio_freq) + pick("None spare right now, I'll make more.", "Out of them. Give me ten minutes.", "Just used the last. I'll brew some."))
 		return
-	bot.assign_goal(new /datum/bot_goal/hand_over(spare, who))
+	// Taken while brewing: it said "On my way with them" and went on brewing, then wandered off robust, three calls running,
+	// and nobody got a pill (round-13.09.35). Everyday work waits; anything it can't put down hands the call back.
+	if(bot.state == BOT_STATE_GOAL && !bot.current_goal?.exclusive)
+		bot.drop_goals("somebody's waiting on pills")
+	if(bot.state != BOT_STATE_WANDER || !bot.assign_goal(new /datum/bot_goal/hand_over(spare, who)))
+		R.taken_by = null
+		LAZYOR(R.failed_by, bot)
 
 /datum/bot_brain
 	/// Heal pills a chemist means to make for others, on top of its own stock.
