@@ -685,7 +685,14 @@
 	// 5-15s poll cadence below, the same way a real crew member doesn't wait out a
 	// schedule before reacting to flames in front of them. The timed/radio-pushed
 	// checks further down stay as-is for hazards the bot ISN'T currently looking at.
-	if(is_fire_response_job())
+	if(is_fire_responder()) //goals/team_repairs.dm: helpers too
+		// A helper calls it in first, as anybody not in Engineering does (on the radio, or the room's alarm with no headset), then goes for it.
+		if(!is_fire_response_job() && world.time >= next_fire_report_time)
+			var/obj/effect/hotspot/fire_called = can_see_active_fire()
+			if(fire_called)
+				report_fire(get_area(fire_called))
+				if(current_goal) //off to pull the alarm
+					return
 		if(can_see_active_fire() && try_fire_response_round())
 			if(owner.buckled)
 				owner.buckled.unbuckle_mob(owner, force = TRUE)

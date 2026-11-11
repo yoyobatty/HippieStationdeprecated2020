@@ -33,7 +33,7 @@
 	addtimer(CALLBACK(src, PROC_REF(say_ack), R, line), bot_typing_time(line))
 
 /datum/bot_brain/proc/say_ack(datum/bot_request/R, line)
-	if(R.taken_by != src)
+	if(R.taken_by != src && !R.kind.team_call) //a team call has as many takers as went (goals/team_repairs.dm)
 		return
 	R.ack_said = TRUE
 	speak_reply(line)

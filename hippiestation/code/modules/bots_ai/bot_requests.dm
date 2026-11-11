@@ -359,6 +359,7 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 			LAZYOR(R.failed_by, src)
 			return FALSE
 	R.taken_by = src
+	LAZYADD(R.takers, owner.real_name) //goals/team_repairs.dm
 	var/mob/living/who = R.caller_ref?.resolve()
 	bot_log(src, "taking a [R.kind.name] call from [who || "somebody"] ([isarea(R.place) ? "[R.place]" : get_area_name(R.place, TRUE)])")
 	if(who != owner)
@@ -372,6 +373,9 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 	if(!R.still_open() || !R.place)
 		return
 	if(bot_ai_take_request(R)) //the AI first, when it can do it from the core (bot_claims.dm)
+		return
+	if(R.kind.team_call && ishuman(R.caller_ref?.resolve())) //every free engineer and a couple of helpers (goals/team_repairs.dm). Not for Poly's "breach!"
+		bot_offer_team(R)
 		return
 	var/turf/there = isarea(R.place) ? null : get_turf(R.place)
 	var/datum/bot_brain/best

@@ -187,7 +187,7 @@ GLOBAL_LIST_INIT(bot_fire_words, list("fire", "fires", "burning", "ablaze", "fla
 /// A fire called in, by anybody (bots too), to its face or over the radio: where it is, now known. "Fire!" said beside it with no
 /// place is where whoever said it is standing.
 /datum/bot_brain/proc/heard_of_fire(mob/living/talker, lower_msg, radio_freq)
-	if(!is_fire_response_job() || !length(SSair.hotspots) || !bot_text_has_any(lower_msg, GLOB.bot_fire_words))
+	if(!is_fire_responder() || !length(SSair.hotspots) || !bot_text_has_any(lower_msg, GLOB.bot_fire_words))
 		return
 	var/area/where = bot_fire_place_named(lower_msg, get_turf(radio_freq ? owner : talker))
 	if(!where && !radio_freq)
@@ -363,7 +363,7 @@ GLOBAL_LIST_INIT(bot_fire_words, list("fire", "fires", "burning", "ablaze", "fla
 	return best || get_ranged_target_turf(fire_turf, get_dir(fire_turf, bot_turf) || SOUTH, range)
 
 /datum/bot_brain/proc/try_fire_response_round()
-	if(!is_fire_response_job())
+	if(!is_fire_responder()) //goals/team_repairs.dm: helpers too
 		return FALSE
 	// Alight, or already burnt half to death: somebody else's fire to fight. An engineer at half health and still burning went back
 	// for an extinguisher, then to fix the cable in the same fire.
