@@ -10,3 +10,6 @@
 //Offsets
 #define OFFSET_HANDS "hands"
 #define OFFSET_HAIR "hair"
+/// Life ticks (2 s each) of stutter a stun baton leaves: tg main sets 40 s. Its stunforce (70-100) was used, and the Captain
+/// stammered in a cell for over three minutes after one hit (round-13.09.35).
+#define BATON_STUTTER 20

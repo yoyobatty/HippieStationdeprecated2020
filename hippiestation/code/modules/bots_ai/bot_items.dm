@@ -128,7 +128,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	if(is_tool_or_toolbox(inactive))
 		// The other hand might not be: a scientist with a screwdriver in one and a radiation suit in the other, and a full bag, couldn't take a wrench.
 		if(!is_tool_or_toolbox(active))
-			if(!put_away(active, allow_equip = FALSE))
+			if(!put_away(active, allow_equip = FALSE) && (wanted || !bot_keeps_in_hand(active)))
 				set_down(active)
 			return
 		// Both hands tools, and what's being picked up is what the errand is for (`wanted`, pickup_item): one tool goes down for it,
@@ -137,8 +137,15 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 		if(wanted && !put_away(inactive, allow_equip = FALSE))
 			set_down(inactive)
 		return
-	if(!put_away(inactive, allow_equip = FALSE))
+	if(!put_away(inactive, allow_equip = FALSE) && (wanted || !bot_keeps_in_hand(inactive)))
 		set_down(inactive)
+
+/// Never put down on the floor to free a hand: a weapon or traitor kit, which anybody could walk off with. The Warden confiscated an
+/// energy sword in Engineering, set it down "for a moment" two seconds later to take a crowbar it passed, and went off on a call; the
+/// Captain picked it up off the floor (round-13.09.35). Whatever wanted the hand goes without, unless a job needs it (`wanted`): then it's
+/// down for a moment and back for after (go_back_for_set_down()), as before.
+/proc/bot_keeps_in_hand(obj/item/I)
+	return istype(I, /obj/item/gun) || istype(I, /obj/item/melee) || is_type_in_typecache(I, GLOB.bot_contraband)
 
 /// Down for a moment, to be picked back up (go_back_for_set_down()): a scientist set the RPED down three times for something else and
 /// walked off from it each time.

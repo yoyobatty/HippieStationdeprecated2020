@@ -108,7 +108,7 @@
 			return 0
 
 	L.adjustStaminaLoss(stamforce)
-	L.apply_effect(stunforce, EFFECT_STUTTER) // arguments were reversed, so no stutter was ever applied
+	L.apply_effect(min(stunforce, BATON_STUTTER), EFFECT_STUTTER) // arguments were reversed, so no stutter was ever applied
 	SEND_SIGNAL(L, COMSIG_LIVING_MINOR_SHOCK)
 	if(user)
 		L.lastattacker = user.real_name

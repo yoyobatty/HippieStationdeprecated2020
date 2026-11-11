@@ -181,3 +181,51 @@
 	var/took_call = !!brain.current_goal
 	log_line("dead, it took the call: [took_call ? "yes" : "no"]")
 	expect(!took_call && !brain.assign_goal(new /datum/bot_goal/clean_contamination()), "dead, nothing gets assigned")
+
+/// round-13.09.35: the Warden confiscated an energy sword, set it down two seconds later to take a crowbar it passed, and went off on a
+/// call. The Captain picked it up off the floor.
+/datum/bot_scenario/griefed/bug/sword_kept
+	name = "items: a weapon in hand isn't put on the floor to free a hand"
+	desc = "Both hands full, an energy sword in the other one, and nowhere to put it away. Making room for something it passes, the bot keeps the sword in hand. It used to set it down and walk off."
+
+/datum/bot_scenario/griefed/bug/sword_kept/grief()
+	for(var/obj/item/storage/S in list(bot.get_item_by_slot(ITEM_SLOT_BACK), bot.get_item_by_slot(ITEM_SLOT_BELT)))
+		bot.dropItemToGround(S, TRUE)
+		qdel(S)
+	// Belt and pockets taken by things that aren't bags, as an officer's are: nowhere to wear it either
+	bot.equip_to_slot_or_del(new /obj/item/wrench(bot), ITEM_SLOT_BELT)
+	bot.equip_to_slot_or_del(new /obj/item/pen(bot), ITEM_SLOT_LPOCKET)
+	bot.equip_to_slot_or_del(new /obj/item/pen(bot), ITEM_SLOT_RPOCKET)
+	var/obj/item/sword = new /obj/item/melee/transforming/energy/sword/saber(bot.loc)
+	var/obj/item/pen = new /obj/item/pen(bot.loc)
+	bot.put_in_active_hand(pen)
+	bot.put_in_inactive_hand(sword)
+	log_line("holding [english_list(bot.held_items)]: active [bot.get_active_held_item()], inactive [bot.get_inactive_held_item()]; back [bot.get_item_by_slot(ITEM_SLOT_BACK)], belt [bot.get_item_by_slot(ITEM_SLOT_BELT)], dex [bot.get_item_by_slot(ITEM_SLOT_DEX_STORAGE)]")
+	brain.make_room_for_item(FALSE)
+	log_line("the sword's in [sword.loc] ([sword.loc?.type]), held: [(sword in bot.held_items) ? "yes" : "no"]")
+	expect(!isturf(sword.loc), "the sword's not on the floor")
+
+/// round-13.09.35: the Captain stammered in a cell for minutes after one baton hit. The baton's stutter was its stunforce in Life ticks
+/// (100, over three minutes); tg main gives 40 s.
+/datum/bot_scenario/griefed/bug/baton_stutter
+	name = "bug: a stun baton leaves 40 s of stutter, not minutes"
+	desc = "Somebody's hit with a loaded stun baton. They stutter for at most 20 Life ticks (40 s, tg main's), not the baton's stunforce of 100."
+
+/datum/bot_scenario/griefed/bug/baton_stutter/grief()
+	var/obj/item/melee/baton/loaded/B = griefer_holds(/obj/item/melee/baton/loaded)
+	B.status = TRUE
+	B.baton_stun(bot, griefer)
+	log_line("stuttering [bot.stuttering]")
+	expect(bot.stuttering > 0 && bot.stuttering <= 20, "stutters, 20 ticks at most")
+
+/// round-13.09.35: a scientist bot said "[capitalize(M.name)] should run better now" about the DNA scanner, "\improper DNA scanner", and
+/// it came out as a broken symbol and "NA scanner".
+/datum/bot_scenario/griefed/bug/capitalize_improper
+	name = "bug: capitalize() on a name starting \\improper gives the name"
+	desc = "capitalize(\"\\improper DNA scanner\") is \"DNA scanner\", and \"\\proper Poly\" is \"Poly\"."
+
+/datum/bot_scenario/griefed/bug/capitalize_improper/grief()
+	var/a = capitalize("\improper DNA scanner")
+	var/b = capitalize("\proper poly")
+	log_line("got \"[url_encode(a)]\" and \"[url_encode(b)]\"")
+	expect(a == "DNA scanner" && b == "Poly", "both read right")

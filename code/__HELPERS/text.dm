@@ -259,6 +259,11 @@
 //Returns a string with the first element of the string capitalized.
 /proc/capitalize(t)
 	. = t
+	// hippie start -- a name starting "\improper " came out as a broken symbol and "NA scanner": t[1] took the macro's bytes and the letter after
+	if(t && (findtext(t, "\improper ") == 1 || findtext(t, "\proper ") == 1))
+		t = format_text(t)
+		. = t
+	// hippie end
 	if(t)
 		. = t[1]
 		return uppertext(.) + copytext(t, 1 + length(.))
