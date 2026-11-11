@@ -93,3 +93,24 @@
 	if(take_pulled_in(user))
 		return TRUE
 	return ..()
+
+// Chairs and beds: the same for buckling somebody you've got hold of (a roller bed in Medbay, a chair in the Brig). A click on it with them
+// in tow buckles them in; an empty-handed click on somebody already buckled still unbuckles them.
+
+/obj/structure/chair/attack_hand(mob/living/user)
+	if(buckle_pulled(user))
+		return TRUE
+	return ..()
+
+/obj/structure/bed/attack_hand(mob/living/user)
+	if(buckle_pulled(user))
+		return TRUE
+	return ..()
+
+/atom/movable/proc/buckle_pulled(mob/living/user)
+	var/mob/living/L = istype(user) ? user.pulling : null
+	if(!can_buckle || has_buckled_mobs() || !istype(L) || L == user || !Adjacent(user) || !L.Adjacent(src) || user.incapacitated())
+		return FALSE
+	if(L.loc != loc && !L.Move(loc, get_dir(L, src))) //onto it first, the step a player would pull them
+		return FALSE
+	return user_buckle_mob(L, user)

@@ -64,6 +64,18 @@
 		else
 			failed++
 		lines += "[in_sleeper ? "PASS" : "FAIL"] a click on a sleeper while pulling somebody puts them in (occupant [S.occupant || "none"])"
+		// And a chair: they're buckled into it.
+		var/obj/structure/chair/chair = new(get_step(H, SOUTH))
+		var/mob/living/carbon/human/sitter = new(get_step(H, WEST))
+		H.start_pulling(sitter)
+		chair.attack_hand(H)
+		sleep(5)
+		var/buckled = sitter.buckled == chair
+		if(buckled)
+			passed++
+		else
+			failed++
+		lines += "[buckled ? "PASS" : "FAIL"] a click on a chair while pulling somebody buckles them in"
 	catch(var/exception/e)
 		failed++
 		lines += "FAIL exception: [e] at [e.file]:[e.line]"

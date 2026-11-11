@@ -215,7 +215,7 @@ GLOBAL_LIST_INIT(bot_wizard_no_landing, typecacheof(list(/area/engine/engineerin
 			continue
 		if(istype(S, /obj/effect/proc_holder/spell/targeted/turf_teleport/blink) || istype(S, /obj/effect/proc_holder/spell/targeted/ethereal_jaunt))
 			next_wizard_escape = world.time + 10 SECONDS
-			S.Click()
+			cast_without_waiting(S) //the jaunt sleeps through its whole length: not on the reflex loop
 			bot_log(src, "cast [S] to get away")
 			return TRUE
 	return FALSE
@@ -234,3 +234,9 @@ GLOBAL_LIST_INIT(bot_wizard_no_landing, typecacheof(list(/area/engine/engineerin
 
 /datum/bot_goal/traitor_kill/robust/wizard/on_success(datum/bot_brain/bot)
 	return
+
+/// A spell's button pressed, without waiting for it to finish.
+/datum/bot_brain/proc/cast_without_waiting(obj/effect/proc_holder/spell/S)
+	set waitfor = FALSE
+	usr = owner
+	S.Click()

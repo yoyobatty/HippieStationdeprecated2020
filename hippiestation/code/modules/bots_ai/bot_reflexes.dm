@@ -154,6 +154,11 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 		cuffed_since = world.time
 	if(GLOB.bot_reflexes_off || world.time < next_struggle_time)
 		return FALSE
+	// A wizard held or cuffed jaunts or blinks out before anything else (goals/wizard.dm): it needs no hands. n6_wizard was cuffed five
+	// times and only ever struggled.
+	if(bot_wizard && (owner.handcuffed || owner.pulledby) && wizard_escape(TRUE))
+		next_struggle_time = world.time + 2 SECONDS
+		return TRUE
 	var/atom/holding = what_holds_me()
 	if(!holding || !owner.can_resist())
 		return FALSE
