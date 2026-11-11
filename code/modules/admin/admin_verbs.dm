@@ -95,6 +95,7 @@ GLOBAL_LIST_INIT(admin_verbs_fun, list(
 	/client/proc/cmd_admin_fiery_explosion, /*hippie -- flame front that spreads through oxygen-rich open turfs*/
 	/client/proc/cmd_admin_repair_machine, /*hippie -- fully repairs a damaged machine/obj*/
 	/client/proc/cmd_admin_abandon_station, /*hippie -- trashes the station so it looks abandoned after a disaster*/
+	/client/proc/cmd_admin_station_looks, /*hippie -- force, ban or re-roll the round's station looks*/
 	/client/proc/set_dynex_scale,
 	/client/proc/drop_dynex_bomb,
 	/client/proc/cinematic,

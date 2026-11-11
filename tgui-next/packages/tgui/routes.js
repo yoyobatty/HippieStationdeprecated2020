@@ -16,6 +16,7 @@ import { AntagTips, ApprenticeContract, ArcaneTome, GangTool, MalfModules, Pirat
 import { BotPanel } from './interfaces/BotPanel';
 import { CrewManifest } from './interfaces/CrewManifest';
 import { GriefUndo } from './interfaces/GriefUndo';
+import { StationLooks } from './interfaces/StationLooks';
 import { AiAirlock } from './interfaces/AiAirlock';
 import { AirAlarm } from './interfaces/AirAlarm';
 import { AirlockElectronics } from './interfaces/AirlockElectronics';
@@ -383,6 +384,10 @@ const ROUTES = {
   grief_undo: {
     component: () => GriefUndo,
     scrollable: false,
+  },
+  station_looks: {
+    component: () => StationLooks,
+    scrollable: true,
   },
   chem_dispenser: {
     component: () => ChemDispenser,

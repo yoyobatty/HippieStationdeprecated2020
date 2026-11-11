@@ -89,23 +89,33 @@ GLOBAL_LIST_EMPTY(light_glows)
 	vis_contents += light_glow("supermatter")
 
 // ---- Worn tubes: a few of the lamps down in maintenance sputter now and then. These do go dark for real, which is the point of
-// them, so it's the fixture's own flicker(), kept rare: one tube on the whole station every half minute or so.
+// them, so it's the fixture's own flicker(), kept rare: one tube on the whole station every half minute or so. With more than
+// twenty worn (Tired wiring, station_looks/looks_wiring.dm) they come round faster, so each still sputters about as often.
+// A new tube in the fitting is a sound one (fresh_tube() in station_looks/looks_lamps.dm).
 
 GLOBAL_LIST_EMPTY(worn_lights)
 
+/obj/machinery/light
+	/// A worn tube, one of GLOB.worn_lights
+	var/worn = FALSE
+
 /obj/machinery/light/proc/wear_tube()
+	if(worn)
+		return
+	worn = TRUE
 	if(!length(GLOB.worn_lights))
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(sputter_worn_light)), rand(20 SECONDS, 40 SECONDS))
 	GLOB.worn_lights += src
 
 /obj/machinery/light/Destroy()
 	GLOB.worn_lights -= src
+	GLOB.buzzing_lights -= src
 	return ..()
 
 /proc/sputter_worn_light()
 	if(!length(GLOB.worn_lights))
 		return //the next worn tube built starts it again
-	addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(sputter_worn_light)), rand(20 SECONDS, 40 SECONDS))
+	addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(sputter_worn_light)), rand(20 SECONDS, 40 SECONDS) / max(1, length(GLOB.worn_lights) / 20))
 	var/obj/machinery/light/L = pick(GLOB.worn_lights)
 	L.sputter()
 
@@ -118,6 +128,9 @@ GLOBAL_LIST_EMPTY(worn_lights)
 	while(flickering && !QDELETED(src))
 		sleep(5)
 	switchcount = switched //sputtering isn't switching: it doesn't bring the tube any nearer burning out
+	if(tired && !QDELETED(src) && on && status == LIGHT_OK && prob(LOOK_TIRED_BURNOUT)) //a tired one does go in the end
+		burn_out()
+		update(FALSE)
 
 // ---- Each client's lighting plane
 

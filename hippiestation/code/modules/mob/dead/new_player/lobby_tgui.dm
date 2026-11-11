@@ -172,11 +172,17 @@ GLOBAL_VAR_INIT(lobby_design, "pass")
 	if(late_join_menu)
 		SStgui.close_uis(late_join_menu)
 
-/// A late join that fell through (full, malfunctioning arrivals) closed the lobby first: bring it back
+/// A late join that fell through (full, malfunctioning arrivals) closed the lobby first: bring it back.
+/// One that went through gets the round's shift notes, as everyone did when it started (station_looks.dm).
 /mob/dead/new_player/AttemptLateSpawn(rank)
+	var/client/joining = client
 	. = ..()
 	if(!. && !QDELETED(src) && client && !spawning)
 		new_player_panel()
+	else if(. && joining)
+		var/notes = SSstation_looks.shift_notes()
+		if(notes)
+			to_chat(joining, notes)
 
 /mob/dead/new_player/LateChoices()
 	if(!client)

@@ -63,6 +63,14 @@ BOT_CREW_TRAITORS 2
 ## second) in a live round too. Test runs always write it. Also on whenever PLAYER_LOG_CKEY is set.
 #BOT_TELEMETRY
 
+## Station looks: how often each one comes up against the others in its slot. 0 means never; unset ones keep these weights.
+## Shift time (one every round): day 35, morning 20, night 30, power_saving 15.
+## Sky (one every round): sky_quiet 20; sky_ember, sky_glacier, sky_violet, sky_verdant, sky_gold, sky_rose 10 each.
+## Extras (up to two): tired_wiring 10, and none_extra 10 for rolling none. History (at most one): none_history 20.
+## Admins can force, ban and re-roll them in the round with the Station Looks verb.
+#STATION_LOOK_WEIGHT night 30
+#STATION_LOOK_WEIGHT none_extra 10
+
 ## One player's actions get logged the way the bots' are, in data/logs/<round>/player_telemetry.jsonl: where they are, what they
 ## click, press and carry. It's how bots get compared with a person. Nobody else is ever recorded. Unset is nobody.
 PLAYER_LOG_CKEY yoyobatty

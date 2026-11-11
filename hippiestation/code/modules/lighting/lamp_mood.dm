@@ -17,7 +17,10 @@
 		// A tube in seven down in maintenance is on its way out (light_glow.dm)
 		if(mapload && istype(A, /area/maintenance) && prob(14))
 			wear_tube()
-	return ..()
+	. = ..()
+	// Built after the round's shift time went on: it takes it too (station_looks/looks_lamps.dm). LateInitialize() lights it
+	if(SSstation_looks.applied && (SSstation_looks.lamp_tint || SSstation_looks.night_tint) && z && is_station_level(z))
+		refresh_look(FALSE)
 
 // Clean and clinical
 /area/medical
