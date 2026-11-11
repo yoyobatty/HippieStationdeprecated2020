@@ -30,6 +30,64 @@
 	if(glow)
 		standing.overlays += emissive_glow(file, glow, unblockable = TRUE)
 
+/mob/living/carbon
+	/// Glows taken out of worn and held sprites (apply_overlay() below): sprite -> its glow overlays
+	var/list/worn_glows
+	/// Those glows as they're on the mob now, by overlays_standing index (as text)
+	var/list/worn_glows_shown
+
+/// The glow in a worn or held sprite goes on the mob's own overlays beside the sprite, not inside it. Inside the in-hand or worn overlay, on
+/// a plane of its own (KEEP_APART), it kept the south-facing frame whichever way the mob turned: the Captain's lit energy sword showed a
+/// second blade where it would be facing south (round-13.09.35). Beside it, it turns with the mob. Real-client pictures:
+/// data/previews/sword_dir_before_after.png (tools/keybind_check/sword_dir_shots.dm).
+/// overlays_standing keeps its entries as they were: callers read them back after applying (human update_inv_wear_mask() offsets the mask
+/// and applies it again), so the glow is taken out before the sprite goes on, remembered for it, and put on again with its offset.
+/mob/living/carbon/apply_overlay(cache_index)
+	var/layer = overlays_standing[cache_index]
+	var/list/shown
+	if(layer)
+		for(var/mutable_appearance/standing in (islist(layer) ? layer : list(layer)))
+			var/list/nested
+			for(var/each in standing.overlays)
+				if(!istext(each) && emissive_glow_plane(each:plane))
+					LAZYADD(nested, each)
+			if(nested)
+				standing.overlays -= nested
+				LAZYSET(worn_glows, standing, nested)
+			for(var/each in LAZYACCESS(worn_glows, standing))
+				if(!standing.pixel_x && !standing.pixel_y)
+					LAZYADD(shown, each)
+					continue
+				// Inside it, it moved with the sprite's offset (a species' hands or mask): beside it, it needs one of its own
+				var/mutable_appearance/moved = new(each)
+				moved.plane = each:plane //new() puts a mutable appearance on FLOAT_PLANE (mutable_appearance.dm)
+				moved.pixel_x += standing.pixel_x
+				moved.pixel_y += standing.pixel_y
+				LAZYADD(shown, moved)
+	. = ..()
+	if(shown)
+		add_overlay(shown)
+		LAZYSET(worn_glows_shown, "[cache_index]", shown)
+	if(LAZYLEN(worn_glows) > 12) //sprites since replaced
+		for(var/standing in worn_glows.Copy())
+			var/still_on = FALSE
+			for(var/entry in overlays_standing)
+				if(entry == standing || (islist(entry) && (standing in entry)))
+					still_on = TRUE
+					break
+			if(!still_on)
+				worn_glows -= standing
+
+/mob/living/carbon/remove_overlay(cache_index)
+	var/list/shown = LAZYACCESS(worn_glows_shown, "[cache_index]")
+	if(shown)
+		cut_overlay(shown)
+		worn_glows_shown -= "[cache_index]"
+	return ..()
+
+/proc/emissive_glow_plane(plane)
+	return plane == EMISSIVE_UNBLOCKABLE_PLANE || plane == EMISSIVE_BLOOM_PLANE || plane == EMISSIVE_PLANE
+
 /obj/item/flashlight/update_brightness(mob/user)
 	. = ..()
 	update_state_glow()
