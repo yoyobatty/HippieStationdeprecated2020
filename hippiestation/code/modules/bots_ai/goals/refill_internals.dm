@@ -429,6 +429,11 @@
 		return
 	tank = eva_tank()
 	if(!tank)
+		// No tank worn or in hand: the survival box in the bag, as anybody else does (emergency_internals()). Only tanks on them were
+		// looked at here, so an atmos tech or engineer without a suit on suffocated with the box's tank full in their bag: 16 of the 59
+		// who died with no internals running in six leak shifts (leak1111b).
+		if(!breathable)
+			emergency_internals()
 		return
 	tank.toggle_internals(owner)
 	if(owner.internal == tank)

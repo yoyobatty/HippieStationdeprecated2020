@@ -240,6 +240,11 @@
 		return BOT_GYM_FAIL
 	return bot.internal ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/datum/bot_scenario/emergency_internals/eva_job
+	name = "an atmos tech with no suit on, where the air's gone, opens the survival box's tank"
+	desc = "The same room with no oxygen, an atmos tech in its jumpsuit, the survival box's mask and tank in its bag. The space jobs only looked at tanks they had on them, and atmos techs and engineers suffocated with the box's tank full in their bags (leak1111b)."
+	job = "Atmospheric Technician"
+
 // ---------------------------------------------------------------------------------------------
 // The defibrillator on the wall (goals/treat_patient.dm). Layout letter K: the mount. C: the body.
 // ---------------------------------------------------------------------------------------------
