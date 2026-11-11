@@ -21,6 +21,8 @@
 	var/decimated_since = 0
 	/// Rooms it's called a hull breach in, until they're patched.
 	var/list/breached_called
+	/// Rooms it's called low pressure in, until their alarm clears.
+	var/list/pressure_called
 
 /datum/bot_silicon/ai/think()
 	. = ..()
@@ -30,7 +32,7 @@
 	if(subverted())
 		hunt_law_targets()
 		return
-	watch_operatives() || watch_fires() || watch_breaches() || watch_fights() || watch_crit() || watch_core() || watch_power()
+	watch_operatives() || watch_fires() || watch_breaches() || watch_pressure() || watch_fights() || watch_crit() || watch_core() || watch_power()
 	watch_shuttle()
 
 /// Somebody in critical condition on the crew monitor (suit sensors set to vitals or better): Medical told where, and a request made that
@@ -131,6 +133,27 @@
 		say_it(";Hull breach in [english_list(new_rooms)]. Engineering, please respond.")
 	send_engi_borg(first)
 	return TRUE
+
+/// An air alarm at danger with the pressure going: each room once while it lasts, and the nearest engineering cyborg sent. A smashed
+/// window onto space isn't a hole in the floor, so it never made the breach list: in sil1110 run7 32 rooms went bad that way.
+/datum/bot_silicon/ai/proc/watch_pressure()
+	for(var/obj/machinery/airalarm/alarm as anything in bot_instances_of(/obj/machinery/airalarm))
+		if(QDELETED(alarm) || !is_station_level(alarm.z) || (alarm.stat & (NOPOWER|BROKEN)))
+			continue
+		var/area/A = get_area(alarm)
+		if(!A || A.atmosalm < 2)
+			if(A && (A in pressure_called))
+				pressure_called -= A
+			continue
+		var/turf/open/T = get_turf(alarm)
+		if(!istype(T) || T.return_air().return_pressure() > 70 || (A in pressure_called))
+			continue
+		LAZYADD(pressure_called, A)
+		note("pressure dropping in [A.name]")
+		say_it(";Pressure dropping in [A.name]. Engineering, please respond.")
+		send_engi_borg(T)
+		return TRUE
+	return FALSE
 
 /// The nearest engineering cyborg with nothing better to do goes.
 /datum/bot_silicon/ai/proc/send_engi_borg(turf/T)

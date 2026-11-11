@@ -239,3 +239,29 @@
 	if(borg.emagged && B?.master_ref?.resolve() == bot)
 		log_line("subverted, cover [borg.opened ? "open" : "shut"]")
 		return BOT_GYM_PASS
+
+/datum/bot_scenario/griefed/borg/glaze
+	name = "cyborg: an engineering cyborg puts a window back in a grille onto space"
+	desc = "A window smashed out of its grille in the outer wall, space behind. The engineering cyborg glazes it with reinforced glass."
+	borg_module = /obj/item/robot_module/engineering
+	time_limit = 40 SECONDS
+	layout = list(
+		"###########",
+		"#R.......C#",
+		"#B........#",
+		"######g####",
+		"SSSSSSSSSSS")
+
+/datum/bot_scenario/griefed/borg/glaze/setup()
+	var/turf/T = first_marker("g")
+	var/obj/structure/window/reinforced/fulltile/W = new(T)
+	qdel(W) //smashed out
+	log_line("window gone from [COORD(T)]")
+
+/datum/bot_scenario/griefed/borg/glaze/check()
+	. = ..()
+	if(. != BOT_GYM_PENDING)
+		return
+	var/turf/T = first_marker("g")
+	if(locate(/obj/structure/window) in T)
+		return BOT_GYM_PASS

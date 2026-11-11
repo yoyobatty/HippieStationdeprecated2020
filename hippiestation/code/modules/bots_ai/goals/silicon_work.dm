@@ -209,6 +209,59 @@ GLOBAL_LIST_EMPTY(bot_borg_post_turfs)
 		GLOB.bot_hull_breaches -= best
 	return TRUE
 
+/// Turfs a window was broken out of, on a grille: only those get glass again. Grilles stand bare by design round the atmos tanks and
+/// the solars, and the first try glazed thirty of them in Atmospherics in its first minute (leak1111).
+GLOBAL_LIST_EMPTY(bot_window_gaps)
+
+/obj/structure/window/Destroy()
+	if(fulltile && isturf(loc) && (locate(/obj/structure/grille) in loc))
+		GLOB.bot_window_gaps[loc] = TRUE
+	return ..()
+
+/// A window smashed out of its grille with space behind it: the grille mended with rods if it's broken, then reinforced glass on it. Space
+/// dust breaks windows without making a hole in the floor, so it never made the breach list: in a shift with dust and carp (sil1110 run7)
+/// the station leaked through them until 32 rooms had bad air and 23 of the crew suffocated.
+/datum/bot_silicon/borg/proc/glaze_grilles()
+	var/obj/structure/grille/best
+	var/best_dist
+	for(var/obj/structure/grille/G in view(BORG_WORK_SIGHT, owner))
+		if(!GLOB.bot_window_gaps[G.loc] || !G.anchored || skipping(G) || (locate(/obj/structure/window) in G.loc) || istype(get_area(G), /area/space))
+			continue
+		var/space_behind = FALSE
+		for(var/d in GLOB.cardinals)
+			if(isspaceturf(get_step(G, d)))
+				space_behind = TRUE
+				break
+		if(!space_behind)
+			continue
+		var/dist = get_dist(owner, G)
+		if(!best || dist < best_dist)
+			best = G
+			best_dist = dist
+	if(!best)
+		return FALSE
+	if(!owner.Adjacent(best))
+		return go_to(best)
+	var/obj/item/stack/sheet/glass = tool(/obj/item/stack/sheet/rglass) || tool(/obj/item/stack/sheet/glass)
+	var/obj/item/stack/rods/rods = tool(/obj/item/stack/rods)
+	if(best.broken)
+		if(!rods || rods.get_amount() < 1)
+			skip(best)
+			return FALSE
+		use_on(rods, best)
+		return TRUE
+	if(!glass || glass.get_amount() < 2)
+		skip(best)
+		return FALSE
+	use_on(glass, best) //two seconds' work (grille.dm), the think loop waits on it
+	if(locate(/obj/structure/window) in best.loc)
+		GLOB.bot_window_gaps -= best.loc
+		note("glazed the grille at [AREACOORD(best)]")
+		bot_tally("windows put back by a cyborg")
+	else
+		skip(best)
+	return TRUE
+
 /// Fire in sight: the extinguisher at it, safety off first (it comes on, as anybody's does).
 /datum/bot_silicon/borg/proc/put_out_fire()
 	var/obj/item/extinguisher/E = tool(/obj/item/extinguisher)

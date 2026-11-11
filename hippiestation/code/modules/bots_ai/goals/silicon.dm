@@ -1141,7 +1141,7 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 		if(/obj/item/robot_module/janitor)
 			return janitor_job() || pick_up_litter() || replace_lights() || put_out_fire()
 		if(/obj/item/robot_module/engineering)
-			return put_out_fire() || patch_breach() || engineer_job() || fix_cyborg()
+			return put_out_fire() || patch_breach() || glaze_grilles() || engineer_job() || fix_cyborg()
 		if(/obj/item/robot_module/security)
 			return security_job()
 	return FALSE
