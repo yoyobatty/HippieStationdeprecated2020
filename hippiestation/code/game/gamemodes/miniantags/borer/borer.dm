@@ -165,7 +165,7 @@ GLOBAL_VAR_INIT(total_borer_hosts_needed, 10)
 
 /mob/living/simple_animal/borer/get_status_tab_items()
 	. = ..()
-	. += "Chemicals: [chemicals]"
+	. += stat_bar("Chemicals", chemicals, 250) // they build up to 250 (Life())
 
 /mob/living/simple_animal/borer/verb/Communicate()
 	set category = "Borer"

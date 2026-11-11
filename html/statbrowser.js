@@ -72,9 +72,6 @@ function byondMessage(raw) {
 var decoder = decodeURIComponent || unescape;
 
 // Status panel implementation ------------------------------------------------
-//status_tab_parts expects a list to be returned, to which we'll send a list within a list
-//with just "loading" to not appear broken.
-var status_tab_parts = [['Loading...']];
 var current_tab = null;
 var mc_data = null; // hippie: the MC tab's numbers (statpanels.dm generate_mc_data()), see draw_mc()
 var mc_loc = '';
@@ -335,7 +332,7 @@ function draw_tab(tab) {
   } else if (tab == turfname) {
     draw_listedturf();
   } else if (extra_tabs[tab]) {
-    draw_lines(extra_tabs[tab]);
+    draw_extra(tab);
   } else if (spell_tabs.includes(tab) || verb_tabs.includes(tab)) {
     statcontentdiv.textContent = '';
     if (spell_tabs.includes(tab)) draw_spells(tab);
@@ -349,73 +346,349 @@ function set_byond_tab(tab, picked) {
   Byond.sendMessage('Set-Tab', picked ? { tab: tab, picked: 1 } : { tab: tab });
 }
 
-// hippie: "Label: value" lines become two columns; anything else spans both
-function addStatusLine(table, text) {
-  var tr = document.createElement('tr');
-  var split = text.indexOf(': ');
-  if (split > 0 && split < 40) {
-    var label = document.createElement('td');
-    label.className = 'status-label';
-    label.textContent = text.substring(0, split);
-    var value = document.createElement('td');
-    value.className = 'status-value';
-    value.textContent = text.substring(split + 2);
-    tr.appendChild(label);
-    tr.appendChild(value);
-  } else {
-    var td = document.createElement('td');
-    td.colSpan = 2;
-    td.className = 'status-value';
-    td.textContent = text;
-    tr.appendChild(td);
-  }
-  table.appendChild(tr);
-  return tr;
+// hippie: Status. The round at the top: its time and the station's, the shuttle while it's coming, docked or leaving, the
+// lobby's countdown; the map, round, server time, time dilation and ping under them. Then the player's ahelp or question,
+// then what their mob says about itself. That can be anything (a cyborg's cell, a blob's power, the AI's cyborgs, a
+// guardian's cooldowns), so each item is drawn by its shape (st_norm()): "Label: value" in two columns, a value like 12/50,
+// 12/50E, 80% or 3 of 5 as a bar, "Title | Key: value | ..." as a card, other text as a note; a mob that needs more sends
+// bars, cooldowns, notes, cards and foldable sections as lists (stat_panel.dm stat_bar() and the rest). Gear tabs (SpiderOS,
+// the nanosuit) are drawn the same way. A wide panel puts the round and the mob side by side. The page is built once and
+// changed in place, so a click isn't lost to the next update.
+var status_data = null;
+var status_view = null;
+var extra_view = null;
+var status_folded = {};
+try {
+  status_folded = JSON.parse(window.localStorage.getItem('status_folded') || '{}') || {};
+} catch (e) {
+  status_folded = {};
+}
+var SHUTTLE_LEVELS = { ETA: 'average', ETD: 'good', ESC: 'info', LDN: 'info', IGN: 'average', ERR: 'bad', DIS: 'bad' };
+var VITAL_LABEL = /health|integrity|charge|power|cell|energy|battery/i;
+
+function st_num(n) {
+  return Number.isInteger(n) || Math.abs(n) >= 100 ? String(Math.round(n)) : n.toFixed(1);
 }
 
-function draw_lines(lines) {
-  statcontentdiv.textContent = '';
-  var table = document.createElement('table');
-  table.className = 'status-table';
-  var lastrow;
-  for (var i = 0; i < lines.length; i++) {
-    var part = lines[i];
-    if (!Array.isArray(part)) {
-      if (String(part).trim() === '') {
-        var gap = document.createElement('tr');
-        gap.className = 'status-gap';
-        gap.appendChild(document.createElement('td'));
-        table.appendChild(gap);
-      } else {
-        lastrow = addStatusLine(table, String(part));
-      }
-      continue;
+function st_secs(s) {
+  s = Math.max(0, Math.round(s));
+  return s >= 60 ? Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2) : s + ' s';
+}
+
+// Any item a mob sends, as one of: gap, section, row, link, bar, cooldown, note, card
+function st_norm(item) {
+  if (item === null || item === undefined) return null;
+  if (Array.isArray(item)) {
+    // [text, link text, href]: the ahelp line, tg's statclick links
+    var base = String(item[0]).trim();
+    return { t: 'link', label: base == 'same_line' ? '' : base, text: String(item[1] || ''), href: item[2] };
+  }
+  if (typeof item == 'object') return item.t ? item : null;
+  var text = String(item);
+  if (!text.trim()) return { t: 'gap' };
+  var parts = text.split(' | ');
+  if (parts.length >= 3) {
+    var fields = [];
+    for (var i = 1; i < parts.length; i++) {
+      var at = parts[i].indexOf(': ');
+      fields.push(at > 0 ? [parts[i].substring(0, at), parts[i].substring(at + 2)] : ['', parts[i]]);
     }
-    var base = String(part[0]).trim();
-    if (base === 'same_line' && lastrow) {
-      var cell = lastrow.lastChild;
-      var a = document.createElement('a');
-      a.href = '#';
-      a.onclick = make_topic_onclick(part[2]);
-      a.textContent = part[1];
-      cell.appendChild(a);
-    } else if (base === '') {
-      var gap2 = document.createElement('tr');
-      gap2.className = 'status-gap';
-      gap2.appendChild(document.createElement('td'));
-      table.appendChild(gap2);
-    } else {
-      lastrow = addStatusLine(table, base);
-      if (part[2]) {
-        var link = document.createElement('a');
-        link.href = '#';
-        link.onclick = make_topic_onclick(part[2]);
-        link.textContent = part[1];
-        lastrow.lastChild.appendChild(link);
+    return { t: 'card', title: parts[0], fields: fields };
+  }
+  var split = text.indexOf(': ');
+  if (split > 0 && split < 40) {
+    var label = text.substring(0, split);
+    var value = text.substring(split + 2).trim();
+    var m = value.match(/^(-?\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\s*([A-Za-z]{0,3})$/) || value.match(/^(\d+) of (\d+)()$/);
+    if (m && Number(m[2]) > 0) return { t: 'bar', label: label, value: Number(m[1]), max: Number(m[2]), unit: m[3] };
+    m = value.match(/^(-?\d+(?:\.\d+)?)\s*%$/);
+    if (m) return { t: 'bar', label: label, value: Number(m[1]), max: 100, unit: '%' };
+    return { t: 'row', label: label, value: value };
+  }
+  return { t: 'note', text: text };
+}
+
+function st_key(n) {
+  return n.t + ':' + (n.label || n.title || n.text || '');
+}
+
+function st_level(n) {
+  if (n.level) return n.level;
+  if (n.t == 'bar' && VITAL_LABEL.test(n.label)) {
+    var f = n.max ? n.value / n.max : 0;
+    return f >= 0.5 ? 'good' : f >= 0.25 ? 'average' : 'bad';
+  }
+  return '';
+}
+
+function st_meter() {
+  var meter = mc_el('span', 'st-meter');
+  meter.fill = mc_el('span', 'st-fill');
+  meter.appendChild(meter.fill);
+  return meter;
+}
+
+function st_set_meter(meter, fraction, level) {
+  meter.fill.style.width = Math.max(0, Math.min(100, fraction * 100)).toFixed(1) + '%';
+  mc_class(meter.fill, 'st-fill' + (level ? ' ' + level : ''));
+}
+
+// One item's element, and how to change it in place when the next update brings the same item
+function st_make(n) {
+  var v = { key: st_key(n), update: function () {} };
+  if (n.t == 'gap') {
+    v.el = mc_el('div', 'st-gap');
+  } else if (n.t == 'section') {
+    v.el = mc_el('div', 'st-section', n.title);
+    v.el.dataset.fold = n.title;
+  } else if (n.t == 'note') {
+    v.el = mc_el('div', 'st-note');
+    v.update = (x) => {
+      mc_set(v.el, x.text);
+      mc_class(v.el, 'st-note' + (x.level ? ' ' + x.level : ''));
+    };
+  } else if (n.t == 'card') {
+    v.el = mc_el('div', 'st-card');
+    var title = mc_el('div', 'st-card-title');
+    var body = mc_el('div', 'st-card-fields');
+    v.el.appendChild(title);
+    v.el.appendChild(body);
+    v.update = (x) => {
+      mc_set(title, x.title);
+      var html = (x.fields || []).map((f) => [f[0], f[1]].join('\u0001')).join('\u0002');
+      if (body.dataset.was !== html) {
+        body.dataset.was = html;
+        body.textContent = '';
+        (x.fields || []).forEach((f) => {
+          var field = mc_el('span', 'st-field');
+          if (f[0]) field.appendChild(mc_el('span', 'st-field-key', f[0]));
+          var val = mc_el('span', 'st-field-value', String(f[1]));
+          if (/^[A-Z][A-Z ]{2,}$/.test(String(f[1]).trim())) val.classList.add('average'); // OFFLINE, DEPOWERED
+          field.appendChild(val);
+          body.appendChild(field);
+        });
       }
+      mc_class(v.el, 'st-card' + (x.level ? ' ' + x.level : ''));
+    };
+  } else {
+    // row, link, bar, cooldown: a label, then the value
+    v.el = mc_el('div', 'st-row');
+    var lab = mc_el('span', 'st-label');
+    var val2 = mc_el('span', 'st-value');
+    v.el.appendChild(lab);
+    v.el.appendChild(val2);
+    if (n.t == 'link') {
+      var text = mc_el('span');
+      var a = mc_el('a');
+      a.href = '#';
+      val2.appendChild(text);
+      val2.appendChild(a);
+      v.update = (x) => {
+        mc_set(lab, x.label);
+        mc_set(a, x.text);
+        a.dataset.href = x.href || '';
+      };
+    } else if (n.t == 'bar' || n.t == 'cooldown') {
+      var meter = st_meter();
+      var figure = mc_el('span', 'st-figure');
+      val2.appendChild(meter);
+      val2.appendChild(figure);
+      v.update = (x) => {
+        mc_set(lab, x.label);
+        if (x.t == 'bar') {
+          var level = st_level(x);
+          st_set_meter(meter, x.max ? x.value / x.max : 0, level);
+          mc_set(figure, x.unit == '%' ? st_num(x.value) + '%' : st_num(x.value) + '/' + st_num(x.max) + (x.unit || ''));
+          mc_class(figure, 'st-figure' + (level ? ' ' + level : ''));
+        } else {
+          meter.style.display = x.total ? '' : 'none';
+          if (x.total) st_set_meter(meter, x.left / x.total, x.left > 0 ? 'average' : 'good');
+          mc_set(figure, x.left > 0 ? st_secs(x.left / 10) : 'Ready');
+          mc_class(figure, 'st-figure ' + (x.left > 0 ? 'average' : 'good'));
+        }
+      };
+    } else {
+      v.update = (x) => {
+        mc_set(lab, x.label);
+        mc_set(val2, String(x.value));
+      };
     }
   }
-  statcontentdiv.appendChild(table);
+  return v;
+}
+
+// The items into a container, in place: an item that's the same kind with the same label as last time is only changed
+function st_sync(container, cache, items) {
+  var list = [];
+  for (var i = 0; i < (items || []).length; i++) {
+    var n = st_norm(items[i]);
+    if (n) list.push(n);
+  }
+  var folded = false;
+  for (var j = 0; j < list.length; j++) {
+    var item = list[j];
+    var v = cache[j];
+    if (!v || v.key != st_key(item)) {
+      var made = st_make(item);
+      if (v) {
+        container.replaceChild(made.el, v.el);
+      } else {
+        container.appendChild(made.el);
+      }
+      cache[j] = v = made;
+    }
+    v.update(item);
+    if (item.t == 'section') {
+      folded = !!status_folded[item.title];
+      v.el.classList.toggle('folded', folded);
+    } else {
+      v.el.style.display = folded ? 'none' : '';
+    }
+  }
+  while (cache.length > list.length) {
+    cache.pop().el.remove();
+  }
+  return list.length;
+}
+
+function st_click(e) {
+  var link = e.target.closest('[data-href]');
+  if (link) {
+    e.preventDefault();
+    if (link.dataset.href) Byond.topic(link.dataset.href);
+    return;
+  }
+  var fold = e.target.closest('[data-fold]');
+  if (fold) {
+    var title = fold.dataset.fold;
+    if (status_folded[title]) {
+      delete status_folded[title];
+    } else {
+      status_folded[title] = 1;
+    }
+    try {
+      window.localStorage.setItem('status_folded', JSON.stringify(status_folded));
+    } catch (err) {}
+    draw_tab(current_tab);
+  }
+}
+
+function st_tile(label) {
+  var t = mc_el('div', 'st-tile');
+  t.label = mc_el('div', 'st-tile-label', label);
+  t.value = mc_el('div', 'st-tile-value');
+  t.appendChild(t.label);
+  t.appendChild(t.value);
+  return t;
+}
+
+function st_build() {
+  var v = { items: [], help: [] };
+  v.root = mc_el('div', 'st');
+  v.root.onclick = st_click;
+  v.round = mc_el('div', 'st-round');
+  v.tiles = mc_el('div', 'st-tiles');
+  v.tile_time = st_tile('Round');
+  v.tile_station = st_tile('Station');
+  v.tile_shuttle = st_tile('Shuttle');
+  v.tiles.appendChild(v.tile_time);
+  v.tiles.appendChild(v.tile_station);
+  v.tiles.appendChild(v.tile_shuttle);
+  v.round.appendChild(v.tiles);
+  v.meta = mc_el('div', 'st-meta');
+  v.meta2 = mc_el('div', 'st-meta');
+  v.round.appendChild(v.meta);
+  v.round.appendChild(v.meta2);
+  v.helpbox = mc_el('div', 'st-help');
+  v.round.appendChild(v.helpbox);
+  v.root.appendChild(v.round);
+  v.mine = mc_el('div', 'st-mine');
+  v.root.appendChild(v.mine);
+  return v;
+}
+
+// "Label value" pieces for a meta line, each in its own span so one can be coloured
+function st_meta(line, pieces) {
+  var text = pieces.map((p) => p[0] + '\u0001' + p[1] + '\u0001' + (p[2] || '')).join('\u0002');
+  if (line.dataset.was === text) return;
+  line.dataset.was = text;
+  line.textContent = '';
+  pieces.forEach((p, i) => {
+    if (i) line.appendChild(document.createTextNode(' · '));
+    var span = mc_el('span', p[2] || '');
+    if (p[0]) span.appendChild(mc_el('span', 'st-meta-key', p[0] + ' '));
+    span.appendChild(mc_el('span', 'st-meta-value', p[1]));
+    if (p[3]) span.title = p[3];
+    line.appendChild(span);
+  });
+}
+
+function draw_status() {
+  if (!document.getElementById(tabButtonId('Status'))) {
+    createStatusTab('Status');
+    current_tab = 'Status';
+  }
+  if (verb_tabs.length == 0 || !verbs) {
+    Byond.command('Fix-Stat-Panel');
+  }
+  if (!status_data || !status_data.round) {
+    statcontentdiv.textContent = 'Loading...';
+    return;
+  }
+  var v = status_view;
+  if (!v || v.root.parentNode !== statcontentdiv) {
+    statcontentdiv.textContent = '';
+    v = status_view = st_build();
+    statcontentdiv.appendChild(v.root);
+  }
+  var r = status_data.round;
+
+  // The tiles: the round's time and the station's, or the lobby's countdown and players; the shuttle while it matters
+  if (r.start !== undefined && r.start !== null) {
+    mc_set(v.tile_time.label, 'Starts in');
+    mc_set(v.tile_time.value, typeof r.start == 'number' ? st_secs(r.start) : r.start == 'DELAYED' ? 'Delayed' : 'Soon');
+    mc_class(v.tile_time, 'st-tile' + (r.start == 'DELAYED' ? ' average' : ' info'));
+    mc_set(v.tile_station.label, 'Players');
+    mc_set(v.tile_station.value, r.players + (r.ready !== undefined && r.ready !== null ? ' · ' + r.ready + ' ready' : ''));
+  } else {
+    mc_set(v.tile_time.label, 'Round');
+    mc_set(v.tile_time.value, r.round_time || '--:--:--');
+    mc_class(v.tile_time, 'st-tile');
+    mc_set(v.tile_station.label, 'Station');
+    mc_set(v.tile_station.value, r.station_time || '');
+  }
+  var sh = r.shuttle;
+  var shown = sh && sh[0] && sh[0] != 'RCH' && !(r.start !== undefined && r.start !== null);
+  v.tile_shuttle.style.display = shown ? '' : 'none';
+  if (shown) {
+    mc_set(v.tile_shuttle.value, sh[0] + ' ' + sh[1]);
+    mc_class(v.tile_shuttle, 'st-tile' + (SHUTTLE_LEVELS[sh[0]] ? ' ' + SHUTTLE_LEVELS[sh[0]] : ''));
+  }
+
+  // The round's facts, then the server's
+  var facts = [['', r.map]];
+  if (r.round_id) facts.push(['Round', r.round_id]);
+  if (r.next_map) facts.push(['Next', r.next_map]);
+  if (r.mode) facts.push(['Mode', r.mode]);
+  st_meta(v.meta, facts);
+  var tidi = r.tidi || [0, 0, 0, 0];
+  var ping = r.ping || [0, 0];
+  var server = String(r.server_time || '').split(' ');
+  st_meta(v.meta2, [
+    ['Server', server[1] || server[0], '', server[0]],
+    ['TiDi', tidi[0] + '%', tidi[0] >= 20 ? 'bad' : tidi[0] >= 5 ? 'average' : '', 'avg ' + tidi.slice(1).join('% · ') + '%'],
+    ['Ping', ping[0] + ' ms', ping[0] >= 300 ? 'bad' : ping[0] >= 150 ? 'average' : '', 'average ' + ping[1] + ' ms'],
+  ]);
+
+  // Their ahelp and question
+  var help = status_data.help || [];
+  v.helpbox.style.display = help.length ? '' : 'none';
+  st_sync(v.helpbox, v.help, help);
+
+  // Their mob
+  var count = st_sync(v.mine, v.items, status_data.items);
+  v.mine.style.display = count ? '' : 'none';
+  mc_class(v.root, 'st' + (count ? ' st-two' : ''));
 }
 
 function make_topic_onclick(query) {
@@ -425,15 +698,16 @@ function make_topic_onclick(query) {
   };
 }
 
-function draw_status() {
-  if (!document.getElementById(tabButtonId('Status'))) {
-    createStatusTab('Status');
-    current_tab = 'Status';
+// A gear tab (SpiderOS, the nanosuit): its lines, drawn as Status draws a mob's
+function draw_extra(tab) {
+  var v = extra_view;
+  if (!v || v.tab != tab || v.root.parentNode !== statcontentdiv) {
+    statcontentdiv.textContent = '';
+    v = extra_view = { tab: tab, items: [], root: mc_el('div', 'st-mine st-extra') };
+    v.root.onclick = st_click;
+    statcontentdiv.appendChild(v.root);
   }
-  draw_lines(status_tab_parts);
-  if (verb_tabs.length == 0 || !verbs) {
-    Byond.command('Fix-Stat-Panel');
-  }
+  st_sync(v.root, v.items, extra_tabs[tab]);
 }
 
 // hippie: the MC tab. CPU, map CPU and time dilation with their last two minutes, the facts and controllers under them, then
@@ -1440,19 +1714,9 @@ Byond.subscribeTo('init_verbs', (payload) => {
   }
 });
 
+// hippie: {round, help, items} (statpanels.dm set_status_tab())
 Byond.subscribeTo('update_stat', (payload) => {
-  status_tab_parts = [];
-
-  var parsed = payload.global_data;
-
-  for (var i = 0; i < parsed.length; i++)
-    if (parsed[i] != null) status_tab_parts.push(parsed[i]);
-
-  parsed = payload.other_str || [];
-
-  for (var j = 0; j < parsed.length; j++)
-    if (parsed[j] != null) status_tab_parts.push(parsed[j]);
-
+  status_data = payload || null;
   if (current_tab == 'Status') {
     draw_status();
   }

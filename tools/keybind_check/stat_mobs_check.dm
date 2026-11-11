@@ -31,7 +31,10 @@ GLOBAL_LIST_EMPTY(sm_probes)
 /proc/sm_check(name, ok, detail)
 	kc_log("[ok ? "PASS" : "FAIL"] [name][isnull(detail) ? "" : " ([detail])"]")
 
+/// Status's text: the page opens on the tab the player picked last round (kept in their prefs), so Status is picked first
 /proc/sm_text(client/C)
+	C << output(url_encode("tab_change('Status');"), "statbrowser:eval")
+	sleep(10)
 	GLOB.sm_probes -= "text"
 	C << output(url_encode("window.chrome.webview.postMessage('byond://?probe=text&value=' + encodeURIComponent(document.getElementById('statcontent').innerText));"), "statbrowser:eval")
 	var/deadline = world.time + 5 SECONDS
@@ -111,6 +114,20 @@ GLOBAL_LIST_EMPTY(sm_probes)
 		if(!istype(M, /mob/living/silicon/ai) && !istype(M, /mob/living/silicon/robot) && !istype(M, /mob/dead/observer))
 			qdel(M)
 
+	// Antagonists' own sections (stat_panel.dm stat_section() and the rest)
+	var/list/antags = list(/datum/antagonist/changeling = "Chemicals", /datum/antagonist/vampire = "Total Blood", /datum/antagonist/hivemind = "Vessels")
+	for(var/antag in antags)
+		var/mob/living/carbon/human/A = new(home)
+		A.mind_initialize()
+		var/sent
+		try
+			A.mind.add_antag_datum(antag)
+			sent = json_encode(A.get_status_tab_items())
+		catch(var/exception/e)
+			sent = "RUNTIME [e] at [e.file]:[e.line]"
+		sm_check("[antag] gets its section", findtext(sent, "\"section\"") && findtext(sent, antags[antag]), sent)
+		qdel(A)
+
 	// With the client: an AI, a cyborg, a ghost
 	var/mob/living/silicon/ai/AI = locate() in home
 	if(!AI)
@@ -130,7 +147,7 @@ GLOBAL_LIST_EMPTY(sm_probes)
 	G.ckey = C.ckey
 	sleep(40)
 	text = sm_text(C)
-	sm_check("as a ghost the panel shows the round", findtext(text, "Game Mode") && findtext(text, "Round Time"), copytext(text, 1, 300))
+	sm_check("as a ghost the panel shows the round", findtext(text, "Mode") && findtext(text, "Round") && findtext(text, "Station"), copytext(text, 1, 300))
 	var/runtimes = 0
 	for(var/line in world.file2list("data/logs/[GLOB.log_directory]/runtime.log"))
 		if(findtext(line, "runtime error") && (findtext(line, "status_tab") || findtext(line, "stat_panel") || findtext(line, "statpanels")))

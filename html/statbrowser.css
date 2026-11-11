@@ -641,32 +641,278 @@ img {
   background: none !important;
 }
 
-/* Status: label and value */
-.status-table {
-  border-collapse: collapse;
+/* hippie: Status (statbrowser.js draw_status()) and the gear tabs */
+.st {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px 14px;
+  align-items: start;
 }
 
-.status-table td {
-  padding: 1px 0;
-  vertical-align: top;
+@media only screen and (min-width: 620px) {
+  .st.st-two {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  }
 }
 
-.status-label {
-  padding-right: 1.25em !important;
+.st-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+  gap: 5px;
+}
+
+.st-tile {
+  padding: 3px 7px 4px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 4px;
+  background: var(--bar);
+  min-width: 0;
+}
+
+.st-tile-label {
   color: var(--muted);
+  font-size: 10px;
   white-space: nowrap;
 }
 
-.status-value {
+.st-tile-value {
+  color: var(--strong);
+  font-size: 15px;
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.st-tile.info {
+  border-left-color: var(--accent);
+}
+
+.st-tile.good {
+  border-left-color: var(--good);
+}
+
+.st-tile.good .st-tile-value {
+  color: var(--good);
+}
+
+.st-tile.average {
+  border-left-color: var(--average);
+}
+
+.st-tile.average .st-tile-value {
+  color: var(--average);
+}
+
+.st-tile.bad {
+  border-left-color: var(--bad);
+}
+
+.st-tile.bad .st-tile-value {
+  color: var(--bad);
+}
+
+.st-meta {
+  margin: 4px 1px 0;
+  color: var(--strong);
+  font-size: 11px;
+}
+
+.st-meta-key {
+  color: var(--muted);
+}
+
+.st-meta .average .st-meta-value {
+  color: var(--average);
+}
+
+.st-meta .bad .st-meta-value {
+  color: var(--bad);
+}
+
+.st-help {
+  margin-top: 6px;
+}
+
+.st-help .st-row {
+  display: block;
+  padding: 3px 7px;
+  border-left: 3px solid var(--accent);
+  border-radius: 3px;
+  background: var(--bar);
+}
+
+.st-help .st-label {
   color: var(--strong);
 }
 
-.status-value a {
+.st-help .st-value {
+  display: inline;
+}
+
+.st-row {
+  display: grid;
+  grid-template-columns: minmax(80px, 42%) minmax(0, 1fr);
+  gap: 10px;
+  padding: 1px 1px;
+  align-items: center;
+}
+
+.st-label {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.st-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--strong);
+  overflow-wrap: anywhere;
+}
+
+.st-value a {
   margin-left: 0.4em;
 }
 
-.status-gap td {
+.st-meter {
+  flex: 1 1 auto;
+  height: 7px;
+  min-width: 40px;
+  border-radius: 4px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.st-fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--accent);
+}
+
+.st-fill.good {
+  background: var(--good);
+}
+
+.st-fill.average {
+  background: var(--average);
+}
+
+.st-fill.bad {
+  background: var(--bad);
+}
+
+.st-figure {
+  flex: 0 0 auto;
+  min-width: 4.2em;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.st-figure.average {
+  color: var(--average);
+}
+
+.st-figure.bad {
+  color: var(--bad);
+}
+
+.st-gap {
   height: 0.6em;
+}
+
+.st-note {
+  margin: 2px 0;
+  padding: 2px 7px;
+  border-left: 2px solid var(--accent);
+  color: var(--strong);
+}
+
+.st-note.good {
+  border-left-color: var(--good);
+}
+
+.st-note.average {
+  border-left-color: var(--average);
+}
+
+.st-note.bad {
+  border-left-color: var(--bad);
+  color: var(--bad);
+}
+
+.st-card {
+  margin: 3px 0;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.st-card.average {
+  border-left: 3px solid var(--average);
+}
+
+.st-card.bad {
+  border-left: 3px solid var(--bad);
+}
+
+.st-card-title {
+  color: var(--strong);
+  font-weight: bold;
+}
+
+.st-card-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 12px;
+}
+
+.st-field-key {
+  margin-right: 4px;
+  color: var(--muted);
+}
+
+.st-field-value {
+  color: var(--text);
+}
+
+.st-field-value.average {
+  color: var(--average);
+}
+
+.st-section {
+  margin: 8px 0 2px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.st-section::before {
+  content: '\25BE';
+  display: inline-block;
+  width: 11px;
+}
+
+.st-section.folded::before {
+  content: '\25B8';
+}
+
+.st-section:hover {
+  color: var(--strong);
+}
+
+.st-mine > .st-section:first-child {
+  margin-top: 0;
 }
 
 /* Verbs, spells */

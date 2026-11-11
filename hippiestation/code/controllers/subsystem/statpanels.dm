@@ -27,7 +27,7 @@ SUBSYSTEM_DEF(statpanels)
 	flags = SS_NO_INIT
 	runlevels = RUNLEVELS_DEFAULT | RUNLEVEL_LOBBY
 	var/list/currentrun = list()
-	/// The round's lines at the top of Status, the same for everybody
+	/// The round at the top of Status, the same for everybody (make_global_data())
 	var/list/global_data
 	/// The MC tab, made once a fire if anybody's looking at it
 	var/list/mc_data
@@ -118,33 +118,39 @@ SUBSYSTEM_DEF(statpanels)
 			panel.clickable_admin -= "sdql2"
 			panel.send_message("remove_sdql2")
 
+/// The round, the same for everybody: the top of Status (statbrowser.js draw_status()). Shuttle is its mode code (ETA, ETD,
+/// ESC, RCL...) and timer; start, in the lobby, is seconds to the start or "DELAYED"/"SOON".
 /datum/controller/subsystem/statpanels/proc/make_global_data()
-	global_data = list("Map: [SSmapping.config?.map_name || "Loading..."]")
-	var/datum/map_config/cached = SSmapping.next_map_config
-	if(cached)
-		global_data += "Next Map: [cached.map_name]"
-	global_data += "Round ID: [GLOB.round_id ? GLOB.round_id : "NULL"]"
-	global_data += "Server Time: [time2text(world.timeofday, "YYYY-MM-DD hh:mm:ss")]"
-	if(SSticker.round_start_time)
-		global_data += "Round Time: [gameTimestamp("hh:mm:ss", (world.time - SSticker.round_start_time))]"
-	else
-		global_data += "Lobby Time: [gameTimestamp("hh:mm:ss", 0)]"
-	global_data += "Station Time: [station_time_timestamp()]"
-	global_data += "Time Dilation: [round(SStime_track.time_dilation_current,1)]% AVG:([round(SStime_track.time_dilation_avg_fast,1)]%, [round(SStime_track.time_dilation_avg,1)]%, [round(SStime_track.time_dilation_avg_slow,1)]%)"
+	global_data = list(
+		"map" = SSmapping.config?.map_name || "Loading...",
+		"next_map" = SSmapping.next_map_config?.map_name,
+		"round_id" = GLOB.round_id ? "[GLOB.round_id]" : null,
+		"server_time" = time2text(world.timeofday, "YYYY-MM-DD hh:mm:ss"),
+		"round_time" = SSticker.round_start_time ? gameTimestamp("hh:mm:ss", world.time - SSticker.round_start_time) : null,
+		"station_time" = station_time_timestamp(),
+		"tidi" = list(round(SStime_track.time_dilation_current, 1), round(SStime_track.time_dilation_avg_fast, 1), round(SStime_track.time_dilation_avg, 1), round(SStime_track.time_dilation_avg_slow, 1)),
+	)
 	if(SSshuttle.emergency)
-		var/ETA = SSshuttle.emergency.getModeStr()
-		if(ETA)
-			global_data += "[ETA]: [SSshuttle.emergency.getTimerStr()]"
+		var/mode = SSshuttle.emergency.getModeStr()
+		if(mode)
+			global_data["shuttle"] = list(mode, SSshuttle.emergency.getTimerStr())
+	if(!SSticker.HasRoundStarted())
+		var/time_left = SSticker.GetTimeLeft()
+		global_data["start"] = time_left > 0 ? round(time_left / 10) : (time_left == -10 ? "DELAYED" : "SOON")
+		global_data["players"] = SSticker.totalPlayers
 
+/// Status: the round, their ahelp and question (help_window.dm), then what their mob says about itself (get_status_tab_items())
 /datum/controller/subsystem/statpanels/proc/set_status_tab(client/target)
 	if(!global_data)
 		make_global_data()
-	var/list/lines = list("Ping: [round(target.lastping, 1)] ms (average [round(target.avgping, 1)] ms)") + help_status_lines(target) + global_data // hippie -- their ahelp and question (help_window.dm)
-	var/list/mine = target.mob?.get_status_tab_items()
-	if(length(mine))
-		lines += ""
-		lines += mine
-	target.stat_panel.send_message("update_stat", list("global_data" = lines, "other_str" = list()))
+	var/list/info = global_data.Copy()
+	info["ping"] = list(round(target.lastping, 1), round(target.avgping, 1))
+	if(istype(target.mob, /mob/dead)) // the lobby and ghosts were always told the mode
+		info["mode"] = SSticker.hide_mode ? "Secret" : "[GLOB.master_mode]"
+	if(info["start"] && target.holder)
+		info["ready"] = SSticker.totalPlayersReady
+	var/list/mine = target.mob?.get_status_tab_items() || list()
+	target.stat_panel.send_message("update_stat", list("round" = info, "help" = help_status_lines(target), "items" = mine))
 
 /datum/controller/subsystem/statpanels/proc/set_MC_tab(client/target)
 	if(!mc_data)

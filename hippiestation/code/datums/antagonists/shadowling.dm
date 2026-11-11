@@ -88,7 +88,8 @@
 	. = ..()
 	if((dna && dna.species) && istype(dna.species, /datum/species/shadow/ling))
 		var/datum/species/shadow/ling/SL = dna.species
-		. += "Shadowy Shield Charges: [SL.shadow_charges]"
+		. += stat_section("Shadowling")
+		. += stat_bar("Shadowy Shield", SL.shadow_charges, 3) // charges build back up to 3 (shadowling.dm)
 
 // Just for the roundend report
 /datum/team/shadowling

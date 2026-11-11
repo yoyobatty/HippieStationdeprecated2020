@@ -69,12 +69,10 @@
 	if(mind)
 		var/datum/antagonist/changeling/changeling = mind.has_antag_datum(/datum/antagonist/changeling)
 		if(changeling)
-			. += "Chemical Storage: [changeling.chem_charges]/[changeling.chem_storage]"
-			. += "Absorbed DNA: [changeling.absorbedcount]"
+			. += changeling.status_tab_items() // hippie -- a section with a bar (stat_panel.dm)
 		var/datum/antagonist/hivemind/hivemind = mind.has_antag_datum(/datum/antagonist/hivemind)
 		if(hivemind)
-			. += "Hivemind Vessels: [hivemind.hive_size] (+[hivemind.size_mod])"
-			. += "Psychic Link Duration: [(hivemind.track_bonus + TRACKER_DEFAULT_TIME)/10] seconds"
+			. += hivemind.status_tab_items() // hippie -- a section (stat_panel.dm)
 
 /mob/living/carbon/human/get_stat_panel_extra_tabs()
 	. = ..()

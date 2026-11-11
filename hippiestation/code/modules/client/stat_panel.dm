@@ -215,9 +215,49 @@ GLOBAL_VAR(stat_panel_page)
 		return TRUE
 	return FALSE
 
-/// What a mob shows under the round's lines in the Status tab: text, "Label: value" for two columns, "" for a gap
+/// What a mob shows under the round in the Status tab, a list of any of these (statbrowser.js st_norm() draws them):
+/// - "Label: value" for two columns; a value "12/50", "12/50E", "80%" or "3 of 5" is drawn as a bar
+/// - "Title | Key: value | Key: value" as a card (the AI's cyborgs)
+/// - other text as a note; "" for a gap
+/// - stat_bar(), stat_cooldown(), stat_note(), stat_card(), stat_section() where a line can't say it: each returns a one-item
+///   list, so `. += stat_bar(...)` adds it
 /mob/proc/get_status_tab_items()
 	return list()
+
+/// The lobby and ghosts: the mode, the countdown and the players are part of the round at the top now (statpanels.dm)
+/mob/dead/get_status_tab_items()
+	return list()
+
+/// A bar: value of max, with unit after the figures ("E", "%"). level: "good", "average", "bad", or null for the panel to pick
+/proc/stat_bar(label, value, max, unit = "", level)
+	return list(list("t" = "bar", "label" = "[label]", "value" = value, "max" = max, "unit" = unit, "level" = level))
+
+/// Time left on something, in deciseconds; with total (ds) it's drawn as a bar running down
+/proc/stat_cooldown(label, left, total)
+	return list(list("t" = "cooldown", "label" = "[label]", "left" = max(0, left), "total" = total))
+
+/// A line that stands out: level "good", "average", "bad", or null
+/proc/stat_note(text, level)
+	return list(list("t" = "note", "text" = "[text]", "level" = level))
+
+/// A small card: a title, then fields as list(list(key, value), ...)
+/proc/stat_card(title, list/fields, level)
+	return list(list("t" = "card", "title" = "[title]", "fields" = fields, "level" = level))
+
+/// A heading over the items after it, which the player can fold away
+/proc/stat_section(title)
+	return list(list("t" = "section", "title" = "[title]"))
+
+/// A changeling's Status items, wherever it is (human, monkey, horror form)
+/datum/antagonist/changeling/proc/status_tab_items()
+	. = stat_section("Changeling")
+	. += stat_bar("Chemicals", chem_charges, chem_storage)
+	. += "Absorbed DNA: [absorbedcount]"
+
+/datum/antagonist/hivemind/proc/status_tab_items()
+	. = stat_section("Hivemind")
+	. += "Vessels: [hive_size] (+[size_mod])"
+	. += "Psychic Link: [(track_bonus + TRACKER_DEFAULT_TIME) / 10] s"
 
 /// Text tabs some gear adds (SpiderOS, Crynet Nanosuit): tab name -> its lines, as Status's
 /mob/proc/get_stat_panel_extra_tabs()

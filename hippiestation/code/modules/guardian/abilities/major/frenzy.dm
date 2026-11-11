@@ -40,8 +40,7 @@
 
 /datum/guardian_ability/major/frenzy/get_status_tab_items()
 	. = ..()
-	if(next_rush > world.time)
-		. += "Frenzy Charge Cooldown Remaining: [DisplayTimeText(next_rush - world.time)]"
+	. += stat_cooldown("Frenzy Charge", next_rush - world.time, 3 SECONDS)
 
 /obj/effect/proc_holder/spell/targeted/guardian/frenzy
 	name = "Teleport Behind"

@@ -22,5 +22,4 @@
 
 /datum/guardian_ability/major/hand/get_status_tab_items()
 	. = ..()
-	if(next_hand > world.time)
-		. += "THE HAND Cooldown Remaining: [DisplayTimeText(next_hand - world.time)]"
+	. += stat_cooldown("THE HAND", next_hand - world.time, master_stats ? (10 / master_stats.potential) * 10 : null)

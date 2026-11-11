@@ -5,7 +5,17 @@
 	. = ..()
 	var/datum/antagonist/vampire/vamp = mind?.has_antag_datum(/datum/antagonist/vampire)
 	if(vamp)
-		. += "Total Blood: [vamp.total_blood]"
+		. += stat_section("Vampire")
+		// Total blood against the next power's (upgrade_tiers), until they're all unlocked
+		var/next_tier
+		for(var/power in vamp.upgrade_tiers)
+			var/needed = vamp.upgrade_tiers[power]
+			if(needed > vamp.total_blood && (!next_tier || needed < next_tier))
+				next_tier = needed
+		if(next_tier)
+			. += stat_bar("Total Blood", vamp.total_blood, next_tier)
+		else
+			. += "Total Blood: [vamp.total_blood]"
 		. += "Usable Blood: [vamp.usable_blood]"
 
 /mob/living/carbon/human/Life()

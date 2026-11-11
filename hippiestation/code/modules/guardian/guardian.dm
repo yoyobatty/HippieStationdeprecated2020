@@ -238,8 +238,7 @@ GLOBAL_LIST_EMPTY(parasites) //all currently existing/living guardians
 		else
 			resulthealth = round((summoner.current.health / summoner.current.maxHealth) * 100, 0.5)
 		. += "Summoner Health: [resulthealth]%"
-	if(cooldown >= world.time)
-		. += "Manifest/Recall Cooldown Remaining: [DisplayTimeText(cooldown - world.time)]"
+	. += stat_cooldown("Manifest/Recall", cooldown - world.time, 10) // Manifest() and Recall() wait a second
 	if(stats?.ability) //an admin-spawned guardian has no stats
 		. += stats.ability.get_status_tab_items()
 

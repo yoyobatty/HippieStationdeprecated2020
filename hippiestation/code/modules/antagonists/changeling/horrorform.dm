@@ -120,8 +120,7 @@
 	. = ..()
 	var/datum/antagonist/changeling/changeling = mind?.has_antag_datum(/datum/antagonist/changeling)
 	if(changeling)
-		. += "Chemical Storage: [changeling.chem_charges]/[changeling.chem_storage]"
-		. += "Absorbed DNA: [changeling.absorbedcount]"
+		. += changeling.status_tab_items()
 
 /mob/living/simple_animal/hostile/true_changeling/emote(act, m_type=1, message = null)
 	if(stat)

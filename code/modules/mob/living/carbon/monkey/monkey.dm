@@ -92,8 +92,7 @@
 	if(client && mind)
 		var/datum/antagonist/changeling/changeling = mind.has_antag_datum(/datum/antagonist/changeling)
 		if(changeling)
-			. += "Chemical Storage: [changeling.chem_charges]/[changeling.chem_storage]"
-			. += "Absorbed DNA: [changeling.absorbedcount]"
+			. += changeling.status_tab_items() // hippie -- a section with a bar (stat_panel.dm)
 	return
 
 
