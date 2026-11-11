@@ -221,6 +221,7 @@ const ROUTES = {
   ai_airlock: {
     component: () => AiAirlock,
     scrollable: false,
+    theme: 'silicon',
   },
   ai_fixer: {
     component: () => AiFixer,
@@ -1330,6 +1331,7 @@ const ROUTES = {
   silicon_laws: {
     component: () => SiliconLaws,
     scrollable: false,
+    theme: 'silicon',
   },
   spellbook: {
     component: () => Spellbook,
@@ -1375,14 +1377,17 @@ const ROUTES = {
   silicon_alerts: {
     component: () => SiliconAlerts,
     scrollable: false,
+    theme: 'silicon',
   },
   ai_bot_control: {
     component: () => AiBotControl,
     scrollable: false,
+    theme: 'silicon',
   },
   ai_vox: {
     component: () => AiVox,
     scrollable: false,
+    theme: 'silicon',
   },
   pai_os: {
     component: () => PaiOs,
@@ -1395,6 +1400,7 @@ const ROUTES = {
   silicon_pda_log: {
     component: () => SiliconPdaLog,
     scrollable: false,
+    theme: 'silicon',
   },
   malf_modules: {
     component: () => MalfModules,

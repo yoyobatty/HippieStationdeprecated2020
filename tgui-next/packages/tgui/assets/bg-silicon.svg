@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.0" viewBox="0 0 200 200" opacity=".085">
+  <g fill="none" stroke="#35d0a0" stroke-width="8"><rect x="50" y="50" width="100" height="100" rx="8"/><path d="M75 50V20M100 50V20M125 50V20M75 150v30M100 150v30M125 150v30M50 75H20M50 100H20M50 125H20M150 75h30M150 100h30M150 125h30"/></g><rect x="78" y="78" width="44" height="44" fill="#35d0a0"/>
+</svg>

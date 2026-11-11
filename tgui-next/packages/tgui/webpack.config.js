@@ -25,6 +25,7 @@ module.exports = (env = {}, argv) => {
         path.resolve(__dirname, './styles/themes/retro.scss'),
         path.resolve(__dirname, './styles/themes/mecha.scss'),
         path.resolve(__dirname, './styles/themes/clockwork.scss'),
+        path.resolve(__dirname, './styles/themes/silicon.scss'),
         path.resolve(__dirname, './styles/themes/medical.scss'),
         path.resolve(__dirname, './styles/themes/engineering.scss'),
         path.resolve(__dirname, './styles/themes/atmos.scss'),

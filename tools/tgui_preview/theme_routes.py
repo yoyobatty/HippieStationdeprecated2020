@@ -22,6 +22,7 @@ DEPTS = {
         mint coin_press destination_tagger mulebot mass_driver_console ore_box aux_base''',
     'command': '''comms_console id_console keycard_auth emergency_shuttle_console announcement_system bank_vault vault_controller
         bsa artillery_control message_monitor''',
+    'silicon': '''silicon_laws silicon_alerts ai_bot_control ai_vox silicon_pda_log ai_airlock''',
     'service': '''biogenerator seed_extractor plant_dna_manipulator smartvend jukebox food_cart icecream_vat library_console
         library_scanner library_visitor book_reader photocopier holodeck jani_cart bible_style pool_controller''',
 }

@@ -29,6 +29,8 @@ THEMES = {
     letter-spacing: 0.5px;
   }
 '''),
+    'silicon': ('#35d0a0', '#0c1f1c', '#0f4a3e', '#167060', '#9be8cf',
+        '<g fill="none" stroke="#35d0a0" stroke-width="8"><rect x="50" y="50" width="100" height="100" rx="8"/><path d="M75 50V20M100 50V20M125 50V20M75 150v30M100 150v30M125 150v30M50 75H20M50 100H20M50 125H20M150 75h30M150 100h30M150 125h30"/></g><rect x="78" y="78" width="44" height="44" fill="#35d0a0"/>', ''),
     'service': ('#4fb36e', '#122718', '#21592f', '#2d7a41', '#a4dcb4',
         '<path d="M50 30h100l-12 70c-4 22-20 34-38 34s-34-12-38-34z M92 134h16v34h30v14H62v-14h30z" fill="#4fb36e"/>', ''),
 }
