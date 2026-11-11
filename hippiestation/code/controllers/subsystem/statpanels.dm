@@ -7,9 +7,18 @@
 #define FIRE_PRIORITY_STATPANEL 390
 #endif
 
+/// How many seconds of CPU, map CPU, time dilation and each subsystem's time the MC tab draws
+#define MC_HISTORY_LENGTH 120
+
 /// What a subsystem's stat_entry() made last, for the MC tab
 /datum/controller/subsystem
 	var/stat_text
+	/// The subsystem's own part of it, without the cost figures in front
+	var/stat_extra
+	/// The ms it ran in each of the last MC_HISTORY_LENGTH seconds, oldest first (from total_ms), for the MC tab's row detail
+	var/list/mc_ms_history
+	/// total_ms at the last of those samples
+	var/mc_last_total_ms = 0
 
 SUBSYSTEM_DEF(statpanels)
 	name = "Stat Panels"
@@ -22,6 +31,10 @@ SUBSYSTEM_DEF(statpanels)
 	var/list/global_data
 	/// The MC tab, made once a fire if anybody's looking at it
 	var/list/mc_data
+	/// The last MC_HISTORY_LENGTH seconds of CPU, map CPU and time dilation, oldest first, kept whether anyone looks or not
+	var/list/mc_history = list(list(), list(), list())
+	/// REALTIMEOFDAY at the last sample, to turn each subsystem's total_ms into ms a second
+	var/mc_last_sample = 0
 	/// How many fires so far, for the slower tabs
 	var/num_fires = 0
 	/// Fires between Status updates, MC updates, the slower tabs and verb checks
@@ -39,6 +52,8 @@ SUBSYSTEM_DEF(statpanels)
 		num_fires++
 		make_global_data()
 		mc_data = null
+		if(num_fires % mc_wait == 0)
+			sample_mc_history()
 		src.currentrun = GLOB.clients.Copy()
 
 	var/list/currentrun = src.currentrun
@@ -135,26 +150,105 @@ SUBSYSTEM_DEF(statpanels)
 	if(!mc_data)
 		generate_mc_data()
 	var/turf/eye_turf = get_turf(target.eye)
-	target.stat_panel.send_message("update_mc", list("mc_data" = mc_data, "coord_entry" = COORD(eye_turf)))
+	var/list/payload = list("mc" = mc_data, "loc" = COORD(eye_turf))
+	var/open = target.stat_panel.mc_detail
+	if(open)
+		for(var/datum/controller/subsystem/sub_system as anything in Master?.subsystems)
+			if("[sub_system.type]" == open)
+				payload["detail"] = mc_detail(sub_system)
+				break
+	target.stat_panel.send_message("update_mc", payload)
 
+/// The row an admin opened on the MC tab: type, ms a second over the last MC_HISTORY_LENGTH seconds, wait (ds), priority, fires,
+/// next fire in (ds), last fire ago (ds), init order, the flags that change how it's run
+/datum/controller/subsystem/statpanels/proc/mc_detail(datum/controller/subsystem/sub_system)
+	var/list/flag_names = list()
+	if(sub_system.flags & SS_TICKER)
+		flag_names += "ticker"
+	if(sub_system.flags & SS_BACKGROUND)
+		flag_names += "background"
+	if(sub_system.flags & SS_NO_TICK_CHECK)
+		flag_names += "no tick check"
+	if(sub_system.flags & SS_KEEP_TIMING)
+		flag_names += "keep timing"
+	if(sub_system.flags & SS_POST_FIRE_TIMING)
+		flag_names += "post-fire timing"
+	if(sub_system.idle_check)
+		flag_names += "idle check"
+	var/firing = !(sub_system.flags & SS_NO_FIRE) && sub_system.can_fire
+	return list("[sub_system.type]", sub_system.mc_ms_history || list(), sub_system.wait, sub_system.priority, sub_system.times_fired,
+		firing ? max(0, sub_system.next_fire - world.time) : null, sub_system.last_fire ? world.time - sub_system.last_fire : null,
+		sub_system.init_order, jointext(flag_names, ", "))
+
+/datum/controller/subsystem/statpanels/proc/sample_mc_history()
+	var/list/now = list(round(world.cpu, 0.1), round(world.map_cpu, 0.1), round(SStime_track.time_dilation_current, 0.1))
+	for(var/i in 1 to 3)
+		var/list/series = mc_history[i]
+		series += now[i]
+		if(length(series) > MC_HISTORY_LENGTH)
+			series.Cut(1, 2)
+	// Each subsystem's ms in the second just gone, from what the MC has counted it running (total_ms)
+	var/now_real = REALTIMEOFDAY
+	var/seconds = mc_last_sample ? (now_real - mc_last_sample) / 10 : 0
+	mc_last_sample = now_real
+	for(var/datum/controller/subsystem/sub_system as anything in Master?.subsystems)
+		if(sub_system.flags & SS_NO_FIRE)
+			continue
+		var/ms = sub_system.total_ms - sub_system.mc_last_total_ms
+		sub_system.mc_last_total_ms = sub_system.total_ms
+		if(seconds <= 0) // the first sample, or over midnight
+			continue
+		if(!sub_system.mc_ms_history)
+			sub_system.mc_ms_history = list()
+		var/list/series = sub_system.mc_ms_history
+		series += round(ms / seconds, 0.01)
+		if(length(series) > MC_HISTORY_LENGTH)
+			series.Cut(1, 2)
+
+/// The MC tab: numbers rather than lines of text, so the panel can lay them out, sort the subsystems and draw the history.
+/// A subsystem is a list, not keyed, to keep the message small (it goes to each admin on the tab every second):
+/// name, state letter, cost ms, tick %, overrun %, ticks a run, its own text, ref, status, type, wait (ds).
+/// Status: "" fires as usual, "nofire" never fires (SS_NO_FIRE), "off" turned off (can_fire), "asleep" its fire() hasn't come
+/// back (the watchdog warned), or a number: taken offline by the watchdog, back on in that many seconds (0: until an admin).
 /datum/controller/subsystem/statpanels/proc/generate_mc_data()
+	var/ticks_so_far = world.time / world.tick_lag
 	mc_data = list(
-		list("", "CPU:", "[world.cpu]"),
-		list("", "Instances:", "[num2text(world.contents.len, 10)]"),
-		list("", "World Time:", "[world.time]"),
-		list("", "Globals:", "Edit", REF(GLOB)),
-		list("", "[config]:", "Edit", REF(config)),
-		list("", "Byond:", "(FPS:[world.fps]) (TickCount:[world.time/world.tick_lag]) (TickDrift:[round(Master.tickdrift,1)]([round((Master.tickdrift/(world.time/world.tick_lag))*100,0.1)]%)) (Internal Tick Usage: [round(MAPTICK_LAST_INTERNAL_TICK_USAGE,0.1)]%)"),
-		list("", "Master Controller:", Master ? "(TickRate:[Master.processing]) (Iteration:[Master.iteration]) (TickLimit: [round(Master.current_ticklimit, 0.1)])" : "ERROR", Master ? REF(Master) : null),
-		list("", "Failsafe Controller:", Failsafe ? "Defcon: [Failsafe.defcon_pretty()] (Interval: [Failsafe.processing_interval] | Iteration: [Failsafe.master_iteration])" : "ERROR", Failsafe ? REF(Failsafe) : null),
-		list("", "Watchdog:", MCWatchdog ? MCWatchdog.stat_line() : "not running", MCWatchdog ? REF(MCWatchdog) : null), // hippie (mc_watchdog.dm)
-		list("", "", ""),
+		"cpu" = round(world.cpu, 0.1),
+		"map_cpu" = round(world.map_cpu, 0.1),
+		"tidi" = round(SStime_track.time_dilation_current, 0.1),
+		"tidi_avg" = list(round(SStime_track.time_dilation_avg_fast, 0.1), round(SStime_track.time_dilation_avg, 0.1), round(SStime_track.time_dilation_avg_slow, 0.1)),
+		"drift" = round(Master?.tickdrift, 1),
+		"drift_pct" = ticks_so_far ? round(Master?.tickdrift / ticks_so_far * 100, 0.1) : 0,
+		"fps" = world.fps,
+		"tick" = round(ticks_so_far),
+		"time" = world.time,
+		"instances" = length(world.contents),
+		"history" = mc_history,
+		"globals" = REF(GLOB),
+		"config" = REF(config),
+		"cameras" = list(length(GLOB.cameranet.cameras), length(GLOB.cameranet.chunks), REF(GLOB.cameranet)),
 	)
 	if(Master)
-		for(var/datum/controller/subsystem/sub_system as anything in Master.subsystems)
-			sub_system.stat_entry()
-			mc_data[++mc_data.len] = list("\[[sub_system.state_letter()]]", sub_system.name, sub_system.stat_text, REF(sub_system))
-	mc_data[++mc_data.len] = list("", GLOB.cameranet.name, "Cameras: [GLOB.cameranet.cameras.len] | Chunks: [GLOB.cameranet.chunks.len]", REF(GLOB.cameranet))
+		mc_data["mc"] = list(Master.processing, Master.iteration, round(Master.current_ticklimit, 0.1), REF(Master))
+	if(Failsafe)
+		mc_data["failsafe"] = list(Failsafe.defcon, Failsafe.processing_interval, Failsafe.master_iteration, REF(Failsafe))
+	if(MCWatchdog) // hippie (mc_watchdog.dm)
+		var/ago = MCWatchdog.freeze_count ? round((world.time - MCWatchdog.last_freeze_time) / 600) : null
+		mc_data["watchdog"] = list(MCWatchdog.freeze_count, MCWatchdog.lag_count, MCWatchdog.last_freeze_secs, ago, MCWatchdog.profiling_for ? 1 : 0, REF(MCWatchdog))
+	var/list/subsystems = list()
+	for(var/datum/controller/subsystem/sub_system as anything in Master?.subsystems)
+		sub_system.stat_entry()
+		var/status = ""
+		if(sub_system.flags & SS_NO_FIRE)
+			status = "nofire"
+		else if(sub_system.watchdog_offline)
+			status = sub_system.watchdog_offline > 0 ? max(1, round((sub_system.watchdog_offline - world.time) / 10)) : 0
+		else if(!sub_system.can_fire)
+			status = "off"
+		else if(sub_system.asleep_warned)
+			status = "asleep"
+		subsystems[++subsystems.len] = list(sub_system.name, trim(sub_system.state_letter()), round(sub_system.cost, 0.01), round(sub_system.tick_usage, 0.1), round(sub_system.tick_overrun, 0.1), round(sub_system.ticks, 0.1), "[sub_system.stat_extra]", REF(sub_system), status, "[sub_system.type]", sub_system.wait)
+	mc_data["subsystems"] = subsystems
 
 /datum/controller/subsystem/statpanels/proc/set_tickets_tab(client/target)
 	var/datum/admin_help_tickets/tickets = GLOB.ahelp_tickets
@@ -301,3 +395,5 @@ SUBSYSTEM_DEF(statpanels)
 		set_SDQL2_tab(target)
 		return TRUE
 	return FALSE
+
+#undef MC_HISTORY_LENGTH

@@ -42,6 +42,8 @@ GLOBAL_VAR(stat_panel_page)
 	var/list/clickable_admin = list()
 	/// When it was last loaded, for the retry
 	var/loaded_at = 0
+	/// The subsystem (type, as text) whose row is open on the MC tab: its history goes with each update
+	var/mc_detail
 
 /datum/stat_panel/New(client/C)
 	owner = C
@@ -54,6 +56,7 @@ GLOBAL_VAR(stat_panel_page)
 	sent_verbs = null
 	sent_spells = null
 	sent_extra = null
+	mc_detail = null
 	loaded_at = world.time
 	owner << browse(stat_panel_page(), "window=statbrowser")
 
@@ -93,6 +96,11 @@ GLOBAL_VAR(stat_panel_page)
 				SSstatpanels.immediate_send_stat_data(owner)
 				if(payload["picked"]) // the player clicked it: kept across rounds (game_menu.dm)
 					owner.remember_stat_tab(tab)
+		if("MC-Detail") // a row opened or closed on the MC tab
+			if(owner.holder)
+				mc_detail = istext(payload?["type"]) && length(payload["type"]) ? copytext(payload["type"], 1, 200) : null
+				if(tab == "MC")
+					SSstatpanels.set_MC_tab(owner)
 
 /// A click on something the page lists, as if on the map. Only what it was sent for this player.
 /datum/stat_panel/proc/item_click(atom/target, list/href_list)

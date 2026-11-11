@@ -76,9 +76,8 @@ var decoder = decodeURIComponent || unescape;
 //with just "loading" to not appear broken.
 var status_tab_parts = [['Loading...']];
 var current_tab = null;
-//mc_tab_parts expects a list to be returned, to which we'll send a list within a list
-//with just "loading" to not appear broken.
-var mc_tab_parts = [['Loading...']];
+var mc_data = null; // hippie: the MC tab's numbers (statpanels.dm generate_mc_data()), see draw_mc()
+var mc_loc = '';
 var href_token = null;
 var verb_tabs = [];
 var verbs = [['', '']]; // list with a list inside
@@ -437,34 +436,514 @@ function draw_status() {
   }
 }
 
-function draw_mc() {
-  statcontentdiv.textContent = '';
-  statcontentdiv.className = 'mcstatcontent';
-  var table = document.createElement('table');
-  for (var i = 0; i < mc_tab_parts.length; i++) {
-    var part = mc_tab_parts[i];
-    var tr = document.createElement('tr');
-    var td0 = document.createElement('td');
-    td0.className = 'monospace';
-    td0.textContent = part[0];
-    var td1 = document.createElement('td');
-    td1.textContent = part[1];
-    var td2 = document.createElement('td');
-    if (part[3]) {
-      var a = document.createElement('a');
-      a.href = '#';
-      a.onclick = make_topic_onclick('_src_=vars;admin_token=' + href_token + ';Vars=' + part[3]);
-      a.textContent = part[2];
-      td2.appendChild(a);
-    } else {
-      td2.textContent = part[2];
-    }
-    tr.appendChild(td0);
-    tr.appendChild(td1);
-    tr.appendChild(td2);
-    table.appendChild(tr);
+// hippie: the MC tab. CPU, map CPU and time dilation with their last two minutes, the facts and controllers under them, then
+// the subsystems as a table that sorts by any column and filters by name; the ones that never fire or are off are folded away
+// at the end, and any the watchdog took offline or found asleep sit at the top with its button. The page is built once and its figures
+// changed in place each second, so the filter keeps its focus and a click isn't lost to a redraw; rows don't move while the
+// mouse is over the table. Names open View Variables, as before.
+var SVG_NS = 'http://www.w3.org/2000/svg';
+var MC_HISTORY = 120; // statpanels.dm MC_HISTORY_LENGTH
+var mc_view = null;
+var mc_filter = '';
+var mc_sort = { key: 'cost', desc: true };
+var mc_show_nofire = false;
+var mc_open = ''; // the subsystem (type) whose row detail is open
+try {
+  var saved_sort = JSON.parse(window.localStorage.getItem('mc_sort') || 'null');
+  if (saved_sort && saved_sort.key) mc_sort = saved_sort;
+  mc_show_nofire = window.localStorage.getItem('mc_nofire') == '1';
+} catch (e) {}
+// key, header, index in a subsystem's list (statpanels.dm generate_mc_data()), numbers sort high first
+var MC_COLUMNS = [
+  ['state', '', 1],
+  ['name', 'Subsystem', 0],
+  ['cost', 'ms', 2],
+  ['tick', 'tick', 3],
+  ['over', 'over', 4],
+  ['ticks', 'ticks', 5],
+  ['extra', '', 6],
+];
+var MC_STATES = { R: 'Running', Q: 'Queued', P: 'Paused', S: 'Sleeping' };
+
+function mc_el(tag, cls, text) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function mc_set(e, text) {
+  if (e.textContent !== text) e.textContent = text;
+}
+
+function mc_class(e, cls) {
+  if (e.className !== cls) e.className = cls;
+}
+
+function mc_ms(n) {
+  if (!n) return '0';
+  if (n < 1) return n.toFixed(2);
+  if (n < 10) return n.toFixed(1);
+  return String(Math.round(n));
+}
+
+function mc_pct(n) {
+  if (!n) return '0';
+  return n < 10 ? n.toFixed(1) : String(Math.round(n));
+}
+
+function mc_level(v, warn, bad) {
+  return v >= bad ? ' bad' : v >= warn ? ' average' : '';
+}
+
+function mc_tile(label) {
+  var t = { tile: mc_el('div', 'mc-tile') };
+  var head = mc_el('div', 'mc-tile-head');
+  head.appendChild(mc_el('span', 'mc-tile-label', label));
+  t.value = mc_el('span', 'mc-tile-value');
+  head.appendChild(t.value);
+  var svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', 'mc-spark');
+  svg.setAttribute('viewBox', '0 0 ' + MC_HISTORY + ' 24');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  t.area = document.createElementNS(SVG_NS, 'path');
+  t.area.setAttribute('class', 'mc-spark-area');
+  t.line = document.createElementNS(SVG_NS, 'path');
+  t.line.setAttribute('class', 'mc-spark-line');
+  svg.appendChild(t.area);
+  svg.appendChild(t.line);
+  t.sub = mc_el('div', 'mc-tile-sub');
+  t.tile.appendChild(head);
+  t.tile.appendChild(svg);
+  t.tile.appendChild(t.sub);
+  return t;
+}
+
+// The newest second at the right edge; the scale grows past `floor` when the line does
+function mc_spark(t, series, floor) {
+  series = series || [];
+  var top = floor;
+  for (var i = 0; i < series.length; i++) {
+    if (series[i] > top) top = series[i];
   }
-  statcontentdiv.appendChild(table);
+  if (!series.length) {
+    t.line.setAttribute('d', '');
+    t.area.setAttribute('d', '');
+    return 0;
+  }
+  var x0 = MC_HISTORY - series.length;
+  var d = '';
+  for (var j = 0; j < series.length; j++) {
+    d += (j ? 'L' : 'M') + (x0 + j) + ' ' + (23 - (series[j] / top) * 22).toFixed(1);
+  }
+  t.line.setAttribute('d', d);
+  t.area.setAttribute('d', d + 'L' + (MC_HISTORY - 1) + ' 24L' + x0 + ' 24Z');
+  return Math.max.apply(null, series);
+}
+
+function mc_chip(label, act, arg) {
+  var c = mc_el('a', 'mc-chip');
+  c.href = '#';
+  c.dataset.act = act;
+  c.dataset.arg = arg || '';
+  c.appendChild(mc_el('span', 'mc-chip-label', label));
+  c.val = mc_el('span', 'mc-chip-value');
+  c.appendChild(c.val);
+  return c;
+}
+
+function mc_action(act, arg, type) {
+  if (act == 'vv') {
+    if (arg) Byond.topic('_src_=vars;admin_token=' + href_token + ';Vars=' + arg);
+  } else if (act == 'watchdog') {
+    Byond.topic('_src_=holder;admin_token=' + href_token + ';mcwatchdog=' + arg + (type ? ';ss=' + type : ''));
+  }
+}
+
+function mc_click(e) {
+  var target = e.target.closest('[data-act]');
+  if (!target) {
+    mc_row_click(e);
+    return;
+  }
+  e.preventDefault();
+  if (target.dataset.act == 'sort') {
+    var key = target.dataset.arg;
+    if (mc_sort.key == key) {
+      mc_sort.desc = !mc_sort.desc;
+    } else {
+      mc_sort = { key: key, desc: key != 'name' };
+    }
+    try {
+      window.localStorage.setItem('mc_sort', JSON.stringify(mc_sort));
+    } catch (err) {}
+    draw_mc(true);
+  } else if (target.dataset.act == 'nofire') {
+    mc_show_nofire = !mc_show_nofire;
+    try {
+      window.localStorage.setItem('mc_nofire', mc_show_nofire ? '1' : '0');
+    } catch (err) {}
+    draw_mc(true);
+  } else {
+    mc_action(target.dataset.act, target.dataset.arg, target.dataset.type);
+  }
+}
+
+// A click on a subsystem's row, not its name or button: its detail strip opens under it (one at a time), or closes
+function mc_row_click(e) {
+  if (e.target.closest('[data-act]') || e.target.closest('.mc-detail')) return;
+  var tr = e.target.closest('tr[data-type]');
+  if (!tr) return;
+  mc_open = mc_open == tr.dataset.type ? '' : tr.dataset.type;
+  if (mc_data) mc_data.detail = null;
+  Byond.sendMessage('MC-Detail', { type: mc_open });
+  draw_mc(true);
+}
+
+function mc_secs(ds) {
+  return ds === null || ds === undefined ? '-' : (ds / 10).toFixed(1) + ' s';
+}
+
+function mc_build_detail() {
+  var t = mc_tile('ms/s');
+  t.tr = mc_el('tr', 'mc-detail');
+  var td = mc_el('td');
+  td.colSpan = MC_COLUMNS.length;
+  t.tile.className = 'mc-tile mc-detail-tile';
+  t.facts = mc_el('div', 'mc-detail-facts');
+  t.tile.appendChild(t.facts);
+  td.appendChild(t.tile);
+  t.tr.appendChild(td);
+  return t;
+}
+
+function mc_fill_detail(t, info) {
+  if (!info || info[0] != mc_open) {
+    mc_set(t.value, '');
+    mc_spark(t, [], 1);
+    mc_set(t.sub, 'Loading...');
+    mc_set(t.facts, '');
+    return;
+  }
+  // Averaged over the subsystem's own wait: one firing every 2 s would draw 0, 15, 0, 15 a second
+  var raw = info[1] || [];
+  var span = Math.min(30, Math.max(1, Math.ceil(info[2] / 10)));
+  var hist = [];
+  for (var j = span - 1; j < raw.length; j++) {
+    var part = 0;
+    for (var s = j - span + 1; s <= j; s++) part += raw[s];
+    hist.push(part / span);
+  }
+  var peak = mc_spark(t, hist, 1);
+  var sum = 0;
+  for (var i = 0; i < hist.length; i++) sum += hist[i];
+  mc_set(t.value, hist.length ? mc_ms(hist[hist.length - 1]) : '-');
+  mc_set(t.sub, hist.length ? 'peak ' + mc_ms(peak) + ' · avg ' + mc_ms(sum / hist.length) + ' · ' + hist.length + ' s' : 'no fires');
+  var facts = [
+    'wait ' + mc_secs(info[2]),
+    'priority ' + info[3],
+    'fires ' + Number(info[4]).toLocaleString(),
+    'last ' + mc_secs(info[6]) + ' ago',
+    'next ' + mc_secs(info[5]),
+    'init order ' + info[7],
+  ];
+  if (info[8]) facts.push(info[8]);
+  mc_set(t.facts, facts.join(' · '));
+}
+
+function mc_build() {
+  var v = { rows: {}, order: '' };
+  v.root = mc_el('div', 'mc');
+  v.root.onclick = mc_click;
+  var tiles = mc_el('div', 'mc-tiles');
+  v.cpu = mc_tile('CPU');
+  v.map = mc_tile('Map CPU');
+  v.tidi = mc_tile('TiDi');
+  tiles.appendChild(v.cpu.tile);
+  tiles.appendChild(v.map.tile);
+  tiles.appendChild(v.tidi.tile);
+  v.root.appendChild(tiles);
+  v.facts = mc_el('div', 'mc-facts');
+  v.root.appendChild(v.facts);
+  var chips = mc_el('div', 'mc-chips');
+  v.chip_mc = mc_chip('MC', 'vv');
+  v.chip_failsafe = mc_chip('Failsafe', 'vv');
+  v.chip_watchdog = mc_chip('Watchdog', 'vv');
+  v.chip_profile = mc_chip('Profile 30 s', 'watchdog', 'profile');
+  v.chip_profile.classList.add('mc-chip-button');
+  v.chip_globals = mc_chip('Globals', 'vv');
+  v.chip_config = mc_chip('Config', 'vv');
+  v.chip_cameras = mc_chip('Cameras', 'vv');
+  [v.chip_mc, v.chip_failsafe, v.chip_watchdog, v.chip_profile, v.chip_globals, v.chip_config, v.chip_cameras].forEach((c) =>
+    chips.appendChild(c)
+  );
+  v.root.appendChild(chips);
+  var bar = mc_el('div', 'mc-toolbar');
+  v.filter = mc_el('input', 'mc-filter');
+  v.filter.type = 'text';
+  v.filter.placeholder = 'Filter';
+  v.filter.spellcheck = false;
+  v.filter.value = mc_filter;
+  v.filter.oninput = () => {
+    mc_filter = v.filter.value;
+    draw_mc(true);
+  };
+  bar.appendChild(v.filter);
+  v.count = mc_el('span', 'mc-count');
+  bar.appendChild(v.count);
+  v.root.appendChild(bar);
+  v.table = mc_el('table', 'mc-table');
+  var colgroup = mc_el('colgroup');
+  var thead = mc_el('thead');
+  var headrow = mc_el('tr');
+  v.heads = {};
+  MC_COLUMNS.forEach((col) => {
+    colgroup.appendChild(mc_el('col', 'mc-col-' + col[0]));
+    var th = mc_el('th', 'mc-' + col[0]);
+    if (col[1]) {
+      th.dataset.act = 'sort';
+      th.dataset.arg = col[0];
+      th.textContent = col[1];
+    }
+    v.heads[col[0]] = th;
+    headrow.appendChild(th);
+  });
+  thead.appendChild(headrow);
+  v.table.appendChild(colgroup);
+  v.table.appendChild(thead);
+  v.body = mc_el('tbody');
+  v.table.appendChild(v.body);
+  v.detail = mc_build_detail();
+  v.nofire_body = mc_el('tbody', 'mc-nofire');
+  v.nofire_head = mc_el('tr', 'mc-group');
+  var group = mc_el('td');
+  group.colSpan = MC_COLUMNS.length;
+  group.dataset.act = 'nofire';
+  v.nofire_label = mc_el('span');
+  group.appendChild(v.nofire_label);
+  v.nofire_head.appendChild(group);
+  v.nofire_body.appendChild(v.nofire_head);
+  v.table.appendChild(v.nofire_body);
+  v.root.appendChild(v.table);
+  return v;
+}
+
+function mc_make_row(ss) {
+  var r = { tr: mc_el('tr'), cells: [] };
+  MC_COLUMNS.forEach((col) => {
+    var td = mc_el('td', 'mc-' + col[0]);
+    r.cells.push(td);
+    r.tr.appendChild(td);
+  });
+  r.name = mc_el('a');
+  r.name.href = '#';
+  r.name.dataset.act = 'vv';
+  r.cells[1].appendChild(r.name);
+  r.bar = mc_el('span', 'mc-bar');
+  r.cost = mc_el('span');
+  r.cells[2].appendChild(r.bar);
+  r.cells[2].appendChild(r.cost);
+  r.badge = mc_el('span', 'mc-badge');
+  r.fix = mc_el('a', 'mc-fix');
+  r.fix.href = '#';
+  r.fix.dataset.act = 'watchdog';
+  r.extra = mc_el('span', 'mc-extra-text');
+  r.cells[6].appendChild(r.badge);
+  r.cells[6].appendChild(r.fix);
+  r.cells[6].appendChild(r.extra);
+  return r;
+}
+
+// Turned off, taken offline by the watchdog, or asleep: [badge, button, watchdog action]
+function mc_trouble(status) {
+  if (typeof status == 'number') {
+    if (!status) return ['OFF', 'Turn on', 'enable'];
+    return ['OFF ' + Math.floor(status / 60) + ':' + ('0' + (status % 60)).slice(-2), 'Turn on', 'enable'];
+  }
+  if (status === 'asleep') return ['ASLEEP', 'Start now', 'wake'];
+  return null;
+}
+
+// Never fires, or turned off (Assets and Icon Smoothing turn themselves off once their start-up work is done): folded away
+function mc_resting(status) {
+  return status === 'nofire' || status === 'off';
+}
+
+function mc_update_row(r, ss, top) {
+  var trouble = mc_trouble(ss[8]);
+  var firing = !mc_resting(ss[8]);
+  mc_class(r.tr, (!firing ? 'mc-row-nofire' : trouble ? 'mc-row-trouble' : '') + (ss[9] == mc_open ? ' open' : ''));
+  r.tr.dataset.type = ss[9];
+  mc_set(r.cells[0], ss[1]);
+  r.cells[0].className = 'mc-state mc-state-' + (ss[1] || 'I');
+  r.cells[0].title = MC_STATES[ss[1]] || '';
+  mc_set(r.name, ss[0]);
+  r.name.dataset.arg = ss[7];
+  r.name.title = ss[9];
+  mc_set(r.cost, firing ? mc_ms(ss[2]) : '');
+  r.bar.style.width = firing && top > 0 ? Math.min(100, (ss[2] / top) * 100).toFixed(1) + '%' : '0';
+  mc_set(r.cells[3], firing ? mc_pct(ss[3]) : '');
+  mc_set(r.cells[4], firing ? mc_pct(ss[4]) : '');
+  mc_class(r.cells[4], 'mc-over' + (ss[4] > 0 ? ' hot' : ''));
+  mc_set(r.cells[5], firing ? String(ss[5]) : '');
+  mc_class(r.cells[5], 'mc-ticks' + (ss[5] > 1 ? ' hot' : ''));
+  mc_set(r.badge, trouble ? trouble[0] : ss[8] === 'off' ? 'OFF' : '');
+  mc_class(r.badge, 'mc-badge' + (trouble ? '' : ' quiet'));
+  mc_set(r.fix, trouble ? trouble[1] : '');
+  r.fix.dataset.arg = trouble ? trouble[2] : '';
+  r.fix.dataset.type = ss[9];
+  mc_set(r.extra, ss[6]);
+  r.cells[6].title = ss[6];
+}
+
+function mc_sorter(list) {
+  var index = 0;
+  MC_COLUMNS.forEach((col) => {
+    if (col[0] == mc_sort.key) index = col[2];
+  });
+  return (a, b) => {
+    var ta = mc_trouble(a[8]) ? 0 : 1;
+    var tb = mc_trouble(b[8]) ? 0 : 1;
+    if (ta != tb) return ta - tb; // trouble first, whatever the sort
+    var x = a[index];
+    var y = b[index];
+    var r = typeof x == 'number' && typeof y == 'number' ? x - y : String(x).localeCompare(String(y));
+    if (mc_sort.desc) r = -r;
+    return r || list.indexOf(a) - list.indexOf(b);
+  };
+}
+
+function draw_mc(force) {
+  if (!mc_data) {
+    statcontentdiv.textContent = 'Loading...';
+    return;
+  }
+  var v = mc_view;
+  if (!v || v.root.parentNode !== statcontentdiv) {
+    statcontentdiv.textContent = '';
+    v = mc_view = mc_build();
+    statcontentdiv.appendChild(v.root);
+    force = true;
+  }
+  statcontentdiv.className = 'statcontent mc-content';
+  var d = mc_data;
+  var hist = d.history || [[], [], []];
+
+  // The vitals
+  var peak = mc_spark(v.cpu, hist[0], 100);
+  mc_set(v.cpu.value, mc_pct(d.cpu) + '%');
+  mc_class(v.cpu.tile, 'mc-tile' + mc_level(d.cpu, 75, 100));
+  mc_set(v.cpu.sub, 'peak ' + mc_pct(peak) + '%');
+  peak = mc_spark(v.map, hist[1], 50);
+  mc_set(v.map.value, mc_pct(d.map_cpu) + '%');
+  mc_class(v.map.tile, 'mc-tile' + mc_level(d.map_cpu, 30, 50));
+  mc_set(v.map.sub, 'peak ' + mc_pct(peak) + '%');
+  mc_spark(v.tidi, hist[2], 20);
+  mc_set(v.tidi.value, mc_pct(d.tidi) + '%');
+  mc_class(v.tidi.tile, 'mc-tile' + mc_level(d.tidi, 5, 20));
+  var avg = d.tidi_avg || [0, 0, 0];
+  mc_set(v.tidi.sub, 'avg ' + avg.map(mc_pct).join(' · '));
+
+  mc_set(
+    v.facts,
+    'Tick ' +
+      Number(d.tick).toLocaleString() +
+      ' · Time ' +
+      Number(d.time).toLocaleString() +
+      ' · FPS ' +
+      d.fps +
+      ' · Drift ' +
+      d.drift +
+      ' (' +
+      d.drift_pct +
+      '%) · Instances ' +
+      Number(d.instances).toLocaleString() +
+      (mc_loc ? ' · ' + mc_loc : '')
+  );
+
+  // The controllers
+  var mc = d.mc;
+  v.chip_mc.dataset.arg = mc ? mc[3] : '';
+  mc_set(v.chip_mc.val, mc ? (mc[0] ? '#' + mc[1] + ' · limit ' + mc[2] + '%' : 'stopped') : 'none');
+  mc_class(v.chip_mc, 'mc-chip' + (mc && mc[0] ? '' : ' bad'));
+  var fs = d.failsafe;
+  v.chip_failsafe.dataset.arg = fs ? fs[3] : '';
+  mc_set(v.chip_failsafe.val, fs ? 'Defcon ' + fs[0] : 'none');
+  mc_class(v.chip_failsafe, 'mc-chip' + (!fs ? ' bad' : fs[0] <= 2 ? ' bad' : fs[0] < 5 ? ' average' : ''));
+  var wd = d.watchdog;
+  v.chip_watchdog.dataset.arg = wd ? wd[5] : '';
+  mc_set(v.chip_watchdog.val, wd ? 'Freezes ' + wd[0] + ' · Lag ' + wd[1] : 'not running');
+  v.chip_watchdog.title = wd && wd[0] ? 'Last freeze ' + wd[2] + ' s, ' + wd[3] + ' min ago' : '';
+  mc_class(v.chip_watchdog, 'mc-chip' + (!wd ? ' bad' : wd[0] || wd[1] ? ' average' : ''));
+  mc_set(v.chip_profile.firstChild, wd && wd[4] ? 'Profiling' : 'Profile 30 s');
+  mc_class(v.chip_profile, 'mc-chip mc-chip-button' + (wd ? '' : ' disabled'));
+  v.chip_globals.dataset.arg = d.globals;
+  v.chip_config.dataset.arg = d.config;
+  var cams = d.cameras || [0, 0, ''];
+  v.chip_cameras.dataset.arg = cams[2];
+  mc_set(v.chip_cameras.val, cams[0] + ' · ' + cams[1] + ' chunks');
+
+  // The subsystems
+  var list = d.subsystems || [];
+  var top = 0;
+  for (var i = 0; i < list.length; i++) {
+    if (!mc_resting(list[i][8]) && list[i][2] > top) top = list[i][2];
+  }
+  var filter = mc_filter.trim().toLowerCase();
+  var seen = {};
+  var firing = [];
+  var idle = [];
+  var shown = 0;
+  for (var j = 0; j < list.length; j++) {
+    var ss = list[j];
+    var ref = ss[7];
+    seen[ref] = true;
+    var r = v.rows[ref];
+    if (!r) r = v.rows[ref] = mc_make_row(ss);
+    mc_update_row(r, ss, top);
+    var match = !filter || ss[0].toLowerCase().indexOf(filter) != -1 || ss[9].toLowerCase().indexOf(filter) != -1;
+    r.tr.style.display = match ? '' : 'none';
+    if (mc_resting(ss[8])) {
+      idle.push(ss);
+    } else {
+      firing.push(ss);
+      if (match) shown++;
+    }
+  }
+  for (var old in v.rows) {
+    if (!seen[old]) {
+      v.rows[old].tr.remove();
+      delete v.rows[old];
+    }
+  }
+  firing.sort(mc_sorter(list));
+  idle.sort((a, b) => a[0].localeCompare(b[0]));
+  var order = firing.map((s) => s[7]).join(',') + '|' + idle.map((s) => s[7]).join(',');
+  if (order != v.order && (force || !v.table.matches(':hover'))) {
+    v.order = order;
+    firing.forEach((s) => v.body.appendChild(v.rows[s[7]].tr));
+    idle.forEach((s) => v.nofire_body.appendChild(v.rows[s[7]].tr));
+  }
+  // The open row's detail strip, under it wherever the sort put it
+  var open_row = null;
+  for (var k = 0; k < list.length; k++) {
+    if (list[k][9] == mc_open) open_row = v.rows[list[k][7]];
+  }
+  if (open_row && open_row.tr.style.display != 'none') {
+    if (open_row.tr.nextSibling !== v.detail.tr) open_row.tr.after(v.detail.tr);
+    v.detail.tr.style.display = '';
+    mc_fill_detail(v.detail, d.detail);
+  } else {
+    v.detail.tr.style.display = 'none';
+  }
+  v.nofire_body.className = 'mc-nofire' + (mc_show_nofire ? ' open' : '');
+  mc_set(v.nofire_label, 'Not firing (' + idle.length + ')');
+  mc_set(v.count, filter ? shown + ' of ' + firing.length : firing.length + ' firing');
+  for (var key in v.heads) {
+    var th = v.heads[key];
+    th.classList.toggle('sorted', key == mc_sort.key);
+    th.classList.toggle('desc', key == mc_sort.key && mc_sort.desc);
+  }
 }
 
 function remove_tickets() {
@@ -980,8 +1459,9 @@ Byond.subscribeTo('update_stat', (payload) => {
 });
 
 Byond.subscribeTo('update_mc', (payload) => {
-  mc_tab_parts = payload.mc_data;
-  mc_tab_parts.splice(0, 0, ['', 'Location:', payload.coord_entry]);
+  mc_data = payload.mc;
+  mc_data.detail = payload.detail; // the open row's, if any
+  mc_loc = payload.loc;
   addPermanentTab('MC');
   if (current_tab == 'MC') {
     draw_mc();
