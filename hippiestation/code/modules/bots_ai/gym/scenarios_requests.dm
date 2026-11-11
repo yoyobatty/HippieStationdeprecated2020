@@ -36,7 +36,7 @@
 /datum/bot_scenario/chat/request/proc/acknowledged()
 	var/datum/bot_request_kind/kind = locate(kind_type) in GLOB.bot_request_kinds
 	for(var/line in spoken())
-		if(line in kind.ack_lines)
+		if(hascall(kind, "is_ack_line") ? call(kind, "is_ack_line")(line) : (line in kind.ack_lines))
 			return TRUE
 	return FALSE
 
@@ -211,6 +211,91 @@
 		return BOT_GYM_PENDING
 	var/datum/bot_request_kind/kind = locate(/datum/bot_request_kind/let_out) in GLOB.bot_request_kinds
 	for(var/line in spoken())
-		if(line in kind.ack_lines)
+		if(hascall(kind, "is_ack_line") ? call(kind, "is_ack_line")(line) : (line in kind.ack_lines))
 			return BOT_GYM_PASS
 	return BOT_GYM_PENDING
+
+// "Spoken for" (bot_claims.dm). Reached by name so a build without that file compiles for the A/B.
+
+/datum/bot_scenario/chat/request/sleeper
+	name = "call: somebody in a sleeper asking for heals gets it run"
+	desc = "A hurt crew member shut in a sleeper says they need heals. The assistant down the corridor, no doctor, walks over and works the panel: a dose of what they need. In the user's round (round-09.55.24) the Captain asked from the Brig's sleeper four times and nobody came."
+	job = "Assistant"
+	layout = list(
+		"##########",
+		"#B.....CY#",
+		"##########")
+	time_limit = 45 SECONDS
+	call_line = "I need heals, can someone run this sleeper"
+	var/obj/machinery/sleeper/sleeper
+
+/datum/bot_scenario/chat/request/sleeper/setup()
+	sleeper = new(first_marker("Y"))
+	place("Y", sleeper)
+	kind_type = text2path("/datum/bot_request_kind/run_sleeper") || /datum/bot_request_kind/medical
+
+/datum/bot_scenario/chat/request/sleeper/post_spawn()
+	..()
+	visitor.apply_damage(40, BRUTE, BODY_ZONE_CHEST)
+	sleeper.close_machine(visitor)
+
+/datum/bot_scenario/chat/request/sleeper/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(visitor.loc != sleeper)
+		fail_reason = "the patient isn't in the sleeper any more"
+		return BOT_GYM_FAIL
+	return verdict(visitor.reagents.has_reagent(/datum/reagent/medicine/bicaridine), "dosed them without a word about coming")
+
+/datum/bot_scenario/chat/request/claimed
+	name = "call: a doctor on its way stands down when somebody else says they've got it"
+	desc = "A hurt crew member shouts for a doctor through the window; the doctor says it's coming and heads round. Somebody stood by them says \"I've got it\". The doctor leaves it to them, and says so. The user asked for one taker and the rest to stand down (2026-11-11)."
+	job = "Medical Doctor"
+	layout = list(
+		"####################",
+		"#B.................#",
+		"#wwwwwwwwwwwwwwwww.#",
+		"#C......H..........#",
+		"####################")
+	time_limit = 25 SECONDS
+	kit_backpack = list(/obj/item/stack/medical/bruise_pack, /obj/item/stack/medical/ointment)
+	call_line = "I need a doctor over here!"
+	kind_type = /datum/bot_request_kind/medical
+	var/mob/living/carbon/human/helper
+	var/claimed_at
+
+/datum/bot_scenario/chat/request/claimed/post_spawn()
+	..()
+	visitor.apply_damage(30, BRUTE, BODY_ZONE_CHEST)
+	helper = stand_in(first_marker("H"), "Riley Helper")
+
+/datum/bot_scenario/chat/request/claimed/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(visitor.getBruteLoss() < 25 || get_dist(bot, visitor) <= 1)
+		fail_reason = "went on and treated them anyway"
+		return BOT_GYM_FAIL
+	if(!claimed_at)
+		if(istype(brain.current_goal, /datum/bot_goal/answer_call))
+			claimed_at = world.time
+			log_line("helper: \"I've got it\"")
+			helper.say("I've got it")
+		return BOT_GYM_PENDING
+	if(world.time - claimed_at < 8 SECONDS)
+		return BOT_GYM_PENDING
+	if(istype(brain.current_goal, /datum/bot_goal/answer_call))
+		fail_reason = "still on its way"
+		return BOT_GYM_FAIL
+	// Said it was coming: says it's leaving it. Hadn't yet: says nothing at all.
+	var/said_coming = acknowledged()
+	var/said_leaving = FALSE
+	for(var/line in spoken())
+		if(findtext(line, "yours") || findtext(line, "got it") || findtext(line, "leaving it to you"))
+			said_leaving = TRUE
+	if(said_coming && !said_leaving)
+		fail_reason = "said it was coming, then stopped without a word"
+		return BOT_GYM_FAIL
+	if(!said_coming && said_leaving)
+		fail_reason = "stood down from a call it never said it had"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

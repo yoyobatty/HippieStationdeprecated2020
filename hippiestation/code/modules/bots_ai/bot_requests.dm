@@ -89,7 +89,9 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 /datum/bot_request_kind/medical
 	name = "medical"
 	jobs = list("Medical Doctor", "Chief Medical Officer", "Paramedic", "Geneticist", "Virologist")
-	strong_words = list("medic", "man down", "need a doctor", "need a doc", "need medical", "im dying", "i'm dying", "bleeding out", "need healing", "paramedic", "need a medic")
+	// "I need heals", "can you heal me" went unheard in the user's round (round-09.55.24): only "need healing" was in.
+	strong_words = list("medic", "man down", "need a doctor", "need a doc", "need medical", "im dying", "i'm dying", "bleeding out", "need healing", "paramedic", "need a medic",
+		"heal me", "need heals", "need heal", "need a heal", "need healed", "need healed up", "heal pls", "heal please", "patch me up", "need patching up")
 	role_words = list("doctor", "doc", "doctors", "medical", "cmo")
 	arrival_lines = list("Alright, let's have a look at you.", "Hold still, let me see.", "Where does it hurt?")
 	urgent = TRUE
@@ -161,6 +163,11 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 		return FALSE
 	if(taken_by && (QDELETED(taken_by) || QDELETED(taken_by.owner) || taken_by.owner.stat != CONSCIOUS))
 		taken_by = null //whoever had it is in no state to see it through
+	if(player_claim) //somebody said "on it" (bot_claims.dm)
+		var/mob/living/claimer = player_claim.resolve()
+		if(claimer && claimer.stat == CONSCIOUS && world.time < claim_until)
+			return FALSE
+		player_claim = null
 	return !taken_by
 
 /// The prefix that puts a line on the channel something was heard on. In person: none.
@@ -355,7 +362,7 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 	var/mob/living/who = R.caller_ref?.resolve()
 	bot_log(src, "taking a [R.kind.name] call from [who || "somebody"] ([isarea(R.place) ? "[R.place]" : get_area_name(R.place, TRUE)])")
 	if(who != owner)
-		say_after_typing(bot_radio_prefix(R.radio_freq) + R.kind.ack_for(src, R))
+		say_ack_after_typing(R, bot_radio_prefix(R.radio_freq) + R.kind.ack_for(src, R)) //bot_claims.dm: not if somebody else has it by then
 	if(!R.kind.walks_there)
 		R.kind.attend(src, R)
 	return TRUE
@@ -363,6 +370,8 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 /// Hands a call to whoever of the right trade is nearest and free. Nobody: it stays open for the first to come free.
 /proc/bot_offer_request(datum/bot_request/R)
 	if(!R.still_open() || !R.place)
+		return
+	if(bot_ai_take_request(R)) //the AI first, when it can do it from the core (bot_claims.dm)
 		return
 	var/turf/there = isarea(R.place) ? null : get_turf(R.place)
 	var/datum/bot_brain/best

@@ -178,6 +178,9 @@ GLOBAL_LIST_INIT(bot_you_words, list("you", "ya", "u", "your", "you're", "youre"
 		access_asked_until = 0
 		consider_access_request(talker, lower_msg, radio_freq)
 		return
+	// A player's "on it" to a call: theirs, and whoever had it stands down (bot_claims.dm).
+	if(bot_heard_claim(talker, lower_msg, radio_freq))
+		return
 	// A call for somebody of this bot's trade, or for this bot by name to come somewhere (bot_requests.dm).
 	if(heard_call(talker, lower_msg, radio_freq, named))
 		return

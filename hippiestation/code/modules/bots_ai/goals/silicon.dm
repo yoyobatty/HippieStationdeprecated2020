@@ -271,6 +271,7 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 	if(subverted())
 		return //no doors for the crew, no callouts, no bodies reported: only its law's people, when they ask (heard())
 	open_doors_for_those_shut_in()
+	run_sleepers() //bot_claims.dm
 	watch_the_cameras()
 	read_the_crew_monitor()
 
@@ -315,16 +316,9 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 	for(var/datum/bot_request/R as anything in GLOB.bot_requests)
 		if(!istype(R.kind, /datum/bot_request_kind/let_out) || !R.still_open())
 			continue
-		var/mob/living/asker = R.caller_ref?.resolve()
-		if(!asker || asker.stat == DEAD || !GLOB.cameranet.checkTurfVis(get_turf(asker)))
-			continue
-		var/obj/machinery/door/airlock/D = door_near(asker)
-		if(!D)
-			continue
-		R.taken_by = src
-		open_door(D)
-		say_it(pick("Door's open, [asker.name].", "Got it.", "There you go."))
-		return
+		// Said on the channel they asked on (bot_claims.dm): it used to say it in the core, where nobody heard.
+		if(let_out_for(R))
+			return
 
 /// Whoever's wanted, if a camera can see them. An AI watching the cameras is why a suspect doesn't stay lost for long.
 /datum/bot_silicon/ai/proc/watch_the_cameras()
@@ -334,7 +328,8 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 		if(!H || H.stat == DEAD || H.handcuffed || W.severity < BOT_CRIME_MAJOR || LAZYACCESS(called_out, ref) > world.time)
 			continue
 		var/turf/T = get_turf(H)
-		if(!T || !is_station_level(T.z) || !GLOB.cameranet.checkTurfVis(T))
+		// bot_camera_sees(): checkTurfVis() alone is FALSE for any part of the station no AI eye has looked at yet, so this never fired
+		if(!T || !is_station_level(T.z) || !bot_camera_sees(T))
 			continue
 		W.last_seen = T
 		W.last_seen_at = world.time
@@ -416,6 +411,8 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 		return
 	if(subverted() && !(talker in law_masters()))
 		return //it doesn't answer to the crew any more
+	if(heard_sleeper_ask(talker, lower_msg, radio_freq)) //bot_claims.dm: somebody in a sleeper asking for it to be run
+		return
 	if(bot_text_has_any(lower_msg, list("law", "laws")))
 		if(world.time >= next_law_recital)
 			next_law_recital = world.time + 1 MINUTES
