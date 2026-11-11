@@ -30,8 +30,50 @@
 	if(subverted())
 		hunt_law_targets()
 		return
-	watch_fires() || watch_breaches() || watch_fights() || watch_core() || watch_power()
+	watch_operatives() || watch_fires() || watch_breaches() || watch_fights() || watch_crit() || watch_core() || watch_power()
 	watch_shuttle()
+
+/// Somebody in critical condition on the crew monitor (suit sensors set to vitals or better): Medical told where, and a request made that
+/// the doctors answer (bot_requests.dm). It only reported the bodies before.
+/datum/bot_silicon/ai/proc/watch_crit()
+	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
+		if(H.stat == DEAD || H.health > H.crit_threshold || !H.mind?.assigned_role)
+			continue
+		var/obj/item/clothing/under/U = H.w_uniform
+		var/turf/T = get_turf(H)
+		if(!istype(U) || U.sensor_mode < SENSOR_VITALS || !T || !is_station_level(T.z) || bot_in_medbay(H) || !fresh("crit|[REF(H)]"))
+			continue
+		note("crew monitor: [H] critical in [get_area_name(T, TRUE)]")
+		say_it(":m [H.real_name] is critical[U.sensor_mode >= SENSOR_COORDS ? " in [get_area_name(T, TRUE)]" : ""].")
+		var/datum/bot_request_kind/medical/M = locate() in GLOB.bot_request_kinds
+		if(M && !bot_open_request_from(H, M))
+			bot_offer_request(bot_new_request(M, H, FREQ_MEDICAL, H))
+		return TRUE
+	return FALSE
+
+/// Somebody in a Syndicate suit on the cameras: Security told where, and the first officer free puts it on the record, which makes them
+/// kill on sight (bot_is_fair_game()). A player AI calls operatives out the moment it sees them.
+/datum/bot_silicon/ai/proc/watch_operatives()
+	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
+		if(H.stat == DEAD || !bot_in_syndicate_suit(H)) //goals/security_tactics.dm
+			continue
+		var/turf/T = get_turf(H)
+		if(!T || !is_station_level(T.z) || !bot_camera_sees(T) || !fresh("op|[REF(H)]"))
+			continue
+		note("Syndicate suit on camera: [H] in [get_area_name(T, TRUE)]")
+		say_it(":s Syndicate operative in [get_area_name(T, TRUE)]! [H.name].")
+		var/datum/bot_wanted/W = bot_get_wanted_entry(H)
+		if(!W || !(W.crime in GLOB.bot_antag_crimes))
+			for(var/datum/bot_brain/B as anything in GLOB.bot_security_brains)
+				if(!QDELETED(B.owner) && B.owner.stat == CONSCIOUS)
+					B.file_crime(H, "Sabotage", "In a Syndicate suit, seen by the AI in [get_area_name(T, TRUE)].", BOT_CRIME_MAJOR)
+					break
+		else
+			W.last_seen = T
+			W.last_seen_at = world.time
+		bot_dispatch_security(T, H.name)
+		return TRUE
+	return FALSE
 
 /datum/bot_silicon/ai/proc/fresh(key)
 	if(LAZYACCESS(called_about, key) > world.time)

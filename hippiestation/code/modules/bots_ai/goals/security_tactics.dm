@@ -57,6 +57,13 @@
 	var/mob/living/carbon/human/H = M
 	return istype(H) && istype(H.wear_suit, /obj/item/clothing/suit/space/hardsuit/nano)
 
+/// A Syndicate space suit or hardsuit worn: an operative, by the look of them, and a confirmed antagonist as a nanosuit is (the user's
+/// ruling for the nanosuit, 2026-11-04, applied to the operatives' red suits, overnight 2026-11-10). In a nuke round (n0_nuclear) the crew
+/// passed three operatives with SMGs and went about their work, and 27 of them died in 13 minutes.
+/proc/bot_in_syndicate_suit(mob/M)
+	var/mob/living/carbon/human/H = M
+	return istype(H) && (istype(H.wear_suit, /obj/item/clothing/suit/space/hardsuit/syndi) || istype(H.wear_suit, /obj/item/clothing/suit/space/syndicate))
+
 /// Everybody on Security who's free heads there. An officer already in a fight or walking a prisoner down stays where it is.
 /proc/bot_dispatch_security(turf/T, what, mob/living/caller_mob)
 	if(!T)

@@ -120,6 +120,11 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 				hazards[T] = BOT_HAZARD_RADS
 		for(var/turf/T as anything in RANGE_TURFS(1, crystal))
 			hazards[T] = BOT_HAZARD_BALL
+	// Wormholes (the random event): a step into one lands you anywhere, space included. People go round them. In a midround batch
+	// (mid1110) the two shifts with wormholes lost 18 and 14 of the crew, eleven of them in space.
+	for(var/obj/effect/portal/wormhole/W in GLOB.portals)
+		if(isturf(W.loc))
+			hazards[W.loc] = BOT_HAZARD_BALL
 	for(var/obj/effect/hotspot/H as anything in SSair.hotspots)
 		var/turf/T = H?.loc
 		if(T && !hazards[T])

@@ -357,7 +357,7 @@
 	data["turbine_broke"] = (!compressor || !compressor.turbine || (compressor.turbine.stat & BROKEN)) ? TRUE : FALSE
 	data["online"] = compressor?.starter
 
-	data["power"] = DisplayPower(compressor?.turbine?.lastgen)
+	data["power"] = DisplayPower(compressor?.turbine?.lastgen || 0) // hippie -- null before its first run read " W"
 	data["rpm"] = compressor?.rpm
 	data["temp"] = compressor?.gas_contained.temperature
 

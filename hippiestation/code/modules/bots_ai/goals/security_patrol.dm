@@ -157,7 +157,7 @@ GLOBAL_LIST_INIT(bot_antag_crimes, list("Murder", "Attempted Murder", "Sabotage"
 /// searched it, found "nothing on them" (the suit's worn, not carried) and let it go, and the next officer along booked the cook and the
 /// atmos tech who were fighting it for Assault with a Deadly Weapon. One was hunted as a criminal for the rest of the round.
 /proc/bot_is_fair_game(mob/living/carbon/human/H)
-	if(bot_in_nanosuit(H)) //goals/security_tactics.dm
+	if(bot_in_nanosuit(H) || bot_in_syndicate_suit(H)) //goals/security_tactics.dm
 		return TRUE
 	var/datum/bot_wanted/W = bot_get_wanted_entry(H)
 	return W && (W.severity >= BOT_CRIME_MURDER || (W.crime in GLOB.bot_antag_crimes))

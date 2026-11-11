@@ -71,6 +71,11 @@ GLOBAL_LIST_INIT(bot_wizard_spells, list(/datum/spellbook_entry/fireball, /datum
 	var/turf/here = get_turf(owner)
 	if(!isturf(owner.loc)) //mid-jaunt
 		return FALSE
+	// Cuffed: out by the jaunt or blink, as a player does (they need no hands), and nothing else till then. It used to pick a victim, fail
+	// to reach them, and pick again, every few seconds for as long as it was held (live round n1_wizard: 43 goals given up).
+	if(owner.handcuffed)
+		wizard_escape(TRUE)
+		return FALSE
 	if(!here || !is_station_level(here.z))
 		return wizard_teleport_in()
 	var/mob/living/carbon/human/V
@@ -200,9 +205,9 @@ GLOBAL_LIST_INIT(bot_wizard_no_landing, typecacheof(list(/area/engine/engineerin
 			return TRUE
 	return FALSE
 
-/// Hurt: away, by blink or the jaunt, whichever's ready.
-/datum/bot_brain/proc/wizard_escape()
-	if(world.time < next_wizard_escape || owner.health > owner.maxHealth * 0.5)
+/// Hurt, or held (`held`): away, by blink or the jaunt, whichever's ready.
+/datum/bot_brain/proc/wizard_escape(held = FALSE)
+	if(world.time < next_wizard_escape || (!held && owner.health > owner.maxHealth * 0.5))
 		return FALSE
 	usr = owner
 	for(var/obj/effect/proc_holder/spell/S as anything in owner.mind?.spell_list)
