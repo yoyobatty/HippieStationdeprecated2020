@@ -16,7 +16,9 @@ const logger = createLogger('store');
 export const createStore = () => {
   const reducer = flow([
     // State initializer
-    (state = {}, action) => state,
+    // hippie -- a pooled window taking a new UI starts from nothing, in the
+    // same dispatch that brings the new state (index.js hippieMount)
+    (state = {}, action) => (action.type === 'hippieMount' ? {} : state),
     // Global state reducers
     backendReducer,
     toastReducer,

@@ -15,11 +15,41 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	text2file(text, "data/keycheck.txt")
 
 /client/New()
+	if(fexists("data/tgui_sweep_nopool")) // every window the old way, for an A/B
+		GLOB.tgui_pool_enabled = FALSE
 	. = ..()
 	if(. && !GLOB.keycheck_running)
 		GLOB.keycheck_running = TRUE
 		spawn(50)
 			tgui_sweep_run(src)
+
+GLOBAL_LIST_EMPTY(ts_probes)
+GLOBAL_VAR_INIT(ts_probe_count, 0)
+
+/client/Topic(href, href_list, hsrc)
+	if(href_list["probe"])
+		GLOB.ts_probes[href_list["probe"]] = href_list["value"]
+		return
+	return ..()
+
+/// A pooled window (hippiestation/code/modules/tgui/tgui_pool.dm) is initialized as soon as its UI is sent, so its page is asked
+/// instead: drawn (tgui-next's layout, or old tgui's), or a fatal error, or nothing
+/proc/ts_page_state(client/C, datum/tgui/ui)
+	var/deadline = world.time + 6 SECONDS
+	while(ui.pool_window?.mount_pending && world.time < deadline)
+		sleep(1)
+	if(!ui.pool_window)
+		return "its pooled window was thrown away"
+	if(ui.pool_window.mount_pending)
+		return "the page never said it had it"
+	sleep(5)
+	var/probe = "p[++GLOB.ts_probe_count]"
+	var/js = "(function () { var fatal = document.getElementById('FatalError'); var v = fatal && fatal.className === 'FatalError' ? 'fatal: ' + document.getElementById('FatalError__stack').textContent.slice(0, 200) : document.getElementById('Layout__content') ? 'drawn' : document.getElementById('container').innerText.length ? 'drawn (old tgui)' : 'blank'; window.chrome.webview.postMessage('byond://?probe=[probe]&value=' + encodeURIComponent(v)); })();"
+	C << output(url_encode(js), ui.window_output_id("eval"))
+	deadline = world.time + 5 SECONDS
+	while(isnull(GLOB.ts_probes[probe]) && world.time < deadline)
+		sleep(1)
+	return GLOB.ts_probes[probe] || "no answer"
 
 /proc/ts_shot(name)
 	text2file(name, "data/keycheck_shot")
@@ -93,6 +123,15 @@ GLOBAL_LIST_INIT(ts_types, list("/obj/machinery/vending/cola", "/obj/machinery/c
 		if(!ui)
 			kc_log("NONE [path]: no tgui window opened (an old window, or it wants more than this to open)")
 			none++
+		else if(ui.pool_window)
+			var/page = ts_page_state(C, ui)
+			if(findtext(page, "drawn") == 1)
+				kc_log("PASS [path]: [ui.interface] came up in pooled window [ui.window_id], [page]")
+				passed++
+			else
+				kc_log("FAIL [path]: [ui.interface] in pooled window [ui.window_id]: [page]")
+				failed++
+				ts_shot("popup_tgui_[replacetext("[path]", "/", "_")]")
 		else if(ui.initialized)
 			kc_log("PASS [path]: [ui.interface] came up")
 			passed++

@@ -9,8 +9,9 @@ import { loadCSS } from 'fg-loadcss';
 import { render } from 'inferno';
 import { setupHotReloading } from 'tgui-dev-server/link/client';
 import { backendUpdate } from './backend';
-import { tridentVersion } from './byond';
+import { callByond, tridentVersion, winget } from './byond';
 import { setupDrag } from './drag';
+import { releaseHeldKeys } from './hotkeys';
 import { createLogger } from './logging';
 import { getRoute } from './routes';
 import { createStore } from './store';
@@ -21,10 +22,12 @@ const reactRoot = document.getElementById('react-root');
 
 let initialRender = true;
 let handedOverToOldTgui = false;
+// hippie -- a pooled window between UIs: nothing to draw
+let released = !!window.__pool__;
 
 const renderLayout = () => {
   // Short-circuit the renderer
-  if (handedOverToOldTgui) {
+  if (handedOverToOldTgui || released) {
     return;
   }
   // Mark the beginning of the render
@@ -59,6 +62,14 @@ const renderLayout = () => {
         // Inject current state into the data holder
         const holder = document.getElementById('data');
         holder.textContent = JSON.stringify(state);
+        // hippie -- old tgui takes the page for good, so a pooled window
+        // is thrown away when it closes; it's shown here, as old tgui
+        // won't
+        if (window.__pool__) {
+          holder.setAttribute('data-ref', state.config.ref);
+          callByond('', { tgui_pool: window.__pool__, spent: 1 });
+          showPooledWindow(state.config.window);
+        }
         // Load old TGUI by injecting new scripts
         loadCSS('v4shim.css');
         loadCSS('tgui.css');
@@ -129,6 +140,80 @@ const parseStateJson = json => {
   }
 };
 
+/**
+ * hippie -- the window pool (hippiestation/code/modules/tgui/tgui_pool.dm).
+ * A pooled window is a hidden window with this page already loaded. The
+ * server hands it a UI with hippieMount (one message: no page load and no
+ * tgui:initialize round trip), takes it back with hippieRelease and hides
+ * it, and hands it the next UI later.
+ */
+const injectedHead = {};
+
+// Centred on the game window, as a new popup would be, then shown
+const showPooledWindow = async win => {
+  try {
+    const [pos, size, own] = await Promise.all([
+      winget('mainwindow', 'pos'),
+      winget('mainwindow', 'size'),
+      winget(win, 'size'),
+    ]);
+    const x = Math.round(pos.x + (size.x - own.x) / 2);
+    const y = Math.round(pos.y + (size.y - own.y) / 2);
+    callByond('winset', {
+      [`${win}.pos`]: `${Math.max(x, 0)},${Math.max(y, 0)}`,
+    });
+  }
+  catch (err) {
+    logger.log('could not centre the window', err);
+  }
+  callByond('winset', {
+    [`${win}.is-visible`]: true,
+    [`${win}.focus`]: true,
+  });
+  requestAnimationFrame(() => {
+    window.__hippiePaintedAt__ = performance.timeOrigin + performance.now();
+  });
+};
+
+window.hippieMount = json => {
+  if (handedOverToOldTgui) {
+    return;
+  }
+  const { head, state } = parseStateJson(json);
+  window.__hippiePaintedAt__ = 0;
+  window.__ref__ = state.config.ref;
+  document.getElementById('data').setAttribute('data-ref', state.config.ref);
+  // A window's own style sheets (sprite sheets): kept for the next UI
+  if (head && !injectedHead[head]) {
+    injectedHead[head] = true;
+    document.head.insertAdjacentHTML('beforeend', head);
+  }
+  // The last UI's tree goes, and its state with it (store.js)
+  render(null, reactRoot);
+  released = false;
+  initialRender = true;
+  store.dispatch({ type: 'hippieMount', payload: state });
+  window.__hippieMounts__ = (window.__hippieMounts__ || 0) + 1;
+  if (!handedOverToOldTgui) {
+    showPooledWindow(state.config.window);
+  }
+  // The server reopens the UI the old way if this never comes
+  callByond('', { tgui_pool: window.__pool__, mounted: 1 });
+};
+
+window.hippieRelease = () => {
+  if (handedOverToOldTgui) {
+    return;
+  }
+  releaseHeldKeys();
+  released = true;
+  render(null, reactRoot);
+  window.__ref__ = null;
+  // Ready again. A window shut by its title bar's X has lost its page
+  // (about:blank), so this never comes and the server throws it away
+  callByond('', { tgui_pool: window.__pool__, ready: 1 });
+};
+
 const setupApp = () => {
   // Subscribe for redux state updates
   store.subscribe(() => {
@@ -137,6 +222,10 @@ const setupApp = () => {
 
   // Subscribe for bankend updates
   window.update = window.initialize = stateJson => {
+    // hippie -- a pooled window between UIs takes no updates
+    if (released) {
+      return;
+    }
     const state = parseStateJson(stateJson);
     // Backend update dispatches a store action
     store.dispatch(backendUpdate(state));
@@ -161,6 +250,11 @@ const setupApp = () => {
 
   // Dynamically load font-awesome from browser's cache
   loadCSS('font-awesome.css');
+
+  // hippie -- a pooled window tells the server it's ready for a UI
+  if (window.__pool__) {
+    callByond('', { tgui_pool: window.__pool__, ready: 1 });
+  }
 };
 
 // IE8: Wait for DOM to properly load

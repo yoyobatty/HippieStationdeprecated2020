@@ -4119,6 +4119,7 @@
 #include "hippiestation\code\modules\tgui_panel\name_menu.dm"
 #include "hippiestation\code\modules\tgui_panel\tgui_panel.dm"
 #include "hippiestation\code\modules\tgui\tgui_prompt.dm"
+#include "hippiestation\code\modules\tgui\tgui_pool.dm"
 #include "hippiestation\code\modules\tgui\machines_more_tgui.dm"
 #include "hippiestation\code\modules\tgui\notices_tgui.dm"
 #include "hippiestation\code\modules\tgui\bots_strip_tgui.dm"

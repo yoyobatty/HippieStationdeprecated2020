@@ -94,7 +94,8 @@ GLOBAL_VAR_INIT(lobby_design, "pass")
 	. = ..()
 	if(client && length(client.lobby_windows) && !isnewplayer(src))
 		for(var/window in client.lobby_windows)
-			src << browse(null, "window=[window]")
+			if(!client.tgui_pool?.release_id(window)) // a pooled window is hidden and kept, not closed (tgui_pool.dm)
+				src << browse(null, "window=[window]")
 		client.lobby_windows = null
 
 /// What the round is doing, for both windows

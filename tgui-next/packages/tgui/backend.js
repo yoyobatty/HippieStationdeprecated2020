@@ -24,7 +24,8 @@ export const backendUpdate = state => ({
 export const backendReducer = (state, action) => {
   const { type, payload } = action;
 
-  if (type === 'backendUpdate') {
+  // hippie -- hippieMount: a pooled window's new UI (index.js)
+  if (type === 'backendUpdate' || type === 'hippieMount') {
     // Merge config
     const config = {
       ...state.config,

@@ -5,12 +5,15 @@
 <meta charset="utf-8">
 
 <!-- Early setup -->
-<script id="data" type="application/json" data-ref="[ref]">{}</script>
+<script id="data" type="application/json" data-ref="[ref]" data-pool="">{}</script>
 <script type="text/javascript">
 // Mark the beginning of initialization
 window.__inception__ = new Date().getTime();
 // Make window ref global
 window.__ref__ = document.getElementById('data').getAttribute('data-ref');
+// hippie -- a pooled window (hippiestation/code/modules/tgui/tgui_pool.dm):
+// loaded hidden with no UI, it waits for index.js hippieMount
+window.__pool__ = document.getElementById('data').getAttribute('data-pool');
 // How this page talks to BYOND. On 516 every page gets a direct line to the
 // client: chrome.webview.postMessage takes the same byond:// url a link would,
 // and it's what BYOND's own window.BYOND calls in the end. Nothing navigates,
@@ -66,8 +69,10 @@ window.__updateQueue__ = [];
 window.update = window.initialize = function (stateJson) {
   window.__updateQueue__.push(stateJson);
 };
-window.__sendToByond__('byond://?src=' + window.__ref__
-  + '&action=tgui:initialize');
+if (!window.__pool__) {
+  window.__sendToByond__('byond://?src=' + window.__ref__
+    + '&action=tgui:initialize');
+}
 </script>
 
 <!-- Styles -->
