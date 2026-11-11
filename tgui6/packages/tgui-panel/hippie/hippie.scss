@@ -1,5 +1,10 @@
 // hippie -- this server's additions to the chat
 
+// The chat on the tgui-next OKLab palette: its controls' colours, and tg's dark message colours lifted to read
+// (both written by tools/tgui_preview/oklab_chat.py)
+@use 'panel-oklab';
+@use 'chat-oklab';
+
 .Hippie__historyMark {
   margin: 0.5em 0;
   padding: 0.15em 0;

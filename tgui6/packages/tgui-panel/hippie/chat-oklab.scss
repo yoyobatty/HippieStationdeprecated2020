@@ -1,0 +1,315 @@
+// hippie -- written by tools/tgui_preview/oklab_chat.py, do not edit by hand. tg's chat colours (chat-dark.scss)
+// with every coloured text darker than OKLab lightness 0.66 lifted to it, hue and chroma kept, so it reads on
+// the dark chat. Dark theme only.
+
+html:not(.theme-light) .adminobserverooc {
+  color: #159fd2; // was hsl(195, 100%, 40%)
+}
+
+html:not(.theme-light) .adminooc {
+  color: #668af7; // was hsl(226.6, 52.8%, 50.2%)
+}
+
+html:not(.theme-light) .admin {
+  color: #6c8af2; // was hsl(227, 63.5%, 60.2%)
+}
+
+html:not(.theme-light) .binarysay {
+  color: #2893ff; // was hsl(209.6, 100%, 55.9%)
+}
+
+html:not(.theme-light) .secradio {
+  color: #f64f4a; // was hsl(0, 71.2%, 53.7%)
+}
+
+html:not(.theme-light) .suppradio {
+  color: #b98747; // was hsl(33.7, 44.9%, 49.8%)
+}
+
+html:not(.theme-light) .syndradio {
+  color: #c57b7a; // was hsl(359.1, 31.8%, 42.5%)
+}
+
+html:not(.theme-light) .gangradio {
+  color: #d658c9; // was hsl(305.2, 57.8%, 42.7%)
+}
+
+html:not(.theme-light) .centcomradio {
+  color: #479dc3; // was hsl(197, 62.6%, 39.8%)
+}
+
+html:not(.theme-light) .aiprivradio {
+  color: #db6299; // was hsl(332.2, 59.6%, 60.2%)
+}
+
+html:not(.theme-light) .blueteamradio {
+  color: #6987ff !important; // was hsl(240, 98%, 59.8%)
+}
+
+html:not(.theme-light) .alert {
+  color: #fb4940; // was hsl(0, 74.2%, 48.6%)
+}
+
+html:not(.theme-light) .userdanger {
+  color: #f45248; // was hsl(0, 73.6%, 44.5%)
+}
+
+html:not(.theme-light) .bolddanger {
+  color: #f45248; // was hsl(0, 73.6%, 44.5%)
+}
+
+html:not(.theme-light) .danger {
+  color: #f45248; // was hsl(0, 73.6%, 44.5%)
+}
+
+html:not(.theme-light) .tinydanger {
+  color: #f45248; // was hsl(0, 73.6%, 44.5%)
+}
+
+html:not(.theme-light) .smalldanger {
+  color: #f45248; // was hsl(0, 73.6%, 44.5%)
+}
+
+html:not(.theme-light) .warning {
+  color: #f45248; // was hsl(0, 73.6%, 44.5%)
+}
+
+html:not(.theme-light) .alertwarning {
+  color: #ff4233; // was hsl(0, 100%, 50%)
+}
+
+html:not(.theme-light) .boldwarning {
+  color: #f45248; // was hsl(0, 73.6%, 44.5%)
+}
+
+html:not(.theme-light) .announce {
+  color: #f45248; // was hsl(0, 73.6%, 44.5%)
+}
+
+html:not(.theme-light) .boldannounce {
+  color: #f45248; // was hsl(0, 73.6%, 44.5%)
+}
+
+html:not(.theme-light) .minorannounce {
+  color: #f45248; // was hsl(0, 73.6%, 44.5%)
+}
+
+html:not(.theme-light) .prioritytitle {
+  color: #6989f9; // was hsl(227, 87.7%, 68%)
+}
+
+html:not(.theme-light) .priorityalert {
+  color: #f45248; // was hsl(0, 73.6%, 44.5%)
+}
+
+html:not(.theme-light) .greenannounce {
+  color: #36ad41; // was hsl(132.8, 93.4%, 29.6%)
+}
+
+html:not(.theme-light) .notice {
+  color: #6989f9; // was hsl(227, 87.7%, 68%)
+}
+
+html:not(.theme-light) .tinynotice {
+  color: #6989f9; // was hsl(227, 87.7%, 68%)
+}
+
+html:not(.theme-light) .tinynoticeital {
+  color: #6989f9; // was hsl(227, 87.7%, 68%)
+}
+
+html:not(.theme-light) .smallnotice {
+  color: #6989f9; // was hsl(227, 87.7%, 68%)
+}
+
+html:not(.theme-light) .smallnoticeital {
+  color: #6989f9; // was hsl(227, 87.7%, 68%)
+}
+
+html:not(.theme-light) .boldnotice {
+  color: #6989f9; // was hsl(227, 87.7%, 68%)
+}
+
+html:not(.theme-light) .hear {
+  color: #6989f9; // was hsl(227, 87.7%, 68%)
+}
+
+html:not(.theme-light) .adminnotice {
+  color: #6989f9; // was hsl(227, 87.7%, 68%)
+}
+
+html:not(.theme-light) .adminhelp {
+  color: #ff4233; // was hsl(0, 100%, 50%)
+}
+
+html:not(.theme-light) .red {
+  color: #ff4233; // was hsl(0, 100%, 50%)
+}
+
+html:not(.theme-light) .blue {
+  color: #598bff; // was hsl(224.1, 100%, 56.5%)
+}
+
+html:not(.theme-light) .nicegreen {
+  color: #36ad41; // was hsl(132.8, 93.4%, 29.6%)
+}
+
+html:not(.theme-light) .boldnicegreen {
+  color: #36ad41; // was hsl(132.8, 93.4%, 29.6%)
+}
+
+html:not(.theme-light) .tinynicegreen {
+  color: #36ad41; // was hsl(132.8, 93.4%, 29.6%)
+}
+
+html:not(.theme-light) .blob {
+  color: #fa4d19; // was hsl(16.1, 100%, 46.7%)
+}
+
+html:not(.theme-light) .blobannounce {
+  color: #849c5f; // was hsl(82, 39%, 30.2%)
+}
+
+html:not(.theme-light) .cult {
+  color: #d2736d; // was hsl(2, 43.8%, 41.2%)
+}
+
+html:not(.theme-light) .cult_italic {
+  color: #d2736d; // was hsl(2, 43.8%, 41.2%)
+}
+
+html:not(.theme-light) .cult_bold {
+  color: #d2736d; // was hsl(2, 43.8%, 41.2%)
+}
+
+html:not(.theme-light) .cult_bold_italic {
+  color: #d2736d; // was hsl(2, 43.8%, 41.2%)
+}
+
+html:not(.theme-light) .cult_large {
+  color: #d2736d; // was hsl(2, 43.8%, 41.2%)
+}
+
+html:not(.theme-light) .narsie {
+  color: #d2736d; // was hsl(2, 43.8%, 41.2%)
+}
+
+html:not(.theme-light) .narsiesmall {
+  color: #d2736d; // was hsl(2, 43.8%, 41.2%)
+}
+
+html:not(.theme-light) .colossus {
+  color: #d2726f; // was hsl(358.6, 52.1%, 32.7%)
+}
+
+html:not(.theme-light) .hierophant {
+  color: #c352fe; // was hsl(279.9, 83.6%, 59.4%)
+}
+
+html:not(.theme-light) .purple {
+  color: #af6dec; // was hsl(272.2, 58.7%, 58.2%)
+}
+
+html:not(.theme-light) .holoparasite {
+  color: #958da9; // was hsl(257.1, 12.4%, 55.7%)
+}
+
+html:not(.theme-light) .revenminor {
+  color: #b06bee; // was hsl(273.5, 52.7%, 48%)
+}
+
+html:not(.theme-light) .revenwarning {
+  color: #b262ff; // was hsl(275.9, 85.1%, 39.6%)
+}
+
+html:not(.theme-light) .revendanger {
+  color: #b262ff; // was hsl(275.9, 85.1%, 39.6%)
+}
+
+html:not(.theme-light) .deconversion_message {
+  color: #b163ff; // was hsl(272, 100%, 63.9%)
+}
+
+html:not(.theme-light) .ghostalert {
+  color: #8a7bff; // was hsl(264, 100%, 50%)
+}
+
+html:not(.theme-light) .alien {
+  color: #ac82ab; // was hsl(300, 17.7%, 44.3%)
+}
+
+html:not(.theme-light) .noticealien {
+  color: #36ad41; // was hsl(132.8, 93.4%, 29.6%)
+}
+
+html:not(.theme-light) .alertalien {
+  color: #36ad41; // was hsl(132.8, 93.4%, 29.6%)
+}
+
+html:not(.theme-light) .changeling {
+  color: #36ad41; // was hsl(132.8, 93.4%, 29.6%)
+}
+
+html:not(.theme-light) .alertsyndie {
+  color: #ff4233; // was hsl(0, 100%, 50%)
+}
+
+html:not(.theme-light) .spiderbroodmother {
+  color: #a16eff; // was hsl(272, 100%, 50%)
+}
+
+html:not(.theme-light) .spiderscout {
+  color: #6f85ff; // was hsl(242.9, 68%, 35.5%)
+}
+
+html:not(.theme-light) .interface {
+  color: #c966c7; // was hsl(300, 78.6%, 25.7%)
+}
+
+html:not(.theme-light) .tape_recorder {
+  color: #ff4233; // was hsl(0, 100%, 50%)
+}
+
+html:not(.theme-light) .greentext {
+  color: #36ad41; // was hsl(132.8, 93.4%, 29.6%)
+}
+
+html:not(.theme-light) .redtext {
+  color: #f45248; // was hsl(0, 73.6%, 44.5%)
+}
+
+html:not(.theme-light) .phobia {
+  color: #ff4233; // was hsl(0, 100%, 43.3%)
+}
+
+html:not(.theme-light) .memo {
+  color: #7da130; // was hsl(75.3, 100%, 26.1%)
+}
+
+html:not(.theme-light) .policy {
+  color: #b95dff; // was hsl(276, 70%, 52%)
+}
+
+html:not(.theme-light) .abductor {
+  color: #e13bdf; // was hsl(300, 96%, 38.8%)
+}
+
+html:not(.theme-light) .mind_control {
+  color: #e947b2; // was hsl(320, 71.7%, 55.7%)
+}
+
+html:not(.theme-light) .monkey {
+  color: #c87c5d; // was hsl(17.8, 50.2%, 39.4%)
+}
+
+html:not(.theme-light) .swarmer {
+  color: #508dff; // was hsl(219.2, 100%, 58.6%)
+}
+
+html:not(.theme-light) .resonate {
+  color: #43a49a; // was hsl(174.1, 55.4%, 36.1%)
+}
+
+html:not(.theme-light) .internal.boldnshit {
+  color: #668af7; // was hsl(226.6, 52.8%, 50.2%)
+}

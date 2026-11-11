@@ -17,19 +17,19 @@
 }
 
 .dark:root {
-  --bg: #171717;
-  --bar: #202020;
-  --border: #2c2f33;
-  --text: #a4bad6;
-  --strong: #dbe5f2;
-  --muted: #6f7f94;
-  --hover: #2a2d31;
-  --press: #33373c;
-  --accent: #4f7fc0;
-  --link: #79a6e6;
-  --input: #121314;
-  --scrollbar-base: #171717;
-  --scrollbar-thumb: #3a3f44;
+  --bg: #13161a;
+  --bar: #1b1f23;
+  --border: #2b3137;
+  --text: #adc0d4;
+  --strong: #e1e9f2;
+  --muted: #798898;
+  --hover: #242a30;
+  --press: #2d343b;
+  --accent: #548ac0;
+  --link: #7fb6ee;
+  --input: #0b0d10;
+  --scrollbar-base: #13161a;
+  --scrollbar-thumb: #373e45;
 }
 
 html,
@@ -140,7 +140,7 @@ img {
 }
 
 .tab-badge.hot {
-  background: #c9472f;
+  background: #ae453c;
   color: #fff;
 }
 
