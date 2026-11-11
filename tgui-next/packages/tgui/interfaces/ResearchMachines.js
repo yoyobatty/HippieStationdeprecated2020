@@ -22,7 +22,7 @@ export const Experimentor = props => {
     <Fragment>
       {!linked && (
         <NoticeBox>
-          Not linked to an R&amp;D console: no research from experiments.
+          Not linked to an R&amp;D console.
           <Button
             ml={1}
             icon="search"

@@ -150,6 +150,7 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		world.Profile(PROFILE_RESTART)
 	muster()
 	make_antagonists()
+	schedule_forced_events()
 	for(var/path in subtypesof(/datum/bot_shift_check))
 		var/datum/bot_shift_check/check = new path(src)
 		if(check.name && check.worker())
@@ -1961,3 +1962,31 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 #undef BOT_SHIFT_STUCK
 #undef BOT_SHIFT_SLOW_GOAL
 #undef BOT_SHIFT_FUTILE_GOAL
+
+/// Midround events on purpose (bot-force-events=spider_infestation,meteor_wave,...&bot-force-count=3): that many of the list, picked at
+/// random, spread over the shift from the fourth minute. Random events alone are mostly space dust in a 40 minute shift; this is how the
+/// crew's answer to a real one gets tested.
+/datum/bot_shift/proc/schedule_forced_events()
+	var/list_text = world.params["bot-force-events"]
+	if(!list_text)
+		return
+	var/list/names = splittext(list_text, ",")
+	var/count = text2num(world.params["bot-force-count"]) || 3
+	var/list/picked = list()
+	while(length(names) && length(picked) < count)
+		picked += pick_n_take(names)
+	var/gap = max(1 MINUTES, round((length * 0.7) / max(1, length(picked))))
+	var/at = 4 MINUTES
+	for(var/name in picked)
+		addtimer(CALLBACK(src, PROC_REF(force_event), name), at)
+		at += gap
+
+/datum/bot_shift/proc/force_event(name)
+	var/path = text2path("/datum/round_event_control/[name]")
+	for(var/datum/round_event_control/E in SSevents.control)
+		if(E.type == path)
+			note("[bot_shift_clock(elapsed())]: forced event [E.name]")
+			log_game("BOT SHIFT: forced event [E.name]")
+			E.runEvent()
+			return
+	note("no event called [name]")

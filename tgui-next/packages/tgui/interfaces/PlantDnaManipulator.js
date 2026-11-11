@@ -131,7 +131,7 @@ export const PlantDnaManipulator = props => {
   }
   let body = (
     <NoticeBox>
-      No sample. Put some seeds in to work on the plant&apos;s genes.
+      No sample.
     </NoticeBox>
   );
   if (busy) {

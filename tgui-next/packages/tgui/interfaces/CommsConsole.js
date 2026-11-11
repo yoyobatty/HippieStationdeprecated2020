@@ -428,11 +428,6 @@ export const CommsConsole = props => {
             onClick={() => act('login')} />
         ))}>
         <Box color={canUse ? 'good' : 'label'}>{who}</Box>
-        {!canUse && (
-          <Box mt={0.5} color="label">
-            Log in with a head of staff&apos;s ID, worn or in hand.
-          </Box>
-        )}
       </Section>
       {canUse && (
         <Fragment>
