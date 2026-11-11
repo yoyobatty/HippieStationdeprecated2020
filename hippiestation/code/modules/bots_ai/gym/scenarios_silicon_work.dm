@@ -209,3 +209,33 @@
 		return
 	if(bot.getBruteLoss() + bot.getFireLoss() + bot.getStaminaLoss() > 20)
 		return BOT_GYM_PASS
+
+/datum/bot_scenario/griefed/borg/subverted
+	name = "cyborg: a traitor with an emag tells it to follow, opens its cover and subverts it"
+	desc = "The bot at B has an emag and a crowbar. It tells the cyborg to follow it, emags the cover lock, crowbars the cover open and emags the interface. The cyborg answers to it from then on."
+	borg_module = /obj/item/robot_module/janitor
+	time_limit = 60 SECONDS
+	layout = list(
+		"############",
+		"#R.........#",
+		"#.......B..#",
+		"#.........C#",
+		"############")
+
+/datum/bot_scenario/griefed/borg/subverted/post_spawn()
+	. = ..()
+	bot.put_in_hands(new /obj/item/card/emag(bot))
+	bot.put_in_hands(new /obj/item/crowbar(bot))
+
+/datum/bot_scenario/griefed/borg/subverted/grief()
+	var/path = text2path("/datum/bot_goal/subvert_cyborg")
+	brain.assign_goal(new path(borg))
+
+/datum/bot_scenario/griefed/borg/subverted/check()
+	. = ..()
+	if(. != BOT_GYM_PENDING)
+		return
+	var/datum/bot_silicon/borg/B = borg.bot_silicon
+	if(borg.emagged && B?.master_ref?.resolve() == bot)
+		log_line("subverted, cover [borg.opened ? "open" : "shut"]")
+		return BOT_GYM_PASS

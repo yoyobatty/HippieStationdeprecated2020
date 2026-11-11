@@ -896,6 +896,15 @@ GLOBAL_LIST_EMPTY(bot_storage_asked)
 			return //somebody's on their way to it
 	var/what = lowertext(gate.name)
 	bot_say(asker.owner, ":e [pick("Can somebody open [what]? We need the emitters for the blob.", "Need [what] open for the emitters, the blob's spreading.", "Who can get [what] open? I want an emitter on the blob.")]")
+	// The AI first: it works the button from the core, as a player's does when asked. In a blob round (n3_blob) the engineers asked for
+	// Secure Storage eight times, no head of staff could get to the button, and not one emitter went out.
+	for(var/datum/bot_silicon/ai/A in GLOB.bot_silicons)
+		if(QDELETED(A.owner) || A.owner.stat != CONSCIOUS || A.subverted() || (gate.stat & (NOPOWER|BROKEN)) || !length(bot_buttons_for_door_id(gate.id)))
+			continue
+		A.note("opening [gate] for the emitters")
+		addtimer(CALLBACK(A, TYPE_PROC_REF(/datum/bot_silicon, say_it), ":e Opening [what]."), 3 SECONDS)
+		addtimer(CALLBACK(gate, TYPE_PROC_REF(/obj/machinery/door/poddoor, open)), 4 SECONDS)
+		return
 	var/checked = 0
 	for(var/job in list("Chief Engineer", "Captain", "Head of Personnel"))
 		for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
@@ -1567,3 +1576,13 @@ GLOBAL_LIST_EMPTY(bot_storage_asked)
 	log_game("BOT BLOB: [B.mind.name] is the blob, from the round's pick")
 	qdel(src)
 	return B
+
+/// The mode counts its antagonists still going among living mobs with a client (game_mode.dm check_finished()). An overmind is a camera
+/// and a bot's has no client, so a blob round with a bot blob ended 0.6 s after it started (live round n2_blob). A bot blob with its core
+/// still standing, or not yet placed, keeps it going; the blob's win and its death end it as they would.
+/datum/game_mode/blob/check_finished(force_ending)
+	if(!force_ending && !station_was_nuked && SSshuttle.emergency?.mode != SHUTTLE_ENDGAME)
+		for(var/datum/bot_blob/B as anything in GLOB.bot_blobs)
+			if(!QDELETED(B.owner) && (!B.owner.placed || !QDELETED(B.owner.blob_core)))
+				return FALSE
+	return ..()

@@ -141,6 +141,8 @@
 			return TRUE
 		if(bot.plays_robust() && !bot.nanosuit_on())
 			bot.traitor_shopped = FALSE //somebody watching and nowhere out of sight to go: the suit another time
+	if(bot.try_subvert_cyborg()) //goals/traitor_borg.dm
+		return TRUE
 	if(bot.plays_robust())
 		return bot.robust_business() //goals/robust.dm
 	if(bot.try_sabotage()) //goals/sabotage.dm

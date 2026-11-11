@@ -930,7 +930,10 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 /// Emagged: whoever did it is its master now (robot_defense.dm says so to the cyborg once its new laws load).
 /mob/living/silicon/robot/emag_act(mob/user)
 	var/was_emagged = emagged
+	var/was_locked = locked && !opened
 	. = ..()
+	if(was_locked && !locked && isliving(user))
+		bot_cover_tampered(user) //goals/traitor_borg.dm
 	var/datum/bot_silicon/borg/B = bot_silicon
 	if(istype(B) && emagged && !was_emagged && isliving(user))
 		B.master_ref = WEAKREF(user)
