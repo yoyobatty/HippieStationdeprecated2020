@@ -85,7 +85,7 @@ export const ChemHeater = props => {
             onClick={() => act('eject')} />
         )}>
         {!isBeakerLoaded && (
-          <Box color="label">Put a beaker in by hand.</Box>
+          <Box color="label">No beaker.</Box>
         ) || (
           <Fragment>
             <FillBar

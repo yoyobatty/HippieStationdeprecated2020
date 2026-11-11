@@ -97,7 +97,7 @@ export const TelecommsMonitor = props => {
         <Section title="Detected network entities">
           {machines.length === 0 && (
             <Box color="label">
-              None in the buffer: probe the network to find them.
+              Buffer empty.
             </Box>
           )}
           <MachineRows machines={machines} act={act} />

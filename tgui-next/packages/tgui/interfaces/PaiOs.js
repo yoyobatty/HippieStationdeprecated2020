@@ -154,11 +154,6 @@ const Directives = props => {
       {(data.supplied || []).map((law, i) => (
         <div key={i} className="PaiOs__law">{law}</div>
       ))}
-      <div className="PaiOs__p PaiOs__muted">
-        {'You may follow the spirit of a directive over its letter. The prime'
-          + ' directive comes first: drop a supplemental one that conflicts'
-          + ' with it.'}
-      </div>
     </div>
   );
 };
@@ -397,13 +392,12 @@ const Screen = props => {
     case 'securityhud':
       return (
         <Toggle act={act} data={data} flag="sec_hud" label="Toggle"
-          text={'Scans faces in view against the criminal database and'
-            + ' marks persons of interest.'} />
+          text="Flags wanted crew in view." />
       );
     case 'medicalhud':
       return (
         <Toggle act={act} data={data} flag="med_hud" label="Toggle"
-          text="Shows the health of the crew around you." />
+          text="Crew health in view." />
       );
     case 'encryptionkeys':
       return (
@@ -492,7 +486,7 @@ const Screen = props => {
           )}
           {data.cable === 'extended' && (
             <div className="PaiOs__muted">
-              Plug the cable into an airlock to jack it.
+              Cable not connected.
             </div>
           )}
           {data.cable === 'connected' && !data.door && (
@@ -514,7 +508,7 @@ const Screen = props => {
                 <span>{data.progress}%</span>
               </div>
               <div className="PaiOs__muted PaiOs__p">
-                The AI is told a brute-force crack is under way.
+                Cracking...
               </div>
               <Btn icon="times" danger onClick={() => act('jack_cancel')}>
                 Cancel
@@ -655,13 +649,13 @@ export const PaiOs = props => {
 
 const FIELDS = [
   { key: 'name', label: 'Name', multiline: false,
-    hint: 'Your pAI name. A crew name or an AI-ish one, up to you.' },
+    hint: '' },
   { key: 'description', label: 'Description', multiline: true,
-    hint: 'How you play your pAI, mannerisms, quirks, whatever.' },
+    hint: '' },
   { key: 'role', label: 'Preferred role', multiline: false,
-    hint: 'Who you like being carried by, or what you like doing.' },
+    hint: '' },
   { key: 'comments', label: 'OOC comments', multiline: true,
-    hint: 'Anything OOC for whoever picks you.' },
+    hint: '' },
 ];
 
 export class PaiRecruit extends Component {
@@ -698,9 +692,6 @@ export class PaiRecruit extends Component {
           )}
         </div>
         <div className="PaiOs__main PaiOs__main--solo">
-          <div className="PaiOs__p PaiOs__muted">
-            {'This is what people see when they pick a pAI.'}
-          </div>
           {FIELDS.map(f => (
             <div key={f.key} className="PaiOs__field">
               <div className="PaiOs__h">{f.label}</div>
@@ -717,7 +708,6 @@ export class PaiRecruit extends Component {
                     value={value(f.key)}
                     onInput={e => this.setState({ [f.key]: e.target.value })} />
                 )}
-              <div className="PaiOs__muted PaiOs__hint">{f.hint}</div>
             </div>
           ))}
           <div className="PaiOs__row">

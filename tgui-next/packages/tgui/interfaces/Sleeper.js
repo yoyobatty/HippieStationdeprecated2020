@@ -38,7 +38,7 @@ export const Sleeper = props => {
         {!occupied && (
           <Box color="label">
             {open
-              ? 'Lie a patient down inside, then close the door.'
+              ? 'No occupant.'
               : 'Empty.'}
           </Box>
         ) || (

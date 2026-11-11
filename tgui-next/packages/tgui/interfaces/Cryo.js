@@ -48,7 +48,7 @@ export const Cryo = props => {
           </Fragment>
         )}>
         {!hasOccupant && (
-          <Box color="label">Nobody inside.</Box>
+          <Box color="label">No occupant.</Box>
         ) || (
           <LabeledList>
             <LabeledList.Item label="State" color={occupant.statstate}>
@@ -109,9 +109,6 @@ export const Cryo = props => {
             </Table.Cell>
           </Table.Row>
         </Table>
-        <Box color="label" mt={1} textAlign="center">
-          Cryoxadone works below 225 K.
-        </Box>
         <Button.Checkbox
           mt={1}
           checked={autoEject}
@@ -127,7 +124,7 @@ export const Cryo = props => {
             onClick={() => act('ejectbeaker')} />
         )}>
         {!isBeakerLoaded && (
-          <Box color="label">No beaker. Put one in by hand.</Box>
+          <Box color="label">No beaker.</Box>
         ) || (
           <Fragment>
             <FillBar

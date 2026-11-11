@@ -112,46 +112,56 @@
 
 #undef DEPT_GROUP_ORDER
 
-/// Where the R&D console's Research tab lists a node: by department, one home each. tg's nodes carry no category at all. Weapons go
-/// under Security, nanites and alien tech under Science, and the exosuits get their own: 24 nodes, mostly one mech gun each.
+/// What a design makes, for the R&D console's Research tab: the kind of thing, not whose it is. The user's ruling (overnight 2026-11-10):
+/// research by category, the protolathe by department.
+/datum/design/proc/item_kind()
+	if(istype(src, /datum/design/surgery))
+		return "Surgery"
+	var/path = build_path
+	if(!ispath(path))
+		return "Equipment"
+	if(ispath(path, /obj/item/borg/upgrade/modkit)) // the kinetic accelerator's mods are cyborg upgrades by type
+		return "Tools"
+	if(ispath(path, /obj/item/stock_parts))
+		return "Stock Parts"
+	if(ispath(path, /obj/item/circuitboard))
+		return "Machines"
+	if(ispath(path, /obj/item/gun) || ispath(path, /obj/item/ammo_box) || ispath(path, /obj/item/ammo_casing) || ispath(path, /obj/item/firing_pin) || ispath(path, /obj/item/grenade) || ispath(path, /obj/item/melee) || ispath(path, /obj/item/transfer_valve))
+		return "Weapons"
+	if(ispath(path, /obj/item/organ) || ispath(path, /obj/item/implant) || ispath(path, /obj/item/implanter) || ispath(path, /obj/item/implantcase) || ispath(path, /obj/item/autosurgeon))
+		return "Implants"
+	if(ispath(path, /obj/item/mecha_parts) || ispath(path, /obj/mecha) || ispath(path, /obj/item/borg) || ispath(path, /obj/item/robot_suit) || ispath(path, /obj/item/mmi) || ispath(path, /obj/item/bodypart))
+		return "Mechs & Borgs"
+	if(ispath(path, /obj/item/clothing))
+		return "Clothing"
+	if(ispath(path, /obj/item))
+		var/obj/item/I = path
+		if(initial(I.tool_behaviour) || ispath(path, /obj/item/construction) || ispath(path, /obj/item/pipe_dispenser) || ispath(path, /obj/item/lightreplacer) || ispath(path, /obj/item/mop) || ispath(path, /obj/item/holosign_creator) || ispath(path, /obj/item/t_scanner) || ispath(path, /obj/item/healthanalyzer) || ispath(path, /obj/item/geiger_counter) || ispath(path, /obj/item/pickaxe) || ispath(path, /obj/item/surgical_drapes) 			|| ispath(path, /obj/item/scalpel) || ispath(path, /obj/item/hemostat) || ispath(path, /obj/item/retractor) || ispath(path, /obj/item/circular_saw) || ispath(path, /obj/item/surgicaldrill) || ispath(path, /obj/item/cautery) 			|| ispath(path, /obj/item/cultivator) || ispath(path, /obj/item/plant_analyzer) || ispath(path, /obj/item/shovel) || ispath(path, /obj/item/hatchet) || ispath(path, /obj/item/stack/cable_coil) 			|| ispath(path, /obj/item/pipe_painter) || ispath(path, /obj/item/airlock_painter) || ispath(path, /obj/item/inducer) || ispath(path, /obj/item/resonator) || ispath(path, /obj/item/gps))
+			return "Tools"
+	return "Equipment"
+
+/// Where the R&D console's Research tab lists a node: under the kind of thing most of its designs make (item_kind()), one home each.
+/// A node that makes nothing (the base, the alien theory) is Equipment.
 /datum/techweb_node/proc/node_group()
-	var/static/list/groups = list(
-		"Engineering" = list("basic_tools", "engineering", "adv_engi", "high_efficiency", "adv_power", "basic_plasma", "adv_plasma", "exp_tools", "rcd_upgrade", "emp_basic", "emp_adv", "emp_super"),
-		"Medical" = list("biotech", "adv_biotech", "imp_wt_surgery", "adv_surgery", "exp_surgery", "alien_surgery", "cloning", "cryotech", "adv_chem", "autodoc"),
-		"Security" = list("sec_basic", "weaponry", "adv_weaponry", "electronic_weapons", "radioactive_weapons", "medical_weapons", "beam_weapons", "adv_beam_weapons", "explosive_weapons", "ballistic_weapons", "exotic_ammo", "magnetic_weapons", "ancient_weapons"),
-		"Science" = list("base", "anomaly_research", "nanite_base", "nanite_smart", "nanite_mesh", "nanite_bio", "nanite_neural", "nanite_synaptic", "nanite_harmonic", "nanite_military", "nanite_hazard", "alientech", "alien_bio", "alien_engi", "syndicate_basic"),
-		"Robotics" = list("mmi", "cyborg", "robotics", "adv_robotics", "neural_programming", "posibrain", "cyborg_upg_util", "cyborg_upg_med", "cyborg_upg_combat", "ai"),
-		"Cybernetics" = list("subdermal_implants", "cyber_organs", "cyber_organs_upgraded", "cyber_implants", "adv_cyber_implants", "combat_cyber_implants", "integrated_HUDs", "NVGtech"),
-		"Bluespace" = list("bluespace_basic", "bluespace_travel", "micro_bluespace", "bluespace_storage", "practical_bluespace", "bluespace_power", "regulated_bluespace", "unregulated_bluespace", "advanced_bluetravel", "gravity_gun"),
-		"Computers" = list("datatheory", "adv_datatheory", "comptech", "computer_hardware_basic", "computer_board_gaming", "comp_recordkeeping", "telecomms"),
-		"Service" = list("clown", "janitor", "botany", "bio_process"),
-		"Mining" = list("basic_mining", "adv_mining", "bluemining"),
-	)
-	var/static/list/by_id
-	if(!by_id)
-		by_id = list()
-		for(var/group in groups)
-			for(var/node_id in groups[group])
-				by_id[node_id] = group
-	if(by_id[id])
-		return by_id[id]
-	// The exosuit lines go by name ("mech"/"Exosuit": all 24 of them). Anything else not in the table (added since): whichever group most
-	// of its designs sit in on the protolathe.
-	if(findtext(id, "mech") || findtext(display_name, "Exosuit"))
-		return "Exosuits"
+	var/static/list/cache = list()
+	if(cache[id])
+		return cache[id]
+	var/static/list/tie_order = list("Weapons", "Surgery", "Implants", "Clothing", "Tools", "Machines", "Stock Parts", "Mechs & Borgs", "Equipment")
+	if(findtext(id, "mech") || findtext(display_name, "Exosuit") || findtext(id, "cyborg"))
+		cache[id] = "Mechs & Borgs" //the mech lines are boards and parts as much as anything: they go together
+		return cache[id]
 	var/list/votes = list()
 	for(var/design_id in design_ids)
 		var/datum/design/D = SSresearch.techweb_design_by_id(design_id)
-		if(!istype(D) || !(D.build_type & PROTOLATHE))
-			continue
-		var/group = D.lathe_group()
-		if(group in groups)
-			votes[group]++
+		if(istype(D))
+			var/kind = D.item_kind()
+			votes[kind] += kind == "Mechs & Borgs" ? 0.5 : 1 //most nodes carry an exosuit version of what they make
 	var/best
-	for(var/group in votes)
-		if(!best || votes[group] > votes[best])
-			best = group
-	return best || "Science"
+	for(var/kind in tie_order)
+		if(votes[kind] && (!best || votes[kind] > votes[best]))
+			best = kind
+	cache[id] = best || "Equipment"
+	return cache[id]
 
 /// What each player last had open on each kind of lathe, and whether they hide what they can't afford: the window opens the way they
 /// left it. Per round, by ckey.

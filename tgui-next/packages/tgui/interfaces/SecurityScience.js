@@ -169,7 +169,7 @@ export const AiFixer = props => {
   const ai = data.ai;
   if (!ai) {
     return (
-      <NoticeBox>No AI stored. Use an intelliCard on the terminal.</NoticeBox>
+      <NoticeBox>No AI stored.</NoticeBox>
     );
   }
   return (

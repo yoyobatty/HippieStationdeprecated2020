@@ -169,11 +169,6 @@ class PaperWindow extends Component {
                   </LabeledList.Item>
                 ))}
               </LabeledList>
-              {!!data.crayon && (
-                <Box mt={0.5} color="average">
-                  A crayon writes big and bold, and only the first six.
-                </Box>
-              )}
             </Collapsible>
           </Section>
         )}

@@ -109,7 +109,7 @@ export const GulagConsole = props => {
         disabled={!can_teleport}
         content="Process prisoner"
         tooltip={!can_teleport
-          ? 'Needs someone in the pod and a prisoner ID'
+          ? 'Needs occupant and prisoner ID'
           : null}
         onClick={() => act('teleport')} />
     </Fragment>
@@ -171,9 +171,9 @@ export const LaborClaimConsole = props => {
         content={emagged
           ? 'Move shuttle (no report to Security)'
           : 'Move shuttle'}
-        tooltip={!can_go_home ? 'Meet your goal first' : null}
+        tooltip={!can_go_home ? 'Quota not met' : null}
         onClick={() => act('move_shuttle')} />
-      <Section title="What each sheet is worth" mt={1}>
+      <Section title="Point values" mt={1}>
         <Table>
           {ores.map(ore => (
             <Table.Row key={ore.ore}>

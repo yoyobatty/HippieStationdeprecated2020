@@ -222,7 +222,7 @@ const Logs = props => {
       )}>
       {logs.length === 0 && (
         <Box color="label">
-          No activity has been recorded at this time.
+          No activity logged.
         </Box>
       )}
       {logs.map((entry, i) => (

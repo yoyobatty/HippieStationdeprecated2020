@@ -159,7 +159,7 @@ export class ChemMaster extends Component {
             </Fragment>
           )}>
           {!isBeakerLoaded && (
-            <Box color="label">No beaker. Put one in by hand.</Box>
+            <Box color="label">No beaker.</Box>
           ) || (
             <Fragment>
               <FillBar

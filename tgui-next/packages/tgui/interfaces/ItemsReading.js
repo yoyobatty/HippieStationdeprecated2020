@@ -210,7 +210,7 @@ export const Locator = props => {
           )}
         </Fragment>
       )}>
-      {!scan && <Box color="label">Refresh to scan for signals.</Box>}
+      {!scan && <Box color="label">No signals.</Box>}
       {!!scan && !!scan.error && <NoticeBox>{scan.error}</NoticeBox>}
       {!!scan && !scan.error && (
         <Fragment>

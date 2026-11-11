@@ -312,7 +312,7 @@ export class Holopad extends Component {
             )}>
             {!data.on_pad && (
               <Box color="average" mb={0.5}>
-                Stand on the holopad to call.
+                Not on the pad.
               </Box>
             )}
             <Input

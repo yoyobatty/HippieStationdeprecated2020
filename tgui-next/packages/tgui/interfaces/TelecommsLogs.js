@@ -104,7 +104,7 @@ export const TelecommsLogs = props => {
       {!selected && (
         <Section title="Detected telecommunication servers">
           {servers.length === 0 && (
-            <Box color="label">No servers detected: scan for them.</Box>
+            <Box color="label">No servers detected.</Box>
           )}
           <Table>
             {servers.map(server => (

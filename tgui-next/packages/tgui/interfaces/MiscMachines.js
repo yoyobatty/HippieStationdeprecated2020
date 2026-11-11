@@ -102,7 +102,7 @@ export const StackingConsole = props => {
   if (!linked) {
     return (
       <NoticeBox>
-        Not linked to a stacking machine. Link them with a multitool.
+        No stacking machine linked.
       </NoticeBox>
     );
   }
@@ -268,9 +268,6 @@ export const IcecreamVat = props => {
   return (
     <Fragment>
       <Section title="Ice cream">
-        <Box color="label" mb={1}>
-          Use a cone on the vat to scoop the chosen flavour into it.
-        </Box>
         <Table>
           {products.filter(product => !product.cone).map(productRow)}
         </Table>

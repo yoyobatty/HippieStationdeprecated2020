@@ -177,7 +177,6 @@ const LaunchpadControl = props => {
               textAlign="center"
               disabled={teleporting}
               content="Launch"
-              tooltip="Send everything on the pad to the target"
               onClick={() => act('launch')} />
           </Table.Cell>
           <Table.Cell pl={0.5} style={{ width: '50%' }}>
@@ -187,7 +186,6 @@ const LaunchpadControl = props => {
               textAlign="center"
               disabled={teleporting}
               content="Pull"
-              tooltip="Bring everything at the target to the pad"
               onClick={() => act('pull')} />
           </Table.Cell>
         </Table.Row>
@@ -202,7 +200,7 @@ export const LaunchpadConsole = props => {
   if (screen === 'empty') {
     return (
       <NoticeBox>
-        No launchpad linked. Link one with a multitool.
+        No launchpad linked.
       </NoticeBox>
     );
   }
@@ -242,14 +240,14 @@ export const LaunchpadRemote = props => {
   if (!data.has_pad) {
     return (
       <NoticeBox>
-        No launchpad found. Link the remote to a launchpad.
+        No launchpad linked.
       </NoticeBox>
     );
   }
   if (data.pad_closed) {
     return (
       <NoticeBox>
-        The launchpad is closed. Open the briefcase to use it.
+        Launchpad closed.
       </NoticeBox>
     );
   }

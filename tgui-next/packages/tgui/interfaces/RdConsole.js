@@ -530,7 +530,7 @@ const NodeDetails = props => {
   if (!node) {
     return (
       <NoticeBox>
-        Pick a node to see what it needs, what it unlocks and the way there.
+        No node selected.
       </NoticeBox>
     );
   }
@@ -601,8 +601,7 @@ const NodeDetails = props => {
           )}
           {!next && (
             <Box color="label" italic>
-              A hidden technology stands in the way: something has to go
-              through the destructive analyzer first.
+              Requires a hidden node: deconstruct something first.
             </Box>
           )}
         </Box>
@@ -712,7 +711,7 @@ class FabricatorStrip extends Component {
         )}
         {!!fab.on_hold && (
           <NoticeBox>
-            The quartermaster has the silo on hold.
+            Silo on hold.
           </NoticeBox>
         )}
         <Box
@@ -954,7 +953,7 @@ class FabricatorPanel extends Component {
     if (!fab) {
       return (
         <NoticeBox>
-          Nothing linked. Settings has the button to look for machines nearby.
+          No machines linked.
         </NoticeBox>
       );
     }
@@ -1101,7 +1100,7 @@ class FabricatorPanel extends Component {
                 {query && 'No designs it can make match that.'}
                 {!query && hide && 'Nothing here it has the materials for.'}
                 {!query && !hide
-                  && 'No designs here yet: research unlocks them.'}
+                  && 'No designs.'}
               </NoticeBox>
             )}
             {shown.slice(0, limit).map((design, index) => (
@@ -1154,8 +1153,7 @@ const AnalyzerPanel = props => {
   if (!analyzer.item) {
     return (
       <NoticeBox>
-        The analyzer is empty. Put something in it to see what destroying it
-        would do for the research.
+        Analyzer empty.
       </NoticeBox>
     );
   }
@@ -1209,7 +1207,7 @@ const AnalyzerPanel = props => {
       )}
       {(analyzer.options || []).length === 0 && (
         <Box color="label" italic mb={1}>
-          Nothing in the research would be any the wiser for it.
+          No research value.
         </Box>
       )}
       {(analyzer.options || []).map(option => (
@@ -1274,7 +1272,7 @@ const DisksPanel = props => {
   if (!tdisk && !ddisk) {
     return (
       <NoticeBox>
-        No disk in the console. A technology or design disk goes in its slot.
+        No disk inserted.
       </NoticeBox>
     );
   }

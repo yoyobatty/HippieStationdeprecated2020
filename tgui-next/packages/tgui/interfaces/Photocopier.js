@@ -47,7 +47,7 @@ export const Photocopier = props => {
         )}>
         {!kind && (
           <Box color="label">
-            Nothing. Put a paper, a photo or documents in.
+            Empty.
           </Box>
         )}
         {!!kind && (
@@ -106,7 +106,7 @@ export const Photocopier = props => {
         </LabeledList>
         {data.toner <= 0 && (
           <NoticeBox mt={1}>
-            Out of toner. Put a new cartridge in.
+            Out of toner.
           </NoticeBox>
         )}
         <Button

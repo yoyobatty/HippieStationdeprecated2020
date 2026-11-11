@@ -62,7 +62,7 @@ export const PipeDispenser = props => {
               onClick={() => act('layer', { layer })} />
           ))}>
           {!data.anchored && (
-            <NoticeBox>It has to be bolted down to dispense.</NoticeBox>
+            <NoticeBox>Unanchored.</NoticeBox>
           )}
         </Section>
       )}

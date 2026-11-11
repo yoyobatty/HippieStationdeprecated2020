@@ -920,7 +920,7 @@ export const SecurityRecords = props => {
         <LoginBar data={data} act={act} />
         <Temp data={data} act={act} />
         <LoggedOut
-          text="Put an ID with Security access in the slot and log in." />
+          text="Insert ID to log in." />
       </Fragment>
     );
   }
@@ -945,7 +945,7 @@ export const SecurityRecords = props => {
         {data.selected ? (
           <SecurityRecord data={data} act={act} />
         ) : (
-          <NoticeBox>Pick someone on the left.</NoticeBox>
+          <NoticeBox>No record selected.</NoticeBox>
         )}
       </TwoPanes>
     </Fragment>
@@ -981,11 +981,11 @@ class MedicalRecordsMenu extends Component {
           <LoginBar data={data} act={act} />
           <Temp data={data} act={act} />
           <LoggedOut
-            text="Put an ID with Medbay access in the slot and log in." />
+            text="Insert ID to log in." />
         </Fragment>
       );
     }
-    let page = <NoticeBox>Pick someone on the left.</NoticeBox>;
+    let page = <NoticeBox>No record selected.</NoticeBox>;
     if (tab === 'viruses') {
       page = <VirusDatabase data={data} />;
     } else if (tab === 'medbots') {

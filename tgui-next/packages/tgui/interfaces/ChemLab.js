@@ -70,8 +70,7 @@ export const MaterialAnalyser = props => {
         )}>
         {!item && (
           <Box color="label">
-            Load a forged item, or a beaker holding one material, to read
-            its traits.
+            No sample loaded.
           </Box>
         ) || (
           <LabeledList>
@@ -106,7 +105,7 @@ export const MaterialAnalyser = props => {
         )}>
         {!reagent_synthesis && (
           <Box color="label">
-            Pour in a material to give its traits to the loaded item.
+            No reagent material.
           </Box>
         ) || (
           <Fragment>
@@ -168,7 +167,7 @@ export class ReagentForge extends Component {
           </ProgressBar>
           {!forging && (
             <Box color="label" mt={1}>
-              Put in sheets of a reagent material to forge with it.
+              No material loaded.
             </Box>
           )}
         </Section>

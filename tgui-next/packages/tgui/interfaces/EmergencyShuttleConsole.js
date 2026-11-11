@@ -83,7 +83,7 @@ export const EmergencyShuttleConsole = props => {
           <Box color="label" mt={1}>
             {engines_started
               ? 'Past the point of no return.'
-              : 'Only while the shuttle is docked at the station.'}
+              : 'Docked only.'}
           </Box>
         )}
       </Section>

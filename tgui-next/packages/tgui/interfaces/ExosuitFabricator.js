@@ -98,7 +98,7 @@ const Materials = props => {
         <NoticeBox>No material storage connected.</NoticeBox>
       )}
       {!!data.on_hold && (
-        <NoticeBox>The quartermaster has the silo on hold.</NoticeBox>
+        <NoticeBox>Silo on hold.</NoticeBox>
       )}
       {!!data.storage && !data.silo && (
         <ProgressBar

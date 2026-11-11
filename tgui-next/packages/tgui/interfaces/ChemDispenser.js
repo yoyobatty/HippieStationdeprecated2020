@@ -73,7 +73,7 @@ export class ChemDispenser extends Component {
             </Fragment>
           )}>
           {!isBeakerLoaded && (
-            <NoticeBox>Put a beaker in to dispense.</NoticeBox>
+            <NoticeBox>No beaker.</NoticeBox>
           )}
           <Input
             fluid

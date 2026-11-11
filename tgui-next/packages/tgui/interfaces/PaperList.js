@@ -81,7 +81,7 @@ class PaperListWindow extends Component {
                 </Box>
                 <Button
                   icon="pen"
-                  content="Clip in the one in hand"
+                  content="Clip pen"
                   disabled={!data.holding_pen}
                   onClick={() => act('pen_in')} />
               </Box>
@@ -91,7 +91,7 @@ class PaperListWindow extends Component {
         <Section title={title}>
           {!!data.locked && (
             <NoticeBox>
-              Only staff with access can take notices down or write on them.
+              Access required.
             </NoticeBox>
           )}
           {kind === 'cabinet' && all.length > 6 && (

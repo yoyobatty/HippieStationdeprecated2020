@@ -86,9 +86,6 @@ const Signaler = props => {
             && data.code === data.default_code}
           onClick={() => act('reset')} />
       </Box>
-      <Box mt={1} color="label" fontSize="11px">
-        Drag a number up or down, or double-click it to type one.
-      </Box>
     </Section>
   );
 };
@@ -263,9 +260,6 @@ const Health = props => {
           {data.alarm === 'death' ? 'Death' : 'Critical condition'}
         </LabeledList.Item>
       </LabeledList>
-      <Box mt={1} color="label" fontSize="11px">
-        A multitool switches it between death and critical condition.
-      </Box>
     </Section>
   );
 };

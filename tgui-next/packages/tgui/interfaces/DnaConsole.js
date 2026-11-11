@@ -460,7 +460,7 @@ const Identifiers = props => {
           </LabeledList.Item>
         </LabeledList>
         <Box mt={1} mb={0.5} color="label">
-          Irradiate subject: click a block to pulse it
+          Irradiate: select a block
         </Box>
         {identity.length === 0 && <Box color="label">---------</Box>}
         {identity.map((block, i) => (

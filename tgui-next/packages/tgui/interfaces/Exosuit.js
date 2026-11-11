@@ -227,7 +227,6 @@ const Status = props => {
             icon="wind"
             content={data.internal_air ? 'Internal airtank' : 'Outside air'}
             selected={data.internal_air}
-            tooltip="Where the cabin's air comes from"
             onClick={() => act('internals')} />
         )}
       </Box>
@@ -458,7 +457,6 @@ const Electronics = props => {
             icon={data.id_upload ? 'lock-open' : 'lock'}
             content={data.id_upload ? 'Unlocked' : 'Locked'}
             selected={data.id_upload}
-            tooltip="Lets an ID set who can pilot it"
             onClick={() => act('id_upload')} />
         </LabeledList.Item>
         <LabeledList.Item label="Maintenance">
@@ -467,14 +465,13 @@ const Electronics = props => {
             content={data.maint_access ? 'Permitted' : 'Forbidden'}
             selected={data.maint_access}
             disabled={data.maintenance > 0}
-            tooltip="Whether maintenance protocols can be started"
             onClick={() => act('maint_access')} />
         </LabeledList.Item>
         <LabeledList.Item label="DNA lock">
           {!data.dna_lock && (
             <Button
               icon="dna"
-              content="Lock to my DNA"
+              content="DNA lock"
               disabled={!data.can_dna}
               onClick={() => act('dna_lock')} />
           )}

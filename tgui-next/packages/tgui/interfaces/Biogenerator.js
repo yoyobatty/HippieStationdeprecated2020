@@ -113,7 +113,7 @@ export const Biogenerator = props => {
   const { act, data } = useBackend(props);
   const beaker = data.beaker;
   let container = (
-    <Box color="bad">None. Insert a container to make anything.</Box>
+    <Box color="bad">No container.</Box>
   );
   if (beaker) {
     container = (

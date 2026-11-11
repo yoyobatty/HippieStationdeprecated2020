@@ -39,7 +39,7 @@ export const Experimentor = props => {
             onClick={() => act('eject')} />
         )}>
         {!item && (
-          <Box color="label">Put an item in by hand to experiment on it.</Box>
+          <Box color="label">No sample loaded.</Box>
         )}
         {!!item && (
           <Fragment>

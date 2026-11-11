@@ -225,30 +225,37 @@ const ROUTES = {
   ai_fixer: {
     component: () => AiFixer,
     scrollable: true,
+    theme: 'science',
   },
   airalarm: {
     component: () => AirAlarm,
     scrollable: true,
+    theme: 'atmos',
   },
   airlock_controller: {
     component: () => AirlockController,
     scrollable: true,
+    theme: 'atmos',
   },
   airlock_electronics: {
     component: () => AirlockElectronics,
     scrollable: false,
+    theme: 'engineering',
   },
   announcement_system: {
     component: () => AnnouncementSystem,
     scrollable: true,
+    theme: 'command',
   },
   apc: {
     component: () => Apc,
     scrollable: false,
+    theme: 'engineering',
   },
   apc_control: {
     component: () => ApcControl,
     scrollable: true,
+    theme: 'engineering',
   },
   assembly: {
     component: () => Assembly,
@@ -257,26 +264,32 @@ const ROUTES = {
   atmos_alert: {
     component: () => AtmosAlertConsole,
     scrollable: true,
+    theme: 'atmos',
   },
   atmos_control: {
     component: () => AtmosControlConsole,
     scrollable: true,
+    theme: 'atmos',
   },
   atmos_filter: {
     component: () => AtmosFilter,
     scrollable: false,
+    theme: 'atmos',
   },
   atmos_mixer: {
     component: () => AtmosMixer,
     scrollable: false,
+    theme: 'atmos',
   },
   atmos_pump: {
     component: () => AtmosPump,
     scrollable: false,
+    theme: 'atmos',
   },
   aux_base: {
     component: () => AuxBase,
     scrollable: true,
+    theme: 'cargo',
   },
   ban_window: {
     component: () => BanWindow,
@@ -285,22 +298,27 @@ const ROUTES = {
   bank_vault: {
     component: () => BankVault,
     scrollable: true,
+    theme: 'command',
   },
   bible_style: {
     component: () => BibleStyle,
     scrollable: true,
+    theme: 'service',
   },
   biogenerator: {
     component: () => Biogenerator,
     scrollable: true,
+    theme: 'service',
   },
   blueprints: {
     component: () => Blueprints,
     scrollable: true,
+    theme: 'engineering',
   },
   book_reader: {
     component: () => BookReader,
     scrollable: true,
+    theme: 'service',
   },
   borgopanel: {
     component: () => BorgPanel,
@@ -313,14 +331,17 @@ const ROUTES = {
   bounty_console: {
     component: () => BountyConsole,
     scrollable: true,
+    theme: 'cargo',
   },
   brig_timer: {
     component: () => BrigTimer,
     scrollable: false,
+    theme: 'security',
   },
   bsa: {
     component: () => BluespaceArtillery,
     scrollable: false,
+    theme: 'command',
   },
   camera_bug: {
     component: () => CameraBug,
@@ -329,14 +350,17 @@ const ROUTES = {
   canister: {
     component: () => Canister,
     scrollable: false,
+    theme: 'atmos',
   },
   cargo: {
     component: () => Cargo,
     scrollable: true,
+    theme: 'cargo',
   },
   cargo_express: {
     component: () => CargoExpress,
     scrollable: true,
+    theme: 'cargo',
   },
   cellular_emporium: {
     component: () => CellularEmporium,
@@ -349,6 +373,7 @@ const ROUTES = {
   acclimator: {
     component: () => ChemAcclimator,
     scrollable: false,
+    theme: 'medical',
   },
   admin_find: {
     component: () => AdminFind,
@@ -361,42 +386,52 @@ const ROUTES = {
   chem_dispenser: {
     component: () => ChemDispenser,
     scrollable: true,
+    theme: 'medical',
   },
   chemical_filter: {
     component: () => ChemFilter,
     scrollable: true,
+    theme: 'medical',
   },
   chem_heater: {
     component: () => ChemHeater,
     scrollable: true,
+    theme: 'medical',
   },
   chem_master: {
     component: () => ChemMaster,
     scrollable: true,
+    theme: 'medical',
   },
   chem_press: {
     component: () => ChemPress,
     scrollable: false,
+    theme: 'medical',
   },
   coin_press: {
     component: () => CoinPress,
     scrollable: true,
+    theme: 'cargo',
   },
   cyborg_frame: {
     component: () => CyborgFrame,
     scrollable: true,
+    theme: 'science',
   },
   destination_tagger: {
     component: () => DestinationTagger,
     scrollable: false,
+    theme: 'cargo',
   },
   dna_console: {
     component: () => DnaConsole,
     scrollable: true,
+    theme: 'medical',
   },
   doppler_array: {
     component: () => DopplerArray,
     scrollable: true,
+    theme: 'science',
   },
   exosuit: {
     component: () => Exosuit,
@@ -406,14 +441,17 @@ const ROUTES = {
   exosuit_fabricator: {
     component: () => ExosuitFabricator,
     scrollable: false,
+    theme: 'science',
   },
   experiment_scanner: {
     component: () => ExperimentScanner,
     scrollable: true,
+    theme: 'science',
   },
   gun_locker: {
     component: () => GunLocker,
     scrollable: true,
+    theme: 'security',
   },
   hand_teleporter: {
     component: () => HandTeleporter,
@@ -426,14 +464,17 @@ const ROUTES = {
   implant_pad: {
     component: () => ImplantPad,
     scrollable: true,
+    theme: 'security',
   },
   jani_cart: {
     component: () => JaniCart,
     scrollable: true,
+    theme: 'service',
   },
   jukebox: {
     component: () => Jukebox,
     scrollable: true,
+    theme: 'service',
   },
   late_join: {
     component: () => LateJoin,
@@ -442,18 +483,22 @@ const ROUTES = {
   library_console: {
     component: () => LibraryConsole,
     scrollable: true,
+    theme: 'service',
   },
   library_scanner: {
     component: () => LibraryScanner,
     scrollable: false,
+    theme: 'service',
   },
   library_visitor: {
     component: () => LibraryVisitor,
     scrollable: true,
+    theme: 'service',
   },
   limb_grower: {
     component: () => LimbGrower,
     scrollable: true,
+    theme: 'medical',
   },
   lobby: {
     component: () => Lobby,
@@ -462,6 +507,7 @@ const ROUTES = {
   mass_driver_console: {
     component: () => MassDriverConsole,
     scrollable: true,
+    theme: 'cargo',
   },
   mech_sleeper: {
     component: () => MechSleeper,
@@ -474,10 +520,12 @@ const ROUTES = {
   mecha_control: {
     component: () => MechaControl,
     scrollable: true,
+    theme: 'science',
   },
   message_monitor: {
     component: () => MessageMonitor,
     scrollable: true,
+    theme: 'command',
   },
   mime_book: {
     component: () => MimeBook,
@@ -486,6 +534,7 @@ const ROUTES = {
   mining_vendor: {
     component: () => MiningVendor,
     scrollable: true,
+    theme: 'cargo',
   },
   nav_beacon: {
     component: () => NavBeacon,
@@ -504,6 +553,7 @@ const ROUTES = {
   ore_silo: {
     component: () => OreSilo,
     scrollable: true,
+    theme: 'cargo',
   },
   pai_card: {
     component: () => PaiCard,
@@ -520,6 +570,7 @@ const ROUTES = {
   particle_accelerator: {
     component: () => ParticleAccelerator,
     scrollable: false,
+    theme: 'engineering',
   },
   pda: {
     component: () => Pda,
@@ -532,34 +583,42 @@ const ROUTES = {
   photocopier: {
     component: () => Photocopier,
     scrollable: false,
+    theme: 'service',
   },
   pipe_dispenser: {
     component: () => PipeDispenser,
     scrollable: true,
+    theme: 'atmos',
   },
   plant_dna_manipulator: {
     component: () => PlantDnaManipulator,
     scrollable: true,
+    theme: 'service',
   },
   prisoner_console: {
     component: () => PrisonerConsole,
     scrollable: true,
+    theme: 'security',
   },
   rcd_access: {
     component: () => RcdAccess,
     scrollable: true,
+    theme: 'engineering',
   },
   reaction_chamber: {
     component: () => ChemReactionChamber,
     scrollable: true,
+    theme: 'medical',
   },
   chem_splitter: {
     component: () => ChemSplitter,
     scrollable: false,
+    theme: 'medical',
   },
   chem_synthesizer: {
     component: () => ChemDebugSynthesizer,
     scrollable: false,
+    theme: 'medical',
   },
   requests_console: {
     component: () => RequestsConsole,
@@ -568,6 +627,7 @@ const ROUTES = {
   robotics_console: {
     component: () => RoboticsConsole,
     scrollable: true,
+    theme: 'science',
   },
   roundend_report: {
     component: () => RoundEnd,
@@ -588,10 +648,12 @@ const ROUTES = {
   security_records: {
     component: () => SecurityRecords,
     scrollable: false,
+    theme: 'security',
   },
   seed_extractor: {
     component: () => SeedExtractor,
     scrollable: true,
+    theme: 'service',
   },
   shuttle_console: {
     component: () => ShuttleConsole,
@@ -604,6 +666,7 @@ const ROUTES = {
   smelter_console: {
     component: () => SmelterConsole,
     scrollable: true,
+    theme: 'cargo',
   },
   song_editor: {
     component: () => SongEditor,
@@ -632,14 +695,17 @@ const ROUTES = {
   computer_fabricator: {
     component: () => ComputerFabricator,
     scrollable: false,
+    theme: 'engineering',
   },
   cloning_console: {
     component: () => CloningConsole,
     scrollable: true,
+    theme: 'medical',
   },
   comms_console: {
     component: () => CommsConsole,
     scrollable: true,
+    theme: 'command',
   },
   crayon: {
     component: () => Crayon,
@@ -648,10 +714,12 @@ const ROUTES = {
   crew: {
     component: () => CrewConsole,
     scrollable: true,
+    theme: 'medical',
   },
   cryo: {
     component: () => Cryo,
     scrollable: false,
+    theme: 'medical',
   },
   disposal_unit: {
     component: () => DisposalUnit,
@@ -672,26 +740,32 @@ const ROUTES = {
   gravity_generator: {
     component: () => GravityGenerator,
     scrollable: false,
+    theme: 'engineering',
   },
   gulag_item_reclaimer: {
     component: () => GulagItemReclaimer,
     scrollable: true,
+    theme: 'security',
   },
   holodeck: {
     component: () => Holodeck,
     scrollable: true,
+    theme: 'service',
   },
   id_console: {
     component: () => IdConsole,
     scrollable: true,
+    theme: 'command',
   },
   implantchair: {
     component: () => ImplantChair,
     scrollable: false,
+    theme: 'security',
   },
   keycard_auth: {
     component: () => KeycardAuth,
     scrollable: false,
+    theme: 'command',
   },
   language_menu: {
     component: () => LanguageMenu,
@@ -700,38 +774,47 @@ const ROUTES = {
   mech_bay_power_console: {
     component: () => MechBayPowerConsole,
     scrollable: false,
+    theme: 'science',
   },
   medical_kiosk: {
     component: () => MedicalKiosk,
     scrollable: false,
+    theme: 'medical',
   },
   medical_records: {
     component: () => MedicalRecords,
     scrollable: false,
+    theme: 'medical',
   },
   mint: {
     component: () => Mint,
     scrollable: false,
+    theme: 'cargo',
   },
   nanite_chamber_control: {
     component: () => NaniteChamberControl,
     scrollable: false,
+    theme: 'science',
   },
   nanite_cloud_control: {
     component: () => NaniteCloudControl,
     scrollable: false,
+    theme: 'science',
   },
   nanite_program_hub: {
     component: () => NaniteProgramHub,
     scrollable: false,
+    theme: 'science',
   },
   nanite_programmer: {
     component: () => NaniteProgrammer,
     scrollable: false,
+    theme: 'science',
   },
   nanite_remote: {
     component: () => NaniteRemote,
     scrollable: false,
+    theme: 'science',
   },
   ntos_main: {
     component: () => NtosMain,
@@ -771,18 +854,22 @@ const ROUTES = {
   ore_redemption_machine: {
     component: () => OreRedemptionMachine,
     scrollable: true,
+    theme: 'cargo',
   },
   ore_box: {
     component: () => OreBox,
     scrollable: true,
+    theme: 'cargo',
   },
   operating_computer: {
     component: () => OperatingComputer,
     scrollable: true,
+    theme: 'medical',
   },
   pandemic: {
     component: () => Pandemic,
     scrollable: true,
+    theme: 'medical',
   },
   personal_crafting: {
     component: () => PersonalCrafting,
@@ -791,18 +878,22 @@ const ROUTES = {
   portable_generator: {
     component: () => PortableGenerator,
     scrollable: false,
+    theme: 'engineering',
   },
   portable_pump: {
     component: () => PortablePump,
     scrollable: false,
+    theme: 'atmos',
   },
   portable_scrubber: {
     component: () => PortableScrubber,
     scrollable: false,
+    theme: 'atmos',
   },
   power_monitor: {
     component: () => PowerMonitor,
     scrollable: true,
+    theme: 'engineering',
   },
   radio: {
     component: () => Radio,
@@ -811,14 +902,17 @@ const ROUTES = {
   rpd: {
     component: () => RapidPipeDispenser,
     scrollable: true,
+    theme: 'atmos',
   },
   sat_control: {
     component: () => SatelliteControl,
     scrollable: false,
+    theme: 'engineering',
   },
   scanner_gate: {
     component: () => ScannerGate,
     scrollable: false,
+    theme: 'security',
   },
   shuttle_manipulator: {
     component: () => ShuttleManipulator,
@@ -827,22 +921,27 @@ const ROUTES = {
   smartvend: {
     component: () => SmartVend,
     scrollable: true,
+    theme: 'service',
   },
   smes: {
     component: () => Smes,
     scrollable: false,
+    theme: 'engineering',
   },
   smoke_machine: {
     component: () => SmokeMachine,
     scrollable: false,
+    theme: 'medical',
   },
   solar_control: {
     component: () => SolarControl,
     scrollable: false,
+    theme: 'engineering',
   },
   space_heater: {
     component: () => SpaceHeater,
     scrollable: false,
+    theme: 'atmos',
   },
   spawners_menu: {
     component: () => SpawnersMenu,
@@ -851,6 +950,7 @@ const ROUTES = {
   station_alert: {
     component: () => StationAlertConsole,
     scrollable: true,
+    theme: 'engineering',
   },
   suit_storage_unit: {
     component: () => SuitStorageUnit,
@@ -859,38 +959,47 @@ const ROUTES = {
   tanks: {
     component: () => Tank,
     scrollable: false,
+    theme: 'atmos',
   },
   tank_dispenser: {
     component: () => TankDispenser,
     scrollable: false,
+    theme: 'atmos',
   },
   telecomms_logs: {
     component: () => TelecommsLogs,
     scrollable: true,
+    theme: 'engineering',
   },
   telecomms_machine: {
     component: () => TelecommsMachine,
     scrollable: true,
+    theme: 'engineering',
   },
   telecomms_monitor: {
     component: () => TelecommsMonitor,
     scrollable: true,
+    theme: 'engineering',
   },
   thermoelectric_generator: {
     component: () => ThermoelectricGenerator,
     scrollable: false,
+    theme: 'engineering',
   },
   thermomachine: {
     component: () => ThermoMachine,
     scrollable: false,
+    theme: 'atmos',
   },
   transfer_valve: {
     component: () => TransferValve,
     scrollable: true,
+    theme: 'science',
   },
   turbine_computer: {
     component: () => TurbineComputer,
     scrollable: false,
+    theme: 'engineering',
   },
   uplink: {
     component: () => Uplink,
@@ -900,6 +1009,7 @@ const ROUTES = {
   vault_controller: {
     component: () => VaultController,
     scrollable: false,
+    theme: 'command',
   },
   wires: {
     component: () => Wires,
@@ -917,6 +1027,7 @@ const ROUTES = {
   pool_controller: {
     component: () => Pool,
     scrollable: false,
+    theme: 'service',
   },
   display_settings: {
     component: () => DisplaySettings,
@@ -929,10 +1040,12 @@ const ROUTES = {
   scrubber_pack: {
     component: () => ScrubberPack,
     scrollable: true,
+    theme: 'atmos',
   },
   master_multitool: {
     component: () => MasterMultitool,
     scrollable: true,
+    theme: 'engineering',
   },
   orbit: {
     component: () => Orbit,
@@ -941,30 +1054,37 @@ const ROUTES = {
   rdconsole: {
     component: () => RdConsole,
     scrollable: false,
+    theme: 'science',
   },
   rd_fabricator: {
     component: () => RdFabricator,
     scrollable: false,
+    theme: 'science',
   },
   sleeper: {
     component: () => Sleeper,
     scrollable: true,
+    theme: 'medical',
   },
   autodoc: {
     component: () => Autodoc,
     scrollable: false,
+    theme: 'medical',
   },
   mulebot: {
     component: () => Mule,
     scrollable: true,
+    theme: 'cargo',
   },
   emergency_shuttle_console: {
     component: () => EmergencyShuttleConsole,
     scrollable: true,
+    theme: 'command',
   },
   launchpad_console: {
     component: () => LaunchpadConsole,
     scrollable: true,
+    theme: 'science',
   },
   launchpad_remote: {
     component: () => LaunchpadRemote,
@@ -974,14 +1094,17 @@ const ROUTES = {
   gulag_console: {
     component: () => GulagConsole,
     scrollable: true,
+    theme: 'security',
   },
   labor_claim_console: {
     component: () => LaborClaimConsole,
     scrollable: true,
+    theme: 'security',
   },
   intellicard: {
     component: () => Intellicard,
     scrollable: true,
+    theme: 'science',
   },
   ntos_ai_restorer: {
     component: () => NtosAiRestorer,
@@ -1004,30 +1127,37 @@ const ROUTES = {
   ntnet_relay: {
     component: () => NtnetRelay,
     scrollable: true,
+    theme: 'engineering',
   },
   chem_pressure: {
     component: () => ChemPressure,
     scrollable: false,
+    theme: 'medical',
   },
   chem_radioactive: {
     component: () => ChemRadioactive,
     scrollable: false,
+    theme: 'medical',
   },
   chem_bluespace: {
     component: () => ChemBluespace,
     scrollable: false,
+    theme: 'medical',
   },
   chem_centrifuge: {
     component: () => ChemCentrifuge,
     scrollable: false,
+    theme: 'medical',
   },
   chem_reagent_analysis: {
     component: () => MaterialAnalyser,
     scrollable: true,
+    theme: 'medical',
   },
   chem_reagent_forge: {
     component: () => ReagentForge,
     scrollable: true,
+    theme: 'medical',
   },
   clockwork_slab: {
     component: () => ClockworkSlab,
@@ -1095,30 +1225,37 @@ const ROUTES = {
   porta_turret: {
     component: () => PortableTurret,
     scrollable: true,
+    theme: 'security',
   },
   turret_control: {
     component: () => TurretControl,
     scrollable: true,
+    theme: 'security',
   },
   experimentor: {
     component: () => Experimentor,
     scrollable: true,
+    theme: 'science',
   },
   magnet_controller: {
     component: () => MagnetController,
     scrollable: true,
+    theme: 'engineering',
   },
   stacking_console: {
     component: () => StackingConsole,
     scrollable: true,
+    theme: 'cargo',
   },
   food_cart: {
     component: () => FoodCart,
     scrollable: true,
+    theme: 'service',
   },
   icecream_vat: {
     component: () => IcecreamVat,
     scrollable: true,
+    theme: 'service',
   },
   arcade_orion: {
     component: () => ArcadeOrion,
@@ -1143,6 +1280,7 @@ const ROUTES = {
   camera_console: {
     component: () => CameraConsole,
     scrollable: false,
+    theme: 'security',
   },
   disease_menu: {
     component: () => DiseaseMenu,
@@ -1187,6 +1325,7 @@ const ROUTES = {
   research_dashboard: {
     component: () => ResearchDashboard,
     scrollable: false,
+    theme: 'science',
   },
   silicon_laws: {
     component: () => SiliconLaws,
@@ -1213,6 +1352,7 @@ const ROUTES = {
   circuit_assembly: {
     component: () => CircuitAssembly,
     scrollable: false,
+    theme: 'science',
   },
   circuit_code: {
     component: () => CircuitCode,
@@ -1221,6 +1361,7 @@ const ROUTES = {
   circuit_printer: {
     component: () => CircuitPrinter,
     scrollable: true,
+    theme: 'science',
   },
   // hippie end
   crew_manifest: {
@@ -1313,18 +1454,22 @@ const ROUTES = {
   telescience: {
     component: () => Telescience,
     scrollable: true,
+    theme: 'science',
   },
   analyzer_history: {
     component: () => AnalyzerHistory,
     scrollable: true,
+    theme: 'science',
   },
   prototype_cloning: {
     component: () => PrototypeCloning,
     scrollable: true,
+    theme: 'medical',
   },
   artillery_control: {
     component: () => ArtilleryControl,
     scrollable: true,
+    theme: 'command',
   },
   bot_panel: {
     component: () => BotPanel,
@@ -1473,6 +1618,7 @@ const ROUTES = {
   airlock_maker: {
     component: () => AirlockMaker,
     scrollable: true,
+    theme: 'engineering',
   },
 };
 

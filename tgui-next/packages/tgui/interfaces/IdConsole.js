@@ -91,7 +91,7 @@ class CardTab extends Component {
     if (!modify) {
       return (
         <NoticeBox>
-          Put the ID to change in the second slot.
+          No ID inserted.
         </NoticeBox>
       );
     }
@@ -257,7 +257,7 @@ const SlotsTab = props => {
   if (data.target_dept) {
     return (
       <NoticeBox>
-        Job slots are changed from the main identification console.
+        Slots: main console only.
       </NoticeBox>
     );
   }
@@ -281,7 +281,7 @@ const SlotsTab = props => {
     <Fragment>
       {!data.can_slots && (
         <NoticeBox>
-          Put an ID that can change IDs in Your ID to open or close slots.
+          Authorized ID required.
         </NoticeBox>
       )}
       <Section>

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.0" viewBox="0 0 200 200" opacity=".085">
+  <g fill="none" stroke="#a35de0" stroke-width="10"><ellipse cx="100" cy="100" rx="86" ry="32"/><ellipse cx="100" cy="100" rx="86" ry="32" transform="rotate(60 100 100)"/><ellipse cx="100" cy="100" rx="86" ry="32" transform="rotate(120 100 100)"/></g><circle cx="100" cy="100" r="14" fill="#a35de0"/>
+</svg>

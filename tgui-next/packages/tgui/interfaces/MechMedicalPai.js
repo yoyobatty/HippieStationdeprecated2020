@@ -174,14 +174,12 @@ export class PaiCard extends Component {
           )}>
           {!data.searching && (
             <Box color="label">
-              Asking tells ghosts a personality is wanted, and lists the
-              ones on offer here.
+              Not searching.
             </Box>
           )}
           {!!data.searching && candidates.length === 0 && (
             <NoticeBox>
-              Nobody on offer yet. Personalities show up here as they are
-              offered.
+              No candidates.
             </NoticeBox>
           )}
           {candidates.map(c => (

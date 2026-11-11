@@ -263,8 +263,7 @@ const FrontPage = props => {
     <Section title="Latest stories">
       {stories.length === 0 && (
         <Box color="label">
-          No stories yet. Start a channel, or write one for a channel
-          that takes public stories.
+          No stories.
         </Box>
       )}
       {stories.map(story => (
@@ -401,7 +400,7 @@ class StoryForm extends Component {
               icon="camera"
               content={data.photo_attached
                 ? 'Photo attached'
-                : 'Attach the photo in your hand'}
+                : 'Attach photo'}
               selected={data.photo_attached}
               onClick={() => act('set_attachment')} />
           </LabeledList.Item>
@@ -476,8 +475,7 @@ const WantedForm = props => {
     <Section title="Wanted issue">
       {!!wanted && (
         <Box color="label" mb={1}>
-          A wanted issue is already in circulation. You can edit or take it
-          down here.
+          Wanted issue in circulation.
         </Box>
       )}
       <LabeledList>
@@ -498,7 +496,7 @@ const WantedForm = props => {
             icon="camera"
             content={data.photo_attached
               ? 'Photo attached'
-              : 'Attach the photo in your hand'}
+              : 'Attach photo'}
             selected={data.photo_attached}
             onClick={() => act('set_attachment')} />
         </LabeledList.Item>

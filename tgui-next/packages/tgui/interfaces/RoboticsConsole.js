@@ -124,8 +124,7 @@ export const RoboticsConsole = props => {
     <Fragment>
       {!data.access && (
         <NoticeBox>
-          No robotics access on your ID: you can look, not lock down or
-          destroy.
+          Access denied: view only.
         </NoticeBox>
       )}
       <Section title="Cyborgs">

@@ -24,7 +24,7 @@ export const ImplantPad = props => {
             onClick={() => act('eject')} />
         )}>
         {!data.case && (
-          <Box color="label">Empty. Put an implant case in.</Box>
+          <Box color="label">No case.</Box>
         )}
         {!!data.case && !data.implant && (
           <Box color="label">The case is empty.</Box>
@@ -173,8 +173,8 @@ export const Safe = props => {
           onClick={() => act('open')} />
         <Box mt={1} color="label" fontSize="11px">
           {data.stethoscope
-            ? 'With the stethoscope you hear the tumblers as they turn.'
-            : 'A stethoscope in hand would let you hear the tumblers.'}
+            ? 'Listening to the tumblers.'
+            : 'No stethoscope.'}
         </Box>
       </Section>
       {!!data.open && (
@@ -249,7 +249,7 @@ export const SecureStorage = props => {
         {data.locked ? 'LOCKED' : 'UNLOCKED'}
       </Box>
       {!data.code_set && !data.memory_error && (
-        <NoticeBox>No code set. Type five digits and press E.</NoticeBox>
+        <NoticeBox>No code set.</NoticeBox>
       )}
       {!!data.memory_error && (
         <NoticeBox>ALERT: MEMORY SYSTEM ERROR - 6040 201</NoticeBox>

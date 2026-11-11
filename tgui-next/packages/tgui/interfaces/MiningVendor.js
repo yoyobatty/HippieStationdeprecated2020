@@ -98,8 +98,7 @@ export const MiningVendor = props => {
   );
   let points = (
     <NoticeBox>
-      Insert an ID to spend the mining points collected at the ore
-      redemption machine.
+      No ID inserted.
     </NoticeBox>
   );
   if (data.id) {

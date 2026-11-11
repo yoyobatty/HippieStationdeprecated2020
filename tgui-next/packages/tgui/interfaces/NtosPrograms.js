@@ -435,9 +435,8 @@ export const NtosNetMonitor = props => {
         </LabeledList>
         <Box color={ntnetrelays ? 'label' : 'bad'} mt={1}>
           {ntnetrelays
-            ? 'Careful: turning wireless off from a wireless device may'
-              + ' stop you turning it back on.'
-            : 'No coverage: no relays are connected.'}
+            ? 'Warning: wireless device.'
+            : 'No relays connected.'}
         </Box>
       </Section>
       <Section title="Firewall">

@@ -37,7 +37,7 @@ class AccessTab extends Component {
       all_centcom_access = [],
     } = data;
     if (!has_id) {
-      return <NoticeBox>Put the ID to change in the card slot.</NoticeBox>;
+      return <NoticeBox>No ID inserted.</NoticeBox>;
     }
     if (!authenticated) {
       return (
@@ -245,9 +245,6 @@ const ManifestTab = props => {
   const crew = data.manifest || [];
   return (
     <Section title="Crew manifest">
-      <Box color="label" mb={1}>
-        Change entries at a security records console.
-      </Box>
       <Table>
         {crew.map((member, i) => (
           <Table.Row key={i}>

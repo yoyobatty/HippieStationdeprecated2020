@@ -388,7 +388,6 @@ class Messenger extends Component {
               icon="heartbeat"
               content={'Emergency Beacon: ' + (data.beacon ? 'On' : 'Off')}
               selected={data.beacon}
-              tooltip="Messages your department if you go down"
               onClick={() => toggle('beacon')} />
           </Box>
           <Box mb={0.5}>
@@ -1458,7 +1457,7 @@ const NoOwner = props => {
       </NoticeBox>
       <Button
         icon="id-card"
-        content="Swipe the ID in your hand"
+        content="Swipe ID"
         disabled={!data.holding_id}
         onClick={() => act('id')} />
     </Box>

@@ -20,7 +20,7 @@ export const PortableTurret = props => {
       {!!locked && (
         <NoticeBox>
           <Icon name="lock" mr={1} />
-          Behaviour controls are locked. Swipe an ID to unlock them.
+          Controls locked.
         </NoticeBox>
       )}
       <Section
@@ -31,7 +31,7 @@ export const PortableTurret = props => {
             selected={on}
             disabled={locked}
             content={on ? 'On' : 'Off'}
-            tooltip={!anchored ? 'Secure it to the floor first' : null}
+            tooltip={!anchored ? 'Unsecured' : null}
             onClick={() => act('power')} />
         )}>
         {!anchored && (

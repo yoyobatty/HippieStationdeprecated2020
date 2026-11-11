@@ -100,7 +100,7 @@ export const SampleBoard = props => {
       <NoticeBox>
         {board.opens_in !== null && board.opens_in !== undefined
           ? 'The sample board opens in ' + board.opens_in + ' min.'
-          : 'The sample board opens once the shift starts.'}
+          : 'Board opens at shift start.'}
       </NoticeBox>
     );
   }

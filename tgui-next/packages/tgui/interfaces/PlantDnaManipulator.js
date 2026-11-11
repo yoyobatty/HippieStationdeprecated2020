@@ -117,7 +117,7 @@ export const PlantDnaManipulator = props => {
     );
   }
   let diskLine = (
-    <Box color="label">None. Put a plant data disk in to extract genes.</Box>
+    <Box color="label">No disk.</Box>
   );
   if (disk) {
     diskLine = (

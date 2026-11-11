@@ -131,7 +131,7 @@ export class CircuitPrinter extends Component {
                 </LabeledList>
                 {!!program.needs_upgrade && !upgraded && (
                   <Box color="bad" mt={0.5}>
-                    Uses advanced designs: needs the upgrade disk.
+                    Needs upgrade disk.
                   </Box>
                 )}
                 {!!program.unsupported && (
@@ -195,7 +195,7 @@ export class CircuitPrinter extends Component {
                   <Box my={0.5}>{plain(pickedItem.desc)}</Box>
                   {locked(pickedItem) && (
                     <Box color="bad" mb={0.5}>
-                      Needs the advanced designs disk.
+                      Needs upgrade disk.
                     </Box>
                   )}
                   <Button

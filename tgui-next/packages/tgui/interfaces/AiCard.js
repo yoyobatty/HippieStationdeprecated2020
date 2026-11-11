@@ -69,7 +69,7 @@ export const Intellicard = props => {
         )}>
         {!name && (
           <Box color="label">
-            No AI on the card. Use it on an AI core to carry one.
+            No AI loaded.
           </Box>
         ) || (
           <AiStatus

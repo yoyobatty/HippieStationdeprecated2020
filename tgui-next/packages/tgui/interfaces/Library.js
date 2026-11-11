@@ -227,7 +227,7 @@ class Archive extends Component {
         {total > 0 && <BookTable books={shown} act={act} />}
         {total > 100 && (
           <Box color="label" mt={0.5}>
-            {'Showing 100 of ' + total + '. Search to narrow it down.'}
+            {'Showing 100 of ' + total + '.'}
           </Box>
         )}
       </Section>
@@ -310,7 +310,6 @@ class Publishing extends Component {
           <Button
             icon="newspaper"
             content="Post to the newscasters"
-            tooltip="As a story on the Nanotrasen Book Club channel"
             onClick={() => act('newspost')} />
         </Box>
       </Section>
@@ -380,7 +379,7 @@ class LibraryConsoleMenu extends Component {
         <Section title={'Inventory (' + inventory.length + ')'}>
           {inventory.length === 0 && (
             <Box color="label">
-              Nothing logged. Scan books in with the barcode scanner.
+              Inventory empty.
             </Box>
           )}
           {inventory.map(book => (

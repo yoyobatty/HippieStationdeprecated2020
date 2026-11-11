@@ -88,11 +88,6 @@ export class ArcaneTome extends Component {
           ))}
         </div>
         <div className="Tome__pages">
-          {this.state.part === 'Runes' && (
-            <div className="Tome__note">
-              Examine a rune to learn its name and effects.
-            </div>
-          )}
           {pages.filter(page => page.part === this.state.part).map(page => (
             <div key={page.name} className="Tome__page">
               <div className="Tome__name">

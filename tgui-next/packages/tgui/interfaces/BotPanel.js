@@ -160,8 +160,7 @@ export const BotPanel = props => {
       ))}
       {!data.can_behave && (
         <div className="BotPanel__locked">
-          <Icon name="id-card" /> Swipe an ID with access to change how it
-          behaves.
+          <Icon name="id-card" /> Behaviour locked.
         </div>
       )}
       {settings.length > 0 && (

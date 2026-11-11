@@ -71,7 +71,7 @@ export const Teleporter = props => {
           <LabeledList.Item
             label="Station"
             color={engaged ? 'good' : 'label'}>
-            {engaged ? 'Engaged' : 'Not engaged: switch it on at the station'}
+            {engaged ? 'Engaged' : 'Station not engaged'}
           </LabeledList.Item>
         </LabeledList>
       </Section>

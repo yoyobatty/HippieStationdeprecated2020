@@ -61,7 +61,7 @@ export const OperatingComputer = props => {
       <Section title={patient ? 'Patient' : 'No patient'}>
         {!patient && (
           <Box color="label">
-            Nobody is lying on the table.
+            No patient.
           </Box>
         ) || (
           <LabeledList>
@@ -118,7 +118,7 @@ export const OperatingComputer = props => {
         )}>
         {surgeries.length === 0 && (
           <Box color="label">
-            None yet. Research them and sync.
+            None.
           </Box>
         )}
         {surgeries.map(surgery => (

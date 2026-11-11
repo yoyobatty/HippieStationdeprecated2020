@@ -50,7 +50,7 @@ const ScannerSection = props => {
   if (!scanner) {
     return (
       <Section title="Scanner">
-        <NoticeBox>No DNA scanner next to the console.</NoticeBox>
+        <NoticeBox>No scanner connected.</NoticeBox>
       </Section>
     );
   }
@@ -95,7 +95,7 @@ const PodsSection = props => {
   return (
     <Section title="Pods">
       {data.pods.length === 0 && (
-        <NoticeBox>No cloning pod linked. A multitool links one.</NoticeBox>
+        <NoticeBox>No pod connected.</NoticeBox>
       )}
       {data.pods.map((pod, index) => (
         <Box key={index} mb={0.5}
@@ -111,7 +111,7 @@ const PodsSection = props => {
                 content={pod.occupant + ': ' + pod.progress + '%'} />
             )}
             {!pod.occupant && !!pod.mess && (
-              <Box color="bad">Full of a failed clone: clean it out.</Box>
+              <Box color="bad">Pod jammed: failed clone.</Box>
             )}
             {!pod.occupant && !pod.mess && (
               <Box color={pod.working ? 'good' : 'bad'}>
@@ -131,7 +131,7 @@ const RecordsSection = props => {
   return (
     <Section title={'Records (' + records.length + ')'}>
       {records.length === 0 && (
-        <Box color="label" italic>None yet: scan somebody.</Box>
+        <Box color="label" italic>No scan loaded.</Box>
       )}
       {records.map(record => (
         <Collapsible
@@ -264,7 +264,7 @@ export const CloningConsole = props => {
               disabled={!data.can_autoprocess && !data.autoprocess}
               tooltip={data.can_autoprocess
                 ? null
-                : 'Needs a level 3 scanner and an upgraded pod'}
+                : 'Needs T3 scanner and pod'}
               tooltipPosition="left"
               onClick={() => act('autoprocess')} />
           </Fragment>
