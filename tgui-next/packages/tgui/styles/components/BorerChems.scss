@@ -3,10 +3,10 @@
 
 $bo-bg: #160b0e;
 $bo-panel: #22121a;
-$bo-line: #3d1f2b;
-$bo-pink: #ff7aa2;
+$bo-line: #3c1f2d;
+$bo-pink: #f074b0;
 $bo-text: #f0d8df;
-$bo-muted: #a07f8a;
+$bo-muted: #b2919f;
 
 .Borer {
   position: absolute;
@@ -50,7 +50,7 @@ $bo-muted: #a07f8a;
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(#ff8fb2, #c23a64);
+  background: linear-gradient(#e57daf, #b13377);
   box-shadow: inset 0 3px 6px rgba(255, 255, 255, 0.35);
   transition: height 0.4s;
 }
@@ -83,7 +83,7 @@ $bo-muted: #a07f8a;
 }
 
 .Borer__warn {
-  color: #ffb36b;
+  color: #ed9e5b;
   font-size: 12px;
 }
 
@@ -155,8 +155,8 @@ $bo-muted: #a07f8a;
   min-width: 34px;
   padding: 6px 8px;
   border-radius: 14px;
-  background: linear-gradient(#ff8fb2, #c23a64);
-  color: #2a0a14;
+  background: linear-gradient(#e57daf, #b13377);
+  color: #280a1a;
   font-size: 12px;
   font-weight: bold;
   text-align: center;

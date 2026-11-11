@@ -9,19 +9,19 @@
 }
 
 .TcommsMap__link {
-  stroke: #46566a;
+  stroke: #56677b;
   stroke-width: 2;
 }
 
 .TcommsMap__link--busy {
-  stroke: #5ab0ff;
+  stroke: #5da8fa;
   stroke-width: 2.5;
   stroke-dasharray: 3 7;
   animation: tcomms-packets 0.7s linear infinite;
 }
 
 .TcommsMap__link--down {
-  stroke: #5a2626;
+  stroke: #5a2722;
   stroke-dasharray: 2 4;
 }
 
@@ -45,18 +45,18 @@
 }
 
 .TcommsMap__dot--ok {
-  fill: #3fa34d;
-  background-color: #3fa34d;
+  fill: #4bb765;
+  background-color: #4bb765;
 }
 
 .TcommsMap__dot--warn {
-  fill: #d9a21b;
-  background-color: #d9a21b;
+  fill: #debd39;
+  background-color: #debd39;
 }
 
 .TcommsMap__dot--fault {
-  fill: #d33a3a;
-  background-color: #d33a3a;
+  fill: #c22825;
+  background-color: #c22825;
 }
 
 .TcommsMap__dot--off {

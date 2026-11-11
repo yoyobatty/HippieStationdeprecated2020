@@ -4,11 +4,11 @@
 $dz-bg: #0b100c;
 $dz-panel: #111a13;
 $dz-line: #22362a;
-$dz-green: #7ee06a;
-$dz-green-dim: #3d7a35;
-$dz-text: #d3e6d0;
-$dz-muted: #7e9a80;
-$dz-bad: #e46d5c;
+$dz-green: #7aca49;
+$dz-green-dim: #4b7b2e;
+$dz-text: #c2d2bb;
+$dz-muted: #8fad93;
+$dz-bad: #f57b6f;
 
 .Disease {
   position: absolute;
@@ -39,7 +39,7 @@ $dz-bad: #e46d5c;
   flex: 1;
   font-size: 18px;
   font-weight: 600;
-  color: #eaffe4;
+  color: #d8ebcf;
 
   i {
     color: $dz-green;
@@ -60,7 +60,7 @@ $dz-bad: #e46d5c;
 
 .Disease__cooldown {
   margin-left: 10px;
-  color: #e6c86a;
+  color: #ead071;
 }
 
 .Disease__body {
@@ -154,7 +154,7 @@ $dz-bad: #e46d5c;
 
 .Disease__cure {
   font-size: 12px;
-  color: #eaffe4;
+  color: #d8ebcf;
 }
 
 .Disease__host {
@@ -214,7 +214,7 @@ $dz-bad: #e46d5c;
 }
 
 .Disease__card--picked {
-  outline: 1px solid #eaffe4;
+  outline: 1px solid #d8ebcf;
 }
 
 .Disease__cardName {
@@ -240,7 +240,7 @@ $dz-bad: #e46d5c;
 .Disease__detailName {
   font-size: 16px;
   font-weight: 600;
-  color: #eaffe4;
+  color: #d8ebcf;
 }
 
 .Disease__detailCat {

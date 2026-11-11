@@ -262,8 +262,7 @@ export const DopplerArray = props => {
           {data.best !== undefined && (
             <LabeledList.Item label="Largest bomb">
               <ProgressBar
-                value={data.cap ? data.best / data.cap : 0}
-                color="purple">
+                value={data.cap ? data.best / data.cap : 0}>
                 {Math.round(data.best)} / {data.cap} points
               </ProgressBar>
             </LabeledList.Item>

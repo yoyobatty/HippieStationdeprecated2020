@@ -2,11 +2,11 @@
 // modules, each in its kind's colour, with a stated/quiet switch.
 
 $lw-bg: #0b1220;
-$lw-panel: #111b2e;
-$lw-line: #22314d;
+$lw-panel: #0c1c2d;
+$lw-line: #1c334c;
 $lw-text: #d6e2f5;
-$lw-muted: #7f90ad;
-$lw-blue: #5aa2ff;
+$lw-muted: #8ca4bf;
+$lw-blue: #57a8ff;
 
 .Laws {
   position: absolute;
@@ -74,23 +74,23 @@ $lw-blue: #5aa2ff;
 }
 
 .Laws__law--zeroth {
-  border-left-color: #ff4d4d;
+  border-left-color: #ff7266;
 }
 
 .Laws__law--hacked {
-  border-left-color: #a31f2f;
+  border-left-color: #b83731;
 }
 
 .Laws__law--ion {
-  border-left-color: #547dfe;
+  border-left-color: #3e9eff;
 }
 
 .Laws__law--supplied {
-  border-left-color: #b65ccf;
+  border-left-color: #cc6ee1;
 }
 
 .Laws__law--devil {
-  border-left-color: #cc5500;
+  border-left-color: #af4b00;
 }
 
 .Laws__law--quiet {
@@ -128,7 +128,7 @@ $lw-blue: #5aa2ff;
   height: 16px;
   margin-left: 10px;
   border-radius: 8px;
-  background: #2a3a58;
+  background: #233c57;
   cursor: pointer;
 }
 

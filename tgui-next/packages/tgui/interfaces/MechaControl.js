@@ -111,7 +111,7 @@ class MechCard extends Component {
               'flex-grow': 1,
               'background-color': 'rgba(0, 0, 0, 0.4)',
               'color': '#ffffff',
-              'border': '1px solid #404b6e',
+              'border': '1px solid #344f6d',
               'padding': '3px',
             }} />
           <Button

@@ -73,7 +73,7 @@ $ls-muted: #8a93a0;
 }
 
 .LogSearch__chip--on {
-  border-color: #4f8fd6;
+  border-color: #60a2ea;
   background-color: rgba(79, 143, 214, 0.22);
 }
 
@@ -138,21 +138,21 @@ $ls-muted: #8a93a0;
   background-color: #6b7280;
 }
 
-.LogSearch__kind--attack { background-color: #d95926; }
-.LogSearch__kind--death { background-color: #e66767; }
-.LogSearch__kind--bomb { background-color: #c98500; }
+.LogSearch__kind--attack { background-color: #eb7026; }
+.LogSearch__kind--death { background-color: #f8786c; }
+.LogSearch__kind--bomb { background-color: #e58c3b; }
 .LogSearch__kind--say,
 .LogSearch__kind--whisper,
 .LogSearch__kind--radio,
 .LogSearch__kind--pda,
 .LogSearch__kind--emote,
 .LogSearch__kind--deadchat,
-.LogSearch__kind--ooc { background-color: #3987e5; }
+.LogSearch__kind--ooc { background-color: #429cf8; }
 .LogSearch__kind--admin,
 .LogSearch__kind--adminprivate,
-.LogSearch__kind--asay { background-color: #9085e9; }
-.LogSearch__kind--join { background-color: #199e70; }
-.LogSearch__kind--investigate { background-color: #d55181; }
+.LogSearch__kind--asay { background-color: #a692f8; }
+.LogSearch__kind--join { background-color: #5aae6b; }
+.LogSearch__kind--investigate { background-color: #e566a5; }
 
 .LogSearch__body {
   flex: 1;
@@ -180,7 +180,7 @@ $ls-muted: #8a93a0;
 
 .LogSearch__acts a {
   margin-left: 5px;
-  color: #6ea8ff;
+  color: #5da9fa;
   cursor: pointer;
 
   &:hover {

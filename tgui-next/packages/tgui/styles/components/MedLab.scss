@@ -3,7 +3,7 @@
 
 $clinic-bg: #1d2a30;
 $clinic-panel: #24353c;
-$clinic-accent: #4fd1c5;
+$clinic-accent: #2fbdbc;
 
 // The Auto-Doc
 
@@ -69,15 +69,15 @@ $clinic-accent: #4fd1c5;
 }
 
 .Autodoc__part {
-  fill: #35505a;
-  stroke: #4f7480;
+  fill: #335251;
+  stroke: #4b7474;
   stroke-width: 1;
   cursor: pointer;
   transition: fill 0.15s;
 }
 
 .Autodoc__part:hover {
-  fill: #44707c;
+  fill: #467575;
 }
 
 .Autodoc__part--small {
@@ -87,7 +87,7 @@ $clinic-accent: #4fd1c5;
 .Autodoc__part--on,
 .Autodoc__part--on:hover {
   fill: $clinic-accent;
-  stroke: #b2f5ea;
+  stroke: #9ce0df;
 }
 
 .Autodoc__part--busy {
@@ -95,7 +95,7 @@ $clinic-accent: #4fd1c5;
 }
 
 @keyframes Autodoc-pulse {
-  50% { fill: #2c7a7b; }
+  50% { fill: #2b7979; }
 }
 
 .Autodoc__sprite {
@@ -128,12 +128,12 @@ $clinic-accent: #4fd1c5;
 }
 
 .Autodoc__hit:hover {
-  stroke: #b2f5ea;
+  stroke: #9ce0df;
 }
 
 .Autodoc__hit--on,
 .Autodoc__hit--on:hover {
-  stroke: #4fd1c5;
+  stroke: #2fbdbc;
   stroke-width: 0.55;
 }
 
@@ -142,7 +142,7 @@ $clinic-accent: #4fd1c5;
 }
 
 @keyframes Autodoc-outline {
-  50% { stroke: #b2f5ea; }
+  50% { stroke: #9ce0df; }
 }
 
 .Autodoc__damage {
@@ -152,16 +152,16 @@ $clinic-accent: #4fd1c5;
 }
 
 .Autodoc__damage--bad {
-  color: #ff6b6b;
+  color: #ff7266;
 }
 
 .Autodoc__brute {
-  color: #ff8787;
+  color: #f27d71;
   font-weight: bold;
 }
 
 .Autodoc__burn {
-  color: #ffc078;
+  color: #f1a96c;
   font-weight: bold;
 }
 
@@ -197,7 +197,7 @@ $clinic-accent: #4fd1c5;
   padding: 7px 10px;
   border-radius: 6px;
   background-color: $clinic-panel;
-  border-left: 3px solid #35505a;
+  border-left: 3px solid #335251;
   font-size: 13px;
   cursor: pointer;
 }
@@ -209,7 +209,7 @@ $clinic-accent: #4fd1c5;
 .Autodoc__card--on,
 .Autodoc__card--on:hover {
   border-left-color: $clinic-accent;
-  background-color: #23474b;
+  background-color: #234847;
   color: #fff;
 }
 
@@ -217,7 +217,7 @@ $clinic-accent: #4fd1c5;
   margin-top: 8px;
   padding: 10px;
   border-radius: 6px;
-  background: linear-gradient(#2f9e8f, #23756b);
+  background: linear-gradient(#3eb0b0, #257a7a);
   box-shadow: 0 2px 0 #0f2a27;
   color: #fff;
   font-size: 14px;
@@ -250,7 +250,7 @@ $clinic-accent: #4fd1c5;
   top: 14px;
   bottom: 0;
   width: 2px;
-  background-color: #35505a;
+  background-color: #335251;
 }
 
 .Autodoc__step:last-child::before {
@@ -264,7 +264,7 @@ $clinic-accent: #4fd1c5;
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background-color: #35505a;
+  background-color: #335251;
 }
 
 .Autodoc__step--done {
@@ -272,7 +272,7 @@ $clinic-accent: #4fd1c5;
 }
 
 .Autodoc__step--done .Autodoc__dot {
-  background-color: #2f9e8f;
+  background-color: #3eb0b0;
 }
 
 .Autodoc__step--now {
@@ -412,7 +412,7 @@ $clinic-accent: #4fd1c5;
 }
 
 .ChemInst__power--on {
-  background: linear-gradient(#2f9e44, #237a34);
+  background: linear-gradient(#008c39, #23803d);
 }
 
 .ChemInst__power--disabled {
@@ -425,12 +425,12 @@ $clinic-accent: #4fd1c5;
   height: 7px;
   margin-right: 6px;
   border-radius: 50%;
-  background-color: #1b2d1f;
+  background-color: #1c2d1e;
 }
 
 .ChemInst__power--on .ChemInst__powerLed {
-  background-color: #8cff9e;
-  box-shadow: 0 0 6px #8cff9e;
+  background-color: #74eb8d;
+  box-shadow: 0 0 6px #74eb8d;
 }
 
 .ChemInst__center {
@@ -492,7 +492,7 @@ $clinic-accent: #4fd1c5;
 }
 
 .ChemInst__barFill--uranium {
-  background: linear-gradient(90deg, #5c940d, #94d82d);
+  background: linear-gradient(90deg, #408300, #6ec82d);
 }
 
 .ChemInst__barText {
@@ -506,13 +506,13 @@ $clinic-accent: #4fd1c5;
   width: 70px;
   height: 70px;
   border-radius: 50%;
-  background-color: #2a2a14;
-  color: #6b6b2a;
+  background-color: #262b16;
+  color: #728043;
   font-size: 44px;
 }
 
 .ChemInst__trefoil--on {
-  background-color: #f2d024;
+  background-color: #f5ce21;
   color: #1c1c1c;
   box-shadow: 0 0 22px rgba(242, 208, 36, 0.7);
   animation: ChemInst-glow 1.6s ease-in-out infinite;
@@ -526,12 +526,12 @@ $clinic-accent: #4fd1c5;
   width: 70px;
   height: 70px;
   border-radius: 50%;
-  background: conic-gradient(#1c2b5a, #3b2a6b, #1c2b5a);
+  background: conic-gradient(#042f59, #3b2a6b, #042f59);
   box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.7);
 }
 
 .ChemInst__field--on {
-  background: conic-gradient(#4dabf7, #9775fa, #e599f7, #4dabf7);
+  background: conic-gradient(#5ca8fa, #a68fff, #d186e2, #5ca8fa);
   box-shadow: 0 0 22px rgba(151, 117, 250, 0.8);
   animation: ChemInst-spin 1.4s linear infinite;
 }
@@ -550,8 +550,8 @@ $clinic-accent: #4fd1c5;
 }
 
 .ChemInst__pip--on {
-  background-color: #9775fa;
-  box-shadow: 0 0 4px #9775fa;
+  background-color: #a68fff;
+  box-shadow: 0 0 4px #a68fff;
 }
 
 .ChemInst__rotor {

@@ -129,10 +129,10 @@ const Dial = props => {
         y1="90"
         x2={90 + 62 * Math.cos(pointer)}
         y2={90 + 62 * Math.sin(pointer)}
-        stroke="#d9a400"
+        stroke="#e0be2f"
         strokeWidth="4"
         strokeLinecap="round" />
-      <circle cx="90" cy="90" r="8" fill="#d9a400" />
+      <circle cx="90" cy="90" r="8" fill="#e0be2f" />
       <text x="90" y="128" fill="#ffffff" fontSize="20"
         fontFamily="monospace" textAnchor="middle">
         {value}
@@ -235,9 +235,9 @@ export const SecureStorage = props => {
       <Box
         mb={1}
         textAlign="right"
-        style={{ 'background-color': '#0d1a0d', 'color': '#5bff5b',
+        style={{ 'background-color': '#0d1a0d', 'color': '#00ec66',
           'font-family': 'monospace', 'font-size': '22px',
-          'padding': '4px 10px', 'border': '1px solid #2a4a2a',
+          'padding': '4px 10px', 'border': '1px solid #264b2d',
           'letter-spacing': '4px', 'min-height': '30px' }}>
         {data.display || ''}
       </Box>

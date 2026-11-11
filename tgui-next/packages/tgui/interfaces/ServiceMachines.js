@@ -110,14 +110,14 @@ export const Jukebox = props => {
 // The reels' symbols come as the old window's HTML: <font color='x'>c</font>,
 // in HTML colour names; shades that read on the cream reel strips
 const REEL_COLORS = {
-  red: '#d01818',
-  orange: '#e06a00',
-  yellow: '#c99a00',
-  green: '#1d9a35',
-  blue: '#1f5fd6',
+  red: '#ca0916',
+  orange: '#f77b34',
+  yellow: '#d3b22d',
+  green: '#008636',
+  blue: '#006cc3',
   grey: '#6b6b6b',
   white: '#2a2a2a',
-  fuchsia: '#c21ab4',
+  fuchsia: '#a514c0',
 };
 
 const symbolOf = text => {

@@ -2,10 +2,10 @@
 
 $bw-line: rgba(255, 255, 255, 0.08);
 $bw-muted: #8a93a0;
-$bw-blue: #4f8fd6;
-$bw-red: #e05d5d;
-$bw-green: #4fae6a;
-$bw-amber: #d39b2a;
+$bw-blue: #60a2ea;
+$bw-red: #f57165;
+$bw-green: #62bc74;
+$bw-amber: #d6b741;
 $bw-panel: rgba(255, 255, 255, 0.03);
 
 .BanWindow {
@@ -202,7 +202,7 @@ $bw-panel: rgba(255, 255, 255, 0.03);
   height: 20px;
   margin-right: 4px;
   padding: 0 2px;
-  border: 1px solid #88bfff;
+  border: 1px solid #74acea;
   border-radius: 2px;
   background-color: #0a0a0a;
   color: #fff;
@@ -215,7 +215,7 @@ $bw-panel: rgba(255, 255, 255, 0.03);
   width: 100%;
   min-height: 70px;
   padding: 4px 6px;
-  border: 1px solid #88bfff;
+  border: 1px solid #74acea;
   border-radius: 2px;
   background-color: #0a0a0a;
   color: #fff;
@@ -275,8 +275,8 @@ $bw-panel: rgba(255, 255, 255, 0.03);
 }
 
 .BanWindow__sev--minor {
-  border-color: #4f8fd6;
-  background-color: #4f8fd6;
+  border-color: #60a2ea;
+  background-color: #60a2ea;
 }
 
 .BanWindow__sev--medium {
@@ -357,7 +357,7 @@ $bw-panel: rgba(255, 255, 255, 0.03);
 
 .BanWindow__chip--banned {
   border-color: rgba(224, 93, 93, 0.7);
-  color: #ffb3b3;
+  color: #eba198;
 }
 
 .BanWindow__chip--on.BanWindow__chip--banned {
@@ -366,7 +366,7 @@ $bw-panel: rgba(255, 255, 255, 0.03);
 
 .BanWindow__chip--warn {
   border-color: rgba(211, 155, 42, 0.7);
-  color: #f1cd84;
+  color: #e6d083;
 }
 
 .BanWindow__chip--active {
@@ -722,7 +722,7 @@ $bw-panel: rgba(255, 255, 255, 0.03);
 
 .BanWindow__left {
   margin-right: 8px;
-  color: #ffb3b3;
+  color: #eba198;
   font-weight: bold;
 }
 
@@ -858,7 +858,7 @@ $bw-panel: rgba(255, 255, 255, 0.03);
 }
 
 .BanWindow__note--minor {
-  border-left-color: #4f8fd6;
+  border-left-color: #60a2ea;
 }
 
 .BanWindow__note--medium {

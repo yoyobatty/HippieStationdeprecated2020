@@ -28,8 +28,8 @@ const FILTER_RESEARCHED = 'researched';
 const LOCKED_SHOWN = { 'Stock Parts': true };
 
 const STATUS_COLORS = {
-  researched: '#5baa27',
-  available: '#d9b804',
+  researched: '#6ebc3c',
+  available: '#efca32',
   locked: 'rgba(255, 255, 255, 0.15)',
   hidden: 'rgba(255, 255, 255, 0.15)',
 };
@@ -281,7 +281,7 @@ const StatusChip = props => {
   }
   if (status === 'available') {
     return (
-      <Chip color={affordable ? STATUS_COLORS.available : '#db2828'}>
+      <Chip color={affordable ? STATUS_COLORS.available : '#ca0916'}>
         {costText(cost, nanite)}
       </Chip>
     );
@@ -560,7 +560,7 @@ const NodeDetails = props => {
           nanite={nanite}
           affordable={research.canAfford(node.id)} />
         {boosted && (
-          <Chip color="#2185d0">
+          <Chip color="#1f70be">
             {'Boosted from ' + formatNumber(node.cost)}
           </Chip>
         )}
@@ -1224,7 +1224,7 @@ const AnalyzerPanel = props => {
             'align-items': 'center',
             'padding': '6px 8px',
             'background-color': 'rgba(91, 170, 39, 0.12)',
-            'border-left': '3px solid #5baa27',
+            'border-left': '3px solid #6ebc3c',
           }}>
           <Box style={{ 'flex-grow': 1 }}>
             <Box color="label" fontSize="11px">Sample board</Box>

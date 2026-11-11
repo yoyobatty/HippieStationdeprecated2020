@@ -75,8 +75,7 @@ const SampleCard = props => {
       {request.needed > 1 && (
         <ProgressBar
           mt={0.5}
-          value={request.got / request.needed}
-          color="teal">
+          value={request.got / request.needed}>
           {request.got} / {request.needed}{request.unit}
         </ProgressBar>
       )}

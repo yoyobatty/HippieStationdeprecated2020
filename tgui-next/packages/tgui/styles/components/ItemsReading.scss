@@ -12,12 +12,12 @@
   bottom: 0;
   padding: 12px;
   overflow: auto;
-  background: radial-gradient(ellipse at center, #1f6b3a, #0f3d20);
+  background: radial-gradient(ellipse at center, #397c47, #143d1d);
 }
 
 .Cards__hint {
   margin-bottom: 10px;
-  color: #cfe8d6;
+  color: #bed4c0;
   font-style: italic;
 }
 
@@ -120,7 +120,7 @@
 }
 
 .News__line--wanted {
-  color: #a00000;
+  color: #b52321;
   font-weight: bold;
 }
 
@@ -137,7 +137,7 @@
 
 .News__byline {
   margin: 2px 0 8px;
-  color: #7a1f1f;
+  color: #7a201b;
   font-size: 11px;
   font-style: italic;
 }
@@ -159,8 +159,8 @@
 .News__dnotice {
   margin-top: 8px;
   padding: 6px;
-  border: 2px solid #a00000;
-  color: #a00000;
+  border: 2px solid #b52321;
+  color: #b52321;
   font-weight: bold;
 }
 
@@ -169,7 +169,7 @@
 }
 
 .News__wantedHead {
-  color: #a00000;
+  color: #b52321;
   font-size: 30px;
   font-weight: bold;
   letter-spacing: 6px;
@@ -177,7 +177,7 @@
 
 .News__scribble {
   margin-top: 12px;
-  color: #26408a;
+  color: #004783;
   font-family: 'Comic Sans MS', cursive;
 }
 
@@ -216,19 +216,19 @@
 }
 
 .Locator__str--very-strong {
-  color: #5baa27;
+  color: #6ebc3c;
 }
 
 .Locator__str--strong {
-  color: #a8c94a;
+  color: #b2cc4a;
 }
 
 .Locator__str--weak {
-  color: #f08f11;
+  color: #ed8715;
 }
 
 .Locator__str--very-weak {
-  color: #db2828;
+  color: #ca0916;
 }
 
 // A valentine
@@ -242,7 +242,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at center, #ff9fb8, #c2185b);
+  background: radial-gradient(ellipse at center, #e58db5, #ba1f79);
 }
 
 .Valentine__card {
@@ -251,13 +251,13 @@
   border: 3px solid #fff;
   border-radius: 12px;
   background: #fff3f6;
-  color: #8a1538;
+  color: #8c1817;
   text-align: center;
   box-shadow: 0 4px 14px rgba(120, 0, 40, 0.4);
 }
 
 .Valentine__heart {
-  color: #e0245e;
+  color: #cc0013;
   font-size: 34px;
   line-height: 1;
 }
@@ -270,5 +270,5 @@
 
 .Valentine__name {
   font-size: 11px;
-  color: #b0476a;
+  color: #a64375;
 }

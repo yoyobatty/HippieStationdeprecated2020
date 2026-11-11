@@ -160,7 +160,7 @@ const Sequencer = props => {
             style={{
               'cursor': 'pointer',
               'border': '2px solid '
-                + (gene.selected ? '#5baa27' : 'transparent'),
+                + (gene.selected ? '#6ebc3c' : 'transparent'),
             }}
             onClick={() => task(act, 'inspect', { num: gene.location })}>
             <img

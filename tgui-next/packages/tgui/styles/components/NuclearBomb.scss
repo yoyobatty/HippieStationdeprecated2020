@@ -5,12 +5,12 @@
 $color-danger: colors.bg(colors.$red) !default;
 $color-caution: colors.bg(colors.$yellow) !default;
 
-$background-beige: #E8E4C9;
+$background-beige: #d8d1b7;
 
 .NuclearBomb__displayBox {
-  background-color: #002003;
+  background-color: #002007;
   border: 4px inset $background-beige;
-  color: #03e017;
+  color: #00c855;
   font-size: 24px;
   font-family: monospace;
   padding: 6px;

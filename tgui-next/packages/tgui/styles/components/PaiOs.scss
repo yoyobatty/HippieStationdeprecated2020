@@ -4,12 +4,12 @@
 
 $po-bg: #0c0700;
 $po-panel: #150c00;
-$po-line: #4a3000;
-$po-text: #ffb000;
-$po-bright: #ffd27a;
-$po-muted: #a86f00;
-$po-dim: #6b4600;
-$po-bad: #ff5a36;
+$po-line: #4f2c09;
+$po-text: #fb901b;
+$po-bright: #ead072;
+$po-muted: #9f5700;
+$po-dim: #845225;
+$po-bad: #ff7266;
 $po-glow: 0 0 6px rgba(255, 176, 0, 0.45);
 
 @keyframes PaiOs__blink {
@@ -64,7 +64,7 @@ $po-glow: 0 0 6px rgba(255, 176, 0, 0.45);
   font-size: 20px;
   font-weight: bold;
   letter-spacing: 2px;
-  text-shadow: 2px 0 #ffb000, -2px 0 #ff00aa;
+  text-shadow: 2px 0 #fb901b, -2px 0 #ff62b3;
 }
 
 .PaiOs__cursor {

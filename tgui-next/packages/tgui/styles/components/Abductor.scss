@@ -2,14 +2,14 @@
 // surfaces, violet light, rounded pods for keys.
 
 $ab-bg: #0d0a14;
-$ab-panel: #171225;
-$ab-line: #2f2547;
-$ab-violet: #b38cff;
-$ab-cyan: #6fe7ff;
-$ab-text: #d9d0ee;
-$ab-muted: #8a7da8;
-$ab-bad: #ff6b8b;
-$ab-good: #74f0b1;
+$ab-panel: #161225;
+$ab-line: #2d2648;
+$ab-violet: #a690ff;
+$ab-cyan: #56d7d6;
+$ab-text: #c2bedc;
+$ab-muted: #746d98;
+$ab-bad: #ff7266;
+$ab-good: #78d98b;
 
 .Abductor {
   position: absolute;
@@ -321,7 +321,7 @@ $ab-good: #74f0b1;
 }
 
 .Abductor__state--unconscious {
-  color: #ffd27a;
+  color: #ead072;
 }
 
 .Abductor__state--deceased {

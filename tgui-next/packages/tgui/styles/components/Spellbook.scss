@@ -1,15 +1,15 @@
 // hippie -- the wizard's spellbook (interfaces/Spellbook.js): a tome, its
 // ribbons along the top, entries on parchment, points as gems, wax seals.
 
-$tome-leather: #3a1f2a;
+$tome-leather: #3a1f2b;
 $tome-leather-dark: #24121a;
-$tome-parchment: #efe1bf;
-$tome-parchment-dark: #e2cf9f;
-$tome-ink: #3a2a1a;
-$tome-ink-soft: #6b5639;
-$tome-gold: #c9a24a;
-$tome-gem: #5aa9e6;
-$tome-seal: #9b2230;
+$tome-parchment: #dbd1af;
+$tome-parchment-dark: #dfd1a0;
+$tome-ink: #3b291b;
+$tome-ink-soft: #81644d;
+$tome-gold: #d3ba5e;
+$tome-gem: #6ba9ed;
+$tome-seal: #b03932;
 
 .Spellbook {
   position: absolute;
@@ -39,8 +39,8 @@ $tome-seal: #9b2230;
   margin-right: 4px;
   padding: 5px 12px 9px;
   border-radius: 3px 3px 0 0;
-  background: linear-gradient(#5a2a35, #452029);
-  color: #e8d6b8;
+  background: linear-gradient(#572a40, #432031);
+  color: #dad1b1;
   font-size: 13px;
   font-variant: small-caps;
   letter-spacing: 0.5px;
@@ -123,8 +123,8 @@ $tome-seal: #9b2230;
 }
 
 .Spellbook__gem--lit {
-  border-color: #2b6ea8;
-  background: radial-gradient(circle at 35% 35%, #d6f0ff, $tome-gem 45%, #1f5f99);
+  border-color: #356eab;
+  background: radial-gradient(circle at 35% 35%, #d6f0ff, $tome-gem 45%, #356eab);
   box-shadow: 0 0 5px rgba(90, 169, 230, 0.7);
 }
 
@@ -220,7 +220,7 @@ $tome-seal: #9b2230;
   margin-left: 6px;
   padding: 3px 12px;
   border-radius: 12px;
-  background: radial-gradient(circle at 40% 35%, #c9404f, $tome-seal 60%, #6e1520);
+  background: radial-gradient(circle at 40% 35%, #bb342e, $tome-seal 60%, #6e1714);
   color: #fbe9d6;
   font-size: 12px;
   font-weight: bold;

@@ -2,9 +2,9 @@
 
 $gu-line: rgba(255, 255, 255, 0.08);
 $gu-muted: #8a93a0;
-$gu-restore: #7fcf86;
-$gu-air: #7fb3e6;
-$gu-added: #e6927f;
+$gu-restore: #67bc78;
+$gu-air: #7aa8dd;
+$gu-added: #df8a80;
 
 .GriefUndo {
   position: absolute;
@@ -85,7 +85,7 @@ $gu-added: #e6927f;
 
 .GriefUndo__message {
   margin-top: 3px;
-  color: #e6d17f;
+  color: #e7d07f;
 }
 
 .GriefUndo__muted {

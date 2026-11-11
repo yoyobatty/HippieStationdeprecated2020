@@ -92,9 +92,9 @@ export const SiliconAlerts = props => {
 };
 
 const MODE_COLORS = {
-  good: '#5ee08a',
-  average: '#f5b84a',
-  bad: '#ff6b6b',
+  good: '#54cb70',
+  average: '#efcf57',
+  bad: '#ff7266',
 };
 
 export class AiBotControl extends Component {

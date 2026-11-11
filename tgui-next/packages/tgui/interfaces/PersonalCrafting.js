@@ -234,7 +234,7 @@ const RecipeCard = props => {
         'padding': '6px',
         'background-color': 'rgba(0, 0, 0, 0.33)',
         'border-left': '3px solid '
-          + (craftable ? '#5baa27' : 'rgba(255, 255, 255, 0.1)'),
+          + (craftable ? '#6ebc3c' : 'rgba(255, 255, 255, 0.1)'),
       }}>
       <AtomIcon atom={getAtom(atomData, recipe.id)} size={64} />
       <Box ml={1} style={{ 'flex-grow': 1, 'min-width': 0 }}>

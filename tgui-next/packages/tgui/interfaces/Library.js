@@ -8,7 +8,7 @@ import { Box, Button, Dropdown, Icon, LabeledList, NoticeBox, Section, Table } f
 const FIELD = {
   'background-color': 'rgba(0, 0, 0, 0.4)',
   'color': '#ffffff',
-  'border': '1px solid #404b6e',
+  'border': '1px solid #344f6d',
   'padding': '3px',
   'box-sizing': 'border-box',
 };
@@ -18,7 +18,7 @@ const ROW = { 'display': 'flex', 'align-items': 'center' };
 const ENTRY = Object.assign({ 'padding': '3px 2px' }, ROW);
 
 const BADGE = {
-  'background-color': '#bd2020',
+  'background-color': '#c22725',
   'color': '#ffffff',
   'border-radius': '8px',
   'padding': '0 5px',

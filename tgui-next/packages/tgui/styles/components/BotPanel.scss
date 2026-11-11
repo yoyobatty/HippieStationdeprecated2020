@@ -2,16 +2,16 @@
 // in the bot's department colour, slide switches, steppers.
 
 .BotPanel {
-  --bp-accent: #7d9cc9;
+  --bp-accent: #82a8d3;
 }
 
-.BotPanel--security { --bp-accent: #e05252; }
-.BotPanel--lasertag { --bp-accent: #4aa3ff; }
-.BotPanel--janitor { --bp-accent: #a66ee0; }
-.BotPanel--engineering { --bp-accent: #f08a2e; }
-.BotPanel--medical { --bp-accent: #3fc1c9; }
-.BotPanel--fire { --bp-accent: #ff6a3d; }
-.BotPanel--clown { --bp-accent: #ff7ad9; }
+.BotPanel--security { --bp-accent: #f5675b; }
+.BotPanel--lasertag { --bp-accent: #57a8ff; }
+.BotPanel--janitor { --bp-accent: #a28aff; }
+.BotPanel--engineering { --bp-accent: #eb8923; }
+.BotPanel--medical { --bp-accent: #35baba; }
+.BotPanel--fire { --bp-accent: #ff7722; }
+.BotPanel--clown { --bp-accent: #fa68b2; }
 
 .BotPanel__head {
   display: flex;
@@ -83,12 +83,12 @@
 
 .BotPanel__badge--warn {
   background: rgba(240, 143, 17, 0.2);
-  color: #f5b84a;
+  color: #efcf57;
 }
 
 .BotPanel__badge--bad {
   background: rgba(219, 40, 40, 0.3);
-  color: #ff8a8a;
+  color: #f07e73;
 }
 
 .BotPanel__locked {

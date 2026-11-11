@@ -4,7 +4,7 @@
 .Polls__item {
   padding: 6px 8px;
   margin-bottom: 4px;
-  border-left: 3px solid #4972a1;
+  border-left: 3px solid #456f9d;
   background: rgba(255, 255, 255, 0.04);
   cursor: pointer;
 
@@ -31,7 +31,7 @@
 }
 
 .Polls__option--on {
-  border-color: #5baa27;
+  border-color: #6ebc3c;
   background: rgba(91, 170, 39, 0.15);
 }
 
@@ -44,7 +44,7 @@
   height: 140px;
   box-sizing: border-box;
   padding: 6px;
-  border: 1px solid #40628a;
+  border: 1px solid #4a6e97;
   background: rgba(0, 0, 0, 0.3);
   color: #fff;
   font-family: inherit;
@@ -84,6 +84,6 @@
   line-height: 1.45;
 
   a {
-    color: #6fa8ff;
+    color: #5da9fa;
   }
 }

@@ -7,9 +7,9 @@ import { Box, Button, Icon, Section } from '../components';
 // old page had (hippiestation/code/modules/tgui/bots_strip_tgui.dm).
 
 const MODE_COLORS = {
-  good: '#5ee08a',
-  average: '#f5b84a',
-  bad: '#ff6b6b',
+  good: '#54cb70',
+  average: '#efcf57',
+  bad: '#ff7266',
 };
 
 const KIND_ICONS = {

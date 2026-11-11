@@ -15,7 +15,7 @@
 }
 
 .AdminPanels__player--antag {
-  border-left-color: #db2828;
+  border-left-color: #ca0916;
 }
 
 .AdminPanels__player--open {
@@ -39,7 +39,7 @@
 }
 
 .AdminPanels__job {
-  color: #9fc4ff;
+  color: #84b4e9;
 }
 
 .AdminPanels__antag {
@@ -58,11 +58,11 @@
 }
 
 .AdminPanels__dot--alive {
-  background: #5baa27;
+  background: #6ebc3c;
 }
 
 .AdminPanels__dot--dead {
-  background: #db2828;
+  background: #ca0916;
 }
 
 .AdminPanels__dot--ghost {
@@ -70,7 +70,7 @@
 }
 
 .AdminPanels__dot--lobby {
-  background: #4972a1;
+  background: #456f9d;
 }
 
 .AdminPanels__buttons {
@@ -103,11 +103,11 @@
 
   i {
     margin-bottom: 6px;
-    color: #ff7777;
+    color: #fb7569;
   }
 
   &:hover {
-    border-color: #db2828;
+    border-color: #ca0916;
     background: rgba(219, 40, 40, 0.15);
   }
 }
@@ -132,7 +132,7 @@
     cursor: pointer;
 
     &:hover {
-      color: #9fc4ff;
+      color: #84b4e9;
     }
   }
 
@@ -143,7 +143,7 @@
 }
 
 .AdminPanels__sorted {
-  color: #9fc4ff;
+  color: #84b4e9;
 }
 
 .AdminPanels__row {
@@ -160,7 +160,7 @@
 }
 
 .AdminPanels__row--antag td:first-child {
-  box-shadow: inset 3px 0 0 #db2828;
+  box-shadow: inset 3px 0 0 #ca0916;
 }
 
 .AdminPanels__row--open {

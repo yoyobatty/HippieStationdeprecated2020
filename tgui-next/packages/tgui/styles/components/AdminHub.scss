@@ -40,7 +40,7 @@ $ah-muted: #8a93a0;
 
 .AdminHub__tab--on {
   color: #fff;
-  border-bottom-color: #4f8fd6;
+  border-bottom-color: #60a2ea;
 }
 
 .AdminHub__count {
@@ -53,7 +53,7 @@ $ah-muted: #8a93a0;
 }
 
 .AdminHub__count--hot {
-  background-color: #c9472f;
+  background-color: #ba3630;
 }
 
 .AdminHub__spacer {
@@ -138,7 +138,7 @@ $ah-muted: #8a93a0;
   outline: none;
 
   &:focus {
-    border-color: #4f8fd6;
+    border-color: #60a2ea;
   }
 }
 

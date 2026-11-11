@@ -52,7 +52,7 @@
 }
 
 .AdminRecords__rank {
-  color: #9fc4ff;
+  color: #84b4e9;
   white-space: nowrap;
 }
 
@@ -65,7 +65,7 @@
 }
 
 .AdminRecords__dot--on {
-  background: #5baa27;
+  background: #6ebc3c;
 }
 
 .AdminRecords__state {
@@ -78,7 +78,7 @@
 
 .AdminRecords__state--on {
   background: rgba(91, 170, 39, 0.3);
-  color: #cfe9bd;
+  color: #b9d6ac;
 }
 
 .AdminRecords__tag {
@@ -100,18 +100,18 @@
 
 .AdminRecords__flag--held {
   background: rgba(91, 170, 39, 0.25);
-  color: #cfe9bd;
+  color: #b9d6ac;
 }
 
 .AdminRecords__flag--denied {
   background: rgba(219, 40, 40, 0.3);
-  color: #f3b6b6;
+  color: #dfa49c;
   text-decoration: line-through;
 }
 
 .AdminRecords__flag--edit {
   background: rgba(73, 114, 161, 0.35);
-  color: #c4d8f2;
+  color: #b0c5de;
 }
 
 // A rank's flags, Has / Denied / Can edit
@@ -207,7 +207,7 @@
 }
 
 .AdminRecords__missing {
-  color: #ff8a8a;
+  color: #f07e73;
   text-decoration: line-through;
 }
 
@@ -227,7 +227,7 @@
 
 .AdminRecords__editHead {
   margin-bottom: 3px;
-  color: #9fc4ff;
+  color: #84b4e9;
 }
 
 .AdminRecords__before,
@@ -240,13 +240,13 @@
 
 .AdminRecords__before {
   background: rgba(219, 40, 40, 0.15);
-  color: #e8b5b5;
+  color: #d4a39c;
   text-decoration: line-through;
 }
 
 .AdminRecords__after {
   background: rgba(91, 170, 39, 0.15);
-  color: #cfe9bd;
+  color: #b9d6ac;
 }
 
 // A player's notes
@@ -318,7 +318,7 @@
 }
 
 .AdminRecords__rankName {
-  color: #9fc4ff;
+  color: #84b4e9;
   font-size: 13px;
   font-weight: bold;
 }

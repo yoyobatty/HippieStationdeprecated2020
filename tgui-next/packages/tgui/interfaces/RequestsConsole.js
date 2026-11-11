@@ -165,7 +165,7 @@ const Messages = props => {
           className="candystripe"
           p={1}
           style={msg.priority > NORMAL
-            ? { 'border-left': '3px solid #db2828' }
+            ? { 'border-left': '3px solid #ca0916' }
             : null}>
           <Flex align="center">
             <Flex.Item grow={1}>

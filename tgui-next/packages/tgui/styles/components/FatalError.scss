@@ -9,7 +9,7 @@
   font-size: 12px;
   font-family: Consolas, monospace;
   color: #ffffff;
-  background-color: #0000dd;
+  background-color: #004a88;
   z-index: 1000;
   overflow: hidden;
   text-align: center;
@@ -51,28 +51,28 @@
 
 @keyframes FatalError__rainbow {
   0% {
-    color: #ff0;
+    color: #d0f31a;
   }
   50% {
-    color: #0ff;
+    color: #00e9e9;
   }
   100% {
-    color: #f0f;
+    color: #e364ff;
   }
 }
 
 @keyframes FatalError__shadow {
   0% {
     left: -2px;
-    text-shadow: 4px 0 #f0f;
+    text-shadow: 4px 0 #e364ff;
   }
   50% {
     left: 0px;
-    text-shadow: 0px 0 #0ff;
+    text-shadow: 0px 0 #00e9e9;
   }
   100% {
     left: 2px;
-    text-shadow: -4px 0 #ff0;
+    text-shadow: -4px 0 #d0f31a;
   }
 }
 

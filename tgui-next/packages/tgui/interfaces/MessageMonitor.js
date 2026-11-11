@@ -193,7 +193,7 @@ const CustomMessage = props => {
           onClick={() => act('custom_send')} />
       </Box>
       <Box mt={1} color="average">
-        Reg. #514 forbids sending messages to a Head of Staff containing
+        Reg. #5a0e39 forbids sending messages to a Head of Staff containing
         Erotic Rendering Properties.
       </Box>
     </Section>

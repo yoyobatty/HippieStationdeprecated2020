@@ -14,7 +14,7 @@ $pp-muted: #8a93a0;
   font-size: 12px;
 
   a {
-    color: #6ea8ff;
+    color: #5da9fa;
     cursor: pointer;
 
     &:hover {
@@ -206,7 +206,7 @@ $pp-muted: #8a93a0;
 }
 
 .PlayerProfile__card--active {
-  border-left-color: #d24c4c;
+  border-left-color: #bd3932;
   background-color: rgba(210, 76, 76, 0.08);
 }
 
@@ -224,9 +224,9 @@ $pp-muted: #8a93a0;
   background-color: #6b7280;
 }
 
-.PlayerProfile__sev--minor { background-color: #d8b400; }
-.PlayerProfile__sev--medium { background-color: #e0703a; }
-.PlayerProfile__sev--high { background-color: #d24c4c; }
+.PlayerProfile__sev--minor { background-color: #ecc731; }
+.PlayerProfile__sev--medium { background-color: #f18246; }
+.PlayerProfile__sev--high { background-color: #bd3932; }
 
 .PlayerProfile__stats {
   display: flex;
@@ -238,5 +238,5 @@ $pp-muted: #8a93a0;
 }
 
 .PlayerProfile__ticketLink {
-  color: #f0b13c !important;
+  color: #f0cf51 !important;
 }

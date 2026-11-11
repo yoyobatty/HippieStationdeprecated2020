@@ -9,8 +9,8 @@ import { Icon } from '../components';
 
 // One colour per source, in the order the server sends them; Other is grey
 const COLORS = [
-  '#3987e5', '#d95926', '#199e70', '#c98500',
-  '#d55181', '#008300', '#9085e9', '#85857f',
+  '#429cf8', '#eb7026', '#5aae6b', '#e58c3b',
+  '#e566a5', '#008235', '#a692f8', '#85857f',
 ];
 const SURFACE = '#1f2022';
 

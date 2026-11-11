@@ -25,14 +25,14 @@
 
 // 1. Hologram HUD
 
-$hud: #3ef0ff;
+$hud: #10dede;
 $hud-dark: #050b12;
 
 .LobbyHud {
   @include lobby-fill;
   padding: 10px 14px;
   font-family: 'Bahnschrift', 'Segoe UI', sans-serif;
-  color: #bff8ff;
+  color: #ace5e4;
   background:
     radial-gradient(ellipse at 50% 35%, rgba(30, 120, 150, 0.4), transparent 70%),
     $hud-dark;
@@ -350,12 +350,12 @@ $pass-bg: #0f1422;
   --pass-photo-b: #c3ccd8;
   --pass-photo-line: #9aa6b5;
   --pass-preview: #e9e3d3;
-  --pass-btn: #26324a;
-  --pass-btn-hover: #31405e;
+  --pass-btn: #203449;
+  --pass-btn-hover: #2a425d;
   --pass-btn-text: #dbe4f3;
-  --pass-green: #1f8a3a;
-  --pass-red: #c0392b;
-  --pass-orange: #c2410c;
+  --pass-green: #018235;
+  --pass-red: #bb332e;
+  --pass-orange: #ad4a00;
 }
 
 .LobbyPass.Pass--dark,
@@ -376,12 +376,12 @@ $pass-bg: #0f1422;
   --pass-photo-b: #222a35;
   --pass-photo-line: #4a5568;
   --pass-preview: #1d232d;
-  --pass-btn: #34415d;
-  --pass-btn-hover: #405072;
+  --pass-btn: #2d435c;
+  --pass-btn-hover: #486483;
   --pass-btn-text: #e3eaf5;
-  --pass-green: #3cc469;
-  --pass-red: #ef6a57;
-  --pass-orange: #f0894f;
+  --pass-green: #41c163;
+  --pass-red: #fc7568;
+  --pass-orange: #ed854f;
 }
 
 .LobbyPass {
@@ -495,7 +495,7 @@ $pass-bg: #0f1422;
 
 .LateJoinPass__star {
   margin-left: 5px;
-  color: #c98a00;
+  color: #e48d3b;
   font-size: 10px;
 }
 
@@ -540,7 +540,7 @@ $pass-bg: #0f1422;
   display: flex;
   align-items: center;
   padding: 6px 10px;
-  background: linear-gradient(90deg, #1d4f8f, #2a6cc0);
+  background: linear-gradient(90deg, #2562a1, #166dbd);
   color: #fff;
   font-size: 12px;
   letter-spacing: 2px;
@@ -749,7 +749,7 @@ $pass-bg: #0f1422;
 
 .LobbyPass__btn--on,
 .LobbyPass__btn--on:hover {
-  background-color: #2a6cc0;
+  background-color: #166dbd;
   color: #fff;
 }
 
@@ -768,12 +768,12 @@ $pass-bg: #0f1422;
 }
 
 .LobbyPass__go:hover {
-  background-color: #23a044;
+  background-color: #008c39;
 }
 
 .LobbyPass__quiet {
   background-color: transparent;
-  border: 1px solid #3a4763;
+  border: 1px solid #334962;
   box-shadow: none;
 }
 
@@ -784,7 +784,7 @@ $pass-bg: #0f1422;
 
 // 3. Departures board
 
-$board-amber: #ffd21f;
+$board-amber: #f6ce0f;
 
 .LobbyBoard {
   @include lobby-fill;
@@ -865,11 +865,11 @@ $board-amber: #ffd21f;
 }
 
 .LobbyBoard__flaps--good .LobbyBoard__flap {
-  color: #4ade80;
+  color: #41c966;
 }
 
 .LobbyBoard__flaps--bad .LobbyBoard__flap {
-  color: #f87171;
+  color: #fb7569;
 }
 
 @keyframes LobbyBoard-flip {
@@ -972,7 +972,7 @@ $board-amber: #ffd21f;
   margin-bottom: 6px;
   padding: 11px 0;
   border-color: $board-amber;
-  background: linear-gradient($board-amber, #d9a800);
+  background: linear-gradient($board-amber, #e3c031);
   color: #111;
   font-size: 17px;
   letter-spacing: 3px;
@@ -997,7 +997,7 @@ $board-amber: #ffd21f;
 
 // 4. Green-screen terminal
 
-$crt: #39ff6a;
+$crt: #00ea65;
 
 .LobbyCrt {
   @include lobby-fill;
@@ -1011,7 +1011,7 @@ $crt: #39ff6a;
   padding: 12px 16px;
   overflow: hidden;
   border-radius: 16px;
-  background: radial-gradient(ellipse at center, #0c2a12 0%, #051207 65%, #010401 100%);
+  background: radial-gradient(ellipse at center, #0b2a13 0%, #051207 65%, #010401 100%);
   box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.95), 0 0 0 3px #1b201b, 0 0 0 6px #0f120f;
   font-family: 'Consolas', 'Lucida Console', monospace;
   font-size: 12px;
@@ -1150,8 +1150,8 @@ $crt: #39ff6a;
 
 $pass-line: #b9b2a0;
 $pass-field: #fffdf7;
-$pass-navy: #26324a;
-$pass-blue: #2a6cc0;
+$pass-navy: #203449;
+$pass-blue: #166dbd;
 
 .Preferences--pass {
   @include lobby-fill;
@@ -1251,7 +1251,7 @@ $pass-blue: #2a6cc0;
 .Preferences--pass .Preferences__content .Tabs__tab.Button--selected:hover {
   background-color: transparent;
   color: var(--pass-ink);
-  box-shadow: inset 0 -2px 0 #2a6cc0;
+  box-shadow: inset 0 -2px 0 #166dbd;
 }
 
 .Preferences--pass .Preferences__content .Tabs__content {
@@ -1531,7 +1531,7 @@ $pass-blue: #2a6cc0;
 
 .RoundEnd__cardTitle {
   padding: 6px 14px;
-  background: linear-gradient(90deg, #1d4f8f, #2a6cc0);
+  background: linear-gradient(90deg, #2562a1, #166dbd);
   color: #fff;
   font-size: 12px;
   letter-spacing: 2px;
@@ -1583,7 +1583,7 @@ $pass-blue: #2a6cc0;
 }
 
 .RoundEnd__html .bluetext {
-  color: #2a6cc0;
+  color: #166dbd;
   font-weight: bold;
 }
 

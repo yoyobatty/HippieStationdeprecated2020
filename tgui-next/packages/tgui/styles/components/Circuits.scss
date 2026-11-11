@@ -7,10 +7,10 @@ $cg-side: 290px;
 $cg-board: #0b1a12;
 $cg-grid: rgba(80, 200, 120, 0.09);
 $cg-chip: #1d2621;
-$cg-chip-edge: #3f5a49;
-$cg-head: #2c4a38;
-$cg-data: #4fa3ff;
-$cg-pulse: #ffa94d;
+$cg-chip-edge: #536a56;
+$cg-head: #304934;
+$cg-data: #57a8ff;
+$cg-pulse: #ee933f;
 
 .CircuitGraph__top {
   position: absolute;
@@ -140,8 +140,8 @@ $cg-pulse: #ffa94d;
 }
 
 .CircuitGraph__node--selected {
-  border-color: #8fe3a9;
-  box-shadow: 0 0 0 1px #8fe3a9, 0 3px 10px rgba(0, 0, 0, 0.6);
+  border-color: #83ce90;
+  box-shadow: 0 0 0 1px #83ce90, 0 3px 10px rgba(0, 0, 0, 0.6);
 }
 
 .CircuitGraph__nodeHead {
@@ -220,7 +220,7 @@ $cg-pulse: #ffa94d;
   overflow: hidden;
   text-overflow: ellipsis;
   margin: 0 4px;
-  color: #8fe3a9;
+  color: #83ce90;
   cursor: pointer;
   font-family: monospace;
 
@@ -337,7 +337,7 @@ $cg-pulse: #ffa94d;
   outline: none;
 
   &:focus {
-    border-color: #8fe3a9;
+    border-color: #83ce90;
   }
 }
 
@@ -405,7 +405,7 @@ $cg-pulse: #ffa94d;
 }
 
 .CircuitPrinter__tile--picked {
-  border-color: #8fe3a9;
+  border-color: #83ce90;
   background-color: rgba(143, 227, 169, 0.12);
 }
 
@@ -441,7 +441,7 @@ $cg-pulse: #ffa94d;
 
 .CircuitPrinter__cost {
   font-size: 10px;
-  color: #9fb8a7;
+  color: #96ab98;
 }
 
 .CircuitPrinter__panel {
@@ -466,7 +466,7 @@ $cg-pulse: #ffa94d;
 .CircuitPrinter__code {
   width: 100%;
   padding: 4px;
-  color: #cfe9d7;
+  color: #bed5c1;
   background-color: rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 2px;
@@ -530,19 +530,19 @@ $cc-outline: 280px;
 }
 
 .CircuitCode__key {
-  color: #79c0ff;
+  color: #6faaed;
 }
 
 .CircuitCode__str {
-  color: #a5d6ff;
+  color: #99c0ed;
 }
 
 .CircuitCode__num {
-  color: #d2a8ff;
+  color: #cf90dd;
 }
 
 .CircuitCode__pin {
-  color: #ffa657;
+  color: #eb9343;
   font-weight: bold;
 }
 
@@ -579,7 +579,7 @@ $cc-outline: 280px;
   margin-left: 45px;
   font-family: monospace;
   font-size: 11px;
-  color: #9fb8a7;
+  color: #96ab98;
 }
 
 .CircuitCode__wire {

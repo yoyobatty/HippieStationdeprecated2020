@@ -12,14 +12,14 @@ const SPACE = '#0b0f17';
 // Each layer: what a room's readings make it, as [label, colour]; the
 // legend lists them in this order
 const AIR = [
-  ['Normal', '#2f9e44'],
-  ['Low O2', '#e67700'],
-  ['Low pressure', '#f08c00'],
-  ['High pressure', '#fcc419'],
-  ['Cold', '#4dabf7'],
-  ['Hot', '#e8590c'],
-  ['Toxic', '#ae3ec9'],
-  ['Vacuum', '#8f1325'],
+  ['Normal', '#008c39'],
+  ['Low O2', '#ef8600'],
+  ['Low pressure', '#ee8709'],
+  ['High pressure', '#f5ce25'],
+  ['Cold', '#5ca8fa'],
+  ['Hot', '#fb700e'],
+  ['Toxic', '#a02bb7'],
+  ['Vacuum', '#a42d28'],
   ['Not breathable', '#232b38'],
 ];
 
@@ -52,13 +52,13 @@ const airState = room => {
 };
 
 const POWER = [
-  ['Charged', '#2f9e44'],
-  ['Above half', '#94d82d'],
-  ['Below half', '#f08c00'],
-  ['Low', '#e03131'],
-  ['Unpowered', '#8f1325'],
-  ['Breaker off', '#862e9c'],
-  ['Fault', '#c2255c'],
+  ['Charged', '#008c39'],
+  ['Above half', '#6ec82d'],
+  ['Below half', '#ee8709'],
+  ['Low', '#ca1119'],
+  ['Unpowered', '#a42d28'],
+  ['Breaker off', '#983eab'],
+  ['Fault', '#b72678'],
   ['No APC', '#5c6370'],
   ['Unpowered area', '#2b3340'],
 ];
@@ -92,10 +92,10 @@ const powerState = room => {
 };
 
 const ALARMS = [
-  ['Fire', '#e03131'],
-  ['Atmos', '#f08c00'],
-  ['Power', '#fcc419'],
-  ['Clear', '#26384a'],
+  ['Fire', '#ca1119'],
+  ['Atmos', '#ee8709'],
+  ['Power', '#f5ce25'],
+  ['Clear', '#27384a'],
 ];
 
 const alarmState = room => {

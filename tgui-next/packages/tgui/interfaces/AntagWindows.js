@@ -151,7 +151,7 @@ export class GangTool extends Component {
       );
     }
     const vigilante = data.mode === 'vigilante';
-    const color = vigilante ? '#4a90d9' : (data.color || '#888');
+    const color = vigilante ? '#5ea3ed' : (data.color || '#888');
     return (
       <Fragment>
         <div className="Gang__card" style={{ 'border-color': color }}>

@@ -85,15 +85,15 @@ export class SandboxPanel extends Component {
 
 const PAINT_COLORS = {
   none: '#8a93a3',
-  engineering: '#d6b23c',
-  atmos: '#3ca6d6',
-  security: '#c43b3b',
-  command: '#3b6fc4',
+  engineering: '#e6c753',
+  atmos: '#6ba9ec',
+  security: '#bb332e',
+  command: '#1b6dbb',
   medical: '#e8e8e8',
-  research: '#9b59b6',
-  mining: '#a0743c',
+  research: '#9149a1',
+  mining: '#935f31',
   maintenance: '#6b6b6b',
-  external: '#c45f3b',
+  external: '#ae5017',
   highsecurity: '#444',
 };
 

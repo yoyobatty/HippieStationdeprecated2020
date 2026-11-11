@@ -95,8 +95,8 @@ export const ArcadeBattle = props => {
 
 // Minesweeper's board values (arcade_tgui.dm): -10 to -1 flagged, 0 a hidden
 // mine, 1 to 9 hidden, 10 the mine hit, 11 empty, 12 to 19 a revealed 1 to 8
-const NUMBER_COLORS = ['', '#1976d2', '#388e3c', '#d32f2f', '#7b1fa2',
-  '#ff8f00', '#0097a7', '#424242', '#9e9e9e'];
+const NUMBER_COLORS = ['', '#006cc3', '#118138', '#c51e1f', '#9630ab',
+  '#ef8600', '#008585', '#424242', '#9e9e9e'];
 
 const Square = props => {
   const { value, playing, onReveal, onFlag } = props;

@@ -45,7 +45,7 @@ const Radar = props => {
           top: (size / 2 - 3) + 'px',
           width: '6px',
           height: '6px',
-          background: '#4c8cd9',
+          background: '#59a0ec',
         }} />
       <Box
         position="absolute"
@@ -55,8 +55,8 @@ const Radar = props => {
           width: '8px',
           height: '8px',
           'border-radius': '50%',
-          background: '#e0a020',
-          'box-shadow': '0 0 6px #e0a020',
+          background: '#e0be39',
+          'box-shadow': '0 0 6px #e0be39',
         }} />
     </Box>
   );

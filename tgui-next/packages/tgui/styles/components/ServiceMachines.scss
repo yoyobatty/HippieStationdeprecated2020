@@ -32,7 +32,7 @@
   text-overflow: ellipsis;
   font-size: 18px;
   font-weight: bold;
-  color: #8fd7ff;
+  color: #8ebdf2;
   text-shadow: 0 0 6px rgba(80, 180, 255, 0.6);
 }
 
@@ -50,7 +50,7 @@
   height: 4px;
   margin: 0 2px;
   border-radius: 2px 2px 0 0;
-  background: linear-gradient(0deg, #2fbf71 0%, #f2d14a 70%, #ff5a4a 100%);
+  background: linear-gradient(0deg, #4bc067 0%, #f2cf48 70%, #ff7266 100%);
   opacity: 0.35;
 }
 
@@ -98,7 +98,7 @@
 
 .Jukebox__progress {
   height: 100%;
-  background-color: #8fd7ff;
+  background-color: #8ebdf2;
   border-radius: 2px;
   transition: width 1s linear;
 }
@@ -115,7 +115,7 @@
   font-size: 22px;
   color: #fff;
   cursor: pointer;
-  background: radial-gradient(circle at 35% 30%, #4fd37a, #1b7a3c);
+  background: radial-gradient(circle at 35% 30%, #44c164, #287f3f);
   border-radius: 50%;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6), 0 0 12px rgba(80, 220, 120, 0.35);
 
@@ -125,7 +125,7 @@
 }
 
 .Jukebox__play--stop {
-  background: radial-gradient(circle at 35% 30%, #ff6b6b, #a11d1d);
+  background: radial-gradient(circle at 35% 30%, #ff7266, #b6342e);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6), 0 0 12px rgba(255, 80, 80, 0.35);
 }
 
@@ -151,7 +151,7 @@
 }
 
 .Jukebox__row--picked {
-  color: #8fd7ff;
+  color: #8ebdf2;
   background-color: rgba(80, 180, 255, 0.12);
 }
 
@@ -182,8 +182,8 @@
 
 .Slots__cabinet {
   padding: 10px;
-  background: linear-gradient(180deg, #7a1212 0%, #4a0808 60%, #2c0404 100%);
-  border: 3px solid #c9a227;
+  background: linear-gradient(180deg, #7a1212 0%, #4a0807 60%, #2c0403 100%);
+  border: 3px solid #d7b841;
   border-radius: 12px;
   box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.6);
 }
@@ -193,7 +193,7 @@
   padding: 6px 8px 8px;
   text-align: center;
   background: linear-gradient(180deg, #2a0303, #120101);
-  border: 2px solid #c9a227;
+  border: 2px solid #d7b841;
   border-radius: 8px;
 }
 
@@ -208,8 +208,8 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #ffd84d;
-  box-shadow: 0 0 6px #ffd84d;
+  background-color: #f3ce40;
+  box-shadow: 0 0 6px #f3ce40;
 }
 
 .Slots__light--chase {
@@ -232,7 +232,7 @@
   font-size: 12px;
   font-weight: bold;
   letter-spacing: 4px;
-  color: #ffd84d;
+  color: #f3ce40;
 }
 
 .Slots__led {
@@ -242,7 +242,7 @@
   font-family: 'Consolas', 'Courier New', monospace;
   font-size: 16px;
   font-weight: bold;
-  color: #ff4f3a;
+  color: #ff7266;
   text-align: right;
   text-shadow: 0 0 6px rgba(255, 70, 50, 0.8);
   background-color: #0b0000;
@@ -253,7 +253,7 @@
 .Slots__led--big {
   min-width: 140px;
   font-size: 24px;
-  color: #ffd84d;
+  color: #f3ce40;
   text-align: center;
   text-shadow: 0 0 8px rgba(255, 210, 60, 0.9);
 }
@@ -269,7 +269,7 @@
   display: flex;
   padding: 6px;
   background-color: #1a1a1a;
-  border: 3px solid #c9a227;
+  border: 3px solid #d7b841;
   border-radius: 8px;
   box-shadow: inset 0 0 10px #000;
 }
@@ -279,7 +279,7 @@
   height: 132px;
   margin: 0 2px;
   overflow: hidden;
-  background: linear-gradient(180deg, #a89c84 0%, #f6efdd 22%, #fffaf0 50%, #f6efdd 78%, #a89c84 100%);
+  background: linear-gradient(180deg, #b7b096 0%, #f6efdd 22%, #fffaf0 50%, #f6efdd 78%, #b7b096 100%);
   border-radius: 4px;
 }
 
@@ -320,7 +320,7 @@
   height: 2px;
   margin-top: -1px;
   background-color: rgba(220, 20, 20, 0.85);
-  box-shadow: 0 0 4px #ff2020;
+  box-shadow: 0 0 4px #ff6257;
   pointer-events: none;
 }
 
@@ -351,7 +351,7 @@
   top: 2px;
   width: 26px;
   height: 26px;
-  background: radial-gradient(circle at 35% 30%, #ff7a7a, #b00000);
+  background: radial-gradient(circle at 35% 30%, #fa776b, #c32322);
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
   transition: top 0.25s;
@@ -384,7 +384,7 @@
   font-size: 10px;
   font-weight: bold;
   letter-spacing: 2px;
-  color: #ffd84d;
+  color: #f3ce40;
 }
 
 .Slots__buttons {
@@ -399,10 +399,10 @@
   font-weight: bold;
   color: #fff;
   cursor: pointer;
-  background: linear-gradient(180deg, #4a6fa5, #273d63);
+  background: linear-gradient(180deg, #406fa1, #1f3f62);
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 5px;
-  box-shadow: 0 2px 0 #10192a;
+  box-shadow: 0 2px 0 #0c1a29;
 
   &:hover {
     filter: brightness(1.15);
@@ -412,8 +412,8 @@
 .Slots__button--spin {
   padding: 8px 22px;
   font-size: 15px;
-  background: linear-gradient(180deg, #2fbf4f, #157a2c);
-  box-shadow: 0 3px 0 #0b3d16;
+  background: linear-gradient(180deg, #25c459, #128138);
+  box-shadow: 0 3px 0 #073d18;
 }
 
 .Slots__button--off {
@@ -448,7 +448,7 @@
 .Slots__payWin {
   text-align: right;
   font-weight: bold;
-  color: #ffd84d;
+  color: #f3ce40;
 }
 
 .Slots__stats {

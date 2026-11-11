@@ -3,14 +3,14 @@
 // (SiliconLaws.scss).
 
 $sw-bg: #0b1220;
-$sw-panel: #111b2e;
-$sw-line: #22314d;
+$sw-panel: #0c1c2d;
+$sw-line: #1c334c;
 $sw-text: #d6e2f5;
-$sw-muted: #7f90ad;
-$sw-blue: #5aa2ff;
-$sw-bad: #ff6b6b;
-$sw-warn: #f5b84a;
-$sw-good: #5ee08a;
+$sw-muted: #8ca4bf;
+$sw-blue: #57a8ff;
+$sw-bad: #ff7266;
+$sw-warn: #efcf57;
+$sw-good: #54cb70;
 
 .Sil {
   position: absolute;
@@ -115,7 +115,7 @@ $sw-good: #5ee08a;
   padding: 3px 8px;
   border: 1px solid $sw-line;
   border-radius: 3px;
-  background: #16243d;
+  background: #10253c;
   color: $sw-text;
   font-size: 12px;
   cursor: pointer;
@@ -123,7 +123,7 @@ $sw-good: #5ee08a;
 
   &:hover {
     border-color: $sw-blue;
-    background: #1c2f50;
+    background: #14314f;
   }
 
   i {
@@ -136,7 +136,7 @@ $sw-good: #5ee08a;
 .Sil__cat {
   margin-bottom: 6px;
   border: 1px solid $sw-line;
-  border-left: 4px solid #2b5a3c;
+  border-left: 4px solid #416a48;
   border-radius: 3px;
   background: $sw-panel;
 }
@@ -200,7 +200,7 @@ $sw-good: #5ee08a;
   display: flex;
   align-items: center;
   padding: 6px 14px;
-  background: #13284a;
+  background: #0b2a49;
   border-bottom: 1px solid $sw-line;
   color: $sw-blue;
 
@@ -210,7 +210,7 @@ $sw-good: #5ee08a;
 }
 
 .Sil__banner--bad {
-  background: #2a1418;
+  background: #28141d;
   color: $sw-bad;
 }
 
@@ -266,13 +266,13 @@ $sw-good: #5ee08a;
   margin: 0 4px 4px 0;
   padding: 1px 6px;
   border-radius: 3px;
-  background: #16324f;
-  color: #a9d1ff;
+  background: #17324f;
+  color: #96beeb;
   font-size: 12px;
 }
 
 .Sil__word--bad {
-  background: #3a1820;
+  background: #381827;
   color: $sw-bad;
   text-decoration: underline wavy;
 }
@@ -298,17 +298,17 @@ $sw-good: #5ee08a;
   cursor: pointer;
 
   &:hover {
-    background: #7db7ff;
+    background: #6aa9ee;
   }
 }
 
 .Sil__announce--off {
-  background: #26334a;
+  background: #223449;
   color: $sw-muted;
   cursor: default;
 
   &:hover {
-    background: #26334a;
+    background: #223449;
   }
 }
 
@@ -349,6 +349,6 @@ $sw-good: #5ee08a;
 
   &:hover {
     color: $sw-good;
-    background: #16324f;
+    background: #17324f;
   }
 }

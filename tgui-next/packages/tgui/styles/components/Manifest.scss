@@ -53,7 +53,7 @@ $mf-muted: #8a93a3;
   outline: none;
 
   &:focus {
-    border-color: #6b8fc7;
+    border-color: #75a4d9;
   }
 }
 
@@ -79,15 +79,15 @@ $mf-muted: #8a93a3;
   overflow: hidden;
 }
 
-.Manifest__dept--command { --dept: #e2b13c; }
-.Manifest__dept--security { --dept: #e05252; }
-.Manifest__dept--engineering { --dept: #f08a2e; }
-.Manifest__dept--medical { --dept: #3fc1c9; }
-.Manifest__dept--science { --dept: #a66ee0; }
-.Manifest__dept--supply { --dept: #b5875a; }
-.Manifest__dept--service { --dept: #5bb562; }
-.Manifest__dept--silicon { --dept: #7d9cc9; }
-.Manifest__dept--objectives { --dept: #e05252; }
+.Manifest__dept--command { --dept: #eaca53; }
+.Manifest__dept--security { --dept: #f5675b; }
+.Manifest__dept--engineering { --dept: #eb8923; }
+.Manifest__dept--medical { --dept: #35baba; }
+.Manifest__dept--science { --dept: #a28aff; }
+.Manifest__dept--supply { --dept: #cb986f; }
+.Manifest__dept--service { --dept: #5abd6f; }
+.Manifest__dept--silicon { --dept: #82a8d3; }
+.Manifest__dept--objectives { --dept: #f5675b; }
 
 .Manifest__deptHead {
   display: flex;
@@ -124,7 +124,7 @@ $mf-muted: #8a93a3;
   font-weight: 600;
 
   i {
-    color: #e2b13c;
+    color: #eaca53;
   }
 }
 
@@ -156,7 +156,7 @@ $mf-muted: #8a93a3;
   margin-right: 8px;
   border-radius: 11px;
   background: rgba(224, 82, 82, 0.2);
-  color: #ff8a8a;
+  color: #f07e73;
   text-align: center;
   line-height: 22px;
   font-weight: 600;
@@ -188,10 +188,10 @@ $mf-muted: #8a93a3;
   margin-left: 6px;
   padding: 4px 12px;
   border-radius: 3px;
-  background: #4972a1;
+  background: #456f9d;
   cursor: pointer;
 
   &:hover {
-    background: #5a86ba;
+    background: #4774a6;
   }
 }

@@ -65,10 +65,10 @@ export const ThermoelectricGenerator = props => {
       </Section>
       <Flex>
         <Flex.Item grow={1} basis={0}>
-          <Loop title="Cold loop" color="#6ab8ff" loop={cold} />
+          <Loop title="Cold loop" color="#65a9f3" loop={cold} />
         </Flex.Item>
         <Flex.Item grow={1} basis={0} ml={1}>
-          <Loop title="Hot loop" color="#ff7070" loop={hot} />
+          <Loop title="Hot loop" color="#ff7266" loop={hot} />
         </Flex.Item>
       </Flex>
     </Fragment>

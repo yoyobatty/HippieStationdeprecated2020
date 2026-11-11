@@ -53,20 +53,20 @@
 
 .Atmos__banner--good {
   background-color: rgba(91, 170, 39, 0.15);
-  border-color: #5baa27;
-  color: #7fd14a;
+  border-color: #6ebc3c;
+  color: #6bbd34;
 }
 
 .Atmos__banner--average {
   background-color: rgba(240, 143, 17, 0.15);
-  border-color: #f08f11;
-  color: #f5a742;
+  border-color: #ed8715;
+  color: #e88e3a;
 }
 
 .Atmos__banner--bad {
   background-color: rgba(219, 40, 40, 0.2);
-  border-color: #db2828;
-  color: #ff5a5a;
+  border-color: #ca0916;
+  color: #ff7266;
 }
 
 .Atmos__readings {
@@ -116,12 +116,12 @@
 
 .Atmos__mode--selected {
   background-color: rgba(73, 114, 161, 0.45);
-  border-color: #4972a1;
+  border-color: #456f9d;
 }
 
 .Atmos__mode--danger.Atmos__mode--selected {
   background-color: rgba(219, 40, 40, 0.35);
-  border-color: #db2828;
+  border-color: #ca0916;
 }
 
 .Atmos__thresholds {

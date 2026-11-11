@@ -23,9 +23,9 @@ const SMALL_PARTS = ['eyes', 'mouth'];
 
 const healthColor = health => {
   if (health > 60) {
-    return '#37b24d';
+    return '#3dc262';
   }
-  return health > 25 ? '#f59f00' : '#e03131';
+  return health > 25 ? '#ee8710' : '#ca1119';
 };
 
 const Figure = props => {
@@ -74,12 +74,12 @@ const damageColor = part => {
     return null;
   }
   if (hurt < 0.2) {
-    return '#94d82d';
+    return '#6ec82d';
   }
   if (hurt < 0.45) {
-    return '#fcc419';
+    return '#f5ce25';
   }
-  return hurt < 0.7 ? '#fd7e14' : '#e03131';
+  return hurt < 0.7 ? '#fd7928' : '#ca1119';
 };
 
 const SpriteFigure = props => {
@@ -94,7 +94,7 @@ const SpriteFigure = props => {
         <defs>
           <pattern id="autodoc-missing" width="2" height="2"
             patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width="1" height="2" fill="#e03131" />
+            <rect width="1" height="2" fill="#ca1119" />
           </pattern>
         </defs>
         {order.map(zone => {

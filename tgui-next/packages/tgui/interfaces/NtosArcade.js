@@ -44,7 +44,7 @@ export const NtosArcade = props => {
             </LabeledList>
             <Box my={1} mx={4} />
             <Section
-              backgroundColor={data.PauseState === 1 ? "#1b3622" : "#471915"}>
+              backgroundColor={data.PauseState === 1 ? "#1c3621" : "#471915"}>
               {data.Status}
             </Section>
           </Grid.Column>

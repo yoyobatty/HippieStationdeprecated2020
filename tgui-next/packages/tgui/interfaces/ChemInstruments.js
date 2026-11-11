@@ -36,7 +36,7 @@ const Vessel = props => {
               className="ChemInst__layer"
               style={{
                 'height': (reagent.volume / total) * 100 + '%',
-                'background-color': reagent.color || '#7fb3d5',
+                'background-color': reagent.color || '#83a8d2',
               }} />
           ))}
         </div>
@@ -68,7 +68,7 @@ const Contents = props => {
         <div key={reagent.name} className="ChemInst__reagent">
           <span
             className="ChemInst__chip"
-            style={{ 'background-color': reagent.color || '#7fb3d5' }} />
+            style={{ 'background-color': reagent.color || '#83a8d2' }} />
           <span className="ChemInst__reagentName">{reagent.name}</span>
           <span className="ChemInst__dim">
             {reagent.volume.toFixed(1)}u
@@ -137,7 +137,7 @@ const Gauge = props => {
         y1={50 - Math.cos(a) * 34}
         x2={50 + Math.sin(a) * 40}
         y2={50 - Math.cos(a) * 40}
-        stroke={i >= 7 ? '#e03131' : '#9aa5b1'}
+        stroke={i >= 7 ? '#ca1119' : '#9aa5b1'}
         strokeWidth="2" />,
     );
   }
@@ -152,7 +152,7 @@ const Gauge = props => {
           y1="50"
           x2={50 + Math.sin(angle * Math.PI / 180) * 36}
           y2={50 - Math.cos(angle * Math.PI / 180) * 36}
-          stroke="#ff6b3d"
+          stroke="#ff7722"
           strokeWidth="3"
           strokeLinecap="round" />
         <circle cx="50" cy="50" r="5" fill="#c8cdd2" />

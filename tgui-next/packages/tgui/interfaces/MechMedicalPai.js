@@ -117,7 +117,7 @@ export const MechSyringeGun = props => {
             disabled={!reagents.length}
             onClick={() => act('purge_all')} />
         )}>
-        <ProgressBar value={data.max ? data.total / data.max : 0} color="teal">
+        <ProgressBar value={data.max ? data.total / data.max : 0}>
           {data.total} / {data.max} u
         </ProgressBar>
         {reagents.map(reagent => (

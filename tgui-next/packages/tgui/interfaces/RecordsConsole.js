@@ -6,24 +6,24 @@ import { Box, Button, Collapsible, Dropdown, Input, LabeledList, NoticeBox, Sect
 // (hippiestation/.../computer/records_tgui.dm)
 
 const SECURITY_COLORS = {
-  '*Arrest*': '#cc2222',
-  'Incarcerated': '#cd6500',
-  'Paroled': '#cd6500',
-  'Discharged': '#2a7ab0',
-  'None': '#4f7529',
+  '*Arrest*': '#c71a1d',
+  'Incarcerated': '#ba5000',
+  'Paroled': '#ba5000',
+  'Discharged': '#356eab',
+  'None': '#4d7a33',
 };
 
 const medicalColor = record => {
   if (record.m_stat === '*Insane*' || record.p_stat === '*Deceased*') {
-    return '#cc2222';
+    return '#c71a1d';
   }
   if (record.p_stat === '*Unconscious*' || record.m_stat === '*Unstable*') {
-    return '#cd6500';
+    return '#ba5000';
   }
   if (record.p_stat === 'Physically Unfit' || record.m_stat === '*Watch*') {
-    return '#2a7ab0';
+    return '#356eab';
   }
-  return '#4f7529';
+  return '#4d7a33';
 };
 
 // A button that asks once more before it acts

@@ -39,7 +39,7 @@ $hw-muted: #8a93a0;
 
 .HelpWindow__tab--on {
   color: #fff;
-  border-bottom-color: #4f8fd6;
+  border-bottom-color: #60a2ea;
 }
 
 .HelpWindow__form,
@@ -86,7 +86,7 @@ $hw-muted: #8a93a0;
 }
 
 .HelpWindow__kind--on {
-  border-color: #4f8fd6;
+  border-color: #60a2ea;
   background-color: rgba(79, 143, 214, 0.22);
 }
 
@@ -114,7 +114,7 @@ $hw-muted: #8a93a0;
 }
 
 .HelpWindow__person--on {
-  border-color: #4f8fd6;
+  border-color: #60a2ea;
   background-color: rgba(79, 143, 214, 0.22);
 }
 
@@ -179,11 +179,11 @@ $hw-muted: #8a93a0;
 
 .HelpWindow__status {
   margin-top: 3px;
-  color: #7fd492;
+  color: #6ec07e;
 }
 
 .HelpWindow__status--waiting {
-  color: #f0b13c;
+  color: #f0cf51;
 }
 
 .HelpWindow__lines {
@@ -204,12 +204,12 @@ $hw-muted: #8a93a0;
 
 .HelpWindow__line--player {
   margin-right: 30px;
-  border-left-color: #e0703a;
+  border-left-color: #f18246;
 }
 
 .HelpWindow__line--staff {
   margin-left: 30px;
-  border-left-color: #4f8fd6;
+  border-left-color: #60a2ea;
   background-color: rgba(79, 143, 214, 0.1);
 }
 
@@ -241,7 +241,7 @@ $hw-muted: #8a93a0;
   font-size: 11px;
 
   a {
-    color: #6ea8ff;
+    color: #5da9fa;
     cursor: pointer;
   }
 }
@@ -253,7 +253,7 @@ $hw-muted: #8a93a0;
   padding: 10px 14px;
 
   a {
-    color: #6ea8ff;
+    color: #5da9fa;
     cursor: pointer;
   }
 }

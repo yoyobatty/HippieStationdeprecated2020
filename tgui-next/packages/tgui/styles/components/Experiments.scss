@@ -5,12 +5,12 @@
   padding: 6px 8px;
   background-color: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-left: 3px solid #a333c8;
+  border-left: 3px solid #a126ba;
   border-radius: 3px;
 }
 
 .Experiments__card--done {
-  border-left-color: #5baa27;
+  border-left-color: #6ebc3c;
   opacity: 0.75;
 }
 
@@ -26,17 +26,17 @@
   padding: 6px 8px 18px;
   background-color: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-left: 3px solid #a333c8;
+  border-left: 3px solid #a126ba;
   border-radius: 3px;
 }
 
-.SampleBoard__card--botany { border-left-color: #5baa27; }
-.SampleBoard__card--kitchen { border-left-color: #d9a441; }
-.SampleBoard__card--mining { border-left-color: #b98d5b; }
-.SampleBoard__card--lavaland { border-left-color: #d9612a; }
-.SampleBoard__card--medical { border-left-color: #4fb3d9; }
-.SampleBoard__card--chemistry { border-left-color: #6ccfb2; }
-.SampleBoard__card--atmos { border-left-color: #8fa8ff; }
+.SampleBoard__card--botany { border-left-color: #6ebc3c; }
+.SampleBoard__card--kitchen { border-left-color: #dcc055; }
+.SampleBoard__card--mining { border-left-color: #cd986d; }
+.SampleBoard__card--lavaland { border-left-color: #ec7634; }
+.SampleBoard__card--medical { border-left-color: #71a9e6; }
+.SampleBoard__card--chemistry { border-left-color: #45bbba; }
+.SampleBoard__card--atmos { border-left-color: #65a9f3; }
 
 .SampleBoard__top {
   display: flex;
@@ -46,13 +46,13 @@
 }
 
 .SampleBoard__dept {
-  color: #8b9bb0;
+  color: #95a7bb;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .SampleBoard__reward {
-  color: #d9b45b;
+  color: #e5cb6f;
   font-weight: bold;
 }
 
@@ -76,7 +76,7 @@
   color: #9fb0c4;
 
   i {
-    color: #5baa27;
+    color: #6ebc3c;
   }
 }
 
@@ -84,7 +84,7 @@
   opacity: 0.6;
 
   i {
-    color: #8b9bb0;
+    color: #95a7bb;
   }
 }
 

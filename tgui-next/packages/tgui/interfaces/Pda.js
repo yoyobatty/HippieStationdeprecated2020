@@ -10,7 +10,7 @@ const FIELD = {
   'box-sizing': 'border-box',
   'background-color': 'rgba(0, 0, 0, 0.4)',
   'color': '#ffffff',
-  'border': '1px solid #404b6e',
+  'border': '1px solid #344f6d',
   'font-family': 'Verdana, sans-serif',
   'font-size': '12px',
   'padding': '4px',

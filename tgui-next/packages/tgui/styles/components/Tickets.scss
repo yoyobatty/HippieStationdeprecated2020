@@ -3,11 +3,11 @@
 
 $tk-line: rgba(255, 255, 255, 0.08);
 $tk-muted: #8a93a0;
-$tk-player: #e0703a;
-$tk-admin: #4f8fd6;
-$tk-good: #3fa35b;
-$tk-bad: #d24c4c;
-$tk-warn: #c98500;
+$tk-player: #f18246;
+$tk-admin: #60a2ea;
+$tk-good: #56b66b;
+$tk-bad: #bd3932;
+$tk-warn: #e58c3b;
 
 .Tickets {
   position: absolute;
@@ -178,7 +178,7 @@ $tk-warn: #c98500;
 }
 
 .Tickets__wait--late {
-  color: #f0b13c;
+  color: #f0cf51;
 }
 
 // The ticket
@@ -294,7 +294,7 @@ $tk-warn: #c98500;
 
 .Tickets__links a {
   margin-left: 7px;
-  color: #6ea8ff;
+  color: #5da9fa;
   font-size: 11px;
   cursor: pointer;
 
@@ -347,8 +347,8 @@ $tk-warn: #c98500;
   background-color: #6b7280;
 }
 
-.Tickets__sev--minor { background-color: #d8b400; }
-.Tickets__sev--medium { background-color: #e0703a; }
+.Tickets__sev--minor { background-color: #ecc731; }
+.Tickets__sev--medium { background-color: #f18246; }
 .Tickets__sev--high { background-color: $tk-bad; }
 
 // Conversation and context
@@ -573,14 +573,14 @@ $tk-warn: #c98500;
 .Tickets__msg--note {
   margin-left: 15px;
   margin-right: 15px;
-  border-left-color: #c9a400;
+  border-left-color: #dab82f;
   background-color: rgba(201, 164, 0, 0.1);
   border-style: dashed;
 }
 
 .Tickets__noteTag {
   margin-left: 6px;
-  color: #d8b400;
+  color: #ecc731;
   font-size: 10px;
 }
 
@@ -626,7 +626,7 @@ $tk-warn: #c98500;
 
 .Tickets__line--quoted {
   background-color: rgba(79, 143, 214, 0.14);
-  box-shadow: inset 3px 0 0 #4f8fd6;
+  box-shadow: inset 3px 0 0 #60a2ea;
 }
 
 .Tickets__seen {
@@ -645,7 +645,7 @@ $tk-warn: #c98500;
   font-size: 11px;
 
   a {
-    color: #6ea8ff;
+    color: #5da9fa;
     cursor: pointer;
   }
 }
@@ -684,7 +684,7 @@ $tk-warn: #c98500;
 
 .Tickets__killNote {
   margin: 2px 0 8px;
-  color: #e6a0a0;
+  color: #d49188;
   font-size: 11px;
 }
 
@@ -743,7 +743,7 @@ $tk-warn: #c98500;
 
   a {
     margin-left: 7px;
-    color: #6ea8ff;
+    color: #5da9fa;
     font-size: 11px;
     cursor: pointer;
   }
@@ -773,10 +773,10 @@ $tk-warn: #c98500;
   border-radius: 50%;
 }
 
-.Tickets__dot--player { background-color: #ff8a3d; }
-.Tickets__dot--named { background-color: #4fa3ff; }
+.Tickets__dot--player { background-color: #f67e3c; }
+.Tickets__dot--named { background-color: #57a8ff; }
 .Tickets__dot--other { background-color: #b9c0ca; }
-.Tickets__dot--dead { background-color: #e05050; }
+.Tickets__dot--dead { background-color: #f5655a; }
 
 .Tickets__mapScroll {
   flex: 1;
@@ -808,19 +808,19 @@ $tk-warn: #c98500;
   width: 8px;
   height: 8px;
   margin: -4px 0 0 -4px;
-  background-color: #4fa3ff;
+  background-color: #57a8ff;
 }
 
 .Tickets__mapDot--player {
   width: 10px;
   height: 10px;
   margin: -5px 0 0 -5px;
-  background-color: #ff8a3d;
+  background-color: #f67e3c;
   box-shadow: 0 0 0 2px rgba(255, 138, 61, 0.4);
 }
 
 .Tickets__mapDot--dead {
-  background-color: #e05050;
+  background-color: #f5655a;
 }
 
 .Tickets__mapDot--picked {

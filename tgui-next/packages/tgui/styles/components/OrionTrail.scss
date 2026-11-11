@@ -1,11 +1,11 @@
 // hippie -- the Orion Trail (interfaces/OrionTrail.js): deep space, an amber
 // display, the route across the top and the supplies along the bottom.
 
-$orion-amber: #ffb43a;
-$orion-amber-dim: #8a6223;
-$orion-text: #e9dcc4;
+$orion-amber: #f8973a;
+$orion-amber-dim: #935e2f;
+$orion-text: #d8d1b8;
 $orion-muted: #8d8574;
-$orion-red: #ff5a4a;
+$orion-red: #ff7266;
 $orion-panel: rgba(18, 14, 8, 0.82);
 $orion-line: #3b3020;
 
@@ -22,11 +22,11 @@ $orion-line: #3b3020;
   font-family: 'Consolas', 'Lucida Console', monospace;
   background:
     radial-gradient(1px 1px at 12% 18%, #fff, transparent),
-    radial-gradient(1px 1px at 72% 9%, #cfe3ff, transparent),
+    radial-gradient(1px 1px at 72% 9%, #bad0ea, transparent),
     radial-gradient(1px 1px at 38% 62%, #fff, transparent),
-    radial-gradient(1px 1px at 88% 44%, #ffe9c9, transparent),
+    radial-gradient(1px 1px at 88% 44%, #e3d9b5, transparent),
     radial-gradient(1px 1px at 22% 84%, #fff, transparent),
-    radial-gradient(1px 1px at 61% 78%, #cfe3ff, transparent),
+    radial-gradient(1px 1px at 61% 78%, #bad0ea, transparent),
     radial-gradient(1.5px 1.5px at 50% 30%, #fff, transparent),
     radial-gradient(1px 1px at 5% 50%, #fff, transparent),
     radial-gradient(1px 1px at 95% 92%, #fff, transparent),
@@ -117,7 +117,7 @@ $orion-line: #3b3020;
 }
 
 .Orion__screen--over {
-  border-color: #5a2a22;
+  border-color: #5a2a25;
 }
 
 .Orion__stopName,
@@ -190,9 +190,9 @@ $orion-line: #3b3020;
 }
 
 .Orion__choice--danger {
-  border-color: #8f3a31;
+  border-color: #a34b43;
   background: transparent;
-  color: #e8836f;
+  color: #ea8378;
 
   &:hover {
     background: $orion-red;

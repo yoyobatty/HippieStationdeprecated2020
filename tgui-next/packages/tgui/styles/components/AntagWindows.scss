@@ -68,7 +68,7 @@
 
 .Tome__title {
   flex: 1;
-  color: #ff3b3b;
+  color: #ff6f63;
   font-size: 19px;
   font-style: italic;
   font-weight: bold;
@@ -78,14 +78,14 @@
 
 .Tome__scribe {
   padding: 5px 14px;
-  border: 1px solid #a01010;
-  background: #5a0000;
-  color: #ffd0d0;
+  border: 1px solid #b52b27;
+  background: #5a0004;
+  color: #ebbdb7;
   cursor: pointer;
   font-weight: bold;
 
   &:hover {
-    background: #8a0000;
+    background: #8a0009;
   }
 }
 
@@ -93,22 +93,22 @@
   flex: 0 0 auto;
   display: flex;
   padding: 0 16px;
-  border-bottom: 1px solid #5a0000;
+  border-bottom: 1px solid #5a0004;
 }
 
 .Tome__tab {
   padding: 5px 12px;
-  color: #a77;
+  color: #bd8a83;
   cursor: pointer;
 
   &:hover {
-    color: #ffd0d0;
+    color: #ebbdb7;
   }
 }
 
 .Tome__tab--on {
-  color: #ff5555;
-  border-bottom: 2px solid #ff3b3b;
+  color: #ff7266;
+  border-bottom: 2px solid #ff6f63;
 }
 
 .Tome__pages {
@@ -120,7 +120,7 @@
 
 .Tome__note {
   margin-bottom: 8px;
-  color: #a77;
+  color: #bd8a83;
   font-style: italic;
 }
 
@@ -131,15 +131,15 @@
 
 .Tome__name {
   margin-bottom: 2px;
-  color: #ff4d4d;
+  color: #ff7266;
   font-weight: bold;
 }
 
 .Tome__need {
   margin-left: 8px;
   padding: 0 6px;
-  border: 1px solid #a01010;
-  color: #ffb0b0;
+  border: 1px solid #b52b27;
+  color: #eb9e95;
   font-size: 10px;
   font-weight: normal;
   font-style: italic;
@@ -181,7 +181,7 @@
 
 .Gang__takeover {
   margin-top: 6px;
-  color: #ff5555;
+  color: #ff7266;
   font-weight: bold;
 }
 
@@ -220,13 +220,13 @@
   color: #3a2410;
   font-family: Georgia, 'Times New Roman', serif;
   background:
-    radial-gradient(ellipse at center, #f4e4bc 40%, #e0c48a 100%);
+    radial-gradient(ellipse at center, #ddd2a9 40%, #e2d193 100%);
   box-shadow: inset 0 0 40px rgba(110, 70, 20, 0.5);
 }
 
 .Arcane__title {
   margin-bottom: 8px;
-  color: #5a1f6e;
+  color: #5d1d6a;
   font-size: 20px;
   font-weight: bold;
   text-align: center;
@@ -239,7 +239,7 @@
 }
 
 .Arcane__waiting {
-  color: #5a1f6e;
+  color: #5d1d6a;
   font-weight: bold;
 }
 
@@ -251,12 +251,12 @@
 .Arcane__choice {
   margin-bottom: 6px;
   padding: 6px 10px;
-  border: 1px solid #b48a4a;
+  border: 1px solid #d19665;
   background: rgba(255, 255, 255, 0.35);
   cursor: pointer;
 
   &:hover {
-    border-color: #5a1f6e;
+    border-color: #5d1d6a;
     background: rgba(255, 255, 255, 0.6);
   }
 }
@@ -267,13 +267,13 @@
 }
 
 .Arcane__choiceName {
-  color: #5a1f6e;
+  color: #5d1d6a;
   font-weight: bold;
 }
 
 .Arcane__search {
   padding: 4px 8px;
-  border: 1px solid #b48a4a;
+  border: 1px solid #d19665;
   background: rgba(255, 255, 255, 0.5);
   color: #3a2410;
   font-family: inherit;
@@ -293,7 +293,7 @@
 
   &:hover {
     background: rgba(90, 31, 110, 0.15);
-    color: #5a1f6e;
+    color: #5d1d6a;
   }
 }
 
@@ -311,7 +311,7 @@
 
   h1 {
     margin: 4px 0 8px;
-    color: #ff7777;
+    color: #fb7569;
     font-size: 20px;
   }
 

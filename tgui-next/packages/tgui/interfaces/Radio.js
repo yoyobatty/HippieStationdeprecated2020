@@ -15,7 +15,7 @@ const keyLight = channel => {
   if (!channel.on) {
     return null;
   }
-  const color = channel.color || '#5ed15e';
+  const color = channel.color || '#31c35d';
   return {
     'background-color': color,
     'box-shadow': '0 0 6px ' + color,

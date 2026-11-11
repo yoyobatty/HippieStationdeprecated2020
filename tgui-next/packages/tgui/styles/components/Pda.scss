@@ -14,47 +14,47 @@
 
 .Pda--theme--nt {
   @include pda-theme(#6b7580, #3f4650, #8a949e, #e8edf2,
-    #5c9ddb, #335a85, #ffffff);
+    #6ea9ea, #436b97, #ffffff);
 }
 
 .Pda--theme--medical {
-  @include pda-theme(#eef3f5, #c3cfd6, #ffffff, #2c5f66,
-    #43c6c0, #24716e, #08201f);
+  @include pda-theme(#eef3f5, #c3cfd6, #ffffff, #3e7171,
+    #31baba, #2d7979, #08201f);
 }
 
 .Pda--theme--engineering {
-  @include pda-theme(#e9ab3e, #b06f17, #ffd27a, #3d2604,
-    #f2b134, #8a5a12, #2a1a02);
+  @include pda-theme(#e9c951, #a15906, #ead072, #402409,
+    #f1cf4a, #965c26, #2d1805);
 }
 
 .Pda--theme--security {
-  @include pda-theme(#a83232, #661818, #d65a5a, #ffe0e0,
-    #e05252, #872b2b, #ffffff);
+  @include pda-theme(#b43e37, #661815, #eb6e63, #ffe0e0,
+    #f5675b, #9b3e36, #ffffff);
 }
 
 .Pda--theme--science {
-  @include pda-theme(#9165c9, #563386, #b99ae6, #f4ecff,
-    #b388ff, #5f3f94, #1b0e33);
+  @include pda-theme(#7059bd, #4c378b, #a598e5, #f4ecff,
+    #a690ff, #6754ab, #190f34);
 }
 
 .Pda--theme--cargo {
-  @include pda-theme(#a4845a, #6a5032, #c9a877, #2b1d0c,
-    #d6a45c, #7c5a2c, #241703);
+  @include pda-theme(#bd9371, #7f5f45, #d0c188, #2d1c0e,
+    #d6945c, #8d613c, #271505);
 }
 
 .Pda--theme--captain {
-  @include pda-theme(#3d4f82, #1f2a52, #d4af37, #f3d77a,
-    #e6c35c, #3b4c80, #241b00);
+  @include pda-theme(#3b6593, #0c2e51, #e3c44f, #ead073,
+    #ecd067, #386291, #231b00);
 }
 
 .Pda--theme--syndicate {
-  @include pda-theme(#2e2e2e, #121212, #b52a2a, #e04848,
-    #d23a3a, #6e1f1f, #ffffff);
+  @include pda-theme(#2e2e2e, #121212, #bc322d, #cb332e,
+    #c12826, #6e201b, #ffffff);
 }
 
 .Pda--theme--clown {
-  @include pda-theme(#ff8ccf, #e0509f, #ffe066, #6a0f45,
-    #ffd84a, #c2347e, #4a2a00);
+  @include pda-theme(#ee78b1, #f663af, #f0cf54, #6a0f44,
+    #f3ce3d, #b62978, #4c2804);
   font-family: 'Comic Sans MS', 'Comic Sans', 'Chalkboard SE', cursive;
 }
 
@@ -113,13 +113,13 @@
   height: 8px;
   margin-left: 38px;
   border-radius: 50%;
-  background-color: #3ddc5a;
-  box-shadow: 0 0 5px #3ddc5a, inset 0 -1px 1px rgba(0, 0, 0, 0.4);
+  background-color: #00c855;
+  box-shadow: 0 0 5px #00c855, inset 0 -1px 1px rgba(0, 0, 0, 0.4);
 }
 
 .Pda__led--mail {
-  background-color: #ffb52e;
-  box-shadow: 0 0 7px #ffb52e;
+  background-color: #fb9633;
+  box-shadow: 0 0 7px #fb9633;
   animation: Pda-blink 1.2s steps(1) infinite;
 }
 
@@ -230,7 +230,7 @@
   position: absolute;
   left: 3px;
   top: -5px;
-  color: #ff5a5a;
+  color: #ff7266;
   font-weight: bold;
   font-size: 13px;
 }
@@ -298,8 +298,8 @@
   font-weight: bold;
   letter-spacing: 0.1em;
   text-align: center;
-  background: linear-gradient(90deg, #ffd84a, #ff8ccf, #ffd84a) !important;
-  color: #6a0f45 !important;
+  background: linear-gradient(90deg, #f3ce3d, #ee78b1, #f3ce3d) !important;
+  color: #6a0f44 !important;
   border-radius: 20px !important;
 
   &:hover {
