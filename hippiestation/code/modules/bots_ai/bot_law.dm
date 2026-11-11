@@ -187,7 +187,117 @@ GLOBAL_VAR(bot_in_command)
 	if(bot_fighters_against(owner) >= BOT_MOBBED_BY)
 		return TRUE
 	var/datum/bot_wanted/W = bot_get_wanted_entry(foe)
-	return W?.severity >= BOT_CRIME_MURDER
+	return W && (W.kill_on_sight || W.severity >= BOT_CRIME_MURDER)
+
+// ---------------------------------------------------------------------------------------------
+// Kill on sight, and orders from those in charge
+// ---------------------------------------------------------------------------------------------
+// The user's ruling (2026-11-10): somebody who's tried to kill, killed, flooded plasma and the like is a confirmed antagonist, the same
+// as a nanosuit. They're treated mercilessly, and the radio's told they're to be killed on sight, unless somebody senior says otherwise:
+// the Captain, then the Head of Security or the Head of Personnel, then Security. In the user's round the Captain killed twenty of the
+// crew, and Security, then everybody else, came at him with stun batons and tasers to the end.
+
+/// Somebody an order was about (REF) -> when a bot last acknowledged one about them, so one does and not all of Security
+GLOBAL_LIST_EMPTY(bot_order_acked)
+
+/// How senior somebody is when it comes to who's to be killed: the Captain 3, the HoS or HoP 2, Security 1, anybody else 0
+/proc/bot_authority_rank(mob/living/carbon/human/H)
+	var/role = H?.mind?.assigned_role
+	if(role == "Captain")
+		return 3
+	if(role == "Head of Security" || role == "Head of Personnel")
+		return 2
+	if(role in GLOB.security_positions)
+		return 1
+	return 0
+
+/// Said on the radio by Security, or whoever filed it if there's nobody in Security up to: they're to be killed on sight.
+/proc/bot_call_kill_on_sight(mob/living/carbon/human/H, datum/bot_wanted/W, datum/bot_brain/filer)
+	var/datum/bot_brain/caller_brain
+	for(var/datum/bot_brain/B as anything in GLOB.bot_security_brains)
+		if(QDELETED(B.owner) || B.owner.stat != CONSCIOUS || B.owner == H || (filer?.gym_run && get_area(B.owner) != get_area(filer.owner)))
+			continue
+		caller_brain = B
+		break
+	caller_brain = caller_brain || filer
+	if(!caller_brain || QDELETED(caller_brain.owner) || caller_brain.owner.stat != CONSCIOUS || caller_brain.owner == H)
+		return
+	log_game("BOT LAW: [H.real_name] called kill on sight for [W.crime] by [caller_brain.owner.real_name]")
+	bot_log(caller_brain, "calling [H] kill on sight for [W.crime]")
+	bot_say(caller_brain.owner, pick(";[H.name] is wanted for [lowertext(W.crime)]. Kill on sight.", ";All crew: [H.name], [lowertext(W.crime)]. Lethal force authorised, kill on sight.", ";[H.name]'s a confirmed hostile, [lowertext(W.crime)]. Shoot to kill."))
+
+/// Somebody in charge, not a bot, on who's to be arrested, let go, spared or killed. TRUE if it was one of those.
+/datum/bot_brain/proc/heard_command_order(mob/living/carbon/human/talker, lower_msg, radio_freq)
+	var/rank = bot_authority_rank(talker)
+	if(!rank || bot_is_fair_game(talker) || (!radio_freq && get_dist(owner, talker) > 7))
+		return FALSE //a Captain who's turned killer doesn't get to call anything off
+	var/msg = replacetext(lower_msg, "&#39;", "'")
+	var/order
+	if((findtext(msg, "alive") && bot_text_has_any(msg, list("take", "bring", "want", "keep"))) || bot_text_has_any(msg, list("don't kill", "dont kill", "do not kill", "no lethals", "don't shoot", "dont shoot")))
+		order = "spare"
+	else if(bot_text_has_any(msg, list("kill on sight", "shoot to kill", "kill him", "kill her", "kill them", "execute", "lethal")))
+		order = "kill"
+	else if(bot_text_has_any(msg, list("release", "let him go", "let her go", "let them go", "free him", "free her", "uncuff")))
+		order = "release"
+	else if(bot_text_has_any(msg, list("arrest", "detain", "cuff him", "cuff her", "cuff them", "brig him", "brig her", "brig them")))
+		order = "arrest"
+	if(!order)
+		return FALSE
+	var/mob/living/carbon/human/H = bot_person_named(msg, talker, list(talker, owner))
+	if(!H || H.stat == DEAD)
+		return FALSE
+	var/datum/bot_wanted/W = bot_get_wanted_entry(H)
+	var/first = world.time >= (GLOB.bot_order_acked[REF(H)] || -1000) + 3 SECONDS && is_security_job()
+	switch(order)
+		if("spare", "kill")
+			if(!W || rank < W.kos_rank)
+				if(first && order == "kill")
+					GLOB.bot_order_acked[REF(H)] = world.time
+					say_after_typing((radio_freq ? ";" : "") +pick("[H.name]'s not wanted for anything, sir. Nobody's killing them on my say.", "On what charge? [H.name]'s not wanted.", "Negative, [H.name]'s done nothing that calls for it."))
+				return TRUE
+			// An execution is checked (the user's ruling): only somebody wanted for something that warrants it
+			if(order == "kill" && !(W.crime in GLOB.bot_antag_crimes) && W.severity < BOT_CRIME_MURDER && !bot_in_nanosuit(H))
+				if(first)
+					GLOB.bot_order_acked[REF(H)] = world.time
+					say_after_typing((radio_freq ? ";" : "") +pick("[H.name]'s in for [lowertext(W.crime)], sir. That's not a killing matter.", "Not for [lowertext(W.crime)]. They'll do their time."))
+				return TRUE
+			var/kill = order == "kill"
+			if(W.kos_rank == rank && W.kill_on_sight == kill)
+				return TRUE //heard it already
+			W.kos_rank = rank
+			W.kill_on_sight = kill
+			log_game("BOT LAW: [talker.real_name] ordered [H.real_name] [kill ? "killed on sight" : "taken alive"]")
+			if(first)
+				GLOB.bot_order_acked[REF(H)] = world.time
+				say_after_typing((radio_freq ? ";" : "") +(kill ? pick("Copy. [H.name], kill on sight.", "Understood, lethal on [H.name].") : pick("Copy. [H.name] taken alive.", "Understood, no lethals on [H.name].")))
+			return TRUE
+		if("arrest")
+			if(!is_security_job() || (W && W.severity >= BOT_CRIME_MAJOR))
+				return TRUE
+			file_crime(H, "Detained on [talker.mind.assigned_role]'s Orders", "Ordered by [talker.real_name].", BOT_CRIME_MAJOR)
+			if(first)
+				GLOB.bot_order_acked[REF(H)] = world.time
+				say_after_typing((radio_freq ? ";" : "") +pick("Copy, bringing [H.name] in.", "On it. [H.name]'s getting arrested."))
+			begin_arrest(H)
+			return TRUE
+		if("release")
+			if(!is_security_job() || !W)
+				return TRUE
+			bot_clear_wanted(H)
+			bot_set_criminal_status(H, "Discharged")
+			for(var/obj/machinery/door_timer/T as anything in GLOB.bot_brig_sentences)
+				var/datum/weakref/ref = GLOB.bot_brig_sentences[T]
+				if(!QDELETED(T) && T.timing && ref?.resolve() == H)
+					T.timer_end(TRUE)
+			if(H.handcuffed && owner.Adjacent(H))
+				H.uncuff()
+			if(arrest_suspect == H)
+				end_arrest("released on orders")
+			if(first)
+				GLOB.bot_order_acked[REF(H)] = world.time
+				say_after_typing((radio_freq ? ";" : "") +pick("Copy, [H.name]'s free to go.", "Understood. Releasing [H.name]."))
+			return TRUE
+	return FALSE
 
 // ---------------------------------------------------------------------------------------------
 // Capital cases

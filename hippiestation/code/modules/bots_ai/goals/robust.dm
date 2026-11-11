@@ -784,6 +784,10 @@ GLOBAL_VAR_INIT(bot_dead_crew_counted_at, -100)
 	if(!heard)
 		return
 	heard.file_crime(H, "Possession of Dangerous Equipment", "The Syndicate announced it to the whole station: [H.real_name], in a nanosuit.", BOT_CRIME_MAJOR)
+	var/datum/bot_wanted/W = bot_get_wanted_entry(H)
+	if(W && !W.kill_on_sight && !W.kos_rank) //a confirmed antagonist (bot_law.dm)
+		W.kill_on_sight = TRUE
+		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_call_kill_on_sight), H, W, heard), 3 SECONDS)
 	bot_dispatch_security(get_turf(H), H.real_name) //goals/security_tactics.dm
 	bot_say(heard.owner, pick(";[H.real_name] has a nanosuit on, you all heard that. Watch yourselves.", ";Did everybody hear that? [H.real_name], [get_area_name(H, TRUE)]. Security, get on it.", ";That's [H.real_name] in a Syndicate suit. They're armed and dangerous."))
 
@@ -824,7 +828,9 @@ GLOBAL_LIST_INIT(bot_confession_words, list(
 	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
 		if(gym_run && get_area(H) != get_area(owner))
 			continue
-		if(H.stat != DEAD && (H.mind?.assigned_role in GLOB.command_positions))
+		// A head who's turned killer isn't anybody to wait on: the Captain killed twenty of the crew and nobody called the shuttle,
+		// because the Captain was still standing (2026-11-10)
+		if(H.stat != DEAD && (H.mind?.assigned_role in GLOB.command_positions) && !bot_is_fair_game(H))
 			return TRUE
 	return FALSE
 
@@ -877,6 +883,11 @@ GLOBAL_LIST_INIT(bot_confession_words, list(
 	if(bot_head_card_in(bot.owner.wear_id) || bot_head_card_in(bot.owner.get_active_held_item()) || bot_head_card_in(bot.owner.get_inactive_held_item()))
 		return bot.call_shuttle_for(reason)
 	var/atom/card = bot.find_head_card()
+	// No card on a body or the floor, and people dying: the Captain's spare, out of the Captain's Office, whatever's in the way (the
+	// user's ruling, 2026-11-10: "they know a captain is rogue so they need to take it into their own hands")
+	if(!card && bot_shift_gone_bad() && !bot.gym_run && bot.assign_goal(new /datum/bot_goal/acquire_captains_id()))
+		bot_say(bot.owner, pick(";Nobody's calling the shuttle, so I'm getting the spare ID out of the Captain's office.", ";Getting the Captain's spare. Somebody has to call that shuttle."))
+		return TRUE
 	if(!card)
 		bot.shuttle_console_down(reason, ";There's nobody left in command and no ID to be had. Central Command, we need that shuttle.")
 		return FALSE

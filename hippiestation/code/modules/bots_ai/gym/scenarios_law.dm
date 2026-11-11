@@ -872,3 +872,108 @@
 	canister = new /obj/machinery/portable_atmospherics/canister/air(first_marker("k"))
 	place("k", canister)
 	canister.air_contents.temperature = 600
+
+// The user's rulings after their Captain round (2026-11-10): somebody who tries to kill is a confirmed antagonist, called kill on sight on
+// the radio, unless somebody senior says otherwise; the Captain's "arrest X" and "release X" are followed, and "execute X" is checked.
+
+/datum/bot_scenario/command_order
+	job = "Security Officer"
+	kit_backpack = list(/obj/item/restraints/handcuffs)
+	layout = list(
+		"##########",
+		"#B..C..M.#",
+		"##########")
+	time_limit = 15 SECONDS
+	var/mob/living/carbon/human/captain
+	var/mob/living/carbon/human/max
+
+/datum/bot_scenario/command_order/post_spawn()
+	brain.register_security()
+	captain = stand_in(first_marker("C"), "Cass Captain")
+	captain.mind_initialize()
+	captain.mind.assigned_role = "Captain"
+	max = stand_in(first_marker("M"), "Max Adeyemi")
+
+/datum/bot_scenario/command_order/make_goal()
+	return null
+
+/datum/bot_scenario/command_order/proc/captain_says(line)
+	if(result == BOT_GYM_PENDING && !QDELETED(captain))
+		log_line("captain: \"[line]\"")
+		captain.say(line)
+
+/datum/bot_scenario/command_order/release_run()
+	GLOB.bot_security_wanted -= WEAKREF(max)
+	return ..()
+
+/datum/bot_scenario/command_order/beaten_to_crit
+	name = "security: somebody who beats a crew member into crit in front of an officer is called kill on sight"
+	desc = "Max beats the Captain into crit with a toolbox in front of the officer. That's attempted murder, a confirmed antagonist: the officer puts it on the radio that Max is to be killed on sight."
+
+/datum/bot_scenario/command_order/beaten_to_crit/post_spawn()
+	..()
+	max.put_in_hands(new /obj/item/storage/toolbox/mechanical(max))
+	addtimer(CALLBACK(src, PROC_REF(beat)), 2 SECONDS)
+
+/datum/bot_scenario/command_order/beaten_to_crit/proc/beat()
+	captain.apply_damage(130, BRUTE, BODY_ZONE_CHEST)
+	var/obj/item/storage/toolbox/T = locate() in max.held_items
+	log_combat(max, captain, "attacked", T)
+
+/datum/bot_scenario/command_order/beaten_to_crit/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/datum/bot_wanted/W = bot_get_wanted_entry(max)
+	if(W && ("kill_on_sight" in W.vars) && W.vars["kill_on_sight"] && bot_transcript_said("kill on sight"))
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/command_order/take_alive
+	name = "security: the Captain says to take a kill-on-sight suspect alive, and that's that"
+	desc = "Max is wanted for murder, which is kill on sight. The Captain says \"take Max alive\". The officer acknowledges it, and Max isn't kill on sight any more."
+
+/datum/bot_scenario/command_order/take_alive/post_spawn()
+	..()
+	brain.file_crime(max, "Murder", "Gym.", BOT_CRIME_MURDER)
+	addtimer(CALLBACK(src, PROC_REF(captain_says), "Take Max alive!"), 2 SECONDS)
+
+/datum/bot_scenario/command_order/take_alive/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/datum/bot_wanted/W = bot_get_wanted_entry(max)
+	if(!W || !("kill_on_sight" in W.vars))
+		fail_reason = "no kill on sight to call off"
+		return BOT_GYM_FAIL
+	return (!W.vars["kill_on_sight"] && world.time > start_time + 4 SECONDS) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/command_order/execute_checked
+	name = "security: the Captain orders somebody in for theft executed, and the officer won't"
+	desc = "Max is wanted for theft. The Captain says \"execute Max\". The officer pushes back: theft isn't a killing matter. Max isn't made kill on sight."
+
+/datum/bot_scenario/command_order/execute_checked/post_spawn()
+	..()
+	brain.file_crime(max, "Theft", "Gym.", BOT_CRIME_MINOR)
+	addtimer(CALLBACK(src, PROC_REF(captain_says), "Execute Max."), 2 SECONDS)
+
+/datum/bot_scenario/command_order/execute_checked/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/datum/bot_wanted/W = bot_get_wanted_entry(max)
+	if(W && ("kill_on_sight" in W.vars) && W.vars["kill_on_sight"])
+		fail_reason = "made them kill on sight for theft"
+		return BOT_GYM_FAIL
+	return bot_transcript_said("killing matter") || bot_transcript_said("do their time") ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/command_order/arrest
+	name = "security: the Captain says \"arrest Max\", and the officer does"
+	desc = "Max hasn't done anything Security knows of. The Captain tells the officer to arrest Max. It goes and cuffs Max."
+	time_limit = 25 SECONDS
+
+/datum/bot_scenario/command_order/arrest/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(captain_says), "Arrest Max."), 2 SECONDS)
+
+/datum/bot_scenario/command_order/arrest/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return max.handcuffed ? BOT_GYM_PASS : BOT_GYM_PENDING

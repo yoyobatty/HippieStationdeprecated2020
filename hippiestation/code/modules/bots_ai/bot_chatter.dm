@@ -163,6 +163,9 @@ GLOBAL_LIST_INIT(bot_you_words, list("you", "ya", "u", "your", "you're", "youre"
 	var/lower_msg = lowertext(raw_message)
 	if(heard_confession(talker, lower_msg, radio_freq)) //goals/robust.dm
 		return
+	// bot_law.dm: the Captain, a head or Security saying who's to be arrested, let go, spared or killed
+	if(istype(crewmate) && heard_command_order(crewmate, lower_msg, radio_freq))
+		return
 	// bot_asks.dm: somebody it's arresting talking back, and somebody pointing Security at somebody.
 	if(istype(crewmate) && bot_heard_plea(crewmate, lower_msg))
 		return
@@ -193,6 +196,8 @@ GLOBAL_LIST_INIT(bot_you_words, list("you", "ya", "u", "your", "you're", "youre"
 	if(!addressed && answer_whereabouts(talker, lower_msg, radio_freq)) //"where's Max?" to everybody, by somebody who can see them
 		return
 	if(answer_where_to_get(talker, lower_msg, radio_freq)) //"anyone seen a crowbar?" (bot_knowledge.dm)
+		return
+	if(answer_massacre_question(talker, lower_msg, radio_freq)) //"who's killing everyone?", "who's alive?" (goals/massacre.dm)
 		return
 	// Somebody dead is news for whoever's in earshot, not just who it's said to: the first one near enough takes it up (bot_talk_more.dm).
 	if(!addressed && !radio_freq && get_dist(owner, talker) <= 7 && bot_is_death_news(lower_msg) && world.time >= GLOB.bot_death_news_taken + 5 SECONDS)

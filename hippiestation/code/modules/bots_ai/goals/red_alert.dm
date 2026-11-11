@@ -103,6 +103,25 @@ GLOBAL_LIST_INIT(bot_red_alert_heads, list("Head of Security", "Captain", "Head 
 	. = bot_plan_red_alert(bot)
 	GLOB.bot_red_alert_planning_until = 0
 
+/// When a head last asked a player head on the radio to come and swipe for red alert
+GLOBAL_VAR_INIT(bot_red_alert_asked_player_at, -10000)
+
+/// No other head bot to make it with, but a player head about (not one who's turned killer): it's asked on the radio, as a player HoS would.
+/// The user, as Captain, set the alert to green with three nanosuits loose, and the Head of Security never said a word (2026-11-10).
+/proc/bot_ask_player_head_for_red(datum/bot_brain/bot)
+	if(bot.gym_run || world.time < GLOB.bot_red_alert_asked_player_at + 3 MINUTES)
+		return
+	for(var/mob/living/carbon/human/H in GLOB.player_list)
+		if(H.bot_brain || H.stat != CONSCIOUS || H.z != bot.owner.z || !(H.mind?.assigned_role in GLOB.bot_red_alert_heads) || bot_is_fair_game(H))
+			continue
+		var/obj/machinery/keycard_auth/mine = bot.nearest_keycard_device()
+		if(!mine)
+			return
+		GLOB.bot_red_alert_asked_player_at = world.time
+		bot_log(bot, "asking [H] to come and swipe for red alert")
+		bot_say(bot.owner, pick(";[H.mind.assigned_role], we need red alert. Get to a keycard device, I'm at the one in [get_area_name(mine, TRUE)].", ";[H.first_name()], red alert, now. Swipe at a keycard device when I call it from [get_area_name(mine, TRUE)]."))
+		return
+
 /// The plan itself: the most senior free head calls it with the nearest other, each at a device. TRUE if both have set off.
 /proc/bot_plan_red_alert(datum/bot_brain/bot)
 	// The most senior head who's free calls it; anybody junior to one who could leaves it to them.
@@ -121,6 +140,7 @@ GLOBAL_LIST_INIT(bot_red_alert_heads, list("Head of Security", "Captain", "Head 
 			partner = B
 			partner_dist = dist
 	if(!partner)
+		bot_ask_player_head_for_red(bot)
 		return FALSE
 	var/obj/machinery/keycard_auth/mine = bot.nearest_keycard_device()
 	var/obj/machinery/keycard_auth/theirs = mine && partner.nearest_keycard_device(mine)

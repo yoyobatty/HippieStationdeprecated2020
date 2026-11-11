@@ -415,3 +415,63 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return bot_transcript_said("called for a medical") ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// The user's Captain round (2026-11-10): twenty killed, and "who's alive?" and "who's killing everyone?" on Common got no answer.
+
+/// Three bodies, all last hurt by the visitor
+/datum/bot_scenario/chat/massacre
+	layout = list(
+		"##########",
+		"#B.C..123#",
+		"##########")
+
+/datum/bot_scenario/chat/massacre/post_spawn()
+	..()
+	visitor.mind_initialize()
+	visitor.mind.assigned_role = "Captain"
+	for(var/n in 1 to 3)
+		var/mob/living/carbon/human/body = stand_in(first_marker("[n]"), "Body [n]")
+		body.mind_initialize()
+		body.mind.assigned_role = "Assistant"
+		body.last_assailant = visitor.real_name
+		body.death()
+	if("bot_body_counts_at" in GLOB.vars) //by name: a build without the fix has no such thing
+		GLOB.vars["bot_body_counts_at"] = 0
+
+/datum/bot_scenario/chat/massacre/killer_asks
+	name = "chat: the killer asks who's killing everyone, and is told \"you are\""
+	desc = "Three bodies lie in the room, all last hurt by the visitor, who asks \"who's killing everyone?\". The bot tells them it's them."
+
+/datum/bot_scenario/chat/massacre/killer_asks/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "who's killing everyone?"), 2 SECONDS)
+
+/datum/bot_scenario/chat/massacre/killer_asks/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/line in spoken())
+		var/lower = lowertext(line)
+		if(findtext(lower, "you"))
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/chat/who_alive
+	name = "chat: asked \"who's alive?\", it says it is, and where"
+	desc = "A crew member asks \"who's alive?\". The bot answers that it is, and where it is."
+	layout = list(
+		"#######",
+		"#B.C..#",
+		"#######")
+
+/datum/bot_scenario/chat/who_alive/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "who's alive?"), 2 SECONDS)
+
+/datum/bot_scenario/chat/who_alive/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/where = lowertext(get_area_name(bot, TRUE))
+	for(var/line in spoken())
+		if(findtext(lowertext(line), where))
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING

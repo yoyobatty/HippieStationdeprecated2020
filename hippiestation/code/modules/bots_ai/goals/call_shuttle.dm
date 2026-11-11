@@ -150,6 +150,11 @@ GLOBAL_LIST_INIT(bot_shuttle_called_lines, list(
 
 /datum/bot_goal/call_shuttle/resolve_target(datum/bot_brain/bot)
 	target = bot.find_comms_console()
+	// No way to a console by its own doors and people dying: it gets in however it can. The Chief Engineer had "no path" to the console
+	// in the Captain's Office while the Captain killed the crew, gave up, and nobody else tried (2026-11-10).
+	if(target && bot_shift_gone_bad() && !bot.has_way_to(target))
+		lawful = FALSE
+		bot_log(bot, "no way to [target] by my own doors - breaking in")
 
 /datum/bot_goal/call_shuttle/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/call_shuttle/S = new

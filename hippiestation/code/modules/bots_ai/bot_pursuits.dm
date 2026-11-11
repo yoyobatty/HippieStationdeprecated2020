@@ -85,7 +85,9 @@ GLOBAL_LIST_INIT(bot_pursuit_lines, list(
 ))
 
 /datum/bot_brain/proc/mention_pursuit()
-	var/list/lines = GLOB.bot_pursuit_lines[pursuit]
+	// With the bodies piling up nobody's asking who's up for arcade: a CE asked where the killer was last, and forty seconds later
+	// "Bored. Anyone up for some arcade?" (2026-11-10)
+	var/list/lines = GLOB.bot_pursuit_lines[bot_shift_gone_bad() && !gym_run ? BOT_PURSUIT_CAREFUL : pursuit]
 	if(!length(lines) || world.time < next_pursuit_mention || owner.stat != CONSCIOUS || gone_loud() || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST)
 		return
 	next_pursuit_mention = world.time + rand(6 MINUTES, 14 MINUTES)

@@ -78,6 +78,10 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	/// What they did, as it went on the record, and who to: what an officer tells them, and weighs what they say against (bot_asks.dm).
 	var/details
 	var/datum/weakref/victim
+	/// Called out on the radio as one to kill on sight (bot_law.dm bot_call_kill_on_sight()), and how senior whoever last said
+	/// otherwise, or said it again, was (bot_authority_rank()): 0 is Security's own call.
+	var/kill_on_sight = FALSE
+	var/kos_rank = 0
 
 /datum/bot_brain
 	/// When it'll next say on the radio that the cells are full
@@ -144,7 +148,7 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 GLOBAL_VAR_INIT(bot_cells_full_shouted, 0)
 
 /// What makes somebody a confirmed antagonist on the record: killing, wrecking the station, owning up to the Syndicate.
-GLOBAL_LIST_INIT(bot_antag_crimes, list("Murder", "Sabotage", "Subversion of the Chain of Command"))
+GLOBAL_LIST_INIT(bot_antag_crimes, list("Murder", "Attempted Murder", "Sabotage", "Subversion of the Chain of Command"))
 
 /// A confirmed antagonist: in a nanosuit, or wanted for one of bot_antag_crimes. Fighting them is no crime, and killing them isn't either.
 /// The user's ruling (2026-11-10): "Known valids and antags killers are always innocent". In their round an officer cuffed a nanosuit,
@@ -174,6 +178,10 @@ GLOBAL_LIST_INIT(bot_antag_crimes, list("Murder", "Sabotage", "Subversion of the
 	W.last_seen = get_turf(H)
 	W.last_seen_at = world.time
 	bot_news("Security's after [H.real_name] for [lowertext(crime)]", H)
+	// A confirmed antagonist: to be killed on sight, and the radio told so, unless somebody senior has already said otherwise (bot_law.dm)
+	if(!W.kill_on_sight && !W.kos_rank && (W.crime in GLOB.bot_antag_crimes))
+		W.kill_on_sight = TRUE
+		bot_call_kill_on_sight(H, W, src)
 
 	var/datum/data/record/R = bot_find_security_record(H)
 	if(!R)
@@ -367,6 +375,9 @@ GLOBAL_LIST_INIT(bot_antag_crimes, list("Murder", "Sabotage", "Subversion of the
 		return list("Murder", BOT_CRIME_MURDER, "Killed [victim.real_name] in [where].")
 	if(findtext(lower, "handcuffed"))
 		return list("Kidnapping", BOT_CRIME_MAJOR, "Restrained [victim.real_name] without authority in [where].")
+	// Beaten into crit, somebody who wasn't fair game: that's a confirmed antagonist as the user has it (2026-11-10)
+	if(victim.health <= victim.crit_threshold)
+		return list("Attempted Murder", BOT_CRIME_MAJOR, "Left [victim.real_name] dying in [where].")
 	if(victim.mind?.assigned_role in GLOB.security_positions)
 		return list("Assaulting an Officer", BOT_CRIME_MAJOR, "Attacked [victim.real_name] ([what_done]) in [where].")
 	if(weapon_force >= 10)
