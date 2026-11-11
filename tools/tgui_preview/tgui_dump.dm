@@ -122,6 +122,7 @@ GLOBAL_DATUM(tgui_dump, /datum/tgui_dump)
 				L.forceMove(get_turf(O))
 			var/before = opened
 			try
+				usr = L
 				O.ui_interact(L)
 			catch(var/exception/e)
 				errors++
@@ -132,5 +133,37 @@ GLOBAL_DATUM(tgui_dump, /datum/tgui_dump)
 			SStgui.close_uis(O)
 		CHECK_TICK
 	lines += "[opened] windows opened, [errors] errors, [length(written)] interface/viewer pairs written"
+	click_sweep(targets, A, R)
+
+/// The AI's and a cyborg's clicks on one of everything: the plain click (attack_ai(), attack_robot()) and the AI's and the cyborg's
+/// shortcuts (Ctrl: bolts and power, Alt: shocks and grilles, Shift: doors). Anything that runtimes is listed. Run after the windows,
+/// since these change the station (doors bolted, machines switched off).
+/datum/tgui_dump/proc/click_sweep(list/targets, mob/living/silicon/ai/A, mob/living/silicon/robot/R)
+	var/swept = 0
+	var/before_errors = errors
+	for(var/obj/O as anything in targets)
+		if(QDELETED(O) || !isturf(O.loc))
+			continue
+		current_type = O.type
+		swept++
+		if(!QDELETED(R))
+			R.forceMove(get_turf(O))
+		var/list/clicks = list(
+			list("ai", "attack_ai", A), list("ai", "AICtrlClick", A), list("ai", "AIAltClick", A), list("ai", "AIShiftClick", A), list("ai", "AICtrlShiftClick", A),
+			list("cyborg", "attack_robot", R), list("cyborg", "BorgCtrlClick", R), list("cyborg", "BorgAltClick", R))
+		for(var/list/click in clicks)
+			var/mob/living/L = click[3]
+			if(QDELETED(L) || QDELETED(O))
+				continue
+			who = click[1]
+			try
+				usr = L //a real click sets it, and plenty of click code reads it
+				call(O, click[2])(L)
+			catch(var/exception/e)
+				errors++
+				lines += "ERROR [O.type] as [who]: [click[2]]: [e] at [e.file]:[e.line]"
+		SStgui.close_uis(O)
+		CHECK_TICK
+	lines += "click sweep: [swept] object types, [errors - before_errors] errors"
 
 #undef TGUI_DUMP_DIR

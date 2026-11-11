@@ -87,6 +87,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/objects/items/stunbaton.dm
 ## code/game/objects/items/tools/wirecutters.dm !Should be modularized. Can be done easily.
 ## code/game/objects/obj_defense.dm
+## code/game/objects/structures/barsigns.dm
 ## code/game/objects/structures/grille.dm
 ## code/game/objects/structures/window.dm
 ## code/game/turfs/change_turf.dm

@@ -126,6 +126,8 @@
 	if(!picked_name)
 		return
 	chosen_sign = set_sign_by_name(picked_name)
+	if(!chosen_sign) // hippie -- the menu's default is the sign's own name, which isn't on the list for a hidden sign
+		return
 	SSblackbox.record_feedback("tally", "barsign_picked", 1, chosen_sign.type)
 
 /proc/get_bar_names()
