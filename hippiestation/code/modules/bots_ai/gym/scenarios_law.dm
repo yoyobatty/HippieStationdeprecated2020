@@ -1052,3 +1052,166 @@
 		fail_reason = "the record says [W?.crime || "nothing"]"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+// The user's Captain round, round-13.09.35 (2026-11-11): the Captain executed a cuffed chemist Security had for breaking into the engine
+// room. Killing anybody Security was after was filed as Murder, which made the Captain kill on sight and got them 15 minutes in a cell.
+// The rulings: a killing needs the Captain or acting captain to do it or approve it, and a Captain's only subdued for blatant griefing.
+/datum/bot_scenario/griefed/captain/execution
+	name = "law: the Captain executing a prisoner Security's after isn't arrested for it"
+	desc = "Vic is wanted for breaking into a dangerous area and cuffed. The Captain cuts him down with an energy sword in front of an officer, and hits the body once more after. That's the Captain's call to make: no record, no arrest, no kill on sight. The officer used to file Murder and call kill on sight."
+	time_limit = 25 SECONDS
+	var/obj/item/melee/transforming/energy/sword/saber/sword
+	var/died_at = 0
+
+/datum/bot_scenario/griefed/captain/execution/post_spawn()
+	..()
+	brain.register_security()
+	var/datum/bot_wanted/W = new
+	W.crime = "Breaking into a Dangerous Area"
+	W.severity = BOT_CRIME_MINOR
+	GLOB.bot_security_wanted[WEAKREF(victim)] = W
+	victim.handcuffed = new /obj/item/restraints/handcuffs(victim)
+	victim.update_handcuffed()
+
+/datum/bot_scenario/griefed/captain/execution/grief()
+	sword = griefer_holds(/obj/item/melee/transforming/energy/sword/saber/red)
+	sword.transform_weapon(griefer, TRUE)
+	keep_at_it("cut", 1 SECONDS)
+
+/datum/bot_scenario/griefed/captain/execution/proc/cut()
+	if(QDELETED(victim) || arrested())
+		return FALSE
+	griefer.forceMove(get_step(victim, WEST))
+	if(victim.stat == DEAD)
+		if(!died_at)
+			died_at = world.time
+			log_line("Vic is dead")
+		if(world.time < died_at + 6 SECONDS)
+			return TRUE
+		log_line("the Captain hits the body once more")
+		griefer_swing(sword, victim)
+		return FALSE
+	griefer_swing(sword, victim)
+	return TRUE
+
+/datum/bot_scenario/griefed/captain/execution/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(arrested())
+		var/datum/bot_wanted/W = bot_get_wanted_entry(griefer)
+		fail_reason = "went after the Captain[W ? " for [W.crime]" : ""]"
+		return BOT_GYM_FAIL
+	return died_at && world.time > died_at + 10 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// The control: the same killing by somebody who isn't the Captain is still murder.
+/datum/bot_scenario/griefed/captain/execution/by_assistant
+	name = "law: an assistant executing a prisoner Security's after is arrested for it"
+	desc = "The same as the Captain's execution, by an assistant: nobody gave them that call. The officer goes after them."
+	griefer_name = "Ash Assistant"
+	griefer_job = "Assistant"
+
+/datum/bot_scenario/griefed/captain/execution/by_assistant/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return arrested() ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// The body hit, after: in round-13.09.35 the Captain hit the chemist's body once more 8 s after he died, and the officer who saw only that
+/// filed Murder again, after the first one had heard the Captain out and dropped it.
+/datum/bot_scenario/griefed/captain/corpse
+	name = "law: hitting a body that was already dead isn't murder"
+	desc = "Vic's already dead on the floor when an assistant hits him with a toolbox three times in front of an officer. Nobody was killed: no Murder, no arrest. It used to file Murder for it."
+	griefer_name = "Ash Assistant"
+	griefer_job = "Assistant"
+	time_limit = 15 SECONDS
+
+/datum/bot_scenario/griefed/captain/corpse/post_spawn()
+	..()
+	brain.register_security()
+	victim.death()
+
+/datum/bot_scenario/griefed/captain/corpse/grief()
+	griefer_holds(/obj/item/storage/toolbox/mechanical)
+	keep_at_it("hit", 1 SECONDS)
+
+/datum/bot_scenario/griefed/captain/corpse/proc/hit()
+	if(++hits > 3 || arrested())
+		return FALSE
+	griefer.forceMove(get_step(victim, WEST))
+	griefer_swing(griefer.get_active_held_item(), victim)
+	return TRUE
+
+/datum/bot_scenario/griefed/captain/corpse/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(arrested())
+		fail_reason = "went after them for hitting a body"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 10 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// The Captain walking a prisoner off themselves. In round-13.09.35 an officer walked into the CE's office behind the Captain, who was
+/// pulling a cuffed chemist out of it, and took him off them three seconds later.
+/datum/bot_scenario/brigged/captain_has_them
+	name = "brig: an officer doesn't take a prisoner off the Captain who's walking them"
+	desc = "Pat is cuffed and wanted, and the Captain has hold of them. The officer sent to brig Pat leaves them to the Captain: it never takes hold of Pat. It used to walk up and take them."
+	layout = list(
+		"#########",
+		"#B.CK.i.#",
+		"####d####",
+		"###...###",
+		"###..l###",
+		"#########")
+	time_limit = 12 SECONDS
+	var/mob/living/carbon/human/captain
+
+/datum/bot_scenario/brigged/captain_has_them/post_spawn()
+	..()
+	captain = stand_in(first_marker("K"), "Cass Captain")
+	captain.mind_initialize()
+	captain.mind.assigned_role = "Captain"
+	captain.start_pulling(prisoner)
+	log_line("the Captain has hold of Pat: [prisoner.pulledby == captain ? "yes" : "no"]")
+
+/datum/bot_scenario/brigged/captain_has_them/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(prisoner.pulledby == bot)
+		fail_reason = "took Pat off the Captain"
+		return BOT_GYM_FAIL
+	if(prisoner.pulledby != captain)
+		fail_reason = "the Captain lost hold of Pat"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 8 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// Walked into: in round-13.09.35 the Captain, pulling a cuffed chemist, pushed at an officer stood in the doorway for three seconds.
+/datum/bot_scenario/command_order/walked_into
+	name = "security: an officer the Captain walks into steps out of the way"
+	desc = "The Captain, hand on a cuffed prisoner, walks east into the officer, who has a wall at its back (a doorway in the round), so it can't be pushed along, and on harm intent they can't swap places. The officer steps aside and the Captain gets past. It used to stand there."
+	layout = list(
+		"##########",
+		"#.....#..#",
+		"#..MCB#..#",
+		"#.....#..#",
+		"##########")
+	var/start_x = 0
+
+/datum/bot_scenario/command_order/walked_into/post_spawn()
+	..()
+	max.handcuffed = new /obj/item/restraints/handcuffs(max)
+	max.update_handcuffed()
+	captain.start_pulling(max)
+	captain.a_intent = INTENT_HARM
+	start_x = captain.x
+	addtimer(CALLBACK(src, PROC_REF(push_on)), 2 SECONDS)
+
+/datum/bot_scenario/command_order/walked_into/proc/push_on()
+	if(result != BOT_GYM_PENDING || QDELETED(captain) || captain.x > start_x)
+		return
+	step(captain, EAST)
+	addtimer(CALLBACK(src, PROC_REF(push_on)), 5)
+
+/datum/bot_scenario/command_order/walked_into/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(captain.x > start_x)
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING

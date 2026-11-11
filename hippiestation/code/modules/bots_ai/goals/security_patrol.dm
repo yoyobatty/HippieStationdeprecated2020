@@ -410,6 +410,9 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	// A confirmed antagonist is fair game, killing them included (bot_is_fair_game()).
 	if(bot_is_fair_game(victim))
 		return
+	// The Captain executing somebody wanted, or a blow to a body already dead (bot_law.dm)
+	if(bot_lawful_execution(attacker, victim) || bot_hit_a_corpse(victim))
+		return
 	// Somebody Security's already after for less is fair game too: hitting them is no crime, down or cuffed or not. Killing them still is.
 	if(bot_is_wanted(victim) && victim.stat != DEAD)
 		return
@@ -1314,6 +1317,10 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	var/cooldown = LAZYACCESS(failed_brig_targets, H)
 	if(cooldown && world.time < cooldown)
 		return FALSE
+	if(prisoner_in_lawful_hands(H)) //the Captain, a head or another officer walking them off (bot_law.dm)
+		bot_log(src, "leaving [H] to [H.pulledby], who has them")
+		LAZYSET(failed_brig_targets, H, world.time + 30 SECONDS)
+		return FALSE
 	// With the shuttle on its way there's no sentence left to serve. Locking somebody up now only leaves them behind: an officer brigged a
 	// man as another stopped that cell's timer, the door was caught half shut, and he was still in there when the shuttle left.
 	var/datum/bot_wanted/W = bot_get_wanted_entry(H)
@@ -1381,6 +1388,8 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 
 /datum/bot_goal/brig_prisoner/resolve_target(datum/bot_brain/bot)
 	if(QDELETED(prisoner) || prisoner.stat == DEAD || !prisoner.handcuffed)
+		return
+	if(bot.prisoner_in_lawful_hands(prisoner)) //taken over by the Captain, a head or another officer: theirs now (bot_law.dm)
 		return
 	var/datum/bot_case/case = bot_case_of(prisoner)
 	if(case?.verdict == BOT_VERDICT_PERMABRIG)

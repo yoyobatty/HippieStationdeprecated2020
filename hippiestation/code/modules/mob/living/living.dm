@@ -88,7 +88,14 @@
 	if (pinned_to || M.pinned_to)
 		return TRUE
 
-	return ..()
+	var/turf/they_were_at = M.loc
+	. = ..()
+	// A player who walked into a bot and didn't get past: the bot steps aside (bots_ai/bot_chatter.dm walked_into_by()). Bots get round
+	// each other on their own (bot_movement.dm).
+	var/mob/living/carbon/human/me = src
+	if(M.loc == they_were_at && ishuman(M) && istype(me) && !me.bot_brain)
+		var/mob/living/carbon/human/H = M
+		H.bot_brain?.walked_into_by(src)
 
 /mob/living/proc/update_tts_hud()
 	if (!hud_used)

@@ -150,6 +150,34 @@ GLOBAL_VAR(bot_in_command)
 /proc/bot_is_the_captain(mob/living/carbon/human/H)
 	return H?.mind?.assigned_role == "Captain"
 
+/// The Captain, or the head standing in as acting captain, putting to death somebody Security is after. The user's rulings: a killing
+/// needs the Captain or acting captain to do it or approve it, and a Captain is only subdued for blatant griefing, killing people who
+/// aren't valid. In round-13.09.35 the Captain executed a cuffed chemist wanted for breaking into the engine room, and was called kill on
+/// sight for Murder and brigged for 15 minutes.
+/proc/bot_lawful_execution(mob/living/carbon/human/killer, mob/living/carbon/human/victim)
+	if(!istype(killer) || !istype(victim) || !bot_is_wanted(victim))
+		return FALSE
+	return bot_is_the_captain(killer) || killer == bot_find_in_command()
+
+/// A blow to somebody who was already dead before it landed: no crime, and certainly not murder. The Captain hit that chemist's body
+/// once more 8 s after he died, and the officer who saw only that filed Murder again, after the first had heard him out and dropped it.
+/proc/bot_hit_a_corpse(mob/living/carbon/human/victim)
+	return victim?.stat == DEAD && victim.timeofdeath && world.time > victim.timeofdeath + 2 SECONDS
+
+/// Somebody with the authority to walk a prisoner somewhere themselves: the Captain, a head of staff, Security. An officer leaves them to
+/// it. In round-13.09.35 the Captain was pulling a cuffed chemist out of the CE's office; an officer walked into the doorway behind them,
+/// took the prisoner off them, and couldn't take him anywhere (no access out of the office).
+/proc/bot_lawful_escort(mob/living/carbon/human/H)
+	if(!istype(H) || H.stat != CONSCIOUS || H.restrained() || bot_is_wanted(H))
+		return FALSE
+	var/role = H.mind?.assigned_role
+	return (role in GLOB.command_positions) || (role in GLOB.security_positions)
+
+/// Being walked off by somebody who can (bot_lawful_escort()), not this officer
+/datum/bot_brain/proc/prisoner_in_lawful_hands(mob/living/carbon/human/H)
+	var/mob/living/carbon/human/escort = H?.pulledby
+	return escort && escort != owner && bot_lawful_escort(escort)
+
 /proc/bot_is_captains_id(obj/item/card/id/C)
 	return istype(C, /obj/item/card/id/captains_spare) || (istype(C) && C.assignment == "Captain")
 

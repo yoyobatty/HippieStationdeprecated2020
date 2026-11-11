@@ -199,6 +199,8 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 		return
 	if(bot_is_fair_game(victim) || (bot_is_wanted(victim) && victim.stat != DEAD)) //fair game, as Security sees it (bot_security_judge_combat())
 		return
+	if(bot_lawful_execution(assailant, victim) || bot_hit_a_corpse(victim)) //bot_law.dm
+		return
 	for(var/datum/bot_brain/B as anything in bot_witnesses_of(victim, list(assailant, victim)))
 		B.on_saw_violence(assailant, victim)
 

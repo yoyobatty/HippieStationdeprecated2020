@@ -186,6 +186,10 @@
 			continue
 		if((attacker.mind?.assigned_role in GLOB.security_positions) || bot_is_fair_game(victim))
 			continue
+		// Somebody Security's after already, as Security sees it (bot_security_judge_combat()): the Captain putting a disabler on a cuffed
+		// chemist who'd broken into the engine room got "Mikayla Collins is attacking Jamie Novak" and five officers sent (round-13.09.35)
+		if((bot_is_wanted(victim) && victim.stat != DEAD) || bot_lawful_execution(attacker, victim))
+			continue
 		var/their_first = GLOB.bot_recent_aggression["[REF(victim)]>[REF(attacker)]"]
 		if(their_first && their_first < GLOB.bot_recent_aggression[key])
 			continue //the other one started it: that one's call comes up under its own key

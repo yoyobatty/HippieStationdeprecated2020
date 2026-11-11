@@ -486,6 +486,24 @@ GLOBAL_LIST_INIT(bot_tool_words, list(
 	if(!QDELETED(D) && D.density && owner.Adjacent(D) && D.allowed(owner))
 		use_atom(D)
 
+/datum/bot_brain
+	/// When it last stepped aside for somebody who walked into it (walked_into_by())
+	var/last_made_way = 0
+
+/// A player walked into it and couldn't get past (living/MobBump()): out of their way, as anybody would. In round-13.09.35 the Captain,
+/// pulling a cuffed chemist out of the CE's office, pushed at an officer stood in the doorway for three seconds, and the officer never moved.
+/// Not for somebody it's fighting or arresting, nor while it's dragging something itself.
+/datum/bot_brain/proc/walked_into_by(mob/living/who)
+	if(QDELETED(owner) || owner.stat != CONSCIOUS || owner.incapacitated() || owner.buckled || owner.pulling || world.time < last_made_way + 1 SECONDS)
+		return
+	if((state == BOT_STATE_COMBAT && attacker == who) || (state == BOT_STATE_ARREST && arrest_suspect == who))
+		return
+	if(gone_loud() && !on_my_side(who)) //a traitor in the open isn't polite to the crew
+		return
+	last_made_way = world.time
+	if(step_aside_for(who) && prob(25))
+		bot_say(owner, pick("Sorry.", "Oh, sorry.", "Go ahead.", "My bad."))
+
 /// "Excuse me": a step to one side, out of their way.
 /datum/bot_brain/proc/step_aside_for(mob/living/talker)
 	var/turf/here = get_turf(owner)
