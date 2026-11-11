@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<svg xmlns="http://www.w3.org/2000/svg" version="1.0" viewBox="0 0 200 200" opacity=".085">
-  <path d="M20 50l80-36 80 36v100l-80 36-80-36z M100 30L44 55l56 25 56-25z M34 66v76l58 26V92z M108 92v76l58-26V66z" fill="#cf8a3a" fill-rule="evenodd"/>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.0" viewBox="0 0 200 200" opacity=".045">
+  <path d="M20 50l80-36 80 36v100l-80 36-80-36z M100 30L44 55l56 25 56-25z M34 66v76l58 26V92z M108 92v76l58-26V66z" fill="#e39937" fill-rule="evenodd"/>
 </svg>

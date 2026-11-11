@@ -4,7 +4,10 @@
 $color-title: #ffffff !default;
 $color-background: rgba(0, 0, 0, 0.33) !default;
 $color-shadow: rgba(0, 0, 0, 0.5) !default;
-$color-separator: colors.$primary !default;
+$color-separator: colors.$primary-line !default;
+// Cards (tg-core 6): rounded, a hairline edge and a soft drop shadow instead of the inset shadow.
+$color-edge: rgba(255, 255, 255, 0.06) !default;
+$border-radius: 4px !default;
 
 .Section {
   position: relative;
@@ -15,7 +18,9 @@ $color-separator: colors.$primary !default;
     $lightness: 10%,
     $alpha: 1);
   background-color: $color-background;
-  box-shadow: inset 0 0 5px $color-shadow;
+  border: 1px solid $color-edge;
+  border-radius: $border-radius;
+  box-shadow: 0 1px 3px $color-shadow;
   box-sizing: border-box;
 
   &:last-child {
@@ -26,7 +31,8 @@ $color-separator: colors.$primary !default;
 .Section__title {
   position: relative;
   padding: 6px;
-  border-bottom: 2px solid $color-separator;
+  border-bottom: 1px solid $color-separator;
+  border-radius: $border-radius $border-radius 0 0;
 }
 
 .Section__titleText {
@@ -60,6 +66,7 @@ $color-separator: colors.$primary !default;
 .Section--level--2,
 .Section--level--3 {
   background-color: transparent;
+  border: 0;
   box-shadow: none;
   margin-left: -6px;
   margin-right: -6px;

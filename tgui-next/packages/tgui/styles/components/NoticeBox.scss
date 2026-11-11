@@ -1,15 +1,18 @@
+@use '../colors.scss';
 @use '../functions.scss' as *;
 
-// NoticeBox
-$color-first: #bb9b68 !default;
-$color-second: #b1905d !default;
+// NoticeBox: a striped band with a coloured left edge (tg-core 6). Themes set the two stripe colours and the edge.
+$color-first: colors.$notice !default;
+$color-second: colors.$notice-alt !default;
+$color-edge: colors.$notice-edge !default;
 $color-border: #272727 !default;
+$border-radius: 3px !default;
 
 .NoticeBox {
-  // Adapt text color to background luminance to ensure high contast
+  // Near-black or white text, whichever contrasts more with the band
   $luminance: luminance($color-first);
-  $text-color: if($luminance > 0.35,
-    rgba(0, 0, 0, 1),
+  $text-color: if($luminance > 0.179,
+    rgba(17, 17, 17, 1),
     rgba(255, 255, 255, 1));
 
   padding: 4px 6px;
@@ -25,4 +28,6 @@ $color-border: #272727 !default;
     $color-first 10px,
     $color-second 10px,
     $color-second 20px);
+  border-left: 3px solid $color-edge;
+  border-radius: $border-radius;
 }

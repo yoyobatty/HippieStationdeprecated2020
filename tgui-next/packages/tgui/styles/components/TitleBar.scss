@@ -1,7 +1,7 @@
 @use 'sass:color';
 
 $color-text: rgba(255, 255, 255, 0.75) !default;
-$color-background: #363636 !default;
+$color-background: #2c343c !default;
 $color-shadow-core: #161616 !default;
 $color-shadow: rgba(0, 0, 0, 0.1) !default;
 
@@ -15,7 +15,8 @@ $color-shadow: rgba(0, 0, 0, 0.1) !default;
 
 .TitleBar__clickable {
   color: color.change($color-text, $alpha: 0.5);
-  background-color: $color-background;
+  // Transparent, so a gradient or a bright department bar runs under the close button
+  background-color: transparent;
   transition: color 250ms, background-color 250ms;
 
   &:hover {

@@ -2,38 +2,94 @@
 @use 'sass:map';
 @use 'sass:meta';
 
-// Base colors
+// oklab:begin -- written by tools/tgui_preview/oklab.py, do not edit by hand
+// Fills: one OKLab lightness and chroma for every hue (tg tgui-core 6.1.1 hues), so white text passes
+// 4.5:1 on all of them. bg() of a fill is the fill itself; fg() gives its text colour.
+$red: #ae453c !default;
+$orange: #aa4c0f !default;
+$yellow: #dbbc43 !default;
+$olive: #94aa39 !default;
+$green: #1a813a !default;
+$teal: #007c7c !default;
+$blue: #1f6db9 !default;
+$violet: #6e59b5 !default;
+$purple: #8f4d9d !default;
+$pink: #a54475 !default;
+$brown: #8f5f3d !default;
+$grey: #555555 !default;
 $black: #000000 !default;
 $white: #ffffff !default;
-$red: #db2828 !default;
-$orange: #f2711c !default;
-$yellow: #fbd608 !default;
-$olive: #b5cc18 !default;
-$green: #20b142 !default;
-$teal: #00b5ad !default;
-$blue: #2185d0 !default;
-$violet: #6435c9 !default;
-$purple: #a333c8 !default;
-$pink: #e03997 !default;
-$brown: #a5673f !default;
-$grey: #767676 !default;
 
-$primary: #4972a1 !default;
-$good: #5baa27 !default;
-$average: #f08f11 !default;
-$bad: #db2828 !default;
-$label: #7e90a7 !default;
+$primary: #40668c !default;
+$primary-line: #6697c7 !default;
+$good: #447d1c !default;
+$average: #9f5700 !default;
+$bad: #ae453c !default;
+$label: #97a7b7 !default;
+$label-fill: #495766 !default;
 
-// Background and foreground color lightness ratios
-$bg-lightness: -15% !default;
-$fg-lightness: 5% !default;
+// Text colour of each fill (fg), and the fill a hovered button takes.
+$text-of: (
+  #ae453c: #fd7468,
+  #aa4c0f: #f87d38,
+  #dbbc43: #f5ce23,
+  #94aa39: #b1cd38,
+  #1a813a: #45c165,
+  #007c7c: #00bcbc,
+  #1f6db9: #57a8ff,
+  #6e59b5: #a690ff,
+  #8f4d9d: #d37de6,
+  #a54475: #f172b1,
+  #8f5f3d: #d1966d,
+  #447d1c: #72bb44,
+  #9f5700: #ef8600,
+  #555555: #a4a4a4,
+  #495766: #97a7b7,
+);
+$hover-of: (
+  #ae453c: #c65a50,
+  #aa4c0f: #c2612c,
+  #dbbc43: #f2d25d,
+  #94aa39: #a9c151,
+  #1a813a: #36964e,
+  #007c7c: #009393,
+  #1f6db9: #3883d1,
+  #6e59b5: #826ecc,
+  #8f4d9d: #a461b3,
+  #a54475: #bd598a,
+  #8f5f3d: #a57351,
+  #447d1c: #589235,
+  #9f5700: #bb6803,
+  #555555: #696969,
+  #495766: #5c6b7a,
+  #40668c: #517ba5,
+);
+$caution: #ddbb32 !default;
+// NoticeBox: tg's tan stripes, darkened to take white text, with an amber edge.
+$notice: #614731 !default;
+$notice-alt: #563c26 !default;
+$notice-edge: #ef8600 !default;
+// oklab:end
 
+// The base colours above are fills already (bg is the colour itself). fg gives a fill's text colour; any other
+// colour (a theme's $label, say) is already a text colour.
 @function bg($color) {
-  @return color.scale($color, $lightness: $bg-lightness);
+  @return $color;
 }
 
 @function fg($color) {
-  @return color.scale($color, $lightness: $fg-lightness);
+  @if map.has-key($text-of, $color) {
+    @return map.get($text-of, $color);
+  }
+  @return $color;
+}
+
+// The fill a hovered button takes: one OKLab step lighter for the palette, the old HSL lighten for anything else.
+@function hover($color) {
+  @if map.has-key($hover-of, $color) {
+    @return map.get($hover-of, $color);
+  }
+  @return null;
 }
 
 // Mappings of color names
@@ -56,7 +112,7 @@ $_gen_map: (
   'good': $good,
   'average': $average,
   'bad': $bad,
-  'label': $label,
+  'label': $label-fill,
 );
 
 // Foreground color names for which to generate a color map

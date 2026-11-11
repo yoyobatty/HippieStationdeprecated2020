@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<svg xmlns="http://www.w3.org/2000/svg" version="1.0" viewBox="0 0 200 200" opacity=".085">
-  <path d="M100 20l12 0 6 22 16 7 20-12 17 17-12 20 7 16 22 6v24l-22 6-7 16 12 20-17 17-20-12-16 7-6 22H88l-6-22-16-7-20 12-17-17 12-20-7-16-22-6V88l22-6 7-16-12-20 17-17 20 12 16-7 6-22z M100 65a35 35 0 1 0 0.01 0z" fill="#e3a21a" fill-rule="evenodd"/>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.0" viewBox="0 0 200 200" opacity=".045">
+  <path d="M100 20l12 0 6 22 16 7 20-12 17 17-12 20 7 16 22 6v24l-22 6-7 16 12 20-17 17-20-12-16 7-6 22H88l-6-22-16-7-20 12-17-17 12-20-7-16-22-6V88l22-6 7-16-12-20 17-17 20 12 16-7 6-22z M100 65a35 35 0 1 0 0.01 0z" fill="#ecc751" fill-rule="evenodd"/>
 </svg>

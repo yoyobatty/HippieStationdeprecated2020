@@ -62,7 +62,7 @@ const Channel = props => {
         {on ? channel.powerLoad : '0 W'}
       </Box>
       <Box mb={0.5}>
-        <ProgressBar value={on ? share : 0} color="teal">
+        <ProgressBar value={on ? share : 0}>
           {Math.round((on ? share : 0) * 100)}% of the draw
         </ProgressBar>
       </Box>

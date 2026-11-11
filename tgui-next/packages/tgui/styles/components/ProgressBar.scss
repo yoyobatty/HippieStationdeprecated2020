@@ -2,8 +2,8 @@
 @use '../functions.scss' as *;
 
 $color-default: colors.bg(colors.$primary) !default;
-$color-background: rgba(0, 0, 0, 0) !default;
-$border-radius: 0 !default;
+$color-background: rgba(0, 0, 0, 0.4) !default;
+$border-radius: 3px !default;
 $bg-map: colors.$bg-map !default;
 
 .ProgressBar {
@@ -21,6 +21,7 @@ $bg-map: colors.$bg-map !default;
   top: 0;
   left: 0;
   bottom: 0;
+  border-radius: 2px;
   transition: background-color 500ms, width 500ms;
 }
 

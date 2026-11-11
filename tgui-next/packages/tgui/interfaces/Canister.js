@@ -41,8 +41,7 @@ export const Canister = props => {
           </Box>
         </Box>
         <ProgressBar
-          value={data.tankPressure / (data.maxPressure || 9000)}
-          color="teal">
+          value={data.tankPressure / (data.maxPressure || 9000)}>
           {Math.round(data.tankPressure / (data.maxPressure || 9000) * 100)}%
         </ProgressBar>
         <Box mt={1}>

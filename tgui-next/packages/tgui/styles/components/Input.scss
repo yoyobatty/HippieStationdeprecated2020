@@ -2,7 +2,7 @@
 @use '../functions.scss' as *;
 
 $border-color: #88bfff !default;
-$border-radius: base.$border-radius !default;
+$border-radius: 3px !default;
 
 .Input {
   position: relative;
