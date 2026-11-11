@@ -12,6 +12,10 @@
 /datum/bot_brain/proc/patient_needs_treatment(mob/living/carbon/human/H)
 	if(H.stat == DEAD || H.bot_executed)
 		return FALSE
+	// A traitor doctor out in the open patches up its own side and nobody else: one in a nanosuit put a bruise pack on the cook it was
+	// beating, between punches, twice (2026-11-10)
+	if(H != owner && gone_loud() && !on_my_side(H))
+		return FALSE
 	if(!H.handcuffed && (bot_is_wanted(H) || is_type_in_typecache(H.wear_suit, GLOB.bot_contraband)))
 		return FALSE //nobody patches up a nuclear operative, or anybody Security's after, until they're in cuffs: a doctor once took
 		//an operative's hardsuit off them in the middle of the bridge to get at a cut

@@ -565,6 +565,30 @@
 		return BOT_GYM_FAIL
 	return BOT_GYM_PENDING
 
+/// A traitor doctor in a nanosuit put a bruise pack on the cook it was beating, between punches (2026-11-10)
+/datum/bot_scenario/patient/loud_traitor_doctor
+	name = "doctor: a traitor doctor in a nanosuit doesn't patch up the crew"
+	desc = "The doctor is a traitor in a nanosuit, out in the open. A hurt crew member lies beside it, and it has bruise packs. It leaves them be."
+	layout = list(
+		"#########",
+		"#B.C....#",
+		"#########")
+	kit_backpack = list(/obj/item/stack/medical/bruise_pack)
+	time_limit = 10 SECONDS
+
+/datum/bot_scenario/patient/loud_traitor_doctor/post_spawn()
+	..()
+	brain.bot_traitor = TRUE
+	bot.equip_to_slot_or_del(new /obj/item/clothing/suit/space/hardsuit/nano(bot), ITEM_SLOT_OCLOTHING)
+
+/datum/bot_scenario/patient/loud_traitor_doctor/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("treating Pat Patient") || bot_transcript_said("treat_patient (target: Pat Patient"))
+		fail_reason = "went to patch up the crew in its nanosuit"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 8 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /// Two of the crew came out of the cloning pod at 60 cloning damage and went straight back to their killer. The user's ruling: into cryo.
 /datum/bot_scenario/duty/clone_to_cryo
 	name = "cloned: out of the pod with cloning damage, it gets into a cryo cell"
