@@ -565,6 +565,35 @@
 		return BOT_GYM_FAIL
 	return BOT_GYM_PENDING
 
+/// Two of the crew came out of the cloning pod at 60 cloning damage and went straight back to their killer. The user's ruling: into cryo.
+/datum/bot_scenario/duty/clone_to_cryo
+	name = "cloned: out of the pod with cloning damage, it gets into a cryo cell"
+	desc = "The bot is fresh out of the cloning pod with 60 cloning damage and its things on. A cryo cell with cryoxadone in its beaker stands across the room. It gets in."
+	job = "Station Engineer"
+	layout = list(
+		"########",
+		"#B....y#",
+		"########")
+	time_limit = 25 SECONDS
+	var/obj/machinery/atmospherics/components/unary/cryo_cell/cell
+
+/datum/bot_scenario/duty/clone_to_cryo/setup()
+	duty_type = text2path("/datum/bot_duty/clone_recovery") // by name: a build without the fix has no such duty
+	cell = new(first_marker("y"))
+	place("y", cell)
+	cell.beaker = new /obj/item/reagent_containers/glass/beaker/large(cell)
+	cell.beaker.reagents.add_reagent(/datum/reagent/medicine/cryoxadone, 50)
+
+/datum/bot_scenario/duty/clone_to_cryo/post_spawn()
+	..()
+	brain.nerve = 0.5
+	bot.adjustCloneLoss(60)
+
+/datum/bot_scenario/duty/clone_to_cryo/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return bot.loc == cell ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 /// An engineer at -0.3 climbed out of a sleeper two seconds after being given saline, to hold a traitor for Security, and suffocated.
 /datum/bot_scenario/stays_in_sleeper
 	name = "hurt: badly hurt in a sleeper, it stays put rather than getting up for a job"

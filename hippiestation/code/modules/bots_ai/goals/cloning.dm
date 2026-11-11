@@ -238,6 +238,64 @@
 /// out of it lands by the body, in reach.
 GLOBAL_LIST_INIT(bot_clone_dress_order, list(ITEM_SLOT_ICLOTHING, ITEM_SLOT_FEET, ITEM_SLOT_ID, ITEM_SLOT_BELT, ITEM_SLOT_BACK, ITEM_SLOT_OCLOTHING, ITEM_SLOT_GLOVES, ITEM_SLOT_HEAD, ITEM_SLOT_MASK, ITEM_SLOT_EYES, ITEM_SLOT_EARS, ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET))
 
+/// Out of the pod with the clone's damage on it, and its things back: into a cryo cell with something in it to mend that, until it's fit to
+/// get up (convalescing(), bot_goals.dm), and how fit that is goes by its nerve. The user's ruling (2026-11-10): "cloned bodies need their
+/// stuff back and need to go into cryo cells to fix their genetic damage after cloning". In their round two of the crew came out of the
+/// pod at 60 cloning damage and went straight back to the man who'd killed them, and died again.
+/datum/bot_duty/clone_recovery
+	name = "getting the cloning damage seen to"
+	tier = BOT_DUTY_URGENT
+	priority = 39 //just after getting its things back
+	interval_min = 10
+	interval_max = 20
+
+/datum/bot_duty/clone_recovery/applies_to(datum/bot_brain/bot)
+	return TRUE
+
+/datum/bot_duty/clone_recovery/try_start(datum/bot_brain/bot)
+	var/mob/living/carbon/human/H = bot.owner
+	if(H.getCloneLoss() < 10 || bot.old_body || istype(H.loc, /obj/machinery/atmospherics/components/unary/cryo_cell) || bot.state == BOT_STATE_COMBAT)
+		return FALSE
+	if(H.health >= H.maxHealth * clamp(0.75 - 0.6 * bot.nerve, 0.15, 0.75))
+		return FALSE //the fearless shrug it off
+	var/obj/machinery/atmospherics/components/unary/cryo_cell/C = bot.cryo_for_cloning_damage()
+	if(!C)
+		return FALSE
+	var/datum/bot_goal/clone_recovery/G = new()
+	G.cell = C
+	return bot.assign_goal(G)
+
+/// A free cryo cell with cryoxadone or clonexadone in its beaker, the nearest it can walk to
+/datum/bot_brain/proc/cryo_for_cloning_damage()
+	var/obj/machinery/atmospherics/components/unary/cryo_cell/best
+	var/best_dist
+	for(var/obj/machinery/atmospherics/components/unary/cryo_cell/C as anything in bot_instances_of(/obj/machinery/atmospherics/components/unary/cryo_cell))
+		if(QDELETED(C) || C.z != owner.z || C.occupant || (C.stat & (BROKEN|NOPOWER)) || !C.beaker)
+			continue
+		if(gym_run && get_area(C) != get_area(owner))
+			continue
+		if(!C.beaker.reagents?.has_reagent(/datum/reagent/medicine/cryoxadone) && !C.beaker.reagents?.has_reagent(/datum/reagent/medicine/clonexadone))
+			continue
+		var/dist = get_dist(owner, C)
+		if((!best || dist < best_dist) && can_walk_lawfully_to(C))
+			best = C
+			best_dist = dist
+	return best
+
+/datum/bot_goal/clone_recovery
+	doing = "getting into cryo"
+	var/obj/machinery/atmospherics/components/unary/cryo_cell/cell
+
+/datum/bot_goal/clone_recovery/resolve_target(datum/bot_brain/bot)
+	if(cell && !QDELETED(cell) && !cell.occupant)
+		target = cell
+
+/datum/bot_goal/clone_recovery/get_strategies(datum/bot_brain/bot)
+	return list(new /datum/bot_strategy/self_admit(cell)) //goals/self_heal.dm
+
+/datum/bot_goal/clone_recovery/on_success(datum/bot_brain/bot)
+	bot_log(bot, "in [cell] for the cloning damage")
+
 /datum/bot_duty/reclaim_belongings
 	name = "getting my things back"
 	tier = BOT_DUTY_URGENT

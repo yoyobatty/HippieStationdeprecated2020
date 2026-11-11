@@ -226,6 +226,10 @@
 		if(!C.state_open)
 			C.open_machine()
 		C.MouseDrop_T(bot.owner, bot.owner)
+		// cryo.dm's MouseDrop_T only takes somebody who can't stand, so a bot on its feet never got in (a clone with sixty cloning
+		// damage stood beside the cell, 2026-11-10). It climbs in and pulls the lid down itself, where a player would ask a doctor.
+		if(C.occupant != bot.owner && bot.owner.Adjacent(C))
+			C.close_machine(bot.owner)
 		if(C.occupant != bot.owner)
 			return GOAL_STEP_FAIL
 		bot_log(bot, "climbed into [C] to treat myself")
