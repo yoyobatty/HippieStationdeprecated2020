@@ -51,6 +51,20 @@ GLOBAL_VAR(mob_storm_file)
 				pile = F
 		break
 	mob_storm_log("pile at [pile.x],[pile.y],[pile.z] ([get_area(pile)]), profiler [SSprofiler.engine]")
+	if(world.params["mob-storm-scenario"] == "circuits")
+		run_circuit_storm(pile, text2num(world.params["mob-storm-seconds"]) || 60)
+		mob_storm_log("done")
+		sleep(1 SECONDS)
+		Master.Shutdown()
+		qdel(world)
+		return
+	if(world.params["mob-storm-scenario"] == "breach")
+		run_breach_storm(pile, text2num(world.params["mob-storm-seconds"]) || 60)
+		mob_storm_log("done")
+		sleep(1 SECONDS)
+		Master.Shutdown()
+		qdel(world)
+		return
 	if(world.params["mob-storm-scenario"] == "monkeys")
 		run_monkey_storm(pile, text2num(world.params["mob-storm-seconds"]) || 60)
 		mob_storm_log("done")
@@ -621,3 +635,76 @@ GLOBAL_VAR_INIT(storm_flat_icons, 0)
 		after++
 	var/busy = storm_measure_report(start, "monkey storm")
 	mob_storm_log("monkeys now [after]; TOTAL procs [round(100 * busy / seconds, 0.1)]%, worst stall [round(W.worst / 10, 0.1)] s, stalls over 0.5 s: [W.stalls]")
+
+// ---------------------------------------------------------------------------------------------
+// mob-storm-scenario=breach: mob-storm-shards (20) things a tile (glass, wrappers, rods, paper) on every floor within 6 of the spot,
+// then the 3x3 in the middle opened to space: the room vents and throws everything loose.
+// ---------------------------------------------------------------------------------------------
+
+GLOBAL_VAR_INIT(storm_pressure_moves, 0)
+
+/atom/movable/experience_pressure_difference(pressure_difference, direction, pressure_resistance_prob_delta = 0)
+	. = ..()
+	GLOB.storm_pressure_moves++
+
+/proc/run_breach_storm(turf/center, seconds)
+	var/per_tile = text2num(world.params["mob-storm-shards"]) || 20
+	var/list/kinds = list(/obj/item/shard, /obj/item/trash/candy, /obj/item/stack/rods, /obj/item/paper)
+	var/floors = 0
+	for(var/turf/open/floor/F in range(6, center))
+		floors++
+		for(var/i in 1 to per_tile)
+			var/kind = kinds[(i % length(kinds)) + 1]
+			new kind(F)
+	mob_storm_log("breach: [per_tile] things a tile on [floors] floors round [center.x],[center.y] ([get_area(center)])")
+	sleep(3 SECONDS)
+	var/datum/mob_storm_watch/W = new
+	GLOB.storm_pressure_moves = 0
+	var/list/start = storm_measure_start()
+	W.watch()
+	for(var/turf/T in range(1, center))
+		T.ChangeTurf(/turf/open/space/basic)
+	var/end = REALTIMEOFDAY + seconds * 10
+	while(REALTIMEOFDAY < end)
+		sleep(15 SECONDS)
+		var/loose = 0
+		for(var/obj/item/I in range(8, center))
+			loose++
+		mob_storm_log("at [round((REALTIMEOFDAY - start["real"]) / 10)] s: pressure pushes [GLOB.storm_pressure_moves], items still within 8 [loose]")
+	W.watching = FALSE
+	var/busy = storm_measure_report(start, "breach")
+	mob_storm_log("TOTAL procs [round(100 * busy / seconds, 0.1)]%, worst stall [round(W.worst / 10, 0.1)] s, stalls over 0.5 s: [W.stalls] adding to [round(W.stalled / 10, 0.1)] s, over 2 s: [W.big_stalls]")
+
+// ---------------------------------------------------------------------------------------------
+// mob-storm-scenario=circuits: mob-storm-speakers (30) text-to-radio circuits pulsed every tick (as a looped circuit would), each
+// as often as its own cooldown lets it, on the common channel.
+// ---------------------------------------------------------------------------------------------
+
+GLOBAL_VAR_INIT(storm_circuit_sends, 0)
+
+/obj/item/integrated_circuit/output/text_to_radio/do_work()
+	GLOB.storm_circuit_sends++
+	return ..()
+
+/proc/run_circuit_storm(turf/center, seconds)
+	var/count = text2num(world.params["mob-storm-speakers"]) || 30
+	var/list/circuits = list()
+	for(var/i in 1 to count)
+		var/obj/item/integrated_circuit/output/text_to_radio/R = new(center)
+		R.set_pin_data(IC_INPUT, 1, "circuit spam [i], the station is on fire, everyone run")
+		circuits += R
+	mob_storm_log("[count] text-to-radio circuits at [center.x],[center.y]; [length(GLOB.bot_brains)] bots listening")
+	sleep(2 SECONDS)
+	var/datum/mob_storm_watch/W = new
+	GLOB.storm_circuit_sends = 0
+	GLOB.storm_hears = 0
+	var/list/start = storm_measure_start()
+	W.watch()
+	var/end = REALTIMEOFDAY + seconds * 10
+	while(REALTIMEOFDAY < end)
+		for(var/obj/item/integrated_circuit/output/text_to_radio/R as anything in circuits)
+			R.check_then_do_work(1, TRUE)
+		sleep(world.tick_lag)
+	W.watching = FALSE
+	var/busy = storm_measure_report(start, "circuit storm")
+	mob_storm_log("broadcasts [GLOB.storm_circuit_sends], heard [GLOB.storm_hears] times; TOTAL procs [round(100 * busy / seconds, 0.1)]%, worst stall [round(W.worst / 10, 0.1)] s, stalls over 0.5 s: [W.stalls]")
