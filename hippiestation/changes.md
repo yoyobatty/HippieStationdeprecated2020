@@ -74,6 +74,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/mecha/equipment/tools/mining_tools.dm
 ## code/game/objects/effects/effect_system/effects_other.dm
 ## code/game/objects/effects/effect_system/effects_smoke.dm
+## code/game/objects/effects/portals.dm (tile engine neighbour cache, tile_engine.dm)
 ## code/game/objects/empulse.dm !Should be modularized. Can be done easily.
 ## code/game/objects/items.dm
 ## code/game/objects/items/crayons.dm
@@ -92,7 +93,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/objects/structures/window.dm
 ## code/game/turfs/change_turf.dm
 ## code/game/turfs/open.dm
-## code/game/turfs/open/space/space.dm (set_starlight() retints the camera pictures' starlight copies, map_view.dm)
+## code/game/turfs/open/space/space.dm (set_starlight() retints the camera pictures' starlight copies, map_view.dm; space put back at runtime tells the tile engine, tile_engine.dm)
 ## code/game/world.dm !Needs modularization! This stuff is crap.
 ## code/modules/admin/admin.dm
 ## code/modules/admin/admin_investigate.dm (investigate_log() writes through the log writer's thread)
@@ -121,6 +122,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/antagonists/cult/blood_magic.dm
 ## code/modules/antagonists/morph/morph.dm
 ## code/modules/asset_cache/asset_list.dm
+## code/modules/atmospherics/environmental/LINDA_fire.dm (hotspots tell the tile engine when it keeps LINDA's state, tile_engine.dm)
 ## code/modules/atmospherics/environmental/LINDA_system.dm (tile engine neighbour cache; shut doors' tiles pick their side, door_seals.dm)
 ## code/modules/atmospherics/machinery/atmosmachinery.dm
 ## code/modules/atmospherics/machinery/components/components_base.dm
@@ -147,6 +149,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/library/lib_machines.dm
 ## code/modules/library/random_books.dm
 ## code/modules/lighting/lighting_corner.dm (the tone curve in update_objects(): light past the knee eases toward full instead of being cut off at 1, see ~hippie_defines/lighting_tone.dm)
+## code/modules/mapping/map_template.dm (tile engine neighbour cache, tile_engine.dm)
 ## code/modules/mapping/space_management/space_reservation.dm
 ## code/modules/mining/equipment/survival_pod.dm !Should be modularized. Can be done easily.
 ## code/modules/mob/dead/new_player/new_player.dm

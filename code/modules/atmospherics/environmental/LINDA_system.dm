@@ -48,13 +48,13 @@
 		update_seal()
 	var/canpass = CANATMOSPASS(src, src)
 	var/canvpass = CANVERTICALATMOSPASS(src, src)
-	tile_engine_sent = 0 // hippie -- the tile engine's copy of our neighbours may be out of date (tile_engine.dm)
+	TILE_ENGINE_DIRTY(src) // hippie -- the tile engine's copy of our neighbours may be out of date (tile_engine.dm)
 	for(var/direction in GLOB.cardinals_multiz)
 		// hippie -- get_step_multiz() is just get_step() for the four flat directions; skip the extra proc call (atmos setup runs this for every open turf)
 		var/turf/T = (direction & (UP|DOWN)) ? get_step_multiz(src, direction) : get_step(src, direction)
 		if(!isopenturf(T))
 			continue
-		T.tile_engine_sent = 0 // hippie -- and so may theirs
+		TILE_ENGINE_DIRTY(T) // hippie -- and so may theirs
 		if(!(blocks_air || T.blocks_air) && ((direction & (UP|DOWN))? (canvpass && CANVERTICALATMOSPASS(T, src)) : (canpass && CANATMOSPASS(T, src))) )
 			LAZYINITLIST(atmos_adjacent_turfs)
 			LAZYINITLIST(T.atmos_adjacent_turfs)

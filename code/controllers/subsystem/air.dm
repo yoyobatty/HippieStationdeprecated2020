@@ -66,8 +66,8 @@ SUBSYSTEM_DEF(air)
 	msg += "AO:[round(cost_atoms, 1)]|"
 	msg += "RB:[round(cost_rebuilds,1)]|"
 	msg += "} "
-	msg += "AT:[active_turfs.len]|"
-	msg += "EG:[excited_groups.len]|"
+	msg += "AT:[tile_engine_awake_count()]|" // hippie -- the tile engine's, when it keeps them (tile_engine.dm)
+	msg += "EG:[tile_engine_groups_count()]|"
 	msg += "HP:[high_pressure_delta.len]|"
 	msg += "HS:[hotspots.len]|"
 	msg += "SC:[active_super_conductivity.len]|"
@@ -76,7 +76,7 @@ SUBSYSTEM_DEF(air)
 	msg += "AO:[atom_process.len]|"
 	msg += "RB:[rebuild_queue.len]|"
 	msg += "EP:[expansion_queue.len]|"
-	msg += "AT/MS:[round((cost ? active_turfs.len/cost : 0),0.1)]"
+	msg += "AT/MS:[round((cost ? tile_engine_awake_count()/cost : 0),0.1)]"
 	return ..()
 
 
@@ -403,6 +403,10 @@ SUBSYSTEM_DEF(air)
 			return
 
 /datum/controller/subsystem/air/proc/process_excited_groups(resumed = FALSE)
+	// hippie start -- the tile engine runs the excited groups itself, or checks what it would do against this (tile_engine.dm)
+	if(tile_engine_tracking && tile_engine_own_groups(resumed))
+		return
+	// hippie end
 	if (!resumed)
 		src.currentrun = excited_groups.Copy()
 	//cache for sanic speed (lists are references anyways)
@@ -418,9 +422,17 @@ SUBSYSTEM_DEF(air)
 			EG.dismantle()
 		if (MC_TICK_CHECK)
 			return
+	if(tile_engine_tracking && !tile_engine_owns) // hippie -- done: the tile engine checks DM's group breakdowns against its own (tile_engine.dm)
+		tile_engine_own_after_groups()
 
 ///Removes a turf from processing, and causes its excited group to clean up so things properly adapt to the change
 /datum/controller/subsystem/air/proc/remove_from_active(turf/open/T)
+	// hippie start -- the tile engine keeps LINDA's awake turfs (tile_engine.dm)
+	if(tile_engine_tracking && !tile_engine_quiet)
+		tile_engine_events.Add(TILE_EVENT_REMOVE, T)
+		if(tile_engine_owns)
+			return
+	// hippie end
 	active_turfs -= T
 	if(currentpart == SSAIR_ACTIVETURFS)
 		currentrun -= T
@@ -436,6 +448,12 @@ SUBSYSTEM_DEF(air)
 
 ///Puts an active turf to sleep so it doesn't process. Do this without cleaning up its excited group.
 /datum/controller/subsystem/air/proc/sleep_active_turf(turf/open/T)
+	// hippie start -- the tile engine keeps LINDA's awake turfs (tile_engine.dm)
+	if(tile_engine_tracking && !tile_engine_quiet)
+		tile_engine_events.Add(TILE_EVENT_SLEEP, T)
+		if(tile_engine_owns)
+			return
+	// hippie end
 	active_turfs -= T
 	if(currentpart == SSAIR_ACTIVETURFS)
 		currentrun -= T
@@ -449,9 +467,15 @@ SUBSYSTEM_DEF(air)
 /datum/controller/subsystem/air/proc/add_to_active(turf/open/T, blockchanges = FALSE)
 	if(istype(T) && T.air)
 		T.air_changed_at = times_fired // hippie -- wakes idle machines on it (hippiestation/code/modules/atmospherics/idle_machines.dm)
-		T.air_touched = tile_engine_air_clock // hippie -- its air changed, so the tile engine gets it again (tile_engine.dm)
+		TILE_ENGINE_TOUCH(T) // hippie -- its air changed, so the tile engine gets it again (tile_engine.dm)
 		if(T.idle_atmos_machines)
 			atmos_wake_turf(T)
+		// hippie start -- the tile engine keeps LINDA's awake turfs (tile_engine.dm)
+		if(tile_engine_tracking && !tile_engine_quiet)
+			tile_engine_events.Add(blockchanges ? TILE_EVENT_WAKE_BLOCK : TILE_EVENT_WAKE, T)
+			if(tile_engine_owns)
+				return
+		// hippie end
 		T.significant_share_ticker = 0
 		if(blockchanges && T.excited_group) //This is used almost exclusivly for shuttles, so the excited group doesn't stay behind
 			T.excited_group.garbage_collect() //Nuke it

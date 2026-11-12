@@ -32,7 +32,7 @@
 
 		active_hotspot = new /obj/effect/hotspot(src, exposed_volume*25, exposed_temperature)
 
-		active_hotspot.just_spawned = (current_cycle < SSair.times_fired)
+		active_hotspot.just_spawned = (SSair.tile_engine_turn_of(src) < SSair.times_fired) // hippie -- current_cycle, which the tile engine may keep (tile_engine.dm)
 			//remove just_spawned protection if no longer processing this cell
 		SSair.add_to_active(src)
 
@@ -69,7 +69,12 @@
 	if(!istype(location) || !(location.air))
 		return
 
-	location.active_hotspot = src
+	// hippie start -- the tile engine is told (tile_engine.dm)
+	if(location.active_hotspot != src)
+		location.active_hotspot = src
+		if(SSair.tile_engine_tracking)
+			SSair.tile_engine_events.Add(TILE_EVENT_HOTSPOT_ON, location)
+	// hippie end
 
 	bypassing = !just_spawned && (volume > CELL_VOLUME*0.95)
 
@@ -162,6 +167,8 @@
 
 	if(location.excited_group)
 		location.excited_group.reset_cooldowns()
+	if(SSair.tile_engine_tracking) // hippie -- the tile engine's group too (tile_engine.dm)
+		SSair.tile_engine_events.Add(TILE_EVENT_RESET_GROUP, location)
 
 	if((temperature < FIRE_MINIMUM_TEMPERATURE_TO_EXIST) || (volume <= 1))
 		qdel(src)
@@ -203,6 +210,8 @@
 	var/turf/open/T = loc
 	if(istype(T) && T.active_hotspot == src)
 		T.active_hotspot = null
+		if(SSair.tile_engine_tracking) // hippie -- the tile engine is told (tile_engine.dm)
+			SSair.tile_engine_events.Add(TILE_EVENT_HOTSPOT_OFF, T)
 	return ..()
 
 /obj/effect/hotspot/Crossed(atom/movable/AM, oldLoc)

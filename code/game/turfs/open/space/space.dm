@@ -111,7 +111,7 @@ GLOBAL_LIST_EMPTY(starlit_areas)
 	//This is used to optimize the map loader
 	return
 
-/turf/open/space/Initialize()
+/turf/open/space/Initialize(mapload)
 	SHOULD_CALL_PARENT(FALSE) // copies /turf/Initialize() for speed: most of every z-level is space
 	icon_state = SPACE_ICON_STATE
 	air = space_gas
@@ -143,6 +143,9 @@ GLOBAL_LIST_EMPTY(starlit_areas)
 	// ~0.3us on each of the ~675k space turfs. Space turf types override neither it nor this - if one ever needs to, drop the check.
 	if (wet)
 		ComponentInitialize()
+
+	if(!mapload && SSair.tile_engine_tracking) // hippie -- space put back in place of something else: the tile engine forgets what was here (tile_engine.dm)
+		SSair.tile_engine_events.Add(TILE_EVENT_NEW_TURF, src)
 
 	return INITIALIZE_HINT_NORMAL
 

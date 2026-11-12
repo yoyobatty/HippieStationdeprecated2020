@@ -558,7 +558,7 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 	S["turfs under 20 kPa"] = low
 	S["turfs over 100 C"] = hot
 	S["burning"] = length(SSair.hotspots)
-	S["active turfs"] = length(SSair.active_turfs)
+	S["active turfs"] = SSair.tile_engine_awake_count()
 	var/alive = 0
 	var/dead = 0
 	var/gone = 0

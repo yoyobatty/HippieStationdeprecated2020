@@ -11,8 +11,8 @@
 //! - Gas arriving in the second turf of a pair brings no heat with it when it barely changes that turf's heat capacity.
 //! - Space shares at full strength when it leads: it takes everything and leaves the turf at 2.7 K.
 //!
-//! DM's turf air stays the only copy. Each tick DM packs the awake turfs, the engine says which other turfs it needs,
-//! and DM packs those too, so nothing cached here can go stale. Reactions run in DM after the sweep.
+//! A Tick is one atmos tick's worth of turfs: the awake ones first, in order, then whichever others it asks for. lib.rs
+//! fills it from what DM packs, or from what the engine keeps between ticks (world.rs). Reactions run in DM after the sweep.
 
 use std::collections::HashMap;
 
@@ -69,10 +69,12 @@ pub struct Config {
 	pub min_air_to_suspend: f64,
 	/// Ticks without a share before a turf in an excited group goes to sleep (EXCITED_GROUP_DISMANTLE_CYCLES)
 	pub dismantle_ticks: f64,
+	/// Ticks an excited group goes before it evens out its air (EXCITED_GROUP_BREAKDOWN_CYCLES)
+	pub breakdown_ticks: f64,
 }
 
 /// How many constants come after the per-gas lists in the settings list, in Config's order from min_moles_delta on
-const CONSTANTS: usize = 17;
+const CONSTANTS: usize = 18;
 
 impl Config {
 	/// Settings list layout: gas count G; G specific heats; G visible-mole thresholds (-1 for no overlay); the visible
@@ -151,11 +153,12 @@ impl Config {
 			superconduct_heat_capacity: c[14],
 			min_air_to_suspend: c[15],
 			dismantle_ticks: c[16],
+			breakdown_ticks: c[17],
 		})
 	}
 
 	/// DM's QUANTIZE(): round(x, MOLAR_ACCURACY), which rounds halves up
-	fn quantize(&self, value: f64) -> f64 {
+	pub fn quantize(&self, value: f64) -> f64 {
 		(value / self.molar_accuracy + 0.5).floor() * self.molar_accuracy
 	}
 
@@ -164,7 +167,7 @@ impl Config {
 	}
 
 	/// heat_capacity() for what's on this kind of tile: space is always a vacuum, and turf air counts as one when empty
-	fn heat_capacity(&self, kind: u32, moles: &[f64]) -> f64 {
+	pub fn heat_capacity(&self, kind: u32, moles: &[f64]) -> f64 {
 		match kind {
 			KIND_SPACE => self.heat_capacity_vacuum,
 			KIND_FIXED => self.real_heat_capacity(moles),
@@ -219,7 +222,7 @@ impl Config {
 	}
 }
 
-fn mutable(kind: u32) -> bool {
+pub fn mutable(kind: u32) -> bool {
 	kind != KIND_SPACE && kind != KIND_FIXED && kind != KIND_NO_AIR
 }
 
@@ -981,6 +984,7 @@ mod tests {
 			moles_cellstandard * 0.005, // superconduct_heat_capacity
 			moles_cellstandard * 0.1,   // min_air_to_suspend
 			11.0,                       // dismantle_ticks
+			5.0,                        // breakdown_ticks
 		]);
 		// One reaction: gas 3 above 1 mole, over 400 K
 		settings.extend_from_slice(&[1.0, 400.0, 0.0, 1.0, 3.0, 1.0]);

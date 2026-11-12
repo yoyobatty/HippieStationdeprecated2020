@@ -519,8 +519,8 @@ GLOBAL_VAR(atmos_bench_updaters)
 	var/list/series = list()
 	GLOB.atmos_bench_recording = TRUE
 	while(world.time < start_time + length)
-		active += length(SSair.active_turfs)
-		groups += length(SSair.excited_groups)
+		active += SSair.tile_engine_awake_count()
+		groups += SSair.tile_engine_groups_count()
 		hotspots += length(SSair.hotspots)
 		wind += length(SSair.high_pressure_delta)
 		if(GLOB.atmos_bench_series && !((world.time - start_time) % (5 SECONDS)))
@@ -544,6 +544,9 @@ GLOBAL_VAR(atmos_bench_updaters)
 		. += "  tile engine, ms per SSair fire: packing [round((SSair.tile_engine_pack_ms - pack_ms) / fires, 0.01)], the engine itself [round((SSair.tile_engine_native_ms - native_ms) / fires, 0.01)], following up [round((SSair.tile_engine_apply_ms - apply_ms) / fires, 0.01)]"
 		. += "  tile engine, per SSair fire: [round((SSair.tile_engine_total_packed - total_packed) / fires, 0.1)] turfs packed, [round((SSair.tile_engine_total_turns - total_turns) / fires, 0.1)] had a turn, [round((SSair.tile_engine_total_changed - total_changed) / fires, 0.1)] changed, [round((SSair.tile_engine_total_rounds - total_rounds) / fires, 0.1)] rounds"
 		. += "  tile engine keeping air ([SSair.tile_engine_air]), per SSair fire: [round((SSair.tile_engine_air_sent_count - air_sent) / fires, 0.1)] turfs sent their air, [round((SSair.tile_engine_air_kept_count - air_kept) / fires, 0.1)] the engine had"
+		if(SSair.tile_engine_own != "off")
+			var/list/own = SSair.tile_engine_own_checked
+			. += "  tile engine keeping LINDA's state ([SSair.tile_engine_own]): [SSair.tile_engine_groups_broken] group breakdowns and [SSair.tile_engine_groups_dismantled] dismantled in all[SSair.tile_engine_owns ? ", groups' step [round(SSair.tile_engine_groups_ms, 0.1)] ms in all" : ""][length(own) >= 8 ? "; checked [own[1]] ticks: [own[2]] with a different active list, [own[3]] tickers, [own[4]] burning and [own[5]] drawn different, [own[6]] ticks with different groups, [own[7]] group breakdowns checked and [own[8]] different[length(own) >= 9 ? " ([own[9]] not exactly the same)" : ""]" : ""]"
 		if(SSair.tile_engine_air == "shadow")
 			var/list/check = SSair.tile_engine_air_check()
 			if(length(check) >= 2)
@@ -908,7 +911,7 @@ GLOBAL_VAR(atmos_bench_updaters)
 	for(var/seconds in list(2, 5, 15))
 		var/start = world.time
 		sleep(seconds SECONDS)
-		. += "  [seconds] s later: plasma outside the lab [round(atmos_bench_plasma_outside(z, lab), 0.1)] mol, [length(SSair.hotspots)] tiles burning, [length(SSair.active_turfs)] awake (waited [(world.time - start) / 10] s)"
+		. += "  [seconds] s later: plasma outside the lab [round(atmos_bench_plasma_outside(z, lab), 0.1)] mol, [length(SSair.hotspots)] tiles burning, [SSair.tile_engine_awake_count()] awake (waited [(world.time - start) / 10] s)"
 	for(var/turf/open/T as anything in tiles)
 		var/datum/gas_mixture/air = T.air
 		. += "    ([T.x],[T.y]) at the end: [round(air.total_moles())] mol, [round(air.moles[/datum/gas/plasma] || 0, 0.1)] plasma, [round(air.temperature)] K"
@@ -1147,7 +1150,7 @@ GLOBAL_VAR(atmos_bench_updaters)
 			hottest = max(hottest, air.temperature)
 			if(air.temperature > T0C + 100)
 				hot++
-	return "    [seconds] s: [length(SSair.hotspots)] burning, [length(SSair.active_turfs)] awake, [length(SSair.excited_groups)] groups, [length(SSair.active_super_conductivity)] conducting, plasma [round(plasma)] mol; air heat [round(air_heat / 1e6, 0.1)] MJ, hottest [round(hottest)] K, [hot] over 100 C; turf heat [round(solid_heat / 1e6, 0.1)] MJ, hottest [round(hottest_solid)] K; [low] under 20 kPa"
+	return "    [seconds] s: [length(SSair.hotspots)] burning, [SSair.tile_engine_awake_count()] awake, [SSair.tile_engine_groups_count()] groups, [length(SSair.active_super_conductivity)] conducting, plasma [round(plasma)] mol; air heat [round(air_heat / 1e6, 0.1)] MJ, hottest [round(hottest)] K, [hot] over 100 C; turf heat [round(solid_heat / 1e6, 0.1)] MJ, hottest [round(hottest_solid)] K; [low] under 20 kPa"
 
 /// What the station's air looks like now, to compare how the engines behave: totals over every open station turf
 /proc/atmos_bench_outcome()
