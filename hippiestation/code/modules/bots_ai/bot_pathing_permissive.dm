@@ -158,9 +158,16 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 /// contents instead of four. Asked for every neighbour of every tile a search opens, two million times a shift.
 /turf/proc/bot_link_blocked_strict(turf/T, caller, ID)
 	var/adir = get_dir(src, T)
-	for(var/obj/O in src)
-		if((istype(O, /obj/structure/window) || istype(O, /obj/machinery/door/window)) && !O.CanAStarPass(ID, adir))
-			return TRUE
+	// locate() first (native, ~20 ns a thing): a loop over the tile steps the VM for each thing on it (~85 ns) and most tiles
+	// have neither (2026-11-11)
+	if(locate(/obj/structure/window) in src)
+		for(var/obj/structure/window/W in src)
+			if(!W.CanAStarPass(ID, adir))
+				return TRUE
+	if(locate(/obj/machinery/door/window) in src)
+		for(var/obj/machinery/door/window/W in src)
+			if(!W.CanAStarPass(ID, adir))
+				return TRUE
 	var/rdir = ((adir & MASK_ODD)<<1)|((adir & MASK_EVEN)>>1)
 	for(var/atom/movable/AM as anything in T)
 		if(isobj(AM))
@@ -200,12 +207,14 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 /turf/proc/bot_link_blocked_permissive(turf/T, caller, ID)
 	var/adir = get_dir(src, T)
 	var/rdir = ((adir & MASK_ODD)<<1)|((adir & MASK_EVEN)>>1)
-	for(var/obj/structure/window/W in src)
-		if(!W.CanAStarPass(ID, adir) && !bot_can_break_through(W, caller))
-			return TRUE
-	for(var/obj/machinery/door/window/W in src)
-		if(!W.CanAStarPass(ID, adir) && !bot_can_break_through(W, caller))
-			return TRUE
+	if(locate(/obj/structure/window) in src) // locate() first, as in bot_link_blocked_strict()
+		for(var/obj/structure/window/W in src)
+			if(!W.CanAStarPass(ID, adir) && !bot_can_break_through(W, caller))
+				return TRUE
+	if(locate(/obj/machinery/door/window) in src)
+		for(var/obj/machinery/door/window/W in src)
+			if(!W.CanAStarPass(ID, adir) && !bot_can_break_through(W, caller))
+				return TRUE
 	for(var/obj/O in T)
 		if(!bot_can_astar_pass_permissive(O, ID, rdir, caller))
 			return TRUE

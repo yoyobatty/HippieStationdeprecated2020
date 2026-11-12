@@ -91,7 +91,7 @@
 	The border_only flag allows you to not objects (for source and destination squares)
 */
 /turf/proc/ClickCross(target_dir, border_only, target_atom = null, atom/movable/mover = null)
-	for(var/obj/O in src)
+	for(var/obj/O in LOOP_CONTENTS(src)) // hippie -- a copy first on a pile (Adjacent() to anything on one walked it per step)
 		if((mover && O.CanPass(mover,get_step(src,target_dir))) || (!mover && !O.density))
 			continue
 		if(O == target_atom || O == mover || (O.pass_flags & LETPASSTHROW)) //check if there's a dense object present on the turf

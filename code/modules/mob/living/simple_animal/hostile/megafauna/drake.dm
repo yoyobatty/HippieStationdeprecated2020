@@ -570,6 +570,9 @@ obj/effect/temp_visual/fireball
 	new /obj/effect/hotspot(T)
 	T.hotspot_expose(700, 50, 1)
 	for(var/mob/living/L in T.contents)
+		CHECK_TICK // hippie -- a crowd under it burns over ticks, not in one (as lava_warning/fall())
+		if(QDELETED(L) || L.loc != T) // hippie
+			continue
 		if(istype(L, /mob/living/simple_animal/hostile/megafauna/dragon))
 			continue
 		if(islist(flame_hit) && !flame_hit[L])

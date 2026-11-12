@@ -33,6 +33,7 @@ A 2020 /tg/station fork (upstream HippieStation/HippieStationdeprecated2020) bro
 - `bot_gym/`: `ab_gym.sh` (before/after), `run_bot_gym.sh`, `run_bot_shift.sh`, `run_live_round.sh`, digests and death stories.
 - `lint/`: dreamchecker against a baseline. `gc_hunt/`: hard-delete hunts.
 - `atmos_bench/`, `lighting_bench/`, `speed_bench/`, `boot_bench/`: performance A/B.
+- `mob_storm/`: replays a server stall headless (a spawned pile on one tile) and names what ran in each stall. A live freeze is in runtime.log's `MC watchdog alert` lines.
 - `power_check/`, `smooth_check/`, `circuit_check/`, `ban_check/`, `code_sweep/`: headless self-tests.
 - `keybind_check/`: real-client harnesses and screenshots (`shot.ps1`).
 - `timewarp/`: fast-forwards headless runs. `byond_reports/`: BYOND engine bug repros.

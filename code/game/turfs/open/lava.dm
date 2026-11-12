@@ -106,9 +106,7 @@
 	if(is_safe())
 		return FALSE
 
-	var/thing_to_check = src
-	if (AM)
-		thing_to_check = list(AM)
+	var/thing_to_check = AM ? list(AM) : LOOP_CONTENTS(src) // hippie -- a copy first on a pile
 	for(var/thing in thing_to_check)
 		if(isobj(thing))
 			var/obj/O = thing

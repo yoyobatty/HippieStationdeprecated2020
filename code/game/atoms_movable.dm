@@ -270,7 +270,7 @@
 	if(oldarea != newarea)
 		oldarea.Exited(src, newloc)
 
-	for(var/i in oldloc)
+	for(var/i in LOOP_CONTENTS(oldloc)) // hippie -- a copy first on a pile (LOOP_CONTENTS, ~hippie_defines/misc.dm)
 		if(i == src) // Multi tile objects
 			continue
 		var/atom/movable/thing = i
@@ -281,7 +281,7 @@
 	if(oldarea != newarea)
 		newarea.Entered(src, oldloc)
 
-	for(var/i in loc)
+	for(var/i in LOOP_CONTENTS(newloc)) // hippie -- a copy first on a pile; newloc is loc here
 		if(i == src) // Multi tile objects
 			continue
 		var/atom/movable/thing = i
@@ -637,7 +637,7 @@
 				oldloc.Exited(src, destination)
 				if(old_area && old_area != destarea)
 					old_area.Exited(src, destination)
-			for(var/atom/movable/AM in oldloc)
+			for(var/atom/movable/AM in LOOP_CONTENTS(oldloc)) // hippie -- a copy first on a pile
 				if(!AM.no_cross_checks) // hippie -- as in Move()
 					AM.Uncrossed(src)
 			var/turf/oldturf = get_turf(oldloc)
@@ -650,7 +650,7 @@
 			if(destarea && old_area != destarea)
 				destarea.Entered(src, oldloc)
 
-			for(var/atom/movable/AM in destination)
+			for(var/atom/movable/AM in LOOP_CONTENTS(destination)) // hippie -- a copy first on a pile
 				if(AM == src || AM.no_cross_checks) // hippie -- as in Move()
 					continue
 				AM.Crossed(src, oldloc)

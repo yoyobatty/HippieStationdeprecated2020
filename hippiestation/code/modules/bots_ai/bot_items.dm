@@ -1639,13 +1639,15 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 	// accessible, powered airlock as "not blocked" purely because it CAN be opened -
 	// that's correct for planning a route through it, but the door is still physically
 	// closed and nothing else ever actually opens it. clear_one_blocker() no-ops
-	// instantly if the door's already open, so this is safe to call every step.
-	for(var/obj/machinery/door/D in T)
-		if(D.density)
-			bot_log_verbose(src, "obstruction check: door [D] @ [bot_coord(T)] is dense - clearing")
-			if(!clear_one_blocker(D))
-				return handle_blocker_failure(D)
-			return FALSE
+	// instantly if the door's already open, so this is safe to call every step. locate() first: most tiles have no door, and a
+	// typed loop steps the VM for every thing on the tile (2026-11-11)
+	if(locate(/obj/machinery/door) in T)
+		for(var/obj/machinery/door/D in T)
+			if(D.density)
+				bot_log_verbose(src, "obstruction check: door [D] @ [bot_coord(T)] is dense - clearing")
+				if(!clear_one_blocker(D))
+					return handle_blocker_failure(D)
+				return FALSE
 
 	// LinkBlockedWithAccess()/CanAStarPass() (what this used to check) is the
 	// PATHFINDER's model of passability, not the real one - a round-trip through this

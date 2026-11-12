@@ -285,12 +285,17 @@ GLOBAL_LIST_INIT(astar_tally, list("searches" = 0, "failed" = 0, "turfs" = 0, "f
 /turf/proc/LinkBlockedWithAccess(turf/T, caller, ID)
 	var/adir = get_dir(src, T)
 	var/rdir = ((adir & MASK_ODD)<<1)|((adir & MASK_EVEN)>>1)
-	for(var/obj/structure/window/W in src)
-		if(!W.CanAStarPass(ID, adir))
-			return TRUE
-	for(var/obj/machinery/door/window/W in src)
-		if(!W.CanAStarPass(ID, adir))
-			return TRUE
+	// hippie start -- locate() first (native, ~20 ns a thing): a typed loop steps the VM for every thing on the tile (~85 ns)
+	// even when, as on most tiles, there's no window
+	if(locate(/obj/structure/window) in src)
+		for(var/obj/structure/window/W in src)
+			if(!W.CanAStarPass(ID, adir))
+				return TRUE
+	if(locate(/obj/machinery/door/window) in src)
+		for(var/obj/machinery/door/window/W in src)
+			if(!W.CanAStarPass(ID, adir))
+				return TRUE
+	// hippie end
 	for(var/obj/O in T)
 		if((O.density || O.astar_always_asks) && !O.CanAStarPass(ID, rdir, caller)) // hippie -- a turf is mostly cables and pipes
 			return TRUE

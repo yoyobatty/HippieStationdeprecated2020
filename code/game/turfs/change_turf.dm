@@ -316,6 +316,8 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 	var/list/turfs_to_check = get_adjacent_open_turfs(src) | src
 	for(var/I in turfs_to_check)
 		var/turf/T = I
+		if(!(locate(/obj/machinery/door/firedoor) in T)) // hippie -- locate() first: a typed loop steps the VM for every thing on the tile
+			continue
 		for(var/obj/machinery/door/firedoor/FD in T)
 			FD.CalculateAffectingAreas()
 

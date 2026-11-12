@@ -39,14 +39,17 @@
 
 /datum/component/chasm/proc/is_safe()
 	//if anything matching this typecache is found in the chasm, we don't drop things
-	var/static/list/chasm_safeties_typecache = typecacheof(list(/obj/structure/lattice/catwalk, /obj/structure/stone_tile))
-
+	// hippie start -- locate() (native) instead of a copy of every thing on the tile through typecache_filter_list(), which ran
+	// for every thing falling in: a pile went quadratic, as lava's is_safe() did (2026-11-11 ash drake freeze)
 	var/atom/parent = src.parent
-	var/list/found_safeties = typecache_filter_list(parent.contents, chasm_safeties_typecache)
-	for(var/obj/structure/stone_tile/S in found_safeties)
-		if(S.fallen)
-			LAZYREMOVE(found_safeties, S)
-	return LAZYLEN(found_safeties)
+	if(locate(/obj/structure/lattice/catwalk) in parent)
+		return TRUE
+	if(locate(/obj/structure/stone_tile) in parent)
+		for(var/obj/structure/stone_tile/S in parent)
+			if(!S.fallen)
+				return TRUE
+	return FALSE
+	// hippie end
 
 /datum/component/chasm/proc/drop_stuff(AM)
 	. = 0

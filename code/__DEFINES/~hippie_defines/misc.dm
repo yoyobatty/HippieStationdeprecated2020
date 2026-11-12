@@ -32,3 +32,9 @@
 
 /// The most of one supply pack a cargo or express console orders in one go
 #define CARGO_MAX_ORDER_AMOUNT 10
+
+/// What to loop over for `for(x in A)`: A itself, or a copy of its contents when it holds more than 64 things. BYOND walks a
+/// contents list from its start for every step of a loop over it, so a loop over a pile is quadratic (489 ns a thing at 4096
+/// against 50 with a copy first, 2026-11-11); under ~64 things the copy costs more than it saves. A is evaluated more than once.
+/// A null A (doMove() out of nullspace) loops over nothing, as `for(x in null)` does.
+#define LOOP_CONTENTS(A) (A && length(A.contents) > 64 ? A.contents.Copy() : A)

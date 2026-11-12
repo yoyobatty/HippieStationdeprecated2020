@@ -10,6 +10,8 @@
 	var/timer = 0
 	var/cooldown
 	var/obj/machinery/poolcontroller/poolcontrol = null
+	var/datum/weakref/filter_ref // the pool filter debris goes into (absorb_debris())
+	var/next_filter_look = 0
 	resistance_flags = UNACIDABLE|INDESTRUCTIBLE
 
 /obj/machinery/drain/Initialize()
@@ -66,7 +68,13 @@
 
 /// Tiny things near an open drain get pulled onto it, then swallowed into the filter a tick later - time to grab them
 /obj/machinery/drain/proc/absorb_debris()
-	var/obj/machinery/poolfilter/filter = locate() in range(srange, src)
+	// The filter found once and kept (weakly, so a destroyed one isn't held): this built range(6), 169 tiles and all on them, every
+	// tick of a full pool to find the same machine (1 s of every round's profile, 2026-11-11). Looked for again every 30 s if gone.
+	var/obj/machinery/poolfilter/filter = filter_ref?.resolve()
+	if(!filter && world.time >= next_filter_look)
+		next_filter_look = world.time + 30 SECONDS
+		filter = locate() in range(srange, src)
+		filter_ref = WEAKREF(filter)
 	if(filter)
 		for(var/obj/item/absorb in loc)
 			if(absorb.w_class == WEIGHT_CLASS_TINY)

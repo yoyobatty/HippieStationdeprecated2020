@@ -336,7 +336,7 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 						for(var/dir in cardinals)
 							if(!(exits & dir) && !O.CanAStarPass(id, dir) && !bot_can_break_through(O, caller))
 								exits |= dir
-				if(kind & 1) // nobody sat on it either: the strict search's answer would be different then (below)
+				if((kind & 1) && (locate(/mob) in T)) // nobody sat on it either: the strict search's answer would be different then (below). locate() first: most tiles have no mob, and a typed loop steps the VM per thing anyway
 					for(var/mob/M in T)
 						if(M.buckled || istype(M, /mob/living/simple_animal/bot/mulebot))
 							kind = PATH_PICTURE_VOLATILE

@@ -14,7 +14,7 @@
 	// hippie -- one that never merges (gibs, oil...) never gives up its place: replace_decal() can't return TRUE for it, so don't
 	// walk every decal on the tile for nothing (gibs on a pile of 570 corpses, 2026-11-11 ash drake freeze)
 	if(mergeable_decal && loc && isturf(loc))
-		for(var/obj/effect/decal/cleanable/C in loc)
+		for(var/obj/effect/decal/cleanable/C in LOOP_CONTENTS(loc)) // hippie -- a copy first on a pile
 			if(C != src && C.type == type && !QDELETED(C))
 				if (replace_decal(C))
 					return INITIALIZE_HINT_QDEL

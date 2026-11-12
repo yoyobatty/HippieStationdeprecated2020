@@ -60,7 +60,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	QUEUE_SMOOTH(src)
 	visibilityChanged()
 
-	for(var/atom/movable/AM in src)
+	for(var/atom/movable/AM in LOOP_CONTENTS(src)) // hippie -- a copy first on a pile
 		Entered(AM)
 
 	var/area/A = loc
@@ -231,7 +231,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	var/atom/firstbump
 	var/canPassSelf = CanPass(mover, src)
 	if(canPassSelf || CHECK_BITFIELD(mover.movement_type, UNSTOPPABLE))
-		for(var/i in contents)
+		for(var/i in LOOP_CONTENTS(src)) // hippie -- a copy first on a pile
 			var/atom/movable/thing = i
 			if(thing.no_cross_checks || (!thing.density && isitem(thing))) //hippie -- a non-dense item never blocks, so don't ask every item in a pile
 				continue
@@ -273,15 +273,15 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	// freeze, organs thrown off a tile holding 570 corpses. locate() looks in native code (~14 ns a thing); a typed for loop steps
 	// the VM for every thing on the tile even when none match (~240 ns), so it only runs once locate() has found one.
 	if(locate(/obj/structure) in src)
-		for(var/obj/structure/thing in src)
+		for(var/obj/structure/thing in LOOP_CONTENTS(src))
 			if(!exit_asks(thing, mover, newloc))
 				return FALSE
 	if(locate(/obj/machinery/door) in src)
-		for(var/obj/machinery/door/thing in src)
+		for(var/obj/machinery/door/thing in LOOP_CONTENTS(src))
 			if(!exit_asks(thing, mover, newloc))
 				return FALSE
 	if(locate(/obj/effect/abstract/proximity_checker/advanced) in src)
-		for(var/obj/effect/abstract/proximity_checker/advanced/thing in src)
+		for(var/obj/effect/abstract/proximity_checker/advanced/thing in LOOP_CONTENTS(src))
 			if(!exit_asks(thing, mover, newloc))
 				return FALSE
 
