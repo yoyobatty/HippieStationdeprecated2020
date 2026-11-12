@@ -52,6 +52,7 @@
 /obj/machinery/atmospherics/pipe/return_air()
 	if(air_temporary)
 		return air_temporary
+	PIPE_AIR_TOUCH(parent.air) // hippie -- whoever has it may change it (pipe_engine.dm)
 	return parent.air
 
 /obj/machinery/atmospherics/pipe/return_analyzable_air()
@@ -62,6 +63,7 @@
 /obj/machinery/atmospherics/pipe/remove_air(amount)
 	if(air_temporary)
 		return air_temporary.remove(amount)
+	PIPE_AIR_TOUCH(parent.air) // hippie (pipe_engine.dm)
 	return parent.air.remove(amount)
 
 /obj/machinery/atmospherics/pipe/attackby(obj/item/W, mob/user, params)

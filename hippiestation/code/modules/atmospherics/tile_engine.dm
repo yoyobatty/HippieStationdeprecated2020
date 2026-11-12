@@ -221,6 +221,7 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	tile_engine_write_setup()
 	tile_engine_air_setup()
 	log_world("Atmos: tile engine on, [length(tile_engine_gas_types)] gases, [length(gas_reactions)] reactions[tile_engine_generation ? "" : ", sending every turf's neighbours every tick"][tile_engine_cache_shadow ? ", checking what it keeps of turfs" : ""], keeping turfs' air: [tile_engine_air]")
+	pipe_engine_setup()
 	tile_engine_own_setup(tile_engine_version)
 
 /// Whether the engine keeps turfs' air (a library from before that hasn't got atmos_engine_kept_air()). A fresh start of the
@@ -520,6 +521,7 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 
 /// Something went wrong with the library, so atmos goes back to LINDA for the rest of the round
 /datum/controller/subsystem/air/proc/tile_engine_failed(status)
+	pipe_engine = "off"
 	if(tile_engine_owns) // LINDA carries on from the engine's awake turfs
 		tile_engine_own_takeback()
 	tile_engine_tracking = FALSE

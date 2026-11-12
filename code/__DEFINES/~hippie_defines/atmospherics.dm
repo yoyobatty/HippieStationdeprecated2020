@@ -42,3 +42,7 @@
 /// rest wait ATMOS_IDLE_RECHECK (hippiestation/code/modules/atmospherics/idle_machines.dm). It's for air changed without
 /// add_to_active() (heat through walls, breathing), which wakes nothing in DM either but used to be caught sooner.
 #define ATMOS_IDLE_RECHECK_WATCHED 40
+
+/// Something in DM changed a pipe network's gas mixture: the tile engine is sent it again the next time the network is evened
+/// out (hippiestation/code/modules/atmospherics/pipe_engine.dm)
+#define PIPE_AIR_TOUCH(G) G.pipe_engine_dirty = TRUE

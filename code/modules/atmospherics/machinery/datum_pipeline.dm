@@ -38,6 +38,8 @@
 	reconcile_air()
 	//Only react if the mix has changed, and don't keep updating if it hasn't
 	update = air.react(src)
+	if(update) // hippie -- a reaction changed it (pipe_engine.dm)
+		PIPE_AIR_TOUCH(air)
 
 // hippie -- SSair only goes through the networks that need it, so nothing may set update to TRUE without this
 /// Has the network even out its air across everything on it next atmos tick
@@ -164,6 +166,7 @@
 	other_airs.Add(E.other_airs)
 	E.members.Cut()
 	E.other_atmosmch.Cut()
+	PIPE_AIR_TOUCH(air) // hippie -- more volume and the other network's air (pipe_engine.dm)
 	queue_update()
 	qdel(E)
 
@@ -248,6 +251,7 @@
 				(partial_heat_capacity*target.heat_capacity/(partial_heat_capacity+target.heat_capacity))
 
 			air.temperature -= heat/total_heat_capacity
+	PIPE_AIR_TOUCH(air) // hippie -- heat in or out (pipe_engine.dm)
 	queue_update()
 
 /datum/pipeline/proc/return_air()
@@ -279,8 +283,12 @@ GLOBAL_LIST(reconcile_check)
 			else if (istype(atmosmch, /obj/machinery/atmospherics/components/unary/portables_connector))
 				var/obj/machinery/atmospherics/components/unary/portables_connector/C = atmosmch
 				if(C.connected_device)
+					PIPE_AIR_TOUCH(C.connected_device.air_contents) // hippie -- a canister's air changes in its own ways: always sent (pipe_engine.dm)
 					GL += C.connected_device.air_contents
 
+	// hippie -- the tile engine does it, if it can (pipe_engine.dm)
+	if(SSair.pipe_engine != "off" && pipe_engine_reconcile(GL))
+		return
 	// hippie -- the sharing out is its own proc now, with the stress bench's reconcile-check=1 setting it against the old one
 	var/list/datum/gas_mixture/before
 	if(GLOB.reconcile_check)

@@ -66,6 +66,8 @@
 		air_contents.temperature = combined_energy/combined_heat_capacity
 
 	var/temperature_delta= abs(old_temperature - air_contents.temperature)
+	if(temperature_delta) // hippie -- even a change too small to even the network out for: the tile engine keeps this air (pipe_engine.dm)
+		PIPE_AIR_TOUCH(air_contents)
 	if(temperature_delta > 1)
 		active_power_usage = (heat_capacity * temperature_delta) / 10 + idle_power_usage
 		update_parents()

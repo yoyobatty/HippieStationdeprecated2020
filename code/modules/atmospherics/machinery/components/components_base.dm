@@ -169,6 +169,9 @@
 // Helpers
 
 /obj/machinery/atmospherics/components/proc/update_parents()
+	for(var/datum/gas_mixture/G as anything in airs) // hippie -- what it changed is its own air (pipe_engine.dm)
+		if(G)
+			PIPE_AIR_TOUCH(G)
 	for(var/i in 1 to device_type)
 		var/datum/pipeline/parent = parents[i]
 		if(!parent)

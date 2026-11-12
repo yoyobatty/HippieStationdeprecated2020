@@ -526,12 +526,7 @@ impl World {
 			let capacity: f32 = if kind == KIND_SPACE {
 				cfg.heat_capacity_vacuum as f32
 			} else {
-				// values_dot() adds up in 64 bits and gives back a 32-bit number
-				let mut dot64: f64 = 0.0;
-				for &(gas, amount) in air {
-					dot64 += amount as f64 * cfg.specific_heat[gas as usize];
-				}
-				let dot = dot64 as f32;
+				let dot = crate::pipes::values_dot(air, &cfg.specific_heat);
 				if dot == 0.0 && kind != KIND_FIXED {
 					cfg.heat_capacity_vacuum as f32 // a turf's air counts as a vacuum when it's empty
 				} else {
@@ -553,7 +548,7 @@ impl World {
 				amount /= count;
 			}
 			// garbage_collect(): a new mix has no archive, so only what it has counts
-			sums[gas] = if cfg.quantize(amount as f64) < cfg.min_mole_count { 0.0 } else { amount as f64 };
+			sums[gas] = if crate::pipes::negligible(amount, cfg.molar_accuracy, cfg.min_mole_count) { 0.0 } else { amount as f64 };
 		}
 
 		let mut new_gases: Vec<(u8, f32)> = Vec::new();

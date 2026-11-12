@@ -547,6 +547,10 @@ GLOBAL_VAR(atmos_bench_updaters)
 		if(SSair.tile_engine_own != "off")
 			var/list/own = SSair.tile_engine_own_checked
 			. += "  tile engine keeping LINDA's state ([SSair.tile_engine_own]): [SSair.tile_engine_groups_broken] group breakdowns and [SSair.tile_engine_groups_dismantled] dismantled in all[SSair.tile_engine_owns ? ", groups' step [round(SSair.tile_engine_groups_ms, 0.1)] ms in all" : ""][length(own) >= 8 ? "; checked [own[1]] ticks: [own[2]] with a different active list, [own[3]] tickers, [own[4]] burning and [own[5]] drawn different, [own[6]] ticks with different groups, [own[7]] group breakdowns checked and [own[8]] different[length(own) >= 9 ? " ([own[9]] not exactly the same)" : ""]" : ""]"
+		if(SSair.pipe_engine != "off")
+			var/list/pc = SSair.pipe_engine_counts
+			var/list/pk = SSair.pipe_engine_check()
+			. += "  pipe networks evened out by the engine ([SSair.pipe_engine]), so far: [pc["engine"]] by the engine, [pc["dm"]] by DM, mixtures sent [pc["sent"]] and kept [pc["kept"]], [pc["rewritten"]] refilled by DM[length(pk) >= 2 ? "; checked [pk[1]], [pk[2]] different though nothing marked them" : ""]"
 		if(SSair.tile_engine_machine_filter != "off")
 			var/list/m = SSair.tile_engine_machine_stats
 			var/list/sh = SSair.tile_engine_machine_shadow

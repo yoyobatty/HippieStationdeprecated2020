@@ -78,6 +78,8 @@
 				air_update_turf(FALSE, FALSE)
 
 				var/datum/pipeline/parent1 = parents[1]
+				for(var/datum/gas_mixture/G as anything in airs) // hippie -- its own air changed (pipe_engine.dm)
+					PIPE_AIR_TOUCH(G)
 				parent1.queue_update()
 
 	else //external -> output
@@ -101,6 +103,8 @@
 				air_update_turf(FALSE, FALSE)
 
 				var/datum/pipeline/parent2 = parents[2]
+				for(var/datum/gas_mixture/G as anything in airs) // hippie -- its own air changed (pipe_engine.dm)
+					PIPE_AIR_TOUCH(G)
 				parent2.queue_update()
 
 	//Radio remote control

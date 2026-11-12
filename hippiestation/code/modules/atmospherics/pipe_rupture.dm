@@ -38,6 +38,7 @@
 	last_rupture = world.time
 
 	var/datum/gas_mixture/vented = air.remove_ratio(PIPE_RUPTURE_VENT_FRACTION)
+	PIPE_AIR_TOUCH(air) // its air changed (pipe_engine.dm)
 	var/summary = "[round(vented.temperature)]K, [round(vented.return_pressure())]kPa"
 	log_game("A pipe ruptured from internal combustion at [AREACOORD(T)] ([summary]).")
 	message_admins("A pipe ruptured from internal combustion at [ADMIN_VERBOSEJMP(T)] ([summary]).")

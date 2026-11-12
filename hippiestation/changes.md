@@ -20,6 +20,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/__HELPERS/roundend.dm
 ## code/__HELPERS/text.dm
 ## code/__HELPERS/unsorted.dm
+## code/_onclick/adjacent.dm (ClickCross() copies a pile's contents first, LOOP_CONTENTS)
 ## code/_onclick/hud/parallax.dm (out of the .dme: rewritten whole as hippiestation/code/_onclick/hud/parallax.dm, the sky's layers come from the round's theme and slide with the eye's glide)
 ## code/\_onclick/item_attack.dm
 ## code/controllers/configuration/entries/dbconfig.dm
@@ -41,6 +42,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/subsystem/ticker.dm
 ## code/controllers/subsystem/timer.dm
 ## code/controllers/subsystem/vote.dm
+## code/datums/components/chasm.dm (is_safe() by locate(), no copy of the tile's contents)
 ## code/datums/components/material_container.dm
 ## code/datums/datumvars.dm
 ## code/datums/diseases/\_MobProcs.dm
@@ -129,8 +131,13 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/atmospherics/environmental/LINDA_fire.dm (hotspots tell the tile engine when it keeps LINDA's state, tile_engine.dm)
 ## code/modules/atmospherics/environmental/LINDA_system.dm (tile engine neighbour cache; shut doors' tiles pick their side, door_seals.dm)
 ## code/modules/atmospherics/machinery/atmosmachinery.dm
-## code/modules/atmospherics/machinery/components/components_base.dm
+## code/modules/atmospherics/machinery/components/binary_devices/dp_vent_pump.dm (pipe air marked for the tile engine, pipe_engine.dm)
+## code/modules/atmospherics/machinery/components/components_base.dm (update_parents() marks pipe air for the tile engine, pipe_engine.dm)
+## code/modules/atmospherics/machinery/components/trinary_devices/mixer.dm (pipe air marked for the tile engine, pipe_engine.dm)
+## code/modules/atmospherics/machinery/components/unary_devices/thermomachine.dm (pipe air marked for the tile engine, pipe_engine.dm)
 ## code/modules/atmospherics/machinery/components/unary_devices/vent_pump.dm
+## code/modules/atmospherics/machinery/datum_pipeline.dm (networks only processed when queued; reconcile_gases rewrite; the tile engine evens networks out, pipe_engine.dm)
+## code/modules/atmospherics/machinery/pipes/pipes.dm (pipe air marked for the tile engine, pipe_engine.dm)
 ## code/modules/awaymissions/capture_the_flag.dm
 ## code/modules/awaymissions/corpse.dm
 ## code/modules/client/client_procs.dm

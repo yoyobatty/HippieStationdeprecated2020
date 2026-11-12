@@ -10,6 +10,7 @@
 
 pub mod engine;
 pub mod machines;
+pub mod pipes;
 pub mod world;
 
 use engine::{NewTile, Tick, KIND_NO_AIR};
@@ -275,6 +276,8 @@ struct State {
 	own_log: Vec<String>,
 	/// Idle vents and scrubbers the engine wakes when their turf's air would give them something to do (machines.rs)
 	machines: machines::Machines,
+	/// Pipe networks' mixtures as DM holds them after they were last evened out (pipes.rs)
+	pipes: pipes::Pipes,
 }
 
 static STATE: Mutex<Option<State>> = Mutex::new(None);
@@ -359,6 +362,7 @@ pub unsafe extern "C" fn atmos_engine_setup(argc: u32, argv: *const ByondValue) 
 			own_wrong: [0; 5],
 			own_log: Vec::new(),
 			machines: machines::Machines::default(),
+			pipes: pipes::Pipes::default(),
 		});
 		Ok(gases)
 	})
@@ -1566,5 +1570,174 @@ pub unsafe extern "C" fn atmos_engine_machine_wakes(argc: u32, argv: *const Byon
 			write_values(api, stats, out)?;
 		}
 		Ok(count as f32)
+	})
+}
+
+/// call_ext("hippie_atmos", "byond:atmos_engine_reconcile")(refs, ids, rows, mode, total, rewrite): a pipe network's air evened
+/// out (reconcile_gases(), pipes.rs). `ids` has every mixture's number (pipe_engine_id) in GL order. `rows` has the ones sent: the
+/// mixture's position (from 1), a flag, its volume, temperature, how many gases, then a path and moles for each in its list's
+/// order. Flag 1 is for one that changed, 2 for one nothing marked changed, to check what the engine has against it
+/// (atmos-engine-pipes=shadow); the rest are as the engine has them. Mode 1 writes the new air into the mixtures itself (`refs`
+/// has each mixture and its gas list, by turns): the temperature into every one, and the gases into every one whose list already
+/// has the total's gases in the total's order, with the rest's positions in `rewrite` for DM to cut and refill. Mode 2 only
+/// works it out and keeps it (DM evens the air out itself). `total` gets the total volume and temperature, how many gases, then a
+/// path and moles for each. Returns 1, or 3 with the positions of mixtures the engine hasn't got in `rewrite`, for DM to send
+/// again with their air.
+#[no_mangle]
+pub unsafe extern "C" fn atmos_engine_reconcile(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	guarded("reconcile", || {
+		let api = api().ok_or("byondcore.dll doesn't have Byond_ReadList and Byond_WriteList")?;
+		if args.len() < 6 {
+			return Err(format!("{} arguments, wanted refs, ids, rows, mode, total and rewrite", args.len()));
+		}
+		let mut guard = STATE.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+		let state = guard.as_mut().ok_or("reconcile before setup")?;
+		let write = args[3].as_number() == 1.0;
+		let ids: Vec<u32> = read_numbers(api, &args[1])?.into_iter().map(|id| id as u32).collect();
+		let mut rows = std::mem::take(&mut state.rows);
+		read_values(api, &args[2], &mut rows)?;
+		let result = reconcile(api, state, args, &ids, &rows, write);
+		state.rows = rows;
+		result
+	})
+}
+
+unsafe fn reconcile(api: &Api, state: &mut State, args: &[ByondValue], ids: &[u32], rows: &[ByondValue], write: bool) -> Result<f32, String> {
+	// What was sent, by position
+	let mut sent: Vec<Option<(u32, pipes::Mix)>> = vec![None; ids.len()];
+	let mut at = 0;
+	while at < rows.len() {
+		let position = rows[at].as_number() as usize;
+		let flag = rows.get(at + 1).ok_or("a row ran out")?.as_number() as u32;
+		let volume = rows.get(at + 2).ok_or("a row ran out")?.as_number() as f32;
+		let temperature = rows.get(at + 3).ok_or("a row ran out")?.as_number() as f32;
+		let count = rows.get(at + 4).ok_or("a row ran out")?.as_number() as usize;
+		at += 5;
+		let mut gases = Vec::with_capacity(count);
+		for _ in 0..count {
+			let path = rows.get(at).ok_or("a row ran out")?;
+			let gas = state.gas_lookup.get(path.data as usize).copied().unwrap_or(NO_GAS);
+			if gas == NO_GAS {
+				return Err(format!("a gas setup wasn't told about (type {}, {})", path.kind, path.data));
+			}
+			gases.push((gas, rows[at + 1].as_number() as f32));
+			at += 2;
+		}
+		if position == 0 || position > ids.len() {
+			return Err(format!("a row for mixture {position} of {}", ids.len()));
+		}
+		sent[position - 1] = Some((flag, pipes::Mix { volume, temperature, gases }));
+	}
+	// Every mixture, from what was sent or what's kept
+	let mut members: Vec<pipes::Mix> = Vec::with_capacity(ids.len());
+	let mut missing: Vec<ByondValue> = Vec::new();
+	for (k, &id) in ids.iter().enumerate() {
+		match sent[k].take() {
+			Some((2, mix)) => {
+				// Nothing marked it changed: what the engine has should be what DM has
+				if let Some(kept) = state.pipes.kept.get(&id) {
+					state.pipes.checked += 1;
+					if *kept != mix {
+						state.pipes.wrong += 1;
+						if state.pipes.log.len() < 20 {
+							let line = format!("pipe mixture {id}: engine has {} L {} K {:?}, DM {} L {} K {:?}", kept.volume, kept.temperature, kept.gases, mix.volume, mix.temperature, mix.gases);
+							eprintln!("hippie_atmos pipes: {line}");
+							state.pipes.log.push(line);
+						}
+					}
+				}
+				members.push(mix); // DM's is the one to go on from
+			}
+			Some((_, mix)) => members.push(mix),
+			None => match state.pipes.kept.get(&id) {
+				Some(kept) => members.push(kept.clone()),
+				None => {
+					missing.push(ByondValue::num((k + 1) as f32));
+					members.push(pipes::Mix::default());
+				}
+			},
+		}
+	}
+	if !missing.is_empty() {
+		write_values(api, &args[5], &missing)?;
+		return Ok(3.0);
+	}
+
+	let total = {
+		let refs: Vec<&pipes::Mix> = members.iter().collect();
+		pipes::even_out(&refs, &state.config.specific_heat, state.config.molar_accuracy, state.config.min_mole_count)
+	};
+	let mut out = vec![ByondValue::num(total.volume), ByondValue::num(total.temperature), ByondValue::num(total.gases.len() as f32)];
+	for &(gas, amount) in &total.gases {
+		out.push(state.gas_paths[gas as usize]);
+		out.push(ByondValue::num(amount));
+	}
+	write_values(api, &args[4], &out)?;
+	if total.volume <= 0.0 {
+		return Ok(1.0); // DM leaves the air as it is
+	}
+
+	let mut rewrite: Vec<ByondValue> = Vec::new();
+	if write {
+		let writer = writer().ok_or("writing isn't available")?;
+		if !state.write_ready {
+			return Err("reconcile before write_setup".into());
+		}
+		let mut refs = std::mem::take(&mut state.refs);
+		read_values(api, &args[0], &mut refs)?;
+		let result = (|| -> Result<(), String> {
+			if refs.len() != members.len() * 2 {
+				return Err(format!("{} references for {} mixtures", refs.len(), members.len()));
+			}
+			for (k, member) in members.iter().enumerate() {
+				let new = pipes::share_of(&total, member.volume);
+				if !(writer.write_var)(&refs[k * 2], state.temperature_id, &ByondValue::num(new.temperature)) {
+					return Err(format!("couldn't write mixture {}'s temperature", k + 1));
+				}
+				// Its list already has the total's gases in the total's order: just the amounts. Otherwise DM cuts and refills it.
+				let same_keys = member.gases.len() == new.gases.len() && member.gases.iter().zip(&new.gases).all(|(a, b)| a.0 == b.0);
+				if same_keys {
+					for &(gas, amount) in &new.gases {
+						if !(writer.write_list_index)(&refs[k * 2 + 1], &state.gas_paths[gas as usize], &ByondValue::num(amount)) {
+							return Err(format!("couldn't write a gas into mixture {}", k + 1));
+						}
+					}
+				} else {
+					rewrite.push(ByondValue::num((k + 1) as f32));
+				}
+			}
+			Ok(())
+		})();
+		if state.release_reads {
+			for value in &refs {
+				if value.kind != TYPE_NULL && value.kind != TYPE_NUMBER {
+					(writer.dec_ref)(value);
+				}
+			}
+		}
+		state.refs = refs;
+		result?;
+	}
+	for (k, member) in members.iter().enumerate() {
+		state.pipes.kept.insert(ids[k], pipes::share_of(&total, member.volume));
+	}
+	if !rewrite.is_empty() {
+		write_values(api, &args[5], &rewrite)?;
+	}
+	Ok(1.0)
+}
+
+/// call_ext("hippie_atmos", "byond:atmos_engine_pipes_check")(out): atmos-engine-pipes=shadow so far: mixtures checked, how many
+/// differed though nothing marked them changed. Returns 1.
+#[no_mangle]
+pub unsafe extern "C" fn atmos_engine_pipes_check(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	guarded("pipes_check", || {
+		let api = api().ok_or("byondcore.dll doesn't have Byond_ReadList and Byond_WriteList")?;
+		let guard = STATE.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+		let state = guard.as_ref().ok_or("pipes_check before setup")?;
+		write_values(api, args.first().ok_or("no list")?, &[ByondValue::num(state.pipes.checked as f32), ByondValue::num(state.pipes.wrong as f32)])?;
+		Ok(1.0)
 	})
 }
