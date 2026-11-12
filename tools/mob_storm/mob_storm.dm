@@ -51,6 +51,13 @@ GLOBAL_VAR(mob_storm_file)
 				pile = F
 		break
 	mob_storm_log("pile at [pile.x],[pile.y],[pile.z] ([get_area(pile)]), profiler [SSprofiler.engine]")
+	if(world.params["mob-storm-scenario"] == "monkeys")
+		run_monkey_storm(pile, text2num(world.params["mob-storm-seconds"]) || 60)
+		mob_storm_log("done")
+		sleep(1 SECONDS)
+		Master.Shutdown()
+		qdel(world)
+		return
 	if(world.params["mob-storm-scenario"] == "chemloop")
 		run_chemloop_storm(pile, text2num(world.params["mob-storm-seconds"]) || 30)
 		mob_storm_log("done")
@@ -580,3 +587,37 @@ GLOBAL_VAR_INIT(storm_flat_icons, 0)
 	W.watching = FALSE
 	var/busy = storm_measure_report(start, "chem loop")
 	mob_storm_log("TOTAL procs [round(100 * busy / max(1, seconds), 0.1)]%, worst stall [round(W.worst / 10, 0.1)] s, stalls over 0.5 s: [W.stalls]")
+
+// ---------------------------------------------------------------------------------------------
+// mob-storm-scenario=monkeys: mob-storm-speakers (300) monkey cubes on the floor round the spot, all wetted in the same tick.
+// ---------------------------------------------------------------------------------------------
+
+/proc/run_monkey_storm(turf/center, seconds)
+	var/count = text2num(world.params["mob-storm-speakers"]) || 300
+	var/list/cubes = list()
+	var/list/floors = list()
+	for(var/turf/open/floor/F in range(5, center))
+		if(!is_blocked_turf(F, TRUE))
+			floors += F
+	for(var/i in 1 to count)
+		cubes += new /obj/item/reagent_containers/food/snacks/monkeycube(floors[(i % length(floors)) + 1])
+	var/before = 0
+	for(var/mob/living/carbon/monkey/M in GLOB.mob_living_list)
+		before++
+	mob_storm_log("[count] cubes on [length(floors)] floors round [center.x],[center.y]; [before] monkeys aboard before")
+	sleep(2 SECONDS)
+	var/datum/mob_storm_watch/W = new
+	var/list/start = storm_measure_start()
+	W.watch()
+	var/spawn_start = TICK_USAGE_REAL
+	for(var/obj/item/reagent_containers/food/snacks/monkeycube/C as anything in cubes)
+		if(!QDELETED(C))
+			C.Expand()
+	mob_storm_log("all expanded in [round(TICK_DELTA_TO_MS(TICK_USAGE_REAL - spawn_start))] ms of one tick")
+	sleep(seconds SECONDS)
+	W.watching = FALSE
+	var/after = 0
+	for(var/mob/living/carbon/monkey/M in GLOB.mob_living_list)
+		after++
+	var/busy = storm_measure_report(start, "monkey storm")
+	mob_storm_log("monkeys now [after]; TOTAL procs [round(100 * busy / seconds, 0.1)]%, worst stall [round(W.worst / 10, 0.1)] s, stalls over 0.5 s: [W.stalls]")

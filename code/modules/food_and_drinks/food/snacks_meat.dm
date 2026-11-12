@@ -194,6 +194,15 @@
 
 /obj/item/reagent_containers/food/snacks/monkeycube/proc/Expand()
 	var/mob/spammer = get_mob_by_key(fingerprintslast)
+	// hippie start -- the monkey cap (monkey/Initialize()) asked before a whole monkey is made: a refused one was built first, organs and
+	// all, then deleted. 300 cubes wetted at once took 333 ms of one tick, nearly all of it monkeys refused (2026-11-11, tools/mob_storm)
+	if(ispath(spawned_mob, /mob/living/carbon/monkey) && LAZYLEN(SSmobs.cubemonkeys) > CONFIG_GET(number/monkeycap))
+		if(spammer)
+			to_chat(spammer, "<span class='warning'>Bluespace harmonics prevent the spawning of more than [CONFIG_GET(number/monkeycap)] monkeys on the station at one time!</span>")
+		visible_message("<span class='notice'>[src] fails to expand!</span>")
+		qdel(src)
+		return
+	// hippie end
 	var/mob/living/bananas = new spawned_mob(drop_location(), TRUE, spammer)
 	if(faction)
 		bananas.faction = faction
