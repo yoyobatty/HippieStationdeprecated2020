@@ -227,8 +227,24 @@
 	load_program(offline_program, TRUE)
 	active = FALSE
 
+// hippie start -- the holodeck's turfs are kept in a list, not read off its area every 2 seconds: looping over an area's
+// contents looks at every turf in the world (0.44 ms a time, 6 s of a 12-shift batch). A program changes what the turfs
+// are, not which turfs the area has, and a turf's reference outlives ChangeTurf(). A tile blueprints took out of the area
+// makes it read the area again at once, and the list is read again every five minutes.
+/obj/machinery/computer/holodeck
+	var/list/linked_turfs
+	var/linked_turfs_until = 0
+
 /obj/machinery/computer/holodeck/proc/floorcheck()
-	for(var/turf/T in linked)
+	if(!linked_turfs || world.time >= linked_turfs_until)
+		linked_turfs = list()
+		for(var/turf/floor in linked)
+			linked_turfs += floor
+		linked_turfs_until = world.time + 5 MINUTES
+	for(var/turf/T as anything in linked_turfs)
+		if(T.loc != linked) // no longer the holodeck's: read the area again
+			linked_turfs = null
+			return floorcheck() // hippie end
 		if(!T.intact || isspaceturf(T))
 			return FALSE
 	return TRUE

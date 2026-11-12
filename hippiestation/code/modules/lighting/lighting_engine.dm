@@ -47,6 +47,8 @@ GLOBAL_VAR_INIT(lighting_engine_lib, world.params["lighting-lib"] || (world.syst
 	/// The world's size when the engine was set up: it numbers turfs by it
 	var/native_maxx = 0
 	var/native_maxy = 0
+	/// The engine has worked out what its corners draw at least once (its first flush, in native_draw()). Until then every one is dark.
+	var/native_flushed = FALSE
 
 /datum/light_source
 	/// What the engine knows us by, or 0
@@ -154,7 +156,8 @@ GLOBAL_LIST_EMPTY(lighting_sheet_list)
 		return
 	var/list/flags = list()
 	for(var/turf/T in world)
-		var/turf_flags = T.lighting_engine_flags()
+		// lighting_engine_flags() written out: called, it was a proc call for each of the world's ~780,000 turfs
+		var/turf_flags = (T.has_opaque_atom ? LIGHTING_FLAG_OPAQUE : 0) | (T.dynamic_lighting ? LIGHTING_FLAG_DYNAMIC : 0) | (length(T.light_sources) ? LIGHTING_FLAG_SOURCES : 0) | (T.lighting_object ? LIGHTING_FLAG_OBJECT : 0)
 		T.lighting_engine_pushed = turf_flags // what the engine will have, so a push that changes nothing can be skipped
 		if(turf_flags)
 			flags.Add(T, turf_flags)
@@ -293,10 +296,15 @@ GLOBAL_LIST_EMPTY(lighting_sheet_list)
 		var/atom/movable/lighting_object/O = queue[i]
 		if(QDELETED(O) || !isturf(O.myturf))
 			continue
-		values.Cut()
-		call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_object")(O.myturf, values)
-		if(length(values) == 13)
-			O.draw(values[1], values[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], values[10], values[11], values[12], values[13])
+		if(native_flushed)
+			values.Cut()
+			call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_object")(O.myturf, values)
+			if(length(values) == 13)
+				O.draw(arglist(values))
+		else
+			// Boot: the engine only works out what a corner draws at its first flush (below), so until then it hands back thirteen
+			// noughts for every lighting object there is. Drawn dark without asking; the flush then draws the lit ones.
+			O.draw(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 		O.needs_update = FALSE
 		if(init_tick_checks)
 			CHECK_TICK
@@ -309,6 +317,7 @@ GLOBAL_LIST_EMPTY(lighting_sheet_list)
 	// Then the engine's: the corners it changed, and the lighting objects that draw them
 	var/list/out = list()
 	var/left = 1
+	native_flushed = TRUE
 	while(left > 0)
 		out.Cut()
 		left = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_flush")(LIGHTING_ENGINE_BATCH, out)
@@ -319,7 +328,7 @@ GLOBAL_LIST_EMPTY(lighting_sheet_list)
 			var/turf/T = out[at]
 			var/atom/movable/lighting_object/O = T.lighting_object
 			if(O)
-				O.draw(out[at + 1], out[at + 2], out[at + 3], out[at + 4], out[at + 5], out[at + 6], out[at + 7], out[at + 8], out[at + 9], out[at + 10], out[at + 11], out[at + 12], out[at + 13])
+				O.draw(arglist(out.Copy(at + 1, at + 14))) // its 13 numbers in one go, where they were read out of the list one at a time
 		if(init_tick_checks)
 			CHECK_TICK
 		else if(left > 0 && MC_TICK_CHECK)

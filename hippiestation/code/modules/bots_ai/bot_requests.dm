@@ -335,8 +335,16 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 	// Locked up: a doctor serving time in a cell said "Coming" to a call for a medic, and then "I can't get to you".
 	if(owner.handcuffed || owner.bot_life_sentence || is_in_active_cell(owner))
 		return FALSE
-	if(R.only_for ? (R.only_for != src) : !R.kind.answered_by(src, R))
+	if(R.only_for && R.only_for != src)
 		return FALSE
+	// Whose call it is can cost a route search (let_out/answered_by(): a door of theirs this bot can walk up to), and most of those asked
+	// are on an errand that isn't dropped for it. What costs nothing is asked first, and again after, as a route search can take a tick or two.
+	if(!R.only_for && (!free_for_call(R) || !R.kind.answered_by(src, R)))
+		return FALSE
+	return free_for_call(R)
+
+/// The rest of can_take_call(), none of which costs anything: its own arena, not given up on already, somewhere to go, and free to go.
+/datum/bot_brain/proc/free_for_call(datum/bot_request/R)
 	if(gym_run)
 		var/mob/living/who = R.caller_ref?.resolve()
 		if(!who || get_area(who) != get_area(owner))

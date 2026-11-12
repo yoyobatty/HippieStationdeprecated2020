@@ -216,11 +216,14 @@
 /// Squash a mouse within reach, the way crew do in passing - mice chew through power cables
 /// (goals/repair_cables.dm). A harm-intent click with whatever is in hand, or a punch.
 /datum/bot_brain/proc/swat_passing_mice()
-	if(world.time < next_mouse_swat_time || owner.incapacitated() || state == BOT_STATE_COMBAT)
+	if(world.time < next_mouse_swat_time || state == BOT_STATE_COMBAT)
 		return FALSE
 	for(var/mob/living/simple_animal/mouse/M in range(1, owner))
 		if(M.stat == DEAD || istype(M, /mob/living/simple_animal/mouse/brown/Tom) || !isturf(M.loc))
 			continue
+		// Asked once there's a mouse in reach: it was asked first, on every step every bot takes, a dozen proc calls to hear "no".
+		if(owner.incapacitated())
+			return FALSE
 		next_mouse_swat_time = world.time + CLICK_CD_MELEE
 		human_pause(M)
 		if(QDELETED(M) || M.stat == DEAD || !owner.Adjacent(M))

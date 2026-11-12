@@ -80,6 +80,9 @@ SUBSYSTEM_DEF(air_dust)
 	var/flow_at = 1
 	var/seeds_left = 0
 	var/flows_left = 0
+	/// The squares of the map (AIR_DUST_UNSEEN_CELL()) a player can see into or is about to, as keys, worked out at each fire
+	/// from SSlighting.eyes. Dust outside them isn't looked at. Null when everything is (SSlighting.defer_unseen off).
+	var/list/watched_cells
 
 /datum/controller/subsystem/air_dust/stat_entry(msg)
 	return ..("S:[length(seeds)] F:[length(flows)] W:[length(windy)]")
@@ -93,12 +96,26 @@ SUBSYSTEM_DEF(air_dust)
 				windy -= dust
 		seeds_left = CEILING(length(seeds) / AIR_DUST_CHECK_FIRES, 1)
 		flows_left = CEILING(length(flows) / AIR_DUST_CHECK_FIRES, 1)
+		// Dust nobody is near isn't looked at. It's only ever seen, so what's on its floor and how its air is can wait until a
+		// player is within a screen and a bit of it, as a light's update does (SSlighting.eyes, /datum/light_source/proc/can_wait_unseen()).
+		// Its turn still comes round every AIR_DUST_CHECK_FIRES fires, so it's looked at within that long of a player coming
+		// near: no later than dust in plain view learns of a change. A fire still burns it up at once (hotspot/Initialize() below).
+		watched_cells = null
+		if(SSlighting.defer_unseen)
+			watched_cells = list()
+			for(var/turf/eye as anything in SSlighting.eyes)
+				var/reach = SSlighting.eyes[eye] + AIR_DUST_UNSEEN_MARGIN
+				for(var/cell_y in (max(eye.y - reach, 1) >> 3) to (min(eye.y + reach, world.maxy) >> 3))
+					for(var/cell_x in (max(eye.x - reach, 1) >> 3) to (min(eye.x + reach, world.maxx) >> 3))
+						watched_cells["[cell_x]|[cell_y]|[eye.z]"] = TRUE
+	var/list/watched = watched_cells
 	while(seeds_left > 0 && length(seeds))
 		if(seed_at > length(seeds))
 			seed_at = 1
 		var/obj/effect/particle_fx/air_dust/dust = seeds[seed_at++]
 		seeds_left--
-		dust.check()
+		if(!watched || watched[dust.dust_cell])
+			dust.check()
 		if(MC_TICK_CHECK)
 			return
 	while(flows_left > 0 && length(flows))
@@ -106,7 +123,9 @@ SUBSYSTEM_DEF(air_dust)
 			flow_at = 1
 		var/obj/machinery/atmospherics/components/unary/U = flows[flow_at++]
 		flows_left--
-		U.update_dust_flow()
+		var/turf/where = U.loc
+		if(!watched || !isturf(where) || watched[AIR_DUST_UNSEEN_CELL(where)])
+			U.update_dust_flow()
 		if(MC_TICK_CHECK)
 			return
 
@@ -159,6 +178,8 @@ SUBSYSTEM_DEF(air_dust)
 	var/wind_speed = 0
 	/// When the wind it's showing dies down, if none comes before then
 	var/wind_until = 0
+	/// The square of the map its floor is in (AIR_DUST_UNSEEN_CELL()), for SSair_dust.watched_cells
+	var/dust_cell
 
 /obj/effect/particle_fx/air_dust/Destroy()
 	SSair_dust.seeds -= src
@@ -237,6 +258,7 @@ SUBSYSTEM_DEF(air_dust)
 		return
 	var/obj/effect/particle_fx/air_dust/dust = new
 	dust.home = src
+	dust.dust_cell = AIR_DUST_UNSEEN_CELL(src)
 	dust.specks = new /particles/fx/air_dust
 	air_dust_fx = dust
 	vis_contents += dust

@@ -14,7 +14,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/__DEFINES/tgs.dm (TGS DMAPI 7.4.0, the upstream file as released; was 5.2.7)
 ## code/__HELPERS/\_logging.dm
 ## code/__HELPERS/AStar.dm
-## code/__HELPERS/game.dm (get_hearers_in_view(): radios found once, a hearer added once, each tile and range remembered for the tick)
+## code/__HELPERS/game.dm (get_hearers_in_view(): radios found once, a hearer added once, each tile and range remembered for the tick; get_mobs_in_radio_ranges() doesn't ask a radio with nobody but radios in reach)
 ## code/__HELPERS/icons.dm
 ## code/__HELPERS/mobs.dm
 ## code/__HELPERS/radiation.dm
@@ -34,9 +34,11 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/subsystem/dbcore.dm (out of the .dme: rewritten whole as hippiestation/code/controllers/subsystem/dbcore.dm, rust_g instead of BSQL)
 ## code/controllers/subsystem/discord.dm
 ## code/controllers/subsystem/explosions.dm (shaped explosions through hippiestation/code/controllers/subsystem/explosions_shape.dm; Check Bomb Impact; spread over ticks; blame)
+## code/controllers/subsystem/garbage.dm
 ## code/controllers/subsystem/input.dm
 ## code/controllers/subsystem/job.dm
 ## code/controllers/subsystem/mapping.dm
+## code/controllers/subsystem/machines.dm (fire() walks its run by index and cuts it once)
 ## code/controllers/subsystem/mobs.dm
 ## code/controllers/subsystem/stickyban.dm
 ## code/controllers/subsystem/throwing.dm
@@ -133,12 +135,14 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/asset_cache/asset_list.dm
 ## code/modules/atmospherics/environmental/LINDA_fire.dm (hotspots tell the tile engine when it keeps LINDA's state, tile_engine.dm)
 ## code/modules/atmospherics/environmental/LINDA_system.dm (tile engine neighbour cache; shut doors' tiles pick their side, door_seals.dm)
+## code/modules/atmospherics/environmental/LINDA_turf_tile.dm (a group's turfs skip the overlay update when nothing shows; update_visuals() makes no list for plain air)
 ## code/modules/atmospherics/machinery/atmosmachinery.dm
 ## code/modules/atmospherics/machinery/components/binary_devices/dp_vent_pump.dm (pipe air marked for the tile engine, pipe_engine.dm)
 ## code/modules/atmospherics/machinery/components/components_base.dm (update_parents() marks pipe air for the tile engine, pipe_engine.dm)
 ## code/modules/atmospherics/machinery/components/trinary_devices/mixer.dm (pipe air marked for the tile engine, pipe_engine.dm)
 ## code/modules/atmospherics/machinery/components/unary_devices/thermomachine.dm (pipe air marked for the tile engine, pipe_engine.dm)
 ## code/modules/atmospherics/machinery/components/unary_devices/vent_pump.dm
+## code/modules/atmospherics/machinery/components/unary_devices/vent_scrubber.dm (idle when there's nothing to do; auto_use_power() looks the area up once)
 ## code/modules/atmospherics/machinery/datum_pipeline.dm (networks only processed when queued; reconcile_gases rewrite; the tile engine evens networks out, pipe_engine.dm)
 ## code/modules/atmospherics/machinery/pipes/pipes.dm (pipe air marked for the tile engine, pipe_engine.dm)
 ## code/modules/awaymissions/capture_the_flag.dm
@@ -154,6 +158,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/food_and_drinks/drinks/drinks.dm !Should be modularized. Can be done easily.
 ## code/modules/food_and_drinks/drinks/drinks/drinkingglass.dm
 ## code/modules/food_and_drinks/food/snacks_meat.dm (a monkey cube asks the monkey cap before a monkey is made)
+## code/modules/holodeck/computer.dm (floorcheck() keeps the holodeck's turfs in a list instead of reading the area every 2 s)
 ## code/modules/hydroponics/grown/banana.dm !Should be modularized. Can be done easily.
 ## code/modules/integrated_electronics/subtypes/input.dm
 ## code/modules/integrated_electronics/subtypes/manipulation.dm
@@ -190,6 +195,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/mob/living/silicon/ai/ai.dm
 ## code/modules/mob/living/silicon/pai/pai_shell.dm
 ## code/modules/mob/living/silicon/robot/robot.dm
+## code/modules/mob/living/simple_animal/bot/bot.dm (scan() shuffles and checks only what's of the type it's after)
 ## code/modules/mob/living/simple_animal/bot/ed209bot.dm
 ## code/modules/mob/living/simple_animal/bot/medbot.dm
 ## code/modules/mob/living/simple_animal/friendly/dog.dm
@@ -199,10 +205,12 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/mob/living/simple_animal/hostile/megafauna/drake.dm (crush, fire line and lava fall spread a crowd over ticks)
 ## code/modules/mob/living/simple_animal/hostile/retaliate/retaliate.dm (keyed enemies, Retaliate() once a second, allies told only new enemies)
 ## code/modules/mob/living/simple_animal/slime/slime.dm
+## code/modules/mob/mob.dm (visible_message() and audible_message() skip the search for hearers when no client is in range)
 ## code/modules/mob/mob_helpers.dm
 ## code/modules/mob/mob_movement.dm !Horrible code alert, how did this even get merged?
 ## code/modules/photography/camera/camera.dm (the tiles in sight as a keyed set)
 ## code/modules/photography/camera/camera_image_capturing.dm (top of a pile only; flat icons kept by appearance)
+## code/modules/power/apc.dm (an outage tells the area once; a healthy APC skips its no-op autoset(), percent() and poweralert() calls)
 ## code/modules/power/turbine.dm (the console's power readout before the turbine first runs)
 ## code/modules/reagents/chem_splash.dm !Could probably be improved to avoid cutting out the whole tg proc
 ## code/modules/reagents/chemistry/holder.dm !Same as above.

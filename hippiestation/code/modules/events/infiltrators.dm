@@ -12,6 +12,8 @@
 
 /datum/round_event_control/infiltrators/canSpawnEvent(var/players_amt, var/gamemode)
 	. = ..()
+	if(!.) // it can't be sent anyway (too early, too few players, sent already), so the whole station isn't counted to say no again: SSevents asks every event this twice at every roll, 0.8 s a shift
+		return
 	if(SSshuttle.emergency.mode != SHUTTLE_RECALL && SSshuttle.emergency.mode != SHUTTLE_IDLE) // Don't send infiltrators if the shuttle is coming!
 		return FALSE
 	var/datum/station_state/current_state = new /datum/station_state()

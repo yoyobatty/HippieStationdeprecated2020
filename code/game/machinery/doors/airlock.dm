@@ -619,14 +619,8 @@
 				note_overlay = get_airlock_overlay("[notetype]_opening", note_overlay_file)
 
 	cut_overlays()
-	add_overlay(frame_overlay)
-	add_overlay(filling_overlay)
-	add_overlay(lights_overlay)
-	add_overlay(panel_overlay)
-	add_overlay(weld_overlay)
-	add_overlay(sparks_overlay)
-	add_overlay(damag_overlay)
-	add_overlay(note_overlay)
+	// hippie -- one add_overlay() for all eight, in the same order (it skips the null ones): each call was another new appearance for the door, two to four every redraw
+	add_overlay(list(frame_overlay, filling_overlay, lights_overlay, panel_overlay, weld_overlay, sparks_overlay, damag_overlay, note_overlay))
 	airlock_glow(lights_overlay) // hippie -- the lights glow in the dark
 	check_unres()
 
@@ -634,9 +628,15 @@
 	var/obj/machinery/door/airlock/A
 	pass(A)	//suppress unused warning
 	var/list/airlock_overlays = A.airlock_overlays
-	var/iconkey = "[icon_state][icon_file]"
-	if((!(. = airlock_overlays[iconkey])))
-		. = airlock_overlays[iconkey] = mutable_appearance(icon_file, icon_state)
+	// hippie start -- kept by file, then by state: one key of both was a new string with the file's whole path in it, built for every overlay of every redraw
+	if(!icon_file || !icon_state) // neither can be a list key when null (an icon varedited away): not kept, since a bad index here would stop open() halfway with operating still set
+		return mutable_appearance(icon_file, icon_state)
+	var/list/of_file = airlock_overlays[icon_file]
+	if(!of_file)
+		of_file = airlock_overlays[icon_file] = list()
+	if((!(. = of_file[icon_state])))
+		. = of_file[icon_state] = mutable_appearance(icon_file, icon_state)
+	// hippie end
 
 /obj/machinery/door/airlock/proc/check_unres() //unrestricted sides. This overlay indicates which directions the player can access even without an ID
 	if(hasPower() && unres_sides)

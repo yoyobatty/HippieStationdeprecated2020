@@ -301,11 +301,44 @@ GLOBAL_VAR_INIT(hearing_stamp, 0)
 	// Returns a list of mobs who can hear any of the radios given in @radios
 	// hippie -- a keyed list as it's built: |= searched everyone found so far for everybody it added, for every radio there is
 	var/list/found = list()
+	// hippie -- a radio with nothing but radios in reach has nobody to tell, and isn't asked (radio_has_listener() below)
+	var/list/cell_listeners = SSspatial_grid.initialized ? list() : null
 	for(var/obj/item/radio/R in radios)
+		if(cell_listeners && R.canhear_range > 0 && !radio_has_listener(R, cell_listeners))
+			continue
 		for(var/atom/movable/hearer as anything in get_hearers_in_view(R.canhear_range, R, ignore_radios = TRUE))
 			if(!found[hearer] && !istype(hearer, /obj/item/radio))
 				found[hearer] = TRUE
 				. += hearer
+
+/// hippie -- Whether anything that hears, other than a radio, is within a radio's range of it. Where this is FALSE,
+/// get_hearers_in_view() with ignore_radios finds nobody: it takes the hearing things of the same grid squares, drops the radios
+/// and what view() can't list (ghosts, AI eyes), and keeps what's on a tile within range. Most of a station's radios are intercoms
+/// with nobody by them, and every one asked the grid, went through the radios in its squares and often looked round its room, for
+/// every line said on its channel: 2 ms a line. cell_listeners (grid square -> its hearing things get_hearers_in_view() would
+/// keep) is the caller's, so each square is gone through once a message.
+/proc/radio_has_listener(obj/item/radio/R, list/cell_listeners)
+	var/turf/T = get_turf(R)
+	if(!T)
+		return FALSE
+	var/range = R.canhear_range
+	var/list/grid_level = SSspatial_grid.grids_by_z_level[T.z]
+	for(var/row in max(GET_SPATIAL_INDEX(T.y - range), 1) to min(GET_SPATIAL_INDEX(T.y + range), SSspatial_grid.cells_on_y_axis))
+		var/list/grid_row = grid_level[row]
+		for(var/column in max(GET_SPATIAL_INDEX(T.x - range), 1) to min(GET_SPATIAL_INDEX(T.x + range), SSspatial_grid.cells_on_x_axis))
+			var/datum/spatial_grid_cell/cell = grid_row[column]
+			var/list/listeners = cell_listeners[cell]
+			if(!listeners)
+				listeners = list()
+				for(var/atom/movable/candidate as anything in cell.hearing_contents)
+					if(candidate && !istype(candidate, /obj/item/radio) && !(candidate.invisibility && isturf(candidate.loc)))
+						listeners += candidate
+				cell_listeners[cell] = listeners
+			for(var/atom/movable/candidate as anything in listeners)
+				var/turf/where = get_turf(candidate)
+				if(where && get_dist(where, T) <= range)
+					return TRUE
+	return FALSE
 
 #define SIGNV(X) ((X<0)?-1:1)
 

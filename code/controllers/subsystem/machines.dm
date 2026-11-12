@@ -36,9 +36,11 @@ SUBSYSTEM_DEF(machines)
 	var/list/currentrun = src.currentrun
 
 	var/seconds = wait * 0.1
-	while(currentrun.len)
-		var/obj/machinery/thing = currentrun[currentrun.len]
-		currentrun.len--
+	// hippie start -- walked by index, and the list cut once (when it pauses, or at the end) instead of once for each machine
+	var/index = currentrun.len
+	while(index)
+		var/obj/machinery/thing = currentrun[index]
+		index--
 		if(!QDELETED(thing) && thing.process(seconds) != PROCESS_KILL)
 			if(thing.use_power)
 				thing.auto_use_power() //add back the power state
@@ -47,7 +49,10 @@ SUBSYSTEM_DEF(machines)
 			if (!QDELETED(thing))
 				thing.datum_flags &= ~DF_ISPROCESSING
 		if (MC_TICK_CHECK)
+			currentrun.len = index
 			return
+	currentrun.len = 0
+	// hippie end
 
 /datum/controller/subsystem/machines/proc/setup_template_powernets(list/cables)
 	for(var/A in cables)

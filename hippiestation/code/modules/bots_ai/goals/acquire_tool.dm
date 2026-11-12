@@ -282,6 +282,7 @@
 	var/best_cost = 1e9
 	var/list/best_path
 	var/found = 0
+	var/described = 0
 	for(var/atom/A in candidates)
 		if(QDELETED(bot) || QDELETED(bot.owner))
 			return null
@@ -295,7 +296,11 @@
 			if(found >= 3 || best_cost <= get_dist(bot.owner, A) + 5)
 				break
 		else if((GLOB.bot_ai_verbose && GLOB.bot_ai_test_round) || bot.gym_run) //a route search per candidate, just for the log, and arguments get worked out whether or not it logs them: a test round's, not a live one's, though the trace is on there too
-			bot_log_verbose(bot, "pick_reachable: [A] ([get_area_name(A)], dist [get_dist(bot.owner, A)]) is NOT reachable - [describe_blocker(bot, A)]")
+			// Why, for the nearest one turned down only (a Bot Gym run still gets every one): each "why" is a route search through locked
+			// doors, and a pick turns down 7 on average and up to 20: 1,200 to 3,900 searches a shift for a line in the trace, 48 s of
+			// the 2982 s of 12 profiled shifts.
+			var/because = (bot.gym_run || !described++) ? " - [describe_blocker(bot, A)]" : ""
+			bot_log_verbose(bot, "pick_reachable: [A] ([get_area_name(A)], dist [get_dist(bot.owner, A)]) is NOT reachable[because]")
 	if(best)
 		cached_path = best_path
 		cached_path_target = best

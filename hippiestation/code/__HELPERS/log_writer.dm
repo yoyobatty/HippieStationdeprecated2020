@@ -47,7 +47,9 @@ GLOBAL_REAL_VAR(hippie_log_features)
 	if(isnull(hippie_log_native))
 		hippie_log_native = hippie_log_try()
 	if(hippie_log_native)
-		call_ext(HIPPIE_LOG, "log_write")("[log]", "[text]", "true")
+		// A log's path and a line of it are text already, all but a few (GLOB.test_log is a file): "[log]" and "[text]" built each
+		// one again and looked it up among every string in the game, twice for every line written
+		call_ext(HIPPIE_LOG, "log_write")(istext(log) ? log : "[log]", istext(text) ? text : "[text]", "true")
 	else
 		rustg_log_write(log, text, "true")
 

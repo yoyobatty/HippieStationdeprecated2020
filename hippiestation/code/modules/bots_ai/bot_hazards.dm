@@ -312,17 +312,21 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 /datum/bot_brain/proc/slip_on(turf/T)
 	if(!isopenturf(T) || !(owner.status_flags & CANKNOCKDOWN))
 		return null
-	var/noslip = has_noslip_shoes() //goals/janitor.dm
-	var/datum/component/wet_floor/W = T.GetComponent(/datum/component/wet_floor)
+	// Asked of two or three tiles on every step, and nearly every one is dry floor with nothing on it that has a component at all:
+	// GetComponent() is only called of what has any (datum_components is null on most things), and the shoes are only looked at
+	// once there's something to slip on. The same answers.
+	var/datum/component/wet_floor/W = T.datum_components ? T.GetComponent(/datum/component/wet_floor) : null
 	if(W && W.highest_strength != TURF_DRY)
 		if(W.highest_strength == TURF_WET_WATER)
-			return noslip ? null : "wet"
+			return has_noslip_shoes() ? null : "wet" //goals/janitor.dm
 		return "slip" //lube and ice: galoshes don't help
-	if(noslip)
-		return null
 	for(var/atom/movable/AM in T)
+		if(!AM.datum_components)
+			continue
 		var/datum/component/slippery/S = AM.GetComponent(/datum/component/slippery)
 		if(S)
+			if(has_noslip_shoes())
+				return null
 			return (S.lube_flags & NO_SLIP_WHEN_WALKING) ? "wet" : "slip"
 	return null
 
@@ -348,9 +352,12 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 	var/turf/here = get_turf(owner)
 	var/turf/after = length(current_path) >= 2 ? current_path[2] : null
 	var/wet_ahead = FALSE
-	for(var/turf/T in list(next, after))
-		if(T && slip_on(T) == "wet" && sees_footing(T))
-			wet_ahead = TRUE
+	// What's on the next tile is asked once: it was asked again further down, with nothing in between that changes the answer.
+	var/next_footing = slip_on(next)
+	if(next_footing == "wet" && sees_footing(next))
+		wet_ahead = TRUE
+	if(after && slip_on(after) == "wet" && sees_footing(after))
+		wet_ahead = TRUE
 	if(wet_ahead && owner.m_intent != MOVE_INTENT_WALK)
 		bot_log(src, "wet floor ahead - walking")
 		owner.toggle_move_intent()
@@ -359,7 +366,7 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 		walking_for_footing = FALSE
 		if(owner.m_intent == MOVE_INTENT_WALK && !walking_for_goal)
 			owner.toggle_move_intent()
-	if(slip_on(next) != "slip" || !sees_footing(next) || !here)
+	if(next_footing != "slip" || !sees_footing(next) || !here)
 		return next
 	// Round it, a step at a time: aside, along past it, and back on to the route. A diagonal step is two straight ones to this engine
 	// (atom/movable/Move()), and the first of them went on to the peel.

@@ -73,17 +73,17 @@ GLOBAL_LIST_EMPTY(bot_field_generator_turfs)
 // applies to a bot that's genuinely survivable in vacuum and just missing the stability
 // magboots give.
 /proc/bot_turf_has_pushoff_backup(turf/T)
+	// The walls round it first: beside the hull that's the answer nearly every time, in eight reads. This is asked for every space tile a
+	// suited bot's route search looks at, and it used to step through everything on the tiles round it (pipes, cables, items) to find out.
+	for(var/dir in GLOB.alldirs)
+		var/turf/adjacent = get_step(T, dir)
+		if(adjacent && adjacent.density)
+			return TRUE
 	if(locate(/obj/structure/lattice) in range(1, T))
 		return TRUE //a lattice within a tile is enough to move by - /atom/movable/Process_Spacemove() (atoms_movable.dm)
-	for(var/A in orange(1, T))
-		if(isturf(A))
-			var/turf/adjacent = A
-			if(adjacent.density)
-				return TRUE
-		else
-			var/atom/movable/AM = A
-			if(AM.density && AM.anchored)
-				return TRUE
+	for(var/atom/movable/AM in orange(1, T)) // a typed loop over orange() is filtered natively
+		if(AM.density && AM.anchored)
+			return TRUE
 	return FALSE
 
 /proc/bot_turf_crossable_without_boots(turf/T, caller)

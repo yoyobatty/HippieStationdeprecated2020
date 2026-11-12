@@ -1110,7 +1110,12 @@ GLOBAL_LIST_EMPTY(bot_keyword_areas)
 	return A.bot_turfs
 
 /datum/bot_brain/proc/pick_local_destination()
-	for(var/turf/candidate in shuffle(orange(6, get_turf(owner))))
+	// Only the turfs are shuffled: it was everything within six tiles, a thousand-odd things a swap at a time, for the 168 turfs among them.
+	// The same turfs, in an order as random as before.
+	var/list/turfs = list()
+	for(var/turf/T in orange(6, get_turf(owner)))
+		turfs += T
+	for(var/turf/candidate as anything in shuffle(turfs))
 		if(!is_wanderable_turf(candidate))
 			continue
 		return candidate

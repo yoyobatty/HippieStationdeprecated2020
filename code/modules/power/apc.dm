@@ -1239,23 +1239,28 @@
 			lighting = autoset(lighting, 0)
 			environ = autoset(environ, 0)
 			area.poweralert(0, src)
-		else if(cell.percent() < 15 && longtermpower < 0)	// <15%, turn off lighting & equipment
+		else if(longtermpower < 0 && cell.percent() < 15)	// <15%, turn off lighting & equipment // hippie -- the cheap half first: percent() is a call, made here and below on every healthy APC every time
 			equipment = autoset(equipment, 2)
 			lighting = autoset(lighting, 2)
 			environ = autoset(environ, 1)
 			area.poweralert(0, src)
-		else if(cell.percent() < 30 && longtermpower < 0)			// <30%, turn off equipment
+		else if(longtermpower < 0 && cell.percent() < 30)			// <30%, turn off equipment // hippie -- as above
 			equipment = autoset(equipment, 2)
 			lighting = autoset(lighting, 1)
 			environ = autoset(environ, 1)
 			area.poweralert(0, src)
 		else									// otherwise all can be on
-			equipment = autoset(equipment, 1)
-			lighting = autoset(lighting, 1)
-			environ = autoset(environ, 1)
-			area.poweralert(1, src)
-			if(cell.percent() > 75)
+			// hippie start -- every healthy APC, every time: three autoset() calls that only ever turn 1 (auto, off) into 3 (auto, on),
+			// and the power alert cleared twice over (the second, behind a percent() call, could never find anything left to clear)
+			if(equipment == 1)
+				equipment = 3
+			if(lighting == 1)
+				lighting = 3
+			if(environ == 1)
+				environ = 3
+			if(area.poweralm != 1)
 				area.poweralert(1, src)
+			// hippie end
 
 		// now trickle-charge the cell
 		if(chargemode && charging == APC_CHARGING && operating)

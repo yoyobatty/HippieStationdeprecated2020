@@ -414,7 +414,9 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 		mind_armed_bomb() //goals/toxins.dm
 	if(length(GLOB.bot_ticking_bombs))
 		mind_ticking_bombs() //goals/sabotage_bomb.dm
-	if(length(GLOB.hostile_machines))
+	// Every turret and exosuit is on that list as well, and most rounds nothing else: looked through natively for an assembly here, not by
+	// mind_armed_drones()'s typed loop over all of them (and an incapacitated()) every second for every bot.
+	if(length(GLOB.hostile_machines) && (locate(/obj/item/electronic_assembly) in GLOB.hostile_machines))
 		mind_armed_drones() //goals/circuit_drones.dm
 	if(floored)
 		floored = FALSE

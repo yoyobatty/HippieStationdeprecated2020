@@ -1,10 +1,20 @@
 /*~~~~~~~~~~~~
 	Circutry!
 ~~~~~~~~~~~~~*/
+/// How tall its sprite is, for where its diagnostic HUD marks sit. The health and cell marks each made a new /icon to ask, at every
+/// process() of every assembly: 6 s of a 12-shift batch reading the same number. Kept per sprite, state and facing.
+/obj/item/electronic_assembly/proc/diag_hud_height()
+	var/static/list/heights = list()
+	var/key = "[icon]|[icon_state]|[dir]"
+	. = heights[key]
+	if(isnull(.))
+		var/icon/I = icon(icon, icon_state, dir)
+		. = I.Height()
+		heights[key] = .
+
 /obj/item/electronic_assembly/proc/diag_hud_set_circuithealth(hide = FALSE)
 	var/image/holder = hud_list[DIAG_CIRCUIT_HUD]
-	var/icon/I = icon(icon, icon_state, dir)
-	holder.pixel_y = I.Height() - world.icon_size
+	holder.pixel_y = diag_hud_height() - world.icon_size
 	if((!isturf(loc))||hide) //if not on the ground dont show overlay
 		holder.icon_state = null
 	else
@@ -12,8 +22,7 @@
 
 /obj/item/electronic_assembly/proc/diag_hud_set_circuitcell(hide = FALSE)
 	var/image/holder = hud_list[DIAG_BATT_HUD]
-	var/icon/I = icon(icon, icon_state, dir)
-	holder.pixel_y = I.Height() - world.icon_size
+	holder.pixel_y = diag_hud_height() - world.icon_size
 	if((!isturf(loc))||hide) //if not on the ground dont show overlay
 		holder.icon_state = null
 	else if(battery)

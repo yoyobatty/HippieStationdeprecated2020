@@ -425,7 +425,27 @@ Pass the desired type path itself, declaring a temporary var beforehand is not r
 				var/final_result = checkscan(deepscan,scan_type,old_target)
 				if(final_result)
 					return final_result
-	for (var/scan in shuffle(view(scan_range, src))-adjacent) //Search for something in range!
+	// hippie start -- only what's of the type wanted is shuffled and looked at. It was everything in view, turfs and pipes and all: a list of
+	// several hundred things built, shuffled a swap at a time and handed to checkscan() one by one, for a medibot's two or three people.
+	var/list/candidates = list()
+	if(ispath(scan_type, /mob))
+		for(var/mob/M in view(scan_range, src))
+			if(istype(M, scan_type))
+				candidates += M
+	else if(ispath(scan_type, /obj))
+		for(var/obj/O in view(scan_range, src))
+			if(istype(O, scan_type))
+				candidates += O
+	else if(ispath(scan_type, /turf))
+		for(var/turf/found in view(scan_range, src))
+			if(istype(found, scan_type))
+				candidates += found
+	else
+		for(var/atom/A as anything in view(scan_range, src))
+			if(istype(A, scan_type))
+				candidates += A
+	// hippie end
+	for (var/scan in shuffle(candidates)-adjacent) //Search for something in range! // hippie -- candidates, was all of view(scan_range, src)
 		var/final_result = checkscan(scan,scan_type,old_target)
 		if(final_result)
 			return final_result

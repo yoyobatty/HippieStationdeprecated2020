@@ -222,7 +222,16 @@ SUBSYSTEM_DEF(timer)
 			bucket_count++
 			continue
 		if(!(qtimer.flags & TIMER_LOOP))
-			qdel(qtimer)
+			// hippie start -- a spent timer's qdel(), without the rest of qdel(). Its Destroy() always answers QDEL_HINT_IWILLGC, so it was
+			// never queued, but every timer that fired still paid for qdel()'s type lookup and counts, two signal checks, a copied
+			// argument list and the SSdemo call. One with a signal listener still goes the long way round.
+			if(qtimer.comp_lookup)
+				qdel(qtimer)
+				continue
+			qtimer.gc_destroyed = GC_CURRENTLY_BEING_QDELETED
+			qtimer.Destroy()
+			qtimer.gc_destroyed = world.time
+			// hippie end
 		else
 			bucket_count++
 			qtimer.spent = 0
@@ -341,7 +350,10 @@ SUBSYSTEM_DEF(timer)
 	/// hippie -- for easy debugging: list(id, timeToRun, wait, flags, "[callBack.object]", its type, callBack.delegate), turned into
 	/// text by operator""() only when something prints the timer (as in tgstation). Building the whole string up front in New(),
 	/// \refs and all, cost ~50us a timer. Holds no datums, so it can't keep anything alive.
-	var/list/timer_info
+	/// hippie -- that list went too: a list, two texts and a proc call for every timer made. What can't be read off the timer once
+	/// its callback is gone is kept as it comes, the object's type (or GLOBAL_PROC) and the proc: no text is built until it's printed.
+	var/info_type
+	var/info_proc
 	/// hippie -- (from tg) whether it's in a bucket, and which: bucketEject() used to work that out again from TIMER_MAX, which
 	/// moves on every tick. A timer that joined the second queue right at its edge and was deleted a tick or more later looked
 	/// like it was in a bucket, so it was never taken out of the second queue; moved into a bucket later, spent and deleted, it
@@ -376,7 +388,8 @@ SUBSYSTEM_DEF(timer)
 			nextid++
 		SStimer.timer_id_dict[id] = src
 
-	timer_info = list(id, timeToRun, wait, flags, "[callBack.object]", getcallingtype(), callBack.delegate)
+	info_type = (callBack.object == GLOBAL_PROC) ? GLOBAL_PROC : callBack.object?.type // hippie -- see info_type
+	info_proc = callBack.delegate
 
 	if ((timeToRun < world.time || timeToRun < SStimer.head_offset) && !(flags & TIMER_CLIENT_TIME))
 		CRASH("Invalid timer state: Timer created that would require a backtrack to run (addtimer would never let this happen): [SStimer.get_timer_debug_string(src)]")
@@ -387,7 +400,12 @@ SUBSYSTEM_DEF(timer)
 	bucketJoin()
 
 /datum/timedevent/Destroy()
-	..()
+	// hippie -- /datum/Destroy() clears a tag, a weak reference, timers, components and signals. A timer has none of them unless
+	// something gave it one (View Variables and SDQL can), so it's only called then: for every other timer it was a call and a
+	// dozen reads that found nothing. The tag is tested too: a datum with a tag is never garbage collected. Anything
+	// /datum/Destroy() learns to clean up has to be added to this test.
+	if (weak_reference || active_timers || datum_components || comp_lookup || signal_procs || datum_flags || tag)
+		..()
 	if (flags & TIMER_UNIQUE && hash)
 		SStimer.hashes -= hash
 
@@ -487,12 +505,12 @@ SUBSYSTEM_DEF(timer)
 	next.prev = src
 	prev.next = src
 
-/// hippie -- what name used to say (see timer_info), minus the callback's arguments
+/// hippie -- what name used to say (see info_type), minus the callback's arguments
 /datum/timedevent/proc/operator""()
-	if (!length(timer_info))
-		return "Timer (no info)"
+	var/who = callBack ? "[callBack.object]" : "?" // the callback goes in Destroy()
+	var/its_type = (info_type == GLOBAL_PROC) ? "GLOBAL_PROC" : "[info_type]"
 	var/static/list/flag_names = list("TIMER_UNIQUE", "TIMER_OVERRIDE", "TIMER_CLIENT_TIME", "TIMER_STOPPABLE", "TIMER_NO_HASH_WAIT", "TIMER_LOOP")
-	return "Timer: [timer_info[1]] (\ref[src]), TTR: [timer_info[2]], wait: [timer_info[3]], Flags: [jointext(bitfield2list(timer_info[4], flag_names), ", ")], callBack.object: [timer_info[5]]([timer_info[6]]), callBack.delegate: [timer_info[7]]"
+	return "Timer: [id] (\ref[src]), TTR: [timeToRun], wait: [wait], Flags: [jointext(bitfield2list(flags, flag_names), ", ")], callBack.object: [who]([its_type]), callBack.delegate: [info_proc]"
 
 /datum/timedevent/proc/getcallingtype()
 	. = "ERROR"

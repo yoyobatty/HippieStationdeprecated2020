@@ -51,7 +51,8 @@
 	return ..()
 
 /obj/machinery/atmospherics/components/unary/vent_scrubber/auto_use_power()
-	if(!on || welded || !is_operational() || !powered(power_channel))
+	var/area/A = get_area(src) // hippie -- one area lookup for the check and the charge: powered() and use_power() each made their own (see /obj/machinery/proc/auto_use_power())
+	if(!on || welded || !is_operational() || !loc || (use_power && !(A && A.powered(power_channel)))) // hippie -- powered(), written out
 		return FALSE
 
 	var/amount = idle_power_usage
@@ -63,7 +64,8 @@
 
 	if(widenet)
 		amount += amount * (adjacent_turfs.len * (adjacent_turfs.len / 2))
-	use_power(amount, power_channel)
+	if(A) // hippie -- use_power(), with the area from above
+		A.use_power(amount, power_channel)
 	return TRUE
 
 /obj/machinery/atmospherics/components/unary/vent_scrubber/update_icon_nopipes()

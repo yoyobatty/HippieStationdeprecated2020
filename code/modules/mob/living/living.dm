@@ -395,8 +395,16 @@
 		death()
 
 /mob/living/incapacitated(ignore_restraints = FALSE, ignore_grab = FALSE, check_immobilized = FALSE, ignore_stasis = FALSE)
-	if(stat || IsUnconscious() || IsStun() || IsParalyzed() || (check_immobilized && IsImmobilized()) || (!ignore_restraints && restrained(ignore_grab)) || (!ignore_stasis && IS_IN_STASIS(src)))
+	// hippie start -- asked millions of times a round, nearly always of somebody with no status effect on them at all: then the
+	// status effect lookups (unconscious, stunned, immobilized, stasis) can only say no, each behind a proc call or two. The same
+	// questions with the same answer, those ones only asked when there is a status effect to find.
+	if(stat)
 		return TRUE
+	if(status_effects && (IsUnconscious() || IsStun() || (check_immobilized && IsImmobilized()) || (!ignore_stasis && IS_IN_STASIS(src))))
+		return TRUE
+	if(IsParalyzed() || (!ignore_restraints && restrained(ignore_grab)))
+		return TRUE
+	// hippie end
 
 /mob/living/canUseStorage()
 	if (get_num_arms() <= 0)

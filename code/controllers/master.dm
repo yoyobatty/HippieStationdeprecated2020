@@ -502,17 +502,17 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 	. = 0 //so the mc knows if we runtimed
 
 	//we create our variables outside of the loops to save on overhead
-	var/datum/controller/subsystem/SS
 	var/SS_flags
 
 	var/now = world.time // hippie
-	for (var/thing in subsystemstocheck)
-		if (!thing)
-			subsystemstocheck -= thing
-			continue // hippie -- it went on to read .state off the null
-		SS = thing
-		if (SS.next_fire > now) // hippie -- first: most aren't due, and this way that's one read, not three
+	// hippie -- the loop var is typed (as anything: no type test) and the null test comes after the due test. This loop passes ~60
+	// subsystems on every tick, most of them not due, and each cost a null test and a copy into SS before the one read that sends it on.
+	for (var/datum/controller/subsystem/SS as anything in subsystemstocheck)
+		if (SS?.next_fire > now) // hippie -- first: most aren't due, and this way that's one read, not three. A null entry reads as null, which isn't > now
 			continue
+		if (!SS)
+			subsystemstocheck -= SS
+			continue // hippie -- it went on to read .state off the null
 		if (SS.state != SS_IDLE)
 			continue
 		if (SS.can_fire <= 0)

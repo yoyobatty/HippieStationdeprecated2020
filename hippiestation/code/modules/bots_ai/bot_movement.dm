@@ -608,7 +608,9 @@
 		return FALSE
 	if(op_team)
 		op_mind_jetpack(next_node) //goals/nuke_ops.dm
-	if(!owner.Process_Spacemove(get_dir(owner, next_node)))
+	// With gravity under it Process_Spacemove() says yes, five procs down, from this same has_gravity(): asked here first. Without
+	// gravity it's asked as before.
+	if(!owner.has_gravity() && !owner.Process_Spacemove(get_dir(owner, next_node)))
 		return FALSE
 	// Somebody dragging something big on the next tile: wait for them, or go round. Walking into them swaps places (living.dm), and
 	// what they're dragging can't follow them on to a tile with somebody on it: engineers taking emitters along the central hallway
@@ -880,7 +882,7 @@
 		else
 			repath()
 		return
-	bot_log_verbose(src, "step_next_node: [get_turf(owner)] -> [next_node] @ [bot_coord(next_node)], [current_path.len] nodes left")
+	bot_log_verbose(src, "step_next_node: [here] -> [next_node] @ ([next_node.x],[next_node.y],[next_node.z]), [current_path.len] nodes left") //bot_coord() written out and the turf found above: this is every step of every walk, two thirds of the trace
 	// try_clear_obstruction() (bot_items.dm) checks against the real movement engine
 	// itself before touching anything, and can yield for real time (climbing a
 	// structure).

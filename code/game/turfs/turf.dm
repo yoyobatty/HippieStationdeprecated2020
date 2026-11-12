@@ -312,7 +312,10 @@ GLOBAL_LIST_EMPTY(station_turfs)
 		var/obj/O = AM
 		if(O.obj_flags & FROZEN)
 			O.make_unfrozen()
-	if(!AM.zfalling)
+	// hippie -- only openspace lets anything out downward (zPassOut(): never for a turf, upward only for /turf/open), so from any
+	// other floor zFall() could only say no, after finding the turf below: everything entering every floor paid for that. A
+	// zPassOut() that allows DOWN on another kind of floor has to be let through here too.
+	if(!AM.zfalling && istype(src, /turf/open/openspace))
 		zFall(AM)
 
 /turf/proc/is_plasteel_floor()

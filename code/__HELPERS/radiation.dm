@@ -12,9 +12,9 @@
 		))
 	var/list/processing_list = list(location)
 	. = list()
-	while(processing_list.len)
-		var/atom/thing = processing_list[1]
-		processing_list -= thing
+	var/i = 0 // hippie -- walked with an index, as tg's does now: taking each thing off the front moved the rest of the list down every time
+	while(i < length(processing_list))
+		var/atom/thing = processing_list[++i]
 		if(!thing) // hippie -- a wave past the map's edge asks about no turf at all: 304 runtimes in one code sweep
 			continue
 		if(ignored_things[thing.type])

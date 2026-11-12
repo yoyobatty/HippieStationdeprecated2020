@@ -141,7 +141,7 @@
 /turf/open/proc/update_visuals()
 
 	var/list/atmos_overlay_types = src.atmos_overlay_types // Cache for free performance
-	var/list/new_overlay_types = list()
+	var/list/new_overlay_types // hippie -- made when a gas shows (below): nearly every call is plain air with nothing to show
 	var/static/list/nonoverlaying_gases = typecache_of_gases_with_no_overlays()
 
 	if(!air) // 2019-05-14: was not able to get this path to fire in testing. Consider removing/looking at callers -Naksu
@@ -159,7 +159,16 @@
 		var/gas_amount = gases[id]
 		var/gas_overlay = GAS_META[META_GAS_OVERLAY][id]
 		if(gas_overlay && gas_amount > GAS_META[META_GAS_MOLES_VISIBLE][id])
+			if(!new_overlay_types)
+				new_overlay_types = list()
 			new_overlay_types += gas_overlay[min(TOTAL_VISIBLE_STATES, ceil(gas_amount / MOLES_GAS_VISIBLE_STEP))]
+
+	// hippie start -- nothing showing and nothing to show: the rest would take nothing off, put nothing on and leave atmos_overlay_types null
+	if(!new_overlay_types)
+		if(!atmos_overlay_types)
+			return
+		new_overlay_types = list()
+	// hippie end
 
 	if (atmos_overlay_types)
 		for(var/overlay in atmos_overlay_types-new_overlay_types) //doesn't remove overlays that would only be added

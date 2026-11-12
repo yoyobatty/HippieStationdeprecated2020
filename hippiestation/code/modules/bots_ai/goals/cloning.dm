@@ -107,6 +107,23 @@
 		LAZYSET(clone_blocked, nearest, world.time + BOT_CLONE_RETRY)
 	return null
 
+/// Whether there's a body find_body_to_clone() would look at at all: its own checks, short of the walk there. Most rounds there's nobody
+/// to clone, and clone_body/resolve_target() found three places to stand by the cloner first, a route search or more each, every time a
+/// doctor's round got that far (444 times in one shift that cloned nobody).
+/datum/bot_brain/proc/any_body_to_clone()
+	var/mob/living/carbon/human/asked = clone_wanted?.resolve()
+	if(asked && world.time < clone_wanted_until && asked.z == owner.z && isturf(asked.loc) && !asked.buckled && !asked.pulledby && bot_clonable(asked) && !taken_by_another(asked))
+		return TRUE
+	for(var/mob/living/carbon/human/H in GLOB.dead_mob_list)
+		if(H.z != owner.z || !isturf(H.loc) || H.buckled || H.pulledby || !bot_clonable(H))
+			continue
+		if(LAZYACCESS(clone_blocked, H) > world.time || taken_by_another(H))
+			continue
+		if(gym_run && get_area(H) != get_area(owner))
+			continue
+		return TRUE
+	return FALSE
+
 /datum/bot_goal/clone_body
 	doing = "taking somebody to the cloner"
 	exclusive = TRUE
@@ -121,6 +138,9 @@
 	if(!console)
 		return
 	scanner = console.scanner
+	if(!bot.any_body_to_clone()) // nobody to clone: no need of somewhere to stand yet
+		bot.is_shut_in() // the look the route searches for those spots took (can_walk_lawfully_to(), bot_doors.dm): shut_in_result is read as it stands elsewhere
+		return
 	scanner_spot = bot.spot_beside(scanner)
 	console_spot = bot.spot_beside(console)
 	pod_spot = bot.spot_beside(console.GetAvailablePod()) //a pod in a corner has none: the body stays by the scanner

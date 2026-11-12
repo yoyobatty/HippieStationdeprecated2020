@@ -5,9 +5,19 @@
 
 /obj/machinery/power/emitter
 	emissive_glow_alpha = EMISSIVE_GLOW_INDICATOR
+	/// The icon, state and dir the glow was last looked up for. An emitter that isn't welded down calls update_icon() from every
+	/// process(), five times a second, to set the same unlit state again: the glow is looked up only when one of them has changed.
+	var/glow_made_icon
+	var/glow_made_state
+	var/glow_made_dir
 
 /obj/machinery/power/emitter/update_icon()
 	. = ..()
+	if(glow_made_state == icon_state && glow_made_dir == dir && glow_made_icon == icon)
+		return
+	glow_made_icon = icon
+	glow_made_state = icon_state
+	glow_made_dir = dir
 	update_state_glow()
 
 /obj/machinery/power/rad_collector

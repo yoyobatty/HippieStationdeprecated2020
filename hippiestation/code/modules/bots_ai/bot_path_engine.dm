@@ -72,6 +72,15 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 		for(var/type in typesof(kind[1]))
 			.[type] = kind[2]
 
+/// What path_engine_rounds() asks about one side at a time: 1 for windows, windoors and external airlocks, 2 for the other airlocks,
+/// which only are when they have an id_tag (a button on one side)
+/proc/path_engine_one_side_types()
+	var/list/types = typecacheof(list(/obj/structure/window, /obj/machinery/door/window, /obj/machinery/door/airlock/external))
+	for(var/type in typesof(/obj/machinery/door/airlock))
+		if(!types[type])
+			types[type] = 2
+	return types
+
 /proc/path_engine_setup()
 	GLOB.path_engine_on = FALSE
 	GLOB.station_picture_kept = FALSE
@@ -220,17 +229,32 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 	var/list/deadly_types = GLOB.path_engine_deadly_types
 	var/list/penalties = (weighted && permissive) ? GLOB.path_engine_penalties : null
 	var/list/inert = GLOB.station_picture_inert
-	// whose answer is for one side only: windows and windoors face a way, and a door's button is on one side of it
-	// (bot_doors.dm). Anything else answers the same from every side, so it's asked once.
-	var/static/list/one_side = typecacheof(list(/obj/structure/window, /obj/machinery/door))
+	// whose answer is for one side only: windows and windoors face a way, an external airlock minds what's beyond it, and an airlock
+	// worked from a button (one with an id_tag) has the button on one side of it (bot_doors.dm). path_engine_one_side_types() has 1 for
+	// the first three and 2 for the other airlocks, which are only asked a side at a time when they have an id_tag: without one their
+	// CanAStarPass() never looks at the side. Anything else answers the same from every side, so it's asked once, firelocks and
+	// shutters too: their CanAStarPass() takes no side at all.
+	var/static/list/one_side = path_engine_one_side_types()
+	var/sided
 	var/list/cardinals = GLOB.cardinals
 	var/list/answers = list()
 	var/status
 	var/list/timing = GLOB.path_engine_timing // tools/path_bench: where the time goes
 	var/mark
+	// world.time when the station picture was last told what's changed and the turf lists were last read. Neither changes unless this
+	// proc sleeps (the yield at the bottom), and world.time moves on whenever it does: a round in the same tick as the last skips both.
+	var/caught_up_at
 	while(TRUE)
-		if(GLOB.station_picture_kept && length(GLOB.station_picture_dirty))
-			station_picture_flush() // changed while the search yielded
+		if(world.time != caught_up_at)
+			caught_up_at = world.time
+			if(GLOB.station_picture_kept && length(GLOB.station_picture_dirty))
+				station_picture_flush() // changed while the search yielded
+			// the turf lists, only when there's anything in them (mostly there isn't): the hazards are a new list every few seconds,
+			// and one kept from before a yield told the station picture a new hazard tile was open floor
+			trapdoors = length(GLOB.bot_open_trapdoors) ? GLOB.bot_open_trapdoors : null
+			field_turfs = length(GLOB.bot_field_turfs) ? GLOB.bot_field_turfs : null
+			generator_turfs = length(GLOB.bot_field_generator_turfs) ? GLOB.bot_field_generator_turfs : null
+			hazards = length(GLOB.bot_hazard_turfs) ? GLOB.bot_hazard_turfs : null
 		var/step_started = TICK_USAGE_REAL
 		if(timing)
 			mark = step_started
@@ -245,12 +269,6 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 		if(status != 1)
 			break
 		answers.len = length(out)
-		// the turf lists, only when there's anything in them (mostly there isn't), read each round: the hazards are a new list
-		// every few seconds, and one kept from before a yield told the station picture a new hazard tile was open floor
-		trapdoors = length(GLOB.bot_open_trapdoors) ? GLOB.bot_open_trapdoors : null
-		field_turfs = length(GLOB.bot_field_turfs) ? GLOB.bot_field_turfs : null
-		generator_turfs = length(GLOB.bot_field_generator_turfs) ? GLOB.bot_field_generator_turfs : null
-		hazards = length(GLOB.bot_hazard_turfs) ? GLOB.bot_hazard_turfs : null
 		// What a bot may do on each tile, as the engine wants it (tools/path_engine/src/search.rs): the ways onto it that are refused
 		// (bits 0-3, by the direction to the tile stepped from), the ways off it that are (bits 4-7) and, for the weighted cost, its
 		// penalty times 256. The same checks as bot_reachable_strict()/bot_link_blocked_strict() and bot_reachable_permissive()/
@@ -267,10 +285,11 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 			var/special = !blocked && special_types[T.type]
 			if(special)
 				blocked = (deadly_types[T.type] && bot_turf_is_deadly(T)) || (simulated_only && space_types[T.type] && !(space_ok && bot_turf_has_pushoff_backup(T)))
+			var/hazard = hazards && hazards[T] // looked up once for the two places below that ask (neither is reached for a dense turf)
 			var/kind
 			if(T.density)
 				kind = PATH_PICTURE_SOLID
-			else if(listed || (hazards && hazards[T]) || (special && (!space_types[T.type] || deadly_types[T.type])))
+			else if(listed || hazard || (special && (!space_types[T.type] || deadly_types[T.type])))
 				kind = PATH_PICTURE_VOLATILE
 			else
 				kind = special ? PATH_PICTURE_OPEN_SPACE : PATH_PICTURE_OPEN // odd: still to look at what's on it
@@ -295,7 +314,7 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 					for(var/dir in cardinals)
 						if(!istype(get_step(T, dir), /turf/open/pool))
 							bits |= dir
-				if(hazards && hazards[T])
+				if(hazard)
 					for(var/dir in cardinals)
 						var/turf/from = get_step(T, dir)
 						if(from && !(bits & dir) && bot_steps_into_hazard(from, T, caller))
@@ -325,7 +344,8 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 					if(!O.density && !O.astar_always_asks)
 						continue // passed by bot_can_astar_pass_permissive(): their CanAStarPass() is !density
 					if(bits != 15)
-						if(!one_side[O.type])
+						sided = one_side[O.type]
+						if(!sided || (sided == 2 && !O:id_tag))
 							if(!bot_can_astar_pass_permissive(O, id, NORTH, caller))
 								bits |= 15
 						else
@@ -342,6 +362,13 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 							kind = PATH_PICTURE_VOLATILE
 							break
 			else
+				// A full window shuts its tile from every side, coming and going, whoever asks (/obj/structure/window/CanAStarPass() goes by
+				// its dir alone): every bit is set whatever else is on the tile, and it's one to ask about every time. Found natively,
+				// instead of the pass over the tile below and five calls: most window tiles are these.
+				var/obj/structure/window/pane = locate(/obj/structure/window) in T
+				if(pane && pane.density && pane.dir == FULLTILE_WINDOW_DIR)
+					answers[i] = 255 + ((kind & 1) ? PATH_PICTURE_VOLATILE : kind) * PATH_PICTURE_UNIT
+					continue
 				for(var/atom/movable/AM as anything in T)
 					if(!AM.density)
 						if(isobj(AM))
@@ -349,7 +376,8 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 							if(door.astar_always_asks)
 								kind = (kind & 1) ? PATH_PICTURE_VOLATILE : kind
 								if(bits != 15)
-									if(!one_side[door.type])
+									sided = one_side[door.type]
+									if(!sided || (sided == 2 && !door:id_tag))
 										if(!door.CanAStarPass(id, NORTH, caller))
 											bits |= 15
 									else
@@ -367,7 +395,8 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 						var/obj/O = AM
 						kind = (kind & 1) ? PATH_PICTURE_VOLATILE : kind
 						if(bits != 15)
-							if(!one_side[O.type])
+							sided = one_side[O.type]
+							if(!sided || (sided == 2 && !O:id_tag))
 								if(!O.CanAStarPass(id, NORTH, caller))
 									bits |= 15
 							else

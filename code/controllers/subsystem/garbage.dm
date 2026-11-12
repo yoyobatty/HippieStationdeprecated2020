@@ -269,7 +269,7 @@ SUBSYSTEM_DEF(garbage)
 		var/start_time = world.time
 		var/start_tick = world.tick_usage
 		SEND_SIGNAL(D, COMSIG_PARENT_QDELETING, force) // Let the (remaining) components know about the result of Destroy
-		var/hint = D.Destroy(arglist(args.Copy(2))) // Let our friend know they're about to get fucked up.
+		var/hint = length(args) > 2 ? D.Destroy(arglist(args.Copy(2))) : D.Destroy(force) // Let our friend know they're about to get fucked up. hippie -- no copied argument list when there's nothing after force
 		if(world.time != start_time)
 			I.slept_destroy++
 		else

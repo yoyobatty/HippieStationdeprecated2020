@@ -1405,8 +1405,11 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 	// Only the tools it's short on, looked up per tile with locate() (native code). This walked every item in oview(1) and asked
 	// Adjacent() of each before checking its type, and Adjacent() walks the item's whole tile: past a pile of 2600 things
 	// (2026-11-11, ash drakes on clown corpses) one step cost 4 s. One tool a step: the next step picks up the next.
+	var/list/tool_types = GLOB.captains_id_required_tools
 	for(var/turf/T as anything in RANGE_TURFS(1, owner))
-		for(var/tool_type in GLOB.captains_id_required_tools)
+		if(!(locate(/obj/item) in T))
+			continue // no item on it at all, as on most tiles: one look for the tile, not one for each of the six tools (every one an item)
+		for(var/tool_type in tool_types)
 			var/obj/item/I = locate(tool_type) in T // a toolbox is never one of these: loose tools only, no unpacking in passing
 			if(!I || I.anchored || can_eventually_provide_tool(tool_type) || !owner.Adjacent(I))
 				continue
@@ -1831,13 +1834,15 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 /datum/bot_brain/proc/real_move_blocker(turf/here, turf/T)
 	if(!here || !T)
 		return null
+	// What's under the floor (lighting, cables, pipes: no_cross_checks, hippiestation/code/game/atoms_movable.dm) never has a say,
+	// and turf/Enter() and turf/Exit() don't ask it either: half of what's on a tile, a proc call apiece before every step.
 	for(var/atom/movable/AM in here)
-		if(AM == owner)
+		if(AM == owner || AM.no_cross_checks)
 			continue
 		if(!AM.CheckExit(owner, T))
 			return AM
 	for(var/atom/movable/AM in T)
-		if(AM == owner)
+		if(AM == owner || AM.no_cross_checks)
 			continue
 		if(!AM.CanPass(owner, here))
 			return AM

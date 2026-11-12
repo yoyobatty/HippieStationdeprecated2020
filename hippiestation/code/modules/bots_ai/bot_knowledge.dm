@@ -76,9 +76,14 @@ GLOBAL_VAR_INIT(bot_knowledge_off, world.params["bot-knowledge"] == "off")
 	if(world.time < next_item_glance || !isturf(owner?.loc))
 		return
 	next_item_glance = world.time + 1 SECONDS
+	var/list/contraband_types = GLOB.bot_contraband
 	for(var/obj/item/I in view(BOT_SIGHT_RANGE, owner))
-		note_seen(I)
-		if(GLOB.bot_contraband[I.type] && isturf(I.loc))
+		// Still where the map put it: known to everybody, and nothing for note_seen() to do. Asked here, as that's most of what's in
+		// sight and it was a proc call for each. Anything else is noted as before, in the same order.
+		var/turf/T = get_turf(I)
+		if(T && I.bot_mapped_turf != T)
+			note_seen(I, T)
+		if(contraband_types[I.type] && isturf(I.loc))
 			loose_contraband = WEAKREF(I) //a traitor's kit lying about: kept by the kinds that would (pocket_loose_contraband(), bot_playstyles.dm)
 
 /// What's inside something it has opened or is going through

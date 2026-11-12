@@ -17,6 +17,9 @@
 			arrows += emissive_glow(arrow_icon, "unres_e", SOUTH, emissive_glow_alpha, 32, 0)
 		if(unres_sides & WEST)
 			arrows += emissive_glow(arrow_icon, "unres_w", SOUTH, emissive_glow_alpha, -32, 0)
+	// Only set_airlock_overlays() calls this, straight after its cut_overlays(): the old glow went with the rest (a glow is never a
+	// priority overlay), so set_emissive_glow() has nothing to take off, and needn't build the old glow again to try
+	emissive_glow_shown = null
 	set_emissive_glow(lights_overlay?.icon_state, overlays_file, arrows)
 
 // Indicator lights and small panels glow less than screens (requests consoles, newscasters, status displays stay full)
@@ -128,18 +131,29 @@
 		update_state_glow()
 
 // Status displays and door timers: the pictures and the scrolling text
+/obj/machinery/status_display
+	/// remove_display() has blanked it and nothing has drawn on it since. An evac display with no shuttle timer to show
+	/// blanks itself from every process() (some 120 of them, 84 at CentCom): blanking a blank display took six calls to
+	/// change nothing.
+	var/display_blank = FALSE
+
 /obj/machinery/status_display/remove_display()
+	if(display_blank && !maptext && !length(overlays))
+		return
 	. = ..()
 	emissive_glow_text = null
 	set_emissive_glow(null)
+	display_blank = TRUE
 
 /obj/machinery/status_display/set_picture(state)
 	. = ..()
+	display_blank = FALSE // after ..(), which blanks it first
 	emissive_glow_text = null
 	set_emissive_glow(state)
 
 /obj/machinery/status_display/update_display(line1, line2)
 	. = ..()
+	display_blank = FALSE
 	glow_maptext()
 
 /obj/machinery

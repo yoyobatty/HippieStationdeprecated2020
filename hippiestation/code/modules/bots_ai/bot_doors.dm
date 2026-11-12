@@ -229,7 +229,7 @@ GLOBAL_LIST_EMPTY(bot_door_buttons_out_of_reach)
 	if(H.bot_brain.pathing_emag && !H.bot_brain.measuring_shut_in)
 		return . || (!welded && hasPower() && !(obj_flags & EMAGGED) && (!istype(src, /obj/machinery/door/airlock/external) || H.bot_brain.op_team)) //it stays open: not onto space, unless it's an operative in a hardsuit coming in from it
 	// The armory, open to Security at red alert (goals/security_tactics.dm): an officer goes through it, open or swung to.
-	if(!locked && H.bot_brain.is_security_job() && bot_armory_open_for_security() && bot_is_armory_door(src))
+	if(!locked && bot_armory_open_for_security() && H.bot_brain.is_security_job() && bot_is_armory_door(src)) // the clock first: one read, and nearly always no
 		return TRUE
 	if(.)
 		// Stood open, and not one this bot's ID opens: no following somebody in (pathing_no_tailgating). The doors it

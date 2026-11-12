@@ -234,13 +234,39 @@ Class Procs:
 	update_icon()
 
 /obj/machinery/proc/auto_use_power()
-	if(!powered(power_channel))
+	// hippie start -- every machine in the list, every fire. This went through powered() and use_power(), which look the area
+	// up once each: four calls and two lookups a machine. The same checks in the same order with one lookup; the area's own
+	// powered() and use_power() still decide (the holodeck's and space's differ). powered() is no longer called from here, so
+	// a machine with its own powered() needs its own auto_use_power(): the four that have one follow.
+	if(!loc)
 		return 0
-	if(use_power == 1)
-		use_power(idle_power_usage,power_channel)
-	else if(use_power >= 2)
-		use_power(active_power_usage,power_channel)
+	var/usage_mode = use_power
+	if(!usage_mode)
+		return 1
+	var/area/A = get_area(src)
+	if(!A)
+		return 0
+	var/chan = power_channel
+	if(!A.powered(chan))
+		return 0
+	if(usage_mode == 1)
+		A.use_power(idle_power_usage, chan)
+	else if(usage_mode >= 2)
+		A.use_power(active_power_usage, chan)
 	return 1
+
+/obj/machinery/doppler_array/auto_use_power()
+	return powered(power_channel) ? ..() : 0
+
+/obj/machinery/flasher/auto_use_power()
+	return powered(power_channel) ? ..() : 0
+
+/obj/machinery/sparker/auto_use_power()
+	return powered(power_channel) ? ..() : 0
+
+/obj/machinery/smartfridge/drying_rack/auto_use_power()
+	return powered(power_channel) ? ..() : 0
+// hippie end
 
 /obj/machinery/proc/is_operational()
 	return !(stat & (NOPOWER|BROKEN|MAINT))

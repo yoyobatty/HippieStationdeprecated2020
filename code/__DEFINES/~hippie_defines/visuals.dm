@@ -50,6 +50,10 @@
 #define AIR_DUST_BURNT_FOR (2 MINUTES)
 /// SSair_dust (a fire a second) looks at each dust floor, vent and scrubber once in this many fires: longer than a speck lives
 #define AIR_DUST_CHECK_FIRES 10
+/// Dust this many tiles past the edge of a player's screen is still looked at, so it's right by the time they reach it
+#define AIR_DUST_UNSEEN_MARGIN 6
+/// The square of the map (8 tiles a side) a turf is in: SSair_dust keeps the squares players can see into, and looks at the dust in those
+#define AIR_DUST_UNSEEN_CELL(turf) "[turf.x >> 3]|[turf.y >> 3]|[turf.z]"
 /// How long a scrubber keeps the sides it draws dust in from before looking at them again
 #define AIR_DUST_SPOKES_FOR (1 MINUTES)
 /// The share of a speck's speed the air takes off it each tick: what holds a speck in wind to the wind's speed

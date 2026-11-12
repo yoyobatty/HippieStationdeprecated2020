@@ -116,6 +116,16 @@
 // vision_distance (optional) define how many tiles away the message can be seen.
 // ignored_mob (optional) doesn't show any message to a given mob if TRUE.
 
+/// hippie -- Whether anybody with a client is on a tile within range of a turf. visible_message() and audible_message() only ever
+/// show their text to mobs with a client (show_message() returns for the rest), and get_hearers_in_view() only finds what's on a
+/// tile within range, so with no player that near there's nobody to look for: on a station of bots, that's nearly every message.
+/proc/any_client_within(turf/T, range)
+	for(var/client/C as anything in GLOB.clients)
+		var/turf/where = get_turf(C?.mob)
+		if(where && where.z == T.z && get_dist(where, T) <= range)
+			return TRUE
+	return FALSE
+
 /atom/proc/visible_message(message, self_message, blind_message, vision_distance, list/ignored_mobs)
 	var/turf/T = get_turf(src)
 	if(!T)
@@ -125,6 +135,8 @@
 	var/range = 7
 	if(vision_distance)
 		range = vision_distance
+	if(!any_client_within(T, range)) // hippie -- only a mob with a client is shown it, and none is in range
+		return
 	for(var/mob/M in get_hearers_in_view(range, src))
 		if(!M.client)
 			continue
@@ -161,6 +173,9 @@
 	var/range = 7
 	if(hearing_distance)
 		range = hearing_distance
+	var/turf/T = get_turf(src) // hippie -- only a mob with a client is shown it, and none is in range
+	if(!T || !any_client_within(T, range))
+		return
 	for(var/mob/M in get_hearers_in_view(range, src))
 		var/msg = message
 		if(self_message && M==src)
@@ -177,6 +192,9 @@
 	var/range = 7
 	if(hearing_distance)
 		range = hearing_distance
+	var/turf/T = get_turf(src) // hippie -- only a mob with a client is shown it, and none is in range
+	if(!T || !any_client_within(T, range))
+		return
 	for(var/mob/M in get_hearers_in_view(range, src))
 		M.show_message( message, 2, deaf_message, 1)
 
