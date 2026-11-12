@@ -449,3 +449,256 @@
 	if(waited && world.time > start_time + 9 SECONDS)
 		return BOT_GYM_PASS
 	return BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// Conversations (bot_threads.dm) and banter (bot_banter.dm)
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/chat/thread
+	time_limit = 40 SECONDS
+	var/mob/living/carbon/human/other
+	var/mob/living/carbon/human/killer
+	var/mob/living/carbon/human/victim
+
+/datum/bot_scenario/chat/thread/post_spawn()
+	..()
+	other = second_bot(first_marker("A"), "Alex Other")
+	brain.threads_in_gym = TRUE
+	brain.sociability = 0.9
+	killer = stand_in(first_marker("K"), "Kim Killer")
+	victim = stand_in(first_marker("Y"), "Yuri Victim")
+	brain.thread_topic_wanted = "gossip"
+	addtimer(CALLBACK(src, PROC_REF(the_killing)), 2 SECONDS)
+	addtimer(CALLBACK(src, PROC_REF(talk)), 4 SECONDS)
+
+/datum/bot_scenario/chat/thread/proc/the_killing()
+	victim.last_assailant = killer.real_name
+	victim.last_assailant_at = world.time
+	victim.death()
+	other.forceMove(get_step(bot, EAST)) //Alex was looking the other way: it hears it from the bot
+	other.bot_brain.facts = null
+
+/datum/bot_scenario/chat/thread/proc/talk()
+	other.bot_brain.facts = null //it saw it too, from where it ended up: it hasn't, for this
+	if(!brain.start_thread(other))
+		fail_reason = "no conversation started"
+		result = BOT_GYM_FAIL
+
+/datum/bot_scenario/chat/thread/gossip
+	name = "threads: gossip goes back and forth, and the news passes on"
+	desc = "The bot saw Kim kill Yuri. It tells Alex: more than one line each way (a question about it and an answer), and Alex knows it afterwards, from the bot."
+	layout = list(
+		"##########",
+		"#B.A.K.YC#",
+		"##########")
+
+/datum/bot_scenario/chat/thread/gossip/check()
+	if(length(spoken()) < 3)
+		return BOT_GYM_PENDING
+	for(var/key in other.bot_brain.facts)
+		var/datum/bot_fact/F = other.bot_brain.facts[key]
+		if(F.kind == BOT_FACT_KILLED && F.source == bot.real_name)
+			return BOT_GYM_PASS
+	fail_reason = "three lines, but Alex doesn't know who did it"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/chat/thread/joined
+	var/asked = FALSE
+	name = "threads: a player puts in \"who told you?\" and gets an answer"
+	desc = "The bot is telling Alex who killed Yuri. The visitor, stood by, asks \"who told you?\": the bot says it saw it itself."
+	layout = list(
+		"##########",
+		"#B.A.K.YC#",
+		"##########")
+	var/said_before = 0
+
+/datum/bot_scenario/chat/thread/joined/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(put_in)), 7 SECONDS)
+
+/datum/bot_scenario/chat/thread/joined/proc/put_in()
+	asked = TRUE
+	said_before = length(spoken())
+	visitor.forceMove(get_step(other, EAST))
+	visitor_says("who told you?")
+
+/datum/bot_scenario/chat/thread/joined/check()
+	if(!asked)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	for(var/i in said_before + 1 to length(lines))
+		var/line = lines[i]
+		if(findtext(line, " to Alex") || findtext(line, " to Gym"))
+			continue //the conversation itself, not the answer
+		if(findtext(line, "saw it") || findtext(line, "Saw it") || findtext(line, "right there"))
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/chat/banter
+	time_limit = 15 SECONDS
+
+/datum/bot_scenario/chat/banter/joke
+	name = "banter: tells a joke when asked, and the punchline after"
+	desc = "\"Tell me a joke\": a joke's setup, and its punchline a few seconds later."
+	layout = list(
+		"#######",
+		"#B.C..#",
+		"#######")
+
+/datum/bot_scenario/chat/banter/joke/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "Hey [bot.first_name()], tell me a joke"), 2 SECONDS)
+
+/datum/bot_scenario/chat/banter/joke/check()
+	var/list/lines = spoken()
+	if(length(lines) < 2)
+		return BOT_GYM_PENDING
+	for(var/list/J as anything in GLOB.bot_jokes)
+		if(lines[1] == J[1] && lines[2] == J[2])
+			return BOT_GYM_PASS
+	fail_reason = "said \"[lines[1]]\" then \"[lines[2]]\""
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/chat/banter/flirt_rebuffed
+	name = "banter: flirting from somebody it can't stand gets turned down"
+	desc = "The visitor punched the bot earlier and now says \"you're cute\". It turns them down instead of saying thanks."
+	layout = list(
+		"#######",
+		"#B.C..#",
+		"#######")
+
+/datum/bot_scenario/chat/banter/flirt_rebuffed/post_spawn()
+	..()
+	brain.regard = list("[visitor.real_name]" = -6)
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "Hey [bot.first_name()], you're cute"), 2 SECONDS)
+
+/datum/bot_scenario/chat/banter/flirt_rebuffed/check()
+	for(var/line in spoken())
+		if(line in list("Gross.", "No.", "Not in a million years.", "Get away from me."))
+			return BOT_GYM_PASS
+		fail_reason = "answered \"[line]\""
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// Breaks (bot_hangouts.dm)
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/chat/break_time
+	name = "breaks: sits down for a break and orders a drink"
+	desc = "Sent on a break in the arena, the bot walks to the chair, sits, and asks the bartender for a drink out loud."
+	layout = list(
+		"#########",
+		"#B...H.C#",
+		"#########")
+	time_limit = 30 SECONDS
+	var/sat = FALSE
+	var/ordered = FALSE
+
+/datum/bot_scenario/chat/break_time/post_spawn()
+	..()
+	new /obj/structure/chair(first_marker("H"))
+	visitor.mind_initialize()
+	visitor.mind.assigned_role = "Bartender"
+	addtimer(CALLBACK(src, PROC_REF(send_on_break)), 2 SECONDS)
+
+/datum/bot_scenario/chat/break_time/proc/send_on_break()
+	if(!brain.go_on_break(arena_area))
+		fail_reason = "didn't go"
+		result = BOT_GYM_FAIL
+
+/datum/bot_scenario/chat/break_time/check()
+	if(!sat)
+		if(bot.buckled && brain.on_break())
+			sat = TRUE
+			log_line("sat down")
+			brain.order_at_the_bar(TRUE)
+		return BOT_GYM_PENDING
+	for(var/line in spoken())
+		if(findtext(line, "please") || findtext(line, "Can I get") || findtext(line, "over here"))
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// Comings and goings (bot_comings.dm)
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/chat/logoff
+	name = "comings: logs off, reads as disconnected, and comes back the same person"
+	desc = "Its player leaves for a bit: the body stays and examines as anybody disconnected does (\"a blank, absent-minded stare\"), with no brain on it. When they come back it's the same brain, back at work."
+	layout = list(
+		"#######",
+		"#B.C..#",
+		"#######")
+	time_limit = 15 SECONDS
+	var/datum/bot_brain/was
+	var/stage = 0
+
+/datum/bot_scenario/chat/logoff/post_spawn()
+	..()
+	bot.key = "bot-gym-logoff-[run_index]" //a live round's bots have one (bot_identity.dm); the gym's don't
+	was = brain
+	addtimer(CALLBACK(src, PROC_REF(leave)), 2 SECONDS)
+
+/datum/bot_scenario/chat/logoff/proc/leave()
+	was.coming_back = TRUE
+	was.go_now()
+
+/datum/bot_scenario/chat/logoff/check()
+	switch(stage)
+		if(0)
+			if(bot.bot_brain || !was.logged_off)
+				return BOT_GYM_PENDING
+			var/seen = jointext(bot.examine(visitor), " ")
+			if(!findtext(seen, "absent-minded stare"))
+				fail_reason = "logged off, but examines as \"[seen]\""
+				return BOT_GYM_FAIL
+			log_line("logged off, and looks it")
+			stage = 1
+			was.log_back_on()
+			return BOT_GYM_PENDING
+		if(1)
+			if(bot.bot_brain != was || was.logged_off || !(was in GLOB.bot_brains))
+				fail_reason = "didn't come back as itself"
+				return BOT_GYM_FAIL
+			return BOT_GYM_PASS
+
+/datum/bot_scenario/chat/ghost
+	name = "ghosts: a dead bot's ghost says who killed it, and goes when it's brought back"
+	desc = "Kim kills the bot. Its ghost floats up beside the body, holding no mind, and the line it says in deadchat names Kim. Revived, the ghost is gone."
+	layout = list(
+		"#######",
+		"#B.C..#",
+		"#######")
+	time_limit = 20 SECONDS
+	var/mob/dead/observer/bot_ghost/spook
+	var/revived = FALSE
+
+/datum/bot_scenario/chat/ghost/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(die)), 2 SECONDS)
+
+/datum/bot_scenario/chat/ghost/proc/die()
+	bot.last_assailant = "Kim Killer"
+	bot.last_assailant_at = world.time
+	bot.death()
+	brain.make_ghost() //the gym doesn't ghost on its own: other arenas' deaths would fill deadchat
+	spook = brain.ghost
+
+/datum/bot_scenario/chat/ghost/check()
+	if(!spook)
+		return BOT_GYM_PENDING
+	if(!revived)
+		if(spook.mind)
+			fail_reason = "the ghost holds the mind: cloning would find it"
+			return BOT_GYM_FAIL
+		var/line = spook.death_line()
+		if(!findtext(line, "Kim"))
+			fail_reason = "its death line doesn't name the killer: \"[line]\""
+			return BOT_GYM_FAIL
+		log_line("ghost says \"[line]\"")
+		revived = TRUE
+		bot.revive(full_heal = TRUE)
+		return BOT_GYM_PENDING
+	return QDELETED(spook) ? BOT_GYM_PASS : BOT_GYM_PENDING
+

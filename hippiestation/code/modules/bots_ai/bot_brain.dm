@@ -167,6 +167,7 @@
 /datum/bot_brain/process(delta_time)
 	if(QDELETED(owner))
 		return PROCESS_KILL
+	mind_ghosting() //bot_comings.dm: dead a few seconds, it ghosts; brought back, the ghost's gone
 	if(world.time >= next_forget_time)
 		forget_deleted()
 	if(is_changeling)
@@ -769,8 +770,9 @@
 				owner.buckled.unbuckle_mob(owner, force = TRUE)
 			return
 
-	// The day job of everyone whose work isn't one of the rounds above (bot_duties.dm).
-	if(run_duties(BOT_DUTY_WORK))
+	// The day job of everyone whose work isn't one of the rounds above (bot_duties.dm). Not on a break (bot_hangouts.dm): the rounds above
+	// still get it up for what can't wait.
+	if(!on_break() && run_duties(BOT_DUTY_WORK))
 		if(owner.buckled && state == BOT_STATE_GOAL)
 			owner.buckled.unbuckle_mob(owner, force = TRUE)
 		return
@@ -806,6 +808,9 @@
 		return
 	// A favour it said it'd do after what it was doing (bot_favours.dm)
 	if(do_favour_later())
+		return
+	// Its player's shift ends early (bot_comings.dm)
+	if(mind_leaving())
 		return
 
 	// Free time: something to do instead of another stroll (bot_duties.dm).

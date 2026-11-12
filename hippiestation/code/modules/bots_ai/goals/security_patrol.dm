@@ -221,6 +221,7 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	if(ishuman(M))
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_victim_died), M), 1)
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_crew_saw_death), M), 1) //bot_memory.dm: who saw it
+		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_ghosts_saw_death), M), 1) //bot_comings.dm: the ghosts notice
 
 /// Listens for deaths, from the first bot on (SSdcs isn't up when globals are made)
 /datum/bot_brain/New()

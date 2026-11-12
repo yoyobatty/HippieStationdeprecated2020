@@ -205,6 +205,9 @@
 		H.bot_logged_off = TRUE
 		if(H.bot_brain == src)
 			H.bot_brain = null
+	if(coming_back && H) //bot_comings.dm: back in a few minutes, the same person
+		away_for_a_bit()
+		return
 	// Gone in a few seconds, not now: a click or a step already on a timer still runs, and found no body to run on (two bot AI exceptions
 	// and a runtime in six shifts). Stopped and with nothing to do, they come to nothing.
 	QDEL_IN(src, 10 SECONDS)

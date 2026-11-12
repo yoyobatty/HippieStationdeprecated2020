@@ -104,7 +104,7 @@ GLOBAL_LIST_EMPTY(bot_radio_lately)
 	addtimer(CALLBACK(src, PROC_REF(speak_reply), line), bot_typing_time(line))
 
 /datum/bot_brain/proc/speak_reply(reply)
-	if(QDELETED(owner) || owner.stat != CONSCIOUS)
+	if(QDELETED(owner) || owner.stat != CONSCIOUS || logged_off)
 		return
 	bot_say(owner, reply)
 	bot_log(src, "said \"[reply]\"")
@@ -228,6 +228,11 @@ GLOBAL_LIST_INIT(bot_you_words, list("you", "ya", "u", "your", "you're", "youre"
 		addressed = TRUE
 	if(!addressed && !radio_freq && asked_as_nearest(talker, lower_msg))
 		addressed = TRUE
+	// Stood by two bots talking: a word put in is to them, and the one who'd know answers (bot_threads.dm); the other leaves it to them
+	if(!radio_freq && thread && get_dist(owner, talker) <= 3 && !called)
+		if(thread.answerer_for(talker) != src)
+			return
+		addressed = TRUE
 	if(!addressed && (radio_freq || get_dist(owner, talker) > 3))
 		return
 	// Someone talking to it gets an answer every time; what it merely overhears, it reacts to now and then.
@@ -305,6 +310,14 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 	var/favour = favour_asked(talker, lower_msg, over_radio)
 	if(favour)
 		return favour
+	// A word put in while it's talking with another bot, in the terms of what they're talking about (bot_threads.dm)
+	var/put_in = thread_reply(talker, lower_msg)
+	if(put_in)
+		return put_in
+	// Jokes, laughing, flirting, arguing, favourites, who it likes (bot_banter.dm)
+	var/banter = banter_answer(talker, lower_msg)
+	if(banter)
+		return banter
 	if(bot_text_has_any(lower_msg, list("wait", "hold on", "hang on", "stop", "stop running", "wait up")) && !bot_text_has_any(lower_msg, list("stop following", "wait here")))
 		var/waiting = wait_for(talker) //bot_asks.dm
 		if(waiting)
@@ -1034,7 +1047,9 @@ GLOBAL_LIST_INIT(bot_shop_talk_plain_replies, list("Good to know.", "Noted.", "A
 	if(world.time < next_chat_time)
 		return
 	next_chat_time = world.time + rand(600, 1800) / (0.5 + sociability)
-	if(gym_scripted || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST || owner.stat != CONSCIOUS)
+	if(on_break()) //bot_hangouts.dm: sat down with people, it talks more
+		next_chat_time = world.time + rand(200, 600)
+	if(gym_scripted || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST || owner.stat != CONSCIOUS || thread)
 		return
 	var/mob/living/carbon/human/company = someone_to_talk_to()
 	if(maybe_report_mess()) //bot_requests.dm
@@ -1071,6 +1086,9 @@ GLOBAL_LIST_INIT(bot_shop_talk_plain_replies, list("Good to know.", "Noted.", "A
 
 /datum/bot_brain/proc/make_small_talk(mob/living/carbon/human/company)
 	if(gone_loud())
+		return
+	// Two bots: more often than not a conversation, a few lines each way (bot_threads.dm)
+	if(company.bot_brain && (!gym_run || threads_in_gym) && prob(60) && start_thread(company))
 		return
 	var/opener
 	var/list/replies
