@@ -404,6 +404,8 @@
 			M.apply_damage(force*0.5, BRUTE, hit_hand)
 
 /obj/item/record_shard/Crossed(mob/living/L)
+	if(istype(L) && !L.glass_step_once())
+		return // the pile already answered this step (stacks/sheets/glass.dm): no sound, no cut (the caltrop listens through ..())
 	if(istype(L) && has_gravity(loc))
 		if(HAS_TRAIT(L, TRAIT_LIGHT_STEP))
 			playsound(loc, 'sound/effects/glass_step.ogg', 30, 1)
