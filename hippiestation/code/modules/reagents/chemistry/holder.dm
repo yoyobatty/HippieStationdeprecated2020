@@ -1,3 +1,8 @@
+/// Reactions in one handle_reactions() call before it stops: a few is a long chain
+#define CHEM_REACTION_PASSES 100
+/// handle_reactions() inside handle_reactions() on the same holder (a reaction's product added reacts at once): a few is a long chain
+#define CHEM_REACTION_NESTING 20
+
 /// Whether reagent_state_check() could do anything: a gas below its boiling point, a solid above its melting point, a liquid either way.
 /// Otherwise it's sure to do nothing, and handle_reactions() would ask it of every reagent on every pass.
 #define STATE_MAY_CHANGE(R) (R.reagent_state == GAS ? chem_temp < R.boiling_point : (R.reagent_state == SOLID ? chem_temp > R.melting_point : (R.reagent_state != LIQUID || chem_temp > R.boiling_point || chem_temp < R.melting_point)))
@@ -8,6 +13,11 @@
 	var/chem_bluespaced = FALSE
 	var/chem_centrifuged = FALSE
 	var/next_react = 0
+	/// How deep handle_reactions() is in itself this tick (react_depth_time): see handle_reactions()
+	var/react_depth = 0
+	var/react_depth_time = -1
+	/// The tick its reactions were stopped in, for not settling: nothing more reacts in it that tick
+	var/react_stopped_time = -1
 
 /proc/get_random_toxin_reagent_id()	// Returns a random toxin reagent ID minus blacklisted reagents
 	var/static/list/random_reagents = list()
@@ -19,7 +29,27 @@
 	var/picked_reagent = pick(random_reagents)
 	return picked_reagent
 
+/// Two recipes that make each other's ingredient react back and forth for ever: each product added reacts at once, one call inside
+/// another, until BYOND's recursion limit throws (2026-11-11, tools/mob_storm SCENARIO=chemloop). So the nesting stops at
+/// CHEM_REACTION_NESTING and each call's own loop at CHEM_REACTION_PASSES, and once either is reached nothing in the holder reacts again
+/// that tick (each level's loop going on would start the levels under it afresh: the caps multiplied). Ordinary chemistry nests a few
+/// deep and is exactly as it was (tools/chem_check's 400 mixtures, the same results). The counts start afresh each tick, so a runtime
+/// can't leave them stuck.
 /datum/reagents/proc/handle_reactions()
+	if(react_stopped_time == world.time)
+		return 0
+	if(react_depth_time != world.time)
+		react_depth = 0
+		react_depth_time = world.time
+	if(react_depth >= CHEM_REACTION_NESTING)
+		react_stopped_time = world.time
+		chem_reaction_loop_stopped(my_atom)
+		return 0
+	react_depth++
+	. = handle_reactions_now()
+	react_depth--
+
+/datum/reagents/proc/handle_reactions_now()
 	if(!QDELETED(src))	//don't call the proc if the container doesn't exist
 		var/list/cached_reagents = reagent_list
 		var/list/cached_reactions = GLOB.chemical_reactions_list
@@ -43,7 +73,12 @@
 		// 29 tiles' piles one after another, each reacted in turn: 1.4 s of 1.9 s in 24 of them was has_reagent(), get_reagent_amount()
 		// and this proc's own loop (2026-11-08). The same recipes tried in the same order, with the same answers.
 		var/list/amounts
+		// Two recipes that make each other's ingredients would react back and forth here for ever, in one tick, and the server with them:
+		// a few passes is a long chain, so it stops at CHEM_REACTION_PASSES and the next call carries on (2026-11-11)
+		var/passes = 0
 		do
+			if(++passes > CHEM_REACTION_PASSES || react_stopped_time == world.time)
+				break
 			reaction_occurred = 0
 			for(var/reagent in cached_reagents)
 				var/datum/reagent/R = reagent
@@ -166,9 +201,24 @@
 						break
 
 		while(reaction_occurred)
-		note_stable(amounts)
+		if(passes > CHEM_REACTION_PASSES || react_stopped_time == world.time)
+			react_stopped_time = world.time
+			chem_reaction_loop_stopped(cached_my_atom)
+		else
+			note_stable(amounts) // only when nothing was left to react
 		update_total()
 		return 0
+
+/// A container whose reactions didn't settle in CHEM_REACTION_PASSES: logged, at most once a minute
+/proc/chem_reaction_loop_stopped(atom/where)
+	var/static/next_log = 0
+	if(world.time < next_log)
+		return
+	next_log = world.time + 1 MINUTES
+	var/list/what = list()
+	for(var/datum/reagent/R as anything in where?.reagents?.reagent_list)
+		what += "[R.type] [round(R.volume, 0.1)]"
+	log_game("CHEM: reactions in [where] ([where?.type]) at [AREACOORD(where)] still going after [CHEM_REACTION_PASSES] in a row or [CHEM_REACTION_NESTING] deep, stopped for now: [jointext(what, ", ")]")
 
 /datum/reagents
 	/// What was in it, by type (rounded as the recipes read it), when it last had nothing left to react, and what else the recipes go by

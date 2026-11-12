@@ -51,6 +51,13 @@ GLOBAL_VAR(mob_storm_file)
 				pile = F
 		break
 	mob_storm_log("pile at [pile.x],[pile.y],[pile.z] ([get_area(pile)]), profiler [SSprofiler.engine]")
+	if(world.params["mob-storm-scenario"] == "chemloop")
+		run_chemloop_storm(pile, text2num(world.params["mob-storm-seconds"]) || 30)
+		mob_storm_log("done")
+		sleep(1 SECONDS)
+		Master.Shutdown()
+		qdel(world)
+		return
 	if(world.params["mob-storm-scenario"] == "fire")
 		run_fire_storm(pile, text2num(world.params["mob-storm-seconds"]) || 90)
 		mob_storm_log("done")
@@ -537,3 +544,39 @@ GLOBAL_VAR_INIT(storm_flat_icons, 0)
 	W.watching = FALSE
 	var/busy = storm_measure_report(start, "fire storm")
 	mob_storm_log("TOTAL procs [round(100 * busy / seconds, 0.1)]%, worst stall [round(W.worst / 10, 0.1)] s, stalls over 0.5 s: [W.stalls] adding to [round(W.stalled / 10, 0.1)] s, over 2 s: [W.big_stalls]")
+
+// ---------------------------------------------------------------------------------------------
+// mob-storm-scenario=chemloop: two recipes, in this build only, that make each other's ingredient (sugar to salt, salt back to
+// sugar), and mob-storm-speakers (50) beakers of sugar poured one a tick. Without a stop in handle_reactions() the first one never
+// finishes reacting, and the server never gets out of that tick.
+// ---------------------------------------------------------------------------------------------
+
+/datum/chemical_reaction/storm_loop_sugar_to_salt
+	name = "storm loop: sugar to salt"
+	id = "storm_loop_sugar_to_salt"
+	results = list(/datum/reagent/consumable/sodiumchloride = 1)
+	required_reagents = list(/datum/reagent/consumable/sugar = 1)
+
+/datum/chemical_reaction/storm_loop_salt_to_sugar
+	name = "storm loop: salt to sugar"
+	id = "storm_loop_salt_to_sugar"
+	results = list(/datum/reagent/consumable/sugar = 1)
+	required_reagents = list(/datum/reagent/consumable/sodiumchloride = 1)
+
+/proc/run_chemloop_storm(turf/center, seconds)
+	var/count = text2num(world.params["mob-storm-speakers"]) || 50
+	mob_storm_log("pouring [count] beakers of sugar at [center.x],[center.y], one a tick")
+	var/datum/mob_storm_watch/W = new
+	var/list/start = storm_measure_start()
+	W.watch()
+	for(var/i in 1 to count)
+		var/obj/item/reagent_containers/glass/beaker/large/B = new(center)
+		B.reagents.add_reagent(/datum/reagent/consumable/sugar, 50)
+		if(i == 1)
+			mob_storm_log("first beaker done reacting: [B.reagents.get_reagent_amount(/datum/reagent/consumable/sugar)] sugar, [B.reagents.get_reagent_amount(/datum/reagent/consumable/sodiumchloride)] salt")
+		sleep(world.tick_lag)
+	mob_storm_log("all [count] poured")
+	sleep(seconds SECONDS)
+	W.watching = FALSE
+	var/busy = storm_measure_report(start, "chem loop")
+	mob_storm_log("TOTAL procs [round(100 * busy / max(1, seconds), 0.1)]%, worst stall [round(W.worst / 10, 0.1)] s, stalls over 0.5 s: [W.stalls]")
