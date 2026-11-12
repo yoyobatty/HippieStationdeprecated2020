@@ -45,6 +45,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/subsystem/vote.dm
 ## code/datums/components/chasm.dm (is_safe() by locate(), no copy of the tile's contents)
 ## code/datums/components/material_container.dm
+## code/datums/components/squeak.dm (a pile of squeaky things squeaks once for each thing that comes onto it)
 ## code/datums/datumvars.dm
 ## code/datums/diseases/\_MobProcs.dm
 ## code/datums/elements/atmos_sensitive.dm

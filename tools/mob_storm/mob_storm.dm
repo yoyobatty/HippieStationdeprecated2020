@@ -51,6 +51,20 @@ GLOBAL_VAR(mob_storm_file)
 				pile = F
 		break
 	mob_storm_log("pile at [pile.x],[pile.y],[pile.z] ([get_area(pile)]), profiler [SSprofiler.engine]")
+	if(world.params["mob-storm-scenario"] == "fire")
+		run_fire_storm(pile, text2num(world.params["mob-storm-seconds"]) || 90)
+		mob_storm_log("done")
+		sleep(1 SECONDS)
+		Master.Shutdown()
+		qdel(world)
+		return
+	if(world.params["mob-storm-scenario"] == "photo")
+		run_photo_storm(pile, text2num(world.params["mob-storm-seconds"]) || 60)
+		mob_storm_log("done")
+		sleep(1 SECONDS)
+		Master.Shutdown()
+		qdel(world)
+		return
 	if(world.params["mob-storm-scenario"] == "speech")
 		run_speech_storm(pile, text2num(world.params["mob-storm-seconds"]) || 60)
 		mob_storm_log("done")
@@ -184,6 +198,11 @@ GLOBAL_VAR(mob_storm_file)
 GLOBAL_VAR_INIT(storm_glass_crossings, 0)
 GLOBAL_VAR_INIT(storm_glass_reactions, 0)
 GLOBAL_VAR_INIT(storm_body_moves, 0)
+GLOBAL_VAR_INIT(storm_squeaks, 0)
+
+/datum/component/squeak/play_squeak()
+	GLOB.storm_squeaks++
+	return ..()
 
 /obj/item/shard/Crossed(mob/living/L)
 	if(istype(L))
@@ -232,26 +251,70 @@ GLOBAL_VAR_INIT(storm_body_moves, 0)
 	mob_storm_log("CHECK a barefoot step onto 5 shards: [first_crossed] crossed, [first] answered; the next step onto 5 more: [GLOB.storm_glass_crossings - first_crossed] crossed, [GLOB.storm_glass_reactions - first] answered (1 a step expected with the fix, 5 before). Walker on [walker.loc == B ? "the second tile" : "[walker.loc]"]")
 	qdel(walker)
 
-	// the machine
-	var/dir = get_dir(A, B)
-	new /obj/machinery/conveyor/auto(A, dir)
-	new /obj/machinery/conveyor/auto(B, turn(dir, 180))
-	// mob-storm-shards (default 50) a tile in all. A belt takes the first 30 things on its tile each pass and BYOND lists a tile's
-	// objects before its mobs, so with 30 or more shards a tile the belts carry only glass and the bodies hardly ride
-	var/shards = text2num(world.params["mob-storm-shards"]) || 50
-	for(var/i in 1 to max(0, shards - 5))
-		new /obj/item/shard(A)
-		new /obj/item/shard(B)
-	for(var/i in 1 to 50)
-		var/mob/living/carbon/human/H = new((i % 2) ? A : B)
+	// a squeaky toy (or anything else) moved onto 5 of its own kind: how many squeaks
+	var/item_param = world.params["mob-storm-item"] || ""
+	if(item_param && copytext(item_param, 1, 2) != "/") // run.sh passes it without the slash: Git Bash turns /obj/... into a path
+		item_param = "/[item_param]"
+	var/item_type = text2path(item_param) || /obj/item/shard
+	if(item_type != /obj/item/shard)
+		var/turf/D = get_step(C, turn(get_dir(A, C), 90))
+		if(conveyor_storm_open(D))
+			for(var/i in 1 to 5)
+				new item_type(D)
+			var/obj/item/mover = new item_type(C)
+			GLOB.storm_squeaks = 0
+			mover.Move(D, get_dir(C, D))
+			mob_storm_log("CHECK one [mover] moved onto 5 more: [GLOB.storm_squeaks] squeak(s) (1 expected with the fix, 5 or 6 before)")
+			for(var/obj/item/I in D)
+				qdel(I)
+
+	// the machine: mob-storm-pairs (1) pairs of facing belts. Each belt tile gets mob-storm-shards (50) of mob-storm-item (a glass
+	// shard), and mob-storm-bodies (50) naked corpses are shared out over the belts. A belt takes the first 30 things on its tile
+	// each pass and BYOND lists a tile's objects before its mobs, so with 30 or more items a tile the bodies hardly ride.
+	var/per_tile = text2num(world.params["mob-storm-shards"]) || 50
+	var/bodies = isnull(world.params["mob-storm-bodies"]) ? 50 : text2num(world.params["mob-storm-bodies"])
+	var/pairs = text2num(world.params["mob-storm-pairs"]) || 1
+	var/list/belts = list(list(A, B))
+	var/list/used = list()
+	used[A] = TRUE
+	used[B] = TRUE
+	used[C] = TRUE
+	for(var/turf/T in range(10, A))
+		if(length(belts) >= pairs)
+			break
+		if(used[T] || !conveyor_storm_open(T))
+			continue
+		for(var/d in GLOB.cardinals)
+			var/turf/U = get_step(T, d)
+			if(U && !used[U] && conveyor_storm_open(U))
+				belts += list(list(T, U))
+				used[T] = TRUE
+				used[U] = TRUE
+				break
+	var/list/belt_tiles = list()
+	for(var/list/pair in belts)
+		var/turf/P = pair[1]
+		var/turf/Q = pair[2]
+		var/dir = get_dir(P, Q)
+		new /obj/machinery/conveyor/auto(P, dir)
+		new /obj/machinery/conveyor/auto(Q, turn(dir, 180))
+		belt_tiles += P
+		belt_tiles += Q
+		for(var/turf/T in list(P, Q))
+			var/already = (item_type == /obj/item/shard && (T == A || T == B)) ? 5 : 0
+			for(var/i in 1 to max(0, per_tile - already))
+				new item_type(T)
+	for(var/i in 1 to bodies)
+		var/mob/living/carbon/human/H = new(belt_tiles[(i % length(belt_tiles)) + 1])
 		H.death()
 		W.RegisterSignal(H, COMSIG_MOVABLE_MOVED, TYPE_PROC_REF(/datum/mob_storm_watch, body_moved))
-	mob_storm_log("built: belts at [A.x],[A.y] and [B.x],[B.y], [length(A.contents)] and [length(B.contents)] things on them, [get_area(A)] powered [A.loc:powered(AREA_USAGE_EQUIP)]")
+	mob_storm_log("built: [length(belts)] pair(s) of belts from [A.x],[A.y], [per_tile] [item_type] a tile, [bodies] corpses, [length(A.contents)] things on the first tile, [get_area(A)] powered [A.loc:powered(AREA_USAGE_EQUIP)]")
 	sleep(10 SECONDS) // the belts get going
 
 	GLOB.storm_glass_crossings = 0
 	GLOB.storm_glass_reactions = 0
 	GLOB.storm_body_moves = 0
+	GLOB.storm_squeaks = 0
 	var/start_real = REALTIMEOFDAY
 	var/start_game = world.time
 	W.watch()
@@ -269,7 +332,7 @@ GLOBAL_VAR_INIT(storm_body_moves, 0)
 		if(length(bits) < 12)
 			bits += "[name] [round(selfs[name], 0.01)] s"
 	mob_storm_log("over [round(real, 0.1)] s real, [round(game, 0.1)] s game: procs busy [round(busy, 0.01)] s ([round(100 * busy / real, 0.1)]% of real time), \
-		body moves [GLOB.storm_body_moves], shard crossings by mobs [GLOB.storm_glass_crossings], glass that answered (cut, and a shard's sound) [GLOB.storm_glass_reactions]")
+		body moves [GLOB.storm_body_moves], shard crossings by mobs [GLOB.storm_glass_crossings], glass that answered (cut, and a shard's sound) [GLOB.storm_glass_reactions], squeaks [GLOB.storm_squeaks]")
 	mob_storm_log("self time: [jointext(bits, ", ")]")
 	mob_storm_log("TOTAL procs [round(100 * busy / real, 0.1)]%, game [round(100 * game / real)]%, worst stall [round(W.worst / 10, 0.1)] s, stalls over 0.5 s: [W.stalls]")
 
@@ -363,3 +426,110 @@ GLOBAL_VAR_INIT(storm_hears, 0)
 		kind_bits += "[k] [kinds[k]]"
 	mob_storm_log("messages [sent] ([jointext(kind_bits, ", ")]), heard [GLOB.storm_hears] times by humans; [round(busy * 1e6 / max(sent, 1))] us of procs a message")
 	mob_storm_log("TOTAL procs [round(100 * busy / seconds, 0.1)]%, worst stall [round(W.worst / 10, 0.1)] s, stalls over 0.5 s: [W.stalls], over 2 s: [W.big_stalls]")
+
+// ---------------------------------------------------------------------------------------------
+// mob-storm-scenario=photo: a 3x3 pile, mob-storm-shards (300) bits of glass and wrappers a tile and two dressed crew on each, and
+// mob-storm-speakers (10) photographers round it taking 3x3 photos of it as fast as each one finishes.
+// ---------------------------------------------------------------------------------------------
+
+GLOBAL_VAR_INIT(storm_photos, 0)
+GLOBAL_VAR_INIT(storm_photo_running, FALSE)
+GLOBAL_VAR_INIT(storm_flat_icons, 0)
+
+/obj/effect/appearance_clone/New(loc, atom/A) // one for every atom a photo draws
+	GLOB.storm_flat_icons++
+	return ..()
+
+/proc/storm_photographer(mob/living/carbon/human/H, obj/item/camera/C, turf/target)
+	set waitfor = FALSE
+	while(GLOB.storm_photo_running && !QDELETED(H))
+		C.captureimage(target, H, TRUE, 1, 1)
+		GLOB.storm_photos++
+		for(var/obj/item/photo/P in H.held_items)
+			qdel(P)
+		for(var/obj/item/photo/P in get_turf(H))
+			qdel(P)
+		sleep(world.tick_lag)
+
+/proc/run_photo_storm(turf/center, seconds)
+	var/per_tile = text2num(world.params["mob-storm-shards"]) || 300
+	var/count = text2num(world.params["mob-storm-speakers"]) || 10
+	for(var/turf/T in range(1, center))
+		for(var/i in 1 to per_tile)
+			if(i % 2)
+				new /obj/item/shard(T)
+			else
+				new /obj/item/trash/candy(T)
+		for(var/i in 1 to 2)
+			var/mob/living/carbon/human/H = new(T)
+			H.equipOutfit(/datum/outfit/job/engineer)
+	var/list/photographers = list()
+	for(var/turf/open/floor/F in range(3, center))
+		if(length(photographers) >= count)
+			break
+		if(get_dist(F, center) < 3 || is_blocked_turf(F, TRUE))
+			continue
+		var/mob/living/carbon/human/H = new(F)
+		var/obj/item/camera/C = new(F)
+		H.put_in_hands(C)
+		photographers[H] = C
+	mob_storm_log("pile: [per_tile] a tile on the 3x3 round [center.x],[center.y] and 18 dressed crew; [length(photographers)] photographers")
+	sleep(3 SECONDS)
+	var/datum/mob_storm_watch/W = new
+	GLOB.storm_photos = 0
+	GLOB.storm_flat_icons = 0
+	GLOB.storm_photo_running = TRUE
+	var/list/start = storm_measure_start()
+	W.watch()
+	for(var/mob/living/carbon/human/H as anything in photographers)
+		storm_photographer(H, photographers[H], center)
+	sleep(seconds SECONDS)
+	GLOB.storm_photo_running = FALSE
+	W.watching = FALSE
+	var/busy = storm_measure_report(start, "photo storm")
+	mob_storm_log("photos [GLOB.storm_photos], atoms drawn [GLOB.storm_flat_icons] ([round(GLOB.storm_flat_icons / max(GLOB.storm_photos, 1))] a photo); [round(busy * 1000 / max(GLOB.storm_photos, 1), 0.1)] ms of procs a photo")
+	mob_storm_log("TOTAL procs [round(100 * busy / seconds, 0.1)]%, worst stall [round(W.worst / 10, 0.1)] s, stalls over 0.5 s: [W.stalls], over 2 s: [W.big_stalls]")
+
+// ---------------------------------------------------------------------------------------------
+// mob-storm-scenario=fire: plasma and oxygen on every open floor of the station (or within mob-storm-range tiles of the spot),
+// lit in mob-storm-speakers (5) places.
+// ---------------------------------------------------------------------------------------------
+
+/proc/fire_storm_census()
+	var/hotspots = 0
+	for(var/obj/effect/hotspot/H in world)
+		hotspots++
+	var/burning = 0
+	for(var/obj/O in GLOB.burning_objs_census)
+		burning++
+	return "hotspots [hotspots]"
+
+GLOBAL_LIST_EMPTY(burning_objs_census)
+
+/proc/run_fire_storm(turf/center, seconds)
+	var/range = text2num(world.params["mob-storm-range"]) || 999
+	var/lights = text2num(world.params["mob-storm-speakers"]) || 5
+	var/list/floors = list()
+	for(var/turf/open/floor/F in block(locate(1, 1, center.z), locate(world.maxx, world.maxy, center.z)))
+		if(get_dist(F, center) > range || !is_station_level(F.z) || istype(get_area(F), /area/space))
+			continue
+		floors += F
+	for(var/turf/open/floor/F as anything in floors)
+		F.atmos_spawn_air("plasma=30;o2=60;TEMP=293")
+		CHECK_TICK
+	mob_storm_log("fire: plasma and oxygen on [length(floors)] floors round [center.x],[center.y]; [length(GLOB.bot_brains)] bots aboard")
+	sleep(3 SECONDS)
+	var/datum/mob_storm_watch/W = new
+	var/list/start = storm_measure_start()
+	W.watch()
+	for(var/i in 1 to lights)
+		var/turf/open/floor/F = pick(floors)
+		F.hotspot_expose(1500, 500)
+		new /obj/effect/hotspot(F)
+	var/end = REALTIMEOFDAY + seconds * 10
+	while(REALTIMEOFDAY < end)
+		sleep(15 SECONDS)
+		mob_storm_log("at [round((REALTIMEOFDAY - start["real"]) / 10)] s real, [round((world.time - start["game"]) / 10)] s game: [fire_storm_census()]")
+	W.watching = FALSE
+	var/busy = storm_measure_report(start, "fire storm")
+	mob_storm_log("TOTAL procs [round(100 * busy / seconds, 0.1)]%, worst stall [round(W.worst / 10, 0.1)] s, stalls over 0.5 s: [W.stalls] adding to [round(W.stalled / 10, 0.1)] s, over 2 s: [W.big_stalls]")

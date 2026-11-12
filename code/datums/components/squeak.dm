@@ -69,6 +69,17 @@
 		return
 	var/atom/current_parent = parent
 	if(isturf(current_parent.loc))
+		// hippie start -- one squeak from a pile for each thing that comes onto it: every squeaky toy on a tile squeaked for
+		// everything that arrived, items too, so two belts of rubber ducks were a squeak per duck per duck per move (2026-11-11)
+		var/static/list/answered = list()
+		var/static/answered_time = -1
+		if(answered_time != world.time)
+			answered = list()
+			answered_time = world.time
+		if(answered[AM] == current_parent.loc)
+			return
+		answered[AM] = current_parent.loc
+		// hippie end
 		play_squeak()
 
 /datum/component/squeak/proc/use_squeak()

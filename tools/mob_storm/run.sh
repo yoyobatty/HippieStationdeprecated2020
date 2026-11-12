@@ -6,7 +6,7 @@ unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every 
 #   tools/mob_storm/run.sh clean                 removes the builds
 # SECONDS=180 real seconds from the first spawn (conveyor: measured seconds, default 60), MAP=testbench (any _maps/*.json name),
 # PORT=45417, SCENARIO=pile (the ash drake pile) or conveyor (two facing belts, corpses and glass;
-# SHARDS=50 a tile)
+# SHARDS=50 a tile, ITEM=obj/item/shard (no leading slash), BODIES=50, PAIRS=1 pairs of belts; speech: SPEAKERS=60)
 set -u
 cd "$(dirname "$0")/../.."
 BYOND_BIN="${BYOND_BIN:-/c/Program Files (x86)/BYOND/bin}"
@@ -29,7 +29,7 @@ run() {
 	rm -rf "data/logs/mob_storm_$label"
 	began=$(date +%s)
 	"$BYOND_BIN/dd.exe" "mobstorm_$1.mdme.dmb" "$PORT" -trusted -invisible \
-		-params "mob-storm=1&mob-storm-label=$label&mob-storm-seconds=$SECONDS_RUN&mob-storm-scenario=${SCENARIO:-pile}&mob-storm-shards=${SHARDS:-50}&mc-watch-all=1&log-directory=mob_storm_$label&bot-map=$MAP" > /dev/null 2>&1 &
+		-params "mob-storm=1&mob-storm-label=$label&mob-storm-seconds=$SECONDS_RUN&mob-storm-scenario=${SCENARIO:-pile}&mob-storm-shards=${SHARDS:-50}&mob-storm-item=${ITEM:-obj/item/shard}&mob-storm-bodies=${BODIES:-50}&mob-storm-pairs=${PAIRS:-1}&mob-storm-speakers=${SPEAKERS:-60}&mc-watch-all=1&log-directory=mob_storm_$label&bot-map=$MAP" > /dev/null 2>&1 &
 	dd=$!
 	while kill -0 $dd 2>/dev/null; do
 		sleep 2
