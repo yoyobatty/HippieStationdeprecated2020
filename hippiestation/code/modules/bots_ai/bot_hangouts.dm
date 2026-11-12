@@ -85,8 +85,8 @@ GLOBAL_LIST_INIT(bot_hangout_words, list("Bar", "Cafeteria", "Dormitories", "Lou
 	var/obj/structure/chair/best
 	var/best_score
 	for(var/obj/structure/chair/C in A)
-		if(C.has_buckled_mobs() || !isturf(C.loc) || (locate(/mob/living) in C.loc) || istype(C, /obj/structure/chair/e_chair))
-			continue
+		if(!C.can_buckle || C.has_buckled_mobs() || !isturf(C.loc) || (locate(/mob/living) in C.loc) || istype(C, /obj/structure/chair/e_chair))
+			continue //stools can't be sat on here (can_buckle 0): 208 breaks given up at bar stools in two batches
 		var/score = rand(0, 10) / 10
 		for(var/mob/living/carbon/human/H in range(2, C))
 			if(H == owner || H.stat != CONSCIOUS)
@@ -216,7 +216,11 @@ GLOBAL_LIST_INIT(bot_hangout_words, list("Bar", "Cafeteria", "Dormitories", "Lou
 
 /datum/bot_goal/take_a_break/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/favour/S = new
-	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/sit_down_for_break())
+	// To the seat's own tile: a walk to the seat itself counts as there from a few tiles off, and the bar stools were never reached
+	// (164 breaks given up in batch standin1112c, nearly all at stools)
+	var/datum/bot_step/move_to/walk = new
+	walk.step_target = get_turf(seat)
+	S.steps = list(walk, new /datum/bot_step/sit_down_for_break())
 	return list(S)
 
 /// Sits down. The goal's done once it's sat; hangout_until (bot_brain.dm) keeps it there, as at a desk (goals/civilians.dm).

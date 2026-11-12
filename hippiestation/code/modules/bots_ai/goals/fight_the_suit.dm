@@ -27,16 +27,32 @@ GLOBAL_LIST_EMPTY(bot_nanosuits)
 		var/mob/living/carbon/human/H = N.loc
 		if(istype(H) && H.wear_suit == N)
 			return TRUE
-	return FALSE
+	return bot_syndicate_suit_worn() //goals/nuke_defence.dm: operatives
+
+/// Somebody up and about in a Syndicate space suit or hardsuit: looked for once a second at most, however many bots ask.
+/proc/bot_syndicate_suit_worn()
+	var/static/checked_at = -1
+	var/static/answer = FALSE
+	if(world.time < checked_at + 1 SECONDS)
+		return answer
+	checked_at = world.time
+	answer = FALSE
+	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
+		if(H.stat != DEAD && bot_in_syndicate_suit(H))
+			answer = TRUE
+			break
+	return answer
 
 /// Somebody in a Syndicate nanosuit, up and about
 /proc/bot_suit_to_fight(mob/living/carbon/human/H)
-	return istype(H) && bot_in_nanosuit(H) && H.stat == CONSCIOUS && !H.handcuffed //goals/security_tactics.dm
+	return istype(H) && (bot_in_nanosuit(H) || bot_in_syndicate_suit(H)) && H.stat == CONSCIOUS && !H.handcuffed //goals/security_tactics.dm: an operative's red suit too (goals/nuke_defence.dm)
 
 /// Whether this bot goes for a suit: crew, not Security (who have their own way) and not a traitor
 /datum/bot_brain/proc/takes_on_suits(mob/living/carbon/human/suit)
 	if(is_security_job() || owner.incapacitated() || owner.mind?.has_antag_datum(/datum/antagonist/traitor))
 		return FALSE
+	if(bot_in_syndicate_suit(suit) && find_carried_tool(/obj/item/disk/nuclear))
+		return FALSE //what they're here for: it keeps it away from them (goals/nuke_defence.dm)
 	return !on_my_side(suit) //bot_brain.dm
 
 /// Already on it: fighting it, or getting something to fight it with

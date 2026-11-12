@@ -321,10 +321,12 @@ GLOBAL_DATUM(bot_nuke_team, /datum/bot_nuke_team)
 	var/obj/docking_port/mobile/S = bot_ops_shuttle()
 	return S && S.mode == SHUTTLE_IDLE && is_station_level(S.z)
 
-/// The real disk, wherever it is.
-/proc/bot_find_nuke_disk()
+/// The real disk, wherever it is. A Bot Gym bot asking means the one in its own arena (goals/nuke_defence.dm).
+/proc/bot_find_nuke_disk(datum/bot_brain/asking)
 	for(var/obj/item/disk/nuclear/D as anything in bot_instances_of(/obj/item/disk/nuclear))
-		if(!QDELETED(D) && !D.fake)
+		if(QDELETED(D) || D.fake)
+			continue
+		if(!asking?.gym_run || get_area(bot_outermost_holder(D)) == get_area(asking.owner))
 			return D
 	return null
 

@@ -16,7 +16,8 @@
 		var/list/J = pick(GLOB.bot_jokes)
 		last_joke_at = world.time
 		joke_punchline_at = world.time + 4 SECONDS
-		addtimer(CALLBACK(src, PROC_REF(say_after_typing), J[2]), 3 SECONDS)
+		// After the setup's out, however long that takes to type (bot_typing_time(): 1.4 s plus 0.12 s a letter at most), and a beat
+		addtimer(CALLBACK(src, PROC_REF(say_after_typing), J[2]), 14 + min(length(J[1]) * 1.2, 50) + rand(15, 30))
 		return J[1]
 	// Laughing at it
 	if(length(lower_msg) <= 14 && bot_text_has_any(lower_msg, list("lol", "lmao", "lmfao", "haha", "hahaha", "rofl", "kek", "xd", "hah", "heh")))

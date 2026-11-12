@@ -336,6 +336,7 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 	if(length(GLOB.bot_security_wanted) || bot_any_suit_worn()) //goals/fight_the_suit.dm
 		look_out_for_trouble()
 	look_round_the_room() //bot_playstyles.dm
+	notice_runes() //goals/cult_response.dm
 	watch_the_door()
 	if(bot_any_loose_slime())
 		notice_loose_slimes() //goals/sabotage_slimes.dm
@@ -349,6 +350,8 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 			continue
 		// A nanosuit in sight, wanted or not: it's Syndicate, and the crew goes for it (goals/fight_the_suit.dm)
 		if(bot_suit_to_fight(H) && takes_on_suits(H))
+			if(bot_in_syndicate_suit(H))
+				bot_note_operative(H) //goals/nuke_defence.dm
 			if(world.time >= next_sighting_call)
 				next_sighting_call = world.time + 1 MINUTES
 				var/who = H.name == "Unknown" ? "Somebody" : H.name //the helmet hides the face

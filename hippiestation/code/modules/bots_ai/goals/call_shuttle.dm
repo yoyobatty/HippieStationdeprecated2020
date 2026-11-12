@@ -101,6 +101,8 @@ GLOBAL_LIST_INIT(bot_shuttle_called_lines, list(
 		return pick(GLOB.bot_shuttle_casualty_reasons)
 	if(bot_unstoppable_suit())
 		return pick(GLOB.bot_shuttle_suit_reasons)
+	if(GLOB.bot_ops_seen_at && world.time > GLOB.bot_ops_seen_at + 2 MINUTES && bot_operatives_loose()) //goals/nuke_defence.dm
+		return pick(GLOB.bot_shuttle_ops_reasons)
 	return world.time >= ends_at ? pick(GLOB.bot_shuttle_wrap_up_reasons) : null
 
 /datum/bot_duty/call_shuttle

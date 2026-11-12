@@ -93,7 +93,7 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 		if(thing)
 			next_sighting_call = world.time + 1 MINUTES
 			if(is_security_job())
-				saw_something_on(H, "Possession of Dangerous Equipment", "has got [thing.name]", BOT_CRIME_MAJOR)
+				saw_something_on(H, bot_contraband_crime(thing), "has got [thing.name]", BOT_CRIME_MAJOR)
 			else
 				saw_contraband(H, thing)
 		else if(get_dist(owner, H) <= 3 && bot_has_stolen_captains_id(H)) //close enough to read the card
@@ -159,7 +159,7 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 	bot_log(src, "[H] came at me with [thing] out")
 	if(!now[2])
 		now[2] = TRUE
-		call_it_in(H, "Possession of Dangerous Equipment", "came at me with \a [thing]", BOT_CRIME_MAJOR)
+		call_it_in(H, bot_contraband_crime(thing), "came at me with \a [thing]", BOT_CRIME_MAJOR)
 	if(nerve < 0.7 || !has_a_weapon())
 		run_from(H, "[H] came at me with [thing]")
 	return TRUE

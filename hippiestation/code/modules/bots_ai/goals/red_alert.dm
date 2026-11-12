@@ -26,6 +26,8 @@ GLOBAL_VAR_INIT(bot_red_alert_planning_until, 0)
 /proc/bot_red_alert_called_for()
 	if(GLOB.security_level >= SEC_LEVEL_RED)
 		return FALSE
+	if(bot_operatives_loose()) //goals/nuke_defence.dm
+		return TRUE
 	var/murderers = 0
 	for(var/datum/weakref/ref as anything in GLOB.bot_security_wanted)
 		var/mob/living/carbon/human/H = ref.resolve()

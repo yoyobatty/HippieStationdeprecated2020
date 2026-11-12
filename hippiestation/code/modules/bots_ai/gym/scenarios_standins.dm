@@ -538,6 +538,7 @@
 	time_limit = 15 SECONDS
 
 /datum/bot_scenario/chat/banter/joke
+	time_limit = 25 SECONDS
 	name = "banter: tells a joke when asked, and the punchline after"
 	desc = "\"Tell me a joke\": a joke's setup, and its punchline a few seconds later."
 	layout = list(
@@ -702,3 +703,308 @@
 		return BOT_GYM_PENDING
 	return QDELETED(spook) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+// ---------------------------------------------------------------------------------------------
+// Nuclear operatives, the crew's side (goals/nuke_defence.dm). Station-wide: operatives seen and red alert are the station's.
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/nukies
+	station_wide = TRUE
+	time_limit = 40 SECONDS
+	var/mob/living/carbon/human/op
+	var/obj/item/disk/nuclear/disk
+
+/datum/bot_scenario/nukies/issue_goal()
+	return
+
+/datum/bot_scenario/nukies/named_spot(lower_msg)
+	return findtext(lower_msg, "brig") ? first_marker("Q") : null
+
+/datum/bot_scenario/nukies/post_spawn()
+	brain.gym_scripted = FALSE
+	op = stand_in(first_marker("O"), "Oscar Operative")
+	op.equip_to_slot_or_del(new /obj/item/clothing/suit/space/hardsuit/syndi(op), ITEM_SLOT_OCLOTHING)
+	GLOB.bot_ops_seen_at = world.time
+
+/datum/bot_scenario/nukies/proc/make_disk(atom/where)
+	disk = new(get_turf(where))
+	qdel(disk.GetComponent(/datum/component/stationloving)) //it would take itself back to the station, off the gym's z-level
+	return disk
+
+/datum/bot_scenario/nukies/release_run()
+	GLOB.bot_ops_seen_at = 0
+	GLOB.bot_disk_recoverer = null
+	return ..()
+
+/datum/bot_scenario/nukies/hole_up
+	name = "nukies: whoever has the disk holes up in the Brig, away from the operative"
+	desc = "Operatives have been seen and the bot has the disk. It goes to the Brig and stays, instead of wandering about or going for the operative."
+	layout = list(
+		"##############",
+		"#B..........Q#",
+		"#.....#####..#",
+		"#O....#......#",
+		"##############")
+
+/datum/bot_scenario/nukies/hole_up/post_spawn()
+	..()
+	make_disk(bot)
+	if(!SEND_SIGNAL(bot.back, COMSIG_TRY_STORAGE_INSERT, disk, bot, TRUE))
+		bot.put_in_inactive_hand(disk)
+
+/datum/bot_scenario/nukies/hole_up/check()
+	if(get_dist(bot, first_marker("Q")) <= 2 && brain.find_carried_tool(/obj/item/disk/nuclear))
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/nukies/off_the_body
+	name = "nukies: an officer takes the disk off the dead Captain"
+	desc = "The Captain lies dead with the disk in a pocket and an operative's about. The officer goes over and takes it off the body."
+	job = "Security Officer"
+	layout = list(
+		"##############",
+		"#B.......K...#",
+		"######.#######",
+		"#O...........#",
+		"##############")
+	var/mob/living/carbon/human/captain
+
+/datum/bot_scenario/nukies/off_the_body/post_spawn()
+	..()
+	captain = stand_in(first_marker("K"), "Cap Tain")
+	captain.mind_initialize()
+	captain.mind.assigned_role = "Captain"
+	make_disk(captain)
+	captain.equip_to_slot_or_del(disk, ITEM_SLOT_LPOCKET)
+	captain.death()
+
+/datum/bot_scenario/nukies/off_the_body/check()
+	if(brain.find_carried_tool(/obj/item/disk/nuclear))
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/nukies/guard
+	name = "nukies: an officer keeps close to whoever has the disk"
+	desc = "Operatives are about and the Captain has the disk, across the room. The officer goes and stays near the Captain."
+	job = "Security Officer"
+	layout = list(
+		"################",
+		"#B...........K.#",
+		"#######.########",
+		"#O.............#",
+		"################")
+	var/mob/living/carbon/human/captain
+	var/near_since = 0
+
+/datum/bot_scenario/nukies/guard/post_spawn()
+	..()
+	captain = stand_in(first_marker("K"), "Cap Tain")
+	captain.mind_initialize()
+	captain.mind.assigned_role = "Captain"
+	make_disk(captain)
+	captain.equip_to_slot_or_del(disk, ITEM_SLOT_LPOCKET)
+
+/datum/bot_scenario/nukies/guard/check()
+	if(get_dist(bot, captain) <= 4)
+		if(!near_since)
+			near_since = world.time
+		else if(world.time > near_since + 8 SECONDS)
+			return BOT_GYM_PASS //and stayed
+		return BOT_GYM_PENDING
+	near_since = 0
+	return BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// The wizard (goals/wizard.dm)
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/wizard_kit
+	time_limit = 15 SECONDS
+	layout = list(
+		"###########",
+		"#.........#",
+		"#....B....#",
+		"#.........#",
+		"###########")
+
+/datum/bot_scenario/wizard_kit/issue_goal()
+	return
+
+/datum/bot_scenario/wizard_kit/post_spawn()
+	brain.bot_wizard = TRUE
+	bot.equip_to_slot_or_del(new /obj/item/clothing/head/wizard(bot), ITEM_SLOT_HEAD)
+
+/datum/bot_scenario/wizard_kit/blink_away
+	name = "wizard: hurt, it takes its staff out of the bag and blinks away"
+	desc = "A hurt wizard with blink and its staff in the bag. Blink needs the staff in hand here (staff_req), so it gets it out, and blinks."
+	var/turf/start
+	var/obj/item/staff/staff
+
+/datum/bot_scenario/wizard_kit/blink_away/post_spawn()
+	..()
+	bot.equip_to_slot_or_del(new /obj/item/clothing/suit/wizrobe(bot), ITEM_SLOT_OCLOTHING)
+	staff = new(bot)
+	if(!SEND_SIGNAL(bot.back, COMSIG_TRY_STORAGE_INSERT, staff, bot, TRUE))
+		qdel(staff)
+	bot.mind.AddSpell(new /obj/effect/proc_holder/spell/targeted/turf_teleport/blink(null))
+	bot.adjustBruteLoss(bot.maxHealth * 0.6)
+	start = get_turf(bot)
+	addtimer(CALLBACK(brain, TYPE_PROC_REF(/datum/bot_brain, wizard_escape)), 2 SECONDS)
+
+/datum/bot_scenario/wizard_kit/blink_away/check()
+	if(get_turf(bot) != start)
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/wizard_kit/robe_back
+	name = "wizard: robe off and on the floor, it puts it back on"
+	desc = "The wizard's robe has been taken off and dropped beside it. It picks it up and puts it on again before anything else."
+	var/obj/item/clothing/suit/wizrobe/robe
+
+/datum/bot_scenario/wizard_kit/robe_back/post_spawn()
+	..()
+	robe = new(get_step(bot, EAST))
+
+/datum/bot_scenario/wizard_kit/robe_back/check()
+	if(bot.wear_suit == robe)
+		return BOT_GYM_PASS
+	brain.wizard_get_dressed()
+	return BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// The cult, from the crew's side (goals/cult_response.dm)
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/cult_seen
+	time_limit = 25 SECONDS
+
+/datum/bot_scenario/cult_seen/issue_goal()
+	return
+
+/datum/bot_scenario/cult_seen/rune_called_in
+	name = "cult: a rune outside the Chapel gets called in"
+	desc = "Somebody's drawn an offer rune in the room. The bot sees it and says so on the radio, with where."
+	layout = list(
+		"#########",
+		"#B...R..#",
+		"#########")
+
+/datum/bot_scenario/cult_seen/rune_called_in/post_spawn()
+	brain.gym_scripted = FALSE
+	new /obj/effect/rune/convert(first_marker("R"))
+
+/datum/bot_scenario/cult_seen/rune_called_in/check()
+	if(bot_transcript_said("saw a rune"))
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/cult_seen/chaplain_breaks
+	time_limit = 50 SECONDS //the duty looks every 10-20 s: once for the rod, once for the rune
+	name = "chaplain: breaks a reported rune with the null rod"
+	desc = "A rune's been reported. The Chaplain, null rod on a table (the first Chaplain of a shift has none of its own), gets it, walks over and breaks the rune."
+	job = "Chaplain"
+	layout = list(
+		"#########",
+		"#B.....R#",
+		"#########")
+	var/obj/effect/rune/rune
+
+/datum/bot_scenario/cult_seen/chaplain_breaks/post_spawn()
+	brain.gym_scripted = FALSE
+	var/obj/item/nullrod/rod = new(get_step(bot, EAST))
+	brain.note_seen(rod, get_turf(rod)) //bot_knowledge.dm: it knows where the Chapel keeps it
+	rune = new /obj/effect/rune/convert(first_marker("R"))
+	GLOB.bot_runes_reported[REF(rune)] = world.time
+	GLOB.bot_runes_to_clean += WEAKREF(rune)
+
+/datum/bot_scenario/cult_seen/chaplain_breaks/check()
+	return QDELETED(rune) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/cult_seen/holy_water
+	name = "chaplain: makes a cuffed cultist drink holy water"
+	desc = "A cultist the Chaplain saw with a cult dagger is cuffed in the room. The Chaplain, with a flask of holy water, goes over and makes them drink it."
+	job = "Chaplain"
+	layout = list(
+		"#########",
+		"#B....K.#",
+		"#########")
+	kit_hands = list(/obj/item/reagent_containers/food/drinks/bottle/holywater)
+	var/mob/living/carbon/human/cultist
+
+/datum/bot_scenario/cult_seen/holy_water/post_spawn()
+	brain.gym_scripted = FALSE
+	cultist = stand_in(first_marker("K"), "Kel Cultist")
+	cultist.mind_initialize()
+	var/datum/antagonist/cult/C = new
+	C.ignore_implant = TRUE //a stand-in has nobody home to convert (is_convertable_to_cult())
+	cultist.mind.add_antag_datum(C)
+	cultist.handcuffed = new /obj/item/restraints/handcuffs(cultist)
+	cultist.update_handcuffed()
+	brain.learn_fact(BOT_FACT_CONTRABAND, cultist, null, "here", "ritual dagger")
+
+/datum/bot_scenario/cult_seen/holy_water/check()
+	if(cultist.reagents?.has_reagent(/datum/reagent/water/holywater))
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/wizard_kit/keeps_range
+	name = "wizard: a spell nearly ready, it waits at range instead of walking in to punch"
+	desc = "The wizard's magic missile has a few seconds left to recharge and its target stands five tiles off. It holds where it is and casts when it's ready, rather than walking up and punching."
+	layout = list(
+		"###########",
+		"#B.......V#",
+		"###########")
+	time_limit = 12 SECONDS
+	var/mob/living/carbon/human/victim
+	var/obj/effect/proc_holder/spell/targeted/projectile/magic_missile/missile
+	var/closest = 99
+
+/datum/bot_scenario/wizard_kit/keeps_range/post_spawn()
+	..()
+	bot.equip_to_slot_or_del(new /obj/item/clothing/suit/wizrobe(bot), ITEM_SLOT_OCLOTHING)
+	victim = stand_in(get_step(get_step(first_marker("V"), WEST), WEST), "Vic Target")
+	missile = new(null)
+	bot.mind.AddSpell(missile)
+	missile.charge_counter = missile.charge_max - 40 //four seconds to go
+	brain.assign_goal(new /datum/bot_goal/traitor_kill/robust/wizard(null, victim))
+
+/datum/bot_scenario/wizard_kit/keeps_range/check()
+	closest = min(closest, get_dist(bot, victim))
+	if(closest <= 1)
+		fail_reason = "walked up to them"
+		return BOT_GYM_FAIL
+	if(world.time > start_time + 10 SECONDS)
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/nukies/loose_disk
+	name = "nukies: a disk lying out of sight, with nobody to know where, is left alone"
+	desc = "The disk lies behind a wall in the next room and an operative's about. The officer can't know where it is, so it doesn't go for it, and asking where the disk is (on the floor, in a bag, in the nuke) reads nothing off it that isn't there: the first build read a name off the disk, 500 bot exceptions in the nuke batches."
+	job = "Security Officer"
+	layout = list(
+		"##############",
+		"#B.....#....D#",
+		"########.#####",
+		"#O...........#",
+		"##############")
+	time_limit = 12 SECONDS
+
+/datum/bot_scenario/nukies/loose_disk/post_spawn()
+	..()
+	make_disk(first_marker("D"))
+
+/datum/bot_scenario/nukies/loose_disk/check()
+	if(brain.knows_where_disk_is(disk)) //the disk itself as what it's in, as it is lying about
+		fail_reason = "knew where a disk out of sight was"
+		return BOT_GYM_FAIL
+	var/obj/item/storage/box/B = new(get_turf(disk))
+	disk.forceMove(B)
+	var/knew = brain.knows_where_disk_is(B)
+	disk.forceMove(get_turf(B))
+	qdel(B)
+	if(knew)
+		fail_reason = "knew where a box out of sight was"
+		return BOT_GYM_FAIL
+	if(istype(brain.current_goal, /datum/bot_goal/recover_disk))
+		fail_reason = "went for a disk it couldn't know about"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 10 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING

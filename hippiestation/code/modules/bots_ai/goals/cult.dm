@@ -13,10 +13,10 @@
 //  - In between they keep their jobs and their mouths shut. A convert who's a bot joins in.
 
 #define BOT_CULT_OP_TIMEOUT (3 MINUTES)
-/// Between one conversion and the next.
-#define BOT_CULT_OP_GAP (2 MINUTES)
+/// Between one conversion and the next. Two minutes made twelve converts in forty minutes, and no cult a player would know.
+#define BOT_CULT_OP_GAP (1 MINUTES)
 /// Nobody else this close, for somebody to count as on their own.
-#define BOT_CULT_ALONE 6
+#define BOT_CULT_ALONE 5
 
 /datum/bot_cult
 	/// The game's own cult team, for everybody made a cultist here to share.
@@ -127,8 +127,12 @@ GLOBAL_DATUM(bot_cult, /datum/bot_cult)
 /datum/bot_cult/proc/plan_sacrifice(list/alive)
 	var/datum/objective/sacrifice/S = sac_objective()
 	var/mob/living/carbon/human/H = S?.target?.current
-	if(!S || S.check_completion() || !istype(H) || H.stat == DEAD || iscultist(H) || H.z != rune.z || is_convertable_to_cult(H, antag_team) || !bot_cult_alone(H))
+	if(!S || S.check_completion() || !istype(H) || H.stat == DEAD || iscultist(H) || H.z != rune.z || is_convertable_to_cult(H, antag_team))
 		return FALSE //one they could convert gets converted by the rune instead, and the objective's still undone
+	// On their own, or, four or more of them, with no officer near: a cult that size goes in numbers. Waiting for the HoS to be alone, the
+	// sacrifice never came (12 converts and no sacrifice in a 40-minute shift).
+	if(!bot_cult_alone(H) && (length(alive) < 4 || bot_officer_near(H)))
+		return FALSE
 	var/datum/bot_brain/taker
 	for(var/datum/bot_brain/B as anything in alive)
 		if(!taker || get_dist(B.owner, H) < get_dist(taker.owner, H))
@@ -152,6 +156,13 @@ GLOBAL_DATUM(bot_cult, /datum/bot_cult)
 	op_started = world.time
 	log_game("BOT CULT: going for the sacrifice, [H]: [stunner.owner] takes them, [helper.owner] and [helper2.owner] wait at the rune")
 	return TRUE
+
+/// An officer, up and not a cultist, near them.
+/proc/bot_officer_near(mob/living/carbon/human/H)
+	for(var/mob/living/carbon/human/other in view(BOT_CULT_ALONE, H))
+		if(other != H && other.stat == CONSCIOUS && !iscultist(other) && bot_is_officer(other))
+			return TRUE
+	return FALSE
 
 /// Somebody on their own, who the rune would take, and the two cultists nearest them.
 /datum/bot_cult/proc/plan_op()

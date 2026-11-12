@@ -41,6 +41,7 @@ GLOBAL_LIST_INIT(bot_space_law, list(
 	"Larceny" = list(302, 15 MINUTES),
 	"Sabotage" = list(303, 15 MINUTES),
 	"Possession of Dangerous Equipment" = list(306, 15 MINUTES),
+	"Cultism" = list(406, 15 MINUTES), //goals/cult_response.dm: held for the chaplain
 	"Trespassing in a High Security Area" = list(309, 15 MINUTES),
 	"Breaking into a High Security Area" = list(310, 15 MINUTES),
 	"Grand Larceny" = list(402, 15 MINUTES),
@@ -63,6 +64,11 @@ GLOBAL_LIST_INIT(bot_contraband, typecacheof(list(
 	/obj/item/gun/ballistic/automatic/c20r,
 	/obj/item/gun/ballistic/shotgun/bulldog,
 	/obj/item/grenade/syndieminibomb,
+	/obj/item/melee/cultblade, //and the cult's (goals/cult_response.dm)
+	/obj/item/clothing/suit/cultrobes,
+	/obj/item/clothing/head/culthood,
+	/obj/item/clothing/suit/hooded/cultrobes,
+	/obj/item/clothing/head/hooded/cult_hoodie,
 )))
 
 /// The case of each prisoner on a capital charge, this round.
@@ -489,7 +495,7 @@ GLOBAL_LIST_EMPTY(bot_order_acked)
 			file_crime(P, "Grand Larceny", "Found with the Captain's ID on them.", BOT_CRIME_MURDER)
 		else if(is_type_in_typecache(I, GLOB.bot_contraband))
 			step.to_confiscate |= I
-			file_crime(P, "Possession of Dangerous Equipment", "Found with [I.name] on them.", BOT_CRIME_MAJOR)
+			file_crime(P, bot_contraband_crime(I), "Found with [I.name] on them.", BOT_CRIME_MAJOR) //goals/cult_response.dm: cult kit is Cultism
 		else if(istype(I, /obj/item/disk/nuclear) && P.mind?.assigned_role != "Captain")
 			step.to_confiscate |= I //the officer keeps that one on them (process_prisoner): a nuclear operative was sat in a cell with it
 

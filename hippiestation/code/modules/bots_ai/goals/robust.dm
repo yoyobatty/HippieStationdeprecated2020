@@ -547,6 +547,9 @@ GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor,
 	if(bot.try_suit_jump(V) || bot.try_attack_from_range(V))
 		wait_for = CLICK_CD_RANGE
 		return TRUE
+	if(bot.bot_wizard && bot.wizard_keeps_range(V)) //goals/wizard.dm: a spell nearly ready, it waits at range for it
+		wait_for = 5
+		return TRUE
 	if(bot.pursuing_kind != "follow")
 		if(!bot.can_walk_lawfully_to(V))
 			return FALSE

@@ -8,15 +8,43 @@
 //    away when it's hurt.
 //
 // Loud from the start (gone_loud()), like the operatives.
+//
+// The user's ruling (2026-11-12): spells, not fists; it keeps its robes and staff; a loadout by personality. A wizard in the live round
+// n1_wizard fought with its fists for most of the round. Here blink and mutate need the staff in hand (hippie staff_req, spell.dm), and the
+// staff spent the round in the bag, so the getaway never went; and a wizard stripped of its robe never went back for it.
+//
+//  - The book by who it is: a hothead blows things up (fireball, missiles, mutate), a bold one buys the battlemage armour and a staff of
+//    chaos (Mjolnir was tried: a bot sets a two-hander down for anything else in hand, and fought with a metal rod and its feet),
+//    a sociable joker plays tricks (the barnyard curse, wands, knock, the jaunt); otherwise the old standby.
+//  - What it bought is picked up and used: the armour on, the wand belt on, the hammer in hand.
+//  - The staff stays in its hand, and comes out of the bag for a spell that needs it.
+//  - Robe or hat gone: back on from the floor or the bag, or off whoever took them once they're down.
+//  - In a fight: mutate first if it has it, a forcewall when hurt and cornered, smoke as it gets away, the curse on whoever's nearest.
 
-/// Spells it buys, in this order, while the book has the points.
+/// Spells it buys, in this order, while the book has the points: the old standby.
 GLOBAL_LIST_INIT(bot_wizard_spells, list(/datum/spellbook_entry/fireball, /datum/spellbook_entry/magicm, /datum/spellbook_entry/blink, /datum/spellbook_entry/jaunt, /datum/spellbook_entry/mutate))
+
+/// What a wizard buys by who it is (wizard_pick_loadout()). Ten points each.
+GLOBAL_LIST_INIT(bot_wizard_loadouts, list(
+	"destroyer" = list(/datum/spellbook_entry/fireball, /datum/spellbook_entry/magicm, /datum/spellbook_entry/mutate, /datum/spellbook_entry/blink, /datum/spellbook_entry/smoke, /datum/spellbook_entry/forcewall),
+	"battlemage" = list(/datum/spellbook_entry/item/battlemage, /datum/spellbook_entry/item/staffchaos, /datum/spellbook_entry/blink, /datum/spellbook_entry/fireball, /datum/spellbook_entry/forcewall, /datum/spellbook_entry/smoke),
+	"trickster" = list(/datum/spellbook_entry/blink, /datum/spellbook_entry/jaunt, /datum/spellbook_entry/item/wands, /datum/spellbook_entry/barnyard, /datum/spellbook_entry/knock, /datum/spellbook_entry/smoke),
+	"classic" = list(/datum/spellbook_entry/fireball, /datum/spellbook_entry/magicm, /datum/spellbook_entry/blink, /datum/spellbook_entry/jaunt, /datum/spellbook_entry/mutate),
+))
+
+/// The robes and hats spells take (spell.dm can_cast()).
+GLOBAL_LIST_INIT(bot_wizard_clothes, typecacheof(list(/obj/item/clothing/suit/wizrobe, /obj/item/clothing/suit/space/hardsuit/wizard,
+	/obj/item/clothing/head/wizard, /obj/item/clothing/head/helmet/space/hardsuit/wizard, /obj/item/clothing/suit/space/hardsuit/shielded/wizard,
+	/obj/item/clothing/head/helmet/space/hardsuit/shielded/wizard)))
 
 /datum/bot_brain
 	var/bot_wizard = FALSE
 	var/wizard_shopped = FALSE
 	var/next_wizard_escape = 0
 	var/next_wizard_fail_note = 0
+	/// "destroyer", "battlemage", "trickster" or "classic"
+	var/wizard_loadout
+	var/next_wizard_dress = 0
 
 /// A wizard from the round type (bot_round_type.dm) or an admin, with a brain already. bot_spawn_wizards() sets its own up.
 /datum/antagonist/wizard/on_gain()
@@ -76,8 +104,12 @@ GLOBAL_LIST_INIT(bot_wizard_spells, list(/datum/spellbook_entry/fireball, /datum
 	if(owner.handcuffed)
 		wizard_escape(TRUE)
 		return FALSE
-	if(!here || !is_station_level(here.z))
+	if(!here || !is_station_level(here.z) && !gym_run)
 		return wizard_teleport_in()
+	if(wizard_get_dressed())
+		return TRUE
+	if(!owner.get_active_held_item() || !owner.get_inactive_held_item())
+		wizard_hold_staff() //in a free hand, ready: a spell that needs it takes it out of the bag anyway (wizard_cast_at())
 	var/mob/living/carbon/human/V
 	var/best_dist
 	for(var/mob/living/carbon/human/H in view(BOT_SIGHT_RANGE, owner))
@@ -97,12 +129,24 @@ GLOBAL_LIST_INIT(bot_wizard_spells, list(/datum/spellbook_entry/fireball, /datum
 				best_dist = dist
 	return V ? assign_goal(new /datum/bot_goal/traitor_kill/robust/wizard(null, V)) : FALSE
 
-/// A spell at a time off the book's links, while there are points for them.
+/// Which book a wizard buys, leaning by who it is. Thresholds made five wizards in six battlemages (their playstyle's nerve is high).
+/datum/bot_brain/proc/wizard_pick_loadout()
+	var/list/weights = list(
+		"destroyer" = 10 + round(30 * temper),
+		"battlemage" = 10 + round(20 * nerve),
+		"trickster" = 10 + round(30 * sociability * (1 - temper)),
+		"classic" = 20,
+	)
+	return pickweight(weights)
+
+/// A spell at a time off the book's links, while there are points for them: its loadout, then the old standby with what's left.
 /datum/bot_brain/proc/wizard_buy_spells(obj/item/spellbook/book)
 	if(!length(book.entries))
 		book.prepare_spells() //opening it
 	usr = owner
-	for(var/path in GLOB.bot_wizard_spells)
+	wizard_loadout = wizard_loadout || wizard_pick_loadout()
+	bot_log(src, "wizard's book: [wizard_loadout]")
+	for(var/path in GLOB.bot_wizard_loadouts[wizard_loadout] + GLOB.bot_wizard_spells)
 		for(var/i in 1 to length(book.entries))
 			var/datum/spellbook_entry/E = book.entries[i]
 			if(E.type != path)
@@ -113,6 +157,84 @@ GLOBAL_LIST_INIT(bot_wizard_spells, list(/datum/spellbook_entry/fireball, /datum
 				book.Topic(null, list("buy" = "[i]"))
 				bot_log(src, "learned [E.name] ([book.uses] points left)")
 			break
+	wizard_take_purchases()
+
+/// What the book summoned at its feet: picked up, and on or in hand.
+/datum/bot_brain/proc/wizard_take_purchases()
+	for(var/obj/item/I in get_turf(owner))
+		if(istype(I, /obj/item/clothing/suit/space/hardsuit/shielded/wizard))
+			var/obj/item/old = owner.wear_suit
+			if(wear(I, ITEM_SLOT_OCLOTHING) && old)
+				put_away(old) //the robe in the bag, for if the armour goes
+			var/obj/item/clothing/suit/space/hardsuit/H = I
+			if(H.helmet && !istype(owner.head, H.helmet.type))
+				H.ToggleHelmet()
+		else if(istype(I, /obj/item/storage/belt/wands))
+			wear(I, ITEM_SLOT_BELT)
+		else if(istype(I, /obj/item/twohanded/mjollnir) || istype(I, /obj/item/gun/magic/staff))
+			try_pickup_target(I, TRUE)
+		else if(istype(I, /obj/item/gun/magic/wand))
+			try_pickup_target(I, TRUE)
+
+/// The staff in a hand: blink and mutate won't go without it (staff_req, spell.dm). Out of the bag if it's in there.
+/datum/bot_brain/proc/wizard_catalyst()
+	for(var/obj/item/I in owner.held_items)
+		if(I.GetComponent(/datum/component/spell_catalyst))
+			return I
+	for(var/obj/item/I in owner.GetAllContents())
+		if(I.GetComponent(/datum/component/spell_catalyst))
+			return I
+	return null
+
+/datum/bot_brain/proc/wizard_hold_staff()
+	var/obj/item/C = wizard_catalyst()
+	if(!C || (C in owner.held_items))
+		return !!C
+	return ready_in_hand(C)
+
+/datum/bot_brain/proc/wizard_robed()
+	return is_type_in_typecache(owner.wear_suit, GLOB.bot_wizard_clothes) && is_type_in_typecache(owner.head, GLOB.bot_wizard_clothes)
+
+/// Robe or hat gone: on again from the bag or the floor, or off whoever has them once they're down. TRUE if it's seeing to it.
+/datum/bot_brain/proc/wizard_get_dressed()
+	if(wizard_robed() || world.time < next_wizard_dress)
+		return FALSE
+	next_wizard_dress = world.time + 3 SECONDS
+	var/need_suit = !is_type_in_typecache(owner.wear_suit, GLOB.bot_wizard_clothes)
+	var/need_hat = !is_type_in_typecache(owner.head, GLOB.bot_wizard_clothes)
+	var/list/near = owner.GetAllContents() + view(BOT_SIGHT_RANGE, owner)
+	for(var/obj/item/clothing/C in near)
+		if(!is_type_in_typecache(C, GLOB.bot_wizard_clothes) || C == owner.wear_suit || C == owner.head)
+			continue
+		var/is_suit = istype(C, /obj/item/clothing/suit)
+		if(is_suit ? !need_suit : !need_hat)
+			continue
+		var/atom/movable/holder = bot_outermost_holder(C)
+		if(holder == owner)
+			if(wear(C, is_suit ? ITEM_SLOT_OCLOTHING : ITEM_SLOT_HEAD))
+				bot_log(src, "back in its [C.name]")
+				return TRUE
+			continue
+		var/mob/living/carbon/human/H = holder
+		if(istype(H))
+			if(H.stat == CONSCIOUS && !H.handcuffed)
+				bot_log(src, "[H] has its [C.name]: going for them")
+				bot_say(owner, pick("That's MY robe!", "Give that back, mortal!", "You dare wear my vestments?!"))
+				return assign_goal(new /datum/bot_goal/traitor_kill/robust/wizard(null, H))
+			if(!owner.Adjacent(H))
+				pursue(H, "follow", force = TRUE)
+				return TRUE
+			human_pause(H)
+			if(H.transferItemToLoc(C, get_turf(owner)))
+				try_pickup_target(C, TRUE)
+			return TRUE
+		if(isturf(C.loc))
+			if(!owner.Adjacent(C))
+				pursue(C, "item", force = TRUE)
+				return TRUE
+			try_pickup_target(C, TRUE)
+			return TRUE
+	return FALSE
 
 /// Rooms nobody picks off the scroll's menu: the scroll drops you anywhere in the room, and in these that's inside the engine's
 /// electrified grilles. A wizard went to Port Engineering, where the engineers were starting the tesla, and shocked itself to death on them.
@@ -179,8 +301,36 @@ GLOBAL_LIST_INIT(bot_wizard_no_landing, typecacheof(list(/area/engine/engineerin
 		return FALSE
 	usr = owner
 	for(var/obj/effect/proc_holder/spell/S as anything in spells)
-		if(S.charge_counter < S.charge_max || !S.can_cast(owner))
+		if(S.charge_counter < S.charge_max)
 			continue
+		if(S.staff_req && !wizard_hold_staff())
+			continue
+		if(!S.can_cast(owner))
+			continue
+		// Mutate first, before anything else: the hulk and the laser eyes for the rest of the fight
+		if(istype(S, /obj/effect/proc_holder/spell/targeted/genetic/mutate))
+			if(owner.dna?.check_mutation(HULK))
+				continue
+			cast_without_waiting(S)
+			bot_log(src, "cast [S] on itself")
+			return TRUE
+		// Hurt and somebody close: a wall between
+		if(istype(S, /obj/effect/proc_holder/spell/targeted/forcewall))
+			if(owner.health > owner.maxHealth * 0.6 || get_dist(owner, target) > 2)
+				continue
+			owner.face_atom(target)
+			cast_without_waiting(S)
+			bot_log(src, "cast [S] against [target]")
+			return TRUE
+		if(istype(S, /obj/effect/proc_holder/spell/targeted/barnyardcurse))
+			var/mob/living/carbon/C = target
+			if(!istype(C) || istype(C.wear_mask, /obj/item/clothing/mask/pig/cursed) || istype(C.wear_mask, /obj/item/clothing/mask/cowmask/cursed) || istype(C.wear_mask, /obj/item/clothing/mask/horsehead/cursed) || get_dist(owner, target) > S.range)
+				continue
+			if(!S.cast_check(FALSE, owner))
+				continue
+			S.perform(list(target), TRUE, owner)
+			bot_log(src, "cursed [target]")
+			return TRUE
 		if(istype(S, /obj/effect/proc_holder/spell/aimed))
 			var/obj/effect/proc_holder/spell/aimed/A = S
 			if(!has_clear_shot(target))
@@ -205,13 +355,46 @@ GLOBAL_LIST_INIT(bot_wizard_no_landing, typecacheof(list(/area/engine/engineerin
 			return TRUE
 	return FALSE
 
+/// Something to hit them with from where it is, nearly ready: a spell off cooldown in the next few seconds, or a wand or staff that can
+/// fire. Then it holds at three or four tiles (a step back if they're on it) instead of walking in to punch. In the first batch
+/// after the spells were fixed, wizards still threw 267 punches in six shifts, closing in every time a spell was cooling down.
+/datum/bot_brain/proc/wizard_keeps_range(mob/living/target)
+	var/dist = get_dist(owner, target)
+	if(dist > 5 || owner.incapacitated())
+		return FALSE
+	var/soon = FALSE
+	for(var/obj/effect/proc_holder/spell/S as anything in owner.mind?.spell_list)
+		if((istype(S, /obj/effect/proc_holder/spell/aimed) || istype(S, /obj/effect/proc_holder/spell/targeted/projectile/magic_missile) || istype(S, /obj/effect/proc_holder/spell/targeted/barnyardcurse)) && S.charge_max - S.charge_counter <= 80)
+			soon = TRUE
+			break
+	if(!soon)
+		for(var/obj/item/gun/G in owner.GetAllContents())
+			if(G.can_shoot())
+				soon = TRUE
+				break
+	if(!soon)
+		return FALSE
+	stop_pursuit()
+	if(dist <= 2)
+		step_back_from(target)
+	owner.face_atom(target)
+	return TRUE
+
 /// Hurt, or held (`held`): away, by blink or the jaunt, whichever's ready.
 /datum/bot_brain/proc/wizard_escape(held = FALSE)
 	if(world.time < next_wizard_escape || (!held && owner.health > owner.maxHealth * 0.5))
 		return FALSE
 	usr = owner
+	for(var/obj/effect/proc_holder/spell/S as anything in owner.mind?.spell_list) //smoke behind it first
+		if(istype(S, /obj/effect/proc_holder/spell/targeted/smoke) && S.charge_counter >= S.charge_max && S.can_cast(owner))
+			cast_without_waiting(S)
+			break
 	for(var/obj/effect/proc_holder/spell/S as anything in owner.mind?.spell_list)
-		if(S.charge_counter < S.charge_max || !S.can_cast(owner))
+		if(S.charge_counter < S.charge_max)
+			continue
+		if(S.staff_req && !wizard_hold_staff()) //blink takes the staff in hand (hippie staff_req)
+			continue
+		if(!S.can_cast(owner))
 			continue
 		if(istype(S, /obj/effect/proc_holder/spell/targeted/turf_teleport/blink) || istype(S, /obj/effect/proc_holder/spell/targeted/ethereal_jaunt))
 			next_wizard_escape = world.time + 10 SECONDS

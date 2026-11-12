@@ -446,7 +446,7 @@ GLOBAL_VAR_INIT(bot_armory_ordered_until, 0)
 /datum/bot_brain/proc/suit_at_large()
 	for(var/datum/weakref/ref as anything in GLOB.bot_security_wanted)
 		var/mob/living/carbon/human/H = ref.resolve()
-		if(H && H.stat != DEAD && !H.handcuffed && bot_in_nanosuit(H) && (!gym_run || get_area(H) == get_area(owner)))
+		if(H && H.stat != DEAD && !H.handcuffed && (bot_in_nanosuit(H) || bot_in_syndicate_suit(H)) && (!gym_run || get_area(H) == get_area(owner)))
 			if(!GLOB.bot_suit_seen_at[REF(H)])
 				GLOB.bot_suit_seen_at[REF(H)] = world.time
 			return H

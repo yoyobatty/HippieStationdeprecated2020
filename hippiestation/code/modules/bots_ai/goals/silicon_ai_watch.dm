@@ -63,6 +63,7 @@
 		if(!T || !is_station_level(T.z) || !bot_camera_sees(T) || !fresh("op|[REF(H)]"))
 			continue
 		note("Syndicate suit on camera: [H] in [get_area_name(T, TRUE)]")
+		bot_note_operative(H) //goals/nuke_defence.dm
 		say_it(":s Syndicate operative in [get_area_name(T, TRUE)]! [H.name].")
 		var/datum/bot_wanted/W = bot_get_wanted_entry(H)
 		if(!W || !(W.crime in GLOB.bot_antag_crimes))
