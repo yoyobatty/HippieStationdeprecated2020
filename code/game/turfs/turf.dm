@@ -258,22 +258,44 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	return TRUE
 
 /turf/Exit(atom/movable/mover, atom/newloc)
-	. = ..()
-	if(!. || QDELETED(mover))
+	// hippie start -- not ..(): past /atom/Exit's signal, BYOND's built-in Exit() calls Uncross() on every thing on the tile, items
+	// and all, before the loop below asks the ones that matter again. Every step paid that, a pile's every step a thousandfold.
+	// Like Enter() above, which doesn't call ..() either.
+	if(SEND_SIGNAL(src, COMSIG_ATOM_EXIT, mover, newloc) & COMPONENT_ATOM_BLOCK_EXIT)
 		return FALSE
-	for(var/i in contents)
-		if(i == mover)
-			continue
-		var/atom/movable/thing = i
-		if(thing.no_cross_checks || isitem(thing)) //hippie -- no item holds anything back
-			continue
-		if(!thing.Uncross(mover, newloc))
-			if(thing.flags_1 & ON_BORDER_1)
-				mover.Bump(thing)
-			if(!CHECK_BITFIELD(mover.movement_type, UNSTOPPABLE))
+	if(QDELETED(mover))
+		return FALSE
+	. = TRUE
+	// hippie end
+	// hippie start -- only structures, doors and proximity fields ever hold anything back (window, railing, stairs, windoor
+	// assembly, necropolis gate, windoor, border firelock, field turfs: the only Uncross()/CheckExit() overrides, and nothing
+	// listens for COMSIG_MOVABLE_UNCROSS). Asking every mob, decal and item on the tile cost 11 s of the 2026-11-11 ash drake
+	// freeze, organs thrown off a tile holding 570 corpses. locate() looks in native code (~14 ns a thing); a typed for loop steps
+	// the VM for every thing on the tile even when none match (~240 ns), so it only runs once locate() has found one.
+	if(locate(/obj/structure) in src)
+		for(var/obj/structure/thing in src)
+			if(!exit_asks(thing, mover, newloc))
 				return FALSE
-		if(QDELETED(mover))
-			return FALSE		//We were deleted.
+	if(locate(/obj/machinery/door) in src)
+		for(var/obj/machinery/door/thing in src)
+			if(!exit_asks(thing, mover, newloc))
+				return FALSE
+	if(locate(/obj/effect/abstract/proximity_checker/advanced) in src)
+		for(var/obj/effect/abstract/proximity_checker/advanced/thing in src)
+			if(!exit_asks(thing, mover, newloc))
+				return FALSE
+
+/// hippie -- one thing's say in Exit() (the body of tg's loop): FALSE stops the move
+/turf/proc/exit_asks(atom/movable/thing, atom/movable/mover, atom/newloc)
+	if(thing == mover || thing.no_cross_checks)
+		return TRUE
+	if(!thing.Uncross(mover, newloc))
+		if(thing.flags_1 & ON_BORDER_1)
+			mover.Bump(thing)
+		if(!CHECK_BITFIELD(mover.movement_type, UNSTOPPABLE))
+			return FALSE
+	return !QDELETED(mover) //We were deleted.
+// hippie end
 
 /turf/Entered(atom/movable/AM)
 	..()

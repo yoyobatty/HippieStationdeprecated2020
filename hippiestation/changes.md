@@ -55,6 +55,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/datums/tgs_event_handler.dm
 ## code/datums/wires/airlock.dm
 ## code/datums/world_topic.dm
+## code/game/atoms_movable.dm (doMove() skips no_cross_checks like Move())
 ## code/game/gamemodes/changeling/changeling.dm !Should be modularized. Can be done easily.
 ## code/game/gamemodes/game_mode.dm
 ## code/game/gamemodes/traitor/traitor.dm !Should be modularized. Can be done easily.
@@ -72,6 +73,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/machinery/telecomms/broadcasting.dm
 ## code/game/machinery/telecomms/telecomunications.dm
 ## code/game/mecha/equipment/tools/mining_tools.dm
+## code/game/objects/effects/decals/cleanable.dm (a decal that never merges skips the walk of the tile's decals)
 ## code/game/objects/effects/effect_system/effects_other.dm
 ## code/game/objects/effects/effect_system/effects_smoke.dm
 ## code/game/objects/effects/portals.dm (tile engine neighbour cache, tile_engine.dm)
@@ -93,7 +95,9 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/objects/structures/window.dm
 ## code/game/turfs/change_turf.dm
 ## code/game/turfs/open.dm
+## code/game/turfs/open/lava.dm (is_safe() by locate(), no copy of the tile's contents)
 ## code/game/turfs/open/space/space.dm (set_starlight() retints the camera pictures' starlight copies, map_view.dm; space put back at runtime tells the tile engine, tile_engine.dm)
+## code/game/turfs/turf.dm (Enter() skips non-dense items; Exit() skips BYOND's built-in and asks only structures, doors and proximity fields)
 ## code/game/world.dm !Needs modularization! This stuff is crap.
 ## code/modules/admin/admin.dm
 ## code/modules/admin/admin_investigate.dm (investigate_log() writes through the log writer's thread)
@@ -179,8 +183,10 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/mob/living/simple_animal/bot/medbot.dm
 ## code/modules/mob/living/simple_animal/friendly/dog.dm
 ## code/modules/mob/living/simple_animal/hostile/headcrab.dm
-## code/modules/mob/living/simple_animal/hostile/hostile.dm (GainPatience() on a mob being deleted)
+## code/modules/mob/living/simple_animal/hostile/hostile.dm (GainPatience() on a mob being deleted; DestroyObjectsInDirection() looks only at dense machines and structures; FindHidden() with the target gone)
 ## code/modules/mob/living/simple_animal/hostile/jungle/leaper.dm
+## code/modules/mob/living/simple_animal/hostile/megafauna/drake.dm (crush, fire line and lava fall spread a crowd over ticks)
+## code/modules/mob/living/simple_animal/hostile/retaliate/retaliate.dm (keyed enemies, Retaliate() once a second, allies told only new enemies)
 ## code/modules/mob/living/simple_animal/slime/slime.dm
 ## code/modules/mob/mob_helpers.dm
 ## code/modules/mob/mob_movement.dm !Horrible code alert, how did this even get merged?

@@ -87,12 +87,17 @@
 
 /turf/open/lava/proc/is_safe()
 	//if anything matching this typecache is found in the lava, we don't burn things
-	var/static/list/lava_safeties_typecache = typecacheof(list(/obj/structure/lattice/catwalk, /obj/structure/stone_tile))
-	var/list/found_safeties = typecache_filter_list(contents, lava_safeties_typecache)
-	for(var/obj/structure/stone_tile/S in found_safeties)
-		if(S.fallen)
-			LAZYREMOVE(found_safeties, S)
-	return LAZYLEN(found_safeties)
+	// hippie start -- locate() instead of a copy of every thing on the tile through typecache_filter_list(): it runs for every
+	// thing that lands here, so a pile on lava cost the square of its size (10 s of the 2026-11-11 ash drake freeze, 25 s when the
+	// pile itself turned to lava). locate() looks in native code; a typed for loop still steps the VM per thing (1.4 s there).
+	if(locate(/obj/structure/lattice/catwalk) in src)
+		return TRUE
+	if(locate(/obj/structure/stone_tile) in src)
+		for(var/obj/structure/stone_tile/S in src)
+			if(!S.fallen)
+				return TRUE
+	return FALSE
+	// hippie end
 
 
 /turf/open/lava/proc/burn_stuff(AM)

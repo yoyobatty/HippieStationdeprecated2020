@@ -486,3 +486,26 @@
 		return BOT_GYM_FAIL
 	// salt, pepper, shoes, the third drink, the second screwdriver, the second kit
 	return (butts_binned == 3 && on_table >= 6 && screwdrivers == 1 && kits == 1 && drinks == 2) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// A loose tool beside the path, under a heap of junk (grab_passing_tools(), bot_items.dm)
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/tool_in_passing_heap
+	name = "items: grabs a crowbar in passing from under a heap of junk"
+	desc = "On the way to the far end a crowbar lies beside the path under 300 wrappers. The bot takes it in passing and carries on. 2026-11-11: going through a heap like that item by item cost a bot 4 s a step."
+	time_limit = 20 SECONDS
+	layout = list(
+		"#########",
+		"#B.....G#",
+		"#...c...#",
+		"#########")
+
+/datum/bot_scenario/tool_in_passing_heap/setup()
+	var/turf/T = first_marker("c")
+	for(var/i in 1 to 300)
+		new /obj/item/trash/candy(T)
+
+/datum/bot_scenario/tool_in_passing_heap/check_success_conditions()
+	if(!brain.find_carried_tool(/obj/item/crowbar))
+		return "walked past the crowbar"

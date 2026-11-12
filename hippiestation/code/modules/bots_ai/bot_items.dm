@@ -1402,13 +1402,13 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 /datum/bot_brain/proc/grab_passing_tools()
 	if(state != BOT_STATE_GOAL || world.time < next_passing_grab)
 		return
-	for(var/obj/item/I in oview(1, owner))
-		if(!isturf(I.loc) || I.anchored || istype(I, /obj/item/storage/toolbox))
-			continue //don't detour into unpacking a whole box in passing, just loose tools
-		if(!owner.Adjacent(I))
-			continue
+	// Only the tools it's short on, looked up per tile with locate() (native code). This walked every item in oview(1) and asked
+	// Adjacent() of each before checking its type, and Adjacent() walks the item's whole tile: past a pile of 2600 things
+	// (2026-11-11, ash drakes on clown corpses) one step cost 4 s. One tool a step: the next step picks up the next.
+	for(var/turf/T as anything in RANGE_TURFS(1, owner))
 		for(var/tool_type in GLOB.captains_id_required_tools)
-			if(!istype(I, tool_type) || can_eventually_provide_tool(tool_type))
+			var/obj/item/I = locate(tool_type) in T // a toolbox is never one of these: loose tools only, no unpacking in passing
+			if(!I || I.anchored || can_eventually_provide_tool(tool_type) || !owner.Adjacent(I))
 				continue
 			if(!try_pickup_target(I))
 				next_passing_grab = world.time + 15 SECONDS //nowhere to put it: not again every step, with a pause each time to reach for it
@@ -1417,8 +1417,7 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 			if(tool_need_already_satisfied())
 				bot_log(src, "that's what I was going for - no need to go any further")
 				goal_succeeded()
-				return
-			break
+			return
 
 // Real security etiquette, not just a courtesy - a solid airlock left open behind a bot
 // is exactly what lets an unauthorized tailgater slip through right after it without

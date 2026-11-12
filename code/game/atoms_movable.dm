@@ -638,7 +638,8 @@
 				if(old_area && old_area != destarea)
 					old_area.Exited(src, destination)
 			for(var/atom/movable/AM in oldloc)
-				AM.Uncrossed(src)
+				if(!AM.no_cross_checks) // hippie -- as in Move()
+					AM.Uncrossed(src)
 			var/turf/oldturf = get_turf(oldloc)
 			var/turf/destturf = get_turf(destination)
 			var/old_z = (oldturf ? oldturf.z : null)
@@ -650,7 +651,7 @@
 				destarea.Entered(src, oldloc)
 
 			for(var/atom/movable/AM in destination)
-				if(AM == src)
+				if(AM == src || AM.no_cross_checks) // hippie -- as in Move()
 					continue
 				AM.Crossed(src, oldloc)
 

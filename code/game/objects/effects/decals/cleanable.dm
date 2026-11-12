@@ -11,7 +11,9 @@
 	if (random_icon_states && (icon_state == initial(icon_state)) && length(random_icon_states) > 0)
 		icon_state = pick(random_icon_states)
 	create_reagents(300)
-	if(loc && isturf(loc))
+	// hippie -- one that never merges (gibs, oil...) never gives up its place: replace_decal() can't return TRUE for it, so don't
+	// walk every decal on the tile for nothing (gibs on a pile of 570 corpses, 2026-11-11 ash drake freeze)
+	if(mergeable_decal && loc && isturf(loc))
 		for(var/obj/effect/decal/cleanable/C in loc)
 			if(C != src && C.type == type && !QDELETED(C))
 				if (replace_decal(C))

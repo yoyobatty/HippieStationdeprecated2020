@@ -270,24 +270,25 @@ Difficulty: Medium
 
 //fire line keeps going even if dragon is deleted
 /proc/dragon_fire_line(var/source, var/list/turfs)
-	var/list/hit_list = list()
+	var/list/hit_list = list() // hippie -- keyed, hit_list[L] = TRUE: "L in hit_list" walked it for every mob in the line
 	for(var/turf/T in turfs)
 		if(istype(T, /turf/closed))
 			break
 		new /obj/effect/hotspot(T)
 		T.hotspot_expose(700,50,1)
 		for(var/mob/living/L in T.contents)
-			if(L in hit_list || L == source)
+			CHECK_TICK // hippie -- 2026-11-11 a line through 600 clowns killed them all in one tick (each leaves a corpse): 4 s stood still
+			if(QDELETED(L) || L.loc != T || hit_list[L] || L == source) // hippie -- QDELETED, moved off and keyed hit_list
 				continue
-			hit_list += L
+			hit_list[L] = TRUE // hippie -- keyed
 			L.adjustFireLoss(20)
 			to_chat(L, "<span class='userdanger'>You're hit by [source]'s fire breath!</span>")
 
 		// deals damage to mechs
 		for(var/obj/mecha/M in T.contents)
-			if(M in hit_list)
+			if(hit_list[M]) // hippie -- keyed
 				continue
-			hit_list += M
+			hit_list[M] = TRUE // hippie -- keyed
 			M.take_damage(45, BRUTE, "melee", 1)
 		sleep(1.5)
 
@@ -359,6 +360,13 @@ Difficulty: Medium
 	icon_state = "dragon"
 	playsound(loc, 'sound/effects/meteorimpact.ogg', 200, 1)
 	for(var/mob/living/L in orange(1, src))
+		// hippie start -- 2026-11-11 landing on 570 corpses gibbed them all in one tick: the server stood still 88 s. Spread over ticks.
+		CHECK_TICK
+		if(QDELETED(src))
+			return
+		if(QDELETED(L) || get_dist(src, L) > 1)
+			continue
+		// hippie end
 		if(L.stat)
 			visible_message("<span class='warning'>[src] slams down on [L], crushing [L.p_them()]!</span>")
 			L.gib()
@@ -437,6 +445,9 @@ Difficulty: Medium
 	playsound(T,'sound/magic/fireball.ogg', 200, 1)
 
 	for(var/mob/living/L in T.contents)
+		CHECK_TICK // hippie -- a crowd under it burns over ticks, not in one
+		if(QDELETED(L) || L.loc != T) // hippie
+			continue
 		if(istype(L, /mob/living/simple_animal/hostile/megafauna/dragon))
 			continue
 		L.adjustFireLoss(10)

@@ -453,12 +453,21 @@
 		if(CanSmashTurfs(T))
 			T.attack_animal(src)
 			return
-	for(var/obj/O in T.contents)
-		if(!O.Adjacent(targets_from))
-			continue
-		if((ismachinery(O) || isstructure(O)) && O.density && environment_smash >= ENVIRONMENT_SMASH_STRUCTURES && !O.IsObscured())
-			O.attack_animal(src)
-			return
+	// hippie start -- only a dense machine or structure is ever smashed, so look for those (locate() is native) before Adjacent(),
+	// which walks the whole tile: this asked it of every item first, and a tile of 2400 things cost a mob's turn 12 s (2026-11-11)
+	if(environment_smash < ENVIRONMENT_SMASH_STRUCTURES)
+		return
+	if(locate(/obj/structure) in T)
+		for(var/obj/structure/O in T)
+			if(O.density && O.Adjacent(targets_from) && !O.IsObscured())
+				O.attack_animal(src)
+				return
+	if(locate(/obj/machinery) in T)
+		for(var/obj/machinery/O in T)
+			if(O.density && O.Adjacent(targets_from) && !O.IsObscured())
+				O.attack_animal(src)
+				return
+	// hippie end
 
 /mob/living/simple_animal/hostile/proc/DestroyPathToTarget()
 	if(environment_smash)
@@ -491,6 +500,8 @@ mob/living/simple_animal/hostile/proc/DestroySurroundings() // for use with mega
 
 
 /mob/living/simple_animal/hostile/proc/FindHidden()
+	if(QDELETED(target)) // hippie -- MoveToTarget() can sleep in OpenFire() first (a drake's swoop), and the target die meanwhile
+		return FALSE
 	if(istype(target.loc, /obj/structure/closet) || istype(target.loc, /obj/machinery/disposal) || istype(target.loc, /obj/machinery/sleeper))
 		var/atom/A = target.loc
 		Goto(A,move_to_delay,minimum_distance)
