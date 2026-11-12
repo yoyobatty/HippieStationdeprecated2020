@@ -47,11 +47,11 @@
 /obj/mecha/neovgre/Destroy()
 	if(GLOB.neovgre_exists)
 		GLOB.neovgre_exists --
-	..()
+	return ..()
 
 /obj/mecha/neovgre/proc/go_critical()
 	explosion(get_turf(loc), 0, 5, 10, 0, 15)
-	Destroy(src)
+	qdel(src) // Destroy() called as a proc left the mech on the map at 0 integrity, beside its own wreck
 
 /obj/mecha/neovgre/container_resist(mob/living/user)
 	to_chat(user, "<span class='brass'>Neovgre requires a lifetime commitment friend, no backing out now!</span>")
