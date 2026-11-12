@@ -112,47 +112,94 @@ GLOBAL_LIST_EMPTY(bot_cargo_going_back)
 			if(isturf(C.loc) && !C.anchored && !(C in GLOB.bot_cargo_going_back))
 				.++
 
+/// When Engineering was last asked on the radio about the supply shuttle's air
 GLOBAL_VAR_INIT(bot_cargo_air_asked, -INFINITY)
-/// When the loading doors are next worth opening for the shuttle's air
-GLOBAL_VAR_INIT(bot_cargo_vent_tried, -INFINITY)
 
-/// The bay's loading blast door onto the docked supply shuttle, shut: the one whose button lets the bay's air into it.
-/proc/bot_supply_loading_door()
-	var/obj/docking_port/mobile/supply/S = SSshuttle.supply
-	if(!S || !bot_supply_shuttle_docked())
-		return null
-	var/list/aboard = list()
-	for(var/turf/T as anything in S.return_turfs())
-		aboard[T] = TRUE
-	for(var/obj/machinery/door/poddoor/P as anything in bot_instances_of(/obj/machinery/door/poddoor))
-		if(QDELETED(P) || P.z != S.z || !P.density || !P.id || aboard[get_turf(P)] || get_dist(P, S) > 20)
-			continue
-		for(var/d in GLOB.cardinals)
-			if(aboard[get_step(P, d)])
-				return P //onto the shuttle: its own loading door (Hippie) or its flaps (Meta)
-	return null
+// Air on the supply shuttle nobody can breathe (the user's ruling, 2026-11-12): the cargo technician goes aboard for the crates on its mask
+// and tank, in a fire suit and helmet as well if the air's hot enough to burn, and takes the kit off again back in the bay (on_internals,
+// /datum/bot_step/kit_up_for_air, goals/refill_internals.dm). A vacuum wants a space suit: one out of EVA's storage if its own doors get it
+// there, and if not the crates are left and Engineering asked to fill the shuttle. It used to open the bay's loading doors to let the bay's
+// air in (f5fe3a52). That let none in on any of the three maps, as the dock's fans and flaps hold air, and on Hippie Station the same
+// button opened the shuttle's own blast doors (_maps/shuttles/cargo_box.dmm), so it flew back open to space. In bugs1112b run5 Science's
+// silver sat aboard from about ten minutes in to the end of the shift: the loading doors opened on it twice and Engineering was asked five
+// times, with an emergency tank in every cargo technician's bag.
 
-/// A crate in air this bot can't breathe, with no suit on: left for a couple of minutes. assign_goal() turned these down every time
-/// it was asked, and it was asked every few seconds: two cargo technicians asked 183 times between them in one shift over a crate of
-/// glass in a dock that had lost its air.
+/// A crate in air this bot can't go into with what it has on it or can get (can_kit_up_for(), goals/refill_internals.dm): left for a couple
+/// of minutes. assign_goal() turned these down every time it was asked, and it was asked every few seconds: two cargo technicians asked
+/// 183 times between them in one shift over a crate of glass in a dock that had lost its air.
 /datum/bot_brain/proc/crate_in_bad_air(obj/structure/closet/crate/C)
-	if(!in_bad_air(C) || is_eva_ready())
+	if(!in_bad_air(C) || can_kit_up_for(C))
 		return FALSE
-	bot_log(src, "[C] is somewhere I can't breathe and I'm not suited up - leaving it for now")
+	var/lacking = "no space suit"
+	if(air_kit_for(C) != "suit")
+		lacking = (internals_mask() && internals_tank()) ? "no fire suit to be had" : "no mask and tank"
+	bot_log(src, "[C] is somewhere I can't breathe and I've [lacking] - leaving it for now")
 	LAZYSET(cargo_blocked, C, world.time + 2 MINUTES)
 	return TRUE
 
-/// Whether the docked supply shuttle has lost its air: a crate aboard sits in air this bot can't breathe. A crate set aside for a minute
-/// after a walk out to it came to nothing isn't that, though crates_on_shuttle() leaves it out as well.
-/datum/bot_brain/proc/supply_shuttle_airless()
+/// The radio call to Engineering for crates aboard the docked supply shuttle in air this bot can't go into with what it has or can get
+/// (crate_in_bad_air()), saying what's wrong with the air there, or null if there are none
+/datum/bot_brain/proc/supply_shuttle_air_call(aboard)
 	var/obj/docking_port/mobile/supply/S = SSshuttle.supply
 	if(!S?.shuttle_areas || !bot_supply_shuttle_docked())
-		return FALSE
+		return null
+	var/crates = "there's [aboard] crate\s aboard I can't get off"
 	for(var/area/A as anything in S.shuttle_areas)
 		for(var/obj/structure/closet/crate/C in A)
-			if(isturf(C.loc) && !C.anchored && !(C in GLOB.bot_cargo_going_back) && in_bad_air(C))
-				return TRUE
+			if(!isturf(C.loc) || C.anchored || (C in GLOB.bot_cargo_going_back) || can_kit_up_for(C))
+				continue
+			var/turf/open/T = C.loc
+			if(istype(T) && T.active_hotspot)
+				return ";Engineering, there's a fire on the supply shuttle and [crates]. Can somebody put it out?"
+			switch(air_kit_for(C))
+				if("mask")
+					return ";Engineering, the supply shuttle's full of air nobody can breathe, I've no internals, and [crates]. Can somebody clear it?"
+				if("fire")
+					return ";Engineering, the supply shuttle's air is hot enough to burn, there's no fire suit to be had, and [crates]. Can somebody cool it down?"
+			return ";Engineering, the supply shuttle's lost its air and [crates]. Can somebody fill it?"
+	return null
+
+/datum/bot_brain
+	/// No space suit to be had for a crate in a vacuum when it last looked: not looked for again till then
+	var/no_space_suit_until = 0
+
+/// A crate to fetch (aboard, or left on the way) in air only a space suit does for (air_kit_for()), and a space suit in EVA's storage it can
+/// get to by its own doors (eva_suit_storage(), goals/space_ruins.dm): off to put it on, as for an EVA. A cargo technician's access has no
+/// EVA in it (ACCESS_EVA), so on the station it's mostly none, and the crate's left and Engineering asked (crate_in_bad_air(),
+/// supply_shuttle_air_call()).
+/datum/bot_brain/proc/try_suit_up_for_crates(list/crates)
+	if(world.time < no_space_suit_until)
+		return FALSE
+	for(var/obj/structure/closet/crate/C as anything in crates)
+		if(QDELETED(C) || !isturf(C.loc) || C.z != owner.z || C.anchored || LAZYACCESS(cargo_blocked, C) > world.time || taken_by_another(C) || air_kit_for(C) != "suit")
+			continue
+		if(is_eva_ready())
+			return FALSE
+		no_space_suit_until = world.time + 10 MINUTES //once it's on it stays on (is_eva_ready())
+		var/obj/machinery/suit_storage_unit/U = eva_suit_storage()
+		if(!U)
+			bot_log(src, "[C] is in air only a space suit does for, and there's none I can get to")
+			return FALSE
+		bot_log(src, "[C] is in air only a space suit does for - going for the one in [U]")
+		return assign_goal(new /datum/bot_goal/space_suit_up/for_crates(U))
 	return FALSE
+
+/// The mask, suit and helmet out of EVA's storage and on, for a crate in a vacuum (/datum/bot_step/space_suit_on, goals/space_ruins.dm), and
+/// no jetpack: the crate's walked to
+/datum/bot_goal/space_suit_up/for_crates
+	doing = "suiting up to unload the supply shuttle"
+
+/datum/bot_goal/space_suit_up/for_crates/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/robotics/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/space_suit_on())
+	return list(S)
+
+/datum/bot_goal/space_suit_up/for_crates/on_success(datum/bot_brain/bot)
+	bot.continue_cargo_round()
+
+/// Not an explorer's give-up (space_suit_up's own puts exploring off): try_suit_up_for_crates() keeps it from going again too soon
+/datum/bot_goal/space_suit_up/for_crates/on_give_up(datum/bot_brain/bot)
+	return
 
 /// A clear bit of floor in the cargo bay to leave a crate on.
 /datum/bot_brain/proc/find_bay_spot()
@@ -197,13 +244,18 @@ GLOBAL_VAR_INIT(bot_cargo_vent_tried, -INFINITY)
 	interval_max = 250
 
 /datum/bot_duty/cargo/try_start(datum/bot_brain/bot)
+	bot.mind_air_kit() //the mask off again after a crate fetched out of air it couldn't breathe (goals/refill_internals.dm)
 	if(bot.state == BOT_STATE_GOAL && bot.current_goal)
 		return FALSE
 	var/obj/docking_port/mobile/supply/S = SSshuttle.supply
 	if(!S || SSshuttle.supplyBlocked)
 		return FALSE
-	// The shuttle's in: get the crates off it, each one's manifest stamped and left aboard first. Cargo's stamp first, if it's lying about.
 	var/list/aboard_crates = bot.crates_on_shuttle()
+	// One to fetch in a vacuum, and a space suit to be had from EVA's storage by its own doors: suited up first, as for an EVA. With none to
+	// be had the crate's left (crate_in_bad_air()), and Engineering asked to fill the shuttle (below).
+	if(bot.try_suit_up_for_crates(aboard_crates | GLOB.bot_cargo_strays))
+		return TRUE
+	// The shuttle's in: get the crates off it, each one's manifest stamped and left aboard first. Cargo's stamp first, if it's lying about.
 	if(length(aboard_crates) && !bot.carried_approval_stamp())
 		for(var/obj/structure/closet/crate/C as anything in aboard_crates)
 			if(bot_manifest_to_file(C))
@@ -251,28 +303,12 @@ GLOBAL_VAR_INIT(bot_cargo_vent_tried, -INFINITY)
 	var/aboard = bot_supply_shuttle_crates()
 	if(bot_supply_shuttle_docked() && !aboard && S.canMove())
 		return bot.assign_goal(new /datum/bot_goal/work_cargo_console("send"))
-	// It came in without air: it vents through its loading doors on the way (left open at the other end). The way the crew deal with it:
-	// the loading blast doors opened, and the bay's air rushes in. Until then the external airlock onto it won't be opened by anybody
-	// without a suit, and in the overnight batches of 2026-11-10 the crates sat aboard in two shifts out of three (30 to 90 "no path to
-	// the shuttle floor" a shift).
-	// Only when it really has lost its air: a crate aboard in air this bot can't breathe. Any crate set aside counted before, and a walk out
-	// to one that came to nothing sets it aside for a minute: the loading doors went up for a shuttle with good air in it, its own blast
-	// doors with them (the same button, _maps/shuttles/cargo_box.dmm), and it flew back open to space and came in empty from then on. In
-	// bugs1112base the four Hippie Station shifts with a cargo technician at work had crates sat aboard from the second trip to the end.
-	var/airless = aboard && !length(bot.crates_on_shuttle()) && bot.supply_shuttle_airless()
-	if(airless && world.time > GLOB.bot_cargo_vent_tried)
-		var/obj/machinery/door/poddoor/gate = bot_supply_loading_door()
-		var/obj/machinery/button/door/button = gate ? bot.blast_door_button_for(gate) : null
-		if(button)
-			GLOB.bot_cargo_vent_tried = world.time + 2 MINUTES
-			GLOB.bot_cargo_air_asked = world.time //Engineering isn't asked while the bay's air is going in
-			bot_log(bot, "the supply shuttle came in without air: opening [gate] to let the bay's in")
-			if(bot.assign_goal(new /datum/bot_goal/open_blast_door(button, gate)))
-				return TRUE
-	if(airless && world.time > GLOB.bot_cargo_air_asked + 5 MINUTES)
+	// Crates aboard in air it can't go into with what it has or can get (crate_in_bad_air()): Engineering's to see to, on the radio.
+	var/air_call = (aboard && !length(bot.crates_on_shuttle())) ? bot.supply_shuttle_air_call(aboard) : null
+	if(air_call && world.time > GLOB.bot_cargo_air_asked + 5 MINUTES)
 		GLOB.bot_cargo_air_asked = world.time
 		bot_log(bot, "crates on the supply shuttle in air I can't work in")
-		bot.say_after_typing(";Engineering, the supply shuttle's lost its air and there's [aboard] crate\s aboard I can't get off. Can somebody fill it?")
+		bot.say_after_typing(air_call)
 	// Something on order and the shuttle idle at CentCom: call it in. Saving up for somebody's crate, it comes in for the empties too.
 	if(bot_supply_shuttle_away() && (length(SSshuttle.shoppinglist) || (GLOB.bot_cargo_saving_for && bot.empty_crate_to_return())))
 		return bot.assign_goal(new /datum/bot_goal/work_cargo_console("call"))
@@ -383,6 +419,7 @@ GLOBAL_VAR_INIT(bot_cargo_vent_tried, -INFINITY)
 /datum/bot_goal/unload_crate
 	lawful = TRUE
 	exclusive = TRUE
+	on_internals = TRUE //aboard on a mask and tank, if the shuttle's air wants that (kit_up_for_air(), goals/refill_internals.dm)
 	doing = "unloading the supply shuttle"
 	var/turf/drop_spot
 
@@ -403,7 +440,7 @@ GLOBAL_VAR_INIT(bot_cargo_vent_tried, -INFINITY)
 		var/datum/bot_strategy/cargo/S = new
 		var/datum/bot_step/move_to/to_bay = new
 		to_bay.step_target = drop_spot
-		S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/grab_crate(), to_bay, new /datum/bot_step/let_go_of_crate())
+		S.steps = list(new /datum/bot_step/kit_up_for_air(), new /datum/bot_step/move_to(), new /datum/bot_step/grab_crate(), to_bay, new /datum/bot_step/let_go_of_crate())
 		. += S
 
 /datum/bot_goal/unload_crate/on_success(datum/bot_brain/bot)
@@ -486,6 +523,7 @@ GLOBAL_VAR_INIT(bot_cargo_vent_tried, -INFINITY)
 /datum/bot_goal/file_manifest
 	lawful = TRUE
 	exclusive = TRUE
+	on_internals = TRUE //aboard on a mask and tank, as for the unload
 	doing = "signing for a crate"
 
 /datum/bot_goal/file_manifest/New(obj/structure/closet/crate/C)
@@ -498,7 +536,7 @@ GLOBAL_VAR_INIT(bot_cargo_vent_tried, -INFINITY)
 
 /datum/bot_goal/file_manifest/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/cargo/S = new
-	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/stamp_manifest())
+	S.steps = list(new /datum/bot_step/kit_up_for_air(), new /datum/bot_step/move_to(), new /datum/bot_step/stamp_manifest())
 	return list(S)
 
 /datum/bot_goal/file_manifest/on_success(datum/bot_brain/bot)
@@ -573,7 +611,9 @@ GLOBAL_VAR_INIT(bot_cargo_vent_tried, -INFINITY)
 	var/datum/bot_strategy/cargo/S = new
 	var/datum/bot_step/move_to/aboard = new
 	aboard.step_target = drop_spot
-	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/grab_crate(), aboard, new /datum/bot_step/leave_crate_aboard())
+	var/datum/bot_step/kit_up_for_air/kit = new
+	kit.work_at = drop_spot //the air it's taken into is aboard, not where it is now
+	S.steps = list(kit, new /datum/bot_step/move_to(), new /datum/bot_step/grab_crate(), aboard, new /datum/bot_step/leave_crate_aboard())
 	return list(S)
 
 /datum/bot_goal/unload_crate/return_crate/on_success(datum/bot_brain/bot)

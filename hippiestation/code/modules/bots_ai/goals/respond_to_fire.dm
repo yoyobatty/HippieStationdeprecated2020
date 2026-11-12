@@ -230,6 +230,11 @@ GLOBAL_LIST_INIT(bot_fire_words, list("fire", "fires", "burning", "ablaze", "fla
 	var/turf/open/here = owner.loc
 	if(!istype(here) || owner.buckled || !bot_tile_burns(here) || heat_proof())
 		return FALSE
+	// Air that's hot with no flames in it, on its tank and dressed for that heat (a fire suit and helmet, goals/refill_internals.dm
+	// kit_up_for_air()): nothing burns. bot_tile_burns() counts hot air as well as flames, and heat_proof() asks for the immunity to
+	// flames that a fire suit and helmet don't give.
+	if(!here.active_hotspot && owner.internal && kept_from_heat(here.return_air().temperature))
+		return FALSE
 	if(pursuing_kind == "flames" && pursue_target && !bot_tile_burns(get_turf(pursue_target)))
 		return TRUE //on its way out
 	var/turf/open/out = bot_way_out_of_fire(here)

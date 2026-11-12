@@ -424,7 +424,7 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 		reach_floods = null
 
 /// Everything bot_reachable_strict()/bot_reachable_permissive() read that could change a route within one
-/// decision - including try_unlock_route()'s hypothetical "if I had a welder / that toolbox" flags and the
+/// decision - including try_unlock_route()'s hypothetical "if I had a welder / that toolbox" flags (the welder as can_unweld() answers it, a real one too: picked up, it makes a welded door a way through, bot_doors.dm) and the
 /// urgency that decides whether breaking through is allowed. Anything new those procs start reading that can
 /// change mid-decision has to go in here too, or a flood made under the old state skips a route it shouldn't.
 /datum/bot_brain/proc/reach_key(turf/start, adjacent, obj/item/card/id/id_card, simulated_only)
@@ -432,7 +432,7 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 
 /// reach_key() without where it starts from.
 /datum/bot_brain/proc/reach_rules(adjacent, obj/item/card/id/id_card, simulated_only)
-	return "[adjacent]|[REF(id_card)]|[simulated_only]|[pathing_allow_climb]|[pathing_climb_only]|[pathing_no_tailgating]|[pathing_allow_smash_tables]|[pathing_assume_welder]|[pathing_assume_nearby_weapons]|[get_urgency()]|[pathing_emag ? 1 : 0]|[bot_may_jump_in(owner) ? 1 : 0]|[shut_in_result ? 1 : 0]|[length(vacuum_doors)]|[let_in_door_now()]" //a door just opened for it (bot_doors.dm) is other rules: a region from before it opened says there's no way in
+	return "[adjacent]|[REF(id_card)]|[simulated_only]|[pathing_allow_climb]|[pathing_climb_only]|[pathing_no_tailgating]|[pathing_allow_smash_tables]|[(owner && can_unweld()) ? 1 : 0]|[pathing_assume_nearby_weapons]|[get_urgency()]|[pathing_emag ? 1 : 0]|[bot_may_jump_in(owner) ? 1 : 0]|[shut_in_result ? 1 : 0]|[length(vacuum_doors)]|[let_in_door_now()]" //a door just opened for it (bot_doors.dm) is other rules: a region from before it opened says there's no way in
 
 // A whole region, kept a little while. A failed search that wasn't cut short has visited everything reachable from where it began, and
 // from anywhere inside that, nothing outside it is reachable either: whatever such a tile reaches, the first one reached through it. So

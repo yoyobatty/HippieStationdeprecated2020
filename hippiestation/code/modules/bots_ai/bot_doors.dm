@@ -269,6 +269,15 @@ GLOBAL_LIST_EMPTY(bot_door_buttons_out_of_reach)
 	// to the same two doors 160 times in what was left of the shift.
 	if(LAZYACCESS(H.bot_brain.vacuum_doors, src) > world.time && !H.bot_brain.is_space_protected_without_boots())
 		return FALSE
+	// Welded shut, and nothing on the bot to unweld it with: no way through, whoever's ID opens it. tg's CanAStarPass() above goes by
+	// access, bolts and power and never asks about welding, so routes were planned through welded doors, the bot walked up to one and
+	// gave the errand up there ("welded shut - not mine to force"), and the next errand's route went through it again: a janitor's mop
+	// errand and six strolls in a row ended at the same welded maintenance door (Bot Shift bugs1112b run3), 78 stops at welded doors
+	// in that batch, at the abandoned maintenance doors and storerooms a round can start welded (airlock.dm LateInitialize()). A bot
+	// with a fuelled welder on it, or planning as if it had one (try_unlock_route(), bot_breach.dm), unwelds it when it gets there
+	// (clear_one_blocker(), bot_items.dm): for that bot the door is whatever its ID makes it. Which it is goes in reach_rules().
+	if(welded && density && !H.bot_brain.can_unweld())
+		return FALSE
 	if(H.bot_brain.pathing_emag && !H.bot_brain.measuring_shut_in)
 		return . || (!welded && hasPower() && !(obj_flags & EMAGGED) && (!istype(src, /obj/machinery/door/airlock/external) || H.bot_brain.op_team)) //it stays open: not onto space, unless it's an operative in a hardsuit coming in from it
 	// The armory, open to Security at red alert (goals/security_tactics.dm): an officer goes through it, open or swung to.
@@ -379,7 +388,9 @@ GLOBAL_LIST_EMPTY(bot_door_buttons_out_of_reach)
 		far_side = get_step(far_side, turn(to_dir, 180))
 	if((is_mining_level(z) || bot_aboard_mining_shuttle(H)) && H.bot_brain.ready_for_lavaland())
 		return //no vacuum outside this one, just thin air and a mask and a tank do for that (goals/mining.dm), or it's the way off the shuttle
-	if(!H.bot_brain.turf_air_is_breathable(far_side) && !H.bot_brain.is_space_protected_without_boots())
+	// On its tank and dressed for the air past it, at work in there (working_on_internals_at(), goals/refill_internals.dm): a cargo
+	// technician going aboard a supply shuttle full of air nobody can breathe, for a crate.
+	if(!H.bot_brain.turf_air_is_breathable(far_side) && !H.bot_brain.is_space_protected_without_boots() && !H.bot_brain.working_on_internals_at(far_side))
 		return FALSE
 
 /// At a door that wants the button pressed. TRUE if that's in hand (pressed, or on the way to it).

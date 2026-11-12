@@ -1401,6 +1401,11 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 			bot_log(src, "searched [H], wanted for carrying contraband: nothing on them, let go")
 			bot_tally("searched and let go")
 			return FALSE
+	// Where they lie, the air was too bad to go in for them a moment ago (assign_goal()): left for now, whichever way they'd have been taken.
+	// Three officers asked again every time they looked for a cuffed traitor lying in crit in Atmospherics as its air went, 117 times between
+	// them, each time first finding nowhere in Security to keep him for a doctor (bugs1112b run3).
+	if(refused_for_air(H) && !is_eva_ready())
+		return FALSE
 	// Nobody's locked up dying. A cook cuffed at -4 health was dragged to a cell and left: he died there 3 minutes later. Down or pale
 	// from losing blood, they're taken to Medbay instead (security_medevac.dm), or failing a way there, Medical is called to them.
 	if(bot_prisoner_needs_medbay(H))

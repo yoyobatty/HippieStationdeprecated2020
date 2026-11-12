@@ -1811,8 +1811,8 @@
 		"###############")
 	var/mob/living/carbon/human/foe
 
-/// Not a welded door: the route planner counts a welded airlock that wants no access as a way through (its CanAStarPass() doesn't ask
-/// about welding), and the bot walked up to it on the way to the room and gave the run up there, a run in three.
+/// A door its ID doesn't open, not a welded one: when this was written the route planner counted a welded airlock that wants no access as
+/// a way through, and the bot walked up to it and gave the run up there, a run in three (fixed since: bot_doors.dm CanAStarPass()).
 /datum/bot_scenario/fixes1112/ae_runs_where_it_can/setup()
 	var/obj/machinery/door/airlock/A = first_placed("D")
 	A.req_access = list(ACCESS_CAPTAIN)
@@ -1940,12 +1940,10 @@
 	/// Blast doors on and beside the docked shuttle, all shut when it came in
 	var/list/obj/machinery/door/poddoor/loading_doors
 	var/saved_last_order
-	var/saved_vent_tried
 	var/saved_air_asked
 
 /datum/bot_scenario/fixes1112/shuttle_air/setup()
 	saved_last_order = GLOB.bot_cargo_last_order
-	saved_vent_tried = GLOB.bot_cargo_vent_tried
 	saved_air_asked = GLOB.bot_cargo_air_asked
 	GLOB.bot_cargo_last_order = world.time //no staples ordered while it runs: not what's judged here
 	var/obj/docking_port/mobile/supply/S = SSshuttle.supply
@@ -2061,12 +2059,29 @@
 	log_line("[checked] dock airlock\s on the station side, and the air beside them, can be breathed")
 	return null
 
+/// The bay's loading blast door onto the docked supply shuttle, shut: the one the cargo round of before 2026-11-12 opened to let the bay's air
+/// in (goals/cargo.dm's own finder for it went with that)
+/datum/bot_scenario/fixes1112/shuttle_air/proc/loading_door_onto_shuttle()
+	var/obj/docking_port/mobile/supply/S = SSshuttle.supply
+	if(!S || !bot_supply_shuttle_docked())
+		return null
+	var/list/aboard = list()
+	for(var/turf/T as anything in S.return_turfs())
+		aboard[T] = TRUE
+	for(var/obj/machinery/door/poddoor/P as anything in bot_instances_of(/obj/machinery/door/poddoor))
+		if(QDELETED(P) || P.z != S.z || !P.density || !P.id || aboard[get_turf(P)] || get_dist(P, S) > 20)
+			continue
+		for(var/d in GLOB.cardinals)
+			if(aboard[get_step(P, d)])
+				return P //onto the shuttle: its own loading door (Hippie) or its flaps (Meta)
+	return null
+
 /// What the cargo round of before the fix needed to open the loading doors: a console, a loading door onto the shuttle, and its button in reach.
 /// Without them, its not opening them would prove nothing.
 /datum/bot_scenario/fixes1112/shuttle_air/proc/vent_reach_problem()
 	if(!brain.find_cargo_console())
 		return "setup: no supply console on the station the cargo round could use"
-	var/obj/machinery/door/poddoor/gate = bot_supply_loading_door()
+	var/obj/machinery/door/poddoor/gate = loading_door_onto_shuttle()
 	if(!gate)
 		return "setup: no shut loading blast door onto the docked shuttle"
 	if(!brain.blast_door_button_for(gate))
@@ -2109,7 +2124,7 @@
 		if(!P.density)
 			fail_reason = "[P] at [bot_coord(get_turf(P))] was opened on a supply shuttle with its air in"
 			return BOT_GYM_FAIL
-	if(GLOB.bot_cargo_vent_tried != saved_vent_tried || bot_transcript_said("came in without air"))
+	if(bot_transcript_said("came in without air"))
 		fail_reason = "went to open the loading doors for a supply shuttle with its air in"
 		return BOT_GYM_FAIL
 	if(bot_transcript_said("air I can't work in"))
@@ -2144,7 +2159,6 @@
 
 /datum/bot_scenario/fixes1112/shuttle_air/release_run()
 	GLOB.bot_cargo_last_order = saved_last_order
-	GLOB.bot_cargo_vent_tried = saved_vent_tried
 	GLOB.bot_cargo_air_asked = saved_air_asked
 	if(bot_supply_shuttle_docked())
 		SSshuttle.moveShuttle("supply", "supply_away", TRUE)
@@ -3498,4 +3512,866 @@
 		UnregisterSignal(bot, COMSIG_MOVABLE_MOVED)
 	if(other)
 		UnregisterSignal(other, COMSIG_MOVABLE_MOVED)
+	return ..()
+
+// <<< welded_scenarios.dm
+// ---------------------------------------------------------------------------------------------
+// Welded doors on the way (bot_doors.dm, the airlock CanAStarPass(); can_unweld() in reach_rules(), bot_pathing_permissive.dm)
+// ---------------------------------------------------------------------------------------------
+
+/// A welded airlock that wants no access, in the wall between two rooms, and the long way round open below it. The bot has no ID: an
+/// airlock with no access set opens for anybody (check_access()).
+/datum/bot_scenario/fixes1112/welded_long_way
+	name = "walking: a welded door on the short way and no welder: it goes the long way round"
+	desc = "A welded airlock that wants no access is the short way to the far side, and the long way round is open. With nothing to unweld it with, the bot goes the long way, on an everyday errand. Batch 2026-11-12 (bugs1112b): routes were planned through welded doors, tg's route check never asking about welding. A janitor's mop errand and six strolls in a row were each planned through the same welded maintenance door and given up at it (Vic Sorrento run3); 78 stops at welded doors in the batch, 26 errands given up there, at the abandoned maintenance doors and storerooms a round can start welded."
+	time_limit = 25 SECONDS
+	layout = list(
+		"###########",
+		"#B...X...G#",
+		"#....#....#",
+		"#....#....#",
+		"#.........#",
+		"###########")
+
+/datum/bot_scenario/fixes1112/welded_long_way/make_goal()
+	var/datum/bot_goal/gym_reach/G = ..()
+	G.lawful = TRUE //an everyday errand, as a stroll or a mop round is
+	return G
+
+/datum/bot_scenario/fixes1112/welded_long_way/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("welded shut - not mine to force"))
+		fail_reason = "planned its way through the welded door, walked up to it and stopped there"
+		return BOT_GYM_FAIL
+	return ..()
+
+/datum/bot_scenario/fixes1112/welded_long_way/check_success_conditions()
+	var/obj/machinery/door/airlock/A = first_placed("X")
+	if(QDELETED(A) || !A.welded)
+		return "got through the welded door instead of going round"
+	return null
+
+/// The guard: what a bot that can deal with a welded door did before, it still does.
+/datum/bot_scenario/fixes1112/welded_long_way/with_welder
+	name = "walking: a welded door on the short way and a welder in hand: it unwelds the door and goes through"
+	desc = "The same arena, with a welder in the bot's hand. It plans through the welded door and unwelds it when it gets there (clear_one_blocker(), bot_items.dm), as it did before: only a bot with nothing to unweld it with goes round."
+	time_limit = 30 SECONDS
+	kit_hands = list(/obj/item/weldingtool)
+
+/datum/bot_scenario/fixes1112/welded_long_way/with_welder/check_success_conditions()
+	var/obj/machinery/door/airlock/A = first_placed("X")
+	if(QDELETED(A))
+		return "broke the door down"
+	if(A.welded)
+		return "went the long way round with a welder in its hand"
+	return null
+
+/// The welded door is the only way. A route search that finds no way there is kept 20 seconds as the region the bot can reach
+/// (remember_region(), bot_pathing_permissive.dm), under its reach_rules(): those have to know whether it can unweld a door.
+/datum/bot_scenario/fixes1112/welded_only_way
+	name = "walking: a welded door is the only way: no welder, it doesn't walk up to it; handed one, it unwelds the door and goes through"
+	desc = "A welded airlock that wants no access is the only way to the far side. With nothing to unweld it with there's no way there, and the bot doesn't walk up to the door. Handed a welder three seconds in and sent again, it goes through at once: the search that found no way was for a bot without one, and isn't taken as the answer for a bot with one. Batch 2026-11-12 (bugs1112b): 78 stops at welded doors on everyday errands, the route planned through each of them (Vic Sorrento run3, Dana Petrov run12)."
+	time_limit = 18 SECONDS //inside the 20 seconds a region is kept (BOT_REGION_FLOOD_TTL)
+	max_goal_attempts = 2
+	layout = list(
+		"##########",
+		"#B...X..G#",
+		"#....#####",
+		"#....#####",
+		"##########")
+	var/handed_at = 0
+
+/datum/bot_scenario/fixes1112/welded_only_way/make_goal()
+	var/datum/bot_goal/gym_reach/G = ..()
+	G.lawful = TRUE
+	return G
+
+/datum/bot_scenario/fixes1112/welded_only_way/issue_goal()
+	if(goal_attempts && !handed_at)
+		return //the second go once it has a welder
+	..()
+
+/datum/bot_scenario/fixes1112/welded_only_way/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!handed_at)
+		if(bot_transcript_said("welded shut - not mine to force"))
+			fail_reason = "walked up to the welded door with nothing to unweld it with"
+			return BOT_GYM_FAIL
+		if(world.time < start_time + 3 SECONDS || brain.current_goal)
+			return BOT_GYM_PENDING
+		bot.put_in_hands(new /obj/item/weldingtool(bot))
+		handed_at = world.time
+		log_line("handed a welder")
+		return BOT_GYM_PENDING
+	return ..()
+
+/datum/bot_scenario/fixes1112/welded_only_way/check_success_conditions()
+	var/obj/machinery/door/airlock/A = first_placed("X")
+	if(QDELETED(A))
+		return "broke the door down"
+	return null
+
+// <<< badair_scenarios.dm
+// <<< badair_scenarios.dm
+// ---------------------------------------------------------------------------------------------
+// Bad air (fixes 2026-11-12, batch bugs1112b): turned down once for the air somewhere and not sent there again every look (bot_goals.dm
+// assign_goal(), refused_for_air()); the supermatter's next job past one in bad air (goals/setup_supermatter.dm sm_part_free()); a miner's
+// tank on it, not in a hand, before it counts as ready for Lavaland (goals/mining.dm ready_for_lavaland(), dress_for_lavaland)
+// ---------------------------------------------------------------------------------------------
+
+/// Let out of a cell, its shoes are in the cell locker, and the duty that sends it back for its things (/datum/bot_duty/collect_confiscated,
+/// goals/released_prisoner.dm) is asked once a second while it's idle. Layout letter v: a floor with no air, walled in, the locker on it.
+/datum/bot_scenario/fixes1112/air_turned_down_once
+	name = "brig: its things in a cell locker where there's no air, it's turned down once and not sent for them again every look"
+	desc = "Let out of a cell, its shoes are in the cell locker, which stands where there's no air. The duty that sends it back for its things asks once a second, and the air turns it down: once, and then nothing there is taken on for a minute. Batch bugs1112b run5: a saboteur opened a plasma canister by the Brig (Fore Primary Hallway, 18:40:34); the Head of Security, let out of Cell 4, was turned down for its locker 41 times in 16 seconds and an assistant out of Cell 3 for its locker 20 times. Run3: three officers 117 times for a cuffed traitor lying in Atmospherics as its air went."
+	job = "Assistant"
+	time_limit = 30 SECONDS
+	max_goal_attempts = 10
+	layout = list(
+		"#########",
+		"#B....#v#",
+		"#########")
+	var/obj/structure/closet/locker
+	var/obj/item/clothing/shoes/sneakers/brown/shoes
+	var/started
+
+/datum/bot_scenario/fixes1112/air_turned_down_once/setup()
+	locker = place("v", new /obj/structure/closet(first_marker("v")))
+	shoes = new(locker)
+
+/datum/bot_scenario/fixes1112/air_turned_down_once/post_spawn()
+	bot_note_confiscated(bot, shoes, ITEM_SLOT_FEET, locker)
+	started = world.time
+
+/// The duty, asked once a second while the bot is idle (as /datum/bot_scenario/duty/issue_goal(), scenarios_duties.dm)
+/datum/bot_scenario/fixes1112/air_turned_down_once/issue_goal()
+	var/datum/bot_duty/D = bot_duty_of(/datum/bot_duty/collect_confiscated)
+	if(D?.try_start(brain))
+		goal_attempts++
+		log_line("[D.name]: started on [brain.current_goal ? brain.current_goal.type : "it"] (attempt [goal_attempts]/[max_goal_attempts])")
+
+/datum/bot_scenario/fixes1112/air_turned_down_once/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/turned_down = 0
+	for(var/line in transcript)
+		if(findtext(line, "somewhere I can't breathe"))
+			turned_down++
+	if(turned_down > 1)
+		fail_reason = "sent for its things and turned down for the air [turned_down] times in [round((world.time - started) / 10)] s"
+		return BOT_GYM_FAIL
+	if(!turned_down && world.time > started + 5 SECONDS)
+		fail_reason = "never sent for its things: the duty didn't ask, so this shows nothing"
+		return BOT_GYM_FAIL
+	if(!length(brain.confiscated))
+		fail_reason = "set off for its things in the airless locker, or gave them up"
+		return BOT_GYM_FAIL
+	return world.time > started + 20 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// A crystal losing integrity (a hugbox shard standing in for the station's, at no power, so with no radiation round it) and two of its
+/// emitters still switched on (no cable, and kept from processing, which would switch them off). The one made first, which the job list
+/// comes to first, stands in a walled-in pocket with no air; the other is down the corridor. Layout letters: Y the crystal, v the airless
+/// pocket, e the emitter in reach. The crystal's two duties are asked once a second while the engineer is idle.
+/datum/bot_scenario/fixes1112/sm_next_job_past_bad_air
+	name = "supermatter: the first job on its list is where there's no air, so it does the next one it can get to"
+	desc = "The crystal's losing integrity and two of its emitters are on. The one its list comes to first stands where there's no air, and the engineer has no hardsuit; the other is down the corridor. It switches that one off, rather than being handed the airless one, turned down, and handed it again. Batch bugs1112b run4: the crystal's pipes burst in flames (18:38:53), the pump 'External Gas to Loop' in the bad air came first on its list from then on, and an engineer with no hardsuit to be had (Terry Mwangi) was handed it and turned it down 74 times, 18:39:07 to 18:40:33."
+	job = "Station Engineer"
+	station_wide = TRUE //it stands in for the station's own crystal while it runs
+	time_limit = 20 SECONDS
+	max_goal_attempts = 10
+	layout = list(
+		"#############",
+		"#B........e##",
+		"###########v#",
+		"#############",
+		"######Y######",
+		"#############")
+	var/obj/machinery/power/supermatter_crystal/crystal
+	var/obj/machinery/power/supermatter_crystal/stations_own
+	var/obj/machinery/power/emitter/anchored/airless
+	var/obj/machinery/power/emitter/anchored/reachable
+	/// The job list comes to the airless one first, as this needs
+	var/order_ok = FALSE
+
+/datum/bot_scenario/fixes1112/sm_next_job_past_bad_air/setup()
+	crystal = place("Y", new /obj/machinery/power/supermatter_crystal/shard/hugbox(first_marker("Y")))
+	crystal.anchored = TRUE
+	SSair.stop_processing_machine(crystal) //only here to be failing
+	crystal.power = 0 //no radiation round it, so no radiation suit in the plan
+	crystal.damage = crystal.explosion_point * 0.3
+	stations_own = GLOB.main_supermatter_engine
+	GLOB.main_supermatter_engine = crystal
+
+/// The emitters once the bot's brain has filed every obj there is (bot_registry.dm), so the job list has them in the order they're made.
+/datum/bot_scenario/fixes1112/sm_next_job_past_bad_air/post_spawn()
+	airless = place("v", new /obj/machinery/power/emitter/anchored(first_marker("v")))
+	reachable = place("e", new /obj/machinery/power/emitter/anchored(first_marker("e")))
+	for(var/obj/machinery/power/emitter/E in list(airless, reachable))
+		STOP_PROCESSING(SSfastprocess, E) //no cable: processing would switch it off again
+		E.setDir(NORTH) //facing the wall: no beam to keep clear of
+		E.active = TRUE
+		E.update_icon()
+	for(var/obj/machinery/power/emitter/anchored/E as anything in bot_instances_of(/obj/machinery/power/emitter/anchored))
+		if(E == airless || E == reachable)
+			order_ok = (E == airless)
+			break
+	bot_refresh_hazards()
+
+/// The crystal's two duties, the urgent one first (bot_duties.dm run_duties())
+/datum/bot_scenario/fixes1112/sm_next_job_past_bad_air/issue_goal()
+	for(var/duty_type in list(/datum/bot_duty/crystal_emergency, /datum/bot_duty/supermatter))
+		var/datum/bot_duty/D = bot_duty_of(duty_type)
+		if(D?.try_start(brain))
+			goal_attempts++
+			log_line("[D.name]: started on [brain.current_goal?.target || "it"] (attempt [goal_attempts]/[max_goal_attempts])")
+			return
+
+/datum/bot_scenario/fixes1112/sm_next_job_past_bad_air/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!order_ok)
+		fail_reason = "the job list comes to the emitter in reach first, so this shows nothing"
+		return BOT_GYM_FAIL
+	if(!brain.sm_crystal_failing())
+		fail_reason = "the crystal doesn't read as failing: nothing to do"
+		return BOT_GYM_FAIL
+	if(!brain.in_bad_air(airless) || brain.in_bad_air(reachable))
+		fail_reason = "the air isn't as this needs it: none round one emitter, good air round the other"
+		return BOT_GYM_FAIL
+	if(!airless.active)
+		fail_reason = "switched off the emitter where there's no air"
+		return BOT_GYM_FAIL
+	return reachable.active ? BOT_GYM_PENDING : BOT_GYM_PASS
+
+/datum/bot_scenario/fixes1112/sm_next_job_past_bad_air/on_timeout()
+	var/turned_down = 0
+	for(var/line in transcript)
+		if(findtext(line, "somewhere I can't breathe"))
+			turned_down++
+	fail_reason = "never switched off the emitter it could get to; handed the one where there's no air and turned it down [turned_down] times"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/fixes1112/sm_next_job_past_bad_air/release_run()
+	for(var/obj/machinery/power/emitter/E in list(airless, reachable))
+		E.active = FALSE //left on, it would be on the job list of every crystal on this level after
+		E.update_icon()
+	if(GLOB.main_supermatter_engine == crystal)
+		GLOB.main_supermatter_engine = stations_own
+	. = ..()
+	bot_refresh_hazards()
+
+/// A miner with its mask on and its tank in a hand, the webbing on its belt, a flashlight in one pocket and the ore satchel in the other
+/// (the miner in bugs1112a run7 had a beer where the flashlight is). Dressing for Lavaland (goals/mining.dm dress_for_lavaland) puts the
+/// flashlight in its bag and the tank in that pocket, and only then is it ready to go down.
+/datum/bot_scenario/fixes1112/miner_tank_on
+	name = "mining: a tank held in a hand isn't ready for Lavaland, so a pocket goes into the bag and the tank into the pocket"
+	desc = "A miner dressing for Lavaland with its mask on and its tank in a hand, the webbing on its belt, a flashlight in one pocket and the ore satchel in the other. It puts the flashlight in its bag and the tank in that pocket, and the satchel stays where it picks the ore up. Batch bugs1112a run7 (Cam Oyelaran): no room on it for the tank, so it stayed in a hand (18:29:59), the hand counted as ready, the miner went down, the tank was knocked out of the hand as the shuttle set off (18:30:10), and at the outpost it was turned down for the air 63 times for the next rock face."
+	job = "Shaft Miner"
+	time_limit = 10 SECONDS
+	kit_hands = list(/obj/item/tank/internals/emergency_oxygen)
+	layout = list(
+		"#####",
+		"#B..#",
+		"#####")
+	var/obj/item/tank/internals/emergency_oxygen/tank
+	var/obj/item/flashlight/torch
+	var/obj/item/storage/bag/ore/satchel
+
+/datum/bot_scenario/fixes1112/miner_tank_on/post_spawn()
+	tank = locate() in bot.held_items
+	bot.equip_to_slot_or_del(new /obj/item/clothing/mask/gas/explorer(bot), ITEM_SLOT_MASK)
+	bot.equip_to_slot_or_del(new /obj/item/storage/belt/mining(bot), ITEM_SLOT_BELT)
+	torch = new(bot)
+	bot.equip_to_slot_or_del(torch, ITEM_SLOT_LPOCKET)
+	satchel = new(bot)
+	bot.equip_to_slot_or_del(satchel, ITEM_SLOT_RPOCKET)
+
+/datum/bot_scenario/fixes1112/miner_tank_on/make_goal()
+	return new /datum/bot_goal/dress_for_lavaland()
+
+/datum/bot_scenario/fixes1112/miner_tank_on/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(tank) || QDELETED(torch) || QDELETED(satchel) || !istype(bot.wear_mask, /obj/item/clothing/mask/gas/explorer) || !bot.belt)
+		fail_reason = "set-up: the tank, the flashlight, the satchel, the mask or the belt didn't make it"
+		return BOT_GYM_FAIL
+	if(bot.is_holding(tank))
+		fail_reason = brain.ready_for_lavaland() ? "counts itself ready for Lavaland with its tank only in a hand" : "its tank's still in a hand"
+		return BOT_GYM_FAIL
+	if(bot.l_store != tank && bot.r_store != tank && bot.belt != tank)
+		fail_reason = "its tank isn't anywhere it can reach the valve: it's in [tank.loc]"
+		return BOT_GYM_FAIL
+	if(bot.l_store != satchel && bot.r_store != satchel && bot.belt != satchel)
+		fail_reason = "the ore satchel came out of its pocket, where it picks the ore up"
+		return BOT_GYM_FAIL
+	if(!brain.ready_for_lavaland())
+		fail_reason = "the tank's on it and it still isn't ready for Lavaland"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+// <<< brig2_scenarios.dm
+// <<< brig2_scenarios.dm
+// ---------------------------------------------------------------------------------------------
+// brig2 (fixes 2026-11-12, round 3, from bugs1112b/a/base): a doctor at a prisoner Security's keeping for it, down in crit
+// (goals/treat_patient.dm stabilise), an officer walking a prisoner out past a pet sat in the doorway (bot_movement.dm haul_past()), and a
+// cook with more plates out of the machine than hands (goals/cook.dm). Nothing only the fixes add is named, so the "before" build compiles.
+//
+// Layout letters used here: C the prisoner, O the officer keeping them, q a second casualty, s a sleeper, P a pug, i/d/l the cell's
+// timer, door and locker, p a food processor, t the serving table.
+// ---------------------------------------------------------------------------------------------
+
+/// A doctor, and a prisoner in cuffs down in crit (110 brute: -10) that an officer is keeping for a doctor: the officer's brain set on
+/// brig_care for them by hand, with the claim on them start_brig_care() takes, holding them, and nothing to walk (a goal with no strategy
+/// is left alone, handle_goal()). Medical was called for them, and this doctor has come: the scenario asks for its round as
+/// bot_request_kind/medical/attend() does on arrival. No name or layout of its own.
+/datum/bot_scenario/fixes1112/brig2_kept
+	job = "Medical Doctor"
+	kit_backpack = list(/obj/item/reagent_containers/hypospray/medipen, /obj/item/reagent_containers/hypospray/medipen, /obj/item/stack/medical/bruise_pack)
+	time_limit = 30 SECONDS
+	max_goal_attempts = 1
+	var/mob/living/carbon/human/prisoner
+	var/mob/living/carbon/human/officer
+	var/asked = FALSE
+
+/datum/bot_scenario/fixes1112/brig2_kept/post_spawn()
+	give_job_id(list(ACCESS_MEDICAL))
+	prisoner = stand_in(first_marker("C"), "Pat Prisoner")
+	prisoner.handcuffed = new /obj/item/restraints/handcuffs(prisoner)
+	prisoner.update_handcuffed()
+	prisoner.apply_damage(110, BRUTE, BODY_ZONE_CHEST)
+	officer = second_bot(first_marker("O"), "Sam Officer")
+	officer.mind.assigned_role = "Security Officer"
+	var/datum/bot_goal/brig_prisoner/brig_care/G = new(prisoner, null)
+	officer.bot_brain.current_goal = G
+	officer.bot_brain.state = BOT_STATE_GOAL
+	GLOB.bot_work_claims[REF(prisoner)] = officer.bot_brain
+	officer.start_pulling(prisoner)
+	log_line("Sam Officer keeps [prisoner] (at [round(prisoner.health)], [prisoner.stat == CONSCIOUS ? "on their feet" : "down"]) by the door for a doctor, holding them")
+
+/datum/bot_scenario/fixes1112/brig2_kept/make_goal()
+	return null
+
+/// Medical called for the prisoner, and the doctor's here: its round, once
+/datum/bot_scenario/fixes1112/brig2_kept/issue_goal()
+	if(asked)
+		return
+	asked = TRUE
+	goal_attempts++
+	brain.called_patient = WEAKREF(prisoner)
+	brain.called_patient_until = world.time + 2 MINUTES
+	log_line("the doctor answered the call for [prisoner]: its round")
+	brain.try_medical_round()
+
+/// Seen to where they lie: the epinephrine in them, or a stabilise gone through
+/datum/bot_scenario/fixes1112/brig2_kept/proc/seen_to()
+	return prisoner.reagents?.has_reagent(/datum/reagent/medicine/epinephrine) || bot_transcript_said("goal /datum/bot_goal/stabilise succeeded")
+
+/// The officer's hold on them taken for a doctor already at them, and the doctor turned away
+/datum/bot_scenario/fixes1112/brig2_kept/proc/turned_away()
+	return bot_transcript_said("is already being seen to - leaving /datum/bot_goal/stabilise")
+
+/// Whether `first` is in the transcript ahead of `second` (or without it)
+/datum/bot_scenario/fixes1112/brig2_kept/proc/said_first(first, second)
+	var/first_at = 0
+	var/second_at = 0
+	var/i = 0
+	for(var/line in transcript)
+		i++
+		if(!first_at && findtext(line, first))
+			first_at = i
+		if(!second_at && findtext(line, second))
+			second_at = i
+	return first_at && (!second_at || first_at < second_at)
+
+/datum/bot_scenario/fixes1112/brig2_kept/release_run()
+	if(prisoner)
+		GLOB.bot_work_claims -= REF(prisoner)
+	return ..()
+
+/datum/bot_scenario/fixes1112/brig2_kept/first_aid
+	name = "brig: a doctor at a prisoner Security's keeping for it, down in crit, gives first aid there and leaves the officer its hold"
+	desc = "A prisoner in cuffs at -10, held by the officer keeping them by the Brig door for Medical, and the doctor who answered the call beside them with medipens and a bruise pack. It gives them first aid where they lie, and the officer's claim on them stays the officer's. The officer's escort claimed them, and the doctor's first aid (stabilise, one to a casualty) took that for another medic at them: 'already being seen to - leaving stabilise to them', 14 times at a prisoner down in crit in bugs1112b/a/base, and four of those prisoners died where they lay within the minute (bugs1112b run9 Sam Delacroix, bugs1112a run8 Val Castillo and run12 Corey Ishikawa, bugs1112base run6 Morgan Vance)."
+	layout = list(
+		"#########",
+		"#..BCO..#",
+		"#########")
+
+/datum/bot_scenario/fixes1112/brig2_kept/first_aid/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(prisoner) || prisoner.stat == DEAD)
+		fail_reason = "the prisoner died"
+		return BOT_GYM_FAIL
+	if(turned_away())
+		fail_reason = "took the officer keeping the prisoner for a doctor for a doctor already at them, and left them"
+		return BOT_GYM_FAIL
+	if(!seen_to())
+		return BOT_GYM_PENDING
+	if(GLOB.bot_work_claims[REF(prisoner)] != officer.bot_brain)
+		fail_reason = "saw to the prisoner, and took Security's hold on them off the officer"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/fixes1112/brig2_kept/first_aid/on_timeout()
+	fail_reason = "never gave the prisoner first aid"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/fixes1112/brig2_kept/before_the_next
+	name = "brig: a doctor called to a prisoner down in crit by the Brig door sees to them before dragging anybody else to a sleeper"
+	desc = "As the last, with a sleeper in the room and a second casualty down in crit at the far end that nobody's holding. The doctor came for the prisoner: it gives them first aid before it takes anybody to the sleeper. Its round went down its list, and a sleeper run for somebody else comes before first aid: a doctor answering the call for a prisoner at -3 by MetaStation's Brig door dragged a man from the Theatre to the sleeper first, and the prisoner died at the door (bugs1112base run6, Max Adeyemi and Morgan Vance)."
+	layout = list(
+		"############",
+		"#s...BCO...#",
+		"#.........q#",
+		"############")
+	var/mob/living/carbon/human/other_patient
+
+/datum/bot_scenario/fixes1112/brig2_kept/before_the_next/setup()
+	place("s", new /obj/machinery/sleeper(first_marker("s")))
+
+/datum/bot_scenario/fixes1112/brig2_kept/before_the_next/post_spawn()
+	..()
+	other_patient = stand_in(first_marker("q"), "Quinn Other")
+	other_patient.apply_damage(130, BRUTE, BODY_ZONE_CHEST)
+	log_line("[other_patient] is down in crit too (at [round(other_patient.health)]), and nobody's holding them")
+
+/datum/bot_scenario/fixes1112/brig2_kept/before_the_next/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(prisoner) || prisoner.stat == DEAD)
+		fail_reason = "the prisoner died"
+		return BOT_GYM_FAIL
+	if(turned_away())
+		fail_reason = "took the officer keeping the prisoner for a doctor for a doctor already at them, and left them"
+		return BOT_GYM_FAIL
+	if(said_first("trying /datum/bot_strategy/escort", "trying /datum/bot_strategy/stabilise"))
+		fail_reason = "went to take [other_patient || "somebody else"] to the sleeper before seeing to the prisoner it was called to"
+		return BOT_GYM_FAIL
+	return seen_to() ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/fixes1112/brig2_kept/before_the_next/on_timeout()
+	fail_reason = "never gave the prisoner first aid"
+	return BOT_GYM_FAIL
+
+// An officer walking a prisoner out of a nook whose one way out has the Head of Security's pug sat in it, to a cell, as
+// /datum/bot_scenario/brigged (scenarios_asks.dm) does it.
+
+/datum/bot_scenario/fixes1112/brig2_pug
+	name = "brig: walking a prisoner out past the HoS's pug sat in the doorway, the officer nudges the dog aside and cells them"
+	desc = "An officer has cuffed a trespasser in a nook whose one way out is the tile the pug Handcuffs sits on, as in Hippie's Head of Security's Office. It nudges the dog aside and walks them to the cell. It waited on the dog with the prisoner in tow ('Handcuffs is in the way with Rhea Asker in tow - waiting for them to move'), the wait ran out and the escort was given up as stalled, the prisoner left in cuffs in the office: 17 times in bugs1112b/a/base (bugs1112b run1, run5, run7 Ollie Strand three times; bugs1112base run5 four times)."
+	job = "Security Officer"
+	kit_backpack = list(/obj/item/restraints/handcuffs)
+	layout = list(
+		"##########",
+		"#CBP.....#",
+		"####...i.#",
+		"######d###",
+		"#####...##",
+		"#####..l##",
+		"##########")
+	time_limit = 60 SECONDS
+	var/mob/living/carbon/human/prisoner
+	var/mob/living/simple_animal/pet/dog/pug/pug
+	var/obj/machinery/door_timer/timer
+
+/datum/bot_scenario/fixes1112/brig2_pug/setup()
+	var/id = "gymcell[rand(1, 99999)]"
+	var/obj/machinery/door/window/brigdoor/door = new(first_marker("d"))
+	door.dir = SOUTH
+	door.id = id
+	place("d", door)
+	var/obj/structure/closet/secure_closet/brig/locker = new(first_marker("l"))
+	locker.id = id
+	place("l", locker)
+	timer = new(first_marker("i"))
+	timer.id = id
+	timer.targets = list(door, locker)
+	timer.stat &= ~BROKEN
+	place("i", timer)
+	pug = new(first_marker("P"))
+	pug.name = "Handcuffs"
+	pug.real_name = "Handcuffs"
+	pug.wander = FALSE //it stays sat where it is, as the HoS's pug did through every one of these
+	pug.stop_automated_movement = TRUE
+
+/datum/bot_scenario/fixes1112/brig2_pug/post_spawn()
+	give_job_id(list(ACCESS_SECURITY, ACCESS_BRIG))
+	prisoner = stand_in(first_marker("C"), "Pat Prisoner")
+	prisoner.handcuffed = new /obj/item/restraints/handcuffs(prisoner)
+	prisoner.update_handcuffed()
+	var/datum/bot_wanted/W = new
+	W.crime = "Assault"
+	W.severity = BOT_CRIME_MINOR
+	GLOB.bot_security_wanted[WEAKREF(prisoner)] = W
+	log_line("[prisoner] is cuffed in the nook, and [pug] sits in the one way out")
+
+/datum/bot_scenario/fixes1112/brig2_pug/make_goal()
+	var/datum/bot_goal/brig_prisoner/G = new()
+	G.prisoner = prisoner
+	return G
+
+/datum/bot_scenario/fixes1112/brig2_pug/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("is in the way with Pat Prisoner in tow"))
+		fail_reason = "stood waiting on the pug in the doorway with the prisoner in tow"
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("has stalled with nothing walking it") || bot_transcript_said("giving up on /datum/bot_goal/brig_prisoner"))
+		fail_reason = "gave the prisoner up in the nook"
+		return BOT_GYM_FAIL
+	if(QDELETED(pug) || pug.stat != CONSCIOUS)
+		fail_reason = "the pug got hurt"
+		return BOT_GYM_FAIL
+	return timer.timing ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/fixes1112/brig2_pug/on_timeout()
+	fail_reason = "never got the prisoner to the cell"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/fixes1112/brig2_pug/release_run()
+	if(prisoner)
+		GLOB.bot_security_wanted -= WEAKREF(prisoner)
+	return ..()
+
+// A cook with two hands and a full bag, and three plates out of the processor (run_kitchen_machine, goals/cook.dm), on its own round as
+// /datum/bot_scenario/fixes1112/kitchen_duty.
+
+/datum/bot_scenario/fixes1112/kitchen_duty/plates_left_for_later
+	name = "cook: three plates out and two hands, it leaves the third at the processor and comes back for it"
+	desc = "Two potatoes in its hands and one in a pocket, the bag and belt full: three tater tots come out of the processor, four tiles from the counter. It takes the two it has hands for, puts them out, and goes back for the third, rather than set a plate down by the processor for each one it picks up. That way, plates were left beside the machine out of the counter's reach and the cook went back for them later and kept or ate them: 11 in 10 batches in bugs1112b (run11 Marlow Singh, two steaks of three; run6 Lee Montague ate the carrot fries it set down), about 47 a batch in bugs1112base."
+	layout = list(
+		"###########",
+		"#..p...t..#",
+		"#B........#",
+		"###########")
+	kit_hands = list(/obj/item/reagent_containers/food/snacks/grown/potato, /obj/item/reagent_containers/food/snacks/grown/potato)
+	// 7 x 3: full
+	kit_backpack = list(/obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher)
+
+/// The third potato in a pocket, before kitchen_fill_pockets_and_belt() fills the pockets: the pocket's free once it's in the processor,
+/// and a plate never goes in a pocket (put_away() doesn't use them)
+/datum/bot_scenario/fixes1112/kitchen_duty/plates_left_for_later/post_spawn()
+	bot.equip_to_slot_or_del(new /obj/item/reagent_containers/food/snacks/grown/potato(bot), ITEM_SLOT_LPOCKET)
+	..()
+
+/datum/bot_scenario/fixes1112/kitchen_duty/plates_left_for_later/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("setting the tator tot down"))
+		fail_reason = "set a plate down by the processor to pick up the next"
+		return BOT_GYM_FAIL
+	return served() >= 3 ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/fixes1112/kitchen_duty/plates_left_for_later/on_timeout()
+	fail_reason = "put [served()] of the 3 plates out on the counter"
+	return BOT_GYM_FAIL
+
+// <<< cargo_air_scenarios.dm
+// <<< cargo_air_scenarios.dm
+// ---------------------------------------------------------------------------------------------
+// Cargo in air it can't breathe (the user's ruling, 2026-11-12): in for the crate on its mask and tank, in a fire suit and helmet as well
+// if the air's hot, in a space suit from EVA's storage for a vacuum, and the kit off again once the crate's out. The loading doors stay shut.
+// Arena layout letters: Q where the crate's to go, e an external airlock, n the room past it, k the crate, z a fire closet, U EVA's suit
+// storage unit.
+// ---------------------------------------------------------------------------------------------
+
+/// The unload to the arena's own spot for it: an arena has no cargo bay (find_bay_spot(), goals/cargo.dm)
+/datum/bot_goal/unload_crate/fixes1112_arena
+	var/turf/arena_drop
+
+/datum/bot_goal/unload_crate/fixes1112_arena/resolve_target(datum/bot_brain/bot)
+	drop_spot = arena_drop
+	if(QDELETED(target) || !drop_spot)
+		target = null
+
+/// cargo-air-on-internals (goals/cargo.dm, goals/refill_internals.dm, bot_goals.dm, bot_doors.dm). A crate in a small room past an external
+/// airlock whose air the cargo technician can't breathe, at a normal pressure and temperature, and a breath mask and an emergency tank in
+/// its bag. The unload is given while it's idle (the cargo round's own pick is the shuttle scenario's to judge); once the crate's out, the
+/// cargo round is asked instead, as a cargo technician's is.
+/datum/bot_scenario/fixes1112/crate_air
+	name = "cargo: a crate in nitrogen, it goes in for it on its mask and tank and takes them off after"
+	desc = "A crate in a small room past an external airlock, full of nitrogen at 101 kPa and 20 C, and a breath mask and an emergency oxygen tank in the cargo technician's bag. It puts the mask on and opens the tank where it stands, goes through the airlock, pulls the crate out, and once it's out shuts the valve and puts the mask back in its bag. It's never in the nitrogen with its tank shut. The user's ruling, 2026-11-12: Cargo uses internals for a crate in air it can't breathe. Batch bugs1112b run5: Science's silver sat aboard the supply shuttle in air nobody could breathe from about ten minutes in to the end of the shift ('The silver sheets crate is somewhere I can't breathe and I'm not suited up - leaving it for now', 23 times), the loading doors were opened on it twice and Engineering called five times, with an emergency tank in each cargo technician's bag."
+	job = "Cargo Technician"
+	time_limit = 60 SECONDS
+	max_goal_attempts = 10
+	kit_backpack = list(/obj/item/clothing/mask/breath, /obj/item/tank/internals/emergency_oxygen) //as a crew member's survival box has
+	layout = list(
+		"###############",
+		"#Q.........####",
+		"#..........enk#",
+		"#..B.......#nn#",
+		"###############")
+	/// The air in the room past the airlock (the n and k tiles): 104 mol a tile is about 101 kPa at 20 C
+	var/room_air = "n2=104;TEMP=293.15"
+	var/obj/structure/closet/crate/crate
+	var/setup_problem
+	/// The airlock's x: the crate's out once it's west of that
+	var/door_x = 0
+	/// When the crate came out
+	var/unloaded_at
+
+/datum/bot_scenario/fixes1112/crate_air/setup()
+	var/turf/open/door_spot = first_marker("e")
+	door_x = door_spot.x
+	place("e", new /obj/machinery/door/airlock/external(door_spot))
+	for(var/char in list("n", "k"))
+		for(var/turf/open/F in markers[char])
+			F.air.parse_gas_string(room_air)
+			F.update_visuals()
+			SSair.add_to_active(F)
+	crate = place("k", new /obj/structure/closet/crate(first_marker("k")))
+
+/datum/bot_scenario/fixes1112/crate_air/post_spawn()
+	..()
+	give_job_id(list(ACCESS_CARGO))
+	var/turf/open/crate_spot = first_marker("k")
+	if(brain.turf_air_is_breathable(crate_spot))
+		setup_problem = "setup: the air by the crate at [bot_coord(crate_spot)] can be breathed ([round(crate_spot.air.return_pressure(), 0.1)] kPa, [round(crate_spot.air.temperature)] K)"
+	else if(!brain.turf_air_is_breathable(first_marker("Q")))
+		setup_problem = "setup: the air where the crate's to go, at [bot_coord(first_marker("Q"))], can't be breathed"
+
+/datum/bot_scenario/fixes1112/crate_air/issue_goal()
+	if(setup_problem || QDELETED(crate))
+		return
+	if(unloaded_at)
+		var/datum/bot_duty/D = bot_duty_of(/datum/bot_duty/cargo)
+		D?.try_start(brain) //the cargo round, asked while it's idle as a cargo technician's is (goals/cargo.dm): what takes the kit off again
+		return
+	goal_attempts++
+	if(before_unload())
+		return
+	var/datum/bot_goal/unload_crate/fixes1112_arena/G = new(crate)
+	G.arena_drop = first_marker("Q")
+	log_line("the unload of [crate] given (attempt [goal_attempts]/[max_goal_attempts])")
+	if(!brain.assign_goal(G))
+		log_line("assign_goal refused")
+
+/// What it does before it's given the unload: TRUE if that's under way instead
+/datum/bot_scenario/fixes1112/crate_air/proc/before_unload()
+	return FALSE
+
+/// What was wrong with how it went in, or null
+/datum/bot_scenario/fixes1112/crate_air/proc/kit_problem()
+	var/turf/open/here = get_turf(bot)
+	if(!unloaded_at && istype(here) && !brain.turf_air_is_breathable(here) && !bot.internal)
+		return "in air it can't breathe at [bot_coord(here)] with its tank shut"
+	return null
+
+/// Still in what it put on for the air
+/datum/bot_scenario/fixes1112/crate_air/proc/still_kitted()
+	return bot.internal || istype(bot.wear_mask, /obj/item/clothing/mask/breath)
+
+/// What it has on for the air, for a failure
+/datum/bot_scenario/fixes1112/crate_air/proc/kit_text()
+	return "tank [bot.internal ? "open" : "shut"], wearing [bot.wear_mask || "no mask"], [bot.wear_suit || "no suit"] and [bot.head || "nothing on its head"]"
+
+/// What a pass also asks, once the crate's out and the kit's off
+/datum/bot_scenario/fixes1112/crate_air/proc/pass_check()
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/fixes1112/crate_air/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(setup_problem)
+		fail_reason = setup_problem
+		return BOT_GYM_FAIL
+	if(QDELETED(crate))
+		fail_reason = "the crate is gone"
+		return BOT_GYM_FAIL
+	GLOB.bot_cargo_strays -= crate //an unload given up puts it there, where another arena's cargo technician would go for it
+	var/problem = kit_problem()
+	if(problem)
+		fail_reason = problem
+		return BOT_GYM_FAIL
+	if(!unloaded_at)
+		var/turf/crate_at = get_turf(crate)
+		if(brain.crates_unloaded < 1 || !crate_at || crate_at.x >= door_x)
+			return BOT_GYM_PENDING
+		unloaded_at = world.time
+		log_line("the crate is out, at [bot_coord(crate_at)]")
+	if(!bot_transcript_said("kitted out for the air at"))
+		fail_reason = "brought the crate out without kitting up for the air it was in"
+		return BOT_GYM_FAIL
+	if(still_kitted())
+		if(world.time > unloaded_at + 20 SECONDS)
+			fail_reason = "still kitted out 20 s after the crate was out: [kit_text()]"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PENDING
+	return pass_check()
+
+/datum/bot_scenario/fixes1112/crate_air/on_timeout()
+	if(unloaded_at)
+		fail_reason = "timed out with the crate out and the kit still on: [kit_text()]"
+	else
+		fail_reason = "timed out: the crate's still at [crate ? bot_coord(get_turf(crate)) : "nowhere"], [brain.crates_unloaded] unloaded"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/fixes1112/crate_air/release_run()
+	GLOB.bot_cargo_strays -= crate
+	GLOB.bot_cargo_brought_in -= crate
+	return ..()
+
+/// The same, the room's air at 800 K and a normal pressure, and a fire closet beside the bot (the user's ruling: a fire suit if one's to be had)
+/datum/bot_scenario/fixes1112/crate_air/hot
+	name = "cargo: a crate in air hot enough to burn, it puts on a fire suit and helmet from the fire closet and goes in on its tank"
+	desc = "The room past the airlock holds air at 800 K and about 101 kPa, and there's a fire closet beside the cargo technician. It takes the fire suit and the firefighter helmet out of the closet and puts them on, then the mask and the tank, goes in for the crate, and takes the lot off once the crate's out: the suit left on the floor, the helmet and mask in its bag. It doesn't pull itself out of the hot air it's dressed for, and it's never in air over the body's heat limit without both on and its tank open. The user's ruling, 2026-11-12: Cargo uses internals and, if one's to be had, a fire suit to grab the crate."
+	time_limit = 90 SECONDS
+	layout = list(
+		"###############",
+		"#Q.........####",
+		"#..........enk#",
+		"#zB........#nn#",
+		"###############")
+	room_air = "o2=8;n2=30;TEMP=800" //38 mol a tile: about 101 kPa at 800 K
+
+/datum/bot_scenario/fixes1112/crate_air/hot/setup()
+	..()
+	place("z", new /obj/structure/closet/firecloset(first_marker("z")))
+
+/datum/bot_scenario/fixes1112/crate_air/hot/kit_problem()
+	if(bot_transcript_said("in the flames at"))
+		return "got itself out of the hot air it was dressed for (try_escape_flames())"
+	var/turf/open/here = get_turf(bot)
+	if(!unloaded_at && istype(here) && here.air.temperature > BODYTEMP_HEAT_DAMAGE_LIMIT && (!bot.internal || bot.get_heat_protection(here.air.temperature) < 0.99)) //0.9999999 in full kit: 32-bit floats (kept_from_heat())
+		return "in air at [round(here.air.temperature)] K at [bot_coord(here)] with its tank [bot.internal ? "open" : "shut"], wearing [bot.wear_suit || "no suit"] and [bot.head || "nothing on its head"]"
+	return null
+
+/datum/bot_scenario/fixes1112/crate_air/hot/still_kitted()
+	return ..() || istype(bot.wear_suit, /obj/item/clothing/suit/fire) || istype(bot.head, /obj/item/clothing/head/hardhat/red)
+
+/datum/bot_scenario/fixes1112/crate_air/hot/pass_check()
+	if(!bot_transcript_said("fire suit, helmet and internals"))
+		fail_reason = "kitted out for the hot air without a fire suit and helmet"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// The same, the room a vacuum, and EVA's suit storage unit beside the bot (the user's ruling: a vacuum wants a suit, if one's to be had)
+/datum/bot_scenario/fixes1112/crate_air/vacuum
+	name = "cargo: a crate in a vacuum, it takes a space suit from the EVA suit storage unit and goes in for it"
+	desc = "The room past the airlock is a vacuum, and EVA's suit storage unit stands beside the cargo technician, its own doors no bar to it. It takes the space suit, helmet and mask out of the unit and puts them on, opens its tank, goes in for the crate, and shuts the valve once the crate's out. It's never in the vacuum without the suit. The user's ruling, 2026-11-12: for a vacuum, a space suit if one's to be had, and Engineering called if not (a cargo technician's access opens no EVA storage on the station)."
+	time_limit = 90 SECONDS
+	layout = list(
+		"###############",
+		"#Q.........####",
+		"#..........enk#",
+		"#UB........#nn#",
+		"###############")
+	room_air = "TEMP=2.7"
+
+/datum/bot_scenario/fixes1112/crate_air/vacuum/setup()
+	..()
+	place("U", new /obj/machinery/suit_storage_unit/standard_unit(first_marker("U")))
+
+/// The suit first, as the cargo round has it (goals/cargo.dm try_suit_up_for_crates(), which the code before this fix hadn't)
+/datum/bot_scenario/fixes1112/crate_air/vacuum/before_unload()
+	if(brain.is_eva_ready() || !hascall(brain, "try_suit_up_for_crates"))
+		return FALSE
+	if(call(brain, "try_suit_up_for_crates")(list(crate)))
+		log_line("cargo: off to suit up for the crate")
+		return TRUE
+	return FALSE
+
+/datum/bot_scenario/fixes1112/crate_air/vacuum/kit_problem()
+	var/turf/open/here = get_turf(bot)
+	if(!unloaded_at && istype(here) && here.air.return_pressure() < HAZARD_LOW_PRESSURE && !brain.in_plain_space_suit())
+		return "at [round(here.air.return_pressure(), 0.1)] kPa at [bot_coord(here)] without a space suit"
+	return null
+
+/datum/bot_scenario/fixes1112/crate_air/vacuum/still_kitted()
+	return bot.internal
+
+/datum/bot_scenario/fixes1112/crate_air/vacuum/pass_check()
+	if(!brain.in_plain_space_suit())
+		fail_reason = "brought the crate out of the vacuum without a space suit on"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// cargo-air-on-internals on the station's own supply shuttle: the flight of the scenario above it (shuttle_air), with the cabin filled with
+/// nitrogen at a normal pressure once it's docked. Station-wide like it, so it runs alone and only by name.
+/datum/bot_scenario/fixes1112/shuttle_air/nitrogen
+	name = "cargo shuttle: it docks full of nitrogen, and cargo goes aboard on its mask and tank for the crate"
+	desc = "The supply shuttle flies in from CentCom with two crates aboard, and once it's docked its cabin is filled with nitrogen at a normal pressure. The cargo technician, a breath mask and an emergency oxygen tank in its bag, puts them on in the bay, goes aboard by the dock's airlocks, brings the crate it's free to unload into the bay and takes the mask off there. It doesn't open the loading doors or call Engineering, and it's never in the nitrogen with its tank shut. Batch bugs1112b run5 (Charlie Vasquez, Reese Tanaka, Emery Haldane): Science's silver aboard in air nobody could breathe from about ten minutes in to the end of the shift, the loading doors opened on it at 18:38:19 and 18:38:31, and five calls to Engineering."
+	kit_backpack = list(/obj/item/clothing/mask/breath, /obj/item/tank/internals/emergency_oxygen) //as a crew member's survival box has
+	/// The cabin's tiles given nitrogen, given air again before the shuttle goes back
+	var/list/turf/open/filled
+	/// When the crate came off
+	var/unloaded_at
+
+/// Nitrogen at about 101 kPa on every tile of the docked shuttle with air on it (not the airless plating by its engines)
+/datum/bot_scenario/fixes1112/shuttle_air/nitrogen/proc/fill_cabin()
+	filled = list()
+	for(var/turf/open/T in aboard_turfs())
+		if(!T.air || T.air.return_pressure() < 50)
+			continue
+		T.air.parse_gas_string("n2=104;TEMP=293.15")
+		T.update_visuals()
+		SSair.add_to_active(T)
+		filled += T
+
+/datum/bot_scenario/fixes1112/shuttle_air/nitrogen/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(setup_problem)
+		fail_reason = setup_problem
+		return BOT_GYM_FAIL
+	if(!bot_supply_shuttle_docked())
+		if(docked_at)
+			fail_reason = "the supply shuttle left again before the crate was unloaded"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PENDING
+	if(!docked_at)
+		docked_at = world.time
+		fill_cabin()
+		log_line("the supply shuttle has docked, and [length(filled)] tiles of its cabin are full of nitrogen")
+		if(QDELETED(fetched) || brain.turf_air_is_breathable(get_turf(fetched)))
+			fail_reason = "setup: the crate to fetch isn't in the nitrogen ([fetched ? bot_coord(get_turf(fetched)) : "no crate"])"
+			return BOT_GYM_FAIL
+		loading_doors = list()
+		for(var/turf/T as anything in aboard_turfs())
+			for(var/turf/near in range(1, T))
+				for(var/obj/machinery/door/poddoor/P in near)
+					if(P.density)
+						loading_doors |= P
+		return BOT_GYM_PENDING
+	for(var/obj/machinery/door/poddoor/P as anything in loading_doors)
+		if(QDELETED(P))
+			fail_reason = "a loading door at the dock was destroyed"
+			return BOT_GYM_FAIL
+		if(!P.density)
+			fail_reason = "[P] at [bot_coord(get_turf(P))] was opened on the supply shuttle"
+			return BOT_GYM_FAIL
+	if(bot_transcript_said("came in without air"))
+		fail_reason = "went to open the loading doors for the shuttle's air"
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("air I can't work in"))
+		fail_reason = "called Engineering about the shuttle's air, a mask and tank in its bag"
+		return BOT_GYM_FAIL
+	var/turf/open/here = get_turf(bot)
+	if(!unloaded_at && istype(here) && !brain.turf_air_is_breathable(here) && !bot.internal)
+		fail_reason = "in air it can't breathe at [bot_coord(here)] with its tank shut"
+		return BOT_GYM_FAIL
+	if(!unloaded_at)
+		if(brain.crates_unloaded < 1 || QDELETED(fetched) || bot_aboard_supply_shuttle(fetched))
+			return BOT_GYM_PENDING
+		unloaded_at = world.time
+		log_line("the crate is off the shuttle, at [bot_coord(get_turf(fetched))]")
+	if(!bot_transcript_said("kitted out for the air at"))
+		fail_reason = "brought the crate off without kitting up for the nitrogen"
+		return BOT_GYM_FAIL
+	if(bot.internal || istype(bot.wear_mask, /obj/item/clothing/mask/breath))
+		if(world.time > unloaded_at + 30 SECONDS)
+			fail_reason = "still [bot.internal ? "on its tank" : "in its mask"] 30 s after the crate was off"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PENDING
+	log_line("mask off and tank shut again in the bay")
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/fixes1112/shuttle_air/nitrogen/release_run()
+	if(bot_supply_shuttle_docked()) //its air back before it goes, for whatever flies on it next
+		for(var/turf/open/T as anything in filled)
+			T.air.parse_gas_string(OPENTURF_DEFAULT_ATMOS)
+			T.update_visuals()
+			SSair.add_to_active(T)
 	return ..()

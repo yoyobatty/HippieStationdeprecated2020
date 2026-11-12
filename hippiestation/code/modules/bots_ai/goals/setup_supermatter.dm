@@ -50,6 +50,11 @@ GLOBAL_LIST_INIT(bot_sm_loop_pumps, list(
 	return S
 
 /datum/bot_brain/proc/sm_part_free(atom/A)
+	// Not where there's no air it could breathe, without a hardsuit on: assign_goal() turns that down, so the next job on the list instead. The
+	// crystal's pipes burst in flames and the air round its loop went bad, and the first job on the list was a pump in it: the engineer, with
+	// no hardsuit to be had, was handed it and turned it down 74 times, and nothing further down the list was looked at (bugs1112b run4).
+	if(in_bad_air(A) && !is_eva_ready())
+		return FALSE
 	// Not in where the running crystal's radiation reaches, without a radiation suit on (bot_hazards.dm): a collector out of plasma can
 	// wait, as it does for most crews, and the crystal runs on without it. Not so a crystal that's losing integrity: then an engineer
 	// gets into a radiation suit and goes in (/datum/bot_step/suit_up_for_rads, goals/sabotage_engine.dm). A saboteur's switched-off

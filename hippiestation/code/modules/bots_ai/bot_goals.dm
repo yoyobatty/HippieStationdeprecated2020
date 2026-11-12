@@ -22,6 +22,10 @@
 	/// couldn't breathe (assign_goal(), in_bad_air()): an engineer who hadn't found a hardsuit used to carry on with
 	/// the engine regardless, out into the vacuum round it, and died there with a full oxygen tank in its bag.
 	var/braves_bad_air = FALSE
+	/// Taken on in air it can't breathe when a mask and a tank are all that air wants, with a fire suit and helmet as well where it's hot
+	/// (can_kit_up_for(), goals/refill_internals.dm): the kit goes on before it sets off (/datum/bot_step/kit_up_for_air) and comes off
+	/// after. Not a vacuum, nor flames. Cargo's crates aboard a supply shuttle full of air nobody can breathe (the user's ruling, 2026-11-12).
+	var/on_internals = FALSE
 	/// Goes on being tried however often it fails (note_give_up()): only for the goals that are about staying alive.
 	var/never_rests = FALSE
 	/// Kept to through a call for help on the radio or somebody wanted walking past (can_drop_for_call(), goals/security_patrol.dm):
@@ -526,6 +530,20 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 /datum/bot_brain
 	/// When it was first found lying in a sleeper or cryo cell (convalescing())
 	var/convalescing_since = 0
+	/// REF() of a spot -> until when nothing wanted there is taken on, something having been turned down there for the air (assign_goal()).
+	/// The spot, not the thing: the air's the same whatever it was wanted for, and somebody carried out of it is worth a fresh look at once.
+	var/list/air_refusals
+
+/// Somewhere something was turned down a moment ago for air this bot couldn't breathe (assign_goal()): a selector passes it over for the
+/// next one, or for something else to do, until the minute's up or the bot has suited up. Not where it's standing, which it can tell for
+/// itself. The duties asked for the same thing every time they looked and were turned down every time: three officers 117 times between
+/// them for a cuffed traitor lying in Atmospherics as its air went, an engineer 74 times for a pump by a burning supermatter, a Head of
+/// Security let out of a cell 41 times for its things in the cell locker, in a saboteur's plasma (bugs1112b runs 3, 4 and 5).
+/datum/bot_brain/proc/refused_for_air(atom/target)
+	var/turf/where = get_turf(target)
+	if(!where || !air_refusals || target == owner || where == get_turf(owner))
+		return FALSE
+	return world.time < LAZYACCESS(air_refusals, REF(where))
 
 /datum/bot_brain/proc/assign_goal(datum/bot_goal/goal)
 	if(!goal)
@@ -585,8 +603,17 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 			next_keep_clear_note = world.time + 1 MINUTES
 			bot_log(src, "there's a nanosuit loose - no [goal.type] for Security now")
 		return FALSE
-	if(!goal.braves_bad_air && in_bad_air(goal.target) && !is_eva_ready())
-		bot_log(src, "[goal.target] is somewhere I can't breathe and I'm not suited up - not doing [goal.type]")
+	// Turned down for the air there, now or a moment ago: said once, and then nothing wanted there is taken on for a minute (refused_for_air()).
+	if(!goal.braves_bad_air && (refused_for_air(goal.target) || in_bad_air(goal.target)) && !is_eva_ready() && !(goal.on_internals && can_kit_up_for(goal.target)))
+		var/spot = REF(get_turf(goal.target))
+		if(world.time < LAZYACCESS(air_refusals, spot))
+			bot_log_verbose(src, "no air where [goal.target] is a moment ago - not doing [goal.type] yet")
+			return FALSE
+		for(var/old in air_refusals?.Copy()) //what's had its minute
+			if(air_refusals[old] <= world.time)
+				air_refusals -= old
+		LAZYSET(air_refusals, spot, world.time + 1 MINUTES)
+		bot_log(src, "[goal.target] is somewhere I can't breathe and I'm not suited up - not doing [goal.type], nor anything else there for a minute")
 		return FALSE
 	if(goal_is_resting(goal))
 		bot_log_verbose(src, "not trying [goal.type] on [goal.target] again just yet - it hasn't worked")

@@ -343,7 +343,9 @@
 /datum/bot_brain/proc/emergency_internals()
 	var/obj/item/tank/tank = owner.internal
 	if(tank)
-		if(!bot_tank_breathable(tank) || (air_is_breathable() && !in_the_flames() && !air_under_threat() && world.time >= internals_opened_at + BOT_INTERNALS_MIN_OPEN))
+		// Not between the bay and a shuttle full of air it can't breathe, at work in there on its tank (kit_up_for_air(), below)
+		var/working = on_internals_for_work && current_goal?.on_internals
+		if(!bot_tank_breathable(tank) || (air_is_breathable() && !in_the_flames() && !air_under_threat() && world.time >= internals_opened_at + BOT_INTERNALS_MIN_OPEN && !working))
 			tank.toggle_internals(owner)
 			if(!owner.internal)
 				bot_log(src, "breathing the room's air again - closed the valve on [tank]")
@@ -453,6 +455,7 @@
 /// the way a fetch for a tool does, to come back to. Under a quarter with nowhere to refill, nothing
 /// else matters: it drops everything and makes for the nearest air.
 /datum/bot_brain/proc/mind_air_supply()
+	mind_air_kit()
 	if(!is_tank_refill_job())
 		emergency_internals()
 		get_out_of_bad_air()
@@ -525,7 +528,7 @@
 		return
 	if(istype(current_goal, /datum/bot_goal/seek_air) || istype(current_goal, /datum/bot_goal/evacuate))
 		return
-	if(!in_the_flames() && (turf_air_is_breathable(get_turf(owner)) || is_space_protected_without_boots()))
+	if(!in_the_flames() && (turf_air_is_breathable(get_turf(owner)) || is_space_protected_without_boots() || working_on_internals_at(get_turf(owner))))
 		return
 	next_air_trip_time = world.time + 3 SECONDS //a fire spreads faster than the ten this used to wait
 	bad_air_area = get_area(owner)
@@ -548,7 +551,7 @@
 /// on. An officer out of a breached Brig Desk was sent straight back through it by every errand and stroll it picked, 263 times in a
 /// shift: getting out of a room was never the same as keeping out of it.
 /datum/bot_brain/proc/path_crosses_bad_air(list/path)
-	if(!length(bad_air_areas) || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST || current_goal?.braves_bad_air \
+	if(!length(bad_air_areas) || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST || current_goal?.braves_bad_air || (on_internals_for_work && current_goal?.on_internals) \
 		|| istype(current_goal, /datum/bot_goal/seek_air) || istype(current_goal, /datum/bot_goal/evacuate) || is_eva_ready())
 		return FALSE
 	var/area/here = get_area(owner)
@@ -587,6 +590,270 @@
 /datum/bot_strategy/seek_air/is_feasible(datum/bot_brain/bot)
 	return TRUE
 
+// ============================================================
+// Work in air it can't breathe
+// ============================================================
+// The user's ruling (2026-11-12): Cargo goes in for a crate on internals, and in a fire suit as well if the air's hot, rather than open
+// the loading doors to let the bay's air in. A mask and a tank are the breath and only that: thin air or a vacuum wants a pressure suit,
+// and air hot enough to burn wants a fire suit and helmet. A goal that goes in this way has on_internals set (bot_goals.dm), and puts the
+// kit on before it sets off (/datum/bot_step/kit_up_for_air, below). The kit comes off again once the bot's back in air it can breathe
+// with the work in there done.
+
+/// How long the kit stays on once the work in that air is done: the next crate is as often as not in the same air.
+#define BOT_AIR_KIT_LINGER (5 SECONDS)
+
+/datum/bot_brain
+	/// Weakrefs to what kit_up_for_air() put on, to come off again after (take_off_air_kit())
+	var/list/air_kit_on
+	/// What it had on in the suit and head slots before it first kitted up for this work. Kept here, not on the step: the fetch for a
+	/// helmet can end in a fresh kit_up_for_air step, and a helmet picked up goes straight on an empty head (stow_item()), so the fresh
+	/// step saw it as worn before and it was never taken off (gym "a crate in air hot enough to burn", 3 of 3).
+	var/list/air_kit_worn_before
+	/// The goal that list was taken for (a weakref): a new piece of work takes it afresh
+	var/datum/weakref/air_kit_worn_for
+	/// Breathing from its tank for work in air it can't breathe: the valve stays open between there and the bay
+	var/on_internals_for_work = FALSE
+	/// When it was last at that work
+	var/air_kit_used_at = 0
+	/// No fire suit or helmet to be had when it last looked: hot air is left alone till then (can_kit_up_for())
+	var/no_fire_kit_until = 0
+
+/// What working at A takes if its air can't be breathed: "mask" (a mask and a tank: the air's pressure and heat do a body no harm, only
+/// the breath does), "fire" (those, and a fire suit and helmet: air hot enough to burn, with no flames in it) or "suit" (a space suit: too
+/// thin or too thick for a body, flames, or cold). Null where it can breathe.
+/datum/bot_brain/proc/air_kit_for(atom/A)
+	if(!in_bad_air(A))
+		return null
+	var/turf/open/T = get_turf(A)
+	if(!istype(T))
+		return "suit" //a fitting on a wall, with no air beside it that it could breathe
+	var/datum/gas_mixture/air = T.return_air()
+	var/pressure = air ? air.return_pressure() : 0
+	if(T.active_hotspot || pressure < WARNING_LOW_PRESSURE || pressure > WARNING_HIGH_PRESSURE || air.temperature < BODYTEMP_COLD_DAMAGE_LIMIT)
+		return "suit"
+	return air.temperature > BODYTEMP_HEAT_DAMAGE_LIMIT ? "fire" : "mask"
+
+/// The temperature of the air at A
+/datum/bot_brain/proc/air_temperature_at(atom/A)
+	var/turf/open/T = get_turf(A)
+	if(!istype(T))
+		return 0
+	var/datum/gas_mixture/air = T.return_air()
+	return air ? air.temperature : 0
+
+/// A mask a tank can be breathed through, worn or carried
+/datum/bot_brain/proc/internals_mask()
+	var/obj/item/clothing/mask/worn = owner.wear_mask
+	if(istype(worn) && (worn.clothing_flags & MASKINTERNALS))
+		return worn
+	for(var/obj/item/clothing/mask/M in owner.GetAllContents())
+		if(M != worn && (M.clothing_flags & MASKINTERNALS))
+			return M
+	return null
+
+/// A tank of something worth breathing with air left in it, worn or carried: the one it's breathing from first
+/datum/bot_brain/proc/internals_tank()
+	var/obj/item/tank/internals/tank = eva_tank()
+	if(tank && tank.air_contents.return_pressure() > BOT_TANK_DRY)
+		return tank
+	for(var/obj/item/tank/internals/T in owner.GetAllContents())
+		if(bot_tank_breathable(T) && T.air_contents.return_pressure() > BOT_TANK_DRY)
+			return T
+	return null
+
+/// Something for the head, worn or carried, that keeps off heat this hot: a firefighter's helmet
+/datum/bot_brain/proc/fire_helmet_carried(temperature)
+	for(var/obj/item/clothing/head/hat in owner.GetAllContents())
+		if((hat.heat_protection & HEAD) && hat.max_heat_protection_temperature >= temperature)
+			return hat
+	return null
+
+/// Dressed so heat this hot doesn't reach the body: a fire suit and helmet, or the like, covering it all (get_heat_protection(), life.dm).
+/// Not bot_is_heat_immune_to() (goals/respond_to_fire.dm), which asks for 1: the game adds the parts' shares up in 32-bit floats, and the
+/// whole body comes to 0.9999999. A cargo technician in the fire closet's suit and helmet was told they didn't keep off 800 K, and gave
+/// the crate up. The 1e-7 left over is nothing to a body: life.dm warms it by (1 - protection) of the difference.
+/datum/bot_brain/proc/kept_from_heat(temperature)
+	return owner.get_heat_protection(temperature) >= 0.99
+
+/// Whether it can go to work at A as it is, or with what's on it or to be fetched (kit_up_for_air()): anywhere it can breathe; on a mask and
+/// a tank where they're all the air wants; for hot air with a fire suit and helmet as well, worn or to be fetched. Suited up for space,
+/// anywhere, as assign_goal() has it.
+/datum/bot_brain/proc/can_kit_up_for(atom/A)
+	var/kit = air_kit_for(A)
+	if(!kit || is_eva_ready())
+		return TRUE
+	if(kit == "suit" || !internals_mask() || !internals_tank())
+		return FALSE
+	return kit == "mask" || kept_from_heat(air_temperature_at(A)) || world.time >= no_fire_kit_until
+
+/// At work in the air on T on its tank, dressed for that air (kit_up_for_air()): nothing it has to get out of (get_out_of_bad_air()), nor a
+/// door it won't go through (/obj/machinery/door/airlock/external/CanAStarPass(), bot_doors.dm).
+/datum/bot_brain/proc/working_on_internals_at(turf/T)
+	if(!isopenturf(T) || !on_internals_for_work || !current_goal?.on_internals)
+		return FALSE
+	var/obj/item/tank/tank = owner.internal
+	if(!tank || !bot_tank_breathable(tank) || tank.air_contents.return_pressure() <= BOT_TANK_DRY)
+		return FALSE
+	var/kit = air_kit_for(T)
+	if(!kit || kit == "mask")
+		return TRUE
+	return kit == "fire" && kept_from_heat(air_temperature_at(T))
+
+/// The mask on and the tank's valve open, for work in air it can't breathe: the mask out of the box and on, the tank where its valve can be
+/// reached (as emergency_internals() does it). TRUE once it's breathing from the tank.
+/datum/bot_brain/proc/internals_on_for_work()
+	var/obj/item/clothing/mask/mask = internals_mask()
+	var/obj/item/tank/internals/tank = internals_tank()
+	if(!mask || !tank)
+		return FALSE
+	if(owner.wear_mask != mask)
+		if(!wear(mask, ITEM_SLOT_MASK))
+			return FALSE
+		LAZYINITLIST(air_kit_on)
+		air_kit_on |= WEAKREF(mask)
+	if(owner.internal != tank)
+		if(tank.loc != owner)
+			if(!ready_in_hand(tank))
+				return FALSE
+			for(var/slot in list(ITEM_SLOT_BELT, ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET, ITEM_SLOT_SUITSTORE))
+				if(owner.equip_to_slot_if_possible(tank, slot, FALSE, TRUE, TRUE))
+					break
+		tank.toggle_internals(owner)
+		if(owner.internal != tank)
+			return FALSE
+		internals_opened_at = world.time
+		bot_log(src, "opened the valve on [tank] to work in air I can't breathe ([round(tank.air_contents.return_pressure())] kPa)")
+	on_internals_for_work = TRUE
+	air_kit_used_at = world.time
+	return TRUE
+
+/// Back in air it can breathe with the work done: the valve shut, the mask back in the bag, and a fire suit and helmet off, the suit left
+/// where it stands (it won't go in a bag), as a player takes them off once they're back inside.
+/datum/bot_brain/proc/take_off_air_kit()
+	var/obj/item/tank/tank = owner.internal
+	if(tank && on_internals_for_work)
+		tank.toggle_internals(owner)
+		if(!owner.internal)
+			bot_log(src, "back in air I can breathe - closed the valve on [tank]")
+	on_internals_for_work = FALSE
+	for(var/datum/weakref/W as anything in air_kit_on)
+		var/obj/item/I = W.resolve()
+		if(!I || I.loc != owner || (I in owner.held_items))
+			continue
+		if(I == owner.wear_suit && owner.s_store) //the tank in its storage would go on the floor with it
+			swap_out_worn(owner.s_store, null)
+		swap_out_worn(I, null)
+		bot_log(src, "took off [I]")
+	air_kit_on = null
+	air_kit_worn_before = null
+	air_kit_worn_for = null
+
+/// Once a second (mind_air_supply()), and whenever the cargo round looks (goals/cargo.dm): the kit off again once the work in that air is
+/// done and it's in air it can breathe.
+/datum/bot_brain/proc/mind_air_kit()
+	if(!on_internals_for_work && !LAZYLEN(air_kit_on))
+		return
+	if(current_goal?.on_internals || suspended_goal?.on_internals)
+		air_kit_used_at = world.time
+		return
+	if(world.time < air_kit_used_at + BOT_AIR_KIT_LINGER || owner.incapacitated() || !air_is_breathable())
+		return
+	take_off_air_kit()
+
+/// Kitted out for the air the work is in before setting off into it (air_kit_for()), if it can't be breathed: for hot air a fire suit and a
+/// helmet first, from the nearest fire closet if it has none, then the mask out of the box and on and the tank's valve open. A cargo
+/// technician whose supply shuttle came in with air in it nobody could breathe opened the bay's loading doors on it, radioed Engineering,
+/// and left the crate aboard to the end of the shift, an emergency tank in its bag (bugs1112b run5: Science's silver).
+/datum/bot_step/kit_up_for_air
+	/// Where the work is, if not the goal's target (an empty crate going back aboard: where it's to be left)
+	var/atom/work_at
+	/// It's been for a fire suit, and for a helmet, on this try: no second walk for what wasn't to be had
+	var/fetched_suit = FALSE
+	var/fetched_helmet = FALSE
+	/// What it had on in the suit and head slots when this step first ran: anything else on there after was put on for the heat
+	var/list/worn_before
+
+/datum/bot_step/kit_up_for_air/execute(datum/bot_brain/bot)
+	var/atom/A = work_at || bot.current_goal?.target
+	if(!A || QDELETED(A))
+		return GOAL_STEP_FAIL
+	var/kit = bot.air_kit_for(A)
+	if(!kit)
+		return GOAL_STEP_SUCCESS
+	var/mob/living/carbon/human/H = bot.owner
+	if(isnull(bot.air_kit_worn_before) || bot.air_kit_worn_for?.resolve() != bot.current_goal)
+		bot.air_kit_worn_before = list(H.wear_suit, H.head)
+		bot.air_kit_worn_for = WEAKREF(bot.current_goal)
+	worn_before = bot.air_kit_worn_before
+	if(bot.is_eva_ready())
+		bot.internals_on_for_work() //at the threshold, not a breath of it first
+		bot_log(bot, "kitted out for the air at [A]: a space suit and internals")
+		return GOAL_STEP_SUCCESS
+	if(kit == "suit")
+		bot_log(bot, "[A] is in air nobody goes into without a space suit")
+		return GOAL_STEP_FAIL
+	if(kit == "fire")
+		var/temperature = bot.air_temperature_at(A)
+		if(!bot.kept_from_heat(temperature))
+			if(world.time < bot.no_fire_kit_until)
+				return GOAL_STEP_FAIL
+			if(!istype(H.wear_suit, /obj/item/clothing/suit/fire))
+				var/obj/item/clothing/suit/fire/suit = locate(/obj/item/clothing/suit/fire) in H.GetAllContents()
+				if(!suit)
+					return fetch_fire_kit(bot, /obj/item/clothing/suit/fire, A)
+				if(!bot.wear(suit, ITEM_SLOT_OCLOTHING))
+					return GOAL_STEP_FAIL
+			note_put_on(bot, H.wear_suit)
+			var/obj/item/clothing/head/helmet = bot.fire_helmet_carried(temperature)
+			if(!helmet)
+				return fetch_fire_kit(bot, /obj/item/clothing/head/hardhat/red, A)
+			if(H.head != helmet && !bot.wear(helmet, ITEM_SLOT_HEAD))
+				return GOAL_STEP_FAIL
+			note_put_on(bot, H.head)
+			if(!bot.kept_from_heat(temperature))
+				bot_log(bot, "[H.wear_suit] and [H.head] don't keep off the heat at [A]")
+				bot.no_fire_kit_until = world.time + 5 MINUTES
+				return GOAL_STEP_FAIL
+		// Kept from the heat already when this runs again after the fetch: the helmet went straight on the head as it was picked up, so the
+		// notes above never ran for it. Whatever's on the two slots now that wasn't before this work comes off after.
+		note_put_on(bot, H.wear_suit)
+		note_put_on(bot, H.head)
+	if(!bot.internals_on_for_work())
+		bot_log(bot, "no mask and tank to breathe from at [A]")
+		return GOAL_STEP_FAIL
+	bot_log(bot, "kitted out for the air at [A]: [kit == "fire" ? "fire suit, helmet and " : ""]internals")
+	return GOAL_STEP_SUCCESS
+
+/// To come off again after (take_off_air_kit()), if it wasn't on when this step first ran: put on here, or by the fetch as it was picked up
+/// (stow_item() wears what goes in an empty slot)
+/datum/bot_step/kit_up_for_air/proc/note_put_on(datum/bot_brain/bot, obj/item/I)
+	if(I && !(I in worn_before))
+		LAZYINITLIST(bot.air_kit_on)
+		bot.air_kit_on |= WEAKREF(I)
+
+/// Off to a fire closet for it, the work waiting (suspend_goal_for()): this step runs again once it's in hand
+/datum/bot_step/kit_up_for_air/proc/fetch_fire_kit(datum/bot_brain/bot, item_type, atom/A)
+	var/obj/item/path = item_type
+	var/is_suit = ispath(item_type, /obj/item/clothing/suit)
+	if(is_suit ? fetched_suit : fetched_helmet)
+		bot.no_fire_kit_until = world.time + 5 MINUTES
+		bot_log(bot, "no [initial(path.name)] to be had for the heat at [A] - leaving it")
+		return GOAL_STEP_FAIL
+	if(is_suit)
+		fetched_suit = TRUE
+	else
+		fetched_helmet = TRUE
+	bot_log(bot, "the air at [A] is hot enough to burn - going for [initial(path.name)]")
+	var/datum/bot_goal/acquire_item_type/sub = new
+	sub.item_type = item_type
+	sub.lawful = TRUE
+	if(bot.suspend_goal_for(sub))
+		return GOAL_STEP_PENDING
+	bot.no_fire_kit_until = world.time + 5 MINUTES
+	bot_log(bot, "no [initial(path.name)] to be had for the heat at [A] - leaving it")
+	return GOAL_STEP_FAIL
+
+#undef BOT_AIR_KIT_LINGER
 #undef BOT_TANK_RUNNING_OUT
 #undef BOT_TANK_DRY
 #undef BOT_INTERNALS_MIN_OPEN

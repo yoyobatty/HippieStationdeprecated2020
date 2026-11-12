@@ -248,6 +248,12 @@ GLOBAL_LIST_INIT(bot_cook_menu, init_bot_cook_menu())
 	var/obj/structure/table/counter
 	/// What came out of the machine, to be carried over and set down.
 	var/list/obj/item/dishes
+	/// More came out than it had a hand or bag room for: the rest is still where the machine put it, to come back for (on_success())
+	var/left_at_machine = FALSE
+	/// A trip back to the machine for what was left there, not a batch of its own: nothing to gather and nothing to put in
+	var/obj/machinery/collect_from
+	/// Trips back so far for what was left
+	var/trips = 0
 
 /datum/bot_goal/cook_dish/New(datum/bot_recipe/recipe)
 	. = ..()
@@ -255,7 +261,10 @@ GLOBAL_LIST_INIT(bot_cook_menu, init_bot_cook_menu())
 	doing = "making [recipe.name]"
 
 /datum/bot_goal/cook_dish/resolve_target(datum/bot_brain/bot)
-	target = bot.find_kitchen_machine(recipe.machine_type)
+	if(collect_from)
+		target = bot.dishes_left_at(collect_from, recipe) ? collect_from : null
+	else
+		target = bot.find_kitchen_machine(recipe.machine_type)
 	counter = bot.find_serving_table()
 	if(!counter)
 		target = null
@@ -264,11 +273,36 @@ GLOBAL_LIST_INIT(bot_cook_menu, init_bot_cook_menu())
 	var/datum/bot_strategy/cook/S = new
 	var/datum/bot_step/move_to/to_counter = new
 	to_counter.step_target = counter
-	S.steps = list(new /datum/bot_step/gather_ingredients(), new /datum/bot_step/move_to(), new /datum/bot_step/paced/run_kitchen_machine(), to_counter, new /datum/bot_step/paced/serve_dishes())
+	S.steps = collect_from ? list() : list(new /datum/bot_step/gather_ingredients())
+	S.steps += list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/run_kitchen_machine(), to_counter, new /datum/bot_step/paced/serve_dishes())
 	return list(S)
 
 /datum/bot_goal/cook_dish/on_success(datum/bot_brain/bot)
+	// What it had no hand for is still where the machine put it: back for it before anything new, as a cook carrying what it can at a
+	// time does (run_kitchen_machine/do_click()). A few trips at most.
+	if(left_at_machine && trips < 3 && bot.dishes_left_at(target, recipe))
+		bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, fetch_dishes_left), recipe, target, trips + 1))
+		return
 	bot.continue_cook_round()
+
+/// Food a kitchen machine put out that's still lying where it put it, and not what goes into it
+/datum/bot_brain/proc/dishes_left_at(obj/machinery/machine, datum/bot_recipe/recipe)
+	if(!machine || QDELETED(machine))
+		return FALSE
+	for(var/obj/item/reagent_containers/food/snacks/F in get_turf(machine))
+		if(!istype(F, recipe.ingredient) && is_edible_now(F))
+			return TRUE
+	return FALSE
+
+/// Back to the machine for the plates it had no hand for (cook_dish/on_success()), and over to the counter with them
+/datum/bot_brain/proc/fetch_dishes_left(datum/bot_recipe/recipe, obj/machinery/machine, trip)
+	var/datum/bot_goal/cook_dish/G = new(recipe)
+	G.collect_from = machine
+	G.trips = trip
+	if(!assign_goal(G))
+		return FALSE
+	bot_log(src, "back to [machine] for the rest of the [recipe.name]")
+	return TRUE
 
 /datum/bot_goal/cook_dish/on_give_up(datum/bot_brain/bot)
 	if(target)
@@ -379,7 +413,8 @@ GLOBAL_LIST_INIT(bot_cook_menu, init_bot_cook_menu())
 /datum/bot_step/paced/run_kitchen_machine/start(datum/bot_brain/bot)
 	machine = bot.current_goal?.target
 	loaded = 0
-	started = FALSE
+	var/datum/bot_goal/cook_dish/G = bot.current_goal
+	started = istype(G) && !!G.collect_from //back for what was left: nothing to put in, only to take out
 	waited = 0
 	return istype(machine) && !QDELETED(machine) && bot.owner.Adjacent(machine)
 
@@ -453,6 +488,8 @@ GLOBAL_LIST_INIT(bot_cook_menu, init_bot_cook_menu())
 			bot.use_atom(machine) //processor/interact(): runs it, and only returns once it's finished
 		return TRUE
 	if(still_running())
+		if(G.collect_from)
+			return FALSE //somebody's put a batch of their own on since: what was left is theirs to take out with it
 		waited++
 		if(waited > 60)
 			return FALSE
@@ -460,10 +497,17 @@ GLOBAL_LIST_INIT(bot_cook_menu, init_bot_cook_menu())
 		if(prob(30))
 			bot.idle_fidget()
 		return TRUE
-	// Done: take what came out, one thing at a time.
+	// Done: take what came out, one thing at a time, as many as it has a hand or room in the bag for. With its hands and bag full each
+	// one taken put the one before it down at its feet (make_hand_free()), beside a machine out of the counter's reach: never served, and
+	// the cook went back for them later and kept them or ate them (bugs1112b: 11 plates in 10 batches; run11 Marlow Singh two steaks of
+	// three, run6 Lee Montague ate the carrot fries it set down). The rest is left where the machine put it, and it comes back for it once
+	// these are out (cook_dish/on_success()).
 	for(var/obj/item/reagent_containers/food/snacks/F in get_turf(machine))
 		if(istype(F, G.recipe.ingredient) || !bot.is_edible_now(F))
 			continue
+		if(length(G.dishes) && !bot.has_room_for(F)) //goals/tend_hydroponics.dm
+			G.left_at_machine = TRUE
+			return FALSE
 		if(bot.take_in_hand(F))
 			LAZYADD(G.dishes, F)
 			return TRUE

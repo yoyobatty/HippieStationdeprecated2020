@@ -748,6 +748,42 @@
 			if(H.Move(T, d))
 				coming_through(H)
 				break
+	// A pet doesn't step aside at "coming through", and the wait on it ran the walk out: the Head of Security's pug, sat in the one way
+	// out of Hippie's HoS office, held up officers walking a trespasser out 17 times in three batches of twelve shifts, each escort given
+	// up as stalled and the prisoner left there in cuffs for the next officer to try (bugs1112b run1, run5, run7; bugs1112a run1;
+	// bugs1112base run5, run11). Somebody with their hands full nudges it aside with a foot: off the way if there's room, or on along it
+	// ahead of them, to be nudged off it at the next go.
+	var/mob/living/pet
+	for(var/mob/living/L in next_node)
+		if(bot_nudgeable(L))
+			pet = L
+			break
+	if(!pet)
+		return
+	var/list/off_the_way = list()
+	var/list/along_it = list()
+	for(var/d in GLOB.alldirs)
+		var/turf/T = get_step(next_node, d)
+		if(!T || T == here || T == behind || T.density || isspaceturf(T) || is_blocked_turf(T))
+			continue
+		if(current_path && (T in current_path))
+			along_it += T
+		else
+			off_the_way += T
+	for(var/turf/T as anything in off_the_way + along_it)
+		if(pet.Move(T, get_dir(next_node, T)))
+			owner.face_atom(pet)
+			bot_log(src, "nudging [pet] out of the way with [owner.pulling] in tow")
+			return
+
+/// A small animal on its own feet that somebody walking through nudges aside with a foot: a pet, a mouse. Not a hostile one, nor a bot (a
+/// MULE isn't shifted that way), nor one held, buckled or dragging something.
+/proc/bot_nudgeable(mob/living/L)
+	if(!istype(L) || iscarbon(L) || issilicon(L) || L.stat != CONSCIOUS || !L.density || L.mob_size > MOB_SIZE_SMALL)
+		return FALSE
+	if(L.anchored || L.buckled || L.pulledby || L.pulling || L.has_buckled_mobs())
+		return FALSE
+	return !istype(L, /mob/living/simple_animal/hostile) && !istype(L, /mob/living/simple_animal/bot)
 
 /// Dragging something big with somebody still stood on the next tile, who didn't step aside (a player, somebody busy): round them, on to
 /// a free tile that's next to where the way goes after them. Swapping places with them leaves what's dragged behind.

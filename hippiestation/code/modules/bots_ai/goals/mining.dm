@@ -101,10 +101,17 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 		return /obj/item/survivalcapsule
 	return null
 
-/// Dressed for the surface: a mask and a tank it can reach. It isn't a vacuum down there, just thin, bad air.
+/// Dressed for the surface: a mask and a tank it can reach. It isn't a vacuum down there, just thin, bad air. Not a tank only held in a hand:
+/// hands get emptied for the next thing, or knocked empty. A miner with nowhere on it for its tank but a hand counted itself ready, went down
+/// with it, had it knocked out of the hand as the shuttle set off, and stood at the outpost with no air to work in (bugs1112a run7).
 /datum/bot_brain/proc/ready_for_lavaland()
 	var/obj/item/clothing/mask/mask = owner.wear_mask
-	return istype(mask) && (mask.clothing_flags & MASKINTERNALS) && eva_tank()
+	if(!istype(mask) || !(mask.clothing_flags & MASKINTERNALS))
+		return FALSE
+	for(var/obj/item/tank/internals/tank in owner)
+		if(bot_tank_breathable(tank) && !owner.is_holding(tank))
+			return TRUE
+	return FALSE
 
 /// How far this miner's scanner reads, or 0 without one: the best of what it's carrying. The locker's automatic one reads four
 /// tiles, and the one the vendor sells for points (goals/mining_points.dm) the whole screen.
@@ -134,6 +141,13 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 	if(bot.on_lavaland())
 		if(bot_storm_over(bot.owner.z))
 			return FALSE
+		// Down here with no mask on or no tank on it: on with them, out of its bag, or back up for them. Nothing out on the rock is taken on in
+		// this air without them (assign_goal()), and the miner whose tank was knocked out of its hand on the shuttle asked for the next rock
+		// face 63 times from the outpost, turned down every time (bugs1112a run7).
+		if(!bot.ready_for_lavaland())
+			if(world.time >= bot.mining_gear_blocked_until && bot.assign_goal(new /datum/bot_goal/dress_for_lavaland()))
+				return TRUE
+			return bot.assign_goal(new /datum/bot_goal/ride_mining_shuttle("mining_home"))
 		if(bot.time_to_head_back())
 			return bot.assign_goal(new /datum/bot_goal/ride_mining_shuttle("mining_home"))
 		return bot.assign_goal(new /datum/bot_goal/mine_ore())
@@ -229,11 +243,11 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 				break
 		if(!spare || !bot.wear(spare, ITEM_SLOT_MASK))
 			return GOAL_STEP_FAIL
-	if(bot.eva_tank())
+	if(bot.ready_for_lavaland()) //a tank on it already: one in a hand doesn't count
 		return GOAL_STEP_SUCCESS
 	var/obj/item/tank/internals/tank
 	for(var/obj/item/tank/internals/T in H.GetAllContents())
-		if(!tank || T.air_contents.return_pressure() > tank.air_contents.return_pressure())
+		if(bot_tank_breathable(T) && (!tank || T.air_contents.return_pressure() > tank.air_contents.return_pressure()))
 			tank = T
 	if(!tank || !bot.ready_in_hand(tank))
 		return GOAL_STEP_FAIL
@@ -243,10 +257,17 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 		if(H.equip_to_slot_if_possible(tank, slot, FALSE, TRUE, TRUE))
 			bot_log(bot, "got [tank] where I can reach the valve")
 			return GOAL_STEP_SUCCESS
-	var/obj/item/reagent_containers/hypospray/medipen/pen = H.l_store
-	if(istype(pen) && SEND_SIGNAL(H.back, COMSIG_TRY_STORAGE_INSERT, pen, H, TRUE) && H.equip_to_slot_if_possible(tank, ITEM_SLOT_LPOCKET, FALSE, TRUE, TRUE))
-		bot_log(bot, "got [tank] where I can reach the valve")
-		return GOAL_STEP_SUCCESS
+	// Belt and pockets full: something out of a pocket into the bag to make room, as anybody would (the survival box's medipen, a beer), never
+	// the ore satchel, which only picks ore up from a pocket or the belt. With the webbing on its belt, the satchel in one pocket and a beer
+	// in the other, a miner's tank was left in its hand, which counted as ready, and it went down to Lavaland like that (bugs1112a run7).
+	if(H.back && (tank.w_class <= WEIGHT_CLASS_SMALL || (tank.slot_flags & ITEM_SLOT_POCKETS)))
+		for(var/slot in list(ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET))
+			var/obj/item/in_pocket = H.get_item_by_slot(slot)
+			if(!in_pocket || istype(in_pocket, /obj/item/storage/bag/ore))
+				continue
+			if(SEND_SIGNAL(H.back, COMSIG_TRY_STORAGE_INSERT, in_pocket, H, TRUE) && H.equip_to_slot_if_possible(tank, slot, FALSE, TRUE, TRUE))
+				bot_log(bot, "put [in_pocket] in my bag and got [tank] where I can reach the valve")
+				return GOAL_STEP_SUCCESS
 	return GOAL_STEP_FAIL
 
 // ---------------------------------------------------------------------------------------------

@@ -473,6 +473,12 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 
 /datum/bot_brain/proc/try_medical_round()
 	if(is_medical_job())
+		// The prisoner it was called to, down in crit in front of it where Security's keeping them for a doctor: first aid there and then,
+		// before anybody further off. They aren't for a sleeper (the dangerous ones don't leave Security), and the round went on down its
+		// list past them: a doctor called to a prisoner at -3 by the Brig door went off to drag somebody else to a sleeper, came back to
+		// find him held for Security and walked off, and he died at the door (bugs1112base run6, Max Adeyemi and Morgan Vance).
+		if(called_patient_kept_down() && assign_goal(new /datum/bot_goal/stabilise()))
+			return TRUE
 		// The machines first: anybody finished with a sleeper or a cryo cell, dead or patched up, is let out (goals/medical_rounds.dm).
 		if(assign_goal(new /datum/bot_goal/empty_machine()))
 			return TRUE
@@ -1256,6 +1262,36 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 	var/datum/bot_brain/other = GLOB.bot_work_claims[REF(H)]
 	return !other || bot_is_medic(other.owner)
 
+/// Kept for a doctor by Security: an officer keeping a prisoner just inside Security's door, or staying with one it has brought to
+/// Medbay (brig_care, medevac: goals/security_medevac.dm), and not walking them anywhere just now. The officer's goal claims them, so
+/// nobody carries them off or takes them over; it's no claim on their treatment.
+/datum/bot_brain/proc/kept_for_a_doctor(mob/living/carbon/human/H)
+	if(!taken_by_another(H))
+		return FALSE
+	var/datum/bot_brain/keeper = GLOB.bot_work_claims[REF(H)]
+	if(bot_is_medic(keeper.owner) || (keeper.pursuing_kind == "goal" && H.pulledby == keeper.owner))
+		return FALSE
+	var/datum/bot_goal/kept = (keeper.current_goal?.target == H) ? keeper.current_goal : keeper.suspended_goal
+	return istype(kept, /datum/bot_goal/brig_prisoner/brig_care) || istype(kept, /datum/bot_goal/brig_prisoner/medevac)
+
+/// Another doctor at them already where they lie (stabilise). For anybody else its claim says so; for somebody Security's keeping for
+/// a doctor the claim is the officer's (kept_for_a_doctor()).
+/datum/bot_brain/proc/stabilised_by_another(mob/living/carbon/human/H)
+	for(var/datum/bot_brain/other as anything in GLOB.bot_brains)
+		if(other == src || QDELETED(other) || QDELETED(other.owner) || other.owner.stat != CONSCIOUS)
+			continue
+		var/datum/bot_goal/stabilise/theirs = other.current_goal
+		if(istype(theirs) && theirs.target == H)
+			return TRUE
+	return FALSE
+
+/// The patient it was called to (bot_request_kind/medical/attend()), down in crit a few steps off, and kept there by Security for a doctor
+/datum/bot_brain/proc/called_patient_kept_down()
+	var/mob/living/carbon/human/called = (world.time < called_patient_until) ? called_patient?.resolve() : null
+	if(!istype(called) || called.stat == DEAD || called.stat == CONSCIOUS || called.health > called.crit_threshold || get_dist(owner, called) > 7)
+		return FALSE
+	return kept_for_a_doctor(called)
+
 /datum/bot_goal/stabilise
 	lawful = TRUE
 	exclusive = TRUE //one to a casualty
@@ -1264,6 +1300,7 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 /datum/bot_goal/stabilise/resolve_target(datum/bot_brain/bot)
 	var/mob/living/carbon/human/best
 	var/best_score
+	var/mob/living/carbon/human/called = (world.time < bot.called_patient_until) ? bot.called_patient?.resolve() : null
 	for(var/mob/living/carbon/human/H in GLOB.alive_mob_list)
 		if(H == bot.owner || H.z != bot.owner.z || H.stat == CONSCIOUS || H.stat == DEAD || !isturf(H.loc) || H.health > H.crit_threshold)
 			continue
@@ -1273,9 +1310,12 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			continue //nobody Security's after until they're in cuffs, as for any patient
 		if(bot.another_medic_has(H) || LAZYACCESS(bot.unreachable_patients, H) > world.time)
 			continue
+		if(bot.kept_for_a_doctor(H) && bot.stabilised_by_another(H))
+			continue //another doctor's at them already: the claim on them is the officer's, so it doesn't say so
 		if(!bot.first_aid_for(H))
 			continue
-		var/score = bot.patient_injury_score(H) + H.getOxyLoss() - get_dist(bot.owner, H)
+		// The one it was called to before anybody it wasn't, as treat_patient's resolve_target() has it
+		var/score = bot.patient_injury_score(H) + H.getOxyLoss() - get_dist(bot.owner, H) + (H == called ? 200 : 0)
 		if(!best || score > best_score)
 			best = H
 			best_score = score
@@ -1286,6 +1326,12 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 		bot.cant_reach_casualty(best) //goals/carry_casualty.dm
 		return
 	target = best
+	// Security keeping them for a doctor: the officer's goal claims them, which is what keeps a sleeper run or a carry out of Security
+	// off a prisoner who stays in it. Taken as a claim on their first aid it turned the doctor away ("already being seen to - leaving
+	// stabilise to them"), 14 times in three batches of twelve shifts at a prisoner down in crit, and four of those prisoners died where
+	// they lay within the minute (bugs1112b run9 Sam Delacroix, bugs1112a run8 Val Castillo and run12 Corey Ishikawa, bugs1112base run6
+	// Morgan Vance). Not exclusive then: the officer's claim stays as it is, and a second doctor is kept off by stabilised_by_another().
+	exclusive = !bot.kept_for_a_doctor(best)
 
 /datum/bot_goal/stabilise/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/stabilise/S = new
