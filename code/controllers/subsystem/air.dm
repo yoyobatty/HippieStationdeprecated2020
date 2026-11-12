@@ -705,6 +705,11 @@ GLOBAL_LIST_EMPTY(colored_images)/*
 	if(machine.atmos_idle_turf)
 		LAZYREMOVE(machine.atmos_idle_turf.idle_atmos_machines, machine)
 		machine.atmos_idle_turf = null
+	if(machine.atmos_engine_watched) // and the tile engine stops watching it
+		machine.atmos_engine_watched = FALSE
+		tile_engine_machine_events.Add(2, machine.atmos_serial)
+	if(machine.atmos_serial && machine.atmos_serial <= length(tile_engine_machine_serials))
+		tile_engine_machine_serials[machine.atmos_serial] = null
 	if(atmos_recheck && machine.atmos_idle_since)
 		var/list/bucket = atmos_recheck[(machine.atmos_idle_since % ATMOS_IDLE_RECHECK) + 1]
 		bucket -= machine

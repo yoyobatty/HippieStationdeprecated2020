@@ -38,3 +38,7 @@
 #define TILE_ENGINE_TOUCH(T) if(T.air_touched != SSair.tile_engine_air_clock) { T.air_touched = SSair.tile_engine_air_clock; if(SSair.tile_engine_tracking) { SSair.tile_engine_touched += T } }
 /// A turf's atmos_adjacent_turfs changed: the tile engine has to be sent its kind and neighbours again
 #define TILE_ENGINE_DIRTY(T) T.tile_engine_sent = 0; if(SSair.tile_engine_tracking) { SSair.tile_engine_dirty += T }
+/// How long a vent or scrubber the tile engine watches waits idle before it runs anyway, in atmos ticks (20 seconds); the
+/// rest wait ATMOS_IDLE_RECHECK (hippiestation/code/modules/atmospherics/idle_machines.dm). It's for air changed without
+/// add_to_active() (heat through walls, breathing), which wakes nothing in DM either but used to be caught sooner.
+#define ATMOS_IDLE_RECHECK_WATCHED 40

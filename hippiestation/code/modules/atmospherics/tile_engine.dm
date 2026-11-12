@@ -303,7 +303,7 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 		position++
 		T.air_changed_at = fired // wakes idle machines on it (idle_machines.dm)
 		if(T.idle_atmos_machines)
-			atmos_wake_turf(T)
+			atmos_wake_turf(T, TRUE)
 		if(T.comp_lookup)
 			listened += position
 		var/datum/gas_mixture/air = T.air
@@ -763,6 +763,8 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	for(var/turf/open/T as anything in hot)
 		T.consider_superconductivity(TRUE)
 	tile_engine_apply_parts["hot"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - part)
+	if(owns)
+		tile_engine_machine_wakes() // idle vents and scrubbers whose air now gives them something to do (idle_machines.dm)
 	tile_engine_apply_ms += TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer)
 
 /// Writes air the engine changed into the turfs: the engine writes it straight in if it can (`write_call`), else DM writes
@@ -775,7 +777,7 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	for(var/turf/open/T as anything in changed)
 		T.air_changed_at = fired // wakes idle machines on it (idle_machines.dm)
 		if(T.idle_atmos_machines)
-			atmos_wake_turf(T)
+			atmos_wake_turf(T, TRUE)
 		var/datum/gas_mixture/air = T.air
 		var/list/moles = air.moles
 		for(var/gas in 1 to values[at++])
@@ -832,6 +834,7 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 		active_turfs.Cut()
 	tile_engine_awake = awake
 	log_world("Atmos: the tile engine keeps LINDA's awake turfs and excited groups ([tile_engine_own]), [awake] awake")
+	tile_engine_machine_setup()
 
 /// Hands the engine DM's LINDA state: awake turfs with their tickers, burning turfs, excited groups. Returns how many are
 /// awake, or why it failed.
@@ -858,13 +861,15 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	var/list/events = tile_engine_events
 	var/list/touched = tile_engine_touched
 	var/list/dirty = tile_engine_dirty
+	var/list/machine_events = tile_engine_machine_events
 	tile_engine_events = list()
 	tile_engine_touched = list()
 	tile_engine_dirty = list()
+	tile_engine_machine_events = list()
 	tile_engine_air_clock++ // a turf touched from now on is queued again
 	var/status
 	try
-		status = call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_own_sync")(events, touched, dirty)
+		status = call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_own_sync")(events, touched, dirty, length(machine_events) ? machine_events : null)
 	catch(var/exception/error)
 		status = "[error]"
 	if(status != 1)
@@ -923,7 +928,7 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	for(var/turf/open/T as anything in poked)
 		T.air_changed_at = fired
 		if(T.idle_atmos_machines)
-			atmos_wake_turf(T)
+			atmos_wake_turf(T, TRUE)
 	if(length(changed))
 		tile_engine_air_clock++ // the engine's writes aren't touches
 		if(!tile_engine_apply_air(changed, values, fired, "atmos_engine_group_write", FALSE))
@@ -935,6 +940,7 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 		if(isopenturf(T))
 			T.update_visuals()
 			T.tile_engine_drawn = redraw_keys[at]
+	tile_engine_machine_wakes()
 	tile_engine_groups_ms += TICK_DELTA_TO_MS(TICK_USAGE_REAL - start)
 	return TRUE
 

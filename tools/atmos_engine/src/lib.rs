@@ -9,6 +9,7 @@
 //! them.
 
 pub mod engine;
+pub mod machines;
 pub mod world;
 
 use engine::{NewTile, Tick, KIND_NO_AIR};
@@ -272,6 +273,8 @@ struct State {
 	own_checks: u64,
 	own_wrong: [u64; 5],
 	own_log: Vec<String>,
+	/// Idle vents and scrubbers the engine wakes when their turf's air would give them something to do (machines.rs)
+	machines: machines::Machines,
 }
 
 static STATE: Mutex<Option<State>> = Mutex::new(None);
@@ -355,6 +358,7 @@ pub unsafe extern "C" fn atmos_engine_setup(argc: u32, argv: *const ByondValue) 
 			own_checks: 0,
 			own_wrong: [0; 5],
 			own_log: Vec::new(),
+			machines: machines::Machines::default(),
 		});
 		Ok(gases)
 	})
@@ -1071,7 +1075,8 @@ pub unsafe extern "C" fn atmos_engine_own_load(argc: u32, argv: *const ByondValu
 /// call_ext("hippie_atmos", "byond:atmos_engine_own_sync")(events, touched, dirty): what DM did since the engine last heard
 /// from it. `events` is pairs of an event number (see world.rs) and a turf, in the order they happened; `touched` has turfs
 /// whose air DM changed, which the engine asks for again when it needs them, and `dirty` turfs whose neighbours changed.
-/// Returns 1.
+/// A fourth list, if given, is idle machines (machines.rs): 1, atmos_serial, turf, kind, flags, bound, filters for one that
+/// went idle; 2, atmos_serial for one that's running again. Returns 1.
 #[no_mangle]
 pub unsafe extern "C" fn atmos_engine_own_sync(argc: u32, argv: *const ByondValue) -> ByondValue {
 	let args = arguments(argc, argv);
@@ -1082,7 +1087,34 @@ pub unsafe extern "C" fn atmos_engine_own_sync(argc: u32, argv: *const ByondValu
 		}
 		let mut guard = STATE.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
 		let state = guard.as_mut().ok_or("own_sync before setup")?;
-		let State { turfs, world, known, .. } = &mut *state;
+		let State { turfs, world, known, machines, .. } = &mut *state;
+		// DM touching a turf's air doesn't wake the idle machines the engine watches on it: most touches are only looks (air
+		// alarms, breathing), and anything that changes the air for real calls add_to_active(), which wakes them in DM
+		read_values(api, &args[1], turfs)?;
+		for turf in turfs.iter() {
+			known.forget_air(turf_number(turf)?);
+		}
+		if let Some(list) = args.get(3).filter(|list| list.kind != TYPE_NULL) {
+			read_values(api, list, turfs)?;
+			let mut at = 0;
+			while at < turfs.len() {
+				let op = turfs[at].as_number() as u32;
+				let serial = turfs.get(at + 1).ok_or("a machine event ran out")?.as_number() as u32;
+				match op {
+					1 => {
+						let row = turfs.get(at + 2..at + 7).ok_or("a machine event ran out")?;
+						let turf = turf_number(&row[0])?;
+						machines.idle(serial, turf, row[1].as_number() as u32, row[2].as_number() as u32, row[3].as_number(), row[4].as_number() as u64);
+						at += 7;
+					}
+					2 => {
+						machines.awake(serial);
+						at += 2;
+					}
+					_ => return Err(format!("machine event {op} isn't one the engine knows")),
+				}
+			}
+		}
 		read_values(api, &args[0], turfs)?;
 		if turfs.len() % 2 != 0 {
 			return Err(format!("{} numbers in the events, not pairs", turfs.len()));
@@ -1097,10 +1129,6 @@ pub unsafe extern "C" fn atmos_engine_own_sync(argc: u32, argv: *const ByondValu
 				known.forget_air(id);
 				known.forget_kind(id);
 			}
-		}
-		read_values(api, &args[1], turfs)?;
-		for turf in turfs.iter() {
-			known.forget_air(turf_number(turf)?);
 		}
 		read_values(api, &args[2], turfs)?;
 		for turf in turfs.iter() {
@@ -1139,6 +1167,7 @@ pub unsafe extern "C" fn atmos_engine_own_run(argc: u32, argv: *const ByondValue
 			wanted,
 			out,
 			final_gases,
+			machines,
 			..
 		} = &mut *state;
 		if *own_phase == 0 {
@@ -1175,6 +1204,9 @@ pub unsafe extern "C" fn atmos_engine_own_run(argc: u32, argv: *const ByondValue
 					}
 				}
 				world.absorb(tick, fire);
+				for change in &tick.changes {
+					state_machines_air_changed(machines, config, known, tick.turf(change.tile));
+				}
 				*own_phase = 0;
 				let stats = [world.active_count() as f32, world.group_order().len() as f32, tick.order.len() as f32, tick.packed() as f32];
 				out.clear();
@@ -1231,6 +1263,7 @@ pub unsafe extern "C" fn atmos_engine_own_groups(argc: u32, argv: *const ByondVa
 			out,
 			shadow_air,
 			shadow_breakdown,
+			machines,
 			..
 		} = &mut *state;
 		wanted.clear();
@@ -1243,6 +1276,11 @@ pub unsafe extern "C" fn atmos_engine_own_groups(argc: u32, argv: *const ByondVa
 		world.process_groups(config, known, &planetary, apply, shadow_air)?;
 		for (id, temperature, gases) in shadow_air.drain(..) {
 			shadow_breakdown.insert(id, (temperature, gases));
+		}
+		if apply {
+			for &id in &world.poked {
+				state_machines_air_changed(machines, config, known, id);
+			}
 		}
 		let stats = [world.broke_down as f32, world.dismantled as f32, world.air_changes.len() as f32, world.active_count() as f32, world.group_order().len() as f32];
 		out.clear();
@@ -1495,5 +1533,38 @@ pub unsafe extern "C" fn atmos_engine_own_breakdown_check(argc: u32, argv: *cons
 		}
 		shadow_breakdown.clear();
 		Ok(1.0)
+	})
+}
+
+/// The engine changed a turf's air: the idle machines on it that would now have something to do wake
+fn state_machines_air_changed(machines: &mut machines::Machines, config: &engine::Config, known: &Known, turf: u32) {
+	machines.air_changed(config, known, turf);
+}
+
+/// call_ext("hippie_atmos", "byond:atmos_engine_machine_wakes")(out, stats): the idle machines the engine woke since the
+/// last call (atmos_serial), written into `out`; `stats` (if given) gets [machines watched, turfs looked at, kept idle,
+/// woken] so far. Returns how many to wake.
+#[no_mangle]
+pub unsafe extern "C" fn atmos_engine_machine_wakes(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	guarded("machine_wakes", || {
+		let api = api().ok_or("byondcore.dll doesn't have Byond_ReadList and Byond_WriteList")?;
+		let mut guard = STATE.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+		let state = guard.as_mut().ok_or("machine_wakes before setup")?;
+		let State { machines, out, .. } = &mut *state;
+		let count = machines.wake.len();
+		if count > 0 {
+			out.clear();
+			out.extend(machines.wake.iter().map(|&serial| ByondValue::num(serial as f32)));
+			write_values(api, args.first().ok_or("no list")?, out)?;
+			machines.wake.clear();
+		}
+		if let Some(stats) = args.get(1).filter(|list| list.kind != TYPE_NULL) {
+			let values = [machines.watching() as f32, machines.checked as f32, machines.kept_idle as f32, machines.woken as f32];
+			out.clear();
+			out.extend(values.iter().map(|&n| ByondValue::num(n)));
+			write_values(api, stats, out)?;
+		}
+		Ok(count as f32)
 	})
 }

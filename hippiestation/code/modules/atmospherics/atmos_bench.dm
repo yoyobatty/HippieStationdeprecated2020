@@ -547,6 +547,13 @@ GLOBAL_VAR(atmos_bench_updaters)
 		if(SSair.tile_engine_own != "off")
 			var/list/own = SSair.tile_engine_own_checked
 			. += "  tile engine keeping LINDA's state ([SSair.tile_engine_own]): [SSair.tile_engine_groups_broken] group breakdowns and [SSair.tile_engine_groups_dismantled] dismantled in all[SSair.tile_engine_owns ? ", groups' step [round(SSair.tile_engine_groups_ms, 0.1)] ms in all" : ""][length(own) >= 8 ? "; checked [own[1]] ticks: [own[2]] with a different active list, [own[3]] tickers, [own[4]] burning and [own[5]] drawn different, [own[6]] ticks with different groups, [own[7]] group breakdowns checked and [own[8]] different[length(own) >= 9 ? " ([own[9]] not exactly the same)" : ""]" : ""]"
+		if(SSair.tile_engine_machine_filter != "off")
+			var/list/m = SSair.tile_engine_machine_stats
+			var/list/sh = SSair.tile_engine_machine_shadow
+			. += "  idle vents and scrubbers watched by the engine ([SSair.tile_engine_machine_filter]), so far: [length(m) >= 4 ? "[m[1]] watched now, [m[2]] turf changes looked at, [m[3]] kept idle, [m[4]] woken" : "-"][SSair.tile_engine_machine_filter == "shadow" ? "; woken by the air [sh["checked"]], had something to do though the engine said not [sh["missed"]], woken for nothing [sh["woken for nothing"]]" : ""]"
+			if(length(sh) > 3)
+				for(var/i in 4 to length(sh))
+					. += "    missed: [sh[i]]"
 		if(SSair.tile_engine_air == "shadow")
 			var/list/check = SSair.tile_engine_air_check()
 			if(length(check) >= 2)
