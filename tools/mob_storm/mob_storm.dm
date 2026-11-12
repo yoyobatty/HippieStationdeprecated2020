@@ -51,6 +51,13 @@ GLOBAL_VAR(mob_storm_file)
 				pile = F
 		break
 	mob_storm_log("pile at [pile.x],[pile.y],[pile.z] ([get_area(pile)]), profiler [SSprofiler.engine]")
+	if(world.params["mob-storm-scenario"] == "conga")
+		run_conga_storm(pile, text2num(world.params["mob-storm-seconds"]) || 60)
+		mob_storm_log("done")
+		sleep(1 SECONDS)
+		Master.Shutdown()
+		qdel(world)
+		return
 	if(world.params["mob-storm-scenario"] == "circuits")
 		run_circuit_storm(pile, text2num(world.params["mob-storm-seconds"]) || 60)
 		mob_storm_log("done")
@@ -331,7 +338,11 @@ GLOBAL_VAR_INIT(storm_squeaks, 0)
 		for(var/turf/T in list(P, Q))
 			var/already = (item_type == /obj/item/shard && (T == A || T == B)) ? 5 : 0
 			for(var/i in 1 to max(0, per_tile - already))
-				new item_type(T)
+				var/obj/item/made = new item_type(T)
+				if(istype(made, /obj/item/flashlight)) // lights on belts: switched on
+					var/obj/item/flashlight/light = made
+					light.on = TRUE
+					light.update_brightness()
 	for(var/i in 1 to bodies)
 		var/mob/living/carbon/human/H = new(belt_tiles[(i % length(belt_tiles)) + 1])
 		H.death()
@@ -708,3 +719,52 @@ GLOBAL_VAR_INIT(storm_circuit_sends, 0)
 	W.watching = FALSE
 	var/busy = storm_measure_report(start, "circuit storm")
 	mob_storm_log("broadcasts [GLOB.storm_circuit_sends], heard [GLOB.storm_hears] times; TOTAL procs [round(100 * busy / seconds, 0.1)]%, worst stall [round(W.worst / 10, 0.1)] s, stalls over 0.5 s: [W.stalls]")
+
+// ---------------------------------------------------------------------------------------------
+// mob-storm-scenario=conga: mob-storm-pairs (5) lines of mob-storm-speakers (40) crew, each pulling the one behind, every leader
+// stepping back and forth every tick and dragging the line.
+// ---------------------------------------------------------------------------------------------
+
+GLOBAL_VAR_INIT(storm_conga_moves, 0)
+
+/datum/mob_storm_watch/proc/conga_moved()
+	SIGNAL_HANDLER
+	GLOB.storm_conga_moves++
+
+/proc/run_conga_storm(turf/center, seconds)
+	var/lines = text2num(world.params["mob-storm-pairs"]) || 5
+	var/length = text2num(world.params["mob-storm-speakers"]) || 40
+	var/datum/mob_storm_watch/W = new
+	var/list/leaders = list()
+	var/list/floors = list()
+	for(var/turf/open/floor/F in range(7, center))
+		if(!is_blocked_turf(F, TRUE))
+			floors += F
+	for(var/l in 1 to lines)
+		var/mob/living/carbon/human/ahead
+		for(var/i in 1 to length)
+			var/mob/living/carbon/human/H = new(pick(floors))
+			W.RegisterSignal(H, COMSIG_MOVABLE_MOVED, TYPE_PROC_REF(/datum/mob_storm_watch, conga_moved))
+			if(ahead)
+				ahead.start_pulling(H, supress_message = TRUE)
+			else
+				leaders += H
+			ahead = H
+	mob_storm_log("[lines] lines of [length] crew round [center.x],[center.y]")
+	sleep(2 SECONDS)
+	GLOB.storm_conga_moves = 0
+	var/list/start = storm_measure_start()
+	W.watch()
+	var/end = REALTIMEOFDAY + seconds * 10
+	var/n = 0
+	while(REALTIMEOFDAY < end)
+		n++
+		for(var/mob/living/carbon/human/H as anything in leaders)
+			var/dir = (n % 8 < 4) ? EAST : WEST
+			var/turf/next = get_step(H, dir)
+			if(!next || !H.Move(next, dir))
+				H.Move(get_step(H, turn(dir, 90)), turn(dir, 90))
+		sleep(world.tick_lag)
+	W.watching = FALSE
+	var/busy = storm_measure_report(start, "conga")
+	mob_storm_log("moves [GLOB.storm_conga_moves]; TOTAL procs [round(100 * busy / seconds, 0.1)]%, worst stall [round(W.worst / 10, 0.1)] s, stalls over 0.5 s: [W.stalls]")
