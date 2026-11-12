@@ -53,6 +53,8 @@ GLOBAL_VAR_INIT(bot_telemetry_samples, !(BOT_GYM_PARAMETER in world.params) || (
 /// or with PLAYER_LOG_CKEY set, since that player's log is only any use beside the bots'. Otherwise it's ~53 MB a 20-bot round
 /// and the sampler's 2-3% of the server for files nobody reads. Events still reach the Bot Crew monitor (bot_crew_monitor.dm).
 /proc/bot_telemetry_wanted()
+	if("bot-telemetry-off" in world.params) // a test round as a live server runs it, for measuring what the telemetry costs
+		return FALSE
 	if((BOT_GYM_PARAMETER in world.params) || (BOT_SHIFT_PARAMETER in world.params) || ("bot-mode" in world.params))
 		return TRUE
 	return CONFIG_GET(flag/bot_telemetry) || length(CONFIG_GET(string/player_log_ckey))
