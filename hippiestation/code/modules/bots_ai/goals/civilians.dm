@@ -82,7 +82,14 @@ GLOBAL_LIST_INIT(bot_clown_lines, list(
 	if(bot.work_role() == "Clown" && !bot.find_carried_tool(/obj/item/bikehorn))
 		return FALSE //no horn, no act
 	var/mob/living/carbon/human/audience = find_audience(bot)
-	return audience ? bot.assign_goal(new /datum/bot_goal/perform(audience)) : FALSE
+	if(!audience)
+		// Nobody about just now: another look in a few seconds, not in a minute or three (run_duties() has put the next one that far off
+		// already). One glance every couple of minutes had to land on a moment with somebody within six tiles: a clown with its horn on
+		// it, in and out of the bar, was 21 minutes into a shift before its first act.
+		if(bot.duty_next_check)
+			bot.duty_next_check[src] = world.time + rand(5 SECONDS, 15 SECONDS)
+		return FALSE
+	return bot.assign_goal(new /datum/bot_goal/perform(audience))
 
 /datum/bot_goal/perform
 	lawful = TRUE

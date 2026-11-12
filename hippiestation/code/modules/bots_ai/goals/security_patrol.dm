@@ -796,6 +796,16 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 		else if(!visible && short_of_the_others(S))
 			stop_pursuit()
 			return //no nearer where a suit was last seen, without the others
+	// In the pool, or somewhere in it it was walking to, with this bot on the side (poolside_instead(), bot_items.dm): round to the side
+	// nearest them, and a wait there for the breath to go in after them. Not a walk that fails: five of those in a row gave the arrest up
+	// as "can't reach", and anybody in the pool used to be out of Security's reach (the user, 2026-11-04).
+	var/turf/side = poolside_instead(pursuit_goal)
+	if(side == get_turf(owner))
+		stop_pursuit()
+		return
+	if(side)
+		pursuit_goal = side
+		goal_turf = side
 	if(!pursuing_kind || pursue_target != pursuit_goal || !arrest_path_turf || get_dist(arrest_path_turf, goal_turf) > 1)
 		arrest_path_turf = goal_turf
 		pursue(pursuit_goal, "arrest", force = TRUE)
@@ -1021,6 +1031,12 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 		next_security_restock_time = world.time + 1200
 		var/datum/bot_goal/acquire_item_type/sub = new()
 		sub.item_type = /obj/item/restraints/handcuffs
+		// A pair it can walk to by its own doors: the SecTech, a locker, one lying about in the Brig. The nearest as the crow flies was as
+		// often the pair on the Bridge's desk, the zipties in the Head of Personnel's office or the pair walled up with a skeleton in
+		// maintenance: officers set off for those 127 times in twelve shifts and gave up at the end of the route search, every two
+		// minutes, and now and then started on the Captain's Quarters door with a screwdriver to get at them.
+		sub.lawful = TRUE
+		sub.lawful_tries = 16 //MetaStation has seven pairs behind somebody else's door, and the SecTech can be the furthest of the lot
 		if(assign_goal(sub))
 			bot_log(src, "out of handcuffs - going to find a pair")
 			return TRUE
@@ -1277,16 +1293,20 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 	return locate(/obj/structure/closet/secure_closet/brig) in T.targets
 
 /datum/bot_brain/proc/is_in_active_cell(atom/M) // a prisoner, or anything else sitting in the cell
+	return active_cell_of(M) ? TRUE : FALSE
+
+/// The timer of the cell M is in, if a sentence is running in it; null otherwise.
+/datum/bot_brain/proc/active_cell_of(atom/M)
 	var/turf/here = get_turf(M)
 	if(!here)
-		return FALSE
+		return null
 	for(var/obj/machinery/door_timer/T as anything in bot_instances_of(/obj/machinery/door_timer))
 		if(!T.timing || T.z != here.z)
 			continue
 		var/list/interior = bot_get_cell_interior(T)
 		if(interior && (here in interior))
-			return TRUE
-	return FALSE
+			return T
+	return null
 
 /// prisoner: who it's for, who doesn't count as somebody already in there (stood in their own cell after a fight in it, they're
 /// arrested again and the cell they're in is the one to use: it used to read as taken).

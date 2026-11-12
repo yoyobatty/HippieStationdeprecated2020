@@ -295,8 +295,26 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 		return FALSE
 	return istype(doctor.current_goal, /datum/bot_goal/treat_patient) && doctor.current_goal.target == bot.owner
 
+/// Who the other doctors are walking to or seeing to now: their treat_patient, or the one parked while they fetch more supplies, which
+/// they're coming back to. Every doctor on shift picked the same worst-off patient: 63 of a batch's 274 treatments were a second or third
+/// doctor setting out for somebody a colleague already had, and 45 of those got there to find nothing left to do. One in a fight, in
+/// cuffs or on the floor isn't seeing to anybody, whatever it still has in mind. Not `exclusive`: that claim is by target whatever the
+/// goal, and would turn a doctor away from a prisoner an officer has in hand.
+/datum/bot_brain/proc/patients_seen_to()
+	var/list/seen = list()
+	for(var/datum/bot_brain/other as anything in GLOB.bot_brains)
+		if(other == src || QDELETED(other) || other.state != BOT_STATE_GOAL || QDELETED(other.owner) || other.owner.stat != CONSCIOUS || other.owner.incapacitated())
+			continue
+		var/datum/bot_goal/treat_patient/theirs = other.current_goal
+		if(!istype(theirs))
+			theirs = other.suspended_goal
+		if(istype(theirs) && theirs.target)
+			seen[theirs.target] = TRUE
+	return seen
+
 /datum/bot_goal/treat_patient/resolve_target(datum/bot_brain/bot)
 	var/mob/living/carbon/human/called = (world.time < bot.called_patient_until) ? bot.called_patient?.resolve() : null
+	var/list/seen_to = bot.patients_seen_to()
 	var/list/hurt = list() //patient -> how badly they want seeing to
 	for(var/mob/living/carbon/human/H in GLOB.alive_mob_list)
 		if(H == bot.owner || H.z != bot.owner.z)
@@ -311,6 +329,8 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			continue
 		if(LAZYACCESS(bot.untreatable_patients, WEAKREF(H)) > world.time)
 			continue //just tried and got nowhere (on_give_up()) - not straight back to them
+		if(seen_to[H] && H != called)
+			continue //a colleague has them (patients_seen_to()): this one takes the next worst off. Who asked it to its face still gets seen to
 		hurt[H] = bot.patient_injury_score(H) - get_dist(bot.owner, H) + (H == called ? 200 : 0)
 	// The worst off there's a way to.
 	var/tries = 0
@@ -358,6 +378,8 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 	var/useless_clicks = 0
 	/// Times the patient had moved on by the time the doctor got to where they were.
 	var/chases = 0
+	/// Of those, the times they were a long way off by then: the first time it goes on after them, the second time it doesn't.
+	var/far_chases = 0
 
 /datum/bot_step/treat_patient/execute(datum/bot_brain/bot)
 	var/mob/living/carbon/human/patient = bot.current_goal?.target
@@ -368,11 +390,33 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 		// round and round the station.
 		// Somebody down gets walked up to again as well: dragged a step since, or met across the corner of a table, they were given up
 		// on the spot, 31 of the batch's treatments, and nothing in the log to say so.
-		if(chases >= 3 || patient.z != bot.owner.z || get_dist(bot.owner, patient) > 12)
-			bot_log(bot, "couldn't get beside [patient] ([get_dist(bot.owner, patient)] tiles off[chases >= 3 ? ", after three tries" : ""])")
+		// Back from a fetch for more supplies that came to nothing: no walk back over to them with nothing to put on, and no word on the
+		// radio that it's on its way. 2 of a batch's 14 treatments taken up again after a kit run came back empty-handed.
+		if(tried_restock && !bot.pick_treatment_item(patient))
+			bot_log(bot, "out of medical supplies for [patient], and nothing reachable to restock with")
+			return GOAL_STEP_FAIL
+		// More than a dozen tiles off. The walk was to where they stood when the doctor set out, and somebody on an errand of their own
+		// was twenty tiles on by the time it got there; or the doctor had been off for a kit, and took this step up again forty tiles
+		// from them. Either way they were given up on the spot: 58 of a batch's 100 treatments given up. The first time, the doctor asks
+		// them over the radio to stay where they are, and goes on to where they are now.
+		var/dist = get_dist(bot.owner, patient)
+		var/far = dist > 12
+		if(chases >= 3 || patient.z != bot.owner.z || (far && (far_chases >= 1 || dist > 60)))
+			bot_log(bot, "couldn't get beside [patient] ([dist] tiles off[chases >= 3 ? ", after three tries" : ""])")
 			return GOAL_STEP_FAIL
 		chases++
-		if(chases == 1 && patient.stat == CONSCIOUS && !bot.gym_scripted && (patient in view(7, bot.owner)))
+		if(far)
+			far_chases++
+			bot_log(bot, "[patient] is [dist] tiles on from where I was headed - going after them")
+			patient.bot_brain?.wait_for_doctor(bot) //only strolling about, it waits for the doctor, as when it was first picked (resolve_target())
+			// One doctor asks, once a minute at most, and not on top of "come by Medbay" (call_patient_in()): four doctors went after the
+			// Warden in the same three seconds, and each would have said it on Common.
+			var/datum/weakref/ref = WEAKREF(patient)
+			if(patient.stat == CONSCIOUS && !bot.gym_scripted && world.time >= bot.next_patient_summons && !(GLOB.bot_patient_summons[ref] > world.time))
+				bot.next_patient_summons = world.time + 20 SECONDS
+				GLOB.bot_patient_summons[ref] = world.time + 1 MINUTES
+				bot.say_after_typing(";[patient.first_name()], stay where you are a moment, I'm on my way to patch you up.")
+		else if(chases == 1 && patient.stat == CONSCIOUS && !bot.gym_scripted && (patient in view(7, bot.owner)))
 			bot_say(bot.owner, pick("Hold still a second, [patient.first_name()].", "[patient.first_name()], stay there - let me look at that.", "Wait up, [patient.first_name()]."))
 		patient.bot_brain?.hold_still_for(12 SECONDS)
 		bot.current_step_index = 1

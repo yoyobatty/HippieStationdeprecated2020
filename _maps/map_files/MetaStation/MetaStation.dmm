@@ -16890,6 +16890,7 @@
 	dir = 4;
 	id = "QMLoad2"
 	},
+/obj/structure/fans/tiny,
 /turf/open/floor/plating,
 /area/quartermaster/storage)
 "aKO" = (
@@ -19292,6 +19293,7 @@
 	dir = 8;
 	id = "QMLoad"
 	},
+/obj/structure/fans/tiny,
 /turf/open/floor/plating,
 /area/quartermaster/storage)
 "aQh" = (

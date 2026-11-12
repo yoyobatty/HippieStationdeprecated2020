@@ -738,8 +738,16 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 	return list(S)
 
 /datum/bot_goal/fit_upgrades/on_give_up(datum/bot_brain/bot)
-	if(target)
-		LAZYSET(bot.upgrade_blocked, target, world.time + 30 MINUTES)
+	var/obj/machinery/M = target
+	if(!istype(M))
+		return
+	// Driven off it with its panel off: not written off. The lathe caught fire under a scientist the click after it was opened, the
+	// screwdriver went with everything else it was holding when it dropped and rolled, and finish() had nothing to shut it with. The
+	// half hour kept it off the list of panels to shut as well (find_panel_left_open()), and a lathe with its panel off is no lathe at
+	// all: nothing printed or fitted for thirty minutes, and Sync pressed 41 times. It's shut next, and had another go at.
+	if(M.panel_open)
+		return
+	LAZYSET(bot.upgrade_blocked, M, world.time + 30 MINUTES)
 
 /datum/bot_goal/fit_upgrades/on_success(datum/bot_brain/bot)
 	var/datum/bot_duty/duty = bot_duty_of(chain_duty)

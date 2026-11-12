@@ -145,6 +145,12 @@
 		explore_blocked_until = world.time + 10 MINUTES
 		pick_pursuit("no space ruins in reach")
 		return FALSE
+	// Nothing to fly on that a way into EVA would get: no asking for the access. On Meta, with no AI, explorers left their cards at
+	// the HoP's door for EVA access every ten minutes, for a trip there was no making.
+	if(!worn_jetpack() && !jetpack_to_hope_for())
+		explore_blocked_until = world.time + 10 MINUTES
+		pick_pursuit("no jetpack to be had")
+		return FALSE
 	if(!has_eva_access())
 		if(world.time < next_eva_access_ask)
 			return FALSE
@@ -332,9 +338,27 @@ GLOBAL_LIST_EMPTY(bot_jetpack_cases_refused)
 			continue
 		if(best && get_dist(owner, J) >= get_dist(owner, best))
 			continue
-		if(can_walk_lawfully_to(J) || jetpack_case_front(J))
+		// Behind a shut case, it's the case that says: a way to the tile in front of it is no way to the jetpack. Meta's rack is behind
+		// a windoor for heads of staff, and with no AI to ask, every explorer took a suit out of EVA's units, walked up to the case and
+		// found "no jetpack to be had" there (the tile it had counted on was the one it now stood on), three times a shift. A suit
+		// storage unit beside the rack, once somebody had opened it, counted as a way to it too, through the window.
+		if((shut_in && shut_in.density) ? jetpack_case_front(J) : can_walk_lawfully_to(J))
 			best = J
 	return best
+
+/// Whether there's a jetpack lying about that getting into EVA could get it: one it knows of, with gas in it, and not in a case its
+/// ID doesn't open with nobody to ask (no AI, or the AI's said no). No routes looked for: this is asked before it has the access.
+/datum/bot_brain/proc/jetpack_to_hope_for()
+	for(var/obj/item/tank/jetpack/J as anything in bot_instances_of(/obj/item/tank/jetpack))
+		if(QDELETED(J) || !isturf(J.loc) || J.z != owner.z || bot_jetpack_fuel(J) < BOT_JETPACK_SET_OUT || !knows_of(J))
+			continue
+		if(gym_run && get_area(J) != get_area(owner))
+			continue //in the Bot Gym every arena is on the one z-level: another one's jetpack is no jetpack to this bot
+		var/obj/machinery/door/window/shut_in = locate() in get_turf(J)
+		if(shut_in && shut_in.density && !shut_in.allowed(owner) && (GLOB.bot_jetpack_cases_refused[REF(shut_in)] > world.time || !(locate(/datum/bot_silicon/ai) in GLOB.bot_silicons)))
+			continue
+		return TRUE
+	return FALSE
 
 /// Where to stand to open the case a jetpack's in: on Meta they're on a rack behind a windoor, which no route reaches through. Null if
 /// it isn't in one, or its ID won't open it, or there's no getting to the front of it.

@@ -130,3 +130,26 @@ GLOBAL_VAR_INIT(door_seals, world.params["door-seals"] != "off")
 			best_pressure = pressure
 	if(best_dir)
 		seal_dir = best_dir
+
+/// A shuttle gives its tiles back to the air one at a time once it has moved (lateShuttleMove(), docking.dm), its hull before the cabin
+/// behind it (return_ordered_turfs()). A shut door on the hull picked its side while the cabin still counted as solid, so it took what was
+/// outside: transit space in flight, where its tile emptied, or a tile of the dock's. Nothing turned it back to the cabin, the dock's
+/// airlock had vacuum behind it, and nobody without a suit walked aboard the supply shuttle: "no path to the shuttle floor" on the first
+/// trip in ten shifts of twelve (bugs1112base). So as each shuttle tile comes back, a shut door beside it on the same shuttle picks its
+/// side again by the usual rules (update_seal()), with this tile to pick from: the hull doors keep the cabin's air.
+/turf/lateShuttleMove(turf/oldT)
+	. = ..()
+	if(!GLOB.door_seals || blocks_air)
+		return
+	for(var/dir in GLOB.cardinals)
+		var/turf/open/door_spot = get_step(src, dir)
+		if(!istype(door_spot) || !door_spot.seal_dir || door_spot.blocks_air || door_spot.seal_dir == REVERSE_DIR(dir))
+			continue
+		if(door_spot.loc == loc) //a door on the shuttle: it picks again now, with this tile to pick from
+			door_spot.seal_dir = SEAL_PENDING
+			door_spot.air_update_turf(TRUE, FALSE)
+		else if(door_spot.seal_dir == SEAL_PENDING)
+			// A shut door beside the shuttle that lost its side to it as it came in. ImmediateCalculateAdjacentTurfs() queued it to pick again,
+			// and it does once the whole shuttle is back, but that queue doesn't wake the air, and by then the shuttle's tiles have gone back to
+			// sleep: the tile kept the vacuum it had. The testbench's outer supply dock airlock sat at 0 kPa beside a docked shuttle full of air.
+			SSadjacent_air.queue[door_spot] = MAKE_ACTIVE

@@ -230,6 +230,13 @@ GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 /// A step straight away from them, if the floor's there for it.
 /datum/bot_brain/proc/step_back_from(atom/A)
 	var/turf/T = get_step_away(owner, A)
+	// Only a step that gets it further off. Backed into a corner, the step "away" the engine offers is round the obstacle and back
+	// again: an officer waiting on two more for a nanosuit stepped into a nook and out of it once a second for as long as it waited,
+	// and another went round the same three tiles of the Brig.
+	var/turf/here = get_turf(owner)
+	var/turf/them = get_turf(A)
+	if(T && here && them && (T.x - them.x) ** 2 + (T.y - them.y) ** 2 <= (here.x - them.x) ** 2 + (here.y - them.y) ** 2)
+		return
 	if(T && !T.density && !is_blocked_turf(T, TRUE) && !bot_turf_is_deadly(T)) //not backwards into the lava
 		step_towards(owner, T)
 
@@ -283,6 +290,14 @@ GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 	var/turf/spot = spot_short_of(S, hold)
 	if(!spot)
 		return FALSE
+	// A colleague's stood on the spot already, and it's the next tile: behind them will do. Two officers a tile apart, five and six tiles from
+	// a man with a toolbox wanted for attempted murder, took turns walking on to the one spot short of him and swapping the other off it, a
+	// swap every couple of seconds in the Brig (bugs1112base run11).
+	if(spot != get_turf(owner) && get_dist(owner, spot) <= 1)
+		for(var/mob/living/carbon/human/there in spot)
+			if(there.mobility_flags & MOBILITY_STAND)
+				stop_pursuit()
+				return TRUE
 	if(pursuing_kind != "arrest" || pursue_target != spot)
 		pursue(spot, "arrest", force = TRUE)
 	return TRUE

@@ -131,6 +131,12 @@
 		return 0.5
 	return BOT_COMBAT_RUN_AT + (0.5 - nerve) * 0.5
 
+/// Hurt past where it would run from a fight of its own (try_run_for_it(), bot_brain.dm). In one it can't get out of it still fights with all
+/// it has (try_suit_kit() and all), but it doesn't go looking for one: not into somebody else's, and not after a nanosuit (bot_witness.dm,
+/// goals/fight_the_suit.dm).
+/datum/bot_brain/proc/badly_hurt()
+	return owner.health <= owner.maxHealth * health_to_run_at()
+
 /// Lavaland's wildlife, the way a miner takes it on: the accelerator, point blank if need be, a step back while it recharges, and back
 /// to the shuttle once it's going badly. Four explorers died in one shift each stood toe to toe with a watcher, one shot and then their
 /// fists, from full health to dead. Without a gun it's the ordinary fight (or the ordinary run for it).
@@ -273,23 +279,74 @@
 	// From a live bomb, out of what it'll blow: a tank bomb takes a room and the corridors round it, and running five tiles from a
 	// grenade, then wandering back past it, was no running at all.
 	var/radius = bot_blast_radius(foe)
+	var/turf/foe_at = get_turf(foe)
+	var/near_now = foe_at ? get_dist(bot.owner, foe_at) : 0
+	// Somebody can come at it, so a way that goes by them is running at them: from somebody, it keeps to its own side of them, never
+	// nearer than it stands now. A bomb or a grenade on the floor can't, and the way past one is still the way out of a dead end: a
+	// timid assistant who had strolled past a ticking tank bomb ran nowhere further than six tiles from it, rather than back past it.
+	var/keep_off = ismob(foe) ? near_now : 0
 	var/list/away_spots = list()
-	if(radius)
+	if(foe)
 		// Down whatever corridor gets it furthest from it, as well as the places it knows of, which may all be the wrong side of it
 		// (or, in an arena, a few tiles off). Straight away from it ran into walls: from beside it on a diagonal, "away" is a wall.
-		var/turf/far = bot.furthest_open_floor_from(foe, radius)
+		// From anybody, not only a bomb: the places it knows of can all be behind doors its ID doesn't open, and this one never is.
+		var/turf/far = bot.furthest_open_floor_from(foe, radius ? radius : 12, keep_off)
 		if(far)
 			away_spots += far
-	for(var/i in 1 to (radius ? 10 + length(away_spots) : 5))
+	var/list/spots = list() //somewhere to run to -> how good a place it is
+	for(var/i in 1 to ((radius ? 10 : 5) + length(away_spots)))
 		var/turf/T = i <= length(away_spots) ? away_spots[i] : (bot.gym_run ? bot.pick_local_destination() : (bot.pick_poi_destination() || bot.pick_local_destination()))
 		// Not into air it can't breathe from air it can: assign_goal() refuses that, and a bot that picked a breached room ran nowhere.
-		if(!T || (!braves_bad_air && bot.in_bad_air(T)))
+		// Nor on to a shut door or a machine: a spot is somewhere to stand, and the walk there ends on it or not at all.
+		if(!T || is_blocked_turf(T, TRUE) || (!braves_bad_air && bot.in_bad_air(T)))
 			continue
-		var/away = foe ? get_dist(T, foe) : 0
-		var/score = (radius ? min(away, radius * 1.5) * 2 : away) - get_dist(T, bot.owner) / 2
-		if(!target || score > best_score)
-			target = T
-			best_score = score
+		var/away = foe_at ? get_dist(T, foe_at) : 0
+		if(foe_at && away <= near_now)
+			continue //no further from it than where it stands is no getting away
+		spots[T] = (radius ? min(away, radius * 1.5) * 2 : away) - get_dist(T, bot.owner) / 2
+	// The best of them it has a way to by its own doors, and not by way of what it's getting away from. The places it thinks of are anywhere
+	// on the station, and the one furthest from whoever it is was as often as not somewhere its ID doesn't open (the Armory, Xenobiology,
+	// the Captain's office): no route, the run given up the moment it began, and the bot left stood beside what it meant to get away from.
+	// A third of all runs went so. The route looked at is the one the walk takes (do_repath(), bot_movement.dm: the legit pass, to the
+	// spot itself).
+	target = null
+	var/obj/item/card/id/id_card = bot.route_card()
+	var/simulated_only = !bot.can_path_through_space()
+	var/no_tailgating = !bot.is_shut_in()
+	bot.begin_reach_scope() //one look at what's out of reach does for all of them (bot_pathing_permissive.dm)
+	while(length(spots) && !target && !QDELETED(bot.owner))
+		var/turf/best = null
+		for(var/turf/spot as anything in spots)
+			if(!best || spots[spot] > best_score)
+				best = spot
+				best_score = spots[spot]
+		spots -= best
+		bot.pathing_no_tailgating = no_tailgating
+		var/list/route = bot.bot_path_to(best, /turf/proc/Distance_cardinal, /turf/proc/bot_reachable_strict, id_card, simulated_only)
+		bot.pathing_no_tailgating = FALSE
+		if(!length(route) || bot.path_crosses_bad_air(route))
+			bot_log_verbose(bot, "run_from: no way to [best] @ [bot_coord(best)]")
+			continue
+		// From somebody, a way there that goes nearer them than it stands now is running at them, to get past them to the far side.
+		var/past_it = FALSE
+		if(keep_off)
+			for(var/turf/on_the_way as anything in route)
+				if(get_dist(on_the_way, foe_at) < keep_off)
+					past_it = TRUE
+					break
+		if(past_it)
+			bot_log_verbose(bot, "run_from: the way to [best] @ [bot_coord(best)] goes by [foe]")
+			continue
+		target = best
+	bot.end_reach_scope()
+	// None of them: the furthest floor it can walk to without a door (from somebody, without going by them). The flood that found it
+	// walked there, so there's a way. In the Bot Gym a saboteur stood on the tank bomb it had just set found no spot at all, and
+	// stayed beside it.
+	if(!target && length(away_spots) && foe_at)
+		var/turf/far = away_spots[1]
+		if(get_dist(far, foe_at) > near_now && (braves_bad_air || !bot.in_bad_air(far)))
+			bot_log_verbose(bot, "run_from: none of the spots, so the furthest floor it can walk to, [far] @ [bot_coord(far)]")
+			target = far
 
 /datum/bot_goal/run_from/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/run_from/S = new
@@ -300,8 +357,8 @@
 	return list(S)
 
 /// The open floor it can walk to, without a door, that's furthest from A: a flood out from where it stands, a few hundred tiles at
-/// most, stopping at the first one out of reach of it.
-/datum/bot_brain/proc/furthest_open_floor_from(atom/A, enough)
+/// most, stopping at the first one out of reach of it. With keep_off, never by way of floor nearer A than that.
+/datum/bot_brain/proc/furthest_open_floor_from(atom/A, enough, keep_off = 0)
 	var/turf/start = get_turf(owner)
 	var/turf/from = get_turf(A)
 	if(!start || !from)
@@ -319,8 +376,10 @@
 			if(!next || seen[next] || next.density || isspaceturf(next) || is_blocked_turf(next, TRUE))
 				continue
 			seen[next] = TRUE
-			queue += next
 			var/dist = get_dist(next, from)
+			if(dist < keep_off)
+				continue //that way's by it
+			queue += next
 			if(dist > best_dist)
 				best = next
 				best_dist = dist
@@ -434,7 +493,8 @@ GLOBAL_LIST_EMPTY(bot_bomber_warned)
 	try_shoot_at(H)
 	return TRUE
 
-/// Out of the way of it until it's gone off or somebody's seen to it, a minute at most: not back past it on some errand.
+/// Out of the way of it until it's gone off or somebody's seen to it: not back past it on some errand. By the clock (do_click()): as long
+/// as a fuse can run for something counting down, twenty seconds for anything else.
 /datum/bot_step/paced/keep_clear
 	max_clicks = 60
 	var/datum/weakref/thing_ref
@@ -451,6 +511,21 @@ GLOBAL_LIST_EMPTY(bot_bomber_warned)
 /datum/bot_step/paced/keep_clear/do_click(datum/bot_brain/bot)
 	var/atom/A = thing_ref?.resolve()
 	if(QDELETED(A) || (!bot_live_explosive(A) && !bot_held_bomb(A) && world.time > started + 2 SECONDS)) //a moment for the pin to come out
+		return FALSE
+	// By the clock: a wait isn't counted as a click (next_click(), goals/tend_hydroponics.dm), so max_clicks never ended this, and a tank
+	// bomb on a dead man's switch never goes off on a clock. Everybody who saw a traitor scientist carrying one stood where they'd run to
+	// until the goal was failed for going quiet, three minutes at a time, with him at work four tiles off and walking past them. With
+	// nothing counting down there's nothing to wait out: twenty seconds, and where they were seen is kept clear of for two minutes anyway
+	// (warn_of_bomber()). A timer running is waited out: a saboteur's fuse is two minutes (sixty ticks of the timer, one every two
+	// seconds, goals/sabotage_bomb.dm), so not less than that, and short of the three the goal's failed at.
+	var/obj/item/transfer_valve/V = ishuman(A) ? bot_held_bomb(A) : A
+	var/obj/item/assembly/timer/fuse = istype(V) ? V.attached_device : null
+	var/counting_down = istype(A, /obj/item/grenade) || (istype(fuse) && fuse.timing)
+	if(world.time > started + (counting_down ? 150 SECONDS : 20 SECONDS))
+		return FALSE
+	// And they walk about with it. Back in sight and in reach of it, here isn't out of the way: this run ends, and the next look round
+	// (look_out_for_bombers()) starts another.
+	if(ishuman(A) && world.time > started + 2 SECONDS && get_dist(bot.owner, A) < BOT_BOMB_RUN_FROM && (A in view(BOT_SIGHT_RANGE, bot.owner)))
 		return FALSE
 	wait_for = 10
 	return TRUE

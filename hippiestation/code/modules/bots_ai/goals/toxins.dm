@@ -970,6 +970,11 @@ GLOBAL_DATUM(bot_toxins, /datum/bot_toxins)
 	for(var/obj/item/tank/T in list(lab.hot_tank, lab.cold_tank))
 		if(bot.is_carried(T) || (lab.valve && (T == lab.valve.tank_one || T == lab.valve.tank_two)))
 			continue
+		// At its feet will do: the valve step takes each tank up from where it lies (ready_in_hand()), one at a time. With a full bag and
+		// something in the other hand it had nowhere to put (a wrench, a bio suit), picking one tank up set the other down (make_hand_free()),
+		// this step sent it for that one, and the two changed places fifteen times a try, nine tries in a shift: no bomb.
+		if(isturf(T.loc) && bot.owner.Adjacent(T))
+			continue
 		if(isturf(T.loc) && bot.suspend_goal_for(new /datum/bot_goal/take_item/exact(T)))
 			return GOAL_STEP_PENDING
 		bot_log(bot, "TOXINS: lost [T] ([T.loc])")

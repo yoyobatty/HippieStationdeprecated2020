@@ -227,7 +227,7 @@ GLOBAL_LIST_EMPTY(bot_nanosuits)
 	return !bot.is_security_job()
 
 /datum/bot_duty/hunt_suit/try_start(datum/bot_brain/bot)
-	if(!length(GLOB.bot_security_wanted))
+	if(!length(GLOB.bot_security_wanted) || bot.badly_hurt()) //bot_fighting.dm: not out looking for one in that state
 		return FALSE
 	for(var/datum/weakref/ref as anything in GLOB.bot_security_wanted)
 		var/mob/living/carbon/human/H = ref.resolve()

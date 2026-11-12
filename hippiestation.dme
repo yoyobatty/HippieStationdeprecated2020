@@ -3634,6 +3634,7 @@
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_genetics.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_knowledge.dm"
 #include "hippiestation\code\modules\bots_ai\gym\scenarios_team.dm"
+#include "hippiestation\code\modules\bots_ai\gym\scenarios_fixes1112.dm"
 #include "hippiestation\code\modules\cargo\order_ledger.dm"
 #include "hippiestation\code\modules\cargo\packs.dm"
 #include "hippiestation\code\modules\client\asset_cache.dm"

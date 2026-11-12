@@ -481,7 +481,11 @@
 	drop_goals("running for it")
 	disengage_combat("running for it")
 	bot_say(owner, pick(";Help! [from] is trying to kill me!", ";Somebody help me, I'm being attacked!", ";I need help, [from] is after me!"))
-	assign_goal(hurt && !bot_shuttle_boarding() ? new /datum/bot_goal/seek_medbay_healing() : new /datum/bot_goal/run_from(from))
+	// Hurt, a sleeper it can walk into. Medbay's doors keep most of the crew out, and 60 of 116 runs in a 12-shift batch found none: it was
+	// left stood beside whoever it had just run from, and the next look sent it back at them (bugs1112base). With none it gets away from
+	// them all the same, if nothing's had it in the meantime (the search for a sleeper can take a moment).
+	if(!(hurt && !bot_shuttle_boarding() && assign_goal(new /datum/bot_goal/seek_medbay_healing())) && state == BOT_STATE_WANDER)
+		assign_goal(new /datum/bot_goal/run_from(from))
 	return TRUE //either way the fight's over: handle_combat() has no attacker to go on with
 
 /// Chase something, re-pathing only once it's moved off where the current path leads (same as arrests,
@@ -490,6 +494,15 @@
 	var/turf/target_turf = get_turf(target)
 	if(!target_turf)
 		return
+	// In the pool with this bot on the side short of breath, or a spot in the water it was headed for: round to the side, and a wait there
+	// (poolside_instead(), bot_items.dm)
+	var/turf/side = poolside_instead(target)
+	if(side == get_turf(owner))
+		stop_pursuit()
+		return
+	if(side)
+		target = side
+		target_turf = side
 	if(pursuing_kind == "combat" && pursue_target == target && combat_path_turf && get_dist(combat_path_turf, target_turf) <= 1)
 		return
 	combat_path_turf = target_turf
@@ -511,6 +524,8 @@
 		if(!candidate || candidate == owner_turf || candidate == target_turf)
 			continue
 		if(candidate.density || isspaceturf(candidate) || !istype(candidate, /turf/open))
+			continue
+		if(bot_steps_into_pool(owner_turf, candidate)) //not off the side into the water mid-fight: a fall, and six seconds on its back in it
 			continue
 		if(get_dist(owner_turf, candidate) > 1) //must be reachable in a single step from here
 			continue
@@ -952,11 +967,28 @@
 	// Or to a spot an emitter's firing across (bot_hazards.dm)
 	if(bot_turf_in_beam(T))
 		return FALSE
+	// Or into a cell somebody's serving time in (goals/security_patrol.dm), unless it's the cell it's in itself, so a prisoner still
+	// paces its own. An officer's ID opens the cell door with the timer running: one strolled into Cell 3 for a look round partway
+	// through a ten-minute sentence, swapped places with the janitor in there, and the janitor walked off without its things.
+	var/obj/machinery/door_timer/running_cell = active_cell_of(T)
+	if(running_cell && running_cell != active_cell_of(owner))
+		return FALSE
 	for(var/obj/structure/S in T)
+		// Nor behind plastic flaps: not dense, but nobody gets through them standing up (plasticflaps CanPass()). The kitchen cold room's
+		// one tile of warm air is the delivery chute behind its flaps, so with the freezer floor off the list below, every stroll picked in
+		// that room went there instead: a walk through the freezer to the maintenance plating outside, the way a bartender walked in,
+		// couldn't breathe and kept out of the cold room for three minutes.
+		if(istype(S, /obj/structure/plasticflaps))
+			return FALSE
 		if(!S.density)
 			continue
 		if(istype(S, /obj/structure/table) && (locate(/obj/structure/table) in get_turf(owner)))
 			continue
+		return FALSE
+	// Or into the freezer. The kitchen's cold room is somewhere to go for the meat and come straight out of (bot_cold.dm), and only on
+	// an errand: a cook who strolled in couldn't breathe, got out, and kept out of the room for three minutes after (bad_air_areas),
+	// so the next fetch for meat found no way to the cold room floor. 36 strolls in six MetaStation shifts ended that way.
+	if(turf_air_just_cold(T))
 		return FALSE
 	return TRUE
 

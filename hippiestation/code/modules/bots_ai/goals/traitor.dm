@@ -184,6 +184,11 @@
 				continue
 			telemetry_ui_action(hideout, "buy [item_name]")
 			human_pause(hideout)
+			// A hand free for it first (hand_for_purchase()): what's bought with both hands full lands at its feet. Not with too few crystals
+			// left for it, or something's put down for nothing.
+			if(U.telecrystals < I.cost || I.limited_stock == 0 || !hand_for_purchase())
+				U.locked = TRUE
+				return FALSE
 			. = U.MakePurchase(owner, I)
 			U.locked = TRUE
 			var/obj/item/at_feet = locate(item_path) in get_turf(owner) //both hands full, and that's where it lands
@@ -222,10 +227,12 @@
 	return TRUE
 
 /datum/bot_step/traitor_shop/execute(datum/bot_brain/bot)
-	if(bot.hijack_objective() && !bot.find_carried_tool(/obj/item/melee/transforming/energy/sword) && bot.buy_from_uplink(/obj/item/melee/transforming/energy/sword/saber))
+	// Not for one going in a suit: the suit is every crystal it has (20), and in it fists are the better weapon (fights_barehanded()). Two
+	// hijackers on a rampage bought the sword (8) first, "couldn't buy a nanosuit", and went for Security in their jumpsuits.
+	if(bot.hijack_objective() && !(bot.plays_robust() && bot.wants_nanosuit()) && !bot.find_carried_tool(/obj/item/melee/transforming/energy/sword) && bot.buy_from_uplink(/obj/item/melee/transforming/energy/sword/saber))
 		var/obj/item/sword = bot.find_carried_tool(/obj/item/melee/transforming/energy/sword) //a shuttle full of people to get through (goals/traitor_objectives.dm)
 		bot_log(bot, "bought [sword || "nothing"] off the uplink")
-		bot.put_away(sword)
+		bot.stash_stolen(sword) //in the bag, whatever has to come out for it: left in the hand, it's set down the next time the hand's wanted
 	if(bot.plays_robust() && bot.wants_nanosuit())
 		if(!bot.nanosuit_on() && bot.watched_by_anyone())
 			bot.traitor_shopped = FALSE //somebody's turned up: another spot, another go
@@ -236,12 +243,12 @@
 	if(!bot.find_carried_tool(/obj/item/card/emag) && bot.buy_from_uplink(/obj/item/card/emag))
 		var/obj/item/card/emag/E = bot.find_carried_tool(/obj/item/card/emag)
 		bot_log(bot, "bought [E || "nothing"] off the uplink")
-		bot.put_away(E)
+		bot.stash_stolen(E)
 	// A hit list is quiet work: a pistol for the target, no suit for the whole station to hear about
 	if(bot.plays_robust() && !bot.find_carried_tool(/obj/item/gun/ballistic/automatic/pistol) && bot.buy_from_uplink(/obj/item/gun/ballistic/automatic/pistol))
 		var/obj/item/gun/P = bot.find_carried_tool(/obj/item/gun/ballistic/automatic/pistol)
 		bot_log(bot, "bought [P || "nothing"] off the uplink")
-		bot.put_away(P)
+		bot.stash_stolen(P)
 	return GOAL_STEP_SUCCESS
 
 /datum/bot_brain
@@ -289,7 +296,7 @@
 	if(!E || !istype(C) || !bot.owner.Adjacent(C))
 		return GOAL_STEP_FAIL
 	bot.use_item_on(E, C, harm = TRUE) //on help intent a locker only reads it as a card it doesn't know
-	bot.put_away(E)
+	bot.stash_stolen(E) //not left in the hand for the loot to be picked up beside, and set down the next time a hand's wanted
 	return C.locked ? GOAL_STEP_FAIL : GOAL_STEP_SUCCESS
 
 /// A display case, which takes no card. It goes off when it breaks, so it's done quickly, with the sword if there is one.
@@ -377,11 +384,42 @@
 /datum/bot_brain/proc/keeps_in_bag(obj/item/I)
 	if(istype(I, /obj/item/card/emag) || istype(I, /obj/item/melee/transforming/energy/sword) || istype(I, /obj/item/tank) || istype(I, /obj/item/storage/box/survival) || I.GetComponent(/datum/component/uplink))
 		return TRUE
+	// Nor what it fights with: room is made in the bag at every door it swipes now (swipe_door()), and an operative's bag is its
+	// magazines and grenades.
+	if(istype(I, /obj/item/gun) || istype(I, /obj/item/ammo_box) || istype(I, /obj/item/grenade))
+		return TRUE
 	var/datum/antagonist/traitor/T = owner.mind?.has_antag_datum(/datum/antagonist/traitor) || null //it's 0 for anybody else, and 0?.objectives throws
 	for(var/datum/objective/steal/S in T?.objectives)
-		if(S.steal_target && istype(I, S.steal_target))
+		if(S.steal_target && (istype(I, S.steal_target) || (length(I.contents) && (locate(S.steal_target) in I.GetAllContents())))) //the thing, or the box it's in (the medal's)
 			return TRUE
 	return FALSE
+
+/// Its card, its sword and what it's stolen (or the box that's in): what a traitor doesn't put on the floor to free a hand.
+/datum/bot_brain/proc/traitor_keeps_hold_of(obj/item/I)
+	if(istype(I, /obj/item/card/emag) || istype(I, /obj/item/melee/transforming/energy/sword))
+		return TRUE
+	var/datum/antagonist/traitor/T = owner.mind?.has_antag_datum(/datum/antagonist/traitor) || null //it's 0 for anybody else, and 0?.objectives throws
+	for(var/datum/objective/steal/S in T?.objectives)
+		if(S.steal_target && (istype(I, S.steal_target) || (length(I.contents) && (locate(S.steal_target) in I.GetAllContents()))))
+			return TRUE
+	return FALSE
+
+/// A hand free for what's about to come off the uplink: what's bought with both hands full lands at its feet. Its card, its sword and its
+/// loot go in the bag (stash_stolen()), a gun or a weapon is put away if there's room and stays in the hand if not, and anything else is
+/// put away or set down for a moment (and gone back for, go_back_for_set_down()). A cook with a boiled egg in one hand and its emag in
+/// the other left an energy sword on the floor where it bought it and went for its target with its fists; another set down the medal box
+/// it had just stolen to pick the sword up, and walked off without it. FALSE if there's no freeing a hand without putting its kit down.
+/datum/bot_brain/proc/hand_for_purchase()
+	for(var/obj/item/held in owner.held_items)
+		if(hand_free_for_pickup())
+			return TRUE
+		if(traitor_keeps_hold_of(held))
+			stash_stolen(held)
+		else if(bot_keeps_in_hand(held)) //bot_items.dm: never set down to free a hand
+			put_away(held)
+		else if(!put_away(held, allow_equip = FALSE))
+			set_down(held) //bot_items.dm
+	return hand_free_for_pickup()
 
 /// Into the bag. A bag a bot's had all shift is full of what it found on its rounds, and something stolen and left in the hand got
 /// set down the first time the hand was wanted: two traitors took the blueprints and finished the round with nothing to show for it.
@@ -390,6 +428,11 @@
 		return
 	var/obj/item/storage/bag = owner.get_item_by_slot(ITEM_SLOT_BACK)
 	if(!istype(bag))
+		return
+	// Not for what the bag won't take however much comes out of it: every bit of junk would come out on to the floor, a size at a time,
+	// and it still wouldn't go in. A lit sword at a door it swipes (swipe_door()) is one, an operative's rifle another.
+	var/datum/component/storage/STR = bag.GetComponent(/datum/component/storage)
+	if(!STR || (I.w_class > STR.max_w_class && !is_type_in_typecache(I, STR.exception_hold)) || is_type_in_typecache(I, STR.cant_hold) || (length(STR.can_hold) && !is_type_in_typecache(I, STR.can_hold)))
 		return
 	for(var/size in WEIGHT_CLASS_GIGANTIC to WEIGHT_CLASS_TINY step -1)
 		for(var/obj/item/junk in bag)
@@ -494,7 +537,7 @@
 	if(sword.active)
 		toggle_in_hand(sword)
 	if(sword in owner.held_items)
-		put_away(sword)
+		stash_stolen(sword) //off, it fits the bag: something else comes out for it, rather than the sword staying in the hand
 
 /// A sword on it, off the uplink if it hasn't got one. A traitor with no uplink (or the crystals gone) goes without.
 /datum/bot_step/traitor_arm/execute(datum/bot_brain/bot)
@@ -504,7 +547,7 @@
 		G.sword = bot.find_carried_tool(/obj/item/melee/transforming/energy/sword)
 		bot_log(bot, "bought [G.sword || "nothing"] off the uplink")
 	if(G.sword && (G.sword in bot.owner.held_items))
-		bot.put_away(G.sword) //not walked about with in the open
+		bot.stash_stolen(G.sword) //not walked about with in the open, and not set down at the first door for want of a hand
 	return GOAL_STEP_SUCCESS
 
 /// How many people it'll do this in front of. Nobody, to start with. A round runs out, though, and so does its patience.

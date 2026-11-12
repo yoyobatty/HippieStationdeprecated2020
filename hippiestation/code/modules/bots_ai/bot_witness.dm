@@ -240,6 +240,13 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 	else if(world.time >= next_reaction_time)
 		next_reaction_time = world.time + 30
 		bot_say(owner, pick(GLOB.bot_saw_attack_lines))
+	// Badly hurt itself (bot_fighting.dm): it's called it in, and it gets clear of it, whoever's doing it. A Chief Engineer at 21 health ran
+	// from a nanosuit shouting for help and was back at it a tenth of a second later, stepping in (bugs1112base run8). On its way out or to
+	// a sleeper already, it keeps going; in a sleeper, it stays.
+	if(badly_hurt())
+		if(isturf(owner.loc) && get_dist(owner, assailant) <= 5 && !istype(current_goal, /datum/bot_goal/run_from) && !istype(current_goal, /datum/bot_goal/seek_medbay_healing))
+			run_from(assailant, "badly hurt, and somebody's getting hurt in here")
+		return
 	// A nanosuit: anybody, any time, whatever their nerve and however many are on it already (goals/fight_the_suit.dm)
 	if(bot_suit_to_fight(assailant) && takes_on_suits(assailant))
 		take_on_the_suit(assailant)
@@ -356,7 +363,11 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 				next_sighting_call = world.time + 1 MINUTES
 				var/who = H.name == "Unknown" ? "Somebody" : H.name //the helmet hides the face
 				bot_say(owner, ";[who]'s here in a Syndicate suit, [get_area_name(owner, TRUE)]!")
-			take_on_the_suit(H)
+			// Badly hurt (bot_fighting.dm): it's called it in, and leaves it to the others. Close by, it gets clear.
+			if(!badly_hurt())
+				take_on_the_suit(H)
+			else if(isturf(owner.loc) && get_dist(owner, H) <= 4 && state != BOT_STATE_GOAL)
+				run_from(H, "badly hurt, and [H] is right here")
 			return
 		var/datum/bot_wanted/W = bot_get_wanted_entry(H)
 		if(!W || W.severity < BOT_CRIME_MAJOR || is_in_active_cell(H))
@@ -367,7 +378,7 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 			if(prob(50))
 				bot_say(owner, ";[H.name] is here, in [get_area_name(owner, TRUE)]! Security!")
 		// Somebody who's hurt people, that is: a doctor went for the user for having been seen with a sword, before they'd hurt anybody
-		if(nerve >= 0.7 && has_a_weapon() && GLOB.bot_chaos_level >= 1 && bot_crime_is_violent(W.crime) && bot_fighters_against(H) < BOT_DOGPILE_LIMIT)
+		if(nerve >= 0.7 && !badly_hurt() && has_a_weapon() && GLOB.bot_chaos_level >= 1 && bot_crime_is_violent(W.crime) && bot_fighters_against(H) < BOT_DOGPILE_LIMIT)
 			bot_say(owner, pick("It's you!", "That's the one!", "Get them!"))
 			step_in_against(H)
 		else if(nerve < 0.5 && get_dist(owner, H) <= 4 && state != BOT_STATE_GOAL)

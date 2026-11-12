@@ -85,6 +85,14 @@ GLOBAL_LIST_INIT(bot_cook_menu, init_bot_cook_menu())
 /datum/bot_brain/proc/kitchen_usable(atom/A)
 	return in_kitchen(A) && !(LAZYACCESS(kitchen_blocked, A) > world.time)
 
+/// What's the kitchen's, to its cook: the dishes it has set out for the crew, the ingredients, the milk, the salt and pepper. Not
+/// something to pocket on a stroll (find_item_goal(), bot_items.dm). In twelve shifts cooks took their own dishes back off the counter
+/// 82 times, often within a second of setting them out, so the crew couldn't have them and the counter count fell and it cooked again
+/// for its own pockets; the kitchen's milk, condiments and drinks went the same way another hundred times. A hungry cook still eats
+/// there (have_meal).
+/datum/bot_brain/proc/is_kitchen_stock(obj/item/I)
+	return is_cook_job() && istype(I, /obj/item/reagent_containers/food) && in_kitchen(I)
+
 // ---------------------------------------------------------------------------------------------
 // Finding things in the kitchen
 // ---------------------------------------------------------------------------------------------
@@ -283,6 +291,12 @@ GLOBAL_LIST_INIT(bot_cook_menu, init_bot_cook_menu())
 	if(fetches < 6)
 		var/atom/source = bot.find_ingredient_source(G.recipe.ingredient)
 		if(source)
+			// One or two make a batch when that's all it has somewhere for (has_room_for(), goals/tend_hydroponics.dm: a free hand, or room
+			// in the bag). Going for a third with its hands and bag full meant setting the last one down to pick the next one up: a cook
+			// swapped the same two ears of corn at its feet five times running.
+			var/obj/item/next_one = isitem(source) ? source : (locate(G.recipe.ingredient) in source)
+			if(have && next_one && !bot.has_room_for(next_one))
+				return GOAL_STEP_SUCCESS
 			fetches++
 			if(bot.suspend_goal_for(new /datum/bot_goal/fetch_ingredient(G.recipe.ingredient, source)))
 				return GOAL_STEP_PENDING
@@ -332,10 +346,15 @@ GLOBAL_LIST_INIT(bot_cook_menu, init_bot_cook_menu())
 			bot.human_pause(fridge)
 			if(QDELETED(fridge) || QDELETED(I) || I.loc != fridge || !bot.owner.Adjacent(fridge))
 				break
+			// A hand for it before the button's pressed. With both full and no room in the bag, put_in_hands() tips what the fridge lets go of
+			// onto the floor and says no: 55 of the 57 trips to the smartfridge given up in a batch of shifts were that, and each one wrote
+			// the fridge off for three minutes. The first one gets a hand whatever that takes (make_hand_free(), goals/take_item.dm: what's
+			// in it goes down for a moment, as it does for an ingredient off the floor); after that, only as many as there's somewhere for.
+			if(taken && !bot.has_room_for(I))
+				break
+			bot.make_hand_free()
 			bot.owner.face_atom(fridge)
 			bot.telemetry_ui_action(fridge, "release [I.name]")
-			if(bot.owner.get_active_held_item() && bot.owner.get_inactive_held_item())
-				bot.put_away(bot.owner.get_active_held_item(), allow_equip = FALSE)
 			if(!bot.owner.put_in_hands(I))
 				break
 			fridge.update_icon()
@@ -469,15 +488,31 @@ GLOBAL_LIST_INIT(bot_cook_menu, init_bot_cook_menu())
 	var/datum/bot_goal/cook_dish/G = bot.current_goal
 	if(!istype(G) || QDELETED(G.counter))
 		return FALSE
-	for(var/obj/item/dish in G.dishes)
-		G.dishes -= dish
-		if(QDELETED(dish) || !bot.is_carried(dish))
-			continue
-		if(bot.use_tool_on(dish, G.counter) && !bot.is_carried(dish))
-			served++
-			bot.dishes_served++
-		return TRUE
-	return FALSE
+	var/obj/item/dish = next_dish(bot, G.dishes)
+	if(!dish)
+		return FALSE
+	G.dishes -= dish
+	if(bot.use_tool_on(dish, G.counter) && !bot.is_carried(dish))
+		served++
+		bot.dishes_served++
+	return TRUE
+
+/// The next dish to put out: one in its hands, then one in its bag, then one it set down for a moment within reach. The hands come first,
+/// the way the ingredients went into the machine (carried_ingredients() lists the hands before the bag). Bag first, a plate drawn out of
+/// it with one in each hand set those two down at its feet to free a hand (ready_in_hand() -> free_hand_for()), and they were skipped as
+/// no longer carried: a batch of three went out as one plate, and the cook went back for the other two and kept them (16 serves in 12
+/// shifts). Last, one it set down beside a machine that stands by the counter, with nowhere to put the plate before it.
+/datum/bot_step/paced/serve_dishes/proc/next_dish(datum/bot_brain/bot, list/dishes)
+	for(var/obj/item/D in dishes)
+		if(!QDELETED(D) && (D in bot.owner.held_items))
+			return D
+	for(var/obj/item/D in dishes)
+		if(!QDELETED(D) && bot.is_carried(D))
+			return D
+	for(var/obj/item/D in dishes)
+		if(!QDELETED(D) && isturf(D.loc) && bot.owner.Adjacent(D))
+			return D
+	return null
 
 /datum/bot_step/paced/serve_dishes/finish(datum/bot_brain/bot)
 	var/datum/bot_goal/cook_dish/G = bot.current_goal

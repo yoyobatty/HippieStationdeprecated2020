@@ -101,11 +101,25 @@ GLOBAL_LIST_EMPTY(bot_field_generator_turfs)
 /proc/bot_steps_into_pool(turf/from, turf/T)
 	return istype(T, /turf/open/pool) && !istype(from, /turf/open/pool)
 
-/// Making an arrest or in a fight: in after them, taking the fall into the water like anybody does (pool_main.dm Entered()). Anybody in
-/// the pool used to be out of Security's reach (the user, 2026-11-04).
+/// Making an arrest or in a fight: in after them, lowered into the water off the side (do_step_next_node(), bot_movement.dm). Anybody in
+/// the pool used to be out of Security's reach (the user, 2026-11-04). Only after somebody who's in the water themselves, though: any chase
+/// used to be let through it, and two officers after a man stood on the poolside were routed across a corner of it on a tie with the dry
+/// way round, fell in, climbed out, were walked back in, and drowned (bugs1112base run1).
 /proc/bot_may_jump_in(mob/living/carbon/human/H)
 	var/datum/bot_brain/B = istype(H) ? H.bot_brain : null
-	return B && (B.pursuing_kind == "arrest" || B.pursuing_kind == "combat")
+	if(!B || (B.pursuing_kind != "arrest" && B.pursuing_kind != "combat"))
+		return FALSE
+	var/mob/living/quarry = B.pursue_target
+	if(!istype(quarry) || !istype(get_turf(quarry), /turf/open/pool))
+		return FALSE
+	// In the water already, it wades on; from dry floor, only with the breath to spare
+	return istype(H.loc, /turf/open/pool) || bot_breath_for_the_pool(H)
+
+/// Breath enough to go into the pool after somebody. A fall into it cost 33 and 39 of suffocation in a shift (a mouthful of water, then 4 a
+/// tick on its back under it: pool_main.dm Entered(), pool_controller.dm), and past 50 it's out cold under the water, 9 a tick. A healthy
+/// breath takes 5 off every 8 seconds or so.
+/proc/bot_breath_for_the_pool(mob/living/carbon/human/H)
+	return H.getOxyLoss() < 10
 
 /// Lava and chasms are floor as far as the engine's route check goes. With a walkway or stepping stones over them, they are.
 /proc/bot_turf_is_deadly(turf/T)
@@ -418,7 +432,7 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 
 /// reach_key() without where it starts from.
 /datum/bot_brain/proc/reach_rules(adjacent, obj/item/card/id/id_card, simulated_only)
-	return "[adjacent]|[REF(id_card)]|[simulated_only]|[pathing_allow_climb]|[pathing_climb_only]|[pathing_no_tailgating]|[pathing_allow_smash_tables]|[pathing_assume_welder]|[pathing_assume_nearby_weapons]|[get_urgency()]|[pathing_emag ? 1 : 0]|[bot_may_jump_in(owner) ? 1 : 0]|[shut_in_result ? 1 : 0]|[length(vacuum_doors)]"
+	return "[adjacent]|[REF(id_card)]|[simulated_only]|[pathing_allow_climb]|[pathing_climb_only]|[pathing_no_tailgating]|[pathing_allow_smash_tables]|[pathing_assume_welder]|[pathing_assume_nearby_weapons]|[get_urgency()]|[pathing_emag ? 1 : 0]|[bot_may_jump_in(owner) ? 1 : 0]|[shut_in_result ? 1 : 0]|[length(vacuum_doors)]|[let_in_door_now()]" //a door just opened for it (bot_doors.dm) is other rules: a region from before it opened says there's no way in
 
 // A whole region, kept a little while. A failed search that wasn't cut short has visited everything reachable from where it began, and
 // from anywhere inside that, nothing outside it is reachable either: whatever such a tile reaches, the first one reached through it. So

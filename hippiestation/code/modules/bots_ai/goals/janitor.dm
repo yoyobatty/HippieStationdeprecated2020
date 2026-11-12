@@ -36,8 +36,8 @@
 /datum/bot_brain/proc/is_janitor_job()
 	return work_role() == "Janitor"
 
-/datum/bot_brain/proc/janitor_in_reach(atom/A)
-	if(!A || QDELETED(A) || A.z != owner.z || get_dist(owner, A) > BOT_JANITOR_REACH)
+/datum/bot_brain/proc/janitor_in_reach(atom/A, atom/from)
+	if(!A || QDELETED(A) || A.z != owner.z || get_dist(from || owner, A) > BOT_JANITOR_REACH)
 		return FALSE
 	return !gym_run || get_area(A) == get_area(owner) //a Bot Gym bot only sees to its own arena
 
@@ -165,16 +165,19 @@
 /// is back in the closet, wherever on the station the bucket ran dry.
 /// The nearest it can get to: the nearest as the crow flies was often behind a door a janitor's ID doesn't open (the Captain's sink,
 /// the kitchen's), and every mop job on the way failed with it, about seventy in twelve shifts.
-/datum/bot_brain/proc/find_janitor_water()
+/datum/bot_brain/proc/find_janitor_water(atom/near)
+	// From where the bucket is, while that's still to be fetched (janitor_has_water()): it's filled there, on the way to the mess.
+	if(!near)
+		near = owner
 	var/list/by_dist = list()
 	for(var/obj/structure/reagent_dispensers/watertank/T as anything in bot_instances_of(/obj/structure/reagent_dispensers/watertank))
-		if(!janitor_in_reach(T) || T.reagents?.get_reagent_amount(/datum/reagent/water) < 20 || LAZYACCESS(janitor_blocked, T) > world.time)
+		if(!janitor_in_reach(T, near) || T.reagents?.get_reagent_amount(/datum/reagent/water) < 20 || LAZYACCESS(janitor_blocked, T) > world.time)
 			continue
-		by_dist[T] = get_dist(owner, T)
+		by_dist[T] = get_dist(near, T)
 	for(var/obj/structure/sink/S as anything in bot_instances_of(/obj/structure/sink))
-		if(!janitor_in_reach(S) || S.dispensedreagent != /datum/reagent/water || LAZYACCESS(janitor_blocked, S) > world.time)
+		if(!janitor_in_reach(S, near) || S.dispensedreagent != /datum/reagent/water || LAZYACCESS(janitor_blocked, S) > world.time)
 			continue
-		by_dist[S] = get_dist(owner, S)
+		by_dist[S] = get_dist(near, S)
 	sortTim(by_dist, GLOBAL_PROC_REF(cmp_numeric_asc), TRUE)
 	var/tries = 0
 	for(var/atom/A as anything in by_dist)
@@ -309,9 +312,43 @@
 		bot_log(bot, "nowhere to get a [key]")
 		return GOAL_STEP_FAIL
 	tried += key
-	if(bot.suspend_goal_for(new /datum/bot_goal/take_item(item_type))) //goals/take_item.dm - into a hand, never onto the head
+	// The one there's a way to, not the nearest (janitor_kit_to_fetch()): into a hand, never onto the head (goals/take_item.dm)
+	var/obj/item/kit = bot.janitor_kit_to_fetch(item_type)
+	if(!kit)
+		bot_log(bot, "no [key] there's a way to")
+		return GOAL_STEP_FAIL
+	var/datum/bot_goal/take_item/exact/get = new(kit) //goals/robotics.dm
+	get.doing = "getting the [key]"
+	if(bot.suspend_goal_for(get))
 		return GOAL_STEP_PENDING
 	return GOAL_STEP_FAIL
+
+/// The nearest loose mop or bucket it knows of that there's a way to, from wherever on the station it's standing: the one a fetch goes
+/// for. The nearest as the crow flies (find_loose_item()) was as often as not behind a door a janitor's ID doesn't open (Meta's spare
+/// mop in Port Bow Maintenance, a bucket in somebody's department), and that was "no way to the mop" or "no bucket it can get to" for
+/// three minutes, with its own in the Custodial Closet a little further off. A janitor stood at its JaniDrobe three times, two tiles
+/// from both, and mopped its first tile fourteen minutes in. Past sixty tiles they weren't looked at either: Meta's closet is a
+/// hundred from Arrivals. Six tries, not four: from the starboard side of Hippie three Hydroponics buckets come before the Service Hall's,
+/// so one more seen through the window would leave it none (a failed search is a remembered region: the extra tries cost little).
+/datum/bot_brain/proc/janitor_kit_to_fetch(item_type)
+	glance_at_items()
+	var/list/by_dist = list()
+	for(var/obj/item/I as anything in bot_instances_of(item_type))
+		if(QDELETED(I) || !isturf(I.loc) || I.anchored || I.z != owner.z || on_a_shuttle_without_me(I) || !knows_of(I))
+			continue
+		if(gym_run && get_area(I) != get_area(owner))
+			continue
+		by_dist[I] = get_dist(owner, I)
+	sortTim(by_dist, GLOBAL_PROC_REF(cmp_numeric_asc), TRUE)
+	var/tries = 0
+	for(var/obj/item/I as anything in by_dist)
+		if(QDELETED(I) || !isturf(I.loc))
+			continue
+		if(can_walk_lawfully_to(I))
+			return I
+		if(++tries >= 6)
+			break
+	return null
 
 /// Of the buckets it's carrying, the one with the most in it. A janitor with two filled one at the tap (the first it came to in its
 /// things, fill_bucket) and looked in the other for the water (the first in its hands or bag): "no water for the mop bucket" 27 times
@@ -323,16 +360,16 @@
 			best = B
 	return best
 
-/// A mop lying about that it can walk to: the one the fetch would go for (take_item(), the nearest). The station has one, and it was
-/// as often as not in the Brig or behind a maintenance door: a janitor took up each mess, set off for the mop, found no way there,
-/// and gave the mess up, 40 times in twelve shifts.
+/// A mop lying about that it can walk to: the one the fetch would go for (janitor_kit_to_fetch(), the nearest there's a way to). The
+/// station has one, and it was as often as not in the Brig or behind a maintenance door: a janitor took up each mess, set off for the
+/// mop, found no way there, and gave the mess up, 40 times in twelve shifts.
 /datum/bot_brain/proc/janitor_can_get_mop()
 	if(world.time < janitor_no_mop_until)
 		return FALSE
-	var/obj/item/mop/M = find_loose_item(/obj/item/mop)
-	if(M && can_walk_lawfully_to(M))
+	if(janitor_kit_to_fetch(/obj/item/mop))
 		return TRUE
 	janitor_no_mop_until = world.time + 3 MINUTES
+	var/obj/item/mop/M = find_loose_item(/obj/item/mop, 255) //only to say where the nearest is
 	if(M)
 		bot_log(src, "no way to the mop in [get_area_name(M, TRUE)]")
 	return FALSE
@@ -345,18 +382,20 @@
 		return TRUE
 	var/obj/item/reagent_containers/glass/bucket/bucket = fullest_carried_bucket()
 	if(!bucket) //the one it would fetch (prepare_to_mop), if it can get to it: "nowhere to get a bucket" was 14 messes given up
-		bucket = find_loose_item(/obj/item/reagent_containers/glass/bucket)
-		if(bucket && !can_walk_lawfully_to(bucket))
-			bucket = null
-			if(world.time >= janitor_dry_until)
-				janitor_dry_until = world.time + 3 MINUTES
-				bot_log(src, "no bucket it can get to")
+		if(world.time < janitor_dry_until)
+			return FALSE
+		bucket = janitor_kit_to_fetch(/obj/item/reagent_containers/glass/bucket)
+		if(!bucket)
+			janitor_dry_until = world.time + 3 MINUTES
+			bot_log(src, "no bucket it can get to")
 			return FALSE
 	if(bucket?.reagents.total_volume >= 5)
 		return TRUE
 	if(world.time < janitor_dry_until)
 		return FALSE
-	if(find_janitor_water())
+	// Near the bucket, if that's still where it's kept. From wherever the janitor happened to be, the five nearest taps were the bar's
+	// and the kitchen's, behind their doors, and the tap by the bucket never got a look.
+	if(find_janitor_water(isturf(bucket.loc) ? bucket : null))
 		return TRUE
 	janitor_dry_until = world.time + 3 MINUTES
 	bot_log(src, "no water to be had for the mop")

@@ -211,8 +211,51 @@ GLOBAL_LIST_EMPTY(bot_door_buttons_out_of_reach)
 			continue //the other side of the door, or too far off to be this door's
 		if(!B.allowed(owner))
 			continue
+		if(!bot_button_in_plain_reach(B, from))
+			continue //behind a desk or in a post of its own: that one's for whoever's on duty there to let people in with
 		return B
 	return null
+
+/// Whether somebody stood on `from` can walk up to B and reach it: open floor to a tile beside it, a few steps off, with no door, desk or
+/// window to get past. An exit button is on the wall by its door. MetaStation's Medbay Doors Controls are behind the reception desk and
+/// in the Security post beside it, and its Research Exterior Airlock button is on the desk in Science's post: on the visitor's side of
+/// the door, where no visitor can get to them. Routes were planned through those doors on the strength of them (an assistant's stroll
+/// into Medbay among them), the walk to the button found no way there, and the errand was given up with it: 57 times in six MetaStation
+/// shifts (Bot Shift bugs1112base), each failure remembered a quarter of an hour and then made again. A door is in the way open or
+/// shut: one somebody happened to be walking through when this was asked would make the button reachable for the minute it's kept.
+/proc/bot_button_in_plain_reach(obj/machinery/button/door/B, turf/from)
+	var/static/list/known = list() //"button|its tile|from" -> list(the answer, until when it stands): text keys, so a deleted button isn't held
+	var/turf/at = get_turf(B)
+	if(!at || !from)
+		return FALSE
+	var/key = "[REF(B)]|[REF(at)]|[REF(from)]"
+	var/list/kept = known[key]
+	if(kept && kept[2] > world.time)
+		return kept[1]
+	var/found = FALSE
+	var/list/seen = list()
+	seen[from] = TRUE
+	var/list/queue = list(from)
+	var/next_up = 1
+	while(next_up <= length(queue))
+		var/turf/T = queue[next_up++]
+		if(T.Adjacent(B, B)) //as a hand reaches it (adjacent.dm): not round the corner of a wall
+			found = TRUE
+			break
+		for(var/d in GLOB.cardinals)
+			var/turf/beside = get_step(T, d)
+			if(!beside || seen[beside])
+				continue
+			seen[beside] = TRUE
+			if(get_dist(beside, from) > 6 || !isopenturf(beside) || is_blocked_turf(beside, TRUE))
+				continue
+			if((locate(/obj/machinery/door/airlock) in beside) || (locate(/obj/machinery/door/window) in beside))
+				continue
+			queue += beside
+	if(length(known) > 400)
+		known.Cut()
+	known[key] = list(found, world.time + 1 MINUTES)
+	return found
 
 /// A shut airlock this bot's ID doesn't open counts as a way through all the same when there's a button for it on
 /// the side the bot is coming from. `to_dir` is the way back from the door towards whoever is asking.
@@ -235,7 +278,7 @@ GLOBAL_LIST_EMPTY(bot_door_buttons_out_of_reach)
 		// Stood open, and not one this bot's ID opens: no following somebody in (pathing_no_tailgating). The doors it
 		// has just opened itself are another matter - that's what the button was for. This was missing, so nobody
 		// without Medbay access could walk through the Medbay doors they'd opened with the exit button: 1 try in 9 got out.
-		if(!density && H.bot_brain.pathing_no_tailgating && !emergency && !unres_sides && requiresID() && !check_access(ID) && !H.bot_brain.pressed_button_for(src))
+		if(!density && H.bot_brain.pathing_no_tailgating && !emergency && !unres_sides && requiresID() && !check_access(ID) && !H.bot_brain.pressed_button_for(src) && !H.bot_brain.let_in_through(src))
 			return FALSE
 		return
 	if(!id_tag || welded || !to_dir || !hasPower())
@@ -264,18 +307,55 @@ GLOBAL_LIST_EMPTY(bot_door_buttons_out_of_reach)
 	return current_goal?.breaks_in ? find_carried_tool(/obj/item/card/emag) : null
 
 /// At a door that doesn't open for it. TRUE if the card's gone through it: the door breaks, opens, and stays that way.
-/datum/bot_brain/proc/swipe_door(obj/machinery/door/airlock/A)
+/datum/bot_brain/proc/swipe_door(obj/machinery/door/A) //an airlock, or a windoor: the card does for both (emag_act())
 	var/obj/item/card/emag/E = emag_for_doors()
-	if(!E || !istype(A) || A.welded || !A.hasPower() || (A.obj_flags & EMAGGED) || (istype(A, /obj/machinery/door/airlock/external) && !op_team))
+	if(!E || !(istype(A, /obj/machinery/door/airlock) || istype(A, /obj/machinery/door/window)) || A.welded || !A.hasPower() || (A.obj_flags & EMAGGED) || (istype(A, /obj/machinery/door/airlock/external) && !op_team))
 		return FALSE
 	bot_log(src, "[A] doesn't open for me - swiping [E] at it")
+	// Its sword and what it's stolen go in the bag before a hand is found for the card, and whatever had to be set down for it all the same
+	// (free_hand_for()) is picked back up before it goes on, as after a hack (try_hack_door()). A traitor on its way to its target set the
+	// energy sword it had just bought down at the first door it swiped, walked on, and punched a Security Officer.
+	for(var/obj/item/held in owner.held_items)
+		if(held != E && traitor_keeps_hold_of(held)) //goals/traitor.dm
+			stash_stolen(held)
 	use_item_on(E, A)
-	put_away(E)
+	stash_stolen(E)
+	recover_set_down_items() //bot_items.dm
 	return TRUE
+
+/// A windoor takes the card as an airlock does (emag_act(), windowdoor.dm): it sparks, opens and stays open. So for a route planned by a bot
+/// with an emag, one its ID doesn't open is a way through all the same. The Captain's desk on MetaStation is a row of glass with two windoors
+/// in it, between the office door and the quarters behind: a traitor after the jetpack in the suit storage unit there had the card for both
+/// airlocks and found "no path" 14 times in a batch. `to_dir` is the way back from the windoor's tile towards whoever is asking.
+/obj/machinery/door/window/CanAStarPass(obj/item/card/id/ID, to_dir, caller)
+	. = ..()
+	var/mob/living/carbon/human/H = caller
+	if(. || !istype(H) || !H.bot_brain || !H.bot_brain.pathing_emag || H.bot_brain.measuring_shut_in)
+		return
+	return hasPower() && !(obj_flags & EMAGGED)
 
 /// Whether this bot has just pressed the button that works this door.
 /datum/bot_brain/proc/pressed_button_for(obj/machinery/door/airlock/door)
 	return door_button_id && door.id_tag == door_button_id && world.time < door_button_pressed_at + 10 SECONDS
+
+/datum/bot_brain
+	/// A door somebody on the other side has just opened for it after it asked to be let in (ask_let_in, bot_requests.dm), as REF()
+	var/let_in_door
+	/// Until when that door is its way through
+	var/let_in_until = 0
+
+/// That door, while it's still its way in: on the call it asked at the door for, and not long after. A stroll or an errand afterwards
+/// keeps to the doors its own ID opens, as before (pathing_no_tailgating): nobody follows somebody into a room they can't get back out
+/// of. Null otherwise. In reach_rules() too (bot_pathing_permissive.dm): a search from before the door opened said there was no way in.
+/datum/bot_brain/proc/let_in_door_now()
+	if(let_in_door && world.time < let_in_until && istype(current_goal, /datum/bot_goal/answer_call))
+		return let_in_door
+	return null
+
+/// Whether this door was just opened for this bot by somebody on the other side: through it, like the doors it opens by a button.
+/datum/bot_brain/proc/let_in_through(obj/machinery/door/airlock/door)
+	var/held = let_in_door_now()
+	return held && held == REF(door)
 
 /// Presses a door's button, the one click.
 /datum/bot_brain/proc/press_door_button(obj/machinery/button/door/B)
@@ -292,6 +372,11 @@ GLOBAL_LIST_EMPTY(bot_door_buttons_out_of_reach)
 	if(!. || !to_dir || !istype(H) || !H.bot_brain?.pathing_no_tailgating)
 		return
 	var/turf/far_side = get_step(src, turn(to_dir, 180))
+	// Another door shut straight beyond this one (a docked shuttle's own airlock): its tile is a doorway sharing air with one side at most
+	// (door_seals.dm), and the room the bot would walk into is the tile past it. A supply shuttle's airlock tile came in empty with good air
+	// in the cabin, and no cargo technician would walk aboard: "no path to the shuttle floor".
+	if(far_side?.seal_shut())
+		far_side = get_step(far_side, turn(to_dir, 180))
 	if((is_mining_level(z) || bot_aboard_mining_shuttle(H)) && H.bot_brain.ready_for_lavaland())
 		return //no vacuum outside this one, just thin air and a mask and a tank do for that (goals/mining.dm), or it's the way off the shuttle
 	if(!H.bot_brain.turf_air_is_breathable(far_side) && !H.bot_brain.is_space_protected_without_boots())

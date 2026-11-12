@@ -307,7 +307,10 @@
 	// Trying every candidate through the real no-climb pathfind (not just the nearest
 	// one) before ever considering climbing fixes that: climbing stays the true last
 	// resort, not just what happened to be geometrically closest.
-	var/list/adjacent_candidates = adjacent_turf_candidates(destination)
+	// A mob is reached from where the game lets a hand reach it (Adjacent()), not from any tile beside it: the cow behind its pen's border
+	// windows and Ian sat on the HoP's desk windoor were walked up to on the glass side, and the petting failed there every time.
+	var/atom/movable/reach_mob = (isliving(pursue_target) && isturf(pursue_target.loc)) ? pursue_target : null
+	var/list/adjacent_candidates = adjacent_turf_candidates(destination, reach_mob)
 	bot_log_verbose(src, "adjacent fallback candidates: [adjacent_candidates.len ? english_list(adjacent_candidates) : "none"]")
 
 	var/atom/my_target = pursue_target
@@ -396,7 +399,8 @@
 // genuinely open candidate, even though the turf itself isn't dense) and a plain
 // distance sort, so this is effectively free to call. See do_repath()'s comment for why
 // every candidate gets tried instead of just the nearest.
-/datum/bot_brain/proc/adjacent_turf_candidates(turf/dest)
+/// With reach (a mob on dest), only the tiles it could be reached from by hand: not across a border window or a shut windoor.
+/datum/bot_brain/proc/adjacent_turf_candidates(turf/dest, atom/movable/reach)
 	var/list/candidates = list()
 	var/list/dists = list()
 	// The four straight neighbours, and only with none of those to stand on, the corners it can be reached from (the game's own
@@ -429,6 +433,8 @@
 			if(blocked)
 				continue
 			if(corners && !dest.Adjacent(neighbor))
+				continue
+			if(reach && !neighbor.Adjacent(reach, reach, owner)) //stood here, as the bot would reach for it
 				continue
 			var/d2 = get_dist(owner, neighbor)
 			var/insert_at = candidates.len + 1
@@ -634,12 +640,44 @@
 			coming_through(in_way)
 			return FALSE
 	haul_waiting_since = 0
-	return step_towards(owner, next_node)
+	// Put off this very tile a moment ago by somebody walking on to it, and they're still stood there: it's theirs for now, and it waits
+	// behind them (do_step_next_node() holds the walk without counting it stuck). Two bots after the one tile (beside a man held for
+	// Security, at a newscaster to smash, the spot short of a suspect, the tile at a door that won't open) walked into each other and swapped
+	// places (living.dm MobBump()) once a second for as long as it lasted: half of what a 12-shift batch counted as pacing (bugs1112base,
+	// 33 of 66). Now they take turns, ten seconds each at most.
+	if(yields_tile(next_node))
+		return FALSE
+	var/list/stood_there
+	if(locate(/mob/living/carbon/human) in next_node)
+		for(var/mob/living/carbon/human/stander in next_node)
+			if(stander != owner && stander.bot_brain && (stander.mobility_flags & MOBILITY_STAND))
+				LAZYADD(stood_there, stander)
+	. = step_towards(owner, next_node)
+	// Places swapped: whoever's now where this bot was remembers the tile it was put off (yields_tile())
+	for(var/mob/living/carbon/human/moved as anything in stood_there)
+		if(moved.bot_brain && get_turf(moved) == here && get_turf(owner) == next_node)
+			moved.bot_brain.swapped_off_turf = next_node
+			moved.bot_brain.swapped_off_until = world.time + 10 SECONDS
 
 /// Waiting with something in tow for somebody to move out of the way (bot_step_towards()): since when. A wait, not being stuck, for
 /// HAUL_WAIT; after that it counts as stuck as anything else does.
 /datum/bot_brain/var/haul_waiting_since = 0
 #define HAUL_WAIT (20 SECONDS)
+
+/// The tile this bot was last swapped off by somebody walking on to it (bot_step_towards()), and until when it leaves it to them while
+/// they're stood on it (yields_tile())
+/datum/bot_brain/var/turf/swapped_off_turf
+/datum/bot_brain/var/swapped_off_until = 0
+
+/// Somebody swapped it off `T` a moment ago and is still stood there, and this isn't a fight: it lets them have it, and waits. A wait, not
+/// being stuck (do_step_next_node(), on_stuck_timeout()): it used to count as stuck, reroute the same way and give the walk up.
+/datum/bot_brain/proc/yields_tile(turf/T)
+	if(!T || T != swapped_off_turf || world.time >= swapped_off_until || state == BOT_STATE_COMBAT)
+		return FALSE
+	for(var/mob/living/carbon/human/there in T)
+		if(there != owner && there.stat == CONSCIOUS && (there.mobility_flags & MOBILITY_STAND))
+			return TRUE
+	return FALSE
 
 /// Somebody on the tile who'd be swapped with: on their feet (a body lying there is walked over, and what's dragged follows on)
 /datum/bot_brain/proc/haul_blocker(turf/next_node)
@@ -946,6 +984,31 @@
 		bot_tally("kept out of a beam")
 		finish_pursuit(FALSE)
 		return
+	// Into the water off dry floor (bot_steps_into_pool(), bot_pathing_permissive.dm): only if it may go in now (bot_may_jump_in()), not
+	// because it could when the route was planned. An officer that had climbed out short of breath was walked straight back in by the
+	// route it fell in on, and drowned (bugs1112base run1). Whatever drives the walk decides again (handle_arrest(), handle_combat()): round
+	// to the side, and a wait there for its breath (poolside_instead(), bot_items.dm).
+	if(bot_steps_into_pool(get_turf(owner), next_node))
+		if(!bot_may_jump_in(owner))
+			bot_log(src, "not going into the water like this")
+			if(pursuing_kind == "arrest" || pursuing_kind == "combat")
+				stop_pursuit()
+			else
+				finish_pursuit(FALSE)
+			return
+		// In after them, it lowers itself in off the side, two seconds stood still (pool_main.dm MouseDrop_T()), as somebody who knows the
+		// pool does. Walking in is a fall, a mouthful of water and six seconds on its back under it: 33 and 39 of suffocation in a shift,
+		// past where it climbs out again (try_escape_pool(), bot_items.dm), so it never reached anybody in the water that way.
+		if(!owner.swimming && owner.has_gravity())
+			bot_log(src, "lowering myself into the pool after [pursue_target]")
+			var/list/route = current_path
+			busy_clearing = TRUE
+			next_node.MouseDrop_T(owner, owner)
+			busy_clearing = FALSE
+			if(QDELETED(owner) || current_path != route)
+				return //gone, or the walk was planned again while it was at it: that one drives it
+			stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), max(1, owner.movement_delay()), TIMER_STOPPABLE)
+			return
 	var/turf/left_turf = get_turf(owner)
 	if(bot_step_towards(next_node))
 		quick_step_retries = 0
@@ -970,6 +1033,8 @@
 		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), max(1, owner.movement_delay()), TIMER_STOPPABLE)
 	else if(haul_waiting_since && world.time - haul_waiting_since < HAUL_WAIT)
 		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), 5, TIMER_STOPPABLE) //somebody in the way of what's in tow: wait on them
+	else if(yields_tile(next_node))
+		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), 5, TIMER_STOPPABLE) //letting somebody have the tile it was just swapped off (bot_step_towards()): a wait, not stuck
 	else if(quick_step_retries < BOT_QUICK_STEP_RETRIES)
 		// Didn't move this attempt - usually a door still finishing its opening animation.
 		// Step through the moment it's passable, like a person walking into it, instead of
@@ -1013,6 +1078,11 @@
 	// needing a whole separate fetch trip later. Calling it directly, synchronously,
 	// right here removes the race entirely: this IS the moment recovery needs to happen.
 	recover_dropped_tools(get_turf(owner))
+
+	// Letting somebody have the tile it was just swapped off (yields_tile()): a wait, not being stuck, and not a reason to reroute
+	if(yields_tile(expected_node))
+		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), 5, TIMER_STOPPABLE)
+		return
 
 	// Fully mobile per every check above, yet the last attempt still didn't move it -
 	// try again directly; this alone resolves most single-step misses (seen right

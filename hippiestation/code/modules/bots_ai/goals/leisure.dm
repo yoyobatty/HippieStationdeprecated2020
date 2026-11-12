@@ -107,17 +107,47 @@
 // The station's animals
 // ---------------------------------------------------------------------------------------------
 
-/// A living, friendly animal near enough to wander over to.
+/// A living, friendly animal near enough to wander over to, and one it can get to: the nearest it has a way to stand beside by its own doors.
+/// Runtime behind the glass of the CMO's office, Poly in the Chief Engineer's, Ian in the HoP's and the performers' pets were set off for on
+/// sight and given up at the end of the route search: 32 of the 43 times a pet was given up on in a batch.
 /datum/bot_brain/proc/find_pet_to_fuss()
-	var/mob/living/simple_animal/nearest
+	var/list/near = list() //animal -> how far off
 	for(var/mob/living/simple_animal/A in view(9, owner))
 		if(A.stat == DEAD || !isturf(A.loc))
 			continue
 		if(!istype(A, /mob/living/simple_animal/pet) && !istype(A, /mob/living/simple_animal/parrot) && !istype(A, /mob/living/simple_animal/cow) && !istype(A, /mob/living/simple_animal/chicken))
 			continue
-		if(!nearest || get_dist(owner, A) < get_dist(owner, nearest))
-			nearest = A
-	return nearest
+		near[A] = get_dist(owner, A)
+	for(var/tries in 1 to 3)
+		var/mob/living/simple_animal/nearest = null
+		for(var/mob/living/simple_animal/A as anything in near)
+			if(!nearest || near[A] < near[nearest])
+				nearest = A
+		if(!nearest)
+			return null
+		if(can_get_beside(nearest))
+			return nearest
+		near -= nearest
+	return null
+
+/// Whether there's a tile beside A that this bot can walk to by its own doors and reach A from by hand: not one across a window or a
+/// shut windoor (adjacent_turf_candidates() with A to reach: the same tiles the walk itself picks from, bot_movement.dm).
+/datum/bot_brain/proc/can_get_beside(atom/movable/A)
+	var/turf/T = get_turf(A)
+	if(!T || QDELETED(owner))
+		return FALSE
+	if(owner.Adjacent(A))
+		return TRUE
+	var/obj/item/card/id/id_card = route_card()
+	begin_reach_scope()
+	. = FALSE
+	pathing_no_tailgating = !is_shut_in()
+	for(var/turf/beside in adjacent_turf_candidates(T, A))
+		if(length(bot_path_to(beside, /turf/proc/Distance_cardinal, /turf/proc/bot_reachable_strict, id_card, !can_path_through_space())))
+			. = TRUE
+			break
+	pathing_no_tailgating = FALSE
+	end_reach_scope()
 
 /datum/bot_duty/pet_animal
 	name = "petting an animal"

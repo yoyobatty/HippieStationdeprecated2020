@@ -175,7 +175,13 @@
 		return
 	var/turf/here = get_turf(owner)
 	if(here && (locate(/obj/machinery/door) in here))
+		var/datum/weather/rad_storm/storm = bot_rad_storm(here.z) //goals/rad_storm.dm
 		for(var/turf/open/T in get_adjacent_open_turfs(here))
+			// In a radiation storm, not out of the doorway into it, nor on to whoever's sheltering just inside: that swaps them into the
+			// doorway, and they step off it next. Put on a maintenance door's tile by the next one in, an officer stepped off it on the
+			// hallway side and ran back in for shelter, twenty times in one storm (bugs1112base run1). The doorway itself is mostly cover.
+			if(storm && (!is_type_in_list(T.loc, storm.protected_areas) || (locate(/mob/living/carbon/human) in T)))
+				continue
 			if(!T.density && !(locate(/obj/machinery/door) in T) && !is_blocked_turf(T, TRUE))
 				step_to(owner, T)
 				return

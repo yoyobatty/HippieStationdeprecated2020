@@ -614,6 +614,13 @@ GLOBAL_LIST_INIT(bot_harmless_symptoms, typecacheof(list(/datum/symptom/beard, /
 /datum/bot_goal/await_activator/pills
 	doing = "waiting for Chemistry"
 
+/// Stopped waiting: the call's off. Left open, a chemist whose card couldn't get to them (heal_chems/answered_by(), below) would take it
+/// up to three minutes on, once whoever asked had come out into a hallway, and bring pills to somebody who'd stopped waiting for them.
+/datum/bot_goal/await_activator/pills/on_give_up(datum/bot_brain/bot)
+	for(var/datum/bot_request/R as anything in GLOB.bot_requests.Copy())
+		if(istype(R.kind, /datum/bot_request_kind/heal_chems) && R.caller_ref?.resolve() == bot.owner)
+			GLOB.bot_requests -= R
+
 /datum/bot_goal/await_activator/pills/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/case_work/S = new
 	S.steps = list(new /datum/bot_step/paced/await_pills())
@@ -656,6 +663,18 @@ GLOBAL_LIST_INIT(bot_harmless_symptoms, typecacheof(list(/datum/symptom/beard, /
 	needs_place = FALSE
 	doing = "taking somebody some pills"
 	precedence = 1
+
+/// Only a chemist whose card gets it to whoever asked, as with a sleeper to run or a door to open (run_sleeper/answered_by(), bot_claims.dm;
+/// let_out/answered_by(), bot_requests.dm). One whose card didn't (the Kitchen, the Brig, Engineering, Robotics) took the call, said "On my
+/// way with them", found no way in at the first step and dropped it with the call still down as taken: 26 of a batch's 30 hand-overs given
+/// up that way, and whoever asked stood a minute and a half waiting on pills nobody was bringing. Nor one already taking pills to somebody:
+/// the next call dropped the first hand-over (attend(), below), and that one's asker stood the minute and a half instead. The call stays
+/// open, for the first chemist to come free (the answer_call duty).
+/datum/bot_request_kind/heal_chems/answered_by(datum/bot_brain/bot, datum/bot_request/R)
+	if(!..() || istype(bot.current_goal, /datum/bot_goal/hand_over))
+		return FALSE
+	var/mob/living/who = R.caller_ref?.resolve()
+	return who && who != bot.owner && bot.can_walk_lawfully_to(who)
 
 /datum/bot_request_kind/heal_chems/attend(datum/bot_brain/bot, datum/bot_request/R)
 	var/mob/living/carbon/human/who = R.caller_ref?.resolve()
@@ -713,6 +732,18 @@ GLOBAL_LIST_INIT(bot_harmless_symptoms, typecacheof(list(/datum/symptom/beard, /
 	var/datum/bot_strategy/case_work/S = new
 	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/put_down_for())
 	return list(S)
+
+/// Not coming after all (no way through after all, or they'd moved on): the call is handed back, for another chemist to take, and so whoever
+/// asked isn't stood there the whole minute and a half for it (await_pills, above). The first step can give up inside assign_goal(), which
+/// still says yes, so attend()'s own hand-back never saw it.
+/datum/bot_goal/hand_over/on_give_up(datum/bot_brain/bot)
+	var/mob/living/who = for_ref?.resolve()
+	if(!who)
+		return
+	for(var/datum/bot_request/R as anything in GLOB.bot_requests)
+		if(R.taken_by == bot && istype(R.kind, /datum/bot_request_kind/heal_chems) && R.caller_ref?.resolve() == who)
+			R.taken_by = null
+			LAZYOR(R.failed_by, bot)
 
 /datum/bot_goal/hand_over/on_success(datum/bot_brain/bot)
 	bot_tally("things handed over")

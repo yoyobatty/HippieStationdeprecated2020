@@ -562,6 +562,18 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 	if(bot_staying_aboard(owner) && !bot_aboard_shuttle(goal.target))
 		bot_log(src, "[goal.target] isn't aboard the shuttle - not leaving it for [goal.type]")
 		return FALSE
+	// A radiation storm coming or blowing, and under cover from it (goals/rad_storm.dm): nothing out in it is worth going out for till it's
+	// passed, as a player sits it out in the tunnels. What held it there (the shelter duty's keep_holding()) only stopped what comes below it
+	// in handle_wander(): a meal, a call, a traitor's mark each walked it back out into the storm, the duty turned it round at the door, and
+	// the next one walked it out again, 169 dashes for shelter by 28 crew in one storm (bugs1112base run1), a dose and a chance of a
+	// mutation each time. Another stretch of maintenance is no better: it's reached through the halls.
+	var/turf/standing_on = get_turf(owner)
+	var/datum/weather/rad_storm/storm = standing_on && bot_rad_storm(standing_on.z)
+	if(storm && !out_in_rads(storm) && !rad_storm_errand_ok(goal))
+		if(world.time >= next_keep_clear_note)
+			next_keep_clear_note = world.time + 1 MINUTES
+			bot_log(src, "sheltering from the radiation storm - not going out for [goal.type] (or anything else out there till it's passed)")
+		return FALSE
 	// Security's told everybody to keep out of there (goals/security_tactics.dm): nobody but Security goes in for anything that can wait.
 	if(!is_security_job() && !bot_traitor && !op_team && !bot_wizard && !is_changeling && !istype(goal, /datum/bot_goal/run_from) && !goal.braves_bad_air && bot_told_to_keep_clear(goal.target) && !bot_told_to_keep_clear(owner))
 		if(world.time >= next_keep_clear_note) //it's asked again every time a duty looks: once a minute in the log is plenty

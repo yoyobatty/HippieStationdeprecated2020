@@ -280,7 +280,11 @@
 	var/mob/living/carbon/human/P = goal.target
 	if(!istype(P) || QDELETED(P))
 		return FALSE
-	until = world.time + 4 MINUTES
+	// Inside three minutes: three on the one step with nothing done and the stall check (handle_goal(), bot_goals.dm) fails it as gone
+	// quiet. All seven waits in Bot Shift bugs1112base ended that way, the prisoner left cuffed by the door for the next officer to wait
+	// on again, and the end below was never reached. Ending here runs finish() and on_success(): into a cell, as start_brig_escort()
+	// means to when no doctor has got to them in the time.
+	until = world.time + 150 SECONDS
 	var/datum/bot_request_kind/medical/kind = locate() in GLOB.bot_request_kinds
 	if(kind)
 		var/datum/bot_request/R = bot_new_request(kind, P, FREQ_MEDICAL, get_turf(P)) //the prisoner's the patient, not the officer
@@ -304,19 +308,62 @@
 			bot_log(bot, "patching up [P] with [I] while we wait")
 			bot.use_item_on(I, P)
 			return TRUE
-	// A doctor at the door: let in, if it's in reach
-	for(var/obj/machinery/door/airlock/D in range(1, bot.owner))
+	// A doctor at the door: let in. The spot is two steps in from the front door (brig_care_spot()), and only a door a step away was
+	// looked at: doctors asked to be let in at Hippie's Labor Shuttle door three times over, two steps from the officer waiting for
+	// one, and went (Bot Shift bugs1112base, run11 and run5). Over to it, letting go of them for the moment, and open it. Not a door the
+	// doctor's own ID opens (the Courtroom's is public: they come in by themselves), not for a medic in cuffs, not for one on this side
+	// of it, and not for a doctor bot going by on other business: the one at the door is the one who's come for them.
+	for(var/obj/machinery/door/airlock/D in range(2, bot.owner))
 		if(!D.density || D.operating || !D.allowed(bot.owner))
 			continue
+		var/turf/doorway = get_turf(D)
+		var/my_side = bot_door_side(doorway, get_turf(bot.owner))
 		for(var/mob/living/carbon/human/doc in range(1, D))
-			if(doc != bot.owner && doc != P && doc.stat == CONSCIOUS && (doc.mind?.assigned_role in list("Medical Doctor", "Chief Medical Officer", "Paramedic")))
-				bot_log(bot, "letting [doc] in for [P]")
-				bot.use_atom(D)
-				wait_for = 20
+			if(doc == bot.owner || doc == P || doc.stat != CONSCIOUS || doc.restrained() || !bot_is_medic(doc) || D.allowed(doc))
+				continue
+			if(bot_door_side(doorway, get_turf(doc)) == my_side)
+				continue //one on this side of it isn't waiting to come in
+			var/datum/bot_goal/answer_call/coming = doc.bot_brain?.current_goal
+			if(doc.bot_brain && !(istype(coming) && coming.request?.caller_ref?.resolve() == P))
+				continue
+			if(!bot.owner.Adjacent(D))
+				var/turf/inside
+				for(var/direction in GLOB.cardinals)
+					var/turf/T = get_step(doorway, direction)
+					if(isopenturf(T) && !is_blocked_turf(T, TRUE) && bot_door_side(doorway, T) == my_side)
+						inside = T
+						break
+				if(!inside)
+					continue
+				if(bot.owner.pulling == P)
+					bot.owner.stop_pulling()
+				bot.pursue(inside, "follow")
+				wait_for = 10
 				return TRUE
+			bot_log(bot, "letting [doc] in for [P]")
+			bot.use_atom(D)
+			wait_for = 20
+			return TRUE
+	// A doctor in here with them: out of their way. Nobody gets past somebody holding a prisoner, nor on to a held prisoner's tile
+	// (living/MobBump()), and a doctor's walk ends on the prisoner's own tile: doctors who'd come into Hippie's Courtroom walked into the
+	// officer or the prisoner and gave up stuck, eight of them over five waits in twelve shifts (bugs1112base). Still theirs while the
+	// doctor works (the goal's claim on them keeps a sleeper run or a carry out of Security off them), and held again once they've gone.
+	for(var/mob/living/carbon/human/medic in range(3, P))
+		if(medic == bot.owner || medic == P || medic.stat != CONSCIOUS || medic.restrained() || !bot_is_medic(medic) || bot_department_of(get_area(medic)) != bot_department_of(get_area(P)))
+			continue
+		if(bot.owner.pulling == P)
+			bot_log(bot, "letting go of [P] for [medic]")
+			bot.owner.stop_pulling()
+		if(!medic.Adjacent(P) && get_dist(medic, bot.owner) <= 1)
+			bot.step_aside_for(medic) //bot_chatter.dm
+		wait_for = 10
+		return TRUE
 	if(get_dist(bot.owner, P) > 1)
 		bot.pursue(P, "follow", force = TRUE)
-	wait_for = 30
+	else if(bot.owner.pulling != P && !P.pulledby && !P.buckled && bot.owner.Adjacent(P) && P.can_be_pulled(bot.owner, 0, bot.owner.move_force))
+		bot_log(bot, "taking hold of [P] again") //no doctor about now: held, as before one came
+		bot.owner.start_pulling(P)
+	wait_for = 10 //looked at every second: a doctor who's walked into somebody gives up in about four
 	return TRUE
 
 /// Somebody down in a cell, seen: let out and taken to Medbay

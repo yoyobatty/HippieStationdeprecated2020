@@ -558,8 +558,7 @@ GLOBAL_LIST_INIT(bot_raid_wishlist, list(
 /// The nearest one of these that isn't on somebody: the thing itself, or the locker it's in.
 /datum/bot_goal/tide/raid/resolve_target(datum/bot_brain/bot)
 	bot.glance_at_items()
-	var/atom/movable/best
-	var/best_dist
+	var/list/found = list() //what it's in, or the thing itself -> how far off
 	for(var/obj/item/I as anything in bot_instances_of(item_type))
 		var/atom/movable/holder = bot_outermost_holder(I)
 		if(QDELETED(I) || ismob(holder) || !isturf(holder.loc) || holder.z != bot.owner.z || !bot.knows_of(I)) //what it knows of (bot_knowledge.dm)
@@ -573,10 +572,53 @@ GLOBAL_LIST_INIT(bot_raid_wishlist, list(
 		if(LAZYACCESS(bot.raid_unreachable, holder.loc) > world.time)
 			continue
 		var/dist = get_dist(bot.owner, holder)
-		if(!best || dist < best_dist)
-			best = holder
-			best_dist = dist
-	target = best
+		if(isnull(found[holder]) || dist < found[holder])
+			found[holder] = dist
+	// The nearest there's some way to, by its own doors or through ones it could hack. Gloves that came in a toolbox on the AI satellite, out
+	// across space, were set off for by every raider on the station, each giving up at the end of the route search (11 times in one shift);
+	// remembering it afterwards (raid_unreachable) only saved each of them the second trip.
+	target = null
+	var/list/no_way = list()
+	var/tries = 0
+	bot.begin_reach_scope() //the candidates share one flood cache (bot_path_to(), bot_pathing_permissive.dm)
+	while(length(found) && tries++ < 6 && !QDELETED(bot.owner))
+		var/atom/movable/nearest = null
+		for(var/atom/movable/A as anything in found)
+			if(!nearest || found[A] < found[nearest])
+				nearest = A
+		found -= nearest
+		if(QDELETED(nearest) || !isturf(nearest.loc))
+			continue
+		if(bot.could_break_in_to(nearest))
+			target = nearest
+			break
+		no_way += nearest.loc
+	bot.end_reach_scope()
+	// Remembered only when something else could be got to: then it's the place, not the bot. From inside the Brig there's no way to
+	// anything, and what a prisoner couldn't reach from there is no harder to reach once it's out (three tries by one in a shift).
+	if(target)
+		for(var/turf/T as anything in no_way)
+			LAZYSET(bot.raid_unreachable, T, world.time + 10 MINUTES)
+
+/// Whether there's any way to A for somebody who'll force a door: by the doors its ID opens, or through ones it could hack or break
+/// (bot_reachable_permissive(), what repath() falls back to off the books). Not across space, and not through what it has nothing to open with.
+/datum/bot_brain/proc/could_break_in_to(atom/A)
+	var/turf/T = get_turf(A)
+	if(!T || QDELETED(owner))
+		return FALSE
+	if(get_turf(owner) == T || owner.Adjacent(A))
+		return TRUE
+	var/obj/item/card/id/id_card = route_card()
+	var/simulated_only = !can_path_through_space()
+	begin_reach_scope()
+	. = FALSE
+	for(var/turf/D in (adjacent_turf_candidates(T) + T))
+		if(length(bot_path_to(D, /turf/proc/bot_weighted_distance, /turf/proc/bot_reachable_permissive, id_card, simulated_only)))
+			. = TRUE
+			break
+		if(QDELETED(owner))
+			break
+	end_reach_scope()
 
 /datum/bot_goal/tide/raid/get_strategies(datum/bot_brain/bot)
 	if(istype(target, item_type))

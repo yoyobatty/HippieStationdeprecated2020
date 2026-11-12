@@ -213,10 +213,19 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	var/print_waits = 0
 
 /datum/bot_step/ensure_beaker/execute(datum/bot_brain/bot)
-	if(bot.find_empty_beaker())
+	var/obj/item/reagent_containers/glass/beaker/have = bot.find_empty_beaker()
+	if(have)
+		// Into the bag, not left in the hand: the next thing the brew picked up (the grenade case, the cable, the box of syringes) had it set
+		// down to free the hand, and it was "no empty beaker on me" back at the dispenser (bag_brew_part(), goals/chem_lab.dm).
+		bot.bag_brew_part(have)
+		if(!bot.on_this_step(src))
+			return GOAL_STEP_PENDING //the bag took a moment, and the brew has gone since
 		return GOAL_STEP_SUCCESS
 	if(!tried_fetch)
 		tried_fetch = TRUE
+		bot.bag_brew_part(bot.brew_beaker()) //for a second beaker: the first, with the brew in it, isn't what goes down for it
+		if(!bot.on_this_step(src))
+			return GOAL_STEP_PENDING
 		var/datum/bot_goal/acquire_item_type/sub = new()
 		sub.item_type = /obj/item/reagent_containers/glass/beaker
 		sub.empty_only = TRUE

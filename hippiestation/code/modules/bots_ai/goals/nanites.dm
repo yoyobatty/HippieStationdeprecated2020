@@ -393,6 +393,11 @@ GLOBAL_LIST_INIT(bot_nanite_programs, list("research_nanites", "researchplus_nan
 		if(!blank)
 			return GOAL_STEP_FAIL
 		bot.human_pause(source)
+		// Still there after the pause: in the box, or on the floor within reach. put_in_hands() takes it from wherever it is, another bot's hand included.
+		if(QDELETED(blank) || !bot.owner.Adjacent(source) || (blank == source ? !isturf(blank.loc) : blank.loc != source))
+			return GOAL_STEP_FAIL
+		// A hand for it first (goals/take_item.dm). With both full (a screwdriver and an RPED, a wrench and a timer) put_in_hands() tipped the disk onto the floor and the upload was given up: 8 of 17 in a 12-shift batch.
+		bot.make_hand_free()
 		if(!bot.owner.put_in_hands(blank))
 			return GOAL_STEP_FAIL
 		bot_log(bot, "took a blank program disk")

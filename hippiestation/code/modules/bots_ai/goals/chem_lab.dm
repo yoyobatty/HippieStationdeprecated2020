@@ -262,6 +262,49 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 		spare = spare || B
 	return spare
 
+/// What doesn't come out of a chemist's bag to make room for a brew's parts: what a doctor keeps for an operation (keeps_for_surgery(),
+/// goals/surgery.dm), its tools, the lab's things, and a mask to breathe through. A tool taken out onto the floor was picked straight back
+/// up on its next step (grab_passing_tools(), 1,071 "grabbed in passing" in a batch), and with both hands full the next one it passed
+/// pushed out whatever in its hands wasn't a tool: the beaker with the brew in it.
+/datum/bot_brain/proc/keeps_for_brew(obj/item/I)
+	if(keeps_for_surgery(I) || is_tool_or_toolbox(I))
+		return TRUE
+	if(istype(I, /obj/item/reagent_containers/glass) || istype(I, /obj/item/grenade) || istype(I, /obj/item/stack/cable_coil) || istype(I, /obj/item/gun/syringe))
+		return TRUE
+	return istype(I, /obj/item/storage/box/syringes) || istype(I, /obj/item/storage/pill_bottle) || istype(I, /obj/item/clothing/mask)
+
+/// A part for a brew out of the hand and put away, as a doctor's tools are before an operation (bag_surgery_tool(), goals/surgery.dm): a
+/// pocket, the bag, and with the bag full the smallest things in it that aren't for the lab come out for it, a few at most. By the middle
+/// of a shift nearly every bag is full, and what was left in the hand was what got set down to pick the next part up: the beaker down for
+/// the grenade case, for the cable, for the box of syringes, and "no empty beaker on me" back at the dispenser, 17 brews in a batch.
+/// TRUE if it's out of the hands (or never was in them).
+/datum/bot_brain/proc/bag_brew_part(obj/item/I)
+	if(!I || QDELETED(I) || !(I in owner.held_items) || put_away(I, allow_equip = FALSE))
+		return TRUE
+	for(var/slot in list(ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET))
+		if(!owner.get_item_by_slot(slot) && owner.equip_to_slot_if_possible(I, slot, FALSE, TRUE))
+			return TRUE
+	var/obj/item/storage/bag = worn_bag() //goals/clear_bag.dm
+	var/datum/component/storage/room = bag?.GetComponent(/datum/component/storage)
+	if(!room || I.w_class > room.max_w_class)
+		return FALSE
+	var/taken_out = 0
+	for(var/size in WEIGHT_CLASS_TINY to WEIGHT_CLASS_NORMAL)
+		for(var/obj/item/junk in bag)
+			if(junk.w_class != size || keeps_for_brew(junk))
+				continue
+			human_pause(bag)
+			if(QDELETED(I) || !(I in owner.held_items))
+				return FALSE
+			if(QDELETED(junk) || junk.loc != bag || !SEND_SIGNAL(bag, COMSIG_TRY_STORAGE_TAKE, junk, owner.drop_location()))
+				continue
+			bot_log(src, "taking [junk] out of the bag to make room for [I]")
+			if(put_away(I, allow_equip = FALSE))
+				return TRUE
+			if(++taken_out >= 4)
+				return FALSE
+	return FALSE
+
 /datum/bot_brain/proc/empty_syringe()
 	for(var/obj/item/reagent_containers/syringe/S in owner.GetAllContents(/obj/item/reagent_containers/syringe))
 		if(!S.reagents.total_volume)
@@ -436,7 +479,13 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 	var/tried_fetch = FALSE
 
 /datum/bot_step/ensure_syringes/execute(datum/bot_brain/bot)
-	if(bot.empty_syringe())
+	var/obj/item/reagent_containers/syringe/have = bot.empty_syringe()
+	if(have)
+		// Into the bag, the box with it, not left in the hand: the next thing the brew picked up had it set down (bag_brew_part()).
+		var/obj/item/storage/box/syringes/box = have.loc
+		bot.bag_brew_part(istype(box) ? box : have)
+		if(!bot.on_this_step(src))
+			return GOAL_STEP_PENDING //the bag took a moment, and the brew has gone since
 		return GOAL_STEP_SUCCESS
 	if(!tried_fetch)
 		tried_fetch = TRUE
@@ -465,14 +514,32 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 	if(amount < 5)
 		return FALSE
 	var/obj/item/reagent_containers/syringe/S = bot.empty_syringe()
-	if(!S || !bot.ready_in_hand(S))
+	if(!S)
+		return FALSE
+	var/obj/item/storage/box/syringes/from = S.loc
+	// A hand for the syringe that isn't the one with the beaker in it. With both full and no room in the bag, getting the syringe out
+	// put the beaker down on the floor with the rest (free_hand_for()): one syringe filled, and at the ChemMaster no beaker to rinse.
+	// What goes is what isn't the beaker, and the box the syringes come out of only if there's nothing else.
+	if(!bot.hand_free_for_pickup())
+		var/obj/item/spare
+		for(var/obj/item/held in bot.owner.held_items)
+			if(held != B && held != S && (!spare || spare == from))
+				spare = held
+		if(spare && !bot.put_away(spare, allow_equip = FALSE))
+			bot.set_down(spare)
+	if(!bot.ready_in_hand(S))
 		return FALSE
 	bot.human_pause(B)
 	B.reagents.trans_id_to(S, reagent_type, min(S.volume, amount))
 	S.mode = S.reagents.total_volume ? 1 : 0 //that's the plunger the right way round, the same as filling one by hand
 	S.update_icon()
 	filled++
-	bot.put_away(S)
+	// Away again: the bag, or back in the box it came out of (in the bag, or set down beside it). Left in the hand, it and the beaker went
+	// down for the next one.
+	if(!bot.put_away(S))
+		for(var/obj/item/storage/box/syringes/box in list(from) + bot.owner.GetAllContents(/obj/item/storage/box/syringes))
+			if((bot.is_carried(box) || (isturf(box.loc) && bot.owner.Adjacent(box))) && SEND_SIGNAL(box, COMSIG_TRY_STORAGE_INSERT, S, bot.owner))
+				break
 	return TRUE
 
 /datum/bot_step/paced/fill_syringes/finish(datum/bot_brain/bot)
@@ -503,6 +570,12 @@ GLOBAL_LIST_INIT(bot_chemist_stock, list(
 	var/tried_toolbox = FALSE
 
 /datum/bot_step/ensure_grenade_parts/execute(datum/bot_brain/bot)
+	// Each part put away as it comes (bag_brew_part()): left in the hand, the case went down for the cable and the beaker for the case.
+	for(var/obj/item/part in bot.owner.held_items)
+		if(istype(part, /obj/item/grenade/chem_grenade) || istype(part, /obj/item/stack/cable_coil) || istype(part, /obj/item/screwdriver))
+			bot.bag_brew_part(part)
+	if(!bot.on_this_step(src))
+		return GOAL_STEP_PENDING //the bag took a moment, and the brew has gone since
 	if(!bot.grenade_case() && !tried_case)
 		tried_case = TRUE
 		var/obj/item/grenade/chem_grenade/case = bot.find_empty_case()

@@ -194,7 +194,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 // itself (opened on arrival by try_open_locker(), then re-scanned next wander tick).
 /datum/bot_brain/proc/find_item_goal()
 	for(var/obj/item/I in oview(5, owner))
-		if(isturf(I.loc) && is_useful_item(I) && !is_in_active_cell(I))
+		if(isturf(I.loc) && is_useful_item(I) && !is_in_active_cell(I) && !is_kitchen_stock(I)) //goals/cook.dm
 			return I
 	for(var/obj/structure/closet/C in oview(6, owner))
 		if(QDELETED(C))
@@ -1244,6 +1244,8 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 			continue
 		if(isspaceturf(T))
 			return TRUE
+		if(T.seal_shut())
+			continue //another shut door's tile: it shares air with one side at most (door_seals.dm), so no vacuum comes in through it - at worst a pocket hanging off this doorway
 		var/datum/gas_mixture/air = T.return_air()
 		if(air && air.return_pressure() < HAZARD_LOW_PRESSURE)
 			return TRUE
@@ -1413,6 +1415,18 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 			var/obj/item/I = locate(tool_type) in T // a toolbox is never one of these: loose tools only, no unpacking in passing
 			if(!I || I.anchored || can_eventually_provide_tool(tool_type) || !owner.Adjacent(I))
 				continue
+			// Both hands full and nothing that'll go away: it's left where it lies, unless it's the tool the errand is for. Making room meant
+			// setting down what was in the other hand (make_room_for_item()), and on an errand that's what the errand is carrying. A cook with
+			// a full bag set a tool down to pick up an ear of corn, took the tool back in passing on the next step and left the corn, got to
+			// the microwave with nothing to put in it, and gave up the dish it was making 20 times in one shift; plates went down on the floor
+			// on the way to the counter the same way. Its own tool is gone back for once the job's done (go_back_for_set_down()). Sent for
+			// this very tool (acquire_tool), it takes it here as before: the other hand's load goes down for it here or at the box it was
+			// walking to, and the trip ends here.
+			var/datum/bot_goal/acquire_tool/after_tool = current_goal
+			var/is_the_errand = istype(after_tool) && after_tool.needed_tool_type && istype(I, after_tool.needed_tool_type)
+			if(!is_the_errand && !hand_free_for_pickup() && !put_away(owner.get_inactive_held_item()) && !put_away(owner.get_active_held_item(), allow_equip = FALSE))
+				next_passing_grab = world.time + 15 SECONDS
+				return
 			if(!try_pickup_target(I))
 				next_passing_grab = world.time + 15 SECONDS //nowhere to put it: not again every step, with a pause each time to reach for it
 				return
@@ -1594,8 +1608,11 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 /datum/bot_brain/proc/try_escape_pool()
 	if(!owner.swimming)
 		return FALSE
-	// In after somebody, on its feet and breathing fine: it stays in till it's done (bot_may_jump_in(), bot_pathing_permissive.dm).
-	if((state == BOT_STATE_ARREST || state == BOT_STATE_COMBAT) && !owner.lying && owner.getOxyLoss() < 30)
+	// In after somebody, on its feet and breathing fine: it stays in till it's done (bot_may_jump_in(), bot_pathing_permissive.dm). Only
+	// while they're in the water too, and while its walk isn't to somewhere dry (a spot short of them, a colleague): that walk waits for it
+	// to be out (do_step_next_node(), bot_movement.dm), so it climbs out for it.
+	var/mob/living/quarry = state == BOT_STATE_ARREST ? arrest_suspect : attacker
+	if((state == BOT_STATE_ARREST || state == BOT_STATE_COMBAT) && !owner.lying && owner.getOxyLoss() < 30 && istype(get_turf(quarry), /turf/open/pool) && (!pursuing_kind || istype(get_turf(pursue_target), /turf/open/pool)))
 		return FALSE
 	for(var/d in GLOB.cardinals)
 		var/turf/open/floor/F = get_step(owner, d)
@@ -1619,6 +1636,45 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 		step_towards(owner, nearest)
 		return TRUE
 	return FALSE
+
+/datum/bot_brain
+	var/next_poolside_note = 0
+
+/// Somebody (or somewhere) in the pool, with this bot on the side: whether it goes in for them now (bot_may_jump_in(),
+/// bot_pathing_permissive.dm). Null when it does, or when they aren't in the water or it's in already. Otherwise where it waits instead:
+/// the dry floor nearest them, or its own tile once it's there. It goes in only after somebody, never for a spot in the water (one short
+/// of a man too dangerous to walk up to, where he was last seen), and only with the breath for it: an officer that had climbed out short of
+/// breath was walked straight back in, and drowned (bugs1112base run1). Its breath comes back while it waits, and then in it goes. No
+/// route is asked for meanwhile, and none fails: five of those gave an arrest up as "can't reach".
+/datum/bot_brain/proc/poolside_instead(atom/A)
+	var/turf/T = get_turf(A)
+	if(!istype(T, /turf/open/pool) || istype(owner.loc, /turf/open/pool))
+		return null
+	if(isliving(A) && bot_breath_for_the_pool(owner))
+		return null
+	var/turf/here = get_turf(owner)
+	var/turf/side
+	var/best
+	for(var/turf/open/floor/F in range(5, T))
+		if(istype(F, /turf/open/pool) || F.density || is_blocked_turf(F, TRUE))
+			continue
+		var/taken = FALSE
+		for(var/mob/living/carbon/human/H in F)
+			if(H != owner)
+				taken = TRUE
+				break
+		if(taken)
+			continue
+		var/score = get_dist(F, T) * 100 + get_dist(here, F)
+		if(!side || score < best)
+			side = F
+			best = score
+	if(side && get_dist(here, side) > 1)
+		return side
+	if(world.time >= next_poolside_note)
+		next_poolside_note = world.time + 10 SECONDS
+		bot_log(src, "waiting by the pool for [A] - [isliving(A) ? "short of breath for going in after them" : "not going in the water for that"]")
+	return here
 
 // A dense object SOMEWHERE nearby isn't necessarily in the way of anything - a
 // non-fulltile ("directional") window only blocks the one direction it faces

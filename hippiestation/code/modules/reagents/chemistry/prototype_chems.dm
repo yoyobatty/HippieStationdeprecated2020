@@ -265,6 +265,13 @@
 	var/said_empty = FALSE
 
 /obj/machinery/iv_drip/process()
+	// Whoever it was in was gibbed or dusted (bugs1112b: twice, "Cannot read null.species" tearing the needle out of nobody): nothing to
+	// tear it out of, and tg's process() would hurt the deleted body. iv_drip.dm has no Destroy hook for it.
+	if(attached && QDELETED(attached))
+		attached = null
+		update_icon()
+		said_empty = FALSE
+		return PROCESS_KILL
 	. = ..()
 	if(. == PROCESS_KILL || !attached || !beaker || !mode || beaker.reagents.total_volume) //mode: giving, not taking (iv_drip.dm's IV_INJECTING)
 		said_empty = FALSE

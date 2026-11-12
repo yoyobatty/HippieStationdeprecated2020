@@ -34,8 +34,33 @@
 				nearest = T
 		found -= nearest
 		if(can_walk_lawfully_to(nearest))
-			return nearest
+			return rad_shelter_spot(nearest, W)
 	return null
+
+/// Somewhere to stand a few steps in from the doorway that nobody's stood on: the furthest in of what's within three steps of the tile just
+/// inside. That tile is where the next one in walks into whoever got there first and swaps them out into the doorway: two officers
+/// sheltering by one maintenance door put each other back out that way, and ran back in twenty times each in one storm (bugs1112base run1).
+/datum/bot_brain/proc/rad_shelter_spot(turf/just_inside, datum/weather/rad_storm/W)
+	var/list/reached = list(just_inside)
+	var/list/steps_in = list()
+	steps_in[just_inside] = 0
+	var/turf/spot = just_inside
+	var/spot_free = !(locate(/mob/living/carbon/human) in just_inside)
+	var/at = 1
+	while(at <= length(reached))
+		var/turf/inner = reached[at++]
+		if(steps_in[inner] >= 3)
+			continue
+		for(var/d in GLOB.cardinals)
+			var/turf/next = get_step(inner, d)
+			if(!isopenturf(next) || !isnull(steps_in[next]) || !is_type_in_list(next.loc, W.protected_areas) || is_blocked_turf(next, TRUE) || (locate(/obj/machinery/door) in next))
+				continue
+			steps_in[next] = steps_in[inner] + 1
+			reached += next
+			if(!(locate(/mob/living/carbon/human) in next) && (!spot_free || steps_in[next] > steps_in[spot]))
+				spot = next
+				spot_free = TRUE
+	return spot
 
 /datum/bot_goal/rad_shelter
 	lawful = TRUE
@@ -50,6 +75,26 @@
 	var/datum/bot_strategy/case_work/S = new
 	S.steps = list(new /datum/bot_step/move_to())
 	return list(S)
+
+/// Under cover: it stays from this moment (keep_holding() below), as a miner does out of an ash storm (goals/mining.dm). The hold used to
+/// wait for the duty's next look, a few seconds on, and a stroll or a pick-up had it back out of the door before then: an officer just into
+/// the tunnels went for a jumpsuit lying in the Prison Wing within the second (bugs1112base run1).
+/datum/bot_goal/rad_shelter/on_success(datum/bot_brain/bot)
+	bot.holding_duty = bot_duty_of(/datum/bot_duty/rad_shelter)
+
+/// What a bot sheltering from the storm still gets up for (assign_goal(), bot_goals.dm): out of air it can't breathe, away from somebody,
+/// a bomb's timer, the shuttle leaving, patching itself up where it stands, and anything in this same stretch of tunnel. Where a trip to a
+/// sleeper goes is the sleeper, not the bot it names; anything else that only names the bot doesn't say where it walks it.
+/datum/bot_brain/proc/rad_storm_errand_ok(datum/bot_goal/goal)
+	if(istype(goal, /datum/bot_goal/rad_shelter) || istype(goal, /datum/bot_goal/run_from) || istype(goal, /datum/bot_goal/seek_air) || istype(goal, /datum/bot_goal/refill_internals) || istype(goal, /datum/bot_goal/self_heal) || istype(goal, /datum/bot_goal/evacuate) || istype(goal, /datum/bot_goal/defuse_bomb))
+		return TRUE
+	var/atom/goes_to = goal.target
+	var/datum/bot_goal/seek_medbay_healing/healing = goal
+	if(istype(healing))
+		goes_to = healing.machine_target
+	if(!goes_to || goes_to == owner)
+		return FALSE
+	return get_area(goes_to) == get_area(owner)
 
 /datum/bot_duty/rad_shelter
 	name = "sheltering from the radiation"

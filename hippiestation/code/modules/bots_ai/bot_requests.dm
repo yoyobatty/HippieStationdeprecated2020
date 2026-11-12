@@ -602,6 +602,11 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 /datum/bot_step/paced/ask_let_in/finish(datum/bot_brain/bot)
 	for(var/obj/machinery/door/airlock/D in range(1, bot.owner))
 		if(!D.density)
+			// Held open for it: its way in on this call, for a little, though its own ID doesn't open it (let_in_door_now(), bot_doors.dm).
+			// Its lawful route counted a door like that as shut (no tailgating): two doctors at Hippie's Labor Shuttle door found the
+			// door open and no way through it, and went (Bot Shift bugs1112base, run5).
+			bot.let_in_door = REF(D)
+			bot.let_in_until = world.time + 20 SECONDS
 			return GOAL_STEP_SUCCESS
 	return GOAL_STEP_FAIL
 
@@ -724,12 +729,32 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 		var/list/inside = theirs.shut_in_region
 		if(theirs.current_goal)
 			theirs.drop_goals("the door's open")
+		// Through that door may be only a lobby with another pair of doors beyond it (both Brigs'): it looks again once it's through and
+		// asks for the next door then, not two minutes later. Released prisoners stood in the Brig lobby for a minute and more between the
+		// inner doors and the outer (bugs1112base). Not when the door leads only somewhere else shut in (a desk booth, a holding cell): a
+		// quick second call there only brings somebody back to open the same dead end.
+		if(inside && theirs.door_towards_a_hallway(list(D)))
+			theirs.next_shut_in_look = world.time + 10 SECONDS
+			theirs.next_let_out_call = min(theirs.next_let_out_call, world.time + 10 SECONDS)
 		theirs.shut_in_checked_at = -1000
+		// What it found the last time it looked for a way out is kept for twenty seconds (region_floods, bot_pathing_permissive.dm): no way
+		// to anywhere outside the room. Told the door's open, it asked again, was told there's no way to the far side of the door stood
+		// open in front of it, and gave the walk up in the same tick: 130 of 546 walks out of a door opened for somebody in twelve shifts
+		// (Bot Shift bugs1112base), the helper left holding the door and the same call made again a minute or two later. The door's
+		// open: that's forgotten.
+		theirs.region_floods = null
+		var/turf/out_to
 		for(var/d in GLOB.cardinals) //the side of the door they aren't on: they can be anywhere in a big room
 			var/turf/outside = get_step(D, d)
-			if(isopenturf(outside) && !outside.density && !LAZYACCESS(inside, outside))
-				theirs.assign_goal(new /datum/bot_goal/walk_up_to(outside))
+			if(!isopenturf(outside) || outside.density || LAZYACCESS(inside, outside))
+				continue
+			if(!is_blocked_turf(outside, TRUE)) //floor to stand on, not the window beside the door (Patient Room A, run2)
+				out_to = outside
 				break
+			if(!out_to) //a second door or a table there: walked up to as before, if nothing better turns up
+				out_to = outside
+		if(out_to)
+			theirs.assign_goal(new /datum/bot_goal/walk_up_to(out_to))
 
 /datum/bot_brain/proc/hold_door_for(obj/machinery/door/airlock/D, mob/living/who)
 	return assign_goal(new /datum/bot_goal/hold_door(D, who))
@@ -760,7 +785,17 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 
 /datum/bot_step/paced/hold_door/start(datum/bot_brain/bot)
 	until = world.time + 45 SECONDS
+	// The side it holds the door from (bot_door_side(), bot_doors.dm), and the side the one it holds it for comes out on. Whoever comes
+	// through changes places with it (living.dm MobBump()) and leaves it stood in the doorway, which bot_door_side() reads as EAST whichever
+	// way the door faces: it held on there for the full 45 seconds with them through and beside it, in 195 of 547 holds in a 12-shift batch
+	// (bugs1112base). One that came to hold it stood in the doorway keeps to how it was.
+	var/turf/doorway = get_turf(bot.current_goal?.target)
+	var/turf/here = get_turf(bot.owner)
+	held_from = (doorway && here && here != doorway) ? bot_door_side(doorway, here) : null
 	return bot.owner.Adjacent(bot.current_goal?.target)
+
+/datum/bot_step/paced/hold_door
+	var/held_from
 
 /datum/bot_step/paced/hold_door/do_click(datum/bot_brain/bot)
 	var/datum/bot_goal/hold_door/G = bot.current_goal
@@ -770,9 +805,20 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 		return FALSE
 	var/turf/doorway = get_turf(D)
 	var/turf/theirs = get_turf(who)
-	// Through: off the doorway, close by, and on this side of it.
-	if(theirs != doorway && get_dist(theirs, doorway) <= 2 && bot_door_side(doorway, theirs) == bot_door_side(doorway, get_turf(bot.owner)))
+	var/turf/here = get_turf(bot.owner)
+	// Through: off the doorway, close by, and on the side it holds the door from.
+	if(theirs != doorway && get_dist(theirs, doorway) <= 2 && bot_door_side(doorway, theirs) == (held_from || bot_door_side(doorway, here)))
 		return FALSE
+	// Stood in the doorway itself, put there by somebody coming through: back off it to the side it holds the door from. Most doors have a
+	// firelock on the same tile, and that shuts on whoever's stood there when an alarm drops it: a Chief Engineer at 10 health, put in a
+	// doorway by somebody walking through, held on there for seventeen seconds until the firelock crushed him twice, and died in crit after
+	// (bugs1112base run8). Somebody on that tile: it waits for them to move off it, and the airlock won't shut on it meanwhile.
+	if(here == doorway && held_from)
+		var/turf/back = get_step(doorway, held_from)
+		if(back && !back.density && !is_blocked_turf(back))
+			bot.bot_step_towards(back)
+		wait_for = 5
+		return TRUE
 	if(D.density && !D.operating && !D.locked && D.hasPower())
 		bot.use_atom(D)
 	wait_for = 20
@@ -796,6 +842,50 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 						ways_out |= D
 	if(length(ways_out)) //and not the door to Brig Control, which only gets it further in
 		return ways_out
+	// None of them opens straight on to a hallway: both stations' Brigs have a lobby between two pairs of doors. With nothing to choose
+	// between them the nearest was opened: the Security Office, the Security Desk four times, the labour shuttle's airlock and the Prison
+	// Wing for a cook let out of a cell, who asked ten times in sixteen minutes and never got out (bugs1112base run6). Batch-wide, 12 of
+	// some 85 doors opened for somebody calling from the Brig were a Brig door. The door on the shortest way to a hallway goes first,
+	// whatever else is shut along it; the rest stay behind it.
+	var/obj/machinery/door/airlock/best = door_towards_a_hallway(.)
+	if(best)
+		. -= best
+		. = list(best) + .
+
+/// Of the doors round the pocket this bot's shut in, the one on the shortest way to a hallway, through whatever other airlocks are on
+/// the way (those are asked about in their turn). Null with no hallway within reach.
+/datum/bot_brain/proc/door_towards_a_hallway(list/doors)
+	var/list/first_door = list() //turf -> the door of `doors` the way to it began at
+	var/list/queue = list()
+	for(var/obj/machinery/door/airlock/D as anything in doors)
+		var/turf/at_door = get_turf(D)
+		if(!at_door || first_door[at_door])
+			continue
+		first_door[at_door] = D
+		queue += at_door
+	var/at = 1
+	while(at <= length(queue) && length(queue) < 400)
+		var/turf/T = queue[at++]
+		for(var/d in GLOB.cardinals)
+			var/turf/next = get_step(T, d)
+			if(!isopenturf(next) || isspaceturf(next) || first_door[next] || LAZYACCESS(shut_in_region, next))
+				continue
+			var/shut = FALSE
+			for(var/atom/movable/AM in next)
+				if(!AM.density || ismob(AM))
+					continue
+				var/obj/machinery/door/airlock/A = AM
+				if(istype(A) && !A.welded && !A.locked)
+					continue //another one to ask about, when it comes to it
+				shut = TRUE
+				break
+			if(shut)
+				continue
+			if(istype(next.loc, /area/hallway))
+				return first_door[T]
+			first_door[next] = first_door[T]
+			queue += next
+	return null
 
 /// In maintenance with no maintenance access (stray_without_access(), bot_movement.dm), where there's room enough to walk about that it
 /// isn't shut in by the measure above: the doors near it out of there that it can walk up to and not open. A greytider hacks its way out

@@ -142,6 +142,18 @@ GLOBAL_VAR_INIT(bot_cargo_vent_tried, -INFINITY)
 	LAZYSET(cargo_blocked, C, world.time + 2 MINUTES)
 	return TRUE
 
+/// Whether the docked supply shuttle has lost its air: a crate aboard sits in air this bot can't breathe. A crate set aside for a minute
+/// after a walk out to it came to nothing isn't that, though crates_on_shuttle() leaves it out as well.
+/datum/bot_brain/proc/supply_shuttle_airless()
+	var/obj/docking_port/mobile/supply/S = SSshuttle.supply
+	if(!S?.shuttle_areas || !bot_supply_shuttle_docked())
+		return FALSE
+	for(var/area/A as anything in S.shuttle_areas)
+		for(var/obj/structure/closet/crate/C in A)
+			if(isturf(C.loc) && !C.anchored && !(C in GLOB.bot_cargo_going_back) && in_bad_air(C))
+				return TRUE
+	return FALSE
+
 /// A clear bit of floor in the cargo bay to leave a crate on.
 /datum/bot_brain/proc/find_bay_spot()
 	var/area/bay = GLOB.areas_by_type[/area/quartermaster/storage]
@@ -243,7 +255,12 @@ GLOBAL_VAR_INIT(bot_cargo_vent_tried, -INFINITY)
 	// the loading blast doors opened, and the bay's air rushes in. Until then the external airlock onto it won't be opened by anybody
 	// without a suit, and in the overnight batches of 2026-11-10 the crates sat aboard in two shifts out of three (30 to 90 "no path to
 	// the shuttle floor" a shift).
-	if(aboard && !length(bot.crates_on_shuttle()) && world.time > GLOB.bot_cargo_vent_tried)
+	// Only when it really has lost its air: a crate aboard in air this bot can't breathe. Any crate set aside counted before, and a walk out
+	// to one that came to nothing sets it aside for a minute: the loading doors went up for a shuttle with good air in it, its own blast
+	// doors with them (the same button, _maps/shuttles/cargo_box.dmm), and it flew back open to space and came in empty from then on. In
+	// bugs1112base the four Hippie Station shifts with a cargo technician at work had crates sat aboard from the second trip to the end.
+	var/airless = aboard && !length(bot.crates_on_shuttle()) && bot.supply_shuttle_airless()
+	if(airless && world.time > GLOB.bot_cargo_vent_tried)
 		var/obj/machinery/door/poddoor/gate = bot_supply_loading_door()
 		var/obj/machinery/button/door/button = gate ? bot.blast_door_button_for(gate) : null
 		if(button)
@@ -252,7 +269,7 @@ GLOBAL_VAR_INIT(bot_cargo_vent_tried, -INFINITY)
 			bot_log(bot, "the supply shuttle came in without air: opening [gate] to let the bay's in")
 			if(bot.assign_goal(new /datum/bot_goal/open_blast_door(button, gate)))
 				return TRUE
-	if(aboard && !length(bot.crates_on_shuttle()) && world.time > GLOB.bot_cargo_air_asked + 5 MINUTES)
+	if(airless && world.time > GLOB.bot_cargo_air_asked + 5 MINUTES)
 		GLOB.bot_cargo_air_asked = world.time
 		bot_log(bot, "crates on the supply shuttle in air I can't work in")
 		bot.say_after_typing(";Engineering, the supply shuttle's lost its air and there's [aboard] crate\s aboard I can't get off. Can somebody fill it?")
