@@ -4375,3 +4375,94 @@
 			T.update_visuals()
 			SSair.add_to_active(T)
 	return ..()
+
+// <<< heat_scenarios.dm
+// ---------------------------------------------------------------------------------------------
+// Heat immunity (bot_is_heat_immune_to(), goals/respond_to_fire.dm): the body's heat protection adds up in 32-bit floats to 0.9999999 for
+// full cover, so asking for 1 was never true and a firefighter in an atmos hardsuit was treated as unprotected
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/fixes1112/heat_fire
+	job = "Atmospheric Technician"
+	kit_hands = list(/obj/item/extinguisher)
+	time_limit = 25 SECONDS
+	layout = list(
+		"################",
+		"#..............#",
+		"#.B..........O.#",
+		"#..............#",
+		"################")
+	/// Where the fight_fire goal chose to spray from, once it had one
+	var/turf/chose
+	/// The burning tile the goal went for
+	var/turf/fire_at
+	var/suit_type = /obj/item/clothing/suit/space/hardsuit/engine/atmos
+
+/datum/bot_scenario/fixes1112/heat_fire/issue_goal()
+	return
+
+/datum/bot_scenario/fixes1112/heat_fire/post_spawn()
+	..()
+	brain.gym_scripted = FALSE //a scripted bot has no fire response
+	var/obj/item/clothing/suit/space/hardsuit/suit = new suit_type(bot)
+	bot.equip_to_slot_or_del(suit, ITEM_SLOT_OCLOTHING)
+	suit.ToggleHelmet()
+
+/datum/bot_scenario/fixes1112/heat_fire/proc/keep_it_burning()
+	var/turf/open/T = first_marker("O")
+	if(!T.active_hotspot)
+		start_fire(list(T), 3)
+
+/datum/bot_scenario/fixes1112/heat_fire/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	keep_it_burning()
+	// Read off the goal's own line, "going to put out the fire in <area> at (x,y,z), from (x,y,z)" (fight_fire/resolve_target()): the choice
+	// as it was made. Sampled once a second, the hotspot it went for had often gone out (the fire spreads round O and dies back).
+	if(!chose)
+		for(var/line in transcript)
+			var/i = findtext(line, "going to put out the fire")
+			if(!i)
+				continue
+			var/at_i = findtext(line, " at (", i)
+			var/from_i = findtext(line, ", from (", at_i)
+			if(!at_i || !from_i)
+				continue
+			fire_at = coord_turf(copytext(line, at_i + 5, findtext(line, ")", at_i)))
+			chose = coord_turf(copytext(line, from_i + 8, findtext(line, ")", from_i)))
+			if(chose && fire_at)
+				log_line("chose to spray from [get_dist(chose, fire_at)] tiles off the fire, heat protection [bot.get_heat_protection(1000)]")
+				break
+			chose = null
+	if(!chose)
+		return BOT_GYM_PENDING
+	return judge_spray_distance(get_dist(chose, fire_at))
+
+/// "x,y,z" from a bot_coord() line to its turf
+/datum/bot_scenario/fixes1112/heat_fire/proc/coord_turf(text)
+	var/list/parts = splittext(text, ",")
+	if(length(parts) != 3)
+		return null
+	return locate(text2num(parts[1]), text2num(parts[2]), text2num(parts[3]))
+
+/datum/bot_scenario/fixes1112/heat_fire/proc/judge_spray_distance(distance)
+	if(distance > 1)
+		fail_reason = "in a suit that keeps every bit of the heat off, it chose to spray from [distance] tiles off the fire, as if it had none"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/fixes1112/heat_fire/atmos_suit
+	name = "fire: in an atmos hardsuit, which keeps the heat off, it sprays from beside the fire, not from four tiles off"
+	desc = "An Atmospheric Technician in the atmos hardsuit, helmet up, sees a fire across the room. Heat-proof, it goes to spray it from beside it, as FIRE_IMMUNE_SPRAY_RANGE means. bot_is_heat_immune_to() asked for get_heat_protection() >= 1, and full cover adds up to 0.9999999 in BYOND's floats, so it never was: every suited firefighter sprayed from four tiles, and counted every fire as a danger to it."
+
+/datum/bot_scenario/fixes1112/heat_fire/engine_suit
+	name = "fire: in the engineering hardsuit, which keeps no heat off, it still sprays from out of the heat"
+	desc = "The guard: an engineer in the engineering hardsuit, which keeps out no heat (respond_to_fire.dm), still goes to spray from out of the flames, as before."
+	job = "Station Engineer"
+	suit_type = /obj/item/clothing/suit/space/hardsuit/engine
+
+/datum/bot_scenario/fixes1112/heat_fire/engine_suit/judge_spray_distance(distance)
+	if(distance <= 1)
+		fail_reason = "in a suit that keeps no heat off, it chose to spray from beside the fire"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

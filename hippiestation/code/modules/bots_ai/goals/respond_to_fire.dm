@@ -29,8 +29,13 @@
 	var/role = work_role()
 	return role == "Station Engineer" || role == "Chief Engineer" || role == "Atmospheric Technician"
 
+/// Safe in flames this hot: not set alight by them (heat_proof(): an atmos or CE hardsuit, a nanosuit) and the air's heat kept off
+/// (kept_from_heat()). Asked by the flame checks: how close to spray a fire from, in_the_flames(), a fire beside it (bot_breach.dm).
+/// It asked get_heat_protection() >= 1, and never was: the game adds the body parts' shares up in 32-bit floats and full cover comes to
+/// 0.9999999, so a firefighter in an atmos hardsuit sprayed from four tiles off every fire and counted every fire near it as a danger.
+/// Heat protection alone isn't enough near flames: the engineering hardsuit keeps 1500 K air off but not a fire on its wearer.
 /datum/bot_brain/proc/bot_is_heat_immune_to(temperature)
-	return owner.get_heat_protection(temperature) >= 1
+	return heat_proof() && kept_from_heat(temperature)
 
 /datum/bot_brain
 	/// heat_proof(), as of heat_proof_at: route planning asks it once for every burning tile it looks at
