@@ -154,6 +154,7 @@ GLOBAL_VAR_INIT(tgs_initialized, FALSE)
 	start_log(GLOB.tgui_log)
 
 	GLOB.changelog_hash = md5('html/changelog.html') //for telling if the changelog has changed recently
+	hippie_log_close_all() // hippie -- the log writer's thread may not have written the boot's lines yet: they'd miss the copy and be left behind in data/logs
 	if(fexists(GLOB.config_error_log))
 		fcopy(GLOB.config_error_log, "[GLOB.log_directory]/config_error.log")
 		fdel(GLOB.config_error_log)

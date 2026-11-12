@@ -173,6 +173,33 @@ fn path_text(path: &[u8]) -> String {
 	String::from_utf8_lossy(path).into_owned()
 }
 
+/// The path with the world's folder in front, unless it's already full. BYOND on Linux moves the process's working folder for a
+/// moment inside fcopy, text2file, file() and fdel (seen at /, /tmp and folders it was making: Paradise's CI, 2026-11-12), so the
+/// writer thread opening "data/logs/..." right then put the file somewhere else, or failed: 1,249 to 1,288 of 1,500 new files in
+/// a stress world (tools/log_writer/race_check.dme). Windows BYOND doesn't, 0 of 4,500. So the path is made full here, on the
+/// game's thread, which never sees the moved folder, against the folder as it was at the first call.
+fn full_path(path: &[u8]) -> Vec<u8> {
+	static BASE: OnceLock<Vec<u8>> = OnceLock::new();
+	let rooted = matches!(path.first(), Some(b'/') | Some(b'\\')) || path.get(1) == Some(&b':');
+	let base = BASE.get_or_init(|| match std::env::current_dir() {
+		Ok(dir) => {
+			let mut base = dir.to_string_lossy().into_owned().into_bytes();
+			if !matches!(base.last(), Some(b'/') | Some(b'\\')) {
+				base.push(std::path::MAIN_SEPARATOR as u8);
+			}
+			base
+		}
+		Err(_) => Vec::new(),
+	});
+	if rooted || base.is_empty() {
+		return path.to_vec();
+	}
+	let mut full = Vec::with_capacity(base.len() + path.len());
+	full.extend_from_slice(base);
+	full.extend_from_slice(path);
+	full
+}
+
 fn note_error(text: String) {
 	STATS.failed.fetch_add(1, Ordering::Relaxed);
 	if let Ok(mut last) = STATS.last_error.lock() {
@@ -420,7 +447,7 @@ pub unsafe extern "C" fn log_write(argc: c_int, argv: *const *const c_char) -> *
 			return String::new();
 		}
 		STATS.queued.fetch_add(1, Ordering::Relaxed);
-		if !send(Msg::Line { path: path.to_vec(), data: data.to_vec(), timestamped, at: now }, false) {
+		if !send(Msg::Line { path: full_path(path), data: data.to_vec(), timestamped, at: now }, false) {
 			STATS.queued.fetch_sub(1, Ordering::Relaxed);
 			return "hippie_log: the writer is gone".into();
 		}
@@ -436,7 +463,7 @@ pub unsafe extern "C" fn log_replace(argc: c_int, argv: *const *const c_char) ->
 			return "hippie_log: log_replace wants a path and some text".into();
 		};
 		STATS.queued.fetch_add(1, Ordering::Relaxed);
-		if !send(Msg::Replace(path.to_vec(), data.to_vec()), false) {
+		if !send(Msg::Replace(full_path(path), data.to_vec()), false) {
 			STATS.queued.fetch_sub(1, Ordering::Relaxed);
 			return "hippie_log: the writer is gone".into();
 		}
@@ -521,6 +548,16 @@ mod tests {
 		);
 		assert_eq!(format_line(b"a\n", true, t), b"[2026-11-10 18:22:28.200] a\n - \n".to_vec());
 		assert_eq!(format_line(b"raw", false, t), b"raw".to_vec());
+	}
+
+	#[test]
+	fn paths_are_made_full() {
+		let base = std::env::current_dir().unwrap().to_string_lossy().into_owned();
+		let full = String::from_utf8(full_path(b"data/logs/game.log")).unwrap();
+		assert!(full.starts_with(&base) && full.ends_with("data/logs/game.log"), "{full}");
+		assert_eq!(full_path(b"/srv/data/game.log"), b"/srv/data/game.log".to_vec());
+		assert_eq!(full_path(b"C:/data/game.log"), b"C:/data/game.log".to_vec());
+		assert_eq!(full_path(b"\\\\server\\share\\game.log"), b"\\\\server\\share\\game.log".to_vec());
 	}
 
 	#[test]
