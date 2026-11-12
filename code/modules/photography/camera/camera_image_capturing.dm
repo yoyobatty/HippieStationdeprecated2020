@@ -10,6 +10,65 @@
 			step_y = AM.step_y
 	. = ..()
 
+// hippie start -- a photo of a pile drew every thing in it: an appearance clone, an insertion sort and a getFlatIcon() each, and
+// 2,000 shards on a tile are 2,000 flattens for pixels the top of the pile covers. Each tile now draws its top CAMERA_TILE_DRAWN
+// movables: the highest layers first and, within a layer, the last to arrive (BYOND draws those on top).
+#define CAMERA_TILE_DRAWN 16
+
+/// The movables on T a photo draws, in no particular order (camera_get_icon() sorts them by layer)
+/obj/item/camera/proc/photo_draws_on(turf/T)
+	. = list()
+	var/list/by_layer = list()
+	var/count = 0
+	for(var/atom/movable/A as anything in LOOP_CONTENTS(T))
+		if(A.invisibility && !(see_ghosts && isobserver(A)))
+			continue
+		count++
+		var/key = "[A.layer]"
+		var/list/these = by_layer[key]
+		if(!these)
+			these = list()
+			by_layer[key] = these
+		these += A
+	if(count <= CAMERA_TILE_DRAWN)
+		for(var/key in by_layer)
+			. += by_layer[key]
+		return
+	var/list/layers = list()
+	for(var/key in by_layer)
+		layers += text2num(key)
+	sortTim(layers, GLOBAL_PROC_REF(cmp_numeric_dsc))
+	var/left = CAMERA_TILE_DRAWN
+	for(var/layer in layers)
+		var/list/these = by_layer["[layer]"]
+		if(length(these) > left)
+			these = these.Copy(length(these) - left + 1)
+		. += these
+		left -= length(these)
+		if(left <= 0)
+			break
+
+#undef CAMERA_TILE_DRAWN
+
+/// getFlatIcon() of what a photo draws, kept by appearance. Every photo flattened every dressed crewmember in it afresh, ~20
+/// Blend()s apiece: most of a photo's cost. BYOND appearances are shared, so two atoms that look the same have the same one, an
+/// appearance clone has its original's, and anything that changes how it looks has a new one. The oldest half goes at 512.
+GLOBAL_LIST_EMPTY(photo_flat_icons)
+
+/obj/item/camera/proc/photo_flat_icon(atom/A)
+	var/key = A.appearance
+	var/icon/flat = GLOB.photo_flat_icons[key]
+	if(flat)
+		return flat
+	flat = getFlatIcon(A)
+	if(!flat)
+		return
+	if(length(GLOB.photo_flat_icons) >= 512)
+		GLOB.photo_flat_icons.Cut(1, 257)
+	GLOB.photo_flat_icons[key] = flat
+	return flat
+// hippie end
+
 /obj/item/camera/proc/camera_get_icon(list/turfs, turf/center, psize_x = 96, psize_y = 96, datum/turf_reservation/clone_area, size_x, size_y, total_x, total_y)
 	var/list/atoms = list()
 	var/skip_normal = FALSE
@@ -28,10 +87,8 @@
 			atoms += new /obj/effect/appearance_clone(newT, T)
 			if(T.loc.icon_state)
 				atoms += new /obj/effect/appearance_clone(newT, T.loc)
-			for(var/i in T.contents)
-				var/atom/A = i
-				if(!A.invisibility || (see_ghosts && isobserver(A)))
-					atoms += new /obj/effect/appearance_clone(newT, A)
+			for(var/atom/A as anything in photo_draws_on(T)) // hippie -- the top of a pile, not all of it
+				atoms += new /obj/effect/appearance_clone(newT, A)
 		skip_normal = TRUE
 		wipe_atoms = TRUE
 		center = locate(cloned_center_x, cloned_center_y, clone_area.bottom_left_coords[3])
@@ -40,11 +97,7 @@
 		for(var/i in turfs)
 			var/turf/T = i
 			atoms += T
-			for(var/atom/movable/A in T)
-				if(A.invisibility)
-					if(!(see_ghosts && isobserver(A)))
-						continue
-				atoms += A
+			atoms += photo_draws_on(T) // hippie -- the top of a pile, not all of it
 			CHECK_TICK
 
 	atomslist = atoms.Copy() // hippie -- mgs box disguising
@@ -73,7 +126,7 @@
 			var/atom/movable/AM = A
 			xo += AM.step_x
 			yo += AM.step_y
-		var/icon/img = getFlatIcon(A)
+		var/icon/img = photo_flat_icon(A) // hippie -- kept by appearance, see below
 		if(img)
 			res.Blend(img, blendMode2iconMode(A.blend_mode), xo, yo)
 		CHECK_TICK

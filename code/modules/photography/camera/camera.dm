@@ -166,7 +166,17 @@
 	var/list/viewlist = (user && user.client)? getviewsize(user.client.view) : getviewsize(world.view)
 	var/viewr = max(viewlist[1], viewlist[2]) + max(size_x, size_y)
 	var/viewc = user.client? user.client.eye : target
-	seen = get_hear(viewr, viewc)
+	// hippie start -- the tiles in sight as a keyed set: get_hear() listed every thing on every tile in view, and "in" walked all of it
+	// for each tile of the photo (2.5 ms a photo by a pile). A typed loop over view() is filtered in native code.
+	seen = list()
+	var/atom/eye = viewc
+	if(eye)
+		var/lum = eye.luminosity
+		eye.luminosity = 6 // as get_hear() does: the photo sees in the dark
+		for(var/turf/in_sight in view(viewr, eye))
+			seen[in_sight] = TRUE
+		eye.luminosity = lum
+	// hippie end
 	var/list/turfs = list()
 	var/list/mobs = list()
 	var/blueprints = FALSE
@@ -178,7 +188,7 @@
 			if(!T)
 				break
 		
-		if(T && ((ai_user && GLOB.cameranet.checkTurfVis(placeholder)) || (placeholder in seen)))
+		if(T && ((ai_user && GLOB.cameranet.checkTurfVis(placeholder)) || seen[placeholder])) // hippie -- keyed, see above
 			turfs += T
 			for(var/mob/M in T)
 				mobs += M

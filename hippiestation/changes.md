@@ -199,7 +199,8 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/mob/living/simple_animal/slime/slime.dm
 ## code/modules/mob/mob_helpers.dm
 ## code/modules/mob/mob_movement.dm !Horrible code alert, how did this even get merged?
-## code/modules/photography/camera/camera_image_capturing.dm
+## code/modules/photography/camera/camera.dm (the tiles in sight as a keyed set)
+## code/modules/photography/camera/camera_image_capturing.dm (top of a pile only; flat icons kept by appearance)
 ## code/modules/power/turbine.dm (the console's power readout before the turbine first runs)
 ## code/modules/reagents/chem_splash.dm !Could probably be improved to avoid cutting out the whole tg proc
 ## code/modules/reagents/chemistry/holder.dm !Same as above.
