@@ -48,13 +48,15 @@ GLOBAL_LIST_EMPTY(bot_radio_lately)
 
 /datum/bot_brain/New(mob/living/carbon/human/new_owner)
 	. = ..()
-	chat_style = pick(45; BOT_CHAT_PROPER, 40; BOT_CHAT_LOWERCASE, 15; BOT_CHAT_TERSE)
 	addtimer(CALLBACK(src, PROC_REF(say_hello_on_arrival)), rand(150, 450))
 
-/// A line the way this bot would type it. A radio prefix (";", ":s ") is left alone.
-/datum/bot_brain/proc/in_own_words(line)
-	if(chat_style == BOT_CHAT_PROPER || gym_scripted)
+/// A line the way this bot would type it. A radio prefix (";", ":s ") is left alone. `in_character` is a line that has to come out
+/// as written (code words): case and full stops only.
+/datum/bot_brain/proc/in_own_words(line, in_character = FALSE)
+	if(gym_scripted && !typing_in_gym)
 		return line
+	if(!typing_shortcuts) //bot_typing.dm: its way of typing, settled on its first line, once its personality has been rolled
+		settle_typing()
 	var/prefix = ""
 	if(copytext(line, 1, 2) == ";")
 		prefix = ";"
@@ -62,11 +64,14 @@ GLOBAL_LIST_EMPTY(bot_radio_lately)
 	else if(copytext(line, 1, 2) == ":")
 		prefix = copytext(line, 1, 4)
 		line = copytext(line, 4)
-	line = lowertext(line)
-	if(copytext(line, length(line)) == ".")
-		line = copytext(line, 1, length(line))
-	if(chat_style == BOT_CHAT_TERSE)
-		line = replacetext(replacetext(line, "'", ""), ",", "")
+	if(chat_style != BOT_CHAT_PROPER)
+		line = lowertext(line)
+		if(copytext(line, length(line)) == ".")
+			line = copytext(line, 1, length(line))
+		if(chat_style == BOT_CHAT_TERSE)
+			line = replacetext(replacetext(line, "'", ""), ",", "")
+	if(!in_character && types_own_way())
+		line = type_out(line, prefix) //bot_typing.dm: shortcuts, capitals for a shout, the odd slip
 	return prefix + line
 
 /// Nobody says the same thing twice in a minute and a half, whatever's going on, and on the radio nobody says what somebody else
@@ -183,6 +188,7 @@ GLOBAL_LIST_INIT(bot_you_words, list("you", "ya", "u", "your", "you're", "youre"
 	// bot_asks.dm: somebody it's arresting talking back, and somebody pointing Security at somebody.
 	if(istype(crewmate) && bot_heard_plea(crewmate, lower_msg))
 		return
+	heard_claim_about(talker, lower_msg) //bot_memory.dm: "Morgan's a traitor", taken for what it's worth
 	if(bot_heard_accusation(talker, lower_msg, radio_freq))
 		return
 	// Its job called by its title is it being called; the next line from somebody it's answered is to it as well.
@@ -295,6 +301,10 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 	var/adrift_news = adrift_answer(lower_msg)
 	if(adrift_news)
 		return adrift_news
+	// Asked a favour: come somewhere, show them the way, bring them something, wait, call somebody (bot_favours.dm)
+	var/favour = favour_asked(talker, lower_msg, over_radio)
+	if(favour)
+		return favour
 	if(bot_text_has_any(lower_msg, list("wait", "hold on", "hang on", "stop", "stop running", "wait up")) && !bot_text_has_any(lower_msg, list("stop following", "wait here")))
 		var/waiting = wait_for(talker) //bot_asks.dm
 		if(waiting)
@@ -308,6 +318,10 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 		return healing_offered(talker)
 	if(!over_radio && bot_text_has_any(lower_msg, list("give me back", "give it back", "give back my", "that's mine", "thats mine", "return my")))
 		return give_back_theirs(talker, lower_msg)
+	// "Who killed Sam?" is a question about a death, not news of one (bot_memory.dm: who did it, and how it knows)
+	var/remembered = memory_answer(talker, lower_msg)
+	if(remembered)
+		return remembered
 	if(bot_is_death_news(lower_msg))
 		return death_news(talker, over_radio)
 	if(!over_radio)
@@ -346,6 +360,7 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 	if(bot_text_has_any(lower_msg, list("what's up", "whats up", "wassup", "what's new", "whats new")) && !bot_text_has_any(lower_msg, list("what's up with", "whats up with")))
 		return mood_pick(list("Not much! You?", "All good here. You?"), list("Not much. You?", "Same old.", "Nothing really."), list("Nothing good.", "Don't ask.", "Ugh. This shift."))
 	if(bot_text_has_any(lower_msg, list("you're cool", "youre cool", "you're great", "youre great", "you're awesome", "youre awesome", "you rock", "you're the best", "youre the best", "good job", "nice job", "well done", "nice one", "great work", "good work", "love you", "ily", "cute", "adorable")))
+		feel(talker, 1, "said something nice to me") //bot_social.dm
 		return pick("Thanks!", "Aw, cheers.", "Ha, thanks.", "You're not so bad yourself.")
 	if(!over_radio && bot_text_has_any(lower_msg, list("can you help", "could you help", "help me", "i need help", "need a hand", "give me a hand", "lend me a hand", "can i ask you something", "got a minute", "got a sec")))
 		if(state == BOT_STATE_GOAL && current_goal && !current_goal.lawful)
@@ -413,6 +428,10 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 	var/whereabouts = where_i_am(lower_msg)
 	if(whereabouts)
 		return whereabouts
+	if(bot_text_has_any(lower_msg, list("what do you think of", "what do you think about", "do you like", "what's your opinion of", "whats your opinion of", "how do you feel about", "is he alright", "is she alright", "is he nice", "is she nice")))
+		var/mob/living/carbon/human/about = bot_person_named(lower_msg, talker, list(owner))
+		if(about)
+			return about == talker ? opinion_of_line(talker) : opinion_of_line(about) //bot_social.dm
 	var/about_people = people_answer(lower_msg) //bot_conversation.dm
 	if(about_people)
 		return about_people
@@ -423,6 +442,7 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 			return pick("I've been better. Could really use a doctor.", "Not great, honestly.", "Hurting a bit.")
 		return mood_pick(list("Great, thanks! You?", "Pretty good! How about you?", "Can't complain, nice shift so far."), list("Not bad. You?", "Can't complain.", "Fine, thanks.", "Surviving."), list("Could be worse.", "Ask me after the shift.", "Same as always.", "Don't ask."))
 	if(bot_text_has_any(lower_msg, list("thanks", "thank you", "cheers", "ty")))
+		chatted_with(talker)
 		return pick("No problem.", "Anytime.", "Don't mention it.")
 	if(bot_text_has_any(lower_msg, GLOB.bot_insult_words))
 		return insulted_by(talker) //bot_conversation.dm
@@ -432,6 +452,10 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 		return pick("See you around.", "Later.", "Take care.")
 	if(bot_text_has_any(lower_msg, GLOB.bot_greeting_words))
 		var/their_name = talker.name != "Unknown" ? talker.first_name() : null
+		if(their_name && is_friend(talker)) //bot_social.dm
+			return pick("Hey, [their_name]!", "[their_name]! How's it going?", "Oh hey, [their_name].")
+		if(dislikes(talker))
+			return pick("What.", "Oh. You.", "...Hi.")
 		return (their_name && prob(40)) ? "Hey, [their_name]." : pick(GLOB.bot_greeting_reply_lines)
 	// Just its name ("Sam?"): that's it being called, not a question it can't answer
 	if(named && just_my_name(lower_msg))
@@ -584,7 +608,7 @@ GLOBAL_LIST_INIT(bot_tool_words, list(
 
 /// Somebody it has a grudge against, or who's wanted: it doesn't hand them things.
 /datum/bot_brain/proc/trusts_not(mob/living/talker)
-	return bot_is_wanted(talker) || LAZYFIND(grudges, WEAKREF(talker))
+	return bot_is_wanted(talker) || LAZYFIND(grudges, WEAKREF(talker)) || dislikes(talker) //bot_social.dm
 
 /// The tool somebody's asking for, as an item type, or null if this isn't that. "got a crowbar?", "can I borrow your wrench"
 /datum/bot_brain/proc/tool_asked_for(lower_msg)
@@ -673,7 +697,7 @@ GLOBAL_LIST_INIT(bot_goal_descriptions, list(
 
 /// What people call a place -> a word its area's name has.
 GLOBAL_LIST_INIT(bot_place_words, list(
-	"medbay" = "Medbay", "medical" = "Medbay", "doctor" = "Medbay", "bar" = "Bar", "kitchen" = "Kitchen", "brig" = "Brig",
+	"medbay" = "Medbay", "med" = "Medbay", "medical" = "Medbay", "doctor" = "Medbay", "bar" = "Bar", "kitchen" = "Kitchen", "brig" = "Brig",
 	"security" = "Security", "sec" = "Security", "cargo" = "Cargo", "bridge" = "Bridge", "engineering" = "Engineering",
 	"engi" = "Engineering", "atmos" = "Atmospherics", "atmospherics" = "Atmospherics", "chemistry" = "Chemistry",
 	"chem" = "Chemistry", "botany" = "Hydroponics", "hydroponics" = "Hydroponics", "science" = "Research",
@@ -807,7 +831,8 @@ GLOBAL_LIST_INIT(bot_place_words, list(
 	var/turf/heading_for
 
 /datum/bot_step/paced/tag_along/start(datum/bot_brain/bot)
-	until = world.time + rand(600, 900)
+	var/datum/bot_goal/tag_along/G = bot.current_goal
+	until = world.time + (istype(G) && G.short ? rand(300, 600) : rand(600, 900))
 	heading_for = null
 	return TRUE
 
@@ -892,6 +917,9 @@ GLOBAL_LIST_INIT(bot_playstyle_talk, list(
 		list("This is my third job today.", list("Doing any of them well?", "Do they pay you for all three?", "Busy shift.")),
 	),
 ))
+
+/// What's said back to being told what somebody's like.
+GLOBAL_LIST_INIT(bot_opinion_replies, list("Noted.", "Good to know.", "Really?", "Huh. Thanks.", "I'll keep that in mind.", "Figures.", "That tracks."))
 
 /// What's said back to a bit of news.
 GLOBAL_LIST_INIT(bot_news_replies, list("No way.", "Figures.", "Who's next?", "That's this place all over.", "I heard.", "Yeah, I heard that too.",
@@ -996,13 +1024,11 @@ GLOBAL_LIST_INIT(bot_shop_talk_plain_replies, list("Good to know.", "Noted.", "A
 
 /// Someone awake and close enough to chat to, the nearest first.
 /datum/bot_brain/proc/someone_to_talk_to()
-	var/mob/living/carbon/human/nearest
+	var/list/here = list()
 	for(var/mob/living/carbon/human/H in view(3, owner))
-		if(H == owner || H.stat != CONSCIOUS)
-			continue
-		if(!nearest || get_dist(owner, H) < get_dist(owner, nearest))
-			nearest = H
-	return nearest
+		if(H != owner && H.stat == CONSCIOUS)
+			here += H
+	return best_company(here) //bot_social.dm: a friend first, never somebody it can't stand
 
 /datum/bot_brain/proc/handle_idle_chat()
 	if(world.time < next_chat_time)
@@ -1052,7 +1078,18 @@ GLOBAL_LIST_INIT(bot_shop_talk_plain_replies, list("Good to know.", "Noted.", "A
 	var/list/shop = dept ? GLOB.bot_shop_talk[dept] : null
 	var/news = prob(50) ? latest_news(company, TRUE) : null
 	var/list/style = GLOB.bot_playstyle_talk[is_paranoid() ? BOT_STYLE_PARANOID : playstyle]
-	if(news)
+	var/datum/bot_fact/gossip = gossip_for(company) //bot_memory.dm: what it saw or was told, that they haven't heard
+	if(gossip)
+		opener = gossip_line(gossip)
+		if(!opener)
+			gossip = null
+	var/said_about = opener ? null : opinion_gossip_for(company) //bot_social.dm: what somebody's like
+	if(opener)
+		replies = null
+	else if(said_about)
+		opener = said_about
+		replies = GLOB.bot_opinion_replies
+	else if(news)
 		opener = pick("Did you hear? ", "You hear about it? ", "So, ", "Word is ") + news + "."
 		replies = GLOB.bot_news_replies
 		LAZYOR(news_told, news)
@@ -1076,6 +1113,7 @@ GLOBAL_LIST_INIT(bot_shop_talk_plain_replies, list("Good to know.", "Noted.", "A
 		replies = exchange[2]
 	if((opener in GLOB.bot_calm_lines) && bot_shift_gone_bad())
 		return
+	chatted_with(company)
 	var/datum/bot_brain/other = company.bot_brain
 	var/they_answer = other && other.state != BOT_STATE_COMBAT && other.state != BOT_STATE_ARREST && company.can_hear()
 	if(they_answer)
@@ -1084,10 +1122,14 @@ GLOBAL_LIST_INIT(bot_shop_talk_plain_replies, list("Good to know.", "Noted.", "A
 		owner.face_atom(company)
 	bot_say(owner, opener)
 	bot_log(src, "said \"[opener]\" to [company]")
+	if(gossip)
+		told_fact(gossip, company)
 	if(they_answer)
+		other.chatted_with(owner)
 		if(!other.pursuing_kind)
 			company.face_atom(owner)
-		other.say_after_typing(pick(replies))
+		var/reply = gossip ? other.gossip_reply(gossip) : pick(replies)
+		other.say_after_typing(reply)
 
 // ---------------------------------------------------------------------------------------------
 // News

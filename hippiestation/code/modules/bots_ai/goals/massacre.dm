@@ -69,8 +69,18 @@ GLOBAL_LIST_EMPTY(bot_alive_answers)
 		var/asker = REF(talker)
 		if(world.time < (GLOB.bot_killer_answered[asker] || -1000) + 10 SECONDS)
 			return TRUE
-		GLOB.bot_killer_answered[asker] = world.time
+		// Somebody who saw it, or was told by somebody who did, says so (bot_memory.dm)
+		var/known = killing_known_line(talker, msg)
+		if(known)
+			GLOB.bot_killer_answered[asker] = world.time
+			say_after_typing(prefix + known)
+			bot_log(src, "asked who did the killing, answered from what it knows: [known]")
+			return TRUE
 		var/mob/living/carbon/human/killer = bot_known_killer(gym_run ? get_area(owner) : null)
+		// Knowing nothing, it leaves the question to somebody who does, unless it was the one asked
+		if(!killer && !hears_own_name(msg) && !in_conversation_with(talker))
+			return FALSE
+		GLOB.bot_killer_answered[asker] = world.time
 		if(!killer)
 			say_after_typing(prefix + pick("No idea. Stay in groups.", "Don't know. Keep your eyes open.", "Haven't seen who."))
 		else if(killer == talker)

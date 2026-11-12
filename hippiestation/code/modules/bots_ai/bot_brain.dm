@@ -801,6 +801,13 @@
 		if(assign_goal(new /datum/bot_goal/acquire_captains_id()))
 			return
 
+	// Friends and the people it can't stand (bot_social.dm): off with a friend who's going somewhere, or away from somebody.
+	if(mind_the_company())
+		return
+	// A favour it said it'd do after what it was doing (bot_favours.dm)
+	if(do_favour_later())
+		return
+
 	// Free time: something to do instead of another stroll (bot_duties.dm).
 	if(run_duties(BOT_DUTY_LEISURE))
 		return

@@ -201,7 +201,9 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 		return
 	if(bot_lawful_execution(assailant, victim) || bot_hit_a_corpse(victim)) //bot_law.dm
 		return
+	var/place = get_area_name(victim, TRUE)
 	for(var/datum/bot_brain/B as anything in bot_witnesses_of(victim, list(assailant, victim)))
+		B.learn_fact(BOT_FACT_ATTACKED, assailant, victim, place) //bot_memory.dm
 		B.on_saw_violence(assailant, victim)
 
 /datum/bot_brain/proc/on_saw_violence(mob/living/carbon/human/assailant, mob/living/carbon/human/victim)
@@ -224,6 +226,11 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 		courage += 0.2
 	if(is_my_department(get_area(victim)))
 		courage += 0.15
+	// Friends (bot_social.dm): it backs a friend, and doesn't wade in against one
+	if(is_friend(victim))
+		courage += 0.35
+	if(is_friend(assailant) && !is_friend(victim))
+		courage -= 0.6
 	if(playstyle == BOT_STYLE_HUNTER)
 		courage += 0.3 //this is what it came for
 	// Somebody needs to get on the radio, whatever else happens. Somebody in the same room as a fight usually does.

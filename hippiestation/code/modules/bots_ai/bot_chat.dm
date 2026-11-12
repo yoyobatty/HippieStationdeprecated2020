@@ -11,7 +11,7 @@
 		return
 	if(H.bot_brain && !H.bot_brain.worth_saying(line)) //bot_chatter.dm
 		return
-	H.say(H.bot_brain ? H.bot_brain.in_own_words(line) : line) //bot_chatter.dm
+	H.say(H.bot_brain ? H.bot_brain.in_own_words(line, in_character) : line) //bot_chatter.dm
 
 // Called through the bot_log() macro (~hippie_defines/bots_ai.dm), which only gets this far when the line is wanted.
 /proc/bot_log_line(datum/bot_brain/B, msg)

@@ -186,6 +186,8 @@ GLOBAL_LIST_INIT(bot_antag_crimes, list("Murder", "Attempted Murder", "Sabotage"
 	W.last_seen = get_turf(H)
 	W.last_seen_at = world.time
 	bot_news("Security's after [H.real_name] for [lowertext(crime)]", H)
+	for(var/datum/bot_brain/officer as anything in GLOB.bot_security_brains) //bot_memory.dm: it's on the records
+		officer.learn_fact(BOT_FACT_WANTED, H, null, null, crime, 1, "the records")
 	// A confirmed antagonist: to be killed on sight, and the radio told so, unless somebody senior has already said otherwise (bot_law.dm)
 	if(!W.kill_on_sight && !W.kos_rank && (W.crime in GLOB.bot_antag_crimes))
 		W.kill_on_sight = TRUE
@@ -218,6 +220,7 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	SIGNAL_HANDLER
 	if(ishuman(M))
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_victim_died), M), 1)
+		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_crew_saw_death), M), 1) //bot_memory.dm: who saw it
 
 /// Listens for deaths, from the first bot on (SSdcs isn't up when globals are made)
 /datum/bot_brain/New()
@@ -337,7 +340,10 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 		return
 	if(ishuman(user) && findtext(what_done, "handcuffed") && bot_note_recuffed(user, target))
 		return
+	if(ishuman(user) && findtext(what_done, "handcuffed"))
+		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_crew_saw_cuffing), user, target), 1) //bot_memory.dm
 	if(!bot_is_violent_verb(what_done))
+		bot_note_kindness(user, target, what_done) //bot_social.dm: patched up, brought round
 		bot_note_handling(user, target, what_done, object) //bot_reflexes.dm: a shove, a grab, a needle
 		return
 	// Something light that came flying isn't violence: a bruise pack out of the hand of somebody who slipped, a
@@ -367,6 +373,7 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	if(!ishuman(user))
 		return
 	addtimer(CALLBACK(GLOBAL_PROC, /proc/bot_crew_witness_combat, user, target, what_done, object), 1) //bot_witness.dm
+	bot_note_backup(user, target) //bot_social.dm: a hand in somebody's fight
 	if(GLOB.bot_security_brains.len)
 		addtimer(CALLBACK(GLOBAL_PROC, /proc/bot_security_judge_combat, user, target, what_done, object), 1)
 
@@ -1155,7 +1162,7 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	if(L.mind?.assigned_role in GLOB.security_positions)
 		return //another officer's radio chatter isn't a call for help
 	var/lower = lowertext(raw_message)
-	if(!findtext(lower, "help") && !findtext(lower, "security") && !findtext(lower, "shitcurity"))
+	if(!findtext(lower, "help") && !findtext(lower, "security") && !findtext(lower, "shitcurity") && !bot_text_has_any(lower, list("sec"))) //"sec to medbay" (bot_typing.dm types it so too)
 		return
 	var/turf/T = get_turf(L)
 	if(!T || T.z != owner.z)

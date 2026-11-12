@@ -129,6 +129,7 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 	var/who = H.name == "Unknown" ? "Somebody" : H.name
 	var/where = get_area_name(H, TRUE)
 	bot_news("[who] was seen with \a [thing] in [where]", H)
+	learn_fact(BOT_FACT_CONTRABAND, H, null, where, "[thing.name]") //bot_memory.dm: it passes it on, or not, by who it is
 	bot_tally("traitor kit seen")
 	if(playstyle == BOT_STYLE_HUNTER || playstyle == BOT_STYLE_PARANOID || hardened)
 		bot_log(src, "saw [H] with [thing] in [where] - saying so on the radio")
@@ -248,6 +249,7 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 		return
 	LAZYADD(bodies_seen, ref)
 	bot_news("[H.real_name] turned up dead in [get_area_name(H, TRUE)]", H)
+	learn_fact(BOT_FACT_DIED, null, H, get_area_name(H, TRUE)) //bot_memory.dm
 	if(prob(40))
 		harden("found [H] dead")
 

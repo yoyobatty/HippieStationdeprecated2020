@@ -246,6 +246,7 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 	var/datum/weakref/ref = WEAKREF(who)
 	LAZYSET(grudges, ref, now)
 	LAZYSET(grudge_times, ref, world.time)
+	grudge_felt(who, points) //bot_social.dm: the anger fades, a bit of it stays
 	return now
 
 /// Called from log_combat() (through bot_security_witness_combat(), goals/security_patrol.dm) for anything done to a person
