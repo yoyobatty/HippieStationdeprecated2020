@@ -1162,11 +1162,10 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	var/mob/living/L = real_speaker
 	if(L.mind?.assigned_role in GLOB.security_positions)
 		return //another officer's radio chatter isn't a call for help
-	var/lower = lowertext(raw_message)
-	if(!findtext(lower, "help") && !findtext(lower, "security") && !findtext(lower, "shitcurity") && !bot_text_has_any(lower, list("sec"))) //"sec to medbay" (bot_typing.dm types it so too)
-		return
 	var/turf/T = get_turf(L)
 	if(!T || T.z != owner.z)
+		return
+	if(!bot_line_calls_security(lowertext(raw_message), T))
 		return
 	next_security_call_time = world.time + 600
 	if(state == BOT_STATE_GOAL)
@@ -1176,6 +1175,35 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	G.caller_name = L.name
 	if(assign_goal(G))
 		bot_say(owner, radio_freq ? ":s Responding to a call from [L.name] in [get_area_name(T, TRUE)]." : "On my way.")
+
+/// "help" as a cry, wherever it is in the line (a line opening with "help" is one too: "Help! Security!", "help maint").
+GLOBAL_LIST_INIT(bot_help_cries, list("help me", "help us", "need help", "needs help", "someone help", "somebody help", "anyone help", "anybody help", "send help", "get help"))
+/// "help" as an everyday word: "better parts would help", "help yourselves", "I'll come help", "can I help you?".
+GLOBAL_LIST_INIT(bot_help_not_cries, list("would help", "will help", "should help", "might help", "can help", "could help", "help yourself", "help yourselves",
+	"help you", "help out", "help with", "to help", "i'll help", "ill help", "come help"))
+/// Trouble in a call for help that's Security's whoever it was put to ("medic, someone's attacking me").
+GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill", "killing", "murder", "murderer", "after me", "stabbed", "stabbing",
+	"shot", "shooting", "beating", "traitor", "changeling", "griefer", "greytide"))
+
+/// Whether a line said near an officer, or on its radio, is somebody calling Security. Security named is always a call ("sec to
+/// medbay": bot_typing.dm types it so too). Otherwise it's a cry for help, and not one put to another trade: round-10.32.13, a doctor
+/// radioed "Science, could you upgrade the machines in Medbay Treatment Center? Better parts would help." and all five officers
+/// answered it, on the word "help".
+/proc/bot_line_calls_security(lower, turf/near)
+	if(findtext(lower, "security") || findtext(lower, "shitcurity") || bot_text_has_any(lower, list("sec")))
+		return TRUE
+	if(!bot_text_has_any(lower, list("help")))
+		return FALSE
+	if(bot_text_has_any(lower, GLOB.bot_danger_words))
+		return TRUE
+	var/cry = bot_text_word_at(lower, "help") == 1 || bot_text_has_any(lower, GLOB.bot_help_cries)
+	if(!cry && bot_text_has_any(lower, GLOB.bot_help_not_cries))
+		return FALSE
+	// Put to another trade ("doctor, I need help"): theirs to answer (bot_requests.dm)
+	var/datum/bot_request_kind/K = bot_request_kind_of(lower, FALSE, near)
+	if(K && length(K.jobs) && !length(K.jobs & GLOB.security_positions))
+		return FALSE
+	return TRUE
 
 /datum/bot_goal/respond_to_call
 	var/turf/caller_turf

@@ -182,6 +182,44 @@
 	log_line("dead, it took the call: [took_call ? "yes" : "no"]")
 	expect(!took_call && !brain.assign_goal(new /datum/bot_goal/clean_contamination()), "dead, nothing gets assigned")
 
+/// round-10.32.13: a doctor radioed "Science, could you upgrade the machines in Medbay Treatment Center? Better parts would help." and all
+/// five officers said they were responding to it. Each line is heard on Common by an idle officer; which it answers is what's checked.
+/datum/bot_scenario/griefed/bug/not_for_security
+	name = "security: calls to another trade and everyday \"help\" aren't Security's"
+	job = "Security Officer"
+	griefer_job = "Assistant"
+	griefer_name = "Ca Ller"
+
+/datum/bot_scenario/griefed/bug/not_for_security/grief()
+	var/list/lines = list(
+		"Science, could you upgrade the machines in Medbay Treatment Center? Better parts would help." = FALSE,
+		"Mining, R&D is out of silver. Anything you can bring up would help." = FALSE,
+		"Fresh pizza on the kitchen counter, help yourselves." = FALSE,
+		"I'll come help." = FALSE,
+		"Can I help you?" = FALSE,
+		"doctor, I need help" = FALSE,
+		"Help! Security!" = TRUE,
+		"Somebody help me, I'm being attacked!" = TRUE,
+		"Help! Ash is trying to kill me!" = TRUE,
+		"HELP SEC" = TRUE,
+		"help maint" = TRUE,
+		"pls help in the bar" = TRUE,
+		"medic, help! someone's attacking me in the bar" = TRUE,
+		"sec to medbay" = TRUE)
+	var/wrong = 0
+	for(var/line in lines)
+		brain.drop_goals("gym")
+		brain.state = BOT_STATE_WANDER
+		brain.next_security_call_time = 0
+		brain.on_heard_security_call(griefer, line, FREQ_COMMON)
+		var/took = istype(brain.current_goal, /datum/bot_goal/respond_to_call)
+		if(took != lines[line])
+			wrong++
+		log_line("\"[line]\": [took ? "answered" : "let be"][took != lines[line] ? " (WRONG)" : ""]")
+	brain.drop_goals("gym")
+	brain.state = BOT_STATE_WANDER
+	expect(!wrong, "every line answered or let be as it should be")
+
 /// round-13.09.35: the Warden confiscated an energy sword, set it down two seconds later to take a crowbar it passed, and went off on a
 /// call. The Captain picked it up off the floor.
 /datum/bot_scenario/griefed/bug/sword_kept
