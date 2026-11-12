@@ -21,7 +21,6 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/__HELPERS/text.dm
 ## code/__HELPERS/unsorted.dm
 ## code/_onclick/adjacent.dm (ClickCross() copies a pile's contents first, LOOP_CONTENTS)
-## code/_onclick/adjacent.dm (ClickCross() copies a pile's contents first, LOOP_CONTENTS)
 ## code/_onclick/hud/parallax.dm (out of the .dme: rewritten whole as hippiestation/code/_onclick/hud/parallax.dm, the sky's layers come from the round's theme and slide with the eye's glide)
 ## code/\_onclick/item_attack.dm
 ## code/controllers/configuration/entries/dbconfig.dm
@@ -43,7 +42,6 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/subsystem/ticker.dm
 ## code/controllers/subsystem/timer.dm
 ## code/controllers/subsystem/vote.dm
-## code/datums/components/chasm.dm (is_safe() by locate(), no copy of the tile's contents)
 ## code/datums/components/chasm.dm (is_safe() by locate(), no copy of the tile's contents)
 ## code/datums/components/material_container.dm
 ## code/datums/datumvars.dm
