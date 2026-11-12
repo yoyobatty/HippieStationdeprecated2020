@@ -209,10 +209,23 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 
 /// Which kind of call a line is, if any. Summonses are only looked for in something said to a bot by name.
 /proc/bot_request_kind_of(lower_msg, named, turf/near)
+	// Worked out once a tick for each line, place and named-or-not: every bot that hears a call asks this, all in the same tick for
+	// a radio line, and it runs every kind's word lists (2026-11-11, a room of spammers: most of the server's time)
+	var/static/list/memo = list()
+	var/static/memo_time = -1
+	if(memo_time != world.time)
+		memo = list()
+		memo_time = world.time
+	var/key = "[named ? 1 : 0]|[near ? "[near.x],[near.y],[near.z]" : ""]|[lower_msg]"
+	var/known = memo[key] // the kind, or FALSE for none
+	if(!isnull(known))
+		return known || null
+	. = null
 	for(var/datum/bot_request_kind/K as anything in GLOB.bot_request_kinds)
 		if(K.matches(lower_msg, named, near))
-			return K
-	return null
+			. = K
+			break
+	memo[key] = . || FALSE
 
 /// Whether a line is a call of this kind. A summons (no jobs) only counts when said to a bot by name.
 /datum/bot_request_kind/proc/matches(lower_msg, named, turf/near)

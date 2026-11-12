@@ -51,6 +51,13 @@ GLOBAL_VAR(mob_storm_file)
 				pile = F
 		break
 	mob_storm_log("pile at [pile.x],[pile.y],[pile.z] ([get_area(pile)]), profiler [SSprofiler.engine]")
+	if(world.params["mob-storm-scenario"] == "speech")
+		run_speech_storm(pile, text2num(world.params["mob-storm-seconds"]) || 60)
+		mob_storm_log("done")
+		sleep(1 SECONDS)
+		Master.Shutdown()
+		qdel(world)
+		return
 	if(world.params["mob-storm-scenario"] == "conveyor")
 		run_conveyor_storm(pile, text2num(world.params["mob-storm-seconds"]) || 60)
 		mob_storm_log("done")
@@ -265,3 +272,94 @@ GLOBAL_VAR_INIT(storm_body_moves, 0)
 		body moves [GLOB.storm_body_moves], shard crossings by mobs [GLOB.storm_glass_crossings], glass that answered (cut, and a shard's sound) [GLOB.storm_glass_reactions]")
 	mob_storm_log("self time: [jointext(bits, ", ")]")
 	mob_storm_log("TOTAL procs [round(100 * busy / real, 0.1)]%, game [round(100 * game / real)]%, worst stall [round(W.worst / 10, 0.1)] s, stalls over 0.5 s: [W.stalls]")
+
+// ---------------------------------------------------------------------------------------------
+// mob-storm-scenario=speech: a room of spammers. mob-storm-speakers (60) crew with headsets packed round the spot, every one of
+// them doing something every tick in turn: talking, the common channel, an emote, a whisper. Everyone else on the station who
+// hears (bots parse what they hear) pays too. No clients, so what reaching a player costs isn't in it.
+// ---------------------------------------------------------------------------------------------
+
+GLOBAL_VAR_INIT(storm_hears, 0)
+
+/mob/living/carbon/human/Hear(message, atom/movable/speaker, message_language, raw_message, radio_freq, list/spans, message_mode)
+	GLOB.storm_hears++
+	return ..()
+
+/proc/storm_measure_start()
+	return list("real" = REALTIMEOFDAY, "game" = world.time)
+
+/// Proc time, game speed and the heaviest procs over the window since storm_measure_start()
+/proc/storm_measure_report(list/start, label)
+	var/real = (REALTIMEOFDAY - start["real"]) / 10
+	var/game = (world.time - start["game"]) / 10
+	var/busy = 0
+	var/list/selfs = SSprofiler.recent(round(real * 1000))
+	var/list/bits = list()
+	for(var/name in selfs)
+		if(copytext(name, 1, 2) == "(")
+			continue
+		busy += selfs[name]
+		if(length(bits) < 14)
+			bits += "[name] [round(selfs[name], 0.01)] s"
+	mob_storm_log("[label]: over [round(real, 0.1)] s real, [round(game, 0.1)] s game ([round(100 * game / max(real, 0.1))]%), procs busy [round(busy, 0.01)] s ([round(100 * busy / max(real, 0.1), 0.1)]% of real time)")
+	mob_storm_log("self time: [jointext(bits, ", ")]")
+	for(var/list/row in SSprofiler.recent_stacks(min(15000, round(real * 1000))))
+		var/list/stack = row["stack"]
+		mob_storm_log("   last 15 s, [round(row["ms"] / 1000, 0.1)] s: [jointext(stack.Copy(max(1, length(stack) - 7)), " > ")]")
+	return busy
+
+/proc/run_speech_storm(turf/center, seconds)
+	var/count = text2num(world.params["mob-storm-speakers"]) || 60
+	var/list/speakers = list()
+	for(var/turf/open/floor/F in range(6, center))
+		if(length(speakers) >= count)
+			break
+		if(is_blocked_turf(F, TRUE))
+			continue
+		var/mob/living/carbon/human/H = new(F)
+		H.equipOutfit(/datum/outfit/job/assistant)
+		H.real_name = "Spammer [length(speakers) + 1]"
+		H.name = H.real_name
+		speakers += H
+	var/living = 0
+	for(var/mob/living/carbon/human/H in GLOB.mob_living_list)
+		living++
+	mob_storm_log("speakers: [length(speakers)] round [center.x],[center.y] ([get_area(center)]); humans on the station: [living], bots: [length(GLOB.bot_brains)]")
+	sleep(5 SECONDS)
+	var/datum/mob_storm_watch/W = new
+	var/sent = 0
+	var/list/kinds = list("say" = 0, "radio" = 0, "emote" = 0, "whisper" = 0)
+	GLOB.storm_hears = 0
+	var/list/start = storm_measure_start()
+	W.watch()
+	var/n = 0
+	var/end = REALTIMEOFDAY + seconds * 10
+	while(REALTIMEOFDAY < end)
+		n++
+		var/i = 0
+		for(var/mob/living/carbon/human/H as anything in speakers)
+			i++
+			if(QDELETED(H) || H.stat)
+				continue
+			switch((i + n) % 4)
+				if(0)
+					H.say("spam number [n] from [i], lorem ipsum dolor sit amet", ignore_spam = TRUE)
+					kinds["say"]++
+				if(1)
+					H.say("; radio spam [n] from [i], all hands this is not a drill", ignore_spam = TRUE)
+					kinds["radio"]++
+				if(2)
+					H.emote("me", EMOTE_VISIBLE, "flails wildly for the [n]th time", TRUE)
+					kinds["emote"]++
+				if(3)
+					H.say("#whisper spam [n] from [i]", ignore_spam = TRUE)
+					kinds["whisper"]++
+			sent++
+		sleep(world.tick_lag)
+	W.watching = FALSE
+	var/busy = storm_measure_report(start, "speech storm")
+	var/list/kind_bits = list()
+	for(var/k in kinds)
+		kind_bits += "[k] [kinds[k]]"
+	mob_storm_log("messages [sent] ([jointext(kind_bits, ", ")]), heard [GLOB.storm_hears] times by humans; [round(busy * 1e6 / max(sent, 1))] us of procs a message")
+	mob_storm_log("TOTAL procs [round(100 * busy / seconds, 0.1)]%, worst stall [round(W.worst / 10, 0.1)] s, stalls over 0.5 s: [W.stalls], over 2 s: [W.big_stalls]")

@@ -31,6 +31,20 @@ GLOBAL_LIST_EMPTY(bot_radio_lately)
 	var/list/news_told
 	/// When it will next answer someone talking to it (next_reaction_time, bot_brain.dm, paces everything else).
 	var/next_answer_time = 0
+	/// Lines taken in this second (on_heard_speech()): a person in a flood of chatter follows a few lines a second, not hundreds
+	var/heard_this_second = 0
+	var/heard_second_ends = 0
+
+/// Lines a second a bot takes in. The busiest seconds of four played rounds had 6-9 lines said or radioed on the whole station
+/// (game.log, 2026-11-10/11), of which a bot hears only some; a room of spammers made each of 20 bots read ~2000 a second.
+#define BOT_HEARD_LINES_PER_SECOND 10
+
+/// Whether a line it hears gets its attention (Hear(), bot_brain.dm): BOT_HEARD_LINES_PER_SECOND, the rest is lost in the noise
+/datum/bot_brain/proc/takes_in_line()
+	if(world.time >= heard_second_ends)
+		heard_second_ends = world.time + 1 SECONDS
+		heard_this_second = 0
+	return ++heard_this_second <= BOT_HEARD_LINES_PER_SECOND
 
 /datum/bot_brain/New(mob/living/carbon/human/new_owner)
 	. = ..()
@@ -239,18 +253,41 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 
 /// TRUE if any of words is in text as a whole word.
 /proc/bot_text_has_any(text, list/words)
+	// Each answer is kept for the rest of the tick: every bot that hears a line asks the same questions of it, and a radio line
+	// reaches all of them in the same tick. Keyed by the line, then by the word list itself (a list written out at the call is a
+	// new list each time and just misses).
+	var/static/list/memo = list()
+	var/static/memo_time = -1
+	if(memo_time != world.time)
+		memo = list()
+		memo_time = world.time
+	var/list/answers = memo[text]
+	if(!answers)
+		answers = list()
+		memo[text] = answers
+	else if(!isnull(answers[words]))
+		return answers[words]
+	. = FALSE
 	for(var/word in words)
 		if(bot_text_word_at(text, word))
-			return TRUE
-	return FALSE
+			. = TRUE
+			break
+	answers[words] = .
 
 /// Where a whole word first comes in the text, or 0
 /proc/bot_text_word_at(text, word)
 	var/static/list/cache = list()
+	var/static/list/plain = list() // words with no regex symbols in them, which findtext() can look for as they are
+	var/static/regex/symbols = regex(@"[\\.*+?()\[\]{}|^$]")
 	var/regex/R = cache[word]
 	if(!R)
 		R = regex("\\b[word]\\b", "i")
 		cache[word] = R
+		plain[word] = !symbols.Find(word)
+	// findtext() first (native, case-insensitive like the regex): most words aren't in most lines, and every bot ran every regex
+	// on every line it heard. A room of spammers spent 76% of the server's proc time here (2026-11-11, tools/mob_storm speech).
+	if(plain[word] && !findtext(text, word))
+		return 0
 	return R.Find(text)
 
 /// What to say back to something said to this bot in particular, or null if it has nothing to say to it.

@@ -14,6 +14,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/__DEFINES/tgs.dm (TGS DMAPI 7.4.0, the upstream file as released; was 5.2.7)
 ## code/__HELPERS/\_logging.dm
 ## code/__HELPERS/AStar.dm
+## code/__HELPERS/game.dm (get_hearers_in_view(): radios found once, a hearer added once, each tile and range remembered for the tick)
 ## code/__HELPERS/icons.dm
 ## code/__HELPERS/mobs.dm
 ## code/__HELPERS/radiation.dm

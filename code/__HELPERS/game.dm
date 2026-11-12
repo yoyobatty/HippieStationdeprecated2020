@@ -231,6 +231,26 @@ GLOBAL_VAR_INIT(hearing_stamp, 0)
 				. += target
 		return .
 
+	// hippie start -- the same tile and range asked again in the same tick gets the same answer (a copy: callers add to it). A radio
+	// message asks this for every radio and intercom that hears it, and a room of spammers asks it hundreds of times a tick from the
+	// same tiles (2026-11-11, tools/mob_storm speech). Something that moves mid-tick is placed where it was for the rest of the tick.
+	var/static/list/memo = list()
+	var/static/memo_time = -1
+	if(memo_time != world.time)
+		memo = list()
+		memo_time = world.time
+	var/memo_key = "[T.x],[T.y],[T.z],[R],[ignore_radios]"
+	var/list/known = memo[memo_key]
+	if(known)
+		return known.Copy()
+	var/list/found = get_hearers_in_view_uncached(R, T, ignore_radios)
+	memo[memo_key] = found
+	return found.Copy()
+
+/// get_hearers_in_view() past the zero range case, without the tick's memo
+/proc/get_hearers_in_view_uncached(R, turf/T, ignore_radios)
+	. = list()
+	// hippie end
 	if(!SSspatial_grid.initialized) // can be called during early roundstart init, before the grid exists yet
 		var/lum = T.luminosity
 		T.luminosity = 6 // This is the maximum luminosity

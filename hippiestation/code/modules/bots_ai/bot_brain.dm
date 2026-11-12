@@ -1235,7 +1235,7 @@ GLOBAL_LIST_EMPTY(bot_keyword_areas)
 
 /mob/living/carbon/human/Hear(message, atom/movable/speaker, message_language, raw_message, radio_freq, list/spans, message_mode)
 	. = ..()
-	if(bot_brain && speaker)
+	if(bot_brain && speaker && bot_brain.takes_in_line()) //bot_chatter.dm: a few lines a second, as a person in a flood of chatter
 		raw_message = html_decode(raw_message) //it comes encoded: "where's" arrives as "where&#39;s", and nothing with an apostrophe in it ever matched
 		bot_brain.on_heard_security_call(speaker, raw_message, radio_freq) //goals/security_patrol.dm
 		bot_brain.on_heard_ruling(speaker, raw_message) //bot_law.dm
