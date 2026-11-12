@@ -57,7 +57,8 @@
 	return UI_INTERACTIVE
 
 /datum/admin_player_panel/ui_close(mob/user)
-	qdel(src)
+	if(!QDELETED(src)) // Destroy() closing the window lands here too
+		qdel(src)
 
 /// One button: "holder" links go to the admin holder's Topic(), "vv" opens View Variables, "pm" an admin PM
 /datum/admin_player_panel/proc/pp_link(label, params, kind = "holder", list/extra)

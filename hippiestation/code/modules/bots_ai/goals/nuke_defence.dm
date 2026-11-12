@@ -171,7 +171,7 @@ GLOBAL_LIST_INIT(bot_shuttle_ops_reasons, list(
 	var/obj/item/disk/nuclear/D = bot_find_nuke_disk(bot)
 	if(!D || bot_nuke_disk_holder(bot))
 		return FALSE //nowhere, or somebody alive has it
-	var/atom/movable/holder = bot_outermost_holder(D) //bot_knowledge.dm: the body it's on, or the disk itself
+	var/atom/movable/holder = bot_outermost_holder(D) //bot_brain.dm: the body it's on, the disk itself, or whatever it's shut in (a locker, a bag, the nuke)
 	var/mob/living/carbon/human/body = holder
 	// With no operatives about, a disk lying where it's kept (the Captain's office at the start of the shift) is the Captain's to pick up
 	// (secure_disk, goals/civilians.dm): a head took it off the desk in the first minute of every shift.
@@ -197,6 +197,10 @@ GLOBAL_LIST_INIT(bot_shuttle_ops_reasons, list(
 /// Where the disk is, as anybody would know it: it saw the body or the disk, or the Captain's been found dead (the pinpointer in the
 /// Captain's locker points at it, and everybody knows who carries it).
 /datum/bot_brain/proc/knows_where_disk_is(atom/movable/holder)
+	// Only the disk itself, somebody carrying it, or the nuke it's in shows where it is. A shut locker or a bag in sight doesn't: in the nuke
+	// batches of 2026-11-12 an officer took the disk out through a shut Cell 4 Locker's door, and another out of a backpack on the floor.
+	if(!istype(holder, /obj/item/disk/nuclear) && !ishuman(holder) && !istype(holder, /obj/machinery/nuclearbomb))
+		return FALSE
 	if(holder in view(BOT_SIGHT_RANGE, owner))
 		return TRUE
 	var/mob/living/carbon/human/body = holder
@@ -237,6 +241,23 @@ GLOBAL_LIST_INIT(bot_shuttle_ops_reasons, list(
 	if(!bot.owner.Adjacent(holder))
 		return GOAL_STEP_FAIL
 	var/mob/living/carbon/human/body = holder
+	var/obj/machinery/nuclearbomb/N = holder
+	if(istype(N))
+		// In the nuke: out with the panel's Eject Disk (nuclearbomb ui_act("eject_disk")). Picked straight out, the nuke's auth stayed set
+		// and an operative could arm it with no disk in it (op_arm skips the disk when auth is set, goals/nuke_ops.dm).
+		if(N.auth != D)
+			return GOAL_STEP_FAIL
+		bot.human_pause(N)
+		if(QDELETED(D) || QDELETED(N) || N.auth != D || D.loc != N || !bot.owner.Adjacent(N))
+			return GOAL_STEP_FAIL
+		bot.telemetry_ui_action(N, "eject disk")
+		playsound(N, 'sound/machines/terminal_insert_disc.ogg', 50, FALSE)
+		playsound(N, 'sound/machines/nuke/general_beep.ogg', 50, FALSE)
+		D.forceMove(get_turf(N))
+		N.auth = null
+		N.update_ui_mode()
+	else if(holder != D && !istype(body))
+		return GOAL_STEP_FAIL //shut in a locker or a bag, or on a monkey: not through the door
 	if(istype(body))
 		if(body.stat != DEAD && !body.incapacitated())
 			return GOAL_STEP_FAIL //they're up: theirs
@@ -247,7 +268,7 @@ GLOBAL_LIST_INIT(bot_shuttle_ops_reasons, list(
 		if(!body.transferItemToLoc(D, get_turf(bot.owner)))
 			D.forceMove(get_turf(bot.owner)) //out of a bag, which transferItemToLoc() doesn't reach
 	bot.try_pickup_target(D)
-	if(!bot.find_carried_tool(/obj/item/disk/nuclear))
+	if(bot_outermost_holder(D) != bot.owner) //this disk on the bot: a fake one in its bag would pass find_carried_tool()
 		return GOAL_STEP_FAIL
 	bot.put_away(D)
 	if(GLOB.bot_disk_recoverer == bot)

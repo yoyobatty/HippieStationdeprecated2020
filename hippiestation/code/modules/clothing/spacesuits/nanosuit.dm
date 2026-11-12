@@ -253,6 +253,7 @@
 	var/radon = FALSE
 	var/cellon = FALSE
 	var/hacked = FALSE
+	var/boot_count = 0 //how many times it's booted: a boot overtaken by a newer one stops (bootSequence())
 	//var/upgraded = FALSE
 	var/upgrademulti = 1.0 //Upgrade multiplier
 
@@ -853,37 +854,55 @@
 	for(var/obj/item/implant/explosive/disintegrate/I in H.implants)
 		qdel(I)
 
+/// Waits out a step of the boot. FALSE once the boot's over: the suit's come off or gone, or it's been put back on and is booting again.
+/obj/item/clothing/suit/space/hardsuit/nano/proc/boot_wait(time, boot)
+	sleep(time)
+	return boot == boot_count && Wearer && helmet && !QDELETED(src)
+
+/// Coming on, the suit's systems report in one by one, and it's running about 13 seconds later. Every step looks first whether the boot is
+/// still on: the suit can come off or go meanwhile (killed mid-boot, the wearer is dusted by their implant, the suit and helmet with them:
+/// round-07.14.23), and put back on, it boots again from the start.
 /obj/item/clothing/suit/space/hardsuit/nano/proc/bootSequence()
+	var/boot = ++boot_count
 	helmet.display_visor_message("Crynet - UEFI v1.32 Syndicate Systems")
-	sleep(10)
+	if(!boot_wait(10, boot))
+		return
 	helmet.display_visor_message("P.O.S.T. Commencing...")
-	sleep(30)
+	if(!boot_wait(30, boot))
+		return
 	playsound(src, 'sound/machines/beep.ogg', 50, FALSE)
 	helmet.display_visor_message("Memory test: 6144MB OK(Installed Memory: 6144MB)")
-	sleep(10)
+	if(!boot_wait(10, boot))
+		return
 	helmet.display_visor_message("Onboard equipment test: OK")
-	sleep(10)
+	if(!boot_wait(10, boot))
+		return
 	helmet.display_visor_message("Telecommunications systems: OK")
-	sleep(10)
+	if(!boot_wait(10, boot))
+		return
 	helmet.display_visor_message("Checking environment sensors, standby...")
-	sleep(20)
+	if(!boot_wait(20, boot))
+		return
 	healthon = TRUE
 	helmet.display_visor_message("Life signs systems: OK")
-	sleep(5)
+	if(!boot_wait(5, boot))
+		return
 	atmoson = TRUE
 	helmet.display_visor_message("Atmospheric sensors: OK")
-	sleep(5)
+	if(!boot_wait(5, boot))
+		return
 	cellon = TRUE
 	helmet.display_visor_message("Power sensor: OK")
-	sleep(5)
+	if(!boot_wait(5, boot))
+		return
 	radon = TRUE
 	helmet.display_visor_message("Geiger counter: OK")
-	sleep(5)
-	helmet.display_visor_message("Loading default configuration, standby...")
-	sleep(25)
-	helmet.display_visor_message("Successful. Have a safe and secure day.")
-	if(!Wearer)
+	if(!boot_wait(5, boot))
 		return
+	helmet.display_visor_message("Loading default configuration, standby...")
+	if(!boot_wait(25, boot))
+		return
+	helmet.display_visor_message("Successful. Have a safe and secure day.")
 	if(hacked) //put back on: coming off took its HUDs with it
 		upgrade()
 		return

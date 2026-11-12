@@ -292,10 +292,17 @@
 			else
 				handle_wander()
 	catch(var/exception/e)
+		if(QDELETED(src)) //see below: the body went while this tick slept, and what was left of it read a null owner
+			log_runtime("BOT AI: a tick outlived its body (state=[state]): [e] at [e.file]:[e.line]")
+			return
 		message_admins("<span class='danger'>BOT AI EXCEPTION</span> [ADMIN_FLW(owner)] [owner] in [state]: [e]")
 		log_runtime("BOT AI EXCEPTION ([owner], state=[state]): [e] at [e.file]:[e.line]")
 		GLOB.bot_shift?.note_bot_exception("BOT AI EXCEPTION ([owner], state=[state]): [e] at [e.file]:[e.line]") //gym/bot_shift.dm
 
+	// A click can sleep (human_pause(), a do_after(), a rune's chant) and the body be gibbed before it wakes: the human's Destroy() deletes
+	// this brain, which stops processing and lets go of its owner. Nothing keeps ticking; this is the one tick unwinding, with nobody to drive.
+	if(QDELETED(src))
+		return
 	handle_idle_chat()
 
 	// Independent of state (wander/goal/combat) and never suspends anything - unlike

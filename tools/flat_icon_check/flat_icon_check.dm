@@ -19,6 +19,8 @@
 	var/list/subjects = list()
 	// Humans dressed for every job, each facing every way
 	for(var/datum/job/J as anything in SSjob.occupations)
+		if(istype(J, /datum/job/ai) || istype(J, /datum/job/cyborg))
+			continue // no human preview for them (equip() CRASHes on one); the real silicons are flattened below
 		var/mob/living/carbon/human/H = new(spot)
 		J.equip(H, TRUE, FALSE)
 		for(var/D in GLOB.cardinals)

@@ -53,7 +53,7 @@
 	bot_tally("cyborgs subverted by a traitor")
 	var/mob/living/silicon/robot/R = target
 	bot_log(bot, "subverted [R]")
-	var/datum/antagonist/traitor/T = bot.owner.mind?.has_antag_datum(/datum/antagonist/traitor)
+	var/datum/antagonist/traitor/T = bot.owner.mind?.has_antag_datum(/datum/antagonist/traitor) || null //0 for anybody else (the gym's bot with an emag isn't a traitor), and 0?.objectives throws
 	var/mob/living/carbon/human/mark
 	for(var/datum/objective/assassinate/O in T?.objectives)
 		var/mob/living/carbon/human/H = O.target?.current

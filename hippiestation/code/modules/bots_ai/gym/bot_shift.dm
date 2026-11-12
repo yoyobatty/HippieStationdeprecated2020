@@ -151,6 +151,11 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	muster()
 	make_antagonists()
 	schedule_forced_events()
+	// The crew take a minute and more to arrive (muster()), and the first in are about the station meanwhile: one killed on the way in (a
+	// wizard's fireball, wizafter1112c) had its brain deleted with its body, and the supermatter check took that brain for its worker before
+	// sample() had seen the death ("Cannot read null.z" in station_crystal()). One look at everybody first wraps up the dead (died()).
+	for(var/datum/bot_shift_member/member as anything in members)
+		member.sample()
 	for(var/path in subtypesof(/datum/bot_shift_check))
 		var/datum/bot_shift_check/check = new path(src)
 		if(check.name && check.worker())

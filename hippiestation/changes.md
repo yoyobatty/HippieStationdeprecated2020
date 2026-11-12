@@ -43,6 +43,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/subsystem/ticker.dm
 ## code/controllers/subsystem/timer.dm
 ## code/controllers/subsystem/vote.dm
+## code/datums/brain_damage/imaginary_friend.dm (the friend's picture is set up async and is never an AI's or a cyborg's)
 ## code/datums/components/chasm.dm (is_safe() by locate(), no copy of the tile's contents)
 ## code/datums/components/material_container.dm
 ## code/datums/components/squeak.dm (a pile of squeaky things squeaks once for each thing that comes onto it)

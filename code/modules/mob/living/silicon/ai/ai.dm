@@ -920,7 +920,7 @@ HIPPIE END*/
 				client.perspective = EYE_PERSPECTIVE
 				client.eye = loc
 		update_sight()
-		if(client.eye != src)
+		if(client.eye && client.eye != src) // hippie -- an AI with no loc leaves the eye null, as /mob/living/reset_perspective() already allows for
 			var/atom/AT = client.eye
 			AT.get_remote_view_fullscreens(src)
 		else

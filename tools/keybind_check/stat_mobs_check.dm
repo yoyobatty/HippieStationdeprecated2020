@@ -128,10 +128,11 @@ GLOBAL_LIST_EMPTY(sm_probes)
 		sm_check("[antag] gets its section", findtext(sent, "\"section\"") && findtext(sent, antags[antag]), sent)
 		qdel(A)
 
-	// With the client: an AI, a cyborg, a ghost
+	// With the client: an AI, a cyborg, a ghost. An AI made with nobody to go in it deletes itself (ai.dm Initialize()), and a
+	// client put in that one sits in nullspace with a null eye: this one comes out of the human the client's in, as AIize() does it.
 	var/mob/living/silicon/ai/AI = locate() in home
 	if(!AI)
-		AI = new(home)
+		AI = new(home, null, H)
 	AI.ckey = C.ckey
 	sleep(40)
 	var/text = sm_text(C)

@@ -919,7 +919,7 @@
 	sight = initial(sight)
 	lighting_alpha = LIGHTING_PLANE_ALPHA_VISIBLE
 
-	if(client.eye != src)
+	if(client.eye && client.eye != src) // hippie -- Login() builds the HUD (create_mob_hud() calls this) before its reset_perspective(), so the eye is still the last mob's: null if that one had no loc
 		var/atom/A = client.eye
 		if(A.update_remote_sight(src)) //returns 1 if we override all other sight updates.
 			return

@@ -1008,3 +1008,68 @@
 		fail_reason = "went for a disk it couldn't know about"
 		return BOT_GYM_FAIL
 	return world.time > start_time + 10 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/nukies/shut_in
+	name = "nukies: the disk shut in a locker in sight is left alone"
+	desc = "The disk is in a shut, locked brig locker across the room and an operative's about. Nobody could know it's in there, so the officer doesn't go for it: the first build took it out through the locker's door (Cell 4 Locker, nuke batches 2026-11-12)."
+	job = "Security Officer"
+	layout = list(
+		"##############",
+		"#B......Z....#",
+		"########.#####",
+		"#O...........#",
+		"##############")
+	time_limit = 18 SECONDS
+	var/obj/structure/closet/secure_closet/brig/locker
+
+/datum/bot_scenario/nukies/shut_in/post_spawn()
+	..()
+	locker = new(first_marker("Z"))
+	make_disk(locker)
+	disk.forceMove(locker)
+
+/datum/bot_scenario/nukies/shut_in/check()
+	if(bot_outermost_holder(disk) == bot)
+		fail_reason = "took the disk out through a shut locker"
+		return BOT_GYM_FAIL
+	if(istype(brain.current_goal, /datum/bot_goal/recover_disk))
+		fail_reason = "went for a disk shut in a locker"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 15 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/nukies/shut_in/release_run()
+	QDEL_NULL(locker)
+	return ..()
+
+/datum/bot_scenario/nukies/in_the_nuke
+	name = "nukies: the disk comes out of the operatives' nuke through its panel"
+	desc = "The operatives' nuke stands across the room with the disk in it. The officer goes over and ejects the disk with the panel, so the nuke has no disk in it any more: the first build picked it straight out and the nuke still counted it as in (auth), so an operative could arm it with no disk."
+	job = "Security Officer"
+	layout = list(
+		"##############",
+		"#B......N....#",
+		"########.#####",
+		"#O...........#",
+		"##############")
+	time_limit = 30 SECONDS
+	var/obj/machinery/nuclearbomb/syndicate/nuke
+
+/datum/bot_scenario/nukies/in_the_nuke/post_spawn()
+	..()
+	nuke = new(first_marker("N"))
+	make_disk(nuke)
+	disk.forceMove(nuke)
+	nuke.auth = disk
+	nuke.update_ui_mode()
+
+/datum/bot_scenario/nukies/in_the_nuke/check()
+	if(bot_outermost_holder(disk) != bot)
+		return BOT_GYM_PENDING
+	if(nuke.auth)
+		fail_reason = "took the disk but the nuke still has it in"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/nukies/in_the_nuke/release_run()
+	QDEL_NULL(nuke)
+	return ..()

@@ -598,10 +598,16 @@ GLOBAL_LIST_INIT(bot_cult_rune_areas, typecacheof(list(/area/crew_quarters/toile
 		if(length(invokers) >= C.big_rune.req_cultists)
 			log_game("BOT CULT: the Geometer is called, [length(invokers)] of them chanting")
 			human_pause(C.big_rune)
+			if(QDELETED(C.big_rune)) //wiped off with a null rod while it reached for it
+				return FALSE
 			telemetry_clicked(C.big_rune)
+			// Not waited on: the rune chants for four seconds (sleep(40), /obj/effect/rune/narsie/invoke()) and then the Geometer takes every
+			// cultist, this one included (narsie_act() from /obj/singularity/narsie/large/cult/Initialize()). Called straight, this tick slept
+			// through it and came back up through handle_wander() with its body gibbed and the brain deleted ("Cannot read null.buckled").
+			// A player's click doesn't hold them either: it stands on the rune and chants with the rest till it comes.
 			usr = owner
-			C.big_rune.attack_hand(owner)
-			return TRUE
+			INVOKE_ASYNC(C.big_rune, TYPE_PROC_REF(/atom, attack_hand), owner)
+			return cult_hold()
 	return cult_hold()
 
 /datum/bot_goal/cult_summon

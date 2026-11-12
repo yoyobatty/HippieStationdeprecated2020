@@ -74,36 +74,37 @@ SUBSYSTEM_DEF(timer)
 		for(var/I in second_queue)
 			log_world(get_timer_debug_string(I))
 
-	var/next_clienttime_timer_index = 0
-	var/len = length(clienttime_timers)
-
-	for (next_clienttime_timer_index in 1 to len)
+	// hippie start -- each client-time timer comes off the list before it runs, instead of the run ones being cut off the front at
+	// the end. A TIMER_LOOP timer went back in with its new time while its old place was still in the list, leaving the list out of
+	// order until that cut, so a timer a later callback in the same pass added could binary-insert in front of where the loop had got
+	// to. Everything run so far moved along one, the loop met a spent, deleted timer again and CRASHed ("Invalid timer", a geiger
+	// counter's first sound_loop, 2026-11-12), and the CRASH skipped the cut, so the pass's other spent timers each crashed SStimer
+	// once more, a tick apart, putting off that tick's regular timers every time.
+	while (length(clienttime_timers))
 		if (MC_TICK_CHECK)
-			next_clienttime_timer_index--
 			break
-		var/datum/timedevent/ctime_timer = clienttime_timers[next_clienttime_timer_index]
+		var/datum/timedevent/ctime_timer = clienttime_timers[1]
 		if (ctime_timer.timeToRun > REALTIMEOFDAY)
-			next_clienttime_timer_index--
 			break
+		clienttime_timers.Cut(1, 2)
 
 		var/datum/callback/callBack = ctime_timer.callBack
 		if (!callBack)
-			clienttime_timers.Cut(next_clienttime_timer_index,next_clienttime_timer_index+1)
-			CRASH("Invalid timer: [get_timer_debug_string(ctime_timer)] world.time: [world.time], head_offset: [head_offset], practical_offset: [practical_offset], REALTIMEOFDAY: [REALTIMEOFDAY]")
+			stack_trace("Invalid timer: [get_timer_debug_string(ctime_timer)] world.time: [world.time], head_offset: [head_offset], practical_offset: [practical_offset], REALTIMEOFDAY: [REALTIMEOFDAY]")
+			continue
 
 		ctime_timer.spent = REALTIMEOFDAY
 		callBack.InvokeAsync()
 
+		if (QDELETED(ctime_timer)) // deleted by its own callback
+			continue
 		if(ctime_timer.flags & TIMER_LOOP)
 			ctime_timer.spent = 0
 			ctime_timer.timeToRun = REALTIMEOFDAY + ctime_timer.wait
 			BINARY_INSERT(ctime_timer, clienttime_timers, datum/timedevent, timeToRun)
 		else
 			qdel(ctime_timer)
-
-
-	if (next_clienttime_timer_index)
-		clienttime_timers.Cut(1, next_clienttime_timer_index+1)
+	// hippie end
 
 	if (MC_TICK_CHECK)
 		return

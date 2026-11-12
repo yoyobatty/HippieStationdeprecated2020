@@ -666,12 +666,23 @@
 	spawn_flags = IC_SPAWN_DEFAULT|IC_SPAWN_RESEARCH
 	power_draw_per_use = 30
 	var/radius = 1
+	// hippie start -- the ref last put on the first pin, and what kind of thing it was then. The pin asks for a kind, so the locator
+	// keeps looking for that kind once the thing itself is gone (2026-11-12: a motion alarm's builder, scanned in, was eaten by the
+	// singularity, and every alarm and greeter they'd put up read null.type each tick).
+	var/datum/weakref/kind_ref
+	var/kind_type
+	// hippie end
 
 /obj/item/integrated_circuit/input/advanced_locator/on_data_written()
 	var/rad = get_pin_data(IC_INPUT, 2)
 	if(isnum(rad))
 		rad = clamp(rad, 0, 8)
 		radius = rad
+	var/datum/integrated_io/I = inputs[1] // hippie start -- note the kind while the ref still resolves
+	if(I.data != kind_ref)
+		kind_ref = isweakref(I.data) ? I.data : null
+		var/atom/A = kind_ref?.resolve()
+		kind_type = A?.type // hippie end
 
 /obj/item/integrated_circuit/input/advanced_locator/do_work()
 	var/datum/integrated_io/I = inputs[1]
@@ -682,7 +693,7 @@
 	var/list/valid_things = list()
 	if(isweakref(I.data))
 		var/atom/A = I.data.resolve()
-		var/desired_type = A.type
+		var/desired_type = A ? A.type : kind_type // hippie -- gone since it went on the pin: still the same kind
 		if(desired_type)
 			for(var/i in nearby_things)
 				var/atom/thing = i
