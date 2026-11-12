@@ -352,6 +352,13 @@ SUBSYSTEM_DEF(statpanels)
 		turf_icons.Cut()
 	var/icon/picture
 	if(ismob(A))
+		// iconforge draws it if it can (flat_icon_forge.dm), getFlatIcon() otherwise
+		var/forged = flat_forge_base64(A)
+		if(!isnull(forged))
+			. = length(forged) ? "data:image/png;base64,[forged]" : ""
+			turf_icons[key] = .
+			return
+		GLOB.flat_forge_counts["dm"]++
 		picture = getFlatIcon(A, no_anim = TRUE)
 	else if(A.icon)
 		picture = icon(A.icon, A.icon_state, A.dir, 1, FALSE)

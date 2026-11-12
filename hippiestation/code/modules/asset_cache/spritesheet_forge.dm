@@ -60,7 +60,7 @@ GLOBAL_LIST_INIT(spritesheet_counts, list("forge" = 0, "dm" = 0))
 	return known[key]
 
 /// A .dmi's metadata read by rust_g (size, and each state's name and movement flag) as list("size" = "WxH", "states" = names,
-/// "still" = list(name = TRUE) for the non-movement states), kept for the round. Null when spritesheets are made by DM or rust_g
+/// "still" = list(name = TRUE) for the non-movement states, "dirs" = list(name = 1, 4 or 8)), kept for the round. Null when spritesheets are made by DM or rust_g
 /// can't read the file; the procs below ask BYOND then.
 /proc/spritesheet_dmi_meta(icon_file)
 	var/static/list/meta_by_file = list()
@@ -77,11 +77,14 @@ GLOBAL_LIST_INIT(spritesheet_counts, list("forge" = 0, "dm" = 0))
 		return null
 	var/list/names = list()
 	var/list/still = list()
+	var/list/dirs = list() // the first still state of each name's directions (flat_icon_forge.dm)
 	for(var/list/state as anything in read["states"])
 		names += state["name"]
 		if(!state["movement"])
 			still[state["name"]] = TRUE
-	return meta_by_file[key] = list("size" = "[read["width"]]x[read["height"]]", "states" = names, "still" = still)
+			if(isnull(dirs[state["name"]]))
+				dirs[state["name"]] = state["dirs"] || 1
+	return meta_by_file[key] = list("size" = "[read["width"]]x[read["height"]]", "states" = names, "still" = still, "dirs" = dirs)
 
 /// icon_states() of a file, kept for the round (the sheets ask about the same few hundred files thousands of times)
 /proc/spritesheet_icon_states(icon_file)

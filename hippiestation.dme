@@ -3394,6 +3394,7 @@
 #include "hippiestation\code\modules\assembly\gadgets_tgui.dm"
 #include "hippiestation\code\modules\asset_cache\asset_cache_client.dm"
 #include "hippiestation\code\modules\asset_cache\spritesheet_forge.dm"
+#include "hippiestation\code\modules\asset_cache\flat_icon_forge.dm"
 #include "hippiestation\code\modules\atmospherics\atmos_bench.dm"
 #include "hippiestation\code\modules\atmospherics\atmos_tgui.dm"
 #include "hippiestation\code\modules\atmospherics\door_seal_check.dm"
