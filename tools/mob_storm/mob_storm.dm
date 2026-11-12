@@ -500,11 +500,10 @@ GLOBAL_VAR_INIT(storm_flat_icons, 0)
 	for(var/obj/effect/hotspot/H in world)
 		hotspots++
 	var/burning = 0
-	for(var/obj/O in GLOB.burning_objs_census)
+	for(var/obj/O in SSfire_burning.processing)
 		burning++
-	return "hotspots [hotspots]"
+	return "hotspots [hotspots], things burning [burning]"
 
-GLOBAL_LIST_EMPTY(burning_objs_census)
 
 /proc/run_fire_storm(turf/center, seconds)
 	var/range = text2num(world.params["mob-storm-range"]) || 999
@@ -514,10 +513,15 @@ GLOBAL_LIST_EMPTY(burning_objs_census)
 		if(get_dist(F, center) > range || !is_station_level(F.z) || istype(get_area(F), /area/space))
 			continue
 		floors += F
+	var/clutter = text2num(world.params["mob-storm-shards"]) || 0 // mob-storm-shards: bits of mob-storm-item (paper) on every floor
+	var/item_param = world.params["mob-storm-item"] || "obj/item/paper"
+	var/clutter_type = text2path(copytext(item_param, 1, 2) == "/" ? item_param : "/[item_param]") || /obj/item/paper
 	for(var/turf/open/floor/F as anything in floors)
 		F.atmos_spawn_air("plasma=30;o2=60;TEMP=293")
+		for(var/i in 1 to clutter)
+			new clutter_type(F)
 		CHECK_TICK
-	mob_storm_log("fire: plasma and oxygen on [length(floors)] floors round [center.x],[center.y]; [length(GLOB.bot_brains)] bots aboard")
+	mob_storm_log("fire: plasma and oxygen on [length(floors)] floors round [center.x],[center.y], [clutter] [clutter_type] on each; [length(GLOB.bot_brains)] bots aboard")
 	sleep(3 SECONDS)
 	var/datum/mob_storm_watch/W = new
 	var/list/start = storm_measure_start()
