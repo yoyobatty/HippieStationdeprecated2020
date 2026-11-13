@@ -174,3 +174,14 @@
 
 	log_combat(user, M, "attacked", src.name, "(INTENT: [uppertext(user.a_intent)]) (DAMTYPE: [uppertext(damtype)])")
 	add_fingerprint(user)
+
+/obj/item/twohanded/spear/explosive/afterattack(atom/movable/AM, mob/user, proximity)
+	var/obj/item/grenade/G = explosive
+	. = ..() //tg's: driven in, its grenade pushed into what it hit and set off, the lance used up
+	// One that doesn't go off (an empty or unfinished casing) was left inside who or what it hit, out of reach for good: it falls off the
+	// tip instead. Off a wall, at their feet.
+	if(!G || QDELETED(G) || G.loc != AM || isopenturf(AM))
+		return
+	var/atom/drop = isturf(AM) ? get_turf(user) : AM.drop_location()
+	if(drop)
+		G.forceMove(drop)

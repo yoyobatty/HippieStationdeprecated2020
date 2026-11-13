@@ -62,7 +62,11 @@
 	check("round started", SSticker.current_state >= GAME_STATE_PLAYING, "state [SSticker.current_state]")
 	RegisterSignal(SSdcs, COMSIG_GLOB_EXPLOSION, PROC_REF(on_explosion))
 	var/list/checks = list("wall_x4", "wall_c4", "rwall_x4", "floor_x4", "x4_on_person", "target_deleted", "fried",
-		"cremated", "x4_timer_tools", "c4_cut_detonator", "signaler", "prox_loose", "prox_planted", "health_carried", "health_planted", "chain", "pile")
+		"cremated", "x4_timer_tools", "c4_cut_detonator", "signaler", "prox_loose", "prox_planted", "health_carried", "health_planted", "chain", "pile",
+		"lances")
+	var/only = world.params["charge-check-only"] //some of them, by name, comma separated
+	if(only)
+		checks = splittext(only, ",")
 	for(var/name in checks)
 		lines += ""
 		lines += "== [name]"
@@ -499,5 +503,132 @@
 	note("150 C4 on a tile, one set off: [booms_since(count)] explosions over [(last_at - game_start) / 10] s of game time, [left] C4 left, first prime() [prime_ms] ms")
 	note("15 s of game time took [(REALTIMEOFDAY - real_start) / 10] s real")
 	check("pile: the server keeps going", (REALTIMEOFDAY - real_start) < 60 SECONDS, "[(REALTIMEOFDAY - real_start) / 10] s real")
+
+/// Every grenade type made into an explosive lance (spear + grenade, crafted) and driven into somebody, ten at a time in rooms of
+/// their own, and a few into a wall: does it go off, is the lance used up, and is anything left inside what it hit
+/datum/charge_check/proc/check_lances()
+	var/list/cases = list()
+	for(var/type in subtypesof(/obj/item/grenade))
+		cases += new /datum/lance_case(type, src, FALSE)
+	for(var/type in list(/obj/item/grenade/plastic/c4, /obj/item/grenade/plastic/x4, /obj/item/grenade/iedcasing, /obj/item/grenade/syndieminibomb,
+		/obj/item/grenade/flashbang, /obj/item/grenade/chem_grenade, /obj/item/grenade/chem_grenade/metalfoam))
+		cases += new /datum/lance_case(type, src, TRUE)
+	for(var/i = 1, i <= length(cases), i += 10)
+		var/list/batch = cases.Copy(i, min(i + 10, length(cases) + 1))
+		for(var/datum/lance_case/C as anything in batch)
+			INVOKE_ASYNC(C, TYPE_PROC_REF(/datum/lance_case, try_it))
+		var/deadline = world.time + 60 SECONDS
+		while(world.time < deadline)
+			var/done = TRUE
+			for(var/datum/lance_case/C as anything in batch)
+				if(!C.finished)
+					done = FALSE
+			if(done)
+				break
+			sleep(1 SECONDS)
+	var/clean = 0
+	for(var/datum/lance_case/C as anything in cases)
+		var/label = "[C.grenade_type][C.into_wall ? " into a wall" : ""]"
+		if(C.problem)
+			check("lance: [label]", FALSE, "[C.problem][C.result ? " ([C.result])" : ""]")
+		else
+			clean++
+			note("[label]: [C.result]")
+	check("lances: every grenade type clean", clean == length(cases), "[clean] of [length(cases)]")
+
+/datum/lance_case
+	var/grenade_type
+	var/datum/charge_check/test
+	var/into_wall = FALSE
+	var/finished = FALSE
+	/// What went wrong, or null
+	var/problem
+	/// What happened
+	var/result
+	var/x0
+	var/y0
+	var/z0
+
+/datum/lance_case/New(type, datum/charge_check/T, wall)
+	grenade_type = type
+	test = T
+	into_wall = wall
+
+/datum/lance_case/proc/try_it()
+	try
+		go()
+	catch(var/exception/e)
+		problem = "[e] at [e.file]:[e.line]"
+	finished = TRUE
+
+/datum/lance_case/proc/go()
+	var/datum/turf_reservation/reservation = SSmapping.RequestBlockReservation(13, 13)
+	if(!reservation)
+		problem = "no room"
+		return
+	x0 = reservation.bottom_left_coords[1] + 3
+	y0 = reservation.bottom_left_coords[2] + 3
+	z0 = reservation.bottom_left_coords[3]
+	var/area/test_area = new /area/bot_gym
+	for(var/x in x0 - 1 to x0 + 7)
+		for(var/y in y0 - 1 to y0 + 7)
+			var/turf/T = locate(x, y, z0)
+			var/area/old_area = T.loc
+			old_area.contents -= T
+			test_area.contents += T
+			T.change_area(old_area, test_area)
+			if(x == x0 - 1 || x == x0 + 7 || y == y0 - 1 || y == y0 + 7)
+				T.ChangeTurf(/turf/closed/indestructible/riveted, flags = CHANGETURF_IGNORE_AIR)
+			else
+				var/turf/open/F = T.ChangeTurf(/turf/open/floor/plasteel, list(/turf/open/space, /turf/open/floor/plating), CHANGETURF_IGNORE_AIR)
+				F.air.parse_gas_string(OPENTURF_DEFAULT_ATMOS)
+				F.update_visuals()
+				SSair.add_to_active(F)
+	sleep(1 SECONDS)
+	var/turf/stand = locate(x0 + 3, y0 + 2, z0)
+	var/turf/front = locate(x0 + 3, y0 + 3, z0)
+	var/atom/hit
+	if(into_wall)
+		hit = front.ChangeTurf(/turf/closed/wall, list(/turf/open/space, /turf/open/floor/plating))
+	else
+		hit = test.make_human(front, "Victim")
+	var/mob/living/carbon/human/user = test.make_human(stand, "Lancer")
+	var/obj/item/grenade/G = new grenade_type(stand)
+	var/obj/item/twohanded/spear/S = new(stand)
+	S.CheckParts(list(G))
+	var/obj/item/twohanded/spear/explosive/lance = locate() in stand
+	if(!lance)
+		problem = "no lance made"
+		return
+	if(lance.explosive != G || G.loc != lance)
+		problem = "the lance doesn't hold the grenade: [lance.explosive], grenade at [G.loc]"
+		return
+	user.put_in_hands(lance)
+	lance.wield(user)
+	if(!lance.wielded)
+		problem = "couldn't wield it"
+		return
+	var/start = world.time
+	lance.afterattack(hit, user, TRUE)
+	sleep(12 SECONDS)
+	var/booms = 0
+	for(var/list/B as anything in test.booms)
+		var/turf/E = B[1]
+		if(B[5] >= start && E.z == z0 && E.x >= x0 - 1 && E.x <= x0 + 7 && E.y >= y0 - 1 && E.y <= y0 + 7)
+			booms++
+	var/list/out = list("[booms] explosion[booms == 1 ? "" : "s"]")
+	if(!QDELETED(lance))
+		problem = "lance still there at [lance.loc]"
+	if(QDELETED(G))
+		out += "grenade used up"
+	else
+		var/atom/where = G.loc
+		out += "grenade left at [where] ([where?.type])"
+		if(ismob(where) || where == hit || isclosedturf(where))
+			problem = "grenade left inside [where]"
+	if(!into_wall)
+		var/mob/living/carbon/human/victim = hit
+		out += "victim [test.hurt(victim)]"
+	result = jointext(out, ", ")
 
 #undef CHARGE_CHECK_DIR
