@@ -347,6 +347,11 @@ GLOBAL_LIST_EMPTY(bot_door_buttons_out_of_reach)
 /datum/bot_brain/proc/pressed_button_for(obj/machinery/door/airlock/door)
 	return door_button_id && door.id_tag == door_button_id && world.time < door_button_pressed_at + 10 SECONDS
 
+/datum/bot_goal
+	/// A door opened for it on this errand is its way in, as one held open for it on a call is: a repair in a room its ID doesn't open,
+	/// with the AI asked to open up (ask_ai_for_door, goals/repair_damage.dm)
+	var/let_in_on_errand = FALSE
+
 /datum/bot_brain
 	/// A door somebody on the other side has just opened for it after it asked to be let in (ask_let_in, bot_requests.dm), as REF()
 	var/let_in_door
@@ -357,7 +362,7 @@ GLOBAL_LIST_EMPTY(bot_door_buttons_out_of_reach)
 /// keeps to the doors its own ID opens, as before (pathing_no_tailgating): nobody follows somebody into a room they can't get back out
 /// of. Null otherwise. In reach_rules() too (bot_pathing_permissive.dm): a search from before the door opened said there was no way in.
 /datum/bot_brain/proc/let_in_door_now()
-	if(let_in_door && world.time < let_in_until && istype(current_goal, /datum/bot_goal/answer_call))
+	if(let_in_door && world.time < let_in_until && (istype(current_goal, /datum/bot_goal/answer_call) || current_goal?.let_in_on_errand))
 		return let_in_door
 	return null
 

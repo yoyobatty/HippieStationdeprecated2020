@@ -388,6 +388,12 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 			found += "[tell] x[brain.telemetry_flags[tell]]"
 	return length(found) ? jointext(found, ", ") : null
 
+/// Whether a turf is in this run's arena, rooms of its own (areas a scenario makes in setup()) and all: get_area() == arena_area misses those.
+/datum/bot_scenario/proc/in_arena(turf/T)
+	var/list/low = reservation?.bottom_left_coords
+	var/list/high = reservation?.top_right_coords
+	return T && length(low) && length(high) && T.z == low[3] && T.x >= low[1] && T.x <= high[1] && T.y >= low[2] && T.y <= high[2]
+
 /// A judged run's mobs stop living: they went on breathing, digesting and, with a goal still on, pathing until the server's last run was
 /// over - often 200-400 game seconds after a 14 s run, and 40% of a full gym's server time (2026-11-09). Nothing about them is judged or
 /// reported after this. They aren't deleted (the bot may still be in start(), and gym bots are never deleted, see release_run()).

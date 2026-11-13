@@ -232,6 +232,16 @@ GLOBAL_LIST_EMPTY(bot_lost_walls)
 	GLOB.bot_lost_walls += W
 	bot_tally("walls lost")
 
+/// Holes in the hull round it that nobody's patched: the floor first, as a player does, and the wall after. The bomb that takes a wall
+/// leaves a crater beside it, and the way to the wall is across it: Hippie's Teleporter Room, the AI let the Chief Engineer in four times
+/// and there was no way to the wall till the holes were patched (wallsboom3, 2026-11-13). Two tiles round, not just beside it: with the
+/// hole beside the wall patched, the two beyond it still cut the wall off from the door (wallsboom4).
+/proc/bot_beside_breach(turf/T)
+	for(var/turf/open/space/S in range(2, T))
+		if(S in GLOB.bot_hull_breaches)
+			return TRUE
+	return FALSE
+
 /datum/bot_brain
 	var/walls_rebuilt = 0
 	/// Lost wall -> when it's worth another look.
@@ -239,17 +249,19 @@ GLOBAL_LIST_EMPTY(bot_lost_walls)
 	/// No metal, plasteel or suit to be had: no wall is worth trying before this (as for the hull, repair_hull.dm).
 	var/wall_work_blocked_until = 0
 
-/// The nearest lost wall this bot can get to and nobody else has in hand. A tile that's gone to space waits for its floor.
+/// The nearest lost wall this bot can get to and nobody else has in hand. A tile that's gone to space waits for its floor. One in a room
+/// its ID doesn't open is taken with a door to ask the AI for (repair_door_plan).
 /datum/bot_brain/proc/pick_lost_wall()
+	repair_door_plan = null
 	var/list/walls = list() //lost wall -> how far off
 	for(var/datum/bot_lost_wall/W as anything in GLOB.bot_lost_walls.Copy())
 		var/turf/T = W.where
 		if(istype(T, /turf/closed/wall))
 			GLOB.bot_lost_walls -= W //somebody put it back
 			continue
-		if(!isfloorturf(T) || T.z != owner.z || LAZYACCESS(lost_walls_blocked, W) > world.time || (gym_run && get_area(T) != get_area(owner)))
+		if(!isfloorturf(T) || T.z != owner.z || LAZYACCESS(lost_walls_blocked, W) > world.time || (gym_run && !gym_run.in_arena(T))) //its own arena, rooms and all
 			continue
-		if(taken_by_another(T) || get_dist(owner, T) > 80)
+		if(taken_by_another(T) || get_dist(owner, T) > 80 || bot_beside_breach(T))
 			continue
 		walls[W] = get_dist(owner, T)
 	var/tries = 0
@@ -260,6 +272,9 @@ GLOBAL_LIST_EMPTY(bot_lost_walls)
 				nearest = W
 		walls -= nearest
 		if(can_walk_lawfully_to(nearest.where))
+			return nearest
+		repair_door_plan = repair_doorstep(nearest.where)
+		if(repair_door_plan)
 			return nearest
 		LAZYSET(lost_walls_blocked, nearest, world.time + 5 MINUTES)
 	return null
@@ -277,7 +292,7 @@ GLOBAL_LIST_EMPTY(bot_lost_walls)
 	if(!length(GLOB.bot_lost_walls) || world.time < bot.wall_work_blocked_until)
 		return FALSE
 	var/datum/bot_lost_wall/W = bot.pick_lost_wall()
-	return W ? bot.assign_goal(new /datum/bot_goal/rebuild_wall(W)) : FALSE
+	return W ? bot.assign_goal(new /datum/bot_goal/rebuild_wall(W, bot.repair_door_plan)) : FALSE
 
 /datum/bot_goal/rebuild_wall
 	lawful = TRUE
@@ -286,17 +301,21 @@ GLOBAL_LIST_EMPTY(bot_lost_walls)
 	doing = "putting a wall back"
 	var/datum/bot_lost_wall/lost
 
-/datum/bot_goal/rebuild_wall/New(datum/bot_lost_wall/W)
+/datum/bot_goal/rebuild_wall/New(datum/bot_lost_wall/W, list/door_plan)
 	. = ..()
 	lost = W
+	set_door_plan(door_plan)
 
 /datum/bot_goal/rebuild_wall/resolve_target(datum/bot_brain/bot)
 	target = isfloorturf(lost?.where) ? lost.where : null
 
 /datum/bot_goal/rebuild_wall/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/rebuild_wall/S = new
-	S.steps = list(new /datum/bot_step/ensure_suit_for_wall(), new /datum/bot_step/get_wall_materials(), new /datum/bot_step/move_to(), new /datum/bot_step/paced/rebuild_wall())
+	S.steps = list(new /datum/bot_step/ensure_suit_for_wall(), new /datum/bot_step/get_wall_materials()) + steps_in() + list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/rebuild_wall())
 	return list(S)
+
+/datum/bot_goal/rebuild_wall/door_reason()
+	return "put a wall back"
 
 /datum/bot_goal/rebuild_wall/on_give_up(datum/bot_brain/bot)
 	LAZYSET(bot.lost_walls_blocked, lost, world.time + 5 MINUTES)
@@ -438,6 +457,131 @@ GLOBAL_LIST_EMPTY(bot_lost_walls)
 /datum/bot_step/paced/rebuild_wall/finish(datum/bot_brain/bot)
 	var/datum/bot_goal/rebuild_wall/G = bot.current_goal
 	return istype(G?.lost?.where, /turf/closed/wall) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+
+// ---------------------------------------------------------------------------------------------
+// A repair behind a door its ID doesn't open
+// ---------------------------------------------------------------------------------------------
+// The user's ruling (2026-11-13): an engineer who has to get into a room its ID doesn't open for a repair asks the AI over the radio to
+// open up, as a player does ("AI, open this door please, I need to put a wall back in the Teleporter Room"), and waits at the door. The AI
+// keeps the heads' rooms, the teleporter, the vault and the like shut to all but command (bot_ai_restricted_area(), goals/silicon.dm), so
+// a repair in one of those is left for the Chief Engineer. Walls here, holes in the hull (repair_hull.dm) the same way.
+
+/datum/bot_goal
+	/// Where it asks the AI for a door from, for a repair in a room its ID doesn't open; null when it can walk there
+	var/turf/ask_door_step
+	var/datum/weakref/ask_door_ref
+
+/datum/bot_brain
+	/// What the last pick of a repair (pick_lost_wall(), pick_breach()) found for getting in: list(floor outside, door), or null
+	var/list/repair_door_plan
+
+/// Takes a way in found by repair_doorstep(): the door's its way through once it's open.
+/datum/bot_goal/proc/set_door_plan(list/door_plan)
+	if(!length(door_plan))
+		return
+	ask_door_step = door_plan[1]
+	ask_door_ref = WEAKREF(door_plan[2])
+	let_in_on_errand = TRUE //bot_doors.dm
+
+/// The steps that get it in: to the door, and asking for it. None when it can walk there.
+/datum/bot_goal/proc/steps_in()
+	if(!ask_door_step)
+		return list()
+	var/datum/bot_step/move_to/to_door = new
+	to_door.step_target = ask_door_step
+	return list(to_door, new /datum/bot_step/paced/ask_ai_for_door())
+
+/// What it tells the AI the door's for: "I need to [this] in [the room]".
+/datum/bot_goal/proc/door_reason()
+	return "fix something"
+
+/// An AI up and able to work the doors.
+/proc/bot_ai_can_open_doors()
+	for(var/mob/living/silicon/ai/AI as anything in GLOB.ai_list)
+		if(AI.stat != DEAD && !AI.control_disabled)
+			return TRUE
+	return FALSE
+
+/// For a repair in a room this bot's ID doesn't open: list(the floor outside, the door) to ask the AI from, or null. The nearest door
+/// into the room from outside it, six tried at most. Null with no AI about, or for a room the AI keeps shut to all but command when
+/// this bot isn't command.
+/datum/bot_brain/proc/repair_doorstep(turf/site)
+	if(!site || !bot_ai_can_open_doors())
+		return null
+	var/area/room = get_area(site)
+	if(bot_ai_restricted_area(room) && !(owner.mind?.assigned_role in GLOB.command_positions))
+		return null
+	var/list/spots = list() //floor outside -> list(door, how far it is from the repair)
+	for(var/obj/machinery/door/airlock/D as anything in bot_instances_of(/obj/machinery/door/airlock))
+		if(QDELETED(D) || D.z != site.z || get_dist(D, site) > 30 || istype(D, /obj/machinery/door/airlock/external) || D.welded || !D.hasPower())
+			continue
+		for(var/direction in GLOB.cardinals)
+			var/turf/inside = get_step(D, direction)
+			var/turf/outside = get_step(D, turn(direction, 180))
+			if(get_area(inside) != room || !isopenturf(outside) || get_area(outside) == room || is_blocked_turf(outside, TRUE))
+				continue
+			spots[outside] = list(D, get_dist(D, site))
+	var/tries = 0
+	while(length(spots) && tries++ < 6)
+		var/turf/nearest
+		for(var/turf/T as anything in spots)
+			if(!nearest || spots[T][2] < spots[nearest][2])
+				nearest = T
+		var/obj/machinery/door/airlock/D = spots[nearest][1]
+		spots -= nearest
+		if(can_walk_lawfully_to(nearest))
+			return list(nearest, D)
+	return null
+
+/// At the door: asks the AI over the radio, with what it's for, and waits for the door to open. Twice at most, a little apart, then it
+/// gives the job up for now. Nothing opening a while after the first (or no radio to ask on), it presses the door's request as well, which
+/// reaches the AI by the door's own wiring (press_door_request(), bot_radio.dm): a strict AI asks what for, and the second ask on the radio
+/// is the answer. Once it opens, that door is its way in on this errand (let_in_door_now(), bot_doors.dm).
+/datum/bot_step/paced/ask_ai_for_door
+	max_clicks = 4
+	var/until = 0
+	var/asked_at = -INFINITY
+	var/asks = 0
+	var/pressed = FALSE
+
+/datum/bot_step/paced/ask_ai_for_door/start(datum/bot_brain/bot)
+	until = world.time + 70 SECONDS
+	asked_at = -INFINITY
+	asks = 0
+	pressed = FALSE
+	return TRUE
+
+/datum/bot_step/paced/ask_ai_for_door/do_click(datum/bot_brain/bot)
+	var/obj/machinery/door/airlock/D = bot.current_goal?.ask_door_ref?.resolve()
+	if(world.time > until || !D || QDELETED(D) || !D.density)
+		return FALSE
+	var/radio = bot.radio_works()
+	if(!pressed && (asks || !radio) && world.time > asked_at + 12 SECONDS)
+		pressed = TRUE
+		bot.press_door_request()
+		wait_for = 10
+		return TRUE
+	if(radio && asks < 2 && world.time > asked_at + 30 SECONDS)
+		asked_at = world.time
+		asks++
+		var/area/room = get_area(bot.current_goal.target)
+		var/what = bot.current_goal.door_reason()
+		bot.say_after_typing(pick(
+			";AI, open this door please, I need to [what] in [room?.name || "there"].",
+			";AI, door please. Engineering, here to [what] in [room?.name || "there"].",
+			";AI, could you open up for me? I need to [what] in [room?.name || "there"]."))
+	wait_for = 10
+	return TRUE
+
+/datum/bot_step/paced/ask_ai_for_door/finish(datum/bot_brain/bot)
+	var/obj/machinery/door/airlock/D = bot.current_goal?.ask_door_ref?.resolve()
+	if(D && !QDELETED(D) && !D.density)
+		bot.let_in_door = REF(D)
+		bot.let_in_until = world.time + 20 SECONDS
+		bot_log(bot, "[D] opened for it: in to [bot.current_goal?.target]")
+		return GOAL_STEP_SUCCESS
+	bot_log(bot, "asked the AI to open [D || "the door"] for [bot.current_goal?.target] and nobody did")
+	return GOAL_STEP_FAIL
 
 // ---------------------------------------------------------------------------------------------
 // The alert

@@ -787,11 +787,15 @@
 /datum/bot_scenario/duty/wall/post_spawn()
 	..()
 	give_job_id(list())
-	wall_spot = locate(first_marker("B").x + 5, first_marker("B").y, first_marker("B").z)
+	wall_spot = wall_spot_turf()
 	wall_spot.PlaceOnTop(wall_was)
 	wall_spot = wall_spot.ScrapeAway() //what a blast does: the wall's gone, the floor under it left
 	if(left_behind)
 		new left_behind(wall_spot)
+
+/// Where the wall stood: across the corridor, five along from the bot
+/datum/bot_scenario/duty/wall/proc/wall_spot_turf()
+	return locate(first_marker("B").x + 5, first_marker("B").y, first_marker("B").z)
 
 /datum/bot_scenario/duty/wall/check()
 	if(bot_lost())
@@ -819,6 +823,55 @@
 	desc = "A reinforced wall blown out to the floor. A girder from metal, then two plasteel: reinforced, as it was."
 	wall_was = /turf/closed/wall/r_wall
 	kit_backpack = list(/obj/item/stack/sheet/metal/fifty, /obj/item/stack/sheet/plasteel/twenty)
+
+/area/bot_gym/locked_room
+	name = "Locked Room"
+
+/// The wall's in a room behind a door its ID doesn't open. Bombed Hippie shifts: the Teleporter Room's wall and hull hole were never seen to,
+/// "no path" every time (wallsboom, 2026-11-13). It asks the AI on the radio, and with nothing opening presses the door's request. An arena
+/// is off the station's levels, where telecomms doesn't reach, so it's the request the AI answers here. A bot AI made for the run:
+/// station-wide, never with the rest, as an AI answers every arena.
+/datum/bot_scenario/duty/wall/behind_door
+	name = "repairs: a wall in a room its ID doesn't open, the AI asked to open up"
+	desc = "The wall's in a room behind a Captain's-access door. It goes to the door, asks the AI to open up, and goes in when it opens."
+	station_wide = TRUE
+	layout = list(
+		"#########",
+		"#B......#",
+		"####D####",
+		"#qqqqqqq#",
+		"#########")
+	var/mob/living/silicon/ai/ai
+
+/// q the room's floor
+/datum/bot_scenario/duty/wall/behind_door/setup()
+	var/area/bot_gym/locked_room/room = new
+	for(var/turf/T as anything in markers["q"])
+		var/area/old_area = T.loc
+		old_area.contents -= T
+		room.contents += T
+		T.change_area(old_area, room)
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	A.req_access = list(ACCESS_CAPTAIN)
+	A.req_access_txt = "[ACCESS_CAPTAIN]"
+
+/datum/bot_scenario/duty/wall/behind_door/wall_spot_turf()
+	var/list/room = markers["q"]
+	return room[4]
+
+/datum/bot_scenario/duty/wall/behind_door/post_spawn()
+	..()
+	ai = bot_make_silicon("AI") //goals/silicon.dm: as a round makes one, at the station's AI landmark
+	if(!ai)
+		log_line("no AI could be made")
+		return
+	var/datum/bot_silicon/ai/brain_ai = new(ai)
+	brain_ai.strictness = 0.2 //easygoing: a door request carries no reason, and the radio that would give one doesn't reach an arena
+
+/datum/bot_scenario/duty/wall/behind_door/release_run()
+	if(!QDELETED(ai))
+		qdel(ai)
+	return ..()
 
 /datum/bot_scenario/alert
 	name = "chaos: a head of staff puts the station on alert"

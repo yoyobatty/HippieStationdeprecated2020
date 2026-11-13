@@ -44,6 +44,7 @@ GLOBAL_LIST_EMPTY(bot_hull_breaches)
 
 /// The nearest hole this bot can get to and nobody else is seeing to.
 /datum/bot_brain/proc/pick_breach()
+	repair_door_plan = null
 	var/list/holes = list() //hole -> how far off
 	for(var/turf/T as anything in GLOB.bot_hull_breaches.Copy())
 		if(!istype(T, /turf/open/space))
@@ -63,7 +64,13 @@ GLOBAL_LIST_EMPTY(bot_hull_breaches)
 		holes -= nearest
 		var/turf/spot = bot_hull_standing_spot(nearest)
 		if(spot)
-			return nearest
+			if(can_walk_lawfully_to(spot))
+				return nearest
+			// In a room its ID doesn't open (Hippie's Teleporter Room, bombed): the AI asked for the door (goals/repair_damage.dm). Without
+			// this the walk there found no path, every time: 25 tries given up in 6 bombed shifts (wallsboom, 2026-11-13).
+			repair_door_plan = repair_doorstep(spot)
+			if(repair_door_plan)
+				return nearest
 		LAZYSET(breaches_blocked, nearest, world.time + 5 MINUTES)
 	return null
 
@@ -77,7 +84,7 @@ GLOBAL_LIST_EMPTY(bot_hull_breaches)
 	if(!length(GLOB.bot_hull_breaches) || world.time < bot.hull_work_blocked_until)
 		return FALSE
 	var/turf/hole = bot.pick_breach()
-	return hole ? bot.assign_goal(new /datum/bot_goal/patch_hull(hole)) : FALSE
+	return hole ? bot.assign_goal(new /datum/bot_goal/patch_hull(hole, bot.repair_door_plan)) : FALSE
 
 /datum/bot_goal/patch_hull
 	lawful = TRUE
@@ -86,9 +93,13 @@ GLOBAL_LIST_EMPTY(bot_hull_breaches)
 	doing = "patching a hole in the hull"
 	var/turf/standing_spot
 
-/datum/bot_goal/patch_hull/New(turf/hole)
+/datum/bot_goal/patch_hull/New(turf/hole, list/door_plan)
 	. = ..()
 	target = hole
+	set_door_plan(door_plan) //goals/repair_damage.dm
+
+/datum/bot_goal/patch_hull/door_reason()
+	return "patch a hole in the hull"
 
 /datum/bot_goal/patch_hull/resolve_target(datum/bot_brain/bot)
 	if(!istype(target, /turf/open/space))
@@ -102,7 +113,7 @@ GLOBAL_LIST_EMPTY(bot_hull_breaches)
 	var/datum/bot_strategy/patch_hull/S = new
 	var/datum/bot_step/move_to/to_spot = new
 	to_spot.step_target = standing_spot
-	S.steps = list(new /datum/bot_step/ensure_suit_for_hull(), new /datum/bot_step/get_hull_materials(), to_spot, new /datum/bot_step/paced/patch_hull())
+	S.steps = list(new /datum/bot_step/ensure_suit_for_hull(), new /datum/bot_step/get_hull_materials()) + steps_in() + list(to_spot, new /datum/bot_step/paced/patch_hull())
 	return list(S)
 
 /datum/bot_goal/patch_hull/on_give_up(datum/bot_brain/bot)
