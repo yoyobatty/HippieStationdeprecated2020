@@ -118,5 +118,79 @@ GLOBAL_LIST_EMPTY(bot_stranded_asked)
 		bot.say_after_typing(";Medbay, I've brought [H.first_name()] to your door. [pick("They're in a bad way.", "They need a doctor now.", "Somebody see to them.")]")
 	return GOAL_STEP_SUCCESS
 
+// ---------------------------------------------------------------------------------------------
+// "Help", from somebody down
+// ---------------------------------------------------------------------------------------------
+// The user, cuffed and in crit after losing to a nanosuit, crawled into maintenance saying "help" to three bots in turn. One answered
+// "What's wrong?" at most, and they all walked on (2026-11-13). Somebody on the floor asking for help gets it: whoever's free takes hold
+// of them and gets them to Medbay's door; whoever's on something it can't drop calls Medical to them, and they're on the list for
+// anybody bringing casualties out (bring_casualty_out above).
+
+/// Down: on the floor and badly hurt, or past standing at all
+/proc/bot_down_and_hurt(mob/living/carbon/human/H)
+	if(!istype(H) || H.stat == DEAD)
+		return FALSE
+	if(H.stat != CONSCIOUS || H.health <= 0)
+		return TRUE
+	return !(H.mobility_flags & MOBILITY_STAND) && H.health < H.maxHealth * 0.5
+
+/datum/bot_brain
+	/// REF(casualty) -> when it can next answer them (heard_cry_for_help())
+	var/list/cries_answered
+
+/// From on_heard_speech() (bot_chatter.dm), said to its face. TRUE if it's taken it as a cry for help and done something about it.
+/datum/bot_brain/proc/heard_cry_for_help(mob/living/carbon/human/H, lower_msg)
+	if(!bot_down_and_hurt(H) || get_dist(owner, H) > BOT_SIGHT_RANGE || !(H in view(BOT_SIGHT_RANGE, owner)))
+		return FALSE
+	// In crit all that comes out is a whisper, garbled past a step away: anything from somebody that far gone is a call for help
+	if(H.stat == CONSCIOUS && !bot_text_has_any(lower_msg, list("help", "halp", "medic", "doctor", "dying", "save me", "please")))
+		return FALSE
+	if(bot_traitor || op_team || bot_wizard || gone_loud() || owner.incapacitated() || owner.handcuffed || (state == BOT_STATE_COMBAT && attacker == H))
+		return FALSE
+	if(world.time < LAZYACCESS(cries_answered, REF(H)))
+		return TRUE //it's heard them, and it's on it or it's said so
+	LAZYSET(cries_answered, REF(H), world.time + 30 SECONDS)
+	owner.face_atom(H)
+	// Somebody dangerous in Security's cuffs: theirs to see to (the user's ruling, 2026-11-05: violent prisoners don't leave Security)
+	if(H.handcuffed && bot_prisoner_dangerous(H))
+		call_help_for(H, ":s [H.first_name()]'s down in cuffs in [get_area_name(H, TRUE)] and needs a doctor.")
+		bot_say(owner, pick("Security's coming for you.", "Hang on, I've told Security."))
+		return TRUE
+	// Free to: hold of them and to Medbay's door
+	var/turf/spot = medbay_drop_spot() //goals/security_medevac.dm
+	if(spot && !H.pulledby && !taken_by_another(H) && !bot_in_medbay(H) && state != BOT_STATE_COMBAT && state != BOT_STATE_ARREST && can_walk_lawfully_to(H))
+		if(state == BOT_STATE_GOAL && current_goal && bot_goal_can_wait(current_goal))
+			drop_goals("[H] is down and asking for help")
+		if(state != BOT_STATE_GOAL && H.stat != CONSCIOUS && assign_goal(new /datum/bot_goal/carry_casualty(H, spot)))
+			bot_log(src, "[H] is down and asked for help - taking them to Medbay")
+			bot_tally("cries for help answered")
+			bot_say(owner, pick("Hang on, I've got you.", "Okay, okay. Let's get you to Medbay.", "I've got you, hold on."))
+			return TRUE
+	// Otherwise the doctors are told, and anybody bringing casualties out can come for them
+	bot_note_stranded(H)
+	call_help_for(H, ";" + pick("Medical! [H.first_name()]'s down in [get_area_name(H, TRUE)] and needs a doctor!", "Doctor to [get_area_name(H, TRUE)], [H.first_name()]'s in a bad way!"))
+	bot_say(owner, pick("Hang on, I've called Medical.", "Medical's coming. Hold on.", "Stay with me, help's coming."))
+	bot_tally("cries for help answered")
+	return TRUE
+
+/// An errand that can be put down for somebody dying in front of it: a break, or an everyday job. Not its own air or wounds, a run for it,
+/// the shuttle, or somebody else it's seeing to.
+/proc/bot_goal_can_wait(datum/bot_goal/G)
+	if(!G || G.exclusive)
+		return FALSE
+	var/static/list/never = list(/datum/bot_goal/run_from, /datum/bot_goal/seek_air, /datum/bot_goal/refill_internals, /datum/bot_goal/self_heal, 		/datum/bot_goal/seek_medbay_healing, /datum/bot_goal/evacuate, /datum/bot_goal/carry_casualty)
+	if(is_type_in_list(G, never))
+		return FALSE
+	return G.off_duty || G.lawful
+
+/// A call for them on the radio, once a minute between everybody
+/datum/bot_brain/proc/call_help_for(mob/living/carbon/human/H, line)
+	var/datum/weakref/W = WEAKREF(H)
+	if(world.time < GLOB.bot_stranded_asked[W] + 1 MINUTES)
+		return
+	GLOB.bot_stranded_asked[W] = world.time
+	bot_log(src, "calling for help for [H]: [line]")
+	bot_say(owner, line)
+
 #undef BOT_STRANDED_FOR
 #undef BOT_CARRY_REACH

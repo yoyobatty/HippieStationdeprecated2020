@@ -365,6 +365,8 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 		var/mob/living/carbon/human/assailant = user
 		var/mob/living/carbon/human/marked = target
 		marked.last_assailant = assailant.real_name //what a forensic scan can turn up (goals/detective.dm)
+		if(bot_is_fair_game(marked))
+			assailant.bot_fought_valid_at = world.time //bot_witness.dm: what they break getting at one isn't vandalism
 		marked.last_assailant_gloved = !!assailant.gloves
 		marked.last_assailant_at = world.time
 	// A bot notices being hurt however it happened - fists, feet, teeth, bullets, thrown junk - not just item hits
@@ -544,6 +546,13 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 		crime = rec[1]
 		severity = rec[2]
 	if(severity < BOT_CRIME_MAJOR && bot_is_the_captain(H)) // even on the records (a player officer's): bot_law.dm
+		return FALSE
+	// A nanosuit loose: that's Security's business till it's dealt with, not a broken window. Two officers came for the user lying in crit
+	// for Vandalism, a nanosuit in the room (the user's playtest, 2026-11-13).
+	if(severity < BOT_CRIME_MAJOR && !bot_is_fair_game(H) && suit_at_large()) //goals/security_tactics.dm
+		if(world.time >= next_keep_clear_note)
+			next_keep_clear_note = world.time + 1 MINUTES
+			bot_log(src, "a nanosuit's loose - [lowertext(crime)] by [H] can wait")
 		return FALSE
 
 	if(state == BOT_STATE_ARREST)
@@ -1003,6 +1012,7 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 			// High-threat order: stun, cuff, THEN state the crime.
 			hail_suspect(S)
 		bot_say(owner, ":s [S.name] is in custody for [lowertext(arrest_crime)]. Bringing them to the brig.")
+		LAZYOR(my_prisoners, WEAKREF(S)) //goals/security_custody.dm: its to see to, whatever comes up next
 		return
 	if(!was_subdued && !arrest_resisted)
 		arrest_resisted = TRUE

@@ -103,9 +103,20 @@
 		GLOB.bot_next_keep_clear = world.time + BOT_KEEP_CLEAR_GAP
 		bot_say(owner, ";Everybody keep clear of [get_area_name(S, TRUE)]. [S.name]'s in a Syndicate suit and armed. Get out of there if you're in it.")
 		GLOB.bot_keep_clear[get_area(S)] = world.time + 2 MINUTES
+		GLOB.bot_keep_clear_for[get_area(S)] = WEAKREF(S)
+		bot_note_suit_sighting(S)
 
 /// Area -> until when Security has told the crew to keep out of it.
 GLOBAL_LIST_EMPTY(bot_keep_clear)
+/// Area -> who it was kept clear for, and REF(them) -> list(area, when) they were last seen in a suit by anybody
+GLOBAL_LIST_EMPTY(bot_keep_clear_for)
+GLOBAL_LIST_EMPTY(bot_suit_sightings)
+
+/// Somebody in a suit seen, by anybody (bot_witness.dm look_out_for_trouble(), and when Security calls it)
+/proc/bot_note_suit_sighting(mob/living/carbon/human/S)
+	var/area/A = get_area(S)
+	if(A)
+		GLOB.bot_suit_sightings[REF(S)] = list(A, world.time)
 /// REF(suspect) -> when somebody on Security can next call a rally on them.
 GLOBAL_LIST_EMPTY(bot_rally_called)
 
@@ -113,10 +124,22 @@ GLOBAL_LIST_EMPTY(bot_rally_called)
 	var/next_keep_clear_note = 0
 GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 
-/// Somewhere Security has told everybody to keep out of, just now.
+/// Somewhere Security has told everybody to keep out of, just now. Not once who it was for has been seen somewhere else since, or is down
+/// or cuffed: the user lay in crit in a room kept clear for a nanosuit that had moved on, and the doctor called to them wouldn't go in.
 /proc/bot_told_to_keep_clear(atom/A)
 	var/area/where = get_area(A)
-	return where && GLOB.bot_keep_clear[where] > world.time
+	if(!where || GLOB.bot_keep_clear[where] <= world.time)
+		return FALSE
+	var/datum/weakref/ref = GLOB.bot_keep_clear_for[where]
+	var/mob/living/carbon/human/S = ref?.resolve()
+	if(!ref)
+		return TRUE //kept clear for something else (a bomb, bot_fighting.dm)
+	if(!S || S.stat == DEAD || S.handcuffed)
+		return FALSE
+	var/list/seen = GLOB.bot_suit_sightings[REF(S)]
+	if(seen && seen[1] != where && seen[2] >= GLOB.bot_keep_clear[where] - 2 MINUTES)
+		return FALSE //seen somewhere else since it was called
+	return TRUE
 
 /// Officers on their feet and fit to fight, close enough to count as together, here for this one: this bot and its colleagues.
 /datum/bot_brain/proc/officers_with_me(mob/living/carbon/human/S)

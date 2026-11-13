@@ -99,6 +99,8 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 	var/bot_vandal_hits = 0
 	var/bot_vandal_last = 0
 	var/bot_vandal_called_in = 0
+	/// When they last hit somebody who's fair game (a nanosuit, a known traitor): what they break getting at one isn't vandalism
+	var/bot_fought_valid_at = 0
 	/// When an attack by this person was last called in, so one fight isn't reported by everybody who saw it.
 	var/bot_attack_called_in = 0
 
@@ -281,12 +283,26 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 /proc/bot_note_vandalism(mob/living/carbon/human/user, obj/target)
 	if(GLOB.bot_reflexes_off || !ishuman(user) || !length(GLOB.bot_brains) || !is_type_in_typecache(target, GLOB.bot_vandal_targets) || bot_means_well(user))
 		return
+	if(bot_after_a_valid(user))
+		return
 	if(world.time > user.bot_vandal_last + 1 MINUTES)
 		user.bot_vandal_hits = 0
 	user.bot_vandal_hits++
 	user.bot_vandal_last = world.time
 	for(var/datum/bot_brain/B as anything in bot_witnesses_of(user, list(user)))
 		B.on_saw_vandalism(user, target)
+
+/// In a fight with a nanosuit or a known traitor, or one in sight: the window smashed getting at them is the fight, not vandalism. The crew
+/// fight one by any means (the user's ruling, 2026-11-09); the user, chasing one, was called in and arrested for the windows (2026-11-13).
+/proc/bot_after_a_valid(mob/living/carbon/human/H)
+	if(H.bot_fought_valid_at && world.time < H.bot_fought_valid_at + 1 MINUTES)
+		return TRUE
+	if(!bot_any_suit_worn()) //goals/fight_the_suit.dm
+		return FALSE
+	for(var/mob/living/carbon/human/other in view(BOT_SIGHT_RANGE, H))
+		if(other != H && other.stat != DEAD && (bot_in_nanosuit(other) || bot_in_syndicate_suit(other)))
+			return TRUE
+	return FALSE
 
 /datum/bot_brain/proc/on_saw_vandalism(mob/living/carbon/human/vandal, obj/target)
 	if(world.time < next_witness_time || owner.incapacitated() || state == BOT_STATE_ARREST || state == BOT_STATE_COMBAT || istype(current_goal, /datum/bot_goal/brig_prisoner))
@@ -358,6 +374,8 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 		if(H == owner || H.stat != CONSCIOUS || H.handcuffed)
 			continue
 		// A nanosuit in sight, wanted or not: it's Syndicate, and the crew goes for it (goals/fight_the_suit.dm)
+		if(bot_in_nanosuit(H) || bot_in_syndicate_suit(H))
+			bot_note_suit_sighting(H) //goals/security_tactics.dm: where it is now, for the keep-clears
 		if(bot_suit_to_fight(H) && takes_on_suits(H))
 			if(bot_in_syndicate_suit(H))
 				bot_note_operative(H) //goals/nuke_defence.dm

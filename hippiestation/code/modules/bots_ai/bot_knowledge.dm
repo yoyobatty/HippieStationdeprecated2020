@@ -300,7 +300,7 @@ GLOBAL_LIST_EMPTY(bot_where_answered)
 /datum/bot_brain/proc/where_seen(type)
 	for(var/i in length(seen_items) to 1 step -1)
 		var/datum/weakref/W = seen_items[i]
-		var/obj/item/I = W.resolve()
+		var/obj/item/I = W?.resolve() //an entry can go null under it
 		if(istype(I, type) && knows_of(I) && !ismob(bot_outermost_holder(I)))
 			return list(I, seen_items[W])
 	return null

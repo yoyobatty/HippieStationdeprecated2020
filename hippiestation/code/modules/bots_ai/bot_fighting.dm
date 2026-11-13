@@ -462,6 +462,7 @@ GLOBAL_LIST_EMPTY(bot_bomber_warned)
 		return
 	GLOB.bot_bomber_warned[REF(H)] = world.time + 1 MINUTES
 	GLOB.bot_keep_clear[get_area(H)] = world.time + 2 MINUTES //goals/security_tactics.dm
+	GLOB.bot_keep_clear_for -= get_area(H) //for the bomb, not whoever it was kept clear for before
 	bot_log(src, "[H] has a bomb in their hands")
 	bot_say(owner, ";[pick("[H.name]'s got a bomb", "Bomb! [H.name]'s holding a tank bomb", "[H.name] has a bomb in their hands")], [get_area_name(H, TRUE)]! Keep clear!")
 

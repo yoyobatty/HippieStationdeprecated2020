@@ -180,6 +180,8 @@ GLOBAL_LIST_INIT(bot_you_words, list("you", "ya", "u", "your", "you're", "youre"
 		return
 
 	var/lower_msg = lowertext(raw_message)
+	if(!radio_freq && istype(crewmate) && heard_cry_for_help(crewmate, lower_msg)) //goals/carry_casualty.dm
+		return
 	if(heard_confession(talker, lower_msg, radio_freq)) //goals/robust.dm
 		return
 	// bot_law.dm: the Captain, a head or Security saying who's to be arrested, let go, spared or killed

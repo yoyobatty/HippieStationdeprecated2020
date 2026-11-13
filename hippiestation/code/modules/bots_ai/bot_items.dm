@@ -1480,7 +1480,58 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 		return
 	if(A.glass && !LAZYLEN(A.req_access) && !LAZYLEN(A.req_one_access))
 		return //public glass airlock - the one real exemption
+	// Not every door, and not the instant it's through (the user, 2026-11-13: every bot shut every airlock behind it at once). A
+	// department's door from maintenance nearly always, so nobody gets in that way on its back; between maintenance and a hallway
+	// hardly ever; a department's front door or one between departments now and then. The door shuts itself in a while anyway.
+	var/chance = door_close_chance(T)
+	bot_tally("doors through: [last_door_sides]")
+	if(!prob(chance))
+		return
+	bot_tally("doors shut behind: [last_door_sides]")
+	addtimer(CALLBACK(src, PROC_REF(close_airlock_later), A), rand(3, 8)) //the moment it takes to turn round and press it
+
+/datum/bot_brain
+	/// What the last door it came through joined (door_close_chance()), for the tallies
+	var/last_door_sides
+
+/datum/bot_brain/proc/close_airlock_later(obj/machinery/door/airlock/A)
+	if(QDELETED(src) || QDELETED(owner) || QDELETED(A) || A.density || A.operating || A.welded || owner.pulling)
+		return
+	if(get_dist(owner, A) > 2)
+		return //gone on
 	A.close()
+
+/// What's on one side of a door: "maint", "dept" (somewhere only its staff go: bot_staff_of(), bot_witness.dm), "security", or "public"
+/proc/bot_door_side_kind(area/A)
+	if(!A)
+		return "public"
+	if(istype(A, /area/maintenance))
+		return "maint"
+	if(bot_department_of(A) == "security") //bot_departments.dm
+		return "security"
+	return bot_staff_of(A) ? "dept" : "public"
+
+/// How likely it is to shut the door it's just come through (close_airlock_behind() above), in percent.
+/datum/bot_brain/proc/door_close_chance(turf/T)
+	var/turf/here = get_turf(owner)
+	var/turf/back = get_step(T, get_dir(here, T))
+	var/list/sides = list(bot_door_side_kind(get_area(here)), bot_door_side_kind(get_area(back)))
+	last_door_sides = sortList(sides.Copy()).Join("-")
+	if(("security" in sides) || (("dept" in sides) && ("maint" in sides)))
+		. = 95 //the Brig, or a department's back door: nobody slips in behind it
+	else if("maint" in sides)
+		. = 10 //maintenance and a hallway: left for the door to see to
+	else if(sides[1] == "dept" && sides[2] == "dept")
+		. = get_area(here) == get_area(back) ? 25 : 40 //inside a department, or between two
+	else if("dept" in sides)
+		. = 50 //a department's front door
+	else
+		. = 10
+	if(istype(current_goal, /datum/bot_goal/run_from))
+		return 90 //a door shut on whoever's after it (the plan's tier 1 tactics)
+	if(. < 95 && is_apex() && state == BOT_STATE_GOAL)
+		. *= 0.4 //somewhere to be: it doesn't stop for it
+	. *= 0.6 + diligence * 0.4
 
 // Same shape as find_item_goal() (nearby floor items, then nearby closets), just
 // filtered to tools/toolboxes and with a wider radius - this is the "already visible"
