@@ -42,6 +42,10 @@ GLOBAL_REAL(MCWatchdog, /datum/mc_watchdog)
 /// Players' and admins' latest clicks and window actions: list(real time, ckey, href), a ring of MC_WATCHDOG_ACTIONS_KEPT
 GLOBAL_REAL_VAR(list/mc_watchdog_actions) = new /list(MC_WATCHDOG_ACTIONS_KEPT)
 GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
+/// Real time the last player left (client/Destroy below). With world.sleep_offline the world stops ticking until someone joins,
+/// and was_offline alone misses that when the last player leaves after the watchdog's turn in a tick: the sleep was logged as a
+/// freeze (2026-11-12, "stood still for 2.8 s" between the user's logout and login)
+GLOBAL_REAL_VAR(mc_watchdog_emptied_real) = -INFINITY
 
 /datum/mc_watchdog
 	var/running = TRUE
@@ -117,7 +121,8 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 	var/now_real = REALTIMEOFDAY
 	var/now_time = world.time
 	var/lost = (now_real - last_real) - (now_time - last_time)
-	if(lost >= MC_WATCHDOG_FREEZE_LOG && !was_offline)
+	var/emptied = !watch_with_nobody_on && world.sleep_offline && mc_watchdog_emptied_real >= last_real
+	if(lost >= MC_WATCHDOG_FREEZE_LOG && !was_offline && !emptied)
 		saw_freeze(lost, last_real, last_time, now_real, now_time)
 	last_real = now_real
 	last_time = now_time
@@ -429,6 +434,11 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 	mc_watchdog_actions[i] = list(REALTIMEOFDAY, ckey, href)
 	mc_watchdog_action_next = i >= MC_WATCHDOG_ACTIONS_KEPT ? 1 : i + 1
 	return ..()
+
+/client/Destroy()
+	. = ..()
+	if(!length(GLOB.clients))
+		mc_watchdog_emptied_real = REALTIMEOFDAY
 
 /// Actions between two real times, newest last, without admin tokens
 /datum/mc_watchdog/proc/recent_actions(from_real, to_real, count)
