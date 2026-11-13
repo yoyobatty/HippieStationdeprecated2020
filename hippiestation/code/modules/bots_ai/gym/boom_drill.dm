@@ -5,6 +5,8 @@
 //  superboom  1000 units of N-amino azidotetrazole going off, past the cap the way a reagent explosion goes
 //  tesla      an energy ball loose with five mini-balls, for the three minutes after
 //  nuke       what a nuke on the station does: every station tile hit and everybody on the level gibbed (the cinematic left out)
+//  cascade    a cascade charge, or any of the cascade grenades by its last path part (firestorm, wave, fuelair...), primed where it
+//             lies (hippiestation/code/game/objects/items/grenades/cascade.dm)
 // Every tick's real length is kept from 20 seconds before to 3 minutes after, through timewarp's own clock: the longest tick is the
 // freeze players feel, and the time over the ticks before is what it cost in all. What it destroyed is counted, to tell a faster build
 // from one that does less.
@@ -39,6 +41,11 @@ GLOBAL_DATUM(boom_drill, /datum/boom_drill)
 	// what it did
 	var/list/turf_types_before
 	var/humans_dead_before = 0
+	/// weakref of every human in the survey square = their damage before (brute, burn, toxin, oxygen)
+	var/list/damage_before
+	/// the most humans in the square down (stunned, knocked down, paralysed or out) or on fire at once, in the first minute
+	var/peak_down = 0
+	var/peak_burning = 0
 
 /datum/bot_shift/proc/boom_drill(what)
 	var/datum/boom_drill/D = new
@@ -75,6 +82,13 @@ GLOBAL_DATUM(boom_drill, /datum/boom_drill)
 		if("nuke")
 			SSticker.station_explosion_detonation(null)
 			INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(KillEveryoneOnZLevel), epicenter.z)
+		else
+			var/grenade_type = what == "cascade" ? /obj/item/grenade/cascade : text2path("/obj/item/grenade/cascade/[what]")
+			if(!ispath(grenade_type, /obj/item/grenade/cascade))
+				shift.note("boom drill: no drill called [what]")
+				return
+			var/obj/item/grenade/cascade/G = new grenade_type(epicenter)
+			G.prime()
 	UNTIL(world.time >= sample_until)
 	shift.note(report())
 	log_game("BOOM DRILL: [report()]")
@@ -107,9 +121,33 @@ GLOBAL_DATUM(boom_drill, /datum/boom_drill)
 	turf_types_before = list()
 	for(var/turf/T as anything in survey_area())
 		turf_types_before[T] = T.type
+	damage_before = list()
 	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
 		if(H.stat == DEAD)
 			humans_dead_before++
+		else if(in_survey(H))
+			damage_before[WEAKREF(H)] = boom_damage(H)
+
+/datum/boom_drill/proc/in_survey(atom/A)
+	var/turf/T = get_turf(A)
+	return T && T.z == epicenter.z && get_dist(T, epicenter) <= BOOM_SURVEY
+
+/proc/boom_damage(mob/living/L)
+	return L.getBruteLoss() + L.getFireLoss() + L.getToxLoss() + L.getOxyLoss()
+
+/// How many humans in the survey square are down, and on fire, right now.
+/datum/boom_drill/proc/count_down()
+	var/down = 0
+	var/burning = 0
+	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
+		if(H.stat == DEAD || !in_survey(H))
+			continue
+		if(H.stat == UNCONSCIOUS || H.IsStun() || H.IsKnockdown() || H.IsParalyzed() || H.IsUnconscious())
+			down++
+		if(H.on_fire)
+			burning++
+	peak_down = max(peak_down, down)
+	peak_burning = max(peak_burning, burning)
 
 /datum/boom_drill/proc/sample()
 	var/last = timewarp_real_ms()
@@ -124,6 +162,8 @@ GLOBAL_DATUM(boom_drill, /datum/boom_drill)
 			continue
 		after_ms += gap
 		after_ticks++
+		if(world.time - event_time <= 1 MINUTES && !((after_ticks - 1) % 10))
+			count_down()
 		if(gap > worst_ms)
 			worst_ms = gap
 			worst_at = world.time - event_time
@@ -148,12 +188,21 @@ GLOBAL_DATUM(boom_drill, /datum/boom_drill)
 	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
 		if(QDELETED(B.owner))
 			humans_gone++
+	var/hurt = 0
+	var/damage_dealt = 0
+	for(var/datum/weakref/W as anything in damage_before)
+		var/mob/living/carbon/human/H = W.resolve()
+		var/dealt = H ? boom_damage(H) - damage_before[W] : 0
+		if(!H || H.stat == DEAD || dealt > 20)
+			hurt++
+		damage_dealt += max(0, dealt)
 	var/per_tick = baseline_ticks ? baseline_ms / baseline_ticks : 0
 	var/extra = after_ms - per_tick * after_ticks
 	return "boom drill [what]: worst tick [round(worst_ms)] ms at +[round(worst_at / 10, 0.1)]s, [over_100] ticks over 100 ms, [over_1000] over a second; \
 		[round(extra / 1000, 0.1)] s more than the ticks before ([round(per_tick, 0.1)] ms a tick then) over [BOOM_AFTER / 10] s; \
 		explode() [explode_calls]x [round(explode_ms)] ms, SSexplosions [fire_calls] fires [round(fire_ms)] ms (worst [round(fire_worst_ms)]); \
-		[changed] tiles changed ([space] to space), [humans_dead] more dead, [humans_gone] bots' bodies gone"
+		[changed] tiles changed ([space] to space), [humans_dead] more dead, [humans_gone] bots' bodies gone; \
+		[hurt] of [length(damage_before)] near hurt or dead ([round(damage_dealt)] damage), most down at once [peak_down], most on fire [peak_burning]"
 
 // The explosion machinery's own share, while a drill's running.
 /datum/controller/subsystem/explosions/explode(atom/epicenter, devastation_range, heavy_impact_range, light_impact_range, flash_range, adminlog, ignorecap, flame_range, silent, smoke, atom/explosion_cause)
