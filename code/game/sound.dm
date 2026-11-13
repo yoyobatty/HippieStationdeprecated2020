@@ -100,6 +100,16 @@
 	if(HAS_TRAIT(src, TRAIT_SOUND_DEBUGGED))
 		to_chat(src, "<span class='admin'>Vol-[round(S.volume, 0.01)] Sound-[S.file]</span>")
 
+	// hippie start -- ears still ringing from a blast: everything sounds dull (explosion_realism/blast_senses.dm). S can be shared by
+	// everyone who hears it, so its echo is put back after.
+	if(blast_dulled_until > world.time)
+		var/old_echo = S.echo
+		S.volume *= 0.35
+		S.echo = blast_muffle_echo(-2000)
+		SEND_SOUND(src, S)
+		S.echo = old_echo
+		return
+	// hippie end
 	SEND_SOUND(src, S)
 
 /proc/sound_to_playing_players(soundin, volume = 100, vary = FALSE, frequency = 0, falloff = FALSE, channel = 0, pressure_affected = FALSE, sound/S)

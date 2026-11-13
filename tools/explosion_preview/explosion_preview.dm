@@ -70,8 +70,8 @@
 		var/up = 0
 		var/down = 0
 		for(var/turf/T as anything in spots)
-			var/list/line = explosion_severity_map(T, s[1], s[2], s[3], "line")
-			var/list/shaped = explosion_severity_map(T, s[1], s[2], s[3], "native")
+			var/list/line = explosion_severity_map(T, s[1], s[2], s[3], "line", FALSE)
+			var/list/shaped = explosion_severity_map(T, s[1], s[2], s[3], "native", FALSE)
 			for(var/turf/A as anything in line)
 				var/list/L = totals["line"]
 				L[line[A]]++
@@ -97,7 +97,7 @@
 			var/list/s = sizes[size_name]
 			var/list/S = list(0, 0, 0)
 			for(var/turf/T as anything in spots)
-				var/list/shaped = explosion_severity_map(T, s[1], s[2], s[3], "native")
+				var/list/shaped = explosion_severity_map(T, s[1], s[2], s[3], "native", FALSE)
 				for(var/turf/A as anything in shaped)
 					S[shaped[A]]++
 				CHECK_TICK
@@ -159,8 +159,8 @@
 
 /proc/xp_dump(name, turf/epicenter, list/s)
 	var/range = s[3] + 3
-	var/list/line = explosion_severity_map(epicenter, s[1], s[2], s[3], "line")
-	var/list/shaped = explosion_severity_map(epicenter, s[1], s[2], s[3], "native")
+	var/list/line = explosion_severity_map(epicenter, s[1], s[2], s[3], "line", FALSE)
+	var/list/shaped = explosion_severity_map(epicenter, s[1], s[2], s[3], "native", FALSE)
 	var/list/rows = list()
 	for(var/y in epicenter.y + range to epicenter.y - range step -1)
 		var/list/row = list()

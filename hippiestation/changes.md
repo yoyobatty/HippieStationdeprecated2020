@@ -33,7 +33,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/subsystem/blackbox.dm
 ## code/controllers/subsystem/dbcore.dm (out of the .dme: rewritten whole as hippiestation/code/controllers/subsystem/dbcore.dm, rust_g instead of BSQL)
 ## code/controllers/subsystem/discord.dm
-## code/controllers/subsystem/explosions.dm (shaped explosions through hippiestation/code/controllers/subsystem/explosions_shape.dm; Check Bomb Impact; spread over ticks; blame)
+## code/controllers/subsystem/explosions.dm (shaped explosions through hippiestation/code/controllers/subsystem/explosions_shape.dm; Check Bomb Impact; spread over ticks; blame; realistic blasts through hippiestation/code/modules/explosion_realism/: air, sealed rooms, glass past the damage, sounds, fragments)
 ## code/controllers/subsystem/garbage.dm
 ## code/controllers/subsystem/input.dm
 ## code/controllers/subsystem/job.dm
@@ -90,6 +90,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/objects/items/defib.dm
 ## code/game/objects/items/devices/flashlight.dm !Should be modularized. Can be done easily.
 ## code/game/objects/items/devices/radio/radio.dm
+## code/game/objects/items/devices/scanners.dm (health analyser reports blast lung, explosion_realism/blast_injuries.dm)
 ## code/game/objects/items/robot/robot_items.dm
 ## code/game/objects/items/stacks/rods.dm
 ## code/game/objects/items/stacks/sheets/glass.dm
@@ -100,6 +101,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/objects/structures/barsigns.dm
 ## code/game/objects/structures/grille.dm
 ## code/game/objects/structures/window.dm
+## code/game/sound.dm (playsound_local() dulls everything while a blast has the ears ringing, explosion_realism/blast_senses.dm)
 ## code/game/turfs/change_turf.dm
 ## code/game/turfs/open.dm
 ## code/game/turfs/open/lava.dm (is_safe() by locate(), no copy of the tile's contents)

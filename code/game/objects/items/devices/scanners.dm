@@ -204,6 +204,9 @@ GENE SCANNER
 	if(M.getorgan(/obj/item/organ/zombie_infection)) //hippie edit
 		to_chat(user, "<span class='boldannounce'>\tBiometrics consistent with Romerol infection. \tBrain surgery needed to remove malignant tumorous mass.</span>") //hippie edit
 
+	if(M.has_status_effect(/datum/status_effect/blast_lung)) //hippie -- realistic blasts (explosion_realism/blast_injuries.dm)
+		to_chat(user, "\t<span class='alert'>Blast lung: bleeding in the lungs. Salbutamol, perfluorodecalin or cryo.</span>")
+
 	//Eyes and ears
 	if(advanced)
 		if(iscarbon(M))

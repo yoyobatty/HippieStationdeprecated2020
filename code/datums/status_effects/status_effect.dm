@@ -42,10 +42,12 @@
 	STOP_PROCESSING(SSfastprocess, src)
 	if(owner)
 		owner.clear_alert(id)
-		linked_alert = null // hippie -- the alert's just been deleted, and this held it for a hard delete
 		LAZYREMOVE(owner.status_effects, src)
 		on_remove()
 		owner = null
+	// hippie -- the alert's been deleted, here or in be_replaced(), and this held it for a hard delete. It was only let go of with an
+	// owner still set: be_replaced() (the mob deleted under it, a gibbing) clears the owner first, and the two held each other.
+	linked_alert = null
 	return ..()
 
 /datum/status_effect/process()
@@ -89,6 +91,10 @@
 	name = "Curse of Mundanity"
 	desc = "You don't feel any different..."
 	var/datum/status_effect/attached_effect
+
+/obj/screen/alert/status_effect/Destroy() //hippie -- it and its effect held each other for a hard delete
+	attached_effect = null
+	return ..()
 
 //////////////////
 // HELPER PROCS //

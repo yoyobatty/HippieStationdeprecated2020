@@ -72,7 +72,7 @@ SUBSYSTEM_DEF(explosions)
 #define SSEX_OBJ "obj"
 
 /datum/controller/subsystem/explosions/proc/is_exploding()
-	return (length(batch) || lowturf.len || medturf.len || highturf.len || flameturf.len || throwturf.len || lowobj.len || medobj.len || highobj.len) //hippie -- and one being worked through (fire(), below)
+	return (length(batch) || lowturf.len || medturf.len || highturf.len || flameturf.len || throwturf.len || lowobj.len || medobj.len || highobj.len || length(farturf) || far_pending) //hippie -- and one being worked through (fire(), below), and the glass past the damage
 
 
 /client/proc/check_bomb_impacts()
@@ -125,6 +125,9 @@ SUBSYSTEM_DEF(explosions)
 			if(EXPLODE_LIGHT)
 				T.color = "blue"
 				T.maptext = "Light"
+			if(EXPLODE_FAR) //realistic blasts: only the glass breaks out here
+				T.color = "#88ffff"
+				T.maptext = "Glass"
 	// hippie end
 
 	addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(wipe_color_and_text), wipe_colours), 100)
@@ -184,6 +187,30 @@ SUBSYSTEM_DEF(explosions)
 		flash_range = min(GLOB.MAX_EX_FLASH_RANGE * cap_multiplier, flash_range)
 		flame_range = min(GLOB.MAX_EX_FLAME_RANGE * cap_multiplier, flame_range)
 
+	// hippie start -- realistic blasts (explosion_realism/blast_air.dm): the air decides how far it carries (nothing in vacuum), a small
+	// sealed room is hit harder inside, the products heat the room, and the pressure breaks glass past the damage. The doppler array
+	// still hears the bomb's own size (orig_*).
+	var/far_range = 0
+	var/confine_boost = 1
+	var/list/confined
+	var/realism_note = ""
+	var/list/real //what explosion_realism_ranges() made of it, null with realism off
+	var/list/raw_ranges //the bomb's own (dev, heavy, light), capped, before the air had its say
+	if(GLOB.explosion_realism)
+		raw_ranges = list(devastation_range, heavy_impact_range, light_impact_range)
+		var/bomb_size = max(devastation_range, heavy_impact_range, light_impact_range)
+		real = explosion_realism_ranges(epicenter, devastation_range, heavy_impact_range, light_impact_range, flame_range)
+		devastation_range = real[1]
+		heavy_impact_range = real[2]
+		light_impact_range = real[3]
+		flame_range = real[4]
+		far_range = real[5]
+		confine_boost = real[7]
+		confined = real[8]
+		realism_note = explosion_realism_note(real)
+		blast_add_products(real[9], bomb_size)
+	// hippie end
+
 	var/max_range = max(devastation_range, heavy_impact_range, light_impact_range, flame_range)
 	var/started_at = REALTIMEOFDAY
 	//hippie start -- every explosion is logged with a cause, suspects and the call stack that set it off, adminlog or not (see explosion_blame())
@@ -199,11 +226,11 @@ SUBSYSTEM_DEF(explosions)
 	else
 		last_trace = trace
 	last_trace_time = world.time
-	var/blame_message = "Explosion with size ([devastation_range], [heavy_impact_range], [light_impact_range], [flame_range]) in [loc_name(epicenter)]. Cause: [blame["cause"]]. Suspects: [blame["suspects"]]. Call stack: [trace]"
+	var/blame_message = "Explosion with size ([devastation_range], [heavy_impact_range], [light_impact_range], [flame_range])[realism_note] in [loc_name(epicenter)]. Cause: [blame["cause"]]. Suspects: [blame["suspects"]]. Call stack: [trace]"
 	log_game(blame_message)
 	GLOB.bombers += blame_message
 	if(adminlog)
-		message_admins("Explosion with size ([devastation_range], [heavy_impact_range], [light_impact_range], [flame_range]) in [ADMIN_VERBOSEJMP(epicenter)]. Cause: [blame["cause"]]. Suspects: [blame["admin_suspects"]].")
+		message_admins("Explosion with size ([devastation_range], [heavy_impact_range], [light_impact_range], [flame_range])[realism_note] in [ADMIN_VERBOSEJMP(epicenter)]. Cause: [blame["cause"]]. Suspects: [blame["admin_suspects"]].")
 	//hippie end
 
 	var/x0 = epicenter.x
@@ -222,7 +249,12 @@ SUBSYSTEM_DEF(explosions)
 	far_dist += heavy_impact_range * 5
 	far_dist += devastation_range * 20
 
-	if(!silent)
+	if(real) //hippie -- realistic blasts (explosion_realism/): a flash and dust, the casing thrown as fragments, and heard late, muffled by walls, through vacuum only by the hull
+		blast_sights(epicenter, real, raw_ranges)
+		blast_fragments(epicenter, blame["atom"], real, raw_ranges)
+		if(!silent)
+			blast_sounds(epicenter, real, raw_ranges, max_range, orig_max_distance)
+	else if(!silent) //hippie edit -- else
 		var/frequency = get_rand_frequency()
 		var/sound/explosion_sound = sound(get_sfx("explosion"))
 		var/sound/far_explosion_sound = sound('sound/effects/explosionfar.ogg')
@@ -274,9 +306,21 @@ SUBSYSTEM_DEF(explosions)
 
 	var/list/shape_extra //hippie -- turf -> how much further the blast comes round to reach it (explosions_shape.dm)
 	if(reactionary)
-		cached_exp_block = CaculateExplosionBlock(affected_turfs)
+		// hippie start -- a pile going off at once (six maxcaps on a tile, a crate of grenades) is the same sums each time in the same
+		// tick, as nothing's been hit yet: they're worked out once
+		var/static/last_shape_key
+		var/static/list/last_shape
+		var/shape_key = "[x0],[y0],[z0],[max_range],[world.time],[GLOB.explosion_realism]"
+		if(shape_key == last_shape_key)
+			cached_exp_block = last_shape[1]
+			shape_extra = last_shape[2]
+		else
+			cached_exp_block = CaculateExplosionBlock(affected_turfs)
+			shape_extra = explosion_shape(epicenter, max_range, cached_exp_block) //null with explosion-shape=line
+			last_shape_key = shape_key
+			last_shape = list(cached_exp_block, shape_extra)
 		path_block = list()
-		shape_extra = explosion_shape(epicenter, max_range, cached_exp_block) //hippie -- null with explosion-shape=line
+		// hippie end
 
 	//lists are guaranteed to contain at least 1 turf at this point
 
@@ -305,6 +349,9 @@ SUBSYSTEM_DEF(explosions)
 			path_block[T] = sum
 			dist += sum
 			// hippie end
+
+		if(confined && confined[T]) //hippie -- in the small room the products fill, or its walls: hit harder (explosion_realism/blast_air.dm)
+			dist /= confine_boost
 
 		var/flame_dist = dist < flame_range
 		var/throw_dist = dist
@@ -342,6 +389,9 @@ SUBSYSTEM_DEF(explosions)
 			if(EXPLODE_LIGHT)
 				SSexplosions.lowturf += T
 
+		if(real && dist) //hippie -- who's lying down as it goes off, not after the first of it has knocked them down (explosion_realism/blast_injuries.dm)
+			for(var/mob/living/carbon/C in T)
+				C.blast_prone_until = (C.mobility_flags & MOBILITY_STAND) ? 0 : world.time + 3 SECONDS
 
 		if(flame_dist && prob(40) && !isspaceturf(T) && !T.density)
 			flameturf += T
@@ -358,6 +408,9 @@ SUBSYSTEM_DEF(explosions)
 		else
 			T.explosion_throw_details = list(throw_range, throw_dir, max_range)
 			throwturf += T
+
+	if(far_range) //hippie -- the glass past the damage, worked out over the next ticks (explosion_realism/blast_far.dm)
+		blast_far_ring(epicenter, max(devastation_range, heavy_impact_range, light_impact_range), far_range)
 
 	var/took = (REALTIMEOFDAY - started_at) / 10
 
@@ -441,6 +494,10 @@ SUBSYSTEM_DEF(explosions)
 /datum/controller/subsystem/explosions/var/list/batch_severity = list()
 /datum/controller/subsystem/explosions/var/batch_pos = 0
 /datum/controller/subsystem/explosions/var/batch_part
+/// Tiles past the damage that only the pressure reaches: turf -> list(strength, epicenter) (explosion_realism/blast_far.dm)
+/datum/controller/subsystem/explosions/var/list/farturf = list()
+/// How many of those are still being worked out (blast_far_ring())
+/datum/controller/subsystem/explosions/var/far_pending = 0
 
 /datum/controller/subsystem/explosions/fire(resumed = 0)
 	if(!length(batch) && !is_exploding())
@@ -476,10 +533,15 @@ SUBSYSTEM_DEF(explosions)
 				if(length(batch))
 					Master.laggy_byond_map_update_incoming()
 				take(flameturf, 0)
+				if(length(farturf)) //each with its own strength and epicenter, as the severity
+					batch += farturf
+					for(var/turf/T as anything in farturf)
+						batch_severity += list(farturf[T])
 				highturf = list()
 				medturf = list()
 				lowturf = list()
 				flameturf = list()
+				farturf = list()
 			if(SSEXPLOSIONS_MOVABLES)
 				currentpart = SSEXPLOSIONS_THROWS
 				take(highobj, EXPLODE_DEVASTATE)
@@ -511,6 +573,10 @@ SUBSYSTEM_DEF(explosions)
 			var/turf/T = thing
 			if(!severity)
 				new /obj/effect/hotspot(T) //Mostly for ambience!
+				return
+			if(islist(severity)) //past the damage: list(strength, epicenter)
+				var/list/far = severity
+				blast_far(T, far[1], far[2])
 				return
 			T.explosion_level = max(T.explosion_level, severity)
 			T.ex_act(severity)

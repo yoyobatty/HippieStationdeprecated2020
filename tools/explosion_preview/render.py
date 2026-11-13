@@ -19,8 +19,8 @@ KIND = {
     "space": (12, 12, 24),
     "none": (0, 0, 0),
 }
-SEVERITY = {1: (215, 30, 30), 2: (240, 160, 20), 3: (250, 230, 60)}
-NAMES = {1: "devastated", 2: "heavy", 3: "light"}
+SEVERITY = {1: (215, 30, 30), 2: (240, 160, 20), 3: (250, 230, 60), 4: (120, 225, 240)}
+NAMES = {1: "devastated", 2: "heavy", 3: "light", 4: "glass only"}
 
 
 def panel(rows, which, title):
@@ -42,13 +42,13 @@ def panel(rows, which, title):
                 d.rectangle([x0 + 3, y0 + 3, x0 + TILE - 4, y0 + TILE - 4], outline=base)
     c = len(rows) // 2
     d.ellipse([c * TILE + 3, c * TILE + 25, c * TILE + TILE - 4, c * TILE + TILE + 18], fill=(0, 0, 0))
-    counts = {1: 0, 2: 0, 3: 0}
+    counts = {1: 0, 2: 0, 3: 0, 4: 0}
     for row in rows:
         for kind, line, shaped in row:
             sev = line if which == "line" else shaped
             if sev:
                 counts[sev] += 1
-    d.text((4, 4), f"{title}: " + ", ".join(f"{counts[k]} {NAMES[k]}" for k in (1, 2, 3)), fill=(0, 0, 0))
+    d.text((4, 4), f"{title}: " + ", ".join(f"{counts[k]} {NAMES[k]}" for k in (1, 2, 3, 4) if k < 4 or counts[k]), fill=(0, 0, 0))
     return img
 
 
@@ -60,15 +60,19 @@ def main():
         rows = data["rows"]
         global TILE
         TILE = 14 if len(rows) < 30 else 9
-        before = panel(rows, "line", "Before (straight line)")
-        after = panel(rows, "shaped", "After (shaped)")
+        titles = data.get("titles", ["Before (straight line)", "After (shaped)"])
+        before = panel(rows, "line", titles[0])
+        after = panel(rows, "shaped", titles[1])
         gap = 16
-        img = Image.new("RGB", (before.width + after.width + gap, before.height + 26), (255, 255, 255))
-        img.paste(before, (0, 26))
-        img.paste(after, (before.width + gap, 26))
+        top = 40 if data.get("note") else 26
+        img = Image.new("RGB", (max(before.width + after.width + gap, 760), before.height + top), (255, 255, 255))
+        img.paste(before, (0, top))
+        img.paste(after, (before.width + gap, top))
         d = ImageDraw.Draw(img)
         s = data["size"]
-        d.text((4, 6), f"{data['name']} ({data['area']}, {data['x']},{data['y']}): a ({s[0]}, {s[1]}, {s[2]}) explosion. Red devastated, orange heavy, yellow light; brown shut doors, tan open doors, blue windows.", fill=(0, 0, 0))
+        d.text((4, 6), f"{data['name']} ({data['area']}, {data['x']},{data['y']}): a ({s[0]}, {s[1]}, {s[2]}) explosion. Red devastated, orange heavy, yellow light, cyan glass only; brown shut doors, tan open doors, blue windows.", fill=(0, 0, 0))
+        if data.get("note"):
+            d.text((4, 20), data["note"], fill=(0, 0, 0))
         name = os.path.splitext(os.path.basename(path))[0]
         img.save(os.path.join(out, f"{name}.png"))
         print(f"wrote {os.path.join(out, name)}.png")

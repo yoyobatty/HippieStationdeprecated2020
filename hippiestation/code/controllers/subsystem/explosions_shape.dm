@@ -170,13 +170,30 @@ GLOBAL_VAR_INIT(explosion_shape_differed, 0)
 		GLOB.explosion_shape_differed++
 		log_world("Shaped explosion check at [AREACOORD(epicenter)], [size]x[size]: [differ] tiles differ, first [first]")
 
-/// What an explosion of this size at `epicenter` does to each turf, as explode() works it out: turf -> EXPLODE_DEVASTATE, EXPLODE_HEAVY
-/// or EXPLODE_LIGHT. `mode` as explosion-shape, null for the server's own, or "none" for nothing blocking it at all. For the admins'
-/// Check Bomb Impact and the before/after pictures.
-/proc/explosion_severity_map(turf/epicenter, devastation_range, heavy_impact_range, light_impact_range, mode)
+/// What an explosion of this size at `epicenter` does to each turf, as explode() works it out: turf -> EXPLODE_DEVASTATE, EXPLODE_HEAVY,
+/// EXPLODE_LIGHT or EXPLODE_FAR (glass only). `mode` as explosion-shape, null for the server's own, or "none" for nothing blocking it at
+/// all. `realism` TRUE or FALSE for realistic blasts on or off (explosion_realism/), null for the server's own. For the admins' Check
+/// Bomb Impact and the before/after pictures.
+/proc/explosion_severity_map(turf/epicenter, devastation_range, heavy_impact_range, light_impact_range, mode, realism)
 	. = list()
+	// hippie -- realistic blasts, as explode() has them
+	var/was_realism = GLOB.explosion_realism
+	if(!isnull(realism))
+		GLOB.explosion_realism = realism
+	var/far_range = 0
+	var/confine_boost = 1
+	var/list/confined
+	if(GLOB.explosion_realism)
+		var/list/real = explosion_realism_ranges(epicenter, devastation_range, heavy_impact_range, light_impact_range, 0)
+		devastation_range = real[1]
+		heavy_impact_range = real[2]
+		light_impact_range = real[3]
+		far_range = real[5]
+		confine_boost = real[7]
+		confined = real[8]
 	var/max_range = max(devastation_range, heavy_impact_range, light_impact_range)
-	var/list/affected = SSexplosions.GatherSpiralTurfs(max_range, epicenter)
+	var/reach_range = max(max_range, far_range)
+	var/list/affected = SSexplosions.GatherSpiralTurfs(reach_range, epicenter)
 	var/plain = mode == "none"
 	var/list/blocks
 	var/list/shape
@@ -185,8 +202,9 @@ GLOBAL_VAR_INIT(explosion_shape_differed, 0)
 		var/was = GLOB.explosion_shape_mode
 		if(mode)
 			GLOB.explosion_shape_mode = mode
-		shape = explosion_shape(epicenter, max_range, blocks)
+		shape = explosion_shape(epicenter, reach_range, blocks)
 		GLOB.explosion_shape_mode = was
+	GLOB.explosion_realism = was_realism
 	for(var/turf/T as anything in affected)
 		var/dist = cheap_hypotenuse(T.x, T.y, epicenter.x, epicenter.y)
 		if(plain)
@@ -198,12 +216,16 @@ GLOBAL_VAR_INIT(explosion_shape_differed, 0)
 			while(along && along != epicenter)
 				along = get_step_towards(along, epicenter)
 				dist += blocks[along]
+		if(confined && confined[T])
+			dist /= confine_boost
 		if(dist < devastation_range)
 			.[T] = EXPLODE_DEVASTATE
 		else if(dist < heavy_impact_range)
 			.[T] = EXPLODE_HEAVY
 		else if(dist < light_impact_range)
 			.[T] = EXPLODE_LIGHT
+		else if(dist < far_range)
+			.[T] = EXPLODE_FAR
 
 #undef EXPLOSION_SHAPE_UNREACHABLE
 #undef EXPLOSION_SHAPE_NOISE

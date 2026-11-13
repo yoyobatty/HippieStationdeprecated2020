@@ -73,6 +73,7 @@
 		"suspects" = length(log_suspects) ? jointext(log_suspects, "; ") : "none found",
 		"admin_suspects" = length(admin_suspects) ? jointext(admin_suspects, "; ") : "none found",
 		"trace" = length(trace) ? jointext(trace, " <- ") : "none",
+		"atom" = cause, //what blew up, for its casing (explosion_realism/blast_injuries.dm)
 	)
 
 /// Names a call stack frame's src for the trace, adding any atom it involves to `involved`.
