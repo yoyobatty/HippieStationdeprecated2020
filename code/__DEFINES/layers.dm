@@ -136,9 +136,32 @@
 #define CAMERA_STATIC_LAYER 19
 #define CAMERA_STATIC_RENDER_TARGET "CAMERA_STATIC_PLANE"
 
+//hippie edit -- a trip's vision (hippiestation/code/modules/trip_vision/trip_vision.dm): every plane below copied into one picture on
+//a hidden plane, then drawn over the world with whatever the drug does to it, under the fullscreen overlays and the HUD, which stay
+//as they are. Everything from here up moved along by seven to make room
+#define TRIP_WORLD_PLANE 23
+#define TRIP_WORLD_RENDER_TARGET "*TRIP_WORLD_PLANE"
+/// The picture again, warped: the copy that carries the filters (a plane master that has them when it first draws stays blank)
+#define TRIP_WARP_PLANE 24
+#define TRIP_WARP_RENDER_TARGET "*TRIP_WARP_PLANE"
+/// The picture again, turned and coloured: a filtered thing that's moved costs the client its filters again every frame
+#define TRIP_TURN_PLANE 25
+#define TRIP_TURN_RENDER_TARGET "*TRIP_TURN_PLANE"
+/// The turned picture again, for the kaleidoscope's turning copy alone: at a map zoom other than 1, a copy that turns or scales
+/// moves the render target it reads for every other reader too (measured: the whole trip slid off the screen)
+#define TRIP_KALEIDO_PLANE 26
+#define TRIP_KALEIDO_RENDER_TARGET "*TRIP_KALEIDO_PLANE"
+/// The picture again, turning, for the kaleidoscope to fold
+#define TRIP_SPIN_PLANE 27
+#define TRIP_SPIN_RENDER_TARGET "*TRIP_SPIN_PLANE"
+/// The picture again, its edge faded, for the tunnel's copies to shrink
+#define TRIP_DISC_PLANE 28
+#define TRIP_DISC_RENDER_TARGET "*TRIP_DISC_PLANE"
+#define TRIP_VIEW_PLANE 29
+
 //HUD layer defines
 
-#define FULLSCREEN_PLANE 23
+#define FULLSCREEN_PLANE 30
 #define FLASH_LAYER 20
 #define FULLSCREEN_LAYER 20.1
 #define UI_DAMAGE_LAYER 20.2
@@ -147,13 +170,13 @@
 #define CURSE_LAYER 20.5
 #define FULLSCREEN_RENDER_TARGET "FULLSCREEN_PLANE"
 
-#define HUD_PLANE 24
+#define HUD_PLANE 31
 #define HUD_LAYER 21
 #define HUD_RENDER_TARGET "HUD_PLANE"
-#define ABOVE_HUD_PLANE 25
+#define ABOVE_HUD_PLANE 32
 #define ABOVE_HUD_LAYER 22
 #define ABOVE_HUD_RENDER_TARGET "ABOVE_HUD_PLANE"
 
 #define SPLASHSCREEN_LAYER 23
-#define SPLASHSCREEN_PLANE 26
+#define SPLASHSCREEN_PLANE 33
 #define SPLASHSCREEN_RENDER_TARGET "SPLASHSCREEN_PLANE"

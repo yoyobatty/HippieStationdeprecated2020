@@ -4183,6 +4183,7 @@
 #include "hippiestation\code\modules\throwing\throw_skill.dm"
 #include "hippiestation\code\modules\timestop\spell.dm"
 #include "hippiestation\code\modules\timestop\timestop.dm"
+#include "hippiestation\code\modules\trip_vision\trip_vision.dm"
 #include "hippiestation\code\modules\uplink\surplus_items.dm"
 #include "hippiestation\code\modules\uplink\uplink_items.dm"
 #include "hippiestation\code\modules\uplink\uplink_tgui.dm"

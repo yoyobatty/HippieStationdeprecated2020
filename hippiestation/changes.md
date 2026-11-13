@@ -7,6 +7,7 @@ The best practice to have while coding is to keep everything modularized, or the
 
 ## code/__DEFINES/atmospherics.dm (CALCULATE_ADJACENT_TURFS() queues on SSair.adjacent_rebuild)
 ## code/__DEFINES/diseases.dm
+## code/__DEFINES/layers.dm (planes for the emissive bloom, thermal goggles, T-ray glow and a trip's vision; the planes above each moved up)
 ## code/__DEFINES/MC.dm
 ## code/__DEFINES/misc.dm
 ## code/__DEFINES/mobs.dm

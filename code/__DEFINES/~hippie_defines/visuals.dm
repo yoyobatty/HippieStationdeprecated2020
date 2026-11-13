@@ -68,6 +68,31 @@
 /// How far from a scrubber, in pixels, the specks it draws in come from
 #define AIR_DUST_PULL_REACH 40
 
+// A trip's vision (hippiestation/code/modules/trip_vision/trip_vision.dm). The numbers match tools/trip_vision/trip_vision.py,
+// which draws the art. Its hidden planes only ever hold the tripper's own copies; 5 to 7 were free
+/// The fractal's table scrolls here. Each layer of the fractal reads it through its own map
+#define GRAPE_LUT_PLANE 5
+#define GRAPE_LUT_RENDER_TARGET "*GRAPE_LUT_PLANE"
+/// The fractal's four layers add up here, and the trip's picture adds this over the world. Two of them, so one variation can
+/// fade into the next
+#define GRAPE_FRACTAL_PLANE 6
+#define GRAPE_FRACTAL_RENDER_TARGET "*GRAPE_FRACTAL_PLANE"
+#define GRAPE_FRACTAL_B_PLANE 7
+#define GRAPE_FRACTAL_B_RENDER_TARGET "*GRAPE_FRACTAL_B_PLANE"
+/// How many variations of the fractal there are (v1map1.. in trip_vision.dmi)
+#define GRAPE_FRACTAL_VARIATIONS 5
+/// The view the fractal is drawn for, in tiles a side. Any other size shows none of it
+#define GRAPE_FRACTAL_VIEW 15
+/// The table's pixels per ring period (across) and per turn of the colours (up), and the furthest a pixel reads
+#define GRAPE_FRACTAL_PERIOD 96
+/// The table scrolls this far across and up and starts again, every 4 pi seconds: four ring periods and five turns of the colours
+#define GRAPE_FRACTAL_LOOP_X 384
+#define GRAPE_FRACTAL_LOOP_Y 480
+#define GRAPE_FRACTAL_LOOP_TIME (4 * PI * 10)
+/// How long the flow's noise takes to slide one repeat (480 px), and the most it moves the view at a trip's peak (pixels)
+#define TRIP_FLOW_LOOP_TIME (40 SECONDS)
+#define TRIP_FLOW_PEAK 20
+
 // The sky (hippiestation/code/_onclick/hud/sky.dm). The first two match tools/sky_gen/sky_gen.py, which draws the art.
 /// Nebula clouds are drawn this many times their sprite's size: they're soft, so the pixels aren't missed, and they repeat half as often
 #define SKY_NEBULA_SCALE 2
