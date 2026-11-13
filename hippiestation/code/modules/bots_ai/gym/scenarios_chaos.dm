@@ -764,6 +764,62 @@
 	var/obj/structure/window/W = locate() in window_spot
 	qdel(W)
 
+/// A wall across the corridor, then gone: the bot puts it back as it was (goals/repair_damage.dm). The duty is named by text so the
+/// run without it still builds.
+/datum/bot_scenario/duty/wall
+	job = "Station Engineer"
+	time_limit = 60 SECONDS
+	layout = list(
+		"#########",
+		"#B......#",
+		"#########")
+	kit_backpack = list(/obj/item/stack/sheet/metal/fifty)
+	var/turf/wall_spot
+	/// What stood there
+	var/wall_was = /turf/closed/wall
+	/// What's left of it on the tile, if anything
+	var/left_behind
+
+/datum/bot_scenario/duty/wall/New()
+	duty_type = text2path("/datum/bot_duty/rebuild_walls")
+	..()
+
+/datum/bot_scenario/duty/wall/post_spawn()
+	..()
+	give_job_id(list())
+	wall_spot = locate(first_marker("B").x + 5, first_marker("B").y, first_marker("B").z)
+	wall_spot.PlaceOnTop(wall_was)
+	wall_spot = wall_spot.ScrapeAway() //what a blast does: the wall's gone, the floor under it left
+	if(left_behind)
+		new left_behind(wall_spot)
+
+/datum/bot_scenario/duty/wall/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(istype(wall_spot, /turf/closed/wall))
+		if(wall_spot.type != wall_was)
+			fail_reason = "built [wall_spot.type], not [wall_was]"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/wall/gone
+	name = "repairs: a wall blown out, girder and all"
+	desc = "A wall across the corridor blown out to the floor. A girder from metal stood on the tile, then metal on the girder from beside it."
+
+/datum/bot_scenario/duty/wall/reinforced_girder
+	name = "repairs: a reinforced wall from its girder"
+	desc = "A reinforced wall taken down to its girder. Plasteel on the girder from beside it: a reinforced wall, not a plain one."
+	wall_was = /turf/closed/wall/r_wall
+	left_behind = /obj/structure/girder/reinforced
+	kit_backpack = list(/obj/item/stack/sheet/plasteel/twenty)
+
+/datum/bot_scenario/duty/wall/reinforced_gone
+	name = "repairs: a reinforced wall from nothing"
+	desc = "A reinforced wall blown out to the floor. A girder from metal, then two plasteel: reinforced, as it was."
+	wall_was = /turf/closed/wall/r_wall
+	kit_backpack = list(/obj/item/stack/sheet/metal/fifty, /obj/item/stack/sheet/plasteel/twenty)
+
 /datum/bot_scenario/alert
 	name = "chaos: a head of staff puts the station on alert"
 	desc = "Two people wanted for major crimes and still at large. The HoP goes to the comms console and raises the alert."

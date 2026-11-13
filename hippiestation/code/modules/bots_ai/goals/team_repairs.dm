@@ -85,7 +85,7 @@
 /datum/bot_brain/proc/pitch_in()
 	if(try_fire_response_round()) //goals/respond_to_fire.dm
 		return TRUE
-	for(var/duty_type in list(/datum/bot_duty/patch_hull, /datum/bot_duty/repair_windows, /datum/bot_duty/fetch_for_engineers))
+	for(var/duty_type in list(/datum/bot_duty/patch_hull, /datum/bot_duty/repair_windows, /datum/bot_duty/rebuild_walls, /datum/bot_duty/fetch_for_engineers))
 		var/datum/bot_duty/D = bot_duty_of(duty_type)
 		if(D?.try_start(src))
 			return TRUE

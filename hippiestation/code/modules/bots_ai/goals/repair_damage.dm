@@ -182,6 +182,264 @@ GLOBAL_LIST_EMPTY(bot_wrecks)
 	return (locate(/obj/structure/window) in G?.wreck?.where) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 
 // ---------------------------------------------------------------------------------------------
+// Walls
+// ---------------------------------------------------------------------------------------------
+// The user's ruling (2026-11-13, after the wiki guides review): engineers put back what's been destroyed "back to the map". A wall that's
+// gone (blown out, smashed, burnt through, taken apart) goes on a list the moment its tile stops being a wall, and whoever's free takes
+// the nearest. The player's way (girders.dm): a girder from two metal sheets with the stack's own menu ("wall girders"), stood on the
+// tile; then from beside it two more metal sheets on the girder for a wall, or a plasteel sheet to reinforce the girder and a second to
+// finish a reinforced wall. A girder the wall left behind is built on as it is. It's put back as it was, plain or reinforced. A wall
+// open to space has usually taken the room's air with it, so it suits up first, as for a hole in the hull; a tile that's gone to space
+// itself gets its floor back first (repair_hull.dm).
+
+/// A wall that's been destroyed and not put back.
+/datum/bot_lost_wall
+	var/turf/where
+	/// What it's put back as: /turf/closed/wall or /turf/closed/wall/r_wall
+	var/wall_type
+	var/lost_at = 0
+
+GLOBAL_LIST_EMPTY(bot_lost_walls)
+
+/turf/ChangeTurf(path, list/new_baseturfs, flags)
+	var/was = istype(src, /turf/closed/wall) ? type : null
+	. = ..()
+	if(was && length(GLOB.bot_brains) && !istype(., /turf/closed/wall))
+		bot_note_lost_wall(., was)
+
+/// What a bot puts back for a wall of this type: plain or reinforced (rusted ones too). Null for anything else (mineral, cult, a
+/// shuttle's): nothing a station engineer builds.
+/proc/bot_rebuilt_wall_type(path)
+	if(ispath(path, /turf/closed/wall/r_wall))
+		return path == /turf/closed/wall/r_wall || ispath(path, /turf/closed/wall/r_wall/rust) ? /turf/closed/wall/r_wall : null
+	return path == /turf/closed/wall || ispath(path, /turf/closed/wall/rust) ? /turf/closed/wall : null
+
+/// A wall gone from this tile: from ChangeTurf(), the tile as it is now and what it was.
+/proc/bot_note_lost_wall(turf/T, was)
+	var/wall_type = bot_rebuilt_wall_type(was)
+	if(!wall_type || !T)
+		return
+	var/area/A = get_area(T)
+	if(!A || istype(A, /area/space) || istype(A, /area/shuttle) || istype(A, /area/science/test_area) || istype(T, /turf/open/space/transit))
+		return //out in space, a shuttle, or the toxins range: blown up on purpose
+	for(var/datum/bot_lost_wall/known as anything in GLOB.bot_lost_walls)
+		if(known.where == T)
+			return
+	var/datum/bot_lost_wall/W = new
+	W.where = T
+	W.wall_type = wall_type
+	W.lost_at = world.time
+	GLOB.bot_lost_walls += W
+	bot_tally("walls lost")
+
+/datum/bot_brain
+	var/walls_rebuilt = 0
+	/// Lost wall -> when it's worth another look.
+	var/list/lost_walls_blocked
+	/// No metal, plasteel or suit to be had: no wall is worth trying before this (as for the hull, repair_hull.dm).
+	var/wall_work_blocked_until = 0
+
+/// The nearest lost wall this bot can get to and nobody else has in hand. A tile that's gone to space waits for its floor.
+/datum/bot_brain/proc/pick_lost_wall()
+	var/list/walls = list() //lost wall -> how far off
+	for(var/datum/bot_lost_wall/W as anything in GLOB.bot_lost_walls.Copy())
+		var/turf/T = W.where
+		if(istype(T, /turf/closed/wall))
+			GLOB.bot_lost_walls -= W //somebody put it back
+			continue
+		if(!isfloorturf(T) || T.z != owner.z || LAZYACCESS(lost_walls_blocked, W) > world.time || (gym_run && get_area(T) != get_area(owner)))
+			continue
+		if(taken_by_another(T) || get_dist(owner, T) > 80)
+			continue
+		walls[W] = get_dist(owner, T)
+	var/tries = 0
+	while(length(walls) && tries++ < 3)
+		var/datum/bot_lost_wall/nearest
+		for(var/datum/bot_lost_wall/W as anything in walls)
+			if(!nearest || walls[W] < walls[nearest])
+				nearest = W
+		walls -= nearest
+		if(can_walk_lawfully_to(nearest.where))
+			return nearest
+		LAZYSET(lost_walls_blocked, nearest, world.time + 5 MINUTES)
+	return null
+
+/datum/bot_duty/rebuild_walls
+	name = "rebuilding the walls"
+	jobs = list("Station Engineer", "Chief Engineer")
+	interval_min = 300
+	interval_max = 900
+
+/datum/bot_duty/rebuild_walls/applies_to(datum/bot_brain/bot)
+	return ..() || bot_is_helper(bot) //goals/team_repairs.dm
+
+/datum/bot_duty/rebuild_walls/try_start(datum/bot_brain/bot)
+	if(!length(GLOB.bot_lost_walls) || world.time < bot.wall_work_blocked_until)
+		return FALSE
+	var/datum/bot_lost_wall/W = bot.pick_lost_wall()
+	return W ? bot.assign_goal(new /datum/bot_goal/rebuild_wall(W)) : FALSE
+
+/datum/bot_goal/rebuild_wall
+	lawful = TRUE
+	exclusive = TRUE
+	braves_bad_air = TRUE //a wall out to space took the room's air: it suits up first (ensure_suit_for_wall)
+	doing = "putting a wall back"
+	var/datum/bot_lost_wall/lost
+
+/datum/bot_goal/rebuild_wall/New(datum/bot_lost_wall/W)
+	. = ..()
+	lost = W
+
+/datum/bot_goal/rebuild_wall/resolve_target(datum/bot_brain/bot)
+	target = isfloorturf(lost?.where) ? lost.where : null
+
+/datum/bot_goal/rebuild_wall/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/rebuild_wall/S = new
+	S.steps = list(new /datum/bot_step/ensure_suit_for_wall(), new /datum/bot_step/get_wall_materials(), new /datum/bot_step/move_to(), new /datum/bot_step/paced/rebuild_wall())
+	return list(S)
+
+/datum/bot_goal/rebuild_wall/on_give_up(datum/bot_brain/bot)
+	LAZYSET(bot.lost_walls_blocked, lost, world.time + 5 MINUTES)
+
+/datum/bot_goal/rebuild_wall/on_success(datum/bot_brain/bot)
+	GLOB.bot_lost_walls -= lost
+	bot.walls_rebuilt++
+	bot_tally("walls rebuilt")
+	bot_log(bot, "rebuilt the [lost.wall_type == /turf/closed/wall/r_wall ? "reinforced " : ""]wall at [bot_coord(lost.where)]")
+
+/// The sheet the girder takes next, and how many: two metal for a plain wall; plasteel to reinforce it, and plasteel to finish.
+/// Null for a girder that's been knocked loose or isn't a station girder: nothing an engineer builds on as it is.
+/datum/bot_goal/rebuild_wall/proc/next_sheet(obj/structure/girder/G)
+	if(!G)
+		return /obj/item/stack/sheet/metal //the girder first
+	if(G.type != /obj/structure/girder && G.type != /obj/structure/girder/reinforced)
+		return null
+	switch(G.state)
+		if(GIRDER_REINF, GIRDER_REINF_STRUTS)
+			return /obj/item/stack/sheet/plasteel
+		if(GIRDER_NORMAL)
+			return lost.wall_type == /turf/closed/wall/r_wall ? /obj/item/stack/sheet/plasteel : /obj/item/stack/sheet/metal
+	return null
+
+/// What it has to have on it before it sets off: list(sheet type = how many), from what's on the tile now.
+/datum/bot_goal/rebuild_wall/proc/sheets_needed()
+	var/reinforced = lost.wall_type == /turf/closed/wall/r_wall
+	var/obj/structure/girder/G = locate() in lost.where
+	if(!G)
+		return reinforced ? list(/obj/item/stack/sheet/metal = 2, /obj/item/stack/sheet/plasteel = 2) : list(/obj/item/stack/sheet/metal = 4)
+	var/sheet = next_sheet(G)
+	if(!sheet)
+		return null
+	if(sheet == /obj/item/stack/sheet/metal)
+		return list(/obj/item/stack/sheet/metal = 2)
+	return list(/obj/item/stack/sheet/plasteel = G.state == GIRDER_REINF ? 1 : 2)
+
+/datum/bot_strategy/rebuild_wall/is_feasible(datum/bot_brain/bot)
+	return bot.current_goal?.target && !QDELETED(bot.current_goal.target)
+
+/// Into a suit first if the air at the tile's gone, as for any work in vacuum (goals/gear_up_eva.dm). One try.
+/datum/bot_step/ensure_suit_for_wall
+	var/tried = FALSE
+
+/datum/bot_step/ensure_suit_for_wall/execute(datum/bot_brain/bot)
+	var/turf/open/T = bot.current_goal?.target
+	if(bot.is_eva_ready() || (istype(T) && bot.turf_air_is_breathable(T)))
+		return GOAL_STEP_SUCCESS
+	if(tried)
+		bot_log(bot, "no suit to be had for the wall at [bot_coord(T)] - leaving it")
+		bot.wall_work_blocked_until = world.time + 5 MINUTES
+		return GOAL_STEP_FAIL
+	tried = TRUE
+	return bot.suspend_goal_for(new /datum/bot_goal/gear_up_for_eva()) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
+
+/// The sheets it takes, fetched once each: metal, and plasteel for a reinforced wall. None to be had is the end of it for a while.
+/datum/bot_step/get_wall_materials
+	var/list/tried
+
+/datum/bot_step/get_wall_materials/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/rebuild_wall/G = bot.current_goal
+	var/list/needed = istype(G) && G.sheets_needed()
+	if(!needed)
+		bot_log(bot, "can't build on what's left of the wall at [bot_coord(G?.lost?.where)]")
+		return GOAL_STEP_FAIL
+	for(var/sheet_type in needed)
+		if(bot.carried_stack(sheet_type, needed[sheet_type]))
+			continue
+		if(LAZYFIND(tried, sheet_type))
+			var/obj/item/stack/sheet/S = sheet_type
+			bot_log(bot, "not enough [initial(S.name)] to be had for the wall at [bot_coord(G.lost.where)]")
+			bot.wall_work_blocked_until = world.time + 5 MINUTES
+			return GOAL_STEP_FAIL
+		LAZYADD(tried, sheet_type)
+		var/datum/bot_goal/acquire_item_type/get = new
+		get.item_type = sheet_type
+		get.lawful = TRUE
+		get.doing = "getting what it takes to put a wall back"
+		return bot.suspend_goal_for(get) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
+	return GOAL_STEP_SUCCESS
+
+/// Stood on the tile for the girder, then from beside it a sheet at a time on the girder.
+/datum/bot_step/paced/rebuild_wall
+	max_clicks = 8
+
+/datum/bot_step/paced/rebuild_wall/do_click(datum/bot_brain/bot)
+	var/datum/bot_goal/rebuild_wall/G = bot.current_goal
+	var/turf/T = G?.lost?.where
+	var/mob/living/carbon/human/H = bot.owner
+	if(!T || !isfloorturf(T) || H.incapacitated())
+		return FALSE
+	var/obj/structure/girder/girder = locate() in T
+	if(!girder)
+		if(get_turf(H) != T)
+			if(!H.Adjacent(T) || is_blocked_turf(T, TRUE))
+				return FALSE
+			step_to(H, T)
+			wait_for = 5
+			return TRUE
+		var/obj/item/stack/sheet/metal/metal = bot.carried_stack(/obj/item/stack/sheet/metal, 2)
+		if(!metal || !bot.ready_in_hand(metal))
+			return FALSE
+		var/index = 0
+		for(var/i in 1 to length(metal.recipes))
+			var/datum/stack_recipe/R = metal.recipes[i]
+			if(istype(R) && R.result_type == /obj/structure/girder)
+				index = i
+				break
+		if(!index)
+			return FALSE
+		bot.human_pause(metal)
+		if(QDELETED(metal) || H.get_active_held_item() != metal || get_turf(H) != T)
+			return FALSE
+		usr = H //the menu goes by whoever clicked it
+		metal.Topic(null, list("make" = "[index]", "multiplier" = "1")) //"wall girders": four seconds, on the tile it's stood on
+		wait_for = 5
+		return TRUE
+	// The wall comes up on the tile: not with the bot stood on it.
+	if(get_turf(H) == T)
+		for(var/turf/open/next_to in get_adjacent_open_turfs(T))
+			if(!is_blocked_turf(next_to, TRUE))
+				step_to(H, next_to)
+				break
+		wait_for = 5
+		return TRUE
+	if(!H.Adjacent(girder))
+		return FALSE
+	if(locate(/mob/living) in T)
+		wait_for = 10 //somebody in the way of it
+		return TRUE
+	var/sheet_type = G.next_sheet(girder)
+	var/obj/item/stack/sheet/S = sheet_type && bot.carried_stack(sheet_type, sheet_type == /obj/item/stack/sheet/metal ? 2 : 1)
+	if(!S || !bot.ready_in_hand(S))
+		return FALSE
+	H.face_atom(girder)
+	bot.use_tool_on(S, girder) //girder/attackby(): four to six seconds
+	return TRUE
+
+/datum/bot_step/paced/rebuild_wall/finish(datum/bot_brain/bot)
+	var/datum/bot_goal/rebuild_wall/G = bot.current_goal
+	return istype(G?.lost?.where, /turf/closed/wall) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+
+// ---------------------------------------------------------------------------------------------
 // The alert
 // ---------------------------------------------------------------------------------------------
 

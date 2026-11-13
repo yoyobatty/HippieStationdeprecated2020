@@ -1,5 +1,6 @@
 // Explosions on a crewed station, timed (boom-drill=<what> on a Bot Shift, tools/bot_gym/run_shift_batch.sh): five minutes in, at the
 // middle of the station, one of
+//  small      a small one (1/2/4): a few walls and doors, for the repairs after
 //  maxcap     one bomb at the cap (BOMBCAP)
 //  maxcap6    six of them on the same tile at once
 //  superboom  1000 units of N-amino azidotetrazole going off, past the cap the way a reagent explosion goes
@@ -68,6 +69,8 @@ GLOBAL_DATUM(boom_drill, /datum/boom_drill)
 	switch(what)
 		if("maxcap")
 			explosion(epicenter, GLOB.MAX_EX_DEVESTATION_RANGE, GLOB.MAX_EX_HEAVY_RANGE, GLOB.MAX_EX_LIGHT_RANGE, GLOB.MAX_EX_FLASH_RANGE)
+		if("small") //a pipe bomb's worth: a few walls and a door or two, for the repairs after (goals/repair_damage.dm)
+			explosion(epicenter, 1, 2, 4, 6)
 		if("maxcap6")
 			for(var/i in 1 to 6)
 				explosion(epicenter, GLOB.MAX_EX_DEVESTATION_RANGE, GLOB.MAX_EX_HEAVY_RANGE, GLOB.MAX_EX_LIGHT_RANGE, GLOB.MAX_EX_FLASH_RANGE)
