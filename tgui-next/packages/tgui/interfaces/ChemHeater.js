@@ -27,6 +27,10 @@ export const ChemHeater = props => {
     beakerCurrentVolume,
     beakerMaxVolume,
     beakerColor,
+    isTankLinked,
+    tankTemp,
+    tankCurrentVolume,
+    tankMaxVolume,
   } = data;
   return (
     <Fragment>
@@ -74,6 +78,21 @@ export const ChemHeater = props => {
               <Box color="label">No beaker</Box>
             )}
           </LabeledList.Item>
+          {!!isTankLinked && (
+            <LabeledList.Item label="Tank">
+              <ProgressBar
+                value={tankTemp}
+                minValue={0}
+                maxValue={Math.max(1000, targetTemp)}
+                color={tempColor(tankTemp)}>
+                <AnimatedNumber
+                  value={tankTemp}
+                  format={value => toFixed(value) + ' K'} />
+                {' (' + round(tankCurrentVolume) + '/'
+                  + round(tankMaxVolume) + 'u)'}
+              </ProgressBar>
+            </LabeledList.Item>
+          )}
         </LabeledList>
       </Section>
       <Section

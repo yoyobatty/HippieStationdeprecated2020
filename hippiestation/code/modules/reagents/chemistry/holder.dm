@@ -36,6 +36,9 @@
 /// deep and is exactly as it was (tools/chem_check's 400 mixtures, the same results). The counts start afresh each tick, so a runtime
 /// can't leave them stuck.
 /datum/reagents/proc/handle_reactions()
+	// Heated or cooled away from room temperature: drifts back towards the air around it (reagent_heat.dm)
+	if(!(datum_flags & DF_ISPROCESSING) && (chem_temp > T20C + REAGENT_DRIFT_START || chem_temp < T20C - REAGENT_DRIFT_START))
+		start_drift()
 	if(react_stopped_time == world.time)
 		return 0
 	if(react_depth_time != world.time)
