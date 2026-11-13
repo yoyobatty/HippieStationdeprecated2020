@@ -86,6 +86,8 @@ static const char *const phase_names[PHASES] = {"(idle: between ticks)", "(BYOND
 
 /* the sampler's figures: microseconds */
 static unsigned proc_count;
+/* What self_us, total_us and seen_stamp have room for: a later world's .dmb can have fewer procs than the one they were made for */
+static unsigned proc_capacity;
 static unsigned long long *self_us, *total_us;
 static unsigned *seen_stamp, stamp;
 static unsigned long long phase_us[PHASES];
@@ -337,11 +339,44 @@ EXPORT const char *start(int n, char **v) {
 			snprintf(msg, sizeof msg, "error: %s (BYOND build %d)", err, byond_build);
 			return msg;
 		}
-		proc_count = *byond_procdefs_len;
+		proc_count = proc_capacity = *byond_procdefs_len;
 		self_us = (unsigned long long *)calloc(proc_count, sizeof(*self_us));
 		total_us = (unsigned long long *)calloc(proc_count, sizeof(*total_us));
 		seen_stamp = (unsigned *)calloc(proc_count, sizeof(*seen_stamp));
 		stack_ring = (struct stack_sample *)calloc(STACK_RING, sizeof(*stack_ring));
+	} else {
+		/* Hooked already: a new world in the same dd.exe (a reboot, or Stop and Start in Dream Daemon). The pinned DLL outlives the
+		   world, and BYOND has read the .dmb again, which may have been rebuilt in between: its procs are counted afresh and the figures
+		   start from nothing. Before, a round's profiler.json held every world since the process started, filed under the first .dmb's
+		   proc numbers, so a rebuild put time under the wrong names (round-20.48.49: "/turf/open/openspace/rcd_act" 1.19 s), and procs
+		   numbered past the first .dmb's count weren't counted at all. */
+		EnterCriticalSection(&figures_lock);
+		unsigned now = *byond_procdefs_len;
+		if(now > proc_capacity) {
+			unsigned long long *s = (unsigned long long *)calloc(now, sizeof(*s));
+			unsigned long long *t = (unsigned long long *)calloc(now, sizeof(*t));
+			unsigned *seen = (unsigned *)calloc(now, sizeof(*seen));
+			if(s && t && seen) {
+				free(self_us);
+				free(total_us);
+				free(seen_stamp);
+				self_us = s;
+				total_us = t;
+				seen_stamp = seen;
+				proc_capacity = now;
+			} else {
+				free(s);
+				free(t);
+				free(seen);
+				now = proc_capacity;
+			}
+		}
+		proc_count = now;
+		reset_figures();
+		memset(seen_stamp, 0, sizeof(*seen_stamp) * proc_capacity);
+		ring_pos = 0; /* the last world's samples, under its numbers: not for recent or stacks */
+		stack_pos = 0;
+		LeaveCriticalSection(&figures_lock);
 	}
 	if(!sampling) {
 		sampling = 1;
