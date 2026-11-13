@@ -157,6 +157,147 @@
 		return BOT_GYM_PENDING
 	return brain.state == BOT_STATE_WANDER ? BOT_GYM_PASS : BOT_GYM_PENDING
 
+/// round-20.48.49: the Captain killed twenty of the crew, the heads among them, and the three left alive (a bartender, a cargo tech and
+/// an assistant) went about their shift for the last ten minutes with no shuttle called. Here the same on its own: the Captain alive and
+/// wanted for murder (shut in a cupboard, out of the way), five of the crew dead, the Head of Security among them with his ID on, a comms
+/// console, and a bartender left to it, with nothing scripted: its own duties, on their own time.
+/datum/bot_scenario/griefed/rogue_captain_stand_in
+	name = "rogue Captain: with the heads dead and a third of the crew, a crewman takes a head's ID and calls the shuttle"
+	job = "Bartender"
+	griefer_job = "Captain"
+	griefer_name = "Mika Roguecap"
+	time_limit = 180 SECONDS
+	station_wide = TRUE //"a third of the crew dead" counts every human on the server, and the shift's end is everybody's
+	layout = list(
+		"#############",
+		"#B..H.AAAA.K#",
+		"#############",
+		"#C###########",
+		"#############")
+	var/old_shift_end
+	var/last_said
+
+/datum/bot_scenario/griefed/rogue_captain_stand_in/setup()
+	for(var/turf/T in markers["K"])
+		place("K", new /obj/machinery/computer/communications(T))
+	var/list/dead = list()
+	for(var/turf/T in markers["H"])
+		var/mob/living/carbon/human/hos = new(T)
+		hos.equipOutfit(/datum/outfit/bot_gym)
+		hos.mind_initialize()
+		hos.mind.assigned_role = "Head of Security"
+		var/obj/item/card/id/C = new(T)
+		C.access = list(ACCESS_HEADS)
+		hos.equip_to_slot_if_possible(C, ITEM_SLOT_ID, FALSE, TRUE, TRUE)
+		dead += hos
+	for(var/turf/T in markers["A"])
+		var/mob/living/carbon/human/H = new(T)
+		H.equipOutfit(/datum/outfit/bot_gym)
+		H.mind_initialize()
+		H.mind.assigned_role = "Assistant"
+		dead += H
+	for(var/mob/living/carbon/human/H as anything in dead)
+		place("A", H)
+		H.status_flags |= GODMODE
+		H.death()
+
+/datum/bot_scenario/griefed/rogue_captain_stand_in/post_spawn()
+	..()
+	give_job_id(list())
+	brain.gym_scripted = FALSE //its own duties, as in a round
+	// Not the gym's "never": a shift end far off, so only the dead can be the reason
+	old_shift_end = GLOB.bot_shift_ends_at
+	GLOB.bot_shift_ends_at = world.time + 1 HOURS
+
+/datum/bot_scenario/griefed/rogue_captain_stand_in/grief()
+	var/datum/bot_wanted/W = new
+	W.crime = "Murder"
+	W.severity = BOT_CRIME_MURDER
+	W.time_reported = world.time
+	W.kill_on_sight = TRUE
+	GLOB.bot_security_wanted[WEAKREF(griefer)] = W
+
+/datum/bot_scenario/griefed/rogue_captain_stand_in/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/atom/card = brain.find_head_card()
+	var/said = "state=[brain.state] goal=[brain.current_goal?.type] up_to_no_good=[brain.up_to_no_good()] reason=[brain.reason_to_call_shuttle()] head_standing=[brain.head_still_standing()] card=[card] loud=[brain.gone_loud()]"
+	if(said != last_said)
+		last_said = said
+		log_line(said)
+	if(brain.shuttle_calls || istype(brain.current_goal, /datum/bot_goal/borrow_head_card) || istype(brain.current_goal, /datum/bot_goal/call_shuttle))
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/rogue_captain_stand_in/release_run()
+	GLOB.bot_shift_ends_at = old_shift_end
+	bot_clear_wanted(griefer)
+	return ..()
+
+/// round-20.48.49: a third of the crew dead, and the Head of Personnel ate some carrot fries, did a cargo round and swapped jokes for
+/// three minutes before the Captain got to him, with the shuttle never called. Here a head on a long errand with five of the crew lying
+/// dead: it drops the errand for the comms console, which is right beside where it starts.
+/datum/bot_scenario/griefed/head_drops_errand_for_shuttle
+	name = "a third of the crew dead: a head on an errand drops it to call the shuttle"
+	job = "Head of Personnel"
+	time_limit = 90 SECONDS
+	station_wide = TRUE //"a third of the crew dead" counts every human on the server, and the shift's end is everybody's
+	layout = list(
+		"##################################################################",
+		"##K###############################################################",
+		"#B...AAAAA.....................................................Q.#",
+		"##################################################################",
+		"#C################################################################",
+		"##################################################################")
+	var/old_shift_end
+	var/datum/bot_goal/walk_up_to/errand
+
+/datum/bot_scenario/griefed/head_drops_errand_for_shuttle/setup()
+	for(var/turf/T in markers["K"])
+		place("K", new /obj/machinery/computer/communications(T))
+	for(var/turf/T in markers["A"])
+		var/mob/living/carbon/human/H = new(T)
+		H.equipOutfit(/datum/outfit/bot_gym)
+		H.mind_initialize()
+		H.mind.assigned_role = "Assistant"
+		place("A", H)
+		H.status_flags |= GODMODE
+		H.death()
+
+/datum/bot_scenario/griefed/head_drops_errand_for_shuttle/post_spawn()
+	..()
+	give_job_id(list(ACCESS_HEADS))
+	brain.gym_scripted = FALSE
+	old_shift_end = GLOB.bot_shift_ends_at
+	GLOB.bot_shift_ends_at = world.time + 1 HOURS //not the gym's "never": only the dead can be the reason
+
+/datum/bot_scenario/griefed/head_drops_errand_for_shuttle/grief()
+	brain.drop_goals("gym")
+	brain.state = BOT_STATE_WANDER
+	errand = new(first_marker("Q"))
+	brain.assign_goal(errand)
+	log_line("sent to the far end: [brain.current_goal == errand ? "yes" : "no ([brain.current_goal?.type])"]")
+	brain.my_duties(BOT_DUTY_URGENT)
+	brain.duty_next_check[bot_duty_of(/datum/bot_duty/call_shuttle)] = world.time //due now: whether it waits for the errand is the test
+
+/datum/bot_scenario/griefed/head_drops_errand_for_shuttle/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!errand)
+		return BOT_GYM_PENDING
+	if(istype(brain.current_goal, /datum/bot_goal/call_shuttle) || brain.shuttle_calls)
+		var/far = get_dist(bot, first_marker("Q"))
+		log_line("calling the shuttle [far] tiles from the errand's end")
+		if(far <= 2)
+			fail_reason = "walked the errand out first"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/head_drops_errand_for_shuttle/release_run()
+	GLOB.bot_shift_ends_at = old_shift_end
+	return ..()
+
 /datum/bot_scenario/griefed/confession
 	name = "somebody saying they're the traitor gets taken at their word"
 	desc = "In a played round a traitor told the bots to their faces, twice, and said they'd killed the Captain. Nobody batted an eye."

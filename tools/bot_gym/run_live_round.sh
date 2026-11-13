@@ -13,6 +13,7 @@ unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every 
 #   SPEED=0      timewarp's limit, 0 for none      NAME=label   results in data/logs/live_round/<name>/run<n>/
 #   NOCOMPILE=1  use the hippiestation.dmb there   PORT=45300   the first one's port
 #   SILICONS=0   an AI and SILICONS-1 cyborgs on top of the crew
+#   EXTRA_PARAMS  more world params, a=1&b=2 (rogue-captain-drill=1: gym/bot_shift.dm)
 # The map is the one data/next_map.json names, as on a server. MAPROTATION is off in the copied config, so it isn't changed.
 set -u
 cd "$(dirname "$0")/../.."
@@ -52,6 +53,7 @@ run_one() {
 	cp hippiestation.rsc "live_${STAMP}_$n.rsc"
 	local params="config=$DIR/config&log-directory=live_round/$NAME/run$n&bot-mode=$MODE&bot-round-limit=$MINUTES"
 	if [ "$SPEED" != "1" ] && [ -f timewarp.dll ]; then params="$params&timewarp=$SPEED"; fi
+	if [ -n "$EXTRA_PARAMS" ]; then params="$params&$EXTRA_PARAMS"; fi
 	local began
 	began=$(date +%s)
 	"$BYOND_BIN/dd.exe" "live_${STAMP}_$n.dmb" $((PORT + n)) -trusted -invisible -params "$params" > "$out/dd_out.log" 2>&1 &

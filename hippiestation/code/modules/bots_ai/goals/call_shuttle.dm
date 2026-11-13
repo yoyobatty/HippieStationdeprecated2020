@@ -105,21 +105,65 @@ GLOBAL_LIST_INIT(bot_shuttle_called_lines, list(
 		return pick(GLOB.bot_shuttle_ops_reasons)
 	return world.time >= ends_at ? pick(GLOB.bot_shuttle_wrap_up_reasons) : null
 
+/// A reason to call it that won't wait for the errand in hand: people dying, an engine loose, a suit nobody's stopped, operatives. Not
+/// the shift's end, which can.
+/datum/bot_brain/proc/emergency_to_call_shuttle()
+	var/reason = reason_to_call_shuttle()
+	return reason && !(reason in GLOB.bot_shuttle_wrap_up_reasons) ? reason : null
+
+/// For the shuttle with people dying: whether to drop what it's doing and go. Not while its own life, or somebody else's in its hands,
+/// is the errand. In round-20.48.49 a third of the crew was dead and the Head of Personnel ate some carrot fries, did a cargo round
+/// and swapped jokes with the bartender for three minutes, then was killed with the shuttle never called.
+/datum/bot_duty/proc/shuttle_cant_wait(datum/bot_brain/bot)
+	var/next = bot.duty_next_check[src]
+	if(bot_shift_gone_bad() && next > world.time + 20 SECONDS)
+		next = world.time + 20 SECONDS //a look it booked before the bodies piled up comes sooner
+		bot.duty_next_check[src] = next
+	if(world.time < next || world.time < bot.shuttle_call_blocked_until)
+		return FALSE
+	for(var/datum/bot_goal/G in list(bot.current_goal, bot.suspended_goal))
+		if(bot_goal_sees_to_shuttle(G))
+			return FALSE //on it already
+		if(istype(G, /datum/bot_goal/run_from) || istype(G, /datum/bot_goal/seek_air) || istype(G, /datum/bot_goal/revive_patient) || istype(G, /datum/bot_goal/escort_to_sleeper) || istype(G, /datum/bot_goal/brig_prisoner))
+			return FALSE
+	return !bot.other_seeing_to_shuttle() && !!bot.emergency_to_call_shuttle()
+
+/proc/bot_goal_sees_to_shuttle(datum/bot_goal/G)
+	return istype(G, /datum/bot_goal/call_shuttle) || istype(G, /datum/bot_goal/borrow_head_card) || istype(G, /datum/bot_goal/acquire_captains_id)
+
+/// Somebody else already on their way to get the shuttle called: one's enough, as among players. With a drill's crew all told at once
+/// (the stand-in duty dropping whatever they were doing), ten of them made for the Captain's locker together.
+/datum/bot_brain/proc/other_seeing_to_shuttle()
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		if(B == src || QDELETED(B.owner) || B.owner.stat == DEAD || (gym_run && B.gym_run != gym_run))
+			continue
+		if(bot_goal_sees_to_shuttle(B.current_goal) || bot_goal_sees_to_shuttle(B.suspended_goal))
+			return B
+	return null
+
 /datum/bot_duty/call_shuttle
 	name = "calling the shuttle"
 	tier = BOT_DUTY_URGENT
 	priority = 50
 	interval_min = 300
 	interval_max = 900
+	interrupts = TRUE
 
 /datum/bot_duty/call_shuttle/applies_to(datum/bot_brain/bot)
 	return bot.work_role() in GLOB.command_positions
+
+/datum/bot_duty/call_shuttle/should_interrupt(datum/bot_brain/bot)
+	return shuttle_cant_wait(bot)
+
+/// Once the bodies are piling up, it's never far from mind: a look every 10-20 s, not every 30-90.
+/datum/bot_duty/call_shuttle/next_look(datum/bot_brain/bot)
+	return bot_shift_gone_bad() ? rand(100, 200) : ..()
 
 /datum/bot_duty/call_shuttle/try_start(datum/bot_brain/bot)
 	if(world.time < bot.shuttle_call_blocked_until)
 		return FALSE
 	var/reason = bot.reason_to_call_shuttle()
-	if(!reason)
+	if(!reason || bot.other_seeing_to_shuttle())
 		return FALSE
 	if(!bot.find_comms_console())
 		bot.shuttle_console_down(reason)

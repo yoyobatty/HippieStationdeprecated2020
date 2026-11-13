@@ -834,8 +834,8 @@ GLOBAL_LIST_INIT(bot_confession_words, list(
 		// A head who's turned killer isn't anybody to wait on: the Captain killed twenty of the crew and nobody called the shuttle,
 		// because the Captain was still standing (2026-11-10)
 		if(H.stat != DEAD && (H.mind?.assigned_role in GLOB.command_positions) && !bot_is_fair_game(H))
-			return TRUE
-	return FALSE
+			return H //who, for the log
+	return null
 
 /// The ID in this, if it's one that works the console.
 /proc/bot_head_card_in(obj/item/I)
@@ -877,11 +877,43 @@ GLOBAL_LIST_INIT(bot_confession_words, list(
 /datum/bot_duty/stand_in_for_command/applies_to(datum/bot_brain/bot)
 	return !(bot.work_role() in GLOB.command_positions)
 
+/datum/bot_duty/stand_in_for_command
+	interrupts = TRUE
+
+/// Why it isn't getting the shuttle called, in the log once a minute, while people are dying. In round-20.48.49 the three left alive
+/// went about their shift for ten minutes after the last head died, and nothing in the logs said why.
+/datum/bot_duty/stand_in_for_command/proc/stand_in_declined(datum/bot_brain/bot, why)
+	if(!bot_shift_gone_bad() || world.time < bot.stand_in_note_at)
+		return
+	bot.stand_in_note_at = world.time + 1 MINUTES
+	bot_log(bot, "not seeing about the shuttle: [why]")
+
+/datum/bot_brain
+	var/stand_in_note_at = 0
+
+/datum/bot_duty/stand_in_for_command/should_interrupt(datum/bot_brain/bot)
+	if(bot.up_to_no_good() || bot.owner.mind?.has_antag_datum(/datum/antagonist/traitor))
+		return FALSE
+	return shuttle_cant_wait(bot) && !bot.head_still_standing()
+
+/datum/bot_duty/stand_in_for_command/next_look(datum/bot_brain/bot)
+	return bot_shift_gone_bad() ? rand(100, 200) : ..()
+
 /datum/bot_duty/stand_in_for_command/try_start(datum/bot_brain/bot)
 	if(world.time < bot.shuttle_call_blocked_until || bot.up_to_no_good() || (bot.owner.mind?.has_antag_datum(/datum/antagonist/traitor) || null))
+		stand_in_declined(bot, world.time < bot.shuttle_call_blocked_until ? "tried a minute ago" : (bot.up_to_no_good() ? "up to no good myself" : "a traitor"))
 		return FALSE
 	var/reason = bot.reason_to_call_shuttle()
-	if(!reason || bot.head_still_standing())
+	if(!reason)
+		stand_in_declined(bot, "no reason to call it")
+		return FALSE
+	var/mob/living/carbon/human/head = bot.head_still_standing()
+	if(head)
+		stand_in_declined(bot, "[istype(head) ? "[head.real_name] ([head.mind?.assigned_role])" : "a head"]'s still standing")
+		return FALSE
+	var/datum/bot_brain/on_it = bot.other_seeing_to_shuttle()
+	if(on_it)
+		stand_in_declined(bot, "[on_it.owner.real_name]'s seeing to it")
 		return FALSE
 	if(bot_head_card_in(bot.owner.wear_id) || bot_head_card_in(bot.owner.get_active_held_item()) || bot_head_card_in(bot.owner.get_inactive_held_item()))
 		return bot.call_shuttle_for(reason)

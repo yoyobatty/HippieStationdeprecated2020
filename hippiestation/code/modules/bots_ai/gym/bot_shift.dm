@@ -1995,3 +1995,62 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 			E.runEvent()
 			return
 	note("no event called [name]")
+
+/// rogue-captain-drill=1 on a live test round (tools/bot_gym/run_live_round.sh, EXTRA_PARAMS): round-20.48.49 as a drill. Five minutes
+/// in, the Captain (a bot made Captain if there's none) is wanted for murder and can't be killed, every other head drops dead, and so
+/// does a third of the crew. Then every 15 seconds for ten minutes, a line for each crewman left of what the stand-in duty asks
+/// (goals/robust.dm): in that round three of them were left and none of them got the shuttle called.
+/proc/bot_rogue_captain_drill()
+	var/mob/living/carbon/human/captain
+	var/list/crew = list()
+	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
+		if(H.stat == DEAD || !H.bot_brain || !H.mind?.assigned_role || !is_station_level(H.z))
+			continue
+		if(H.mind.assigned_role == "Captain" && !captain)
+			captain = H
+		else
+			crew += H
+	if(!captain && length(crew))
+		captain = pick_n_take(crew)
+		captain.mind.assigned_role = "Captain"
+	if(!captain)
+		log_game("ROGUE DRILL: nobody to be the Captain")
+		return
+	captain.status_flags |= GODMODE
+	captain.bot_brain?.shuttle_call_blocked_until = INFINITY //a rogue Captain doesn't call it: the drill is whether the rest do
+	var/datum/bot_wanted/W = new
+	W.crime = "Murder"
+	W.severity = BOT_CRIME_MURDER
+	W.time_reported = world.time
+	W.kill_on_sight = TRUE
+	GLOB.bot_security_wanted[WEAKREF(captain)] = W
+	var/killed = 0
+	for(var/mob/living/carbon/human/H as anything in crew.Copy())
+		if(H.mind.assigned_role in GLOB.command_positions)
+			H.death()
+			crew -= H
+			killed++
+	shuffle_inplace(crew)
+	while(length(crew) && killed * 3 < length(crew) + killed + 1)
+		var/mob/living/carbon/human/H = pick_n_take(crew)
+		H.death()
+		killed++
+	log_game("ROGUE DRILL: [captain.real_name] is the rogue Captain, [killed] dead, [length(crew)] left: [english_list(crew)]")
+	for(var/i in 1 to 40)
+		sleep(15 SECONDS)
+		if(!SSticker.IsRoundInProgress())
+			return
+		var/obj/docking_port/mobile/emergency/E = SSshuttle.emergency
+		log_game("ROGUE DRILL: shuttle [E ? E.mode : "none"], decimated [bot_crew_decimated()], dead [bot_dead_crew_count()]")
+		var/datum/bot_duty/D = bot_duty_of(/datum/bot_duty/stand_in_for_command)
+		for(var/mob/living/carbon/human/H as anything in crew)
+			var/datum/bot_brain/B = H.bot_brain
+			if(!B || H.stat == DEAD)
+				continue
+			var/standing
+			for(var/mob/living/carbon/human/head in GLOB.carbon_list)
+				if(head.stat != DEAD && (head.mind?.assigned_role in GLOB.command_positions) && !bot_is_fair_game(head))
+					standing = "[head.real_name] ([head.mind.assigned_role] @ [AREACOORD(head)])"
+					break
+			var/next = D && B.duties ? B.duty_next_check[D] : null
+			log_game("ROGUE DRILL: [H.real_name] ([H.mind.assigned_role]) state=[B.state] goal=[B.current_goal?.type] trouble=[B.up_to_no_good()] traitor=[!!H.mind.has_antag_datum(/datum/antagonist/traitor)] reason=[B.reason_to_call_shuttle()] head=[standing || "none"] card=[B.find_head_card()] duty_in=[isnull(next) ? "no duty list" : "[round((next - world.time) / 10)] s"] blocked=[max(0, B.shuttle_call_blocked_until - world.time)]")

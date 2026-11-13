@@ -315,6 +315,8 @@
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_end_test_round)), limit MINUTES)
 	if(world.params["bot-mode"])
 		INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(bot_log_test_round_load))
+	if(world.params["rogue-captain-drill"]) //gym/bot_shift.dm
+		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_rogue_captain_drill)), 5 MINUTES)
 
 /// What the round costs the server, a line a minute, for live_round_report.py: world.cpu is the share of a tick used, averaged over
 /// the last few, and the worst second of the minute is kept too.
