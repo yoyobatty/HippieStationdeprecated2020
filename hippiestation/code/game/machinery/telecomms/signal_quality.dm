@@ -167,6 +167,18 @@ GLOBAL_LIST_EMPTY(tcomms_recent_broadcasts) // the last 20 of those
 	.["traffic"] = max(traffic, 0)
 	.["noise"] = round(min(1, own_noise() + heat_noise()) * 100)
 
+/// The telecomms server room's own supply (the user's ask, 2026-11-13): nitrogen at the room's 80 K, at the tank's usual 25 atm. On the Hippie
+/// map it feeds the server room airlock's pump and a vent in the room that tops the room up to its usual 26 kPa when gas is lost. Pipes
+/// don't trade heat with the rooms they run through, so it stays cold; it can't take the servers' heat out of the room's own gas.
+/obj/machinery/atmospherics/components/unary/tank/nitrogen/cold
+	desc = "A large vessel containing pressurized nitrogen, kept as cold as the telecomms server room it feeds."
+
+/obj/machinery/atmospherics/components/unary/tank/nitrogen/cold/New()
+	..()
+	var/datum/gas_mixture/air_contents = airs[1]
+	air_contents.temperature = 80
+	air_contents.moles[gas_type] = AIR_CONTENTS // 25 atm at 80 K
+
 #undef TCOMMS_TEMP_SAFE
 #undef TCOMMS_TEMP_LIMIT
 #undef TCOMMS_TEMP_RESTART

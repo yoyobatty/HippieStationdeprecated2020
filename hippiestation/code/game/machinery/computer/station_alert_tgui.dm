@@ -27,6 +27,11 @@ GLOBAL_VAR_INIT(fire_trip_cold, BODYTEMP_COLD_DAMAGE_LIMIT)
 	/// And cold
 	var/fire_trip_cold
 
+/// The telecomms server room is kept at 80 K (TCOMMS_ATMOS), and the Hippie map has two fire alarms on its floor: with the station's
+/// cold point (260 K) they tripped from roundstart to round end. It still trips on heat, for servers overheating their room.
+/area/tcommsat/server
+	fire_trip_cold = FIRE_TRIP_OFF
+
 /area/proc/fire_trip_hot_point()
 	return isnull(fire_trip_hot) ? GLOB.fire_trip_hot : fire_trip_hot
 
