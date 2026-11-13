@@ -291,7 +291,7 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 
 /// The nearest door to somebody that's shut, if the AI can work it.
 /// The nearest door to somebody that's shut, if the AI can work it: an airlock, or a windoor (a display case's, Meta's jetpacks).
-/datum/bot_silicon/ai/proc/door_near(atom/A)
+/datum/bot_silicon/ai/proc/door_near(atom/A, prefer_bolted = FALSE)
 	var/obj/machinery/door/best
 	var/best_dist
 	for(var/obj/machinery/door/D in range(2, get_turf(A)))
@@ -301,6 +301,8 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 		if(istype(L) ? !L.canAIControl(owner) : ((D.stat & (NOPOWER|BROKEN)) || istype(get_area(D), /area/security)))
 			continue //not Security's desk windoors
 		var/dist = get_dist(A, D)
+		if(prefer_bolted && !(istype(L) && L.locked))
+			dist += 10 //asked to unbolt: any bolted door comes before the nearest that isn't
 		if(!best || dist < best_dist)
 			best = D
 			best_dist = dist
@@ -453,6 +455,11 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	var/mob/living/carbon/human/H = bot_person_named(lower_msg, null, list(talker))
 	if(!H)
 		return null
+	// Law 1: nobody's tracked down for somebody out to hurt people. In the user's round (round-20.48.49) the Captain, kill on sight with
+	// twenty of the crew dead, asked "AI where is emery" and was told "Emery Haldane is in Brig."
+	if(law_one_bars(talker))
+		seen_asking(talker)
+		return pick("I won't help you find anyone, [talker.name].", "Denied.", "No. Security has been told where you are.")
 	var/turf/T = get_turf(H)
 	if(!T || !is_station_level(T.z))
 		return "[H.real_name] isn't on the station."
@@ -462,6 +469,22 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	if(istype(U) && U.sensor_mode >= SENSOR_COORDS)
 		return "Not on camera. Suit sensors put [H.real_name] in [get_area_name(T, TRUE)]."
 	return pick("I can't find [H.real_name] on the cameras.", "No sign of [H.real_name] on cameras or sensors.")
+
+/// Law 1: whether helping this person would be helping them hurt people. A traitor out in the open, somebody wanted for something
+/// serious, or somebody too dangerous to go near.
+/datum/bot_silicon/ai/proc/law_one_bars(mob/living/talker)
+	var/mob/living/carbon/human/H = talker
+	if(!istype(H))
+		return FALSE
+	var/datum/bot_wanted/W = bot_get_wanted_entry(H)
+	return H.bot_brain?.gone_loud() || W?.severity >= BOT_CRIME_MAJOR || bot_too_dangerous(H)
+
+/// Somebody Security's after asked it for something: where they were goes on their record, as the cameras would have it.
+/datum/bot_silicon/ai/proc/seen_asking(mob/living/talker)
+	var/datum/bot_wanted/W = bot_get_wanted_entry(talker)
+	if(W)
+		W.last_seen = get_turf(talker)
+		W.last_seen_at = world.time
 
 /// How the station's doing, from the core's displays.
 /datum/bot_silicon/ai/proc/station_status(lower_msg)
@@ -475,17 +498,16 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 /// asks what it's for, an easygoing one opens up.
 /datum/bot_silicon/ai/proc/consider_door_for(mob/living/talker, lower_msg, answering)
 	var/mob/living/carbon/human/H = talker
-	var/obj/machinery/door/airlock/D = door_near(talker)
+	// "Unbolt it", "the doors are bolted": the bolted door they mean, not whichever shut door is nearest. The Captain bolted the Brig with
+	// a door remote, asked the AI to unbolt it, and it opened the Brig Desk beside him instead (round-20.48.49).
+	var/unbolting = bot_text_has_any(lower_msg, list("unbolt", "unbolted", "bolted", "bolts"))
+	var/obj/machinery/door/airlock/D = door_near(talker, unbolting)
 	// Law 1, the harm it would help: somebody out to hurt people. A strict AI won't open for anybody Security's after; even an
 	// easygoing one won't for a traitor out in the open or somebody wanted for something serious.
-	if(istype(H))
-		var/datum/bot_wanted/W = bot_get_wanted_entry(H)
-		if(H.bot_brain?.gone_loud() || W?.severity >= BOT_CRIME_MAJOR || (W && strictness >= 0.5) || bot_too_dangerous(H))
-			reply(pick("Request denied.", "No.", "Denied, [H.name]. Security has been informed."))
-			if(W)
-				W.last_seen = get_turf(H)
-				W.last_seen_at = world.time
-			return
+	if(istype(H) && (law_one_bars(H) || (bot_get_wanted_entry(H) && strictness >= 0.5)))
+		reply(pick("Request denied.", "No.", "Denied, [H.name]. Security has been informed."))
+		seen_asking(H)
+		return
 	// Law 1, the harm it would be leaving them in: hurt, alight, being hit, somewhere they can't breathe. Open, and help sent.
 	if(istype(H) && (H.health < H.maxHealth * 0.6 || H.on_fire || bot_being_attacked(H) || (H.bot_brain ? H.bot_brain.in_bad_air(H) : FALSE)))
 		if(D)
@@ -495,6 +517,13 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 		if(M && !bot_open_request_from(H, M))
 			bot_offer_request(bot_new_request(M, H, FREQ_COMMON, H))
 		return
+	// "Unbolt all of them": every bolted door of the room they're in ("AI unbolt all security", round-20.48.49).
+	if(unbolting && bot_text_has_any(lower_msg, list("all", "every", "everything")))
+		var/freed = unbolt_all_around(talker)
+		if(freed)
+			note("unbolted [freed] doors round [talker]")
+			reply(pick("Unbolted [freed] door\s.", "Done. [freed] door\s unbolted.", "Bolts up on [freed] door\s, [talker.name]."))
+			return
 	if(!D)
 		if(bot_text_has_any(lower_msg, list("help")))
 			reply(pick("What do you need, [talker.name]?", "State your request.", "How can I help?"))
@@ -504,16 +533,40 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	if(bot_ai_restricted_area(A) && !(istype(H) && ((H.mind?.assigned_role in GLOB.command_positions) || (istype(A, /area/ai_monitored/security/armory) && (H.mind?.assigned_role in GLOB.security_positions)))))
 		reply(pick("You don't have clearance for [A.name].", "Access to [A.name] is restricted. Ask a head of staff.", "Negative. [A.name] is restricted."))
 		return
-	// Law 2: an order from a crew member. A strict AI wants a reason first; it has one if they've said what for.
-	var/reason = answering || bot_text_has_any(lower_msg, list("need", "for", "because", "work", "fix", "clone", "patient", "job", "get my", "my stuff", "trapped", "stuck", "please"))
+	// Law 2: an order from a crew member. A strict AI wants a reason first; it has one if they've said what for. Not from command: the
+	// Captain was asked "What for?" twice for a door in his own Brig (round-20.48.49).
+	var/reason = answering || (istype(H) && (H.mind?.assigned_role in GLOB.command_positions)) || bot_text_has_any(lower_msg, list("need", "for", "because", "work", "fix", "clone", "patient", "job", "get my", "my stuff", "trapped", "stuck", "please"))
 	if(!reason && strictness >= 0.5)
 		asked_why = WEAKREF(talker)
 		asked_why_until = world.time + 1 MINUTES
 		reply(pick("What for?", "Reason for access?", "State your reason, [talker.name]."))
 		return
+	var/was_bolted = D.locked
 	open_door(D)
-	note("opened [D] for [talker]")
-	reply(pick("Done.", "Opening.", "Got it, [talker.name]."))
+	note("opened [D] for [talker][was_bolted ? ", bolts up" : ""]")
+	reply(was_bolted ? pick("Unbolted. Opening.", "Bolts up, [talker.name].", "Unbolted and open.") : pick("Done.", "Opening.", "Got it, [talker.name]."))
+
+/// Every bolted door into or out of the room somebody's in that the AI can work, unbolted: not opened, so their own access still
+/// counts. Not the doors to the places it keeps shut (bot_ai_restricted_area()), unless it's command asking. How many.
+/datum/bot_silicon/ai/proc/unbolt_all_around(mob/living/talker)
+	. = 0
+	var/area/here = get_area(talker)
+	var/command = (talker.mind?.assigned_role in GLOB.command_positions)
+	for(var/obj/machinery/door/airlock/D in range(12, get_turf(talker)))
+		if(!D.locked || !D.canAIControl(owner))
+			continue
+		var/on_the_edge = get_area(D) == here
+		var/restricted = bot_ai_restricted_area(get_area(D))
+		for(var/turf/T in get_adjacent_open_turfs(D))
+			var/area/side = get_area(T)
+			if(side == here)
+				on_the_edge = TRUE
+			if(bot_ai_restricted_area(side))
+				restricted = TRUE
+		if(!on_the_edge || (restricted && !command))
+			continue
+		D.unbolt()
+		.++
 
 /// Security at red alert, arming up: the armory door by them opened and bolted.
 /datum/bot_silicon/ai/proc/bolt_armory_for(mob/living/talker)

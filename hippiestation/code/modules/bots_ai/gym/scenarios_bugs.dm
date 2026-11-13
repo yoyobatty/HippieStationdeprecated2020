@@ -205,7 +205,13 @@
 		"help maint" = TRUE,
 		"pls help in the bar" = TRUE,
 		"medic, help! someone's attacking me in the bar" = TRUE,
-		"sec to medbay" = TRUE)
+		"sec to medbay" = TRUE,
+		// round-20.48.49: the Captain asking the AI for the Brig's doors brought three officers
+		"AI unbolt all security" = FALSE,
+		"Unbolt security" = FALSE,
+		"AI open the security door" = FALSE,
+		"security help" = TRUE,
+		"AI, call security, they're shooting at me" = TRUE)
 	var/wrong = 0
 	for(var/line in lines)
 		brain.drop_goals("gym")
@@ -267,3 +273,84 @@
 	var/b = capitalize("\proper poly")
 	log_line("got \"[url_encode(a)]\" and \"[url_encode(b)]\"")
 	expect(a == "DNA scanner" && b == "Poly", "both read right")
+
+/// The AI's own procs, with no AI: the gym can't have one (it would answer every arena's door requests), so this is the AI's datum with
+/// no body and no think loop. A scenario calls what heard() would, and reads back what it would have said.
+/datum/bot_silicon/ai/gym_probe
+	var/list/replies = list()
+
+/datum/bot_silicon/ai/gym_probe/New()
+	return //no body to drive, no loop, nothing heard
+
+/datum/bot_silicon/ai/gym_probe/reply(line)
+	replies += line
+
+/// round-20.48.49: the Captain, kill on sight for murder with twenty dead, asked "AI where is emery" and the AI told him Emery was in the
+/// Brig. Asked by somebody clean it says where; asked by the killer it doesn't.
+/datum/bot_scenario/griefed/bug/ai_whereabouts_killer
+	name = "AI: won't tell somebody wanted for murder where people are"
+	griefer_job = "Captain"
+	griefer_name = "Mika Killcap"
+
+/datum/bot_scenario/griefed/bug/ai_whereabouts_killer/grief()
+	bot.real_name = "Emery Whereabouts" //nobody in any other arena answers to it
+	bot.name = bot.real_name
+	var/obj/item/clothing/under/U = bot.w_uniform
+	if(!istype(U))
+		U = new /obj/item/clothing/under/color/grey(bot)
+		bot.equip_to_slot_or_del(U, ITEM_SLOT_ICLOTHING)
+	U.sensor_mode = SENSOR_COORDS
+	var/datum/bot_silicon/ai/gym_probe/P = new
+	var/ask = "ai where is emery whereabouts"
+	var/clean = P.whereabouts(griefer, ask)
+	log_line("asked clean: \"[clean]\"")
+	var/datum/bot_wanted/W = new
+	W.crime = "Murder"
+	W.severity = BOT_CRIME_MURDER
+	W.time_reported = world.time
+	var/datum/weakref/ref = WEAKREF(griefer)
+	GLOB.bot_security_wanted[ref] = W
+	var/wanted = P.whereabouts(griefer, ask)
+	GLOB.bot_security_wanted -= ref //shared with every arena: off the list before anybody else looks
+	log_line("asked wanted for murder: \"[wanted]\"")
+	var/told_clean = findtext(clean, "Emery Whereabouts") //the arena isn't a station level: "isn't on the station" is its answer here
+	var/told_killer = findtext(wanted, "Emery Whereabouts")
+	expect(told_clean && wanted && !told_killer, "where they are to somebody clean, nothing to the killer")
+
+/// round-20.48.49: the Captain bolted the Brig with a door remote and asked the AI to unbolt it. It asked him "What for?" twice, then
+/// opened the Brig Desk beside him. Two shut doors in reach: the bolted one farther off. Asked to unbolt, it's the bolted one, and no
+/// questions for the Captain. Then both bolted and "unbolt all": both.
+/datum/bot_scenario/griefed/bug/ai_unbolt_for_captain
+	name = "AI: unbolts the bolted door the Captain asks for, without asking why"
+	griefer_job = "Captain"
+	griefer_name = "Mika Boltcap"
+	layout = list(
+		"#########",
+		"#...B...#",
+		"###D#D###",
+		"#....C..#",
+		"#########")
+
+/datum/bot_scenario/griefed/bug/ai_unbolt_for_captain/grief()
+	var/list/doors = placed["D"]
+	var/obj/machinery/door/airlock/far = doors[1]
+	var/obj/machinery/door/airlock/near = doors[2]
+	if(get_dist(griefer, far) <= get_dist(griefer, near))
+		var/obj/machinery/door/airlock/swap = far
+		far = near
+		near = swap
+	far.bolt()
+	var/datum/bot_silicon/ai/gym_probe/P = new
+	P.strictness = 0.9 //the strict sort, which asks what a door's for
+	P.consider_door_for(griefer, "ai unbolt this door", FALSE)
+	log_line("one door: far (bolted) locked=[far.locked], near locked=[near.locked] dense=[near.density]; said [english_list(P.replies)]")
+	var/one_ok = !far.locked && !near.locked && near.density
+	for(var/line in P.replies)
+		if(findtext(line, "What for") || findtext(line, "Reason") || findtext(line, "State your reason"))
+			one_ok = FALSE
+	far.bolt() //open or shut, it's the bolts that count
+	near.bolt()
+	P.replies.Cut()
+	P.consider_door_for(griefer, "ai unbolt all the doors", FALSE)
+	log_line("all: far locked=[far.locked], near locked=[near.locked]; said [english_list(P.replies)]")
+	expect(one_ok && !far.locked && !near.locked, "the bolted door unbolted with no questions, then both")

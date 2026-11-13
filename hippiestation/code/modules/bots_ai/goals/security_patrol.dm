@@ -1206,6 +1206,10 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 /// radioed "Science, could you upgrade the machines in Medbay Treatment Center? Better parts would help." and all five officers
 /// answered it, on the word "help".
 /proc/bot_line_calls_security(lower, turf/near)
+	// Put to the AI or a cyborg, or about bolts, with nobody in danger and no "help" in it: "AI unbolt all security" is the Brig's
+	// doors, not a call. Three officers said they were responding to the Captain asking the AI for them (round-20.48.49).
+	if(!bot_text_has_any(lower, list("help")) && !bot_text_has_any(lower, GLOB.bot_danger_words) && (bot_silicon_addressed(lower, list("ai", "ais", "borg", "borgs", "cyborg")) || bot_text_has_any(lower, list("unbolt", "unbolted", "bolt", "bolted", "bolts"))))
+		return FALSE
 	if(findtext(lower, "security") || findtext(lower, "shitcurity") || bot_text_has_any(lower, list("sec")))
 		return TRUE
 	if(!bot_text_has_any(lower, list("help")))
