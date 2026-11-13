@@ -5,6 +5,7 @@
 //  - Stood by a fuel tank in a fight with somebody holding a gun, or with the one it's fighting dragging a tank up to it: it gets away from
 //    the tank. A shot into one is a blast on the tiles beside it (foundation/tactics.dm), and a bot stood there was a free kill.
 //  - A plasma canister let go in the room: it gets out before the air goes (below).
+//  - A gun on it and nothing to shoot back with: out of the line of fire, round a corner, and it waits for them there (below).
 
 /datum/bot_brain
 	var/next_tank_look = 0
@@ -118,3 +119,75 @@
 				if(dist >= enough)
 					return best
 	return best
+
+// ---------------------------------------------------------------------------------------------
+// A gun on it, and nothing to shoot back with
+// ---------------------------------------------------------------------------------------------
+// In a fight with somebody holding a gun, a few tiles off, with no gun of its own: a robust player doesn't run at them across open floor,
+// it gets out of their line of fire, round the nearest corner that doesn't take it further from them, and waits there for them to come
+// to it (close enough to hit) or to come out where it can rush them. A low-skill bot does what it always did: runs, or charges.
+// At most fifteen seconds there; then the fight goes on as it would have.
+
+/datum/bot_brain
+	/// Where it's taken cover from a gun, and until when it holds it
+	var/turf/cover_spot
+	var/cover_until = 0
+	var/datum/weakref/cover_from_ref
+
+/// A tile it can walk to within a few steps that the shooter has no line to, no further from them than it is now: the nearest.
+/datum/bot_brain/proc/cover_from(mob/living/shooter)
+	var/turf/start = get_turf(owner)
+	var/turf/them = get_turf(shooter)
+	if(!start || !them)
+		return null
+	var/limit = get_dist(start, them)
+	var/list/seen = list()
+	seen[start] = TRUE
+	var/list/queue = list(start)
+	var/list/depth = list(0)
+	var/at = 1
+	while(at <= length(queue))
+		var/turf/T = queue[at]
+		var/steps = depth[at++]
+		if(T != start && !bot_clear_line(T, shooter) && get_dist(T, them) <= limit)
+			return T
+		if(steps >= 5)
+			continue
+		for(var/d in GLOB.cardinals)
+			var/turf/next = get_step(T, d)
+			if(!next || seen[next] || next.density || isspaceturf(next) || is_blocked_turf(next, TRUE) || bot_turf_is_deadly(next))
+				continue
+			seen[next] = TRUE
+			queue += next
+			depth += steps + 1
+	return null
+
+/// From handle_combat() (bot_brain.dm). TRUE while it's in cover, or getting to it.
+/datum/bot_brain/proc/mind_the_gun(mob/living/foe)
+	var/mob/living/held_on = cover_from_ref?.resolve()
+	if(held_on == foe && world.time < cover_until && cover_spot)
+		if(get_dist(owner, foe) <= 1 || !bot_holds_gun(foe))
+			cover_until = 0 //they've come to it, or put the gun away: the fight's on
+			return FALSE
+		if(get_turf(owner) != cover_spot)
+			combat_chase(cover_spot)
+		else
+			stop_pursuit()
+			owner.face_atom(foe)
+		return TRUE
+	if(!skill_at_least(BOT_SKILL_MID) || !bot_holds_gun(foe) || find_usable_gun() || get_dist(owner, foe) < 3)
+		return FALSE
+	if(!bot_clear_line(get_turf(owner), foe) || (cover_until && world.time < cover_until + 10 SECONDS))
+		return FALSE //out of their line already, or it's had its wait in cover
+	if(!notices_threat())
+		return FALSE
+	var/turf/spot = cover_from(foe)
+	if(!spot)
+		return FALSE
+	bot_log(src, "THREAT: [foe] has a gun on me and I've nothing to shoot back with - into cover at [bot_coord(spot)]")
+	bot_tally("took cover from a gun")
+	cover_spot = spot
+	cover_from_ref = WEAKREF(foe)
+	cover_until = world.time + 15 SECONDS
+	combat_chase(spot)
+	return TRUE

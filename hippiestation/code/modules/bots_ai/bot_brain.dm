@@ -422,6 +422,9 @@
 	// A fuel tank: off one it's stood by when they've a gun (foundation/threat_read.dm), and one beside them, shot (foundation/tactics.dm)
 	if(mind_the_tank(attacker) || try_tank_shot(attacker))
 		return
+	// A gun on it and nothing to shoot back with: into cover (foundation/threat_read.dm)
+	if(mind_the_gun(attacker))
+		return
 	// A botanist reaches for what it grew first - a death nettle up close, an acid melon or a
 	// primed combustible lemon from range (goals/botany_projects.dm).
 	if(try_botany_weapon(attacker))

@@ -712,6 +712,10 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	if(!subdued && bot_too_dangerous(S) && too_hurt_to_stay()) //goals/security_tactics.dm
 		fall_back_from(S)
 		return
+	// Somebody it may shoot to kill stood beside a fuel tank: the tank (foundation/tactics.dm)
+	if(visible && !subdued && bot_may_use_lethal_force(S) && try_tank_shot(S))
+		arrest_last_dist = dist
+		return
 	if(visible && !subdued && bot_too_dangerous(S) && keep_it_at_range(S, dist)) //goals/security_tactics.dm
 		arrest_last_dist = dist
 		return

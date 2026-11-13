@@ -142,10 +142,12 @@
 	. = ..()
 	bot_add_tank_opener(.)
 
+/// Before a robust killer's walk up to its mark (close_in), so a mark in a room with one way out can be waited for outside it; before the
+/// strike for one that stalks (it waits for nobody to be watching first).
 /proc/bot_add_tank_opener(list/strategies)
 	for(var/datum/bot_strategy/S in strategies)
 		for(var/i in 1 to length(S.steps))
-			if(istype(S.steps[i], /datum/bot_step/paced/strike))
+			if(istype(S.steps[i], /datum/bot_step/paced/close_in) || istype(S.steps[i], /datum/bot_step/paced/strike))
 				S.steps.Insert(i, new /datum/bot_step/paced/tank_opener())
 				break
 
@@ -179,6 +181,9 @@
 	var/stage
 	var/give_up_at = 0
 	var/turf/shoot_from
+	/// Waiting for them at the only way out of where they are (bot_only_way_out()), the tank parked here, rather than taking it to them
+	var/ambush = FALSE
+	var/turf/park
 
 /datum/bot_step/paced/tank_opener/proc/mark(datum/bot_brain/bot)
 	var/datum/bot_goal/traitor_kill/G = bot.current_goal
@@ -188,13 +193,22 @@
 	var/mob/living/V = mark(bot)
 	if(!bot.is_apex() || !V || V.stat == DEAD || !isturf(V.loc) || !bot.tank_gun())
 		return FALSE
-	tank = bot_fuel_tank_near(V, BOT_TANK_FETCH)
+	ambush = FALSE
+	park = null
+	tank = null
+	var/list/exit = bot_only_way_out(V)
+	if(exit && !exit[3][get_turf(bot.owner)])
+		park = bot_tank_parking(exit[1], exit[2])
+		tank = park ? bot_fuel_tank_near(exit[2], 10) : null
+		ambush = !!tank
+	if(!ambush)
+		tank = bot_fuel_tank_near(V, BOT_TANK_FETCH)
 	if(!tank || bot.owner.pulling || !bot.can_walk_lawfully_to(tank))
 		return FALSE
 	stage = "fetch"
 	shoot_from = null
-	give_up_at = world.time + 45 SECONDS
-	bot_log(bot, "TACTIC: going to use [tank] on [V]")
+	give_up_at = world.time + (ambush ? 90 SECONDS : 45 SECONDS)
+	bot_log(bot, ambush ? "TACTIC: going to park [tank] at the way out of where [V] is" : "TACTIC: going to use [tank] on [V]")
 	return TRUE
 
 /// Ends the opener, saying why: the strike goes ahead either way
@@ -232,42 +246,53 @@
 		if("drag")
 			if(H.pulling != tank)
 				return quit(bot, "lost hold of it on the way")
-			if(get_dist(H, V) <= 1)
+			if(ambush ? get_turf(H) == park : get_dist(H, V) <= 1)
 				bot.stop_pursuit()
 				stage = "place"
 				return TRUE
-			if(bot.pursue_target != V)
-				bot.pursue(V, "follow", force = TRUE)
+			var/atom/drag_to = ambush ? park : V
+			if(bot.pursue_target != drag_to)
+				bot.pursue(drag_to, "follow", force = TRUE)
 		if("place")
 			// A step to the side, not on to them or back on to the tank: the tank comes on to the tile it stood on, beside them
 			var/turf/here = get_turf(H)
 			var/turf/aside
 			for(var/d in shuffle(GLOB.cardinals.Copy()))
 				var/turf/T = get_step(here, d)
-				if(T && T != get_turf(V) && T != get_turf(tank) && !T.density && !is_blocked_turf(T, TRUE) && !bot_turf_is_deadly(T))
+				if(T && T != get_turf(V) && T != get_turf(tank) && !T.density && !is_blocked_turf(T, TRUE) && !bot_turf_is_deadly(T) && !(locate(/obj/machinery/door) in T))
 					aside = T
 					break
 			if(!aside || !bot.bot_step_towards(aside))
 				return quit(bot, "no room to step aside")
 			H.stop_pulling()
-			if(get_dist(tank, V) > 1)
-				return quit(bot, "it didn't end up beside them")
-			bot_log(bot, "TACTIC: [tank] is beside [V] - backing off to shoot it")
+			if(ambush ? get_turf(tank) != park : get_dist(tank, V) > 1)
+				return quit(bot, "it didn't end up [ambush ? "where it was going" : "beside them"]")
+			bot_log(bot, ambush ? "TACTIC: [tank] is parked at the way out - waiting for [V] out of the blast" : "TACTIC: [tank] is beside [V] - backing off to shoot it")
 			stage = "back"
 			shoot_from = bot.tank_firing_spot(tank)
 			if(!shoot_from)
 				return quit(bot, "nowhere to shoot it from out of the blast")
 		if("back")
-			if(get_dist(V, tank) > 1)
+			if(!ambush && get_dist(V, tank) > 1)
 				return quit(bot, "[V] moved away from it")
 			if(get_dist(H, tank) >= BOT_TANK_CLEAR && bot_clear_line(get_turf(H), tank))
 				bot.stop_pursuit()
-				stage = "shoot"
+				stage = ambush ? "wait" : "shoot"
 				return TRUE
 			if(bot.pursue_target != shoot_from)
 				bot.pursue(shoot_from, "follow", force = TRUE)
+		if("wait")
+			// For them to come out past it: still, facing it, the gun ready
+			H.face_atom(tank)
+			if(get_dist(V, tank) <= 1)
+				stage = "shoot"
+				wait_for = bot.perception_delay()
+			return TRUE
 		if("shoot")
 			if(get_dist(V, tank) > 1)
+				if(ambush)
+					stage = "wait"
+					return TRUE
 				return quit(bot, "[V] moved away from it")
 			if(bot.shoot_tank(tank, bot.tank_gun(), V))
 				bot_tally("set off a fuel tank by somebody")
@@ -301,6 +326,9 @@
 	if(T && (locate(/obj/machinery/door/airlock) in T))
 		door_passed = T
 		door_passed_at = world.time
+		if(istype(current_goal, /datum/bot_goal/run_from))
+			fled_through = T //try_barricade(), below
+			fled_through_at = world.time
 
 /// From do_step_next_node() (bot_movement.dm), before the next step. Sleeps while it welds. TRUE if it welded the door.
 /datum/bot_brain/proc/weld_shut_behind()
@@ -348,3 +376,175 @@
 		return FALSE
 	bot_tally("welded a door shut behind it")
 	return TRUE
+
+// ---------------------------------------------------------------------------------------------
+// Tier 2: barricading the door behind it
+// ---------------------------------------------------------------------------------------------
+// Run from somebody dangerous through a door into a room, and got there with them out of sight: a robust bot drags a locker or a crate
+// across the inside of the doorway and stands behind it. Whoever comes through the door after it has a locker in their face and a person
+// behind it to push against.
+
+/datum/bot_brain
+	/// The tile of the door it last ran through (note_door_passed() while running), and when
+	var/turf/fled_through
+	var/fled_through_at = 0
+
+/datum/bot_goal/run_from/on_success(datum/bot_brain/bot)
+	. = ..()
+	if(!istype(src, /datum/bot_goal/run_from/gas))
+		addtimer(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, try_barricade), foe_ref), 5)
+
+/// The barricade, a moment after it's got where it was running to: TRUE if it's started on one.
+/datum/bot_brain/proc/try_barricade(datum/weakref/foe_ref)
+	if(QDELETED(owner) || owner.incapacitated() || state != BOT_STATE_WANDER || current_goal || !skill_at_least(BOT_SKILL_MID))
+		return FALSE
+	if(!fled_through || world.time > fled_through_at + 30 SECONDS)
+		return FALSE
+	var/mob/living/foe = foe_ref?.resolve()
+	if(foe && foe.z == owner.z && (foe in view(BOT_SIGHT_RANGE, owner)))
+		return FALSE //they're right there: no time
+	var/turf/door_turf = fled_through
+	var/area/inside = get_area(owner)
+	// The tile just inside the door, and the one behind it
+	var/turf/inner
+	var/turf/behind
+	for(var/d in GLOB.cardinals)
+		var/turf/T = get_step(door_turf, d)
+		var/turf/B = T && get_step(T, d)
+		if(!T || !B || get_area(T) != inside || T.density || B.density || is_blocked_turf(T, TRUE) || is_blocked_turf(B, TRUE))
+			continue
+		inner = T
+		behind = B
+		break
+	if(!inner)
+		return FALSE
+	var/obj/structure/barricade_with
+	for(var/obj/structure/S in range(5, owner))
+		if(S.density && get_area(S) == inside && bot_can_pull(S, owner) && bot_movable_obstacle(S, owner) && !bot_movable_volatile(S))
+			if(!barricade_with || get_dist(S, owner) < get_dist(barricade_with, owner))
+				barricade_with = S
+	if(!barricade_with)
+		return FALSE
+	fled_through = null
+	bot_log(src, "TACTIC: dragging [barricade_with] across the door I came in by")
+	return assign_goal(new /datum/bot_goal/barricade(barricade_with, inner, behind))
+
+/datum/bot_goal/barricade
+	lawful = TRUE
+	exclusive = TRUE
+	doing = "barricading a door"
+	var/turf/inner
+	var/turf/behind
+
+/datum/bot_goal/barricade/New(obj/structure/S, turf/in_turf, turf/behind_turf)
+	. = ..()
+	target = S
+	inner = in_turf
+	behind = behind_turf
+
+/datum/bot_goal/barricade/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/case_work/S = new
+	S.steps = list(new /datum/bot_step/staged())
+	return list(S)
+
+/datum/bot_goal/barricade/staged_work(datum/bot_brain/bot, datum/bot_step/staged/step)
+	var/obj/structure/S = target
+	var/mob/living/carbon/human/H = bot.owner
+	if(QDELETED(S) || ++step.actions > 60)
+		return GOAL_STEP_FAIL
+	if(get_turf(S) == inner)
+		if(H.pulling == S)
+			H.stop_pulling()
+		bot.stop_pursuit()
+		bot_log(bot, "TACTIC: [S] is across the doorway")
+		bot_tally("barricaded a door")
+		return GOAL_STEP_SUCCESS
+	if(H.pulling != S)
+		if(!H.Adjacent(S))
+			if(bot.pursue_target != S)
+				bot.pursue(S, "follow", force = TRUE)
+			return step.again(bot, 3)
+		bot.stop_pursuit()
+		bot.human_pause(S)
+		H.start_pulling(S)
+		if(H.pulling != S)
+			return GOAL_STEP_FAIL
+		return step.again(bot, 2)
+	// In tow: to the tile just inside the door, then a step off it, and it comes on to that tile. Back from the door if the tile behind
+	// is free; come in from the room side, though, and what's in tow is on that tile, and walking into it is a push that lets go of it:
+	// a step to the side then, and it comes on to the doorway all the same.
+	if(get_turf(H) == inner)
+		bot.stop_pursuit()
+		var/turf/step_to = behind
+		if(get_turf(S) == behind || behind.density || is_blocked_turf(behind, TRUE))
+			step_to = null
+			for(var/d in GLOB.cardinals)
+				var/turf/T = get_step(inner, d)
+				if(T && T != behind && T != get_turf(S) && get_area(T) == get_area(inner) && !T.density && !is_blocked_turf(T, TRUE) && !(locate(/obj/machinery/door) in T))
+					step_to = T
+					break
+		if(!step_to || !bot.bot_step_towards(step_to))
+			return ++step.tries > 4 ? GOAL_STEP_FAIL : step.again(bot, 3)
+		return step.again(bot, 2)
+	if(bot.pursue_target != inner)
+		bot.pursue(inner, "follow", force = TRUE)
+	return step.again(bot, 3)
+
+// ---------------------------------------------------------------------------------------------
+// Tier 3: the tank at the only way out
+// ---------------------------------------------------------------------------------------------
+// The opener's other way (tank_opener): its mark in a room with one door, an apex killer doesn't go in after them with a tank in tow. It
+// parks the tank beside the outside of that door, backs off out of the blast where it can see the tank, and waits for them to come out
+// past it.
+
+/// The one door out of where M is, if there's only one: a flood from it, through anything but doors, walls and windows. list(airlock, tile
+/// outside it, the room's tiles), or null.
+/proc/bot_only_way_out(mob/living/M)
+	var/turf/start = get_turf(M)
+	if(!start)
+		return null
+	var/list/seen = list()
+	seen[start] = TRUE
+	var/list/queue = list(start)
+	var/at = 1
+	var/obj/machinery/door/airlock/door
+	while(at <= length(queue))
+		if(length(queue) > 200)
+			return null //not a room, a station
+		var/turf/T = queue[at++]
+		for(var/d in GLOB.cardinals)
+			var/turf/N = get_step(T, d)
+			if(!N || seen[N] || N.density)
+				continue
+			seen[N] = TRUE
+			var/obj/machinery/door/airlock/A = locate() in N
+			if(A)
+				if(door && door != A)
+					return null //two ways out
+				door = A
+				continue
+			var/blocked = FALSE
+			for(var/obj/O in N)
+				if(O.density && (istype(O, /obj/structure/window) || istype(O, /obj/structure/grille) || istype(O, /obj/machinery/door)))
+					blocked = TRUE
+					break
+			if(!blocked)
+				queue += N
+	if(!door)
+		return null
+	for(var/d in GLOB.cardinals)
+		var/turf/out = get_step(door, d)
+		if(out && !seen[out] && !out.density)
+			return list(door, out, seen)
+	return null
+
+/// Where to park the tank: beside the tile outside the door, not on the way through it.
+/proc/bot_tank_parking(obj/machinery/door/airlock/door, turf/out)
+	for(var/d in GLOB.cardinals)
+		var/turf/P = get_step(out, d)
+		if(!P || P == get_turf(door) || P.density || is_blocked_turf(P, TRUE) || get_step(door, get_dir(door, out)) == P)
+			continue
+		if(get_dir(out, P) == get_dir(door, out))
+			continue //straight on from the door is where they'll walk
+		return P
+	return null

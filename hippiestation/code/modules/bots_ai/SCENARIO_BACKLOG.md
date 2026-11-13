@@ -69,13 +69,19 @@ Every milestone ends with the whole backlog run and this file updated.
 | threat: stood by a fuel tank, a gunman across the room, it gets away from the tank | apex always, mid usually, low sometimes | passing (before 0/2, after 3/3) |
 | threat: the one it's fighting drags a fuel tank up to it, it gets clear | apex always, mid usually, low sometimes | passing (before 0/2, after 2/2) |
 
+| tactics: an apex killer parks a fuel tank at the only way out of its mark's room and waits | apex | passing (before 0/2, after 2/2) |
+| tactics: a robust officer after an armed murderer stood by a fuel tank shoots the tank | mid and up | passing (before 0/2, after 2/2) |
+
 **Still to cover:**
-- an apex traitor parks a tank at a chokepoint on the target's route and waits
-- Security using the set-up against a lethal target
+- parking a tank on a runner's predicted route (needs milestone 3's route prediction)
 
 ## 3. More tactics and threats (the plan's milestone 2, not a user case)
 | Scenario (`gym/scenarios_tactics.dm`) | Must pass at | Status |
 |---|---|---|
+| tactics: run into a room from a killer, a robust bot drags a locker across the door | mid and up | passing (before 0/2, after 2/2) |
+| threat: a gunman across the room and nothing to shoot back with, it gets into cover | apex always, mid usually | passing (before 0/2, after 2/2) |
+| upkeep: an engineer cuts open a door welded in the round | engineers | passing (the user's ruling, 2026-11-13) |
+| upkeep: an engineer leaves a door that was welded when the round began | engineers | passing |
 | tactics: running from a killer through a door, a robust bot welds it shut behind it | mid and up | passing (before 0/2, after 2/2) |
 | tactics: a low-skill bot running through a door doesn't weld it | low | passing |
 | threat: a plasma canister let go in the room, it gets out before the air goes | apex always, mid usually, low sometimes | passing (before 0/2, after 2/2) |

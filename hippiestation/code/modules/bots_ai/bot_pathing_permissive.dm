@@ -243,8 +243,8 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 	// the ordinary rules, plus over the furniture - no forcing doors, no breaking anything.
 	var/mob/living/carbon/human/walker = caller
 	// The last route search (foundation/clear_way.dm): something in the way that could be moved out of it.
-	if(istype(walker) && walker.bot_brain?.pathing_through_movables && bot_movable_obstacle(O, walker))
-		return TRUE
+	if(istype(walker) && walker.bot_brain?.pathing_through_movables && O != walker.pulling && bot_movable_obstacle(O, walker))
+		return TRUE //not what it's dragging: walking into that is a push, and lets go of it
 	if(istype(walker) && walker.bot_brain?.pathing_climb_only)
 		if(O.CanAStarPass(ID, to_dir, caller))
 			return TRUE

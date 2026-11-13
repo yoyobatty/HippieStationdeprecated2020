@@ -3579,6 +3579,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\xeno_extracts.dm"
 #include "hippiestation\code\modules\bots_ai\goals\anomalies.dm"
 #include "hippiestation\code\modules\bots_ai\goals\massacre.dm"
+#include "hippiestation\code\modules\bots_ai\goals\unweld_doors.dm"
 #include "hippiestation\code\modules\bots_ai\foundation\skill.dm"
 #include "hippiestation\code\modules\bots_ai\foundation\human_limits.dm"
 #include "hippiestation\code\modules\bots_ai\foundation\movables.dm"
