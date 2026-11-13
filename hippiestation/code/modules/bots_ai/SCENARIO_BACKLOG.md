@@ -85,3 +85,19 @@ Every milestone ends with the whole backlog run and this file updated.
 | tactics: running from a killer through a door, a robust bot welds it shut behind it | mid and up | passing (before 0/2, after 2/2) |
 | tactics: a low-skill bot running through a door doesn't weld it | low | passing |
 | threat: a plasma canister let go in the room, it gets out before the air goes | apex always, mid usually, low sometimes | passing (before 0/2, after 2/2) |
+
+## 4. Hide and seek (the plan's milestone 3)
+**Code:** `foundation/hunt.dm` (the search, every hunter), `apex/director.dm` (clues for apex hunters).
+
+| Scenario (`gym/scenarios_hunt.dm`) | Must pass at | Status |
+|---|---|---|
+| hunt: an officer loses a murderer and searches the lockers till it finds him | mid and up | passing (before 0/2, after 2/2) |
+| hunt: a low-skill officer opens a couple of lockers and gives up | low | passing |
+| hunt: an apex officer, steered by the director, finds a murderer hidden across the room | apex | passing (before 0/2, after 2/2) |
+| hunt: a robust officer with no director searches where he was seen, not across the room | mid | passing |
+| hunt: a vigilante at a murderer's last sighting finds nobody, and searches the lockers | mid | passing (before 0/2, after 2/2) |
+
+**Still to cover:**
+- cutting a runner off at the chokepoint ahead of them
+- an apex killer whose mark got away searching for them
+- an evader that moves like the user does (from player telemetry)

@@ -696,7 +696,13 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 		arrest_last_seen_turf = get_turf(S)
 	else if(world.time - arrest_last_seen > BOT_ARREST_LOST_TIMEOUT)
 		bot_say(owner, ":s Lost sight of [S.name]. Last seen in [get_area_name(arrest_last_seen_turf, TRUE)].")
+		// It looks for them, where they'd have gone and what they could be hiding in (foundation/hunt.dm), rather than going back to its
+		// rounds: a player does
+		var/turf/lost_at = arrest_last_seen_turf
+		var/lost_since = arrest_last_seen
+		var/minor = arrest_severity < BOT_CRIME_MAJOR
 		end_arrest("lost sight of suspect")
+		start_search(S, lost_at, lost_since, minor ? "arrest_minor" : "arrest")
 		return
 
 	var/dist = get_dist(owner, S)

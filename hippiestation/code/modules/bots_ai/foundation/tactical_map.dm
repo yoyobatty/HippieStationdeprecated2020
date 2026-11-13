@@ -126,6 +126,39 @@ GLOBAL_LIST_EMPTY(tactical_maps)
 /datum/tactical_map/proc/neighbours(area/A)
 	return links[A] || list()
 
+/datum/tactical_map
+	/// area -> the open tile nearest its middle (centre_of())
+	var/list/centres = list()
+
+/// An open tile at the middle of A on this level, worked out the first time it's asked for
+/datum/tactical_map/proc/centre_of(area/A)
+	if(!A)
+		return null
+	if(A in centres)
+		return centres[A]
+	var/sx = 0
+	var/sy = 0
+	var/n = 0
+	for(var/turf/T in A)
+		if(T.z == z && !T.density)
+			sx += T.x
+			sy += T.y
+			n++
+	var/turf/best
+	if(n)
+		var/cx = sx / n
+		var/cy = sy / n
+		var/best_d
+		for(var/turf/T in A)
+			if(T.z != z || T.density || is_blocked_turf(T, TRUE))
+				continue
+			var/d = (T.x - cx) ** 2 + (T.y - cy) ** 2
+			if(!best || d < best_d)
+				best = T
+				best_d = d
+	centres[A] = best
+	return best
+
 /datum/tactical_map/proc/is_dead_end(area/A)
 	return dead_ends[A]
 

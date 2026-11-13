@@ -438,7 +438,7 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 		return FALSE
 	var/datum/bot_wanted/W = bot_get_wanted_entry(mark)
 	LAZYSET(bot.hunted_sightings, REF(mark), W.last_seen_at)
-	if(!bot.can_walk_lawfully_to(W.last_seen) || !bot.assign_goal(new /datum/bot_goal/hunt(W.last_seen)))
+	if(!bot.can_walk_lawfully_to(W.last_seen) || !bot.assign_goal(new /datum/bot_goal/hunt(W.last_seen, mark, W.last_seen_at)))
 		return FALSE
 	bot_log(bot, "going after [mark], last seen in [get_area_name(W.last_seen, TRUE)]")
 	bot_tally("hunts")
@@ -451,10 +451,15 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 	lawful = TRUE
 	doing = "looking for somebody"
 	var/turf/last_seen
+	/// Who, and when they were seen there: from the sighting, a search (foundation/hunt.dm)
+	var/datum/weakref/mark_ref
+	var/seen_at = 0
 
-/datum/bot_goal/hunt/New(turf/T)
+/datum/bot_goal/hunt/New(turf/T, mob/living/mark, at)
 	. = ..()
 	last_seen = T
+	mark_ref = mark ? WEAKREF(mark) : null
+	seen_at = at
 
 /datum/bot_goal/hunt/resolve_target(datum/bot_brain/bot)
 	target = last_seen
