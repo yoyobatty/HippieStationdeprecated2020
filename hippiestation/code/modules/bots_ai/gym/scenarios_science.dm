@@ -991,3 +991,147 @@
 	if(times_in == 1 && isturf(bot.loc) && world.time - start_time > 40 SECONDS)
 		return BOT_GYM_PASS
 	return BOT_GYM_PENDING
+
+// Using the extracts (goals/xeno_extracts.dm). Letters: Q the extract fridge with a metal extract in it, G a grinder, h a sheet of plasma,
+// b an empty beaker, d a dropper, N a protolathe.
+/datum/bot_scenario/duty/xeno_extract_metal
+	name = "xenobiology: a metal extract and a drop of plasma make metal sheets, and they go into the protolathe"
+	desc = "A metal extract in the fridge, plasma sheets, the grinder, a beaker and a dropper. Plasma ground into the beaker, a dropper of it on the extract, and the metal it makes into the protolathe."
+	duty_type = /datum/bot_duty/xeno_extracts
+	job = "Scientist"
+	time_limit = 120 SECONDS
+	layout = list(
+		"###########",
+		"#B..Q..G..#",
+		"#..h.b.d..#",
+		"#........N#",
+		"###########")
+	var/obj/machinery/rnd/production/protolathe/lathe
+
+/datum/bot_scenario/duty/xeno_extract_metal/setup()
+	for(var/turf/T in markers["Q"])
+		var/obj/machinery/smartfridge/extract/F = new(T)
+		new /obj/item/slime_extract/metal(F)
+		place("Q", F)
+	for(var/turf/T in markers["G"])
+		place("G", new /obj/machinery/reagentgrinder(T))
+	for(var/turf/T in markers["h"])
+		place("h", new /obj/item/stack/sheet/mineral/plasma(T, 3))
+	for(var/turf/T in markers["b"])
+		place("b", new /obj/item/reagent_containers/glass/beaker(T))
+	for(var/turf/T in markers["d"])
+		place("d", new /obj/item/reagent_containers/dropper(T))
+	for(var/turf/T in markers["N"])
+		lathe = new(T)
+		place("N", lathe)
+
+/datum/bot_scenario/duty/xeno_extract_metal/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/datum/component/material_container/stores = lathe?.materials?.mat_container
+	return stores?.amount(MAT_METAL) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// The steroid off a purple extract, on the baby slime in the pen, from the console: one more extract out of it.
+/datum/bot_scenario/duty/slimes/steroid
+	name = "xenobiology: a steroid goes on a baby slime through the console"
+	desc = "A baby slime behind glass and a steroid in hand. Into the console's potion slot, and onto the slime where the camera sees it."
+	duty_type = /datum/bot_duty/xeno_extracts
+	kit_hands = list(/obj/item/slimepotion/slime/steroid)
+	layout = list(
+		"#########",
+		"#B......#",
+		"#....X..#",
+		"#wwwwwww#",
+		"#y.....n#",
+		"#########")
+
+/datum/bot_scenario/duty/slimes/steroid/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/mob/living/simple_animal/slime/S = first_placed("y")
+	return S?.cores > 1 ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// Analysis (goals/rnd_analysis.dm). Letters: A a destructive analyzer, C an R&D console on a tree of its own (the station's isn't touched),
+// q something that shows a hidden node when it's analysed.
+/datum/bot_scenario/duty/rnd_analysis_hidden
+	name = "research: something of a hidden node's goes through the analyzer, and the node shows on the tree"
+	desc = "An item one of the hidden nodes (Syndicate or alien) lists, left in the lab. The scientist puts it through the destructive analyzer, and the node is on the tree."
+	duty_type = /datum/bot_duty/rnd_analysis
+	job = "Scientist"
+	time_limit = 60 SECONDS
+	layout = list(
+		"#########",
+		"#B..q...#",
+		"#...A.C.#",
+		"#########")
+	var/obj/machinery/computer/rdconsole/console
+	var/hidden_id
+
+/datum/bot_scenario/duty/rnd_analysis_hidden/setup()
+	for(var/turf/T in markers["A"])
+		place("A", new /obj/machinery/rnd/destructive_analyzer(T))
+	for(var/turf/T in markers["C"])
+		console = new /obj/machinery/computer/rdconsole/core(T)
+		console.stored_research = new /datum/techweb
+		console.SyncRDevices()
+		place("C", console)
+	for(var/turf/T in markers["q"])
+		for(var/id in SSresearch.techweb_nodes_hidden)
+			var/datum/techweb_node/N = SSresearch.techweb_node_by_id(id)
+			for(var/path in N?.boost_item_paths)
+				if(!ispath(path, /obj/item) || ispath(path, /obj/item/stack) || is_type_in_typecache(path, GLOB.bot_analysis_keep))
+					continue
+				var/obj/item/I = new path(T)
+				if(QDELETED(I) || I.tool_behaviour)
+					qdel(I)
+					continue
+				hidden_id = id
+				place("q", I)
+				log_line("[I] ([path]) for [N.display_name]")
+				return
+
+/datum/bot_scenario/duty/rnd_analysis_hidden/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!hidden_id)
+		fail_reason = "no item for a hidden node"
+		return BOT_GYM_FAIL
+	if(!console.stored_research.hidden_nodes[hidden_id])
+		return BOT_GYM_PASS
+	if(!logged_once)
+		logged_once = TRUE
+		var/obj/machinery/rnd/destructive_analyzer/D = first_placed("A")
+		var/obj/item/I = first_placed("q")
+		log_line("analyzer linked=[!!D?.linked_console] found=[brain.find_research_analyzer()] worth=[bot_research_worth(I, console.stored_research)] picked=[brain.thing_to_analyse(console.stored_research)]")
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/rnd_analysis_hidden
+	var/logged_once = FALSE
+
+// Anomalies (goals/anomalies.dm). Letters: a an analyser, s a signaller, Z a flux anomaly.
+/datum/bot_scenario/duty/anomaly_flux
+	name = "science: reads a flux anomaly with an analyser, signals it down and takes the core"
+	desc = "A flux anomaly in the room, an analyser and a signaller in the bag. The scientist reads the anomaly's frequency and code, sends them, and picks up the core it leaves."
+	duty_type = /datum/bot_duty/anomaly_response
+	job = "Scientist"
+	time_limit = 60 SECONDS
+	kit_backpack = list(/obj/item/analyzer, /obj/item/assembly/signaler) //a full gym's other arenas have their own lying about
+	layout = list(
+		"#########",
+		"#B......#",
+		"#.......#",
+		"#....Z..#",
+		"#########")
+	var/obj/effect/anomaly/anomaly
+
+/datum/bot_scenario/duty/anomaly_flux/setup()
+	for(var/turf/T in markers["Z"])
+		anomaly = new /obj/effect/anomaly/flux(T, 2 MINUTES)
+		place("Z", anomaly)
+
+/datum/bot_scenario/duty/anomaly_flux/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!QDELETED(anomaly))
+		return BOT_GYM_PENDING
+	return (locate(/obj/item/assembly/signaler/anomaly) in bot.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING
