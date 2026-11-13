@@ -48,6 +48,24 @@ GLOBAL_VAR(stat_panel_page)
 	var/loaded_at = 0
 	/// The subsystem (type, as text) whose row is open on the MC tab: its history goes with each update
 	var/mc_detail
+	/// The page's messages skip the topic limit (client_procs.dm), so they have their own: this many a second
+	var/messages_this_second = 0
+	var/message_second = 0
+
+/// The page sends a few a second at most (tab clicks, its ready); each one costs a send of the tab, the verbs or the whole page
+#define STAT_PANEL_MESSAGES_PER_SECOND 30
+
+/datum/stat_panel/proc/take_message()
+	if(world.time >= message_second + 1 SECONDS)
+		message_second = world.time
+		messages_this_second = 0
+	if(++messages_this_second > STAT_PANEL_MESSAGES_PER_SECOND)
+		if(messages_this_second == STAT_PANEL_MESSAGES_PER_SECOND + 1)
+			log_admin_private("[key_name(owner)] sent the stat panel more than [STAT_PANEL_MESSAGES_PER_SECOND] messages in a second; ignoring the rest")
+		return FALSE
+	return TRUE
+
+#undef STAT_PANEL_MESSAGES_PER_SECOND
 
 /datum/stat_panel/New(client/C)
 	owner = C
@@ -252,8 +270,11 @@ GLOBAL_VAR(stat_panel_page)
 	if(!stat_panel)
 		return FALSE
 	if(href_list["_src_"] == "statpanel")
+		if(!stat_panel.take_message())
+			return TRUE
 		if(href_list["type"] == "reload")
-			stat_panel.initialize()
+			if(world.time >= stat_panel.loaded_at + 2 SECONDS) // the whole page goes each time
+				stat_panel.initialize()
 			return TRUE
 		var/list/payload
 		if(href_list["payload"])

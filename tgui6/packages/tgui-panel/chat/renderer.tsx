@@ -4,6 +4,7 @@
  * @license MIT
  */
 
+import DOMPurify from 'dompurify';
 import { flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import { createLogger } from 'tgui/logging';
@@ -26,6 +27,14 @@ import {
   MESSAGE_TYPE_UNKNOWN,
   MESSAGE_TYPES,
 } from './constants';
+
+// hippie -- live messages are cleaned before they go in as HTML: one the server let through raw (a follow-up ahelp did, 2026-11-12)
+// ran its script in every admin's chat, where the same line holds the admin token. Event handlers, scripts and javascript: links
+// go; tags, classes, styles, data-component and the game's ?src= and byond:// links stay.
+const HIPPIE_SANITIZE = {
+  ALLOWED_URI_REGEXP:
+    /^(?:(?:(?:f|ht)tps?|mailto|byond):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
+};
 
 // hippie -- PMs, mentor PMs and ticket lines, by their text (the old chat's rule)
 const HIPPIE_PM_TEXT =
@@ -516,7 +525,7 @@ class ChatRenderer {
         }
         // Payload is HTML
         else if (message.html) {
-          node.innerHTML = message.html;
+          node.innerHTML = DOMPurify.sanitize(message.html, HIPPIE_SANITIZE); // hippie -- cleaned
         } else {
           logger.error('Error: message is missing text payload', message);
         }

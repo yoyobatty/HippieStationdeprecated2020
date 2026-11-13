@@ -10,6 +10,8 @@
 // Sleeper
 
 /obj/item/mecha_parts/mecha_equipment/medical/sleeper/Topic(href, href_list)
+	if(!pilot_topic(usr)) // the pilot's (mecha_tgui.dm): anyone could eject the patient or inject them
+		return TRUE
 	if(href_list["view_stats"])
 		if(chassis?.occupant)
 			ui_interact(chassis.occupant)
@@ -71,6 +73,8 @@
 // Syringe gun
 
 /obj/item/mecha_parts/mecha_equipment/medical/syringe_gun/Topic(href, href_list)
+	if(!pilot_topic(usr)) // the pilot's (mecha_tgui.dm): anyone could purge it or change what it makes
+		return TRUE
 	if(href_list["show_reagents"])
 		if(chassis?.occupant)
 			ui_interact(chassis.occupant)

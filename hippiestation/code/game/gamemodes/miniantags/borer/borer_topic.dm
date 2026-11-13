@@ -1,8 +1,7 @@
 
 /mob/living/simple_animal/borer/Topic(href, href_list, hsrc)
 	if(href_list["borer_use_chem"])
-		locate(href_list["src"])
-		if(!istype(src, /mob/living/simple_animal/borer))
+		if(usr != src) // the borer's own: anyone with its ref could have it inject its host
 			return
 
 		var/topic_chem = href_list["borer_use_chem"]

@@ -12,6 +12,14 @@
 		law_panel = new(src)
 	law_panel.ui_interact(src)
 
+/// The law switches and State Laws are the silicon's own. tg's Topic() didn't ask who sent them, so any player with an AI's or
+/// a borg's ref (the chat's name links carry it) could switch law 0 on and have it said aloud: a malf AI or an emagged borg outed.
+/// TRUE stops a pAI's software Topic() (`if(..()) return`), which was as open: anyone could fire its signaller or spend its RAM.
+/mob/living/silicon/Topic(href, href_list)
+	if(usr != src)
+		return TRUE
+	return ..()
+
 /// The old page's defaults, without growing the lists on every open as it did: law 0 and hacked laws not stated, ion laws and
 /// the rest stated.
 /mob/living/silicon/proc/law_check_defaults()

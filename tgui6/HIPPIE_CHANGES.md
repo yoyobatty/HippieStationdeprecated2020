@@ -23,7 +23,7 @@ The DM side is in `hippiestation/code/modules/tgui_panel/`.
 - `packages/tgui-panel/chat/constants.ts`: this server's classes are mapped to message types (`.looc`, `.userdanger` as
   combat, `.mentornotice`, `.mentor`, `.prayer`).
 - `packages/tgui-panel/chat/renderer.tsx`: hooks for the PM text rule, time stamps, search, the new-messages count and
-  the name menu.
+  the name menu; live messages go through DOMPurify before `innerHTML` (tg's go in as sent), with `byond:` links allowed.
 - `packages/tgui-panel/chat/model.ts`: adds the `hippieHistory` message flag.
 - `packages/tgui-panel/chat/ChatPanel.tsx`: the time stamp setting, and the "N new" pill.
 - `packages/tgui-panel/chat/use-chat-persistence.ts`:

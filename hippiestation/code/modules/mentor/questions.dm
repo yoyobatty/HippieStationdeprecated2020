@@ -104,7 +104,8 @@ GLOBAL_VAR_INIT(help_question_count, 0)
 	for(var/list/M in messages)
 		if(M["kind"] != "event")
 			said += "[M["who"]]: [M["text"]]"
-	var/ahelp_text = "(Question #[id], passed to admins by mentor [C.key]) [jointext(said, " / ")]"
+	// the lines were cleaned when said; the ticket cleans its text itself, so they go as typed (twice showed &amp;lt; and the like)
+	var/ahelp_text = "(Question #[id], passed to admins by mentor [C.key]) [html_decode(jointext(said, " / "))]"
 	if(initiator.current_ticket)
 		initiator.current_ticket.MessageNoRecipient(ahelp_text)
 		ahelp_id = initiator.current_ticket.id

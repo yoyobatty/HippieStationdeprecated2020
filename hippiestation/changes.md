@@ -120,7 +120,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/admin/sql_message_system.dm
 ## code/modules/admin/stickyban.dm
 ## code/modules/admin/topic.dm
-## code/modules/admin/verbs/adminhelp.dm
+## code/modules/admin/verbs/adminhelp.dm (MessageNoRecipient() cleans its text: a follow-up ahelp reached admins' chat as HTML)
 ## code/modules/admin/verbs/beakerpanel.dm (a verb hands over to hippie's window: verbs run tg's definition)
 ## code/modules/admin/verbs/debug.dm (verbs hand over to hippie's windows: verbs run tg's definition)
 ## code/modules/admin/verbs/individual_logging.dm

@@ -232,3 +232,51 @@
 	for(var/obj/O in cargo)
 		items += list(list("ref" = REF(O), "name" = O.name))
 	return list("items" = items, "capacity" = cargo_capacity)
+
+// Equipment links are the pilot's. tg's Topic()s acted for whoever sent them, so any player with a piece's ref could detach it from a
+// mech in use, pull the patient out of a mech sleeper, empty a syringe gun or switch a tool off, from anywhere. Each type with its own
+// Topic() gets the check too: tg's call ..() and carry on whatever it says. (The sleeper's and syringe gun's: mech_medical_tgui.dm.)
+
+/obj/item/mecha_parts/mecha_equipment/proc/pilot_topic(mob/user)
+	return chassis && user && user == chassis.occupant
+
+/obj/item/mecha_parts/mecha_equipment/Topic(href, href_list)
+	if(!pilot_topic(usr))
+		return TRUE
+	return ..()
+
+/obj/item/mecha_parts/mecha_equipment/weapon/ballistic/Topic(href, href_list)
+	if(!pilot_topic(usr))
+		return TRUE
+	return ..()
+
+/obj/item/mecha_parts/mecha_equipment/rcd/Topic(href, href_list)
+	if(!pilot_topic(usr))
+		return TRUE
+	return ..()
+
+/obj/item/mecha_parts/mecha_equipment/gravcatapult/Topic(href, href_list)
+	if(!pilot_topic(usr))
+		return TRUE
+	return ..()
+
+/obj/item/mecha_parts/mecha_equipment/repair_droid/Topic(href, href_list)
+	if(!pilot_topic(usr))
+		return TRUE
+	return ..()
+
+/obj/item/mecha_parts/mecha_equipment/tesla_energy_relay/Topic(href, href_list)
+	if(!pilot_topic(usr))
+		return TRUE
+	return ..()
+
+/obj/item/mecha_parts/mecha_equipment/generator/Topic(href, href_list)
+	if(!pilot_topic(usr))
+		return TRUE
+	return ..()
+
+/// The hold's Unload is the pilot's too: tg's checked nobody (mecha/Topic() only stops its own links)
+/obj/mecha/working/ripley/Topic(href, href_list)
+	if(href_list["drop_from_cargo"] && usr != occupant)
+		return
+	return ..()

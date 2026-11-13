@@ -15,7 +15,7 @@
 
 /obj/mecha/makeshift/Topic(href, href_list)
 	..()
-	if(href_list["drop_from_cargo"])
+	if(href_list["drop_from_cargo"] && usr == occupant) // the pilot's: anyone with the refs could empty the hold
 		var/obj/O = locate(sanitize(href_list["drop_from_cargo"]))
 		if(O && (O in cargo))
 			occupant_message("<span class='notice'>You unload [O].</span>")

@@ -187,6 +187,14 @@ GLOBAL_VAR_INIT(tgui_pool_count, 0)
 		return
 	return ..()
 
+/// Only your own windows: tg's uiclose closed any tgui by its ref, and as a verb it skips the topic limit, so refs could be swept
+/// to close everyone's (a prompt closed that way answers null)
+/client/uiclose(ref as text)
+	var/datum/tgui/ui = locate(ref)
+	if(istype(ui) && ui.user != mob)
+		return
+	return ..()
+
 /datum/tgui
 	/// The pooled window this UI is in, if it's in one
 	var/datum/tgui_pool_window/pool_window
