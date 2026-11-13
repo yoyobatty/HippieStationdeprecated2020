@@ -30,6 +30,10 @@ GLOBAL_VAR(stat_panel_page)
 	var/admin_tabs = FALSE
 	/// Whether the page has an alt-clicked tile's tab
 	var/turf_shown = FALSE
+	/// The tile tab's rows as last sent (json), to send again only when they change
+	var/sent_turf
+	/// Tile tab pictures the page has, key -> TRUE (statpanels.dm turf_icon_key())
+	var/list/sent_icons = list()
 	/// The verbs last sent, to tell when they change
 	var/list/sent_verbs
 	/// What was last sent of these, to send again only when it changes
@@ -53,6 +57,8 @@ GLOBAL_VAR(stat_panel_page)
 	waiting = list()
 	admin_tabs = FALSE
 	turf_shown = FALSE
+	sent_turf = null
+	sent_icons = list()
 	sent_verbs = null
 	sent_spells = null
 	sent_extra = null
@@ -127,9 +133,56 @@ GLOBAL_VAR(stat_panel_page)
 		params["alt"] = "1"
 	owner.Click(target, target.loc, null, list2params(params))
 
+/// Things on a tile past which BYOND's right-click menu is off there, and a right-click opens the tile tab instead.
+/// DreamSeeker builds that menu itself, in time that grows with the pile squared, and the server can't make it faster:
+/// 1500 things took 3.5 s, 600 of one kind 7 s, 4000 things 22 s (tools/keybind_check/pile_menu_check.dm). The time goes on
+/// verbs that take the thing as an argument (Examine, Pull, Point To, the admin ones; about 1.4 s each on 600 of one kind),
+/// most when many things share a name; `set src` verbs like Pick up cost nothing there.
+#define PILE_MENU_LIMIT 100
+
+/client
+	/// BYOND's right-click menu is off on the map: the mouse is over a huge pile in reach (check_pile_menu())
+	var/pile_menu_off = FALSE
+
+/// From MouseEntered (screentips.dm): BYOND's right-click menu off over a huge pile this mob can list, back on anywhere else.
+/// Far piles keep the menu: the tile tab only lists what's in reach.
+/client/proc/check_pile_menu(atom/hovered)
+	var/off = FALSE
+	var/turf/T = isturf(hovered) ? hovered : (isturf(hovered.loc) ? hovered.loc : null)
+	if(T && length(T.contents) > PILE_MENU_LIMIT && mob?.TurfAdjacent(T))
+		off = TRUE
+	if(off != pile_menu_off)
+		pile_menu_off = off
+		winset(src, "mapwindow.map", "right-click=[off ? "true" : "false"]")
+
+/client/Click(atom/object, atom/location, control, params)
+	if(pile_menu_off && control == "mapwindow.map" && params2list(params)["right"])
+		pile_right_click(object)
+		return
+	return ..()
+
+/client/MouseDown(object, location, control, params)
+	if(pile_menu_off && control == "mapwindow.map" && params2list(params)["right"])
+		return // no autoclicking a held gun at the pile
+	return ..()
+
+/// A right-click on the map while the menu is off: the pile's tile tab, or the menu back for the next one if the mouse
+/// got somewhere else before its hover did
+/client/proc/pile_right_click(atom/object)
+	var/turf/T = istype(object) ? get_turf(object) : null
+	if(!T || length(T.contents) <= PILE_MENU_LIMIT || !mob?.TurfAdjacent(T))
+		pile_menu_off = FALSE
+		winset(src, "mapwindow.map", "right-click=false")
+		return
+	mob.listed_turf = T
+	stat_panel?.show_turf(T)
+
+#undef PILE_MENU_LIMIT
+
 /// The alt-clicked tile's tab, opened now
 /datum/stat_panel/proc/show_turf(turf/T)
 	turf_shown = TRUE
+	sent_turf = null
 	send_message("create_listedturf", T.name)
 	tab = T.name
 	SSstatpanels.set_turf_tab(owner)

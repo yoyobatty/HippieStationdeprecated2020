@@ -1024,3 +1024,13 @@ img {
   margin-right: 8px;
   flex: 0 0 auto;
 }
+
+.turf-count {
+  margin-left: 6px;
+  color: var(--muted);
+}
+
+.turf-more {
+  padding: 4px 4px 4px 44px;
+  color: var(--muted);
+}

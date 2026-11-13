@@ -81,7 +81,9 @@ var verbs = [['', '']]; // list with a list inside
 var tickets = [];
 var sdql2 = [];
 var permanent_tabs = []; // tabs that won't be cleared by wipes
-var turfcontents = [];
+var turfcontents = []; // hippie: rows of name, ref, picture key, how many alike
+var turfmore = 0; // hippie: things past the last row
+var turficons = {}; // hippie: picture key -> data URI, each sent once
 var turfname = '';
 var spells = []; // hippie: [panel, charge text, name, ref]
 var spell_tabs = [];
@@ -1276,9 +1278,10 @@ function draw_listedturf() {
     row.className = 'turf-item';
     row.onmousedown = make_item_onmousedown(part[1]);
     row.oncontextmenu = (e) => e.preventDefault();
-    if (part[2]) {
+    var picture = turficons[part[2]];
+    if (picture) {
       var img = document.createElement('img');
-      img.src = part[2];
+      img.src = picture;
       row.appendChild(img);
     } else {
       var blank = document.createElement('span');
@@ -1288,7 +1291,20 @@ function draw_listedturf() {
     var name = document.createElement('span');
     name.textContent = part[0];
     row.appendChild(name);
+    // Hippie: alike things are one row
+    if (part[3] > 1) {
+      var count = document.createElement('span');
+      count.className = 'turf-count';
+      count.textContent = '×' + part[3];
+      row.appendChild(count);
+    }
     list.appendChild(row);
+  }
+  if (turfmore > 0) {
+    var more = document.createElement('div');
+    more.className = 'turf-more';
+    more.textContent = '+' + turfmore + ' more';
+    list.appendChild(more);
   }
   statcontentdiv.appendChild(list);
 }
@@ -1747,8 +1763,14 @@ Byond.subscribeTo('remove_admin_tabs', () => {
   remove_sdql2();
 });
 
+// Hippie: {rows, more, icons}: only pictures the page hasn't had ("reset" first when the server starts them afresh)
 Byond.subscribeTo('update_listedturf', (TC) => {
-  turfcontents = TC;
+  if (TC.icons.reset) turficons = {};
+  for (var key in TC.icons) {
+    if (key != 'reset') turficons[key] = TC.icons[key];
+  }
+  turfcontents = TC.rows;
+  turfmore = TC.more;
   if (current_tab == turfname) {
     draw_listedturf();
   }

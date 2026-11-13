@@ -51,6 +51,7 @@
 	if(!C)
 		return
 	C.screentip_hover = WEAKREF(src)
+	C.check_pile_menu(src) // stat_panel.dm: no BYOND right-click menu over a huge pile
 	update_screentip(C)
 
 /// Works out and shows the screentip for this client's mouse being over src
