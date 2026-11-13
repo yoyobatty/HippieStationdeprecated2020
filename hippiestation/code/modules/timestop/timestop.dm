@@ -225,6 +225,8 @@ GLOBAL_LIST_INIT(timestop_noz, typecacheof(list(/obj/screen)))
 
 /datum/controller/subsystem/air/fire(resumed = 0)
 	if(GLOB.timestop)
+		if(length(adjacent_rebuild)) // tiles still learn their neighbours while time's stopped, as when SSadjacent_air did this
+			process_adjacent_rebuild()
 		return
 	return ..()
 

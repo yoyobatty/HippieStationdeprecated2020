@@ -315,12 +315,14 @@
 #define NORMAL_TURF 1
 #define MAKE_ACTIVE 2
 #define KILL_EXCITED 3
+// hippie start -- the queue is SSair's first stage now, not SSadjacent_air's once a second (as tg did later)
 #ifdef TESTING
 GLOBAL_LIST_INIT(atmos_adjacent_savings, list(0,0))
-#define CALCULATE_ADJACENT_TURFS(T, state) if (SSadjacent_air.queue[T]) { GLOB.atmos_adjacent_savings[1] += 1 } else { GLOB.atmos_adjacent_savings[2] += 1; SSadjacent_air.queue[T] = state}
+#define CALCULATE_ADJACENT_TURFS(T, state) if (SSair.adjacent_rebuild[T]) { GLOB.atmos_adjacent_savings[1] += 1 } else { GLOB.atmos_adjacent_savings[2] += 1; SSair.adjacent_rebuild[T] = state}
 #else
-#define CALCULATE_ADJACENT_TURFS(T, state) SSadjacent_air.queue[T] = state
+#define CALCULATE_ADJACENT_TURFS(T, state) SSair.adjacent_rebuild[T] = state
 #endif
+// hippie end
 
 //If you're doing spreading things related to atmos, DO NOT USE CANATMOSPASS, IT IS NOT CHEAP. use this instead, the info is cached after all. it's tweaked just a bit to allow for circular checks
 #define TURFS_CAN_SHARE(T1, T2) ((T2.atmos_adjacent_turfs?[T1]) || LAZYLEN(T1.atmos_adjacent_turfs & T2.atmos_adjacent_turfs))

@@ -711,8 +711,8 @@ GLOBAL_VAR(atmos_bench_updaters)
 	atmos_bench_clean_tile(spot)
 
 	// Walls: a different one for each way of knocking one down, with extra air on one side to come through the gap.
-	// A knocked down wall gets its connections from SSadjacent_air, which runs every second, so "right after" can be
-	// wrong; two seconds on they have to be right.
+	// A knocked down wall gets its connections at the start of SSair's next fire (half a second at most), so "right after"
+	// can be wrong; two seconds on they have to be right, and the air through.
 	var/list/used = list(spot)
 	for(var/how in list("dismantled", "scraped away (build mode)", "blown up", "changed to plating"))
 		var/turf/closed/wall/W = atmos_bench_wall_between_floors(z, used)
@@ -811,7 +811,7 @@ GLOBAL_VAR(atmos_bench_updaters)
 
 	// Last, the real map (this takes the station apart, so nothing can come after it): everything on it that can hold
 	// air back, deleted one at a time and checked, then every open tile checked against what's really around it
-	sleep(2 SECONDS) // for SSadjacent_air to catch up on the tiles changed above
+	sleep(2 SECONDS) // for SSair's adjacent_rebuild to catch up on the tiles changed above
 	. += "  every open station tile checked before the sweep: [atmos_bench_connection_audit(z)] tiles with wrong connections"
 	var/list/obj/blockers = list()
 	var/list/kinds = list()

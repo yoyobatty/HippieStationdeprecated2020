@@ -11,7 +11,7 @@ SUBSYSTEM_DEF(air)
 	var/cost_atoms = 0
 	var/cost_turfs = 0
 	/// hippie -- every ms each stage has taken since boot, for benches: stage name -> ms
-	var/list/stage_ms = list("pipenets" = 0, "machinery" = 0, "turfs" = 0, "hotspots" = 0, "groups" = 0, "highpressure" = 0, "superconductivity" = 0)
+	var/list/stage_ms = list("adjacent" = 0, "pipenets" = 0, "machinery" = 0, "turfs" = 0, "hotspots" = 0, "groups" = 0, "highpressure" = 0, "superconductivity" = 0)
 	var/cost_groups = 0
 	var/cost_highpressure = 0
 	var/cost_hotspots = 0
@@ -27,6 +27,9 @@ SUBSYSTEM_DEF(air)
 	/// hippie -- the networks with something to do, the only ones process_pipenets() goes through. See /datum/pipeline/proc/queue_update().
 	var/list/updating_networks = list()
 	var/list/rebuild_queue = list()
+	/// hippie -- turfs to work out atmos_adjacent_turfs for (CALCULATE_ADJACENT_TURFS()), done before anything else each fire: turf -> NORMAL_TURF, MAKE_ACTIVE or KILL_EXCITED. Was SSadjacent_air's, which ran once a second, so a wall knocked down kept air out for up to a second.
+	var/list/adjacent_rebuild = list()
+	var/cost_adjacent = 0 // hippie
 	//Subservient to rebuild queue
 	var/list/expansion_queue = list()
 	/// A list of machines that will be processed when currentpart == SSAIR_ATMOSMACHINERY. Use SSair.begin_processing_machine and SSair.stop_processing_machine to add and remove machines.
@@ -65,6 +68,7 @@ SUBSYSTEM_DEF(air)
 	msg += "AM:[round(cost_atmos_machinery,1)]|"
 	msg += "AO:[round(cost_atoms, 1)]|"
 	msg += "RB:[round(cost_rebuilds,1)]|"
+	msg += "AJ:[round(cost_adjacent,1)]|" // hippie
 	msg += "} "
 	msg += "AT:[tile_engine_awake_count()]|" // hippie -- the tile engine's, when it keeps them (tile_engine.dm)
 	msg += "EG:[tile_engine_groups_count()]|"
@@ -76,6 +80,7 @@ SUBSYSTEM_DEF(air)
 	msg += "AO:[atom_process.len]|"
 	msg += "RB:[rebuild_queue.len]|"
 	msg += "EP:[expansion_queue.len]|"
+	msg += "AJ:[adjacent_rebuild.len]|" // hippie
 	msg += "AT/MS:[round((cost ? tile_engine_awake_count()/cost : 0),0.1)]"
 	return ..()
 
@@ -84,6 +89,7 @@ SUBSYSTEM_DEF(air)
 	map_loading = FALSE
 	gas_reactions = init_gas_reactions()
 	gas_reactions_by_key = init_gas_reactions_by_key(gas_reactions)
+	process_adjacent_rebuild(TRUE) // hippie -- what map loading queued, before setup_allturfs() as when SSadjacent_air did it (it initialised first)
 	setup_allturfs()
 	setup_atmos_machinery()
 	setup_pipenets()
@@ -97,6 +103,17 @@ SUBSYSTEM_DEF(air)
 
 	//Rebuilds can happen at any time, so this needs to be done outside of the normal system
 	cost_rebuilds = 0
+
+	// hippie start -- turfs' neighbours first, so nothing below runs on a knocked down wall's old ones (was SSadjacent_air, once a second)
+	if(length(adjacent_rebuild))
+		timer = TICK_USAGE_REAL
+		process_adjacent_rebuild()
+		var/adjacent_ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer)
+		cost_adjacent = MC_AVERAGE(cost_adjacent, adjacent_ms)
+		stage_ms["adjacent"] += adjacent_ms
+		if(state != SS_RUNNING)
+			return
+	// hippie end
 
 	// Every time we fire, we want to make sure pipenets are rebuilt. The game state could have changed between each fire() proc call
 	// and anything missing a pipenet can lead to unintended behaviour at worse and various runtimes at best.
@@ -266,6 +283,26 @@ SUBSYSTEM_DEF(air)
 		talk_to.process_exposure()
 		if(MC_TICK_CHECK)
 			return
+
+// hippie start -- SSadjacent_air's fire(), moved here (tg did the same later)
+/datum/controller/subsystem/air/proc/process_adjacent_rebuild(init = FALSE)
+	var/list/queue = adjacent_rebuild
+	while(length(queue))
+		var/turf/currT = queue[1]
+		var/goal = queue[currT]
+		queue.Cut(1, 2)
+
+		currT.ImmediateCalculateAdjacentTurfs()
+		if(goal == MAKE_ACTIVE)
+			add_to_active(currT)
+		else if(goal == KILL_EXCITED)
+			add_to_active(currT, TRUE)
+
+		if(init)
+			CHECK_TICK
+		else if(MC_TICK_CHECK)
+			return
+// hippie end
 
 /datum/controller/subsystem/air/proc/process_rebuilds()
 	//Yes this does mean rebuilding pipenets can freeze up the subsystem forever, but if we're in that situation something else is very wrong

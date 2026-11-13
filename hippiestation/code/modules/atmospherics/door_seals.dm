@@ -152,4 +152,4 @@ GLOBAL_VAR_INIT(door_seals, world.params["door-seals"] != "off")
 			// A shut door beside the shuttle that lost its side to it as it came in. ImmediateCalculateAdjacentTurfs() queued it to pick again,
 			// and it does once the whole shuttle is back, but that queue doesn't wake the air, and by then the shuttle's tiles have gone back to
 			// sleep: the tile kept the vacuum it had. The testbench's outer supply dock airlock sat at 0 kPa beside a docked shuttle full of air.
-			SSadjacent_air.queue[door_spot] = MAKE_ACTIVE
+			SSair.adjacent_rebuild[door_spot] = MAKE_ACTIVE

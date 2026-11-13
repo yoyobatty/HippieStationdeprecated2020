@@ -5,6 +5,7 @@ The best practice to have while coding is to keep everything modularized, or the
 
 # Sorted alphabetically filepath-wise.
 
+## code/__DEFINES/atmospherics.dm (CALCULATE_ADJACENT_TURFS() queues on SSair.adjacent_rebuild)
 ## code/__DEFINES/diseases.dm
 ## code/__DEFINES/MC.dm
 ## code/__DEFINES/misc.dm
@@ -28,7 +29,8 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/failsafe.dm
 ## code/controllers/master.dm
 ## code/controllers/subsystem.dm
-## code/controllers/subsystem/air.dm
+## code/controllers/subsystem/adjacent_air.dm (out of the .dme: its queue is SSair's first stage now, as on tg later)
+## code/controllers/subsystem/air.dm (adjacent_rebuild: turfs' neighbours worked out at the start of each fire, was SSadjacent_air once a second)
 ## code/controllers/subsystem/assets.dm
 ## code/controllers/subsystem/blackbox.dm
 ## code/controllers/subsystem/dbcore.dm (out of the .dme: rewritten whole as hippiestation/code/controllers/subsystem/dbcore.dm, rust_g instead of BSQL)
