@@ -62,6 +62,10 @@ GLOBAL_LIST_EMPTY(bot_ticking_bombs)
 /datum/bot_brain/proc/bomb_spot()
 	if(gym_sabotage_spot)
 		return gym_sabotage_spot
+	if(apex_strike) //apex/kill_planner.dm: out to kill everybody, it goes where everybody is
+		var/turf/crowd = sabotage_crowd_spot()
+		if(crowd)
+			return crowd
 	var/list/rooms = shuffle(list(/area/bridge, /area/security/main, /area/security/brig))
 	for(var/room_type in rooms)
 		var/list/floors = list()

@@ -126,6 +126,7 @@ GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor,
 		traitor_plan = forced || ((nerve + temper) / 2 >= BOT_RAMPAGE_TEMPER ? BOT_TRAITOR_RAMPAGE : BOT_TRAITOR_HIT_LIST)
 		set_playstyle(BOT_STYLE_ROBUST)
 		traitor_business_after = world.time + rand(BOT_LOUD_WAIT_MIN, BOT_LOUD_WAIT_MAX)
+		plan_crew_kill() //apex/kill_planner.dm: an apex one opens with the deadliest sabotage it can manage
 	bot_log(src, "traitor plan: [traitor_plan][uses_codewords ? ", code words" : ""]")
 
 /// An objective there's no doing quietly: the shuttle to take, a glorious death to die, or a target who's never on their own.

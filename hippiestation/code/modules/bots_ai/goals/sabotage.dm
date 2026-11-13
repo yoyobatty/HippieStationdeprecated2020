@@ -77,7 +77,7 @@ GLOBAL_LIST_INIT(bot_sabotage_acts, init_bot_sabotage_acts())
 
 /// From the traitor duty (goals/traitor.dm): its next act, if one's due and it can start one. TRUE if it has.
 /datum/bot_brain/proc/try_sabotage()
-	if(!saboteur || sabotage_acts_left <= 0 || world.time < next_sabotage_time || gone_loud())
+	if(!saboteur || sabotage_acts_left <= 0 || world.time < next_sabotage_time || (gone_loud() && !apex_strike)) //apex/kill_planner.dm: nanosuit or not
 		return FALSE
 	var/datum/bot_sabotage/act = pick_sabotage()
 	if(!act)
@@ -124,7 +124,7 @@ GLOBAL_LIST_INIT(bot_sabotage_acts, init_bot_sabotage_acts())
 	for(var/datum/bot_sabotage/S as anything in GLOB.bot_sabotage_acts)
 		if(LAZYACCESS(sabotage_given_up, S.id) > world.time)
 			continue
-		var/w = S.weight(src)
+		var/w = S.weight(src) * sabotage_lethality(S) //apex/kill_planner.dm: an apex rampager goes for what takes the most of them
 		if(w <= 0)
 			continue
 		if(S.id in sabotage_done)
@@ -185,7 +185,8 @@ GLOBAL_LIST_INIT(bot_sabotage_acts, init_bot_sabotage_acts())
 
 /// Waits for the room to empty, for as long as it'll wait. TRUE once it's going ahead.
 /datum/bot_brain/proc/sabotage_unwatched(started_waiting)
-	return !watched_by_anyone() || world.time > started_waiting + BOT_SABOTAGE_PATIENCE
+	// An apex rampager's opening strike (apex/kill_planner.dm) is going to take whoever's watching with it: a moment's look, no more
+	return !watched_by_anyone() || world.time > started_waiting + (apex_strike ? 5 SECONDS : BOT_SABOTAGE_PATIENCE)
 
 /// Where people are: the station's busy public rooms, the one with the most in it now. A player knows the Bar's where everybody is.
 /datum/bot_brain/proc/sabotage_crowd_spot(list/area_types)
