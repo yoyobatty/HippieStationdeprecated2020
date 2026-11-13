@@ -779,6 +779,10 @@
 	var/wall_was = /turf/closed/wall
 	/// What's left of it on the tile, if anything
 	var/left_behind
+	/// What it should put up, if not what was there
+	var/expect_type
+	/// A plain wall stands there to begin with, to be reinforced: not a wrong answer yet
+	var/reinforcing = FALSE
 
 /datum/bot_scenario/duty/wall/New()
 	duty_type = text2path("/datum/bot_duty/rebuild_walls")
@@ -788,8 +792,12 @@
 	..()
 	give_job_id(list())
 	wall_spot = wall_spot_turf()
+	knock_down()
+
+/// What a blast does: the wall's gone, the floor under it left
+/datum/bot_scenario/duty/wall/proc/knock_down()
 	wall_spot.PlaceOnTop(wall_was)
-	wall_spot = wall_spot.ScrapeAway() //what a blast does: the wall's gone, the floor under it left
+	wall_spot = wall_spot.ScrapeAway()
 	if(left_behind)
 		new left_behind(wall_spot)
 
@@ -800,11 +808,13 @@
 /datum/bot_scenario/duty/wall/check()
 	if(bot_lost())
 		return BOT_GYM_FAIL
+	var/wanted = expect_type || wall_was
 	if(istype(wall_spot, /turf/closed/wall))
-		if(wall_spot.type != wall_was)
-			fail_reason = "built [wall_spot.type], not [wall_was]"
+		if(wall_spot.type == wanted)
+			return BOT_GYM_PASS
+		if(wall_spot.type != /turf/closed/wall || wanted != /turf/closed/wall/r_wall || !reinforcing)
+			fail_reason = "built [wall_spot.type], not [wanted]"
 			return BOT_GYM_FAIL
-		return BOT_GYM_PASS
 	return BOT_GYM_PENDING
 
 /datum/bot_scenario/duty/wall/gone
@@ -842,6 +852,7 @@
 		"#qqqqqqq#",
 		"#########")
 	var/mob/living/silicon/ai/ai
+	var/make_ai = TRUE
 
 /// q the room's floor
 /datum/bot_scenario/duty/wall/behind_door/setup()
@@ -861,6 +872,8 @@
 
 /datum/bot_scenario/duty/wall/behind_door/post_spawn()
 	..()
+	if(!make_ai)
+		return
 	ai = bot_make_silicon("AI") //goals/silicon.dm: as a round makes one, at the station's AI landmark
 	if(!ai)
 		log_line("no AI could be made")
@@ -872,6 +885,52 @@
 	if(!QDELETED(ai))
 		qdel(ai)
 	return ..()
+
+/// No AI to ask: it calls for somebody with access, and somebody whose ID opens the door comes and lets it in (the user's ruling,
+/// 2026-11-13: "call a head to let in", for the rooms the AI keeps to command too).
+/datum/bot_scenario/duty/wall/behind_door/no_ai
+	name = "repairs: a wall in a room its ID doesn't open, no AI: somebody with access lets it in"
+	desc = "The same locked room with no AI aboard. It asks on the radio for somebody with access to let it in; the crewman with the Captain's access comes over and opens the door."
+	station_wide = FALSE
+	make_ai = FALSE
+	layout = list(
+		"#########",
+		"#B....C.#",
+		"####D####",
+		"#qqqqqqq#",
+		"#########")
+	var/mob/living/carbon/human/opener
+
+/datum/bot_scenario/duty/wall/behind_door/no_ai/post_spawn()
+	..()
+	brain.gym_scripted = FALSE //a scripted bot makes no calls (call_for())
+	opener = second_bot(first_marker("C"), "Doug Doorman")
+	var/obj/item/card/id/C = new(opener)
+	C.access = list(ACCESS_CAPTAIN)
+	opener.equip_to_slot_or_del(C, ITEM_SLOT_ID)
+
+/// No plasteel to be had for a reinforced wall: a plain one to seal it, for now (the user's ruling, 2026-11-13). MetaStation's engineers
+/// left a reinforced wall open for want of it: "no way into where the plasteel is".
+/datum/bot_scenario/duty/wall/no_plasteel
+	name = "repairs: a reinforced wall with no plasteel to be had, a plain one for now"
+	desc = "A reinforced wall blown out, metal in the bag and no plasteel anywhere. A plain wall goes up to seal it."
+	wall_was = /turf/closed/wall/r_wall
+	expect_type = /turf/closed/wall
+
+/// The plain wall put up for want of plasteel, reinforced now there's plasteel: the plating sliced off with a welder, down to the girder,
+/// then the plasteel on it. The list it's on is named by text so the run without it still builds.
+/datum/bot_scenario/duty/wall/reinforce_later
+	name = "repairs: a wall put back plain is reinforced once there's plasteel"
+	desc = "A plain wall standing where a reinforced one was, plasteel and a welder in the bag. The welder takes it down to its girder, and two plasteel sheets make it reinforced."
+	wall_was = /turf/closed/wall/r_wall
+	kit_backpack = list(/obj/item/stack/sheet/plasteel/twenty, /obj/item/weldingtool)
+
+/datum/bot_scenario/duty/wall/reinforce_later/knock_down()
+	reinforcing = TRUE
+	wall_spot.PlaceOnTop(/turf/closed/wall)
+	var/list/to_reinforce = GLOB.vars["bot_walls_to_reinforce"]
+	if(islist(to_reinforce))
+		to_reinforce |= wall_spot
 
 /datum/bot_scenario/alert
 	name = "chaos: a head of staff puts the station on alert"

@@ -216,9 +216,14 @@ GLOBAL_LIST_EMPTY(bot_lost_walls)
 
 /// A wall gone from this tile: from ChangeTurf(), the tile as it is now and what it was.
 /proc/bot_note_lost_wall(turf/T, was)
+	if(T in GLOB.bot_reinforcing)
+		return //taken down to its girder to be reinforced (reinforce_wall): not lost
 	var/wall_type = bot_rebuilt_wall_type(was)
 	if(!wall_type || !T)
 		return
+	if(T in GLOB.bot_walls_to_reinforce) //put back plain for want of plasteel, and gone again: it was a reinforced wall
+		GLOB.bot_walls_to_reinforce -= T
+		wall_type = /turf/closed/wall/r_wall
 	var/area/A = get_area(T)
 	if(!A || istype(A, /area/space) || istype(A, /area/shuttle) || istype(A, /area/science/test_area) || istype(T, /turf/open/space/transit))
 		return //out in space, a shuttle, or the toxins range: blown up on purpose
@@ -289,10 +294,15 @@ GLOBAL_LIST_EMPTY(bot_lost_walls)
 	return ..() || bot_is_helper(bot) //goals/team_repairs.dm
 
 /datum/bot_duty/rebuild_walls/try_start(datum/bot_brain/bot)
-	if(!length(GLOB.bot_lost_walls) || world.time < bot.wall_work_blocked_until)
-		return FALSE
-	var/datum/bot_lost_wall/W = bot.pick_lost_wall()
-	return W ? bot.assign_goal(new /datum/bot_goal/rebuild_wall(W, bot.repair_door_plan)) : FALSE
+	if(length(GLOB.bot_lost_walls) && world.time >= bot.wall_work_blocked_until)
+		var/datum/bot_lost_wall/W = bot.pick_lost_wall()
+		if(W)
+			return bot.assign_goal(new /datum/bot_goal/rebuild_wall(W, bot.repair_door_plan))
+	if(length(GLOB.bot_walls_to_reinforce) && world.time >= bot.reinforce_blocked_until)
+		var/turf/T = bot.pick_wall_to_reinforce()
+		if(T)
+			return bot.assign_goal(new /datum/bot_goal/reinforce_wall(T))
+	return FALSE
 
 /datum/bot_goal/rebuild_wall
 	lawful = TRUE
@@ -300,6 +310,12 @@ GLOBAL_LIST_EMPTY(bot_lost_walls)
 	braves_bad_air = TRUE //a wall out to space took the room's air: it suits up first (ensure_suit_for_wall)
 	doing = "putting a wall back"
 	var/datum/bot_lost_wall/lost
+	/// No plasteel to be had for a reinforced wall: a plain one for now, to seal it, reinforced later (the user's ruling, 2026-11-13)
+	var/make_do = FALSE
+
+/// What it's putting up: the wall that was there, or a plain one for now
+/datum/bot_goal/rebuild_wall/proc/wanted_type()
+	return make_do ? /turf/closed/wall : lost.wall_type
 
 /datum/bot_goal/rebuild_wall/New(datum/bot_lost_wall/W, list/door_plan)
 	. = ..()
@@ -324,6 +340,11 @@ GLOBAL_LIST_EMPTY(bot_lost_walls)
 	GLOB.bot_lost_walls -= lost
 	bot.walls_rebuilt++
 	bot_tally("walls rebuilt")
+	if(make_do)
+		GLOB.bot_walls_to_reinforce |= lost.where
+		bot_tally("walls put back plain for want of plasteel")
+		bot_log(bot, "rebuilt the wall at [bot_coord(lost.where)] plain, for want of plasteel: to be reinforced")
+		return
 	bot_log(bot, "rebuilt the [lost.wall_type == /turf/closed/wall/r_wall ? "reinforced " : ""]wall at [bot_coord(lost.where)]")
 
 /// The sheet the girder takes next, and how many: two metal for a plain wall; plasteel to reinforce it, and plasteel to finish.
@@ -335,14 +356,14 @@ GLOBAL_LIST_EMPTY(bot_lost_walls)
 		return null
 	switch(G.state)
 		if(GIRDER_REINF, GIRDER_REINF_STRUTS)
-			return /obj/item/stack/sheet/plasteel
+			return make_do ? /obj/item/stack/sheet/metal : /obj/item/stack/sheet/plasteel //metal on any girder makes a plain wall (girders.dm)
 		if(GIRDER_NORMAL)
-			return lost.wall_type == /turf/closed/wall/r_wall ? /obj/item/stack/sheet/plasteel : /obj/item/stack/sheet/metal
+			return wanted_type() == /turf/closed/wall/r_wall ? /obj/item/stack/sheet/plasteel : /obj/item/stack/sheet/metal
 	return null
 
 /// What it has to have on it before it sets off: list(sheet type = how many), from what's on the tile now.
 /datum/bot_goal/rebuild_wall/proc/sheets_needed()
-	var/reinforced = lost.wall_type == /turf/closed/wall/r_wall
+	var/reinforced = wanted_type() == /turf/closed/wall/r_wall
 	var/obj/structure/girder/G = locate() in lost.where
 	if(!G)
 		return reinforced ? list(/obj/item/stack/sheet/metal = 2, /obj/item/stack/sheet/plasteel = 2) : list(/obj/item/stack/sheet/metal = 4)
@@ -385,6 +406,10 @@ GLOBAL_LIST_EMPTY(bot_lost_walls)
 		if(bot.carried_stack(sheet_type, needed[sheet_type]))
 			continue
 		if(LAZYFIND(tried, sheet_type))
+			if(sheet_type == /obj/item/stack/sheet/plasteel && !G.make_do)
+				G.make_do = TRUE
+				bot_log(bot, "no plasteel to be had for the reinforced wall at [bot_coord(G.lost.where)]: a plain one for now, to seal it")
+				return execute(bot) //what a plain wall takes
 			var/obj/item/stack/sheet/S = sheet_type
 			bot_log(bot, "not enough [initial(S.name)] to be had for the wall at [bot_coord(G.lost.where)]")
 			bot.wall_work_blocked_until = world.time + 5 MINUTES
@@ -394,7 +419,9 @@ GLOBAL_LIST_EMPTY(bot_lost_walls)
 		get.item_type = sheet_type
 		get.lawful = TRUE
 		get.doing = "getting what it takes to put a wall back"
-		return bot.suspend_goal_for(get) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
+		if(bot.suspend_goal_for(get))
+			return GOAL_STEP_PENDING
+		return execute(bot) //none it can get to ("no way into where the plasteel is", MetaStation): tried, and on from there
 	return GOAL_STEP_SUCCESS
 
 /// Stood on the tile for the girder, then from beside it a sheet at a time on the girder.
@@ -459,6 +486,139 @@ GLOBAL_LIST_EMPTY(bot_lost_walls)
 	return istype(G?.lost?.where, /turf/closed/wall) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 
 // ---------------------------------------------------------------------------------------------
+// Reinforcing a wall put back plain
+// ---------------------------------------------------------------------------------------------
+// A reinforced wall put back plain for want of plasteel (the user's ruling, 2026-11-13: "plain wall for now") is reinforced once there's
+// plasteel to be had, as a player does it: the plating sliced off with a lit welder, which brings the wall down to its girder, then a
+// plasteel sheet to reinforce the girder and a second to finish. Not on the hull: a girder doesn't hold air, and the room would go out
+// through it for the half minute it takes. A wall on the hull stays plain.
+
+GLOBAL_LIST_EMPTY(bot_walls_to_reinforce)
+/// Walls a bot has taken down to the girder to reinforce: not lost (bot_note_lost_wall())
+GLOBAL_LIST_EMPTY(bot_reinforcing)
+
+/datum/bot_brain
+	/// No plasteel or welder to be had: no wall is worth reinforcing before this
+	var/reinforce_blocked_until = 0
+	/// Wall -> when it's worth another look
+	var/list/reinforce_blocked
+
+/// Space beside it: a wall on the hull.
+/proc/bot_wall_on_hull(turf/T)
+	for(var/direction in GLOB.cardinals)
+		if(istype(get_step(T, direction), /turf/open/space))
+			return TRUE
+	return FALSE
+
+/// The nearest wall put back plain that it can get to and nobody else is at.
+/datum/bot_brain/proc/pick_wall_to_reinforce()
+	var/turf/best
+	for(var/turf/T as anything in GLOB.bot_walls_to_reinforce.Copy())
+		if(!istype(T, /turf/closed/wall) || istype(T, /turf/closed/wall/r_wall))
+			GLOB.bot_walls_to_reinforce -= T //reinforced, or gone again (a lost wall again: bot_note_lost_wall())
+			continue
+		if(T.z != owner.z || (gym_run && !gym_run.in_arena(T)) || LAZYACCESS(reinforce_blocked, T) > world.time || taken_by_another(T) || bot_wall_on_hull(T) || get_dist(owner, T) > 80)
+			continue
+		if(!best || get_dist(owner, T) < get_dist(owner, best))
+			best = T
+	if(best && !can_walk_lawfully_to(best))
+		LAZYSET(reinforce_blocked, best, world.time + 5 MINUTES)
+		return null
+	return best
+
+/datum/bot_goal/reinforce_wall
+	lawful = TRUE
+	exclusive = TRUE
+	doing = "reinforcing a wall"
+
+/datum/bot_goal/reinforce_wall/New(turf/T)
+	. = ..()
+	target = T
+
+/datum/bot_goal/reinforce_wall/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/rebuild_wall/S = new
+	S.steps = list(new /datum/bot_step/get_reinforce_materials(), new /datum/bot_step/move_to(), new /datum/bot_step/paced/reinforce_wall())
+	return list(S)
+
+/datum/bot_goal/reinforce_wall/on_give_up(datum/bot_brain/bot)
+	var/turf/T = target
+	if(!T)
+		return
+	GLOB.bot_reinforcing -= T
+	if(!istype(T, /turf/closed/wall))
+		bot_note_lost_wall(T, /turf/closed/wall/r_wall) //left at its girder: a reinforced wall lost, for whoever's next
+	else
+		LAZYSET(bot.reinforce_blocked, T, world.time + 10 MINUTES)
+
+/datum/bot_goal/reinforce_wall/on_success(datum/bot_brain/bot)
+	GLOB.bot_reinforcing -= target
+	GLOB.bot_walls_to_reinforce -= target
+	bot_tally("walls reinforced")
+	bot_log(bot, "reinforced the wall at [bot_coord(target)]")
+
+/// Two plasteel sheets and a welder, fetched once each. None to be had is the end of reinforcing for a while.
+/datum/bot_step/get_reinforce_materials
+	var/list/tried
+
+/datum/bot_step/get_reinforce_materials/execute(datum/bot_brain/bot)
+	var/list/needed = list(/obj/item/stack/sheet/plasteel = 2, /obj/item/weldingtool = 1)
+	for(var/thing in needed)
+		if(ispath(thing, /obj/item/stack) ? bot.carried_stack(thing, needed[thing]) : bot.find_carried_tool(thing))
+			continue
+		if(LAZYFIND(tried, thing))
+			bot_log(bot, "nothing to reinforce the wall at [bot_coord(bot.current_goal?.target)] with: no [thing == /obj/item/weldingtool ? "welder" : "plasteel"] to be had")
+			bot.reinforce_blocked_until = world.time + 10 MINUTES
+			return GOAL_STEP_FAIL
+		LAZYADD(tried, thing)
+		var/datum/bot_goal/acquire_item_type/get = new
+		get.item_type = thing
+		get.lawful = TRUE
+		get.doing = "getting what it takes to reinforce a wall"
+		if(bot.suspend_goal_for(get))
+			return GOAL_STEP_PENDING
+		return execute(bot)
+	return GOAL_STEP_SUCCESS
+
+/// The wall cut down to its girder with the welder, from beside it; then the plasteel on the girder, a sheet at a time.
+/datum/bot_step/paced/reinforce_wall
+	max_clicks = 6
+
+/datum/bot_step/paced/reinforce_wall/do_click(datum/bot_brain/bot)
+	var/turf/T = bot.current_goal?.target
+	var/mob/living/carbon/human/H = bot.owner
+	if(!T || istype(T, /turf/closed/wall/r_wall) || H.incapacitated())
+		return FALSE
+	if(istype(T, /turf/closed/wall))
+		if(!H.Adjacent(T) || bot_wall_on_hull(T))
+			return FALSE
+		var/obj/item/weldingtool/W = bot.find_carried_tool(/obj/item/weldingtool)
+		if(!W || !bot.ready_in_hand(W))
+			return FALSE
+		bot.equip_welding_eye_protection()
+		if(!W.isOn())
+			bot.toggle_in_hand(W)
+		if(!W.isOn())
+			return FALSE
+		GLOB.bot_reinforcing |= T
+		H.face_atom(T)
+		bot.use_tool_on(W, T) //wall/try_decon(): ten seconds slicing the plating off, down to its girder
+		if(!QDELETED(W) && W.isOn() && H.is_holding(W))
+			bot.toggle_in_hand(W) //off again before it goes in the bag
+		return TRUE
+	var/obj/structure/girder/G = locate() in T
+	if(!G || !H.Adjacent(G))
+		return FALSE
+	var/obj/item/stack/sheet/plasteel/P = bot.carried_stack(/obj/item/stack/sheet/plasteel, 1)
+	if(!P || !bot.ready_in_hand(P))
+		return FALSE
+	H.face_atom(G)
+	bot.use_tool_on(P, G) //girder/attackby(): reinforced (six seconds), then finished (five)
+	return TRUE
+
+/datum/bot_step/paced/reinforce_wall/finish(datum/bot_brain/bot)
+	return istype(bot.current_goal?.target, /turf/closed/wall/r_wall) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+
+// ---------------------------------------------------------------------------------------------
 // A repair behind a door its ID doesn't open
 // ---------------------------------------------------------------------------------------------
 // The user's ruling (2026-11-13): an engineer who has to get into a room its ID doesn't open for a repair asks the AI over the radio to
@@ -502,15 +662,12 @@ GLOBAL_LIST_EMPTY(bot_lost_walls)
 			return TRUE
 	return FALSE
 
-/// For a repair in a room this bot's ID doesn't open: list(the floor outside, the door) to ask the AI from, or null. The nearest door
-/// into the room from outside it, six tried at most. Null with no AI about, or for a room the AI keeps shut to all but command when
-/// this bot isn't command.
+/// For a repair in a room this bot's ID doesn't open: list(the floor outside, the door) to ask to be let in from, or null. The nearest
+/// door into the room from outside it, six tried at most. Whether it's the AI it asks or somebody with access is for the asking.
 /datum/bot_brain/proc/repair_doorstep(turf/site)
-	if(!site || !bot_ai_can_open_doors())
+	if(!site)
 		return null
 	var/area/room = get_area(site)
-	if(bot_ai_restricted_area(room) && !(owner.mind?.assigned_role in GLOB.command_positions))
-		return null
 	var/list/spots = list() //floor outside -> list(door, how far it is from the repair)
 	for(var/obj/machinery/door/airlock/D as anything in bot_instances_of(/obj/machinery/door/airlock))
 		if(QDELETED(D) || D.z != site.z || get_dist(D, site) > 30 || istype(D, /obj/machinery/door/airlock/external) || D.welded || !D.hasPower())
@@ -537,24 +694,46 @@ GLOBAL_LIST_EMPTY(bot_lost_walls)
 /// gives the job up for now. Nothing opening a while after the first (or no radio to ask on), it presses the door's request as well, which
 /// reaches the AI by the door's own wiring (press_door_request(), bot_radio.dm): a strict AI asks what for, and the second ask on the radio
 /// is the answer. Once it opens, that door is its way in on this errand (let_in_door_now(), bot_doors.dm).
+/// Then somebody with access (the user's ruling, 2026-11-13: "call a head to let in"): for a room the AI keeps to command, or with no AI
+/// about, straight away; otherwise once the AI's had its chance. It's the call to be let in (let_out, bot_requests.dm), and whoever's ID
+/// opens the door comes over and opens it.
 /datum/bot_step/paced/ask_ai_for_door
 	max_clicks = 4
 	var/until = 0
+	var/started = 0
 	var/asked_at = -INFINITY
 	var/asks = 0
 	var/pressed = FALSE
+	var/called = FALSE
 
 /datum/bot_step/paced/ask_ai_for_door/start(datum/bot_brain/bot)
 	until = world.time + 70 SECONDS
+	started = world.time
 	asked_at = -INFINITY
 	asks = 0
 	pressed = FALSE
+	called = FALSE
 	return TRUE
 
 /datum/bot_step/paced/ask_ai_for_door/do_click(datum/bot_brain/bot)
 	var/obj/machinery/door/airlock/D = bot.current_goal?.ask_door_ref?.resolve()
 	if(world.time > until || !D || QDELETED(D) || !D.density)
 		return FALSE
+	var/area/room = get_area(bot.current_goal.target)
+	var/what = bot.current_goal.door_reason()
+	var/ai_will = bot_ai_can_open_doors() && (!bot_ai_restricted_area(room) || (bot.owner.mind?.assigned_role in GLOB.command_positions))
+	if(!called && (!ai_will || world.time > started + 35 SECONDS))
+		called = TRUE
+		until = max(until, world.time + 90 SECONDS) //somebody walking over from wherever they are
+		bot.call_for(/datum/bot_request_kind/let_out, pick(
+			"Can somebody with access let me into [room?.name || "here"]? I need to [what] in there.",
+			"Anyone with access to [room?.name || "this room"]? Could you let me into it, I need to [what] in there.",
+			"Engineering here, at the door to [room?.name || "this room"]. Can someone let me into it? I need to [what]."), list(D))
+		wait_for = 10
+		return TRUE
+	if(!ai_will)
+		wait_for = 10
+		return TRUE
 	var/radio = bot.radio_works()
 	if(!pressed && (asks || !radio) && world.time > asked_at + 12 SECONDS)
 		pressed = TRUE
@@ -564,8 +743,6 @@ GLOBAL_LIST_EMPTY(bot_lost_walls)
 	if(radio && asks < 2 && world.time > asked_at + 30 SECONDS)
 		asked_at = world.time
 		asks++
-		var/area/room = get_area(bot.current_goal.target)
-		var/what = bot.current_goal.door_reason()
 		bot.say_after_typing(pick(
 			";AI, open this door please, I need to [what] in [room?.name || "there"].",
 			";AI, door please. Engineering, here to [what] in [room?.name || "there"].",
@@ -580,7 +757,7 @@ GLOBAL_LIST_EMPTY(bot_lost_walls)
 		bot.let_in_until = world.time + 20 SECONDS
 		bot_log(bot, "[D] opened for it: in to [bot.current_goal?.target]")
 		return GOAL_STEP_SUCCESS
-	bot_log(bot, "asked the AI to open [D || "the door"] for [bot.current_goal?.target] and nobody did")
+	bot_log(bot, "asked to be let in at [D || "the door"] for [bot.current_goal?.target] and nobody did")
 	return GOAL_STEP_FAIL
 
 // ---------------------------------------------------------------------------------------------

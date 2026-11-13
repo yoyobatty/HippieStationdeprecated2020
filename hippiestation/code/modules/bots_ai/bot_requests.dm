@@ -736,6 +736,8 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 	// They head for it while it's open. Whatever they were at in there can wait: they asked to be let out, and nothing in there
 	// was getting done (an assistant on a walk that had died under it never got the word, five doors opened for it).
 	var/datum/bot_brain/theirs = istype(who) ? who.bot_brain : null
+	if(theirs?.current_goal?.let_in_on_errand)
+		return //stood at the door on an errand of its own (a repair, goals/repair_damage.dm): it goes in by itself, the errand and all
 	if(theirs && theirs.state != BOT_STATE_COMBAT && theirs.state != BOT_STATE_ARREST && !QDELETED(D))
 		var/list/inside = theirs.shut_in_region
 		if(theirs.current_goal)
