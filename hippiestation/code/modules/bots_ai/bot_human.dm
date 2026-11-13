@@ -14,10 +14,7 @@
 //
 // Telemetry (bot_telemetry.dm) and the Bot Gym report where bots still don't meet these rules.
 
-#define BOT_CLICK_INTERVAL_MIN 4 //deciseconds between clicks, like a person clicking steadily
-#define BOT_CLICK_INTERVAL_MAX 7
-#define BOT_REACTION_MIN 1 //extra delay when turning to a different thing
-#define BOT_REACTION_MAX 3
+// The pace itself (between clicks, and turning to a different thing) is in foundation/human_limits.dm, by skill.
 
 /datum/bot_brain
 	var/next_click_time = 0
@@ -34,12 +31,12 @@
 	var/wait = next_click_time - world.time
 	var/datum/weakref/target_ref = WEAKREF(target)
 	if(target_ref != last_click_target)
-		wait = max(wait, 0) + rand(BOT_REACTION_MIN, BOT_REACTION_MAX)
+		wait = max(wait, 0) + reaction_delay() //foundation/human_limits.dm
 	if(wait > 0)
 		mid_click_until = world.time + wait
 		sleep(wait)
 	last_click_target = target_ref
-	next_click_time = world.time + rand(BOT_CLICK_INTERVAL_MIN, BOT_CLICK_INTERVAL_MAX)
+	next_click_time = world.time + click_interval()
 
 /// Gets I into the active hand, drawing it from the belt/backpack/pocket or picking it up, using a
 /// free hand when there is one instead of stowing things unnecessarily. Returns TRUE on success.

@@ -75,3 +75,10 @@
 
 /// What path_engine_astar() (bot_path_engine.dm) returns when AStar() should do the search itself
 #define PATH_ENGINE_FALLBACK -1
+
+/// The skill dial (bots_ai/foundation/skill.dm): from here up a bot knows the tricks a robust player does
+#define BOT_SKILL_MID 0.6
+/// and from here up it's apex: every trick, set up on purpose
+#define BOT_SKILL_APEX 0.9
+/// What a way through a locker, canister or tank costs on top of the step, in tiles (foundation/movables.dm)
+#define BOT_MOVABLE_PATH_PENALTY 10

@@ -63,6 +63,7 @@ GLOBAL_LIST_INIT(path_engine_deadly_types, typecacheof(list(/turf/open/space/tra
 /// bot_turf_penalty() by type: what each adds, or how to work it out
 #define PATH_ENGINE_PENALTY_AIRLOCK -1
 #define PATH_ENGINE_PENALTY_FIREDOOR -2
+#define PATH_ENGINE_PENALTY_MOVABLE -3
 GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 
 /proc/path_engine_penalty_types()
@@ -71,6 +72,9 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 		list(/obj/machinery/door/airlock, PATH_ENGINE_PENALTY_AIRLOCK), list(/obj/machinery/door/firedoor, PATH_ENGINE_PENALTY_FIREDOOR), list(/obj/structure/table, 8)))
 		for(var/type in typesof(kind[1]))
 			.[type] = kind[2]
+	for(var/type in typecacheof(bot_movable_penalty_kinds())) //bot_movable_penalty(), foundation/movables.dm
+		if(!.[type])
+			.[type] = PATH_ENGINE_PENALTY_MOVABLE
 
 /// What path_engine_rounds() asks about one side at a time: 1 for windows, windoors and external airlocks, 2 for the other airlocks,
 /// which only are when they have an id_tag (a button on one side)
@@ -337,6 +341,8 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 								penalty += A.security_level ? 25 : 8
 								if(A.welded)
 									penalty += 15
+						else if(kind_of_penalty == PATH_ENGINE_PENALTY_MOVABLE)
+							penalty += bot_movable_penalty(O)
 						else if(kind_of_penalty == PATH_ENGINE_PENALTY_FIREDOOR)
 							var/obj/machinery/door/firedoor/F = O
 							if(F.density && F.welded)
@@ -636,6 +642,7 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 #undef PATH_ENGINE_VERSION
 #undef PATH_ENGINE_PENALTY_AIRLOCK
 #undef PATH_ENGINE_PENALTY_FIREDOOR
+#undef PATH_ENGINE_PENALTY_MOVABLE
 #undef PATH_PICTURE_UNIT
 #undef PATH_PICTURE_OPEN
 #undef PATH_PICTURE_SOLID

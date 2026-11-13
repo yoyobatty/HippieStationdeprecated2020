@@ -666,6 +666,10 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 		C.open(owner)
 		if(!C.density)
 			return TRUE
+	// Something that could be moved out of the way (a locked locker, a canister, a fuel tank, a crate behind a crate): pushed along,
+	// pulled back into a side passage, climbed (foundation/clear_way.dm).
+	if(bot_movable_obstacle(O, owner) && clear_way_past(O))
+		return TRUE
 	// Anything else physically in the way (window, grille, windoor, machine, crate...): only broken
 	// when the bot is in real danger, with the weapon that gets through fastest - carried, lying
 	// nearby, or in a wall cabinet. See bot_breach.dm. This used to swing whatever was in hand,

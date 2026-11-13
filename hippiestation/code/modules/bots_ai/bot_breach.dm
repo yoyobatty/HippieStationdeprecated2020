@@ -129,10 +129,10 @@ GLOBAL_VAR_INIT(bot_urgency_shadow, ("bot-urgency-shadow" in world.params))
 
 /// Whether the bot is currently desperate enough to break things that aren't doors.
 /datum/bot_brain/proc/destruction_allowed()
-	return get_urgency() >= BOT_URGENCY_EMERGENCY
+	return breach_urgency() >= BOT_URGENCY_EMERGENCY //foundation/escape.dm: an apex bot breaking out counts as an emergency
 
 /datum/bot_brain/proc/breach_hit_budget()
-	switch(get_urgency())
+	switch(breach_urgency())
 		if(BOT_URGENCY_PANIC)
 			return BOT_BREACH_MAX_HITS_PANIC
 		if(BOT_URGENCY_EMERGENCY)
@@ -282,6 +282,9 @@ GLOBAL_VAR_INIT(bot_urgency_shadow, ("bot-urgency-shadow" in world.params))
 /// weapon was started; FALSE if the bot won't or can't.
 /datum/bot_brain/proc/try_breach(obj/O)
 	var/urgency = check_urgency()
+	if(urgency < BOT_URGENCY_EMERGENCY && breaks_out()) //foundation/escape.dm
+		bot_log(src, "[O] is in the way and there's no other way - breaking through it")
+		urgency = BOT_URGENCY_EMERGENCY
 	if(urgency < BOT_URGENCY_EMERGENCY)
 		bot_log(src, "[O] is in the way - not an emergency ([bot_urgency_name(urgency)]), so I won't break it")
 		return FALSE

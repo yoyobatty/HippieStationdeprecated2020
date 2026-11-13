@@ -242,11 +242,14 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 	// The climbing pass run for somebody hemmed in on an everyday errand (pathing_climb_only, bot_movement.dm):
 	// the ordinary rules, plus over the furniture - no forcing doors, no breaking anything.
 	var/mob/living/carbon/human/walker = caller
+	// The last route search (foundation/clear_way.dm): something in the way that could be moved out of it.
+	if(istype(walker) && walker.bot_brain?.pathing_through_movables && bot_movable_obstacle(O, walker))
+		return TRUE
 	if(istype(walker) && walker.bot_brain?.pathing_climb_only)
 		if(O.CanAStarPass(ID, to_dir, caller))
 			return TRUE
 		var/obj/structure/furniture = O
-		return istype(furniture) && furniture.climbable
+		return istype(furniture) && furniture.climbable && walker.bot_brain.pathing_allow_climb //off for a lawful walk past movables that isn't hemmed in (foundation/clear_way.dm)
 	// A closed firelock (firedoor.dm) is crowbar-pryable regardless of why it's closed
 	// (try_to_crowbar() just calls open() outright, no access/power check at all) - a
 	// real engineer forces one open by hand every time they enter a room the local air
@@ -371,6 +374,8 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 				. += 15
 		else if(istype(O, /obj/structure/table))
 			. += 8
+		else if(GLOB.bot_movable_penalty_types[O.type])
+			. += bot_movable_penalty(O) //foundation/movables.dm: only ever passable in the last route search
 
 // Drop-in replacement for /turf/proc/Distance_cardinal as get_path_to()'s cost function (AStar.dm
 // uses it for both the edge cost and the heuristic).
@@ -432,7 +437,7 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 
 /// reach_key() without where it starts from.
 /datum/bot_brain/proc/reach_rules(adjacent, obj/item/card/id/id_card, simulated_only)
-	return "[adjacent]|[REF(id_card)]|[simulated_only]|[pathing_allow_climb]|[pathing_climb_only]|[pathing_no_tailgating]|[pathing_allow_smash_tables]|[(owner && can_unweld()) ? 1 : 0]|[pathing_assume_nearby_weapons]|[get_urgency()]|[pathing_emag ? 1 : 0]|[bot_may_jump_in(owner) ? 1 : 0]|[shut_in_result ? 1 : 0]|[length(vacuum_doors)]|[let_in_door_now()]" //a door just opened for it (bot_doors.dm) is other rules: a region from before it opened says there's no way in
+	return "[adjacent]|[REF(id_card)]|[simulated_only]|[pathing_allow_climb]|[pathing_climb_only]|[pathing_no_tailgating]|[pathing_allow_smash_tables]|[pathing_through_movables]|[(owner && can_unweld()) ? 1 : 0]|[pathing_assume_nearby_weapons]|[breach_urgency()]|[pathing_emag ? 1 : 0]|[bot_may_jump_in(owner) ? 1 : 0]|[shut_in_result ? 1 : 0]|[length(vacuum_doors)]|[let_in_door_now()]" //a door just opened for it (bot_doors.dm) is other rules: a region from before it opened says there's no way in
 
 // A whole region, kept a little while. A failed search that wasn't cut short has visited everything reachable from where it began, and
 // from anywhere inside that, nothing outside it is reachable either: whatever such a tile reaches, the first one reached through it. So

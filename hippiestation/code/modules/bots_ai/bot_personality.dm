@@ -62,7 +62,8 @@
 	for(var/i in 1 to rand(1, 3))
 		habits |= pick(pool)
 	roll_playstyle(role)
-	bot_log_verbose(src, "personality: [playstyle], diligence [diligence], sociability [sociability], nerve [nerve], temper [temper], competence [competence], strictness [strictness], habits [english_list(habits)]")
+	roll_skill(role) //foundation/skill.dm
+	bot_log_verbose(src, "personality: [playstyle], diligence [diligence], sociability [sociability], nerve [nerve], temper [temper], competence [competence], strictness [strictness], skill [skill], habits [english_list(habits)]")
 
 /datum/bot_brain/proc/roll_playstyle(role)
 	competence = rand(20, 100) / 100

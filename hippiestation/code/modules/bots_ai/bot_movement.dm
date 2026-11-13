@@ -375,6 +375,12 @@
 				if(current_path && current_path.len)
 					break
 
+	// Still nothing: a way past something in the way that could be moved out of it (foundation/clear_way.dm)
+	if((!current_path || !current_path.len) && can_route_through_movables())
+		current_path = route_through_movables(destination, adjacent_candidates, try_adjacent_first, id_card)
+		if(pursue_target != my_target || pursuing_kind != my_kind)
+			return supersede_repath()
+
 	if(!current_path || !current_path.len)
 		// No route with what the bot has - would something it could go and get open one?
 		// (a welder for a welded door, or in an emergency a weapon lying nearby; bot_breach.dm)
