@@ -1136,6 +1136,8 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 		return
 	if(see_to_charge()) //goals/silicon_work.dm: low on charge, or in a station
 		return
+	if(!master_ref && seek_repairs()) //goals/robot_repairs.dm: knocked about, to Robotics for the welder
+		return
 	if(master_ref && serve_master())
 		return
 	if(!master_ref && avenge_ref && avenge())

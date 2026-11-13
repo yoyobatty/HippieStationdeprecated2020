@@ -231,3 +231,55 @@
 
 /datum/bot_scenario/mech_unload
 	var/last_said
+
+// Robotics repairs (goals/robot_repairs.dm). Letters: o a dented cyborg, Y a damaged Ripley.
+/datum/bot_scenario/duty/robot_repair
+	duty_type = /datum/bot_duty/repair_robots
+	job = "Roboticist"
+	time_limit = 60 SECONDS
+	kit_backpack = list(/obj/item/weldingtool)
+
+/datum/bot_scenario/duty/robot_repair/borg
+	name = "robotics: a roboticist welds the dents out of a cyborg"
+	desc = "A cyborg standing in the lab with 60 brute. The roboticist lights its welder and goes over it until the dents are out."
+	layout = list(
+		"#########",
+		"#B.....o#",
+		"#########")
+	var/mob/living/silicon/robot/borg
+
+/datum/bot_scenario/duty/robot_repair/borg/setup()
+	for(var/turf/T in markers["o"])
+		borg = new(T)
+		borg.adjustBruteLoss(60)
+		place("o", borg)
+
+/datum/bot_scenario/duty/robot_repair/borg/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return borg.getBruteLoss() ? BOT_GYM_PENDING : BOT_GYM_PASS
+
+/datum/bot_scenario/duty/robot_repair/borg/release_run()
+	if(!QDELETED(borg))
+		qdel(borg)
+	return ..()
+
+/datum/bot_scenario/duty/robot_repair/ripley
+	name = "robotics: a roboticist welds a damaged Ripley back to full"
+	desc = "A Ripley nobody's in, missing a third of its armour. The roboticist takes the welder to it until it's whole."
+	layout = list(
+		"#########",
+		"#B....Y.#",
+		"#########")
+	var/obj/mecha/working/ripley/mech
+
+/datum/bot_scenario/duty/robot_repair/ripley/setup()
+	for(var/turf/T in markers["Y"])
+		mech = new(T)
+		mech.obj_integrity = round(mech.max_integrity * 0.6) //armour would take some of a take_damage() off
+		place("Y", mech)
+
+/datum/bot_scenario/duty/robot_repair/ripley/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return mech.obj_integrity < mech.max_integrity ? BOT_GYM_PENDING : BOT_GYM_PASS

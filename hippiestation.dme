@@ -3527,6 +3527,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\rnd_bench.dm"
 #include "hippiestation\code\modules\bots_ai\goals\rnd_analysis.dm"
 #include "hippiestation\code\modules\bots_ai\goals\robotics.dm"
+#include "hippiestation\code\modules\bots_ai\goals\robot_repairs.dm"
 #include "hippiestation\code\modules\bots_ai\goals\robust.dm"
 #include "hippiestation\code\modules\bots_ai\goals\rped_rounds.dm"
 #include "hippiestation\code\modules\bots_ai\goals\sabotage.dm"
