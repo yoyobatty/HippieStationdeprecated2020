@@ -45,8 +45,9 @@
 /turf/open/floor/plating/foam
 	can_sink = FALSE
 
-/// Off: no new holes sink (an admin's switch through View Variables, and the cost bench's A/B)
-GLOBAL_VAR_INIT(floor_depth_on, TRUE)
+/// Off: no new holes sink, and players' screens don't draw the depth planes (an admin's switch through View Variables, and the
+/// cost bench's A/B). Off by default (2026-11-11). Turned on mid-round, a player's screen picks it up when their HUD is next set up
+GLOBAL_VAR_INIT(floor_depth_on, FALSE)
 /// How many holes and tiles showing what's under them there are: none, and turf changes needn't look round for them
 GLOBAL_VAR_INIT(floor_depth_holes, 0)
 GLOBAL_VAR_INIT(floor_depth_unders, 0)
@@ -282,7 +283,7 @@ GLOBAL_VAR_INIT(floor_depth_flush_queued, FALSE)
 	if(!C)
 		return
 	var/obj/screen/plane_master/floor_depth_shadow/shadow = mymob.hud_used?.plane_masters["[FLOOR_DEPTH_SHADOW_PLANE]"]
-	if(C.prefs && (C.prefs.hippie_toggles & FLOOR_DEPTH_DISABLED))
+	if(!GLOB.floor_depth_on || (C.prefs && (C.prefs.hippie_toggles & FLOOR_DEPTH_DISABLED)))
 		Hide()
 		shadow?.Hide()
 		C.screen -= GLOB.floor_depth_relays
