@@ -138,7 +138,7 @@
 	var/datum/station_looks_window/W = new
 	var/list/data = W.ui_data(null)
 	var/list/slots = data["slots"]
-	check("window: a section for each slot with looks", length(slots) == 3, "[length(slots)]")
+	check("window: a section for each slot", length(slots) == length(GLOB.station_look_slots), "[length(slots)]")
 	qdel(W)
 
 /// Every station lamp, settled: waits for the looks' relighting, then the lighting engine
@@ -380,7 +380,69 @@
 	check("tired off: the breakers set back", !still_off, "[still_off] still off")
 	settle(4)
 	snapshot("after")
+	histories()
 	note("lighting after everything against before: [lighting_bench_compare_snapshots("[LOOKS_CHECK_DIR]snapshot_plain.txt", "[LOOKS_CHECK_DIR]snapshot_after.txt")] ([burned] tubes burned out, 1 swapped)")
 	note("looks on now: [S.summary()]")
+
+/// The histories, each put on by hand: a history can't be taken off, so forcing one locks the slot against the next.
+/// They pile up on the one station, which is fine for counting what each one adds.
+/datum/looks_check/proc/histories()
+	var/datum/controller/subsystem/station_looks/S = SSstation_looks
+	var/list/counts = list()
+	for(var/id in list("overgrown", "refit", "second_hand", "abandoned"))
+		var/datum/station_look/history/H = S.looks[id]
+		check("history [id] exists, can't be taken off", istype(H) && !H.removable)
+		if(!istype(H))
+			continue
+		var/list/before = history_counts()
+		H.apply(FALSE)
+		sleep(15 SECONDS)
+		var/list/after = history_counts()
+		var/list/added = list()
+		for(var/what in after)
+			added[what] = after[what] - before[what]
+		counts[id] = added
+		note("[id]: [list2params(added)]; showcase [length(H.showcase)]; notes: [H.news_line()]")
+	var/list/O = counts["overgrown"]
+	check("overgrown: vines and weeds, mushrooms in maintenance", O && O["vines"] >= 60 && O["weeds"] >= 10 && O["shrooms"] >= 1, list2params(O))
+	var/list/R = counts["refit"]
+	check("refit: floors up, tiles stacked, walls painted", R && R["plating"] >= 6 && R["tile stacks"] >= 1 && R["painted walls"] >= 10 && R["cones"] >= 1, list2params(R))
+	var/list/H2 = counts["second_hand"]
+	check("second-hand: torn posters, plaques, old lockers with notes", H2 && H2["torn posters"] >= 4 && H2["plaques"] >= 1 && H2["old lockers"] >= 1, list2params(H2))
+	var/list/A = counts["abandoned"]
+	check("abandoned: dirt and litter", A && A["dirt"] >= 50, list2params(A))
+	var/datum/station_look/history/refit/refit = S.looks["refit"]
+	check("refit: shift notes name the department", findtext(refit.news_line(), refit.department || "?"), refit.news_line())
+
+/// What the histories leave, counted on the station's level
+/datum/looks_check/proc/history_counts()
+	var/list/C = list("vines" = 0, "weeds" = 0, "shrooms" = 0, "plating" = 0, "tile stacks" = 0, "painted walls" = 0, "cones" = 0,
+		"torn posters" = 0, "plaques" = 0, "old lockers" = 0, "dirt" = 0)
+	for(var/turf/T as anything in block(locate(1, 1, z), locate(world.maxx, world.maxy, z)))
+		if(isplatingturf(T))
+			C["plating"]++
+		else if(iswallturf(T) && T.color)
+			C["painted walls"]++
+		for(var/atom/movable/AM as anything in T)
+			if(istype(AM, /obj/effect/decal/cleanable/overgrowth/tuft))
+				C["weeds"]++
+			else if(istype(AM, /obj/effect/decal/cleanable/overgrowth))
+				C["vines"]++
+			else if(istype(AM, /obj/structure/glowshroom))
+				C["shrooms"]++
+			else if(istype(AM, /obj/item/stack/tile/plasteel))
+				C["tile stacks"]++
+			else if(istype(AM, /obj/item/clothing/head/cone))
+				C["cones"]++
+			else if(istype(AM, /obj/structure/sign/poster/ripped))
+				C["torn posters"]++
+			else if(istype(AM, /obj/structure/sign/plaques) && findtext(AM.name, "plaque") && AM.name != "plaque")
+				C["plaques"]++
+			else if(istype(AM, /obj/structure/closet) && findtext(AM.name, "old "))
+				C["old lockers"]++
+			else if(istype(AM, /obj/effect/decal/cleanable/dirt))
+				C["dirt"]++
+		CHECK_TICK
+	return C
 
 #undef LOOKS_CHECK_DIR
