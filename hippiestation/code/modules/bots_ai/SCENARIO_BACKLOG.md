@@ -115,16 +115,23 @@ Every milestone ends with the whole backlog run and this file updated.
 | combat: an apex bot with bare hands gets out of a fight with a claymore, brave as it is | apex | passing (before 0/3, after 3/3) |
 | combat: a hurt apex bot with a claymore stays in a fight with somebody unarmed | apex | passing (before 0/3, after 3/3) |
 | combat: a hurt low-skill bot with a claymore runs as it always did | low | passing |
+| combat: an apex bot in a gunfight steps across the line of fire, and takes fewer hits | apex | passing (hits 8 of 8 before, 1-5 after) |
+
+Strafing is against a shooter who fires where they saw it a third of a second ago, as a player does: a bot shooter aims at where it is
+now, and a laser lands almost at once, so no step dodges that.
 
 The fuel tank tests (section 2) now shoot from past the blast as explosion realism has it: a small sealed room pushes the light blast out
 further, and the casing's shards carry about ten tiles (`bot_tank_blast_reach()`). Before that, the bots were caught in it (0/2), after 3/3.
 
-**The duel ladder** (`gym/scenarios_duels.dm`, `tools/bot_gym/apex_ladder.sh`): measures, never in the full suite. 2026-11-13:
-- a robust bot with a laser against a robust claymore wins 80%; an ordinary bot with the same laser wins 20%
-- apex against ordinary, a toolbox each: 43%; ordinary against ordinary: 25%
+**The duel ladder** (`gym/scenarios_duels.dm`, `tools/bot_gym/apex_ladder.sh`): measures, never in the full suite. 2026-11-13, later
+in the night (12 to 24 runs a pairing, so give or take ten points):
+- a robust bot with a laser against a robust claymore wins 62% with the kite loop; an ordinary bot with the same laser 58% (it used to
+  run from the claymore: a laser weighed as a club)
+- apex against ordinary, a toolbox each: 75%; ordinary against ordinary: 33%
+- a laser each: the gunfight pairings mostly measure who stops first ("they've had enough"), not aim
 
 **Still to cover:**
-- dodging (sidesteps at reaction speed, breaking line of sight), stun chains into cuffs, healing out of sight
+- breaking line of sight, stun chains into cuffs, healing out of sight
 - group play: focus fire, flanks, holding a chokepoint
 
 ## 6. The crew-kill planner (the plan's milestone 5)

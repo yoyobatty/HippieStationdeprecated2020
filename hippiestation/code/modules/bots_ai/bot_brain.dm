@@ -448,8 +448,11 @@
 		fight_in_reach(attacker)
 		try_combat_sidestep(attacker)
 	else if(!try_suit_jump(attacker) && !try_attack_from_range(attacker))
-		owner.a_intent = INTENT_HARM
-		combat_chase(attacker)
+		if(!(find_usable_gun() && has_clear_shot(attacker) && try_strafe(attacker))) //apex/combat.dm: the gun recharging, across their line rather than at them
+			owner.a_intent = INTENT_HARM
+			combat_chase(attacker)
+	else
+		try_strafe(attacker) //apex/combat.dm: across their line of fire after a shot
 
 /// What to hit somebody with: whatever's the heaviest thing in its hands, if that beats a fist. Nobody in a fight puts
 /// down a fire extinguisher to punch.

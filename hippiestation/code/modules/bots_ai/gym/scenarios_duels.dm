@@ -114,3 +114,22 @@
 	if(!bot_duel_down(bot))
 		return BOT_GYM_PASS
 	return ..()
+
+// Gunfights: a laser each, across the room
+/datum/bot_scenario/duel/gunfight_apex
+	name = "duel: an apex bot against a robust bot, a laser each"
+	a_skill = 1
+	b_skill = 0.7
+	a_nerve = 1
+	b_nerve = 1
+	kit_hands = list(/obj/item/gun/energy/laser)
+	b_kit = list(/obj/item/gun/energy/laser)
+
+/datum/bot_scenario/duel/gunfight_even
+	name = "duel: a robust bot against a robust bot, a laser each"
+	a_skill = 0.7
+	b_skill = 0.7
+	a_nerve = 1
+	b_nerve = 1
+	kit_hands = list(/obj/item/gun/energy/laser)
+	b_kit = list(/obj/item/gun/energy/laser)

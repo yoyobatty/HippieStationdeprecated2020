@@ -134,3 +134,61 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return ran() ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// Strafing
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/combat_smarts/strafe
+	name = "combat: an apex bot in a gunfight steps across the line of fire, and takes fewer hits"
+	desc = "Apex, brave, a laser each, six tiles apart; the gunman fires once a second, eight shots, where he saw it a third of a second before, as a player does. Between its own shots it steps across his line of fire, so his shots go where it was. Standing still trading shots, every one of his lands."
+	time_limit = 16 SECONDS
+	foe_weapon = /obj/item/gun/energy/laser
+	kit_hands = list(/obj/item/gun/energy/laser)
+	layout = list(
+		"################",
+		"#..............#",
+		"#..............#",
+		"#..B.....k.....#",
+		"#..............#",
+		"#..............#",
+		"################")
+	var/shots = 0
+	var/hits = 0
+	var/last_shot_at = 0
+
+/datum/bot_scenario/combat_smarts/strafe/post_spawn()
+	..()
+	brain.nerve = 1
+	bot.maxHealth = 1000 //it's the hits that count, not who goes down
+	bot.health = 1000
+	foe.maxHealth = 1000 //nor its shots putting him past "had enough" (fight_is_won()), and it standing still after
+	foe.health = 1000
+
+/datum/bot_scenario/combat_smarts/strafe/proc/shoot(obj/item/gun/G, turf/at)
+	if(QDELETED(G) || QDELETED(foe))
+		return
+	if(!G.can_shoot())
+		var/obj/item/gun/energy/E = G
+		E.cell?.give(E.cell.maxcharge)
+	foe.face_atom(at)
+	G.process_fire(at, foe)
+
+/datum/bot_scenario/combat_smarts/strafe/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(foe))
+		return BOT_GYM_PENDING
+	var/obj/item/gun/G = locate() in foe.held_items
+	if(shots < 8 && istype(G))
+		shots++
+		last_shot_at = world.time
+		addtimer(CALLBACK(src, PROC_REF(shoot), G, get_turf(bot)), 3) //where it saw the bot a moment ago: a player's reaction
+		return BOT_GYM_PENDING
+	if(shots < 8)
+		return BOT_GYM_PENDING
+	if(world.time < last_shot_at + 2 SECONDS)
+		return BOT_GYM_PENDING //the last one's still on its way
+	hits = round(bot.getFireLoss() / 20) //a laser's 20 burn a hit
+	fail_reason = "took [hits] of [shots] shots"
+	return hits <= 5 ? BOT_GYM_PASS : BOT_GYM_FAIL

@@ -119,6 +119,10 @@
 /datum/bot_brain/proc/outmatched_by(mob/living/foe)
 	// Bare hands in a nanosuit, or a gun: no fair fight with a toolbox. A traitor in one killed twenty of a crew in seven minutes, every one
 	// of them stood toe to toe with it, because there was nothing in its hands to be outmatched by. The brave still stay (try_run_for_it()).
+	// A gun that fires is the answer to a sword, whatever it weighs as a club (goals/security_tactics.dm find_usable_gun()); not to a
+	// nanosuit, a bomb, or another gun
+	if(foe && !bot_holds_gun(foe) && !bot_in_nanosuit(foe) && !bot_held_bomb(foe) && find_usable_gun())
+		return FALSE
 	if(bot_too_dangerous(foe)) //goals/security_tactics.dm
 		return TRUE
 	var/obj/item/theirs = foe?.get_active_held_item()

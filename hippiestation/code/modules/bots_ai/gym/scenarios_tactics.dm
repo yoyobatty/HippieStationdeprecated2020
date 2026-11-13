@@ -126,6 +126,9 @@
 		"#..............#",
 		"################")
 
+/datum/bot_scenario/tactics/opener
+	var/went_off_at = 0
+
 /datum/bot_scenario/tactics/opener/post_spawn()
 	..()
 	foe = stand_in(first_marker("V"), "Mark Target")
@@ -139,6 +142,10 @@
 		return BOT_GYM_FAIL
 	if(!tank_went_off())
 		return BOT_GYM_PENDING
+	if(!went_off_at)
+		went_off_at = world.time
+	if(world.time < went_off_at + 2 SECONDS)
+		return BOT_GYM_PENDING //the blast lands a moment after the tank's gone (SSexplosions)
 	if(!bot_transcript_said("is beside Mark Target - backing off"))
 		fail_reason = "the tank went off, but not set up beside the mark"
 		return BOT_GYM_FAIL
