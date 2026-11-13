@@ -44,6 +44,12 @@ Every milestone ends with the whole backlog run and this file updated.
 | escape: apex officer after a minor charge behind a window leaves the window alone | apex | passing (before 0/2, after 2/2) |
 | escape: apex officer after a murderer behind a window goes through it | apex | passing |
 | a lawful walk doesn't climb a desk when nothing movable is in the way (`scenarios_clear_way.dm`) | all | passing (before 0/2, after 2/2) |
+| escape room: cuffed, it gets them off and goes | apex | passing (already did) |
+| escape room: a bola round its legs, it gets it off and goes | apex | passing (already did) |
+| escape room: bolted in, it hacks the bolts up with the tools to hand | apex | passing (already did) |
+| escape room: cuffed to a chair, it gets free and goes | apex | passing (already did) |
+| escape room: zipped in a body bag, it gets out and goes | apex | passing (already did) |
+| escape room: walled in, it cuts through the wall with the tools to hand | apex | passing (before 0/2, after 2/2) |
 
 ## 2. The fuel tank
 **The user, 2026-11-13:** "A fuel tank, dragging it, pushing it into a player, backing off and shooting it, dealing an easy stunning blow."

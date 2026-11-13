@@ -140,3 +140,109 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return window_hit() ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// Escape rooms: an apex bot with somewhere to be outside, in a fix (the user's pick, 2026-11-13: finish M1's escape rooms)
+// ---------------------------------------------------------------------------------------------
+
+/// Cuffs on the bot, as if somebody had just got them on it.
+/datum/bot_scenario/escape/proc/cuff(breakout)
+	var/obj/item/restraints/handcuffs/cuffs = new(bot)
+	cuffs.breakouttime = breakout
+	bot.handcuffed = cuffs
+	bot.update_handcuffed()
+
+/datum/bot_scenario/escape/cuffed
+	name = "escape room: cuffed, it gets them off and goes"
+	desc = "Apex, cuffs on, alone in a room with the door open and somewhere to be. It works the cuffs off and goes."
+	time_limit = 40 SECONDS
+	layout = list(
+		"#########",
+		"#B..D..G#",
+		"#########")
+
+/datum/bot_scenario/escape/cuffed/post_spawn()
+	..()
+	cuff(6 SECONDS)
+
+/datum/bot_scenario/escape/bola
+	name = "escape room: a bola round its legs, it gets it off and goes"
+	desc = "Apex, a bola round its legs: it gets it off rather than crawling, and goes."
+	time_limit = 30 SECONDS
+	layout = list(
+		"##########",
+		"#B......G#",
+		"##########")
+
+/datum/bot_scenario/escape/bola/post_spawn()
+	..()
+	var/obj/item/restraints/legcuffs/bola/B = new(bot)
+	bot.legcuffed = B
+	bot.update_inv_legcuffed()
+
+/datum/bot_scenario/escape/bolted
+	name = "escape room: bolted in, it hacks the bolts up with the tools to hand"
+	desc = "Apex, shut in a room by a bolted door, with a toolbox and a multitool on the floor. It hacks the bolts up (screwdriver, multitool) and goes."
+	time_limit = 60 SECONDS
+	layout = list(
+		"#########",
+		"#B.T#...#",
+		"#...D..G#",
+		"#########")
+	kit_backpack = list(/obj/item/multitool)
+
+/datum/bot_scenario/escape/bolted/setup()
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	A.req_access = list(ACCESS_CAPTAIN)
+	A.locked = TRUE
+	A.update_icon()
+
+/datum/bot_scenario/escape/chair_cuffed
+	name = "escape room: cuffed to a chair, it gets free and goes"
+	desc = "Apex, buckled into a chair with cuffs on: it gets out of the chair and the cuffs, and goes."
+	time_limit = 50 SECONDS
+	layout = list(
+		"##########",
+		"#B......G#",
+		"##########")
+
+/datum/bot_scenario/escape/chair_cuffed/post_spawn()
+	..()
+	var/obj/structure/chair/C = new(get_turf(bot))
+	place("c", C)
+	cuff(6 SECONDS)
+	C.buckle_mob(bot, TRUE)
+
+/datum/bot_scenario/escape/body_bag
+	name = "escape room: zipped in a body bag, it gets out and goes"
+	desc = "Apex, zipped into a body bag on the floor: it gets out and goes."
+	time_limit = 30 SECONDS
+	layout = list(
+		"##########",
+		"#B......G#",
+		"##########")
+
+/datum/bot_scenario/escape/body_bag/post_spawn()
+	..()
+	var/obj/structure/closet/body_bag/bag = new(get_turf(bot))
+	place("b", bag)
+	bot.forceMove(bag)
+	bag.opened = FALSE
+	bag.update_icon()
+
+/datum/bot_scenario/escape/walled_in
+	name = "escape room: walled in, it cuts through the wall with the tools to hand"
+	desc = "Apex, in a room with no door at all, a toolbox on the floor and somewhere to be on the other side of a plain wall. It cuts through: welder on the wall, wrench and screwdriver on the girder."
+	time_limit = 90 SECONDS
+	layout = list(
+		"##########",
+		"#B.T#...G#",
+		"#...H....#",
+		"##########")
+
+/datum/bot_scenario/escape/walled_in/setup()
+	for(var/turf/T as anything in markers["H"])
+		T.ChangeTurf(/turf/closed/wall)
+
+/datum/bot_scenario/escape/walled_in/check_success_conditions()
+	return null

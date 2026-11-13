@@ -386,6 +386,9 @@
 		// (a welder for a welded door, or in an emergency a weapon lying nearby; bot_breach.dm)
 		if(!pursuit_is_lawful() && try_unlock_route(destination, id_card))
 			return supersede_repath() //now fetching it; repath() re-plans for that pursuit
+		// An apex bot breaking out with only walls between it and there cuts through one (foundation/escape.dm)
+		if(breaks_out() && try_cut_way_through(destination))
+			return supersede_repath()
 		current_path = null
 		last_path_fail_reason = "no path found in any pass (dist=[get_dist(owner, destination)], area=[get_area_name(destination)])"
 		bot_log(src, "no path to [destination] @ [bot_coord(get_turf(destination))] ([get_area_name(destination)])")

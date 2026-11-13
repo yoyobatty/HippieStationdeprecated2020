@@ -59,6 +59,17 @@ BOT_CREW_TRAITORS 2
 ## Unset is 1. Headless test runs leave it off unless they ask for it with bot-chaos=<level>.
 #BOT_CHAOS 1
 
+## How well the bot crew gets itself out of a fix, uses what a room offers against somebody and reads what's about to hurt it,
+## 0-100 on average. Most play like ordinary players at the default; robust bots and powergamers roll higher. Unset is 40.
+## Admins can set one bot's, or everyone's, in the round with the "Set Bot Skill" verb.
+#BOT_SKILL_MEAN 40
+
+## Out of a hundred vigilante-minded bots (antag hunters, robust, paranoid), how many play at apex (90 and up). Unset is 15.
+#BOT_APEX_SHARE 15
+
+## 1: bot antagonists play at apex, every trick set up on purpose. 0: at the skill they rolled. Unset is 1.
+#BOT_ANTAGS_APEX 1
+
 ## Write the bots' telemetry (data/logs/<round>/bot_telemetry.jsonl: where each bot is, what it holds and does, twice a
 ## second) in a live round too. Test runs always write it. Also on whenever PLAYER_LOG_CKEY is set.
 #BOT_TELEMETRY

@@ -64,6 +64,21 @@
 	config_entry_value = 3
 	min_val = 0
 
+/datum/config_entry/number/bot_skill_mean	// the bot crew's skill on average, 0-100 (bots_ai/foundation/skill.dm): how well they get out of a fix, use what a room offers and read threats
+	config_entry_value = 40
+	min_val = 0
+	max_val = 100
+
+/datum/config_entry/number/bot_apex_share	// out of a hundred vigilante-minded bots (antag hunters, robust, paranoid), how many play at apex
+	config_entry_value = 15
+	min_val = 0
+	max_val = 100
+
+/datum/config_entry/number/bot_antags_apex	// 1: bot antagonists play at apex skill; 0: at what they rolled
+	config_entry_value = 1
+	min_val = 0
+	max_val = 1
+
 /datum/config_entry/string/player_log_ckey	// the one player whose actions get logged the way the bots' are (bots_ai/player_log.dm)
 	protection = CONFIG_ENTRY_LOCKED
 
