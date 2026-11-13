@@ -10,6 +10,7 @@
 /turf/closed/wall/var/blast_damage = 0
 
 /turf/closed/wall/ex_act(severity, target)
+	SEND_SIGNAL(src, COMSIG_ATOM_EX_ACT, severity, target) //tg's wall ex_act() never reaches atom's, which sends it: a charge planted here listens (grenades/plastic.dm)
 	if(!GLOB.explosion_realism || target == src || severity == EXPLODE_DEVASTATE || severity == EXPLODE_NONE)
 		var/turf/was = src
 		. = ..()
