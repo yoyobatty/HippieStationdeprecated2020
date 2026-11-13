@@ -347,4 +347,56 @@
 			return get_turf(post)
 	return null
 
+// ---------------------------------------------------------------------------------------------
+// Cutting a runner off
+// ---------------------------------------------------------------------------------------------
+// Somebody running across in front of it: a robust player doesn't run at where they are and end up behind them, it runs at where they'll
+// be. From the last two tiles it saw them on, the way they're going; along it, as far as the floor goes (up to six tiles), where they'll
+// be; and if it's nearer that spot than they are, it heads there instead. Mid skill and up. A runner going straight away from it is just
+// followed.
+
+/datum/bot_brain
+	var/datum/weakref/cut_watching
+	var/turf/cut_prev_turf
+	var/next_cut_note = 0
+	/// The spot it's cutting them off at, kept between their steps (it looks more often than they move)
+	var/turf/cut_ahead
+	var/cut_ahead_until = 0
+
+/// Where to run to get ahead of V, or null to follow them as before.
+/datum/bot_brain/proc/cut_off_point(mob/living/V)
+	if(!V || !skill_at_least(BOT_SKILL_MID))
+		return null
+	var/turf/now = get_turf(V)
+	var/turf/me = get_turf(owner)
+	if(cut_watching?.resolve() != V)
+		cut_watching = WEAKREF(V)
+		cut_prev_turf = now
+		return null
+	var/turf/before = cut_prev_turf
+	cut_prev_turf = now
+	if(before == now && cut_ahead && world.time < cut_ahead_until && get_dist(me, now) >= 3)
+		return cut_ahead //no step since the last look: the same spot
+	if(!now || !me || !before || before == now || now.z != me.z || get_dist(before, now) > 2 || get_dist(me, now) < 3)
+		cut_ahead = null
+		return null
+	var/dx = SIGN(now.x - before.x)
+	var/dy = SIGN(now.y - before.y)
+	var/turf/ahead = now
+	for(var/i in 1 to 6)
+		var/turf/next = locate(ahead.x + dx, ahead.y + dy, ahead.z)
+		if(!next || next.density || is_blocked_turf(next, TRUE))
+			break
+		ahead = next
+	if(get_dist(now, ahead) < 2 || get_dist(me, ahead) >= get_dist(now, ahead))
+		cut_ahead = null
+		return null //it wouldn't get there first
+	cut_ahead = ahead
+	cut_ahead_until = world.time + 15
+	if(world.time >= next_cut_note)
+		next_cut_note = world.time + 10 SECONDS
+		bot_log(src, "HUNT: cutting [V] off at [bot_coord(ahead)]")
+		bot_tally("cut somebody off")
+	return ahead
+
 #undef BOT_SEARCH_RANGE

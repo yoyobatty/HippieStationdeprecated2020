@@ -98,7 +98,10 @@ Every milestone ends with the whole backlog run and this file updated.
 | hunt: a vigilante at a murderer's last sighting finds nobody, and searches the lockers | mid | passing (before 0/2, after 2/2) |
 | hunt: an apex killer that's never seen its mark goes by the director's word | apex | passing (before 0/2, after 2/2) |
 | hunt: a killer with nothing to go on doesn't walk straight to its mark | mid | passing (before 0/2, after 2/2) |
+| hunt: a robust officer runs at where somebody running across in front of it will be | mid and up | passing (the decision, asked straight out) |
+| hunt: somebody running straight away from an officer is just followed | mid | passing |
+| hunt: a low-skill officer just follows somebody running across in front of it | low | passing |
 
 **Still to cover:**
-- cutting a runner off at the chokepoint ahead of them
+- cutting a runner off at a chokepoint they'll pass through further on (the tactical map's chokepoints)
 - an evader that moves like the user does (from player telemetry)

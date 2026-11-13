@@ -557,6 +557,8 @@ GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor,
 			wait_for = 10
 			return TRUE
 		return FALSE
+	if(go == V)
+		go = bot.cut_off_point(V) || V //running across in front of it: to where they'll be (foundation/hunt.dm)
 	if(bot.pursuing_kind != "follow" || bot.pursue_target != go)
 		if(!bot.can_walk_lawfully_to(go))
 			return FALSE

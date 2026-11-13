@@ -46,11 +46,21 @@ GLOBAL_LIST_EMPTY(bot_welds_seen)
 	var/turf/here = get_turf(bot.owner)
 	var/obj/machinery/door/airlock/best
 	for(var/obj/machinery/door/airlock/A as anything in bot_instances_of(/obj/machinery/door/airlock))
-		if(A.z != here?.z || !bot_weld_to_undo(A) || bot.taken_by_another(A))
+		if(A.z != here?.z || !bot_weld_to_undo(A) || bot.taken_by_another(A) || LAZYACCESS(bot.unweld_rested, A) > world.time)
 			continue
 		if(!best || get_dist(A, here) < get_dist(best, here))
 			best = A
-	return best ? bot.assign_goal(new /datum/bot_goal/unweld_door(best)) : FALSE
+	// One it can get to by its own doors: engineers kept taking a welded Operating Theatre door they had no way to, giving it up at once,
+	// and taking it again every minute (Bot Shift found8)
+	if(!best || !bot.can_walk_lawfully_to(best))
+		if(best)
+			LAZYSET(bot.unweld_rested, best, world.time + 5 MINUTES)
+		return FALSE
+	return bot.assign_goal(new /datum/bot_goal/unweld_door(best))
+
+/datum/bot_brain
+	/// Airlock -> until when it isn't tried again, having been no way to it
+	var/list/unweld_rested
 
 /datum/bot_goal/unweld_door
 	lawful = TRUE
@@ -60,6 +70,9 @@ GLOBAL_LIST_EMPTY(bot_welds_seen)
 /datum/bot_goal/unweld_door/New(obj/machinery/door/airlock/A)
 	. = ..()
 	target = A
+
+/datum/bot_goal/unweld_door/on_give_up(datum/bot_brain/bot)
+	LAZYSET(bot.unweld_rested, target, world.time + 5 MINUTES)
 
 /datum/bot_goal/unweld_door/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/case_work/S = new

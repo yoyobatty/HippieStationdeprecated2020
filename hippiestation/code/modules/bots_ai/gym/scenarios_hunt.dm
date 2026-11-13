@@ -222,3 +222,98 @@
 
 /datum/bot_scenario/unseen_mark/mid/on_timeout()
 	return BOT_GYM_PASS
+
+// ---------------------------------------------------------------------------------------------
+// Cutting a runner off (foundation/hunt.dm cut_off_point())
+// ---------------------------------------------------------------------------------------------
+// The decision itself: a gym bot runs ten tiles a second and catches anybody it chases at once, so it's asked straight out where it would
+// run to, with the runner a step along each time.
+
+/datum/bot_scenario/cut_off
+	time_limit = 10 SECONDS
+	layout = list(
+		"###############",
+		"#.........r...#",
+		"#.............#",
+		"#.............#",
+		"#.............#",
+		"#.............#",
+		"#......B......#",
+		"#.............#",
+		"#.............#",
+		"###############")
+	var/bot_skill = 0.7
+	var/mob/living/carbon/human/runner
+	/// Which way the runner goes, a tile a look
+	var/run_dir = SOUTH
+	var/looks = 0
+	var/turf/answer
+
+/datum/bot_scenario/cut_off/post_spawn()
+	brain.skill = bot_skill
+	runner = stand_in(first_marker("r"), "Rob Runner")
+
+/datum/bot_scenario/cut_off/make_goal()
+	return null
+
+/datum/bot_scenario/cut_off/proc/look()
+	answer = brain.cut_off_point(runner)
+	var/turf/T = get_step(runner, run_dir)
+	if(T && !T.density)
+		runner.forceMove(T)
+	looks++
+
+/datum/bot_scenario/cut_off/across
+	name = "hunt: a robust officer runs at where somebody running across in front of it will be"
+	desc = "Mid skill, somebody running south across the room in front of it: where it would run to is ahead of them on the way they're going, nearer it than them, not where they are."
+
+/datum/bot_scenario/cut_off/across/check()
+	look()
+	if(looks < 3)
+		return BOT_GYM_PENDING
+	if(!answer)
+		fail_reason = "would just have followed them"
+		return BOT_GYM_FAIL
+	if(answer.y >= runner.y || get_dist(bot, answer) >= get_dist(runner, answer))
+		fail_reason = "the spot it picked ([answer.x],[answer.y]) isn't ahead of them, or it isn't nearer it than them"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/cut_off/straight_away
+	name = "hunt: somebody running straight away from an officer is just followed"
+	desc = "The runner goes straight away from it: there's no getting ahead of them, and it follows."
+	run_dir = NORTH
+	layout = list(
+		"###############",
+		"#.............#",
+		"#.............#",
+		"#.............#",
+		"#.......r.....#",
+		"#.............#",
+		"#.............#",
+		"#.......B.....#",
+		"#.............#",
+		"###############")
+
+/datum/bot_scenario/cut_off/straight_away/check()
+	look()
+	if(looks < 3)
+		return BOT_GYM_PENDING
+	if(answer)
+		fail_reason = "tried to get ahead of somebody running straight away from it"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/cut_off/low_skill
+	name = "hunt: a low-skill officer just follows somebody running across in front of it"
+	desc = "The same runner for an ordinary player: it follows them."
+	bot_skill = 0.3
+
+/datum/bot_scenario/cut_off/low_skill/check()
+	look()
+	if(looks < 3)
+		return BOT_GYM_PENDING
+	if(answer)
+		fail_reason = "a low-skill bot cut them off"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

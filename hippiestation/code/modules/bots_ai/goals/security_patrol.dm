@@ -779,6 +779,11 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	// Out of sight, head for where they were last seen rather than wherever they
 	// actually are now - a real officer doesn't get a live feed of the suspect's position.
 	var/atom/pursuit_goal = visible ? chase : arrest_last_seen_turf
+	// Running across in front of it: to where they'll be, not where they are (foundation/hunt.dm)
+	if(visible && !subdued && chase == S && !bot_too_dangerous(S))
+		var/turf/cut = cut_off_point(S)
+		if(cut)
+			pursuit_goal = cut
 	var/turf/goal_turf = get_turf(pursuit_goal)
 	if(!goal_turf)
 		return
