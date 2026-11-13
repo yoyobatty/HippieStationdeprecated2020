@@ -2,17 +2,12 @@
 	if(istype(C, /obj/item/stack/tile/mineral/reagent))
 		var/obj/item/stack/tile/mineral/reagent/F = C
 		var/turf/open/floor/mineral/reagent/FT = PlaceOnTop(F.turf_type)
-		var/paths = subtypesof(/datum/reagent)
-		for(var/path in paths)
-			var/datum/reagent/RR = new path
-			if(RR.type == F.reagent_type.type)
-				FT.reagent_type = RR
-				FT.name ="[F.reagent_type] floor"
-				FT.desc = "floor tiles made of [F.reagent_type]"
-				FT.add_atom_colour(F.reagent_type.color, FIXED_COLOUR_PRIORITY)
-				break
-			else
-				qdel(RR)
+		// hippie -- the same reagent as F.reagent_type, made directly: this made every reagent type in turn (up to ~1000) until one matched
+		var/datum/reagent/RR = new F.reagent_type.type
+		FT.reagent_type = RR
+		FT.name ="[F.reagent_type] floor"
+		FT.desc = "floor tiles made of [F.reagent_type]"
+		FT.add_atom_colour(F.reagent_type.color, FIXED_COLOUR_PRIORITY)
 
 		if(!F.use(1))
 			return

@@ -26,21 +26,7 @@
 
 /turf/open/floor/mineral/reagent/proc/vapourise()
 	if(reagent_type && !QDELETED(src))
-		var/obj/effect/particle_effect/vapour/foundvape = locate() in get_turf(src)
-		if(foundvape && foundvape.reagent_type == src)
-			foundvape.VM.volume += 20000
-		else
-			var/obj/effect/particle_effect/vapour/master/V = new(get_turf(src))
-			log_game("[src] of [reagent_type] was vaporized in [AREACOORD(src)]")
-			V.volume = 20000
-			var/paths = subtypesof(/datum/reagent)
-			for(var/path in paths)
-				var/datum/reagent/RR = new path
-				if(RR.type == reagent_type.type)
-					V.reagent_type = RR
-					break
-				else
-					qdel(RR)
+		release_reagent_vapour(get_turf(src), reagent_type.type, 20000, TRUE, "[src] of [reagent_type] was vaporized in [AREACOORD(src)]")
 		ScrapeAway(flags = CHANGETURF_INHERIT_AIR)
 
 
@@ -125,18 +111,13 @@
 			to_chat(user, "<span class='notice'>You remove the floor tile.</span>")
 		if(floor_tile && make_tile)
 			var/obj/item/stack/tile/mineral/reagent/F = new floor_tile(src)
-			var/paths = subtypesof(/datum/reagent)
-			for(var/path in paths)
-				var/datum/reagent/RR = new path
-				if(RR.type == reagent_type.type)
-					F.reagent_type = RR
-					F.name ="[reagent_type] floor tiles"
-					F.singular_name = "[reagent_type] floor tile"
-					F.desc = "floor tiles made of [reagent_type]"
-					F.add_atom_colour(reagent_type.color, FIXED_COLOUR_PRIORITY)
-					break
-				else
-					qdel(RR)
+			// hippie -- the same reagent as reagent_type, made directly: this made every reagent type in turn (up to ~1000) until one matched
+			var/datum/reagent/RR = new reagent_type.type
+			F.reagent_type = RR
+			F.name ="[reagent_type] floor tiles"
+			F.singular_name = "[reagent_type] floor tile"
+			F.desc = "floor tiles made of [reagent_type]"
+			F.add_atom_colour(reagent_type.color, FIXED_COLOUR_PRIORITY)
 	return make_plating()
 
 /turf/open/floor/mineral/reagent/Destroy()

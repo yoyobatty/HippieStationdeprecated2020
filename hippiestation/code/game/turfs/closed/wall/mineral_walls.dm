@@ -30,20 +30,7 @@
 
 /turf/closed/wall/mineral/reagent/proc/vapourise()
 	if(reagent_type && !QDELETED(src))
-		var/obj/effect/particle_effect/vapour/foundvape = locate() in get_turf(src)
-		if(foundvape && foundvape.reagent_type == src)
-			foundvape.VM.volume += 20000
-		else
-			var/obj/effect/particle_effect/vapour/master/V = new(get_turf(src))
-			V.volume = 20000
-			var/paths = subtypesof(/datum/reagent)
-			for(var/path in paths)
-				var/datum/reagent/RR = new path
-				if(RR.type == reagent_type.type)
-					V.reagent_type = RR
-					break
-				else
-					qdel(RR)
+		release_reagent_vapour(get_turf(src), reagent_type.type, 20000, TRUE)
 
 		new girder_type(src)
 		ChangeTurf(/turf/open/floor/plasteel)
@@ -103,32 +90,22 @@
 	var/turf/T = get_turf(src)
 	new sheet_type(src, sheet_amount)
 	var/obj/item/stack/sheet/mineral/reagent/RS = new(T, sheet_amount)
-	var/paths = subtypesof(/datum/reagent)//one reference per stack
-	for(var/path in paths)
-		var/datum/reagent/RR = new path
-		if(RR.type == reagent_type.type)
-			RS.reagent_type = RR
-			RS.name = "[RR.name] ingots"
-			RS.singular_name = "[RR.name] ingot"
-			RS.add_atom_colour(RR.color, FIXED_COLOUR_PRIORITY)
-			break
-		else
-			qdel(RR)
+	// hippie -- the same reagent as reagent_type, made directly: this made every reagent type in turn (up to ~1000) until one matched
+	var/datum/reagent/RR = new reagent_type.type
+	RS.reagent_type = RR
+	RS.name = "[RR.name] ingots"
+	RS.singular_name = "[RR.name] ingot"
+	RS.add_atom_colour(RR.color, FIXED_COLOUR_PRIORITY)
 
 /turf/closed/wall/mineral/reagent/devastate_wall()
 	var/turf/T = get_turf(src)
 	var/obj/item/stack/sheet/mineral/reagent/RS = new(T, sheet_amount)
-	var/paths = subtypesof(/datum/reagent)//one reference per stack
-	for(var/path in paths)
-		var/datum/reagent/RR = new path
-		if(RR.type == reagent_type.type)
-			RS.reagent_type = RR
-			RS.name = "[RR.name] ingots"
-			RS.singular_name = "[RR.name] ingot"
-			RS.add_atom_colour(RR.color, FIXED_COLOUR_PRIORITY)
-			break
-		else
-			qdel(RR)
+	// hippie -- the same reagent as reagent_type, made directly: this made every reagent type in turn (up to ~1000) until one matched
+	var/datum/reagent/RR = new reagent_type.type
+	RS.reagent_type = RR
+	RS.name = "[RR.name] ingots"
+	RS.singular_name = "[RR.name] ingot"
+	RS.add_atom_colour(RR.color, FIXED_COLOUR_PRIORITY)
 
 /turf/closed/wall/mineral/reagent/Destroy()
 	if(fakeholder)

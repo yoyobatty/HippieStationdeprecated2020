@@ -74,16 +74,14 @@
 	visible_message("<span class='notice'>[src] finishes processing</span>")
 	playsound(src, 'sound/machines/ping.ogg', 50, 0)
 	RS.amount = sheet_amount
-	for(var/path in subtypesof(/datum/reagent))
-		var/datum/reagent/RR = new path
-		if(RR.type == working.reagent_type)
-			RS.reagent_type = RR
-			RS.name = "[RR.name] ingots"
-			RS.singular_name = "[RR.name] ingot"
-			RS.add_atom_colour(RR.color, FIXED_COLOUR_PRIORITY)
-			break
-		else
-			qdel(RR)
+	// hippie -- the reagent made directly: this made every reagent type in turn (up to ~1000) until one matched
+	var/reagent_path = working.reagent_type
+	if(ispath(reagent_path, /datum/reagent))
+		var/datum/reagent/RR = new reagent_path
+		RS.reagent_type = RR
+		RS.name = "[RR.name] ingots"
+		RS.singular_name = "[RR.name] ingot"
+		RS.add_atom_colour(RR.color, FIXED_COLOUR_PRIORITY)
 	QDEL_NULL(working)
 	return
 

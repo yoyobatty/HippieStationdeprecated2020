@@ -107,6 +107,20 @@ GLOBAL_VAR(mob_storm_file)
 		Master.Shutdown()
 		qdel(world)
 		return
+	if(world.params["mob-storm-scenario"] == "items")
+		run_item_storm(pile, text2num(world.params["mob-storm-seconds"]) || 90)
+		mob_storm_log("done")
+		sleep(1 SECONDS)
+		Master.Shutdown()
+		qdel(world)
+		return
+	if(world.params["mob-storm-scenario"] == "grenades")
+		run_grenade_storm(pile, text2num(world.params["mob-storm-seconds"]) || 120)
+		mob_storm_log("done")
+		sleep(1 SECONDS)
+		Master.Shutdown()
+		qdel(world)
+		return
 	if(world.params["mob-storm-scenario"] == "conveyor")
 		run_conveyor_storm(pile, text2num(world.params["mob-storm-seconds"]) || 60)
 		mob_storm_log("done")
@@ -768,3 +782,145 @@ GLOBAL_VAR_INIT(storm_conga_moves, 0)
 	W.watching = FALSE
 	var/busy = storm_measure_report(start, "conga")
 	mob_storm_log("moves [GLOB.storm_conga_moves]; TOTAL procs [round(100 * busy / seconds, 0.1)]%, worst stall [round(W.worst / 10, 0.1)] s, stalls over 0.5 s: [W.stalls]")
+
+// ---------------------------------------------------------------------------------------------
+// mob-storm-scenario=grenades: the 2026-11-13 pile. mob-storm-shards (85) each of five cascade grenades (pandemonium, shockwave,
+// firestorm, hellfire, acid rain) on one tile, one of them primed. Every 10 s: how far behind the timers are (SStimer's place in
+// its buckets against world.time), vapour and smoke on the station, explosions so far; at the end the most timers one object
+// held while one of them was deleted (each removal walks that list).
+// ---------------------------------------------------------------------------------------------
+
+GLOBAL_VAR_INIT(storm_explosions, 0)
+GLOBAL_VAR_INIT(storm_timer_biggest_list, 0)
+GLOBAL_VAR(storm_timer_biggest_type)
+
+/datum/controller/subsystem/explosions/explode(atom/epicenter, devastation_range, heavy_impact_range, light_impact_range, flash_range, adminlog, ignorecap, flame_range, silent, smoke, atom/explosion_cause)
+	GLOB.storm_explosions++
+	return ..()
+
+/datum/timedevent/Destroy()
+	var/datum/owner = callBack?.object
+	if(owner && owner != GLOBAL_PROC)
+		var/n = length(owner.active_timers)
+		if(n > GLOB.storm_timer_biggest_list)
+			GLOB.storm_timer_biggest_list = n
+			GLOB.storm_timer_biggest_type = "[owner.type]"
+	return ..()
+
+/// Seconds SStimer is behind: world.time against the time of the bucket it's on.
+/proc/storm_timers_behind()
+	return max(0, (world.time - (SStimer.head_offset + (SStimer.practical_offset - 1) * world.tick_lag)) / 10)
+
+/proc/run_grenade_storm(turf/center, seconds)
+	var/each = text2num(world.params["mob-storm-shards"]) || 85
+	var/list/types = list(/obj/item/grenade/cascade/chaos, /obj/item/grenade/cascade/wave, /obj/item/grenade/cascade/firestorm, \
+		/obj/item/grenade/cascade/hellfire, /obj/item/grenade/cascade/acid)
+	for(var/kind in types)
+		for(var/i in 1 to each)
+			new kind(center)
+	mob_storm_log("grenades: [each] each of [length(types)] kinds on [center.x],[center.y] ([get_area(center)]); [length(GLOB.bot_brains)] bots aboard")
+	sleep(2 SECONDS)
+	var/datum/mob_storm_watch/W = new
+	var/list/start = storm_measure_start()
+	W.watch()
+	var/obj/item/grenade/cascade/first = locate(/obj/item/grenade/cascade/chaos) in center
+	first.prime()
+	var/end = REALTIMEOFDAY + seconds * 10
+	var/worst_behind = 0
+	var/most_vapour = 0
+	var/most_smoke = 0
+	var/next_census = REALTIMEOFDAY + 10 SECONDS
+	while(REALTIMEOFDAY < end)
+		sleep(world.tick_lag)
+		var/behind = storm_timers_behind()
+		worst_behind = max(worst_behind, behind)
+		most_vapour = max(most_vapour, length(GLOB.vapour))
+		most_smoke = max(most_smoke, length(GLOB.smoke))
+		if(REALTIMEOFDAY >= next_census)
+			next_census += 10 SECONDS
+			var/left = 0
+			for(var/obj/item/grenade/cascade/G in center)
+				left++
+			mob_storm_log("at [round((REALTIMEOFDAY - start["real"]) / 10)] s real, [round((world.time - start["game"]) / 10)] s game: \
+				timers [round(behind, 0.1)] s behind ([SStimer.bucket_count] in buckets, [length(SStimer.second_queue)] queued), \
+				vapour [length(GLOB.vapour)], smoke [length(GLOB.smoke)], explosions [GLOB.storm_explosions], grenades left on the pile [left]")
+	W.watching = FALSE
+	var/busy = storm_measure_report(start, "grenades")
+	mob_storm_log("TOTAL procs [round(100 * busy / seconds, 0.1)]%, worst stall [round(W.worst / 10, 0.1)] s, stalls over 0.5 s: [W.stalls] adding to \
+		[round(W.stalled / 10, 0.1)] s, over 2 s: [W.big_stalls]; timers worst [round(worst_behind, 0.1)] s behind; most vapour [most_vapour], \
+		most smoke [most_smoke]; explosions [GLOB.storm_explosions]; most timers on one object when one went [GLOB.storm_timer_biggest_list] \
+		([GLOB.storm_timer_biggest_type])")
+
+// ---------------------------------------------------------------------------------------------
+// mob-storm-scenario=items: mob-storm-shards (100) of mob-storm-item (no leading slash) on one tile, set off by mob-storm-trigger:
+// prime (the first of them, if it's a grenade; else a blast), blast (a 1/2/4 explosion), fire (hot plasma and oxygen on the tile),
+// emp (a 4/10 EMP). The 2026-11-13 grenade pile showed a server can look frozen with the game at full speed: a queue (SStimer)
+// falling behind. So every 10 s: timers behind, smoke, vapour, explosions, the game log's growth and runtimes; and at the end each
+// subsystem's longest pass in ticks (a pass that spans hundreds of ticks is a queue that isn't keeping up).
+// ---------------------------------------------------------------------------------------------
+
+/proc/storm_log_bytes()
+	return length(file("[GLOB.log_directory]/game.log"))
+
+/proc/run_item_storm(turf/center, seconds)
+	var/count = text2num(world.params["mob-storm-shards"]) || 100
+	var/item_param = world.params["mob-storm-item"] || "obj/item/grenade/clusterbuster/emp"
+	var/item_type = text2path(copytext(item_param, 1, 2) == "/" ? item_param : "/[item_param]")
+	if(!item_type)
+		mob_storm_log("items: no type [item_param]")
+		return
+	var/trigger = world.params["mob-storm-trigger"] || "prime"
+	for(var/i in 1 to count)
+		new item_type(center)
+	mob_storm_log("items: [count] [item_type] on [center.x],[center.y] ([get_area(center)]), set off by [trigger]; [length(GLOB.bot_brains)] bots aboard")
+	sleep(2 SECONDS)
+	var/datum/mob_storm_watch/W = new
+	var/list/start = storm_measure_start()
+	var/runtimes_before = GLOB.total_runtimes
+	var/log_before = storm_log_bytes()
+	W.watch()
+	switch(trigger)
+		if("prime")
+			var/obj/item/grenade/G = locate(item_type) in center
+			if(istype(G))
+				G.prime()
+			else
+				explosion(center, 1, 2, 4, adminlog = FALSE)
+		if("blast")
+			explosion(center, 1, 2, 4, adminlog = FALSE)
+		if("fire")
+			center.atmos_spawn_air("plasma=100;o2=100;TEMP=1500")
+			center.hotspot_expose(1500, 500)
+		if("emp")
+			empulse(center, 4, 10)
+	var/end = REALTIMEOFDAY + seconds * 10
+	var/worst_behind = 0
+	var/most_smoke = 0
+	var/most_vapour = 0
+	var/list/longest = list()
+	var/next_census = REALTIMEOFDAY + 10 SECONDS
+	while(REALTIMEOFDAY < end)
+		sleep(world.tick_lag)
+		worst_behind = max(worst_behind, storm_timers_behind())
+		most_smoke = max(most_smoke, length(GLOB.smoke))
+		most_vapour = max(most_vapour, length(GLOB.vapour))
+		for(var/datum/controller/subsystem/SS as anything in Master.subsystems)
+			if(SS.paused_ticks > longest[SS.name])
+				longest[SS.name] = SS.paused_ticks
+		if(REALTIMEOFDAY >= next_census)
+			next_census += 10 SECONDS
+			mob_storm_log("at [round((REALTIMEOFDAY - start["real"]) / 10)] s real, [round((world.time - start["game"]) / 10)] s game: \
+				timers [round(storm_timers_behind(), 0.1)] s behind, smoke [length(GLOB.smoke)], vapour [length(GLOB.vapour)], explosions [GLOB.storm_explosions], \
+				game log +[round((storm_log_bytes() - log_before) / 1024)] KB, runtimes [GLOB.total_runtimes - runtimes_before], left on the tile [length(center.contents)]")
+	W.watching = FALSE
+	var/busy = storm_measure_report(start, "items")
+	sortTim(longest, GLOBAL_PROC_REF(cmp_numeric_dsc), TRUE)
+	var/list/passes = list()
+	for(var/name in longest)
+		passes += "[name] [longest[name]]"
+		if(length(passes) >= 6)
+			break
+	mob_storm_log("TOTAL procs [round(100 * busy / seconds, 0.1)]%, worst stall [round(W.worst / 10, 0.1)] s, stalls over 0.5 s: [W.stalls] adding to \
+		[round(W.stalled / 10, 0.1)] s, over 2 s: [W.big_stalls]; timers worst [round(worst_behind, 0.1)] s behind; most smoke [most_smoke], most vapour \
+		[most_vapour]; explosions [GLOB.storm_explosions]; game log +[round((storm_log_bytes() - log_before) / 1024)] KB; runtimes \
+		[GLOB.total_runtimes - runtimes_before]; longest passes (ticks): [jointext(passes, ", ")]")

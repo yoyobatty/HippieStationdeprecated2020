@@ -44,7 +44,7 @@ GLOBAL_LIST_EMPTY(chempiles)
 /// Its colour from what's in it, once a tick however much is added: a chem splash adds a dozen chemicals to each pile one after another,
 /// and mixing the colour after each was most of a 380 ms freeze (a chem dispenser EMP'd by a tesla zap, stress bench 2026-11-08)
 /obj/effect/decal/cleanable/chempile/proc/queue_recolor()
-	if(recolor_queued)
+	if(recolor_queued || QDELETED(src)) // a pile merged or cleaned away mid-splash still gets the rest of the chemicals' calls
 		return
 	recolor_queued = TRUE
 	addtimer(CALLBACK(src, PROC_REF(recolor)), 0)
@@ -73,6 +73,8 @@ GLOBAL_LIST_EMPTY(chempiles)
 		if(reagents?.total_volume >= 1)	//No transfer if there's less than 1u total
 			reagents.trans_to(M, 2, protection)
 			CHECK_TICK
+			if(QDELETED(src) || !reagents) // gone while CHECK_TICK slept (blown up under someone running through it, 2026-11-13)
+				return
 			for(var/datum/reagent/R in reagents.reagent_list)
 				if(R.volume < 0.2)
 					reagents.remove_reagent(R.type, R.volume)	//Should remove most stray cases of microdosages that may get through without compromising chempiles with lots of mixes in them

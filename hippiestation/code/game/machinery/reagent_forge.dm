@@ -114,15 +114,10 @@
 			if(currently_forging)
 				if(istype(D, /datum/design/forge))
 					var/obj/item/forged/F = A
-					var/paths = subtypesof(/datum/reagent)
-					for(var/path in paths)
-						var/datum/reagent/RR = new path
-						if(RR.type == currently_forging.type)
-							F.reagent_type = RR
-							F.assign_properties()
-							break
-						else
-							qdel(RR)
+					// hippie -- the same reagent as currently_forging, made directly: this made every reagent type in turn (up to ~1000) until one matched
+					var/datum/reagent/RR = new currently_forging.type
+					F.reagent_type = RR
+					F.assign_properties()
 		. = TRUE
 	update_icon()
 	return .
@@ -186,19 +181,13 @@
 					materials.use_amount(materials_used)
 					var/obj/item/stack/sheet/mineral/reagent/RS = new(get_turf(usr))
 					RS.amount = materials.amount2sheet(amount)
-					var/paths = subtypesof(/datum/reagent)//one reference per stack
-
-					for(var/path in paths)
-						var/datum/reagent/RR = new path
-						if(RR.type == currently_forging.type)
-							RS.reagent_type = RR
-							RS.name = "[RR.name] ingots"
-							RS.singular_name = "[RR.name] ingot"
-							RS.add_atom_colour(RR.color, FIXED_COLOUR_PRIORITY)
-							to_chat(usr, "<span class='notice'>You remove the [RS.name] from [src]</span>")
-							break
-						else
-							qdel(RR)
+					// hippie -- the same reagent as currently_forging, made directly: this made every reagent type in turn (up to ~1000) until one matched
+					var/datum/reagent/RR = new currently_forging.type
+					RS.reagent_type = RR
+					RS.name = "[RR.name] ingots"
+					RS.singular_name = "[RR.name] ingot"
+					RS.add_atom_colour(RR.color, FIXED_COLOUR_PRIORITY)
+					to_chat(usr, "<span class='notice'>You remove the [RS.name] from [src]</span>")
 			qdel(currently_forging)
 			currently_forging = null
 			return TRUE

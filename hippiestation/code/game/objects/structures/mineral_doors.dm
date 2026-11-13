@@ -32,20 +32,7 @@
 
 /obj/structure/mineral_door/transparent/reagent/proc/vapourise()
 	if(reagent_type && !QDELETED(src))
-		var/obj/effect/particle_effect/vapour/foundvape = locate() in get_turf(src)
-		if(foundvape && foundvape.reagent_type == src)
-			foundvape.VM.volume += 20000
-		else
-			var/obj/effect/particle_effect/vapour/master/V = new(get_turf(src))
-			V.volume = 20000
-			var/paths = subtypesof(/datum/reagent)
-			for(var/path in paths)
-				var/datum/reagent/RR = new path
-				if(RR.type == reagent_type.type)
-					V.reagent_type = RR
-					break
-				else
-					qdel(RR)
+		release_reagent_vapour(get_turf(src), reagent_type.type, 20000, TRUE)
 
 	deconstruct(FALSE)
 
@@ -105,17 +92,12 @@
 /obj/structure/mineral_door/transparent/reagent/deconstruct(disassembled = TRUE)
 	var/turf/T = get_turf(src)
 	var/obj/item/stack/sheet/mineral/reagent/RS = new(T, sheetAmount)
-	var/paths = subtypesof(/datum/reagent)//one reference per stack
-	for(var/path in paths)
-		var/datum/reagent/RR = new path
-		if(RR.type == reagent_type.type)
-			RS.reagent_type = RR
-			RS.name = "[RR.name] ingots"
-			RS.singular_name = "[RR.name] ingot"
-			RS.add_atom_colour(RR.color, FIXED_COLOUR_PRIORITY)
-			break
-		else
-			qdel(RR)
+	// hippie -- the same reagent as reagent_type, made directly: this made every reagent type in turn (up to ~1000) until one matched
+	var/datum/reagent/RR = new reagent_type.type
+	RS.reagent_type = RR
+	RS.name = "[RR.name] ingots"
+	RS.singular_name = "[RR.name] ingot"
+	RS.add_atom_colour(RR.color, FIXED_COLOUR_PRIORITY)
 
 	qdel(src)
 

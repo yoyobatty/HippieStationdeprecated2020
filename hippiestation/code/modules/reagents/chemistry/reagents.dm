@@ -22,6 +22,28 @@
 	M.reagents.remove_reagent(type, metabolization_rate * M.metabolism_efficiency) //By default it slowly disappears.
 	return TRUE
 
+/// Reagent vapour of `reagent_path` on `T`: a vapour of the same reagent already there is topped up (`add`: by `volume`, else up to
+/// it), otherwise a new one starts, `log_text` going to the game log, unless the station already has VAPOUR_MAX. Matched by type:
+/// a vapour holds its own copy of the reagent, so comparing datums never matched and every call made a new vapour.
+/proc/release_reagent_vapour(turf/T, reagent_path, volume, add, log_text)
+	if(!T || !ispath(reagent_path, /datum/reagent))
+		return
+	if(locate(/obj/effect/particle_effect/vapour) in T)
+		for(var/obj/effect/particle_effect/vapour/V in T)
+			if(V.reagent_type?.type != reagent_path)
+				continue
+			if(V.VM)
+				V.VM.volume = add ? V.VM.volume + volume : max(V.VM.volume, volume)
+			return V.VM
+	if(length(GLOB.vapour) >= VAPOUR_MAX)
+		return
+	var/obj/effect/particle_effect/vapour/master/M = new(T)
+	M.volume = volume
+	M.reagent_type = new reagent_path
+	if(log_text)
+		log_game(log_text)
+	return M
+
 /datum/reagent/proc/handle_state_change(turf/T, volume, atom)
 	if(!QDELETED(src))	//otherwise it starts getting called on null holders
 		var/touch_msg
@@ -54,14 +76,13 @@
 
 			var/turf/open/O = T
 			if(istype(O))
-				var/obj/effect/particle_effect/vapour/foundvape = locate() in T//if there's an existing vapour of the same type it just adds volume otherwise it creates a new instance
-				if(foundvape && foundvape.reagent_type == src)
-					foundvape.VM.volume = volume*50
-				else
-					var/obj/effect/particle_effect/vapour/master/V = new(O)
-					V.volume = volume*50
-					V.reagent_type = new type
-				log_game("Reagent vapour of type [src] was released at [COORD(T)] Last Fingerprint: [touch_msg] ")
+				// if there's an existing vapour of the same type it's topped up, otherwise a new one starts. This compared the
+				// vapour's reagent (its own copy) with src, which is never the same datum, and looked only at the first vapour on the
+				// tile: every call made a new vapour master, each of which pulls every other master of its type within 5 tiles into
+				// itself. Smoke of a boiling reagent calls this for the tile and for every object on it, every tick, so a cloud over a
+				// pile made hundreds of masters a tick; with the timers each master starts, SStimer never caught up (2026-11-13,
+				// a pile of acid rain and hellfire grenades: 35,000 vapours a minute, timers minutes late, then a 6 s freeze)
+				release_reagent_vapour(O, type, volume * 50, FALSE, "Reagent vapour of type [src] was released at [COORD(T)] Last Fingerprint: [touch_msg] ")
 
 
 		if(reagent_state == LIQUID) //LIQUID

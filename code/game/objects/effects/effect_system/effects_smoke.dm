@@ -280,13 +280,13 @@ hippie end */
 	carry.clear_reagents()
 	if(!silent)
 		var/contained = ""
-		for(var/reagent in carry.reagent_list)
+		for(var/reagent in chemholder.reagents.reagent_list) // hippie -- what it was carrying: carry has been emptied by now, so the log never said
 			contained += " [reagent] "
 		if(contained)
 			contained = "\[[contained]\]"
 
 		var/where = "[AREACOORD(location)]"
-		if(carry.my_atom.fingerprintslast)
+		if(carry.my_atom?.fingerprintslast) // hippie -- a holder with no atom (a reaction in an EMP'd dispenser's splash)
 			var/mob/M = get_mob_by_key(carry.my_atom.fingerprintslast)
 			var/more = ""
 			if(M)

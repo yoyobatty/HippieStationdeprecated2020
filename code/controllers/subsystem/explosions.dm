@@ -188,7 +188,18 @@ SUBSYSTEM_DEF(explosions)
 	var/started_at = REALTIMEOFDAY
 	//hippie start -- every explosion is logged with a cause, suspects and the call stack that set it off, adminlog or not (see explosion_blame())
 	var/list/blame = explosion_blame(origin, explosion_cause)
-	var/blame_message = "Explosion with size ([devastation_range], [heavy_impact_range], [light_impact_range], [flame_range]) in [loc_name(epicenter)]. Cause: [blame["cause"]]. Suspects: [blame["suspects"]]. Call stack: [blame["trace"]]"
+	// The call stack is ~2 KB, and a chain (a pile of fuel tanks, cluster charges) repeats the same one hundreds of times: 13,000 of
+	// them made most of a 32 MB game log in one round, every line also kept in GLOB.bombers. The same stack as the last explosion's
+	// within 5 s is said so instead
+	var/static/last_trace
+	var/static/last_trace_time = -INFINITY
+	var/trace = blame["trace"]
+	if(trace == last_trace && world.time - last_trace_time < 5 SECONDS)
+		trace = "the same as the last explosion's"
+	else
+		last_trace = trace
+	last_trace_time = world.time
+	var/blame_message = "Explosion with size ([devastation_range], [heavy_impact_range], [light_impact_range], [flame_range]) in [loc_name(epicenter)]. Cause: [blame["cause"]]. Suspects: [blame["suspects"]]. Call stack: [trace]"
 	log_game(blame_message)
 	GLOB.bombers += blame_message
 	if(adminlog)

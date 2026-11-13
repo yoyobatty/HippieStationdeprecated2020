@@ -195,7 +195,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/mob/living/silicon/ai/ai.dm
 ## code/modules/mob/living/silicon/pai/pai_shell.dm
 ## code/modules/mob/living/silicon/robot/robot.dm
-## code/modules/mob/living/simple_animal/bot/bot.dm (scan() shuffles and checks only what's of the type it's after)
+## code/modules/mob/living/simple_animal/bot/bot.dm (scan() shuffles and checks only what's of the type it's after; an EMP'd bot destroyed before it comes back on stays off)
 ## code/modules/mob/living/simple_animal/bot/ed209bot.dm
 ## code/modules/mob/living/simple_animal/bot/medbot.dm
 ## code/modules/mob/living/simple_animal/friendly/dog.dm
@@ -217,8 +217,10 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/reagents/chemistry/reagents/alcohol_reagents.dm
 ## code/modules/reagents/chemistry/reagents/food_reagents.dm
 ## code/modules/reagents/chemistry/reagents/other_reagents.dm
+## code/modules/reagents/chemistry/reagents/pyrotechnic_reagents.dm (thermite isn't put on turfs its component refuses)
 ## code/modules/reagents/chemistry/reagents/toxin_reagents.dm
 ## code/modules/reagents/chemistry/recipes/pyrotechnics.dm !Same as above.
+## code/modules/reagents/chemistry/recipes/slime_extracts.dm (delete_extract() on an extract already gone)
 ## code/modules/reagents/reagent_containers.dm !Could be modularized.
 ## code/modules/research/rdconsole.dm (research_node() says which points are short)
 ## code/modules/shuttle/emergency.dm

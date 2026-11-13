@@ -35,6 +35,7 @@ SUBSYSTEM_DEF(mctest)
 	var/stale_woke = FALSE
 	var/hogging = FALSE
 	var/fires = 0
+	var/backlog_until = 0
 
 /datum/controller/subsystem/mctest/fire(resumed)
 	fires++
@@ -49,6 +50,12 @@ SUBSYSTEM_DEF(mctest)
 		if("hog_ticks")
 			mode = "idle"
 			INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(mc_check_hog_ticks), 2.5, 30 SECONDS)
+		if("backlog") // one pass that never gets to the end of its queue till backlog_until: 2 ms of work at a time, pausing for the tick
+			while(world.time < backlog_until)
+				mc_check_busy(0.02)
+				if(MC_TICK_CHECK)
+					return
+			mode = "idle"
 
 /// Keep the server busy for `ds` deciseconds of real time without sleeping
 /proc/mc_check_busy(ds)
@@ -136,7 +143,7 @@ SUBSYSTEM_DEF(mctest)
 	// dd -invisible reports world.sleep_offline as 1 and won't take 0, though the world keeps ticking: without this the watchdog
 	// takes the freezes for the world asleep with nobody on
 	MCWatchdog.watch_with_nobody_on = TRUE
-	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "native", "asleep", "lag", "strikes", "tgui_strikes", "timer_edge", "timers", "profile", "recover", "inits", "status", "duty")
+	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "native", "asleep", "lag", "strikes", "tgui_strikes", "timer_edge", "timers", "timers_late", "backlog", "profile", "recover", "inits", "status", "duty")
 	// init_fail runs only when asked (STEPS=init_fail): its subsystem breaks at boot
 	if(world.params["mc-steps"]) // STEPS=freeze_outside,lag on the runner: only those
 		steps = splittext(world.params["mc-steps"], ",")
@@ -464,6 +471,62 @@ SUBSYSTEM_DEF(mctest)
 	check("timers: no deleted timer fired", !deleted_fired, "[deleted_fired] fired after deltimer()")
 	check("timers: on time", !late, "[late] over a second late, worst [worst / 10] s")
 	check("timers: no runtimes meanwhile", GLOB.total_runtimes == runtimes_before, "[GLOB.total_runtimes - runtimes_before] runtimes (see runtime.log for Invalid timer)")
+
+/// A flood of timers SStimer can't keep up with (2026-11-13, the cascade grenade pile): 100 a tick, each a millisecond of work,
+/// for 15 s. The game itself keeps its speed, so only the timers check sees it: alerted, naming what the timers are for, on the MC
+/// tab; then once the flood stops SStimer catches up without freezing on the timers it ran, and nothing runtimes.
+/datum/mc_selftest/proc/timers_late()
+	var/runtimes_before = GLOB.total_runtimes
+	var/datum/timer_probe/P = new
+	var/began = world.time
+	while(world.time - began < 15 SECONDS)
+		for(var/n in 1 to 100)
+			addtimer(CALLBACK(P, TYPE_PROC_REF(/datum/timer_probe, slow)), world.tick_lag)
+			P.made++
+		sleep(world.tick_lag)
+	var/late = (world.time - (SStimer.head_offset + (SStimer.practical_offset - 1) * world.tick_lag)) / 10
+	note("timers late: [P.slow_runs] of [P.made] slow timers run in 15 s, SStimer [round(late, 0.1)] s behind")
+	var/datum/admin_alert/A = wait_alert("Timers are running", 5 SECONDS)
+	check("timers late: alerted", A, A?.text)
+	check("timers late: it names what they're for", A && findtext(A.text, "/datum/timer_probe/proc/slow"))
+	check("timers late: the MC tab counts it", findtext(MCWatchdog.stat_line(), "Timers late 1"), MCWatchdog.stat_line())
+	// catching up: the worst real gap between ticks while it does
+	var/worst_gap = 0
+	var/last = REALTIMEOFDAY
+	var/deadline = world.time + 90 SECONDS
+	while(world.time < deadline)
+		sleep(world.tick_lag)
+		worst_gap = max(worst_gap, REALTIMEOFDAY - last)
+		last = REALTIMEOFDAY
+		if(world.time - (SStimer.head_offset + (SStimer.practical_offset - 1) * world.tick_lag) <= world.tick_lag)
+			break
+	check("timers late: caught up", world.time < deadline, "[round((world.time - began) / 10 - 15)] s after the flood")
+	check("timers late: no freeze catching up", worst_gap < 10, "worst tick [worst_gap * 100] ms")
+	check("timers late: every one ran", P.slow_runs == P.made, "[P.slow_runs] of [P.made]")
+	check("timers late: no runtimes", GLOB.total_runtimes == runtimes_before, "[GLOB.total_runtimes - runtimes_before] runtimes")
+
+/// A subsystem whose pass never reaches the end of its queue for 20 s, the game at full speed: alerted once with its name, on the
+/// MC tab, and nothing once it's caught up.
+/datum/mc_selftest/proc/backlog()
+	var/runtimes_before = GLOB.total_runtimes
+	SSmctest.backlog_until = world.time + 20 SECONDS
+	SSmctest.mode = "backlog"
+	var/datum/admin_alert/A = wait_alert("has been on one pass", 25 SECONDS)
+	check("backlog: alerted", A, A?.text)
+	check("backlog: it names the subsystem", A && findtext(A.text, "MC test has been on one pass"))
+	check("backlog: the MC tab counts it", findtext(MCWatchdog.stat_line(), "Behind 1"), MCWatchdog.stat_line())
+	UNTIL(SSmctest.mode == "idle" || world.time > SSmctest.backlog_until + 10 SECONDS)
+	check("backlog: the pass ended", SSmctest.mode == "idle", "mode [SSmctest.mode]")
+	sleep(15 SECONDS)
+	check("backlog: no second alert", !wait_alert("has been on one pass", 1), MCWatchdog.stat_line())
+	check("backlog: no runtimes", GLOB.total_runtimes == runtimes_before, "[GLOB.total_runtimes - runtimes_before] runtimes")
+
+/datum/timer_probe
+	var/slow_runs = 0
+
+/datum/timer_probe/proc/slow()
+	slow_runs++
+	mc_check_busy(0.01)
 
 /// PROFILE 30 S (here 10): the profiler on for a while during lag, then an alert naming the procs that took the time
 /datum/mc_selftest/proc/profile()

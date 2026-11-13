@@ -111,6 +111,8 @@ SUBSYSTEM_DEF(timer)
 
 	var/static/list/spent = list()
 	var/static/datum/timedevent/timer
+	/// hippie -- a bucket's been started and not finished: `spent` has timers still in it (see process_spent() below)
+	var/static/mid_bucket = FALSE
 	if (practical_offset > BUCKET_LEN)
 		head_offset += TICKS2DS(BUCKET_LEN)
 		practical_offset = 1
@@ -126,6 +128,16 @@ SUBSYSTEM_DEF(timer)
 		timer = null
 
 	while (practical_offset <= BUCKET_LEN && head_offset + ((practical_offset-1)*world.tick_lag) <= world.time)
+		// hippie start -- the timers of the buckets already run are let go before the next bucket, a tick's worth at a time. They
+		// were all kept until SStimer caught up with world.time: behind for minutes under a flood of new timers, it held millions,
+		// ran out of room in the list ("cannot append to list", every pass after that) and, the one time it caught up, spent 6 s
+		// deleting them in one tick (2026-11-13, reagent vapour from a pile of cascade grenades). Not while a bucket's half run: a
+		// pass cut off mid-bucket (the MC restarted) starts that bucket again from its head, and a spent timer deleted there first
+		// could be that head, with no callback ("Invalid timer")
+		if (!mid_bucket && length(spent) && !process_spent(spent))
+			return
+		mid_bucket = TRUE
+		// hippie end
 		var/datum/timedevent/head = bucket_list[practical_offset]
 		if (!timer || !head || timer == head)
 			head = bucket_list[practical_offset]
@@ -158,6 +170,7 @@ SUBSYSTEM_DEF(timer)
 
 
 		bucket_list[practical_offset++] = null
+		mid_bucket = FALSE // hippie
 
 		//we freed up a bucket, lets see if anything in second_queue needs to be shifted to that bucket.
 		var/i = 0
@@ -214,10 +227,20 @@ SUBSYSTEM_DEF(timer)
 
 		timer = null
 
-	bucket_count -= length(spent)
+	if (!mid_bucket) // hippie -- see above
+		process_spent(spent)
 
-	for (var/i in spent)
-		var/datum/timedevent/qtimer = i
+/// hippie -- deletes (or, looping, puts back) the timers that have run, until the tick runs out. FALSE if it stopped short: the rest
+/// stay in `spent` for the next pass
+/datum/controller/subsystem/timer/proc/process_spent(list/spent)
+	var/done = 0
+	for (var/datum/timedevent/qtimer as anything in spent)
+		done++
+		bucket_count--
+		if (MC_TICK_CHECK) // checked first, so a pause leaves this timer to start the next pass with
+			done--
+			bucket_count++
+			break
 		if(QDELETED(qtimer))
 			bucket_count++
 			continue
@@ -242,7 +265,11 @@ SUBSYSTEM_DEF(timer)
 				qtimer.timeToRun = world.time + qtimer.wait
 			qtimer.bucketJoin()
 
-	spent.len = 0
+	if(done >= length(spent))
+		spent.len = 0
+		return TRUE
+	spent.Cut(1, done + 1)
+	return FALSE
 
 //formated this way to be runtime resistant
 /datum/controller/subsystem/timer/proc/get_timer_debug_string(datum/timedevent/TE)

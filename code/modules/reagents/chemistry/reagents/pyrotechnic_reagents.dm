@@ -7,7 +7,10 @@
 	taste_description = "sweet tasting metal"
 
 /datum/reagent/thermite/reaction_turf(turf/T, reac_volume)
-	if(reac_volume >= 1)
+	// hippie -- not on the turfs the component refuses (space, lava, water, chasm): each was a runtime ("Incompatible
+	// /datum/component/thermite assigned to a /turf/open/space"), ten from one pile of storm cells splashing chem dispensers into space
+	var/static/list/refused = typecacheof(list(/turf/open/lava, /turf/open/space, /turf/open/water, /turf/open/chasm))
+	if(reac_volume >= 1 && !refused[T.type])
 		T.AddComponent(/datum/component/thermite, reac_volume)
 
 /datum/reagent/thermite/on_mob_life(mob/living/carbon/M)

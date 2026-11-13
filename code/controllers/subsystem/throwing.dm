@@ -135,7 +135,9 @@ SUBSYSTEM_DEF(throwing)
 			hit = TRUE
 			thrownthing.throw_impact(target, src)
 		if (!hit)
-			thrownthing.throw_impact(get_turf(thrownthing), src)  // we haven't hit something yet and we still must, let's hit the ground.
+			var/turf/landed = get_turf(thrownthing) // hippie -- nowhere if it was put in nullspace mid-flight (a crate pulled by an implosion charge)
+			if(landed)
+				thrownthing.throw_impact(landed, src)  // we haven't hit something yet and we still must, let's hit the ground.
 			thrownthing.newtonian_move(init_dir)
 	else
 		thrownthing.newtonian_move(init_dir)

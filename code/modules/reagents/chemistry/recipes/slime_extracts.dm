@@ -8,7 +8,9 @@
 		delete_extract(holder)
 
 /datum/chemical_reaction/slime/proc/delete_extract(datum/reagents/holder)
-	var/obj/item/slime_extract/M = holder.my_atom
+	var/obj/item/slime_extract/M = holder?.my_atom
+	if(!istype(M)) // hippie -- gone by the time a delayed reaction (slime explosion) comes back for it: blown up with the rest
+		return
 	if(M.Uses <= 0 && !results.len) //if the slime doesn't output chemicals
 		qdel(M)
 

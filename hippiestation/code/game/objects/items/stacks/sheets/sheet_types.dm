@@ -78,19 +78,14 @@ GLOBAL_LIST_INIT(reagent_recipes, list ( \
 				use(R.req_amount * multiplier)
 				var/turf/T = get_turf(usr)
 				var/turf/closed/wall/mineral/reagent/W = T.ChangeTurf(/turf/closed/wall/mineral/reagent)
-				var/paths = subtypesof(/datum/reagent)
-				for(var/path in paths)
-					var/datum/reagent/RR = new path
-					if(RR.type == reagent_type.type)
-						W.reagent_type = RR
-						W.name ="[reagent_type] plated wall"
-						W.desc = "A wall plated with sheets of [reagent_type]"
-						W.add_atom_colour(reagent_type.color, FIXED_COLOUR_PRIORITY)
-						W.hardness = W.hardness / reagent_type.density
-						W.slicing_duration = 50 * reagent_type.density
-						break
-					else
-						qdel(RR)
+				// hippie -- the same reagent as reagent_type, made directly: this made every reagent type in turn (up to ~1000) until one matched
+				var/datum/reagent/RR = new reagent_type.type
+				W.reagent_type = RR
+				W.name ="[reagent_type] plated wall"
+				W.desc = "A wall plated with sheets of [reagent_type]"
+				W.add_atom_colour(reagent_type.color, FIXED_COLOUR_PRIORITY)
+				W.hardness = W.hardness / reagent_type.density
+				W.slicing_duration = 50 * reagent_type.density
 
 			if(src && usr.machine==src) //do not reopen closed window
 				addtimer(CALLBACK(src, TYPE_PROC_REF(/atom, interact), usr), 0)
@@ -106,31 +101,21 @@ GLOBAL_LIST_INIT(reagent_recipes, list ( \
 
 		if(istype(O, /obj/structure/mineral_door/transparent/reagent))
 			var/obj/structure/mineral_door/transparent/reagent/D = O
-			var/paths = subtypesof(/datum/reagent)
-			for(var/path in paths)
-				var/datum/reagent/RR = new path
-				if(RR.type == reagent_type.type)
-					D.reagent_type = RR
-					D.name ="[reagent_type] door"
-					D.desc = "A slightly transparent door made out of sheets of [reagent_type]"
-					D.add_atom_colour(reagent_type.color, FIXED_COLOUR_PRIORITY)
-					D.max_integrity = reagent_type.density * 100
-					D.obj_integrity = D.max_integrity
-					break
-				else
-					qdel(RR)
+			// hippie -- the same reagent as reagent_type, made directly: this made every reagent type in turn (up to ~1000) until one matched
+			var/datum/reagent/RR = new reagent_type.type
+			D.reagent_type = RR
+			D.name ="[reagent_type] door"
+			D.desc = "A slightly transparent door made out of sheets of [reagent_type]"
+			D.add_atom_colour(reagent_type.color, FIXED_COLOUR_PRIORITY)
+			D.max_integrity = reagent_type.density * 100
+			D.obj_integrity = D.max_integrity
 
 		if(istype(O, /obj/item/stack/tile/mineral/reagent))
 			var/obj/item/stack/tile/mineral/reagent/F = O
-			var/paths = subtypesof(/datum/reagent)
-			for(var/path in paths)
-				var/datum/reagent/RR = new path
-				if(RR.type == reagent_type.type)
-					F.reagent_type = RR
-					F.name ="[reagent_type] floor tiles"
-					F.singular_name = "[reagent_type] floor tile"
-					F.desc = "floor tiles made of [reagent_type]"
-					F.add_atom_colour(reagent_type.color, FIXED_COLOUR_PRIORITY)
-					break
-				else
-					qdel(RR)
+			// hippie -- the same reagent as reagent_type, made directly: this made every reagent type in turn (up to ~1000) until one matched
+			var/datum/reagent/RR = new reagent_type.type
+			F.reagent_type = RR
+			F.name ="[reagent_type] floor tiles"
+			F.singular_name = "[reagent_type] floor tile"
+			F.desc = "floor tiles made of [reagent_type]"
+			F.add_atom_colour(reagent_type.color, FIXED_COLOUR_PRIORITY)

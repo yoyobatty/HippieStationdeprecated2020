@@ -11,6 +11,9 @@
 //	          later it finishes, but leaves the state alone (fire_generation, subsystem.dm).
 //	Offline   a subsystem that stopped the MC three times is off for 5 minutes, then gets one more chance; a fourth time keeps
 //	          it off until an admin turns it on (master.dm Recover(), the user's ruling). Its alert has a link to turn it on.
+//	Timers    SStimer 5 s or more behind world.time while the game runs at full speed: every timer late, which looks to players like
+//	          a frozen server though nothing froze (2026-11-13, a pile of cascade grenades). Names what the waiting timers are for.
+//	Behind    any other subsystem on one pass of its queue for 10 s with the game at full speed: the same, for its queue.
 // With the profiler running (AUTO_PROFILE or Toggle Profiling) the reports also name the procs that took the time: it keeps a
 // copy of the profiler's figures every 30 s to compare with. The profiler slows every proc while it runs (2x30 min Bot Shifts
 // side by side, 2026-11-07: Timer +35%, Machines +45%, Processing +20%, Mobs +40%), so it stays off by default; a lag alert
@@ -27,6 +30,10 @@
 #define MC_WATCHDOG_LAG_WINDOW (30 SECONDS)
 #define MC_WATCHDOG_LAG_SPEED 0.6
 #define MC_WATCHDOG_LAG_REALERT (5 MINUTES)
+/// SStimer this far behind world.time is reported (check_timers())
+#define MC_WATCHDOG_TIMERS_LATE (5 SECONDS)
+/// Any other subsystem this long on one pass is reported (check_backlog())
+#define MC_WATCHDOG_BACKLOG (10 SECONDS)
 #define MC_WATCHDOG_PROFILE_EVERY (5 MINUTES)
 #define MC_WATCHDOG_ACTIONS_KEPT 64
 
@@ -69,6 +76,18 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 	var/lag_count = 0
 	var/last_freeze_secs = 0
 	var/last_freeze_time = 0
+	/// Timers running late (check_timers()): alerts this round, the worst lateness seen (ds), the last alert (real time)
+	var/timers_late_count = 0
+	var/timers_late_worst = 0
+	var/last_timers_alert = -INFINITY
+	/// The MC last seen (its ref, so an old one can still be deleted), and when (real time) a new one was: a restarted MC's timers
+	/// are late for reasons already reported
+	var/seen_master
+	var/master_changed_real = -INFINITY
+	/// Subsystems behind on their queue (check_backlog()): alerts this round, the longest pass seen (ds), subsystem type = last alert
+	var/backlog_count = 0
+	var/backlog_worst = 0
+	var/list/backlog_alerted
 
 /datum/mc_watchdog/New()
 	if(MCWatchdog != src)
@@ -113,6 +132,8 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 		return
 	check_subsystems(now_time)
 	check_lag(now_real, now_time)
+	check_timers(now_real, now_time)
+	check_backlog(now_real, now_time)
 	// A copy of the profiler's figures to compare reports with: every 5 minutes (a whole round's figures take ~66 ms to read and
 	// decode: every 30 s, as it was, that was a hitch every 30 s and 2% of the profiled time), and a fresh one as soon as the
 	// game starts slowing, so a lag report 30 s later covers about the lag
@@ -126,6 +147,10 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 /// The MC tab's line (statpanels.dm): what it's seen this round, and any subsystem asleep or taken offline
 /datum/mc_watchdog/proc/stat_line()
 	var/list/parts = list("Freezes [freeze_count][freeze_count ? " (last [last_freeze_secs] s, [round((world.time - last_freeze_time) / 600)] min ago)" : ""]", "Lag alerts [lag_count]")
+	if(timers_late_count)
+		parts += "Timers late [timers_late_count] (worst [round(timers_late_worst / 10)] s)"
+	if(backlog_count)
+		parts += "Behind [backlog_count] (worst pass [round(backlog_worst / 10)] s)"
 	var/list/asleep = list()
 	var/list/offline = list()
 	for(var/datum/controller/subsystem/SS as anything in Master?.subsystems)
@@ -282,6 +307,88 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 	var/report = lag_report(oldest, ms, span_real, now_time)
 	log_world("MC watchdog: the game ran at [round(speed * 100)]% speed for [round(span_real / 10)] s. [report]")
 	mc_watchdog_alert("The game has run at [round(speed * 100)]% speed for the last [round(span_real / 10)] s. [report]", (SSprofiler?.profiling && (SSprofiler.engine == "hippie" || SSprofiler.duty >= 100)) ? null : mc_watchdog_link("profile", "PROFILE 30 S"))
+
+////////////////////
+// Timers late
+////////////////////
+
+/// SStimer running behind world.time: every timer (doors, stuns, do-afters, explosions' after-effects...) late by that much while
+/// the game itself runs at full speed, so neither the freeze nor the lag check sees it. 2026-11-13: a pile of cascade grenades put
+/// the timers a minute behind with the game at 96% speed; to the player the server had stopped.
+/// The MC itself in trouble (stalling, restarted, frozen, slowed): its subsystems' queues fall behind too, and the Failsafe's,
+/// freeze and lag reports already say so. The timers and backlog checks are for one queue falling behind while the rest keeps up.
+/datum/mc_watchdog/proc/mc_in_trouble(now_real, now_time)
+	if(REF(Master) != seen_master)
+		if(seen_master) // the first one seen is the one the world started with, not a restart
+			master_changed_real = now_real
+		seen_master = REF(Master)
+	if(Failsafe?.defcon < 5 || now_real - master_changed_real < 1 MINUTES || now_real - last_freeze_alert < 1 MINUTES || now_real - last_lag_alert < 1 MINUTES)
+		return TRUE
+	return recent_speed(now_real, now_time) < MC_WATCHDOG_LAG_SPEED
+
+/datum/mc_watchdog/proc/check_timers(now_real, now_time)
+	if(!SStimer || SStimer.practical_offset > length(SStimer.bucket_list))
+		return
+	if(mc_in_trouble(now_real, now_time))
+		return
+	var/late = now_time - (SStimer.head_offset + (SStimer.practical_offset - 1) * world.tick_lag)
+	timers_late_worst = max(timers_late_worst, late)
+	if(late < MC_WATCHDOG_TIMERS_LATE || now_real - last_timers_alert < MC_WATCHDOG_LAG_REALERT)
+		return
+	if(!SSticker || SSticker.current_state < GAME_STATE_PLAYING)
+		return
+	last_timers_alert = now_real
+	timers_late_count++
+	var/report = "Timers are running [round(late / 10, 0.1)] s late with the game at full speed: [SStimer.bucket_count] waiting. [timers_report()]"
+	log_world("MC watchdog: [report]")
+	mc_watchdog_alert(report)
+
+/// Any other subsystem still on one pass of its queue after MC_WATCHDOG_BACKLOG with the game at full speed: its fire() keeps
+/// pausing for the tick and picking up where it left off, and never gets to the end, so whatever it runs (explosions, air, throws,
+/// garbage...) is that far behind. The same blind spot as the timers (check_timers()), for the rest.
+/datum/mc_watchdog/proc/check_backlog(now_real, now_time)
+	if(!SSticker || SSticker.current_state < GAME_STATE_PLAYING || mc_in_trouble(now_real, now_time))
+		return
+	var/limit = MC_WATCHDOG_BACKLOG / world.tick_lag
+	for(var/datum/controller/subsystem/SS as anything in Master.subsystems)
+		if(SS.paused_ticks < limit || SS == SStimer)
+			continue
+		backlog_worst = max(backlog_worst, SS.paused_ticks * world.tick_lag)
+		if(now_real - (LAZYACCESS(backlog_alerted, SS.type) || -INFINITY) < MC_WATCHDOG_LAG_REALERT)
+			continue
+		LAZYSET(backlog_alerted, SS.type, now_real)
+		backlog_count++
+		SS.stat_entry()
+		var/report = "[SS.name] has been on one pass for [round(SS.paused_ticks * world.tick_lag / 10)] s with the game at full speed: it isn't keeping up\
+			[SS.stat_extra ? " ([SS.stat_extra])" : ""]. [profile_top(5, MC_WATCHDOG_BACKLOG)]"
+		log_world("MC watchdog: [report]")
+		mc_watchdog_alert(report)
+
+/// What the timers SStimer is on are for: the procs they call, the most first (the bucket it's on and the next few, up to 5000).
+/datum/mc_watchdog/proc/timers_report()
+	var/list/counts = list()
+	var/seen = 0
+	var/list/bucket_list = SStimer.bucket_list
+	for(var/i in SStimer.practical_offset to min(length(bucket_list), SStimer.practical_offset + 20))
+		var/datum/timedevent/head = bucket_list[i]
+		var/datum/timedevent/node = head
+		while(node && seen < 5000)
+			counts[node.info_type == GLOBAL_PROC ? "/proc/[node.info_proc]" : "[node.info_type]/proc/[node.info_proc]"]++
+			seen++
+			node = node.next
+			if(node == head)
+				break
+		if(seen >= 5000)
+			break
+	if(!seen)
+		return "None in the next 20 buckets."
+	sortTim(counts, GLOBAL_PROC_REF(cmp_numeric_dsc), TRUE)
+	var/list/bits = list()
+	for(var/name in counts)
+		bits += "[name] [counts[name]]"
+		if(length(bits) >= 5)
+			break
+	return "Of the next [seen]: [jointext(bits, ", ")]."
 
 /datum/mc_watchdog/proc/lag_report(list/oldest, list/ms_now, span_real, now_time)
 	var/list/old_ms = oldest[3]
@@ -538,5 +645,7 @@ GLOBAL_REAL_VAR(mc_watchdog_action_next) = 1
 #undef MC_WATCHDOG_LAG_WINDOW
 #undef MC_WATCHDOG_LAG_SPEED
 #undef MC_WATCHDOG_LAG_REALERT
+#undef MC_WATCHDOG_TIMERS_LATE
+#undef MC_WATCHDOG_BACKLOG
 #undef MC_WATCHDOG_PROFILE_EVERY
 #undef MC_WATCHDOG_ACTIONS_KEPT

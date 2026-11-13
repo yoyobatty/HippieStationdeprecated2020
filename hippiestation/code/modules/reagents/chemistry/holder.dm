@@ -398,6 +398,10 @@ GLOBAL_LIST(reaction_temp_thresholds)
 
 /datum/reagents/reaction(atom/A, method = TOUCH, volume_modifier = 1, show_message = 1, special_modifier = 1)
 	var/datum/cached_my_atom = my_atom
+	// Smoke reacts with its tile and with every object on it each tick, and each of those changed the reagents' state onto the same
+	// tile again: a chempile, solid lump or vapour per object (a cloud over a pile of 400 things made 400 a tick). Its reagents
+	// change state once a tick now, on the first call that tick for the tile or a thing on it (foam, VAPOR, already stopped after
+	// its first reagent, below)
 	var/react_type
 	if(isliving(A))
 		react_type = "LIVING"
@@ -410,6 +414,9 @@ GLOBAL_LIST(reaction_temp_thresholds)
 		react_type = "OBJ"
 	else
 		return
+	var/smoke_state_change = react_type != "LIVING" && method != VAPOR && istype(cached_my_atom, /obj/effect/particle_effect) && world.time >= next_react
+	if(smoke_state_change)
+		next_react = world.time + 1
 	var/list/cached_reagents = reagent_list
 	for(var/reagent in cached_reagents)
 		var/datum/reagent/R = reagent
@@ -423,14 +430,14 @@ GLOBAL_LIST(reaction_temp_thresholds)
 			if("TURF")
 				if(R.reagent_state != SOLID)
 					R.reaction_turf(A, R.volume * volume_modifier, show_message)
-				if(world.time >= next_react)
+				if(smoke_state_change || world.time >= next_react)
 					R.handle_state_change(A, R.volume * special_modifier, cached_my_atom)
 					if(method == VAPOR)
 						next_react = world.time + 1
 			if("OBJ")
 				if(R.reagent_state != SOLID)
 					R.reaction_obj(A, R.volume * volume_modifier, show_message)
-				if(world.time >= next_react)
+				if(smoke_state_change || world.time >= next_react)
 					R.handle_state_change(get_turf(A), R.volume * special_modifier, cached_my_atom)
 					if(method == VAPOR)
 						next_react = world.time + 1

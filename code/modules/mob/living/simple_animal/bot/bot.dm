@@ -336,7 +336,7 @@
 		turn_off()
 	spawn(severity*300)
 		stat &= ~EMPED
-		if(was_on)
+		if(was_on && !QDELETED(src)) // hippie -- blown up in the minute it was off (cleanbot: null.updateUsrDialog())
 			turn_on()
 
 /mob/living/simple_animal/bot/proc/set_custom_texts() //Superclass for setting hack texts. Appears only if a set is not given to a bot locally.

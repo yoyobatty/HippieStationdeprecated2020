@@ -157,7 +157,7 @@ GLOBAL_LIST_EMPTY(vapour)
 			kill_vapour()//no connecting tiles of same type
 
 		if(clear)
-			if(VM.volume > 40)
+			if(VM.volume > 40 && length(GLOB.vapour) < VAPOUR_MAX)
 				var/obj/effect/particle_effect/vapour/V = new(T)
 				V.reagent_type = reagent_type
 				V.VM = VM
