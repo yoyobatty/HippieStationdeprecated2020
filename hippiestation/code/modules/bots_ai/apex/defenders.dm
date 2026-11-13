@@ -57,11 +57,16 @@ GLOBAL_LIST_EMPTY(bot_canister_drag_called)
 
 /// What a bot that's seen somebody with a bomb out of place does about the record: on it, for Security. The crew's warning and getting
 /// clear are look_out_for_bombers()'s (bot_fighting.dm).
+/// An officer writes it up itself; anybody else's word gets there with its radio call (bot_radio.dm), or in person.
 /datum/bot_brain/proc/report_bomb_carrier(mob/living/carbon/human/H)
 	if(bot_get_wanted_entry(H) || !length(GLOB.bot_security_brains) || gone_loud())
 		return
-	var/datum/bot_brain/officer = is_security_job() ? src : GLOB.bot_security_brains[1]
-	officer.file_crime(H, "Possession of explosives", "Carrying a tank bomb in [get_area_name(H, TRUE)] (seen by [owner.real_name]).", BOT_CRIME_MAJOR)
+	var/details = "Carrying a tank bomb in [get_area_name(H, TRUE)] (seen by [owner.real_name])."
+	if(is_security_job())
+		file_crime(H, "Possession of explosives", details, BOT_CRIME_MAJOR)
+	else
+		var/datum/callback/report = CALLBACK(src, PROC_REF(report_to_security), WEAKREF(H), "Possession of explosives", details, BOT_CRIME_MAJOR, null)
+		bot_radio_then(owner, world.time - 5 SECONDS, report, CALLBACK(src, PROC_REF(keep_to_tell), report, "[H.name]'s carrying a tank bomb in [get_area_name(H, TRUE)].", WEAKREF(H)))
 	bot_tally("bombs called in")
 
 /// A plasma canister somebody's dragging into where people are

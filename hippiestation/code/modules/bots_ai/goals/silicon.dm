@@ -337,7 +337,7 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 		W.last_seen_at = world.time
 		LAZYSET(called_out, ref, world.time + BOT_AI_CALLOUT_GAP)
 		say_it(":s [H.name], [get_area_name(T, TRUE)].")
-		bot_dispatch_security(T, H.name) //goals/security_tactics.dm
+		bot_dispatch_security(T, H.name, owner) //goals/security_tactics.dm: the AI's radio call, so only if it gets out
 		if(istype(H.wear_suit, /obj/item/clothing/suit/space/hardsuit/nano))
 			lock_down_around(H)
 		return

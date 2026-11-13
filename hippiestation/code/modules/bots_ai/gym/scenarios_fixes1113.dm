@@ -135,8 +135,8 @@
 	time_limit = 8 SECONDS
 	layout = list(
 		"##############",
-		"#B..v......w.#",
-		"#..........k.#",
+		"#B..v...w....#",
+		"#.......k....#",
 		"##############")
 	var/with_suit = TRUE
 	var/mob/living/carbon/human/vandal
@@ -148,7 +148,7 @@
 
 /datum/bot_scenario/suit_window/post_spawn()
 	brain.gym_scripted = FALSE //a scripted bot has no reflexes
-	vandal = stand_in(first_marker("v"), "Mika Chaser")
+	vandal = stand_in(first_marker("v"), "[with_suit ? "Fay Fighter" : "Pat Plain"] [run_index]") //the records go by name: one each
 	if(with_suit)
 		suit = stand_in(first_marker("k"), "Nano Nick")
 		suit.equip_to_slot_or_del(new /obj/item/clothing/suit/space/hardsuit/nano(suit), ITEM_SLOT_OCLOTHING)
@@ -164,10 +164,10 @@
 	if(W && smashed < 3)
 		smashed++
 		bot_note_vandalism(vandal, W) //a swing at the window, as attackby() reports it
-	if(with_suit && bot_get_wanted_entry(vandal))
-		fail_reason = "put them on the record for the window"
+	if(with_suit && bot_transcript_said("called in Fay Fighter"))
+		fail_reason = "called them in for the window"
 		return BOT_GYM_FAIL
-	if(!with_suit && bot_transcript_said("called in Mika Chaser"))
+	if(!with_suit && bot_transcript_said("called in Pat Plain"))
 		return BOT_GYM_PASS
 	return BOT_GYM_PENDING
 
@@ -319,3 +319,86 @@
 		downed.say("help")
 		return BOT_GYM_PENDING
 	return get_dist(downed, first_marker("M")) <= 1 ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// The radio as it is (bot_radio.dm)
+// ---------------------------------------------------------------------------------------------
+
+/// A crewman sees somebody smashing a window and calls it in. O is an officer walled off where it can't see, brought over later.
+/datum/bot_scenario/radio_call
+	job = "Assistant"
+	time_limit = 20 SECONDS
+	layout = list(
+		"##############",
+		"#B..v......w.#",
+		"#............#",
+		"##############",
+		"#O############",
+		"##############")
+	var/radio_down = TRUE
+	var/mob/living/carbon/human/vandal
+	var/mob/living/carbon/human/officer
+	var/smashed = 0
+	var/called_at = 0
+	var/officer_came = FALSE
+
+/datum/bot_scenario/radio_call/setup()
+	if("radio_down" in arena_area.vars)
+		arena_area.vars["radio_down"] = radio_down
+
+/datum/bot_scenario/radio_call/make_goal()
+	return null
+
+/datum/bot_scenario/radio_call/post_spawn()
+	brain.gym_scripted = FALSE //a scripted bot has no reflexes
+	vandal = stand_in(first_marker("v"), "Mika Chaser [run_index]") //its own name: the same call from another run's arena is kept back as a repeat
+	officer = second_bot(first_marker("O"), "Officer Oakes")
+	officer.mind.assigned_role = "Security Officer"
+	officer.bot_brain.register_security()
+
+/datum/bot_scenario/radio_call/release_run()
+	bot_clear_wanted(vandal)
+	return ..()
+
+/datum/bot_scenario/radio_call/proc/smash()
+	var/obj/structure/window/W = locate() in first_marker("w")
+	if(W && smashed < 3)
+		smashed++
+		bot_note_vandalism(vandal, W) //a swing at the window, as attackby() reports it
+	if(!called_at && bot_transcript_said("called in Mika Chaser"))
+		called_at = world.time
+
+/datum/bot_scenario/radio_call/down
+	name = "radio: with telecomms down, a crewman's call about somebody smashing the place up puts nothing on the record, till it tells an officer to their face"
+	desc = "The user wrecked Telecomms and not one crew bot's radio line got out after, but a crewman's call about their window-smashing still went on their record and two officers arrested them for it. Now the call does what it does only if it gets out; failing that, the next officer close enough to talk to is told."
+
+/datum/bot_scenario/radio_call/down/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	smash()
+	if(!called_at)
+		return BOT_GYM_PENDING
+	if(world.time < called_at + 4 SECONDS)
+		if(bot_get_wanted_entry(vandal))
+			fail_reason = "on the record from a radio call that never got out"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PENDING
+	if(!officer_came)
+		officer_came = TRUE
+		log_line("the officer comes over")
+		var/turf/T = get_step(bot, EAST)
+		officer.forceMove(T && !T.density ? T : get_step(bot, SOUTH))
+		return BOT_GYM_PENDING
+	return bot_get_wanted_entry(vandal) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/radio_call/up
+	name = "radio: with telecomms working, the same call puts them on the record"
+	desc = "The same with the radio up: on the record from the call."
+	radio_down = FALSE
+	time_limit = 10 SECONDS
+
+/datum/bot_scenario/radio_call/up/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	smash()
+	return bot_get_wanted_entry(vandal) ? BOT_GYM_PASS : BOT_GYM_PENDING

@@ -1516,7 +1516,8 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 	var/turf/here = get_turf(owner)
 	var/turf/back = get_step(T, get_dir(here, T))
 	var/list/sides = list(bot_door_side_kind(get_area(here)), bot_door_side_kind(get_area(back)))
-	last_door_sides = sortList(sides.Copy()).Join("-")
+	var/list/sorted = sortList(sides.Copy())
+	last_door_sides = sorted.Join("-")
 	if(("security" in sides) || (("dept" in sides) && ("maint" in sides)))
 		. = 95 //the Brig, or a department's back door: nobody slips in behind it
 	else if("maint" in sides)

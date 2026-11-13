@@ -46,10 +46,9 @@
 		if(!istype(U) || U.sensor_mode < SENSOR_VITALS || !T || !is_station_level(T.z) || bot_in_medbay(H) || !fresh("crit|[REF(H)]"))
 			continue
 		note("crew monitor: [H] critical in [get_area_name(T, TRUE)]")
+		var/said_at = world.time
 		say_it(":m [H.real_name] is critical[U.sensor_mode >= SENSOR_COORDS ? " in [get_area_name(T, TRUE)]" : ""].")
-		var/datum/bot_request_kind/medical/M = locate() in GLOB.bot_request_kinds
-		if(M && !bot_open_request_from(H, M))
-			bot_offer_request(bot_new_request(M, H, FREQ_MEDICAL, H))
+		bot_radio_then(owner, said_at, CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_ask_medical_for), WEAKREF(H), FREQ_MEDICAL)) //bot_radio.dm
 		return TRUE
 	return FALSE
 
@@ -64,17 +63,19 @@
 			continue
 		note("Syndicate suit on camera: [H] in [get_area_name(T, TRUE)]")
 		bot_note_operative(H) //goals/nuke_defence.dm
+		var/said_at = world.time
 		say_it(":s Syndicate operative in [get_area_name(T, TRUE)]! [H.name].")
 		var/datum/bot_wanted/W = bot_get_wanted_entry(H)
 		if(!W || !(W.crime in GLOB.bot_antag_crimes))
 			for(var/datum/bot_brain/B as anything in GLOB.bot_security_brains)
 				if(!QDELETED(B.owner) && B.owner.stat == CONSCIOUS)
-					B.file_crime(H, "Sabotage", "In a Syndicate suit, seen by the AI in [get_area_name(T, TRUE)].", BOT_CRIME_MAJOR)
+					//bot_radio.dm: on the record from the AI's call, if it gets out
+					bot_radio_then(owner, said_at, CALLBACK(B, TYPE_PROC_REF(/datum/bot_brain, report_to_security), WEAKREF(H), "Sabotage", "In a Syndicate suit, seen by the AI in [get_area_name(T, TRUE)].", BOT_CRIME_MAJOR, null))
 					break
 		else
 			W.last_seen = T
 			W.last_seen_at = world.time
-		bot_dispatch_security(T, H.name)
+		bot_dispatch_security(T, H.name, owner)
 		return TRUE
 	return FALSE
 
@@ -201,7 +202,7 @@
 			continue
 		note("on camera: [attacker] attacking [victim]")
 		say_it(":s [attacker.name] is attacking [victim.name] in [get_area_name(T, TRUE)].")
-		bot_dispatch_security(T, attacker.name) //goals/security_tactics.dm
+		bot_dispatch_security(T, attacker.name, owner) //goals/security_tactics.dm
 		return TRUE
 	return FALSE
 
@@ -218,7 +219,7 @@
 				continue
 			note("[H] in [A.name]")
 			say_it(":s [H.name] is in [A.name] without clearance.")
-			bot_dispatch_security(get_turf(H), H.name)
+			bot_dispatch_security(get_turf(H), H.name, owner)
 			return TRUE
 	return FALSE
 

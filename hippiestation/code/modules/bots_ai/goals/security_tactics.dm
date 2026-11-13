@@ -64,10 +64,17 @@
 	var/mob/living/carbon/human/H = M
 	return istype(H) && (istype(H.wear_suit, /obj/item/clothing/suit/space/hardsuit/syndi) || istype(H.wear_suit, /obj/item/clothing/suit/space/syndicate))
 
-/// Everybody on Security who's free heads there. An officer already in a fight or walking a prisoner down stays where it is.
+/// Everybody on Security who's free heads there. An officer already in a fight or walking a prisoner down stays where it is. Called by
+/// somebody (`caller_mob`), it's their radio call: only if their radio's getting through (bot_radio.dm).
 /proc/bot_dispatch_security(turf/T, what, mob/living/caller_mob)
 	if(!T)
 		return
+	if(caller_mob)
+		bot_radio_then(caller_mob, world.time - 30 SECONDS, CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_dispatch_security_now), T, what, caller_mob))
+		return
+	bot_dispatch_security_now(T, what, caller_mob)
+
+/proc/bot_dispatch_security_now(turf/T, what, mob/living/caller_mob)
 	for(var/datum/bot_brain/B as anything in GLOB.bot_security_brains)
 		if(QDELETED(B.owner) || B.owner.stat != CONSCIOUS || B.owner == caller_mob || B.owner.z != T.z || B.goal_chain_pending || !B.can_drop_for_call())
 			continue

@@ -163,7 +163,8 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 	return null
 
 /// Radios that somebody's up to something where they are, unless somebody's beaten it to it. Names them if it can see their
-/// face, and has whoever's on duty put it on their record, the same as bot_call_security() (goals/security_patrol.dm).
+/// face, and has whoever's on duty put it on their record, the same as bot_call_security() (goals/security_patrol.dm): once the
+/// call's got out over the radio, or the next officer it sees is told in person (bot_radio.dm).
 /datum/bot_brain/proc/call_it_in(mob/living/carbon/human/culprit, crime, details, severity, mob/living/victim)
 	if(gone_loud()) //goals/robust.dm: nobody Security's after calls Security
 		return
@@ -172,15 +173,19 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 	var/line = "[who] [details] in [where]!"
 	if(!who || who == "Unknown")
 		line = "Somebody [details] in [where]!"
-	bot_say(owner, ";Security! [line]")
+	var/said_at = world.time
+	var/said = bot_say(owner, ";Security! [line]")
 	bot_log(src, "called in [culprit]: [crime]")
 	bot_tally("called in")
 	if(!length(GLOB.bot_security_brains) || !who || who == "Unknown")
 		return
-	var/datum/bot_brain/officer = GLOB.bot_security_brains[1]
 	var/datum/bot_wanted/existing = bot_get_wanted_entry(culprit)
-	if(!existing || existing.severity < severity)
-		officer.file_crime(culprit, crime, "[capitalize(details)] in [where] (reported by [owner.real_name]).", severity, victim)
+	if(existing && existing.severity >= severity)
+		return //on the record already
+	var/datum/callback/report = CALLBACK(src, PROC_REF(report_to_security), WEAKREF(culprit), crime, "[capitalize(details)] in [where] (reported by [owner.real_name]).", severity, WEAKREF(victim))
+	// said_at less a little: a call it made a moment ago counts. Kept back as a repeat of what's just been said (worth_saying()), it said
+	// nothing now: somebody's call has it covered, its own just now or another's, so nothing to tell anybody in person either.
+	bot_radio_then(owner, said_at - 10 SECONDS, report, said ? CALLBACK(src, PROC_REF(keep_to_tell), report, "[who] [details] in [where].", WEAKREF(culprit)) : null)
 
 // ---------------------------------------------------------------------------------------------
 // Somebody being attacked
@@ -353,6 +358,8 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 /datum/bot_brain/proc/keep_an_eye_out()
 	next_watch_time = world.time + BOT_WATCH_INTERVAL + rand(0, 2 SECONDS)
 	if(GLOB.bot_reflexes_off || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST || gym_scripted)
+		return
+	if(tell_officer_in_person()) //bot_radio.dm: what it couldn't radio
 		return
 	if(look_out_for_bombers()) //bot_fighting.dm
 		return

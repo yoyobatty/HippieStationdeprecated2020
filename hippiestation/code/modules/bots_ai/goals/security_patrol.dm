@@ -1759,15 +1759,16 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 	var/where = get_area_name(owner, TRUE)
 	var/who = H.name // their visible name - "Unknown" behind a mask with no ID showing
 	var/identified = who && who != "Unknown"
+	var/said_at = world.time
 	bot_say(owner, identified ? ";Security! [who] is attacking me in [where]!" : ";Help! Someone's attacking me in [where]!")
 	if(!identified || !GLOB.bot_security_brains.len)
 		return
-	// Whoever's on duty takes the report down - a named assault goes on the record like any other.
-	var/datum/bot_brain/officer = GLOB.bot_security_brains[1]
+	// Whoever's on duty takes the report down - a named assault goes on the record like any other, once the call's got out (bot_radio.dm).
 	var/list/verdict = bot_classify_crime(H, owner, what_done || "attacked", object)
 	var/datum/bot_wanted/existing = bot_get_wanted_entry(H)
 	if(!existing || existing.severity < verdict[2])
-		officer.file_crime(H, verdict[1], "[verdict[3]] (reported by the victim)", verdict[2], owner)
+		var/datum/callback/report = CALLBACK(src, PROC_REF(report_to_security), WEAKREF(H), verdict[1], "[verdict[3]] (reported by the victim)", verdict[2], WEAKREF(owner))
+		bot_radio_then(owner, said_at - 10 SECONDS, report, CALLBACK(src, PROC_REF(keep_to_tell), report, "[who] attacked me in [where].", WEAKREF(H)))
 		bot_log(src, "reported [verdict[1]] by [H] to security")
 
 #undef BOT_SEC_VIEW_RANGE

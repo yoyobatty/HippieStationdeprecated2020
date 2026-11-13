@@ -18,6 +18,10 @@
 /// People a doctor has said it can't get to: weakref -> when it said so.
 GLOBAL_LIST_EMPTY(bot_stranded_casualties)
 
+/// The same, from a radio call that got out (bot_radio.dm)
+/proc/bot_note_stranded_ref(datum/weakref/W)
+	bot_note_stranded(W?.resolve())
+
 /// A doctor's given up on getting to somebody who called for one (answer_call/on_give_up(), bot_requests.dm).
 /proc/bot_note_stranded(mob/living/carbon/human/who)
 	if(istype(who) && who.stat != DEAD)
@@ -167,7 +171,6 @@ GLOBAL_LIST_EMPTY(bot_stranded_asked)
 			bot_say(owner, pick("Hang on, I've got you.", "Okay, okay. Let's get you to Medbay.", "I've got you, hold on."))
 			return TRUE
 	// Otherwise the doctors are told, and anybody bringing casualties out can come for them
-	bot_note_stranded(H)
 	call_help_for(H, ";" + pick("Medical! [H.first_name()]'s down in [get_area_name(H, TRUE)] and needs a doctor!", "Doctor to [get_area_name(H, TRUE)], [H.first_name()]'s in a bad way!"))
 	bot_say(owner, pick("Hang on, I've called Medical.", "Medical's coming. Hold on.", "Stay with me, help's coming."))
 	bot_tally("cries for help answered")
@@ -190,7 +193,9 @@ GLOBAL_LIST_EMPTY(bot_stranded_asked)
 		return
 	GLOB.bot_stranded_asked[W] = world.time
 	bot_log(src, "calling for help for [H]: [line]")
+	var/said_at = world.time
 	bot_say(owner, line)
+	bot_radio_then(owner, said_at, CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_note_stranded_ref), W)) //bot_radio.dm: on the list if it got out
 
 #undef BOT_STRANDED_FOR
 #undef BOT_CARRY_REACH

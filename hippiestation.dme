@@ -3468,6 +3468,7 @@
 #include "hippiestation\code\modules\bots_ai\bot_talk_more.dm"
 #include "hippiestation\code\modules\bots_ai\bot_telemetry.dm"
 #include "hippiestation\code\modules\bots_ai\bot_witness.dm"
+#include "hippiestation\code\modules\bots_ai\bot_radio.dm"
 #include "hippiestation\code\modules\bots_ai\player_log.dm"
 #include "hippiestation\code\modules\bots_ai\goals\acquire_captains_id.dm"
 #include "hippiestation\code\modules\bots_ai\goals\acquire_item_type.dm"

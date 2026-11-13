@@ -285,11 +285,10 @@
 	// on again, and the end below was never reached. Ending here runs finish() and on_success(): into a cell, as start_brig_escort()
 	// means to when no doctor has got to them in the time.
 	until = world.time + 150 SECONDS
-	var/datum/bot_request_kind/medical/kind = locate() in GLOB.bot_request_kinds
-	if(kind)
-		var/datum/bot_request/R = bot_new_request(kind, P, FREQ_MEDICAL, get_turf(P)) //the prisoner's the patient, not the officer
-		bot_offer_request(R)
+	var/said_at = world.time
 	bot_say(bot.owner, ":m [P.name] is [P.stat == CONSCIOUS ? "white as a sheet" : "down"] in cuffs in [get_area_name(P, TRUE)], just inside the front door. Can a doctor come? I'll let you in.")
+	//bot_radio.dm: the prisoner's the patient, not the officer; asked for if the call gets out
+	bot_radio_then(bot.owner, said_at, CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_ask_medical_for), WEAKREF(P), FREQ_MEDICAL))
 	bot_tally("prisoners kept in the Brig for a doctor")
 	return TRUE
 

@@ -1,5 +1,6 @@
 // Milestone 1 chat: canned-line banter, not real language generation.
 /// `in_character` is for what a traitor everybody's after says as itself: anything else it was about to say gives it a threat instead.
+/// TRUE if it said it (not kept back as a repeat of what's just been said: worth_saying(), bot_chatter.dm).
 /proc/bot_say(mob/living/carbon/human/H, line, in_character = FALSE)
 	if(QDELETED(H) || !line || H.stat == DEAD) //a corpse's say() goes to deadchat, radio prefix and all
 		return
@@ -12,6 +13,7 @@
 	if(H.bot_brain && !H.bot_brain.worth_saying(line)) //bot_chatter.dm
 		return
 	H.say(H.bot_brain ? H.bot_brain.in_own_words(line, in_character) : line) //bot_chatter.dm
+	return TRUE
 
 // Called through the bot_log() macro (~hippie_defines/bots_ai.dm), which only gets this far when the line is wanted.
 /proc/bot_log_line(datum/bot_brain/B, msg)
