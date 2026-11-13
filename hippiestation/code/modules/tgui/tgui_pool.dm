@@ -45,6 +45,11 @@ GLOBAL_VAR_INIT(tgui_pool_count, 0)
 /datum/tgui_pool/New(client/owner)
 	src.owner = owner
 
+/// Whether the owner is still connected. A client that's leaving is out of GLOB.directory (client/Destroy()) before its mob's
+/// Logout() closes its UIs, and a winset() on it then was a "bad client" runtime for every pooled window it had open.
+/datum/tgui_pool/proc/owner_here()
+	return owner && GLOB.directory[owner.ckey] == owner
+
 /datum/tgui_pool_window
 	var/datum/tgui_pool/pool
 	/// The window; fixed width, since focus_hears_keys() goes by what the focused control's id starts with
@@ -59,7 +64,7 @@ GLOBAL_VAR_INIT(tgui_pool_count, 0)
 
 /// Makes windows until there are TGUI_POOL_SPARES loaded or loading
 /datum/tgui_pool/proc/warm()
-	if(!owner)
+	if(!owner_here())
 		return
 	var/spares = 0
 	for(var/datum/tgui_pool_window/W as anything in windows)
@@ -147,7 +152,7 @@ GLOBAL_VAR_INIT(tgui_pool_count, 0)
 		W.ui.window_id = TGUI_POOL_GONE
 		W.ui.window_output_target = TGUI_POOL_GONE
 		W.ui = null
-	if(!owner)
+	if(!owner_here())
 		return
 	winset(owner, W.id, "is-visible=false;on-close=")
 	var/kept = 0
@@ -178,7 +183,7 @@ GLOBAL_VAR_INIT(tgui_pool_count, 0)
 		W.ui.window_id = TGUI_POOL_GONE
 		W.ui.window_output_target = TGUI_POOL_GONE
 		W.ui = null
-	if(owner)
+	if(owner_here())
 		winset(owner, W.id, "parent=none")
 
 /client/Topic(href, href_list, hsrc)
