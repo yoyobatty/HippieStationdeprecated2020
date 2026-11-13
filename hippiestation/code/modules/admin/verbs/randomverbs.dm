@@ -3,6 +3,36 @@
 	M.unascend_animation()
 	M.visible_message("<span class='warning bold'>[M] was healed by divine intervention!</span>")
 
+// Admin Rejuvenate and the player panel's Heal: a full revive that also undoes what the round did to the body.
+// Gone: mutations from radiation, mutagen, cloning and genetics (MUT_NORMAL from the DNA sequence, MUT_EXTRA from the
+// console and injectors) and quirks added after the character was set up. Kept: the quirks the player picked and
+// mutations given by a job (clown, chaplain), an antagonist or a wizard (MUT_OTHER).
+// Other full revives (lazarus injector, highlander...) keep everything.
+/mob/living/proc/admin_heal()
+	var/list/kept_quirks = mind?.setup_quirks
+	for(var/datum/quirk/Q in roundstart_quirks.Copy())
+		if(!kept_quirks || !(Q.type in kept_quirks))
+			qdel(Q)
+	return revive(full_heal = TRUE, admin_revive = TRUE)
+
+/mob/living/carbon/human/admin_heal()
+	if(dna)
+		for(var/datum/mutation/human/HM in dna.mutations.Copy())
+			if((HM.class == MUT_NORMAL || HM.class == MUT_EXTRA) && HM.type != RACEMUT) // losing RACEMUT would turn the mob into another one
+				dna.force_lose(HM)
+	return ..()
+
+// The quirk types a character was set up with, on the mind so they last through cloning and body swaps.
+/datum/mind/var/list/setup_quirks
+
+/datum/controller/subsystem/processing/quirks/AssignQuirks(mob/living/user, client/cli, spawn_effects)
+	. = ..()
+	if(!user?.mind)
+		return
+	user.mind.setup_quirks = list()
+	for(var/datum/quirk/Q in user.roundstart_quirks)
+		user.mind.setup_quirks += Q.type
+
 /client/proc/admin_disable_shuttle()
 	set category = "Admin"
 	set name = "Disable Shuttle"

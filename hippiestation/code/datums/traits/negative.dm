@@ -26,6 +26,9 @@
 /datum/quirk/blindness/add()
 	quirk_holder.become_blind(ROUNDSTART_TRAIT)
 
+/datum/quirk/blindness/remove()
+	quirk_holder?.cure_blind(ROUNDSTART_TRAIT)
+
 /datum/quirk/blindness/on_spawn()
 	var/mob/living/carbon/human/H = quirk_holder
 	var/obj/item/clothing/glasses/blindfold/white/B = new(get_turf(H))
@@ -73,6 +76,9 @@
 /datum/quirk/nearsighted/add()
 	quirk_holder.become_nearsighted(ROUNDSTART_TRAIT)
 
+/datum/quirk/nearsighted/remove()
+	quirk_holder?.cure_nearsighted(ROUNDSTART_TRAIT)
+
 /datum/quirk/nearsighted/on_spawn()
 	var/mob/living/carbon/human/H = quirk_holder
 	var/obj/item/clothing/glasses/regular/glasses = new(get_turf(H))
@@ -102,6 +108,11 @@
 	var/datum/brain_trauma/severe/paralysis/paraplegic/T = new()
 	var/mob/living/carbon/human/H = quirk_holder
 	H.gain_trauma(T, TRAUMA_RESILIENCE_ABSOLUTE)
+
+/datum/quirk/paraplegic/remove()
+	var/mob/living/carbon/C = quirk_holder
+	if(istype(C))
+		C.cure_trauma_type(/datum/brain_trauma/severe/paralysis/paraplegic, TRAUMA_RESILIENCE_ABSOLUTE)
 
 /datum/quirk/paraplegic/on_spawn()
 	if(quirk_holder.buckled) // Handle late joins being buckled to arrival shuttle chairs.

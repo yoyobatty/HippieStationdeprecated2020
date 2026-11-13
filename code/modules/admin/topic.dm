@@ -1136,7 +1136,7 @@
 			to_chat(usr, "This can only be used on instances of type /mob/living.", confidential=TRUE)
 			return
 
-		L.revive(full_heal = 1, admin_revive = 1)
+		L.admin_heal() // hippie -- also takes away mutations and quirks
 		message_admins("<span class='danger'>Admin [key_name_admin(usr)] healed / revived [key_name_admin(L)]!</span>")
 		log_admin("[key_name(usr)] healed / Revived [key_name(L)].")
 

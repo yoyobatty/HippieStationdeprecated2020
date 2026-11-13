@@ -552,7 +552,7 @@ Traitors and the like can also be revived with the previous role mostly intact.
 	if(!istype(M))
 		tgui_alert(usr, "Cannot revive a ghost")
 		return
-	M.revive(full_heal = 1, admin_revive = 1)
+	M.admin_heal() // hippie -- also takes away mutations and quirks
 
 	log_admin("[key_name(usr)] healed / revived [key_name(M)]")
 	var/msg = "<span class='danger'>Admin [key_name_admin(usr)] healed / revived [ADMIN_LOOKUPFLW(M)]!</span>"
