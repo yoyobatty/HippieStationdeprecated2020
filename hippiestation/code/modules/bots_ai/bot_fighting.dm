@@ -65,6 +65,8 @@
 /datum/bot_brain/proc/fight_in_reach(mob/living/target)
 	owner.changeNext_move(CLICK_CD_MELEE)
 	owner.face_atom(target)
+	if(apex_melee(target)) //apex/combat.dm: shove them down, hit them while they're down
+		return
 	var/obj/item/weapon = fights_barehanded() ? null : weapon_to_hand() //goals/robust.dm
 	var/intent = pick_combat_intent(target)
 	if(weapon && (intent != INTENT_DISARM || !target.get_active_held_item())) //anything in hand is swung, unless what they're holding wants knocking away
@@ -243,6 +245,8 @@
 	var/obj/item/I = owner.get_active_held_item()
 	if(!I || I.throwforce < 10 || HAS_TRAIT(I, TRAIT_NODROP) || !prob(20 + temper * 30) || !has_clear_shot(target))
 		return FALSE
+	if(is_apex() && I.force >= BOT_COMBAT_WEAPON_FORCE && I.force >= I.throwforce)
+		return FALSE //apex/combat.dm: a good weapon hits harder in the hand, and thrown it's in their hands
 	owner.face_atom(target)
 	owner.changeNext_move(CLICK_CD_MELEE)
 	bot_log(src, "throwing [I] at [target]")

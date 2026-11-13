@@ -104,6 +104,9 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 	/// It changes something every arena shares (the station's alert level, a plan only one of runs at a time): it runs once, and only
 	/// when it's asked for by name, not with the rest of the suite.
 	var/station_wide = FALSE
+	/// A measure rather than a test (the duel ladder, gym/scenarios_duels.dm, tools/bot_gym/apex_ladder.sh): runs only when named, as many
+	/// times as asked, and its passes are a win rate, not a verdict
+	var/ladder_only = FALSE
 	/// Extra empty space all round the arena, for a scenario that sets off a real explosion: the arenas sit a few tiles
 	/// apart, and a superboom's light blast (about 7 tiles) set off or destroyed the grenades in the arenas beside it -
 	/// three or four sabotage and grenade scenarios failed together in most full runs, and passed alone.
@@ -477,8 +480,8 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 				break
 		if(!named)
 			continue
-		if(probe.station_wide && (!filter || filter == "all"))
-			continue //it changes what every arena runs under (the alert level): named on its own, not in the suite
+		if((probe.station_wide || probe.ladder_only) && (!filter || filter == "all"))
+			continue //it changes what every arena runs under (the alert level), or it's a measure, not a test (the duel ladder): named on its own, not in the suite
 		for(var/i in 1 to (probe.station_wide ? 1 : runs))
 			var/datum/bot_scenario/S = (i == 1) ? probe : new path
 			S.run_index = i

@@ -37,7 +37,7 @@
 	next_tank_look = world.time + perception_delay() + 2 SECONDS
 	if(!notices_threat())
 		return FALSE
-	var/turf/away = furthest_open_floor_from(tank, dragged ? BOT_TANK_CLEAR : 4)
+	var/turf/away = furthest_open_floor_from(tank, dragged ? bot_tank_clear(tank) : max(bot_tank_clear(tank) - 2, 4))
 	if(!away)
 		return FALSE
 	bot_log(src, "THREAT: [dragged ? "[foe] is dragging [tank] up to me" : "stood by [tank] with [foe] holding a gun"] - getting away from it")

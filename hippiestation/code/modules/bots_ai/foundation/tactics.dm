@@ -78,7 +78,7 @@
 /// Anybody but `except` and itself in reach of the blast
 /datum/bot_brain/proc/tank_bystanders(obj/structure/reagent_dispensers/fueltank/tank, mob/living/except)
 	. = 0
-	for(var/mob/living/carbon/human/H in range(BOT_TANK_CLEAR - 1, tank))
+	for(var/mob/living/carbon/human/H in range(bot_tank_clear(tank) - 1, tank))
 		if(H != owner && H != except && H.stat != DEAD)
 			.++
 
@@ -121,7 +121,7 @@
 	if(!tank)
 		return FALSE
 	var/dist = get_dist(owner, tank)
-	if(dist < BOT_TANK_CLEAR || dist > BOT_SIGHT_RANGE || !tank_play_allowed(foe, tank))
+	if(dist < bot_tank_clear(tank) || dist > BOT_SIGHT_RANGE || !tank_play_allowed(foe, tank))
 		return FALSE
 	var/obj/item/gun/G = tank_gun()
 	if(!G || !shoot_tank(tank, G, foe))
@@ -151,27 +151,37 @@
 				S.steps.Insert(i, new /datum/bot_step/paced/tank_opener())
 				break
 
-/// Where to shoot the tank from: floor it can walk to, out of the blast, with a clear line to the tank, the nearest such.
+/// Where to shoot the tank from: floor it can walk to, out of the blast (bot_tank_clear(), meta_book.dm), with a clear line to the tank.
+/// The casing's fragments carry past the blast, so the further the better, as far as it can see: a tile further off is worth four of walking.
 /datum/bot_brain/proc/tank_firing_spot(obj/structure/reagent_dispensers/fueltank/tank)
 	var/turf/start = get_turf(owner)
 	if(!start)
 		return null
+	var/clear = bot_tank_clear(tank)
+	if(clear > BOT_SIGHT_RANGE)
+		return null //a small sealed room: no shooting it from anywhere it could see it from
 	var/list/seen = list()
-	seen[start] = TRUE
+	seen[start] = 0
 	var/list/queue = list(start)
 	var/at = 1
+	var/turf/best
+	var/best_score
 	while(at <= length(queue) && length(queue) < 400)
 		var/turf/T = queue[at++]
+		var/walk = seen[T]
 		var/dist = get_dist(T, tank)
-		if(dist >= BOT_TANK_CLEAR && dist <= BOT_SIGHT_RANGE && bot_clear_line(T, tank))
-			return T
+		if(dist >= clear && dist <= BOT_SIGHT_RANGE && bot_clear_line(T, tank))
+			var/score = dist * 4 - walk
+			if(!best || score > best_score)
+				best = T
+				best_score = score
 		for(var/d in GLOB.cardinals)
 			var/turf/next = get_step(T, d)
-			if(!next || seen[next] || next.density || isspaceturf(next) || is_blocked_turf(next, TRUE) || bot_turf_is_deadly(next))
+			if(!next || !isnull(seen[next]) || next.density || isspaceturf(next) || is_blocked_turf(next, TRUE) || bot_turf_is_deadly(next))
 				continue
-			seen[next] = TRUE
+			seen[next] = walk + 1
 			queue += next
-	return null
+	return best
 
 /// An apex traitor's opener (above). Optional: no gun for it, no tank near its mark, or anything going wrong, and the strike goes ahead.
 /datum/bot_step/paced/tank_opener
@@ -275,7 +285,7 @@
 		if("back")
 			if(!ambush && get_dist(V, tank) > 1)
 				return quit(bot, "[V] moved away from it")
-			if(get_dist(H, tank) >= BOT_TANK_CLEAR && bot_clear_line(get_turf(H), tank))
+			if((get_turf(H) == shoot_from || get_dist(H, tank) >= max(bot_tank_clear(tank), get_dist(shoot_from, tank))) && bot_clear_line(get_turf(H), tank))
 				bot.stop_pursuit()
 				stage = ambush ? "wait" : "shoot"
 				return TRUE

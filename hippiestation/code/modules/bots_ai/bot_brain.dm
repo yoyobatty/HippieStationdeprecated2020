@@ -439,6 +439,9 @@
 		return
 	if(try_flash(attacker) || try_suit_kit(attacker)) //bot_playstyles.dm, goals/fight_the_suit.dm
 		return
+	// A gun and them only a melee weapon: out of their reach, and the gun (apex/combat.dm)
+	if(try_kite(attacker))
+		return
 	reach_for_weapon() //bot_fighting.dm
 	if(owner.Adjacent(attacker))
 		stop_pursuit()
@@ -479,10 +482,14 @@
 /datum/bot_brain/proc/try_run_for_it()
 	if((is_security_job() && !bot_too_dangerous(attacker)) || world.time < next_run_for_it) //goals/security_tactics.dm
 		return FALSE
+	// An apex bot goes by the numbers (apex/combat.dm): winning, it stays in hurt or not; losing badly, it gets out, brave or not
+	var/estimate = fight_estimate(attacker)
+	if(estimate == "press")
+		return FALSE
 	var/hurt = owner.health <= owner.maxHealth * health_to_run_at()
 	// Against a nanosuit the crew stands and fights until they're hurt, whatever the odds (goals/fight_the_suit.dm)
 	var/stands_against_suit = bot_suit_to_fight(attacker) && takes_on_suits(attacker)
-	if(!hurt && (stands_against_suit || !(nerve < 0.7 && outmatched_by(attacker)))) //bot_fighting.dm
+	if(estimate != "withdraw" && !hurt && (stands_against_suit || !(nerve < 0.7 && outmatched_by(attacker)))) //bot_fighting.dm
 		return FALSE
 	next_run_for_it = world.time + 30 SECONDS
 	var/mob/living/from = attacker

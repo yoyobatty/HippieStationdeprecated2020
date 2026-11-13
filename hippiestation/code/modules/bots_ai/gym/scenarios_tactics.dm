@@ -5,7 +5,7 @@
 
 /datum/bot_scenario/tactics
 	time_limit = 20 SECONDS
-	blast_margin = 6 //a fuel tank's blast reaches five tiles
+	blast_margin = 10 //a fuel tank's blast reaches five tiles, more in a small sealed room, and its flames and the casing's shards further
 	var/bot_skill = 0.7
 	var/obj/structure/reagent_dispensers/fueltank/tank
 	var/mob/living/carbon/human/foe
@@ -34,10 +34,11 @@
 	job = "Assistant"
 	kit_hands = list(/obj/item/gun/energy/laser)
 	layout = list(
-		"##############",
-		"#B.....Uk....#",
-		"#............#",
-		"##############")
+		"######################",
+		"#....................#",
+		"#B......U............#",
+		"#.......k............#",
+		"######################")
 
 /datum/bot_scenario/tactics/fight/post_spawn()
 	..()
@@ -48,14 +49,14 @@
 
 /datum/bot_scenario/tactics/fight/shoots
 	name = "tactics: a robust crewman in a fight shoots the fuel tank the killer is stood beside"
-	desc = "Mid skill, a laser in hand, in a fight with somebody swinging a claymore who's stood beside a fuel tank, itself six tiles off. It shoots the tank, not them: a blast on the tiles beside it, and it's clear of it."
+	desc = "Mid skill, a laser in hand, in a fight with somebody swinging a claymore who's stood beside a fuel tank, itself seven tiles off. It shoots the tank, not them: a blast on the tiles beside it, and it's clear of it (a shard of the casing may still find it: hurt no more than that)."
 
 /datum/bot_scenario/tactics/fight/shoots/check()
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	if(!tank_went_off())
 		return BOT_GYM_PENDING
-	if(bot.health < bot.maxHealth * 0.8)
+	if(bot.health < bot.maxHealth * 0.7)
 		fail_reason = "set off the tank and got caught in it ([bot.health] health)"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
@@ -82,10 +83,11 @@
 	desc = "The same fight, with an innocent stood by the tank too: no tank shot."
 	time_limit = 12 SECONDS
 	layout = list(
-		"##############",
-		"#B.....Uk....#",
-		"#......c.....#",
-		"##############")
+		"######################",
+		"#.......c............#",
+		"#B......U............#",
+		"#.......k............#",
+		"######################")
 
 /datum/bot_scenario/tactics/fight/bystander/post_spawn()
 	..()
@@ -140,7 +142,7 @@
 	if(!bot_transcript_said("is beside Mark Target - backing off"))
 		fail_reason = "the tank went off, but not set up beside the mark"
 		return BOT_GYM_FAIL
-	if(bot.health < bot.maxHealth * 0.8)
+	if(bot.health < bot.maxHealth * 0.7)
 		fail_reason = "got caught in its own blast ([bot.health] health)"
 		return BOT_GYM_FAIL
 	if(QDELETED(foe) || foe.health >= foe.maxHealth)
@@ -359,15 +361,16 @@
 
 /datum/bot_scenario/tactics/officer_tank
 	name = "tactics: a robust officer after an armed murderer stood by a fuel tank shoots the tank"
-	desc = "Mid skill, an energy gun on disable, after a murderer with a claymore who's stood beside a fuel tank six tiles off, nobody else about. Somebody it may shoot to kill (bot_may_use_lethal_force()): it switches to the laser and shoots the tank."
+	desc = "Mid skill, an energy gun on disable, after a murderer with a claymore who's stood beside a fuel tank seven tiles off, nobody else about. Somebody it may shoot to kill (bot_may_use_lethal_force()): it switches to the laser and shoots the tank."
 	job = "Security Officer"
 	kit_hands = list(/obj/item/gun/energy/e_gun)
 	kit_backpack = list(/obj/item/restraints/handcuffs)
 	layout = list(
-		"##############",
-		"#B.....Uk....#",
-		"#............#",
-		"##############")
+		"######################",
+		"#....................#",
+		"#B......U............#",
+		"#.......k............#",
+		"######################")
 
 /datum/bot_scenario/tactics/officer_tank/post_spawn()
 	..()
@@ -390,7 +393,7 @@
 		return BOT_GYM_FAIL
 	if(!tank_went_off())
 		return BOT_GYM_PENDING
-	if(bot.health < bot.maxHealth * 0.8)
+	if(bot.health < bot.maxHealth * 0.7)
 		fail_reason = "set off the tank and got caught in it ([bot.health] health)"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
@@ -472,12 +475,12 @@
 	time_limit = 60 SECONDS
 	kit_hands = list(/obj/item/gun/energy/laser)
 	layout = list(
-		"################",
-		"#......#.......#",
-		"#..V...D...U...#",
-		"#......#.......#",
-		"#......#....B..#",
-		"################")
+		"########################",
+		"#......#...............#",
+		"#..V...D.......U.......#",
+		"#......#...............#",
+		"#......#............B..#",
+		"########################")
 
 /datum/bot_scenario/tactics/ambush/post_spawn()
 	..()
@@ -499,7 +502,7 @@
 	if(!bot_transcript_said("parked at the way out"))
 		fail_reason = "the tank went off, but it wasn't parked at the way out"
 		return BOT_GYM_FAIL
-	if(bot.health < bot.maxHealth * 0.8)
+	if(bot.health < bot.maxHealth * 0.7)
 		fail_reason = "got caught in its own blast ([bot.health] health)"
 		return BOT_GYM_FAIL
 	if(QDELETED(foe) || foe.health >= foe.maxHealth)
