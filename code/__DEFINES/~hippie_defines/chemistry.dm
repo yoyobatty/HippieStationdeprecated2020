@@ -4,6 +4,9 @@
 /// Reagent vapour on the station at once (masters and the tiles they've spread to): past this no more starts or spreads
 #define VAPOUR_MAX 2000
 
+/// A fuel tank with less welding fuel than this only ruptures when it's shot, burnt or blown up (reagent_dispenser.dm)
+#define FUEL_TANK_BLAST_MIN 10
+
 // Heat in reagent containers (hippiestation/code/modules/reagents/chemistry/reagent_heat.dm)
 /// expose_temperature() (a hot tool, a fire, a microwave) heats this many units at the rate it always did; twice as much takes twice as long
 #define REAGENT_HEAT_REFERENCE_VOLUME 50

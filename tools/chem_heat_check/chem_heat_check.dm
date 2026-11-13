@@ -19,6 +19,14 @@ GLOBAL_VAR_INIT(chem_heat_fails, 0)
 	B.reagents.add_reagent(reagent, amount, reagtemp = temp)
 	return B
 
+/// The last explosion's uncapped heavy and light ranges
+/datum/chem_heat_blasts
+	var/list/last
+
+/datum/chem_heat_blasts/proc/heard(datum/source, epicenter, devastation, heavy, light, took, orig_dev, orig_heavy, orig_light)
+	SIGNAL_HANDLER
+	last = list(orig_heavy, orig_light)
+
 /// Moves R as if minutes had passed since it last drifted, and returns its temperature
 /proc/chem_heat_drift(datum/reagents/R, minutes)
 	R.drift_last = world.time - minutes MINUTES
@@ -245,6 +253,38 @@ GLOBAL_VAR_INIT(chem_heat_fails, 0)
 			drifting++
 	chem_heat_note(pile_ms < 25 && drifting == 500, "500 hot beakers on one tile: one drift step each [round(pile_ms, 0.01)] ms ([round(pile_ms * 1000 / 500, 0.1)] us each), [drifting] drifting, SSprocessing [round(cost_before, 0.01)] -> [round(SSprocessing.cost, 0.01)] ms a run, [length(SSprocessing.processing)] processing")
 	QDEL_LIST(pile)
+
+	// 12 A fuel tank goes off by the fuel left in it, each well apart and timed through the explosion signal
+	var/datum/chem_heat_blasts/listener = new
+	listener.RegisterSignal(SSdcs, COMSIG_GLOB_EXPLOSION, TYPE_PROC_REF(/datum/chem_heat_blasts, heard))
+	var/list/blasts = list()
+	var/blast_ok = TRUE
+	var/list/blast_spots = list()
+	for(var/turf/open/floor/F in GLOB.station_turfs)
+		if(F.density || (locate(/obj) in F) || get_dist(F, spot) < 15)
+			continue
+		var/far = TRUE
+		for(var/turf/other in blast_spots)
+			if(get_dist(F, other) < 15)
+				far = FALSE
+				break
+		if(far)
+			blast_spots += F
+		if(length(blast_spots) >= 4)
+			break
+	var/list/amounts = list(1000, 500, 100, 5)
+	for(var/i in 1 to 4)
+		var/obj/structure/reagent_dispensers/fueltank/F = new(blast_spots[i])
+		F.reagents.remove_all(1000 - amounts[i])
+		listener.last = null
+		F.boom()
+		sleep(3 SECONDS)
+		var/heard = listener.last ? "heavy [listener.last[1]] light [listener.last[2]]" : "no explosion"
+		blasts += "[amounts[i]]u: [heard]"
+		var/expect = list("heavy 1 light 5", "heavy 1 light 4", "heavy 0 light 2", "no explosion")[i]
+		blast_ok = blast_ok && heard == expect && QDELETED(F)
+	chem_heat_note(blast_ok, "fuel tank blast by fuel: [jointext(blasts, ", ")]")
+	listener.UnregisterSignal(SSdcs, COMSIG_GLOB_EXPLOSION)
 
 	GLOB.chem_heat_lines += "[GLOB.chem_heat_fails ? "[GLOB.chem_heat_fails] FAILED" : "ALL PASS"]"
 	fdel("data/chem_heat_check.txt")

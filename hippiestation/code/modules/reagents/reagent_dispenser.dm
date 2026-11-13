@@ -96,6 +96,21 @@
 /obj/structure/reagent_dispensers/fueltank
 	use_reagent_icon = TRUE
 
+/// A fuel tank goes off by the fuel left in it: full as it always did (1 heavy, 5 light, 5 flame), half full 4 and 4, a tenth 2 and 2;
+/// under FUEL_TANK_BLAST_MIN it only ruptures. It went off full size empty.
+/obj/structure/reagent_dispensers/fueltank/boom()
+	if(QDELETED(src))
+		return
+	var/fuel = reagents ? reagents.get_reagent_amount(/datum/reagent/fuel) : 0
+	if(fuel < FUEL_TANK_BLAST_MIN)
+		visible_message("<span class='danger'>\The [src] ruptures!</span>")
+		chem_splash(loc, 5, list(reagents))
+		qdel(src)
+		return
+	var/size = (fuel / tank_volume) ** (1/3)
+	explosion(get_turf(src), 0, fuel >= tank_volume / 2 ? 1 : 0, round(5 * size, 1), flame_range = round(5 * size, 1))
+	qdel(src)
+
 /obj/structure/reagent_dispensers/water_cooler/honk
 	name = "honk-cooler"
 	desc = "A machine that dispenses the clown's thick juice. HONK!"

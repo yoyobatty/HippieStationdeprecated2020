@@ -45,7 +45,7 @@ GLOBAL_LIST_INIT(bot_never_movable_types, typecacheof(list(/obj/structure/window
 /// Something whose rupture hurts whoever's near it (the tactics library and threat reading go by this too)
 /proc/bot_movable_volatile(obj/O)
 	if(istype(O, /obj/structure/reagent_dispensers/fueltank))
-		return TRUE
+		return O.reagents?.has_reagent(/datum/reagent/fuel, FUEL_TANK_BLAST_MIN) ? TRUE : FALSE // too little fuel only ruptures
 	var/obj/machinery/portable_atmospherics/canister/C = O
 	if(istype(C))
 		var/datum/gas_mixture/air = C.air_contents
