@@ -2,6 +2,8 @@ import { AbductorConsole, AbductorExperiment, GlandDispenser } from './interface
 import { Achievements } from './interfaces/Achievements';
 import { AdminAlerts } from './interfaces/AdminAlerts';
 import { AdminFind } from './interfaces/AdminFind';
+import { DebugCounts } from './interfaces/DebugCounts';
+import { DebugProfiler } from './interfaces/DebugProfiler';
 import { AdminBeakers, AdminDynamic, AdminEvents, AdminSoundEmitter } from './interfaces/AdminFun';
 import { AdminHub } from './interfaces/AdminHub';
 import { AdminIndividualLog, AdminInvestigate, AdminLogFiles, AdminPlaytime, AdminSdqlResults, AdminUpgradeReport, PlayerPlaytime } from './interfaces/AdminLogs';
@@ -380,6 +382,14 @@ const ROUTES = {
   admin_find: {
     component: () => AdminFind,
     scrollable: false,
+  },
+  debug_counts: {
+    component: () => DebugCounts,
+    scrollable: true,
+  },
+  debug_profiler: {
+    component: () => DebugProfiler,
+    scrollable: true,
   },
   grief_undo: {
     component: () => GriefUndo,

@@ -15,6 +15,8 @@
 			verbs += /client/proc/cmd_admin_alerts // admin_alerts.dm
 			verbs += /client/proc/cmd_player_profile // player_profile.dm
 			verbs += /client/proc/cmd_grief_undo // grief_undo.dm
+		if(rights & R_DEBUG)
+			verbs += GLOB.admin_verbs_debug_tools // verbs/debug_tools.dm
 
 /client/remove_admin_verbs()
 	. = ..()
@@ -28,6 +30,7 @@
 	verbs.Remove(/client/proc/cmd_admin_alerts)
 	verbs.Remove(/client/proc/cmd_player_profile)
 	verbs.Remove(/client/proc/cmd_grief_undo)
+	verbs.Remove(GLOB.admin_verbs_debug_tools)
 
 /// Economy and research admin verbs (hippiestation/code/modules/admin/verbs/economy_verbs.dm)
 GLOBAL_LIST_INIT(admin_verbs_economy, list(/client/proc/cmd_admin_give_money, /client/proc/cmd_admin_adjust_budget, /client/proc/cmd_admin_give_research_points))
