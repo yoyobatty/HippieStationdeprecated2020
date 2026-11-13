@@ -164,3 +164,61 @@
 	if(hidden && isturf(suspect.loc))
 		return BOT_GYM_PASS
 	return BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// Killers who haven't seen their mark (foundation/hunt.dm mark_whereabouts())
+// ---------------------------------------------------------------------------------------------
+
+/// A killer after somebody in the next room, behind a wall: never seen them, and no post to start from (a stand-in has no job).
+/datum/bot_scenario/unseen_mark
+	time_limit = 40 SECONDS
+	kit_hands = list(/obj/item/kitchen/knife)
+	layout = list(
+		"####################",
+		"#B.......#.........#",
+		"#........#.........#",
+		"#........D......V..#",
+		"#........#.........#",
+		"####################")
+	var/bot_skill = 1
+	var/mob/living/carbon/human/mark
+
+/datum/bot_scenario/unseen_mark/post_spawn()
+	brain.skill = bot_skill
+	mark = stand_in(first_marker("V"), "Mark Target")
+
+/datum/bot_scenario/unseen_mark/make_goal()
+	return new /datum/bot_goal/traitor_kill/robust(null, mark)
+
+/datum/bot_scenario/unseen_mark/apex
+	name = "hunt: an apex killer that's never seen its mark goes by the director's word"
+	desc = "Apex, after somebody in the next room it's never laid eyes on. It used to walk straight to them, wherever they were. It goes to where the director says they roughly are, sees them, and goes for them."
+
+/datum/bot_scenario/unseen_mark/apex/check()
+	if(!bot || QDELETED(bot) || bot.stat == DEAD)
+		fail_reason = "bot died"
+		return BOT_GYM_FAIL
+	if(!QDELETED(mark) && mark.health < mark.maxHealth)
+		if(!bot_transcript_said("DIRECTOR:"))
+			fail_reason = "got to them without a clue: it still knows where they are"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/unseen_mark/mid
+	name = "hunt: a killer with nothing to go on doesn't walk straight to its mark"
+	desc = "The same for a killer below apex: never seen them, no post to look from, no director. It can't know where they are, and doesn't go straight to them."
+	bot_skill = 0.7
+	time_limit = 20 SECONDS
+
+/datum/bot_scenario/unseen_mark/mid/check()
+	if(!bot || QDELETED(bot) || bot.stat == DEAD)
+		fail_reason = "bot died"
+		return BOT_GYM_FAIL
+	if(get_dist(bot, mark) <= 3)
+		fail_reason = "went straight to somebody it had no way of knowing where they were"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/unseen_mark/mid/on_timeout()
+	return BOT_GYM_PASS

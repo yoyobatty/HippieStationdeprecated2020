@@ -592,12 +592,20 @@
 	if(bot.owner.Adjacent(V) && bot.good_moment_with(V))
 		moment_found = TRUE
 		return FALSE
-	if(get_dist(bot.owner, V) > 1 && bot.pursuing_kind != "follow")
+	if(get_dist(bot.owner, V) > 1)
+		// Only by what it's seen (foundation/hunt.dm): them, where they just were, or a search for them
+		var/atom/go = bot.mark_whereabouts(G, V)
+		if(!go)
+			if(bot.search_for_mark(G, V))
+				wait_for = 10
+				return TRUE
+			return FALSE
 		// No way to them (a room this ID doesn't open): that's for another time. Waiting it out at the door is the
 		// one thing certain to get noticed.
-		if(!bot.can_walk_lawfully_to(V))
-			return FALSE
-		bot.pursue(V, "follow", force = TRUE)
+		if(bot.pursuing_kind != "follow" || bot.pursue_target != go)
+			if(!bot.can_walk_lawfully_to(go))
+				return FALSE
+			bot.pursue(go, "follow", force = TRUE)
 	else if(get_dist(bot.owner, V) <= 1)
 		waited = TRUE
 		bot.idle_fidget() //waiting for the room to clear
@@ -628,9 +636,13 @@
 	if(QDELETED(V) || V.stat == DEAD || !isturf(V.loc))
 		return FALSE
 	if(!bot.owner.Adjacent(V))
-		if(get_dist(bot.owner, V) > BOT_SIGHT_RANGE)
-			return FALSE //got away
-		bot.combat_chase(V)
+		var/atom/go = bot.mark_whereabouts(G, V) //foundation/hunt.dm
+		if(!go)
+			if(bot.search_for_mark(G, V)) //got away: after them
+				wait_for = 10
+				return TRUE
+			return FALSE
+		bot.combat_chase(go)
 		wait_for = 5
 		return TRUE
 	bot.stop_pursuit()

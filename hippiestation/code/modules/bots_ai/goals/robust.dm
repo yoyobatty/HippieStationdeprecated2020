@@ -550,10 +550,17 @@ GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor,
 	if(bot.bot_wizard && bot.wizard_keeps_range(V)) //goals/wizard.dm: a spell nearly ready, it waits at range for it
 		wait_for = 5
 		return TRUE
-	if(bot.pursuing_kind != "follow")
-		if(!bot.can_walk_lawfully_to(V))
+	// Only by what it's seen (foundation/hunt.dm): them, where they just were, or a search for them
+	var/atom/go = bot.mark_whereabouts(G, V)
+	if(!go)
+		if(bot.search_for_mark(G, V))
+			wait_for = 10
+			return TRUE
+		return FALSE
+	if(bot.pursuing_kind != "follow" || bot.pursue_target != go)
+		if(!bot.can_walk_lawfully_to(go))
 			return FALSE
-		bot.pursue(V, "follow", force = TRUE)
+		bot.pursue(go, "follow", force = TRUE)
 	wait_for = get_dist(bot.owner, V) <= BOT_SIGHT_RANGE * 2 ? 2 : 10 //a look every couple of tiles, once it's close enough for a jump to matter
 	return TRUE
 
@@ -572,12 +579,16 @@ GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor,
 	if(bot.owner.health <= bot.owner.maxHealth * bot.health_to_run_at() && V.stat == CONSCIOUS)
 		return FALSE //off to heal: bot.keep_going() sees to it
 	if(!bot.owner.Adjacent(V))
-		if(get_dist(bot.owner, V) > BOT_SIGHT_RANGE)
-			return FALSE //got away
+		var/atom/go = bot.mark_whereabouts(G, V) //foundation/hunt.dm
+		if(!go)
+			if(bot.search_for_mark(G, V)) //got away: after them
+				wait_for = 10
+				return TRUE
+			return FALSE
 		if(bot.try_suit_jump(V) || bot.try_attack_from_range(V))
 			wait_for = CLICK_CD_RANGE
 			return TRUE
-		bot.combat_chase(V)
+		bot.combat_chase(go)
 		wait_for = 5
 		return TRUE
 	bot.stop_pursuit()

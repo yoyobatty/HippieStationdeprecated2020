@@ -96,8 +96,9 @@ Every milestone ends with the whole backlog run and this file updated.
 | hunt: an apex officer, steered by the director, finds a murderer hidden across the room | apex | passing (before 0/2, after 2/2) |
 | hunt: a robust officer with no director searches where he was seen, not across the room | mid | passing |
 | hunt: a vigilante at a murderer's last sighting finds nobody, and searches the lockers | mid | passing (before 0/2, after 2/2) |
+| hunt: an apex killer that's never seen its mark goes by the director's word | apex | passing (before 0/2, after 2/2) |
+| hunt: a killer with nothing to go on doesn't walk straight to its mark | mid | passing (before 0/2, after 2/2) |
 
 **Still to cover:**
 - cutting a runner off at the chokepoint ahead of them
-- an apex killer whose mark got away searching for them
 - an evader that moves like the user does (from player telemetry)

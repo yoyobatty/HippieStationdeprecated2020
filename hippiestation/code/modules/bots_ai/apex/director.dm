@@ -24,10 +24,9 @@
 		return
 	var/eased = search_close_call_at && world.time - search_close_call_at < BOT_DIRECTOR_EASE_FOR
 	S.next_clue = world.time + (eased ? BOT_DIRECTOR_EASED : BOT_DIRECTOR_EVERY)
-	var/turf/near = locate(clamp(at.x + rand(-BOT_DIRECTOR_SLOP, BOT_DIRECTOR_SLOP), 1, world.maxx), clamp(at.y + rand(-BOT_DIRECTOR_SLOP, BOT_DIRECTOR_SLOP), 1, world.maxy), at.z)
-	if(!near || near.density)
-		near = at //rough enough: the spots round it are what's searched, nearest the clue first
+	var/turf/near = bot_director_rough_turf(Q)
 	S.clue = near
+	S.looked_at_centre = FALSE
 	S.spot_going_to = null
 	S.spots_left = max(S.spots_left, 4) //worth a look in what's round it, whatever's been opened already
 	var/area/A = get_area(near)
@@ -35,6 +34,17 @@
 	S.visited -= A
 	bot_log(src, "DIRECTOR: [pick("heard something", "footsteps", "a door, somewhere", "a locker clanging")] round [get_area_name(near, TRUE)][eased ? " (eased off)" : ""]")
 	bot_tally("director clues")
+
+/// Roughly where somebody is: a tile within BOT_DIRECTOR_SLOP of them, open floor if it can be
+/proc/bot_director_rough_turf(mob/living/Q)
+	var/turf/at = get_turf(Q)
+	if(!at)
+		return null
+	for(var/i in 1 to 6)
+		var/turf/near = locate(clamp(at.x + rand(-BOT_DIRECTOR_SLOP, BOT_DIRECTOR_SLOP), 1, world.maxx), clamp(at.y + rand(-BOT_DIRECTOR_SLOP, BOT_DIRECTOR_SLOP), 1, world.maxy), at.z)
+		if(near && !near.density && !isspaceturf(near))
+			return near
+	return at //rough enough: the spots round it are what's searched, nearest the clue first
 
 #undef BOT_DIRECTOR_EVERY
 #undef BOT_DIRECTOR_EASED

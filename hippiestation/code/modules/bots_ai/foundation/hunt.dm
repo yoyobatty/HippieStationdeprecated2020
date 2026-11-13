@@ -57,6 +57,8 @@
 	var/spot_tries = 0
 	/// Nowhere left to look, waiting on a clue (apex)
 	var/listening = FALSE
+	/// Been to where they were last seen (or the latest clue) and looked round it
+	var/looked_at_centre = FALSE
 
 /datum/bot_goal/search_for/New(mob/living/Q, turf/T, at, reason)
 	. = ..()
@@ -64,7 +66,7 @@
 	last_seen = T
 	seen_at = at
 	why = reason
-	lawful = (reason == "arrest_minor" || reason == "hunt")
+	lawful = (reason == "arrest_minor" || reason == "hunt" || reason == "kill_quiet")
 	target = T
 
 /datum/bot_goal/search_for/resolve_target(datum/bot_brain/bot)
@@ -125,6 +127,17 @@
 		next_spread = world.time + 5 SECONDS
 		spread_belief(bot)
 	var/mob/living/carbon/human/H = bot.owner
+	// First to where they were last seen, or the latest clue, and a look round from there
+	if(!looked_at_centre)
+		var/turf/centre = search_centre()
+		if(centre && centre.z == H.z && get_dist(H, centre) > 2 && ++spot_tries <= 20)
+			if(bot.pursue_target != centre)
+				bot.pursue(centre, "follow", force = TRUE)
+			return step.again(bot, 5)
+		looked_at_centre = TRUE
+		spot_tries = 0
+		bot.stop_pursuit()
+		return step.again(bot, 3)
 	// The next place they could be in, near where they most likely are
 	if(spots_left > 0)
 		var/obj/spot = spot_going_to
@@ -262,5 +275,76 @@
 	var/mob/living/mark = mark_ref?.resolve()
 	if(mark && mark.stat != DEAD && !(mark in view(BOT_SIGHT_RANGE, bot.owner)))
 		addtimer(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, start_search), mark, last_seen, seen_at, "hunt"), 2)
+
+// ---------------------------------------------------------------------------------------------
+// Killers who don't know where their mark is
+// ---------------------------------------------------------------------------------------------
+// A traitor's kill (goals/traitor.dm, goals/robust.dm) used to walk straight to its mark wherever on the station they were, through walls
+// as far as knowing went. Now it goes by what it's seen: in sight, at them; seen in the last ten seconds, to where they were; otherwise it
+// searches (above), an apex killer with the director's clues (apex/director.dm), from where it last saw them, or from their post (their
+// job's start point) if it never has. Operatives after the disk have a pinpointer, and go straight there.
+
+/datum/bot_goal/traitor_kill
+	/// Where this killer last saw its mark, and when
+	var/turf/mark_seen_at
+	var/mark_seen_time = 0
+	var/mark_searches = 0
+	/// An apex killer's rough spot from the director, and when it gets a new one
+	var/turf/director_spot
+	var/director_next = 0
+
+/// Where to head for the mark: the mark, the spot it was just seen at, or null if it's lost (search_for_mark()).
+/datum/bot_brain/proc/mark_whereabouts(datum/bot_goal/traitor_kill/G, mob/living/V)
+	if(!G || !V)
+		return null
+	if(istype(G, /datum/bot_goal/traitor_kill/robust/op_disk))
+		return V //the pinpointer
+	if(isturf(V.loc) && V.z == owner.z && (V in view(BOT_SIGHT_RANGE, owner)))
+		G.mark_seen_at = get_turf(V)
+		G.mark_seen_time = world.time
+		return V
+	if(G.mark_seen_at && world.time - G.mark_seen_time < 10 SECONDS && get_turf(owner) != G.mark_seen_at)
+		return G.mark_seen_at
+	// An apex killer has the director (apex/director.dm): roughly where they are, a spot within three tiles of them, new every fifteen
+	// seconds (forty for a minute after a close call), and it heads there. At the spot and still nobody in sight, it searches.
+	if(is_apex())
+		if(!G.director_spot || world.time >= G.director_next)
+			var/eased = search_close_call_at && world.time - search_close_call_at < 60 SECONDS
+			G.director_spot = bot_director_rough_turf(V)
+			G.director_next = world.time + (eased ? 40 SECONDS : 15 SECONDS)
+			if(G.director_spot)
+				bot_log(src, "DIRECTOR: [V] is somewhere round [get_area_name(G.director_spot, TRUE)][eased ? " (eased off)" : ""]")
+				bot_tally("director clues")
+		if(G.director_spot && G.director_spot.z == owner.z && get_dist(owner, G.director_spot) > 1)
+			return G.director_spot
+	return null
+
+/// Lost the mark: a search from where it last saw them, or their post. TRUE if it's off searching (the kill picks up after it).
+/datum/bot_brain/proc/search_for_mark(datum/bot_goal/traitor_kill/G, mob/living/V)
+	if(!G || !V || ++G.mark_searches > 3)
+		return FALSE
+	var/turf/from = G.mark_seen_at || bot_job_post(V)
+	// Never seen them and nowhere to start: an apex killer has the director's word on roughly where they are (apex/director.dm)
+	if(!from && is_apex())
+		from = bot_director_rough_turf(V)
+	if(!from || from.z != owner.z)
+		return FALSE
+	var/datum/bot_goal/search_for/S = new(V, from, G.mark_seen_time || world.time, G.lawful ? "kill_quiet" : "kill")
+	S.breaks_in = G.breaks_in //the doors the kill would swipe its way through, the search does too
+	if(!suspend_goal_for(S))
+		return FALSE
+	bot_log(src, "HUNT: lost [V] - searching for them from [get_area_name(from, TRUE)]")
+	bot_tally("searches for a mark")
+	return TRUE
+
+/// Where somebody works: their job's start point
+/proc/bot_job_post(mob/living/V)
+	var/rank = V?.mind?.assigned_role
+	if(!rank)
+		return null
+	for(var/obj/effect/landmark/start/post in GLOB.start_landmarks_list)
+		if(post.name == rank)
+			return get_turf(post)
+	return null
 
 #undef BOT_SEARCH_RANGE
