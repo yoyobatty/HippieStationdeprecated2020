@@ -416,6 +416,9 @@
 	// A tank bomb in their hands: from range or not at all (bot_fighting.dm)
 	if(bot_held_bomb(attacker) && stand_off_bomber(attacker))
 		return
+	// A fuel tank: off one it's stood by when they've a gun (foundation/threat_read.dm), and one beside them, shot (foundation/tactics.dm)
+	if(mind_the_tank(attacker) || try_tank_shot(attacker))
+		return
 	// A botanist reaches for what it grew first - a death nettle up close, an acid melon or a
 	// primed combustible lemon from range (goals/botany_projects.dm).
 	if(try_botany_weapon(attacker))

@@ -58,11 +58,17 @@ Every milestone ends with the whole backlog run and this file updated.
 - `fueltank/bullet_act()` only goes off for a BRUTE or BURN shot: lasers and bullets, not disablers or tasers.
 - The blast is `explosion(0, 1, 5, flame_range = 5)`.
 
-**Code:** `foundation/tactics.dm` (milestone 2).
+**Code:** `foundation/tactics.dm`, `foundation/threat_read.dm`.
 
 | Scenario (`gym/scenarios_tactics.dm`) | Must pass at | Status |
 |---|---|---|
-| mid-skill officer with a laser drags a tank to a lethal target, backs off, shoots it, cuffs | mid and up | todo |
-| apex traitor parks a tank at a chokepoint on the target's route and waits | apex | todo |
-| a low-skill bot never sets one up | low | todo |
-| a tank pushed at the bot: it gets clear, or shoots first | low: gets clear; apex: shoots first | todo |
+| tactics: an apex killer drags a fuel tank to its mark, backs off and shoots it | apex | passing (before 0/2, after 2/2) |
+| tactics: a robust crewman in a fight shoots the fuel tank the killer is stood beside | mid and up | passing (before 0/2, after 2/2) |
+| tactics: a low-skill crewman in the same fight doesn't think of the tank | low | passing |
+| tactics: a robust crewman doesn't set off a tank with somebody else beside it | mid | passing |
+| threat: stood by a fuel tank, a gunman across the room, it gets away from the tank | apex always, mid usually, low sometimes | passing (before 0/2, after 3/3) |
+
+**Still to cover:**
+- an apex traitor parks a tank at a chokepoint on the target's route and waits
+- a tank pushed at the bot: apex shoots it first
+- Security using the set-up against a lethal target

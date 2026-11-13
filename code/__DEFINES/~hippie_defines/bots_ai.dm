@@ -82,3 +82,5 @@
 #define BOT_SKILL_APEX 0.9
 /// What a way through a locker, canister or tank costs on top of the step, in tiles (foundation/movables.dm)
 #define BOT_MOVABLE_PATH_PENALTY 10
+/// A fuel tank's blast, explosion(0, 1, 5, flame_range = 5): the light blast and the flames reach five tiles, six out is clear (foundation/tactics.dm)
+#define BOT_TANK_CLEAR 6
