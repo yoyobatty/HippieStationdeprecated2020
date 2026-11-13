@@ -82,3 +82,68 @@
 		fail_reason = "made a kill plan below apex"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+// Denying escape. Letters: n somebody near, x somebody at departures (the far end).
+
+/datum/bot_scenario/duty/traitor/deny_escape
+	job = "Assistant"
+	time_limit = 15 SECONDS
+	layout = list(
+		"##################",
+		"#B..n............#",
+		"#.............x..#",
+		"##################")
+	var/evac = TRUE
+	var/mob/living/carbon/human/near
+	var/mob/living/carbon/human/leaving
+
+/datum/bot_scenario/duty/traitor/deny_escape/post_spawn()
+	..()
+	brain.skill_override = 1
+	brain.set_playstyle(BOT_STYLE_ROBUST)
+	brain.traitor_plan = BOT_TRAITOR_RAMPAGE
+	brain.traitor_shopped = TRUE
+	brain.traitor_business_after = 0
+	near = stand_in(first_marker("n"), "Nell Near")
+	leaving = stand_in(first_marker("x"), "Lee Leaving")
+	for(var/mob/living/carbon/human/H in list(near, leaving))
+		H.mind_initialize() //crew, as next_victim() goes by
+		H.mind.assigned_role = "Assistant"
+	if("evac_under_way" in vars)
+		vars["evac_under_way"] = evac
+		vars["departure_turfs"] = list(first_marker("x"))
+
+/datum/bot_scenario/duty/traitor/deny_escape/proc/going_for()
+	var/datum/bot_goal/traitor_kill/G = brain.current_goal
+	return istype(G) ? G.victim() : null
+
+/datum/bot_scenario/duty/traitor/deny_escape/shuttle
+	name = "kill plan: the shuttle's coming, an apex rampager goes for somebody at departures before somebody nearer"
+	desc = "Apex, out to kill everybody, the shuttle on its way: an assistant three tiles off, another at departures across the room. The one at departures is about to get away, so it goes for them first. Before, it went for whoever was nearest."
+
+/datum/bot_scenario/duty/traitor/deny_escape/shuttle/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/mob/living/V = going_for()
+	if(V == leaving)
+		return BOT_GYM_PASS
+	if(V == near)
+		fail_reason = "went for the one nearest, not the one getting away"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/traitor/deny_escape/no_shuttle
+	name = "kill plan: no shuttle coming, an apex rampager goes for whoever's nearest, as it always did"
+	desc = "The same with no shuttle called: departures is just another room."
+	evac = FALSE
+
+/datum/bot_scenario/duty/traitor/deny_escape/no_shuttle/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/mob/living/V = going_for()
+	if(V == near)
+		return BOT_GYM_PASS
+	if(V == leaving)
+		fail_reason = "went past somebody nearer with no shuttle coming"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING

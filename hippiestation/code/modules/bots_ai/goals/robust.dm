@@ -325,6 +325,7 @@ GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor,
 			continue
 		var/job = H.mind.assigned_role
 		var/rank = get_dist(owner, H)
+		var/fleeing = escape_denial_rank(H) //apex/kill_planner.dm: about to get off the station
 		if(H in marks)
 			rank += BOT_ROBUST_RANK_MARK
 		else if(job == "Captain")
@@ -333,9 +334,9 @@ GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor,
 			rank += BOT_ROBUST_RANK_SECURITY
 		else if(job in GLOB.command_positions)
 			rank += BOT_ROBUST_RANK_HEAD
-		else if(important_only)
+		else if(important_only && !fleeing)
 			continue
-		options[H] = rank
+		options[H] = rank + fleeing
 	var/tries = 0
 	while(length(options) && tries++ < 4)
 		var/mob/living/carbon/human/best

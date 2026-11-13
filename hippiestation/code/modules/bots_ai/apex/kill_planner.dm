@@ -54,3 +54,34 @@ GLOBAL_LIST_INIT(bot_sabotage_lethality, list("maxcap" = 6, "superboom" = 5, "pl
 	return sabotage_underway ? FALSE : null
 
 #undef BOT_STRIKE_PATIENCE
+
+// ---------------------------------------------------------------------------------------------
+// Denying escape
+// ---------------------------------------------------------------------------------------------
+// The shuttle's the crew's way off. Once it's called, the ones at departures or aboard are the ones about to get away, and all in one
+// place: an apex rampager goes for them before anybody but its marks and the Captain.
+
+/// Rank to add in next_victim() (goals/robust.dm: lower comes sooner), between the Captain's and Security's
+#define BOT_ESCAPE_DENIAL_RANK -700
+
+/datum/bot_scenario
+	/// A Bot Gym run standing in for the shuttle being on its way, and for where departures is (escape_denial_rank())
+	var/evac_under_way = FALSE
+	var/list/departure_turfs
+
+/datum/bot_brain/proc/escape_denial_rank(mob/living/carbon/human/H)
+	if(traitor_plan != BOT_TRAITOR_RAMPAGE || !is_apex() || !shuttle_on_its_way() || !getting_away(H))
+		return 0
+	return BOT_ESCAPE_DENIAL_RANK
+
+/datum/bot_brain/proc/shuttle_on_its_way()
+	if(gym_run)
+		return gym_run.evac_under_way
+	return SSshuttle.emergency && (SSshuttle.emergency.mode == SHUTTLE_CALL || bot_shuttle_boarding()) //goals/evacuate.dm
+
+/datum/bot_brain/proc/getting_away(mob/living/H)
+	if(gym_run)
+		return (get_turf(H) in gym_run.departure_turfs) ? TRUE : FALSE
+	return bot_in_departures(H) || bot_aboard_shuttle(H)
+
+#undef BOT_ESCAPE_DENIAL_RANK

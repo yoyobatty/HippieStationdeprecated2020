@@ -141,11 +141,13 @@ in the night (12 to 24 runs a pairing, so give or take ten points):
 |---|---|---|
 | kill plan: an apex traitor out to kill everybody opens with a plasma fire where the people are, not a swing at one of them | apex | passing (before 0/3, after 3/3) |
 | kill plan: a traitor below apex out to kill everybody goes straight for them, as it always did | below apex | passing |
+| kill plan: the shuttle's coming, an apex rampager goes for somebody at departures before somebody nearer | apex | passing (before 0/2, after 2/2) |
+| kill plan: no shuttle coming, an apex rampager goes for whoever's nearest, as it always did | apex | passing |
 
 Bot Shift, every traitor on the rampage plan, 12 shifts each: deaths 46 before, 78 after (37 to air and fire).
 
 **Still to cover:**
-- the other phases: gear (armory raid, R&D weapons), blinding (the AI, cameras, telecomms, power), denying escape
+- the other phases: gear (armory raid, R&D weapons), blinding (the AI, cameras, telecomms, power); recalling the shuttle or taking it
 - a maxcap or superboom for a rampager whose job isn't Science or Chemistry (the acts are tied to the job that makes them)
 
 ## 7. Defenders (the plan's milestone 6)
