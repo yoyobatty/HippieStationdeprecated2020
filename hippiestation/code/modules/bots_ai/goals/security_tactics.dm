@@ -444,17 +444,18 @@ GLOBAL_VAR_INIT(bot_armory_ordered_until, 0)
 /datum/bot_duty/order_armory/try_start(datum/bot_brain/bot)
 	if(bot_armory_authorised() || bot.owner.handcuffed || bot.state == BOT_STATE_COMBAT)
 		return FALSE
-	var/mob/living/carbon/human/S = bot.suit_at_large()
-	if(!S || world.time < GLOB.bot_suit_seen_at[REF(S)] + BOT_ARMORY_ORDER_AFTER)
+	var/mob/living/carbon/human/S = bot.armory_threat() //apex/defenders.dm: a suit, or a killer at large
+	if(!S || world.time < GLOB.bot_suit_seen_at[REF(S)] + (bot.is_apex() ? 0 : BOT_ARMORY_ORDER_AFTER)) //an apex head doesn't wait for red
 		return FALSE
 	var/datum/bot_brain/keeper = bot_armory_keeper_up(bot)
 	if(bot.work_role() == "Captain" && keeper?.work_role() == "Head of Security")
 		return FALSE //the Head of Security's call
 	GLOB.bot_armory_ordered_until = world.time + BOT_ARMORY_ORDER_TIME
-	bot_log(bot, "ordering the armory open: [S] loose in a suit and no red alert after a minute")
+	var/suited = bot_in_nanosuit(S) || bot_in_syndicate_suit(S)
+	bot_log(bot, "ordering the armory open: [S] loose[suited ? " in a suit" : ", killing people,"] and no red alert")
 	bot_tally("armory ordered open")
 	var/who = keeper?.work_role() == "Warden" ? "Warden, open the armory" : "Opening the armory"
-	bot_say(bot.owner, ":s [S.name]'s still loose in that suit and there's no red alert. [who], everybody arm up. That's an order.")
+	bot_say(bot.owner, ":s [S.name]'s still loose[suited ? " in that suit" : " and killing people"] and there's no red alert. [who], everybody arm up. That's an order.")
 	return FALSE //the word's given: the door's the Warden's (open_armory)
 
 /// Somebody in a nanosuit wanted and at large, this bot's business (in the Bot Gym, in its own arena).
@@ -490,7 +491,7 @@ GLOBAL_VAR_INIT(bot_armory_ordered_until, 0)
 	interval_max = 150
 
 /datum/bot_duty/open_armory/try_start(datum/bot_brain/bot)
-	if(!bot_armory_authorised() || bot_armory_open_for_security() || !bot.suit_at_large())
+	if(!bot_armory_authorised() || bot_armory_open_for_security() || !bot.armory_threat())
 		return FALSE
 	if(bot.work_role() == "Captain" && bot_armory_keeper_up(bot))
 		return FALSE //the Warden's or the Head of Security's to open

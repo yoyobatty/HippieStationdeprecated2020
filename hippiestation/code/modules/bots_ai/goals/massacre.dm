@@ -163,7 +163,7 @@ GLOBAL_LIST_EMPTY(bot_alive_answers)
 /datum/bot_duty/group_up/try_start(datum/bot_brain/bot)
 	if(world.time < bot.group_up_rest_until || bot.is_security_job() || bot.bot_traitor || bot.op_team || bot.gone_loud() || bot.fights_back_now())
 		return FALSE
-	if(bot.state == BOT_STATE_COMBAT || istype(bot.current_goal, /datum/bot_goal/group_up))
+	if(bot.state == BOT_STATE_COMBAT || istype(bot.current_goal, /datum/bot_goal/group_up) || bot.hidden() || istype(bot.current_goal, /datum/bot_goal/hide_in_locker)) //apex/survivors.dm
 		return FALSE
 	var/mob/living/carbon/human/killer = bot.massacre_killer()
 	if(!killer || killer == bot.owner)

@@ -705,8 +705,9 @@
 	layout = list(
 		"############",
 		"#B.O...Dl..#",
-		"#K##########",
-		"############")
+		"#.##########",
+		"##K#########",
+		"############") //the suspect shut in out of sight: an officer with somebody dangerous in sight deals with them with what it has (dangerous_suspect_in_sight())
 	time_limit = 40 SECONDS
 	var/mob/living/carbon/human/officer
 	var/mob/living/carbon/human/suspect
@@ -784,8 +785,9 @@
 	layout = list(
 		"############",
 		"#B.O...Dl..#",
-		"#KH#########",
-		"############")
+		"#.H#########",
+		"####K#######",
+		"############") //as above
 	time_limit = 100 SECONDS
 	var/mob/living/carbon/human/hos
 

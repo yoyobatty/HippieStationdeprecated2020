@@ -188,7 +188,7 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 		return owner.legcuffed
 	if(owner.handcuffed && should_slip_cuffs())
 		return owner.handcuffed
-	if(isobj(owner.loc) && bot_should_leave(owner.loc))
+	if(isobj(owner.loc) && bot_should_leave(owner.loc) && owner.loc != hiding_spot) //apex/survivors.dm: shut in on purpose
 		return owner.loc
 	return null
 

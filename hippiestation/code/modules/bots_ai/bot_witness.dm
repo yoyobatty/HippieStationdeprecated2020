@@ -340,6 +340,8 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 		return
 	if(look_out_for_bombers()) //bot_fighting.dm
 		return
+	if(look_out_for_canister_drags()) //apex/defenders.dm
+		return
 	if(length(GLOB.bot_security_wanted) || bot_any_suit_worn()) //goals/fight_the_suit.dm
 		look_out_for_trouble()
 	look_round_the_room() //bot_playstyles.dm

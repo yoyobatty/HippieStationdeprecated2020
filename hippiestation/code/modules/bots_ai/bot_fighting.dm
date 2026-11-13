@@ -438,6 +438,8 @@
 		return null
 	if(istype(V.attached_device, /obj/item/assembly/health) || bot_get_wanted_entry(H) || bot_in_nanosuit(H))
 		return V
+	if(bot_bomb_out_of_place(H)) //apex/defenders.dm: in the Bar, on the Bridge, in Security - nobody's taking that to the range
+		return V
 	return null
 
 /// Whether anybody at all is walking about with one: a look round a few valves, before anybody looks round the room for it.
@@ -468,6 +470,7 @@ GLOBAL_LIST_EMPTY(bot_bomber_warned)
 		if(H == owner || H.stat == DEAD || H.handcuffed || !bot_bomber(H))
 			continue
 		warn_of_bomber(H)
+		report_bomb_carrier(H) //apex/defenders.dm: on the record, if it wasn't
 		if(is_security_job() && bot_get_wanted_entry(H) && begin_arrest(H))
 			return TRUE
 		if(get_dist(owner, H) < BOT_BOMB_RUN_FROM && !istype(current_goal, /datum/bot_goal/run_from))

@@ -105,3 +105,63 @@ Every milestone ends with the whole backlog run and this file updated.
 **Still to cover:**
 - cutting a runner off at a chokepoint they'll pass through further on (the tactical map's chokepoints)
 - an evader that moves like the user does (from player telemetry)
+
+## 5. Combat (the plan's milestone 4)
+**Code:** `foundation/meta_book.dm` (damage, threat, time to put somebody down; a fuel tank's blast reach), `apex/combat.dm` (kiting, choosing fights, the shove-then-hit melee).
+
+| Scenario (`gym/scenarios_combat.dm`) | Must pass at | Status |
+|---|---|---|
+| combat: a robust bot with a laser keeps a swordsman coming at it at arm's length | mid and up | passing (before 0/3, after 3/3) |
+| combat: an apex bot with bare hands gets out of a fight with a claymore, brave as it is | apex | passing (before 0/3, after 3/3) |
+| combat: a hurt apex bot with a claymore stays in a fight with somebody unarmed | apex | passing (before 0/3, after 3/3) |
+| combat: a hurt low-skill bot with a claymore runs as it always did | low | passing |
+
+The fuel tank tests (section 2) now shoot from past the blast as explosion realism has it: a small sealed room pushes the light blast out
+further, and the casing's shards carry about ten tiles (`bot_tank_blast_reach()`). Before that, the bots were caught in it (0/2), after 3/3.
+
+**The duel ladder** (`gym/scenarios_duels.dm`, `tools/bot_gym/apex_ladder.sh`): measures, never in the full suite. 2026-11-13:
+- a robust bot with a laser against a robust claymore wins 80%; an ordinary bot with the same laser wins 20%
+- apex against ordinary, a toolbox each: 43%; ordinary against ordinary: 25%
+
+**Still to cover:**
+- dodging (sidesteps at reaction speed, breaking line of sight), stun chains into cuffs, healing out of sight
+- group play: focus fire, flanks, holding a chokepoint
+
+## 6. The crew-kill planner (the plan's milestone 5)
+**Code:** `apex/kill_planner.dm`. The user's ruling, 2026-11-13: the strike may be anything, maxcaps included.
+
+| Scenario (`gym/scenarios_kill_plan.dm`) | Must pass at | Status |
+|---|---|---|
+| kill plan: an apex traitor out to kill everybody opens with a plasma fire where the people are, not a swing at one of them | apex | passing (before 0/3, after 3/3) |
+| kill plan: a traitor below apex out to kill everybody goes straight for them, as it always did | below apex | passing |
+
+Bot Shift, every traitor on the rampage plan, 12 shifts each: deaths 46 before, 78 after (37 to air and fire).
+
+**Still to cover:**
+- the other phases: gear (armory raid, R&D weapons), blinding (the AI, cameras, telecomms, power), denying escape
+- a maxcap or superboom for a rampager whose job isn't Science or Chemistry (the acts are tied to the job that makes them)
+
+## 7. Defenders (the plan's milestone 6)
+**Code:** `apex/defenders.dm` (stopping it), `apex/survivors.dm` (surviving it). The user's ruling, 2026-11-13: both, full depth.
+
+| Scenario (`gym/scenarios_defenders.dm`) | Must pass at | Status |
+|---|---|---|
+| defence: somebody walks into the Bar carrying a tank bomb on a timer, and the crew calls it out and gets away | anybody | passing (before 0/2, after 2/2) |
+| defence: a scientist's tank bomb in the lab is nobody's business | anybody | passing |
+| defence: an officer sees somebody carrying a tank bomb into the Bar, puts it on the record and goes for them | Security | passing (before 0/2, after 2/2) |
+| defence: a crewman sees somebody dragging a plasma canister into the Bar and calls it in | apex always, mid usually, low sometimes | passing (before 0/2, after 2/2) |
+| defence: an officer sees somebody dragging a plasma canister into the Bar and goes to stop them | Security, as above | passing (before 0/2, after 2/2) |
+| defence: three bodies with the same killer's name on them, a robust officer books them for Murder | Security, mid and up | passing |
+| security: three of the crew dead and the killer loose, an apex Head of Security orders the armory open | apex heads | passing (before 0/1, after 1/1) |
+| survive: alone with a killer in sight, a timid crewman shuts itself in a locker, and comes out once they're cuffed | timid crew | passing (before 0/2, after 2/2) |
+| survive: a brave crewman in the same room doesn't hide | brave crew | passing |
+| survive: a brave, robust crewman with nothing to fight with picks up a toolbox while a killer's about | brave, mid and up | passing |
+
+The two older armory scenarios ("at red alert with a nanosuit loose...", "a nanosuit loose a minute and no red alert...", station-wide,
+not in the suite) had been timing out at the officer arming up: the suspect stood in its sight, and `dangerous_suspect_in_sight()` held it
+back, as it should. The suspect is shut in out of sight now, and all three pass.
+
+**Still to cover:**
+- guarding what the kill planner goes for (the toxins lab while a bomb's made, the crowd rooms)
+- lockdowns and the AI bolting a killer in
+- vigilantes ambushing together rather than one at a time
