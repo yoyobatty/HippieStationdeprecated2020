@@ -145,6 +145,10 @@ GLOBAL_VAR(bot_power_out_drill)
 /datum/bot_duty/cover_short_handed/try_start(datum/bot_brain/bot)
 	if(world.time < bot.next_hop_time)
 		return FALSE
+	// Not from down on Lavaland or out of a mech, nor the one miner who works the Ripley (goals/mining_mech.dm): the Ripley's pilot took up
+	// Chemistry with 99 ore in the box, out on the rock, and the next miner along found no Ripley at the dock (Bot Shift, 2026-11-12)
+	if(bot.on_lavaland() || bot.in_mech() || GLOB.bot_mech_miner?.resolve() == bot)
+		return FALSE
 	if(!bot.gym_run && world.time < SSticker.round_start_time + 5 MINUTES)
 		return FALSE //give the place time to fill up and see who's here
 	var/job = bot.short_handed_job()

@@ -74,7 +74,7 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 	return work_role() == "Shaft Miner"
 
 /datum/bot_brain/proc/on_lavaland()
-	return is_mining_level(owner.z)
+	return is_mining_level(my_z()) //from inside an exosuit its own z is 0 (goals/mech_pilot.dm), and the Ripley's pilot is out there too
 
 /datum/bot_brain/proc/ore_satchel()
 	for(var/obj/item/storage/bag/ore/bag in owner)
@@ -139,7 +139,7 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 	if(bot.state == BOT_STATE_GOAL && bot.current_goal)
 		return FALSE
 	if(bot.on_lavaland())
-		if(bot_storm_over(bot.owner.z))
+		if(bot_storm_over(bot.my_z()) && !bot.in_mech()) //nothing to a pilot (goals/mining_mech.dm)
 			return FALSE
 		// Down here with no mask on or no tank on it: on with them, out of its bag, or back up for them. Nothing out on the rock is taken on in
 		// this air without them (assign_goal()), and the miner whose tank was knocked out of its hand on the shuttle asked for the next rock
@@ -148,13 +148,17 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 			if(world.time >= bot.mining_gear_blocked_until && bot.assign_goal(new /datum/bot_goal/dress_for_lavaland()))
 				return TRUE
 			return bot.assign_goal(new /datum/bot_goal/ride_mining_shuttle("mining_home"))
+		if(bot.mech_mining_on_lavaland()) //goals/mining_mech.dm: the mech miner, in the Ripley
+			return TRUE
 		if(bot.time_to_head_back())
 			return bot.assign_goal(new /datum/bot_goal/ride_mining_shuttle("mining_home"))
 		return bot.assign_goal(new /datum/bot_goal/mine_ore())
-	if(!is_station_level(bot.owner.z))
+	if(!is_station_level(bot.my_z()))
 		return FALSE
 	if(bot.ore_in_satchel())
 		return bot.assign_goal(new /datum/bot_goal/deliver_ore())
+	if(bot.mech_station_chores()) //goals/mining_mech.dm: the Ripley's box to the ore machine, its charger
+		return TRUE
 	if(bot.try_mining_points()) //goals/mining_points.dm: the voucher, the points in the machine, the vendor
 		return TRUE
 	if(bot_going_home_soon())
@@ -172,6 +176,8 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 		return TRUE
 	if(!bot.ready_for_lavaland())
 		return bot.assign_goal(new /datum/bot_goal/dress_for_lavaland())
+	if(bot.mech_take_down()) //goals/mining_mech.dm: the Ripley aboard first, while the shuttle's in
+		return TRUE
 	return bot.assign_goal(new /datum/bot_goal/ride_mining_shuttle("mining_away"))
 
 /// Whether the emergency shuttle is on its way or here.
@@ -190,7 +196,7 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 /// to be bitten. A goliath stood in a tunnel doesn't attack anything it isn't bored of, and three miners waited behind one for it to
 /// move until their tanks ran out.
 /datum/bot_brain/proc/mind_fauna()
-	if(!(is_miner() || pursuit == BOT_PURSUIT_EXPLORE) || !(on_lavaland() || gym_run) || world.time < next_taser_time || state == BOT_STATE_COMBAT)
+	if(!(is_miner() || pursuit == BOT_PURSUIT_EXPLORE) || !(on_lavaland() || gym_run) || world.time < next_taser_time || state == BOT_STATE_COMBAT || in_mech())
 		return //an explorer down there shoots what comes at it as well (goals/exploring.dm)
 	for(var/mob/living/simple_animal/hostile/asteroid/beast in view(BOT_SIGHT_RANGE, owner))
 		if(beast.stat == CONSCIOUS && try_shoot_at(beast))
@@ -329,8 +335,11 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 	doing = destination == "mining_away" ? "heading down to the mine" : "heading back to the station"
 
 /datum/bot_goal/ride_mining_shuttle/resolve_target(datum/bot_brain/bot)
+	// The shuttle comes and goes, and a failed search from before it docked says there's no way aboard for twenty seconds after
+	// (region_floods, bot_pathing_permissive.dm): forgotten, as somebody who sees it's in does.
+	bot.region_floods = null
 	var/here = destination == "mining_away" ? "mining_home" : "mining_away"
-	target = (bot_mining_shuttle_at(here) || bot_aboard_mining_shuttle(bot.owner)) ? bot_mining_shuttle_console() : bot_mining_dock_console(bot.owner.z)
+	target = (bot_mining_shuttle_at(here) || bot_aboard_mining_shuttle(bot.owner)) ? bot_mining_shuttle_console() : bot_mining_dock_console(bot.my_z())
 
 /datum/bot_goal/ride_mining_shuttle/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/mining/S = new
@@ -690,7 +699,7 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 	interrupts = TRUE
 
 /datum/bot_duty/shelter_from_storm/should_interrupt(datum/bot_brain/bot)
-	if(!bot.on_lavaland() || !bot.out_in_the_open())
+	if(!bot.on_lavaland() || !bot.out_in_the_open() || bot.in_mech()) //a pilot's out of it (ash_storm/is_ash_immune())
 		return FALSE
 	var/datum/weather/ash_storm/storm = bot_storm_over(bot.owner.z)
 	if(!storm)
@@ -699,7 +708,7 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 	return !istype(bot.current_goal, /datum/bot_goal/shelter_from_storm) || (storm.stage == MAIN_STAGE && storm != bot.capsule_tried_on && bot.find_carried_tool(/obj/item/survivalcapsule))
 
 /datum/bot_duty/shelter_from_storm/try_start(datum/bot_brain/bot)
-	if(!bot.on_lavaland() || !bot_storm_over(bot.owner.z))
+	if(!bot.on_lavaland() || !bot_storm_over(bot.owner.z) || bot.in_mech())
 		return FALSE
 	if(bot.out_in_the_open())
 		if(bot.pop_shelter())

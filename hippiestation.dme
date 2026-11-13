@@ -3505,6 +3505,7 @@
 #include "hippiestation\code\modules\bots_ai\goals\limb_replacement.dm"
 #include "hippiestation\code\modules\bots_ai\goals\low_pop.dm"
 #include "hippiestation\code\modules\bots_ai\goals\mining.dm"
+#include "hippiestation\code\modules\bots_ai\goals\mining_mech.dm"
 #include "hippiestation\code\modules\bots_ai\goals\mining_points.dm"
 #include "hippiestation\code\modules\bots_ai\goals\mining_requests.dm"
 #include "hippiestation\code\modules\bots_ai\goals\nuke_ops.dm"

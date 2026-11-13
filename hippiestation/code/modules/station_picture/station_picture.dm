@@ -122,6 +122,15 @@ GLOBAL_LIST_INIT(station_picture_inert, station_picture_inert_types())
 	if(GLOB.station_picture_kept)
 		station_picture_changed(.)
 
+// A shuttle docking or leaving: its floor, walls and airlocks are moved in by the shuttle code (onShuttleMove()), not ChangeTurf() or
+// Entered(), so the picture went on showing the dock as it was. The mining shuttle came back and nobody could path aboard it: the mech
+// miner and the miner on foot both gave up the ride (Bot Shift, 2026-11-12).
+/turf/afterShuttleMove(turf/oldT, rotation)
+	. = ..()
+	if(GLOB.station_picture_kept)
+		station_picture_changed(src)
+		station_picture_changed(oldT)
+
 /atom/movable/buckle_mob(mob/living/M, force = FALSE, check_loc = TRUE)
 	. = ..()
 	if(GLOB.station_picture_kept)

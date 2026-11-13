@@ -229,7 +229,25 @@
 	if(!parking)
 		bot.climb_out_of_mech()
 		return GOAL_STEP_FAIL
+	// It's just come in: what was found before it docked (no way aboard, region_floods) is out of date. The mech miner drove for it 46 ms
+	// after it docked, was told there was no way, and gave the trip up (Bot Shift, 2026-11-12).
+	bot.region_floods = null
+	// Somebody stood in the doorway: a word, and a moment for them to move. The other miner stood there while the Ripley's driver tried
+	// to get past, and the trip was given up (Bot Shift, 2026-11-12).
+	for(var/mob/living/carbon/human/H in range(1, get_turf(M)))
+		if(H != bot.owner && H.stat == CONSCIOUS && bot_aboard_mining_shuttle(H) != bot_aboard_mining_shuttle(M) && tries <= 3)
+			if(tries == 1)
+				bot_say(bot.owner, pick("Coming through with the Ripley.", "Mind out, Ripley coming aboard.", "[H.first_name()], shift over, the Ripley's coming on."))
+			addtimer(CALLBACK(src, PROC_REF(carry_on), bot, bot.current_goal), 3 SECONDS)
+			return GOAL_STEP_PENDING
 	return bot.suspend_goal_for(new /datum/bot_goal/walk_up_to(parking)) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
+
+/datum/bot_step/drive_mech_aboard/proc/carry_on(datum/bot_brain/bot, datum/bot_goal/goal)
+	if(QDELETED(bot) || bot.state != BOT_STATE_GOAL || bot.current_goal != goal || !bot.on_this_step(src))
+		return
+	var/result = execute(bot)
+	if(result != GOAL_STEP_PENDING)
+		bot.advance_goal_step(result == GOAL_STEP_SUCCESS)
 
 // ---------------------------------------------------------------------------------------------
 // Out there: to a ruin and back in it
@@ -472,9 +490,18 @@
 	var/turf/spot = get_turf(bot.current_goal?.target)
 	return (spot && get_dist(get_turf(bot.owner), spot) <= 6) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 
-/// In an exosuit it breathes the cabin's air: what's outside (Lavaland's, a breach) is nothing to put a mask on for or to get out of.
+/// In a sealed exosuit on its own air tank it breathes the cabin's air: what's outside is nothing to put a mask on for. Not a Ripley: its
+/// cockpit is open (enclosed = FALSE, so no air tank at all), and the pilot breathes whatever's outside. Both bot miners in the Ripley
+/// suffocated on Lavaland with full tanks on their belts, this having told them the cabin had air (Bot Shift, 2026-11-12).
 /datum/bot_brain/mind_air_supply()
-	if(in_mech())
+	var/obj/mecha/M = in_mech()
+	if(M?.use_internal_tank)
+		return
+	// Out on Lavaland in an open cockpit: on its mask and tank and they stay on, as a miner's do out on the rock. No closing the valve at the
+	// base's door and opening it again outside, and no running for air in the thing: short of air, the trip's over (goals/mining_mech.dm).
+	if(M && !M.enclosed && on_lavaland())
+		if(!owner.internal)
+			emergency_internals()
 		return
 	return ..()
 

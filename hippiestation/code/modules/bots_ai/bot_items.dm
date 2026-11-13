@@ -1688,6 +1688,10 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 /datum/bot_brain/proc/try_clear_obstruction(stuck = FALSE)
 	if(!current_path || !current_path.len)
 		return FALSE
+	// From inside an exosuit there are no hands for a door: it opens to the pilot's ID when the exosuit walks into it (mecha/Bump()). This
+	// went on to find a door it thought it had to hack, and drove the Ripley off to a tool vendor for a screwdriver (Bot Shift, 2026-11-12).
+	if(in_mech())
+		return FALSE
 	var/turf/here = get_turf(owner)
 	var/turf/T = current_path[1]
 	if(!here || !T)

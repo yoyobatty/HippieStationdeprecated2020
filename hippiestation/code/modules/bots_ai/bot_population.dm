@@ -12,8 +12,10 @@
 // borrow the job picker with a crew of "fill:25" (gym/bot_shift.dm).
 
 /// The posts a station can't do without, in the order a short-handed crew covers them. Twice in the list is two of them.
+/// A Shaft Miner is fourth: there's always one of the bots on it, quiet shift or not, and it works the Ripley (the user, 2026-11-12;
+/// goals/mining_mech.dm).
 GLOBAL_LIST_INIT(bot_crew_core_jobs, list(
-	"Station Engineer", "Medical Doctor", "Security Officer", "Assistant", "Botanist", "Cook", "Cargo Technician",
+	"Station Engineer", "Medical Doctor", "Security Officer", "Shaft Miner", "Assistant", "Botanist", "Cook", "Cargo Technician",
 	"Janitor", "Head of Security", "Atmospheric Technician", "Chemist", "Scientist", "Bartender", "Assistant", "Security Officer",
 	"Station Engineer", "Captain", "Warden", "Medical Doctor", "Security Officer", "Assistant", "Head of Personnel", "Clown", "Chief Engineer", "Roboticist",
 ))
@@ -86,6 +88,9 @@ GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 
 /// The job the next arrival takes, or null if there's nothing open.
 /datum/bot_population/proc/pick_job()
+	// The bot miner gone (dead, or logged off): the next one along takes it on, so the Ripley's never without a pilot for long
+	if(!bot_miner_on_shift() && job_open("Shaft Miner"))
+		return "Shaft Miner"
 	var/list/wanted = list()
 	for(var/title in GLOB.bot_crew_core_jobs)
 		wanted[title]++
@@ -97,6 +102,13 @@ GLOBAL_DATUM_INIT(bot_population, /datum/bot_population, new)
 		if(job_open(title))
 			open[title] = GLOB.bot_crew_job_weights[title]
 	return length(open) ? pickweight(open) : null
+
+/// A bot Shaft Miner alive and on shift.
+/proc/bot_miner_on_shift()
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		if(!QDELETED(B.owner) && B.owner.stat != DEAD && !B.logged_off && !B.gym_run && B.is_miner())
+			return TRUE
+	return FALSE
 
 /// One more of the crew, into the next job going. Returns them, or null if there's nothing open.
 /datum/bot_population/proc/bring_in(at_post = FALSE)

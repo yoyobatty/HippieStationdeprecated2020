@@ -173,7 +173,13 @@
 	if(retrieve_only)
 		target = tank?.loc
 		return
+	// Somewhere it can breathe, a refill can wait for a canister behind its own doors: nobody breaks into Engineering's maintenance for a
+	// top-up. A Shaft Miner did, twice in one shift, hacking its way to their canister (Bot Shift, 2026-11-12). Short of air, it's anything.
+	if(bot.air_is_breathable())
+		lawful = TRUE
 	target = bot.find_oxygen_canister()
+	if(lawful && target && !bot.can_walk_lawfully_to(target))
+		target = null
 
 /datum/bot_goal/refill_internals/get_strategies(datum/bot_brain/bot)
 	return list(new /datum/bot_strategy/refill_internals())
@@ -476,6 +482,10 @@
 		return
 	if(istype(current_goal, /datum/bot_goal/refill_internals) || istype(current_goal, /datum/bot_goal/seek_air))
 		return //already on its way
+	// Not off the mining shuttle or out of the Ripley for it: a miner's refills are at the outpost (goals/mining_mech.dm), and one that broke
+	// off its ride down for a canister in Engineering lost the ride with it and stopped going down at all (Bot Shift, 2026-11-12)
+	if(!tank_running_out() && (istype(current_goal, /datum/bot_goal/ride_mining_shuttle) || istype(current_goal, /datum/bot_goal/mech_errand) || istype(current_goal, /datum/bot_goal/take_mech_down)))
+		return
 	if(telemetry_action || world.time < mid_click_until)
 		return //mid-click on something - a second from now will do
 	next_air_trip_time = world.time + 10 SECONDS

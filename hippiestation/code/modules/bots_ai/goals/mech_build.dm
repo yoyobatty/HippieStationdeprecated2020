@@ -123,6 +123,7 @@ GLOBAL_LIST_INIT(bot_tool_for_behaviour, list(TOOL_WRENCH = /obj/item/wrench, TO
 	/// How far the chassis has got, as a number that only goes up.
 	var/best_progress = 0
 	var/drill_goes = 0
+	var/clamp_goes = 0
 
 /datum/bot_step/work_on_ripley/proc/again(datum/bot_brain/bot, delay = 5)
 	addtimer(CALLBACK(src, PROC_REF(carry_on), bot, bot.current_goal), delay)
@@ -207,22 +208,34 @@ GLOBAL_LIST_INIT(bot_tool_for_behaviour, list(TOOL_WRENCH = /obj/item/wrench, TO
 	if(built_at && (QDELETED(G.chassis) || !G.chassis))
 		var/obj/mecha/working/ripley/R = locate() in built_at
 		if(R)
-			// A drill on it, for the rock (goals/mech_pilot.dm): off the fabricator, and on with a click.
-			if(bot_mech_drill(R) || drill_goes > 3)
-				bot_log(bot, "RIPLEY: built [R][bot_mech_drill(R) ? ", with a drill" : ""]")
+			// A drill on it, for the rock (goals/mech_pilot.dm), and a clamp, which with an ore box in the hold is what takes up what the drill
+			// digs (goals/mining_mech.dm: a station with no Ripley in Mining gets this one): off the fabricator, and on with a click each.
+			var/equip_type = !bot_mech_drill(R) && drill_goes <= 3 ? /obj/item/mecha_parts/mecha_equipment/drill : (!bot_mech_clamp(R) && clamp_goes <= 3 ? /obj/item/mecha_parts/mecha_equipment/hydraulic_clamp : null)
+			if(!equip_type)
+				bot_log(bot, "RIPLEY: built [R][bot_mech_drill(R) ? ", with a drill" : ""][bot_mech_clamp(R) ? " and a clamp" : ""]")
 				return GOAL_STEP_SUCCESS
-			var/obj/item/mecha_parts/mecha_equipment/drill/D = bot.find_carried_tool(/obj/item/mecha_parts/mecha_equipment/drill)
-			if(D)
-				drill_goes++
-				return use(bot, D, R)
-			D = bot.mech_part_lying(/obj/item/mecha_parts/mecha_equipment/drill)
-			if(D)
-				return fetch(bot, new /datum/bot_goal/take_item/exact(D))
+			var/is_drill = equip_type == /obj/item/mecha_parts/mecha_equipment/drill
+			var/obj/item/mecha_parts/mecha_equipment/E = bot.find_carried_tool(equip_type)
+			if(E)
+				if(is_drill)
+					drill_goes++
+				else
+					clamp_goes++
+				return use(bot, E, R)
+			E = bot.mech_part_lying(equip_type)
+			if(E)
+				return fetch(bot, new /datum/bot_goal/take_item/exact(E))
 			if(!F.being_built)
-				drill_goes++ //a print started, not a wait for one
-			. = print_at_fab(bot, F, "mech_drill")
+				if(is_drill) //a print started, not a wait for one
+					drill_goes++
+				else
+					clamp_goes++
+			. = print_at_fab(bot, F, is_drill ? "mech_drill" : "mech_hydraulic_clamp")
 			if(. == GOAL_STEP_FAIL)
-				drill_goes = 4 //no drill to be had: the Ripley as it is
+				if(is_drill) //none to be had: the Ripley as it is
+					drill_goes = 4
+				else
+					clamp_goes = 4
 				return again(bot)
 			return
 	if(QDELETED(G.chassis))

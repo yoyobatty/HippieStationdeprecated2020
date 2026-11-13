@@ -111,3 +111,123 @@
 			D.attach(R)
 			note("mech drill: a Ripley with a drill waiting at [R.x],[R.y] in [A.name]")
 			return
+
+// The mech miner (goals/mining_mech.dm), without the shuttle. Letters as for digging on foot (R rock, O iron, l lava), and Y the Ripley
+// Hippie's Mining keeps: drill, clamp, ore box and scanner fitted.
+/datum/bot_scenario/mining/mech
+	name = "mech miner: drills the seams the Ripley's scanner shows, and the ore goes into its box"
+	desc = "Three seams of iron in a bank of rock. The miner climbs into the Ripley, drives over and drills them out; the ore goes straight into the box in the hold."
+	kit_hands = list()
+	kit_backpack = list()
+	time_limit = 90 SECONDS
+	layout = list(
+		"############",
+		"#B.Y.......#",
+		"#......RROR#",
+		"#.....RROOR#",
+		"#......RRRR#",
+		"############")
+	var/obj/mecha/working/ripley/R
+
+/datum/bot_scenario/mining/mech/setup()
+	..()
+	for(var/turf/T in markers["Y"])
+		R = new /obj/mecha/working/ripley/mining_roundstart(T)
+		place("Y", R)
+
+/datum/bot_scenario/mining/mech/make_goal()
+	return new /datum/bot_goal/mech_mine(R)
+
+/datum/bot_scenario/mining/mech/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/turf/T in markers["O"])
+		if(bot_turf_is_ore(T))
+			return BOT_GYM_PENDING
+	var/ore = bot_ore_count(bot_mech_ore_box(R))
+	if(!ore)
+		fail_reason = "the seams are gone but the box is empty"
+		return BOT_GYM_FAIL
+	log_line("[ore] ore in the box")
+	return BOT_GYM_PASS
+
+/// A goliath between it and the seam: it drives off, not at it.
+/datum/bot_scenario/mining/mech/goliath
+	name = "mech miner: drives off from a goliath rather than fight it"
+	desc = "A goliath stands by the only seam. The miner in the Ripley backs off from it instead of drilling it."
+	time_limit = 60 SECONDS
+	layout = list(
+		"##################",
+		"#B.Y.............#",
+		"#................#",
+		"#..........G..OR.#",
+		"#.............RR.#",
+		"##################")
+	var/mob/living/simple_animal/hostile/asteroid/goliath/beast
+
+/datum/bot_scenario/mining/mech/goliath/setup()
+	..()
+	for(var/turf/T in markers["G"])
+		beast = new(T)
+		place("G", beast)
+
+/datum/bot_scenario/mining/mech/goliath/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(beast) || beast.health < beast.maxHealth)
+		fail_reason = "went at the goliath"
+		return BOT_GYM_FAIL
+	return brain.mech_retreats ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// Back at the station: the box onto the ore machine's input (M, taking from the west), emptied, clamped back up, and the Ripley onto the
+/// charger (Z, the port, facing the floor east of it).
+/datum/bot_scenario/mech_unload
+	name = "mech miner: sets the ore box down on the ore machine, clamps it back and parks on the charger"
+	desc = "The Ripley's back with a box of iron. The miner drives it onto the redemption machine's input, sets the box down, waits for it to be emptied, takes it back with the clamp and parks on the charger."
+	job = "Shaft Miner"
+	time_limit = 90 SECONDS
+	layout = list(
+		"############",
+		"#B.Y......M#",
+		"#..........#",
+		"#Z.........#",
+		"############")
+	var/obj/mecha/working/ripley/R
+	var/obj/machinery/mineral/ore_redemption/machine
+
+/datum/bot_scenario/mech_unload/setup()
+	for(var/turf/T in markers["Y"])
+		R = new /obj/mecha/working/ripley/mining_roundstart(T)
+		place("Y", R)
+		var/obj/structure/ore_box/box = bot_mech_ore_box(R)
+		new /obj/item/stack/ore/iron(box, 20)
+	for(var/turf/T in markers["M"])
+		machine = new(T)
+		machine.input_dir = WEST
+		machine.output_dir = EAST
+		place("M", machine)
+	for(var/turf/T in markers["Z"])
+		var/turf/floor = get_step(T, EAST)
+		floor.ChangeTurf(/turf/open/floor/mech_bay_recharge_floor)
+		var/obj/machinery/mech_bay_recharge_port/P = new(T)
+		P.setDir(EAST)
+		place("Z", P)
+
+/datum/bot_scenario/mech_unload/make_goal()
+	return new /datum/bot_goal/mech_unload(R)
+
+/datum/bot_scenario/mech_unload/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/structure/ore_box/box = bot_mech_ore_box(R)
+	if(!box || bot_ore_count(box) || !bot_mech_on_charger(R) || brain.in_mech())
+		var/obj/structure/ore_box/loose = locate() in get_step(machine, machine.input_dir)
+		var/said = "box [box ? "in the hold" : (loose ? "on the input with [bot_ore_count(loose)] ore" : "elsewhere")], machine powered=[machine.powered()] container=[!!machine.materials?.mat_container] processing=[(machine in SSmachines.processing)] panel=[machine.panel_open]"
+		if(said != last_said)
+			last_said = said
+			log_line(said)
+		return BOT_GYM_PENDING
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/mech_unload
+	var/last_said
