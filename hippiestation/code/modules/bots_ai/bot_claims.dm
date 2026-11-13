@@ -116,7 +116,7 @@ GLOBAL_LIST_INIT(bot_claim_words, list("on it", "i'm on it", "im on it", "i got 
 		return FALSE
 	var/datum/bot_request/best
 	for(var/datum/bot_request/R as anything in GLOB.bot_requests)
-		if(!R.kind.spoken_for || world.time > R.made + BOT_CLAIM_WINDOW || R.only_for)
+		if(!R.kind.spoken_for || world.time > R.made + BOT_CLAIM_WINDOW || R.only_for || R.unheard) //nobody heard it to say "on it" to
 			continue
 		if(R.taken_by && !istype(R.taken_by, /datum/bot_brain))
 			continue //the AI has it in hand

@@ -496,12 +496,12 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 /// Somebody asking the AI for a door, or for help. Its laws first: nobody's let anywhere they'd harm people from, and nobody in
 /// danger is left in it. Then the high security doors are for those cleared for them, and then it's down to the AI: a strict one
 /// asks what it's for, an easygoing one opens up.
-/datum/bot_silicon/ai/proc/consider_door_for(mob/living/talker, lower_msg, answering)
+/datum/bot_silicon/ai/proc/consider_door_for(mob/living/talker, lower_msg, answering, obj/machinery/door/airlock/door_asked)
 	var/mob/living/carbon/human/H = talker
 	// "Unbolt it", "the doors are bolted": the bolted door they mean, not whichever shut door is nearest. The Captain bolted the Brig with
 	// a door remote, asked the AI to unbolt it, and it opened the Brig Desk beside him instead (round-20.48.49).
 	var/unbolting = bot_text_has_any(lower_msg, list("unbolt", "unbolted", "bolted", "bolts"))
-	var/obj/machinery/door/airlock/D = door_near(talker, unbolting)
+	var/obj/machinery/door/airlock/D = door_asked || door_near(talker, unbolting) //the one they pressed the request on, if they did
 	// Law 1, the harm it would help: somebody out to hurt people. A strict AI won't open for anybody Security's after; even an
 	// easygoing one won't for a traitor out in the open or somebody wanted for something serious.
 	if(istype(H) && (law_one_bars(H) || (bot_get_wanted_entry(H) && strictness >= 0.5)))
@@ -545,6 +545,20 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	open_door(D)
 	note("opened [D] for [talker][was_bolted ? ", bolts up" : ""]")
 	reply(was_bolted ? pick("Unbolted. Opening.", "Bolts up, [talker.name].", "Unbolted and open.") : pick("Done.", "Opening.", "Got it, [talker.name]."))
+
+/// Somebody's pressed a door's request to have it opened (alt-click, hippiestation airlock.dm): that door, by the same rules as being
+/// asked out loud (consider_door_for()). Its answer goes out on the radio, as a player AI's would; there's no reason given, so a strict
+/// AI asks for one, and what they say back on the radio is the answer.
+/datum/bot_silicon/ai/proc/door_requested(mob/living/user, obj/machinery/door/airlock/D)
+	if(!user || QDELETED(D) || !D.density || !D.canAIControl(owner) || !can_work_from_core())
+		return
+	if(subverted() && !(user in law_masters()))
+		return
+	note("door request from [user] at [D]")
+	reply_prefix = ";"
+	talking_to(user)
+	asked_why_until = 0
+	consider_door_for(user, "", FALSE, D)
 
 /// Every bolted door into or out of the room somebody's in that the AI can work, unbolted: not opened, so their own access still
 /// counts. Not the doors to the places it keeps shut (bot_ai_restricted_area()), unless it's command asking. How many.

@@ -35,9 +35,8 @@
 		to_chat(user, "<span class='danger'>Psst, you can't interact with the world, ghosts!</span>")
 		return
 
-	if (!user.canUseTopic(src))
-		to_chat(user, "<span class='info'>You can't do this right now!</span>")
-		return
+	if (!user.canUseTopic(src, BE_CLOSE)) //beside the door, to press its request (the user's ruling, 2026-11-13)
+		return //it's said why itself ("You can't do that right now!", "You are too far away!"): two lines saying it, in crit
 
 	if(stat & (NOPOWER|BROKEN) || (obj_flags & EMAGGED))
 		to_chat(user, "<span class='info'>The door isn't working!</span>")
@@ -47,11 +46,20 @@
 		to_chat(user, "<span class='info'>The airlock's spam filter is blocking your request. Please wait at least 10 seconds between requests.</span>")
 		return
 
+	// A bot AI gets it too (bots_ai/goals/silicon.dm door_requested()): only AIs with a player at them did, so with the AI a bot
+	// nobody's alt-click was ever answered. And "Request sent." only when there's an AI to send it to.
+	var/sent = FALSE
 	for(var/mob/living/silicon/ai/AI in GLOB.ai_list)
-		if(!AI.client)
+		if(AI.stat == DEAD)
 			continue
-		to_chat(AI, "<span class='info'><a href='?src=[REF(AI)];track=[html_encode(user.name)]'><span class='name'>[user.name] ([user.GetJob()])</span></a> is requesting you to open [src]<a href='?src=[REF(AI)];remotedoor=[REF(src)]'>(Open)</a></span>")
+		if(AI.client)
+			to_chat(AI, "<span class='info'><a href='?src=[REF(AI)];track=[html_encode(user.name)]'><span class='name'>[user.name] ([user.GetJob()])</span></a> is requesting you to open [src]<a href='?src=[REF(AI)];remotedoor=[REF(src)]'>(Open)</a></span>")
+			sent = TRUE
+		else if(istype(AI.bot_silicon, /datum/bot_silicon/ai))
+			var/datum/bot_silicon/ai/bot_ai = AI.bot_silicon
+			bot_ai.door_requested(user, src)
+			sent = TRUE
 	request_cooldown = world.time + (COOLDOWN_TIME * 10)
-	to_chat(user, "<span class='info'>Request sent.</span>")
+	to_chat(user, sent ? "<span class='info'>Request sent.</span>" : "<span class='info'>The request goes out, and nothing answers.</span>")
 
 #undef EASTEREGG_CHANCE

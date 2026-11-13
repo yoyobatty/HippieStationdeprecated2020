@@ -121,3 +121,57 @@ GLOBAL_LIST_EMPTY(bot_radio_carried)
 	var/datum/bot_request_kind/medical/M = locate() in GLOB.bot_request_kinds
 	if(M && !bot_open_request_from(H, M))
 		bot_offer_request(bot_new_request(M, H, freq, H))
+
+/// Whether something `speaker` said since `since` has got out over the radio, now (bot_radio_then() for when it's already been a moment)
+/proc/bot_radio_heard_now(atom/movable/speaker, since)
+	var/area/bot_gym/arena = get_area(speaker)
+	if(istype(arena))
+		return !arena.radio_down
+	return speaker && GLOB.bot_radio_carried[REF(speaker)] >= since
+
+/// A call for somebody of another trade (call_for(), bot_requests.dm), a few seconds after it was made: offered to whoever's to answer it
+/// if it got out over the radio. If it didn't, nobody knows of it, and the bot tries another way.
+/proc/bot_offer_if_heard(datum/bot_request/R, mob/living/carbon/human/speaker, said_at)
+	if(QDELETED(speaker) || bot_radio_heard_now(speaker, said_at))
+		bot_offer_request(R)
+		return
+	R.unheard = TRUE //kept, not offered: nobody's to take it up, and the caller doesn't make it again till it lapses
+	speaker.bot_brain?.radio_call_lost(R)
+
+/datum/bot_brain
+	/// Its last call for help went unanswered: the radio's taken for dead till then (radio_works())
+	var/radio_dead_until = 0
+
+/// A headset on, switched on, and no call of its own gone unheard lately: whether it's worth calling for somebody over the radio
+/datum/bot_brain/proc/radio_works()
+	if(world.time < radio_dead_until)
+		return FALSE
+	var/area/bot_gym/arena = get_area(owner)
+	if(istype(arena))
+		return !arena.radio_down //a Bot Gym bot has no headset: the arena says whether its radio works
+	var/obj/item/radio/headset/R = owner.ears
+	return istype(R) && R.on
+
+/// Its call for help didn't get out. Shut in, it presses the door's request instead (alt-click, hippiestation airlock.dm), which reaches
+/// the AI by the door's own wiring, no radio needed; and it doesn't call on the radio again for a while.
+/datum/bot_brain/proc/radio_call_lost(datum/bot_request/R)
+	bot_log(src, "nobody heard my call for a [R.kind.name] on the radio")
+	bot_tally("radio calls that didn't get out")
+	radio_dead_until = world.time + 2 MINUTES
+	if(!istype(R.kind, /datum/bot_request_kind/let_out) || owner.incapacitated())
+		return
+	press_door_request()
+
+/// The request on the nearest shut airlock it can reach. TRUE if it pressed one.
+/datum/bot_brain/proc/press_door_request()
+	var/obj/machinery/door/airlock/best
+	for(var/obj/machinery/door/airlock/D in range(1, owner))
+		if(D.density && !(D.stat & (NOPOWER|BROKEN)) && D.request_cooldown <= world.time && (!best || get_dist(owner, D) < get_dist(owner, best)))
+			best = D
+	if(!best)
+		return FALSE
+	owner.face_atom(best)
+	best.AltClick(owner)
+	bot_log(src, "pressed the request on [best] for the AI")
+	bot_tally("door requests pressed")
+	return TRUE

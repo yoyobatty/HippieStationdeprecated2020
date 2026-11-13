@@ -402,3 +402,105 @@
 		return BOT_GYM_FAIL
 	smash()
 	return bot_get_wanted_entry(vandal) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// The door's request (alt-click, hippiestation airlock.dm)
+// ---------------------------------------------------------------------------------------------
+
+/// Somebody at a shut airlock they've no access to, alt-clicking it; a bot AI made for the run (station-wide: never with the rest, as an
+/// AI answers every arena). Only a player AI was ever told of these: with the AI a bot, nobody's request was answered.
+/datum/bot_scenario/door_request_ai
+	station_wide = TRUE
+	job = "Assistant"
+	time_limit = 15 SECONDS
+	layout = list(
+		"#######",
+		"#B.k#.#",
+		"####D##",
+		"#.....#",
+		"#######")
+	var/hurt = TRUE
+	var/mob/living/carbon/human/asker
+	var/mob/living/silicon/ai/ai
+	var/pressed = FALSE
+
+/datum/bot_scenario/door_request_ai/setup()
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	A.req_access = list(ACCESS_CAPTAIN)
+	A.req_access_txt = "[ACCESS_CAPTAIN]"
+
+/datum/bot_scenario/door_request_ai/make_goal()
+	return null
+
+/datum/bot_scenario/door_request_ai/post_spawn()
+	asker = stand_in(first_marker("k"), "Ada Asker")
+	asker.forceMove(get_step(first_placed("D"), NORTH))
+	if(hurt)
+		asker.adjustBruteLoss(50)
+	ai = bot_make_silicon("AI") //goals/silicon.dm: as a round makes one, at the station's AI landmark
+	if(!ai)
+		log_line("no AI could be made")
+		return
+	var/datum/bot_silicon/ai/brain_ai = new(ai)
+	brain_ai.strictness = 0.2
+
+/datum/bot_scenario/door_request_ai/release_run()
+	if(!QDELETED(ai))
+		qdel(ai)
+	return ..()
+
+/datum/bot_scenario/door_request_ai/check()
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	if(!pressed)
+		pressed = TRUE
+		log_line("Ada Asker alt-clicks the door")
+		A.AltClick(asker)
+		return BOT_GYM_PENDING
+	return A.density ? BOT_GYM_PENDING : BOT_GYM_PASS
+
+/datum/bot_scenario/door_request_ai/hurt
+	name = "door request: somebody hurt alt-clicks a door they can't open, and the bot AI opens it"
+	desc = "The door's request went only to an AI with a player at it. A bot AI answers it now, by the rules it answers being asked out loud: somebody hurt is let through, and Medical told."
+
+/datum/bot_scenario/door_request_ai/easygoing
+	name = "door request: an easygoing bot AI opens a door somebody alt-clicks"
+	desc = "The same with somebody unhurt and an easygoing AI: it opens up."
+	hurt = FALSE
+
+/// Shut in with the radio out: its call to be let out doesn't get out, so it presses the door's request instead.
+/datum/bot_scenario/door_request_bot
+	name = "door request: shut in with the radio out, a bot presses the door's request"
+	desc = "A bot calling to be let out over a radio that isn't working: nobody hears it, and it presses the request on the door beside it (alt-click), which reaches the AI by the door's own wiring."
+	job = "Assistant"
+	time_limit = 15 SECONDS
+	layout = list(
+		"#####",
+		"#B..#",
+		"##D##",
+		"#...#",
+		"#####")
+	var/called = FALSE
+
+/datum/bot_scenario/door_request_bot/setup()
+	if("radio_down" in arena_area.vars)
+		arena_area.vars["radio_down"] = TRUE
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	A.req_access = list(ACCESS_CAPTAIN)
+	A.req_access_txt = "[ACCESS_CAPTAIN]"
+
+/datum/bot_scenario/door_request_bot/make_goal()
+	return null
+
+/datum/bot_scenario/door_request_bot/post_spawn()
+	brain.gym_scripted = FALSE //call_for() is for bots out and about
+	bot.forceMove(get_step(first_placed("D"), NORTH))
+
+/datum/bot_scenario/door_request_bot/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!called)
+		called = TRUE
+		var/kind = text2path("/datum/bot_request_kind/let_out")
+		brain.call_for(kind, "Can somebody let me out? I'm stuck in here.")
+		return BOT_GYM_PENDING
+	return bot_transcript_said("pressed the request on") ? BOT_GYM_PASS : BOT_GYM_PENDING

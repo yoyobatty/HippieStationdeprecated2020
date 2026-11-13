@@ -141,6 +141,9 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 /datum/bot_request
 	var/datum/bot_request_kind/kind
 	var/datum/weakref/caller_ref
+	/// Put out on the radio and never got out (bot_radio.dm bot_offer_if_heard()): nobody knows of it to take it up. Kept till it lapses,
+	/// so the caller doesn't make it again and again.
+	var/unheard = FALSE
 	/// Where to go, once that's known: the caller, or the place they named (an /area).
 	var/atom/place
 	var/made = 0
@@ -159,7 +162,7 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 	var/failures = 0
 
 /datum/bot_request/proc/still_open()
-	if(world.time > made + BOT_REQUEST_LIFETIME)
+	if(world.time > made + BOT_REQUEST_LIFETIME || unheard)
 		return FALSE
 	if(taken_by && (QDELETED(taken_by) || QDELETED(taken_by.owner) || taken_by.owner.stat != CONSCIOUS))
 		taken_by = null //whoever had it is in no state to see it through
@@ -330,7 +333,7 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 
 /// Whether this bot could take a call of this kind right now.
 /datum/bot_brain/proc/can_take_call(datum/bot_request/R)
-	if(QDELETED(owner) || owner.stat != CONSCIOUS || owner.incapacitated())
+	if(QDELETED(owner) || owner.stat != CONSCIOUS || owner.incapacitated() || R.unheard)
 		return FALSE
 	// Locked up: a doctor serving time in a cell said "Coming" to a call for a medic, and then "I can't get to you".
 	if(owner.handcuffed || owner.bot_life_sentence || is_in_active_cell(owner))
@@ -391,7 +394,7 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 
 /// Hands a call to whoever of the right trade is nearest and free. Nobody: it stays open for the first to come free.
 /proc/bot_offer_request(datum/bot_request/R)
-	if(!R.still_open() || !R.place)
+	if(!R.still_open() || !R.place || R.unheard)
 		return
 	if(bot_ai_take_request(R)) //the AI first, when it can do it from the core (bot_claims.dm)
 		return
@@ -472,6 +475,12 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 	if(!let_out && try_console_request(kind_type))
 		next_call_time = world.time + 5 MINUTES
 		return TRUE
+	// No radio that works (no headset, or its last call went unanswered: bot_radio.dm): no shouting into it. Shut in, the door's request.
+	if(!radio_works())
+		if(let_out)
+			next_let_out_call = world.time + 1 MINUTES
+			return press_door_request()
+		return FALSE
 	if(let_out)
 		next_let_out_call = world.time + 2 MINUTES
 		next_call_time = max(next_call_time, world.time + 1 MINUTES)
@@ -483,9 +492,11 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 	// takes only the first, so the crew around heard the second one said out loud (2026-11-10).
 	if(copytext(line, 1, 2) == ";")
 		line = copytext(line, 2)
+	var/said_at = world.time
 	bot_say(owner, ";[line]")
 	bot_log(src, "called for a [kind.name]: \"[line]\"")
-	addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_offer_request), R), rand(25, 50))
+	//bot_radio.dm: offered once it's had time to be heard, if it was
+	addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_offer_if_heard), R, owner, said_at), rand(25, 50))
 	return TRUE
 
 // ---------------------------------------------------------------------------------------------
