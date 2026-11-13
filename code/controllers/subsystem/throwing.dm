@@ -154,6 +154,7 @@ SUBSYSTEM_DEF(throwing)
 		if(T && thrownthing.has_gravity(T))
 			T.zFall(thrownthing)
 
+	end_flight(hit, target) //hippie -- its glide and look put back, and a landing (hippiestation/code/modules/throwing/throw_flight.dm)
 	qdel(src)
 
 /datum/thrownthing/proc/hit_atom(atom/A)

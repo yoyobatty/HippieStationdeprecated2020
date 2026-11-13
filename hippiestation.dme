@@ -4177,6 +4177,8 @@
 #include "hippiestation\code\modules\tgui\machines_more_tgui.dm"
 #include "hippiestation\code\modules\tgui\notices_tgui.dm"
 #include "hippiestation\code\modules\tgui\bots_strip_tgui.dm"
+#include "hippiestation\code\modules\throwing\throw_flight.dm"
+#include "hippiestation\code\modules\throwing\throw_skill.dm"
 #include "hippiestation\code\modules\timestop\spell.dm"
 #include "hippiestation\code\modules\timestop\timestop.dm"
 #include "hippiestation\code\modules\uplink\surplus_items.dm"

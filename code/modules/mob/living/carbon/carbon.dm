@@ -161,15 +161,25 @@
 		thrown_thing = I
 		dropItemToGround(I)
 
-		if(HAS_TRAIT(src, TRAIT_PACIFISM) && I.throwforce)
+		if(HAS_TRAIT(src, TRAIT_PACIFISM) && I.throwforce && !(GLOB.throw_realism && a_intent == INTENT_HELP && throw_is_harmless(I))) //hippie edit -- a toss can't hurt anybody (throwing/throw_skill.dm)
 			to_chat(src, "<span class='notice'>You set [I] down gently on the ground.</span>")
 			return
 
 	if(thrown_thing)
-		visible_message("<span class='danger'>[src] has thrown [thrown_thing].</span>")
-		log_message("has thrown [thrown_thing]", LOG_ATTACK)
+		// hippie start -- how well they can throw just now, and a toss on help intent (hippiestation/code/modules/throwing/throw_skill.dm)
+		var/atom/aimed_at = target
+		var/list/plan = plan_throw(thrown_thing, target)
+		target = plan[1]
+		if(plan[4])
+			visible_message("<span class='notice'>[src] tosses [thrown_thing][ismob(aimed_at) && aimed_at != src ? " to [aimed_at]" : ""].</span>")
+		else if(plan[5])
+			visible_message("<span class='danger'>[src] throws [thrown_thing] wildly.</span>")
+		else
+			visible_message("<span class='danger'>[src] has thrown [thrown_thing].</span>")
+		log_message("has [plan[4] ? "tossed" : "thrown"] [thrown_thing]", LOG_ATTACK)
 		newtonian_move(get_dir(target, src))
-		thrown_thing.safe_throw_at(target, thrown_thing.throw_range, thrown_thing.throw_speed, src, null, null, null, move_force)
+		thrown_thing.safe_throw_at(target, plan[2], plan[3], src, null, null, null, move_force, plan[4])
+		// hippie end
 		playsound(thrown_thing, pick('hippiestation/sound/effects/throw.ogg', 'hippiestation/sound/effects/throw2.ogg', 'hippiestation/sound/effects/throw3.ogg'), 25) // hippie -- adds throw sounds
 
 /mob/living/carbon/restrained(ignore_grab)

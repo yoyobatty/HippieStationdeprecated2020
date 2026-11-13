@@ -41,7 +41,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/subsystem/machines.dm (fire() walks its run by index and cuts it once)
 ## code/controllers/subsystem/mobs.dm
 ## code/controllers/subsystem/stickyban.dm
-## code/controllers/subsystem/throwing.dm
+## code/controllers/subsystem/throwing.dm (finalize() calls end_flight(): glide, look and landing, hippiestation/code/modules/throwing/throw_flight.dm)
 ## code/controllers/subsystem/ticker.dm
 ## code/controllers/subsystem/timer.dm
 ## code/controllers/subsystem/vote.dm
@@ -62,7 +62,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/datums/tgs_event_handler.dm
 ## code/datums/wires/airlock.dm
 ## code/datums/world_topic.dm
-## code/game/atoms_movable.dm (doMove() skips no_cross_checks like Move())
+## code/game/atoms_movable.dm (doMove() skips no_cross_checks like Move(); throw_at() keeps gentle and starts the flight, safe_throw_at() passes gentle on, hippiestation/code/modules/throwing/)
 ## code/game/gamemodes/changeling/changeling.dm !Should be modularized. Can be done easily.
 ## code/game/gamemodes/game_mode.dm
 ## code/game/gamemodes/traitor/traitor.dm !Should be modularized. Can be done easily.
@@ -179,6 +179,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/mob/living/blood.dm
 ## code/modules/mob/living/brain/brain_item.dm
 ## code/modules/mob/living/carbon/alien/alien.dm !Should be modularized. Can be done easily.
+## code/modules/mob/living/carbon/carbon.dm (throw_item() goes by plan_throw(): aim, strength and the toss, hippiestation/code/modules/throwing/throw_skill.dm)
 ## code/modules/mob/living/carbon/carbon_defense.dm
 ## code/modules/mob/living/carbon/death.dm !Should be modularized. Can be done easily.
 ## code/modules/mob/living/carbon/human/examine.dm
@@ -223,7 +224,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/reagents/chemistry/reagents/toxin_reagents.dm
 ## code/modules/reagents/chemistry/recipes/pyrotechnics.dm !Same as above.
 ## code/modules/reagents/chemistry/recipes/slime_extracts.dm (delete_extract() on an extract already gone)
-## code/modules/reagents/reagent_containers.dm !Could be modularized.
+## code/modules/reagents/reagent_containers.dm !Could be modularized. (a thrown container that's caught doesn't splash the catcher)
 ## code/modules/research/rdconsole.dm (research_node() says which points are short)
 ## code/modules/shuttle/emergency.dm
 ## code/modules/spells/spell.dm

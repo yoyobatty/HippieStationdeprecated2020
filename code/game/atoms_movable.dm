@@ -724,10 +724,10 @@
 		step(src, AM.dir)
 	..()
 
-/atom/movable/proc/safe_throw_at(atom/target, range, speed, mob/thrower, spin = TRUE, diagonals_first = FALSE, datum/callback/callback, force = MOVE_FORCE_STRONG)
+/atom/movable/proc/safe_throw_at(atom/target, range, speed, mob/thrower, spin = TRUE, diagonals_first = FALSE, datum/callback/callback, force = MOVE_FORCE_STRONG, gentle = FALSE) //hippie edit -- gentle, a toss (throwing/throw_skill.dm)
 	if((force < (move_resist * MOVE_FORCE_THROW_RATIO)) || (move_resist == INFINITY))
 		return
-	return throw_at(target, range, speed, thrower, spin, diagonals_first, callback, force)
+	return throw_at(target, range, speed, thrower, spin, diagonals_first, callback, force, gentle) //hippie edit -- gentle
 
 ///If this returns FALSE then callback will not be called.
 /atom/movable/proc/throw_at(atom/target, range, speed, mob/thrower, spin = TRUE, diagonals_first = FALSE, datum/callback/callback, force = MOVE_FORCE_STRONG, gentle = FALSE, quickstart = TRUE)
@@ -778,6 +778,7 @@
 	TT.diagonals_first = diagonals_first
 	TT.force = force
 	TT.callback = callback
+	TT.gentle = gentle //hippie -- a toss (throwing/throw_skill.dm)
 
 	var/dist_x = abs(target.x - src.x)
 	var/dist_y = abs(target.y - src.y)
@@ -805,7 +806,9 @@
 		pulledby.stop_pulling()
 
 	throwing = TT
-	if(spin)
+	// hippie -- glides as fast as it flies, and an item arcs and spins the whole way (throwing/throw_flight.dm)
+	var/flight_spun = GLOB.throw_realism && TT.start_flight(spin)
+	if(spin && !flight_spun) //hippie edit -- && !flight_spun
 		SpinAnimation(5, 1)
 
 	SEND_SIGNAL(src, COMSIG_MOVABLE_POST_THROW, TT, spin)

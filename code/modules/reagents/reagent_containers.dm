@@ -75,7 +75,8 @@
 
 /obj/item/reagent_containers/throw_impact(atom/hit_atom, datum/thrownthing/throwingdatum)
 	. = ..()
-	SplashReagents(hit_atom, TRUE)
+	if(!.) //hippie -- not if it was caught (or blocked): it splashed whoever caught it
+		SplashReagents(hit_atom, TRUE)
 
 /obj/item/reagent_containers/proc/bartender_check(atom/target)
 	. = FALSE
