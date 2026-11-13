@@ -1471,6 +1471,7 @@ GLOBAL_LIST_INIT(bot_single_copy_tools, list(
 /datum/bot_brain/proc/close_airlock_behind(turf/T)
 	if(!T)
 		return
+	note_door_passed(T) //foundation/tactics.dm: running from somebody, it may weld it shut behind it
 	// Dragging something (a prisoner, a body, a crate) - it's still coming through this door, so leave it open.
 	if(owner.pulling)
 		return

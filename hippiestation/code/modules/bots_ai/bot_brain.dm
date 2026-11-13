@@ -184,6 +184,7 @@
 				try_put_self_out()
 			try_drift_back() //bot_hazards.dm: like putting itself out, not an errand
 			try_step_out_of_beam() //bot_hazards.dm
+			notice_open_canister() //foundation/threat_read.dm: getting out of a plasma leak, not an errand either
 			if(world.time >= next_air_check_time)
 				next_air_check_time = world.time + 10
 				manage_internals()
@@ -220,6 +221,8 @@
 	if(try_escape_radiation()) //bot_hazards.dm
 		return
 	if(try_step_out_of_beam()) //bot_hazards.dm
+		return
+	if(notice_open_canister()) //foundation/threat_read.dm
 		return
 	if(try_put_self_out())
 		return

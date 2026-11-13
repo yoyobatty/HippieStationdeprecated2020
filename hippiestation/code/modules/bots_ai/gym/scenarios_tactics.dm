@@ -178,3 +178,122 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return get_dist(bot, tank) >= 3 ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// Welding a door shut behind it (tier 2)
+// ---------------------------------------------------------------------------------------------
+
+/// Runs from somebody with a claymore, east through a door, a welder in its bag.
+/datum/bot_scenario/tactics/weld_behind
+	job = "Assistant"
+	time_limit = 30 SECONDS
+	kit_backpack = list(/obj/item/weldingtool)
+	layout = list(
+		"###################",
+		"#..k....B.D.......#",
+		"###################")
+
+/// The door stands open, as one does mid-chase: run_from looks for floor it can walk to without a door (furthest_open_floor_from(),
+/// bot_fighting.dm), and on the station for the places it knows of beyond them, which an arena hasn't got
+/datum/bot_scenario/tactics/weld_behind/setup()
+	..()
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	A.autoclose = FALSE
+	INVOKE_ASYNC(A, TYPE_PROC_REF(/obj/machinery/door/airlock, open))
+
+/datum/bot_scenario/tactics/weld_behind/post_spawn()
+	..()
+	brain.nerve = 0.2 //it runs from a claymore (try_run_for_it(), bot_brain.dm)
+	foe = stand_in(first_marker("k"), "Kit Killer")
+	var/obj/item/claymore/C = new(foe)
+	foe.put_in_hands(C)
+	brain.on_attacked(foe, "attacked", C)
+
+/datum/bot_scenario/tactics/weld_behind/proc/door_welded()
+	var/obj/machinery/door/airlock/A = first_placed("D")
+	return A && A.welded
+
+/datum/bot_scenario/tactics/weld_behind/robust
+	name = "tactics: running from a killer through a door, a robust bot welds it shut behind it"
+	desc = "Mid skill, a welder in its bag, running from somebody with a claymore: through the door, and with them well back, it welds the door shut behind it. A player being chased with a welder does."
+
+/datum/bot_scenario/tactics/weld_behind/robust/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return door_welded() ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/tactics/weld_behind/low_skill
+	name = "tactics: a low-skill bot running through a door doesn't weld it"
+	desc = "The same chase for an ordinary player: through the door and on, no welding."
+	bot_skill = 0.3
+	time_limit = 15 SECONDS
+
+/datum/bot_scenario/tactics/weld_behind/low_skill/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(door_welded())
+		fail_reason = "a low-skill bot welded the door"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/tactics/weld_behind/low_skill/on_timeout()
+	return BOT_GYM_PASS
+
+// ---------------------------------------------------------------------------------------------
+// More threats
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/tactics/threat_dragged
+	name = "threat: the one it's fighting drags a fuel tank up to it, it gets clear"
+	desc = "Apex, unarmed, in a fight with somebody who's dragging a fuel tank up to it, three tiles off: the user's trick from the other side. It gets six tiles from the tank rather than going for them past it."
+	bot_skill = 1
+	time_limit = 10 SECONDS
+	layout = list(
+		"################",
+		"#..............#",
+		"#....B..Uk.....#",
+		"#..............#",
+		"################")
+
+/datum/bot_scenario/tactics/threat_dragged/post_spawn()
+	..()
+	brain.nerve = 1 //it stands and fights
+	foe = stand_in(first_marker("k"), "Dex Dragger")
+	foe.start_pulling(tank)
+	brain.on_attacked(foe, "attacked", null)
+
+/datum/bot_scenario/tactics/threat_dragged/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return get_dist(bot, tank) >= BOT_TANK_CLEAR ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/tactics/threat_canister
+	name = "threat: a plasma canister let go in the room, it gets out before the air goes"
+	desc = "Apex, three tiles from a canister of plasma somebody's opened with nothing on its port. It gets out of the room at once, not once it's breathing plasma."
+	bot_skill = 1
+	time_limit = 15 SECONDS
+	layout = list(
+		"####################",
+		"#.........#........#",
+		"#.B..O....D.......G#",
+		"#.........#........#",
+		"####################")
+	var/obj/machinery/portable_atmospherics/canister/toxins/canister
+
+/datum/bot_scenario/tactics/threat_canister/setup()
+	..()
+	canister = new(first_marker("O"))
+	place("O", canister)
+
+/datum/bot_scenario/tactics/threat_canister/post_spawn()
+	..()
+	canister.valve_open = TRUE
+	canister.update_icon()
+
+/datum/bot_scenario/tactics/threat_canister/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot.getToxLoss() > 0)
+		fail_reason = "breathed the plasma before getting out ([bot.getToxLoss()] toxin)"
+		return BOT_GYM_FAIL
+	return get_dist(bot, canister) >= 8 ? BOT_GYM_PASS : BOT_GYM_PENDING

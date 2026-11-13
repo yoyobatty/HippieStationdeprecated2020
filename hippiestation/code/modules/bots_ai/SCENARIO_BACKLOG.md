@@ -67,8 +67,15 @@ Every milestone ends with the whole backlog run and this file updated.
 | tactics: a low-skill crewman in the same fight doesn't think of the tank | low | passing |
 | tactics: a robust crewman doesn't set off a tank with somebody else beside it | mid | passing |
 | threat: stood by a fuel tank, a gunman across the room, it gets away from the tank | apex always, mid usually, low sometimes | passing (before 0/2, after 3/3) |
+| threat: the one it's fighting drags a fuel tank up to it, it gets clear | apex always, mid usually, low sometimes | passing (before 0/2, after 2/2) |
 
 **Still to cover:**
 - an apex traitor parks a tank at a chokepoint on the target's route and waits
-- a tank pushed at the bot: apex shoots it first
 - Security using the set-up against a lethal target
+
+## 3. More tactics and threats (the plan's milestone 2, not a user case)
+| Scenario (`gym/scenarios_tactics.dm`) | Must pass at | Status |
+|---|---|---|
+| tactics: running from a killer through a door, a robust bot welds it shut behind it | mid and up | passing (before 0/2, after 2/2) |
+| tactics: a low-skill bot running through a door doesn't weld it | low | passing |
+| threat: a plasma canister let go in the room, it gets out before the air goes | apex always, mid usually, low sometimes | passing (before 0/2, after 2/2) |

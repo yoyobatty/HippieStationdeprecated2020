@@ -975,6 +975,7 @@
 	busy_clearing = TRUE
 	// In soft crit it can drag itself along, but it can't use a tool on anything in its way.
 	if(!owner.incapacitated(ignore_restraints = TRUE))
+		weld_shut_behind() //foundation/tactics.dm: running from somebody, the door it's just come through
 		try_clear_obstruction()
 	busy_clearing = FALSE
 	if(QDELETED(owner))

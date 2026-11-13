@@ -283,3 +283,68 @@
 	return GOAL_STEP_SUCCESS
 
 #undef BOT_TANK_FETCH
+
+// ---------------------------------------------------------------------------------------------
+// Tier 2: welding a door shut behind it
+// ---------------------------------------------------------------------------------------------
+// Running from somebody dangerous, through a door, a welder on it with the fuel for it: it welds the door shut behind it, as a player being
+// chased with a welder does, and whoever's after it has to cut through or go round. Only with them well back (five tiles or out of sight):
+// the weld takes four seconds, stood at the door.
+
+/datum/bot_brain
+	/// The tile of the door it last walked through (close_airlock_behind(), bot_items.dm), and when
+	var/turf/door_passed
+	var/door_passed_at = 0
+	var/welded_behind_at = 0
+
+/datum/bot_brain/proc/note_door_passed(turf/T)
+	if(T && (locate(/obj/machinery/door/airlock) in T))
+		door_passed = T
+		door_passed_at = world.time
+
+/// From do_step_next_node() (bot_movement.dm), before the next step. Sleeps while it welds. TRUE if it welded the door.
+/datum/bot_brain/proc/weld_shut_behind()
+	if(!door_passed)
+		return FALSE
+	var/turf/T = door_passed
+	door_passed = null
+	if(world.time > door_passed_at + 2 SECONDS || (welded_behind_at && world.time < welded_behind_at + 30 SECONDS) || !skill_at_least(BOT_SKILL_MID))
+		return FALSE
+	var/datum/bot_goal/run_from/R = current_goal
+	if(!istype(R) || state != BOT_STATE_GOAL)
+		return FALSE
+	var/mob/living/foe = R.foe_ref?.resolve()
+	if(!isliving(foe) || foe.stat != CONSCIOUS || !(outmatched_by(foe) || fight_is_serious(foe)))
+		return FALSE
+	if(foe.z == owner.z && get_dist(owner, foe) < 5 && (foe in view(BOT_SIGHT_RANGE, owner)))
+		return FALSE //no time
+	var/obj/machinery/door/airlock/A = locate() in T
+	var/obj/item/weldingtool/W = find_carried_tool(/obj/item/weldingtool)
+	if(!A || A.welded || !owner.Adjacent(A) || !W || W.get_fuel() < 5 || (locate(/mob/living) in T))
+		return FALSE
+	// Not an airlock to space: welded behind it from outside it's the way back in gone (one ran out of Atmospherics' and welded it, Bot
+	// Shift found4)
+	if(istype(A, /obj/machinery/door/airlock/external) || bot_turf_borders_space(get_turf(owner)) || bot_turf_borders_space(T))
+		return FALSE
+	welded_behind_at = world.time
+	bot_log(src, "TACTIC: welding [A] shut behind me - [foe] is after me")
+	if(!A.density)
+		INVOKE_ASYNC(A, TYPE_PROC_REF(/obj/machinery/door, close))
+		for(var/i in 1 to 8)
+			sleep(2)
+			if(A.density && !A.operating)
+				break
+	if(!A.density || A.operating || QDELETED(owner))
+		return FALSE
+	equip_welding_eye_protection()
+	if(!W.isOn())
+		toggle_in_hand(W)
+	if(!W.isOn())
+		return FALSE
+	use_item_on(W, A, TRUE) //harm intent: on help intent an airlock takes a welder for a repair (try_unweld(), bot_breach.dm)
+	if(W.isOn())
+		toggle_in_hand(W)
+	if(!A.welded)
+		return FALSE
+	bot_tally("welded a door shut behind it")
+	return TRUE
