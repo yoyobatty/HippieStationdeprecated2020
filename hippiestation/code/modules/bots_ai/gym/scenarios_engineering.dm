@@ -729,3 +729,80 @@
 		fail_reason = "treated a breach as the freezer"
 		return BOT_GYM_FAIL
 	return world.time > start_time + 12 SECONDS && bot_transcript_said("checked") ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// Lighting breakers (goals/light_breakers.dm). Letters: a an APC on the grid, its lighting switched off.
+/datum/bot_scenario/duty/light_breaker
+	name = "lights out: an engineer in a room with its lighting switched off sets it back to auto at the APC and locks it again"
+	desc = "Tired wiring trips a department's lighting breakers (station_looks/looks_wiring.dm); the user's ruling is that engineers put them right, as a player would. The bot stands in the dark room: ID swipe, Lighting to Auto, ID swipe. The APC ends with its lighting on auto and its panel locked."
+	duty_type = null //by name in New(): a build without the duty has none
+	job = "Station Engineer"
+	time_limit = 40 SECONDS
+	layout = list(
+		"##########",
+		"#B......a#",
+		"##########")
+
+/datum/bot_scenario/duty/light_breaker/New()
+	. = ..()
+	duty_type = text2path("/datum/bot_duty/light_breakers")
+
+/datum/bot_scenario/duty/light_breaker/setup()
+	for(var/turf/T in markers["a"])
+		var/obj/machinery/power/apc/A = place("a", new /obj/machinery/power/apc/bot_gym_on_grid(T))
+		A.main_status = 2
+		if(!A.cell)
+			A.cell = new /obj/item/stock_parts/cell/upgraded(A)
+		A.locked = TRUE
+		A.lighting = 0
+		A.update()
+
+/datum/bot_scenario/duty/light_breaker/post_spawn()
+	..()
+	give_job_id(list(ACCESS_ENGINE, ACCESS_ENGINE_EQUIP))
+
+/datum/bot_scenario/duty/light_breaker/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/machinery/power/apc/A = first_placed("a")
+	if(!A || A.lighting != 3 || !A.locked)
+		return BOT_GYM_PENDING
+	return BOT_GYM_PASS
+
+// The same room with the lighting off for want of power (auto-off): nothing a click fixes, so the engineer leaves the panel alone.
+/datum/bot_scenario/duty/light_breaker_no_power
+	name = "lights out for want of power: an engineer leaves the APC's lighting switch alone"
+	desc = "The APC's lighting is off on auto because its cell is flat, not switched off. Setting it to auto is no fix, so the bot never takes the job on. Passes after 15 seconds of that."
+	duty_type = null
+	job = "Station Engineer"
+	time_limit = 30 SECONDS
+	layout = list(
+		"##########",
+		"#B......a#",
+		"##########")
+
+/datum/bot_scenario/duty/light_breaker_no_power/New()
+	. = ..()
+	duty_type = text2path("/datum/bot_duty/light_breakers")
+
+/datum/bot_scenario/duty/light_breaker_no_power/setup()
+	for(var/turf/T in markers["a"])
+		var/obj/machinery/power/apc/A = place("a", new /obj/machinery/power/apc/bot_gym_on_grid(T))
+		A.main_status = 2
+		if(!A.cell)
+			A.cell = new /obj/item/stock_parts/cell/upgraded(A)
+		A.locked = TRUE
+		A.lighting = 1
+		A.update()
+
+/datum/bot_scenario/duty/light_breaker_no_power/post_spawn()
+	..()
+	give_job_id(list(ACCESS_ENGINE, ACCESS_ENGINE_EQUIP))
+
+/datum/bot_scenario/duty/light_breaker_no_power/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/machinery/power/apc/A = first_placed("a")
+	if(goal_attempts || A.lighting != 1 || !A.locked)
+		fail_reason = "took the job on: lighting [A.lighting], locked [A.locked]"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 15 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
