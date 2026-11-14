@@ -362,6 +362,64 @@
 		// The same oxygen pumped into the tank by a portable pump, which goes to 2,533
 		fire("filtered plasma 2533 kPa at 30000 K, oxygen pumped 2533 kPa at [cold_k] K", plasma, 30000, 2533, oxygen, cold_k, 2533)
 
+/// The ready-made max-cap valves (/obj/item/transfer_valve/maxcap): each made and left 20 s to show it holds, then each set off by its
+/// own valve, one at a time, against the cap. BENCH=maxcap
+/datum/ttv_bench/proc/maxcap()
+	// What the mix could be: hot plasma at the pump's 2533 kPa on cold oxygen
+	if(world.params["maxcap-sweep"])
+		for(var/hot_k in list(300, 1000, 3000, 10000))
+			for(var/oxygen_kpa in list(1013, 2533))
+				fire("tritium 2533 kPa at [hot_k] K, oxygen [oxygen_kpa] kPa at 73 K", list(/datum/gas/tritium = 1), hot_k, 2533, list(/datum/gas/oxygen = 1), 73, oxygen_kpa)
+				fire("plasma+tritium 2533 kPa at [hot_k] K, oxygen [oxygen_kpa] kPa at 73 K", list(/datum/gas/plasma = 1, /datum/gas/tritium = 1), hot_k, 2533, list(/datum/gas/oxygen = 1), 73, oxygen_kpa)
+		return
+	var/turf/spot = locate(12, 12, SSmapping.station_start)
+	for(var/path in typesof(/obj/item/transfer_valve/maxcap))
+		var/obj/item/transfer_valve/maxcap/valve = new path(spot)
+		var/device = valve.attached_device ? "[valve.attached_device.name], secured [valve.attached_device.secured]" : "no device"
+		sleep(20 SECONDS)
+		if(QDELETED(valve) || !valve.tank_one || !valve.tank_two)
+			log_world("TTV BENCH: [path] did not hold 20 s")
+			continue
+		var/held = "[round(valve.tank_one.air_contents.return_pressure())] kPa at [round(valve.tank_one.air_contents.temperature)] K on [round(valve.tank_two.air_contents.return_pressure())] kPa at [round(valve.tank_two.air_contents.temperature)] K"
+		last_light = null
+		// Set off by its device where there's a quick way to work it, as a player would; by the valve otherwise
+		var/obj/item/assembly/A = valve.attached_device
+		if(istype(A, /obj/item/assembly/timer))
+			device += ", timer started"
+			A.activate()
+		else if(istype(A, /obj/item/assembly/signaler))
+			var/obj/item/assembly/signaler/S = A
+			var/obj/item/assembly/signaler/remote = new(locate(spot.x + 3, spot.y, spot.z))
+			remote.set_frequency(S.frequency)
+			remote.code = S.code
+			remote.signal()
+			device += ", signalled from a remote"
+		else if(istype(A, /obj/item/assembly/prox_sensor))
+			var/obj/item/assembly/prox_sensor/P = A
+			P.activate() // arming: it scans after 10 of SSobj's ticks
+			var/arming = world.time
+			while(!P.scanning && world.time < arming + 60 SECONDS)
+				sleep(5)
+			device += ", scanning after [(world.time - arming) / 10] s"
+			var/mob/living/simple_animal/mouse/M = new(locate(spot.x + 3, spot.y, spot.z))
+			M.Move(locate(spot.x + 2, spot.y, spot.z))
+			M.Move(locate(spot.x + 1, spot.y, spot.z))
+			device += ", armed, a mouse walked up"
+		else if(istype(A, /obj/item/assembly/health))
+			var/mob/living/carbon/human/H = new(locate(spot.x + 1, spot.y, spot.z))
+			H.put_in_hands(valve)
+			H.adjustBruteLoss(150)
+			device += ", held by a man put in crit"
+		else
+			valve.toggle_valve()
+		var/started = world.time
+		while(!QDELETED(valve) && world.time < started + 30 SECONDS)
+			sleep(2)
+		log_world("TTV BENCH: [path] ([device]; after 20 s [held]) - [isnull(last_light) ? "no explosion" : "light [last_light] heavy [last_heavy] dev [last_dev]"] after [(world.time - started) / 10] s; cap light [GLOB.MAX_EX_LIGHT_RANGE] heavy [GLOB.MAX_EX_HEAVY_RANGE] dev [GLOB.MAX_EX_DEVESTATION_RANGE]")
+		if(!QDELETED(valve))
+			qdel(valve)
+		sleep(10)
+
 /proc/run_ttv_bench()
 	ttv_bench_plumbing()
 	if(world.params["ttv-bench"] == "plumbing")
@@ -378,6 +436,10 @@
 		return
 	if(world.params["ttv-bench"] == "chamber")
 		bench.chamber_recipe()
+		log_world("TTV BENCH: done")
+		return
+	if(world.params["ttv-bench"] == "maxcap")
+		bench.maxcap()
 		log_world("TTV BENCH: done")
 		return
 	var/plasma = list(/datum/gas/plasma = 1)
