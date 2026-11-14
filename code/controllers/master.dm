@@ -234,6 +234,9 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 	to_chat(world, "<span class='boldannounce'>[msg]</span>")
 	log_world(msg)
 
+	// hippie -- Lavaland and the space ruin levels are built now, while the lobby counts down (lobby_build.dm)
+	SSmapping.start_lobby_build()
+
 	//TEMP DIAGNOSTIC: see PROFILE_EXIT_PARAMETER definition; forces a clean shutdown so the
 	//profiler subsystem flushes profiler.json immediately instead of waiting on its 5 minute timer
 	if(PROFILE_EXIT_PARAMETER in world.params)

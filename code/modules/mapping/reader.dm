@@ -3,6 +3,9 @@
 //////////////////////////////////////////////////////////////
 #define SPACE_KEY "space"
 
+/// hippie -- _load_impl() makes plain turf-and-area tiles itself (FALSE: through build_coordinate(), for tools/map_engine/check.dm)
+GLOBAL_REAL_VAR(map_loader_simple_tiles) = TRUE
+
 /datum/grid_set
 	var/xcrd
 	var/ycrd
@@ -162,6 +165,23 @@
 	var/max_y = -1.#INF
 	var/max_z = -1.#INF
 
+	// hippie start -- a tile that's only a turf and an area with no vars set (most floors and walls) is made right here, the
+	// way build_coordinate() and instance_atom() make it when the turf isn't changed over or placed on top: the area takes
+	// the turf, and the turf is made with initializing put off. No preloader (no vars), and no proc calls a tile.
+	var/list/simple_turfs = list()
+	var/list/simple_areas = list()
+	if(!placeOnTop && map_loader_simple_tiles)
+		for(var/model_key in modelCache)
+			var/list/model = modelCache[model_key]
+			if(!islist(model))
+				continue
+			var/list/members = model[1]
+			var/list/members_attributes = model[2]
+			if(length(members) == 2 && ispath(members[1], /turf) && ispath(members[2], /area) && !length(members_attributes[1]) && !length(members_attributes[2]))
+				simple_turfs[model_key] = members[1]
+				simple_areas[model_key] = members[2]
+	// hippie end
+
 	for(var/I in gridSets)
 		var/datum/grid_set/gset = I
 		var/ycrd = gset.ycrd + y_offset - 1
@@ -201,7 +221,27 @@
 							var/list/cache = modelCache[model_key]
 							if(!cache)
 								CRASH("Undefined model key in DMM: [model_key]")
-							build_coordinate(areaCache, cache, locate(xcrd, ycrd, zcrd), no_afterchange, placeOnTop)
+							// hippie start -- see simple_turfs above
+							var/simple_turf = no_afterchange && simple_turfs[model_key]
+							if(simple_turf)
+								var/turf/crds = locate(xcrd, ycrd, zcrd)
+								var/atype = simple_areas[model_key]
+								if(atype != /area/template_noop)
+									var/area/instance = areaCache[atype]
+									if(!instance)
+										instance = GLOB.areas_by_type[atype]
+										if(!instance)
+											instance = new atype(null)
+										areaCache[atype] = instance
+									if(crds)
+										instance.contents.Add(crds)
+								if(crds && simple_turf != /turf/template_noop)
+									SSatoms.map_loader_begin()
+									create_atom(simple_turf, crds)
+									SSatoms.map_loader_stop()
+							else
+								build_coordinate(areaCache, cache, locate(xcrd, ycrd, zcrd), no_afterchange, placeOnTop)
+							// hippie end
 
 							// only bother with bounds that actually exist
 							if(xcrd < min_x)

@@ -26,14 +26,22 @@
 		R = TRUE
 	if (T == src)
 		return !R
-	for(var/obj/O in contents+T.contents)
-		var/turf/other = (O.loc == src ? T : src)
-		if(!(vertical? (CANVERTICALATMOSPASS(O, other)) : (CANATMOSPASS(O, other))))
+	// hippie -- our things then theirs, as contents+T.contents gave them, without making that list on every call (atmos setup
+	// calls this for both sides of every open turf's four neighbours)
+	for(var/obj/O in contents)
+		if(!(vertical? (CANVERTICALATMOSPASS(O, T)) : (CANATMOSPASS(O, T))))
 			R = TRUE
 			if(O.BlockSuperconductivity()) 	//the direction and open/closed are already checked on CanAtmosPass() so there are no arguments
 				atmos_supeconductivity |= dir
 				T.atmos_supeconductivity |= opp
 				return FALSE						//no need to keep going, we got all we asked
+	for(var/obj/O in T.contents)
+		if(!(vertical? (CANVERTICALATMOSPASS(O, src)) : (CANATMOSPASS(O, src))))
+			R = TRUE
+			if(O.BlockSuperconductivity())
+				atmos_supeconductivity |= dir
+				T.atmos_supeconductivity |= opp
+				return FALSE
 
 	atmos_supeconductivity &= ~dir
 	T.atmos_supeconductivity &= ~opp

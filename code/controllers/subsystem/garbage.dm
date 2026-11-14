@@ -131,6 +131,8 @@ SUBSYSTEM_DEF(garbage)
 			break // Everything else is newer, skip them
 		count++
 		var/refID = L[2]
+		if(length(L) == 3) // hippie -- queued at startup as numbers (Queue())
+			refID = "\[0x[num2text(L[2], 1, 16)][num2text(L[3], 6, 16)]\]"
 		var/datum/D
 		D = locate(refID)
 
@@ -184,6 +186,18 @@ SUBSYSTEM_DEF(garbage)
 		HardDelete(D)
 		return
 	var/gctime = world.time
+
+	// hippie start -- during startup the ref is kept as two numbers, its type byte and its 24-bit index, and HandleQueue()
+	// writes it out again. ~30,000 kept ref strings, made in rising order at startup, set off BYOND's string table rebuilds:
+	// 7-9 stalls, ~0.4 s of startup (memory: reference_byond_ref_stall). In play ids are reused, the order is lost, no stalls.
+	if(!Master.current_runlevel)
+		var/ref_text = "\ref[D]"
+		var/hex = copytext(ref_text, 4, -1)
+		D.gc_destroyed = gctime
+		var/list/startup_queue = queues[level]
+		startup_queue[++startup_queue.len] = list(gctime, text2num(copytext(hex, 1, -6), 16), text2num(copytext(hex, -6), 16))
+		return
+	// hippie end
 	var/refid = "\ref[D]"
 
 	D.gc_destroyed = gctime

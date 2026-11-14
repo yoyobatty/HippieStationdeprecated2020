@@ -176,6 +176,11 @@ SUBSYSTEM_DEF(ticker)
 				tipped = TRUE
 
 			if(timeLeft <= 0)
+				// hippie start -- Lavaland and the space ruins are still being built (lobby_build.dm): hold at 0 until they're done
+				if(SSmapping.lobby_build_busy)
+					timeLeft = 0
+					return
+				// hippie end
 				current_state = GAME_STATE_SETTING_UP
 				Master.SetRunLevel(RUNLEVEL_SETUP)
 				if(start_immediately)

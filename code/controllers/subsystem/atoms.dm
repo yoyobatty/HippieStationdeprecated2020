@@ -48,8 +48,12 @@ SUBSYSTEM_DEF(atoms)
 				CHECK_TICK
 	else
 		count = 0
+		var/list/held = SSmapping.lobby_build_levels // hippie -- levels the lobby build makes after startup (lobby_build.dm)
+		var/held_count = length(held) // hippie
 		for(var/atom/A in world)
 			if(!(A.flags_1 & INITIALIZED_1))
+				if(held_count && A.z && A.z <= held_count && held[A.z] && !isarea(A)) // hippie
+					continue
 				if(plain_space[A.type])
 					A.Initialize(TRUE)
 				else

@@ -1,0 +1,13 @@
+[package]
+name = "hippie_map"
+version = "1.0.0"
+edition = "2021"
+description = "Hippie's map parser: reads a .dmm the way code/modules/mapping/reader.dm does and hands DM the pieces (hippiestation/code/modules/mapping/map_engine.dm)"
+
+# No dependencies: DM calls it with text arguments and gets text (JSON) back
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 3
+panic = "unwind"

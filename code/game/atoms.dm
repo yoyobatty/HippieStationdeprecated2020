@@ -49,7 +49,7 @@
 		GenerateTag()
 
 	var/do_initialize = SSatoms.initialized
-	if(do_initialize != INITIALIZATION_INSSATOMS)
+	if(do_initialize != INITIALIZATION_INSSATOMS && !(lobby_build_holding && lobby_build_hold(src))) // hippie -- on a level the lobby build is making, it waits (lobby_build.dm)
 		args[1] = do_initialize == INITIALIZATION_INNEW_MAPLOAD
 		if(SSatoms.InitAtom(src, args))
 			//we were deleted

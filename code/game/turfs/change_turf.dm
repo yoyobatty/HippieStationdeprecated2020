@@ -124,7 +124,7 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 
 	W.blueprint_data = old_bp
 
-	if(SSlighting.initialized)
+	if(SSlighting.initialized && !SSmapping.level_held(z)) // hippie -- a level the lobby build is making gets its lighting at the end, as at startup (lobby_build.dm)
 		recalc_atom_opacity()
 		lighting_object = old_lighting_object
 		lighting_corner_NE = old_lighting_corner_NE

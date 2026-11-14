@@ -96,7 +96,9 @@
 	// ruins clogging up memory for the whole round.
 	var/datum/parsed_map/parsed = cached_map || new(file(mappath))
 	cached_map = keep_cached_map ? parsed : null
-	if(!parsed.load(T.x, T.y, T.z, cropMap=TRUE, no_changeturf=(SSatoms.initialized == INITIALIZATION_INSSATOMS), placeOnTop=TRUE))
+	// hippie -- a level the lobby build is making loads as at startup, and is initialized all at once at the end (lobby_build.dm)
+	var/building = SSmapping.level_held(T.z)
+	if(!parsed.load(T.x, T.y, T.z, cropMap=TRUE, no_changeturf=(SSatoms.initialized == INITIALIZATION_INSSATOMS || building), placeOnTop=TRUE)) // hippie
 		return
 	var/list/bounds = parsed.bounds
 	if(!bounds)
@@ -106,7 +108,8 @@
 		repopulate_sorted_areas()
 
 	//initialize things that are normally initialized after map load
-	parsed.initTemplateBounds()
+	if(!building) // hippie
+		parsed.initTemplateBounds()
 
 	log_game("[name] loaded at [T.x],[T.y],[T.z]")
 	return bounds

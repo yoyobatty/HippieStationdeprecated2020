@@ -122,7 +122,12 @@ def boot_once(root, tag, i, config_dir, port, attempts=4):
 	params = f"profile-exit=1&log-directory=boot_bench/{tag}/{i}"
 	if config_dir:
 		params += f"&config={config_dir}"
-	cmd = [os.path.join(BYOND_BIN, "dd.exe"), "hippiestation.dmb", str(port), "-trusted", "-invisible", "-params", params]
+	extra = os.environ.get("BOOT_PARAMS")  # extra world params, e.g. bot-map=testbench
+	if extra:
+		params += "&" + extra
+	# a side build (e.g. bootfast.mdme.dmb) leaves hippiestation.dmb to other sessions; BOOT_DMB_<tag> gives each side of an ab its own
+	dmb = os.environ.get(f"BOOT_DMB_{tag}", os.environ.get("BOOT_DMB", "hippiestation.dmb"))
+	cmd = [os.path.join(BYOND_BIN, "dd.exe"), dmb, str(port), "-trusted", "-invisible", "-params", params]
 	for attempt in range(attempts):
 		wait_for_quiet_machine()
 		launched_at = time.time()

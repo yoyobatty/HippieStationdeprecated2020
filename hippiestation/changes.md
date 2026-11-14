@@ -28,24 +28,25 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/\_onclick/item_attack.dm (an object hit by an item is told which side it was hit from, Paradise #33082)
 ## code/controllers/configuration/entries/dbconfig.dm
 ## code/controllers/failsafe.dm
-## code/controllers/master.dm
+## code/controllers/master.dm (starts the lobby build once startup is done, lobby_build.dm)
 ## code/controllers/subsystem.dm
 ## code/controllers/subsystem/adjacent_air.dm (out of the .dme: its queue is SSair's first stage now, as on tg later)
 ## code/controllers/subsystem/air.dm (adjacent_rebuild: turfs' neighbours worked out at the start of each fire, was SSadjacent_air once a second)
 ## code/controllers/subsystem/assets.dm
+## code/controllers/subsystem/atoms.dm (startup skips the levels the lobby build makes)
 ## code/controllers/subsystem/blackbox.dm
 ## code/controllers/subsystem/dbcore.dm (out of the .dme: rewritten whole as hippiestation/code/controllers/subsystem/dbcore.dm, rust_g instead of BSQL)
 ## code/controllers/subsystem/discord.dm
 ## code/controllers/subsystem/explosions.dm (shaped explosions through hippiestation/code/controllers/subsystem/explosions_shape.dm; Check Bomb Impact; spread over ticks; blame; realistic blasts through hippiestation/code/modules/explosion_realism/: air, sealed rooms, glass past the damage, sounds, fragments)
-## code/controllers/subsystem/garbage.dm
+## code/controllers/subsystem/garbage.dm (at startup Queue() keeps refs as two numbers, not kept-alive ref strings)
 ## code/controllers/subsystem/input.dm
 ## code/controllers/subsystem/job.dm
-## code/controllers/subsystem/mapping.dm
+## code/controllers/subsystem/mapping.dm (Lavaland and the space ruin levels held for the lobby build; ruins moved to seed_startup_ruins())
 ## code/controllers/subsystem/machines.dm (fire() walks its run by index and cuts it once)
 ## code/controllers/subsystem/mobs.dm
 ## code/controllers/subsystem/stickyban.dm
 ## code/controllers/subsystem/throwing.dm (finalize() calls end_flight(): glide, look and landing, hippiestation/code/modules/throwing/throw_flight.dm)
-## code/controllers/subsystem/ticker.dm
+## code/controllers/subsystem/ticker.dm (the round waits for the lobby build)
 ## code/controllers/subsystem/timer.dm
 ## code/controllers/subsystem/vote.dm
 ## code/datums/brain_damage/imaginary_friend.dm (the friend's picture is set up async and is never an AI's or a cyborg's)
@@ -65,6 +66,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/datums/tgs_event_handler.dm
 ## code/datums/wires/airlock.dm
 ## code/datums/world_topic.dm
+## code/game/atoms.dm (an atom made on a level the lobby build is making waits for it)
 ## code/game/atoms_movable.dm (doMove() skips no_cross_checks like Move(); throw_at() keeps gentle and starts the flight, safe_throw_at() passes gentle on, hippiestation/code/modules/throwing/)
 ## code/game/gamemodes/changeling/changeling.dm !Should be modularized. Can be done easily.
 ## code/game/gamemodes/game_mode.dm
@@ -107,7 +109,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/objects/structures/grille.dm
 ## code/game/objects/structures/window.dm
 ## code/game/sound.dm (playsound_local() dulls everything while a blast has the ears ringing, explosion_realism/blast_senses.dm)
-## code/game/turfs/change_turf.dm
+## code/game/turfs/change_turf.dm (a level the lobby build is making gets its lighting at the end)
 ## code/game/turfs/open.dm
 ## code/game/turfs/open/lava.dm (is_safe() by locate(), no copy of the tile's contents)
 ## code/game/turfs/open/space/space.dm (set_starlight() retints the camera pictures' starlight copies, map_view.dm; space put back at runtime tells the tile engine, tile_engine.dm)
@@ -141,7 +143,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/antagonists/morph/morph.dm
 ## code/modules/asset_cache/asset_list.dm
 ## code/modules/atmospherics/environmental/LINDA_fire.dm (hotspots tell the tile engine when it keeps LINDA's state, tile_engine.dm)
-## code/modules/atmospherics/environmental/LINDA_system.dm (tile engine neighbour cache; shut doors' tiles pick their side, door_seals.dm)
+## code/modules/atmospherics/environmental/LINDA_system.dm (tile engine neighbour cache; shut doors' tiles pick their side, door_seals.dm; CanAtmosPass() walks both tiles without making contents+T.contents)
 ## code/modules/atmospherics/environmental/LINDA_turf_tile.dm (a group's turfs skip the overlay update when nothing shows; update_visuals() makes no list for plain air)
 ## code/modules/atmospherics/machinery/atmosmachinery.dm
 ## code/modules/atmospherics/machinery/components/binary_devices/dp_vent_pump.dm (pipe air marked for the tile engine, pipe_engine.dm)
@@ -176,7 +178,8 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/library/lib_machines.dm
 ## code/modules/library/random_books.dm
 ## code/modules/lighting/lighting_corner.dm (the tone curve in update_objects(): light past the knee eases toward full instead of being cut off at 1, see ~hippie_defines/lighting_tone.dm)
-## code/modules/mapping/map_template.dm (tile engine neighbour cache, tile_engine.dm)
+## code/modules/mapping/map_template.dm (tile engine neighbour cache, tile_engine.dm; a ruin on a level the lobby build is making loads as at startup)
+## code/modules/mapping/reader.dm (plain turf-and-area tiles made in _load_impl(); parsing by hippie_map.dll, map_engine.dm)
 ## code/modules/mapping/space_management/space_reservation.dm
 ## code/modules/mining/equipment/survival_pod.dm !Should be modularized. Can be done easily.
 ## code/modules/mob/dead/new_player/new_player.dm

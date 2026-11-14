@@ -155,12 +155,17 @@ GLOBAL_LIST_EMPTY(lighting_sheet_list)
 	if(!LIGHTING_ENGINE_ON)
 		return
 	var/list/flags = list()
-	for(var/turf/T in world)
-		// lighting_engine_flags() written out: called, it was a proc call for each of the world's ~780,000 turfs
-		var/turf_flags = (T.has_opaque_atom ? LIGHTING_FLAG_OPAQUE : 0) | (T.dynamic_lighting ? LIGHTING_FLAG_DYNAMIC : 0) | (length(T.light_sources) ? LIGHTING_FLAG_SOURCES : 0) | (T.lighting_object ? LIGHTING_FLAG_OBJECT : 0)
-		T.lighting_engine_pushed = turf_flags // what the engine will have, so a push that changes nothing can be skipped
-		if(turf_flags)
-			flags.Add(T, turf_flags)
+	// Level by level, leaving out those the lobby build is still making (lobby_build.dm): it tells the engine about their
+	// turfs when it's done. That was 7 of the world's 12 levels at startup.
+	for(var/z in 1 to world.maxz)
+		if(SSmapping.level_held(z))
+			continue
+		for(var/turf/T as anything in block(locate(1, 1, z), locate(world.maxx, world.maxy, z)))
+			// lighting_engine_flags() written out: called, it was a proc call for each of the world's ~780,000 turfs
+			var/turf_flags = (T.has_opaque_atom ? LIGHTING_FLAG_OPAQUE : 0) | (T.dynamic_lighting ? LIGHTING_FLAG_DYNAMIC : 0) | (length(T.light_sources) ? LIGHTING_FLAG_SOURCES : 0) | (T.lighting_object ? LIGHTING_FLAG_OBJECT : 0)
+			T.lighting_engine_pushed = turf_flags // what the engine will have, so a push that changes nothing can be skipped
+			if(turf_flags)
+				flags.Add(T, turf_flags)
 	var/result = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_flags")(flags)
 	if(result < 0)
 		native_failed("handing over turfs: [result]")
