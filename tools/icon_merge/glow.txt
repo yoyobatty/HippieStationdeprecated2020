@@ -110,3 +110,7 @@ icons/obj/machines/telecomms.dmi: AAS_On_Open - AAS_Off_Open
 icons/obj/recycling.dmi: grinder-o1 - grinder-o0 saturated
 icons/obj/recycling.dmi: grinder-o1bld - grinder-o0bld saturated
 icons/obj/chemical.dmi: mixer0b mixer1b bright=1 saturated box=12,8,18,8
+
+# Lava: the molten part of each smoothed tile, not the rock rim drawn round it (the whole tile glowing lit the rim and drew a
+# glowing line along every lava edge, round-16.29.52)
+icons/turf/floors/lava.dmi: lava-0 lava-1 lava-2 lava-3 lava-4 lava-5 lava-6 lava-7 lava-8 lava-9 lava-10 lava-11 lava-12 lava-13 lava-14 lava-15 lava-21 lava-23 lava-29 lava-31 lava-38 lava-39 lava-46 lava-47 lava-55 lava-63 lava-74 lava-75 lava-78 lava-79 lava-95 lava-110 lava-111 lava-127 lava-137 lava-139 lava-141 lava-143 lava-157 lava-159 lava-175 lava-191 lava-203 lava-207 lava-223 lava-239 lava-255 unsmooth bright=100 saturated

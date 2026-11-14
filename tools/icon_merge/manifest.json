@@ -5572,6 +5572,263 @@
   },
   "tg": "01e084f4dd995a05f9adcaf9863a76b7105c2a4f"
  },
+ "icons/turf/floors/lava.dmi": {
+  "added": [],
+  "glow": [
+   "icons/turf/floors/lava.dmi: lava-0 lava-1 lava-2 lava-3 lava-4 lava-5 lava-6 lava-7 lava-8 lava-9 lava-10 lava-11 lava-12 lava-13 lava-14 lava-15 lava-21 lava-23 lava-29 lava-31 lava-38 lava-39 lava-46 lava-47 lava-55 lava-63 lava-74 lava-75 lava-78 lava-79 lava-95 lava-110 lava-111 lava-127 lava-137 lava-139 lava-141 lava-143 lava-157 lava-159 lava-175 lava-191 lava-203 lava-207 lava-223 lava-239 lava-255 unsmooth bright=100 saturated"
+  ],
+  "glow_colours": {
+   "lava-0_glow": [
+    "#FF6424",
+    162
+   ],
+   "lava-10_glow": [
+    "#FF6622",
+    538
+   ],
+   "lava-110_glow": [
+    "#FF6622",
+    772
+   ],
+   "lava-111_glow": [
+    "#FF6622",
+    954
+   ],
+   "lava-11_glow": [
+    "#FF6722",
+    740
+   ],
+   "lava-127_glow": [
+    "#FF6622",
+    994
+   ],
+   "lava-12_glow": [
+    "#FF6522",
+    567
+   ],
+   "lava-137_glow": [
+    "#FF6622",
+    615
+   ],
+   "lava-139_glow": [
+    "#FF6822",
+    769
+   ],
+   "lava-13_glow": [
+    "#FF6522",
+    748
+   ],
+   "lava-141_glow": [
+    "#FF6622",
+    778
+   ],
+   "lava-143_glow": [
+    "#FF6722",
+    903
+   ],
+   "lava-14_glow": [
+    "#FF6622",
+    692
+   ],
+   "lava-157_glow": [
+    "#FF6722",
+    819
+   ],
+   "lava-159_glow": [
+    "#FF6722",
+    944
+   ],
+   "lava-15_glow": [
+    "#FF6622",
+    874
+   ],
+   "lava-175_glow": [
+    "#FF6722",
+    944
+   ],
+   "lava-191_glow": [
+    "#FF6722",
+    985
+   ],
+   "lava-1_glow": [
+    "#FF6623",
+    380
+   ],
+   "lava-203_glow": [
+    "#FF6822",
+    808
+   ],
+   "lava-207_glow": [
+    "#FF6722",
+    942
+   ],
+   "lava-21_glow": [
+    "#FF6723",
+    584
+   ],
+   "lava-223_glow": [
+    "#FF6722",
+    983
+   ],
+   "lava-239_glow": [
+    "#FF6722",
+    983
+   ],
+   "lava-23_glow": [
+    "#FF6722",
+    776
+   ],
+   "lava-255_glow": [
+    "#FF6722",
+    1024
+   ],
+   "lava-29_glow": [
+    "#FF6622",
+    790
+   ],
+   "lava-2_glow": [
+    "#FF6722",
+    384
+   ],
+   "lava-31_glow": [
+    "#FF6722",
+    914
+   ],
+   "lava-38_glow": [
+    "#FF6622",
+    578
+   ],
+   "lava-39_glow": [
+    "#FF6622",
+    776
+   ],
+   "lava-3_glow": [
+    "#FF6722",
+    602
+   ],
+   "lava-46_glow": [
+    "#FF6622",
+    733
+   ],
+   "lava-47_glow": [
+    "#FF6622",
+    914
+   ],
+   "lava-4_glow": [
+    "#FF6623",
+    345
+   ],
+   "lava-55_glow": [
+    "#FF6722",
+    818
+   ],
+   "lava-5_glow": [
+    "#FF6623",
+    543
+   ],
+   "lava-63_glow": [
+    "#FF6622",
+    956
+   ],
+   "lava-6_glow": [
+    "#FF6722",
+    538
+   ],
+   "lava-74_glow": [
+    "#FF6622",
+    577
+   ],
+   "lava-75_glow": [
+    "#FF6722",
+    778
+   ],
+   "lava-78_glow": [
+    "#FF6622",
+    731
+   ],
+   "lava-79_glow": [
+    "#FF6622",
+    912
+   ],
+   "lava-7_glow": [
+    "#FF6622",
+    736
+   ],
+   "lava-8_glow": [
+    "#FF6322",
+    384
+   ],
+   "lava-95_glow": [
+    "#FF6622",
+    954
+   ],
+   "lava-9_glow": [
+    "#FF6522",
+    586
+   ],
+   "unsmooth_glow": [
+    "#FF6722",
+    1024
+   ]
+  },
+  "glow_hand": [],
+  "glow_made": [
+   "lava-0_glow",
+   "lava-1_glow",
+   "lava-2_glow",
+   "lava-3_glow",
+   "lava-4_glow",
+   "lava-5_glow",
+   "lava-6_glow",
+   "lava-7_glow",
+   "lava-8_glow",
+   "lava-9_glow",
+   "lava-10_glow",
+   "lava-11_glow",
+   "lava-12_glow",
+   "lava-13_glow",
+   "lava-14_glow",
+   "lava-15_glow",
+   "lava-21_glow",
+   "lava-23_glow",
+   "lava-29_glow",
+   "lava-31_glow",
+   "lava-38_glow",
+   "lava-39_glow",
+   "lava-46_glow",
+   "lava-47_glow",
+   "lava-55_glow",
+   "lava-63_glow",
+   "lava-74_glow",
+   "lava-75_glow",
+   "lava-78_glow",
+   "lava-79_glow",
+   "lava-95_glow",
+   "lava-110_glow",
+   "lava-111_glow",
+   "lava-127_glow",
+   "lava-137_glow",
+   "lava-139_glow",
+   "lava-141_glow",
+   "lava-143_glow",
+   "lava-157_glow",
+   "lava-159_glow",
+   "lava-175_glow",
+   "lava-191_glow",
+   "lava-203_glow",
+   "lava-207_glow",
+   "lava-223_glow",
+   "lava-239_glow",
+   "lava-255_glow",
+   "unsmooth_glow"
+  ],
+  "only": {},
+  "out": "7f1bf51c566611225356b3c4d67be6c21edb5aa9",
+  "replaced": [],
+  "skip": [],
+  "sources": {},
+  "tg": "f2239c23414169c0f7c6b1178e8edeade69fa517"
+ },
  "icons/turf/walls/reinforced_wall.dmi": {
   "added": [],
   "only": {},
