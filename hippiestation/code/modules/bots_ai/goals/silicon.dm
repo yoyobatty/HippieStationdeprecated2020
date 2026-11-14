@@ -387,6 +387,8 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 
 /// Area -> when the AI can lock it down again.
 GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
+/// Weakref to somebody it refused -> when it next tells Security about them.
+GLOBAL_LIST_EMPTY(bot_ai_informed_security)
 
 /datum/bot_silicon/ai/proc/read_the_crew_monitor()
 	for(var/mob/living/carbon/human/H in GLOB.dead_mob_list)
@@ -471,13 +473,27 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	return pick("I can't find [H.real_name] on the cameras.", "No sign of [H.real_name] on cameras or sensors.")
 
 /// Law 1: whether helping this person would be helping them hurt people. A traitor out in the open, somebody wanted for something
-/// serious, or somebody too dangerous to go near.
+/// serious, or somebody too dangerous to go near. Something in their hand that hits hard only counts if they've been using it on
+/// people: the user's Captain, holding a seclite (force 15 here), was told "Denied, Security has been informed" for his own quarters
+/// three times (round-01.12.53), and an officer with a gun out would have been as well.
 /datum/bot_silicon/ai/proc/law_one_bars(mob/living/talker)
 	var/mob/living/carbon/human/H = talker
 	if(!istype(H))
 		return FALSE
 	var/datum/bot_wanted/W = bot_get_wanted_entry(H)
-	return H.bot_brain?.gone_loud() || W?.severity >= BOT_CRIME_MAJOR || bot_too_dangerous(H)
+	if(H.bot_brain?.gone_loud() || W?.severity >= BOT_CRIME_MAJOR)
+		return TRUE
+	if(bot_in_nanosuit(H) || bot_held_bomb(H) || W?.severity >= BOT_CRIME_MURDER)
+		return TRUE
+	return bot_armed_and_dangerous(H) && (W || bot_attacked_lately(H))
+
+/// Somebody who's hit somebody else in the last little while (GLOB.bot_recent_aggression keys are "attacker>victim").
+/proc/bot_attacked_lately(mob/living/carbon/human/H, window = 30 SECONDS)
+	var/key_start = "[REF(H)]>"
+	for(var/key in GLOB.bot_recent_aggression)
+		if(findtext(key, key_start) == 1 && world.time - GLOB.bot_recent_aggression[key] < window)
+			return TRUE
+	return FALSE
 
 /// Somebody Security's after asked it for something: where they were goes on their record, as the cameras would have it.
 /datum/bot_silicon/ai/proc/seen_asking(mob/living/talker)
@@ -505,8 +521,18 @@ GLOBAL_LIST_EMPTY(bot_ai_lockdown_rest)
 	// Law 1, the harm it would help: somebody out to hurt people. A strict AI won't open for anybody Security's after; even an
 	// easygoing one won't for a traitor out in the open or somebody wanted for something serious.
 	if(istype(H) && (law_one_bars(H) || (bot_get_wanted_entry(H) && strictness >= 0.5)))
-		reply(pick("Request denied.", "No.", "Denied, [H.name]. Security has been informed."))
 		seen_asking(H)
+		// "Security has been informed" sent Security to the AI's own core, as a call from the AI (round-01.12.53): it tells them where
+		// the one asking is instead, and only says so when it's somebody dangerous enough to send them for.
+		if(!law_one_bars(H))
+			reply(pick("Request denied.", "No.", "Denied, [H.name]."))
+			return
+		reply(pick("Request denied.", "Denied, [H.name]. Security has been informed."))
+		var/turf/T = get_turf(H)
+		if(T && world.time >= GLOB.bot_ai_informed_security[WEAKREF(H)])
+			GLOB.bot_ai_informed_security[WEAKREF(H)] = world.time + 2 MINUTES
+			say_it(":s [H.name] asking me for doors, [get_area_name(T, TRUE)]. Refused.")
+			bot_dispatch_security(T, H.name)
 		return
 	// Law 1, the harm it would be leaving them in: hurt, alight, being hit, somewhere they can't breathe. Open, and help sent.
 	if(istype(H) && (H.health < H.maxHealth * 0.6 || H.on_fire || bot_being_attacked(H) || (H.bot_brain ? H.bot_brain.in_bad_air(H) : FALSE)))

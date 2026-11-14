@@ -310,6 +310,10 @@ GLOBAL_VAR(bot_power_out_drill)
 /datum/bot_duty/job_transfers/try_start(datum/bot_brain/bot)
 	if(bot.work_role() == "Captain" && bot_find_hop(bot.owner))
 		return FALSE //the HoP's, while there's one on
+	if(length(GLOB.bot_new_ids_promised) && bot.find_id_console()) //somebody who's lost their card, promised a new one (below)
+		var/list/promise = bot.next_new_id_promise()
+		if(promise)
+			return bot.assign_goal(new /datum/bot_goal/print_new_id(promise))
 	if(length(GLOB.bot_access_pending) && bot.find_id_console()) //a card left on the desk for access it promised (bot_asks.dm)
 		var/datum/bot_transfer/promised = bot.find_promised_card()
 		if(promised)
@@ -557,3 +561,215 @@ GLOBAL_VAR(bot_power_out_drill)
 	if(pursuing_kind)
 		stop_pursuit()
 	return TRUE
+
+// ---------------------------------------------------------------------------------------------
+// A new card for somebody who's lost theirs
+// ---------------------------------------------------------------------------------------------
+// The user's Captain lost his ID to a blast (round-01.12.53), went to the HoP's office and said "HOP, I need my ID", "I'm captain",
+// "KAI make me a new ID please". The HoP was doing EVA access at the window, told him he shouldn't be in there, and that was all. A HoP
+// knows the face against the manifest: a blank from the box of spare IDs (the HoP's locker has two), the console, the name and the job
+// on the manifest with that job's access, and back to them with it.
+
+/// Promises of a new card: list(weakref to who, job, until when).
+GLOBAL_LIST_EMPTY(bot_new_ids_promised)
+
+/// The job on the manifest for somebody whose face can be seen, whatever card they've got or haven't. Null if nobody can tell who they
+/// are, or they aren't on it.
+/proc/bot_manifest_job(mob/living/carbon/human/H)
+	if(!istype(H) || H.name != H.real_name || !GLOB.data_core)
+		return null
+	var/datum/data/record/R = find_record("name", H.real_name, GLOB.data_core.general)
+	return R?.fields["rank"]
+
+/datum/bot_request_kind/new_id
+	name = "new ID"
+	jobs = list("Head of Personnel")
+	strong_words = list("new id", "new card", "need id", "need an id", "need my id", "lost my id", "lost id", "id is missing", "id's missing", "my id's gone", "my id is gone",
+		"replacement id", "spare id", "make me an id", "make me a new id", "print me an id", "id back")
+	ack_lines = list("Hang on.", "Sure, one sec.", "Let me see.")
+	walks_there = FALSE
+	needs_place = FALSE
+	doing = "seeing to a new ID"
+	precedence = 2 //before "access": "new id with engineering access" is a new card first
+
+/datum/bot_request_kind/new_id/attend(datum/bot_brain/bot, datum/bot_request/R)
+	bot.consider_new_id(R.caller_ref?.resolve(), R.radio_freq)
+
+/// Asked for a new card. The face against the manifest, as a HoP checks it: nobody gets a card in a name that isn't theirs.
+/datum/bot_brain/proc/consider_new_id(mob/living/carbon/human/who, radio_freq)
+	if(!istype(who))
+		return
+	var/prefix = bot_radio_prefix(radio_freq)
+	talking_to(who)
+	if(who.name != who.real_name)
+		say_after_typing(prefix + pick("Who's asking? I can't see your face.", "Show me your face first.", "I can't make a card for somebody I can't see."))
+		return
+	if(bot_is_wanted(who))
+		say_after_typing(prefix + pick("You're wanted by Security. Sort that out first.", "Not while Security's after you."))
+		return
+	var/obj/item/card/id/worn = who.get_idcard(FALSE)
+	if(worn?.registered_name == who.real_name)
+		say_after_typing(prefix + pick("You've got one on you.", "That's your card right there.", "You're wearing it."))
+		return
+	var/job = bot_manifest_job(who)
+	if(!job || !SSjob.GetJob(job))
+		say_after_typing(prefix + pick("You're not on the manifest.", "I can't find you on the manifest.", "There's no record of you."))
+		return
+	for(var/list/promise as anything in GLOB.bot_new_ids_promised)
+		var/datum/weakref/ref = promise[1]
+		if(ref.resolve() == who)
+			say_after_typing(prefix + pick("I'm on it.", "Working on it.", "Yeah, yeah, it's coming."))
+			return
+	GLOB.bot_new_ids_promised += list(list(WEAKREF(who), job, world.time + 5 MINUTES, WEAKREF(src)))
+	bot_log(src, "promised [who] a new [job] ID")
+	say_after_typing(prefix + pick("Right, [who.first_name()]. I'll print you a new one.", "No problem, a new [job] card coming up.", "Okay, give me a minute and I'll have a card for you."))
+
+/// The first promise still worth keeping that's this bot's to keep (it made it, or whoever did is gone), taken off the list.
+/datum/bot_brain/proc/next_new_id_promise()
+	for(var/list/promise as anything in GLOB.bot_new_ids_promised.Copy())
+		var/datum/weakref/ref = promise[1]
+		var/mob/living/carbon/human/who = ref.resolve()
+		if(!who || who.stat == DEAD || world.time > promise[3])
+			GLOB.bot_new_ids_promised -= list(promise)
+			continue
+		var/datum/weakref/promiser_ref = promise[4]
+		var/datum/bot_brain/promiser = promiser_ref?.resolve()
+		if(promiser != src && promiser && !QDELETED(promiser.owner) && promiser.owner.stat == CONSCIOUS)
+			continue
+		if(gym_run && get_area(who) != get_area(owner))
+			continue
+		GLOB.bot_new_ids_promised -= list(promise)
+		return promise
+	return null
+
+/datum/bot_goal/print_new_id
+	lawful = TRUE
+	doing = "printing somebody a new ID"
+	var/datum/weakref/who_ref
+	var/job
+	/// The blank it's making into theirs
+	var/obj/item/card/id/blank
+
+/datum/bot_goal/print_new_id/New(list/promise)
+	. = ..()
+	who_ref = promise[1]
+	job = promise[2]
+
+/datum/bot_goal/print_new_id/Destroy()
+	blank = null
+	return ..()
+
+/datum/bot_goal/print_new_id/resolve_target(datum/bot_brain/bot)
+	if(who_ref?.resolve())
+		target = bot.find_id_console()
+
+/datum/bot_goal/print_new_id/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/case_work/S = new
+	var/datum/bot_step/move_to/to_them = new
+	to_them.step_target = who_ref?.resolve()
+	S.steps = list(new /datum/bot_step/get_blank_card(), new /datum/bot_step/move_to(), new /datum/bot_step/paced/make_new_card(), to_them, new /datum/bot_step/hand_new_card())
+	return list(S)
+
+/datum/bot_goal/print_new_id/on_give_up(datum/bot_brain/bot)
+	var/mob/living/who = who_ref?.resolve()
+	if(who && !bot.gym_scripted)
+		bot.say_after_typing(pick(";Sorry [who.name], I couldn't get a card made.", ";[who.name], no luck with your new card."))
+
+/// The box of spare IDs, from its locker or wherever it's lying
+/datum/bot_goal/acquire_item_type/id_box
+	item_type = /obj/item/storage/box/ids
+
+/// A blank card in hand: one it's carrying, one out of a box of spares it's carrying, or the box fetched first.
+/datum/bot_step/get_blank_card
+	var/fetched = FALSE
+
+/datum/bot_step/get_blank_card/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/print_new_id/G = bot.current_goal
+	if(!istype(G))
+		return GOAL_STEP_FAIL
+	for(var/obj/item/card/id/card in bot.owner.GetAllContents())
+		if(card.type == /obj/item/card/id && !card.registered_name && !istype(card.loc, /obj/item/storage/box/ids))
+			G.blank = card
+			bot.put_away(card)
+			return GOAL_STEP_SUCCESS
+	for(var/obj/item/storage/box/ids/box in bot.owner.GetAllContents())
+		var/obj/item/card/id/card = locate(/obj/item/card/id) in box
+		if(card && SEND_SIGNAL(box, COMSIG_TRY_STORAGE_TAKE, card, bot.owner.drop_location()) && bot.owner.put_in_hands(card))
+			G.blank = card
+			bot.put_away(card)
+			bot.put_away(box)
+			return GOAL_STEP_SUCCESS
+	if(fetched)
+		return GOAL_STEP_FAIL //went for the box and came back without one
+	fetched = TRUE
+	if(bot.suspend_goal_for(new /datum/bot_goal/acquire_item_type/id_box()))
+		return GOAL_STEP_PENDING
+	return GOAL_STEP_FAIL
+
+/// The console's buttons, as for a transfer: its own card and the blank in, the name and the job typed, both out.
+/datum/bot_step/paced/make_new_card
+	max_clicks = 5
+	var/obj/item/card/id/own
+	var/done = FALSE
+
+/datum/bot_step/paced/make_new_card/start(datum/bot_brain/bot)
+	var/datum/bot_goal/print_new_id/G = bot.current_goal
+	own = bot.card_in_hand()
+	return istype(G) && !QDELETED(G.blank) && own && istype(G.target, /obj/machinery/computer/card)
+
+/datum/bot_step/paced/make_new_card/do_click(datum/bot_brain/bot)
+	var/datum/bot_goal/print_new_id/G = bot.current_goal
+	var/obj/machinery/computer/card/C = G?.target
+	var/mob/living/carbon/human/who = G?.who_ref?.resolve()
+	if(QDELETED(C) || QDELETED(G.blank) || !who || !bot.owner.Adjacent(C))
+		return FALSE
+	if(!C.scan)
+		return bot.use_item_on(own, C) && C.scan == own
+	if(!C.modify)
+		return bot.use_item_on(G.blank, C) && C.modify == G.blank
+	if(C.scan != own || C.modify != G.blank || !(ACCESS_CHANGE_IDS in own.access))
+		return FALSE //somebody else's cards in it, or it can't change IDs
+	var/datum/job/J = SSjob.GetJob(G.job)
+	if(!J)
+		return FALSE
+	bot.telemetry_ui_action(C, "new card")
+	G.blank.registered_name = who.real_name
+	G.blank.assignment = G.job
+	G.blank.access = J.get_access()
+	G.blank.update_label()
+	playsound(C, 'sound/machines/terminal_prompt_confirm.ogg', 50, 0)
+	C.eject_id_modify(bot.owner)
+	C.eject_id_scan(bot.owner)
+	bot.wear_card(own)
+	bot.put_away(G.blank)
+	done = TRUE
+	bot_log(bot, "HOP: made [who] a new [G.job] ID")
+	bot_tally("new IDs made")
+	return FALSE
+
+/datum/bot_step/paced/make_new_card/finish(datum/bot_brain/bot)
+	if(done)
+		return GOAL_STEP_SUCCESS
+	var/datum/bot_goal/print_new_id/G = bot.current_goal
+	var/obj/machinery/computer/card/C = G?.target
+	if(istype(C) && bot.owner.Adjacent(C))
+		if(G.blank && C.modify == G.blank)
+			C.eject_id_modify(bot.owner)
+		if(C.scan == own)
+			C.eject_id_scan(bot.owner)
+	if(own && own.loc != bot.owner.wear_id)
+		bot.wear_card(own)
+	return GOAL_STEP_FAIL
+
+/// Into their hands if there's one free, at their feet if not.
+/datum/bot_step/hand_new_card/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/print_new_id/G = bot.current_goal
+	var/mob/living/carbon/human/who = G?.who_ref?.resolve()
+	if(!istype(G) || QDELETED(G.blank) || !who)
+		return GOAL_STEP_FAIL
+	var/obj/item/card/id/card = G.blank
+	bot.owner.dropItemToGround(card)
+	if(bot.owner.Adjacent(who) && !who.incapacitated())
+		who.put_in_hands(card)
+	bot_say(bot.owner, pick("Here's your new card, [who.first_name()].", "There you go, [who.name]. New ID.", "All done. Try not to lose this one."))
+	return GOAL_STEP_SUCCESS

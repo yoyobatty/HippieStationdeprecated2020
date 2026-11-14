@@ -73,10 +73,36 @@ const getLookups = data => {
       nodesOfDesign[designId].push(node.id);
     }
   }
+  // A node's tier: 1 with nothing before it, one more than its deepest
+  // prerequisite. A design's is that of the first node giving it, 0 if
+  // it's known from the start.
+  const depth = {};
+  const depthOf = (id, seen) => {
+    if (depth[id] !== undefined) {
+      return depth[id];
+    }
+    const node = byId[id];
+    if (!node || seen[id]) {
+      return 0;
+    }
+    seen[id] = true;
+    let deepest = 0;
+    for (let prereq of node.prereqs || []) {
+      deepest = Math.max(deepest, depthOf(prereq, seen));
+    }
+    depth[id] = deepest + 1;
+    return depth[id];
+  };
+  const tierOfDesign = {};
+  for (let designId of Object.keys(nodesOfDesign)) {
+    tierOfDesign[designId] = Math.min(
+      ...nodesOfDesign[designId].map(id => depthOf(id, {})));
+  }
   lookupCache = {
     nodes: data.nodes,
     byId,
     nodesOfDesign,
+    tierOfDesign,
   };
   return lookupCache;
 };
@@ -946,6 +972,7 @@ class FabricatorPanel extends Component {
       // A group picked while searching, for that search only
       searchPick: null,
       hide: undefined,
+      sort: undefined,
       pages: 1,
     };
   }
@@ -1009,12 +1036,17 @@ class FabricatorPanel extends Component {
     if (category && !groups[category]) {
       category = null;
     }
+    const sort = this.state.sort || prefs.sort || 'name';
+    const tierOf = design => research.tierOfDesign[design.id] || 0;
+    const byOrder = (a, b) => (sort === 'tier'
+      ? tierOf(a) - tierOf(b)
+      : 0) || a.name.localeCompare(b.name);
     const byGroup = (a, b) => (oneHome
       ? (a.groups[0] || '').localeCompare(b.groups[0] || '')
-      : 0) || a.name.localeCompare(b.name);
+      : 0) || byOrder(a, b);
     const shown = listed
       .filter(design => !category || design.groups.includes(category))
-      .sort(category ? (a, b) => a.name.localeCompare(b.name) : byGroup);
+      .sort(category ? byOrder : byGroup);
     // The tiers still to research, greyed, with the node that gives them
     const locked = (!category || !LOCKED_SHOWN[category] || hide)
       ? []
@@ -1027,7 +1059,7 @@ class FabricatorPanel extends Component {
           design.groups = groupsOf(design, fab, own, hasOwn);
           return design.groups.includes(category) && matches(design);
         })
-        .sort((a, b) => a.name.localeCompare(b.name));
+        .sort(byOrder);
     const limit = pages * PAGE_SIZE;
     const toTop = () => {
       const content = document.getElementById('RdConsole__fabricator');
@@ -1052,8 +1084,18 @@ class FabricatorPanel extends Component {
       this.setState({ pages: 1, hide: !hide });
       act('panel_pref', { key: 'hide', value: hide ? 0 : 1 });
     };
-    // Headings between the groups when they're all listed together
+    const setSort = picked => {
+      toTop();
+      this.setState({ pages: 1, sort: picked });
+      act('panel_pref', { key: 'sort', value: picked });
+    };
+    // Headings between the groups when they're all listed together, and
+    // between the tiers in one group sorted by tier
     const headed = oneHome && !category;
+    const tierHeaded = !headed && sort === 'tier';
+    const headingOf = design => (headed
+      ? design.groups[0] || 'Other'
+      : (tierOf(design) ? 'Tier ' + tierOf(design) : 'Starting'));
     return (
       <Box
         style={{
@@ -1094,6 +1136,19 @@ class FabricatorPanel extends Component {
                 selected={category === name}
                 onClick={() => select(name)} />
             ))}
+            <Box mt={1} style={{ 'display': 'flex' }}>
+              <Box color="label" mr={1} style={{ 'line-height': '20px' }}>
+                Sort
+              </Box>
+              <Button
+                selected={sort === 'name'}
+                content="Name"
+                onClick={() => setSort('name')} />
+              <Button
+                selected={sort === 'tier'}
+                content="Tier"
+                onClick={() => setSort('tier')} />
+            </Box>
             <Box mt={1}>
               <Button.Checkbox
                 fluid
@@ -1121,8 +1176,8 @@ class FabricatorPanel extends Component {
             )}
             {shown.slice(0, limit).map((design, index) => (
               <Fragment key={design.id}>
-                {headed && (index === 0
-                  || shown[index - 1].groups[0] !== design.groups[0]) && (
+                {(headed || tierHeaded) && (index === 0
+                  || headingOf(shown[index - 1]) !== headingOf(design)) && (
                   <Box
                     bold
                     color="label"
@@ -1131,7 +1186,7 @@ class FabricatorPanel extends Component {
                     style={{
                       'border-bottom': '1px solid rgba(255, 255, 255, 0.1)',
                     }}>
-                    {design.groups[0] || 'Other'}
+                    {headingOf(design)}
                   </Box>
                 )}
                 <DesignRow
@@ -2011,6 +2066,7 @@ class RdFabricatorMenu extends Component {
     const research = {
       researchedDesigns: toSet(data.researched),
       nodesOfDesign: getLookups(data).nodesOfDesign,
+      tierOfDesign: getLookups(data).tierOfDesign,
       byId: getLookups(data).byId,
       statusOf: () => 'researched',
     };

@@ -1216,6 +1216,10 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	var/mob/living/L = real_speaker
 	if(L.mind?.assigned_role in GLOB.security_positions)
 		return //another officer's radio chatter isn't a call for help
+	// Nor the AI's: it's in its core, and its "Security has been informed" sent the officers there (round-01.12.53). What it reports
+	// it sends them to itself (bot_dispatch_security()).
+	if(isAI(L))
+		return
 	var/turf/T = get_turf(L)
 	if(!T || T.z != owner.z)
 		return

@@ -174,14 +174,16 @@ GLOBAL_LIST_EMPTY(lathe_panel_prefs)
 	return prefs || list()
 
 /// The page asks to remember something: a category ("lathe", "board", "autolathe" or the console's "node" = its name, "" for All) or
-/// "hide" = 0/1.
+/// "hide" = 0/1, or "sort" = "name"/"tier".
 /proc/lathe_panel_pref_set(mob/user, key, value)
-	if(!user?.ckey || !(key in list("lathe", "board", "autolathe", "node", "hide")))
+	if(!user?.ckey || !(key in list("lathe", "board", "autolathe", "node", "hide", "sort")))
 		return
 	var/list/prefs = GLOB.lathe_panel_prefs[user.ckey]
 	if(!prefs)
 		prefs = GLOB.lathe_panel_prefs[user.ckey] = list()
 	if(key == "hide")
 		prefs[key] = text2num(value) ? 1 : 0
+	else if(key == "sort")
+		prefs[key] = value == "tier" ? "tier" : "name"
 	else
 		prefs[key] = copytext("[value]", 1, 64)

@@ -14,6 +14,15 @@
 //    nullspace, so nothing touched it before.
 //  - The wall tile a charge breaches keeps its floor (the user's ruling): the blast reaches it as the new plating and used to tear
 //    that up too, opening both rooms to space.
+//  - Charges touching go off as one (the user's ask, 2026-11-14): planted on the same thing, or one planted on another, they're a
+//    stack, and the first to go off sets off the rest in the same blast, bigger by the cube root of how many (a blast's reach goes as
+//    the cube root of its yield). Four C4 planted on C4 gave one ordinary C4 blast (round-01.12.53): a charge planted on a loose C4
+//    that was then planted on another went into nullspace with it, and went off nowhere.
+
+/// Charges planted and counting down, for the ones touching them to find
+GLOBAL_LIST_EMPTY(planted_charges)
+/// The most charges one blast takes in
+#define MAX_CHARGE_STACK 50
 
 /obj/item/grenade/plastic
 	/// prime() runs once
@@ -28,6 +37,7 @@
 	plastic_overlay = mutable_appearance(icon, "[item_state]2", ABOVE_ALL_MOB_LAYER)
 
 /obj/item/grenade/plastic/Destroy()
+	GLOB.planted_charges -= src
 	if(nadeassembly)
 		watch_from(nadeassembly, nadeassembly) //its proximity sensor's field would hold on to us
 	return ..()
@@ -56,6 +66,7 @@
 	if(ismovable(AM)) //a turf that changes (a wall taken down) is still the same turf, and the charge stays on it
 		RegisterSignal(AM, COMSIG_PARENT_QDELETING, PROC_REF(target_destroyed), TRUE)
 	RegisterSignal(AM, COMSIG_ATOM_EX_ACT, PROC_REF(target_blasted), TRUE)
+	GLOB.planted_charges |= src
 	if(nadeassembly)
 		watch_from(nadeassembly, AM)
 
@@ -155,23 +166,49 @@
 /obj/item/grenade/plastic/prime()
 	if(primed || QDELETED(src))
 		return
-	primed = TRUE
+	var/list/stack = charge_stack()
+	for(var/obj/item/grenade/plastic/P as anything in stack)
+		P.primed = TRUE
+		GLOB.planted_charges -= P
+	// What the stack sits on: down through the charges planted on charges to the first thing that isn't one. A loose charge at the
+	// bottom goes off where it lies.
 	var/atom/hit = target
-	target = null
+	var/atom/base = src
+	for(var/i in 1 to MAX_CHARGE_STACK)
+		var/obj/item/grenade/plastic/under = hit
+		if(!istype(under) || QDELETED(under))
+			break
+		base = under
+		hit = under.target
+	if(istype(hit, /obj/item/grenade/plastic))
+		hit = null
+	// Every other charge in it goes into this blast: off what it's on, and gone
+	for(var/obj/item/grenade/plastic/P as anything in stack)
+		var/atom/on = P.target
+		P.target = null
+		if(on && !QDELETED(on))
+			P.UnregisterSignal(on, list(COMSIG_PARENT_QDELETING, COMSIG_ATOM_EX_ACT))
+			on.cut_overlay(P.plastic_overlay, TRUE)
 	var/turf/location
 	if(hit && !QDELETED(hit))
-		UnregisterSignal(hit, list(COMSIG_PARENT_QDELETING, COMSIG_ATOM_EX_ACT))
 		location = get_turf(hit)
-		hit.cut_overlay(plastic_overlay, TRUE)
 	else
 		hit = null
-		location = get_turf(src)
+		location = get_turf(base)
+		if(!location)
+			location = get_turf(src)
+	var/list/sizes = stack_blast_sizes(stack)
+	if(length(stack) > 1)
+		log_game("[length(stack)] charges went off together at [AREACOORD(location)], blast ([sizes.Join(", ")])")
+	for(var/obj/item/grenade/plastic/P as anything in stack)
+		if(P != src)
+			qdel(P)
 	if(location)
 		// The blast first, while what it's on still stands: explosion() works out who's hit there and then (it's applied later), so a
 		// wall it's on shields what's behind it, and it's the room's air the blast reads, not the fresh plating's left by the breach
 		// (none yet: blast_air_factor() took that for vacuum and shrank C4 on a wall to light 1.5)
 		var/shaped = directional && aim_dir && hit && hit.density
-		explosion(shaped ? shaped_epicenter(location) : location, boom_sizes[1], boom_sizes[2], boom_sizes[3])
+		explosion(shaped ? shaped_epicenter(location) : location, sizes[1], sizes[2], sizes[3])
 		if(shaped)
 			shaped_jet(location)
 		if(hit && (!ismob(hit) || full_damage_on_mobs))
@@ -188,6 +225,42 @@
 		else
 			M.gib()
 	qdel(src)
+
+/// This charge and every one touching it, not yet gone off: what it's planted on if that's a charge, the charges planted on it, and those
+/// planted on the same thing, and so on from each of those.
+/obj/item/grenade/plastic/proc/charge_stack()
+	. = list(src)
+	var/list/stack = .
+	var/i = 1
+	while(i <= length(stack) && length(stack) < MAX_CHARGE_STACK)
+		var/obj/item/grenade/plastic/P = stack[i++]
+		var/obj/item/grenade/plastic/under = P.target
+		if(istype(under) && !QDELETED(under) && !under.primed && !(under in stack))
+			stack += under
+		for(var/obj/item/grenade/plastic/other as anything in GLOB.planted_charges)
+			if(other.primed || QDELETED(other) || (other in stack))
+				continue
+			if(other.target == P || (P.target && other.target == P.target))
+				stack += other
+				if(length(stack) >= MAX_CHARGE_STACK)
+					break
+
+/// The stack's blast: the strongest charge's, reaching the cube root of how many there are further. A heavy and a devastating ring come
+/// in as it grows (half and a quarter of the light reach, less a tile and a half), so eight C4 have a heavy ring of 1.5 and twenty-seven 3.
+/// One charge is as it was.
+/obj/item/grenade/plastic/proc/stack_blast_sizes(list/stack)
+	var/list/strongest = boom_sizes
+	for(var/obj/item/grenade/plastic/P as anything in stack)
+		if(P.boom_sizes[3] > strongest[3])
+			strongest = P.boom_sizes
+	var/count = length(stack)
+	if(count <= 1)
+		return strongest.Copy()
+	var/reach = count ** (1 / 3)
+	var/light = strongest[3] * reach
+	var/heavy = max(strongest[2] * reach, light / 2 - 1.5)
+	var/devastating = max(strongest[1] * reach, light / 4 - 1.5)
+	return list(round(devastating, 0.1), round(heavy, 0.1), round(light, 0.1))
 
 /// Where a shaped charge on something solid sets its blast off: two tiles on, or as far as it gets before something solid
 /obj/item/grenade/plastic/proc/shaped_epicenter(turf/location)
@@ -228,3 +301,5 @@
 	if(breached_until > world.time && severity && severity < EXPLODE_LIGHT && target != src)
 		severity = EXPLODE_LIGHT
 	return ..()
+
+#undef MAX_CHARGE_STACK

@@ -283,10 +283,18 @@ GLOBAL_LIST_EMPTY(bot_bodies_reported)
 		bot_log(src, "found [H] dead in [where] - saying so")
 		bot_tally("bodies reported")
 		if(!gym_scripted)
-			say_after_typing(pick(";Body in [where]. Looks like [H.first_name()].", ";Medical, there's a body in [where]. [H.real_name].", ";Found [H.first_name()] dead in [where].", ";There's somebody dead in [where]."))
-	if(world.time < next_body_carry || !prob(25 + diligence * 50 + (is_medical_job() ? 30 : 0) + body_carry_bias))
+			// A face nobody can make out isn't named (it was: "Medical, there's a body in Brig. Mikayla Collins." over a body the blast had
+			// left Unknown, round-01.12.53)
+			if(H.name == H.real_name)
+				say_after_typing(pick(";Body in [where]. Looks like [H.first_name()].", ";Medical, there's a body in [where]. [H.real_name].", ";Found [H.first_name()] dead in [where]."))
+			else
+				say_after_typing(pick(";There's somebody dead in [where].", ";Body in [where], can't tell who.", ";Medical, there's a body in [where]."))
+	// A body is Security's business: an officer who finds one sees it to Medbay, putting off anything it would put off for a call. The
+	// Warden found the user's Captain dead in the Brig, said so, and went back to shutting the armory shutters (round-01.12.53).
+	var/officer = is_security_job()
+	if(world.time < next_body_carry || (!officer && !prob(25 + diligence * 50 + (is_medical_job() ? 30 : 0) + body_carry_bias)))
 		return
-	if(state == BOT_STATE_GOAL && !(current_goal && bot_goal_can_wait(current_goal))) //goals/carry_casualty.dm
+	if(state == BOT_STATE_GOAL && !(current_goal && (bot_goal_can_wait(current_goal) || (officer && can_drop_for_call())))) //goals/carry_casualty.dm
 		return
 	var/turf/spot = medbay_drop_spot() //goals/security_medevac.dm
 	if(!spot || taken_by_another(H) || in_bad_air(H) || !can_walk_lawfully_to(H))

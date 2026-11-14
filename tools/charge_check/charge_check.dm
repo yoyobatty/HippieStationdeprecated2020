@@ -62,7 +62,7 @@
 	check("round started", SSticker.current_state >= GAME_STATE_PLAYING, "state [SSticker.current_state]")
 	RegisterSignal(SSdcs, COMSIG_GLOB_EXPLOSION, PROC_REF(on_explosion))
 	var/list/checks = list("wall_x4", "wall_c4", "rwall_x4", "floor_x4", "x4_on_person", "target_deleted", "fried",
-		"cremated", "x4_timer_tools", "c4_cut_detonator", "signaler", "prox_loose", "prox_planted", "health_carried", "health_planted", "chain", "pile",
+		"cremated", "x4_timer_tools", "c4_cut_detonator", "signaler", "prox_loose", "prox_planted", "health_carried", "health_planted", "chain", "stack", "pile",
 		"lances")
 	var/only = world.params["charge-check-only"] //some of them, by name, comma separated
 	if(only)
@@ -477,6 +477,54 @@
 	near.prime()
 	sleep(3 SECONDS)
 	check("chain: a heavy blast on its wall sets it off", booms_since(count) == 2 && QDELETED(planted), "[booms_since(count)] explosions")
+
+/// Charges touching go off as one bigger blast: C4 planted on C4 that's then planted on more C4 (the user's round-01.12.53, four planted
+/// that way gave one ordinary blast), four on one wall, and one alone as it always was
+/datum/charge_check/proc/check_stack()
+	build_room(11, 11)
+	var/mob/living/carbon/human/rigger = make_human(spot(6, 5), "Rigger")
+	// One alone
+	var/obj/item/grenade/plastic/c4/alone = new(spot(6, 5))
+	alone.det_time = 10
+	var/count = length(booms)
+	plant(alone, spot(9, 9), rigger)
+	sleep(13 SECONDS)
+	var/list/B = length(booms) > count ? booms[length(booms)] : null
+	check("stack: one C4 is as it was", booms_since(count) == 1 && B && B[2] == 0 && B[3] == 0 && round(B[4], 0.1) == 3, last_boom_text(count))
+	// C4 on a loose C4, that C4 picked up and planted on another loose one
+	build_room(11, 11)
+	rigger = make_human(spot(6, 5), "Rigger")
+	var/obj/item/grenade/plastic/c4/bottom = new(spot(6, 6))
+	var/obj/item/grenade/plastic/c4/middle = new(spot(6, 5))
+	var/obj/item/grenade/plastic/c4/top = new(spot(6, 5))
+	top.det_time = 15
+	middle.det_time = 30
+	count = length(booms)
+	plant(top, middle, rigger)
+	plant(middle, bottom, rigger)
+	check("stack: C4 on C4 on C4 planted", isnull(top.loc) && isnull(middle.loc), "top at [top.loc], middle at [middle.loc]")
+	sleep(14 SECONDS)
+	B = length(booms) > count ? booms[length(booms)] : null
+	var/turf/at = B?[1]
+	check("stack: C4 on C4 on C4 is one blast where the bottom one lies, three strong", booms_since(count) == 1 && at == spot(6, 6) && B[4] > 4, last_boom_text(count))
+	check("stack: none of the three left", QDELETED(top) && QDELETED(middle) && QDELETED(bottom), "top [QDELETED(top)], middle [QDELETED(middle)], bottom [QDELETED(bottom)]")
+	// Four on one wall
+	build_room(11, 11)
+	rigger = make_human(spot(6, 5), "Rigger")
+	var/turf/wall = spot(6, 6)
+	wall.ChangeTurf(/turf/closed/wall, list(/turf/open/space, /turf/open/floor/plating))
+	var/list/four = list()
+	for(var/i in 1 to 4)
+		var/obj/item/grenade/plastic/c4/C = new(spot(6, 5))
+		C.det_time = 20
+		four += C
+	count = length(booms)
+	for(var/obj/item/grenade/plastic/c4/C as anything in four)
+		plant(C, wall, rigger)
+	rigger.forceMove(spot(1, 1))
+	sleep(12 SECONDS)
+	B = length(booms) > count ? booms[length(booms)] : null
+	check("stack: four C4 on one wall are one blast with a heavy ring", booms_since(count) == 1 && B && B[3] > 0 && B[4] > 4.5, "[booms_since(count)] explosions, last [last_boom_text(count)]")
 
 /// 150 C4 on one tile, one set off: how many go and how long the server's held up
 /datum/charge_check/proc/check_pile()

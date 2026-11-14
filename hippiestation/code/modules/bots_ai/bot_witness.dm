@@ -429,6 +429,11 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 		var/job = H.get_assignment("", "")
 		if((job in staff) || (job in GLOB.command_positions) || (job in GLOB.security_positions))
 			continue
+		// The card's gone but the face is known: the HoP told the user's Captain, with no ID after a blast, he shouldn't be in the
+		// HoP's office (round-01.12.53)
+		var/known_as = bot_manifest_job(H)
+		if((known_as in staff) || (known_as in GLOB.command_positions) || (known_as in GLOB.security_positions))
+			continue
 		var/charge = bot_trespass_charge(get_area(H), world.time < H.bot_broke_in_at + 5 MINUTES)
 		var/datum/weakref/ref = WEAKREF(H)
 		var/warned = LAZYACCESS(trespass_warned, ref)
