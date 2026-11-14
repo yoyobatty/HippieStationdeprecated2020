@@ -43,7 +43,11 @@ GLOBAL_LIST_INIT(bot_bag_rubbish, typecacheof(list(/obj/item/trash, /obj/item/ci
 	var/drinks = 0
 	var/kits = 0
 	var/botanist = work_role() == "Botanist"
+	var/keeps_a_slip = uses_slips() //foundation/slips.dm: its peel is kept, not binned
 	for(var/obj/item/I in pack.contents)
+		if(keeps_a_slip && istype(I, /obj/item/grown/bananapeel))
+			keeps_a_slip = FALSE
+			continue
 		if(is_type_in_typecache(I, GLOB.bot_bag_rubbish))
 			if(!istype(I, /obj/item/reagent_containers/food/drinks/soda_cans) || !I.reagents?.total_volume)
 				.[I] = BOT_BAG_BIN

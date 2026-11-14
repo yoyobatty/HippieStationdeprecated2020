@@ -203,9 +203,10 @@
 	owner.a_intent = INTENT_HARM
 	owner.face_atom(target)
 	owner.changeNext_move(CLICK_CD_RANGE)
-	next_taser_time = world.time + max(CLICK_CD_RANGE, G.fire_delay) + 5
+	next_taser_time = world.time + shot_interval(G) //foundation/gunfight.dm: at a player's pace, not once a decision
 	bot_log(src, "firing [G] at [target] (dist [get_dist(owner, target)])")
 	INVOKE_ASYNC(G, TYPE_PROC_REF(/obj/item/gun, afterattack), target, owner, FALSE, null)
+	keep_firing_on(target, "combat")
 	return TRUE
 
 /datum/bot_brain

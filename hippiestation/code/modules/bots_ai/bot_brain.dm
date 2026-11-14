@@ -378,6 +378,13 @@
 	// Fights are fought by sight, not by knowing where everyone is: lose them and it's off to where they were last
 	// seen, then give up. (This used to chase anyone within 12 tiles through walls, and punch them through locker doors.)
 	var/visible = can_see_target(attacker, combat_last_seen_turf, combat_last_seen)
+	// Shot by them from out of sight: back at the spot it came from, or out of its line (foundation/gunfight.dm)
+	var/turf/shot_spot = visible ? null : unseen_shot_from(attacker)
+	if(shot_spot)
+		combat_last_seen = world.time
+		combat_last_seen_turf = shot_spot
+		if(answer_unseen_fire(attacker, shot_spot))
+			return
 	if(visible)
 		combat_last_seen = world.time
 		combat_last_seen_turf = get_turf(attacker)
@@ -389,6 +396,12 @@
 		return
 
 	if(!visible)
+		// In cover from somebody shooting from out of sight, and with nothing to shoot back with not walking up to them after (foundation/gunfight.dm)
+		if(hold_cover_from(attacker))
+			return
+		if(keeps_out_of_unseen_fire(attacker))
+			disengage_combat("keeping out of the way of somebody shooting from where I can't see")
+			return
 		var/turf/last_turf = combat_last_seen_turf
 		if(last_turf && get_turf(owner) != last_turf)
 			combat_chase(last_turf)
@@ -433,6 +446,9 @@
 		return
 	if(istype(attacker, /mob/living/simple_animal/hostile/asteroid) && fight_fauna(attacker)) //bot_fighting.dm
 		return
+	// Coming at it from a few tiles off: a peel or a bar of soap down in front of them (foundation/slips.dm)
+	if(!owner.Adjacent(attacker) && try_slip_throw(attacker))
+		return
 	if(try_run_for_it())
 		return
 	if(try_smoke_grenade(attacker) || try_chem_weapon(attacker)) //goals/chem_lab.dm
@@ -448,7 +464,9 @@
 		fight_in_reach(attacker)
 		try_combat_sidestep(attacker)
 	else if(!try_suit_jump(attacker) && !try_attack_from_range(attacker))
-		if(!(find_usable_gun() && has_clear_shot(attacker) && try_strafe(attacker))) //apex/combat.dm: the gun recharging, across their line rather than at them
+		// apex/combat.dm: the gun recharging, across their line rather than at them. Or it's between shots (foundation/gunfight.dm fires
+		// them between decisions): it holds where it is with the gun on them, not walks up to them because this one look came mid-shot.
+		if(!(find_usable_gun() && has_clear_shot(attacker) && (try_strafe(attacker) || world.time < next_taser_time)))
 			owner.a_intent = INTENT_HARM
 			combat_chase(attacker)
 	else
@@ -1246,6 +1264,13 @@ GLOBAL_LIST_EMPTY(bot_keyword_areas)
 			next_reaction_time = world.time + 100
 			bot_say(owner, pick("Watch it!", "Careful!", "Watch where you're swinging that!", "Hey, I'm on your side!"), TRUE)
 		return //a stray blow in a scrum: nobody turns on their own over that
+	note_shot(user, object) //foundation/gunfight.dm: a shot shows where it came from
+	// Hands off whoever it was dragging along: a fight isn't fought with a body in tow, and the line of fire runs through it. A prisoner
+	// in cuffs stays held. An officer pulling the Head of Security's body out of the Brig was shot down by disablers mid-drag, the body
+	// between it and the shooter (round-17.21.40).
+	var/mob/living/carbon/towed = owner.pulling
+	if(istype(towed) && !towed.handcuffed && bot_is_violent_verb(what_done))
+		owner.stop_pulling()
 	break_pact_with(user) //goals/robust.dm
 	if(findtext(what_done, "handcuffed"))
 		cuffed_lawfully = bot_is_officer(user)

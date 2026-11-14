@@ -384,6 +384,10 @@ GLOBAL_LIST_EMPTY(bot_jetpack_cases_refused)
 	/// The jetpack's gas when it set out, and whether it's turned for home on it.
 	var/fuel_at_start = 0
 	var/turned_back = FALSE
+	/// Whether it's been out in space or off the level on this trip; whether it never got out at all; whether it got out but not to the ruin.
+	var/left_station = FALSE
+	var/never_left = FALSE
+	var/missed = FALSE
 
 /datum/bot_goal/explore_ruin/space/resolve_target(datum/bot_brain/bot)
 	home_z = home_z || bot.owner.z
@@ -417,6 +421,8 @@ GLOBAL_LIST_EMPTY(bot_jetpack_cases_refused)
 	if(!spot || bot.space_trip_over())
 		return FALSE
 	var/turf/here = get_turf(bot.owner)
+	if(G && (here.z != G.home_z || isspaceturf(here)))
+		G.left_station = TRUE
 	if(bot.pursuing_kind)
 		wait_for = 10
 		return TRUE
@@ -436,11 +442,20 @@ GLOBAL_LIST_EMPTY(bot_jetpack_cases_refused)
 	return TRUE
 
 /// Got there or not, the trip goes on to the way home: a bot that gave up out there was left adrift on another level, breathing its tank
-/// dry.
+/// dry. One that never got out of the station at all has no trip: it was "back from the ruins" with what it picked up in EVA, every
+/// ruin it set out for counted as been through, and a traitor shut in EVA did that eight times over (round-17.21.40).
 /datum/bot_step/paced/fly_to_ruin/finish(datum/bot_brain/bot)
-	var/turf/spot = get_turf(bot.current_goal?.target)
+	var/datum/bot_goal/explore_ruin/space/G = bot.current_goal
+	var/turf/spot = get_turf(G?.target)
 	if(!spot || spot.z != bot.owner.z || get_dist(bot.owner, spot) > 6)
+		if(istype(G) && !G.left_station && bot.owner.z == G.home_z && !isspaceturf(get_turf(bot.owner)))
+			G.never_left = TRUE
+			bot.explore_blocked_until = world.time + 10 MINUTES
+			bot_log(bot, "couldn't get out into space - not going")
+			return GOAL_STEP_FAIL
 		bot_log(bot, "couldn't get to the ruin - heading back")
+		if(istype(G))
+			G.missed = TRUE
 	return GOAL_STEP_SUCCESS
 
 /// The next leg towards `spot`: on another level, to the edge that leads there; on this one, the spot, or a leg's length along the way.
@@ -511,8 +526,17 @@ GLOBAL_LIST_EMPTY(bot_jetpack_cases_refused)
 		return GOAL_STEP_SUCCESS
 	return GOAL_STEP_FAIL
 
+/// The ruin's been through, or there's no getting to it: nobody else need try. Not when this one never got out of the station: the ruin
+/// had nothing to do with that.
+/datum/bot_goal/explore_ruin/space/on_success(datum/bot_brain/bot)
+	if(!missed)
+		return ..()
+	GLOB.bot_ruins_explored[ruin] = TRUE
+	bot_log(bot, "never got to [ruin.ruin_template?.name || "the ruin"] - back aboard")
+
 /datum/bot_goal/explore_ruin/space/on_give_up(datum/bot_brain/bot)
-	..()
+	if(!never_left)
+		..()
 	bot.back_from_space = TRUE //whatever came of it, the jetpack comes off once it's back aboard
 	if(bot.owner.z != home_z || isspaceturf(get_turf(bot.owner)))
 		var/datum/bot_goal/space_return/back = new

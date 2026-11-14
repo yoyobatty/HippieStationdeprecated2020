@@ -429,8 +429,13 @@
 /datum/bot_brain/proc/stash_stolen(obj/item/I)
 	if(!I || !(I in owner.held_items) || put_away(I))
 		return
+	// A pocket, as a player keeps a card: an explorer's back is its jetpack, and a traitor out of EVA walked about with its emag in its
+	// hand for eight minutes, its bag left in EVA (round-17.21.40).
+	if(stash_in_pocket(I))
+		return
 	var/obj/item/storage/bag = owner.get_item_by_slot(ITEM_SLOT_BACK)
 	if(!istype(bag))
+		stash_in_pocket(I, swap = TRUE)
 		return
 	// Not for what the bag won't take however much comes out of it: every bit of junk would come out on to the floor, a size at a time,
 	// and it still wouldn't go in. A lit sword at a door it swipes (swipe_door()) is one, an operative's rifle another.
@@ -444,6 +449,27 @@
 			bot_log(src, "taking [junk] out of the bag to make room for [I]")
 			if(put_away(I))
 				return
+	stash_in_pocket(I, swap = TRUE)
+
+/// Into a pocket: an empty one, or with `swap`, one emptied of whatever's in it that isn't kit (on to the floor, as a player turns out a
+/// pocket). FALSE if it isn't small enough, or there's no jumpsuit to have pockets.
+/datum/bot_brain/proc/stash_in_pocket(obj/item/I, swap = FALSE)
+	if(!I || !(I in owner.held_items) || I.w_class > WEIGHT_CLASS_SMALL)
+		return FALSE
+	for(var/slot in list(ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET))
+		if(!owner.get_item_by_slot(slot) && owner.equip_to_slot_if_possible(I, slot, disable_warning = TRUE))
+			bot_log(src, "put [I] in a pocket")
+			return TRUE
+	if(!swap)
+		return FALSE
+	for(var/slot in list(ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET))
+		var/obj/item/junk = owner.get_item_by_slot(slot)
+		if(!junk || keeps_in_bag(junk) || traitor_keeps_hold_of(junk) || !owner.dropItemToGround(junk))
+			continue
+		if(owner.equip_to_slot_if_possible(I, slot, disable_warning = TRUE))
+			bot_log(src, "turned [junk] out of a pocket for [I]")
+			return TRUE
+	return FALSE
 
 /datum/bot_goal/traitor_steal
 	doing = "on an errand"

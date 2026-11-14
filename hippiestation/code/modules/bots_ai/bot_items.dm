@@ -114,6 +114,26 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	var/obj/item/inactive = owner.get_inactive_held_item()
 	if(!active || !inactive)
 		return
+	// Its card, its sword and what it's stolen go in the bag or a pocket (stash_stolen(), goals/traitor.dm), and never on the floor for a
+	// pickup, wanted or not: the other hand makes the room, or there's none. A traitor with its emag in one hand set its energy sword down
+	// "for a moment" to stock up on a flashlight, never had a hand free to go back for it, and the Captain picked it up (round-17.21.40).
+	for(var/obj/item/held in list(active, inactive))
+		if(traitor_keeps_hold_of(held))
+			stash_stolen(held)
+	active = owner.get_active_held_item()
+	inactive = owner.get_inactive_held_item()
+	if(!active || !inactive)
+		return
+	if(traitor_keeps_hold_of(inactive))
+		if(traitor_keeps_hold_of(active))
+			return
+		owner.swap_hand() //the kit in the active hand, and the other hand's what makes room below
+		active = owner.get_active_held_item()
+		inactive = owner.get_inactive_held_item()
+	if(traitor_keeps_hold_of(active))
+		if(!put_away(inactive, allow_equip = FALSE) && (wanted || !bot_keeps_in_hand(inactive)) && !(is_tool_or_toolbox(inactive) && !wanted))
+			set_down(inactive)
+		return
 	if(bot_stows_by_wearing(inactive) && owner.equip_to_appropriate_slot(inactive))
 		return
 	// A tool already in hand represents real progress toward whatever goal actually
@@ -188,6 +208,8 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	return FALSE
 
 /datum/bot_brain/proc/is_useful_item(obj/item/I)
+	if(istype(I) && !I.anchored && wants_slip(I)) //foundation/slips.dm: one kept about it, by the sort to use one
+		return TRUE
 	return istype(I) && !I.anchored && is_type_in_typecache(I, GLOB.bot_useful_items) && !already_carries_matching_tool(I)
 
 // Floor items first, then storage: an open closet's contents, or a closed closet
@@ -295,6 +317,22 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 				break
 	if(keep_axe && keep_axe.wielded)
 		keep_axe.unwield(owner, FALSE)
+	// Kit to the bag or a pocket first (stash_stolen(), goals/traitor.dm): down on the floor only if there's nowhere at all for it
+	for(var/obj/item/held in owner.held_items)
+		if(held != needed && traitor_keeps_hold_of(held))
+			stash_stolen(held)
+	// One hand is all a one-handed thing wants. The other hand free already, it's that one; both full, the hand with a weapon or kit in it
+	// (bot_keeps_in_hand()) keeps it and the other is emptied. Both used to be emptied for a screwdriver: a confiscated energy sword in the
+	// other hand went down on the floor 35 to 52 times a batch (shift batches play1113a-c), for anybody to pick up.
+	var/one_hand = needed && !istype(needed, /obj/item/twohanded) && !keep_axe
+	if(one_hand && other_hand_works())
+		var/obj/item/first = owner.get_active_held_item()
+		var/obj/item/second = owner.get_inactive_held_item()
+		if(first && first != needed && (!second || second == needed))
+			owner.swap_hand()
+			return
+		if(first && second && first != needed && second != needed && bot_keeps_in_hand(first) && !bot_keeps_in_hand(second))
+			owner.swap_hand()
 	var/obj/item/active = owner.get_active_held_item()
 	if(active && active != needed && active != keep_axe)
 		stow_item(active)
@@ -303,6 +341,8 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 			owner.dropItemToGround(active)
 			LAZYADD(set_down_items, active)
 	var/obj/item/inactive = owner.get_inactive_held_item()
+	if(one_hand && !owner.get_active_held_item())
+		return //the hand it needs is free: the other keeps what it has
 	if(inactive && inactive != needed && inactive != keep_axe)
 		stow_item(inactive)
 		if(owner.get_inactive_held_item() == inactive)

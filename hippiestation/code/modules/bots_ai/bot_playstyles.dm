@@ -242,7 +242,7 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 
 /// Somebody lying dead, the first time it comes across them. It doesn't take everybody the same way.
 /datum/bot_brain/proc/note_body(mob/living/carbon/human/H)
-	if(hardened || H.bot_executed || istype(get_area(H), /area/medical/morgue))
+	if(H.bot_executed || istype(get_area(H), /area/medical/morgue))
 		return
 	var/datum/weakref/ref = WEAKREF(H)
 	if(ref in bodies_seen)
@@ -250,8 +250,74 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 	LAZYADD(bodies_seen, ref)
 	bot_news("[H.real_name] turned up dead in [get_area_name(H, TRUE)]", H)
 	learn_fact(BOT_FACT_DIED, null, H, get_area_name(H, TRUE)) //bot_memory.dm
-	if(prob(40))
+	if(!hardened && prob(40))
 		harden("found [H] dead")
+	see_to_body(H)
+
+// ---------------------------------------------------------------------------------------------
+// A body found (the user's Captain round, 2026-11-13, round-17.21.40): Lee Montague lay dead in Fore Maintenance, in the hole a fuel tank
+// had blown in the floor, for nine minutes. An atmospheric technician and an engineer walked past her, "found Lee Montague dead", and
+// went on with what they were doing: nobody said a word, and nobody brought her out. People do one or both: say where on the radio, and
+// drag the body to Medbay for the doctors (the cloner, or the morgue).
+// ---------------------------------------------------------------------------------------------
+
+/// Bodies somebody's said on the radio they've found: weakref -> when. Once between everybody, not by each who walks past.
+GLOBAL_LIST_EMPTY(bot_bodies_reported)
+
+/datum/bot_brain
+	/// Not off with another body before this
+	var/next_body_carry = 0
+	/// Added to the chance it brings a body out (a Bot Gym scenario makes it certain)
+	var/body_carry_bias = 0
+
+/// Said where it is, and taken it to Medbay if it's free to and the sort to.
+/datum/bot_brain/proc/see_to_body(mob/living/carbon/human/H)
+	if(bot_in_medbay(H) || bot_traitor || op_team || bot_wizard || gone_loud() || owner.incapacitated() || owner.handcuffed)
+		return
+	if(state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST || H.pulledby || H.buckled || !isturf(H.loc))
+		return
+	var/datum/weakref/W = WEAKREF(H)
+	var/where = get_area_name(H, TRUE)
+	if((!(W in GLOB.bot_bodies_reported) || world.time > GLOB.bot_bodies_reported[W] + 5 MINUTES) && prob(60 + sociability * 40))
+		GLOB.bot_bodies_reported[W] = world.time
+		bot_log(src, "found [H] dead in [where] - saying so")
+		bot_tally("bodies reported")
+		if(!gym_scripted)
+			say_after_typing(pick(";Body in [where]. Looks like [H.first_name()].", ";Medical, there's a body in [where]. [H.real_name].", ";Found [H.first_name()] dead in [where].", ";There's somebody dead in [where]."))
+	if(world.time < next_body_carry || !prob(25 + diligence * 50 + (is_medical_job() ? 30 : 0) + body_carry_bias))
+		return
+	if(state == BOT_STATE_GOAL && !(current_goal && bot_goal_can_wait(current_goal))) //goals/carry_casualty.dm
+		return
+	var/turf/spot = medbay_drop_spot() //goals/security_medevac.dm
+	if(!spot || taken_by_another(H) || in_bad_air(H) || !can_walk_lawfully_to(H))
+		return
+	if(state == BOT_STATE_GOAL)
+		drop_goals("bringing [H]'s body out")
+	if(assign_goal(new /datum/bot_goal/carry_casualty/body(H, spot)))
+		next_body_carry = world.time + 5 MINUTES
+		bot_log(src, "taking [H]'s body to Medbay")
+
+/// A body to Medbay's door, for the doctors: the cloner, or the morgue (clone_body, goals/cloning.dm, takes it from there).
+/datum/bot_goal/carry_casualty/body
+	doing = "bringing a body to Medbay"
+
+/datum/bot_goal/carry_casualty/body/resolve_target(datum/bot_brain/bot)
+	var/mob/living/carbon/human/H = target
+	if(QDELETED(H) || H.stat != DEAD || !isturf(H.loc) || !drop_spot || bot_in_medbay(H))
+		target = null
+
+/datum/bot_goal/carry_casualty/body/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/escort/S = new(drop_spot)
+	var/datum/bot_step/move_to/to_medbay = new
+	to_medbay.step_target = drop_spot
+	// A body's taken hold of as the Chaplain does it (goals/civilians.dm): no medipen for the dead
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/take_hold_of_body(), to_medbay, new /datum/bot_step/set_casualty_down())
+	return list(S)
+
+/datum/bot_goal/carry_casualty/body/on_success(datum/bot_brain/bot)
+	var/mob/living/carbon/human/H = target
+	if(istype(H) && !bot.gym_scripted)
+		bot.say_after_typing(pick(";Medbay, I've left [H.first_name()]'s body at your door.", ";Brought [H.real_name] to Medbay. Dead, for the cloner if they can.", ";[H.first_name()]'s body is at Medbay's door."))
 
 // ---------------------------------------------------------------------------------------------
 // Holding somebody for Security

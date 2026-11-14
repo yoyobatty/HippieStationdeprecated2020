@@ -1019,6 +1019,12 @@
 		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), max(1, owner.movement_delay()), TIMER_STOPPABLE)
 		return
 
+	// Getting away with somebody on its heels: a peel or a bar of soap down in their path, a step at a time (foundation/slips.dm)
+	var/datum/bot_goal/run_from/running = current_goal
+	if(istype(running))
+		var/mob/living/chaser = running.foe_ref?.resolve()
+		if(isliving(chaser))
+			try_slip_trap(chaser)
 	next_node = mind_the_footing(next_node) //bot_hazards.dm
 	if(!next_node)
 		finish_pursuit(TRUE) //beside it is as good as on it

@@ -49,6 +49,10 @@
 /datum/bot_scenario/combat_smarts/kite/check()
 	if(bot_lost())
 		return BOT_GYM_FAIL
+	// The claymore blocks the shots, so he never goes down, and at a player's rate of fire (foundation/gunfight.dm) the laser's twelve shots
+	// are gone in six seconds: kept charged, as this is about keeping out of his reach while it has a gun, not about running dry
+	for(var/obj/item/gun/energy/G in bot.GetAllContents())
+		G.cell.charge = G.cell.maxcharge
 	if(!QDELETED(foe) && foe.stat == CONSCIOUS)
 		var/turf/T = get_step_towards(foe, bot)
 		if(T && !T.density && !(locate(/mob/living) in T))

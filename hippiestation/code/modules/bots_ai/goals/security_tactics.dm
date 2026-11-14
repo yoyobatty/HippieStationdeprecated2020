@@ -241,10 +241,10 @@ GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 	var/obj/item/gun/G = best_gun_against(S)
 	if(!G)
 		return FALSE
-	if(owner.get_active_held_item() != G)
-		free_hand_for(G)
-		if(!owner.put_in_hands(G))
-			return FALSE
+	// Into a free hand if there is one (ready_in_hand(), bot_human.dm): emptying both hands for it put a confiscated energy sword in the
+	// other hand on the floor, 25 to 49 times a batch, for anybody to pick up
+	if(!ready_in_hand(G))
+		return FALSE
 	var/nonlethal = FALSE
 	var/obj/item/gun/energy/E = G
 	if(istype(E) && E.ammo_type?.len)
@@ -252,9 +252,10 @@ GLOBAL_VAR_INIT(bot_next_keep_clear, 0)
 	owner.a_intent = nonlethal ? INTENT_HELP : INTENT_HARM
 	owner.face_atom(S)
 	owner.changeNext_move(CLICK_CD_RANGE)
-	next_taser_time = world.time + max(CLICK_CD_RANGE, G.fire_delay) + 5
+	next_taser_time = world.time + shot_interval(G) //foundation/gunfight.dm: at a player's pace, not once a decision
 	bot_log(src, "firing [G] at [S] (dist [get_dist(owner, S)])")
 	INVOKE_ASYNC(G, TYPE_PROC_REF(/obj/item/gun, afterattack), S, owner, FALSE, null)
+	keep_firing_on(S, "range")
 	return TRUE
 
 /// A step straight away from them, if the floor's there for it.

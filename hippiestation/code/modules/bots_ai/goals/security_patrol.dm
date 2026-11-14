@@ -700,6 +700,13 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	var/atom/chase = bot_outermost_holder(S)
 	// By sight (can_see_target(), bot_brain.dm): a locker in view only counts if they were seen getting into it.
 	var/visible = can_see_target(S, arrest_last_seen_turf, arrest_last_seen)
+	// Shot by them from out of sight: where it came from is where they are, and it fires back into it (foundation/gunfight.dm)
+	var/turf/shot_spot = visible ? null : unseen_shot_from(S)
+	if(shot_spot)
+		arrest_last_seen = world.time
+		arrest_last_seen_turf = shot_spot
+		if(answer_unseen_fire(S, shot_spot))
+			return
 	if(visible)
 		arrest_last_seen = world.time
 		arrest_last_seen_turf = get_turf(S)
@@ -949,16 +956,17 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	var/obj/item/gun/energy/G = ready_nonlethal_gun()
 	if(!G)
 		return FALSE
-	if(owner.get_active_held_item() != G)
-		free_hand_for(G)
-		if(!owner.put_in_hands(G))
-			return FALSE
+	// Into a free hand if there is one (ready_in_hand(), bot_human.dm): emptying both hands for it put a confiscated energy sword in the
+	// other hand on the floor, 25 to 49 times a batch, for anybody to pick up
+	if(!ready_in_hand(G))
+		return FALSE
 	owner.a_intent = INTENT_HELP
 	owner.face_atom(S)
 	owner.changeNext_move(CLICK_CD_RANGE)
-	next_taser_time = world.time + max(CLICK_CD_RANGE, G.fire_delay) + 5
+	next_taser_time = world.time + shot_interval(G) //foundation/gunfight.dm: at a player's pace, not once a decision
 	bot_log(src, "firing [G] at [S] (dist [get_dist(owner, S)])")
 	INVOKE_ASYNC(G, TYPE_PROC_REF(/obj/item/gun, afterattack), S, owner, FALSE, null)
+	keep_firing_on(S, "taser")
 	return TRUE
 
 // Baton on help intent stuns without doing brute damage (baton/attack(), stunbaton.dm) -

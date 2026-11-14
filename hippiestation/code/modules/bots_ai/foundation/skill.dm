@@ -32,8 +32,12 @@ GLOBAL_VAR_INIT(bot_antags_apex, isnull(world.params["bot-antags-apex"]) ? null 
 /datum/bot_brain/proc/roll_skill(role)
 	var/mean = CONFIG_GET(number/bot_skill_mean)
 	skill = clamp(rand(mean - 20, mean + 20), 0, 100) / 100
-	if(role in GLOB.security_positions)
-		skill = max(skill, rand(40, 75) / 100) //trained for trouble
+	// Trained for trouble: every officer plays like a robust player, and the Warden and the Head of Security a cut above, now and then
+	// apex. Rolled 40-75 they were most of them below the mid tier, and fought the user like new players (round-17.21.40).
+	if(role == "Head of Security" || role == "Warden")
+		skill = max(skill, rand(70, 95) / 100)
+	else if(role in GLOB.security_positions)
+		skill = max(skill, rand(60, 85) / 100)
 	switch(playstyle)
 		if(BOT_STYLE_POWERGAMER, BOT_STYLE_ROBUST)
 			skill = max(skill, rand(60, 85) / 100)

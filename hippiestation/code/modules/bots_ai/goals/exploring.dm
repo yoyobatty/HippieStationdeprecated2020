@@ -600,6 +600,9 @@ GLOBAL_VAR_INIT(bot_lavaland_done_until, 0)
 /datum/bot_step/paced/loot_ruin/do_click(datum/bot_brain/bot)
 	if(length(bot.spoils) >= BOT_EXPLORE_HAUL || bot.explore_time_up())
 		return FALSE
+	var/datum/bot_goal/explore_ruin/space/trip = bot.current_goal
+	if(istype(trip) && trip.missed) //nowhere near it: nothing round here is from a ruin (goals/space_ruins.dm)
+		return FALSE
 	if(bot.pursuing_kind)
 		wait_for = 10
 		return TRUE
