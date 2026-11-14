@@ -290,6 +290,11 @@ GLOBAL_REAL_VAR(mc_watchdog_emptied_real) = -INFINITY
 	return 1
 
 /datum/mc_watchdog/proc/check_lag(now_real, now_time)
+	// The lobby isn't measured: its samples stayed in the window, and the first look after the round started read the whole
+	// lobby wait as lag ("5% speed for the last 271 s" a second after "has started the game", round-16.29.52 and round-14.43.45).
+	if(!SSticker || SSticker.current_state < GAME_STATE_PLAYING)
+		samples.Cut()
+		return
 	var/list/ms = list()
 	for(var/datum/controller/subsystem/SS as anything in Master.subsystems)
 		ms[SS] = SS.total_ms

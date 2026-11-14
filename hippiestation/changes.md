@@ -19,6 +19,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/__HELPERS/game.dm (get_hearers_in_view(): radios found once, a hearer added once, each tile and range remembered for the tick; get_mobs_in_radio_ranges() doesn't ask a radio with nobody but radios in reach)
 ## code/__HELPERS/icons.dm
 ## code/__HELPERS/mobs.dm (do_after(), do_mob(), do_after_mob() refuse a deleted mob)
+## code/__HELPERS/time.dm (update_midnight_rollover(): only a jump back of half a day counts as midnight, not a clock set back a second)
 ## code/__HELPERS/radiation.dm
 ## code/__HELPERS/roundend.dm
 ## code/__HELPERS/text.dm
@@ -31,7 +32,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/master.dm (starts the lobby build once startup is done, and lets it set its own tick limit while it runs: build_ticklimit, lobby_build.dm)
 ## code/controllers/subsystem.dm
 ## code/controllers/subsystem/adjacent_air.dm (out of the .dme: its queue is SSair's first stage now, as on tg later)
-## code/controllers/subsystem/air.dm (adjacent_rebuild: turfs' neighbours worked out at the start of each fire, was SSadjacent_air once a second)
+## code/controllers/subsystem/air.dm (adjacent_rebuild: turfs' neighbours worked out at the start of each fire, was SSadjacent_air once a second; setup_template_machinery() runs atmosinit() before the pipelines)
 ## code/controllers/subsystem/assets.dm
 ## code/controllers/subsystem/atoms.dm (startup skips the levels the lobby build makes)
 ## code/controllers/subsystem/blackbox.dm

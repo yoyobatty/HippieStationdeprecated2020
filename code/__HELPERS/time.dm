@@ -43,7 +43,9 @@
 GLOBAL_VAR_INIT(midnight_rollovers, 0)
 GLOBAL_VAR_INIT(rollovercheck_last_timeofday, 0)
 /proc/update_midnight_rollover()
-	if (world.timeofday < GLOB.rollovercheck_last_timeofday) //TIME IS GOING BACKWARDS!
+	// hippie -- only a real wrap past midnight (back by half a day or more): the system clock set back a second by a time sync read as
+	// midnight, and every real-time clock in the game jumped a day ahead ("the server froze for 86399 s", round-16.29.52)
+	if (world.timeofday < GLOB.rollovercheck_last_timeofday - 432000) //TIME IS GOING BACKWARDS!
 		GLOB.midnight_rollovers++
 	GLOB.rollovercheck_last_timeofday = world.timeofday
 	return GLOB.midnight_rollovers

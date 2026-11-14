@@ -664,12 +664,14 @@ GLOBAL_LIST_EMPTY(colored_images)/*
 
 /datum/controller/subsystem/air/proc/setup_template_machinery(list/atmos_machines)
 	var/obj/machinery/atmospherics/AM
+	// hippie start -- atmosinit() first, as setup_atmos_machinery() does at startup: this loop built the pipelines twice
+	// instead, so a loaded template's vents and scrubbers never joined their pipes or told their air alarm they were there,
+	// and switched themselves off (process_atmos() with no node). All of Lavaland's, once it was built in the lobby.
 	for(var/A in 1 to atmos_machines.len)
 		AM = atmos_machines[A]
-		var/list/targets = AM.get_rebuild_targets()
-		for(var/datum/pipeline/build_off as anything in targets)
-			build_off.build_pipeline_blocking(AM)
+		AM.atmosinit()
 		CHECK_TICK
+	// hippie end
 
 	for(var/A in 1 to atmos_machines.len)
 		AM = atmos_machines[A]

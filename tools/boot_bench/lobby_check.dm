@@ -221,6 +221,41 @@
 	UNTIL(SSticker.current_state >= GAME_STATE_PLAYING || REALTIMEOFDAY > start_wait + 1200)
 	C.check("round started", SSticker.current_state >= GAME_STATE_PLAYING, "after [(REALTIMEOFDAY - start_wait) / 10]s")
 
+	// Lavaland's vents and scrubbers, against the station's, once air has had a few seconds: on, powered, run by SSair, and known
+	// to their room's air alarm (the user saw the mining station's as offline, round-16.29.52)
+	var/air_wait = REALTIMEOFDAY
+	var/fired_from = SSair.times_fired
+	UNTIL(SSair.times_fired >= fired_from + 10 || REALTIMEOFDAY > air_wait + 300)
+	for(var/where in list("lavaland", "station"))
+		var/total = 0
+		var/list/bad = list()
+		for(var/obj/machinery/atmospherics/components/unary/U in GLOB.machines)
+			if(!istype(U, /obj/machinery/atmospherics/components/unary/vent_pump) && !istype(U, /obj/machinery/atmospherics/components/unary/vent_scrubber))
+				continue
+			var/turf/T = get_turf(U)
+			if(!T || (where == "lavaland" ? !is_mining_level(T.z) : !is_station_level(T.z)))
+				continue
+			total++
+			var/list/why = list()
+			if(!U.on)
+				why += "off"
+			if(U.stat & NOPOWER)
+				why += "no power"
+			if(!(U in SSair.atmos_machinery))
+				why += "not in atmos_machinery"
+			else if(!(U in SSair.atmos_awake) && !U.atmos_idle_turf && !U.atmos_wake_queued)
+				why += "neither awake nor idle"
+			var/area/A = get_area(U)
+			var/id = U.vars["id_tag"]
+			var/list/info = istype(U, /obj/machinery/atmospherics/components/unary/vent_pump) ? A.vars["air_vent_info"] : A.vars["air_scrub_info"]
+			if(!id || !islist(info) || !info[id])
+				why += "unknown to the air alarm ([id])"
+			if(length(why) && length(bad) < 8)
+				bad += "[U.name] at [T.x],[T.y],[T.z] in [A.name]: [jointext(why, ", ")]"
+			else if(length(why))
+				bad += "..."
+		C.check("[where] vents and scrubbers working", !length(bad), "[total - length(bad)] of [total] fine[length(bad) ? ": [jointext(bad, "; ")]" : ""]")
+
 	var/list/top = list()
 	for(var/t in type_counts)
 		top += list(list(t, type_counts[t]))
