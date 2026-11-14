@@ -319,7 +319,7 @@ GLOBAL_LIST_EMPTY(map_view_starlights)
 	P.plane = EMISSIVE_BLOOM_PLANE
 	P.blend_mode = BLEND_ADD
 	P.filters += filter(type = "alpha", render_source = "*cam_blocker[suffix]", flags = MASK_INVERSE)
-	P.filters += filter(type = "bloom", threshold = COLOR_BLACK, size = 2, offset = 1)
+	P.filters += filter(type = "bloom", threshold = COLOR_BLACK, size = EMISSIVE_BLOOM_SIZE, offset = EMISSIVE_BLOOM_OFFSET, alpha = EMISSIVE_BLOOM_ALPHA) // as a player's own (emissive_bloom.dm)
 	P.filters += filter(type = "alpha", render_source = "*cam_emissive[suffix]", flags = MASK_INVERSE)
 	P.filters += filter(type = "alpha", render_source = "*cam_unblockable[suffix]", flags = MASK_INVERSE)
 	masters += P

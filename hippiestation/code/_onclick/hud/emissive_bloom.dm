@@ -1,5 +1,6 @@
 #define EMISSIVE_BLOOM_SIZE 2 // blur of the glow in pixels, from tgstation/tgstation#91456
 #define EMISSIVE_BLOOM_OFFSET 1 // how far the glow grows out from the sprite before it's blurred, also from #91456. Together they give about 100% / 66% / 33% brightness out to 3 pixels
+#define EMISSIVE_BLOOM_ALPHA 115 // how strong the halo is (255 is #91456's full strength): toned down 2026-11-14, full was too much round machines
 
 /**
   * Colored bloom for emissives, adapted from tgstation/tgstation#91456.
@@ -24,6 +25,6 @@
 /obj/screen/plane_master/emissive_bloom/Initialize()
 	. = ..()
 	filters += filter(type = "alpha", render_source = EMISSIVE_BLOCKER_RENDER_TARGET, flags = MASK_INVERSE)
-	filters += filter(type = "bloom", threshold = COLOR_BLACK, size = EMISSIVE_BLOOM_SIZE, offset = EMISSIVE_BLOOM_OFFSET)
+	filters += filter(type = "bloom", threshold = COLOR_BLACK, size = EMISSIVE_BLOOM_SIZE, offset = EMISSIVE_BLOOM_OFFSET, alpha = EMISSIVE_BLOOM_ALPHA)
 	filters += filter(type = "alpha", render_source = EMISSIVE_RENDER_TARGET, flags = MASK_INVERSE)
 	filters += filter(type = "alpha", render_source = EMISSIVE_UNBLOCKABLE_RENDER_TARGET, flags = MASK_INVERSE)
