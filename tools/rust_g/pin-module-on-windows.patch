@@ -1,0 +1,73 @@
+From c66e78a01c5a0f0a98db6924f2aea4de15c7122d Mon Sep 17 00:00:00 2001
+From: YoYoBatty <32651551+yoyobatty@users.noreply.github.com>
+Date: Sat, 14 Nov 2026 11:57:40 -0500
+Subject: [PATCH] Pin rust_g.dll on Windows so a world restart can't crash
+ Dream Daemon
+
+BYOND unloads rust-g with FreeLibrary when a world stops or reboots, but threads rust-g started (rayon's global pool, jobs, http, redis_pubsub) keep running in the unloaded module and crash DD once that memory is reused. Pin the module on DLL_PROCESS_ATTACH so it stays loaded until the process exits.
+---
+ src/lib.rs |  2 ++
+ src/pin.rs | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+)
+ create mode 100644 src/pin.rs
+
+diff --git a/src/lib.rs b/src/lib.rs
+index e7eb5a8..96cda79 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -11,6 +11,8 @@ mod error;
+ 
+ #[cfg(feature = "jobs")]
+ mod jobs;
++#[cfg(windows)]
++mod pin;
+ 
+ #[cfg(feature = "acreplace")]
+ pub mod acreplace;
+diff --git a/src/pin.rs b/src/pin.rs
+new file mode 100644
+index 0000000..130e283
+--- /dev/null
++++ b/src/pin.rs
+@@ -0,0 +1,38 @@
++//! Keeps rust-g loaded on Windows until the process exits.
++//!
++//! When a world is stopped in Dream Daemon, BYOND unloads rust-g with `FreeLibrary`, but the threads rust-g
++//! started keep running: rayon's global pool (iconforge, cellularnoise, worleynoise, cave_system_generator),
++//! `jobs`, `http` and `redis_pubsub`. Once the module is unloaded their code is gone, so the next time one of
++//! them runs, Dream Daemon crashes with the faulting module `rust_g.dll_unloaded`.
++//!
++//! Pinning the module when it loads makes `FreeLibrary` leave it in place, so those threads always have code
++//! to run. A world started later in the same process gets this same instance back from `LoadLibrary`.
++
++use std::ffi::c_void;
++
++const DLL_PROCESS_ATTACH: u32 = 1;
++const GET_MODULE_HANDLE_EX_FLAG_PIN: u32 = 0x1;
++const GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS: u32 = 0x4;
++
++#[link(name = "kernel32")]
++unsafe extern "system" {
++    fn GetModuleHandleExW(flags: u32, module_name: *const u16, module: *mut *mut c_void) -> i32;
++}
++
++#[unsafe(no_mangle)]
++#[allow(non_snake_case)]
++extern "system" fn DllMain(module: *mut c_void, reason: u32, _reserved: *mut c_void) -> i32 {
++    if reason == DLL_PROCESS_ATTACH {
++        let mut pinned = std::ptr::null_mut();
++        // SAFETY: with FROM_ADDRESS, the name argument is an address inside the module, and `module` is this
++        // DLL's own base address. Failing to pin only leaves the old behaviour, so the result isn't checked.
++        unsafe {
++            GetModuleHandleExW(
++                GET_MODULE_HANDLE_EX_FLAG_PIN | GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
++                module as *const u16,
++                &mut pinned,
++            );
++        }
++    }
++    1
++}
+-- 
+2.42.0.windows.2
+
