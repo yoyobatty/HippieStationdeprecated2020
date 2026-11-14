@@ -329,6 +329,10 @@ GLOBAL_LIST_INIT(bot_borg_modules, list(/obj/item/robot_module/medical, /obj/ite
 		var/datum/bot_wanted/W = GLOB.bot_security_wanted[ref]
 		if(!H || H.stat == DEAD || H.handcuffed || W.severity < BOT_CRIME_MAJOR || LAZYACCESS(called_out, ref) > world.time)
 			continue
+		// Locked in a running cell, cuffs off: where Security put them. "Lane Sorensen, Brig." sent all five officers into the Brig every
+		// 45 s while he sat in Cell 1 waiting for the Prison Wing (round-14.43.45).
+		if(bot_serving_sentence(H))
+			continue
 		var/turf/T = get_turf(H)
 		// bot_camera_sees(): checkTurfVis() alone is FALSE for any part of the station no AI eye has looked at yet, so this never fired
 		if(!T || !is_station_level(T.z) || !bot_camera_sees(T))

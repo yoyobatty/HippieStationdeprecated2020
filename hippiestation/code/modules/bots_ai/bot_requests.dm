@@ -99,6 +99,9 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 	doing = "answering a medical call"
 
 /datum/bot_request_kind/medical/attend(datum/bot_brain/bot, datum/bot_request/R)
+	// "Anyone got mutadone?" (try_cure_mutation(), goals/self_heal.dm): a pill from Genetics' bottle, not a bandage
+	if(R.detail == "mutadone" && bot.bring_mutadone_to(R.caller_ref?.resolve()))
+		return
 	bot.called_patient = R.caller_ref
 	bot.called_patient_until = world.time + 2 MINUTES
 	bot.continue_medical_round() //goals/treat_patient.dm
@@ -952,6 +955,11 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 		return FALSE
 	if(owner.handcuffed || owner.bot_life_sentence || is_in_active_cell(owner) || !is_station_level(owner.z))
 		return FALSE //there on purpose, as far as anybody else is concerned
+	// Sheltering from a radiation storm (goals/rad_storm.dm): in maintenance on purpose till it's passed. Four sheltering bots asked
+	// on the radio to be let out into it, and two were (round-14.43.45).
+	var/datum/weather/rad_storm/storm = bot_rad_storm(owner.z)
+	if(storm && !out_in_rads(storm))
+		return FALSE
 	if(is_shut_in(TRUE) && shove_aside_what_shuts_me_in())
 		return TRUE
 	var/list/doors = doors_shutting_me_in()

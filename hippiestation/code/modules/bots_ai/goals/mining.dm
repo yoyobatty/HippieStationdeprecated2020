@@ -356,10 +356,13 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 	var/pressed = FALSE
 	/// How many looks it's had at somebody right outside the doors, waiting for them to get on.
 	var/held = 0
+	/// How many looks it's had at the shuttle in use at the other end before calling it over.
+	var/waited = 0
 
 /datum/bot_step/paced/ride_mining_shuttle/start(datum/bot_brain/bot)
 	pressed = FALSE
 	held = 0
+	waited = 0
 	return TRUE
 
 /// Somebody just outside the shuttle's doors, not aboard: on their way on, most likely. Nobody sends a shuttle off in their face (an
@@ -378,6 +381,25 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 				return M.occupant
 	return null
 
+/// Somebody at the shuttle's end who's using it: aboard, at its doors, or a bot on its way to ride it. Nobody calls it away from under
+/// them. Two miners, one at each end, called it back and forth 45 times between them, each pressing the moment it docked for the other
+/// and neither ever getting aboard (round-14.43.45).
+/proc/bot_mining_shuttle_in_use_there(datum/bot_brain/me)
+	var/obj/docking_port/mobile/M = bot_mining_shuttle()
+	if(!M)
+		return FALSE
+	for(var/area/A as anything in M.shuttle_areas)
+		for(var/mob/living/carbon/human/H in A)
+			if(H != me.owner && H.stat == CONSCIOUS)
+				return TRUE
+	var/obj/machinery/computer/shuttle/mining/C = bot_mining_shuttle_console()
+	if(C && bot_somebody_boarding(C))
+		return TRUE
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		if(B != me && !QDELETED(B.owner) && B.owner.stat == CONSCIOUS && B.owner.z == M.z && istype(B.current_goal, /datum/bot_goal/ride_mining_shuttle))
+			return TRUE
+	return FALSE
+
 /datum/bot_step/paced/ride_mining_shuttle/do_click(datum/bot_brain/bot)
 	var/datum/bot_goal/ride_mining_shuttle/G = bot.current_goal
 	var/obj/docking_port/mobile/M = bot_mining_shuttle()
@@ -395,6 +417,12 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 	var/obj/machinery/computer/shuttle/mining/C = G.target
 	if(!istype(C) || QDELETED(C) || !bot.owner.Adjacent(C))
 		return FALSE
+	// Calling it over from the other end: not while somebody there is on it or getting on, for a minute at most
+	if(!aboard && waited < 30 && bot_mining_shuttle_in_use_there(bot))
+		if(!waited)
+			bot_log(bot, "the mining shuttle's in use at the other end - waiting for it")
+		waited++
+		return TRUE
 	bot.human_pause(C)
 	if(QDELETED(C) || !bot.owner.Adjacent(C) || M.mode != SHUTTLE_IDLE)
 		return TRUE

@@ -522,8 +522,11 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 		var/datum/bot_brain/other = GLOB.bot_work_claims[REF(H)]
 		if(other?.is_security_job() && istype(other.current_goal, /datum/bot_goal/brig_prisoner))
 			return TRUE
-	// Serving a sentence: the prisoner of a running cell (GLOB.bot_brig_sentences), inside it. Not just anybody standing in a cell
-	// with a timer going: a Bot Gym arena built where a running cell had been read as one, and nobody there was ever arrested.
+	return bot_serving_sentence(H)
+
+/// Serving a sentence: the prisoner of a running cell (GLOB.bot_brig_sentences), inside it. Not just anybody standing in a cell
+/// with a timer going: a Bot Gym arena built where a running cell had been read as one, and nobody there was ever arrested.
+/proc/bot_serving_sentence(mob/living/carbon/human/H)
 	for(var/obj/machinery/door_timer/T as anything in GLOB.bot_brig_sentences)
 		var/datum/weakref/ref = GLOB.bot_brig_sentences[T]
 		if(!QDELETED(T) && T.timing && ref?.resolve() == H && (get_turf(H) in bot_get_cell_interior(T)))

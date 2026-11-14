@@ -15,6 +15,10 @@ GLOBAL_LIST_EMPTY(rd_ui_mat_names)
 	if(!length(GLOB.rd_ui_nodes))
 		for(var/id in SSresearch.techweb_nodes)
 			var/datum/techweb_node/N = SSresearch.techweb_nodes[id]
+			// tg's stand-in for a node that's gone missing, registered with the rest as a subtype: not a node to research. It showed as
+			// a locked "ERROR" node at 0 pts (round-14.43.45).
+			if(istype(N, /datum/techweb_node/error_node))
+				continue
 			// id = TRUE lists since the node's Initialize(): plain lists for the page, or they'd go over as objects
 			GLOB.rd_ui_nodes += list(list(
 				"id" = N.id,
@@ -32,6 +36,8 @@ GLOBAL_LIST_EMPTY(rd_ui_mat_names)
 		var/datum/asset/spritesheet/sheet = get_asset_datum(/datum/asset/spritesheet/research_designs)
 		for(var/id in SSresearch.techweb_designs)
 			var/datum/design/D = SSresearch.techweb_designs[id]
+			if(istype(D, /datum/design/error_design))
+				continue
 			var/list/mats = list()
 			for(var/M in D.materials)
 				mats[M] = D.materials[M]

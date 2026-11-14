@@ -103,3 +103,10 @@
 		if (!hud_used.tts)
 			return
 		hud_used.tts.icon_state = "tts_cooldown"
+
+/// An empty line has no key: the brain damage list can come back blank after its replacements, and tg read message[1] of it
+/// ("list index out of bounds", Dumbness on_life(), round-14.43.45).
+/mob/living/get_key(message)
+	if(!length(message))
+		return null
+	return ..()

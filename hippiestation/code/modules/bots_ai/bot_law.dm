@@ -592,6 +592,8 @@ GLOBAL_VAR(bot_law_drill_verdict)
 		var/mob/living/carbon/human/officer = ref?.resolve()
 		if(officer && officer != bot.owner && officer.stat == CONSCIOUS)
 			continue
+		if(bot.prisoner_in_lawful_hands(P)) //somebody else has them already: no goal that only gives up
+			continue
 		// The HoS died with an injection ordered: the Prison Wing's the next best thing.
 		if(C.verdict == BOT_VERDICT_INJECTION && !C.can_be_injected())
 			C.verdict = BOT_VERDICT_PERMABRIG
@@ -633,7 +635,14 @@ GLOBAL_VAR(bot_law_drill_verdict)
 	case = C
 
 /datum/bot_goal/collect_prisoner/resolve_target(datum/bot_brain/bot)
-	target = case.cell() || case.prisoner()
+	var/mob/living/carbon/human/P = case.prisoner()
+	// Already in another officer's hands: theirs to take on. The Warden walked to an empty Cell 2 eleven times in a minute while Perry had
+	// its prisoner in crit across the Brig (round-14.43.45).
+	if(!P || bot.prisoner_in_lawful_hands(P))
+		return
+	// Out of the cell (broke out, or carried off to Medbay): to wherever they are, not to the empty cell.
+	var/obj/machinery/door_timer/T = case.cell()
+	target = (T && (get_turf(P) in bot_get_cell_interior(T))) ? T : P
 
 /datum/bot_goal/collect_prisoner/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/case_work/S = new
@@ -646,7 +655,28 @@ GLOBAL_VAR(bot_law_drill_verdict)
 /datum/bot_goal/collect_prisoner/on_success(datum/bot_brain/bot)
 	var/mob/living/carbon/human/P = case.prisoner()
 	if(P)
-		bot.file_crime(P, case.crime, "To the Prison Wing, by order of [case.ruled_by].", BOT_CRIME_MURDER)
+		// Already in custody and sentenced: put back on the records to be taken, not called kill on sight. Filing Murder afresh called
+		// the radio on him, and an officer beat Nico, uncuffed in his cell, into crit; he died in custody (round-14.43.45).
+		var/datum/bot_wanted/W = bot_get_wanted_entry(P)
+		if(!W)
+			W = new
+			W.time_reported = world.time
+			GLOB.bot_security_wanted[WEAKREF(P)] = W
+		if(!W.kill_on_sight)
+			W.kos_rank = max(W.kos_rank, 1)
+		// No longer serving that sentence: they're going to the Prison Wing. Left on the list, they read as brigged already and the
+		// arrest refused them; the Warden walked back to the cell 13 times in four minutes (round-14.43.45). The timer's still running,
+		// so the door stays shut till the officer opens it, and take_to_prison stops it on the way out.
+		var/obj/machinery/door_timer/T = case.cell()
+		if(T)
+			GLOB.bot_brig_sentences -= T
+		var/obj/machinery/door_timer/cell = case.cell()
+		// Stripped, in orange, behind the door: not the armed killer they were. Filed as Murder, the officer stood off waiting for two
+		// more before it would go in for them (bot_too_dangerous()).
+		var/disarmed = cell && (get_turf(P) in bot_get_cell_interior(cell)) && !bot_armed_and_dangerous(P)
+		bot.file_crime(P, case.crime, "To the Prison Wing, by order of [case.ruled_by].", disarmed ? BOT_CRIME_MAJOR : BOT_CRIME_MURDER)
+		if(disarmed)
+			W.severity = min(W.severity, BOT_CRIME_MAJOR)
 		bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, begin_arrest), P))
 
 /datum/bot_goal/collect_prisoner/on_give_up(datum/bot_brain/bot)

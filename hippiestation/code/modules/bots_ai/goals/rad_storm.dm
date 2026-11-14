@@ -117,7 +117,8 @@
 		return FALSE
 	if(!W.bots_warned)
 		W.bots_warned = TRUE
-		bot_news("we've just had a rad storm")
+		// No bot_news() of it: everybody sat through it together, and "Did you hear? we've just had a rad storm." went round the tunnels
+		// while it was still blowing (round-14.43.45).
 		bot_say(bot.owner, ";[pick("Radiation storm! Everybody into maintenance!", "Rad storm, get to maint!", "Storm's coming, get in the tunnels!")]")
 	if(bot.assign_goal(new /datum/bot_goal/rad_shelter()))
 		bot_tally("ran for shelter")

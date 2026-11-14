@@ -353,6 +353,49 @@
 	GLOB.bot_brig_sentences -= timer
 	return ..()
 
+/datum/bot_scenario/brigged/perma_collect
+	name = "brig: collecting a prisoner for the Prison Wing doesn't call them kill on sight"
+	desc = "Round-14.43.45: Nico and then Lane, each sitting uncuffed in a cell after a permabrig ruling, were called kill on sight on the radio the moment the officer came to collect them. The AI then called the prisoner out on the cameras every 45 s and all five officers stormed the Brig each time, and Nico was beaten into crit and died in custody. The officer takes them out in cuffs, and nobody's told to kill them."
+	time_limit = 40 SECONDS
+	var/datum/bot_case/case
+
+/datum/bot_scenario/brigged/perma_collect/post_spawn()
+	..()
+	brain.register_security()
+	prisoner.uncuff()
+	prisoner.forceMove(get_step(first_marker("l"), WEST))
+	timer.set_timer(10 MINUTES)
+	timer.timer_start()
+	GLOB.bot_brig_sentences[timer] = WEAKREF(prisoner)
+	GLOB.bot_security_wanted -= WEAKREF(prisoner) //sentenced: off the wanted list, as in the round
+	case = new
+	case.prisoner_ref = WEAKREF(prisoner)
+	case.cell_ref = WEAKREF(timer)
+	case.crime = "Murder"
+	case.opened_at = world.time
+	case.verdict = BOT_VERDICT_PERMABRIG
+	case.ruled_by = "Gym Warden"
+	GLOB.bot_cases += case
+
+/datum/bot_scenario/brigged/perma_collect/make_goal()
+	return new /datum/bot_goal/collect_prisoner(case)
+
+/datum/bot_scenario/brigged/perma_collect/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/datum/bot_wanted/W = bot_get_wanted_entry(prisoner)
+	if(W?.kill_on_sight)
+		fail_reason = "the prisoner was called kill on sight"
+		return BOT_GYM_FAIL
+	if(prisoner.health < prisoner.maxHealth * 0.9)
+		fail_reason = "the prisoner was hurt (health [prisoner.health])"
+		return BOT_GYM_FAIL
+	return prisoner.handcuffed ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/brigged/perma_collect/release_run()
+	GLOB.bot_cases -= case
+	return ..()
+
 /datum/bot_scenario/brigged/trapdoor_open
 	name = "brig: a cell whose trapdoor is still open from the last release isn't free"
 	desc = "Shift base1108n: on the Hippie map every cell has a trapdoor that opens for two minutes when a sentence ends. The Warden picked Cell 4 a second after its last prisoner went down it, couldn't stand on the open trapdoor to swap with Lane Sorensen, and failed 'isn't inside Cell 4' eleven times before it closed. It takes the next cell."
@@ -1266,3 +1309,141 @@
 	if(. == BOT_GYM_PASS && !told)
 		fail_reason = "never asked them to stay put before going for the blood"
 		return BOT_GYM_FAIL
+
+// Bad mutations (goals/self_heal.dm). Round-14.43.45: a rad storm left the crew with Spatial Instability and Tourette's, and two of them
+// blinked into space and suffocated, never having done a thing about it.
+
+/datum/bot_scenario/mutadone_self
+	name = "mutation: with a bad mutation, it takes a pill from the mutadone bottle and leaves the bottle"
+	desc = "The bot's gone deaf from a bad mutation, and Genetics' bottle of mutadone pills is on the table. It takes one pill and swallows it, and the bottle stays for whoever's next."
+	layout = list(
+		"#######",
+		"#B...t#",
+		"#######")
+	time_limit = 30 SECONDS
+	var/obj/item/storage/pill_bottle/mutadone/bottle
+
+/datum/bot_scenario/mutadone_self/setup()
+	bottle = new(first_marker("t"))
+	place("b", bottle)
+
+/datum/bot_scenario/mutadone_self/post_spawn()
+	bot.dna.add_mutation(/datum/mutation/human/deaf, MUT_NORMAL)
+
+/datum/bot_scenario/mutadone_self/make_goal()
+	return null
+
+/datum/bot_scenario/mutadone_self/issue_goal()
+	var/datum/bot_duty/D = bot_duty_of(text2path("/datum/bot_duty/cure_mutation")) //by name: a build without it has no such duty
+	if(!D?.try_start(brain))
+		log_line("the duty didn't start")
+
+/datum/bot_scenario/mutadone_self/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(locate(/datum/mutation/human/deaf) in bot.dna.mutations)
+		return BOT_GYM_PENDING
+	if(bottle in bot.GetAllContents())
+		fail_reason = "kept the whole bottle"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/mutadone_doctor
+	name = "mutation: asked for mutadone, a doctor brings a pill from the bottle and feeds it to them"
+	desc = "Somebody with a bad mutation has asked Medical for mutadone. The doctor takes a pill out of Genetics' bottle, walks over and feeds it to them."
+	job = "Medical Doctor"
+	layout = list(
+		"#########",
+		"#B..P..t#",
+		"#########")
+	time_limit = 40 SECONDS
+	var/obj/item/storage/pill_bottle/mutadone/bottle
+	var/mob/living/carbon/human/patient
+
+/datum/bot_scenario/mutadone_doctor/setup()
+	bottle = new(first_marker("t"))
+	place("b", bottle)
+
+/datum/bot_scenario/mutadone_doctor/post_spawn()
+	patient = stand_in(first_marker("P"), "Pat Ient")
+	patient.dna.add_mutation(/datum/mutation/human/deaf, MUT_NORMAL)
+
+/datum/bot_scenario/mutadone_doctor/make_goal()
+	return null
+
+/datum/bot_scenario/mutadone_doctor/issue_goal()
+	if(!hascall(brain, "bring_mutadone_to") || !call(brain, "bring_mutadone_to")(patient))
+		log_line("didn't take it on")
+
+/datum/bot_scenario/mutadone_doctor/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(patient.stat == DEAD)
+		fail_reason = "the patient died"
+		return BOT_GYM_FAIL
+	return (locate(/datum/mutation/human/deaf) in patient.dna.mutations) ? BOT_GYM_PENDING : BOT_GYM_PASS
+
+/datum/bot_scenario/mutadone_doctor/release_run()
+	if(!QDELETED(patient))
+		qdel(patient)
+	return ..()
+
+/datum/bot_scenario/blink_hull
+	name = "mutation: with Spatial Instability by the hull, it moves further in"
+	desc = "The bot has Spatial Instability (a blink is 10 to 15 tiles, any way) and stands by a stretch of space. It walks off to where a blink's less likely to put it outside: Medbay, here at the far end. Two of the crew in round-14.43.45 blinked into space and suffocated. Blinking is held off for the test."
+	layout = list(
+		"SSSSSSSS########################",
+		"SSSSSSSS#B....................M#",
+		"SSSSSSSS#.....................##",
+		"SSSSSSSS#.....................##",
+		"SSSSSSSS########################")
+	time_limit = 30 SECONDS
+
+/datum/bot_scenario/blink_hull/post_spawn()
+	bot.dna.add_mutation(/datum/mutation/human/badblink, MUT_NORMAL)
+	var/datum/mutation/human/badblink/M = locate() in bot.dna.mutations
+	if(M)
+		M.warpchance = -100000 //no blinking out of the arena
+	brain.gym_medbay_spot = first_marker("M")
+
+/datum/bot_scenario/blink_hull/make_goal()
+	return null
+
+/datum/bot_scenario/blink_hull/issue_goal()
+	var/datum/bot_duty/D = bot_duty_of(text2path("/datum/bot_duty/blink_off_the_hull"))
+	if(!D?.try_start(brain))
+		log_line("the duty didn't start")
+
+/datum/bot_scenario/blink_hull/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	// Further in, a good way: not necessarily all the way to Medbay, which is only the furthest-in spot it could have picked
+	return get_dist(bot, first_marker("B")) >= 8 ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/eva_gear_off
+	name = "gear: back inside in an EVA suit with nothing out there, it takes the suit and helmet off"
+	desc = "Round-14.43.45: crew who'd put on EVA suits, a radiation suit and magboots wore them to the end of the shift and plodded about at half pace. Indoors in good air with nothing needing them, the suit and helmet come off."
+	layout = list(
+		"#######",
+		"#B....#",
+		"#######")
+	time_limit = 15 SECONDS
+
+/datum/bot_scenario/eva_gear_off/post_spawn()
+	bot.equip_to_slot_or_del(new /obj/item/clothing/suit/space/eva(bot), ITEM_SLOT_OCLOTHING)
+	bot.equip_to_slot_or_del(new /obj/item/clothing/head/helmet/space/eva(bot), ITEM_SLOT_HEAD)
+
+/datum/bot_scenario/eva_gear_off/make_goal()
+	return null
+
+/datum/bot_scenario/eva_gear_off/issue_goal()
+	var/datum/bot_duty/D = bot_duty_of(text2path("/datum/bot_duty/eva_gear_off"))
+	if(!D)
+		log_line("no such duty")
+		return
+	D.try_start(brain)
+
+/datum/bot_scenario/eva_gear_off/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return (!istype(bot.wear_suit, /obj/item/clothing/suit/space) && !istype(bot.head, /obj/item/clothing/head/helmet/space)) ? BOT_GYM_PASS : BOT_GYM_PENDING

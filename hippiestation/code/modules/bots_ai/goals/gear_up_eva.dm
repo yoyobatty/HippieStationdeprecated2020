@@ -621,3 +621,52 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 			took_any = TRUE
 	bot_log(bot, "took the EVA gear out of [SSU]")
 	return took_any ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+
+// ============================================================
+// Back inside, the EVA gear off. A player in a soft EVA suit, a radiation suit or a bomb suit takes it off once they're back in
+// air they can breathe with nothing out there to go back to, and turns off their magboots: each of them slows every step. Bots
+// kept them on to the end of the shift, and plodded about the station at half pace or less (round-14.43.45: a cargo technician
+// and an assistant in EVA suits, a scientist in a radiation suit, an engineer on magboots, after a rad storm). A hardsuit or
+// armour is somebody's choice to wear, and stays on.
+// ============================================================
+
+/// The slow suit it has on that's only for out there, if any
+/datum/bot_brain/proc/slow_gear_suit()
+	var/obj/item/clothing/suit/S = owner.wear_suit
+	if(!istype(S) || S.slowdown <= 0)
+		return null
+	if(istype(S, /obj/item/clothing/suit/space/hardsuit))
+		return null
+	if(istype(S, /obj/item/clothing/suit/space) || istype(S, /obj/item/clothing/suit/radiation) || istype(S, /obj/item/clothing/suit/bomb_suit))
+		return S
+	return null
+
+/datum/bot_duty/eva_gear_off
+	name = "taking the EVA gear off"
+	interval_min = 60
+	interval_max = 120
+
+/datum/bot_duty/eva_gear_off/try_start(datum/bot_brain/bot)
+	var/mob/living/carbon/human/H = bot.owner
+	var/turf/T = get_turf(H)
+	if(!T || (!is_station_level(T.z) && !bot.gym_run) || H.incapacitated() || bot.state == BOT_STATE_COMBAT)
+		return FALSE
+	if(bot.current_goal?.braves_bad_air || bot.current_goal?.on_internals || bot.suspended_goal?.braves_bad_air || bot.suspended_goal?.on_internals)
+		return FALSE
+	if(!bot.air_is_breathable() || bot.air_under_threat() || bot_rad_storm(T.z))
+		return FALSE
+	var/obj/item/clothing/shoes/magboots/boots = H.shoes
+	if(istype(boots) && boots.magpulse && H.has_gravity())
+		boots.attack_self(H)
+		bot_log(bot, "back inside - magboots off")
+	var/obj/item/clothing/suit/S = bot.slow_gear_suit()
+	if(!S)
+		return FALSE
+	var/obj/item/clothing/head/helmet = H.head
+	if(istype(helmet, /obj/item/clothing/head/helmet/space) || istype(helmet, /obj/item/clothing/head/radiation) || istype(helmet, /obj/item/clothing/head/bomb_hood))
+		bot.swap_out_worn(helmet, null)
+	if(H.s_store) //the tank in its storage would go on the floor with it
+		bot.swap_out_worn(H.s_store, null)
+	bot.swap_out_worn(S, null)
+	bot_log(bot, "back inside with nothing out there - took off [S]")
+	return FALSE //nothing to walk to: it's done on the spot

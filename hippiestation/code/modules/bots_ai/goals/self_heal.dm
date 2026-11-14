@@ -237,3 +237,209 @@
 		C.update_icon()
 		return GOAL_STEP_SUCCESS
 	return GOAL_STEP_FAIL
+
+// ============================================================
+// Bad mutations. A rad storm (round-14.43.45) left the crew with Spatial Instability, Tourette's and the like, and two of them
+// blinked into space and suffocated without ever doing a thing about it. Anybody who's felt "the space around you twists sickeningly"
+// knows something's wrong, and the cure is mutadone: Genetics keeps a bottle of pills. It fetches one if its own doors reach them,
+// and failing that goes to Medbay and asks Medical, and a doctor brings one. With Spatial Instability (a blink is 10 to 15 tiles,
+// any way) it keeps away from the hull till then. The user's ruling (2026-11-14): both.
+// ============================================================
+
+/proc/bot_bad_mutations(mob/living/carbon/human/H)
+	. = list()
+	if(!istype(H) || !H.dna)
+		return
+	for(var/datum/mutation/human/M as anything in H.dna.mutations)
+		if(M.quality == NEGATIVE)
+			. += M
+
+/proc/bot_mutadone_in_blood(mob/living/L)
+	return L.reagents && L.reagents.get_reagent_amount(/datum/reagent/medicine/mutadone) >= 1
+
+/// A mutadone pill on it: in a hand, a pocket, the bag, or a bottle of them in any of those.
+/proc/bot_carried_mutadone(mob/living/carbon/human/H)
+	for(var/obj/item/reagent_containers/pill/P in H.GetAllContents())
+		if(P.reagents?.get_reagent_amount(/datum/reagent/medicine/mutadone) >= 1)
+			return P
+	return null
+
+/// How much of what's within a blink of here (10 to 15 tiles) is space, 0 to 1.
+/proc/bot_space_within_blink(turf/T)
+	var/space = 0
+	var/total = 0
+	for(var/turf/S in range(13, T))
+		total++
+		if(isspaceturf(S))
+			space++
+	return total ? space / total : 0
+
+/datum/bot_brain
+	/// When it may next go looking for mutadone itself, rather than asking Medical
+	var/next_mutadone_fetch = 0
+
+/datum/bot_brain/proc/try_cure_mutation()
+	if(bot_carried_mutadone(owner))
+		return assign_goal(new /datum/bot_goal/take_mutadone())
+	if(world.time >= next_mutadone_fetch)
+		next_mutadone_fetch = world.time + 3 MINUTES
+		var/datum/bot_goal/acquire_item_type/mutadone/G = new()
+		if(assign_goal(G))
+			bot_log(src, "a bad mutation - going for mutadone")
+			bot_say(owner, pick("Ugh, something's not right with me. Mutadone.", "I feel wrong. Need mutadone.", "That storm's done something to me..."))
+			return TRUE
+	// None it can get to itself: Medbay, where the doctors are, and the radio
+	if(!bot_in_medbay(owner))
+		var/turf/T = medbay_drop_spot()
+		if(T && assign_goal(new /datum/bot_goal/walk_up_to(T)))
+			bot_log(src, "a bad mutation, and no mutadone of my own to get - off to Medbay")
+			return TRUE
+	var/where = get_area_name(owner, TRUE)
+	return call_for(/datum/bot_request_kind/medical, pick("Anyone got mutadone? I've picked up a bad mutation, I'm in [where].", "Medical, could I get some mutadone in [where]? Something's wrong with my genes.", "Need mutadone in [where], please."), "mutadone")
+
+/datum/bot_duty/cure_mutation
+	name = "getting rid of a bad mutation"
+	tier = BOT_DUTY_URGENT
+	priority = 60
+	interval_min = 20
+	interval_max = 45
+
+/datum/bot_duty/cure_mutation/try_start(datum/bot_brain/bot)
+	if(!length(bot_bad_mutations(bot.owner)) || bot_mutadone_in_blood(bot.owner))
+		return FALSE
+	return bot.try_cure_mutation()
+
+/datum/bot_goal/acquire_item_type/mutadone
+	item_type = /obj/item/storage/pill_bottle/mutadone
+	lawful = TRUE
+	doing = "getting some mutadone"
+
+/datum/bot_goal/acquire_item_type/mutadone/on_success(datum/bot_brain/bot)
+	if(length(bot_bad_mutations(bot.owner)))
+		bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, assign_goal), new /datum/bot_goal/take_mutadone()), TRUE)
+
+/// One pill of it, swallowed, and the bottle left where it was found for the next one.
+/datum/bot_goal/take_mutadone
+	doing = "taking mutadone"
+
+/datum/bot_goal/take_mutadone/resolve_target(datum/bot_brain/bot)
+	target = bot_carried_mutadone(bot.owner) ? bot.owner : null
+
+/datum/bot_goal/take_mutadone/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/self_treat/S = new
+	S.steps = list(new /datum/bot_step/feed_mutadone())
+	return list(S)
+
+/// A mutadone pill out of the bottle and into somebody: itself (target is its own owner), or a patient a doctor's stood by.
+/datum/bot_step/feed_mutadone
+
+/datum/bot_step/feed_mutadone/execute(datum/bot_brain/bot)
+	var/mob/living/carbon/human/who = bot.current_goal?.target
+	if(!istype(who) || !bot.owner.Adjacent(who))
+		return GOAL_STEP_FAIL
+	var/obj/item/reagent_containers/pill/P = bot_carried_mutadone(bot.owner)
+	if(!P)
+		return GOAL_STEP_FAIL
+	var/obj/item/storage/pill_bottle/bottle = istype(P.loc, /obj/item/storage/pill_bottle) ? P.loc : null
+	if(bottle && !SEND_SIGNAL(bottle, COMSIG_TRY_STORAGE_TAKE, P, bot.owner.drop_location()))
+		return GOAL_STEP_FAIL
+	if(!(P in bot.owner.held_items) && !bot.owner.put_in_hands(P))
+		return GOAL_STEP_FAIL
+	bot.use_item_on(P, who)
+	if(!QDELETED(P) && P.loc == bot.owner)
+		return GOAL_STEP_FAIL //it didn't go down
+	bot_log(bot, who == bot.owner ? "took a mutadone pill" : "gave [who] a mutadone pill")
+	// The bottle stays where it came from, for whoever's next: the patient's own trip picked it up, into a hand or the bag
+	if(who == bot.owner && bottle && (bottle in bot.owner.GetAllContents()))
+		if(bottle.loc == bot.owner) //a hand, a pocket
+			bot.owner.dropItemToGround(bottle)
+		else if(isitem(bottle.loc))
+			SEND_SIGNAL(bottle.loc, COMSIG_TRY_STORAGE_TAKE, bottle, bot.owner.drop_location())
+		bot_log(bot, "left [bottle] [isturf(bottle.loc) ? "where it was" : "in [bottle.loc]"]")
+	return GOAL_STEP_SUCCESS
+
+/// A doctor answering "anyone got mutadone?": a pill from Genetics' bottle, then to them with it.
+/datum/bot_brain/proc/bring_mutadone_to(mob/living/carbon/human/P)
+	if(!istype(P) || P.stat == DEAD || !length(bot_bad_mutations(P)))
+		return FALSE
+	if(bot_carried_mutadone(owner))
+		return assign_goal(new /datum/bot_goal/give_mutadone(P))
+	var/datum/bot_goal/acquire_item_type/mutadone/for_patient/G = new()
+	G.patient = P
+	return assign_goal(G)
+
+/datum/bot_goal/acquire_item_type/mutadone/for_patient
+	var/mob/living/carbon/human/patient
+
+/datum/bot_goal/acquire_item_type/mutadone/for_patient/on_success(datum/bot_brain/bot)
+	if(!QDELETED(patient) && patient.stat != DEAD && length(bot_bad_mutations(patient)))
+		bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, assign_goal), new /datum/bot_goal/give_mutadone(patient)), TRUE)
+
+/datum/bot_goal/give_mutadone
+	lawful = TRUE
+	doing = "bringing somebody mutadone"
+	var/mob/living/carbon/human/patient
+
+/datum/bot_goal/give_mutadone/New(mob/living/carbon/human/P)
+	. = ..()
+	patient = P
+
+/datum/bot_goal/give_mutadone/resolve_target(datum/bot_brain/bot)
+	if(QDELETED(patient) || patient.stat == DEAD || !length(bot_bad_mutations(patient)) || bot_mutadone_in_blood(patient) || !bot_carried_mutadone(bot.owner))
+		return
+	target = patient
+
+/datum/bot_goal/give_mutadone/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/self_treat/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/feed_mutadone())
+	return list(S)
+
+/// With Spatial Instability: off the hull. A blink goes 10 to 15 tiles any way at all, and from the edge of the station that's
+/// as often as not out into space with no suit on. Somewhere further in, till it's cured. A suit on, it's a walk back.
+/datum/bot_duty/blink_off_the_hull
+	name = "keeping off the hull"
+	tier = BOT_DUTY_URGENT
+	priority = 70
+	interval_min = 15
+	interval_max = 30
+
+/datum/bot_duty/blink_off_the_hull/try_start(datum/bot_brain/bot)
+	if(!bot.owner.dna || !(locate(/datum/mutation/human/badblink) in bot.owner.dna.mutations) || bot.is_eva_ready())
+		return FALSE
+	var/turf/here = get_turf(bot.owner)
+	if(!here || (!is_station_level(here.z) && !bot.gym_run))
+		return FALSE
+	var/space_here = bot_space_within_blink(here)
+	if(space_here < 0.05)
+		return FALSE
+	var/turf/inner = bot.further_from_space(space_here)
+	if(!inner)
+		return FALSE
+	bot_log(bot, "Spatial Instability, and [round(space_here * 100)]% of a blink from here is space - moving further in")
+	return bot.assign_goal(new /datum/bot_goal/walk_up_to(inner))
+
+/// Somewhere a blink's less likely to end in space than here: Medbay's lobby, or a few spots round about, the least space first.
+/datum/bot_brain/proc/further_from_space(space_here)
+	var/list/scores = list()
+	var/turf/medbay = medbay_drop_spot()
+	if(medbay)
+		scores[medbay] = bot_space_within_blink(medbay)
+	var/list/near = list()
+	for(var/turf/open/floor/T in range(20, owner))
+		near += T
+	for(var/i in 1 to min(8, length(near)))
+		var/turf/T = pick_n_take(near)
+		if(istype(T.loc, /area/space) || is_blocked_turf(T, TRUE))
+			continue
+		scores[T] = bot_space_within_blink(T)
+	for(var/tries in 1 to 3)
+		var/turf/best
+		for(var/turf/T as anything in scores)
+			if(!best || scores[T] < scores[best])
+				best = T
+		if(!best || scores[best] > space_here - 0.05)
+			return null
+		scores -= best
+		if(can_walk_lawfully_to(best))
+			return best
+	return null
