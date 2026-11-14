@@ -551,6 +551,7 @@
 	note("150 C4 on a tile, one set off: [booms_since(count)] explosions over [(last_at - game_start) / 10] s of game time, [left] C4 left, first prime() [prime_ms] ms")
 	note("15 s of game time took [(REALTIMEOFDAY - real_start) / 10] s real")
 	check("pile: the server keeps going", (REALTIMEOFDAY - real_start) < 60 SECONDS, "[(REALTIMEOFDAY - real_start) / 10] s real")
+	check("pile: goes off as one big blast", booms_since(count) == 1 && left == 0, "[booms_since(count)] explosions, [left] left, last [last_boom_text(count)]")
 
 /// Every grenade type made into an explosive lance (spear + grenade, crafted) and driven into somebody, ten at a time in rooms of
 /// their own, and a few into a wall: does it go off, is the lance used up, and is anything left inside what it hit

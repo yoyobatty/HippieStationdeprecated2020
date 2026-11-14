@@ -17,12 +17,13 @@
 //  - Charges touching go off as one (the user's ask, 2026-11-14): planted on the same thing, or one planted on another, they're a
 //    stack, and the first to go off sets off the rest in the same blast, bigger by the cube root of how many (a blast's reach goes as
 //    the cube root of its yield). Four C4 planted on C4 gave one ordinary C4 blast (round-01.12.53): a charge planted on a loose C4
-//    that was then planted on another went into nullspace with it, and went off nowhere.
+//    that was then planted on another went into nullspace with it, and went off nowhere. Loose charges in a pile with it (the same
+//    tile or bag) go too: a hundred C4 on a tile is one blast, heavy ring 5.5, devastation 2, light 14, inside the bomb caps.
 
 /// Charges planted and counting down, for the ones touching them to find
 GLOBAL_LIST_EMPTY(planted_charges)
 /// The most charges one blast takes in
-#define MAX_CHARGE_STACK 50
+#define MAX_CHARGE_STACK 200
 
 /obj/item/grenade/plastic
 	/// prime() runs once
@@ -226,17 +227,30 @@ GLOBAL_LIST_EMPTY(planted_charges)
 			M.gib()
 	qdel(src)
 
-/// This charge and every one touching it, not yet gone off: what it's planted on if that's a charge, the charges planted on it, and those
-/// planted on the same thing, and so on from each of those.
+/// This charge and every one touching it, not yet gone off: what it's planted on if that's a charge, the charges planted on it, those
+/// planted on the same thing, loose ones in the same pile (on the same tile, or in the same bag), and so on from each of those. The
+/// user spawned 100 C4 on a tile and set one off: dozens of separate small blasts, one setting off the next, where in real life the
+/// pile goes off at once (2026-11-14).
 /obj/item/grenade/plastic/proc/charge_stack()
 	. = list(src)
 	var/list/stack = .
+	var/list/piles_seen = list()
 	var/i = 1
 	while(i <= length(stack) && length(stack) < MAX_CHARGE_STACK)
 		var/obj/item/grenade/plastic/P = stack[i++]
 		var/obj/item/grenade/plastic/under = P.target
 		if(istype(under) && !QDELETED(under) && !under.primed && !(under in stack))
 			stack += under
+		// The pile it's in: loose, where it lies; planted on a floor, that floor
+		var/atom/pile = P.target ? (isturf(P.target) ? P.target : null) : P.loc
+		if(pile && !piles_seen[pile])
+			piles_seen[pile] = TRUE
+			for(var/obj/item/grenade/plastic/loose in pile)
+				if(loose.primed || loose.target || QDELETED(loose) || (loose in stack))
+					continue
+				stack += loose
+				if(length(stack) >= MAX_CHARGE_STACK)
+					break
 		for(var/obj/item/grenade/plastic/other as anything in GLOB.planted_charges)
 			if(other.primed || QDELETED(other) || (other in stack))
 				continue
