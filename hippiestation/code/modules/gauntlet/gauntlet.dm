@@ -371,7 +371,7 @@ GLOBAL_VAR_INIT(telescroll_time, 0)
 	else if(istype(target, /obj/mecha))
 		. = TRUE
 		var/obj/mecha/mech = target
-		mech.take_damage(17.5) // 17.5 extra damage against mechs, because this calls AFTER hitting something
+		mech.take_damage(17.5, BRUTE, 0, 1, get_dir(mech, user)) // 17.5 extra damage against mechs, because this calls AFTER hitting something
 	else if(istype(target, /obj/structure/safe))
 		. = TRUE
 		var/obj/structure/safe/S = target

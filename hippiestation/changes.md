@@ -25,7 +25,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/__HELPERS/unsorted.dm
 ## code/_onclick/adjacent.dm (ClickCross() copies a pile's contents first, LOOP_CONTENTS)
 ## code/_onclick/hud/parallax.dm (out of the .dme: rewritten whole as hippiestation/code/_onclick/hud/parallax.dm, the sky's layers come from the round's theme and slide with the eye's glide)
-## code/\_onclick/item_attack.dm
+## code/\_onclick/item_attack.dm (an object hit by an item is told which side it was hit from, Paradise #33082)
 ## code/controllers/configuration/entries/dbconfig.dm
 ## code/controllers/failsafe.dm
 ## code/controllers/master.dm
@@ -83,10 +83,12 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/machinery/telecomms/broadcasting.dm
 ## code/game/machinery/telecomms/telecomunications.dm
 ## code/game/mecha/equipment/tools/mining_tools.dm
+## code/game/mecha/mecha_defense.dm (facing armour goes by the mech's facing; it took dir2angle(src), null, so every hit from the north was a backstab)
 ## code/game/objects/effects/decals/cleanable.dm (a decal that never merges skips the walk of the tile's decals)
 ## code/game/objects/effects/effect_system/effects_other.dm
 ## code/game/objects/effects/effect_system/effects_smoke.dm
 ## code/game/objects/effects/portals.dm (tile engine neighbour cache, tile_engine.dm)
+## code/game/objects/effects/spiders.dm (spiderlings step every half decisecond, not every tick, with the glide to match)
 ## code/game/objects/empulse.dm !Should be modularized. Can be done easily.
 ## code/game/objects/items.dm
 ## code/game/objects/items/crayons.dm
@@ -100,7 +102,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/objects/items/stacks/stack.dm
 ## code/game/objects/items/stunbaton.dm
 ## code/game/objects/items/tools/wirecutters.dm !Should be modularized. Can be done easily.
-## code/game/objects/obj_defense.dm
+## code/game/objects/obj_defense.dm (bullets hit from the side their flight angle points back to; pushes say where they came from)
 ## code/game/objects/structures/barsigns.dm
 ## code/game/objects/structures/grille.dm
 ## code/game/objects/structures/window.dm
@@ -193,6 +195,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/mob/living/carbon/human/species_types/jellypeople.dm
 ## code/modules/mob/living/carbon/human/species_types/shadowpeople.dm
 ## code/modules/mob/living/carbon/life.dm
+## code/modules/mob/living/carbon/monkey/combat.dm (glide matches the step delay: hippiestation/code/modules/glide/glide_match.dm)
 ## code/modules/mob/living/carbon/monkey/monkey.dm !Should be modularized. Can be done easily.
 ## code/modules/mob/living/carbon/update_icons.dm
 ## code/modules/mob/living/living.dm 
@@ -204,12 +207,15 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/mob/living/simple_animal/bot/bot.dm (scan() shuffles and checks only what's of the type it's after; an EMP'd bot destroyed before it comes back on stays off)
 ## code/modules/mob/living/simple_animal/bot/ed209bot.dm
 ## code/modules/mob/living/simple_animal/bot/medbot.dm
+## code/modules/mob/living/simple_animal/friendly/cat.dm (glide matches the step delay: hippiestation/code/modules/glide/glide_match.dm)
 ## code/modules/mob/living/simple_animal/friendly/dog.dm
 ## code/modules/mob/living/simple_animal/hostile/headcrab.dm
 ## code/modules/mob/living/simple_animal/hostile/hostile.dm (GainPatience() on a mob being deleted; DestroyObjectsInDirection() looks only at dense machines and structures; FindHidden() with the target gone)
 ## code/modules/mob/living/simple_animal/hostile/jungle/leaper.dm
-## code/modules/mob/living/simple_animal/hostile/megafauna/drake.dm (crush, fire line and lava fall spread a crowd over ticks)
+## code/modules/mob/living/simple_animal/hostile/megafauna/bubblegum.dm (glide matches the step delay: hippiestation/code/modules/glide/glide_match.dm)
+## code/modules/mob/living/simple_animal/hostile/megafauna/drake.dm (crush, fire line and lava fall spread a crowd over ticks; fire and landing hit a mech from their side)
 ## code/modules/mob/living/simple_animal/hostile/retaliate/retaliate.dm (keyed enemies, Retaliate() once a second, allies told only new enemies)
+## code/modules/mob/living/simple_animal/slime/life.dm (glide matches the step delay: hippiestation/code/modules/glide/glide_match.dm)
 ## code/modules/mob/living/simple_animal/slime/slime.dm
 ## code/modules/mob/mob.dm (visible_message() and audible_message() skip the search for hearers when no client is in range)
 ## code/modules/mob/mob_helpers.dm
@@ -218,6 +224,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/photography/camera/camera_image_capturing.dm (top of a pile only; flat icons kept by appearance)
 ## code/modules/power/apc.dm (an outage tells the area once; a healthy APC skips its no-op autoset(), percent() and poweralert() calls)
 ## code/modules/power/turbine.dm (the console's power readout before the turbine first runs)
+## code/modules/projectiles/projectile/special/rocket.dm (the anti-armour hit on a mech comes from the rocket's side)
 ## code/modules/reagents/chem_splash.dm !Could probably be improved to avoid cutting out the whole tg proc
 ## code/modules/reagents/chemistry/holder.dm !Same as above.
 ## code/modules/reagents/chemistry/reagents/alcohol_reagents.dm

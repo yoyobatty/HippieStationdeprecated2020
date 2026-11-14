@@ -222,6 +222,7 @@
 						break
 			if(movement_target)
 				stop_automated_movement = 1
+				set_glide_size(DELAY_TO_GLIDE_SIZE(3)) // hippie -- glide matches the step delay (hippiestation/code/modules/glide/glide_match.dm)
 				walk_to(src,movement_target,0,3)
 
 /mob/living/simple_animal/pet/cat/attack_hand(mob/living/carbon/human/M)

@@ -37,11 +37,13 @@
 			for(var/i = 0; i < maxStepsTick; ++i)
 				if(!IsDeadOrIncap())
 					if(myPath.len >= 1)
+						set_glide_size(DELAY_TO_GLIDE_SIZE(5)) // hippie -- glide matches the step delay (hippiestation/code/modules/glide/glide_match.dm)
 						walk_to(src,myPath[1],0,5)
 						myPath -= myPath[1]
 			return 1
 
 	// failed to path correctly so just try to head straight for a bit
+	set_glide_size(DELAY_TO_GLIDE_SIZE(5)) // hippie -- glide matches the step delay (hippiestation/code/modules/glide/glide_match.dm)
 	walk_to(src,get_turf(target),0,5)
 	sleep(1)
 	walk_to(src,0)
@@ -268,6 +270,7 @@
 					target = L
 
 			if(target != null)
+				set_glide_size(DELAY_TO_GLIDE_SIZE(5)) // hippie -- glide matches the step delay (hippiestation/code/modules/glide/glide_match.dm)
 				walk_away(src, target, MONKEY_ENEMY_VISION, 5)
 			else
 				back_to_idle()

@@ -656,6 +656,7 @@
 	var/list/water_particles=list()
 	for(var/a=0, a<5, a++)
 		var/obj/effect/particle_effect/water/W = new /obj/effect/particle_effect/water(get_turf(src))
+		W.set_glide_size(DELAY_TO_GLIDE_SIZE(2)) //it steps every 2 (move_particles()): a glide that covers the tile in that time
 		water_particles[W] = pick(the_targets)
 		var/datum/reagents/R = new/datum/reagents(5)
 		W.reagents = R

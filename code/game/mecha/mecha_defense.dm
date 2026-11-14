@@ -1,12 +1,13 @@
+// hippie start -- relative_dir is how far round from the mech's front the hit came, 0 to 180 (the caller took dir2angle(src),
+// which is null, so it went by which way on the map the attacker was: everything from the north hit the back armour)
 /obj/mecha/proc/get_armour_facing(relative_dir)
 	switch(relative_dir)
-		if(0) // BACKSTAB!
+		if(180) // BACKSTAB!
 			return facing_modifiers[BACK_ARMOUR]
-		if(45, 90, 270, 315)
-			return facing_modifiers[SIDE_ARMOUR]
-		if(225, 180, 135)
+		if(0, 45)
 			return facing_modifiers[FRONT_ARMOUR]
-	return 1 //always return non-0
+	return facing_modifiers[SIDE_ARMOUR]
+// hippie end
 
 /obj/mecha/take_damage(damage_amount, damage_type = BRUTE, damage_flag = 0, sound_effect = 1, attack_dir)
 	. = ..()
@@ -43,7 +44,12 @@
 				break
 
 	if(attack_dir)
-		var/facing_modifier = get_armour_facing(dir2angle(attack_dir) - dir2angle(src))
+		// hippie start -- angle between the mech's facing and the side it was hit from, as tg does later
+		var/relative_dir = abs(dir2angle(dir) - dir2angle(attack_dir))
+		if(relative_dir > 180)
+			relative_dir = 360 - relative_dir
+		var/facing_modifier = get_armour_facing(relative_dir)
+		// hippie end
 		booster_damage_modifier /= facing_modifier
 		booster_deflection_modifier *= facing_modifier
 	if(prob(deflect_chance * booster_deflection_modifier))

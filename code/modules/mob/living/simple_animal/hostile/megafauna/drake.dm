@@ -271,6 +271,7 @@ Difficulty: Medium
 //fire line keeps going even if dragon is deleted
 /proc/dragon_fire_line(var/source, var/list/turfs)
 	var/list/hit_list = list() // hippie -- keyed, hit_list[L] = TRUE: "L in hit_list" walked it for every mob in the line
+	var/turf/breathed_from = get_turf(source) // hippie -- where the fire came from, kept: the dragon can die or move mid-line
 	for(var/turf/T in turfs)
 		if(istype(T, /turf/closed))
 			break
@@ -289,7 +290,7 @@ Difficulty: Medium
 			if(hit_list[M]) // hippie -- keyed
 				continue
 			hit_list[M] = TRUE // hippie -- keyed
-			M.take_damage(45, BRUTE, "melee", 1)
+			M.take_damage(45, BRUTE, "melee", 1, get_dir(M, breathed_from)) // hippie -- the side the fire came from
 		sleep(1.5)
 
 /mob/living/simple_animal/hostile/megafauna/dragon/proc/swoop_attack(lava_arena = FALSE, atom/movable/manual_target, var/swoop_cooldown = 30)
@@ -380,7 +381,7 @@ Difficulty: Medium
 				L.throw_at(throwtarget, 3)
 				visible_message("<span class='warning'>[L] is thrown clear of [src]!</span>")
 	for(var/obj/mecha/M in orange(1, src))
-		M.take_damage(75, BRUTE, "melee", 1)
+		M.take_damage(75, BRUTE, "melee", 1, get_dir(M, src)) // hippie -- the side it landed on
 
 	for(var/mob/M in range(7, src))
 		shake_camera(M, 15, 1)

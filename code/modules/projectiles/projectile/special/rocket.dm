@@ -23,7 +23,7 @@
 
 	if(ismecha(target))
 		var/obj/mecha/M = target
-		M.take_damage(anti_armour_damage)
+		M.take_damage(anti_armour_damage, BRUTE, 0, 1, fired ? angle2dir(Angle + 180) : turn(dir, 180)) // hippie -- the side it hit, for the mech's facing armour
 	if(issilicon(target))
 		var/mob/living/silicon/S = target
 		S.take_overall_damage(anti_armour_damage*0.75, anti_armour_damage*0.25)

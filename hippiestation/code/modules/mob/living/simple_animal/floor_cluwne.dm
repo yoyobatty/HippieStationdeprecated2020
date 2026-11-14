@@ -129,6 +129,7 @@ GLOBAL_VAR_INIT(floor_cluwnes, 0)
 /mob/living/simple_animal/hostile/floor_cluwne/Goto(target, delay, minimum_distance)
 	var/victim_Area = get_area(current_victim.loc)
 	if(!manifested && !is_type_in_typecache(victim_Area, invalid_area_typecache) && is_station_level(current_victim.z))
+		set_glide_size(DELAY_TO_GLIDE_SIZE(delay)) //as hostile/Goto() does, which this doesn't call
 		walk_to(src, target, minimum_distance, delay)
 	else
 		walk_to(src,0)

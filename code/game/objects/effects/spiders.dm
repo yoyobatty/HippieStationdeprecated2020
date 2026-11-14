@@ -176,7 +176,10 @@
 		var/list/nearby = oview(10, src)
 		if(nearby.len)
 			var/target_atom = pick(nearby)
-			walk_to(src, target_atom)
+			// hippie start -- lag 0 is a step every tick, 40 tiles a second at 40 ticks. Half a decisecond was tg's tick, at 20.
+			set_glide_size(DELAY_TO_GLIDE_SIZE(0.5))
+			walk_to(src, target_atom, 0, 0.5)
+			// hippie end
 			if(prob(40))
 				src.visible_message("<span class='notice'>\The [src] skitters[pick(" away"," around","")].</span>")
 	else if(prob(10))
@@ -184,7 +187,8 @@
 		for(var/obj/machinery/atmospherics/components/unary/vent_pump/v in view(7,src))
 			if(!v.welded)
 				entry_vent = v
-				walk_to(src, entry_vent, 1)
+				set_glide_size(DELAY_TO_GLIDE_SIZE(0.5)) // hippie -- a step every half decisecond, not every tick, glide to match
+				walk_to(src, entry_vent, 1, 0.5) // hippie -- was lag 0
 				break
 	if(isturf(loc))
 		amount_grown += rand(0,2)

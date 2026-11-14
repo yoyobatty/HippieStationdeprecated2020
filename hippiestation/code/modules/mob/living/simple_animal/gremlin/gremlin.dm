@@ -173,7 +173,8 @@ GLOBAL_LIST(bad_gremlin_items)
 				if(!v.welded)
 					entry_vent = v
 					in_vent = TRUE
-					walk_to(src, entry_vent)
+					set_glide_size(DELAY_TO_GLIDE_SIZE(0.5)) //a step every half decisecond: lag 0 is every tick, 40 tiles a second
+					walk_to(src, entry_vent, 0, 0.5)
 					break
 	if(!target)
 		time_chasing_target = 0

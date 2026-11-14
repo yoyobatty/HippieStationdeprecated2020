@@ -1062,6 +1062,10 @@
 			stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), max(1, owner.movement_delay()), TIMER_STOPPABLE)
 			return
 	var/turf/left_turf = get_turf(owner)
+	// The glide covers the tile in the time to the next step, as client/Move() sets it for a player. Left at 8, a bot walking (wet
+	// floor, a careful goal) or slowed (hurt, hauling) darted across each tile in a tenth of a second and stood for the rest.
+	var/delay = max(1, owner.movement_delay())
+	owner.set_glide_size(DELAY_TO_GLIDE_SIZE(delay))
 	if(bot_step_towards(next_node))
 		quick_step_retries = 0
 		last_stuck_turf = null
@@ -1082,7 +1086,7 @@
 		// Re-invoke ourselves after a normal per-tile delay, same pacing walk_to()'s
 		// Lag parameter used to provide, just driven explicitly instead of trusted to
 		// its own internal continuation.
-		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), max(1, owner.movement_delay()), TIMER_STOPPABLE)
+		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), delay, TIMER_STOPPABLE)
 	else if(haul_waiting_since && world.time - haul_waiting_since < HAUL_WAIT)
 		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), 5, TIMER_STOPPABLE) //somebody in the way of what's in tow: wait on them
 	else if(yields_tile(next_node))

@@ -97,6 +97,7 @@
 			else if(Target in view(7, src))
 				if(!Target.Adjacent(src))
 				// Bug of the month candidate: slimes were attempting to move to target only if it was directly next to them, which caused them to target things, but not approach them
+					set_glide_size(DELAY_TO_GLIDE_SIZE(max(movement_delay(), 1) + 2)) // hippie -- the sleep below, glide to match
 					step_to(src, Target)
 			else
 				Target = null

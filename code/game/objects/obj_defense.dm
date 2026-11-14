@@ -82,7 +82,9 @@
 		visible_message("<span class='danger'>[src] is hit by \a [P]!</span>", null, null, COMBAT_MESSAGE_RANGE)
 		next_spam_shot = world.time + 75 // hippie end
 	if(!QDELETED(src)) //Bullet on_hit effect might have already destroyed this object
-		take_damage(P.damage, P.damage_type, P.flag, 0, turn(P.dir, 180), P.armour_penetration)
+		// hippie -- the side it came from by its flight angle (dir is only its last step, the cardinal half of a diagonal one);
+		// one that hits on its own tile before it's fired has no angle yet
+		take_damage(P.damage, P.damage_type, P.flag, 0, P.fired ? angle2dir(P.Angle + 180) : turn(P.dir, 180), P.armour_penetration)
 
 /obj/proc/hulk_damage()
 	return 150 //the damage hulks do on punches to this object, is affected by melee armor
@@ -137,7 +139,7 @@
 
 /obj/proc/collision_damage(atom/movable/pusher, force = MOVE_FORCE_DEFAULT, direction)
 	var/amt = max(0, ((force - (move_resist * MOVE_FORCE_CRUSH_RATIO)) / (move_resist * MOVE_FORCE_CRUSH_RATIO)) * 10)
-	take_damage(amt, BRUTE)
+	take_damage(amt, BRUTE, "", TRUE, direction ? turn(direction, 180) : get_dir(src, pusher)) // hippie -- the side it was pushed from
 
 /obj/attack_slime(mob/living/simple_animal/slime/user)
 	if(!user.is_adult)

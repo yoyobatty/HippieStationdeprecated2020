@@ -42,6 +42,7 @@ GLOBAL_LIST_EMPTY(particle_fx)
 		if("sparks")
 			set_type = /particles/fx/sparks
 			blend_mode = BLEND_ADD
+			burst_time = 7
 		if("impact_glow")
 			set_type = /particles/fx/sparks/impact
 			blend_mode = BLEND_ADD
@@ -66,6 +67,7 @@ GLOBAL_LIST_EMPTY(particle_fx)
 			blend_mode = BLEND_ADD
 		if("breath")
 			set_type = /particles/fx/puff/breath
+			burst_time = 10
 		if("vent_puff")
 			set_type = /particles/fx/puff
 		if("air_dust_vent") //a vent blowing (air_dust.dm)
@@ -142,10 +144,10 @@ GLOBAL_LIST_EMPTY(particle_fx)
 	color_change = 0.05
 	scale = generator("vector", list(0.9, 0.9), list(1.6, 1.6))
 
-/// Thrown out of a spark and falling
+/// Thrown out of a spark and falling, on each tile it crosses
 /particles/fx/sparks
-	count = 18
-	spawning = 6
+	count = 8
+	spawning = 8
 	lifespan = 5
 	fade = 3
 	position = generator("circle", 0, 4)
@@ -253,10 +255,10 @@ GLOBAL_LIST_EMPTY(particle_fx)
 	scale = generator("vector", list(0.6, 0.6), list(0.9, 0.9))
 	grow = 0.08
 
-/// Breath you can see, from the head
+/// Breath you can see, from the head: one puff
 /particles/fx/puff/breath
-	count = 5
-	spawning = 0.6
+	count = 4
+	spawning = 4
 	lifespan = 9
 	fade = 7
 	position = generator("box", list(-2, 8, 0), list(2, 10, 0))
@@ -371,9 +373,20 @@ GLOBAL_LIST_EMPTY(particle_fx)
 	if(!(x % 2) && !(y % 2)) //one fire in four, the ones that carry a pool of light (light_glow.dm): a big fire is hundreds of these
 		vis_contents += particle_fx("ember")
 
-/obj/effect/particle_effect/sparks/LateInitialize()
-	..()
-	vis_contents += particle_fx("sparks")
+// A spark leaves a shower on each tile it leaves, and on the one it ends on. Each shower is a burst of its own on the floor. An
+// emitter carried by the spark would drag its particles along: they're drawn relative to the emitter, so a shower that had fallen
+// from the spark moved a tile with it at each step.
+/obj/effect/particle_effect/sparks/Move()
+	var/turf/from = loc
+	var/whole_step = !moving_diagonally //a diagonal step is two Move()s inside this one: the burst goes where the whole step began
+	. = ..()
+	if(whole_step && loc != from && isturf(from))
+		new /obj/effect/particle_fx/burst(from, "sparks")
+
+/obj/effect/particle_effect/sparks/Destroy()
+	if(isturf(loc))
+		new /obj/effect/particle_fx/burst(loc, "sparks")
+	return ..()
 
 /obj/effect/temp_visual/impact_effect/Initialize(mapload, x, y)
 	. = ..()
@@ -400,17 +413,12 @@ GLOBAL_LIST_EMPTY(particle_fx)
 	vis_contents += particle_fx("tesla")
 
 // Breath shows in air under two degrees: a freezer, a room open to space. On internals it's the tank's air that's breathed, so a
-// spacesuit shows none.
+// spacesuit shows none. Each breath is a puff left in the air where it was breathed, not an emitter on the mob: someone walking
+// on leaves it behind, where one held in their vis_contents was carried along with them.
 /mob/living/carbon/human/check_breath(datum/gas_mixture/breath)
 	. = ..()
-	if(breath && stat != DEAD && breath.temperature < T0C + 2 && breath.total_moles() > 0)
-		var/obj/effect/particle_fx/plume = particle_fx("breath")
-		if(!(plume in vis_contents))
-			vis_contents += plume
-			addtimer(CALLBACK(src, PROC_REF(end_breath_plume)), 1.2 SECONDS)
-
-/mob/living/carbon/human/proc/end_breath_plume()
-	vis_contents -= particle_fx("breath")
+	if(breath && stat != DEAD && isturf(loc) && breath.temperature < T0C + 2 && breath.total_moles() > 0)
+		new /obj/effect/particle_fx/burst(loc, "breath")
 
 // A vent pushing a lot of air into a room at once (vent_pump.dm calls this): the room's being filled back up.
 /obj/machinery/atmospherics/components/unary/vent_pump
