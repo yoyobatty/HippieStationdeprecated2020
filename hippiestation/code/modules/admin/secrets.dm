@@ -23,6 +23,8 @@
 		if(isnull(moles) || moles <= 0)
 			return
 		PlasmaFloodSecret(clamp(moles, 1, 200))
+	if (item == "emag_machines")
+		EmagMachinesSecret() // emag_machines.dm
 
 //The best stock part of a family, going by rating, so this keeps working if higher tiers are ever added
 /proc/hippie_best_stock_part(family)

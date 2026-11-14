@@ -3314,6 +3314,7 @@
 #include "hippiestation\code\modules\admin\admin_verbs.dm"
 #include "hippiestation\code\modules\admin\code_sweep.dm"
 #include "hippiestation\code\modules\admin\dept_gear_selftest.dm"
+#include "hippiestation\code\modules\admin\emag_machines.dm"
 #include "hippiestation\code\modules\admin\holder2.dm"
 #include "hippiestation\code\modules\admin\secrets.dm"
 #include "hippiestation\code\modules\admin\timewarp.dm"

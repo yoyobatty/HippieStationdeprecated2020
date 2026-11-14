@@ -90,6 +90,7 @@
 			list("id" = "winter_stop", "label" = "Stop winter"),
 			list("id" = "upgrade_machines", "label" = "Upgrade all station machines, APCs, SMES, mechs and cyborgs"),
 			list("id" = "plasma_flood", "label" = "Flood the station with plasma", "danger" = TRUE),
+			list("id" = "emag_machines", "label" = "Emag or hack station machines", "danger" = TRUE),
 		)))
 	if(check_rights_for(user.client, R_DEBUG))
 		sections += list(list("name" = "Security level elevated", "items" = list(
