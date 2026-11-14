@@ -61,7 +61,7 @@
 	return null
 
 /// Nothing a shot from `from` to A would stop on: walls, people, anything dense but a table.
-/proc/bot_clear_line(turf/from, atom/A)
+/proc/bot_clear_line(turf/from, atom/A, atom/movable/ignore)
 	var/turf/to_turf = get_turf(A)
 	if(!from || !to_turf)
 		return FALSE
@@ -71,6 +71,8 @@
 		if(T.density)
 			return FALSE
 		for(var/atom/movable/AM in T)
+			if(AM == ignore) //whoever's asking, from where it stands now: it won't be there once it's moved
+				continue
 			if(isliving(AM) || (AM.density && !istype(AM, /obj/structure/table)))
 				return FALSE
 	return TRUE

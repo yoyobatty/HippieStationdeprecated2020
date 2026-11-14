@@ -186,3 +186,84 @@
 			if(H in view(BOT_SIGHT_RANGE, owner))
 				return TRUE
 	return FALSE
+
+// ---------------------------------------------------------------------------------------------
+// Firing from the dark (the user's round: they shot the crew "off screen", from where the bots couldn't see them)
+// ---------------------------------------------------------------------------------------------
+// Somebody in the light can be seen from the dark, and nobody in the dark can be seen from more than a couple of tiles off (see_in_dark):
+// a player in a gunfight steps out of the light and fires from where the other can't see them. A robust player's trick, so mid skill and
+// up: a gun that fires, them in the light and it in the light too, and a dark tile a few steps off that has a clear line to them, three or
+// more tiles from them and within its own sight of them. It goes there and fires from it, and holds it a while.
+
+/// Lit enough to be seen by: under this, a tile's dark to anybody more than see_in_dark off (BOT_DARK_LUMCOUNT, goals/solars.dm)
+#define BOT_SHADOW_LUM 0.2
+
+/datum/bot_brain
+	/// The dark tile it's firing from, who from, and until when it holds it
+	var/turf/dark_spot
+	var/datum/weakref/dark_from_ref
+	var/dark_until = 0
+	var/next_dark_look = 0
+
+/// Whether this tile's dark: no light on it to be seen by
+/proc/bot_tile_dark(turf/T)
+	return isturf(T) && T.lighting_object && T.get_lumcount() <= BOT_SHADOW_LUM
+
+/// From handle_combat() (bot_brain.dm) and Security's dangerous-suspect branch (handle_arrest()): off into the dark to shoot from, or holding
+/// it. TRUE while it's there or on its way.
+/datum/bot_brain/proc/fight_from_the_dark(mob/living/foe)
+	if(dark_from_ref?.resolve() == foe && world.time < dark_until && dark_spot)
+		if(!find_usable_gun() || owner.incapacitated() || get_dist(dark_spot, foe) < 3 || !bot_clear_line(dark_spot, foe, owner))
+			dark_until = 0 //out of shots, or they've come to it or moved off its line: the fight's back to the usual
+			return FALSE
+		if(get_turf(owner) != dark_spot)
+			combat_chase(dark_spot)
+		else
+			stop_pursuit()
+			owner.face_atom(foe)
+		return TRUE
+	if(world.time < next_dark_look || !skill_at_least(BOT_SKILL_MID) || !find_usable_gun() || owner.incapacitated())
+		return FALSE
+	next_dark_look = world.time + 5 SECONDS
+	var/turf/here = get_turf(owner)
+	var/turf/them = get_turf(foe)
+	if(!here || !them || bot_tile_dark(here) || bot_tile_dark(them) || get_dist(here, them) > BOT_SIGHT_RANGE)
+		return FALSE //in the dark already, or they are (it'd lose sight of them going further off)
+	var/turf/spot = dark_spot_against(foe)
+	if(!spot)
+		return FALSE
+	bot_log(src, "COMBAT: out of the light to [bot_coord(spot)], to fire at [foe] from the dark")
+	bot_tally("fought from the dark")
+	dark_spot = spot
+	dark_from_ref = WEAKREF(foe)
+	dark_until = world.time + 20 SECONDS
+	combat_chase(spot)
+	return TRUE
+
+/// The nearest dark tile within a few steps with a clear line to `foe`, three to six tiles from them.
+/datum/bot_brain/proc/dark_spot_against(mob/living/foe)
+	var/turf/start = get_turf(owner)
+	var/turf/them = get_turf(foe)
+	var/list/seen = list()
+	seen[start] = TRUE
+	var/list/queue = list(start)
+	var/list/depth = list(0)
+	var/at = 1
+	while(at <= length(queue))
+		var/turf/T = queue[at]
+		var/steps = depth[at++]
+		var/dist = get_dist(T, them)
+		if(T != start && dist >= 3 && dist <= BOT_SIGHT_RANGE - 1 && bot_tile_dark(T) && bot_clear_line(T, foe, owner) && bot_clear_line(them, T, owner))
+			return T
+		if(steps >= 4)
+			continue
+		for(var/d in GLOB.cardinals)
+			var/turf/next = get_step(T, d)
+			if(!next || seen[next] || next.density || isspaceturf(next) || is_blocked_turf(next, TRUE) || bot_turf_is_deadly(next))
+				continue
+			seen[next] = TRUE
+			queue += next
+			depth += steps + 1
+	return null
+
+#undef BOT_SHADOW_LUM

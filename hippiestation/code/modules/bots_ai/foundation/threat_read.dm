@@ -151,7 +151,7 @@
 		var/steps = depth[at++]
 		// Blocked both ways: a line traced from the tile to them and one from them to the tile can run through different squares round a
 		// corner, and a tile diagonally off a corridor's mouth read as cover while the shots kept coming down the corridor into it
-		if(T != start && !bot_clear_line(T, shooter) && !bot_clear_line(them, T) && get_dist(T, them) <= limit)
+		if(T != start && !bot_clear_line(T, shooter, owner) && !bot_clear_line(them, T, owner) && get_dist(T, them) <= limit)
 			return T
 		if(steps >= 5)
 			continue

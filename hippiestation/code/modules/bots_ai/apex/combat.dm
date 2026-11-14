@@ -139,6 +139,8 @@
 	return TRUE
 
 /datum/bot_brain/proc/strafe_worth_it(mob/living/foe)
+	if(dark_spot && world.time < dark_until && get_turf(owner) == dark_spot)
+		return FALSE //firing from the dark (foundation/gunfight.dm): a step across their line is a step into the light
 	return foe && !QDELETED(foe) && foe.stat == CONSCIOUS && is_apex() && state == BOT_STATE_COMBAT && attacker == foe && bot_holds_gun(foe) 		&& isturf(owner.loc) && get_dist(owner, foe) >= 3 && get_dist(owner, foe) <= BOT_SIGHT_RANGE && !owner.incapacitated()
 
 /// A step across their line every third to half a second, as a player tapping one way and the other, for as long as the gunfight lasts.

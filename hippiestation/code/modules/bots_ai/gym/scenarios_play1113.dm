@@ -479,3 +479,153 @@
 		fail_reason = "put the sword on the floor"
 		return BOT_GYM_FAIL
 	return griefer.handcuffed ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// Shut in behind a firelock with hot air outside (goals/respond_to_fire.dm firelock_too_hot())
+// ---------------------------------------------------------------------------------------------
+
+/// Hot air (no flames) on the far side of a shut firelock, kept hot: the far side's the tiles marked h.
+/datum/bot_scenario/hot_firelock
+	job = "Assistant"
+	time_limit = 20 SECONDS
+	kit_hands = list(/obj/item/crowbar)
+	layout = list(
+		"#############",
+		"#B..Fhhhhh.G#",
+		"#############")
+
+/datum/bot_scenario/hot_firelock/proc/heat()
+	for(var/turf/open/T in markers["h"] + markers["G"] + list(get_step(first_marker("G"), EAST)))
+		T.air?.temperature = 600 //well over what burns (360 K) even after a laggy second's cooling; no fuel in it, so no fire
+
+/datum/bot_scenario/hot_firelock/setup()
+	heat()
+
+/datum/bot_scenario/hot_firelock/check()
+	heat()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return ..()
+
+/datum/bot_scenario/hot_firelock/suited
+	name = "fire: shut in behind a firelock with hot air outside, suited and on its tank it pries it and goes"
+	desc = "A space suit, helmet, mask and tank on, the tank open, a crowbar in hand, and hot air past the firelock (no flames). It's dressed for that heat: it pries the firelock and goes on through. A traitor back from a space walk stayed shut in EVA for eight minutes behind firelocks with hot air outside (round-17.21.40)."
+
+/datum/bot_scenario/hot_firelock/suited/post_spawn()
+	qdel(bot.back)
+	bot.equip_to_slot_or_del(new /obj/item/clothing/suit/space(bot), ITEM_SLOT_OCLOTHING)
+	bot.equip_to_slot_or_del(new /obj/item/clothing/head/helmet/space(bot), ITEM_SLOT_HEAD)
+	bot.equip_to_slot_or_del(new /obj/item/clothing/mask/breath(bot), ITEM_SLOT_MASK)
+	var/obj/item/tank/internals/oxygen/O = new(bot)
+	bot.equip_to_slot_or_del(O, ITEM_SLOT_SUITSTORE)
+	bot.internal = O
+
+/datum/bot_scenario/hot_firelock/unsuited
+	name = "fire: shut in behind a firelock with hot air outside, in a jumpsuit, it leaves the firelock shut"
+	desc = "The same firelock with hot air past it and a crowbar in hand, but nothing on that keeps the heat off. It doesn't open it into air that would burn it."
+	time_limit = 10 SECONDS
+
+/datum/bot_scenario/hot_firelock/unsuited/check()
+	heat()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/machinery/door/firedoor/F = first_placed("F")
+	if(!F.density)
+		fail_reason = "pried it open into air that burns"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/hot_firelock/unsuited/on_timeout()
+	return BOT_GYM_PASS
+
+// ---------------------------------------------------------------------------------------------
+// Firing from the dark (foundation/gunfight.dm fight_from_the_dark())
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/griefed/dark_fight
+	name = "fights: a gunfight in the light with the dark a few steps off, a robust bot fires from the dark"
+	desc = "The arena has real lighting: a lamp where the one shooting at it stands, and the far end dark. A robust (mid-skill) assistant with a laser steps out of the light, three or more tiles from them, and fires from where they can't see it. The user did that to the crew in their Captain round (round-17.21.40); no bot ever did."
+	job = "Assistant"
+	kit_hands = list(/obj/item/gun/energy/laser)
+	time_limit = 15 SECONDS
+	layout = list(
+		"#################",
+		"#C..B...........#",
+		"#################")
+	var/reached_dark_at = 0
+	var/shots_then = 0
+
+/datum/bot_scenario/griefed/dark_fight/setup()
+	arena_area.set_dynamic_lighting(DYNAMIC_LIGHTING_ENABLED)
+	place("C", new /obj/item/flashlight/lamp(first_marker("C")))
+
+/datum/bot_scenario/griefed/dark_fight/post_spawn()
+	..()
+	brain.skill = 0.7
+	brain.nerve = 1 //it stays in the fight, rather than running off into the dark and back
+	griefer.status_flags |= GODMODE
+	griefer_holds(/obj/item/gun/energy/laser)
+	var/turf/C = first_marker("C")
+	var/turf/far = locate(C.x + 12, C.y, C.z)
+	var/turf/here = get_turf(bot)
+	log_line("light: at the bot [round(here.get_lumcount(), 0.01)], twelve tiles off [far ? round(far.get_lumcount(), 0.01) : "?"]")
+
+/datum/bot_scenario/griefed/dark_fight/grief()
+	keep_at_it(PROC_REF(hit), 15)
+
+/datum/bot_scenario/griefed/dark_fight/proc/hit()
+	if(QDELETED(bot) || bot.stat == DEAD)
+		return FALSE
+	brain.on_attacked(griefer, "shot", null) //what a shot tells it, without the damage
+	return TRUE
+
+/datum/bot_scenario/griefed/dark_fight/proc/shots()
+	. = 0
+	for(var/line in transcript)
+		if(findtext(line, "firing the laser gun at"))
+			.++
+
+/datum/bot_scenario/griefed/dark_fight/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/obj/item/gun/energy/G in bot.GetAllContents())
+		G.cell.charge = G.cell.maxcharge
+	var/turf/T = get_turf(bot)
+	var/in_the_dark = T.lighting_object && T.get_lumcount() <= 0.2 && get_dist(bot, griefer) >= 3
+	if(in_the_dark && !reached_dark_at)
+		reached_dark_at = world.time
+		shots_then = shots()
+	if(reached_dark_at && shots() > shots_then)
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/griefed/dark_fight/on_timeout()
+	var/turf/here = get_turf(bot)
+	fail_reason = reached_dark_at ? "got into the dark and never fired from it" : "fought it out in the light ([round(here.get_lumcount(), 0.01)] lit, [get_dist(bot, griefer)] tiles off)"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/griefed/dark_fight/officer
+	name = "security: arresting an armed killer in the light with the dark a few steps off, an officer fires from the dark"
+	desc = "The same lit arena. An officer after somebody wanted for murder with a laser in their hands keeps its distance, as it does from anybody that dangerous, and does it from the dark, firing its taser from where they can't see it."
+	job = "Security Officer"
+	kit_hands = list(/obj/item/gun/energy/e_gun/advtaser)
+	kit_backpack = list(/obj/item/restraints/handcuffs, /obj/item/melee/baton/loaded)
+
+/datum/bot_scenario/griefed/dark_fight/officer/post_spawn()
+	..()
+	give_job_id(list(ACCESS_SECURITY, ACCESS_BRIG))
+	brain.register_security()
+
+/datum/bot_scenario/griefed/dark_fight/officer/grief()
+	brain.file_crime(griefer, "Murder", "Gym.", BOT_CRIME_MURDER)
+	brain.begin_arrest(griefer)
+
+/datum/bot_scenario/griefed/dark_fight/officer/release_run()
+	bot_clear_wanted(griefer)
+	return ..()
+
+/datum/bot_scenario/griefed/dark_fight/officer/shots()
+	. = 0
+	for(var/line in transcript)
+		if(findtext(line, "firing the hybrid taser at") || findtext(line, "firing the laser gun at"))
+			.++

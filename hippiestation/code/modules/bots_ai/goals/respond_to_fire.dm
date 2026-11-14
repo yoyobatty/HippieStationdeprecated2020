@@ -228,6 +228,22 @@ GLOBAL_LIST_INIT(bot_fire_words, list("fire", "fires", "burning", "ablaze", "fla
 			return TRUE
 	return FALSE
 
+/// Whether a shut firelock is shut on more than it can go through: flames on either side (unless nothing burns it), or air too hot for it
+/// as it's dressed. Hot air with no flames in it is only a wall to somebody it would burn: on its tank in a fire suit and helmet, or a
+/// space suit, it's walked through (kept_from_heat(), goals/refill_internals.dm), as the escape from it is (try_escape_flames() below).
+/// A traitor shut in EVA came back from space suited, and stayed shut in for eight minutes behind firelocks with hot air outside
+/// (round-17.21.40).
+/datum/bot_brain/proc/firelock_too_hot(obj/machinery/door/firedoor/F)
+	if(heat_proof())
+		return FALSE
+	for(var/turf/open/T in list(get_turf(F), get_step(F, NORTH), get_step(F, SOUTH), get_step(F, EAST), get_step(F, WEST)))
+		if(T.active_hotspot)
+			return TRUE
+		var/datum/gas_mixture/air = T.air
+		if(air && air.temperature > BODYTEMP_HEAT_DAMAGE_LIMIT && !(owner.internal && kept_from_heat(air.temperature)))
+			return TRUE
+	return FALSE
+
 /// Standing in flames or air that burns: out of it first, whatever it was doing. Rolling on the floor in them is how it ends (that's
 /// try_put_self_out()), and an engineer that had caught light stood in a burning corridor for fourteen seconds before going back into
 /// the fire for an extinguisher, and died there.

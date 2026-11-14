@@ -269,7 +269,7 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 		if(F.welded && !(istype(H) && H.bot_brain && H.bot_brain.can_unweld()))
 			return FALSE
 		// Shut on a fire: not a way through for anybody who'd burn (goals/respond_to_fire.dm).
-		if(istype(H) && H.bot_brain && !H.bot_brain.heat_proof() && bot_fire_behind(F))
+		if(istype(H) && H.bot_brain && H.bot_brain.firelock_too_hot(F))
 			return FALSE
 		if(F.safety_mode && !F.hasPower() && !F.welded)
 			return TRUE //hand release (door.dm try_safety_unlock()), no crowbar needed

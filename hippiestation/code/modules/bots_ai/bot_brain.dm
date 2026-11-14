@@ -438,6 +438,10 @@
 	// A gun on it and nothing to shoot back with: into cover (foundation/threat_read.dm)
 	if(mind_the_gun(attacker))
 		return
+	// Out of the light to fire from where they can't see it (foundation/gunfight.dm)
+	if(fight_from_the_dark(attacker))
+		try_attack_from_range(attacker)
+		return
 	// A botanist reaches for what it grew first - a death nettle up close, an acid melon or a
 	// primed combustible lemon from range (goals/botany_projects.dm).
 	if(try_botany_weapon(attacker))
