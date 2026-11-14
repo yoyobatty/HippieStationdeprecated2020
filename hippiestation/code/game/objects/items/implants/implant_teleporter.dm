@@ -92,6 +92,8 @@
 
 /obj/item/implant/teleporter/removed(mob/living/source, silent = 0, special = 0)
 	..()
+	if(QDELETED(source)) //coming out because the wearer is being deleted (cryo, dusting, an admin): gibbing it then was a second qdel() mid-Destroy()
+		return
 	say("Implant tampering detected.")
 	source.gib()
 

@@ -238,7 +238,7 @@
 				var/t = stripped_input(user, "Enter the name for the door.", name, created_name,MAX_NAME_LEN)
 				if(!t)
 					return
-				if(!in_range(src, usr) && loc != usr)
+				if(!in_range(src, user) && loc != user) // hippie -- user, not usr: null when a bot does it
 					return
 				created_name = t
 				return
@@ -248,7 +248,7 @@
 			//Crowbar to complete the assembly, Step 7 complete.
 			else if(W.tool_behaviour == TOOL_CROWBAR)
 				if(!electronics)
-					to_chat(usr, "<span class='warning'>The assembly is missing electronics!</span>")
+					to_chat(user, "<span class='warning'>The assembly is missing electronics!</span>") // hippie -- user, not usr: null when a bot does it
 					return
 				user << browse(null, "window=windoor_access")
 				user.visible_message("[user] pries the windoor into the frame.",

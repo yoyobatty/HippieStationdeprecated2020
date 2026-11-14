@@ -44,10 +44,10 @@
 		var/clr = C.item_color
 
 		if(!(clr in list("blue", "green", "mime", "orange", "purple", "rainbow", "red", "yellow")))
-			to_chat(usr, "<span class='notice'>[src] refuses to take on this colour!</span>")
+			to_chat(user, "<span class='notice'>[src] refuses to take on this colour!</span>") // hippie -- user, not usr: null when a bot does it
 			return
 
-		to_chat(usr, "<span class='notice'>You colour [src] with [W].</span>")
+		to_chat(user, "<span class='notice'>You colour [src] with [W].</span>") // hippie -- user, not usr: null when a bot does it
 		icon_state = "egg-[clr]"
 		item_color = clr
 	else

@@ -822,14 +822,14 @@
 			to_chat(user, "<span class='warning'>You can't modify [src] with items still inside!</span>")
 			return
 		var/list/designs = list(NODESIGN, NANOTRASEN, SYNDI, HEART, SMILEY, "Cancel")
-		var/switchDesign = tgui_input_list(usr, "Select a Design:", "Paper Sack Design", designs, designs[1], allow_cancel = FALSE)
-		if(get_dist(usr, src) > 1)
-			to_chat(usr, "<span class='warning'>You have moved too far away!</span>")
+		var/switchDesign = tgui_input_list(user, "Select a Design:", "Paper Sack Design", designs, designs[1], allow_cancel = FALSE) // hippie -- user, not usr: null when a bot does it
+		if(get_dist(user, src) > 1) // hippie -- user, not usr: null when a bot does it
+			to_chat(user, "<span class='warning'>You have moved too far away!</span>") // hippie -- user, not usr: null when a bot does it
 			return
 		var/choice = designs.Find(switchDesign)
 		if(design == designs[choice] || designs[choice] == "Cancel")
 			return 0
-		to_chat(usr, "<span class='notice'>You make some modifications to [src] using your pen.</span>")
+		to_chat(user, "<span class='notice'>You make some modifications to [src] using your pen.</span>") // hippie -- user, not usr: null when a bot does it
 		design = designs[choice]
 		icon_state = "paperbag_[design]"
 		item_state = "paperbag_[design]"

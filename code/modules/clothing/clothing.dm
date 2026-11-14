@@ -46,7 +46,7 @@
 
 /obj/item/clothing/Initialize()
 	if(CHECK_BITFIELD(clothing_flags, VOICEBOX_TOGGLABLE))
-		actions_types += /datum/action/item_action/toggle_voice_box
+		LAZYADD(actions_types, /datum/action/item_action/toggle_voice_box) // hippie -- += on the null list made it a bare path, and the masks never got the button
 	. = ..()
 	if(ispath(pocket_storage_component_path))
 		LoadComponent(pocket_storage_component_path)

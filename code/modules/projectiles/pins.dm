@@ -216,5 +216,5 @@
 
 /obj/item/firing_pin/Destroy()
 	if(gun)
-		gun.pin = null
+		gun_remove() // hippie -- undo what the pin did to its gun (the ultra honk pin's clumsy_check), as pulling it does; Pin Removal deletes the pin
 	return ..()

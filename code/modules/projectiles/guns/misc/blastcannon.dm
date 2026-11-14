@@ -29,7 +29,7 @@
 /obj/item/gun/blastcannon/Initialize()
 	. = ..()
 	if(!pin)
-		pin = new
+		pin = new(src) // hippie -- made inside the cannon so the pin knows its gun (a nullspace pin had gun = null)
 
 /obj/item/gun/blastcannon/Destroy()
 	QDEL_NULL(bomb)

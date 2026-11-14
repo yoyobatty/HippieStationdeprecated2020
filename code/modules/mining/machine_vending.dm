@@ -148,12 +148,12 @@
 		RedeemVoucher(I, user)
 		return
 	if(istype(I, /obj/item/card/id))
-		var/obj/item/card/id/C = usr.get_active_held_item()
+		var/obj/item/card/id/C = user.get_active_held_item() // hippie -- user, not usr: null when a bot does it
 		if(istype(C) && !istype(inserted_id))
-			if(!usr.transferItemToLoc(C, src))
+			if(!user.transferItemToLoc(C, src)) // hippie -- user, not usr: null when a bot does it
 				return
 			inserted_id = C
-			to_chat(usr, "<span class='notice'>You insert the ID into [src]'s card slot.</span>")
+			to_chat(user, "<span class='notice'>You insert the ID into [src]'s card slot.</span>") // hippie -- user, not usr: null when a bot does it
 			interact(user)
 		return
 	if(default_deconstruction_screwdriver(user, "mining-open", "mining", I))

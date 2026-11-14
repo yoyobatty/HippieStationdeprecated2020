@@ -528,10 +528,10 @@
 		var/obj/item/toy/crayon/C = W
 		switch(C.item_color)
 			if("mime")
-				to_chat(usr, "<span class='warning'>This crayon is too sad to be contained in this box!</span>")
+				to_chat(user, "<span class='warning'>This crayon is too sad to be contained in this box!</span>") // hippie -- user, not usr: null when a bot does it
 				return
 			if("rainbow")
-				to_chat(usr, "<span class='warning'>This crayon is too powerful to be contained in this box!</span>")
+				to_chat(user, "<span class='warning'>This crayon is too powerful to be contained in this box!</span>") // hippie -- user, not usr: null when a bot does it
 				return
 		if(istype(W, /obj/item/toy/crayon/spraycan))
 			to_chat(user, "<span class='warning'>Spraycans are not crayons!</span>")

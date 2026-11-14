@@ -419,7 +419,7 @@ GLOBAL_LIST_INIT(fluid_duct_recipes, list(
 							F.flipped = queued_p_flipped
 
 						P.update()
-						P.add_fingerprint(usr)
+						P.add_fingerprint(user) // hippie -- user, not usr: null when a bot does it
 						P.setPipingLayer(piping_layer)
 						if(findtext("[queued_p_type]", "/obj/machinery/atmospherics/pipe") && !findtext("[queued_p_type]", "layer_manifold"))
 							P.add_atom_colour(GLOB.pipe_paint_colors[paint_color], FIXED_COLOUR_PRIORITY)
@@ -445,7 +445,7 @@ GLOBAL_LIST_INIT(fluid_duct_recipes, list(
 
 					activate()
 
-					C.add_fingerprint(usr)
+					C.add_fingerprint(user) // hippie -- user, not usr: null when a bot does it
 					C.update_icon()
 					if(mode&WRENCH_MODE)
 						C.wrench_act(user, src)
@@ -464,7 +464,7 @@ GLOBAL_LIST_INIT(fluid_duct_recipes, list(
 					activate()
 					if(queued_p_type == /obj/structure/c_transit_tube_pod)
 						var/obj/structure/c_transit_tube_pod/pod = new /obj/structure/c_transit_tube_pod(A)
-						pod.add_fingerprint(usr)
+						pod.add_fingerprint(user) // hippie -- user, not usr: null when a bot does it
 						if(mode&WRENCH_MODE)
 							pod.wrench_act(user, src)
 
@@ -476,7 +476,7 @@ GLOBAL_LIST_INIT(fluid_duct_recipes, list(
 							tube.setDir(turn(queued_p_dir, 45))
 							tube.simple_rotate_flip()
 
-						tube.add_fingerprint(usr)
+						tube.add_fingerprint(user) // hippie -- user, not usr: null when a bot does it
 						if(mode&WRENCH_MODE)
 							tube.wrench_act(user, src)
 					return
@@ -498,7 +498,7 @@ GLOBAL_LIST_INIT(fluid_duct_recipes, list(
 						D = new queued_p_type (A, TRUE, GLOB.pipe_paint_colors[paint_color], ducting_layer, temp_connects)
 					else
 						D = new queued_p_type (A, TRUE, GLOB.pipe_paint_colors[paint_color], ducting_layer)
-					D.add_fingerprint(usr)
+					D.add_fingerprint(user) // hippie -- user, not usr: null when a bot does it
 					if(mode & WRENCH_MODE)
 						D.wrench_act(user, src)
 

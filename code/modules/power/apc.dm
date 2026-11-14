@@ -635,7 +635,7 @@
 			if (C.get_amount() >= 10 && !terminal && opened && has_electronics)
 				var/turf/T = get_turf(src)
 				var/obj/structure/cable/N = T.get_cable_node()
-				if (prob(50) && electrocute_mob(usr, N, N, 1, TRUE))
+				if (prob(50) && electrocute_mob(user, N, N, 1, TRUE)) // hippie -- user, not usr: null when a bot does it
 					do_sparks(5, TRUE, src)
 					return
 				C.use(10)
@@ -762,7 +762,7 @@
 	else if(stat & (BROKEN|MAINT))
 		to_chat(user, "<span class='warning'>Nothing happens!</span>")
 	else
-		if(allowed(usr) && !wires.is_cut(WIRE_IDSCAN) && !malfhack)
+		if(allowed(user) && !wires.is_cut(WIRE_IDSCAN) && !malfhack) // hippie -- user, not usr: null when a bot does it
 			locked = !locked
 			to_chat(user, "<span class='notice'>You [ locked ? "lock" : "unlock"] the APC interface.</span>")
 			update_icon()

@@ -46,7 +46,7 @@
 	fireball.human_req = 0
 	fireball.player_lock = 0
 	AddSpell(fireball)
-	implants += new /obj/item/implant/exile(src)
+	LAZYADD(implants, new /obj/item/implant/exile(src)) // hippie -- implants += on a null list made the implant the list itself
 
 	mm = new /obj/effect/proc_holder/spell/targeted/projectile/magic_missile
 	mm.clothes_req = 0

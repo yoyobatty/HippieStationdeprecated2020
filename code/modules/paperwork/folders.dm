@@ -61,7 +61,7 @@
 		dat += "<A href='?src=[REF(src)];remove=[REF(I)]'>Remove</A> - <A href='?src=[REF(src)];read=[REF(I)]'>[I.name]</A><BR>"
 	user << browse(HTML_SKELETON(dat), "window=folder")
 	onclose(user, "folder")
-	add_fingerprint(usr)
+	add_fingerprint(user) // hippie -- user, not usr: null when a bot does it
 
 
 /obj/item/folder/Topic(href, href_list)

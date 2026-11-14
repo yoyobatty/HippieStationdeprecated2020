@@ -841,7 +841,7 @@
 		return attack_hand(user)
 
 	if ( get_dist(src, user) == 0 )		// trying to unlock the interface
-		if (allowed(usr))
+		if (allowed(user)) // hippie -- user, not usr: null when a bot does it
 			if(obj_flags & EMAGGED)
 				to_chat(user, "<span class='warning'>The turret control is unresponsive!</span>")
 				return

@@ -175,7 +175,7 @@ GLOBAL_LIST_EMPTY(species_list)
 
 ///Timed action involving two mobs, the user and the target.
 /proc/do_mob(mob/user , mob/target, time = 3 SECONDS, uninterruptible = FALSE, progress = TRUE, datum/callback/extra_checks = null,  ignorehelditem = FALSE)
-	if(!user || !target)
+	if(QDELETED(user) || QDELETED(target)) // hippie -- was !user || !target (deleted mobs, see do_after())
 		return FALSE
 	if(GLOB.code_sweep_no_waiting) // hippie -- the code sweep's uses pass does everything at once (hippiestation/code/modules/admin/code_sweep.dm)
 		return TRUE
@@ -232,7 +232,7 @@ GLOBAL_LIST_EMPTY(species_list)
 
 ///Timed action involving one mob user. Target is optional.
 /proc/do_after(mob/user, var/delay, needhand = TRUE, atom/target = null, progress = TRUE, datum/callback/extra_checks = null)
-	if(!user)
+	if(QDELETED(user)) // hippie -- was !user: a timer or callback starting one for a deleted mob ran into its nulled dna and physiology
 		return FALSE
 	if(GLOB.code_sweep_no_waiting) // hippie -- the code sweep's uses pass does everything at once (hippiestation/code/modules/admin/code_sweep.dm)
 		return TRUE
@@ -304,7 +304,7 @@ GLOBAL_LIST_EMPTY(species_list)
 
 ///Timed action involving at least one mob user and a list of targets.
 /proc/do_after_mob(mob/user, list/targets, time = 3 SECONDS, uninterruptible = FALSE, progress = TRUE, datum/callback/extra_checks, required_mobility_flags = MOBILITY_STAND)
-	if(!user)
+	if(QDELETED(user)) // hippie -- was !user (deleted mobs, see do_after())
 		return FALSE
 	if(GLOB.code_sweep_no_waiting) // hippie -- the code sweep's uses pass does everything at once (hippiestation/code/modules/admin/code_sweep.dm)
 		return TRUE

@@ -179,7 +179,7 @@
 		qdel(src)
 
 	if(eventstarted)
-		to_chat(usr, "<span class='warning'>The event has already begun!</span>")
+		to_chat(user, "<span class='warning'>The event has already begun!</span>") // hippie -- user, not usr: null when a bot does it
 		return
 
 	ready = !ready

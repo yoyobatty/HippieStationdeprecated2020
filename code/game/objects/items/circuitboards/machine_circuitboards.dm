@@ -795,7 +795,7 @@
 
 /obj/item/circuitboard/machine/public_nanite_chamber/multitool_act(mob/living/user)
 	. = ..()
-	var/new_cloud = tgui_input_number(usr, "Set the public nanite chamber's Cloud ID (1-100).", "Cloud ID", cloud_id)
+	var/new_cloud = tgui_input_number(user, "Set the public nanite chamber's Cloud ID (1-100).", "Cloud ID", cloud_id) // hippie -- user, not usr: null when a bot does it
 	if(new_cloud == null)
 		return
 	cloud_id = clamp(round(new_cloud, 1), 1, 100)

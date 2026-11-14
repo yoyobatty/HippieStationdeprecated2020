@@ -150,7 +150,7 @@
 				return
 		if(2)
 			if(W.tool_behaviour == TOOL_WRENCH)
-				to_chat(usr, "<span class='warning'>You have to remove the wires first!</span>")
+				to_chat(user, "<span class='warning'>You have to remove the wires first!</span>") // hippie -- user, not usr: null when a bot does it
 				return
 
 			if(W.tool_behaviour == TOOL_WIRECUTTER)

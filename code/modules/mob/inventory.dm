@@ -172,6 +172,12 @@
 	return !held_items[hand_index]
 
 /mob/proc/put_in_hand(obj/item/I, hand_index, forced = FALSE, ignore_anim = TRUE)
+	// hippie start -- a deleted item put in a hand drew on the mob with nothing in the slot until dropped (a crafted
+	// result that swapped itself for another). Refuse it, and name the caller in the runtime log.
+	if(QDELETED(I))
+		stack_trace("[I] ([I?.type]) was put in [src]'s hand after it was deleted")
+		return FALSE
+	// hippie end
 	if(forced || can_put_in_hand(I, hand_index))
 		if(isturf(I.loc) && !ignore_anim)
 			I.do_pickup_animation(src)
@@ -224,6 +230,10 @@
 /mob/proc/put_in_hands(obj/item/I, del_on_fail = FALSE, merge_stacks = TRUE, forced = FALSE)
 	if(!I)
 		return FALSE
+	if(QDELETED(I)) // hippie start -- or a hand refuses it below and it's dropped on the floor, deleted
+		stack_trace("[I] ([I.type]) was put in [src]'s hands after it was deleted")
+		return FALSE
+	// hippie end
 
 	// If the item is a stack and we're already holding a stack then merge
 	if (istype(I, /obj/item/stack))

@@ -345,6 +345,8 @@
 	. = ..()
 	if(. & EMP_PROTECT_SELF)
 		return
+	if(!cell) // hippie -- nothing to spill with
+		return
 	var/list/datum/reagents/R = list()
 	var/total = min(rand(7,15), FLOOR(cell.charge*powerefficiency, 1))
 	var/datum/reagents/Q = new(total*10)

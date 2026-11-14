@@ -73,7 +73,7 @@
 	if(force > 0)
 		force -= rand(1, (force / 3) + 1) // When you whack someone with it, leaves fall off
 	else
-		to_chat(usr, "<span class='warning'>All the leaves have fallen off the nettle from violent whacking.</span>")
+		to_chat(user, "<span class='warning'>All the leaves have fallen off the nettle from violent whacking.</span>") // hippie -- user, not usr: null when a bot does it
 		qdel(src)
 
 /obj/item/reagent_containers/food/snacks/grown/nettle/basic

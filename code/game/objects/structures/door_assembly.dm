@@ -54,7 +54,7 @@
 		var/t = stripped_input(user, "Enter the name for the door.", name, created_name,MAX_NAME_LEN)
 		if(!t)
 			return
-		if(!in_range(src, usr) && loc != usr)
+		if(!in_range(src, user) && loc != user) // hippie -- user, not usr: null when a bot does it
 			return
 		created_name = t
 

@@ -104,19 +104,19 @@
 	var/datum/integrated_io/O = outputs[1]
 	if(!user.IsAdvancedToolUser())
 		return
-	var/type_to_use = tgui_input_list(usr, "Please choose a type to use.", "[src] type setting", list("string","number","ref", "null"))
+	var/type_to_use = tgui_input_list(user, "Please choose a type to use.", "[src] type setting", list("string","number","ref", "null"))
 
 	var/new_data = null
 	switch(type_to_use)
 		if("string")
 			accepting_refs = FALSE
-			new_data = tgui_input_text(usr, "Now type in a string.", "[src] string writing")
+			new_data = tgui_input_text(user, "Now type in a string.", "[src] string writing")
 			if(istext(new_data) && user.IsAdvancedToolUser())
 				O.data = new_data
 				to_chat(user, "<span class='notice'>You set \the [src]'s memory to [O.display_data(O.data)].</span>")
 		if("number")
 			accepting_refs = FALSE
-			new_data = tgui_input_number(usr, "Now type in a number.", "[src] number writing")
+			new_data = tgui_input_number(user, "Now type in a number.", "[src] number writing")
 			if(isnum(new_data) && user.IsAdvancedToolUser())
 				O.data = new_data
 				to_chat(user, "<span class='notice'>You set \the [src]'s memory to [O.display_data(O.data)].</span>")

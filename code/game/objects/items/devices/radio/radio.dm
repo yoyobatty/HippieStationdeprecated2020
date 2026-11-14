@@ -264,6 +264,8 @@
 		return
 	for(var/obj/item/jammer/jammer in GLOB.active_jammers)
 		var/turf/jammer_turf = get_turf(jammer)
+		if(!jammer_turf) // hippie -- a jammer off the map jams nothing (and was a runtime that stopped every message)
+			continue
 		if(position.z == jammer_turf.z && (get_dist(position, jammer_turf) <= jammer.range))
 			return
 
@@ -398,11 +400,15 @@
 		channels[ch_name] = 0
 	on = FALSE
 	stopmusic(user) //Hippie
-	spawn(200)
-		if(emped == curremp) //Don't fix it if it's been EMP'd again
-			emped = 0
-			if (!istype(src, /obj/item/radio/intercom)) // intercoms will turn back on on their own
-				on = TRUE
+	addtimer(CALLBACK(src, PROC_REF(end_emp_effect), curremp), 200) // hippie -- was spawn(200): it kept a radio deleted in the next 20 s from being collected (a timer goes with it)
+
+// hippie start
+/obj/item/radio/proc/end_emp_effect(curremp)
+	if(emped == curremp) //Don't fix it if it's been EMP'd again
+		emped = 0
+		if (!istype(src, /obj/item/radio/intercom)) // intercoms will turn back on on their own
+			on = TRUE
+// hippie end
 
 /obj/item/radio/AltClick(mob/living/user) //Hippie
 	..()

@@ -290,13 +290,55 @@ GLOBAL_DATUM(code_sweep, /datum/code_sweep)
 		var/outcome = crafting.construct_item(H, R)
 		if(outcome)
 			note("[path] couldn't be made from what it asks for[outcome]")
+		else
+			check_crafted(R, H)
 		clear_arena()
 		CHECK_TICK
 
+/// After a recipe went through: what it made is real and where the menu means it to be, nothing deleted is held, and the
+/// ingredients went (an exploded result, or one CheckParts() swapped for another, shows up here).
+/datum/code_sweep/proc/check_crafted(datum/crafting_recipe/R, mob/living/carbon/human/H)
+	var/path = R.type
+	if(QDELETED(H))
+		note("[path] deleted the crafter")
+		return
+	for(var/obj/item/held in H.held_items)
+		if(QDELETED(held))
+			note("[path] left a deleted [held] ([held.type]) in a hand")
+	var/list/around = H.held_items + H.contents + spot.contents
+	var/atom/movable/made
+	for(var/atom/movable/A in around)
+		if(istype(A, R.result) && !QDELETED(A))
+			made = A
+			break
+	if(!made)
+		var/list/seen = list()
+		for(var/atom/movable/A in around)
+			if(!QDELETED(A) && !isliving(A))
+				seen += "[A.type]"
+		note("[path] made no [R.result] (there: [jointext(seen, ", ")])")
+		return
+	if(isitem(made) && !(made in H.held_items) && !(made.loc in H.held_items))
+		note("[path] left its [made] ([made.type]) at [made.loc] instead of in the hand")
+	// Ingredients still lying about. A part the result is the same kind of thing as (Pin Removal's gun) is the result.
+	for(var/needed in R.reqs)
+		if(!ispath(needed, /atom/movable) || ispath(R.result, needed) || ispath(needed, R.result))
+			continue
+		var/left = 0
+		for(var/atom/movable/A in around)
+			if(istype(A, needed) && !QDELETED(A) && A != made)
+				var/obj/item/stack/S = A
+				left += istype(S) ? S.amount : 1
+		if(left)
+			note("[path] left [left] of its [needed] unused")
+
 /datum/code_sweep/proc/make_ingredient(path, amount)
 	if(ispath(path, /datum/reagent))
-		var/obj/item/reagent_containers/glass/beaker/bluespace/B = new(spot)
-		B.reagents.add_reagent(path, amount, no_react = TRUE)
+		while(amount > 0) //a beaker at a time, as a player would bring more than a bluespace beaker holds (400u of blood)
+			var/obj/item/reagent_containers/glass/beaker/bluespace/B = new(spot)
+			var/pour = min(amount, B.volume)
+			B.reagents.add_reagent(path, pour, no_react = TRUE)
+			amount -= pour
 	else if(ispath(path, /obj/item/stack))
 		new path(spot, amount)
 	else

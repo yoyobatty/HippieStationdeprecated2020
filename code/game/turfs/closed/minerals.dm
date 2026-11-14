@@ -47,7 +47,7 @@
 
 /turf/closed/mineral/attackby(obj/item/I, mob/user, params)
 	if (!user.IsAdvancedToolUser())
-		to_chat(usr, "<span class='warning'>You don't have the dexterity to do this!</span>")
+		to_chat(user, "<span class='warning'>You don't have the dexterity to do this!</span>") // hippie -- user, not usr: null when a bot does it
 		return
 
 	if(I.tool_behaviour == TOOL_MINING)

@@ -739,7 +739,7 @@
 		return
 
 	prompted = 1
-	if(tgui_alert(usr, "This will permanently transfer your consciousness to [SM]. Are you sure you want to do this?", null, list("Yes", "No"))=="No")
+	if(tgui_alert(user, "This will permanently transfer your consciousness to [SM]. Are you sure you want to do this?", null, list("Yes", "No"))=="No") // hippie -- user, not usr: null when a bot does it
 		prompted = 0
 		return
 

@@ -32,7 +32,7 @@
 	qdel(nadeassembly)
 	nadeassembly = null
 	target = null
-	..()
+	return ..() // hippie -- returned no qdel hint
 
 /obj/item/grenade/plastic/attackby(obj/item/I, mob/user, params)
 	if(!nadeassembly && istype(I, /obj/item/assembly_holder))
@@ -96,7 +96,7 @@
 	if(nadeassembly)
 		nadeassembly.attack_self(user)
 		return
-	var/newtime = tgui_input_number(usr, "Please set the timer.", "Timer", 10, allow_cancel = FALSE)
+	var/newtime = tgui_input_number(user, "Please set the timer.", "Timer", 10, allow_cancel = FALSE) // hippie -- user, not usr: null when a bot does it
 	if(user.get_active_held_item() == src)
 		newtime = clamp(newtime, 10, 60000)
 		det_time = newtime

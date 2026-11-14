@@ -804,7 +804,7 @@
 	if(stat & (NOPOWER|BROKEN))
 		to_chat(user, "<span class='warning'>It does nothing!</span>")
 	else
-		if(src.allowed(usr) && !wires.is_cut(WIRE_IDSCAN))
+		if(src.allowed(user) && !wires.is_cut(WIRE_IDSCAN)) // hippie -- user, not usr: null when a bot does it
 			locked = !locked
 			to_chat(user, "<span class='notice'>You [ locked ? "lock" : "unlock"] the air alarm interface.</span>")
 			updateUsrDialog()

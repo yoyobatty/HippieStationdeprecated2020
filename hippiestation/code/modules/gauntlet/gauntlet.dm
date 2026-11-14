@@ -484,7 +484,7 @@ GLOBAL_VAR_INIT(telescroll_time, 0)
 	if(!istype(user))
 		return
 	if(!locked_on)
-		var/prompt = tgui_alert(usr, "Would you like to truly wear the Badmin Gauntlet? You will be unable to remove it!", "Confirm", list("Yes", "No"))
+		var/prompt = tgui_alert(user, "Would you like to truly wear the Badmin Gauntlet? You will be unable to remove it!", "Confirm", list("Yes", "No"))
 		if (prompt == "Yes")
 			if(locked_on)
 				return

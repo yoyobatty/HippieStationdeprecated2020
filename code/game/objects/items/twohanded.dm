@@ -491,15 +491,25 @@
 		icon_prefix = "spearplasma"
 	update_icon()
 	qdel(tip)
+	parts_list -= tip // hippie -- ..() put the deleted tip inside the spear
 	var/obj/item/grenade/G = locate() in parts_list
 	if(G)
+		// hippie start -- the lance takes the old spear's make (a plasma spear stays plasma; this new spear is a plain one), and
+		// the old spear goes too: ..() put it inside this spear after this spear was deleted, and neither could be collected
+		var/obj/item/twohanded/spear/old = locate() in parts_list
+		var/obj/item/twohanded/spear/from = old || src
 		var/obj/item/twohanded/spear/explosive/lance = new /obj/item/twohanded/spear/explosive(src.loc, G)
-		lance.force_wielded = force_wielded
-		lance.force_unwielded = force_unwielded
-		lance.throwforce = throwforce
-		lance.icon_prefix = icon_prefix
+		lance.force_wielded = from.force_wielded
+		lance.force_unwielded = from.force_unwielded
+		lance.throwforce = from.throwforce
+		lance.icon_prefix = from.icon_prefix
+		lance.update_icon()
+		crafted_into = lance // the crafting menu hands this over instead of the spear deleted below
 		parts_list -= G
+		QDEL_LIST(parts_list)
 		qdel(src)
+		return
+		// hippie end
 	..()
 
 

@@ -82,7 +82,7 @@
 	else if(I.tool_behaviour == TOOL_CROWBAR)
 		user.visible_message("[user] begins to empty the contents of [src].", "<span class='notice'>You begin to empty the contents of [src]...</span>")
 		if(I.use_tool(src, user, 30))
-			to_chat(usr, "<span class='notice'>You empty the contents of [src]'s bucket onto the floor.</span>")
+			to_chat(user, "<span class='notice'>You empty the contents of [src]'s bucket onto the floor.</span>") // hippie -- user, not usr: null when a bot does it
 			reagents.reaction(src.loc)
 			src.reagents.clear_reagents()
 	else

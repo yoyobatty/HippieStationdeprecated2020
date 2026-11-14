@@ -1,3 +1,8 @@
+/obj/item
+	/// What this crafted result turned into when CheckParts() swapped it for another item and deleted it (a spear given a
+	/// grenade -> an explosive lance, Pin Removal -> the gun itself). The crafting menu hands that over instead.
+	var/obj/item/crafted_into
+
 /datum/crafting_recipe/stunprod
 	result = /obj/item/melee/baton/cattleprod/hippie_cattleprod
 
@@ -210,8 +215,8 @@
 	name = "ghetto multitool"
 	result = /obj/item/multitool/ghetto
 	reqs = list(/obj/item/radio/headset = 1,
-				/obj/item/stack/sheet/metal = 2,
-				/obj/item/screwdriver)
+				/obj/item/stack/sheet/metal = 2)
+	tools = list(TOOL_SCREWDRIVER) //was a req with no amount: never used up, and shown in the menu as a part
 	time = 160
 	category = CAT_MISC
 

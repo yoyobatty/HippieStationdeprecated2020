@@ -14,7 +14,7 @@
 /obj/item/stack/broken_rods/attackby(obj/item/W, mob/user, params)
 	if(W.tool_behaviour == TOOL_WELDER)
 		if(W.use_tool(src, user, 0, volume=40))
-			var/obj/item/stack/rods/new_item = new(usr.loc)
+			var/obj/item/stack/rods/new_item = new(user.loc) //was usr: null for a bot, or anything not clicking
 			user.visible_message("[user.name] shaped [src] into a rod with [W].", \
 						 "<span class='notice'>You shape [src] into a rod with [W].</span>", \
 						 "<span class='italics'>You hear welding.</span>")

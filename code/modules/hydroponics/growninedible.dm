@@ -39,7 +39,7 @@
 		if(seed)
 			msg += seed.get_analyzer_text()
 		msg += "</span>"
-		to_chat(usr, msg)
+		to_chat(user, msg) // hippie -- user, not usr: null when a bot does it
 		return
 
 /obj/item/grown/proc/add_juice()

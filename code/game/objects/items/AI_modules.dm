@@ -229,11 +229,11 @@ AI MODULES
 	laws = list("")
 
 /obj/item/aiModule/supplied/freeform/attack_self(mob/user)
-	var/newpos = tgui_input_number(usr, "Please enter the priority for your new law. Can only write to law sectors 15 and above.", "Law Priority (15+)", lawpos)
+	var/newpos = tgui_input_number(user, "Please enter the priority for your new law. Can only write to law sectors 15 and above.", "Law Priority (15+)", lawpos) // hippie -- user, not usr: null when a bot does it
 	if(newpos == null)
 		return
 	if(newpos < 15)
-		var/response = tgui_alert(usr, "Error: The law priority of [newpos] is invalid,  Law priorities below 14 are reserved for core laws,  Would you like to change that that to 15?", "Invalid law priority", list("Change to 15", "Cancel"))
+		var/response = tgui_alert(user, "Error: The law priority of [newpos] is invalid,  Law priorities below 14 are reserved for core laws,  Would you like to change that that to 15?", "Invalid law priority", list("Change to 15", "Cancel")) // hippie -- user, not usr: null when a bot does it
 		if (!response || response == "Cancel")
 			return
 		newpos = 15
@@ -264,7 +264,7 @@ AI MODULES
 	var/lawpos = 1
 
 /obj/item/aiModule/remove/attack_self(mob/user)
-	lawpos = tgui_input_number(usr, "Please enter the law you want to delete.", "Law Number", lawpos)
+	lawpos = tgui_input_number(user, "Please enter the law you want to delete.", "Law Number", lawpos) // hippie -- user, not usr: null when a bot does it
 	if(lawpos == null)
 		return
 	if(lawpos <= 0)

@@ -567,7 +567,7 @@
 
 //ATTACK HAND IGNORING PARENT RETURN VALUE
 /obj/effect/mob_spawn/human/alive/space_bar_patron/attack_hand(mob/user)
-	var/despawn = tgui_alert(usr, "Return to cryosleep? (Warning, Your mob will be deleted!)", null, list("Yes", "No"))
+	var/despawn = tgui_alert(user, "Return to cryosleep? (Warning, Your mob will be deleted!)", null, list("Yes", "No")) // hippie -- user, not usr: null when a bot does it
 	if(despawn == "No" || !loc || !Adjacent(user))
 		return
 	user.visible_message("<span class='notice'>[user.name] climbs back into cryosleep...</span>")

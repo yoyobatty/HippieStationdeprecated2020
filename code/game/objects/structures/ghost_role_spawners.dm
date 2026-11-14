@@ -181,7 +181,7 @@
 	if(.)
 		return
 	if(isgolem(user) && can_transfer)
-		var/transfer_choice = tgui_alert(usr, "Transfer your soul to [src]? (Warning, your old body will die!)", null, list("Yes", "No"))
+		var/transfer_choice = tgui_alert(user, "Transfer your soul to [src]? (Warning, your old body will die!)", null, list("Yes", "No")) // hippie -- user, not usr: null when a bot does it
 		if(transfer_choice != "Yes")
 			return
 		if(QDELETED(src) || uses <= 0)

@@ -63,7 +63,7 @@
 /obj/machinery/pipedispenser/attackby(obj/item/W, mob/user, params)
 	add_fingerprint(user)
 	if (istype(W, /obj/item/pipe) || istype(W, /obj/item/pipe_meter))
-		to_chat(usr, "<span class='notice'>You put [W] back into [src].</span>")
+		to_chat(user, "<span class='notice'>You put [W] back into [src].</span>") // hippie -- user, not usr: null when a bot does it
 		qdel(W)
 		return
 	else

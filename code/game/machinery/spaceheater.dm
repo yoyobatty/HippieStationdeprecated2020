@@ -150,7 +150,7 @@
 			else if(!user.transferItemToLoc(I, src))
 				return
 			cell = I
-			I.add_fingerprint(usr)
+			I.add_fingerprint(user) // hippie -- user, not usr: null when a bot does it
 
 			user.visible_message("\The [user] inserts a power cell into \the [src].", "<span class='notice'>You insert the power cell into \the [src].</span>")
 			SStgui.update_uis(src)

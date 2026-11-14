@@ -500,7 +500,7 @@
 		if(opened)
 			to_chat(user, "<span class='warning'>You must close the cover to swipe an ID card!</span>")
 		else
-			if(allowed(usr))
+			if(allowed(user)) // hippie -- user, not usr: null when a bot does it
 				locked = !locked
 				to_chat(user, "<span class='notice'>You [ locked ? "lock" : "unlock"] [src]'s cover.</span>")
 				update_icons()

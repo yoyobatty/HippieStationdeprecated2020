@@ -103,8 +103,8 @@
 /atom/Destroy()
 	if(alternate_appearances)
 		for(var/K in alternate_appearances)
-			var/datum/atom_hud/alternate_appearance/AA = alternate_appearances[K]
-			AA.remove_from_hud(src)
+			var/datum/atom_hud/alternate_appearance/AA = LAZYACCESS(alternate_appearances, K) // hippie -- removing one can take others with it (its ghost copy) and null the list
+			AA?.remove_from_hud(src) // hippie
 
 	if(reagents)
 		qdel(reagents)

@@ -35,7 +35,7 @@
 
 /obj/item/assault_pod/attack_self(mob/living/user)
 	var/target_area
-	target_area = tgui_input_list(usr, "Area to land", "Select a Landing Zone", GLOB.teleportlocs, target_area)
+	target_area = tgui_input_list(user, "Area to land", "Select a Landing Zone", GLOB.teleportlocs, target_area) // hippie -- user, not usr: null when a bot does it
 	if(!target_area)
 		return
 	var/area/picked_area = GLOB.teleportlocs[target_area]

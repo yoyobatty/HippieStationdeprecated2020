@@ -16,7 +16,7 @@
 	. = ..()
 	if(.)
 		return
-	if(tgui_alert(usr, question, name, list("Yes", "No")) == "Yes" && Adjacent(user))
+	if(tgui_alert(user, question, name, list("Yes", "No")) == "Yes" && Adjacent(user)) // hippie -- user, not usr: null when a bot does it
 		var/turf/T = find_safe_turf(zlevels=zlevels)
 
 		if(T)

@@ -404,13 +404,13 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	if(.)
 		return
 	if(length(src_object.contents()))
-		to_chat(usr, "<span class='notice'>You start dumping out the contents...</span>")
-		if(!do_after(usr,20,target=src_object.parent))
+		to_chat(user, "<span class='notice'>You start dumping out the contents...</span>") // hippie -- user, not usr: null when a bot does it
+		if(!do_after(user,20,target=src_object.parent)) // hippie -- user, not usr: null when a bot does it
 			return FALSE
 
 	var/list/things = src_object.contents()
 	var/datum/progressbar/progress = new(user, things.len, src)
-	while (do_after(usr, 10, TRUE, src, FALSE, CALLBACK(src_object, TYPE_PROC_REF(/datum/component/storage, mass_remove_from_storage), src, things, progress)))
+	while (do_after(user, 10, TRUE, src, FALSE, CALLBACK(src_object, TYPE_PROC_REF(/datum/component/storage, mass_remove_from_storage), src, things, progress))) // hippie -- user, not usr: null when a bot does it
 		stoplag(1)
 	progress.end_progress()
 

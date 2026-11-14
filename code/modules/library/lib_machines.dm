@@ -516,7 +516,7 @@ GLOBAL_LIST(cachedbooks) // List of our cached book datums
 	. = ..()
 	if(.)
 		return
-	usr.set_machine(src)
+	user.set_machine(src) // hippie -- user, not usr: null when a bot does it
 	var/dat = "" // <META HTTP-EQUIV='Refresh' CONTENT='10'>
 	if(cache)
 		dat += "<FONT color=#005500>Data stored in memory.</FONT><BR>"

@@ -176,7 +176,7 @@
 
 
 /obj/item/clothing/mask/gas/tiki_mask/ui_action_click(mob/user)
-	var/mob/M = usr
+	var/mob/M = user // hippie -- user, not usr: null when a bot does it
 	var/list/options = list()
 	options["Original Tiki"] = "tiki_eyebrow"
 	options["Happy Tiki"] = "tiki_happy"

@@ -36,7 +36,8 @@
 
 /obj/item/laser_pointer/upgraded/Initialize()
 	. = ..()
-	diode = new /obj/item/stock_parts/micro_laser/ultra
+	QDEL_NULL(diode) // hippie -- the plain diode the parent put inside was left there, and the ultra one sat in nullspace
+	diode = new /obj/item/stock_parts/micro_laser/ultra(src) // hippie
 
 /obj/item/laser_pointer/attackby(obj/item/W, mob/user, params)
 	if(istype(W, /obj/item/stock_parts/micro_laser))

@@ -351,6 +351,16 @@
 
 //////////////////HIPPIE CODE//////////////////////
 
+// A portal gun's casings and their beams point back at the gun, and the gun's ammo_type at them: deleted together, none could
+// be collected and all were hard deleted. Each lets go of the gun.
+/obj/item/ammo_casing/energy/wormhole/Destroy()
+	gun = null
+	return ..()
+
+/obj/item/projectile/beam/wormhole/Destroy()
+	gun = null
+	return ..()
+
 /obj/item/gun/energy/wormhole_projector/magic
 	name = "magic portal gun"
 	desc = "A magically powered gun that is capable of creating wormholes."

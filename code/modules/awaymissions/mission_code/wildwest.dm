@@ -88,7 +88,7 @@
 	else
 		chargesa--
 		insistinga = 0
-		var/wish = tgui_input_list(usr, "You want...", "Wish", list("Power","Wealth","Immortality","To Kill","Peace"))
+		var/wish = tgui_input_list(user, "You want...", "Wish", list("Power","Wealth","Immortality","To Kill","Peace")) // hippie -- user, not usr: null when a bot does it
 		switch(wish)
 			if("Power")
 				to_chat(user, "<B>Your wish is granted, but at a terrible cost...</B>")

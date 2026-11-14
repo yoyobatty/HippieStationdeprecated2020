@@ -175,6 +175,14 @@
 				var/list/parts = del_reqs(R, user)
 				var/atom/movable/I = new R.result (get_turf(user.loc))
 				I.CheckParts(parts, R)
+				// hippie start -- a result that swaps itself for another item in CheckParts() and deletes itself (spear + grenade ->
+				// explosive lance, Pin Removal -> the gun): hand over that item. The deleted one in the hand drew on the mob with nothing in the slot.
+				if(QDELETED(I) && isitem(I))
+					var/obj/item/swapped = I
+					if(swapped.crafted_into)
+						I = swapped.crafted_into
+						swapped.crafted_into = null
+				// hippie end
 				if(isitem(I))
 					user.put_in_hands(I)
 				if(send_feedback)

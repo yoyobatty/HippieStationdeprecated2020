@@ -50,11 +50,18 @@
 		if(del_on_release && !destroying)
 			qdel(src)
 		return FALSE
-	if(isliving(loc))
+	if(isliving(loc) && !QDELETED(loc) && !destroying) // hippie -- not out of a mob that's being deleted, and not while this is: DROPDEL qdel()d it again mid-Destroy() (item Destroy() takes it out of the hand)
 		var/mob/living/L = loc
 		to_chat(L, "<span class='warning'>[held_mob] wriggles free!</span>")
 		L.dropItemToGround(src)
-	held_mob.forceMove(get_turf(held_mob))
+	// hippie start -- whoever held it was deleted (dusted) and taken off the map first: nowhere to put it, and forceMove(null) CRASHed
+	// half-way. It goes with the holder, as anything else they carried does.
+	var/turf/T = get_turf(held_mob)
+	if(!T)
+		held_mob = null
+		return FALSE
+	// hippie end
+	held_mob.forceMove(T)
 	held_mob.reset_perspective()
 	held_mob.setDir(SOUTH)
 	held_mob.visible_message("<span class='warning'>[held_mob] uncurls!</span>")

@@ -70,6 +70,8 @@
 		if(wipe_custom_designs)
 			custom_designs = list()
 	for(var/id in processing)
+		if(QDELETED(src)) // hippie -- its machine went while this slept (CHECK_TICK), and Destroy() nulled the lists
+			return
 		update_node_status(SSresearch.techweb_node_by_id(id), FALSE)
 		CHECK_TICK
 	for(var/v in consoles_accessing)
@@ -115,13 +117,19 @@
 	// on already-researched nodes was doing 10,000s of redundant operations on a near-complete upload.
 	for(var/i in researched_nodes - receiver.researched_nodes)
 		CHECK_TICK
+		if(QDELETED(src) || QDELETED(receiver)) // hippie -- either can go while this sleeps (its machine destroyed), and Destroy() nulls the lists
+			return
 		receiver.research_node_id(i, TRUE, FALSE, FALSE)
 	for(var/i in researched_designs - receiver.researched_designs)
 		CHECK_TICK
+		if(QDELETED(src) || QDELETED(receiver)) // hippie
+			return
 		receiver.add_design_by_id(i)
 	if(unlock_hidden)
 		for(var/i in receiver.hidden_nodes)
 			CHECK_TICK
+			if(QDELETED(src) || QDELETED(receiver)) // hippie
+				return
 			if(!hidden_nodes[i])
 				receiver.hidden_nodes -= i		//We can see it so let them see it too.
 	receiver.recalculate_nodes()

@@ -190,7 +190,7 @@ effective or pretty fucking useless.
 /obj/item/shadowcloak/ui_action_click(mob/user)
 	if(user.get_item_by_slot(ITEM_SLOT_BELT) == src)
 		if(!on)
-			Activate(usr)
+			Activate(user) // hippie -- user, not usr: null when a bot does it
 		else
 			Deactivate()
 	return
@@ -251,3 +251,10 @@ effective or pretty fucking useless.
 	else
 		GLOB.active_jammers -= src
 	update_icon()
+
+// hippie start -- a jammer deleted while on stayed on the list: hard deleted, and every radio message after it was a runtime in
+// talk_into() (its turf null) and never went out
+/obj/item/jammer/Destroy()
+	GLOB.active_jammers -= src
+	return ..()
+// hippie end

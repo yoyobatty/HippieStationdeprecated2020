@@ -18,7 +18,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/__HELPERS/AStar.dm
 ## code/__HELPERS/game.dm (get_hearers_in_view(): radios found once, a hearer added once, each tile and range remembered for the tick; get_mobs_in_radio_ranges() doesn't ask a radio with nobody but radios in reach)
 ## code/__HELPERS/icons.dm
-## code/__HELPERS/mobs.dm
+## code/__HELPERS/mobs.dm (do_after(), do_mob(), do_after_mob() refuse a deleted mob)
 ## code/__HELPERS/radiation.dm
 ## code/__HELPERS/roundend.dm
 ## code/__HELPERS/text.dm
@@ -51,6 +51,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/subsystem/vote.dm
 ## code/datums/brain_damage/imaginary_friend.dm (the friend's picture is set up async and is never an AI's or a cyborg's)
 ## code/datums/components/chasm.dm (is_safe() by locate(), no copy of the tile's contents)
+## code/datums/components/crafting/crafting.dm (a result CheckParts() swapped for another item hands over that item, not the deleted one: explosive lance, Pin Removal)
 ## code/datums/components/material_container.dm
 ## code/datums/components/squeak.dm (a pile of squeaky things squeaks once for each thing that comes onto it)
 ## code/datums/datumvars.dm
@@ -66,7 +67,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/datums/tgs_event_handler.dm
 ## code/datums/wires/airlock.dm
 ## code/datums/world_topic.dm
-## code/game/atoms.dm (an atom made on a level the lobby build is making waits for it)
+## code/game/atoms.dm (an atom made on a level the lobby build is making waits for it; Destroy() survives an alternate appearance taking others with it)
 ## code/game/atoms_movable.dm (doMove() skips no_cross_checks like Move(); throw_at() keeps gentle and starts the flight, safe_throw_at() passes gentle on, hippiestation/code/modules/throwing/)
 ## code/game/gamemodes/changeling/changeling.dm !Should be modularized. Can be done easily.
 ## code/game/gamemodes/game_mode.dm
@@ -74,6 +75,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/machinery/\_machinery.dm
 ## code/game/machinery/buttons.dm
 ## code/game/machinery/camera/camera.dm
+## code/game/machinery/computer/arcade.dm (user, not usr: null when a bot does it)
 ## code/game/machinery/computer/atmos_control.dm (out of the .dme: rewritten whole as hippiestation/code/game/machinery/computer/atmos_control.dm, tg's later tank sensors and consoles: the sensor holds its tank's injector and vent, linked by multitool or by sharing a sealed tank, and the consoles drive them directly instead of by radio)
 ## code/game/machinery/computer/cloning.dm
 ## code/game/machinery/computer/communications.dm (the alert swipe reads a worn ID; a change locks the level for a minute, communications_tgui.dm)
@@ -82,6 +84,10 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/machinery/doors/airlock_types.dm !Should be modularized. Can be done easily.
 ## code/game/machinery/doors/brigdoors.dm
 ## code/game/machinery/flasher.dm
+## code/game/machinery/pipe/pipe_dispenser.dm (user, not usr: null when a bot does it)
+## code/game/machinery/porta_turret/portable_turret.dm (user, not usr: null when a bot does it)
+## code/game/machinery/spaceheater.dm (user, not usr: null when a bot does it)
+## code/game/machinery/syndicatebomb.dm (timer prompt default is a number)
 ## code/game/machinery/telecomms/broadcasting.dm
 ## code/game/machinery/telecomms/telecomunications.dm
 ## code/game/mecha/equipment/tools/mining_tools.dm
@@ -93,23 +99,43 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/objects/effects/spiders.dm (spiderlings step every half decisecond, not every tick, with the glide to match)
 ## code/game/objects/empulse.dm !Should be modularized. Can be done easily.
 ## code/game/objects/items.dm
+## code/game/objects/items/AI_modules.dm (user, not usr: null when a bot does it)
+## code/game/objects/items/cards_ids.dm (user, not usr: null when a bot does it)
+## code/game/objects/items/circuitboards/machine_circuitboards.dm (user, not usr: null when a bot does it)
 ## code/game/objects/items/crayons.dm
 ## code/game/objects/items/defib.dm
 ## code/game/objects/items/devices/flashlight.dm !Should be modularized. Can be done easily.
-## code/game/objects/items/devices/radio/radio.dm
+## code/game/objects/items/devices/forcefieldprojector.dm (a deleted projector takes its fields with it)
+## code/game/objects/items/devices/laserpointer.dm (the upgraded pointer's ultra diode is inside it, and the plain one is gone)
+## code/game/objects/items/devices/PDA/PDA.dm (EMP recovery on a timer, not spawn())
+## code/game/objects/items/devices/pipe_painter.dm (user, not usr: null when a bot does it)
+## code/game/objects/items/devices/radio/radio.dm (a jammer off the map is skipped; EMP recovery on a timer, not spawn())
 ## code/game/objects/items/devices/scanners.dm (health analyser reports blast lung, explosion_realism/blast_injuries.dm)
+## code/game/objects/items/devices/traitordevices.dm (user, not usr: null when a bot does it; a deleted jammer leaves the jammer list)
+## code/game/objects/items/extinguisher.dm (user, not usr: null when a bot does it)
+## code/game/objects/items/grenades/plastic.dm (Destroy() returns its qdel hint)
 ## code/game/objects/items/robot/robot_items.dm
+## code/game/objects/items/RPD.dm (user, not usr: null when a bot does it)
 ## code/game/objects/items/stacks/rods.dm
 ## code/game/objects/items/stacks/sheets/glass.dm
 ## code/game/objects/items/stacks/stack.dm
+## code/game/objects/items/storage/boxes.dm (user, not usr: null when a bot does it)
 ## code/game/objects/items/stunbaton.dm
 ## code/game/objects/items/tools/wirecutters.dm !Should be modularized. Can be done easily.
+## code/game/objects/items/toys.dm (user, not usr: null when a bot does it)
+## code/game/objects/items/twohanded.dm (spear/CheckParts(): the explosive lance is handed over, keeps the old spear's make, and the old spear and tip are deleted, not put in a deleted spear)
 ## code/game/objects/obj_defense.dm (bullets hit from the side their flight angle points back to; pushes say where they came from)
 ## code/game/objects/structures/barsigns.dm
+## code/game/objects/structures/door_assembly.dm (user, not usr: null when a bot does it)
+## code/game/objects/structures/ghost_role_spawners.dm (user, not usr: null when a bot does it)
 ## code/game/objects/structures/grille.dm
+## code/game/objects/structures/janicart.dm (user, not usr: null when a bot does it)
+## code/game/objects/structures/ladders.dm (user, not usr: null when a bot does it)
+## code/game/objects/structures/windoor_assembly.dm (user, not usr: null when a bot does it)
 ## code/game/objects/structures/window.dm
 ## code/game/sound.dm (playsound_local() dulls everything while a blast has the ears ringing, explosion_realism/blast_senses.dm)
 ## code/game/turfs/change_turf.dm (a level the lobby build is making gets its lighting at the end)
+## code/game/turfs/closed/minerals.dm (user, not usr: null when a bot does it)
 ## code/game/turfs/open.dm
 ## code/game/turfs/open/lava.dm (is_safe() by locate(), no copy of the tile's contents)
 ## code/game/turfs/open/space/space.dm (set_starlight() retints the camera pictures' starlight copies, map_view.dm; space put back at runtime tells the tile engine, tile_engine.dm)
@@ -139,14 +165,19 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/antagonists/abductor/equipment/abduction_gear.dm
 ## code/modules/antagonists/changeling/powers/mutations.dm
 ## code/modules/antagonists/clockcult/clock_items/clockwork_armor.dm
+## code/modules/antagonists/clockcult/clock_structures/clockwork_obelisk.dm (user, not usr: null when a bot does it)
 ## code/modules/antagonists/cult/blood_magic.dm
+## code/modules/antagonists/fugitive/fugitive_outfits.dm (the synthetic's eyes go in the synthetic, not the outfit)
 ## code/modules/antagonists/morph/morph.dm
+## code/modules/assembly/holder.dm (user, not usr: null when a bot does it)
 ## code/modules/asset_cache/asset_list.dm
 ## code/modules/atmospherics/environmental/LINDA_fire.dm (hotspots tell the tile engine when it keeps LINDA's state, tile_engine.dm)
 ## code/modules/atmospherics/environmental/LINDA_system.dm (tile engine neighbour cache; shut doors' tiles pick their side, door_seals.dm; CanAtmosPass() walks both tiles without making contents+T.contents)
 ## code/modules/atmospherics/environmental/LINDA_turf_tile.dm (a group's turfs skip the overlay update when nothing shows; update_visuals() makes no list for plain air)
+## code/modules/atmospherics/machinery/airalarm.dm (user, not usr: null when a bot does it)
 ## code/modules/atmospherics/machinery/atmosmachinery.dm
 ## code/modules/atmospherics/machinery/components/binary_devices/dp_vent_pump.dm (pipe air marked for the tile engine, pipe_engine.dm)
+## code/modules/atmospherics/machinery/components/binary_devices/valve.dm (user, not usr: null when a bot does it)
 ## code/modules/atmospherics/machinery/components/components_base.dm (update_parents() marks pipe air for the tile engine, pipe_engine.dm)
 ## code/modules/atmospherics/machinery/components/trinary_devices/mixer.dm (pipe air marked for the tile engine, pipe_engine.dm)
 ## code/modules/atmospherics/machinery/components/unary_devices/thermomachine.dm (pipe air marked for the tile engine, pipe_engine.dm)
@@ -156,34 +187,49 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/atmospherics/machinery/pipes/pipes.dm (pipe air marked for the tile engine, pipe_engine.dm)
 ## code/modules/awaymissions/capture_the_flag.dm
 ## code/modules/awaymissions/corpse.dm
+## code/modules/awaymissions/mission_code/wildwest.dm (user, not usr: null when a bot does it)
+## code/modules/awaymissions/signpost.dm (user, not usr: null when a bot does it)
 ## code/modules/client/client_procs.dm
 ## code/modules/client/darkmode.dm
 ## code/modules/client/preferences.dm
 ## code/modules/client/preferences_savefile.dm
 ## code/modules/client/verbs/ooc.dm
-## code/modules/clothing/clothing.dm
+## code/modules/clothing/clothing.dm (voice-box masks get their toggle button: LAZYADD)
+## code/modules/clothing/head/misc_special.dm (user, not usr: null when a bot does it)
+## code/modules/clothing/masks/gasmask.dm (user, not usr: null when a bot does it)
 ## code/modules/discord/tgs_commands.dm
 ## code/modules/error_handler/error_handler.dm (world/Error() tells Bot Shift, a code sweep and the round's runtime ledger of each runtime)
 ## code/modules/food_and_drinks/drinks/drinks.dm !Should be modularized. Can be done easily.
 ## code/modules/food_and_drinks/drinks/drinks/drinkingglass.dm
+## code/modules/food_and_drinks/food/snacks_egg.dm (user, not usr: null when a bot does it)
 ## code/modules/food_and_drinks/food/snacks_meat.dm (a monkey cube asks the monkey cap before a monkey is made)
 ## code/modules/holodeck/computer.dm (floorcheck() keeps the holodeck's turfs in a list instead of reading the area every 2 s)
+## code/modules/holodeck/items.dm (user, not usr: null when a bot does it)
 ## code/modules/hydroponics/grown/banana.dm !Should be modularized. Can be done easily.
+## code/modules/hydroponics/grown/flowers.dm (user, not usr: null when a bot does it)
+## code/modules/hydroponics/grown/nettle.dm (user, not usr: null when a bot does it)
+## code/modules/hydroponics/grown/towercap.dm (user, not usr: null when a bot does it)
+## code/modules/hydroponics/growninedible.dm (user, not usr: null when a bot does it)
 ## code/modules/integrated_electronics/subtypes/input.dm
 ## code/modules/integrated_electronics/subtypes/manipulation.dm
 ## code/modules/integrated_electronics/subtypes/smart.dm
 ## code/modules/jobs/job_exp.dm
 ## code/modules/keybindings/bindings_client.dm (keyDown() ignores a key already held: a held key could come in twice, through a tgui window and from the map)
 ## code/modules/keybindings/setup.dm
+## code/modules/library/lib_items.dm (user, not usr: null when a bot does it)
 ## code/modules/library/lib_machines.dm
 ## code/modules/library/random_books.dm
 ## code/modules/lighting/lighting_corner.dm (the tone curve in update_objects(): light past the knee eases toward full instead of being cut off at 1, see ~hippie_defines/lighting_tone.dm)
 ## code/modules/mapping/map_template.dm (tile engine neighbour cache, tile_engine.dm; a ruin on a level the lobby build is making loads as at startup)
 ## code/modules/mapping/reader.dm (plain turf-and-area tiles made in _load_impl(); parsing by hippie_map.dll, map_engine.dm)
 ## code/modules/mapping/space_management/space_reservation.dm
+## code/modules/mining/abandoned_crates.dm (user, not usr: null when a bot does it)
 ## code/modules/mining/equipment/survival_pod.dm !Should be modularized. Can be done easily.
+## code/modules/mining/fulton.dm (user, not usr: null when a bot does it)
+## code/modules/mining/machine_vending.dm (user, not usr: null when a bot does it)
 ## code/modules/mob/dead/new_player/new_player.dm
 ## code/modules/mob/dead/new_player/poll.dm
+## code/modules/mob/inventory.dm (a deleted item isn't put in a hand or dropped; the caller goes in the runtime log)
 ## code/modules/mob/living/blood.dm
 ## code/modules/mob/living/brain/brain_item.dm
 ## code/modules/mob/living/carbon/alien/alien.dm !Should be modularized. Can be done easily.
@@ -201,6 +247,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/mob/living/carbon/monkey/combat.dm (glide matches the step delay: hippiestation/code/modules/glide/glide_match.dm)
 ## code/modules/mob/living/carbon/monkey/monkey.dm !Should be modularized. Can be done easily.
 ## code/modules/mob/living/carbon/update_icons.dm
+## code/modules/mob/living/inhand_holder.dm (release() from a holder whose holder was deleted off the map: no forceMove(null), no drop from a deleted mob)
 ## code/modules/mob/living/living.dm 
 ## code/modules/mob/living/living_defense.dm
 ## code/modules/mob/living/say.dm
@@ -210,6 +257,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/mob/living/simple_animal/bot/bot.dm (scan() shuffles and checks only what's of the type it's after; an EMP'd bot destroyed before it comes back on stays off)
 ## code/modules/mob/living/simple_animal/bot/ed209bot.dm
 ## code/modules/mob/living/simple_animal/bot/medbot.dm
+## code/modules/mob/living/simple_animal/bot/mulebot.dm (user, not usr: null when a bot does it)
 ## code/modules/mob/living/simple_animal/friendly/cat.dm (glide matches the step delay: hippiestation/code/modules/glide/glide_match.dm)
 ## code/modules/mob/living/simple_animal/friendly/dog.dm
 ## code/modules/mob/living/simple_animal/hostile/headcrab.dm
@@ -217,19 +265,29 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/mob/living/simple_animal/hostile/jungle/leaper.dm
 ## code/modules/mob/living/simple_animal/hostile/megafauna/bubblegum.dm (glide matches the step delay: hippiestation/code/modules/glide/glide_match.dm)
 ## code/modules/mob/living/simple_animal/hostile/megafauna/drake.dm (crush, fire line and lava fall spread a crowd over ticks; fire and landing hit a mech from their side)
+## code/modules/mob/living/simple_animal/hostile/wizard.dm (the exile implant goes in a list)
 ## code/modules/mob/living/simple_animal/hostile/retaliate/retaliate.dm (keyed enemies, Retaliate() once a second, allies told only new enemies)
 ## code/modules/mob/living/simple_animal/slime/life.dm (glide matches the step delay: hippiestation/code/modules/glide/glide_match.dm)
 ## code/modules/mob/living/simple_animal/slime/slime.dm
 ## code/modules/mob/mob.dm (visible_message() and audible_message() skip the search for hearers when no client is in range)
-## code/modules/mob/mob_helpers.dm
+## code/modules/mob/mob_helpers.dm (findname() skips nulls on the mob list)
 ## code/modules/mob/mob_movement.dm !Horrible code alert, how did this even get merged?
+## code/modules/paperwork/clipboard.dm (user, not usr: null when a bot does it)
+## code/modules/paperwork/folders.dm (user, not usr: null when a bot does it)
 ## code/modules/photography/camera/camera.dm (the tiles in sight as a keyed set)
 ## code/modules/photography/camera/camera_image_capturing.dm (top of a pile only; flat icons kept by appearance)
+## code/modules/plumbing/ducts.dm (user, not usr: null when a bot does it)
 ## code/modules/power/apc.dm (an outage tells the area once; a healthy APC skips its no-op autoset(), percent() and poweralert() calls)
+## code/modules/power/lighting.dm (user, not usr: null when a bot does it)
+## code/modules/power/smes.dm (user, not usr: null when a bot does it)
 ## code/modules/power/turbine.dm (the console's power readout before the turbine first runs)
+## code/modules/projectiles/guns/misc/blastcannon.dm (a pinless cannon's pin is made inside it)
+## code/modules/projectiles/guns/misc/grenade_launcher.dm (user, not usr: null when a bot does it)
+## code/modules/projectiles/pins.dm (a deleted pin undoes what it did to its gun, through gun_remove())
 ## code/modules/projectiles/projectile/special/rocket.dm (the anti-armour hit on a mech comes from the rocket's side)
 ## code/modules/reagents/chem_splash.dm !Could probably be improved to avoid cutting out the whole tg proc
 ## code/modules/reagents/chemistry/holder.dm !Same as above.
+## code/modules/reagents/chemistry/machinery/chem_dispenser.dm (EMP with no cell)
 ## code/modules/reagents/chemistry/reagents/alcohol_reagents.dm
 ## code/modules/reagents/chemistry/reagents/food_reagents.dm
 ## code/modules/reagents/chemistry/reagents/other_reagents.dm
@@ -239,6 +297,9 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/reagents/chemistry/recipes/slime_extracts.dm (delete_extract() on an extract already gone)
 ## code/modules/reagents/reagent_containers.dm !Could be modularized. (a thrown container that's caught doesn't splash the catcher)
 ## code/modules/research/rdconsole.dm (research_node() says which points are short)
+## code/modules/research/techweb/_techweb.dm (recalculate_nodes() and copy_research_to() stop if a techweb is deleted while they sleep)
+## code/modules/research/xenobiology/xenobiology.dm (user, not usr: null when a bot does it)
+## code/modules/shuttle/assault_pod.dm (user, not usr: null when a bot does it)
 ## code/modules/shuttle/emergency.dm
 ## code/modules/spells/spell.dm
 ## code/modules/surgery/bodyparts/bodyparts.dm
@@ -248,3 +309,4 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/surgery/organs/vocal_cords.dm
 ## code/modules/tgs/ (TGS DMAPI 7.4.0, the upstream files as released; was 5.2.7)
 ## code/modules/unit_tests/reagent_recipe_collisions.dm
+## code/modules/zombie/organs.dm (the infection coming out of a zombie being deleted doesn't turn it back)

@@ -301,7 +301,7 @@ update_label("John Doe", "Clowny")
 		src.access |= I.access
 		if(isliving(user) && user.mind)
 			if(user.mind.special_role || anyone)
-				to_chat(usr, "<span class='notice'>The card's microscanners activate as you pass it over the ID, copying its access.</span>")
+				to_chat(user, "<span class='notice'>The card's microscanners activate as you pass it over the ID, copying its access.</span>") // hippie -- user, not usr: null when a bot does it
 
 /obj/item/card/id/syndicate/attack_self(mob/user)
 	if(isliving(user) && user.mind)
@@ -314,7 +314,7 @@ update_label("John Doe", "Clowny")
 			var/t = stripped_input(user, "What name would you like to put on this card?", "Agent card name", registered_name ? registered_name : (ishuman(user) ? user.real_name : user.name), MAX_NAME_LEN)
 			if(!t || t == "Unknown" || t == "floor" || t == "wall" || t == "r-wall") //Same as mob/dead/new_player/prefrences.dm
 				if (t)
-					tgui_alert(usr, "Invalid name.")
+					tgui_alert(user, "Invalid name.") // hippie -- user, not usr: null when a bot does it
 				return
 			registered_name = t
 
@@ -432,7 +432,7 @@ update_label("John Doe", "Clowny")
 	var/points = 0
 
 /obj/item/card/id/prisoner/attack_self(mob/user)
-	to_chat(usr, "<span class='notice'>You have accumulated [points] out of the [goal] points you need for freedom.</span>")
+	to_chat(user, "<span class='notice'>You have accumulated [points] out of the [goal] points you need for freedom.</span>") // hippie -- user, not usr: null when a bot does it
 
 /obj/item/card/id/prisoner/one
 	name = "Prisoner #13-001"

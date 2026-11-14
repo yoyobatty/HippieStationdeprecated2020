@@ -177,8 +177,8 @@
 	result = /obj/item/light_eater
 	reqs = list(/obj/item/inscripture = 1,
 				/obj/item/nullrod = 1,
-				/obj/machinery/light/small = 1,
-				/obj/machinery/light = 1,
+				/obj/item/light/bulb = 1, //was the light fixtures: the menu only counts items, so it could never be made
+				/obj/item/light/tube = 1,
 				/obj/item/flashlight = 1
 				)
 	time = 100

@@ -225,7 +225,7 @@
 		hair_style = new_style
 		user.visible_message("<span class='notice'>[user] changes \the [src]'s hairstyle to [new_style].</span>", "<span class='notice'>You change \the [src]'s hairstyle to [new_style].</span>")
 	if(adjustablecolor)
-		hair_color = input(usr,"","Choose Color",hair_color) as color|null
+		hair_color = input(user,"","Choose Color",hair_color) as color|null // hippie -- user, not usr: null when a bot does it
 	update_icon()
 
 /obj/item/clothing/head/wig/random/Initialize(mapload)

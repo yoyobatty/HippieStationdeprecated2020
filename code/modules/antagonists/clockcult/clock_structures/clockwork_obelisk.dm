@@ -57,7 +57,7 @@
 			if(!user.can_speak_vocal())
 				to_chat(user, "<span class='warning'>You cannot speak through [src]!</span>")
 				return
-			var/input = stripped_input(usr, "Please choose a message to send over the Hierophant Network.", "Hierophant Broadcast", "")
+			var/input = stripped_input(user, "Please choose a message to send over the Hierophant Network.", "Hierophant Broadcast", "") // hippie -- user, not usr: null when a bot does it
 			if(!is_servant_of_ratvar(user) || !input || !user.canUseTopic(src, !issilicon(user)))
 				return
 			if(!anchored)

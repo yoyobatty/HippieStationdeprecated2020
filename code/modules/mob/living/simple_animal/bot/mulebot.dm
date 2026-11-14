@@ -94,7 +94,7 @@
 		visible_message("[user] inserts a cell into [src].",
 						"<span class='notice'>You insert the new cell into [src].</span>")
 	else if(I.tool_behaviour == TOOL_CROWBAR && open && cell)
-		cell.add_fingerprint(usr)
+		cell.add_fingerprint(user) // hippie -- user, not usr: null when a bot does it
 		cell.forceMove(loc)
 		cell = null
 		visible_message("[user] crowbars out the power cell from [src].",

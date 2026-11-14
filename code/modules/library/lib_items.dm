@@ -222,7 +222,7 @@
 		if(!literate)
 			to_chat(user, "<span class='notice'>You scribble illegibly on the cover of [src]!</span>")
 			return
-		var/choice = tgui_input_list(usr, "What would you like to change?", null, list("Title", "Contents", "Author", "Cancel"), allow_cancel = FALSE)
+		var/choice = tgui_input_list(user, "What would you like to change?", null, list("Title", "Contents", "Author", "Cancel"), allow_cancel = FALSE) // hippie -- user, not usr: null when a bot does it
 		if(!user.canUseTopic(src, BE_CLOSE, literate))
 			return
 		switch(choice)

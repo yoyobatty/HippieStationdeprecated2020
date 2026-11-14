@@ -48,7 +48,7 @@ GLOBAL_LIST_INIT(rod_recipes, list ( \
 			return
 
 		if(W.use_tool(src, user, 0, volume=40))
-			var/obj/item/stack/sheet/metal/new_item = new(usr.loc)
+			var/obj/item/stack/sheet/metal/new_item = new(user.loc) // hippie -- was usr: null for a bot, or anything not clicking
 			user.visible_message("[user.name] shaped [src] into metal with [W].", \
 						 "<span class='notice'>You shape [src] into metal with [W].</span>", \
 						 "<span class='italics'>You hear welding.</span>")

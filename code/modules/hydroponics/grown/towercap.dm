@@ -69,13 +69,13 @@
 		if(leaf.dry)
 			user.show_message("<span class='notice'>You wrap \the [W] around the log, turning it into a torch!</span>")
 			var/obj/item/flashlight/flare/torch/T = new /obj/item/flashlight/flare/torch(user.loc)
-			usr.dropItemToGround(W)
-			usr.put_in_active_hand(T)
+			user.dropItemToGround(W) // hippie -- user, not usr: null when a bot does it
+			user.put_in_active_hand(T) // hippie -- user, not usr: null when a bot does it
 			qdel(leaf)
 			qdel(src)
 			return
 		else
-			to_chat(usr, "<span class='warning'>You must dry this first!</span>")
+			to_chat(user, "<span class='warning'>You must dry this first!</span>") // hippie -- user, not usr: null when a bot does it
 	else
 		return ..()
 

@@ -448,7 +448,7 @@ Congratulations! You are now trained for invasive xenobiology research!"}
 		if(BATON_PROBE)
 			txt = "probing"
 
-	to_chat(usr, "<span class='notice'>You switch the baton to [txt] mode.</span>")
+	to_chat(user, "<span class='notice'>You switch the baton to [txt] mode.</span>") // hippie -- user, not usr: null when a bot does it
 	update_icon()
 
 /obj/item/abductor/baton/update_icon()

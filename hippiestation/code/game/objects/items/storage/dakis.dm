@@ -26,7 +26,7 @@
 /obj/item/storage/daki/attack_self(mob/living/user)
 	var/body_choice
 	if(icon_state == "daki_base")
-		body_choice = tgui_input_list(usr, "Pick a body.", null, list(
+		body_choice = tgui_input_list(user, "Pick a body.", null, list(
 		"Callie",
 		"Casca",
 		"Chaika",

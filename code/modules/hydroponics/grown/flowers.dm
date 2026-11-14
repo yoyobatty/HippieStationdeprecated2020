@@ -206,7 +206,7 @@
 	if(force > 0)
 		force -= rand(1, (force / 3) + 1)
 	else
-		to_chat(usr, "<span class='warning'>All the petals have fallen off the [name] from violent whacking!</span>")
+		to_chat(user, "<span class='warning'>All the petals have fallen off the [name] from violent whacking!</span>") // hippie -- user, not usr: null when a bot does it
 		qdel(src)
 
 /obj/item/grown/novaflower/pickup(mob/living/carbon/human/user)

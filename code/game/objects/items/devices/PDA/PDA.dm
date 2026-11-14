@@ -1156,8 +1156,12 @@ GLOBAL_LIST_EMPTY(PDAs)
 			A.emp_act(severity)
 	if (!(. & EMP_PROTECT_SELF))
 		emped += 1
-		spawn(200 * severity)
-			emped -= 1
+		addtimer(CALLBACK(src, PROC_REF(end_emp_effect)), 200 * severity) // hippie -- was spawn(): it kept a PDA (and its pen) deleted soon after from being collected
+
+// hippie start
+/obj/item/pda/proc/end_emp_effect()
+	emped -= 1
+// hippie end
 
 /proc/get_viewable_pdas()
 	. = list()

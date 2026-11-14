@@ -92,7 +92,7 @@
 		return
 
 	if (up && down)
-		var/result = tgui_alert(usr, "Go up or down [src]?", "Ladder", list("Up", "Down", "Cancel"))
+		var/result = tgui_alert(user, "Go up or down [src]?", "Ladder", list("Up", "Down", "Cancel")) // hippie -- user, not usr: null when a bot does it
 		if (!is_ghost && !in_range(src, user))
 			return  // nice try
 		switch(result)

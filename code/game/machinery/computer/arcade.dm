@@ -1098,7 +1098,7 @@ GLOBAL_LIST_INIT(arcade_prize_pool, list(
 	if(active)
 		return
 
-	log_bomber(usr, "primed an explosive", src, "for detonation")
+	log_bomber(user, "primed an explosive", src, "for detonation") // hippie -- user, not usr: null when a bot does it
 
 	to_chat(user, "<span class='warning'>You flip the switch on the underside of [src].</span>")
 	active = 1

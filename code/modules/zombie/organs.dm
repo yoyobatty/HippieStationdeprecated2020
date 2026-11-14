@@ -30,7 +30,7 @@
 /obj/item/organ/zombie_infection/Remove(mob/living/carbon/M, special = 0)
 	. = ..()
 	STOP_PROCESSING(SSobj, src)
-	if(iszombie(M) && old_species)
+	if(iszombie(M) && old_species && !QDELETED(M)) // hippie -- not on a zombie being deleted: a new set of organs went into it after its own were deleted, and kept it from being collected
 		M.set_species(old_species)
 	if(timer_id)
 		deltimer(timer_id)

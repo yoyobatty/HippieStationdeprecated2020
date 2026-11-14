@@ -114,6 +114,7 @@
 		G.forceMove(loc)
 		QDEL_NULL(G.pin)
 		visible_message("[G] can now fit a new pin, but the old one was destroyed in the process.", null, null, 3)
+		crafted_into = G //the crafting menu hands the gun back, not this stand-in
 		qdel(src)
 
 /obj/item/gun/examine(mob/user)
@@ -553,7 +554,7 @@
 /obj/item/gun/proc/unlock() //used in summon guns and as a convience for admins
 	if(pin)
 		qdel(pin)
-	pin = new /obj/item/firing_pin
+	pin = new /obj/item/firing_pin(src) //made inside the gun, so the pin knows its gun: one made in nullspace had gun = null, and a honk pin swapping it out dropped it while the gun kept it
 
 //Happens before the actual projectile creation
 /obj/item/gun/proc/before_firing(atom/target,mob/user)

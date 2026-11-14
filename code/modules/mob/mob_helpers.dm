@@ -231,7 +231,7 @@
 		msg = "[msg]"
 	for(var/i in GLOB.mob_list)
 		var/mob/M = i
-		if(M.real_name == msg)
+		if(M?.real_name == msg) // hippie -- a hard deleted mob leaves a null on the list, and naming a new mob ran into it
 			return M
 	return 0
 
