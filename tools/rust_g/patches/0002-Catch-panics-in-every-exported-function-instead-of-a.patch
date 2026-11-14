@@ -1,0 +1,101 @@
+From 02d29db4aad50e489f6b8593b36c9572cf8c2300 Mon Sep 17 00:00:00 2001
+From: YoYoBatty <32651551+yoyobatty@users.noreply.github.com>
+Date: Sat, 14 Nov 2026 12:16:43 -0500
+Subject: [PATCH 2/3] Catch panics in every exported function instead of
+ aborting Dream Daemon
+
+A panic that unwinds out of an extern "C" function aborts the process, so any panic in a byond_fn took DD down. byond_fn! now runs its body under catch_panic and returns the panic as an error string. Both macro arms install the panic hook, so rustg-panic.log gets written even if no zero-argument function was called first.
+---
+ src/byond.rs | 47 ++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 42 insertions(+), 5 deletions(-)
+
+diff --git a/src/byond.rs b/src/byond.rs
+index 6e2d06f..7c728ab 100644
+--- a/src/byond.rs
++++ b/src/byond.rs
+@@ -60,8 +60,7 @@ macro_rules! byond_fn {
+             _argc: ::std::os::raw::c_int, _argv: *const *const ::std::os::raw::c_char
+         ) -> *const ::std::os::raw::c_char {
+             $crate::byond::set_panic_hook();
+-            let closure = || ($body);
+-            $crate::byond::byond_return(closure().map(From::from))
++            $crate::byond::run_byond_fn(|| ($body))
+         }
+     };
+ 
+@@ -71,6 +70,7 @@ macro_rules! byond_fn {
+         pub unsafe extern "C" fn $name(
+             _argc: ::std::os::raw::c_int, _argv: *const *const ::std::os::raw::c_char
+         ) -> *const ::std::os::raw::c_char {
++            $crate::byond::set_panic_hook();
+             let __args = unsafe { $crate::byond::parse_args(_argc, _argv) };
+ 
+             let mut __argn = 0;
+@@ -82,12 +82,25 @@ macro_rules! byond_fn {
+                 let $rest = __args.get(__argn..).unwrap_or(&[]);
+             )?
+ 
+-            let closure = || ($body);
+-            $crate::byond::byond_return(closure().map(From::from))
++            $crate::byond::run_byond_fn(|| ($body))
+         }
+     };
+ }
+ 
++/// Runs the body of a `byond_fn!` and hands its result to BYOND. A panic in the body is caught
++/// and returned as an error string instead: unwinding out of an `extern "C"` function aborts
++/// the process, which takes Dream Daemon down with it.
++pub fn run_byond_fn<F, T>(body: F) -> *const c_char
++where
++    F: FnOnce() -> Option<T>,
++    T: Into<Vec<u8>>,
++{
++    match catch_panic(std::panic::AssertUnwindSafe(body)) {
++        Ok(value) => byond_return(value.map(Into::into)),
++        Err(error) => byond_return(Some(error.to_string().into_bytes())),
++    }
++}
++
+ // Easy version checker. It's in this file so it is always included
+ byond_fn!(
+     fn get_version() {
+@@ -95,7 +108,7 @@ byond_fn!(
+     }
+ );
+ 
+-/// Print any panics before exiting.
++/// Writes any panic to rustg-panic.log as well as stderr.
+ pub fn set_panic_hook() {
+     SET_HOOK.call_once(|| {
+         let default_panic_handler = std::panic::take_hook();
+@@ -168,3 +181,27 @@ where
+         }
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use std::ffi::{CStr, CString, c_char};
++
++    byond_fn!(fn test_parse_number(text) {
++        Some(text.parse::<u32>().unwrap().to_string())
++    });
++
++    fn call(arg: &str) -> String {
++        let arg = CString::new(arg).unwrap();
++        let argv: [*const c_char; 1] = [arg.as_ptr()];
++        unsafe { CStr::from_ptr(test_parse_number(1, argv.as_ptr())) }
++            .to_string_lossy()
++            .into_owned()
++    }
++
++    #[test]
++    fn panic_is_returned_as_an_error() {
++        assert_eq!(call("5"), "5");
++        assert!(call("five").starts_with("Panic during function execution: "));
++        assert_eq!(call("6"), "6");
++    }
++}
+-- 
+2.42.0.windows.2
+

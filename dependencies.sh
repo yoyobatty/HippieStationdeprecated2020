@@ -10,9 +10,11 @@ export BYOND_MAJOR=${LIST[0]}
 export BYOND_MINOR=${LIST[1]}
 unset LIST
 
-#rust_g git tag. rust_g.dll at the repo root is this release's i686 build plus tools/rust_g/pin-module-on-windows.patch:
-#BYOND unloads the dll on every world.Reboot(), and rust_g's leftover threads then crashed DD (rust_g.dll_unloaded).
-#Rebuild: apply the patch to the tag, cargo build --target i686-pc-windows-msvc --locked --release (Rust 1.93.1+).
+#rust_g git tag. rust_g.dll at the repo root is this release's i686 build plus tools/rust_g/patches (branches on
+#github.com/yoyobatty/rust-g): 0001 pins the dll (BYOND unloads it on every world.Reboot(), and rust_g's leftover
+#threads then crashed DD with rust_g.dll_unloaded), 0002 returns panics as errors instead of aborting DD, 0003 reuses
+#job threads. Rebuild: git am the patches onto the tag, cargo build --target i686-pc-windows-msvc --locked --release
+#(Rust 1.93.1+).
 #Linux servers download the plain release .so by this tag.
 export RUST_G_VERSION=7.1.0
 
