@@ -403,6 +403,8 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 		pre_mc_usage = MC_AVERAGE_FAST(pre_mc_usage, starting_tick_usage) // hippie
 		if (processing <= 0)
 			current_ticklimit = TICK_LIMIT_RUNNING
+			if (build_ticklimit) // hippie -- the lobby build sets its own pace (lobby_build.dm)
+				current_ticklimit = build_ticklimit
 			sleep(10)
 			continue
 
@@ -420,6 +422,8 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 				// hippie -- capped: it doubled with every skip in a row, with no limit
 				sleep_delta = min(sleep_delta * 2, sleep_delta_max)
 				current_ticklimit = TICK_LIMIT_RUNNING * 0.5
+				if (build_ticklimit) // hippie -- the lobby build sets its own pace (lobby_build.dm)
+					current_ticklimit = build_ticklimit
 				sleep(world.tick_lag * (processing * sleep_delta))
 				continue
 			forced = TRUE
@@ -495,6 +499,8 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 		current_ticklimit = TICK_LIMIT_RUNNING
 		if (processing * sleep_delta <= world.tick_lag)
 			current_ticklimit -= (TICK_LIMIT_RUNNING * 0.25) //reserve the tail 1/4 of the next tick for the mc if we plan on running next tick
+		if (build_ticklimit) // hippie -- the lobby build sets its own pace (lobby_build.dm)
+			current_ticklimit = build_ticklimit
 		sleep(world.tick_lag * (processing * sleep_delta))
 
 

@@ -12,6 +12,7 @@
 // levels' unready turfs (lava rivers) queue them for air, and their air is only made when they initialize.
 //
 // World params: lobby-build=off  makes them at startup, as before
+//               lobby-build-ticklimit=N  its pace (LOBBY_BUILD_TICKLIMIT)
 
 /// Atoms made on a held level wait for the lobby build instead of initializing (checked in /atom/New())
 GLOBAL_REAL_VAR(lobby_build_holding) = FALSE
@@ -131,6 +132,16 @@ GLOBAL_REAL_VAR(lobby_build_loading) = FALSE
 	var/list/held = lobby_build_levels
 	return held && z && z <= length(held) && held[z]
 
+/// How far into a tick (%) the lobby build runs before it lets the MC and everything else in. Over 100, it runs on past the
+/// tick's end: each time it stops, the rest of that tick is lost, so fewer, longer turns build faster. 2026-11-14 A/B
+/// (tools/boot_bench/lobby_tick_ab.py, 5 boots each): the MC's own pace (it keeps the last quarter of each tick) 10.7 s, 98
+/// 10.0 s, 200 9.6 s, 400 8.0 s, 50 18.5 s, 30 28 s once and stuck past 5 minutes once (stoplag only goes on in a tick under 30%). At
+/// 400 the lobby ticks ~9 times a second while it builds. World param lobby-build-ticklimit=N overrides it; 0 = the MC's pace.
+#define LOBBY_BUILD_TICKLIMIT 400
+
+/// While the lobby build runs: the tick limit its CHECK_TICKs go by, in place of the MC's (0: the MC's)
+/datum/controller/master/var/static/build_ticklimit = 0
+
 /// From Master's Initialize(), once startup is done
 /datum/controller/subsystem/mapping/proc/start_lobby_build()
 	if(!lobby_build_planned || !lobby_build_levels)
@@ -149,6 +160,12 @@ GLOBAL_REAL_VAR(lobby_build_loading) = FALSE
 	var/started = REALTIMEOFDAY
 	var/stage = started
 	lobby_build_status = "building"
+	var/started_time = world.time
+	var/pace = LOBBY_BUILD_TICKLIMIT
+	if(!isnull(world.params["lobby-build-ticklimit"]))
+		pace = text2num(world.params["lobby-build-ticklimit"])
+	if(pace > 0)
+		Master.build_ticklimit = pace
 	// Neither works on these levels until they're set up, as at startup: air on unready turfs, and lights before the lighting
 	// engine knows which of their turfs are opaque (a lava light would shine through the rock)
 	var/air_could_fire = SSair.can_fire
@@ -265,14 +282,17 @@ GLOBAL_REAL_VAR(lobby_build_loading) = FALSE
 
 	repopulate_sorted_areas()
 	lobby_build_place_docks()
+	Master.build_ticklimit = 0
 	lobby_build_busy = FALSE
 	var/took = (REALTIMEOFDAY - started) / 10
 	var/list/parts = list()
 	for(var/name in lobby_build_stages)
 		parts += "[name] [lobby_build_stages[name]]s"
 	lobby_build_status = "done in [took]s: [length(turfs)] turfs, [length(mobs) + length(objs)] things"
-	log_world("Lobby build: [lobby_build_status] ([jointext(parts, ", ")])")
+	log_world("Lobby build: [lobby_build_status] ([jointext(parts, ", ")]; [round((world.time - started_time) / world.tick_lag)] ticks, pace [pace > 0 ? pace : "MC"])")
 	if(lobby_build_sleep_after)
 		Master.sleep_offline_after_initializations = TRUE
 		if(!length(GLOB.clients))
 			world.sleep_offline = TRUE
+
+#undef LOBBY_BUILD_TICKLIMIT

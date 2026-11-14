@@ -28,7 +28,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/\_onclick/item_attack.dm (an object hit by an item is told which side it was hit from, Paradise #33082)
 ## code/controllers/configuration/entries/dbconfig.dm
 ## code/controllers/failsafe.dm
-## code/controllers/master.dm (starts the lobby build once startup is done, lobby_build.dm)
+## code/controllers/master.dm (starts the lobby build once startup is done, and lets it set its own tick limit while it runs: build_ticklimit, lobby_build.dm)
 ## code/controllers/subsystem.dm
 ## code/controllers/subsystem/adjacent_air.dm (out of the .dme: its queue is SSair's first stage now, as on tg later)
 ## code/controllers/subsystem/air.dm (adjacent_rebuild: turfs' neighbours worked out at the start of each fire, was SSadjacent_air once a second)

@@ -21,3 +21,11 @@ Hint: This is usually Space_Station_13_areas.dm.
 
 /area/space
 	ambientsounds = list('hippiestation/sound/ambience/ambispace.ogg','hippiestation/sound/ambience/space_stutter.ogg','hippiestation/sound/ambience/space_ambience.ogg')
+/// tg's, but a machine not yet initialized is left out: nothing on it is set up to update yet (a canister has no air), and its
+/// LateInitialize() works out its power anyway. The lobby build initializes Lavaland over many ticks, and an APC that's done
+/// fires its update() timer while the rest of its area still waits (runtime in canister update_icon(), 2026-11-14).
+/area/power_change()
+	for(var/obj/machinery/M in src)
+		if(M.flags_1 & INITIALIZED_1)
+			M.power_change()
+	update_icon()
