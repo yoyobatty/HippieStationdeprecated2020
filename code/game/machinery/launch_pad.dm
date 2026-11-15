@@ -344,6 +344,8 @@
 /obj/item/launchpad_remote/ui_act(action, params)
 	if(..())
 		return
+	if(QDELETED(pad)) // hippie -- a button pressed with nothing there ran into null (testkit fuzz_ui)
+		return
 	switch(action)
 		if("right")
 			if(!pad.teleporting)

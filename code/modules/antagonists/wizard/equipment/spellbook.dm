@@ -731,7 +731,8 @@
 	if(loc == H || (in_range(src, H) && isturf(loc)))
 		H.set_machine(src)
 		if(href_list["buy"])
-			E = entries[text2num(href_list["buy"])]
+			var/buy_index = text2num(href_list["buy"]) // hippie -- an entry that isn't there (testkit fuzz_ui)
+			E = (isnum(buy_index) && buy_index >= 1 && buy_index <= length(entries)) ? entries[buy_index] : null
 			if(E && E.CanBuy(H,src))
 				if(E.Buy(H,src))
 					if(E.limit)
@@ -739,7 +740,8 @@
 					uses -= E.cost
 					bought_things[E.type] = bought_things[E.type] ? bought_things[E.type] + 1 : 1 // hippie -- badmin gauntlet stuff
 		else if(href_list["refund"])
-			E = entries[text2num(href_list["refund"])]
+			var/refund_index = text2num(href_list["refund"]) // hippie -- an entry that isn't there (testkit fuzz_ui)
+			E = (isnum(refund_index) && refund_index >= 1 && refund_index <= length(entries)) ? entries[refund_index] : null
 			if(E && E.refundable)
 				var/result = E.Refund(H,src)
 				if(result > 0)

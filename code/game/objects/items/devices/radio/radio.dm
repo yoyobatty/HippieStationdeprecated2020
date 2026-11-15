@@ -184,7 +184,7 @@
 				tune = frequency + adjust * 10
 				. = TRUE
 			else if(text2num(tune) != null)
-				tune = tune * 10
+				tune = text2num(tune) * 10 // hippie -- tune is the text typed in: "8" * 10 was a runtime (testkit fuzz_ui)
 				. = TRUE
 			if(.)
 				set_frequency(sanitize_frequency(tune, freerange))

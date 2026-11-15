@@ -329,6 +329,8 @@ GLOBAL_VAR_INIT(normal_ooc_colour, "#002eb8")
 	// Calculate desired pixel width using window size and aspect ratio
 	var/sizes = params2list(winget(src, "mainwindow.split;mapwindow", "size"))
 	var/map_size = splittext(sizes["mapwindow.size"], "x")
+	if(length(map_size) < 2) // hippie -- the window isn't built yet at login: no size to read (testkit client lane)
+		return
 	var/height = text2num(map_size[2])
 	var/desired_width = round(height * aspect_ratio)
 	if (text2num(map_size[1]) == desired_width)
@@ -337,6 +339,8 @@ GLOBAL_VAR_INIT(normal_ooc_colour, "#002eb8")
 
 	var/split_size = splittext(sizes["mainwindow.split.size"], "x")
 	var/split_width = text2num(split_size[1])
+	if(!split_width) // hippie -- as above
+		return
 
 	// Calculate and apply a best estimate
 	// +4 pixels are for the width of the splitter's handle

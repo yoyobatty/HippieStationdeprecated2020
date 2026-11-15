@@ -78,13 +78,19 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/machinery/camera/camera.dm
 ## code/game/machinery/computer/arcade.dm (user, not usr: null when a bot does it)
 ## code/game/machinery/computer/atmos_control.dm (out of the .dme: rewritten whole as hippiestation/code/game/machinery/computer/atmos_control.dm, tg's later tank sensors and consoles: the sensor holds its tank's injector and vent, linked by multitool or by sharing a sealed tank, and the consoles drive them directly instead of by radio)
+## code/game/machinery/computer/card.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
 ## code/game/machinery/computer/cloning.dm
 ## code/game/machinery/computer/communications.dm (the alert swipe reads a worn ID; a change locks the level for a minute, communications_tgui.dm)
+## code/game/machinery/computer/gulag_teleporter.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
+## code/game/machinery/computer/launchpad_control.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
 ## code/game/machinery/computer/security.dm
+## code/game/machinery/dance_machine.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
 ## code/game/machinery/doors/airlock.dm
 ## code/game/machinery/doors/airlock_types.dm !Should be modularized. Can be done easily.
 ## code/game/machinery/doors/brigdoors.dm
 ## code/game/machinery/flasher.dm
+## code/game/machinery/launch_pad.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
+## code/game/machinery/navbeacon.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
 ## code/game/machinery/pipe/pipe_dispenser.dm (user, not usr: null when a bot does it)
 ## code/game/machinery/porta_turret/portable_turret.dm (user, not usr: null when a bot does it)
 ## code/game/machinery/spaceheater.dm (user, not usr: null when a bot does it)
@@ -92,6 +98,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/machinery/telecomms/broadcasting.dm
 ## code/game/machinery/telecomms/telecomunications.dm
 ## code/game/mecha/equipment/tools/mining_tools.dm
+## code/game/mecha/mech_fabricator.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
 ## code/game/mecha/mecha_defense.dm (facing armour goes by the mech's facing; it took dir2angle(src), null, so every hit from the north was a backstab)
 ## code/game/objects/effects/decals/cleanable.dm (a decal that never merges skips the walk of the tile's decals)
 ## code/game/objects/effects/effect_system/effects_other.dm
@@ -105,6 +112,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/objects/items/circuitboards/machine_circuitboards.dm (user, not usr: null when a bot does it)
 ## code/game/objects/items/crayons.dm
 ## code/game/objects/items/defib.dm
+## code/game/objects/items/devices/aicard.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
 ## code/game/objects/items/devices/flashlight.dm !Should be modularized. Can be done easily.
 ## code/game/objects/items/devices/forcefieldprojector.dm (a deleted projector takes its fields with it)
 ## code/game/objects/items/devices/laserpointer.dm (the upgraded pointer's ultra diode is inside it, and the plain one is gone)
@@ -120,6 +128,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/objects/items/stacks/rods.dm
 ## code/game/objects/items/stacks/sheets/glass.dm
 ## code/game/objects/items/stacks/stack.dm
+## code/game/objects/items/storage/book.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
 ## code/game/objects/items/storage/boxes.dm (user, not usr: null when a bot does it)
 ## code/game/objects/items/stunbaton.dm
 ## code/game/objects/items/tools/wirecutters.dm !Should be modularized. Can be done easily.
@@ -170,7 +179,9 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/antagonists/cult/blood_magic.dm
 ## code/modules/antagonists/fugitive/fugitive_outfits.dm (the synthetic's eyes go in the synthetic, not the outfit)
 ## code/modules/antagonists/morph/morph.dm
+## code/modules/antagonists/wizard/equipment/spellbook.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
 ## code/modules/assembly/holder.dm (user, not usr: null when a bot does it)
+## code/modules/assembly/signaler.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
 ## code/modules/asset_cache/asset_list.dm
 ## code/modules/atmospherics/environmental/LINDA_fire.dm (hotspots tell the tile engine when it keeps LINDA's state, tile_engine.dm)
 ## code/modules/atmospherics/environmental/LINDA_system.dm (tile engine neighbour cache; shut doors' tiles pick their side, door_seals.dm; CanAtmosPass() walks both tiles without making contents+T.contents)
@@ -289,6 +300,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/reagents/chem_splash.dm !Could probably be improved to avoid cutting out the whole tg proc
 ## code/modules/reagents/chemistry/holder.dm !Same as above.
 ## code/modules/reagents/chemistry/machinery/chem_dispenser.dm (EMP with no cell)
+## code/modules/reagents/chemistry/machinery/pandemic.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
 ## code/modules/reagents/chemistry/reagents/alcohol_reagents.dm
 ## code/modules/reagents/chemistry/reagents/food_reagents.dm
 ## code/modules/reagents/chemistry/reagents/other_reagents.dm
@@ -297,12 +309,15 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/reagents/chemistry/recipes/pyrotechnics.dm !Same as above.
 ## code/modules/reagents/chemistry/recipes/slime_extracts.dm (delete_extract() on an extract already gone)
 ## code/modules/reagents/reagent_containers.dm !Could be modularized. (a thrown container that's caught doesn't splash the catcher)
+## code/modules/research/nanites/nanite_chamber_computer.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
+## code/modules/research/nanites/nanite_programmer.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
 ## code/modules/research/rdconsole.dm (research_node() says which points are short)
 ## code/modules/research/techweb/_techweb.dm (recalculate_nodes() and copy_research_to() stop if a techweb is deleted while they sleep)
 ## code/modules/research/xenobiology/xenobiology.dm (user, not usr: null when a bot does it)
 ## code/modules/shuttle/assault_pod.dm (user, not usr: null when a bot does it)
 ## code/modules/shuttle/emergency.dm
 ## code/modules/spells/spell.dm
+## code/modules/station_goals/bsa.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
 ## code/modules/surgery/bodyparts/bodyparts.dm
 ## code/modules/surgery/bodyparts/head.dm
 ## code/modules/surgery/helpers.dm

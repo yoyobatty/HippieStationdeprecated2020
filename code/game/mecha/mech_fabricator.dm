@@ -202,6 +202,8 @@
 	return TRUE
 
 /obj/machinery/mecha_part_fabricator/proc/process_queue()
+	if(!length(queue)) // hippie -- "process queue" pressed with an empty queue (testkit fuzz_ui)
+		return
 	var/datum/design/D = queue[1]
 	if(!D)
 		remove_from_queue(1)

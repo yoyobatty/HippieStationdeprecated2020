@@ -70,6 +70,8 @@
 /obj/machinery/computer/nanite_chamber_control/ui_act(action, params)
 	if(..())
 		return
+	if(action != "connect_chamber" && (!chamber || (action != "toggle_lock" && !chamber.occupant))) // hippie -- a button pressed with nothing there ran into null (testkit fuzz_ui)
+		return
 	switch(action)
 		if("toggle_lock")
 			chamber.locked = !chamber.locked

@@ -77,6 +77,8 @@
 /obj/item/aicard/ui_act(action,params)
 	if(..())
 		return
+	if(!AI) // hippie -- a button pressed with nothing there ran into null (testkit fuzz_ui)
+		return
 	switch(action)
 		if("wipe")
 			if(flush)

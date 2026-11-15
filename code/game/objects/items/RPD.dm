@@ -332,7 +332,11 @@ GLOBAL_LIST_INIT(fluid_duct_recipes, list(
 			var/static/list/recipes
 			if(!recipes)
 				recipes = GLOB.disposal_pipe_recipes + GLOB.atmos_pipe_recipes + GLOB.transit_tube_recipes + GLOB.fluid_duct_recipes
-			recipe = recipes[params["category"]][text2num(params["pipe_type"])]
+			var/list/category = recipes[params["category"]] // hippie start -- a category or index that isn't there (testkit fuzz_ui)
+			var/index = text2num(params["pipe_type"])
+			if(!islist(category) || !isnum(index) || index < 1 || index > length(category))
+				return
+			recipe = category[index] // hippie end
 			p_dir = NORTH
 		if("setdir")
 			p_dir = text2dir(params["dir"])

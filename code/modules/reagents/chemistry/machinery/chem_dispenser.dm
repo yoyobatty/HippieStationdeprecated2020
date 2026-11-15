@@ -421,6 +421,8 @@
 	var/list/first_process = splittext(recipe, ";")
 	for(var/reagents in first_process)
 		var/list/splitreagent = splittext(reagents, "=")
+		if(length(splitreagent) < 2) // hippie -- a recipe piece with no "=amount" (testkit fuzz_ui)
+			continue
 		final_list += list(avoid_assoc_duplicate_keys(splitreagent[1],key_list) = text2num(splitreagent[2]))
 	return final_list
 

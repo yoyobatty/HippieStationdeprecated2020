@@ -422,6 +422,8 @@ GLOBAL_VAR_INIT(time_last_changed_position, 0)
 					modify.assignment = t1
 					playsound(src, 'sound/machines/terminal_prompt_confirm.ogg', 50, 0)
 		if ("demote")
+			if(!modify) // hippie -- a button pressed with nothing there ran into null (testkit fuzz_ui)
+				return
 			if(modify.assignment in head_subordinates || modify.assignment == "Assistant")
 				modify.assignment = "Unassigned"
 				playsound(src, 'sound/machines/terminal_prompt_confirm.ogg', 50, 0)

@@ -2,7 +2,7 @@
  "a human in vacuum dies of it": {
   "hard_deletes": 0,
   "metrics": {
-   "game_seconds": 28.1
+   "game_seconds": 28.2
   },
   "passed": true,
   "runtimes": 0
@@ -18,7 +18,7 @@
  "combat self-check on the warm server": {
   "hard_deletes": 0,
   "metrics": {
-   "game_seconds": 9.0,
+   "game_seconds": 9.1,
    "pass": 36
   },
   "passed": true,
@@ -27,25 +27,25 @@
  "fuzz: atmos machinery windows take junk without runtimes": {
   "hard_deletes": 0,
   "metrics": {
-   "game_seconds": 3.5,
+   "game_seconds": 3.6,
    "pressed": 72
   },
   "passed": true,
   "runtimes": 0
  },
- "fuzz: every machine window (known bugs: expect FAIL until fixed)": {
+ "fuzz: every machine window takes junk without runtimes": {
   "hard_deletes": 0,
   "metrics": {
-   "game_seconds": 4.1,
-   "runtimes": 80
+   "game_seconds": 4.3,
+   "runtimes": 0
   },
-  "passed": false,
-  "runtimes": 80
+  "passed": true,
+  "runtimes": 0
  },
  "gym: two medical rounds scenarios": {
   "hard_deletes": 0,
   "metrics": {
-   "game_seconds": 31.9,
+   "game_seconds": 31.8,
    "gym_passed": 11
   },
   "passed": true,
@@ -62,7 +62,7 @@
  "security bot answers an assault it sees": {
   "hard_deletes": 0,
   "metrics": {
-   "game_seconds": 8.1
+   "game_seconds": 8.0
   },
   "passed": true,
   "runtimes": 0
@@ -70,7 +70,7 @@
  "toolbox fight ends in a death with its killer": {
   "hard_deletes": 0,
   "metrics": {
-   "game_seconds": 15.9
+   "game_seconds": 15.4
   },
   "passed": true,
   "runtimes": 0

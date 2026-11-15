@@ -143,6 +143,10 @@
 			updateUsrDialog()
 
 /obj/machinery/jukebox/proc/activate_music()
+	if(!selection) // hippie -- a button pressed with nothing there ran into null (testkit fuzz_ui)
+		selection = length(songs) ? songs[1] : null
+		if(!selection)
+			return
 	active = TRUE
 	update_icon()
 	START_PROCESSING(SSobj, src)

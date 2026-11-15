@@ -104,6 +104,8 @@
 						return
 					id = I
 		if("set_goal")
+			if(!id) // hippie -- a button pressed with nothing there ran into null (testkit fuzz_ui)
+				return
 			var/new_goal = tgui_input_number(usr, "Set the amount of points:", "Points", id.goal)
 			if(!isnum(new_goal))
 				return
@@ -113,11 +115,15 @@
 				to_chat(usr, "The entered amount of points is too large. Points have instead been set to the maximum allowed amount.")
 			id.goal = clamp(new_goal, 0, 1000) //maximum 1000 points
 		if("toggle_open")
+			if(!teleporter) // hippie -- a button pressed with nothing there ran into null (testkit fuzz_ui)
+				return
 			if(teleporter.locked)
 				to_chat(usr, "The teleporter is locked")
 				return
 			teleporter.toggle_open()
 		if("teleporter_lock")
+			if(!teleporter) // hippie -- a button pressed with nothing there ran into null (testkit fuzz_ui)
+				return
 			if(teleporter.state_open)
 				to_chat(usr, "Close the teleporter before locking!")
 				return

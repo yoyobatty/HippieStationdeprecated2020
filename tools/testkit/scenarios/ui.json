@@ -66,8 +66,7 @@
   ]
  },
  {
-  "name": "fuzz: every machine window (known bugs: expect FAIL until fixed)",
-  "invariants": false,
+  "name": "fuzz: every machine window takes junk without runtimes",
   "steps": [
    {
     "do": "fuzz_ui",

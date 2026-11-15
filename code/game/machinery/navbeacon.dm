@@ -25,6 +25,8 @@
 	. = ..()
 
 	set_codes()
+	if(!codes) // hippie -- a beacon made with no codes_txt (spawned, not mapped) had no list to look in (testkit fuzz_ui)
+		codes = list()
 
 	var/turf/T = loc
 	hide(T.intact)

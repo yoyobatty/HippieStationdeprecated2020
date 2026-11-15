@@ -192,7 +192,7 @@
 		if("rename_disease")
 			var/id = get_virus_id_by_index(text2num(params["index"]))
 			var/datum/disease/advance/A = SSdisease.archive_diseases[id]
-			if(!A.mutable)
+			if(!istype(A) || !A.mutable) // hippie -- a virus that isn't there (testkit fuzz_ui)
 				return
 			if(A)
 				var/new_name = sanitize(html_encode(params["name"]))
@@ -225,6 +225,8 @@
 				return
 			var/id = params["index"]
 			var/datum/disease/D = SSdisease.archive_diseases[id]
+			if(!D) // hippie -- a virus that isn't there (testkit fuzz_ui)
+				return
 			var/obj/item/reagent_containers/glass/bottle/B = new(drop_location())
 			B.name = "[D.name] vaccine bottle"
 			B.reagents.add_reagent(/datum/reagent/vaccine, 15, list(id))

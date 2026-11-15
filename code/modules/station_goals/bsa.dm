@@ -282,6 +282,9 @@
 		return get_turf(target)
 
 /obj/machinery/computer/bsa_control/proc/fire(mob/user)
+	if(QDELETED(cannon)) // hippie -- fired with no cannon built (testkit fuzz_ui)
+		notice = "No cannon connected!"
+		return
 	if(cannon.stat)
 		notice = "Cannon unpowered!"
 		return

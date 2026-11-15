@@ -70,6 +70,8 @@ GLOBAL_LIST_INIT(bibleitemstates, list("bible", "koran", "scrapbook", "burning",
 		return
 	if(href_list["seticon"] && !GLOB.bible_icon_state)
 		var/iconi = text2num(href_list["seticon"])
+		if(!isnum(iconi) || iconi < 1 || iconi > length(GLOB.biblenames)) // hippie -- an icon that isn't there (testkit fuzz_ui)
+			return
 		var/biblename = GLOB.biblenames[iconi]
 		icon_state = GLOB.biblestates[iconi]
 		item_state = GLOB.bibleitemstates[iconi]

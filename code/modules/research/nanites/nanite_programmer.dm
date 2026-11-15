@@ -71,6 +71,8 @@
 /obj/machinery/nanite_programmer/ui_act(action, params)
 	if(..())
 		return
+	if(action != "eject" && !program) // hippie -- a button pressed with nothing there ran into null (testkit fuzz_ui)
+		return
 	switch(action)
 		if("eject")
 			eject(usr)
