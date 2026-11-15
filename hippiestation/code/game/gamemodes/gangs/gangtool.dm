@@ -331,8 +331,9 @@
 	to_chat(M, "<span class='notice'>Your influence has increased by [inc] from your gang holding [LAZYLEN(G.gang.territories)] territories!</span>")
 
 /obj/item/gangtool/hell_march/Destroy()
-	linked_action.Remove(linked_action.owner)
-	qdel(linked_action)
+	if(linked_action) // none when it wasn't made on a gangster (or off a mob, which deletes it at once): Destroy() runtimed into a qdel loop
+		linked_action.Remove(linked_action.owner)
+		QDEL_NULL(linked_action)
 	return ..()
 
 /obj/item/gangtool/hell_march/ui_interact(mob/user)

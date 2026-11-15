@@ -14,7 +14,8 @@
 	..()
 
 /obj/item/clothing/head/helmet/space/chronos/Destroy()
-	dropped()
+	if(suit) // hippie -- was dropped() with no one dropping it: a signal to a null user, Destroy() runtimed into a qdel loop (testkit sweep)
+		suit.deactivate(1, 1)
 	return ..()
 
 

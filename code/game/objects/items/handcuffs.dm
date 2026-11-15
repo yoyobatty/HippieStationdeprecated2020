@@ -321,7 +321,10 @@
 		qdel(src)
 
 /obj/item/restraints/legcuffs/beartrap/energy/attack_hand(mob/user)
+	var/atom/was_at = loc
 	Crossed(user) //honk
+	if(QDELETED(src) || loc != was_at) // hippie -- it snared them (on their legs now) or went: picking it up too ran into a deleted item (testkit sweep)
+		return TRUE
 	return ..()
 
 /obj/item/restraints/legcuffs/beartrap/energy/cyborg

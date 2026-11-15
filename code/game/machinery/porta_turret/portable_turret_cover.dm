@@ -12,6 +12,13 @@
 	max_integrity = 80
 	var/obj/machinery/porta_turret/parent_turret = null
 
+/// hippie -- a cover spawned on its own has no turret: every proc here reads the turret's. It goes when touched (testkit sweep).
+/obj/machinery/porta_turret_cover/proc/orphaned()
+	if(parent_turret)
+		return FALSE
+	qdel(src)
+	return TRUE
+
 /obj/machinery/porta_turret_cover/Destroy()
 	if(parent_turret)
 		parent_turret.cover = null
@@ -24,6 +31,8 @@
 //I'm not fixing it because i'm fucking bored of this code already, but someone should just reroute these to the parent turret's procs.
 
 /obj/machinery/porta_turret_cover/attack_ai(mob/user)
+	if(orphaned()) // hippie -- a cover with no turret under it
+		return
 	. = ..()
 	if(.)
 		return
@@ -32,6 +41,8 @@
 
 
 /obj/machinery/porta_turret_cover/attack_hand(mob/user)
+	if(orphaned()) // hippie -- a cover with no turret under it
+		return
 	. = ..()
 	if(.)
 		return
@@ -40,6 +51,8 @@
 
 
 /obj/machinery/porta_turret_cover/attackby(obj/item/I, mob/user, params)
+	if(orphaned()) // hippie -- a cover with no turret under it
+		return
 	if(I.tool_behaviour == TOOL_WRENCH && !parent_turret.on)
 		if(parent_turret.raised)
 			return
@@ -73,21 +86,31 @@
 		return ..()
 
 /obj/machinery/porta_turret_cover/attacked_by(obj/item/I, mob/user)
+	if(orphaned()) // hippie -- a cover with no turret under it
+		return
 	parent_turret.attacked_by(I, user)
 
 /obj/machinery/porta_turret_cover/attack_alien(mob/living/carbon/alien/humanoid/user)
+	if(orphaned()) // hippie -- a cover with no turret under it
+		return
 	parent_turret.attack_alien(user)
 
 /obj/machinery/porta_turret_cover/attack_animal(mob/living/simple_animal/user)
+	if(orphaned()) // hippie -- a cover with no turret under it
+		return
 	parent_turret.attack_animal(user)
 
 /obj/machinery/porta_turret_cover/attack_hulk(mob/living/carbon/human/user)
+	if(orphaned()) // hippie -- a cover with no turret under it
+		return
 	return parent_turret.attack_hulk(user)
 
 /obj/machinery/porta_turret_cover/can_be_overridden()
 	. = 0
 
 /obj/machinery/porta_turret_cover/emag_act(mob/user)
+	if(orphaned()) // hippie -- a cover with no turret under it
+		return
 	if(!(parent_turret.obj_flags & EMAGGED))
 		to_chat(user, "<span class='notice'>You short out [parent_turret]'s threat assessment circuits.</span>")
 		visible_message("[parent_turret] hums oddly...")

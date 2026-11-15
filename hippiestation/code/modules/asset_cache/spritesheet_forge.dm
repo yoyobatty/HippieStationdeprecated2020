@@ -352,7 +352,7 @@ GLOBAL_LIST_INIT(spritesheet_counts, list("forge" = 0, "dm" = 0))
 		var/list/size = sizes[size_id]
 		var/icon/tiny = size[2]
 		var/icon/big = size[3]
-		var/per_line = big.Width() / tiny.Width()
+		var/per_line = max(1, round(big.Width() / max(1, tiny.Width()))) // a sheet that failed to load (another server writing the cache) is 0 wide: no division by zero
 		var/x = (idx % per_line) * tiny.Width()
 		var/y = round(idx / per_line) * tiny.Height()
 		out += ".[name][size_id].[spritesheet_css_class(sprite_id)]{background-position:-[x]px -[y]px;}"

@@ -424,7 +424,7 @@ GLOBAL_LIST_EMPTY(parasites) //all currently existing/living guardians
 				to_chat(summoner.current, "<span class='danger'><B>Your body can't take the strain of sustaining [src] in this condition, it begins to fall apart!</span></B>")
 				summoner.current.adjustCloneLoss(amount * 0.5) //dying hosts take 50% bonus damage as cloneloss
 		update_health_hud()
-	if(stats.ability)
+	if(stats?.ability) // none on a guardian spawned without a summoner's stats (testkit sweep)
 		stats.ability.Health(amount)
 
 /mob/living/simple_animal/hostile/guardian/ex_act(severity, target)

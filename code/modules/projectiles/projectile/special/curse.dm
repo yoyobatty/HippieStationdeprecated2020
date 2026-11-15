@@ -41,6 +41,8 @@
 		playsound(src, 'sound/effects/curse3.ogg', 25, 1, -1)
 	var/turf/T = get_step(src, dir)
 	new/obj/effect/temp_visual/dir_setting/curse/hand(T, dir, handedness)
+	if(!starting) // hippie -- one deleted without ever being fired has no arm to pull back: Destroy() runtimed into a qdel loop (testkit sweep)
+		return ..()
 	for(var/obj/effect/temp_visual/dir_setting/curse/grasp_portal/G in starting)
 		qdel(G)
 	new /obj/effect/temp_visual/dir_setting/curse/grasp_portal/fading(starting, dir)

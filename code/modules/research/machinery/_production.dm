@@ -30,10 +30,14 @@
 	RefreshParts()
 
 /obj/machinery/rnd/production/proc/update_research()
+	if(QDELETED(src) || !stored_research) // hippie -- the async copy from Initialize() ran after the lathe was deleted (testkit sweep)
+		return
 	host_research.copy_research_to(stored_research, TRUE)
 	update_designs()
 
 /obj/machinery/rnd/production/proc/update_designs()
+	if(!stored_research) // hippie -- called on a lathe already deleted (testkit sweep)
+		return
 	cached_designs.Cut()
 	for(var/i in stored_research.researched_designs)
 		var/datum/design/d = SSresearch.techweb_design_by_id(i)

@@ -1370,7 +1370,9 @@
 	receiver.holder = src
 
 /obj/item/integrated_circuit/input/tcomm_interceptor/Destroy()
-	qdel(receiver)
+	if(receiver)
+		receiver.holder = null // they held each other: neither could be collected, a hard delete for both (testkit sweep)
+		QDEL_NULL(receiver)
 	GLOB.ic_jammers -= src
 	return ..()
 

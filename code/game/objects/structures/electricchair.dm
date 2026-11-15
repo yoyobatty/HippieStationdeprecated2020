@@ -15,9 +15,10 @@
 		var/obj/structure/chair/C = new /obj/structure/chair(loc)
 		W.play_tool_sound(src)
 		C.setDir(dir)
-		part.forceMove(loc)
-		part.master = null
-		part = null
+		if(part) // hippie -- a mapped or spawned e-chair has no shock kit on it (testkit sweep)
+			part.forceMove(loc)
+			part.master = null
+			part = null
 		qdel(src)
 
 /obj/structure/chair/e_chair/proc/shock()

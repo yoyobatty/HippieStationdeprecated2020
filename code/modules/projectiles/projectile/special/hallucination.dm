@@ -28,7 +28,7 @@
 		hal_target.client.images += fake_icon
 
 /obj/item/projectile/hallucination/Destroy()
-	if(hal_target.client)
+	if(hal_target?.client) // hippie -- one deleted before it had a target: Destroy() runtimed into a qdel loop (testkit sweep)
 		hal_target.client.images -= fake_icon
 	QDEL_NULL(fake_icon)
 	return ..()

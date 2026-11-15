@@ -52,13 +52,18 @@
 /obj/machinery/atmospherics/pipe/return_air()
 	if(air_temporary)
 		return air_temporary
+	if(QDELETED(parent)) // hippie start -- asked before SSair's rebuild got to it (a pipe made this tick, then wrenched): build its pipeline now (testkit sweep)
+		for(var/datum/pipeline/build_off as anything in get_rebuild_targets())
+			build_off.build_pipeline_blocking(src)
+		if(!parent)
+			return null // hippie end
 	PIPE_AIR_TOUCH(parent.air) // hippie -- whoever has it may change it (pipe_engine.dm)
 	return parent.air
 
 /obj/machinery/atmospherics/pipe/return_analyzable_air()
 	if(air_temporary)
 		return air_temporary
-	return parent.air
+	return parent?.air // hippie -- none yet before SSair builds its pipeline (testkit sweep)
 
 /obj/machinery/atmospherics/pipe/remove_air(amount)
 	if(air_temporary)

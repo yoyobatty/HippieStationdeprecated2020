@@ -44,6 +44,6 @@
 	if(victim)
 		victim.forceMove(drop_location())
 		victim = null
-	spear.forceMove(drop_location())
+	spear?.forceMove(drop_location()) // hippie -- a spawned headpike has no spear in it (testkit sweep)
 	spear = null
 	qdel(src)

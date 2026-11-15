@@ -130,6 +130,8 @@ Buildable meters
 	. = ..()
 	if(!isturf(loc))
 		return TRUE
+	if(!pipe_type) // hippie -- a pipe item made bare, not by an RPD or a dispenser: nothing to build (testkit sweep)
+		return TRUE
 
 	add_fingerprint(user)
 
