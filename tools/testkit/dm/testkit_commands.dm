@@ -477,7 +477,10 @@ GLOBAL_LIST_INIT(testkit_help, list(
 				if(M.client || isobserver(M))
 					continue
 			found = TRUE
-			qdel(AM, force = TRUE)
+			try // one that won't go cleanly (a qdel loop) is counted on its own type, not on whatever is being done next
+				qdel(AM, force = TRUE)
+			catch(var/exception/e)
+				note_exception(e, "cleared: [AM.type]")
 			.++
 		if(!found)
 			return

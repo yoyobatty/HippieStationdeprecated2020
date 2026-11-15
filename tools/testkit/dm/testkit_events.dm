@@ -202,8 +202,16 @@
 		entry = list("count" = 0, "error" = "[E.name]")
 		runtime_sites[site] = entry
 	entry["count"]++
+	var/where = caught_in || sweep_label // what a sweep was doing: the runtime is pinned on it
+	if(where)
+		var/list/places = entry["where"]
+		if(!places)
+			places = list()
+			entry["where"] = places
+		if(length(places) < 8 && !(where in places))
+			places += where
 	if(entry["count"] <= 3)
-		event("runtime", list("site" = site, "error" = "[E.name]", "desc" = copytext("[E.desc]", 1, 600), "caught_in" = caught_in))
+		event("runtime", list("site" = site, "error" = "[E.name]", "desc" = copytext("[E.desc]", 1, 600), "caught_in" = where))
 
 /datum/controller/subsystem/garbage/HardDelete(datum/D)
 	var/datum/testkit/kit = GLOB.testkit

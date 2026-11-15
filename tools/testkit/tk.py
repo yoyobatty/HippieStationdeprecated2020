@@ -26,7 +26,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 BYOND_BIN = os.environ.get("BYOND_BIN", r"C:\Program Files (x86)\BYOND\bin")
 DATA = os.path.join(ROOT, "data", "testkit")
 SERVERS = os.path.join(DATA, "servers")
-DM_FILES = ["testkit_core.dm", "testkit_commands.dm", "testkit_events.dm", "testkit_bots.dm", "testkit_ui.dm", "testkit_client.dm"]
+DM_FILES = ["testkit_core.dm", "testkit_commands.dm", "testkit_events.dm", "testkit_bots.dm", "testkit_ui.dm", "testkit_client.dm", "testkit_sweep.dm"]
 BUILD_NAME = "testkit.mdme"
 PORTS = range(45600, 45700)
 
