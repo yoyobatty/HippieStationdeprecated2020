@@ -219,16 +219,29 @@ GLOBAL_LIST_EMPTY(atmos_ab_station)
 					T.assume_air(breath)
 					T.air_update_turf()
 			sleep(5)
+	var/list/worked = list()
 	var/start = SSair.times_fired
+	var/list/obj/machinery/last
 	while(SSair.times_fired - start < fires)
 		var/seen = SSair.times_fired
-		for(var/obj/machinery/M as anything in SSair.atmos_awake)
+		if(last) // the ones that ran in the fire just gone: did they move gas (update_parents())?
+			for(var/obj/machinery/atmospherics/M in last)
+				if(M.atmos_ab_moved_at == seen)
+					worked["[M.type]"] += 1
+		last = SSair.atmos_awake.Copy()
+		for(var/obj/machinery/M as anything in last)
 			if(M)
 				runs["[M.type]"] += 1
 		while(SSair.times_fired == seen)
 			sleep(1)
 	for(var/k in runs)
-		runs[k] = round(runs[k] / fires, 0.1)
-	sortTim(runs, GLOBAL_PROC_REF(cmp_numeric_dsc), TRUE)
+		runs[k] = "[round(runs[k] / fires, 0.1)] ran, [round(worked[k] / fires, 0.1)] moved gas"
 	return runs
+
+/obj/machinery/atmospherics
+	var/tmp/atmos_ab_moved_at = 0
+
+/obj/machinery/atmospherics/components/update_parents()
+	atmos_ab_moved_at = SSair.times_fired
+	return ..()
 #endif
