@@ -3407,6 +3407,7 @@
 #include "hippiestation\code\modules\atmospherics\door_seal_check.dm"
 #include "hippiestation\code\modules\atmospherics\door_seals.dm"
 #include "hippiestation\code\modules\atmospherics\idle_machines.dm"
+#include "hippiestation\code\modules\atmospherics\idle_more.dm"
 #include "hippiestation\code\modules\atmospherics\pipe_engine.dm"
 #include "hippiestation\code\modules\atmospherics\pipe_rupture.dm"
 #include "hippiestation\code\modules\atmospherics\tile_engine.dm"

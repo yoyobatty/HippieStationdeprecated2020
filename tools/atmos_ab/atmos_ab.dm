@@ -198,3 +198,22 @@ GLOBAL_LIST_EMPTY(atmos_ab_station)
 #undef ATMOS_AB_H
 
 #endif
+
+#ifdef TESTKIT_BUILD
+/// Over `fires` SSair fires: which machine types ran process_atmos() and how often a fire, and how many of the runs found
+/// their turf's pressure within 1 kPa of where a vent wants it (a top-up)
+/proc/atmos_ab_awake(fires = 40)
+	var/list/runs = list()
+	var/start = SSair.times_fired
+	while(SSair.times_fired - start < fires)
+		var/seen = SSair.times_fired
+		for(var/obj/machinery/M as anything in SSair.atmos_awake)
+			if(M)
+				runs["[M.type]"] += 1
+		while(SSair.times_fired == seen)
+			sleep(1)
+	for(var/k in runs)
+		runs[k] = round(runs[k] / fires, 0.1)
+	sortTim(runs, GLOBAL_PROC_REF(cmp_numeric_dsc), TRUE)
+	return runs
+#endif
