@@ -1,0 +1,66 @@
+[
+ {
+  "name": "combat self-check on the warm server",
+  "steps": [
+   {
+    "do": "run_check",
+    "proc": "combat_check_run",
+    "results": "data/combat_check/results.txt",
+    "save": "check"
+   },
+   {
+    "metric": "pass",
+    "value": "${check.pass}"
+   },
+   {
+    "expect": "result",
+    "of": "check",
+    "path": "fail",
+    "value": 0
+   },
+   {
+    "expect": "result",
+    "of": "check",
+    "path": "pass",
+    "op": ">=",
+    "value": 30
+   }
+  ]
+ },
+ {
+  "name": "reset_area puts the Bridge back as mapped",
+  "steps": [
+   {
+    "do": "find",
+    "type": "/obj",
+    "area": "Bridge",
+    "limit": 1,
+    "save": "before"
+   },
+   {
+    "do": "spawn",
+    "type": "/obj/item/crowbar",
+    "at": "area:Bridge",
+    "n": 5
+   },
+   {
+    "do": "reset_area",
+    "area": "Bridge"
+   },
+   {
+    "do": "find",
+    "type": "/obj",
+    "area": "Bridge",
+    "limit": 1,
+    "save": "after"
+   },
+   {
+    "expect": "result",
+    "of": "after",
+    "path": "count",
+    "op": "==",
+    "value": "${before.count}"
+   }
+  ]
+ }
+]

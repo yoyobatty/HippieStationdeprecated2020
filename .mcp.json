@@ -1,0 +1,9 @@
+{
+	"mcpServers": {
+		"ss13": {
+			"type": "stdio",
+			"command": "python",
+			"args": ["tools/testkit/ss13_mcp.py"]
+		}
+	}
+}

@@ -23,8 +23,10 @@ GLOBAL_VAR_INIT(cc_next_spot, 0)
 
 /world/New()
 	. = ..()
+#ifndef TESTKIT_BUILD // a testkit server runs it when asked (tools/testkit: run_check combat_check_run)
 	spawn(0)
 		combat_check_run()
+#endif
 
 /proc/cc_floor()
 	var/datum/turf_reservation/R = SSmapping.RequestBlockReservation(60, 60)
@@ -401,6 +403,9 @@ GLOBAL_VAR_INIT(cc_next_spot, 0)
 	cc_check("a neck-grabbed victim still goes along with the holder", G.pulling == V && get_dist(G, V) <= 1, "pulling [G.pulling], distance [get_dist(G, V)]")
 
 /proc/combat_check_run()
+	GLOB.cc_passed = 0 // a testkit server can run it again
+	GLOB.cc_failed = 0
+	GLOB.cc_next_spot = 0
 	UNTIL(SSticker.initialized)
 	GLOB.master_mode = "extended"
 	SSticker.start_immediately = TRUE
@@ -442,5 +447,7 @@ GLOBAL_VAR_INIT(cc_next_spot, 0)
 	cc_section("regressions", /proc/cc_regressions)
 	cc_log("[GLOB.cc_passed] passed, [GLOB.cc_failed] failed")
 	cc_log("done")
+#ifndef TESTKIT_BUILD // a testkit server goes on to the next command
 	sleep(5)
 	del(world)
+#endif

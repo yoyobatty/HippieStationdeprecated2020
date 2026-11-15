@@ -1,0 +1,78 @@
+{
+ "a human in vacuum dies of it": {
+  "hard_deletes": 0,
+  "metrics": {
+   "game_seconds": 28.1
+  },
+  "passed": true,
+  "runtimes": 0
+ },
+ "canister: release pressure to max from its window": {
+  "hard_deletes": 0,
+  "metrics": {
+   "game_seconds": 1.6
+  },
+  "passed": true,
+  "runtimes": 0
+ },
+ "combat self-check on the warm server": {
+  "hard_deletes": 0,
+  "metrics": {
+   "game_seconds": 9.0,
+   "pass": 36
+  },
+  "passed": true,
+  "runtimes": 0
+ },
+ "fuzz: atmos machinery windows take junk without runtimes": {
+  "hard_deletes": 0,
+  "metrics": {
+   "game_seconds": 3.5,
+   "pressed": 72
+  },
+  "passed": true,
+  "runtimes": 0
+ },
+ "fuzz: every machine window (known bugs: expect FAIL until fixed)": {
+  "hard_deletes": 0,
+  "metrics": {
+   "game_seconds": 4.1,
+   "runtimes": 80
+  },
+  "passed": false,
+  "runtimes": 80
+ },
+ "gym: two medical rounds scenarios": {
+  "hard_deletes": 0,
+  "metrics": {
+   "game_seconds": 31.9,
+   "gym_passed": 11
+  },
+  "passed": true,
+  "runtimes": 0
+ },
+ "reset_area puts the Bridge back as mapped": {
+  "hard_deletes": 0,
+  "metrics": {
+   "game_seconds": 1.0
+  },
+  "passed": true,
+  "runtimes": 0
+ },
+ "security bot answers an assault it sees": {
+  "hard_deletes": 0,
+  "metrics": {
+   "game_seconds": 8.1
+  },
+  "passed": true,
+  "runtimes": 0
+ },
+ "toolbox fight ends in a death with its killer": {
+  "hard_deletes": 0,
+  "metrics": {
+   "game_seconds": 15.9
+  },
+  "passed": true,
+  "runtimes": 0
+ }
+}

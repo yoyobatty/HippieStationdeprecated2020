@@ -1,0 +1,92 @@
+[
+ {
+  "name": "canister: release pressure to max from its window",
+  "steps": [
+   {
+    "do": "arena",
+    "w": 5,
+    "h": 5,
+    "save": "arena"
+   },
+   {
+    "do": "spawn",
+    "type": "/obj/machinery/portable_atmospherics/canister/oxygen",
+    "at": "arena:${arena.id}",
+    "save": "can"
+   },
+   {
+    "do": "ui_act",
+    "src": "${can.0.ref}",
+    "action": "pressure",
+    "params": {
+     "pressure": "max"
+    }
+   },
+   {
+    "expect": "var",
+    "ref": "${can.0.ref}",
+    "var": "release_pressure",
+    "op": ">",
+    "value": 1000
+   },
+   {
+    "do": "ui_act",
+    "src": "${can.0.ref}",
+    "action": "valve"
+   },
+   {
+    "expect": "var",
+    "ref": "${can.0.ref}",
+    "var": "valve_open",
+    "value": 1
+   }
+  ]
+ },
+ {
+  "name": "fuzz: atmos machinery windows take junk without runtimes",
+  "steps": [
+   {
+    "do": "fuzz_ui",
+    "match": "/obj/machinery/portable_atmospherics",
+    "tries": 4,
+    "seed": 7,
+    "save": "fuzz"
+   },
+   {
+    "expect": "result",
+    "of": "fuzz",
+    "path": "pressed",
+    "op": ">",
+    "value": 20
+   },
+   {
+    "metric": "pressed",
+    "value": "${fuzz.pressed}"
+   }
+  ]
+ },
+ {
+  "name": "fuzz: every machine window (known bugs: expect FAIL until fixed)",
+  "invariants": false,
+  "steps": [
+   {
+    "do": "fuzz_ui",
+    "match": "/obj/machinery",
+    "tries": 3,
+    "seed": 1,
+    "save": "fuzz"
+   },
+   {
+    "metric": "runtimes",
+    "value": "${fuzz.invariants.counts.runtime}"
+   },
+   {
+    "expect": "result",
+    "of": "fuzz",
+    "path": "invariants.counts.runtime",
+    "op": "==",
+    "value": 0
+   }
+  ]
+ }
+]

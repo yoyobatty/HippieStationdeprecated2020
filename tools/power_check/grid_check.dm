@@ -12,8 +12,10 @@
 
 /world/New()
 	. = ..()
+#ifndef TESTKIT_BUILD // a testkit server runs it when asked (tools/testkit: run_check grid_check_run)
 	spawn(0)
 		grid_check_run()
+#endif
 
 /proc/gc_station_machines()
 	. = list()

@@ -1,0 +1,115 @@
+[
+ {
+  "name": "toolbox fight ends in a death with its killer",
+  "steps": [
+   {
+    "do": "arena",
+    "w": 7,
+    "h": 7,
+    "save": "arena"
+   },
+   {
+    "do": "spawn",
+    "type": "/mob/living/carbon/human",
+    "at": "arena:${arena.id}",
+    "outfit": "/datum/outfit/job/assistant",
+    "save": "a"
+   },
+   {
+    "do": "spawn",
+    "type": "/mob/living/carbon/human",
+    "at": "arena:${arena.id}",
+    "save": "b"
+   },
+   {
+    "do": "move",
+    "ref": "${b.0.ref}",
+    "dir": "east"
+   },
+   {
+    "do": "give",
+    "mob": "${a.0.ref}",
+    "type": "/obj/item/storage/toolbox/mechanical"
+   },
+   {
+    "do": "intent",
+    "mob": "${a.0.ref}",
+    "intent": "harm"
+   },
+   {
+    "do": "use",
+    "user": "${a.0.ref}",
+    "item": "held",
+    "target": "${b.0.ref}",
+    "repeat": 12,
+    "every": 0.8,
+    "save": "fight"
+   },
+   {
+    "do": "damage",
+    "mob": "${b.0.ref}",
+    "brute": 200
+   },
+   {
+    "expect": "event",
+    "kinds": [
+     "death"
+    ],
+    "match": "${b.0.ref}",
+    "within": 10
+   },
+   {
+    "expect": "event",
+    "kinds": [
+     "attack"
+    ],
+    "match": "${b.0.ref}"
+   },
+   {
+    "expect": "var",
+    "ref": "${b.0.ref}",
+    "var": "stat",
+    "value": 3,
+    "within": 5
+   }
+  ]
+ },
+ {
+  "name": "a human in vacuum dies of it",
+  "steps": [
+   {
+    "do": "arena",
+    "w": 5,
+    "h": 5,
+    "floor": "/turf/open/floor/plating/airless",
+    "save": "arena"
+   },
+   {
+    "do": "spawn",
+    "type": "/mob/living/carbon/human",
+    "at": "arena:${arena.id}",
+    "save": "a"
+   },
+   {
+    "do": "look",
+    "at": "arena:${arena.id}",
+    "save": "air"
+   },
+   {
+    "expect": "result",
+    "of": "air",
+    "path": "0.pressure",
+    "op": "<",
+    "value": 10
+   },
+   {
+    "expect": "var",
+    "ref": "${a.0.ref}",
+    "var": "stat",
+    "op": ">",
+    "value": 0,
+    "within": 60
+   }
+  ]
+ }
+]

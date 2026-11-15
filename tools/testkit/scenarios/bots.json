@@ -1,0 +1,106 @@
+[
+ {
+  "name": "security bot answers an assault it sees",
+  "steps": [
+   {
+    "do": "arena",
+    "w": 11,
+    "h": 11,
+    "save": "arena"
+   },
+   {
+    "do": "spawn",
+    "bot": true,
+    "job": "Security Officer",
+    "at": "arena:${arena.id}",
+    "save": "sec"
+   },
+   {
+    "do": "wait",
+    "seconds": 3
+   },
+   {
+    "do": "spawn",
+    "type": "/mob/living/carbon/human",
+    "at": "arena:${arena.id}",
+    "outfit": "/datum/outfit/job/assistant",
+    "save": "a"
+   },
+   {
+    "do": "spawn",
+    "type": "/mob/living/carbon/human",
+    "at": "arena:${arena.id}",
+    "save": "b"
+   },
+   {
+    "do": "move",
+    "ref": "${b.0.ref}",
+    "dir": "east"
+   },
+   {
+    "do": "give",
+    "mob": "${a.0.ref}",
+    "type": "/obj/item/storage/toolbox/mechanical"
+   },
+   {
+    "do": "intent",
+    "mob": "${a.0.ref}",
+    "intent": "harm"
+   },
+   {
+    "do": "use",
+    "user": "${a.0.ref}",
+    "item": "held",
+    "target": "${b.0.ref}",
+    "repeat": 3,
+    "every": 1
+   },
+   {
+    "expect": "event",
+    "kinds": [
+     "bot.state",
+     "bot.goal"
+    ],
+    "match": "${sec.0.ref}",
+    "within": 20
+   },
+   {
+    "do": "bot_why",
+    "bot": "${sec.0.ref}",
+    "save": "why"
+   },
+   {
+    "expect": "result",
+    "of": "why",
+    "path": "state",
+    "op": "in",
+    "value": [
+     "arrest",
+     "combat",
+     "goal"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "gym: two medical rounds scenarios",
+  "steps": [
+   {
+    "do": "gym_run",
+    "name": "medical rounds",
+    "save": "gym"
+   },
+   {
+    "metric": "gym_passed",
+    "value": "${gym.passed}"
+   },
+   {
+    "expect": "result",
+    "of": "gym",
+    "path": "passed",
+    "op": ">=",
+    "value": 1
+   }
+  ]
+ }
+]
