@@ -193,7 +193,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/asset_cache/asset_list.dm
 ## code/modules/atmospherics/environmental/LINDA_fire.dm (hotspots tell the tile engine when it keeps LINDA's state, tile_engine.dm)
 ## code/modules/atmospherics/environmental/LINDA_system.dm (tile engine neighbour cache; shut doors' tiles pick their side, door_seals.dm; CanAtmosPass() walks both tiles without making contents+T.contents)
-## code/modules/atmospherics/environmental/LINDA_turf_tile.dm (a group's turfs skip the overlay update when nothing shows; update_visuals() makes no list for plain air)
+## code/modules/atmospherics/environmental/LINDA_turf_tile.dm (a group's turfs skip the overlay update when nothing shows; update_visuals() makes no list for plain air; heat through walls' coefficients go through SUPERCONDUCT_COEFF(), superconduct_cadence.dm)
 ## code/modules/atmospherics/machinery/airalarm.dm (user, not usr: null when a bot does it)
 ## code/modules/atmospherics/machinery/atmosmachinery.dm
 ## code/modules/atmospherics/machinery/components/binary_devices/dp_vent_pump.dm (pipe air marked for the tile engine, pipe_engine.dm)

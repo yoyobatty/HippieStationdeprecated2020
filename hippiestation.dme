@@ -3410,6 +3410,7 @@
 #include "hippiestation\code\modules\atmospherics\idle_more.dm"
 #include "hippiestation\code\modules\atmospherics\pipe_engine.dm"
 #include "hippiestation\code\modules\atmospherics\pipe_rupture.dm"
+#include "hippiestation\code\modules\atmospherics\superconduct_cadence.dm"
 #include "hippiestation\code\modules\atmospherics\tile_engine.dm"
 #include "hippiestation\code\modules\atmospherics\gasmixtures\gas_types.dm"
 #include "hippiestation\code\modules\atmospherics\gasmixtures\reactions.dm"

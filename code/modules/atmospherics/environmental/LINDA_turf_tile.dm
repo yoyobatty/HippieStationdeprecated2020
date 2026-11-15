@@ -574,7 +574,7 @@ Then we space some of our heat, and think about if we should stop conducting.
 	if(!other.blocks_air) //Solid but neighbor is open
 		other.temperature_share_open_to_solid(src)
 	else //Both tiles are solid
-		other.share_temperature_mutual_solid(src, thermal_conductivity)
+		other.share_temperature_mutual_solid(src, SUPERCONDUCT_COEFF(thermal_conductivity)) // hippie -- a run stands for SSair.superconduct_every
 	temperature_expose(null, temperature)
 
 /turf/open/neighbor_conduct_with_src(turf/other)
@@ -584,7 +584,7 @@ Then we space some of our heat, and think about if we should stop conducting.
 
 	if(!other.blocks_air) //Both tiles are open
 		var/turf/open/T = other
-		T.air.temperature_share(air, WINDOW_HEAT_TRANSFER_COEFFICIENT)
+		T.air.temperature_share(air, SUPERCONDUCT_COEFF(WINDOW_HEAT_TRANSFER_COEFFICIENT)) // hippie -- a run stands for SSair.superconduct_every
 	else //Open but neighbor is solid
 		temperature_share_open_to_solid(other)
 	SSair.add_to_active(src)
@@ -621,7 +621,7 @@ Then we space some of our heat, and think about if we should stop conducting.
 /turf/open/finish_superconduction()
 	//Conduct with air on my tile if I have it
 	if(!blocks_air)
-		temperature = air.temperature_share(null, thermal_conductivity, temperature, heat_capacity)
+		temperature = air.temperature_share(null, SUPERCONDUCT_COEFF(thermal_conductivity), temperature, heat_capacity) // hippie -- a run stands for SSair.superconduct_every
 	..((blocks_air ? temperature : air.temperature))
 
 ///Should we attempt to superconduct?
@@ -648,13 +648,18 @@ Then we space some of our heat, and think about if we should stop conducting.
 	if(temperature > T0C) //Considering 0 degC as te break even point for radiation in and out
 		var/delta_temperature = (temperature_archived - TCMB) //hardcoded space temperature
 		if((heat_capacity > 0) && (abs(delta_temperature) > MINIMUM_TEMPERATURE_DELTA_TO_CONSIDER))
-
+			// hippie start -- a run stands for SSair.superconduct_every: the share of the gap to space lost, as that many runs would
+			if(SSair.superconduct_every > 1)
+				var/vacuum_share = HEAT_CAPACITY_VACUUM / (heat_capacity + HEAT_CAPACITY_VACUUM)
+				temperature -= SUPERCONDUCT_COEFF(thermal_conductivity * vacuum_share) * delta_temperature
+				return
+			// hippie end
 			var/heat = thermal_conductivity*delta_temperature* \
 				(heat_capacity*HEAT_CAPACITY_VACUUM/(heat_capacity+HEAT_CAPACITY_VACUUM))
 			temperature -= heat/heat_capacity
 
 /turf/open/proc/temperature_share_open_to_solid(turf/sharer)
-	sharer.temperature = air.temperature_share(null, sharer.thermal_conductivity, sharer.temperature, sharer.heat_capacity)
+	sharer.temperature = air.temperature_share(null, SUPERCONDUCT_COEFF(sharer.thermal_conductivity), sharer.temperature, sharer.heat_capacity) // hippie -- a run stands for SSair.superconduct_every
 
 /turf/proc/share_temperature_mutual_solid(turf/sharer, conduction_coefficient) //This is all just heat sharing, don't get freaked out
 	var/delta_temperature = (temperature_archived - sharer.temperature_archived)

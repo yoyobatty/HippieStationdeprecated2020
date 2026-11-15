@@ -46,3 +46,8 @@
 /// Something in DM changed a pipe network's gas mixture: the tile engine is sent it again the next time the network is evened
 /// out (hippiestation/code/modules/atmospherics/pipe_engine.dm)
 #define PIPE_AIR_TOUCH(G) G.pipe_engine_dirty = TRUE
+
+/// Heat through walls runs every SSair.superconduct_every fires, and each run stands for that many: a coefficient c becomes
+/// 1 - (1 - c)^N, which for two tiles is exactly what N runs at c would do and never shares past even
+/// (hippiestation/code/modules/atmospherics/superconduct_cadence.dm)
+#define SUPERCONDUCT_COEFF(c) (SSair.superconduct_every > 1 ? (1 - (1 - (c)) ** SSair.superconduct_every) : (c))
