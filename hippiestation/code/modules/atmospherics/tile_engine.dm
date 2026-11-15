@@ -114,6 +114,11 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	var/tile_engine_own_resync = FALSE
 	/// How many times it did (for benches)
 	var/tile_engine_own_resyncs = 0
+	/// The engine burns plasma itself where plasma fire is the only reaction to do (-params "atmos-engine-reactions=off" leaves
+	/// every reaction to DM's react())
+	var/tile_engine_native_fire = FALSE
+	/// Tiles the engine burned plasma on so far (for benches)
+	var/tile_engine_burned = 0
 
 /turf
 	/// SSair.tile_engine_generation when the tile engine was last sent our kind and neighbours, 0 if what it has is out of
@@ -223,6 +228,34 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	log_world("Atmos: tile engine on, [length(tile_engine_gas_types)] gases, [length(gas_reactions)] reactions[tile_engine_generation ? "" : ", sending every turf's neighbours every tick"][tile_engine_cache_shadow ? ", checking what it keeps of turfs" : ""], keeping turfs' air: [tile_engine_air]")
 	pipe_engine_setup()
 	tile_engine_own_setup(tile_engine_version)
+	tile_engine_fire_setup()
+
+/// Has the engine burn plasma itself (atmos_engine_native_fire()), unless atmos-engine-reactions=off or the library is too old
+/datum/controller/subsystem/air/proc/tile_engine_fire_setup()
+	tile_engine_native_fire = FALSE
+	if(world.params["atmos-engine-reactions"] == "off")
+		return
+	var/reaction = 0
+	for(var/i in 1 to length(gas_reactions))
+		var/datum/gas_reaction/R = gas_reactions[i]
+		if(R.type == /datum/gas_reaction/plasmafire)
+			reaction = i
+			break
+	var/list/gases = tile_engine_gas_types
+	var/plasma = gases.Find(/datum/gas/plasma)
+	var/oxygen = gases.Find(/datum/gas/oxygen)
+	var/co2 = gases.Find(/datum/gas/carbon_dioxide)
+	var/tritium = gases.Find(/datum/gas/tritium)
+	if(!reaction || !plasma || !oxygen || !co2 || !tritium)
+		return
+	var/list/settings = list(reaction, plasma, oxygen, co2, tritium, PLASMA_MINIMUM_BURN_TEMPERATURE, PLASMA_UPPER_TEMPERATURE, \
+		OXYGEN_BURN_RATE_BASE, SUPER_SATURATION_THRESHOLD, PLASMA_OXYGEN_FULLBURN, PLASMA_BURN_RATE_DELTA, \
+		FIRE_PLASMA_ENERGY_RELEASED, FIRE_MINIMUM_TEMPERATURE_TO_EXIST)
+	try
+		tile_engine_native_fire = call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_native_fire")(settings) == 1
+	catch
+		tile_engine_native_fire = FALSE
+	log_world("Atmos: plasma fires burn [tile_engine_native_fire ? "in the tile engine" : "in DM"]")
 
 /// Whether the engine keeps turfs' air (a library from before that hasn't got atmos_engine_kept_air()). A fresh start of the
 /// engine has none kept, so the epoch moves past every turf's tile_engine_air_sent.
@@ -730,6 +763,38 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 
 	tile_engine_apply_parts["wind"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - part) // for benches
 	part = TICK_USAGE_REAL
+	// Plasma the engine burned itself: its air is already written. What's left of plasmafire/react() is what it leaves in
+	// reaction_results (a hotspot on the turf grows by it), and letting the floor know, which only does anything where
+	// there's no hotspot yet.
+	if(tile_engine_native_fire)
+		var/list/turf/open/burns = list()
+		var/list/burn_fires = list()
+		var/list/burn_expose = list()
+		var/list/burn_temperatures = list()
+		var/burned
+		try
+			burned = call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_burns")(burns, burn_fires, burn_expose, burn_temperatures)
+		catch(var/exception/burn_error)
+			burned = "[burn_error]"
+		if(!isnum(burned))
+			tile_engine_failed(burned)
+			return
+		tile_engine_burned += burned
+		at = 0
+		for(var/turf/open/T as anything in burns)
+			at++
+			var/datum/gas_mixture/air = T.air
+			if(air)
+				air.reaction_results = list("fire" = burn_fires[at])
+		at = 0
+		for(var/position in burn_expose)
+			at++
+			var/turf/open/T = burns[position]
+			if(!isopenturf(T))
+				continue
+			if(owns)
+				T.current_cycle = fired
+			T.hotspot_expose(burn_temperatures[at], CELL_VOLUME)
 	// One turf's reaction can change the next turf on the list into a wall, so from here on they might not be open any more.
 	// A reaction can light a hotspot here, which wants to know the turf has had its turn this tick.
 	var/tracking = tile_engine_tracking

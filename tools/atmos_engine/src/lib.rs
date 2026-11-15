@@ -714,6 +714,63 @@ pub unsafe extern "C" fn atmos_engine_results(argc: u32, argv: *const ByondValue
 	})
 }
 
+/// call_ext("hippie_atmos", "byond:atmos_engine_native_fire")(settings): the engine burns plasma itself from the next tick,
+/// on tiles where plasma fire is the only reaction whose requirements are met (engine::NativeFire::parse() has the list's
+/// layout). An empty list turns it off. Returns 1. An older library hasn't got this, and DM's react() does every reaction.
+#[no_mangle]
+pub unsafe extern "C" fn atmos_engine_native_fire(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	guarded("native_fire", || {
+		let api = api().ok_or("byondcore.dll doesn't have Byond_ReadList and Byond_WriteList")?;
+		if args.is_empty() {
+			return Err("wanted the settings list".into());
+		}
+		let settings = read_numbers(api, &args[0])?;
+		let mut guard = STATE.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+		let state = guard.as_mut().ok_or("native_fire before setup")?;
+		state.config.fire = if settings.is_empty() { None } else { Some(engine::NativeFire::parse(&settings, &state.config)?) };
+		Ok(1.0)
+	})
+}
+
+/// call_ext("hippie_atmos", "byond:atmos_engine_burns")(turfs, fires, expose, temperatures): after atmos_engine_results(),
+/// every tile the engine burned plasma on, in order, and what plasmafire would have left in its air's
+/// reaction_results["fire"] (a hotspot grows by it); `expose` has the positions (from 1) of those DM's plasmafire would
+/// have hotspot_expose()d that have no hotspot yet, and `temperatures` their temperatures. Returns how many it burned.
+#[no_mangle]
+pub unsafe extern "C" fn atmos_engine_burns(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	guarded("burns", || {
+		let api = api().ok_or("byondcore.dll doesn't have Byond_ReadList and Byond_WriteList")?;
+		if args.len() < 4 {
+			return Err(format!("{} arguments, wanted turfs, fires, expose and temperatures", args.len()));
+		}
+		let mut guard = STATE.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+		let state = guard.as_mut().ok_or("burns before setup")?;
+		let tick = &state.tick;
+		let out = &mut state.out;
+		if !tick.burn.is_empty() {
+			out.clear();
+			out.extend(tick.burn.iter().map(|b| ByondValue::turf(tick.turf(b.0))));
+			write_values(api, &args[0], out)?;
+			out.clear();
+			out.extend(tick.burn.iter().map(|b| ByondValue::num(b.2 as f32)));
+			write_values(api, &args[1], out)?;
+			out.clear();
+			for (position, b) in tick.burn.iter().enumerate() {
+				if b.3 {
+					out.push(ByondValue::num((position + 1) as f32));
+				}
+			}
+			write_values(api, &args[2], out)?;
+			out.clear();
+			out.extend(tick.burn.iter().filter(|b| b.3).map(|b| ByondValue::num(b.1 as f32)));
+			write_values(api, &args[3], out)?;
+		}
+		Ok(tick.burned as f32)
+	})
+}
+
 /// Whether the air the engine would have given a turf when its group broke down is what DM gave it, near enough: the
 /// two add up in a different order, so the last bits can differ
 fn breakdown_matches(temperature: f32, gases: &[(u8, f32)], sent_temperature: f64, sent: &[(usize, f64)]) -> bool {
