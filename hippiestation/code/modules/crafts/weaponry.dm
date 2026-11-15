@@ -16,7 +16,7 @@
 /obj/item/shard/shank/attack_self(mob/user)
 	playsound(user, 'hippiestation/sound/misc/ducttape2.ogg', 50, 1)
 	var/obj/item/shard/new_item = new(user.loc)
-	to_chat(user, "<span class='notice'>You take the duct tape off the [src].</span>")
+	to_chat(user, "<span class='notice'>You take the duct tape off [src].</span>")
 	qdel(src)
 	user.put_in_hands(new_item)
 

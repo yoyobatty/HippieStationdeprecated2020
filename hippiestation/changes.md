@@ -91,8 +91,10 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/machinery/flasher.dm
 ## code/game/machinery/launch_pad.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
 ## code/game/machinery/navbeacon.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
+## code/game/machinery/pipe/construction.dm (runtime or qdel loop on a bare or deleted thing: guards, testkit sweep)
 ## code/game/machinery/pipe/pipe_dispenser.dm (user, not usr: null when a bot does it)
 ## code/game/machinery/porta_turret/portable_turret.dm (user, not usr: null when a bot does it)
+## code/game/machinery/porta_turret/portable_turret_cover.dm (runtime or qdel loop on a bare or deleted thing: guards, testkit sweep)
 ## code/game/machinery/spaceheater.dm (user, not usr: null when a bot does it)
 ## code/game/machinery/syndicatebomb.dm (timer prompt default is a number)
 ## code/game/machinery/telecomms/broadcasting.dm
@@ -123,7 +125,10 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/objects/items/devices/traitordevices.dm (user, not usr: null when a bot does it; a deleted jammer leaves the jammer list)
 ## code/game/objects/items/extinguisher.dm (user, not usr: null when a bot does it)
 ## code/game/objects/items/grenades/plastic.dm (Destroy() returns its qdel hint)
+## code/game/objects/items/handcuffs.dm (runtime or qdel loop on a bare or deleted thing: guards, testkit sweep)
+## code/game/objects/items/hourglass.dm ("the the": BYOND adds the article itself, testkit sweep)
 ## code/game/objects/items/robot/robot_items.dm
+## code/game/objects/items/robot/robot_upgrades.dm ("to to" in two descriptions, testkit sweep)
 ## code/game/objects/items/RPD.dm (user, not usr: null when a bot does it)
 ## code/game/objects/items/stacks/rods.dm
 ## code/game/objects/items/stacks/sheets/glass.dm
@@ -137,10 +142,13 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/objects/obj_defense.dm (bullets hit from the side their flight angle points back to; pushes say where they came from)
 ## code/game/objects/structures/barsigns.dm
 ## code/game/objects/structures/door_assembly.dm (user, not usr: null when a bot does it)
+## code/game/objects/structures/electricchair.dm (runtime or qdel loop on a bare or deleted thing: guards, testkit sweep)
 ## code/game/objects/structures/ghost_role_spawners.dm (user, not usr: null when a bot does it)
 ## code/game/objects/structures/grille.dm
+## code/game/objects/structures/headpike.dm (runtime or qdel loop on a bare or deleted thing: guards, testkit sweep)
 ## code/game/objects/structures/janicart.dm (user, not usr: null when a bot does it)
 ## code/game/objects/structures/ladders.dm (user, not usr: null when a bot does it)
+## code/game/objects/structures/morgue.dm (runtime or qdel loop on a bare or deleted thing: guards, testkit sweep)
 ## code/game/objects/structures/windoor_assembly.dm (user, not usr: null when a bot does it)
 ## code/game/objects/structures/window.dm
 ## code/game/sound.dm (playsound_local() dulls everything while a blast has the ears ringing, explosion_realism/blast_senses.dm)
@@ -209,6 +217,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/clothing/clothing.dm (voice-box masks get their toggle button: LAZYADD)
 ## code/modules/clothing/head/misc_special.dm (user, not usr: null when a bot does it)
 ## code/modules/clothing/masks/gasmask.dm (user, not usr: null when a bot does it)
+## code/modules/clothing/spacesuits/chronosuit.dm (runtime or qdel loop on a bare or deleted thing: guards, testkit sweep)
 ## code/modules/discord/tgs_commands.dm
 ## code/modules/error_handler/error_handler.dm (world/Error() tells Bot Shift, a code sweep and the round's runtime ledger of each runtime)
 ## code/modules/food_and_drinks/drinks/drinks.dm !Should be modularized. Can be done easily.
@@ -296,6 +305,8 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/projectiles/guns/misc/blastcannon.dm (a pinless cannon's pin is made inside it)
 ## code/modules/projectiles/guns/misc/grenade_launcher.dm (user, not usr: null when a bot does it)
 ## code/modules/projectiles/pins.dm (a deleted pin undoes what it did to its gun, through gun_remove())
+## code/modules/projectiles/projectile/special/curse.dm (runtime or qdel loop on a bare or deleted thing: guards, testkit sweep)
+## code/modules/projectiles/projectile/special/hallucination.dm (runtime or qdel loop on a bare or deleted thing: guards, testkit sweep)
 ## code/modules/projectiles/projectile/special/rocket.dm (the anti-armour hit on a mech comes from the rocket's side)
 ## code/modules/reagents/chem_splash.dm !Could probably be improved to avoid cutting out the whole tg proc
 ## code/modules/reagents/chemistry/holder.dm !Same as above.
@@ -309,6 +320,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/reagents/chemistry/recipes/pyrotechnics.dm !Same as above.
 ## code/modules/reagents/chemistry/recipes/slime_extracts.dm (delete_extract() on an extract already gone)
 ## code/modules/reagents/reagent_containers.dm !Could be modularized. (a thrown container that's caught doesn't splash the catcher)
+## code/modules/research/machinery/_production.dm (runtime or qdel loop on a bare or deleted thing: guards, testkit sweep)
 ## code/modules/research/nanites/nanite_chamber_computer.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
 ## code/modules/research/nanites/nanite_programmer.dm (buttons pressed with nothing there: guards, testkit fuzz_ui)
 ## code/modules/research/rdconsole.dm (research_node() says which points are short)
@@ -321,8 +333,11 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/surgery/bodyparts/bodyparts.dm
 ## code/modules/surgery/bodyparts/head.dm
 ## code/modules/surgery/helpers.dm
+## code/modules/surgery/organs/autosurgeon.dm ("the the": BYOND adds the article itself, testkit sweep)
 ## code/modules/surgery/organs/lungs.dm
 ## code/modules/surgery/organs/vocal_cords.dm
+## code/modules/surgery/tools.dm ("the the": BYOND adds the article itself, testkit sweep)
 ## code/modules/tgs/ (TGS DMAPI 7.4.0, the upstream files as released; was 5.2.7)
 ## code/modules/unit_tests/reagent_recipe_collisions.dm
+## code/modules/vending/_vending.dm ("the the": BYOND adds the article itself, testkit sweep)
 ## code/modules/zombie/organs.dm (the infection coming out of a zombie being deleted doesn't turn it back)

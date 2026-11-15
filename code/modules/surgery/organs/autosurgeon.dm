@@ -68,7 +68,7 @@
 			var/atom/movable/AM = J
 			AM.forceMove(drop_loc)
 
-		to_chat(user, "<span class='notice'>You remove the [storedorgan] from [src].</span>")
+		to_chat(user, "<span class='notice'>You remove [storedorgan] from [src].</span>") // hippie -- "the [x]" printed "the the": BYOND puts the article in itself (testkit sweep)
 		I.play_tool_sound(src)
 		storedorgan = null
 		if(uses != INFINITE)

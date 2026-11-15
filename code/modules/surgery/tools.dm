@@ -317,7 +317,7 @@
 /obj/item/retractor/advanced/attack_self(mob/user)
 	playsound(get_turf(user),'sound/items/change_drill.ogg',50,1)
 	var/obj/item/hemostat/advanced/hemostat = new /obj/item/hemostat/advanced(drop_location())
-	to_chat(user, "<span class='notice'>You set the [src] to hemostat mode.</span>")
+	to_chat(user, "<span class='notice'>You set [src] to hemostat mode.</span>") // hippie -- "the [x]" printed "the the": BYOND puts the article in itself (testkit sweep)
 	qdel(src)
 	user.put_in_active_hand(hemostat)
 
@@ -331,7 +331,7 @@
 /obj/item/hemostat/advanced/attack_self(mob/user)
 	playsound(get_turf(user),'sound/items/change_drill.ogg',50,1)
 	var/obj/item/retractor/advanced/retractor = new /obj/item/retractor/advanced(drop_location())
-	to_chat(user, "<span class='notice'>You set the [src] to retractor mode.</span>")
+	to_chat(user, "<span class='notice'>You set [src] to retractor mode.</span>") // hippie -- "the [x]" printed "the the": BYOND puts the article in itself (testkit sweep)
 	qdel(src)
 	user.put_in_active_hand(retractor)
 

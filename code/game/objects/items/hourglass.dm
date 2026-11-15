@@ -22,7 +22,7 @@
 
 /obj/item/hourglass/proc/toggle(mob/user)
 	if(!timing_id)
-		to_chat(user,"<span class='notice'>You flip the [src].</span>")
+		to_chat(user,"<span class='notice'>You flip [src].</span>") // hippie -- "the [x]" printed "the the": BYOND puts the article in itself (testkit sweep)
 		start()
 		flick("hourglass_flip",src)
 	else

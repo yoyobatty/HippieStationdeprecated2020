@@ -187,7 +187,7 @@
 					RS.name = "[RR.name] ingots"
 					RS.singular_name = "[RR.name] ingot"
 					RS.add_atom_colour(RR.color, FIXED_COLOUR_PRIORITY)
-					to_chat(usr, "<span class='notice'>You remove the [RS.name] from [src]</span>")
+					to_chat(usr, "<span class='notice'>You remove the [RS.name] from [src].</span>")
 			qdel(currently_forging)
 			currently_forging = null
 			return TRUE

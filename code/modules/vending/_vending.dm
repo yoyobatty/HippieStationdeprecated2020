@@ -899,7 +899,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 
 /obj/item/price_tagger/attack_self(mob/user)
 	price = max(1, round(tgui_input_number(user, "set price", "price"), 1))
-	to_chat(user, "<span class='notice'> The [src] will now give things an $[price] tag.</span>")
+	to_chat(user, "<span class='notice'>[capitalize("[src]")] will now give things an $[price] tag.</span>") // hippie -- "the [x]" printed "the the": BYOND puts the article in itself (testkit sweep)
 
 /obj/item/price_tagger/afterattack(atom/target, mob/user, proximity)
 	. = ..()

@@ -617,7 +617,7 @@
 
 /obj/item/borg/upgrade/transform
 	name = "borg module picker (Standard)"
-	desc = "Allows you to to turn a cyborg into a standard cyborg."
+	desc = "Allows you to turn a cyborg into a standard cyborg." // hippie -- "to to"
 	icon_state = "cyborg_upgrade3"
 	var/obj/item/robot_module/new_module = /obj/item/robot_module/standard
 
@@ -628,6 +628,6 @@
 
 /obj/item/borg/upgrade/transform/clown
 	name = "borg module picker (Clown)"
-	desc = "Allows you to to turn a cyborg into a clown, honk."
+	desc = "Allows you to turn a cyborg into a clown, honk." // hippie -- "to to"
 	icon_state = "cyborg_upgrade3"
 	new_module = /obj/item/robot_module/clown

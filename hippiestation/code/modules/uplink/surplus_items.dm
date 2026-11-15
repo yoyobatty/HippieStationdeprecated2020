@@ -82,7 +82,7 @@
 	. = ..()
 
 /obj/item/mop/advanced/energy/proc/extend(user)
-	to_chat(user, "<span class ='warning'>You activate the [src], allowing you to clean the station's sins.</span>")
+	to_chat(user, "<span class ='warning'>You activate [src], allowing you to clean the station's sins.</span>")
 	icon_state = "energymop_1"
 	item_state = "energymop_1"
 	w_class = WEIGHT_CLASS_BULKY
