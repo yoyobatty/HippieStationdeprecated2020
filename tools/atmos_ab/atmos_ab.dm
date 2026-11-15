@@ -226,7 +226,7 @@ GLOBAL_LIST_EMPTY(atmos_ab_station)
 		var/seen = SSair.times_fired
 		if(last) // the ones that ran in the fire just gone: did they move gas (update_parents())?
 			for(var/obj/machinery/atmospherics/M in last)
-				if(M.atmos_ab_moved_at == seen)
+				if(M.atmos_ab_moved_at == seen - 1) // stamped during the fire just gone, before times_fired went up
 					worked["[M.type]"] += 1
 		last = SSair.atmos_awake.Copy()
 		for(var/obj/machinery/M as anything in last)
