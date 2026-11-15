@@ -204,6 +204,21 @@ GLOBAL_LIST_EMPTY(atmos_ab_station)
 /// their turf's pressure within 1 kPa of where a vent wants it (a top-up)
 /proc/atmos_ab_awake(fires = 40)
 	var/list/runs = list()
+	spawn(0) // people breathing, as in the calm scene
+		var/list/turf/open/station = atmos_ab_station_turfs()
+		var/list/turf/open/breathers = list()
+		rand_seed(1)
+		for(var/i in 1 to 40)
+			breathers += station[rand(1, length(station))]
+		var/until = world.time + fires * 6
+		while(world.time < until)
+			for(var/turf/open/T as anything in breathers)
+				var/datum/gas_mixture/breath = T.remove_air(0.02)
+				if(breath)
+					breath.moles[/datum/gas/oxygen] = 0
+					T.assume_air(breath)
+					T.air_update_turf()
+			sleep(5)
 	var/start = SSair.times_fired
 	while(SSair.times_fired - start < fires)
 		var/seen = SSair.times_fired
