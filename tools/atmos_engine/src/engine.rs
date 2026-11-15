@@ -42,61 +42,9 @@ pub struct Reaction {
 	pub needs: u64,
 }
 
-/// Plasma fire done by the engine (atmos_engine_native_fire()): /datum/gas_reaction/plasmafire/react(), on a tile where it's
-/// the only reaction whose requirements are met. Gas indices are from 0.
-pub struct NativeFire {
-	/// Its place in Config::reactions
-	pub reaction: usize,
-	pub plasma: usize,
-	pub oxygen: usize,
-	pub carbon_dioxide: usize,
-	pub tritium: usize,
-	pub min_burn: f32,
-	pub upper: f32,
-	pub oxygen_rate_base: f32,
-	pub super_saturation: f32,
-	pub fullburn: f32,
-	pub rate_delta: f32,
-	pub energy: f32,
-	/// FIRE_MINIMUM_TEMPERATURE_TO_EXIST: above it, the floor is told (hotspot_expose)
-	pub min_exist: f32,
-}
-
-impl NativeFire {
-	/// The settings list from DM: reaction index and plasma, oxygen, CO2 and tritium indices (all from 1), then the constants in
-	/// field order
-	pub fn parse(data: &[f64], cfg: &Config) -> Result<NativeFire, String> {
-		if data.len() < 13 {
-			return Err(format!("{} settings, wanted 13", data.len()));
-		}
-		let index = |v: f64, count: usize, what: &str| -> Result<usize, String> {
-			let i = v as usize;
-			if i == 0 || i > count {
-				return Err(format!("{what} {v} out of 1..{count}"));
-			}
-			Ok(i - 1)
-		};
-		Ok(NativeFire {
-			reaction: index(data[0], cfg.reactions.len(), "reaction")?,
-			plasma: index(data[1], cfg.gases, "plasma")?,
-			oxygen: index(data[2], cfg.gases, "oxygen")?,
-			carbon_dioxide: index(data[3], cfg.gases, "CO2")?,
-			tritium: index(data[4], cfg.gases, "tritium")?,
-			min_burn: data[5] as f32,
-			upper: data[6] as f32,
-			oxygen_rate_base: data[7] as f32,
-			super_saturation: data[8] as f32,
-			fullburn: data[9] as f32,
-			rate_delta: data[10] as f32,
-			energy: data[11] as f32,
-			min_exist: data[12] as f32,
-		})
-	}
-}
-
 pub struct Config {
-	/// Plasma fire done here instead of in DM, once DM has asked for it
-	pub fire: Option<NativeFire>,
+	/// Reactions done here instead of in DM's react(), once DM has asked for it (reactions.rs)
+	pub native: Option<crate::reactions::NativeReactions>,
 	pub gases: usize,
 	pub specific_heat: Vec<f64>,
 	/// Moles a gas needs before its overlay shows, negative for gases with no overlay
@@ -184,7 +132,7 @@ impl Config {
 			});
 		}
 		Ok(Config {
-			fire: None,
+			native: None,
 			gases,
 			specific_heat,
 			moles_visible,
@@ -286,68 +234,6 @@ impl Config {
 		met
 	}
 
-	/// heat_capacity() in DM's 32-bit numbers
-	fn heat_capacity_f32(&self, kind: u32, moles: &[f64]) -> f32 {
-		if kind == KIND_SPACE {
-			return self.heat_capacity_vacuum as f32;
-		}
-		let mut total = 0f32;
-		for (m, c) in moles.iter().zip(&self.specific_heat) {
-			total += *m as f32 * *c as f32;
-		}
-		if total == 0.0 && kind != KIND_FIXED {
-			self.heat_capacity_vacuum as f32
-		} else {
-			total
-		}
-	}
-
-	/// QUANTIZE() in 32-bit numbers
-	fn quantize_f32(&self, value: f32) -> f32 {
-		let accuracy = self.molar_accuracy as f32;
-		(value / accuracy + 0.5).floor() * accuracy
-	}
-
-	/// /datum/gas_reaction/plasmafire/react() on one tile's air, in DM's order and 32-bit steps. Returns the new temperature,
-	/// and what it leaves in reaction_results["fire"].
-	fn plasma_fire(&self, fire: &NativeFire, kind: u32, moles: &mut [f64], temperature: f64) -> (f64, f64) {
-		let old_capacity = self.heat_capacity_f32(kind, moles);
-		let temperature = temperature as f32;
-		let mut energy_released = 0f32;
-		let mut burned = 0f32;
-		let scale = if temperature > fire.upper {
-			1.0
-		} else {
-			(temperature - fire.min_burn) / (fire.upper - fire.min_burn)
-		};
-		if scale > 0.0 {
-			let oxygen_rate = fire.oxygen_rate_base - scale;
-			let plasma = moles[fire.plasma] as f32;
-			let oxygen = moles[fire.oxygen] as f32;
-			let super_saturated = oxygen / plasma > fire.super_saturation;
-			let mut plasma_rate = if oxygen > plasma * fire.fullburn {
-				(plasma * scale) / fire.rate_delta
-			} else {
-				(scale * (oxygen / fire.fullburn)) / fire.rate_delta
-			};
-			if plasma_rate > self.min_heat_capacity as f32 {
-				plasma_rate = plasma_rate.min(plasma).min(oxygen / oxygen_rate);
-				moles[fire.plasma] = self.quantize_f32(plasma - plasma_rate) as f64;
-				moles[fire.oxygen] = self.quantize_f32(oxygen - plasma_rate * oxygen_rate) as f64;
-				let product = if super_saturated { fire.tritium } else { fire.carbon_dioxide };
-				moles[product] = (moles[product] as f32 + plasma_rate) as f64;
-				energy_released += fire.energy * plasma_rate;
-				burned += plasma_rate * (1.0 + oxygen_rate);
-			}
-		}
-		if energy_released > 0.0 {
-			let new_capacity = self.heat_capacity_f32(kind, moles);
-			if new_capacity > self.min_heat_capacity as f32 {
-				return (((temperature * old_capacity + energy_released) / new_capacity) as f64, burned as f64);
-			}
-		}
-		(temperature as f64, burned as f64)
-	}
 }
 
 pub fn mutable(kind: u32) -> bool {
@@ -460,12 +346,8 @@ pub struct Tick {
 	pub redraw: Vec<(u32, f64)>,
 	/// Tiles that had their turn and are hot enough to start conducting heat through walls
 	pub hot: Vec<u32>,
-	/// Tiles the engine burned plasma on (Config::fire): (tile, temperature after the burn, what plasmafire leaves in
-	/// reaction_results["fire"], whether DM's plasmafire would have hotspot_expose()d it and it has no hotspot yet (with
-	/// one, hotspot_expose() does nothing))
-	pub burn: Vec<(u32, f64, f64, bool)>,
-	/// How many tiles the engine burned plasma on this tick, for benches
-	pub burned: u32,
+	/// What the reactions the engine did besides changing the air (Config::native), for DM
+	pub effects: crate::reactions::Effects,
 }
 
 impl Tick {
@@ -526,8 +408,7 @@ impl Tick {
 		self.react.clear();
 		self.redraw.clear();
 		self.hot.clear();
-		self.burn.clear();
-		self.burned = 0;
+		self.effects.clear();
 	}
 
 	/// The turf number of a tile
@@ -1008,12 +889,12 @@ impl Tick {
 	/// Works out what DM has to do with all that
 	pub fn finish(&mut self, cfg: &Config) {
 		let g = self.gases;
-		// Plasma fire, where it's the only reaction to do: burned here, before the changes are worked out, so it goes back to
-		// DM with the rest of the tick's air. Anywhere another reaction's requirements are met, DM's react() does them all.
+		// Reactions, where the engine knows every one that's due: done here, before the changes are worked out, so they go back
+		// to DM with the rest of the tick's air (reactions.rs). Anywhere a reaction it doesn't know is due, DM's react() does
+		// them all.
 		let mut native_done = Vec::new();
-		if let Some(fire) = &cfg.fire {
+		if let Some(native) = &cfg.native {
 			native_done.resize(self.count, false);
-			let fire_bit = 1u64 << fire.reaction;
 			for k in 0..self.order.len() {
 				let i = self.order[k] as usize;
 				if !mutable(self.kind[i]) {
@@ -1021,23 +902,17 @@ impl Tick {
 				}
 				let kind = self.kind[i];
 				let capacity = cfg.heat_capacity(kind, &self.moles[i * g..(i + 1) * g]);
-				if cfg.met_reactions(&self.moles[i * g..(i + 1) * g], self.temperature[i], capacity) != fire_bit {
+				if !cfg.can_react(&self.moles[i * g..(i + 1) * g], self.temperature[i], capacity) {
 					continue;
 				}
-				let (temperature, burned) = cfg.plasma_fire(fire, kind, &mut self.moles[i * g..(i + 1) * g], self.temperature[i]);
-				self.temperature[i] = temperature;
-				self.touched[i] = true;
-				native_done[i] = true;
-				self.burned += 1;
-				// plasmafire's "let the floor know", and what hotspot_expose() checks before it makes a hotspot
-				let now = &self.moles[i * g..(i + 1) * g];
-				let t = temperature as f32;
-				let expose = t > fire.min_exist
-					&& !self.hotspot[i]
-					&& now[fire.oxygen] >= 0.5
-					&& (now[fire.plasma] > 0.5 || now[fire.tritium] > 0.5)
-					&& t > fire.min_burn;
-				self.burn.push((i as u32, temperature, burned, expose));
+				let hotspot = self.hotspot[i];
+				let mut temperature = self.temperature[i];
+				let outcome = crate::reactions::react_tile(native, cfg, kind, i as u32, hotspot, &mut self.moles[i * g..(i + 1) * g], &mut temperature, &mut self.effects);
+				if let crate::reactions::Outcome::Done = outcome {
+					self.temperature[i] = temperature;
+					self.touched[i] = true;
+					native_done[i] = true;
+				}
 			}
 		}
 		for i in 0..self.count {

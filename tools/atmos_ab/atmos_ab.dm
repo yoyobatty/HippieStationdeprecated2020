@@ -33,6 +33,10 @@ GLOBAL_LIST_EMPTY(atmos_ab_station)
 	else
 		watched = atmos_ab_room(scene == "breach")
 		sleep(2 SECONDS) // the new room's air settles in
+		// Start at the same point of SSair's cycles every run (heat through walls runs every superconduct_every fires)
+		var/every = max(1, SSair.superconduct_every)
+		while(SSair.times_fired % every)
+			sleep(world.tick_lag)
 		atmos_ab_set_off(scene, watched)
 		watched = atmos_ab_floors() // the hole is space now
 
@@ -145,6 +149,22 @@ GLOBAL_LIST_EMPTY(atmos_ab_station)
 		if("breach")
 			var/turf/T = locate(x0 + ATMOS_AB_W - 1, y0 + round(ATMOS_AB_H / 2), z)
 			T.ChangeTurf(/turf/open/space)
+		if("reactions", "tritium") // a patch of each: what every gas reaction keys on, at a temperature it goes at ("tritium": that patch alone)
+			var/list/patches = scene == "tritium" ? list(list(3, 3, "tritium=20;o2=40;TEMP=700")) : list(
+				list(3, 3, "tritium=20;o2=40;TEMP=700"),
+				list(9, 3, "n2o=60;TEMP=1600"),
+				list(15, 3, "n2o=20;plasma=20;TEMP=293"),
+				list(21, 3, "miasma=40;TEMP=600"),
+				list(3, 10, "o2=30;n2=30;n2o=10;TEMP=30000"),
+				list(9, 10, "freon=20;n2=60;water_vapor=20;TEMP=150"),
+				list(16, 10, "plasma=500;co2=500;TEMP=40000"),
+			)
+			for(var/list/patch as anything in patches)
+				var/turf/open/middle = locate(x0 + patch[1], y0 + patch[2], z)
+				for(var/turf/open/floor/F in range(1, middle))
+					var/datum/gas_mixture/air = F.return_air()
+					air.parse_gas_string(patch[3])
+					SSair.add_to_active(F)
 
 /// One look at the air over the watched turfs
 /proc/atmos_ab_sample(list/turf/open/turfs, t)
@@ -158,6 +178,7 @@ GLOBAL_LIST_EMPTY(atmos_ab_station)
 	var/plasma = 0
 	var/windy = 0
 	var/count = 0
+	var/list/gas_totals = list()
 	for(var/turf/open/T as anything in turfs)
 		if(!isopenturf(T) || isspaceturf(T))
 			continue
@@ -176,6 +197,8 @@ GLOBAL_LIST_EMPTY(atmos_ab_station)
 		if(moles[/datum/gas/nitrous_oxide] >= 1)
 			n2o_tiles++
 		plasma += moles[/datum/gas/plasma]
+		for(var/gas in moles)
+			gas_totals[gas] += moles[gas]
 		if(T.active_hotspot)
 			burning++
 		hottest = max(hottest, air.temperature)
@@ -192,6 +215,14 @@ GLOBAL_LIST_EMPTY(atmos_ab_station)
 		"hottest_k" = round(hottest, 0.1),
 		"plasma_mol" = round(plasma, 0.1),
 		"windy" = windy,
+		"research" = round(SSresearch.science_tech?.research_points[TECHWEB_POINT_TYPE_GENERIC] || 0, 0.1),
+		"tritium" = round(gas_totals[/datum/gas/tritium] || 0, 0.01),
+		"water_vapor" = round(gas_totals[/datum/gas/water_vapor] || 0, 0.01),
+		"bz" = round(gas_totals[/datum/gas/bz] || 0, 0.01),
+		"nitrous_oxide" = round(gas_totals[/datum/gas/nitrous_oxide] || 0, 0.01),
+		"nitryl" = round(gas_totals[/datum/gas/nitryl] || 0, 0.01),
+		"freon" = round(gas_totals[/datum/gas/freon] || 0, 0.01),
+		"miasma" = round(gas_totals[/datum/gas/miasma] || 0, 0.01),
 	)
 
 #undef ATMOS_AB_W
@@ -244,4 +275,80 @@ GLOBAL_LIST_EMPTY(atmos_ab_station)
 /obj/machinery/atmospherics/components/update_parents()
 	atmos_ab_moved_at = SSair.times_fired
 	return ..()
+
+/// The engine's reactions (atmos_engine_react_sample()) against DM's react() on the same mixtures: `count` seeded random mixes
+/// of what the reactions key on, at temperatures from 100 K to 1e6 K, on a floor in the scene room. Returns how many matched,
+/// how many didn't by which reactions were due, an example of each, and how many the engine leaves to DM.
+/proc/atmos_ab_react_check(count = 2000, seed = 1)
+	count = text2num("[count]") || 2000
+	rand_seed(text2num("[seed]") || 1)
+	var/list/turf/open/floors = atmos_ab_room(FALSE)
+	var/turf/open/T = floors[round(length(floors) / 2)]
+	var/static/list/pool = list(/datum/gas/oxygen, /datum/gas/nitrogen, /datum/gas/carbon_dioxide, /datum/gas/plasma, /datum/gas/water_vapor, 		/datum/gas/nitrous_oxide, /datum/gas/nitryl, /datum/gas/tritium, /datum/gas/bz, /datum/gas/stimulum, /datum/gas/pluoxium, 		/datum/gas/miasma, /datum/gas/hypernoblium, /datum/gas/freon)
+	var/matched = 0
+	var/nothing = 0
+	var/left_to_dm = 0
+	var/list/wrong = list()
+	var/list/examples = list()
+	for(var/i in 1 to count)
+		var/datum/gas_mixture/turf/dm = new
+		var/list/input = list()
+		dm.temperature = 10 ** (2 + rand() * 4)
+		input += dm.temperature
+		for(var/gas in pool)
+			if(prob(gas == /datum/gas/hypernoblium ? 5 : 45))
+				var/amount = round(10 ** (rand() * 3), 0.01)
+				dm.moles[gas] = amount
+				dm.moles_archive[gas] = 0
+				input += list(gas, amount)
+		var/list/due = list()
+		var/temperature = dm.temperature
+		var/energy = THERMAL_ENERGY(dm)
+		for(var/datum/gas_reaction/R as anything in SSair.gas_reactions)
+			var/list/req = R.min_requirements
+			if(!R.major_gas || !dm.moles[R.major_gas])
+				continue
+			if((req["TEMP"] && temperature < req["TEMP"]) || (req["ENER"] && energy < req["ENER"]))
+				continue
+			var/ok = TRUE
+			for(var/id in req)
+				if(id != "TEMP" && id != "ENER" && (!dm.moles[id] || dm.moles[id] < req[id]))
+					ok = FALSE
+			if(ok)
+				due += R.id
+		var/list/out = list()
+		var/outcome = call_ext(GLOB.tile_engine_lib, "byond:atmos_engine_react_sample")(input, out)
+		if(outcome == 2)
+			left_to_dm++
+			continue
+		dm.react(T)
+		var/key = length(due) ? jointext(due, "+") : "none"
+		var/list/diffs = list()
+		var/close = TRUE
+		if(abs(out[1] - dm.temperature) > 1e-4 * max(abs(dm.temperature), 1))
+			close = FALSE
+			diffs += "T dm [dm.temperature] engine [out[1]]"
+		for(var/k = 2, k + 1 <= length(out) - 1, k += 2)
+			var/gas = out[k]
+			var/ours = out[k + 1]
+			if(QUANTIZE(ours) < MINIMUM_MOLE_COUNT) // what garbage_collect() takes off after DM's react() (the engine's finish() does too)
+				ours = 0
+			var/theirs = dm.moles[gas] || 0
+			if(abs(ours - theirs) > 1e-4 * max(abs(theirs), 0.01))
+				close = FALSE
+				diffs += "[gas] dm [theirs] engine [ours]"
+		var/dm_fire = dm.reaction_results ? (dm.reaction_results["fire"] || 0) : 0
+		if(length(due) && abs(out[length(out)] - dm_fire) > 1e-4 * max(abs(dm_fire), 0.01))
+			close = FALSE
+			diffs += "fire dm [dm_fire] engine [out[length(out)]]"
+		if(close)
+			if(length(due))
+				matched++
+			else
+				nothing++
+		else
+			wrong[key] += 1
+			if(!examples[key])
+				examples[key] = "in [jointext(input, ", ")]: [jointext(diffs, "; ")]"
+	return list("checked" = count, "matched" = matched, "nothing due" = nothing, "left to DM" = left_to_dm, "wrong" = wrong, "examples" = examples)
 #endif

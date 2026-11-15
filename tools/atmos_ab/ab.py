@@ -6,7 +6,8 @@
   python tools/atmos_ab/ab.py --scenes fire,breach --seconds 30 --seeds 1,2
   python tools/atmos_ab/ab.py --no-build                               # reuse atmos_ab.mdme.dmb
 
-Scenes (tools/atmos_ab/atmos_ab.dm): calm, release, fire, breach. Both servers run testbench (or --map) with no bot crew and no speed
+Scenes (tools/atmos_ab/atmos_ab.dm): calm, release, fire, breach, reactions (a patch for each gas reaction; not in the
+default set). Both servers run testbench (or --map) with no bot crew and no speed
 limit. Prints, per scene: SSair ms per game second by stage (A, B, change), then the air at each quarter of the scene. Writes the
 raw results to data/atmos_ab/<time>.json.
 """
@@ -28,8 +29,10 @@ OUT = os.path.join(tk.ROOT, "data", "atmos_ab")
 FIELDS = {
 	"calm": ["mol", "kpa_mean", "kpa_min"],
 	"release": ["mol", "n2o_tiles", "kpa_mean", "windy"],
-	"fire": ["burning", "hottest_k", "plasma_mol", "kpa_mean"],
+	"fire": ["burning", "hottest_k", "plasma_mol", "kpa_mean", "tritium", "water_vapor"],
 	"breach": ["kpa_mean", "kpa_min", "under_20kpa", "windy", "mol"],
+	"tritium": ["hottest_k", "burning", "tritium", "water_vapor", "mol", "kpa_mean"],
+	"reactions": ["hottest_k", "tritium", "water_vapor", "bz", "nitrous_oxide", "nitryl", "freon", "miasma", "research"],
 }
 # Stages to show, in order (others are summed into "other")
 STAGES = ["all of SSair", "active turfs", "excited groups", "hotspots", "wind pushes", "atmos machinery", "pipe networks",

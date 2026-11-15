@@ -114,11 +114,11 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	var/tile_engine_own_resync = FALSE
 	/// How many times it did (for benches)
 	var/tile_engine_own_resyncs = 0
-	/// The engine burns plasma itself where plasma fire is the only reaction to do (-params "atmos-engine-reactions=off" leaves
-	/// every reaction to DM's react())
-	var/tile_engine_native_fire = FALSE
-	/// Tiles the engine burned plasma on so far (for benches)
-	var/tile_engine_burned = 0
+	/// The engine does turfs' gas reactions itself where it knows every one that's due (-params "atmos-engine-reactions=off"
+	/// leaves every reaction to DM's react())
+	var/tile_engine_native_reactions = FALSE
+	/// Turfs the engine reacted so far (for benches)
+	var/tile_engine_reacted_count = 0
 
 /turf
 	/// SSair.tile_engine_generation when the tile engine was last sent our kind and neighbours, 0 if what it has is out of
@@ -228,34 +228,57 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	log_world("Atmos: tile engine on, [length(tile_engine_gas_types)] gases, [length(gas_reactions)] reactions[tile_engine_generation ? "" : ", sending every turf's neighbours every tick"][tile_engine_cache_shadow ? ", checking what it keeps of turfs" : ""], keeping turfs' air: [tile_engine_air]")
 	pipe_engine_setup()
 	tile_engine_own_setup(tile_engine_version)
-	tile_engine_fire_setup()
+	tile_engine_reactions_setup()
 
-/// Has the engine burn plasma itself (atmos_engine_native_fire()), unless atmos-engine-reactions=off or the library is too old
-/datum/controller/subsystem/air/proc/tile_engine_fire_setup()
-	tile_engine_native_fire = FALSE
+/// Has the engine do turfs' gas reactions itself (atmos_engine_native_reactions(), tools/atmos_engine/src/reactions.rs), unless
+/// atmos-engine-reactions=off or the library is too old. Each reaction is told by its exact type: one the engine doesn't know
+/// (code 0) sends any turf where it's due to DM's react().
+/datum/controller/subsystem/air/proc/tile_engine_reactions_setup()
+	tile_engine_native_reactions = FALSE
 	if(world.params["atmos-engine-reactions"] == "off")
 		return
-	var/reaction = 0
-	for(var/i in 1 to length(gas_reactions))
-		var/datum/gas_reaction/R = gas_reactions[i]
-		if(R.type == /datum/gas_reaction/plasmafire)
-			reaction = i
-			break
+	var/static/list/codes = list(
+		/datum/gas_reaction/nobliumsupression = 1,
+		/datum/gas_reaction/stim_ball = 2,
+		/datum/gas_reaction/nobliumformation = 3,
+		/datum/gas_reaction/stimformation = 4,
+		/datum/gas_reaction/freonform = 5,
+		/datum/gas_reaction/bzformation = 6,
+		/datum/gas_reaction/nitrylformation = 7,
+		/datum/gas_reaction/hippie_fusion = 8,
+		/datum/gas_reaction/water_vapor = 9,
+		/datum/gas_reaction/freon = 10,
+		/datum/gas_reaction/nitrous_decomp = 11,
+		/datum/gas_reaction/tritfire = 12,
+		/datum/gas_reaction/plasmafire = 13,
+		/datum/gas_reaction/miaster = 14,
+	)
 	var/list/gases = tile_engine_gas_types
-	var/plasma = gases.Find(/datum/gas/plasma)
-	var/oxygen = gases.Find(/datum/gas/oxygen)
-	var/co2 = gases.Find(/datum/gas/carbon_dioxide)
-	var/tritium = gases.Find(/datum/gas/tritium)
-	if(!reaction || !plasma || !oxygen || !co2 || !tritium)
-		return
-	var/list/settings = list(reaction, plasma, oxygen, co2, tritium, PLASMA_MINIMUM_BURN_TEMPERATURE, PLASMA_UPPER_TEMPERATURE, \
-		OXYGEN_BURN_RATE_BASE, SUPER_SATURATION_THRESHOLD, PLASMA_OXYGEN_FULLBURN, PLASMA_BURN_RATE_DELTA, \
-		FIRE_PLASMA_ENERGY_RELEASED, FIRE_MINIMUM_TEMPERATURE_TO_EXIST)
+	var/list/settings = list(length(gas_reactions))
+	for(var/datum/gas_reaction/R as anything in gas_reactions)
+		settings += list(codes[R.type] || 0, R.major_gas ? gases.Find(R.major_gas) : 0)
+	for(var/gas in list(/datum/gas/oxygen, /datum/gas/nitrogen, /datum/gas/carbon_dioxide, /datum/gas/plasma, /datum/gas/water_vapor, \
+		/datum/gas/nitrous_oxide, /datum/gas/nitryl, /datum/gas/tritium, /datum/gas/bz, /datum/gas/stimulum, /datum/gas/pluoxium, \
+		/datum/gas/miasma, /datum/gas/hypernoblium, /datum/gas/freon))
+		var/index = gases.Find(gas)
+		if(!index)
+			return
+		settings += index
+	settings += list(PLASMA_MINIMUM_BURN_TEMPERATURE, PLASMA_UPPER_TEMPERATURE, OXYGEN_BURN_RATE_BASE, SUPER_SATURATION_THRESHOLD, \
+		PLASMA_OXYGEN_FULLBURN, PLASMA_BURN_RATE_DELTA, FIRE_PLASMA_ENERGY_RELEASED, FIRE_MINIMUM_TEMPERATURE_TO_EXIST, MOLES_GAS_VISIBLE, \
+		WATER_VAPOR_FREEZE, N2O_DECOMPOSITION_ENERGY_RELEASED, MINIMUM_TRIT_OXYBURN_ENERGY, TRITIUM_BURN_OXY_FACTOR, TRITIUM_BURN_TRIT_FACTOR, \
+		FIRE_HYDROGEN_ENERGY_RELEASED, TRITIUM_MINIMUM_RADIATION_ENERGY, NITRYL_FORMATION_ENERGY, FIRE_CARBON_ENERGY_RELEASED, \
+		BZ_RESEARCH_SCALE, BZ_RESEARCH_MAX_AMOUNT, STIMULUM_HEAT_SCALE, STIMULUM_FIRST_RISE, STIMULUM_FIRST_DROP, STIMULUM_SECOND_RISE, \
+		STIMULUM_ABSOLUTE_DROP, STIMULUM_RESEARCH_AMOUNT, NOBLIUM_FORMATION_ENERGY, NOBLIUM_RESEARCH_AMOUNT, MIASMA_RESEARCH_AMOUNT, \
+		STIM_BALL_GAS_AMOUNT, PLASMA_BINDING_ENERGY_HIPPIE, FUSION_PURITY_THRESHOLD_HIPPIE, MAX_CARBON_EFFICENCY_HIPPIE, \
+		PLASMA_FUSED_COEFFICENT_HIPPIE, CARBON_CATALYST_COEFFICENT_HIPPIE, PLASMA_FUSION_ENERGY_HIPPIE, ONE_ATMOSPHERE, T0C, TCMB, \
+		R_IDEAL_GAS_EQUATION, CELL_VOLUME, MINIMUM_HEAT_CAPACITY)
 	try
-		tile_engine_native_fire = call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_native_fire")(settings) == 1
-	catch
-		tile_engine_native_fire = FALSE
-	log_world("Atmos: plasma fires burn [tile_engine_native_fire ? "in the tile engine" : "in DM"]")
+		tile_engine_native_reactions = call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_native_reactions")(settings) == 1
+	catch(var/exception/error)
+		log_world("Atmos: the tile engine can't do reactions ([error]), so DM does")
+		tile_engine_native_reactions = FALSE
+	log_world("Atmos: gas reactions on turfs [tile_engine_native_reactions ? "in the tile engine" : "in DM"]")
 
 /// Whether the engine keeps turfs' air (a library from before that hasn't got atmos_engine_kept_air()). A fresh start of the
 /// engine has none kept, so the epoch moves past every turf's tile_engine_air_sent.
@@ -763,38 +786,84 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 
 	tile_engine_apply_parts["wind"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - part) // for benches
 	part = TICK_USAGE_REAL
-	// Plasma the engine burned itself: its air is already written. What's left of plasmafire/react() is what it leaves in
-	// reaction_results (a hotspot on the turf grows by it), and letting the floor know, which only does anything where
-	// there's no hotspot yet.
-	if(tile_engine_native_fire)
-		var/list/turf/open/burns = list()
-		var/list/burn_fires = list()
-		var/list/burn_expose = list()
-		var/list/burn_temperatures = list()
-		var/burned
+	// Reactions the engine did itself: their air is already written. What's left of each react() is what it does besides
+	// (reactions.rs Effects): reaction_results["fire"] (a hotspot on the turf grows by it), letting the floor know a fire's
+	// there (only where there's no hotspot yet), wet and frozen floors, a tritium fire's chance of a radiation pulse, fusion's
+	// light and radiation, a stimulum ball's particle, and research points.
+	if(tile_engine_native_reactions)
+		var/list/turf/open/reacted = list()
+		var/list/fires = list()
+		var/list/turf/open/expose = list()
+		var/list/expose_temperatures = list()
+		var/list/turf/open/wet = list()
+		var/list/turf/open/frozen = list()
+		var/list/turf/open/radiation = list()
+		var/list/radiation_energy = list()
+		var/list/turf/open/fusion = list()
+		var/list/fusion_energy = list()
+		var/list/turf/open/balls = list()
+		var/list/ball_angles = list()
+		var/list/expose_fires = list()
+		var/research
 		try
-			burned = call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_burns")(burns, burn_fires, burn_expose, burn_temperatures)
-		catch(var/exception/burn_error)
-			burned = "[burn_error]"
-		if(!isnum(burned))
-			tile_engine_failed(burned)
+			research = call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_reaction_effects")(reacted, fires, expose, expose_temperatures, wet, frozen, \
+				radiation, radiation_energy, fusion, fusion_energy, balls, ball_angles, expose_fires)
+		catch(var/exception/reaction_error)
+			research = "[reaction_error]"
+		if(!isnum(research))
+			tile_engine_failed(research)
 			return
-		tile_engine_burned += burned
+		tile_engine_reacted_count += length(reacted)
 		at = 0
-		for(var/turf/open/T as anything in burns)
+		for(var/turf/open/T as anything in reacted)
 			at++
 			var/datum/gas_mixture/air = T.air
 			if(air)
-				air.reaction_results = list("fire" = burn_fires[at])
+				air.reaction_results = list("fire" = fires[at])
 		at = 0
-		for(var/position in burn_expose)
+		for(var/turf/open/T as anything in expose)
 			at++
-			var/turf/open/T = burns[position]
 			if(!isopenturf(T))
 				continue
 			if(owns)
 				T.current_cycle = fired
-			T.hotspot_expose(burn_temperatures[at], CELL_VOLUME)
+			// A new hotspot takes its size from reaction_results["fire"] as it was when the fire that lit it was done, in the middle
+			// of react(), before a later fire on the turf set it again. (Only that: a new hotspot can react some of the turf's air
+			// as it's made, so the air itself is left as it is.)
+			var/list/results = T.air?.reaction_results
+			var/final_fire = results?["fire"]
+			if(results)
+				results["fire"] = expose_fires[at]
+			T.hotspot_expose(expose_temperatures[at], CELL_VOLUME)
+			if(results && T.air?.reaction_results == results)
+				results["fire"] = final_fire
+		for(var/turf/open/T as anything in wet)
+			if(isopenturf(T))
+				T.water_vapor_gas_act()
+		for(var/turf/open/T as anything in frozen)
+			if(isopenturf(T))
+				T.freon_gas_act()
+		at = 0
+		for(var/turf/open/T as anything in radiation)
+			at++
+			if(isopenturf(T) && prob(10))
+				radiation_pulse(T, radiation_energy[at] / TRITIUM_BURN_RADIOACTIVITY_FACTOR)
+		at = 0
+		for(var/turf/open/T as anything in fusion)
+			at++
+			if(!isopenturf(T))
+				continue
+			T.set_light(4, 30)
+			T.light_color = LIGHT_COLOR_GREEN
+			radiation_pulse(T, 8, fusion_energy[at] * FUSION_POWER_GENERATION_COEFFICIENT_HIPPIE)
+			addtimer(CALLBACK(T, TYPE_PROC_REF(/atom, set_light), 0, 0), 30)
+		at = 0
+		for(var/turf/open/T as anything in balls)
+			at++
+			if(isopenturf(T))
+				T.fire_nuclear_particle(ball_angles[at])
+		if(research > 0 && SSresearch.science_tech)
+			SSresearch.science_tech.add_point_type(TECHWEB_POINT_TYPE_DEFAULT, research)
 	// One turf's reaction can change the next turf on the list into a wall, so from here on they might not be open any more.
 	// A reaction can light a hotspot here, which wants to know the turf has had its turn this tick.
 	var/tracking = tile_engine_tracking

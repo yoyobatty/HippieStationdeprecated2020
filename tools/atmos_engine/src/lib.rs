@@ -11,6 +11,7 @@
 pub mod engine;
 pub mod machines;
 pub mod pipes;
+pub mod reactions;
 pub mod world;
 
 use engine::{NewTile, Tick, KIND_NO_AIR};
@@ -714,60 +715,115 @@ pub unsafe extern "C" fn atmos_engine_results(argc: u32, argv: *const ByondValue
 	})
 }
 
-/// call_ext("hippie_atmos", "byond:atmos_engine_native_fire")(settings): the engine burns plasma itself from the next tick,
-/// on tiles where plasma fire is the only reaction whose requirements are met (engine::NativeFire::parse() has the list's
+/// call_ext("hippie_atmos", "byond:atmos_engine_native_reactions")(settings): the engine does tile air's reactions itself from
+/// the next tick, on tiles where it knows every reaction that's due (reactions::NativeReactions::parse() has the list's
 /// layout). An empty list turns it off. Returns 1. An older library hasn't got this, and DM's react() does every reaction.
 #[no_mangle]
-pub unsafe extern "C" fn atmos_engine_native_fire(argc: u32, argv: *const ByondValue) -> ByondValue {
+pub unsafe extern "C" fn atmos_engine_native_reactions(argc: u32, argv: *const ByondValue) -> ByondValue {
 	let args = arguments(argc, argv);
-	guarded("native_fire", || {
+	guarded("native_reactions", || {
 		let api = api().ok_or("byondcore.dll doesn't have Byond_ReadList and Byond_WriteList")?;
 		if args.is_empty() {
 			return Err("wanted the settings list".into());
 		}
 		let settings = read_numbers(api, &args[0])?;
 		let mut guard = STATE.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-		let state = guard.as_mut().ok_or("native_fire before setup")?;
-		state.config.fire = if settings.is_empty() { None } else { Some(engine::NativeFire::parse(&settings, &state.config)?) };
+		let state = guard.as_mut().ok_or("native_reactions before setup")?;
+		state.config.native = if settings.is_empty() { None } else { Some(reactions::NativeReactions::parse(&settings, &state.config)?) };
 		Ok(1.0)
 	})
 }
 
-/// call_ext("hippie_atmos", "byond:atmos_engine_burns")(turfs, fires, expose, temperatures): after atmos_engine_results(),
-/// every tile the engine burned plasma on, in order, and what plasmafire would have left in its air's
-/// reaction_results["fire"] (a hotspot grows by it); `expose` has the positions (from 1) of those DM's plasmafire would
-/// have hotspot_expose()d that have no hotspot yet, and `temperatures` their temperatures. Returns how many it burned.
+/// call_ext("hippie_atmos", "byond:atmos_engine_reaction_effects")(reacted, fires, expose, expose_temperatures, wet, frozen,
+/// radiation, radiation_energy, fusion, fusion_energy, balls, ball_angles, expose_fires): after atmos_engine_results(), what the
+/// reactions the engine did this tick do besides changing the air (reactions::Effects), turfs with their numbers in
+/// matching lists. Returns the research points they made.
 #[no_mangle]
-pub unsafe extern "C" fn atmos_engine_burns(argc: u32, argv: *const ByondValue) -> ByondValue {
+pub unsafe extern "C" fn atmos_engine_reaction_effects(argc: u32, argv: *const ByondValue) -> ByondValue {
 	let args = arguments(argc, argv);
-	guarded("burns", || {
+	guarded("reaction_effects", || {
 		let api = api().ok_or("byondcore.dll doesn't have Byond_ReadList and Byond_WriteList")?;
-		if args.len() < 4 {
-			return Err(format!("{} arguments, wanted turfs, fires, expose and temperatures", args.len()));
+		if args.len() < 13 {
+			return Err(format!("{} arguments, wanted 13 lists", args.len()));
 		}
 		let mut guard = STATE.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-		let state = guard.as_mut().ok_or("burns before setup")?;
+		let state = guard.as_mut().ok_or("reaction_effects before setup")?;
 		let tick = &state.tick;
+		let fx = &tick.effects;
 		let out = &mut state.out;
-		if !tick.burn.is_empty() {
-			out.clear();
-			out.extend(tick.burn.iter().map(|b| ByondValue::turf(tick.turf(b.0))));
-			write_values(api, &args[0], out)?;
-			out.clear();
-			out.extend(tick.burn.iter().map(|b| ByondValue::num(b.2 as f32)));
-			write_values(api, &args[1], out)?;
-			out.clear();
-			for (position, b) in tick.burn.iter().enumerate() {
-				if b.3 {
-					out.push(ByondValue::num((position + 1) as f32));
-				}
+		let turf = |tile: u32| ByondValue::turf(tick.turf(tile));
+		let pairs: [(&[(u32, f32)], usize); 5] = [(&fx.reacted, 0), (&fx.expose, 2), (&fx.trit_radiation, 6), (&fx.fusion, 8), (&fx.stim_ball, 10)];
+		for (list, at) in pairs {
+			if list.is_empty() {
+				continue;
 			}
-			write_values(api, &args[2], out)?;
 			out.clear();
-			out.extend(tick.burn.iter().filter(|b| b.3).map(|b| ByondValue::num(b.1 as f32)));
-			write_values(api, &args[3], out)?;
+			out.extend(list.iter().map(|&(tile, _)| turf(tile)));
+			write_values(api, &args[at], out)?;
+			out.clear();
+			out.extend(list.iter().map(|&(_, value)| ByondValue::num(value)));
+			write_values(api, &args[at + 1], out)?;
 		}
-		Ok(tick.burned as f32)
+		if !fx.expose_fire.is_empty() {
+			out.clear();
+			out.extend(fx.expose_fire.iter().map(|&fire| ByondValue::num(fire)));
+			write_values(api, &args[12], out)?;
+		}
+		for (list, at) in [(&fx.wet, 4), (&fx.frozen, 5)] {
+			if !list.is_empty() {
+				out.clear();
+				out.extend(list.iter().map(|&tile| turf(tile)));
+				write_values(api, &args[at], out)?;
+			}
+		}
+		Ok(fx.research as f32)
+	})
+}
+
+/// call_ext("hippie_atmos", "byond:atmos_engine_react_sample")(input, out): one mixture through the engine's reactions, for
+/// checking them against DM's react() (tools/atmos_ab atmos_ab_react_check()). `input` is the temperature, then a gas path
+/// and moles for each gas. `out` gets the temperature after, then a path and moles for every gas, then reaction_results
+/// ["fire"]. Returns 1 if it reacted, 0 if nothing was due, 2 if DM would have to do it.
+#[no_mangle]
+pub unsafe extern "C" fn atmos_engine_react_sample(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	guarded("react_sample", || {
+		let api = api().ok_or("byondcore.dll doesn't have Byond_ReadList and Byond_WriteList")?;
+		if args.len() < 2 {
+			return Err("wanted input and out".into());
+		}
+		let mut guard = STATE.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+		let state = guard.as_mut().ok_or("react_sample before setup")?;
+		let native = state.config.native.as_ref().ok_or("reactions aren't on")?;
+		let mut input = Vec::new();
+		read_values(api, &args[0], &mut input)?;
+		let mut temperature = input.first().ok_or("no temperature")?.as_number();
+		let mut moles = vec![0f64; state.config.gases];
+		let mut at = 1;
+		while at + 1 < input.len() {
+			let gas = state.gas_lookup.get(input[at].data as usize).copied().unwrap_or(NO_GAS);
+			if gas == NO_GAS {
+				return Err("a gas setup wasn't told about".into());
+			}
+			moles[gas as usize] = input[at + 1].as_number();
+			at += 2;
+		}
+		let mut fx = reactions::Effects::default();
+		let outcome = reactions::react_tile(native, &state.config, engine::KIND_TURF, 0, false, &mut moles, &mut temperature, &mut fx);
+		let out = &mut state.out;
+		out.clear();
+		out.push(ByondValue::num(temperature as f32));
+		for (gas, amount) in moles.iter().enumerate() {
+			out.push(state.gas_paths[gas]);
+			out.push(ByondValue::num(*amount as f32));
+		}
+		out.push(ByondValue::num(fx.reacted.first().map(|r| r.1).unwrap_or(0.0)));
+		write_values(api, &args[1], out)?;
+		Ok(match outcome {
+			reactions::Outcome::Done => 1.0,
+			reactions::Outcome::Nothing => 0.0,
+			reactions::Outcome::Dm => 2.0,
+		})
 	})
 }
 
