@@ -219,6 +219,8 @@ def run(b):
     for p in zone:
         t = m.get(*p)
         dense = [o for o in t.objs if is_dense(o)]
+        if any(o.path.startswith("/obj/structure/closet") for o in dense):
+            dense = [o for o in dense if o.path.startswith("/obj/structure/closet")][:1]   # the rest start inside it
         if dense and not any((p[0] + dx, p[1] + dy) in reach for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy):
             probs.append("unreachable %s at %d,%d" % (dense[0].path.rsplit("/", 1)[-1], *p))
         if len(dense) > 1 and not any(o.path.startswith("/obj/structure/table") for o in dense) and not all(o.path.startswith(("/obj/structure/table", "/obj/machinery/door")) or
@@ -264,10 +266,10 @@ def run(b):
             return "void"
         if qt.has("/obj/machinery/door"):
             return "door"
+        if qt.tpath.startswith("/turf/closed"):
+            return "wall"           # before glass: a stray grille mapped on a wall is still a wall
         if qt.has("/obj/effect/spawner/structure/window") or qt.has("/obj/structure/grille") or qt.has("/obj/structure/window"):
             return "glass"
-        if qt.tpath.startswith("/turf/closed"):
-            return "wall"
         return "floor"
     for p in zone:
         t = m.get(*p)
@@ -470,4 +472,38 @@ def run(b):
     if gained:
         info.append("inventory gained: " + ", ".join("%s x%d" % (k.replace("/obj/", "").replace("/mob/living/", ""), v) for k, v in sorted(gained.items())))
     info.append("checks: %d problems" % len(probs))
+    # decals belong on open floor: none on a wall, under a window, or on a door tile in the wall line
+    D4 = {1: (0, 1), 2: (0, -1), 4: (1, 0), 8: (-1, 0)}
+    on_wall = {}
+    for p in sorted(b.zone):
+        t = b.t(*p)
+        decs = [o.path.rsplit("/turf_decal/", 1)[-1] for o in t.objs if o.path.startswith("/obj/effect/turf_decal")]
+        shut = t.tpath.startswith("/turf/closed") or t.has("/obj/effect/spawner/structure/window")
+        doorway = t.has("/obj/machinery/door/airlock") or t.has("/obj/machinery/door/window") or t.has("/obj/machinery/door/poddoor")
+        if decs and (shut or (doorway and any(d.startswith("tile/") for d in decs))):
+            probs.append("decal in the wall line at %d,%d: %s" % (p[0], p[1], ", ".join(sorted(set(decs)))))
+        for o in t.objs:
+            # a wall piece is drawn on the wall tile its pixel shift points at: two rooms must not share one
+            px, py = o.num("pixel_x"), o.num("pixel_y")
+            if (abs(px) >= 20 or abs(py) >= 20) and o.path.startswith(("/obj/machinery", "/obj/structure/sign", "/obj/structure/noticeboard",
+                                                                       "/obj/structure/extinguisher_cabinet", "/obj/item/radio/intercom")):
+                w = (p[0] + (1 if px >= 20 else -1 if px <= -20 else 0), p[1] + (1 if py >= 20 else -1 if py <= -20 else 0))
+                on_wall.setdefault(w, []).append((p, o.path.rsplit("/", 1)[-1]))
+            if o.path.startswith("/obj/structure/table/optable") and any(i.path.startswith("/obj/item") for i in t.objs):
+                probs.append("operating table at %d,%d has things left on it: %s" % (p[0], p[1], ", ".join(
+                    i.path.rsplit("/", 1)[-1] for i in t.objs if i.path.startswith("/obj/item"))))
+            # the morgue tray here has one icon, facing east: it slides east, onto a free tile
+            if o.path.startswith("/obj/structure/bodycontainer/morgue"):
+                d = int(o.num("dir", 4) or 4)
+                q = (p[0] + D4[d][0], p[1] + D4[d][1])
+                tq = b.t(*q)
+                if d != 4:
+                    probs.append("morgue tray at %d,%d faces %s: its icon only faces east" % (p[0], p[1], kit.NAME.get(d, d)))
+                if tq is None or tq.tpath.startswith("/turf/closed") or kit.dense(tq.objs):
+                    probs.append("morgue tray at %d,%d cannot slide out: %d,%d is blocked" % (p[0], p[1], q[0], q[1]))
+    for w, hung in sorted(on_wall.items()):
+        tiles = {p for p, _ in hung}
+        if len(tiles) > 1:
+            probs.append("wall %d,%d carries pieces from %d sides: %s" % (w[0], w[1], len(tiles),
+                         ", ".join("%s from %d,%d" % (n, p[0], p[1]) for p, n in hung)))
     return {"problems": probs, "info": info}

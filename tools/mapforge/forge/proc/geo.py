@@ -11,8 +11,8 @@ CCW = {v: k for k, v in CW.items()}
 NAME = {N: "north", S: "south", E: "east", W: "west"}
 DIAG = ((1, 1), (1, -1), (-1, 1), (-1, -1))
 
-SOLID = ("wall", "ring", "raw")     # zone tile kinds nobody walks through (raw: a stamped module's own tile)
-BARRIER = SOLID + ("glass", "door", "keep_door", "raw")
+SOLID = ("wall", "ring", "raw", "keep_wall")     # zone tile kinds nobody walks through (raw: a stamped module's own tile)
+BARRIER = SOLID + ("glass", "door", "keep_door")
 
 
 def step(p, d, n=1):
@@ -103,13 +103,13 @@ class Geo:
     def walk(self, p):
         """Open to walk on: our floor, or open ground outside."""
         if p in self.zone:
-            return self.kind[p] in ("floor", "keep_open")
+            return self.kind[p] in ("floor", "keep_open", "keep_floor")
         return self.outside(p) in ("hall", "maint", "space")
 
     def beyond(self, p):
         """What a wall tile stands between is read from here: the room id of a floor tile, or the outside class."""
         if p in self.zone:
-            if self.kind[p] == "keep_open":
+            if self.kind[p] in ("keep_open", "keep_floor"):
                 return "keep"
             return self.room.get(p) if self.kind[p] == "floor" else None
         o = self.outside(p)
@@ -163,7 +163,8 @@ class Graph:
 # ---------------------------------------------------------------------------------------------------- drawing
 OUT_COL = {"hall": (196, 198, 204), "maint": (112, 104, 96), "space": (12, 12, 24), "wall": (58, 58, 64),
            "door": (150, 112, 60), "glass": (86, 130, 160)}
-KIND_COL = {"ring": (34, 34, 42), "keep_door": (236, 150, 36), "keep_open": (232, 206, 130), "free": (238, 238, 238),
+KIND_COL = {"ring": (34, 34, 42), "keep_door": (236, 150, 36), "keep_open": (232, 206, 130),
+            "keep_floor": (214, 226, 200), "keep_wall": (56, 62, 56), "free": (238, 238, 238),
             "wall": (74, 74, 86), "raw": (150, 70, 70), "door": (246, 138, 26), "glass": (112, 204, 238), "floor": (220, 220, 220)}
 PALETTE = [(244, 196, 196), (196, 222, 244), (204, 240, 200), (248, 232, 180), (226, 204, 244), (184, 236, 228),
            (250, 212, 170), (212, 216, 252), (236, 246, 180), (248, 200, 226), (200, 232, 208), (222, 222, 196)]
@@ -206,7 +207,7 @@ def draw(geo, view, path, tile=16, title=None, pad=3):
             else:
                 col = tuple(c * 6 // 10 for c in OUT_COL[geo.outside(p)])
             d.rectangle(box(p), fill=col)
-            if p in geo.zone and geo.kind[p] in ("floor", "free", "keep_open"):
+            if p in geo.zone and geo.kind[p] in ("floor", "free", "keep_open", "keep_floor"):
                 d.rectangle(box(p), outline=tuple(max(0, c - 22) for c in col))
 
     if view == "fields":

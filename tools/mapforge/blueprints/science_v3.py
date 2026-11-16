@@ -8,12 +8,13 @@ already has (the west hall door, the south maintenance door) and the rooms are a
 The program is the one approved on 2026-11-15 (tools/mapforge/studies/science.md).
 """
 import os
+import random
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, ".."))
 from forge.proc import geo as G  # noqa: E402
-from forge.proc import shell, furnish, emit  # noqa: E402
+from forge.proc import shell, furnish, emit, solve  # noqa: E402
 from assets import science as assets  # noqa: E402
 from forge.proc.shell import X, Y, door, desk, glass, keep  # noqa: E402
 
@@ -91,32 +92,101 @@ for _i, _p in enumerate(PENS):
                           asset="pen", pen=_i + 1)
 
 
-def plans(P):
-    """The slicing tree, hung on the outline's doors. Free tiles: x165..196, y85..126; the launch room apart."""
-    x0, y0, x1, y1 = 165, 85, 196, 126
-    st = P["street"]
-    ew_top = WEST_DOOR[1]                    # the east-west street's top row is the west door's row
-    ns_left = SOUTH_DOOR[0] - st // 2        # the north-south street is centred on the south door
-    band_n = y1 - (ew_top + 2) + 1           # rooms between the main hall and the street
+def subtrees(P):
+    """Rooms that carry sub-rooms of their own, as (w, h) -> subtree. Orientation is fixed for now: surgery at the
+    south end of robotics, the blast chamber in experimentation's south-east corner, pens south of the xeno lab."""
     sw, sd = P["surgery"]
-    robo_w = ns_left - 1 - (x0 + P["mechbay"] + 1)
-    robotics = Y((1.0, "robotics"), (sd, X((1.0, "robotics"), (sw, "surgery"))))
-    north = X((P["mechbay"], "mechbay"), (robo_w, robotics), (st, "foyer"), (1.0, "rnd"))
-    east_x = 190                             # the outline steps out east here (the delivery chute's corner)
-    c = P["chamber"]
-    explab = Y((1.0, "explab"), (c, X((1.0, "explab"), (c, "chamber"))))
-    top = X((east_x - 1 - x0, Y((band_n, north), (st, "spine"))), (1.0, explab))
-    xeno = Y((P["xenolab"], "xeno"),
-             (1.0, X((P["pen"], Y((3, "pen1"), (3, "pen2"), (1.0, "pen3"))), (st, "pens"),
-                     (1.0, Y((3, "pen4"), (1.0, "pen5"))))))
-    west = Y((P["middle"], X((P["server"], "server"), (1.0, "rdoffice"))), (1.0, xeno))
-    testing = X((1.0, "testing"), (P["testchamber"] + 2, "testchamber"))   # the outline's east ring takes two
-    east = Y((P["middle"] + 1, X((P["post"], Y((3, "secpost"), (1.0, "cell"))), (1.0, "nanite"))),
-             (P["toxins"], "toxins"), (1.0, testing))
-    bottom = X((ns_left - 1 - x0, west), (st, "spine"), (1.0, east))
+    c, st = P["chamber"], P["street"]
+    f = P.get("flip", {})
+
+    def two(cut, a, b, swap):
+        return cut(*((b, a) if swap else (a, b)))
+
+    return {
+        "robotics": lambda w=0, h=0: two(Y, (1.0, "robotics"),
+                                         (sd, two(X, (1.0, "robotics"), (sw, "surgery"), f.get("surgery_w"))),
+                                         f.get("surgery_n")),
+        "explab": lambda w=0, h=0: Y((1.0, "explab"), (c, two(X, (1.0, "explab"), (c, "chamber"), f.get("chamber_w")))),
+        "rdsuite": lambda w=0, h=0: two(X, (P["server"], "server"), (1.0, "rdoffice"), f.get("server_e")),
+        "secsuite": lambda w=0, h=0: two(Y, (3, "secpost"), (1.0, "cell"), f.get("cell_n")),
+        "xeno": lambda w=0, h=0: Y((P["xenolab"], "xeno"),
+                                   (1.0, X((P["pen"], Y((3, "pen1"), (3, "pen2"), (1.0, "pen3"))), (st, "pens"),
+                                           (1.0, Y((3, "pen4"), (1.0, "pen5")))))),
+        # the outline's east ring takes two tiles off the test chamber's side
+        "testing": lambda w=0, h=0: X((1.0, "testing"), (P["testchamber"] + 2, "testchamber")),
+    }
+
+
+def authored(P):
+    """The plan as I drew it: which rooms fill each block between the streets."""
+    t = subtrees(P)
+    return {
+        "N1": X((P["mechbay"], "mechbay"), (1.0, t["robotics"]())),
+        "N2": "rnd",
+        "E": t["explab"](),
+        "SW": Y((P["middle"], t["rdsuite"]()), (1.0, t["xeno"]())),
+        "SE": Y((P["middle"] + 1, X((P["post"], t["secsuite"]()), (1.0, "nanite"))), (P["toxins"], "toxins"),
+                (1.0, t["testing"]())),
+    }
+
+
+FREE = (165, 85, 196, 126)        # the outline's free tiles; the launch room stands apart
+EAST_X = 190                      # the outline steps out east here (the delivery chute's corner)
+
+
+def streets(P):
+    """Where the outline's doors put the streets: (east-west street's top row, north-south street's left column)."""
+    return WEST_DOOR[1], SOUTH_DOOR[0] - P["street"] // 2
+
+
+def plans(P, fill=None):
+    """The skeleton: two streets snapped to the outline's doors, five blocks between them filled by `fill`."""
+    x0, y0, x1, y1 = FREE
+    st = P["street"]
+    ew_top, ns_left = streets(P)
+    band_n = y1 - (ew_top + 2) + 1           # rooms between the main hall and the street
+    f = fill or authored(P)
+    north = X((ns_left - 1 - x0, f["N1"]), (st, "foyer"), (1.0, f["N2"]))
+    top = X((EAST_X - 1 - x0, Y((band_n, north), (st, "spine"))), (1.0, f["E"]))
+    bottom = X((ns_left - 1 - x0, f["SW"]), (st, "spine"), (1.0, f["SE"]))
     main = Y((band_n + 1 + st, top), (1.0, bottom))
     launch = Y((4, "launch"), (2, "launchrun"))
     return [((x0, y0, x1, y1), main), ((202, 103, 207, 109), launch)]
+
+
+def program(P):
+    """The same department as a room list for the solver: sizes, the frontage each room needs, what the outline ties
+    it to, who it works with. No positions."""
+    x0, y0, x1, y1 = FREE
+    st = P["street"]
+    ew_top, ns_left = streets(P)
+    s_top = ew_top - st - 1                  # top row of the blocks south of the street
+    n_bot = ew_top + 2
+    t = subtrees(P)
+    blocks = [
+        solve.Block("N1", (x0, n_bot, ns_left - 2, y1), {"n": ("hall", x0 + 1, ns_left - 2), "s": ("street", x0 + 1, ns_left - 2)}),
+        solve.Block("N2", (ns_left + st + 1, n_bot, EAST_X - 2, y1),
+                    {"n": ("hall", ns_left + st + 1, EAST_X - 2), "s": ("street", ns_left + st + 1, EAST_X - 2)}),
+        solve.Block("E", (EAST_X, ew_top - st + 1, x1, ew_top + 4), {"w": ("street", ew_top - st + 1, ew_top)}),
+        solve.Block("SW", (x0, y0, ns_left - 2, s_top), {"n": ("street", x0 + 1, ns_left - 2), "e": ("street", y0 + 3, s_top)}),
+        solve.Block("SE", (ns_left + st + 1, y0, x1, s_top),
+                    {"n": ("street", ns_left + st + 1, EAST_X - 2), "w": ("street", y0 + 3, s_top)}),
+    ]
+    W = solve.Want
+    wants = [
+        W("mechbay", 50, min=(5, 8), front=("hall",), anchors=[(LAUNCH_SHUTTERS[0][0], y1), (LAUNCH_SHUTTERS[-1][0], y1)],
+          near=("robotics",), fixed={"w": P["mechbay"]}),
+        W("robotics", 70, min=(7, 8), front=("hall", "street"), near=("mechbay",), expand=t["robotics"]),
+        W("rnd", 56, min=(5, 7), front=("hall", "street"), anchors=[(CHUTE[0][0] - 1, CHUTE[0][1])]),
+        W("explab", 49, min=(6, 6), anchors=[(x1, ew_top + 4)], expand=t["explab"]),
+        W("rdsuite", 78, min=(5, 10), expand=t["rdsuite"]),
+        W("secsuite", 21, min=(3, 7), expand=t["secsuite"], fixed={"w": P["post"]}),
+        W("nanite", 70, min=(5, 7)),
+        W("xeno", 260, min=(11, 16), anchors=[(x0, 102)], expand=t["xeno"], fixed={"w": 13}),
+        W("toxins", 126, min=(8, 12), anchors=[(185, 101), (194, 99), (TOXINS_MAINT[0] - 1, TOXINS_MAINT[1])]),
+        W("testing", 84, min=(6, 10), expand=t["testing"], anchors=[(x1, y0)]),   # its chamber needs the east ring
+    ]
+    return blocks, wants
 
 
 def notch(geo):
@@ -179,12 +249,38 @@ LINKS = [
 ]
 
 
-def graph(**over):
+# chamber stays 3 (at 4 the experiment console has no spot) and middle stays 6 (at 7 the burn chamber stamp misses)
+ROLL = dict(server=(4, 5), post=(3, 4), testchamber=(4, 5), toxins=(9, 10), xenolab=(6, 8))
+
+
+def rolled(seed):
+    """Seed 1 is the authored layout. Any other seed picks each size from its range and nudges every placement."""
+    if seed == 1:
+        return {}
+    rng = random.Random(seed)
+    out = {k: rng.randint(lo, hi) for k, (lo, hi) in sorted(ROLL.items())}
+    out["seed"] = seed
+    out["flip"] = {k: rng.random() < 0.5 for k in FLIPS}
+    return out
+
+
+# sub-rooms that may sit at either end of their room. Not flipped: the test chamber (the outline's ring is east),
+# the blast chamber (west it shuts explab off the street), robotics surgery (either way the fab lines lose their wall)
+FLIPS = ("server_e", "cell_n")
+
+
+SEED = int(os.environ.get("MAPFORGE_SEED", "1"))
+if SEED != 1:
+    PARAMS.update(rolled(SEED))
+    NAME += "_s%d" % SEED
+
+
+def graph(fill=None, **over):
     P = dict(PARAMS)
     P.update(over)
     g = G.Graph(NAME, **P)
     g.add("outline", shell.outline, view="kind", base=BASE_MAP, bbox=BBOX, in_zone=in_zone, add=[TOXINS_MAINT], keep=KEEP)
-    g.add("slice", shell.slice_rooms, view="rooms", plans=plans(P), rooms=ROOM_TABLE)
+    g.add("slice", shell.slice_rooms, view="rooms", plans=plans(P, fill), rooms=ROOM_TABLE)
     g.add("stamp", shell.stamp, view="rooms", stamps=[("burn", notch, "burn", assets.burn_chamber())], rooms=ROOM_TABLE)
     g.add("tidy", shell.tidy, view="rooms")
     g.add("openings", shell.openings, view="rooms", links=LINKS)
@@ -193,9 +289,34 @@ def graph(**over):
     return g
 
 
+def seeded(seed, tries=8):
+    """A seed's plan: the solver arranges the rooms (its noise keyed by the seed and the try), the graph judges it;
+    the first try the graph passes wins. Same seed, same map."""
+    last = None
+    for t in range(tries):
+        P = dict(PARAMS)
+        if t:       # a later try turns the sub-rooms round too
+            rng = random.Random("%s.%d" % (seed, t))
+            P["flip"] = {k: rng.random() < 0.5 for k in FLIPS}
+        blocks, wants = program(P)
+        trees, rects, report = solve.solve(blocks, wants, LINK_PAIRS, seed="%s.%d" % (seed, t))
+        if trees is None:
+            break
+        g = graph(fill=trees, flip=P.get("flip", {}))
+        geo = g.run()
+        geo.notes[:0] = report + ["seed %s: try %d, %d problems" % (seed, t, len(geo.problems))]
+        last = (g, geo)
+        if not geo.problems:
+            break
+    return last
+
+
+# rooms with a door between them must share a wall (the solver's own names: sub-rooms count as their parent)
+LINK_PAIRS = [("mechbay", "robotics")]
+
 # the blueprint forge.build reads (mapforge.py build blueprints/science_v3.py)
-_graph = graph()
-_geo = _graph.run()
+_graph, _geo = seeded(SEED) if SEED != 1 else (graph(), None)
+_geo = _geo or _graph.run()
 _burn = _geo.attr.get("_anchor", {}).get("burn", (0, 0))
 globals().update(emit.blueprint(_geo, NAME, extra=dict(
     STYLE="meta", DISPOSALS="route", DISPOSAL_ENDS={"deathsposal": (179, 71)}, BASE=BASE_MAP,
@@ -240,5 +361,27 @@ def wedge():
     print("pictures:", os.path.relpath(G.sheet(paths, os.path.join(out, NAME + "_wedge.png"), cols=2), ROOT))
 
 
+def solved():
+    """Let the solver cut the blocks from the room list, run the whole graph on its plan, draw it beside mine."""
+    out = os.path.join(ROOT, "data", "previews", "mapforge", "proc")
+    blocks, wants = program(PARAMS)
+    trees, rects, report = solve.solve(blocks, wants)
+    for line in report:
+        print(line)
+    if trees is None:
+        return
+    g = graph(fill=trees)
+    geo = g.run()
+    for n in geo.notes:
+        if n.startswith(("furnish", "slice", "tidy")):
+            print(n)
+    for p in geo.problems:
+        print("PROBLEM", p)
+    a = G.draw(_geo, "items", os.path.join(out, NAME + "_plan_authored.png"), tile=14, title="plan drawn by hand")
+    b = G.draw(geo, "items", os.path.join(out, NAME + "_plan_solved.png"), tile=14,
+               title="plan from the solver  (%d problems)" % len(geo.problems))
+    print("pictures:", os.path.relpath(G.sheet([a, b], os.path.join(out, NAME + "_solved.png"), cols=2), ROOT))
+
+
 if __name__ == "__main__":
-    wedge() if "--wedge" in sys.argv else main()
+    solved() if "--solve" in sys.argv else wedge() if "--wedge" in sys.argv else main()

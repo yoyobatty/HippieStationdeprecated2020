@@ -65,7 +65,10 @@ def kind(a):
 
 
 def atoms(t):
-    return [o for o in (t.objs if t else []) if o.path.startswith(PREFIX) and mask(o)]
+    # machines (not pipes) mapped on a crate's tile start packed inside it (a TEG kit), not laid
+    packed = bool(t) and any(o.path.startswith("/obj/structure/closet/crate") for o in t.objs)
+    return [o for o in (t.objs if t else []) if o.path.startswith(PREFIX) and mask(o)
+            and not (packed and "/components/" in o.path)]
 
 
 def joins(a, b, d):

@@ -8,17 +8,20 @@ piece nobody can reach.
 
 Direction words inside a kit: IN (into the room), OUT (at the wall), A+ / A- (along the wall).
 """
+import random
+
 from .geo import S, CARD, DELTA, OPP, CW, CCW, NAME, step, nb4, nb8
 from .shell import room_doors
 
 
 class Kit:
-    def __init__(self, name, cells, use=(), back="wall", mirror=True):
+    def __init__(self, name, cells, use=(), back="wall", mirror=True, tight=False):
         self.name = name
         self.cells = cells      # [(u, v, spec)]: spec keys obj, decal, floor, mount, open (walkable), label
         self.use = list(use)    # [(u, v)] tiles a person stands on; stay clear
         self.back = back        # "wall": solid wall behind every v=0 cell; "any": wall or glass; None: free-standing
         self.mirror = mirror
+        self.tight = tight      # may stand right beside another kit's standing tiles (rows that share an aisle)
 
 
 def cell(u, v, *obj, **kw):
@@ -48,6 +51,9 @@ class Placement:
         return [self.at(u, v) for u, v in self.kit.use]
 
 
+JITTER = 2.5
+
+
 def dist(p, q):
     return abs(p[0] - q[0]) + abs(p[1] - q[1])
 
@@ -57,6 +63,7 @@ class Ctx:
 
     def __init__(self, geo, rid, P):
         self.geo, self.rid, self.P = geo, rid, P
+        self.seed = P.get("seed", 1)        # 1 is the authored layout; any other seed nudges every choice
         self.room = geo.rooms[rid]
         self.tiles = self.room.tiles
         self.back = geo.field("back")
@@ -66,6 +73,7 @@ class Ctx:
         self.neck = geo.field("neck")
         self.counter = geo.attr.setdefault("_counter", {})
         self.faces = geo.attr.setdefault("_faces", {})    # (tile, wall side) a wall piece already hangs on
+        self.hung = geo.attr.setdefault("_hung", {})      # wall tile a piece is drawn on, from whichever room
 
     # ---- reading the room
     def side(self, target):
@@ -165,6 +173,38 @@ class Ctx:
             return False
         return all(any(q in open_ for q in nb4(p)) for p in dense)
 
+    def _pinches(self, dense, new):
+        """A new piece that leaves two open tiles touching only at a corner, with the piece and another blocked tile
+        between them: nobody can step through that diagonal, so the aisle is shut though the map says it is open."""
+        def shut(p):
+            if p in self.tiles:
+                return p in dense
+            return not self.geo.walk(p) and self.geo.what(p) not in ("door", "keep_door")
+
+        def open_(p):
+            return (p in self.tiles and p not in dense) or (p not in self.tiles and self.geo.walk(p))
+        for t in new:
+            for dx in (-1, 1):
+                for dy in (-1, 1):
+                    c = (t[0] + dx, t[1] + dy)
+                    if shut(c) and open_((t[0] + dx, t[1])) and open_((t[0], t[1] + dy)):
+                        return True
+        return False
+
+    def _last_face(self, t, w):
+        """True when hanging on (t, w) would leave the room fewer than three free faces of solid wall: the builder
+        still hangs a fire alarm, an air alarm and a light there, and glass and doors carry none of them."""
+        if self.back.get(t, {}).get(w) != "wall":
+            return False
+        left = 0
+        for q in self.tiles:
+            for d, b in self.back.get(q, {}).items():
+                if b == "wall" and (q, d) != (t, w) and (q, d) not in self.faces and step(q, d) not in self.hung:
+                    left += 1
+                    if left >= 3:
+                        return False
+        return True
+
     def candidates(self, kit, side=None, on=None):
         sides = [side] if isinstance(side, int) else list(side) if side else list(CARD)
         dense_now = {p for p in self.tiles if self.geo.taken.get(p) == "obj"}
@@ -187,8 +227,11 @@ class Ctx:
                             if b is None or b == "door" or (kit.back == "wall" and b != "wall"):
                                 ok = False
                                 break
-                        if sp.get("mount") and (t, w) in self.faces:
+                        if sp.get("mount") and ((t, w) in self.faces or step(t, w) in self.hung):
                             ok = False
+                            break
+                        if sp.get("mount") and self._last_face(t, w):
+                            ok = False              # the builder hangs the room's light on the last solid face
                             break
                         if sp.get("free"):
                             continue
@@ -207,7 +250,7 @@ class Ctx:
                         if t in self.geo.taken or t in self.front or t in self.neck:
                             ok = False              # taken, a door apron, or a passage two tiles wide or less
                             break
-                        if kit.back is None and any(self.geo.taken.get(q) == "use" for q in nb8(t)):
+                        if kit.back is None and not kit.tight and any(self.geo.taken.get(q) == "use" for q in nb8(t)):
                             ok = False              # an island never crowds the tiles another kit is used from
                             break
                         dense.add(t)
@@ -217,6 +260,8 @@ class Ctx:
                     if any(t not in self.tiles or t in dense or self.geo.taken.get(t) == "obj" for t in uses):
                         continue
                     if not self._walk_ok(dense_now | dense, uses):
+                        continue
+                    if self._pinches(dense_now | dense, dense):
                         continue
                     yield pl, dense
 
@@ -234,6 +279,11 @@ class Ctx:
             s += 4.0 * sum(1 for t in dense if t in self.lane)
             if score:
                 s += score(pl)
+            if self.seed != 1:
+                # a seeded nudge of up to JITTER tiles: spots that score about the same trade places between seeds,
+                # while a clearly better spot (nearer its door, off the lane) still wins
+                s += JITTER * random.Random("%s|%s|%s|%s|%s|%s" % (self.seed, self.rid, kit.name, pl.origin, pl.wall,
+                                                                    pl.mirrored)).random()
             key = (round(s, 3), pl.origin, pl.wall, pl.mirrored)
             if best is None or key < best[0]:
                 best = (key, pl, dense)
@@ -255,6 +305,7 @@ class Ctx:
                 out["mount"] = [(m[0], m[1], dict(_resolve((m[1], m[2] if len(m) > 2 else {}), pl, fmt)[1])) for m in sp["mount"]]
                 out["mount_side"] = NAME[pl.dirword(sp.get("mount_side", "OUT"))]
                 self.faces[(t, pl.wall)] = kit.name
+                self.hung[step(t, pl.wall)] = kit.name
             self.geo.cells.setdefault(t, []).append(out)
             if sp.get("free"):
                 continue
@@ -273,11 +324,11 @@ class Ctx:
     def _snap(self):
         g = self.geo
         return (dict(g.taken), {k: list(v) for k, v in g.cells.items()}, list(g.placed), dict(self.faces),
-                dict(self.counter), list(g.notes), list(g.problems))
+                dict(self.counter), list(g.notes), list(g.problems), dict(self.hung))
 
     def _restore(self, s):
         g = self.geo
-        for live, old in ((g.taken, s[0]), (g.cells, s[1]), (self.faces, s[3]), (self.counter, s[4])):
+        for live, old in ((g.taken, s[0]), (g.cells, s[1]), (self.faces, s[3]), (self.counter, s[4]), (self.hung, s[7])):
             live.clear()
             live.update(old)
         g.placed[:], g.notes[:], g.problems[:] = s[2], s[5], s[6]

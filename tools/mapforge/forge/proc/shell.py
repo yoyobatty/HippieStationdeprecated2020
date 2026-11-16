@@ -15,17 +15,27 @@ from .geo import N, S, E, W, CARD, OPP, CW, DIAG, Room, step, nb4, nb8
 
 
 # ---------------------------------------------------------------------------------------------------- outline
-def outline(geo, P, base, bbox, in_zone, add=(), keep=()):
+def outline(geo, P, base, bbox, in_zone, add=(), keep=(), gates=(), inside=()):
+    """keep: tiles left exactly as they are and sealed off (a chute, a launch run): what touches them stays wall.
+    gates: kept tiles people walk through (a door, an open public entrance): floor may come right up to them.
+    inside: kept tiles that are part of the department's own floor (a cryo bay with its coolant loop): rooms may
+    open onto them with no wall between."""
     from forge import dmm
     m = dmm.read(base)
     geo.base = m
     x0, y0, x1, y1 = bbox
     geo.zone = {(x, y) for x in range(x0, x1 + 1) for y in range(y0, y1 + 1)
                 if m.get(x, y) is not None and in_zone(m.get(x, y).apath)} | set(add)
-    keep = set(keep)
+    gates, inside = set(gates), set(inside)
+    keep = set(keep) | gates | inside
     for p in geo.zone:
         if p in keep:
-            geo.kind[p] = "keep_door" if m.get(*p).has("/obj/machinery/door") else "keep_open"
+            t = m.get(*p)
+            shut = t.tpath.startswith("/turf/closed") or t.has("/obj/effect/spawner/structure/window")
+            if p in inside or (shut and p not in gates):
+                geo.kind[p] = "keep_wall" if shut else "keep_floor"
+            else:
+                geo.kind[p] = "keep_door" if (p in gates or t.has("/obj/machinery/door")) else "keep_open"
     for p in geo.zone:
         if p in keep:
             continue
@@ -46,8 +56,8 @@ def outline(geo, P, base, bbox, in_zone, add=(), keep=()):
             if q in geo.zone or geo.outside(q) != "door" or not m.get(*q).has("/obj/machinery/door/airlock"):
                 continue
             far = step(q, d)
-            if far in geo.zone or geo.outside(far) not in ("hall", "maint"):
-                continue
+            if far in geo.zone or m.get(*far) is None or m.get(*far).tpath.startswith(("/turf/closed", "/turf/open/space")):
+                continue        # the door has to lead somewhere: a hall, maintenance, a neighbour's room
             geo.kind[p] = "free"
             front[p] = True
             geo.doors[q] = dict(ext=True, dir=OPP[d], sides={}, front=p, outside=geo.outside(far))
@@ -62,19 +72,22 @@ def outline(geo, P, base, bbox, in_zone, add=(), keep=()):
 
 
 # ---------------------------------------------------------------------------------------------------- slice
-def X(*kids):
-    """Cut left to right. Each kid is (size, node): size an int (tiles) or a float (share of what is left)."""
-    return ("x", list(kids))
+def X(*kids, wall=1):
+    """Cut left to right. Each kid is (size, node): size an int (tiles) or a float (share of what is left); node a
+    room id, another cut, or "-" for tiles no room takes. wall=0 cuts with no wall line (an open-plan seam)."""
+    return ("x", list(kids), wall)
 
 
-def Y(*kids):
+def Y(*kids, wall=1):
     """Cut top to bottom (north to south)."""
-    return ("y", list(kids))
+    return ("y", list(kids), wall)
 
 
 def slice_rooms(geo, P, plans, rooms):
     def lay(rect, node):
         x0, y0, x1, y1 = rect
+        if node == "-":
+            return
         if isinstance(node, str):
             for x in range(x0, x1 + 1):
                 for y in range(y0, y1 + 1):
@@ -82,9 +95,9 @@ def slice_rooms(geo, P, plans, rooms):
                         geo.kind[(x, y)] = "floor"
                         geo.room[(x, y)] = node
             return
-        axis, kids = node
+        axis, kids, gap = node
         length = (x1 - x0 + 1) if axis == "x" else (y1 - y0 + 1)
-        avail = length - (len(kids) - 1)
+        avail = length - gap * (len(kids) - 1)
         fixed = sum(s for s, _ in kids if isinstance(s, int))
         shares = [s for s, _ in kids if not isinstance(s, int)]
         left = avail - fixed
@@ -105,7 +118,7 @@ def slice_rooms(geo, P, plans, rooms):
             else:
                 lay((x0, y1 - pos - sz + 1, x1, y1 - pos), kid)
             pos += sz
-            if i < len(kids) - 1:
+            if i < len(kids) - 1 and gap:
                 for t in range((y0 if axis == "x" else x0), (y1 if axis == "x" else x1) + 1):
                     w = (x0 + pos, t) if axis == "x" else (t, y1 - pos)
                     if geo.kind.get(w) == "free":
@@ -169,6 +182,13 @@ def stamp(geo, P, stamps, rooms):
                     geo.rooms[rid].tiles.discard(p)
                 geo.kind[p] = "raw"
                 geo.raw[p] = (room, e["raw"], e.get("back", "wall"))
+                # the module's own wall pieces (a vacuum sign) hold their wall tile: rooms beside it hang elsewhere
+                for o in e["raw"].get("obj", []):
+                    vs = o[1] if isinstance(o, tuple) else {}
+                    px, py = int(vs.get("pixel_x", 0)), int(vs.get("pixel_y", 0))
+                    if abs(px) >= 20 or abs(py) >= 20:
+                        w = (p[0] + (1 if px >= 20 else -1 if px <= -20 else 0), p[1] + (1 if py >= 20 else -1 if py <= -20 else 0))
+                        geo.attr.setdefault("_hung", {})[w] = name
             else:
                 if geo.kind[p] != "floor":
                     geo.problem("stamp: %d,%d should be floor for a module piece" % p)
@@ -436,7 +456,14 @@ def backing(geo, p, d):
     if w == "raw":
         return geo.raw[q][2]
     if q in geo.zone:
-        return {"wall": "wall", "ring": "wall", "glass": "glass", "door": "door", "keep_door": "door"}.get(w)
+        if w == "keep_wall" and geo.base is not None:     # a kept window (with or without a blast door over it)
+            t = geo.base.get(*q)
+            if t.has("/obj/machinery/door"):
+                return "door"
+            if not t.tpath.startswith("/turf/closed"):
+                return "glass"
+        return {"wall": "wall", "ring": "wall", "keep_wall": "wall", "glass": "glass", "door": "door",
+                "keep_door": "door"}.get(w)
     return {"wall": "wall", "glass": "glass", "door": "door"}.get(w)
 
 

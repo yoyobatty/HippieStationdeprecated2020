@@ -21,6 +21,7 @@ from forge.kit import CARD, DELTA, OPP, N, S, E, W
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 QUARTERS = {N: (1, 4), S: (2, 8), E: (4, 2), W: (8, 1)}  # tile_corner dirs painting each side's half
+IN_WALL_LINE = ("/obj/machinery/door/airlock", "/obj/machinery/door/window", "/obj/machinery/door/poddoor")
 HAZARD_DECALS = ("/obj/effect/turf_decal/stripes", "/obj/effect/turf_decal/bot", "/obj/effect/turf_decal/delivery",
                  "/obj/effect/turf_decal/loading_area", "/obj/effect/turf_decal/box")
 DEPT = [("/area/medical", "blue"), ("/area/science", "purple"), ("/area/security", "red"), ("/area/engine", "yellow"),
@@ -111,6 +112,7 @@ def dress(b, seed=1):
     m = b.m
     notes = []
     painted = full = items = signs = plants = 0
+    room_items = {}     # room -> items already in it, so a table never gets a second of a tool the room has
     for p in b.zone:
         t = m.get(*p)
         if not b.is_floor(p) or b.room.get(p) is None:
@@ -129,6 +131,8 @@ def dress(b, seed=1):
         # (a dark assembly floor in a white lab), gets no department colour on top (the two fight)
         hazard = any(o.path.startswith(HAZARD_DECALS) for o in t.objs)
         zoned = hazard or (isinstance(rd.get("floor"), str) and t.tpath != rd["floor"])
+        # a door tile stands in the wall line: colour painted on it reads as a decal inside the wall
+        zoned = zoned or any(o.path.startswith(IN_WALL_LINE) for o in t.objs)
         # 1. under furniture
         if anchors and colour and not own_style and not zoned:
             a0 = anchors[0].path
@@ -150,13 +154,15 @@ def dress(b, seed=1):
                 if b.kind(q) != "floor" or (q in b.zone and b.area_of(q) != area):
                     paint(t, colour, QUARTERS[d])
                     painted += 1
-        # 3. empty tables get what Meta's tables carry
-        if any(o.path.startswith("/obj/structure/table") for o in t.objs) and \
+        # 3. empty tables get what Meta's tables carry (not the operating table: the patient lies there)
+        if any(o.path.startswith("/obj/structure/table") for o in t.objs) and not t.has("/obj/structure/table/optable") and \
                 not any(o.path.startswith("/obj/item") or o.path.startswith(("/obj/machinery/microwave", "/obj/machinery/reagentgrinder",
                                                                               "/obj/machinery/cell_charger", "/obj/machinery/computer",
                                                                               "/obj/machinery/door")) for o in t.objs):
             if rd.get("table_items", True) and rng.random() < 0.8:
-                ch = {k: v for k, v in item_choices(area).items() if not k.startswith(ITEM_SKIP)}
+                have = room_items.setdefault(b.room.get(p), {o.path for q in b.zone if b.room.get(q) == b.room.get(p)
+                                                              for o in m.get(*q).objs if o.path.startswith("/obj/item")})
+                ch = {k: v for k, v in item_choices(area).items() if not k.startswith(ITEM_SKIP) and k not in have}
                 if ch:
                     keys = list(ch)
                     n = 1 if rng.random() < 0.55 else 2
@@ -173,6 +179,7 @@ def dress(b, seed=1):
                         if y:
                             vs.append(("pixel_y", str(y)))
                         t.objs.append(dmm.Atom(it, vs))
+                        have.add(it)
                         items += 1
                         if it == "/obj/item/paper_bin" and "/obj/item/pen" not in picked:
                             t.objs.append(dmm.Atom("/obj/item/pen"))

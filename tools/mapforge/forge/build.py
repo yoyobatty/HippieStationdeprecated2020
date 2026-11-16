@@ -54,6 +54,8 @@ class Builder:
         self.notes = []
         self.warn = []
         self.faces = set()  # (x, y, side) wall faces used by mounts
+        self.wall_used = set()  # wall tiles a shifted wall piece is drawn on (from either side of the wall)
+        self.wall_used = set()  # wall tiles a shifted wall piece is drawn on (from either side of the wall)
         self.outside_edits = []  # kept tiles we had to touch (dead stubs trimmed)
         self.keep_infra = getattr(bp, "INFRA", "build") == "keep"  # remodel: keep pipes, power, lights, wall pieces
         self.template_tiles = set()  # tiles a whole human-made room was fitted onto: they bring their own floor style
@@ -259,6 +261,7 @@ class Builder:
             self.notes.append("cleared %d,%d in front of %s (%s)" % (q[0], q[1], what.rsplit("/", 1)[-1],
                                                                      ", ".join(g.rsplit("/", 1)[-1] for g in gone)))
         self.doors()
+        self.note_hung_pieces()
         self.mounts_explicit()
         self.decor_mounts(functional=True)
         if getattr(self.bp, "DISPOSALS", "carry") == "route":
@@ -284,6 +287,8 @@ class Builder:
         if getattr(self.bp, "STYLE", None) == "meta":
             from forge import dress
             self.notes += dress.dress(self, seed=getattr(self.bp, "SEED", 1))
+        self.unstack_wall_pieces()
+        self.clear_wall_decals()
         self.validate_types()
         return self
 
@@ -330,7 +335,8 @@ class Builder:
                     continue
                 for a in kt.objs:
                     cls = kit.pipe_class(a.path)
-                    if cls and "/pipe/" in a.path and kit.pipe_mask(a) & OPP[d]:
+                    # a pipe, or a vent outside fed only through our wall (its network is ours to carry on)
+                    if cls and ("/pipe/" in a.path or "/components/unary/vent" in a.path) and kit.pipe_mask(a) & OPP[d]:
                         self.ports[cls].append((p, d))
                 if any(kit.is_cable(o) for o in kt.objs) and any(kit.is_cable(o) for o in self.orig[p].objs):
                     self.ports["cable"].append((p, d))
@@ -762,15 +768,37 @@ class Builder:
     def wall_sides(self, p):
         return [d for d in (N, W, E, S) if self.solid(self.nb(p, d)) and (self.nb(p, d) in self.zone or True)]
 
-    def free_faces(self, area, avoid_doors=True):
+    def free_faces(self, area, avoid_doors=True, on_wall=True, optional=False):
         out = []
         for p in self.floors_of(area):
             if avoid_doors and self.t(*p).has("/obj/machinery/door"):
                 continue
             for d in self.wall_sides(p):
-                if (p[0], p[1], d) not in self.faces:
+                # a piece hung from the room behind this wall is drawn on the same wall tile: the two would overlap
+                if (p[0], p[1], d) not in self.faces and not (on_wall and self.nb(p, d) in self.wall_used):
                     out.append((p, d))
+        if on_wall:
+            # a wall piece never takes the last face a room's light could hang on, while it has another place;
+            # an optional piece (a camera, a newscaster) never takes it at all
+            spare = [f for f in out if not self.light_face(area, f)]
+            out = spare if (spare or optional) else out
         return out
+
+    def light_face(self, area, f):
+        """True when face f is the last free wall face of its room (lights come after the wall pieces)."""
+        floors = [p for p in self.floors_of(area) if not self.t(*p).has("/obj/machinery/door")]
+        fl = set(floors)
+        g, q = {f[0]}, [f[0]]
+        while q:
+            p = q.pop()
+            for d in CARD:
+                n = self.nb(p, d)
+                if n in fl and n not in g:
+                    g.add(n)
+                    q.append(n)
+        if len(g) < 4:
+            return False
+        return not any((p[0], p[1], d) not in self.faces and (p, d) != f for p in g for d in self.wall_sides(p))
 
     def mount(self, p, d, kind, path=None, extra=()):
         d0, px, py = kit.MOUNT[kind][d]
@@ -783,6 +811,93 @@ class Builder:
             vs.append(("pixel_y", str(py)))
         self.t(*p).objs.append(dmm.Atom(path or kit.MOUNT_PATHS[kind], vs))
         self.faces.add((p[0], p[1], d))
+        if kind not in ("light", "camera"):     # those sit inside their own tile, not on the wall
+            self.wall_used.add(self.nb(p, d))
+
+    def note_hung_pieces(self):
+        """Pieces the blueprint already hung (a telescreen, a flasher, a door button) hold their wall face and their
+        wall tile, so the builder's alarms and cabinets don't land on the same wall tile from the other side."""
+        for p in sorted(self.zone):
+            t = self.t(*p)
+            if t is None:
+                continue
+            for o in t.objs:
+                if not o.path.startswith(("/obj/machinery", "/obj/structure/sign", "/obj/structure/noticeboard",
+                                          "/obj/structure/extinguisher_cabinet", "/obj/item/radio/intercom")):
+                    continue
+                px, py = o.num("pixel_x"), o.num("pixel_y")
+                d = E if px >= 20 else W if px <= -20 else N if py >= 20 else S if py <= -20 else None
+                if d is not None:
+                    self.faces.add((p[0], p[1], d))
+                    self.wall_used.add(self.nb(p, d))
+
+    def clear_wall_decals(self, margin=4):
+        """No floor marking on a wall tile, ours or one the old map left in the walls around the zone (Hippie's
+        chemistry wall carried a loading-box decal)."""
+        near = set()
+        for p in self.zone:
+            for dx in range(-margin, margin + 1):
+                for dy in range(-margin, margin + 1):
+                    near.add((p[0] + dx, p[1] + dy))
+        gone = []
+        for p in sorted(near):
+            t = self.t(*p)
+            if t is None or not t.tpath.startswith("/turf/closed"):
+                continue
+            decs = [o for o in t.objs if o.path.startswith("/obj/effect/turf_decal")]
+            if decs:
+                for o in decs:
+                    t.objs.remove(o)
+                gone.append(p)
+                if p not in self.zone:
+                    self.outside_edits.append(p)
+        if gone:
+            self.notes.append("took decals off %d wall tiles: %s" % (len(gone), ", ".join("%d,%d" % p for p in gone)))
+
+    HUNG = ("/obj/machinery", "/obj/structure/sign", "/obj/structure/noticeboard", "/obj/structure/extinguisher_cabinet",
+            "/obj/item/radio/intercom")
+    MOVABLE = {"/obj/structure/extinguisher_cabinet": "extinguisher", "/obj/machinery/newscaster": "newscaster"}
+
+    def unstack_wall_pieces(self):
+        """A wall piece is drawn on the wall tile its pixel shift points at. Where pieces from two rooms land on the
+        same wall tile, decor (a sign, a poster) is taken down so the working piece reads; a cabinet or a newscaster
+        moves to another free face of its own room."""
+        on_wall = {}
+        for p in sorted(self.zone):
+            for o in self.t(*p).objs:
+                px, py = o.num("pixel_x"), o.num("pixel_y")
+                if (abs(px) >= 20 or abs(py) >= 20) and o.path.startswith(self.HUNG):
+                    w = (p[0] + (1 if px >= 20 else -1 if px <= -20 else 0), p[1] + (1 if py >= 20 else -1 if py <= -20 else 0))
+                    on_wall.setdefault(w, []).append((p, o))
+        dropped = moved = 0
+        for w, hung in list(on_wall.items()):
+            if len({p for p, _ in hung}) < 2:
+                continue
+            decor = [(p, o) for p, o in hung if o.path.startswith("/obj/structure/sign")]
+            keep = len(hung) - len(decor)
+            for p, o in decor[(0 if keep else 1):]:
+                self.t(*p).objs.remove(o)
+                hung.remove((p, o))
+                dropped += 1
+            if len({p for p, _ in hung}) < 2:
+                continue
+            for p, o in hung:
+                kind = next((k for pre, k in self.MOVABLE.items() if o.path.startswith(pre)), None)
+                if not kind:
+                    continue
+                area = self.t(*p).apath
+                spots = [f for f in self.free_faces(area, optional=True) if self.nb(f[0], f[1]) not in on_wall]
+                if not spots:
+                    continue
+                q, d = min(spots, key=lambda f: abs(f[0][0] - p[0]) + abs(f[0][1] - p[1]))
+                self.t(*p).objs.remove(o)
+                hung.remove((p, o))
+                self.mount(q, d, kind, path=o.path)
+                on_wall.setdefault(self.nb(q, d), []).append((q, o))
+                moved += 1
+                break
+        if dropped or moved:
+            self.notes.append("wall tiles shared by two rooms: took down %d signs, moved %d cabinets" % (dropped, moved))
 
     def mounts_explicit(self):
         for p in self.zone:
@@ -899,7 +1014,8 @@ class Builder:
                     for q in cands:
                         if q not in self.zone or (self.area_of(q) or self.t(*q).apath) != area or not self.is_floor(q):
                             continue
-                        if self.solid(self.nb(q, d)) and (q[0], q[1], d) not in self.faces:
+                        if self.solid(self.nb(q, d)) and (q[0], q[1], d) not in self.faces \
+                                and self.nb(q, d) not in self.wall_used:
                             spot = (q, d)
                             break
                     if spot:
@@ -955,7 +1071,9 @@ class Builder:
             self.notes.append("%s: powered by the existing APC at %d,%d (kept)" % (name, remote[0], remote[1]))
         if rd.get("apc", True) and not remote:
             f = min(faces, key=apc_score)
-            self.mount(f[0], f[1], "apc", extra=[("name", '"%s APC"' % name)])
+            # a room def may name the APC type (an engine's area wants a high-capacity cell)
+            self.mount(f[0], f[1], "apc", path=rd["apc"] if isinstance(rd.get("apc"), str) else None,
+                       extra=[("name", '"%s APC"' % name)])
             self.apc_tiles = getattr(self, "apc_tiles", []) + [f[0]]
         # fire alarm beside each door (inside), light switch on the other side of the first door
         for i, (dp, q, d) in enumerate(doors[:3]):
@@ -965,7 +1083,8 @@ class Builder:
                 cand = self.nb(q, side_dir)
                 wall_side = OPP[d]
                 if self.area_of(cand) == area and self.is_floor(cand) and self.solid(self.nb(cand, wall_side)) \
-                        and (cand[0], cand[1], wall_side) not in self.faces:
+                        and (cand[0], cand[1], wall_side) not in self.faces and self.nb(cand, wall_side) not in self.wall_used \
+                        and not self.light_face(area, (cand, wall_side)):
                     if not placed:
                         self.mount(cand, wall_side, "firealarm")
                         placed = True
@@ -990,17 +1109,18 @@ class Builder:
         f = min(faces, key=aa_score)
         self.mount(f[0], f[1], "airalarm")
         if len(floors) > 30 and rd.get("extinguisher", True):
-            faces = self.free_faces(area)
+            faces = self.free_faces(area, optional=True)
             if faces:
                 f = min(faces, key=lambda f: (near_door(f) - 2) ** 2 + 0.1 * math.hypot(f[0][0] - cx, f[0][1] - cy))
                 self.mount(f[0], f[1], "extinguisher")
         if rd.get("newscaster"):
-            faces = self.free_faces(area)
+            faces = self.free_faces(area, optional=True)
             if faces:
                 f = min(faces, key=lambda f: math.hypot(f[0][0] - cx, f[0][1] - cy))
                 self.mount(f[0], f[1], "newscaster")
         if rd.get("camera", True):
-            faces = [f for f in self.free_faces(area) if len(self.wall_sides(f[0])) >= 2] or self.free_faces(area)
+            faces = [f for f in self.free_faces(area, optional=True) if len(self.wall_sides(f[0])) >= 2] \
+                or self.free_faces(area, optional=True)
             if faces:
                 # a corner that sees the most of the room
                 f = max(faces, key=lambda f: math.hypot(f[0][0] - cx, f[0][1] - cy))
@@ -1065,7 +1185,7 @@ class Builder:
             path = "/obj/machinery/light/small" if small else "/obj/machinery/light"
             uncovered = set(g)
             placed = []
-            cands = [(p, d) for p, d in self.free_faces(area) if p in g and
+            cands = [(p, d) for p, d in self.free_faces(area, on_wall=False) if p in g and
                      not kit.dense([a for a in self.t(*p).objs if a.path.startswith("/obj/machinery/vending")])]
             reach = {}
             while uncovered:
@@ -1345,6 +1465,8 @@ class Builder:
                 mask[a] = mask.get(a, 0) | d
                 mask[b] = mask.get(b, 0) | OPP[d]
             for p in path:
+                if p in unary and len(path) > 1:       # a vent or a pump takes one pipe: the one it was fed by
+                    continue
                 for i, (z, d) in enumerate(ports):
                     if z == p and i not in used:
                         used.add(i)
@@ -1366,22 +1488,31 @@ class Builder:
             first = members[0]
             lay([ports[first][0]])
             joined = {comp[first]}
+            piece = {ports[first][0]}       # grow this line from itself, not from another line laid before it
             while joined != comps:
-                src = {p: 0 for p in mask if growable(p)}
+                src = {p: 0 for p in piece if growable(p)}
                 tgt = {ports[i][0] for i in members if comp[i] not in joined}
                 path, c = self.dijkstra(src, tgt, cost_fn, unary)
                 if not path:
                     self.warn.append("%s: could not keep the through-line joined (%s)" % (cls, ", ".join("%d,%d" % t for t in tgt)))
                     break
                 lay(path)
+                piece.update(path)
                 joined |= {comp[i] for i in members if ports[i][0] == path[-1]}
             self.notes.append("%s: kept a through-line joining %d outside networks" % (cls, len(comps)))
-        # 2. terminals, nearest first
-        left = list(terminals)
+        # 2. terminals, nearest first. A stub that only leads out to a lone vent or two (a neighbour's room fed
+        # through this zone) feeds nothing: it is a terminal to reach from a live line, not a line to grow from.
+        size = {}
+        for t, cid in cache.items():
+            size[cid] = size.get(cid, 0) + 1
+        dead = {i for i in range(len(ports)) if size.get(comp[i], 0) < 12} if cls != "cable" else set()
+        if len(dead) == len(ports):
+            dead = set()
+        left = list(terminals) + [ports[i][0] for i in sorted(dead) if ports[i][0] not in mask]
         while left:
             src = {p: 0 for p in mask if growable(p)}
             for i, (z, d) in enumerate(ports):
-                if z not in src and growable(z):
+                if i not in dead and z not in src and growable(z):
                     src[z] = 0
             path, c = self.dijkstra(src, set(left), cost_fn, unary)
             if not path:
@@ -1576,7 +1707,7 @@ class Builder:
             for e in s.get("decal", []):
                 self.t(*p).objs.insert(0, dmm.Atom(e) if isinstance(e, str) else dmm.Atom(e[0], list(e[1].items())))
             style = self.roomdefs[rc].get("trim")
-            if not style:
+            if not style or self.t(*p).has("/obj/machinery/door"):
                 continue
             # tile trim along the walls: the quarter decals that face the wall
             color = style

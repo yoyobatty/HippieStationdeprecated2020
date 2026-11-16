@@ -120,6 +120,7 @@ def robotics(R):
     R.run([SHEETS, BORG_PARTS], near=aisle)
     # brains come out in surgery and go into bodies on the assembly floor: the bench and the manipulator by its door
     surg = (R.doors("surgery") or [aisle])[0]
+    R.place(MORGUE, side=8, near=surg, must=False)      # on the west wall, sliding east into the lab
     R.run([MMIS, AUG], near=surg)
     staff = (R.doors("spine") or [desk])[0]
     R.place(ROBO_WARD, near=staff, must=False)
@@ -136,14 +137,15 @@ OPSET = Kit("operating table", [
 SURG_TOOLS = one("surgery tools", "t", TABLE, "/obj/item/scalpel", "/obj/item/hemostat", "/obj/item/retractor",
                  "/obj/item/cautery", "/obj/item/circular_saw", "/obj/item/surgicaldrill", "/obj/item/surgical_drapes",
                  "/obj/item/clothing/gloves/color/latex")
-MORGUE = one("morgue tray", "MG", ("/obj/structure/bodycontainer/morgue", {"dir": "IN"}))
+# one icon, facing east: the tray stands at the west end of a room and slides east
+MORGUE = one("morgue tray", "MG", ("/obj/structure/bodycontainer/morgue", {"dir": 4}), back="any")
 SINK = Kit("sink", [(0, 0, dict(obj=[], open=True, free=True, label="s", mount=[("sink", "/obj/structure/sink", {})]))])
 
 
 def surgery(R):
-    # bodies wait at the back, away from the door its tray would block; the table sits mid-room, tools by the door
+    # the table sits mid-room, tools by the door. The body tray is out in the lab: it only faces east, and this
+    # room is too small to give it a free tile to slide onto.
     door = R.doors()[0]
-    R.place(MORGUE, far=door, must=False)
     table = R.place(OPSET, near=R.room.attrs["heart"])
     R.place(SURG_TOOLS, near=table.uses[0] if table else door)
     R.place(SINK, far=door, must=False)

@@ -33,10 +33,24 @@ python tools/mapforge/mapforge.py build blueprints/science_v3.py   # the real bu
 | fields | per-tile attributes: what backs a tile, door aprons, walking lanes, alcoves, distance to walls |
 | furnish | hands each room to its asset (`assets/science.py`) |
 
+Two departments run through it: `blueprints/science_v3.py` (one block, two streets, 25 rooms) and
+`blueprints/medbay_v2.py` (six blocks around a kept cryo bay, 11 rooms). What the outline fixes is passed in three
+ways: `keep` (sealed and left alone: a chute, a launch run), `gates` (kept tiles people walk through: a neighbour's
+door, an open public entrance) and `inside` (kept floor that is part of the department: the cryo bay; rooms open
+onto it with no wall). A cut can be open-plan (`X(..., wall=0)`) and a leaf `"-"` belongs to no room.
+
+`forge/proc/solve.py` writes the slicing trees from a room list instead of by hand
+(`python tools/mapforge/blueprints/science_v3.py --solve`). Each room states its target area, smallest workable
+size, the frontage it needs (street, public hall), the tiles the outline ties it to and the rooms it works with.
+The solver assigns rooms to the blocks between the streets and tries every ordering and cut of each block. It
+knows nothing about furniture: the rest of the graph judges its plan. The streets themselves are still given.
+
 A room asset is a function of one room. It asks which wall faces which neighbour and where the doors are, then
 places kits: authored groups of pieces that only work together (fabricator, belt and pickup tile; R&D console and
 its machines), written once in their own frame with the tiles a person stands on. The placer never closes a door,
-walls off floor, leaves a piece nobody can reach, seats anyone in a doorway or stands a bin on the disposal line.
+walls off floor, leaves a piece nobody can reach, makes a diagonal squeeze, furnishes a passage two tiles wide or
+less, seats anyone in a doorway or stands a bin on the disposal line. A run of wall kits takes the wall that fits
+the most of it.
 `forge/proc/emit.py` turns the result into an ordinary blueprint, so everything below still applies.
 
 ## What the builder does

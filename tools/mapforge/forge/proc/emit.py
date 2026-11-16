@@ -20,8 +20,9 @@ def door_objs(dr):
         acc["req_one_access_txt"] = sp["one_access"]
     if kind == "airlock":
         vs = dict(name=sp.get("name", "Airlock"), **acc)
+        vs.update(sp.get("vars", {}))           # id_tag for a door a button works, and the like
         path = "/obj/machinery/door/airlock/%s%s" % (sp.get("kind", "research"), "/glass" if sp.get("glass") else "")
-        return [(path, vs)] + ([FD] if sp.get("firedoor") else [])
+        return [(path, vs)] + ([FD] if sp.get("firedoor") else []) + list(sp.get("extra", ()))
     if kind == "shutter":
         return [("/obj/machinery/door/poddoor/shutters/preopen", {"name": sp.get("name", "shutters"), "id": sp["id"]}), FD]
     if kind == "biohazard":
@@ -33,7 +34,9 @@ def door_objs(dr):
                                                                   "id": sp["id"]})]
     extra = list(sp.get("extra", ()))
     if kind == "blast":     # a glass airlock with a blast door over it
-        return [("/obj/machinery/door/airlock/research/glass", dict(name=sp.get("name", "Test Chamber"), **acc)),
+        vs = dict(name=sp.get("name", "Test Chamber"), **acc)
+        vs.update(sp.get("vars", {}))
+        return [("/obj/machinery/door/airlock/%s/glass" % sp.get("kind", "research"), vs),
                 ("/obj/machinery/door/poddoor/preopen", {"name": "%s blast door" % sp.get("name", "chamber").lower(),
                                                          "id": sp["id"]})] + extra
     if kind == "pen":       # a windoor on the pen's side with a containment blast door
@@ -41,6 +44,14 @@ def door_objs(dr):
                 ("/obj/machinery/door/poddoor/preopen/biohazard", {"id": sp["id"]})]
     if kind == "windoor":
         return [("/obj/machinery/door/window/southleft", dict(name=sp.get("name", "Windoor"), dir=OPP[d], **acc))]
+    if kind == "cell":      # a brig cell: a secure windoor the cell's door timer (same id) opens and shuts
+        return [("/obj/machinery/door/window/brigdoor/security/cell", dict(name=sp.get("name", "Cell"), id=sp["id"],
+                                                                           dir=OPP[d]))]
+    if kind == "brigdesk":  # a desk the public are served over: reinforced table, secure windoor, shutters
+        return ["/obj/structure/table/reinforced",
+                ("/obj/machinery/door/window/brigdoor", dict(name=sp.get("name", "Desk"), dir=OPP[d], **acc)),
+                ("/obj/machinery/door/poddoor/shutters/preopen", {"name": "%s shutters" % sp.get("name", "desk").lower(),
+                                                                  "id": sp["id"]})]
     raise ValueError("unknown door type %r" % kind)
 
 
@@ -66,7 +77,7 @@ def blueprint(geo, name, extra=None):
     lay, room = {}, {}
     for p in geo.zone:
         k = geo.kind[p]
-        if k in ("keep_door", "keep_open"):
+        if k.startswith("keep_"):
             continue
         if k in ("wall", "ring"):
             lay[p] = "#"
