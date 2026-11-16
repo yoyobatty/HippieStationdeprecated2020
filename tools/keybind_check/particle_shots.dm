@@ -106,6 +106,10 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	for(var/i in 1 to 3)
 		new /obj/effect/temp_visual/impact_effect(west, rand(-8, 8), rand(-8, 8))
 		new /obj/effect/temp_visual/impact_effect/red_laser(north, rand(-8, 8), rand(-8, 8))
+	// the other beams, one of each, in a row a tile below
+	var/beam_x = spot.x - 2
+	for(var/beam in list(/obj/effect/temp_visual/impact_effect/blue_laser, /obj/effect/temp_visual/impact_effect/green_laser, /obj/effect/temp_visual/impact_effect/purple_laser, /obj/effect/temp_visual/impact_effect/ion))
+		new beam(locate(beam_x++, spot.y - 1, spot.z), 0, 0)
 	sleep(2)
 	kc_log("impacts: [particle_count(spot)]")
 	particle_shot("particle_2_impacts")

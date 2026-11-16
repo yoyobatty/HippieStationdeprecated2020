@@ -275,12 +275,12 @@ GLOBAL_VAR_INIT(blast_dust_clouds, 0)
 	return ..()
 
 /particles/blast_dust
-	icon = 'hippiestation/icons/effects/particle_fx.dmi'
-	icon_state = "puff"
+	icon = 'hippiestation/icons/effects/particles/smoke.dmi' //tg's drifting clouds
+	icon_state = list("steam_cloud_1" = 1, "steam_cloud_2" = 1, "steam_cloud_3" = 1, "steam_cloud_4" = 1, "steam_cloud_5" = 1)
 	width = 224
 	height = 224
-	count = 9
-	spawning = 9
+	count = 6
+	spawning = 6
 	lifespan = generator("num", 80, 140)
 	fadein = 8
 	fade = 60
@@ -288,9 +288,8 @@ GLOBAL_VAR_INIT(blast_dust_clouds, 0)
 	velocity = generator("circle", 0.1, 0.45)
 	drift = generator("vector", list(-0.015, -0.015), list(0.015, 0.015))
 	friction = 0.03
-	color = "#a49d9268"
-	scale = generator("vector", list(0.9, 0.9), list(1.4, 1.4))
-	grow = 0.006
+	color = "#a49d9280"
+
 
 #undef BLAST_SOUND_DS_PER_TILE
 #undef BLAST_SOUND_MERGE

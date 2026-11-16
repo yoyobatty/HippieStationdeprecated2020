@@ -24,6 +24,10 @@
 // Particles (hippiestation/code/modules/particles/particle_fx.dm)
 /// Every particle is drawn on this plane: over the game world, under the lighting, and not at all for a client on Low graphics
 #define PARTICLE_PLANE 9
+/// One-off bursts (sparks, impacts, blast debris) in the world at once, at most: a pile of things all going off makes no more
+#define PARTICLE_BURSTS_MAX 200
+/// A fire this hot (K) gives off blue-white embers, as its own sprite has gone by then (particle_smoke.dm)
+#define PARTICLE_FIRE_HOT 10000
 /// Wind this strong shows as a gust on its tile (the pressure difference that starts shoving things about is 20 or so)
 #define PARTICLE_GUST_PRESSURE 25
 /// Tiles showing a gust at once, at most: a big breach is hundreds of windy tiles
