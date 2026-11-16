@@ -36,7 +36,7 @@
 		return ..()
 
 /obj/machinery/computer/launchpad/proc/pad_exists(number)
-	var/obj/machinery/launchpad/pad = launchpads[number]
+	var/obj/machinery/launchpad/pad = get_pad(number) // hippie -- through get_pad: ui_data drops dead pads as it counts, so the count runs past the end
 	if(QDELETED(pad))
 		return FALSE
 	return TRUE
@@ -51,6 +51,8 @@
 	pad.doteleport(user, sending)
 
 /obj/machinery/computer/launchpad/proc/get_pad(number)
+	if(!isnum(number) || number < 1 || number > LAZYLEN(launchpads)) // hippie -- a pad number that isn't in the list (junk from the window) was a list index out of bounds (testkit fuzz_ui)
+		return null
 	var/obj/machinery/launchpad/pad = launchpads[number]
 	return pad
 
@@ -105,7 +107,10 @@
 			screen = "select"
 			. = TRUE
 		if("select_pad")
-			current_pad = get_pad(text2num(params["id"]))
+			var/obj/machinery/launchpad/picked = get_pad(text2num(params["id"])) // hippie start -- no such pad: stay on the list
+			if(QDELETED(picked))
+				return
+			current_pad = picked // hippie end
 			screen = "control"
 			. = TRUE
 		if("right")

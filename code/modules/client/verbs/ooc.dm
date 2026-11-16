@@ -338,7 +338,7 @@ GLOBAL_VAR_INIT(normal_ooc_colour, "#002eb8")
 		return
 
 	var/split_size = splittext(sizes["mainwindow.split.size"], "x")
-	var/split_width = text2num(split_size[1])
+	var/split_width = length(split_size) ? text2num(split_size[1]) : 0 // hippie -- a skin with no split gives no size at all: reading [1] was a list index out of bounds (testkit client lane)
 	if(!split_width) // hippie -- as above
 		return
 
