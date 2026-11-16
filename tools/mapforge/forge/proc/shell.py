@@ -529,4 +529,22 @@ def fields(geo, P):
         for a, b2 in pairs:
             for p in lane_path(geo, r.tiles, back, a, b2):
                 lane[p] = True
-    geo.notes.append("fields: %d lane tiles, %d alcoves" % (len(lane), len(alcove)))
+    # necks: a stretch of room two tiles wide or less that people walk through. Furniture there turns a passage
+    # into a squeeze, so it stays clear. Small rooms are exempt (all of a closet is narrow).
+    neck = geo.field("neck")
+    for rid, r in geo.rooms.items():
+        if r.attrs.get("hall") or len(r.tiles) < 12:
+            continue
+        for p in r.tiles:
+            for d in (N, E):
+                run, q = [p], step(p, d)
+                while q in r.tiles:
+                    run.append(q)
+                    q = step(q, d)
+                q = step(p, OPP[d])
+                while q in r.tiles:
+                    run.append(q)
+                    q = step(q, OPP[d])
+                if len(run) <= 2 and any(t in lane for t in run):
+                    neck[p] = True
+    geo.notes.append("fields: %d lane tiles, %d alcoves, %d neck tiles" % (len(lane), len(alcove), len(neck)))

@@ -8,7 +8,7 @@ piece nobody can reach.
 
 Direction words inside a kit: IN (into the room), OUT (at the wall), A+ / A- (along the wall).
 """
-from .geo import S, CARD, DELTA, OPP, CW, CCW, NAME, step, nb4
+from .geo import S, CARD, DELTA, OPP, CW, CCW, NAME, step, nb4, nb8
 from .shell import room_doors
 
 
@@ -63,6 +63,7 @@ class Ctx:
         self.lane = geo.field("lane")
         self.front = geo.field("front")
         self.trunk = geo.field("trunk")
+        self.neck = geo.field("neck")
         self.counter = geo.attr.setdefault("_counter", {})
         self.faces = geo.attr.setdefault("_faces", {})    # (tile, wall side) a wall piece already hangs on
 
@@ -203,8 +204,11 @@ class Ctx:
                             break
                         if sp.get("open"):
                             continue
-                        if t in self.geo.taken or t in self.front:
-                            ok = False
+                        if t in self.geo.taken or t in self.front or t in self.neck:
+                            ok = False              # taken, a door apron, or a passage two tiles wide or less
+                            break
+                        if kit.back is None and any(self.geo.taken.get(q) == "use" for q in nb8(t)):
+                            ok = False              # an island never crowds the tiles another kit is used from
                             break
                         dense.add(t)
                     if not ok:
@@ -238,6 +242,7 @@ class Ctx:
                 self.geo.problem("%s: no place for %s" % (self.rid, kit.name))
             return None
         _, pl, dense = best
+        self.last_score = best[0][0]
         n = self.counter[kit.name] = self.counter.get(kit.name, 0) + 1
         fmt = dict(fmt, n=n)
         for u, v, sp in kit.cells:
@@ -265,9 +270,42 @@ class Ctx:
             self.zone(pl.tiles + pl.uses, floor=zone[0], edge=zone[1])
         return pl
 
+    def _snap(self):
+        g = self.geo
+        return (dict(g.taken), {k: list(v) for k, v in g.cells.items()}, list(g.placed), dict(self.faces),
+                dict(self.counter), list(g.notes), list(g.problems))
+
+    def _restore(self, s):
+        g = self.geo
+        for live, old in ((g.taken, s[0]), (g.cells, s[1]), (self.faces, s[3]), (self.counter, s[4])):
+            live.clear()
+            live.update(old)
+        g.placed[:], g.notes[:], g.problems[:] = s[2], s[5], s[6]
+
+    def box(self, tiles):
+        """The room's tiles inside the rectangle around some tiles (a kit's whole footprint, gaps included)."""
+        xs, ys = [p[0] for p in tiles], [p[1] for p in tiles]
+        return self.rect(min(xs), min(ys), max(xs), max(ys))
+
     def run(self, kits, side=None, near=None, **kw):
         """Kits one after another along a wall, each beside the last."""
         out, prev, wall = [], near, side
+        if side is None and len(kits) > 1 and all(k.back for k in kits):
+            # try each wall and undo: the run goes where the most of it fits, then where it sits closest
+            best = None
+            for w in CARD:
+                snap = self._snap()
+                n, cost, p0 = 0, 0.0, near
+                for k in kits:
+                    pl = self.place(k, side=w, near=p0, must=False, **kw)
+                    if pl is None:
+                        break
+                    n, cost, p0 = n + 1, cost + self.last_score, pl.origin
+                self._restore(snap)
+                if n and (best is None or (-n, cost, w) < best[0]):
+                    best = ((-n, cost, w), w)
+            if best:
+                wall = best[1]
         for k in kits:
             pl = self.place(k, side=wall, near=prev, must=False, **kw)
             if pl is None and wall != side:      # that wall is full: carry on round the corner

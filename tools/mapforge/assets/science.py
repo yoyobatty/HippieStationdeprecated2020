@@ -107,7 +107,7 @@ def robotics(R):
     kit = fab_pair(belts)
     fabs = R.place(kit, side=OPP[bay], need=lambda pl: all(step(pl.at(u, belts + 1), pl.n) in floor for u in (0, 2)))
     if fabs:
-        R.zone([t for t in fabs.tiles + fabs.uses], floor=DARK)
+        R.zone(R.box(fabs.tiles), floor=DARK)
     # the front office: the desk on the hall, the console and imprinter behind whoever serves it
     desk = (R.doors("hall") or [R.room.attrs["heart"]])[0]
     R.place(ROBO_RND, near=desk)
@@ -701,6 +701,11 @@ def launch(R):
 
 
 # ================================================================================================= the streets
+DOOR_SIGNS = [("xeno", "/obj/structure/sign/warning/biohazard"), ("toxins", "/obj/structure/sign/warning/explosives"),
+              ("testing", "/obj/structure/sign/warning/nosmoking"), ("explab", "/obj/structure/sign/warning/securearea"),
+              ("nanite", "/obj/structure/sign/warning/nosmoking")]
+
+
 def spine(R):
     # a street, not a room: a few things at its edges, never in a doorway, the middle always clear
     west = (R.doors("hall") or R.doors())[0]
@@ -727,6 +732,11 @@ def spine(R):
         R.place(PLANT_K, near=target, must=False)
     R.run([SEAT, SEAT], near=(R.doors("rdoffice") or [heart])[0])
     R.run([SEAT, SEAT], near=(R.doors("nanite") or [heart])[0])
+    # a warning on the wall beside each door that needs one
+    for room, sign in DOOR_SIGNS:
+        for q in R.doors(room)[:1]:
+            R.place(hang("%s sign" % room, "sign", sign), near=q, must=False,
+                    need=lambda pl, q=q: 1 <= dist(pl.origin, q) <= 3)
 
 
 ASSETS = {"pen": lambda R: None, "burn": lambda R: None, "mechbay": mechbay, "robotics": robotics, "surgery": surgery, "rnd": rnd, "foyer": foyer,
