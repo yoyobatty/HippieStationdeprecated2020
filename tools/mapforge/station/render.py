@@ -5,7 +5,7 @@ SPACE = (11, 13, 22)
 WALL, HULL, RWALL = (104, 108, 118), (78, 82, 94), (58, 62, 74)
 HALL, MAINT, CATWALK = (214, 214, 208), (84, 76, 66), (96, 96, 74)
 DOOR = dict(public=(250, 250, 250), access=(236, 196, 64), secure=(220, 58, 58), maint=(168, 132, 86),
-            link=(176, 186, 232), dock=(255, 140, 0), open=HALL)
+            link=(176, 186, 232), dock=(255, 140, 0), external=(255, 140, 0), open=HALL)
 GLASS = (126, 196, 236)
 
 
@@ -21,6 +21,7 @@ def draw(plan, path, T=6, title=None):
         pts.append((x + b, y + b))
     for r, _ in plan.solars:
         pts += [(r[0], r[1]), (r[2], r[3])]
+    pts += list(getattr(plan, "solar", {}))
     x0 = min(p[0] for p in pts) - 3
     x1 = max(p[0] for p in pts) + 3
     y0 = min(p[1] for p in pts) - 3
@@ -44,14 +45,20 @@ def draw(plan, path, T=6, title=None):
         left, top = (p[0] - x0) * T, (y1 - p[1]) * T + head
         return [left + inset, top + inset, left + T - 1 - inset, top + T - 1 - inset]
 
-    # solars first (under everything)
-    for r, name in plan.solars:
-        for x in range(r[0], r[2] + 1):
-            for y in range(r[1], r[3] + 1):
-                if (x - r[0]) % 3 == 2:
-                    d.rectangle(box((x, y), T // 3), fill=(70, 70, 60))
-                else:
-                    d.rectangle(box((x, y), 1), fill=(36, 52, 112), outline=(70, 90, 160))
+    # solars first (under everything): lattice struts, cable catwalks, panels, the tracker
+    for p, kind in getattr(plan, "solar", {}).items():
+        b_ = box(p)
+        if kind == "panel":
+            d.rectangle(box(p, 1), fill=(36, 52, 112), outline=(70, 90, 160))
+        elif kind == "tracker":
+            d.rectangle(box(p, 1), fill=(150, 170, 230), outline=(220, 230, 255))
+        else:
+            d.rectangle(b_, outline=(78, 78, 70))
+            d.line([b_[0], (b_[1] + b_[3]) // 2, b_[2], (b_[1] + b_[3]) // 2], fill=(78, 78, 70))
+            d.line([(b_[0] + b_[2]) // 2, b_[1], (b_[0] + b_[2]) // 2, b_[3]], fill=(78, 78, 70))
+            if kind == "cable":
+                c_ = ((b_[0] + b_[2]) // 2, (b_[1] + b_[3]) // 2)
+                d.rectangle([c_[0] - 1, c_[1] - 1, c_[0] + 1, c_[1] + 1], fill=(220, 40, 40))
     for (x, y), side, kind, (a, b) in plan.docks:
         # a shuttle outline docked on the hull, a wide and b long outward
         dx, dy = side

@@ -82,9 +82,7 @@ def _hall(plan, x0, y0, x1, y1):
 
 def _ends_and_solars(plan, by, strips, seed, rnd, ends, solar_blocks):
     """Solars off the named blocks' far corners, then each end: (what, start, out, perp) -> a tail and its feature."""
-    keep_out = set()
-    for key in solar_blocks:
-        PW.corner_solar(plan, plan.quads[key], key, keep_out)
+    keep_out = PW.solars_clear_of(plan, [(key, plan.quads[key]) for key in solar_blocks], ends)
     laid = []
     for what, start, out, perp in ends:
         laid.append((what,) + PW.arm_tail(plan, start, out, perp, what, keep_out, rnd))

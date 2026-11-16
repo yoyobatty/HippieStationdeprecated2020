@@ -44,7 +44,8 @@ class Plan:
         self.hull = set()
         self.rwall = set()
         self.docks = []         # (rect, label, kind)
-        self.solars = []        # rects of panel arrays
+        self.solars = []        # (rect, label) of each panel array
+        self.solar = {}         # tile -> panel / cable / lattice / tracker (out in space: no floor, no walls)
         self.notes = []
         self.problems = []
         self.order = []

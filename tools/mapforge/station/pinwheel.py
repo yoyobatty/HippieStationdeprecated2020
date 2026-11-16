@@ -198,11 +198,6 @@ def generate(seed=1, crew=80, grown=True):
         plan.quads[q] = qinfo
         maint_and_filler(plan, qinfo, seed, q)
 
-    # ---- solars off the quadrants' outer corners (first, so the arm tails keep clear of them)
-    keep_out = set()
-    for q, info in plan.quads.items():
-        corner_solar(plan, info, QUADS[q], keep_out)
-
     # ---- arms: from the loop's corners out past both quadrants beside them
     lanes = {0: ((LX0, LY1 + 1), (0, 1), (1, 0)), 1: ((LX1 + 1, LY1 - 2), (1, 0), (0, 1)),
              2: ((LX1 - 2, LY0 - 1), (0, -1), (1, 0)), 3: ((LX0 - 1, LY0), (-1, 0), (0, 1))}
@@ -223,7 +218,14 @@ def generate(seed=1, crew=80, grown=True):
             for j in range(HALL):
                 plan.floor.setdefault(_add(start, _vec(out, k), _vec(perp, j)), "ring")
         what = "arrivals" if arm == ar else "escape" if arm == es else "sat" if arm == sat_arm else "eva"
-        ends[arm] = (what,) + arm_tail(plan, _add(start, _vec(out, length)), out, perp, what, keep_out, rnd)
+        ends[arm] = (what, _add(start, _vec(out, length)), out, perp)
+
+    # ---- solars off the quadrants' outer corners, clear of the arm halls and the space their ends will take; the
+    # tails then keep clear of the fields
+    keep_out = solars_clear_of(plan, [(QUADS[q], info) for q, info in plan.quads.items()], ends.values())
+    for arm in range(4):
+        what, st, out, perp = ends[arm]
+        ends[arm] = (what,) + arm_tail(plan, st, out, perp, what, keep_out, rnd)
 
     # ---- arm ends: arrivals, escape, the satellite, an EVA airlock
     for arm in range(4):
@@ -725,28 +727,183 @@ def maint_and_filler(plan, info, seed, q):
     plan.rooms["maint"] = dict(kind="maint", dept="maint", label="", public=False)
 
 
-def corner_solar(plan, info, label, keep_out):
-    """A solar array off a block's far corner: out of the far maint through a maint door, a catwalk on the diagonal,
-    then the panels. Their footprint (and a margin) goes into keep_out."""
-    c, a, b = info["c"], info["a"], info["b"]
-    ci, cj = info["corner"] if "corner" in info else (info["Wf"], info["Ef"])
-    corner = _add(c, _vec(a, ci + 1), _vec(b, cj + 1))
-    plan.doors[_add(c, _vec(a, ci), _vec(b, cj + 1))] = "maint"
-    dg = _add(a, b)
-    p = corner
-    plan.floor.setdefault(p, "catwalk")
-    for k in range(4):
-        p = _add(p, dg)
-        plan.floor.setdefault(p, "catwalk")
-        plan.floor.setdefault(_add(p, _vec(a, -1)), "catwalk")
-    plan.rooms["catwalk"] = dict(kind="maint", dept="solar", label="", public=False)
-    o = _add(p, dg)
-    far = _add(o, _vec(dg, 11))
-    rect = (min(o[0], far[0]), min(o[1], far[1]), max(o[0], far[0]), max(o[1], far[1]))
-    plan.solars.append((rect, label))
-    for x in range(rect[0] - 2, rect[2] + 3):
-        for y in range(rect[1] - 2, rect[3] + 3):
-            keep_out.add((x, y))
+# a stock array (Box, Meta), in its own frame: s across (-8..8, the spine at 0), o out from the array's near edge
+SOLAR_W, SOLAR_PAIRS = 8, 3
+
+
+def solar_field(pairs=SOLAR_PAIRS):
+    """-> {(s, o): kind}: a lattice frame; pairs of 5-panel rows each side of the spine with a cable row between each
+    pair; spacer rows of lattice struts; the tracker in a lattice cap at the far end; the spine's cable from the near
+    edge to the first panel row and from the last to the tracker."""
+    W = SOLAR_W
+    out = {}
+    for s_ in range(-W, W + 1):
+        out[(s_, 0)] = "lattice"
+    out[(0, 0)] = "cable"
+    for s_ in (-W, 0, W):
+        out[(s_, 1)] = "lattice"
+    out[(0, 1)] = "cable"
+    o = 2
+    for k in range(pairs):
+        for row in (o, o + 2):
+            for s_ in (-W, -W + 1, W - 1, W, 0):
+                out[(s_, row)] = "lattice"
+            for s_ in list(range(-6, -1)) + list(range(2, 7)):
+                out[(s_, row)] = "panel"
+        out[(-W, o + 1)] = out[(W, o + 1)] = "lattice"
+        for s_ in range(-6, 7):
+            out[(s_, o + 1)] = "cable"
+        if k + 1 < pairs:
+            for s_ in (-W, -4, 0, 4, W):
+                out[(s_, o + 3)] = "lattice"
+        o += 4
+    # past the last panel row: a strut row, the frame, the tracker cap
+    o -= 1
+    for s_ in (-W, -5, 5, W):
+        out[(s_, o)] = "lattice"
+    out[(0, o)] = "cable"
+    for s_ in range(-W, W + 1):
+        out[(s_, o + 1)] = "lattice"
+    out[(0, o + 1)] = "cable"
+    for s_ in range(-2, 3):
+        out[(s_, o + 2)] = "lattice"
+        out[(s_, o + 4)] = "lattice"
+    out[(0, o + 2)] = "tracker"
+    out[(-2, o + 3)] = out[(2, o + 3)] = "lattice"
+    return out
+
+
+SOLAR_FIELD = solar_field()
+SOLAR_DEPTH = max(o for s_, o in SOLAR_FIELD) + 1
+# hull side to the field: wall, control room (3 deep), wall + inner airlock, the lock, outer airlock, 2 of catwalk
+SOLAR_LEAD = 10
+
+
+def solars_clear_of(plan, blocks, ends):
+    """Lay each block's array, keeping off the space past each arm end that its tail and end room will want; a block
+    with no room for one hands its array to the best hull spot anywhere on the station, away from the arrays already
+    laid. -> the fields' keep-out set (without that reserve) for the tails."""
+    reserve = set()
+    for what, st, out, perp in ends:
+        ea, eb, eo = END_ROOM[what]
+        for k in range(0, min(eo, 20) + 8):
+            for j in range(-ea - 3, 4 + eb + 3):
+                reserve.add(_add(st, _vec(out, k), _vec(perp, j)))
+    keep = set(reserve)
+    left = [label for label, info in blocks if not corner_solar(plan, info, label, keep)]
+    for label in left:
+        if not any_solar(plan, label, keep):
+            plan.notes.append("solar %s: no room for an array" % label)
+    return keep - reserve
+
+
+SOLAR_TOTAL = SOLAR_LEAD + SOLAR_DEPTH + 2
+
+
+def _dock_tiles(plan):
+    return [t for t, r in plan.floor.items() if plan.rooms.get(r, {}).get("dock")
+            or r in ("arrivals_spine", "escape_spine")]
+
+
+def _solar_fits(plan, m, d, perp, gap, keep_out, dock_tiles):
+    """Is the lane out of maint tile m (d out, perp across) clear for a control room, the lead and the field?"""
+    if _add(m, d) in plan.floor:
+        return False
+    lane = [_add(m, _vec(d, o), _vec(perp, s_)) for o in range(1, SOLAR_TOTAL) for s_ in range(-SOLAR_W - 2, SOLAR_W + 3)]
+    if any(t in plan.floor or t in plan.walls or t in keep_out or t in plan.solar for t in lane):
+        return False
+    # the room's wall must sit on a hull run: maint (or nothing) either side of m along the hull, not a room
+    if not all(plan.floor.get(_add(m, _vec(perp, s_))) in (None, "maint") for s_ in (-2, -1, 1, 2)):
+        return False
+    xs = [t[0] for t in lane]
+    ys = [t[1] for t in lane]
+    return not any(min(xs) - gap <= t[0] <= max(xs) + gap and min(ys) - gap <= t[1] <= max(ys) + gap
+                   for t in dock_tiles)
+
+
+def corner_solar(plan, info, label, keep_out, rnd=None):
+    """A stock solar array off a block's outside, as near its far corner as it fits: a control room (console, SMES,
+    APC) built out from the hull maint, a double airlock, a cable catwalk, then the field. The field and its lead
+    stay off the floor plan (no walls round lattice); their footprint and a margin go into keep_out. -> laid?"""
+    c, a, b, mw = info["c"], info["a"], info["b"], info["mw"]
+    Wq, Hq = info.get("Wf", info["W"] + mw), info.get("E", info["H"] + mw)
+
+    def at(i, j):
+        return _add(c, _vec(a, i), _vec(b, j))
+    dock_tiles = _dock_tiles(plan)
+    cands = []
+    for i in range(0, Wq + 1):
+        for j in range(0, Hq + 1):
+            t = at(i, j)
+            if plan.floor.get(t) != "maint":
+                continue
+            # out the back (b) or out past the far end (a), whichever way is open space; back past the near end (-a)
+            # only when neither fits
+            na = (-a[0], -a[1])
+            for d, perp, score, tier in ((b, a, i + 1.2 * j, 0), (a, b, 1.2 * i + j, 0), (na, b, j - i, 1)):
+                cands.append((tier, -score, t, d, perp))
+    cands.sort(key=lambda x: x[:2])
+    # well clear of the docks first (shuttles swing wide), then nearer
+    pick = next(((m, d, perp) for gap, tiers in ((16, (0,)), (6, (0, 1)), (3, (0, 1))) for tier, _, m, d, perp in cands
+                 if tier in tiers and _solar_fits(plan, m, d, perp, gap, keep_out, dock_tiles)), None)
+    if not pick:
+        return False
+    _lay_solar(plan, *pick, label, keep_out)
+    return True
+
+
+def any_solar(plan, label, keep_out):
+    """The array of a block with no room off its own hull: any hull maint tile on the station, out whichever way is
+    open, as far from the arrays already laid and from the docks as it can. -> laid?"""
+    dock_tiles = _dock_tiles(plan)
+    laid = [((r[0] + r[2]) / 2.0, (r[1] + r[3]) / 2.0) for r, _ in plan.solars]
+    xs = [t[0] for t in plan.floor]
+    ys = [t[1] for t in plan.floor]
+    mid = ((min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0)
+    cands = []
+    for m, r in plan.floor.items():
+        if r != "maint":
+            continue
+        for d in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            if _add(m, d) in plan.floor:
+                continue
+            far = _add(m, _vec(d, SOLAR_TOTAL // 2))
+            spread = min([abs(far[0] - p[0]) + abs(far[1] - p[1]) for p in laid] or [999])
+            cands.append((-min(spread, 80), -(abs(far[0] - mid[0]) + abs(far[1] - mid[1])), m, d, (d[1], d[0])))
+    cands.sort(key=lambda x: x[:2])
+    pick = next(((m, d, perp) for gap in (16, 6, 3) for _, _, m, d, perp in cands
+                 if _solar_fits(plan, m, d, perp, gap, keep_out, dock_tiles)), None)
+    if not pick:
+        return False
+    _lay_solar(plan, *pick, label, keep_out)
+    return True
+
+
+def _lay_solar(plan, m, d, perp, label, keep_out):
+    def f(s_, o):
+        return _add(m, _vec(d, o), _vec(perp, s_))
+    rid = "solar_%s" % label
+    for o in range(2, 5):
+        for s_ in (-1, 0, 1):
+            plan.floor[f(s_, o)] = rid
+    plan.rooms[rid] = dict(kind="room", dept="solar", label="solars", public=False, maint=True, front=(), links=(),
+                           colour=(212, 178, 92))
+    lock = "solar_lock_%s" % label
+    plan.floor[f(0, 6)] = lock
+    plan.rooms[lock] = dict(kind="hall", dept="solar", label="", public=False, colour=(212, 178, 92))
+    plan.doors[f(0, 5)] = "external"
+    plan.doors[f(0, 7)] = "external"
+    plan.doors[f(0, 1)] = "maint"
+    for o in (8, 9):
+        plan.solar[f(0, o)] = "cable"
+    for (s_, o), kind in SOLAR_FIELD.items():
+        plan.solar[f(s_, SOLAR_LEAD + o)] = kind
+    pts = [f(s_, SOLAR_LEAD + o) for (s_, o) in SOLAR_FIELD]
+    xs, ys = [t[0] for t in pts], [t[1] for t in pts]
+    plan.solars.append(((min(xs), min(ys), max(xs), max(ys)), label))
+    for o in range(1, SOLAR_TOTAL + 2):
+        for s_ in range(-SOLAR_W - 3, SOLAR_W + 4):
+            keep_out.add(f(s_, o))
 
 
 def lay_end(plan, by, strips, seed, what, base, out, perp, hw):
@@ -1046,6 +1203,7 @@ def orient(plan, rnd):
         a, b = m(rect[:2]), m(rect[2:])
         sol.append(((min(a[0], b[0]), min(a[1], b[1]), max(a[0], b[0]), max(a[1], b[1])), lab))
     plan.solars = sol
+    plan.solar = {m(t): k_ for t, k_ in plan.solar.items()}
     back = {v: c for c, v in COMPASS.items()}
 
     def turn(word):
