@@ -2432,6 +2432,9 @@ def main():
         print("   ", note)
     for note in tidy_rooms(m, bd.zone, keep=frozenset(getattr(bd, "stamped", ()))):
         print("   ", note)
+    from station import floors
+    for note in floors.style_floors(m, bd, keep=frozenset(getattr(bd, "engine_block", ()))):
+        print("   ", note)
     left = F.review(m, bd.zone)
     from collections import Counter
     print("function review after: %d %s" % (len(left), dict(Counter(r for r, _, _ in left))))
