@@ -366,6 +366,122 @@ class StationBuilder(B.Builder):
             return (0, 0) if floors < 40 else (1, 1)
         return n, ns
 
+    VENT_CELL = 10      # one vent + scrubber pair per ~10x10 of room
+
+    def vent_layout(self, area, n, ns):
+        """Rooms vented as a mapper does it (the user, 2026-11-16: "way too many scrubbers and vents ... good symmetry,
+        follow box/line shapes with each other"): each room behind its doors gets a grid of pairs, one per ~10x10,
+        the grid centred in the room's main rectangle; a pair is a vent and a scrubber two tiles apart along the
+        room's long side, every pair the same way round, so two pairs make a box and a row of them a line. One pair
+        per 45 tiles by k-means dropped them anywhere. Maint corridors (vents only) keep the spread."""
+        if not n or not ns or (area.startswith("/area/maintenance/") and not area.startswith(
+                ("/area/maintenance/department", "/area/maintenance/solars", "/area/maintenance/disposal"))):
+            return None
+        from station import floors as FL
+
+        def ok(p, taken):
+            t = self.t(*p)
+            # never touching another vent or scrubber, corners included
+            near = any((p[0] + dx, p[1] + dy) in taken for dx in (-1, 0, 1) for dy in (-1, 0, 1))
+            return p in floor and not near and not kit.dense(t.objs) and not t.has("/obj/machinery/door") \
+                and not t.has("/obj/machinery/atmospherics") and not self.spec(p).get("no_vent")
+        floor = set(self.floors_of(area))
+        left, groups = set(floor), []
+        while left:
+            s0 = min(left)
+            left.discard(s0)
+            g, q = {s0}, [s0]
+            while q:
+                p = q.pop()
+                for d in CARD:
+                    nn = self.nb(p, d)
+                    if nn in left and not self.t(*nn).has("/obj/machinery/door"):
+                        left.discard(nn)
+                        g.add(nn)
+                        q.append(nn)
+            groups.append(g)
+        vs, sc = [], []
+        for k, g in enumerate(sorted(groups, key=lambda g: (-len(g), min(g)))):
+            # a stall or a cell off a bigger room shares its air (Meta's toilet stalls have none)
+            if len(g) < 4 or (k and len(g) < 10):
+                continue
+            floor = g       # ok() places in this room only (a shifted grid had put a pair in the next bedroom)
+            xs, ys = [p[0] for p in g], [p[1] for p in g]
+            box = (min(xs), min(ys), max(xs), max(ys))
+            if k and len(g) < 25:
+                # a cell or a bedroom off the main room: one vent in its middle, the main room's scrubbers do
+                taken = set(vs) | set(sc)
+                mid = ((box[0] + box[2]) / 2.0, (box[1] + box[3]) / 2.0)
+                free = sorted((p for p in g if ok(p, taken)), key=lambda p: (abs(p[0] - mid[0]) + abs(p[1] - mid[1]), p))
+                if free:
+                    vs.append(free[0])
+                continue
+            if len(g) < 0.75 * (box[2] - box[0] + 1) * (box[3] - box[1] + 1):
+                r = FL.biggest_rect(g, 3)
+                if r:
+                    box = (min(p[0] for p in r), min(p[1] for p in r), max(p[0] for p in r), max(p[1] for p in r))
+            w, h = box[2] - box[0] + 1, box[3] - box[1] + 1
+            cols = max(1, int(w / self.VENT_CELL + 0.5))
+            rows = max(1, int(h / self.VENT_CELL + 0.5))
+            # the pair lies along the long side; a 1- or 2-wide strip can only take it lengthways
+            horiz = w >= h
+            off = (1, 0) if horiz else (0, 1)
+            cells = []
+            for i in range(cols):
+                for j in range(rows):
+                    cx = box[0] + (i + 0.5) * w / cols - 0.5
+                    cy = box[1] + (j + 0.5) * h / rows - 0.5
+                    cells.append((cx, cy))
+
+            def targets(dx, dy):
+                out = []
+                for cx, cy in cells:
+                    # the pair's middle (the tile between vent and scrubber) on the cell centre
+                    rx, ry = int(math.floor(cx + 0.5)), int(math.floor(cy + 0.5))
+                    a = (rx - off[0], ry - off[1])
+                    v = (a[0] + dx, a[1] + dy)
+                    s = (v[0] + 2 * off[0], v[1] + 2 * off[1])
+                    out.append((v, s))
+                return out
+            shifts = sorted({(dx, dy) for dx in range(-3, 4) for dy in range(-3, 4)}, key=lambda d: (abs(d[0]) + abs(d[1]), d))
+            # the whole grid moved together first (it stays symmetric); failing that each pair on its own
+            done = None
+            for dx, dy in shifts:
+                ts = targets(dx, dy)
+                taken = set(vs) | set(sc)
+                if all(ok(v, taken) and ok(s, taken | {v}) for v, s in ts) and len({p for t in ts for p in t}) == 2 * len(ts):
+                    done = ts
+                    break
+            if done is None:
+                done = []
+                for base in targets(0, 0):
+                    taken = set(vs) | set(sc) | {p for t in done for p in t}
+                    for dx, dy in shifts:
+                        v = (base[0][0] + dx, base[0][1] + dy)
+                        s = (base[1][0] + dx, base[1][1] + dy)
+                        if ok(v, taken) and ok(s, taken | {v}):
+                            done.append((v, s))
+                            break
+                    else:
+                        # the grid point is off the floor (an L-shaped hall): the nearest place a pair fits two apart,
+                        # either way round; failing that a vent and a scrubber wherever they fit
+                        free = sorted((p for p in g if ok(p, taken)),
+                                      key=lambda p: (abs(p[0] - base[0][0]) + abs(p[1] - base[0][1]), p))
+                        pick = next(((v, s) for v in free for o in (off, (off[1], off[0]), (-off[0], -off[1]),
+                                                                    (-off[1], -off[0]))
+                                     for s in ((v[0] + 2 * o[0], v[1] + 2 * o[1]),) if ok(s, taken | {v})), None)
+                        if pick is None and free:
+                            s = next((p for p in free[1:] if ok(p, taken | {free[0]})), None)
+                            pick = (free[0], s) if s else None
+                        if pick:
+                            done.append(pick)
+            for v, s in done:
+                vs.append(v)
+                sc.append(s)
+        if not vs:
+            return None
+        return vs, sc
+
     def atmos(self):
         # the cryo bay's own loop goes down first, so the station's pipes route round it
         from forge import function as F
@@ -1517,7 +1633,45 @@ def fill_utility(m, bd, rc_of, used, put):
     rc = rc_of.get("engine")
     if rc:
         notes.append(dress_engine(m, bd, rc, used, put))
+    rc = rc_of.get("bay")
+    if rc:
+        notes.append(park_mules(m, bd, rc, used, put))
     return notes
+
+
+MULE = "/mob/living/simple_animal/bot/mulebot"
+
+
+def park_mules(m, bd, rc, used, put, stalls=4, mules=2):
+    """The cargo bay's MULE parking as MetaStation has it: a row of four stalls along one wall, each a delivery box
+    with a navbeacon homing a MULE ("QM #1".."QM #4", freq 1400, unloading into the room), two MULEs parked in #1
+    and #3. The corpus scattered them loose over the bay floor (the user, 2026-11-16: "too many mule bots in cargo
+    and no dedicated parking bay"; 14 on seed 1)."""
+    tiles = [p for p, r in bd.room.items() if r == rc]
+    loose = 0
+    for p in tiles:
+        t = m.get(*p)
+        n = len(t.objs)
+        t.objs = [o for o in t.objs if not o.path.startswith(MULE)]
+        loose += n - len(t.objs)
+    run = wall_run(bd, rc, stalls, used, center=True)
+    for i, p in enumerate(run):
+        wall_d = next((d for d in CARD if m.get(*bd.nb(p, d)).tpath.startswith("/turf/closed")), 1)
+        out = OPP[wall_d]
+        t = m.get(*p)
+        t.objs = [o for o in t.objs if not o.path.startswith(("/obj/effect/turf_decal/tile", "/obj/effect/turf_decal/bot"))]
+        put(p, "/obj/effect/turf_decal/delivery")
+        name = "QM #%d" % (i + 1)
+        put(p, "/obj/machinery/navbeacon", [("codes_txt", '"delivery;dir=%d"' % out), ("dir", str(out)),
+                                             ("freq", "1400"), ("location", '"%s"' % name)])
+        if i % 2 == 0 and i // 2 < mules:
+            put(p, MULE, [("beacon_freq", "1400"), ("home_destination", '"%s"' % name), ("suffix", '"#%d"' % (i + 1))])
+        used.add(p)
+    # the stall row's front stays clear: the MULEs drive out of it
+    for p in run:
+        used.add(bd.nb(p, OPP[next((d for d in CARD if m.get(*bd.nb(p, d)).tpath.startswith("/turf/closed")), 1)]))
+    return "cargo bay: %d loose MULEs cleared, %d parking stalls, %d MULEs parked" % (
+        loose, len(run), sum(1 for i in range(len(run)) if i % 2 == 0 and i // 2 < mules))
 
 
 # MetaStation's engine room round the block (counted 2026-11-16): nitrogen for the cooling loop, radiation closets,

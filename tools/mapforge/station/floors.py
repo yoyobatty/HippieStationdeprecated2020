@@ -10,7 +10,13 @@ using plating, chevrons"):
   stripe run turns round a piece (stripes/corner, 1 NW 4 NE 2 SE 8 SW); lockers and suit storage stand on a bot box,
   racks and crates on plating. Meta's engineering: 124 plasteel, 77 engine, 74 plating, 67 dark tiles; 180 stripe
   decals over 479 tiles.
+- the other departments (RECIPES): stripes only round their hazards (cargo ore machines and conveyors, science
+  fabricators and the mech bay, cryo tubes; none on hydroponics trays or armory racks), racks and crates on plating
+  where nothing runs under them, loading arrows inside the cargo bay's outer doors, engine-floor pads under the heavy
+  science machines; white labs stay white.
 """
+from collections import Counter
+
 from forge import dmm, kit
 from forge.kit import CARD, DELTA
 
@@ -28,6 +34,36 @@ TILE = "/obj/effect/turf_decal/tile/"
 
 ENGINEERING = ("/area/engine/engineering", "/area/engine/engine_room", "/area/engine/engine_smes",
                "/area/engine/gravity_generator", "/area/engine/atmos", "/area/storage/tech")
+WHITE = "/turf/open/floor/plasteel/white"
+SCI_HEAVY = ("/obj/machinery/rnd/experimentor", "/obj/machinery/mech_bay_recharge_port", "/obj/machinery/nanite_chamber",
+             "/obj/machinery/doppler_array")     # not the fabricators: a pad each ran into a black band
+LOADING = "/obj/effect/turf_decal/loading_area"
+UNDER = ("/obj/machinery/atmospherics/pipe", "/obj/structure/cable", "/obj/structure/disposalpipe")     # bare on plating
+# per department, mined from Meta: stripes = hazard edges in front of pieces; bay = the turf the work floor (pieces and
+# the striped tiles) changes to, by the room's base turf (None: the turf stays); pad = (machines, turf) for a 3x3 pad;
+# trim = the walkway's edge colour toward the bay; plating = racks/crates on plating; loading = an arrow inside the
+# cargo doors and flaps. First matching prefix wins, so the narrow ones come first.
+# stripes: True edges every piece (engineering, the user's "chevrons make a huge improvement"); a tuple edges only those
+# pieces, the hazards a mapper marks (the user, 2026-11-16: "chevrons really should be in places where it makes sense
+# ... not on botany trays"); () clears the template's stripes and draws none.
+CARGO_HAZARD = ("/obj/machinery/mineral", "/obj/machinery/conveyor", "/obj/machinery/disposal", "/obj/machinery/autolathe")
+SCI_HAZARD = SCI_HEAVY + ("/obj/machinery/mecha_part_fabricator", "/obj/machinery/rnd/production",
+                          "/obj/machinery/computer/mech_bay_power_console", "/obj/machinery/portable_atmospherics")
+RECIPES = [
+    (ENGINEERING, dict(stripes=True, bay={STEEL: DARK}, pad=(HEAVY, ENGINE_FLOOR), trim="yellow", plating=True)),
+    (("/area/quartermaster/storage", "/area/quartermaster/warehouse", "/area/quartermaster/sorting",
+      "/area/quartermaster/miningdock"),
+     dict(stripes=CARGO_HAZARD, plating=True, loading=True)),
+    # white labs stay white (a grey bay round every piece turned the room grey with white islands): only the heavy
+    # machines get a pad, and the hazard edges are for the workshops, not the R&D or nanite desks
+    (("/area/science/robotics", "/area/science/explab", "/area/science/misc_lab", "/area/science/mixing"),
+     dict(stripes=SCI_HAZARD, pad=(SCI_HEAVY, ENGINE_FLOOR), plating=True)),
+    (("/area/science/lab", "/area/science/nanite", "/area/science/storage"), dict(pad=(SCI_HEAVY, ENGINE_FLOOR))),
+    (("/area/medical/cryo",), dict(stripes=("/obj/machinery/atmospherics/components/unary/cryo_cell",))),
+    (("/area/ai_monitored/security/armory",), dict(stripes=(), plating=True)),
+    (("/area/security",), dict()),
+    (("/area/hydroponics",), dict(stripes=())),
+]
 ON_BOT = ("/obj/structure/closet", "/obj/machinery/suit_storage_unit", "/obj/machinery/vending")
 ON_PLATING = ("/obj/structure/rack", "/obj/structure/closet/crate")
 # dense but part of the room's shell, or a piece you walk past rather than work at
@@ -89,8 +125,10 @@ def style_floors(m, bd, keep=frozenset()):
         area = bd.roomdefs[rc]["area"]
         if area == "/area/chapel/main":
             notes.append(chapel(m, tiles))
-        elif area.startswith(ENGINEERING):
-            notes.append(engineering(m, set(tiles), area))
+        else:
+            r = next((r for pre, r in RECIPES if area.startswith(pre)), None)
+            if r is not None:
+                notes.append(workfloor(m, set(tiles), area, r))
     return [n for n in notes if n]
 
 
@@ -125,23 +163,35 @@ def is_piece(o):
         abs(o.num("pixel_x")) < 16 and abs(o.num("pixel_y")) < 16
 
 
-def engineering(m, tiles, area):
+def workfloor(m, tiles, area, r):
     def piece(p):
         t = m.get(*p)
         return t is not None and any(is_piece(o) for o in t.objs)
 
     def door(p):
         t = m.get(*p)
-        return t is not None and t.has("/obj/machinery/door")
-    lines = corners = bots = plating = 0
+        return t is not None and (t.has("/obj/machinery/door") or t.has("/obj/structure/plasticflaps"))
+    marks = r.get("stripes")
+
+    def hazard(p):
+        # a piece the stripes edge: every piece, or only the recipe's hazards
+        if not marks:
+            return False
+        if marks is True:
+            return piece(p)
+        t = m.get(*p)
+        return t is not None and any(o.path.startswith(marks) and is_piece(o) for o in t.objs)
+    lines = corners = bots = plating = arrows = 0
     for p in tiles:
         t = m.get(*p)
         # the template's stripe fragments go: the edges are drawn again from where things stand now
-        t.objs = [o for o in t.objs if not o.path.startswith((LINE, CORNER))]
+        if "stripes" in r:
+            t.objs = [o for o in t.objs if not o.path.startswith((LINE, CORNER))]
         an = next((o for o in t.objs if is_piece(o)), None)
         if an is None:
             continue
-        if an.path.startswith(ON_PLATING) and t.tpath.startswith("/turf/open/floor/plasteel"):
+        if r.get("plating") and an.path.startswith(ON_PLATING) and t.tpath.startswith("/turf/open/floor/plasteel") and \
+                not any(o.path.startswith(UNDER) for o in t.objs):
             t.turf = dmm.Atom(PLATING)
             t.objs = [o for o in t.objs if not o.path.startswith(("/obj/effect/turf_decal",))]
             plating += 1
@@ -150,11 +200,30 @@ def engineering(m, tiles, area):
             if not t.has("/obj/effect/turf_decal/bot") and not t.has("/obj/effect/turf_decal/delivery"):
                 t.objs.insert(0, dmm.Atom("/obj/effect/turf_decal/bot"))
                 bots += 1
+    if r.get("loading"):
+        # an arrow on the tile inside each cargo door or flap, pointing in from it
+        for p in sorted(tiles):
+            t = m.get(*p)
+            if piece(p) or door(p) or t.has(LOADING):
+                continue
+            for d in CARD:
+                q = nb(p, d)
+                tq = m.get(*q)
+                if tq is not None and (tq.has("/obj/structure/plasticflaps") or
+                                                         tq.has("/obj/machinery/door/airlock/external")):
+                    t.objs = [o for o in t.objs if not o.path.startswith(TILE)]
+                    od = kit.OPP[d]
+                    t.objs.insert(0, dmm.Atom(LOADING, [] if od == 2 else [("dir", str(od))]))
+                    arrows += 1
+                    break
+    if not r.get("stripes") and not r.get("pad"):
+        return "floors %s: %d bot boxes, %d on plating" % (area.replace("/area/", ""), bots, plating) \
+            if bots or plating else None
     for p in sorted(tiles):
         t = m.get(*p)
         if piece(p) or door(p) or any(door(nb(p, d)) for d in CARD):
             continue
-        mask = sum(d for d in CARD if nb(p, d) in tiles and piece(nb(p, d)))
+        mask = sum(d for d in CARD if nb(p, d) in tiles and hazard(nb(p, d)))
         decals = []
         if mask in (1, 2, 4, 8, 5, 6, 9, 10):
             decals.append(mask)
@@ -165,7 +234,7 @@ def engineering(m, tiles, area):
             sx = 4 if dx > 0 else 8
             sy = 1 if dy > 0 else 2
             q = (p[0] + dx, p[1] + dy)
-            if q in tiles and piece(q) and not mask & sx and not mask & sy and \
+            if q in tiles and hazard(q) and not mask & sx and not mask & sy and \
                     not piece((p[0] + dx, p[1])) and not piece((p[0], p[1] + dy)):
                 t.objs.insert(0, dmm.Atom(CORNER, [] if qd == 2 else [("dir", str(qd))]))
                 corners += 1
@@ -175,9 +244,16 @@ def engineering(m, tiles, area):
     # floor zones: a heavy machine stands on an engine-floor pad (its tile and the ring round it), the other work
     # bays (the pieces and the striped floor in front of them) on dark plasteel; the walkway keeps the room's steel
     # and its trim. Only plain steel changes: plating under racks, a template's own floor, stay.
+    floor = Counter(m.get(*p).tpath for p in tiles)
+    base = max(floor, key=floor.get)
+    bay_turf = (r.get("bay") or {}).get(base)
+    if bay_turf is None and not r.get("pad"):
+        return "floors %s: %d stripe edges, %d corners, %d bot boxes, %d on plating, %d loading arrows" % (
+            area.replace("/area/", ""), lines, corners, bots, plating, arrows) if lines or bots or plating else None
+    heavy, pad_turf = r.get("pad") or ((), None)
     pads = set()
     for p in tiles:
-        if any(o.path.startswith(HEAVY) for o in m.get(*p).objs):
+        if heavy and any(o.path.startswith(heavy) for o in m.get(*p).objs):
             pads |= {(p[0] + dx, p[1] + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)} & tiles
     dark = engine = 0
 
@@ -187,17 +263,17 @@ def engineering(m, tiles, area):
     def bay(p):
         t = m.get(*p)
         return piece(p) or any(o.path.startswith((LINE, CORNER)) for o in t.objs)
-    steel = {p for p in tiles if m.get(*p).tpath == STEEL}
+    steel = {p for p in tiles if m.get(*p).tpath == base}     # the room's own floor; other turfs stay
     # the walkway: open steel in rectangles 3x3 or bigger (biggest first); a pocket between bays narrower than that
     # joins the bays, so the dark floor and the walkway meet in straight lines rather than round every piece
     walk = set()
     open_ = {p for p in steel if not bay(p)}
     if any(bay(p) for p in steel) and biggest_rect(open_):
         while True:
-            r = biggest_rect(open_ - walk)
-            if r is None:
+            rect = biggest_rect(open_ - walk)
+            if rect is None:
                 break
-            walk |= r
+            walk |= rect
     else:
         walk = set(open_)     # too narrow for a walkway (a 2-wide strip): only the bays change
     # the tile inside a door goes with the floor beside it (left steel it was a pale square in a dark bay)
@@ -208,23 +284,25 @@ def engineering(m, tiles, area):
                 walk.add(p)
     for p in steel:
         t = m.get(*p)
-        if door(p) or p in walk:
+        if door(p) or (p in walk and bay_turf is not None):
             continue
         if p in pads:
-            t.turf = dmm.Atom(ENGINE_FLOOR)
+            t.turf = dmm.Atom(pad_turf)
             engine += 1
+        elif bay_turf is None:
+            continue
         else:
-            t.turf = dmm.Atom(DARK)
+            t.turf = dmm.Atom(bay_turf)
             dark += 1
         t.objs = [o for o in t.objs if not o.path.startswith(TILE)]
     # the walkway's edge toward the bays in the department colour, the half facing out
     trim = 0
-    colour = "yellow"
-    for p in walk:
+    colour = r.get("trim")
+    for p in walk if colour else ():
         t = m.get(*p)
         for d, qs in QUARTERS.items():
             q = nb(p, d)
-            if q in tiles and q not in walk and m.get(*q).tpath in (DARK, ENGINE_FLOOR):
+            if q in tiles and q not in walk and m.get(*q).tpath in (bay_turf, pad_turf):
                 for qd in qs:
                     a = dmm.Atom(TILE + colour, [] if qd == 2 else [("dir", str(qd))])
                     if not any(o.text() == a.text() for o in t.objs):
@@ -232,5 +310,5 @@ def engineering(m, tiles, area):
                         trim += 1
     if not (lines or corners or bots or plating):
         return None
-    return "floors %s: %d stripe edges, %d corners, %d bot boxes, %d racks/crates on plating, %d dark bay, %d engine pad" % (
-        area.replace("/area/", ""), lines, corners, bots, plating, dark, engine)
+    return "floors %s: %d stripe edges, %d corners, %d bot boxes, %d on plating, %d loading arrows, %d bay, %d pad" % (
+        area.replace("/area/", ""), lines, corners, bots, plating, arrows, dark, engine)

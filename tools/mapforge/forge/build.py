@@ -1268,6 +1268,10 @@ class Builder:
                 out.append(site)
         return out
 
+    def vent_layout(self, area, n, ns):
+        """(vents, scrubbers) for an area laid out by a subclass, or None for the k-means spread below."""
+        return None
+
     def vent_count(self, area, rd=None):
         """(vents, scrubbers) an area gets: one pair per 45 tiles unless its roomdef says how many."""
         rd = self.roomdef_for_area(area) if rd is None else rd
@@ -1281,6 +1285,11 @@ class Builder:
         for area in self.areas():
             n, ns = self.vent_count(area)
             if not n:
+                continue
+            laid = self.vent_layout(area, n, ns)
+            if laid is not None:
+                self.vents["supply"] += laid[0]
+                self.vents["scrubbers"] += laid[1]
                 continue
             vs = self.vent_sites(area, n)
             self.vents["supply"] += vs
