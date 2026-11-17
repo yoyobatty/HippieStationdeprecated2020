@@ -1181,6 +1181,220 @@ MAINT_TOP = ["/obj/effect/spawner/lootdrop/maintenance", "/obj/effect/spawner/lo
              "/obj/item/reagent_containers/food/drinks/drinkingglass", "/obj/item/extinguisher"]
 
 
+# What hangs on a wall face, by rank: the lower rank stays and anything ranked after it on the same face moves along
+# the wall. An APC sits on its cable terminal and never moves; the plumbing (sink with its mirror, urinal, toilet,
+# shower) is placed by the function review and stays; then alarms and buttons, the light, the wall boxes, signs.
+FACE_RANKS = [
+    (0, ("/obj/machinery/power/apc",)),
+    (1, ("/obj/structure/sink", "/obj/structure/mirror", "/obj/structure/urinal", "/obj/structure/toilet", "/obj/machinery/shower")),
+    (2, ("/obj/machinery/airalarm", "/obj/machinery/firealarm", "/obj/machinery/light_switch", "/obj/machinery/button",
+         "/obj/machinery/requests_console", "/obj/machinery/keycard_auth", "/obj/machinery/door_timer")),
+    (3, ("/obj/machinery/light",)),
+    (4, ("/obj/structure/extinguisher_cabinet", "/obj/machinery/newscaster", "/obj/item/radio/intercom",
+         "/obj/machinery/status_display", "/obj/structure/noticeboard", "/obj/machinery/defibrillator_mount",
+         "/obj/machinery/vending/wallmed", "/obj/machinery/flasher", "/obj/structure/fireaxecabinet",
+         "/obj/machinery/computer/security/telescreen")),
+    (5, ("/obj/structure/sign",)),
+]
+
+
+def face_rank(o):
+    if o.path.startswith(("/obj/machinery/light/floor", "/obj/structure/sign/barsign")):
+        return None
+    for r, pres in FACE_RANKS:
+        if o.path.startswith(pres):
+            return r
+    return None
+
+
+def face_side(o):
+    """The wall a piece hangs on: a light and a shower by their dir (a shower faces away from its wall), a toilet by
+    which way it faces, the rest by their pixel offset."""
+    if o.path.startswith("/obj/machinery/light"):
+        return o.num("dir", 2) or 2
+    if o.path.startswith("/obj/machinery/shower"):
+        return OPP[o.num("dir", 2) or 2]
+    if min(abs(o.num("pixel_x")), abs(o.num("pixel_y"))) >= 16:
+        return None     # hung across a corner (an intercom up in the corner): left where it is
+    from forge import function as F
+    s = F.wall_side_of(o)
+    if s:
+        return s
+    px, py = o.num("pixel_x"), o.num("pixel_y")
+    if max(abs(px), abs(py)) < 16 or min(abs(px), abs(py)) >= 16:
+        return None     # not hung, or hung across a corner (an intercom up in the corner): left where it is
+    return (1 if py > 0 else 2) if abs(py) >= abs(px) else (4 if px > 0 else 8)
+
+
+def one_per_wall_face(m, zone, keep=frozenset()):
+    """One thing per wall face. Lights, urinals, mirrors, posters and alarms were each placed by their own step, and
+    nothing stopped two of them landing on the same bit of wall: a light tube behind a urinal, a fire alarm over a
+    toilet, a poster through a urinal (the user's restroom, 2026-11-16). The stock maps never stack them. The
+    lower-ranked piece moves along the same wall in the same room to the nearest free face, preferring a tile with
+    nothing on its other walls (an inside corner holding two pieces reads as a pile too); a sign or wall box with
+    nowhere to go is dropped, a light only if its room keeps another one. A sink on a shower's tile moves off it."""
+    zone = set(zone)
+    WET = ("/obj/structure/sink", "/obj/structure/urinal", "/obj/structure/toilet")
+
+    def t(p):
+        return m.get(p[0], p[1])
+
+    def pieces(p):
+        out = []
+        for o in t(p).objs:
+            r = face_rank(o)
+            if r is not None:
+                s = face_side(o)
+                if s:
+                    out.append((r, s, o))
+        return out
+
+    def wall_at(p, s):
+        q = (p[0] + DELTA[s][0], p[1] + DELTA[s][1])
+        tq = t(q)
+        return tq is not None and tq.tpath.startswith("/turf/closed") and not tq.has("/obj/machinery/door")
+
+    def floor_ok(p):
+        tp = t(p)
+        return tp is not None and p in zone and p not in keep and tp.tpath.startswith("/turf/open") \
+            and not tp.tpath.startswith("/turf/open/space") and not tp.has("/obj/machinery/door")
+
+    def taken(p, s, o):
+        if any(s2 == s for _, s2, o2 in pieces(p) if o2 is not o):
+            return True
+        # the wall tile already carries something hung from another side (both faces of one wall read as one pile)
+        w = (p[0] + DELTA[s][0], p[1] + DELTA[s][1])
+        for d, dl in DELTA.items():
+            r = (w[0] + dl[0], w[1] + dl[1])
+            if r != p and t(r) is not None and t(r).tpath.startswith("/turf/open") and \
+                    any(s2 == OPP[d] for _, s2, o2 in pieces(r) if o2 is not o):
+                return True
+        return False
+
+    def usable(q, s, o, area, floor_piece):
+        if not floor_ok(q) or t(q).apath != area or not wall_at(q, s) or taken(q, s, o):
+            return False
+        return not (floor_piece and (kit.dense(t(q).objs) or t(q).has("/obj/machinery/shower") or
+                                     any(a.path.startswith(WET) for a in t(q).objs)))
+
+    def spot_for(p, s, o, floor_piece):
+        perp = (DELTA[s][1], DELTA[s][0])
+        area = t(p).apath
+        best = None
+        for k in range(1, 7):
+            for sg in (1, -1):
+                q = (p[0] + sg * k * perp[0], p[1] + sg * k * perp[1])
+                if not usable(q, s, o, area, floor_piece):
+                    continue
+                if not pieces(q):
+                    return q, s
+                best = best or (q, s)
+        if best or floor_piece or o.path.startswith(("/obj/structure/mirror", "/obj/structure/sign")):
+            return best
+        # an alarm, light or wall box can go on any wall of its room: the nearest free face, turned to that wall
+        cands = []
+        for q in zone:
+            if t(q) is None or t(q).apath != area or abs(q[0] - p[0]) + abs(q[1] - p[1]) > 12:
+                continue
+            for s2 in CARD:
+                if usable(q, s2, o, area, False):
+                    # a tile with something already on another of its walls (an inside corner) only if nothing else
+                    crowd = len(pieces(q)) + sum(1 for o2 in t(q).objs if o2.path.startswith(("/obj/item/twohanded/required/kirbyplants", "/obj/structure/flora")))
+                    cands.append((abs(q[0] - p[0]) + abs(q[1] - p[1]) + 8 * crowd, q, s2))
+        if not cands:
+            return None
+        _, q, s2 = min(cands)
+        return q, s2
+
+    def turn(o, s_from, s_to):
+        """Rehang a wall piece on another wall: its dir and pixel offset follow the wall."""
+        if s_from == s_to:
+            return
+        if o.path.startswith("/obj/machinery/light"):
+            o.vars = [kv for kv in o.vars if kv[0] != "dir"] + [("dir", str(s_to))]
+            return
+        px, py = o.num("pixel_x"), o.num("pixel_y")
+        off = max(abs(px), abs(py))
+        dx, dy = DELTA[s_to]
+        vs = [kv for kv in o.vars if kv[0] not in ("pixel_x", "pixel_y", "dir")]
+        if dx:
+            vs.append(("pixel_x", str(dx * off)))
+        if dy:
+            vs.append(("pixel_y", str(dy * off)))
+        if any(kv[0] == "dir" for kv in o.vars) or face_rank(o) == 2:
+            # alarms and buttons face out of their wall (default dir 2 is the north wall's)
+            vs.append(("dir", str(OPP[s_to])))
+        o.vars = vs
+
+    moved = dropped = 0
+    notes = []
+    for p in sorted(zone):
+        tp = t(p)
+        if tp is None or p in keep or not tp.has("/obj/machinery/shower") or not tp.has("/obj/structure/sink"):
+            continue
+        area = tp.apath
+        if sum(1 for z in zone if t(z) and t(z).apath == area and t(z).has("/obj/machinery/shower")) > 1:
+            tp.objs = [o for o in tp.objs if not o.path.startswith("/obj/machinery/shower")]
+            dropped += 1
+            notes.append("dropped shower at %d,%d (a sink stands there; the row keeps the others)" % p)
+    for p in sorted(zone):
+        tp = t(p)
+        if tp is None or p in keep or not tp.tpath.startswith("/turf/open"):
+            continue
+        by_side = {}
+        for r, s, o in pieces(p):
+            by_side.setdefault(s, []).append((r, o))
+        losers = []
+        for s, lst in by_side.items():
+            # a toilet or shower stays put before a sink or urinal, which hang on the wall and move more easily
+            lst.sort(key=lambda ro: (ro[0], 0 if ro[1].path.startswith(("/obj/structure/toilet", "/obj/machinery/shower")) else 1))
+            top = lst[0][0]
+            for r, o in lst[1:]:
+                # a mirror over its sink is one piece, as on the stock maps
+                if o.path.startswith("/obj/structure/mirror") and any(a.path.startswith("/obj/structure/sink") for _, a in lst):
+                    continue
+                if r == 0:
+                    continue      # two APCs: never moved here
+                losers.append((s, o))     # plumbing on plumbing too: the second one moves along the wall
+        if tp.has("/obj/machinery/shower"):
+            for o in tp.objs:
+                if o.path.startswith("/obj/structure/sink"):
+                    s = face_side(o)
+                    if s:
+                        losers.append((s, o))
+                        losers += [(s, a) for a in tp.objs if a.path.startswith("/obj/structure/mirror") and face_side(a) == s]
+        for s, o in losers:
+            if o not in tp.objs:
+                continue
+            got = spot_for(p, s, o, o.path.startswith(WET + ("/obj/machinery/shower",)))
+            if got:
+                q, s2 = got
+                tp.objs.remove(o)
+                turn(o, s, s2)
+                t(q).objs.append(o)
+                moved += 1
+                notes.append("%s %d,%d -> %d,%d (its wall face was taken)" % (o.path.rsplit("/", 1)[-1], p[0], p[1], q[0], q[1]))
+                continue
+            r = face_rank(o)
+            if r == 1 and not o.path.startswith("/obj/structure/mirror"):
+                # plumbing with nowhere to go: dropped only where the room keeps another of its kind
+                kind = o.path.split("/")[3]
+                if sum(1 for z in zone if t(z) and t(z).apath == tp.apath and
+                       any(a.path.split("/")[3:4] == [kind] for a in t(z).objs)) > 1:
+                    tp.objs.remove(o)
+                    tp.objs[:] = [a for a in tp.objs if not (a.path.startswith("/obj/structure/mirror") and face_side(a) == s and kind == "sink")]
+                    dropped += 1
+                    notes.append("dropped %s at %d,%d (its wall face was taken, the room has another)" % (kind, p[0], p[1]))
+                continue
+            if r >= 4 or o.path.startswith("/obj/structure/mirror") or (r == 3 and sum(1 for z in zone if t(z) and t(z).apath == tp.apath and
+                                         t(z).has("/obj/machinery/light")) > 1):
+                tp.objs.remove(o)
+                dropped += 1
+                notes.append("dropped %s at %d,%d (its wall face was taken, no free one near)" % (o.path.rsplit("/", 1)[-1], p[0], p[1]))
+    notes.insert(0, "wall faces: %d pieces moved off a taken face, %d dropped" % (moved, dropped))
+    return notes
+
+
 def dress_maint(m, zone, seed):
     """Clutter down the maint runs as the stock maps have it. Generated maint was bare plating: 2455 tiles, five
     objects (2026-11-16). A dense thing only goes against a wall, away from doors and corridor mouths, and only where
@@ -1677,6 +1891,9 @@ def main():
     for note in fit_hall_firelocks(m, set(bd.zone)):
         print("   ", note)
     for note in dress_maint(m, set(bd.zone), run_seed):
+        print("   ", note)
+    face_notes = one_per_wall_face(m, bd.zone, keep=frozenset(getattr(bd, "stamped", ())))
+    for note in face_notes[:12]:
         print("   ", note)
     left = F.review(m, bd.zone)
     from collections import Counter
