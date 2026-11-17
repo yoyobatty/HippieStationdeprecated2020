@@ -146,10 +146,11 @@ GLOBAL_REAL_VAR(lobby_build_loading) = FALSE
 /datum/controller/subsystem/mapping/proc/start_lobby_build()
 	if(!lobby_build_planned || !lobby_build_levels)
 		return
-	// Nobody may be on yet: the world has to keep ticking until it's done
+	// Nobody may be on yet: the world has to keep ticking until it's done. null, not FALSE: the headless runs Master starts
+	// right after this (bot shifts, gym, code sweep...) set FALSE, and the end of the build mustn't put those to sleep.
 	if(Master.sleep_offline_after_initializations)
 		lobby_build_sleep_after = TRUE
-		Master.sleep_offline_after_initializations = FALSE
+		Master.sleep_offline_after_initializations = null
 	INVOKE_ASYNC(src, PROC_REF(lobby_build))
 
 /datum/controller/subsystem/mapping/proc/lobby_build_stage(name, start)
@@ -290,9 +291,11 @@ GLOBAL_REAL_VAR(lobby_build_loading) = FALSE
 		parts += "[name] [lobby_build_stages[name]]s"
 	lobby_build_status = "done in [took]s: [length(turfs)] turfs, [length(mobs) + length(objs)] things"
 	log_world("Lobby build: [lobby_build_status] ([jointext(parts, ", ")]; [round((world.time - started_time) / world.tick_lag)] ticks, pace [pace > 0 ? pace : "MC"])")
-	if(lobby_build_sleep_after)
+	// Only if nothing has wanted the world awake since (a headless run sets FALSE): a Bot Shift on a map with Lavaland used to
+	// fall asleep here, before its round started, and never woke (2026-11-16, every full-station shift stalled after this line)
+	if(lobby_build_sleep_after && isnull(Master.sleep_offline_after_initializations))
 		Master.sleep_offline_after_initializations = TRUE
-		if(!length(GLOB.clients))
+		if(!length(GLOB.clients) && !CONFIG_GET(flag/resume_after_initializations))
 			world.sleep_offline = TRUE
 
 #undef LOBBY_BUILD_TICKLIMIT
