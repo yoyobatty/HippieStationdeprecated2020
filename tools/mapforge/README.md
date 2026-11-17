@@ -53,6 +53,29 @@ less, seats anyone in a doorway or stands a bin on the disposal line. A run of w
 the most of it.
 `forge/proc/emit.py` turns the result into an ordinary blueprint, so everything below still applies.
 
+## Whole stations (`station/`)
+
+`station/to_dmm.py` grows a whole station from a seed and a layout and writes a playable map: the .dmm in
+`_maps/map_files/Generated/` and its `_maps/<name>.json`. The committed seeds are 1 pinwheel, 2 spine and 3 ring.
+
+```
+python tools/mapforge/station/to_dmm.py 2 --layout spine                 # rebuild a committed map
+MAPFORGE_OUT=<dir> python tools/mapforge/station/to_dmm.py 2 --layout spine   # trial: the .dmm only, in <dir>
+```
+
+The log reports each pass. After the departments are built it runs these:
+- **Engine:** MetaStation's supermatter block is copied whole and turned to fit the engine room.
+- **Maint:** every run gets exits, and pockets left between rooms become maint rooms or wall.
+- **Bathrooms:** toilets and sinks stand on the floor facing out, and each restroom gets a maint door.
+- **Hall firelocks:** a full-width line every 7-12 corridor tiles.
+- **Maint dressing:** at MetaStation's density.
+- **One piece per wall face:** a light, urinal, alarm or sign never shares a bit of wall with another.
+
+Then `forge/function.py` reviews every machine where it stands, and `forge/check.py` runs.
+
+Pictures of a whole station use the game's own sprites:
+`forge.render.render(dmm, png, z=1, scale=0.5)`, cropped to the station.
+
 ## What the builder does
 
 - **Areas, turfs, windows** from `LAYOUT` + `ROOMS`; `~` keeps the existing tile (shell walls, hall doors, chutes).
