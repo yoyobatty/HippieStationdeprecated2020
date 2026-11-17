@@ -234,6 +234,8 @@ REQUIRE = {
                 "/obj/structure/bookcase/random/nonfiction", "/obj/structure/bookcase/random/reference"],
     "cabins": [("/obj/structure/bed", 1)],
     "cells": [("/obj/structure/bed", 1)],
+    # the long-stay cell sleeps two: perma had no bed on any seed (2026-11-16 quad review)
+    "perma": [("/obj/structure/bed", 2)],
     "vault": ["/obj/machinery/ore_silo", "/obj/machinery/computer/bank_machine", "/obj/structure/safe",
               "/obj/structure/closet/crate/goldcrate"],
     "restroom": [("/obj/structure/toilet", 2), ("/obj/structure/sink", 2)],
@@ -1395,6 +1397,442 @@ def one_per_wall_face(m, zone, keep=frozenset()):
     return notes
 
 
+NOT_ANCHOR = ("/obj/machinery/door", "/obj/machinery/atmospherics", "/obj/machinery/light", "/obj/structure/cable",
+              "/obj/structure/disposalpipe", "/obj/machinery/navbeacon", "/obj/structure/lattice")
+SEAT = ("/obj/structure/chair", "/obj/structure/bed")
+QUARTER_SIDES = {1: (1, 8), 4: (1, 4), 2: (2, 4), 8: (2, 8)}    # tile decal dir -> the two sides it trims
+
+
+def is_anchor(o):
+    """Furniture standing on the tile (not a pipe, door, light or a wall piece hung over it)."""
+    if o.path.startswith("/mob/living"):
+        return True
+    if not o.path.startswith(("/obj/structure", "/obj/machinery")) or o.path.startswith(NOT_ANCHOR):
+        return False
+    return abs(o.num("pixel_x")) < 16 and abs(o.num("pixel_y")) < 16
+
+
+def wall_run(bd, rc, n, used, center=False):
+    """Up to n free floor tiles of room rc in one straight line along a wall, off doors: canister rows, consoles."""
+    m = bd.m
+    tiles = set(p for p, r in bd.room.items() if r == rc and bd.is_floor(p) and bd.ch.get(p) == ".")
+    def free(p):
+        t = m.get(*p)
+        if p in used or kit.dense(t.objs) or t.has("/obj/machinery/door"):
+            return False
+        if any(o.path.startswith(("/obj/effect/landmark", "/obj/machinery/atmospherics", "/obj/machinery/holopad",
+                                  "/obj/machinery/navbeacon", "/obj/structure/disposalpipe")) for o in t.objs):
+            return False
+        # off every door, and two tiles off its mouth so the way in stays wide
+        for d in CARD:
+            q = bd.nb(p, d)
+            if m.get(*q).has("/obj/machinery/door") or m.get(*bd.nb(q, d)).has("/obj/machinery/door"):
+                return False
+        return True
+    best = []
+    for d in CARD:
+        line = {}
+        for p in tiles:
+            q = bd.nb(p, d)
+            if free(p) and m.get(*q).tpath.startswith("/turf/closed"):
+                key = p[1] if d in (1, 2) else p[0]
+                line.setdefault(key, []).append(p)
+        for key, ps in line.items():
+            ps.sort(key=lambda p: p[0] if d in (1, 2) else p[1])
+            run = [ps[0]]
+            for p in ps[1:]:
+                prev = run[-1]
+                if abs(p[0] - prev[0]) + abs(p[1] - prev[1]) == 1:
+                    run.append(p)
+                else:
+                    if len(run) > len(best):
+                        best = run
+                    run = [p]
+            if len(run) > len(best):
+                best = run
+    if center and len(best) > n:
+        s = (len(best) - n) // 2
+        return best[s:s + n]
+    return best[:n]
+
+
+def fill_utility(m, bd, rc_of, used, put):
+    """Rooms the corpus leaves bare that a crew still uses: the gas store, the AI core, the SMES room.
+    2026-11-16 quad review: a 15x12 gas store held two tanks, the AI core was 14x11 of empty circuit floor."""
+    notes = []
+    # gas store: a canister of each gas on a bot decal along one wall, then the portable pump and scrubber
+    rc = rc_of.get("tanks")
+    if rc:
+        gases = ["nitrogen", "oxygen", "toxins", "carbon_dioxide", "nitrous_oxide", "air", "air"]
+        run = wall_run(bd, rc, len(gases), used, center=True)
+        for p, g in zip(run, gases):
+            put(p, "/obj/effect/turf_decal/bot")
+            put(p, "/obj/machinery/portable_atmospherics/canister/" + g)
+            used.add(p)
+        run2 = wall_run(bd, rc, 4, used, center=True)
+        for p, kind in zip(run2, ("pump", "pump", "scrubber", "scrubber")):
+            put(p, "/obj/effect/turf_decal/bot")
+            put(p, "/obj/machinery/portable_atmospherics/" + kind)
+            used.add(p)
+        notes.append("gas store: %d canisters, %d portables" % (len(run), len(run2)))
+    # AI core: a turret in each corner of the room
+    rc = rc_of.get("ai_core")
+    if rc:
+        tiles = [p for p, r in bd.room.items() if r == rc and bd.is_floor(p) and bd.ch.get(p) == "."]
+        got = 0
+        for p in tiles:
+            t = m.get(*p)
+            walls = [d for d in CARD if m.get(*bd.nb(p, d)).tpath.startswith("/turf/closed")]
+            corner = any((a, b) in ((1, 4), (1, 8), (2, 4), (2, 8)) for a in walls for b in walls)
+            if not corner or p in used or kit.dense(t.objs) or t.has("/obj/machinery/door") or \
+                    any(o.path.startswith("/obj/effect/landmark") for o in t.objs) or \
+                    any(m.get(*bd.nb(p, d)).has("/obj/machinery/door") for d in CARD):
+                continue
+            put(p, "/obj/machinery/porta_turret/ai")
+            used.add(p)
+            got += 1
+        notes.append("AI core: %d corner turrets" % got)
+    # SMES room: the power monitor console on a wall, cabled into the grid beside it
+    rc = rc_of.get("smes")
+    present = {o.path for p, r in bd.room.items() if r == rc for o in m.get(*p).objs} if rc else set()
+    if rc and "/obj/machinery/computer/monitor" not in present:
+        cand = wall_run(bd, rc, 30, used)
+        def on_grid(q):
+            return any(any(o.path == kit.CABLE for o in m.get(*bd.nb(q, d)).objs) for d in CARD)
+        # on a wall by a cable; else anywhere off the doors by a cable (consoles may stand free); else on a wall
+        cabled = [p for p in cand if on_grid(p)] or [p for p in free_tiles(bd, rc, 200, used) if on_grid(p)]
+        p = (cabled or cand or [None])[0]
+        if p:
+            wall_d = next((d for d in CARD if m.get(*bd.nb(p, d)).tpath.startswith("/turf/closed")), 1)
+            put(p, "/obj/machinery/computer/monitor", [("dir", str(OPP[wall_d]))])
+            if not any(o.path == kit.CABLE for o in m.get(*p).objs):
+                put(p, kit.CABLE)
+            used.add(p)
+            notes.append("SMES room: power monitor at %d,%d%s" % (p[0], p[1], "" if cabled else " (no cable beside it)"))
+    for rc, rd in bd.roomdefs.items():
+        if rd.get("area") == "/area/hippie/pool":
+            notes.append(dig_pool(m, bd, rc, used))
+    return notes
+
+
+# yellow siding round a pool faces the water: N rim dir 2, S rim 1, W rim 4, E rim 8; corners NW 2, NE 8, SW 4, SE 1
+SIDING = "/turf/open/floor/plasteel/yellowsiding"
+
+
+def dig_pool(m, bd, rc, used):
+    """The pool room had no water. Dig Hippie's stock pool (7x5 at most) where it and its siding rim fit on the
+    room's floor, clear of doors and start points, with filter, drain, ladder, diving board and the controller."""
+    tiles = set(p for p, r in bd.room.items() if r == rc and bd.is_floor(p) and bd.ch.get(p) == ".")
+    if not tiles:
+        return "pool: no floor"
+    # the corpus's pool room brings ladders, diving boards and drains with no water: they belong to the dig only
+    FIXTURE = ("/obj/structure/pool", "/obj/machinery/drain", "/obj/machinery/poolfilter", "/obj/machinery/poolcontroller")
+    # and sometimes a few tiles of its water and siding: back to the room's floor, one pool is dug below
+    from collections import Counter
+    wet_turf = ("/turf/open/pool", SIDING)
+    plain = Counter(m.get(*p).tpath for p in tiles if not m.get(*p).tpath.startswith(wet_turf)).most_common(1)
+    for p in tiles:
+        t = m.get(*p)
+        t.objs = [o for o in t.objs if not o.path.startswith(FIXTURE)]
+        if plain and t.tpath.startswith(wet_turf):
+            t.turf = dmm.Atom(plain[0][0])
+    xs, ys = [p[0] for p in tiles], [p[1] for p in tiles]
+    door = {p for p in tiles for d in CARD if m.get(*bd.nb(p, d)).has("/obj/machinery/door")}
+    best = None
+    for size, (w, h) in enumerate(((7, 5), (5, 7), (6, 4), (4, 6), (5, 4), (4, 5), (5, 3), (3, 5), (4, 3), (3, 4), (3, 3))):
+        for x0 in range(min(xs) + 1, max(xs) - w + 1):
+            for y0 in range(min(ys) + 1, max(ys) - h + 1):
+                water = [(x, y) for x in range(x0, x0 + w) for y in range(y0, y0 + h)]
+                rim = [(x, y) for x in range(x0 - 1, x0 + w + 1) for y in range(y0 - 1, y0 + h + 1) if (x, y) not in water]
+                # the room's vent and scrubber stay where they are, never under water (the rim is floor: they may stay there)
+                # start points under the water move out after (used tiles of other kinds stay put)
+                if any(p not in tiles or p in door or (p in used and not m.get(*p).has("/obj/effect/landmark"))
+                       for p in water + rim) or \
+                        any(m.get(*p).has("/obj/machinery/atmospherics/components") for p in water):
+                    continue
+                # no pipes drawn across the water (s3 2026-11-16) before size; then the biggest, least furniture
+                # lost, nearest the middle
+                pipes = sum(1 for p in water if m.get(*p).has("/obj/machinery/atmospherics"))
+                cost = sum(1 for p in water + rim for o in m.get(*p).objs if is_anchor(o))
+                cx, cy = x0 + w / 2.0, y0 + h / 2.0
+                mid = abs(cx - (min(xs) + max(xs) + 1) / 2.0) + abs(cy - (min(ys) + max(ys) + 1) / 2.0)
+                key = (pipes > 0, size, pipes, cost, mid)
+                if best is None or key < best[0]:
+                    best = (key, x0, y0, w, h)
+    if not best:
+        return "pool: room too small for a pool"
+    _, x0, y0, w, h = best
+    x1, y1 = x0 + w - 1, y0 + h - 1
+    wet = {(x, y) for x in range(x0, x1 + 1) for y in range(y0, y1 + 1)}
+    box = {(x, y) for x in range(x0 - 1, x1 + 2) for y in range(y0 - 1, y1 + 2)}
+    dry = [p for p in sorted(tiles, key=lambda q: -min(abs(q[0] - x) + abs(q[1] - y) for x, y in box))
+           if p not in box and p not in door and p not in used and not kit.dense(m.get(*p).objs)]
+    for p in sorted(wet):
+        for o in [o for o in m.get(*p).objs if o.path.startswith("/obj/effect/landmark")]:
+            m.get(*p).objs.remove(o)
+            if dry:
+                q = dry.pop()
+                m.get(*q).objs.append(o)
+                used.add(q)
+    KEEP = ("/obj/structure/cable", "/obj/machinery/atmospherics", "/obj/structure/disposalpipe", "/obj/effect/landmark",
+            "/obj/machinery/light", "/obj/machinery/power/apc", "/obj/machinery/airalarm", "/obj/machinery/firealarm",
+            "/obj/machinery/light_switch", "/obj/structure/extinguisher_cabinet", "/obj/machinery/newscaster",
+            "/obj/item/radio/intercom", "/obj/structure/sign", "/obj/machinery/camera", "/obj/machinery/status_display")
+    for x in range(x0 - 1, x1 + 2):
+        for y in range(y0 - 1, y1 + 2):
+            t = m.get(x, y)
+            # nothing stands in the water or on its rim: furniture, decals, vents (a vent under water)
+            t.objs = [o for o in t.objs if o.path.startswith(KEEP)]
+            if x0 <= x <= x1 and y0 <= y <= y1:
+                t.turf = dmm.Atom("/turf/open/pool")
+                continue
+            n, s, wv, e = y == y1 + 1, y == y0 - 1, x == x0 - 1, x == x1 + 1
+            corner = (n or s) and (wv or e)
+            d = 2 if n and not corner else 1 if s and not corner else 4 if wv and not corner else 8 if e and not corner else \
+                2 if n and wv else 8 if n and e else 4 if s and wv else 1
+            t.turf = dmm.Atom(SIDING + ("/corner" if corner else ""), [] if d == 2 else [("dir", str(d))])
+    def add(p, path, vs=()):
+        m.get(*p).objs.append(dmm.Atom(path, list(vs)))
+        used.add(p)
+    # as on the stock map: filter in the far corner, drain mid-pool, ladder at one end, board at the other,
+    # controller on the rim beside the long side (the filter sits in the water: the stock pixel_y 18 hangs it on air)
+    add((x0, y1), "/obj/machinery/poolfilter")
+    add((x0 + w // 2, y0 + h // 2), "/obj/machinery/drain")
+    add((x0, y0 + h // 2), "/obj/structure/pool/ladder")
+    add((x1, y0 + h // 2), "/obj/structure/pool/Lboard")
+    add((x1 + 1, y0 + h // 2), "/obj/structure/pool/Rboard")
+    add((x0 + w // 2, y1 + 1), "/obj/machinery/poolcontroller")
+    return "pool: %dx%d at %d,%d" % (w, h, x0, y0)
+
+
+def tidy_rooms(m, zone, keep=frozenset()):
+    """What the late passes leave behind when they move or drop furniture (the 2026-11-16 quad review, every room
+    of the three seeds cut in quarters): a second chair or pet on the same tile, stools at no counter, potted plants
+    in every corner, the full-tile colour that sat under a moved locker, and a template's grey work tile with its
+    hazard edge in the middle of a white lab with nothing on it."""
+    from collections import Counter
+    notes = []
+    # a pasted stock block (the supermatter engine) is left as its map has it: its chamber floor is plating and
+    # engine floor on purpose
+    allzone = set(zone)
+    zone = allzone - set(keep)
+
+    def t(p):
+        return m.get(p[0], p[1])
+
+    def floor(p):
+        tt = t(p)
+        return tt is not None and tt.tpath.startswith("/turf/open") and not tt.tpath.startswith("/turf/open/space") \
+            and not tt.has("/obj/machinery/door/airlock") and not tt.has(kit.WINDOW) and not tt.has("/obj/structure/window")
+
+    def room_tile(p):
+        a = t(p).apath
+        return not a.startswith(("/area/hallway", "/area/maintenance", "/area/solar", "/area/space"))
+    # 1. the same thing twice on one tile, or two seats on one tile
+    dup = 0
+    for p in sorted(zone):
+        tt = t(p)
+        if tt is None:
+            continue
+        seen, keep, seat = set(), [], False
+        for o in tt.objs:
+            key = o.path
+            # (slimes share a pen tile; two of one pet are a double)
+            if not o.path.startswith(("/obj/item", "/obj/effect", "/obj/structure/cable", "/obj/machinery/atmospherics",
+                                      "/mob/living/simple_animal/slime")):
+                if key in seen or (o.path.startswith(SEAT) and seat and is_anchor(o)):
+                    dup += 1
+                    continue
+                seen.add(key)
+                if o.path.startswith(SEAT) and is_anchor(o):
+                    seat = True
+            keep.append(o)
+        tt.objs = keep
+    if dup:
+        notes.append("tidy: %d doubled pieces taken off" % dup)
+    # 1b. the tile straight through an airlock is the way in: a dispenser, locker or crate standing there moves to a
+    # free wall tile of its room nearby, or goes (a pasted engine block put a tank dispenser in Engineering's door)
+    moved = 0
+    def door_near(q):
+        return any(t(kit_nb(q, d)) is not None and t(kit_nb(q, d)).has("/obj/machinery/door") for d in CARD)
+    for p in sorted(allzone):
+        tt = t(p)
+        if tt is None or not tt.has("/obj/machinery/door/airlock"):
+            continue
+        for d in CARD:
+            q = kit_nb(p, d)
+            tq = t(q)
+            if tq is None or not floor(q) or tq.has("/obj/machinery/door"):
+                continue
+            block = [o for o in tq.objs if is_anchor(o) and kit.is_dense_atom(o) and not o.path.startswith("/mob")]
+            if not block:
+                continue
+            spot = None
+            for r in sorted(((q[0] + dx, q[1] + dy) for dx in range(-3, 4) for dy in range(-3, 4)),
+                            key=lambda r: abs(r[0] - q[0]) + abs(r[1] - q[1])):
+                tr = t(r)
+                if r == q or r not in allzone or tr is None or not floor(r) or tr.apath != tq.apath or door_near(r) or \
+                        any(is_anchor(o) for o in tr.objs) or tr.has("/obj/machinery/atmospherics/components") or \
+                        not any(not floor(kit_nb(r, e)) and not t(kit_nb(r, e)).has("/obj/machinery/door") for e in CARD
+                                if t(kit_nb(r, e)) is not None):
+                    continue
+                spot = r
+                break
+            for o in block:
+                tq.objs.remove(o)
+                if spot:
+                    t(spot).objs.append(o)
+                moved += 1
+    if moved:
+        notes.append("tidy: %d pieces moved out of airlock mouths" % moved)
+    # 2. a stool stands at a counter, a table, a machine or a game; one out on the floor alone goes (rows and blocks
+    # of stools are seating: the chapel's congregation)
+    STOOL_AT = ("/obj/structure/table", "/obj/machinery/computer", "/obj/machinery/vending", "/obj/structure/piano",
+                "/obj/machinery/smartfridge", "/obj/machinery/chem", "/obj/structure/displaycase", "/obj/machinery/computer/arcade",
+                "/obj/machinery/slot_machine", "/obj/structure/sink", "/obj/machinery/rnd", "/obj/machinery/microwave")
+    lone = 0
+    for p in sorted(zone):
+        tt = t(p)
+        if tt is None or not room_tile(p) or t(p).apath in FILLER_AREAS:
+            continue
+        for o in [o for o in tt.objs if o.path.startswith("/obj/structure/chair/stool")]:
+            near = [t((p[0] + dx, p[1] + dy)) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy]
+            if sum(1 for n in near if n is not None and any(a.path.startswith(SEAT) for a in n.objs)) >= 2:
+                continue
+            if not any(t(kit_nb(p, d)) is not None and any(a.path.startswith(STOOL_AT) for a in t(kit_nb(p, d)).objs)
+                       for d in CARD):
+                tt.objs.remove(o)
+                lone += 1
+    if lone:
+        notes.append("tidy: %d stools standing at nothing taken off" % lone)
+    # rooms: runs of floor of one area
+    seen, rooms = set(), []
+    for p in sorted(zone):
+        if p in seen or not floor(p) or not room_tile(p):
+            continue
+        a = t(p).apath
+        part, st = [], [p]
+        seen.add(p)
+        while st:
+            q = st.pop()
+            part.append(q)
+            for d in CARD:
+                r = kit_nb(q, d)
+                if r not in seen and r in zone and floor(r) and t(r).apath == a:
+                    seen.add(r)
+                    st.append(r)
+        rooms.append(part)
+    # 3. potted plants: one per 35 floor tiles at most (corners first); the stock maps don't line a room with them
+    PLANT = "/obj/item/twohanded/required/kirbyplants"
+    cut = 0
+    for part in rooms:
+        pl = [p for p in part if any(o.path.startswith(PLANT) for o in t(p).objs)]
+        cap = max(1, len(part) // 35)
+        if len(pl) <= cap:
+            continue
+        walls = {p: sum(1 for d in CARD if not floor(kit_nb(p, d))) for p in pl}
+        for p in sorted(pl, key=lambda q: (-walls[q], q))[cap:]:
+            t(p).objs = [o for o in t(p).objs if not o.path.startswith(PLANT)]
+            cut += 1
+    if cut:
+        notes.append("tidy: %d potted plants over the room's share taken off" % cut)
+    # 4. a full tile of colour with nothing standing on it, alone (one or two tiles, corners counted): keep only the
+    # quarters that trim a wall. Bands and checkers of colour (virology's green, cargo's brown) are runs: they stay.
+    dec = 0
+    for part in rooms:
+        ps = set(part)
+        full = {}
+        for p in part:
+            by = {}
+            for o in t(p).objs:
+                if o.path.startswith("/obj/effect/turf_decal/tile/") and not o.path.endswith("/bar"):
+                    by.setdefault(o.path, set()).add(o.num("dir", 2) or 2)
+            for path, dirs in by.items():
+                if {1, 2, 4, 8} <= dirs:
+                    full.setdefault(path, set()).add(p)
+        for path, fs in full.items():
+            left = set(fs)
+            while left:
+                s = left.pop()
+                comp, st = [s], [s]
+                while st:
+                    q = st.pop()
+                    for dx in (-1, 0, 1):
+                        for dy in (-1, 0, 1):
+                            r = (q[0] + dx, q[1] + dy)
+                            if r in left:
+                                left.discard(r)
+                                comp.append(r)
+                                st.append(r)
+                if len(comp) > 2:
+                    continue
+                for p in comp:
+                    tt = t(p)
+                    if any(is_anchor(o) for o in tt.objs):
+                        continue
+                    edge = {d for d in CARD if kit_nb(p, d) not in ps}
+                    keep = {q for q in (1, 2, 4, 8) if set(QUARTER_SIDES[q]) & edge}
+                    before = len(tt.objs)
+                    tt.objs = [o for o in tt.objs if not (o.path == path and (o.num("dir", 2) or 2) not in keep)]
+                    dec += before - len(tt.objs)
+    if dec:
+        notes.append("tidy: %d stray floor-colour quarters (furniture moved off them) taken off" % dec)
+    # 5. a template's work floor (another turf, hazard edge) of 1-3 tiles with nothing on it: back to the room floor
+    HAZ = ("/obj/effect/turf_decal/stripes", "/obj/effect/turf_decal/tile/")
+    zt = 0
+    for part in rooms:
+        ps = set(part)
+        # the pool's water and its rim are built, not leftovers
+        kept = ("/turf/open/pool", "/turf/open/floor/plasteel/yellowsiding")
+        rest = [p for p in part if not t(p).tpath.startswith(kept)]
+        if not rest:
+            continue
+        main = Counter(t(p).tpath for p in rest).most_common(1)[0][0]
+        odd = {p for p in rest if t(p).tpath != main}
+        done, back = set(), set()
+        for s in sorted(odd):
+            if s in done:
+                continue
+            comp, st = [], [s]
+            done.add(s)
+            while st:
+                q = st.pop()
+                comp.append(q)
+                for d in CARD:
+                    r = kit_nb(q, d)
+                    if r in odd and r not in done and t(r).tpath == t(s).tpath:
+                        done.add(r)
+                        st.append(r)
+            if len(comp) > 3 or any(is_anchor(o) for q in comp for o in t(q).objs):
+                continue
+            for q in comp:
+                tt = t(q)
+                tt.turf = dmm.Atom(main)
+                tt.objs = [o for o in tt.objs if not o.path.startswith(HAZ)]
+                back.add(q)
+                zt += 1
+        # the hazard edge round a zone that went: stripes beside a reverted tile with no zone tile or furniture beside
+        # them (stripes elsewhere on the room floor are kept: an empty assembly floor is marked that way on purpose)
+        for p in part:
+            tt = t(p)
+            if not any(o.path.startswith("/obj/effect/turf_decal/stripes") for o in tt.objs) or tt.tpath != main:
+                continue
+            if not any((p[0] + dx, p[1] + dy) in back for dx in (-1, 0, 1) for dy in (-1, 0, 1)):
+                continue
+            near = [kit_nb(p, d) for d in CARD] + [p]
+            if any(q in ps and (t(q).tpath != main or any(is_anchor(o) for o in t(q).objs)) for q in near):
+                continue
+            tt.objs = [o for o in tt.objs if not o.path.startswith("/obj/effect/turf_decal/stripes")]
+            zt += 1
+    if zt:
+        notes.append("tidy: %d leftover work-floor tiles and hazard edges cleared" % zt)
+    return notes
+
+
+def kit_nb(p, d):
+    return (p[0] + DELTA[d][0], p[1] + DELTA[d][1])
+
+
 def dress_maint(m, zone, seed):
     """Clutter down the maint runs as the stock maps have it. Generated maint was bare plating: 2455 tiles, five
     objects (2026-11-16). A dense thing only goes against a wall, away from doors and corridor mouths, and only where
@@ -1771,7 +2209,10 @@ def main():
                 if ps:
                     avoid.add(ps[0])
                     return ps[0]
+    # PDA messages need the message server; the blackbox records the round (none on any seed, 2026-11-16 quad review)
     need = [(("tcomms", "tc_control"), "/obj/machinery/telecomms/allinone"),
+            (("tcomms", "tc_control"), "/obj/machinery/telecomms/message_server"),
+            (("tcomms", "tc_control"), "/obj/machinery/blackbox_recorder"),
             (("vault", "bridge"), "/obj/machinery/nuclearbomb/selfdestruct"),
             (("grav", "smes"), "/obj/machinery/gravity_generator/main/station"),
             (("upload",), "/obj/machinery/computer/upload/ai"),
@@ -1786,6 +2227,8 @@ def main():
             put(p, path)
         else:
             bd.warn.append("no room for %s" % path)
+    for note in fill_utility(m, bd, rc_of, used, put):
+        print("   ", note)
 
     # solar fields: lattice, catwalks with cable, panels, the tracker; cable down the lead into the control room
     for p, kind in plan.solar.items():
@@ -1894,6 +2337,8 @@ def main():
         print("   ", note)
     face_notes = one_per_wall_face(m, bd.zone, keep=frozenset(getattr(bd, "stamped", ())))
     for note in face_notes[:12]:
+        print("   ", note)
+    for note in tidy_rooms(m, bd.zone, keep=frozenset(getattr(bd, "stamped", ()))):
         print("   ", note)
     left = F.review(m, bd.zone)
     from collections import Counter

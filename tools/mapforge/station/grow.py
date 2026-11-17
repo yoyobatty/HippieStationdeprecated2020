@@ -471,7 +471,10 @@ class Grower:
         guests share a strip along the back."""
         from station.program import Rm
         ga = sum(g.area for g in guests)
-        big = Rm(r.id, r.area + ga + int(math.sqrt(r.area + ga)), r.tier, r.front, (max(r.min), min(r.min) + 4),
+        # deep enough for a host 4+ deep, the wall and a guest strip 3+ deep: a 7-deep block left the captain's office
+        # and bedroom two 3x15 corridors side by side (2026-11-16 quad review, every seed)
+        big = Rm(r.id, r.area + ga + int(math.sqrt(r.area + ga)), r.tier, r.front,
+                 (max(8, max(r.min)), max(8, min(r.min) + 5)),
                  (), 0, r.label, r.secure, r.public, r.maint, r.corridor, r.near, r.dock)
         for shrink in (1.0, 0.85):
             rect = self.place(big, tv, shrink=shrink)
@@ -493,8 +496,16 @@ class Grower:
             back = {"s": "n", "n": "s", "w": "e", "e": "w"}[front]
             length = (x1 - x0 + 1) if back in ("n", "s") else (y1 - y0 + 1)
             depth = (y1 - y0 + 1) if back in ("n", "s") else (x1 - x0 + 1)
-            t = max(3, int(math.ceil(ga / float(length))))
+            # a room you live or perform in is 4+ deep: a 3-deep strip left the captain's bedroom 3x10 and the
+            # theatre 3x9 (closets like the server room may stay 3)
+            t = max(4 if max(g.area for g in guests) >= 24 else 3, int(math.ceil(ga / float(length))))
             if depth - t - 1 < 3 or length < 3 * len(guests) + len(guests) - 1:
+                continue
+            # no corridor-shaped rooms: the host and each guest at most 3:1
+            host_d = depth - t - 1
+            # (a guest's share of the strip is its length; too narrow is a corridor too: theatre 3 along a 9-deep strip)
+            shares = [length * g.area / float(ga) for g in guests]
+            if host_d < 4 or length > 3 * host_d or any(max(s, t) > 3 * min(s, t) for s in shares):
                 continue
             meta = self.meta_of(r)
             if back == "n":

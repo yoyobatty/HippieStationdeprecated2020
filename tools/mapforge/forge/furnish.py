@@ -203,8 +203,14 @@ REPEATABLE = ("/obj/machinery/vending/wallmed", "/obj/machinery/iv_drip", "/obj/
               "/obj/machinery/space_heater", "/obj/machinery/shower", "/obj/machinery/deepfryer")
 
 
+# structures a room has one of, like a machine: seven tank dispensers and three RCD crates in one EVA (2026-11-16 quad review)
+ONE_EACH = ("/obj/structure/tank_dispenser", "/obj/structure/closet/crate/rcd", "/obj/structure/reagent_dispensers",
+            "/obj/structure/piano", "/obj/structure/janitorialcart", "/obj/structure/safe", "/obj/structure/displaycase",
+            "/obj/structure/closet/secure_closet/engineering_chief", "/obj/structure/closet/crate/goldcrate")
+
+
 def unique_machines(cl):
-    return {p for p in paths_of(cl) if p.startswith("/obj/machinery") and not p.startswith(REPEATABLE)}
+    return {p for p in paths_of(cl) if (p.startswith("/obj/machinery") and not p.startswith(REPEATABLE)) or p.startswith(ONE_EACH)}
 
 
 def furnish(floor, solid, doors, kind, seed=1, density=None, require=(), exclude=(), max_cluster=9, log=None, present=(), reserved=(), glass=lambda t: False):
