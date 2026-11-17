@@ -503,9 +503,12 @@ class Grower:
                 continue
             # no corridor-shaped rooms: the host and each guest at most 3:1
             host_d = depth - t - 1
-            # (a guest's share of the strip is its length; too narrow is a corridor too: theatre 3 along a 9-deep strip)
-            shares = [length * g.area / float(ga) for g in guests]
-            if host_d < 4 or length > 3 * host_d or any(max(s, t) > 3 * min(s, t) for s in shares):
+            # (a guest's share of the strip is its length; too narrow is a corridor too: theatre 3 along a 9-deep strip).
+            # The shares are the widths the guests really get: the strip less a wall between each two, a living room
+            # 4+ wide (the share before this left the wall out and the kitchen's rounding took the theatre to 3)
+            shares = self.split_strip(length, guests)
+            if host_d < 4 or length > 3 * host_d or not shares or \
+                    any(s < (4 if g.area >= 24 else 3) or max(s, t) > 3 * min(s, t) for s, g in zip(shares, guests)):
                 continue
             meta = self.meta_of(r)
             if back == "n":
@@ -522,16 +525,35 @@ class Grower:
             along_x = back in ("n", "s")
             a0, a1 = (sx0, sx1) if along_x else (sy0, sy1)
             pos = a0
-            for k, g in enumerate(guests):
-                if k == len(guests) - 1:
-                    end = a1
-                else:
-                    end = pos + max(3, int(round((a1 - a0 + 1) * g.area / float(ga)))) - 1
+            for g, s in zip(guests, shares):
+                end = pos + s - 1
                 gr = (pos, sy0, end, sy1) if along_x else (sx0, pos, sx1, end)
                 self.put(gr, g.id, "room", self.meta_of(g))
                 pos = end + 2
             return True
         return False
+
+    @staticmethod
+    def split_strip(length, guests):
+        """Widths of the guests along a strip of this length, a wall tile between each two, in proportion to area
+        (largest remainders), each 3+; None when they don't fit."""
+        usable = length - (len(guests) - 1)
+        ga = float(sum(g.area for g in guests))
+        raw = [usable * g.area / ga for g in guests]
+        out = [max(3, int(x)) for x in raw]
+        left = usable - sum(out)
+        for i in sorted(range(len(guests)), key=lambda i: int(raw[i]) - raw[i]):
+            if left <= 0:
+                break
+            out[i] += 1
+            left -= 1
+        while left < 0:
+            i = max(range(len(out)), key=lambda i: out[i] - raw[i])
+            if out[i] <= 3:
+                return None
+            out[i] -= 1
+            left += 1
+        return out
 
     def meta_of(self, r):
         return dict(kind="room", public=r.public, secure=r.secure, front=r.front, label=r.label,

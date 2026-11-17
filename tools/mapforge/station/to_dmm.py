@@ -327,15 +327,17 @@ class StationBuilder(B.Builder):
         self.ports = {"supply": [], "scrubbers": [], "cable": []}
         self.cable_fence = set(self.engine_cable_fence)
 
+    pool_water = frozenset()        # reserve_pools(): the basin dug after the run; no vent or pipe under it
+
     def spec(self, p):
         s = super().spec(p)
         return dict(s, no_vent=True) if p in self.engine_pipe_fence or p in self.engine_no_vent or \
-            p in self.tank_tiles else s
+            p in self.tank_tiles or p in self.pool_water else s
 
     def pipe_cost(self, cls):
         base = super().pipe_cost(cls)
         # the distro tanks go down after the run: a pipe laid over the air tank's tile took its connection
-        fence = self.engine_pipe_fence | self.tank_tiles
+        fence = self.engine_pipe_fence | self.tank_tiles | self.pool_water
         return (lambda q, p, d: None if q in fence else base(q, p, d)) if fence else base
 
     def power(self):
@@ -1512,11 +1514,94 @@ def fill_utility(m, bd, rc_of, used, put):
     for rc, rd in bd.roomdefs.items():
         if rd.get("area") == "/area/hippie/pool":
             notes.append(dig_pool(m, bd, rc, used))
+    rc = rc_of.get("engine")
+    if rc:
+        notes.append(dress_engine(m, bd, rc, used, put))
     return notes
+
+
+# MetaStation's engine room round the block (counted 2026-11-16): nitrogen for the cooling loop, radiation closets,
+# mesons and geiger counters on racks, the alert console and the engineering console, fire and emergency closets
+ENGINE_DRESS = [
+    (4, [("/obj/effect/turf_decal/bot",), ("/obj/machinery/portable_atmospherics/canister/nitrogen",)]),
+    (2, [("/obj/structure/closet/radiation",)]),
+    (2, [("/obj/structure/rack",), ("/obj/item/clothing/glasses/meson/engine",), ("/obj/item/clothing/glasses/meson/engine",),
+         ("/obj/item/geiger_counter",), ("/obj/item/geiger_counter",)]),
+    (1, [("/obj/machinery/computer/station_alert", "face")]),
+    (1, [("/obj/machinery/modular_computer/console/preset/engineering", "face")]),
+    (1, [("/obj/structure/closet/firecloset",)]),
+    (1, [("/obj/structure/closet/emcloset",)]),
+]
+
+
+def dress_engine(m, bd, rc, used, put):
+    """The engine room floor outside the pasted supermatter block. The room has no corpus template (the block is
+    the room), so on every seed 3-4 of its quarters were bare engine floor (2026-11-16 quad review). Each group
+    goes along a wall outside the block, off its doors."""
+    avoid = set(used) | set(getattr(bd, "engine_block", ())) | set(getattr(bd, "engine_pipe_fence", ()))
+    got = 0
+    for n, group in ENGINE_DRESS:
+        run = wall_run(bd, rc, n, avoid, center=True)
+        for p in run:
+            for spec in group:
+                vs = []
+                if len(spec) > 1 and spec[1] == "face":
+                    wall_d = next((d for d in CARD if m.get(*bd.nb(p, d)).tpath.startswith("/turf/closed")), 1)
+                    vs = [("dir", str(OPP[wall_d]))]
+                put(p, spec[0], vs)
+            avoid.add(p)
+            used.add(p)
+            got += 1
+    return "engine room: %d pieces round the block" % got
 
 
 # yellow siding round a pool faces the water: N rim dir 2, S rim 1, W rim 4, E rim 8; corners NW 2, NE 8, SW 4, SE 1
 SIDING = "/turf/open/floor/plasteel/yellowsiding"
+POOL_SIZES = ((7, 5), (5, 7), (6, 4), (4, 6), (5, 4), (4, 5), (5, 3), (3, 5), (4, 3), (3, 4), (3, 3))
+# holds the basin and its rim through the run: the furnisher and the vents keep off dense tiles
+POOL_MARK = "/obj/effect/mapforge_pool"
+
+
+def reserve_pools(bd):
+    """Pick each pool room's basin before the run, so the builder lays its vents and pipes round it: dug after
+    the run, the vents it had already put mid-room held a 12x11 room to a 5x3 pool."""
+    notes, rect = [], {}
+    for rc, rd in bd.roomdefs.items():
+        if rd.get("area") != "/area/hippie/pool":
+            continue
+        tiles = {p for p, r in bd.room.items() if r == rc and bd.is_floor(p) and bd.ch.get(p) == "."}
+        if not tiles:
+            continue
+        # off the way in: any tile beside a door, or beside floor that isn't this room's
+        door = {p for p in tiles for d in CARD if bd.nb(p, d) not in tiles and
+                (bd.t(*bd.nb(p, d)).has("/obj/machinery/door") or bd.kind(bd.nb(p, d)) == "floor")}
+        xs, ys = [p[0] for p in tiles], [p[1] for p in tiles]
+        cx, cy = (min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0
+        best = None
+        for size, (w, h) in enumerate(POOL_SIZES):
+            for x0 in range(min(xs) + 1, max(xs) - w + 1):
+                for y0 in range(min(ys) + 1, max(ys) - h + 1):
+                    # the rim plus a walkway tile all round, so the vents and the door have floor beyond it
+                    ring = [(x, y) for x in range(x0 - 2, x0 + w + 2) for y in range(y0 - 2, y0 + h + 2)]
+                    box = [(x, y) for x in range(x0 - 1, x0 + w + 1) for y in range(y0 - 1, y0 + h + 1)]
+                    if any(p not in tiles or p in door for p in box) or \
+                            sum(1 for p in ring if p in tiles) < len(box) + 4:
+                        continue
+                    key = (size, abs(x0 + (w - 1) / 2.0 - cx) + abs(y0 + (h - 1) / 2.0 - cy))
+                    if best is None or key < best[0]:
+                        best = (key, x0, y0, w, h)
+        if not best:
+            continue
+        _, x0, y0, w, h = best
+        rect[rc] = (x0, y0, w, h)
+        for x in range(x0 - 1, x0 + w + 1):
+            for y in range(y0 - 1, y0 + h + 1):
+                bd.t(x, y).objs.append(dmm.Atom(POOL_MARK, [("density", "1")]))
+        notes.append("pool: %dx%d basin held at %d,%d" % (w, h, x0, y0))
+    bd.pool_rect = rect
+    bd.pool_water = frozenset((x, y) for (x0, y0, w, h) in rect.values()
+                              for x in range(x0, x0 + w) for y in range(y0, y0 + h))
+    return notes
 
 
 def dig_pool(m, bd, rc, used):
@@ -1526,7 +1611,8 @@ def dig_pool(m, bd, rc, used):
     if not tiles:
         return "pool: no floor"
     # the corpus's pool room brings ladders, diving boards and drains with no water: they belong to the dig only
-    FIXTURE = ("/obj/structure/pool", "/obj/machinery/drain", "/obj/machinery/poolfilter", "/obj/machinery/poolcontroller")
+    FIXTURE = ("/obj/structure/pool", "/obj/machinery/drain", "/obj/machinery/poolfilter", "/obj/machinery/poolcontroller",
+               POOL_MARK)
     # and sometimes a few tiles of its water and siding: back to the room's floor, one pool is dug below
     from collections import Counter
     wet_turf = ("/turf/open/pool", SIDING)
@@ -1539,7 +1625,10 @@ def dig_pool(m, bd, rc, used):
     xs, ys = [p[0] for p in tiles], [p[1] for p in tiles]
     door = {p for p in tiles for d in CARD if m.get(*bd.nb(p, d)).has("/obj/machinery/door")}
     best = None
-    for size, (w, h) in enumerate(((7, 5), (5, 7), (6, 4), (4, 6), (5, 4), (4, 5), (5, 3), (3, 5), (4, 3), (3, 4), (3, 3))):
+    held = getattr(bd, "pool_rect", {}).get(rc)
+    if held:
+        best = (None,) + held
+    for size, (w, h) in enumerate(POOL_SIZES if not held else ()):
         for x0 in range(min(xs) + 1, max(xs) - w + 1):
             for y0 in range(min(ys) + 1, max(ys) - h + 1):
                 water = [(x, y) for x in range(x0, x0 + w) for y in range(y0, y0 + h)]
@@ -2136,10 +2225,13 @@ def main():
             bd.engine_no_vent = frozenset({at[(-1, v)] for v in range(18)} | cut)
             bd.no_mount |= foot
             bd.stamped = foot | coil
+            bd.engine_block = frozenset(at[uv] for uv in engine_block())
             eng = (place, waste)
         else:
             print("    engine: no place for the supermatter block in the engine room (%s)" %
                   ("no fit" if not place else "no way out for the waste line"))
+    for note in reserve_pools(bd):
+        print("   ", note)
     bd.run()
     m = bd.m
     for note in fit_pens(m, pens, T):
