@@ -223,14 +223,15 @@ def fit(target, target_edges, kind, required=(), limit=40, skip=None):
     for r in candidates(kind):
         if skip and skip(r):
             continue
-        if r["w"] * r["h"] > 4 * tw * th or 4 * r["w"] * r["h"] < tw * th:
+        # (stretching a small room over a big one only spreads its furniture thin: keep sizes within reach)
+        if r["w"] * r["h"] > 3 * tw * th or 2.2 * r["w"] * r["h"] < tw * th:
             continue
         for k in range(4):
             for mirror in (False, True):
                 cells, edges = oriented(r, k, mirror)
                 sw = max(p[0] for p in cells) + 1
                 sh = max(p[1] for p in cells) + 1
-                if abs(sw - tw) > max(3, tw // 2) or abs(sh - th) > max(3, th // 2):
+                if abs(sw - tw) > max(3, tw * 2 // 5) or abs(sh - th) > max(3, th * 2 // 5):
                     continue
                 colw = Counter()
                 roww = Counter()
@@ -249,9 +250,12 @@ def fit(target, target_edges, kind, required=(), limit=40, skip=None):
                         continue
                     objs = list(src)
                     # a line repeated by stretching must not repeat unique things (a second console, a second desk lamp)
+                    # (a long table or bench grows; chairs, operating tables and plants don't: a stretched room
+                    # gave grids of office chairs and three operating tables to one computer)
                     if (sx, sy) in used:
                         objs = [objs[0]] + [o for o in objs[1:] if o.startswith(("/obj/effect/turf_decal/tile", "/obj/structure/table",
-                                                                                 "/obj/structure/chair", "/obj/item/twohanded"))]
+                                                                                 "/obj/structure/chair/pew", "/obj/structure/chair/sofa"))
+                                            and not o.startswith("/obj/structure/table/optable")]
                     used.add((sx, sy))
                     place[p] = objs
                     # edges: walls in the template where the target has walls
@@ -326,6 +330,18 @@ def valid(place, target, target_edges, dense):
         if any(o.startswith(RND_MACHINE) and "/department" not in o.split("{")[0] for o in objs[1:]):
             if not any(max(abs(p[0] - c[0]), abs(p[1] - c[1])) <= 3 for c in cons):
                 return False, "R&D machine at %d,%d out of its console's reach" % p
+    # machines that find their partner on a cardinal neighbour (cloning, DNA, surgery, nanites, teleporter)
+    from forge.function import LINKS
+    for p, objs in place.items():
+        for o in objs[1:]:
+            path = o.split("{")[0]
+            for piece, groups in LINKS:
+                if path == piece or path.startswith(piece + "/"):
+                    for g in groups:
+                        if not any(x.split("{")[0].startswith(g) for d in D4.values()
+                                   for x in place.get((p[0] + d[0], p[1] + d[1]), [""])[1:]):
+                            return False, "%s cut off from its %s at %d,%d" % (path.rsplit("/", 1)[-1], g[0].rsplit("/", 1)[-1], p[0], p[1])
+                    break
     if squeezes(free, occ):
         return False, "squeeze"
     for p in occ:

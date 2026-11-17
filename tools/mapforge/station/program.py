@@ -104,7 +104,9 @@ def departments():
             R("smes", 50, 1, ("dept",), label="SMES"),
             R("grav", 50, 1, ("dept",), secure=True, label="grav"),
             R("engbreak", 40, 1, ("dept",), label="break", need=50),
-            R("engine", 320, 2, ("dept", "back"), (14, 16), label="ENGINE"),
+            # the supermatter block (MetaStation's, to_dmm.fit_engine) is 19x15 with a walkway beside it and the
+            # freezer loop's two rows in front: under 17x20 inside, it does not go in
+            R("engine", 360, 2, ("dept", "back"), (19, 22), label="ENGINE"),
         ], lobby=R("eng_lobby", 20, front=("ring",), public=True, label="eng desk")),
         Dept("atmos", C["atmos"], [
             R("atmos", 260, 0, ("dept",), (10, 12), label="atmos"),
@@ -195,7 +197,8 @@ def program(crew=80, seed=1, fill=FILL):
         for r in d.rooms:
             if crew < r.need:
                 continue
-            r.min = (max(3, int(round(r.min[0] * mf))), max(3, int(round(r.min[1] * mf))))
+            if r.id != "engine":    # the engine block is one size at any crew
+                r.min = (max(3, int(round(r.min[0] * mf))), max(3, int(round(r.min[1] * mf))))
             # FILL: the solver grows rooms to fill their block, about a quarter past what they ask for
             r.area = max(r.min[0] * r.min[1], int(round(r.area * s * fill * rnd.uniform(0.88, 1.15))))
             rooms.append(r)

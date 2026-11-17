@@ -36,7 +36,7 @@ def mask(a):
             return 15
         if "/manifold" in p:
             return 15 & ~d
-        if "/simple" in p:
+        if "/simple" in p or "/junction" in p:
             if d in (N, S):
                 return N | S
             if d in (E, W):
@@ -75,7 +75,12 @@ def joins(a, b, d):
     """a at some tile, b at its neighbour in direction d."""
     if not (mask(a) & d and mask(b) & OPP[d]):
         return False
-    if ("heat_exchanging" in a.path) != ("heat_exchanging" in b.path):
+    def he_side(x, toward):
+        # a junction is heat exchange on the side it faces and plain pipe behind it (junction.dm isConnectable)
+        if "/heat_exchanging/junction" in x.path:
+            return toward == x.num("dir", 2)
+        return "heat_exchanging" in x.path
+    if he_side(a, d) != he_side(b, OPP[d]):
         return False
     la = "/layer_manifold" in a.path
     lb = "/layer_manifold" in b.path

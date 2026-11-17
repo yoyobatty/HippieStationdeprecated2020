@@ -61,7 +61,8 @@ def run(b):
             probs.append("%s: %d APCs" % (name, n("/obj/machinery/power/apc")))
         for pre, what in (("/obj/machinery/airalarm", "air alarm"), ("/obj/machinery/atmospherics/components/unary/vent_pump", "vent"),
                           ("/obj/machinery/atmospherics/components/unary/vent_scrubber", "scrubber"), ("/obj/machinery/light", "light")):
-            if what in ("vent", "scrubber") and (not getattr(b.bp, "ATMOS", True) or b.roomdef_for_area(area).get("vents") == 0):
+            if what in ("vent", "scrubber") and (not getattr(b.bp, "ATMOS", True) or
+                                                 b.vent_count(area)[what == "scrubber"] == 0):
                 continue
             if n(pre) == 0:
                 probs.append("%s: no %s" % (name, what))
@@ -69,6 +70,12 @@ def run(b):
             probs.append("%s: no fire alarm" % name)
 
     # --- pipe networks: each vent must reach a port through matching masks
+    def on_visible(p, o):
+        if "/components/unary" not in o.path:
+            return False
+        d = o.num("dir", 2)
+        q = m.get(p[0] + DELTA[d][0], p[1] + DELTA[d][1]) if d in DELTA else None
+        return bool(q) and any("/visible" in a.path and "/atmospherics/" in a.path for a in q.objs)
     for cls in ("supply", "scrubbers"):
         masks = {}
         bare = {p for p in zone if b.room.get(p) and b.roomdefs[b.room[p]].get("bare")}
@@ -76,7 +83,9 @@ def run(b):
             if p in bare:
                 continue
             for o in m.get(*p).objs:
-                if kit.pipe_class(o.path) == cls:
+                # visible pipe is a loop of its own (an engine's waste line, a crystal chamber's scrubbers on its
+                # gas loop), not the station's hidden network
+                if kit.pipe_class(o.path) == cls and "/visible" not in o.path and not on_visible(p, o):
                     masks[p] = masks.get(p, 0) | kit.pipe_mask(o)
         ports = {p for p, d in b.ports[cls]}
         seen, q = set(), deque(p for p in ports if p in masks)
@@ -223,6 +232,8 @@ def run(b):
             dense = [o for o in dense if o.path.startswith("/obj/structure/closet")][:1]   # the rest start inside it
         if dense and not any((p[0] + dx, p[1] + dy) in reach for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy):
             probs.append("unreachable %s at %d,%d" % (dense[0].path.rsplit("/", 1)[-1], *p))
+        # a directional window shares its tile (Meta's collectors stand behind plasma panes)
+        dense = [o for o in dense if not (o.path.startswith("/obj/structure/window") and "fulltile" not in o.path)] or dense
         if len(dense) > 1 and not any(o.path.startswith("/obj/structure/table") for o in dense) and not all(o.path.startswith(("/obj/structure/table", "/obj/machinery/door")) or
                                       o.path.startswith(("/obj/machinery/microwave", "/obj/machinery/reagentgrinder"))
                                       for o in dense[1:]):
@@ -296,9 +307,10 @@ def run(b):
                                  % (o.path.rsplit("/", 1)[-1], p[0], p[1]))
 
     # --- wall pieces stand on the floor in front of their wall, never on the wall turf itself
+    stamped = getattr(b, "stamped", set())     # blocks taken whole from a stock map keep its own sign style
     for p in zone:
         t = m.get(*p)
-        if t.tpath.startswith("/turf/closed"):
+        if t.tpath.startswith("/turf/closed") and p not in stamped:
             for o in t.objs:
                 if o.path.startswith(("/obj/structure/sign", "/obj/machinery/status_display", "/obj/machinery/firealarm",
                                       "/obj/machinery/airalarm", "/obj/machinery/light_switch", "/obj/structure/extinguisher_cabinet",
@@ -324,6 +336,10 @@ def run(b):
             q = (p[0] + DELTA[d][0], p[1] + DELTA[d][1])
             qt = m.get(*q)
             if qt is None or not qt.tpath.startswith("/turf/closed") or qt.has("/obj/machinery/door"):
+                # stock maps hang sinks, urinals and mirrors on windows too (a window is a wall for plumbing)
+                if o.path.startswith(("/obj/structure/sink", "/obj/structure/urinal", "/obj/structure/mirror")) and qt is not None \
+                        and (qt.has("/obj/structure/grille") or qt.has("/obj/effect/spawner/structure/window")):
+                    continue
                 if qt is not None and qt.has("/obj/machinery/door"):
                     what = "door"
                 elif qt is not None and (qt.has("/obj/structure/grille") or qt.has("/obj/effect/spawner/structure/window")):
@@ -344,6 +360,12 @@ def run(b):
         for w in want:
             if w.startswith(("/obj/effect/landmark", "/obj/machinery/door/firedoor")):
                 continue
+            if w.startswith("/obj/machinery/door") and any(p_.startswith("/obj/machinery/door") for p_ in have):
+                continue        # a door swapped for another kind (a brig cell's windoor)
+            if w.startswith("/obj/machinery/door") and any(
+                    m.get(p[0] + dx * k, p[1] + dy * k) and m.get(p[0] + dx * k, p[1] + dy * k).has(w)
+                    for dx, dy in kit.DELTA.values() for k in (1, 2, 3)):
+                continue        # a dock door moved out to the end of a docking arm
             if w not in have:
                 lost_bp.append("%s at %d,%d" % (w.rsplit("/", 1)[-1], p[0], p[1]))
     if lost_bp:

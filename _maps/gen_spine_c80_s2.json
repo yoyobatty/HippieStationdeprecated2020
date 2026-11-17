@@ -1,0 +1,9 @@
+{
+    "map_name": "Generated gen_spine_c80_s2",
+    "map_path": "map_files/Generated",
+    "map_file": "gen_spine_c80_s2.dmm",
+    "shuttles": {
+        "cargo": "cargo_box",
+        "emergency": "emergency_birdboat"
+    }
+}

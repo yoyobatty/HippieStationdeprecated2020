@@ -240,6 +240,14 @@ class Builder:
         return (p[0] + dx, p[1] + dy)
 
     def room_tiles(self, area):
+        if getattr(self, "_rooms_fixed", False):
+            # once the rooms are settled (after furnishing) the tiles of each area are looked up, not scanned:
+            # the wall-piece passes asked 30 000 times, three minutes on a whole station
+            if getattr(self, "_rt_cache", None) is None:
+                self._rt_cache = {}
+                for p in self.zone:
+                    self._rt_cache.setdefault(self.area_of(p), []).append(p)
+            return list(self._rt_cache.get(area, []))
         return [p for p in self.zone if self.area_of(p) == area]
 
     def floors_of(self, area):
@@ -255,6 +263,7 @@ class Builder:
         self.furnished = set()
         self.auto_furnish()
         self.mirror_rooms()
+        self._rooms_fixed, self._rt_cache = True, None
         self.place_kept_items()
         from forge import orient
         for q, what, gone in orient.keep_front_clear(self, self.furnished):
@@ -570,6 +579,8 @@ class Builder:
                if o.path.startswith(("/obj/structure", "/obj/machinery")) and not o.path.startswith(rooms.SKIP)}
         base_name = os.path.basename(self.base_path)
 
+        exclude = tuple(f.get("exclude", ()))
+
         def skip(r):
             # the room itself (or its twin on a map that shares it, like Box for Hippie) is not a remodel
             if r["map"] == base_name:
@@ -579,6 +590,8 @@ class Builder:
                 x, y = map(int, key.split(","))
                 for o in objs[1:]:
                     pth = o.split("{")[0]
+                    if exclude and pth.startswith(exclude):
+                        return True     # a room holding what this one must not have (Box's engine in its workshop)
                     if pth.startswith(("/obj/structure", "/obj/machinery")):
                         sig.add((x, y, pth))
             return len(sig) > 3 and len(sig & own) > 0.6 * len(sig)
@@ -602,14 +615,21 @@ class Builder:
                 t.objs = [o for o in t.objs if not o.path.startswith("/obj/effect/turf_decal")]
                 self.add_atoms(p, objs[1:])
                 self.furnished.add(p)
-            if lost:
+            # a template stretched over a bigger room leaves open floor where the real room had furniture: top it up
+            # with the same room type's clusters to about the fullness real rooms of the type have
+            from forge import corpus
+            occ = sum(1 for p in floor if kit.dense(self.t(*p).objs))
+            target = corpus.summary(f["kind"]).get("density", 0.3) if len(floor) >= 30 else 0
+            short_by = max(0, int(0.85 * target * len(floor)) - occ)
+            if lost or short_by >= 3:
                 free = {p for p in floor if not kit.dense(self.t(*p).objs)}
                 present = {o.path for p in floor for o in self.t(*p).objs}
                 log = []
                 got = furnish.furnish(free, lambda q: self.kind(q) in ("wall", "rwall", "window", "rwindow", "void")
                                       or (q not in floor and self.kind(q) != "floor"),
-                                      room_doors, f["kind"], density=0.0, require=[(k, v) for k, v in lost.items()],
-                                      log=log, present=present, glass=lambda q: self.kind(q) in ("window", "rwindow"))
+                                      room_doors, f["kind"], density=short_by / float(max(1, len(free))),
+                                      require=[(k, v) for k, v in lost.items()], seed=f.get("seed", 1),
+                                      exclude=exclude, log=log, present=present, glass=lambda q: self.kind(q) in ("window", "rwindow"))
                 for p, atoms in got.items():
                     self.add_atoms(p, atoms)
                     self.furnished.add(p)
@@ -1097,6 +1117,15 @@ class Builder:
             if faces:
                 f = min(faces, key=near_door)
                 self.mount(f[0], f[1], "firealarm")
+        # requests console: a department's own, a few steps in from its door at standing height, as the stock maps
+        # hang them (rd["requests"] = (department, departmentType bits: 1 assistance, 2 supplies, 4 information))
+        if rd.get("requests"):
+            faces = self.free_faces(area)
+            if faces:
+                dept, dtype = rd["requests"]
+                f = min(faces, key=lambda f: (near_door(f) - 2) ** 2 + 0.05 * math.hypot(f[0][0] - cx, f[0][1] - cy))
+                self.mount(f[0], f[1], "requests_console",
+                           extra=[("department", '"%s"' % dept), ("departmentType", str(dtype)), ("name", '"%s RC"' % dept)])
         faces = self.free_faces(area)
         if not faces:
             return
@@ -1239,18 +1268,25 @@ class Builder:
                 out.append(site)
         return out
 
+    def vent_count(self, area, rd=None):
+        """(vents, scrubbers) an area gets: one pair per 45 tiles unless its roomdef says how many."""
+        rd = self.roomdef_for_area(area) if rd is None else rd
+        if rd.get("bare") or rd.get("vents") == 0:
+            return 0, 0
+        n = rd.get("vents") or max(1, round(len(self.floors_of(area)) / 45))
+        return n, n
+
     def atmos(self):
         self.vents = {"supply": [], "scrubbers": []}
         for area in self.areas():
-            rd = self.roomdef_for_area(area)
-            if rd.get("bare") or rd.get("vents") == 0:
+            n, ns = self.vent_count(area)
+            if not n:
                 continue
-            n = rd.get("vents") or max(1, round(len(self.floors_of(area)) / 45))
             vs = self.vent_sites(area, n)
             self.vents["supply"] += vs
             # scrubbers: same spread, two to three tiles off each vent
             sc = []
-            for v in vs:
+            for v in vs[:ns]:
                 opts = [p for p in self.floors_of(area) if p not in vs and p not in sc and not kit.dense(self.t(*p).objs)
                         and not self.t(*p).has("/obj/machinery/door") and not self.spec(p).get("no_vent")
                         and not self.t(*p).has("/obj/machinery/atmospherics")]
@@ -1687,7 +1723,7 @@ class Builder:
                 c -= 0.3
             if self.t(*q).has("/obj/machinery/door"):
                 c += 1.5
-            return c
+            return c + self.cable_extra(q)
         mask = self.forest("cable", apcs, cost)
         for p in mask:
             self.t(*p).objs.append(dmm.Atom(kit.CABLE))
@@ -1695,6 +1731,16 @@ class Builder:
             if a not in mask:
                 self.t(*a).objs.append(dmm.Atom(kit.CABLE))
         self.notes.append("cable: %d tiles for %d APCs" % (len(mask), len(apcs)))
+
+    def cable_extra(self, q):
+        """Extra cost of cable on q: never under a shower, sink or toilet; not over bare plating in a room where it shows."""
+        t = self.t(*q)
+        if any(o.path.startswith(("/obj/machinery/shower", "/obj/structure/sink", "/obj/structure/toilet", "/obj/structure/urinal"))
+               for o in t.objs):
+            return 40.0
+        if t.tpath == kit.PLATING and "/maintenance" not in (self.area_of(q) or "/maintenance"):
+            return 2.0
+        return 0.0
 
     # ------------------------------------------------------------------ decals
     def decals(self):

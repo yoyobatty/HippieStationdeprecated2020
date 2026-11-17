@@ -18,7 +18,7 @@ FIREDOOR = "/obj/machinery/door/firedoor"
 
 # kind -> wall side -> (dir, pixel_x, pixel_y); None = leave the var out
 MOUNT = {
-    "apc": {N: (1, None, 23), S: (None, None, -24), E: (4, 24, None), W: (8, -25, None)},
+    "apc": {N: (1, None, 23), S: (None, None, -23), E: (4, 24, None), W: (8, -25, None)},
     "airalarm": {N: (None, None, 23), S: (1, None, -22), E: (8, 24, None), W: (4, -22, None)},
     "firealarm": {N: (None, None, 24), S: (1, None, -24), E: (8, 24, None), W: (4, -24, None)},
     "light_switch": {N: (None, None, 28), S: (None, None, -25), E: (None, 27, None), W: (None, -23, None)},
@@ -48,6 +48,7 @@ MOUNT_PATHS = {
     "intercom": "/obj/item/radio/intercom",
     "camera": "/obj/machinery/camera",
     "light": "/obj/machinery/light",
+    "requests_console": "/obj/machinery/requests_console",
 }
 
 
@@ -174,6 +175,9 @@ def dense_types():
 
 def is_dense_atom(a):
     if a.path.startswith(NOT_DENSE + ("/obj/structure/railing", "/obj/machinery/door")):
+        return False
+    # the gateway frame's bottom row is open (Initialize() drops density facing S, SE, SW): you walk in from there
+    if a.path == "/obj/machinery/gateway" and a.num("dir", 2) in (2, 6, 10):
         return False
     d = a.get("density")
     if d is not None:

@@ -416,6 +416,7 @@ def _gaps(dep, area, mw, rnd, outer):
     void = {t for t in area if t not in dist}
     solid = set()
     aband = []
+    extra = set()
     ring = frozenset(maint)
     left = set(void)
     # pocket tiles a passage may be dug through (wall left over, and the gaps between abandoned rooms)
@@ -439,7 +440,8 @@ def _gaps(dep, area, mw, rnd, outer):
         rest = set(comp)
         diggable |= comp
         # as many rooms as the pocket holds (a big pocket left as solid wall reads as dead space)
-        for _ in range(8):
+        # (the ring's core pockets stopped at 8 and left 200-tile blocks of wall, 2026-11-16)
+        for _ in range(40):
             core = {t for t in rest if all((t[0] + dx, t[1] + dy) in rest for dx in (-1, 0, 1) for dy in (-1, 0, 1))}
             r = _biggest_rect(core)
             if not r or (r[2] - r[0] + 1) < 3 or (r[3] - r[1] + 1) < 3 or (r[2] - r[0] + 1) * (r[3] - r[1] + 1) < 12:
@@ -454,12 +456,60 @@ def _gaps(dep, area, mw, rnd, outer):
                 y1 = y0 + 8
             aband.append((x0, y0, x1, y1))
             rest -= {(x, y) for x in range(x0 - 1, x1 + 2) for y in range(y0 - 1, y1 + 2)}
+        inner = {(x, y) for x0, y0, x1, y1 in aband for x in range(x0, x1 + 1) for y in range(y0, y1 + 1)}
         for t in rest:
-            # what is left: maint where it touches maint, else wall
+            # what is left: maint where it touches maint; maint too where a wall still stands between it and every
+            # room (a strip between packed rooms left as wall was a 20x5 block of solid wall in the ring's core);
+            # else wall
+            n8 = [(t[0] + dx, t[1] + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy]
             if any((t[0] + dx, t[1] + dy) in ring for dx, dy in DIRS):
                 maint.add(t)
+            elif all(n in comp or n in ring for n in n8) and not any(n in inner for n in n8):
+                extra.add(t)
             else:
                 solid.add(t)
+    # leftover maint shut in among the rooms: a passage to the maint ring, else wall again
+    left = set(extra)
+    while left:
+        s0 = left.pop()
+        piece, st = {s0}, [s0]
+        while st:
+            t = st.pop()
+            for dx, dy in DIRS:
+                n_ = (t[0] + dx, t[1] + dy)
+                if n_ in left:
+                    left.discard(n_)
+                    piece.add(n_)
+                    st.append(n_)
+        if any((t[0] + dx, t[1] + dy) in maint for t in piece for dx, dy in DIRS):
+            maint |= piece
+            continue
+        if len(piece) < 6:
+            solid |= piece
+            continue
+        inner = {(x, y) for x0, y0, x1, y1 in aband for x in range(x0, x1 + 1) for y in range(y0, y1 + 1)}
+        dig = {t for t in solid if not any((t[0] + dx, t[1] + dy) in inner for dx, dy in DIRS)}
+        prev = {s_: None for s_ in piece}
+        todo, k, hit = list(piece), 0, None
+        while k < len(todo):
+            t = todo[k]
+            k += 1
+            if t not in piece and any((t[0] + dx, t[1] + dy) in maint for dx, dy in DIRS):
+                hit = t
+                break
+            for dx, dy in DIRS:
+                n_ = (t[0] + dx, t[1] + dy)
+                if n_ in dig and n_ not in prev:
+                    prev[n_] = t
+                    todo.append(n_)
+        if hit is None:
+            solid |= piece
+            continue
+        maint |= piece
+        while hit is not None and hit not in piece:
+            solid.discard(hit)
+            maint.add(hit)
+            hit = prev[hit]
     # a room deep in its pocket has wall all round: dig a passage through it to the nearest maint
     for x0, y0, x1, y1 in aband:
         sides = [(x, y0 - 1, 0, -1) for x in range(x0, x1 + 1)] + [(x, y1 + 1, 0, 1) for x in range(x0, x1 + 1)] + \
@@ -746,16 +796,18 @@ def solar_field(pairs=SOLAR_PAIRS):
     o = 2
     for k in range(pairs):
         for row in (o, o + 2):
-            for s_ in (-W, -W + 1, W - 1, W, 0):
+            for s_ in (-W, -W + 1, W - 1, W):
                 out[(s_, row)] = "lattice"
+            out[(0, row)] = "cable"     # the spine runs the field's length: every row's cable joins it
             for s_ in list(range(-6, -1)) + list(range(2, 7)):
                 out[(s_, row)] = "panel"
         out[(-W, o + 1)] = out[(W, o + 1)] = "lattice"
         for s_ in range(-6, 7):
             out[(s_, o + 1)] = "cable"
         if k + 1 < pairs:
-            for s_ in (-W, -4, 0, 4, W):
+            for s_ in (-W, -4, 4, W):
                 out[(s_, o + 3)] = "lattice"
+            out[(0, o + 3)] = "cable"
         o += 4
     # past the last panel row: a strut row, the frame, the tracker cap
     o -= 1

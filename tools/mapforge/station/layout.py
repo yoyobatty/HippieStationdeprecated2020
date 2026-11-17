@@ -703,7 +703,165 @@ def link_maint(plan):
             return
 
 
+# rooms that never get a door onto maint: a brig cell's back door lets the prisoner walk out
+NO_BACK_DOOR = ("cells",)
+WANTS_BACK_DOOR = ("restroom",)
+
+
+def open_dead_ends(plan, back=4):
+    """A maint corridor that stops short against a wall is a trap on stock maps only by accident: each dead end
+    gets a maint door out, within a few tiles of its end, onto a hall beside it (else a room that isn't secure)."""
+    fl = plan.floor
+
+    def mt(p):
+        return fl.get(p) in ("maint", "catwalk")
+
+    def ways(p):
+        return [(p[0] + dx, p[1] + dy) for dx, dy in DIRS
+                if (p[0] + dx, p[1] + dy) in fl or (p[0] + dx, p[1] + dy) in plan.doors]
+
+    added = 0
+    for p in sorted(p for p in fl if fl[p] == "maint"):
+        w = ways(p)
+        if len(w) != 1 or not mt(w[0]):
+            continue
+        # walk back up the corridor a few tiles; the first wall with a hall (else a room) straight across gets a door
+        path, prev, cur = [p], None, p
+        for _ in range(back):
+            nxt = [n for n in ways(cur) if n != prev and mt(n)]
+            if len(nxt) != 1:
+                break
+            prev, cur = cur, nxt[0]
+            path.append(cur)
+        if any((a[0] + dx, a[1] + dy) in plan.doors for a in path[:2] for dx, dy in DIRS):
+            continue
+        best = None
+        for i, a in enumerate(path):
+            for dx, dy in DIRS:
+                q, r = (a[0] + dx, a[1] + dy), fl.get((a[0] + 2 * dx, a[1] + 2 * dy))
+                if q in fl or q in plan.doors or q in plan.glass or not r or r in ("maint", "catwalk"):
+                    continue
+                m = plan.rooms.get(r, {})
+                if m.get("secure") or m.get("dept") in ("maint", "solar", "ai") or r.startswith(NO_BACK_DOOR):
+                    continue
+                score = (0 if m.get("kind") == "hall" else 1, i)
+                if best is None or score < best[0]:
+                    best = (score, q)
+        if best:
+            plan.doors[best[1]] = "maint"
+            plan.walls.discard(best[1])
+            added += 1
+    if added:
+        plan.notes.append("%d maint dead ends opened" % added)
+
+
+def close_gaps(plan):
+    """Two rooms a two-tile gap apart get two walls back to back (floor, wall, wall, floor): stock maps share one
+    wall. Where the gap's near row runs the whole length of a room's side, that row joins the room (it stays a
+    rectangle); rooms before maint, maint before halls."""
+    fl = plan.floor
+    taken = set(plan.doors) | plan.glass | set(plan.solar)
+
+    def pref(rid):
+        k = plan.rooms.get(rid, {}).get("kind")
+        return 0 if k == "room" else 1 if k == "maint" else 2
+
+    grew = 0
+    for axis in (0, 1):
+        def P(u, v):
+            return (u, v) if axis == 0 else (v, u)
+        rows = {}
+        for p in list(fl):
+            u, v = (p[0], p[1]) if axis == 0 else (p[1], p[0])
+            g1, g2, far = P(u + 1, v), P(u + 2, v), P(u + 3, v)
+            if g1 in fl or g2 in fl or g1 in taken or g2 in taken or far not in fl:
+                continue
+            rows.setdefault((u, fl[p], fl[far]), []).append(v)
+        for (u, a, b), vs in rows.items():
+            vs.sort()
+            runs, cur = [], [vs[0]]
+            for v in vs[1:]:
+                if v == cur[-1] + 1:
+                    cur.append(v)
+                else:
+                    runs.append(cur)
+                    cur = [v]
+            runs.append(cur)
+            for run in runs:
+                v0, v1 = run[0], run[-1]
+                opts = []
+                for side_u, rid, gu in ((u, a, u + 1), (u + 3, b, u + 2)):
+                    if rid in ("catwalk",) or plan.rooms.get(rid, {}).get("dept") in ("solar", "ai"):
+                        continue
+                    # the room's side here is exactly the run (else the new row would make a jog)
+                    if fl.get(P(side_u, v0 - 1)) == rid or fl.get(P(side_u, v1 + 1)) == rid:
+                        continue
+                    # nothing at the strip's ends would meet it floor to floor
+                    ends = [P(gu, v0 - 1), P(gu, v1 + 1)]
+                    if any(e in fl or e in taken for e in ends):
+                        continue
+                    if any(P(gu, v) in fl or P(gu, v) in taken for v in run):
+                        continue
+                    opts.append((pref(rid), -len(run), gu, rid))
+                if not opts:
+                    continue
+                _, _, gu, rid = min(opts)
+                for v in run:
+                    fl[P(gu, v)] = rid
+                    grew += 1
+    if grew:
+        plan.notes.append("closed %d tiles of double wall" % grew)
+
+
+def open_pinches(plan):
+    """Two hall (or maint) tiles that meet only at a corner, walls on the other two: a squeeze no one can walk
+    through. Fill one of the corner tiles in as floor of the same way."""
+    def way(p):
+        r = plan.floor.get(p)
+        if r is None:
+            return None
+        return "maint" if r == "maint" else "hall" if plan.rooms.get(r, {}).get("kind") == "hall" else None
+    opened = 0
+    for p in sorted(plan.floor):
+        for dx in (1, -1):
+            q = (p[0] + dx, p[1] + 1)
+            if way(p) is None or way(p) != way(q):
+                continue
+            c1, c2 = (q[0], p[1]), (p[0], q[1])
+            if c1 in plan.floor or c2 in plan.floor:
+                continue
+            # the walls either side of the opened tile still have to join: the room behind gives up its corner
+            # tile (d, diagonal from c away from the halls), unless that is wall already
+            best = None
+            for c, own in ((c1, p), (c2, q)):
+                others = [(c[0] + ex, c[1] + ey) for ex, ey in DIRS]
+                others = [o for o in others if o not in (p, q)]
+                if any(o in plan.floor for o in others) or c in plan.doors:
+                    continue
+                d = (others[0][0] + others[1][0] - c[0], others[0][1] + others[1][1] - c[1])
+                r = plan.floor.get(d)
+                if r is None:
+                    cost = 0
+                else:
+                    tiles = [t for t, x in plan.floor.items() if x == r]
+                    near_door = any((d[0] + ex, d[1] + ey) in plan.doors for ex, ey in DIRS)
+                    if way(d) or len(tiles) < 16 or near_door or plan.rooms.get(r, {}).get("kind") in ("solar", "ai"):
+                        continue
+                    cost = 1
+                if best is None or cost < best[0]:
+                    best = (cost, c, own, d)
+            if best:
+                _, c, own, d = best
+                plan.floor[c] = plan.floor[own]
+                plan.floor.pop(d, None)
+                opened += 1
+    if opened:
+        plan.notes.append("opened %d corner-only squeezes" % opened)
+
+
 def finish(plan, segs, by, tf, ring):
+    close_gaps(plan)
+    open_pinches(plan)
     halls_of = {}
     for rid, m in plan.rooms.items():
         if m.get("kind") == "hall" and m.get("dept") not in ("hall", "ai"):
@@ -751,9 +909,11 @@ def finish(plan, segs, by, tf, ring):
                 plan.problems.append("%s and %s share no wall" % (rid, k))
             else:
                 plan.doors[t] = "secure" if (m.get("secure") or plan.rooms.get(k, {}).get("secure")) else "link"
-        if m.get("maint") or m.get("lobby") is False and not m.get("public"):
+        # restrooms always have a back way into maint on the stock maps
+        back = m.get("maint") or rid.startswith(WANTS_BACK_DOOR) or m.get("label") in WANTS_BACK_DOOR
+        if (back or m.get("lobby") is False and not m.get("public")) and not rid.startswith(NO_BACK_DOOR):
             t = _mid(shared_wall(plan, rid, "maint"))
-            if t is not None and (m.get("maint") or random.Random(rid).random() < 0.35) and not m.get("secure"):
+            if t is not None and (back or random.Random(rid).random() < 0.35) and not m.get("secure"):
                 plan.doors[t] = "maint"
     # spines: public ones open onto the ring, staff ones only through the lobby
     for side, name, u0, w, loc in segs:
@@ -863,7 +1023,7 @@ def finish(plan, segs, by, tf, ring):
                     has = True
                 if q not in plan.floor and r and r not in ("maint", "catwalk") and not inner:
                     m = plan.rooms.get(r, {})
-                    if m.get("secure"):
+                    if m.get("secure") or r.startswith(NO_BACK_DOOR):
                         continue
                     best.append((0 if m.get("kind") == "hall" else 1, q))
         if not has and best:
@@ -877,6 +1037,7 @@ def finish(plan, segs, by, tf, ring):
         elif not has:
             plan.problems.append("maint piece of %d tiles with no way in" % len(comp))
     link_maint(plan)
+    open_dead_ends(plan)
 
     # walls: every tile beside floor that is not floor; hull where it also meets space
     for p in list(plan.floor):

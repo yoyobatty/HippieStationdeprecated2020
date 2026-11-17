@@ -1,0 +1,9 @@
+{
+    "map_name": "Generated gen_ring_c80_s3",
+    "map_path": "map_files/Generated",
+    "map_file": "gen_ring_c80_s3.dmm",
+    "shuttles": {
+        "cargo": "cargo_box",
+        "emergency": "emergency_birdboat"
+    }
+}
