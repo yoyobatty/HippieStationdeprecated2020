@@ -316,7 +316,8 @@ class Grower:
             for k in r.near:
                 ts = [p for p, q in self.own.items() if q == k]
                 if ts:
-                    s += 0.25 * min(abs(p[0] - cx) + abs(p[1] - cy) for p in ts)
+                    # 0.25 lost to the pull toward the entrance: hydroponics stayed three rooms from the kitchen
+                    s += 0.7 * min(abs(p[0] - cx) + abs(p[1] - cy) for p in ts)
             s += rnd.random() * 2.2
             if best is None or s < best[0]:
                 best = (s, rect)

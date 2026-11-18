@@ -718,6 +718,10 @@ class Builder:
             for i, entry in enumerate(s.get("obj", [])):
                 path, vs = (entry, []) if isinstance(entry, str) else (entry[0], list(entry[1].items()) if isinstance(entry[1], dict) else entry[1])
                 vs = [(k, dmm.fmt(v) if not isinstance(v, str) or not v.startswith(("\"", "/", "list(")) and not v.lstrip("-").isdigit() else v) for k, v in vs]
+                # access lists are text ("12" or "5;33"): a bare 12 made text2access() runtime in splittext and left
+                # req_access empty, so every generated access door opened for anyone
+                vs = [(k, '"%s"' % v if k.endswith("_txt") and isinstance(v, str) and not v.startswith("\"") else v)
+                      for k, v in vs]
                 face = s.get("face")
                 if face is not None and i in s.get("face_obj", [0]):
                     d = self.face_dir(p, face)

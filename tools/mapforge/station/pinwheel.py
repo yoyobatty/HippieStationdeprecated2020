@@ -248,6 +248,9 @@ SIDE_ROOMS = ((12, (("vending", 3), ("e-closet", 3), ("fire closet", 2), ("subst
 # most of each a station has (others: no cap)
 SIDE_CAP = {"vending": 3, "restroom": 2, "lounge": 2, "game room": 1, "barber": 1, "photo": 1, "substation": 4,
             "office": 4, "vacant": 3, "park": 1, "arcade": 1, "holodeck": 1, "pool": 1, "gallery": 1}
+# a barber or photo studio is drawn as the lounge area, so they count toward the lounge cap: s102 had three lounges
+# by area (2026-11-18 walk)
+SIDE_SHARES = {"barber": "lounge", "photo": "lounge"}
 PUBLIC_SIDE = {"vending", "restroom", "lounge", "game room", "barber", "photo", "park", "arcade", "holodeck", "pool",
                "gallery"}
 CORE_RING = {"bridge", "hop", "eva", "bar", "hydro", "garden", "janitor"}
@@ -382,10 +385,13 @@ def _put_features(plan, feats, at, rnd, tag):
         n += 1
         rid = "side_%s_%d" % (tag, n)
         opts = [(lab, w) for lab, w in next(ls for top, ls in SIDE_ROOMS if len(tiles) <= top)
-                if lab != last and used.get(lab, 0) < SIDE_CAP.get(lab, 99)] or \
+                if lab != last and used.get(lab, 0) < SIDE_CAP.get(lab, 99) and
+                (lab not in SIDE_SHARES or used.get(SIDE_SHARES[lab], 0) < SIDE_CAP[SIDE_SHARES[lab]])] or \
             [("vacant" if len(tiles) > 24 else "closet", 1)]
         label = rnd.choices([o[0] for o in opts], [o[1] for o in opts])[0]
         used[label] = used.get(label, 0) + 1
+        if label in SIDE_SHARES:
+            used[SIDE_SHARES[label]] = used.get(SIDE_SHARES[label], 0) + 1
         last = label
         pts = [at(*t) for t in tiles]
         xs, ys = [p[0] for p in pts], [p[1] for p in pts]

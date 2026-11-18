@@ -149,7 +149,8 @@ def departments():
         # ---- the core, inside the ring
         Dept("command", C["command"], [
             R("bridge", 170, 0, ("hall",), (8, 10), label="BRIDGE"),
-            R("captain", 70, 0, ("hall",), links=("cap_bed",), label="captain"),
+            # the captain's office opens off the bridge on the stock maps (1 step on 30 of 38, func_walk.py)
+            R("captain", 70, 0, ("hall",), links=("cap_bed", "bridge"), label="captain"),
             R("cap_bed", 30, 0, (), label="cap bed", need=45),
             R("hop", 43, 0, ("hall",), label="HoP"),
             R("eva", 68, 0, ("hall",), label="EVA"),
@@ -163,7 +164,10 @@ def departments():
             R("kitchen", 76, 0, (), links=("cold",), label="kitchen"),
             R("cold", 26, 0, (), label="cold"),
             R("theatre", 44, 0, (), label="theatre", need=30),
-            R("hydro", 107, 0, ("hall",), (6, 8), label="hydro"),
+            # hydroponics backs onto the kitchen (a window or a door between on 26 of 38 stock maps): produce goes
+            # through to the cook. near= alone leaves them 3 hops apart on 27 of 40 maps (genset4 walk), but a hard
+            # link took the kitchen off the bar on 13 of 40 (genset5), and the bar's hatch matters more
+            R("hydro", 107, 0, ("hall",), (6, 8), label="hydro", near=("kitchen",)),
             R("garden", 50, 0, ("hall",), public=True, label="garden", need=50),
             R("janitor", 24, 0, ("hall",), label="jani"),
         ], where="core"),

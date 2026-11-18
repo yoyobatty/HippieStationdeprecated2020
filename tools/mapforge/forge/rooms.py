@@ -45,7 +45,9 @@ def edge_kind(t):
     if glassy:
         return "glass"
     if t.has("/obj/machinery/door/poddoor"):
-        return "glass" if t.has("/obj/structure/table") else "door"
+        # a table under shutters with no window is a serving hatch: people stand at it from both sides (read as
+        # glass, a kitchen template stood its microwave counter against the generator's hatch, 2026-11-18)
+        return "door"
     if solid(t):
         return "wall"
     return "open"
@@ -273,8 +275,9 @@ def fit(target, target_edges, kind, required=(), limit=40, skip=None):
                 lost = Counter()
                 have = Counter(o.split("{")[0] for objs in place.values() for o in objs[1:])
                 for pth, n in required:
-                    if have[pth] < n:
-                        lost[pth] = n - have[pth]
+                    got = sum(v for k_, v in have.items() if k_ == pth or (k_.startswith(pth + "/") and "/telescreen" not in k_[len(pth):]))
+                    if got < n:
+                        lost[pth] = n - got
                 score -= 8.0 * sum(lost.values())
                 score -= 0.6 * (abs(sw - tw) + abs(sh - th))
                 out.append((score, place, "%s %s %d,%d rot%d%s" % (r["map"], r["area"].rsplit("/", 1)[-1], r["at"][0], r["at"][1],

@@ -107,6 +107,24 @@ ITEM_SKIP = ("/obj/item/stack/spacecash", "/obj/item/gun", "/obj/item/card", "/o
              "/obj/item/reagent_containers/food/snacks/grown/poppy")
 
 
+_PLANT_RATE = None
+
+
+def plant_rate(area):
+    """Share of the stock maps' rooms of this area holding a potted plant (data/mapforge/plant_rate.json, made from
+    the nine local maps), pulled toward the overall 15% when the area has few rooms; quartered, since a room's template
+    often brings its own."""
+    global _PLANT_RATE
+    if _PLANT_RATE is None:
+        p = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "mapforge", "plant_rate.json")
+        try:
+            _PLANT_RATE = json.load(open(p))
+        except (OSError, ValueError):
+            _PLANT_RATE = {}
+    n, h = _PLANT_RATE.get(area, (0, 0))
+    return 0.25 * (h + 0.15 * 3) / (n + 3.0)
+
+
 def dress(b, seed=1):
     rng = random.Random(seed)
     m = b.m
@@ -217,9 +235,12 @@ def dress(b, seed=1):
                             st.objs.append(dmm.Atom("/obj/structure/sign/warning/securearea", vs))
                             signs += 1
                             break
-    # 5. a plant in a free corner of each room, near its door
+    # 5. a plant in a free corner of a room, near its door, as often as the stock maps' rooms of that area have one
+    #    (15% of rooms overall, none in cells, armouries or cold rooms; a plant in every room was 65%, 2026-11-18)
     for rc, rd in b.roomdefs.items():
         if rd.get("dress") is False or rd.get("plant") is False or rd["area"].startswith("/area/hallway"):
+            continue
+        if rng.random() >= plant_rate(rd["area"]):
             continue
         tiles = [p for p in b.zone if b.room.get(p) == rc and b.is_floor(p)]
         corners = [p for p in tiles if len(b.wall_sides(p)) >= 2 and not kit.dense(m.get(*p).objs)

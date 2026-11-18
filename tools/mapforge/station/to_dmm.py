@@ -15,6 +15,7 @@ import argparse
 import json
 import math
 import os
+import random
 import re
 import sys
 import types
@@ -297,6 +298,114 @@ ENGINE_PARTS = ("/obj/machinery/power/emitter", "/obj/structure/reflector", "/ob
 SCALE = {"treatment": {"/obj/structure/bed/roller": 14, "/obj/machinery/iv_drip": 28},
          "toxins": {"/obj/structure/table/reinforced": 20},
          "sorting": {"/obj/structure/table/reinforced": 18}}
+
+# what makes a head's office or a security post that room: a walk round generated stations (2026-11-18) found a
+# HoS office holding a suit storage unit and a plant, its desk and consoles in a closet beside it, and posts with a
+# locker and nothing else
+REQUIRE.update({
+    "hos": ["/obj/structure/closet/secure_closet/hos", "/obj/machinery/computer/secure_data", "/obj/machinery/computer/security",
+            ("/obj/structure/table", 2), "/obj/structure/chair"],
+    "warden": ["/obj/machinery/computer/prisoner", "/obj/machinery/computer/security", "/obj/structure/closet/secure_closet/warden",
+               ("/obj/structure/table", 2), "/obj/structure/chair"],
+    "hop": ["/obj/machinery/computer/card", "/obj/machinery/vending/cart", "/obj/machinery/pdapainter", ("/obj/structure/table", 2),
+            "/obj/structure/chair"],
+    "cmo": ["/obj/structure/closet/secure_closet/CMO", "/obj/machinery/computer/crew", ("/obj/structure/table", 2), "/obj/structure/chair"],
+    "rd": ["/obj/structure/closet/secure_closet/RD", "/obj/machinery/computer/robotics", ("/obj/structure/table", 2), "/obj/structure/chair"],
+    "ce": REQUIRE["ce"] + ["/obj/machinery/computer/station_alert", ("/obj/structure/table", 2), "/obj/structure/chair"],
+    "qm": ["/obj/structure/closet/secure_closet/quartermaster", "/obj/machinery/computer/cargo", ("/obj/structure/table", 2),
+           "/obj/structure/chair"],
+    "captain": ["/obj/machinery/computer/card", "/obj/machinery/computer/communications", ("/obj/structure/table", 3),
+                "/obj/structure/chair"],
+    "detective": [("/obj/structure/table", 2), "/obj/machinery/computer/secure_data", "/obj/structure/chair"],
+    "esc_check": ["/obj/machinery/computer/secure_data", "/obj/structure/closet/secure_closet/security", ("/obj/structure/table", 2)],
+    "customs": ["/obj/machinery/computer/secure_data", "/obj/machinery/computer/card", ("/obj/structure/table", 2)],
+    "eng_check": ["/obj/machinery/computer/secure_data", "/obj/structure/closet/secure_closet/security", ("/obj/structure/table", 2)],
+    "cargo_check": ["/obj/machinery/computer/secure_data", "/obj/structure/closet/secure_closet/security", ("/obj/structure/table", 2)],
+    "med_lobby": [("/obj/structure/chair", 4)],
+    "cold": ["/obj/machinery/gibber", ("/obj/structure/kitchenspike", 1)],
+})
+
+# one of a kind per suite (a room and the pieces split_rooms cut from it): the second chemistry lab, PanDEMIC,
+# techfab, gibber and wardrobe of a split room came from furnishing every piece with the whole room's kit
+UNIQUE = ("/obj/machinery/vending/wardrobe", "/obj/machinery/rnd", "/obj/machinery/computer/pandemic",
+          "/obj/machinery/smartfridge", "/obj/machinery/gibber", "/obj/machinery/icecream_vat", "/obj/machinery/clonepod",
+          "/obj/machinery/computer/cloning", "/obj/machinery/chem_master", "/obj/machinery/chem_dispenser",
+          "/obj/machinery/chem_heater", "/obj/machinery/dna_scannernew", "/obj/machinery/computer/scan_consolenew",
+          "/obj/machinery/computer/operating", "/obj/structure/table/optable", "/obj/machinery/mecha_part_fabricator",
+          "/obj/machinery/computer/rdconsole", "/obj/machinery/rnd/experimentor", "/obj/machinery/nanite",
+          "/obj/machinery/computer/nanite", "/obj/machinery/biogenerator", "/obj/machinery/seed_extractor",
+          "/obj/machinery/plantgenes", "/obj/machinery/vending/autodrobe", "/obj/structure/piano",
+          "/obj/machinery/computer/card", "/obj/machinery/computer/communications", "/obj/machinery/pdapainter",
+          "/obj/machinery/vending/cart", "/obj/machinery/suit_storage_unit/cmo", "/obj/machinery/suit_storage_unit/hos",
+          "/obj/machinery/suit_storage_unit/captain", "/obj/machinery/suit_storage_unit/ce",
+          "/obj/machinery/suit_storage_unit/rd", "/obj/machinery/processor", "/obj/machinery/deepfryer",
+          "/obj/machinery/computer/prisoner", "/obj/machinery/computer/shuttle", "/obj/machinery/computer/gulag_teleporter_computer",
+          "/obj/machinery/gulag_item_reclaimer", "/obj/machinery/computer/security/labor", "/obj/machinery/vending/security",
+          "/obj/machinery/vending/medical", "/obj/machinery/vending/hydroseeds", "/obj/machinery/vending/hydronutrients",
+          "/obj/machinery/vending/dinnerware", "/obj/machinery/chem_dispenser/drinks", "/obj/machinery/computer/slot_machine",
+          "/obj/machinery/computer/arcade", "/obj/structure/janitorialcart", "/obj/machinery/photocopier",
+          "/obj/structure/closet/secure_closet/hos", "/obj/structure/closet/secure_closet/warden",
+          "/obj/structure/closet/secure_closet/CMO", "/obj/structure/closet/secure_closet/RD",
+          "/obj/structure/closet/secure_closet/quartermaster", "/obj/structure/closet/secure_closet/engineering_chief",
+          "/obj/structure/displaycase", "/obj/machinery/computer/crew", "/obj/machinery/computer/med_data",
+          "/obj/machinery/computer/secure_data", "/obj/machinery/computer/security", "/obj/structure/bodycontainer/crematorium",
+          "/obj/machinery/washing_machine", "/obj/machinery/mech_bay_recharge_port", "/obj/structure/weightmachine",
+          "/obj/structure/punching_bag", "/obj/machinery/reagentgrinder")
+# furniture any room may have more of: a room's required tables and chairs don't bar them from its side rooms
+GENERIC = ("/obj/structure/table", "/obj/structure/chair", "/obj/structure/bed", "/obj/structure/closet",
+           "/obj/structure/sink", "/obj/structure/rack", "/obj/structure/toilet", "/obj/machinery/iv_drip",
+           "/obj/structure/bed/roller", "/obj/structure/chair/stool", "/obj/structure/table/reinforced",
+           "/obj/structure/table/wood", "/obj/structure/table/glass", "/obj/structure/chair/office")
+# what each piece split_rooms cuts off a room is for, in order of preference: (label, area (None: the room's),
+# furnishing kind (None: the area's), required pieces, smallest and largest floor). The stock maps hang patient rooms,
+# exam rooms, observation and prep rooms, chemical storage, isolation cells, quarters and storerooms off the main rooms;
+# a piece no role fits is a closet or a back office of the room's own kind, its one-of-a-kind machines left out.
+BED = ("/obj/structure/bed", 1)
+SUITES = {
+    "treatment": [("patient room", "/area/medical/patients_rooms/room_a", None, [BED, "/obj/structure/chair"], 6, 16),
+                  ("patient room", "/area/medical/patients_rooms/room_b", None, [BED, "/obj/structure/chair"], 6, 16),
+                  ("exam room", "/area/medical/exam_room", None, [("/obj/structure/bed/roller", 1), "/obj/structure/sink"], 12, 40),
+                  ("recovery", "/area/medical/sleeper", None, [("/obj/structure/bed", 2)], 12, 60)],
+    "surgery": [("second theatre", None, None, ["/obj/structure/table/optable", "/obj/machinery/computer/operating"], 16, 60),
+                ("observation", None, None, [("/obj/structure/chair", 2)], 4, 15),
+                ("prep room", None, None, ["/obj/structure/sink", BED], 6, 30)],
+    "chem": [("chemical storage", None, None, ["/obj/structure/closet/secure_closet/chemical"], 4, 30),
+             ("pharmacy", "/area/medical/apothecary", "/area/medical/apothecary", [("/obj/structure/table", 2)], 10, 60)],
+    # every stock isolation cell is 6 tiles (a 2x3 with a bed), two to a virology (viro_cells walk, 2026-11-18)
+    "virology": [("isolation", None, None, [BED], 6, 10), ("isolation", None, None, [BED], 6, 10)],
+    "medstore": [("store room", None, None, [("/obj/structure/closet", 1)], 4, 60)],
+    "cmo": [("CMO's quarters", None, "/area/crew_quarters/dorms", [BED], 6, 30)],
+    "hos": [("HoS's quarters", None, "/area/crew_quarters/dorms", [BED], 6, 30)],
+    "hop": [("HoP's quarters", None, "/area/crew_quarters/dorms", [BED], 6, 30)],
+    "ce": [("CE's quarters", None, "/area/crew_quarters/dorms", [BED], 6, 30)],
+    "rd": [("RD's quarters", None, "/area/crew_quarters/dorms", [BED], 6, 30)],
+    "qm": [("QM's quarters", None, "/area/crew_quarters/dorms", [BED], 6, 30)],
+    "captain": [("captain's washroom", None, "/area/crew_quarters/toilet", ["/obj/structure/toilet", "/obj/structure/sink"], 4, 16)],
+    "bridge": [("meeting room", "/area/bridge/meeting_room", "/area/bridge/meeting_room", [("/obj/structure/chair", 4), ("/obj/structure/table", 2)], 14, 60)],
+    "gym": [("locker room", "/area/crew_quarters/fitness/locker_room", "/area/crew_quarters/fitness/locker_room",
+             [("/obj/structure/closet", 2)], 8, 60)],
+    "lockers": [("locker toilets", "/area/crew_quarters/toilet/locker", "/area/crew_quarters/toilet/locker",
+                 ["/obj/structure/toilet", "/obj/structure/sink"], 6, 40)],
+    "mining": [("mining office", "/area/quartermaster/miningoffice", "/area/quartermaster/miningoffice",
+                ["/obj/structure/closet/secure_closet/miner"], 8, 60)],
+    "toxins": [("toxins storage", "/area/science/storage", "/area/science/storage", [], 6, 60)],
+    "workshop": [("engineering storage", "/area/engine/storage", "/area/engine/storage", [], 6, 60)],
+    "rnd": [("R&D storage", "/area/science/storage", "/area/science/storage", [], 6, 60)],
+    "kitchen": [("pantry", None, "/area/crew_quarters/kitchen/coldroom", [("/obj/structure/closet", 1)], 4, 30)],
+    "bar": [("back room", None, None, [("/obj/structure/closet", 1)], 4, 30)],
+    "library": [("study", None, None, [("/obj/structure/table", 1), "/obj/structure/chair"], 4, 40)],
+    "office": [("break room", None, "/area/engine/break_room", [("/obj/structure/table", 1), ("/obj/structure/chair", 2)], 8, 60)],
+    "genetics": [("monkey pen", None, None, [], 4, 30)],
+}
+
+
+def suite_role(base, size, used):
+    """The role for the next piece cut off a room of type `base`, by its floor size; None for a plain back room."""
+    for i, (label, area, kind, req, lo, hi) in enumerate(SUITES.get(base, ())):
+        if i not in used and lo <= size <= hi:
+            used.add(i)
+            return dict(label=label, area=area, kind=kind, require=req)
+    return None
 
 
 def base_id(rid):
@@ -593,6 +702,7 @@ def convert(plan, layout_name, crew, seed):
 
     # areas per room
     roomdefs, area_of = {}, {}
+    suite_used, sub_role = {}, {}
     aband_n = 0
     side_used = {}
     fillers = list(FILLERS)
@@ -607,6 +717,22 @@ def convert(plan, layout_name, crew, seed):
         if b in A:
             area, floor, furn, _, _ = A[b]
             furn = area if furn is None else furn
+            if b.endswith("_sub"):
+                # a piece split_rooms cut off: its own job (patient room, observation, quarters), never a second
+                # copy of the room's one-of-a-kind machines
+                parent = b[:-4]
+                role = suite_role(parent, len(tiles), suite_used.setdefault(parent, set()))
+                sig = tuple(e if isinstance(e, str) else e[0] for e in REQUIRE.get(parent, ()))
+                sig = tuple(p_ for p_ in sig if p_ not in GENERIC)
+                if role:
+                    area = role["area"] or area
+                    furn = role["kind"] or (role["area"] if role["area"] else furn)
+                    keep = tuple(e if isinstance(e, str) else e[0] for e in role["require"])
+                    meta["label"] = role["label"]
+                else:
+                    keep = ()
+                sub_role[rid] = (role["require"] if role else [],
+                                 tuple(p_ for p_ in sig + UNIQUE if not any(k_.startswith(p_) or p_.startswith(k_) for k_ in keep)))
         elif rid == "ring":
             area, furn = "/area/hallway/primary/central", ""
         elif rid == "maint" or meta.get("kind") == "maint" or meta.get("dept") == "maint" and not rid.startswith("aband"):
@@ -684,7 +810,17 @@ def convert(plan, layout_name, crew, seed):
                 size = sum(1 for r in plan.floor.values() if r == rid)
                 need = [(e if isinstance(e, tuple) else (e, 1)) for e in need]
                 need = [(p_, max(n_, size // per[p_]) if p_ in per else n_) for p_, n_ in need]
-            rd["furnish"] = dict(kind=furn, mode="template", seed=seed, require=need, exclude=EXCLUDE.get(base_id(rid), ()) + ENGINE_PARTS)
+            ex = EXCLUDE.get(base_id(rid), ()) + ENGINE_PARTS
+            if rid in sub_role:
+                need, sub_ex = sub_role[rid]
+                ex = EXCLUDE.get(base_id(rid)[:-4], ()) + ENGINE_PARTS + sub_ex
+            elif base_id(rid) == "kitchen" and any(base_id(r_) == "cold" for r_ in area_of):
+                # the cold room behind the kitchen holds the gibber and the meat spikes, as on the stock maps
+                ex = ex + ("/obj/machinery/gibber", "/obj/structure/kitchenspike", "/mob/living/simple_animal/hostile/retaliate/goat")
+            elif base_id(rid) == "cold":
+                ex = ex + ("/obj/machinery/icecream_vat", "/obj/machinery/deepfryer", "/obj/machinery/processor",
+                           "/obj/machinery/vending/dinnerware", "/obj/machinery/microwave")
+            rd["furnish"] = dict(kind=furn, mode="template", seed=seed, require=need, exclude=ex)
         roomdefs[ch] = rd
     # a requests console per department room; the builder hangs it on the first roomdef of the area (rooms that
     # share an area, like the security office and the gear room, get one between them)
@@ -729,6 +865,12 @@ def convert(plan, layout_name, crew, seed):
         q = T(p)
         sides = [plan.floor.get((p[0] + DELTA[d][0], p[1] + DELTA[d][1])) for d in CARD]
         sides = [s for s in sides if s]
+        if kind == "counter":
+            owner, _, _, step, base = plan.counters[p]
+            ch[q] = door_char(counter_spec(plan, p, "%s_shutters" % base))
+            # the counter tile is the owner's floor
+            room[q] = room[T((p[0] + step[0], p[1] + step[1]))]
+            continue
         spec = door_spec(plan, kind, sides)
         if spec is None:
             ch[q] = "."
@@ -894,6 +1036,903 @@ def carve_pens(plan):
     return pens
 
 
+# rooms split_rooms leaves whole: machines placed by tile on the plan (tanks, SMES, engine, pens, cells, ward beds),
+# halls of their own, and the AI's rooms
+NO_SPLIT = {"engine", "xeno", "xeno_pens", "cells", "tanks", "atmos", "smes", "grav", "tcomms", "upload",
+            "ai_core", "sat_hall", "sat_tunnel", "transfer", "departures", "arr_lounge", "vault", "perma", "pool",
+            "range", "court", "chapel", "theatre", "garden", "cryodorm", "cabins", "restroom", "gateway", "teleporter",
+            # one open room you walk into: a bar cut in two halves, a lobby with two 6-tile "lobby" closets, a
+            # kitchen with a meat closet beside its cold room (walk of ring s102, 2026-11-18)
+            "bar", "kitchen", "med_lobby", "sci_lobby", "cargo_lobby", "eng_lobby", "atm_lobby"}
+
+
+def _connected(tiles):
+    tiles = set(tiles)
+    if not tiles:
+        return False
+    seen, todo = set(), [next(iter(tiles))]
+    while todo:
+        q = todo.pop()
+        if q in seen:
+            continue
+        seen.add(q)
+        todo += [(q[0] + DELTA[d][0], q[1] + DELTA[d][1]) for d in CARD
+                 if (q[0] + DELTA[d][0], q[1] + DELTA[d][1]) in tiles]
+    return len(seen) == len(tiles)
+
+
+def split_rooms(plan, rnd):
+    """Human stations cut a department's area into a main room and small rooms behind it: closets, back offices,
+    storage, a glass-fronted side lab. Their areas hold 2.1 wall-bounded rooms on average and 41% of their rooms are
+    9 tiles or less; ours held 1.4 and 7% (forge/disc.py read the room sizes as the tell, 2026-11-18). Two cuts,
+    both inside one area (the new room keeps its parent's area, floor, furnishing kind and door access):
+        partition  a room of 56+ tiles is cut across by a straight wall, half of it windows, with a door, when both
+                   sides keep 20+ tiles
+        closet     a corner of a room of 24+ tiles (2-4 by 2-3) behind an L of wall with a door
+    Changes the plan in place; returns notes."""
+    notes = {"partition": 0, "closet": 0}
+    doors = set(plan.doors)
+
+    def near_door(ts):
+        return any((q[0] + DELTA[d][0], q[1] + DELTA[d][1]) in doors for q in ts for d in CARD) or \
+            any(q in doors for q in ts)
+
+    def new_room(rid, tiles, what):
+        b = base_id(rid)
+        k = sum(1 for r in plan.rooms if r.startswith(rid + "_sub")) + 1
+        sid = "%s_sub%d" % (rid, k)
+        A.setdefault(b + "_sub", A[b])       # base_id(sid) is <base>_sub: same area, floor, furnishing, access
+        meta = dict(plan.rooms[rid])
+        meta["label"] = "%s %s" % (meta.get("label", rid), what)
+        plan.rooms[sid] = meta
+        for q in tiles:
+            plan.floor[q] = sid
+        return sid
+
+    def wall(q, glass=False):
+        plan.floor.pop(q, None)
+        plan.walls.add(q)
+        if glass:
+            plan.glass.add(q)
+
+    for rid in sorted(r for r, m in plan.rooms.items() if m.get("kind") == "room"):
+        b = base_id(rid)
+        if b not in A or b in NO_SPLIT or rid.endswith(tuple("_sub%d" % i for i in range(1, 9))):
+            continue
+        R = {p for p, r in plan.floor.items() if r == rid}
+        # partition: a straight chord wall to wall, both sides kept whole
+        # (again on what is left: big rooms are rare on the human maps, kept for what needs the floor)
+        # virology keeps its floor for the two isolation cells: one cut at most
+        for _cut in range(1 if b == "virology" else 3):
+            if len(R) < 44:
+                break
+            xs, ys = [p[0] for p in R], [p[1] for p in R]
+            cuts = []
+            for axis in (0, 1):
+                lo, hi = (min(xs), max(xs)) if axis == 0 else (min(ys), max(ys))
+                for c in range(lo + 4, hi - 3):
+                    line = sorted(p for p in R if p[axis] == c)
+                    if len(line) < 3 or len(line) > 12 or near_door(line):
+                        continue
+                    # a full chord: one straight run, both ends against the room's wall
+                    o = [p[1 - axis] for p in line]
+                    if max(o) - min(o) + 1 != len(line):
+                        continue
+                    # both ends butt into a straight stretch of the room's wall (not a corner it would meet only
+                    # diagonally)
+                    step = (0, 1) if axis == 0 else (1, 0)
+                    ends = ((line[0][0] - step[0], line[0][1] - step[1]), (line[-1][0] + step[0], line[-1][1] + step[1]))
+                    along = (1, 0) if axis == 0 else (0, 1)
+                    if not all(e in plan.walls and (e[0] - along[0], e[1] - along[1]) in plan.walls and
+                               (e[0] + along[0], e[1] + along[1]) in plan.walls for e in ends):
+                        continue
+                    side_a = {p for p in R if p[axis] < c}
+                    side_b = {p for p in R if p[axis] > c}
+                    if min(len(side_a), len(side_b)) < 16 or not _connected(side_a) or not _connected(side_b):
+                        continue
+                    if (side_a | side_b | set(line)) != R:
+                        continue
+                    cuts.append((abs(len(side_a) - len(side_b)) * rnd.uniform(0.6, 1.0), axis, c, line, side_a, side_b))
+            if not cuts:
+                break
+            if cuts:
+                _, axis, c, line, side_a, side_b = min(cuts)
+                # the side with the room's doors stays the room; the other is the new room behind the partition
+                has_door = lambda s: near_door_edge(s, doors)
+                keep, back = (side_a, side_b) if has_door(side_a) or not has_door(side_b) else (side_b, side_a)
+                mid = line[len(line) // 2]
+                for q in line:
+                    if q == mid:
+                        continue
+                    edge = q in (line[0], line[-1])
+                    wall(q, glass=not edge and rnd.random() < 0.6)
+                plan.floor.pop(mid, None)
+                plan.doors[mid] = "link"
+                doors.add(mid)
+                new_room(rid, back, "back room")
+                notes["partition"] += 1
+                R = keep
+        # closets: corners of what is left
+        want = 2 if len(R) >= 60 else 1 if len(R) >= 24 else 0
+        if b == "virology" and len(R) >= 30:
+            want = 2     # its two isolation cells
+        for _ in range(want):
+            got = None
+            corners = [p for p in sorted(R)]
+            rnd.shuffle(corners)
+            for s in corners:
+                for ax, ay in ((1, 0), (-1, 0)):
+                    for bx, by in ((0, 1), (0, -1)):
+                        # s is the corner tile: wall behind (-a) and beside (-b)
+                        if (s[0] - ax, s[1]) in R or (s[0], s[1] - by) in R:
+                            continue
+                        # an isolation cell is always a 2x3 on the stock maps (viro_cells walk, 2026-11-18)
+                        w, d = rnd.choice(((3, 2), (2, 3))) if b == "virology" else \
+                            (rnd.choice((2, 3, 3, 4)), rnd.choice((2, 2, 3)))
+                        inside = [(s[0] + i * ax, s[1] + j * by) for i in range(w) for j in range(d)]
+                        wl = [(s[0] + i * ax, s[1] + d * by) for i in range(w + 1)] + \
+                             [(s[0] + w * ax, s[1] + j * by) for j in range(d)]
+                        if not all(q in R for q in inside + wl) or near_door(inside + wl):
+                            continue
+                        # the L's two ends meet the room's walls square on: the tile past each end is wall
+                        e1 = (s[0] - ax, s[1] + d * by)
+                        e2 = (s[0] + w * ax, s[1] - by)
+                        if e1 not in plan.walls or e2 not in plan.walls:
+                            continue
+                        rest = R - set(inside) - set(wl)
+                        if len(rest) < max(16, len(R) * (0.4 if b == "virology" else 0.6)) or not _connected(rest):
+                            continue
+                        door = (s[0] + (w // 2) * ax, s[1] + d * by)
+                        outside = (door[0], door[1] + by)
+                        if outside not in rest:
+                            continue
+                        # a door into a corner of the room must not stand against a wall end
+                        got = (inside, wl, door, rest)
+                        break
+                    if got:
+                        break
+                if got:
+                    break
+            if not got:
+                break
+            inside, wl, door, rest = got
+            for q in wl:
+                if q != door:
+                    wall(q)
+            plan.floor.pop(door, None)
+            plan.doors[door] = "link"
+            doors.add(door)
+            new_room(rid, inside, "closet")
+            notes["closet"] += 1
+            R = rest
+    return ["split rooms: %d partitions, %d closets" % (notes["partition"], notes["closet"])]
+
+
+# rooms whose walls stay solid: vaults, the AI, armouries, cold rooms, anywhere a window would be a way in
+# rooms whose layout is stamped or fitted whole (or whose emptiness is the point) keep their open floor
+NO_BAYS = (NO_SPLIT - {"treatment", "departures", "arr_lounge", "garden"}) | {"bay", "mining", "toxins", "chapel", "bar",
+                                                                               "warehouse", "range", "gym"}
+
+
+def bay_rooms(plan, rnd):
+    """Big rooms on the human maps have almost no open middle: floor 3+ tiles from any wall is 3 tiles in a median
+    medbay ward (ours 39), 8 on a bridge (ours 77), 28 in atmos (ours 103). Humans break a big room up with a
+    free-standing partition you walk round (often glass), or with short walls off one side that make bays (bed bays,
+    desks, booths); those are the wall ends and stubs our 3x3 patterns lacked (wall stub 0.06% vs 0.83%).
+    For each big room with an open middle: a partition down the long axis with a way round both ends (a gap in the
+    middle when long), or stubs 2 deep every third tile along its longest straight wall. Changes the plan in place;
+    returns notes."""
+    D4 = ((1, 0), (-1, 0), (0, 1), (0, -1))
+    by = {}
+    for p, r in plan.floor.items():
+        by.setdefault(r, set()).add(p)
+    notes = {"partitions": 0, "stubs": 0}
+
+    def core_of(T):
+        return {p for p in T if all((p[0] + dx, p[1] + dy) in T for dx in range(-2, 3) for dy in range(-2, 3))}
+
+    def reach_ok(T):
+        T = set(T)
+        if not T:
+            return True
+        s = next(iter(T))
+        seen, st = {s}, [s]
+        while st:
+            t = st.pop()
+            for d in D4:
+                q = (t[0] + d[0], t[1] + d[1])
+                if q in T and q not in seen:
+                    seen.add(q)
+                    st.append(q)
+        return len(seen) == len(T)
+
+    for r in sorted(by):
+        m = plan.rooms.get(r, {})
+        b = base_id(r).replace("_sub", "")
+        if r in ("ring", "maint") or m.get("kind") in ("hall", "maint") or b in NO_BAYS or b in NO_GLASS or \
+                r.startswith(("aband", "solar")) or m.get("label") in ("pool", "park", "theatre", "garden") or                 len(by[r]) < 40:
+            continue
+        last = None
+        for it in range(4):
+            T = by[r]
+            core = core_of(T)
+            if len(core) < 8:
+                break
+            xs, ys = [p[0] for p in core], [p[1] for p in core]
+            w, h = max(xs) - min(xs) + 1, max(ys) - min(ys) + 1
+            new = []
+            if last is None:
+                style = "stubs" if b == "treatment" or rnd.random() < 0.35 else "partition"
+            else:
+                style = "partition" if last == "stubs" else "stubs"
+            if style == "partition":
+                # down the core's long axis, through its middle; ends pulled in one tile so the way round is 3 wide
+                if w >= h:
+                    y = min(ys) + h // 2
+                    line = sorted(p for p in core if p[1] == y)
+                else:
+                    x = min(xs) + w // 2
+                    line = sorted(p for p in core if p[0] == x)
+                line = line[1:-1]
+                if len(line) < 3:
+                    style = "stubs"
+                else:
+                    if len(line) >= 9:          # a way through the middle of a long one
+                        mid = len(line) // 2
+                        line = line[:mid - 1] + line[mid + 1:]
+                    new = line
+            if style == "stubs":
+                # the longest straight wall face: floor tiles in a row with wall (no door, no glass) behind them
+                best = []
+                for d in D4:
+                    rows = {}
+                    for p in T:
+                        back = (p[0] - d[0], p[1] - d[1])
+                        if back in plan.walls and back not in plan.glass and back not in plan.doors and \
+                                all((p[0] + k * d[0], p[1] + k * d[1]) in T for k in range(1, 6)):
+                            key = p[1] if d[0] == 0 else p[0]
+                            rows.setdefault(key, []).append(p)
+                    for key, ps in rows.items():
+                        ps.sort()
+                        run = []
+                        for p in ps:
+                            if run and abs(p[0] - run[-1][0]) + abs(p[1] - run[-1][1]) != 1:
+                                if len(run) > len(best):
+                                    best = [(q, d) for q in run]
+                                run = []
+                            run.append(p)
+                        if len(run) > len(best):
+                            best = [(q, d) for q in run]
+                if len(best) >= 7:
+                    # a stub every third tile, none at the run's ends (bays open to the room, walk-in width 2)
+                    for i in range(3, len(best) - 2, 3):
+                        q, d = best[i]
+                        if any((q[0] + e[0], q[1] + e[1]) in plan.doors for e in D4):
+                            continue
+                        new += [q, (q[0] + d[0], q[1] + d[1])]
+            if not new:
+                break
+            left = T - set(new)
+            near_door = any((q[0] + e[0], q[1] + e[1]) in plan.doors for q in new for e in D4)
+            if near_door or not reach_ok(left):
+                break
+            for q in new:
+                plan.floor.pop(q, None)
+                plan.walls.add(q)
+            by[r] = left
+            notes["partitions" if style == "partition" else "stubs"] += 1
+            notes.setdefault("rooms", []).append("%s %s" % (r, style))
+            last = style
+    return ["bays: %d rooms got a partition, %d got wall stubs (%s)" % (notes["partitions"], notes["stubs"],
+                                                                         ", ".join(notes.get("rooms", [])))]
+
+
+NO_GLASS = {"vault", "upload", "ai_core", "armory", "cells", "server", "tcomms", "tc_control", "techstore", "grav", "engine",
+            "smes", "tanks", "cold", "evidence", "interro", "perma", "restroom", "cryodorm", "cabins", "cap_bed",
+            "morgue", "janitor", "toxstore", "atmos_store", "sat_tunnel", "sat_hall"}
+
+
+def break_walls(plan, rnd):
+    """Human stations break their walls up: rooms show their work to the hall through windows, labs look into each
+    other, rooms on the hull look out at space, and a department's front door is often a double door. Ours had a
+    third of the human glass and twice the floor along plain straight wall (forge/disc.py tells, 3x3 patterns
+    2026-11-18: floor along straight wall 28% vs 14%, window-door-window 0.2% vs 1.2%, double doors 0.1% vs 0.7%).
+    Changes the plan in place: a stretch of glass in straight wall runs between a room and a hall, two rooms, or a
+    room and space (reinforced there); the door beside a stretch of glass is kept; doors from halls into department
+    halls and public rooms get a second leaf. Returns notes."""
+    doors = set(plan.doors)
+    walls = plan.walls | plan.hull
+    size = {}
+    for r in plan.floor.values():
+        size[r] = size.get(r, 0) + 1
+    solid = lambda q: q in walls or q in doors or q in plan.glass
+
+    def face(q):
+        r = plan.floor.get(q)
+        if r is not None:
+            return r
+        return None if solid(q) else "space"
+
+    def kind(r):
+        if r == "space":
+            return "space"
+        if r == "ring":
+            return "hall"
+        m = plan.rooms.get(r, {})
+        if r == "maint" or m.get("kind") == "maint" or m.get("dept") == "maint" or r.startswith(("aband", "solar")):
+            return "maint"
+        return "hall" if m.get("kind") == "hall" else "room"
+
+    def closed(r):
+        m = plan.rooms.get(r, {})
+        b = base_id(r).replace("_sub", "")
+        return b in NO_GLASS or m.get("secure") and b not in ("xeno", "virology", "cells")
+
+    # straight wall runs: tiles with the same two faces across one axis, walls along the other
+    runs = {}
+    for p in walls:
+        if p in plan.glass or p in doors:
+            continue
+        for across, along in (((0, 1), (1, 0)), ((1, 0), (0, 1))):
+            fa = face((p[0] + across[0], p[1] + across[1]))
+            fb = face((p[0] - across[0], p[1] - across[1]))
+            if fa is None or fb is None or fa == fb:
+                continue
+            if not (solid((p[0] + along[0], p[1] + along[1])) and solid((p[0] - along[0], p[1] - along[1]))):
+                continue
+            runs.setdefault((tuple(sorted((fa, fb))), along), set()).add(p)
+    segs = []
+    for (faces, along), ts in runs.items():
+        ts = set(ts)
+        while ts:
+            p = min(ts)
+            seg = []
+            q = p
+            while (q[0] - along[0], q[1] - along[1]) in ts:
+                q = (q[0] - along[0], q[1] - along[1])
+            while q in ts:
+                seg.append(q)
+                ts.discard(q)
+                q = (q[0] + along[0], q[1] + along[1])
+            segs.append((faces, along, seg))
+    n_glass = n_runs = n_hull = 0
+    for faces, along, seg in sorted(segs):
+        ka, kb = kind(faces[0]), kind(faces[1])
+        ks = {ka, kb}
+        if any(kind(f) in ("room", "hall") and closed(f) for f in faces if f != "space"):
+            continue
+        if any(kind(f) == "room" and size.get(f, 0) < 12 for f in faces):
+            continue
+        # chances from where the human maps put glass (Meta, Delta, Box, Kilo): share of each kind of wall glazed
+        same_area = ka == kb == "room" and A.get(base_id(faces[0]).replace("_sub", ""), [None])[0] ==             A.get(base_id(faces[1]).replace("_sub", ""), [None])[0]
+        if ks == {"room", "hall"}:
+            chance = 0.55                   # humans 28-31%
+        elif ks == {"room"}:
+            chance = 0.7 if same_area else 0.45     # humans 30-38% / 20-30%
+        elif ks == {"space", "room"} or ks == {"space", "hall"}:
+            chance = 0.85                   # humans 29-39%
+        elif ks == {"space", "maint"}:
+            chance = 0.6                    # humans 24-43%: maint on the hull looks out
+        elif ks == {"maint"}:
+            chance = 0.25                   # humans 7-21%
+        else:
+            continue
+        if len(seg) < 3 or rnd.random() > chance:
+            continue
+        # glass in the middle of the run, a wall tile kept at each end (where the run meets other walls)
+        inner = seg[1:-1]
+        # humans glaze most of a run: a short run nearly whole, a long one in a long strip
+        n = min(len(inner), max(2, int(round(len(inner) * rnd.uniform(0.45, 0.95)))))
+        a0 = rnd.randrange(len(inner) - n + 1)
+        strip = inner[a0:a0 + n]
+        if "space" in ks and n == len(inner):
+            strip = seg           # a fully glazed hull run carries its glass into the corners (humans: 13-19% of
+            # corner and junction wall tiles are glass)
+        for q in strip:
+            plan.glass.add(q)
+            if "space" in ks:
+                plan.rwall.add(q)
+                n_hull += 1
+            n_glass += 1
+        n_runs += 1
+    # double doors: a hall door into a department hall or a public room gets a second leaf in the same wall
+    n_dd = 0
+    for p, k in sorted(plan.doors.items()):
+        if k not in ("public", "access") or p not in doors:
+            continue
+        for across, along in (((0, 1), (1, 0)), ((1, 0), (0, 1))):
+            fa = plan.floor.get((p[0] + across[0], p[1] + across[1]))
+            fb = plan.floor.get((p[0] - across[0], p[1] - across[1]))
+            if fa is None or fb is None:
+                continue
+            kinds = {kind(fa), kind(fb)}
+            if "hall" not in kinds:
+                continue
+            rooms_ = [r for r in (fa, fb) if kind(r) == "room"]
+            if rooms_:
+                other = rooms_[0]
+                if size.get(other, 0) < 30 or closed(other):
+                    break
+                pub = plan.rooms.get(other, {}).get("public")
+            else:
+                pub = "ring" in (fa, fb)     # the ring into a department's own hall
+            if rnd.random() > (0.6 if pub else 0.1):
+                continue
+            for sgn in (1, -1):
+                q = (p[0] + sgn * along[0], p[1] + sgn * along[1])
+                beyond = (q[0] + sgn * along[0], q[1] + sgn * along[1])
+                if q in plan.walls and q not in plan.glass and q not in plan.hull and solid(beyond) and \
+                        beyond not in doors and \
+                        plan.floor.get((q[0] + across[0], q[1] + across[1])) == fa and \
+                        plan.floor.get((q[0] - across[0], q[1] - across[1])) == fb:
+                    plan.walls.discard(q)
+                    plan.rwall.discard(q)
+                    plan.doors[q] = k
+                    doors.add(q)
+                    n_dd += 1
+                    break
+            break
+    return ["broken walls: %d glass tiles in %d runs (%d on the hull), %d double doors" % (n_glass, n_runs, n_hull, n_dd)]
+
+
+def trim_maint(plan, rnd, chance=0.8):
+    """Human maint does not wrap every room: about half the rooms on the stock maps touch maint, and walls between maint
+    and a room run 16-73 per 1000 floor tiles (median ~46); ours ran 95-114 with 75-79% of rooms on maint, because
+    maint is traced 1-2 wide round every department outline. Where a 1-wide maint run lies between a room and another
+    room or a hall, the room takes the run over along its whole side (its wall and the maint tile become its floor),
+    so the two share one wall; the maint left at each end is closed off with wall. Only when every piece of maint
+    still has a door. Changes the plan in place; returns notes."""
+    walls = plan.walls
+    doors = plan.doors
+    size = {}
+    for r in plan.floor.values():
+        size[r] = size.get(r, 0) + 1
+
+    def kind(r):
+        if r is None:
+            return None
+        if r == "ring":
+            return "hall"
+        m = plan.rooms.get(r, {})
+        if r == "maint" or m.get("kind") == "maint" or m.get("dept") == "maint" or r.startswith(("aband", "solar")):
+            return "maint"
+        return "hall" if m.get("kind") == "hall" else "room"
+
+    def closed(r):
+        m = plan.rooms.get(r, {})
+        return base_id(r) in NO_GLASS or base_id(r) in NO_SPLIT or bool(m.get("secure"))
+
+    def plain(q):
+        return q in walls and q not in plan.glass and q not in plan.hull and q not in doors
+
+    def edge(q):
+        return q not in doors and q not in plan.glass and (q in walls or q in plan.hull)
+
+    def add(p, d, k=1):
+        return (p[0] + k * d[0], p[1] + k * d[1])
+
+    def pieces_ok(maint):
+        seen = set()
+        for p in maint:
+            if p in seen:
+                continue
+            comp, st = {p}, [p]
+            seen.add(p)
+            while st:
+                t = st.pop()
+                for d in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    q = add(t, d)
+                    if q in maint and q not in seen:
+                        seen.add(q)
+                        comp.add(q)
+                        st.append(q)
+            if not any(add(t, d) in doors for t in comp for d in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+                return False
+        return True
+
+    def reach():
+        """Rooms reachable from the main hall through floor and doors."""
+        start = next(p for p, r in plan.floor.items() if r == "ring")
+        seen, st = {start}, [start]
+        while st:
+            t = st.pop()
+            for d in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                q = add(t, d)
+                if q not in seen and (q in plan.floor or q in doors):
+                    seen.add(q)
+                    st.append(q)
+        return {plan.floor[p] for p in seen if p in plan.floor}
+
+    reached = reach()
+    maint = {p for p, r in plan.floor.items() if r == "maint"}
+    # runs: maint 1 or 2 wide across with plain wall on both sides, keyed by the room past one wall (the other side
+    # may change along the run: rooms, halls)
+    runs = {}
+    for m in maint:
+        for across in ((1, 0), (0, 1)):
+            along = (across[1], across[0])
+            if not edge(add(m, across, -1)):
+                continue        # m is the first maint row from the - side
+            for k in (1, 2):
+                if any(add(m, across, j) not in maint for j in range(k)) or not edge(add(m, across, k)):
+                    continue
+                ra, rb = plan.floor.get(add(m, across, k + 1)), plan.floor.get(add(m, across, -2))
+                if ra == rb:
+                    continue
+                ln = m[0] * across[0] + m[1] * across[1]
+                u = m[0] * along[0] + m[1] * along[1]
+                # R's own wall plain; the far side a room, a hall, the wall where two of them meet, or the hull
+                for R, side, o in ((ra, 1, rb), (rb, -1, ra)):
+                    mine, fw = (add(m, across, k), add(m, across, -1)) if side == 1 else                         (add(m, across, -1), add(m, across, k))
+                    oq = add(m, across, -2) if side == 1 else add(m, across, k + 1)
+                    if not plain(mine) or kind(R) not in ("room", "hall"):
+                        continue
+                    if fw in plan.hull or kind(o) in ("room", "hall") or (o is None and oq in walls):
+                        runs.setdefault((across, ln, k, side, R), set()).add(u)
+    n_runs = n_tiles = 0
+    why = {}
+    for (across, line, k, side, R), pos in sorted(runs.items()):
+        if rnd.random() > chance:
+            continue
+        along = (across[1], across[0])
+
+        def at(u, off):     # u along, off across from the first maint row
+            return (along[0] * u + across[0] * (line + off), along[1] * u + across[1] * (line + off))
+        # (its row, the rows it takes, the far wall's row)
+        row, grow, far = (k + 1, range(0, k + 1), -1) if side == 1 else (-2, range(-1, k), k)
+        wrow = k if side == 1 else -1
+        opts = []
+        if kind(R) != "room" or closed(R):
+            why["closed or hall"] = why.get("closed or hall", 0) + 1
+            continue
+        # the longest unbroken stretch of the run (R may be longer: it grows an L)
+        us = sorted(pos)
+        best, cur = [], []
+        for u in us:
+            cur = cur + [u] if cur and u == cur[-1] + 1 else [u]
+            if len(cur) > len(best):
+                best = cur
+        p, q = best[0], best[-1]
+        # pull back off the ends so a wall tile is left at each end of the wall row R's side keeps
+        if plan.floor.get(at(p - 1, row)) == R:
+            p += 1
+        if plan.floor.get(at(q + 1, row)) == R:
+            q -= 1
+        if q - p + 1 < 3:
+            why["short"] = why.get("short", 0) + 1
+            continue
+        # the ends: maint closed off with wall, nothing but wall or maint there
+        if any(plan.floor.get(at(u, j)) not in ("maint", None) or at(u, j) in doors
+               for u in (p - 1, q + 1) for j in range(k)) or not all(at(u, wrow) in walls for u in (p - 1, q + 1)):
+            why["ends"] = why.get("ends", 0) + 1
+            continue
+        if any(at(u, wrow) in doors for u in range(p, q + 1)):
+            why["own door"] = why.get("own door", 0) + 1
+            continue        # R's own way into maint (it may be its only one)
+        if any(at(u, far) in doors for u in range(p, q + 1)):
+            why["door across"] = why.get("door across", 0) + 1
+            continue        # the room across opens onto this stretch
+        opts.append((size.get(R, 0), R, grow, p, q))
+        if not opts:
+            continue
+        _, R, grow, p, q = min(opts)
+        if any(plan.floor.get(at(u, j)) != "maint" for u in range(p, q + 1) for j in range(k)):
+            continue            # an earlier trim took part of it
+        new_floor = [at(u, o) for u in range(p, q + 1) for o in grow]
+        new_wall = [at(u, j) for u in (p - 1, q + 1) for j in range(k) if plan.floor.get(at(u, j)) == "maint"]
+        left = maint - set(new_floor) - set(new_wall)
+        saved = {t: doors.pop(t) for t in new_floor if t in doors}
+        if not pieces_ok(left):
+            why["maint cut off"] = why.get("maint cut off", 0) + 1
+            doors.update(saved)
+            continue
+        old = {t: plan.floor.get(t) for t in new_floor + new_wall}
+        was_wall = {t for t in new_floor if t in walls}
+        was_rwall = {t for t in new_floor if t in plan.rwall}
+        for t in new_floor:
+            walls.discard(t)
+            plan.rwall.discard(t)
+            plan.floor[t] = R
+        for t in new_wall:
+            plan.floor.pop(t, None)
+            walls.add(t)
+        if not reached <= reach():
+            why["cuts a room off"] = why.get("cuts a room off", 0) + 1
+            for t, r in old.items():
+                if r is None:
+                    plan.floor.pop(t, None)
+                else:
+                    plan.floor[t] = r
+            for t in new_wall:
+                walls.discard(t)
+            walls.update(was_wall)
+            plan.rwall.update(was_rwall)
+            doors.update(saved)
+            continue
+        maint = left
+        if os.environ.get("MAPFORGE_TRIM_DEBUG"):
+            print("   trim:", R, "takes", len(new_floor), "tiles from", new_floor[0], "to", new_floor[-1])
+        size[R] = size.get(R, 0) + len(new_floor)
+        n_runs += 1
+        n_tiles += len(new_floor)
+    return ["maint trimmed: %d of %d runs between rooms given to a room (%d tiles); not: %s" %
+            (n_runs, len(runs), n_tiles, ", ".join("%s %d" % kv for kv in sorted(why.items())))]
+
+
+def add_doors(plan, rnd):
+    """Human rooms are seldom dead ends: about 55-60% of rooms on the stock maps have two or more ways in, a lab into
+    the next lab, a back door onto the department hall or maint (fingerprint dead_end_share: humans <= 0.45, ours
+    0.51-0.55; doors_per_room 2.3 vs 2.7+). A room with one way in gets a second door, onto a room of its own
+    department first, then a hall, then maint; a room with two sometimes gets a third. Returns notes."""
+    walls = plan.walls | plan.hull
+    size = {}
+    for r in plan.floor.values():
+        size[r] = size.get(r, 0) + 1
+    links = {}
+    for p in plan.doors:
+        for across in ((0, 1), (1, 0)):
+            fa = plan.floor.get((p[0] + across[0], p[1] + across[1]))
+            fb = plan.floor.get((p[0] - across[0], p[1] - across[1]))
+            if fa and fb and fa != fb:
+                links.setdefault(fa, set()).add(fb)
+                links.setdefault(fb, set()).add(fa)
+
+    def area_of(r):
+        return A.get(base_id(r).replace("_sub", ""), [None])[0]
+
+    def kind(r):
+        if r == "ring":
+            return "hall"
+        m = plan.rooms.get(r, {})
+        if r == "maint" or m.get("kind") == "maint" or m.get("dept") == "maint" or r.startswith(("aband", "solar")):
+            return "maint"
+        return "hall" if m.get("kind") == "hall" else "room"
+
+    def closed(r):
+        m = plan.rooms.get(r, {})
+        b = base_id(r).replace("_sub", "")
+        return b in NO_GLASS or bool(m.get("secure"))
+
+    def near_door(q):
+        return any((q[0] + dx, q[1] + dy) in plan.doors for dx in (-1, 0, 1) for dy in (-1, 0, 1))
+
+    # door spots: plain wall with one room on each side across, wall on each side along, no door within one tile
+    spots = {}
+    for p in plan.walls:
+        if p in plan.glass or p in plan.hull or p in plan.doors or near_door(p):
+            continue
+        for across, along in (((0, 1), (1, 0)), ((1, 0), (0, 1))):
+            fa = plan.floor.get((p[0] + across[0], p[1] + across[1]))
+            fb = plan.floor.get((p[0] - across[0], p[1] - across[1]))
+            if not fa or not fb or fa == fb:
+                continue
+            if not all((p[0] + s * along[0], p[1] + s * along[1]) in walls for s in (1, -1)):
+                continue
+            spots.setdefault(fa, {}).setdefault(fb, []).append(p)
+            spots.setdefault(fb, {}).setdefault(fa, []).append(p)
+    added = {"link": 0, "access": 0, "maint": 0}
+    for r in sorted(size):
+        if kind(r) != "room" or closed(r) or size[r] < 8 or r not in spots:
+            continue
+        n = len(links.get(r, ()))
+        if n >= 3 or rnd.random() > (0.75 if n <= 1 else 0.35):
+            continue
+        cand = []
+        for o, ps in spots[r].items():
+            if o in links.get(r, ()) or len(ps) < 1:
+                continue
+            ko = kind(o)
+            if ko == "room":
+                if closed(o) or size.get(o, 0) < 8 or area_of(o) != area_of(r):
+                    continue
+                w, k = 3.0, "link"
+            elif ko == "hall":
+                w, k = 2.0, "access"
+            else:
+                w, k = 1.0, "maint"
+            cand.append((w * min(len(ps), 6), o, k))
+        if not cand:
+            continue
+        tot = sum(c[0] for c in cand)
+        x = rnd.random() * tot
+        for w, o, k in sorted(cand, key=lambda c: c[1]):
+            x -= w
+            if x <= 0:
+                break
+        ps = [q for q in spots[r][o] if q not in plan.doors and not near_door(q)]
+        if not ps:
+            continue
+        ps.sort()
+        q = ps[len(ps) // 2]
+        plan.walls.discard(q)
+        plan.rwall.discard(q)
+        plan.doors[q] = k
+        links.setdefault(r, set()).add(o)
+        links.setdefault(o, set()).add(r)
+        added[k] += 1
+    return ["second doors: %d into rooms, %d onto halls, %d onto maint" % (added["link"], added["access"],
+                                                                           added["maint"])]
+
+
+# Counters: a wall tile between two rooms that becomes a reinforced table with a firelock, the owner's windoor on its
+# side and often shutters. Measured on the 38 human stations (scratchpad counter_study.py, 2026-11-18): hydroponics has
+# one onto the hall on 29, Brig Control onto the brig hall on 27, the R&D desk and Robotics onto the hall on 27 and 24,
+# Chemistry onto Medbay on 26 (and the hall on 11), the HoP's desk on 23, Atmospherics on 23, the kitchen's serving
+# hatch onto the bar on 21 (+7 onto an atrium), checkpoints on 19, the mail desk on 17, the kitchen onto hydroponics on
+# 12. Runs are 1 tile, now and then 2; a kitchen hatch is two or three such tiles along the bar wall.
+# (owner base, what it may face in order, style, chance, tiles)
+#   HALL = the ring, the core halls or a public dock hall; DHALL = the owner's own department hall
+COUNTERS = [
+    ("kitchen", ("bar",), "hatch", 0.85, (2, 3)),
+    ("kitchen", ("HALL",), "hatch", 0.3, (1, 2)),
+    ("hydro", ("HALL",), "desk", 0.8, (1, 2)),
+    ("hydro", ("kitchen",), "pass", 0.4, (1, 1)),
+    ("chem", ("med_lobby", "DHALL", "HALL"), "desk", 0.8, (1, 2)),
+    ("chem", ("HALL",), "desk", 0.3, (1, 1)),
+    ("warden", ("DHALL", "HALL"), "secure", 0.8, (1, 2)),
+    ("hop", ("HALL",), "hop", 0.7, (1, 1)),
+    ("rnd", ("sci_lobby", "HALL", "DHALL"), "desk", 0.75, (1, 2)),
+    ("robotics", ("sci_lobby", "HALL", "DHALL"), "desk", 0.7, (1, 2)),
+    ("genetics", ("HALL", "med_lobby", "DHALL"), "desk", 0.35, (1, 1)),
+    ("cargo_office", ("cargo_lobby", "HALL"), "desk", 0.45, (1, 2)),
+    ("sorting", ("HALL", "cargo_lobby"), "desk", 0.45, (1, 1)),
+    ("atmos", ("atm_lobby", "HALL"), "desk", 0.65, (1, 1)),
+    ("esc_check", ("HALL", "DHALL"), "secure", 0.55, (1, 1)),
+    ("customs", ("HALL", "DHALL"), "secure", 0.55, (1, 1)),
+    ("cargo_check", ("HALL", "DHALL", "cargo_lobby"), "secure", 0.5, (1, 1)),
+    ("eng_check", ("HALL", "DHALL"), "secure", 0.45, (1, 1)),
+]
+COUNTER_NAME = {"kitchen": "Serving Hatch", "hydro": "Hydroponics Desk", "chem": "Chemistry Desk",
+                "warden": "Brig Control Desk", "hop": "Head of Personnel's Desk", "rnd": "Research and Development Desk",
+                "robotics": "Robotics Desk", "genetics": "Genetics Desk", "cargo_office": "Cargo Desk",
+                "sorting": "Mail Desk", "atmos": "Atmospherics Desk", "esc_check": "Security Checkpoint",
+                "customs": "Customs Desk", "cargo_check": "Security Checkpoint", "eng_check": "Security Checkpoint"}
+DIR_NAME = {(0, 1): "north", (0, -1): "south", (1, 0): "east", (-1, 0): "west"}
+
+
+def add_counters(plan, rnd):
+    """Cut the counters (COUNTERS) into walls the owner shares with what it serves. A counter tile is the owner's
+    floor (the area and the firelock go with it); both tiles in front of it stay floor. Kept in plan.doors as
+    "counter" so the doors and furniture placed later keep clear of it; plan.counters holds its owner, the room it
+    faces and the step toward the owner. Returns notes."""
+    plan.counters = getattr(plan, "counters", {})
+    walls = plan.walls | plan.hull | plan.glass
+
+    def bare(r):
+        return base_id(r).replace("_sub", "")
+
+    def cls(o, owner):
+        m = plan.rooms.get(o, {})
+        if o == "ring" or (m.get("kind") == "hall" and m.get("dept") in ("hall", "arrivals", "escape")):
+            return "HALL"
+        if m.get("kind") == "hall" and m.get("dept") == plan.rooms.get(owner, {}).get("dept"):
+            return "DHALL"
+        return bare(o)
+
+    def near_door(q):
+        return any((q[0] + dx, q[1] + dy) in plan.doors for dx in (-1, 0, 1) for dy in (-1, 0, 1))
+
+    def spot_ok(p, across, along):
+        if p in plan.hull or p in plan.doors or near_door(p) or p not in walls:
+            return False
+        fa = plan.floor.get((p[0] + across[0], p[1] + across[1]))
+        fb = plan.floor.get((p[0] - across[0], p[1] - across[1]))
+        if not fa or not fb or fa == fb:
+            return False
+        return all((p[0] + s * along[0], p[1] + s * along[1]) in walls for s in (1, -1))
+
+    spots = {}
+    for p in sorted(plan.walls | plan.glass):
+        for across, along in (((0, 1), (1, 0)), ((1, 0), (0, 1))):
+            if not spot_ok(p, across, along):
+                continue
+            fa = plan.floor[(p[0] + across[0], p[1] + across[1])]
+            fb = plan.floor[(p[0] - across[0], p[1] - across[1])]
+            spots.setdefault((fa, fb), []).append((p, across, along))
+            spots.setdefault((fb, fa), []).append((p, (-across[0], -across[1]), along))
+    owners = {}
+    for r in plan.rooms:
+        owners.setdefault(bare(r), []).append(r)
+    made = []
+    for base, faces, style, chance, (n_lo, n_hi) in COUNTERS:
+        if base not in owners or rnd.random() > chance:
+            continue
+        # the main room before its split-off pieces
+        rids = sorted(owners[base], key=lambda r: ("_sub" in base_id(r), r))
+        got = None
+        for want in faces:
+            cands = [(o, sp) for (r, o), sp in spots.items() if r in rids and cls(o, r) == want and o not in rids]
+            if cands:
+                got = max(cands, key=lambda c: (len(c[1]), c[0]))
+                break
+        if not got:
+            continue
+        other, sp = got
+        n = rnd.randint(n_lo, n_hi)
+        placed = []
+        order = sorted(sp)
+        rnd.shuffle(order)
+        # middle of the shared wall first: a counter jammed in a corner has no room to stand at
+        order.sort(key=lambda s: abs(s[0][0] - sum(q[0][0] for q in sp) / float(len(sp))) +
+                   abs(s[0][1] - sum(q[0][1] for q in sp) / float(len(sp))))
+        for p, toward, along in order:
+            if len(placed) >= n:
+                break
+            # spots[(owner, other)] holds the step from the wall tile to the owner's floor
+            owner = plan.floor[(p[0] + toward[0], p[1] + toward[1])]
+            step = toward
+            if not spot_ok(p, toward, along):
+                continue
+            run = [p]
+            # a 2-tile run now and then (hatches and desks on the stock maps are 1 tile, sometimes 2)
+            if len(placed) + 1 < n and rnd.random() < 0.4:
+                q = (p[0] + along[0], p[1] + along[1])
+                if q in walls and q not in plan.hull and q not in plan.doors and \
+                        plan.floor.get((q[0] + step[0], q[1] + step[1])) == owner and \
+                        plan.floor.get((q[0] - step[0], q[1] - step[1])) == other and \
+                        (q[0] + along[0], q[1] + along[1]) in walls and \
+                        not any((q[0] + along[0] + dx, q[1] + along[1] + dy) in plan.doors
+                                for dx in (-1, 0, 1) for dy in (-1, 0, 1)):
+                    run.append(q)
+            for q in run:
+                plan.walls.discard(q)
+                plan.rwall.discard(q)
+                plan.glass.discard(q)
+                plan.doors[q] = "counter"
+                plan.counters[q] = (owner, other, style, step, base)
+                placed.append(q)
+        if placed:
+            made.append("%s->%s x%d" % (base, cls(other, owner), len(placed)))
+    return ["counters: %d (%s)" % (len(made), ", ".join(made))]
+
+
+def counter_spec(plan, p, idn):
+    """The legend spec of a counter tile: reinforced table, firelock, the owner's windoor on the owner's edge and,
+    by style, shutters (a kitchen hatch is shutters alone; the HoP's desk has a secure door inside and a reception
+    window outside, as on MetaStation)."""
+    owner, other, style, step, base = plan.counters[p]
+    inn, out = DIR_NAME[step], DIR_NAME[(-step[0], -step[1])]
+    # the cargo office is public, its desk is not (the stock desks take cargo bay access)
+    acc = {"cargo_office": "31"}.get(base, A[base][3] if base in A else "")
+    name = COUNTER_NAME.get(base, "Desk")
+    r = random.Random("counter|%s|%s|%s" % (p, owner, idn))
+    objs = [("/obj/structure/table/reinforced", {}), (kit.FIREDOOR, {})]
+    if style == "hatch":
+        objs.append(("/obj/machinery/door/poddoor/shutters/preopen", {"id": '"%s"' % idn, "name": '"%s"' % name}))
+    elif style == "pass":
+        objs.append(("/obj/machinery/door/window/%sleft" % inn, {"name": '"Hydroponics Window"', "req_access_txt": acc}))
+        objs.append(("/obj/machinery/door/window/%sleft" % out, {"name": '"Kitchen Window"', "req_access_txt": "28"}))
+    elif style in ("secure", "hop"):
+        objs.append(("/obj/machinery/door/window/brigdoor/%sleft" % inn, {"name": '"%s"' % name, "req_access_txt": acc}))
+        if style == "hop":
+            objs.append(("/obj/machinery/door/window/%sleft" % out, {"name": '"Reception Window"'}))
+            objs.append(("/obj/machinery/door/poddoor/preopen", {"id": '"%s"' % idn, "name": '"privacy shutters"'}))
+    else:
+        objs.append(("/obj/machinery/door/window/%s%s" % (inn, r.choice(("left", "right"))),
+                     {"name": '"%s"' % name, "req_access_txt": acc}))
+        if r.random() < 0.5:
+            objs.append(("/obj/machinery/door/poddoor/shutters/preopen", {"id": '"%s"' % idn,
+                                                                          "name": '"%s shutters"' % name.lower()}))
+    # paperwork on a desk now and then (folders, a pen, a paper bin on the stock desks; condiments on a hatch)
+    if style == "hatch":
+        if r.random() < 0.35:
+            objs.append(r.choice(("/obj/item/reagent_containers/food/condiment/saltshaker",
+                                  "/obj/item/storage/fancy/donut_box")))
+    elif r.random() < 0.45:
+        objs.append(r.choice(("/obj/item/folder", "/obj/item/pen", "/obj/item/paper_bin", "/obj/item/folder/white")))
+    return {"obj": objs, "firedoor": False}
+
+
+def near_door_edge(tiles, doors):
+    """Whether any door touches these tiles (the side of a partition the room's own doors open into)."""
+    return any((q[0] + DELTA[d][0], q[1] + DELTA[d][1]) in doors for q in tiles for d in CARD)
+
+
+PEN_FRONT_BLOCKERS = ("/obj/structure/table", "/obj/structure/rack", "/obj/structure/closet", "/obj/structure/chair",
+                      "/obj/machinery/computer", "/obj/machinery/vending", "/obj/machinery/smartfridge",
+                      "/obj/machinery/monkey_recycler", "/obj/machinery/processor", "/obj/structure/reagent_dispensers")
+
+
 def fit_pens(m, pens, T):
     """The pens' windoors (Xenobiology access), and the lab's slimes moved into the first pen, two of a colour so the
     line carries on."""
@@ -909,6 +1948,10 @@ def fit_pens(m, pens, T):
         d = {(0, 1): 1, (0, -1): 2, (1, 0): 4, (-1, 0): 8}[inward]
         m.get(*T(door)).objs.append(dmm.Atom("/obj/machinery/door/window/northleft",
                                              [("dir", str(d)), ("name", '"Containment Pen"'), ("req_access_txt", '"55"')]))
+        # the aisle tile in front of the windoor stays clear (a lab table there sealed the pen, ring s103 2026-11-18)
+        ft = m.get(*T((door[0] - inward[0], door[1] - inward[1])))
+        if ft is not None:
+            ft.objs = [o for o in ft.objs if not o.path.startswith(PEN_FRONT_BLOCKERS)]
     first = [T(q) for q in pens[0][2]]
     mid = sorted(first)[len(first) // 2]
     for _ in range(max(2, len(slimes))):
@@ -930,6 +1973,26 @@ def fill_ward(m, tiles):
 
     def vent(p):
         return any(o.path.startswith(VENTS) for o in m.get(*p).objs)
+
+    def wall(p):
+        t = m.get(*p)
+        return t is not None and t.tpath.startswith("/turf/closed")
+
+    def doorway(p):
+        t = m.get(*p)
+        return t is not None and any(o.path.startswith("/obj/machinery/door") for o in t.objs)
+    # a bed in each bay (bay_rooms' wall stubs and partition): a free tile in a corner of two walls, off doorways
+    beds = 0
+    for p in sorted(tiles):
+        if not free(p) or vent(p):
+            continue
+        ws = [d for d in ((1, 0), (-1, 0), (0, 1), (0, -1)) if wall((p[0] + d[0], p[1] + d[1]))]
+        if len(ws) != 2 or ws[0][0] == -ws[1][0] and ws[0][1] == -ws[1][1]:
+            continue
+        if any(doorway((p[0] + dx, p[1] + dy)) for dx in (-1, 0, 1) for dy in (-1, 0, 1)):
+            continue
+        m.get(*p).objs.append(dmm.Atom("/obj/structure/bed/roller"))
+        beds += 1
     core = {p for p in tiles if all(free((p[0] + dx, p[1] + dy)) for dx in (-1, 0, 1) for dy in (-1, 0, 1))}
     # the biggest full rectangle inside the core
     best = None
@@ -943,7 +2006,7 @@ def fill_ward(m, tiles):
                 if best is None or w * h > best[2] * best[3]:
                     best = (x0, y0, w, h)
     if best is None or best[2] * best[3] < 12:
-        return []
+        return ["ward: %d beds in bays" % beds] if beds else []
     x0, y0, w, h = best
     rows = (y0, y0 + h - 1) if h >= 3 else (y0,)
     n = 0
@@ -955,7 +2018,7 @@ def fill_ward(m, tiles):
             path = "/obj/structure/bed/roller" if k == 0 else "/obj/machinery/iv_drip"
             m.get(x, y).objs.append(dmm.Atom(path))
             n += 1
-    return ["ward: %d beds and drips in a %dx%d block at %d,%d" % (n, w, h, x0, y0)]
+    return ["ward: %d beds in bays, %d beds and drips in a %dx%d block at %d,%d" % (beds, n, w, h, x0, y0)]
 
 
 # what a firelock may share a tile with: under-floor runs, decals, vents, and wall-hung things (lights hang by dir)
@@ -1313,7 +2376,8 @@ FACE_RANKS = [
     (4, ("/obj/structure/extinguisher_cabinet", "/obj/machinery/newscaster", "/obj/item/radio/intercom",
          "/obj/machinery/status_display", "/obj/structure/noticeboard", "/obj/machinery/defibrillator_mount",
          "/obj/machinery/vending/wallmed", "/obj/machinery/flasher", "/obj/structure/fireaxecabinet",
-         "/obj/machinery/computer/security/telescreen")),
+         "/obj/machinery/computer/security/telescreen", "/obj/structure/reagent_dispensers/peppertank",
+         "/obj/structure/reagent_dispensers/virusfood")),
     (5, ("/obj/structure/sign",)),
 ]
 
@@ -1327,10 +2391,15 @@ def face_rank(o):
     return None
 
 
+def is_light(o):
+    """A light fixture (tube, bulb, floor light), not a light switch: /obj/machinery/light_switch shares the prefix."""
+    return o.path == "/obj/machinery/light" or o.path.startswith("/obj/machinery/light/")
+
+
 def face_side(o):
     """The wall a piece hangs on: a light and a shower by their dir (a shower faces away from its wall), a toilet by
     which way it faces, the rest by their pixel offset."""
-    if o.path.startswith("/obj/machinery/light"):
+    if is_light(o):
         return o.num("dir", 2) or 2
     if o.path.startswith("/obj/machinery/shower"):
         return OPP[o.num("dir", 2) or 2]
@@ -1389,6 +2458,21 @@ def one_per_wall_face(m, zone, keep=frozenset()):
             if r != p and t(r) is not None and t(r).tpath.startswith("/turf/open") and \
                     any(s2 == OPP[d] for _, s2, o2 in pieces(r) if o2 is not o):
                 return True
+        # a piece hung across a corner (an intercom up in the corner, both offsets >= 16) covers both of its walls
+        # and the wall diagonal to its tile, as forge/check.py reads it
+        for ddx in (-1, 0, 1):
+            for ddy in (-1, 0, 1):
+                r = (w[0] + ddx, w[1] + ddy)
+                if (ddx or ddy) and t(r) is not None and t(r).tpath.startswith("/turf/open"):
+                    for o2 in t(r).objs:
+                        if o2 is o or face_rank(o2) is None:
+                            continue
+                        px, py = o2.num("pixel_x"), o2.num("pixel_y")
+                        if min(abs(px), abs(py)) < 16:
+                            continue
+                        sx, sy = (1 if px > 0 else -1), (1 if py > 0 else -1)
+                        if w in ((r[0] + sx, r[1]), (r[0], r[1] + sy), (r[0] + sx, r[1] + sy)):
+                            return True
         return False
 
     def usable(q, s, o, area, floor_piece):
@@ -1430,7 +2514,7 @@ def one_per_wall_face(m, zone, keep=frozenset()):
         """Rehang a wall piece on another wall: its dir and pixel offset follow the wall."""
         if s_from == s_to:
             return
-        if o.path.startswith("/obj/machinery/light"):
+        if is_light(o):
             o.vars = [kv for kv in o.vars if kv[0] != "dir"] + [("dir", str(s_to))]
             return
         px, py = o.num("pixel_x"), o.num("pixel_y")
@@ -1448,6 +2532,39 @@ def one_per_wall_face(m, zone, keep=frozenset()):
 
     moved = dropped = 0
     notes = []
+
+    def relocate(p, s, o):
+        """Move a wall piece off its face to the nearest free one, or drop it when it can go."""
+        nonlocal moved, dropped
+        tp = t(p)
+        if o not in tp.objs:
+            return
+        got = spot_for(p, s, o, o.path.startswith(WET + ("/obj/machinery/shower",)))
+        if got:
+            q, s2 = got
+            tp.objs.remove(o)
+            turn(o, s, s2)
+            t(q).objs.append(o)
+            moved += 1
+            notes.append("%s %d,%d -> %d,%d (its wall face was taken)" % (o.path.rsplit("/", 1)[-1], p[0], p[1], q[0], q[1]))
+            return
+        r = face_rank(o)
+        if r == 1 and not o.path.startswith("/obj/structure/mirror"):
+            # plumbing with nowhere to go: dropped only where the room keeps another of its kind
+            kind = o.path.split("/")[3]
+            if sum(1 for z in zone if t(z) and t(z).apath == tp.apath and
+                   any(a.path.split("/")[3:4] == [kind] for a in t(z).objs)) > 1:
+                tp.objs.remove(o)
+                tp.objs[:] = [a for a in tp.objs if not (a.path.startswith("/obj/structure/mirror") and face_side(a) == s and kind == "sink")]
+                dropped += 1
+                notes.append("dropped %s at %d,%d (its wall face was taken, the room has another)" % (kind, p[0], p[1]))
+            return
+        if r >= 4 or o.path.startswith("/obj/structure/mirror") or (r == 3 and sum(1 for z in zone if t(z) and t(z).apath == tp.apath and
+                                     t(z).has("/obj/machinery/light")) > 1):
+            tp.objs.remove(o)
+            dropped += 1
+            notes.append("dropped %s at %d,%d (its wall face was taken, no free one near)" % (o.path.rsplit("/", 1)[-1], p[0], p[1]))
+
     for p in sorted(zone):
         tp = t(p)
         if tp is None or p in keep or not tp.has("/obj/machinery/shower") or not tp.has("/obj/structure/sink"):
@@ -1484,34 +2601,42 @@ def one_per_wall_face(m, zone, keep=frozenset()):
                         losers.append((s, o))
                         losers += [(s, a) for a in tp.objs if a.path.startswith("/obj/structure/mirror") and face_side(a) == s]
         for s, o in losers:
-            if o not in tp.objs:
+            relocate(p, s, o)
+    # Both faces of one wall tile (ruling 2026-11-16: "never pieces on both faces of one wall tile").
+    # The pass above only sorted out pieces on the same face; an APC on one side and a light on the other were left.
+    # Per wall tile, the best-ranked piece stays and the others move along their own wall (or drop, as above).
+    both = 0
+    for w in sorted({(p[0] + DELTA[s][0], p[1] + DELTA[s][1]) for p in zone if t(p) is not None
+                     for _, s, _o in pieces(p)}):
+        tw = t(w)
+        if tw is None or not tw.tpath.startswith("/turf/closed"):
+            continue
+        hung = []
+        for d, dl in DELTA.items():
+            p = (w[0] + dl[0], w[1] + dl[1])
+            if t(p) is None or p not in zone or p in keep:
                 continue
-            got = spot_for(p, s, o, o.path.startswith(WET + ("/obj/machinery/shower",)))
-            if got:
-                q, s2 = got
-                tp.objs.remove(o)
-                turn(o, s, s2)
-                t(q).objs.append(o)
-                moved += 1
-                notes.append("%s %d,%d -> %d,%d (its wall face was taken)" % (o.path.rsplit("/", 1)[-1], p[0], p[1], q[0], q[1]))
-                continue
-            r = face_rank(o)
-            if r == 1 and not o.path.startswith("/obj/structure/mirror"):
-                # plumbing with nowhere to go: dropped only where the room keeps another of its kind
-                kind = o.path.split("/")[3]
-                if sum(1 for z in zone if t(z) and t(z).apath == tp.apath and
-                       any(a.path.split("/")[3:4] == [kind] for a in t(z).objs)) > 1:
-                    tp.objs.remove(o)
-                    tp.objs[:] = [a for a in tp.objs if not (a.path.startswith("/obj/structure/mirror") and face_side(a) == s and kind == "sink")]
-                    dropped += 1
-                    notes.append("dropped %s at %d,%d (its wall face was taken, the room has another)" % (kind, p[0], p[1]))
-                continue
-            if r >= 4 or o.path.startswith("/obj/structure/mirror") or (r == 3 and sum(1 for z in zone if t(z) and t(z).apath == tp.apath and
-                                         t(z).has("/obj/machinery/light")) > 1):
-                tp.objs.remove(o)
-                dropped += 1
-                notes.append("dropped %s at %d,%d (its wall face was taken, no free one near)" % (o.path.rsplit("/", 1)[-1], p[0], p[1]))
-    notes.insert(0, "wall faces: %d pieces moved off a taken face, %d dropped" % (moved, dropped))
+            for r, s, o in pieces(p):
+                if s == OPP[d]:
+                    hung.append((r, p, s, o))
+        if len({h[1] for h in hung}) < 2:
+            continue
+        hung.sort(key=lambda h: (h[0], h[1]))
+        keep_p = hung[0][1]
+        for r, p, s, o in hung[1:]:
+            if p == keep_p or r == 0:
+                continue      # same face was settled above; APCs never move
+            if o.path.startswith("/obj/structure/mirror") and any(a.path.startswith("/obj/structure/sink") and face_side(a) == s
+                                                                 for a in t(p).objs):
+                continue      # the mirror goes with its sink
+            if o in t(p).objs:
+                relocate(p, s, o)
+                both += 1
+                if o.path.startswith("/obj/structure/sink"):
+                    for a in [a for a in t(p).objs if a.path.startswith("/obj/structure/mirror") and face_side(a) == s]:
+                        relocate(p, s, a)
+    notes.insert(0, "wall faces: %d pieces moved off a taken face, %d dropped (%d were on the far face of a wall)" % (
+        moved, dropped, both))
     return notes
 
 
@@ -2076,7 +3201,11 @@ def kit_nb(p, d):
     return (p[0] + DELTA[d][0], p[1] + DELTA[d][1])
 
 
-def dress_maint(m, zone, seed):
+MAINT_TALL = ("/obj/machinery/vending", "/obj/structure/closet", "/obj/structure/bookcase", "/obj/structure/rack",
+              "/obj/structure/reagent_dispensers", "/obj/machinery/space_heater", "/obj/machinery/portable_atmospherics")
+
+
+def dress_maint(m, zone, seed, small=True):
     """Clutter down the maint runs as the stock maps have it. Generated maint was bare plating: 2455 tiles, five
     objects (2026-11-16). A dense thing only goes against a wall, away from doors and corridor mouths, and only where
     the walkable tiles round it still join up without it, so no run is ever shut and every APC, valve or alarm tile
@@ -2091,12 +3220,16 @@ def dress_maint(m, zone, seed):
         tt = t(p)
         if tt is None or not tt.tpath.startswith("/turf/open") or tt.tpath.startswith("/turf/open/space"):
             return False
+        # a window spawner is a window: maint glass on the hull read as open floor, so the join-up test walked round
+        # a crate through the glass and two crates shut a run (2026-11-18)
+        if tt.has("/obj/effect/spawner/structure/window"):
+            return False
         return tt.has("/obj/machinery/door") or not kit.dense(tt.objs)
 
     def solid(p):
         tt = t(p)
         return tt is None or tt.tpath.startswith("/turf/closed") or tt.has("/obj/structure/window") or \
-            tt.has("/obj/structure/grille")
+            tt.has("/obj/structure/grille") or tt.has("/obj/effect/spawner/structure/window")
 
     def free(p):
         return all(o.path.startswith(FLOOR_ONLY) for o in t(p).objs)
@@ -2145,6 +3278,11 @@ def dress_maint(m, zone, seed):
             r -= w
             if r <= 0:
                 break
+        # racks, lockers, tanks back onto a wall, not only onto the hull glass break_walls puts in maint
+        if path.startswith(MAINT_TALL) and not any(
+                (t((p[0] + d[0], p[1] + d[1])) is not None and
+                 t((p[0] + d[0], p[1] + d[1])).tpath.startswith("/turf/closed")) for d in D4.values()):
+            continue
         objs = t(p).objs
         objs.append(dmm.Atom(path))
         if extra == "loot" and rnd.random() < 0.6:
@@ -2152,9 +3290,9 @@ def dress_maint(m, zone, seed):
         elif extra == "top" and rnd.random() < 0.8:
             objs.append(dmm.Atom(rnd.choice(MAINT_TOP)))
         placed.add(p)
-    # the small things, on open floor
+    # the small things, on open floor (the learned look pass lays them instead when it runs: forge/look_wfc.py)
     n_small = 0
-    for p in M:
+    for p in (M if small else ()):
         if p in placed or not free(p) or t(p).has("/obj/machinery/door"):
             continue
         objs = t(p).objs
@@ -2184,7 +3322,7 @@ def dress_maint(m, zone, seed):
                 k_, v_ = PIX[od]
 
                 def hung(o):     # hangs on this wall from the far side: an offset that way (alarms sit at 24), or a lamp
-                    return o.num(k_) * v_ >= 20 * 32 or (o.path.startswith("/obj/machinery/light") and o.num("dir", 2) == od)
+                    return o.num(k_) * v_ >= 20 * 32 or (is_light(o) and o.num("dir", 2) == od)
                 return w is not None and w.tpath.startswith("/turf/closed/wall") and \
                     not (past and any(hung(o) for o in past.objs))
             walls = [d for d in D4 if bare_wall(d)]
@@ -2297,7 +3435,25 @@ def main():
     plan = shapes.generate(a.seed, a.crew, a.layout)
     if plan.problems:
         print("plan problems:", plan.problems[:5])
+    if os.environ.get("MAPFORGE_TRIM"):
+        for note in trim_maint(plan, random.Random(run_seed * 32452843 + 11)):
+            print("   ", note)
     pens = carve_pens(plan)
+    if not os.environ.get("MAPFORGE_NO_SPLIT"):
+        for note in split_rooms(plan, random.Random(run_seed * 7919 + 17)):
+            print("   ", note)
+    if not os.environ.get("MAPFORGE_NO_BAYS"):
+        for note in bay_rooms(plan, random.Random(run_seed * 49979687 + 7)):
+            print("   ", note)
+    if not os.environ.get("MAPFORGE_NO_BREAK"):
+        for note in break_walls(plan, random.Random(run_seed * 104729 + 3)):
+            print("   ", note)
+    if not os.environ.get("MAPFORGE_NO_DOORS"):
+        for note in add_doors(plan, random.Random(run_seed * 15485863 + 5)):
+            print("   ", note)
+    if not os.environ.get("MAPFORGE_NO_COUNTERS"):
+        for note in add_counters(plan, random.Random(run_seed * 2750159 + 13)):
+            print("   ", note)
     bp, T, (W, H), rc_of, solar_area = convert(plan, a.layout, a.crew, a.seed)
     print("map %dx%d, %d rooms" % (W, H, len(bp.ROOMDEFS)))
 
@@ -2341,6 +3497,8 @@ def main():
     bd.run_pre = []
     # nothing hangs inside a slime pen (an APC or a camera a slime sits under)
     bd.no_mount = {T(q) for _, _, inside in pens for q in inside}
+    # nor on a counter (its two sides along are wall, so it looked like a floor tile to hang from)
+    bd.no_mount |= {T(q) for q in getattr(plan, "counters", {})}
     # the supermatter block: where it goes is settled on the plan, so the station's networks route round it
     eng = None
     eng_room = room_tiles("engine")
@@ -2394,9 +3552,19 @@ def main():
     for note in fit_cells(m, [room_tiles(r) for r in cells]):
         print("   ", note)
     for r in plan.rooms:
-        if base_id(r) == "treatment":
+        if base_id(r).replace("_sub", "") == "treatment":
             for note in fill_ward(m, room_tiles(r)):
                 print("   ", note)
+        # an isolation cell holds one patient in a plain bed (every stock cell); the virology furnishing put two
+        # roller beds in every 2x3 (genset4 walk)
+        if plan.rooms[r].get("label") == "isolation":
+            beds = [(p, o) for p in room_tiles(r) for o in m.get(*p).objs if o.path.startswith("/obj/structure/bed")]
+            beds.sort(key=lambda po: po[1].path != "/obj/structure/bed")
+            if beds and beds[0][1].path != "/obj/structure/bed":
+                beds[0][1].path, beds[0][1].vars = "/obj/structure/bed", []
+            for p, o in beds[1:]:
+                m.get(*p).objs[:] = [a for a in m.get(*p).objs if a is not o and not a.path.startswith("/obj/item/bedsheet")]
+                print("    removed bed at %d,%d (isolation cell holds one)" % p)
     # does each piece work where it stands (links, standing tiles, plants, chairs, one-of-a-kind things)
     from forge import function as F
     fixes = F.fix(m, bd.zone)
@@ -2579,7 +3747,8 @@ def main():
 
     for note in fit_hall_firelocks(m, set(bd.zone)):
         print("   ", note)
-    for note in dress_maint(m, set(bd.zone), run_seed):
+    look = os.environ.get("MAPFORGE_LOOK", "rules")
+    for note in dress_maint(m, set(bd.zone), run_seed, small=(look != "wfc")):
         print("   ", note)
     face_notes = one_per_wall_face(m, bd.zone, keep=frozenset(getattr(bd, "stamped", ())))
     for note in face_notes[:12]:
@@ -2589,6 +3758,13 @@ def main():
     from station import floors
     for note in floors.style_floors(m, bd, keep=frozenset(getattr(bd, "engine_block", ()))):
         print("   ", note)
+    if look == "wfc":
+        # the floor look (colour quarters, grime, maint posters) by wave function collapse learned from MetaStation;
+        # fitted human rooms and stamped blocks keep their own
+        from forge import look_wfc
+        kept = set(getattr(bd, "template_tiles", ())) | set(getattr(bd, "engine_block", ())) |             set(getattr(bd, "stamped", ()))
+        for note in look_wfc.apply(m, [p for p in bd.zone if p not in kept], run_seed):
+            print("   ", note)
     left = F.review(m, bd.zone)
     from collections import Counter
     print("function review after: %d %s" % (len(left), dict(Counter(r for r, _, _ in left))))

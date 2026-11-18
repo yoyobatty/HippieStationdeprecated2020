@@ -4,6 +4,7 @@ render(dmm_path, out_png, region=(x1,y1,x2,y2)) renders with the game's own icon
 sheet(...) lays several pictures side by side with captions, for before/after reviews.
 """
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -58,6 +59,8 @@ def render(dmm_path, out_png, region=None, z=1, scale=1.0, disable=None, mode=No
     try:
         text = open(dmm_path, encoding="utf-8", errors="replace").read()
         text = text.replace("/turf/template_noop", "/turf/open/floor/plating")
+        # dmm-tools can't read TRUE/FALSE as var values (DeltaStation2 has one)
+        text = re.sub(r"(= ?)FALSE\b", r"\g<1>0", re.sub(r"(= ?)TRUE\b", r"\g<1>1", text))
         src = os.path.join(tmp, "m.dmm")
         with open(src, "w", encoding="utf-8", newline="") as f:
             f.write(text)

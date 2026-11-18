@@ -54,6 +54,22 @@ SIDE_USE = ("/obj/machinery/vending", "/obj/machinery/chem", "/obj/machinery/rnd
             "/obj/machinery/bookbinder", "/obj/machinery/smoke_machine", "/obj/machinery/oven", "/obj/machinery/griddle",
             "/obj/machinery/telecomms", "/obj/machinery/mech_bay_recharge_port", "/obj/machinery/cell_charger")
 WALLISH = ("/obj/effect/spawner/structure/window", "/obj/structure/grille", "/obj/structure/window")
+# kitchen appliances drawn facing south: you stand in front of them, as at a real one (the user's ruling, 2026-11-18:
+# a microwave boxed in by the next table, a counter and a hatch could not be used). The stock maps leave the tile
+# below free for 47% of microwaves, a side for 45%; 8% have neither.
+APPLIANCE_FRONT = ("/obj/machinery/microwave", "/obj/machinery/oven", "/obj/machinery/griddle", "/obj/machinery/grill")
+# hung on the wall beside a tile, not standing on it (a table under one is still free on top)
+WALL_MOUNTS = ("/obj/machinery/requests_console", "/obj/machinery/firealarm", "/obj/machinery/airalarm",
+               "/obj/machinery/light", "/obj/machinery/camera", "/obj/machinery/newscaster", "/obj/machinery/status_display",
+               "/obj/machinery/button", "/obj/machinery/light_switch", "/obj/machinery/power/apc")
+# most of a kind one area holds (kitchen_counts walk of the stock maps: two fryers and two microwaves in every kitchen)
+AREA_CAP = {"/obj/machinery/deepfryer": 2, "/obj/machinery/microwave": 2}
+# worked from any straight side, never only across a corner
+APPLIANCE_SIDE = ("/obj/machinery/processor", "/obj/machinery/gibber", "/obj/machinery/reagentgrinder",
+                  "/obj/machinery/chem_master", "/obj/machinery/chem_dispenser", "/obj/machinery/chem_heater",
+                  "/obj/machinery/icecream_vat", "/obj/machinery/smartfridge",
+                  # a fryer is a floor machine: 19 of the 44 stock fryers are reached only from a side
+                  "/obj/machinery/deepfryer")
 PLANT = "/obj/item/twohanded/required/kirbyplants"
 CHAIR = "/obj/structure/chair"
 SEAT_AREAS = ("/area/hallway", "/area/chapel", "/area/medical/medbay/lobby", "/area/security/courtroom",
@@ -135,7 +151,8 @@ class View:
             return False
         if any(o.path.startswith("/obj/machinery/door") and not o.path.startswith("/obj/machinery/door/firedoor")
                for o in t.objs):
-            return True
+            # a counter (a table under a windoor or shutters) is served across, not stood on
+            return not t.has("/obj/structure/table")
         return not any(is_dense(o) for o in t.objs)
 
     def door(self, p):
@@ -246,6 +263,11 @@ def review(m, zone=None, maint_ok=True):
                 f = nb(p, front_dir(o))
                 if not front_ok(v, p, o):
                     out.append(("front", p, "%s faces %s: nowhere to stand" % (short(path), what(v, f))))
+            elif path.startswith(APPLIANCE_FRONT):
+                if not v.stand(nb(p, 2)):
+                    out.append(("front", p, "%s: nowhere to stand in front of it (%s)" % (short(path), what(v, nb(p, 2)))))
+            elif path.startswith(APPLIANCE_SIDE) and not any(v.stand(nb(p, d)) for d in D4):
+                out.append(("reach", p, "%s: no straight side to stand at" % short(path)))
             elif path.startswith(SIDE_USE) and is_dense(o):
                 if not any(v.walk((p[0] + dx, p[1] + dy)) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy):
                     out.append(("reach", p, "%s: no tile to stand at" % short(path)))
@@ -330,6 +352,8 @@ def fix(m, zone, protect=(), log=None):
                     return False
                 if a.path.startswith(CHAIR) and nb(q, a.num("dir", 2) or 2) == p:
                     return False
+                if a.path.startswith(APPLIANCE_FRONT) and nb(q, 2) == p:
+                    return False
                 if a.path.startswith(SIDE_USE) and is_dense(a):
                     others = [nb(q, e) for e in D4 if nb(q, e) != p and v.walk(nb(q, e))]
                     if not others:
@@ -387,6 +411,18 @@ def fix(m, zone, protect=(), log=None):
                     drop(p, o, "second one; first at %d,%d" % seen[key])
                 else:
                     seen[key] = p
+    # 1b. at most so many of a kind in one area: every stock kitchen has two fryers and two microwaves; a template's
+    # pair plus the furnisher's top-up made three (s102, 2026-11-18)
+    per_area = {}
+    for p in sorted(zone):
+        for o in list(objs(m, p)):
+            cap = next((n for k, n in AREA_CAP.items() if o.path.startswith(k)), None)
+            if cap is None:
+                continue
+            key = (v.area(p), next(k for k in AREA_CAP if o.path.startswith(k)))
+            per_area[key] = per_area.get(key, 0) + 1
+            if per_area[key] > cap:
+                drop(p, o, "more than %d in %s" % (cap, key[0].split("/")[-1]))
 
     # 2. links: a console moves to a free cardinal tile of its partner; a lone optable gets its computer or goes
     def partner_ok(p, path):
@@ -480,6 +516,70 @@ def fix(m, zone, protect=(), log=None):
                 e = max(turn, key=lambda e: (OPP[e] in back, e))
                 o.vars = [kv for kv in o.vars if kv[0] != "dir"] + ([("dir", str(e))] if e != 2 else [])
                 notes.append("turned %s at %d,%d to face %s" % (short(o.path), p[0], p[1], {1: "N", 2: "S", 4: "E", 8: "W"}[e]))
+
+    # 3b. kitchen appliances: a microwave (oven, griddle, fryer, grill) needs the tile in front of it (below) to stand
+    # on, the grinder, processor, gibber and chem machines a straight side. One that has none moves to a free table top
+    # of its room that has; with none, a table is set down for it against a wall with floor in front.
+    def appliance_ok(q, path):
+        if path.startswith(APPLIANCE_FRONT):
+            return v.stand(nb(q, 2))
+        return any(v.stand(nb(q, d)) for d in D4)
+
+    def bare_table(q):
+        t = v.t(q)
+        # pipes and cables under it, or a wall mount hung over it, leave the table top free
+        return (t is not None and q in zone and t.has("/obj/structure/table") and
+                not t.has("/obj/structure/table/optable") and not t.has("/obj/machinery/door") and
+                not any(o.path.startswith("/obj/machinery") and on_floor(o) and
+                        not o.path.startswith(("/obj/machinery/atmospherics/pipe", "/obj/machinery/navbeacon") + WALL_MOUNTS)
+                        for o in t.objs))
+    def works_elsewhere(p, o):
+        """Another of its kind in the room can be used: a stuck second one can go."""
+        return any(q != p and any(a.path == o.path and appliance_ok(q, a.path) for a in objs(m, q)) for q in room_of(p))
+
+    # two passes: a fryer moved out of a row frees the one behind it, or finds its own spot second time round
+    for p in [q for _pass in (0, 1) for q in sorted(zone)]:
+        for o in list(objs(m, p)):
+            if not o.path.startswith(APPLIANCE_FRONT + APPLIANCE_SIDE) or not on_floor(o) or appliance_ok(p, o.path):
+                continue
+            room = room_of(p)
+            on_table = v.t(p).has("/obj/structure/table")
+            # nearest first: it stays at the same counter where it can
+            spots = sorted((q for q in room if q != p and bare_table(q) and appliance_ok(q, o.path)),
+                           key=lambda q: abs(q[0] - p[0]) + abs(q[1] - p[1]))
+            if on_table and spots:
+                move(p, o, spots[0], "nowhere to stand at it")
+                continue
+            if not on_table and is_dense(o):
+                # a floor machine (processor, gibber): onto a floor tile of its room with a straight side free
+                fl = sorted((q for q in room if free_for(q) and keeps_flow(q) and any(v.wallish(nb(q, e)) for e in D4)
+                             and appliance_ok(q, o.path)), key=lambda q: abs(q[0] - p[0]) + abs(q[1] - p[1]))
+                if fl:
+                    move(p, o, fl[0], "nowhere to stand at it")
+                elif works_elsewhere(p, o):
+                    drop(p, o, "nowhere to stand at it, and another works")
+                else:
+                    notes.append("%s at %d,%d: nowhere to stand at it, no place to move it" % (short(o.path), p[0], p[1]))
+                continue
+            # a new table against a wall (behind it first, else beside it), front free
+            fl = sorted((q for q in room if free_for(q) and keeps_flow(q) and
+                         any(v.wallish(nb(q, e)) for e in (1, 4, 8)) and v.stand(nb(q, 2)) and nb(q, 2) not in protect),
+                        key=lambda q: (not v.wallish(nb(q, 1)), abs(q[0] - p[0]) + abs(q[1] - p[1])))
+            if not fl and "/kitchen" in v.area(p) and not works_elsewhere(p, o):
+                # a kitchen's only microwave: a table in the open will do, so long as the floor stays in one piece
+                fl = sorted((q for q in room if free_for(q) and keeps_flow(q) and v.stand(nb(q, 2)) and
+                             nb(q, 2) not in protect), key=lambda q: abs(q[0] - p[0]) + abs(q[1] - p[1]))
+            if fl:
+                objs(m, fl[0]).append(dmm.Atom("/obj/structure/table"))
+                move(p, o, fl[0], "nowhere to stand at it; on a new table")
+            elif works_elsewhere(p, o):
+                # a second one with no room for it: the kitchen makes do with the one that works
+                drop(p, o, "nowhere to stand at it, and another works")
+            elif "/kitchen" not in v.area(p):
+                # dressing in some other room (a mining office's microwave): no use where nobody can reach it
+                drop(p, o, "nowhere to stand at it")
+            else:
+                notes.append("%s at %d,%d: nowhere to stand at it, no place to move it" % (short(o.path), p[0], p[1]))
 
     # 4. plants: against a wall, out of anyone's way; else gone
     for p in sorted(zone):

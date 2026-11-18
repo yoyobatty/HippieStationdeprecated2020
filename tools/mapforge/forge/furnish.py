@@ -193,8 +193,19 @@ def table_juts(occ):
 _solid = lambda p: False  # noqa: E731  (set per furnish call)
 
 
+def is_kind(t, path):
+    """t is path or one of its subtypes (a wood table is a table); a wall telescreen is not a security console."""
+    return t == path or (t.startswith(path + "/") and "/telescreen" not in t[len(path):])
+
+
+def covers(cl, cover):
+    """The required paths among `cover` this cluster holds (by type, subtypes included)."""
+    ps = paths_of(cl)
+    return {p for p in cover if any(is_kind(t, p) for t in ps)}
+
+
 def cell_count(cl, path):
-    return sum(1 for c in cl["cells"] if any(t.split("{")[0] == path for t in c[2]))
+    return sum(1 for c in cl["cells"] if any(is_kind(t.split("{")[0], path) for t in c[2]))
 
 
 # machines a room has one of (a second techfab or console beside the first reads as a mistake)
@@ -207,6 +218,18 @@ REPEATABLE = ("/obj/machinery/vending/wallmed", "/obj/machinery/iv_drip", "/obj/
 ONE_EACH = ("/obj/structure/tank_dispenser", "/obj/structure/closet/crate/rcd", "/obj/structure/reagent_dispensers",
             "/obj/structure/piano", "/obj/structure/janitorialcart", "/obj/structure/safe", "/obj/structure/displaycase",
             "/obj/structure/closet/secure_closet/engineering_chief", "/obj/structure/closet/crate/goldcrate")
+
+# repeatable machines with a ceiling: every human kitchen has exactly two fryers; s104 stacked eight because a
+# fryer cluster could be picked again and again (2026-11-18)
+CAPPED = {"/obj/machinery/deepfryer": 2}
+
+
+def over_cap(cl, placed):
+    for pth, n in CAPPED.items():
+        k = cell_count(cl, pth)
+        if k and k + sum(cell_count(x, pth) for x in placed) > n:
+            return True
+    return False
 
 
 def unique_machines(cl):
@@ -319,12 +342,12 @@ def furnish(floor, solid, doors, kind, seed=1, density=None, require=(), exclude
         if not cover and len(occupied) >= want:
             break
         if cover:
-            cands = [c for c in pool if paths_of(c) & set(cover)]
+            cands = [c for c in pool if covers(c, cover)]
             if not cands or stuck_cover:
-                cands = [c for c in singles if paths_of(c) & set(cover)]
+                cands = [c for c in singles if covers(c, cover)]
             elif any(placed_at.get(p) for p in cover):
                 # a second copy of something already here: the piece on its own can take the mirror spot
-                cands = cands + [c for c in singles if paths_of(c) & set(cover)]
+                cands = cands + [c for c in singles if covers(c, cover)]
             if not cands:
                 uncovered = [p for p in uncovered if p not in cover]
                 continue
@@ -334,13 +357,14 @@ def furnish(floor, solid, doors, kind, seed=1, density=None, require=(), exclude
                 break
         have = set(present) | {p for c in placed for p in unique_machines(c)}
         cands = [c for c in cands if not ((unique_machines(c) & have) - {p for p in need if sum(cell_count(x, p) for x in placed) < need[p]})]
+        cands = [c for c in cands if not over_cap(c, placed)]
         if not cands:
             if cover:
                 uncovered = [p for p in uncovered if p not in cover]
             else:
                 break
             continue
-        weights = [c["count"] * (1 + 0.5 * len(c["maps"])) * (1 + len(paths_of(c) & set(cover))) for c in cands]
+        weights = [c["count"] * (1 + 0.5 * len(c["maps"])) * (1 + len(covers(c, cover))) for c in cands]
         sample = rng.choices(cands, weights=weights, k=min(40, len(cands)))
         best = None
         found = []
