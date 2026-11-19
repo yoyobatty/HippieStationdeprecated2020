@@ -984,8 +984,9 @@ def lay_end(plan, by, strips, seed, what, base, out, perp, hw):
             meta = dict(meta)
             meta.setdefault("label", "")
             p0, p1 = f(rect[0], rect[1]), f(rect[2], rect[3])
-            plan.add_rect((min(p0[0], p1[0]), min(p0[1], p1[1]), max(p0[0], p1[0]), max(p0[1], p1[1])), rid,
-                          dept=name, colour=d.colour, **meta)
+            rr = (min(p0[0], p1[0]), min(p0[1], p1[1]), max(p0[0], p1[0]), max(p0[1], p1[1]))
+            plan.yield_sides(rr)
+            plan.add_rect(rr, rid, dept=name, colour=d.colour, **meta)
         strips.append((f, name, 0, w, loc))
     elif what == "sat":
         satellite(plan, _add(base, _vec(perp, hw // 2 - 1)), out, perp)

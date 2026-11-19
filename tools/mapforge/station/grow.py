@@ -22,6 +22,7 @@ from station.layout import Local
 
 D4 = ((1, 0), (-1, 0), (0, 1), (0, -1))
 WING = {"xeno": 0.7, "virology": 0.6, "perma": 0.55, "range": 0.4}
+DEBUG = bool(__import__("os").environ.get("MAPFORGE_GROW_DEBUG"))
 ROWS = {"cells": ("cell", 12, (3, 4)), "cabins": ("cabin", 14, (3, 4))}
 
 
@@ -289,15 +290,33 @@ class Grower:
                 return False
         return True
 
-    def place(self, r, tv, prefer=None, shrink=1.0):
-        best = None
+    def place(self, r, tv, prefer=None, shrink=1.0, quiet=False):
+        best = bt = None
         dims = self.dims(r, int(r.area * shrink))
         rnd = self.rnd
-        for rect in self.anchors(r, dims, prefer):
+        base = self.anchors(r, dims, prefer)
+        # rects set against a near= partner too (hydroponics against the kitchen): the hall anchors alone never
+        # offered one on half the maps, the kitchen sitting at the back of the bar's block. One of these still needs
+        # a hall alongside, as the anchored ones have (2026-11-19)
+        extra = set()
+        if r.near and not prefer and r.front:
+            # also a size down, and against the room that holds the partner (the bar): on the ring's service block
+            # no full-size hall-fronted rect touched the kitchen (ring s103/s104, 2026-11-19)
+            small = self.dims(r, int(r.area * shrink * 0.75))
+            for k in r.near:
+                if k in self.kind:
+                    extra |= self.anchors(r, dims, k) | self.anchors(r, small, k)
+                    for x in self.d.rooms:
+                        if k in x.links and x.id in self.kind:
+                            extra |= self.anchors(r, dims, x.id)
+            extra -= base
+        for rect in list(base) + sorted(extra):
             if not self.room_free(rect):
                 continue
             c = self.contacts(rect)
             if not self.fits(r, rect, c):
+                continue
+            if rect in extra and not any(self.kind.get(k) == "hall" for k in c):
                 continue
             if prefer and prefer not in c:
                 continue
@@ -316,11 +335,33 @@ class Grower:
             for k in r.near:
                 ts = [p for p, q in self.own.items() if q == k]
                 if ts:
-                    # 0.25 lost to the pull toward the entrance: hydroponics stayed three rooms from the kitchen
-                    s += 0.7 * min(abs(p[0] - cx) + abs(p[1] - cy) for p in ts)
+                    # 0.25 lost to the pull toward the entrance: hydroponics stayed three rooms from the kitchen.
+                    # Measured from the rect's edge, not its centre (a big room's centre never got close), and a
+                    # shared wall wins outright: near= is how hydroponics backs onto the kitchen without a link
+                    # taking the kitchen off the bar (2026-11-19)
+                    if k in c:
+                        s -= 6.0
+                    elif any(x.id in c for x in self.d.rooms if k in x.links):
+                        # next best: backing onto the room that holds it (the bar the kitchen opens off), two
+                        # rooms apart; on the ring's service block no hall-fronted rect touched the kitchen itself
+                        s -= 3.0
+                    else:
+                        s += 0.7 * min(max(0, x0 - p[0], p[0] - x1) + max(0, y0 - p[1], p[1] - y1) for p in ts)
             s += rnd.random() * 2.2
             if best is None or s < best[0]:
                 best = (s, rect)
+            if r.near and DEBUG:
+                touch = any(k in c for k in r.near)
+                if touch and (bt is None or s < bt[0]):
+                    bt = (s, rect)
+        if r.near and DEBUG and not quiet:
+            print("grow %s %s: best %s, best touching %s, near %s placed %s, %d extra rects" % (
+                self.d.name, r.id, best, bt, r.near, [k for k in r.near if k in self.kind], len(extra)))
+            ch = {}
+            for t, k in self.own.items():
+                ch[t] = "#" if self.kind[k] == "hall" else ("K" if k in r.near else k[0])
+            for y in range(self.Dm - 1, -1, -1):
+                print("   " + "".join(ch.get((x, y), ".") for x in range(self.W)))
         return best[1] if best else None
 
     def ear(self, rect, rid):
@@ -520,17 +561,43 @@ class Grower:
                 host, strip = (x0, y0, x1 - t - 1, y1), (x1 - t + 1, y0, x1, y1)
             else:
                 host, strip = (x0 + t + 1, y0, x1, y1), (x0, y0, x0 + t - 1, y1)
-            self.put(host, r.id, "room", meta)
-            # guests along the strip, split by length in proportion to area
             sx0, sy0, sx1, sy1 = strip
             along_x = back in ("n", "s")
-            a0, a1 = (sx0, sx1) if along_x else (sy0, sy1)
-            pos = a0
-            for g, s in zip(guests, shares):
-                end = pos + s - 1
-                gr = (pos, sy0, end, sy1) if along_x else (sx0, pos, sx1, end)
-                self.put(gr, g.id, "room", self.meta_of(g))
-                pos = end + 2
+            a0 = sx0 if along_x else sy0
+
+            def lay(order, widths):
+                self.put(host, r.id, "room", meta)
+                # guests along the strip, split by length in proportion to area
+                pos = a0
+                for g, w in zip(order, widths):
+                    end = pos + w - 1
+                    gr = (pos, sy0, end, sy1) if along_x else (sx0, pos, sx1, end)
+                    self.put(gr, g.id, "room", self.meta_of(g))
+                    pos = end + 2
+            # a guest another room wants to be near (the kitchen, for hydroponics) goes to whichever end of the strip
+            # lets that room, placed later, reach it from a hall: both ends are tried and the room placed for real on
+            # a copy of the grid. At a fixed end the kitchen was walled in by the bar and its neighbours, and
+            # hydroponics sat three rooms away on most maps (2026-11-19)
+            wanted = {k: x for x in self.d.rooms for k in x.near if x.id not in self.kind}
+            want = next((g for g in guests if g.id in wanted), None)
+            if want is not None and len(guests) > 1:
+                rest = [g for g in guests if g is not want]
+                width = dict(zip([g.id for g in guests], shares))
+                pick = None
+                for order in ([want] + rest, rest + [want]):
+                    saved = (dict(self.own), dict(self.kind), list(self.rooms), set(self.behind), self.rnd)
+                    self.rnd = random.Random(1)
+                    lay(order, [width[g.id] for g in order])
+                    rc = self.place(wanted[want.id], tv, quiet=True)
+                    ok = rc is not None and want.id in self.contacts(rc)
+                    self.own, self.kind, self.rooms, self.behind, self.rnd = saved
+                    if ok:
+                        pick = order
+                        break
+                if pick is not None:
+                    guests = pick
+                    shares = [width[g.id] for g in guests]
+            lay(guests, shares)
             return True
         return False
 

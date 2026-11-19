@@ -6,6 +6,7 @@ per-tile heatmap points at what gave the crop away.
     python tools/mapforge/forge/disc.py tensors                        # build every tensor (cached, one process)
     python tools/mapforge/forge/disc.py train --device cuda [--steps 3000] [--crop 48] [--gen DIR ...]
     python tools/mapforge/forge/disc.py heat <run dir> <map> [<map> ...]
+    python tools/mapforge/forge/disc.py train --device cuda --keep space,wall,glass,door,floor --run shape_only
 
 The network is fully convolutional: dilated 3x3 convolutions, then a 1x1 convolution that gives one logit per tile
 (above 0: "looks generated"). A crop's score is the mean tile logit over its station tiles, so the tile logits are the
@@ -254,6 +255,14 @@ def cmd_train(a):
         rep.flush()
 
     maps = load_all(a.gen, quiet=a.quiet)
+    if a.keep:
+        # train on these channels alone (the rest zeroed): what a group of channels gives away on its own, the
+        # cleaner question than blanking one channel of a network trained on all of them (disc_ablate.py)
+        keep = [tensor.CI[c] for c in a.keep.split(",")]
+        drop = [i for i in range(tensor.C) if i not in keep]
+        for mp in maps:
+            mp[3][drop] = 0
+        log("channels kept: %s" % a.keep)
     log("%d maps: %d human, %d generated; crop %d, %d steps x %d, device %s" % (
         len(maps), sum(1 for m in maps if not m[1]), sum(1 for m in maps if m[1]), a.crop, a.steps, a.batch, a.device))
     F = folds(maps, a.folds) if a.folds > 1 else [[]]
@@ -281,9 +290,9 @@ def cmd_train(a):
 
 # ---------------------------------------------------------------------------------------------------- heatmaps
 
-def heat_map(model, planes, mask, device, tile=4):
+def heat_map(model, planes, mask, device, tile=4, shown=None):
     """Whole-map tile logits, then a picture: the map in greys, tiles the network calls generated in red, human in
-    blue, strength by logit."""
+    blue, strength by logit. shown: the planes to draw the map from (the whole map when the network reads a few)."""
     import torch
     from PIL import Image
     with torch.no_grad():
@@ -292,6 +301,7 @@ def heat_map(model, planes, mask, device, tile=4):
         _, tiles = model(x, m)
     L = tiles[0].cpu().numpy()
     H, W = mask.shape
+    planes = planes if shown is None else shown
     base = np.full((H, W, 3), 12, dtype=np.float32)
     ci = tensor.CI
     base[planes[ci["floor"]] > 0] = 150
@@ -313,16 +323,29 @@ def cmd_heat(a):
     if not pts:
         sys.exit("no fold*.pt in %s" % a.run)
     ck = {p: torch.load(p, map_location=a.device) for p in pts}
+    # a run trained on some channels alone (--keep) reads only those
+    try:
+        keep = json.load(open(os.path.join(a.run, "report.json")))["args"].get("keep") or ""
+    except (OSError, ValueError, KeyError):
+        keep = ""
+    drop = [i for i in range(tensor.C) if keep and tensor.CHANNELS[i] not in keep.split(",")]
     for name in a.maps:
         # the fold that held this map out, so the heatmap is from a network that never saw it
-        held = [p for p, c in ck.items() if name in c["test"] or os.path.abspath(name) in map(os.path.abspath, c["test"])]
+        # (by file name too: a rebuild of a held-out seed in another dir goes to the fold that never saw that seed)
+        held = [p for p, c in ck.items() if name in c["test"] or os.path.abspath(name) in map(os.path.abspath, c["test"])
+                or os.path.basename(name) in map(os.path.basename, c["test"])]
         p = held[0] if held else pts[0]
         model = net(ck[p]["width"]).to(a.device)
         model.load_state_dict(ck[p]["state"])
         model.eval()
         planes, mask = tensor.load(name)
-        im, L = heat_map(model, planes, mask, a.device)
-        out = os.path.join(PICS, "heat_%s.png" % os.path.splitext(os.path.basename(name))[0].replace(":", "_"))
+        shown = planes
+        if drop:
+            planes = planes.copy()
+            planes[drop] = 0
+        im, L = heat_map(model, planes, mask, a.device, shown=shown)
+        out = os.path.join(PICS, "heat_%s%s.png" % (os.path.splitext(os.path.basename(name))[0].replace(":", "_"),
+                                                     "_" + os.path.basename(os.path.normpath(a.run)) if drop else ""))
         im.save(out)
         on = L[mask > 0]
         print("%-36s %s mean %+.2f, %.0f%% of tiles called generated -> %s" % (
@@ -382,6 +405,7 @@ def main():
     t.add_argument("--threads", type=int, default=4)
     t.add_argument("--run", default="")
     t.add_argument("--quiet", action="store_true")
+    t.add_argument("--keep", default="", help="comma list of tensor channels to train on alone, the rest zeroed")
     h = sub.add_parser("heat")
     h.add_argument("run")
     h.add_argument("maps", nargs="+")

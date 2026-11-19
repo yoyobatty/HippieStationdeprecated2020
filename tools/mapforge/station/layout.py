@@ -61,6 +61,31 @@ class Plan:
                     self.problems.append("overlap %s/%s at %d,%d" % (self.floor[(x, y)], rid, x, y))
                 self.floor[(x, y)] = rid
 
+    def yield_sides(self, rect):
+        """A side room (a filler off a hall, laid by trace_maint) gives way to a department laid later over it (an
+        arrivals or escape end at the tip of a hall stub): its tiles in the rect and one row round it go, and what
+        is left goes too when it is no longer a room of 6+ tiles in one rectangle. On ring s104 customs was laid
+        four tiles into a side room (2026-11-19). Returns the side rooms cut."""
+        x0, y0, x1, y1 = rect
+        cut = set()
+        for x in range(x0 - 1, x1 + 2):
+            for y in range(y0 - 1, y1 + 2):
+                r = self.floor.get((x, y))
+                if r is not None and self.rooms.get(r, {}).get("dept") == "side":
+                    cut.add(r)
+                    del self.floor[(x, y)]
+        for r in cut:
+            left = self.tiles(r)
+            xs, ys = [p[0] for p in left], [p[1] for p in left]
+            if len(left) < 6 or (max(xs) - min(xs) + 1) * (max(ys) - min(ys) + 1) != len(left):
+                for p in left:
+                    del self.floor[p]
+                self.rooms.pop(r, None)
+                self.notes.append("side room %s gave way to a later block" % r)
+            else:
+                self.notes.append("side room %s cut back for a later block" % r)
+        return cut
+
     def tiles(self, rid):
         return [p for p, r in self.floor.items() if r == rid]
 

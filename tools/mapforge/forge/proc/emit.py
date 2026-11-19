@@ -25,6 +25,8 @@ def door_objs(dr):
         return [(path, vs)] + ([FD] if sp.get("firedoor") else []) + list(sp.get("extra", ()))
     if kind == "shutter":
         return [("/obj/machinery/door/poddoor/shutters/preopen", {"name": sp.get("name", "shutters"), "id": sp["id"]}), FD]
+    if kind == "driver":    # the mass driver's blast door out to space
+        return [("/obj/machinery/door/poddoor", {"name": sp.get("name", "Mass Driver Door"), "id": sp["id"]})]
     if kind == "biohazard":
         return [("/obj/machinery/door/poddoor/preopen/biohazard", {"id": sp["id"]}), "/obj/machinery/door/firedoor/heavy"]
     if kind == "desk":

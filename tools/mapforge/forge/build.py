@@ -13,6 +13,7 @@ Blueprint module attributes (see blueprints/*.py):
 import heapq
 import math
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -502,6 +503,9 @@ class Builder:
                      and not kit.dense(self.t(*p).objs)}
             touching = {d for d in doors if any(self.nb(d, dd) in floor for dd in CARD)}
             log = []
+            if f.get("mode") == "copy":
+                self.copy_room(rc, rd)
+                continue
             if f.get("mode") == "template" and self.template_room(rc, rd, floor):
                 continue
             present = {o.path for q in self.zone if self.room.get(q) == rc for o in self.t(*q).objs}
@@ -552,6 +556,24 @@ class Builder:
             for l in log:
                 if l.startswith("COULD NOT"):
                     self.warn.append("%s: %s" % (rd.get("name", rc), l.lower()))
+
+    def copy_room(self, rc, rd):
+        """furnish=dict(mode="copy", cells={tile: [turf, atoms...]}): a human-made room put down exactly as it was
+        drawn (station/remix.py moves whole departments between maps this way)."""
+        n = 0
+        for p, objs in rd["furnish"]["cells"].items():
+            p = tuple(p)
+            if p not in self.zone or self.room.get(p) != rc:
+                continue
+            t = self.t(*p)
+            if objs and objs[0].startswith("/turf/open"):
+                t.turf = dmm.Atom.parse(objs[0])
+            t.objs = [o for o in t.objs if not o.path.startswith("/obj/effect/turf_decal")]
+            self.add_atoms(p, objs[1:])
+            self.furnished.add(p)
+            self.template_tiles.add(p)
+            n += 1
+        self.notes.append("%s: copied %d tiles as drawn" % (rd.get("name", rc), n))
 
     def template_room(self, rc, rd, floor):
         """Fit a whole human-made room of this type onto the room (forge/rooms.py); the first fit that passes the
@@ -717,7 +739,8 @@ class Builder:
             s = self.spec(p)
             for i, entry in enumerate(s.get("obj", [])):
                 path, vs = (entry, []) if isinstance(entry, str) else (entry[0], list(entry[1].items()) if isinstance(entry[1], dict) else entry[1])
-                vs = [(k, dmm.fmt(v) if not isinstance(v, str) or not v.startswith(("\"", "/", "list(")) and not v.lstrip("-").isdigit() else v) for k, v in vs]
+                vs = [(k, dmm.fmt(v) if not isinstance(v, str) or not v.startswith(("\"", "/", "list(")) and not v.lstrip("-").isdigit()
+                       and v not in ("null", "TRUE", "FALSE") and not re.match(r"^-?\d+\.\d+$", v) else v) for k, v in vs]
                 # access lists are text ("12" or "5;33"): a bare 12 made text2access() runtime in splittext and left
                 # req_access empty, so every generated access door opened for anyone
                 vs = [(k, '"%s"' % v if k.endswith("_txt") and isinstance(v, str) and not v.startswith("\"") else v)
@@ -1152,13 +1175,29 @@ class Builder:
                 f = min(faces, key=lambda f: math.hypot(f[0][0] - cx, f[0][1] - cy))
                 self.mount(f[0], f[1], "newscaster")
         if rd.get("camera", True):
-            faces = [f for f in self.free_faces(area, optional=True) if len(self.wall_sides(f[0])) >= 2] \
-                or self.free_faces(area, optional=True)
-            if faces:
-                # a corner that sees the most of the room
-                f = max(faces, key=lambda f: math.hypot(f[0][0] - cx, f[0][1] - cy))
-                tag = rd.get("camera") if isinstance(rd.get("camera"), str) else name
-                self.mount(f[0], f[1], "camera", extra=[("c_tag", '"%s"' % tag)])
+            # one per 30 floor tiles in a room and 36 along a hall, spread out (stock maps: 3.3 and 2.8 per 100 tiles;
+            # one per area left ours at 1.6 and 0.4, 2026-11-19); maintenance keeps one
+            hall = area.startswith("/area/hallway")
+            n = 1 if area.startswith("/area/maintenance") else max(1, int(round(len(floors) / (36.0 if hall else 30.0))))
+            tag = rd.get("camera") if isinstance(rd.get("camera"), str) else name
+            placed = []
+            for i in range(n):
+                faces = self.free_faces(area, optional=True)
+                if not faces:
+                    break
+                corner = [f for f in faces if len(self.wall_sides(f[0])) >= 2]
+
+                def cam_score(f):
+                    p = f[0]
+                    if not placed:
+                        # a corner that sees the most of the room
+                        return math.hypot(p[0] - cx, p[1] - cy) + (3 if f in corner else 0)
+                    return min(math.hypot(p[0] - q[0], p[1] - q[1]) for q in placed) + (2 if f in corner else 0)
+                f = max(faces, key=cam_score)
+                if placed and min(math.hypot(f[0][0] - q[0], f[0][1] - q[1]) for q in placed) < 6:
+                    break
+                self.mount(f[0], f[1], "camera", extra=[("c_tag", '"%s%s"' % (tag, " %d" % (i + 1) if n > 1 else ""))])
+                placed.append(f[0])
 
     def remote_apc(self, area):
         """An APC outside the zone that powers this area (Hippie mounts many in maintenance with areastring)."""
