@@ -154,6 +154,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/sound.dm (playsound_local() dulls everything while a blast has the ears ringing, explosion_realism/blast_senses.dm)
 ## code/game/turfs/change_turf.dm (a level the lobby build is making gets its lighting at the end)
 ## code/game/turfs/closed/minerals.dm (user, not usr: null when a bot does it)
+## code/game/turfs/closed/wall/reinf_walls.dm (singularity_pull stops if the wall pull already dismantled it)
 ## code/game/turfs/open.dm
 ## code/game/turfs/open/lava.dm (is_safe() by locate(), no copy of the tile's contents)
 ## code/game/turfs/open/space/space.dm (set_starlight() retints the camera pictures' starlight copies, map_view.dm; space put back at runtime tells the tile engine, tile_engine.dm)
@@ -300,6 +301,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/plumbing/ducts.dm (user, not usr: null when a bot does it)
 ## code/modules/power/apc.dm (an outage tells the area once; a healthy APC skips its no-op autoset(), percent() and poweralert() calls)
 ## code/modules/power/lighting.dm (user, not usr: null when a bot does it)
+## code/modules/power/singularity/singularity.dm (eat() eats what is in reach and queues the rest for the fast pull loop: hippiestation/code/modules/power/singularity_pull.dm)
 ## code/modules/power/smes.dm (user, not usr: null when a bot does it)
 ## code/modules/power/turbine.dm (the console's power readout before the turbine first runs)
 ## code/modules/projectiles/guns/misc/blastcannon.dm (a pinless cannon's pin is made inside it)

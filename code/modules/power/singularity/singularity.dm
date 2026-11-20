@@ -266,30 +266,21 @@
 	return 1
 
 
+// hippie start -- what's in reach is eaten now, the rest is queued and pulled on a share at a time by the fast loop
+// (hippiestation/code/modules/power/singularity_pull.dm), so a big singularity doesn't freeze the server every two seconds
 /obj/singularity/proc/eat()
-	var/list/pullable = list() //hippie edit -- what can be pulled, for the fast pull loop
+	if(!isturf(loc))
+		return
+	pull_queue = list()
+	pull_targets = list()
 	for(var/tile in RANGE_TURFS(grav_pull, src))
 		var/turf/T = tile
-		if(!T || !isturf(loc))
-			continue
 		if(get_dist(T, src) > consume_range)
-			T.singularity_pull(src, current_size)
+			pull_queue += T
 		else
-			consume(T)
-		for(var/thing in T)
-			if(isturf(loc) && thing != src)
-				var/atom/movable/X = thing
-				if(QDELETED(X)) //hippie -- something pulled or eaten earlier on this tile can delete a later one, like stacks merging
-					continue
-				if(get_dist(X, src) > consume_range)
-					X.singularity_pull(src, current_size)
-					if(!QDELETED(X) && !X.anchored && !istype(X, /obj/effect)) //hippie edit -- after its own pull effects, since a window is let go by them
-						pullable += X
-				else
-					consume(X)
-			CHECK_TICK
-	set_pull_targets(pullable) //hippie edit
-	return
+			eat_turf(T)
+	start_pull_loop()
+// hippie end
 
 
 /obj/singularity/proc/consume(atom/A)
