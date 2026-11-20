@@ -21,4 +21,5 @@
 
 /atom/movable/Moved(atom/OldLoc, Dir)
 	. = ..()
-	SSdemo.mark_dirty(src)
+	if(DEMO_ON)
+		SSdemo.mark_dirty(src)

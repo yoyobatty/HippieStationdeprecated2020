@@ -14,6 +14,9 @@ SUBSYSTEM_DEF(timer)
 	/// hippie -- timer-census=1 on the stress bench: a timer's proc -> ms its timers took, and how many fired (stress_bench.dm)
 	var/list/census
 	var/list/census_count
+	/// hippie -- unique timers by the callback's object (or GLOBAL_PROC), then by hash: list(object = list(hash = timer)). The hash
+	/// used to start with the object's name and "([REF(object)])", so every unique timer made a new text that sorted after
+	/// every earlier one, the worst case for BYOND's string tree. Keyed by the object itself, the rest repeats between objects.
 	var/list/hashes = list()
 
 	var/head_offset = 0 //world.time of the first entry in the the bucket.
@@ -367,11 +370,14 @@ SUBSYSTEM_DEF(timer)
 	bucket_list |= SStimer.bucket_list
 
 /datum/timedevent
-	var/id
+	/// hippie -- TIMER_ID_NULL here rather than written in New(): the first write of a var on a new datum costs ~55 ns (an entry in
+	/// its own var list), and ~140 timers a second are made. The same goes for hash and hash_owner below, written only when set.
+	var/id = TIMER_ID_NULL
 	var/datum/callback/callBack
 	var/timeToRun
 	var/wait
 	var/hash
+	var/hash_owner // hippie -- its key in SStimer.hashes, the callback's object or GLOBAL_PROC (see SStimer.hashes)
 	var/list/flags
 	var/spent = 0 //time we ran the timer.
 	/// hippie -- for easy debugging: list(id, timeToRun, wait, flags, "[callBack.object]", its type, callBack.delegate), turned into
@@ -393,11 +399,11 @@ SUBSYSTEM_DEF(timer)
 
 /datum/timedevent/New(datum/callback/callBack, wait, flags, hash)
 	var/static/nextid = 1
-	id = TIMER_ID_NULL
 	src.callBack = callBack
 	src.wait = wait
 	src.flags = flags
-	src.hash = hash
+	if(hash) // hippie -- see id
+		src.hash = hash
 
 	if (flags & TIMER_CLIENT_TIME)
 		timeToRun = REALTIMEOFDAY + wait
@@ -405,7 +411,13 @@ SUBSYSTEM_DEF(timer)
 		timeToRun = world.time + wait
 
 	if (flags & TIMER_UNIQUE)
-		SStimer.hashes[hash] = src
+		// hippie start -- SStimer.hashes is keyed by object first
+		hash_owner = callBack.object
+		var/list/owned = SStimer.hashes[hash_owner]
+		if(!owned)
+			owned = SStimer.hashes[hash_owner] = list()
+		owned[hash] = src
+		// hippie end
 
 	if (flags & TIMER_STOPPABLE)
 		id = num2text(nextid, 100)
@@ -434,7 +446,15 @@ SUBSYSTEM_DEF(timer)
 	if (weak_reference || active_timers || datum_components || comp_lookup || signal_procs || datum_flags || tag)
 		..()
 	if (flags & TIMER_UNIQUE && hash)
-		SStimer.hashes -= hash
+		// hippie start -- SStimer.hashes is keyed by object first
+		var/list/owned = SStimer.hashes[hash_owner]
+		if(owned)
+			owned -= hash
+			if(!length(owned))
+				SStimer.hashes -= hash_owner
+		// hippie end
+	if(hash_owner) // hippie -- only set for TIMER_UNIQUE: writing null on every other timer made it a var of its own (see id)
+		hash_owner = null
 
 	if (callBack && callBack.object && callBack.object != GLOBAL_PROC && callBack.object.active_timers)
 		callBack.object.active_timers -= src
@@ -459,8 +479,8 @@ SUBSYSTEM_DEF(timer)
 			prev.next = next
 		if (next && next.prev == src)
 			next.prev = prev
-	next = null
-	prev = null
+		next = null // hippie -- bucketEject() has done these
+		prev = null
 	return QDEL_HINT_IWILLGC
 
 /datum/timedevent/proc/bucketEject()
@@ -566,13 +586,14 @@ SUBSYSTEM_DEF(timer)
 	if (flags & TIMER_UNIQUE)
 		var/list/hashlist
 		if(flags & TIMER_NO_HASH_WAIT)
-			hashlist = list(callback.object, "([REF(callback.object)])", callback.delegate, flags & TIMER_CLIENT_TIME)
+			hashlist = list(callback.delegate, flags & TIMER_CLIENT_TIME) // hippie -- no object name or REF, see SStimer.hashes
 		else
-			hashlist = list(callback.object, "([REF(callback.object)])", callback.delegate, wait, flags & TIMER_CLIENT_TIME)
+			hashlist = list(callback.delegate, wait, flags & TIMER_CLIENT_TIME) // hippie -- no object name or REF, see SStimer.hashes
 		hashlist += callback.arguments
 		hash = hashlist.Join("|||||||")
 
-		var/datum/timedevent/hash_timer = SStimer.hashes[hash]
+		var/list/owned = SStimer.hashes[callback.object] // hippie -- keyed by object first
+		var/datum/timedevent/hash_timer = owned?[hash] // hippie
 		if(hash_timer)
 			if (hash_timer.spent) //it's pending deletion, pretend it doesn't exist.
 				hash_timer.hash = null //but keep it from accidentally deleting us

@@ -2969,6 +2969,7 @@
 #include "hippiestation\code\controllers\configuration\entries\hippiestation_config.dm"
 #include "hippiestation\code\controllers\mc_watchdog.dm"
 #include "hippiestation\code\controllers\subsystem_idle.dm"
+#include "hippiestation\code\controllers\subsystem\bot_steps.dm"
 #include "hippiestation\code\controllers\subsystem\communications.dm"
 #include "hippiestation\code\controllers\subsystem\dbcore.dm"
 #include "hippiestation\code\controllers\subsystem\demo.dm"

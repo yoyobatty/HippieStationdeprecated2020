@@ -39,7 +39,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/subsystem/dbcore.dm (out of the .dme: rewritten whole as hippiestation/code/controllers/subsystem/dbcore.dm, rust_g instead of BSQL)
 ## code/controllers/subsystem/discord.dm
 ## code/controllers/subsystem/explosions.dm (shaped explosions through hippiestation/code/controllers/subsystem/explosions_shape.dm; Check Bomb Impact; spread over ticks; blame; realistic blasts through hippiestation/code/modules/explosion_realism/: air, sealed rooms, glass past the damage, sounds, fragments)
-## code/controllers/subsystem/garbage.dm (at startup Queue() keeps refs as two numbers, not kept-alive ref strings)
+## code/controllers/subsystem/garbage.dm (at startup Queue() keeps refs as two numbers, not kept-alive ref strings; SSdemo marks only while it records, DEMO_ON)
 ## code/controllers/subsystem/input.dm
 ## code/controllers/subsystem/job.dm
 ## code/controllers/subsystem/mapping.dm (Lavaland and the space ruin levels held for the lobby build; ruins moved to seed_startup_ruins())
@@ -48,7 +48,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/subsystem/stickyban.dm
 ## code/controllers/subsystem/throwing.dm (finalize() calls end_flight(): glide, look and landing, hippiestation/code/modules/throwing/throw_flight.dm)
 ## code/controllers/subsystem/ticker.dm (the round waits for the lobby build)
-## code/controllers/subsystem/timer.dm
+## code/controllers/subsystem/timer.dm (a timer writes only the vars it sets: id defaults to TIMER_ID_NULL, hash and hash_owner only when unique)
 ## code/controllers/subsystem/vote.dm
 ## code/datums/brain_damage/imaginary_friend.dm (the friend's picture is set up async and is never an AI's or a cyborg's)
 ## code/datums/components/chasm.dm (is_safe() by locate(), no copy of the tile's contents)
@@ -68,7 +68,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/datums/tgs_event_handler.dm
 ## code/datums/wires/airlock.dm
 ## code/datums/world_topic.dm
-## code/game/atoms.dm (an atom made on a level the lobby build is making waits for it; Destroy() survives an alternate appearance taking others with it)
+## code/game/atoms.dm (an atom made on a level the lobby build is making waits for it; Destroy() survives an alternate appearance taking others with it; SSdemo.mark_new() only while it records, DEMO_ON)
 ## code/game/atoms_movable.dm (doMove() skips no_cross_checks like Move(); throw_at() keeps gentle and starts the flight, safe_throw_at() passes gentle on, hippiestation/code/modules/throwing/)
 ## code/game/gamemodes/changeling/changeling.dm !Should be modularized. Can be done easily.
 ## code/game/gamemodes/game_mode.dm

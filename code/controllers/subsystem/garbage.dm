@@ -295,7 +295,8 @@ SUBSYSTEM_DEF(garbage)
 				SSgarbage.Queue(D)
 			if (QDEL_HINT_IWILLGC)
 				D.gc_destroyed = world.time
-				SSdemo.mark_destroyed(D) // hippie -- moody blues
+				if(DEMO_ON) // hippie -- moody blues
+					SSdemo.mark_destroyed(D)
 				return
 			if (QDEL_HINT_LETMELIVE)	//qdel should let the object live after calling destory.
 				if(!force)
@@ -316,9 +317,11 @@ SUBSYSTEM_DEF(garbage)
 				SSgarbage.Queue(D)
 			if (QDEL_HINT_HARDDEL)		//qdel should assume this object won't gc, and queue a hard delete
 				SSgarbage.Queue(D, GC_QUEUE_HARDDELETE)
-				SSdemo.mark_destroyed(D) // hippie -- moody blues
+				if(DEMO_ON) // hippie -- moody blues
+					SSdemo.mark_destroyed(D)
 			if (QDEL_HINT_HARDDEL_NOW)	//qdel should assume this object won't gc, and hard del it post haste.
-				SSdemo.mark_destroyed(D) // hippie -- moody blues
+				if(DEMO_ON) // hippie -- moody blues
+					SSdemo.mark_destroyed(D)
 				SSgarbage.HardDelete(D)
 			if (QDEL_HINT_FINDREFERENCE)//qdel will, if TESTING is enabled, display all references to this object, then queue the object for deletion.
 				SSgarbage.Queue(D)

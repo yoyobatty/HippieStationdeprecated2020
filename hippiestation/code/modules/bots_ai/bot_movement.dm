@@ -2,7 +2,11 @@
 	var/list/current_path
 	var/pursuing_kind
 	var/atom/pursue_target
-	var/stuck_timer_id
+	var/stuck_timer_id // a step too far off for SSbot_steps' ring goes on a timer (schedule_step())
+	/// SSbot_steps' tick for its next walk step, 0 for none (schedule_step(), subsystem/bot_steps.dm)
+	var/step_due = 0
+	/// Set: that step is on_stuck_timeout(this) rather than step_next_node()
+	var/turf/step_stuck_node
 	// Read by bot_can_astar_pass_permissive() (bot_pathing_permissive.dm) - repath()
 	// toggles this around its two permissive passes so climbing over furniture is only
 	// ever chosen when there's truly no other way through, not just because it's
@@ -880,6 +884,34 @@
 // wrapped it in try/catch specifically so a crash wouldn't silently kill the whole
 // movement chain forever (nothing else would ever reschedule it). Keep that same
 // protection here now that step_next_node() reschedules itself directly.
+/// The walk's next step `delay` deciseconds from now: step_next_node(), or on_stuck_timeout(stuck_node). One at a time, as the timer it
+/// replaces was (stuck_timer_id): this one replaces any step already waiting. SSbot_steps runs it (subsystem/bot_steps.dm).
+/datum/bot_brain/proc/schedule_step(delay, turf/stuck_node)
+	cancel_step()
+	step_stuck_node = stuck_node
+	if(SSbot_steps.schedule(src, delay))
+		return
+	if(stuck_node)
+		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(on_stuck_timeout), stuck_node), delay, TIMER_STOPPABLE)
+	else
+		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), delay, TIMER_STOPPABLE)
+
+/datum/bot_brain/proc/cancel_step()
+	step_due = 0
+	if(stuck_timer_id)
+		deltimer(stuck_timer_id)
+		stuck_timer_id = null
+
+/// SSbot_steps: the step is due. Not waited for: a step can yield (try_clear_obstruction()), as it could under the timer's InvokeAsync().
+/datum/bot_brain/proc/run_scheduled_step()
+	set waitfor = FALSE
+	var/turf/node = step_stuck_node
+	if(node)
+		step_stuck_node = null
+		on_stuck_timeout(node)
+	else
+		step_next_node()
+
 /datum/bot_brain/proc/step_next_node()
 	if(QDELETED(owner)) //gone while this timer was waiting
 		return
@@ -905,12 +937,12 @@
 	// walk: an atmos tech walked round a kitchen at -80 health and crowbarred a firelock. It waits where it is, and carries
 	// on if it comes round.
 	if(!(owner.mobility_flags & MOBILITY_MOVE))
-		deltimer(stuck_timer_id)
-		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), 5, TIMER_STOPPABLE)
+		cancel_step()
+		schedule_step(5)
 		return
 	// Asked to hold still (a doctor coming over to it, goals/treat_patient.dm): the walk waits where it is.
 	if(world.time < stand_still_until && state != BOT_STATE_COMBAT && state != BOT_STATE_ARREST)
-		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), max(2, stand_still_until - world.time), TIMER_STOPPABLE)
+		schedule_step(max(2, stand_still_until - world.time))
 		return
 	// Climbing out of a pool (pool_main.dm) needs a dedicated ~2 second do_mob()
 	// channel (try_escape_pool(), bot_items.dm, called every process() tick while
@@ -923,7 +955,7 @@
 	// the path is lost by waiting, it's still sitting in current_path untouched. Not when it's in after somebody (bot_may_jump_in(),
 	// bot_pathing_permissive.dm): it wades on to them, and only climbs out once it's done.
 	if(owner.swimming && !(bot_may_jump_in(owner) && !owner.lying && owner.getOxyLoss() < 30))
-		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), max(1, owner.movement_delay()), TIMER_STOPPABLE)
+		schedule_step(max(1, owner.movement_delay()))
 		return
 	// Dragging something that's come loose behind (somebody stood in its way, it caught on a corner): a player notices and goes back
 	// for it. An engineer hauling an emitter to the blob used to walk the rest of the way with nothing in tow.
@@ -959,7 +991,7 @@
 		bot_log(src, "off the way I was going ([next_node.z == here.z ? "[get_dist(here, next_node)] tiles" : "another level"] from the next step) - finding the way again")
 		// The old route goes, as pursue() drops it: do_repath() only searches when there's none, and kept this one.
 		current_path = null
-		deltimer(stuck_timer_id)
+		cancel_step()
 		if(repathing)
 			addtimer(CALLBACK(src, PROC_REF(repath)), 1) //as pursue() does with one already under way
 		else
@@ -1006,7 +1038,7 @@
 		return
 	next_node = current_path[1]
 
-	deltimer(stuck_timer_id)
+	cancel_step()
 
 	// try_clear_obstruction() itself already moved the bot this cycle (a climb) - don't
 	// ALSO take a step_towards() step in the same synchronous instant on top of that.
@@ -1016,7 +1048,7 @@
 	// steps. Just schedule the next real step after the normal per-tile delay, same as
 	// every other step gets, instead of taking it immediately.
 	if(moved_during_clear)
-		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), max(1, owner.movement_delay()), TIMER_STOPPABLE)
+		schedule_step(max(1, owner.movement_delay()))
 		return
 
 	// Getting away with somebody on its heels: a peel or a bar of soap down in their path, a step at a time (foundation/slips.dm)
@@ -1059,7 +1091,7 @@
 			busy_clearing = FALSE
 			if(QDELETED(owner) || current_path != route)
 				return //gone, or the walk was planned again while it was at it: that one drives it
-			stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), max(1, owner.movement_delay()), TIMER_STOPPABLE)
+			schedule_step(max(1, owner.movement_delay()))
 			return
 	var/turf/left_turf = get_turf(owner)
 	// The glide covers the tile in the time to the next step, as client/Move() sets it for a player. Left at 8, a bot walking (wet
@@ -1086,22 +1118,22 @@
 		// Re-invoke ourselves after a normal per-tile delay, same pacing walk_to()'s
 		// Lag parameter used to provide, just driven explicitly instead of trusted to
 		// its own internal continuation.
-		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), delay, TIMER_STOPPABLE)
+		schedule_step(delay)
 	else if(haul_waiting_since && world.time - haul_waiting_since < HAUL_WAIT)
-		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), 5, TIMER_STOPPABLE) //somebody in the way of what's in tow: wait on them
+		schedule_step(5) //somebody in the way of what's in tow: wait on them
 	else if(yields_tile(next_node))
-		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), 5, TIMER_STOPPABLE) //letting somebody have the tile it was just swapped off (bot_step_towards()): a wait, not stuck
+		schedule_step(5) //letting somebody have the tile it was just swapped off (bot_step_towards()): a wait, not stuck
 	else if(quick_step_retries < BOT_QUICK_STEP_RETRIES)
 		// Didn't move this attempt - usually a door still finishing its opening animation.
 		// Step through the moment it's passable, like a person walking into it, instead of
 		// standing still for a full second (telemetry: most mid-route stops were exactly this).
 		quick_step_retries++
-		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), 2, TIMER_STOPPABLE)
+		schedule_step(2)
 	else
 		// Still not moving after ~1s of quick retries: on_stuck_timeout()'s repeat-counting/
 		// give-up logic takes over.
 		quick_step_retries = 0
-		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(on_stuck_timeout), next_node), 10, TIMER_STOPPABLE)
+		schedule_step(10, next_node)
 
 /datum/bot_brain/proc/on_stuck_timeout(turf/expected_node)
 	if(!current_path || !current_path.len || current_path[1] != expected_node)
@@ -1121,7 +1153,7 @@
 	// path looks like. Just check back shortly without touching stuck_repeat_count.
 	if(owner.IsStun() || owner.IsKnockdown() || owner.stat != CONSCIOUS || owner.swimming)
 		bot_log_verbose(src, "still incapacitated - deferring stuck-check instead of repathing")
-		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(on_stuck_timeout), expected_node), 10, TIMER_STOPPABLE)
+		schedule_step(10, expected_node)
 		return
 
 	// Just came out of being incapacitated (a climb_stun is the common case) - if that
@@ -1137,7 +1169,7 @@
 
 	// Letting somebody have the tile it was just swapped off (yields_tile()): a wait, not being stuck, and not a reason to reroute
 	if(yields_tile(expected_node))
-		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), 5, TIMER_STOPPABLE)
+		schedule_step(5)
 		return
 
 	// Fully mobile per every check above, yet the last attempt still didn't move it -
@@ -1147,7 +1179,7 @@
 		bot_log_verbose(src, "step_towards() retry worked, continuing")
 		last_stuck_turf = null
 		stuck_repeat_count = 0
-		stuck_timer_id = addtimer(CALLBACK(src, PROC_REF(step_next_node)), max(1, owner.movement_delay()), TIMER_STOPPABLE)
+		schedule_step(max(1, owner.movement_delay()))
 		return
 
 	if(expected_node == last_stuck_turf)
@@ -1175,7 +1207,7 @@
 	repath() //self-heal: always fall through to a plain repath if the smarter path crashed
 
 /datum/bot_brain/proc/finish_pursuit(success)
-	deltimer(stuck_timer_id)
+	cancel_step()
 	walk(owner, 0) //harmless safety net in case anything outside this system left a native walk() directive active
 	current_path = null
 	var/kind = pursuing_kind
@@ -1185,7 +1217,7 @@
 	on_pursuit_finished(kind, target, success)
 
 /datum/bot_brain/proc/stop_pursuit()
-	deltimer(stuck_timer_id)
+	cancel_step()
 	if(!pursuing_kind)
 		return
 	walk(owner, 0)

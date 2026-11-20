@@ -18,8 +18,10 @@
 
 /turf/setDir()
 	. = ..()
-	SSdemo.mark_turf(src)
+	if(DEMO_ON)
+		SSdemo.mark_turf(src)
 
 /atom/movable/setDir()
 	. = ..()
-	SSdemo.mark_dirty(src)
+	if(DEMO_ON)
+		SSdemo.mark_dirty(src)
