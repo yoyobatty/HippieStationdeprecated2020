@@ -111,12 +111,41 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 	var/was = pathing_no_tailgating
 	pathing_no_tailgating = TRUE
 	measuring_shut_in = TRUE
+	var/limit = wide ? BOT_SHUT_IN_WIDE_TILES : BOT_SHUT_IN_TILES
+	// The same flood in the path engine (path_engine_shut_in(), bot_path_engine.dm). Wide, a hallway anywhere in reach is the way out,
+	// and starting in one or in maintenance is roomy straight away, as below.
+	if(path_engine_takes_flood(/turf/proc/bot_reachable_strict) && !(wide && (istype(start.loc, /area/hallway) || istype(start.loc, /area/maintenance))))
+		var/started = TICK_USAGE_REAL
+		var/list/native = path_engine_shut_in(owner, start, id_card, simulated_only, limit, wide)
+		if(native != PATH_ENGINE_FALLBACK)
+			if(world.params["path-flood"] == "shadow")
+				GLOB.path_engine_check["shut_in native us"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - started) * 1000
+				started = TICK_USAGE_REAL
+				var/list/dm = is_shut_in_dm(start, id_card, simulated_only, wide, limit)
+				GLOB.path_engine_check["shut_in dm us"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - started) * 1000
+				path_flood_shadow_note("shut_in", dm, native, start, /turf/proc/bot_reachable_strict, owner, id_card, simulated_only)
+			pathing_no_tailgating = was
+			measuring_shut_in = FALSE
+			return shut_in_finish(native, wide)
+	var/list/region = is_shut_in_dm(start, id_card, simulated_only, wide, limit)
+	pathing_no_tailgating = was
+	measuring_shut_in = FALSE
+	return shut_in_finish(region, wide)
+
+/// What is_shut_in() found: the tiles it's shut in among, or null if it isn't
+/datum/bot_brain/proc/shut_in_finish(list/region, wide)
+	shut_in_result = !!region
+	shut_in_region = region
+	shut_in_wide_until = (wide && region) ? world.time + 70 SECONDS : 0
+	return shut_in_result
+
+/// is_shut_in()'s flood in DM: the tiles reached, if fewer than `limit` (and, wide, none in a hallway), else null
+/datum/bot_brain/proc/is_shut_in_dm(turf/start, obj/item/card/id/id_card, simulated_only, wide, limit)
 	var/list/seen = list()
 	seen[start] = TRUE
 	var/list/queue = list(start)
 	var/at = 1
 	var/roomy = FALSE
-	var/limit = wide ? BOT_SHUT_IN_WIDE_TILES : BOT_SHUT_IN_TILES
 	var/area/last_area = start.loc
 	if(wide && (istype(last_area, /area/hallway) || istype(last_area, /area/maintenance)))
 		roomy = TRUE
@@ -136,12 +165,7 @@ GLOBAL_VAR_INIT(bot_door_button_cache_size, -1)
 				if(istype(last_area, /area/hallway)) //not maintenance: there's a closet of it off the Brig that goes nowhere
 					roomy = TRUE
 					break
-	pathing_no_tailgating = was
-	measuring_shut_in = FALSE
-	shut_in_result = !roomy
-	shut_in_region = roomy ? null : seen
-	shut_in_wide_until = (wide && !roomy) ? world.time + 70 SECONDS : 0
-	return shut_in_result
+	return roomy ? null : seen
 
 /// For a bot that's shut in behind a blast door or a shutter: the button for it, if that's in with the bot and the
 /// bot may press it. Not for anybody at large - too many of those doors are holding something back.

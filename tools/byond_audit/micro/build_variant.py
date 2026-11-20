@@ -19,7 +19,12 @@ src = os.path.join("data", "stress_builds", f"src_{label}")
 os.makedirs(src, exist_ok=True)
 dme = open("hippiestation.dme", encoding="utf-8", newline="").read()
 for f in files:
-    body = subprocess.run(["git", "show", f"{rev}:{f}"], capture_output=True, check=True).stdout
+    # "path@copy": that file's text from a local copy instead of the revision (a working tree minus one change)
+    f, _, copy = f.partition("@")
+    if copy:
+        body = open(copy, "rb").read()
+    else:
+        body = subprocess.run(["git", "show", f"{rev}:{f}"], capture_output=True, check=True).stdout
     dest = os.path.join(src, f.replace("/", "_"))
     open(dest, "wb").write(body)
     inc = '#include "' + f.replace("/", "\\") + '"'

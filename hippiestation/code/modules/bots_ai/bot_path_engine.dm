@@ -482,16 +482,7 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 	if(GLOB.station_picture_kept)
 		station_picture_flush()
 	var/static/list/hubs = typecacheof(list(/area/hallway)) // as bot_sealed_pocket()'s
-	// the hallway tiles, so the flood stops at the first one as DM's does: told again now and then, should an area change
-	var/static/hubs_told_at
-	if(isnull(hubs_told_at) || world.time > hubs_told_at + 5 MINUTES)
-		hubs_told_at = world.time
-		var/list/hub_turfs = list()
-		for(var/area/A as anything in GLOB.sortedAreas)
-			if(hubs[A.type])
-				for(var/turf/T in A)
-					hub_turfs += T
-		call_ext(GLOB.path_engine_lib, "byond:path_hubs")(hub_turfs)
+	path_engine_tell_hubs()
 	var/flood = call_ext(GLOB.path_engine_lib, "byond:path_flood_begin")(dest, path_engine_flood_mode(simulated_only, TRUE, TRUE) + PATH_MODE_STOP_AT_HUB, 0, max_tiles, start)
 	if(!isnum(flood) || flood <= 0)
 		return PATH_ENGINE_FALLBACK
@@ -509,6 +500,47 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 			return null
 		pocket[T] = TRUE
 	return pocket
+
+/// The hallway tiles, so a flood with PATH_MODE_STOP_AT_HUB stops at the first one: told again now and then, should an area change
+/proc/path_engine_tell_hubs()
+	var/static/list/hubs = typecacheof(list(/area/hallway)) // as bot_sealed_pocket()'s
+	var/static/hubs_told_at
+	if(!isnull(hubs_told_at) && world.time <= hubs_told_at + 5 MINUTES)
+		return
+	hubs_told_at = world.time
+	var/list/hub_turfs = list()
+	for(var/area/A as anything in GLOB.sortedAreas)
+		if(hubs[A.type])
+			for(var/turf/T in A)
+				hub_turfs += T
+	call_ext(GLOB.path_engine_lib, "byond:path_hubs")(hub_turfs)
+
+/// is_shut_in()'s flood in the engine (bot_doors.dm): every tile `caller` can walk to from `start` under bot_reachable_strict(), as keys,
+/// if fewer than `limit` and (with `stop_at_hub`) none is in a hallway; null if it's roomier than that. PATH_ENGINE_FALLBACK if the
+/// engine couldn't. One flood with each tile's answer asked once (and open floor not at all, the station picture knows it), where DM's
+/// asked bot_reachable_strict() of every side of every tile: ~220 us a time, 2,000 times in five minutes of a 30-bot round.
+/proc/path_engine_shut_in(caller, turf/start, id, simulated_only, limit, stop_at_hub)
+	if(GLOB.station_picture_kept)
+		station_picture_flush()
+	var/mode = path_engine_flood_mode(simulated_only, FALSE, TRUE)
+	if(stop_at_hub)
+		path_engine_tell_hubs()
+		mode += PATH_MODE_STOP_AT_HUB
+	// past max_tiles is too big: DM's counted `limit` tiles, the start among them, as roomy
+	var/flood = call_ext(GLOB.path_engine_lib, "byond:path_flood_begin")(start, mode, 0, max(1, limit - 1), null)
+	if(!isnum(flood) || flood <= 0)
+		return PATH_ENGINE_FALLBACK
+	var/list/out = list()
+	var/status = path_engine_rounds(flood, "byond:path_flood_step", caller, start, id, simulated_only, FALSE, FALSE, FALSE, out)
+	if(status != 2)
+		call_ext(GLOB.path_engine_lib, "byond:path_forget")(flood)
+		return PATH_ENGINE_FALLBACK
+	if(out[2] || out[3]) // reached a hallway, or too many tiles to be shut in
+		return null
+	var/list/region = list()
+	for(var/i in 5 to length(out))
+		region[out[i]] = TRUE
+	return region
 
 /// The tiles a search that found no route opened, kept in the path engine. The bots' region checks (bot_pathing_permissive.dm) ask
 /// it about a tile or two, which is all they ever did with the list of them AStar() made.

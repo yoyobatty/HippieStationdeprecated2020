@@ -73,6 +73,20 @@ GLOBAL_LIST_EMPTY(bot_field_generator_turfs)
 // applies to a bot that's genuinely survivable in vacuum and just missing the stability
 // magboots give.
 /proc/bot_turf_has_pushoff_backup(turf/T)
+	// Kept a second on the tile: every route search near the hull asks it of the same space tiles over and over (69,000 times in five
+	// minutes of a 30-bot round, ~2.7 us each), and the walls, lattices and anchored things round a space tile hardly ever change.
+	if(world.time < T.bot_pushoff_until)
+		return T.bot_pushoff
+	T.bot_pushoff_until = world.time + 1 SECONDS
+	T.bot_pushoff = bot_turf_has_pushoff_backup_now(T)
+	return T.bot_pushoff
+
+/turf
+	/// bot_turf_has_pushoff_backup()'s last answer, and until when it stands. Only space tiles near a bot's routes ever get them.
+	var/bot_pushoff = FALSE
+	var/bot_pushoff_until = 0
+
+/proc/bot_turf_has_pushoff_backup_now(turf/T)
 	// The walls round it first: beside the hull that's the answer nearly every time, in eight reads. This is asked for every space tile a
 	// suited bot's route search looks at, and it used to step through everything on the tiles round it (pipes, cables, items) to find out.
 	for(var/dir in GLOB.alldirs)
@@ -421,7 +435,7 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 		reach_floods_time = world.time
 
 /datum/bot_brain
-	/// "dest|adjacency" -> until when bot_sealed_pocket() has already said dest isn't shut in anywhere small.
+	/// dest turf -> list(adjacency proc -> until when) bot_sealed_pocket() has already said dest isn't shut in anywhere small.
 	var/list/pockets_ruled_out
 
 /datum/bot_brain/proc/end_reach_scope()
@@ -486,13 +500,19 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 	// No flood to go by yet: before paying for one, see whether dest is simply shut in somewhere small
 	// (bot_sealed_pocket() below). Everything in the pocket is as unreachable as dest, so the rest of
 	// this decision can skip it too.
-	var/open_key = dest ? "[REF(dest)]|[adjacent]" : null
-	if(start && dest && !(key && reach_floods[key]) && !(LAZYACCESS(pockets_ruled_out, open_key) > world.time))
+	// Keyed by the turf, then the adjacency proc: a "[REF(dest)]|[adjacent]" text key was a new string every time, the kind
+	// BYOND's string tree handles worst.
+	var/list/ruled_out = dest && LAZYACCESS(pockets_ruled_out, dest)
+	if(start && dest && !(key && reach_floods[key]) && !(ruled_out && ruled_out[adjacent] > world.time))
 		var/list/pocket = bot_sealed_pocket(owner, start, dest, adjacent, id_card, simulated_only)
 		if(!pocket) //not shut in anywhere small: no need to look again for a while (a bot re-routes to the same place over and over)
 			if(LAZYLEN(pockets_ruled_out) > 200)
 				pockets_ruled_out.Cut()
-			LAZYSET(pockets_ruled_out, open_key, world.time + 15 SECONDS)
+			ruled_out = LAZYACCESS(pockets_ruled_out, dest)
+			if(!ruled_out)
+				ruled_out = list()
+				LAZYSET(pockets_ruled_out, dest, ruled_out)
+			ruled_out[adjacent] = world.time + 15 SECONDS
 		if(pocket)
 			if(key)
 				var/list/known = reach_floods["sealed|[key]"]
