@@ -381,6 +381,13 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 			caught += "[B.owner.real_name] in [A.name] ([B.current_goal ? B.current_goal.type : "no goal"])"
 	log_game("RAD DRILL: [in_shelter] sheltered, [out] out in it, [rads] rads between them: [english_list(caught)]")
 
+/// The gravity generator goes offline (grav-drill=1, at four minutes): the crew float. tools/bot_gym/stuck_walks.py counts the time bots spent
+/// with a route and no step to it afterwards (bots_ai/bot_hazards.dm float_without_a_hold()).
+/datum/bot_shift/proc/grav_drill()
+	for(var/obj/machinery/gravity_generator/main/G in GLOB.machines)
+		G.set_state(FALSE)
+	log_game("GRAV DRILL: the gravity generator is off")
+
 /// An assistant turns up in the Brig with no way out, the same as a prisoner let out of a cell.
 /datum/bot_shift/proc/stuck_drill()
 	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
@@ -412,6 +419,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		addtimer(CALLBACK(src, PROC_REF(stuck_drill)), 3 MINUTES)
 	if(world.params["rad-drill"])
 		addtimer(CALLBACK(src, PROC_REF(rad_drill)), 4 MINUTES)
+	if(world.params["grav-drill"])
+		addtimer(CALLBACK(src, PROC_REF(grav_drill)), 4 MINUTES)
 	if(world.params["boom-drill"])
 		addtimer(CALLBACK(src, PROC_REF(boom_drill), world.params["boom-drill"]), 5 MINUTES - 20 SECONDS) //boom_drill.dm: it goes off at 5:00
 	if(world.params["stress-bench"]) //stress_bench.dm: picks its spots now, before the crew's arrival uses any random numbers

@@ -630,6 +630,7 @@
 	// With gravity under it Process_Spacemove() says yes, five procs down, from this same has_gravity(): asked here first. Without
 	// gravity it's asked as before.
 	if(!owner.has_gravity() && !owner.Process_Spacemove(get_dir(owner, next_node)))
+		float_without_a_hold(next_node) //bot_hazards.dm: nothing to push off, so it pushes off, and the walk waits
 		return FALSE
 	// Somebody dragging something big on the next tile: wait for them, or go round. Walking into them swaps places (living.dm), and
 	// what they're dragging can't follow them on to a tile with somebody on it: engineers taking emitters along the central hallway
@@ -1123,6 +1124,8 @@
 		schedule_step(5) //somebody in the way of what's in tow: wait on them
 	else if(yields_tile(next_node))
 		schedule_step(5) //letting somebody have the tile it was just swapped off (bot_step_towards()): a wait, not stuck
+	else if(world.time < floating_until)
+		schedule_step(8) //floating with nothing to push off (float_without_a_hold(), bot_hazards.dm): a wait, not stuck
 	else if(quick_step_retries < BOT_QUICK_STEP_RETRIES)
 		// Didn't move this attempt - usually a door still finishing its opening animation.
 		// Step through the moment it's passable, like a person walking into it, instead of
