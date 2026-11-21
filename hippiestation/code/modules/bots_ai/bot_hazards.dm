@@ -497,7 +497,7 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 			rank = 2
 		else if(!is_tool_or_toolbox(I))
 			rank = 3
-		if(careful && (I.force >= 5 || istype(I, /obj/item/restraints) || istype(I, /obj/item/melee) || istype(I, /obj/item/assembly/flash)))
+		if(careful && (I.force >= 5 || istype(I, /obj/item/restraints) || istype(I, /obj/item/melee) || istype(I, /obj/item/assembly/flash) || istype(I, /obj/item/modular_computer)))
 			continue //what it fights and arrests with isn't what it parts with to push off a wall
 		if(rank < best_rank && rank <= max_rank)
 			best = I
