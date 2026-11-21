@@ -1574,6 +1574,8 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 	var/then_medbay = FALSE
 	/// No cell and none to be had for them: let off with a warning instead, for this (goals/security_custody.dm)
 	var/let_off_for
+	/// Lost its card on the way in: the prisoner's left cuffed in the cell, and once it's out of it somebody with a card is asked to take over
+	var/handing_over = FALSE
 
 /datum/bot_goal/brig_prisoner/resolve_target(datum/bot_brain/bot)
 	if(QDELETED(prisoner) || prisoner.stat == DEAD || !prisoner.handcuffed)
@@ -1685,6 +1687,13 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 	var/list/interior = bot_get_cell_interior(goal.cell_timer)
 	switch(phase)
 		if(0)
+			// Lost its card on the way in (goals/security_custody.dm): nothing to book them with. The prisoner stays cuffed where they are, the
+			// officer goes out of the cell to the timer, and asks for another officer there: standing in the cell it's the one that counts as
+			// occupying it, and a colleague can find no free cell to take the prisoner to.
+			if(!bot.has_brig_access() && !goal.then_medbay)
+				goal.handing_over = TRUE
+				bot_log(bot, "no ID to book [P] with - out of the cell first, then asking for another officer")
+				return GOAL_STEP_SUCCESS
 			// Swap so the prisoner is deepest in the cell. Restrained mobs swap
 			// with a help-intent mob (living/MobBump()) - the same thing that
 			// happens when a player walks into someone they're escorting.
@@ -1808,6 +1817,10 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 	var/mob/living/carbon/human/P = goal.prisoner
 	if(goal.then_medbay)
 		return GOAL_STEP_SUCCESS //decided in the cell: a doctor first, the sentence after
+	if(goal.handing_over)
+		if(!QDELETED(P))
+			bot.hand_over_prisoner(P, "no ID") //out of the cell now: it's the prisoner's alone
+		return GOAL_STEP_SUCCESS
 	if(QDELETED(T) || QDELETED(P))
 		return GOAL_STEP_FAIL
 	if(!bot.owner.Adjacent(T))

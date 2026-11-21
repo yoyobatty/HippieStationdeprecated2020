@@ -382,6 +382,8 @@
 	var/mob/living/carbon/human/colleague
 	/// The officer asked for somebody else to take them in (seen on the books at a check)
 	var/handed_over = FALSE
+	/// Whether it starts at the arrest's end (start_brig_escort()), or already has the goal of taking them in
+	var/starts_with_escort = TRUE
 
 /datum/bot_scenario/brigged/no_id/post_spawn()
 	..()
@@ -392,6 +394,8 @@
 
 /// As a round does it: the arrest is done and it sets about taking them in.
 /datum/bot_scenario/brigged/no_id/issue_goal()
+	if(!starts_with_escort)
+		return ..()
 	goal_attempts++
 	brain.start_brig_escort(prisoner)
 
@@ -412,7 +416,10 @@
 			fail_reason = "took them to the cell and found no access at the timer"
 			return BOT_GYM_FAIL
 	if(timer.timing && (get_turf(prisoner) in bot_get_cell_interior(timer)))
-		if(handed_over)
+		if(!starts_with_escort && (get_turf(bot) in bot_get_cell_interior(timer)))
+			fail_reason = "the officer with no ID is still standing in the cell"
+			return BOT_GYM_FAIL
+		if(handed_over || !starts_with_escort) //the colleague may have come on it by itself, as it would: the cell's the thing
 			return BOT_GYM_PASS
 		fail_reason = "the prisoner got a sentence, but the officer with no ID never asked anybody to take them in"
 		return BOT_GYM_FAIL
@@ -651,3 +658,13 @@
 				handed_over = TRUE
 		return BOT_GYM_PENDING
 	return ..()
+
+/// The card goes missing when it's got the prisoner to the cell
+/datum/bot_scenario/brigged/no_id/late
+	name = "brig: an officer who finds it has no ID in the cell with the prisoner still cuffed leaves the cell, and asks for another officer there"
+	desc = "The officer has taken the prisoner into the cell as if it had its card, and finds it hasn't one. Standing in the cell it counts as occupying it (find_free_brig_cell()): a handover from inside left the colleague no free cell. It doesn't search and uncuff them for nothing either: it goes out to the timer, asks there, and the colleague takes the prisoner in."
+	starts_with_escort = FALSE //the base scenario's goal to take the prisoner in
+	time_limit = 100 SECONDS //the walk out, the ask, the colleague's walk in
+
+/datum/bot_scenario/brigged/no_id/late/make_goal()
+	return goal_attempts > 1 ? null : ..()
