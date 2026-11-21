@@ -445,3 +445,182 @@ GLOBAL_LIST_EMPTY(bot_vine_reports)
 #undef BOT_VINE_RANGE
 #undef BOT_VINE_EVERYBODYS
 #undef BOT_VINE_OFFICERS
+
+// ---------------------------------------------------------------------------------------------
+// A rogue vending machine (the Brand Intelligence event)
+// ---------------------------------------------------------------------------------------------
+//
+// One machine goes rogue and shouts its marketing at the crew, and every few seconds another catches it (the ones it's got hold of throw
+// what they sell at whoever's in view). When every machine on the station has, most of them get up and walk: a mimic apiece, 12 damage
+// a hit. It's over the moment the first one's put down, so the crew's one job is that machine, in the first eight minutes. Nobody did it:
+// in a forced-event Bot Shift (antags audit, 2026-11-21) 17 of 33 crew were dead in ten minutes of mimics, a bar, a lab and the Brig full of
+// them, with their tasers firing at them.
+//
+// Only the one the event started with shouts the event's lines, so whoever hears it (in earshot, with it in sight) knows which it is, and says
+// so on the radio: everybody with a headset knows then. Security, engineers, the janitor and anybody with nerve go and smash it with the
+// heaviest thing they carry. Shutting it up at the panel would be quicker, and it's what a player with a screwdriver and a multitool does,
+// but the wire's colour is something they learn by pulsing the lot, and a toolbox needs no learning.
+
+/// The machine the event started with, once somebody's heard it shouting (a weakref).
+GLOBAL_VAR(bot_rampant_machine_ref)
+/// How many go at it at once.
+#define BOT_RAMPANT_CUTTERS 3
+
+/datum/bot_brain
+	/// Until when it knows which machine it is.
+	var/rampant_known_until = 0
+
+/obj/machinery/vending/speak(message)
+	. = ..()
+	bot_vending_spoke(src)
+
+/// A vending machine's spoken: if it's the event's, and a bot's in earshot with it in sight, that bot knows which it is and calls it out.
+/proc/bot_vending_spoke(obj/machinery/vending/V)
+	if(!length(GLOB.bot_brains) || QDELETED(V) || !V.shoot_inventory)
+		return
+	var/datum/weakref/known = GLOB.bot_rampant_machine_ref
+	if(known?.resolve() == V)
+		return
+	var/is_the_one = FALSE
+	for(var/datum/round_event/brand_intelligence/E in SSevents.running)
+		if(E.originMachine == V)
+			is_the_one = TRUE
+	if(!is_the_one)
+		return
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		var/mob/living/carbon/human/H = B.owner
+		if(QDELETED(H) || H.stat != CONSCIOUS || get_dist(H, V) > 7 || !(V in view(7, H)))
+			continue
+		GLOB.bot_rampant_machine_ref = WEAKREF(V)
+		B.report_rampant_machine(V)
+		return
+
+/// It heard the origin shout: it's that one, and the radio says so.
+/datum/bot_brain/proc/report_rampant_machine(obj/machinery/vending/V)
+	rampant_known_until = world.time + 20 MINUTES
+	bot_log(src, "[V] is shouting about marketing: that's the one that's gone rogue")
+	bot_tally("rogue machines called in")
+	if(!can_radio())
+		return
+	var/where = get_area_name(V, TRUE)
+	bot_say(owner, ";[pick("The [V.name] in [where] has gone rogue, it's the one shouting! Smash it!", "[capitalize(where)], the [V.name]! It's the one that's infecting the others, put it down!", "It's the [V.name] in [where]! Somebody smash it before it gets them all!")]")
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		if(B != src && !QDELETED(B.owner) && B.owner.stat != DEAD && B.can_radio())
+			B.rampant_known_until = world.time + 20 MINUTES //heard it on the radio
+
+/// The machine it knows about, if it's still going.
+/datum/bot_brain/proc/rampant_machine()
+	RETURN_TYPE(/obj/machinery/vending)
+	if(world.time >= rampant_known_until)
+		return null
+	var/datum/weakref/ref = GLOB.bot_rampant_machine_ref
+	var/obj/machinery/vending/V = ref?.resolve()
+	if(QDELETED(V) || V.shut_up || !V.shoot_inventory || !isturf(V.loc))
+		return null
+	if(!(is_station_level(V.z) || gym_run))
+		return null
+	if(gym_run && get_area(V) != get_area(owner))
+		return null
+	return V
+
+/// Who goes: the people whose job it is to put down what's loose, then anybody with the nerve.
+/datum/bot_brain/proc/cares_about_rampant_machine()
+	var/role = work_role()
+	if(is_security_job() || (role in GLOB.engineering_positions) || role == "Janitor")
+		return TRUE
+	return nerve >= 0.5
+
+/datum/bot_brain/proc/rampant_machine_cutters()
+	. = 0
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		if(B == src || !istype(B.current_goal, /datum/bot_goal/silence_machine))
+			continue
+		if(gym_run && B.gym_run != gym_run)
+			continue
+		.++
+
+/datum/bot_duty/silence_machine
+	name = "putting down a rogue vending machine"
+	tier = BOT_DUTY_URGENT
+	priority = 14
+	interval_min = 30
+	interval_max = 80
+	interrupts = TRUE
+
+/// Not out of a fight, or off a life.
+/datum/bot_duty/silence_machine/proc/wants_to(datum/bot_brain/bot)
+	if(bot.gone_loud() || bot.owner.incapacitated() || bot.state == BOT_STATE_COMBAT || bot.state == BOT_STATE_ARREST || !bot.rampant_machine())
+		return FALSE
+	if(!bot.cares_about_rampant_machine() || bot.rampant_machine_cutters() >= BOT_RAMPANT_CUTTERS || !bot.vine_cutter())
+		return FALSE
+	return TRUE
+
+/datum/bot_duty/silence_machine/should_interrupt(datum/bot_brain/bot)
+	if(istype(bot.current_goal, /datum/bot_goal/silence_machine) || istype(bot.current_goal, /datum/bot_goal/run_from) || istype(bot.current_goal, /datum/bot_goal/seek_air) \
+		|| istype(bot.current_goal, /datum/bot_goal/revive_patient) || istype(bot.current_goal, /datum/bot_goal/escort_to_sleeper) || istype(bot.current_goal, /datum/bot_goal/evacuate))
+		return FALSE
+	return wants_to(bot)
+
+/datum/bot_duty/silence_machine/try_start(datum/bot_brain/bot)
+	if(!wants_to(bot))
+		return FALSE
+	var/obj/machinery/vending/V = bot.rampant_machine()
+	if(!V || !(bot.gym_run || bot.can_walk_lawfully_to(V)))
+		return FALSE
+	return bot.assign_goal(new /datum/bot_goal/silence_machine(V))
+
+/datum/bot_goal/silence_machine
+	lawful = TRUE
+	doing = "putting down a rogue vending machine"
+
+/datum/bot_goal/silence_machine/New(obj/machinery/vending/V)
+	. = ..()
+	target = V
+
+/datum/bot_goal/silence_machine/resolve_target(datum/bot_brain/bot)
+	if(QDELETED(target) || !bot.rampant_machine())
+		target = null
+
+/datum/bot_goal/silence_machine/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/favour/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/smash_machine())
+	return list(S)
+
+/// Hits it with the heaviest thing it has until it's wrecked (a vending machine's 250 integrity takes a toolbox twenty swings, an axe a dozen).
+/datum/bot_step/paced/smash_machine
+	max_clicks = 90
+	var/obj/machinery/vending/machine
+
+/datum/bot_step/paced/smash_machine/start(datum/bot_brain/bot)
+	machine = bot.current_goal?.target
+	return istype(machine) && !QDELETED(machine)
+
+/datum/bot_step/paced/smash_machine/do_click(datum/bot_brain/bot)
+	if(QDELETED(machine) || machine.shut_up)
+		return FALSE
+	var/obj/item/tool = bot.vine_cutter()
+	if(!tool || !bot.ready_in_hand(tool))
+		return FALSE
+	if(!bot.owner.Adjacent(machine))
+		if(bot.pursuing_kind != "follow" || bot.pursue_target != machine)
+			if(!bot.pursue(machine, "follow", force = TRUE))
+				return FALSE
+		wait_for = 5
+		return TRUE
+	if(bot.pursuing_kind)
+		bot.stop_pursuit()
+	bot.owner.face_atom(machine)
+	bot.owner.changeNext_move(CLICK_CD_MELEE)
+	bot.use_item_on(tool, machine, TRUE)
+	wait_for = CLICK_CD_MELEE
+	return TRUE
+
+/datum/bot_step/paced/smash_machine/finish(datum/bot_brain/bot)
+	bot.stop_pursuit()
+	if(QDELETED(machine) || machine.shut_up)
+		bot_tally("rogue machines put down")
+		bot_log(bot, "put the rogue machine down")
+		return GOAL_STEP_SUCCESS
+	return GOAL_STEP_FAIL
+
+#undef BOT_RAMPANT_CUTTERS

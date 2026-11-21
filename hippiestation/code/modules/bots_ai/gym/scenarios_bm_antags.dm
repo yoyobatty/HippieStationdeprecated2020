@@ -244,3 +244,66 @@
 /datum/bot_scenario/events_count/release_run()
 	GLOB.vars["bot_events_count_test"] = null
 	return ..()
+
+// ---------------------------------------------------------------------------------------------
+// A rogue vending machine (goals/anomalies.dm)
+// ---------------------------------------------------------------------------------------------
+
+/// The Brand Intelligence event's first machine has just shouted its marketing a few tiles away from an engineer. It says so on the radio and
+/// smashes it with its toolbox, which ends the event. Nobody did anything about it: the machines got up as mimics and killed 17 of 33 crew.
+/datum/bot_scenario/duty/rogue_machine
+	name = "vending: an engineer who hears the rogue machine shout calls it in and smashes it"
+	desc = "The machine the Brand Intelligence event began with shouts its marketing six tiles from an engineer with a toolbox. The engineer goes and smashes it down."
+	job = "Station Engineer"
+	kit_hands = list(/obj/item/storage/toolbox/mechanical)
+	layout = list(
+		"############",
+		"#B.....M...#",
+		"############")
+	time_limit = 90 SECONDS
+	var/obj/machinery/vending/cola/machine
+	var/datum/round_event/brand_intelligence/event
+	var/shouted = FALSE
+
+/datum/bot_scenario/duty/rogue_machine/setup()
+	duty_type = text2path("/datum/bot_duty/silence_machine") //by name: a build without the duty has none
+	machine = new /obj/machinery/vending/cola(first_marker("M"))
+	machine.shoot_inventory = TRUE
+	event = new /datum/round_event/brand_intelligence(FALSE) //not running: it's only there to say which machine is the one
+	event.originMachine = machine
+
+/datum/bot_scenario/duty/rogue_machine/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!shouted && world.time >= start_time + 3 SECONDS)
+		shouted = TRUE
+		machine.speak("Consume!")
+	return QDELETED(machine) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/rogue_machine/release_run()
+	event?.kill()
+	event = null
+	if(!QDELETED(machine))
+		qdel(machine)
+	return ..()
+
+/// An ordinary machine that shouts a slogan, as every machine does, is nobody's business.
+/datum/bot_scenario/duty/rogue_machine/ordinary
+	name = "vending: a machine shouting its ordinary slogan is left alone"
+	desc = "The same engineer, the same machine, but it isn't the event's: it only says what vending machines say. The engineer leaves it."
+	time_limit = 25 SECONDS
+
+/datum/bot_scenario/duty/rogue_machine/ordinary/setup()
+	..()
+	event.originMachine = null //nothing's gone rogue
+
+/datum/bot_scenario/duty/rogue_machine/ordinary/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!shouted && world.time >= start_time + 3 SECONDS)
+		shouted = TRUE
+		machine.speak("Buy something!")
+	if(QDELETED(machine) || machine.obj_integrity < machine.max_integrity)
+		fail_reason = "went for a machine that had done nothing"
+		return BOT_GYM_FAIL
+	return world.time >= start_time + 20 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
