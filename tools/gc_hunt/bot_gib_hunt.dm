@@ -12,7 +12,8 @@
 //     bash tools/byond_reports/ref_stall/hippie_check.sh          (from the repo root; wrap it in the shared slot script when sharing)
 //
 // World params: gib-after (game seconds before the first kill, default 180), gib-for (how long the kills go on, default 600),
-// gib-every (seconds between kills, default 15), gib-keep (bots left alive so they keep fighting, talking and arresting, default 4).
+// gib-every (seconds between kills, default 15), gib-keep (bots left alive so they keep fighting, talking and arresting, default 4),
+// gib-traitors=1 (kill the traitors first while there are any: with bot-antags=traitor*3 this tests the shift's own record of them).
 // The shift has to run past gib-after + gib-for + 3 minutes of game time (the GC waits 2 minutes before it gives up on a body).
 // A search takes ~45 s of real time and runs per type up to gh-per-type times.
 #include "tools/gc_hunt/gc_hunt.dm"
@@ -63,7 +64,13 @@ GLOBAL_LIST_EMPTY(gib_hunt_bodies)
 			gib_hunt_remove(body, "a body left lying")
 	if(length(living) <= keep)
 		return FALSE
-	var/mob/living/carbon/human/victim = pick(living)
+	var/mob/living/carbon/human/victim
+	if(gib_hunt_param("gib-traitors", 0)) //the traitors first: the shift keeps a record of them (bot_shift.dm), the likeliest thing to hold a body
+		for(var/mob/living/carbon/human/H as anything in living)
+			if(H.mind?.has_antag_datum(/datum/antagonist/traitor))
+				victim = H
+				break
+	victim ||= pick(living)
 	var/where = victim.loc
 	var/doing = victim.bot_brain ? "[victim.bot_brain.state][victim.bot_brain.current_goal ? " [victim.bot_brain.current_goal.type]" : ""][victim.bot_brain.pursuing_kind ? " ([victim.bot_brain.pursuing_kind] walk)" : ""]" : "no brain"
 	switch(rand(1, 4))
