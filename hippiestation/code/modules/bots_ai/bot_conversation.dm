@@ -314,6 +314,49 @@ GLOBAL_LIST_EMPTY(bot_station_answered)
 /// Who's been said hello back to over the radio lately: REF -> until when
 GLOBAL_LIST_EMPTY(bot_radio_hello_answered)
 
+/// Whether what somebody says to a HoP who's just asked what the access is for is the answer: a short line that's no question and no new business.
+/proc/bot_is_answer_about_access(lower_msg)
+	if(findtext(lower_msg, "?") || length(splittext(lower_msg, " ")) > 9)
+		return FALSE
+	return !bot_text_has_any(lower_msg, list("hello", "hey", "new job", "job", "promotion", "my id", "new id", "broken", "are you there", "you there"))
+
+/// What jobs have a slot open, as the ID console lists them: not the heads, assistants, the AI or the borgs.
+/proc/bot_open_jobs()
+	. = list()
+	for(var/datum/job/J as anything in SSjob.occupations)
+		if(J.total_positions <= 0 || J.current_positions >= J.total_positions)
+			continue
+		if((J.title in GLOB.command_positions) || (J.title in list("Assistant", "AI", "Cyborg")))
+			continue
+		. += lowertext(J.title)
+
+/// Who's been told what jobs are open lately: talker REF -> until when
+GLOBAL_LIST_EMPTY(bot_jobs_open_answered)
+
+/// "Which jobs are open?", "any jobs going?", "can i have a new job?": the Head of Personnel reads the job slots the way a player would at the ID console and says
+/// which are free ("Beats me." from the HoP, and "What do you need it for?" as if it were a request for access).
+/datum/bot_brain/proc/answer_jobs_open(mob/living/talker, lower_msg, radio_freq)
+	if(work_role() != "Head of Personnel" || !ishuman(talker) || gone_loud() || length(lower_msg) > 60)
+		return FALSE
+	if(!bot_text_has_any(lower_msg, list("which jobs", "what jobs", "any jobs", "jobs open", "open jobs", "job openings", "any slots", "job slots", "vacancies", "new job", "different job", "change jobs", "change my job", "job change", "need a job", "want a job", "promotion", "promote me")))
+		return FALSE
+	var/key = REF(talker)
+	if(world.time < GLOB.bot_jobs_open_answered[key] || world.time < next_answer_time)
+		return TRUE
+	GLOB.bot_jobs_open_answered[key] = world.time + 15 SECONDS
+	if(length(GLOB.bot_jobs_open_answered) > 20)
+		GLOB.bot_jobs_open_answered.Cut(1, 11)
+	next_answer_time = world.time + 25
+	var/list/open = bot_open_jobs()
+	if(length(open) > 5)
+		open.Cut(6)
+	if(!radio_freq && !pursuing_kind)
+		owner.face_atom(talker)
+	talking_to(talker)
+	say_after_typing(bot_radio_prefix(radio_freq) + (length(open) ? pick("Open right now: [english_list(open)].", "[capitalize(english_list(open))] are open.", "Slots open for [english_list(open)].") : pick("Nothing open, everything's filled.", "All the slots are full right now.")))
+	bot_log(src, "told [talker] what jobs are open: [english_list(open)]")
+	return TRUE
+
 /// Who's had a roll call answered lately ("anyone in cargo?"): talker REF + the trade -> until when
 GLOBAL_LIST_EMPTY(bot_roll_call_answered)
 

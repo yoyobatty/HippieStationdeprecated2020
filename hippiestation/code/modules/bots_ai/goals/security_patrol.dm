@@ -1245,6 +1245,8 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	if(!isliving(real_speaker) || real_speaker == owner)
 		return
 	var/mob/living/L = real_speaker
+	if(!ishuman(L) && !issilicon(L) && !L.client)
+		return //a parrot that's picked up "security!" (Poly) isn't calling anyone
 	if(L.mind?.assigned_role in GLOB.security_positions)
 		return //another officer's radio chatter isn't a call for help
 	// Nor the AI's: it's in its core, and its "Security has been informed" sent the officers there (round-01.12.53). What it reports
@@ -1312,7 +1314,7 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 	// A question about Security ("security, is the brig empty?", "sec, any updates?", "anyone in security?") is asking, not calling: "Responding to a call from Casey" to it.
 	if(findtext(lower, "?") && !bot_text_has_any(lower, list("help")) && !bot_text_has_any(lower, GLOB.bot_danger_words) && bot_text_has_any(lower, list("is the", "are the", "what's", "whats", "who's", "whos", "how's", "hows", "any updates", "any news", "status", "anyone in", "anybody in", "anyone on", "are you there", "you there", "hello")))
 		return FALSE
-	if(findtext(lower, "security") || findtext(lower, "shitcurity") || bot_text_has_any(lower, list("sec")))
+	if(bot_names_security_called(lower))
 		return TRUE
 	if(!bot_text_has_any(lower, list("help")))
 		return FALSE
@@ -1326,6 +1328,29 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 	if(K && length(K.jobs) && !length(K.jobs & GLOB.security_positions))
 		return FALSE
 	return TRUE
+
+/// Whether a line names Security as who's being called, and not as a place: "on my way to sec office with the mop", "he's in security", "meet at the sec
+/// post" ("sec" in about 10 of 1262 calls answered in the shift batches were such lines).
+/proc/bot_names_security_called(lower)
+	var/static/regex/sec_word = regex(@"\b(security|shitcurity|sec)\b")
+	var/pos = 1
+	while(sec_word.Find(lower, pos))
+		pos = sec_word.next
+		var/before = " [copytext(lower, 1, sec_word.index)]"
+		var/after = copytext(lower, sec_word.next, sec_word.next + 14)
+		var/is_place = FALSE
+		for(var/lead in list(" to ", " in ", " at ", " from ", " into ", " inside ", " near ", " outside ", " of ", " with "))
+			if(copytext(before, -length(lead)) == lead)
+				is_place = TRUE
+				break
+		if(!is_place)
+			for(var/noun in list(" office", " post", " checkpoint", " wing", " desk", " lobby", " department", " dept", " hq", " brig", " station", " area", " front", " window"))
+				if(copytext(after, 1, length(noun) + 1) == noun)
+					is_place = TRUE
+					break
+		if(!is_place)
+			return TRUE
+	return FALSE
 
 /// A line with "one sec", "a sec" and "half a sec" taken out of it
 /proc/bot_without_a_second(lower)

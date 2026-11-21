@@ -218,6 +218,8 @@ GLOBAL_LIST_INIT(bot_you_words, list("you", "ya", "u", "your", "you're", "youre"
 		talker = V.source
 	if(!isliving(talker) || talker == owner)
 		return
+	if(!ishuman(talker) && !issilicon(talker) && !talker.client)
+		return //a parrot or a mouse isn't somebody to answer, whatever it's picked up to say
 	if(!istype(speaker, /atom/movable/virtualspeaker) || get_dist(owner, talker) <= 7)
 		bot_heard_apology(talker, lowertext(raw_message)) //bot_witness.dm: an accident said sorry for
 	if(heard_codeword(talker, lowertext(raw_message))) //goals/robust.dm: other traitors' words count, bots or not
@@ -251,7 +253,9 @@ GLOBAL_LIST_INIT(bot_you_words, list("you", "ya", "u", "your", "you're", "youre"
 	var/named = called || in_conversation_with(talker)
 	if(!called && greeting_for_somebody_else(lower_msg)) //"hey peter" is Peter's to answer, not whoever else is stood there
 		return
-	if(world.time < access_asked_until && access_asker?.resolve() == talker) //what they want the access for
+	// What they want the access for. The next thing they say, unless it's something else: "hop, are you there?", "can i have a new job?"
+	// were taken for the answer and got "Access to what?" and "What do you need it for?" again.
+	if(world.time < access_asked_until && access_asker?.resolve() == talker && bot_is_answer_about_access(lower_msg))
 		access_asked_until = 0
 		consider_access_request(talker, lower_msg, radio_freq)
 		return
@@ -274,6 +278,8 @@ GLOBAL_LIST_INIT(bot_you_words, list("you", "ya", "u", "your", "you're", "youre"
 	// Said to the AI or a borg ("AI, where's Emery?", "AI open this door"): theirs to answer. Somebody else with the name in it, or a door in
 	// reach, answered it (the user's "Ai where is emery", twice: round-12.20.48.49 and round-14.43.45).
 	if(title_jobs && (("AI" in title_jobs) || ("Cyborg" in title_jobs)) && bot_silicon_addressed(lower_msg, list("ai", "ais", "borg", "borgs", "cyborg", "cyborgs"))) //goals/silicon.dm
+		return
+	if(answer_jobs_open(talker, lower_msg, radio_freq)) //"which jobs are open?": the HoP, from the job slots (bot_conversation.dm)
 		return
 	if(answer_roll_call(talker, lower_msg, radio_freq)) //"anyone in cargo?", "any doctor about?": a Cargo Technician says it's here (bot_conversation.dm)
 		return
