@@ -159,6 +159,9 @@ GLOBAL_VAR_INIT(bot_cargo_air_asked, -INFINITY)
 			return ";Engineering, the supply shuttle's lost its air and [crates]. Can somebody fill it?"
 	return null
 
+/// When a cargo technician last left its card at the HoP's door for EVA access, for a crate aboard in a vacuum
+GLOBAL_VAR_INIT(bot_cargo_eva_asked_at, -INFINITY)
+
 /datum/bot_brain
 	/// No space suit to be had for a crate in a vacuum when it last looked: not looked for again till then
 	var/no_space_suit_until = 0
@@ -182,6 +185,11 @@ GLOBAL_VAR_INIT(bot_cargo_air_asked, -INFINITY)
 			// What a player does: asks for the way into EVA, from the HoP or the Captain, and goes for a suit when the card's back. Not
 			// twice in ten minutes, and not with nobody to ask (it keeps its card, as an explorer does, goals/space_ruins.dm).
 			if(!has_eva_access() && world.time >= next_eva_access_ask && bot_find_card_granter(owner))
+				// One of them goes: the QM and both technicians stood at the HoP's door with three cards for the one crate (jobs_s1)
+				if(world.time < GLOB.bot_cargo_eva_asked_at + 4 MINUTES)
+					no_space_suit_until = world.time + 1 MINUTES //a colleague's gone: a look at how that went
+					return FALSE
+				GLOB.bot_cargo_eva_asked_at = world.time
 				next_eva_access_ask = world.time + 10 MINUTES
 				no_space_suit_until = world.time + 4 MINUTES //the card's left for three, and then it's a walk to EVA
 				return assign_goal(new /datum/bot_goal/job_transfer/access/for_crates(list(ACCESS_EVA), "EVA"))

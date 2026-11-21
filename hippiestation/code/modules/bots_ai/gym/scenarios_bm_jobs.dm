@@ -141,6 +141,8 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 /datum/bot_scenario/fixes1112/crate_air/vacuum_no_suit/before_unload()
 	if(!hascall(brain, "try_suit_up_for_crates"))
 		return FALSE
+	if("bot_cargo_eva_asked_at" in GLOB.vars)
+		GLOB.vars["bot_cargo_eva_asked_at"] = -INFINITY //runs side by side share it: each one's own first ask is the first
 	if(call(brain, "try_suit_up_for_crates")(list(crate)))
 		log_line("cargo: off to see about a suit for the crate")
 		return TRUE
@@ -158,6 +160,56 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 
 /datum/bot_scenario/fixes1112/crate_air/vacuum_no_suit/on_timeout()
 	fail_reason = "never asked for EVA access: left the crate in the vacuum"
+	return BOT_GYM_FAIL
+
+/// Three of them stood at the HoP's door in the live shift (jobs_s1: the Quartermaster and both technicians, one crate): the one ask is enough.
+/datum/bot_scenario/fixes1112/crate_air/vacuum_no_suit/two_techs
+	name = "cargo: a crate in a vacuum and no suit to be had, two technicians, only one of them asks the HoP for EVA access"
+	desc = "The same vacuum, and a second cargo technician beside the first, each with a card that opens no EVA door. Both look at the crate in the same second, and one leaves its card at the HoP's door for EVA access: not both, since the one the HoP gives it to is enough for the crate."
+	time_limit = 30 SECONDS
+	layout = list(
+		"###############",
+		"#Q.........####",
+		"#H.........enk#",
+		"#J.B.......#nn#",
+		"###############")
+	var/mob/living/carbon/human/other_tech
+
+/datum/bot_scenario/fixes1112/crate_air/vacuum_no_suit/two_techs/setup()
+	..()
+	other_tech = second_bot(first_marker("J"), "Jo Second")
+	other_tech.mind.assigned_role = "Cargo Technician"
+	var/obj/item/card/id/C = new(other_tech)
+	C.registered_name = other_tech.real_name
+	C.assignment = "Cargo Technician"
+	C.access = list(ACCESS_CARGO)
+	other_tech.equip_to_slot_or_del(C, ITEM_SLOT_ID)
+
+/datum/bot_scenario/fixes1112/crate_air/vacuum_no_suit/two_techs/before_unload()
+	. = ..()
+	if(other_tech?.bot_brain && hascall(other_tech.bot_brain, "try_suit_up_for_crates") && !other_tech.bot_brain.current_goal)
+		call(other_tech.bot_brain, "try_suit_up_for_crates")(list(crate))
+
+/datum/bot_scenario/fixes1112/crate_air/vacuum_no_suit/two_techs/proc/asks()
+	. = 0
+	for(var/line in transcript)
+		if(findtext(line, "for EVA access to unload"))
+			.++
+
+/datum/bot_scenario/fixes1112/crate_air/vacuum_no_suit/two_techs/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(setup_problem)
+		fail_reason = setup_problem
+		return BOT_GYM_FAIL
+	var/count = asks()
+	if(count >= 2)
+		fail_reason = "both of them left their cards at the HoP's door"
+		return BOT_GYM_FAIL
+	return (world.time > start_time + 20 SECONDS && count == 1) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/fixes1112/crate_air/vacuum_no_suit/two_techs/on_timeout()
+	fail_reason = "[asks()] of them asked for EVA access, not one"
 	return BOT_GYM_FAIL
 
 // ---------------------------------------------------------------------------------------------
