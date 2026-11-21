@@ -198,6 +198,8 @@
 		return null
 	if(!F.hops)
 		return pick("I just saw [said].", "Did you hear? [capitalize(said)]. I saw it.", "You won't believe it. [capitalize(said)]. Saw it with my own eyes.")
+	if(F.source == "the records") //"the records saw it" is what it said
+		return pick("It's on the records: [said].", "According to the records, [said].", "Did you hear? [capitalize(said)]. It's on the records.")
 	if(F.hops == 1 && F.source)
 		return pick("[F.source] says [said].", "Did you hear? [capitalize(said)]. [F.source] saw it.", "Apparently [said]. [F.source] told me.")
 	return pick("Word is [said].", "Heard [said].", "Did you hear? Apparently [said].", "Somebody said [said].")

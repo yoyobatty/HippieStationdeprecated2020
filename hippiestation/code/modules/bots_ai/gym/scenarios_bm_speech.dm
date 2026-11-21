@@ -563,3 +563,51 @@
 	if(!done)
 		return BOT_GYM_PENDING
 	return fail_reason ? BOT_GYM_FAIL : BOT_GYM_PASS
+
+// ---------------------------------------------------------------------------------------------
+// A hole in the hull (bot_talk_more.dm, goals/repair_hull.dm)
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/hole_in_the_hull
+	name = "speech: a hole blown in the hull is called out by whoever can see it, once"
+	desc = "A floor tile in the room turns to space, as a bomb or a meteor does it. The one who can see it says where, on the radio, once. Nobody said a word about a hole in the hull: the engineers' own rounds saw to it and the rest carried on."
+	job = "Assistant"
+	layout = list(
+		"#########",
+		"#B..H...#",
+		"#########")
+	time_limit = 20 SECONDS
+	var/blown = FALSE
+
+/datum/bot_scenario/hole_in_the_hull/issue_goal()
+	return
+
+/datum/bot_scenario/hole_in_the_hull/post_spawn()
+	if("boom_talk_in_gym" in brain.vars)
+		brain.vars["boom_talk_in_gym"] = TRUE //the flag for what a gym bot says about the world's events
+	addtimer(CALLBACK(src, PROC_REF(blow)), 2 SECONDS)
+
+/datum/bot_scenario/hole_in_the_hull/proc/blow()
+	var/turf/T = first_marker("H")
+	T.ChangeTurf(/turf/open/space/basic)
+	blown = TRUE
+
+/datum/bot_scenario/hole_in_the_hull/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!blown || world.time < start_time + 12 SECONDS)
+		return BOT_GYM_PENDING
+	var/said = 0
+	var/right_words = FALSE
+	for(var/line in transcript)
+		if(findtext(line, "said \""))
+			said++
+			if(findtext(line, "Bot Gym Arena"))
+				right_words = TRUE
+	if(!said)
+		fail_reason = "nobody said a word about a hole in the hull"
+		return BOT_GYM_FAIL
+	if(said > 1 || !right_words)
+		fail_reason = "[said] lines, and where it is [right_words ? "was said" : "wasn't"]"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

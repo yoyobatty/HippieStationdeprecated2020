@@ -394,7 +394,9 @@ GLOBAL_LIST_EMPTY(bot_panels_known)
 	bot_log(bot, "[shutting ? "shut" : "opened"] [panel.name]")
 	bot_tally(shutting ? "doors shut" : "doors opened")
 	if(panel.kind == BOT_PANEL_LOCKDOWN)
-		bot_say(bot.owner, shutting ? ";[panel.name]: going down." : ";[panel.name]: lifted.")
+		// What a person says pressing it, not the machine's label read out ("Atmospherics Lockdown: going down.", seven times in a shift)
+		var/dept = replacetext(replacetext(panel.name, " Lockdown", ""), " Blast Door Control", "")
+		bot_say(bot.owner, ";[shutting ? bot_fresh_pick(bot, list("[dept] lockdown, going down.", "Locking down [dept].", "[dept]'s shutters are coming down.", "Lockdown on [dept], stay clear.")) : bot_fresh_pick(bot, list("[dept] lockdown's lifted.", "Opening [dept] back up.", "[dept]'s shutters are up."))]")
 	return GOAL_STEP_SUCCESS
 
 /// Somebody who won't leave, and shutters within reach: they can wait for Security in here.

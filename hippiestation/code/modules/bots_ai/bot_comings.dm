@@ -275,7 +275,7 @@ GLOBAL_VAR_INIT(bot_ghosts_last_said, 0)
 		dead++
 	if(dead >= 4)
 		options += list("[dead] of us dead already", "body count's climbing", "deadchat getting crowded")
-	return pick(options)
+	return bot_fresh_pick(brain, options) //not the one it said last time round (bot_talk_more.dm)
 
 /// Somebody died: a ghost or two notice.
 /proc/bot_ghosts_saw_death(mob/living/carbon/human/H)

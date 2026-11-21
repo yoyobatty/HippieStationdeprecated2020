@@ -163,3 +163,36 @@ GLOBAL_LIST_INIT(bot_boom_far_lines, list("What was that?", "Anyone else feel th
 	if(hascall(B, proc_name))
 		return call(B, proc_name)(options)
 	return pick(options)
+
+// ---------------------------------------------------------------------------------------------
+// A hole in the hull
+// ---------------------------------------------------------------------------------------------
+// Nobody said a word about one: the engineers' own rounds saw to it (goals/repair_hull.dm) and the rest of the crew carried on. Whoever's nearest, and can
+// see it, says where, once for the area. Not in the words that call the engineers ("hull breach", "breach in": bot_requests.dm), which would have them
+// answer a call they have the hole for already.
+
+/// Area -> until when somebody's said there's a hole in it
+GLOBAL_LIST_EMPTY(bot_breach_called)
+
+/proc/bot_crew_noticed_breach(turf/T)
+	addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_say_about_breach), T), rand(20, 50))
+
+/proc/bot_say_about_breach(turf/T)
+	if(QDELETED(T) || !istype(T, /turf/open/space))
+		return //patched since
+	var/area/A = get_area(T)
+	if(!A || world.time < GLOB.bot_breach_called[A])
+		return
+	var/datum/bot_brain/nearest
+	var/nearest_dist = 11
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		if(QDELETED(B) || QDELETED(B.owner) || B.owner.stat != CONSCIOUS || B.logged_off || (B.gym_scripted && !B.boom_talk_in_gym) || B.gone_loud() || B.owner.z != T.z)
+			continue
+		var/dist = get_dist(B.owner, T)
+		if(dist < nearest_dist && (T in view(10, B.owner)))
+			nearest = B
+			nearest_dist = dist
+	if(!nearest || !prob(75))
+		return
+	GLOB.bot_breach_called[A] = world.time + 90 SECONDS
+	nearest.say_after_typing(";" + bot_fresh_pick(nearest, list("There's a hole in the hull at [A.name]!", "[A.name]'s open to space!", "Hull's been breached at [A.name], Engineering!", "Something's blown a hole in [A.name]!")))

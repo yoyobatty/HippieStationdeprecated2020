@@ -22,6 +22,8 @@ GLOBAL_LIST_INIT(bot_nanite_programs, list("research_nanites", "researchplus_nan
 /datum/bot_brain
 	var/nanites_injected = 0
 	var/nanite_programs_uploaded = 0
+	/// Not before this does it say another upload's on the cloud
+	var/next_nanite_news = 0
 	var/nanite_blocked_until = 0
 
 /proc/bot_has_nanites(mob/living/L)
@@ -437,7 +439,9 @@ GLOBAL_LIST_INIT(bot_nanite_programs, list("research_nanites", "researchplus_nan
 	bot.owner.put_in_hands(disk)
 	bot.nanite_programs_uploaded++
 	bot_log(bot, "uploaded [D.name] to the nanite cloud")
-	if(!bot.gym_scripted && prob(50))
+	// Said for the first of a run of uploads, not for each (three lines in four seconds, "Distributed Computing is on the nanite cloud." and the next two)
+	if(!bot.gym_scripted && prob(50) && world.time >= bot.next_nanite_news)
+		bot.next_nanite_news = world.time + 3 MINUTES
 		bot.say_after_typing(":n [D.name] is on the nanite cloud.")
 	return GOAL_STEP_SUCCESS
 
