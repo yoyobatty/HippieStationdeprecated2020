@@ -71,9 +71,6 @@ GLOBAL_VAR_INIT(bot_knowledge_off, world.params["bot-knowledge"] == "off")
 	if(length(seen_items) > BOT_SEEN_ITEMS_MAX)
 		seen_items.Cut(1, length(seen_items) - BOT_SEEN_ITEMS_MAX + 1)
 
-/// The most things one glance takes in. Nobody takes in a thousand at once, and a pile of hundreds on a tile in sight (somebody spawning a
-/// crate's worth for a test) cost each bot that looked ~2 us a thing, a second at a time. Nearer things come first in what view() gives.
-#define BOT_GLANCE_ITEMS_MAX 300
 /// The most one glance has found in sight (the Bot Shift summary): the cap, plus one, if it was ever reached
 GLOBAL_VAR_INIT(bot_glance_most, 0)
 

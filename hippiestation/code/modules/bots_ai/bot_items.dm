@@ -215,7 +215,10 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 // Floor items first, then storage: an open closet's contents, or a closed closet
 // itself (opened on arrival by try_open_locker(), then re-scanned next wander tick).
 /datum/bot_brain/proc/find_item_goal()
+	var/looked = 0
 	for(var/obj/item/I in oview(5, owner))
+		if(++looked > BOT_GLANCE_ITEMS_MAX)
+			break //a pile of thousands: the nearest are looked at, not all of it
 		if(isturf(I.loc) && is_useful_item(I) && !is_in_active_cell(I) && !is_kitchen_stock(I)) //goals/cook.dm
 			return I
 	for(var/obj/structure/closet/C in oview(6, owner))

@@ -30,6 +30,10 @@
 	brain.glance_at_items()
 	var/ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - started)
 	var/noted = length(brain.seen_items)
+	started = TICK_USAGE_REAL
+	for(var/i in 1 to 20)
+		brain.find_item_goal() //what an idle bot looks for, a quarter of the time it stands about
+	log_line("find_item_goal() with the pile in sight: [round(TICK_DELTA_TO_MS(TICK_USAGE_REAL - started) / 20, 0.01)] ms a call")
 	var/most = ("bot_glance_most" in GLOB.vars) ? GLOB.vars["bot_glance_most"] : null //by name, so a build from before it was added still compiles
 	log_line("one glance at 1500 papers on a tile in sight: [round(ms, 0.1)] ms, [noted] things noted, the most one glance has found in sight [most || "not counted"]")
 	if(noted > 300)
@@ -104,3 +108,43 @@ GLOBAL_VAR_INIT(bot_gym_kill_after, text2num(world.params["bot-gym-kill"]))
 			if(3)
 				body.death()
 	return ..()
+
+/datum/bot_scenario/lathes_price_every_design
+	name = "perf: every kind of lathe can be asked whether it affords every design it can print"
+	desc = "bot_lathe_can_afford() and bot_lathe_sheets() (goals/rnd_bench.dm) read a lathe's material container for each material a design needs. A caught 'Cannot read \"$metal\".amount' (173 in four shifts of the 16th and 17th, 309 earlier) came from a read like that: this asks every production machine about every design it prints, and a runtime shows up in the round log with its stack."
+	time_limit = 60 SECONDS
+	layout = list(
+		"#######",
+		"#B...G#",
+		"#######")
+	var/asked = FALSE
+
+/datum/bot_scenario/lathes_price_every_design/make_goal()
+	return null
+
+/datum/bot_scenario/lathes_price_every_design/check()
+	if(!bot || QDELETED(bot) || bot.stat == DEAD)
+		fail_reason = "bot died"
+		return BOT_GYM_FAIL
+	if(asked)
+		return BOT_GYM_PENDING
+	asked = TRUE
+	var/machines = 0
+	var/priced = 0
+	for(var/lathe_type in subtypesof(/obj/machinery/rnd/production))
+		var/obj/machinery/rnd/production/L = new lathe_type(first_marker("G"))
+		if(QDELETED(L) || !L.materials?.mat_container)
+			qdel(L)
+			continue
+		machines++
+		for(var/id in SSresearch.techweb_designs)
+			var/datum/design/D = SSresearch.techweb_designs[id]
+			if(!(D.build_type & L.allowed_buildtypes))
+				continue
+			bot_lathe_can_afford(L, D, 1)
+			priced++
+		for(var/mat in list(MAT_METAL, MAT_GLASS, MAT_SILVER, MAT_GOLD, MAT_DIAMOND, MAT_URANIUM, MAT_PLASMA, MAT_TITANIUM, MAT_BLUESPACE, MAT_BANANIUM))
+			bot_lathe_sheets(L, mat)
+		qdel(L)
+	log_line("[machines] kinds of lathe asked about [priced] designs")
+	return machines ? BOT_GYM_PASS : BOT_GYM_FAIL
