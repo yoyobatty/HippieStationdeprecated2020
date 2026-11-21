@@ -313,7 +313,7 @@
 /// vending machines that had got up as mimics, 21 shots of 31.)
 /datum/bot_scenario/animal_fight
 	name = "creatures: attacked by a carp with its e-gun on disable, an officer switches to kill"
-	desc = "A carp that's bitten the officer, who has an energy gun on disable, stands (stunned) six tiles off. It puts the gun on its kill setting and shoots the carp dead."
+	desc = "A carp that's bitten the officer, who has an energy gun on disable, stands (stunned) six tiles off. It puts the gun on its kill setting and shoots the carp dead, and puts it back on stun once that's over."
 	job = "Security Officer"
 	kit_backpack = list(/obj/item/gun/energy/e_gun)
 	layout = list(
@@ -322,6 +322,7 @@
 		"############")
 	time_limit = 60 SECONDS
 	var/mob/living/simple_animal/hostile/carp/carp
+	var/killed_at = 0
 
 /datum/bot_scenario/animal_fight/setup()
 	carp = new(first_marker("c"))
@@ -343,10 +344,21 @@
 	if(!QDELETED(carp) && carp.stat != DEAD)
 		return BOT_GYM_PENDING
 	var/obj/item/gun/energy/e_gun/G = locate() in bot.GetAllContents()
-	if(!G || brain.is_nonlethal_shot(G.ammo_type[G.select]))
-		fail_reason = "beat it down with the gun still on disable"
+	if(!G)
+		fail_reason = "lost its gun"
 		return BOT_GYM_FAIL
-	return BOT_GYM_PASS
+	if(!killed_at)
+		if(brain.is_nonlethal_shot(G.ammo_type[G.select]))
+			fail_reason = "beat it down with the gun still on disable"
+			return BOT_GYM_FAIL
+		killed_at = world.time
+	//and the gun back on stun a little after, for the next time it's a person it's up against
+	if(brain.is_nonlethal_shot(G.ammo_type[G.select]))
+		return BOT_GYM_PASS
+	if(world.time > killed_at + 25 SECONDS)
+		fail_reason = "left the gun on its kill setting"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
 
 /datum/bot_scenario/animal_fight/release_run()
 	if(!QDELETED(carp))

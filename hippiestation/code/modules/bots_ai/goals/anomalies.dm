@@ -634,6 +634,16 @@ GLOBAL_VAR(bot_rampant_machine_ref)
 // creatures that had been called in were already shot with a lethal setting (goals/sabotage_slimes.dm); one that attacks the officer,
 // and so takes the ordinary fight, wasn't.
 
+/datum/bot_brain
+	/// Until when it's been shooting an animal with a lethal setting, which it puts back to stun once it's been that long since (a later fight
+	/// with somebody on the crew would otherwise start with the laser: try_shoot_at() fires the gun as it was left).
+	var/animal_shooting_until = 0
+
+/datum/bot_brain/proc/stun_again_after_animals()
+	if(QDELETED(src) || QDELETED(owner) || owner.stat == DEAD || world.time < animal_shooting_until || !is_security_job())
+		return
+	ready_nonlethal_gun()
+
 /datum/bot_brain/try_shoot_at(mob/living/target)
 	if(!isanimal(target) || isslime(target))
 		return ..()
@@ -647,6 +657,8 @@ GLOBAL_VAR(bot_rampant_machine_ref)
 	owner.changeNext_move(CLICK_CD_RANGE)
 	next_taser_time = world.time + shot_interval(G) //foundation/gunfight.dm
 	bot_log(src, "firing [G] at [target] (dist [get_dist(owner, target)]): a stun does nothing to that")
+	animal_shooting_until = world.time + 15 SECONDS
+	addtimer(CALLBACK(src, PROC_REF(stun_again_after_animals)), 16 SECONDS)
 	INVOKE_ASYNC(G, TYPE_PROC_REF(/obj/item/gun, afterattack), target, owner, FALSE, null)
 	keep_firing_on(target, "combat")
 	return TRUE
