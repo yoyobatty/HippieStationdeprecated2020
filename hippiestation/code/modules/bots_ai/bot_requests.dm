@@ -800,9 +800,18 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 		if(out_to)
 			if(istype(D, /obj/machinery/door/window))
 				// A windoor takes a second to swing open: a walk set off now has no route through it, and gives up
-				addtimer(CALLBACK(theirs, TYPE_PROC_REF(/datum/bot_brain, assign_goal), new /datum/bot_goal/walk_up_to(out_to)), 1.5 SECONDS)
+				addtimer(CALLBACK(theirs, TYPE_PROC_REF(/datum/bot_brain, walk_out_through_door), out_to), 1.5 SECONDS)
 			else
 				theirs.assign_goal(new /datum/bot_goal/walk_up_to(out_to))
+
+/// Out through a door that's been opened for it, a moment after (see attend() above): what its look round in the meantime found with the door
+/// still shut is forgotten, as it is at the time of the opening, or the walk gives up on it ("no route", from the cache).
+/datum/bot_brain/proc/walk_out_through_door(turf/out_to)
+	if(QDELETED(owner) || owner.stat != CONSCIOUS)
+		return
+	region_floods = null
+	shut_in_checked_at = -1000
+	pursue(out_to, "follow", force = TRUE) //a walk of its own, as for a prisoner let out: no goal's lawful route to plan round a door it has no ID for
 
 /// The tiles of the cell this door is the door of (turf -> TRUE), or null if it's not a cell's
 /proc/bot_cell_region_of(obj/machinery/door/window/D)
