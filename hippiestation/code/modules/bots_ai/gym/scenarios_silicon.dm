@@ -217,7 +217,7 @@
 /datum/bot_scenario/griefed/borg/hit/grief()
 	var/obj/item/I = griefer_holds(/obj/item/storage/toolbox/mechanical)
 	griefer_swing(I, borg)
-	addtimer(CALLBACK(src, PROC_REF(griefer_swing), I, borg), 3)
+	gym_after(3, CALLBACK(src, PROC_REF(griefer_swing), I, borg))
 
 /datum/bot_scenario/griefed/borg/hit/check()
 	. = ..()
@@ -245,7 +245,7 @@
 	. = ..()
 	if(. != BOT_GYM_PENDING)
 		return
-	if(borg.x > griefer.x - 4 && (griefer.reagents.has_reagent(/datum/reagent/medicine/bicaridine) || bot.reagents.has_reagent(/datum/reagent/medicine/bicaridine)))
+	if(borg?.x > griefer?.x - 4 && (griefer?.reagents?.has_reagent(/datum/reagent/medicine/bicaridine) || bot?.reagents?.has_reagent(/datum/reagent/medicine/bicaridine)))
 		return BOT_GYM_PASS
 
 // Layout letter G: where Medbay is, for this.
@@ -319,7 +319,7 @@
 	emitter.setDir(SOUTH)
 
 /datum/bot_scenario/griefed/borg/out_of_beam/grief()
-	addtimer(CALLBACK(src, PROC_REF(light_it)), 10)
+	gym_after(10, CALLBACK(src, PROC_REF(light_it)))
 
 /datum/bot_scenario/griefed/borg/out_of_beam/proc/light_it()
 	if(result != BOT_GYM_PENDING || QDELETED(emitter))
@@ -367,10 +367,10 @@
 
 /datum/bot_scenario/griefed/borg/pool/proc/borg_moved(atom/movable/source, atom/old_loc)
 	SIGNAL_HANDLER
-	if(istype(borg.loc, /turf/open/pool) && !istype(old_loc, /turf/open/pool))
+	if(istype(borg?.loc, /turf/open/pool) && !istype(old_loc, /turf/open/pool))
 		went_in++
 		log_line("cyborg stepped into the water at [COORD(borg)]")
-	else if(!istype(borg.loc, /turf/open/pool) && istype(old_loc, /turf/open/pool))
+	else if(!istype(borg?.loc, /turf/open/pool) && istype(old_loc, /turf/open/pool))
 		log_line("cyborg out of the water at [COORD(borg)]")
 
 /datum/bot_scenario/griefed/borg/pool/check()

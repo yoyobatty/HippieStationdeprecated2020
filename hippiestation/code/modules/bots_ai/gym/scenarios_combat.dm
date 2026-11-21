@@ -187,7 +187,7 @@
 	if(shots < 8 && istype(G))
 		shots++
 		last_shot_at = world.time
-		addtimer(CALLBACK(src, PROC_REF(shoot), G, get_turf(bot)), 3) //where it saw the bot a moment ago: a player's reaction
+		gym_after(3, CALLBACK(src, PROC_REF(shoot), G, get_turf(bot))) //where it saw the bot a moment ago: a player's reaction
 		return BOT_GYM_PENDING
 	if(shots < 8)
 		return BOT_GYM_PENDING

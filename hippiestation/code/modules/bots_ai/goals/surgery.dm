@@ -163,10 +163,15 @@ GLOBAL_LIST_INIT(bot_surgery_tools, list(/obj/item/scalpel, /obj/item/retractor,
 /// the hand was what got set down to pick the next one up: scalpel down for the retractor, retractor down for the scalpel, twice each,
 /// and "no scalpel to be had". Every operation tried in six shifts ended there.
 /datum/bot_brain/proc/bag_surgery_tool(obj/item/I)
-	if(!(I in owner.held_items) || put_away(I, allow_equip = FALSE))
+	if(!(I in owner.held_items))
+		return TRUE
+	// Each way of letting go is an input, and what it takes next is another: a beat between (hand_beat(), bot_human.dm)
+	if(put_away(I, allow_equip = FALSE))
+		hand_beat()
 		return TRUE
 	for(var/slot in list(ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET))
 		if(!owner.get_item_by_slot(slot) && owner.equip_to_slot_if_possible(I, slot, FALSE, TRUE))
+			hand_beat()
 			return TRUE
 	var/obj/item/storage/bag = worn_bag() //goals/clear_bag.dm
 	if(!bag)
@@ -187,6 +192,7 @@ GLOBAL_LIST_INIT(bot_surgery_tools, list(/obj/item/scalpel, /obj/item/retractor,
 				continue
 			bot_log(src, "taking [junk] out of the bag to make room for [I]")
 			if(put_away(I, allow_equip = FALSE))
+				hand_beat()
 				return TRUE
 	return FALSE
 
@@ -262,9 +268,15 @@ GLOBAL_LIST_INIT(bot_surgery_tools, list(/obj/item/scalpel, /obj/item/retractor,
 	if(istype(step, /datum/surgery_step/heal) && max(patient.getBruteLoss(), patient.getFireLoss()) < BOT_SURGERY_DONE)
 		step = procedure.get_surgery_next_step()
 	var/obj/item/tool = bot.tool_for_surgery_step(step)
-	if(!tool || !bot.ready_in_hand(tool))
+	var/drawn = tool && bot.owner.get_active_held_item() != tool
+	if(!tool || !bot.ready_in_hand(tool, TRUE))
 		bot_log(bot, "nothing to [step.name] with")
 		return FALSE
+	// The tool out of the bag is an input and the click on the patient another: a beat between (hand_beat(), bot_human.dm)
+	if(drawn)
+		bot.hand_beat()
+		if(QDELETED(patient) || !bot.owner.Adjacent(patient) || bot.owner.get_active_held_item() != tool)
+			return TRUE //looked at again on the next click
 	bot.owner.a_intent = INTENT_HELP
 	bot.owner.zone_selected = BODY_ZONE_CHEST
 	bot_log_verbose(bot, "[step.name] with [tool]")

@@ -47,7 +47,7 @@
 
 /datum/bot_scenario/botany/project/hack_megaseed/botany_check()
 	var/obj/machinery/vending/V = first_placed("M")
-	if(!V.extended_inventory || V.panel_open || brain.current_goal)
+	if(!V || !V.extended_inventory || V.panel_open || brain.current_goal)
 		return BOT_GYM_PENDING
 	if(V.shoot_inventory || !V.scan_id || V.shut_up)
 		fail_reason = "left the vendor [V.shoot_inventory ? "throwing its stock" : (V.shut_up ? "muted" : "with ID checks off")]"

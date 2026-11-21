@@ -243,6 +243,8 @@
 					mb |= d
 		walk_bits[i] = wb
 		move_bits[i] = mb
+		if(!(i % 80)) //the box is up to CW_MAX_SIDE squared, 841 tiles with up to eight link checks each: a tick's worth in one go
+			CHECK_TICK
 	CHECK_TICK
 
 	// The search: cheapest first, by buckets of cost

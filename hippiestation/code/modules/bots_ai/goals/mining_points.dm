@@ -125,9 +125,14 @@ GLOBAL_LIST_INIT(bot_miner_shopping, list(
 	bot.note_seen(kit) //bot_knowledge.dm: it's just watched it drop
 	if(!bot.try_pickup_target(kit, TRUE))
 		return GOAL_STEP_FAIL
-	// On the belt if there's nothing there: it comes with a shelter capsule in it
-	if(!bot.owner.belt && (kit in bot.owner.held_items))
-		bot.owner.equip_to_slot_if_possible(kit, ITEM_SLOT_BELT, FALSE, TRUE, TRUE)
+	// On the belt: it comes with a shelter capsule in it. The belt is the PDA's more often than not (a bot puts it there, 62 s into a shift
+	// in play1114b run10), and the webbing stayed in the miner's hand for the shift: every shuttle ride knocks down whoever isn't buckled
+	// in and a knocked-down hand drops what it holds, so it was down on the floor and picked up again five times a shift. A small thing
+	// on the belt goes in the bag (wear(), goals/engineer_gear.dm) and the webbing on; a toolbelt there stays, and so does the webbing.
+	if(kit in bot.owner.held_items)
+		var/obj/item/on_belt = bot.owner.belt
+		if(!on_belt || (!istype(on_belt, /obj/item/storage/belt) && on_belt.w_class <= WEIGHT_CLASS_NORMAL))
+			bot.wear(kit, ITEM_SLOT_BELT)
 	return GOAL_STEP_SUCCESS
 
 // ---------------------------------------------------------------------------------------------

@@ -84,12 +84,14 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	var/length
 	/// Booted with bot-round: a whole round, over when the crew has left. `length` is then the limit.
 	var/whole_round = FALSE
-	/// The bots bot-antags made head revolutionaries.
+	/// The bots bot-antags made head revolutionaries: their names, to count them. Never the mobs: a list here kept a gibbed one from
+	/// being garbage collected, and a hard delete is a 30-50 ms freeze (qdel.log).
 	var/list/revolutionaries = list()
-	/// The bots bot-antags made changelings.
+	/// The bots bot-antags made changelings (names, as above).
 	var/list/changelings = list()
-	/// The bots bot-antags made traitors.
-	var/list/mob/living/carbon/human/traitors = list()
+	/// The bots bot-antags made traitors: their minds, which follow them into a clone and let go of a body that's deleted
+	/// (/mob/Destroy() clears mind.current), where the mob itself would be kept from being collected.
+	var/list/datum/mind/traitors = list()
 	/// station_power_text() every five minutes.
 	var/list/power_curve = list()
 	/// What's broken on the station a minute in (station_damage_text()), to set the end against.
@@ -560,16 +562,16 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		var/count = length(parts) > 1 ? text2num(parts[2]) : 1
 		if(parts[1] == "rev")
 			for(var/mob/living/carbon/human/H as anything in bot_start_revolution(count))
-				revolutionaries += H
+				revolutionaries += H.real_name
 				note("[H.real_name] ([H.mind.assigned_role]) is a head revolutionary")
 		if(parts[1] == "changeling")
 			for(var/mob/living/carbon/human/H as anything in bot_make_changelings(count))
-				changelings += H
+				changelings += H.real_name
 				note("[H.real_name] ([H.mind.assigned_role]) is a changeling: [jointext(H.bot_brain.objective_list(), "; ")]")
 		if(parts[1] != "traitor")
 			continue
 		for(var/mob/living/carbon/human/H as anything in bot_make_traitors(count))
-			traitors += H
+			traitors += H.mind
 			if(("bot-hijack" in world.params) && !hijack_given) //bot-hijack=1: the first of them is to hijack the shuttle
 				hijack_given = TRUE
 				var/datum/antagonist/traitor/T = H.mind.has_antag_datum(/datum/antagonist/traitor)
@@ -633,6 +635,8 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	src.shift = shift
 	src.job = job
 	src.body = body
+	if(body)
+		RegisterSignal(body, COMSIG_PARENT_QDELETING, PROC_REF(body_deleted))
 	brain = body?.bot_brain
 	name = body ? body.real_name : "(nobody)"
 	if(brain)
@@ -641,6 +645,15 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 
 /datum/bot_shift_member/proc/label()
 	return "[name] ([job])"
+
+/// The body's being deleted (gibbed, blown up, qdel()): let go of it now, not at the next once-a-second sample(), or it's still held when
+/// the garbage collector looks (qdel.log's hard deletes of /mob/living/carbon/human and /datum/bot_brain on a shift with deaths).
+/datum/bot_shift_member/proc/body_deleted(datum/source, force)
+	SIGNAL_HANDLER
+	if(brain && isnull(died_at))
+		died()
+	else
+		wrap_up()
 
 /datum/bot_shift_member
 	/// bag_text() at wrap_up()
@@ -762,7 +775,10 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 
 /// Takes what the report needs and lets go of the mob, so a destroyed body isn't kept from being deleted.
 /datum/bot_shift_member/proc/wrap_up()
+	if(body)
+		UnregisterSignal(body, COMSIG_PARENT_QDELETING)
 	if(!brain)
+		body = null //a crew member with no bot brain was kept all shift
 		return
 	tells = brain.telemetry_flags ? brain.telemetry_flags.Copy() : list()
 	if(!QDELETED(body))
@@ -1822,18 +1838,20 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	deadline = 0
 
 /datum/bot_shift_check/traitors/worker()
-	return length(shift.traitors) ? shift.traitors[1].bot_brain : null
+	var/mob/living/carbon/human/first = length(shift.traitors) ? bot_shift_self(shift.traitors[1]) : null
+	return QDELETED(first) ? null : first.bot_brain
 
 /datum/bot_shift_check/traitors/poll()
 	return
 
-/// The same person, in whatever body they've got now: a traitor who's been cloned is still the traitor.
-/proc/bot_shift_self(mob/living/carbon/human/H)
-	return (H && !H.mind && H.last_mind?.current) || H
+/// The same person, in whatever body they've got now: a traitor who's been cloned is still the traitor. Their mind goes where they do, and
+/// lets go of a body that's deleted, so null is one that was gibbed.
+/proc/bot_shift_self(datum/mind/M)
+	return M?.current
 
 /datum/bot_shift_check/traitors/proc/met()
 	. = 0
-	for(var/mob/living/carbon/human/traitor as anything in shift.traitors)
+	for(var/datum/mind/traitor as anything in shift.traitors)
 		var/mob/living/carbon/human/H = bot_shift_self(traitor)
 		if(QDELETED(H) || !ishuman(H))
 			continue //gibbed, and took its objectives with it, or a brain in a jar or a cyborg now (no bot_brain)
@@ -1847,13 +1865,13 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 
 /datum/bot_shift_check/traitors/report()
 	var/list/lines = list()
-	for(var/mob/living/carbon/human/traitor as anything in shift.traitors)
+	for(var/datum/mind/traitor as anything in shift.traitors)
 		var/mob/living/carbon/human/H = bot_shift_self(traitor)
 		if(QDELETED(H))
 			lines += "a traitor was gibbed"
 			continue
 		if(!ishuman(H))
-			lines += "[traitor.real_name] (no body now: [H])"
+			lines += "[traitor.name] (no body now: [H])"
 			continue
 		var/datum/antagonist/traitor/T = H.mind?.has_antag_datum(/datum/antagonist/traitor)
 		var/list/state = list()

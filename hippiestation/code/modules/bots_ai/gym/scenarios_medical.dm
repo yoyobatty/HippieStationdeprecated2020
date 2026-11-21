@@ -128,7 +128,7 @@
 
 /datum/bot_scenario/patient/walked_on/post_spawn()
 	..()
-	addtimer(CALLBACK(src, PROC_REF(stroll_off)), 8)
+	gym_on_step(1, CALLBACK(src, PROC_REF(stroll_off)))
 
 /datum/bot_scenario/patient/walked_on/proc/stroll_off()
 	if(result != BOT_GYM_PENDING || QDELETED(patient))
@@ -181,8 +181,8 @@
 /datum/bot_scenario/patient/cloning/check()
 	if(bot_lost())
 		return BOT_GYM_FAIL
-	var/mob/living/carbon/human/clone = patient_brain.owner
-	if(clone == patient || !isturf(clone.loc) || clone.stat != CONSCIOUS)
+	var/mob/living/carbon/human/clone = patient_brain?.owner
+	if(!clone || clone == patient || !isturf(clone.loc) || clone.stat != CONSCIOUS)
 		return BOT_GYM_PENDING
 	if(clone.real_name != "Pat Patient" || clone.mind != patient_brain.owner.mind || patient.bot_brain)
 		fail_reason = "came out as [clone.real_name], with the brain in the wrong place"

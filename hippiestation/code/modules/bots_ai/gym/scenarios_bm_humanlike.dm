@@ -1,5 +1,44 @@
 // Bot gym scenarios from the 2026-11-21 bot audit, humanlike area.
 
+// ---------------------------------------------------------------------------------------------
+// Staged events that don't ride SStimer
+// ---------------------------------------------------------------------------------------------
+// A scenario's staged events (a shuttle leaving, a visitor speaking, a poll of what the bot is doing) were addtimer()s of 1-15 ds. In a
+// fast-forwarded gym SStimer runs late against the bot's own steps (SSbot_steps), by 0.05 s to 1 s or more with the machine's load, so
+// an event meant to come "after it has set off" came before or after it depending on how loaded the machine was: the dock-door scenario
+// failed on it, and "an emitter switched on across the way" had it lit when the bot was 4 tiles along or 2. Events go by the bot's steps
+// (gym_on_step) where they are about the walk, and by sleep() (gym_after) where they are about time.
+
+/// What to run when the bot has taken `steps` steps.
+/datum/gym_step_trigger
+	var/steps_left
+	var/datum/callback/what
+
+/datum/gym_step_trigger/New(atom/movable/mover, steps, datum/callback/cb)
+	. = ..()
+	steps_left = steps
+	what = cb
+	RegisterSignal(mover, COMSIG_MOVABLE_MOVED, PROC_REF(stepped))
+
+/datum/gym_step_trigger/proc/stepped(atom/movable/mover, atom/oldloc, dir)
+	SIGNAL_HANDLER
+	if(--steps_left > 0)
+		return
+	UnregisterSignal(mover, COMSIG_MOVABLE_MOVED)
+	INVOKE_ASYNC(what, TYPE_PROC_REF(/datum/callback, Invoke))
+
+/// Runs what when the bot has taken its nth step, however long that takes.
+/datum/bot_scenario/proc/gym_on_step(steps, datum/callback/what)
+	new /datum/gym_step_trigger(bot, steps, what)
+
+/// Runs what in `ds` deciseconds, on the tick (sleep), not when SStimer gets round to it. A scenario that's over doesn't run it.
+/datum/bot_scenario/proc/gym_after(ds, datum/callback/what)
+	set waitfor = FALSE
+	sleep(ds)
+	if(result != BOT_GYM_PENDING)
+		return
+	what.Invoke()
+
 /datum/bot_scenario/bmhl
 
 /// Counts how many of the bot's steps went against the way it set out, for the "doesn't dither" scenarios.
@@ -636,3 +675,49 @@
 	name = "hands: an arm gone and a wrench in the other hand, the bin is picked up a moment after the wrench goes away"
 	desc = "The wrench has to go away before the matter bin can be taken in the one hand there is: two inputs, a beat apart, not one tick (a drop and a pickup in the same tick came about a thousand times a shift in play1114b)."
 	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_swap")
+
+// ---------------------------------------------------------------------------------------------
+// Job flows that let go of one thing and take another, and a webbing in the hand
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/fixes1112/kitchen_duty/fridge_full_hands/with_a_beat
+	name = "hands: at the smartfridge with its hands full, a cook empties a hand and presses the button a moment after"
+	desc = "Both hands and the bag full. A hand is emptied for each potato the fridge lets go of, and the button is pressed a beat after, not in the same tick (hand_beat())."
+	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_swap")
+
+/datum/bot_scenario/griefed/surgeon/full_bag/with_a_beat
+	name = "hands: a doctor with its bag full draws each surgery tool a moment after putting the last one away, and clicks a moment after that"
+	desc = "Each operating step took the next tool out of the bag as the last went in, and clicked the patient in the same tick: a stow, a draw and a click as one input. A beat between each."
+	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_swap", "instant_click")
+
+/datum/bot_scenario/clear_bag/with_a_beat
+	name = "hands: emptying a bag, each thing is drawn a moment after the last is let go of"
+	desc = "The bag is emptied onto a table and into a bin one thing at a time: the next is drawn a beat after the last went down, not 0.1 s after (1-3 ds)."
+	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_swap")
+
+/datum/bot_scenario/mining_points/pda_on_belt
+	name = "miner: with its PDA on its belt, the webbing from the voucher goes on and the PDA into the bag"
+	desc = "The PDA is on the belt (a bot puts it there), so the webbing from the voucher had no place and stayed in the miner's hand for the shift. Every shuttle ride knocks down whoever is not buckled in, and a knocked-down hand drops what it holds: the webbing was down on the floor and picked up again five times a shift (play1114b run10). The PDA goes in the bag and the webbing on."
+
+/datum/bot_scenario/mining_points/pda_on_belt/post_spawn()
+	..()
+	if(bot.belt)
+		qdel(bot.belt)
+	bot.equip_to_slot_or_del(new /obj/item/pda(bot), ITEM_SLOT_BELT)
+	brain.next_id_consolidation_check_time = world.time + 10 MINUTES //it moves the PDA to the ID slot given the chance (consolidate_id_into_pda(), bot_items.dm)
+
+/datum/bot_scenario/mining_points/pda_on_belt/check()
+	. = ..()
+	if(. == BOT_GYM_PASS && !istype(bot.belt, /obj/item/storage/belt/mining/vendor))
+		fail_reason = "left the webbing in its hand with the PDA on its belt"
+		return BOT_GYM_FAIL
+
+/// What was on the belt in play1114b run10 (Bailey Rourke, equipped at 207 s): the miner's proto-kinetic accelerator, not a PDA.
+/datum/bot_scenario/mining_points/pda_on_belt/accelerator
+	name = "miner: with its proto-kinetic accelerator on its belt, the webbing from the voucher goes on and the accelerator into the bag"
+	desc = "Bailey Rourke in play1114b run10 had the accelerator on its belt (equipped at 207 s) and carried the voucher's webbing in its hand for the shift, dropping it on every shuttle ride."
+
+/datum/bot_scenario/mining_points/pda_on_belt/accelerator/post_spawn()
+	..()
+	qdel(bot.belt)
+	bot.equip_to_slot_or_del(new /obj/item/gun/energy/kinetic_accelerator(bot), ITEM_SLOT_BELT)
