@@ -913,6 +913,7 @@ GLOBAL_VAR_INIT(bot_rampant_announced_at, -10000)
 	last_moles = tank.air_contents.moles[/datum/gas/plasma]
 	last_rise = world.time
 	until = world.time + 90 SECONDS
+	bot.stranded_refill_tank = WEAKREF(tank) //if it's pulled off before it's done, it goes back for it as it would for its own (goals/refill_internals.dm)
 	bot_log(bot, "filling [tank] from [can], [round(last_moles, 0.1)] moles to start")
 	return TRUE
 
@@ -940,6 +941,8 @@ GLOBAL_VAR_INIT(bot_rampant_announced_at, -10000)
 		return GOAL_STEP_FAIL
 	if(tank.loc != bot.owner)
 		bot.owner.put_in_hands(tank)
+	if(tank.loc == bot.owner)
+		bot.stranded_refill_tank = null
 	var/moles = tank.air_contents.moles[/datum/gas/plasma]
 	bot_log(bot, "[tank] has [round(moles, 0.1)] moles of plasma in it")
 	return (tank.loc == bot.owner && moles >= BOT_PLASMA_FILL_MOLES) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL

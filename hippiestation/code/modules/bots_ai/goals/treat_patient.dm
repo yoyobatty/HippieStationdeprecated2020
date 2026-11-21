@@ -1255,9 +1255,45 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 		var/obj/item/I = pick_treatment_item(H, !!clothing_in_the_way(H))
 		if(I)
 			return I
-	if(H.getOxyLoss() > 0 && !owner.is_mouth_covered() && !H.is_mouth_covered())
-		return H //CPR
+	if(H.getOxyLoss() > 0 && !owner.is_mouth_covered() && (!H.is_mouth_covered() || mouth_cover_to_remove(H)))
+		return H //CPR, with the mask off first if it has to be
 	return null
+
+/// What's over a patient's mouth that a doctor can take off for CPR (do_cpr() won't breathe into a covered mouth): the mask, or a helmet
+/// with a visor down, not what's bolted on (a nanosuit's mask and helmet can't be taken off, and a nanosuit wearer in crit has only the
+/// suit's own medicine). Not in air they can't breathe, where it's what they're breathing through. Null if there's none.
+/datum/bot_brain/proc/mouth_cover_to_remove(mob/living/carbon/human/H)
+	if(!turf_air_is_breathable(get_turf(H)))
+		return null
+	var/obj/item/clothing/mask = H.wear_mask
+	if(istype(mask) && (mask.flags_cover & MASKCOVERSMOUTH) && !HAS_TRAIT(mask, TRAIT_NODROP))
+		return mask
+	var/obj/item/clothing/head/hat = H.head
+	if(istype(hat) && (hat.flags_cover & HEADCOVERSMOUTH) && !HAS_TRAIT(hat, TRAIT_NODROP))
+		return hat
+	return null
+
+/// Takes that off them, as the strip menu does it (a few seconds, and it stops if they're moved). TRUE if it came off. A patient who's one
+/// of ours puts it back on once it's over (put_clothing_back_on()).
+/datum/bot_brain/proc/take_mouth_cover_off(mob/living/carbon/human/patient, obj/item/clothing/covering)
+	var/slot = (covering == patient.head) ? ITEM_SLOT_HEAD : ITEM_SLOT_MASK
+	bot_log(src, "taking [patient]'s [covering.name] off for CPR")
+	human_pause(patient)
+	if(QDELETED(patient) || QDELETED(covering) || !owner.Adjacent(patient))
+		return FALSE
+	owner.face_atom(patient)
+	telemetry_action = "take [covering] off [patient]"
+	owner.stripPanelUnequip(covering, patient, slot)
+	telemetry_action = null
+	if(QDELETED(patient) || QDELETED(covering) || patient.get_item_by_slot(slot) == covering)
+		return FALSE
+	if(covering in owner.held_items)
+		owner.dropItemToGround(covering) //set down by the patient, not carried off
+	var/datum/bot_brain/theirs = patient.bot_brain
+	if(theirs)
+		theirs.set_aside_clothing = WEAKREF(covering)
+		theirs.set_aside_slot = slot
+	return TRUE
 
 /// Another medic seeing to them, holding them or on the way: a doctor leaves them to it. Security holding a prisoner by the Brig door for
 /// Medical, or somebody holding a downed traitor for Security, is no reason to walk off. A doctor reached a cuffed traitor kept by the Brig
@@ -1379,6 +1415,13 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 	if(with == patient)
 		if(breaths >= 40)
 			return FALSE
+		var/obj/item/clothing/in_the_way = patient.is_mouth_covered() ? bot.mouth_cover_to_remove(patient) : null
+		if(in_the_way)
+			if(!bot.take_mouth_cover_off(patient, in_the_way))
+				return FALSE
+			did_something = TRUE
+			wait_for = 5
+			return TRUE
 		if(!breaths)
 			bot_log(bot, "CPR on [patient], who's at [round(patient.health)]")
 		breaths++
