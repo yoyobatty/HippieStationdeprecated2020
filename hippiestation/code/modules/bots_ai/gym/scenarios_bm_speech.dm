@@ -1342,3 +1342,89 @@
 		fail_reason = "answered \"which jobs are open?\" with \"[last]\""
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+/// News of something that happened somewhere (bot_news() with a place): known to whoever's within earshot, not to a bot the length of the station away.
+/datum/bot_scenario/news_place
+	name = "speech: news of a blast is known to the bot beside it and not to the one across the station"
+	desc = "A blast goes off beside one bot and 30 tiles from another. Asked how the shift's going, the first tells of it and the other has no idea. Before: the news was everybody's."
+	job = "Assistant"
+	layout = list(
+		"###################################",
+		"#B.K.............................b#",
+		"###################################")
+	time_limit = 8 SECONDS
+	var/mob/living/carbon/human/far
+
+/datum/bot_scenario/news_place/issue_goal()
+	return
+
+/datum/bot_scenario/news_place/post_spawn()
+	far = second_bot(first_marker("b"), "Far Away")
+	call("/proc/bot_news")("a bomb went off in the gym's far corner", null, first_marker("K"), 15) //the old bot_news() takes two: there the news goes to everybody
+
+/datum/bot_scenario/news_place/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 2 SECONDS)
+		return BOT_GYM_PENDING
+	var/near_says = brain.shift_news()
+	var/far_says = far.bot_brain.shift_news()
+	if(!findtext(near_says, "bomb went off"))
+		fail_reason = "the bot beside it didn't know: \"[near_says]\""
+		return BOT_GYM_FAIL
+	if(findtext(far_says, "bomb went off"))
+		fail_reason = "the one 30 tiles away knew of it: \"[far_says]\""
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// "How's the engine?" over Common got nothing from an engineer, and what it'd have had to look to know otherwise. Away from its department it says it hasn't looked.
+/datum/bot_scenario/chat/status_question
+	name = "speech: \"how's the engine?\" over Common gets \"haven't looked\" from an engineer who isn't in Engineering"
+	desc = "An engineer stood in the Gym is asked how the engine is. It has no way to know, and says so. Before: nothing."
+	job = "Station Engineer"
+	layout = list(
+		"#########",
+		"#B.....C#",
+		"#########")
+	time_limit = 18 SECONDS
+	var/said_line = "how's the engine?"
+	var/expect_answer = TRUE
+
+/datum/bot_scenario/chat/status_question/post_spawn()
+	..()
+	brain.sociability = 1
+	addtimer(CALLBACK(src, PROC_REF(ask)), 2 SECONDS)
+
+/datum/bot_scenario/chat/status_question/proc/ask()
+	log_line("visitor (over Common): \"[said_line]\"")
+	brain.on_heard_speech(visitor, said_line, FREQ_COMMON)
+
+/datum/bot_scenario/chat/status_question/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 12 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	if(!expect_answer)
+		if(length(lines))
+			fail_reason = "answered a question about a department it isn't in: \"[lines[1]]\""
+			return BOT_GYM_FAIL
+		return BOT_GYM_PASS
+	if(!length(lines))
+		fail_reason = "said nothing to \"[said_line]\""
+		return BOT_GYM_FAIL
+	if(!(findtext(lines[1], "looked") || findtext(lines[1], "No idea") || findtext(lines[1], "Couldn't say")))
+		fail_reason = "answered \"[said_line]\" with \"[lines[1]]\", which it can't know from here"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/chat/status_question/medbay
+	name = "speech: \"is medbay open?\" over Common gets \"haven't looked\" from a doctor who isn't in Medbay"
+	job = "Medical Doctor"
+	said_line = "is medbay open?"
+
+/datum/bot_scenario/chat/status_question/not_theirs
+	name = "speech: \"how's the engine?\" over Common isn't answered by an assistant"
+	desc = "Somebody with nothing to do with the engine hears the question and says nothing."
+	job = "Assistant"
+	expect_answer = FALSE

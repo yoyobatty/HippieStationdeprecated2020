@@ -705,7 +705,10 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 /datum/bot_request_kind/let_out/matches(lower_msg, named, turf/near)
 	if(bot_text_has_any(lower_msg, list("let me out", "let me in", "let me into", "let me through", "locked in", "shut in", "stuck in", "trapped in", "open the door", "open this door", "get the door", "door open", "please open", "open please", "open up", "can someone open", "could someone open", "can you open", "could you open", "somebody open", "someone open", "unlock the door", "need in", "need to get in")))
 		return TRUE
-	// "Open genetics", "genetics, open up": a door and a place in the one line.
+	// "Open genetics", "genetics, open up": a door and a place in the one line. Not "is medbay open?", which asks whether it's open for business
+	// (a doctor took it for somebody wanting a door opened and said nothing).
+	if(copytext(lower_msg, 1, 4) == "is " || copytext(lower_msg, 1, 5) == "are " || copytext(lower_msg, 1, 7) == "isn't ")
+		return FALSE
 	return bot_text_has_any(lower_msg, list("open")) && !!bot_area_named(lower_msg, near)
 
 /datum/bot_request_kind/let_out/heard_by(datum/bot_brain/bot, named)

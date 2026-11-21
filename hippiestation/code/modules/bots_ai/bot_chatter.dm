@@ -283,6 +283,8 @@ GLOBAL_LIST_INIT(bot_you_words, list("you", "ya", "u", "your", "you're", "youre"
 		return
 	if(answer_roll_call(talker, lower_msg, radio_freq)) //"anyone in cargo?", "any doctor about?": a Cargo Technician says it's here (bot_conversation.dm)
 		return
+	if(answer_status_question(talker, lower_msg, radio_freq)) //"how's the engine?", "medbay, status?": from what it can see where it is (bot_conversation.dm)
+		return
 	// Over the radio it only answers to its name - half the station isn't talking to it.
 	var/addressed = named || (!radio_freq && is_spoken_to_by(talker))
 	if(!addressed && answer_whereabouts(talker, lower_msg, radio_freq)) //"where's Max?" to everybody, by somebody who can see them
@@ -1433,20 +1435,32 @@ GLOBAL_LIST_EMPTY(bot_news)
 		news_known.Cut(1, 6)
 
 /// Something for the crew to talk about, in the words they'd use, with no capital or full stop: it goes in the middle of a sentence.
-/proc/bot_news(what, mob/living/about)
+/// `about` is who it's about (those who can see them know), `place` where it happened and `hear_range` how far off it's heard (a blast, a shout; not in space), `told`
+/// those who've been passed word of it. With none of the three, it went round the station and everybody has it.
+/proc/bot_news(what, mob/living/about, atom/place, hear_range = 15, list/told)
 	for(var/list/old as anything in GLOB.bot_news)
 		if(old[1] == what)
 			return
 	GLOB.bot_news += list(list(what, world.time, about ? WEAKREF(about) : null))
 	if(length(GLOB.bot_news) > 30)
 		GLOB.bot_news.Cut(1, 2)
-	// Of somebody: those who can see them, and they themselves, know. Of something that went round the station (an explosion, a smell of smoke in
-	// the engine): everybody does.
+	// Of somebody: those who can see them, and they themselves, know. Of something that happened somewhere: those within earshot of it. Of something
+	// that went round the station: everybody does.
+	var/turf/at = place ? get_turf(place) : null
+	for(var/datum/bot_brain/B as anything in told)
+		if(!QDELETED(B))
+			B.learn_news(what)
 	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
 		if(QDELETED(B) || QDELETED(B.owner))
 			continue
-		if(!about || B.owner == about || (B.owner.z == about.z && get_dist(B.owner, about) <= 7 && (about in view(7, B.owner))))
+		if(!about && !at && !length(told))
 			B.learn_news(what)
+		else if(about && (B.owner == about || (B.owner.z == about.z && get_dist(B.owner, about) <= 7 && (about in view(7, B.owner)))))
+			B.learn_news(what)
+		else if(at)
+			var/turf/mine = get_turf(B.owner)
+			if(mine && mine.z == at.z && get_dist(mine, at) <= hear_range && !isspaceturf(mine))
+				B.learn_news(what)
 
 /// Something from the last ten minutes, that isn't about the bot it's being said to. Asked for gossip, something it hasn't been over already.
 /datum/bot_brain/proc/latest_news(mob/living/company, fresh_only = FALSE)

@@ -330,6 +330,96 @@ GLOBAL_LIST_EMPTY(bot_radio_hello_answered)
 			continue
 		. += lowertext(J.title)
 
+/// How a department's doing, asked over the radio or to a room: what each word in the question is about.
+GLOBAL_LIST_INIT(bot_status_topics, list(
+	"engine" = "engineering", "supermatter" = "engineering", "crystal" = "engineering", "singularity" = "engineering", "tesla" = "engineering", "smes" = "engineering", "engineering" = "engineering",
+	"medbay" = "medical", "medical" = "medical", "brig" = "security", "cells" = "security", "science" = "science", "toxins" = "science", "research" = "science", "cargo" = "supply"))
+/// The department -> where it is, and what the crew call it
+GLOBAL_LIST_INIT(bot_status_places, list("engineering" = list(/area/engine, "Engineering"), "medical" = list(/area/medical, "Medbay"), "security" = list(/area/security, "Security"),
+	"science" = list(/area/science, "Science"), "supply" = list(/area/quartermaster, "Cargo")))
+/// talker REF + department -> until when somebody's answered how it's doing
+GLOBAL_LIST_EMPTY(bot_status_answered)
+
+/// "How's the engine?", "medbay, status?", "is medbay open?": somebody who works in that department answers, from what it can see where it is. In the department
+/// it says how things are (shop_talk_now()); anywhere else it says it hasn't looked, and goes to look if it's free to. It said nothing, or what it'd got no way of knowing.
+/datum/bot_brain/proc/answer_status_question(mob/living/talker, lower_msg, radio_freq)
+	if(!ishuman(talker) || gone_loud() || length(lower_msg) > 60)
+		return FALSE
+	if(!(findtext(lower_msg, "?") || bot_text_has_any(lower_msg, list("status"))))
+		return FALSE
+	if(bot_text_has_any(lower_msg, list("where", "who", "why", "need", "help", "can you", "could you", "come ", "anyone in", "anybody in", "any ")))
+		return FALSE
+	if(!bot_text_has_any(lower_msg, list("how's", "hows", "how is", "how are", "status", "everything ok", "everything okay", "all ok", "all good", "stable", "holding", "open", "busy", "quiet", "empty", "full", " ok", " okay", "alright", " fine")))
+		return FALSE
+	var/dept
+	var/topic
+	for(var/word in GLOB.bot_status_topics)
+		if((!topic || length(word) > length(topic)) && bot_text_has_any(lower_msg, list(word)))
+			topic = word
+			dept = GLOB.bot_status_topics[word]
+	if(!dept || department() != dept)
+		return FALSE
+	var/key = "[REF(talker)]|[dept]"
+	if(world.time < GLOB.bot_status_answered[key])
+		return TRUE //one of its department has it
+	if(world.time < next_answer_time || !prob(85 + 15 * sociability))
+		return FALSE
+	GLOB.bot_status_answered[key] = world.time + 30 SECONDS
+	if(length(GLOB.bot_status_answered) > 20)
+		GLOB.bot_status_answered.Cut(1, 11)
+	next_answer_time = world.time + 25
+	var/prefix = bot_radio_prefix(radio_freq)
+	var/list/place = GLOB.bot_status_places[dept]
+	if(istype(get_area(owner), place[1]))
+		var/list/fact = shop_talk_now()
+		say_after_typing(prefix + (fact ? fact[1] : pick("All quiet in here.", "Nothing to report.")))
+		bot_log(src, "said how [dept] is, from inside it")
+		return TRUE
+	var/turf/spot = look_spot(place[1])
+	if(spot && state == BOT_STATE_WANDER && !current_goal && !gym_scripted && !goal_chain_pending && assign_goal(new /datum/bot_goal/check_on(spot, radio_freq)))
+		say_after_typing(prefix + pick("Haven't looked. I'll go and have a look.", "Not sure, I'm not in [place[2]] right now. Going to look.", "No idea, I haven't looked. Give me a minute, I'll go and see."))
+		bot_log(src, "said it hadn't looked at [dept], and went to")
+		return TRUE
+	say_after_typing(prefix + pick("Haven't looked, I'm not in [place[2]] right now.", "Couldn't say, I haven't looked.", "No idea, I'm not in [place[2]] at the moment."))
+	bot_log(src, "said it hadn't looked at [dept]")
+	return TRUE
+
+/// The nearest open floor in a department's area on this level, or null.
+/datum/bot_brain/proc/look_spot(area_type)
+	var/turf/best
+	var/best_dist
+	for(var/area/A as anything in GLOB.sortedAreas)
+		if(!istype(A, area_type))
+			continue
+		var/turf/T = nearest_spot_in(A)
+		if(T && (!best || get_dist(owner, T) < best_dist))
+			best = T
+			best_dist = get_dist(owner, T)
+	return best
+
+/// Going to see how a department is, for somebody who asked: says what it finds when it gets there.
+/datum/bot_goal/check_on
+	lawful = TRUE
+	doing = "going to have a look at something"
+	var/turf/spot
+	var/radio_freq
+
+/datum/bot_goal/check_on/New(turf/T, freq)
+	. = ..()
+	spot = T
+	target = T
+	radio_freq = freq
+
+/datum/bot_goal/check_on/resolve_target(datum/bot_brain/bot)
+	target = spot
+
+/datum/bot_goal/check_on/get_strategies(datum/bot_brain/bot)
+	return list(new /datum/bot_strategy/respond_to_call())
+
+/datum/bot_goal/check_on/on_success(datum/bot_brain/bot)
+	var/list/fact = bot.shop_talk_now()
+	bot.say_after_typing(bot_radio_prefix(radio_freq) + (fact ? fact[1] : pick("All quiet.", "Looks fine.", "Nothing wrong that I can see.")))
+
 /// Who's been told what jobs are open lately: talker REF -> until when
 GLOBAL_LIST_EMPTY(bot_jobs_open_answered)
 
