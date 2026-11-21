@@ -975,6 +975,14 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 			if(W && W.severity >= BOT_CRIME_MAJOR)
 				continue //on the other side of this
 			return TRUE
+	// A colleague closing in on them, a step or two off: the next second they're beside them or in front of the muzzle. Officers shot each
+	// other on stun, and now and then on laser, one or two a shift (tools/bot_gym/stray_fire.py: 24 and 14 strays in 421 and 366 hits in two
+	// batches, half of them on a colleague), each one at a man somebody else was already going in on. Not at somebody dangerous (a suit, an
+	// operative, a gun), who is shot at with the whole team round them.
+	if(!bot_too_dangerous(target))
+		for(var/mob/living/carbon/human/H in range(2, target))
+			if(H != owner && H != target && H.stat != DEAD && get_dist(H, mine) > 1 && bot_is_officer(H))
+				return TRUE
 	return FALSE
 
 /datum/bot_brain/proc/try_taser(mob/living/carbon/human/S)

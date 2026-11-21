@@ -301,3 +301,52 @@
 		fail_reason = "set the cuffs down on the floor for a pickup it passed"
 		return BOT_GYM_FAIL
 	return world.time > start_time + 5 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// Not firing past a colleague going in
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/officer_colleague_going_in
+	name = "security: an officer's shot at somebody with a colleague two steps from them isn't a clear one"
+	desc = "Shift batches play1114b and gen1116f: officers hit each other with stun shots (and a laser now and then), one or two a shift, at somebody another officer was already going in on, a tile or two off the line. has_clear_shot() asked straight out: a colleague within two tiles of the target is in the way, a crewman there or nobody isn't (a crewman off the line is still crew_in_the_way's own business, and the same man three tiles off is neither)."
+	job = "Security Officer"
+	layout = list(
+		"###########",
+		"#B.......C#",
+		"#.........#",
+		"#.......O.#",
+		"#.....N...#",
+		"###########")
+	time_limit = 6 SECONDS
+	var/mob/living/carbon/human/target
+	var/mob/living/carbon/human/colleague
+	var/mob/living/carbon/human/crew
+	var/asked = FALSE
+
+/datum/bot_scenario/officer_colleague_going_in/issue_goal()
+	return
+
+/datum/bot_scenario/officer_colleague_going_in/post_spawn()
+	brain.register_security()
+	target = stand_in(first_marker("C"), "Tim Target")
+	colleague = stand_in(first_marker("O"), "Officer Oliver")
+	colleague.mind_initialize()
+	colleague.mind.assigned_role = "Security Officer"
+	crew = stand_in(first_marker("N"), "Cora Crew")
+	crew.mind_initialize()
+	crew.mind.assigned_role = "Assistant"
+
+/datum/bot_scenario/officer_colleague_going_in/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!asked)
+		asked = TRUE
+		if(brain.has_clear_shot(target))
+			fail_reason = "a colleague two steps from the target, and the shot's called clear"
+			return BOT_GYM_FAIL
+		colleague.forceMove(locate(bot.x + 1, bot.y + 2, bot.z)) //the control: the colleague well off now, and the crewman (off the line, three tiles off) still there
+		return BOT_GYM_PENDING
+	if(!brain.has_clear_shot(target))
+		fail_reason = "nobody within two tiles of the target and the shot's still not clear"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
