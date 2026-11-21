@@ -728,3 +728,117 @@
 		if(T.air_contents.moles[/datum/gas/plasma] >= 28)
 			return BOT_GYM_PASS
 	return BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// Breathing in a sealed suit
+// ---------------------------------------------------------------------------------------------
+
+/// Bots in a nanosuit (helmet and mask on, tank in the suit slot) died of pure suffocation in normal air in the early batch of 2026-11-21.
+/datum/bot_scenario/sealed_suit_breathes
+	name = "suits: a bot in a sealed nanosuit in good air doesn't suffocate"
+	desc = "The bot puts on a nanosuit (helmet, mask and tank come with it), stands about in a room with normal air for a minute, and takes no suffocation damage."
+	job = "Assistant"
+	layout = list(
+		"#######",
+		"#B....#",
+		"#######")
+	time_limit = 90 SECONDS
+	var/next_note = 0
+
+/datum/bot_scenario/sealed_suit_breathes/issue_goal()
+	return
+
+/datum/bot_scenario/sealed_suit_breathes/post_spawn()
+	var/obj/item/storage/box/syndie_kit/nanosuit/kit = new(get_turf(bot))
+	bot.put_in_hands(kit)
+	INVOKE_ASYNC(brain, TYPE_PROC_REF(/datum/bot_brain, put_on_nanosuit))
+
+/datum/bot_scenario/sealed_suit_breathes/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time >= next_note)
+		next_note = world.time + 5 SECONDS
+		var/turf/here = get_turf(bot)
+		var/datum/gas_mixture/env = here.return_air()
+		var/pressure = env ? round(env.return_pressure()) : -1
+		log_line("oxy [bot.getOxyLoss()], internal [bot.internal], losebreath [bot.losebreath], health [bot.health], mask [bot.wear_mask], head [bot.head], air [pressure] kPa, lungs [bot.getorganslot(ORGAN_SLOT_LUNGS)]")
+	if(bot.getOxyLoss() > 10)
+		fail_reason = "took [bot.getOxyLoss()] suffocation damage in a nanosuit"
+		return BOT_GYM_FAIL
+	return world.time >= start_time + 60 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// What a doctor does for somebody in crit who's got a mask on: it won't breathe for them through it (do_cpr()), so it comes off first.
+/// The doctors' first aid skipped CPR for anybody with their mouth covered, a breath mask included, and every bot goes about with one.
+/datum/bot_scenario/griefed/first_aid/masked
+	name = "a doctor with no sleeper for somebody in crit in a breath mask takes the mask off and gives them CPR"
+	desc = "The same suffocating patient, with a breath mask on. CPR can't be given through it, and the doctor used to leave them to it: pen and patches for wounds they hadn't got, and the patient died. It takes the mask off and breathes for them."
+
+/datum/bot_scenario/griefed/first_aid/masked/grief()
+	griefer.equip_to_slot_or_del(new /obj/item/clothing/mask/breath(griefer), ITEM_SLOT_MASK)
+	..()
+
+/// And where the air is too thin to breathe, the same sealed gear has its valve opened. Nothing to fix (the early batch's suffocation
+/// deaths in good air were crit, not internals), kept so that it stays that way.
+/datum/bot_scenario/sealed_gear_valve
+	name = "suits: in a sealed helmet and mask in air too thin to breathe, it opens the valve on its tank"
+	desc = "An assistant in a space helmet and a breath mask, an emergency tank on the belt, and air all round too thin to breathe. It turns its internals on within seconds and takes no suffocation damage."
+	job = "Assistant"
+	layout = list(
+		"#######",
+		"#B....#",
+		"#######")
+	time_limit = 30 SECONDS
+
+/datum/bot_scenario/sealed_gear_valve/issue_goal()
+	return
+
+/datum/bot_scenario/sealed_gear_valve/setup()
+	for(var/turf/open/F in markers["B"] + markers["."])
+		F.air.parse_gas_string("o2=6;n2=82;TEMP=293.15")
+		F.update_visuals()
+		SSair.add_to_active(F)
+
+/datum/bot_scenario/sealed_gear_valve/post_spawn()
+	bot.equip_to_slot_or_del(new /obj/item/clothing/head/helmet/space/eva(bot), ITEM_SLOT_HEAD)
+	bot.equip_to_slot_or_del(new /obj/item/clothing/mask/breath(bot), ITEM_SLOT_MASK)
+	bot.equip_to_slot_or_del(new /obj/item/tank/internals/emergency_oxygen(bot), ITEM_SLOT_BELT)
+
+/datum/bot_scenario/sealed_gear_valve/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	brain.mind_air_supply() //a scripted gym bot between goals only minds a refill job's valve: this is the once-a-second call a bot in a round makes (bot_brain.dm process())
+	if(bot.getOxyLoss() > 20)
+		fail_reason = "took [bot.getOxyLoss()] suffocation damage in a sealed helmet and mask with a tank on it"
+		return BOT_GYM_FAIL
+	if(bot.internal && world.time >= start_time + 10 SECONDS)
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/// The fill cut short (a fight, a shout, anything that pulls it off the goal): the tank's left in the canister with the valve open. It
+/// goes back for it, as it does for the tank off its own back (goals/refill_internals.dm).
+/datum/bot_scenario/duty/traitor/plasma_tank/fill/cut_short
+	name = "traitor: a plasma fill cut short leaves the tank in the canister, and it goes back and takes it out"
+	desc = "The traitor starts filling a plasma tank at the canister and is pulled off it a few seconds in. The tank is left in the canister with the valve open. It goes back, shuts the valve and takes the tank out."
+	var/cut = FALSE
+	var/next_retrieve = 0
+
+/datum/bot_scenario/duty/traitor/plasma_tank/fill/cut_short/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/machinery/portable_atmospherics/canister/can = locate() in view(20, bot)
+	if(!cut)
+		if(can?.holding)
+			cut = TRUE
+			brain.drop_goals("the gym calls it off")
+		return BOT_GYM_PENDING
+	if(can?.holding)
+		if(world.time >= next_retrieve)
+			next_retrieve = world.time + 3 SECONDS
+			brain.try_refill_internals_round() //what a bot between errands does every few seconds (bot_brain.dm handle_wander()), which a scripted gym bot doesn't
+		return BOT_GYM_PENDING
+	for(var/obj/item/tank/internals/plasma/T in bot.GetAllContents())
+		if(can?.valve_open)
+			fail_reason = "took the tank out and left the valve open"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING

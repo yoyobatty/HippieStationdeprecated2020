@@ -42,7 +42,7 @@ GLOBAL_LIST_EMPTY(bot_runes_reported)
 		GLOB.bot_runes_reported[REF(R)] = world.time
 		GLOB.bot_runes_to_clean += WEAKREF(R)
 		var/where = get_area_name(R, TRUE)
-		bot_news("somebody's been drawing blood runes in [where]")
+		bot_news("somebody's been drawing blood runes in [where]", null, R, 7) //seen by whoever was by it
 		bot_tally("runes reported")
 		bot_log(src, "saw a rune in [where]: calling it in")
 		bot_say(owner, ";[pick("Sec, there's blood runes in [where].", "Security! Somebody's drawn cult runes in [where].", "Cult runes in [where]. Somebody get the chaplain.")]")

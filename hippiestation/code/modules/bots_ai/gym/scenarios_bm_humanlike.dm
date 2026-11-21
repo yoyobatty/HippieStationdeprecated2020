@@ -721,3 +721,43 @@
 	..()
 	qdel(bot.belt)
 	bot.equip_to_slot_or_del(new /obj/item/gun/energy/kinetic_accelerator(bot), ITEM_SLOT_BELT)
+
+// ---------------------------------------------------------------------------------------------
+// Machine steps that put a disk in and take it out in the same tick, a purchase right after a hand is emptied, the toolbelt case
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/fixes1112/nanite_disk_hands_full/with_a_beat
+	name = "hands: both hands full at the nanite machines, the disk goes in, the program downloads and the disk comes out a moment apart"
+	desc = "A hand is emptied for the blank disk, and the disk is put in the hub, downloaded to and ejected, then put in the cloud and ejected, each a click of its own: they were all in one tick (instant_swap x3)."
+	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_swap")
+
+/datum/bot_scenario/fixes1112/ae_duty/traitor/keeps_its_kit/with_a_beat
+	name = "hands: both hands and the bag full, a traitor puts something down and buys what it needs a moment after"
+	desc = "A hand is emptied for what the uplink gives, and the purchase is the next click, not the same tick."
+	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_swap")
+
+/// A toolbelt on the belt: nobody swaps it for the webbing. The webbing is put down and the capsule out of it goes in the bag.
+/datum/bot_scenario/mining_points/pda_on_belt/toolbelt
+	name = "miner: with a toolbelt on its belt, the capsule comes out of the voucher's webbing and the webbing is left"
+	desc = "The webbing had no place and stayed in the miner's hand for the shift, dropped on every shuttle ride. A toolbelt stays on the belt; the capsule, the only thing in the webbing a miner wants, goes in the bag and the webbing is put down."
+
+/datum/bot_scenario/mining_points/pda_on_belt/toolbelt/post_spawn()
+	..()
+	qdel(bot.belt)
+	bot.equip_to_slot_or_del(new /obj/item/storage/belt/utility(bot), ITEM_SLOT_BELT)
+
+/datum/bot_scenario/mining_points/pda_on_belt/toolbelt/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(card))
+		fail_reason = "its card's gone"
+		return BOT_GYM_FAIL
+	if(card.mining_points != 100 || machine.points) //1,500 less the scanner (800) and the kit (600)
+		return BOT_GYM_PENDING
+	if(brain.find_carried_tool(/obj/item/storage/belt/mining/vendor))
+		fail_reason = "still carrying the webbing it has no place for"
+		return BOT_GYM_FAIL
+	if(!brain.find_carried_tool(/obj/item/survivalcapsule))
+		fail_reason = "left the capsule in the webbing"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

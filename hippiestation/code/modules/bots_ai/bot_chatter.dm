@@ -218,6 +218,8 @@ GLOBAL_LIST_INIT(bot_you_words, list("you", "ya", "u", "your", "you're", "youre"
 		talker = V.source
 	if(!isliving(talker) || talker == owner)
 		return
+	if(!ishuman(talker) && !issilicon(talker) && !talker.client)
+		return //a parrot or a mouse isn't somebody to answer, whatever it's picked up to say
 	if(!istype(speaker, /atom/movable/virtualspeaker) || get_dist(owner, talker) <= 7)
 		bot_heard_apology(talker, lowertext(raw_message)) //bot_witness.dm: an accident said sorry for
 	if(heard_codeword(talker, lowertext(raw_message))) //goals/robust.dm: other traitors' words count, bots or not
@@ -251,7 +253,9 @@ GLOBAL_LIST_INIT(bot_you_words, list("you", "ya", "u", "your", "you're", "youre"
 	var/named = called || in_conversation_with(talker)
 	if(!called && greeting_for_somebody_else(lower_msg)) //"hey peter" is Peter's to answer, not whoever else is stood there
 		return
-	if(world.time < access_asked_until && access_asker?.resolve() == talker) //what they want the access for
+	// What they want the access for. The next thing they say, unless it's something else: "hop, are you there?", "can i have a new job?"
+	// were taken for the answer and got "Access to what?" and "What do you need it for?" again.
+	if(world.time < access_asked_until && access_asker?.resolve() == talker && bot_is_answer_about_access(lower_msg))
 		access_asked_until = 0
 		consider_access_request(talker, lower_msg, radio_freq)
 		return
@@ -275,7 +279,11 @@ GLOBAL_LIST_INIT(bot_you_words, list("you", "ya", "u", "your", "you're", "youre"
 	// reach, answered it (the user's "Ai where is emery", twice: round-12.20.48.49 and round-14.43.45).
 	if(title_jobs && (("AI" in title_jobs) || ("Cyborg" in title_jobs)) && bot_silicon_addressed(lower_msg, list("ai", "ais", "borg", "borgs", "cyborg", "cyborgs"))) //goals/silicon.dm
 		return
+	if(answer_jobs_open(talker, lower_msg, radio_freq)) //"which jobs are open?": the HoP, from the job slots (bot_conversation.dm)
+		return
 	if(answer_roll_call(talker, lower_msg, radio_freq)) //"anyone in cargo?", "any doctor about?": a Cargo Technician says it's here (bot_conversation.dm)
+		return
+	if(answer_status_question(talker, lower_msg, radio_freq)) //"how's the engine?", "medbay, status?": from what it can see where it is (bot_conversation.dm)
 		return
 	// Over the radio it only answers to its name - half the station isn't talking to it.
 	var/addressed = named || (!radio_freq && is_spoken_to_by(talker))
@@ -1427,20 +1435,32 @@ GLOBAL_LIST_EMPTY(bot_news)
 		news_known.Cut(1, 6)
 
 /// Something for the crew to talk about, in the words they'd use, with no capital or full stop: it goes in the middle of a sentence.
-/proc/bot_news(what, mob/living/about)
+/// `about` is who it's about (those who can see them know), `place` where it happened and `hear_range` how far off it's heard (a blast, a shout; not in space), `told`
+/// those who've been passed word of it. With none of the three, it went round the station and everybody has it.
+/proc/bot_news(what, mob/living/about, atom/place, hear_range = 15, list/told)
 	for(var/list/old as anything in GLOB.bot_news)
 		if(old[1] == what)
 			return
 	GLOB.bot_news += list(list(what, world.time, about ? WEAKREF(about) : null))
 	if(length(GLOB.bot_news) > 30)
 		GLOB.bot_news.Cut(1, 2)
-	// Of somebody: those who can see them, and they themselves, know. Of something that went round the station (an explosion, a smell of smoke in
-	// the engine): everybody does.
+	// Of somebody: those who can see them, and they themselves, know. Of something that happened somewhere: those within earshot of it. Of something
+	// that went round the station: everybody does.
+	var/turf/at = place ? get_turf(place) : null
+	for(var/datum/bot_brain/B as anything in told)
+		if(!QDELETED(B))
+			B.learn_news(what)
 	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
 		if(QDELETED(B) || QDELETED(B.owner))
 			continue
-		if(!about || B.owner == about || (B.owner.z == about.z && get_dist(B.owner, about) <= 7 && (about in view(7, B.owner))))
+		if(!about && !at && !length(told))
 			B.learn_news(what)
+		else if(about && (B.owner == about || (B.owner.z == about.z && get_dist(B.owner, about) <= 7 && (about in view(7, B.owner)))))
+			B.learn_news(what)
+		else if(at)
+			var/turf/mine = get_turf(B.owner)
+			if(mine && mine.z == at.z && get_dist(mine, at) <= hear_range && !isspaceturf(mine))
+				B.learn_news(what)
 
 /// Something from the last ten minutes, that isn't about the bot it's being said to. Asked for gossip, something it hasn't been over already.
 /datum/bot_brain/proc/latest_news(mob/living/company, fresh_only = FALSE)

@@ -314,6 +314,139 @@ GLOBAL_LIST_EMPTY(bot_station_answered)
 /// Who's been said hello back to over the radio lately: REF -> until when
 GLOBAL_LIST_EMPTY(bot_radio_hello_answered)
 
+/// Whether what somebody says to a HoP who's just asked what the access is for is the answer: a short line that's no question and no new business.
+/proc/bot_is_answer_about_access(lower_msg)
+	if(findtext(lower_msg, "?") || length(splittext(lower_msg, " ")) > 9)
+		return FALSE
+	return !bot_text_has_any(lower_msg, list("hello", "hey", "new job", "job", "promotion", "my id", "new id", "broken", "are you there", "you there"))
+
+/// What jobs have a slot open, as the ID console lists them: not the heads, assistants, the AI or the borgs.
+/proc/bot_open_jobs()
+	. = list()
+	for(var/datum/job/J as anything in SSjob.occupations)
+		if(J.total_positions <= 0 || J.current_positions >= J.total_positions)
+			continue
+		if((J.title in GLOB.command_positions) || (J.title in list("Assistant", "AI", "Cyborg")))
+			continue
+		. += lowertext(J.title)
+
+/// How a department's doing, asked over the radio or to a room: what each word in the question is about.
+GLOBAL_LIST_INIT(bot_status_topics, list(
+	"engine" = "engineering", "supermatter" = "engineering", "crystal" = "engineering", "singularity" = "engineering", "tesla" = "engineering", "smes" = "engineering", "engineering" = "engineering",
+	"medbay" = "medical", "medical" = "medical", "brig" = "security", "cells" = "security", "science" = "science", "toxins" = "science", "research" = "science", "cargo" = "supply"))
+/// The department -> where it is, and what the crew call it
+GLOBAL_LIST_INIT(bot_status_places, list("engineering" = list(/area/engine, "Engineering"), "medical" = list(/area/medical, "Medbay"), "security" = list(/area/security, "Security"),
+	"science" = list(/area/science, "Science"), "supply" = list(/area/quartermaster, "Cargo")))
+/// talker REF + department -> until when somebody's answered how it's doing
+GLOBAL_LIST_EMPTY(bot_status_answered)
+
+/// "How's the engine?", "medbay, status?", "is medbay open?": somebody who works in that department answers, from what it can see where it is. In the department
+/// it says how things are (shop_talk_now()); anywhere else it says it hasn't looked, and goes to look if it's free to. It said nothing, or what it'd got no way of knowing.
+/datum/bot_brain/proc/answer_status_question(mob/living/talker, lower_msg, radio_freq)
+	if(!ishuman(talker) || gone_loud() || length(lower_msg) > 60)
+		return FALSE
+	if(!(findtext(lower_msg, "?") || bot_text_has_any(lower_msg, list("status"))))
+		return FALSE
+	if(bot_text_has_any(lower_msg, list("where", "who", "why", "need", "help", "can you", "could you", "come ", "anyone in", "anybody in", "any ")))
+		return FALSE
+	if(!bot_text_has_any(lower_msg, list("how's", "hows", "how is", "how are", "status", "everything ok", "everything okay", "all ok", "all good", "stable", "holding", "open", "busy", "quiet", "empty", "full", " ok", " okay", "alright", " fine")))
+		return FALSE
+	var/dept
+	var/topic
+	for(var/word in GLOB.bot_status_topics)
+		if((!topic || length(word) > length(topic)) && bot_text_has_any(lower_msg, list(word)))
+			topic = word
+			dept = GLOB.bot_status_topics[word]
+	if(!dept || department() != dept)
+		return FALSE
+	var/key = "[REF(talker)]|[dept]"
+	if(world.time < GLOB.bot_status_answered[key])
+		return TRUE //one of its department has it
+	if(world.time < next_answer_time || !prob(85 + 15 * sociability))
+		return FALSE
+	GLOB.bot_status_answered[key] = world.time + 30 SECONDS
+	if(length(GLOB.bot_status_answered) > 20)
+		GLOB.bot_status_answered.Cut(1, 11)
+	next_answer_time = world.time + 25
+	var/prefix = bot_radio_prefix(radio_freq)
+	var/list/place = GLOB.bot_status_places[dept]
+	if(istype(get_area(owner), place[1]))
+		var/list/fact = shop_talk_now()
+		say_after_typing(prefix + (fact ? fact[1] : pick("All quiet in here.", "Nothing to report.")))
+		bot_log(src, "said how [dept] is, from inside it")
+		return TRUE
+	var/turf/spot = look_spot(place[1])
+	if(spot && state == BOT_STATE_WANDER && !current_goal && !gym_scripted && !goal_chain_pending && assign_goal(new /datum/bot_goal/check_on(spot, radio_freq)))
+		say_after_typing(prefix + pick("Haven't looked. I'll go and have a look.", "Not sure, I'm not in [place[2]] right now. Going to look.", "No idea, I haven't looked. Give me a minute, I'll go and see."))
+		bot_log(src, "said it hadn't looked at [dept], and went to")
+		return TRUE
+	say_after_typing(prefix + pick("Haven't looked, I'm not in [place[2]] right now.", "Couldn't say, I haven't looked.", "No idea, I'm not in [place[2]] at the moment."))
+	bot_log(src, "said it hadn't looked at [dept]")
+	return TRUE
+
+/// The nearest open floor in a department's area on this level, or null.
+/datum/bot_brain/proc/look_spot(area_type)
+	var/turf/best
+	var/best_dist
+	for(var/area/A as anything in GLOB.sortedAreas)
+		if(!istype(A, area_type))
+			continue
+		var/turf/T = nearest_spot_in(A)
+		if(T && (!best || get_dist(owner, T) < best_dist))
+			best = T
+			best_dist = get_dist(owner, T)
+	return best
+
+/// Going to see how a department is, for somebody who asked: says what it finds when it gets there.
+/datum/bot_goal/check_on
+	lawful = TRUE
+	doing = "going to have a look at something"
+	var/turf/spot
+	var/radio_freq
+
+/datum/bot_goal/check_on/New(turf/T, freq)
+	. = ..()
+	spot = T
+	target = T
+	radio_freq = freq
+
+/datum/bot_goal/check_on/resolve_target(datum/bot_brain/bot)
+	target = spot
+
+/datum/bot_goal/check_on/get_strategies(datum/bot_brain/bot)
+	return list(new /datum/bot_strategy/respond_to_call())
+
+/datum/bot_goal/check_on/on_success(datum/bot_brain/bot)
+	var/list/fact = bot.shop_talk_now()
+	bot.say_after_typing(bot_radio_prefix(radio_freq) + (fact ? fact[1] : pick("All quiet.", "Looks fine.", "Nothing wrong that I can see.")))
+
+/// Who's been told what jobs are open lately: talker REF -> until when
+GLOBAL_LIST_EMPTY(bot_jobs_open_answered)
+
+/// "Which jobs are open?", "any jobs going?", "can i have a new job?": the Head of Personnel reads the job slots the way a player would at the ID console and says
+/// which are free ("Beats me." from the HoP, and "What do you need it for?" as if it were a request for access).
+/datum/bot_brain/proc/answer_jobs_open(mob/living/talker, lower_msg, radio_freq)
+	if(work_role() != "Head of Personnel" || !ishuman(talker) || gone_loud() || length(lower_msg) > 60)
+		return FALSE
+	if(!bot_text_has_any(lower_msg, list("which jobs", "what jobs", "any jobs", "jobs open", "open jobs", "job openings", "any slots", "job slots", "vacancies", "new job", "different job", "change jobs", "change my job", "job change", "need a job", "want a job", "promotion", "promote me")))
+		return FALSE
+	var/key = REF(talker)
+	if(world.time < GLOB.bot_jobs_open_answered[key] || world.time < next_answer_time)
+		return TRUE
+	GLOB.bot_jobs_open_answered[key] = world.time + 15 SECONDS
+	if(length(GLOB.bot_jobs_open_answered) > 20)
+		GLOB.bot_jobs_open_answered.Cut(1, 11)
+	next_answer_time = world.time + 25
+	var/list/open = bot_open_jobs()
+	if(length(open) > 5)
+		open.Cut(6)
+	if(!radio_freq && !pursuing_kind)
+		owner.face_atom(talker)
+	talking_to(talker)
+	say_after_typing(bot_radio_prefix(radio_freq) + (length(open) ? pick("Open right now: [english_list(open)].", "[capitalize(english_list(open))] are open.", "Slots open for [english_list(open)].") : pick("Nothing open, everything's filled.", "All the slots are full right now.")))
+	bot_log(src, "told [talker] what jobs are open: [english_list(open)]")
+	return TRUE
+
 /// Who's had a roll call answered lately ("anyone in cargo?"): talker REF + the trade -> until when
 GLOBAL_LIST_EMPTY(bot_roll_call_answered)
 

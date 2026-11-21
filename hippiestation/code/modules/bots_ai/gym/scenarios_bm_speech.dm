@@ -1218,3 +1218,213 @@
 		fail_reason = "talked of the state of its department from the wrong side of the station: \"[fact[1]]\""
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+// ---------------------------------------------------------------------------------------------
+// Second pass: Security named as a place, animals, the HoP
+// ---------------------------------------------------------------------------------------------
+
+/// "On my way to Sec office with the mop." (a janitor's line) sent an officer to it: "sec" in about 10 of 1262 calls answered in the shift batches.
+/datum/bot_scenario/chat/place_not_call
+	name = "speech: \"on my way to sec office with the mop\" isn't a call for Security"
+	desc = "Security named as a place, not called. The officer doesn't respond. Before: \"Responding to a call\"."
+	job = "Security Officer"
+	layout = list(
+		"#########",
+		"#B.....C#",
+		"#########")
+	time_limit = 18 SECONDS
+	var/said_line = "on my way to sec office with the mop"
+	var/expect_call = FALSE
+
+/datum/bot_scenario/chat/place_not_call/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(ask)), 2 SECONDS)
+
+/datum/bot_scenario/chat/place_not_call/proc/ask()
+	log_line("visitor (over Common): \"[said_line]\"")
+	brain.on_heard_security_call(visitor, said_line, FREQ_COMMON)
+
+/datum/bot_scenario/chat/place_not_call/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 12 SECONDS)
+		return BOT_GYM_PENDING
+	var/answered = FALSE
+	for(var/line in spoken())
+		if(findtext(line, "Responding to a call"))
+			answered = TRUE
+	if(answered && !expect_call)
+		fail_reason = "answered a line naming Security as a place as a call"
+		return BOT_GYM_FAIL
+	if(!answered && expect_call)
+		fail_reason = "didn't answer a call for Security"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/chat/place_not_call/control
+	name = "speech: \"sec to the bar\" is still a call for Security"
+	desc = "The same officer, a line that does call it."
+	said_line = "sec to the bar please"
+	expect_call = TRUE
+
+/// Poly picks up what the crew say and repeats it: ";Security help!" from a parrot sent officers to the parrot.
+/datum/bot_scenario/chat/parrot_calls
+	name = "speech: a parrot saying \"security help\" isn't a call, and nobody says hello back to it"
+	desc = "A parrot repeats what it's heard. The officer neither responds to it nor answers it."
+	job = "Security Officer"
+	layout = list(
+		"#########",
+		"#B.....C#",
+		"#########")
+	time_limit = 18 SECONDS
+	var/mob/living/simple_animal/parrot/parrot
+
+/datum/bot_scenario/chat/parrot_calls/post_spawn()
+	..()
+	parrot = new(visitor.loc)
+	parrot.name = "Pollie"
+	addtimer(CALLBACK(src, PROC_REF(squawk)), 2 SECONDS)
+
+/datum/bot_scenario/chat/parrot_calls/proc/squawk()
+	if(QDELETED(parrot))
+		return
+	log_line("parrot: \"security help\" and \"hey\"")
+	brain.on_heard_security_call(parrot, "security help", FREQ_COMMON)
+	brain.on_heard_speech(parrot, "security help", FREQ_COMMON)
+	brain.on_heard_speech(parrot, "hey", null)
+
+/datum/bot_scenario/chat/parrot_calls/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 12 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	if(length(lines))
+		fail_reason = "answered a parrot: \"[lines[1]]\""
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// The HoP just asked "What do you need it for?" and the next thing said isn't the answer.
+/datum/bot_scenario/chat/hop_context
+	name = "speech: after \"what do you need it for?\" the HoP answers \"hop, are you there?\" as that, and tells which jobs are open"
+	desc = "The HoP is asked for access and asks what for. The asker then says \"hop, are you there?\", and \"which jobs are open?\". Before: \"Access to what?\", and \"Beats me.\"."
+	job = "Head of Personnel"
+	layout = list(
+		"#########",
+		"#B.C....#",
+		"#########")
+	time_limit = 40 SECONDS
+
+/datum/bot_scenario/chat/hop_context/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "hop, i need access"), 2 SECONDS)
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "hop, are you there?"), 14 SECONDS)
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "which jobs are open?"), 26 SECONDS)
+
+/datum/bot_scenario/chat/hop_context/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 34 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	if(length(lines) < 3)
+		fail_reason = "only said [english_list(lines)]"
+		return BOT_GYM_FAIL
+	var/asked = 0
+	for(var/line in lines)
+		if(line in list("Access to what?", "What do you need it for?", "What for?", "Where do you need to get into?"))
+			asked++
+	if(asked > 1)
+		fail_reason = "asked what the access was for more than once: [english_list(lines)]"
+		return BOT_GYM_FAIL
+	var/last = lines[length(lines)]
+	if(!(findtext(last, "pen") || findtext(last, "full") || findtext(last, "filled") || findtext(last, "Slots")))
+		fail_reason = "answered \"which jobs are open?\" with \"[last]\""
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// News of something that happened somewhere (bot_news() with a place): known to whoever's within earshot, not to a bot the length of the station away.
+/datum/bot_scenario/news_place
+	name = "speech: news of a blast is known to the bot beside it and not to the one across the station"
+	desc = "A blast goes off beside one bot and 30 tiles from another. Asked how the shift's going, the first tells of it and the other has no idea. Before: the news was everybody's."
+	job = "Assistant"
+	layout = list(
+		"###################################",
+		"#B.K.............................b#",
+		"###################################")
+	time_limit = 8 SECONDS
+	var/mob/living/carbon/human/far
+
+/datum/bot_scenario/news_place/issue_goal()
+	return
+
+/datum/bot_scenario/news_place/post_spawn()
+	far = second_bot(first_marker("b"), "Far Away")
+	call("/proc/bot_news")("a bomb went off in the gym's far corner", null, first_marker("K"), 15) //the old bot_news() takes two: there the news goes to everybody
+
+/datum/bot_scenario/news_place/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 2 SECONDS)
+		return BOT_GYM_PENDING
+	var/near_says = brain.shift_news()
+	var/far_says = far.bot_brain.shift_news()
+	if(!findtext(near_says, "bomb went off"))
+		fail_reason = "the bot beside it didn't know: \"[near_says]\""
+		return BOT_GYM_FAIL
+	if(findtext(far_says, "bomb went off"))
+		fail_reason = "the one 30 tiles away knew of it: \"[far_says]\""
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// "How's the engine?" over Common got nothing from an engineer, and what it'd have had to look to know otherwise. Away from its department it says it hasn't looked.
+/datum/bot_scenario/chat/status_question
+	name = "speech: \"how's the engine?\" over Common gets \"haven't looked\" from an engineer who isn't in Engineering"
+	desc = "An engineer stood in the Gym is asked how the engine is. It has no way to know, and says so. Before: nothing."
+	job = "Station Engineer"
+	layout = list(
+		"#########",
+		"#B.....C#",
+		"#########")
+	time_limit = 18 SECONDS
+	var/said_line = "how's the engine?"
+	var/expect_answer = TRUE
+
+/datum/bot_scenario/chat/status_question/post_spawn()
+	..()
+	brain.sociability = 1
+	addtimer(CALLBACK(src, PROC_REF(ask)), 2 SECONDS)
+
+/datum/bot_scenario/chat/status_question/proc/ask()
+	log_line("visitor (over Common): \"[said_line]\"")
+	brain.on_heard_speech(visitor, said_line, FREQ_COMMON)
+
+/datum/bot_scenario/chat/status_question/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 12 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	if(!expect_answer)
+		if(length(lines))
+			fail_reason = "answered a question about a department it isn't in: \"[lines[1]]\""
+			return BOT_GYM_FAIL
+		return BOT_GYM_PASS
+	if(!length(lines))
+		fail_reason = "said nothing to \"[said_line]\""
+		return BOT_GYM_FAIL
+	if(!(findtext(lines[1], "looked") || findtext(lines[1], "No idea") || findtext(lines[1], "Couldn't say")))
+		fail_reason = "answered \"[said_line]\" with \"[lines[1]]\", which it can't know from here"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/chat/status_question/medbay
+	name = "speech: \"is medbay open?\" over Common gets \"haven't looked\" from a doctor who isn't in Medbay"
+	job = "Medical Doctor"
+	said_line = "is medbay open?"
+
+/datum/bot_scenario/chat/status_question/not_theirs
+	name = "speech: \"how's the engine?\" over Common isn't answered by an assistant"
+	desc = "Somebody with nothing to do with the engine hears the question and says nothing."
+	job = "Assistant"
+	expect_answer = FALSE

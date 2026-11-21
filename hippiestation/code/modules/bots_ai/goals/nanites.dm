@@ -399,7 +399,12 @@ GLOBAL_LIST_INIT(bot_nanite_programs, list("research_nanites", "researchplus_nan
 		if(QDELETED(blank) || !bot.owner.Adjacent(source) || (blank == source ? !isturf(blank.loc) : blank.loc != source))
 			return GOAL_STEP_FAIL
 		// A hand for it first (goals/take_item.dm). With both full (a screwdriver and an RPED, a wrench and a timer) put_in_hands() tipped the disk onto the floor and the upload was given up: 8 of 17 in a 12-shift batch.
+		var/held_before = bot.held_item_count()
 		bot.make_hand_free()
+		if(bot.held_item_count() < held_before) //a hand emptied for it is an input of its own, and the disk is the next (hand_beat(), bot_human.dm)
+			bot.hand_beat()
+			if(QDELETED(blank) || !bot.owner.Adjacent(source) || (blank == source ? !isturf(blank.loc) : blank.loc != source))
+				return GOAL_STEP_FAIL
 		if(!bot.owner.put_in_hands(blank))
 			return GOAL_STEP_FAIL
 		bot_log(bot, "took a blank program disk")
@@ -417,6 +422,9 @@ GLOBAL_LIST_INIT(bot_nanite_programs, list("research_nanites", "researchplus_nan
 		QDEL_NULL(disk.program)
 		disk.program = new D.program_type
 		disk.name = "[initial(disk.name)] \[[disk.program.name]\]"
+		bot.human_pause(hub) //the download is a click and the eject another, not the same tick as the disk going in (hand_beat(), bot_human.dm)
+		if(QDELETED(hub) || hub.disk != disk || !bot.owner.Adjacent(hub))
+			return GOAL_STEP_FAIL
 		hub.disk = null
 		bot.owner.put_in_hands(disk)
 		return walk_up(bot, cloud)
@@ -435,6 +443,9 @@ GLOBAL_LIST_INIT(bot_nanite_programs, list("research_nanites", "researchplus_nan
 	bot.telemetry_ui_action(cloud, "upload [D.name]")
 	var/datum/component/nanites/nanites = backup.nanites
 	nanites.add_program(null, disk.program.copy())
+	bot.human_pause(cloud) //the upload is a click and the eject another (hand_beat(), bot_human.dm)
+	if(QDELETED(cloud) || cloud.disk != disk || !bot.owner.Adjacent(cloud))
+		return GOAL_STEP_FAIL
 	cloud.disk = null
 	bot.owner.put_in_hands(disk)
 	bot.nanite_programs_uploaded++
