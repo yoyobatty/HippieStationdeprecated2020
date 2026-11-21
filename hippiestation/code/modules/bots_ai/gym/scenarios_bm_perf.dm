@@ -172,3 +172,59 @@ GLOBAL_VAR_INIT(bot_gym_vanish_after, text2num(world.params["bot-gym-vanish"]))
 		qdel(L)
 	log_line("[machines] kinds of lathe asked about [priced] designs")
 	return machines ? BOT_GYM_PASS : BOT_GYM_FAIL
+
+/datum/bot_scenario/items_in_sight_on_the_station
+	name = "perf: nowhere on the station has more things in sight than a glance takes in"
+	desc = "glance_at_items() and find_item_goal() take in at most 300 things (BOT_GLANCE_ITEMS_MAX), the nearest first. That has to be more than any ordinary round-start spot shows, or the cap would change what bots notice. Counts what's in view of every floor tile of the station (run it with a station map: EXTRA_PARAMS=bot-map=hippiestation)."
+	time_limit = 180 SECONDS
+	layout = list(
+		"#######",
+		"#B...G#",
+		"#######")
+	var/counted = FALSE
+
+/datum/bot_scenario/items_in_sight_on_the_station/make_goal()
+	return null
+
+/datum/bot_scenario/items_in_sight_on_the_station/check()
+	if(!bot || QDELETED(bot) || bot.stat == DEAD)
+		fail_reason = "bot died"
+		return BOT_GYM_FAIL
+	if(counted)
+		return BOT_GYM_PENDING
+	counted = TRUE
+	var/spots = 0
+	var/over = 0
+	var/most = 0
+	var/total = 0
+	var/turf/worst
+	var/list/histogram = list("0-49" = 0, "50-99" = 0, "100-199" = 0, "200-299" = 0, "300+" = 0)
+	for(var/turf/T as anything in GLOB.station_turfs)
+		if(T.density || isspaceturf(T) || !isopenturf(T))
+			continue
+		var/seen = 0
+		for(var/obj/item/I in view(BOT_SIGHT_RANGE, T))
+			seen++
+		spots++
+		total += seen
+		if(seen > most)
+			most = seen
+			worst = T
+		if(seen >= 300)
+			over++
+			histogram["300+"]++
+		else if(seen >= 200)
+			histogram["200-299"]++
+		else if(seen >= 100)
+			histogram["100-199"]++
+		else if(seen >= 50)
+			histogram["50-99"]++
+		else
+			histogram["0-49"]++
+		if(!(spots % 250))
+			CHECK_TICK
+	log_line("[spots] floor tiles counted, [round(total / max(1, spots), 0.1)] things in sight on average, the most [most] at [worst ? "[worst.x],[worst.y],[worst.z] in [get_area_name(worst)]" : "-"]; by count: [json_encode(histogram)]")
+	if(over)
+		fail_reason = "[over] tiles have 300 or more things in sight (the most, [most], at [worst.x],[worst.y],[worst.z] in [get_area_name(worst)]): the cap would drop what a bot sees there"
+		return BOT_GYM_FAIL
+	return spots ? BOT_GYM_PASS : BOT_GYM_FAIL
