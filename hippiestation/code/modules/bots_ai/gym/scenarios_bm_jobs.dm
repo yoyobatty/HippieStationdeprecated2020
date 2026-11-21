@@ -573,6 +573,50 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 /datum/bot_scenario/duty/gravity/stuck/break_it()
 	generator.set_state(0)
 
+/// A long walk to the far end of a hall in hand when the generator goes off: dropped for it, not finished first
+/datum/bot_scenario/duty/gravity/busy
+	name = "gravity: the generator's off in the middle of a long errand, and an engineer drops it for the generator"
+	desc = "The breaker off while the engineer is on a walk to the far end of a long hall, forty tiles off. It drops the walk (the station floating is worth that, as a lone engineer's seven minutes on the particle accelerator's parts weren't) and puts the breaker on before it gets there."
+	time_limit = 60 SECONDS
+	layout = list(
+		"##################################################",
+		"#................................................#",
+		"#................................................#",
+		"#....G...........................................#",
+		"#B..............................................W#",
+		"##################################################")
+
+/datum/bot_scenario/duty/gravity/busy
+	var/walk_given = FALSE
+
+/datum/bot_scenario/duty/gravity/busy/post_spawn()
+	..()
+	var/datum/bot_duty/D = bot_duty_of(duty_type)
+	if(D)
+		brain.gym_duties = list(D.type) //so that its walk can be dropped for it
+
+/// The walk first; the duty is only asked once the bot is idle again, as the base duty scenario does
+/datum/bot_scenario/duty/gravity/busy/issue_goal()
+	if(!walk_given)
+		walk_given = TRUE
+		brain.assign_goal(new /datum/bot_goal/walk_up_to(first_marker("W")))
+		log_line("sent on a walk to the far end of the hall")
+		return
+	..()
+
+/datum/bot_scenario/duty/gravity/busy/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(generator))
+		fail_reason = "the generator's gone"
+		return BOT_GYM_FAIL
+	if(back_on())
+		return BOT_GYM_PASS
+	if(get_dist(bot, first_marker("W")) <= 2)
+		fail_reason = "finished its walk to the far end of the hall with the generator off"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
 /// Four steps to mend it and then the breaker
 /datum/bot_scenario/duty/gravity/broken
 	name = "gravity: the generator's broken, and an engineer mends its framework and switches it on"
