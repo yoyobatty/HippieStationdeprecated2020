@@ -388,6 +388,7 @@
 
 /datum/bot_scenario/boom_heard/proc/go_off()
 	went_off = TRUE
+	GLOB.bot_boom_said_at = -1 MINUTES //the one a blast somewhere else in the gym set is the whole station's, and kept this one's quiet
 	SEND_GLOBAL_SIGNAL(COMSIG_GLOB_EXPLOSION, get_turf(first_marker("c")), 0, 1, 2, 0, 0, 1, 2)
 
 /datum/bot_scenario/boom_heard/check()
@@ -1190,5 +1191,30 @@
 		return BOT_GYM_FAIL
 	if(lines[1] in GLOB.bot_question_reply_lines)
 		fail_reason = "answered an accusation as a question it didn't know: \"[lines[1]]\""
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// "Nobody in Medbay right now." from a chemist at the Bar: shop_talk_now() read the state of the whole department from anywhere.
+/datum/bot_scenario/shop_talk_away
+	name = "speech: a chemist away from Medbay doesn't tell how many are in it"
+	desc = "Its department's state (patients in Medbay, the cells, the SMES) is what it can see where it works. Stood somewhere else it has nothing of the sort to say. Before: it said how many were in Medbay."
+	job = "Chemist"
+	layout = list(
+		"#####",
+		"#.B.#",
+		"#####")
+	time_limit = 6 SECONDS
+
+/datum/bot_scenario/shop_talk_away/issue_goal()
+	return
+
+/datum/bot_scenario/shop_talk_away/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 2 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/fact = brain.shop_talk_now()
+	if(fact)
+		fail_reason = "talked of the state of its department from the wrong side of the station: \"[fact[1]]\""
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS

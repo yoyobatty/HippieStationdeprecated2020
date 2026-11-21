@@ -1182,7 +1182,13 @@ GLOBAL_LIST_INIT(bot_shop_talk_plain_replies, list("Good to know.", "Noted.", "A
 /// when there's nothing to say. The fixed lines had "Engine's holding steady." with the crystal at half, and "Medbay's quiet for
 /// once." with the beds full.
 /datum/bot_brain/proc/shop_talk_now()
-	switch(department())
+	// How its department is doing is what it can see where it works: a chemist at the Bar said "Nobody in Medbay right now." to the bartender
+	var/dept = department()
+	var/static/list/dept_areas = list("engineering" = /area/engine, "medical" = /area/medical, "security" = /area/security, "science" = /area/science, "supply" = /area/quartermaster)
+	if(dept in dept_areas)
+		if(!istype(get_area(owner), dept_areas[dept]))
+			return null
+	switch(dept)
 		if("engineering")
 			var/obj/machinery/power/supermatter_crystal/S = GLOB.main_supermatter_engine
 			if(S && !QDELETED(S) && S.z == owner.z && S.power > 0)
