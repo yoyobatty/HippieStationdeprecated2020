@@ -120,6 +120,13 @@ GLOBAL_VAR(bot_in_command)
 			return by_job[job]
 	return null
 
+/// How far into a shift, with nobody yet in command, before the head next in line says they're acting captain.
+#define BOT_COMMAND_WAIT (4 MINUTES)
+
+/datum/bot_brain
+	/// A gym scenario that tests the wait for the Captain (BOT_COMMAND_WAIT) sets this: the gym otherwise doesn't wait.
+	var/command_wait_in_gym = FALSE
+
 /// The head who's next in line says so on the radio, once.
 /datum/bot_duty/chain_of_command
 	name = "seeing who's in charge"
@@ -134,6 +141,11 @@ GLOBAL_VAR(bot_in_command)
 	var/mob/living/carbon/human/boss = bot_find_in_command(bot.owner)
 	var/datum/weakref/last_ref = GLOB.bot_in_command
 	if(boss != bot.owner || last_ref?.resolve() == boss)
+		return FALSE
+	// Nobody's been in command yet and the shift is minutes old: the Captain's only not at the Bridge yet, and nobody who'd just walked
+	// in says "the Captain's gone". The HoS took command in the first minute of a shift and the Captain said "I'm back in command" ten
+	// seconds later (shift batch gen1116f, 2026-11-16).
+	if(!last_ref && bot.owner.mind.assigned_role != "Captain" && (!bot.gym_run || bot.command_wait_in_gym) && world.time < (bot.gym_run ? bot.gym_run.start_time : SSticker.round_start_time) + BOT_COMMAND_WAIT)
 		return FALSE
 	GLOB.bot_in_command = WEAKREF(boss)
 	if(bot.owner.mind.assigned_role == "Captain")

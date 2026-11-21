@@ -25,6 +25,7 @@ GLOBAL_LIST_EMPTY(bot_hull_breaches)
 	if(!bot_hull_standing_spot(T))
 		return
 	GLOB.bot_hull_breaches |= T
+	bot_crew_noticed_breach(T) //bot_talk_more.dm: whoever's nearest says so
 
 /// Floor beside the hole to work from: open, not space, not blocked.
 /proc/bot_hull_standing_spot(turf/T)

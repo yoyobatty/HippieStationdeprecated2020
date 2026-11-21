@@ -107,7 +107,8 @@ GLOBAL_LIST_INIT(bot_favour_guide_words, list("take me to", "show me the way to"
 GLOBAL_LIST_INIT(bot_favour_bring_words, list("bring me", "get me", "fetch me", "grab me", "bring us", "get us", "can you get", "could you get", "can you bring", "could you bring", "bring a", "bring some", "bring the"))
 GLOBAL_LIST_INIT(bot_favour_stay_words, list("wait here", "stay here", "stay put", "don't move", "dont move", "stay there", "wait there", "hold on here", "wait for me", "hold position"))
 GLOBAL_LIST_INIT(bot_favour_release_words, list("you can go", "you can leave", "ok go", "okay go", "at ease", "dismissed", "carry on", "that's all", "thats all", "you're free", "youre free", "go on then"))
-GLOBAL_LIST_INIT(bot_favour_call_words, list("call security", "get security", "call sec", "get sec", "call the cops", "call an engineer", "get an engineer", "call engineering", "get engineering", "call a janitor", "get a janitor", "call the janitor", "get the janitor"))
+GLOBAL_LIST_INIT(bot_favour_call_words, list("call security", "get security", "call sec", "get sec", "call the cops", "call an engineer", "get an engineer", "call engineering", "get engineering", "call a janitor", "get a janitor", "call the janitor", "get the janitor",
+	"tell security", "tell sec", "let security know", "alert security", "inform security", "call the doctor", "call a doctor", "get a doctor", "get the doctor", "call a medic", "get a medic", "call medbay", "tell medbay", "tell the doctor"))
 
 /// Something asked of it that's a favour: done, or refused, with the line to say. Null if it isn't one of these.
 /datum/bot_brain/proc/favour_asked(mob/living/talker, lower_msg, over_radio)
@@ -235,6 +236,11 @@ GLOBAL_LIST_INIT(bot_favour_call_words, list("call security", "get security", "c
 		return pick("Calling them.", "Sure.")
 	if(bot_text_has_any(lower_msg, list("janitor")))
 		call_for(/datum/bot_request_kind/janitor, pick("Janitor to [where], please.", "Need a janitor in [where]."))
+		bot_tally("called for somebody")
+		return pick("Calling them.", "Sure.")
+	if(bot_text_has_any(lower_msg, list("doctor", "medic", "medbay")))
+		if(!call_for(/datum/bot_request_kind/medical, pick("Doctor to [where], please. [who] needs you.", "Need a doctor in [where].")))
+			return pick("Don't think there's anybody on.", "Can't raise anyone, sorry.") //nobody of the trade about, or it called a minute ago
 		bot_tally("called for somebody")
 		return pick("Calling them.", "Sure.")
 	return null

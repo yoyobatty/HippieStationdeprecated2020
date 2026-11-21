@@ -70,6 +70,14 @@ GLOBAL_LIST_INIT(bot_saw_attack_lines, list(
 	"Somebody stop them!",
 	"Whoa, whoa, whoa!",
 	"Get off them!",
+	"Hey! Break it up!",
+	"Knock it off, both of you!",
+	"Stop hitting them!",
+	"Get away from them!",
+	"Hey, hey, hey! Enough!",
+	"What is wrong with you?!",
+	"That's enough!",
+	"Let them go!",
 ))
 
 GLOBAL_LIST_INIT(bot_saw_vandal_lines, list(
@@ -79,12 +87,21 @@ GLOBAL_LIST_INIT(bot_saw_vandal_lines, list(
 	"That's station property!",
 	"Cut it out!",
 	"Are you insane?!",
+	"Oi! Leave that alone!",
+	"Seriously? Stop breaking things.",
+	"Stop wrecking the place!",
+	"What did that ever do to you?!",
+	"Hey! Hands off!",
+	"You're going to get arrested for that, you know.",
 ))
 
 GLOBAL_LIST_INIT(bot_own_turf_lines, list(
 	"Get out of my department!",
 	"Not in here you don't!",
 	"I work here! Get out!",
+	"You don't belong in here.",
+	"Out. Now.",
+	"Hey, who said you could come in?",
 ))
 
 GLOBAL_LIST_INIT(bot_trespass_lines, list(
@@ -92,6 +109,10 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 	"Staff only, sorry. Who let you in?",
 	"Can I help you? This is a restricted area.",
 	"You need to leave.",
+	"Excuse me, can I help you?",
+	"You lost? This is staff only.",
+	"You can't be in here, sorry.",
+	"Who are you looking for?",
 ))
 
 /mob/living/carbon/human

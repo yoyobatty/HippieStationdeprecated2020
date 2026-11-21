@@ -899,7 +899,8 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	if(arrest_severity >= BOT_CRIME_MAJOR)
 		bot_say(owner, "[S.name], you're under arrest for [lowertext(arrest_crime)].")
 	else
-		bot_say(owner, pick("[S.name], stop right there! You're under arrest for [lowertext(arrest_crime)].", "Security! [S.name], you're under arrest for [lowertext(arrest_crime)]. Hands where I can see them."))
+		// Not "stop right there!" again: begin_arrest()'s shout, a few seconds ago, already said it (a near copy of it came a second later, 14 times a shift)
+		bot_say(owner, pick("[S.name], you're under arrest for [lowertext(arrest_crime)].", "Security! [S.name], you're under arrest for [lowertext(arrest_crime)]. Hands where I can see them."))
 	bot_log(src, "told [S] they're under arrest for [arrest_crime]")
 
 // ------------------------------------------------------------
@@ -1268,7 +1269,9 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	G.caller_turf = T
 	G.caller_name = L.name
 	if(assign_goal(G))
-		bot_say(owner, radio_freq ? ":s Responding to a call from [L.name] in [get_area_name(T, TRUE)]." : "On my way.")
+		// On the channel it came over, a beat after hearing it, and said once by whoever's first (worth_saying()). It was always ":s", Security's own channel,
+		// which the caller couldn't hear unless they were an officer: "security help" on Common got four identical answers nobody but Security could read.
+		say_after_typing(radio_freq ? "[bot_radio_prefix(radio_freq)]Responding to a call from [L.name] in [get_area_name(T, TRUE)]." : "On my way.")
 
 /// Officers other than `me` who are on their way to this person's call just now. With nearer_too (a call on the radio, which every officer
 /// hears at once), those nearer to them who are free and would go as well: the nearest couple answer, not whoever's first on the list.
@@ -1303,6 +1306,9 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 	// Put to the AI or a cyborg, or about bolts, with nobody in danger and no "help" in it: "AI unbolt all security" is the Brig's
 	// doors, not a call. Three officers said they were responding to the Captain asking the AI for them (round-20.48.49).
 	if(!bot_text_has_any(lower, list("help")) && !bot_text_has_any(lower, GLOB.bot_danger_words) && (bot_silicon_addressed(lower, list("ai", "ais", "borg", "borgs", "cyborg")) || bot_text_has_any(lower, list("unbolt", "unbolted", "bolt", "bolted", "bolts"))))
+		return FALSE
+	// A question about Security ("security, is the brig empty?", "sec, any updates?", "anyone in security?") is asking, not calling: "Responding to a call from Casey" to it.
+	if(findtext(lower, "?") && !bot_text_has_any(lower, list("help")) && !bot_text_has_any(lower, GLOB.bot_danger_words) && bot_text_has_any(lower, list("is the", "are the", "what's", "whats", "who's", "whos", "how's", "hows", "any updates", "any news", "status", "anyone in", "anybody in", "anyone on", "are you there", "you there", "hello")))
 		return FALSE
 	if(findtext(lower, "security") || findtext(lower, "shitcurity") || bot_text_has_any(lower, list("sec")))
 		return TRUE

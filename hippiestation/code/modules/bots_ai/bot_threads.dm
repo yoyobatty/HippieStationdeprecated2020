@@ -23,6 +23,14 @@ GLOBAL_LIST_INIT(bot_jokes, list(
 	list("How do you know the shuttle's been called?", "Cargo's suddenly very interested in the armory."),
 	list("Why did the geneticist cross the road?", "To get to the other monkey."),
 	list("What's the chaplain's favourite drink?", "Holy water. Ask the cultists how they feel about it."),
+	list("How do you get a clown out of a tree?", "Wait. Eventually he falls."),
+	list("What do you call a lawyer on this station?", "Optimistic."),
+	list("Why did the borg cross the hallway?", "Somebody changed its laws."),
+	list("What's the quietest thing on the station?", "The Captain's office. Nobody's ever in it."),
+	list("Why did the engineer bring a ladder to work?", "To get to the next level of blame."),
+	list("What's a scientist's favourite kind of party?", "One with a controlled explosion."),
+	list("What does the CMO say when you ask for a day off?", "Are you bleeding? No? Then no."),
+	list("Why do miners love Lavaland?", "Everything's a tunnel, and nobody asks for status reports."),
 ))
 
 /// What crew grumble about
@@ -115,7 +123,7 @@ GLOBAL_LIST_INIT(bot_thread_closers, list("Anyway.", "Anyway, back to it.", "Rig
 		if("gossip")
 			return gossip_script(F)
 		if("joke")
-			var/list/J = pick(GLOB.bot_jokes)
+			var/list/J = bot_fresh_pick(a, GLOB.bot_jokes)
 			add(1, pick("Heard a good one. ", "Okay, okay. ", "") + J[1])
 			add(2, b.mood_pick(list("Go on.", "What?", "Ha, what?"), list("Go on.", "Dunno, what?", "What?"), list("I'm going to regret asking. What?", "...What.", "Get on with it.")))
 			add(1, J[2])
@@ -123,7 +131,7 @@ GLOBAL_LIST_INIT(bot_thread_closers, list("Anyway.", "Anyway, back to it.", "Rig
 			a.last_joke_at = world.time
 			return TRUE
 		if("complain")
-			var/list/C = pick(GLOB.bot_complaints)
+			var/list/C = bot_fresh_pick(a, GLOB.bot_complaints)
 			add(1, C[1])
 			add(2, pick(C[2]))
 			if(prob(50))

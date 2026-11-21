@@ -74,12 +74,26 @@ GLOBAL_LIST_INIT(bot_title_words, list(
 	// The one it's said to comes first ("Mining, science needs silver" is to Mining); the longer word where two start together
 	var/best
 	var/best_at = 0
+	var/asking = !!findtext(lower_msg, "?")
 	for(var/word in GLOB.bot_title_words)
 		var/at = bot_text_word_at(lower_msg, word)
-		if(at && (!best || at < best_at || (at == best_at && length(word) > length(best))))
+		if(!at)
+			continue
+		// "The clown stole my shoes", "i'm going to cargo", "the captain is dead": about them, not to them (a question about them is another matter)
+		if(!asking && bot_title_is_spoken_about(lower_msg, at))
+			continue
+		if(!best || at < best_at || (at == best_at && length(word) > length(best)))
 			best = word
 			best_at = at
 	return best ? GLOB.bot_title_words[best] : null
+
+/// Whether the title at this place in a line has "the", "my", "to", "in" and the like in front of it: somebody talked about, or a place went to, not called.
+/proc/bot_title_is_spoken_about(lower_msg, at)
+	var/before = " [copytext(lower_msg, 1, at)]"
+	for(var/lead in list(" the ", " our ", " a ", " an ", " my ", " his ", " her ", " their ", " that ", " this ", " to ", " in ", " at ", " from ", " of ", " with ", " for "))
+		if(copytext(before, -length(lead)) == lead)
+			return TRUE
+	return FALSE
 
 /// Whether this bot is the one a title called for.
 /datum/bot_brain/proc/hears_own_title(lower_msg)
@@ -105,6 +119,10 @@ GLOBAL_LIST_INIT(bot_title_words, list(
 			return TRUE
 	return FALSE
 
+/// What the crew call the heads and a few other jobs in one breath
+GLOBAL_LIST_INIT(bot_job_short, list("Captain" = "captain", "Head of Personnel" = "HoP", "Head of Security" = "HoS", "Chief Medical Officer" = "CMO", "Chief Engineer" = "CE",
+	"Research Director" = "RD", "Quartermaster" = "QM"))
+
 /// A job called that nobody's on: one person says so, the way somebody always does. "AI?" with no AI.
 /datum/bot_brain/proc/say_nobody_on(list/jobs, radio_freq)
 	var/key = jointext(jobs, "/")
@@ -112,6 +130,11 @@ GLOBAL_LIST_INIT(bot_title_words, list(
 		return FALSE
 	GLOB.bot_nobody_said[key] = world.time + 2 MINUTES
 	var/job = jobs[1]
+	var/short = GLOB.bot_job_short[job] //the heads are called by their letters: "no CMO", not "nobody's on chief medical officer"
+	if(short)
+		say_after_typing(bot_radio_prefix(radio_freq) + pick("There's no [short] this shift.", "No [short] right now, sorry.", "Nobody's on [short].", "Don't think we've got one."))
+		bot_log(src, "said nobody's on [job]")
+		return TRUE
 	var/what = job == "AI" ? "an AI" : (job == "Cyborg" ? "any borgs" : "a [lowertext(job)]")
 	say_after_typing(bot_radio_prefix(radio_freq) + pick("There's no [job == "AI" ? "AI" : lowertext(job)] this shift.", "We don't have [what] right now.", "Nobody's on [lowertext(job)], sorry.", "Don't think we've got [what]."))
 	bot_log(src, "said nobody's on [job]")
@@ -166,6 +189,12 @@ GLOBAL_LIST_INIT(bot_title_words, list(
 // ---------------------------------------------------------------------------------------------
 // Where somebody is
 // ---------------------------------------------------------------------------------------------
+
+/// "Can you give me more access?", said to somebody who isn't the HoP: not theirs to give, and the HoP is. It got "Hm, not sure, honestly."
+/datum/bot_brain/proc/not_my_access(lower_msg)
+	if(work_role() == "Head of Personnel" || !bot_text_has_any(lower_msg, list("access")) || !bot_text_has_any(lower_msg, list("give me", "get me", "need", "more", "can i", "can you", "could you", "upgrade", "i want", "extra")))
+		return null
+	return pick("That's the HoP's call.", "Ask the HoP.", "Not me, the HoP does access.", "Try the HoP.")
 
 /// Who somebody means by a name in what they said: a whole name first, then a first name, the nearest to them of those it fits.
 /proc/bot_person_named(lower_msg, mob/living/near, list/not_these)

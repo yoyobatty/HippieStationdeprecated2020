@@ -85,6 +85,9 @@ GLOBAL_LIST_INIT(bot_poked_lines, list(
 	"What's up?",
 	"Can I help you?",
 	"Hey.",
+	"Need something?",
+	"Hm? What's up?",
+	"Yeah?",
 ))
 
 GLOBAL_LIST_INIT(bot_overpoked_lines, list(

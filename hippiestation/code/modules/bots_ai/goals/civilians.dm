@@ -31,6 +31,14 @@ GLOBAL_LIST_INIT(bot_clown_lines, list(
 	"Knock knock. Who's there? Honk.",
 	"I'm not saying the captain's a clown. That would be an insult to my profession.",
 	"What's the difference between a clown and an assistant? I chose this.",
+	"Why did the clown get banned from the bar? He kept making faces at the drinks.",
+	"I was going to tell a joke about toxins, but it'd go off too soon.",
+	"What do you call a clown who got spaced? A close call.",
+	"Knock knock. Who's there? Banana. Banana who? Security, we've got him.",
+	"I told Security a joke once. They arrested me for the punchline.",
+	"What's a clown's favourite department? Medbay. Everyone's laughing, or crying.",
+	"Honk honk honk.",
+	"Why did the clown go to Cargo? He heard there was a crate expectation.",
 ))
 
 /// What a mime does in place of saying `line`. Nothing at all for the radio.
@@ -138,7 +146,7 @@ GLOBAL_LIST_INIT(bot_clown_lines, list(
 		return FALSE
 	// The horn, and every other turn a line to go with it.
 	if(length(done) % 2)
-		var/line = pick(GLOB.bot_clown_lines - done)
+		var/line = bot_fresh_pick(bot, GLOB.bot_clown_lines - done) //not the one it told last time round either
 		done += line
 		bot_say(bot.owner, line)
 		return TRUE

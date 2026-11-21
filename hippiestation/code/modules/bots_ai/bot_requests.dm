@@ -215,6 +215,12 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 
 /// Which kind of call a line is, if any. Summonses are only looked for in something said to a bot by name.
 /proc/bot_request_kind_of(lower_msg, named, turf/near)
+	var/list/found = bot_request_kinds_of(lower_msg, named, near)
+	return length(found) ? found[1] : null
+
+/// Every kind a line reads as, the most particular first. "Cargo, can we get some glass please?" is a call for Cargo and also, to a bot that's been
+/// named, for Mining (glass is a material): the Cargo Technician it was said to heard the first, was none of its business, and answered "Wish I knew."
+/proc/bot_request_kinds_of(lower_msg, named, turf/near)
 	// Worked out once a tick for each line, place and named-or-not: every bot that hears a call asks this, all in the same tick for
 	// a radio line, and it runs every kind's word lists (2026-11-11, a room of spammers: most of the server's time)
 	var/static/list/memo = list()
@@ -223,18 +229,20 @@ GLOBAL_LIST_INIT(bot_request_words, list("need", "needed", "help", "please", "pl
 		memo = list()
 		memo_time = world.time
 	var/key = "[named ? 1 : 0]|[near ? "[near.x],[near.y],[near.z]" : ""]|[lower_msg]"
-	var/known = memo[key] // the kind, or FALSE for none
+	var/list/known = memo[key]
 	if(!isnull(known))
-		return known || null
-	. = null
+		return known
+	. = list()
 	for(var/datum/bot_request_kind/K as anything in GLOB.bot_request_kinds)
 		if(K.matches(lower_msg, named, near))
-			. = K
-			break
-	memo[key] = . || FALSE
+			. += K
+	memo[key] = .
 
 /// Whether a line is a call of this kind. A summons (no jobs) only counts when said to a bot by name.
 /datum/bot_request_kind/proc/matches(lower_msg, named, turf/near)
+	// "You need healing", said to a doctor, is about the doctor and not a call for one ("I need", "we need" are)
+	if(jobs && bot_text_has_any(lower_msg, list("you need", "you're hurt", "youre hurt", "you look hurt")) && !bot_text_has_any(lower_msg, list("i need", "we need", "someone needs", "somebody needs", "he needs", "she needs", "they need")))
+		return FALSE
 	if(!jobs)
 		return named && bot_text_has_any(lower_msg, strong_words)
 	if(bot_text_has_any(lower_msg, strong_words))
@@ -431,12 +439,20 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 		waiting.made = world.time
 		bot_offer_request(waiting)
 		return TRUE
-	var/datum/bot_request_kind/kind = bot_request_kind_of(lower_msg, named, here)
-	if(!kind)
+	var/list/kinds = bot_request_kinds_of(lower_msg, named, here)
+	if(!length(kinds))
 		return FALSE
-	// Only those whose call it is have anything to do with it (and for a summons, only whoever was named).
+	// Only those whose call it is have anything to do with it (and for a summons, only whoever was named). A line that reads as more than one
+	// trade's call is the call of the first trade this one is in.
+	var/datum/bot_request_kind/kind = kinds[1]
 	if(!kind.heard_by(src, named))
-		return FALSE
+		kind = null
+		for(var/datum/bot_request_kind/other as anything in kinds)
+			if(other.jobs && other.heard_by(src, named))
+				kind = other
+				break
+		if(!kind)
+			return FALSE
 	var/datum/bot_request/R = bot_open_request_from(talker, kind)
 	if(R)
 		return TRUE //heard it already (another bot's ears, or the same shout twice)
