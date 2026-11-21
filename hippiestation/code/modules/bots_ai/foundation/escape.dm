@@ -48,6 +48,8 @@ GLOBAL_LIST_INIT(bot_wall_cut_tools, list(/obj/item/weldingtool, /obj/item/wrenc
 /datum/bot_brain
 	/// Destination turf -> until when it doesn't try cutting its way to it again
 	var/list/walls_cut_toward
+	/// Until when it doesn't go looking for a cutting tool again, having known of none
+	var/cut_tool_wait_until = 0
 
 /// A wall it could take apart with a welder, a wrench and a screwdriver
 /proc/bot_wall_cuttable(turf/closed/wall/W)
@@ -61,7 +63,7 @@ GLOBAL_LIST_INIT(bot_wall_cut_tools, list(/obj/item/weldingtool, /obj/item/wrenc
 	// Customs (Bot Shift found2 run4)
 	if(owner.handcuffed || owner.incapacitated())
 		return FALSE
-	if(LAZYACCESS(walls_cut_toward, destination) > world.time)
+	if(LAZYACCESS(walls_cut_toward, destination) > world.time || world.time < cut_tool_wait_until)
 		return FALSE
 	var/list/cut = wall_to_cut_toward(destination)
 	if(!cut)
@@ -70,7 +72,12 @@ GLOBAL_LIST_INIT(bot_wall_cut_tools, list(/obj/item/weldingtool, /obj/item/wrenc
 	for(var/obj/item/tool_type as anything in GLOB.bot_wall_cut_tools)
 		if(!can_eventually_provide_tool(tool_type))
 			bot_log(src, "the only way to [destination] is through [wall] @ [bot_coord(wall)] - getting \a [initial(tool_type.name)] to cut it")
-			return seek_tool_for_obstacle(tool_type)
+			if(seek_tool_for_obstacle(tool_type))
+				return TRUE
+			// Nothing it knows of to cut with. A player shut in with no tool waits and looks again in a while; this asked every half
+			// second, and a cell's prisoner did it 300 times in a shift (Perry Nakata, play1114b run10).
+			cut_tool_wait_until = world.time + 60 SECONDS
+			return FALSE
 	if(LAZYLEN(walls_cut_toward) > 20)
 		walls_cut_toward.Cut()
 	LAZYSET(walls_cut_toward, destination, world.time + 3 MINUTES)

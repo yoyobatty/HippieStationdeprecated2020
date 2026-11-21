@@ -67,6 +67,9 @@
 	var/combat_last_seen = 0
 	var/turf/combat_last_seen_turf
 	var/turf/combat_path_turf
+	/// When combat_chase() began finding no way to where it was going (0: it has one), and when it last looked
+	var/chase_no_route_since = 0
+	var/chase_no_route_last = 0
 	var/last_hit_by_attacker = 0
 	// When this bot last radioed security about being attacked (see bot_call_security(), goals/security_patrol.dm)
 	var/next_assault_report_time = 0
@@ -531,23 +534,51 @@
 
 /// Chase something, re-pathing only once it's moved off where the current path leads (same as arrests,
 /// goals/security_patrol.dm) - this used to run a fresh pathfind every second of every fight.
+/// TRUE if it's on its way, FALSE if there's no way to where it's headed (chase_blocked_for() says for how long).
 /datum/bot_brain/proc/combat_chase(atom/target)
 	var/turf/target_turf = get_turf(target)
 	if(!target_turf)
-		return
+		return FALSE
 	// In the pool with this bot on the side short of breath, or a spot in the water it was headed for: round to the side, and a wait there
 	// (poolside_instead(), bot_items.dm)
 	var/turf/side = poolside_instead(target)
 	if(side == get_turf(owner))
 		stop_pursuit()
-		return
+		return TRUE
 	if(side)
 		target = side
 		target_turf = side
 	if(pursuing_kind == "combat" && pursue_target == target && combat_path_turf && get_dist(combat_path_turf, target_turf) <= 1)
-		return
+		return TRUE
 	combat_path_turf = target_turf
-	pursue(target, "combat", force = TRUE)
+	. = pursue(target, "combat", force = TRUE)
+	if(.)
+		chase_no_route_since = 0
+		return TRUE
+	// No way there at all: shut in a cell or a room with no door. A hunt kept asking for a route to where its mark was, twice a second,
+	// until the goal's watchdog let go three minutes on; the steps now see how long it's been (chase_blocked_for()). A run of tries more
+	// than ten seconds apart starts the count again.
+	if(!chase_no_route_since || world.time > chase_no_route_last + 10 SECONDS)
+		chase_no_route_since = world.time
+	chase_no_route_last = world.time
+	return FALSE
+
+/// How long combat_chase() has been finding no way to where it's going, in a run of tries.
+/datum/bot_brain/proc/chase_blocked_for()
+	if(!chase_no_route_since || world.time > chase_no_route_last + 10 SECONDS)
+		return 0
+	return world.time - chase_no_route_since
+
+/// The strike steps' chase (goals/robust.dm, goals/traitor.dm) after a mark that isn't in reach: the way to them, or when there's none (shut
+/// in) a wait of a few seconds and another look, as a player does; after this long of finding none the kill is let go (FALSE ends the step).
+#define BOT_CHASE_NO_ROUTE_PATIENCE (25 SECONDS)
+/datum/bot_brain/proc/chase_for_a_kill(atom/go, datum/bot_step/paced/step)
+	if(combat_chase(go))
+		step.wait_for = 5
+		return TRUE
+	step.wait_for = rand(25, 40)
+	return chase_blocked_for() < BOT_CHASE_NO_ROUTE_PATIENCE
+#undef BOT_CHASE_NO_ROUTE_PATIENCE
 
 // Steps to a different tile still adjacent to the target after attacking, instead of
 // standing still and trading blows on the same tile - makes the bot a harder target to

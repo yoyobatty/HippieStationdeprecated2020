@@ -546,3 +546,58 @@
 /datum/bot_scenario/bmhl/stalled_stroll/on_timeout()
 	fail_reason = "stood at a stalled stroll for the whole minute"
 	return BOT_GYM_FAIL
+
+// ---------------------------------------------------------------------------------------------
+// Shut in with a kill to make
+// ---------------------------------------------------------------------------------------------
+
+/// The strike on its own: a killer already at its mark when it is shut away is in this step (the one a cell's prisoner stood in)
+/datum/bot_goal/traitor_kill/robust/strike_only
+
+/datum/bot_goal/traitor_kill/robust/strike_only/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/traitor_kill/S = new
+	S.steps = list(new /datum/bot_step/paced/strike/robust())
+	return list(S)
+
+/datum/bot_scenario/bmhl/proc/transcript_count(text)
+	. = 0
+	for(var/line in transcript)
+		if(findtext(line, text))
+			.++
+
+/datum/bot_scenario/bmhl/shut_in_hunt
+	name = "hunt: a killer shut in with no way to its mark waits, looks again, and lets the kill go"
+	desc = "Apex, mid-hunt in a room with no door and no tool to cut a wall with, the mark in the next room. It went for a tool 300 times in a shift, every half second for three minutes, until the watchdog ended the step (Perry Nakata in the Brig, play1114b run10). It looks a few times, a few seconds apart, and gives the kill up inside half a minute."
+	layout = list(
+		"################",
+		"#B...#.........#",
+		"#....H....V....#",
+		"################")
+	time_limit = 45 SECONDS
+	var/mob/living/carbon/human/mark
+
+/datum/bot_scenario/bmhl/shut_in_hunt/setup()
+	for(var/turf/T as anything in markers["H"])
+		T.ChangeTurf(/turf/closed/wall)
+
+/datum/bot_scenario/bmhl/shut_in_hunt/post_spawn()
+	brain.skill = 1
+	mark = stand_in(first_marker("V"), "Mark Target")
+
+/datum/bot_scenario/bmhl/shut_in_hunt/make_goal()
+	return new /datum/bot_goal/traitor_kill/robust/strike_only(null, mark)
+
+/datum/bot_scenario/bmhl/shut_in_hunt/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/asks = transcript_count("the only way to")
+	if(asks > 3)
+		fail_reason = "went for a cutting tool [asks] times with none to be had"
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("giving up on /datum/bot_goal/traitor_kill"))
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/bmhl/shut_in_hunt/on_timeout()
+	fail_reason = "still after a mark it could not get to, [transcript_count("no path to")] tries on"
+	return BOT_GYM_FAIL

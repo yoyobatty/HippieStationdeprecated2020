@@ -592,9 +592,7 @@ GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor,
 		if(bot.try_suit_jump(V) || bot.try_attack_from_range(V))
 			wait_for = CLICK_CD_RANGE
 			return TRUE
-		bot.combat_chase(go)
-		wait_for = 5
-		return TRUE
+		return bot.chase_for_a_kill(go, src) //bot_brain.dm: a way to them, or a wait and then letting it go
 	bot.stop_pursuit()
 	bot.fight_in_reach(V) //bot_fighting.dm
 	bot.try_combat_sidestep(V)
