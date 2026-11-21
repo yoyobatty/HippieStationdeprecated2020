@@ -213,3 +213,35 @@ GLOBAL_VAR_INIT(bot_rev_started, 0)
 #undef BOT_REV_ENOUGH
 #undef BOT_REV_UPRISING_AFTER
 #undef BOT_REV_RANGE
+
+// A revolutionary is promoted to head revolutionary, every thirty seconds, when the leadership's thinner than it ought to be (revolution.dm
+// update_heads()). It picks from the members who are up, not restrained, and have a CLIENT with the antag preference ticked. A bot has
+// neither, so the revolution's leaders, once they were killed or arrested, were never replaced by one of the bot revolutionaries
+// (and bots read as connected everywhere else: is_bot_crew(), bot_identity.dm). A bot has no preferences to look at: it's a
+// revolutionary because the round made it one.
+/datum/team/revolution/update_heads()
+	if(SSticker.HasRoundStarted())
+		var/list/datum/mind/head_revolutionaries = head_revolutionaries()
+		var/list/datum/mind/heads = SSjob.get_all_heads()
+		var/list/sec = SSjob.get_all_sec()
+
+		if(head_revolutionaries.len < max_headrevs && head_revolutionaries.len < round(heads.len - ((8 - sec.len) / 3)))
+			var/list/datum/mind/non_heads = members - head_revolutionaries
+			var/list/datum/mind/promotable = list()
+			var/list/datum/mind/nonhuman_promotable = list()
+			for(var/datum/mind/khrushchev in non_heads)
+				var/mob/living/K = khrushchev.current
+				if(K && !K.incapacitated() && !K.restrained() && K.stat != DEAD && (K.client || K.is_bot_crew()))
+					if(K.is_bot_crew() || (ROLE_REV in K.client.prefs.be_special))
+						if(ishuman(K))
+							promotable += khrushchev
+						else
+							nonhuman_promotable += khrushchev
+			if(!promotable.len && nonhuman_promotable.len) //if only nonhuman revolutionaries remain, promote one of them to the leadership.
+				promotable = nonhuman_promotable
+			if(promotable.len)
+				var/datum/mind/new_leader = pick(promotable)
+				var/datum/antagonist/rev/rev = new_leader.has_antag_datum(/datum/antagonist/rev)
+				rev.promote()
+
+	addtimer(CALLBACK(src,PROC_REF(update_heads)),HEAD_UPDATE_PERIOD,TIMER_UNIQUE)

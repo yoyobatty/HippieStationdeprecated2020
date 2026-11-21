@@ -472,3 +472,110 @@
 	if(QDELETED(cmo) || cmo.stat != DEAD)
 		return BOT_GYM_PENDING
 	return (locate(/obj/item/reagent_containers/hypospray/CMO) in bot.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// Rules that ask for a client, and a bot has none (goals/revolution.dm, goals/cult.dm)
+// ---------------------------------------------------------------------------------------------
+
+/// The revolution promotes a member to head revolutionary when its leaders are thin on the ground (revolution.dm update_heads()), out of the
+/// ones with a client. The bot revolutionaries had none, so a revolution of bots whose leaders were killed or locked up never got new ones.
+/datum/bot_scenario/rev_promotion
+	name = "revolution: with its leaders gone, a bot revolutionary is promoted to head revolutionary"
+	desc = "A revolution with four heads of staff aboard and no head revolutionary left, and one bot revolutionary. The revolution's check for a new leader promotes the bot."
+	station_wide = TRUE
+	job = "Assistant"
+	layout = list(
+		"##########",
+		"#B..1234.#",
+		"##########")
+	time_limit = 30 SECONDS
+	var/datum/team/revolution/team
+	var/asked = FALSE
+
+/datum/bot_scenario/rev_promotion/make_goal()
+	return null
+
+/datum/bot_scenario/rev_promotion/setup()
+	var/list/roles = list("1" = "Captain", "2" = "Head of Personnel", "3" = "Chief Engineer", "4" = "Research Director")
+	for(var/n in roles)
+		var/mob/living/carbon/human/head = stand_in(first_marker(n), "Head [n]")
+		head.mind_initialize()
+		head.mind.assigned_role = roles[n]
+
+/datum/bot_scenario/rev_promotion/post_spawn()
+	..()
+	team = new
+	bot.mind.add_antag_datum(new /datum/antagonist/rev, team)
+
+/datum/bot_scenario/rev_promotion/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!asked)
+		asked = TRUE
+		team.update_heads()
+	return bot.mind.has_antag_datum(/datum/antagonist/rev/head) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/rev_promotion/release_run()
+	if(team)
+		qdel(team)
+		team = null
+	return ..()
+
+/// The Rite of Resurrection (runes.dm raise_dead/invoke()) took a cultist with no client for an inactive one: a dead bot cultist, once
+/// revived, had its body put up for the ghosts to take over, and the rite failed. A bot reads as connected.
+/datum/bot_scenario/rune_revive
+	name = "cult: the Rite of Resurrection on a dead bot cultist wakes it in its own body"
+	desc = "A dead cultist bot on a Revive rune with the sacrifices made, and another cultist beside it invoking it. The bot's alive, and the rite's over: it isn't left waiting on a poll of the ghosts."
+	station_wide = TRUE
+	job = "Assistant"
+	layout = list(
+		"#######",
+		"#BI...#",
+		"#######")
+	time_limit = 30 SECONDS
+	var/obj/effect/rune/raise_dead/rune
+	var/mob/living/carbon/human/caster
+	var/asked = FALSE
+	/// Dead (the rite's for it) or alive and well (it isn't)
+	var/dead = TRUE
+
+/datum/bot_scenario/rune_revive/make_goal()
+	return null
+
+/datum/bot_scenario/rune_revive/setup()
+	rune = new(first_marker("B"))
+	for(var/i in 1 to 6)
+		GLOB.sacrificed += "gym sacrifice [i]" //the rite wants sacrifices behind it
+
+/datum/bot_scenario/rune_revive/post_spawn()
+	..()
+	bot.mind.add_antag_datum(/datum/antagonist/cult)
+	caster = stand_in(first_marker("I"), "Cult Caster")
+	caster.mind_initialize()
+	caster.mind.add_antag_datum(/datum/antagonist/cult)
+
+/datum/bot_scenario/rune_revive/check()
+	if(!asked)
+		asked = TRUE
+		if(dead)
+			bot.death()
+		rune.invoke(list(caster))
+	if(rune.rune_in_use)
+		fail_reason = "the rite's left waiting (on the ghosts, for a bot's body)"
+		return BOT_GYM_FAIL
+	if(dead && bot.stat == DEAD)
+		fail_reason = "the dead bot's still dead"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/rune_revive/release_run()
+	GLOB.sacrificed.Cut()
+	if(rune)
+		qdel(rune)
+	return ..()
+
+/// And one that's alive and well isn't an inactive cultist for the rite to take over.
+/datum/bot_scenario/rune_revive/alive
+	name = "cult: the Rite of Resurrection leaves a live bot cultist alone"
+	desc = "A live cultist bot on a Revive rune. It's no dead or inactive cultist, so the rite finds nobody on the rune and fizzles, and doesn't put its body up for the ghosts."
+	dead = FALSE
