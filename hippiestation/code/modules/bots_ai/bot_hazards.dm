@@ -477,7 +477,7 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 
 /// What it would part with to push off: rubbish, paper and food first, then anything small, tools last. Never its ID or PDA, the tank it
 /// breathes from, a jetpack, a gun, a bag, or what its goal is about.
-/datum/bot_brain/proc/throwaway_item(max_rank = 5)
+/datum/bot_brain/proc/throwaway_item(max_rank = 5, careful = FALSE)
 	var/list/carried = list()
 	for(var/obj/item/I in owner.held_items)
 		carried += I
@@ -497,6 +497,8 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 			rank = 2
 		else if(!is_tool_or_toolbox(I))
 			rank = 3
+		if(careful && (I.force >= 5 || istype(I, /obj/item/restraints) || istype(I, /obj/item/melee) || istype(I, /obj/item/assembly/flash)))
+			continue //what it fights and arrests with isn't what it parts with to push off a wall
 		if(rank < best_rank && rank <= max_rank)
 			best = I
 			best_rank = rank
@@ -531,7 +533,7 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 	if(!here || !toward)
 		return
 	next_drift_throw = world.time + 3 SECONDS
-	var/obj/item/I = throwaway_item(3) //not a tool: it'd want that again
+	var/obj/item/I = throwaway_item(3, TRUE) //not a tool, nor what it fights or arrests with: it'd want that again
 	if(!I)
 		if(world.time >= next_float_call)
 			next_float_call = world.time + 3 MINUTES
