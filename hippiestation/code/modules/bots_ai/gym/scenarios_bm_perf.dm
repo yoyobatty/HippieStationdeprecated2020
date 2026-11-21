@@ -102,10 +102,22 @@
 /// Seconds after a run starts that its bot is killed, or null
 GLOBAL_VAR_INIT(bot_gym_kill_after, text2num(world.params["bot-gym-kill"]))
 
+/// bot-gym-vanish=<seconds>: the same, for what the bot's goal is after: that long in, its target (an item, a machine, a patient...) is deleted,
+/// as when somebody picks it up or a bomb takes it. A step that reads the target after that is a caught "BOT AI EXCEPTION" in the round log
+/// (the bot is alive, so none of it is "outlived its body"): each one is a goal that doesn't cope with its target going.
+GLOBAL_VAR_INIT(bot_gym_vanish_after, text2num(world.params["bot-gym-vanish"]))
+
 /datum/bot_scenario
 	var/killed_at
+	var/vanished_at
 
 /datum/bot_scenario/tick()
+	var/vanish_after = GLOB.bot_gym_vanish_after
+	if(vanish_after && !vanished_at && result == BOT_GYM_PENDING && brain && world.time >= start_time + vanish_after SECONDS)
+		var/atom/target = brain.current_goal?.target
+		if(target && !isturf(target) && target != bot && !QDELETED(target))
+			vanished_at = world.time
+			qdel(target)
 	var/kill_after = GLOB.bot_gym_kill_after
 	if(kill_after && !killed_at && result == BOT_GYM_PENDING && bot && !QDELETED(bot) && bot.stat != DEAD && world.time >= start_time + kill_after SECONDS)
 		killed_at = world.time
