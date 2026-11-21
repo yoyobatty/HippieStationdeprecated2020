@@ -880,7 +880,8 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	if(arrest_severity >= BOT_CRIME_MAJOR)
 		bot_say(owner, "[S.name], you're under arrest for [lowertext(arrest_crime)].")
 	else
-		bot_say(owner, pick("[S.name], stop right there! You're under arrest for [lowertext(arrest_crime)].", "Security! [S.name], you're under arrest for [lowertext(arrest_crime)]. Hands where I can see them."))
+		// Not "stop right there!" again: begin_arrest()'s shout, a few seconds ago, already said it (a near copy of it came a second later, 14 times a shift)
+		bot_say(owner, pick("[S.name], you're under arrest for [lowertext(arrest_crime)].", "Security! [S.name], you're under arrest for [lowertext(arrest_crime)]. Hands where I can see them."))
 	bot_log(src, "told [S] they're under arrest for [arrest_crime]")
 
 // ------------------------------------------------------------
@@ -1235,7 +1236,9 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	G.caller_turf = T
 	G.caller_name = L.name
 	if(assign_goal(G))
-		bot_say(owner, radio_freq ? ":s Responding to a call from [L.name] in [get_area_name(T, TRUE)]." : "On my way.")
+		// On the channel it came over, a beat after hearing it, and said once by whoever's first (worth_saying()). It was always ":s", Security's own channel,
+		// which the caller couldn't hear unless they were an officer: "security help" on Common got four identical answers nobody but Security could read.
+		say_after_typing(radio_freq ? "[bot_radio_prefix(radio_freq)]Responding to a call from [L.name] in [get_area_name(T, TRUE)]." : "On my way.")
 
 /// "help" as a cry, wherever it is in the line (a line opening with "help" is one too: "Help! Security!", "help maint").
 GLOBAL_LIST_INIT(bot_help_cries, list("help me", "help us", "need help", "needs help", "someone help", "somebody help", "anyone help", "anybody help", "send help", "get help"))

@@ -113,6 +113,16 @@ GLOBAL_LIST_INIT(bot_idle_lines, list(
 	"Is it just me or is it cold in here?",
 	"Wonder what's for dinner.",
 	"Right. Where was I.",
+	"I could really use a nap.",
+	"Who keeps moving my stuff?",
+	"Does this place ever stop humming?",
+	"Someone's been in my locker, I swear.",
+	"Is the air always this stale?",
+	"I always forget where I left my ID.",
+	"Why is it always the vents?",
+	"I need a holiday.",
+	"Wonder if the vending machines got restocked.",
+	"That's the third time today.",
 ))
 
 GLOBAL_LIST_INIT(bot_combat_lines, list(
@@ -121,6 +131,10 @@ GLOBAL_LIST_INIT(bot_combat_lines, list(
 	"Back off!",
 	"I'll call security!",
 	"Stop that!",
+	"Get off me!",
+	"Leave me alone!",
+	"What's your problem?!",
+	"Cut it out!",
 ))
 
 GLOBAL_LIST_INIT(bot_name_called_lines, list(
@@ -136,7 +150,11 @@ GLOBAL_LIST_INIT(bot_greeting_reply_lines, list(
 	"Oh, hi!",
 	"Hey, how's it going?",
 	"Sup.",
-	"Afternoon.",
+	"Hey.",
+	"Yo.",
+	"Hi.",
+	"Hello.",
+	"Heya.",
 ))
 
 GLOBAL_LIST_INIT(bot_question_reply_lines, list(
@@ -145,6 +163,9 @@ GLOBAL_LIST_INIT(bot_question_reply_lines, list(
 	"No idea, sorry.",
 	"Couldn't tell you.",
 	"Wish I knew.",
+	"No clue.",
+	"Don't ask me.",
+	"Haven't a clue.",
 ))
 
 // Passed straight to /mob/proc/emote() - keep this list to emotes every human can

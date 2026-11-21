@@ -30,14 +30,14 @@
 		return BOT_MOOD_CHEERY
 	return BOT_MOOD_PLAIN
 
-/// One of three lists, by mood.
+/// One of three lists, by mood, and not one it said lately (bot_fresh_pick(), bot_talk_more.dm): a prisoner said "I want a lawyer" five times in ten minutes.
 /datum/bot_brain/proc/mood_pick(list/cheery, list/plain, list/grumpy)
 	switch(mood())
 		if(BOT_MOOD_CHEERY)
-			return pick(cheery)
+			return bot_fresh_pick(src, cheery)
 		if(BOT_MOOD_GRUMPY)
-			return pick(grumpy)
-	return pick(plain)
+			return bot_fresh_pick(src, grumpy)
+	return bot_fresh_pick(src, plain)
 
 // ---------------------------------------------------------------------------------------------
 // The speakers
@@ -271,6 +271,105 @@ GLOBAL_LIST_INIT(bot_job_words, list(
 	if(their_job)
 		return pick("Should be [their_job[2]].", "Probably [their_job[2]].", "Haven't seen them. Maybe [their_job[2]]?")
 	return pick("Haven't seen them.", "No idea, sorry.", "Not since this morning.")
+
+/// Question put to the room or the radio -> until when somebody's answered it, so it's one that does and not everybody that hears
+GLOBAL_LIST_EMPTY(bot_station_answered)
+
+/// "Who's the captain?", "where's the HoS?", "what time is it?", said to the room or over the radio and not to anybody: one of those who hear it
+/// answers, as somebody always does. Face to face with the one it was put to, or by name, answer_for() has it (people_answer()). In a room of
+/// them, or on the radio, a question like that got no answer at all, or a bystander's "Beats me." (the user's "where is everyone", "who's alive?").
+/datum/bot_brain/proc/answer_station_question(mob/living/talker, lower_msg, radio_freq)
+	if(!ishuman(talker) || gone_loud() || !(findtext(lower_msg, "?") || bot_text_has_any(lower_msg, list("what time", "who's the", "whos the", "who is the", "where's the", "wheres the", "where is the"))))
+		return FALSE
+	// Only the plain ones: a job, or the time. A question about one person is for the people who can see them (answer_whereabouts())
+	if(!bot_text_has_any(lower_msg, list("what time", "the time")) && (!bot_job_asked_about(lower_msg) || bot_person_named(lower_msg, talker, list(owner))))
+		return FALSE
+	var/key = "[lowertext(lower_msg)]|[talker ? REF(talker) : ""]"
+	if(world.time < GLOB.bot_station_answered[key])
+		return TRUE //somebody has it
+	if(world.time < next_reaction_time)
+		return FALSE
+	// In the room it's the nearest of them that takes it (asked_as_nearest(), bot_chatter.dm), most of the time; on the radio, any one of the many
+	// who hear it, and the first to try has it.
+	if(radio_freq ? !prob(15 + 25 * sociability) : (!prob(70 + 30 * sociability) || !nearest_to_talker(talker)))
+		return FALSE
+	var/line = people_answer(lower_msg)
+	if(!line)
+		return FALSE
+	GLOB.bot_station_answered[key] = world.time + 20 SECONDS
+	if(length(GLOB.bot_station_answered) > 30)
+		GLOB.bot_station_answered.Cut(1, 16)
+	next_reaction_time = world.time + rand(80, 200)
+	if(!radio_freq && !pursuing_kind)
+		owner.face_atom(talker)
+	say_after_typing(bot_radio_prefix(radio_freq) + line)
+	return TRUE
+
+/// Who's been said hello back to over the radio lately: REF -> until when
+GLOBAL_LIST_EMPTY(bot_radio_hello_answered)
+
+/datum/bot_brain
+	/// Out of a hundred, its chance of being the one who says hello back to a "hey" on Common (answer_radio_hello()); a gym scenario makes it certain.
+	var/radio_hello_odds = 15
+
+/// "Hey", "hello", "yo" typed on Common by a player: one of the crew says hey back on the radio, as somebody always does. The user types most of
+/// what they say on Common (all 20 lines of round-14.43.45 went out on it too), and a bot only answers the radio to its own name, so a hello to the
+/// station got nothing from anybody not stood next to them.
+/datum/bot_brain/proc/answer_radio_hello(mob/living/talker, lower_msg)
+	if(!ishuman(talker) || gone_loud() || length(lower_msg) > 14 || !bot_text_has_any(lower_msg, GLOB.bot_greeting_words) || world.time < next_reaction_time)
+		return FALSE //a person's hello: not Poly's
+	var/key = REF(talker)
+	if(world.time < GLOB.bot_radio_hello_answered[key])
+		return TRUE //somebody has it
+	if(!prob(radio_hello_odds + 25 * sociability))
+		return FALSE
+	GLOB.bot_radio_hello_answered[key] = world.time + 20 SECONDS
+	if(length(GLOB.bot_radio_hello_answered) > 20)
+		GLOB.bot_radio_hello_answered.Cut(1, 11)
+	next_reaction_time = world.time + rand(80, 200)
+	say_after_typing(";" + (time_greeting(lower_msg) || pick(GLOB.bot_greeting_reply_lines))) //"good morning" gets "morning"
+	bot_log(src, "said hello back to [talker] on the radio")
+	return TRUE
+
+/// Who's been asked "what's wrong?" lately: REF -> until when
+GLOBAL_LIST_EMPTY(bot_cry_answered)
+
+/// "Help!" said out loud in a room of people, by somebody who isn't down: the nearest of them asks what's wrong, as anybody would. Face to face
+/// with one (answer_for()) it already did; in a crowd nobody was spoken to and nobody said a word (the user's "help" and "help me", round
+/// after round). Somebody down and hurt is for heard_cry_for_help() (goals/carry_casualty.dm), which this leaves alone.
+/datum/bot_brain/proc/answer_cry_in_the_room(mob/living/talker, lower_msg)
+	if(gone_loud() || length(lower_msg) > 14 || !bot_text_has_any(lower_msg, list("help", "halp", "help me", "helppp")) || bot_text_has_any(lower_msg, list("help yourself", "help yourselves")))
+		return FALSE
+	var/mob/living/carbon/human/H = talker
+	if(!istype(H) || bot_down_and_hurt(H) || world.time < next_reaction_time || get_dist(owner, talker) > 5)
+		return FALSE
+	var/key = REF(talker)
+	if(world.time < GLOB.bot_cry_answered[key] || !nearest_to_talker(talker) || !prob(70 + 30 * sociability))
+		return FALSE
+	GLOB.bot_cry_answered[key] = world.time + 8 SECONDS
+	if(length(GLOB.bot_cry_answered) > 20)
+		GLOB.bot_cry_answered.Cut(1, 11)
+	next_reaction_time = world.time + rand(80, 200)
+	if(!pursuing_kind)
+		owner.face_atom(talker)
+	say_after_typing(pick("What's wrong?", "What happened?", "What do you need?", "Whoa, what's up?", "You alright?"))
+	bot_log(src, "asked what's wrong, [talker] called for help")
+	return TRUE
+
+/// Whether it's the one of the people stood about nearest to this talker, who isn't the talker.
+/datum/bot_brain/proc/nearest_to_talker(mob/living/talker)
+	if(get_dist(owner, talker) > 7)
+		return FALSE
+	var/mob/living/carbon/human/nearest
+	var/nearest_dist
+	for(var/mob/living/carbon/human/H in view(7, talker))
+		if(H == talker || H.stat != CONSCIOUS || !H.bot_brain)
+			continue
+		var/dist = get_dist(H, talker)
+		if(!nearest || dist < nearest_dist)
+			nearest = H
+			nearest_dist = dist
+	return nearest == owner
 
 /// Somebody alive with that job, the way the manifest would tell anyone.
 /proc/bot_alive_in_job(job)

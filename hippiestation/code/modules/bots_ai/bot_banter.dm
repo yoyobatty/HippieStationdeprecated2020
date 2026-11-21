@@ -13,7 +13,7 @@
 	if(bot_text_has_any(lower_msg, list("tell me a joke", "know any jokes", "tell a joke", "say something funny", "make me laugh", "got any jokes")))
 		if(temper >= 0.7 && r < 2)
 			return pick("I'm not a clown.", "Ask the clown.", "No.")
-		var/list/J = pick(GLOB.bot_jokes)
+		var/list/J = fresh_pick(GLOB.bot_jokes)
 		last_joke_at = world.time
 		joke_punchline_at = world.time + 4 SECONDS
 		// After the setup's out, however long that takes to type (bot_typing_time(): 1.4 s plus 0.12 s a letter at most), and a beat
@@ -24,6 +24,9 @@
 		if(world.time < last_joke_at + 1 MINUTES)
 			return pick("Thank you, thank you.", "I'm here all shift.", "Right?", "Ha.")
 		return prob(50) ? pick("What's funny?", "Ha.", "lol") : null
+	// Spoiling for a fight, said to its face ("someone come fight me"): words, and none of them an answer that starts one
+	if(bot_text_has_any(lower_msg, list("fight me", "come fight me", "wanna fight", "want to fight", "let's fight", "lets fight", "square up", "bring it")))
+		return mood_pick(list("Ha, no thanks.", "Not today!"), list("I'll pass.", "No thanks.", "Not interested."), list("Don't tempt me.", "Keep talking.", "You don't want that."))
 	// Flirting
 	if(bot_text_has_any(lower_msg, list("you're hot", "youre hot", "you're cute", "youre cute", "date me", "marry me", "go out with me", "wanna go out", "want to go out", "kiss me", "i love you", "be my", "you're pretty", "youre pretty", "you're handsome", "youre handsome", "hey cutie", "hey sexy", "sexy")))
 		feel(talker, r >= 0 ? 0.3 : -0.3)

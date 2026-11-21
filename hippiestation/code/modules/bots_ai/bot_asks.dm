@@ -167,6 +167,12 @@ GLOBAL_LIST_INIT(bot_title_words, list(
 // Where somebody is
 // ---------------------------------------------------------------------------------------------
 
+/// "Can you give me more access?", said to somebody who isn't the HoP: not theirs to give, and the HoP is. It got "Hm, not sure, honestly."
+/datum/bot_brain/proc/not_my_access(lower_msg)
+	if(work_role() == "Head of Personnel" || !bot_text_has_any(lower_msg, list("access")) || !bot_text_has_any(lower_msg, list("give me", "get me", "need", "more", "can i", "can you", "could you", "upgrade", "i want", "extra")))
+		return null
+	return pick("That's the HoP's call.", "Ask the HoP.", "Not me, the HoP does access.", "Try the HoP.")
+
 /// Who somebody means by a name in what they said: a whole name first, then a first name, the nearest to them of those it fits.
 /proc/bot_person_named(lower_msg, mob/living/near, list/not_these)
 	var/mob/living/carbon/human/best
