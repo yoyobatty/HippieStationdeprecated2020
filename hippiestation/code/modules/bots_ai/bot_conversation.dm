@@ -316,7 +316,10 @@ GLOBAL_LIST_EMPTY(bot_radio_hello_answered)
 /// what they say on Common (all 20 lines of round-14.43.45 went out on it too), and a bot only answers the radio to its own name, so a hello to the
 /// station got nothing from anybody not stood next to them.
 /datum/bot_brain/proc/answer_radio_hello(mob/living/talker, lower_msg)
-	if(!ishuman(talker) || gone_loud() || length(lower_msg) > 14 || !bot_text_has_any(lower_msg, GLOB.bot_greeting_words) || world.time < next_reaction_time)
+	// A hello, a radio check ("test", "radio check") or somebody calling out to see who's there ("anyone here?")
+	var/check = bot_text_has_any(lower_msg, list("test", "testing", "radio check", "mic check", "can you hear me", "does this work"))
+	var/anyone = bot_text_has_any(lower_msg, list("anyone here", "anybody here", "anyone there", "anybody there", "anyone listening", "anybody listening", "is anyone on", "anyone on", "hello?"))
+	if(!ishuman(talker) || gone_loud() || length(lower_msg) > 20 || !(check || anyone || (length(lower_msg) <= 14 && bot_text_has_any(lower_msg, GLOB.bot_greeting_words))) || world.time < next_reaction_time)
 		return FALSE //a person's hello: not Poly's
 	var/key = REF(talker)
 	if(world.time < GLOB.bot_radio_hello_answered[key])
@@ -327,7 +330,12 @@ GLOBAL_LIST_EMPTY(bot_radio_hello_answered)
 	if(length(GLOB.bot_radio_hello_answered) > 20)
 		GLOB.bot_radio_hello_answered.Cut(1, 11)
 	next_reaction_time = world.time + rand(80, 200)
-	say_after_typing(";" + (time_greeting(lower_msg) || pick(GLOB.bot_greeting_reply_lines))) //"good morning" gets "morning"
+	var/answer
+	if(check)
+		answer = pick("Loud and clear.", "Got you.", "Hear you fine.", "Reading you.")
+	else if(anyone)
+		answer = pick("Yeah, I'm here.", "Here.", "Yep, what's up?", "Loud and clear. What's up?")
+	say_after_typing(";" + (answer || time_greeting(lower_msg) || pick(GLOB.bot_greeting_reply_lines))) //"good morning" gets "morning"
 	bot_log(src, "said hello back to [talker] on the radio")
 	return TRUE
 

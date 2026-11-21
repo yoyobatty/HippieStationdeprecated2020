@@ -688,6 +688,7 @@
 	var/list/lines = list("hi", "hey", "how are you?", "what are you doing?", "where is the captain?", "can you help me?", "who are you?", "what's your job?", "do you have a crowbar?", "where's medbay?", "thanks", "lol", "are you a traitor?", "nice day isn't it", "i need a doctor", "have you seen the clown?", "what's going on?", "you there?", "excuse me", "sorry", "whats up", "can i have that?", "follow me", "wait here", "come with me", "are you ok?", "do you know where engineering is?", "what do you think of the captain?", "you're cool", "bye")
 	var/next_line = 1
 	var/list/said_at = list()
+	var/pass_thirds = 2 //how many thirds of the lines need an answer to pass (a crowd leaves a bystander's hello to chance: sweep/user_lines/crowd)
 
 /datum/bot_scenario/chat/sweep/post_spawn()
 	..()
@@ -720,7 +721,7 @@
 		else
 			missed += lines[i]
 	log_line("SWEEP: answered [answered] of [length(said_at)]; nothing back for: [english_list(missed)]")
-	return answered * 3 >= length(said_at) * 2 ? BOT_GYM_PASS : BOT_GYM_FAIL
+	return answered * 3 >= length(said_at) * pass_thirds ? BOT_GYM_PASS : BOT_GYM_FAIL
 
 /datum/bot_scenario/sleeper_crit
 	name = "medical rounds: somebody in crit goes in a shut sleeper, with epinephrine"

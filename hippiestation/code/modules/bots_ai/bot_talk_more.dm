@@ -181,7 +181,7 @@ GLOBAL_LIST_EMPTY(bot_breach_called)
 	if(QDELETED(T) || !istype(T, /turf/open/space))
 		return //patched since
 	var/area/A = get_area(T)
-	if(!A || world.time < GLOB.bot_breach_called[A])
+	if(!A)
 		return
 	var/datum/bot_brain/nearest
 	var/nearest_dist = 11
@@ -192,7 +192,11 @@ GLOBAL_LIST_EMPTY(bot_breach_called)
 		if(dist < nearest_dist && (T in view(10, B.owner)))
 			nearest = B
 			nearest_dist = dist
-	if(!nearest || !prob(75))
+	if(!nearest)
 		return
-	GLOB.bot_breach_called[A] = world.time + 90 SECONDS
+	// Once for the area. A gym arena is an area of its own as far as this goes (they all share one real area, and the others' holes aren't this one's).
+	var/called_key = nearest.gym_run ? "[REF(nearest.gym_run)]" : A //(text: a list keyed by the run would hold it up)
+	if(world.time < GLOB.bot_breach_called[called_key] || (!nearest.gym_run && !prob(75))) //a gym run comes out the same each time
+		return
+	GLOB.bot_breach_called[called_key] = world.time + 90 SECONDS
 	nearest.say_after_typing(";" + bot_fresh_pick(nearest, list("There's a hole in the hull at [A.name]!", "[A.name]'s open to space!", "Hull's been breached at [A.name], Engineering!", "Something's blown a hole in [A.name]!")))

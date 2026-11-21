@@ -220,6 +220,7 @@
 		"#...B...#",
 		"#########")
 	lines = list("hey", "yo", "hi", "help", "wait", "stop", "what's going on", "anyone got a crowbar?", "who's the captain?", "hello", "you ok?", "thanks", "sorry", "nice", "where's medbay?", "what are you guys doing?")
+	pass_thirds = 1.5 //half: in a crowd a hello is answered by whoever feels like it, and wait, stop, nice aren't answered by anybody
 
 /datum/bot_scenario/chat/sweep/user_lines/crowd/post_spawn()
 	..()
@@ -483,6 +484,7 @@
 		"###############")
 	time_limit = 20 SECONDS
 	var/list/crew = list()
+	var/radio_line = "hey"
 
 /datum/bot_scenario/chat/radio_hello/post_spawn()
 	..()
@@ -494,7 +496,7 @@
 
 /datum/bot_scenario/chat/radio_hello/proc/hey()
 	for(var/mob/living/carbon/human/H in crew)
-		H.bot_brain.on_heard_speech(visitor, "hey", FREQ_COMMON)
+		H.bot_brain.on_heard_speech(visitor, radio_line, FREQ_COMMON)
 
 /datum/bot_scenario/chat/radio_hello/check()
 	if(bot_lost())
@@ -611,3 +613,88 @@
 		fail_reason = "[said] lines, and where it is [right_words ? "was said" : "wasn't"]"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+/// "test", "radio check", "anyone here?" on Common (how somebody finds out whether the radio works, or who's about): one of them answers.
+/datum/bot_scenario/chat/radio_hello/radio_check
+	name = "speech: \"radio check\" on Common gets one \"loud and clear\""
+	desc = "Three of them hear \"radio check\" come over Common. One answers that it can hear them. Before: silence."
+	radio_line = "radio check"
+
+/datum/bot_scenario/chat/radio_hello/radio_check/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 9 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	if(length(lines) != 1)
+		fail_reason = length(lines) ? "more than one answered: [english_list(lines)]" : "nobody answered a radio check"
+		return BOT_GYM_FAIL
+	if(!(findtext(lines[1], "Loud and clear") || findtext(lines[1], "Got you") || findtext(lines[1], "Hear you fine") || findtext(lines[1], "Reading you")))
+		fail_reason = "answered a radio check with \"[lines[1]]\""
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// "you need healing" (the user's, said to bots): the words of a call for a doctor, said to a doctor, about the doctor. It answered "Be right there."
+/datum/bot_scenario/chat/not_a_call
+	name = "speech: \"you need healing\", said to a doctor, isn't a call for a doctor"
+	desc = "The visitor tells a doctor who's in perfect health that it needs healing. The doctor says it's fine, instead of \"Be right there.\" and setting off for a patient who isn't there."
+	job = "Medical Doctor"
+	layout = list(
+		"#######",
+		"#B.C..#",
+		"#######")
+	time_limit = 15 SECONDS
+
+/datum/bot_scenario/chat/not_a_call/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "you need healing"), 2 SECONDS)
+
+/datum/bot_scenario/chat/not_a_call/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 9 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	if(!length(lines))
+		fail_reason = "said nothing to being told it needs healing"
+		return BOT_GYM_FAIL
+	if(!(lines[1] in list("I'm fine, thanks.", "I'm alright, but thanks.", "Nah, I'm good.")))
+		fail_reason = "answered \"you need healing\" with \"[lines[1]]\""
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// Shift batch speech_b: Glenn Asker's ";Cargo, can we get some glass please?" came back from the Cargo Technician as ";Couldn't tell you." (a reply to
+/// a "?", over Common, to a request). The order is taken and said so (goals/orders.dm).
+/datum/bot_scenario/chat/cargo_asked
+	name = "speech: \"cargo, can we get some glass please?\" over Common is taken, not met with \"couldn't tell you\""
+	desc = "The Cargo Technician hears a request for glass come over Common. It says it'll order it, on Common. Before (shift batch): \"Couldn't tell you.\""
+	job = "Cargo Technician"
+	layout = list(
+		"###########",
+		"#B.......C#",
+		"###########")
+	time_limit = 20 SECONDS
+
+/datum/bot_scenario/chat/cargo_asked/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(ask)), 2 SECONDS)
+
+/datum/bot_scenario/chat/cargo_asked/proc/ask()
+	log_line("visitor (over Common): \"Cargo, can we get some glass please?\"")
+	brain.on_heard_speech(visitor, "cargo, can we get some glass please?", FREQ_COMMON)
+
+/datum/bot_scenario/chat/cargo_asked/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 9 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	if(!length(lines))
+		fail_reason = "nobody took the order for glass"
+		return BOT_GYM_FAIL
+	for(var/ack in list("put the order in", "ordering now", "give it a few minutes", "get that ordered"))
+		if(findtext(lines[1], ack))
+			return BOT_GYM_PASS
+	var/datum/bot_request_kind/read_as = bot_request_kind_of("cargo, can we get some glass please?", TRUE, get_turf(visitor))
+	fail_reason = "answered a request for glass with \"[lines[1]]\" (read as: [read_as ? read_as.name : "no request"], heard_by [read_as ? read_as.heard_by(brain, TRUE) : "-"], work role [brain.work_role()])"
+	return BOT_GYM_FAIL
