@@ -101,10 +101,9 @@
 		if(!S.steal_target)
 			return null
 		var/datum/bot_goal/traitor_steal/loose = new(S)
-		if(ispath(S.steal_target, /obj/item/disk/nuclear))
-			loose.resolve_target(src)
-			if(!loose.target)
-				return steal_from_carrier(S) //not lying about: the Captain has it
+		loose.resolve_target(src)
+		if(!loose.target)
+			return steal_from_carrier(S) || loose //nothing lying about: somebody who has it on them
 		return loose
 	if(istype(O, /datum/objective/assassinate) || istype(O, /datum/objective/maroon))
 		if(plays_robust())
@@ -546,19 +545,43 @@
 // "Steal the nuclear authentication disk" with the Captain carrying it (where it's kept, as everybody on a station knows) had no goal at
 // all: the steal goal above only goes for what's lying about or locked up, so a traitor with it did nothing about it for the shift. In
 // the last batches it was on a dozen traitors and never once done. A player takes it off the Captain: waits for a moment, puts them down,
-// and takes it off them.
+// and takes it off them. The same for the Chief Medical Officer's hypospray and the others that belong to a head (GLOB.bot_steal_carriers):
+// once the head's picked it up it isn't where the map put it, and the traitor had nothing to go on.
 
-/// A goal for a steal objective for what's on somebody, or null: only the disk, which is on the Captain (knows_where_disk_is(), nuke_defence.dm).
+/// What a traitor knows who has: the head of the job it belongs to, as anybody on a station does. Whoever else has it, or nobody, it doesn't
+/// know to look for.
+GLOBAL_LIST_INIT(bot_steal_carriers, list(
+	/obj/item/disk/nuclear = "Captain",
+	/obj/item/gun/energy/laser/captain = "Captain",
+	/obj/item/clothing/accessory/medal/gold/captain = "Captain",
+	/obj/item/tank/jetpack/oxygen/captain = "Captain",
+	/obj/item/reagent_containers/hypospray/CMO = "Chief Medical Officer",
+	/obj/item/gun/energy/e_gun/hos = "Head of Security",
+	/obj/item/clothing/shoes/magboots/advance = "Chief Engineer",
+))
+
+/// A goal for a steal objective for what's on somebody, or null: the nuclear disk's with the Captain, the hypospray with the Chief Medical
+/// Officer, the HoS's gun with the Head of Security (GLOB.bot_steal_carriers).
 /datum/bot_brain/proc/steal_from_carrier(datum/objective/steal/S)
-	if(!ispath(S.steal_target, /obj/item/disk/nuclear))
+	var/job
+	for(var/path in GLOB.bot_steal_carriers)
+		if(ispath(S.steal_target, path))
+			job = GLOB.bot_steal_carriers[path]
+			break
+	if(!job)
 		return null
-	var/obj/item/disk/nuclear/D = bot_find_nuke_disk(src) //nuke_ops.dm: a real one, and in the Bot Gym the arena's own
-	var/mob/living/carbon/human/carrier = D ? bot_outermost_holder(D) : null
-	if(!istype(carrier) || carrier == owner || carrier.z != owner.z || !knows_where_disk_is(carrier))
-		return null
-	if(carrier.bot_brain?.op_team || bot_in_syndicate_suit(carrier))
-		return null //an operative's: that's a fight for somebody else
-	return new /datum/bot_goal/traitor_kill/lift(S, carrier)
+	for(var/obj/item/I as anything in bot_instances_of(S.steal_target))
+		if(QDELETED(I) || (S.targetinfo && !S.targetinfo.check_special_completion(I)))
+			continue
+		var/mob/living/carbon/human/carrier = bot_outermost_holder(I)
+		if(!istype(carrier) || carrier == owner || carrier.z != owner.z || carrier.mind?.assigned_role != job)
+			continue
+		if(gym_run && get_area(carrier) != get_area(owner))
+			continue
+		if(carrier.bot_brain?.op_team || bot_in_syndicate_suit(carrier))
+			continue //an operative's: that's a fight for somebody else
+		return new /datum/bot_goal/traitor_kill/lift(S, carrier)
+	return null
 
 /// The one who has it put down, if they're up, and the thing off them.
 /datum/bot_goal/traitor_kill/lift
@@ -595,18 +618,26 @@
 	if(!istype(G) || QDELETED(body) || !bot.owner.Adjacent(body) || (body.stat != DEAD && !body.incapacitated()))
 		return GOAL_STEP_FAIL
 	var/obj/item/wanted
+	var/on_them = TRUE
 	for(var/obj/item/I in body.GetAllContents())
 		if(istype(I, G.steal.steal_target) && (!G.steal.targetinfo || G.steal.targetinfo.check_special_completion(I)))
 			wanted = I
 			break
+	if(!wanted) //what was in their hand fell when they did: it's on the floor round them
+		on_them = FALSE
+		for(var/obj/item/I in range(1, body))
+			if(isturf(I.loc) && istype(I, G.steal.steal_target) && (!G.steal.targetinfo || G.steal.targetinfo.check_special_completion(I)))
+				wanted = I
+				break
 	if(!wanted)
-		return GOAL_STEP_FAIL //they haven't got it on them after all
+		return GOAL_STEP_FAIL //they haven't got it after all
 	bot.human_pause(body)
 	if(QDELETED(wanted) || QDELETED(body) || !bot.owner.Adjacent(body) || bot.owner.incapacitated())
 		return GOAL_STEP_FAIL
-	body.visible_message("<span class='warning'>[bot.owner] takes [wanted] off [body].</span>")
-	if(!body.transferItemToLoc(wanted, get_turf(bot.owner)))
-		wanted.forceMove(get_turf(bot.owner)) //out of a bag, which transferItemToLoc() doesn't reach
+	if(on_them)
+		body.visible_message("<span class='warning'>[bot.owner] takes [wanted] off [body].</span>")
+		if(!body.transferItemToLoc(wanted, get_turf(bot.owner)))
+			wanted.forceMove(get_turf(bot.owner)) //out of a bag, which transferItemToLoc() doesn't reach
 	bot.try_pickup_target(wanted)
 	if(bot_outermost_holder(wanted) != bot.owner)
 		return GOAL_STEP_FAIL

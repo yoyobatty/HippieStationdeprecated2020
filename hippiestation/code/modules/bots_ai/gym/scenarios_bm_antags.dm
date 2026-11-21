@@ -445,3 +445,30 @@
 	if("bot_rampant_suspect" in GLOB.vars)
 		GLOB.vars["bot_rampant_suspect"] = null
 	return ..()
+
+/// "Steal the hypospray": it's the Chief Medical Officer's, and the CMO has picked it up, so it isn't where the map put it and the traitor had
+/// nothing to go on (it knew of what lay about, and what was where the map left it). It knows who has it, as anybody does.
+/datum/bot_scenario/duty/traitor/hypospray_off_the_cmo
+	name = "traitor: the Chief Medical Officer is carrying the hypospray, alone, it puts them down and takes it"
+	desc = "The objective is the CMO's hypospray and the CMO has it in hand, alone in the room. The traitor buys a sword, kills them and takes it."
+	layout = list(
+		"#########",
+		"#B.....V#",
+		"#########")
+	var/mob/living/carbon/human/cmo
+
+/datum/bot_scenario/duty/traitor/hypospray_off_the_cmo/post_spawn()
+	..()
+	cmo = stand_in(first_marker("V"), "Chief Doc")
+	cmo.mind_initialize()
+	cmo.mind.assigned_role = "Chief Medical Officer"
+	var/obj/item/reagent_containers/hypospray/CMO/hypo = new(get_turf(cmo))
+	cmo.put_in_hands(hypo)
+	set_steal_objective(/obj/item/reagent_containers/hypospray/CMO)
+
+/datum/bot_scenario/duty/traitor/hypospray_off_the_cmo/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(cmo) || cmo.stat != DEAD)
+		return BOT_GYM_PENDING
+	return (locate(/obj/item/reagent_containers/hypospray/CMO) in bot.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING
