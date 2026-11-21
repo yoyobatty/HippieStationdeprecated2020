@@ -300,3 +300,94 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 			fail_reason = "asked the HoP (itself) for access: [line]"
 			return BOT_GYM_FAIL
 	return world.time > start_time + 10 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// A doctor fetching somebody down in air nobody can breathe (goals/treat_patient.dm escort_to_sleeper, goals/refill_internals.dm)
+// ---------------------------------------------------------------------------------------------
+
+/// jobs_s2: the Chemist went down in crit in a room full of bad air and lay there five minutes. Three doctors each tried to take it to a sleeper,
+/// and each turned it down ("Vic Sorrento is somewhere I can't breathe and I'm not suited up - not doing escort_to_sleeper", 10 times in the
+/// last minute and a half) until it died. A player puts a mask on, opens the tank in the survival box and goes in.
+/datum/bot_scenario/sleeper_check/toxic_air
+	name = "medical rounds: somebody down in air nobody can breathe is fetched out on a mask and tank"
+	desc = "A patient in crit behind a door, in a room full of nitrogen at 101 kPa and 20 C, a sleeper in clean air on the doctor's side, and a breath mask and an emergency oxygen tank in the doctor's bag. It puts the mask on and opens the tank before it goes in, brings them out to the sleeper, and shuts the valve and takes the mask off again after. It's never in the nitrogen with its tank shut. jobs_s2: a Chemist died in crit in a room of bad air with three doctors turning the rescue down five minutes running."
+	// The clean side is long, and the room past the door two tiles: the nitrogen that comes out when the door's opened mixes into the
+	// air on the doctor's side, and a small arena was left without the 16 kPa of oxygen to take the kit off in
+	layout = list(
+		"####################",
+		"#Y.....B........DnP#",
+		"####################")
+	time_limit = 45 SECONDS
+	kit_backpack = list(/obj/item/clothing/mask/breath, /obj/item/tank/internals/emergency_oxygen) //as a crew member's survival box has
+	/// The air in the room past the door: 104 mol a tile is about 101 kPa at 20 C
+	var/room_air = "n2=104;TEMP=293.15"
+	var/setup_problem
+	var/loaded_at
+
+/datum/bot_scenario/sleeper_check/toxic_air/setup()
+	..()
+	if(!room_air)
+		return
+	for(var/char in list("n", "P"))
+		for(var/turf/open/F in markers[char])
+			F.air.parse_gas_string(room_air)
+			F.update_visuals()
+			SSair.add_to_active(F)
+
+/datum/bot_scenario/sleeper_check/toxic_air/post_spawn()
+	give_job_id(list(ACCESS_MEDICAL))
+	patient = stand_in(first_marker("P"), "Chet Chemist")
+	ADD_TRAIT(patient, TRAIT_NOBREATH, "bm_jobs_gym") //it's the doctor's air that's being judged, not how long a patient lasts in it
+	patient.adjustBruteLoss(120)
+	var/turf/open/there = get_turf(patient)
+	if(room_air && brain.turf_air_is_breathable(there))
+		setup_problem = "setup: the air by the patient at [bot_coord(there)] can be breathed ([round(there.air.return_pressure(), 0.1)] kPa, [round(there.air.temperature)] K)"
+	else if(!room_air && !brain.turf_air_is_breathable(there))
+		setup_problem = "setup: the air by the patient at [bot_coord(there)] can't be breathed"
+
+/datum/bot_scenario/sleeper_check/toxic_air/make_goal()
+	return new /datum/bot_goal/escort_to_sleeper()
+
+/// What it has on for the air
+/datum/bot_scenario/sleeper_check/toxic_air/proc/kitted()
+	return bot.internal || istype(bot.wear_mask, /obj/item/clothing/mask/breath)
+
+/datum/bot_scenario/sleeper_check/toxic_air/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(setup_problem)
+		fail_reason = setup_problem
+		return BOT_GYM_FAIL
+	if(!loaded_at)
+		var/turf/open/here = get_turf(bot)
+		if(room_air && istype(here) && !brain.turf_air_is_breathable(here) && !bot.internal)
+			fail_reason = "in air it can't breathe at [bot_coord(here)] with its tank shut"
+			return BOT_GYM_FAIL
+		if(sleeper.occupant != patient)
+			if(bot_transcript_said("can't breathe and I'm not suited up"))
+				fail_reason = "turned the rescue down: it can't breathe there and isn't suited up"
+				return BOT_GYM_FAIL
+			return BOT_GYM_PENDING
+		loaded_at = world.time
+		log_line("[patient] is in [sleeper]")
+		if(room_air && !bot_transcript_said("kitted out for the air at"))
+			fail_reason = "got them out without kitting up for the air they were in"
+			return BOT_GYM_FAIL
+		if(!room_air && (bot_transcript_said("kitted out for the air at") || bot_transcript_said("opened the valve")))
+			fail_reason = "put its mask on and opened its tank for a patient in air it could breathe"
+			return BOT_GYM_FAIL
+	// What a bot's own brain does once a second (mind_air_supply(), goals/refill_internals.dm): the kit off again once the work's done and it's
+	// back in air it can breathe. A scripted gym bot between goals only minds its valve, so the scenario asks for it, as crate_air does
+	brain.mind_air_kit()
+	if(kitted())
+		if(world.time > loaded_at + 20 SECONDS)
+			fail_reason = "still kitted out 20 s after they were in the sleeper: tank [bot.internal ? "open" : "shut"], wearing [bot.wear_mask || "no mask"]"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PENDING
+	return BOT_GYM_PASS
+
+/// The same, in air it can breathe: no mask and tank for it
+/datum/bot_scenario/sleeper_check/toxic_air/clean
+	name = "medical rounds: somebody down in air that can be breathed is fetched without a mask and tank"
+	desc = "The same patient and sleeper with ordinary air in the room: the doctor doesn't kit up for it (the control for the nitrogen one)."
+	room_air = null

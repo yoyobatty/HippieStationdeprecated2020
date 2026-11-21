@@ -780,6 +780,10 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 
 /datum/bot_goal/escort_to_sleeper
 	exclusive = TRUE //one doctor to a patient: two went for the same one, and the second found them gone from where they'd lain
+	// A patient down in air nobody can breathe is fetched on a mask and tank, as a player would (kit_up_for_air(), goals/refill_internals.dm):
+	// jobs_s2, the Chemist lay in crit in a room full of bad air for five minutes while three doctors "can't breathe and I'm not suited up"
+	// turned the rescue down, over and over, until it died
+	on_internals = TRUE
 	var/atom/machine_target
 
 /datum/bot_goal/escort_to_sleeper/resolve_target(datum/bot_brain/bot)
@@ -851,7 +855,7 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 	var/datum/bot_step/move_to/to_patient = new()
 	var/datum/bot_step/move_to/to_machine = new()
 	to_machine.step_target = M
-	steps = list(to_patient, new /datum/bot_step/grab_patient(), to_machine, new /datum/bot_step/load_patient(M))
+	steps = list(new /datum/bot_step/kit_up_for_air(), to_patient, new /datum/bot_step/grab_patient(), to_machine, new /datum/bot_step/load_patient(M))
 
 /datum/bot_strategy/escort/is_feasible(datum/bot_brain/bot)
 	return machine_target && !QDELETED(machine_target)
