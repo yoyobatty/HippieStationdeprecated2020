@@ -168,6 +168,16 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 /datum/bot_brain/proc/call_it_in(mob/living/carbon/human/culprit, crime, details, severity, mob/living/victim)
 	if(gone_loud()) //goals/robust.dm: nobody Security's after calls Security
 		return
+	// A radio call is typed out: a quick typist's three or four seconds for a line this long, not the tick it decided to make it.
+	var/typing = (gym_run && !gym_run.slow_reactions) ? 0 : round(bot_typing_time("Somebody [details] in [get_area_name(culprit, TRUE)]!") * 0.6) //bot_chatter.dm
+	if(typing > 0)
+		addtimer(CALLBACK(src, PROC_REF(finish_call_in), culprit, crime, details, severity, victim), typing)
+		return
+	finish_call_in(culprit, crime, details, severity, victim)
+
+/datum/bot_brain/proc/finish_call_in(mob/living/carbon/human/culprit, crime, details, severity, mob/living/victim)
+	if(QDELETED(owner) || owner.stat != CONSCIOUS || QDELETED(culprit) || gone_loud())
+		return //it couldn't have typed it, or it's turned
 	var/who = culprit.name
 	var/where = get_area_name(culprit, TRUE)
 	var/line = "[who] [details] in [where]!"
@@ -223,12 +233,12 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 
 /// Does `reaction` (a callback on this brain, about something it has just seen) after witness_reaction_time(), as long as it's still up
 /// and about then.
-/datum/bot_brain/proc/react_to_sight(datum/callback/reaction)
+/datum/bot_brain/proc/react_to_sight(datum/callback/reaction, extra_delay = 0)
 	var/delay = witness_reaction_time()
 	if(delay <= 0)
 		reaction.Invoke()
 		return
-	addtimer(CALLBACK(src, PROC_REF(react_now), reaction), delay)
+	addtimer(CALLBACK(src, PROC_REF(react_now), reaction), delay + extra_delay)
 
 /datum/bot_brain/proc/react_now(datum/callback/reaction)
 	if(QDELETED(src) || QDELETED(owner) || owner.stat != CONSCIOUS)

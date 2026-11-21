@@ -350,3 +350,134 @@
 	if(. == BOT_GYM_PASS && patient_brain && LAZYACCESS(patient_brain.telemetry_flags, "equip_without_holding"))
 		fail_reason = "put its things on straight off the floor, never holding them (x[patient_brain.telemetry_flags["equip_without_holding"]])"
 		return BOT_GYM_FAIL
+
+/datum/bot_scenario/bmhl/witness_types_the_call
+	name = "reaction: a witness types out its call to Security, it isn't on the radio the moment it saw the blow"
+	desc = "As above, and what the witness does about it is to call it in: a line typed out, which takes a quick typist three or four seconds, on top of the moment it takes to see what's going on. The bot's call was in the tick it decided to make it."
+	layout = list(
+		"#################",
+		"#B....V.C.......#",
+		"#################")
+	time_limit = 12 SECONDS
+	slow_reactions = TRUE
+	var/mob/living/carbon/human/griefer
+	var/mob/living/carbon/human/victim
+	var/blow_at = 0
+
+/datum/bot_scenario/bmhl/witness_types_the_call/issue_goal()
+	return
+
+/datum/bot_scenario/bmhl/witness_types_the_call/post_spawn()
+	griefer = stand_in(first_marker("C"), "Griff Griefer")
+	victim = stand_in(first_marker("V"), "Vic Victim")
+	griefer.setDir(get_dir(griefer, victim))
+	addtimer(CALLBACK(src, PROC_REF(punch)), 2 SECONDS)
+
+/datum/bot_scenario/bmhl/witness_types_the_call/proc/punch()
+	if(result != BOT_GYM_PENDING || QDELETED(griefer) || QDELETED(victim))
+		return
+	blow_at = world.time
+	griefer.a_intent = INTENT_HARM
+	griefer.UnarmedAttack(victim, TRUE)
+
+/datum/bot_scenario/bmhl/witness_types_the_call/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!blow_at)
+		return BOT_GYM_PENDING
+	for(var/line in transcript)
+		var/at = findtext(line, "s: called in ")
+		if(!at)
+			continue
+		var/gap = text2num(copytext(line, 1, at)) * 10 - (blow_at - start_time)
+		if(gap < 25)
+			fail_reason = "called it in [gap / 10] s after the blow"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// Who the killer is (goals/massacre.dm killer_it_knows())
+// ---------------------------------------------------------------------------------------------
+// massacre_killer() read who last hurt every body on the station off the bodies' own records, so the whole crew knew the name of a killer
+// nobody had seen: three bodies and the crew sticking together against Max, who they'd never laid eyes on doing anything.
+
+/datum/bot_scenario/duty/group_up/unseen
+	name = "panic: three dead and the killer stood by it, but it never saw who did it, so it has nobody to keep away from"
+	desc = "As the panic scenario with strict_casualties: the bodies are all last hurt by the man by the bot, and it saw none of it and was told nothing. It doesn't know it's him, and doesn't go off to stick with the others against him. Before 2026-11-21 it went by the bodies' records."
+	strict_casualties = TRUE
+	time_limit = 12 SECONDS
+
+/datum/bot_scenario/duty/group_up/unseen/post_spawn()
+	..()
+	// The deaths happened a long time ago, as far as the bot's concerned: a body that's just died of a blow the last tick is a killing it saw
+	for(var/mob/living/carbon/human/H in range(12, bot))
+		if(H.stat == DEAD)
+			H.last_assailant_at = world.time - 10 MINUTES
+
+/datum/bot_scenario/duty/group_up/unseen/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(get_dist(bot, crew) <= 4 || bot_transcript_said("with the others") || bot_transcript_said("staying with the others"))
+		fail_reason = "went to the others against a killer it didn't know of"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/group_up/unseen/on_timeout()
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/duty/group_up/saw_it
+	name = "panic: three dead and it saw the killing, so it goes and sticks with the others"
+	desc = "As above, and the bot saw him do it (a first-hand fact, bot_memory.dm): it knows who's killing and goes to the others."
+	strict_casualties = TRUE
+
+/datum/bot_scenario/duty/group_up/saw_it/post_spawn()
+	..()
+	var/mob/living/carbon/human/killer
+	var/mob/living/carbon/human/body
+	for(var/mob/living/carbon/human/H in range(12, bot))
+		if(H.real_name == "Max Killer")
+			killer = H
+		else if(H.stat == DEAD && !body)
+			body = H
+	if(killer && body)
+		brain.learn_fact(BOT_FACT_KILLED, killer, body, "the arena")
+
+/datum/bot_scenario/bmhl/hit_takes_a_moment
+	name = "reaction: hit by somebody, it takes a moment to take it in and type its call to Security, not the tick the blow lands"
+	desc = "Somebody punches the bot. It fights back and radios it in, but a person takes a moment to see what's happened and then types the call out (a quick typist's three seconds or so). The bot's call was on the radio the tick the blow landed."
+	layout = list(
+		"#########",
+		"#B.C....#",
+		"#########")
+	time_limit = 12 SECONDS
+	slow_reactions = TRUE
+	var/mob/living/carbon/human/griefer
+	var/blow_at = 0
+
+/datum/bot_scenario/bmhl/hit_takes_a_moment/issue_goal()
+	return
+
+/datum/bot_scenario/bmhl/hit_takes_a_moment/post_spawn()
+	griefer = stand_in(first_marker("C"), "Griff Griefer")
+	griefer.setDir(get_dir(griefer, bot))
+	addtimer(CALLBACK(src, PROC_REF(punch)), 2 SECONDS)
+
+/datum/bot_scenario/bmhl/hit_takes_a_moment/proc/punch()
+	if(result != BOT_GYM_PENDING || QDELETED(griefer) || QDELETED(bot))
+		return
+	blow_at = world.time
+	griefer.a_intent = INTENT_HARM
+	griefer.UnarmedAttack(bot, TRUE)
+
+/datum/bot_scenario/bmhl/hit_takes_a_moment/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!blow_at || brain.next_assault_report_time <= 0)
+		return BOT_GYM_PENDING
+	var/gap = (brain.next_assault_report_time - 600) - blow_at //bot_call_security() sets it a minute on from when the call is made
+	if(gap < 25)
+		fail_reason = "called Security [gap / 10] s after the blow"
+		return BOT_GYM_FAIL
+	log_line("called Security [gap / 10] s after the blow")
+	return BOT_GYM_PASS
