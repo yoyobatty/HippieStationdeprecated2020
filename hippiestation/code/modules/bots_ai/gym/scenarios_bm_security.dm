@@ -747,3 +747,52 @@
 	..()
 	for(var/obj/item/card/id/mine in bot.GetAllContents())
 		mine.access -= ACCESS_BRIG
+
+// ---------------------------------------------------------------------------------------------
+// Breath on the way
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/brigged/crit_escort
+	name = "brig: an officer walking a prisoner in crit a long way to the cell stops to give them CPR when they're short of breath"
+	desc = "Shift batch bm_early run4: an officer escorted a prisoner in crit (-34 to -65) from Customs to the Brig to Medbay over forty seconds with no CPR on the way, and they died of suffocation. A player stops and breathes for them. The prisoner is at -40 and short of breath: once the officer has them in tow it stops, gives them CPR (three seconds, stood still), and goes on."
+	layout = list(
+		"#####################",
+		"#BC..............i..#",
+		"################d####",
+		"###############...###",
+		"###############..l###",
+		"#####################")
+	time_limit = 120 SECONDS
+	var/cpr_seen = FALSE
+
+/datum/bot_scenario/brigged/crit_escort/post_spawn()
+	..()
+	prisoner.adjustBruteLoss(110)
+	prisoner.adjustOxyLoss(30) //-40 all told, in crit and already short of breath: the walk's too quick in the gym for it to build up on the way
+	prisoner.updatehealth()
+
+/datum/bot_scenario/brigged/crit_escort/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!cpr_seen && bot_transcript_said("CPR on the way"))
+		cpr_seen = TRUE
+	if(prisoner.stat == DEAD)
+		fail_reason = cpr_seen ? "died on the way, with CPR given" : "died of it on the way with nobody stopping to give them a breath"
+		return BOT_GYM_FAIL
+	// It stopped, and went on: the sentence's started, with them alive and the mask, if they had one, off
+	if(cpr_seen && timer.timing && (!istype(prisoner.wear_mask, /obj/item/clothing/mask/breath) || QDELETED(prisoner.wear_mask)))
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/brigged/crit_escort/on_timeout()
+	fail_reason = cpr_seen ? "gave a breath, but the mask was still on them" : "never stopped to give them a breath (oxygen loss [round(prisoner.getOxyLoss())], health [round(prisoner.health)])"
+	return BOT_GYM_FAIL
+
+/// With a breath mask over their mouth: it comes off first (as a doctor's does for CPR)
+/datum/bot_scenario/brigged/crit_escort/mask
+	name = "brig: an officer walking a prisoner in crit in a breath mask takes the mask off before it gives them CPR"
+	desc = "The same walk, and the prisoner has a breath mask on. CPR doesn't go through a mask: the officer takes it off first, then breathes for them."
+
+/datum/bot_scenario/brigged/crit_escort/mask/post_spawn()
+	..()
+	prisoner.equip_to_slot_or_del(new /obj/item/clothing/mask/breath(prisoner), ITEM_SLOT_MASK)

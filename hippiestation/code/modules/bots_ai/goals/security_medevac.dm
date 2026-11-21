@@ -420,4 +420,59 @@
 			return TRUE
 	return FALSE
 
+// ---------------------------------------------------------------------------------------------
+// Breath on the way
+// ---------------------------------------------------------------------------------------------
+// Shift batch bm_early run4: an officer walked a prisoner in crit (-34 to -65) from Customs to the Brig to Medbay over forty seconds and
+// never stopped, and they suffocated on the way. A player stops, and breathes for them: three seconds a go of CPR gives back more than
+// the two or three a second they lose. What stops an officer is the same for anybody pulling somebody in crit, doctors and the rest included.
+
+/// How much suffocation a person in crit pulled along has to have before it stops to breathe for them, and the least that keeps it at it
+#define BOT_BREATHE_FOR_AT 12
+#define BOT_BREATHE_FOR_UNTIL 3
+
+/datum/bot_brain
+	/// When it next looks at whether to breathe for somebody it's pulling, and whether it's at it now
+	var/next_breath_for_time = 0
+	var/breathing_for = FALSE
+
+/// Pulling somebody who's in crit and short of breath: it stops, takes off what's over their mouth if it has to, and gives them CPR, then
+/// goes on. TRUE if it's stopped for them this tick (nothing else is done in it).
+/datum/bot_brain/proc/try_breathe_for_the_dragged()
+	var/mob/living/carbon/human/P = owner.pulling
+	if(!istype(P) || world.time < next_breath_for_time || P.stat == DEAD || P.stat == CONSCIOUS || P.health > P.crit_threshold)
+		breathing_for = FALSE
+		return FALSE
+	var/oxy = P.getOxyLoss()
+	if(oxy < (breathing_for ? BOT_BREATHE_FOR_UNTIL : BOT_BREATHE_FOR_AT))
+		breathing_for = FALSE
+		return FALSE
+	if(owner.incapacitated() || owner.is_mouth_covered() || !owner.Adjacent(P) || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST)
+		return FALSE
+	if(!turf_air_is_breathable(get_turf(P)) || HAS_TRAIT(P, TRAIT_NOBREATH))
+		return FALSE //nothing to give them in air they can't breathe
+	var/obj/item/clothing/cover = P.is_mouth_covered() ? mouth_cover_to_remove(P) : null //goals/treat_patient.dm
+	if(P.is_mouth_covered() && !cover)
+		return FALSE
+	breathing_for = TRUE
+	next_breath_for_time = world.time + (cover ? 8 SECONDS : 5 SECONDS)
+	stand_still_until = max(stand_still_until, world.time + (cover ? 8 SECONDS : 4 SECONDS))
+	INVOKE_ASYNC(src, PROC_REF(breathe_for), P, cover)
+	return TRUE
+
+/datum/bot_brain/proc/breathe_for(mob/living/carbon/human/P, obj/item/clothing/cover)
+	if(QDELETED(owner) || QDELETED(P))
+		return
+	owner.face_atom(P)
+	if(cover && !take_mouth_cover_off(P, cover)) //goals/treat_patient.dm
+		return
+	if(QDELETED(P) || owner.pulling != P || P.stat == DEAD)
+		return
+	bot_log(src, "stopped to give [P], who's at [round(P.health)] and [round(P.getOxyLoss())] short of breath, CPR on the way")
+	bot_tally("breaths given on the way")
+	telemetry_clicked(P)
+	owner.do_cpr(P)
+
+#undef BOT_BREATHE_FOR_AT
+#undef BOT_BREATHE_FOR_UNTIL
 #undef BOT_CARE_NO_ANSWER

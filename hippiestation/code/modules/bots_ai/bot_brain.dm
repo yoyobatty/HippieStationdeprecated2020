@@ -280,6 +280,8 @@
 		return
 	if(try_put_self_out())
 		return
+	if(owner.pulling && try_breathe_for_the_dragged()) //goals/security_medevac.dm: somebody in crit it's pulling, short of breath
+		return
 	if(knocked_away && try_recover_knocked_item()) //bot_reflexes.dm: back for what was knocked out of its hands
 		return
 	if(set_down_items && state == BOT_STATE_WANDER && go_back_for_set_down()) //bot_items.dm
