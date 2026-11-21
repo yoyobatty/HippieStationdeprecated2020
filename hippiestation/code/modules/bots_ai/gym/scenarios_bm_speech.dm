@@ -937,6 +937,7 @@
 		bot_say(bot, line)
 
 /datum/bot_scenario/pace_lines/proc/note_say(datum/source, list/arguments)
+	SIGNAL_HANDLER
 	said_at += world.time
 
 /datum/bot_scenario/pace_lines/check()
