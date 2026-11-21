@@ -806,3 +806,16 @@
 /datum/bot_scenario/brigged/crit_escort/mask/post_spawn()
 	..()
 	prisoner.equip_to_slot_or_del(new /obj/item/clothing/mask/breath(prisoner), ITEM_SLOT_MASK)
+
+// Coordinator, 2026-11-21: a knockdown between two of the brain's once-a-second looks. The gun drops (update_mobility()), the bot is up
+// again before any look sees it incapacitated, and before the fix nothing set floored, so the gun was never thought of again.
+/datum/bot_scenario/knocked_gun_back/between_looks
+	name = "security: knocked down and up again between two looks, the gun dropped is gone back for"
+	desc = "The same as knocked flat and the gun dropped, but the knockdown starts and ends inside one tick, so no look of the brain's ever sees the officer down. Under a busy gym a three-second stun fell between looks the same way and the officer walked on without its gun."
+	time_limit = 30 SECONDS
+
+/datum/bot_scenario/knocked_gun_back/between_looks/knock_down()
+	bot.Paralyze(10)
+	bot.SetParalyzed(0)
+	bot.forceMove(locate(bot.x + 2, bot.y, bot.z))
+	log_line("gun at [bot_coord(gun)], bot moved on to [bot_coord(bot)] with no look in between")
