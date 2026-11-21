@@ -22,7 +22,7 @@
 	J?.cycle(visitor)
 	start_moles = T.air_contents.total_moles()
 	log_line("suit [visitor.wear_suit], tank [visitor.s_store], jetpack [J] [J?.on ? "on" : "off"], [start_moles] mol")
-	addtimer(CALLBACK(src, PROC_REF(walk_on)), 1 SECONDS)
+	gym_after(1 SECONDS, CALLBACK(src, PROC_REF(walk_on)))
 
 /datum/bot_scenario/chat/jetpack/proc/walk_on()
 	if(result != BOT_GYM_PENDING || QDELETED(visitor))
@@ -33,7 +33,7 @@
 	var/obj/item/tank/T = visitor.s_store
 	log_line("step [steps_taken]: jetpack [J?.on ? "on" : "off"], tank [T ? T.air_contents.total_moles() : 0] mol")
 	if(steps_taken < 5)
-		addtimer(CALLBACK(src, PROC_REF(walk_on)), 5)
+		gym_after(5, CALLBACK(src, PROC_REF(walk_on)))
 
 /datum/bot_scenario/chat/jetpack/check()
 	if(steps_taken < 5)

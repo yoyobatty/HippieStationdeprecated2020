@@ -332,7 +332,7 @@
 	officer.bot_brain.begin_arrest(suspect)
 	RegisterSignal(bot, COMSIG_MOVABLE_MOVED, PROC_REF(stepped))
 	RegisterSignal(officer, COMSIG_MOVABLE_MOVED, PROC_REF(stepped))
-	addtimer(CALLBACK(src, PROC_REF(gets_away)), 5)
+	gym_on_step(1, CALLBACK(src, PROC_REF(gets_away)))
 
 /datum/bot_scenario/two_officers_lose_him/make_goal()
 	return null //the arrest is the job
@@ -1201,13 +1201,13 @@
 	captain.start_pulling(max)
 	captain.a_intent = INTENT_HARM
 	start_x = captain.x
-	addtimer(CALLBACK(src, PROC_REF(push_on)), 2 SECONDS)
+	gym_after(2 SECONDS, CALLBACK(src, PROC_REF(push_on)))
 
 /datum/bot_scenario/command_order/walked_into/proc/push_on()
 	if(result != BOT_GYM_PENDING || QDELETED(captain) || captain.x > start_x)
 		return
 	step(captain, EAST)
-	addtimer(CALLBACK(src, PROC_REF(push_on)), 5)
+	gym_after(5, CALLBACK(src, PROC_REF(push_on)))
 
 /datum/bot_scenario/command_order/walked_into/check()
 	if(bot_lost())

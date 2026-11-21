@@ -335,7 +335,7 @@
 
 /datum/bot_scenario/fixes1112/med_patient/kit_empty/post_spawn()
 	..()
-	addtimer(CALLBACK(src, PROC_REF(watch_fetch)), 1)
+	gym_after(1, CALLBACK(src, PROC_REF(watch_fetch)))
 
 /// The moment it sets off for the kit, what's in it goes.
 /datum/bot_scenario/fixes1112/med_patient/kit_empty/proc/watch_fetch()
@@ -348,7 +348,7 @@
 			qdel(I)
 		log_line("the kit it's gone for turns out to be empty")
 		return
-	addtimer(CALLBACK(src, PROC_REF(watch_fetch)), 1)
+	gym_after(1, CALLBACK(src, PROC_REF(watch_fetch)))
 
 /datum/bot_scenario/fixes1112/med_patient/kit_empty/check()
 	if(bot_lost())
@@ -376,7 +376,7 @@
 
 /datum/bot_scenario/fixes1112/med_patient/walked_far/post_spawn()
 	..()
-	addtimer(CALLBACK(src, PROC_REF(watch_doctor)), 1)
+	gym_after(1, CALLBACK(src, PROC_REF(watch_doctor)))
 
 /datum/bot_scenario/fixes1112/med_patient/walked_far/proc/watch_doctor()
 	if(moved || result != BOT_GYM_PENDING || QDELETED(patient) || QDELETED(bot))
@@ -390,7 +390,7 @@
 		log_line("patient: off to the far end, twenty tiles on, as the doctor comes up")
 		patient.forceMove(far_end)
 		return
-	addtimer(CALLBACK(src, PROC_REF(watch_doctor)), 1)
+	gym_after(1, CALLBACK(src, PROC_REF(watch_doctor)))
 
 /datum/bot_scenario/fixes1112/med_patient/walked_far/check()
 	if(bot_lost())
@@ -3062,14 +3062,14 @@
 		if(bot.health <= bot.maxHealth * 0.1)
 			break
 		bot.adjustBruteLoss(5)
-	addtimer(CALLBACK(src, PROC_REF(beat)), 2 SECONDS)
+	gym_after(2 SECONDS, CALLBACK(src, PROC_REF(beat)))
 
 /datum/bot_scenario/fixes1112/hurt_keeps_out/proc/beat()
 	if(result != BOT_GYM_PENDING || QDELETED(griefer) || QDELETED(victim) || victim.stat != CONSCIOUS)
 		return
 	griefer.a_intent = INTENT_HARM
 	griefer.UnarmedAttack(victim, TRUE)
-	addtimer(CALLBACK(src, PROC_REF(beat)), 15)
+	gym_after(15, CALLBACK(src, PROC_REF(beat)))
 
 /datum/bot_scenario/fixes1112/hurt_keeps_out/check()
 	if(bot_lost())

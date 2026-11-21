@@ -264,7 +264,7 @@
 		log_line("[prisoner] punches [bot] as the cuffs come off")
 		prisoner.a_intent = INTENT_HARM
 		prisoner.UnarmedAttack(bot)
-	addtimer(CALLBACK(src, PROC_REF(watch_cuffs)), 1)
+	gym_after(1, CALLBACK(src, PROC_REF(watch_cuffs)))
 
 /datum/bot_scenario/brigged/fights_uncuffing/check()
 	if(bot_lost())

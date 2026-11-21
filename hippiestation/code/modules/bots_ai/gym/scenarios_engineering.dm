@@ -218,7 +218,7 @@
 /datum/bot_scenario/beam_on_stroll/post_spawn()
 	RegisterSignal(bot, COMSIG_MOVABLE_MOVED, PROC_REF(stepped))
 	brain.pursue(first_marker("G"), "wander", force = TRUE)
-	addtimer(CALLBACK(src, PROC_REF(light_it)), 3)
+	gym_on_step(1, CALLBACK(src, PROC_REF(light_it)))
 
 /// Switched on, and on the map of places to keep out of, with the bot already on its way
 /datum/bot_scenario/beam_on_stroll/proc/light_it()
@@ -281,14 +281,14 @@
 	RegisterSignal(first_marker("G"), COMSIG_ATOM_ENTERED, PROC_REF(crossed))
 
 /datum/bot_scenario/beam_on_stroll/turned/post_spawn()
-	addtimer(CALLBACK(src, PROC_REF(light_it)), 10)
+	gym_after(10, CALLBACK(src, PROC_REF(light_it)))
 
 /datum/bot_scenario/beam_on_stroll/turned/proc/crossed(datum/source, atom/movable/AM)
 	SIGNAL_HANDLER
 	if(beam_crossed || !istype(AM, /obj/item/projectile/beam/emitter))
 		return
 	beam_crossed = TRUE
-	addtimer(CALLBACK(src, PROC_REF(look_at_map)), 1)
+	INVOKE_ASYNC(src, PROC_REF(gym_after), 1, CALLBACK(src, PROC_REF(look_at_map)))
 
 /datum/bot_scenario/beam_on_stroll/turned/proc/look_at_map()
 	on_the_map = bot_turf_in_beam(first_marker("G"))
@@ -318,7 +318,7 @@
 		"#######")
 
 /datum/bot_scenario/beam_on_stroll/stood_in_it/post_spawn()
-	addtimer(CALLBACK(src, PROC_REF(light_it)), 10)
+	gym_after(10, CALLBACK(src, PROC_REF(light_it)))
 
 /datum/bot_scenario/beam_on_stroll/stood_in_it/check()
 	if(bot_lost())

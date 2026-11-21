@@ -1,5 +1,44 @@
 // Bot gym scenarios from the 2026-11-21 bot audit, humanlike area.
 
+// ---------------------------------------------------------------------------------------------
+// Staged events that don't ride SStimer
+// ---------------------------------------------------------------------------------------------
+// A scenario's staged events (a shuttle leaving, a visitor speaking, a poll of what the bot is doing) were addtimer()s of 1-15 ds. In a
+// fast-forwarded gym SStimer runs late against the bot's own steps (SSbot_steps), by 0.05 s to 1 s or more with the machine's load, so
+// an event meant to come "after it has set off" came before or after it depending on how loaded the machine was: the dock-door scenario
+// failed on it, and "an emitter switched on across the way" had it lit when the bot was 4 tiles along or 2. Events go by the bot's steps
+// (gym_on_step) where they are about the walk, and by sleep() (gym_after) where they are about time.
+
+/// What to run when the bot has taken `steps` steps.
+/datum/gym_step_trigger
+	var/steps_left
+	var/datum/callback/what
+
+/datum/gym_step_trigger/New(atom/movable/mover, steps, datum/callback/cb)
+	. = ..()
+	steps_left = steps
+	what = cb
+	RegisterSignal(mover, COMSIG_MOVABLE_MOVED, PROC_REF(stepped))
+
+/datum/gym_step_trigger/proc/stepped(atom/movable/mover, atom/oldloc, dir)
+	SIGNAL_HANDLER
+	if(--steps_left > 0)
+		return
+	UnregisterSignal(mover, COMSIG_MOVABLE_MOVED)
+	INVOKE_ASYNC(what, TYPE_PROC_REF(/datum/callback, Invoke))
+
+/// Runs what when the bot has taken its nth step, however long that takes.
+/datum/bot_scenario/proc/gym_on_step(steps, datum/callback/what)
+	new /datum/gym_step_trigger(bot, steps, what)
+
+/// Runs what in `ds` deciseconds, on the tick (sleep), not when SStimer gets round to it. A scenario that's over doesn't run it.
+/datum/bot_scenario/proc/gym_after(ds, datum/callback/what)
+	set waitfor = FALSE
+	sleep(ds)
+	if(result != BOT_GYM_PENDING)
+		return
+	what.Invoke()
+
 /datum/bot_scenario/bmhl
 
 /// Counts how many of the bot's steps went against the way it set out, for the "doesn't dither" scenarios.

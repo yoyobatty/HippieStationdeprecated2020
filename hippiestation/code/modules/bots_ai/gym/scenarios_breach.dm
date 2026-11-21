@@ -115,7 +115,7 @@
 	var/knocked = FALSE
 
 /datum/bot_scenario/knocked_off_route/post_spawn()
-	addtimer(CALLBACK(src, PROC_REF(knock)), 6)
+	gym_on_step(3, CALLBACK(src, PROC_REF(knock)))
 
 /datum/bot_scenario/knocked_off_route/proc/knock()
 	if(QDELETED(bot))
