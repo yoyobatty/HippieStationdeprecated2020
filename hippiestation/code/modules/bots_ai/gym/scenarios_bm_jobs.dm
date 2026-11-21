@@ -860,3 +860,109 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 		fail_reason = "held by the tentacles: [bot.IsStun() ? "stunned" : "not stunned"], [round(bot.getBruteLoss())] brute"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+// ---------------------------------------------------------------------------------------------
+// Fighting a goliath (bot_fighting.dm fight_fauna())
+// ---------------------------------------------------------------------------------------------
+
+/// A goliath with its AI off, three tiles from the miner, which is made to know it's being attacked by it (as the goliath's first blow does).
+/datum/bot_scenario/mining/goliath_fighting
+	time_limit = 8 SECONDS
+	layout = list(
+		"#####################",
+		"#...................#",
+		"#...................#",
+		"#.......B..y........#",
+		"#...................#",
+		"#...................#",
+		"#####################")
+	var/mob/living/simple_animal/hostile/asteroid/goliath/goliath
+	var/started_at
+
+/datum/bot_scenario/mining/goliath_fighting/setup()
+	..()
+	goliath = new(first_marker("y"))
+	goliath.toggle_ai(AI_OFF)
+
+/datum/bot_scenario/mining/goliath_fighting/make_goal()
+	return null
+
+/// Once, at the start: it has been hit
+/datum/bot_scenario/mining/goliath_fighting/proc/start_fight()
+	started_at = world.time
+	brain.on_attacked(goliath, "attacked", null)
+	log_line("the goliath's first blow: [get_dist(bot, goliath)] tiles off")
+
+/datum/bot_scenario/mining/goliath_fighting/no_gun
+	name = "miner: a goliath on it and no accelerator, it doesn't hit it with what's in its hand but makes for the outpost"
+	desc = "A goliath three tiles off and a miner with a pickaxe and no kinetic accelerator, which has just been hit by it. It doesn't go at the goliath (not a scratch on it after six seconds), and it's six tiles or more from it by then."
+	kit_hands = list(/obj/item/pickaxe)
+	kit_backpack = list(/obj/item/t_scanner/adv_mining_scanner/lesser)
+
+/datum/bot_scenario/mining/goliath_fighting/no_gun/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!started_at)
+		start_fight()
+		return BOT_GYM_PENDING
+	if(goliath.health < goliath.maxHealth)
+		fail_reason = "hit the goliath with what it had in its hand"
+		return BOT_GYM_FAIL
+	if(world.time < started_at + 6 SECONDS)
+		return BOT_GYM_PENDING
+	if(get_dist(bot, goliath) < 6)
+		fail_reason = "still [get_dist(bot, goliath)] tiles from the goliath six seconds on"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/mining/goliath_fighting/kiting
+	name = "miner: its accelerator recharging with a goliath three tiles off, it moves away rather than stand there"
+	desc = "A goliath three tiles off, the miner's accelerator empty and recharging. It keeps moving away from it for the second and a half the recharge takes: two seconds on it is five tiles or more from it."
+	kit_hands = list(/obj/item/gun/energy/kinetic_accelerator)
+	kit_backpack = list(/obj/item/pickaxe)
+
+/datum/bot_scenario/mining/goliath_fighting/kiting/post_spawn()
+	..()
+	for(var/obj/item/gun/energy/kinetic_accelerator/KA in bot.GetAllContents())
+		KA.overheat = TRUE //recharging, and not done for the length of the scenario
+		KA.empty()
+
+/datum/bot_scenario/mining/goliath_fighting/kiting/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!started_at)
+		start_fight()
+		return BOT_GYM_PENDING
+	if(world.time < started_at + 2 SECONDS)
+		return BOT_GYM_PENDING
+	if(get_dist(bot, goliath) < 5)
+		fail_reason = "two seconds into the recharge it was still [get_dist(bot, goliath)] tiles from the goliath"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/mining/goliath_fighting/ready_shot
+	name = "miner: a goliath five tiles off and the accelerator ready, it steps in to the bolt's range and hits it"
+	desc = "A goliath five tiles off that has just hit the miner, and a loaded kinetic accelerator. The bolt goes three tiles, and the miner used to fire from where it stood and hit nothing: it steps in to three and the goliath is hurt inside six seconds."
+	kit_hands = list(/obj/item/gun/energy/kinetic_accelerator)
+	kit_backpack = list(/obj/item/pickaxe)
+	layout = list(
+		"#####################",
+		"#...................#",
+		"#...................#",
+		"#.......B....y......#",
+		"#...................#",
+		"#...................#",
+		"#####################")
+
+/datum/bot_scenario/mining/goliath_fighting/ready_shot/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!started_at)
+		start_fight()
+		return BOT_GYM_PENDING
+	if(goliath.health < goliath.maxHealth)
+		return BOT_GYM_PASS
+	if(world.time > started_at + 6 SECONDS)
+		fail_reason = "the goliath's not been scratched six seconds on, [get_dist(bot, goliath)] tiles off"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
