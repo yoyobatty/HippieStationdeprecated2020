@@ -395,8 +395,11 @@ GLOBAL_VAR(bot_events_count_test)
 
 /// Events that still want people: the bot crew hasn't beaten one yet. A blob in the live rounds of 2026-11-03..10 won every time, 35 of 30
 /// crew dead in about half an hour (live_round n3_blob, n4_blob), so a blob event stays for a round with the people to fight it until
-/// that's been put right. Take it out of the list when the crew beats it in a Bot Shift (bot-event=Blob@6).
-GLOBAL_LIST_INIT(bot_events_people_only, typecacheof(list(/datum/round_event_control/blob)))
+/// that's been put right. Take it out of the list when the crew beats it in a Bot Shift (bot-event=Blob@6). The Syndicate shocktroops'
+/// portal storm (ten armed hostiles dropped on the station) was never run against the crew either: bot-force-events=portal_storm_syndicate.
+/// The floor cluwne hunts somebody from the players' list (floor_cluwne.dm Acquire_Victim()), and with twenty bots and one person that's
+/// the one person, every time.
+GLOBAL_LIST_INIT(bot_events_people_only, typecacheof(list(/datum/round_event_control/blob, /datum/round_event_control/portal_storm_syndicate, /datum/round_event_control/floor_cluwne)))
 
 /datum/round_event_control/canSpawnEvent(players_amt, gamemode)
 	if(bot_crew_counts_for_events() && !GLOB.bot_events_people_only[type])

@@ -624,3 +624,29 @@ GLOBAL_VAR(bot_rampant_machine_ref)
 	return GOAL_STEP_FAIL
 
 #undef BOT_RAMPANT_CUTTERS
+
+// ---------------------------------------------------------------------------------------------
+// What an officer shoots an animal with
+// ---------------------------------------------------------------------------------------------
+
+// A stun does nothing to a mimic, a carp or a spider (a taser's electrode, a disabler's stamina), and an officer attacked by one fired the
+// first gun it found, the hybrid taser, at it: 21 of the 31 shots at the vending machines that got up in a Bot Shift were electrodes. Loose
+// creatures that had been called in were already shot with a lethal setting (goals/sabotage_slimes.dm); one that attacks the officer,
+// and so takes the ordinary fight, wasn't.
+
+/datum/bot_brain/try_shoot_at(mob/living/target)
+	if(!isanimal(target) || isslime(target))
+		return ..()
+	var/obj/item/gun/G = ready_lethal_gun() || slime_gun() //a laser, an e-gun on its kill setting, anything firing bullets
+	if(!G)
+		return FALSE //nothing it carries does it harm from here: its hands then
+	if(world.time < next_taser_time || !has_clear_shot(target) || !ready_in_hand(G))
+		return FALSE
+	owner.a_intent = INTENT_HARM
+	owner.face_atom(target)
+	owner.changeNext_move(CLICK_CD_RANGE)
+	next_taser_time = world.time + shot_interval(G) //foundation/gunfight.dm
+	bot_log(src, "firing [G] at [target] (dist [get_dist(owner, target)]): a stun does nothing to that")
+	INVOKE_ASYNC(G, TYPE_PROC_REF(/obj/item/gun, afterattack), target, owner, FALSE, null)
+	keep_firing_on(target, "combat")
+	return TRUE

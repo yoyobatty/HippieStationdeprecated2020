@@ -307,3 +307,48 @@
 		fail_reason = "went for a machine that had done nothing"
 		return BOT_GYM_FAIL
 	return world.time >= start_time + 20 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// A carp coming at an officer whose e-gun is on disable, as it starts: the officer's attacked, so it's the ordinary fight and not a
+/// loose creature called in. A disabler does nothing to a carp: it puts the gun on kill. (Before, a hybrid taser's electrodes went at
+/// vending machines that had got up as mimics, 21 shots of 31.)
+/datum/bot_scenario/animal_fight
+	name = "creatures: attacked by a carp with its e-gun on disable, an officer switches to kill"
+	desc = "A carp that's bitten the officer, who has an energy gun on disable, stands (stunned) six tiles off. It puts the gun on its kill setting and shoots the carp dead."
+	job = "Security Officer"
+	kit_backpack = list(/obj/item/gun/energy/e_gun)
+	layout = list(
+		"############",
+		"#B.....c...#",
+		"############")
+	time_limit = 60 SECONDS
+	var/mob/living/simple_animal/hostile/carp/carp
+
+/datum/bot_scenario/animal_fight/setup()
+	carp = new(first_marker("c"))
+	carp.Stun(100 SECONDS, ignore_canstun = TRUE) //it stays at range: this is about what the officer shoots it with, not a scrap up close
+
+/datum/bot_scenario/animal_fight/post_spawn()
+	..()
+	brain.register_security()
+	brain.on_attacked(carp, "bitten") //it's been bitten: the ordinary fight, not a creature called in
+
+/datum/bot_scenario/animal_fight/make_goal()
+	return null
+
+/datum/bot_scenario/animal_fight/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(brain.attacker == carp)
+		brain.last_hit_by_attacker = world.time //a stunned carp doesn't bite again: it's still the same fight
+	if(!QDELETED(carp) && carp.stat != DEAD)
+		return BOT_GYM_PENDING
+	var/obj/item/gun/energy/e_gun/G = locate() in bot.GetAllContents()
+	if(!G || brain.is_nonlethal_shot(G.ammo_type[G.select]))
+		fail_reason = "beat it down with the gun still on disable"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/animal_fight/release_run()
+	if(!QDELETED(carp))
+		qdel(carp)
+	return ..()
