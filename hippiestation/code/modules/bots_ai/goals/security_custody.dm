@@ -239,10 +239,30 @@ GLOBAL_LIST_INIT(bot_let_off_for_room, list("Vandalism", "Major Vandalism", "Tre
 /// REF(prisoner) -> list(weakref to them, weakref to the officer who asked, when)
 GLOBAL_LIST_EMPTY(bot_handovers)
 
-/// Whether this officer's card opens the Brig's timers and cells: no card, or one without Security's access, is no.
+/// Whether this officer's card opens the Brig's timers (Security's access) and cells (the Brig's): no card, or one without both, is no.
 /datum/bot_brain/proc/has_brig_access()
 	var/obj/item/card/id/card = route_card()
-	return card && (ACCESS_SECURITY in card.GetAccess())
+	if(!card)
+		return FALSE
+	var/list/access = card.GetAccess()
+	return (ACCESS_SECURITY in access) && (ACCESS_BRIG in access)
+
+/// Whether this officer's card works this cell's timer and its door: a cell door is the Brig's, and one shut on an officer who can't open
+/// it keeps them in.
+/datum/bot_brain/proc/can_work_cell(obj/machinery/door_timer/T)
+	if(!T || !T.allowed(owner))
+		return FALSE
+	for(var/obj/machinery/door/window/W in T.targets)
+		if(!W.allowed(owner))
+			return FALSE
+	return TRUE
+
+/// A cell's own door, shut, that this officer can't open: it's in the cell and can't get out of it.
+/datum/bot_brain/proc/locked_in_cell(obj/machinery/door_timer/T)
+	for(var/obj/machinery/door/window/W in T?.targets)
+		if(W.density && !W.allowed(owner))
+			return TRUE
+	return FALSE
 
 /// Asks another officer to take this cuffed prisoner in, and lets go of them. Always FALSE: it hasn't got them in.
 /datum/bot_brain/proc/hand_over_prisoner(mob/living/carbon/human/H, why)

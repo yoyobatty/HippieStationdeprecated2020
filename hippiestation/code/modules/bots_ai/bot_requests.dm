@@ -724,8 +724,11 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 
 /// The door of the caller's room this bot would open: one its ID opens, that it can walk up to.
 /datum/bot_request_kind/let_out/proc/door_for(datum/bot_brain/bot, datum/bot_request/R)
-	for(var/obj/machinery/door/airlock/D as anything in R.detail)
-		if(QDELETED(D) || D.locked || D.welded || !D.hasPower() || !D.allowed(bot.owner))
+	for(var/obj/machinery/door/D as anything in R.detail)
+		if(QDELETED(D) || !D.hasPower() || !D.allowed(bot.owner))
+			continue
+		var/obj/machinery/door/airlock/A = D
+		if(istype(A) && (A.locked || A.welded))
 			continue
 		if(!D.density || bot.can_walk_lawfully_to(D))
 			return D
@@ -742,7 +745,7 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 
 /// At the door: open it, and whoever is inside gets the word.
 /datum/bot_request_kind/let_out/attend(datum/bot_brain/bot, datum/bot_request/R)
-	var/obj/machinery/door/airlock/D = door_for(bot, R)
+	var/obj/machinery/door/D = door_for(bot, R) //an airlock, or a cell's door
 	var/mob/living/carbon/human/who = R.caller_ref?.resolve()
 	if(!D || !bot.owner.Adjacent(D))
 		return
@@ -750,7 +753,7 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 		bot.use_atom(D)
 	bot_log(bot, "opened [D] to let [who || "somebody"] out")
 	// And holds it: an airlock shuts again after fifteen seconds, and from the far end of Engineering that's not long enough.
-	if(who && !QDELETED(D) && get_dist(who, D) > 1)
+	if(who && !QDELETED(D) && get_dist(who, D) > 1 && istype(D, /obj/machinery/door/airlock))
 		bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, hold_door_for), D, who))
 	// They head for it while it's open. Whatever they were at in there can wait: they asked to be let out, and nothing in there
 	// was getting done (an assistant on a walk that had died under it never got the word, five doors opened for it).
@@ -861,6 +864,16 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 	. = list()
 	if(!is_shut_in() || !shut_in_region)
 		return
+	// A cell's own door (the Brig's access): what an officer who's lost its card is shut in by. Another officer with access opens it
+	// (let_out, below); the AI leaves Security's own windoors alone.
+	var/list/cell_doors = list()
+	for(var/turf/T as anything in shut_in_region)
+		for(var/d in GLOB.cardinals)
+			for(var/obj/machinery/door/window/brigdoor/W in get_step(T, d))
+				if(W.density && !W.allowed(owner))
+					cell_doors |= W
+	if(length(cell_doors))
+		return cell_doors
 	var/list/ways_out = list()
 	for(var/turf/T as anything in shut_in_region)
 		for(var/d in GLOB.cardinals)

@@ -1613,6 +1613,9 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 			bot_say(bot.owner, ":s All the cells are full, I need somewhere to put [prisoner.name]!")
 		LAZYSET(bot.failed_brig_targets, prisoner, world.time + 600)
 		return
+	if(!bot.can_work_cell(T)) //its card doesn't open that cell's door or timer (goals/security_custody.dm): not into a cell it can't get out of
+		bot.hand_over_prisoner(prisoner, "can't work [T.name]'s door")
+		return
 	bot_cell_wait_end(prisoner)
 	var/turf/D = bot_pick_deep_cell_turf(T)
 	if(!D)
@@ -1690,7 +1693,16 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 			// Lost its card on the way in (goals/security_custody.dm): nothing to book them with. The prisoner stays cuffed where they are, the
 			// officer goes out of the cell to the timer, and asks for another officer there: standing in the cell it's the one that counts as
 			// occupying it, and a colleague can find no free cell to take the prisoner to.
-			if(!bot.has_brig_access() && !goal.then_medbay)
+			if(!bot.can_work_cell(goal.cell_timer) && !goal.then_medbay)
+				// The cell's door's shut behind it and isn't one it can open: nowhere to go out to. It asks for somebody to take the prisoner
+				// over at once, and, shut in, for the door to be opened (the shut-in path, bot_requests.dm: other officers answer it).
+				if(bot.locked_in_cell(goal.cell_timer))
+					bot_log(bot, "no ID, and [goal.cell_timer.name]'s door is shut on me - asking to be let out")
+					bot.hand_over_prisoner(P, "no ID")
+					bot.next_shut_in_look = 0
+					bot.next_let_out_call = 0
+					bot.shut_in_checked_at = -1000
+					return GOAL_STEP_FAIL
 				goal.handing_over = TRUE
 				bot_log(bot, "no ID to book [P] with - out of the cell first, then asking for another officer")
 				return GOAL_STEP_SUCCESS

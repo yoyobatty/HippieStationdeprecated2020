@@ -384,12 +384,21 @@
 	var/handed_over = FALSE
 	/// Whether it starts at the arrest's end (start_brig_escort()), or already has the goal of taking them in
 	var/starts_with_escort = TRUE
+	/// Whether the officer has its card to begin with (and loses it after: locked_in)
+	var/keeps_card = FALSE
+
+/// A real cell's door is the Brig's: an officer with no card can't open it.
+/datum/bot_scenario/brigged/no_id/setup()
+	..()
+	for(var/obj/machinery/door/window/D in timer.targets)
+		D.req_access = list(ACCESS_BRIG)
 
 /datum/bot_scenario/brigged/no_id/post_spawn()
 	..()
 	brain.register_security()
-	for(var/obj/item/card/id/mine in bot.GetAllContents())
-		qdel(mine) //the base scenario gave it one
+	if(!keeps_card)
+		for(var/obj/item/card/id/mine in bot.GetAllContents())
+			qdel(mine) //the base scenario gave it one
 	colleague = colleague_with_a_card("O")
 
 /// As a round does it: the arrest is done and it sets about taking them in.
@@ -659,12 +668,71 @@
 		return BOT_GYM_PENDING
 	return ..()
 
-/// The card goes missing when it's got the prisoner to the cell
-/datum/bot_scenario/brigged/no_id/late
-	name = "brig: an officer who finds it has no ID in the cell with the prisoner still cuffed leaves the cell, and asks for another officer there"
-	desc = "The officer has taken the prisoner into the cell as if it had its card, and finds it hasn't one. Standing in the cell it counts as occupying it (find_free_brig_cell()): a handover from inside left the colleague no free cell. It doesn't search and uncuff them for nothing either: it goes out to the timer, asks there, and the colleague takes the prisoner in."
+/// The card goes missing when it's got the prisoner to the cell, and the cell's door has shut on it
+/datum/bot_scenario/brigged/no_id/locked_in
+	name = "brig: an officer who loses its card in the cell with the door shut on it asks to be let out, and a colleague opens it and takes the prisoner in"
+	desc = "The cell's door is the Brig's (ACCESS_BRIG) and shuts behind them: an officer with no card is locked in with the prisoner, and standing in the cell it counts as occupying it (find_free_brig_cell()), so a handover from in there left the colleague no free cell. Now it asks for another officer to take the prisoner in, and, shut in, calls to be let out: the colleague opens the cell door (the AI leaves Security's own windoors alone), the officer goes out, and the colleague takes the prisoner in."
 	starts_with_escort = FALSE //the base scenario's goal to take the prisoner in
-	time_limit = 100 SECONDS //the walk out, the ask, the colleague's walk in
+	keeps_card = TRUE
+	time_limit = 150 SECONDS //the colleague's wait on a cell that's in use, its walk to the door, the second go
+	/// Whether the cell door stands open instead (the officer's free to walk out)
+	var/door_open = FALSE
+	var/asked_at = 0
+	var/asked_out = FALSE
 
-/datum/bot_scenario/brigged/no_id/late/make_goal()
-	return goal_attempts > 1 ? null : ..()
+/datum/bot_scenario/brigged/no_id/locked_in/post_spawn()
+	..()
+	var/turf/deep = bot_pick_deep_cell_turf(timer)
+	var/turf/beside = deep
+	for(var/turf/I in bot_get_cell_interior(timer))
+		if(I != deep && get_dist(I, deep) <= 1 && !I.density)
+			beside = I
+			break
+	bot.forceMove(deep)
+	prisoner.forceMove(beside)
+	if(door_open)
+		for(var/obj/machinery/door/window/D in timer.targets)
+			D.autoclose = FALSE
+			D.open()
+	brain.gym_asks_out = TRUE
+
+/// Its goal's assigned with its card on it, and the card goes: as if it had been lost or taken on the way in.
+/datum/bot_scenario/brigged/no_id/locked_in/issue_goal()
+	if(goal_attempts)
+		return
+	goal_attempts++
+	brain.assign_goal(make_goal())
+	for(var/obj/item/card/id/mine in bot.GetAllContents())
+		qdel(mine)
+	asked_at = world.time + 3 SECONDS
+
+/datum/bot_scenario/brigged/no_id/locked_in/check()
+	if(!door_open && asked_at && !asked_out && world.time >= asked_at)
+		asked_out = TRUE
+		log_line("the officer, shut in, calls to be let out")
+		// As maybe_ask_to_be_let_out() makes it on the station (an arena isn't on a station level, so a gym bot never asks by itself): the
+		// doors it's shut in by, on the radio.
+		brain.shut_in_checked_at = -1000
+		var/list/doors = brain.doors_shutting_me_in()
+		brain.gym_scripted = FALSE //call_for() keeps a scripted bot quiet
+		brain.call_for(/datum/bot_request_kind/let_out, "Can somebody let me out of the cell? The door won't open for me.", doors)
+		brain.gym_scripted = TRUE
+	return ..()
+
+/// The same with the door standing open: the officer goes out to the timer and asks there
+/datum/bot_scenario/brigged/no_id/locked_in/open
+	name = "brig: an officer who loses its card in the cell with the door open goes out of the cell first, then asks for another officer"
+	desc = "The cell's door stands open. The officer with no card leaves the prisoner cuffed, goes out to the timer and asks there: the colleague finds the cell free and takes them in."
+	door_open = TRUE
+	time_limit = 100 SECONDS
+
+/// A card that runs the timer but not the cell door
+/datum/bot_scenario/brigged/no_id/timer_but_no_door
+	name = "brig: an officer whose card runs the cell timer but not the cell's door isn't sent into a cell it can't get out of"
+	desc = "The timer wants Security's access and a real cell's door the Brig's. An officer with the one and not the other would take the prisoner in, the door would shut behind it, and the sentence couldn't be started or the cell left. It asks for another officer to take the prisoner in instead."
+	keeps_card = TRUE
+
+/datum/bot_scenario/brigged/no_id/timer_but_no_door/post_spawn()
+	..()
+	for(var/obj/item/card/id/mine in bot.GetAllContents())
+		mine.access -= ACCESS_BRIG
