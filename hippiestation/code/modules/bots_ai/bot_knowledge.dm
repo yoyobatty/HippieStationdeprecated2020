@@ -71,13 +71,22 @@ GLOBAL_VAR_INIT(bot_knowledge_off, world.params["bot-knowledge"] == "off")
 	if(length(seen_items) > BOT_SEEN_ITEMS_MAX)
 		seen_items.Cut(1, length(seen_items) - BOT_SEEN_ITEMS_MAX + 1)
 
+/// The most things one glance takes in. Nobody takes in a thousand at once, and a pile of hundreds on a tile in sight (somebody spawning a
+/// crate's worth for a test) cost each bot that looked ~2 us a thing, a second at a time. Nearer things come first in what view() gives.
+#define BOT_GLANCE_ITEMS_MAX 300
+/// The most one glance has found in sight (the Bot Shift summary): the cap, plus one, if it was ever reached
+GLOBAL_VAR_INIT(bot_glance_most, 0)
+
 /// A look at what's lying about in sight. At most once a second: from keep_an_eye_out(), and before choosing what to fetch.
 /datum/bot_brain/proc/glance_at_items()
 	if(world.time < next_item_glance || !isturf(owner?.loc))
 		return
 	next_item_glance = world.time + 1 SECONDS
 	var/list/contraband_types = GLOB.bot_contraband
+	var/looked = 0
 	for(var/obj/item/I in view(BOT_SIGHT_RANGE, owner))
+		if(++looked > BOT_GLANCE_ITEMS_MAX)
+			break
 		// Still where the map put it: known to everybody, and nothing for note_seen() to do. Asked here, as that's most of what's in
 		// sight and it was a proc call for each. Anything else is noted as before, in the same order.
 		var/turf/T = get_turf(I)
@@ -85,6 +94,8 @@ GLOBAL_VAR_INIT(bot_knowledge_off, world.params["bot-knowledge"] == "off")
 			note_seen(I, T)
 		if(contraband_types[I.type] && isturf(I.loc))
 			loose_contraband = WEAKREF(I) //a traitor's kit lying about: kept by the kinds that would (pocket_loose_contraband(), bot_playstyles.dm)
+	if(looked > GLOB.bot_glance_most)
+		GLOB.bot_glance_most = looked
 
 /// What's inside something it has opened or is going through
 /datum/bot_brain/proc/look_inside(atom/container)

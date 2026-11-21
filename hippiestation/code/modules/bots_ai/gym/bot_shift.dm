@@ -1942,6 +1942,10 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	header += "Subsystems: [subsystem_text()]\n"
 	header += "Chaos: [GLOB.bot_chaos.report()]\n"
 	header += "Playstyles: [bot_playstyle_report()]\n"
+	header += "Bot memory: [bot_list_census()]\n" //bot_telemetry.dm: the longest lists, to see what grew over the shift
+	header += "Item glance: the most in sight at once [GLOB.bot_glance_most][GLOB.bot_glance_most > BOT_GLANCE_ITEMS_MAX ? " (capped at [BOT_GLANCE_ITEMS_MAX])" : ""]\n" //bot_knowledge.dm
+	if(GLOB.path_engine_on)
+		header += "Path engine: [jointext(path_engine_stats_lines(), " | ")]\n" //bot_path_engine.dm: how many tiles DM was asked about, and how many the station picture answered
 	if(GLOB.bot_griefer)
 		header += "Griefed: [GLOB.bot_griefer.report()]\n"
 	header += "Power: [jointext(power_curve, "; ")]\n"
