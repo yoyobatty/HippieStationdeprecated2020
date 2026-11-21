@@ -314,9 +314,11 @@
 /datum/bot_scenario/chat/coords_in_space
 	name = "chat: out in space and asked its coordinates, it gives them"
 	desc = "Out on a space tile with no gravity, somebody asks it by name for its coords. It answers with the numbers, as it gave them calling for help, not \"couldn't tell you\"."
+	// Next to each other: the two space tiles drain the room's air in a second or two, and speech in a vacuum carries one tile (living/say(), "No screams
+	// in space"): from two tiles off the question was never heard, and this failed on HEAD whenever the air had gone (since the tile atmos engine).
 	layout = list(
 		"#######",
-		"#C.SBS#",
+		"#.CSBS#",
 		"#######")
 
 /datum/bot_scenario/chat/coords_in_space/setup()
