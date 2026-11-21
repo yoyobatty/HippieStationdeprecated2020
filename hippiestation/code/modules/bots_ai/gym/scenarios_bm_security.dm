@@ -370,6 +370,7 @@
 	O.mind.assigned_role = "Security Officer"
 	O.bot_brain.register_security()
 	O.bot_brain.gym_scripted = FALSE //its duties run
+	O.bot_brain.set_playstyle(BOT_STYLE_NORMAL) //not a role-hopper or a powergamer off on its own errands: it was, in one run in five under pacing
 	var/obj/item/card/id/C = new(O)
 	C.registered_name = O.real_name
 	C.assignment = "Security Officer"
@@ -683,12 +684,12 @@
 	desc = "The cell's door is the Brig's (ACCESS_BRIG) and shuts behind them: an officer with no card is locked in with the prisoner, and standing in the cell it counts as occupying it (find_free_brig_cell()), so a handover from in there left the colleague no free cell. Now it asks for another officer to take the prisoner in, and, shut in, calls to be let out: the colleague opens the cell door (the AI leaves Security's own windoors alone), the officer goes out, and the colleague takes the prisoner in."
 	starts_with_escort = FALSE //the base scenario's goal to take the prisoner in
 	keeps_card = TRUE
-	expect_success = FALSE //passes about half the runs: in the shared gym the colleague doesn't always take the call. The let-out itself works (the door's opened for it in the runs that pass); reported as an expected failure until that's run down
 	time_limit = 150 SECONDS //the colleague's wait on a cell that's in use, its walk to the door, the second go
 	/// Whether the cell door stands open instead (the officer's free to walk out)
 	var/door_open = FALSE
 	var/asked_at = 0
 	var/asked_out = FALSE
+	var/last_asked = 0
 
 /datum/bot_scenario/brigged/no_id/locked_in/post_spawn()
 	..()
@@ -717,17 +718,26 @@
 		qdel(mine)
 	asked_at = world.time + 3 SECONDS
 
+/// As maybe_ask_to_be_let_out() makes it on the station (an arena isn't on a station level, so a gym bot never asks by itself): the doors it's
+/// shut in by, on the radio.
+/datum/bot_scenario/brigged/no_id/locked_in/proc/ask_out()
+	last_asked = world.time
+	log_line("the officer, shut in, calls to be let out")
+	brain.shut_in_checked_at = -1000
+	var/list/doors = brain.doors_shutting_me_in()
+	brain.gym_scripted = FALSE //call_for() keeps a scripted bot quiet
+	brain.next_let_out_call = 0
+	brain.call_for(/datum/bot_request_kind/let_out, "Can somebody let me out of the cell? The door won't open for me.", doors)
+	brain.gym_scripted = TRUE
+
 /datum/bot_scenario/brigged/no_id/locked_in/check()
-	if(!door_open && asked_at && !asked_out && world.time >= asked_at)
-		asked_out = TRUE
-		log_line("the officer, shut in, calls to be let out")
-		// As maybe_ask_to_be_let_out() makes it on the station (an arena isn't on a station level, so a gym bot never asks by itself): the
-		// doors it's shut in by, on the radio.
-		brain.shut_in_checked_at = -1000
-		var/list/doors = brain.doors_shutting_me_in()
-		brain.gym_scripted = FALSE //call_for() keeps a scripted bot quiet
-		brain.call_for(/datum/bot_request_kind/let_out, "Can somebody let me out of the cell? The door won't open for me.", doors)
-		brain.gym_scripted = TRUE
+	if(!door_open && asked_at && world.time >= asked_at)
+		// Asks again every forty seconds while it's still in there, as a bot does when nobody's come (a couple of minutes, on the station)
+		if(!asked_out)
+			asked_out = TRUE
+			ask_out()
+		else if(world.time >= last_asked + 40 SECONDS && (get_turf(bot) in bot_get_cell_interior(timer)))
+			ask_out()
 	return ..()
 
 /// The same with the door standing open: the officer goes out to the timer and asks there

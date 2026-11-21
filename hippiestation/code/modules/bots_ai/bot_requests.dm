@@ -769,6 +769,8 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 		return //stood at the door on an errand of its own (a repair, goals/repair_damage.dm): it goes in by itself, the errand and all
 	if(theirs && theirs.state != BOT_STATE_COMBAT && theirs.state != BOT_STATE_ARREST && !QDELETED(D))
 		var/list/inside = theirs.shut_in_region
+		if(!inside && istype(D, /obj/machinery/door/window))
+			inside = bot_cell_region_of(D) //a cell's own tiles: the flood isn't sure to have had them down as shut in
 		if(theirs.current_goal)
 			theirs.drop_goals("the door's open")
 		// Through that door may be only a lobby with another pair of doors beyond it (both Brigs'): it looks again once it's through and
@@ -801,6 +803,17 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 				addtimer(CALLBACK(theirs, TYPE_PROC_REF(/datum/bot_brain, assign_goal), new /datum/bot_goal/walk_up_to(out_to)), 1.5 SECONDS)
 			else
 				theirs.assign_goal(new /datum/bot_goal/walk_up_to(out_to))
+
+/// The tiles of the cell this door is the door of (turf -> TRUE), or null if it's not a cell's
+/proc/bot_cell_region_of(obj/machinery/door/window/D)
+	for(var/obj/machinery/door_timer/T as anything in GLOB.bot_brig_cell_interiors)
+		if(!(D in T.targets))
+			continue
+		var/list/region = list()
+		for(var/turf/I in GLOB.bot_brig_cell_interiors[T])
+			region[I] = TRUE
+		return region
+	return null
 
 /datum/bot_brain/proc/hold_door_for(obj/machinery/door/airlock/D, mob/living/who)
 	return assign_goal(new /datum/bot_goal/hold_door(D, who))
@@ -883,7 +896,7 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 			continue
 		var/list/cell_doors = list()
 		for(var/obj/machinery/door/window/brigdoor/W in T.targets)
-			if(W.density && !W.allowed(owner))
+			if(!W.allowed(owner)) //shut, or standing open for a moment (a colleague's just come through) and shutting again in two seconds
 				cell_doors += W
 		if(length(cell_doors))
 			return cell_doors
