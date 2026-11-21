@@ -571,6 +571,14 @@ GLOBAL_LIST_EMPTY(bot_rampant_known)
 		return FALSE
 	return bot.assign_goal(new /datum/bot_goal/silence_machine(V))
 
+/datum/bot_brain/proc/put_down_rampant_machine()
+	var/obj/machinery/vending/V = rampant_machine()
+	if(!V || gone_loud() || owner.incapacitated() || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST)
+		return FALSE
+	if(!cares_about_rampant_machine() || rampant_machine_cutters() >= BOT_RAMPANT_CUTTERS || !vine_cutter())
+		return FALSE
+	return assign_goal(new /datum/bot_goal/silence_machine(V))
+
 /datum/bot_goal/silence_machine
 	lawful = TRUE
 	doing = "putting down a rogue vending machine"
@@ -779,6 +787,12 @@ GLOBAL_VAR_INIT(bot_rampant_announced_at, -10000)
 	if(V)
 		LAZYSET(bot.rampant_checked, REF(V), world.time + 5 MINUTES)
 	return GOAL_STEP_SUCCESS
+
+/// It heard it shout: that's the one, and it goes straight at it, not when its next look at its duties comes round (or, by the time it
+/// does, the engineer's wandered off from the machine and the mimics are out).
+/datum/bot_goal/listen_at_machine/on_success(datum/bot_brain/bot)
+	if(bot.rampant_machine())
+		bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, put_down_rampant_machine)))
 
 #undef BOT_RAMPANT_LISTEN
 #undef BOT_RAMPANT_LISTENERS
