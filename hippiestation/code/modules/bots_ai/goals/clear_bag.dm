@@ -182,9 +182,15 @@ GLOBAL_LIST_INIT(bot_bag_rubbish, typecacheof(list(/obj/item/trash, /obj/item/ci
 		things.Cut(1, 2)
 		if(QDELETED(I) || !bot.is_carried(I))
 			continue
-		if(!bot.ready_in_hand(I))
+		var/drawn = bot.owner.get_active_held_item() != I
+		if(!bot.ready_in_hand(I, TRUE))
 			bot_log_verbose(bot, "couldn't get [I] out of the bag")
 			continue
+		// Drawn out of the bag is an input, and what it does with it next is another (hand_beat(), bot_human.dm)
+		if(drawn)
+			bot.hand_beat()
+			if(QDELETED(I) || QDELETED(into) || !bot.owner.Adjacent(into) || bot.owner.get_active_held_item() != I)
+				continue
 		bot.owner.a_intent = INTENT_HELP
 		if(istype(into, /obj/structure/table))
 			// Set on it. Not clicked on it: a screwdriver on a table starts taking it apart, and a box does its own thing.
@@ -197,6 +203,7 @@ GLOBAL_LIST_INIT(bot_bag_rubbish, typecacheof(list(/obj/item/trash, /obj/item/ci
 			done++
 		else
 			bot_log_verbose(bot, "[I] didn't go into [into]")
+		wait_for = bot.hand_beat_length() //let go of: the next thing out of the bag is another input, a beat on (bot_human.dm)
 		return TRUE
 	return FALSE
 

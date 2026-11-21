@@ -675,3 +675,22 @@
 	name = "hands: an arm gone and a wrench in the other hand, the bin is picked up a moment after the wrench goes away"
 	desc = "The wrench has to go away before the matter bin can be taken in the one hand there is: two inputs, a beat apart, not one tick (a drop and a pickup in the same tick came about a thousand times a shift in play1114b)."
 	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_swap")
+
+// ---------------------------------------------------------------------------------------------
+// Job flows that let go of one thing and take another, and a webbing in the hand
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/fixes1112/kitchen_duty/fridge_full_hands/with_a_beat
+	name = "hands: at the smartfridge with its hands full, a cook empties a hand and presses the button a moment after"
+	desc = "Both hands and the bag full. A hand is emptied for each potato the fridge lets go of, and the button is pressed a beat after, not in the same tick (hand_beat())."
+	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_swap")
+
+/datum/bot_scenario/griefed/surgeon/full_bag/with_a_beat
+	name = "hands: a doctor with its bag full draws each surgery tool a moment after putting the last one away, and clicks a moment after that"
+	desc = "Each operating step took the next tool out of the bag as the last went in, and clicked the patient in the same tick: a stow, a draw and a click as one input. A beat between each."
+	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_swap", "instant_click")
+
+/datum/bot_scenario/clear_bag/with_a_beat
+	name = "hands: emptying a bag, each thing is drawn a moment after the last is let go of"
+	desc = "The bag is emptied onto a table and into a bin one thing at a time: the next is drawn a beat after the last went down, not 0.1 s after (1-3 ds)."
+	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_swap")

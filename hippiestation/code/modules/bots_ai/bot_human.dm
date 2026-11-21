@@ -43,10 +43,14 @@
 /// one instant: telemetry had a drop and a pickup in the same tick about a thousand times a shift, and the item drawn off a belt or out of a
 /// bag clicked on a door in the same one. Sleeps, like human_pause().
 /datum/bot_brain/proc/hand_beat()
-	var/wait = is_apex() ? rand(2, 4) : rand(3, 6)
+	var/wait = hand_beat_length()
 	mid_click_until = world.time + wait
 	sleep(wait)
 	next_click_time = max(next_click_time, world.time + click_interval())
+
+/// How long a beat is, in ds: 0.2-0.4 s for an apex bot, 0.3-0.6 s below. For a step that waits it out itself (wait_for).
+/datum/bot_brain/proc/hand_beat_length()
+	return is_apex() ? rand(2, 4) : rand(3, 6)
 
 /// How many things are in its hands.
 /datum/bot_brain/proc/held_item_count()
