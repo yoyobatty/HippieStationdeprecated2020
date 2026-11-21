@@ -307,3 +307,80 @@ GLOBAL_VAR_INIT(bot_gym_vanish_after, text2num(world.params["bot-gym-vanish"]))
 		if(GLOB.bot_science_handouts_given[id])
 			return BOT_GYM_PASS
 	return BOT_GYM_PENDING
+
+// What the clear-way planner costs in one go (foundation/clear_way.dm): its tables cover a box up to CW_MAX_SIDE squared, 841 tiles, and
+// the one CHECK_TICK in it came after them all. wall_to_cut_toward() (foundation/escape.dm) looks at up to 400 tiles of the pocket the bot
+// can walk. Both are asked here, in the biggest case, and the log says how many ms each took with no tick limit, so in one piece. Measured 2026-11-21 before the CHECK_TICKs went into the tables' loop: plan_clear_way 15-19 ms, nearly all of it those tables, and wall_to_cut_toward 2 ms.
+/datum/bot_scenario/clear_way_cost
+	name = "perf: a clear-way plan in the biggest box, and a wall search over the biggest pocket"
+	desc = "An open 29 by 29 room, the route running corner to corner so the planner's box is the full 29 by 29, a crate on its first tile. plan_clear_way() and wall_to_cut_toward() are timed with no tick limit (the log says ms). The room is bigger than the 400 tiles a wall search takes in, so that one stops there, its dearest case."
+	time_limit = 60 SECONDS
+	layout = list(
+		"###############################",
+		"#.............................#",
+		"#.............................#",
+		"#...........................G.#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.B...........................#",
+		"#.............................#",
+		"###############################"
+)
+	var/measured = FALSE
+
+/datum/bot_scenario/clear_way_cost/make_goal()
+	return null
+
+/datum/bot_scenario/clear_way_cost/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(measured)
+		return BOT_GYM_PENDING
+	measured = TRUE
+	var/turf/here = get_turf(bot)
+	var/list/route = list()
+	var/turf/T = here
+	for(var/i in 1 to 22)
+		T = get_step(T, NORTHEAST)
+		if(!T || T.density)
+			break
+		route += T
+	if(length(route) < 20)
+		fail_reason = "the room is too small for the longest route ([length(route)] tiles)"
+		return BOT_GYM_FAIL
+	var/obj/structure/closet/crate/blocker = new(route[1])
+	brain.current_path = route
+	var/old_limit = Master.current_ticklimit
+	// With no tick limit nothing sleeps: the whole of it in one piece, in ms
+	Master.current_ticklimit = 1000000
+	var/started = TICK_USAGE_REAL
+	var/list/plan = brain.plan_clear_way(blocker)
+	var/plan_ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - started)
+	started = TICK_USAGE_REAL
+	brain.wall_to_cut_toward(route[length(route)])
+	var/wall_ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - started)
+	Master.current_ticklimit = old_limit
+	log_line("plan_clear_way: [round(plan_ms, 0.1)] ms in one piece (with no tick limit), [length(plan)] moves; wall_to_cut_toward: [round(wall_ms, 0.1)] ms")
+	return BOT_GYM_PASS
