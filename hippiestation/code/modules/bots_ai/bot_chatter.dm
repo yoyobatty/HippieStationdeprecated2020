@@ -573,6 +573,9 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 	var/asked_favour = polite_request_reply(lower_msg)
 	if(asked_favour)
 		return asked_favour
+	var/said_how_it_is = statement_reply(lower_msg)
+	if(said_how_it_is)
+		return said_how_it_is
 	if(findtext(lower_msg, "?"))
 		return unclear_question(lower_msg)
 	// Called by name and something it didn't follow. Somebody it was already talking with, saying its name as well ("Sam, yes", answering what Sam
@@ -635,6 +638,26 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 	if(length(words) < 4)
 		return null //"can you?" is for fitting_reply()
 	return mood_pick(list("Sorry, can't right now!", "Wish I could, sorry!", "Can't at the moment, sorry!"), list("Can't, sorry.", "Not right now.", "Sorry, no."), list("No.", "Do it yourself.", "Not my job."))
+
+/// Somebody telling it how things are with them ("my head hurts", "i can't breathe", "the engine is on fire"): what anybody says, not "Gotcha." or "Yeah.".
+/datum/bot_brain/proc/statement_reply(lower_msg)
+	if(findtext(lower_msg, "?"))
+		return null
+	if(bot_text_has_any(lower_msg, list("on fire", "is burning", "are burning", "burning down", "caught fire")))
+		return pick("What? Where?!", "Seriously? Where?", "Where? Is anybody hurt?")
+	if(bot_text_has_any(lower_msg, list("can't breathe", "cant breathe", "no air", "suffocating", "choking", "out of air", "running out of air")))
+		return pick("Get to some air, quick!", "Are you okay? Get out of there!", "Where are you? Get out of there!")
+	if(bot_text_has_any(lower_msg, list("don't feel well", "dont feel well", "feel sick", "feel dizzy", "i'm sick", "im sick", "head hurts", "feel awful", "feel terrible", "i'm dying", "im dying")))
+		return is_medical_job() ? pick("Come to Medbay, I'll have a look.", "Sit down, let me have a look.") : pick("You should see a doctor.", "Go to Medbay.", "Maybe get it looked at?")
+	if(bot_text_has_any(lower_msg, list("stole my", "stolen my", "took my", "robbed me", "in my locker", "in my stuff", "broke my")))
+		return pick("What? Who?", "Seriously? Who did?", "Who? Did you see them?")
+	if(bot_text_has_any(lower_msg, list("i'm lost", "im lost", "got lost")))
+		return pick("Where are you trying to get to?", "Where do you need to be?")
+	if(bot_text_has_any(lower_msg, list("i'm hungry", "im hungry", "i'm starving", "im starving")))
+		return pick("Same.", "Try the kitchen.", "Same here, honestly.")
+	if(bot_text_has_any(lower_msg, list("i'm tired", "im tired", "i'm bored", "im bored")))
+		return pick("Same.", "Same, honestly.", "Tell me about it.")
+	return null
 
 /// What you say to somebody who's told you something.
 /datum/bot_brain/proc/ack_reply()

@@ -1081,3 +1081,46 @@
 		fail_reason = "answered \"can you call the doctor?\" with \"[lines[1]]\""
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+/// What people say that isn't a question or an order, said to somebody stood in front of them, one every 6 s: read the transcript for whether each answer fits.
+/datum/bot_scenario/chat/sweep/statements
+	name = "speech: statements face to face"
+	desc = "I'm bored, the engine's on fire, there's a body in medbay, brb: whether what comes back fits."
+	lines = list("i'm bored", "this station sucks", "the engine is on fire", "there's a body in medbay", "i found a gun", "someone stole my pda", "the captain is dead", "i'm going to cargo", "brb", "afk", "lol", "that's funny", "i'm tired", "i'm hungry", "i just got here", "it's quiet today", "somebody's been in my locker", "i'm lost", "my head hurts", "i don't feel well", "the lights are out", "the door's stuck", "i can't breathe", "there's a fire in cargo", "i saw a ghost", "the clown stole my shoes", "i love this job", "i hate this job", "good game", "see you later")
+	pass_thirds = 1.5
+
+/// "I'm going to cargo" and "the clown stole my shoes" got "Don't think we've got a cargo technician." and "Nobody's on clown, sorry.": a line with a job's
+/// name in it isn't a call to it for that. And "i can't breathe" got "Okay.".
+/datum/bot_scenario/chat/about_a_job
+	name = "speech: \"the clown stole my shoes\" isn't a call for a clown, and \"i can't breathe\" isn't met with \"okay\""
+	desc = "Two statements said to a bot: one with a job in it that's about the job, one that needs somebody to say something. Neither gets \"nobody's on clown\" or \"Okay.\""
+	job = "Assistant"
+	layout = list(
+		"#######",
+		"#B.C..#",
+		"#######")
+	time_limit = 25 SECONDS
+
+/datum/bot_scenario/chat/about_a_job/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "the clown stole my shoes"), 2 SECONDS)
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "i can't breathe"), 14 SECONDS)
+
+/datum/bot_scenario/chat/about_a_job/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 20 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	for(var/line in lines)
+		if(findtext(line, "clown") || findtext(line, "Nobody's on"))
+			fail_reason = "answered a statement as a call for the clown: \"[line]\""
+			return BOT_GYM_FAIL
+	if(!length(lines))
+		fail_reason = "said nothing to \"i can't breathe\""
+		return BOT_GYM_FAIL
+	var/last = lines[length(lines)]
+	if(last in list("Okay.", "Alright.", "Right.", "Gotcha.", "Yeah."))
+		fail_reason = "answered \"i can't breathe\" with \"[last]\""
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

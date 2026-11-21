@@ -74,12 +74,26 @@ GLOBAL_LIST_INIT(bot_title_words, list(
 	// The one it's said to comes first ("Mining, science needs silver" is to Mining); the longer word where two start together
 	var/best
 	var/best_at = 0
+	var/asking = !!findtext(lower_msg, "?")
 	for(var/word in GLOB.bot_title_words)
 		var/at = bot_text_word_at(lower_msg, word)
-		if(at && (!best || at < best_at || (at == best_at && length(word) > length(best))))
+		if(!at)
+			continue
+		// "The clown stole my shoes", "i'm going to cargo", "the captain is dead": about them, not to them (a question about them is another matter)
+		if(!asking && bot_title_is_spoken_about(lower_msg, at))
+			continue
+		if(!best || at < best_at || (at == best_at && length(word) > length(best)))
 			best = word
 			best_at = at
 	return best ? GLOB.bot_title_words[best] : null
+
+/// Whether the title at this place in a line has "the", "my", "to", "in" and the like in front of it: somebody talked about, or a place went to, not called.
+/proc/bot_title_is_spoken_about(lower_msg, at)
+	var/before = " [copytext(lower_msg, 1, at)]"
+	for(var/lead in list(" the ", " our ", " a ", " an ", " my ", " his ", " her ", " their ", " that ", " this ", " to ", " in ", " at ", " from ", " of ", " with ", " for "))
+		if(copytext(before, -length(lead)) == lead)
+			return TRUE
+	return FALSE
 
 /// Whether this bot is the one a title called for.
 /datum/bot_brain/proc/hears_own_title(lower_msg)
