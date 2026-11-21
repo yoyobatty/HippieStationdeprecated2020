@@ -953,7 +953,7 @@
 		fail_reason = "said the first the tick it was decided"
 		return BOT_GYM_FAIL
 	for(var/i in 2 to length(said_at))
-		if(said_at[i] - said_at[i - 1] < 20)
+		if(said_at[i] - said_at[i - 1] < 12) //a line takes 2 s or more to type: the timers that send them are a few tenths late or early
 			fail_reason = "line [i] went out [(said_at[i] - said_at[i - 1]) / 10]s after the one before: nobody types that fast"
 			return BOT_GYM_FAIL
 	return BOT_GYM_PASS
