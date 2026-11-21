@@ -14,7 +14,7 @@ cat > "data/mapforge/preview_$NAME.json" <<EOF
     "map_name": "mapforge preview $NAME",
     "map_path": "../data/mapforge",
     "map_file": "$NAME.dmm",
-    "shuttles": {"emergency": "emergency_box", "ferry": "ferry_fancy", "cargo": "cargo_box", "whiteship": "whiteship_meta"}
+    "shuttles": {"emergency": "${EMERGENCY:-emergency_box}", "ferry": "ferry_fancy", "cargo": "cargo_box", "whiteship": "whiteship_meta"}
 }
 EOF
 run() {

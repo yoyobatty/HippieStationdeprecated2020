@@ -72,8 +72,8 @@ def medhall(R):
         R.place(one("magazines", "t", TABLE, "/obj/item/newspaper", FIRSTAID + "/regular", back="any"),
                 near=seats[0].origin, must=False)
     R.place(one("stretcher bay", "rb", "/obj/structure/bed/roller", back="any", use=()), near=store, must=False)
-    for target in (lob, store, cmo_door, rooms, (R.doors("morgue") or [lob])[0]):
-        R.place(PLANT_K, near=target, must=False)
+    # one plant by the chief's door: a plant at every door closed the street's mouth to one tile (v6 Medical review 3)
+    R.place(PLANT_K, near=cmo_door, must=False)
     for spot in (lob, ward, store):
         R.mark(spot, MED_DOC)
     R.mark(R.room.attrs["heart"], "/obj/machinery/holopad")

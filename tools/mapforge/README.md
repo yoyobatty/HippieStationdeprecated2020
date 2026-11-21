@@ -69,6 +69,13 @@ timed brig door has its timer on a wall within two tiles.
 
 ## Whole stations (`station/`)
 
+`station/v6_station.py` lays the ten hand-drawn v6 departments into one station and adds what they share. That covers:
+- maint rooms, solars and docks;
+- windows, hall dressing and signs;
+- power (grid, engine input, AI sat), air (chambers, mixer, distro, waste filter) and disposals with mail.
+
+How it works, how to check it, and what's open: `station/V6_NOTES.md`.
+
 `station/to_dmm.py` grows a whole station from a seed and a layout and writes a playable map: the .dmm in
 `_maps/map_files/Generated/` and its `_maps/<name>.json`. The committed seeds are 1 pinwheel, 2 spine and 3 ring.
 

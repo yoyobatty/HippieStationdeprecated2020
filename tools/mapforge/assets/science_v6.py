@@ -311,3 +311,22 @@ ASSETS.update({"nanite": nanite, "pen": pen,
                "rnd": dressed(ASSETS["rnd"], "Science RC", "Science"),
                "xeno": dressed(ASSETS["xeno"], "Xenobiology RC", "Xenobiology"),
                "secpost": dressed(ASSETS["secpost"], "Security RC", "Security")})
+
+
+# ================================================================================================= review 4 (11-21)
+def secpost5(R):
+    SECPOST_R4(R)
+    # every wall face of the post is glass or carries the lab's pieces from the far side: the cell's flasher button
+    # sits on the officer's desk, as tg's desk buttons do (Science review 4 #7)
+    tables = [p for p in R.tiles if any(c.get("label") == "t" for c in R.geo.cells.get(p, []))]
+    if not any("button/flasher" in str(c.get("obj")) for p in R.tiles for c in R.geo.cells.get(p, [])):
+        spot = tables[0] if tables else None
+        if spot:
+            R.put(spot, None, obj=[("/obj/machinery/button/flasher", {"id": "scicell", "pixel_x": -6, "pixel_y": 6,
+                                                                       "name": "Holding Cell Flash"})])
+        else:
+            R.geo.problem("secpost: nowhere for the scicell flasher button")
+
+
+SECPOST_R4 = ASSETS["secpost"]
+ASSETS.update({"secpost": secpost5})

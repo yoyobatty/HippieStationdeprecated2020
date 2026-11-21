@@ -61,9 +61,9 @@
 #define SKY_SHARD_LEAD 63
 /// Lavaland's disc in sky_bodies.dmi's planet_lava: its radius, and how far its middle is off the sheet's (pixels, y up).
 /// The aurora is drawn round a disc of radius 64 in the middle of its sprite (flyby.py AURORA_R) and sized to fit this.
-#define SKY_LAVALAND_RADIUS 52
-#define SKY_LAVALAND_SHIFT_X 2
-#define SKY_LAVALAND_SHIFT_Y 1
+#define SKY_LAVALAND_RADIUS 127 //measured 2026-11-21: bodies.py planet_lava(R=128) since the bodies rework (was 52)
+#define SKY_LAVALAND_SHIFT_X -1
+#define SKY_LAVALAND_SHIFT_Y 0
 /// Rare events: none this early in a round, then a memoryless wait with this mean (a 60-90 minute round sees one about one
 /// time in three or four); none this soon after the last one; and if none fits when one's due, a look again this much later
 #define SKY_EVENT_FLOOR (15 MINUTES)
@@ -402,7 +402,7 @@
 /// How far a point is past the reach of the nearest single thing in the sky (negative: on top of it). Places are as seen from
 /// the middle of the map; the far layers hardly move as the eye does, so that's near enough wherever it is. solid: only the sun
 /// and the other world count (a streak across a far nebula is fine: it's nearer)
-/datum/controller/subsystem/parallax/proc/sky_clearance(x, y, solid)
+/datum/controller/subsystem/parallax/proc/sky_clearance(x, y, solid, lavaland = TRUE)
 	. = INFINITY
 	for(var/name in body_places)
 		var/reach = 70
@@ -424,6 +424,8 @@
 				reach = 150 * far_thing[3]
 		var/list/place = body_places[name]
 		. = min(., sqrt((x - place[1]) ** 2 + (y - place[2]) ** 2) - reach)
+	if(lavaland)
+		. = min(., lavaland_clearance(x, y)) //drawn over the fly-bys and big now: anything placed behind it is lost (real-client check 2026-11-21)
 
 /// The worst clearance along the part of a path that's on screen (a 19x15 view at the most). tail: how long a comet's tails
 /// are, so they're kept clear too (they stream away from the sun)
@@ -529,6 +531,18 @@
 	if(!time)
 		time = rand(2400, 3300)
 	var/list/path = through_middle ? clear_path(0, 90, 400, 170) : clear_path(0, 160, 400, 170)
+	if(break_at) //it breaks up where it can be seen: not behind Lavaland, which is drawn over the fly-bys
+		var/best = -INFINITY
+		for(var/attempt in 1 to 20)
+			var/list/maybe = attempt == 1 ? path : clear_path(0, 90, 400, 170)
+			var/at_x = maybe[1] + maybe[3] * maybe[5] * (2 * break_at - 1)
+			var/at_y = maybe[2] + maybe[4] * maybe[5] * (2 * break_at - 1)
+			var/clear = min(lavaland_clearance(at_x, at_y) - 60, path_clearance(maybe, 170) + 30)
+			if(clear > best)
+				best = clear
+				path = maybe
+			if(clear >= 0)
+				break
 	var/list/sun = body_places["sun"]
 	var/toward_sun = arctan(sun[1] - path[1], sun[2] - path[2])
 	var/face = -toward_sun
@@ -650,8 +664,15 @@
 	animate(far, alpha = 170, time = fade, easing = SINE_EASING, flags = ANIMATION_PARALLEL)
 	animate(time = peak)
 	animate(alpha = 0, time = fade, easing = SINE_EASING)
+	var/near_angle = rand(0, 359)
+	var/obj/screen/sky_art/piece/shroud = sky_piece("vortex_shroud", life, -3.05) //the storm's dust darkens what's behind it, most in the near arms' lanes
+	shroud.blend_mode = BLEND_MULTIPLY
+	spin(shroud, 3.4, 4 MINUTES, near_angle)
+	animate(shroud, alpha = 255, time = fade, easing = SINE_EASING, flags = ANIMATION_PARALLEL)
+	animate(time = peak)
+	animate(alpha = 0, time = fade, easing = SINE_EASING)
 	var/obj/screen/sky_art/piece/near = sky_piece("vortex", life, -2.9)
-	spin(near, 3.4, 4 MINUTES, rand(0, 359))
+	spin(near, 3.4, 4 MINUTES, near_angle)
 	animate(near, alpha = 215, time = fade, easing = SINE_EASING, flags = ANIMATION_PARALLEL)
 	animate(time = peak)
 	animate(alpha = 0, time = fade, easing = SINE_EASING)
@@ -728,13 +749,13 @@
 			best = clear
 			radiant_x = x
 			radiant_y = y
-	for(var/meteor in 1 to rand(850, 950))
-		addtimer(CALLBACK(src, PROC_REF(shower_meteor), radiant_x, radiant_y), clamp(gaussian(0.5, 0.22), 0.01, 0.99) * length)
+	for(var/meteor in 1 to rand(1600, 1800)) //a storm, not a shower: at its peak a dozen or more streaks are in the sky at once
+		addtimer(CALLBACK(src, PROC_REF(shower_meteor), radiant_x, radiant_y), clamp(gaussian(0.5, 0.17), 0.01, 0.99) * length)
 	return length
 
 /datum/controller/subsystem/parallax/proc/shower_meteor(radiant_x, radiant_y)
 	var/list/path
-	for(var/attempt in 1 to 8) //aimed at a point on screen, from the radiant, clear of the sun and the rest
+	for(var/attempt in 1 to 12) //aimed at a point on screen, from the radiant: they're drawn over the sun and the world, so only Lavaland (drawn over them) is kept off the aim
 		var/aim_x = rand(-280, 280)
 		var/aim_y = rand(-220, 220)
 		var/dx = aim_x - radiant_x
@@ -742,7 +763,7 @@
 		var/dist = sqrt(dx * dx + dy * dy)
 		var/start = rand(0, 90)
 		var/list/maybe = list(radiant_x + dx / dist * (start + 450), radiant_y + dy / dist * (start + 450), dx / dist, dy / dist, 450)
-		if(path_clearance(maybe, 0, TRUE) >= 0)
+		if(lavaland_clearance(aim_x, aim_y) >= 0)
 			path = maybe
 			break
 	if(!path)
@@ -792,8 +813,8 @@
 	turn = rand(0, 359)
 	remnant.transform = sky_at(x, y, turn, 0.1)
 	animate(remnant, alpha = 0, time = 60)
-	animate(alpha = 185, transform = sky_at(x, y, turn, 0.45), time = 3000, easing = SINE_EASING, flags = ANIMATION_LINEAR_TRANSFORM)
-	animate(alpha = 150, transform = sky_at(x, y, turn, 0.85), time = 15000, flags = ANIMATION_LINEAR_TRANSFORM)
+	animate(alpha = 230, transform = sky_at(x, y, turn, 0.7), time = 3000, easing = SINE_EASING, flags = ANIMATION_LINEAR_TRANSFORM) //real-client check: at 0.45 it read as a speck
+	animate(alpha = 190, transform = sky_at(x, y, turn, 1.1), time = 15000, flags = ANIMATION_LINEAR_TRANSFORM)
 
 /// A battle, close enough to fill the middle of the sky, six or seven minutes of it: two lines of ships facing each other,
 /// trading volleys (warm one side, cold the other), a beam now and then, hits flashing, and three times a big ship going up.
@@ -801,8 +822,13 @@
 	var/fade = 45 SECONDS
 	var/time = rand(5 MINUTES, 7 MINUTES) + fade * 2
 	var/list/middle = clear_place(0, 70, 110)
+	var/short = 70 - lavaland_clearance(middle[1], middle[2]) //Lavaland's drawn over the fly-bys: keep the fight out from behind it
+	if(short > 0)
+		var/list/sun = body_places["sun"]
+		var/away = (sun && (sun[1] || sun[2])) ? arctan(-sun[1], -sun[2]) : 270
+		middle = list(middle[1] - cos(away) * short, middle[2] - sin(away) * short)
 	var/line = rand(-25, 25) + pick(0, 180)
-	var/gap = rand(75, 95)
+	var/gap = rand(105, 130) //the lines' hulls spread ~65 px each way now: room between them for the shots
 	var/list/sides = list(
 		list(middle[1] - cos(line) * gap, middle[2] + sin(line) * gap, line, "#ffb48c", "fleet_a"),
 		list(middle[1] + cos(line) * gap, middle[2] - sin(line) * gap, line + 180, "#9edcff", "fleet_b"))
@@ -895,8 +921,9 @@
 	halo.transform = sky_at(sun[1], sun[2], wind, 1.25)
 	animate(halo, time = fade)
 	animate(alpha = 110, time = 2 MINUTES, easing = SINE_EASING)
-	animate(time = time - fade * 3 - 2 MINUTES)
-	animate(alpha = 0, time = fade * 2, easing = SINE_EASING)
+	var/hold = max(0, time * 0.6 - fade - 2 MINUTES) //the halo goes as the crystals thin out, not minutes after the last one
+	animate(time = hold)
+	animate(alpha = 0, time = time - fade - 2 MINUTES - hold, easing = SINE_EASING)
 	for(var/shard in 1 to rand(60, 72)) //thin at first and at the end, thickest in the middle
 		var/depth = rand(0, 100) / 100
 		var/crossing = round(1900 - 1150 * depth)
@@ -987,15 +1014,15 @@
 	var/y
 	var/size
 	var/light
-	for(var/try_size in list(0.76, 0.64, 0.54)) //as big as fits clear of the sun and the other world, disc and rings
+	for(var/try_size in list(0.9, 0.76, 0.64)) //as big as fits clear of the sun, the other world and Lavaland, disc and rings
 		var/first = rand(0, 11) * 30
 		for(var/turn in 0 to 11)
-			for(var/out in list(40, 75, 105))
+			for(var/out in list(40, 75, 110, 150, 185)) //out to half off the frame's edge: a giant rising past the edge beats a small one squeezed in
 				var/cx = cos(first + turn * 30) * out * 1.1
 				var/cy = sin(first + turn * 30) * out * 0.9
 				var/toward = lit ? arctan(sun[1] - cx, sun[2] - cy) : dark_light
 				var/clear = giant_clearance(cx, cy, toward, try_size)
-				var/score = min(clear, 40) - out * 0.15 //clear enough, then as near the middle as can be
+				var/score = min(clear, 40) - out * 0.06 //clear enough, then as near the middle as can be
 				if(score > best)
 					best = score
 					x = cx
@@ -1069,7 +1096,7 @@
 		var/ay = sin(along) * minor
 		var/px = x + cos(light + 32) * ax + cos(light + 122) * ay
 		var/py = y + sin(light + 32) * ax + sin(light + 122) * ay
-		. = min(., sky_clearance(px, py, TRUE), sky_clearance(px, py) + 40, lavaland_clearance(px, py))
+		. = min(., sky_clearance(px, py, TRUE, FALSE), sky_clearance(px, py, FALSE, FALSE) + 40, lavaland_clearance(px, py) + 80) //a ring tip may tuck behind Lavaland, the disc may not
 
 /// How far a point is past Lavaland's disc where it rests on screen (parallax.dm planet_rest(), opposite the sun). Lavaland is
 /// drawn over the fly-bys: small things may pass behind it, but something as big as the giant shouldn't sit half hidden.
@@ -1081,7 +1108,7 @@
 		var/away = arctan(-sun[1], -sun[2])
 		rest_x = cos(away) * SKY_PLANET_REST
 		rest_y = sin(away) * SKY_PLANET_REST
-	return sqrt((x - rest_x) ** 2 + (y - rest_y) ** 2) - SKY_LAVALAND_RADIUS - 12
+	return sqrt((x - rest_x) ** 2 + (y - rest_y) ** 2) - SKY_PLANET_CORE //its disc is drawn ~128 px across now, halo and slide on top
 
 /// An ion storm over Lavaland, seven or eight minutes: aurorae light up round both its poles, build, flare all at once, and
 /// die away. It rides on every client's Lavaland layer, so it's seen wherever the planet is.

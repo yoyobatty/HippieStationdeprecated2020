@@ -1316,7 +1316,11 @@ class Builder:
                 used = getattr(self, "_cam_tags", {})
                 used[rname] = used.get(rname, 0) + 1
                 self._cam_tags = used
-                self.mount(f[0], f[1], "camera", extra=[("c_tag", '"%s%s"' % (rname, " %d" % used[rname] if used[rname] > 1 else ""))])
+                # the prison and interrogation telescreens watch their own networks (Security review 4: no camera
+                # carried them, the screens showed nothing)
+                net = 'list("ss13","prison")' if area.startswith("/area/security/prison") else                     'list("interrogation")' if "interrogation" in area or "Interrogation" in rname else None
+                self.mount(f[0], f[1], "camera", extra=[("c_tag", '"%s%s"' % (rname, " %d" % used[rname] if used[rname] > 1 else ""))]
+                           + ([("network", net)] if net else []))
                 placed.append(f[0])
 
     def remote_apc(self, area):

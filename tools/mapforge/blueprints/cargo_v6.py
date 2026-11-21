@@ -89,7 +89,7 @@ LINKS = [
     # the office and the warehouse off the bay; the crate lane out to arrivals for MULEs and carts
     door("office", "bay", name="Cargo Office", access="31", glass=True, **CARGO),
     door("warehouse", "bay", name="Cargo Warehouse", access="31", **CARGO),
-    door("bay", "hall", wide=2, at=("y", 92), name="Cargo Bay", access="31", glass=True, **CARGO),
+    door("bay", "hall", wide=2, at=("y", 92), name="Cargo Bay", one_access="31;48", glass=True, **CARGO),
     # the supply shuttle dock (Meta's): two walk airlocks where the shuttle's doors land, a belt in above them and a
     # belt out below, each through a blast door and flaps (supply_home at plan 29,65 in plan/canvas.py)
     door("bay", "space", at=("y", 102), name="Supply Dock Airlock", access="31", kind="external"),

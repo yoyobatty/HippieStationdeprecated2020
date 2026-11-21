@@ -54,6 +54,7 @@ if [ "${STUCK_DRILL:-0}" = "1" ]; then PARAMS="$PARAMS&stuck-drill=1"; fi
 if [ "${RAD_DRILL:-0}" = "1" ]; then PARAMS="$PARAMS&rad-drill=1"; fi
 if [ "${GRAV_DRILL:-0}" = "1" ]; then PARAMS="$PARAMS&grav-drill=1"; fi
 if [ -n "${ENGINE:-}" ]; then PARAMS="$PARAMS&atmos-engine=$ENGINE"; fi
+if [ -n "${MAP:-}" ]; then PARAMS="$PARAMS&bot-map=$MAP"; fi   # a map json by path, e.g. ../data/mapforge/preview_station_v6
 
 rm -rf data/bot_shift
 mkdir -p data
