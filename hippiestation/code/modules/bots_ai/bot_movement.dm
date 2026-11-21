@@ -81,11 +81,26 @@
 /// pacing"), the move to it never finishing and never failing. Not while it's held, cuffed, down, seated or being dragged.
 /datum/bot_brain/proc/watch_for_freeze()
 	var/turf/here = get_turf(owner)
-	if(here != freeze_watch_turf || !pursuing_kind || state != BOT_STATE_GOAL || !current_goal)
+	var/errand = state == BOT_STATE_GOAL && current_goal
+	// A walk with no errand behind it, a stroll or a friend's walk: it stood on one tile for four minutes with a route to somewhere, in
+	// wander with no goal for this to look at (Micah Pemberton, play1114b run7)
+	var/stroll = state == BOT_STATE_WANDER && !current_goal
+	if(here != freeze_watch_turf || !pursuing_kind || !(errand || stroll))
 		freeze_watch_turf = here
 		freeze_watch_since = world.time
 		return
-	if(world.time - freeze_watch_since < 90 SECONDS || owner.incapacitated() || owner.handcuffed || owner.buckled || owner.pulledby)
+	if(world.time - freeze_watch_since < (errand ? 90 SECONDS : 45 SECONDS) || owner.incapacitated() || owner.handcuffed || owner.buckled || owner.pulledby)
+		return
+	if(!errand)
+		if(world.time < stand_still_until) //it was asked to stay put
+			return
+		bot_log(src, "hasn't moved in [round((world.time - freeze_watch_since) / 10)]s on a walk to [pursue_target] - dropping it")
+		bot_tally("unfroze a stroll")
+		freeze_watch_since = world.time
+		busy_clearing = FALSE
+		repathing = FALSE
+		stop_pursuit()
+		next_wander_time = world.time + rand(30, 80)
 		return
 	bot_log(src, "hasn't moved in [round((world.time - freeze_watch_since) / 10)]s on its way to [pursue_target] for [current_goal.type] - giving that up")
 	bot_tally("unfroze")
