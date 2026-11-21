@@ -105,7 +105,7 @@ GLOBAL_LIST_INIT(bot_power_mutations, list(/datum/mutation/human/hulk, /datum/mu
 	if(!length(missing) || !card_in_reach())
 		return FALSE
 	var/mob/living/carbon/human/hop = bot_find_hop(owner)
-	if(!hop && !gym_run)
+	if((!hop && !gym_run) || hop == owner) //nobody to ask, or it's the one who'd do it: the HoP left its own card at its own door (jobs_s1)
 		LAZYSET(power_rests, "access", world.time + BOT_POWER_RUNG_REST)
 		return FALSE
 	LAZYSET(power_rests, "access", world.time + BOT_POWER_ACCESS_REST)

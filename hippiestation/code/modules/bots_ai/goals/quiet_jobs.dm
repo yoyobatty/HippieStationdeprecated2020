@@ -113,6 +113,13 @@ GLOBAL_LIST_INIT(bot_book_remarks, list(
 	var/obj/structure/bookcase/shelf = bot.find_full_shelf()
 	return shelf ? bot.assign_goal(new /datum/bot_goal/read_a_book(shelf)) : FALSE
 
+/// Whether any bookcase in the library has a book in it
+/proc/bot_library_has_books()
+	for(var/obj/structure/bookcase/B as anything in bot_instances_of(/obj/structure/bookcase))
+		if(!QDELETED(B) && istype(get_area(B), /area/library) && (locate(/obj/item/book) in B))
+			return TRUE
+	return FALSE
+
 /// The nearest bookcase with anything on it, in the library.
 /datum/bot_brain/proc/find_full_shelf()
 	var/obj/structure/bookcase/best

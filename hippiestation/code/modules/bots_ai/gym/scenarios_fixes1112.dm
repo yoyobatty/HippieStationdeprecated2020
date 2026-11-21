@@ -1955,7 +1955,7 @@
 		for(var/turf/open/floor/T in A)
 			if(T.z != S.z || is_blocked_turf(T, TRUE) || (locate(/obj/machinery/door) in range(1, T)) || (locate(/obj/machinery/conveyor) in T))
 				continue
-			if(!T.air || T.air.return_pressure() < 90) //the airless plating by its engines is the shuttle's area as well
+			if(!T.air || T.air.return_pressure() < 80) //the airless plating by its engines is the shuttle's area as well; the cabin's own tiles start at 88.9 kPa, not 101
 				continue
 			spots += T
 	if(length(spots) < 2)

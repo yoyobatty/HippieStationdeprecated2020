@@ -878,6 +878,7 @@ GLOBAL_LIST_INIT(bot_raid_wishlist, list(
 /datum/bot_duty/visit_open_department
 	name = "having a look round an open department"
 	tier = BOT_DUTY_LEISURE
+	pastime = TRUE
 	interval_min = 1800
 	interval_max = 4800
 
