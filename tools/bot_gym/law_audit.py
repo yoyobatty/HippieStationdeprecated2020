@@ -107,6 +107,9 @@ def audit(run, verbose, total):
             r = re.match(r"sentenced (.+?) to (\d+) minutes? in (.+?) for (.+)", what)
             if r and r.group(1) in restrained:
                 waits.append(((t - restrained.pop(r.group(1))[0]) * speed / 60, r.group(1), r.group(4)))
+            r = re.match(r"no room for (.+?) and it's only (.+?) - let them off", what)
+            if r and r.group(1) in restrained: # the wait ended with a warning
+                waits.append(((t - restrained.pop(r.group(1))[0]) * speed / 60, r.group(1), r.group(2) + " (let off)"))
     calls.sort()
     taken = set()
     for i, c in enumerate(calls):
