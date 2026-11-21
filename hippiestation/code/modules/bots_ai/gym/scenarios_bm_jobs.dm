@@ -391,3 +391,129 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 	name = "medical rounds: somebody down in air that can be breathed is fetched without a mask and tank"
 	desc = "The same patient and sleeper with ordinary air in the room: the doctor doesn't kit up for it (the control for the nitrogen one)."
 	room_air = null
+
+// ---------------------------------------------------------------------------------------------
+// A miner boarding the mining shuttle with thin air in its cabin (bot_doors.dm /obj/machinery/door/airlock/external/CanAStarPass())
+// ---------------------------------------------------------------------------------------------
+
+/// jobs_s2 (and four other batches on Hippie Station: a mech miner with one trip to Lavaland and nothing after, "ride_mining_shuttle ...
+/// no path to the shuttle floor (Mining Shuttle)" 8 times, take_mech_down 17 to 25 tries): the shuttle came home with 27 kPa in its cabin and
+/// the dock at 101, and the dock's external airlock turns back anybody not aboard already from air they can't breathe, a miner dressed for
+/// Lavaland on its mask and tank as well. The station's own mining dock, so it runs alone and by name, on bot-map=hippiestation:
+/// MAP=hippiestation tools/bot_gym/run_bot_gym.sh "the shuttle's cabin has thin air" 1
+/datum/bot_scenario/mining_cabin_air
+	name = "mining: the shuttle's cabin has thin air in it, and a miner on its mask and tank still boards it"
+	desc = "The mining shuttle sat at the station's dock with 28 kPa of air in its cabin (the dock hall's at 101), and a miner with its mask on and an emergency oxygen tank on its belt in the dock, sent to ride it down. It walks aboard through the dock's external airlock: a mask and a tank do for thin air, and nobody else is going to take it down. It's never turned back at the airlock for the cabin's air."
+	job = "Shaft Miner"
+	time_limit = 60 SECONDS
+	max_goal_attempts = 6
+	station_wide = TRUE //the station's own mining shuttle and dock
+	layout = list(
+		"#####",
+		"#B..#",
+		"#####")
+	/// 28 kPa of ordinary air at 20 C on a 2500 litre tile, and what the cabin's given back after
+	var/thin_air = "o2=6;n2=22.7;TEMP=293.15"
+	var/normal_air = "o2=21.8;n2=82.1;TEMP=293.15"
+	var/list/turf/open/thinned
+	var/setup_problem
+	var/not_applicable
+	/// Its mask on and its tank on its belt, as a miner dressed for Lavaland is
+	var/dressed = TRUE
+
+/datum/bot_scenario/mining_cabin_air/setup()
+	var/obj/docking_port/mobile/M = bot_mining_shuttle()
+	if(!M || !SSshuttle.getDock("mining_home") || !GLOB.areas_by_type[/area/quartermaster/miningdock])
+		not_applicable = TRUE //a map with no mining dock (the testbench): nothing here to judge, so a filter like "mining" doesn't fail on it
+		return
+	if(!bot_mining_shuttle_at("mining_home"))
+		setup_problem = "setup: the mining shuttle isn't sat idle at the station's dock ([M.mode] at [M.getDockedId()])"
+		return
+	thinned = list()
+	for(var/turf/open/T in M.return_turfs())
+		if(!M.shuttle_areas[T.loc] || !T.air)
+			continue
+		T.air.parse_gas_string(thin_air)
+		T.update_visuals()
+		SSair.add_to_active(T)
+		thinned += T
+
+/datum/bot_scenario/mining_cabin_air/post_spawn()
+	give_job_id(list(ACCESS_MAINT_TUNNELS, ACCESS_MINING, ACCESS_MINING_STATION, ACCESS_CARGO, ACCESS_MAILSORTING))
+	if(dressed)
+		bot.equip_to_slot_or_del(new /obj/item/clothing/mask/gas/explorer(bot), ITEM_SLOT_MASK)
+		bot.equip_to_slot_or_del(new /obj/item/tank/internals/emergency_oxygen(bot), ITEM_SLOT_BELT)
+	if(setup_problem || not_applicable)
+		return
+	// Into the station's mining dock, a few tiles from the shuttle's door, beyond the dock hall and its two airlocks
+	var/obj/docking_port/stationary/home = SSshuttle.getDock("mining_home")
+	var/area/dock_area = GLOB.areas_by_type[/area/quartermaster/miningdock]
+	var/turf/open/start
+	if(home && dock_area)
+		for(var/turf/open/floor/T in dock_area)
+			if(T.z != home.z || is_blocked_turf(T, TRUE) || (locate(/obj/machinery/door) in range(1, T)) || (locate(/obj/machinery/conveyor) in T))
+				continue
+			if(!start || abs(get_dist(T, home) - 7) < abs(get_dist(start, home) - 7))
+				start = T
+	if(!start)
+		setup_problem = "setup: no floor in the mining dock to start on"
+		return
+	bot.forceMove(start)
+	log_line("bot moved to the mining dock at [bot_coord(start)]; the cabin's air is [round(thinned[1].air.return_pressure())] kPa, the dock's [round(start.air.return_pressure())]")
+	if(dressed != brain.ready_for_lavaland())
+		setup_problem = "setup: the miner [dressed ? "isn't" : "is"] ready for Lavaland"
+
+/datum/bot_scenario/mining_cabin_air/make_goal()
+	return new /datum/bot_goal/ride_mining_shuttle("mining_away")
+
+/datum/bot_scenario/mining_cabin_air/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(not_applicable)
+		log_line("not applicable: this map has no mining dock")
+		return BOT_GYM_PASS
+	if(setup_problem)
+		fail_reason = setup_problem
+		return BOT_GYM_FAIL
+	if(bot_aboard_mining_shuttle(bot))
+		log_line("aboard the mining shuttle")
+		brain.stop_pursuit()
+		brain.drop_goals("the scenario's seen it aboard") //not on to send the shuttle away with the next scenario's dock
+		return BOT_GYM_PASS
+	if(bot_transcript_said("can't breathe and I'm not suited up"))
+		fail_reason = "turned the ride down: it can't breathe at the console and isn't suited up"
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("no path to the shuttle floor"))
+		fail_reason = "no path to the shuttle floor: turned back at the dock's airlock for the cabin's air"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/mining_cabin_air/release_run()
+	for(var/turf/open/T as anything in thinned)
+		if(QDELETED(T) || !T.air)
+			continue
+		T.air.parse_gas_string(normal_air)
+		T.update_visuals()
+		SSair.add_to_active(T)
+	. = ..()
+
+/// The same cabin and a miner with no mask or tank on it: the airlock still turns it back, as it does anybody who'd walk into air they can't
+/// breathe (the control for the one above)
+/datum/bot_scenario/mining_cabin_air/undressed
+	name = "mining: the shuttle's cabin has thin air in it, and a miner with no mask or tank doesn't board it"
+	desc = "The same dock and cabin, and a miner with nothing to breathe from on it: the dock's airlock turns it back, and it isn't aboard 20 seconds on."
+	dressed = FALSE
+
+/datum/bot_scenario/mining_cabin_air/undressed/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(not_applicable)
+		log_line("not applicable: this map has no mining dock")
+		return BOT_GYM_PASS
+	if(setup_problem)
+		fail_reason = setup_problem
+		return BOT_GYM_FAIL
+	if(bot_aboard_mining_shuttle(bot))
+		fail_reason = "boarded a shuttle full of air it can't breathe with no mask and tank on it"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 20 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
