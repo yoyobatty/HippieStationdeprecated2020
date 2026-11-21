@@ -1332,24 +1332,31 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 /// Whether a line names Security as who's being called, and not as a place: "on my way to sec office with the mop", "he's in security", "meet at the sec
 /// post" ("sec" in about 10 of 1262 calls answered in the shift batches were such lines).
 /proc/bot_names_security_called(lower)
-	var/static/regex/sec_word = regex(@"\b(security|shitcurity|sec)\b")
-	var/pos = 1
-	while(sec_word.Find(lower, pos))
-		pos = sec_word.next
-		var/before = " [copytext(lower, 1, sec_word.index)]"
-		var/after = copytext(lower, sec_word.next, sec_word.next + 14)
-		var/is_place = FALSE
-		for(var/lead in list(" to ", " in ", " at ", " from ", " into ", " inside ", " near ", " outside ", " of ", " with "))
-			if(copytext(before, -length(lead)) == lead)
-				is_place = TRUE
-				break
-		if(!is_place)
-			for(var/noun in list(" office", " post", " checkpoint", " wing", " desk", " lobby", " department", " dept", " hq", " brig", " station", " area", " front", " window"))
-				if(copytext(after, 1, length(noun) + 1) == noun)
+	var/static/alnum = "abcdefghijklmnopqrstuvwxyz0123456789"
+	// By findtext(), not a regex: a regex Find() loop kept its place between calls with the g flag and never moved on without it (a server hung on it).
+	for(var/word in list("security", "shitcurity", "sec"))
+		var/at = findtext(lower, word)
+		while(at)
+			var/end = at + length(word)
+			var/before_ch = at > 1 ? copytext(lower, at - 1, at) : ""
+			var/after_ch = copytext(lower, end, end + 1)
+			at = findtext(lower, word, end)
+			if((before_ch && findtext(alnum, before_ch)) || (after_ch && findtext(alnum, after_ch)))
+				continue //inside a word: "second", "secure"
+			var/before = " [copytext(lower, 1, end - length(word))]"
+			var/after = copytext(lower, end, end + 14)
+			var/is_place = FALSE
+			for(var/lead in list(" to ", " in ", " at ", " from ", " into ", " inside ", " near ", " outside ", " of ", " with "))
+				if(copytext(before, -length(lead)) == lead)
 					is_place = TRUE
 					break
-		if(!is_place)
-			return TRUE
+			if(!is_place)
+				for(var/noun in list(" office", " post", " checkpoint", " wing", " desk", " lobby", " department", " dept", " hq", " brig", " station", " area", " front", " window"))
+					if(copytext(after, 1, length(noun) + 1) == noun)
+						is_place = TRUE
+						break
+			if(!is_place)
+				return TRUE
 	return FALSE
 
 /// A line with "one sec", "a sec" and "half a sec" taken out of it
