@@ -89,6 +89,11 @@
 	min_val = 0
 	max_val = 2
 
+/datum/config_entry/number/bot_events_count	// 1: the bot crew count toward the players a midround event needs (blob 20, meteors 15, spiders 15...); 0: only people with a client do (bots_ai/bot_round_type.dm)
+	config_entry_value = 1
+	min_val = 0
+	max_val = 1
+
 /datum/config_entry/number/profile_duty	// with AUTO_PROFILE: the share of the time (%) the BYOND profiler is on; it adds ~255 ns to every proc call while it is (profiler.dm)
 	config_entry_value = 10
 	min_val = 1
