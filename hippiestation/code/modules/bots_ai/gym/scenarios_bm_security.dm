@@ -431,6 +431,8 @@
 		"#..C...X.#",
 		"##########")
 	var/datum/data/record/manifest_entry
+	/// When the officer looks at the duty
+	var/looks_at = 3 SECONDS
 
 /datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/setup()
 	place("I", new /obj/machinery/computer/card(first_marker("I")))
@@ -442,13 +444,26 @@
 	visitor = second_bot(first_marker("C"), "Olly Officer")
 	visitor.mind.assigned_role = "Security Officer"
 	visitor.bot_brain.register_security()
-	visitor.bot_brain.gym_scripted = FALSE
 	for(var/obj/item/card/id/mine in visitor.GetAllContents())
 		qdel(mine)
 	manifest_entry = new
 	manifest_entry.fields["name"] = visitor.real_name
 	manifest_entry.fields["rank"] = "Security Officer"
 	GLOB.data_core.general += manifest_entry
+	addtimer(CALLBACK(src, PROC_REF(officer_looks)), looks_at)
+
+/// The officer's own look at the duty, by hand: its AI left scripted, so it can't wander into the HoP's way (one run in eight failed to a
+/// card that was picked up before it was made), while the duty itself is what's asked.
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/proc/officer_looks()
+	if(result != BOT_GYM_PENDING || QDELETED(visitor?.bot_brain))
+		return
+	var/datum/bot_duty/D = bot_duty_of(/datum/bot_duty/new_id_from_hop)
+	if(!D)
+		log_line("no such duty")
+		return
+	visitor.bot_brain.gym_scripted = FALSE //call_for() keeps a scripted bot quiet
+	D.try_start(visitor.bot_brain)
+	visitor.bot_brain.gym_scripted = TRUE
 
 /datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/check()
 	if(bot_lost())
@@ -536,6 +551,7 @@
 		"#B.....I.#",
 		"#..C.P.X.#",
 		"##########")
+	looks_at = 7 SECONDS //after its prisoner's been seen to (or not)
 	var/mob/living/carbon/human/prisoner
 
 /datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/alone/post_spawn()
