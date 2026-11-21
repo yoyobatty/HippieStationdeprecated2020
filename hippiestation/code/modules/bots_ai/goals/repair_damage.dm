@@ -512,6 +512,8 @@ GLOBAL_LIST_EMPTY(bot_reinforcing)
 
 /// The nearest wall put back plain that it can get to and nobody else is at.
 /datum/bot_brain/proc/pick_wall_to_reinforce()
+	if(QDELETED(owner))
+		return null //its body's gone
 	var/turf/best
 	for(var/turf/T as anything in GLOB.bot_walls_to_reinforce.Copy())
 		if(!istype(T, /turf/closed/wall) || istype(T, /turf/closed/wall/r_wall))

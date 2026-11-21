@@ -271,3 +271,118 @@ GLOBAL_VAR_INIT(bot_gym_vanish_after, text2num(world.params["bot-gym-vanish"]))
 		fail_reason = "the stack read from the exception doesn't name its caller: [seen]"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+// What goals/rnd_analysis.dm's start_science_handout() asked the lathe: P.check_mat(D, 1), which wants a material and read the 1 as the
+// first of the container's materials, a text, so every Scientist's choosing threw once a hand-out was researched (found in 16 shifts).
+/datum/bot_scenario/duty/science_handout
+	name = "perf: a scientist with a hand-out researched and a stocked lathe takes it on"
+	desc = "Experimental Tools researched (the jaws of life, the hand drill, the experimental welder for Engineering), a protolathe holding every mineral, an R&D console. The scientist's analysing duty goes on to the hand-outs and takes one on (whether it is then printed is not judged). It used to ask the lathe 'check_mat(design, 1)', which threw 'Cannot read \"$metal\".amount' and ended the whole choosing."
+	duty_type = /datum/bot_duty/rnd_analysis
+	job = "Scientist"
+	time_limit = 60 SECONDS
+	layout = list(
+		"##########",
+		"#B.h.C...#",
+		"#........#",
+		"##########")
+
+/datum/bot_scenario/duty/science_handout/setup()
+	GLOB.bot_science_handouts_given = list()
+	// Researched first: a lathe copies the station's research into its own when it's made (rnd/production Initialize(), asynchronously,
+	// a node at a time), so nodes researched after it's made reached it or not by the luck of the timing, and the hand-outs weren't there
+	SSresearch.science_tech.research_node_id("engineering", TRUE, FALSE)
+	SSresearch.science_tech.research_node_id("emp_basic", TRUE, FALSE)
+	SSresearch.science_tech.research_node_id("adv_engi", TRUE, FALSE)
+	SSresearch.science_tech.research_node_id("exp_tools", TRUE, FALSE)
+	for(var/turf/T in markers["h"])
+		var/obj/machinery/rnd/production/protolathe/L = place("h", new /obj/machinery/rnd/production/protolathe(T))
+		L.update_research() //its own copy, now that the nodes are in
+		for(var/mat in list(MAT_METAL, MAT_GLASS, MAT_SILVER, MAT_GOLD, MAT_DIAMOND, MAT_URANIUM, MAT_PLASMA, MAT_TITANIUM))
+			L.materials?.mat_container?.insert_amount(MINERAL_MATERIAL_AMOUNT * 10, mat)
+	for(var/turf/T in markers["C"])
+		var/obj/machinery/computer/rdconsole/core/C = place("C", new /obj/machinery/computer/rdconsole/core(T))
+		C.SyncRDevices()
+
+/datum/bot_scenario/duty/science_handout/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	// The duty took one on (try_start() returned TRUE: the harness counts those). With the old call it threw and never got there.
+	return goal_attempts ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+
+// What the clear-way planner costs in one go (foundation/clear_way.dm): its tables cover a box up to CW_MAX_SIDE squared, 841 tiles, and
+// the one CHECK_TICK in it came after them all. wall_to_cut_toward() (foundation/escape.dm) looks at up to 400 tiles of the pocket the bot
+// can walk. Both are asked here, in the biggest case, and the log says how many ms each took with no tick limit, so in one piece. Measured 2026-11-21 before the CHECK_TICKs went into the tables' loop: plan_clear_way 15-19 ms, nearly all of it those tables, and wall_to_cut_toward 2 ms.
+/datum/bot_scenario/clear_way_cost
+	name = "perf: a clear-way plan in the biggest box, and a wall search over the biggest pocket"
+	desc = "An open 29 by 29 room, the route running corner to corner so the planner's box is the full 29 by 29, a crate on its first tile. plan_clear_way() and wall_to_cut_toward() are timed with no tick limit (the log says ms). The room is bigger than the 400 tiles a wall search takes in, so that one stops there, its dearest case."
+	time_limit = 60 SECONDS
+	layout = list(
+		"###############################",
+		"#.............................#",
+		"#.............................#",
+		"#...........................G.#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.............................#",
+		"#.B...........................#",
+		"#.............................#",
+		"###############################"
+)
+	var/measured = FALSE
+
+/datum/bot_scenario/clear_way_cost/make_goal()
+	return null
+
+/datum/bot_scenario/clear_way_cost/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(measured)
+		return BOT_GYM_PENDING
+	measured = TRUE
+	var/turf/here = get_turf(bot)
+	var/list/route = list()
+	var/turf/T = here
+	for(var/i in 1 to 22)
+		T = get_step(T, NORTHEAST)
+		if(!T || T.density)
+			break
+		route += T
+	if(length(route) < 20)
+		fail_reason = "the room is too small for the longest route ([length(route)] tiles)"
+		return BOT_GYM_FAIL
+	var/obj/structure/closet/crate/blocker = new(route[1])
+	brain.current_path = route
+	var/old_limit = Master.current_ticklimit
+	// With no tick limit nothing sleeps: the whole of it in one piece, in ms
+	Master.current_ticklimit = 1000000
+	var/started = TICK_USAGE_REAL
+	var/list/plan = brain.plan_clear_way(blocker)
+	var/plan_ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - started)
+	started = TICK_USAGE_REAL
+	brain.wall_to_cut_toward(route[length(route)])
+	var/wall_ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - started)
+	Master.current_ticklimit = old_limit
+	log_line("plan_clear_way: [round(plan_ms, 0.1)] ms in one piece (with no tick limit), [length(plan)] moves; wall_to_cut_toward: [round(wall_ms, 0.1)] ms")
+	return BOT_GYM_PASS

@@ -245,7 +245,7 @@
 	. = ..()
 	if(. != BOT_GYM_PENDING)
 		return
-	if(borg.x > griefer.x - 4 && (griefer.reagents.has_reagent(/datum/reagent/medicine/bicaridine) || bot.reagents.has_reagent(/datum/reagent/medicine/bicaridine)))
+	if(borg?.x > griefer?.x - 4 && (griefer?.reagents?.has_reagent(/datum/reagent/medicine/bicaridine) || bot?.reagents?.has_reagent(/datum/reagent/medicine/bicaridine)))
 		return BOT_GYM_PASS
 
 // Layout letter G: where Medbay is, for this.
@@ -367,10 +367,10 @@
 
 /datum/bot_scenario/griefed/borg/pool/proc/borg_moved(atom/movable/source, atom/old_loc)
 	SIGNAL_HANDLER
-	if(istype(borg.loc, /turf/open/pool) && !istype(old_loc, /turf/open/pool))
+	if(istype(borg?.loc, /turf/open/pool) && !istype(old_loc, /turf/open/pool))
 		went_in++
 		log_line("cyborg stepped into the water at [COORD(borg)]")
-	else if(!istype(borg.loc, /turf/open/pool) && istype(old_loc, /turf/open/pool))
+	else if(!istype(borg?.loc, /turf/open/pool) && istype(old_loc, /turf/open/pool))
 		log_line("cyborg out of the water at [COORD(borg)]")
 
 /datum/bot_scenario/griefed/borg/pool/check()

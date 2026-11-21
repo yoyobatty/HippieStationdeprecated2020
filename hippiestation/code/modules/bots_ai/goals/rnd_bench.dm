@@ -167,6 +167,8 @@ GLOBAL_LIST_EMPTY(bot_material_asked)
 
 /// Whether the lathe can print this much of this design right now, parts efficiency and all. What it's short of goes in `short`.
 /proc/bot_lathe_can_afford(obj/machinery/rnd/production/L, datum/design/D, amount, list/short)
+	if(!L?.materials?.mat_container)
+		return FALSE //not linked to a silo: nothing to pay with
 	. = TRUE
 	var/coeff = L.efficient_with(D.build_path) ? L.efficiency_coeff : 1
 	for(var/mat in D.materials)

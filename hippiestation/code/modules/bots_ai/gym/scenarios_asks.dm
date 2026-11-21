@@ -1390,7 +1390,7 @@
 	if(patient.stat == DEAD)
 		fail_reason = "the patient died"
 		return BOT_GYM_FAIL
-	return (locate(/datum/mutation/human/deaf) in patient.dna.mutations) ? BOT_GYM_PENDING : BOT_GYM_PASS
+	return (locate(/datum/mutation/human/deaf) in patient?.dna?.mutations) ? BOT_GYM_PENDING : BOT_GYM_PASS
 
 /datum/bot_scenario/mutadone_doctor/release_run()
 	if(!QDELETED(patient))
