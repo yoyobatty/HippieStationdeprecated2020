@@ -37,6 +37,9 @@
 // whoever's in charge decides what's to be done.
 
 #define BOT_SEC_VIEW_RANGE 7
+/// How many officers answer a call for help, and one that says somebody's attacking, shooting or killing
+#define BOT_CALL_RESPONDERS 2
+#define BOT_CALL_RESPONDERS_DANGER 3
 // How long a suspect can stay out of sight before the chase is called off.
 #define BOT_ARREST_LOST_TIMEOUT 300
 // Hard cap on one arrest attempt, however it's going.
@@ -1242,7 +1245,13 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	var/turf/T = get_turf(L)
 	if(!T || T.z != owner.z)
 		return
-	if(!bot_line_calls_security(lowertext(raw_message), T))
+	var/lower_line = lowertext(raw_message)
+	if(!bot_line_calls_security(lower_line, T))
+		return
+	// Somebody's already going: a couple of officers answer a cry for help, three one that says there's trouble, and the rest carry on with
+	// what they're at. In the shift batches play1114b and gen1116f two calls in three took four or more officers off their posts at once,
+	// all five or six of them on a third of them.
+	if(bot_responders_to(L, src, !!radio_freq) >= (bot_text_has_any(lower_line, GLOB.bot_danger_words) ? BOT_CALL_RESPONDERS_DANGER : BOT_CALL_RESPONDERS))
 		return
 	next_security_call_time = world.time + 600
 	if(state == BOT_STATE_GOAL)
@@ -1252,6 +1261,22 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	G.caller_name = L.name
 	if(assign_goal(G))
 		bot_say(owner, radio_freq ? ":s Responding to a call from [L.name] in [get_area_name(T, TRUE)]." : "On my way.")
+
+/// Officers other than `me` who are on their way to this person's call just now. With nearer_too (a call on the radio, which every officer
+/// hears at once), those nearer to them who are free and would go as well: the nearest couple answer, not whoever's first on the list.
+/proc/bot_responders_to(mob/living/caller_mob, datum/bot_brain/me, nearer_too = FALSE)
+	. = 0
+	var/my_dist = get_dist(me.owner, caller_mob)
+	for(var/datum/bot_brain/B as anything in GLOB.bot_security_brains)
+		if(B == me || QDELETED(B.owner) || B.owner.stat != CONSCIOUS || B.owner.z != caller_mob.z)
+			continue
+		if(B.gym_run && get_area(B.owner) != get_area(caller_mob)) //Bot Gym: the arena's own
+			continue
+		var/datum/bot_goal/respond_to_call/G = B.current_goal
+		if(istype(G) && G.caller_name == caller_mob.name)
+			.++
+		else if(nearer_too && !B.goal_chain_pending && world.time >= B.next_security_call_time && get_dist(B.owner, caller_mob) < my_dist && B.can_drop_for_call())
+			.++
 
 /// "help" as a cry, wherever it is in the line (a line opening with "help" is one too: "Help! Security!", "help maint").
 GLOBAL_LIST_INIT(bot_help_cries, list("help me", "help us", "need help", "needs help", "someone help", "somebody help", "anyone help", "anybody help", "send help", "get help"))
@@ -1819,3 +1844,5 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 #undef BOT_ARREST_MAX_DURATION
 #undef BOT_ARREST_RETRY_REST
 #undef BOT_SELF_DEFENSE_WINDOW
+#undef BOT_CALL_RESPONDERS
+#undef BOT_CALL_RESPONDERS_DANGER

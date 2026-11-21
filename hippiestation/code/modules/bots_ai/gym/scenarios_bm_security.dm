@@ -67,3 +67,69 @@
 	desc = "The control for the vandal: the same fire axe, and they've hit somebody in the last half minute."
 	hurt_somebody = TRUE
 
+// ---------------------------------------------------------------------------------------------
+// A call for help
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/security_call_cap
+	name = "security: a call for help draws two officers, not the whole of Security"
+	desc = "Shift batches play1114b and gen1116f: two calls in three took four or more officers off their posts at once (all five or six on a third of them), for a flickering light or a locked door. Four officers hear somebody ask Security to come and look at something: two go, the others carry on. A call that says somebody's being attacked draws three (the next scenario)."
+	job = "Security Officer"
+	layout = list(
+		"###########",
+		"#BONM..C..#",
+		"###########")
+	time_limit = 10 SECONDS
+	var/list/mob/living/carbon/human/others = list()
+	var/mob/living/carbon/human/visitor
+	var/called_at = 0
+	/// What the visitor says, and how many officers it takes
+	var/the_call = "Security, can somebody come and look at the light in here?"
+	var/officers_wanted = 2
+
+/datum/bot_scenario/security_call_cap/issue_goal()
+	return
+
+/datum/bot_scenario/security_call_cap/post_spawn()
+	brain.register_security()
+	for(var/mark in list("O", "N", "M"))
+		var/mob/living/carbon/human/H = second_bot(first_marker(mark), "Officer [mark]")
+		H.mind.assigned_role = "Security Officer"
+		H.bot_brain.register_security()
+		others += H
+	visitor = stand_in(first_marker("C"), "Cal Caller")
+	addtimer(CALLBACK(src, PROC_REF(call_it)), 2 SECONDS)
+
+/datum/bot_scenario/security_call_cap/proc/call_it()
+	if(result != BOT_GYM_PENDING || QDELETED(visitor))
+		return
+	called_at = world.time
+	log_line("visitor: \"[the_call]\"")
+	visitor.say(the_call)
+
+/// Officers who took the call: a taken call sets next_security_call_time a minute ahead, in every build.
+/datum/bot_scenario/security_call_cap/proc/answering()
+	. = 0
+	var/list/brains = list(brain)
+	for(var/mob/living/carbon/human/H in others)
+		brains += H.bot_brain
+	for(var/datum/bot_brain/B as anything in brains)
+		if(B.next_security_call_time > world.time)
+			.++
+
+/datum/bot_scenario/security_call_cap/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!called_at || world.time < called_at + 4 SECONDS)
+		return BOT_GYM_PENDING
+	var/n = answering()
+	if(n == officers_wanted)
+		return BOT_GYM_PASS
+	fail_reason = "[n] of the four officers took the call, not [officers_wanted]"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/security_call_cap/danger
+	name = "security: a call that says somebody's being attacked draws three officers"
+	desc = "The same four officers, and the visitor cries that somebody's attacking them: three go. (A cap of two for everything would leave a fight short.)"
+	the_call = "Security! Somebody is attacking me in here!"
+	officers_wanted = 3
