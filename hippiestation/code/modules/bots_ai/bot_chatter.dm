@@ -130,7 +130,7 @@ GLOBAL_LIST_EMPTY(bot_spoken_lately)
 /// already (say_after_typing()), and only comes after the last line.
 /datum/bot_brain/proc/pace_line(line, typed = FALSE)
 	var/send_at = max(world.time + (typed ? 0 : rand(3, 8)), last_send_at + (typed ? 5 : bot_typing_time(line)))
-	if(send_at > world.time + 8 SECONDS)
+	if(send_at > world.time + (typed ? 20 SECONDS : 8 SECONDS)) //a reply to somebody is kept longer than a line it just felt like saying
 		return 0
 	last_send_at = send_at
 	return send_at
