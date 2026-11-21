@@ -113,6 +113,7 @@ GLOBAL_VAR_INIT(door_seals, world.params["door-seals"] != "off")
 	var/best_dir = 0
 	var/best_unshut = FALSE
 	var/best_pressure = 0
+	var/turf/open/lock_source
 	for(var/dir in GLOB.cardinals)
 		if(!seal_side_open(dir))
 			continue
@@ -123,6 +124,14 @@ GLOBAL_VAR_INIT(door_seals, world.params["door-seals"] != "off")
 		if(!side_air)
 			return // the map's still loading: SSair's setup works it out
 		var/unshut = !T.seal_shut()
+		// A dock door's tile doesn't take a docked shuttle's door tile as its side when nothing else is open to it. It kept the vacuum it had
+		// (CentCom's four and the testbench's dock, facing the supply shuttle's four), and so did every tile of the cabin behind the
+		// shuttle's doors once they shared: four empty tiles in the cabin's air at every stop, the cabin lost 13% of its pressure a trip
+		// (101, 89, 78, 68 kPa; 75, 66, 58, 51 in shifts), and what the dock's tiles took stayed behind when the shuttle left. It's cut off
+		// instead, as a shut door used to be, and filled from the shuttle's door tile once (below) so the airlock can be walked through.
+		if(!unshut && T.loc != loc && (istype(loc, /area/shuttle) || istype(T.loc, /area/shuttle)))
+			lock_source ||= T
+			continue
 		var/pressure = side_air.return_pressure()
 		if(!best_dir || (unshut && !best_unshut) || (unshut == best_unshut && pressure > best_pressure))
 			best_dir = dir
@@ -130,6 +139,17 @@ GLOBAL_VAR_INIT(door_seals, world.params["door-seals"] != "off")
 			best_pressure = pressure
 	if(best_dir)
 		seal_dir = best_dir
+	if(lock_source?.air && !best_unshut && isopenturf(src))
+		var/turf/open/lock = src
+		// From the shuttle's cabin side of its door tile: the door tile's own air can still be settling in as the shuttle arrives
+		var/turf/open/fill_from = lock_source
+		for(var/dir in GLOB.cardinals)
+			var/turf/open/cabin = get_step(lock_source, dir)
+			if(istype(cabin) && cabin.air && cabin.loc == lock_source.loc && !cabin.seal_shut() && cabin.air.total_moles() > fill_from.air.total_moles())
+				fill_from = cabin
+		if(lock.air && lock.air.total_moles() < fill_from.air.total_moles() * 0.5)
+			lock.copy_air_with_tile(fill_from) // a lock the docked shuttle fills, once: its own air from then on, nothing taken from the cabin
+			SSair.add_to_active(lock)
 
 /// A shuttle gives its tiles back to the air one at a time once it has moved (lateShuttleMove(), docking.dm), its hull before the cabin
 /// behind it (return_ordered_turfs()). A shut door on the hull picked its side while the cabin still counted as solid, so it took what was
