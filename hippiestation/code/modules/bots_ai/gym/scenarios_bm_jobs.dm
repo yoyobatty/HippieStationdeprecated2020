@@ -966,3 +966,43 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 		fail_reason = "the goliath's not been scratched six seconds on, [get_dist(bot, goliath)] tiles off"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PENDING
+
+/// bm_early run1: a miner hurt to 74 health set off for a first-aid kit across Lavaland by a route that went by a goliath at three tiles, was
+/// grabbed and beaten to death on the way. Routes keep three tiles clear of a conscious goliath now (bot_hazards.dm).
+/datum/bot_scenario/mining/goliath_route
+	name = "miner: the straight way past a goliath is three tiles from it, so it goes round"
+	desc = "A hall with a goliath in the middle of it, its AI off, and the miner sent to the far end. The direct route goes right by the goliath; there's room to go round at four tiles. It never comes nearer than three."
+	time_limit = 40 SECONDS
+	layout = list(
+		"###########################",
+		"#.........................#",
+		"#.........................#",
+		"#.........................#",
+		"#.........................#",
+		"#B.........y............T.#",
+		"#.........................#",
+		"#.........................#",
+		"#.........................#",
+		"#.........................#",
+		"###########################")
+	var/mob/living/simple_animal/hostile/asteroid/goliath/goliath
+	var/closest = 99
+
+/datum/bot_scenario/mining/goliath_route/setup()
+	..()
+	goliath = new(first_marker("y"))
+	goliath.toggle_ai(AI_OFF)
+	bot_refresh_hazards() //the hazard map is redrawn every few seconds; the route's planned before the next
+
+/datum/bot_scenario/mining/goliath_route/make_goal()
+	var/datum/bot_goal/walk_up_to/G = new(first_marker("T"))
+	return G
+
+/datum/bot_scenario/mining/goliath_route/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	closest = min(closest, get_dist(bot, goliath))
+	if(closest < 3)
+		fail_reason = "went by the goliath at [closest] tiles"
+		return BOT_GYM_FAIL
+	return get_dist(bot, first_marker("T")) <= 1 ? BOT_GYM_PASS : BOT_GYM_PENDING

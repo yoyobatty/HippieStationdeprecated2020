@@ -16,6 +16,8 @@
 #define BOT_HAZARD_BEAM_RANGE 24
 /// How far a slime's reach is flooded out from where it is.
 #define BOT_HAZARD_PEN_REACH 6
+/// How near a conscious goliath a route may go: its tentacles reach seven tiles, but a bolt from the accelerator reaches three.
+#define BOT_HAZARD_GOLIATH_RANGE 3
 #define BOT_HAZARD_BEAM 1
 #define BOT_HAZARD_BALL 2
 /// Flames: nobody walks into them who'd burn there, whatever it's on its way to. A firefighter sprays from outside them (goals/respond_to_fire.dm),
@@ -26,6 +28,8 @@
 /// Close to a running supermatter: its radiation, for anybody not in a radiation suit or an engineering hardsuit. An assistant, a
 /// chemist and a doctor walking through Meta's Engineering died of it, 1300 to 2300 rads apiece, the crystal at 100%.
 #define BOT_HAZARD_RADS 5
+/// Within a goliath's reach: for anybody with nothing to shoot it with and not in a mech (bot_steps_into_hazard()).
+#define BOT_HAZARD_GOLIATH 6
 /// The crystal's power from which its radiation counts, and how far out it does then: two tiles at 150, five at about 900, six at the most.
 /// Not from any power at all: a crystal sits at 1 to 10 from roundstart (Bot Shift's crystal line), and with the whole room round it
 /// out of bounds the engineers couldn't get in to start it, 0 of 4 shifts.
@@ -78,6 +82,13 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 		// the ring is what shuts them in.
 		var/datum/bot_brain/shut_in = caller.bot_brain
 		return !(shut_in?.shut_in_result && !shut_in.measuring_shut_in)
+	if(hazard == BOT_HAZARD_GOLIATH)
+		// A miner with the accelerator goes to the beast and shoots it, as it always did (goals/mining.dm mind_fauna(), bot_fighting.dm
+		// fight_fauna()); a mech is above the tentacles (they take what stands on the tile) and steers clear of the beast its own way
+		// (goals/mining_mech.dm). Anybody else goes round: a first-aid-kit fetch went by a goliath at three tiles at 74 health and was
+		// stunned and beaten to death (bm_early run1).
+		var/datum/bot_brain/walker = caller.bot_brain
+		return !walker || !(walker.in_mech() || walker.find_carried_tool(/obj/item/gun/energy/kinetic_accelerator))
 	return hazard == BOT_HAZARD_BALL || caller.bot_brain?.pathing_no_tailgating
 
 /// Dressed for radiation: the radiation suit. Not the engineering hardsuit: its armour takes three quarters of a dose off its wearer, but
@@ -136,6 +147,13 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 	for(var/mob/living/simple_animal/slime/S in GLOB.alive_mob_list)
 		if(!S.docile && !S.ckey && isturf(S.loc))
 			bot_mark_slime_pen(hazards, S)
+	// A goliath's reach: nobody with nothing to fight it with takes a route through three tiles of one (bot_steps_into_hazard()). Where a
+	// bot's already inside it, it can walk out.
+	for(var/mob/living/simple_animal/hostile/asteroid/goliath/G in GLOB.alive_mob_list)
+		if(G.stat == CONSCIOUS && isturf(G.loc))
+			for(var/turf/T as anything in RANGE_TURFS(BOT_HAZARD_GOLIATH_RANGE, G))
+				if(!hazards[T])
+					hazards[T] = BOT_HAZARD_GOLIATH
 	station_picture_list_changed(GLOB.bot_hazard_turfs, hazards) // a hazard tile is asked about every search (station_picture.dm)
 	GLOB.bot_hazard_turfs = hazards
 
@@ -211,6 +229,7 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 #undef BOT_HAZARD_BALL_RANGE
 #undef BOT_HAZARD_BEAM_RANGE
 #undef BOT_HAZARD_PEN_REACH
+#undef BOT_HAZARD_GOLIATH_RANGE
 #undef BOT_HAZARD_BEAM
 #undef BOT_HAZARD_FIRE
 /// Near a running crystal in nothing against its radiation: out, whatever it was at, the way it gets out of flames (goals/respond_to_fire.dm).
@@ -281,6 +300,7 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 #undef BOT_HAZARD_GLASS
 #undef BOT_HAZARD_BALL
 #undef BOT_HAZARD_RADS
+#undef BOT_HAZARD_GOLIATH
 #undef BOT_HAZARD_RADS_RANGE
 #undef BOT_HAZARD_RADS_FROM
 
