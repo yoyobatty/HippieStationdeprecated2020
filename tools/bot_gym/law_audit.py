@@ -97,10 +97,16 @@ def audit(run, verbose, total):
             t = secs(h, mi, s)
             r = re.match(r"ending arrest of (.+?): suspect restrained", what)
             if r:
-                restrained.setdefault(r.group(1), t)
+                # Every officer on the same prisoner says it, so the first is when it started; one more than five game minutes after the
+                # last is a new arrest (the first having ended in Medbay or a let-go, with no sentence).
+                began = restrained.get(r.group(1))
+                if not began or (t - began[1]) * speed > 5 * 60:
+                    restrained[r.group(1)] = (t, t)
+                else:
+                    restrained[r.group(1)] = (began[0], t)
             r = re.match(r"sentenced (.+?) to (\d+) minutes? in (.+?) for (.+)", what)
             if r and r.group(1) in restrained:
-                waits.append(((t - restrained.pop(r.group(1))) * speed / 60, r.group(1), r.group(4)))
+                waits.append(((t - restrained.pop(r.group(1))[0]) * speed / 60, r.group(1), r.group(4)))
     calls.sort()
     taken = set()
     for i, c in enumerate(calls):
