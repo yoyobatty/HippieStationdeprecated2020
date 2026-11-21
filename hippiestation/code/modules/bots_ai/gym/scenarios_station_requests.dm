@@ -57,7 +57,9 @@
 		asked = TRUE
 		var/obj/machinery/requests_console/console
 		for(var/obj/machinery/requests_console/RC in GLOB.allConsoles)
-			if(is_station_level(RC.z) && !(ckey(RC.department) in list("cargobay", "mining")) && !(RC.stat & (NOPOWER|BROKEN)))
+			// Not one in Security's offices: the first console on the list was the Head of Security's desk, where the stand-in was a trespasser,
+			// arrested for fifteen minutes in every shift of a batch (ten cells of fifteen minutes in twelve shifts, which Security then ran out of)
+			if(is_station_level(RC.z) && !(ckey(RC.department) in list("cargobay", "mining")) && !(RC.stat & (NOPOWER|BROKEN)) && !istype(get_area(RC), /area/security))
 				console = RC
 				break
 		if(console)
