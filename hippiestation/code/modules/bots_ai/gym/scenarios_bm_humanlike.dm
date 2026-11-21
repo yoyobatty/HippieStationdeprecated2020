@@ -694,3 +694,20 @@
 	name = "hands: emptying a bag, each thing is drawn a moment after the last is let go of"
 	desc = "The bag is emptied onto a table and into a bin one thing at a time: the next is drawn a beat after the last went down, not 0.1 s after (1-3 ds)."
 	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_swap")
+
+/datum/bot_scenario/mining_points/pda_on_belt
+	name = "miner: with its PDA on its belt, the webbing from the voucher goes on and the PDA into the bag"
+	desc = "The PDA is on the belt (a bot puts it there), so the webbing from the voucher had no place and stayed in the miner's hand for the shift. Every shuttle ride knocks down whoever is not buckled in, and a knocked-down hand drops what it holds: the webbing was down on the floor and picked up again five times a shift (play1114b run10). The PDA goes in the bag and the webbing on."
+
+/datum/bot_scenario/mining_points/pda_on_belt/post_spawn()
+	..()
+	if(bot.belt)
+		qdel(bot.belt)
+	bot.equip_to_slot_or_del(new /obj/item/pda(bot), ITEM_SLOT_BELT)
+	brain.next_id_consolidation_check_time = world.time + 10 MINUTES //it moves the PDA to the ID slot given the chance (consolidate_id_into_pda(), bot_items.dm)
+
+/datum/bot_scenario/mining_points/pda_on_belt/check()
+	. = ..()
+	if(. == BOT_GYM_PASS && !istype(bot.belt, /obj/item/storage/belt/mining/vendor))
+		fail_reason = "left the webbing in its hand with the PDA on its belt"
+		return BOT_GYM_FAIL
