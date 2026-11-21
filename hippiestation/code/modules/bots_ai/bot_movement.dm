@@ -997,7 +997,11 @@
 		else
 			repath()
 		return
-	bot_log_verbose(src, "step_next_node: [here] -> [next_node] @ ([next_node.x],[next_node.y],[next_node.z]), [current_path.len] nodes left") //bot_coord() written out and the turf found above: this is every step of every walk, two thirds of the trace
+	// One step in four, and the last: every step of every walk was two thirds of the trace (96,000 lines, each its text built and written, in a
+	// 25-minute shift of 30 bots: 1.42 trace lines a step, 0.84 now), and logread's readers leave them out as noise. Where the bot was is in the
+	// telemetry samples as well.
+	if(current_path.len % 4 == 1)
+		bot_log_verbose(src, "step_next_node: [here] -> [next_node] @ ([next_node.x],[next_node.y],[next_node.z]), [current_path.len] nodes left") //bot_coord() written out and the turf found above
 	// try_clear_obstruction() (bot_items.dm) checks against the real movement engine
 	// itself before touching anything, and can yield for real time (climbing a
 	// structure).
