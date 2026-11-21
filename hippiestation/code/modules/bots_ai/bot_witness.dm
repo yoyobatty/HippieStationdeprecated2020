@@ -549,7 +549,22 @@ GLOBAL_VAR(bot_throw_aimed_at)
 	for(var/datum/bot_brain/B as anything in bot_witnesses_of(victim, list(culprit, victim)))
 		B.on_saw_accident(culprit, victim)
 	addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_accident_unanswered), WEAKREF(culprit), WEAKREF(victim), world.time, what_done, object), grace)
+	culprit.bot_brain?.say_sorry_for(victim)
 	return TRUE
+
+/// It threw something at something else and hit this one on the way: it says sorry, as anybody would. Nobody said it for a bot: a Captain's
+/// toolbox thrown at a nanosuit hit a crewman (play1113e run9), and the Captain was arrested for Assault with a Deadly Weapon when the time to
+/// say sorry ran out. Not for one who's gone loud or is out to cause trouble: theirs isn't an accident to be sorry for.
+/datum/bot_brain/proc/say_sorry_for(mob/living/carbon/human/victim)
+	if(greytider || gone_loud())
+		return
+	addtimer(CALLBACK(src, PROC_REF(sorry_to), WEAKREF(victim)), rand(15, 45))
+
+/datum/bot_brain/proc/sorry_to(datum/weakref/victim_ref)
+	var/mob/living/carbon/human/victim = victim_ref?.resolve()
+	if(QDELETED(owner) || owner.stat != CONSCIOUS || QDELETED(victim) || victim.stat == DEAD)
+		return
+	bot_say(owner, pick("Sorry, [victim.first_name()]! That wasn't meant for you.", "Oh, sorry! My bad.", "Sorry about that, [victim.first_name()]. I was aiming at the other one."))
 
 /// The time's up: said sorry for, it's done with; otherwise it's taken as the attack it looked like
 /proc/bot_accident_unanswered(datum/weakref/culprit_ref, datum/weakref/victim_ref, when, what_done, atom/object)

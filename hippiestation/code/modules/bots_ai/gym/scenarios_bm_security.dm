@@ -509,3 +509,20 @@
 
 /datum/bot_scenario/fixes1112/doors/brig/nobody_comes/no_answer/doctor_near/on_timeout()
 	return BOT_GYM_PASS //still with the prisoner at the end of it
+
+// ---------------------------------------------------------------------------------------------
+// An accident a bot says sorry for
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/chat/accident_sorry/bot_throws
+	name = "accident: a crewman who throws a toolbox at a table and hits somebody on the way says sorry, and is forgiven, not arrested"
+	desc = "Shift batch play1113e run9: the Captain's toolbox, thrown at a nanosuit, hit a crewman on the way. Nobody said sorry (a bot never did), so when the time ran out it was taken as the attack it looked like, and the Captain was arrested for Assault with a Deadly Weapon. Now the thrower, a bot, says sorry a few seconds after, and the one it hit forgives it."
+	say_sorry = FALSE //the thrower's own brain says it
+
+/datum/bot_scenario/chat/accident_sorry/bot_throws/post_spawn()
+	..()
+	visitor.mind_initialize()
+	var/datum/bot_brain/thrower = new(visitor)
+	thrower.gym_run = src
+	thrower.gym_scripted = TRUE
+	thrower.greytider = FALSE
