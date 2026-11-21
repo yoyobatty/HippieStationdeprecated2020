@@ -735,6 +735,9 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 	if((body.buckled && world.time < brain.hangout_until) || brain.holding_duty)
 		quiet_since = world.time //sitting down for a while is a choice, not a freeze - so is waiting for the shuttle (bot_duties.dm)
 		return
+	if(!body.has_gravity() && isturf(body.loc) && !body.Process_Spacemove(0))
+		quiet_since = world.time //floating in a room with no gravity and nothing to push off: nothing a bot can do but say so (bot_hazards.dm float_without_a_hold())
+		return
 	var/still = world.time - max(brain.telemetry_last_activity, quiet_since)
 	if(still >= BOT_SHIFT_IDLE_WARN && (body.bot_life_sentence || brain.is_in_active_cell(body)))
 		quiet_since = world.time //doing its time: that's a choice too, if not its own
