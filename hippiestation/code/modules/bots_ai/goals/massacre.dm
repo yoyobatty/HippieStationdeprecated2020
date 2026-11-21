@@ -42,6 +42,10 @@ GLOBAL_LIST_EMPTY(bot_alive_answers)
 				break
 	if(best)
 		return best
+	return bot_wanted_killer(only_in)
+
+/// Somebody Security's records have for murder: it's been called in on the radio, which is as much as anybody on the crew knows.
+/proc/bot_wanted_killer(area/only_in)
 	for(var/datum/weakref/ref as anything in GLOB.bot_security_wanted)
 		var/datum/bot_wanted/W = GLOB.bot_security_wanted[ref]
 		var/mob/living/carbon/human/H = ref.resolve()
@@ -49,16 +53,48 @@ GLOBAL_LIST_EMPTY(bot_alive_answers)
 			return H
 	return null
 
-/// The killer at large, when it's that kind of shift. A Bot Gym bot counts only the bodies in its own arena.
+/// Whoever it knows has been killing people, by what it saw or was told (bot_memory.dm): the one it has the most killings against, still up
+/// and about and not in cuffs. bot_known_killer() reads who last hurt every body on the station off the bodies, which nobody on the crew can.
+/datum/bot_brain/proc/killer_it_knows()
+	var/list/counts = list()
+	var/list/by_name = list()
+	for(var/datum/bot_fact/F as anything in facts_about(null, list(BOT_FACT_KILLED), TRUE, FALSE))
+		if(!F.actor_name)
+			continue
+		counts[F.actor_name] = (counts[F.actor_name] || 0) + 1
+		by_name[F.actor_name] = F
+	var/mob/living/carbon/human/best
+	var/best_count = 0
+	for(var/name in counts)
+		if(counts[name] <= best_count)
+			continue
+		var/datum/bot_fact/seen = by_name[name]
+		var/mob/living/carbon/human/H = seen.actor?.resolve() || bot_mob_named(name) //bot_social.dm
+		if(!H || H == owner || H.stat == DEAD || H.handcuffed)
+			continue
+		best = H
+		best_count = counts[name]
+	return best
+
+/// What massacre_killer() says for somebody asked who's doing the killing: the same, for an answer a bot gives from what it knows.
+/datum/bot_brain/proc/killer_to_name(area/only_in)
+	if(gym_run)
+		return (gym_run.strict_casualties && !is_apex()) ? (killer_it_knows() || bot_wanted_killer(only_in)) : bot_known_killer(only_in)
+	return is_apex() ? bot_known_killer() : (killer_it_knows() || bot_wanted_killer())
+
+/// The killer at large, when it's that kind of shift, as far as this bot knows: what it saw or was told, and who's been called in for murder
+/// on the radio (killer_it_knows(), bot_wanted_killer()); an apex bot goes by the director's word (the user's ruling, 2026-11-12: the one
+/// exception to no omniscience), which is the bodies' records. It went by the bodies' records for everybody. A Bot Gym bot counts only
+/// the bodies in its own arena, and goes by what it knows only when a scenario sets strict_casualties.
 /datum/bot_brain/proc/massacre_killer()
 	if(!gym_run)
-		return bot_shift_gone_bad() ? bot_known_killer() : null
+		return bot_shift_gone_bad() ? killer_to_name() : null
 	var/area/A = get_area(owner)
 	var/dead = 0
 	for(var/mob/living/carbon/human/H in GLOB.dead_mob_list)
 		if(get_area(H) == A && H.mind?.assigned_role)
 			dead++
-	return dead >= 3 ? bot_known_killer(A) : null
+	return dead >= 3 ? killer_to_name(A) : null
 
 /// "Who's killing everyone?" and "who's alive?", from somebody who isn't a bot (bot_chatter.dm on_heard_speech()). TRUE if it answered, or
 /// somebody else just has.
@@ -76,7 +112,7 @@ GLOBAL_LIST_EMPTY(bot_alive_answers)
 			say_after_typing(prefix + known)
 			bot_log(src, "asked who did the killing, answered from what it knows: [known]")
 			return TRUE
-		var/mob/living/carbon/human/killer = bot_known_killer(gym_run ? get_area(owner) : null)
+		var/mob/living/carbon/human/killer = killer_to_name(gym_run ? get_area(owner) : null)
 		// Knowing nothing, it leaves the question to somebody who does, unless it was the one asked
 		if(!killer && !hears_own_name(msg) && !in_conversation_with(talker))
 			return FALSE
@@ -97,7 +133,7 @@ GLOBAL_LIST_EMPTY(bot_alive_answers)
 		if(GLOB.bot_alive_answers[asker] >= 3)
 			return TRUE
 		GLOB.bot_alive_answers[asker] += 1
-		var/mob/living/carbon/human/killer = bot_known_killer(gym_run ? get_area(owner) : null)
+		var/mob/living/carbon/human/killer = killer_to_name(gym_run ? get_area(owner) : null)
 		if(killer && killer == talker) //not telling the killer where it is
 			say_after_typing(prefix + pick("Not telling you.", "Why, so you can finish us off?", "Stay away from us, [talker.first_name()]."))
 		else
