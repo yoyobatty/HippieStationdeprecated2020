@@ -672,7 +672,6 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 	desc = "Two blood stains in a long hall, one five tiles from the janitor and one forty. It picks the near one; with that mopped up it knows of nothing else (the far one's never been in sight); stood by the far one it picks that."
 	job = "Janitor"
 	time_limit = 20 SECONDS
-	strict_mess = TRUE
 	layout = list(
 		"##############################################",
 		"#B....n..................................f...#",
@@ -682,6 +681,8 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 	var/stage = 0
 
 /datum/bot_scenario/janitor_knows/setup()
+	if("strict_mess" in vars)
+		vars["strict_mess"] = TRUE //by name: a build without the fix has no such var
 	near = new /obj/effect/decal/cleanable/blood/splatter(first_marker("n"))
 	far = new /obj/effect/decal/cleanable/blood/splatter(first_marker("f"))
 
