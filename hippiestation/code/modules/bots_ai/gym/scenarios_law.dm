@@ -634,7 +634,7 @@
 		"#########",
 		"#B......#",
 		"#########")
-	time_limit = 60 SECONDS //eight seconds alone; the speech agent's typed-out lines and a busy gym take longer
+	time_limit = 150 SECONDS //eight seconds alone; in a paced pass of a couple of hundred arenas the bot's brain gets few looks, and sixty wasn't enough
 	var/obj/item/gun/energy/e_gun/gun
 
 /datum/bot_scenario/knocked_gun_back/post_spawn()
