@@ -365,6 +365,11 @@
 		if(QDELETED(I) || !isturf(I.loc) || !owner.Adjacent(I))
 			continue
 		free_hand_for(I)
+		// Freeing the hand can set a stack down on this one, and a stack set on its own kind merges into it: the plank it was about to
+		// take was deleted under it ("put in Lee Montague's hands after it was deleted", audit batch bm_final4 run6).
+		if(QDELETED(I) || !isturf(I.loc))
+			LAZYREMOVE(set_down_items, I)
+			continue
 		if(!owner.put_in_hands(I))
 			continue
 		LAZYREMOVE(set_down_items, I)
