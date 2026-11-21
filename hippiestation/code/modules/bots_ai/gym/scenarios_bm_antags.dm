@@ -364,3 +364,37 @@
 	if(!QDELETED(carp))
 		qdel(carp)
 	return ..()
+
+/// The Captain's dead already (somebody else got there): the disk's on the body and the traitor goes and takes it off, not stalks a corpse.
+/datum/bot_scenario/duty/traitor/disk_off_the_dead_captain
+	name = "traitor: the Captain's dead with the disk in a pocket, it takes it off the body"
+	desc = "The objective is the nuclear disk and the Captain lies dead with it in a pocket. The traitor goes over and takes it off the body."
+	layout = list(
+		"#########",
+		"#B.....V#",
+		"#########")
+	var/mob/living/carbon/human/captain
+	var/obj/item/disk/nuclear/disk
+
+/datum/bot_scenario/duty/traitor/disk_off_the_dead_captain/post_spawn()
+	..()
+	captain = stand_in(first_marker("V"), "Cap Tain")
+	captain.mind_initialize()
+	captain.mind.assigned_role = "Captain"
+	disk = new(get_turf(captain))
+	qdel(disk.GetComponent(/datum/component/stationloving)) //it would take itself back to the station, off the gym's z-level
+	captain.equip_to_slot_or_del(disk, ITEM_SLOT_LPOCKET)
+	captain.death()
+	var/datum/objective/steal/S = new //fills the list of what can be asked for
+	S.owner = bot.mind
+	for(var/datum/objective_item/I in GLOB.possible_items)
+		if(I.targetitem == /obj/item/disk/nuclear)
+			S.targetinfo = I
+	S.steal_target = /obj/item/disk/nuclear
+	S.explanation_text = "Steal [S.targetinfo?.name]"
+	antag.objectives += S
+
+/datum/bot_scenario/duty/traitor/disk_off_the_dead_captain/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	return brain.find_carried_tool(/obj/item/disk/nuclear) ? BOT_GYM_PASS : BOT_GYM_PENDING
