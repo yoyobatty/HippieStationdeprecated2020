@@ -211,7 +211,29 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 	var/place = get_area_name(victim, TRUE)
 	for(var/datum/bot_brain/B as anything in bot_witnesses_of(victim, list(assailant, victim)))
 		B.learn_fact(BOT_FACT_ATTACKED, assailant, victim, place) //bot_memory.dm
-		B.on_saw_violence(assailant, victim)
+		B.react_to_sight(CALLBACK(B, TYPE_PROC_REF(/datum/bot_brain, on_saw_violence), assailant, victim))
+
+/// How long a witness takes between a blow landing in front of it and doing anything about it: nobody shouts "Hey! Stop that!" in the same
+/// tick as the punch. A third of a second to a second or so (perception_delay(), foundation/human_limits.dm, and a little more, since it
+/// has to work out what it's seeing): a round's witnesses turned and shouted the tick the blow landed.
+/datum/bot_brain/proc/witness_reaction_time()
+	if(gym_run && !gym_run.slow_reactions)
+		return 0
+	return round(perception_delay()) + rand(1, 8)
+
+/// Does `reaction` (a callback on this brain, about something it has just seen) after witness_reaction_time(), as long as it's still up
+/// and about then.
+/datum/bot_brain/proc/react_to_sight(datum/callback/reaction)
+	var/delay = witness_reaction_time()
+	if(delay <= 0)
+		reaction.Invoke()
+		return
+	addtimer(CALLBACK(src, PROC_REF(react_now), reaction), delay)
+
+/datum/bot_brain/proc/react_now(datum/callback/reaction)
+	if(QDELETED(src) || QDELETED(owner) || owner.stat != CONSCIOUS)
+		return
+	reaction.Invoke()
 
 /datum/bot_brain/proc/on_saw_violence(mob/living/carbon/human/assailant, mob/living/carbon/human/victim)
 	if(state == BOT_STATE_COMBAT && attacker == assailant)
@@ -295,7 +317,7 @@ GLOBAL_LIST_INIT(bot_trespass_lines, list(
 	user.bot_vandal_hits++
 	user.bot_vandal_last = world.time
 	for(var/datum/bot_brain/B as anything in bot_witnesses_of(user, list(user)))
-		B.on_saw_vandalism(user, target)
+		B.react_to_sight(CALLBACK(B, TYPE_PROC_REF(/datum/bot_brain, on_saw_vandalism), user, target))
 
 /// In a fight with a nanosuit or a known traitor, or one in sight: the window smashed getting at them is the fight, not vandalism. The crew
 /// fight one by any means (the user's ruling, 2026-11-09); the user, chasing one, was called in and arrested for the windows (2026-11-13).
