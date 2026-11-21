@@ -772,3 +772,44 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 	if(brain.ready_for_lavaland())
 		return BOT_GYM_PASS
 	return BOT_GYM_PENDING
+
+/// A tank down to 30% and no canister anywhere: the fresh one fetched from the rack goes on in its place (the goal that fetches it is
+/// what's judged; what sends a bot after one is a minute's look at its gauge, which a scripted gym bot doesn't make).
+/datum/bot_scenario/spare_tank_swap
+	name = "mining: a miner's tank is down to 30% and there's no canister, so it fetches one from the rack and puts it on"
+	desc = "A miner on its mask and a tank that's nearly gone, no oxygen canister about, and an emergency tank on a rack eight tiles off. It fetches the full tank and puts it on its belt in place of the old one, which goes in its bag, and the tank it breathes from is the full one."
+	job = "Shaft Miner"
+	time_limit = 40 SECONDS
+	layout = list(
+		"#############",
+		"#B.......T..#",
+		"#############")
+	var/obj/item/tank/internals/old_tank
+	var/obj/item/tank/internals/rack_tank
+
+/datum/bot_scenario/spare_tank_swap/setup()
+	rack_tank = new /obj/item/tank/internals/emergency_oxygen(first_marker("T"))
+	bot_note_mapped(rack_tank)
+
+/datum/bot_scenario/spare_tank_swap/post_spawn()
+	bot.equip_to_slot_or_del(new /obj/item/clothing/mask/gas/explorer(bot), ITEM_SLOT_MASK)
+	old_tank = new /obj/item/tank/internals/emergency_oxygen(bot)
+	bot.equip_to_slot_or_del(old_tank, ITEM_SLOT_BELT)
+	old_tank.air_contents.moles[/datum/gas/oxygen] *= 0.3
+
+/datum/bot_scenario/spare_tank_swap/make_goal()
+	return new /datum/bot_goal/acquire_item_type/breathing_tank()
+
+/datum/bot_scenario/spare_tank_swap/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(rack_tank) || QDELETED(old_tank))
+		fail_reason = "a tank's gone"
+		return BOT_GYM_FAIL
+	// The fresh one on the body (a slot, not a hand) and the old one not: in its bag or on the floor
+	if(rack_tank.loc == bot && !bot.is_holding(rack_tank))
+		if(old_tank.loc == bot)
+			fail_reason = "the old tank's still on it"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING

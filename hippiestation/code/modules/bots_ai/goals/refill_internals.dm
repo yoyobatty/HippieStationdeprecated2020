@@ -171,6 +171,48 @@
 	var/obj/item/tank/T = I
 	return bot_tank_breathable(T) && T.air_contents.return_pressure() > 3 * ONE_ATMOSPHERE //not one that has little left in it
 
+/datum/bot_goal/acquire_item_type/breathing_tank/on_success(datum/bot_brain/bot)
+	. = ..()
+	bot.swap_to_fresh_tank()
+
+/datum/bot_brain
+	/// When it may next go for a fresh tank because there's no canister to refill at
+	var/next_spare_tank_try = 0
+
+/// The fullest tank it has about it (on the body, in a hand or in its bag) on the body, and a worse one it was wearing in its bag instead: what's
+/// fetched from a rack when there's no canister to refill at. The valve as the air wants it after. TRUE if it changed anything.
+/datum/bot_brain/proc/swap_to_fresh_tank()
+	var/obj/item/tank/internals/best
+	for(var/obj/item/tank/internals/T in owner.GetAllContents())
+		if(bot_tank_breathable(T) && (!best || T.air_contents.return_pressure() > best.air_contents.return_pressure()))
+			best = T
+	if(!best)
+		return FALSE
+	// What it's wearing that isn't it, the emptiest first
+	var/obj/item/tank/internals/low
+	for(var/slot in list(ITEM_SLOT_BELT, ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET, ITEM_SLOT_SUITSTORE, ITEM_SLOT_DEX_STORAGE))
+		var/obj/item/tank/internals/worn = owner.get_item_by_slot(slot)
+		if(istype(worn) && worn != best && (!low || worn.air_contents.return_pressure() < low.air_contents.return_pressure()))
+			low = worn
+	if(low && low.air_contents.return_pressure() >= best.air_contents.return_pressure())
+		return FALSE
+	if(!low && best.loc == owner && !owner.is_holding(best))
+		return FALSE //nothing to swap for: it's wearing the fullest already
+	if(low)
+		if(owner.internal == low)
+			low.toggle_internals(owner)
+		swap_out_worn(low, null)
+	if(best.loc != owner || owner.is_holding(best) || !(best in owner.contents))
+		if(!ready_in_hand(best))
+			bot_log(src, "couldn't get [best] into a hand to put it on")
+			return FALSE
+		for(var/slot in list(ITEM_SLOT_BELT, ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET, ITEM_SLOT_SUITSTORE, ITEM_SLOT_DEX_STORAGE))
+			if(owner.equip_to_slot_if_possible(best, slot, FALSE, TRUE, TRUE))
+				break
+	bot_log(src, "put [best] on in place of [low || "nothing"]")
+	manage_internals()
+	return TRUE
+
 // Same immediate-rechain idea as continue_fire_response_round() (respond_to_fire.dm) -
 // re-checks are cheap and this only ever actually does anything when genuinely low.
 /datum/bot_brain/proc/continue_refill_internals_round()
@@ -511,6 +553,15 @@
 	if(suspend_goal_for(new /datum/bot_goal/refill_internals()))
 		bot_log(src, "[tank] is down to [left] kPa out here - going to refill it")
 		return
+	// No canister it can get to: a fresh tank from a rack or a locker instead (the maintenance racks on Hippie Station have emergency
+	// tanks), once in three minutes, and swapped for the one that's running down (swap_to_fresh_tank())
+	if(world.time >= next_spare_tank_try)
+		next_spare_tank_try = world.time + 3 MINUTES
+		var/datum/bot_goal/acquire_item_type/breathing_tank/spare = new
+		spare.lawful = TRUE
+		if(suspend_goal_for(spare))
+			bot_log(src, "[tank] is down to [left] kPa and no canister to refill it at - going for a fresh tank")
+			return
 	if(!tank_running_out())
 		return
 	bot_log(src, "[tank] is down to [left] kPa and there's nowhere to refill it - dropping everything to get to air")
