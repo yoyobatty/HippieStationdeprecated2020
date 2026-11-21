@@ -306,7 +306,7 @@
 /datum/bot_scenario/griefed/needles_them/check()
 	if(bot_lost())
 		return BOT_GYM_FAIL
-	return griefer.reagents.has_reagent(/datum/reagent/toxin/chloralhydrate) ? BOT_GYM_PASS : BOT_GYM_PENDING
+	return griefer?.reagents?.has_reagent(/datum/reagent/toxin/chloralhydrate) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
 /datum/bot_scenario/griefed/keeps_it_clean
 	name = "chem: a lethal stays in the bag against a greytider with a toolbox"

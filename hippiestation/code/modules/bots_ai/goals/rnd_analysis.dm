@@ -127,12 +127,15 @@ GLOBAL_LIST_INIT(bot_analysis_keep, typecacheof(list(/obj/item/stock_parts, /obj
 		if(GLOB.bot_science_handouts_given[id] || !P.stored_research?.researched_designs[id])
 			continue
 		var/datum/design/D = SSresearch.techweb_design_by_id(id)
-		if(!D || !P.check_mat(D, 1))
+		if(!D || !bot_lathe_can_afford(P, D, 1)) //goals/rnd_bench.dm. This was P.check_mat(D, 1): it takes a material, and 1 read as the first one in the list, a text, and threw (a Scientist, once a hand-out was researched, every minute)
 			continue
 		GLOB.bot_science_handouts_given[id] = TRUE
 		var/datum/bot_goal/print_design/handout/G = new(P, D, 1)
 		G.area_type = GLOB.bot_science_handouts[id]
-		return assign_goal(G)
+		. = assign_goal(G)
+		if(!.)
+			GLOB.bot_science_handouts_given[id] = FALSE //not taken on (busy with something else, or not ready): looked at again, not given up for the shift
+		return .
 	return FALSE
 
 /datum/bot_goal/print_design/handout

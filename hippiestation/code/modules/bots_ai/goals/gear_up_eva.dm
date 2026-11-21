@@ -216,6 +216,8 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 	bot_log_verbose_line(src, "is_eva_ready: FALSE - [why]")
 
 /datum/bot_brain/proc/is_eva_ready()
+	if(QDELETED(owner))
+		return FALSE //its body's gone: asked by a route check that was already under way
 	if(is_miner())
 		return ready_for_lavaland() //goals/mining.dm: thin air down there, not vacuum
 	var/obj/item/clothing/suit/space/hardsuit/suit = owner.wear_suit

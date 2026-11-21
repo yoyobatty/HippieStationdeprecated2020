@@ -685,7 +685,7 @@
 /datum/bot_scenario/quarrel/check()
 	if(bot_lost())
 		return BOT_GYM_FAIL
-	return GLOB.bot_chaos.tallies["lost their temper"] || other.bot_brain.state == BOT_STATE_COMBAT ? BOT_GYM_PASS : BOT_GYM_PENDING
+	return GLOB.bot_chaos.tallies["lost their temper"] || other?.bot_brain?.state == BOT_STATE_COMBAT ? BOT_GYM_PASS : BOT_GYM_PENDING
 
 /datum/bot_scenario/riot
 	name = "chaos: the tide comes in when the call goes out"

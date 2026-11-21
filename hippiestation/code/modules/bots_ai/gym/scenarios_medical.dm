@@ -181,8 +181,8 @@
 /datum/bot_scenario/patient/cloning/check()
 	if(bot_lost())
 		return BOT_GYM_FAIL
-	var/mob/living/carbon/human/clone = patient_brain.owner
-	if(clone == patient || !isturf(clone.loc) || clone.stat != CONSCIOUS)
+	var/mob/living/carbon/human/clone = patient_brain?.owner
+	if(!clone || clone == patient || !isturf(clone.loc) || clone.stat != CONSCIOUS)
 		return BOT_GYM_PENDING
 	if(clone.real_name != "Pat Patient" || clone.mind != patient_brain.owner.mind || patient.bot_brain)
 		fail_reason = "came out as [clone.real_name], with the brain in the wrong place"

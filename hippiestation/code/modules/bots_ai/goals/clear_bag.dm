@@ -85,6 +85,8 @@ GLOBAL_LIST_INIT(bot_bag_rubbish, typecacheof(list(/obj/item/trash, /obj/item/ci
 /// The nearest table it can walk to, near `near`.
 /datum/bot_brain/proc/nearest_table(atom/near)
 	var/list/by_dist = list()
+	if(QDELETED(owner))
+		return null //its body's gone
 	for(var/obj/structure/table/T as anything in bot_instances_of(/obj/structure/table))
 		if(QDELETED(T) || T.z != owner.z || (gym_run && get_area(T) != get_area(owner)))
 			continue

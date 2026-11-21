@@ -481,6 +481,8 @@ GLOBAL_LIST_EMPTY(bot_open_trapdoors)
 /// get_path_to() for the bot's own route checks, minus searches a flood already proved hopeless (see above).
 /datum/bot_brain/proc/bot_path_to(turf/dest, dist, adjacent, obj/item/card/id/id_card, simulated_only)
 	var/turf/start = get_turf(owner)
+	if(!start)
+		return list() //no body to start from (gibbed, deleted): get_path_to() would stack_trace "Invalid A* start or destination"
 	pathing_emag = !!emag_for_doors()
 	var/rules = start && dest ? reach_rules(adjacent, id_card, simulated_only) : null
 	if(rules && outside_known_region(start, dest, rules))
