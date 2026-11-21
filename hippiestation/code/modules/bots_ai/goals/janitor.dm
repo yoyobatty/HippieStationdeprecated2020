@@ -711,19 +711,25 @@
 	max_clicks = 60
 	var/at = 1
 	var/tries = 0
+	var/next_look = 0
 
 /datum/bot_step/paced/patrol_stops/start(datum/bot_brain/bot)
 	at = 1
 	tries = 0
+	next_look = 0
 	return TRUE
 
 /datum/bot_step/paced/patrol_stops/do_click(datum/bot_brain/bot)
 	var/datum/bot_goal/janitor_patrol/G = bot.current_goal
 	if(!istype(G) || at > length(G.stops))
 		return FALSE
-	if(bot.janitor_look_about())
-		bot_log(bot, "saw something to clean on my round")
-		return FALSE
+	// Something in sight that the duty would take on (not maintenance's dirt, nor what's a door too far away): then the round's over. Asked
+	// every few seconds, it takes a look at every stain on the station.
+	if(world.time >= next_look && bot.janitor_look_about())
+		next_look = world.time + 25
+		if(bot.pick_mess() || bot.pick_dead_light())
+			bot_log(bot, "saw something to clean on my round")
+			return FALSE
 	var/turf/stop = G.stops[at]
 	if(get_dist(bot.owner, stop) <= 1)
 		bot.human_pause(stop)
