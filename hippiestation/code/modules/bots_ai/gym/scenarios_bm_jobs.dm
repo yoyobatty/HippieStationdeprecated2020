@@ -1006,3 +1006,122 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 		fail_reason = "went by the goliath at [closest] tiles"
 		return BOT_GYM_FAIL
 	return get_dist(bot, first_marker("T")) <= 1 ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// bm_final: a miner that never dressed, and a miner held by a tentacle it walked on to
+// ---------------------------------------------------------------------------------------------
+
+/// bm_final run11: a miner that had picked up a welder, a crowbar and a first-aid kit on its way to its locker had a full bag, the webbing on
+/// its belt and a crowbar in a pocket. "dress_for_lavaland" failed on the spot four times, with the mask on and the tank in the survival box,
+/// and it sat in the dock for the rest of the shift. The tank goes in a pocket, and what was there goes in the webbing, or on the floor.
+/datum/bot_scenario/miner_full_kit
+	name = "mining: a miner with a full bag and a crowbar in its pocket still puts its tank on, the crowbar going in the webbing"
+	desc = "A miner with its mask on, the survival box (and the tank in it) in a bag that's full, the explorer's webbing on its belt with room in it, and a pocket crowbar and the ore satchel in its pockets. It makes room for the tank in a pocket: the crowbar into the webbing."
+	job = "Shaft Miner"
+	time_limit = 30 SECONDS
+	layout = list(
+		"#######",
+		"#B....#",
+		"#######")
+	/// The webbing is full too: the crowbar can't go anywhere, and is left on the floor
+	var/webbing_full = FALSE
+
+/datum/bot_scenario/miner_full_kit/post_spawn()
+	bot.equip_to_slot_or_del(new /obj/item/clothing/mask/gas/explorer(bot), ITEM_SLOT_MASK)
+	for(var/slot in list(ITEM_SLOT_BELT, ITEM_SLOT_BACK, ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET))
+		var/obj/item/old = bot.get_item_by_slot(slot)
+		if(old)
+			qdel(old)
+	var/obj/item/storage/belt/mining/webbing = new(bot)
+	bot.equip_to_slot_or_del(webbing, ITEM_SLOT_BELT)
+	if(webbing_full)
+		fill_with_flashlights(webbing)
+	var/obj/item/storage/backpack/explorer/pack = new(bot)
+	bot.equip_to_slot_or_del(pack, ITEM_SLOT_BACK)
+	var/obj/item/storage/box/survival_mining/box = new(bot)
+	for(var/obj/item/tank/internals/spare_tank in box)
+		qdel(spare_tank) //the box has its own: the one under test is the one put in it here
+	new /obj/item/tank/internals/emergency_oxygen(box)
+	SEND_SIGNAL(pack, COMSIG_TRY_STORAGE_INSERT, box, null, TRUE)
+	fill_with_flashlights(pack)
+	bot.equip_to_slot_or_del(new /obj/item/crowbar/red(bot), ITEM_SLOT_LPOCKET)
+	bot.equip_to_slot_or_del(new /obj/item/storage/bag/ore(bot), ITEM_SLOT_RPOCKET)
+	ADD_TRAIT(bot, TRAIT_NOBREATH, "bot gym")
+
+/// Flashlights in till it takes no more, then whatever's smaller.
+/datum/bot_scenario/miner_full_kit/proc/fill_with_flashlights(obj/item/storage/S)
+	for(var/i in 1 to 40)
+		var/obj/item/filler = new /obj/item/flashlight(bot)
+		if(!SEND_SIGNAL(S, COMSIG_TRY_STORAGE_INSERT, filler, null, TRUE))
+			qdel(filler)
+			break
+	for(var/i in 1 to 40)
+		var/obj/item/filler = new /obj/item/pen(bot)
+		if(!SEND_SIGNAL(S, COMSIG_TRY_STORAGE_INSERT, filler, null, TRUE))
+			qdel(filler)
+			break
+
+/datum/bot_scenario/miner_full_kit/make_goal()
+	return new /datum/bot_goal/dress_for_lavaland()
+
+/datum/bot_scenario/miner_full_kit/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(brain.ready_for_lavaland())
+		if(!webbing_full && !(locate(/obj/item/crowbar) in bot.belt))
+			fail_reason = "dressed, but the crowbar isn't in the webbing"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/miner_full_kit/webbing_full
+	name = "mining: a miner with a full bag and a full webbing puts its tank on in a pocket, leaving the crowbar on the floor"
+	desc = "The same, and the webbing is full as well. A tank to breathe from is worth more than a crowbar: it goes in the pocket and the crowbar on the floor."
+	webbing_full = TRUE
+
+/// bm_final run2: a miner dodged a goliath's tentacle, and the walk to its seam took it straight on to the one beside it, where it stood to
+/// dig. A tentacle holds whoever's on it a second after it shows, not whoever walks through.
+/datum/bot_scenario/mining/tentacle_ahead
+	name = "miner: a goliath's tentacle showing where it's going to stand, it waits for it to let go and isn't held"
+	desc = "A one-tile-wide tunnel and the miner sent to a spot in it, with a tentacle up on that very spot just as it sets off, as the goliath's attack leaves them for a second. It waits for the tentacle to go and then goes on to it: never stunned."
+	time_limit = 20 SECONDS
+	layout = list(
+		"##############",
+		"#B.........k.#",
+		"##############")
+	var/placed_at
+	var/started = FALSE
+
+/datum/bot_scenario/mining/tentacle_ahead/make_goal()
+	var/datum/bot_goal/gym_reach/G = new
+	G.target = first_marker("k")
+	return G
+
+/// Looked at every decisecond: the tentacle goes up on the tile as the miner gets within two of it, already wiggling, a third of a second from
+/// grabbing: the one beside a tentacle it had just dodged was that (bm_final run2). A once-a-second look would miss the moment.
+/datum/bot_scenario/mining/tentacle_ahead/proc/watch()
+	if(placed_at || !bot || QDELETED(bot))
+		return
+	var/turf/spot = first_marker("k")
+	if(get_dist(bot, spot) <= 2)
+		placed_at = world.time
+		var/obj/effect/temp_visual/goliath_tentacle/tentacle = new(spot)
+		tentacle.tripanim()
+		return
+	addtimer(CALLBACK(src, PROC_REF(watch)), 1)
+
+/datum/bot_scenario/mining/tentacle_ahead/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!started)
+		started = TRUE
+		watch()
+	if(!placed_at)
+		return BOT_GYM_PENDING
+	if(bot.IsStun() || bot.getBruteLoss() > 0)
+		fail_reason = "held by the tentacle it stood on: [bot.IsStun() ? "stunned" : "not stunned"], [round(bot.getBruteLoss())] brute"
+		return BOT_GYM_FAIL
+	// Judged after the tentacle's had its second, not the moment it's stood on
+	if(world.time < placed_at + 3 SECONDS)
+		return BOT_GYM_PENDING
+	return get_turf(bot) == first_marker("k") ? BOT_GYM_PASS : BOT_GYM_PENDING

@@ -247,6 +247,13 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 	owner.Move(best, get_dir(here, best))
 	return get_turf(owner) != here
 
+/// Whether a goliath's tentacle is showing on this tile and hasn't let go: it grabs whoever's on it a second after it shows.
+/proc/bot_tentacle_at(turf/T)
+	for(var/obj/effect/temp_visual/goliath_tentacle/tentacle in T)
+		if(tentacle.icon_state != "Goliath_tentacle_retract")
+			return TRUE
+	return FALSE
+
 /datum/bot_brain/proc/continue_mining_round()
 	var/datum/bot_duty/mining/duty = bot_duty_of(/datum/bot_duty/mining)
 	continue_goal_chain(CALLBACK(duty, TYPE_PROC_REF(/datum/bot_duty, try_start), src))
@@ -315,24 +322,39 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 		get.doing = "getting something to breathe from"
 		return bot.suspend_goal_for(get) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
 	if(!bot.ready_in_hand(tank))
+		bot_log(bot, "can't get [tank] into a hand to put it on")
 		return GOAL_STEP_FAIL
 	// The belt if it's free (the PDA goes in the ID slot), a pocket if not, with what's in it put in the bag: anywhere it
 	// stays on the body. Just holding it doesn't count, the hands get tidied.
-	for(var/slot in list(ITEM_SLOT_BELT, ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET, ITEM_SLOT_DEX_STORAGE))
+	for(var/slot in list(ITEM_SLOT_BELT, ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET, ITEM_SLOT_SUITSTORE, ITEM_SLOT_DEX_STORAGE))
 		if(H.equip_to_slot_if_possible(tank, slot, FALSE, TRUE, TRUE))
 			bot_log(bot, "got [tank] where I can reach the valve")
 			return GOAL_STEP_SUCCESS
 	// Belt and pockets full: something out of a pocket into the bag to make room, as anybody would (the survival box's medipen, a beer), never
 	// the ore satchel, which only picks ore up from a pocket or the belt. With the webbing on its belt, the satchel in one pocket and a beer
 	// in the other, a miner's tank was left in its hand, which counted as ready, and it went down to Lavaland like that (bugs1112a run7).
-	if(H.back && (tank.w_class <= WEIGHT_CLASS_SMALL || (tank.slot_flags & ITEM_SLOT_POCKETS)))
+	// Into the webbing as well as the bag: a miner that had picked up a welder, a crowbar and a first-aid kit on the way to its locker had a
+	// full bag, the webbing on its belt and a crowbar in a pocket, and failed here four times and never went down (bm_final run11). And with
+	// nowhere at all for what's in the pocket, that goes on the floor: a tank to breathe from is worth more than a crowbar.
+	if(tank.w_class <= WEIGHT_CLASS_SMALL || (tank.slot_flags & ITEM_SLOT_POCKETS))
+		var/list/stowages = list(H.back, H.get_item_by_slot(ITEM_SLOT_BELT), H.get_item_by_slot(ITEM_SLOT_DEX_STORAGE))
+		var/obj/item/to_leave
+		var/leave_slot
 		for(var/slot in list(ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET))
 			var/obj/item/in_pocket = H.get_item_by_slot(slot)
 			if(!in_pocket || istype(in_pocket, /obj/item/storage/bag/ore))
 				continue
-			if(SEND_SIGNAL(H.back, COMSIG_TRY_STORAGE_INSERT, in_pocket, H, TRUE) && H.equip_to_slot_if_possible(tank, slot, FALSE, TRUE, TRUE))
-				bot_log(bot, "put [in_pocket] in my bag and got [tank] where I can reach the valve")
-				return GOAL_STEP_SUCCESS
+			for(var/obj/item/storage/stowage in stowages)
+				if(SEND_SIGNAL(stowage, COMSIG_TRY_STORAGE_INSERT, in_pocket, H, TRUE) && H.equip_to_slot_if_possible(tank, slot, FALSE, TRUE, TRUE))
+					bot_log(bot, "put [in_pocket] in my [stowage] and got [tank] where I can reach the valve")
+					return GOAL_STEP_SUCCESS
+			if(!to_leave && !bot.traitor_keeps_hold_of(in_pocket) && !bot_keeps_in_hand(in_pocket))
+				to_leave = in_pocket
+				leave_slot = slot
+		if(to_leave && H.dropItemToGround(to_leave) && H.equip_to_slot_if_possible(tank, leave_slot, FALSE, TRUE, TRUE))
+			bot_log(bot, "no room for [tank] but a pocket - left [to_leave] on the floor and got it where I can reach the valve")
+			return GOAL_STEP_SUCCESS
+	bot_log(bot, "nowhere on me to put [tank] where I can reach the valve")
 	return GOAL_STEP_FAIL
 
 // ---------------------------------------------------------------------------------------------
@@ -722,6 +744,9 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 			give_up_on_seam(bot)
 			return TRUE
 		return dig(bot, pick, next)
+	if(bot_tentacle_at(next) && !bot_tentacle_at(here))
+		wait_for = 4 //a tentacle's showing on the way: not on to it, it's held whoever stands on it (bm_final run2, run3)
+		return TRUE
 	if(!here.bot_reachable_strict(H, next, H.get_idcard(TRUE), TRUE) || !bot.bot_step_towards(next))
 		give_up_on_seam(bot)
 		return TRUE
