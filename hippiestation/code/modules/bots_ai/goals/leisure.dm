@@ -27,6 +27,7 @@
 /datum/bot_duty/smoke
 	name = "having a smoke"
 	tier = BOT_DUTY_LEISURE
+	pastime = TRUE
 	interval_min = 3000
 	interval_max = 6000
 
@@ -152,6 +153,7 @@
 /datum/bot_duty/pet_animal
 	name = "petting an animal"
 	tier = BOT_DUTY_LEISURE
+	pastime = TRUE
 	interval_min = 900
 	interval_max = 2400
 
@@ -234,6 +236,7 @@
 /datum/bot_duty/play_arcade
 	name = "playing the arcade"
 	tier = BOT_DUTY_LEISURE
+	pastime = TRUE
 	interval_min = 3000
 	interval_max = 6000
 
@@ -382,6 +385,7 @@
 /datum/bot_duty/work_out
 	name = "keeping fit"
 	tier = BOT_DUTY_LEISURE
+	pastime = TRUE
 	interval_min = 3000
 	interval_max = 6000
 

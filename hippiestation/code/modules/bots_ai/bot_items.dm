@@ -256,7 +256,21 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 		bot_log_verbose(src, "try_pickup_target: moved out of reach of [I] before picking it up")
 		return FALSE
 	owner.face_atom(get_turf(I)) //a player's click always turns them toward what they click
+	var/held_before = held_item_count()
 	make_room_for_item(wanted)
+	if(held_item_count() < held_before) //something put away or set down for it: an input of its own, and the pickup is the next (bot_human.dm)
+		hand_beat()
+		if(QDELETED(I) || get_dist(owner, get_turf(I)) > 1)
+			return FALSE
+		owner.face_atom(get_turf(I))
+	// No hand free (both full with tools it keeps hold of, or one arm gone and the other full): stow_item() puts one thing away first, an
+	// input of its own as well
+	if(I.loc != owner && I.loc?.loc != owner && !owner.handcuffed && (owner.mobility_flags & MOBILITY_PICKUP) && use_a_working_hand() && owner.get_active_held_item() && !hand_free_for_pickup())
+		if(put_away(owner.get_active_held_item()))
+			hand_beat()
+			if(QDELETED(I) || get_dist(owner, get_turf(I)) > 1)
+				return FALSE
+			owner.face_atom(get_turf(I))
 	if(!stow_item(I))
 		bot_log_verbose(src, "try_pickup_target: stow_item([I]) failed - active=[owner.get_active_held_item()], inactive=[owner.get_inactive_held_item()], dist=[get_dist(owner, I)], active_hand_index=[owner.active_hand_index], held_items=[owner.held_items], mobility_pickup=[owner.mobility_flags & MOBILITY_PICKUP], I.loc=[I.loc], I.anchored=[I.anchored], I.item_flags=[I.item_flags]")
 		return FALSE
@@ -277,8 +291,14 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	human_pause(A) //bot_human.dm
 	if(QDELETED(I) || QDELETED(A) || !owner.Adjacent(A))
 		return FALSE
-	if(!ready_in_hand(I)) //drawn into the active hand first, like a player has to
+	var/drawn = owner.get_active_held_item() != I
+	if(!ready_in_hand(I, TRUE)) //drawn into the active hand first, like a player has to
 		return FALSE
+	// The draw is an input and the click it's for is another: a beat between (bot_human.dm), and a look that it's all still there for it
+	if(drawn)
+		hand_beat()
+		if(QDELETED(I) || QDELETED(A) || !owner.Adjacent(A) || owner.get_active_held_item() != I)
+			return FALSE
 	owner.face_atom(A)
 	telemetry_clicked(A) //bot_telemetry.dm
 	var/old_intent = owner.a_intent

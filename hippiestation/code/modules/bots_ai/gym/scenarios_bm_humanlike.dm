@@ -546,3 +546,93 @@
 /datum/bot_scenario/bmhl/stalled_stroll/on_timeout()
 	fail_reason = "stood at a stalled stroll for the whole minute"
 	return BOT_GYM_FAIL
+
+// ---------------------------------------------------------------------------------------------
+// Shut in with a kill to make
+// ---------------------------------------------------------------------------------------------
+
+/// The strike on its own: a killer already at its mark when it is shut away is in this step (the one a cell's prisoner stood in)
+/datum/bot_goal/traitor_kill/robust/strike_only
+
+/datum/bot_goal/traitor_kill/robust/strike_only/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/traitor_kill/S = new
+	S.steps = list(new /datum/bot_step/paced/strike/robust())
+	return list(S)
+
+/datum/bot_scenario/bmhl/proc/transcript_count(text)
+	. = 0
+	for(var/line in transcript)
+		if(findtext(line, text))
+			.++
+
+/datum/bot_scenario/bmhl/shut_in_hunt
+	name = "hunt: a killer shut in with no way to its mark waits, looks again, and lets the kill go"
+	desc = "Apex, mid-hunt in a room with no door and no tool to cut a wall with, the mark in the next room. It went for a tool 300 times in a shift, every half second for three minutes, until the watchdog ended the step (Perry Nakata in the Brig, play1114b run10). It looks a few times, a few seconds apart, and gives the kill up inside half a minute."
+	layout = list(
+		"################",
+		"#B...#.........#",
+		"#....H....V....#",
+		"################")
+	time_limit = 45 SECONDS
+	var/mob/living/carbon/human/mark
+
+/datum/bot_scenario/bmhl/shut_in_hunt/setup()
+	for(var/turf/T as anything in markers["H"])
+		T.ChangeTurf(/turf/closed/wall)
+
+/datum/bot_scenario/bmhl/shut_in_hunt/post_spawn()
+	brain.skill = 1
+	mark = stand_in(first_marker("V"), "Mark Target")
+
+/datum/bot_scenario/bmhl/shut_in_hunt/make_goal()
+	return new /datum/bot_goal/traitor_kill/robust/strike_only(null, mark)
+
+/datum/bot_scenario/bmhl/shut_in_hunt/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/asks = transcript_count("the only way to")
+	if(asks > 3)
+		fail_reason = "went for a cutting tool [asks] times with none to be had"
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("giving up on /datum/bot_goal/traitor_kill"))
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/bmhl/shut_in_hunt/on_timeout()
+	fail_reason = "still after a mark it could not get to, [transcript_count("no path to")] tries on"
+	return BOT_GYM_FAIL
+
+// ---------------------------------------------------------------------------------------------
+// Hands take a beat (bot_human.dm hand_beat())
+// ---------------------------------------------------------------------------------------------
+// Telemetry (play1114b, 12 shifts) had a drop and a pickup in the same tick about a thousand times a shift, and the thing drawn from a
+// belt or a bag clicked on its target in the tick it was drawn in (42% of 7,400 draws came less than 0.2 s before the click).
+
+/datum/bot_scenario/jaws_from_backpack/with_a_beat
+	name = "hands: the jaws drawn from the backpack are clicked on the door a moment after, not in the same instant"
+	desc = "The jaws start in the backpack. A player draws them (a click on the bag) and then clicks the door (another): two inputs, not one. Telemetry had 42% of draws less than 0.2 s before the click they were for."
+	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_click")
+
+/datum/bot_scenario/locker_take_only_gloves/hands_and_bag_full
+	name = "hands: hands and bag full at a locker, the gloves are taken a moment after one thing is set down"
+	desc = "Sent for gloves with an ear of corn and a flashlight in the hands and the bag, pockets and belt full: one thing goes down on the floor to free a hand. The gloves are taken after it, not in the same instant (a drop and a pickup in the same tick came about a thousand times a shift in the 12-shift batch play1114b)."
+	kit_hands = list(/obj/item/reagent_containers/food/snacks/grown/corn, /obj/item/flashlight)
+	kit_backpack = list(/obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher)
+	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_swap")
+
+/datum/bot_scenario/locker_take_only_gloves/hands_and_bag_full/post_spawn()
+	..()
+	for(var/slot in list(ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET))
+		if(!bot.get_item_by_slot(slot))
+			bot.equip_to_slot_or_del(new /obj/item/flashlight(bot), slot)
+	if(!bot.get_item_by_slot(ITEM_SLOT_BELT))
+		bot.equip_to_slot_or_del(new /obj/item/storage/belt/fannypack(bot), ITEM_SLOT_BELT)
+	var/obj/item/storage/belt/fannypack/F = bot.get_item_by_slot(ITEM_SLOT_BELT)
+	if(istype(F))
+		for(var/i in 1 to 3)
+			new /obj/item/flashlight(F)
+
+/datum/bot_scenario/one_arm_picks_up/with_a_beat
+	name = "hands: an arm gone and a wrench in the other hand, the bin is picked up a moment after the wrench goes away"
+	desc = "The wrench has to go away before the matter bin can be taken in the one hand there is: two inputs, a beat apart, not one tick (a drop and a pickup in the same tick came about a thousand times a shift in play1114b)."
+	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_swap")

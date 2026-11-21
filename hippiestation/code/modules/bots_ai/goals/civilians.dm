@@ -62,6 +62,7 @@ GLOBAL_LIST_INIT(bot_clown_lines, list(
 
 /datum/bot_duty/perform
 	name = "performing"
+	pastime = TRUE //a show while the crew are dying is in poor taste, even for a clown
 	jobs = list("Clown", "Mime")
 	interval_min = 600
 	interval_max = 1500

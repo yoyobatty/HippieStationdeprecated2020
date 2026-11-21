@@ -39,12 +39,18 @@ GLOBAL_VAR_INIT(bot_explorers_made, 0)
 	W[BOT_PURSUIT_JOB] = 25 + 40 * diligence + ((role in GLOB.command_positions) || is_security_job() || is_medical_job() ? 30 : 0)
 	W[BOT_PURSUIT_POWER] = playstyle == BOT_STYLE_POWERGAMER ? 60 : (playstyle == BOT_STYLE_ROBUST ? 30 : 15 * nerve * (0.5 + competence))
 	W[BOT_PURSUIT_UPKEEP] = 10 + 30 * (1 - temper) * diligence + (role in list("Janitor", "Station Engineer", "Assistant") ? 10 : 0)
-	W[BOT_PURSUIT_EXPLORE] = max(0, 40 * (nerve - 0.3)) + (role in list("Assistant", "Shaft Miner", "Explorer")) * 20 + (playstyle == BOT_STYLE_HOPPER || playstyle == BOT_STYLE_HUNTER) * 10
+	// A Curator with a library that's all empty shelves (the random bookcases are stocked from the book database, and a round with no database
+	// has none: jobs_s1, 0 books read in 25 minutes) goes looking for something to be curator of
+	W[BOT_PURSUIT_EXPLORE] = max(0, 40 * (nerve - 0.3)) + (role in list("Assistant", "Shaft Miner", "Explorer", "Curator")) * 20 + (role == "Curator" && !bot_library_has_books()) * 20 + (playstyle == BOT_STYLE_HOPPER || playstyle == BOT_STYLE_HUNTER) * 10
 	W[BOT_PURSUIT_SOCIAL] = 5 + 40 * sociability + (role in list("Bartender", "Clown", "Cook", "Mime", "Assistant")) * 10
 	if(is_security_job() || (role in GLOB.command_positions))
 		W[BOT_PURSUIT_EXPLORE] = 0 //they've a station to look after
 	if(hardened)
 		W[BOT_PURSUIT_CAREFUL] = 40 * (1 - nerve)
+	// Crew dying, the alert up, the power going: nobody's off to the bar or for a poke round maintenance (bot_duties.dm)
+	if(station_in_trouble())
+		W[BOT_PURSUIT_SOCIAL] = 0
+		W[BOT_PURSUIT_EXPLORE] = 0
 	return W
 
 /// Picks what it's after next, and says so now and then.
@@ -97,6 +103,8 @@ GLOBAL_LIST_INIT(bot_pursuit_lines, list(
 /datum/bot_brain/proc/mind_pursuit()
 	if(world.time >= pursuit_until)
 		pick_pursuit("bored of it")
+	else if(pursuit == BOT_PURSUIT_SOCIAL && station_in_trouble())
+		pick_pursuit("no time for the bar now") //nothing in the weights now puts it back on a social
 	else if(world.time >= next_pursuit_mention && prob(10 * sociability))
 		mention_pursuit()
 

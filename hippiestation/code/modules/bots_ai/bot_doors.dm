@@ -415,7 +415,10 @@ GLOBAL_LIST_EMPTY(bot_door_buttons_out_of_reach)
 	// in the cabin, and no cargo technician would walk aboard: "no path to the shuttle floor".
 	if(far_side?.seal_shut())
 		far_side = get_step(far_side, turn(to_dir, 180))
-	if((is_mining_level(z) || bot_aboard_mining_shuttle(H)) && H.bot_brain.ready_for_lavaland())
+	// The way onto the mining shuttle as well: its cabin comes home with thin air in it (the shuttle's air falls a little at each trip: jobs_s2,
+	// 27 kPa in it with the dock at 101), and a miner on its mask and tank never got past the dock's airlock for the next trip ("no path to the
+	// shuttle floor", 8 times in a shift, and one trip to Lavaland in the shift, as in four other batches)
+	if((is_mining_level(z) || bot_aboard_mining_shuttle(H) || bot_aboard_mining_shuttle(far_side)) && H.bot_brain.ready_for_lavaland())
 		return //no vacuum outside this one, just thin air and a mask and a tank do for that (goals/mining.dm), or it's the way off the shuttle
 	// On its tank and dressed for the air past it, at work in there (working_on_internals_at(), goals/refill_internals.dm): a cargo
 	// technician going aboard a supply shuttle full of air nobody can breathe, for a crate.

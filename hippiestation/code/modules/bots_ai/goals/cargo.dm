@@ -159,6 +159,9 @@ GLOBAL_VAR_INIT(bot_cargo_air_asked, -INFINITY)
 			return ";Engineering, the supply shuttle's lost its air and [crates]. Can somebody fill it?"
 	return null
 
+/// When a cargo technician last left its card at the HoP's door for EVA access, for a crate aboard in a vacuum
+GLOBAL_VAR_INIT(bot_cargo_eva_asked_at, -INFINITY)
+
 /datum/bot_brain
 	/// No space suit to be had for a crate in a vacuum when it last looked: not looked for again till then
 	var/no_space_suit_until = 0
@@ -179,6 +182,17 @@ GLOBAL_VAR_INIT(bot_cargo_air_asked, -INFINITY)
 		var/obj/machinery/suit_storage_unit/U = eva_suit_storage()
 		if(!U)
 			bot_log(src, "[C] is in air only a space suit does for, and there's none I can get to")
+			// What a player does: asks for the way into EVA, from the HoP or the Captain, and goes for a suit when the card's back. Not
+			// twice in ten minutes, and not with nobody to ask (it keeps its card, as an explorer does, goals/space_ruins.dm).
+			if(!has_eva_access() && world.time >= next_eva_access_ask && bot_find_card_granter(owner))
+				// One of them goes: the QM and both technicians stood at the HoP's door with three cards for the one crate (jobs_s1)
+				if(world.time < GLOB.bot_cargo_eva_asked_at + 4 MINUTES)
+					no_space_suit_until = world.time + 1 MINUTES //a colleague's gone: a look at how that went
+					return FALSE
+				GLOB.bot_cargo_eva_asked_at = world.time
+				next_eva_access_ask = world.time + 10 MINUTES
+				no_space_suit_until = world.time + 4 MINUTES //the card's left for three, and then it's a walk to EVA
+				return assign_goal(new /datum/bot_goal/job_transfer/access/for_crates(list(ACCESS_EVA), "EVA"))
 			return FALSE
 		bot_log(src, "[C] is in air only a space suit does for - going for the one in [U]")
 		return assign_goal(new /datum/bot_goal/space_suit_up/for_crates(U))
@@ -200,6 +214,32 @@ GLOBAL_VAR_INIT(bot_cargo_air_asked, -INFINITY)
 /// Not an explorer's give-up (space_suit_up's own puts exploring off): try_suit_up_for_crates() keeps it from going again too soon
 /datum/bot_goal/space_suit_up/for_crates/on_give_up(datum/bot_brain/bot)
 	return
+
+/// The way into EVA asked for at the HoP's door (goals/exploring.dm), for a suit to go aboard the supply shuttle in: with the card back, on
+/// to the suit.
+/datum/bot_goal/job_transfer/access/for_crates
+	doing = "asking the HoP for EVA access, for the supply shuttle"
+
+/datum/bot_goal/job_transfer/access/for_crates/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/case_work/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/await_transfer/access/for_crates(add_access, access_names))
+	return list(S)
+
+/datum/bot_goal/job_transfer/access/for_crates/on_success(datum/bot_brain/bot)
+	bot.no_space_suit_until = 0
+	bot.continue_cargo_round()
+
+/datum/bot_step/paced/await_transfer/access/for_crates/start(datum/bot_brain/bot)
+	var/obj/item/card/id/card = bot.card_in_hand()
+	if(!card || !bot.owner.dropItemToGround(card))
+		return FALSE
+	transfer = new(card, null, bot.owner)
+	transfer.add_access = add_access
+	transfer.access_names = access_names
+	give_up_at = world.time + 3 MINUTES
+	bot_say(bot.owner, ";[bot_find_hop(bot.owner) ? "HoP" : "Captain"], could I get [access_names] access? The supply shuttle's lost its air and there's a crate I can't get off. My card's at the HoP's door.")
+	bot_log(bot, "left [card] for the HoP, for [access_names] access to unload the supply shuttle")
+	return TRUE
 
 /// A clear bit of floor in the cargo bay to leave a crate on.
 /datum/bot_brain/proc/find_bay_spot()

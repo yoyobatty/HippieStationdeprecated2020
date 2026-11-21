@@ -969,7 +969,7 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 			var/stuck_in = get_area_name(owner, TRUE)
 			return call_for(/datum/bot_request_kind/let_out, pick("I'm stuck in [stuck_in] with no maintenance access - could somebody let me out?", "Can somebody open up for me? I'm in [stuck_in] and my ID won't get me out.", "Anyone near [stuck_in]? I've no access to get out of here."), doors)
 	if(!length(doors))
-		return FALSE
+		return try_pry_my_way_out() //goals/acquire_tool.dm: a firelock down on it is nothing to ask for, it wants a crowbar
 	var/where = get_area_name(owner, TRUE)
 	return call_for(/datum/bot_request_kind/let_out, pick("Can somebody let me out of [where]? Door won't open for me.", "I'm shut in [where] - could someone get the door?", "Anyone near [where]? I can't get the door open from in here."), doors)
 
