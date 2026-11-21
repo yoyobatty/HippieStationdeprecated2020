@@ -17,6 +17,7 @@
 
 /datum/bot_scenario/brigged/full_brig/post_spawn()
 	..()
+	brain.set_playstyle(BOT_STYLE_NORMAL) //not a paranoid one: eight minutes
 	brain.strictness = 0.3 //a lenient one
 	var/datum/bot_wanted/W = bot_get_wanted_entry(prisoner)
 	W.crime = "Vandalism"
