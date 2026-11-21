@@ -50,6 +50,9 @@ GLOBAL_LIST_INIT(bot_duties, init_bot_duties())
 	var/enabled = TRUE
 	/// Asked even while the bot is on an errand, which it drops if should_interrupt() says so.
 	var/interrupts = FALSE
+	/// A way of passing the time, neither work nor a need: a smoke, the arcade, a stroll round somebody else's department. Left alone
+	/// while the station's in trouble (station_in_trouble()).
+	var/pastime = FALSE
 
 /datum/bot_duty/proc/applies_to(datum/bot_brain/bot)
 	return !jobs || (bot.work_role() in jobs)
@@ -98,15 +101,74 @@ GLOBAL_LIST_INIT(bot_duties, init_bot_duties())
 /// Asks this tier's duties in turn whether there's something to do. TRUE once one has set the bot going.
 /datum/bot_brain/proc/run_duties(tier)
 	var/loud = gone_loud() //goals/robust.dm
+	var/trouble //worked out the first time a pastime is up
 	for(var/datum/bot_duty/D as anything in my_duties(tier))
 		if(world.time < duty_next_check[D])
 			continue
 		if(loud && !is_type_in_typecache(D, GLOB.bot_duties_when_loud))
 			continue
+		if(D.pastime)
+			if(isnull(trouble))
+				trouble = station_in_trouble()
+			if(trouble)
+				continue //asked again next look: it isn't put off for a whole interval, only for as long as the trouble lasts
 		duty_next_check[D] = world.time + D.next_look(src)
 		if(D.try_start(src))
 			return TRUE
 	return FALSE
+
+// ---------------------------------------------------------------------------------------------
+// When the station's in trouble
+// ---------------------------------------------------------------------------------------------
+// Pastimes (a smoke, the arcade, a work-out, a stroll round somebody else's department, a clown's show) went on all through a bad shift:
+// in play1114b, once three of the crew were dead, 197 more strolls round other departments, 14 smokes, 6 games of arcade and 29 shows
+// followed, as often as before. The user's ruling after their Captain round (2026-11-10): "With the bodies piling up nobody's asking who's
+// up for arcade". Work goes on, and so do eating and drinking: a bot that's hungry is hungry in a crisis too.
+
+/// GLOB.bot_trouble_drill (gym/scenarios_bm_jobs.dm): the Bot Gym scenarios that say the station's in trouble. A gym arena's crew aren't on
+/// the station's shift, and the dead in one arena are nothing to do with the next.
+GLOBAL_VAR_INIT(bot_trouble_looked_at, -INFINITY)
+GLOBAL_VAR(bot_trouble_found)
+
+/// Integrity below which the crystal's a reason for the whole crew to be on edge.
+#define BOT_CRYSTAL_WORRY 70
+
+/// Whether the supermatter is far enough gone that the engineers are running and everybody else has noticed.
+/proc/bot_crystal_failing()
+	var/obj/machinery/power/supermatter_crystal/crystal = GLOB.main_supermatter_engine
+	return !QDELETED(crystal) && crystal.get_integrity() < BOT_CRYSTAL_WORRY
+
+/// Crew dead this recently, this many of them, and the killing's still going on as far as anybody can tell. A shift that lost three people
+/// in the first quarter hour and then ran quietly for an hour isn't one nobody dares light a cigarette in.
+#define BOT_TROUBLE_WINDOW (10 MINUTES)
+#define BOT_TROUBLE_DEAD 2
+
+/// Whether crew have been dying lately.
+/proc/bot_crew_dying_lately()
+	var/recent = 0
+	for(var/mob/living/carbon/human/H in GLOB.dead_mob_list)
+		if(H.mind?.assigned_role && H.timeofdeath && world.time < H.timeofdeath + BOT_TROUBLE_WINDOW && ++recent >= BOT_TROUBLE_DEAD)
+			return TRUE
+	return FALSE
+
+/// Whether it's no time for idling, anywhere on the station: two of the crew dead in the last ten minutes, red alert, a good part of the
+/// station off the mains, or the crystal going. Looked at once every few seconds, for everybody.
+/proc/bot_station_in_trouble()
+	if(world.time < GLOB.bot_trouble_looked_at + 5 SECONDS)
+		return GLOB.bot_trouble_found
+	GLOB.bot_trouble_looked_at = world.time
+	GLOB.bot_trouble_found = bot_crew_dying_lately() || GLOB.security_level >= SEC_LEVEL_RED || bot_power_failing() || bot_crystal_failing()
+	return GLOB.bot_trouble_found
+
+/// Whether this bot sees the station as in trouble: a Bot Gym bot only when its scenario says so.
+/datum/bot_brain/proc/station_in_trouble()
+	if(gym_run)
+		return gym_run in GLOB.bot_trouble_drill
+	return bot_station_in_trouble()
+
+#undef BOT_CRYSTAL_WORRY
+#undef BOT_TROUBLE_WINDOW
+#undef BOT_TROUBLE_DEAD
 
 /// Called from process() while the bot is on a goal: some things don't wait for it to finish.
 /datum/bot_brain/proc/check_duty_interrupts()

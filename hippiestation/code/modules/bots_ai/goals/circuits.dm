@@ -895,6 +895,7 @@ GLOBAL_LIST_INIT(bot_pocket_pal_lines, list("Beep boop!", "I am a circuit. I hav
 /datum/bot_duty/circuit_gadget
 	name = "playing with a gadget"
 	tier = BOT_DUTY_LEISURE
+	pastime = TRUE
 	interval_min = 1800
 	interval_max = 4800
 

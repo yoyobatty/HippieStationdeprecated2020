@@ -45,6 +45,10 @@ GLOBAL_VAR_INIT(bot_explorers_made, 0)
 		W[BOT_PURSUIT_EXPLORE] = 0 //they've a station to look after
 	if(hardened)
 		W[BOT_PURSUIT_CAREFUL] = 40 * (1 - nerve)
+	// Crew dying, the alert up, the power going: nobody's off to the bar or for a poke round maintenance (bot_duties.dm)
+	if(station_in_trouble())
+		W[BOT_PURSUIT_SOCIAL] = 0
+		W[BOT_PURSUIT_EXPLORE] = 0
 	return W
 
 /// Picks what it's after next, and says so now and then.
@@ -97,6 +101,8 @@ GLOBAL_LIST_INIT(bot_pursuit_lines, list(
 /datum/bot_brain/proc/mind_pursuit()
 	if(world.time >= pursuit_until)
 		pick_pursuit("bored of it")
+	else if(pursuit == BOT_PURSUIT_SOCIAL && station_in_trouble())
+		pick_pursuit("no time for the bar now") //nothing in the weights now puts it back on a social
 	else if(world.time >= next_pursuit_mention && prob(10 * sociability))
 		mention_pursuit()
 

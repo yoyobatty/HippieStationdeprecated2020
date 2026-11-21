@@ -203,6 +203,7 @@ GLOBAL_LIST_INIT(bot_service_endings, list(
 /datum/bot_duty/attend_service
 	name = "going to a service"
 	tier = BOT_DUTY_LEISURE
+	pastime = TRUE
 	interval_min = 300
 	interval_max = 900
 
