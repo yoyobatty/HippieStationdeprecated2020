@@ -556,3 +556,39 @@
 		if(islist(asked))
 			asked -= REF(prisoner)
 	return ..()
+
+// ---------------------------------------------------------------------------------------------
+// "One sec" is a second
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/chat/one_sec_is_a_second
+	name = "security: an officer who hears \"Sure, one sec.\" doesn't take it for a call to Security, and still answers a real one"
+	desc = "Shift batches gen1116e, gen1116f and play1114b: officers answered \"on my way to sec office with the mop\", \"hang on, one sec\" and the like as calls for help, the word \"sec\" being Security's to them wherever it stood. The HoP's own answer to a request for an ID, \"Sure, one sec.\", sent an officer running to it in the gym. A crewman says it; the officer stays; then the crewman cries \"Sec! Somebody's attacking me!\" and the officer goes."
+	job = "Security Officer"
+	layout = list(
+		"#########",
+		"#B.....C#",
+		"#########")
+	time_limit = 20 SECONDS
+	var/said_real_one_at = 0
+
+/datum/bot_scenario/chat/one_sec_is_a_second/post_spawn()
+	..()
+	brain.register_security()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "Sure, one sec."), 2 SECONDS)
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "Sorry, give me a sec."), 3 SECONDS)
+
+/datum/bot_scenario/chat/one_sec_is_a_second/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!said_real_one_at)
+		if(brain.next_security_call_time > world.time)
+			fail_reason = "took \"one sec\" for a call to Security"
+			return BOT_GYM_FAIL
+		if(world.time > start_time + 7 SECONDS)
+			said_real_one_at = world.time
+			visitor_says("Sec! Somebody is attacking me in here!")
+		return BOT_GYM_PENDING
+	if(brain.next_security_call_time > world.time)
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
