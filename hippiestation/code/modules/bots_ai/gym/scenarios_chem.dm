@@ -285,7 +285,7 @@
 /datum/bot_scenario/griefed/throws_smoke/check()
 	if(bot_lost())
 		return BOT_GYM_FAIL
-	return griefer.reagents.has_reagent(/datum/reagent/toxin/chloralhydrate) ? BOT_GYM_PASS : BOT_GYM_PENDING
+	return griefer?.reagents?.has_reagent(/datum/reagent/toxin/chloralhydrate) ? BOT_GYM_PASS : BOT_GYM_PENDING
 
 /datum/bot_scenario/griefed/needles_them
 	name = "chem: a knockout syringe in somebody it's fighting"

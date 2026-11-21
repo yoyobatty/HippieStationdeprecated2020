@@ -657,6 +657,11 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 		return FALSE
 	if(!bot.air_is_breathable() || bot.air_under_threat() || bot_rad_storm(T.z))
 		return FALSE
+	// A hole it could patch is something out there to go back to: the suit stays on. Taken off in the second before the patch duty's turn,
+	// the suit lay at its feet, the next errand found "no suit to be had" and gave the hole up (the gym's "a helpful assistant patches a
+	// hole in the hull" failed 6 runs in 10 on that race)
+	if(length(GLOB.bot_hull_breaches) && world.time >= bot.hull_work_blocked_until && bot_duty_of(/datum/bot_duty/patch_hull)?.applies_to(bot))
+		return FALSE
 	var/obj/item/clothing/shoes/magboots/boots = H.shoes
 	if(istype(boots) && boots.magpulse && H.has_gravity())
 		boots.attack_self(H)
