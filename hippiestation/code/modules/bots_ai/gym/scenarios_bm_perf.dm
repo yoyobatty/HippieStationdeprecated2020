@@ -24,19 +24,31 @@
 	var/turf/where = first_marker("p")
 	for(var/i in 1 to 1500)
 		new /obj/item/paper(where)
+	// What it remembers after a while: a full list of things it has seen (bot_knowledge.dm keeps 400)
 	brain.seen_items = null
+	var/turf/far = first_marker("G")
+	for(var/i in 1 to 400)
+		brain.note_seen(new /obj/item/paper(far), far)
 	brain.next_item_glance = 0
 	var/started = TICK_USAGE_REAL
 	brain.glance_at_items()
 	var/ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - started)
 	var/noted = length(brain.seen_items)
+	// The same look a second on: everything in sight is known already
+	brain.next_item_glance = 0
+	started = TICK_USAGE_REAL
+	brain.glance_at_items()
+	var/again_ms = TICK_DELTA_TO_MS(TICK_USAGE_REAL - started)
 	started = TICK_USAGE_REAL
 	for(var/i in 1 to 20)
 		brain.find_item_goal() //what an idle bot looks for, a quarter of the time it stands about
 	log_line("find_item_goal() with the pile in sight: [round(TICK_DELTA_TO_MS(TICK_USAGE_REAL - started) / 20, 0.01)] ms a call")
 	var/most = ("bot_glance_most" in GLOB.vars) ? GLOB.vars["bot_glance_most"] : null //by name, so a build from before it was added still compiles
-	log_line("one glance at 1500 papers on a tile in sight: [round(ms, 0.1)] ms, [noted] things noted, the most one glance has found in sight [most || "not counted"]")
-	if(noted > 300)
+	log_line("one glance at 1500 papers on a tile in sight, with 400 things remembered: [round(ms, 0.1)] ms, [noted] things remembered after, the most one glance has found in sight [most || "not counted"]; the same look again: [round(again_ms, 0.1)] ms")
+	if(noted > 400)
+		fail_reason = "a glance left [noted] things remembered: more than it keeps"
+		return BOT_GYM_FAIL
+	if(!("bot_glance_most" in GLOB.vars)) //a build from before the cap
 		fail_reason = "one glance noted [noted] things from a pile of 1500, with no cap on what it takes in"
 		return BOT_GYM_FAIL
 	if(most != 301)
