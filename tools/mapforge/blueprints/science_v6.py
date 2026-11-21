@@ -77,7 +77,7 @@ ROOM_TABLE = {
 PENS = ["pen1", "pen2", "pen3", "pen4"]
 for _i, _p in enumerate(PENS):
     ROOM_TABLE[_p] = dict(area=XENO, floor=ENG, name="Containment Pen", main=False, label="P%d" % (_i + 1),
-                          asset="pen", pen=_i + 1)
+                          asset="pen", pen=_i + 1, camera=False, dress=False, plant=False)
 
 
 def plans(P):
@@ -86,12 +86,12 @@ def plans(P):
       south (x 59-92, y 30-41): nanites, experimentation, the toxins corridor, xenobiology over its pens
       tail (x 73-84, y 18-28): toxins over the launch room"""
     robotics = Y((1.0, "robotics"), (2, X((1.0, "robotics"), (4, "surgery"))))
-    secsuite = Y((3, "secpost"), (1.0, "cell"))
+    secsuite = Y((4, "secpost"), (1.0, "cell"))
     rdsuite = Y((3, "server"), (1.0, "rdoffice"))
     front = X((6, "mechbay"), (8, robotics), (4, "foyer"), (3, secsuite), (8, "rnd"), (1.0, rdsuite))
     explab = X((1.0, "explab"), (3, Y((1, "explab"), (1.0, "chamber"))))
     pens = X((3, "pen1"), (3, "pen2"), (3, "pen3"), (1.0, "pen4"))
-    xeno = Y((5, "xeno"), (2, "pens"), (1.0, pens))
+    xeno = Y((4, "xeno"), (3, "pens"), (1.0, pens))
     south = X((6, "nanite"), (7, explab), (3, "toxhall"), (1.0, xeno))
     tail = Y((1.0, "toxins"), (2, X((1.0, "launch"), (1, "launchrun"))))
     return [((51, 43, 92, 54), Y((8, front), (1.0, "spine"))),
@@ -103,7 +103,8 @@ LINKS = [
     # the public front on the arterial
     door("foyer", "hall", wide=2, name="Research Division", glass=True, firedoor=True),
     # the walls either side of the glass doors carry the division signs
-    door("foyer", "spine", wide=3, type="biohazard", id="Biohazard"),
+    door("foyer", "spine", wide=2, type="blast", id="Biohazard", name="Research Division", one_access="47;29;7",
+         kind="research"),
     desk("robotics", "hall", name="Robotics Desk", access="29", id="robotics_desk"),
     glass("robotics", "hall", runs="door"),
     desk("rnd", "hall", name="Research and Development Desk", one_access="7;29", id="rnd"),

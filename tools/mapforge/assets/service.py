@@ -49,8 +49,10 @@ def kitchen(R):
     R.run([one("fridge", "L", "/obj/structure/closet/secure_closet/freezer/fridge"),
            one("kitchen freezer", "L", "/obj/structure/closet/secure_closet/freezer/kitchen")],
           near=(R.doors("cold") or [counter])[0])
-    R.place(one("smartfridge", "SF", "/obj/machinery/smartfridge"), near=(R.doors("hydro") or [counter])[0],
-            must=False)
+    # a smartfridge already set into the kitchen/hydroponics wall (v6) is the shared one
+    if not any(dr.get("spec", {}).get("type") == "smartfridge" for dr in R.geo.doors.values()):
+        R.place(one("smartfridge", "SF", "/obj/machinery/smartfridge"), near=(R.doors("hydro") or [counter])[0],
+                must=False)
     R.run([one("dinnerware", "V", "/obj/machinery/vending/dinnerware"),
            one("chef wardrobe", "W", "/obj/machinery/vending/wardrobe/chef_wardrobe")])
     R.place(one("condimaster", "CM", "/obj/machinery/chem_master/condimaster"), must=False)

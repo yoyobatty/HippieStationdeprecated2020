@@ -38,7 +38,26 @@ HOLES = [(66, 140), (66, 141), (66, 142), (78, 148)]
 # hull tiles glazed instead of walled, in plan coordinates: the toxins launch room looks south over the bomb range
 # through three viewing sections of two, the monitor and the range camera on the piers between them
 HULL_WINDOWS = [(x, 148) for x in (68, 69, 71, 72, 74, 75)]
+# external airlocks through the hull, in plan coordinates: EVA's way out to space over the maint north of it
+HULL_AIRLOCKS = [((74, 31), "EVA External Airlock")]
 FLOOR = {"maint": "/turf/open/floor/plating", "maint room": "/turf/open/floor/plating", "dock": "/turf/open/floor/plating"}
+HULL_DEPTS = ("science",)       # departments that still get an outer hull line beside their own walls
+# shuttle docks: the docking port sits on the space tile outside the station's external airlock, and the shuttle's
+# whole footprint stays open space (no hull, no dock plating). A west-facing port at (x, y) covers map x - (height
+# - 1) .. x and y - dwidth .. y + width - 1 - dwidth (docking_port/return_coords). Plan coordinates, Meta's sizes.
+PORTS = [
+    # cargo (2026-11-21): the supply shuttle at the bay's west airlock, the mining shuttle off the mining office
+    ((29, 65), dict(dir=8, dwidth=5, height=7, width=12, id="supply_home", name="Cargo Bay")),
+    ((35, 53), dict(dir=8, dwidth=3, height=5, width=7, id="mining_home", name="mining shuttle bay",
+                    roundstart_template="/datum/map_template/shuttle/mining/box")),
+]
+
+
+def port_footprint(p, v):
+    x, y = to_map(p)
+    assert v["dir"] == 8, "only west-facing ports so far"
+    return [(a, b) for a in range(x - (v["height"] - 1), x + 1)
+            for b in range(y - v["dwidth"], y + v["width"] - v["dwidth"])]
 
 
 def to_map(p):
@@ -65,9 +84,12 @@ def build(open_depts=None):
         else:
             turf = FLOOR.get(v, "/turf/open/floor/plasteel")
         m.set(x, y, dmm.Tile([], dmm.Atom(turf), dmm.Atom(AREA.get(v, "/area/hallway/primary/central"))))
-    # the hull: space beside anything built becomes wall (departments carry their own outer walls)
+    # the hull: space beside anything built becomes wall. A department's outline ring is its own hull, so space
+    # beside a department gets no second wall (that doubled the wall), except Science, approved on the old canvas
+    # with its launch room's viewing sections and vent holes cut into this outer hull line.
     built = {to_map(p) for p in g}
-    for (x, y) in list(built):
+    hulled = {to_map(p) for p, v in g.items() if v not in plan.PROGRAM or v in HULL_DEPTS}
+    for (x, y) in list(hulled):
         for dx in (-1, 0, 1):
             for dy in (-1, 0, 1):
                 q = (x + dx, y + dy)
@@ -79,6 +101,58 @@ def build(open_depts=None):
     for p in HOLES:
         x, y = to_map(p)
         m.set(x, y, dmm.Tile([], dmm.Atom("/turf/open/space/basic"), dmm.Atom("/area/space")))
+    # space sealed inside the station (a pocket between a block and maint) is filled with wall: only space that
+    # reaches the map edge stays space (Medical review, 2026-11-21: a 1x4 starfield in the ward's wall)
+    seen, todo = set(), [(x, y) for x in (1, W) for y in range(1, H + 1)] + [(x, y) for y in (1, H) for x in range(1, W + 1)]
+    while todo:
+        q = todo.pop()
+        if q in seen or not (1 <= q[0] <= W and 1 <= q[1] <= H) or not m.get(*q).tpath.startswith("/turf/open/space"):
+            continue
+        seen.add(q)
+        todo += [(q[0] + 1, q[1]), (q[0] - 1, q[1]), (q[0], q[1] + 1), (q[0], q[1] - 1)]
+    holes = {to_map(p) for p in HOLES}
+    for x in range(1, W + 1):
+        for y in range(1, H + 1):
+            if (x, y) not in seen and (x, y) not in holes and m.get(x, y).tpath.startswith("/turf/open/space"):
+                m.set(x, y, dmm.Tile([], dmm.Atom("/turf/closed/wall"), dmm.Atom("/area/space")))
+    # the supermatter's cooling coil out in space beyond Engineering's east hull (Meta's block, turned to suit;
+    # assets/engineering_v6.py ENGINE_ANCHOR: map x = anchor x - v, map y = anchor y + u)
+    from assets import engineering_v6 as eng
+    sys.path.insert(0, os.path.join(HERE, "..", "station"))
+    import to_dmm as T
+    ax, ay = eng.ENGINE_ANCHOR
+    for (u, v), (turf, area, objs) in T.engine_block().items():
+        if v >= 0:
+            continue
+        x, y = ax - v, ay + u
+        m.set(x, y, dmm.Tile([T.rot_engine_atom(o, eng.ENGINE_TURNS) for o in objs], turf.copy(),
+                             dmm.Atom("/area/space/nearstation")))
+    for p, v in PORTS:
+        for q in port_footprint(p, v):
+            if q not in built or g.get(to_plan(q)) == "dock":
+                m.set(q[0], q[1], dmm.Tile([], dmm.Atom("/turf/open/space/basic"), dmm.Atom("/area/space")))
+        x, y = to_map(p)
+        m.get(x, y).objs.append(dmm.Atom("/obj/docking_port/stationary", v))
+    # a cycling external airlock: the inner door on the hull line, a one-tile plating chamber walled either side, the
+    # outer door beyond it, linked by cyclelink helpers (Command review 3, 2026-11-21: one door vented maint)
+    for p, name in HULL_AIRLOCKS:
+        x, y = to_map(p)
+        out = next(((dx, dy) for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0))
+                    if m.get(x + dx, y + dy) is not None and m.get(x + dx, y + dy).tpath.startswith("/turf/open/space")),
+                   (0, 1))
+        dir_out = {(0, 1): 1, (0, -1): 2, (1, 0): 4, (-1, 0): 8}[out]
+        side = (out[1], out[0])
+        for k, cyc in ((0, dir_out), (2, {1: 2, 2: 1, 4: 8, 8: 4}[dir_out])):
+            q = (x + out[0] * k, y + out[1] * k)
+            m.set(q[0], q[1], dmm.Tile([dmm.Atom("/obj/machinery/door/airlock/external", {"name": name, "req_access_txt": "18"}),
+                                        dmm.Atom("/obj/effect/mapping_helpers/airlock/cyclelink_helper", {"dir": cyc})],
+                                       dmm.Atom("/turf/open/floor/plating"), dmm.Atom("/area/maintenance/port")))
+        c = (x + out[0], y + out[1])
+        m.set(c[0], c[1], dmm.Tile([], dmm.Atom("/turf/open/floor/plating"), dmm.Atom("/area/maintenance/port")))
+        for k in (1, 2):
+            for sgn in (1, -1):
+                q = (x + out[0] * k + side[0] * sgn, y + out[1] * k + side[1] * sgn)
+                m.set(q[0], q[1], dmm.Tile([], dmm.Atom("/turf/closed/wall/r_wall"), dmm.Atom("/area/space")))
     for p in HULL_WINDOWS:
         x, y = to_map(p)
         m.set(x, y, dmm.Tile([dmm.Atom("/obj/effect/spawner/structure/window/reinforced")],

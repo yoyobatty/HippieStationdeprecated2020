@@ -148,7 +148,7 @@ def surgery(R):
     door = R.doors()[0]
     table = R.place(OPSET, near=R.room.attrs["heart"])
     R.place(SURG_TOOLS, near=table.uses[0] if table else door)
-    R.place(SINK, far=door, must=False)
+    R.place(SINK, far=door, must=False, need=lambda pl: pl.origin not in R.geo.taken and not R.geo.cells.get(pl.origin))
 
 
 # ================================================================================================= R&D

@@ -232,8 +232,8 @@ def interro(R):
     door = R.doors()[0]
     R.place(Kit("interview table", [
         cell(0, 0, TABLE, "/obj/item/taperecorder", label="t"),
-        (-1, 0, dict(obj=[(CHAIR, {"dir": 4})], open=True, seat=True, label="c")),
-        (1, 0, dict(obj=[(CHAIR, {"dir": 8})], open=True, seat=True, label="c")),
+        (-1, 0, dict(obj=[(CHAIR, {"dir": "A+"})], open=True, seat=True, label="c")),
+        (1, 0, dict(obj=[(CHAIR, {"dir": "A-"})], open=True, seat=True, label="c")),
     ], use=[(0, 1), (0, -1)], back=None, mirror=False), near=R.room.attrs["heart"], must=False)
     R.place(hang("flasher", "button", "/obj/machinery/flasher", {"id": "interrogation"}), far=door, must=False)
 

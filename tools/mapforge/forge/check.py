@@ -223,6 +223,9 @@ def run(b):
                     probs.append("squeeze at %d,%d / %d,%d: %s and %s touch corners, the way round is %s steps" % (
                         p[0], p[1], q[0], q[1], dense_name(ta), dense_name(tc), dist if dist else "40+"))
     stuck = [p for p in floors if p not in reach]
+    stuck = [p for p in stuck if not (m.get(*p) and m.get(*p).tpath.startswith(
+        ("/turf/open/floor/engine/n2", "/turf/open/floor/engine/o2", "/turf/open/floor/engine/co2",
+         "/turf/open/floor/engine/plasma", "/turf/open/floor/engine/air", "/turf/open/floor/engine/vacuum")))]
     if stuck:
         probs.append("%d floor tiles can't be walked to: %s" % (len(stuck), " ".join("%d,%d" % p for p in sorted(stuck)[:12])))
     for p in zone:
@@ -233,7 +236,10 @@ def run(b):
         if dense and not any((p[0] + dx, p[1] + dy) in reach for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy):
             probs.append("unreachable %s at %d,%d" % (dense[0].path.rsplit("/", 1)[-1], *p))
         # a directional window shares its tile (Meta's collectors stand behind plasma panes)
-        dense = [o for o in dense if not (o.path.startswith("/obj/structure/window") and "fulltile" not in o.path)] or dense
+        panes = [o for o in dense if o.path.startswith("/obj/structure/window") and "fulltile" not in o.path]
+        rest = [o for o in dense if o not in panes]
+        # directional panes facing different ways make a corner (a boxing ring, a window bay): not a stack
+        dense = rest or ([] if len({o.get("dir") for o in panes}) == len(panes) else dense)
         if len(dense) > 1 and not any(o.path.startswith("/obj/structure/table") for o in dense) and not all(o.path.startswith(("/obj/structure/table", "/obj/machinery/door")) or
                                       o.path.startswith(("/obj/machinery/microwave", "/obj/machinery/reagentgrinder"))
                                       for o in dense[1:]):
@@ -366,6 +372,11 @@ def run(b):
                     m.get(p[0] + dx * k, p[1] + dy * k) and m.get(p[0] + dx * k, p[1] + dy * k).has(w)
                     for dx, dy in kit.DELTA.values() for k in (1, 2, 3)):
                 continue        # a dock door moved out to the end of a docking arm
+            if m.get(*p).tpath.startswith("/turf/closed") and (w.startswith("/obj/structure/sign") or (
+                    w.startswith(getattr(b, "WALL_PIECES", ("/obj/structure/sign",))) and any(
+                        m.get(p[0] + dx, p[1] + dy) and m.get(p[0] + dx, p[1] + dy).has(w) for dx, dy in kit.DELTA.values()))):
+                continue        # a wall piece on a wall turf rehung onto the floor in front (build.rehang_wall_pieces), or
+                                # decor taken down where a working piece shares the wall (unstack_wall_pieces)
             if w not in have:
                 lost_bp.append("%s at %d,%d" % (w.rsplit("/", 1)[-1], p[0], p[1]))
     if lost_bp:
@@ -396,12 +407,15 @@ def run(b):
     leaks = set()
     for p in zone:
         tp = m.get(*p)
-        if tp is None or not tp.tpath.startswith("/turf/open") or tp.has("/obj/machinery/door") or tp.has("/obj/effect/spawner/structure/window"):
+        # a machine set into the wall line (Meta's ORM between sorting and the bay) seals it like a wall
+        if tp is None or not tp.tpath.startswith("/turf/open") or tp.has("/obj/machinery/door") or tp.has("/obj/effect/spawner/structure/window") \
+                or tp.has("/obj/machinery/mineral/ore_redemption") or tp.has("/obj/machinery/smartfridge"):
             continue
         for d in (1, 4):
             q = (p[0] + DELTA[d][0], p[1] + DELTA[d][1])
             tq = m.get(*q)
-            if tq is None or not tq.tpath.startswith("/turf/open") or tq.tpath.startswith("/turf/open/space") or                     tq.has("/obj/machinery/door") or tq.has("/obj/effect/spawner/structure/window"):
+            if tq is None or not tq.tpath.startswith("/turf/open") or tq.tpath.startswith("/turf/open/space") or                     tq.has("/obj/machinery/door") or tq.has("/obj/effect/spawner/structure/window") or \
+                    tq.has("/obj/machinery/mineral/ore_redemption") or tq.has("/obj/machinery/smartfridge"):
                 continue
             ok_pairs = {frozenset(x) for x in getattr(b.bp, "OPEN_SEAMS", [])}
             if tp.apath != tq.apath and not tp.apath.startswith("/area/space") and not tq.apath.startswith("/area/space")                     and frozenset((tp.apath, tq.apath)) not in ok_pairs:
@@ -413,7 +427,8 @@ def run(b):
     # --- an airlock sits in a wall line: wall (or glass/door) on two opposite sides, open floor on the other two
     def solidish(q):
         t = m.get(*q)
-        return t is None or t.tpath.startswith("/turf/closed") or t.has("/obj/effect/spawner/structure/window")             or t.has("/obj/structure/grille") or t.has("/obj/machinery/door/airlock") or t.has("/obj/machinery/door/poddoor")
+        return t is None or t.tpath.startswith("/turf/closed") or t.has("/obj/effect/spawner/structure/window")             or t.has("/obj/structure/grille") or t.has("/obj/machinery/door/airlock") or t.has("/obj/machinery/door/poddoor") \
+            or t.has("/obj/machinery/mineral/ore_redemption") or t.has("/obj/machinery/smartfridge")
     for p in zone:
         t = m.get(*p)
         if not t.has("/obj/machinery/door/airlock"):
@@ -466,7 +481,11 @@ def run(b):
         touching = {c for c in grp if any(wallish((c[0] + DELTA[d][0], c[1] + DELTA[d][1])) for d in CARD)}
         counter = any(m.get(c[0] + DELTA[d][0], c[1] + DELTA[d][1]) is not None and
                       m.get(c[0] + DELTA[d][0], c[1] + DELTA[d][1]).has("/obj/machinery/door/window") for c in grp for d in CARD)             or any(m.get(*c).has("/obj/machinery/door/window") for c in grp)
-        if touching and len(grp) > 1 and not counter:
+        # a straight bench spanning wall to wall (a judge's bench across its alcove) is held at both ends
+        line = len({c[0] for c in grp}) == 1 or len({c[1] for c in grp}) == 1
+        ends = (min(grp), max(grp))
+        bridge = line and len(grp) > 2 and all(e in touching for e in ends)
+        if touching and len(grp) > 1 and not counter and not bridge:
             jut += [c for c in grp if c not in touching]
     if jut:
         probs.append("%d wall-run table tiles stick out into the room, e.g. %s" % (len(jut), " ".join("%d,%d" % c for c in sorted(jut)[:6])))
@@ -528,4 +547,22 @@ def run(b):
         if len(tiles) > 1:
             probs.append("wall %d,%d carries pieces from %d sides: %s" % (w[0], w[1], len(tiles),
                          ", ".join("%s from %d,%d" % (n, p[0], p[1]) for p, n in hung)))
+    # every timed brig door has its timer drawn on a wall tile within two tiles of it (user, 2026-11-21: a cell's
+    # timer had ended up on the end wall of the hall, out of sight of the cell)
+    timers, cells = {}, {}
+    for p in sorted(b.zone):
+        t = b.t(*p)
+        for o in t.objs if t is not None else ():
+            ident = (o.get("id") or "").strip('"')
+            if o.path.startswith("/obj/machinery/door_timer"):
+                px, py = o.num("pixel_x"), o.num("pixel_y")
+                timers.setdefault(ident, []).append((p[0] + (1 if px >= 20 else -1 if px <= -20 else 0),
+                                                     p[1] + (1 if py >= 20 else -1 if py <= -20 else 0)))
+            elif o.path.startswith("/obj/machinery/door/window/brigdoor") and ident:
+                cells.setdefault(ident, []).append(p)
+    for ident, doors in sorted(cells.items()):
+        near = [w for w in timers.get(ident, []) for d in doors if max(abs(w[0] - d[0]), abs(w[1] - d[1])) <= 2]
+        if not near:
+            probs.append("cell door %s at %d,%d has no timer on the wall beside it%s" % (
+                ident, doors[0][0], doors[0][1], "" if ident in timers else " (none anywhere)"))
     return {"problems": probs, "info": info}

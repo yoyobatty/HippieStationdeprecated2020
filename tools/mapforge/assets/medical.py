@@ -120,8 +120,8 @@ def theatre(R):
     dwall = R.geo.field("dwall")
     table = R.place(OPTABLE, near=R.room.attrs["heart"], need=lambda pl: all(dwall.get(t, 0) >= 1 for t in pl.tiles))
     if table:
-        R.zone(near_tiles(R, table.tiles), floor=DARK, edge=STRIPE)
-    R.run([SURG_TOOLS, SURG_SAWS], far=door)
+        R.zone(near_tiles(R, table.tiles), floor=DARK)
+    R.run([SURG_TOOLS, SURG_SAWS], near=table.origin if table else None, far=None if table else door)
     R.place(one("anaesthetic locker", "L", "/obj/structure/closet/secure_closet/medical2"), far=door, must=False)
     R.place(one("blood", "bl", "/obj/structure/closet/crate/freezer/blood"), far=door, must=False)
     R.place(hang("sink", "sink", "/obj/structure/sink"), near=door, must=False)
@@ -222,7 +222,7 @@ def morgue(R):
     door = (R.doors("medhall") or R.doors())[0]
     heart = R.room.attrs["heart"]
     col = R.place(TRAY_COLUMN, side=WEST, near=heart, need=lambda pl: all(step(t, WEST) not in R.tiles for t in pl.tiles))
-    for _ in range(2):
+    for _ in range(1):
         if col is None:
             break
         col = R.place(TRAY_COLUMN, side=WEST, must=False,

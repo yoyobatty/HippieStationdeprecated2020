@@ -230,6 +230,12 @@ class Ctx:
                         if sp.get("mount") and ((t, w) in self.faces or step(t, w) in self.hung):
                             ok = False
                             break
+                        # one wall piece per floor tile, and none over furniture (v6 reviews, 2026-11-21): a tile
+                        # carries an alarm or a button, not two, and never one behind a vendor or closet
+                        if sp.get("mount") and not getattr(self, "_relax", False) and (
+                                any((t, d) in self.faces for d in CARD) or self.geo.taken.get(t) == "obj"):
+                            ok = False
+                            break
                         if sp.get("mount") and self._last_face(t, w):
                             ok = False              # the builder hangs the room's light on the last solid face
                             break
@@ -250,6 +256,9 @@ class Ctx:
                         if t in self.geo.taken or t in self.front or t in self.neck:
                             ok = False              # taken, a door apron, or a passage two tiles wide or less
                             break
+                        if any((t, d) in self.faces for d in CARD):
+                            ok = False              # a wall piece already hangs here: furniture would hide it
+                            break
                         if kit.back is None and not kit.tight and any(self.geo.taken.get(q) == "use" for q in nb8(t)):
                             ok = False              # an island never crowds the tiles another kit is used from
                             break
@@ -264,6 +273,8 @@ class Ctx:
                     if self._pinches(dense_now | dense, dense):
                         continue
                     yield pl, dense
+
+    FUNCTIONAL = ("button", "requests_console", "intercom", "telescreen")
 
     def place(self, kit, side=None, near=None, far=None, on=None, need=None, score=None, must=True, zone=None, **fmt):
         best = None
@@ -288,6 +299,17 @@ class Ctx:
             if best is None or key < best[0]:
                 best = (key, pl, dense)
         if best is None:
+            # a working piece (a button, an RC, an intercom) still goes up in a crowded room: over furniture or
+            # beside another piece rather than not at all (Science review 3: the biohazard and mech bay buttons and
+            # the intercoms went missing under the one-piece rule)
+            if not getattr(self, "_relax", False) and any(
+                    m[0] in self.FUNCTIONAL for _, _, sp in kit.cells for m in sp.get("mount", [])):
+                self._relax = True
+                try:
+                    return self.place(kit, side=side, near=near, far=far, on=on, need=need, score=score, must=must,
+                                      zone=zone, **fmt)
+                finally:
+                    self._relax = False
             if must:
                 self.geo.problem("%s: no place for %s" % (self.rid, kit.name))
             return None

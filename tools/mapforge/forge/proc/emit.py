@@ -54,6 +54,14 @@ def door_objs(dr):
                 ("/obj/machinery/door/window/brigdoor", dict(name=sp.get("name", "Desk"), dir=OPP[d], **acc)),
                 ("/obj/machinery/door/poddoor/shutters/preopen", {"name": "%s shutters" % sp.get("name", "desk").lower(),
                                                                   "id": sp["id"]})]
+    if kind == "flaps":     # a loading lane through the wall: blast door, plastic flaps, the belt running through
+        flow = d if sp.get("flow", "in") == "in" else OPP[d]
+        return [("/obj/machinery/door/poddoor", {"name": sp.get("name", "loading door"), "id": sp["id"]}),
+                "/obj/structure/plasticflaps", ("/obj/machinery/conveyor", {"dir": flow, "id": sp["belt"]})]
+    if kind == "smartfridge":   # a smartfridge set into the wall, loaded and emptied from both sides
+        return [("/obj/machinery/smartfridge", {})]
+    if kind == "orm":       # an ore redemption machine set into the wall: input on its north side, output south
+        return [("/obj/machinery/mineral/ore_redemption", {})]
     raise ValueError("unknown door type %r" % kind)
 
 
@@ -82,9 +90,18 @@ def blueprint(geo, name, extra=None):
         if k.startswith("keep_"):
             continue
         if k in ("wall", "ring"):
-            lay[p] = "#"
+            # a sign an asset hung on the wall turf itself (a door sign on the hall face): the builder rehangs it
+            objs = [o for c in geo.cells.get(p, []) for o in c.get("obj", [])]
+            floor = next((c["floor"] for c in geo.cells.get(p, []) if c.get("floor")), None)
+            # ... or a cut through it: an asset giving the wall tile a floor (a window onto a stamp's room)
+            lay[p] = char({"floor": floor, "obj": objs}) if floor else char({"turf": "wall", "obj": objs}) if objs else "#"
         elif k == "glass":
-            lay[p] = "%"
+            sid = geo.attr.get("_shutter", {}).get(p)
+            brig = "gate" in sid.lower() or "cell" in sid.lower() if sid else False
+            lay[p] = char({"turf": "rwindow", "obj": [("/obj/machinery/door/poddoor/preopen", {"id": sid, "name": "brig shutters"})
+                                                       if brig else ("/obj/machinery/door/poddoor/shutters/preopen",
+                                                                     {"id": sid, "name": "privacy shutters"})]}) \
+                if sid else "%"
         elif k == "raw":
             rid, spec, _ = geo.raw[p]
             lay[p] = char(spec)
@@ -106,7 +123,11 @@ def blueprint(geo, name, extra=None):
                 if c.get("decal"):
                     sp["decal"] = sp.get("decal", []) + list(c["decal"])
                 if c.get("mount"):
-                    sp["mount"] = sp.get("mount", []) + list(c["mount"])
+                    # each piece keeps its own wall: a corner tile can carry a cell timer on one wall and a poster
+                    # on the other (one shared mount_side moved the timer onto the poster's wall)
+                    side = c.get("mount_side")
+                    sp["mount"] = sp.get("mount", []) + [tuple(m[:3]) + (side,) if side and len(m) == 3 else m
+                                                         for m in c["mount"]]
                     sp["mount_side"] = c.get("mount_side", sp.get("mount_side"))
                 if c.get("floor"):
                     sp["floor"] = c["floor"]

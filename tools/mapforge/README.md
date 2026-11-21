@@ -53,6 +53,20 @@ less, seats anyone in a doorway or stands a bin on the disposal line. A run of w
 the most of it.
 `forge/proc/emit.py` turns the result into an ordinary blueprint, so everything below still applies.
 
+The v6 station is built this way, one hand-designed department at a time on the bare plan canvas
+(`plan/station_plan.py`, `plan/canvas.py`): `blueprints/medical_v6.py`, `science_v6.py` and `security_v6.py`.
+Before a department, `python tools/mapforge/studies/dept_rooms.py MetaStation security --render` reads a stock
+department room by room: every walled room with its size and contents, every door and the two rooms it joins, and
+a picture with room ids in `data/previews/mapforge/study/`. `glass(a, b, along=("y", 88))` keeps a window to the
+wall run on one row or column (a corner cell's street side, not its side wall), and `glass(..., shutter="id")`
+puts shutters over the panes (brig cells' street windows).
+
+`security_v6.py` is drawn tile by tile instead of sliced: its `DRAWING` is the block in plan coordinates, one
+character per tile (`#` wall, a letter per room, `CHARS` names them), so rooms can be L-shaped or stepped. A
+`check` node reports any drawn room tile that lands on the outline ring. Two pieces hung on one tile keep their own
+walls (a corner tile can carry a cell timer on one wall and a poster on the other), and every build checks that each
+timed brig door has its timer on a wall within two tiles.
+
 ## Whole stations (`station/`)
 
 `station/to_dmm.py` grows a whole station from a seed and a layout and writes a playable map: the .dmm in

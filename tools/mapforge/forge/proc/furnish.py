@@ -31,7 +31,10 @@ def furnish(geo, P, assets, order=None):
             skipped.append(rid)
             continue
         before = len(geo.placed)
-        fn(Ctx(geo, rid, P))
+        try:
+            fn(Ctx(geo, rid, P))
+        except (IndexError, KeyError) as e:     # a room with no door, or a missing neighbour: say so, carry on
+            geo.problem("furnish: %s's asset failed (%s: %s)" % (rid, type(e).__name__, e))
         done.append("%s %d" % (rid, len(geo.placed) - before))
     geo.notes.append("furnish: kits placed per room: " + ", ".join(done))
     dead = open_floor(geo)

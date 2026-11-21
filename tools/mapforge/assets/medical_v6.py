@@ -49,7 +49,7 @@ def recovery(R):
     if loop:
         R.zone(loop.tiles, floor=DARK)
         R.place(CRYOX, near=loop.origin, must=False)
-    pair = R.place(SLEEPERS, far=door, side=R.side("hall") or None)
+    pair = R.place(SLEEPERS, far=door, side=R.side("hall") or None, must=False) or R.place(SLEEPERS, far=door)
     if pair:
         R.zone(pair.tiles + pair.uses, floor=DARK)
     R.run([IV, IV], near=pair.origin if pair else door)
@@ -211,12 +211,65 @@ def patient(R):
     # shutter
     door = R.doors()[0]
     bed = R.place(one("bed", "bd", "/obj/structure/bed", "/obj/item/bedsheet/medical", back="any"), far=door)
-    R.place(IV, near=bed.origin if bed else door, must=False)
+    # the drip stands right beside the bed (review 1: it had drifted to the far wall)
+    R.place(IV, near=bed.origin if bed else door, must=False,
+            need=lambda pl: bed is None or max(abs(pl.origin[0] - bed.origin[0]), abs(pl.origin[1] - bed.origin[1])) == 1)
     R.place(one("visitor chair", "c", (CHAIR, {"dir": "IN"}), back="any", use=()), near=bed.origin if bed else door,
             must=False)
+
+
+def exam(R):
+    # Meta's exam room: a bed, the doctor's table with a health analyzer, a chair, the wall NanoMed
+    door = R.doors()[0]
+    R.place(one("exam bed", "bd", "/obj/structure/bed", "/obj/item/bedsheet/medical", back="any"), far=door)
+    R.place(one("exam table", "t", TABLE, "/obj/item/healthanalyzer", "/obj/item/clipboard", back="wall"), must=False)
+    R.place(one("chair", "c", (CHAIR, {"dir": "IN"}), back="any", use=()), near=door, must=False)
+    R.place(hang("wall NanoMed", "wallmed", "/obj/machinery/vending/wallmed"), must=False)
 
 
 ASSETS = dict(V2)
 ASSETS.update({"recovery": recovery, "chemistry": chemistry, "genetics": genetics, "lobby": lobby,
                "reception": reception, "medstore": medstore, "scrub": scrub,
-               "roomA": patient, "roomB": patient})
+               "roomA": patient, "roomB": patient, "exam": exam})
+
+
+# ================================================================================================= review 2 (11-21)
+def cmo2(R):
+    V2["cmo"](R)
+    door = R.doors()[0]
+    R.place(one("visitor chair", "c", (CHAIR, {"dir": "IN"}), back="any", use=()), near=door, must=False)
+    R.place(one("couch", "SO", ("/obj/structure/chair/sofa", {"dir": "IN"}), back="wall", use=()), far=door,
+            must=False)
+    R.place(one("coffee table", "t", "/obj/structure/table/wood", "/obj/item/reagent_containers/food/drinks/mug",
+                back="any"), far=door, must=False)
+
+
+ASSETS.update({"cmo": cmo2})
+
+
+# ================================================================================================= review 3 (11-21)
+def scrub3(R):
+    # the surgeons' wash-up: two sinks with mirrors on the north wall off the street door, the gowns locker and the
+    # masks table at the store end, the roller by the theatre door; the door tiles stay clear (review 3 #2)
+    for x in (80, 81):
+        R.put((x, 65), None, obj=[("/obj/structure/sink", {"pixel_y": 30}), ("/obj/structure/mirror", {"pixel_y": 28})])
+        R.faces[((x, 65), 1)] = "sink"
+    R.put((84, 65), "obj", obj=["/obj/structure/closet/secure_closet/medical2"])
+    R.put((83, 65), "obj", obj=[TABLE, "/obj/item/clothing/mask/surgical", "/obj/item/clothing/mask/surgical",
+                                "/obj/item/storage/box/gloves"])
+    R.put((79, 64), "obj", obj=["/obj/structure/bed/roller"])
+    R.reserve([(78, 64), (78, 65), (80, 64), (85, 64)], "open")
+    R.place(hang("wall NanoMed", "wallmed", "/obj/machinery/vending/wallmed"), must=False)
+
+
+def recovery3(R):
+    recovery(R)
+    # the sleepers face out from their wall: dir 4 on the west wall, 8 on the east (review 3 #1)
+    xs = [p[0] for p in R.tiles]
+    for p in R.tiles:
+        for c in R.geo.cells.get(p, []):
+            c["obj"] = [(o[0], dict(o[1], dir=4 if p[0] <= min(xs) + 1 else 8))
+                        if isinstance(o, tuple) and o[0] == "/obj/machinery/sleeper" else o for o in c.get("obj", [])]
+
+
+ASSETS.update({"scrub": scrub3, "recovery": recovery3})

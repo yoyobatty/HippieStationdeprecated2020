@@ -295,8 +295,10 @@ def desk(a, b, at="mid", **spec):
     return dict(op="door", a=a, b=b, at=at, wide=1, spec=spec)
 
 
-def glass(a, b, span=None, inset=0, runs="all"):
-    return dict(op="glass", a=a, b=b, span=span, inset=inset, runs=runs)
+def glass(a, b, span=None, inset=0, runs="all", along=None, shutter=None):
+    """along=("x", 60) or ("y", 88): only the wall runs lying on that column or row (a corner cell's hall side).
+    shutter="id": shutters over the panes that a button with that id shuts (brig cells' street windows)."""
+    return dict(op="glass", a=a, b=b, span=span, inset=inset, runs=runs, along=along, shutter=shutter)
 
 
 def keep(p, a, b=None):
@@ -360,6 +362,9 @@ def openings(geo, P, links):
                 pick = [r for r in runs if any(geo.kind[p] == "door" for p, _ in r)]
             elif ln["runs"] == "first":
                 pick = runs[:1]
+            if ln.get("along"):
+                k = 0 if ln["along"][0] == "x" else 1
+                pick = [r for r in pick if all(p[k] == ln["along"][1] for p, _ in r)]
             for run in pick:
                 tiles = [p for p, d in run if geo.kind[p] in ("wall", "ring")]
                 n = len(tiles)
@@ -367,6 +372,8 @@ def openings(geo, P, links):
                 lo, hi = lo + ln["inset"], hi - ln["inset"]
                 for p in tiles[lo:hi]:
                     geo.kind[p] = "glass"
+                    if ln.get("shutter"):
+                        geo.attr.setdefault("_shutter", {})[p] = ln["shutter"]
             continue
         wide, at = ln["wide"], ln["at"]
         cands = []

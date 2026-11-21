@@ -9,7 +9,8 @@ carries itself.
 from forge.proc.geo import step
 from forge.proc.place import Kit, cell, dist
 from assets.science import ASSETS as V3, STRIPE, CHAIR, ENG, BORG, BAY_TOOLS, FUEL, one, hang, burn_chamber
-from assets.science import button, near_tiles, cans, DARK, BOT, BOMBS, L3, BOMB_BENCH, BIN, PLANT_K
+from assets.science import button, near_tiles, cans, DARK, BOT, BOMBS, L3, BOMB_BENCH, BIN, PLANT_K, RTABLE
+from assets.science import NANO, SEAT, apart
 from assets.science import foyer as v3_foyer, PIPE, TABLE, seat_at, RD_DESK, CARPET, console
 from plan.canvas import HULL_WINDOWS, to_map
 
@@ -109,6 +110,14 @@ def launch(R):
     R.place(hang("range sign", "sign", "/obj/structure/sign/warning/securearea", {"name": "BOMB RANGE"}), near=hatch, must=False)
 
 
+WALL_BENCH = Kit("bomb bench", [
+    cell(0, 0, RTABLE, "/obj/item/transfer_valve", "/obj/item/transfer_valve", "/obj/item/wrench", label="t"),
+    cell(1, 0, RTABLE, "/obj/item/assembly/timer", "/obj/item/assembly/igniter", "/obj/item/assembly/prox_sensor",
+         "/obj/item/screwdriver", "/obj/item/analyzer", label="t"),
+    seat_at(0, 1, "/obj/structure/chair/office/light"),
+], use=[(0, 1), (1, 1)], back="wall")
+
+
 def toxins(R):
     # v3's toxins with its own stock first: tanks and plasma by the door, the suits after; the wardrobe is out in the
     # foyer. The burn chamber and its plumbing are already stamped in.
@@ -122,17 +131,22 @@ def toxins(R):
     dwall = geo.field("dwall")
     R.run([one("tank dispenser", "TD", "/obj/structure/tank_dispenser"),
            one("plasma vendor", "V", "/obj/machinery/vending/plasmaresearch")], near=door)
-    bays = R.run([cans("plasma canisters", "toxins", "toxins", "toxins", "toxins"),
-                  cans("oxygen canisters", "oxygen", "oxygen", "oxygen", "oxygen"),
+    R.place(WALL_BENCH, near=door, zone=(DARK, None))
+    R.run([one("bomb suits", "L", BOMBS), one("bomb suits", "L", BOMBS), one("biosuits", "L", L3)], near=door)
+    R.place(BIN, near=door, must=False)
+    # three bays that fit beside the suit closets: plasma and oxygen to mix, the rest (Science review 3: the
+    # four-wide oxygen bay found no wall left and toxins had no O2)
+    bays = R.run([cans("plasma canisters", "toxins", "toxins", "toxins"),
+                  cans("oxygen canisters", "oxygen", "oxygen", "oxygen"),
                   cans("other canisters", "nitrous_oxide", "carbon_dioxide")], near=port)
     for pl in bays:
         R.zone(pl.tiles, floor=DARK)
     R.run([one("big scrubber", "sc", "/obj/machinery/portable_atmospherics/scrubber/huge", decal=[BOT]),
            one("pump", "pp", "/obj/machinery/portable_atmospherics/pump", decal=[BOT]),
            one("scrubber", "sc", "/obj/machinery/portable_atmospherics/scrubber", decal=[BOT])], near=port)
-    R.run([one("bomb suits", "L", BOMBS), one("bomb suits", "L", BOMBS), one("biosuits", "L", L3)], near=door)
-    R.place(BOMB_BENCH, near=door, must=False, zone=(DARK, None), need=lambda pl: all(dwall.get(t, 0) >= 2 for t in pl.tiles))
-    R.place(BIN, near=door, must=False)
+    R.place(hang("requests console", "requests_console", "/obj/machinery/requests_console",
+                 {"name": "Toxins RC", "department": "Toxins Lab", "departmentType": 2}), must=False)
+    R.place(hang("no smoking", "sign", "/obj/structure/sign/warning/nosmoking"), must=False)
     R.place(hang("explosives sign", "sign", "/obj/structure/sign/warning/explosives"), near=door, must=False)
     R.mark(door, "/obj/effect/landmark/start/scientist")
 
@@ -256,6 +270,44 @@ def rdoffice(R):
                  {"name": "Biohazard Shutter Control", "id": "Biohazard", "req_access_txt": "47"}), near=chair, must=False)
 
 
+def nanite(R):
+    # Meta's nanite lab: one chamber and its console, one program hub, the programmer and the cloud controller on
+    # the far wall, the scanner and remotes on a table, seats by the door (review 1: v3 doubled hub and controller)
+    door = (R.doors("spine") or R.doors())[0]
+    R.place(NANO, near=door)
+    R.run([one("program hub", "PH", "/obj/machinery/nanite_program_hub"),
+           one("programmer", "PR", "/obj/machinery/nanite_programmer"),
+           one("cloud controller", "CL", ("/obj/machinery/computer/nanite_cloud_controller", {"dir": "IN"}))], far=door)
+    R.place(one("nanite tools", "t", TABLE, "/obj/item/nanite_scanner", "/obj/item/nanite_remote",
+                "/obj/item/nanite_remote", back="wall"), must=False)
+    R.place(BIN, near=door, must=False)
+    R.place(hang("requests console", "requests_console", "/obj/machinery/requests_console",
+                 {"name": "Nanite Lab RC", "department": "Science", "departmentType": 2}), must=False)
+
+
+def pen(R):
+    # the xenobiology console sees a pen only through a camera in it
+    corner = max(R.tiles, key=lambda p: (-p[1], p[0]))
+    R.mark(corner, ("/obj/machinery/camera", {"dir": 1, "network": 'list("ss13","rd","xeno")',
+                                              "c_tag": "Xenobiology %s" % R.room.attrs.get("name", "Pen")}))
+
+
+def dressed(fn, rc, dept):
+    """A v3 room with Meta's wall dressing added: its requests console and an intercom."""
+    def run(R):
+        fn(R)
+        R.place(hang("requests console", "requests_console", "/obj/machinery/requests_console",
+                     {"name": rc, "department": dept, "departmentType": 2}), must=False)
+        R.place(hang("intercom", "intercom", "/obj/item/radio/intercom"), must=False)
+    return run
+
+
 ASSETS = dict(V3)
 ASSETS.update({"launch": launch, "launchrun": launchrun, "toxhall": toxhall, "mechbay": mechbay, "toxins": toxins,
                "foyer": foyer, "server": server, "rdoffice": rdoffice, "servercore": lambda R: None})
+
+ASSETS.update({"nanite": nanite, "pen": pen,
+               "robotics": dressed(ASSETS["robotics"], "Robotics RC", "Robotics"),
+               "rnd": dressed(ASSETS["rnd"], "Science RC", "Science"),
+               "xeno": dressed(ASSETS["xeno"], "Xenobiology RC", "Xenobiology"),
+               "secpost": dressed(ASSETS["secpost"], "Security RC", "Security")})

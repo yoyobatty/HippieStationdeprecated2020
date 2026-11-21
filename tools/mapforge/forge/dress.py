@@ -285,7 +285,14 @@ def dress(b, seed=1):
         if side not in walls:
             side = walls[0]
         for c, rate in sorted(H["companions"].get(key, {}).items(), key=lambda kv: -kv[1]):
-            if rate < 0.5 or c.startswith(SKIP) or (p[0], p[1], side) in b.faces:
+            # the wall tile may already carry a piece hung from its other side (two cells' flashers on the wall
+            # between them): one piece per wall tile
+            if rate < 0.5 or c.startswith(SKIP) or (p[0], p[1], side) in b.faces or b.nb(p, side) in b.wall_used:
+                continue
+            # the blueprint already hung one nearby (a cell's own flasher): no second one over the bed
+            if any(o.path == c for dx in range(-2, 3) for dy in range(-2, 3)
+                   for q in [(p[0] + dx, p[1] + dy)] if b.room.get(q) == b.room[p] and m.get(*q) is not None
+                   for o in m.get(*q).objs):
                 continue
             # one per room for room-level pieces; only per-object pieces (a mirror per sink, a flasher per bed) repeat
             if not c.startswith(PER_OBJECT) and c in given.get(b.room[p], set()):
@@ -302,6 +309,7 @@ def dress(b, seed=1):
             vs = [(k, str(v)) for k, v in (("pixel_x", px), ("pixel_y", py)) if v]
             t.objs.append(dmm.Atom(c, vs))
             b.faces.add((p[0], p[1], side))
+            b.wall_used.add(b.nb(p, side))
             comps += 1
             break
     # 7. the sign a room type gets beside its door, outside (EXAM, biohazard, no smoking...)

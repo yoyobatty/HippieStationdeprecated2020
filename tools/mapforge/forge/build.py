@@ -298,9 +298,35 @@ class Builder:
             from forge import dress
             self.notes += dress.dress(self, seed=getattr(self.bp, "SEED", 1))
         self.unstack_wall_pieces()
+        self.drop_dead_buttons()
         self.clear_wall_decals()
         self.validate_types()
         return self
+
+    def drop_dead_buttons(self):
+        """A door button in the zone whose id opens nothing anywhere on the map (no blast door or shutter with that
+        id, no airlock with that id_tag for a bolt button) is taken down: v6 Engineering review 3 found five dead
+        lockdown buttons on the CE's desk."""
+        pods, tags = set(), set()
+        for t in self.m.tiles.values():
+            for o in t.objs:
+                if o.path.startswith(("/obj/machinery/door/poddoor", "/obj/machinery/door/window")):
+                    pods.add((o.get("id") or "").strip('"'))
+                elif o.path.startswith("/obj/machinery/door/airlock"):
+                    tags.add((o.get("id_tag") or "").strip('"'))
+        gone = []
+        for p in sorted(self.zone):
+            t = self.t(*p)
+            for o in list(t.objs):
+                if not o.path.startswith("/obj/machinery/button/door"):
+                    continue
+                bid = (o.get("id") or "").strip('"')
+                bolt = (o.get("normaldoorcontrol") or "0").strip('"') not in ("0", "")
+                if bid and bid not in (tags if bolt else pods):
+                    t.objs.remove(o)
+                    gone.append("%s at %d,%d" % (bid, p[0], p[1]))
+        if gone:
+            self.notes.append("took down %d dead door buttons: %s" % (len(gone), ", ".join(gone)))
 
     def validate_types(self):
         from forge import typeindex
@@ -549,7 +575,9 @@ class Builder:
                 self.furnished.add(p)
             from forge import orient
             turned = orient.fix_facing(self, set(got))
-            turned += orient.mirror_pairs(self, floor)
+            # only what the corpus furnished here: the blueprint's own pieces are authored facing their table or
+            # wall (2026-11-21: this turned the prison common room's chairs and the ward's sleepers away)
+            turned += orient.mirror_pairs(self, set(got))
             self.notes.append("%s: furnished %d of %d tiles from %d corpus clusters, %d turned to face like real maps"
                               % (rd.get("name", rc), len(got), len(floor), len(log), len(turned)))
             self.furnish_log += ["  " + l for l in log]
@@ -820,6 +848,8 @@ class Builder:
         for p in self.floors_of(area):
             if avoid_doors and self.t(*p).has("/obj/machinery/door"):
                 continue
+            if self.window_at(p):
+                continue        # a window spawner on a floor tile (a stamp's plasma window): nothing hangs there
             for d in self.wall_sides(p):
                 # a piece hung from the room behind this wall is drawn on the same wall tile: the two would overlap
                 if (p[0], p[1], d) not in self.faces and not (on_wall and self.nb(p, d) in self.wall_used):
@@ -829,7 +859,85 @@ class Builder:
             # an optional piece (a camera, a newscaster) never takes it at all
             spare = [f for f in out if not self.light_face(area, f)]
             out = spare if (spare or optional) else out
+            # nor a face hidden behind tall furniture (an alarm behind a vendor, an RC behind a fridge), nor one in a
+            # room of two tiles or fewer (an APC locked in a toilet stall), while it has another place (v6 reviews,
+            # 2026-11-21)
+            clear = [f for f in out if not self.tall_at(f[0]) and self.room_size(f[0]) > 2]
+            out = clear or out
+            # and one wall piece per floor tile: an inside corner tile carries one piece, not an APC on one face and
+            # an alarm on the other (v6 reviews, 2026-11-21)
+            single = [f for f in out if not self.piece_on_tile(f[0])]
+            out = single or ([] if optional else out)       # an optional piece skips the room rather than stack
+            # and a bare floor tile before one with any furniture on it: an APC over a chair, an alarm over a pew, an
+            # extinguisher over an easel (v6 reviews round 3, 2026-11-21)
+            bare = [f for f in out if not self.furn_at(f[0])]
+            out = bare or out
         return out
+
+    FURN = ("/obj/structure/chair", "/obj/structure/table", "/obj/structure/bed", "/obj/structure/displaycase",
+            "/obj/structure/statue", "/obj/structure/filingcabinet", "/obj/structure/easel", "/obj/structure/flora",
+            "/obj/item/twohanded/required/kirbyplants", "/obj/machinery/disposal", "/obj/structure/rack",
+            "/obj/machinery/computer", "/obj/structure/punching_bag", "/obj/structure/weightmachine")
+
+    def furn_at(self, p):
+        """True when floor tile p holds furniture: anything dense, or a seat, table, plant or display."""
+        t = self.t(*p)
+        return t is not None and (kit.dense(t.objs) or any(o.path.startswith(self.FURN + self.TALL) for o in t.objs))
+
+    def window_at(self, p):
+        t = self.t(*p)
+        return t is not None and (t.has("/obj/effect/spawner/structure/window") or t.has("/obj/structure/window")
+                                  or t.has("/obj/structure/grille"))
+
+    def piece_on_tile(self, p):
+        """True when floor tile p already carries a wall piece: one the builder mounted, or one an asset hung (a
+        mirror, a sink, a button, anything shifted 20+ pixels onto a wall)."""
+        if any((p[0], p[1], d) in self.faces for d in (1, 2, 4, 8)):
+            return True
+        t = self.t(*p)
+        return t is not None and any(
+            o.path.startswith(("/obj/structure/mirror", "/obj/structure/sink", "/obj/machinery/button",
+                               "/obj/structure/sign", "/obj/machinery/light", "/obj/machinery/camera"))
+            or abs(o.num("pixel_x")) >= 20 or abs(o.num("pixel_y")) >= 20 for o in t.objs)
+
+    TALL = ("/obj/structure/closet", "/obj/machinery/vending", "/obj/structure/bookcase", "/obj/structure/dresser",
+            "/obj/machinery/suit_storage_unit", "/obj/machinery/smartfridge", "/obj/machinery/chem_master",
+            "/obj/machinery/icecream_vat", "/obj/machinery/deepfryer", "/obj/machinery/grill", "/obj/machinery/gibber",
+            "/obj/structure/reagent_dispensers", "/obj/machinery/seed_extractor", "/obj/machinery/biogenerator",
+            "/obj/machinery/plantgenes", "/obj/machinery/washing_machine", "/obj/machinery/nuclearbomb",
+            "/obj/machinery/ore_silo", "/obj/machinery/mineral", "/obj/machinery/rnd/production",
+            "/obj/machinery/mecha_part_fabricator", "/obj/machinery/autolathe", "/obj/machinery/processor",
+            "/obj/machinery/shower", "/obj/structure/toilet", "/obj/structure/urinal",
+            "/obj/machinery/portable_atmospherics", "/obj/machinery/power/smes", "/obj/machinery/power/port_gen")
+
+    def tall_at(self, p):
+        t = self.t(*p)
+        return t is not None and any(o.path.startswith(self.TALL) for o in t.objs)
+
+    def room_size(self, p):
+        """Floor tiles of the enclosed region p stands in: same area, doors and walls split it (a toilet stall is its
+        own 1-2 tile region even where the blueprint gave it the restroom's room char)."""
+        if not hasattr(self, "_region_size"):
+            self._region_size = {}
+        if p in self._region_size:
+            return self._region_size[p]
+        t0 = self.t(*p)
+        if t0 is None or not self.is_floor(p) or t0.has("/obj/machinery/door"):
+            return 99
+        area = t0.apath
+        g, q = {p}, [p]
+        while q:
+            c = q.pop()
+            for d in CARD:
+                n = self.nb(c, d)
+                tn = self.t(*n)
+                if n in g or tn is None or tn.apath != area or not self.is_floor(n) or tn.has("/obj/machinery/door"):
+                    continue
+                g.add(n)
+                q.append(n)
+        for c in g:
+            self._region_size[c] = len(g)
+        return len(g)
 
     def light_face(self, area, f):
         """True when face f is the last free wall face of its room (lights come after the wall pieces)."""
@@ -952,7 +1060,8 @@ class Builder:
                 kind, path, extra = m[0], m[1], list(m[2].items()) if len(m) > 2 else []
                 extra = [(k, dmm.fmt(v)) for k, v in extra]
                 sides = [d for d in self.wall_sides(p) if (p[0], p[1], d) not in self.faces]
-                want = self.spec(p).get("mount_side")
+                # a piece's own side (4th field) beats the tile's: two pieces on one tile may face two walls
+                want = m[3] if len(m) > 3 and m[3] else self.spec(p).get("mount_side")
                 if want:
                     sides = [{v: k for k, v in kit.NAME.items()}[want]]
                 if not sides:
@@ -1122,8 +1231,9 @@ class Builder:
             self.mount(f[0], f[1], "apc", path=rd["apc"] if isinstance(rd.get("apc"), str) else None,
                        extra=[("name", '"%s APC"' % name)])
             self.apc_tiles = getattr(self, "apc_tiles", []) + [f[0]]
-        # fire alarm beside each door (inside), light switch on the other side of the first door
-        for i, (dp, q, d) in enumerate(doors[:3]):
+        # one fire alarm beside the main door (inside), light switch on its other side (the v6 reviews: alarms by
+        # every door piled two or three into one room)
+        for i, (dp, q, d) in enumerate(doors[:1]):
             run = [x for x in CARD if x not in (d, OPP[d])]
             placed = False
             for side_dir in run:
@@ -1131,7 +1241,7 @@ class Builder:
                 wall_side = OPP[d]
                 if self.area_of(cand) == area and self.is_floor(cand) and self.solid(self.nb(cand, wall_side)) \
                         and (cand[0], cand[1], wall_side) not in self.faces and self.nb(cand, wall_side) not in self.wall_used \
-                        and not self.light_face(area, (cand, wall_side)):
+                        and not self.light_face(area, (cand, wall_side))                         and not self.furn_at(cand) and not self.piece_on_tile(cand):
                     if not placed:
                         self.mount(cand, wall_side, "firealarm")
                         placed = True
@@ -1182,7 +1292,10 @@ class Builder:
             tag = rd.get("camera") if isinstance(rd.get("camera"), str) else name
             placed = []
             for i in range(n):
-                faces = self.free_faces(area, optional=True)
+                # rooms that share the area but take no camera (dorm cabins, cells) are left out (Dorms review,
+                # 2026-11-21: cameras landed inside private cabins)
+                faces = [f for f in self.free_faces(area, optional=True)
+                         if self.roomdefs.get(self.room.get(f[0]), {}).get("camera", True) is not False]
                 if not faces:
                     break
                 corner = [f for f in faces if len(self.wall_sides(f[0])) >= 2]
@@ -1196,7 +1309,14 @@ class Builder:
                 f = max(faces, key=cam_score)
                 if placed and min(math.hypot(f[0][0] - q[0], f[0][1] - q[1]) for q in placed) < 6:
                     break
-                self.mount(f[0], f[1], "camera", extra=[("c_tag", '"%s%s"' % (tag, " %d" % (i + 1) if n > 1 else ""))])
+                # tag by the room the camera hangs in, not the area's first room (Engineering review 4: the hall, the
+                # strip and the laser room all read "Engine Control N")
+                rname = self.roomdefs.get(self.room.get(f[0]), {}).get("name") or tag
+                rname = tag if isinstance(rd.get("camera"), str) else rname
+                used = getattr(self, "_cam_tags", {})
+                used[rname] = used.get(rname, 0) + 1
+                self._cam_tags = used
+                self.mount(f[0], f[1], "camera", extra=[("c_tag", '"%s%s"' % (rname, " %d" % used[rname] if used[rname] > 1 else ""))])
                 placed.append(f[0])
 
     def remote_apc(self, area):
@@ -1258,10 +1378,15 @@ class Builder:
             uncovered = set(g)
             placed = []
             cands = [(p, d) for p, d in self.free_faces(area, on_wall=False) if p in g and
-                     not kit.dense([a for a in self.t(*p).objs if a.path.startswith("/obj/machinery/vending")])]
+                     not kit.dense([a for a in self.t(*p).objs if a.path.startswith("/obj/machinery/vending")])
+                     and not self.window_at(p)]
+            # never behind tall furniture nor on a tile that already carries a piece, while another face exists
+            # (v6 Engineering/Civic review 4: lights behind a suit storage, a light and an intercom in one corner)
+            clean = [f for f in cands if not self.tall_at(f[0]) and not self.piece_on_tile(f[0])]
+            cands = clean or cands
             reach = {}
             while uncovered:
-                best, bestgain = None, 0
+                best, bestgain, bestscore = None, 0, 0
                 for p, d in cands:
                     if (p[0], p[1], d) in self.faces:
                         continue
@@ -1271,8 +1396,12 @@ class Builder:
                         reach[p] = self.walk_reach(p, g, radius)
                     gain = len(reach[p] & uncovered)
                     gain += 0.4 * (len(self.wall_sides(p)) == 1)  # the middle of a wall run
-                    if gain > bestgain:
-                        best, bestgain = (p, d), gain
+                    # rather a face clear of furniture, of a second piece on its tile and of a wall another room hangs
+                    # on: such a face counts at 55% of its coverage (v6 reviews round 3, 2026-11-21)
+                    dirty = self.piece_on_tile(p) or self.furn_at(p) or self.nb(p, d) in self.wall_used
+                    score = gain * (0.55 if dirty else 1.0)
+                    if score > bestscore:
+                        best, bestgain, bestscore = (p, d), gain, score
                 if not best or bestgain < (1 if len(g) < 6 else 2):
                     break
                 p, d = best
@@ -1287,10 +1416,21 @@ class Builder:
         self.notes.append("%s: %d lights over %d rooms, %.0f%% of floor lit" % (rd.get("name", area), total_placed, len(groups), cov * 100))
 
     # ------------------------------------------------------------------ atmos
+    def no_vent_tile(self, p):
+        """A tile no station vent or scrubber goes on: a window pane, a sealed gas chamber or vacuum floor, or a room
+        whose roomdef says vents=0 / bare (v6 Engineering review: vents landed in the gas tanks and on panes)."""
+        t = self.t(*p)
+        if t is None or t.has("/obj/structure/window") or t.has("/obj/effect/spawner/structure/window"):
+            return True
+        if t.tpath.startswith("/turf/open/floor/engine/") or t.tpath.startswith("/turf/open/floor/plating/airless"):
+            return True
+        rd = self.roomdefs.get(self.room.get(p), {})
+        return bool(rd.get("bare") or rd.get("vents") == 0)
+
     def vent_sites(self, area, n, avoid=()):
         floors = [p for p in self.floors_of(area) if not kit.dense(self.t(*p).objs) and p not in avoid
                   and not self.t(*p).has("/obj/machinery/door") and not self.t(*p).has("/obj/machinery/atmospherics")
-                  and not self.spec(p).get("no_vent")]
+                  and not self.spec(p).get("no_vent") and not self.no_vent_tile(p)]
         allf = self.floors_of(area)
         if not floors:
             self.warn.append("%s: nowhere for a vent" % area)
@@ -1341,7 +1481,7 @@ class Builder:
             for v in vs[:ns]:
                 opts = [p for p in self.floors_of(area) if p not in vs and p not in sc and not kit.dense(self.t(*p).objs)
                         and not self.t(*p).has("/obj/machinery/door") and not self.spec(p).get("no_vent")
-                        and not self.t(*p).has("/obj/machinery/atmospherics")]
+                        and not self.t(*p).has("/obj/machinery/atmospherics") and not self.no_vent_tile(p)]
                 if opts:
                     sc.append(min(opts, key=lambda p: abs(math.hypot(p[0] - v[0], p[1] - v[1]) - 2.5) + 0.2 * (p[1] != v[1] and p[0] != v[0])))
             self.vents["scrubbers"] += sc
