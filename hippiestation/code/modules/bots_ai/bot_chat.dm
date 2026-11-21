@@ -1,6 +1,9 @@
 // Milestone 1 chat: canned-line banter, not real language generation.
 /// `in_character` is for what a traitor everybody's after says as itself: anything else it was about to say gives it a threat instead.
 /// TRUE if it said it (not kept back as a repeat of what's just been said: worth_saying(), bot_chatter.dm).
+/// A Bot Gym run with bot-gym-pacing=1 in its params has every bot type its lines as in a live round (for checking that no flow depends on speech being instant)
+GLOBAL_VAR_INIT(bot_gym_paced, !!world.params["bot-gym-pacing"])
+
 /// `typed` is for a line that's had its typing time already (say_after_typing()): a reply.
 /proc/bot_say(mob/living/carbon/human/H, line, in_character = FALSE, typed = FALSE)
 	if(QDELETED(H) || !line || H.stat == DEAD) //a corpse's say() goes to deadchat, radio prefix and all
@@ -16,7 +19,7 @@
 	// A person types it first: not the tick it's decided, and not three lines in a second (the Security call, the arrest and the "in custody" from one
 	// officer within 10 s, 3+ lines from 18 bots in a 20-minute shift). Not in the gym, whose scenarios read lines at once, unless they test typing.
 	var/datum/bot_brain/B = H.bot_brain
-	if(B && (!B.gym_run || B.typing_in_gym))
+	if(B && (!B.gym_run || B.typing_in_gym || GLOB.bot_gym_paced))
 		var/send_at = B.pace_line(line, typed)
 		if(!send_at)
 			return //a backlog of lines it'd never have typed
@@ -28,7 +31,7 @@
 
 /// The line going out, when it's been typed.
 /proc/bot_say_now(mob/living/carbon/human/H, line, in_character = FALSE)
-	if(QDELETED(H) || H.stat == DEAD || H.bot_brain?.logged_off)
+	if(QDELETED(H) || H.stat == DEAD || H.client || H.bot_brain?.logged_off) //a player took the body over while the line was being typed
 		return
 	H.say(H.bot_brain ? H.bot_brain.in_own_words(line, in_character) : line) //bot_chatter.dm
 
