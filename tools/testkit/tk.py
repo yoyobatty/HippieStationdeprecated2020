@@ -35,6 +35,22 @@ class TestkitError(Exception):
 	pass
 
 
+def gpu_wait(what):
+	"""Waits while a Last Light timed run holds or has reserved this PC's GPU (tools/gpu_share.py, which uses Last Light's
+	gpulock): every dd, DreamSeeker and dm.exe the testkit starts comes through here, so no session has to remember."""
+	sys.path.insert(0, os.path.join(ROOT, "tools"))
+	try:
+		import gpu_share
+		lock = gpu_share.load()
+	except Exception as e:  # never block a run on the helper itself
+		print("gpu_share unavailable: %r" % e)
+		return
+	finally:
+		sys.path.pop(0)
+	if lock is not None:
+		lock.wait("HippieStation testkit: " + what)
+
+
 # ---------------------------------------------------------------------------------------------
 # BYOND topic packets: 00 83, big-endian length, five zero bytes, "?query", a zero byte. The answer: 00 83, length, then a type
 # byte (06 text, 2a number) and the value.
@@ -200,6 +216,7 @@ def build(checks=(), name=BUILD_NAME, quiet=False):
 	dmb = os.path.join(ROOT, name + ".dmb")
 	if os.path.exists(dmb):
 		os.remove(dmb)
+	gpu_wait("dm.exe " + name)
 	proc = subprocess.run([os.path.join(BYOND_BIN, "dm.exe"), name], cwd=ROOT, capture_output=True, text=True, env=clean_env())
 	errors = [l for l in proc.stdout.splitlines() if "error" in l or "warning" in l or "dmb -" in l]
 	if not quiet:
@@ -238,6 +255,7 @@ def start(map_name="testbench", port=None, seed=None, speed=None, params="", dmb
 	query = urllib.parse.urlencode(p)
 	if params:
 		query += "&" + params
+	gpu_wait("dd.exe port %d" % port)
 	log = open(os.path.join(folder, "dd.log"), "w")
 	flags = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP: lives on after this script
 	proc = subprocess.Popen([os.path.join(BYOND_BIN, "dd.exe"), dmb, str(port), "-trusted", "-invisible", "-params", query],

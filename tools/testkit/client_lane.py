@@ -53,6 +53,7 @@ def connect(server, timeout=120):
 	others = [p for p in seeker_pids() if p != pid]
 	if others:
 		raise tk.TestkitError("a DreamSeeker is already open (pid %s): close the game first; one runs per machine" % others)
+	tk.gpu_wait("dreamseeker.exe port %d" % server.port)
 	proc = subprocess.Popen([os.path.join(tk.BYOND_BIN, "dreamseeker.exe"), "byond://127.0.0.1:%d##guest" % server.port],
 		env=tk.clean_env(), creationflags=0x00000008)
 	set_client_pid(server, proc.pid)
