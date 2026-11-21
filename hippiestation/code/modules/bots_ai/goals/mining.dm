@@ -196,8 +196,16 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 /// to be bitten. A goliath stood in a tunnel doesn't attack anything it isn't bored of, and three miners waited behind one for it to
 /// move until their tanks ran out.
 /datum/bot_brain/proc/mind_fauna()
-	if((on_lavaland() || gym_run) && !in_mech() && dodge_tentacles())
-		return
+	if((on_lavaland() || gym_run) && !in_mech())
+		if(dodge_tentacles())
+			return
+		// A goliath about: the tentacles show for a second and the brain ticks once a second, so with one in sight it looks twice more in
+		// between rather than hoping a tick lands inside the second
+		for(var/mob/living/simple_animal/hostile/asteroid/goliath/G in view(BOT_SIGHT_RANGE, owner))
+			if(G.stat == CONSCIOUS)
+				addtimer(CALLBACK(src, PROC_REF(dodge_tentacles)), 3)
+				addtimer(CALLBACK(src, PROC_REF(dodge_tentacles)), 6)
+				break
 	if(!(is_miner() || pursuit == BOT_PURSUIT_EXPLORE) || !(on_lavaland() || gym_run) || world.time < next_taser_time || state == BOT_STATE_COMBAT || in_mech())
 		return //an explorer down there shoots what comes at it as well (goals/exploring.dm)
 	for(var/mob/living/simple_animal/hostile/asteroid/beast in view(BOT_SIGHT_RANGE, owner))
@@ -210,7 +218,7 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 /// play1114b run1, 9). A player steps off it: onto a tile with none, the diagonal or the free side, further from the beast if there's a
 /// choice. TRUE if it stepped.
 /datum/bot_brain/proc/dodge_tentacles()
-	if(owner.buckled || owner.incapacitated())
+	if(QDELETED(owner) || owner.buckled || owner.incapacitated())
 		return FALSE
 	var/turf/here = get_turf(owner)
 	if(!here)
