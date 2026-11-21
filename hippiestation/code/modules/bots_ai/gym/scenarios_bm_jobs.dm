@@ -1241,3 +1241,62 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 		storm = null
 	. = ..()
 
+// Coordinator, 2026-11-21: audit batch bm_final3 run2. Lavaland sends a hurt miner home (time_to_head_back()), and the station sent it straight
+// back down: 31 shuttle trips there and back, two seconds apart, for one miner at 24-35 health, who suffocated aboard.
+/datum/bot_scenario/hurt_miner_stays_up
+	name = "mining: a miner too hurt for the mine, up at the station, doesn't set off down to it again"
+	desc = "A Shaft Miner at the station at 40% health, the mining round's next look due. It goes for healing (or nothing), not off on a mining errand: no shuttle ride down, no fetching its kit for the trip."
+	job = "Shaft Miner"
+	time_limit = 10 SECONDS
+	layout = list(
+		"#####",
+		"#B..#",
+		"#####")
+	var/looked = FALSE
+	var/took
+
+/datum/bot_scenario/hurt_miner_stays_up/make_goal()
+	return null
+
+/datum/bot_scenario/hurt_miner_stays_up/post_spawn()
+	var/turf/station_floor
+	var/list/station_zs = SSmapping.levels_by_trait(ZTRAIT_STATION)
+	if(length(station_zs))
+		for(var/turf/open/floor/T in block(locate(1, 1, station_zs[1]), locate(world.maxx, world.maxy, station_zs[1])))
+			if(!is_blocked_turf(T, TRUE) && T.air && T.air.return_pressure() > 90)
+				station_floor = T
+				break
+	if(station_floor)
+		bot.forceMove(station_floor)
+	bot.adjustBruteLoss(bot.maxHealth * 0.7)
+	brain.bot_traitor = TRUE //only so that it isn't taken for the mech miner (is_mech_miner()): the miner on foot is the one that rode it
+	// Everything for the trip down, so that nothing but its health stands in the way of the ride
+	bot.equip_to_slot_or_del(new /obj/item/clothing/mask/gas/explorer(bot), ITEM_SLOT_MASK)
+	bot.equip_to_slot_or_del(new /obj/item/tank/internals/emergency_oxygen(bot), ITEM_SLOT_BELT)
+	bot.equip_to_slot_or_del(new /obj/item/storage/backpack/explorer(bot), ITEM_SLOT_BACK)
+	bot.put_in_hands(new /obj/item/pickaxe(bot))
+	bot.put_in_hands(new /obj/item/gun/energy/kinetic_accelerator(bot))
+	bot.equip_to_slot_or_del(new /obj/item/t_scanner/adv_mining_scanner(bot), ITEM_SLOT_LPOCKET)
+	bot.equip_to_slot_or_del(new /obj/item/survivalcapsule(bot), ITEM_SLOT_RPOCKET)
+	log_line("at [bot_coord(bot)], health [bot.health] of [bot.maxHealth]")
+
+/datum/bot_scenario/hurt_miner_stays_up/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!looked)
+		looked = TRUE
+		if(!is_station_level(bot.z))
+			fail_reason = "setup: no station floor to stand it on"
+			return BOT_GYM_FAIL
+		var/datum/bot_duty/mining/duty = bot_duty_of(/datum/bot_duty/mining)
+		log_line("the mining round's look returned [duty.try_start(brain)]")
+	var/static/list/mining_errands = list(/datum/bot_goal/ride_mining_shuttle, /datum/bot_goal/acquire_item_type, /datum/bot_goal/dress_for_lavaland)
+	var/datum/bot_goal/G = brain.current_goal
+	if(G && is_type_in_list(G, mining_errands))
+		fail_reason = "set off on a mining errand at [bot.health] health: [G.type]"
+		return BOT_GYM_FAIL
+	for(var/line in transcript) //one taken on and over within the tick shows only in its log
+		if(findtext(line, "for /datum/bot_goal/ride_mining_shuttle") || findtext(line, "for /datum/bot_goal/dress_for_lavaland"))
+			fail_reason = "set off on a mining errand at [bot.health] health: [line]"
+			return BOT_GYM_FAIL
+	return world.time > start_time + 3 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING

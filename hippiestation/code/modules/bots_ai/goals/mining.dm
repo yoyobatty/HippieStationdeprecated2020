@@ -163,6 +163,11 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 		return TRUE
 	if(bot_going_home_soon())
 		return FALSE //nobody sets off for the mine with the shuttle on its way
+	// Too hurt for the mine is too hurt to go back down to it: Medbay first. Lavaland sent it home for it (time_to_head_back()) and the
+	// station sent it straight back down, so it rode the shuttle there and back every two seconds (31 trips for one miner at 24-35 health,
+	// who suffocated aboard: audit batch bm_final3 run2; 20 to 74 instant send-backs a batch since play1114b).
+	if(bot.miner_unfit_for_the_mine())
+		return bot.try_seek_medbay_healing() //goals/self_heal.dm; if it won't go, it doesn't go down either
 	if(world.time < bot.mining_gear_blocked_until)
 		return FALSE
 	var/needed = bot.miner_missing_gear()
@@ -190,6 +195,10 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 		return TRUE
 	if(mining_since && world.time > mining_since + BOT_MINER_TRIP_LIMIT)
 		return TRUE
+	return miner_unfit_for_the_mine()
+
+/// Hurt past half its health, or short of breath: back up to the station from Lavaland, and not down again until it's seen to.
+/datum/bot_brain/proc/miner_unfit_for_the_mine()
 	return owner.health < owner.maxHealth * BOT_MINER_HURT || owner.getOxyLoss() > BOT_MINER_SHORT_OF_BREATH
 
 /// The wildlife: a miner shoots what it can see with the accelerator it carries for that, whatever else it's doing. It doesn't wait

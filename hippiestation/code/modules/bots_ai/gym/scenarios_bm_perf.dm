@@ -514,3 +514,89 @@ GLOBAL_VAR_INIT(bot_gym_vanish_after, text2num(world.params["bot-gym-vanish"]))
 		fail_reason = "the shuttle wouldn't take the call from [dock]"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PENDING
+
+// Coordinator, 2026-11-21: audit batch bm_final3 run2. A miner gasped every time the mining shuttle stopped, at the station's dock and at
+// Lavaland's, and suffocated aboard with 100 kPa of "air" round it and two tanks in its hands it never opened. The first death on the mining
+// shuttle in any batch, and the first batch after the shuttle-dock door-seal change (door_seals.dm). This flies the station's own mining
+// shuttle there and back three times, logs its cabin's pressure and oxygen at every stop, and fails when the cabin can't be breathed
+// (oxygen under 16 kPa, the lungs' floor) at the station's end. Lavaland's own air comes in at the far end whenever its doors open, which is
+// the map's, so that end is logged, not judged. MAP=hippiestation tools/bot_gym/run_bot_gym.sh "mining shuttle's cabin air" 1
+/datum/bot_scenario/mining_shuttle_air_trips
+	name = "perf: the mining shuttle's cabin air over three round trips"
+	desc = "The station's own mining shuttle sent to Lavaland and back three times, nobody aboard. Its cabin's pressure and oxygen are logged at every stop, and the cabin at the station's dock must be breathable."
+	time_limit = 300 SECONDS
+	station_wide = TRUE
+	layout = list(
+		"#####",
+		"#B..#",
+		"#####")
+	var/stage = 0
+	var/next_poll = 0
+	var/last_dock
+	var/not_applicable
+
+/datum/bot_scenario/mining_shuttle_air_trips/make_goal()
+	return null
+
+/datum/bot_scenario/mining_shuttle_air_trips/setup()
+	if(!SSshuttle.getShuttle("mining") || !SSshuttle.getDock("mining_home") || !SSshuttle.getDock("mining_away"))
+		not_applicable = TRUE
+
+/// list(lowest pressure, lowest oxygen kPa) of the cabin's open tiles, logged
+/datum/bot_scenario/mining_shuttle_air_trips/proc/cabin_air(label)
+	var/obj/docking_port/mobile/M = SSshuttle.getShuttle("mining")
+	var/low_p = 1e9
+	var/low_o2 = 1e9
+	var/high_co2 = 0
+	var/tiles = 0
+	for(var/turf/T as anything in M.return_turfs())
+		if(!isopenturf(T) || !M.shuttle_areas[T.loc] || T.type == /turf/open/floor/plating/airless || (locate(/obj/machinery/door) in T) || (locate(/obj/structure/shuttle/engine) in T))
+			continue //its doors' own tiles go with whichever side they seal to (door_seals.dm), not the cabin
+		var/turf/open/O = T
+		var/datum/gas_mixture/air = O.air
+		if(!air)
+			continue
+		tiles++
+		var/pressure = air.return_pressure()
+		var/total = air.total_moles()
+		var/o2 = total ? pressure * air.moles[/datum/gas/oxygen] / total : 0
+		var/co2 = total ? pressure * air.moles[/datum/gas/carbon_dioxide] / total : 0
+		if(o2 < 16)
+			var/list/objs = list()
+			for(var/obj/thing in O)
+				objs += "[thing.type]"
+			log_line("   thin: [bot_coord(O)] [O.type] [round(pressure, 0.1)] kPa ([jointext(objs, ", ")])")
+		low_p = min(low_p, pressure)
+		low_o2 = min(low_o2, o2)
+		high_co2 = max(high_co2, co2)
+	log_line("[label]: at [M.getDockedId() || "nowhere"], [tiles] cabin tiles, lowest [round(low_p, 0.1)] kPa, lowest oxygen [round(low_o2, 0.1)] kPa, most CO2 [round(high_co2, 0.1)] kPa")
+	return list(low_p, low_o2)
+
+/datum/bot_scenario/mining_shuttle_air_trips/check()
+	if(not_applicable)
+		log_line("no mining shuttle and docks on this map: not applicable")
+		return BOT_GYM_PASS
+	var/obj/docking_port/mobile/M = SSshuttle.getShuttle("mining")
+	if(world.time < next_poll)
+		return BOT_GYM_PENDING
+	next_poll = world.time + 1 SECONDS
+	if(M.mode != SHUTTLE_IDLE)
+		return BOT_GYM_PENDING
+	var/dock = M.getDockedId()
+	if(stage && dock == last_dock)
+		return BOT_GYM_PENDING
+	last_dock = dock
+	if(!stage && world.time < start_time + 6 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/got = cabin_air(stage ? "stop [stage]" : "before the first trip")
+	if(dock == "mining_home" && got[2] < 16)
+		fail_reason = "the cabin at the station's dock had [round(got[2], 0.1)] kPa of oxygen at [stage ? "stop [stage]" : "the start"] ([round(got[1], 0.1)] kPa in all)"
+		return BOT_GYM_FAIL
+	if(stage >= 6)
+		return BOT_GYM_PASS
+	stage++
+	if(SSshuttle.moveShuttle("mining", dock == "mining_away" ? "mining_home" : "mining_away", TRUE))
+		fail_reason = "the shuttle wouldn't take the call from [dock]"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
