@@ -398,3 +398,50 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return brain.find_carried_tool(/obj/item/disk/nuclear) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// The announcement said the origin's a Robust Softdrinks, and there are two of those: an engineer goes and listens at the nearer, hears nothing,
+/// goes on to the other, hears it shout, and smashes it. Anybody could be a long way from the one that began it.
+/datum/bot_scenario/duty/rogue_machine/search
+	name = "vending: told the origin was a Robust Softdrinks, an engineer listens at the nearer of two, then the other, and smashes the one that shouts"
+	desc = "Two machines of the name the announcement gave, one five tiles off and one fifteen, out of earshot of each other, in a hall wide enough to get round them. The nearer's quiet; the far one shouts every so often. The engineer goes to the near one, listens, goes on to the far one, hears it and smashes it."
+	layout = list(
+		"#####################",
+		"#B..................#",
+		"#....D..........O...#",
+		"#...................#",
+		"#####################")
+	time_limit = 170 SECONDS
+	var/obj/machinery/vending/cola/decoy
+	var/next_shout = 0
+
+/datum/bot_scenario/duty/rogue_machine/search/setup()
+	duty_type = text2path("/datum/bot_duty/listen_for_rogue_machine") //by name: a build without the duty has none
+	machine = new /obj/machinery/vending/cola(first_marker("O"))
+	decoy = new /obj/machinery/vending/cola(first_marker("D"))
+	machine.shoot_inventory = TRUE
+	event = new /datum/round_event/brand_intelligence(FALSE)
+	event.originMachine = machine
+	if("bot_rampant_suspect" in GLOB.vars)
+		GLOB.vars["bot_rampant_suspect"] = machine.name
+		GLOB.vars["bot_rampant_announced_at"] = world.time
+
+/datum/bot_scenario/duty/rogue_machine/search/post_spawn()
+	..()
+	var/silence = text2path("/datum/bot_duty/silence_machine")
+	if(silence)
+		brain.gym_duties = list(silence) //so that it can drop the listening for the smashing
+
+/datum/bot_scenario/duty/rogue_machine/search/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time >= start_time + 5 SECONDS && world.time >= next_shout)
+		next_shout = world.time + 16 SECONDS
+		machine.speak("Consume!")
+	return QDELETED(machine) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/rogue_machine/search/release_run()
+	if(!QDELETED(decoy))
+		qdel(decoy)
+	if("bot_rampant_suspect" in GLOB.vars)
+		GLOB.vars["bot_rampant_suspect"] = null
+	return ..()

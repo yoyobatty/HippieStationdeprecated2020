@@ -461,14 +461,15 @@ GLOBAL_LIST_EMPTY(bot_vine_reports)
 // heaviest thing they carry. Shutting it up at the panel would be quicker, and it's what a player with a screwdriver and a multitool does,
 // but the wire's colour is something they learn by pulsing the lot, and a toolbox needs no learning.
 
-/// The machine the event started with, once somebody's heard it shouting (a weakref).
-GLOBAL_VAR(bot_rampant_machine_ref)
+/// The machines somebody's heard shouting and called in (REF -> TRUE), so each is called in once.
+GLOBAL_LIST_EMPTY(bot_rampant_known)
 /// How many go at it at once.
 #define BOT_RAMPANT_CUTTERS 3
 
 /datum/bot_brain
-	/// Until when it knows which machine it is.
+	/// Until when it knows which machine it is, and which (a weakref): from hearing it, or off the radio.
 	var/rampant_known_until = 0
+	var/datum/weakref/rampant_ref
 
 /obj/machinery/vending/speak(message)
 	. = ..()
@@ -478,8 +479,7 @@ GLOBAL_VAR(bot_rampant_machine_ref)
 /proc/bot_vending_spoke(obj/machinery/vending/V)
 	if(!length(GLOB.bot_brains) || QDELETED(V) || !V.shoot_inventory)
 		return
-	var/datum/weakref/known = GLOB.bot_rampant_machine_ref
-	if(known?.resolve() == V)
+	if(GLOB.bot_rampant_known[REF(V)])
 		return
 	var/is_the_one = FALSE
 	for(var/datum/round_event/brand_intelligence/E in SSevents.running)
@@ -491,13 +491,14 @@ GLOBAL_VAR(bot_rampant_machine_ref)
 		var/mob/living/carbon/human/H = B.owner
 		if(QDELETED(H) || H.stat != CONSCIOUS || get_dist(H, V) > 7 || !(V in view(7, H)))
 			continue
-		GLOB.bot_rampant_machine_ref = WEAKREF(V)
+		GLOB.bot_rampant_known[REF(V)] = TRUE
 		B.report_rampant_machine(V)
 		return
 
 /// It heard the origin shout: it's that one, and the radio says so.
 /datum/bot_brain/proc/report_rampant_machine(obj/machinery/vending/V)
 	rampant_known_until = world.time + 20 MINUTES
+	rampant_ref = WEAKREF(V)
 	bot_log(src, "[V] is shouting about marketing: that's the one that's gone rogue")
 	bot_tally("rogue machines called in")
 	if(!can_radio())
@@ -505,15 +506,16 @@ GLOBAL_VAR(bot_rampant_machine_ref)
 	var/where = get_area_name(V, TRUE)
 	bot_say(owner, ";[pick("The [V.name] in [where] has gone rogue, it's the one shouting! Smash it!", "[capitalize(where)], the [V.name]! It's the one that's infecting the others, put it down!", "It's the [V.name] in [where]! Somebody smash it before it gets them all!")]")
 	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
-		if(B != src && !QDELETED(B.owner) && B.owner.stat != DEAD && B.can_radio())
+		if(B != src && !QDELETED(B.owner) && B.owner.stat != DEAD && B.can_radio() && (!gym_run || B.gym_run == gym_run))
 			B.rampant_known_until = world.time + 20 MINUTES //heard it on the radio
+			B.rampant_ref = rampant_ref
 
 /// The machine it knows about, if it's still going.
 /datum/bot_brain/proc/rampant_machine()
 	RETURN_TYPE(/obj/machinery/vending)
 	if(world.time >= rampant_known_until)
 		return null
-	var/datum/weakref/ref = GLOB.bot_rampant_machine_ref
+	var/datum/weakref/ref = rampant_ref
 	var/obj/machinery/vending/V = ref?.resolve()
 	if(QDELETED(V) || V.shut_up || !V.shoot_inventory || !isturf(V.loc))
 		return null
@@ -662,3 +664,121 @@ GLOBAL_VAR(bot_rampant_machine_ref)
 	INVOKE_ASYNC(G, TYPE_PROC_REF(/obj/item/gun, afterattack), target, owner, FALSE, null)
 	keep_firing_on(target, "combat")
 	return TRUE
+
+// The announcement tells the whole station what kind of machine it began with ("the origin is believed to be a Booze-O-Mat"), and a person
+// goes and stands by the ones of that name for a while, listening for the one that shouts. Only the bots with the job of putting it down
+// (the same ones), a few at a time, and only while it's going and nobody's found it.
+
+/// What the announcement called the origin, and when.
+GLOBAL_VAR(bot_rampant_suspect)
+GLOBAL_VAR_INIT(bot_rampant_announced_at, -10000)
+/// How long it listens at one.
+#define BOT_RAMPANT_LISTEN (30 SECONDS)
+/// How many go round the candidates at once.
+#define BOT_RAMPANT_LISTENERS 3
+
+/datum/round_event/brand_intelligence/announce(fake)
+	. = ..()
+	if(!fake && originMachine)
+		GLOB.bot_rampant_suspect = originMachine.name
+		GLOB.bot_rampant_announced_at = world.time
+
+/datum/bot_brain
+	/// Machines it's listened at: REF -> not again before.
+	var/list/rampant_checked
+
+/// Whether the event's still going with its machine standing, and nobody on the crew's found which it is.
+/proc/bot_rampant_hunt_on(datum/bot_brain/asking)
+	if(!GLOB.bot_rampant_suspect || world.time > GLOB.bot_rampant_announced_at + 20 MINUTES || asking.rampant_machine())
+		return FALSE
+	for(var/datum/round_event/brand_intelligence/E in SSevents.running)
+		if(!QDELETED(E.originMachine) && !E.originMachine.shut_up)
+			return TRUE
+	return FALSE
+
+/// The nearest machine of the name the announcement gave that it hasn't listened at lately, and can get to.
+/datum/bot_brain/proc/rampant_candidate()
+	RETURN_TYPE(/obj/machinery/vending)
+	var/list/found = list() //machine -> how far off
+	for(var/obj/machinery/vending/V as anything in bot_instances_of(/obj/machinery/vending))
+		if(QDELETED(V) || V.name != GLOB.bot_rampant_suspect || V.z != owner.z || !isturf(V.loc) || LAZYACCESS(rampant_checked, REF(V)) > world.time)
+			continue
+		if(gym_run && get_area(V) != get_area(owner))
+			continue
+		found[V] = get_dist(owner, V)
+	var/tries = 0
+	while(length(found) && tries++ < 5)
+		var/obj/machinery/vending/nearest
+		for(var/obj/machinery/vending/V as anything in found)
+			if(!nearest || found[V] < found[nearest])
+				nearest = V
+		found -= nearest
+		if(gym_run || can_walk_lawfully_to(nearest))
+			return nearest
+	return null
+
+/datum/bot_brain/proc/rampant_listeners()
+	. = 0
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		if(B == src || !istype(B.current_goal, /datum/bot_goal/listen_at_machine))
+			continue
+		if(gym_run && B.gym_run != gym_run)
+			continue
+		.++
+
+/datum/bot_duty/listen_for_rogue_machine
+	name = "listening for the rogue vending machine"
+	tier = BOT_DUTY_URGENT
+	priority = 13
+	interval_min = 50
+	interval_max = 120
+
+/datum/bot_duty/listen_for_rogue_machine/try_start(datum/bot_brain/bot)
+	if(!GLOB.bot_rampant_suspect || bot.gone_loud() || bot.owner.incapacitated() || !bot.cares_about_rampant_machine() || !bot_rampant_hunt_on(bot))
+		return FALSE
+	if(bot.rampant_listeners() >= BOT_RAMPANT_LISTENERS)
+		return FALSE
+	var/obj/machinery/vending/V = bot.rampant_candidate()
+	return V ? bot.assign_goal(new /datum/bot_goal/listen_at_machine(V)) : FALSE
+
+/datum/bot_goal/listen_at_machine
+	lawful = TRUE
+	doing = "listening for the rogue vending machine"
+
+/datum/bot_goal/listen_at_machine/New(obj/machinery/vending/V)
+	. = ..()
+	target = V
+
+/datum/bot_goal/listen_at_machine/resolve_target(datum/bot_brain/bot)
+	if(QDELETED(target))
+		target = null
+
+/datum/bot_goal/listen_at_machine/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/favour/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/listen_at_machine())
+	return list(S)
+
+/// Stands there for a while, and says nothing: if it's the one, the machine's own shout does the rest (bot_vending_spoke()).
+/datum/bot_step/paced/listen_at_machine
+	max_clicks = 40
+	var/until = 0
+
+/datum/bot_step/paced/listen_at_machine/start(datum/bot_brain/bot)
+	until = world.time + BOT_RAMPANT_LISTEN
+	return !QDELETED(bot.current_goal?.target)
+
+/datum/bot_step/paced/listen_at_machine/do_click(datum/bot_brain/bot)
+	if(world.time >= until || bot.rampant_machine() || !bot_rampant_hunt_on(bot))
+		return FALSE
+	bot.idle_fidget()
+	wait_for = 20
+	return TRUE
+
+/datum/bot_step/paced/listen_at_machine/finish(datum/bot_brain/bot)
+	var/obj/machinery/vending/V = bot.current_goal?.target
+	if(V)
+		LAZYSET(bot.rampant_checked, REF(V), world.time + 5 MINUTES)
+	return GOAL_STEP_SUCCESS
+
+#undef BOT_RAMPANT_LISTEN
+#undef BOT_RAMPANT_LISTENERS
