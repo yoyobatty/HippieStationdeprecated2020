@@ -166,7 +166,7 @@ GLOBAL_LIST_INIT(bot_anomalies_worth_it, typecacheof(list(/obj/effect/anomaly/fl
 		if(shell)
 			return step.fetch(bot, shell)
 		var/datum/design/D = SSresearch.techweb_design_by_id("reactive_armour")
-		if(step.stage == "start" && D && P.stored_research?.researched_designs["reactive_armour"] && P.check_mat(D, 1))
+		if(step.stage == "start" && D && P.stored_research?.researched_designs["reactive_armour"] && bot_lathe_can_afford(P, D, 1)) //goals/rnd_bench.dm (check_mat() takes a material, not a count)
 			step.stage = "printing"
 			return bot.suspend_goal_for(new /datum/bot_goal/print_design/for_anomaly(P, D, 1)) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
 		if(step.stage == "printing" && ++step.tries < 6)

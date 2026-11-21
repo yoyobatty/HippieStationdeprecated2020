@@ -271,3 +271,39 @@ GLOBAL_VAR_INIT(bot_gym_vanish_after, text2num(world.params["bot-gym-vanish"]))
 		fail_reason = "the stack read from the exception doesn't name its caller: [seen]"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+// What goals/rnd_analysis.dm's start_science_handout() asked the lathe: P.check_mat(D, 1), which wants a material and read the 1 as the
+// first of the container's materials, a text, so every Scientist's choosing threw once a hand-out was researched (found in 16 shifts).
+/datum/bot_scenario/duty/science_handout
+	name = "perf: a scientist with a hand-out researched and a stocked lathe starts printing it"
+	desc = "Experimental Tools researched (the jaws of life, the hand drill, the experimental welder for Engineering), a protolathe holding every mineral, an R&D console. The scientist's analysing duty goes on to the hand-outs and starts printing one. It used to ask the lathe 'check_mat(design, 1)', which threw 'Cannot read \"$metal\".amount' and ended the whole choosing."
+	duty_type = /datum/bot_duty/rnd_analysis
+	job = "Scientist"
+	time_limit = 60 SECONDS
+	layout = list(
+		"##########",
+		"#B.h.C...#",
+		"#........#",
+		"##########")
+
+/datum/bot_scenario/duty/science_handout/setup()
+	GLOB.bot_science_handouts_given = list()
+	for(var/turf/T in markers["h"])
+		var/obj/machinery/rnd/production/protolathe/L = place("h", new /obj/machinery/rnd/production/protolathe(T))
+		for(var/mat in list(MAT_METAL, MAT_GLASS, MAT_SILVER, MAT_GOLD, MAT_DIAMOND, MAT_URANIUM, MAT_PLASMA, MAT_TITANIUM))
+			L.materials?.mat_container?.insert_amount(MINERAL_MATERIAL_AMOUNT * 10, mat)
+	for(var/turf/T in markers["C"])
+		var/obj/machinery/computer/rdconsole/core/C = place("C", new /obj/machinery/computer/rdconsole/core(T))
+		C.SyncRDevices()
+	SSresearch.science_tech.research_node_id("engineering", TRUE, FALSE)
+	SSresearch.science_tech.research_node_id("emp_basic", TRUE, FALSE)
+	SSresearch.science_tech.research_node_id("adv_engi", TRUE, FALSE)
+	SSresearch.science_tech.research_node_id("exp_tools", TRUE, FALSE)
+
+/datum/bot_scenario/duty/science_handout/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/id in GLOB.bot_science_handouts_given)
+		if(GLOB.bot_science_handouts_given[id])
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING
