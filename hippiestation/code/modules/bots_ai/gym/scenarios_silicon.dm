@@ -217,7 +217,7 @@
 /datum/bot_scenario/griefed/borg/hit/grief()
 	var/obj/item/I = griefer_holds(/obj/item/storage/toolbox/mechanical)
 	griefer_swing(I, borg)
-	addtimer(CALLBACK(src, PROC_REF(griefer_swing), I, borg), 3)
+	gym_after(3, CALLBACK(src, PROC_REF(griefer_swing), I, borg))
 
 /datum/bot_scenario/griefed/borg/hit/check()
 	. = ..()
@@ -319,7 +319,7 @@
 	emitter.setDir(SOUTH)
 
 /datum/bot_scenario/griefed/borg/out_of_beam/grief()
-	addtimer(CALLBACK(src, PROC_REF(light_it)), 10)
+	gym_after(10, CALLBACK(src, PROC_REF(light_it)))
 
 /datum/bot_scenario/griefed/borg/out_of_beam/proc/light_it()
 	if(result != BOT_GYM_PENDING || QDELETED(emitter))

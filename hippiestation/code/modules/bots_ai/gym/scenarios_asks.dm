@@ -54,7 +54,7 @@
 	var/datum/bot_goal/walk_up_to/G = new(first_marker("G"))
 	brain.gym_scripted = FALSE
 	brain.assign_goal(G)
-	addtimer(CALLBACK(src, PROC_REF(visitor_says), "[bot.first_name()], wait!"), 5)
+	gym_on_step(1, CALLBACK(src, PROC_REF(visitor_says), "[bot.first_name()], wait!"))
 
 /datum/bot_scenario/chat/waits/check()
 	if(bot_lost())
@@ -512,7 +512,7 @@
 		return
 	if(brain.set_down_items && brain.state == BOT_STATE_WANDER)
 		brain.go_back_for_set_down()
-	addtimer(CALLBACK(src, PROC_REF(go_back_tick)), 1)
+	gym_after(1, CALLBACK(src, PROC_REF(go_back_tick)))
 
 /datum/bot_scenario/set_down_two/make_goal()
 	return null
@@ -956,7 +956,7 @@
 	var/went = FALSE
 
 /datum/bot_scenario/floor_goes/post_spawn()
-	addtimer(CALLBACK(src, PROC_REF(open_up)), 3)
+	gym_on_step(1, CALLBACK(src, PROC_REF(open_up)))
 
 /datum/bot_scenario/floor_goes/proc/open_up()
 	for(var/turf/T in markers["x"])

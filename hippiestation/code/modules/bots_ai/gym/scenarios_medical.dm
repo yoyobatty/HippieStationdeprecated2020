@@ -128,7 +128,7 @@
 
 /datum/bot_scenario/patient/walked_on/post_spawn()
 	..()
-	addtimer(CALLBACK(src, PROC_REF(stroll_off)), 8)
+	gym_on_step(1, CALLBACK(src, PROC_REF(stroll_off)))
 
 /datum/bot_scenario/patient/walked_on/proc/stroll_off()
 	if(result != BOT_GYM_PENDING || QDELETED(patient))

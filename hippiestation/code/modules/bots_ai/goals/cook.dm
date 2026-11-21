@@ -386,7 +386,12 @@ GLOBAL_LIST_INIT(bot_cook_menu, init_bot_cook_menu())
 			// in it goes down for a moment, as it does for an ingredient off the floor); after that, only as many as there's somewhere for.
 			if(taken && !bot.has_room_for(I))
 				break
+			var/held_before = bot.held_item_count()
 			bot.make_hand_free()
+			if(bot.held_item_count() < held_before) //a hand emptied for it is an input of its own, and the button is the next (hand_beat(), bot_human.dm)
+				bot.hand_beat()
+				if(QDELETED(fridge) || QDELETED(I) || I.loc != fridge || !bot.owner.Adjacent(fridge))
+					break
 			bot.owner.face_atom(fridge)
 			bot.telemetry_ui_action(fridge, "release [I.name]")
 			if(!bot.owner.put_in_hands(I))

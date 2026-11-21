@@ -145,8 +145,8 @@
 
 /datum/bot_scenario/chat/tags_along/post_spawn()
 	..()
-	addtimer(CALLBACK(src, PROC_REF(visitor_says), "Follow me."), 1 SECONDS)
-	addtimer(CALLBACK(src, PROC_REF(walk_on)), 4 SECONDS)
+	gym_after(1 SECONDS, CALLBACK(src, PROC_REF(visitor_says), "Follow me."))
+	gym_after(4 SECONDS, CALLBACK(src, PROC_REF(walk_on)))
 
 /datum/bot_scenario/chat/tags_along/proc/walk_on()
 	if(result != BOT_GYM_PENDING || QDELETED(visitor))
@@ -155,7 +155,7 @@
 		return
 	visitor.setDir(EAST)
 	step(visitor, EAST)
-	addtimer(CALLBACK(src, PROC_REF(walk_on)), 4)
+	gym_after(4, CALLBACK(src, PROC_REF(walk_on)))
 
 /datum/bot_scenario/chat/tags_along/check()
 	if(bot_lost())
