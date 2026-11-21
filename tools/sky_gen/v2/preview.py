@@ -85,7 +85,8 @@ class Piece:
         self.steps = []
         self.spin = None  # (period, first angle, size): SSparallax.spin(), turned by angle (BYOND takes a turn apart)
         self.parallel = []  # a second chain run alongside (ANIMATION_PARALLEL)
-        self.overlay, self.pixel, self.turning = False, (0, 0), None  # drawn over (BLEND_OVERLAY), pixel_x/y, prism turn
+        self.overlay, self.pixel, self.turning = False, (0, 0), None
+        self.multiply = False  # BLEND_MULTIPLY: dst * (1 - a + a * src), white leaves it as it is  # drawn over (BLEND_OVERLAY), pixel_x/y, prism turn
         sim.pieces.append(self)
 
     def animate(self, time, easing=None, loop=False, parallel=False, **changes):
@@ -181,8 +182,9 @@ def on_path(path, f, face, lead=0, size=1, flip=1):
     return sky_at(hx - cos(face) * lead * size, hy + sin(face) * lead * size, face, size, size * flip)
 
 
-def sky_clearance(s, x, y, solid=False):
-    return min(math.hypot(x - px, y - py) - reach for name, (px, py, reach) in s.places.items() if not (solid and name.startswith('deep')))
+def sky_clearance(s, x, y, solid=False, lavaland=True):
+    out = min(math.hypot(x - px, y - py) - reach for name, (px, py, reach) in s.places.items() if not (solid and name.startswith('deep')))
+    return min(out, lavaland_clearance(s, x, y)) if lavaland else out  # Lavaland's drawn over the fly-bys
 
 
 def path_clearance(s, path, tail=0, solid=False):
@@ -260,6 +262,17 @@ def send_ship(s, kind, time=None):
 def send_comet(s, time=None, through_middle=False, break_at=None):
     time = time or s.rand(2400, 3300)
     path = clear_path(s, 0, 90, 400, 170) if through_middle else clear_path(s, 0, 160, 400, 170)
+    if break_at:
+        best = -math.inf
+        for attempt in range(20):
+            maybe = path if attempt == 0 else clear_path(s, 0, 90, 400, 170)
+            ax = maybe[0] + maybe[2] * maybe[4] * (2 * break_at - 1)
+            ay = maybe[1] + maybe[3] * maybe[4] * (2 * break_at - 1)
+            clear = min(lavaland_clearance(s, ax, ay) - 60, path_clearance(s, maybe, 170) + 30)
+            if clear > best:
+                best, path = clear, maybe
+            if clear >= 0:
+                break
     sun = s.places['sun']
     toward = arctan(sun[0] - path[0], sun[1] - path[1])
     face = -toward
@@ -322,8 +335,15 @@ def start_vortex(s, peak=None):
     far.animate(fade, 'sine', alpha=170)
     far.animate(peak)
     far.animate(fade, 'sine', alpha=0)
+    near_angle = s.rand(0, 359)
+    shroud = Piece(s, 'vortex_shroud', life, -3.05)
+    shroud.multiply = True
+    shroud.spin = (2400, near_angle, 3.4)
+    shroud.animate(fade, 'sine', alpha=255)
+    shroud.animate(peak)
+    shroud.animate(fade, 'sine', alpha=0)
     near = Piece(s, 'vortex', life, -2.9)
-    near.spin = (2400, s.rand(0, 359), 3.4)
+    near.spin = (2400, near_angle, 3.4)
     near.animate(fade, 'sine', alpha=215)
     near.animate(peak)
     near.animate(fade, 'sine', alpha=0)
@@ -379,21 +399,21 @@ def start_shower(s, length=4200):
                 clear += 1
         if clear > best:
             best, rx, ry = clear, x, y
-    for _ in range(s.rand(850, 950)):
-        s.addtimer(lambda: shower_meteor(s, rx, ry), min(0.99, max(0.01, s.rng.normal(0.5, 0.22))) * length)
+    for _ in range(s.rand(1600, 1800)):
+        s.addtimer(lambda: shower_meteor(s, rx, ry), min(0.99, max(0.01, s.rng.normal(0.5, 0.17))) * length)
     s.radiant = (rx, ry)
     return length
 
 
 def shower_meteor(s, rx, ry):
     path = None
-    for _ in range(8):
+    for _ in range(12):
         ax, ay = s.rand(-280, 280), s.rand(-220, 220)
         dx, dy = ax - rx, ay - ry
         dist = math.hypot(dx, dy)
         start = s.rand(0, 90)
         maybe = [rx + dx / dist * (start + 450), ry + dy / dist * (start + 450), dx / dist, dy / dist, 450]
-        if path_clearance(s, maybe, 0, True) >= 0:
+        if lavaland_clearance(s, ax, ay) >= 0:
             path = maybe
             break
     if not path:
@@ -437,16 +457,21 @@ def supernova_flash(s, x, y):
     r = Piece(s, 'remnant', 0, -0.2)
     r.transform = sky_at(x, y, turn, 0.1)
     r.animate(60, alpha=0)
-    r.animate(3000, 'sine', alpha=185, transform=sky_at(x, y, turn, 0.45))
-    r.animate(15000, alpha=150, transform=sky_at(x, y, turn, 0.85))
+    r.animate(3000, 'sine', alpha=230, transform=sky_at(x, y, turn, 0.7))
+    r.animate(15000, alpha=190, transform=sky_at(x, y, turn, 1.1))
 
 
 def start_battle(s, time=None):
     fade = 450
     time = time or s.rand(3000, 4200) + fade * 2
     mx, my = clear_place(s, 0, 70, 110)
+    short = 70 - lavaland_clearance(s, mx, my)
+    if short > 0:
+        sun = s.places['sun']
+        away = arctan(-sun[0], -sun[1])
+        mx, my = mx - cos(away) * short, my - sin(away) * short
     line = s.rand(-25, 25) + s.pick([0, 180])
-    gap = s.rand(75, 95)
+    gap = s.rand(105, 130)
     sides = [[mx - cos(line) * gap, my + sin(line) * gap, line, '#ffb48c', 'fleet_a'],
              [mx + cos(line) * gap, my - sin(line) * gap, line + 180, '#9edcff', 'fleet_b']]
     for side in sides:
@@ -546,7 +571,8 @@ def start_prism(s, time=None):
     wind = s.rand(0, 359)
     halo = Piece(s, 'prism_halo', time + 5, -3)
     halo.transform = sky_at(sun[0], sun[1], wind, 1.25)
-    halo.animate(fade).animate(1200, 'sine', alpha=110).animate(time - fade * 3 - 1200).animate(fade * 2, 'sine', alpha=0)
+    hold = max(0, time * 0.6 - fade - 1200)  # the halo goes as the crystals thin out
+    halo.animate(fade).animate(1200, 'sine', alpha=110).animate(hold).animate(time - fade - 1200 - hold, 'sine', alpha=0)
     for _ in range(s.rand(60, 72)):
         depth = s.rand(0, 100) / 100
         crossing = round(1900 - 1150 * depth)
@@ -613,7 +639,7 @@ def prism_speck(s):
 def lavaland_clearance(s, x, y):
     sun = s.places['sun']
     away = arctan(-sun[0], -sun[1])
-    return math.hypot(x - cos(away) * 210, y - sin(away) * 210) - 52 - 12
+    return math.hypot(x - cos(away) * 210, y - sin(away) * 210) - 150  # SKY_PLANET_CORE
 
 
 def giant_clearance(s, x, y, light, size):
@@ -623,7 +649,7 @@ def giant_clearance(s, x, y, light, size):
     for along in range(0, 360, 15):
         ax, ay = cos(along) * major, sin(along) * minor
         px, py = x + cos(light + 32) * ax + cos(light + 122) * ay, y + sin(light + 32) * ax + sin(light + 122) * ay
-        out = min(out, sky_clearance(s, px, py, True), sky_clearance(s, px, py) + 40, lavaland_clearance(s, px, py))
+        out = min(out, sky_clearance(s, px, py, True, False), sky_clearance(s, px, py, False, False) + 40, lavaland_clearance(s, px, py) + 80)
     return out
 
 
@@ -633,13 +659,13 @@ def start_giant(s, time=None):
     sun = s.places['sun']
     away = arctan(-sun[0], -sun[1])
     best, x, y, size, light = -math.inf, 0, 0, 0, 0
-    for try_size in (0.76, 0.64, 0.54):
+    for try_size in (0.9, 0.76, 0.64):
         first = s.rand(0, 11) * 30
         for turn in range(12):
-            for out in (40, 75, 105):
+            for out in (40, 75, 110, 150, 185):
                 cx, cy = cos(first + turn * 30) * out * 1.1, sin(first + turn * 30) * out * 0.9
                 toward = arctan(sun[0] - cx, sun[1] - cy)
-                score = min(giant_clearance(s, cx, cy, toward, try_size), 40) - out * 0.15
+                score = min(giant_clearance(s, cx, cy, toward, try_size), 40) - out * 0.06
                 if score > best:
                     best, x, y, size, light = score, cx, cy, try_size, toward
         if best >= 0:
@@ -759,7 +785,10 @@ class Renderer:
             px = (e * u - b * v) / det + n / 2
             py = (-d * u + a * v) / det + n / 2
             sample = bilinear(img, px - 0.5, n - py - 0.5)
-            if P.overlay:
+            if P.multiply:
+                a_ = st['alpha'] / 255.0
+                view = view * (1 - a_ + a_ * sample[..., :3] * st['color'])
+            elif P.overlay:
                 a_ = sample[..., 3:4] * (st['alpha'] / 255.0)
                 view = view * (1 - a_) + sample[..., :3] * st['color'] * a_
             else:

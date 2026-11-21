@@ -266,21 +266,42 @@ def remnant(seed=401):
 
 # ---------------------------------------------------------------- a far-off battle
 
-def fleet(frame, seed):
-    """A battle line, small: a dozen hulls catching light, drive glows, the odd one firing. White: the game tints each side."""
+def fleet(frame, seed, ships=16):
+    """A battle line: small lit hulls pointing east (the game turns each side to face the other), each with a drive glow at its
+    stern and a sunlit edge, one capital ship three times their size, and the odd muzzle flash. White: the game tints each side.
+    (Real-client check 2026-11-21: single-pixel ships read as dots; these read as ships at the size the game draws them.)"""
     rng = np.random.default_rng(seed)
     flick = np.random.default_rng(seed * 10 + frame)
-    canvas = np.zeros((EV, EV, 3))
-    for k in range(13):
-        x = C + rng.normal(0, 13)
-        y = C + rng.normal(0, 6)
-        size = rng.uniform(0.6, 1.2) if k else 1.8
-        splat(canvas, int(x), int(y), np.array([1.0, 1.0, 1.0]), 0.55 * size, 0.06 * size, 1.0)
-        splat(canvas, int(x) - 1, int(y), np.array([0.7, 0.8, 1.0]), 0.25 * flick.uniform(0.5, 1.0))
-        if flick.uniform() < 0.18:
-            splat(canvas, int(x) + 1, int(y), np.array([1.0, 1.0, 1.0]), 1.0, 0.35, 1.6)
     xx, yy = grid()
-    return canvas * edge(xx, yy)[..., None]
+    lit = np.zeros((EV, EV))
+    drive = np.zeros((EV, EV))
+    flash_ = np.zeros((EV, EV))
+    placed = []
+    for k in range(ships):
+        for _ in range(30):  # a loose line, no two hulls on top of each other
+            x = C + rng.normal(0, 30)
+            y = C + rng.normal(0, 14)
+            if all(np.hypot(x - px, y - py) > 12 for px, py in placed):
+                break
+        placed.append((x, y))
+        length = 24.0 if k == 0 else rng.uniform(8.0, 14.0)
+        width = length * (0.30 if k == 0 else 0.34)
+        u, v = (xx - x) / (length / 2), (yy - y) / (width / 2)
+        taper = 1 - 0.55 * smoothstep(0.1, 1.0, u)  # a pointed bow, a blunt stern
+        body = smoothstep(1.05, 0.75, np.hypot(u, v / np.maximum(taper, 0.2)))
+        edge_ = body * smoothstep(0.1, -0.9, v)  # the sunlit side
+        lit += body * 0.55 + edge_ * 0.65
+        if k == 0:  # a capital ship's superstructure: a lit ridge and a few lights along it
+            lit += np.exp(-((v + 0.1) / 0.18) ** 2) * (np.abs(u) < 0.6) * body * 0.45
+        sx = x - length / 2
+        drive += np.exp(-(((xx - sx) / 1.4) ** 2 + ((yy - y) / 1.1) ** 2)) * flick.uniform(0.7, 1.0) * (1.4 if k == 0 else 1.0)
+        drive += np.exp(-(((xx - sx + 2.5) / 3.0) ** 2 + ((yy - y) / 1.0) ** 2)) * 0.16  # its exhaust
+        if flick.uniform() < 0.2:
+            fx = x + length / 2
+            flash_ += np.exp(-((xx - fx) ** 2 + (yy - y) ** 2) / 1.2) * 1.4 + np.exp(-((xx - fx) ** 2 + (yy - y) ** 2) / 9.0) * 0.3
+    hull = blur_plain(col(np.clip(lit, 0, 1.2), (0.92, 0.94, 1.0)), 0.4)
+    img = hull + col(drive, (0.75, 0.85, 1.0)) + col(flash_, (1.0, 1.0, 1.0))
+    return img * edge(xx, yy)[..., None]
 
 
 def bolt(length=18.0):
@@ -414,7 +435,7 @@ def puff(seed=601):
 
 # ---------------------------------------------------------------- the maelstrom: an ion vortex opening over the station
 
-def vortex(seed=901, arms=3, wind=5.0, inner=(0.86, 0.95, 1.00), mid=(0.52, 0.62, 1.00), outer=(0.58, 0.36, 0.86), power=0.62):
+def vortex(seed=901, arms=3, wind=5.0, inner=(0.80, 0.92, 1.00), mid=(0.46, 0.58, 1.00), outer=(0.56, 0.32, 0.88), power=0.70, sharp=3.2):
     """A storm of glowing gas wound into a spiral round a dark eye, filling the frame when the game draws it three times over:
     log-spiral arms (arms of them, wound wind radians per e-fold) with clear dark lanes between, broken into soft billows
     rather than grain, hot white-cyan at the eye's rim, periwinkle through the middle, violet at the edge. No light at all in
@@ -425,12 +446,12 @@ def vortex(seed=901, arms=3, wind=5.0, inner=(0.86, 0.95, 1.00), mid=(0.52, 0.62
     theta = np.arctan2(dy, dx)
     bend = (sample_wrap(spectral(EV, 3.2, seed, 1, 8), xx, yy) - 0.5) * 1.2
     phase = arms * theta + wind * np.log(r) + bend
-    arm = (0.5 + 0.5 * np.cos(phase)) ** 2.4
+    arm = (0.5 + 0.5 * np.cos(phase)) ** sharp  # sharp: narrow arms, wide dark lanes (real-client check 2026-11-21: 2.4 read as haze)
     # filaments combed along each arm (lines of the same phase), so it holds detail drawn three times over
     comb = sample_wrap(spectral(EV, 1.8, seed + 2, 4, 40), xx + 20 * np.cos(phase), yy + 20 * np.sin(phase))
-    arm = arm * (0.62 + 0.38 * (0.5 + 0.5 * np.cos(phase * 6 + comb * 6)))
+    arm = arm * (0.50 + 0.50 * (0.5 + 0.5 * np.cos(phase * 6 + comb * 6)))
     billow = 0.55 + 0.75 * sample_wrap(spectral(EV, 3.0, seed + 1, 2, 14), xx + 12 * np.cos(phase), yy + 12 * np.sin(phase))
-    veil = 0.10 * (0.5 + 0.5 * np.cos(phase * 0.5 + 1.0))  # a faint haze in the lanes, so the arms sit in something
+    veil = 0.04 * (0.5 + 0.5 * np.cos(phase * 0.5 + 1.0))  # a faint haze in the lanes, so the arms sit in something
     eye = smoothstep(0.05, 0.17, r)
     edge_fall = smoothstep(1.0, 0.78, r)
     # the eye isn't empty: thin wisps of the arms' gas wind on into it, faint, the stars showing between them
@@ -444,13 +465,33 @@ def vortex(seed=901, arms=3, wind=5.0, inner=(0.86, 0.95, 1.00), mid=(0.52, 0.62
     return blur_plain(img, 0.8) * round_edge(xx, yy, 10)[..., None]
 
 
+def vortex_shroud(seed=901, arms=3, wind=5.0, lanes=0.50, body=0.20, eye_keep=0.85):
+    """What the maelstrom's dust hides: a multiply layer (white leaves the sky as it is) turned with the near arms, darkest in
+    their lanes, so the storm reads as one thing over a bright nebula instead of milk laid on it (real-client check
+    2026-11-21: additive arms alone washed out over the ember sky). body darkens the whole storm, lanes the gaps between the
+    arms on top; the eye keeps eye_keep of the stars."""
+    xx, yy = grid()
+    dx, dy = (xx - C) / (EV / 2), (yy - C) / (EV / 2)
+    r = np.hypot(dx, dy) + 1e-6
+    theta = np.arctan2(dy, dx)
+    bend = (sample_wrap(spectral(EV, 3.2, seed, 1, 8), xx, yy) - 0.5) * 1.2  # the same field vortex(seed) bends its arms by
+    phase = arms * theta + wind * np.log(r) + bend
+    lane = (0.5 - 0.5 * np.cos(phase)) ** 1.6  # 1 mid-lane, 0 on an arm
+    lumps = 0.75 + 0.5 * sample_wrap(spectral(EV, 3.0, seed + 5, 2, 12), xx + 10 * np.cos(phase), yy + 10 * np.sin(phase))
+    storm = smoothstep(0.98, 0.55, r)  # soft all the way out: no edge to its shadow
+    eye = smoothstep(0.06, 0.20, r)
+    dark = (body + lanes * lane * lumps) * storm * (eye + (1 - eye) * (1 - eye_keep))
+    dark = blur_plain(np.clip(dark, 0, 0.92)[..., None].repeat(3, axis=2), 1.2)
+    return 1 - dark
+
+
 def vortex_eye():
     """The eye's rim: a soft bright ring where the arms wind in, the hole inside left dark. The game pulses it."""
     xx, yy = grid()
     r = np.hypot(xx - C, yy - C) / (EV / 2)
     theta = np.arctan2(yy - C, xx - C)
     broken = 0.65 + 0.35 * np.cos(theta * 3 + 4 * np.log(r + 1e-3))  # the rim's brightest where the arms come in
-    ring_ = np.exp(-((r - 0.15) / 0.045) ** 2) * 0.50 * broken + np.exp(-((r - 0.19) / 0.12) ** 2) * 0.16
+    ring_ = np.exp(-((r - 0.15) / 0.040) ** 2) * 0.70 * broken + np.exp(-((r - 0.19) / 0.12) ** 2) * 0.16
     return col(ring_ * smoothstep(0.05, 0.12, r), (0.80, 0.92, 1.00)) * round_edge(xx, yy, 20)[..., None]
 
 
@@ -518,8 +559,9 @@ def build_tiles():
     out['aurora'] = [additive_image(aurora(f / AURORA_FRAMES), 790 + f) for f in range(AURORA_FRAMES)]
     out['puff'] = additive_image(puff(), 799)
     out['vortex'] = additive_image(vortex(), 801)
-    out['vortex_far'] = additive_image(vortex(911, 2, 3.4, (0.70, 0.80, 1.0), (0.42, 0.48, 0.95), (0.50, 0.30, 0.78), 0.42), 802)
+    out['vortex_far'] = additive_image(vortex(911, 2, 3.4, (0.60, 0.62, 1.0), (0.38, 0.36, 0.92), (0.46, 0.24, 0.76), 0.30, 2.6), 802)  # dimmer and violet: a backdrop, so the near arms' lanes stay dark
     out['vortex_eye'] = additive_image(vortex_eye(), 803)
+    out['vortex_shroud'] = additive_image(vortex_shroud(), 804)  # drawn BLEND_MULTIPLY
     out['lightning'] = additive_image(lightning(931), 804)
     out['lightning2'] = additive_image(lightning(941), 805)
     import events2

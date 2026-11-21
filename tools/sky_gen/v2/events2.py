@@ -75,15 +75,17 @@ def prism_shard(frame, length, width, back, seed):
     ys = [C - half_w, C - half_w / 3, C + half_w / 3, C + half_w]  # the three faces' long edges
     jag = rng.uniform(-0.25, 0.25, 4) * half_w
     back_x = [x0 + tip * back + j for j in jag]  # the back end: pointed, or broken off unevenly
+    taper = 0.70  # the column narrows toward its back: a crystal, not a box (real-client check 2026-11-21)
+    bs = [C + (y - C) * taper for y in ys]  # the faces' long edges at the back
     front = (x1, C + rng.uniform(-0.1, 0.1) * half_w)
     faces = []
     for k in range(3):
         a, b = ys[k], ys[k + 1]
-        faces.append([(back_x[k], a), (x1 - tip, a), (x1 - tip, b), (back_x[k + 1], b)])
+        faces.append([(back_x[k], bs[k]), (x1 - tip, a), (x1 - tip, b), (back_x[k + 1], bs[k + 1])])
     caps = [[(x1 - tip, ys[k]), front, (x1 - tip, ys[k + 1])] for k in range(3)]
     if back > 0.3:
         back_tip = (x0, C)
-        caps += [[(back_x[k], ys[k]), back_tip, (back_x[k + 1], ys[k + 1])] for k in range(3)]
+        caps += [[(back_x[k], bs[k]), back_tip, (back_x[k + 1], bs[k + 1])] for k in range(3)]
     turn = frame / SHARD_FRAMES * 2 * np.pi
     body = np.zeros((EV, EV))
     xx, yy = grid()
@@ -96,30 +98,32 @@ def prism_shard(frame, length, width, back, seed):
         body += _down(_poly_mask(face, ss), ss) * lit
     body *= pool * streaks
     # facet edges: the outline bright, the inner ridges fainter
-    outline = [((back_x[0], ys[0]), (x1 - tip, ys[0])), ((x1 - tip, ys[0]), front), (front, (x1 - tip, ys[3])),
-               ((x1 - tip, ys[3]), (back_x[3], ys[3]))]
+    outline = [((back_x[0], bs[0]), (x1 - tip, ys[0])), ((x1 - tip, ys[0]), front), (front, (x1 - tip, ys[3])),
+               ((x1 - tip, ys[3]), (back_x[3], bs[3]))]
     if back > 0.3:
-        outline += [((back_x[0], ys[0]), (x0, C)), ((x0, C), (back_x[3], ys[3]))]
+        outline += [((back_x[0], bs[0]), (x0, C)), ((x0, C), (back_x[3], bs[3]))]
     else:
-        outline += [((back_x[k], ys[k]), (back_x[k + 1], ys[k + 1])) for k in range(3)]
-    ridges = [((back_x[k], ys[k]), (x1 - tip, ys[k])) for k in (1, 2)] + [((x1 - tip, ys[0]), (x1 - tip, ys[3]))]
+        outline += [((back_x[k], bs[k]), (back_x[k + 1], bs[k + 1])) for k in range(3)]
+    # only the two long ridges: the cross ridge at the shoulder drew a box's end
+    ridges = [((back_x[k], bs[k]), (x1 - tip, ys[k])) for k in (1, 2)]
     # an edge is bright where it faces the light as the crystal turns, and all but gone where it doesn't
     segs = [(seg, 0.30 + 0.70 * max(0.0, np.cos(turn - i * 1.1)) ** 2) for i, seg in enumerate(outline)]
-    segs += [(seg, 0.18 + 0.35 * max(0.0, np.cos(turn - 2.0 - i * 2.1)) ** 2) for i, seg in enumerate(ridges)]
+    segs += [(seg, 0.10 + 0.30 * max(0.0, np.cos(turn - 2.0 - i * 2.1)) ** 2) for i, seg in enumerate(ridges)]
     lines = _down(_lines(segs, ss, 1.0), ss)
-    # light inside the glass: two faint caustic streaks across it
-    caust = []
-    for _ in range(2):
-        cx = rng.uniform(x0 + length * 0.2, x1 - length * 0.3)
-        caust.append((((cx, ys[0] + 2), (cx + rng.uniform(-0.6, 0.6) * width, ys[3] - 2)), 0.35))
-    inner = _down(_lines(caust, ss, 0.8), ss) * (0.6 + 0.4 * np.cos(turn * 2))
+    # light inside the glass: soft glints that slide along it as it turns (lines across it read as a wire frame's ribs)
+    inner = np.zeros((EV, EV))
+    for _ in range(3):
+        gx = rng.uniform(x0 + length * 0.15, x1 - length * 0.25) + np.cos(turn + rng.uniform(0, 6.3)) * length * 0.12
+        gy = C + rng.uniform(-0.4, 0.4) * half_w
+        inner += np.exp(-(((xx - gx) / (length * 0.22)) ** 2 + ((yy - gy) / (width * 0.05)) ** 2))  # a thin streak along it
+    inner *= (body > 0.01) * (0.15 + 0.30 * max(0.0, np.cos(turn * 2)))
     # colour split at the edges: red pushed one way, violet the other (a prism does this to light)
     fringe = np.zeros((EV, EV, 3))
     for t, shift in ((0.0, -1.6), (0.25, -0.8), (0.5, 0.0), (0.75, 0.8), (1.0, 1.6)):
         moved = np.roll(blur(lines, 0.9), int(round(shift)), axis=0)
-        fringe += moved[..., None] * soft_spectrum(t, 0.15) * 0.30
+        fringe += moved[..., None] * soft_spectrum(t, 0.15) * 0.36
     glass = (0.82, 0.92, 1.0)
-    img = col(body * 0.80, glass) + col(lines * 0.55, (1.0, 1.0, 1.0)) + fringe + col(inner, (0.85, 0.95, 1.0))
+    img = col(body * 1.05, glass) + col(lines * 0.38, (1.0, 1.0, 1.0)) + fringe + col(inner, (0.85, 0.95, 1.0))
     img += col(blur(lines + body * 0.6, 5.0) * 0.30, (0.70, 0.82, 1.0))
     return blur_plain(img, 0.35) * edge(xx, yy, 8)[..., None]
 
