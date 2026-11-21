@@ -358,3 +358,47 @@
 	. = ..()
 	if(H.bot_brain)
 		H.bot_brain.being_issued_kit = FALSE
+
+// ---------------------------------------------------------------------------------------------
+// Midround events
+// ---------------------------------------------------------------------------------------------
+
+// A random event wants a number of players aboard (its min_players: the blob 20, a meteor wave 15, spiders 15, space vines 10, a disease
+// 10), and counts them with get_active_player_count(): alive, awake humans WITH A CLIENT. The bot crew have none, so a round of twenty
+// bots and one person was a round of one for every event: no vines, no meteors, no blob, no spiders in any live round, and the blob,
+// dragon and morph the bots stand in for (goals/ghost_roles.dm) had no event to run in. Each bot aboard now counts as a player, in a live
+// round. Bot Shifts and the Gym keep counting clients only, so their numbers stay what they were, unless they ask with bot-events-count=on.
+// BOT_EVENTS_COUNT 0 in the config puts a live round back as it was.
+
+/// The Bot Gym's switch for the scenario that checks the count: null is the real rule below.
+GLOBAL_VAR(bot_events_count_test)
+
+/// Whether the bot crew count towards an event's minimum players.
+/proc/bot_crew_counts_for_events()
+	if(!isnull(GLOB.bot_events_count_test))
+		return GLOB.bot_events_count_test
+	var/param = world.params["bot-events-count"]
+	if(param == "off")
+		return FALSE
+	if((BOT_GYM_PARAMETER in world.params) || (BOT_SHIFT_PARAMETER in world.params))
+		return param == "on"
+	return !!CONFIG_GET(number/bot_events_count)
+
+/// The bot crew up and about: station crew, alive and not logged off, as get_active_player_count() would count a person.
+/proc/bot_crew_active_count()
+	. = 0
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		var/mob/living/carbon/human/H = B.owner
+		if(QDELETED(H) || H.stat == DEAD || H.bot_logged_off || !H.mind?.assigned_role || !SSjob.GetJob(H.mind.assigned_role))
+			continue
+		.++
+
+/// Events that still want people: the bot crew hasn't beaten one yet. A blob in the live rounds of 2026-11-03..10 won every time, 35 of 30
+/// crew dead in about half an hour (live_round n3_blob, n4_blob), so a blob event stays for a round with the people to fight it until
+/// that's been put right. Take it out of the list when the crew beats it in a Bot Shift (bot-event=Blob@6).
+GLOBAL_LIST_INIT(bot_events_people_only, typecacheof(list(/datum/round_event_control/blob)))
+
+/datum/round_event_control/canSpawnEvent(players_amt, gamemode)
+	if(bot_crew_counts_for_events() && !GLOB.bot_events_people_only[type])
+		players_amt += bot_crew_active_count()
+	return ..(players_amt, gamemode)

@@ -204,3 +204,244 @@ GLOBAL_LIST_INIT(bot_anomalies_worth_it, typecacheof(list(/obj/effect/anomaly/fl
 
 /datum/bot_goal/print_design/for_anomaly/on_give_up(datum/bot_brain/bot)
 	return
+
+// ---------------------------------------------------------------------------------------------
+// Space vines
+// ---------------------------------------------------------------------------------------------
+//
+// The Spacevine event grows a vine in a hallway and it spreads from there, some of it worse than a nuisance: hardened vines stand
+// across a corridor (density), some drink the oxygen out of a room, some set off a small blast where they spread. Among players it's
+// whoever's about with something sharp: the botanist, the janitor, an assistant with a hatchet, an engineer with the axe, and once it's
+// all over the halls the officers too. Nobody on the bot crew ever did anything about it (batches show the event is one of the likelier
+// at twenty crew: weight 15, from ten players).
+//
+//  - One who sees them calls it in on the radio, once in a while.
+//  - Botanists, janitors and engineers take it on as their business; others by temperament, and everybody once it's grown.
+//  - A few at a time, each with the heaviest thing they carry (a vine has 50 integrity, and a sharp edge counts four times over:
+//    attacked_by() in spacevine.dm), working along from the nearest vine to the next.
+//  - Not Hydroponics' own: that's the botanist's garden.
+
+/// How many bots go at the vines at once.
+#define BOT_VINE_CUTTERS 4
+/// And how far off they'll go for one.
+#define BOT_VINE_RANGE 45
+/// Once they're this many, everybody's business.
+#define BOT_VINE_EVERYBODYS 25
+/// Officers join in at this many.
+#define BOT_VINE_OFFICERS 8
+
+/// When somebody last called vines in on the radio.
+GLOBAL_VAR_INIT(bot_vines_called_at, -10000)
+/// Area -> when somebody last saw vines there. Nobody goes for vines they've not seen or been told of: a bot in Cargo doesn't know the
+/// halls in Medbay have them, any more than a person does.
+GLOBAL_LIST_EMPTY(bot_vine_reports)
+/// How long a sighting stands for.
+#define BOT_VINE_KNOWN_FOR (15 MINUTES)
+
+/datum/bot_brain
+	/// Not before this, after a go at the vines that came to nothing.
+	var/vine_rest_until = 0
+	var/next_vine_look = 0
+	/// Vines cut this round.
+	var/vines_cut = 0
+
+/// The look round the room (bot_witness.dm), and then a look for vines in sight.
+/datum/bot_brain/keep_an_eye_out()
+	. = ..()
+	if(world.time >= next_vine_look && !gym_scripted)
+		next_vine_look = world.time + 8 SECONDS
+		notice_vines()
+
+/// Vines in sight: they're known to be there, in this room, for a while (the radio call comes with whoever goes to cut them).
+/datum/bot_brain/proc/notice_vines()
+	if(!length(bot_instances_of(/obj/structure/spacevine)))
+		return
+	for(var/obj/structure/spacevine/V in view(BOT_SIGHT_RANGE, owner))
+		if(bot_vine_worth_cutting(V))
+			GLOB.bot_vine_reports[get_area(V)] = world.time
+			return
+
+/// Whether anybody's seen vines in this room lately.
+/proc/bot_vines_known_in(area/A)
+	var/at = GLOB.bot_vine_reports[A]
+	return at && world.time < at + BOT_VINE_KNOWN_FOR
+
+/// A vine somebody's business to cut: aboard, and not the botanist's own garden.
+/proc/bot_vine_worth_cutting(obj/structure/spacevine/V)
+	if(QDELETED(V) || !isturf(V.loc))
+		return FALSE
+	if(!is_station_level(V.z) && !istype(get_area(V), /area/bot_gym))
+		return FALSE
+	return !istype(get_area(V), /area/hydroponics)
+
+/// Whether this bot takes the vines on: its job, then its temperament, then how bad it's got.
+/datum/bot_brain/proc/cares_about_vines(count)
+	var/role = work_role()
+	if(role in list("Botanist", "Janitor", "Station Engineer", "Chief Engineer", "Atmospheric Technician"))
+		return TRUE
+	if(is_security_job())
+		return count >= BOT_VINE_OFFICERS
+	return diligence >= 0.6 || count >= BOT_VINE_EVERYBODYS
+
+/// What it'd cut a vine with: the best edge or the heaviest thing it's carrying (a vine has 50 integrity, and a sharp edge or a flame does
+/// four times what's rolled, attacked_by() in spacevine.dm). Not a gun, a bag, a stack, or anything the Syndicate gave it: an agent
+/// doesn't get the sword out for the gardening.
+/datum/bot_brain/proc/vine_cutter()
+	var/obj/item/best
+	var/best_score = 4
+	for(var/obj/item/I in owner.GetAllContents())
+		if(istype(I, /obj/item/gun) || istype(I, /obj/item/stack) || istype(I, /obj/item/storage/backpack) || HAS_TRAIT(I, TRAIT_NODROP) || is_type_in_typecache(I, GLOB.bot_contraband))
+			continue
+		if(I.loc == owner && !(I in owner.held_items))
+			continue //worn
+		var/score = I.force * ((I.is_sharp() || I.damtype == BURN) ? 4 : 1)
+		if(score > best_score)
+			best = I
+			best_score = score
+	return best
+
+/// Bots on the vines now (in the Bot Gym only the arena's own).
+/datum/bot_brain/proc/vine_cutters_busy()
+	. = 0
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		if(B == src || !istype(B.current_goal, /datum/bot_goal/cut_vines))
+			continue
+		if(gym_run && B.gym_run != gym_run)
+			continue
+		.++
+
+/// The nearest vine within `range` of it that's worth cutting and it can get to, other than `not`. Null if none.
+/datum/bot_brain/proc/vine_near(range, obj/structure/spacevine/not, reach_check = TRUE)
+	var/list/found = list() //vine -> how far off
+	for(var/obj/structure/spacevine/V as anything in bot_instances_of(/obj/structure/spacevine))
+		if(V == not || !bot_vine_worth_cutting(V) || V.z != owner.z)
+			continue
+		var/dist = get_dist(owner, V)
+		if(dist > range || (gym_run && get_area(V) != get_area(owner)) || taken_by_another(V))
+			continue
+		if(reach_check && !bot_vines_known_in(get_area(V)))
+			continue //not seen, nor heard of: only what's a step or two on from the one it's cutting is known
+		found[V] = dist
+	var/tries = 0
+	while(length(found) && tries++ < 6)
+		var/obj/structure/spacevine/nearest
+		for(var/obj/structure/spacevine/V as anything in found)
+			if(!nearest || found[V] < found[nearest])
+				nearest = V
+		found -= nearest
+		if(!reach_check || gym_run || found[nearest] <= 1 || can_walk_lawfully_to(nearest))
+			return nearest
+	return null
+
+/// From a bot that's looked at the vines: it says so on the radio, unless somebody's just done.
+/datum/bot_brain/proc/call_in_vines(obj/structure/spacevine/V, count)
+	if(world.time < GLOB.bot_vines_called_at + 4 MINUTES || count < 3 || !can_radio())
+		return
+	GLOB.bot_vines_called_at = world.time
+	var/where = get_area_name(V, TRUE)
+	bot_say(owner, ";[pick("Space vines in [where]!", "There's vines growing in [where], somebody cut them back before they spread!", "[capitalize(where)] is full of vines!")]")
+
+/datum/bot_duty/cut_vines
+	name = "cutting back the vines"
+	tier = BOT_DUTY_URGENT //the work tier comes after the department rounds, which a botanist or an engineer never runs out of
+	priority = 5
+	interval_min = 150
+	interval_max = 400
+
+/datum/bot_duty/cut_vines/try_start(datum/bot_brain/bot)
+	var/list/vines = bot_instances_of(/obj/structure/spacevine)
+	if(!length(vines) || !length(GLOB.bot_vine_reports) || world.time < bot.vine_rest_until || bot.gone_loud() || bot.owner.incapacitated())
+		return FALSE
+	if(!bot.cares_about_vines(length(vines)) || bot.vine_cutters_busy() >= BOT_VINE_CUTTERS)
+		return FALSE
+	var/obj/structure/spacevine/V = bot.vine_near(BOT_VINE_RANGE)
+	if(!V)
+		return FALSE
+	if(!bot.vine_cutter())
+		bot.vine_rest_until = world.time + 3 MINUTES //nothing to cut with
+		return FALSE
+	if(!bot.assign_goal(new /datum/bot_goal/cut_vines(V)))
+		return FALSE
+	bot.call_in_vines(V, length(vines))
+	return TRUE
+
+/datum/bot_goal/cut_vines
+	lawful = TRUE
+	exclusive = TRUE
+	doing = "cutting back the space vines"
+
+/datum/bot_goal/cut_vines/New(obj/structure/spacevine/V)
+	. = ..()
+	target = V
+
+/datum/bot_goal/cut_vines/resolve_target(datum/bot_brain/bot)
+	if(!bot_vine_worth_cutting(target))
+		target = bot.vine_near(BOT_VINE_RANGE, null, FALSE) //it's gone since: the next one
+
+/datum/bot_goal/cut_vines/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/favour/S = new
+	S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/cut_vines())
+	return list(S)
+
+/datum/bot_goal/cut_vines/on_give_up(datum/bot_brain/bot)
+	bot.vine_rest_until = world.time + 3 MINUTES
+
+/// Swings at the vine in front of it, and on to the next within a few steps, until none's left near or it's had enough.
+/datum/bot_step/paced/cut_vines
+	max_clicks = 120
+	var/obj/structure/spacevine/vine
+	/// Hit, and not cut yet.
+	var/struck = FALSE
+	var/cut = 0
+
+/datum/bot_step/paced/cut_vines/start(datum/bot_brain/bot)
+	vine = bot.current_goal?.target
+	struck = FALSE
+	cut = 0
+	return istype(vine) && !QDELETED(vine)
+
+/datum/bot_step/paced/cut_vines/do_click(datum/bot_brain/bot)
+	if(!bot_vine_worth_cutting(vine))
+		if(struck && QDELETED(vine))
+			cut++
+		struck = FALSE
+		vine = bot.vine_near(3, null, FALSE) //on along the run of them
+		bot.current_goal.target = vine //the goal doesn't hold on to the one that's gone
+		if(!vine)
+			return FALSE
+	var/obj/item/tool = bot.vine_cutter()
+	if(!tool || !bot.ready_in_hand(tool))
+		bot_log(bot, "nothing to cut the vines with")
+		return FALSE
+	if(!bot.owner.Adjacent(vine))
+		if(bot.pursuing_kind != "follow" || bot.pursue_target != vine)
+			if(!bot.pursue(vine, "follow", force = TRUE))
+				return FALSE
+		wait_for = 5
+		return TRUE
+	if(bot.pursuing_kind)
+		bot.stop_pursuit()
+	bot.owner.face_atom(vine)
+	bot.owner.changeNext_move(CLICK_CD_MELEE)
+	bot.use_item_on(tool, vine, TRUE)
+	struck = TRUE
+	wait_for = CLICK_CD_MELEE
+	return TRUE
+
+/datum/bot_step/paced/cut_vines/finish(datum/bot_brain/bot)
+	bot.stop_pursuit()
+	if(struck && QDELETED(vine))
+		cut++
+	if(!cut)
+		bot_log(bot, "couldn't get the vines apart")
+		return GOAL_STEP_FAIL
+	bot.vines_cut += cut
+	bot_tally("vines cut back")
+	bot_log(bot, "cut back [cut] vine\s")
+	return GOAL_STEP_SUCCESS
+
+#undef BOT_VINE_KNOWN_FOR
+#undef BOT_VINE_CUTTERS
+#undef BOT_VINE_RANGE
+#undef BOT_VINE_EVERYBODYS
+#undef BOT_VINE_OFFICERS

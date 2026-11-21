@@ -100,7 +100,12 @@
 		var/datum/objective/steal/S = O
 		if(!S.steal_target)
 			return null
-		return new /datum/bot_goal/traitor_steal(S)
+		var/datum/bot_goal/traitor_steal/loose = new(S)
+		if(ispath(S.steal_target, /obj/item/disk/nuclear))
+			loose.resolve_target(src)
+			if(!loose.target)
+				return steal_from_carrier(S) //not lying about: the Captain has it
+		return loose
 	if(istype(O, /datum/objective/assassinate) || istype(O, /datum/objective/maroon))
 		if(plays_robust())
 			return null //next_victim() has them at the top of its list, goals/robust.dm
@@ -490,8 +495,15 @@
 		var/atom/movable/holder = bot_outermost_holder(I)
 		if(QDELETED(I) || bot_on_somebody(I) || !isturf(holder.loc) || holder.z != bot.owner.z || istype(holder, /obj/structure/safe)) //nobody here cracks a safe
 			continue
+		if(bot.gym_run && get_area(holder) != get_area(bot.owner))
+			continue //the Bot Gym's arena next door is somebody else's
 		if(!bot.knows_of(I))
 			continue //where it's kept, as any traitor knows, or where it was seen since (bot_knowledge.dm)
+		// What the job asks of this one, as well as what it is: a tank with 28 moles of plasma in it, not any tank (the nearest of every
+		// oxygen tank on the station went into one traitor's bag, five of them in two minutes), a slime extract that's not used up, the
+		// real disk, an AI in the card.
+		if(objective?.targetinfo && !objective.targetinfo.check_special_completion(I))
+			continue
 		var/dist = get_dist(bot.owner, holder)
 		if(!best || dist < best_dist)
 			best = holder
@@ -519,9 +531,88 @@
 	bot_log(bot, "got the [objective.targetinfo?.name || item_type]")
 	var/obj/item/held = isitem(target) && (target in bot.owner.held_items) ? target : null
 	bot.stash_stolen(held || bot.find_carried_tool(item_type))
+	// Not what the job wants after all (it looked right and wasn't): it doesn't go round fetching the next of them
+	if(objective && !objective.check_completion())
+		bot_log(bot, "that's no good for the job: leaving it a while")
+		LAZYSET(bot.objectives_parked, objective, world.time + 5 MINUTES)
 
 /datum/bot_goal/traitor_steal/on_give_up(datum/bot_brain/bot)
 	LAZYSET(bot.objectives_parked, objective, world.time + BOT_TRAITOR_PARK)
+
+// ---------------------------------------------------------------------------------------------
+// What somebody's carrying
+// ---------------------------------------------------------------------------------------------
+
+// "Steal the nuclear authentication disk" with the Captain carrying it (where it's kept, as everybody on a station knows) had no goal at
+// all: the steal goal above only goes for what's lying about or locked up, so a traitor with it did nothing about it for the shift. In
+// the last batches it was on a dozen traitors and never once done. A player takes it off the Captain: waits for a moment, puts them down,
+// and takes it off them.
+
+/// A goal for a steal objective for what's on somebody, or null: only the disk, which is on the Captain (knows_where_disk_is(), nuke_defence.dm).
+/datum/bot_brain/proc/steal_from_carrier(datum/objective/steal/S)
+	if(!ispath(S.steal_target, /obj/item/disk/nuclear))
+		return null
+	var/obj/item/disk/nuclear/D = bot_find_nuke_disk(src) //nuke_ops.dm: a real one, and in the Bot Gym the arena's own
+	var/mob/living/carbon/human/carrier = D ? bot_outermost_holder(D) : null
+	if(!istype(carrier) || carrier == owner || carrier.z != owner.z || !knows_where_disk_is(carrier))
+		return null
+	if(carrier.bot_brain?.op_team || bot_in_syndicate_suit(carrier))
+		return null //an operative's: that's a fight for somebody else
+	return new /datum/bot_goal/traitor_kill/lift(S, carrier)
+
+/// The one who has it put down, if they're up, and the thing off them.
+/datum/bot_goal/traitor_kill/lift
+	doing = "looking for somebody"
+	var/mob/living/carbon/human/carrier
+	var/datum/objective/steal/steal
+
+/datum/bot_goal/traitor_kill/lift/New(datum/objective/steal/S, mob/living/carbon/human/H)
+	. = ..(S)
+	steal = S
+	carrier = H
+
+/datum/bot_goal/traitor_kill/lift/victim()
+	return carrier
+
+/// Dead already is fine: it's the thing on them it's after.
+/datum/bot_goal/traitor_kill/lift/resolve_target(datum/bot_brain/bot)
+	var/turf/there = get_turf(carrier)
+	if(there && there.z == bot.owner.z)
+		target = carrier
+
+/datum/bot_goal/traitor_kill/lift/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/traitor_kill/S = new
+	if(carrier.stat == DEAD)
+		S.steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/lift_item())
+	else
+		S.steps = list(new /datum/bot_step/traitor_arm(), new /datum/bot_step/paced/stalk(), new /datum/bot_step/paced/strike(), new /datum/bot_step/lift_item())
+	return list(S)
+
+/// Off the body, as the strip menu does it (a moment's work), and into the bag. Not a word on the radio: it's what it came for.
+/datum/bot_step/lift_item/execute(datum/bot_brain/bot)
+	var/datum/bot_goal/traitor_kill/lift/G = bot.current_goal
+	var/mob/living/carbon/human/body = G?.carrier
+	if(!istype(G) || QDELETED(body) || !bot.owner.Adjacent(body) || (body.stat != DEAD && !body.incapacitated()))
+		return GOAL_STEP_FAIL
+	var/obj/item/wanted
+	for(var/obj/item/I in body.GetAllContents())
+		if(istype(I, G.steal.steal_target) && (!G.steal.targetinfo || G.steal.targetinfo.check_special_completion(I)))
+			wanted = I
+			break
+	if(!wanted)
+		return GOAL_STEP_FAIL //they haven't got it on them after all
+	bot.human_pause(body)
+	if(QDELETED(wanted) || QDELETED(body) || !bot.owner.Adjacent(body) || bot.owner.incapacitated())
+		return GOAL_STEP_FAIL
+	body.visible_message("<span class='warning'>[bot.owner] takes [wanted] off [body].</span>")
+	if(!body.transferItemToLoc(wanted, get_turf(bot.owner)))
+		wanted.forceMove(get_turf(bot.owner)) //out of a bag, which transferItemToLoc() doesn't reach
+	bot.try_pickup_target(wanted)
+	if(bot_outermost_holder(wanted) != bot.owner)
+		return GOAL_STEP_FAIL
+	bot.stash_stolen(wanted)
+	bot_log(bot, "took [wanted] off [body]")
+	return GOAL_STEP_SUCCESS
 
 // ---------------------------------------------------------------------------------------------
 // Killing
