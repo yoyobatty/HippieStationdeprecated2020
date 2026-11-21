@@ -471,3 +471,41 @@
 		GLOB.data_core.general -= manifest_entry
 		manifest_entry = null
 	..()
+
+// ---------------------------------------------------------------------------------------------
+// Kept in the Brig for a doctor who doesn't come
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/fixes1112/doors/brig/nobody_comes/no_answer
+	name = "brig: nobody answers the call for a doctor, and the officer puts the prisoner in a cell inside a minute, not after two and a half"
+	desc = "Bot Shift gen1116e, gen1116f and play1114b: of 59 prisoners kept by the Brig's door for a doctor, one in five had one get to them. The rest stood there with an officer for two and a half minutes (median 100 game seconds, 27 over two minutes) with nobody coming. Now, with the call not taken by anybody and no medic near, the officer says so after forty-five seconds and puts them in a cell, patched up there."
+	time_limit = 90 SECONDS
+
+/datum/bot_scenario/fixes1112/doors/brig/nobody_comes/no_answer/doctor_near
+	name = "brig: a doctor close by, the officer keeps the prisoner by the door for them past the minute"
+	desc = "The control: a doctor stands a few steps off (not driven by anybody: nobody has taken the call), so the officer keeps waiting for them instead of cutting the wait short."
+	layout = list(
+		"#########",
+		"#BC.Kio.#",
+		"####d####",
+		"###...###",
+		"###..l###",
+		"#########")
+	time_limit = 70 SECONDS
+	var/mob/living/carbon/human/doctor
+
+/datum/bot_scenario/fixes1112/doors/brig/nobody_comes/no_answer/doctor_near/post_spawn()
+	..()
+	doctor = doctor_on("o")
+
+/datum/bot_scenario/fixes1112/doors/brig/nobody_comes/no_answer/doctor_near/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	keep_pale()
+	if(bot_transcript_said("goal /datum/bot_goal/brig_prisoner/brig_care succeeded") || bot_transcript_said("no doctor's coming for"))
+		fail_reason = "gave up waiting for a doctor standing a few steps off"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/fixes1112/doors/brig/nobody_comes/no_answer/doctor_near/on_timeout()
+	return BOT_GYM_PASS //still with the prisoner at the end of it
