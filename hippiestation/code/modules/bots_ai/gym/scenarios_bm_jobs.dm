@@ -517,3 +517,102 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 		fail_reason = "boarded a shuttle full of air it can't breathe with no mask and tank on it"
 		return BOT_GYM_FAIL
 	return world.time > start_time + 20 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// The gravity generator (goals/repair_damage.dm /datum/bot_duty/gravity)
+// ---------------------------------------------------------------------------------------------
+
+/// Once the gravity generator went offline nobody ever went near it, and the crew floated for the rest of the round (7 of 24 recent shifts
+/// by the humanlike agent's count; the drill is grav-drill=1 in run_bot_shift.sh on bm/humanlike). An engineer's duty now looks at it, and
+/// does what a player does: the breaker, or the four steps of its framework and then the breaker. The generator an admin can spawn has
+/// no power of its own to lose, so what's judged is the engineer.
+/datum/bot_scenario/duty/gravity
+	name = "gravity: the generator's breaker is off, and an engineer switches it back on"
+	desc = "The station's gravity generator switched off at its breaker (the engineer's duty notices it's off and nothing's bringing it back). It goes over and puts the breaker on, and the generator is charging again. It's the first thing in a shift that goes near it: the crew float till then."
+	job = "Station Engineer"
+	time_limit = 60 SECONDS
+	// The generator takes the 3 by 3 above and either side of the G (its parts), so there's floor below it to stand on, as on the station
+	layout = list(
+		"###########",
+		"#.........#",
+		"#.........#",
+		"#....G....#",
+		"#B........#",
+		"###########")
+	var/obj/machinery/gravity_generator/main/station/admin/generator
+
+/datum/bot_scenario/duty/gravity/setup()
+	duty_type = text2path("/datum/bot_duty/gravity") // by name: a build without the fix has no such duty
+	generator = new(first_marker("G"))
+	break_it()
+
+/// The generator off at its breaker, with nothing charging it
+/datum/bot_scenario/duty/gravity/proc/break_it()
+	generator.breaker = FALSE
+	generator.charge_count = 0
+	generator.set_power()
+	generator.set_state(0)
+
+/// Back on its way up: not broken, the breaker on, and on or charging
+/datum/bot_scenario/duty/gravity/proc/back_on()
+	return generator.breaker && !(generator.stat & BROKEN) && (generator.on || generator.charging_state)
+
+/datum/bot_scenario/duty/gravity/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(generator))
+		fail_reason = "the generator's gone"
+		return BOT_GYM_FAIL
+	return back_on() ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// What the drill does (run_bot_shift.sh grav-drill=1): set_state(FALSE) with the breaker still on and nothing to bring it back
+/datum/bot_scenario/duty/gravity/stuck
+	name = "gravity: the generator's off with its breaker still on, and an engineer cycles it"
+	desc = "The generator off with its breaker on (it's what the shift drill does) and nothing charging it. The engineer switches the breaker off and on again, and it's charging."
+
+/datum/bot_scenario/duty/gravity/stuck/break_it()
+	generator.set_state(0)
+
+/// Four steps to mend it and then the breaker
+/datum/bot_scenario/duty/gravity/broken
+	name = "gravity: the generator's broken, and an engineer mends its framework and switches it on"
+	desc = "The generator broken down (an explosion or a blob did it). The engineer, with a screwdriver, a welder, twenty plasteel and a wrench in its bag, secures the framework, welds it, adds the plating, wrenches it down, and puts the breaker on."
+	kit_backpack = list(/obj/item/screwdriver, /obj/item/weldingtool, /obj/item/wrench, /obj/item/stack/sheet/plasteel/twenty)
+
+/datum/bot_scenario/duty/gravity/broken/break_it()
+	generator.set_broken()
+
+/// A generator that's on needs nothing, and so does one with no power in its room (it charges up by itself when that's back)
+/datum/bot_scenario/duty/gravity/fine
+	name = "gravity: the generator's on, and an engineer leaves it alone"
+	desc = "The generator running. The engineer doesn't go over and switch its breaker off, or anything else: after eight seconds the breaker's still on and the generator still on."
+
+/datum/bot_scenario/duty/gravity/fine/break_it()
+	return
+
+/datum/bot_scenario/duty/gravity/fine/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!generator.breaker || !generator.on)
+		fail_reason = "the generator's breaker or its state was changed: breaker [generator.breaker ? "on" : "off"], [generator.on ? "on" : "off"]"
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("the gravity's off: started"))
+		fail_reason = "set about the gravity generator that was running"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 8 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/duty/gravity/no_power
+	name = "gravity: no power in the generator's room, and an engineer doesn't go for its breaker"
+	desc = "The generator down for want of power: that's the power's to be seen to, and it charges by itself when it's back. The engineer doesn't go and switch the breaker on and off."
+
+/datum/bot_scenario/duty/gravity/no_power/break_it()
+	generator.set_state(0)
+	generator.stat |= NOPOWER
+
+/datum/bot_scenario/duty/gravity/no_power/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("the gravity's off: started"))
+		fail_reason = "set about a generator with no power in its room"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 8 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING

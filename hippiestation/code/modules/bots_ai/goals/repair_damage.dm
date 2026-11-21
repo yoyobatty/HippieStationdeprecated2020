@@ -816,3 +816,182 @@ GLOBAL_LIST_EMPTY(bot_reinforcing)
 	return GOAL_STEP_SUCCESS
 
 #undef BOT_ALERT_MAJOR_CRIMES
+
+// ---------------------------------------------------------------------------------------------
+// The gravity generator (code/modules/power/gravitygenerator.dm)
+// ---------------------------------------------------------------------------------------------
+// With the generator off the whole station floats, and for the rest of the round: jobs analysis (2026-11-21) found nobody ever went to it.
+// Brought down by an explosion, a blob or a power failure, or switched off at its breaker, it wants the same things a player gives it:
+//   broken       screwdriver, welder, ten plasteel and wrench, in that order (its own framework steps), and then the breaker on
+//   breaker off  the breaker on
+//   idle, off    the breaker off and on again (it's been set off with its breaker still on, and nothing makes it charge)
+// With no power in its room it's the power that wants seeing to, and it comes back charging by itself when it does.
+
+/// The station's gravity generator, if it's off and nothing is bringing it back: one on this bot's level, or on the station's when it's on the station too.
+/proc/bot_gravity_generator_in_trouble(datum/bot_brain/bot)
+	for(var/obj/machinery/gravity_generator/main/G as anything in bot_instances_of(/obj/machinery/gravity_generator/main))
+		if(QDELETED(G) || (G.z != bot.owner.z && !(is_station_level(G.z) && is_station_level(bot.owner.z))))
+			continue
+		if(bot.gym_run && get_area(G) != get_area(bot.owner))
+			continue //another arena's
+		if(bot_gravity_fault(G))
+			return G
+	return null
+
+/// What's wrong with this generator that an engineer can put right: "broken", "breaker" or "stuck", or null.
+/proc/bot_gravity_fault(obj/machinery/gravity_generator/main/G)
+	if(G.stat & BROKEN)
+		return "broken"
+	if(G.stat & NOPOWER)
+		return null //its room's power, and it charges up again on its own once that's back
+	if(!G.breaker)
+		return "breaker"
+	if(!G.on && !G.charging_state)
+		return "stuck"
+	return null
+
+/datum/bot_brain
+	/// A look at the gravity generator that came to nothing: not again before this
+	var/gravity_blocked_until = 0
+
+/datum/bot_duty/gravity
+	name = "the gravity's off"
+	jobs = list("Station Engineer", "Chief Engineer")
+	tier = BOT_DUTY_URGENT
+	priority = 30
+	interval_min = 60
+	interval_max = 150
+
+/datum/bot_duty/gravity/try_start(datum/bot_brain/bot)
+	if(world.time < bot.gravity_blocked_until)
+		return FALSE
+	var/obj/machinery/gravity_generator/main/G = bot_gravity_generator_in_trouble(bot)
+	if(!G || bot.taken_by_another(G))
+		return FALSE
+	return bot.assign_goal(new /datum/bot_goal/restore_gravity(G))
+
+/datum/bot_goal/restore_gravity
+	lawful = TRUE
+	exclusive = TRUE
+	doing = "getting the gravity back on"
+
+/datum/bot_goal/restore_gravity/New(obj/machinery/gravity_generator/main/G)
+	. = ..()
+	target = G
+
+/datum/bot_goal/restore_gravity/resolve_target(datum/bot_brain/bot)
+	var/obj/machinery/gravity_generator/main/G = target
+	if(QDELETED(G) || !bot_gravity_fault(G))
+		target = null //somebody's been before it
+
+/datum/bot_goal/restore_gravity/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/restore_gravity/S = new
+	S.steps = list(new /datum/bot_step/get_gravity_tools(), new /datum/bot_step/move_to(), new /datum/bot_step/paced/restore_gravity())
+	return list(S)
+
+/datum/bot_goal/restore_gravity/on_give_up(datum/bot_brain/bot)
+	bot.gravity_blocked_until = world.time + 4 MINUTES
+
+/datum/bot_goal/restore_gravity/on_success(datum/bot_brain/bot)
+	bot_tally("gravity generators brought back")
+	bot_log(bot, "got the gravity generator going again")
+	if(prob(70))
+		bot_say(bot.owner, pick("Gravity's coming back.", ";Gravity generator's charging again.", "Got the gravity generator going, give it a minute."))
+
+/datum/bot_strategy/restore_gravity/is_feasible(datum/bot_brain/bot)
+	return bot.current_goal?.target && !QDELETED(bot.current_goal.target)
+
+/// For a generator that's broken: a screwdriver, a welder, ten plasteel and a wrench, fetched once each. A bot with none to be had leaves it
+/// for a few minutes. Nothing for the breaker.
+/datum/bot_step/get_gravity_tools
+	var/list/tried
+
+/datum/bot_step/get_gravity_tools/execute(datum/bot_brain/bot)
+	var/obj/machinery/gravity_generator/main/G = bot.current_goal?.target
+	if(!istype(G) || QDELETED(G))
+		return GOAL_STEP_FAIL
+	if(bot_gravity_fault(G) != "broken")
+		return GOAL_STEP_SUCCESS
+	var/list/needed = list(/obj/item/screwdriver = 1, /obj/item/weldingtool = 1, /obj/item/stack/sheet/plasteel = 10, /obj/item/wrench = 1)
+	for(var/thing in needed)
+		if(ispath(thing, /obj/item/stack) ? bot.carried_stack(thing, needed[thing]) : bot.find_carried_tool(thing))
+			continue
+		if(LAZYFIND(tried, thing))
+			var/obj/item/missing = thing
+			bot_log(bot, "no [initial(missing.name)] to be had for the gravity generator at [bot_coord(get_turf(G))]")
+			return GOAL_STEP_FAIL
+		LAZYADD(tried, thing)
+		var/datum/bot_goal/acquire_item_type/get = new
+		get.item_type = thing
+		get.lawful = TRUE
+		get.doing = "getting what it takes to mend the gravity generator"
+		if(bot.suspend_goal_for(get))
+			return GOAL_STEP_PENDING
+		return execute(bot)
+	return GOAL_STEP_SUCCESS
+
+/// The framework's four steps in the order the generator wants them (gravitygenerator.dm attackby(), broken_state 0 to 3), each with the
+/// tool it takes; then, mended or not broken, the breaker.
+/datum/bot_step/paced/restore_gravity
+	max_clicks = 14
+	/// The breaker has been off and on again (the "stuck" case)
+	var/cycled = FALSE
+
+/datum/bot_step/paced/restore_gravity/do_click(datum/bot_brain/bot)
+	var/obj/machinery/gravity_generator/main/G = bot.current_goal?.target
+	var/mob/living/carbon/human/H = bot.owner
+	if(!istype(G) || QDELETED(G) || H.incapacitated() || !H.Adjacent(G))
+		return FALSE
+	if(G.stat & BROKEN)
+		var/obj/item/tool
+		switch(G.broken_state)
+			if(0)
+				tool = bot.find_carried_tool(/obj/item/screwdriver)
+			if(1)
+				tool = bot.find_carried_tool(/obj/item/weldingtool)
+			if(2)
+				tool = bot.carried_stack(/obj/item/stack/sheet/plasteel, 10)
+			if(3)
+				tool = bot.find_carried_tool(/obj/item/wrench)
+		if(!tool || !bot.ready_in_hand(tool))
+			return FALSE
+		H.face_atom(G)
+		if(G.broken_state == 1)
+			var/obj/item/weldingtool/W = tool
+			bot.equip_welding_eye_protection()
+			if(!W.isOn())
+				bot.toggle_in_hand(W)
+			if(!W.isOn())
+				return FALSE
+			bot.use_tool_on(W, G)
+			if(!QDELETED(W) && W.isOn() && H.is_holding(W))
+				bot.toggle_in_hand(W) //off again before it goes in the bag
+			return TRUE
+		bot.use_tool_on(tool, G)
+		return TRUE
+	// Mended or never broken: the breaker, the generator's own switch (gravitygenerator.dm ui_act() "gentoggle")
+	var/fault = bot_gravity_fault(G)
+	if(!fault)
+		return FALSE
+	if(fault == "stuck" && !cycled)
+		cycled = TRUE
+		toggle_breaker(bot, G) //off first, so that the next one is on
+	toggle_breaker(bot, G)
+	return TRUE
+
+/datum/bot_step/paced/restore_gravity/proc/toggle_breaker(datum/bot_brain/bot, obj/machinery/gravity_generator/main/G)
+	bot.human_pause(G)
+	if(QDELETED(G) || !bot.owner.Adjacent(G))
+		return
+	bot.owner.face_atom(G)
+	bot.telemetry_ui_action(G, "gentoggle")
+	G.breaker = !G.breaker
+	G.investigate_log("was toggled [G.breaker ? "<font color='green'>ON</font>" : "<font color='red'>OFF</font>"] by [key_name(bot.owner)].", INVESTIGATE_GRAVITY)
+	G.set_power()
+	bot_log(bot, "switched the gravity generator's breaker [G.breaker ? "on" : "off"]")
+
+/datum/bot_step/paced/restore_gravity/finish(datum/bot_brain/bot)
+	var/obj/machinery/gravity_generator/main/G = bot.current_goal?.target
+	if(!istype(G) || QDELETED(G) || (G.stat & BROKEN) || !G.breaker)
+		return GOAL_STEP_FAIL
+	return (G.on || G.charging_state) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
