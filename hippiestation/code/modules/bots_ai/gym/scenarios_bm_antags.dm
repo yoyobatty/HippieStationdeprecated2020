@@ -322,7 +322,7 @@
 		"############")
 	time_limit = 60 SECONDS
 	var/mob/living/simple_animal/hostile/carp/carp
-	var/killed_at = 0
+	var/carp_killed_at = 0
 
 /datum/bot_scenario/animal_fight/setup()
 	carp = new(first_marker("c"))
@@ -347,15 +347,15 @@
 	if(!G)
 		fail_reason = "lost its gun"
 		return BOT_GYM_FAIL
-	if(!killed_at)
+	if(!carp_killed_at)
 		if(brain.is_nonlethal_shot(G.ammo_type[G.select]))
 			fail_reason = "beat it down with the gun still on disable"
 			return BOT_GYM_FAIL
-		killed_at = world.time
+		carp_killed_at = world.time
 	//and the gun back on stun a little after, for the next time it's a person it's up against
 	if(brain.is_nonlethal_shot(G.ammo_type[G.select]))
 		return BOT_GYM_PASS
-	if(world.time > killed_at + 25 SECONDS)
+	if(world.time > carp_killed_at + 25 SECONDS)
 		fail_reason = "left the gun on its kill setting"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PENDING

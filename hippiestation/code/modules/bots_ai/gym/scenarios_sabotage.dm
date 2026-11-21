@@ -512,20 +512,30 @@
 		"#.......................#",
 		"#########################")
 	var/turf/last_turf
+	/// Where it died, caught as it happens: a bot runs five tiles a second or more, so the once-a-second look in check() missed it by that
+	/// (the scenario failed "went up 4 tiles from them" on the base commit too, with the behaviour as it should be, and passed alone by luck
+	/// of where the second fell).
+	var/turf/death_turf
 
 /datum/bot_scenario/sabotage/superboom/post_spawn()
 	..()
+	RegisterSignal(bot, COMSIG_MOB_DEATH, PROC_REF(note_death))
 	brain.job_is_chemist_for_gym = TRUE
 	var/turf/O = first_marker("O")
 	for(var/turf/T in list(get_step(O, NORTH), get_step(O, EAST), get_step(O, SOUTH)))
 		stand_in(T, "Bar Patron")
 
+/datum/bot_scenario/sabotage/superboom/proc/note_death(datum/source)
+	SIGNAL_HANDLER
+	death_turf = get_turf(source)
+
 /datum/bot_scenario/sabotage/superboom/check()
 	if(!QDELETED(bot) && bot.stat != DEAD)
 		last_turf = get_turf(bot)
 		return BOT_GYM_PENDING
-	if(!last_turf || get_dist(last_turf, first_marker("O")) > 2)
-		fail_reason = "went up [last_turf ? "[get_dist(last_turf, first_marker("O"))] tiles from them" : "nowhere"]"
+	var/turf/went_up = death_turf || last_turf
+	if(!went_up || get_dist(went_up, first_marker("O")) > 2)
+		fail_reason = "went up [went_up ? "[get_dist(went_up, first_marker("O"))] tiles from them" : "nowhere"]"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
 
