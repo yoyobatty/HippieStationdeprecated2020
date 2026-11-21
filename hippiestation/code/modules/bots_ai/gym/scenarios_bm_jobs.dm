@@ -159,3 +159,31 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 /datum/bot_scenario/fixes1112/crate_air/vacuum_no_suit/on_timeout()
 	fail_reason = "never asked for EVA access: left the crate in the vacuum"
 	return BOT_GYM_FAIL
+
+// ---------------------------------------------------------------------------------------------
+// Shut in behind a firelock (goals/acquire_tool.dm try_pry_my_way_out())
+// ---------------------------------------------------------------------------------------------
+
+/// jobs_s1: the Research Director was shut into the Toxins lab behind a heavy firelock five minutes in, with no crowbar, and walked the one room
+/// for the rest of the shift with "no path" to everywhere. The call to be let out only knows airlocks.
+/datum/bot_scenario/firelock_pocket
+	name = "shut in: behind a firelock that's down with no crowbar, it takes one from the toolbox and pries its way out"
+	desc = "A small room with a mechanical toolbox in it and a closed firelock in the one doorway, and the way on beyond. The bot has no crowbar, so no route through the firelock: it looks for one, takes the crowbar out of the toolbox, opens the firelock and walks out. It used to walk the room for ever."
+	job = "Research Director"
+	time_limit = 60 SECONDS
+	layout = list(
+		"############",
+		"#T.B...F..G#",
+		"############")
+
+/datum/bot_scenario/firelock_pocket/post_spawn()
+	give_job_id(list(ACCESS_RESEARCH))
+
+/// The look it takes now and then for a way out, then on to where it was going
+/datum/bot_scenario/firelock_pocket/issue_goal()
+	if(!QDELETED(brain) && hascall(brain, "try_pry_my_way_out"))
+		brain.is_shut_in(TRUE)
+		if(call(brain, "try_pry_my_way_out")())
+			log_line("shut in behind the firelock: off for a crowbar")
+			return
+	..()

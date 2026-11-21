@@ -481,3 +481,45 @@
 
 /datum/bot_strategy/grab_tools_from_toolbox/is_feasible(datum/bot_brain/bot)
 	return TRUE
+
+// ---------------------------------------------------------------------------------------------
+// Shut in by a firelock
+// ---------------------------------------------------------------------------------------------
+// A firelock that's come down on an alarm is no way through for somebody with no crowbar (bot_can_astar_pass_permissive(), bot_pathing_
+// permissive.dm), and the call to be let out only knows airlocks (bot_requests.dm doors_shutting_me_in()). The Research Director shut
+// itself into the Toxins lab that way five minutes in, with a mechanical toolbox in there it had taken only the wrench from, and spent
+// the rest of the shift (jobs_s1, 20 of 25 minutes) walking round the one room with "no path" to everywhere, its work given up every
+// time. A person with a firelock down in front of them looks for a crowbar and pries it.
+
+/datum/bot_brain
+	/// When it may next say on the radio that it's shut in behind a firelock with nothing to open it with
+	var/next_pry_out_call = 0
+
+/// A firelock that's down, not welded and not holding back a fire, on the edge of the pocket this bot's shut in (is_shut_in(), bot_doors.dm).
+/datum/bot_brain/proc/firelock_shutting_me_in()
+	if(!shut_in_result || !shut_in_region)
+		return null
+	for(var/turf/T as anything in shut_in_region)
+		for(var/d in GLOB.cardinals)
+			var/turf/next = get_step(T, d)
+			if(!next || shut_in_region[next])
+				continue
+			for(var/obj/machinery/door/firedoor/F in next)
+				if(F.density && !F.welded && !F.operating && !firelock_too_hot(F))
+					return F
+	return null
+
+/// Shut in behind a firelock with no crowbar to pry it with: off to find one, or a word on the radio if there's none to be had. TRUE if
+/// it's now on its way for one. Asked after maybe_ask_to_be_let_out() has looked at the airlocks.
+/datum/bot_brain/proc/try_pry_my_way_out()
+	var/obj/machinery/door/firedoor/F = firelock_shutting_me_in()
+	if(!F || can_eventually_provide_tool(/obj/item/crowbar) || state == BOT_STATE_GOAL || state == BOT_STATE_COMBAT || state == BOT_STATE_ARREST)
+		return FALSE
+	bot_log(src, "shut in behind [F] with no crowbar on me - going to look for one")
+	if(assign_goal(new /datum/bot_goal/acquire_tool(/obj/item/crowbar)))
+		bot_tally("firelock escapes")
+		return TRUE
+	if(!gym_scripted && world.time >= next_pry_out_call)
+		next_pry_out_call = world.time + 10 MINUTES
+		say_after_typing(";Anyone near [get_area_name(owner, TRUE)]? I'm shut in behind a firelock and I've nothing to pry it with.")
+	return FALSE
