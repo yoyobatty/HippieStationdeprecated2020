@@ -721,3 +721,17 @@
 	..()
 	qdel(bot.belt)
 	bot.equip_to_slot_or_del(new /obj/item/gun/energy/kinetic_accelerator(bot), ITEM_SLOT_BELT)
+
+// ---------------------------------------------------------------------------------------------
+// Machine steps that put a disk in and take it out in the same tick, a purchase right after a hand is emptied, the toolbelt case
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/fixes1112/nanite_disk_hands_full/with_a_beat
+	name = "hands: both hands full at the nanite machines, the disk goes in, the program downloads and the disk comes out a moment apart"
+	desc = "A hand is emptied for the blank disk, and the disk is put in the hub, downloaded to and ejected, then put in the cloud and ejected, each a click of its own: they were all in one tick (instant_swap x3)."
+	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_swap")
+
+/datum/bot_scenario/fixes1112/ae_duty/traitor/keeps_its_kit/with_a_beat
+	name = "hands: both hands and the bag full, a traitor puts something down and buys what it needs a moment after"
+	desc = "A hand is emptied for what the uplink gives, and the purchase is the next click, not the same tick."
+	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_swap")

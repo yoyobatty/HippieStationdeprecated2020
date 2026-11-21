@@ -193,9 +193,12 @@
 			human_pause(hideout)
 			// A hand free for it first (hand_for_purchase()): what's bought with both hands full lands at its feet. Not with too few crystals
 			// left for it, or something's put down for nothing.
+			var/held_before = held_item_count()
 			if(U.telecrystals < I.cost || I.limited_stock == 0 || !hand_for_purchase())
 				U.locked = TRUE
 				return FALSE
+			if(held_item_count() < held_before) //a hand emptied for it is an input of its own, and the purchase is the next (hand_beat(), bot_human.dm)
+				hand_beat()
 			. = U.MakePurchase(owner, I)
 			U.locked = TRUE
 			var/obj/item/at_feet = locate(item_path) in get_turf(owner) //both hands full, and that's where it lands
