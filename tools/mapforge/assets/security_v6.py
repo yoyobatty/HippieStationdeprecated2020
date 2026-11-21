@@ -149,7 +149,9 @@ def warden(R):
     R.place(one("files", "F", "/obj/structure/filingcabinet/chestdrawer", back="any"), must=False)
     for name, vs in (("Prison Wing Lockdown", {"id": "Prison Gate", "req_access_txt": "2"}),
                      ("Cell Shutters", {"id": "Secure Gate", "req_access_txt": "2"}),
-                     ("Warden Office Shutters", {"id": "wardenshutter", "req_access_txt": "2"})):
+                     ("Warden Office Shutters", {"id": "wardenshutter", "req_access_txt": "2"}),
+                     # from the warden's side, not inside the armory (Security review 4 #6)
+                     ("Armory Shutters", {"id": "armoryshutter", "req_access_txt": "2"})):
         R.place(button(name, vs), near=chair, must=False)
     R.place(hang("requests console", "requests_console", "/obj/machinery/requests_console",
                  {"department": "Security", "departmentType": 5}), near=chair, must=False)
@@ -174,7 +176,6 @@ def armory(R):
         R.place(k, must=False)
     R.place(one("pepper", "PT", "/obj/structure/reagent_dispensers/peppertank"), near=door, must=False)
     R.run([one("portable flasher", "pf", "/obj/machinery/flasher/portable", back="wall", use=())] * 2)
-    R.place(button("Armory Shutters", {"id": "armoryshutter", "req_access_txt": "2"}), near=door, must=False)
 
 
 def infirm(R):
@@ -543,3 +544,22 @@ def prisonhall4(R):
 
 
 ASSETS.update({"armory": armory4, "prisonhall": prisonhall4})
+
+
+def hos4(R):
+    hos3(R)
+    # the head's three consoles along the north wall above the desk, facing it, on the head's carpet (Security review 4:
+    # the run that needed them within 2 tiles of the chair dropped all three)
+    for x, path in ((89, "/obj/machinery/computer/card/minor/hos"), (90, "/obj/machinery/computer/security/hos"),
+                    (91, "/obj/machinery/computer/secure_data")):
+        p = (x, 116)
+        if p in R.tiles and R.geo.taken.get(p) != "obj":
+            R.put(p, "obj", obj=[(path, {"dir": 2})])
+        else:
+            R.geo.problem("hos: no room for %s at %d,%d" % (path.rsplit("/", 1)[-1], p[0], p[1]))
+    for p in R.tiles:
+        if R.geo.taken.get(p) != "obj":
+            R.put(p, None, floor="/turf/open/floor/carpet")
+
+
+ASSETS.update({"hos": hos4})

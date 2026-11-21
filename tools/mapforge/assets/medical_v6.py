@@ -4,7 +4,7 @@
   chemistry   two benches, the chem fridge, a desk onto the public hall where prescriptions are handed out
   genetics    the cloning line (scanner, console, pod) and the DNA bench, monkey cubes at hand
 """
-from forge.proc.place import Kit, cell
+from forge.proc.place import Kit, cell, dist
 from assets.medical import ASSETS as V2, SLEEPERS, IV, FIRSTAID, MED_DOC, lobby as lobby_v2
 from assets.science import (TABLE, GTABLE, DARK, BOT, PIPE, CHAIR, PLANT_K, BIN, one, hang, button, seat_at, near_tiles)
 
@@ -273,3 +273,36 @@ def recovery3(R):
 
 
 ASSETS.update({"scrub": scrub3, "recovery": recovery3})
+
+
+# ================================================================================================= review 3 (11-21)
+def patient3(R):
+    # the bed in the corner farthest from the door, its drip right beside it, a visitor's chair turned to the bed
+    # (review 3 #4: room A's chair faced away, room B had none)
+    door = R.doors()[0]
+    free = [p for p in R.tiles if R.geo.taken.get(p) is None and p not in R.front]
+    if not free:
+        return
+    bed = max(free, key=lambda p: (dist(p, door), p))
+    R.put(bed, "obj", obj=["/obj/structure/bed", "/obj/item/bedsheet/medical"])
+    nbrs = [(bed[0] + dx, bed[1] + dy) for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))]
+    side = [q for q in nbrs if q in free and q != bed]
+    if side:
+        iv = max(side, key=lambda q: (dist(q, door), q))
+        R.put(iv, "obj", obj=["/obj/machinery/iv_drip"])
+        side = [q for q in side if q != iv]
+    if side:
+        ch = min(side, key=lambda q: (dist(q, door), q))
+        d = {(1, 0): 8, (-1, 0): 4, (0, 1): 2, (0, -1): 1}[(ch[0] - bed[0], ch[1] - bed[1])]
+        R.put(ch, "open", obj=[(CHAIR, {"dir": d})])
+
+
+def theatre3(R):
+    V2["theatre"](R)
+    # the anaesthetic and a drip by the table (review 3 #8)
+    R.place(one("anaesthetic", "t", TABLE, "/obj/item/tank/internals/anesthetic", "/obj/item/clothing/mask/breath/medical",
+                back="wall"), must=False)
+    R.place(one("drip", "iv", "/obj/machinery/iv_drip", back="any", use=()), must=False)
+
+
+ASSETS.update({"roomA": patient3, "roomB": patient3, "theatre": theatre3})

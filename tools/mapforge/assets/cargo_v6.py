@@ -170,3 +170,15 @@ def lobby(R):
 ASSETS = dict(V1)
 ASSETS.update({"office": office, "bay": bay, "warehouse": warehouse, "sorting": sorting, "mining": mining, "qm": qm,
                "lobby": lobby})
+
+
+# ================================================================================================= review 3 (11-21)
+def office3(R):
+    ASSETS_R2_OFFICE(R)
+    # the desk shutters' button by the clerk's chair (Cargo review 3 #3: "cargodesk" had none)
+    from assets.security import button
+    R.place(button("Desk Shutters", {"id": "cargodesk", "req_access_txt": "31"}), near=(49, 90), must=False)
+
+
+ASSETS_R2_OFFICE = ASSETS["office"]
+ASSETS.update({"office": office3})

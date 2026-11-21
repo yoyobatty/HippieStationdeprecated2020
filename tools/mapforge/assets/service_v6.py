@@ -265,3 +265,30 @@ def theatre3(R):
 
 
 ASSETS.update({"hydro": hydro3, "dining": dining3, "bar": bar3, "theatre": theatre3})
+
+
+# ================================================================================================= review 4 (11-21)
+def hydro4(R):
+    # one biogenerator (v1's hydro places its own), the water by the door, the tray rows; the botany sign over the
+    # north-west tile, on the arterial wall (Service review 4 #1, #2)
+    put_if_free(R, (109, 114), "obj", obj=["/obj/structure/reagent_dispensers/watertank/high"])
+    put_if_free(R, (109, 112), "obj", obj=[("/obj/structure/sink", {"dir": 4, "pixel_x": -12})])
+    desk = (R.doors("hall") or R.doors())[0]
+    R.run([one("gene machine", "DN", "/obj/machinery/plantgenes"),
+           one("botany locker", "L", "/obj/structure/closet/secure_closet/hydroponics"),
+           one("botany wardrobe", "W", "/obj/machinery/vending/wardrobe/hydro_wardrobe")], near=desk)
+    R.place(one("tools", "t", TABLE, "/obj/item/cultivator", "/obj/item/hatchet", "/obj/item/plant_analyzer",
+                "/obj/item/reagent_containers/glass/bucket", back="wall"), must=False)
+    R.reserve([(109, 116)], "open")
+    V1["hydro"](R)
+    R.put((109, 116), None, obj=[("/obj/structure/sign/departments/botany", {"pixel_y": 32})])
+    R.faces[((109, 116), 1)] = "botany sign"
+
+
+def theatre4(R):
+    theatre3(R)
+    R.put((110, 96), None, obj=[("/obj/structure/sign/poster/contraband/random", {"pixel_x": -32})])
+    R.faces[((110, 96), 8)] = "theatre poster"
+
+
+ASSETS.update({"hydro": hydro4, "theatre": theatre4})

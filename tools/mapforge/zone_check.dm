@@ -121,9 +121,22 @@
 	mf_report("start")
 	sleep(text2num(world.params["mapforge-wait"] || "90") SECONDS)
 	mf_report("later")
+	mf_docks()
 	// the real lighting, for the renderer to shade pictures with (lighting_bench.dm's snapshot: each lit tile's corners)
 	var/lname = world.params["mapforge-name"]
 	if(lname)
 		lighting_bench_snapshot(SSmapping.station_start, "data/mapforge/light_[lname].txt")
 		mf_log("lighting snapshot data/mapforge/light_[lname].txt")
 	mf_log("done")
+
+
+// the station's shuttle docks: can the emergency shuttle dock at emergency_home, did arrivals load at its port
+/proc/mf_docks()
+	for(var/id in list("emergency_home", "arrivals_stationary", "supply_home", "mining_home"))
+		var/obj/docking_port/stationary/S = SSshuttle.getDock(id)
+		if(!S)
+			mf_log("dock [id]: NO PORT")
+			continue
+		var/obj/docking_port/mobile/M = (id == "emergency_home") ? SSshuttle.emergency : (id == "arrivals_stationary" ? SSshuttle.arrivals : null)
+		var/status = M ? M.canDock(S) : "-"
+		mf_log("dock [id] at [S.x],[S.y] dir [S.dir] [S.width]x[S.height]: shuttle [M ? M.name : "none"] canDock [status == SHUTTLE_CAN_DOCK ? "yes" : status] docked here [M && M.get_docked() == S ? "yes" : "no"]")

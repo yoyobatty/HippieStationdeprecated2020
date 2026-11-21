@@ -167,7 +167,8 @@ def fitness2(R):
             objs = [(WIN, {"dir": d}) for d in edges if not (d == 8 and y == 101)]
             if x == x0 and y == 101:
                 objs.append(("/obj/machinery/door/window/westleft", {"dir": 8, "name": "Boxing Ring"}))
-            R.put((x, y), "open", obj=objs, decal=["/obj/effect/turf_decal/stripes/line"] if edges else [])
+            # each edge tile's stripe faces its own side, corners take both (Dorms review 3 #1: all faced one way)
+            R.put((x, y), "open", obj=objs, decal=[("/obj/effect/turf_decal/stripes/line", {"dir": d}) for d in edges])
     R.put((138, 103), "obj", obj=["/obj/structure/closet/athletic_mixed"])
     R.put((138, 102), "obj", obj=["/obj/structure/rack", "/obj/item/clothing/gloves/boxing",
                                   "/obj/item/clothing/gloves/boxing"])
@@ -231,9 +232,8 @@ def hall3(R):
     hall(R)
     # hazard stripes inside the maint door (review 2 #8)
     for d in R.doors("maint"):
-        q = (d[0], d[1] - 1)
-        if q in R.tiles:
-            R.put(q, None, decal=[("/obj/effect/turf_decal/stripes/line", {"dir": 1})])
+        # doors() already gives the tile just inside the door (Dorms review 3 #3: the stripe sat a tile too far in)
+        R.put(d, None, decal=[("/obj/effect/turf_decal/stripes/line", {"dir": 1})])
 
 
 ASSETS.update({"lounge": lounge3, "fitness": fitness3, "dormhall": hall3})
