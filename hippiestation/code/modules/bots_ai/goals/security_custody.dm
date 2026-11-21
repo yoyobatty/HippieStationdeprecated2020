@@ -252,11 +252,24 @@ GLOBAL_LIST_EMPTY(bot_handovers)
 	if(GLOB.bot_handovers[REF(H)])
 		return FALSE
 	owner.stop_pulling()
-	GLOB.bot_handovers[REF(H)] = list(WEAKREF(H), WEAKREF(src), world.time)
 	bot_log(src, "can't take [H] in ([why]) - asked for another officer to")
 	bot_tally("prisoners handed over")
-	bot_say(owner, ":s [H.name] is in cuffs in [get_area_name(H, TRUE)] and I [has_brig_access() ? "can't get them in" : "haven't got an ID to book them with"]. Somebody take them in.")
+	var/where = get_area_name(H, TRUE)
+	var/need = has_brig_access() ? "can't get them in" : "haven't got an ID to book them with"
+	var/said_at = world.time
+	var/said = bot_say(owner, ":s [H.name] is in cuffs in [where] and I [need]. Somebody take them in.")
+	// Only on the list if the radio carried it (bot_radio.dm). If it didn't, it's kept for the next officer it meets close by and told them
+	// to their face, as a call in is. A line kept back as a repeat counts on the call that went out before it.
+	var/datum/callback/register = CALLBACK(src, PROC_REF(register_handover), WEAKREF(H))
+	bot_radio_then(owner, said_at - 10 SECONDS, register, said ? CALLBACK(src, PROC_REF(keep_to_tell), register, "[H.name] is in cuffs in [where] and I [need]. Take them in.", null) : null)
 	return FALSE
+
+/// The ask got out, or an officer's been told it in person: the prisoner's on the list for whoever's free to take in.
+/datum/bot_brain/proc/register_handover(datum/weakref/prisoner_ref)
+	var/mob/living/carbon/human/H = prisoner_ref?.resolve()
+	if(QDELETED(H) || !H.handcuffed || GLOB.bot_handovers[REF(H)])
+		return
+	GLOB.bot_handovers[REF(H)] = list(prisoner_ref, WEAKREF(src), world.time)
 
 /datum/bot_duty/take_over_prisoner
 	name = "taking over a prisoner another officer can't take in"
