@@ -1258,6 +1258,9 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 	// doors, not a call. Three officers said they were responding to the Captain asking the AI for them (round-20.48.49).
 	if(!bot_text_has_any(lower, list("help")) && !bot_text_has_any(lower, GLOB.bot_danger_words) && (bot_silicon_addressed(lower, list("ai", "ais", "borg", "borgs", "cyborg")) || bot_text_has_any(lower, list("unbolt", "unbolted", "bolt", "bolted", "bolts"))))
 		return FALSE
+	// A question about Security ("security, is the brig empty?", "sec, any updates?", "anyone in security?") is asking, not calling: "Responding to a call from Casey" to it.
+	if(findtext(lower, "?") && !bot_text_has_any(lower, list("help")) && !bot_text_has_any(lower, GLOB.bot_danger_words) && bot_text_has_any(lower, list("is the", "are the", "what's", "whats", "who's", "whos", "how's", "hows", "any updates", "any news", "status", "anyone in", "anybody in", "anyone on", "are you there", "you there", "hello")))
+		return FALSE
 	if(findtext(lower, "security") || findtext(lower, "shitcurity") || bot_text_has_any(lower, list("sec")))
 		return TRUE
 	if(!bot_text_has_any(lower, list("help")))

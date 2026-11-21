@@ -1013,6 +1013,8 @@
 		fail_reason = "said nothing to \"what did i miss?\""
 		return BOT_GYM_FAIL
 	if(!findtext(lines[1], felon_name))
+		if(seclevel2num(get_security_level()) >= SEC_LEVEL_RED)
+			return BOT_GYM_PASS //another scenario's red alert is on, and that's the first thing it'd say about how the shift's going
 		fail_reason = "didn't tell of what it saw: \"[lines[1]]\""
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
@@ -1123,4 +1125,41 @@
 	if(last in list("Okay.", "Alright.", "Right.", "Gotcha.", "Yeah."))
 		fail_reason = "answered \"i can't breathe\" with \"[last]\""
 		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// What's said over Common to nobody in particular: a bystander's reactions, if any. Read the transcript: silence is fine, nonsense isn't.
+/datum/bot_scenario/chat/sweep/radio_lines/to_nobody
+	name = "speech: lines over Common to nobody in particular"
+	job = "Assistant"
+	pass_thirds = 0
+	lines = list("traitor in cargo", "someone fix the lights in medbay", "fire in medbay", "plasma flood in engineering", "hull breach in cargo", "the singularity is loose", "the supermatter is delaminating", "the AI is rogue", "the shuttle's here", "the captain is dead", "sec is traitor", "xenos in maint", "i'm at the bridge", "who has insuls?", "anyone seen the captain?", "i need a medic, i'm in cargo", "sec to medbay", "where is everyone?", "gg", "that was loud")
+
+/// "security, is the brig empty?" was answered ";Responding to a call from Casey Visitor in ..." (the word "security" was a call whatever else was said).
+/datum/bot_scenario/chat/question_to_security
+	name = "speech: \"security, is the brig empty?\" isn't a call for Security"
+	desc = "The visitor asks an officer a question about Security over Common. The officer doesn't set off as if it were a call. Before: \"Responding to a call\"."
+	job = "Security Officer"
+	layout = list(
+		"#########",
+		"#B.....C#",
+		"#########")
+	time_limit = 18 SECONDS
+
+/datum/bot_scenario/chat/question_to_security/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(ask)), 2 SECONDS)
+
+/datum/bot_scenario/chat/question_to_security/proc/ask()
+	log_line("visitor (over Common): \"security, is the brig empty?\"")
+	brain.on_heard_security_call(visitor, "security, is the brig empty?", FREQ_COMMON)
+
+/datum/bot_scenario/chat/question_to_security/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 12 SECONDS)
+		return BOT_GYM_PENDING
+	for(var/line in spoken())
+		if(findtext(line, "Responding to a call"))
+			fail_reason = "answered a question about Security as a call: \"[line]\""
+			return BOT_GYM_FAIL
 	return BOT_GYM_PASS
