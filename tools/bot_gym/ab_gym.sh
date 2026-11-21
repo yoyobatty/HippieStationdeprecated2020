@@ -7,6 +7,9 @@ unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every 
 #   tools/bot_gym/ab_gym.sh "lava between it" 3 hippiestation/code/modules/bots_ai/goals/exploring.dm
 # REV=<commit> takes "before" from that commit instead of HEAD: REV=e6118c4a~1 for a fix that's already committed.
 # The named files are put back byte for byte whatever happens, and hippiestation.dmb is left the "after" build.
+# ABKIT=1 also judges before against after with devkit's abkit (~/devkit, or DEVKIT_ROOT): the share of scenarios passed
+# in each run, and each scenario's pass rate and seconds, as means with a confidence interval and a verdict; saved in
+# devkit/data/abkit/bot_gym_ab/<time>/. Both builds run at once, so they share the machine's load. 3+ runs say more.
 set -u
 cd "$(dirname "$0")/../.."
 BYOND_BIN="${BYOND_BIN:-/c/Program Files (x86)/BYOND/bin}"
@@ -62,3 +65,11 @@ echo "(before's transcripts: data/bot_gym_before/transcripts/)"
 echo
 echo "AFTER"
 grep -E "^(PASS|FAIL|XFAIL|XPASS|PENDING) |^BOT GYM|^Took|^WARNING" "$SAVE/after.out" | cut -c1-220
+
+
+if [ "${ABKIT:-0}" = "1" ]; then
+	DK="${DEVKIT_ROOT:-$HOME/devkit}/dk.py"
+	echo
+	python "$DK" abkit compare data/bot_gym_before/results.json data/bot_gym/results.json --loader hippie:gym_results \
+		--directions '{"*pass*": "higher"}' --estimator mean --save bot_gym_ab || true
+fi

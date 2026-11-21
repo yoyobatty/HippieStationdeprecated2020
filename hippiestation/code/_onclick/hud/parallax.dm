@@ -706,10 +706,6 @@
 	var/away = arctan(-sun[1], -sun[2])
 	return list(cos(away) * SKY_PLANET_REST, sin(away) * SKY_PLANET_REST)
 
-/// It stays where it is as the stars turn: the station's orbit keeps the same face to it
-/obj/screen/parallax_layer/body/planet/sky_rest()
-	return list(0, 0)
-
 /// The day side toward the sun: the art is lit from screen east (sky_bodies.dmi), so it turns by the sun's bearing
 /obj/screen/parallax_layer/body/planet/Initialize(mapload, view)
 	. = ..()

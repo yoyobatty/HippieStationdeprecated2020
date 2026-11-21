@@ -45,6 +45,12 @@
 	winset(viewer, a["control"], a["params"])
 	return TRUE
 
+/// winget() on the client: {control, params} -> the text DreamSeeker answers ("mapwindow.map", "size" -> "638x644")
+/datum/testkit/proc/cmd_client_winget(list/a)
+	if(!viewer)
+		CRASH("no client connected")
+	return winget(viewer, a["control"], a["params"])
+
 /datum/testkit/proc/cmd_client_info(list/a)
 	if(!viewer)
 		return null

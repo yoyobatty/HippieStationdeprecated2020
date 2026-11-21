@@ -30,6 +30,7 @@ A 2020 /tg/station fork (upstream HippieStation/HippieStationdeprecated2020) bro
 - Shell scripts start with `unset __COMPAT_LAYER` (dm.exe leaks handles with it set).
 
 ## Tools (`tools/`)
+- Cross-project kit (skill `devkit`, `python "C:/Users/Keegan Eaton/devkit/dk.py" TOOL`): `toolfind` first, then `probe` (stalls, hot code of dd.exe), `abkit` (A/B stats), `lookkit` (shots, diffs, golden images), `shrink`/`bisect` (repro, breaking commit; worktree-safe), `timeline` (merged round logs), `tuner` (live sliders), `gpu` (who holds or blocks the GPU).
 - `bot_gym/`: `ab_gym.sh` (before/after), `run_bot_gym.sh`, `run_bot_shift.sh`, `run_live_round.sh`, digests and death stories.
 - `lint/`: dreamchecker against a baseline. `gc_hunt/`: hard-delete hunts.
 - `atmos_bench/`, `lighting_bench/`, `speed_bench/`, `boot_bench/`: performance A/B.

@@ -85,6 +85,10 @@ def screenshot(server, at=None, name=None, seconds=8):
 def close(server):
 	pid = client_pid(server)
 	try:
+		# the map saves its zoom and the split its splitter per key (skin.dmf saved-params), and this client may be the user's own
+		# key: leave the map stretch-to-fit and the split at the skin's 66
+		server.call("client_winset", control=None, params="mapwindow.map.zoom=0")
+		server.call("client_winset", control=None, params="split.splitter=66")  # saved per key too: the map pane back to its share
 		server.call("client_winset", control=None, params="command=.quit")
 		time.sleep(1)
 	except tk.TestkitError:

@@ -144,7 +144,7 @@ def band_mask(n, seed, cover, spread=2.4):
     the band's starlight (spread x its half width) and gathers where the band bulges."""
     across, rift, bulge = band_fields(n)
     strip = np.exp(-(across / spread) ** 2) * (0.75 + 0.25 * bulge)
-    return np.clip(strip * (0.30 + 0.85 * region_mask(n, seed, cover)), 0, 1)
+    return np.clip(strip * (0.12 + 1.0 * region_mask(n, seed, cover)), 0, 1)
 
 
 def roll_packed(rgb, knee=0.72):
@@ -290,9 +290,11 @@ def billow_state(n, seed, cover=0.5, light=0.7, dust=1.0, pillars=1.0, core=1.0,
     facing = np.clip(-(tgx * ux + tgy * uy) / 0.025, 0, 1)
     edge = smoothstep(0.37, 0.47, dens_raw) * smoothstep(0.60, 0.47, dens_raw)
     edge = edge * (0.25 + 0.75 * facing) * (0.55 + 0.45 * spectral(n, 2.0, seed + 91, 20, None))
-    rim = (lit + side * 0.25 + edge * 0.9) * (0.35 + 0.65 * near ** 0.7)
+    rim = (lit + side * 0.25 + edge * 1.25) * (0.35 + 0.65 * near ** 0.7)
 
     crest = smoothstep(0.62, 0.97, dens_raw) ** 1.8 * near
+    # crests carry the billows' own small octaves, so a big lit crest is cauliflower, not a flat glowing blob
+    crest = crest * (0.45 + 0.55 * smoothstep(0.35, 0.85, f))
 
     # dust: lanes and rifts anywhere, the band's own rift where the band runs; pillars on one side of the cluster
     d = dust_field(n, seed + 70, lanes=dust) if dust else np.zeros((n, n))
@@ -323,7 +325,7 @@ def billow_state(n, seed, cover=0.5, light=0.7, dust=1.0, pillars=1.0, core=1.0,
     level = 0.55 + 0.45 * near
     r = (body * (0.10 + 0.55 * smoothstep(0.37, 1.0, dens_raw) ** 1.2) * level + envelope + halo) * seen
     r = r + back * 0.42 * (1 - 0.85 * pil) + pil * 0.06  # the glow behind, and a pillar's own faint light
-    g = (crest * 0.45 + rim * 0.80 + l_edge * 0.35) * seen + (d_edge * 0.55 + back * 0.10) * (1 - 0.85 * pil)
+    g = (crest * 0.45 + rim * 1.0 + l_edge * 0.35) * seen + (d_edge * 0.55 + back * 0.10) * (1 - 0.85 * pil)
     b = hot * (1 - 0.6 * np.maximum(d, pil))
     r, g = crisp(r, 0.7), crisp(g, 0.9, 1.0)
     out = np.stack([shoulder(r, 1.2) * 0.85, shoulder(g, 1.3) * 0.95, shoulder(b, 1.4)], axis=2)
@@ -434,27 +436,27 @@ THEMES = {
     'ember': [
         ('billow1', ('#8a180c', '#ffa848', '#fff4dc'), 235, 0.45, 40, (1, 0)),
         ('veil1', ('#ff5a24', '#ffb45a', '#3a0c10'), 120, 0.55, 55, (1, 0)),
-        ('haze', ('#2c0a34', '#3a1008', '#ff6a30'), 200, 0.35, 0, (0, 0)),
+        ('haze', ('#2c0a34', '#3a1008', '#ff6a30'), 150, 0.35, 0, (0, 0)),
     ],
     'glacier': [
         ('billow2', ('#0d3a8c', '#5ee0ff', '#d8f8ff'), 240, 0.45, 45, (-1, 0)),
         ('veil2', ('#7fe6ff', '#6a7aff', '#0a1e40'), 110, 0.55, 60, (-1, 0)),
-        ('haze', ('#0c2440', '#08304a', '#4a90c8'), 220, 0.35, 0, (0, 0)),
+        ('haze', ('#0c2440', '#08304a', '#4a90c8'), 160, 0.35, 0, (0, 0)),
     ],
     'violet': [
         ('billow3', ('#4a0c90', '#ff3a9a', '#ffe8f6'), 230, 0.42, 50, (1, 0)),
         ('veil1', ('#6ab8ff', '#9a8aff', '#200a38'), 95, 0.58, 60, (-1, 0)),
-        ('haze', ('#1c0838', '#300a28', '#a060ff'), 200, 0.35, 0, (0, 0)),
+        ('haze', ('#1c0838', '#300a28', '#a060ff'), 150, 0.35, 0, (0, 0)),
     ],
     'verdant': [
         ('billow4', ('#08604a', '#30f2a8', '#fff2a0'), 205, 0.45, 45, (1, 0)),
         ('veil1', ('#d8ff8a', '#ffc860', '#062a24'), 75, 0.55, 55, (1, 0)),
-        ('haze', ('#062a3a', '#08301c', '#40d0a0'), 160, 0.35, 0, (0, 0)),
+        ('haze', ('#062a3a', '#08301c', '#40d0a0'), 120, 0.35, 0, (0, 0)),
     ],
     'gold': [
         ('billow6', ('#7a440c', '#ffd070', '#fff6dc'), 205, 0.40, 60, (1, 0)),
         ('veil2', ('#4a8ad8', '#70c0ff', '#0a1a30'), 110, 0.48, 70, (-1, 0)),
-        ('haze', ('#2a1c0c', '#0c1a2a', '#c09050'), 200, 0.35, 0, (0, 0)),
+        ('haze', ('#2a1c0c', '#0c1a2a', '#c09050'), 150, 0.35, 0, (0, 0)),
     ],
     'rose': [
         ('billow5', ('#a01c64', '#ff7ac0', '#fff0f8'), 225, 0.42, 45, (1, 0)),
@@ -463,7 +465,7 @@ THEMES = {
     ],
     'quiet': [
         ('haze', ('#101a38', '#0c1428', '#5a6a9a'), 170, 0.35, 0, (0, 0)),
-        ('veil2', ('#3a4a78', '#2a3460', '#0c1020'), 60, 0.40, 0, (0, 0)),
+        ('veil2', ('#3a4a78', '#2a3460', '#0c1020'), 95, 0.40, 0, (0, 0)),
     ],
 }
 
@@ -508,6 +510,18 @@ def star_layers():
     return {s: sg.as_float(sheet.get_state(s).frames[0]) for s in names}
 
 
+def band_tint(theme):
+    """The theme's band colour times its alpha, read from sky_themes.dm (`band = list("#hex", alpha)`), so the preview
+    shows the band as the game tints it. White at 220 if the theme doesn't set one."""
+    import re
+    path = os.path.join(ROOT, 'hippiestation', 'code', '_onclick', 'hud', 'sky_themes.dm')
+    text = open(path, encoding='utf-8', errors='replace').read()
+    block = re.search(r'/datum/sky_theme/%s\r?\n(.*?)(?:\n/datum|\Z)' % theme, text, re.S)
+    m = block and re.search(r'band = list\("(#[0-9a-fA-F]{6})", (\d+)\)', block.group(1))
+    colour, alpha = (m.group(1), int(m.group(2))) if m else ('#ffffff', 220)
+    return np.array(hex_rgb(colour)) * alpha / 255.0
+
+
 BAND_ANGLE = {'ember': 28, 'glacier': -18, 'violet': 40, 'verdant': -32, 'gold': 12, 'rose': -45, 'quiet': 22}
 
 
@@ -517,7 +531,7 @@ def compose(states, layers, theme, w=608, h=480, angle=None, band=True):
     rng = np.random.default_rng(sum(map(ord, theme)))
     angle = BAND_ANGLE.get(theme, 0) if angle is None else angle
     rep = stars.BAND
-    sky = layers['band'].copy() if band else np.zeros((rep, rep, 3))
+    sky = layers['band'] * band_tint(theme) if band else np.zeros((rep, rep, 3))
     main = THEMES[theme][0][0]
     for state, tones, alpha, *_ in THEMES[theme]:
         sky += sg.upscale2(tint(states[state], tones, alpha))

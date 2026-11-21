@@ -60,6 +60,7 @@ GLOBAL_LIST_INIT(testkit_help, list(
 	"shutdown" = "stops the server",
 	"client_view" = "{at?, zoom?} the connected client's view at a place (an observer it's put in)",
 	"client_winset" = "{control?, params} winset on the connected client",
+	"client_winget" = "{control, params} winget on the connected client",
 	"client_info" = "the connected client: ckey, mob, view, hwmode",
 ))
 

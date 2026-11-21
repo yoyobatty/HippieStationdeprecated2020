@@ -10,10 +10,18 @@ Scenes (tools/atmos_ab/atmos_ab.dm): calm, release, fire, breach, reactions (a p
 default set). Both servers run testbench (or --map) with no bot crew and no speed
 limit. Prints, per scene: SSair ms per game second by stage (A, B, change), then the air at each quarter of the scene. Writes the
 raw results to data/atmos_ab/<time>.json.
+
+  python tools/atmos_ab/ab.py --abkit 6 --b "atmos-engine=linda" --scenes calm
+
+--abkit N runs the whole A/B N times through devkit's abkit (C:/Users/Keegan Eaton/devkit, or $DEVKIT_ROOT): each run is
+one A/B pair (both servers side by side, as above), and abkit gives each scene's stages a median, a confidence interval
+and a verdict (better / worse / no difference), in a GPU-queue reservation (tools/gpu_share.py's queue). Results in
+devkit/data/abkit/atmos_ab/<time>/. Without --abkit everything is as before.
 """
 import argparse
 import json
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -143,7 +151,10 @@ def main():
 	ap.add_argument("--seeds", default="1")
 	ap.add_argument("--no-build", action="store_true")
 	ap.add_argument("--map", default="testbench", help="testbench (default) or hippiestation, metastation: calm runs on its station")
+	ap.add_argument("--abkit", type=int, default=0, metavar="N", help="N paired runs through devkit's abkit: medians, CI, verdict")
 	opts = ap.parse_args()
+	if opts.abkit:
+		return abkit_runs(opts)
 
 	scenes = [s for s in opts.scenes.split(",") if s]
 	seeds = [int(s) for s in opts.seeds.split(",") if s]
@@ -175,5 +186,37 @@ def main():
 	print("\n%.0f s in all; raw results in %s" % (time.time() - started, os.path.relpath(path, tk.ROOT)))
 
 
+def abkit_runs(opts):
+	"""--abkit N: this script, without --abkit, as a paired abkit spec (each run is one A/B pair); abkit reads the raw JSON
+	(its hippie:atmos_ab adapter) and judges every scene's stages"""
+	devkit = os.environ.get("DEVKIT_ROOT", os.path.join(os.path.expanduser("~"), "devkit"))
+	if not os.path.exists(os.path.join(devkit, "dk.py")):
+		sys.exit("--abkit needs devkit at %s (set DEVKIT_ROOT)" % devkit)
+	dmb = os.path.join(tk.ROOT, BUILD + ".dmb")
+	if not opts.no_build or not os.path.exists(dmb):
+		tk.build([CHECK], name=BUILD)
+	args, skip = [], False
+	for a in sys.argv[1:]:
+		if skip:
+			skip = False
+		elif a == "--abkit":
+			skip = True
+		elif not a.startswith("--abkit="):
+			args.append(a)
+	if "--no-build" not in args:
+		args.append("--no-build")
+	scenes = [s for s in opts.scenes.split(",") if s]
+	spec = {"name": "atmos_ab", "paired": True, "cwd": tk.ROOT, "run": [sys.executable, os.path.abspath(__file__)] + args,
+		"metrics": [{"hook": "hippie:atmos_ab", "args": {"stages": STAGES}}], "primary": scenes[0] + "/all of SSair",
+		"runs": opts.abkit, "warmups": 0, "timed": True, "reserve_minutes": max(20, opts.abkit * len(scenes) * 2),
+		"timeout": 300 + 120 * len(scenes) * len(opts.seeds.split(",")) * max(1, opts.seconds / 16),
+		"about": "tools/atmos_ab/ab.py --abkit: A %s | B %s" % (opts.a or "defaults", opts.b or "defaults")}
+	os.makedirs(OUT, exist_ok=True)
+	path = os.path.join(OUT, "abkit_spec.json")
+	with open(path, "w") as f:
+		json.dump(spec, f, indent=1)
+	return subprocess.call([sys.executable, os.path.join(devkit, "dk.py"), "abkit", "run", path])
+
+
 if __name__ == "__main__":
-	main()
+	sys.exit(main())
