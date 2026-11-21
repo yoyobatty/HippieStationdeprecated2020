@@ -106,7 +106,7 @@
 /// Puts a held item away - an equipment slot, the belt, backpack or pocket storage - never on the
 /// floor and never back into a hand. Returns TRUE if it left the hands.
 /datum/bot_brain/proc/put_away(obj/item/I, allow_equip = TRUE)
-	if(!I || !(I in owner.held_items))
+	if(!I || QDELETED(owner) || !(I in owner.held_items))
 		return FALSE
 	if(allow_equip && bot_stows_by_wearing(I) && owner.equip_to_appropriate_slot(I)) //bot_items.dm
 		return TRUE

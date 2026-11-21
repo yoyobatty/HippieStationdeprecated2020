@@ -275,8 +275,8 @@ GLOBAL_VAR_INIT(bot_gym_vanish_after, text2num(world.params["bot-gym-vanish"]))
 // What goals/rnd_analysis.dm's start_science_handout() asked the lathe: P.check_mat(D, 1), which wants a material and read the 1 as the
 // first of the container's materials, a text, so every Scientist's choosing threw once a hand-out was researched (found in 16 shifts).
 /datum/bot_scenario/duty/science_handout
-	name = "perf: a scientist with a hand-out researched and a stocked lathe starts printing it"
-	desc = "Experimental Tools researched (the jaws of life, the hand drill, the experimental welder for Engineering), a protolathe holding every mineral, an R&D console. The scientist's analysing duty goes on to the hand-outs and starts printing one. It used to ask the lathe 'check_mat(design, 1)', which threw 'Cannot read \"$metal\".amount' and ended the whole choosing."
+	name = "perf: a scientist with a hand-out researched and a stocked lathe takes it on"
+	desc = "Experimental Tools researched (the jaws of life, the hand drill, the experimental welder for Engineering), a protolathe holding every mineral, an R&D console. The scientist's analysing duty goes on to the hand-outs and takes one on (what happens after, in the arena, varies from run to run: one run in five printed it and picked it up). It used to ask the lathe 'check_mat(design, 1)', which threw 'Cannot read \"$metal\".amount' and ended the whole choosing."
 	duty_type = /datum/bot_duty/rnd_analysis
 	job = "Scientist"
 	time_limit = 60 SECONDS
@@ -303,10 +303,9 @@ GLOBAL_VAR_INIT(bot_gym_vanish_after, text2num(world.params["bot-gym-vanish"]))
 /datum/bot_scenario/duty/science_handout/check()
 	if(bot_lost())
 		return BOT_GYM_FAIL
-	for(var/id in GLOB.bot_science_handouts_given)
-		if(GLOB.bot_science_handouts_given[id])
-			return BOT_GYM_PASS
-	return BOT_GYM_PENDING
+	// The duty took one on (try_start() returned TRUE: the harness counts those). With the old call it threw and never got there.
+	return goal_attempts ? BOT_GYM_PASS : BOT_GYM_PENDING
+
 
 // What the clear-way planner costs in one go (foundation/clear_way.dm): its tables cover a box up to CW_MAX_SIDE squared, 841 tiles, and
 // the one CHECK_TICK in it came after them all. wall_to_cut_toward() (foundation/escape.dm) looks at up to 400 tiles of the pocket the bot

@@ -39,7 +39,7 @@ GLOBAL_LIST_EMPTY(bot_transfers)
 
 /// What this bot does for a living, which isn't always what it was hired as.
 /datum/bot_brain/proc/work_role()
-	return standing_in_for || owner.mind?.assigned_role
+	return standing_in_for || owner?.mind?.assigned_role //no owner: its body went (kill-mode gym asks after a death)
 
 /proc/bot_job_of(mob/living/carbon/human/H)
 	return H.bot_brain ? H.bot_brain.work_role() : H.mind?.assigned_role

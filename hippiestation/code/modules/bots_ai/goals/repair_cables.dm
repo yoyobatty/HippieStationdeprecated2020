@@ -96,6 +96,8 @@ GLOBAL_VAR_INIT(bot_emitters_down_called, 0)
 	if(!best)
 		return FALSE
 	var/list/info = GLOB.bot_cable_breaks[best]
+	if(!info)
+		return FALSE //put right (by somebody else) while the route was being worked out: "bad index" here
 	info["claim"] = src
 	info["claim_time"] = world.time
 	return assign_goal(new /datum/bot_goal/repair_cable(best, info["type"]))
