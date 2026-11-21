@@ -481,3 +481,68 @@
 		return BOT_GYM_FAIL
 	log_line("called Security [gap / 10] s after the blow")
 	return BOT_GYM_PASS
+
+// ---------------------------------------------------------------------------------------------
+// A flat cell (goals/mech_pilot.dm bot_step_towards())
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/mech_drive/flat
+	name = "mech: with a flat cell it climbs out and walks on, rather than pressing the pedal"
+	desc = "A Ripley with nothing in its cell, and the far end of the room beyond it. The bot climbs in, and the Ripley won't step: it gets out and goes on foot. It sat in a flat Ripley pressing the pedal for 13 minutes (gen1116f run9, 'wouldn't step: no charge' every five seconds)."
+	layout = list(
+		"############",
+		"#B.k.......G#",
+		"############")
+	time_limit = 40 SECONDS
+
+/datum/bot_scenario/mech_drive/flat/setup()
+	..()
+	var/obj/mecha/M = first_placed("k")
+	if(M?.cell)
+		M.cell.charge = 0
+
+/datum/bot_scenario/mech_drive/flat/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(get_turf(bot) == first_marker("G") && !istype(bot.loc, /obj/mecha))
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// A walk that's stopped
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/bmhl/stalled_stroll
+	name = "walking: a stroll that's stopped on one tile is let go after a while, not stood at for minutes"
+	desc = "In wander with no goal, the bot has a route for a friend's walk and no step due to take it. The goal-walk watchdog (watch_for_freeze()) only looked at errands, so a stalled stroll stood there for good (a bot stood on one tile for 222 s with a route twelve tiles long, play1114b run7). It drops it inside a minute."
+	layout = list(
+		"##############",
+		"#B..........G#",
+		"##############")
+	time_limit = 70 SECONDS
+	max_goal_attempts = 0
+
+/datum/bot_scenario/bmhl/stalled_stroll/issue_goal()
+	return
+
+/datum/bot_scenario/bmhl/stalled_stroll/post_spawn()
+	brain.gym_scripted = FALSE
+	brain.next_wander_time = world.time + 10 MINUTES //it has the one walk, then nothing else to do
+	addtimer(CALLBACK(src, PROC_REF(stall)), 1 SECONDS)
+
+/datum/bot_scenario/bmhl/stalled_stroll/proc/stall()
+	if(QDELETED(bot))
+		return
+	brain.pursue(first_marker("G"), "follow")
+	brain.cancel_step() //no step is due: the walk's stopped where it stands
+
+/datum/bot_scenario/bmhl/stalled_stroll/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("dropping it"))
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/bmhl/stalled_stroll/on_timeout()
+	fail_reason = "stood at a stalled stroll for the whole minute"
+	return BOT_GYM_FAIL

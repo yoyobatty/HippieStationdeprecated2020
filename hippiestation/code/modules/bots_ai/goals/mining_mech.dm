@@ -305,6 +305,9 @@ GLOBAL_DATUM(bot_mech_miner, /datum/weakref)
 		if(bot.in_mech() == G.mech)
 			stage = "work"
 			return again(bot, 1)
+		if(!G.mech.has_charge(G.mech.step_energy_drain * 3)) //flat: not into one to climb straight out again (goals/mech_pilot.dm)
+			bot_log(bot, "MECH: [G.mech] is flat - leaving it")
+			return GOAL_STEP_FAIL
 		if(!bot.owner.Adjacent(G.mech))
 			if(++tries > 3)
 				return GOAL_STEP_FAIL
