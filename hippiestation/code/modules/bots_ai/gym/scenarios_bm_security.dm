@@ -526,3 +526,33 @@
 	thrower.gym_run = src
 	thrower.gym_scripted = TRUE
 	thrower.greytider = FALSE
+
+/// With nobody else on to take the prisoner, the officer doesn't wait three minutes for somebody
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/alone
+	name = "asks: an officer with no ID and a cuffed prisoner, with no other officer on, asks the HoP at once and doesn't wait for somebody to take them"
+	desc = "The same officer with no card, now with a prisoner in cuffs and no other officer on the station to hand them to: the ask for somebody to take the prisoner in stands for three minutes, and it used to hold the officer off the HoP for all of them. Now with nobody to take them it asks the HoP for its card straight away."
+	layout = list(
+		"##########",
+		"#B.....I.#",
+		"#..C.P.X.#",
+		"##########")
+	var/mob/living/carbon/human/prisoner
+
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/alone/post_spawn()
+	..()
+	prisoner = stand_in(first_marker("P"), "Pat Prisoner")
+	prisoner.handcuffed = new /obj/item/restraints/handcuffs(prisoner)
+	prisoner.update_handcuffed()
+	var/datum/bot_wanted/W = new
+	W.crime = "Assault"
+	W.severity = BOT_CRIME_MINOR
+	GLOB.bot_security_wanted[WEAKREF(prisoner)] = W
+	addtimer(CALLBACK(visitor.bot_brain, TYPE_PROC_REF(/datum/bot_brain, start_brig_escort), prisoner), 3 SECONDS)
+
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/alone/release_run()
+	GLOB.bot_security_wanted -= WEAKREF(prisoner)
+	if("bot_handovers" in GLOB.vars)
+		var/list/asked = GLOB.vars["bot_handovers"]
+		if(islist(asked))
+			asked -= REF(prisoner)
+	return ..()

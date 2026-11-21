@@ -311,6 +311,16 @@ GLOBAL_LIST_EMPTY(bot_handovers)
 			return TRUE
 	return FALSE
 
+/// Another officer, awake and free, whose card opens the Brig
+/datum/bot_brain/proc/another_officer_with_access()
+	for(var/datum/bot_brain/B as anything in GLOB.bot_security_brains)
+		if(B == src || QDELETED(B.owner) || B.owner.stat != CONSCIOUS || B.owner.handcuffed || B.owner.z != owner.z || !B.has_brig_access())
+			continue
+		if(gym_run && get_area(B.owner) != get_area(owner))
+			continue
+		return TRUE
+	return FALSE
+
 /// An officer with no ID of its own on it, between jobs: it asks the HoP for a new one, once its prisoner has gone to somebody else.
 /datum/bot_duty/new_id_from_hop
 	name = "asking the HoP for a new ID"
@@ -325,11 +335,20 @@ GLOBAL_LIST_EMPTY(bot_handovers)
 		return FALSE
 	if(bot.owner.get_idcard(TRUE) || bot.owner.get_idcard(FALSE) || bot.my_card_to_fetch()) //one on it, or its own lying where it can get it
 		return FALSE
+	if(bot.applying_for || world.time < bot.card_wait_until) //its card's at the HoP's desk for a job change, or somebody's bringing it back
+		return FALSE
+	for(var/datum/bot_transfer/T as anything in GLOB.bot_transfers)
+		if(T.who == bot.owner && !T.done)
+			return FALSE
+	for(var/list/promise as anything in GLOB.bot_new_ids_promised)
+		var/datum/weakref/who_ref = promise[1]
+		if(who_ref?.resolve() == bot.owner)
+			return FALSE //it's been promised one already
 	for(var/key in GLOB.bot_handovers)
 		var/list/entry = GLOB.bot_handovers[key]
 		var/datum/weakref/asker_ref = entry[2]
-		if(asker_ref?.resolve() == bot)
-			return FALSE //the prisoner first
+		if(asker_ref?.resolve() == bot && bot.another_officer_with_access())
+			return FALSE //the prisoner first, while there's somebody to take them
 	bot.call_for(/datum/bot_request_kind/new_id, pick("HoP, I've lost my ID and I need a new one printed. I'm [bot.owner.real_name], Security.", "HoP, I need a new ID, mine's gone. [bot.owner.real_name], Security Officer."))
 	return FALSE
 
