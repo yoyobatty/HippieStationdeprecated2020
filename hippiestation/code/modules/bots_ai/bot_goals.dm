@@ -651,6 +651,8 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 	run_current_step()
 
 /datum/bot_brain/proc/run_current_step()
+	if(QDELETED(owner))
+		return //the body went while a click or a walk was asleep, and its goal's next step is what woke: nobody to run it with (a kill-mode gym, bot-gym-kill)
 	if(!current_strategy || !current_strategy.steps || current_step_index > current_strategy.steps.len)
 		goal_succeeded()
 		return
@@ -675,8 +677,8 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 	advance_goal_step(success)
 
 /datum/bot_brain/proc/advance_goal_step(success)
-	if(!current_strategy)
-		return
+	if(!current_strategy || QDELETED(owner))
+		return //no goal, or the body's gone (above)
 	if(!success)
 		current_strategy.attempts++
 		if(current_strategy.attempts < current_strategy.max_attempts)

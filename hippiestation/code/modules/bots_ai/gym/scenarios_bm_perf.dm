@@ -70,3 +70,37 @@
 		fail_reason = "the monkey still has the gibbed bot as its LAssailant: that's a hard delete for the bot"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+// ---------------------------------------------------------------------------------------------
+// Kill mode: what every scenario's step does when its body goes
+// ---------------------------------------------------------------------------------------------
+// bot-gym-kill=<seconds>: every gym run's bot is killed that long after the run starts, a gib, a qdel, a small blast or a death in turn
+// (by the scenario's place in the suite), whatever it was in the middle of. The gym never deletes a bot, so nothing else tests what a click, a
+// walk or a goal's step does when it wakes from a pause with nobody there: a runtime in the step's own proc, or a caught exception, or
+// (with a gib hunt, tools/gc_hunt/bot_gib_hunt.dm) a hard delete. A run's verdict is meaningless then (the bot died). The result is the
+// round log's runtime.log: "runtime error" lines in bots_ai files outside gym/ are uncaught runtimes (a step that no try/catch covers),
+// "BOT AI EXCEPTION" lines are caught ones that aren't about a body gone, and "outlived its body" lines are the expected unwinding.
+//   NOCOMPILE=1 EXTRA_PARAMS="bot-gym-kill=5" JOBS=8 tools/bot_gym/run_bot_gym.sh all 1
+//   python tools/runtime_ledger/ledger.py --ours data/logs/bot_gym/<run>/       (runtimes by file and line; 5 s is mid-errand for most)
+
+/// Seconds after a run starts that its bot is killed, or null
+GLOBAL_VAR_INIT(bot_gym_kill_after, text2num(world.params["bot-gym-kill"]))
+
+/datum/bot_scenario
+	var/killed_at
+
+/datum/bot_scenario/tick()
+	var/kill_after = GLOB.bot_gym_kill_after
+	if(kill_after && !killed_at && result == BOT_GYM_PENDING && bot && !QDELETED(bot) && bot.stat != DEAD && world.time >= start_time + kill_after SECONDS)
+		killed_at = world.time
+		var/mob/living/carbon/human/body = bot
+		switch(suite_index % 4)
+			if(0)
+				body.gib()
+			if(1)
+				qdel(body)
+			if(2)
+				explosion(get_turf(body), 0, 0, 2, 3)
+			if(3)
+				body.death()
+	return ..()
