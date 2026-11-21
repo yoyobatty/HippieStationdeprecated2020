@@ -159,6 +159,8 @@
 	var/obj/item/twohanded/fireaxe/axe
 	/// The control: this one's laid into somebody a moment ago
 	var/hurt_somebody = FALSE
+	/// Another scenario in the shared gym took the station to red alert while this ran
+	var/red_seen = FALSE
 
 /datum/bot_scenario/griefed/officer/armed/lethal/axe_vandal/grief()
 	GLOB.security_level = SEC_LEVEL_GREEN //a red alert left up by a scenario before this one makes lethal force fair for anybody
@@ -173,7 +175,14 @@
 /datum/bot_scenario/griefed/officer/armed/lethal/axe_vandal/check()
 	if(bot_lost())
 		return BOT_GYM_FAIL
+	// The gym's one security level is shared: a scenario running alongside (armory_opens takes the station to red) makes lethal force fair to
+	// anybody, and that's Space Law's, not the officer's doing. A run that saw red isn't counted against it.
+	if(GLOB.security_level >= SEC_LEVEL_RED)
+		red_seen = TRUE
 	var/lethal = bot_transcript_said("Going lethal on")
+	if(lethal && red_seen && !hurt_somebody)
+		log_line("a red alert from another scenario made lethal force fair: not counted")
+		return BOT_GYM_PASS
 	if(hurt_somebody)
 		if(lethal)
 			return BOT_GYM_PASS
