@@ -532,6 +532,6 @@
 	if(brain.grudge_with(borg) > 0)
 		fail_reason = "took the needle badly (grudge [brain.grudge_with(borg)])"
 		return BOT_GYM_FAIL
-	if(!dosed_at && bot.reagents.has_reagent(/datum/reagent/medicine/bicaridine))
+	if(!dosed_at && bot?.reagents?.has_reagent(/datum/reagent/medicine/bicaridine))
 		dosed_at = world.time
 	return (dosed_at && world.time > dosed_at + 4 SECONDS) ? BOT_GYM_PASS : BOT_GYM_PENDING
