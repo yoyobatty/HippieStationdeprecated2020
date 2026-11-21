@@ -1016,3 +1016,68 @@
 		fail_reason = "didn't tell of what it saw: \"[lines[1]]\""
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+/// Favours, asked of somebody stood in front of the asker, one every 6 s (bot_favours.dm): read the transcript for whether each answer fits.
+/datum/bot_scenario/chat/sweep/favours
+	name = "speech: favours asked face to face"
+	desc = "Bring me a crowbar, come with me, show me where medbay is, call the doctor, tell security: whether what comes back fits."
+	lines = list("can you bring me a crowbar?", "can you show me where medbay is?", "can you call the doctor?", "can you tell security?", "go get the captain", "can you hold this for me?", "can you watch my stuff?", "can you give me a hand with this?", "go get the janitor", "bring me a toolbox", "can you grab me a welder?", "take me to engineering", "lead the way", "where can i get a pen?", "do you have a pen?", "can i borrow your crowbar?", "can you lend me some money?", "can you cover for me?", "i need a ride", "can you take me to medbay?")
+	pass_thirds = 1.5
+
+/// "Can you lend me some money?" is something asked of it, not a question it doesn't know the answer to ("Wish I knew.").
+/datum/bot_scenario/chat/polite_request
+	name = "speech: \"can you lend me some money?\" is turned down, not met with \"wish I knew\""
+	desc = "The visitor asks the bot for a favour it can't do. It says it can't, in some way or other, instead of a stock \"I don't know\"."
+	job = "Assistant"
+	layout = list(
+		"#######",
+		"#B.C..#",
+		"#######")
+	time_limit = 15 SECONDS
+
+/datum/bot_scenario/chat/polite_request/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "can you lend me some money?"), 2 SECONDS)
+
+/datum/bot_scenario/chat/polite_request/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 9 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	if(!length(lines))
+		fail_reason = "said nothing to \"can you lend me some money?\""
+		return BOT_GYM_FAIL
+	if(lines[1] in GLOB.bot_question_reply_lines)
+		fail_reason = "answered a request as a question it didn't know: \"[lines[1]]\""
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// "Can you call the doctor?" and "can you tell security?" were answered "No clue." and "Beats me." (bot_favours.dm had call words for Security, Engineering and the janitor, not the doctor).
+/datum/bot_scenario/chat/call_the_doctor
+	name = "speech: \"can you call the doctor?\" is something it does, not a question it doesn't know"
+	desc = "Asked to call the doctor, the bot calls over the radio or says there's nobody to call. Before: \"No clue.\""
+	job = "Assistant"
+	layout = list(
+		"#######",
+		"#B.C..#",
+		"#######")
+	time_limit = 15 SECONDS
+
+/datum/bot_scenario/chat/call_the_doctor/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "can you call the doctor?"), 2 SECONDS)
+
+/datum/bot_scenario/chat/call_the_doctor/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 9 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	if(!length(lines))
+		fail_reason = "said nothing to \"can you call the doctor?\""
+		return BOT_GYM_FAIL
+	if(!(lines[1] in list("Calling them.", "Sure.", "Don't think there's anybody on.", "Can't raise anyone, sorry.")))
+		fail_reason = "answered \"can you call the doctor?\" with \"[lines[1]]\""
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

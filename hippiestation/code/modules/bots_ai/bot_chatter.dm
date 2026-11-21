@@ -569,6 +569,10 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 	var/fits = fitting_reply(lower_msg)
 	if(fits)
 		return fits
+	// "Can you lend me some money?", "can you hold this?", "can you cover for me?": a favour nothing above does, asked of it. Not "I don't know" to it.
+	var/asked_favour = polite_request_reply(lower_msg)
+	if(asked_favour)
+		return asked_favour
 	if(findtext(lower_msg, "?"))
 		return unclear_question(lower_msg)
 	// Called by name and something it didn't follow. Somebody it was already talking with, saying its name as well ("Sam, yes", answering what Sam
@@ -617,6 +621,20 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 	if(bot_text_has_any(lower_msg, list("can you", "could you", "would you", "will you", "do you", "are you", "did you", "have you")) && length(scrap) <= 10)
 		return pick("[capitalize(scrap)] what?", "Sorry, what?", "Hm? What?")
 	return null
+
+/// "Can you ...?", "could you ...?", "would you ...?" with something to do in it and no question word: a request it has no way to do. It said "No clue.",
+/// "Wish I knew." and "Beats me." to "can you hold this for me?", "can you lend me some money?" and "can you watch my stuff?" (the favour handlers, bot_favours.dm,
+/// have the ones it can do).
+/datum/bot_brain/proc/polite_request_reply(lower_msg)
+	if(!bot_text_has_any(lower_msg, list("can you", "could you", "would you", "will you", "can u", "could u", "would u", "can i borrow", "could i borrow", "can i have", "could i have", "can i get", "could i get")))
+		return null
+	if(bot_text_has_any(lower_msg, list("what", "whats", "what's", "where", "wheres", "where's", "who", "whos", "who's", "why", "how", "when", "which", "hear me", "tell me", "do you know", "know where")))
+		return null //asking it something, not for something
+	var/static/regex/not_letters = regex("\[^a-z0-9' ]", "g")
+	var/list/words = splittext(trim(not_letters.Replace(lower_msg, "")), " ")
+	if(length(words) < 4)
+		return null //"can you?" is for fitting_reply()
+	return mood_pick(list("Sorry, can't right now!", "Wish I could, sorry!", "Can't at the moment, sorry!"), list("Can't, sorry.", "Not right now.", "Sorry, no."), list("No.", "Do it yourself.", "Not my job."))
 
 /// What you say to somebody who's told you something.
 /datum/bot_brain/proc/ack_reply()
