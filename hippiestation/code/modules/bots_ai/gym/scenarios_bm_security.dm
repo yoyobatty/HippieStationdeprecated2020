@@ -255,3 +255,49 @@
 	desc = "The same four officers, and the visitor cries that somebody's attacking them: three go. (A cap of two for everything would leave a fight short.)"
 	the_call = "Security! Somebody is attacking me in here!"
 	officers_wanted = 3
+
+// ---------------------------------------------------------------------------------------------
+// Handcuffs stay on an officer
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/officer_keeps_cuffs
+	name = "security: an officer with a pair of cuffs in one hand and a drink in the other doesn't put the cuffs on the floor for a pickup"
+	desc = "Shift sec1121a: officers set their handcuffs down 'for a moment' to take something they passed (24 times in a 40-minute shift across five officers), then went to 'find a pair' (34 times) and now and then had nothing to cuff somebody with mid-arrest. With no bag to put them in and both hands full, the cuffs stay in hand and the pickup goes without."
+	job = "Security Officer"
+	layout = list(
+		"#######",
+		"#B..t.#",
+		"#######")
+	time_limit = 8 SECONDS
+	var/obj/item/restraints/handcuffs/cuffs
+
+/datum/bot_scenario/officer_keeps_cuffs/issue_goal()
+	return
+
+/datum/bot_scenario/officer_keeps_cuffs/post_spawn()
+	brain.register_security()
+	if(bot.back)
+		qdel(bot.back) //nowhere to put anything: the hand's the only place
+	bot.equip_to_slot_or_del(new /obj/item/flashlight(bot), ITEM_SLOT_BELT) //a belt with no room for cuffs on it
+	bot.equip_to_slot_or_del(new /obj/item/lighter(bot), ITEM_SLOT_LPOCKET)
+	bot.equip_to_slot_or_del(new /obj/item/lighter(bot), ITEM_SLOT_RPOCKET)
+	cuffs = new /obj/item/restraints/handcuffs(bot)
+	bot.put_in_hands(new /obj/item/reagent_containers/food/drinks/soda_cans/cola(bot))
+	bot.put_in_hands(cuffs)
+	addtimer(CALLBACK(src, PROC_REF(pass_something_by)), 2 SECONDS)
+
+/datum/bot_scenario/officer_keeps_cuffs/proc/pass_something_by()
+	if(result == BOT_GYM_PENDING && !QDELETED(bot))
+		brain.make_room_for_item(FALSE) //what pickup_item() does for something it passes: both hands full
+		log_line("made room for a pickup: cuffs [cuffs.loc]")
+
+/datum/bot_scenario/officer_keeps_cuffs/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(cuffs))
+		fail_reason = "the cuffs are gone"
+		return BOT_GYM_FAIL
+	if(isturf(cuffs.loc))
+		fail_reason = "set the cuffs down on the floor for a pickup it passed"
+		return BOT_GYM_FAIL
+	return world.time > start_time + 5 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
