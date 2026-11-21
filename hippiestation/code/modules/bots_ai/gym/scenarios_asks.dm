@@ -980,7 +980,15 @@
 	time_limit = 20 SECONDS
 
 /datum/bot_scenario/dock_door/post_spawn()
-	addtimer(CALLBACK(src, PROC_REF(shuttle_leaves)), 3) //after it has set off, the way planned through the door and the dock
+	// The shuttle goes the moment the bot takes its first step, the way planned through the door and the dock. It was a 3 ds timer, and
+	// timers (SStimer) run a second or so late against the bot's own steps (SSbot_steps) in a fast-forwarded gym: the bot got to the door
+	// before the dock had gone, opened it, and the scenario failed on how loaded the machine was.
+	RegisterSignal(bot, COMSIG_MOVABLE_MOVED, PROC_REF(set_off))
+
+/datum/bot_scenario/dock_door/proc/set_off(atom/movable/mover, atom/oldloc, dir)
+	SIGNAL_HANDLER
+	UnregisterSignal(bot, COMSIG_MOVABLE_MOVED)
+	INVOKE_ASYNC(src, PROC_REF(shuttle_leaves))
 
 /datum/bot_scenario/dock_door/proc/shuttle_leaves()
 	for(var/turf/T in markers["x"])

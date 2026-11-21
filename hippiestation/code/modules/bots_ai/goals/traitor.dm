@@ -793,9 +793,7 @@ GLOBAL_LIST_INIT(bot_steal_carriers, list(
 				wait_for = 10
 				return TRUE
 			return FALSE
-		bot.combat_chase(go)
-		wait_for = 5
-		return TRUE
+		return bot.chase_for_a_kill(go, src) //bot_brain.dm: a way to them, or a wait and then letting it go
 	bot.stop_pursuit()
 	if(!QDELETED(G.sword) && (G.sword in bot.owner.held_items))
 		bot.use_item_on(G.sword, V, harm = TRUE)

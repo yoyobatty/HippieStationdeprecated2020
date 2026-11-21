@@ -44,6 +44,8 @@ GLOBAL_VAR_INIT(bot_telemetry_samples, !(BOT_GYM_PARAMETER in world.params) || (
 	/// Believability counters, summarised by the Bot Gym. Keys: see telemetry_flag().
 	var/list/telemetry_flags
 	var/telemetry_last_pickup_time = -100
+	/// When it last let go of something it held (put away, set down): the next thing it takes comes a beat later (hand_beat(), bot_human.dm)
+	var/telemetry_last_release_time = -100
 	/// What telemetry_clicked() measured for the click in progress, until its event is written.
 	var/list/telemetry_click
 
@@ -252,6 +254,9 @@ GLOBAL_VAR_INIT(bot_telemetry_samples, !(BOT_GYM_PARAMETER in world.params) || (
 	var/drawn = findtext(from_where, "carried:") == 1 || from_where == "worn"
 	var/gap = world.time - telemetry_last_pickup_time
 	telemetry_last_pickup_time = world.time
+	// Something taken in the instant something else was let go of: two inputs in one (a hand put to use takes a moment, hand_beat())
+	if(world.time - telemetry_last_release_time < 2)
+		telemetry_flag("instant_swap")
 	if(!drawn)
 		if(dist > 1)
 			telemetry_flag("remote_pickup")
@@ -268,6 +273,8 @@ GLOBAL_VAR_INIT(bot_telemetry_samples, !(BOT_GYM_PARAMETER in world.params) || (
 	if(was == "floor" || findtext(was, "in:") == 1)
 		return //never on the bot - e.g. a plant bag scooping produce off the floor goes through here
 	if(. && !QDELETED(I))
+		if(was == "active_hand" || was == "inactive_hand")
+			bot_brain.telemetry_last_release_time = world.time
 		var/now = isturf(I.loc) ? "floor" : "in:[bot_telemetry_short(I.loc?.type)]"
 		bot_brain.telemetry_event(isturf(I.loc) ? "drop" : "unequip", list("item" = "[I.name]", "was" = was, "to" = now))
 
@@ -292,6 +299,9 @@ GLOBAL_VAR_INIT(bot_telemetry_samples, !(BOT_GYM_PARAMETER in world.params) || (
 /// which time the bot has walked through it and is two tiles on, facing away. A call that never gets
 /// this far (out of reach by the time the bot got round to it) made no click and is judged on nothing.
 /datum/bot_brain/proc/telemetry_clicked(atom/A)
+	// A click in the instant of the draw or pickup it's for: a draw is an input, and so is the click (hand_beat(), bot_human.dm)
+	if(world.time - telemetry_last_pickup_time < 2)
+		telemetry_flag("instant_click")
 	var/turf/me = get_turf(owner)
 	telemetry_click = list("dist" = get_dist(owner, A), "cx" = me?.x, "cy" = me?.y) + telemetry_target_fields(A)
 
