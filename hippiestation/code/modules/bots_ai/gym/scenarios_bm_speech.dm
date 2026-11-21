@@ -578,7 +578,7 @@
 		"#########",
 		"#B..H...#",
 		"#########")
-	time_limit = 20 SECONDS
+	time_limit = 24 SECONDS
 	var/blown = FALSE
 
 /datum/bot_scenario/hole_in_the_hull/issue_goal()
@@ -597,7 +597,7 @@
 /datum/bot_scenario/hole_in_the_hull/check()
 	if(bot_lost())
 		return BOT_GYM_FAIL
-	if(!blown || world.time < start_time + 12 SECONDS)
+	if(!blown || world.time < start_time + 18 SECONDS) //2 s to the hole, 2-5 s to notice it, and up to 6 s to type the line
 		return BOT_GYM_PENDING
 	var/said = 0
 	var/right_words = FALSE
@@ -698,3 +698,320 @@
 	var/datum/bot_request_kind/read_as = bot_request_kind_of("cargo, can we get some glass please?", TRUE, get_turf(visitor))
 	fail_reason = "answered a request for glass with \"[lines[1]]\" (read as: [read_as ? read_as.name : "no request"], heard_by [read_as ? read_as.heard_by(brain, TRUE) : "-"], work role [brain.work_role()])"
 	return BOT_GYM_FAIL
+
+// ---------------------------------------------------------------------------------------------
+// What's said to a job over Common
+// ---------------------------------------------------------------------------------------------
+
+/// The user types nearly everything on Common, and over the radio a bot answers only to its name or its job's title. A line to a job over the radio, one
+/// every 6 s, to somebody of that job: what comes back, and whether it fits (read the transcript: data/bot_gym/transcripts/). Passes at half answered.
+/datum/bot_scenario/chat/sweep/radio_lines
+	name = "speech: lines to the Engineer over Common"
+	job = "Station Engineer"
+	pass_thirds = 0.75 //a quarter: most of these aren't asking for anything, and who's here is said once for twenty seconds
+	lines = list("engineering, how's the engine?", "ce, status?", "is the engine ok?", "engineer to the bridge please", "anyone in engineering?", "who's on the engine?", "can engineering fix the lights?", "we need power in medbay", "engineering, the singularity is loose!", "engineers, hello?", "engi, you there?", "any engineer about?")
+
+/datum/bot_scenario/chat/sweep/radio_lines/visitor_says(line)
+	if(result != BOT_GYM_PENDING || QDELETED(visitor))
+		return
+	log_line("visitor (over Common): \"[line]\"")
+	// What /mob/living/carbon/human/Hear() hands a bot (bot_brain.dm)
+	brain.on_heard_security_call(visitor, lowertext(line), FREQ_COMMON)
+	brain.on_heard_ruling(visitor, lowertext(line))
+	brain.on_heard_speech(visitor, lowertext(line), FREQ_COMMON)
+
+/datum/bot_scenario/chat/sweep/radio_lines/doctor
+	name = "speech: lines to the Doctor over Common"
+	job = "Medical Doctor"
+	lines = list("medbay, status?", "doctor to the bridge", "cmo, got a sec?", "anyone in medbay?", "need a doctor in cargo", "can medbay clone me?", "is medbay open?", "medic!", "doctor, i'm hurt", "who's the cmo?", "medbay, hello?", "any doctor about?")
+
+/datum/bot_scenario/chat/sweep/radio_lines/cargo
+	name = "speech: lines to Cargo over Common"
+	job = "Cargo Technician"
+	lines = list("cargo, any crates for me?", "qm, can we get metal?", "cargo, status?", "cargo, where's my order?", "anyone in cargo?", "qm, got a sec?", "cargo, can you order some tools?", "what's the supply shuttle doing?", "is cargo open?", "who's the qm?", "cargo, hello?", "any cargo tech about?")
+
+/datum/bot_scenario/chat/sweep/radio_lines/security
+	name = "speech: lines to Security over Common"
+	job = "Security Officer"
+	lines = list("sec, any updates?", "security, is the brig empty?", "anyone in security?", "sec, what's the alert?", "who's the hos?", "security, i've got a trespasser in cargo", "sec, are you there?", "officer, over here!", "sec, status?", "any officer about?", "security, hello?", "sec to the bridge please")
+
+/datum/bot_scenario/chat/sweep/radio_lines/janitor
+	name = "speech: lines to the Janitor over Common"
+	job = "Janitor"
+	lines = list("janitor, can you clean medbay?", "mess in cargo, janitor", "anyone seen the janitor?", "janitor, got a sec?", "who's the janitor?", "janitor, got a mop?", "janitor, hello?", "any janitor about?", "janitor, there's blood in the bar", "can the janitor come to science?", "janny, you there?", "janitor, status?")
+
+/datum/bot_scenario/chat/sweep/radio_lines/hop
+	name = "speech: lines to the HoP over Common"
+	job = "Head of Personnel"
+	lines = list("hop, i need access", "hop, can i have a new job?", "hop, got a sec?", "hop, are you there?", "where's the hop?", "hop, my id's broken", "can i get a promotion?", "hop, i need engineering access", "who's the hop?", "which jobs are open?", "hop, hello?", "any hop about?")
+
+/// "what did i miss?" got "We've lost 3 so far." from a bot that had seen nobody die (shift_news() counted every body on the station).
+/datum/bot_scenario/chat/shift_news_unseen
+	name = "speech: asked what it missed, it doesn't give a count of dead it hasn't seen"
+	desc = "Somebody's dead in a room behind a wall, and the bot knows nothing about it. Asked \"what did i miss?\", it says it's quiet, not how many have died."
+	job = "Assistant"
+	layout = list(
+		"#########",
+		"#B.C#.K.#",
+		"#########")
+	time_limit = 15 SECONDS
+
+/datum/bot_scenario/chat/shift_news_unseen/post_spawn()
+	..()
+	var/mob/living/carbon/human/body = stand_in(first_marker("K"), "Dead Crew")
+	body.mind_initialize()
+	body.mind.assigned_role = "Botanist"
+	body.death()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "what did i miss?"), 2 SECONDS)
+
+/datum/bot_scenario/chat/shift_news_unseen/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 9 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	if(!length(lines))
+		fail_reason = "said nothing to \"what did i miss?\""
+		return BOT_GYM_FAIL
+	if(findtext(lines[1], "lost") || findtext(lines[1], "dead") || findtext(lines[1], "Security's after"))
+		fail_reason = "knew of what it hadn't seen: \"[lines[1]]\"" //the dead, or the news another scenario's arena has put in the one pool
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// "Any janitor about?" over Common: one of the two janitors that hear it says it's here. Over the radio a bot answers only to its name, and asked
+/// to its face it said "Don't ask me." or "Haven't a clue." (the janitor, to "any janitor about?").
+/datum/bot_scenario/chat/roll_call
+	name = "speech: \"any janitor about?\" over Common gets one \"here\", from a janitor"
+	desc = "Two janitors hear \"any janitor about?\" come over Common. One says it's here, on Common; the other leaves it to them."
+	job = "Janitor"
+	layout = list(
+		"###########",
+		"#B.b.....C#",
+		"###########")
+	time_limit = 20 SECONDS
+	var/mob/living/carbon/human/other
+
+/datum/bot_scenario/chat/roll_call/post_spawn()
+	..()
+	other = second_bot(first_marker("b"), "Jan Itor")
+	other.mind.assigned_role = "Janitor"
+	brain.sociability = 1
+	other.bot_brain.sociability = 1
+	addtimer(CALLBACK(src, PROC_REF(ask)), 2 SECONDS)
+
+/datum/bot_scenario/chat/roll_call/proc/ask()
+	log_line("visitor (over Common): \"any janitor about?\"")
+	for(var/datum/bot_brain/B in list(brain, other.bot_brain))
+		B.on_heard_speech(visitor, "any janitor about?", FREQ_COMMON)
+
+/datum/bot_scenario/chat/roll_call/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 9 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	if(length(lines) != 1)
+		fail_reason = length(lines) ? "more than one answered: [english_list(lines)]" : "nobody said it was here"
+		return BOT_GYM_FAIL
+	if(!(findtext(lines[1], "here") || findtext(lines[1], "Go ahead") || findtext(lines[1], "what do you need")))
+		fail_reason = "answered \"any janitor about?\" with \"[lines[1]]\""
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// "Anyone in engineering?" (a trade the bot-title words don't have: bot_roll_call_trades) over Common, to an Engineer.
+/datum/bot_scenario/chat/roll_call/engineering
+	name = "speech: \"anyone in engineering?\" over Common gets a \"here\" from an engineer"
+	desc = "An engineer hears \"anyone in engineering?\" over Common. It says it's here."
+	job = "Station Engineer"
+
+/datum/bot_scenario/chat/roll_call/engineering/post_spawn()
+	..()
+	other.mind.assigned_role = "Station Engineer"
+
+/datum/bot_scenario/chat/roll_call/engineering/ask()
+	log_line("visitor (over Common): \"anyone in engineering?\"")
+	for(var/datum/bot_brain/B in list(brain, other.bot_brain))
+		B.on_heard_speech(visitor, "anyone in engineering?", FREQ_COMMON)
+
+/datum/bot_scenario/chat/roll_call/engineering/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 9 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	if(length(lines) != 1)
+		fail_reason = length(lines) ? "more than one answered: [english_list(lines)]" : "nobody said it was here"
+		return BOT_GYM_FAIL
+	if(!(findtext(lines[1], "here") || findtext(lines[1], "Go ahead") || findtext(lines[1], "what do you need")))
+		fail_reason = "answered \"anyone in engineering?\" with \"[lines[1]]\""
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// "Who's the lawyer?", asked of the lawyer, was answered with the lawyer's own name, as if about somebody else.
+/datum/bot_scenario/chat/that_is_me
+	name = "speech: \"who's the lawyer?\", asked of the lawyer, gets \"that's me\""
+	desc = "The visitor asks the only lawyer who the lawyer is. It says it's the lawyer, not a name as if it were somebody else."
+	job = "Lawyer"
+	layout = list(
+		"#######",
+		"#B.C..#",
+		"#######")
+	time_limit = 15 SECONDS
+
+/datum/bot_scenario/chat/that_is_me/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "who's the lawyer?"), 2 SECONDS)
+
+/datum/bot_scenario/chat/that_is_me/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 9 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	if(!length(lines))
+		fail_reason = "said nothing to \"who's the lawyer?\""
+		return BOT_GYM_FAIL
+	if(!(lines[1] in list("That's me.", "Me.", "I am. What's up?")))
+		fail_reason = "answered \"who's the lawyer?\" with \"[lines[1]]\""
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// A trade nobody's on, called by its letters: "nobody's on research director" was how it came out.
+/datum/bot_scenario/chat/nobody_on_short
+	name = "speech: told there's no RD, it says RD, not research director"
+	desc = "Somebody calls for the RD over Common and there isn't one. The answer calls it the RD."
+	job = "Assistant"
+	layout = list(
+		"#######",
+		"#B.C..#",
+		"#######")
+	time_limit = 15 SECONDS
+
+/datum/bot_scenario/chat/nobody_on_short/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "rd, you there?"), 2 SECONDS)
+
+/datum/bot_scenario/chat/nobody_on_short/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 9 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	if(!length(lines))
+		fail_reason = "said nothing to a call for the RD with no RD about"
+		return BOT_GYM_FAIL
+	if(findtext(lines[1], "research director") || !findtext(lines[1], "RD") && !findtext(lines[1], "one"))
+		fail_reason = "said \"[lines[1]]\""
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+// ---------------------------------------------------------------------------------------------
+// Typed one line after another
+// ---------------------------------------------------------------------------------------------
+
+/// Three lines from one officer in 10 s (the Security call, the arrest, "in custody") came out the tick they were decided, in 18 bots' 20-minute shift. A person types
+/// the first, then the next, and sends each when it's typed (bot_say(), bot_chat.dm). The gym says lines at once but for a scenario that tests typing.
+/datum/bot_scenario/pace_lines
+	name = "speech: three things to say in one tick come out one after another, as they're typed"
+	desc = "A bot with typing on is handed three lines in the same tick. The first goes out a moment later, not that tick, and the others each after the one before has been typed. Before: all three that tick."
+	job = "Assistant"
+	layout = list(
+		"#####",
+		"#.B.#",
+		"#####")
+	time_limit = 30 SECONDS
+	var/talked_at = 0
+	var/list/said_at = list()
+
+/datum/bot_scenario/pace_lines/issue_goal()
+	return
+
+/datum/bot_scenario/pace_lines/post_spawn()
+	brain.typing_in_gym = TRUE
+	RegisterSignal(bot, COMSIG_MOB_SAY, PROC_REF(note_say))
+	addtimer(CALLBACK(src, PROC_REF(talk)), 2 SECONDS)
+
+/datum/bot_scenario/pace_lines/proc/talk()
+	talked_at = world.time
+	for(var/line in list("Hold on a sec", "Right behind you", "Mind the door"))
+		bot_say(bot, line)
+
+/datum/bot_scenario/pace_lines/proc/note_say(datum/source, list/arguments)
+	said_at += world.time
+
+/datum/bot_scenario/pace_lines/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!talked_at || world.time < talked_at + 20 SECONDS)
+		return BOT_GYM_PENDING
+	if(length(said_at) < 3)
+		fail_reason = "said only [length(said_at)] of its three lines"
+		return BOT_GYM_FAIL
+	if(said_at[1] <= talked_at)
+		fail_reason = "said the first the tick it was decided"
+		return BOT_GYM_FAIL
+	for(var/i in 2 to length(said_at))
+		if(said_at[i] - said_at[i - 1] < 20)
+			fail_reason = "line [i] went out [(said_at[i] - said_at[i - 1]) / 10]s after the one before: nobody types that fast"
+			return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+// ---------------------------------------------------------------------------------------------
+// News goes round by being seen and told
+// ---------------------------------------------------------------------------------------------
+
+/// "Did you hear? Security's after Max Adeyemi for suspected syndicate activity." from a bot nowhere near it (bot_news() was one pool for the crew).
+/datum/bot_scenario/chat/news_unseen
+	name = "speech: asked what it missed, it doesn't tell of an arrest it wasn't there for"
+	desc = "Security's after somebody in a room behind a wall, and the bot has no way to know. Asked \"what did i miss?\", it doesn't tell of it. Before: the news was one pool for everybody."
+	job = "Assistant"
+	layout = list(
+		"#########",
+		"#B.C#.K.#",
+		"#########")
+	time_limit = 15 SECONDS
+	var/felon_name = "Max Felon"
+
+/datum/bot_scenario/chat/news_unseen/post_spawn()
+	..()
+	var/mob/living/carbon/human/felon = stand_in(first_marker("K"), felon_name)
+	bot_news("Security's after [felon_name] for vandalism", felon)
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "what did i miss?"), 2 SECONDS)
+
+/datum/bot_scenario/chat/news_unseen/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 9 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	if(!length(lines))
+		fail_reason = "said nothing to \"what did i miss?\""
+		return BOT_GYM_FAIL
+	if(findtext(lines[1], "Security's after"))
+		fail_reason = "told of what happened out of its sight: \"[lines[1]]\"" //its own, or another scenario's arena's: all one pool before
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// What it did see, it tells.
+/datum/bot_scenario/chat/news_unseen/seen
+	name = "speech: asked what it missed, it tells of an arrest it saw"
+	desc = "Security's after somebody in the same room, in plain view of the bot. Asked \"what did i miss?\", it tells of it."
+	layout = list(
+		"##########",
+		"#B.C....K#",
+		"##########") //in view of the bot and not within three of the visitor, which would make the visitor's question nobody's
+	felon_name = "Sam Seen"
+
+/datum/bot_scenario/chat/news_unseen/seen/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 9 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	if(!length(lines))
+		fail_reason = "said nothing to \"what did i miss?\""
+		return BOT_GYM_FAIL
+	if(!findtext(lines[1], felon_name))
+		fail_reason = "didn't tell of what it saw: \"[lines[1]]\""
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

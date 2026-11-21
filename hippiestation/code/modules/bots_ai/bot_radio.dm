@@ -31,7 +31,10 @@ GLOBAL_LIST_EMPTY(bot_radio_carried)
 		else
 			heard?.Invoke()
 		return
-	addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_radio_check), REF(speaker), since, heard, not_heard), 2 SECONDS)
+	// Telecomms passes a line on within a tick or two of its being said, which is when it's typed out (pace_line(), bot_chatter.dm)
+	var/mob/living/carbon/human/typist = speaker
+	var/typing = istype(typist) && typist.bot_brain ? max(0, typist.bot_brain.last_send_at - world.time) : 0
+	addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_radio_check), REF(speaker), since, heard, not_heard), 2 SECONDS + typing)
 
 /proc/bot_radio_check(speaker_ref, since, datum/callback/heard, datum/callback/not_heard)
 	if(GLOB.bot_radio_carried[speaker_ref] >= since)

@@ -1,7 +1,8 @@
 // Milestone 1 chat: canned-line banter, not real language generation.
 /// `in_character` is for what a traitor everybody's after says as itself: anything else it was about to say gives it a threat instead.
 /// TRUE if it said it (not kept back as a repeat of what's just been said: worth_saying(), bot_chatter.dm).
-/proc/bot_say(mob/living/carbon/human/H, line, in_character = FALSE)
+/// `typed` is for a line that's had its typing time already (say_after_typing()): a reply.
+/proc/bot_say(mob/living/carbon/human/H, line, in_character = FALSE, typed = FALSE)
 	if(QDELETED(H) || !line || H.stat == DEAD) //a corpse's say() goes to deadchat, radio prefix and all
 		return
 	if(!in_character && H.bot_brain?.gone_loud()) //goals/robust.dm: "Security! Help!" from somebody in a Syndicate nanosuit
@@ -12,8 +13,24 @@
 		return
 	if(H.bot_brain && !H.bot_brain.worth_saying(line)) //bot_chatter.dm
 		return
-	H.say(H.bot_brain ? H.bot_brain.in_own_words(line, in_character) : line) //bot_chatter.dm
+	// A person types it first: not the tick it's decided, and not three lines in a second (the Security call, the arrest and the "in custody" from one
+	// officer within 10 s, 3+ lines from 18 bots in a 20-minute shift). Not in the gym, whose scenarios read lines at once, unless they test typing.
+	var/datum/bot_brain/B = H.bot_brain
+	if(B && (!B.gym_run || B.typing_in_gym))
+		var/send_at = B.pace_line(line, typed)
+		if(!send_at)
+			return //a backlog of lines it'd never have typed
+		if(send_at > world.time)
+			addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_say_now), H, line, in_character), send_at - world.time)
+			return TRUE
+	bot_say_now(H, line, in_character)
 	return TRUE
+
+/// The line going out, when it's been typed.
+/proc/bot_say_now(mob/living/carbon/human/H, line, in_character = FALSE)
+	if(QDELETED(H) || H.stat == DEAD || H.bot_brain?.logged_off)
+		return
+	H.say(H.bot_brain ? H.bot_brain.in_own_words(line, in_character) : line) //bot_chatter.dm
 
 // Called through the bot_log() macro (~hippie_defines/bots_ai.dm), which only gets this far when the line is wanted.
 /proc/bot_log_line(datum/bot_brain/B, msg)

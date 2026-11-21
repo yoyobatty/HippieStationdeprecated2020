@@ -243,6 +243,8 @@ GLOBAL_LIST_INIT(bot_job_words, list(
 	var/list/job = bot_job_asked_about(lower_msg)
 	if(bot_text_has_any(lower_msg, list("who's the", "whos the", "who is the", "who's our", "whos our", "who is our")) && job)
 		var/mob/living/carbon/human/H = bot_alive_in_job(job[1])
+		if(H == owner)
+			return pick("That's me.", "Me.", "I am. What's up?") //"who's the janitor?" to the janitor was answered with its own name
 		return H ? pick("[H.real_name].", "That's [H.real_name].", "[H.first_name()], I think.") : pick("Don't think we have one.", "Nobody, as far as I know.")
 	if(!bot_text_has_any(lower_msg, list("where is", "where's", "wheres", "where are", "seen", "find")))
 		return null
@@ -259,6 +261,8 @@ GLOBAL_LIST_INIT(bot_job_words, list(
 				break
 		if(!asked)
 			return null
+	if(asked == owner)
+		return pick("Right here.", "That's me.", "I'm right here.") //"anyone seen the janitor?" to the janitor
 	if(asked in view(7, owner))
 		return pick("Right there.", "They're just over there.", "[asked.first_name()]? Right behind you.")
 	var/list/their_job = job
@@ -291,7 +295,9 @@ GLOBAL_LIST_EMPTY(bot_station_answered)
 		return FALSE
 	// In the room it's the nearest of them that takes it (asked_as_nearest(), bot_chatter.dm), most of the time; on the radio, any one of the many
 	// who hear it, and the first to try has it.
-	if(radio_freq ? !prob(15 + 25 * sociability) : (!prob(70 + 30 * sociability) || !nearest_to_talker(talker)))
+	if(!radio_freq && !nearest_to_talker(talker))
+		return TRUE //the nearer one has it: not a bystander's "Wish I knew." as well, when this one's heard it first
+	if(radio_freq ? !prob(15 + 25 * sociability) : !prob(70 + 30 * sociability))
 		return FALSE
 	var/line = people_answer(lower_msg)
 	if(!line)
@@ -307,6 +313,56 @@ GLOBAL_LIST_EMPTY(bot_station_answered)
 
 /// Who's been said hello back to over the radio lately: REF -> until when
 GLOBAL_LIST_EMPTY(bot_radio_hello_answered)
+
+/// Who's had a roll call answered lately ("anyone in cargo?"): talker REF + the trade -> until when
+GLOBAL_LIST_EMPTY(bot_roll_call_answered)
+
+/// The big trades, as people call them in "anyone in engineering?". Not bot_title_words (bot_asks.dm): a line with "security" or "engineering" in it is mostly
+/// about the place, not said to the people in it, so those words don't make a bot addressed. Asking who's about is the one thing they're said to them for.
+GLOBAL_LIST_INIT(bot_roll_call_trades, list(
+	"engineering" = list("Station Engineer", "Chief Engineer"), "engineer" = list("Station Engineer", "Chief Engineer"), "engineers" = list("Station Engineer", "Chief Engineer"),
+	"engi" = list("Station Engineer", "Chief Engineer"), "engis" = list("Station Engineer", "Chief Engineer"),
+	"medbay" = list("Medical Doctor", "Chief Medical Officer", "Paramedic"), "medical" = list("Medical Doctor", "Chief Medical Officer", "Paramedic"),
+	"doctor" = list("Medical Doctor", "Chief Medical Officer"), "doctors" = list("Medical Doctor", "Chief Medical Officer"), "doc" = list("Medical Doctor", "Chief Medical Officer"),
+	"medic" = list("Medical Doctor", "Paramedic"), "medics" = list("Medical Doctor", "Paramedic"),
+	"security" = list("Security Officer", "Warden", "Head of Security"), "sec" = list("Security Officer", "Warden", "Head of Security"),
+	"officer" = list("Security Officer", "Warden"), "officers" = list("Security Officer", "Warden"),
+))
+
+/// "Anyone in engineering?", "any doctor about?", "janitor, you there?": asked of a trade, on the radio or to a room. One of that trade who hears it says
+/// they're here, and the rest leave it to them. Over the radio nobody answers but to a name, and to the janitor's face it got "Don't ask me." or
+/// "Haven't a clue." from the janitor, who was the one asked.
+/datum/bot_brain/proc/answer_roll_call(mob/living/talker, lower_msg, radio_freq)
+	if(!ishuman(talker) || gone_loud() || length(lower_msg) > 60)
+		return FALSE
+	var/static/list/presence = list("anyone in", "anybody in", "anyone on", "anybody on", "anyone at", "anybody at", "is anyone", "is anybody", "is there a", "is there an",
+		"is there anyone", "you there", "are you there", "u there", "you around", "are you around", "you about", "are you about", "you here", "are you here", "anyone there", "anybody there", "hello?")
+	var/static/list/present_words = list("about", "around", "here", "on duty", "available", "free", "on shift", "alive", "on today")
+	if(!bot_text_has_any(lower_msg, presence) && !(copytext(lower_msg, 1, 5) == "any " && bot_text_has_any(lower_msg, present_words)))
+		return FALSE
+	var/list/jobs = bot_title_called(lower_msg)
+	if(!jobs)
+		for(var/trade in GLOB.bot_roll_call_trades)
+			if(bot_text_has_any(lower_msg, list(trade)))
+				jobs = GLOB.bot_roll_call_trades[trade]
+				break
+	if(!jobs || !(work_role() in jobs))
+		return FALSE
+	var/key = "[REF(talker)]|[jointext(jobs, "/")]"
+	if(world.time < GLOB.bot_roll_call_answered[key])
+		return TRUE //one of them has it
+	// Asked of its trade: a person's answer, not a bystander's reaction, so it isn't held back by having just reacted to something else
+	if(world.time < next_answer_time || !prob(90 + 10 * sociability))
+		return FALSE
+	GLOB.bot_roll_call_answered[key] = world.time + 20 SECONDS
+	if(length(GLOB.bot_roll_call_answered) > 20)
+		GLOB.bot_roll_call_answered.Cut(1, 11)
+	next_answer_time = world.time + 25
+	if(!radio_freq && !pursuing_kind)
+		owner.face_atom(talker)
+	say_after_typing(bot_radio_prefix(radio_freq) + fresh_pick(list("Here.", "Yeah, I'm here.", "Here, what's up?", "Yep. What do you need?", "Go ahead.", "I'm here, go ahead.")))
+	bot_log(src, "said it was here, to [talker]'s \"[lower_msg]\"")
+	return TRUE
 
 /datum/bot_brain
 	/// Out of a hundred, its chance of being the one who says hello back to a "hey" on Common (answer_radio_hello()); a gym scenario makes it certain.

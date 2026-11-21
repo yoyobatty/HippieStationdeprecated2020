@@ -121,6 +121,20 @@ GLOBAL_LIST_EMPTY(bot_spoken_lately)
 /proc/bot_typing_time(line)
 	return rand(6, 14) + min(length(line) * 1.2, 50)
 
+/datum/bot_brain
+	/// When it last sent a line, or will send the last one it's typing (pace_line())
+	var/last_send_at = 0
+
+/// When a line it's about to say goes out, in world.time: a moment after it's noticed what to say, and for a line after another, not before it's been
+/// typed. 0 if it's backed up past what anyone would type (a loop saying things as fast as it likes). A reply (`typed`) has waited its typing time
+/// already (say_after_typing()), and only comes after the last line.
+/datum/bot_brain/proc/pace_line(line, typed = FALSE)
+	var/send_at = max(world.time + (typed ? 0 : rand(3, 8)), last_send_at + (typed ? 5 : bot_typing_time(line)))
+	if(send_at > world.time + 8 SECONDS)
+		return 0
+	last_send_at = send_at
+	return send_at
+
 /// Says a line once it's had time to type it.
 /datum/bot_brain/proc/say_after_typing(line)
 	addtimer(CALLBACK(src, PROC_REF(speak_reply), line), bot_typing_time(line))
@@ -128,7 +142,7 @@ GLOBAL_LIST_EMPTY(bot_spoken_lately)
 /datum/bot_brain/proc/speak_reply(reply)
 	if(QDELETED(owner) || owner.stat != CONSCIOUS || logged_off)
 		return
-	bot_say(owner, reply)
+	bot_say(owner, reply, FALSE, TRUE)
 	bot_log(src, "said \"[reply]\"")
 
 // ---------------------------------------------------------------------------------------------
@@ -260,6 +274,8 @@ GLOBAL_LIST_INIT(bot_you_words, list("you", "ya", "u", "your", "you're", "youre"
 	// Said to the AI or a borg ("AI, where's Emery?", "AI open this door"): theirs to answer. Somebody else with the name in it, or a door in
 	// reach, answered it (the user's "Ai where is emery", twice: round-12.20.48.49 and round-14.43.45).
 	if(title_jobs && (("AI" in title_jobs) || ("Cyborg" in title_jobs)) && bot_silicon_addressed(lower_msg, list("ai", "ais", "borg", "borgs", "cyborg", "cyborgs"))) //goals/silicon.dm
+		return
+	if(answer_roll_call(talker, lower_msg, radio_freq)) //"anyone in cargo?", "any doctor about?": a Cargo Technician says it's here (bot_conversation.dm)
 		return
 	// Over the radio it only answers to its name - half the station isn't talking to it.
 	var/addressed = named || (!radio_freq && is_spoken_to_by(talker))
@@ -446,7 +462,7 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 	if(bot_text_has_any(lower_msg, list("you're cool", "youre cool", "you're great", "youre great", "you're awesome", "youre awesome", "you rock", "you're the best", "youre the best", "good job", "nice job", "well done", "nice one", "great work", "good work", "love you", "ily", "cute", "adorable")))
 		feel(talker, 1, "said something nice to me") //bot_social.dm
 		return pick("Thanks!", "Aw, cheers.", "Ha, thanks.", "You're not so bad yourself.")
-	if(!over_radio && bot_text_has_any(lower_msg, list("can you help", "could you help", "help me", "i need help", "need a hand", "give me a hand", "lend me a hand", "can i ask you something", "got a minute", "got a sec")))
+	if(bot_text_has_any(lower_msg, list("can i ask you something", "can i ask you a question", "got a minute", "got a sec", "got a moment", "have a sec", "free for a sec", "quick question")) || (!over_radio && bot_text_has_any(lower_msg, list("can you help", "could you help", "help me", "i need help", "need a hand", "give me a hand", "lend me a hand"))))
 		if(state == BOT_STATE_GOAL && current_goal && !current_goal.lawful)
 			return pick("Bit busy right now.", "Can it wait?", "Not now, sorry.")
 		return pick("Sure, what do you need?", "Yeah, what's up?", "What do you need?", "Sure. What is it?")
@@ -678,15 +694,10 @@ GLOBAL_LIST_INIT(bot_didnt_catch_lines, list("Sorry, what?", "Hm? Say again?", "
 	var/level = seclevel2num(get_security_level())
 	if(level >= SEC_LEVEL_RED)
 		return pick("Red alert, that's what. Keep your head down.", "We're on red. Stay away from the bad bits.")
-	var/lost = 0
-	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
-		if(H.stat == DEAD && H.mind?.assigned_role)
-			lost++
+	// What it's heard (latest_news()), not a head count of the dead all over the station: "We've lost 3 so far" came from a bot that had seen none of them.
 	var/latest = latest_news()
 	if(latest)
 		return prob(50) ? capitalize(latest) + "." : pick("Did you hear? ", "You missed it, ", "Well, ") + latest + "."
-	if(lost)
-		return pick("We've lost [lost] so far.", "[lost] dead that I know of. Watch yourself.")
 	return level >= SEC_LEVEL_BLUE ? pick("Blue alert. Nothing's gone bang yet.", "Something's up, but it's quiet here.") : pick("Quiet shift so far.", "Not much. Same old.", "Nothing I've heard about.")
 
 /// What people ask each other to borrow -> the item.
@@ -936,6 +947,9 @@ GLOBAL_LIST_INIT(bot_place_words, list(
 
 /// "Medbay? East of here." - the way anyone points a newcomer, by compass rather than by map.
 /datum/bot_brain/proc/directions_for(lower_msg)
+	// "Where's my order?" is about a crate, not a place ("Not sure where that is.", from the Cargo Technician it was put to)
+	if(bot_text_has_any(lower_msg, list("my order", "my crate", "my package", "my delivery")))
+		return (work_role() in list("Quartermaster", "Cargo Technician")) ? fresh_pick(list("What did you order?", "Which crate? What was in it?", "Not sure, what did you order?")) : fresh_pick(list("Ask Cargo.", "Try Cargo, they'd know.", "No idea, Cargo would."))
 	var/asked
 	var/keyword
 	for(var/word in GLOB.bot_place_words)
@@ -1304,6 +1318,7 @@ GLOBAL_LIST_INIT(bot_shop_talk_plain_replies, list("Good to know.", "Noted.", "A
 		LAZYOR(news_told, news)
 		if(company.bot_brain)
 			LAZYOR(company.bot_brain.news_told, news) //it's heard it now, and won't be telling this one back
+			company.bot_brain.learn_news(news) //and can tell the next
 	else if(style && prob(25))
 		var/list/exchange = fresh_pick(style)
 		opener = exchange[1]
@@ -1344,8 +1359,18 @@ GLOBAL_LIST_INIT(bot_shop_talk_plain_replies, list("Good to know.", "Noted.", "A
 // News
 // ---------------------------------------------------------------------------------------------
 
-/// What's happened this round that people would talk about: list(what, when, who it was). The newest last.
+/// What's happened this round that people would talk about: list(what, when, who it was). The newest last. Who knows it is up to each bot (news_known):
+/// it was one pool the whole crew drew from, and a bot in Cargo told you what had happened in the Brig the second it happened.
 GLOBAL_LIST_EMPTY(bot_news)
+
+/datum/bot_brain
+	/// The items of bot_news() it's seen or been told, by what they say
+	var/list/news_known
+
+/datum/bot_brain/proc/learn_news(what)
+	LAZYOR(news_known, what)
+	if(length(news_known) > 20)
+		news_known.Cut(1, 6)
 
 /// Something for the crew to talk about, in the words they'd use, with no capital or full stop: it goes in the middle of a sentence.
 /proc/bot_news(what, mob/living/about)
@@ -1355,6 +1380,13 @@ GLOBAL_LIST_EMPTY(bot_news)
 	GLOB.bot_news += list(list(what, world.time, about ? WEAKREF(about) : null))
 	if(length(GLOB.bot_news) > 30)
 		GLOB.bot_news.Cut(1, 2)
+	// Of somebody: those who can see them, and they themselves, know. Of something that went round the station (an explosion, a smell of smoke in
+	// the engine): everybody does.
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		if(QDELETED(B) || QDELETED(B.owner))
+			continue
+		if(!about || B.owner == about || (B.owner.z == about.z && get_dist(B.owner, about) <= 7 && (about in view(7, B.owner))))
+			B.learn_news(what)
 
 /// Something from the last ten minutes, that isn't about the bot it's being said to. Asked for gossip, something it hasn't been over already.
 /datum/bot_brain/proc/latest_news(mob/living/company, fresh_only = FALSE)
@@ -1364,6 +1396,8 @@ GLOBAL_LIST_EMPTY(bot_news)
 			return null
 		if(fresh_only && LAZYFIND(news_told, item[1]))
 			continue
+		if(!(item[1] in news_known))
+			continue //it wasn't there, and nobody's told it
 		var/datum/weakref/about = item[3]
 		var/mob/living/who = about?.resolve()
 		if(who == owner || (company && who == company))

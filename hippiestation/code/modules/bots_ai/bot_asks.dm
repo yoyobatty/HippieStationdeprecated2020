@@ -105,6 +105,10 @@ GLOBAL_LIST_INIT(bot_title_words, list(
 			return TRUE
 	return FALSE
 
+/// What the crew call the heads and a few other jobs in one breath
+GLOBAL_LIST_INIT(bot_job_short, list("Captain" = "captain", "Head of Personnel" = "HoP", "Head of Security" = "HoS", "Chief Medical Officer" = "CMO", "Chief Engineer" = "CE",
+	"Research Director" = "RD", "Quartermaster" = "QM"))
+
 /// A job called that nobody's on: one person says so, the way somebody always does. "AI?" with no AI.
 /datum/bot_brain/proc/say_nobody_on(list/jobs, radio_freq)
 	var/key = jointext(jobs, "/")
@@ -112,6 +116,11 @@ GLOBAL_LIST_INIT(bot_title_words, list(
 		return FALSE
 	GLOB.bot_nobody_said[key] = world.time + 2 MINUTES
 	var/job = jobs[1]
+	var/short = GLOB.bot_job_short[job] //the heads are called by their letters: "no CMO", not "nobody's on chief medical officer"
+	if(short)
+		say_after_typing(bot_radio_prefix(radio_freq) + pick("There's no [short] this shift.", "No [short] right now, sorry.", "Nobody's on [short].", "Don't think we've got one."))
+		bot_log(src, "said nobody's on [job]")
+		return TRUE
 	var/what = job == "AI" ? "an AI" : (job == "Cyborg" ? "any borgs" : "a [lowertext(job)]")
 	say_after_typing(bot_radio_prefix(radio_freq) + pick("There's no [job == "AI" ? "AI" : lowertext(job)] this shift.", "We don't have [what] right now.", "Nobody's on [lowertext(job)], sorry.", "Don't think we've got [what]."))
 	bot_log(src, "said nobody's on [job]")
