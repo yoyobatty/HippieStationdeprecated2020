@@ -3,6 +3,23 @@
 // What a scenario refers to that only the fix adds is reached by name (GLOB.vars["bot_cell_waiting"], case.vars["passed_over"]), so the
 // "before" build of ab_gym.sh compiles and the scenario fails there on what the bots do, not on a missing symbol.
 
+/// The Warden gets to the cell for a lifer with nothing to cuff them with: it says so and the case goes to the next officer, instead of the
+/// same duty sending it back every few seconds for the rest of the shift.
+/datum/bot_scenario/brigged/perma_collect/no_cuffs
+	name = "brig: a Warden with no cuffs who can't take a lifer out of the cell passes the case on"
+	desc = "Shift batch play1114b: collect_prisoner ran 88, 71, 55 and 47 times a shift for one capital prisoner, the Warden walking to the cell, starting nothing and wandering off, and one lifer waited fourteen minutes for another officer to happen by. When the arrest doesn't start the officer notes why and hands the case on."
+	kit_backpack = list()
+	time_limit = 30 SECONDS
+
+/datum/bot_scenario/brigged/perma_collect/no_cuffs/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/list/passed = case.vars["passed_over"]
+	if(length(passed))
+		return BOT_GYM_PASS
+	fail_reason = "went to the cell and started nothing, and didn't hand the case on"
+	return BOT_GYM_PENDING
+
 // ---------------------------------------------------------------------------------------------
 // Lethal force: armed isn't dangerous until they use it
 // ---------------------------------------------------------------------------------------------

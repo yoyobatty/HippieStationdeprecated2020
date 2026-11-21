@@ -359,6 +359,8 @@ GLOBAL_LIST_EMPTY(bot_order_acked)
 	/// The officer on its way to see to it, as a weakref, and whether that's done with.
 	var/datum/weakref/officer_ref
 	var/closed = FALSE
+	/// Officers who got to the cell and couldn't start taking the prisoner out (weakref -> when they're asked again): the next one's turn
+	var/list/passed_over
 
 /datum/bot_case/proc/prisoner()
 	return prisoner_ref?.resolve()
@@ -424,12 +426,19 @@ GLOBAL_LIST_EMPTY(bot_order_acked)
 	var/list/order = list("Warden", "Head of Security", "Security Officer")
 	for(var/job in order)
 		for(var/datum/bot_brain/B as anything in GLOB.bot_security_brains)
-			if(B.work_role() == job && B.owner.stat == CONSCIOUS && !B.owner.handcuffed)
+			if(B.work_role() == job && B.owner.stat == CONSCIOUS && !B.owner.handcuffed && !passed_over_by(B.owner))
 				return B
 	return null
 
 /datum/bot_case/proc/who_carries_out()
 	return verdict == BOT_VERDICT_INJECTION ? bot_executioner() : bot_warden()
+
+/// This officer can't see to it just now: somebody else gets the job for a while
+/datum/bot_case/proc/pass_over(mob/living/carbon/human/officer, how_long)
+	LAZYSET(passed_over, WEAKREF(officer), world.time + how_long)
+
+/datum/bot_case/proc/passed_over_by(mob/living/carbon/human/officer)
+	return LAZYACCESS(passed_over, WEAKREF(officer)) > world.time
 
 /// What a search turns up on somebody being brigged: a charge for whatever they'd rather nobody had seen. It's evidence, so it goes
 /// in the cell locker with the rest of what's taken off them.
@@ -688,10 +697,24 @@ GLOBAL_VAR(bot_law_drill_verdict)
 		bot.file_crime(P, case.crime, "To the Prison Wing, by order of [case.ruled_by].", disarmed ? BOT_CRIME_MAJOR : BOT_CRIME_MURDER)
 		if(disarmed)
 			W.severity = min(W.severity, BOT_CRIME_MAJOR)
-		bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, begin_arrest), P))
+		bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, take_lifer_on), P, case))
 
 /datum/bot_goal/collect_prisoner/on_give_up(datum/bot_brain/bot)
 	case.officer_ref = null
+
+/// At the cell of somebody to be taken to the Prison Wing: the arrest that brings them out. When that doesn't start, the officer says why in
+/// the log and passes the case on to the next. Shift batch play1114b: Wardens ran to the cell, started nothing, wandered off, and
+/// were sent back by the same duty every ten seconds for the rest of the shift (collect_prisoner 88 times, 71, 55, 47) with the prisoner
+/// still in the cell, and one capital prisoner waited fourteen minutes for another officer to come by.
+/datum/bot_brain/proc/take_lifer_on(mob/living/carbon/human/P, datum/bot_case/C)
+	if(QDELETED(owner) || owner.stat != CONSCIOUS || QDELETED(P) || P.stat == DEAD || !C || C.closed)
+		return
+	if(begin_arrest(P))
+		return
+	var/why = arrest_refusal(P)
+	bot_log(src, "can't take [P] out of the cell for the Prison Wing: [why] - leaving it to somebody else")
+	C.pass_over(owner, 90 SECONDS)
+	C.officer_ref = null
 
 /// Where a lifer ends up: the room with the Prison Wing's own vending machine in it. There's one on every map.
 /proc/bot_prison_spot()

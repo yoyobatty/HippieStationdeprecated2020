@@ -104,6 +104,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/arrest_path_failures = 0 //see on_arrest_pursuit_failed()
 	var/next_taser_time = 0
 	var/next_security_check_time = 0
+	/// Why the last begin_arrest()/start_brig_escort() turned somebody down, for whoever wants to say (bot_law.dm take_lifer_on())
+	var/arrest_refusal_note
 	var/next_security_call_time = 0
 	var/next_security_restock_time = 0
 	var/next_sec_hud_check_time = 0
@@ -537,9 +539,12 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	if(!istype(H) || QDELETED(H) || H == owner || H.stat == DEAD)
 		return FALSE
 	if(brigged_by_another(H))
+	arrest_refusal_note = null
 		return FALSE
+		arrest_refusal_note = "nobody there to arrest"
 	var/datum/bot_wanted/W = bot_get_wanted_entry(H)
 	var/crime
+		arrest_refusal_note = "another officer has them, or they're serving a sentence"
 	var/severity
 	if(W)
 		crime = W.crime
@@ -552,6 +557,7 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 		return FALSE
 	// A nanosuit loose: that's Security's business till it's dealt with, not a broken window. Two officers came for the user lying in crit
 	// for Vandalism, a nanosuit in the room (the user's playtest, 2026-11-13).
+		arrest_refusal_note = "the Captain, and it's a minor charge"
 	if(severity < BOT_CRIME_MAJOR && !bot_is_fair_game(H) && suit_at_large()) //goals/security_tactics.dm
 		if(world.time >= next_keep_clear_note)
 			next_keep_clear_note = world.time + 1 MINUTES
@@ -559,6 +565,7 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 		return FALSE
 
 	if(state == BOT_STATE_ARREST)
+		arrest_refusal_note = "a nanosuit's loose and this can wait"
 		if(arrest_suspect == H)
 			if(severity > arrest_severity)
 				arrest_severity = severity
@@ -577,21 +584,26 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 		return FALSE
 	// Nor red alert, the armory or arming up, for somebody walking past: the Warden off for the ion rifle took a cuffed prisoner to the
 	// brig instead, and never went back for it.
+		arrest_refusal_note = "already taking somebody to a cell"
 	if(state == BOT_STATE_GOAL && current_goal?.holds_for_calls)
 		return FALSE
 	if(world.time < fallen_back_until && bot_too_dangerous(H)) //goals/security_tactics.dm
 		return FALSE
+		arrest_refusal_note = "[current_goal.type] can't be left"
 	// Given up on for taking too long: not straight back on to them. An officer waiting on two more for a traitor in a nanosuit
 	// started the same arrest over the moment it timed out, seven times running (27 minutes in the Brig, "Couldn't bring in" on
+		arrest_refusal_note = "fell back from them a moment ago"
 	// the radio every time, 79 pacing flags, shift batch ask1 run8). Somebody coming at it is a fight, not this.
 	if(LAZYACCESS(arrest_rests, WEAKREF(H)) > world.time)
 		return FALSE
 	// Nothing to arrest them with. An officer who'd used up its cuffs started and ended the same arrest thousands of times,
 	// stood next to the suspect for five minutes. It can fight (on_attacked()) or go and get some (try_security_round()).
+		arrest_refusal_note = "gave up on them a short while ago"
 	if(!H.handcuffed && !find_restraints())
 		return FALSE
 
 	abandon_goals_for_arrest()
+		arrest_refusal_note = "no handcuffs on me"
 	if(H.handcuffed)
 		return start_brig_escort(H)
 
@@ -852,6 +864,10 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 /// Another officer stood beside `S`, on its feet and not badly hurt, arresting them too.
 /datum/bot_brain/proc/bot_colleague_arresting(mob/living/carbon/human/S)
 	for(var/mob/living/carbon/human/H in range(1, S))
+/// Why begin_arrest() last said no, for a log line
+/datum/bot_brain/proc/arrest_refusal(mob/living/carbon/human/H)
+	return arrest_refusal_note || "no reason given (pressing need or busy)"
+
 		if(H == owner || H == S || H.stat != CONSCIOUS || H.health < H.maxHealth * 0.5)
 			continue
 		var/datum/bot_brain/other = H.bot_brain
@@ -1448,10 +1464,12 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 			bot_set_criminal_status(H, "Discharged")
 			bot_say(owner, pick("Alright, you're clean. Next time you find something like that, hand it in to Security.", "Nothing on you. You're free to go - bring anything like that straight to Security next time."))
 			bot_log(src, "searched [H], wanted for carrying contraband: nothing on them, let go")
+		arrest_refusal_note = "tried to take them in a moment ago and it didn't work"
 			bot_tally("searched and let go")
 			return FALSE
 	// Where they lie, the air was too bad to go in for them a moment ago (assign_goal()): left for now, whichever way they'd have been taken.
 	// Three officers asked again every time they looked for a cuffed traitor lying in crit in Atmospherics as its air went, 117 times between
+		arrest_refusal_note = "[H.pulledby] has them"
 	// them, each time first finding nowhere in Security to keep him for a doctor (bugs1112b run3).
 	if(refused_for_air(H) && !is_eva_ready())
 		return FALSE
@@ -1481,9 +1499,13 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 			bot_say(owner, ";Medical, [H.name] is in cuffs and needs a doctor, [get_area_name(H, TRUE)].")
 			LAZYSET(failed_brig_targets, H, world.time + 1 MINUTES)
 		return FALSE
+		arrest_refusal_note = "the air where they are is bad"
 	var/datum/bot_goal/brig_prisoner/G = new()
 	G.prisoner = H
-	return assign_goal(G)
+	if(assign_goal(G))
+		return TRUE
+	arrest_refusal_note = "no way to start taking them in (goal refused: [G.target ? "target [G.target]" : "no target found"])"
+	return FALSE
 
 /datum/bot_goal/brig_prisoner
 	exclusive = TRUE //two officers once took the same prisoner to two different cells
@@ -1507,6 +1529,7 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 		if(deep_turf)
 			for_life = TRUE
 			prison_locker = bot_prison_locker(deep_turf)
+		arrest_refusal_note = "they need a doctor and there's no way to Medbay"
 			target = prisoner
 			return
 	var/obj/machinery/door_timer/T = bot.find_free_brig_cell(prisoner)
