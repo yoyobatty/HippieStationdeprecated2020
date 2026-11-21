@@ -711,3 +711,13 @@
 	if(. == BOT_GYM_PASS && !istype(bot.belt, /obj/item/storage/belt/mining/vendor))
 		fail_reason = "left the webbing in its hand with the PDA on its belt"
 		return BOT_GYM_FAIL
+
+/// What was on the belt in play1114b run10 (Bailey Rourke, equipped at 207 s): the miner's proto-kinetic accelerator, not a PDA.
+/datum/bot_scenario/mining_points/pda_on_belt/accelerator
+	name = "miner: with its proto-kinetic accelerator on its belt, the webbing from the voucher goes on and the accelerator into the bag"
+	desc = "Bailey Rourke in play1114b run10 had the accelerator on its belt (equipped at 207 s) and carried the voucher's webbing in its hand for the shift, dropping it on every shuttle ride."
+
+/datum/bot_scenario/mining_points/pda_on_belt/accelerator/post_spawn()
+	..()
+	qdel(bot.belt)
+	bot.equip_to_slot_or_del(new /obj/item/gun/energy/kinetic_accelerator(bot), ITEM_SLOT_BELT)
