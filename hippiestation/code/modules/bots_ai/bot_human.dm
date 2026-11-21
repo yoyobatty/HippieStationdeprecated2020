@@ -38,9 +38,27 @@
 	last_click_target = target_ref
 	next_click_time = world.time + click_interval()
 
+/// A beat between two inputs of the hands: something put away or set down to make room, and the next thing taken, or the thing drawn and
+/// the click it's for. Each is an input of a player's own (a key, a click on the bag, a click on the thing), and a person doesn't make two in
+/// one instant: telemetry had a drop and a pickup in the same tick about a thousand times a shift, and the item drawn off a belt or out of a
+/// bag clicked on a door in the same one. Sleeps, like human_pause().
+/datum/bot_brain/proc/hand_beat()
+	var/wait = is_apex() ? rand(2, 4) : rand(3, 6)
+	mid_click_until = world.time + wait
+	sleep(wait)
+	next_click_time = max(next_click_time, world.time + click_interval())
+
+/// How many things are in its hands.
+/datum/bot_brain/proc/held_item_count()
+	. = 0
+	for(var/obj/item/held in owner.held_items)
+		.++
+
 /// Gets I into the active hand, drawing it from the belt/backpack/pocket or picking it up, using a
 /// free hand when there is one instead of stowing things unnecessarily. Returns TRUE on success.
-/datum/bot_brain/proc/ready_in_hand(obj/item/I)
+/// paced: from code that can sleep (use_item_on()), a hand emptied to make room is an input of its own and the draw is the next, a beat later
+/// (hand_beat()).
+/datum/bot_brain/proc/ready_in_hand(obj/item/I, paced = FALSE)
 	if(!I || QDELETED(I))
 		return FALSE
 	if(owner.get_active_held_item() == I)
@@ -61,12 +79,20 @@
 	if(holder == owner && I.loc == owner && !(I in owner.held_items) && !owner.temporarilyRemoveItemFromInventory(I))
 		return FALSE
 	use_a_working_hand()
+	var/held_before = paced ? held_item_count() : 0
 	if(owner.get_active_held_item() && !owner.get_inactive_held_item() && other_hand_works())
 		owner.swap_hand() //the other hand is free - use it rather than putting something away
 	if(owner.get_active_held_item())
 		stow_item(owner.get_active_held_item())
 	if(owner.get_active_held_item())
 		free_hand_for(I) //last resort: the verified stow-or-set-down path
+	if(paced && held_item_count() < held_before)
+		hand_beat()
+		holder = QDELETED(I) ? null : I.loc
+		while(holder && holder != owner && !isturf(holder))
+			holder = holder.loc
+		if(QDELETED(I) || (holder != owner && get_dist(owner, get_turf(I)) > 1))
+			return FALSE //gone, or out of reach by now
 	if(!owner.put_in_active_hand(I))
 		if(!owner.put_in_hands(I))
 			return FALSE

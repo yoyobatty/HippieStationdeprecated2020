@@ -601,3 +601,33 @@
 /datum/bot_scenario/bmhl/shut_in_hunt/on_timeout()
 	fail_reason = "still after a mark it could not get to, [transcript_count("no path to")] tries on"
 	return BOT_GYM_FAIL
+
+// ---------------------------------------------------------------------------------------------
+// Hands take a beat (bot_human.dm hand_beat())
+// ---------------------------------------------------------------------------------------------
+// Telemetry (play1114b, 12 shifts) had a drop and a pickup in the same tick about a thousand times a shift, and the thing drawn from a
+// belt or a bag clicked on its target in the tick it was drawn in (42% of 7,400 draws came less than 0.2 s before the click).
+
+/datum/bot_scenario/jaws_from_backpack/with_a_beat
+	name = "hands: the jaws drawn from the backpack are clicked on the door a moment after, not in the same instant"
+	desc = "The jaws start in the backpack. A player draws them (a click on the bag) and then clicks the door (another): two inputs, not one. Telemetry had 42% of draws less than 0.2 s before the click they were for."
+	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_click")
+
+/datum/bot_scenario/locker_take_only_gloves/hands_and_bag_full
+	name = "hands: hands and bag full at a locker, the gloves are taken a moment after one thing is set down"
+	desc = "Sent for gloves with an ear of corn and a flashlight in the hands and the bag, pockets and belt full: one thing goes down on the floor to free a hand. The gloves are taken after it, not in the same instant (a drop and a pickup in the same tick came about a thousand times a shift in the 12-shift batch play1114b)."
+	kit_hands = list(/obj/item/reagent_containers/food/snacks/grown/corn, /obj/item/flashlight)
+	kit_backpack = list(/obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher)
+	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_swap")
+
+/datum/bot_scenario/locker_take_only_gloves/hands_and_bag_full/post_spawn()
+	..()
+	for(var/slot in list(ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET))
+		if(!bot.get_item_by_slot(slot))
+			bot.equip_to_slot_or_del(new /obj/item/flashlight(bot), slot)
+	if(!bot.get_item_by_slot(ITEM_SLOT_BELT))
+		bot.equip_to_slot_or_del(new /obj/item/storage/belt/fannypack(bot), ITEM_SLOT_BELT)
+	var/obj/item/storage/belt/fannypack/F = bot.get_item_by_slot(ITEM_SLOT_BELT)
+	if(istype(F))
+		for(var/i in 1 to 3)
+			new /obj/item/flashlight(F)
