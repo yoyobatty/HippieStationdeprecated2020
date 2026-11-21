@@ -210,7 +210,7 @@
 		"###########",
 		"#BONM..C..#",
 		"###########")
-	time_limit = 10 SECONDS
+	time_limit = 16 SECONDS
 	var/list/mob/living/carbon/human/others = list()
 	var/mob/living/carbon/human/visitor
 	var/called_at = 0
@@ -251,7 +251,7 @@
 /datum/bot_scenario/security_call_cap/check()
 	if(bot_lost())
 		return BOT_GYM_FAIL
-	if(!called_at || world.time < called_at + 4 SECONDS)
+	if(!called_at || world.time < called_at + 8 SECONDS) //their answers are a few seconds in a busy gym
 		return BOT_GYM_PENDING
 	var/n = answering()
 	if(n == officers_wanted)
