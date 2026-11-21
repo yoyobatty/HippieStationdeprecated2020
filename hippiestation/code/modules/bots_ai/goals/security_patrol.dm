@@ -1518,12 +1518,16 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 			var/tried = LAZYACCESS(brig_care_tried, H)
 			if((!tried || world.time > tried + 5 MINUTES) && start_brig_care(H))
 				return TRUE
+			if(!has_brig_access()) //goals/security_custody.dm: no ID, no cell and no timer
+				return hand_over_prisoner(H, "no ID")
 			var/datum/bot_goal/brig_prisoner/cell_anyway = new()
 			cell_anyway.prisoner = H
 			return assign_goal(cell_anyway)
 		// On their feet: processed in the cell first, into orange and patched, then to Medbay in cuffs (security_medevac.dm). The user's
 		// ruling (2026-11-05): "ensure they are always wearing prison outfits, never their regular clothes".
 		if(H.stat == CONSCIOUS && H.health > 0 && !istype(H.w_uniform, /obj/item/clothing/under/rank/prisoner))
+			if(!has_brig_access())
+				return hand_over_prisoner(H, "no ID")
 			var/datum/bot_goal/brig_prisoner/first = new()
 			first.prisoner = H
 			first.then_medbay = TRUE
@@ -1536,6 +1540,8 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 			LAZYSET(failed_brig_targets, H, world.time + 1 MINUTES)
 		arrest_refusal_note = "they need a doctor and there's no way to Medbay"
 		return FALSE
+	if(!has_brig_access())
+		return hand_over_prisoner(H, "no ID")
 	var/datum/bot_goal/brig_prisoner/G = new()
 	G.prisoner = H
 	if(assign_goal(G))

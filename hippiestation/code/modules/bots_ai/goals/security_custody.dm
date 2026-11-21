@@ -65,9 +65,9 @@
 	LAZYSET(pickup_tries, REF(P), list(world.time, count))
 	if(count > BOT_PICKUP_TRIES)
 		LAZYREMOVE(my_prisoners, WEAKREF(P))
+		bot_log(src, "can't get [P] in after [BOT_PICKUP_TRIES] goes - asking for somebody else")
 		if(!gym_scripted)
-			bot_say(owner, ":s [P.name]'s in cuffs in [get_area_name(P, TRUE)] and I can't get them in. Somebody see to them.")
-		bot_log(src, "can't get [P] in after [BOT_PICKUP_TRIES] goes - asked for somebody else")
+			hand_over_prisoner(P, "three goes at it came to nothing") //below: it says so on the radio, and another officer's duty takes them
 		return FALSE
 	if(start_brig_escort(P)) //goals/security_patrol.dm: a cell, or Medbay if they're down
 		bot_log(src, "back for [P], left in cuffs in [get_area_name(P, TRUE)]")
@@ -223,6 +223,117 @@ GLOBAL_LIST_INIT(bot_let_off_for_room, list("Vandalism", "Major Vandalism", "Tre
 	bot_log(bot, "no room for [P] and it's only [lowertext(goal.let_off_for)] - let them off with a warning")
 	bot_tally("let off for lack of cells")
 	return GOAL_STEP_SUCCESS
+
+// ---------------------------------------------------------------------------------------------
+// An officer with no ID
+// ---------------------------------------------------------------------------------------------
+// The user's ruling (2026-11-12): an officer with no ID, who can't set a cell timer, hands the prisoner to another officer or the Warden
+// at once, and gets a replacement ID from the HoP after. In gen1116f four officers got to the timer with the prisoner already searched and
+// uncuffed in the cell, found "no access", and gave up: the prisoner was loose again, and the next officer to see them began the arrest
+// over. Now the officer asks before it starts: any other officer with access takes the prisoner in, and the officer without a card asks
+// the HoP for a new one (bot_hopping.dm). The same ask goes out when an officer's three goes at getting somebody in came to nothing.
+
+/// How long an officer who has asked for somebody else to take a prisoner in leaves it before it asks again
+#define BOT_HANDOVER_WAIT (3 MINUTES)
+
+/// REF(prisoner) -> list(weakref to them, weakref to the officer who asked, when)
+GLOBAL_LIST_EMPTY(bot_handovers)
+
+/// Whether this officer's card opens the Brig's timers and cells: no card, or one without Security's access, is no.
+/datum/bot_brain/proc/has_brig_access()
+	var/obj/item/card/id/card = route_card()
+	return card && (ACCESS_SECURITY in card.GetAccess())
+
+/// Asks another officer to take this cuffed prisoner in, and lets go of them. Always FALSE: it hasn't got them in.
+/datum/bot_brain/proc/hand_over_prisoner(mob/living/carbon/human/H, why)
+	LAZYREMOVE(my_prisoners, WEAKREF(H))
+	LAZYSET(failed_brig_targets, H, world.time + BOT_HANDOVER_WAIT)
+	arrest_refusal_note = "[why]: asked for another officer to take them in"
+	if(GLOB.bot_handovers[REF(H)])
+		return FALSE
+	owner.stop_pulling()
+	GLOB.bot_handovers[REF(H)] = list(WEAKREF(H), WEAKREF(src), world.time)
+	bot_log(src, "can't take [H] in ([why]) - asked for another officer to")
+	bot_tally("prisoners handed over")
+	bot_say(owner, ":s [H.name] is in cuffs in [get_area_name(H, TRUE)] and I [has_brig_access() ? "can't get them in" : "haven't got an ID to book them with"]. Somebody take them in.")
+	return FALSE
+
+/datum/bot_duty/take_over_prisoner
+	name = "taking over a prisoner another officer can't take in"
+	jobs = list("Security Officer", "Warden", "Head of Security")
+	tier = BOT_DUTY_URGENT
+	priority = 36
+	interval_min = 20
+	interval_max = 40
+
+/datum/bot_duty/take_over_prisoner/try_start(datum/bot_brain/bot)
+	if(!length(GLOB.bot_handovers) || bot.state != BOT_STATE_WANDER || bot.owner.incapacitated() || bot.owner.handcuffed || !bot.has_brig_access())
+		return FALSE
+	var/mob/living/carbon/human/best
+	var/datum/bot_brain/asker
+	var/best_dist
+	for(var/key in GLOB.bot_handovers.Copy())
+		var/list/entry = GLOB.bot_handovers[key]
+		var/datum/weakref/prisoner_ref = entry[1]
+		var/datum/weakref/asker_ref = entry[2]
+		var/mob/living/carbon/human/H = prisoner_ref?.resolve()
+		if(QDELETED(H) || H.stat == DEAD || !H.handcuffed || world.time > entry[3] + BOT_HANDOVER_WAIT || bot.is_in_active_cell(H))
+			GLOB.bot_handovers -= key
+			continue
+		if(asker_ref?.resolve() == bot || H.z != bot.owner.z || (bot.gym_run && get_area(H) != get_area(bot.owner)))
+			continue
+		var/cooldown = LAZYACCESS(bot.failed_brig_targets, H)
+		if(cooldown && world.time < cooldown)
+			continue
+		var/d = get_dist(bot.owner, H)
+		if(!best || d < best_dist)
+			best = H
+			best_dist = d
+			asker = asker_ref?.resolve()
+	if(!best || bot.nearer_officer_free_for(best, best_dist))
+		return FALSE
+	if(!bot.start_brig_escort(best))
+		LAZYSET(bot.failed_brig_targets, best, world.time + 30 SECONDS) //not asked again every few seconds
+		return FALSE
+	GLOB.bot_handovers -= REF(best)
+	bot_log(bot, "took over [best] from [asker ? asker.owner : "an officer"]")
+	bot_say(bot.owner, ":s I've got [best.name]. I'll take them in.")
+	return TRUE
+
+/// Another officer who'd take this prisoner, nearer to them than this one is: it gets first go.
+/datum/bot_brain/proc/nearer_officer_free_for(mob/living/carbon/human/H, my_dist)
+	for(var/datum/bot_brain/B as anything in GLOB.bot_security_brains)
+		if(B == src || QDELETED(B.owner) || B.owner.stat != CONSCIOUS || B.owner.z != H.z || B.state != BOT_STATE_WANDER || B.owner.handcuffed)
+			continue
+		if(B.gym_run && get_area(B.owner) != get_area(H))
+			continue
+		if(get_dist(B.owner, H) < my_dist && B.has_brig_access() && world.time >= LAZYACCESS(B.failed_brig_targets, H))
+			return TRUE
+	return FALSE
+
+/// An officer with no ID of its own on it, between jobs: it asks the HoP for a new one, once its prisoner has gone to somebody else.
+/datum/bot_duty/new_id_from_hop
+	name = "asking the HoP for a new ID"
+	jobs = list("Security Officer", "Warden", "Head of Security", "Detective")
+	tier = BOT_DUTY_URGENT
+	priority = 18
+	interval_min = 50
+	interval_max = 100
+
+/datum/bot_duty/new_id_from_hop/try_start(datum/bot_brain/bot)
+	if(bot.state != BOT_STATE_WANDER || bot.owner.incapacitated() || bot.owner.handcuffed || bot.owner.bot_life_sentence || bot.is_in_active_cell(bot.owner) || bot.gone_loud())
+		return FALSE
+	if(bot.owner.get_idcard(TRUE) || bot.owner.get_idcard(FALSE) || bot.my_card_to_fetch()) //one on it, or its own lying where it can get it
+		return FALSE
+	for(var/key in GLOB.bot_handovers)
+		var/list/entry = GLOB.bot_handovers[key]
+		var/datum/weakref/asker_ref = entry[2]
+		if(asker_ref?.resolve() == bot)
+			return FALSE //the prisoner first
+	bot.call_for(/datum/bot_request_kind/new_id, pick("HoP, I've lost my ID and I need a new one printed. I'm [bot.owner.real_name], Security.", "HoP, I need a new ID, mine's gone. [bot.owner.real_name], Security Officer."))
+	return FALSE
+
+#undef BOT_HANDOVER_WAIT
 
 #undef BOT_PICKUP_REST
 #undef BOT_PICKUP_TRIES

@@ -350,3 +350,124 @@
 		fail_reason = "nobody within two tiles of the target and the shot's still not clear"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+// ---------------------------------------------------------------------------------------------
+// An officer with no ID (the user's ruling, 2026-11-12)
+// ---------------------------------------------------------------------------------------------
+
+/// A colleague with a card of its own, awake, and another officer on the books.
+/datum/bot_scenario/brigged/proc/colleague_with_a_card(marker)
+	var/mob/living/carbon/human/O = second_bot(first_marker(marker), "Officer Oduya")
+	O.mind.assigned_role = "Security Officer"
+	O.bot_brain.register_security()
+	O.bot_brain.gym_scripted = FALSE //its duties run
+	var/obj/item/card/id/C = new(O)
+	C.registered_name = O.real_name
+	C.assignment = "Security Officer"
+	C.access = list(ACCESS_SECURITY, ACCESS_BRIG)
+	O.equip_to_slot_or_del(C, ITEM_SLOT_ID)
+	return O
+
+/datum/bot_scenario/brigged/no_id
+	name = "brig: an officer with no ID hands a cuffed prisoner to another officer, who takes them in"
+	desc = "Shift batch gen1116f: four officers with no ID took a prisoner to the cell, searched and uncuffed them, found \"no access\" at the timer and gave up, with the prisoner loose again. The user's ruling (2026-11-12): hand the prisoner to another officer at once. This one has no card: it says so, lets go, and the other officer, who has, takes the prisoner into the cell and starts the sentence."
+	layout = list(
+		"#########",
+		"#BC..iO.#",
+		"####d####",
+		"###...###",
+		"###..l###",
+		"#########")
+	time_limit = 60 SECONDS
+	var/mob/living/carbon/human/colleague
+	/// The officer asked for somebody else to take them in (seen on the books at a check)
+	var/handed_over = FALSE
+
+/datum/bot_scenario/brigged/no_id/post_spawn()
+	..()
+	brain.register_security()
+	for(var/obj/item/card/id/mine in bot.GetAllContents())
+		qdel(mine) //the base scenario gave it one
+	colleague = colleague_with_a_card("O")
+
+/// As a round does it: the arrest is done and it sets about taking them in.
+/datum/bot_scenario/brigged/no_id/issue_goal()
+	goal_attempts++
+	brain.start_brig_escort(prisoner)
+
+/datum/bot_scenario/brigged/no_id/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if("bot_handovers" in GLOB.vars) //not in a build without it: nothing's ever asked
+		var/list/asked = GLOB.vars["bot_handovers"]
+		if(islist(asked) && asked[REF(prisoner)])
+			handed_over = TRUE
+	for(var/line in transcript)
+		if(findtext(line, "no access to"))
+			fail_reason = "took them to the cell and found no access at the timer"
+			return BOT_GYM_FAIL
+	if(timer.timing && (get_turf(prisoner) in bot_get_cell_interior(timer)))
+		if(handed_over)
+			return BOT_GYM_PASS
+		fail_reason = "the prisoner got a sentence, but the officer with no ID never asked anybody to take them in"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/brigged/no_id/release_run()
+	if("bot_handovers" in GLOB.vars)
+		var/list/asked = GLOB.vars["bot_handovers"]
+		if(islist(asked))
+			asked -= REF(prisoner)
+	return ..()
+
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop
+	name = "asks: an officer who's lost its ID asks the HoP for a new one, once its prisoner's seen to"
+	desc = "An officer with no card between jobs radios the HoP, who knows the face against the manifest, makes a card out in the Security Officer's name with Security's access, and brings it over. (The ruling of 2026-11-12: a replacement ID from the HoP after.)"
+	job = "Head of Personnel"
+	time_limit = 90 SECONDS
+	layout = list(
+		"##########",
+		"#B.....I.#",
+		"#..C...X.#",
+		"##########")
+	var/datum/data/record/manifest_entry
+
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/setup()
+	place("I", new /obj/machinery/computer/card(first_marker("I")))
+	place("X", new /obj/item/storage/box/ids(first_marker("X")))
+
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/post_spawn()
+	give_job_id(list(ACCESS_CHANGE_IDS, ACCESS_HEADS, ACCESS_HOP))
+	brain.gym_scripted = FALSE //its duties run, as they would at its desk
+	visitor = second_bot(first_marker("C"), "Olly Officer")
+	visitor.mind.assigned_role = "Security Officer"
+	visitor.bot_brain.register_security()
+	visitor.bot_brain.gym_scripted = FALSE
+	for(var/obj/item/card/id/mine in visitor.GetAllContents())
+		qdel(mine)
+	manifest_entry = new
+	manifest_entry.fields["name"] = visitor.real_name
+	manifest_entry.fields["rank"] = "Security Officer"
+	GLOB.data_core.general += manifest_entry
+
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/obj/item/card/id/card in visitor.GetAllContents() + range(1, visitor))
+		if(card.registered_name != visitor.real_name)
+			continue
+		if(card.assignment != "Security Officer" || !(ACCESS_SECURITY in card.access))
+			fail_reason = "made the card out as [card.assignment], [length(card.access)] accesses"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/on_timeout()
+	fail_reason = "no card for the officer"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/release_run()
+	if(manifest_entry)
+		GLOB.data_core.general -= manifest_entry
+		manifest_entry = null
+	..()
