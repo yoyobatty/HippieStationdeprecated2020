@@ -451,8 +451,8 @@ GLOBAL_VAR_INIT(bot_armory_ordered_until, 0)
 /// Red alert, or the order to open up without it: if red isn't up a minute after a suit is seen, the Head of Security or the Captain
 /// orders the armory opened anyway (the user's ruling, 2026-11-04). Red alert takes two heads at two keycard devices, and in a played
 /// round only one of them got there.
-/proc/bot_armory_authorised()
-	return GLOB.security_level >= SEC_LEVEL_RED || world.time < GLOB.bot_armory_ordered_until
+/proc/bot_armory_authorised(datum/bot_brain/asking)
+	return GLOB.security_level >= SEC_LEVEL_RED || world.time < GLOB.bot_armory_ordered_until || !!bot_blob_alert(asking) //a blob the core has announced: goals/blob.dm
 
 /// The Warden or the Head of Security up and about, a bot, to open the armory: the Captain leaves it to them.
 /proc/bot_armory_keeper_up(datum/bot_brain/asking)
@@ -473,7 +473,7 @@ GLOBAL_VAR_INIT(bot_armory_ordered_until, 0)
 	interval_max = 100
 
 /datum/bot_duty/order_armory/try_start(datum/bot_brain/bot)
-	if(bot_armory_authorised() || bot.owner.handcuffed || bot.state == BOT_STATE_COMBAT)
+	if(bot_armory_authorised(bot) || bot.owner.handcuffed || bot.state == BOT_STATE_COMBAT)
 		return FALSE
 	var/mob/living/carbon/human/S = bot.armory_threat() //apex/defenders.dm: a suit, or a killer at large
 	if(!S || world.time < GLOB.bot_suit_seen_at[REF(S)] + (bot.is_apex() ? 0 : BOT_ARMORY_ORDER_AFTER)) //an apex head doesn't wait for red
@@ -522,7 +522,7 @@ GLOBAL_VAR_INIT(bot_armory_ordered_until, 0)
 	interval_max = 150
 
 /datum/bot_duty/open_armory/try_start(datum/bot_brain/bot)
-	if(!bot_armory_authorised() || bot_armory_open_for_security() || !bot.armory_threat())
+	if(!bot_armory_authorised(bot) || bot_armory_open_for_security() || (!bot.armory_threat() && !bot_blob_alert(bot))) //a blob is the armory's business as much as a suit is
 		return FALSE
 	if(bot.work_role() == "Captain" && bot_armory_keeper_up(bot))
 		return FALSE //the Warden's or the Head of Security's to open

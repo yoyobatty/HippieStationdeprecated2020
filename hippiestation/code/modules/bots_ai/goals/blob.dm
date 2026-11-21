@@ -27,6 +27,13 @@
 #define BOT_BLOB_GEN_PENALTY 8
 /// Plasma sheets a generator is filled with: an hour and a half at its lowest setting.
 #define BOT_BLOB_GEN_SHEETS 10
+/// Where a wave of volunteers meets, in tiles off the blob's nearest edge, and fewest to go in together: they go once most are there and
+/// this long since the first (BOT_BLOB_RALLY_MIN), or this long after it whoever's there (BOT_BLOB_RALLY_MAX).
+#define BOT_BLOB_RALLY_GAP_MIN 6
+#define BOT_BLOB_RALLY_GAP_MAX 10
+#define BOT_BLOB_RALLY_LEAST 2
+#define BOT_BLOB_RALLY_MIN (15 SECONDS)
+#define BOT_BLOB_RALLY_MAX (100 SECONDS)
 
 GLOBAL_LIST_EMPTY(bot_blobs)
 
@@ -55,6 +62,10 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 	var/mob/camera/blob/owner
 	var/started_at = 0
 	var/next_dispatch = 0
+	/// A Bot Gym scenario's: it sends the volunteers itself and the blob does nothing of its own
+	var/hands_off = FALSE
+	/// The group the latest wave of volunteers is gathering as, until they go in
+	var/datum/bot_blob_rally/rally
 
 /datum/bot_blob/New(mob/camera/blob/B)
 	. = ..()
@@ -84,6 +95,8 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 		sleep(BOT_BLOB_TICK)
 
 /datum/bot_blob/proc/think()
+	if(hands_off)
+		return
 	if(!owner.placed)
 		owner.place_blob_core(0, TRUE)
 		return
@@ -119,6 +132,7 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
 		if(istype(B.current_goal, /datum/bot_goal/blob_emitter) || istype(B.suspended_goal, /datum/bot_goal/blob_emitter))
 			emitters_out++
+	var/datum/bot_blob_rally/wave = (rally && !rally.released && rally.spot && world.time < rally.made_at + 6 MINUTES) ? rally : null //a group still gathering takes this wave in with it
 	var/list/why_not = list()
 	var/list/engineers_first = list()
 	var/list/the_rest = list()
@@ -131,14 +145,14 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 		if(sent >= 12)
 			break
 		var/mob/living/carbon/human/H = B.owner
-		if(QDELETED(H) || H.stat != CONSCIOUS || H.z != owner.blob_core.z)
+		if(QDELETED(H) || H.stat != CONSCIOUS || H.z != owner.blob_core.z || (B.gym_run && get_area(H) != get_area(owner.blob_core)))
 			why_not["down or away"]++
 			continue
 		var/engineer = (B.work_role() in GLOB.engineering_positions)
 		if(B.gone_loud() || (B.work_role() in GLOB.medical_positions) || (B.nerve < 0.5 && !B.is_security_job() && !engineer))
 			why_not["not the sort"]++
 			continue
-		var/on_the_blob = istype(B.current_goal, /datum/bot_goal/approach_blob) || istype(B.current_goal, /datum/bot_goal/fight_blob)
+		var/on_the_blob = istype(B.current_goal, /datum/bot_goal/approach_blob) || istype(B.current_goal, /datum/bot_goal/fight_blob) || istype(B.current_goal, /datum/bot_goal/rally_for_blob)
 		if(H.health < H.maxHealth * 0.7 || (on_the_blob && !(engineer && emitters_out < BOT_BLOB_EMITTERS)) \
 			|| istype(B.current_goal, /datum/bot_goal/blob_emitter) || istype(B.suspended_goal, /datum/bot_goal/blob_emitter) \
 			|| istype(B.current_goal, /datum/bot_goal/open_blast_door) || istype(B.suspended_goal, /datum/bot_goal/open_blast_door))
@@ -157,8 +171,15 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 		if(B.nerve < 0.5 && !B.is_security_job())
 			why_not["no emitter for them"]++
 			continue
-		if(B.assign_goal(new /datum/bot_goal/approach_blob(owner.blob_core)))
+		if(!wave)
+			wave = new /datum/bot_blob_rally()
+			wave.made_at = world.time
+			wave.spot = staging_spot(get_turf(H))
+			rally = wave
+		var/datum/bot_goal/going = wave.spot ? new /datum/bot_goal/rally_for_blob(owner.blob_core, wave) : new /datum/bot_goal/approach_blob(owner.blob_core)
+		if(B.assign_goal(going))
 			sent++
+			wave.size++
 		else
 			why_not["no way there"]++
 	var/list/reasons = list()
@@ -1549,6 +1570,149 @@ GLOBAL_LIST_EMPTY(bot_storage_asked)
 	bot_log(src, "filling [P] with [S.get_amount()] sheets of plasma")
 	use_item_on(S, P)
 
+// ---------------------------------------------------------------------------------------------
+// The armory, and going in together
+// ---------------------------------------------------------------------------------------------
+//
+// A player's answer to a blob is burn from a distance, and a crowd: the Warden opens the armory and the officers take lasers (a blob
+// takes a laser's whole burn and half a club's blow), and the crew gather somewhere well back and go in together, not one at a time as
+// each finishes what it was doing. The first shift of these (2026-11-21) had the armory shut the whole time (a blob wasn't a suit or a
+// killer, so nobody authorised it) and the volunteers each walked straight to the edge on their own.
+
+/// Set when the core makes its announcement, three minutes in (core.dm): from then on the whole station has been told.
+/obj/structure/blob/core/var/bot_announced = FALSE
+
+/obj/structure/blob/core/generate_announcement()
+	bot_announced = TRUE
+	return ..()
+
+/// The core of a blob the crew have been told of, still standing, aboard: Security's armory is open for it as for a nanosuit. In the
+/// Bot Gym only a core in the asking bot's own arena counts, and no core off the station level does.
+/proc/bot_blob_alert(datum/bot_brain/asking)
+	for(var/obj/structure/blob/core/core as anything in GLOB.blob_cores)
+		if(QDELETED(core) || !core.bot_announced)
+			continue
+		if(asking?.gym_run)
+			if(get_area(core) != get_area(asking.owner))
+				continue
+		else if(!is_station_level(core.z))
+			continue
+		return core
+	return null
+
+/// A wave of volunteers on the way to a blob, and where they meet: a spot well back from its edge. They go in once most of them are
+/// there, or a while after the first got there, whoever's still on the way going straight in behind.
+/datum/bot_blob_rally
+	var/turf/spot
+	var/made_at = 0
+	/// How many were sent, and how many have got to the spot
+	var/size = 0
+	var/arrived = 0
+	var/first_in = 0
+	var/released = FALSE
+
+/datum/bot_blob_rally/proc/arrive()
+	if(!arrived)
+		first_in = world.time
+	arrived++
+
+/// TRUE once the group goes in.
+/datum/bot_blob_rally/proc/ready()
+	if(released)
+		return TRUE
+	if(!arrived)
+		return FALSE
+	var/need = max(BOT_BLOB_RALLY_LEAST, CEILING(size * 0.7, 1))
+	if((arrived >= need && world.time >= first_in + BOT_BLOB_RALLY_MIN) || world.time >= first_in + BOT_BLOB_RALLY_MAX)
+		released = TRUE
+		log_game("BOT BLOB: the group goes in, [arrived] of [size] there, [round((world.time - first_in) / 10)] s after the first")
+	return released
+
+/// Open floor six to ten tiles off the blob's nearest edge to `from`, none of the blob within five of it, and as near to `from` as that
+/// goes: where the crew gather. Null if there's nowhere.
+/datum/bot_blob/proc/staging_spot(turf/from)
+	var/turf/edge
+	var/nearest
+	for(var/obj/structure/blob/B as anything in owner.blobs_legit)
+		if(QDELETED(B) || B.z != from.z)
+			continue
+		var/d = get_dist(from, B)
+		if(isnull(nearest) || d < nearest)
+			nearest = d
+			edge = get_turf(B)
+	if(!edge)
+		return null
+	var/turf/best
+	var/best_score
+	for(var/turf/open/floor/T in range(BOT_BLOB_RALLY_GAP_MAX, edge))
+		var/gap = get_dist(T, edge)
+		if(gap < BOT_BLOB_RALLY_GAP_MIN || T.density || is_blocked_turf(T, TRUE) || (locate(/obj/structure/blob) in range(BOT_BLOB_RALLY_GAP_MIN - 1, T)))
+			continue
+		var/score = get_dist(from, T) + abs(gap - (BOT_BLOB_RALLY_GAP_MIN + 1)) * 2
+		if(isnull(best_score) || score < best_score)
+			best = T
+			best_score = score
+	return best
+
+/// To the group's spot, armed, and then in with the rest.
+/datum/bot_goal/rally_for_blob
+	doing = "gathering to go at the blob"
+	var/datum/bot_blob_rally/rally
+	/// REF() of the core, as for approach_blob
+	var/core_ref
+
+/datum/bot_goal/rally_for_blob/New(obj/structure/blob/core/C, datum/bot_blob_rally/R)
+	. = ..()
+	core_ref = REF(C)
+	rally = R
+
+/datum/bot_goal/rally_for_blob/resolve_target(datum/bot_brain/bot)
+	target = null
+	var/obj/structure/blob/core/core = locate(core_ref)
+	if(!istype(core) || QDELETED(core) || !rally?.spot)
+		return
+	target = rally.spot
+
+/datum/bot_goal/rally_for_blob/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/fight_blob/S = new
+	S.steps = list(new /datum/bot_step/ready_welder/arm_for_blob(), new /datum/bot_step/move_to(), new /datum/bot_step/paced/wait_for_group())
+	return list(S)
+
+/datum/bot_goal/rally_for_blob/on_success(datum/bot_brain/bot)
+	bot.continue_goal_chain(CALLBACK(bot, TYPE_PROC_REF(/datum/bot_brain, go_at_the_blob), core_ref), loud_too = TRUE)
+
+/datum/bot_brain/proc/go_at_the_blob(core_ref)
+	var/obj/structure/blob/core/core = locate(core_ref)
+	if(!istype(core) || QDELETED(core))
+		return FALSE
+	return assign_goal(new /datum/bot_goal/approach_blob(core))
+
+/// Stands at the spot until the rest are there, or the rally's time is up.
+/datum/bot_step/paced/wait_for_group
+	max_clicks = 10
+	var/counted = FALSE
+	var/until = 0
+
+/datum/bot_step/paced/wait_for_group/start(datum/bot_brain/bot)
+	var/datum/bot_goal/rally_for_blob/G = bot.current_goal
+	if(!istype(G) || !G.rally)
+		return FALSE
+	if(!counted)
+		counted = TRUE
+		G.rally.arrive()
+	until = world.time + BOT_BLOB_RALLY_MAX + 30 SECONDS
+	return TRUE
+
+/datum/bot_step/paced/wait_for_group/do_click(datum/bot_brain/bot)
+	var/datum/bot_goal/rally_for_blob/G = bot.current_goal
+	if(!istype(G) || !G.rally || world.time >= until || G.rally.ready())
+		return FALSE
+	if(locate(/obj/structure/blob) in range(BOT_BLOB_RALLY_GAP_MIN - 3, bot.owner)) //it's grown on to them: in, there's no waiting here
+		G.rally.released = TRUE
+		return FALSE
+	wait_for = 20
+	return TRUE
+
 #undef BOT_BLOB_TICK
 #undef BOT_BLOB_RESOURCES
 #undef BOT_BLOB_FACTORIES
@@ -1560,6 +1724,11 @@ GLOBAL_LIST_EMPTY(bot_storage_asked)
 #undef BOT_BLOB_EMITTER_REACH
 #undef BOT_BLOB_GEN_PENALTY
 #undef BOT_BLOB_GEN_SHEETS
+#undef BOT_BLOB_RALLY_GAP_MIN
+#undef BOT_BLOB_RALLY_GAP_MAX
+#undef BOT_BLOB_RALLY_LEAST
+#undef BOT_BLOB_RALLY_MIN
+#undef BOT_BLOB_RALLY_MAX
 
 /// Blob rounds: the mode turns the picked crew member into an overmind by handing over its key (transform_procs.dm). A bot's goes nowhere, so
 /// the overmind came out with no mind, no blob antagonist and nobody playing it: the mode's post_setup() stopped on "Cannot modify

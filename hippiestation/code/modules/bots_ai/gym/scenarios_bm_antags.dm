@@ -472,3 +472,259 @@
 	if(QDELETED(cmo) || cmo.stat != DEAD)
 		return BOT_GYM_PENDING
 	return (locate(/obj/item/reagent_containers/hypospray/CMO) in bot.GetAllContents()) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// Rules that ask for a client, and a bot has none (goals/revolution.dm, goals/cult.dm)
+// ---------------------------------------------------------------------------------------------
+
+/// The revolution promotes a member to head revolutionary when its leaders are thin on the ground (revolution.dm update_heads()), out of the
+/// ones with a client. The bot revolutionaries had none, so a revolution of bots whose leaders were killed or locked up never got new ones.
+/datum/bot_scenario/rev_promotion
+	name = "revolution: with its leaders gone, a bot revolutionary is promoted to head revolutionary"
+	desc = "A revolution with four heads of staff aboard and no head revolutionary left, and one bot revolutionary. The revolution's check for a new leader promotes the bot."
+	station_wide = TRUE
+	job = "Assistant"
+	layout = list(
+		"##########",
+		"#B..1234.#",
+		"##########")
+	time_limit = 30 SECONDS
+	var/datum/team/revolution/team
+	var/asked = FALSE
+
+/datum/bot_scenario/rev_promotion/make_goal()
+	return null
+
+/datum/bot_scenario/rev_promotion/setup()
+	var/list/roles = list("1" = "Captain", "2" = "Head of Personnel", "3" = "Chief Engineer", "4" = "Research Director")
+	for(var/n in roles)
+		var/mob/living/carbon/human/head = stand_in(first_marker(n), "Head [n]")
+		head.mind_initialize()
+		head.mind.assigned_role = roles[n]
+
+/datum/bot_scenario/rev_promotion/post_spawn()
+	..()
+	team = new
+	bot.mind.add_antag_datum(new /datum/antagonist/rev, team)
+
+/datum/bot_scenario/rev_promotion/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!asked)
+		asked = TRUE
+		team.update_heads()
+	return bot.mind.has_antag_datum(/datum/antagonist/rev/head) ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/datum/bot_scenario/rev_promotion/release_run()
+	if(team)
+		qdel(team)
+		team = null
+	return ..()
+
+/// The Rite of Resurrection (runes.dm raise_dead/invoke()) took a cultist with no client for an inactive one: a dead bot cultist, once
+/// revived, had its body put up for the ghosts to take over, and the rite failed. A bot reads as connected.
+/datum/bot_scenario/rune_revive
+	name = "cult: the Rite of Resurrection on a dead bot cultist wakes it in its own body"
+	desc = "A dead cultist bot on a Revive rune with the sacrifices made, and another cultist beside it invoking it. The bot's alive, and the rite's over: it isn't left waiting on a poll of the ghosts."
+	station_wide = TRUE
+	job = "Assistant"
+	layout = list(
+		"#######",
+		"#BI...#",
+		"#######")
+	time_limit = 30 SECONDS
+	var/obj/effect/rune/raise_dead/rune
+	var/mob/living/carbon/human/caster
+	var/asked = FALSE
+	/// Dead (the rite's for it) or alive and well (it isn't)
+	var/dead = TRUE
+
+/datum/bot_scenario/rune_revive/make_goal()
+	return null
+
+/datum/bot_scenario/rune_revive/setup()
+	rune = new(first_marker("B"))
+	for(var/i in 1 to 6)
+		GLOB.sacrificed += "gym sacrifice [i]" //the rite wants sacrifices behind it
+
+/datum/bot_scenario/rune_revive/post_spawn()
+	..()
+	bot.mind.add_antag_datum(/datum/antagonist/cult)
+	caster = stand_in(first_marker("I"), "Cult Caster")
+	caster.mind_initialize()
+	caster.mind.add_antag_datum(/datum/antagonist/cult)
+
+/datum/bot_scenario/rune_revive/check()
+	if(!asked)
+		asked = TRUE
+		if(dead)
+			bot.death()
+		rune.invoke(list(caster))
+	if(rune.rune_in_use)
+		fail_reason = "the rite's left waiting (on the ghosts, for a bot's body)"
+		return BOT_GYM_FAIL
+	if(dead && bot.stat == DEAD)
+		fail_reason = "the dead bot's still dead"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/rune_revive/release_run()
+	GLOB.sacrificed.Cut()
+	if(rune)
+		qdel(rune)
+	return ..()
+
+/// And one that's alive and well isn't an inactive cultist for the rite to take over.
+/datum/bot_scenario/rune_revive/alive
+	name = "cult: the Rite of Resurrection leaves a live bot cultist alone"
+	desc = "A live cultist bot on a Revive rune. It's no dead or inactive cultist, so the rite finds nobody on the rune and fizzles, and doesn't put its body up for the ghosts."
+	dead = FALSE
+
+// ---------------------------------------------------------------------------------------------
+// The crew against a blob: the armory, and going in together (goals/blob.dm). By name where the fix adds a var or a proc, so the
+// "before" of an A/B still compiles.
+// ---------------------------------------------------------------------------------------------
+
+/// A real blob core in the arena, an overmind nobody drives, and plain blob on blob_turfs: as scenarios_blob.dm builds them.
+/datum/bot_scenario/proc/gym_blob_core(turf/core_at, list/blob_turfs)
+	var/mob/camera/blob/overmind = new(core_at, 0)
+	overmind.hud_used = new overmind.hud_type(overmind)
+	var/obj/structure/blob/core/core = new(core_at, overmind, 1)
+	qdel(core.GetComponent(/datum/component/stationloving)) //back to the station the moment it's off it, otherwise
+	core.forceMove(core_at)
+	core.overmind = overmind
+	overmind.blob_core = core
+	overmind.placed = TRUE
+	overmind.blobs_legit |= core
+	core.update_icon()
+	for(var/turf/T in blob_turfs)
+		new /obj/structure/blob/normal(T, overmind)
+	return core
+
+/// The blob gone with the run: its overmind keeps the shuttle from being called for as long as it's about.
+/datum/bot_scenario/proc/gym_blob_release(obj/structure/blob/core/core)
+	var/mob/camera/blob/overmind = core?.overmind
+	if(overmind)
+		for(var/obj/structure/blob/B as anything in overmind.blobs_legit.Copy())
+			if(istype(B))
+				qdel(B)
+		qdel(overmind)
+	if(!QDELETED(core))
+		qdel(core)
+
+/datum/bot_scenario/duty/armory_opens/blob
+	name = "security: a blob announced and no red alert, the Warden opens the armory and an officer arms up from it"
+	desc = "Nobody in a nanosuit, nobody killing: a blob core the whole station's been told of. A player answer to a blob is a laser's burn, so the Warden opens the armory without red alert and an officer with no armory access of its own walks in for a laser. Before, only a suit or a killer at large got the armory opened, and the officers fought a blob with welders and a baton."
+	layout = list(
+		"############",
+		"#B.O...Dl..#",
+		"#.##########",
+		"##k#########",
+		"############")
+	time_limit = 40 SECONDS
+	var/obj/structure/blob/core/core
+
+/datum/bot_scenario/duty/armory_opens/blob/setup()
+	..()
+	core = gym_blob_core(first_marker("k"))
+	if("bot_announced" in core.vars)
+		core.vars["bot_announced"] = TRUE
+
+/datum/bot_scenario/duty/armory_opens/blob/post_spawn()
+	var/obj/item/card/id/C = bot.get_idcard(TRUE)
+	if(!C)
+		C = new /obj/item/card/id(bot)
+		bot.equip_to_slot_or_del(C, ITEM_SLOT_ID)
+	C.access |= list(ACCESS_ARMORY, ACCESS_SECURITY, ACCESS_BRIG)
+	officer = second_bot(first_marker("O"), "Officer Oakes")
+	officer.mind.assigned_role = "Security Officer"
+	officer.bot_brain.register_security()
+	INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(set_security_level), SEC_LEVEL_GREEN) //no red alert: that's the point
+
+/datum/bot_scenario/duty/armory_opens/blob/release_run()
+	gym_blob_release(core)
+	return ..()
+
+/// Volunteers sent to a blob from different places across a big room.
+/datum/bot_scenario/blob_rally
+	name = "blob: volunteers gather well back from the blob and go in together"
+	desc = "Three crew sent at a blob from far apart across a hall. They meet well back from its edge and go in together: whoever's nearest isn't at the blob alone, a way ahead of the rest. Before, each walked straight to the edge as soon as it was sent, and the first was in reach of it with the others half a hall behind."
+	job = "Assistant"
+	kit_hands = list(/obj/item/weldingtool)
+	layout = list(
+		"##################################################",
+		"#B...............................................#",
+		"#................C......C..................bbk...#",
+		"#................................................#",
+		"##################################################")
+	time_limit = 150 SECONDS
+	var/obj/structure/blob/core/core
+	var/list/volunteers = list()
+
+/datum/bot_scenario/blob_rally/issue_goal()
+	return //they're sent by the blob's own roll call (post_spawn)
+
+/datum/bot_scenario/blob_rally/setup()
+	var/list/blob_turfs = list()
+	for(var/turf/T in markers["b"])
+		blob_turfs += T
+	core = gym_blob_core(first_marker("k"), blob_turfs)
+
+/datum/bot_scenario/blob_rally/post_spawn()
+	brain.nerve = 0.8
+	volunteers += bot
+	var/n = 0
+	for(var/turf/T in markers["C"])
+		n++
+		var/mob/living/carbon/human/H = second_bot(T, "Volunteer [n]")
+		H.put_in_hands(new /obj/item/weldingtool(H))
+		volunteers += H
+	var/datum/bot_blob/roll_call = new(core.overmind)
+	if("hands_off" in roll_call.vars)
+		roll_call.vars["hands_off"] = TRUE //its own growing and sending is for a real round: this sends the one wave
+	roll_call.send_volunteers()
+
+/datum/bot_scenario/blob_rally/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/mob/living/carbon/human/H as anything in volunteers)
+		if(QDELETED(H) || !(locate(/obj/structure/blob) in range(2, H)))
+			continue
+		var/together = 0
+		for(var/mob/living/carbon/human/other as anything in volunteers)
+			if(!QDELETED(other) && get_dist(other, H) <= 6)
+				together++
+		if(together >= length(volunteers))
+			return BOT_GYM_PASS
+		fail_reason = "[H] got to the blob with only [together] of [length(volunteers)] within six tiles of it"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/blob_rally/release_run()
+	gym_blob_release(core)
+	return ..()
+
+/// With no tank full of it about, the thing to do is fill one: a plasma tank from a plasma canister, release pressure to the top. Before,
+/// the goal only looked for a tank that already had 28 moles in, and the objective stayed undone for the whole shift.
+/datum/bot_scenario/duty/traitor/plasma_tank/fill
+	name = "traitor: after 28 moles of plasma with no full tank about it fills a plasma tank from a canister"
+	desc = "The objective is 28 moles of plasma in a tank. There's a plasma tank on the floor with a few moles in it and a plasma canister across the room. The traitor takes the tank to the canister, fills it and takes it out again with the 28 moles in."
+	layout = list(
+		"###############",
+		"#B..t.......C.#",
+		"###############")
+	time_limit = 120 SECONDS
+
+/datum/bot_scenario/duty/traitor/plasma_tank/fill/setup()
+	for(var/turf/T in markers["t"])
+		place("t", new /obj/item/tank/internals/plasma(T))
+	for(var/turf/T in markers["C"])
+		place("C", new /obj/machinery/portable_atmospherics/canister/toxins(T))
+
+/datum/bot_scenario/duty/traitor/plasma_tank/fill/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/obj/item/tank/internals/plasma/T in bot.GetAllContents())
+		if(T.air_contents.moles[/datum/gas/plasma] >= 28)
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING

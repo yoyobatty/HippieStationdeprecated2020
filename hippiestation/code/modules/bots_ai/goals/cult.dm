@@ -713,3 +713,66 @@ GLOBAL_LIST_INIT(bot_cult_rune_areas, typecacheof(list(/area/crew_quarters/toile
 #undef BOT_CULT_OP_TIMEOUT
 #undef BOT_CULT_OP_GAP
 #undef BOT_CULT_ALONE
+
+// ---------------------------------------------------------------------------------------------
+// The Rite of Resurrection and the bot crew
+// ---------------------------------------------------------------------------------------------
+
+// runes.dm raise_dead/invoke() lists a cultist on the rune for a revival if they're dead, or have no client, or their client's AFK, and after
+// a revival polls the ghosts for somebody to take over a body that has no client. A cultist bot has no client: a live one standing on the
+// rune was offered for a revival, and a dead one, once revived, had its body put up for the ghosts to take over (and the rite failed). A bot
+// reads as connected (is_bot_crew(), bot_identity.dm): it's dead or it isn't, and it wakes in its own body.
+/obj/effect/rune/raise_dead/invoke(list/invokers)
+	var/turf/T = get_turf(src)
+	var/mob/living/mob_to_revive
+	var/list/potential_revive_mobs = list()
+	var/mob/living/user = invokers[1]
+	if(rune_in_use)
+		return
+	rune_in_use = TRUE
+	for(var/mob/living/M in T.contents)
+		if(iscultist(M) && (M.stat == DEAD || (!M.is_bot_crew() && (!M.client || M.client.is_afk()))))
+			potential_revive_mobs |= M
+	if(!potential_revive_mobs.len)
+		to_chat(user, "<span class='cult italic'>There are no dead cultists on the rune!</span>")
+		log_game("Raise Dead rune failed - no cultists to revive")
+		fail_invoke()
+		return
+	if(potential_revive_mobs.len > 1)
+		mob_to_revive = tgui_input_list(user, "Choose a cultist to revive.", "Cultist to Revive", potential_revive_mobs)
+	else
+		mob_to_revive = potential_revive_mobs[1]
+	if(QDELETED(src) || !validness_checks(mob_to_revive, user))
+		fail_invoke()
+		return
+	if(user.name == "Herbert West")
+		invocation = "To life, to life, I bring them!"
+	else
+		invocation = initial(invocation)
+	..()
+	if(mob_to_revive.stat == DEAD)
+		var/diff = LAZYLEN(GLOB.sacrificed) - revives_used - SOULS_TO_REVIVE
+		if(diff < 0)
+			to_chat(user, "<span class='warning'>Your cult must carry out [abs(diff)] more sacrifice\s before it can revive another cultist!</span>")
+			fail_invoke()
+			return
+		revives_used += SOULS_TO_REVIVE
+		mob_to_revive.revive(1, 1) //This does remove traits and such, but the rune might actually see some use because of it!
+		mob_to_revive.grab_ghost()
+	if(!mob_to_revive.is_bot_crew() && (!mob_to_revive.client || mob_to_revive.client.is_afk()))
+		set waitfor = FALSE
+		var/list/mob/dead/observer/candidates = pollCandidatesForMob("Do you want to play as a [mob_to_revive.name], an inactive blood cultist?", ROLE_CULTIST, null, ROLE_CULTIST, 50, mob_to_revive)
+		if(LAZYLEN(candidates))
+			var/mob/dead/observer/C = pick(candidates)
+			to_chat(mob_to_revive.mind, "Your physical form has been taken over by another soul due to your inactivity! Ahelp if you wish to regain your form.")
+			message_admins("[key_name_admin(C)] has taken control of ([key_name_admin(mob_to_revive)]) to replace an AFK player.")
+			mob_to_revive.ghostize(0)
+			mob_to_revive.key = C.key
+		else
+			fail_invoke()
+			return
+	SEND_SOUND(mob_to_revive, 'sound/ambience/antag/bloodcult.ogg')
+	to_chat(mob_to_revive, "<span class='cultlarge'>\"PASNAR SAVRAE YAM'TOTH. Arise.\"</span>")
+	mob_to_revive.visible_message("<span class='warning'>[mob_to_revive] draws in a huge breath, red light shining from [mob_to_revive.p_their()] eyes.</span>", \
+								  "<span class='cultlarge'>You awaken suddenly from the void. You're alive!</span>")
+	rune_in_use = FALSE
