@@ -17,6 +17,8 @@
 #define BOT_JANITOR_REACH 60
 /// Stains and fixtures a janitor keeps track of at most (the oldest go first)
 #define BOT_MESS_SEEN_MAX 200
+/// How many places a round of the station looks in.
+#define BOT_JANITOR_PATROL_STOPS 4
 /// Tiles mopped in one stop before looking up again.
 #define BOT_MOP_TILES_PER_STOP 8
 
@@ -31,6 +33,12 @@
 	var/janitor_dry_until = 0
 	/// Until when it's known there's no mop it can get to (janitor_can_get_mop()).
 	var/janitor_no_mop_until = 0
+	/// Area -> when the janitor last stopped in it on its rounds (janitor_patrol_stops()).
+	var/list/janitor_patrolled
+	/// When it next goes round the halls looking for something to clean, if there's nothing it knows of.
+	var/janitor_next_patrol = 0
+	/// Where it has stopped on its last few rounds, so the next ones go elsewhere.
+	var/list/janitor_recent_stops
 	/// Tiles this janitor has mopped clean, for the Bot Shift report.
 	var/tiles_mopped = 0
 	var/lights_replaced = 0
@@ -260,6 +268,11 @@
 	for(var/obj/item/I in bot.owner.held_items)
 		if(istype(I, /obj/item/mop) || istype(I, /obj/item/reagent_containers/glass/bucket) || istype(I, /obj/item/lightreplacer))
 			bot.put_away(I, allow_equip = FALSE)
+	// Nothing it knows of: its rounds. A janitor looks for mess, through the halls and the departments, as a part of the job: mopping only
+	// what it was radioed about or happened to stroll past left a shift's floors unmopped (bm_final: 7 of 12 shifts, one janitor mopped five
+	// tiles in all). The look at each stop (janitor_look_about()) is what makes a stain known, so it can be picked.
+	if(world.time >= bot.janitor_next_patrol && bot.start_janitor_patrol())
+		return TRUE
 	return FALSE
 
 /// Straight on to the next thing, the way someone in the middle of their rounds does - a slacker less reliably.
@@ -579,6 +592,157 @@
 		bot.wear(G, ITEM_SLOT_FEET)
 	return GOAL_STEP_SUCCESS
 
+// ---------------------------------------------------------------------------------------------
+// Rounds
+// ---------------------------------------------------------------------------------------------
+
+/// Whether there's a stain or a dead fixture in sight that it can do something about (and from now on it knows of it).
+/datum/bot_brain/proc/janitor_look_about()
+	. = FALSE
+	var/can_replace = find_carried_tool(/obj/item/lightreplacer)
+	for(var/obj/effect/decal/cleanable/C in view(BOT_SIGHT_RANGE, owner))
+		if(bot_is_mess(C) && janitor_in_reach(C) && knows_of_mess(C) && LAZYACCESS(janitor_blocked, get_turf(C)) <= world.time)
+			. = TRUE
+	if(can_replace)
+		for(var/obj/machinery/light/L in view(BOT_SIGHT_RANGE, owner))
+			if(L.status != LIGHT_OK && janitor_in_reach(L) && knows_of_mess(L) && LAZYACCESS(janitor_blocked, L) <= world.time)
+				. = TRUE
+
+/// The places on a round: the halls and departments it has gone round least recently, one spot in each that it can walk to, taken nearest
+/// first. Not maintenance (nobody mops it), and none that are a locked door away.
+/datum/bot_brain/proc/janitor_patrol_stops()
+	var/list/areas = list()
+	if(gym_run)
+		areas += get_area(owner)
+	else
+		for(var/area/A as anything in GLOB.sortedAreas)
+			if(!(A.type in GLOB.the_station_areas) || istype(A, /area/maintenance) || LAZYACCESS(janitor_blocked, A) > world.time)
+				continue
+			areas += A
+	areas = shuffle(areas)
+	var/list/ranked = list() //area -> when it was last gone round
+	for(var/area/A as anything in areas)
+		ranked[A] = LAZYACCESS(janitor_patrolled, A) || 0
+	sortTim(ranked, GLOBAL_PROC_REF(cmp_numeric_asc), TRUE)
+	var/list/stops = list()
+	var/tries = 0
+	for(var/area/A as anything in ranked)
+		if(length(stops) >= BOT_JANITOR_PATROL_STOPS || tries++ >= BOT_JANITOR_PATROL_STOPS * 3)
+			break
+		var/list/spots = list()
+		for(var/turf/open/T in A)
+			if(T.z == owner.z && !T.density && !is_blocked_turf(T, TRUE) && !(locate(/obj/machinery/door) in T))
+				spots += T
+		if(!length(spots))
+			continue
+		LAZYSET(janitor_patrolled, A, world.time) //gone to, or found to be somewhere it can't: not first in line next time either
+		// One spot in a room of the station; in an arena that's one room, as many as a round has, spread out
+		for(var/i in 1 to (gym_run ? BOT_JANITOR_PATROL_STOPS : 1))
+			var/turf/spot = janitor_spread_spot(spots, stops)
+			if(!can_walk_lawfully_to(spot))
+				LAZYSET(janitor_blocked, A, world.time + 10 MINUTES)
+				break
+			stops += spot
+	// Nearest first, from where it stands
+	var/list/route = list()
+	var/turf/from = get_turf(owner)
+	while(length(stops))
+		var/turf/nearest
+		for(var/turf/T as anything in stops)
+			if(!nearest || get_dist(from, T) < get_dist(from, nearest))
+				nearest = T
+		stops -= nearest
+		route += nearest
+		from = nearest
+	return route
+
+/// Of a few spots picked at random, the one furthest from where it has stopped lately and from the stops already chosen for this round: a
+/// round that doesn't look twice at the same corner.
+/datum/bot_brain/proc/janitor_spread_spot(list/spots, list/chosen)
+	var/turf/best
+	var/best_far = -1
+	for(var/i in 1 to 6)
+		var/turf/T = pick(spots)
+		var/far = 99
+		for(var/turf/other as anything in (janitor_recent_stops || list()) + chosen)
+			far = min(far, get_dist(T, other))
+		if(far > best_far)
+			best = T
+			best_far = far
+	LAZYADD(janitor_recent_stops, best)
+	if(length(janitor_recent_stops) > 10)
+		janitor_recent_stops.Cut(1, 2)
+	return best
+
+/// Off on a round, if there's somewhere to go.
+/datum/bot_brain/proc/start_janitor_patrol()
+	if(!(is_station_level(owner.z) || gym_run) || owner.bot_life_sentence || is_in_active_cell(owner))
+		return FALSE
+	var/list/stops = janitor_patrol_stops()
+	janitor_next_patrol = world.time + 30 SECONDS //if it comes to nothing
+	if(!length(stops))
+		return FALSE
+	bot_log(src, "going round the halls and departments, [length(stops)] stops, looking for something to clean")
+	return assign_goal(new /datum/bot_goal/janitor_patrol(stops))
+
+/datum/bot_goal/janitor_patrol
+	lawful = TRUE
+	doing = "going round looking for something to clean"
+	var/list/stops
+
+/datum/bot_goal/janitor_patrol/New(list/L)
+	. = ..()
+	stops = L
+	target = length(L) ? L[1] : null
+
+/datum/bot_goal/janitor_patrol/resolve_target(datum/bot_brain/bot)
+	target = length(stops) ? stops[1] : null
+
+/datum/bot_goal/janitor_patrol/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/robotics/S = new
+	S.steps = list(new /datum/bot_step/paced/patrol_stops())
+	return list(S)
+
+/datum/bot_goal/janitor_patrol/on_success(datum/bot_brain/bot)
+	bot.continue_janitor_round() //what it found, or on to its next one when the round's over
+
+/// From stop to stop, and a look about at each and on the way: it ends the round the moment it sees something to clean.
+/datum/bot_step/paced/patrol_stops
+	max_clicks = 60
+	var/at = 1
+	var/tries = 0
+
+/datum/bot_step/paced/patrol_stops/start(datum/bot_brain/bot)
+	at = 1
+	tries = 0
+	return TRUE
+
+/datum/bot_step/paced/patrol_stops/do_click(datum/bot_brain/bot)
+	var/datum/bot_goal/janitor_patrol/G = bot.current_goal
+	if(!istype(G) || at > length(G.stops))
+		return FALSE
+	if(bot.janitor_look_about())
+		bot_log(bot, "saw something to clean on my round")
+		return FALSE
+	var/turf/stop = G.stops[at]
+	if(get_dist(bot.owner, stop) <= 1)
+		bot.human_pause(stop)
+		at++
+		tries = 0
+		wait_for = rand(8, 20)
+		return TRUE
+	if(bot.pursuing_kind)
+		wait_for = 8
+		return TRUE
+	if(++tries > 3) //no way to it: on to the next
+		at++
+		tries = 0
+		return TRUE
+	bot.pursue(stop, "follow", force = TRUE)
+	wait_for = 8
+	return TRUE
+
 #undef BOT_JANITOR_REACH
+#undef BOT_JANITOR_PATROL_STOPS
 #undef BOT_MESS_SEEN_MAX
 #undef BOT_MOP_TILES_PER_STOP

@@ -1090,6 +1090,12 @@
 		bot_tally("kept out of a beam")
 		finish_pursuit(FALSE)
 		return
+	// A goliath's tentacle showing on the next tile (goals/mining.dm): the walk waits for it to let go, a few deciseconds at a time. A miner
+	// that had stepped off one went straight back on to the one beside it on the way to its seam and was held, and beaten to death (bm_final
+	// run2). Not when it's stood on one already: that's dodge_tentacles()'s to get off.
+	if((gym_run || on_lavaland()) && bot_tentacle_at(next_node) && !bot_tentacle_at(get_turf(owner)))
+		schedule_step(3)
+		return
 	// Into the water off dry floor (bot_steps_into_pool(), bot_pathing_permissive.dm): only if it may go in now (bot_may_jump_in()), not
 	// because it could when the route was planned. An officer that had climbed out short of breath was walked straight back in by the
 	// route it fell in on, and drowned (bugs1112base run1). Whatever drives the walk decides again (handle_arrest(), handle_combat()): round
