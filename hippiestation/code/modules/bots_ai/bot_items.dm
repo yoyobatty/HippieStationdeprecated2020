@@ -257,8 +257,9 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 		if(QDELETED(I) || get_dist(owner, get_turf(I)) > 1)
 			return FALSE
 		owner.face_atom(get_turf(I))
-	// Both hands still full (tools it keeps hold of): stow_item() puts one thing away first, an input of its own as well
-	if(I.loc != owner && I.loc?.loc != owner && owner.get_active_held_item() && owner.get_inactive_held_item() && !owner.handcuffed)
+	// No hand free (both full with tools it keeps hold of, or one arm gone and the other full): stow_item() puts one thing away first, an
+	// input of its own as well
+	if(I.loc != owner && I.loc?.loc != owner && !owner.handcuffed && (owner.mobility_flags & MOBILITY_PICKUP) && use_a_working_hand() && owner.get_active_held_item() && !hand_free_for_pickup())
 		if(put_away(owner.get_active_held_item()))
 			hand_beat()
 			if(QDELETED(I) || get_dist(owner, get_turf(I)) > 1)

@@ -631,3 +631,8 @@
 	if(istype(F))
 		for(var/i in 1 to 3)
 			new /obj/item/flashlight(F)
+
+/datum/bot_scenario/one_arm_picks_up/with_a_beat
+	name = "hands: an arm gone and a wrench in the other hand, the bin is picked up a moment after the wrench goes away"
+	desc = "The wrench has to go away before the matter bin can be taken in the one hand there is: two inputs, a beat apart, not one tick (a drop and a pickup in the same tick came about a thousand times a shift in play1114b)."
+	forbidden_tells = list("tool_not_in_hand", "item_teleport", "equip_without_holding", "remote_pickup", "not_facing_target", "instant_swap")

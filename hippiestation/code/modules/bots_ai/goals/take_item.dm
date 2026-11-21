@@ -19,7 +19,14 @@
 		bot_log(src, "[I] went before I could pick it up")
 		return FALSE
 	owner.face_atom(I)
+	var/held_before = held_item_count()
 	make_hand_free()
+	if(held_item_count() < held_before) //a hand emptied for it is an input of its own, and the pickup is the next (hand_beat(), bot_human.dm)
+		hand_beat()
+		if(QDELETED(I) || !isturf(I.loc) || get_dist(owner, I) > 1)
+			bot_log(src, "[I] went before I could pick it up")
+			return FALSE
+		owner.face_atom(I)
 	if(!owner.put_in_hands(I))
 		bot_log(src, "[I] wouldn't go in my hand ([owner.has_active_hand() ? "holding [owner.get_active_held_item() || "nothing"]" : "no hand that works"])")
 		return FALSE
