@@ -204,19 +204,30 @@ GLOBAL_VAR(bot_in_command)
 			return TRUE
 	return FALSE
 
-/// Space Law's cases for lethal force, as far as a bot in a fight can tell. A greytider with a toolbox is none of them.
+/// Somebody who's using what they've got on people, or is after this bot: what makes "armed" dangerous. A tider smashing windows with a fire axe
+/// is armed and nothing else. In two shift batches in a row (play1114b run12, gen1116f run11) an officer went "lethal, armed and dangerous" on
+/// an assistant and on a chemist arrested for vandalism, and put seven and eleven laser shots into them, against the user's ruling that
+/// greytiders are never killed.
+/datum/bot_brain/proc/foe_is_hurting_people(mob/living/carbon/human/foe)
+	if(foe == attacker || bot_attacked_lately(foe)) //goals/silicon.dm: anybody they've hit in the last half minute
+		return TRUE
+	var/datum/bot_wanted/W = bot_get_wanted_entry(foe)
+	return W && (W.severity >= BOT_CRIME_MURDER || bot_crime_is_violent(W.crime) || W.crime == "Possession of Dangerous Equipment") //a Syndicate weapon isn't a fire axe
+
+/// Space Law's cases for lethal force, as far as a bot in a fight can tell. A greytider with a toolbox is none of them, nor one with a fire
+/// axe who's only breaking things.
 /datum/bot_brain/proc/bot_may_use_lethal_force(mob/living/foe)
 	if(GLOB.security_level >= SEC_LEVEL_RED)
 		return TRUE
 	if(!ishuman(foe))
 		return TRUE
-	if(bot_armed_and_dangerous(foe))
+	if(bot_armed_and_dangerous(foe) && foe_is_hurting_people(foe))
 		return TRUE
 	// A Syndicate combat suit is a weapon worn. Four officers fired twenty disabler shots at one, which it shrugs off, while it beat an
 	// engineer and then all of them.
 	if(bot_in_nanosuit(foe))
 		return TRUE
-	if(owner.health < owner.maxHealth * 0.4)
+	if(owner.health < owner.maxHealth * 0.4 && foe_is_hurting_people(foe)) //in severe danger from them, not from whatever got it that low
 		return TRUE
 	if(bot_fighters_against(owner) >= BOT_MOBBED_BY)
 		return TRUE
