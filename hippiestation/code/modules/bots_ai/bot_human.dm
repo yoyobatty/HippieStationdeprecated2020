@@ -124,7 +124,8 @@
 	var/old_intent = owner.a_intent
 	owner.a_intent = INTENT_HELP
 	. = use_item_on(tool, target)
-	owner.a_intent = old_intent
+	if(!QDELETED(owner)) //gibbed while it was at it: the pauses in use_item_on() let the body go, and its brain let go of it ("Cannot modify null.a_intent", gen1116)
+		owner.a_intent = old_intent
 
 /// Turns an item in hand on or off (welder, baton, extinguisher safety) the way a player does:
 /// in the active hand, then use it in hand.
@@ -229,7 +230,7 @@
 			return FALSE
 		next_mouse_swat_time = world.time + CLICK_CD_MELEE
 		human_pause(M)
-		if(QDELETED(M) || M.stat == DEAD || !owner.Adjacent(M))
+		if(QDELETED(owner) || QDELETED(M) || M.stat == DEAD || !owner.Adjacent(M)) //the pause sleeps: the body can go in it
 			return FALSE
 		owner.face_atom(M)
 		var/old_intent = owner.a_intent
@@ -246,6 +247,8 @@
 			else
 				owner.UnarmedAttack(M, TRUE)
 			swings++
+		if(QDELETED(owner))
+			return FALSE //gibbed mid-swat
 		owner.a_intent = old_intent
 		owner.changeNext_move(CLICK_CD_MELEE)
 		telemetry_event("swat_mouse", list("with" = W ? "[W]" : "hands", "swings" = swings, "killed" = M.stat == DEAD))

@@ -919,6 +919,8 @@
 		do_step_next_node()
 	catch(var/exception/e)
 		bot_log_exception(src, "step_next_node", e)
+		if(QDELETED(owner))
+			return //the body's gone: nothing to re-plan a walk for, and repath() would only read the null owner again
 		if(pursuing_kind)
 			repath() //self-heal: never let a crash here leave the pursuit permanently dead
 		else if(state == BOT_STATE_GOAL && current_goal)

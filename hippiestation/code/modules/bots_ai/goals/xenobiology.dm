@@ -323,6 +323,7 @@ GLOBAL_LIST_EMPTY(bot_slime_colours)
 		if(QDELETED(food))
 			return FALSE
 		food.LAssailant = bot.owner
+		bot.mark_as_assailant(food) //bot_brain.dm: the monkey keeps the bot in its LAssailant until it's eaten, and a bot gibbed meanwhile is a hard delete
 		X.monkeys = round(X.monkeys - 1, 0.1)
 		S.bot_fed_at = world.time
 		bot.monkeys_fed++

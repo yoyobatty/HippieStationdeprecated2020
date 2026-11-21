@@ -279,7 +279,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	if(harm)
 		owner.a_intent = INTENT_HARM
 	I.melee_attack_chain(owner, A)
-	if(harm)
+	if(harm && !QDELETED(owner)) //the chain can sleep, and blow the bot up in its hand
 		owner.a_intent = old_intent
 	return TRUE
 

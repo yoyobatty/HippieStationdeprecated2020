@@ -39,3 +39,34 @@
 		fail_reason = "the cap wasn't reached by a pile of 1500 (the most in one glance: [most || "not counted"])"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+/datum/bot_scenario/assailant_mark_let_go
+	name = "perf: a monkey fed to a slime lets go of the bot when the bot is gibbed"
+	desc = "A bot feeding slimes sets itself as the dropped monkey's LAssailant (goals/xenobiology.dm), a plain reference, and a bot gibbed while the monkey was still about was a hard delete (a 30-50 ms freeze). The brain takes itself back out of what it marked when it goes."
+	time_limit = 20 SECONDS
+	layout = list(
+		"#######",
+		"#B...G#",
+		"#######")
+	var/tested = FALSE
+
+/datum/bot_scenario/assailant_mark_let_go/make_goal()
+	return null //the scenario does the feeding and the gibbing
+
+/datum/bot_scenario/assailant_mark_let_go/check()
+	if(!bot || QDELETED(bot) || bot.stat == DEAD)
+		fail_reason = "bot died"
+		return BOT_GYM_FAIL
+	if(tested)
+		return BOT_GYM_PENDING
+	tested = TRUE
+	var/mob/living/carbon/monkey/food = new(first_marker("G"))
+	food.LAssailant = bot //what feed_slimes does with the monkey it drops in
+	if(hascall(brain, "mark_as_assailant")) //by name, so a build from before it was added still compiles
+		call(brain, "mark_as_assailant")(food)
+	var/mob/living/carbon/human/body = bot
+	qdel(body)
+	if(food.LAssailant == body)
+		fail_reason = "the monkey still has the gibbed bot as its LAssailant: that's a hard delete for the bot"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
