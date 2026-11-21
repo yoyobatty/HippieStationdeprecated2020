@@ -395,13 +395,18 @@
 	goal_attempts++
 	brain.start_brig_escort(prisoner)
 
+/// Whether the officer's ask is on the list just now (not in a build without a list: nothing's ever asked)
+/datum/bot_scenario/brigged/no_id/proc/asked_for_somebody()
+	if("bot_handovers" in GLOB.vars)
+		var/list/asked = GLOB.vars["bot_handovers"]
+		return islist(asked) && asked[REF(prisoner)]
+	return FALSE
+
 /datum/bot_scenario/brigged/no_id/check()
 	if(bot_lost())
 		return BOT_GYM_FAIL
-	if("bot_handovers" in GLOB.vars) //not in a build without it: nothing's ever asked
-		var/list/asked = GLOB.vars["bot_handovers"]
-		if(islist(asked) && asked[REF(prisoner)])
-			handed_over = TRUE
+	if(asked_for_somebody())
+		handed_over = TRUE
 	for(var/line in transcript)
 		if(findtext(line, "no access to"))
 			fail_reason = "took them to the cell and found no access at the timer"
@@ -608,3 +613,41 @@
 	if(brain.next_security_call_time > world.time)
 		return BOT_GYM_PASS
 	return BOT_GYM_PENDING
+
+/// With telecomms down the ask gets nowhere on the radio: it goes on the list when the officer tells a colleague who's come up to them
+/datum/bot_scenario/brigged/no_id/radio_down
+	name = "brig: with telecomms down, an officer with no ID tells the colleague who comes up to it, and only then is the prisoner taken in"
+	desc = "The officer's ask for somebody to take the prisoner in is a radio call like any other (commit 246985cc): with nothing carried it's no use to anybody on the other side of the station, and is kept for the next officer it meets close by and told to their face. The colleague is walled off and not told anything for the first seconds, then comes up beside the officer, who tells them; the colleague takes the prisoner in."
+	layout = list(
+		"#########",
+		"#BC..i..#",
+		"####d####",
+		"###...###",
+		"###..l###",
+		"#########",
+		"#O#######",
+		"#########")
+	var/told_at = 0
+
+/datum/bot_scenario/brigged/no_id/radio_down/setup()
+	..()
+	if("radio_down" in arena_area.vars)
+		arena_area.vars["radio_down"] = TRUE
+
+/datum/bot_scenario/brigged/no_id/radio_down/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!told_at)
+		if(asked_for_somebody())
+			fail_reason = "on the list from a radio call that never got out"
+			return BOT_GYM_FAIL
+		if(world.time > start_time + 5 SECONDS)
+			told_at = world.time
+			log_line("the colleague comes up to the officer")
+			var/turf/T = locate(bot.x + 2, bot.y, bot.z)
+			colleague.forceMove(T && !T.density ? T : get_step(bot, SOUTH))
+			brain.tell_officer_in_person() //bot_radio.dm: its keep_an_eye_out() does this every few seconds, off for a scripted bot
+			if(asked_for_somebody())
+				handed_over = TRUE
+		return BOT_GYM_PENDING
+	return ..()
