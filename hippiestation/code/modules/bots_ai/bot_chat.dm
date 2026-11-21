@@ -89,9 +89,16 @@ GLOBAL_VAR(bot_trace_log)
 // exception there needs its own net or it silently kills that callback chain forever
 // (e.g. a crashed stuck-timeout never reschedules itself - the bot just stops).
 /proc/bot_log_exception(datum/bot_brain/B, where, exception/e)
+	// The body went (gibbed, deleted, a singularity) while a click or a walk was asleep, and the step woke to read a null owner: the step
+	// unwinding, not a bug in it. A line in runtime.log, and no red text for the admins or failed shift. 33 bots killed mid-errand in a
+	// gib hunt (tools/gc_hunt/bot_gib_hunt.dm) made four kinds of it (bot_items.dm use_item_on(), janitor.dm, tend_hydroponics.dm, repath()).
+	if(!B || QDELETED(B) || QDELETED(B.owner))
+		log_runtime("BOT AI: [where] outlived its body: [e] at [e.file]:[e.line]")
+		return
 	var/msg = "BOT AI EXCEPTION (owner=[B?.owner], in [where]): [e] at [e.file]:[e.line]"
-	message_admins("<span class='danger'>[msg]</span>[B?.owner ? " [ADMIN_FLW(B.owner)]" : ""]")
-	log_runtime(msg)
+	if(bot_exception_worth_telling(e)) //bot_brain.dm: once in 30 seconds for each place, so one that goes on isn't a red line every few seconds
+		message_admins("<span class='danger'>[msg]</span>[B?.owner ? " [ADMIN_FLW(B.owner)]" : ""]")
+	log_runtime("[msg][bot_exception_stack(e)]") //which calls led to it
 	GLOB.bot_shift?.note_bot_exception(msg) //gym/bot_shift.dm
 
 /// Nobody says these with bodies in the hallways.

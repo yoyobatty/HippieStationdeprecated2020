@@ -9,6 +9,11 @@
 #define bot_log(B, msg) if(GLOB.bot_ai_log || GLOB.bot_ai_debug || GLOB.bot_crew_panel_open || B?.gym_run) bot_log_line(B, msg)
 #define bot_log_verbose(B, msg) if(GLOB.bot_ai_verbose || B?.gym_run) bot_log_verbose_line(B, msg)
 
+/// The most things one look round takes in (glance_at_items(), bot_knowledge.dm; find_item_goal(), bot_items.dm). Nobody takes in a
+/// thousand at once, and a pile of hundreds on a tile in sight (somebody spawning a crate's worth for a test) cost each bot that looked
+/// ~2 us a thing, a second at a time. Nearer things come first in what view() gives.
+#define BOT_GLANCE_ITEMS_MAX 300
+
 // What a /datum/bot_step's execute() returns
 #define GOAL_STEP_PENDING 0
 #define GOAL_STEP_SUCCESS 1

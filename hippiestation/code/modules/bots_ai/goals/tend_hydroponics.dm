@@ -696,6 +696,8 @@ GLOBAL_LIST_INIT(bot_botany_crops, list(
 	catch(var/exception/e)
 		bot_log_exception(bot, "[type]/do_click", e)
 		clicked = FALSE
+	if(QDELETED(bot?.owner))
+		return GOAL_STEP_FAIL //the body went in a click's pause: nothing to finish with, and advance_goal_step() lets it be (bot_goals.dm)
 	if(clicked)
 		if(wait_for)
 			addtimer(CALLBACK(src, PROC_REF(continue_clicks), bot), wait_for)
@@ -711,7 +713,7 @@ GLOBAL_LIST_INIT(bot_botany_crops, list(
 	bot_forget_deleted_in(src)
 
 /datum/bot_step/paced/proc/continue_clicks(datum/bot_brain/bot)
-	if(QDELETED(bot) || bot.state != BOT_STATE_GOAL || !bot.on_this_step(src))
+	if(QDELETED(bot) || QDELETED(bot.owner) || bot.state != BOT_STATE_GOAL || !bot.on_this_step(src))
 		return //goal moved on while we were waiting - don't act on stale state
 	var/result = next_click(bot)
 	if(result != GOAL_STEP_PENDING)

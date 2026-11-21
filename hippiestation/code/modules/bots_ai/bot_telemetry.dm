@@ -359,3 +359,42 @@ GLOBAL_VAR_INIT(bot_telemetry_samples, !(BOT_GYM_PARAMETER in world.params) || (
 /datum/bot_brain/proc/telemetry_ui_action(obj/machinery/M, action)
 	owner.face_atom(M) //a click on a screen is a click on the machine: nobody works one with their back to it
 	telemetry_event("ui_action", list("machine" = "[M]", "action" = action, "dist" = get_dist(owner, M)) + telemetry_target_fields(M))
+
+/// What grew over a shift (the Bot Shift summary's "Bot memory" line): the longest lists the brains and the bot_ globals hold, as
+/// "name total entries (longest one's)". A list that only ever gets added to is a leak a three-hour round feels as a slower tick and
+/// a heavier hard-delete sweep; this is how one shows. Lists under `floor` entries are left out.
+/proc/bot_list_census(floor = 50)
+	var/list/totals = list()
+	var/list/longest = list()
+	for(var/datum/bot_brain/B as anything in GLOB.bot_brains)
+		for(var/name in B.vars)
+			if(name == "vars")
+				continue
+			var/value = B.vars[name]
+			if(!islist(value))
+				continue
+			var/list/L = value
+			if(length(L) < floor)
+				continue
+			totals[name] += length(L)
+			longest[name] = max(longest[name], length(L))
+	for(var/name in GLOB.vars)
+		if(name == "vars" || copytext(name, 1, 5) != "bot_")
+			continue
+		var/value = GLOB.vars[name]
+		if(!islist(value))
+			continue
+		var/list/L = value
+		if(length(L) < floor)
+			continue
+		totals["GLOB.[name]"] = length(L)
+		longest["GLOB.[name]"] = length(L)
+	var/list/rows = list()
+	while(length(totals) && length(rows) < 12)
+		var/biggest
+		for(var/name in totals)
+			if(!biggest || totals[name] > totals[biggest])
+				biggest = name
+		rows += "[biggest] [totals[biggest]] ([longest[biggest]])"
+		totals -= biggest
+	return length(rows) ? jointext(rows, ", ") : "nothing over [floor]"

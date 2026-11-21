@@ -201,6 +201,8 @@ GLOBAL_LIST_INIT(bot_duties_when_loud, typecacheof(list(/datum/bot_duty/traitor,
 /// The nanosuit it's wearing, if it is.
 /datum/bot_brain/proc/nanosuit_on()
 	var/mob/living/carbon/human/H = owner
+	if(!H)
+		return null //its body's gone (kill-mode gym: a check() that asks after the bot's been killed)
 	var/obj/item/clothing/suit/space/hardsuit/nano/N = H.wear_suit
 	return istype(N) ? N : null
 

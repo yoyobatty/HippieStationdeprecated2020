@@ -149,9 +149,27 @@
 			if(QDELETED(thing))
 				D.vars[name] = null
 
+/datum/bot_brain
+	/// Mobs it set itself as the LAssailant of (the monkeys fed to slimes, goals/xenobiology.dm), as weakrefs: LAssailant is a plain
+	/// reference, and a body gibbed while a monkey it fed was still about was a hard delete (a gib hunt, tools/gc_hunt/bot_gib_hunt.dm)
+	var/list/assailant_marks
+
+/// Notes that `M` has this bot's body in its LAssailant, so Destroy() takes it back out.
+/datum/bot_brain/proc/mark_as_assailant(mob/M)
+	if(LAZYLEN(assailant_marks) > 20) //the ones that are gone
+		for(var/datum/weakref/old as anything in assailant_marks.Copy())
+			if(!old.resolve())
+				assailant_marks -= old
+	LAZYADD(assailant_marks, WEAKREF(M))
+
 /datum/bot_brain/Destroy()
 	STOP_PROCESSING(SSprocessing, src)
 	stop_pursuit()
+	for(var/datum/weakref/mark as anything in assailant_marks)
+		var/mob/marked = mark.resolve()
+		if(marked && owner && marked.LAssailant == owner)
+			marked.LAssailant = null
+	assailant_marks = null
 	GLOB.atmos_alert_bots -= src
 	GLOB.bot_security_brains -= src
 	for(var/key in GLOB.bot_work_claims.Copy()) // a bot gibbed with a job in hand stayed the one doing it, and was a hard delete (bot_goals.dm)
@@ -163,6 +181,39 @@
 	owner = null
 	attacker = null
 	return ..()
+
+/// Whether an admin is told of a caught exception: once in 30 seconds for each file and line. One that goes on (every few seconds in one
+/// bot's tick: "$metal".amount, 173 times in four shifts) was a red line in admin chat each time; runtime.log has every one.
+/proc/bot_exception_worth_telling(exception/e)
+	var/static/list/told_at = list()
+	var/key = "[e.file]:[e.line]"
+	if(told_at[key] && world.time < told_at[key] + 30 SECONDS)
+		return FALSE
+	told_at[key] = world.time
+	return TRUE
+
+/// Where a caught exception came from, for the line that logs it: the procs on the call stack that e.desc carries ("proc name:", "source
+/// file:", "call stack:" and a line a proc), innermost first, as " <- a <- b <- c". A caught runtime used to log only its message and
+/// the line it hit: "Cannot read "$metal".amount at material_container.dm:326" 173 times in four shifts, and no way to say which of the
+/// bots' calls it was. Empty when the exception has no text to read it from.
+/proc/bot_exception_stack(exception/e)
+	if(!istext(e?.desc))
+		return ""
+	var/list/stack = list()
+	var/in_stack = FALSE
+	for(var/line in splittext(e.desc, "\n"))
+		line = trim(line)
+		if(findtext(line, "call stack:"))
+			in_stack = TRUE
+			continue
+		if(!in_stack || !length(line))
+			continue
+		if(copytext(line, 1, 3) == "- ")
+			line = copytext(line, 3)
+		stack += copytext(line, 1, 100)
+		if(length(stack) >= 6)
+			break
+	return length(stack) ? " <- [jointext(stack, " <- ")]" : ""
 
 /datum/bot_brain/process(delta_time)
 	if(QDELETED(owner))
@@ -295,11 +346,12 @@
 			else
 				handle_wander()
 	catch(var/exception/e)
-		if(QDELETED(src)) //see below: the body went while this tick slept, and what was left of it read a null owner
+		if(QDELETED(src) || QDELETED(owner)) //see below: the body went while this tick slept, and what was left of it read a null owner
 			log_runtime("BOT AI: a tick outlived its body (state=[state]): [e] at [e.file]:[e.line]")
 			return
-		message_admins("<span class='danger'>BOT AI EXCEPTION</span> [ADMIN_FLW(owner)] [owner] in [state]: [e]")
-		log_runtime("BOT AI EXCEPTION ([owner], state=[state]): [e] at [e.file]:[e.line]")
+		if(bot_exception_worth_telling(e))
+			message_admins("<span class='danger'>BOT AI EXCEPTION</span> [ADMIN_FLW(owner)] [owner] in [state]: [e]")
+		log_runtime("BOT AI EXCEPTION ([owner], state=[state]): [e] at [e.file]:[e.line][bot_exception_stack(e)]")
 		GLOB.bot_shift?.note_bot_exception("BOT AI EXCEPTION ([owner], state=[state]): [e] at [e.file]:[e.line]") //gym/bot_shift.dm
 
 	// A click can sleep (human_pause(), a do_after(), a rune's chant) and the body be gibbed before it wakes: the human's Destroy() deletes
