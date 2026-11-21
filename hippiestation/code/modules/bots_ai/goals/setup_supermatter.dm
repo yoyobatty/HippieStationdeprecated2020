@@ -361,7 +361,11 @@ GLOBAL_VAR_INIT(bot_sm_purged_at, 0)
 	// emitter stands: MetaStation's are a tile outside the ring, in a room whose two doors are both inside it. With the crystal
 	// losing integrity three engineers went for each emitter in turn, "no path" every time, and it delaminated a minute later; a
 	// radiation suit was in the closet down the hall, and the one engineer wearing one was off fetching a first-aid kit.
-	if(!bot_rad_suited(bot.owner) && (bot_in_crystal_rads(target) || (istype(target, /obj/machinery/power/emitter) && bot_crystal_rads_out() && bot.sm_crystal_failing())))
+	// In trouble, not only failing: a saboteur switches the loop off and the emitters are to be stopped at once (sm_emitter_to_stop()),
+	// minutes before the crystal loses any integrity. Gated on failing, the plan had no suit, every engineer got "no path" to each
+	// emitter in turn, gave the goal up three times and was off it for minutes, and the loop was never put back (audit batch
+	// bm_final3 runs 2 and 4: both MetaStation crystals sabotaged, both lost).
+	if(!bot_rad_suited(bot.owner) && (bot_in_crystal_rads(target) || (istype(target, /obj/machinery/power/emitter) && bot_crystal_rads_out() && bot.sm_crystal_in_trouble(bot.station_crystal()))))
 		S.steps.Insert(1, new /datum/bot_step/suit_up_for_rads())
 	return list(S)
 

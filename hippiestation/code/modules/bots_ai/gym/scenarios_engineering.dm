@@ -806,3 +806,27 @@
 		fail_reason = "took the job on: lighting [A.lighting], locked [A.locked]"
 		return BOT_GYM_FAIL
 	return world.time > start_time + 15 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// Coordinator, 2026-11-21: audit batch bm_final3 runs 2 and 4. A saboteur switched the loop off; the crystal was whole for minutes yet, the
+// emitters were to be stopped first, and with the suit only planned for a crystal losing integrity every engineer got "no path" to them.
+/datum/bot_scenario/suit_for_emitter/loop_off
+	name = "supermatter: its loop switched off while it's still whole, a radiation suit goes on first for the emitter the far side of its radiation"
+	desc = "As the failing-crystal one, but the crystal hasn't lost any integrity yet: a saboteur has only switched its loop off, which is the first anybody knows of it."
+	var/obj/machinery/atmospherics/components/binary/pump/loop
+
+/datum/bot_scenario/suit_for_emitter/loop_off/setup()
+	..()
+	crystal.damage = 0
+	loop = new(get_step(get_step(first_marker("e"), WEST), WEST)) //in the corridor, out of the way
+	loop.name = "Gas to Chamber"
+	loop.on = FALSE
+
+/datum/bot_scenario/suit_for_emitter/loop_off/post_spawn()
+	..()
+	var/obj/machinery/power/emitter/E = locate() in first_marker("e")
+	failing = brain.sm_crystal_in_trouble(crystal) && !brain.sm_crystal_failing() && !bot_in_crystal_rads(E)
+
+/datum/bot_scenario/suit_for_emitter/loop_off/release_run()
+	QDEL_NULL(loop)
+	. = ..()
+
