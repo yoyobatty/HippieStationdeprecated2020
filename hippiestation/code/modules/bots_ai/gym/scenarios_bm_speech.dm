@@ -1163,3 +1163,32 @@
 			fail_reason = "answered a question about Security as a call: \"[line]\""
 			return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+/// "Why you following me?" (the user's own, face to face): "Couldn't tell you." was the answer.
+/datum/bot_scenario/chat/following_me
+	name = "speech: \"why you following me?\" gets a denial, not \"couldn't tell you\""
+	desc = "The visitor asks why the bot is following them. It says it isn't."
+	job = "Assistant"
+	layout = list(
+		"#######",
+		"#B.C..#",
+		"#######")
+	time_limit = 15 SECONDS
+
+/datum/bot_scenario/chat/following_me/post_spawn()
+	..()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "why you following me?"), 2 SECONDS)
+
+/datum/bot_scenario/chat/following_me/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(world.time < start_time + 9 SECONDS)
+		return BOT_GYM_PENDING
+	var/list/lines = spoken()
+	if(!length(lines))
+		fail_reason = "said nothing to \"why you following me?\""
+		return BOT_GYM_FAIL
+	if(lines[1] in GLOB.bot_question_reply_lines)
+		fail_reason = "answered an accusation as a question it didn't know: \"[lines[1]]\""
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

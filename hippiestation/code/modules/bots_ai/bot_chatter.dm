@@ -623,6 +623,13 @@ GLOBAL_LIST_INIT(bot_greeting_words, list("hi", "hello", "hey", "heya", "sup", "
 		return pick("gg.", "gg", "Ha. gg.", "Right?")
 	if(bot_text_has_any(lower_msg, list("can you", "could you", "would you", "will you", "do you", "are you", "did you", "have you")) && length(scrap) <= 10)
 		return pick("[capitalize(scrap)] what?", "Sorry, what?", "Hm? What?")
+	// "Why you following me?" is an accusation, not a question it can't answer ("Couldn't tell you." to the user's own)
+	if(bot_text_has_any(lower_msg, list("following me", "stalking me", "chasing me", "watching me")) && length(scrap) <= 30)
+		return pick("I'm not following you.", "Following you? No.", "Just heading the same way.", "I'm not, I swear.")
+	if(bot_text_has_any(lower_msg, list("what are you looking at", "what you looking at", "what're you looking at")))
+		return mood_pick(list("Nothing! Sorry.", "Oh, nothing."), list("Nothing.", "Not you."), list("Not much.", "Not a lot."))
+	if(bot_text_has_any(lower_msg, list("what do you want", "what you want", "what're you after", "what are you after", "why are you here", "what are you doing here", "what you doing here")))
+		return mood_pick(list("Nothing, just passing through!", "Nothing really, just passing."), list("Nothing, just passing through.", "I work here."), list("None of your business.", "Why do you care?"))
 	return null
 
 /// "Can you ...?", "could you ...?", "would you ...?" with something to do in it and no question word: a request it has no way to do. It said "No clue.",
