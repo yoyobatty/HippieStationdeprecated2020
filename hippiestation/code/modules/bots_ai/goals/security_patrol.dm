@@ -1406,6 +1406,8 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 	for(var/obj/machinery/door_timer/T as anything in bot_instances_of(/obj/machinery/door_timer))
 		if(T.z != owner.z || T.timing || (T.stat & (NOPOWER|BROKEN)))
 			continue
+		if(gym_run && get_area(T) != get_area(owner)) //Bot Gym: the arena's own cells, not the one next door
+			continue
 		var/list/interior = bot_get_cell_interior(T)
 		if(!length(interior))
 			continue
@@ -1543,6 +1545,8 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 	var/obj/structure/closet/secure_closet/brig/prison_locker
 	/// Processed into orange in the cell, then on to Medbay in their cuffs rather than left there (security_medevac.dm)
 	var/then_medbay = FALSE
+	/// No cell and none to be had for them: let off with a warning instead, for this (goals/security_custody.dm)
+	var/let_off_for
 
 /datum/bot_goal/brig_prisoner/resolve_target(datum/bot_brain/bot)
 	if(QDELETED(prisoner) || prisoner.stat == DEAD || !prisoner.handcuffed)
@@ -1558,16 +1562,29 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 			target = prisoner
 			return
 	var/obj/machinery/door_timer/T = bot.find_free_brig_cell(prisoner)
+	// A cell that's come free is for whoever's first in line, if somebody's still being seen to for it (goals/security_custody.dm)
+	var/mob/living/carbon/human/ahead = T ? bot_next_for_a_cell(T) : null
+	if(ahead && ahead != prisoner)
+		bot_log(bot, "[T.name] is free, but [ahead] has been waiting for one longer, or is held for worse, than [prisoner]")
+		T = null
 	if(!T)
+		var/waited = bot_cell_wait_start(prisoner)
+		var/datum/bot_wanted/W = bot_get_wanted_entry(prisoner)
+		// Nowhere to put somebody who's no danger to anybody, and they've waited: a warning and the cuffs off
+		if(!ahead && W && bot.lets_off_for_room(prisoner, waited))
+			let_off_for = W.crime
+			target = prisoner
+			return
 		bot_log(bot, "no free brig cell for [prisoner]")
 		// it tries again every minute: the channel had this 37 times in three shifts. Once for all of Security: three officers said it
 		// in the same second (2026-11-10).
-		if(world.time >= bot.next_cells_full_shout && world.time >= GLOB.bot_cells_full_shouted)
+		if(!ahead && world.time >= bot.next_cells_full_shout && world.time >= GLOB.bot_cells_full_shouted)
 			bot.next_cells_full_shout = world.time + 5 MINUTES
 			GLOB.bot_cells_full_shouted = world.time + 1 MINUTES
 			bot_say(bot.owner, ":s All the cells are full, I need somewhere to put [prisoner.name]!")
 		LAZYSET(bot.failed_brig_targets, prisoner, world.time + 600)
 		return
+	bot_cell_wait_end(prisoner)
 	var/turf/D = bot_pick_deep_cell_turf(T)
 	if(!D)
 		return
@@ -1576,6 +1593,8 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 	target = prisoner
 
 /datum/bot_goal/brig_prisoner/get_strategies(datum/bot_brain/bot)
+	if(let_off_for)
+		return list(new /datum/bot_strategy/let_off(src))
 	return list(for_life ? new /datum/bot_strategy/take_to_prison(src) : new /datum/bot_strategy/brig_prisoner(src))
 
 /datum/bot_goal/brig_prisoner/on_give_up(datum/bot_brain/bot)

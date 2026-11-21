@@ -12,6 +12,13 @@
 /// Between goes at the same prisoner, and how many goes before it asks somebody else
 #define BOT_PICKUP_REST (90 SECONDS)
 #define BOT_PICKUP_TRIES 3
+/// How long somebody held for something that isn't violence is kept waiting for a cell before an officer lets them off with a warning:
+/// most officers (strictness runs 0.75 to 1 on Security), the strictest, and a paranoid one.
+#define BOT_CELL_WAIT_LENIENT (3 MINUTES)
+#define BOT_CELL_WAIT_STRICT (6 MINUTES)
+#define BOT_CELL_WAIT_PARANOID (8 MINUTES)
+/// A place in the line for a cell that nobody's asked about for this long is dead: whoever had them gave up
+#define BOT_CELL_QUEUE_STALE (3 MINUTES)
 
 /datum/bot_brain
 	/// Who this officer's cuffed and not yet seen into a cell or to a doctor (weakrefs)
@@ -100,5 +107,126 @@
 			return TRUE
 	return FALSE
 
+// ---------------------------------------------------------------------------------------------
+// A full brig
+// ---------------------------------------------------------------------------------------------
+// Four cells and a crowd of vandals. In the shift batches of 2026-11-14 and 11-16 a fifth of the arrests had no cell for more than three
+// minutes and the longest waited twenty, cuffed on a hallway floor, while whoever came along next took each cell as it came free.
+// Anybody turned away for want of a cell is put in line: the worst charge goes in first, then whoever's waited longest. And somebody
+// held for something that isn't violence who's waited a good while is let off with a warning for lack of room, as an officer with a full
+// brig does it.
+
+/// REF(prisoner) -> list(weakref, when they were first turned away, when they were last asked about)
+GLOBAL_LIST_EMPTY(bot_cell_waiting)
+
+/// Nobody's cell was free: P is in line. How long they've been waiting.
+/proc/bot_cell_wait_start(mob/living/carbon/human/P)
+	var/list/entry = GLOB.bot_cell_waiting[REF(P)]
+	if(!entry)
+		entry = list(WEAKREF(P), world.time, world.time)
+		GLOB.bot_cell_waiting[REF(P)] = entry
+	entry[3] = world.time
+	return world.time - entry[2]
+
+/proc/bot_cell_wait_end(mob/living/carbon/human/P)
+	GLOB.bot_cell_waiting -= REF(P)
+
+/// Who has first claim on a cell that's come free: the worst charge, then whoever's been waiting longest. Null if nobody's in line. A Bot
+/// Gym arena's line is its own (the arenas share globals with the station and with each other).
+/proc/bot_next_for_a_cell(obj/machinery/door_timer/T)
+	var/mob/living/carbon/human/best
+	var/best_score
+	var/area/here = get_area(T)
+	for(var/key in GLOB.bot_cell_waiting.Copy())
+		var/list/entry = GLOB.bot_cell_waiting[key]
+		var/datum/weakref/ref = entry[1]
+		var/mob/living/carbon/human/P = ref.resolve()
+		if(QDELETED(P) || P.stat == DEAD || !P.handcuffed || !bot_is_wanted(P) || world.time > entry[3] + BOT_CELL_QUEUE_STALE || bot_serving_sentence(P))
+			GLOB.bot_cell_waiting -= key
+			continue
+		var/area/there = get_area(P)
+		if(P.z != T.z || (istype(here, /area/bot_gym) ? there != here : istype(there, /area/bot_gym)))
+			continue
+		var/datum/bot_wanted/W = bot_get_wanted_entry(P)
+		var/score = (W ? W.severity : BOT_CRIME_MINOR) * 100000000 - entry[2]
+		if(!best || score > best_score)
+			best = P
+			best_score = score
+	return best
+
+/// Charges an officer with a full brig lets go with a warning: nothing violent, nothing capital, no more than ten minutes' worth.
+GLOBAL_LIST_INIT(bot_let_off_for_room, list("Vandalism", "Major Vandalism", "Trespassing", "Breaking and Entering", "Trespassing in a Dangerous Area", "Breaking into a Dangerous Area", "Theft", "Vigilantism"))
+
+/// Whether P, who's waited this long for a cell, is let off with a warning: a few minutes for most officers, longer for the strictest and a
+/// paranoid one, and only for what's no danger to anybody.
+/datum/bot_brain/proc/lets_off_for_room(mob/living/carbon/human/P, waited)
+	var/datum/bot_wanted/W = bot_get_wanted_entry(P)
+	if(!W || bot_case_of(P) || W.kill_on_sight || bot_is_fair_game(P) || !(W.crime in GLOB.bot_let_off_for_room))
+		return FALSE
+	if(bot_keep_cuffed(P) || bot_serving_sentence(P)) //went for an officer the last time the cuffs came off (goals/released_prisoner.dm)
+		return FALSE
+	return waited >= (is_paranoid() ? BOT_CELL_WAIT_PARANOID : (strictness >= 0.9 ? BOT_CELL_WAIT_STRICT : BOT_CELL_WAIT_LENIENT))
+
+/// The goal's other way out of having no cell for somebody: walk up to them, say so, and take the cuffs off.
+/datum/bot_strategy/let_off
+	var/datum/bot_goal/brig_prisoner/goal
+
+/datum/bot_strategy/let_off/New(datum/bot_goal/brig_prisoner/G)
+	. = ..()
+	goal = G
+	steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/let_off(G))
+
+/datum/bot_strategy/let_off/is_feasible(datum/bot_brain/bot)
+	return !QDELETED(goal.prisoner) && goal.prisoner.handcuffed
+
+/datum/bot_step/paced/let_off
+	max_clicks = 4
+	var/datum/bot_goal/brig_prisoner/goal
+	var/said = FALSE
+	var/freed = FALSE
+
+/datum/bot_step/paced/let_off/New(datum/bot_goal/brig_prisoner/G)
+	. = ..()
+	goal = G
+
+/datum/bot_step/paced/let_off/start(datum/bot_brain/bot)
+	said = FALSE
+	freed = FALSE
+	return !QDELETED(goal.prisoner) && bot.owner.Adjacent(goal.prisoner)
+
+/datum/bot_step/paced/let_off/do_click(datum/bot_brain/bot)
+	var/mob/living/carbon/human/P = goal.prisoner
+	if(QDELETED(P) || !P.handcuffed || !bot.owner.Adjacent(P))
+		return FALSE
+	var/datum/bot_wanted/W = bot_get_wanted_entry(P)
+	if(!said)
+		said = TRUE
+		bot_say(bot.owner, pick("No room in the brig, [P.name], and it's only [lowertext(W?.crime || "that")]. This is your warning.", "The cells are full, [P.name]. I'm letting you off with a warning for [lowertext(W?.crime || "that")], so don't make me regret it.", "I've nowhere to put you, [P.name]. Consider that a warning, and keep out of trouble."))
+		wait_for = 20
+		return TRUE
+	var/obj/item/restraints/handcuffs/cuffs = P.handcuffed
+	P.uncuff()
+	P.visible_message("<span class='notice'>[bot.owner] removes [P]'s restraints.</span>")
+	if(!QDELETED(cuffs) && isturf(cuffs.loc) && !istype(cuffs, /obj/item/restraints/handcuffs/cable/zipties/used))
+		bot.try_pickup_target(cuffs)
+	freed = TRUE
+	return FALSE
+
+/datum/bot_step/paced/let_off/finish(datum/bot_brain/bot)
+	var/mob/living/carbon/human/P = goal.prisoner
+	if(!freed || QDELETED(P))
+		return GOAL_STEP_FAIL
+	bot_cell_wait_end(P)
+	bot_clear_wanted(P)
+	bot_set_criminal_status(P, "Discharged")
+	LAZYREMOVE(bot.my_prisoners, WEAKREF(P))
+	bot_log(bot, "no room for [P] and it's only [lowertext(goal.let_off_for)] - let them off with a warning")
+	bot_tally("let off for lack of cells")
+	return GOAL_STEP_SUCCESS
+
 #undef BOT_PICKUP_REST
 #undef BOT_PICKUP_TRIES
+#undef BOT_CELL_WAIT_LENIENT
+#undef BOT_CELL_WAIT_STRICT
+#undef BOT_CELL_WAIT_PARANOID
+#undef BOT_CELL_QUEUE_STALE

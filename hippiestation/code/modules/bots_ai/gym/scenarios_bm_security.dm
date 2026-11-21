@@ -3,6 +3,127 @@
 // What a scenario refers to that only the fix adds is reached by name (GLOB.vars["bot_cell_waiting"], case.vars["passed_over"]), so the
 // "before" build of ab_gym.sh compiles and the scenario fails there on what the bots do, not on a missing symbol.
 
+/// A cell's queue entry as the fix keeps it, put in by hand: REF(prisoner) -> list(weakref, first turned away, last asked about)
+/datum/bot_scenario/brigged/proc/queue_for_a_cell(mob/living/carbon/human/P, how_long)
+	var/list/line = GLOB.vars["bot_cell_waiting"]
+	if(islist(line))
+		line[REF(P)] = list(WEAKREF(P), world.time - how_long, world.time)
+
+/// Brigged, with the only cell already taken by somebody (its timer running, and the door shut on nobody in particular).
+/datum/bot_scenario/brigged/full_brig
+	name = "brig: with every cell full, somebody held for vandalism who's waited a while is let off with a warning"
+	desc = "Shift batches play1114b and gen1116f: a fifth of the arrests waited more than three minutes for a cell, the longest twenty, cuffed on a hallway floor. A lenient officer with a prisoner held for something that isn't violence, who has waited four minutes for a cell and none's free, walks up, says so and takes the cuffs off, rather than going round the same full brig for ever."
+	time_limit = 45 SECONDS
+
+/datum/bot_scenario/brigged/full_brig/post_spawn()
+	..()
+	brain.strictness = 0.3 //a lenient one
+	var/datum/bot_wanted/W = bot_get_wanted_entry(prisoner)
+	W.crime = "Vandalism"
+	W.severity = BOT_CRIME_MINOR
+	timer.set_timer(10 MINUTES)
+	timer.timer_start() //the one cell there is, taken
+	queue_for_a_cell(prisoner, 4 MINUTES)
+
+/datum/bot_scenario/brigged/full_brig/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!prisoner.handcuffed && !bot_is_wanted(prisoner))
+		return BOT_GYM_PASS
+	fail_reason = "the prisoner's still [prisoner.handcuffed ? "cuffed" : "free but wanted"] with no cell to go in"
+	return BOT_GYM_PENDING
+
+/// The same wait for a strict officer: not long enough for them yet.
+/datum/bot_scenario/brigged/full_brig/strict
+	name = "brig: with every cell full, a strict officer keeps the same prisoner cuffed a while longer"
+	desc = "Four minutes isn't a long wait to a strict officer: the prisoner stays held for a cell (the control for the lenient one)."
+	time_limit = 20 SECONDS
+
+/datum/bot_scenario/brigged/full_brig/strict/post_spawn()
+	..()
+	brain.strictness = 0.9
+
+/datum/bot_scenario/brigged/full_brig/strict/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!prisoner.handcuffed)
+		fail_reason = "let the prisoner go after only four minutes of waiting"
+		return BOT_GYM_FAIL
+	return world.time - start_time > 12 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// Violence is never let off for want of room, however long they've waited.
+/datum/bot_scenario/brigged/full_brig/violent
+	name = "brig: with every cell full, somebody held for assault isn't let off however long they've waited"
+	desc = "A lenient officer, ten minutes of waiting, and the charge is assault: they stay cuffed."
+	time_limit = 20 SECONDS
+
+/datum/bot_scenario/brigged/full_brig/violent/post_spawn()
+	..()
+	var/datum/bot_wanted/W = bot_get_wanted_entry(prisoner)
+	W.crime = "Assault"
+	W.severity = BOT_CRIME_MINOR
+	queue_for_a_cell(prisoner, 10 MINUTES)
+
+/datum/bot_scenario/brigged/full_brig/violent/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!prisoner.handcuffed)
+		fail_reason = "let somebody held for assault go for want of a cell"
+		return BOT_GYM_FAIL
+	return world.time - start_time > 12 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+/// Two cuffed prisoners, one cell free: the one held for worse, who's been waiting, goes in first, not the one brought in last.
+/datum/bot_scenario/brigged/first_in_line
+	name = "brig: a cell that comes free goes to the one who's waited and is held for worse, not whoever's brought in next"
+	desc = "Shift batch play1114b run2: a prisoner waited twenty minutes for a cell while three came free, each taken by somebody arrested after him. An officer with a fresh arrest at the door and a cuffed man held for major vandalism who's been turned away for two minutes: the cell is his."
+	layout = list(
+		"#########",
+		"#Y......#",
+		"#CB..i..#",
+		"####d####",
+		"###...###",
+		"###..l###",
+		"#########")
+	time_limit = 60 SECONDS
+	var/mob/living/carbon/human/waiting
+
+/datum/bot_scenario/brigged/first_in_line/post_spawn()
+	..()
+	waiting = stand_in(first_marker("Y"), "Wendy Waiting")
+	waiting.equip_to_slot_or_del(new /obj/item/card/id(waiting), ITEM_SLOT_ID)
+	waiting.handcuffed = new /obj/item/restraints/handcuffs(waiting)
+	waiting.update_handcuffed()
+	var/datum/bot_wanted/W = new
+	W.crime = "Major Vandalism"
+	W.severity = BOT_CRIME_MAJOR
+	GLOB.bot_security_wanted[WEAKREF(waiting)] = W
+	queue_for_a_cell(waiting, 2 MINUTES)
+
+/datum/bot_scenario/brigged/first_in_line/make_goal()
+	var/datum/bot_goal/brig_prisoner/G = new()
+	G.prisoner = goal_attempts <= 1 ? prisoner : waiting //the fresh arrest first, and then whoever's next for the cell
+	return G
+
+/datum/bot_scenario/brigged/first_in_line/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!timer.timing)
+		return BOT_GYM_PENDING
+	var/datum/weakref/ref = GLOB.bot_brig_sentences[timer]
+	var/who = ref?.resolve()
+	if(who == waiting)
+		return BOT_GYM_PASS
+	fail_reason = "the cell went to [who ? who : "somebody"] with [waiting] still waiting for it"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/brigged/first_in_line/release_run()
+	GLOB.bot_security_wanted -= WEAKREF(waiting)
+	var/list/line = GLOB.vars["bot_cell_waiting"]
+	if(islist(line))
+		line -= REF(waiting)
+		line -= REF(prisoner)
+	return ..()
+
 /// The Warden gets to the cell for a lifer with nothing to cuff them with: it says so and the case goes to the next officer, instead of the
 /// same duty sending it back every few seconds for the rest of the shift.
 /datum/bot_scenario/brigged/perma_collect/no_cuffs
