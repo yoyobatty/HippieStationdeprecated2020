@@ -31,9 +31,9 @@
 /// this long since the first (BOT_BLOB_RALLY_MIN), or this long after it whoever's there (BOT_BLOB_RALLY_MAX).
 #define BOT_BLOB_RALLY_GAP_MIN 6
 #define BOT_BLOB_RALLY_GAP_MAX 10
-#define BOT_BLOB_RALLY_LEAST 3
+#define BOT_BLOB_RALLY_LEAST 2
 #define BOT_BLOB_RALLY_MIN (15 SECONDS)
-#define BOT_BLOB_RALLY_MAX (150 SECONDS)
+#define BOT_BLOB_RALLY_MAX (100 SECONDS)
 
 GLOBAL_LIST_EMPTY(bot_blobs)
 

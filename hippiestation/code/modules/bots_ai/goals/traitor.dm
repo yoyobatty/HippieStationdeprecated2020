@@ -103,7 +103,7 @@
 		var/datum/bot_goal/traitor_steal/loose = new(S)
 		loose.resolve_target(src)
 		if(!loose.target)
-			return steal_from_carrier(S) || loose //nothing lying about: somebody who has it on them
+			return plasma_fill_goal(S) || steal_from_carrier(S) || loose //nothing lying about: a plasma tank to fill (goals/anomalies.dm), or somebody who has it on them
 		return loose
 	if(istype(O, /datum/objective/assassinate) || istype(O, /datum/objective/maroon))
 		if(plays_robust())

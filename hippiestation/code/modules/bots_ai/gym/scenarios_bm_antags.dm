@@ -703,3 +703,28 @@
 /datum/bot_scenario/blob_rally/release_run()
 	gym_blob_release(core)
 	return ..()
+
+/// With no tank full of it about, the thing to do is fill one: a plasma tank from a plasma canister, release pressure to the top. Before,
+/// the goal only looked for a tank that already had 28 moles in, and the objective stayed undone for the whole shift.
+/datum/bot_scenario/duty/traitor/plasma_tank/fill
+	name = "traitor: after 28 moles of plasma with no full tank about it fills a plasma tank from a canister"
+	desc = "The objective is 28 moles of plasma in a tank. There's a plasma tank on the floor with a few moles in it and a plasma canister across the room. The traitor takes the tank to the canister, fills it and takes it out again with the 28 moles in."
+	layout = list(
+		"###############",
+		"#B..t.......C.#",
+		"###############")
+	time_limit = 120 SECONDS
+
+/datum/bot_scenario/duty/traitor/plasma_tank/fill/setup()
+	for(var/turf/T in markers["t"])
+		place("t", new /obj/item/tank/internals/plasma(T))
+	for(var/turf/T in markers["C"])
+		place("C", new /obj/machinery/portable_atmospherics/canister/toxins(T))
+
+/datum/bot_scenario/duty/traitor/plasma_tank/fill/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/obj/item/tank/internals/plasma/T in bot.GetAllContents())
+		if(T.air_contents.moles[/datum/gas/plasma] >= 28)
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING

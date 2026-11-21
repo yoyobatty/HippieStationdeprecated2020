@@ -782,3 +782,153 @@ GLOBAL_VAR_INIT(bot_rampant_announced_at, -10000)
 
 #undef BOT_RAMPANT_LISTEN
 #undef BOT_RAMPANT_LISTENERS
+
+// ---------------------------------------------------------------------------------------------
+// "Steal 28 moles of plasma (full tank)": filling a tank from a canister
+// ---------------------------------------------------------------------------------------------
+//
+// goals/traitor.dm goes for a tank that already has the 28 moles in it, and there's hardly ever one lying about: the plasma tanks in
+// Toxins are filled to three atmospheres, about 8 moles. A player takes a plasma tank to a plasma canister, puts it in, sets the release
+// pressure to the top, opens the valve and waits: a 70 litre tank at a canister's 1013 kPa holds nearly 29 moles.
+
+/// Moles the objective asks for, and a little over it to be sure of it.
+#define BOT_PLASMA_FILL_MOLES 28
+#define BOT_PLASMA_FILL_ENOUGH 28.5
+
+/// The nearest plasma canister on its level with plasma enough in it and nothing plugged into it, where it can go.
+/datum/bot_brain/proc/plasma_canister()
+	var/obj/machinery/portable_atmospherics/canister/best
+	var/best_dist
+	for(var/obj/machinery/portable_atmospherics/canister/C as anything in bot_instances_of(/obj/machinery/portable_atmospherics/canister))
+		if(QDELETED(C) || C.z != owner.z || C.holding || (gym_run && get_area(C) != get_area(owner)))
+			continue
+		var/datum/gas_mixture/air = C.air_contents
+		if(!air || air.moles[/datum/gas/plasma] < BOT_PLASMA_FILL_MOLES * 3)
+			continue
+		var/dist = get_dist(owner, C)
+		if(!best || dist < best_dist)
+			best = C
+			best_dist = dist
+	return best
+
+/// The plasma tank it's carrying with the most in it.
+/datum/bot_brain/proc/carried_plasma_tank()
+	var/obj/item/tank/internals/plasma/best
+	for(var/obj/item/tank/internals/plasma/T in owner.GetAllContents())
+		if(!best || T.air_contents.moles[/datum/gas/plasma] > best.air_contents.moles[/datum/gas/plasma])
+			best = T
+	return best
+
+/// The goal for a "28 moles of plasma" objective with no full tank about: fill one. Null for any other objective, and where there's
+/// no plasma canister to fill it from.
+/datum/bot_brain/proc/plasma_fill_goal(datum/objective/steal/S)
+	if(!istype(S.targetinfo, /datum/objective_item/steal/plasma) || !plasma_canister())
+		return null
+	return new /datum/bot_goal/traitor_fill_plasma(S)
+
+/datum/bot_goal/traitor_fill_plasma
+	doing = "on an errand"
+	breaks_in = TRUE
+	var/datum/objective/steal/objective
+
+/datum/bot_goal/traitor_fill_plasma/New(datum/objective/steal/S)
+	. = ..()
+	objective = S
+
+/datum/bot_goal/traitor_fill_plasma/resolve_target(datum/bot_brain/bot)
+	target = bot.plasma_canister()
+
+/datum/bot_goal/traitor_fill_plasma/get_strategies(datum/bot_brain/bot)
+	var/datum/bot_strategy/fill_plasma/S = new
+	S.steps = list(new /datum/bot_step/get_plasma_tank(), new /datum/bot_step/move_to(), new /datum/bot_step/paced/fill_plasma_tank())
+	return list(S)
+
+/datum/bot_goal/traitor_fill_plasma/on_success(datum/bot_brain/bot)
+	var/obj/item/tank/internals/plasma/T = bot.carried_plasma_tank()
+	bot_log(bot, "filled [T] with plasma")
+	bot.stash_stolen(T)
+	if(objective && !objective.check_completion())
+		bot_log(bot, "that's no good for the job: leaving it a while")
+		LAZYSET(bot.objectives_parked, objective, world.time + 5 MINUTES)
+
+/datum/bot_goal/traitor_fill_plasma/on_give_up(datum/bot_brain/bot)
+	LAZYSET(bot.objectives_parked, objective, world.time + 2 MINUTES)
+
+/datum/bot_strategy/fill_plasma/is_feasible(datum/bot_brain/bot)
+	return bot.current_goal?.target && !QDELETED(bot.current_goal.target)
+
+/// A plasma tank to fill: the one it's got, or the nearest lying about (Toxins' storage), fetched once.
+/datum/bot_step/get_plasma_tank
+	var/fetched = FALSE
+
+/datum/bot_step/get_plasma_tank/execute(datum/bot_brain/bot)
+	if(bot.carried_plasma_tank())
+		return GOAL_STEP_SUCCESS
+	if(fetched)
+		return GOAL_STEP_FAIL
+	fetched = TRUE
+	bot_log(bot, "getting a plasma tank to fill")
+	var/datum/bot_goal/acquire_item_type/G = new()
+	G.item_type = /obj/item/tank/internals/plasma
+	return bot.suspend_goal_for(G) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
+
+/// At the canister: the tank in, the release pressure to the top, the valve open, and a wait until it's full or it's stopped rising;
+/// then the valve shut and the tank out again.
+/datum/bot_step/paced/fill_plasma_tank
+	max_clicks = 6
+	var/obj/machinery/portable_atmospherics/canister/can
+	var/obj/item/tank/internals/plasma/tank
+	var/last_moles = 0
+	var/last_rise = 0
+	var/until = 0
+
+/datum/bot_step/paced/fill_plasma_tank/start(datum/bot_brain/bot)
+	can = bot.current_goal?.target
+	tank = bot.carried_plasma_tank()
+	if(!istype(can) || QDELETED(can) || !tank || can.holding || !bot.owner.Adjacent(can))
+		return FALSE
+	if(!bot.ready_in_hand(tank))
+		return FALSE
+	bot.use_tool_on(tank, can) //in, the way a player clicks the canister with the tank in hand
+	if(can.holding != tank)
+		bot_log(bot, "[can] wouldn't take [tank]")
+		return FALSE
+	can.release_pressure = can.can_max_release_pressure
+	can.valve_open = TRUE
+	can.update_icon()
+	last_moles = tank.air_contents.moles[/datum/gas/plasma]
+	last_rise = world.time
+	until = world.time + 90 SECONDS
+	bot_log(bot, "filling [tank] from [can], [round(last_moles, 0.1)] moles to start")
+	return TRUE
+
+/datum/bot_step/paced/fill_plasma_tank/do_click(datum/bot_brain/bot)
+	if(QDELETED(can) || QDELETED(tank) || can.holding != tank || world.time >= until || !bot.owner.Adjacent(can))
+		return FALSE
+	var/moles = tank.air_contents.moles[/datum/gas/plasma]
+	if(moles >= BOT_PLASMA_FILL_ENOUGH)
+		return FALSE
+	if(moles > last_moles + 0.05)
+		last_moles = moles
+		last_rise = world.time
+	else if(world.time >= last_rise + 8 SECONDS)
+		return FALSE //as far as it goes
+	wait_for = 10
+	return TRUE
+
+/datum/bot_step/paced/fill_plasma_tank/finish(datum/bot_brain/bot)
+	if(!QDELETED(can))
+		can.valve_open = FALSE
+		if(can.holding == tank)
+			can.replace_tank(bot.owner, TRUE) //back out, into its hands
+		can.update_icon()
+	if(QDELETED(tank))
+		return GOAL_STEP_FAIL
+	if(tank.loc != bot.owner)
+		bot.owner.put_in_hands(tank)
+	var/moles = tank.air_contents.moles[/datum/gas/plasma]
+	bot_log(bot, "[tank] has [round(moles, 0.1)] moles of plasma in it")
+	return (tank.loc == bot.owner && moles >= BOT_PLASMA_FILL_MOLES) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
+
+#undef BOT_PLASMA_FILL_MOLES
+#undef BOT_PLASMA_FILL_ENOUGH
