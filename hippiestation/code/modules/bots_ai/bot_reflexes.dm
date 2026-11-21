@@ -394,6 +394,15 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 	LAZYADD(knocked_away, WEAKREF(I))
 	knocked_away_at = world.time
 
+/// Knocked flat, stunned or out cold drops everything in its hands (living/update_mobility(), fall()). The brain only saw that if one of
+/// its once-a-second looks fell inside the stun (process(): incapacitated() -> floored), so a stun between looks, which a busy server
+/// or a short knockdown makes common, left a gun on the floor it never thought of again. Now the drop itself says so, and mind_hands()
+/// goes through what was in its hands at the next look.
+/mob/living/carbon/human/drop_all_held_items()
+	if(bot_brain && !(mobility_flags & MOBILITY_USE))
+		bot_brain.floored = TRUE
+	return ..()
+
 /// While it has the use of its hands. Being put on the floor drops whatever's in them, and nothing says so but the state of
 /// its hands when it gets up.
 /// A slime on its head: pulled at until it comes off, which is a click on it with an empty hand (slime attack_hand()). Left alone
@@ -476,8 +485,15 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 	return istype(I, /obj/item/gun) || istype(I, /obj/item/melee) || I.force >= 10 || istype(I, /obj/item/restraints) || istype(I, /obj/item/card/id) || istype(I, /obj/item/storage/part_replacer) || is_tool_or_toolbox(I) || I == current_goal?.target
 
 /datum/bot_brain/proc/take_back(obj/item/I)
-	if(try_pickup_target(I) && state == BOT_STATE_COMBAT)
-		ready_in_hand(I)
+	if(try_pickup_target(I))
+		if(state == BOT_STATE_COMBAT)
+			ready_in_hand(I)
+		return
+	// The pickup pauses like a click does, and a busy server or a wander leg can carry the bot a tile off in that time: the item was
+	// struck off the list before the pause, so a missed grab meant the gun stayed on the floor for good (the "knocked flat" gym
+	// scenario failed that way under load). Still on the floor close by, it goes back on the list and is tried again.
+	if(!QDELETED(I) && isturf(I.loc) && owner && get_dist(owner, I) <= 3)
+		LAZYADD(knocked_away, WEAKREF(I))
 
 #undef BOT_GRUDGE_FADE
 #undef BOT_GRUDGE_SHOVE
