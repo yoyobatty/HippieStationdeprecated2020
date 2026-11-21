@@ -177,6 +177,21 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 	owner.dropItemToGround(I)
 	LAZYADD(set_down_items, I)
 
+/// A tank bomb that's been set going: its valve open, its timer running, or sitting on the launch driver. Nobody goes back for one of
+/// those to tidy it up. A scientist launched the bomb, then went "back for the tank transfer valve" it had set down for a moment earlier
+/// in the build (the list wasn't the one the launch cleared), picked it off the driver and carried it into R&D, where it went off and
+/// started a fire that killed thirteen (audit batch bm_final2 run8).
+/proc/bot_armed_bomb(obj/item/I)
+	if(!istype(I, /obj/item/transfer_valve))
+		return FALSE
+	var/obj/item/transfer_valve/V = I
+	if(V.valve_open)
+		return TRUE
+	var/obj/item/assembly/timer/T = V.attached_device
+	if(istype(T) && T.timing)
+		return TRUE
+	return isturf(V.loc) && (locate(/obj/machinery/mass_driver) in V.loc)
+
 /// Back for what it set down and walked off from, once it's between jobs with a hand free. TRUE while it's on its way or picking it up.
 /datum/bot_brain/proc/go_back_for_set_down()
 	if(owner.get_active_held_item() && owner.get_inactive_held_item())
@@ -189,7 +204,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 		order -= heading_for
 		order.Insert(1, heading_for)
 	for(var/obj/item/I in order.Copy())
-		if(QDELETED(I) || !isturf(I.loc) || get_dist(owner, I) > 8)
+		if(QDELETED(I) || !isturf(I.loc) || get_dist(owner, I) > 8 || bot_armed_bomb(I))
 			LAZYREMOVE(set_down_items, I)
 			order -= I
 			continue

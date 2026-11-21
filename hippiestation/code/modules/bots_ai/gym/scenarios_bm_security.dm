@@ -819,3 +819,39 @@
 	bot.SetParalyzed(0)
 	bot.forceMove(locate(bot.x + 2, bot.y, bot.z))
 	log_line("gun at [bot_coord(gun)], bot moved on to [bot_coord(bot)] with no look in between")
+
+// Coordinator, 2026-11-21: audit batch bm_final2 run8. A scientist launched its tank bomb, then went "back for the tank transfer valve" it
+// had set down for a moment earlier, took it off the driver and carried it into R&D, where it went off. A bomb set going is not picked up.
+/datum/bot_scenario/armed_bomb_not_gone_back_for
+	name = "toxins: a tank bomb it set down, now with its timer running, isn't gone back for"
+	desc = "The valve it set down for a moment lies beside it with a running timer on it. Between jobs with its hands free, the bot leaves it where it is."
+	job = "Scientist"
+	layout = list(
+		"#######",
+		"#B....#",
+		"#######")
+	time_limit = 12 SECONDS
+	var/obj/item/transfer_valve/bomb
+
+/datum/bot_scenario/armed_bomb_not_gone_back_for/make_goal()
+	return null
+
+/datum/bot_scenario/armed_bomb_not_gone_back_for/post_spawn()
+	bomb = new(get_step(bot, EAST))
+	var/obj/item/assembly/timer/T = new(bomb)
+	T.time = 300
+	T.timing = TRUE //a flag only: nothing processes it here, so nothing goes off
+	bomb.attached_device = T
+	LAZYADD(brain.set_down_items, bomb)
+	log_line("valve with a running timer set down at [bot_coord(bomb)]")
+
+/datum/bot_scenario/armed_bomb_not_gone_back_for/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(brain.is_carried(bomb))
+		log_line("picked the armed bomb back up")
+		return BOT_GYM_FAIL
+	if(brain.set_down_items)
+		brain.go_back_for_set_down() //a scripted gym bot between goals doesn't run this reflex itself
+	return world.time > start_time + 8 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+

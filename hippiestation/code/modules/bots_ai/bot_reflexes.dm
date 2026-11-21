@@ -482,6 +482,8 @@ GLOBAL_LIST_INIT(bot_overpoked_lines, list(
 
 /// Worth a step or three back for, with somebody at it: a weapon, cuffs, a tool, an ID, the RPED, what the job's about.
 /datum/bot_brain/proc/worth_going_back_for(obj/item/I)
+	if(bot_armed_bomb(I)) //bot_items.dm: a tank bomb set going is run from, not picked back up
+		return FALSE
 	return istype(I, /obj/item/gun) || istype(I, /obj/item/melee) || I.force >= 10 || istype(I, /obj/item/restraints) || istype(I, /obj/item/card/id) || istype(I, /obj/item/storage/part_replacer) || is_tool_or_toolbox(I) || I == current_goal?.target
 
 /datum/bot_brain/proc/take_back(obj/item/I)
