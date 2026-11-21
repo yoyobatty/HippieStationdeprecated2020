@@ -177,6 +177,15 @@
 	helper = second_bot(first_marker("h"), "Hal Helper")
 	helper.mind.assigned_role = "Assistant"
 	helper.equip_to_slot_or_del(new /obj/item/stack/sheet/metal/ten(helper), ITEM_SLOT_BACKPACK)
+	// Suited like the engineer. A hole in a sealed room empties it on SSair's next tick (ae1b5f46, 2026-11-13: a knocked down wall used to
+	// take up to a second), so by the time it walks over there's no air by the hole, and an assistant with no suit going in anyway
+	// would be wrong: this passed on 11-13 before that, with the air still there for the first few seconds, and failed since
+	helper.equip_to_slot_or_del(new /obj/item/clothing/mask/breath(helper), ITEM_SLOT_MASK)
+	helper.equip_to_slot_or_del(new /obj/item/clothing/suit/space/eva(helper), ITEM_SLOT_OCLOTHING)
+	helper.equip_to_slot_or_del(new /obj/item/clothing/head/helmet/space/eva(helper), ITEM_SLOT_HEAD)
+	var/obj/item/tank/internals/emergency_oxygen/helper_tank = new(helper)
+	helper.equip_to_slot_or_del(helper_tank, ITEM_SLOT_SUITSTORE)
+	helper.internal = helper_tank
 	free_with_traits(helper.bot_brain, 0.8, 0.8)
 
 /datum/bot_scenario/team_fetch/make_goal()
