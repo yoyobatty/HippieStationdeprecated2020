@@ -816,6 +816,11 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 	var/datum/weather/ash_storm/storm = bot_storm_over(bot.owner.z)
 	if(!storm)
 		return FALSE
+	// Going for air isn't dropped for the storm: no air kills quicker than the ash, and the canister is under the base's roof anyway.
+	// A miner with its tank at 406 kPa set off for the base's canister, dropped it for the storm the same second, and again every
+	// second after, while the tank ran down to nothing (audit batch bm_final3 run8).
+	if(istype(bot.current_goal, /datum/bot_goal/refill_internals) || istype(bot.current_goal, /datum/bot_goal/seek_air))
+		return FALSE
 	// Still running for it when the storm hits: the capsule, if it hasn't been tried.
 	return !istype(bot.current_goal, /datum/bot_goal/shelter_from_storm) || (storm.stage == MAIN_STAGE && storm != bot.capsule_tried_on && bot.find_carried_tool(/obj/item/survivalcapsule))
 

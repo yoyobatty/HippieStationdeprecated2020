@@ -1166,3 +1166,78 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 		var/datum/bot_duty/janitor/duty = bot_duty_of(/datum/bot_duty/janitor)
 		duty.try_start(brain)
 	return BOT_GYM_PENDING
+
+// Coordinator, 2026-11-21: audit batch bm_final3 run8. A miner on Lavaland with its emergency tank at 406 kPa set off for the base's canister,
+// dropped it the same second for "sheltering from the storm can't wait", and again every second after, until the tank was empty and it
+// suffocated. Lavaland, so the station's own map: MAP=hippiestation tools/bot_gym/run_bot_gym.sh "tank running low in an ash storm" 1
+/datum/bot_scenario/storm_refill
+	name = "lavaland: its tank running low in an ash storm, it goes on to the base's canister and isn't pulled off it for cover"
+	desc = "A miner out on Lavaland, a few tiles from the base, its emergency tank low, as an ash storm starts. It walks in to the base's oxygen canister to refill: going for air isn't dropped for the storm, and the canister is under the base's roof anyway."
+	job = "Shaft Miner"
+	time_limit = 60 SECONDS
+	station_wide = TRUE //Lavaland's own weather and the base's canister
+	layout = list(
+		"#####",
+		"#B..#",
+		"#####")
+	var/not_applicable
+	var/obj/machinery/portable_atmospherics/canister/can
+	var/turf/open/outside
+	var/datum/weather/ash_storm/storm
+	var/obj/item/tank/internals/emergency_oxygen/tank
+
+/datum/bot_scenario/storm_refill/setup()
+	for(var/obj/machinery/portable_atmospherics/canister/oxygen/C as anything in bot_instances_of(/obj/machinery/portable_atmospherics/canister/oxygen))
+		var/area/A = get_area(C)
+		if(QDELETED(C) || !is_mining_level(C.z) || A.outdoors || C.connected_port)
+			continue
+		for(var/turf/open/T in range(10, C))
+			var/area/out = T.loc
+			if(out.outdoors && !istype(T, /turf/open/lava) && !is_blocked_turf(T, TRUE) && get_dist(T, C) >= 5)
+				outside = T
+				break
+		if(outside)
+			can = C
+			break
+	if(!can)
+		not_applicable = TRUE //a map with no Lavaland base canister (the testbench)
+
+/datum/bot_scenario/storm_refill/make_goal()
+	if(not_applicable)
+		return null
+	return new /datum/bot_goal/refill_internals()
+
+/datum/bot_scenario/storm_refill/post_spawn()
+	if(not_applicable)
+		return
+	give_job_id(list(ACCESS_MAINT_TUNNELS, ACCESS_MINING, ACCESS_MINING_STATION, ACCESS_CARGO, ACCESS_MAILSORTING))
+	bot.equip_to_slot_or_del(new /obj/item/clothing/mask/gas/explorer(bot), ITEM_SLOT_MASK)
+	tank = new(bot)
+	bot.equip_to_slot_or_del(tank, ITEM_SLOT_BELT)
+	tank.air_contents.remove_ratio(0.7)
+	bot.internal = tank
+	bot.forceMove(outside)
+	brain.gym_duties = list(/datum/bot_duty/shelter_from_storm) //the storm may interrupt it, as it does any bot out there
+	storm = new(list(can.z))
+	storm.telegraph() //the start of it: thirty seconds before the ash itself, and it counts as the storm coming (bot_storm_over())
+	log_line("out at [bot_coord(outside)] with [round(tank.air_contents.return_pressure())] kPa, the canister at [bot_coord(can)], the storm coming")
+
+/datum/bot_scenario/storm_refill/check()
+	if(not_applicable)
+		log_line("no Lavaland base canister on this map: not applicable")
+		return BOT_GYM_PASS
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(istype(brain.current_goal, /datum/bot_goal/shelter_from_storm))
+		fail_reason = "dropped going for air for the storm"
+		return BOT_GYM_FAIL
+	if(get_dist(bot, can) <= 1)
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/storm_refill/release_run()
+	if(storm)
+		storm.end()
+		storm = null
+	. = ..()
+
