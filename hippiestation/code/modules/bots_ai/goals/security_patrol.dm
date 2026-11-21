@@ -1303,6 +1303,8 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 /// radioed "Science, could you upgrade the machines in Medbay Treatment Center? Better parts would help." and all five officers
 /// answered it, on the word "help".
 /proc/bot_line_calls_security(lower, turf/near)
+	// "One sec" and "hang on a sec" are a second, not Security: the HoP's "Sure, one sec." answering a request for an ID sent an officer to it
+	lower = bot_without_a_second(lower)
 	// Put to the AI or a cyborg, or about bolts, with nobody in danger and no "help" in it: "AI unbolt all security" is the Brig's
 	// doors, not a call. Three officers said they were responding to the Captain asking the AI for them (round-20.48.49).
 	if(!bot_text_has_any(lower, list("help")) && !bot_text_has_any(lower, GLOB.bot_danger_words) && (bot_silicon_addressed(lower, list("ai", "ais", "borg", "borgs", "cyborg")) || bot_text_has_any(lower, list("unbolt", "unbolted", "bolt", "bolted", "bolts"))))
@@ -1324,6 +1326,11 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 	if(K && length(K.jobs) && !length(K.jobs & GLOB.security_positions))
 		return FALSE
 	return TRUE
+
+/// A line with "one sec", "a sec" and "half a sec" taken out of it
+/proc/bot_without_a_second(lower)
+	var/static/regex/a_second = regex(@"\b(one|a|half a)\s+sec\b", "g")
+	return a_second.Replace(lower, "")
 
 /datum/bot_goal/respond_to_call
 	var/turf/caller_turf
@@ -1524,12 +1531,16 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 			var/tried = LAZYACCESS(brig_care_tried, H)
 			if((!tried || world.time > tried + 5 MINUTES) && start_brig_care(H))
 				return TRUE
+			if(!has_brig_access()) //goals/security_custody.dm: no ID, no cell and no timer
+				return hand_over_prisoner(H, "no ID")
 			var/datum/bot_goal/brig_prisoner/cell_anyway = new()
 			cell_anyway.prisoner = H
 			return assign_goal(cell_anyway)
 		// On their feet: processed in the cell first, into orange and patched, then to Medbay in cuffs (security_medevac.dm). The user's
 		// ruling (2026-11-05): "ensure they are always wearing prison outfits, never their regular clothes".
 		if(H.stat == CONSCIOUS && H.health > 0 && !istype(H.w_uniform, /obj/item/clothing/under/rank/prisoner))
+			if(!has_brig_access())
+				return hand_over_prisoner(H, "no ID")
 			var/datum/bot_goal/brig_prisoner/first = new()
 			first.prisoner = H
 			first.then_medbay = TRUE
@@ -1542,6 +1553,8 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 			LAZYSET(failed_brig_targets, H, world.time + 1 MINUTES)
 		arrest_refusal_note = "they need a doctor and there's no way to Medbay"
 		return FALSE
+	if(!has_brig_access())
+		return hand_over_prisoner(H, "no ID")
 	var/datum/bot_goal/brig_prisoner/G = new()
 	G.prisoner = H
 	if(assign_goal(G))

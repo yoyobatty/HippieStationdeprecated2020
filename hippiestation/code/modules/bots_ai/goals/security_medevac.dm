@@ -200,6 +200,21 @@
 	var/datum/bot_wanted/W = bot_get_wanted_entry(H)
 	return W && (W.severity >= BOT_CRIME_MAJOR || bot_crime_is_violent(W.crime))
 
+/// How long an officer keeps somebody by the door for a doctor with nobody having answered, before it puts them in a cell and patches them
+/// up there. In three batches of Bot Shift (gen1116e, gen1116f, play1114b) a doctor got to 11 of 59 prisoners kept for one; the other 48
+/// stood with an officer for two and a half minutes (a median of 100 game seconds, 27 over two minutes) with nobody coming.
+#define BOT_CARE_NO_ANSWER (45 SECONDS)
+
+/// A doctor on their way to this prisoner, or near enough to be: somebody's taken the call for them, or a medic is in sight of them.
+/proc/bot_medical_coming_for(mob/living/carbon/human/P)
+	for(var/datum/bot_request/R as anything in GLOB.bot_requests)
+		if(R.caller_ref?.resolve() == P && istype(R.kind, /datum/bot_request_kind/medical) && R.taken_by && !QDELETED(R.taken_by.owner))
+			return TRUE
+	for(var/mob/living/carbon/human/doc in view(8, P))
+		if(doc != P && doc.stat == CONSCIOUS && !doc.restrained() && bot_is_medic(doc))
+			return TRUE
+	return FALSE
+
 /// Just inside Security's front door, out of the doorway: where a doctor let in gets to them first
 /datum/bot_brain/proc/brig_care_spot()
 	if(gym_brig_spot)
@@ -271,6 +286,7 @@
 	max_clicks = 12
 	var/datum/bot_goal/brig_prisoner/brig_care/goal
 	var/until = 0
+	var/asked_at = 0
 
 /datum/bot_step/paced/brig_care_wait/New(datum/bot_goal/brig_prisoner/brig_care/G)
 	. = ..()
@@ -285,6 +301,7 @@
 	// on again, and the end below was never reached. Ending here runs finish() and on_success(): into a cell, as start_brig_escort()
 	// means to when no doctor has got to them in the time.
 	until = world.time + 150 SECONDS
+	asked_at = world.time
 	var/said_at = world.time
 	bot_say(bot.owner, ":m [P.name] is [P.stat == CONSCIOUS ? "white as a sheet" : "down"] in cuffs in [get_area_name(P, TRUE)], just inside the front door. Can a doctor come? I'll let you in.")
 	//bot_radio.dm: the prisoner's the patient, not the officer; asked for if the call gets out
@@ -307,6 +324,12 @@
 			bot_log(bot, "patching up [P] with [I] while we wait")
 			bot.use_item_on(I, P)
 			return TRUE
+	// Nobody's answered, and nobody's near: not stood here for two minutes more. Into a cell, as the wait's end does, and patched up there.
+	if(world.time > asked_at + BOT_CARE_NO_ANSWER && !bot_medical_coming_for(P))
+		bot_log(bot, "no doctor's coming for [P] - into a cell, and patched up there")
+		bot_say(bot.owner, ":m No answer from Medical. I'm putting [P.name] in a cell and patching them up there.")
+		bot_tally("kept for a doctor, nobody came")
+		return FALSE
 	// A doctor at the door: let in. The spot is two steps in from the front door (brig_care_spot()), and only a door a step away was
 	// looked at: doctors asked to be let in at Hippie's Labor Shuttle door three times over, two steps from the officer waiting for
 	// one, and went (Bot Shift bugs1112base, run11 and run5). Over to it, letting go of them for the moment, and open it. Not a door the
@@ -396,3 +419,5 @@
 			bot_say(bot.owner, ":s [P.name]'s collapsed in [T.name] - getting them to Medbay.")
 			return TRUE
 	return FALSE
+
+#undef BOT_CARE_NO_ANSWER

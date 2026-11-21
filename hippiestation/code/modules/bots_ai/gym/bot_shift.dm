@@ -1414,12 +1414,20 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 		var/datum/bot_brain/clerk = worker()
 		if(clerk && !QDELETED(clerk.owner))
 			asked = TRUE
-			// Somebody out in the hallway with a headset on.
+			// Somebody out in the hallway with a headset on: not in the Quartermaster's office or the Cargo Office, where a stand-in that can't
+			// answer was warned, and sentenced for trespass 13 times in gen1116e, gen1116f and play1114b.
 			var/turf/spot = get_turf(clerk.owner)
+			var/found = FALSE
 			for(var/turf/open/T in orange(3, clerk.owner))
-				if(!T.density && !is_blocked_turf(T, TRUE))
+				if(!T.density && !is_blocked_turf(T, TRUE) && !bot_department_of(get_area(T)))
 					spot = T
+					found = TRUE
 					break
+			if(!found)
+				for(var/turf/open/T in orange(3, clerk.owner))
+					if(!T.density && !is_blocked_turf(T, TRUE))
+						spot = T
+						break
 			var/mob/living/carbon/human/asker = new(spot) // not kept: one blown up was a hard delete
 			asker.real_name = "Glenn Asker"
 			asker.name = asker.real_name

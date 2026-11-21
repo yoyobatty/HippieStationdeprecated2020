@@ -350,3 +350,261 @@
 		fail_reason = "nobody within two tiles of the target and the shot's still not clear"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+// ---------------------------------------------------------------------------------------------
+// An officer with no ID (the user's ruling, 2026-11-12)
+// ---------------------------------------------------------------------------------------------
+
+/// A colleague with a card of its own, awake, and another officer on the books.
+/datum/bot_scenario/brigged/proc/colleague_with_a_card(marker)
+	var/mob/living/carbon/human/O = second_bot(first_marker(marker), "Officer Oduya")
+	O.mind.assigned_role = "Security Officer"
+	O.bot_brain.register_security()
+	O.bot_brain.gym_scripted = FALSE //its duties run
+	var/obj/item/card/id/C = new(O)
+	C.registered_name = O.real_name
+	C.assignment = "Security Officer"
+	C.access = list(ACCESS_SECURITY, ACCESS_BRIG)
+	O.equip_to_slot_or_del(C, ITEM_SLOT_ID)
+	return O
+
+/datum/bot_scenario/brigged/no_id
+	name = "brig: an officer with no ID hands a cuffed prisoner to another officer, who takes them in"
+	desc = "Shift batch gen1116f: four officers with no ID took a prisoner to the cell, searched and uncuffed them, found \"no access\" at the timer and gave up, with the prisoner loose again. The user's ruling (2026-11-12): hand the prisoner to another officer at once. This one has no card: it says so, lets go, and the other officer, who has, takes the prisoner into the cell and starts the sentence."
+	layout = list(
+		"#########",
+		"#BC..iO.#",
+		"####d####",
+		"###...###",
+		"###..l###",
+		"#########")
+	time_limit = 60 SECONDS
+	var/mob/living/carbon/human/colleague
+	/// The officer asked for somebody else to take them in (seen on the books at a check)
+	var/handed_over = FALSE
+
+/datum/bot_scenario/brigged/no_id/post_spawn()
+	..()
+	brain.register_security()
+	for(var/obj/item/card/id/mine in bot.GetAllContents())
+		qdel(mine) //the base scenario gave it one
+	colleague = colleague_with_a_card("O")
+
+/// As a round does it: the arrest is done and it sets about taking them in.
+/datum/bot_scenario/brigged/no_id/issue_goal()
+	goal_attempts++
+	brain.start_brig_escort(prisoner)
+
+/datum/bot_scenario/brigged/no_id/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if("bot_handovers" in GLOB.vars) //not in a build without it: nothing's ever asked
+		var/list/asked = GLOB.vars["bot_handovers"]
+		if(islist(asked) && asked[REF(prisoner)])
+			handed_over = TRUE
+	for(var/line in transcript)
+		if(findtext(line, "no access to"))
+			fail_reason = "took them to the cell and found no access at the timer"
+			return BOT_GYM_FAIL
+	if(timer.timing && (get_turf(prisoner) in bot_get_cell_interior(timer)))
+		if(handed_over)
+			return BOT_GYM_PASS
+		fail_reason = "the prisoner got a sentence, but the officer with no ID never asked anybody to take them in"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/brigged/no_id/release_run()
+	if("bot_handovers" in GLOB.vars)
+		var/list/asked = GLOB.vars["bot_handovers"]
+		if(islist(asked))
+			asked -= REF(prisoner)
+	return ..()
+
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop
+	name = "asks: an officer who's lost its ID asks the HoP for a new one, once its prisoner's seen to"
+	desc = "An officer with no card between jobs radios the HoP, who knows the face against the manifest, makes a card out in the Security Officer's name with Security's access, and brings it over. (The ruling of 2026-11-12: a replacement ID from the HoP after.)"
+	job = "Head of Personnel"
+	time_limit = 90 SECONDS
+	layout = list(
+		"##########",
+		"#B.....I.#",
+		"#..C...X.#",
+		"##########")
+	var/datum/data/record/manifest_entry
+	/// When the officer looks at the duty
+	var/looks_at = 3 SECONDS
+
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/setup()
+	place("I", new /obj/machinery/computer/card(first_marker("I")))
+	place("X", new /obj/item/storage/box/ids(first_marker("X")))
+
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/post_spawn()
+	give_job_id(list(ACCESS_CHANGE_IDS, ACCESS_HEADS, ACCESS_HOP))
+	brain.gym_scripted = FALSE //its duties run, as they would at its desk
+	visitor = second_bot(first_marker("C"), "Olly Officer")
+	visitor.mind.assigned_role = "Security Officer"
+	visitor.bot_brain.register_security()
+	for(var/obj/item/card/id/mine in visitor.GetAllContents())
+		qdel(mine)
+	manifest_entry = new
+	manifest_entry.fields["name"] = visitor.real_name
+	manifest_entry.fields["rank"] = "Security Officer"
+	GLOB.data_core.general += manifest_entry
+	addtimer(CALLBACK(src, PROC_REF(officer_looks)), looks_at)
+
+/// The officer's own look at the duty, by hand: its AI left scripted, so it can't wander into the HoP's way (one run in eight failed to a
+/// card that was picked up before it was made), while the duty itself is what's asked.
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/proc/officer_looks()
+	if(result != BOT_GYM_PENDING || QDELETED(visitor?.bot_brain))
+		return
+	var/datum/bot_duty/D = bot_duty_of(/datum/bot_duty/new_id_from_hop)
+	if(!D)
+		log_line("no such duty")
+		return
+	visitor.bot_brain.gym_scripted = FALSE //call_for() keeps a scripted bot quiet
+	D.try_start(visitor.bot_brain)
+	visitor.bot_brain.gym_scripted = TRUE
+
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/obj/item/card/id/card in visitor.GetAllContents() + range(1, visitor))
+		if(card.registered_name != visitor.real_name)
+			continue
+		if(card.assignment != "Security Officer" || !(ACCESS_SECURITY in card.access))
+			fail_reason = "made the card out as [card.assignment], [length(card.access)] accesses"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/on_timeout()
+	fail_reason = "no card for the officer"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/release_run()
+	if(manifest_entry)
+		GLOB.data_core.general -= manifest_entry
+		manifest_entry = null
+	..()
+
+// ---------------------------------------------------------------------------------------------
+// Kept in the Brig for a doctor who doesn't come
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/fixes1112/doors/brig/nobody_comes/no_answer
+	name = "brig: nobody answers the call for a doctor, and the officer puts the prisoner in a cell inside a minute, not after two and a half"
+	desc = "Bot Shift gen1116e, gen1116f and play1114b: of 59 prisoners kept by the Brig's door for a doctor, one in five had one get to them. The rest stood there with an officer for two and a half minutes (median 100 game seconds, 27 over two minutes) with nobody coming. Now, with the call not taken by anybody and no medic near, the officer says so after forty-five seconds and puts them in a cell, patched up there."
+	time_limit = 90 SECONDS
+
+/datum/bot_scenario/fixes1112/doors/brig/nobody_comes/no_answer/doctor_near
+	name = "brig: a doctor close by, the officer keeps the prisoner by the door for them past the minute"
+	desc = "The control: a doctor stands a few steps off (not driven by anybody: nobody has taken the call), so the officer keeps waiting for them instead of cutting the wait short."
+	layout = list(
+		"#########",
+		"#BC.Kio.#",
+		"####d####",
+		"###...###",
+		"###..l###",
+		"#########")
+	time_limit = 70 SECONDS
+	var/mob/living/carbon/human/doctor
+
+/datum/bot_scenario/fixes1112/doors/brig/nobody_comes/no_answer/doctor_near/post_spawn()
+	..()
+	doctor = doctor_on("o")
+
+/datum/bot_scenario/fixes1112/doors/brig/nobody_comes/no_answer/doctor_near/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	keep_pale()
+	if(bot_transcript_said("goal /datum/bot_goal/brig_prisoner/brig_care succeeded") || bot_transcript_said("no doctor's coming for"))
+		fail_reason = "gave up waiting for a doctor standing a few steps off"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/fixes1112/doors/brig/nobody_comes/no_answer/doctor_near/on_timeout()
+	return BOT_GYM_PASS //still with the prisoner at the end of it
+
+// ---------------------------------------------------------------------------------------------
+// An accident a bot says sorry for
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/chat/accident_sorry/bot_throws
+	name = "accident: a crewman who throws a toolbox at a table and hits somebody on the way says sorry, and is forgiven, not arrested"
+	desc = "Shift batch play1113e run9: the Captain's toolbox, thrown at a nanosuit, hit a crewman on the way. Nobody said sorry (a bot never did), so when the time ran out it was taken as the attack it looked like, and the Captain was arrested for Assault with a Deadly Weapon. Now the thrower, a bot, says sorry a few seconds after, and the one it hit forgives it."
+	say_sorry = FALSE //the thrower's own brain says it
+
+/datum/bot_scenario/chat/accident_sorry/bot_throws/post_spawn()
+	..()
+	visitor.mind_initialize()
+	var/datum/bot_brain/thrower = new(visitor)
+	thrower.gym_run = src
+	thrower.gym_scripted = TRUE
+	thrower.greytider = FALSE
+
+/// With nobody else on to take the prisoner, the officer doesn't wait three minutes for somebody
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/alone
+	name = "asks: an officer with no ID and a cuffed prisoner, with no other officer on, asks the HoP at once and doesn't wait for somebody to take them"
+	desc = "The same officer with no card, now with a prisoner in cuffs and no other officer on the station to hand them to: the ask for somebody to take the prisoner in stands for three minutes, and it used to hold the officer off the HoP for all of them. Now with nobody to take them it asks the HoP for its card straight away."
+	layout = list(
+		"##########",
+		"#B.....I.#",
+		"#..C.P.X.#",
+		"##########")
+	looks_at = 7 SECONDS //after its prisoner's been seen to (or not)
+	var/mob/living/carbon/human/prisoner
+
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/alone/post_spawn()
+	..()
+	prisoner = stand_in(first_marker("P"), "Pat Prisoner")
+	prisoner.handcuffed = new /obj/item/restraints/handcuffs(prisoner)
+	prisoner.update_handcuffed()
+	var/datum/bot_wanted/W = new
+	W.crime = "Assault"
+	W.severity = BOT_CRIME_MINOR
+	GLOB.bot_security_wanted[WEAKREF(prisoner)] = W
+	addtimer(CALLBACK(visitor.bot_brain, TYPE_PROC_REF(/datum/bot_brain, start_brig_escort), prisoner), 3 SECONDS)
+
+/datum/bot_scenario/chat/officer_with_no_id_asks_the_hop/alone/release_run()
+	GLOB.bot_security_wanted -= WEAKREF(prisoner)
+	if("bot_handovers" in GLOB.vars)
+		var/list/asked = GLOB.vars["bot_handovers"]
+		if(islist(asked))
+			asked -= REF(prisoner)
+	return ..()
+
+// ---------------------------------------------------------------------------------------------
+// "One sec" is a second
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/chat/one_sec_is_a_second
+	name = "security: an officer who hears \"Sure, one sec.\" doesn't take it for a call to Security, and still answers a real one"
+	desc = "Shift batches gen1116e, gen1116f and play1114b: officers answered \"on my way to sec office with the mop\", \"hang on, one sec\" and the like as calls for help, the word \"sec\" being Security's to them wherever it stood. The HoP's own answer to a request for an ID, \"Sure, one sec.\", sent an officer running to it in the gym. A crewman says it; the officer stays; then the crewman cries \"Sec! Somebody's attacking me!\" and the officer goes."
+	job = "Security Officer"
+	layout = list(
+		"#########",
+		"#B.....C#",
+		"#########")
+	time_limit = 20 SECONDS
+	var/said_real_one_at = 0
+
+/datum/bot_scenario/chat/one_sec_is_a_second/post_spawn()
+	..()
+	brain.register_security()
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "Sure, one sec."), 2 SECONDS)
+	addtimer(CALLBACK(src, PROC_REF(visitor_says), "Sorry, give me a sec."), 3 SECONDS)
+
+/datum/bot_scenario/chat/one_sec_is_a_second/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!said_real_one_at)
+		if(brain.next_security_call_time > world.time)
+			fail_reason = "took \"one sec\" for a call to Security"
+			return BOT_GYM_FAIL
+		if(world.time > start_time + 7 SECONDS)
+			said_real_one_at = world.time
+			visitor_says("Sec! Somebody is attacking me in here!")
+		return BOT_GYM_PENDING
+	if(brain.next_security_call_time > world.time)
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING

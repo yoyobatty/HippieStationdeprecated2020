@@ -71,6 +71,7 @@
 			usr = asker
 			console.req_crate(/datum/supply_pack/materials/glass50, "For the windows", asker)
 			usr = null
+			QDEL_IN(asker, 20 SECONDS) //it's put its order in and gone: left standing at a console all shift it was arrested for trespass in Science's lobby (19 sentences in three batches)
 			if(length(GLOB.station_requests) > had)
 				request = GLOB.station_requests[length(GLOB.station_requests)]
 			shift.note("[name]: Rhea Asker asks Cargo for a crate of glass at the [console.department] requests console[request ? "" : ", and it didn't go through"]")
@@ -117,6 +118,7 @@
 			usr = asker
 			console.req_crate(P.type, "For the protolathe", asker)
 			usr = null
+			QDEL_IN(asker, 20 SECONDS) //as above
 			if(length(GLOB.station_requests) > had)
 				request = GLOB.station_requests[length(GLOB.station_requests)]
 		shift.note("[name]: Ida Asker asks Cargo for silver at [console ? "Science's requests console" : "no console (Science hasn't one)"][request ? "" : ", and it didn't go through"]")
