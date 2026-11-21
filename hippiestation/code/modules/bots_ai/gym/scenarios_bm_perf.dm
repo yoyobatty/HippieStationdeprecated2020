@@ -228,3 +228,46 @@ GLOBAL_VAR_INIT(bot_gym_vanish_after, text2num(world.params["bot-gym-vanish"]))
 		fail_reason = "[over] tiles have 300 or more things in sight (the most, [most], at [worst.x],[worst.y],[worst.z] in [get_area_name(worst)]): the cap would drop what a bot sees there"
 		return BOT_GYM_FAIL
 	return spots ? BOT_GYM_PASS : BOT_GYM_FAIL
+
+/// A runtime two procs down, for the scenario below
+/proc/bot_gym_runtime_probe_inner(mob/M)
+	return M.name
+
+/proc/bot_gym_runtime_probe_outer()
+	var/mob/nobody
+	return bot_gym_runtime_probe_inner(nobody)
+
+/datum/bot_scenario/exception_names_its_calls
+	name = "perf: a caught exception's log line carries the calls that led to it"
+	desc = "A caught runtime logged only its message and the line it hit ('Cannot read \"$metal\".amount at material_container.dm:326', 173 times in four shifts), so which of the bots' calls it was couldn't be said. bot_exception_stack() (bot_brain.dm) reads them out of the exception's own text."
+	time_limit = 20 SECONDS
+	layout = list(
+		"#####",
+		"#B.G#",
+		"#####")
+	var/tried = FALSE
+
+/datum/bot_scenario/exception_names_its_calls/make_goal()
+	return null
+
+/datum/bot_scenario/exception_names_its_calls/check()
+	if(!bot || QDELETED(bot) || bot.stat == DEAD)
+		fail_reason = "bot died"
+		return BOT_GYM_FAIL
+	if(tried)
+		return BOT_GYM_PENDING
+	tried = TRUE
+	var/stack_proc = text2path("/proc/bot_exception_stack") //by name, so a build from before it was added still compiles
+	var/seen
+	try
+		bot_gym_runtime_probe_outer()
+	catch(var/exception/e)
+		seen = stack_proc ? call(stack_proc)(e) : null
+	log_line("the call stack read from a caught runtime: [seen || "nothing"]")
+	if(!findtext(seen, "bot gym runtime probe inner"))
+		fail_reason = "the stack read from the exception doesn't name the proc it came from: [seen || "nothing"]"
+		return BOT_GYM_FAIL
+	if(!findtext(seen, "bot gym runtime probe outer"))
+		fail_reason = "the stack read from the exception doesn't name its caller: [seen]"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
