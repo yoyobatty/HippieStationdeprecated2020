@@ -753,7 +753,11 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 	if(!D || !bot.owner.Adjacent(D))
 		return
 	if(D.density && !D.operating)
-		bot.use_atom(D)
+		if(istype(D, /obj/machinery/door/window))
+			// Left open: a windoor shuts again two seconds after it's walked into, and somebody at the back of a cell can't get out in that
+			INVOKE_ASYNC(D, TYPE_PROC_REF(/obj/machinery/door/window, open))
+		else
+			bot.use_atom(D)
 	bot_log(bot, "opened [D] to let [who || "somebody"] out")
 	// And holds it: an airlock shuts again after fifteen seconds, and from the far end of Engineering that's not long enough.
 	if(who && !QDELETED(D) && get_dist(who, D) > 1 && istype(D, /obj/machinery/door/airlock))
@@ -792,7 +796,11 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 			if(!out_to) //a second door or a table there: walked up to as before, if nothing better turns up
 				out_to = outside
 		if(out_to)
-			theirs.assign_goal(new /datum/bot_goal/walk_up_to(out_to))
+			if(istype(D, /obj/machinery/door/window))
+				// A windoor takes a second to swing open: a walk set off now has no route through it, and gives up
+				addtimer(CALLBACK(theirs, TYPE_PROC_REF(/datum/bot_brain, assign_goal), new /datum/bot_goal/walk_up_to(out_to)), 1.5 SECONDS)
+			else
+				theirs.assign_goal(new /datum/bot_goal/walk_up_to(out_to))
 
 /datum/bot_brain/proc/hold_door_for(obj/machinery/door/airlock/D, mob/living/who)
 	return assign_goal(new /datum/bot_goal/hold_door(D, who))
@@ -865,18 +873,22 @@ GLOBAL_DATUM(bot_globals_forgetter, /datum/bot_globals_forgetter)
 /// The airlocks around the pocket this bot is shut in, which it can't open itself.
 /datum/bot_brain/proc/doors_shutting_me_in()
 	. = list()
+	// In a cell, with its own door (the Brig's access) shut on it: what an officer who's lost its card is shut in by. Found from the cells
+	// themselves, not by the flood below, which isn't sure to have a bot in a small room down as shut in at the moment it's asked. Another
+	// officer with access opens it (let_out, below); the AI leaves Security's own windoors alone.
+	var/turf/here = get_turf(owner)
+	for(var/obj/machinery/door_timer/T as anything in GLOB.bot_brig_cell_interiors)
+		var/list/inside = GLOB.bot_brig_cell_interiors[T]
+		if(!islist(inside) || !(here in inside))
+			continue
+		var/list/cell_doors = list()
+		for(var/obj/machinery/door/window/brigdoor/W in T.targets)
+			if(W.density && !W.allowed(owner))
+				cell_doors += W
+		if(length(cell_doors))
+			return cell_doors
 	if(!is_shut_in() || !shut_in_region)
 		return
-	// A cell's own door (the Brig's access): what an officer who's lost its card is shut in by. Another officer with access opens it
-	// (let_out, below); the AI leaves Security's own windoors alone.
-	var/list/cell_doors = list()
-	for(var/turf/T as anything in shut_in_region)
-		for(var/d in GLOB.cardinals)
-			for(var/obj/machinery/door/window/brigdoor/W in get_step(T, d))
-				if(W.density && !W.allowed(owner))
-					cell_doors |= W
-	if(length(cell_doors))
-		return cell_doors
 	var/list/ways_out = list()
 	for(var/turf/T as anything in shut_in_region)
 		for(var/d in GLOB.cardinals)
