@@ -1125,3 +1125,44 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 	if(world.time < placed_at + 3 SECONDS)
 		return BOT_GYM_PENDING
 	return get_turf(bot) == first_marker("k") ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// A janitor's rounds (goals/janitor.dm start_janitor_patrol())
+// ---------------------------------------------------------------------------------------------
+
+/// bm_final: with 73c218bd the janitor knew only of what it had seen or been radioed about, and one in twelve shifts mopped five tiles in
+/// all, two more finished the first dozen minutes' worth late. A janitor goes round the halls and departments looking, as part of the job.
+/datum/bot_scenario/janitor_patrol
+	name = "janitor: with no stain in sight it goes round the halls and finds the first one within a couple of minutes"
+	desc = "A hall in two parts with a wall between and a stain at the far end of the second, out of sight of the janitor and unknown to it. Nobody's called it. It goes round looking, and has the stain picked for mopping inside two minutes."
+	job = "Janitor"
+	time_limit = 120 SECONDS
+	strict_mess = TRUE
+	layout = list(
+		"########################################",
+		"#B.........#...........................#",
+		"#..........#...........................#",
+		"#..........#...........................#",
+		"#......................................#",
+		"#..........#...........................#",
+		"#..........#...........................#",
+		"#..........#.........................s.#",
+		"########################################")
+	var/obj/effect/decal/cleanable/blood/stain
+
+/datum/bot_scenario/janitor_patrol/setup()
+	stain = new /obj/effect/decal/cleanable/blood/splatter(first_marker("s"))
+
+/datum/bot_scenario/janitor_patrol/make_goal()
+	return null
+
+/datum/bot_scenario/janitor_patrol/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(stain) || istype(brain.current_goal, /datum/bot_goal/mop_mess) || brain.pick_mess() == stain)
+		return BOT_GYM_PASS
+	// The duty's own tick, which comes every few seconds on a station
+	if(!(brain.state == BOT_STATE_GOAL && brain.current_goal))
+		var/datum/bot_duty/janitor/duty = bot_duty_of(/datum/bot_duty/janitor)
+		duty.try_start(brain)
+	return BOT_GYM_PENDING
