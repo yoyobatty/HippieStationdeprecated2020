@@ -863,6 +863,19 @@ GLOBAL_LIST_EMPTY(bot_reinforcing)
 	priority = 30
 	interval_min = 60
 	interval_max = 150
+	interrupts = TRUE
+
+/// The whole station floating is worth dropping a chain of jobs for, as a player drops them (a lone engineer spent seven minutes on the
+/// particle accelerator's parts in a live test and never got to it): not what can't wait either (staying alive: a fire, bad air, a fight),
+/// nor the repair itself or the fetch for it.
+/datum/bot_duty/gravity/should_interrupt(datum/bot_brain/bot)
+	var/datum/bot_goal/goal = bot.current_goal
+	if(!goal || goal.never_rests || goal.braves_bad_air || istype(goal, /datum/bot_goal/restore_gravity) || istype(bot.suspended_goal, /datum/bot_goal/restore_gravity))
+		return FALSE
+	if(world.time < bot.gravity_blocked_until)
+		return FALSE
+	var/obj/machinery/gravity_generator/main/G = bot_gravity_generator_in_trouble(bot)
+	return G && !bot.taken_by_another(G)
 
 /datum/bot_duty/gravity/try_start(datum/bot_brain/bot)
 	if(world.time < bot.gravity_blocked_until)

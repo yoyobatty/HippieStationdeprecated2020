@@ -15,6 +15,8 @@
 // mess - bot_is_mess() doesn't count a puddle of plain water or cleaner.
 
 #define BOT_JANITOR_REACH 60
+/// Stains and fixtures a janitor keeps track of at most (the oldest go first)
+#define BOT_MESS_SEEN_MAX 200
 /// Tiles mopped in one stop before looking up again.
 #define BOT_MOP_TILES_PER_STOP 8
 
@@ -35,6 +37,40 @@
 
 /datum/bot_brain/proc/is_janitor_job()
 	return work_role() == "Janitor"
+
+// ---------------------------------------------------------------------------------------------
+// What it knows of
+// ---------------------------------------------------------------------------------------------
+// The janitor found every stain and dead tube in sixty tiles whether it had been near them or not, through bot_instances_of(): the same
+// as items and the casualties before them (bot_knowledge.dm). A player janitor mops what it has walked past, what it's been radioed
+// about ("janitor needed in the mech bay", bot_requests.dm), and what it can see now.
+
+/// Mess and dead lights it has seen (weakref -> TRUE): they stay known until they're mopped up or replaced
+/datum/bot_brain
+	var/list/mess_seen
+
+/// A Bot Gym arena's janitor knows what a scenario laid out, as ever, unless the scenario sets strict_mess
+/datum/bot_scenario
+	var/strict_mess = FALSE
+
+/// Whether this janitor knows of that stain or dead fixture: in sight now (and then remembered), seen before and still there, or somewhere
+/// it was asked to come.
+/datum/bot_brain/proc/knows_of_mess(atom/A)
+	if(GLOB.bot_knowledge_off || QDELETED(A))
+		return TRUE
+	if(gym_run && !gym_run.strict_mess)
+		return TRUE
+	var/datum/weakref/ref = WEAKREF(A)
+	if(ref in mess_seen)
+		return TRUE
+	if(janitor_called_to && world.time < janitor_called_until && get_dist(A, janitor_called_to) <= 7)
+		return TRUE
+	if(get_dist(owner, A) <= BOT_SIGHT_RANGE && (A in view(BOT_SIGHT_RANGE, owner)))
+		if(length(mess_seen) >= BOT_MESS_SEEN_MAX)
+			mess_seen.Cut(1, 2) //the oldest goes
+		LAZYSET(mess_seen, ref, TRUE)
+		return TRUE
+	return FALSE
 
 /datum/bot_brain/proc/janitor_in_reach(atom/A, atom/from)
 	if(!A || QDELETED(A) || A.z != owner.z || get_dist(from || owner, A) > BOT_JANITOR_REACH)
@@ -81,7 +117,7 @@
 /datum/bot_brain/proc/pick_mess()
 	var/list/messes = list() //mess -> score
 	for(var/obj/effect/decal/cleanable/C as anything in bot_instances_of(/obj/effect/decal/cleanable))
-		if(!bot_is_mess(C) || !janitor_in_reach(C))
+		if(!bot_is_mess(C) || !janitor_in_reach(C) || !knows_of_mess(C))
 			continue
 		var/turf/T = C.loc
 		var/area/A = T.loc
@@ -124,7 +160,7 @@
 		return null
 	var/list/dead = list() //fixture -> how far off
 	for(var/obj/machinery/light/L as anything in bot_instances_of(/obj/machinery/light))
-		if(L.status == LIGHT_OK || !janitor_in_reach(L) || LAZYACCESS(janitor_blocked, L) > world.time || LAZYACCESS(janitor_blocked, get_area(L)) > world.time || taken_by_another(L))
+		if(L.status == LIGHT_OK || !janitor_in_reach(L) || LAZYACCESS(janitor_blocked, L) > world.time || LAZYACCESS(janitor_blocked, get_area(L)) > world.time || taken_by_another(L) || !knows_of_mess(L))
 			continue
 		dead[L] = get_dist(owner, L)
 	// The nearest there's a way to. A dark room behind a door this ID doesn't open is somebody else's to see to:
@@ -544,4 +580,5 @@
 	return GOAL_STEP_SUCCESS
 
 #undef BOT_JANITOR_REACH
+#undef BOT_MESS_SEEN_MAX
 #undef BOT_MOP_TILES_PER_STOP
