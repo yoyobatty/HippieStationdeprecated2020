@@ -327,6 +327,8 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			continue
 		if(get_dist(bot.owner, H) > 40 && H != called)
 			continue
+		if(H != called && !bot.knows_of_casualty(H))
+			continue //it's not seen them, nobody's said, and they're not on the monitor it's got in front of it (bot_knowledge.dm)
 		if(LAZYACCESS(bot.untreatable_patients, WEAKREF(H)) > world.time)
 			continue //just tried and got nowhere (on_give_up()) - not straight back to them
 		if(seen_to[H] && H != called)
@@ -593,6 +595,8 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			continue
 		if(bot.another_medic_has(H) || LAZYACCESS(bot.unreachable_patients, H) > world.time)
 			continue //another doctor has them, or it's just tried
+		if(!bot.knows_of_casualty(H))
+			continue //it's not come across them, and nobody's said (bot_knowledge.dm)
 		if(locate(/obj/item/clothing/suit/space) in H.contents)
 			continue //"Patient's chest is obscured": the paddles won't go through a space suit
 		// Bled out: the paddles would bring them back at fifty under with no blood to live on, and they'd be dead again in twenty
@@ -796,7 +800,7 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			continue //in a machine already, being dragged in by somebody, or somebody's on their way
 		if(LAZYACCESS(bot.unreachable_patients, H) > world.time)
 			continue //just tried, and there was no way to them from here
-		if(!bot.patient_needs_treatment(H))
+		if(!bot.patient_needs_treatment(H) || !bot.knows_of_casualty(H)) //bot_knowledge.dm: seen, told, or on the monitor
 			continue
 		// Out cold with nothing wrong (asleep, sedated): a sleeper does nothing for them, and the next doctor round lets them straight
 		// out (find_machine_to_empty(), medical_rounds.dm). Somebody asleep on morphine went in and out of one 94 times in four minutes.
@@ -1310,6 +1314,8 @@ GLOBAL_LIST_EMPTY(bot_patient_summons)
 			continue //nobody Security's after until they're in cuffs, as for any patient
 		if(bot.another_medic_has(H) || LAZYACCESS(bot.unreachable_patients, H) > world.time)
 			continue
+		if(H != called && !bot.knows_of_casualty(H))
+			continue //bot_knowledge.dm
 		if(bot.kept_for_a_doctor(H) && bot.stabilised_by_another(H))
 			continue //another doctor's at them already: the claim on them is the officer's, so it doesn't say so
 		if(!bot.first_aid_for(H))

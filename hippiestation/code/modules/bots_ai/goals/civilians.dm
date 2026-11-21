@@ -428,7 +428,7 @@ GLOBAL_LIST_INIT(bot_captain_greetings, list(
 			continue
 		if(gym_run && get_area(H) != get_area(owner))
 			continue
-		if(LAZYACCESS(morgue_blocked, H) > world.time || taken_by_another(H))
+		if(LAZYACCESS(morgue_blocked, H) > world.time || taken_by_another(H) || !knows_of_casualty(H)) //bot_knowledge.dm: it's come across the body, or been told
 			continue
 		if(bot_body_wanted_back(H) || (world.time < H.timeofdeath + BOT_CLONE_MORGUE_WAIT && bot_clonable(H))) //somebody may yet come back to that (goals/cloning.dm)
 			continue

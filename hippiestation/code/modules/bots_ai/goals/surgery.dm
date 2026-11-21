@@ -46,7 +46,7 @@ GLOBAL_LIST_INIT(bot_surgery_tools, list(/obj/item/scalpel, /obj/item/retractor,
 	for(var/mob/living/carbon/human/H in GLOB.alive_mob_list)
 		if(H == owner || H.z != owner.z || H.stat == CONSCIOUS || H.stat == DEAD || !isturf(H.loc) || H.handcuffed)
 			continue
-		if(max(H.getBruteLoss(), H.getFireLoss()) < BOT_SURGERY_HURT || LAZYACCESS(unreachable_patients, H) > world.time)
+		if(max(H.getBruteLoss(), H.getFireLoss()) < BOT_SURGERY_HURT || LAZYACCESS(unreachable_patients, H) > world.time || !knows_of_casualty(H))
 			continue
 		var/dist = get_dist(owner, H)
 		if(dist > BOT_SURGERY_RANGE || (gym_run && get_area(H) != get_area(owner)))

@@ -94,6 +94,8 @@
 			continue
 		if(gym_run && get_area(H) != get_area(owner))
 			continue
+		if(!knows_of_casualty(H)) //bot_knowledge.dm: it's come across the body, it's been reported, or it's on the monitor
+			continue
 		bodies[H] = get_dist(owner, H)
 	var/tries = 0
 	while(length(bodies) && tries++ < 3)
@@ -120,6 +122,8 @@
 		if(LAZYACCESS(clone_blocked, H) > world.time || taken_by_another(H))
 			continue
 		if(gym_run && get_area(H) != get_area(owner))
+			continue
+		if(!knows_of_casualty(H))
 			continue
 		return TRUE
 	return FALSE
@@ -407,7 +411,9 @@ GLOBAL_LIST_INIT(bot_clone_dress_order, list(ITEM_SLOT_ICLOTHING, ITEM_SLOT_FEET
 			continue
 		if(I.loc == body)
 			body.dropItemToGround(I, TRUE)
-		if(!bot.owner.equip_to_slot_if_possible(I, slot, FALSE, TRUE, TRUE))
+		// In hand first, then on, the way a player puts a thing back on: it went from the floor straight on to the body, which the shift's
+		// verdict calls looking robotic (equip_without_holding, 60 times in 24 shifts, nearly all of them here).
+		if(!bot.wear(I, slot)) //goals/engineer_gear.dm
 			bot.try_pickup_target(I)
 		return TRUE
 	return FALSE

@@ -24,7 +24,7 @@ GLOBAL_LIST_EMPTY(bot_closed_cases)
 	for(var/mob/living/carbon/human/H in GLOB.carbon_list)
 		if(H.stat != DEAD || H == owner || !H.mind?.assigned_role || !isturf(H.loc) || H.z != owner.z || GLOB.bot_closed_cases[REF(H)])
 			continue
-		if(get_dist(owner, H) > BOT_DETECTIVE_REACH || (gym_run && get_area(H) != get_area(owner)))
+		if(get_dist(owner, H) > BOT_DETECTIVE_REACH || (gym_run && get_area(H) != get_area(owner)) || !knows_of_casualty(H)) //bot_knowledge.dm: it's come across the body, or been told
 			continue
 		if(can_walk_lawfully_to(H))
 			return H
