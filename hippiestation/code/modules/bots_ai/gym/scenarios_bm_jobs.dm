@@ -660,3 +660,114 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 		fail_reason = "set about a generator with no power in its room"
 		return BOT_GYM_FAIL
 	return world.time > start_time + 8 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// What a janitor knows of (goals/janitor.dm knows_of_mess())
+// ---------------------------------------------------------------------------------------------
+
+/// The janitor picked every stain within sixty tiles of itself, seen or not, through bot_instances_of(). Now it picks what it can see, has seen
+/// or was asked to come to (bot_knowledge.dm did the same for items and casualties).
+/datum/bot_scenario/janitor_knows
+	name = "janitor: it picks the stain in sight, and doesn't know of one forty tiles off until it's by it"
+	desc = "Two blood stains in a long hall, one five tiles from the janitor and one forty. It picks the near one; with that mopped up it knows of nothing else (the far one's never been in sight); stood by the far one it picks that."
+	job = "Janitor"
+	time_limit = 20 SECONDS
+	strict_mess = TRUE
+	layout = list(
+		"##############################################",
+		"#B....n..................................f...#",
+		"##############################################")
+	var/obj/effect/decal/cleanable/blood/near
+	var/obj/effect/decal/cleanable/blood/far
+	var/stage = 0
+
+/datum/bot_scenario/janitor_knows/setup()
+	near = new /obj/effect/decal/cleanable/blood/splatter(first_marker("n"))
+	far = new /obj/effect/decal/cleanable/blood/splatter(first_marker("f"))
+
+/datum/bot_scenario/janitor_knows/make_goal()
+	return null
+
+/datum/bot_scenario/janitor_knows/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(far))
+		fail_reason = "the far stain's gone"
+		return BOT_GYM_FAIL
+	var/found = brain.pick_mess()
+	switch(stage)
+		if(0)
+			if(found != near)
+				fail_reason = "picked [found || "nothing"] with a stain in sight, not it"
+				return BOT_GYM_FAIL
+			stage = 1
+			qdel(near)
+			log_line("the stain in sight is mopped up")
+		if(1)
+			if(found)
+				fail_reason = "knew of the stain forty tiles off that it had never seen: picked it"
+				return BOT_GYM_FAIL
+			stage = 2
+			bot.forceMove(get_step(first_marker("f"), WEST))
+			log_line("it's by the far stain")
+		if(2)
+			if(found != far)
+				fail_reason = "stood by the far stain it didn't pick it (picked [found || "nothing"])"
+				return BOT_GYM_FAIL
+			return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// A miner's tank (goals/refill_internals.dm take_back_refill_tank(), goals/mining.dm dress_for_lavaland)
+// ---------------------------------------------------------------------------------------------
+
+/// bm_early run3 (Hippie Station): a miner back from a ruin on Lavaland with a refilled tank in its hand lost it when the shuttle set off
+/// (the launch knocks everybody aboard over and their hands empty), and from then on "dress_for_lavaland" failed on the spot every fifteen
+/// seconds for thirty minutes: "0 ore delivered of 0 dug". The refill now puts the tank back on the body, and a miner with no tank fetches
+/// one.
+/datum/bot_scenario/refill_internals/on_the_body
+	name = "refill_internals: the refilled tank goes back on the belt or in a pocket, not left in a hand"
+	desc = "The same refill, and once it's out of the canister it isn't left in a hand: a hand gets emptied for the next thing or knocked empty at a shuttle's launch, and a miner's tank was lost that way."
+	var/in_hand_since
+
+/datum/bot_scenario/refill_internals/on_the_body/check()
+	var/result = ..()
+	if(result == BOT_GYM_FAIL)
+		return result
+	// Back from the canister and in a hand: given a moment to be put on, and then it was left there
+	if(was_in_canister && !QDELETED(tank) && tank.loc == bot && !canister.holding && bot.is_holding(tank))
+		in_hand_since ||= world.time
+		if(world.time > in_hand_since + 3 SECONDS)
+			fail_reason = "left the refilled tank in a hand"
+			return BOT_GYM_FAIL
+		return BOT_GYM_PENDING
+	return result
+
+/datum/bot_scenario/miner_lost_tank
+	name = "mining: a miner with no tank on it fetches an emergency tank from the rack and dresses for Lavaland"
+	desc = "A miner with its mask on and no tank anywhere on it, and an emergency oxygen tank on a rack eight tiles off. It fetches the tank and puts it on its belt: ready for Lavaland, not set down on the floor to wait for the next shuttle."
+	job = "Shaft Miner"
+	time_limit = 40 SECONDS
+	layout = list(
+		"#############",
+		"#B.......T..#",
+		"#############")
+
+/datum/bot_scenario/miner_lost_tank/setup()
+	new /obj/item/tank/internals/emergency_oxygen(first_marker("T"))
+	var/obj/item/tank/internals/emergency_oxygen/spare = locate() in first_marker("T")
+	if(spare)
+		bot_note_mapped(spare) //laid out for the scenario: common knowledge, as what the map put on a rack is
+
+/datum/bot_scenario/miner_lost_tank/post_spawn()
+	bot.equip_to_slot_or_del(new /obj/item/clothing/mask/gas/explorer(bot), ITEM_SLOT_MASK)
+
+/datum/bot_scenario/miner_lost_tank/make_goal()
+	return new /datum/bot_goal/dress_for_lavaland()
+
+/datum/bot_scenario/miner_lost_tank/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(brain.ready_for_lavaland())
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING

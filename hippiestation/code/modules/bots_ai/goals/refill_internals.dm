@@ -151,8 +151,25 @@
 	if(tank.loc != owner)
 		return FALSE
 	stranded_refill_tank = null
+	// Back on the body, where the valve's in reach, and not left in a hand: a hand is emptied for the next thing, or knocked empty when a shuttle
+	// sets off, and a miner's tank lying on the floor of one was left behind (bm_early run3: the miner came home with no tank, and never
+	// went down again: "dress_for_lavaland" failing every fifteen seconds for the other thirty minutes)
+	if(owner.is_holding(tank))
+		for(var/slot in list(ITEM_SLOT_BELT, ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET, ITEM_SLOT_SUITSTORE, ITEM_SLOT_DEX_STORAGE))
+			if(owner.equip_to_slot_if_possible(tank, slot, FALSE, TRUE, TRUE))
+				break
 	manage_internals()
 	return TRUE
+
+/// A tank to breathe from, lying about or in a rack or a locker: a full one, of oxygen or air.
+/datum/bot_goal/acquire_item_type/breathing_tank
+	item_type = /obj/item/tank/internals
+
+/datum/bot_goal/acquire_item_type/breathing_tank/will_do(obj/item/I)
+	if(!..())
+		return FALSE
+	var/obj/item/tank/T = I
+	return bot_tank_breathable(T) && T.air_contents.return_pressure() > 3 * ONE_ATMOSPHERE //not one that has little left in it
 
 // Same immediate-rechain idea as continue_fire_response_round() (respond_to_fire.dm) -
 // re-checks are cheap and this only ever actually does anything when genuinely low.

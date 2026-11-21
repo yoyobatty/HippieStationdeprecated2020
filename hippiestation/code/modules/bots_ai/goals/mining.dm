@@ -235,6 +235,10 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 /datum/bot_strategy/mining/is_feasible(datum/bot_brain/bot)
 	return bot.current_goal?.target && !QDELETED(bot.current_goal.target)
 
+/datum/bot_step/dress_for_lavaland
+	/// It's been for a tank on this try
+	var/fetched_tank = FALSE
+
 /datum/bot_step/dress_for_lavaland/execute(datum/bot_brain/bot)
 	var/mob/living/carbon/human/H = bot.owner
 	var/obj/item/clothing/suit/hooded/explorer/suit = bot.find_carried_tool(/obj/item/clothing/suit/hooded/explorer)
@@ -255,7 +259,17 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 	for(var/obj/item/tank/internals/T in H.GetAllContents())
 		if(bot_tank_breathable(T) && (!tank || T.air_contents.return_pressure() > tank.air_contents.return_pressure()))
 			tank = T
-	if(!tank || !bot.ready_in_hand(tank))
+	if(!tank)
+		// None on it: knocked out of a hand when a shuttle set off and left on its floor, or never had one. Another from a rack or a locker,
+		// as anybody would (the maintenance racks have emergency tanks and masks), once a try
+		if(fetched_tank)
+			return GOAL_STEP_FAIL
+		fetched_tank = TRUE
+		var/datum/bot_goal/acquire_item_type/breathing_tank/get = new
+		get.lawful = TRUE
+		get.doing = "getting something to breathe from"
+		return bot.suspend_goal_for(get) ? GOAL_STEP_PENDING : GOAL_STEP_FAIL
+	if(!bot.ready_in_hand(tank))
 		return GOAL_STEP_FAIL
 	// The belt if it's free (the PDA goes in the ID slot), a pocket if not, with what's in it put in the bag: anywhere it
 	// stays on the body. Just holding it doesn't count, the hands get tidied.
