@@ -196,11 +196,48 @@ GLOBAL_LIST_INIT(bot_seam_materials, list(
 /// to be bitten. A goliath stood in a tunnel doesn't attack anything it isn't bored of, and three miners waited behind one for it to
 /// move until their tanks ran out.
 /datum/bot_brain/proc/mind_fauna()
+	if((on_lavaland() || gym_run) && !in_mech() && dodge_tentacles())
+		return
 	if(!(is_miner() || pursuit == BOT_PURSUIT_EXPLORE) || !(on_lavaland() || gym_run) || world.time < next_taser_time || state == BOT_STATE_COMBAT || in_mech())
 		return //an explorer down there shoots what comes at it as well (goals/exploring.dm)
 	for(var/mob/living/simple_animal/hostile/asteroid/beast in view(BOT_SIGHT_RANGE, owner))
 		if(beast.stat == CONSCIOUS && try_shoot_at(beast))
 			return
+
+/// A goliath that has dug its tentacles under somebody: the tentacle shows on four tiles (the one under them and three beside it) for about
+/// a second before it strikes, and what stands on one is stunned for ten seconds, hurt, and left to the goliath. Five of the miners and
+/// explorers lost in the batches since 11-14 died that way, held where they stood with the goliath walking up (bm_early run1, 5, 6;
+/// play1114b run1, 9). A player steps off it: onto a tile with none, the diagonal or the free side, further from the beast if there's a
+/// choice. TRUE if it stepped.
+/datum/bot_brain/proc/dodge_tentacles()
+	if(owner.buckled || owner.incapacitated())
+		return FALSE
+	var/turf/here = get_turf(owner)
+	if(!here)
+		return FALSE
+	var/obj/effect/temp_visual/goliath_tentacle/under = locate() in here
+	if(!under || under.icon_state == "Goliath_tentacle_retract")
+		return FALSE //none, or it's already let go
+	var/turf/best
+	var/best_score
+	for(var/turf/open/T in range(1, here))
+		if(T == here || is_blocked_turf(T, TRUE) || isspaceturf(T) || bot_turf_is_deadly(T) || (locate(/obj/effect/temp_visual/goliath_tentacle) in T))
+			continue
+		var/score = 0
+		for(var/mob/living/simple_animal/hostile/asteroid/beast in view(BOT_SIGHT_RANGE, owner))
+			if(beast.stat == CONSCIOUS)
+				score += get_dist(T, beast) //away from them, the nearer ones counting as much as the far
+		score -= (get_dist(here, T) > 1 ? 5 : 0)
+		if(isnull(best_score) || score > best_score)
+			best = T
+			best_score = score
+	if(!best)
+		return FALSE
+	stop_pursuit()
+	bot_log(src, "a goliath's tentacle under me at [bot_coord(here)] - off it, to [bot_coord(best)]")
+	bot_tally("stepped off a goliath's tentacle")
+	owner.Move(best, get_dir(here, best))
+	return get_turf(owner) != here
 
 /datum/bot_brain/proc/continue_mining_round()
 	var/datum/bot_duty/mining/duty = bot_duty_of(/datum/bot_duty/mining)

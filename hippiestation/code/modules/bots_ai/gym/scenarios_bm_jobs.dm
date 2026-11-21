@@ -813,3 +813,50 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 			return BOT_GYM_FAIL
 		return BOT_GYM_PASS
 	return BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// A goliath's tentacles (goals/mining.dm dodge_tentacles())
+// ---------------------------------------------------------------------------------------------
+
+/// Miners and explorers died to goliaths in the first five minutes on Lavaland in 5 of 18 shifts (bm_early run1, 5, 6; play1114b run1, 9): the
+/// goliath digs its tentacles under somebody (four tiles, showing for a second), and whoever stands on one is stunned for ten seconds and
+/// hurt while it walks up and beats them. Nobody stepped off it.
+/datum/bot_scenario/mining/tentacles
+	name = "miner: a goliath digs its tentacles under it, and it steps off them before they strike"
+	desc = "A goliath seven tiles off with its AI off, and its tentacles dug under the miner (the tile it's on and three beside it, as the goliath's own attack does). The miner steps off before they grab: after four seconds it isn't stunned and has taken no damage."
+	time_limit = 8 SECONDS
+	kit_hands = list(/obj/item/pickaxe)
+	kit_backpack = list(/obj/item/t_scanner/adv_mining_scanner/lesser, /obj/item/gun/energy/kinetic_accelerator)
+	layout = list(
+		"###############",
+		"#.............#",
+		"#.............#",
+		"#.....B.....y.#",
+		"#.............#",
+		"#.............#",
+		"###############")
+	var/mob/living/simple_animal/hostile/asteroid/goliath/goliath
+	var/dug_at
+
+/datum/bot_scenario/mining/tentacles/setup()
+	..()
+	goliath = new(first_marker("y"))
+	goliath.toggle_ai(AI_OFF)
+
+/datum/bot_scenario/mining/tentacles/make_goal()
+	return null
+
+/datum/bot_scenario/mining/tentacles/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!dug_at)
+		dug_at = world.time
+		new /obj/effect/temp_visual/goliath_tentacle/original(get_turf(bot), goliath)
+		log_line("the goliath digs its tentacles under the miner")
+		return BOT_GYM_PENDING
+	if(world.time < dug_at + 4 SECONDS)
+		return BOT_GYM_PENDING
+	if(bot.IsStun() || bot.getBruteLoss() > 0)
+		fail_reason = "held by the tentacles: [bot.IsStun() ? "stunned" : "not stunned"], [round(bot.getBruteLoss())] brute"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
