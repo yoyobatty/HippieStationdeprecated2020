@@ -375,7 +375,7 @@ GLOBAL_VAR_INIT(bot_gym_running, FALSE)
 		freeze_arena()
 		release_run()
 		return
-	if(brain && brain.state == BOT_STATE_WANDER && !brain.current_goal && goal_attempts < max_goal_attempts)
+	if(brain && !QDELETED(brain.owner) && brain.state == BOT_STATE_WANDER && !brain.current_goal && goal_attempts < max_goal_attempts) //a body that's gone (the kill and vanish modes, or a blast) is nobody to give an errand
 		issue_goal()
 
 /// The forbidden tells this run showed, as text, or null.

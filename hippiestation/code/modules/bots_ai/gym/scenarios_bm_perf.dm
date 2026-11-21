@@ -288,17 +288,20 @@ GLOBAL_VAR_INIT(bot_gym_vanish_after, text2num(world.params["bot-gym-vanish"]))
 
 /datum/bot_scenario/duty/science_handout/setup()
 	GLOB.bot_science_handouts_given = list()
+	// Researched first: a lathe copies the station's research into its own when it's made (rnd/production Initialize(), asynchronously,
+	// a node at a time), so nodes researched after it's made reached it or not by the luck of the timing, and the hand-outs weren't there
+	SSresearch.science_tech.research_node_id("engineering", TRUE, FALSE)
+	SSresearch.science_tech.research_node_id("emp_basic", TRUE, FALSE)
+	SSresearch.science_tech.research_node_id("adv_engi", TRUE, FALSE)
+	SSresearch.science_tech.research_node_id("exp_tools", TRUE, FALSE)
 	for(var/turf/T in markers["h"])
 		var/obj/machinery/rnd/production/protolathe/L = place("h", new /obj/machinery/rnd/production/protolathe(T))
+		L.update_research() //its own copy, now that the nodes are in
 		for(var/mat in list(MAT_METAL, MAT_GLASS, MAT_SILVER, MAT_GOLD, MAT_DIAMOND, MAT_URANIUM, MAT_PLASMA, MAT_TITANIUM))
 			L.materials?.mat_container?.insert_amount(MINERAL_MATERIAL_AMOUNT * 10, mat)
 	for(var/turf/T in markers["C"])
 		var/obj/machinery/computer/rdconsole/core/C = place("C", new /obj/machinery/computer/rdconsole/core(T))
 		C.SyncRDevices()
-	SSresearch.science_tech.research_node_id("engineering", TRUE, FALSE)
-	SSresearch.science_tech.research_node_id("emp_basic", TRUE, FALSE)
-	SSresearch.science_tech.research_node_id("adv_engi", TRUE, FALSE)
-	SSresearch.science_tech.research_node_id("exp_tools", TRUE, FALSE)
 
 /datum/bot_scenario/duty/science_handout/check()
 	if(bot_lost())
