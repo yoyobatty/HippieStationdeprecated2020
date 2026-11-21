@@ -132,7 +132,10 @@ GLOBAL_LIST_INIT(bot_analysis_keep, typecacheof(list(/obj/item/stock_parts, /obj
 		GLOB.bot_science_handouts_given[id] = TRUE
 		var/datum/bot_goal/print_design/handout/G = new(P, D, 1)
 		G.area_type = GLOB.bot_science_handouts[id]
-		return assign_goal(G)
+		. = assign_goal(G)
+		if(!.)
+			GLOB.bot_science_handouts_given[id] = FALSE //not taken on (busy with something else, or not ready): looked at again, not given up for the shift
+		return .
 	return FALSE
 
 /datum/bot_goal/print_design/handout

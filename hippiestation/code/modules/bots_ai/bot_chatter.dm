@@ -623,7 +623,7 @@ GLOBAL_LIST_INIT(bot_tool_words, list(
 
 /// Somebody it has a grudge against, or who's wanted: it doesn't hand them things.
 /datum/bot_brain/proc/trusts_not(mob/living/talker)
-	return bot_is_wanted(talker) || LAZYFIND(grudges, WEAKREF(talker)) || dislikes(talker) //bot_social.dm
+	return bot_is_wanted(talker) || (LAZYFIND(grudges, WEAKREF(talker))) || dislikes(talker) //bot_social.dm. LAZYFIND() is "L ? L.Find(V) : 0" with no brackets of its own: bare, "wanted || grudges" was the condition, and a wanted somebody with no grudges list was a null.Find()
 
 /// The tool somebody's asking for, as an item type, or null if this isn't that. "got a crowbar?", "can I borrow your wrench"
 /datum/bot_brain/proc/tool_asked_for(lower_msg)

@@ -276,7 +276,7 @@ GLOBAL_VAR_INIT(bot_gym_vanish_after, text2num(world.params["bot-gym-vanish"]))
 // first of the container's materials, a text, so every Scientist's choosing threw once a hand-out was researched (found in 16 shifts).
 /datum/bot_scenario/duty/science_handout
 	name = "perf: a scientist with a hand-out researched and a stocked lathe takes it on"
-	desc = "Experimental Tools researched (the jaws of life, the hand drill, the experimental welder for Engineering), a protolathe holding every mineral, an R&D console. The scientist's analysing duty goes on to the hand-outs and takes one on (what happens after, in the arena, varies from run to run: one run in five printed it and picked it up). It used to ask the lathe 'check_mat(design, 1)', which threw 'Cannot read \"$metal\".amount' and ended the whole choosing."
+	desc = "Experimental Tools researched (the jaws of life, the hand drill, the experimental welder for Engineering), a protolathe holding every mineral, an R&D console. The scientist's analysing duty goes on to the hand-outs and takes one on (whether it is then printed is not judged). It used to ask the lathe 'check_mat(design, 1)', which threw 'Cannot read \"$metal\".amount' and ended the whole choosing."
 	duty_type = /datum/bot_duty/rnd_analysis
 	job = "Scientist"
 	time_limit = 60 SECONDS
