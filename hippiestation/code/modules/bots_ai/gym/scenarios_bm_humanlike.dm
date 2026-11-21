@@ -761,3 +761,46 @@
 		fail_reason = "left the capsule in the webbing"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+// ---------------------------------------------------------------------------------------------
+// A bomb with both hands full when the trigger is taken (goals/toxins.dm fetch_bomb_parts)
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_scenario/fixes1112/tank_juggle/valve_and_trigger
+	name = "toxins: a plasma tank and the valve in its hands, the trigger on the table and a full bag, and it still builds the bomb"
+	desc = "bm_final run4, Charlie Vasquez: the plasma tank in one hand, the valve picked up in the other; taking the trigger put the valve down for a hand, and fetch_bomb_parts failed the valve for not being carried, having tried it already, three times and \"isn't working\". The valve is bulky and the bag is full: the part it set down is still its own, and it builds the bomb with the valve on the floor."
+	time_limit = 60 SECONDS
+	kit_hands = list(/obj/item/transfer_valve, /obj/item/tank/internals/plasma)
+	kit_backpack = list(/obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher)
+	layout = list(
+		"##########",
+		"#Bnt.....#",
+		"##########")
+
+/datum/bot_scenario/fixes1112/tank_juggle/valve_and_trigger/setup()
+	lab = new
+	lab.stage = 20
+	lab.rest_until = world.time + 10 MINUTES //the duty its success chains to (try_start()) finds nothing more to do
+	GLOB.bot_toxins = lab
+	lab.cold_tank = place("n", new /obj/item/tank/internals/oxygen/empty(first_marker("n")))
+	// The trigger on a table in Science, where fetch_bomb_parts looks for the lab's own first and goes for it with take_in_hand()
+	var/turf/there = first_marker("t")
+	new /obj/item/assembly/timer(there)
+	var/area/science/lab_area = new
+	lab_area.name = "Gym Science [run_index]"
+	lab_area.contents += there
+
+/datum/bot_scenario/fixes1112/tank_juggle/valve_and_trigger/post_spawn()
+	// Pockets and belt full too: nothing in a hand has anywhere to go
+	for(var/slot in list(ITEM_SLOT_LPOCKET, ITEM_SLOT_RPOCKET))
+		if(!bot.get_item_by_slot(slot))
+			bot.equip_to_slot_or_del(new /obj/item/flashlight(bot), slot)
+	if(!bot.get_item_by_slot(ITEM_SLOT_BELT))
+		bot.equip_to_slot_or_del(new /obj/item/storage/belt/fannypack(bot), ITEM_SLOT_BELT)
+	var/obj/item/storage/belt/fannypack/F = bot.get_item_by_slot(ITEM_SLOT_BELT)
+	if(istype(F))
+		for(var/i in 1 to 3)
+			new /obj/item/flashlight(F)
+	lab.hot_tank = locate(/obj/item/tank/internals/plasma) in bot.held_items
+	if(!lab.hot_tank || !(locate(/obj/item/transfer_valve) in bot.held_items))
+		log_line("SETUP: hands hold [english_list(bot.held_items, "nothing")], not the plasma tank and the valve")

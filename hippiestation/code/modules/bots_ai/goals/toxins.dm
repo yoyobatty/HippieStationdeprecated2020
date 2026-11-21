@@ -991,7 +991,20 @@ GLOBAL_DATUM(bot_toxins, /datum/bot_toxins)
 
 /datum/bot_step/fetch_bomb_parts/execute(datum/bot_brain/bot)
 	for(var/needed in list(/obj/item/transfer_valve, bot.bomb_trigger_type()))
-		if(bot.find_carried_tool(needed) || (needed in tried))
+		if(bot.find_carried_tool(needed))
+			continue
+		// A part set down for a hand (make_hand_free(): with the tank in one hand and the valve in the other, taking the trigger put the valve
+		// down, and this step failed the valve for not being carried, which it had already tried: three times, and "isn't working"). Beside it,
+		// it will do: the bomb is built with the valve on the floor, each part clicked on it from where it lies. Further off, it goes back for it.
+		var/obj/item/down = bot.set_down_part(needed)
+		if(down)
+			if(bot.owner.Adjacent(down))
+				continue
+			if(!(down in tried))
+				tried += down
+				if(bot.suspend_goal_for(new /datum/bot_goal/take_item/exact(down)))
+					return GOAL_STEP_PENDING
+		if(needed in tried)
 			continue
 		tried += needed
 		// Science's own first, where the lab keeps them: the search below goes by the nearest six anywhere, and Box has a dozen timers
@@ -1019,7 +1032,7 @@ GLOBAL_DATUM(bot_toxins, /datum/bot_toxins)
 		bought.lawful = TRUE
 		if(bot.suspend_goal_for(bought))
 			return GOAL_STEP_PENDING
-	if(bot.find_carried_tool(/obj/item/transfer_valve) && bot.find_carried_tool(bot.bomb_trigger_type()))
+	if(bot.bomb_part(/obj/item/transfer_valve) && bot.bomb_part(bot.bomb_trigger_type()))
 		return GOAL_STEP_SUCCESS
 	var/list/near = list()
 	for(var/obj/item/I as anything in bot_instances_of(bot.bomb_trigger_type()))
@@ -1027,6 +1040,21 @@ GLOBAL_DATUM(bot_toxins, /datum/bot_toxins)
 			near += "[I.x],[I.y] [bot.can_walk_lawfully_to(I) ? "reachable" : "not reachable"]"
 	bot_log(bot, "TOXINS: no valve or no trigger to be had (valve [!!bot.find_carried_tool(/obj/item/transfer_valve)]; nearby: [english_list(near, "none")])")
 	return GOAL_STEP_FAIL
+
+/// A part of the bomb it set down for a hand (make_hand_free(), goals/take_item.dm) and hasn't picked up again: the item, or null.
+/datum/bot_brain/proc/set_down_part(part_type)
+	for(var/obj/item/I in set_down_items)
+		if(istype(I, part_type) && !QDELETED(I) && isturf(I.loc) && get_dist(owner, I) <= 6)
+			return I
+	return null
+
+/// A part of the bomb it has: carried, or set down beside it.
+/datum/bot_brain/proc/bomb_part(part_type)
+	var/obj/item/I = find_carried_tool(part_type)
+	if(I)
+		return I
+	I = set_down_part(part_type)
+	return (I && owner.Adjacent(I)) ? I : null
 
 /// One particular loose thing, picked up from a given tile beside it
 /datum/bot_goal/take_item/exact/from_spot
@@ -1053,8 +1081,8 @@ GLOBAL_DATUM(bot_toxins, /datum/bot_toxins)
 	lab = L
 
 /datum/bot_step/paced/assemble_valve/do_click(datum/bot_brain/bot)
-	var/obj/item/transfer_valve/V = lab.valve || bot.find_carried_tool(/obj/item/transfer_valve)
-	if(!V)
+	var/obj/item/transfer_valve/V = lab.valve || bot.bomb_part(/obj/item/transfer_valve)
+	if(!V || (!bot.is_carried(V) && !bot.owner.Adjacent(V)))
 		return FALSE
 	lab.valve = V
 	if(!V.tank_one)
@@ -1064,7 +1092,7 @@ GLOBAL_DATUM(bot_toxins, /datum/bot_toxins)
 		bot.use_item_on(lab.cold_tank, V)
 		return TRUE
 	if(!V.attached_device)
-		bot.fit_trigger(V, bot.find_carried_tool(bot.bomb_trigger_type()))
+		bot.fit_trigger(V, bot.bomb_part(bot.bomb_trigger_type()))
 		return TRUE
 	return FALSE
 
