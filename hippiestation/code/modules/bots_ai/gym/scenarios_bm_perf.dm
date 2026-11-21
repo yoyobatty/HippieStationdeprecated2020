@@ -399,3 +399,118 @@ GLOBAL_VAR_INIT(bot_gym_vanish_after, text2num(world.params["bot-gym-vanish"]))
 	Master.current_ticklimit = old_limit
 	log_line("plan_clear_way: [round(plan_ms, 0.1)] ms in one piece (with no tick limit), [length(plan)] moves; wall_to_cut_toward: [round(wall_ms, 0.1)] ms")
 	return BOT_GYM_PASS
+
+// The supply shuttle's cabin air over round trips (door_seals.dm update_seal()). Batch shifts had the cabin lose about 13% of its pressure a trip
+// (75, 66, 58, 51 kPa) and the testkit saw every cabin tile come to exactly 95.84 mol / 88.91 kPa on arrival at CentCom, as if four empty tiles
+// had joined the cabin's air. They had: the four shut door tiles of CentCom's dock (two poddoors, two external airlocks) each had only the
+// shuttle's door tile to share air with, took it, and the cabin spread into four tiles of vacuum. This logs the shuttle's tiles by type and
+// pressure at every stop, and fails when the cabin of any stop has less than 95 kPa. Runs alone on the station's own shuttle (station_wide).
+/datum/bot_scenario/shuttle_air_trips
+	name = "perf: the supply shuttle's cabin keeps its air over three round trips"
+	desc = "The station's own supply shuttle, called to the station and sent back three times. At every stop the shuttle's open tiles (its cabin floor and the tiles under its doors, not the airless plating by its engines) are counted by type and pressure in the log, and they must all be above 95 kPa."
+	time_limit = 500 SECONDS
+	station_wide = TRUE
+	layout = list(
+		"#####",
+		"#B..#",
+		"#####")
+	var/stage = 0
+	var/setup_problem
+	var/next_poll = 0
+	var/last_dock
+	var/lowest = 1e9
+
+/datum/bot_scenario/shuttle_air_trips/make_goal()
+	return null
+
+/// The shuttle's open tiles that aren't the airless plating by its engines, with the pressure of each
+/datum/bot_scenario/shuttle_air_trips/proc/cabin_pressures(label)
+	var/obj/docking_port/mobile/supply/S = SSshuttle.supply
+	var/list/groups = list()
+	var/list/pressures = list()
+	for(var/turf/T as anything in S.return_turfs())
+		if(!isopenturf(T) || !S.shuttle_areas[T.loc] || T.type == /turf/open/floor/plating/airless)
+			continue
+		var/turf/open/open_T = T
+		if(!open_T.air)
+			continue
+		var/pressure = round(open_T.air.return_pressure(), 0.1)
+		pressures += pressure
+		var/key = "[T.type]"
+		var/list/entry = groups[key]
+		if(!entry)
+			entry = list(0, 1e9, -1e9)
+			groups[key] = entry
+		entry[1]++
+		entry[2] = min(entry[2], pressure)
+		entry[3] = max(entry[3], pressure)
+	var/list/lines = list()
+	for(var/key in groups)
+		var/list/e = groups[key]
+		lines += "[key] x[e[1]] [e[2]]..[e[3]] kPa"
+	log_line("[label]: shuttle at [S.getDockedId() || "nowhere"], [length(pressures)] open tiles: [jointext(lines, " | ")]")
+	return pressures
+
+/// What each door of the shuttle shares its air with, and what's round the tile on the far side of it: for a failing stop
+/datum/bot_scenario/shuttle_air_trips/proc/diagnose()
+	var/obj/docking_port/mobile/supply/S = SSshuttle.supply
+	for(var/turf/T as anything in S.return_turfs())
+		if(!isopenturf(T) || !S.shuttle_areas[T.loc])
+			continue
+		for(var/obj/machinery/door/D in T)
+			var/turf/open/TO = T
+			var/list/sides = list()
+			for(var/dir in GLOB.cardinals)
+				var/turf/N = get_step(T, dir)
+				var/turf/open/NO = N
+				var/list/objs = list()
+				for(var/obj/O in N)
+					if(O.density)
+						objs += "[O.type]"
+				sides += "[dir2text(dir)]: [N.type] [N.loc.type] seal [N.seal_dir] shut [N.seal_shut()] kPa [isopenturf(N) ? round(NO.air?.return_pressure(), 0.1) : "-"] side open [T.seal_side_open(dir)] dense ([jointext(objs, ",")])"
+			log_line("   door [D.type] at [bot_coord(T)] [T.type] kPa [isopenturf(T) ? round(TO.air?.return_pressure(), 0.1) : "-"] seal [T.seal_dir]: [jointext(sides, " | ")]")
+			for(var/dir in GLOB.cardinals)
+				var/turf/open/far = get_step(T, dir)
+				if(!istype(far) || S.shuttle_areas[far.loc] || !far.seal_shut())
+					continue
+				var/list/far_sides = list()
+				for(var/far_dir in GLOB.cardinals)
+					var/turf/F = get_step(far, far_dir)
+					var/turf/open/FO = F
+					far_sides += "[dir2text(far_dir)]: [F.type] [F.loc.type] seal [F.seal_dir] shut [F.seal_shut()] kPa [isopenturf(F) ? round(FO.air?.return_pressure(), 0.1) : "-"] open [far.seal_side_open(far_dir)]"
+				log_line("   its dock door tile at [bot_coord(far)] [far.type] kPa [round(far.air?.return_pressure(), 0.1)] seal [far.seal_dir]: [jointext(far_sides, " | ")]")
+
+/datum/bot_scenario/shuttle_air_trips/setup()
+	if(!SSshuttle.supply)
+		setup_problem = "setup: no supply shuttle"
+
+/datum/bot_scenario/shuttle_air_trips/check()
+	if(setup_problem)
+		fail_reason = setup_problem
+		return BOT_GYM_FAIL
+	var/obj/docking_port/mobile/supply/S = SSshuttle.supply
+	if(world.time < next_poll)
+		return BOT_GYM_PENDING
+	next_poll = world.time + 1 SECONDS
+	if(S.mode != SHUTTLE_IDLE)
+		return BOT_GYM_PENDING
+	var/dock = S.getDockedId()
+	if(stage && dock == last_dock)
+		return BOT_GYM_PENDING
+	last_dock = dock
+	if(world.time < start_time + 6 SECONDS && !stage)
+		return BOT_GYM_PENDING //a few seconds at the dock first: what the air does there with the shuttle sitting is part of what's judged
+	var/list/pressures = cabin_pressures(stage ? "arrived at [dock] (stop [stage])" : "before the first trip")
+	for(var/pressure in pressures)
+		lowest = min(lowest, pressure)
+	if(lowest < 95)
+		diagnose()
+		fail_reason = "a tile of the shuttle's cabin was down to [lowest] kPa at the stop at [dock] ([stage ? "stop [stage]" : "before the first trip"])"
+		return BOT_GYM_FAIL
+	if(stage >= 6)
+		return BOT_GYM_PASS
+	stage++
+	if(SSshuttle.moveShuttle("supply", dock == "supply_away" ? "supply_home" : "supply_away", TRUE))
+		fail_reason = "the shuttle wouldn't take the call from [dock]"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
