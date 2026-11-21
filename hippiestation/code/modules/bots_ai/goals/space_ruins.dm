@@ -23,6 +23,9 @@
 	/// the moment the suit-up finished, and done again, a dozen times over.
 	var/back_from_space = FALSE
 	var/next_eva_access_ask = 0
+	/// How much longer than the ten minutes it waits before its first trip out (try_space_ruin()), rolled when it first asks: with none, every
+	/// explorer on the station asked the HoP for EVA access on the same second (jobs_s1: five cards on the ground at once, eight with Cargo's)
+	var/space_settle_extra
 
 /// The direction of the edge of level `from_z` to cross first on the way to level `to_z`, over as many levels as it takes, or 0 if there's
 /// no way there. Space levels are a grid of neighbours (space_transition.dm); a ruin two levels over is two crossings.
@@ -138,8 +141,11 @@
 /// Out to explore and not a miner (goals/exploring.dm): access, the suit, then off.
 /datum/bot_brain/proc/try_space_ruin()
 	// Not straight off the shuttle: four bots set off for EVA in the first three minutes of a played round, a doctor and the cook among them.
-	if(!gym_run && world.time < SSticker.round_start_time + BOT_SPACE_SETTLE_IN)
-		return FALSE
+	if(!gym_run)
+		if(isnull(space_settle_extra))
+			space_settle_extra = rand(0, 8 MINUTES)
+		if(world.time < SSticker.round_start_time + BOT_SPACE_SETTLE_IN + space_settle_extra)
+			return FALSE
 	var/obj/effect/landmark/ruin/R = space_ruin_to_explore()
 	if(!R)
 		explore_blocked_until = world.time + 10 MINUTES

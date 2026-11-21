@@ -21,6 +21,8 @@
 	var/count = 0
 	var/total = 0
 	var/lowest
+	var/airless = 0
+	var/good = 0
 	var/doors_open = 0
 	var/doors = 0
 	for(var/area/A as anything in S.shuttle_areas)
@@ -33,6 +35,10 @@
 			count++
 			if(isnull(lowest) || kpa < lowest)
 				lowest = kpa
+			if(kpa < 20)
+				airless++
+			else if(kpa >= 90)
+				good++
 		for(var/obj/machinery/door/D in A)
 			doors++
 			if(!D.density)
@@ -59,7 +65,7 @@
 			dock_open++
 	var/bay_mean = bay_count ? bay_total / bay_count : 0
 	var/bay_band = bay_mean >= 80 ? "good" : (bay_mean >= 20 ? "thin" : "none")
-	return list("[docked], shuttle [round(mean)] kPa mean and [round(lowest || 0)] lowest over [count] floor tiles, [doors_open] of [doors] doors open; bay [round(bay_mean)] kPa; [dock_open] of [dock_total] dock and shuttle airlocks open", "[docked] [band] [doors_open] [bay_band] [dock_open]")
+	return list("[docked], shuttle [round(mean)] kPa mean, [airless] of [count] floor tiles under 20 kPa and [good] over 90, [doors_open] of [doors] doors open; bay [round(bay_mean)] kPa; [dock_open] of [dock_total] dock and shuttle airlocks open", "[docked] [band] [airless] [doors_open] [bay_band] [dock_open]")
 
 /datum/bot_shift_check/supply_air/poll()
 	var/list/seen = look()
@@ -270,3 +276,27 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 		fail_reason = "explore weight [as_curator[BOT_PURSUIT_EXPLORE]] as a Curator, [as_lawyer[BOT_PURSUIT_EXPLORE]] as a Lawyer"
 		return BOT_GYM_FAIL
 	return BOT_GYM_PASS
+
+// ---------------------------------------------------------------------------------------------
+// A powergaming HoP (goals/powergame.dm try_power_access())
+// ---------------------------------------------------------------------------------------------
+
+/// jobs_s1: the Head of Personnel, a powergamer, left its own ID card at the HoP's door "for robotics access", and stood there for it.
+/datum/bot_scenario/powergame_access/hop_itself
+	name = "powergame: the HoP who wants more access doesn't leave its own card at its own door"
+	desc = "The same powergamer card that opens next to nothing, and the bot is the Head of Personnel: there's nobody else to ask, and it can't give itself access from the other side of its own desk. It doesn't put its card on the floor and wait for itself."
+	job = "Head of Personnel"
+	time_limit = 14 SECONDS
+
+/datum/bot_scenario/powergame_access/hop_itself/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	for(var/obj/item/card/id/C in range(1, bot))
+		if(isturf(C.loc))
+			fail_reason = "left its own card on the floor for the HoP (itself)"
+			return BOT_GYM_FAIL
+	for(var/line in transcript)
+		if(findtext(line, "access") && findtext(line, "for the HoP"))
+			fail_reason = "asked the HoP (itself) for access: [line]"
+			return BOT_GYM_FAIL
+	return world.time > start_time + 10 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
