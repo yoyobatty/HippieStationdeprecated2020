@@ -111,3 +111,51 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 		fail_reason = "started on [brain.current_goal ? brain.current_goal.type : "a cigarette"] with the station in trouble"
 		return BOT_GYM_FAIL
 	return world.time > start_time + 25 SECONDS ? BOT_GYM_PASS : BOT_GYM_PENDING
+
+// ---------------------------------------------------------------------------------------------
+// Cargo, a crate in a vacuum and no suit to be had (goals/cargo.dm try_suit_up_for_crates())
+// ---------------------------------------------------------------------------------------------
+
+/// Batch play1114b, Hippie Station: in 4 shifts of 6 the third supply shuttle arrived airless, EVA's storage was behind doors a cargo
+/// technician's card doesn't open ("there's none I can get to"), Engineering was asked five and seven times, and the silver for Science
+/// sat aboard to the end of the shift. A player with no way into EVA asks the HoP for it.
+/datum/bot_scenario/fixes1112/crate_air/vacuum_no_suit
+	name = "cargo: a crate in a vacuum and no space suit to be had, it asks the HoP for EVA access"
+	desc = "The room past the airlock is a vacuum, there's no suit storage unit its card opens, and the HoP's stood at the near end. The cargo technician, who can't go in without a suit, leaves its card at the HoP's door for EVA access, as an explorer does, instead of just leaving the crate and calling Engineering."
+	time_limit = 40 SECONDS
+	layout = list(
+		"###############",
+		"#Q.........####",
+		"#H.........enk#",
+		"#..B.......#nn#",
+		"###############")
+	room_air = "TEMP=2.7"
+	var/mob/living/carbon/human/hop
+
+/datum/bot_scenario/fixes1112/crate_air/vacuum_no_suit/setup()
+	..()
+	hop = second_bot(first_marker("H"), "Hollis Head")
+	hop.mind.assigned_role = "Head of Personnel"
+
+/// The cargo round's own first move for a crate in a vacuum, asked while it's idle
+/datum/bot_scenario/fixes1112/crate_air/vacuum_no_suit/before_unload()
+	if(!hascall(brain, "try_suit_up_for_crates"))
+		return FALSE
+	if(call(brain, "try_suit_up_for_crates")(list(crate)))
+		log_line("cargo: off to see about a suit for the crate")
+		return TRUE
+	return FALSE
+
+/datum/bot_scenario/fixes1112/crate_air/vacuum_no_suit/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(setup_problem)
+		fail_reason = setup_problem
+		return BOT_GYM_FAIL
+	if(bot_transcript_said("for EVA access to unload"))
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/fixes1112/crate_air/vacuum_no_suit/on_timeout()
+	fail_reason = "never asked for EVA access: left the crate in the vacuum"
+	return BOT_GYM_FAIL
