@@ -143,6 +143,9 @@
 /datum/bot_brain/proc/badly_hurt()
 	return owner.health <= owner.maxHealth * health_to_run_at()
 
+/// How far from a beast it keeps moving away while the accelerator recharges (until it is a tile further than this)
+#define BOT_FAUNA_KITE_RANGE 4
+
 /// Lavaland's wildlife, the way a miner takes it on: the accelerator, point blank if need be, a step back while it recharges, and back
 /// to the shuttle once it's going badly. Four explorers died in one shift each stood toe to toe with a watcher, one shot and then their
 /// fists, from full health to dead. Without a gun it's the ordinary fight (or the ordinary run for it).
@@ -156,7 +159,21 @@
 		return TRUE
 	var/obj/item/gun/energy/kinetic_accelerator/KA = find_carried_tool(/obj/item/gun/energy/kinetic_accelerator)
 	if(!KA)
+		// Nothing to fight a goliath with: it hits for 25 and holds whoever it grabs, and the live run had miners with no accelerator going at one
+		// with a flashlight. Away, for the outpost, the way a hurt one goes (run_from() takes it that way on Lavaland).
+		if(istype(beast, /mob/living/simple_animal/hostile/asteroid/goliath))
+			if(world.time >= next_run_for_it && !istype(current_goal, /datum/bot_goal/run_from))
+				next_run_for_it = world.time + 30 SECONDS
+				bot_say(owner, pick("No gun, no way.", "Not with this, I'm out.", "Back to the outpost!", ";A goliath and nothing to shoot it with, heading back."))
+				run_from(beast, "nothing to fight [beast] with")
+			return TRUE
 		return FALSE
+	// Between shots the accelerator recharges for a second and a half: it keeps moving, away from the beast, as a player does, instead of
+	// standing there for its tentacles (range seven) and its fists (a goliath's shot-down cooldown is a second a hit). The shot is from three
+	// tiles, and a step in again when it's ready.
+	if(!KA.can_shoot() && get_dist(owner, beast) <= BOT_FAUNA_KITE_RANGE && world.time >= next_fauna_step)
+		if(fauna_kite_step(beast, KA))
+			return TRUE
 	// Not let close: a goliath's tentacles hold whoever they come up under, and one that's next to them beats them while they're held - a
 	// miner shooting one point blank was beaten to death in twenty seconds. From three tiles off, held is all it is: they're slow. A step
 	// back keeps them there, and the shot comes between steps. (Running from them instead left a goliath stood in the only tunnel home,
@@ -168,12 +185,43 @@
 		step_back_from(beast)
 		if(get_turf(owner) != was)
 			return TRUE
+	// Ready to shoot, and too far for the shot to get there: the accelerator's bolt goes three tiles and stops, and the bot fired from five and
+	// seven tiles off at a goliath that wasn't scratched. A step in to three, when it comes to that.
+	if(KA.can_shoot() && get_dist(owner, beast) > 3 && world.time >= next_fauna_step)
+		next_fauna_step = world.time + 3
+		stop_pursuit()
+		var/turf/closing = get_turf(owner)
+		step_towards(owner, beast)
+		if(get_turf(owner) != closing)
+			return TRUE
 	if(try_shoot_at(beast))
 		return TRUE
 	return TRUE
 
 /datum/bot_brain
 	var/next_fauna_step = 0
+	/// Bumped for each kite so that an old one's follow-ups stop
+	var/fauna_kite_chain = 0
+
+/// One step away from the beast while the accelerator recharges, and the next a few deciseconds on for as long as it does: the brain ticks once a
+/// second, which is one step of the second and a half the recharge takes.
+/datum/bot_brain/proc/fauna_kite_step(mob/living/simple_animal/hostile/asteroid/beast, obj/item/gun/energy/kinetic_accelerator/KA, chain)
+	if(QDELETED(owner) || QDELETED(beast) || QDELETED(KA) || owner.incapacitated() || beast.stat != CONSCIOUS)
+		return FALSE
+	if(chain && chain != fauna_kite_chain)
+		return FALSE //another kite has taken over
+	if(KA.can_shoot() || get_dist(owner, beast) > BOT_FAUNA_KITE_RANGE)
+		return FALSE //ready to shoot again, or far enough off
+	next_fauna_step = world.time + 3
+	stop_pursuit()
+	var/turf/was_kiting = get_turf(owner)
+	step_back_from(beast)
+	if(get_turf(owner) == was_kiting)
+		return FALSE
+	if(!chain)
+		chain = ++fauna_kite_chain
+	addtimer(CALLBACK(src, PROC_REF(fauna_kite_step), beast, KA, chain), 3)
+	return TRUE
 
 /// Somebody out of reach and still a threat: shot if it has a gun, or sometimes pelted with what's in its hand.
 /datum/bot_brain/proc/try_attack_from_range(mob/living/target)
@@ -557,3 +605,4 @@ GLOBAL_LIST_EMPTY(bot_bomber_warned)
 	return assign_goal(new /datum/bot_goal/run_from(foe))
 
 #undef BOT_FIGHT_DANGEROUS_FORCE
+#undef BOT_FAUNA_KITE_RANGE
