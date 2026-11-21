@@ -477,7 +477,7 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 
 /// What it would part with to push off: rubbish, paper and food first, then anything small, tools last. Never its ID or PDA, the tank it
 /// breathes from, a jetpack, a gun, a bag, or what its goal is about.
-/datum/bot_brain/proc/throwaway_item()
+/datum/bot_brain/proc/throwaway_item(max_rank = 5, careful = FALSE)
 	var/list/carried = list()
 	for(var/obj/item/I in owner.held_items)
 		carried += I
@@ -497,7 +497,55 @@ GLOBAL_VAR_INIT(bot_hazards_refresh_at, 0)
 			rank = 2
 		else if(!is_tool_or_toolbox(I))
 			rank = 3
-		if(rank < best_rank)
+		if(careful && (I.force >= 5 || istype(I, /obj/item/restraints) || istype(I, /obj/item/melee) || istype(I, /obj/item/assembly/flash) || istype(I, /obj/item/modular_computer)))
+			continue //what it fights and arrests with isn't what it parts with to push off a wall
+		if(rank < best_rank && rank <= max_rank)
 			best = I
 			best_rank = rank
 	return best
+
+// ---------------------------------------------------------------------------------------------
+// Floating in a room with no gravity
+// ---------------------------------------------------------------------------------------------
+// The gravity generator went offline in seven of twenty-four shifts of two batches, and a bot in a room with no gravity and nothing dense
+// beside it can't take a step (Process_Spacemove(), bot_step_towards()): it tried anyway, "stuck heading to the floor, rerouting" five
+// hundred times, gave the errand up and took the next, for eighteen minutes at a stretch. In those seven shifts the crew spent 30,000
+// seconds on an errand with a route and not a step to it (tools/bot_gym/stuck_walks.py); in the other seventeen, a thousand.
+// A player floats too, and does what comes to hand: throws something the other way, to push off towards where they're going, and says so
+// on the radio if there's nothing to throw. Strolling, there's nothing worth throwing things about for: it stays where it is.
+
+/datum/bot_brain
+	/// Until when it counts itself floating with nothing to push off: the walk waits (do_step_next_node()), it isn't stuck.
+	var/floating_until = 0
+	var/next_float_call = 0
+
+/// A step that can't be taken for want of anything to push off from (bot_step_towards()). Pushes off towards `toward` with something
+/// it can spare, if the walk's for something; drifts on its own once it has.
+/datum/bot_brain/proc/float_without_a_hold(turf/toward)
+	floating_until = world.time + 3 SECONDS
+	if(owner.inertia_dir || world.time < next_drift_throw || owner.incapacitated())
+		return //drifting already, or it pushed off a moment ago
+	if(pursuing_kind == "wander" || pursuing_kind == "item" || pursuing_kind == "locker")
+		stop_pursuit()
+		next_wander_time = max(next_wander_time, world.time + rand(15, 40) SECONDS)
+		return //a stroll isn't worth the trouble
+	var/turf/here = get_turf(owner)
+	if(!here || !toward)
+		return
+	next_drift_throw = world.time + 3 SECONDS
+	var/obj/item/I = throwaway_item(3, TRUE) //not a tool, nor what it fights or arrests with: it'd want that again
+	if(!I)
+		if(world.time >= next_float_call)
+			next_float_call = world.time + 3 MINUTES
+			bot_log(src, "floating with nothing to push off and nothing to throw - calling for help")
+			bot_say(owner, ";[pick("No gravity and I'm floating in the middle of [get_area_name(owner, TRUE)] with nothing to push off.", "Anybody got magboots? I'm stuck floating in [get_area_name(owner, TRUE)], no gravity.")]")
+		return
+	if(!ready_in_hand(I))
+		return
+	var/toward_dir = get_dir(here, toward)
+	var/turf/away = get_ranged_target_turf(owner, turn(toward_dir, 180), 5)
+	bot_log(src, "floating with nothing to push off - throwing [I] the other way, towards [bot_coord(toward)]")
+	bot_tally("pushed off in zero-g")
+	owner.face_atom(away)
+	owner.throw_item(away)
+	owner.setDir(toward_dir)

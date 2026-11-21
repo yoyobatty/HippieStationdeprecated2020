@@ -39,6 +39,8 @@ GLOBAL_VAR_INIT(bot_telemetry_samples, !(BOT_GYM_PARAMETER in world.params) || (
 	/// Last time the bot moved, acted or produced an event.
 	var/telemetry_last_activity = 0
 	var/telemetry_idle_since = 0
+	/// The last sample it was down, asleep or dead on: a stretch of lying in crit isn't one of standing frozen (idle_scan.py counted 300 s ones).
+	var/telemetry_down_at = 0
 	/// Believability counters, summarised by the Bot Gym. Keys: see telemetry_flag().
 	var/list/telemetry_flags
 	var/telemetry_last_pickup_time = -100
@@ -190,16 +192,21 @@ GLOBAL_VAR_INIT(bot_telemetry_samples, !(BOT_GYM_PARAMETER in world.params) || (
 	if(GLOB.bot_telemetry_samples)
 		telemetry_write_sample(T, moved, incapacitated)
 	// Idle tracking: report a stretch once it ends, with what the bot was supposedly doing.
-	var/idle_for = world.time - telemetry_last_activity
+	if(owner.stat != CONSCIOUS || incapacitated)
+		telemetry_down_at = world.time
+	var/idle_for = world.time - max(telemetry_last_activity, telemetry_down_at)
 	if(idle_for >= BOT_TELEMETRY_IDLE_THRESHOLD && owner.stat == CONSCIOUS && !incapacitated)
 		if(!telemetry_idle_since)
-			telemetry_idle_since = telemetry_last_activity
+			telemetry_idle_since = max(telemetry_last_activity, telemetry_down_at)
 	else if(telemetry_idle_since)
 		var/duration = world.time - telemetry_idle_since
 		telemetry_idle_since = 0
 		telemetry_flag("idle_3s")
+		// "sit" and "why" say whether it was sat down (a break, a hangout) or waiting on something on purpose, which a watcher
+		// doesn't take for a freeze, against standing with nothing at all (tools/bot_gym/idle_scan.py).
 		telemetry_write(list("k" = "e", "ev" = "idle", "dur" = duration, "x" = T?.x, "y" = T?.y, "z" = T?.z,
-			"g" = bot_telemetry_short(current_goal?.type), "st" = state, "pk" = pursuing_kind))
+			"g" = bot_telemetry_short(current_goal?.type), "st" = state, "pk" = pursuing_kind, "sit" = owner.buckled ? 1 : 0,
+			"why" = holding_duty ? bot_telemetry_short(holding_duty.type) : (world.time < stand_still_until ? "asked" : (world.time < hangout_until ? "hangout" : null))))
 
 /// The twice-a-second "where and what" line. "u" is the urgency the brain last worked out (get_urgency() would work out the air
 /// again whenever the brain hadn't this tick).

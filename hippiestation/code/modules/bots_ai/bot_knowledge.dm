@@ -400,6 +400,116 @@ GLOBAL_LIST_INIT(bot_where_to_get_words, list("anyone seen", "anybody seen", "ha
 	say_after_typing(bot_radio_prefix(radio_freq) + answer)
 	return TRUE
 
+// ---------------------------------------------------------------------------------------------
+// Who's hurt and who's dead
+// ---------------------------------------------------------------------------------------------
+// A doctor's rounds went after any hurt or dead crew member on the level (treat_patient, revive_patient, escort_to_sleeper, stabilise,
+// operate and clone_body each scanned GLOB.alive_mob_list or GLOB.dead_mob_list), so somebody who died shut in a closet in maintenance,
+// found by nobody, had a doctor on its way inside the minute. A person learns of them four ways: they're in Medbay (they're stood there),
+// they've seen them, somebody's said so on the radio (a call for a medic, a body reported, the AI reading the crew monitor), or the crew
+// monitor shows them: uniform sensors on tracking, read at a console in the room the doctor's in. The user's ruling (2026-11-03): "crew
+// monitor, go get them". Bot Gym arenas know everyone in them, as ever, unless a scenario sets strict_casualties.
+
+/// How long a doctor remembers somebody it saw walking about hurt. Those down or dead stay where they lie: it keeps them in mind till they're up.
+#define BOT_CASUALTY_MEMORY (3 MINUTES)
+/// Seen casualties a doctor keeps track of at most (oldest go first)
+#define BOT_CASUALTIES_MAX 60
+
+/datum/bot_scenario
+	/// A doctor in this run knows of the hurt and the dead only by what it has seen, been told or read off a crew monitor
+	/// (knows_of_casualty()), and the arena is nobody's Medbay.
+	var/strict_casualties = FALSE
+	/// Its bots take a person's moment to take in what they've seen before they do anything about it (react_to_sight(), bot_witness.dm), as
+	/// in a real round: a Bot Gym's don't, for every scenario that was written round the reaction being at once.
+	var/slow_reactions = FALSE
+
+/datum/bot_brain
+	/// weakref of somebody it saw hurt, down or dead -> when
+	var/list/casualties_seen
+	var/next_monitor_look = 0
+	var/monitor_to_hand = FALSE
+
+/// Whether this bot knows H is hurt, down or dead, the way a person would.
+/datum/bot_brain/proc/knows_of_casualty(mob/living/carbon/human/H)
+	if(GLOB.bot_knowledge_off || QDELETED(H) || H == owner)
+		return TRUE
+	if(gym_run && !gym_run.strict_casualties)
+		return TRUE
+	if(!gym_run && bot_in_medbay(H)) //goals/security_medevac.dm
+		return TRUE
+	var/datum/weakref/ref = WEAKREF(H)
+	if(world.time < called_patient_until && called_patient?.resolve() == H) //a call it answered (bot_requests.dm)
+		return TRUE
+	if(world.time < clone_wanted_until && clone_wanted?.resolve() == H) //somebody asked it to clone them (bot_asks.dm)
+		return TRUE
+	if((ref in GLOB.bot_bodies_reported) || (ref in bodies_seen)) //said on the radio (bot_playstyles.dm), or it came across them
+		return TRUE
+	var/seen_at = LAZYACCESS(casualties_seen, ref)
+	if(seen_at && (H.stat != CONSCIOUS || world.time < seen_at + BOT_CASUALTY_MEMORY))
+		return TRUE
+	if(get_dist(owner, H) <= BOT_SIGHT_RANGE && (H in view(BOT_SIGHT_RANGE, owner)))
+		note_casualty(H)
+		return TRUE
+	var/obj/item/clothing/under/U = H.w_uniform
+	return istype(U) && U.has_sensor > NO_SENSORS && U.sensor_mode >= SENSOR_COORDS && crew_monitor_to_hand()
+
+/// It saw somebody hurt, down or dead.
+/datum/bot_brain/proc/note_casualty(mob/living/carbon/human/H)
+	if(H.stat == CONSCIOUS && H.health >= H.maxHealth * 0.9)
+		return
+	LAZYINITLIST(casualties_seen)
+	var/datum/weakref/ref = WEAKREF(H)
+	casualties_seen -= ref // to the end: the oldest go first
+	casualties_seen[ref] = world.time
+	if(length(casualties_seen) > BOT_CASUALTIES_MAX)
+		casualties_seen.Cut(1, length(casualties_seen) - BOT_CASUALTIES_MAX + 1)
+
+/// A powered crew monitor in front of it: in the room it's stood in, or Medbay's (the one in Medbay, or in the CMO's office, a few steps
+/// from wherever in Medbay it's working) when it's in Medbay. Looked for every few seconds.
+/datum/bot_brain/proc/crew_monitor_to_hand()
+	if(world.time < next_monitor_look)
+		return monitor_to_hand
+	next_monitor_look = world.time + 5 SECONDS
+	monitor_to_hand = FALSE
+	var/area/here = get_area(owner)
+	var/in_medbay = !gym_run && (istype(here, /area/medical) || istype(here, /area/crew_quarters/heads/cmo))
+	for(var/obj/machinery/computer/crew/C as anything in bot_instances_of(/obj/machinery/computer/crew))
+		if(QDELETED(C) || C.z != owner.z || (C.stat & (BROKEN | NOPOWER)))
+			continue
+		var/area/there = get_area(C)
+		if(there == here || (in_medbay && (istype(there, /area/medical) || istype(there, /area/crew_quarters/heads/cmo))))
+			monitor_to_hand = TRUE
+			break
+	return monitor_to_hand
+
+
+// ---------------------------------------------------------------------------------------------
+// Suit sensors
+// ---------------------------------------------------------------------------------------------
+// The crew monitor only shows who's wearing a uniform with its sensors on tracking, and a jumpsuit comes with them at any of off, living,
+// vitals or coordinates (clothing/under/_under.dm picks): about one in four on coordinates. Players set theirs to the full, once, early on,
+// most of all Medical and Security, who ask everybody else to (the usual PSA), and it's what a doctor goes by for somebody it hasn't seen.
+
+/datum/bot_brain
+	var/sensors_settled = FALSE
+
+/// Once, early in the shift, as a player does: most of the crew set their suit sensors to tracking, Medical and Security nearly all.
+/datum/bot_brain/proc/settle_sensors()
+	if(sensors_settled)
+		return
+	var/obj/item/clothing/under/U = owner.w_uniform
+	if(!istype(U))
+		return //not dressed yet
+	sensors_settled = TRUE
+	if(U.has_sensor != HAS_SENSORS) //none, or locked (a prisoner's)
+		return
+	var/chance = (is_medical_job() || is_security_job() || (work_role() in GLOB.command_positions)) ? 85 : 55
+	if(prob(chance))
+		U.sensor_mode = SENSOR_COORDS
+		bot_log_verbose(src, "set my suit sensors to tracking")
+
+#undef BOT_CASUALTY_MEMORY
+#undef BOT_CASUALTIES_MAX
 #undef BOT_ASK_WHERE_REST
 #undef BOT_ASK_WHERE_QUIET
 #undef BOT_SOLD_OUT_MEMORY

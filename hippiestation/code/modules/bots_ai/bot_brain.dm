@@ -1363,10 +1363,11 @@ GLOBAL_LIST_EMPTY(bot_keyword_areas)
 	if(owner.buckled)
 		owner.buckled.unbuckle_mob(owner, force = TRUE)
 	hangout_until = 0
+	// A moment to take the blow in, and the call typed out: it was on the radio, and shouting, the tick the blow landed (bot_witness.dm react_to_sight())
 	if(ishuman(user))
-		bot_call_security(user, what_done, object) //goals/security_patrol.dm - a victim radios it in, it doesn't just fight back
+		react_to_sight(CALLBACK(src, TYPE_PROC_REF(/datum/bot_brain, bot_call_security), user, what_done, object), round(bot_typing_time(";Security! [user.name] is attacking me in [get_area_name(owner, TRUE)]!") * 0.6)) //goals/security_patrol.dm - a victim radios it in, it doesn't just fight back
 	if(prob(60))
-		bot_say(owner, pick(GLOB.bot_combat_lines))
+		react_to_sight(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(bot_say), owner, pick(GLOB.bot_combat_lines)))
 
 /// Whether they're on its side, by the sides the game keeps: a team of antagonists (the operatives, the cult, the revolution, blood
 /// brothers). Five operatives were killing each other: one saw another sword a crewman and stepped in for the crewman, the way the

@@ -165,7 +165,10 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 /// Captain picked it up off the floor (round-13.09.35). Whatever wanted the hand goes without, unless a job needs it (`wanted`): then it's
 /// down for a moment and back for after (go_back_for_set_down()), as before.
 /proc/bot_keeps_in_hand(obj/item/I)
-	return istype(I, /obj/item/gun) || istype(I, /obj/item/melee) || is_type_in_typecache(I, GLOB.bot_contraband)
+	// Handcuffs too: an officer with a pair in one hand and something else in the other set them on the floor for each pickup it passed
+	// (24 times by five officers in a 40-minute shift), "went out of handcuffs" and walked back for them, and now and then was caught with
+	// nothing to cuff somebody with mid-arrest.
+	return istype(I, /obj/item/gun) || istype(I, /obj/item/melee) || istype(I, /obj/item/restraints/handcuffs) || is_type_in_typecache(I, GLOB.bot_contraband)
 
 /// Down for a moment, to be picked back up (go_back_for_set_down()): a scientist set the RPED down three times for something else and
 /// walked off from it each time.

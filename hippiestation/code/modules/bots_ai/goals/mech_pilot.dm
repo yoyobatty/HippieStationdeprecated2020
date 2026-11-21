@@ -34,6 +34,13 @@
 		return TRUE
 	M.setDir(d) //facing it first, so the press is a step and not a turn (a turn costs a step's wait of its own)
 	. = M.relaymove(owner, d)
+	// A flat cell: a pilot gets out and goes on foot, or leaves it. It sat in a Ripley with 10 charge and pressed the pedal for 13 minutes,
+	// "wouldn't step: no charge" every five seconds of them (gen1116f run9).
+	if(!. && M.can_move < world.time && !M.state && !M.has_charge(M.step_energy_drain))
+		bot_log(src, "MECH: [M] has no charge left ([M.get_charge()]) - climbing out")
+		bot_tally("climbed out of a flat mech")
+		climb_out_of_mech()
+		return FALSE
 	if(!. && world.time >= next_mech_step_note)
 		next_mech_step_note = world.time + 5 SECONDS
 		bot_log(src, "MECH: [M] wouldn't step to [bot_coord(next_node)]: [M.can_move >= world.time ? "still moving" : (!M.has_charge(M.step_energy_drain) ? "no charge ([M.get_charge()])" : (M.state ? "maintenance" : "blocked: [next_node.density ? "wall" : "something on it"]"))]")

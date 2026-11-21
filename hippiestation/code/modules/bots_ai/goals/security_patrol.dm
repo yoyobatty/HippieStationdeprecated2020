@@ -37,6 +37,9 @@
 // whoever's in charge decides what's to be done.
 
 #define BOT_SEC_VIEW_RANGE 7
+/// How many officers answer a call for help, and one that says somebody's attacking, shooting or killing
+#define BOT_CALL_RESPONDERS 2
+#define BOT_CALL_RESPONDERS_DANGER 3
 // How long a suspect can stay out of sight before the chase is called off.
 #define BOT_ARREST_LOST_TIMEOUT 300
 // Hard cap on one arrest attempt, however it's going.
@@ -101,6 +104,8 @@ GLOBAL_LIST_INIT(bot_violent_combat_verbs, list(
 	var/arrest_last_dist = 0
 	var/turf/arrest_path_turf //where the current arrest pursuit was pathed to - repath only once the suspect has actually moved off it
 	var/arrest_busy = FALSE //an INVOKE_ASYNC'd cuffing attempt (do_mob(), 3s) is in flight
+	/// Why the last begin_arrest()/start_brig_escort() turned somebody down, for whoever wants to say (bot_law.dm take_lifer_on())
+	var/arrest_refusal_note
 	var/arrest_path_failures = 0 //see on_arrest_pursuit_failed()
 	var/next_taser_time = 0
 	var/next_security_check_time = 0
@@ -534,9 +539,12 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	return FALSE
 
 /datum/bot_brain/proc/begin_arrest(mob/living/carbon/human/H)
+	arrest_refusal_note = null
 	if(!istype(H) || QDELETED(H) || H == owner || H.stat == DEAD)
+		arrest_refusal_note = "nobody there to arrest"
 		return FALSE
 	if(brigged_by_another(H))
+		arrest_refusal_note = "another officer has them, or they're serving a sentence"
 		return FALSE
 	var/datum/bot_wanted/W = bot_get_wanted_entry(H)
 	var/crime
@@ -549,6 +557,7 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 		crime = rec[1]
 		severity = rec[2]
 	if(severity < BOT_CRIME_MAJOR && bot_is_the_captain(H)) // even on the records (a player officer's): bot_law.dm
+		arrest_refusal_note = "the Captain, and it's a minor charge"
 		return FALSE
 	// A nanosuit loose: that's Security's business till it's dealt with, not a broken window. Two officers came for the user lying in crit
 	// for Vandalism, a nanosuit in the room (the user's playtest, 2026-11-13).
@@ -556,6 +565,7 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 		if(world.time >= next_keep_clear_note)
 			next_keep_clear_note = world.time + 1 MINUTES
 			bot_log(src, "a nanosuit's loose - [lowertext(crime)] by [H] can wait")
+		arrest_refusal_note = "a nanosuit's loose and this can wait"
 		return FALSE
 
 	if(state == BOT_STATE_ARREST)
@@ -574,21 +584,26 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 
 	// Never drop a prisoner mid-escort to go chase someone new.
 	if(state == BOT_STATE_GOAL && istype(current_goal, /datum/bot_goal/brig_prisoner))
+		arrest_refusal_note = "already taking somebody to a cell"
 		return FALSE
 	// Nor red alert, the armory or arming up, for somebody walking past: the Warden off for the ion rifle took a cuffed prisoner to the
 	// brig instead, and never went back for it.
 	if(state == BOT_STATE_GOAL && current_goal?.holds_for_calls)
+		arrest_refusal_note = "[current_goal.type] can't be left"
 		return FALSE
 	if(world.time < fallen_back_until && bot_too_dangerous(H)) //goals/security_tactics.dm
+		arrest_refusal_note = "fell back from them a moment ago"
 		return FALSE
 	// Given up on for taking too long: not straight back on to them. An officer waiting on two more for a traitor in a nanosuit
 	// started the same arrest over the moment it timed out, seven times running (27 minutes in the Brig, "Couldn't bring in" on
 	// the radio every time, 79 pacing flags, shift batch ask1 run8). Somebody coming at it is a fight, not this.
 	if(LAZYACCESS(arrest_rests, WEAKREF(H)) > world.time)
+		arrest_refusal_note = "gave up on them a short while ago"
 		return FALSE
 	// Nothing to arrest them with. An officer who'd used up its cuffs started and ended the same arrest thousands of times,
 	// stood next to the suspect for five minutes. It can fight (on_attacked()) or go and get some (try_security_round()).
 	if(!H.handcuffed && !find_restraints())
+		arrest_refusal_note = "no handcuffs on me"
 		return FALSE
 
 	abandon_goals_for_arrest()
@@ -849,6 +864,10 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 		arrest_path_turf = goal_turf
 		pursue(pursuit_goal, "arrest", force = TRUE)
 
+/// Why begin_arrest() last said no, for a log line
+/datum/bot_brain/proc/arrest_refusal(mob/living/carbon/human/H)
+	return arrest_refusal_note || "no reason given (pressing need or busy)"
+
 /// Another officer stood beside `S`, on its feet and not badly hurt, arresting them too.
 /datum/bot_brain/proc/bot_colleague_arresting(mob/living/carbon/human/S)
 	for(var/mob/living/carbon/human/H in range(1, S))
@@ -956,6 +975,14 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 			if(W && W.severity >= BOT_CRIME_MAJOR)
 				continue //on the other side of this
 			return TRUE
+	// A colleague closing in on them, a step or two off: the next second they're beside them or in front of the muzzle. Officers shot each
+	// other on stun, and now and then on laser, one or two a shift (tools/bot_gym/stray_fire.py: 24 and 14 strays in 421 and 366 hits in two
+	// batches, half of them on a colleague), each one at a man somebody else was already going in on. Not at somebody dangerous (a suit, an
+	// operative, a gun), who is shot at with the whole team round them.
+	if(!bot_too_dangerous(target))
+		for(var/mob/living/carbon/human/H in range(2, target))
+			if(H != owner && H != target && H.stat != DEAD && get_dist(H, mine) > 1 && bot_is_officer(H))
+				return TRUE
 	return FALSE
 
 /datum/bot_brain/proc/try_taser(mob/living/carbon/human/S)
@@ -1226,7 +1253,13 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	var/turf/T = get_turf(L)
 	if(!T || T.z != owner.z)
 		return
-	if(!bot_line_calls_security(lowertext(raw_message), T))
+	var/lower_line = lowertext(raw_message)
+	if(!bot_line_calls_security(lower_line, T))
+		return
+	// Somebody's already going: a couple of officers answer a cry for help, three one that says there's trouble, and the rest carry on with
+	// what they're at. In the shift batches play1114b and gen1116f two calls in three took four or more officers off their posts at once,
+	// all five or six of them on a third of them.
+	if(bot_responders_to(L, src, !!radio_freq) >= (bot_text_has_any(lower_line, GLOB.bot_danger_words) ? BOT_CALL_RESPONDERS_DANGER : BOT_CALL_RESPONDERS))
 		return
 	next_security_call_time = world.time + 600
 	if(state == BOT_STATE_GOAL)
@@ -1236,6 +1269,22 @@ GLOBAL_DATUM(bot_death_listener, /datum/bot_death_listener)
 	G.caller_name = L.name
 	if(assign_goal(G))
 		bot_say(owner, radio_freq ? ":s Responding to a call from [L.name] in [get_area_name(T, TRUE)]." : "On my way.")
+
+/// Officers other than `me` who are on their way to this person's call just now. With nearer_too (a call on the radio, which every officer
+/// hears at once), those nearer to them who are free and would go as well: the nearest couple answer, not whoever's first on the list.
+/proc/bot_responders_to(mob/living/caller_mob, datum/bot_brain/me, nearer_too = FALSE)
+	. = 0
+	var/my_dist = get_dist(me.owner, caller_mob)
+	for(var/datum/bot_brain/B as anything in GLOB.bot_security_brains)
+		if(B == me || QDELETED(B.owner) || B.owner.stat != CONSCIOUS || B.owner.z != caller_mob.z)
+			continue
+		if(B.gym_run && get_area(B.owner) != get_area(caller_mob)) //Bot Gym: the arena's own
+			continue
+		var/datum/bot_goal/respond_to_call/G = B.current_goal
+		if(istype(G) && G.caller_name == caller_mob.name)
+			.++
+		else if(nearer_too && !B.goal_chain_pending && world.time >= B.next_security_call_time && get_dist(B.owner, caller_mob) < my_dist && B.can_drop_for_call())
+			.++
 
 /// "help" as a cry, wherever it is in the line (a line opening with "help" is one too: "Help! Security!", "help maint").
 GLOBAL_LIST_INIT(bot_help_cries, list("help me", "help us", "need help", "needs help", "someone help", "somebody help", "anyone help", "anybody help", "send help", "get help"))
@@ -1365,6 +1414,8 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 	for(var/obj/machinery/door_timer/T as anything in bot_instances_of(/obj/machinery/door_timer))
 		if(T.z != owner.z || T.timing || (T.stat & (NOPOWER|BROKEN)))
 			continue
+		if(gym_run && get_area(T) != get_area(owner)) //Bot Gym: the arena's own cells, not the one next door
+			continue
 		var/list/interior = bot_get_cell_interior(T)
 		if(!length(interior))
 			continue
@@ -1421,10 +1472,12 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 /datum/bot_brain/proc/start_brig_escort(mob/living/carbon/human/H)
 	var/cooldown = LAZYACCESS(failed_brig_targets, H)
 	if(cooldown && world.time < cooldown)
+		arrest_refusal_note = "tried to take them in a moment ago and it didn't work"
 		return FALSE
 	if(prisoner_in_lawful_hands(H)) //the Captain, a head or another officer walking them off (bot_law.dm)
 		bot_log(src, "leaving [H] to [H.pulledby], who has them")
 		LAZYSET(failed_brig_targets, H, world.time + 30 SECONDS)
+		arrest_refusal_note = "[H.pulledby] has them"
 		return FALSE
 	// With the shuttle on its way there's no sentence left to serve. Locking somebody up now only leaves them behind: an officer brigged a
 	// man as another stopped that cell's timer, the door was caught half shut, and he was still in there when the shuttle left.
@@ -1454,6 +1507,7 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 	// Three officers asked again every time they looked for a cuffed traitor lying in crit in Atmospherics as its air went, 117 times between
 	// them, each time first finding nowhere in Security to keep him for a doctor (bugs1112b run3).
 	if(refused_for_air(H) && !is_eva_ready())
+		arrest_refusal_note = "the air where they are is bad"
 		return FALSE
 	// Nobody's locked up dying. A cook cuffed at -4 health was dragged to a cell and left: he died there 3 minutes later. Down or pale
 	// from losing blood, they're taken to Medbay instead (security_medevac.dm), or failing a way there, Medical is called to them.
@@ -1480,10 +1534,14 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 		if(!bot_in_medbay(H))
 			bot_say(owner, ";Medical, [H.name] is in cuffs and needs a doctor, [get_area_name(H, TRUE)].")
 			LAZYSET(failed_brig_targets, H, world.time + 1 MINUTES)
+		arrest_refusal_note = "they need a doctor and there's no way to Medbay"
 		return FALSE
 	var/datum/bot_goal/brig_prisoner/G = new()
 	G.prisoner = H
-	return assign_goal(G)
+	if(assign_goal(G))
+		return TRUE
+	arrest_refusal_note = "no way to start taking them in (goal refused: [G.target ? "target [G.target]" : "no target found"])"
+	return FALSE
 
 /datum/bot_goal/brig_prisoner
 	exclusive = TRUE //two officers once took the same prisoner to two different cells
@@ -1495,6 +1553,8 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 	var/obj/structure/closet/secure_closet/brig/prison_locker
 	/// Processed into orange in the cell, then on to Medbay in their cuffs rather than left there (security_medevac.dm)
 	var/then_medbay = FALSE
+	/// No cell and none to be had for them: let off with a warning instead, for this (goals/security_custody.dm)
+	var/let_off_for
 
 /datum/bot_goal/brig_prisoner/resolve_target(datum/bot_brain/bot)
 	if(QDELETED(prisoner) || prisoner.stat == DEAD || !prisoner.handcuffed)
@@ -1510,16 +1570,29 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 			target = prisoner
 			return
 	var/obj/machinery/door_timer/T = bot.find_free_brig_cell(prisoner)
+	// A cell that's come free is for whoever's first in line, if somebody's still being seen to for it (goals/security_custody.dm)
+	var/mob/living/carbon/human/ahead = T ? bot_next_for_a_cell(T) : null
+	if(ahead && ahead != prisoner)
+		bot_log(bot, "[T.name] is free, but [ahead] has been waiting for one longer, or is held for worse, than [prisoner]")
+		T = null
 	if(!T)
+		var/waited = bot_cell_wait_start(prisoner)
+		var/datum/bot_wanted/W = bot_get_wanted_entry(prisoner)
+		// Nowhere to put somebody who's no danger to anybody, and they've waited: a warning and the cuffs off
+		if(!ahead && W && bot.lets_off_for_room(prisoner, waited))
+			let_off_for = W.crime
+			target = prisoner
+			return
 		bot_log(bot, "no free brig cell for [prisoner]")
 		// it tries again every minute: the channel had this 37 times in three shifts. Once for all of Security: three officers said it
 		// in the same second (2026-11-10).
-		if(world.time >= bot.next_cells_full_shout && world.time >= GLOB.bot_cells_full_shouted)
+		if(!ahead && world.time >= bot.next_cells_full_shout && world.time >= GLOB.bot_cells_full_shouted)
 			bot.next_cells_full_shout = world.time + 5 MINUTES
 			GLOB.bot_cells_full_shouted = world.time + 1 MINUTES
 			bot_say(bot.owner, ":s All the cells are full, I need somewhere to put [prisoner.name]!")
 		LAZYSET(bot.failed_brig_targets, prisoner, world.time + 600)
 		return
+	bot_cell_wait_end(prisoner)
 	var/turf/D = bot_pick_deep_cell_turf(T)
 	if(!D)
 		return
@@ -1528,6 +1601,8 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 	target = prisoner
 
 /datum/bot_goal/brig_prisoner/get_strategies(datum/bot_brain/bot)
+	if(let_off_for)
+		return list(new /datum/bot_strategy/let_off(src))
 	return list(for_life ? new /datum/bot_strategy/take_to_prison(src) : new /datum/bot_strategy/brig_prisoner(src))
 
 /datum/bot_goal/brig_prisoner/on_give_up(datum/bot_brain/bot)
@@ -1791,6 +1866,8 @@ GLOBAL_LIST_INIT(bot_danger_words, list("attack", "attacked", "attacking", "kill
 		bot_radio_then(owner, said_at - 10 SECONDS, report, CALLBACK(src, PROC_REF(keep_to_tell), report, "[who] attacked me in [where].", WEAKREF(H)))
 		bot_log(src, "reported [verdict[1]] by [H] to security")
 
+#undef BOT_CALL_RESPONDERS
+#undef BOT_CALL_RESPONDERS_DANGER
 #undef BOT_SEC_VIEW_RANGE
 #undef BOT_ARREST_LOST_TIMEOUT
 #undef BOT_ARREST_MAX_DURATION

@@ -406,6 +406,7 @@ GLOBAL_LIST_EMPTY(bot_ai_informed_security)
 		if(!istype(U) || !U.sensor_mode) //nothing on the monitor to read
 			continue
 		say_it(":m Crew monitor has [H.real_name] dead, [get_area_name(H, TRUE)].")
+		GLOB.bot_bodies_reported[ref] = world.time //Medical's heard it (bot_knowledge.dm knows_of_casualty())
 		return
 
 /datum/bot_silicon/ai/heard(atom/movable/speaker, lower_msg, radio_freq)

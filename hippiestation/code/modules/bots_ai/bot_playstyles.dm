@@ -74,9 +74,13 @@ GLOBAL_LIST_INIT(bot_style_kits, list(
 
 /// A look at who's in the room, every few seconds (keep_an_eye_out(), bot_witness.dm).
 /datum/bot_brain/proc/look_round_the_room()
+	settle_sensors() //bot_knowledge.dm
+	var/medic = is_medical_job() //goals/treat_patient.dm: it takes in who's hurt, for knows_of_casualty() (bot_knowledge.dm)
 	for(var/mob/living/carbon/human/H in view(6, owner))
 		if(H == owner)
 			continue
+		if(medic)
+			note_casualty(H)
 		if(H.stat == DEAD)
 			note_body(H)
 			continue

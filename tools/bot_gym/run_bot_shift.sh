@@ -16,6 +16,7 @@ unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every 
 #   HOP_DRILL=1                       two assistants turn role-hopper at two minutes, with the power going out
 #   STUCK_DRILL=1                     an assistant turns up in the Brig at three minutes with no way out
 #   RAD_DRILL=1                       a radiation storm at four minutes, with a count of who got to shelter
+#   GRAV_DRILL=1                      the gravity generator goes offline at four minutes (count the floaters: tools/bot_gym/stuck_walks.py)
 # Exit code: 0 if nothing failed, 1 otherwise.
 set -u
 cd "$(dirname "$0")/../.."
@@ -51,6 +52,7 @@ if [ "${COLLAB_DRILL:-0}" = "1" ]; then PARAMS="$PARAMS&collab-drill=1"; fi
 if [ "${HOP_DRILL:-0}" = "1" ]; then PARAMS="$PARAMS&hop-drill=1"; fi
 if [ "${STUCK_DRILL:-0}" = "1" ]; then PARAMS="$PARAMS&stuck-drill=1"; fi
 if [ "${RAD_DRILL:-0}" = "1" ]; then PARAMS="$PARAMS&rad-drill=1"; fi
+if [ "${GRAV_DRILL:-0}" = "1" ]; then PARAMS="$PARAMS&grav-drill=1"; fi
 if [ -n "${ENGINE:-}" ]; then PARAMS="$PARAMS&atmos-engine=$ENGINE"; fi
 
 rm -rf data/bot_shift
