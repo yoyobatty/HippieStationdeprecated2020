@@ -239,3 +239,34 @@ GLOBAL_LIST_EMPTY(bot_trouble_drill)
 			log_line("shut in behind the firelock: off for a crowbar")
 			return
 	..()
+
+// ---------------------------------------------------------------------------------------------
+// A Curator with no books (bot_pursuits.dm pursuit_weights(), goals/quiet_jobs.dm bot_library_has_books())
+// ---------------------------------------------------------------------------------------------
+
+/// jobs_s1: the Curator did nothing but sit, smoke and wander the library for 25 minutes (98% of its time), and "library: a book read" failed
+/// as it has in every batch: the random bookcases are stocked from the book database, and a round with none has empty shelves.
+/datum/bot_scenario/curator_no_books
+	name = "curator: with nothing on the library's shelves it's after exploring more than a lawyer is"
+	desc = "No bookcase with a book in it anywhere. The Curator's want to go exploring is higher than the same bot's as a Lawyer, with the same nerve: it hasn't a library to look after, so it goes and looks for something else to curate."
+	job = "Curator"
+	time_limit = 10 SECONDS
+	layout = list(
+		"#####",
+		"#B..#",
+		"#####")
+
+/datum/bot_scenario/curator_no_books/make_goal()
+	return null
+
+/datum/bot_scenario/curator_no_books/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/list/as_curator = brain.pursuit_weights()
+	brain.standing_in_for = "Lawyer"
+	var/list/as_lawyer = brain.pursuit_weights()
+	brain.standing_in_for = null
+	if(as_curator[BOT_PURSUIT_EXPLORE] <= as_lawyer[BOT_PURSUIT_EXPLORE])
+		fail_reason = "explore weight [as_curator[BOT_PURSUIT_EXPLORE]] as a Curator, [as_lawyer[BOT_PURSUIT_EXPLORE]] as a Lawyer"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

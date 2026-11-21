@@ -1549,6 +1549,11 @@ GLOBAL_DATUM(bot_shift, /datum/bot_shift)
 /datum/bot_shift_check/counted/library/progress()
 	return "[count()] read"
 
+/// Nothing to judge in a library of empty shelves: the random bookcases take their books from the database (create_random_books()), and a
+/// round with none stocks nothing
+/datum/bot_shift_check/counted/library/outcome()
+	return (count() || bot_library_has_books()) ? ..() : "SKIP"
+
 /datum/bot_shift_check/counted/revolution
 	name = "revolution: somebody flashed over"
 	counter = "recruited"
