@@ -110,6 +110,7 @@ DEFAULT_PARAMS = dict(spread=1.0, reach=1.0, hall_dw=0, ring_p=0.35, radial_shif
 # sets the radius every radial place is measured against.
 TEST_SIDE = 5
 INNER_R = 0.35
+CANDS = 4             # assignments placed for real per layout (the predictor ranks them; 10 cost 2.5x for little)
 # a spoke side's second block goes in a second row behind the first (further off the spoke) when, in line, the
 # spoke would run past this many cells: human spoke walks are 38 at the median, 62 at most (skeleton_types)
 STACK_WALK = 42
@@ -263,7 +264,7 @@ class Layout:
             sc -= 8.0 * self._radial_miss(cmap, smap, lob, ai)
             cands.append((sc, self.r.random(), cmap, smap, lob, ai))
         cands.sort(key=lambda c: (-c[0], c[1]))
-        self.cands = cands[:10]
+        self.cands = cands[:CANDS]
         sc, _, cmap, smap, lob, ai = self.cands[0]
         self.cmap, self.smap, self.lob, self.ai_at = cmap, smap, lob, ai
         self.info["corners"] = cmap
@@ -375,14 +376,21 @@ class Layout:
         return out
 
     def _free(self, c, d):
-        if c in self.own or c in self.reserved:
-            return False
-        for e, g in self._gap_of[d].items():
-            for dx in range(-g, g + 1):
-                for dy in range(-g, g + 1):
-                    if self.own.get((c[0] + dx, c[1] + dy)) == e:
-                        return False
-        return True
+        """Free for department d: not taken, not reserved, and not within d's gap of another department's block
+        (self._blocked keeps those cells per department as blocks are claimed: one set lookup, not (2g+1)^2 per
+        department; the profile 2026-11-22: 34M dict lookups, 75% of a layout's time)."""
+        return c not in self.own and c not in self.reserved and c not in self._blocked.get(d, ())
+
+    def _mark(self, cells, e):
+        # only the edge cells: any cell within the gap of an inner cell is within it of an edge cell too
+        cs = set(cells)
+        cells = [c for c in cs if any((c[0] + dx, c[1] + dy) not in cs for dx, dy in N4)]
+        for d, g in self._gap_of.get(e, {}).items():
+            bl = self._blocked.setdefault(d, set())
+            for c in cells:
+                for dx in range(-g, g + 1):
+                    for dy in range(-g, g + 1):
+                        bl.add((c[0] + dx, c[1] + dy))
 
     def _gaps(self):
         self.touch = {k for k, p in TOUCH.items() if self.r.random() < p}
@@ -395,10 +403,13 @@ class Layout:
                 if g:
                     self._gap_of[a][b] = g
                     self._gap_of[b][a] = g
+        self._blocked = {}
+        self._mark([c for c, o in self.own.items() if o == "command"], "command")
 
     def _claim(self, cells, d):
         for c in cells:
             self.own[c] = d
+        self._mark(cells, d)
 
     def _ragged(self, cells, far, along, d):
         """Notch the far edge of a block (the edge away from its hall): runs of 3-7 cells pulled in 0-2 cells, and
@@ -654,9 +665,10 @@ class Layout:
         b = self.p["budgets"][kind] * self.q["lobby"] / 0.9 * 0.75     # a quarter of it went to the neck
         # two tiers: 7 wide (human w6-8 7.5% of hall floor), then the wide hall (w9+ 12%), near square
         t1w = 6
-        t1 = max(3, int(round(b * 0.4 / t1w)))
-        wide = max(9, min(12, int(round(math.sqrt(b * 0.6 * 1.2)))))
-        deep = max(4, int(round(b * 0.6 / wide)))
+        # the 9+ part is the smaller share: halls 7+ wide stay under the look maps' 0.195 of hall floor
+        t1 = max(3, int(round(b * 0.6 / t1w)))
+        wide = max(9, min(11, int(round(math.sqrt(b * 0.4 * 1.2)))))
+        deep = max(3, int(round(b * 0.4 / wide)))
         dx, dy = e["d"]
         ex, ey = e["end"]
         px, py = -dy, dx
@@ -1054,11 +1066,13 @@ def layout(prog, params, sub, P, radial, room_size, rband=None, force=None):
     if force is not None:
         L.cands = [(0.0, 0.0) + tuple(force)]
     base_own, base_harea = dict(L.own), dict(L.harea)
+    base_blocked = {d: set(v) for d, v in L._blocked.items()}
     base_spokes = copy.deepcopy(L.spoke_list)
     state = L.r.getstate()
     best = None
     for idx, (sc, _, cmap, smap, lob, ai) in enumerate(L.cands):
         L.own, L.harea, L.spoke_list = dict(base_own), dict(base_harea), copy.deepcopy(base_spokes)
+        L._blocked = {d: set(v) for d, v in base_blocked.items()}
         L.r.setstate(state)
         L.cmap, L.smap, L.lob, L.ai_at = cmap, smap, lob, ai
         L.place()
@@ -1069,6 +1083,7 @@ def layout(prog, params, sub, P, radial, room_size, rband=None, force=None):
     mi, idx = best
     sc, _, cmap, smap, lob, ai = L.cands[idx]
     L.own, L.harea, L.spoke_list = dict(base_own), dict(base_harea), copy.deepcopy(base_spokes)
+    L._blocked = base_blocked
     L.r.setstate(state)
     L.cmap, L.smap, L.lob, L.ai_at = cmap, smap, lob, ai
     L.info["corners"] = cmap      # before the corner pick; updated after place()

@@ -132,6 +132,23 @@ class Block:
 CORRIDOR = 0.22          # share of a block's inner floor left as its own corridor
 
 
+_RC = None
+
+
+def room_count(dept, inner):
+    """The department's room count on human maps for this much floor: rooms = a * tiles^b (dept_scaling.py fit,
+    tiles ~ 0.8 of a block's inner cells)."""
+    global _RC
+    if _RC is None:
+        import json
+        d = json.load(open(os.path.join(CC.OUT, "dept_scaling_targets.json")))
+        _RC = {g: v.get("rooms_vs_tiles") for g, v in d["groups"].items()}
+    f = _RC.get(dept)
+    if not f:
+        return 0
+    return int(round(f[0] * (0.8 * inner) ** f[1]))
+
+
 def _rank(e, target):
     """Copies the room stage tries first: no stacked wall pieces, nothing rewritten (resolve), from the 9 maps of
     this codebase's own era, then nearest the wanted size."""
@@ -192,7 +209,8 @@ def _place(B, lib, area, size, left, r):
 
 
 def furnish(L, m, log=print):
-    r = random.Random("rooms|%s|%d|%d|%d" % (L.p["shape"], L.p["crew"], L.p["seed"], L.info.get("sub", 0)))
+    r = random.Random("rooms|%s|%d|%d|%d|%d" % (L.p["shape"], L.p["crew"], L.p["seed"], L.info.get("sub", 0),
+                                                L.info.get("room_salt", 0)))
     lib = STP.library()
     types = program_types()
     ox, oy = L.offset
@@ -219,9 +237,15 @@ def furnish(L, m, log=print):
         # pass 1: the program, most common types first; pass 2: the department's types again, smallest copies,
         # into what is still open, until the corridor is down to CORRIDOR of the block's inner floor
         second = sorted([t for t in types.get(dept, []) if t[1] != CORRIDOR_AREA.get(dept)], key=lambda t: t[2])
-        for pass_, items in ((1, want), (2, second * 2)):
+        target_n = room_count(dept, len(B.inner))
+        for pass_, items in ((1, want), (2, second)):
             for fam, area, size in items:
-                left = budget - used if pass_ == 1 else len(B.inner - B.floor - B.ring) - CORRIDOR * len(B.inner)
+                if pass_ == 2 and area in {x["area"] for x in rooms}:
+                    continue       # two copies of a type side by side read as one oversized room (room_stats)
+                free_n = len(B.inner - B.floor - B.ring)
+                left = budget - used if pass_ == 1 else free_n - CORRIDOR * len(B.inner)
+                if pass_ == 2 and len(rooms) < target_n:
+                    left = max(left, free_n - 0.08 * len(B.inner))   # short of the human room count: go on
                 if left < 6:
                     if pass_ == 1:
                         break
@@ -243,7 +267,11 @@ def furnish(L, m, log=print):
         for rm in rooms:
             if not rm.get("door"):
                 corridor |= rm["F"]
-        corridor, pocket, pwall, pdoors = _split_corridor(B, corridor, doors, r)
+        # the corridor may grow past CORRIDOR_MAX by what the department still lacks of its floor budget (else its
+        # share falls under the band and the leftover swells maint past its own: crew 120, 2026-11-22)
+        want = L.p["budgets"].get(dept, 0) * L.q.get("qmul", {}).get(dept, 1.0)
+        need = int(want - sum(len(rm["F"]) for rm in kept))
+        corridor, pocket, pwall, pdoors = _split_corridor(B, corridor, doors, r, need)
         _paint_block(m, L, B, kept, corridor, doors, ox, oy)
         _paint_pockets(m, L, pocket, pwall, pdoors, ox, oy)
         if ch:
@@ -398,9 +426,9 @@ CORRIDOR_AREA = {"command": "/area/crew_quarters/heads", "security": "/area/secu
                  "dorms": "/area/crew_quarters/dorms", "ai": "/area/ai_monitored/turret_protected"}
 
 
-def _split_corridor(B, corridor, doors, r):
-    cmax = min(CORRIDOR_MAX, int(look_max(CORRIDOR_AREA.get(B.dept, "")) * 0.9)) if B.dept in CORRIDOR_AREA \
-        else CORRIDOR_MAX
+def _split_corridor(B, corridor, doors, r, need=0):
+    look = int(look_max(CORRIDOR_AREA.get(B.dept, "")) * 0.9) if B.dept in CORRIDOR_AREA else CORRIDOR_MAX
+    cmax = min(look, max(CORRIDOR_MAX, need))
     if B.dept == "atmos":       # atmos's main floor is one big room on every stock map (321-490 tiles)
         cmax = int(look_max(CORRIDOR_AREA["atmos"]) * 0.85)
     """A corridor piece over CORRIDOR_MAX keeps the cells nearest its doors; the rest becomes a maint pocket (human

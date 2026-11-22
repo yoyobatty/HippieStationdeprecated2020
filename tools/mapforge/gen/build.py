@@ -27,8 +27,11 @@ from forge import dmm, parse  # noqa: E402
 
 OUT = os.environ.get("GEN_OUT") or os.path.join(parse.ROOT, "data", "mapforge", "gen")   # GEN_OUT: a trial folder
 NUDGES = 2
+STALL = 30            # repair stops after this many moves without improvement
 # M2's exit test: every band and pair, plus these hard checks (walk, air and power belong to M3)
 M2_HARD = ("core room types", "oversized rooms", "known paths", "solid wall filler")
+# stage full gates every check but these, which need the network pass (power, air, disposals) still to come
+M3_PENDING = ("disposals outlet",)
 PIC = os.path.join(OUT, "pictures") if os.environ.get("GEN_OUT") else os.path.join(parse.ROOT, "data", "previews",
                                                                                     "mapforge", "gen")
 COL = {"command": (70, 110, 200), "security": (200, 60, 60), "medical": (90, 190, 220), "science": (170, 90, 200),
@@ -176,9 +179,11 @@ def repair(best, prog, P, radial, room, rband, name, log, quiet, evals=80):
                 smap[pos[1]][pos[2]] = y
         return (cmap, smap, list(lob), ai)
     nsp = len(L.spoke_list)
+    since = 0
     for it in range(evals):
-        if cur_sc == 0:
+        if cur_sc == 0 or since >= STALL:
             break
+        since += 1
         bad = [c["name"] for c in checks if not c["ok"]]
         q = dict(params, qmul=dict(params["qmul"]))
         asg = cur
@@ -215,6 +220,7 @@ def repair(best, prog, P, radial, room, rband, name, log, quiet, evals=80):
         sc2 = _score(ch2)
         log.append(dict(sub=sub, try_="repair", fails=[c["name"] for c in ch2 if not c["ok"]], params={}))
         if sc2 < cur_sc - 1e-9:
+            since = 0
             cur_sc, params, checks = sc2, q, ch2
             cur = (dict(L2.cmap), {k: list(v) for k, v in L2.smap.items()}, list(L2.lob), L2.ai_at)
             best = (m2, L2, [c for c in ch2 if not c["ok"]], ch2, f2, sub)
@@ -269,25 +275,42 @@ def build(seed, crew, shape="hub", tries=24, quiet=False, stage="blocks"):
     path = os.path.join(OUT, name + ".dmm")
     rounds = ROOM_ROUNDS if stage in ("rooms", "full") else 1
     kept = None
+    best = None
     for rnd in range(rounds):
-        best, params = search(prog, params, tries if rnd == 0 else max(8, tries // 3), name, P, radial, room, rband,
-                              log, quiet)
-        m, L, fails, checks, f, sub = best
+        if best is None or block_fail:
+            best, params = search(prog, params, tries if rnd == 0 else max(8, tries // 3), name, P, radial, room,
+                                  rband, log, quiet)
+            m, L, fails, checks, f, sub = best
+            asg = (dict(L.cmap), {k: list(v) for k, v in L.smap.items()}, list(L.lob), L.ai_at)
+        else:
+            # the block plan passed: rebuild it as it was and furnish again with another room seed
+            m, L = BL.layout(prog, params, sub, P, radial, room, rband, force=asg)
+            L.info["room_salt"] = rnd
         rooms_log = []
         if stage in ("rooms", "full"):
             import rooms as RM
             RM.furnish(L, m, log=rooms_log.append)
+            if stage == "full":
+                import dress as DR
+                import connect as CN
+                DR.dress(m, rooms_log.append)
+                CN.connect(m, rooms_log.append)
             if not quiet:
                 for ln in rooms_log:
                     print("  " + ln)
             dmm.write(m, path)
             parse._CACHE.pop((path, 1), None)
             checks = G.run(path, "full", quiet=True)
-            checks = [c for c in checks if c["kind"] in ("band", "pair") or c["name"] in M2_HARD]
+            if stage == "full":
+                checks = [c for c in checks if c["kind"] in ("band", "pair", "hard", "ruled")
+                          and c["name"] not in M3_PENDING]
+            else:
+                checks = [c for c in checks if c["kind"] in ("band", "pair") or c["name"] in M2_HARD]
             fails = [c for c in checks if not c["ok"]]
             log.append(dict(sub=sub, try_="rooms %d" % rnd, fails=[c["name"] for c in fails], params={}))
             if not quiet:
                 print("  %s rooms round %d: %d fails %s" % (name, rnd, len(fails), ", ".join(c["name"] for c in fails)))
+        block_fail = any(c["name"].startswith(G.BLOCK_PREFIX) or c["kind"] == "pair" for c in fails)
         if kept is None or len(fails) < len(kept[2]):
             kept = (m, L, fails, checks, sub, rooms_log)
         if not fails:
@@ -358,6 +381,34 @@ def sheet(pics, out):
     return out
 
 
+def auto_jobs(most=8, keep=4):
+    """Workers for a batch: the cores idle right now (Windows' CPU load over a second), keeping `keep` cores for the
+    other sessions on this PC, at most `most`, at least 1."""
+    import subprocess
+    n = os.cpu_count() or 4
+    try:
+        out = subprocess.run(["powershell", "-NoProfile", "-Command",
+                              "(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average)"
+                              ".Average"], capture_output=True, text=True, timeout=30).stdout.strip()
+        load = float(out) / 100.0
+    except Exception:            # noqa: BLE001
+        load = 0.5
+    idle = int(n * (1.0 - load))
+    j = max(1, min(most, idle - keep))
+    print("jobs: %d (%d cores, load %.0f%%)" % (j, n, 100 * load), flush=True)
+    return j
+
+
+def _job(args):
+    """One build in a worker (a batch's workers keep their loaded maps between seeds)."""
+    (shape, crew, seed), tries, quiet, stage = args
+    share_wait("gen-" + SE.name(shape, crew, seed))
+    r = build(seed, crew, shape, tries, quiet, stage)
+    r["_job"] = (shape, crew, seed)
+    print("  done %s: %s" % (r["name"], "PASS" if not r["fails"] else "%d fails" % len(r["fails"])), flush=True)
+    return r
+
+
 def share_wait(what):
     """Before each build of a batch: tools/gpu_share.py wait, so a Last Light timed run (which needs a quiet CPU
     and GPU) goes first; this session's batches are untimed."""
@@ -375,14 +426,21 @@ def main(argv):
     ap.add_argument("--set", action="store_true")
     ap.add_argument("--sheet", action="store_true")
     ap.add_argument("--quiet", action="store_true")
-    ap.add_argument("--stage", default="blocks", choices=("blocks", "rooms"))
+    ap.add_argument("--stage", default="blocks", choices=("blocks", "rooms", "full"))
+    ap.add_argument("--jobs", default="1", help="builds at once (worker processes), or auto: the idle cores")
     a = ap.parse_args(argv)
     jobs = SE.regression_set() if a.set else [(a.shape, a.crew, a.seed)]
     res = []
-    for shape, crew, seed in jobs:
-        if a.set:
-            share_wait("gen-" + SE.name(shape, crew, seed))
-        r = build(seed, crew, shape, a.tries, a.quiet, a.stage)
+    a.jobs = auto_jobs() if a.jobs == "auto" else int(a.jobs)
+    if a.jobs > 1 and len(jobs) > 1:
+        import multiprocessing as mp
+        with mp.get_context("spawn").Pool(a.jobs) as pool:
+            it = pool.imap_unordered(_job, [(j, a.tries, a.quiet, a.stage) for j in jobs])
+            out = list(it)
+        out.sort(key=lambda r: jobs.index(r["_job"]))
+    else:
+        out = [_job((j, a.tries, a.quiet, a.stage)) for j in jobs]
+    for r in out:
         res.append(r)
         print("%s: %s (%d checks, %d tries, %.0f s)%s" % (
             r["name"], "PASS" if not r["fails"] else "FAIL", r["checks"], r["tries"], r["seconds"],
