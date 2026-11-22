@@ -388,3 +388,38 @@ Decisions, each from a measurement:
   - Maint width mix still misses.
 - **Next:** widths allocated per segment to the human mix (spoke widths 3/3/4/5, a 2-wide T arm with a 1-wide
   tail, 7-wide then 9+-wide lobby tiers), then the room-stage set.
+
+### M2 status at the end of the night (2026-11-22)
+
+- **Gate change, from a count.**
+  - With one band per width bin (9 hall + 9 maint), the median human map failed 10 band checks; only the four look
+    maps passed all, by construction.
+  - Each width mix is now one check: total-variation distance of the map's histogram to the human median
+    histogram, in a trimmed + look band (hall 91%, maint 84% of families inside). Per-bin numbers stay in the report
+    as info.
+  - Calibration: PASS, 0 of 130.
+  - Under the new rule the median human map fails 7 checks (p25 4, max 26).
+- **Room-stage set** (15 builds, `data/mapforge/gen_rooms/`, 101-117 checks: bands, pairs, core types, oversized,
+  known paths, wall filler):
+  - 2 pass all: crew 40 seed 4, crew 80 seed 5.
+  - 13 fail 1-5 each, every one at or under the median human map's 7.
+  - The repeat failures, each fixed since at its cause (not yet re-run on all 15):
+    - a department's corridor pieces joined by room_stats into one oversized room;
+    - small civic rooms;
+    - atmos-engineering more than 4 walls apart at crew 120.
+- **Discriminator v7** (CUDA, `data/mapforge/disc/v7`, after `tools/gpu_share.py wait`):
+  - Data: 38 human maps against 19 generated (pinwheel, ring, spine, station_v6, the 15 hub room builds).
+  - Folds hold out whole families, so the hub builds were judged by a network trained on no hub build.
+  - Hub builds: 48-90% of crops called generated (mean logit +0.7 to +5.4), fold AUC 0.97.
+  - The older generators: 100% (+7.5 to +7.9).
+  - station_v6: 2%.
+  - Per room (`forge/disc_rooms.py`, crew 80 seed 4): the copied stock rooms themselves read 100% generated, and so
+    do the halls. The tell is what the generator does not add yet, not the room interiors: no lights, vents,
+    firelocks, decals or cameras in halls, no pipes or cable, the plain hull. That is M3 (networks) and M4 (the v6
+    dressing passes).
+- **Next, in order:**
+  1. Re-run the 15 room builds on the fixed code.
+  2. M3: lift v6_station's power, air, disposals, solars and docks passes into gen/, then boot checks one at a
+     time.
+  3. M4: the dressing passes (habits, glaze, fixtures, polish, tidy).
+  4. Retrain the discriminator after each and watch the hub builds' share of tiles called generated fall.

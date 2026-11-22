@@ -99,10 +99,13 @@ def nudge(params, checks, prog=None):
             q["lobby"] *= 0.8 if high else 1.25
         elif k.startswith("space.hall_w"):
             n = int(k[len("space.hall_w"):])
-            sw = list(q.get("sw", BL.DEFAULT_PARAMS["sw"]))
             if n in (3, 4, 5):
-                sw[n - 3] *= 0.7 if high else 1.4
-                q["sw"] = tuple(sw)
+                ws = list(q.get("spoke_ws", BL.DEFAULT_PARAMS["spoke_ws"]))
+                if high and n in ws and ws.count(n) >= 1 and n != 3:
+                    ws[ws.index(n)] = 3
+                elif not high and n not in ws:
+                    ws[ws.index(3) if 3 in ws else 0] = n
+                q["spoke_ws"] = tuple(ws)
                 lw = list(q.get("lw", BL.DEFAULT_PARAMS["lw"]))
                 if n in (3, 4):
                     lw[n - 3] *= 0.6 if high else 1.6
@@ -227,7 +230,7 @@ def search(prog, params, tries, name, P, radial, room, rband, log, quiet):
     for i in range(tries):
         sub = i // NUDGES
         if i % NUDGES == 0 and i:
-            keep = ("qmul", "outpost", "depth", "sw", "lw", "tails", "pockets", "runw", "lobby")
+            keep = ("qmul", "outpost", "depth", "sw", "lw", "tails", "pockets", "runw", "lobby", "spoke_ws")
             params = dict(BL.DEFAULT_PARAMS, **{k: params[k] for k in keep if k in params})
         m, L = BL.layout(prog, params, sub, P, radial, room, rband)
         checks, f = measure(m, name)

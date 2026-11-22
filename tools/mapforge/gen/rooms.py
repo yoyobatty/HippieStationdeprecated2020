@@ -235,6 +235,7 @@ def furnish(L, m, log=print):
                 used += len(Fm)
                 rooms.append(dict(area=area, entry=e, src=src, k=k, a=a, F=set(Fm), R=set(Rm), D=D, inner=inner))
         ch = _chambers(B, r) if dept == "atmos" else []
+        rooms = _size_to_band(dept, rooms, B)
         corridor = B.inner - B.floor - B.ring
         doors = _doors(B, rooms, corridor, L.own, r)
         _second_doors(B, rooms, corridor, L.own, doors, r)
@@ -351,6 +352,23 @@ def _second_doors(B, rooms, corridor, own, doors, r):
             rm["doors2"] = [c]
 
 
+def _size_to_band(dept, rooms, B):
+    """The gate checks the median room size per department (space_sizes.py room_size_<dept>, band from the corpus
+    and the look maps). Below the band, the smallest copies are taken out (their floor joins the corridor) until
+    the median is in it."""
+    import gate as G
+    band = G.bands()[0].get("space.room_size_" + dept)
+    if not band or len(rooms) < 3:
+        return rooms
+    lo = band[0]
+    rooms = sorted(rooms, key=lambda rm: len(rm["F"]))
+    while len(rooms) > 2 and CC.median([len(rm["F"]) for rm in rooms]) < lo:
+        rm = rooms.pop(0)
+        B.floor -= rm["F"]
+        B.ring -= rm["R"] - set().union(*[x["R"] for x in rooms])
+    return rooms
+
+
 def _comps(cells):
     seen, out = set(), []
     for c in cells:
@@ -390,10 +408,21 @@ def _split_corridor(B, corridor, doors, r):
     maintenance door. Returns (corridor, pocket cells, pocket wall cells, pocket doors)."""
     keep, pocket, pwall, pdoors = set(), set(), set(), []
     dset = set(doors)
-    for comp in _comps(corridor):
-        if len(comp) <= cmax:
+    left = cmax            # for the whole block: room_stats joins same-area pieces within 2 tiles into one room
+    for comp in sorted(_comps(corridor), key=lambda c: -len(c)):
+        if len(comp) <= left:
             keep |= comp
+            left -= len(comp)
             continue
+        if left < 6:
+            # no corridor budget left: the whole piece becomes maint pockets (cut to POCKET_MAX); the room doors
+            # that open on it already lead in
+            walls, ds = _cut_pocket(comp, r)
+            pocket |= comp - walls - set(ds)
+            pwall |= walls
+            pdoors.extend(ds)
+            continue
+        cmax_here = left
         seeds = [c for c in comp if any((c[0] + dx, c[1] + dy) in dset for dx, dy in N4)] or [min(comp)]
         order, seen = [], set(seeds)
         q = list(seeds)
@@ -405,7 +434,8 @@ def _split_corridor(B, corridor, doors, r):
                 if b in comp and b not in seen:
                     seen.add(b)
                     q.append(b)
-        k = set(order[:cmax])
+        k = set(order[:cmax_here])
+        left -= len(k)
         rest = comp - k
         # the line between them: rest cells touching the kept corridor become wall
         line = {c for c in rest if any((c[0] + dx, c[1] + dy) in k for dx, dy in N8)}
@@ -503,7 +533,7 @@ def _chambers(B, r):
 def touch_doors(m, L, log=print):
     """A door between each touching pair that humans join by a door nearly always (atmos and engineering, P(door)
     0.90): through one wall where their floors face each other, else through the fewest walls (up to 4) in a
-    straight line, the walls past the door becoming a short passage."""
+    straight line (up to 8), the walls past the door becoming a short passage."""
     from forge import parse
     sm = parse.SemanticMap(m, "tmp", 1)
     for k in ("atmos|engineering",):
@@ -511,7 +541,7 @@ def touch_doors(m, L, log=print):
             continue
         a, b = k.split("|")
         done = False
-        for steps in (1, 2, 3, 4):
+        for steps in range(1, 9):
             for p, c in sm.cls.items():
                 if c != "F" or sm.group.get(p) != a:
                     continue

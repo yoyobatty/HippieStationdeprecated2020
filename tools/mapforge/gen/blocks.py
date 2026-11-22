@@ -103,6 +103,7 @@ class Noise:
 
 DEFAULT_PARAMS = dict(spread=1.0, reach=1.0, hall_dw=0, ring_p=0.35, radial_shift={}, lobby=1.0, lobe=0.5,
                       depth=1.0, qmul={}, outpost=1.3, sw=(0.5, 0.3, 0.2), lw=(2, 1), tails=1.0, pockets=0.7,
+                      spoke_ws=(3, 3, 4, 5),
                       runw=(0.45, 0.25))
 # the toxins test range: a 5x5 floor out in space past science (/area/science/test_area). On Meta, Delta, Omega,
 # Hippie and Box it is 12-25 tiles at 0.86-0.98 of the station radius: often the station's farthest floor, so it
@@ -142,7 +143,7 @@ class Layout:
         for x in range(x0, x0 + cw):
             for y in range(y0, y0 + ch):
                 self.own[(x, y)] = "command"
-        wl = wchoice(self.r, ((3, self.q["lw"][0]), (4, self.q["lw"][1])))
+        wl = 3                       # the loop: human hall floor is 44% three wide
         self.loop_w = wl
         for x in range(x0 - wl, x0 + cw + wl):
             for y in range(y0 - wl, y0 + ch + wl):
@@ -185,9 +186,12 @@ class Layout:
             chosen = self.r.sample(sides, n)
         lx0, ly0, lx1, ly1 = self.loop_box
         self.spoke_list = []
+        widths = list(self.q.get("spoke_ws", (3, 3, 4, 5)))
+        while len(widths) < len(chosen):
+            widths.append(3)
+        self.r.shuffle(widths)
         for side in sorted(chosen, key=sides.index):
-            sw = self.q["sw"]
-            w = max(3, wchoice(self.r, ((3, sw[0]), (4, sw[1]), (5, sw[2]))) + self.q["hall_dw"])
+            w = widths.pop()
             if side in ("N", "S"):
                 lo, hi = lx0 + w // 2 + 2, lx1 - (w - w // 2) - 1
                 c = self.r.randint(lo, hi) if lo <= hi else (lx0 + lx1) // 2
@@ -570,7 +574,7 @@ class Layout:
                 kind = kinds[lob.index(i)]
                 k = self.r.randint(4, 8)
                 e["end"] = self._strip((e["end"][0] + e["d"][0], e["end"][1] + e["d"][1]), e["d"], k,
-                                       self.r.choice((4, 5)), AREA[kind], owner=kind)
+                                       5, AREA[kind], owner=kind)
             elif i == ai_at:
                 k = self.r.randint(3, 6)
                 e["end"] = self._strip((e["end"][0] + e["d"][0], e["end"][1] + e["d"][1]), e["d"], k, e["w"],
@@ -648,16 +652,21 @@ class Layout:
 
     def _lobby(self, e, kind):
         b = self.p["budgets"][kind] * self.q["lobby"] / 0.9 * 0.75     # a quarter of it went to the neck
-        wide = max(7, min(11, int(round(math.sqrt(b * 1.2)))))      # near square: no long dead-end arm in it
-        deep = max(4, int(round(b / wide)))
+        # two tiers: 7 wide (human w6-8 7.5% of hall floor), then the wide hall (w9+ 12%), near square
+        t1w = 6
+        t1 = max(3, int(round(b * 0.4 / t1w)))
+        wide = max(9, min(12, int(round(math.sqrt(b * 0.6 * 1.2)))))
+        deep = max(4, int(round(b * 0.6 / wide)))
         dx, dy = e["d"]
         ex, ey = e["end"]
         px, py = -dy, dx
-        for t in range(1, deep + 1):
-            for k in range(-(wide // 2), wide - wide // 2):
+        for t in range(1, t1 + deep + 1):
+            w_ = t1w if t <= t1 else wide
+            for k in range(-(w_ // 2), w_ - w_ // 2):
                 c = (ex + dx * t + px * k, ey + dy * t + py * k)
                 self.own[c] = kind
                 self.harea[c] = AREA[kind]
+        deep += t1
         e["lobby"] = kind
         e["tip"] = (ex + dx * deep, ey + dy * deep)
 
@@ -670,8 +679,9 @@ class Layout:
         w = e["w"]
         sides = [sgn for sgn in (1, -1) if keep_both or self.r.random() >= 0.25] or [1]
         arms = {sgn: self.r.randint(4, 7) for sgn in sides}
-        aw = {sgn: self.r.choice((2, 3, 3)) for sgn in sides}        # human halls: w2 5%, w1 2.5%
-        tail = {sgn: int(round(self.r.choice((0, 2, 3)) * self.q["tails"])) for sgn in sides}
+        # one arm 2 wide ending in a 1-wide tail, the other 3 wide (human halls: w2 5%, w1 2.5%)
+        aw = {sgn: (2 if j == 0 else 3) for j, sgn in enumerate(sides)}
+        tail = {sgn: (int(round(3 * self.q["tails"])) if j == 0 else 0) for j, sgn in enumerate(sides)}
         for _ in range(7):
             ex, ey = e["end"]
             made = 0
@@ -780,7 +790,7 @@ class Layout:
         for c in runs:
             if made >= want_p:
                 break
-            w, h = self.r.randint(4, 7), self.r.randint(4, 7)
+            w, h = self.r.randint(4, 8), self.r.randint(4, 8)
             for dx, dy in N4:
                 if (c[0] + dx, c[1] + dy) in owners or (c[0] + dx, c[1] + dy) in add:
                     continue

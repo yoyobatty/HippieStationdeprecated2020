@@ -178,6 +178,21 @@ def bands():
     P = adj_model()
     cf = corpus_features(P)
     tagged = {n: f for n, f in cf.items() if f.get("_type") != "untagged"}
+    # width mixes: one distance per histogram (total variation to the human median histogram), not one band per
+    # bin. A band per bin rejects ~20% of families each by construction, so over 18 bins the median human map
+    # failed 10 (2026-11-22 count); the per-bin numbers stay in the report as info.
+    global HIST_MED
+    HIST_MED = {}
+    for h in HISTS:
+        bins = ["%s%d" % (h, i) for i in range(1, 10)]
+        meds = []
+        for b_ in bins:
+            fv = CC.family_values(cf, lambda f, b_=b_: f.get(b_))
+            meds.append(CC.median(list(fv.values())) or 0.0)
+        t = sum(meds) or 1.0
+        HIST_MED[h] = [x / t for x in meds]
+    for f in cf.values():
+        add_tv(f)
     keys = sorted({k for f in cf.values() for k in f if not k.startswith(("pair.", "_"))})
     band = {}
     for k in keys:
@@ -208,8 +223,23 @@ def _dist(v, lo, hi):
 
 
 # ------------------------------------------------------------------------------------------------ checks
+HISTS = ("space.hall_w", "space.maint_w")
+HIST_MED = {}
+
+
+def add_tv(f):
+    """space.hall_tv / space.maint_tv: total variation distance of the map's width histogram to the human median."""
+    for h in HISTS:
+        vals = [f.get("%s%d" % (h, i)) for i in range(1, 10)]
+        if any(v is None for v in vals) or h not in HIST_MED:
+            continue
+        t = sum(vals) or 1.0
+        f[h.replace("_w", "_tv")] = 0.5 * sum(abs(v / t - m) for v, m in zip(vals, HIST_MED[h]))
+
+
 def band_checks(f, stage="full"):
     band, rules, P, _ = bands()
+    add_tv(f)
     out = []
     for k, (lo, hi, p10, p90, llo, lhi) in sorted(band.items()):
         if stage == "blocks" and not k.startswith(BLOCK_PREFIX):
@@ -217,7 +247,8 @@ def band_checks(f, stage="full"):
         v = f.get(k)
         if v is None:
             continue
-        out.append(dict(kind="band", name=k, ok=lo - 1e-9 <= v <= hi + 1e-9, value=v, dist=_dist(v, lo, hi),
+        info = k.startswith(HISTS) and k[-1].isdigit()
+        out.append(dict(kind="info" if info else "band", name=k, ok=info or lo - 1e-9 <= v <= hi + 1e-9, value=v, dist=_dist(v, lo, hi),
                         detail="%s (band %s..%s; corpus 80%% %s..%s, look %s..%s)" % (
                             CC.fmt(v), CC.fmt(lo), CC.fmt(hi), CC.fmt(p10), CC.fmt(p90), CC.fmt(llo), CC.fmt(lhi))))
     for k, rule in sorted(rules.items()):
