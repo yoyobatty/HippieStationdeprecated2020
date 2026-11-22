@@ -102,6 +102,7 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 		return
 	if(QDELETED(owner.blob_core))
 		return
+	press_a_hurt_core() //goals/blob_tactics.dm
 	if(world.time >= started_at + 3 MINUTES && world.time >= next_dispatch) //the core announces itself at three minutes (core.dm): Security gets sent to it
 		next_dispatch = world.time + 2 MINUTES
 		bot_dispatch_security(get_turf(owner.blob_core), "the blob") //goals/security_tactics.dm
@@ -153,7 +154,7 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 			why_not["not the sort"]++
 			continue
 		var/on_the_blob = istype(B.current_goal, /datum/bot_goal/approach_blob) || istype(B.current_goal, /datum/bot_goal/fight_blob) || istype(B.current_goal, /datum/bot_goal/rally_for_blob)
-		if(H.health < H.maxHealth * 0.7 || (on_the_blob && !(engineer && emitters_out < BOT_BLOB_EMITTERS)) \
+		if(H.health < H.maxHealth * 0.85 || (on_the_blob && !(engineer && emitters_out < BOT_BLOB_EMITTERS)) \
 			|| istype(B.current_goal, /datum/bot_goal/blob_emitter) || istype(B.suspended_goal, /datum/bot_goal/blob_emitter) \
 			|| istype(B.current_goal, /datum/bot_goal/open_blast_door) || istype(B.suspended_goal, /datum/bot_goal/open_blast_door))
 			why_not["hurt or on it already"]++
@@ -171,10 +172,17 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 		if(B.nerve < 0.5 && !B.is_security_job())
 			why_not["no emitter for them"]++
 			continue
+		if(world.time < rush_until) //the bomb's just gone off: into the hole before it grows back
+			if(B.assign_goal(new /datum/bot_goal/approach_blob(owner.blob_core)))
+				sent++
+			else
+				why_not["no way there"]++
+			continue
 		if(!wave)
 			wave = new /datum/bot_blob_rally()
 			wave.made_at = world.time
-			wave.spot = staging_spot(get_turf(H))
+			wave.core_ref = REF(owner.blob_core)
+			wave.spot = staging_spot(get_turf(H), B)
 			rally = wave
 		var/datum/bot_goal/going = wave.spot ? new /datum/bot_goal/rally_for_blob(owner.blob_core, wave) : new /datum/bot_goal/approach_blob(owner.blob_core)
 		if(B.assign_goal(going))
@@ -228,7 +236,7 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 
 /datum/bot_goal/approach_blob/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/fight_blob/S = new
-	S.steps = list(new /datum/bot_step/ready_welder/arm_for_blob(), new /datum/bot_step/move_to())
+	S.steps = bot.blob_arming_steps() + new /datum/bot_step/move_to() //goals/blob_tactics.dm: an analyzer, and what the strain wants
 	return list(S)
 
 /// What its points go on before spreading: the economy, then spores, then reach.
@@ -327,21 +335,36 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 /// Something that does a blob harm: a gun with a killing shot, a welder with fuel in, or something really heavy in hand. A blob takes
 /// half of a blow and the whole of a burn, and what the fighters were swinging at it was a seclite, a cap, a multitool and a crowbar:
 /// 40-odd tiles a shift against its 400.
+/// The strain, once somebody's scanned it (goals/blob_tactics.dm), changes what does: no welder on one burning makes worse, no club on one
+/// that lashes out at a blow, an extinguisher on one water hurts. A blob that spreads when burnt is hit with whatever's heavy: an
+/// extinguisher (10) does, where 15 was asked of anything else.
 /datum/bot_brain/proc/armed_against_blob()
-	if(blob_gun())
+	if(blob_gun() || blob_extinguisher()) //goals/blob_tactics.dm
 		return TRUE
-	var/obj/item/weldingtool/W = find_carried_tool(/obj/item/weldingtool)
-	if(W && W.get_fuel() > 0)
-		return TRUE
+	var/tactic = blob_tactic()
+	if(!(tactic & BLOB_TACTIC_NO_BURN))
+		var/obj/item/weldingtool/W = find_carried_tool(/obj/item/weldingtool)
+		if(W && W.get_fuel() > 0)
+			return TRUE
+	if(tactic & BLOB_TACTIC_NO_BRUTE)
+		return FALSE
+	if(tactic & BLOB_TACTIC_NO_BURN)
+		var/obj/item/extinguisher/E = find_carried_tool(/obj/item/extinguisher)
+		if(E)
+			return TRUE
 	var/obj/item/I = owner.get_active_held_item()
-	return I && I.force >= 15
+	return I && I.force >= ((tactic & BLOB_TACTIC_NO_BURN) ? 10 : 15)
 
-/// A gun it's carrying that can kill: a laser, an energy gun, something with bullets in. Not a disabler or a taser.
+/// A gun it's carrying that can kill: a laser, an energy gun, something with bullets in. Not a disabler or a taser. Bullets unless the
+/// strain lashes out at a blow, lasers unless burning it is a mistake.
 /datum/bot_brain/proc/blob_gun()
+	var/tactic = blob_tactic()
 	for(var/obj/item/gun/G in owner.GetAllContents())
 		if(!G.can_shoot())
 			continue
-		if(istype(G, /obj/item/gun/ballistic) || istype(G, /obj/item/gun/energy/laser) || istype(G, /obj/item/gun/energy/e_gun))
+		if(istype(G, /obj/item/gun/ballistic) && !(tactic & BLOB_TACTIC_NO_BRUTE))
+			return G
+		if((istype(G, /obj/item/gun/energy/laser) || istype(G, /obj/item/gun/energy/e_gun)) && !(tactic & BLOB_TACTIC_NO_BURN))
 			return G
 	return null
 
@@ -391,16 +414,44 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 			best_near = near
 	return best
 
+/// REF() of a bit of blob -> till when it's out of reach from where this bot was: seen, but nothing between it and the bot but walls
+/datum/bot_brain/var/list/blob_out_of_reach
+
+/// A walk to the bit of B's blob nearest this bot that it can get beside: the core's walled in by its own, so not the core itself. TRUE
+/// if it's on its way.
+/datum/bot_brain/proc/walk_round_to_blob(obj/structure/blob/B)
+	var/list/near = list()
+	for(var/obj/structure/blob/other in range(8, owner))
+		if(other.overmind == B.overmind)
+			near[other] = get_dist(owner, other) + get_dist(other, B) / 2
+	for(var/i in 1 to 3)
+		var/obj/structure/blob/best
+		for(var/obj/structure/blob/other as anything in near)
+			if(!best || near[other] < near[best])
+				best = other
+		if(!best)
+			return FALSE
+		near -= best
+		if(pursue(best, "follow", force = TRUE))
+			return TRUE
+	return FALSE
+
 /// The nearest bit of blob in sight, for anybody who'd fight it: Security, and anybody with something to hit it with.
 /datum/bot_brain/proc/fight_the_blob()
-	if(!length(GLOB.bot_blobs) || gone_loud() || owner.incapacitated() || owner.health < owner.maxHealth * 0.6)
+	if(!length(GLOB.bot_blobs) || gone_loud() || owner.incapacitated() || owner.health < owner.maxHealth * 0.8)
 		return FALSE
 	if(!armed_against_blob())
 		return FALSE
+	if(LAZYLEN(blob_out_of_reach) > 30)
+		for(var/ref in blob_out_of_reach.Copy())
+			if(blob_out_of_reach[ref] <= world.time)
+				blob_out_of_reach -= ref
 	// What a player goes for: the core, which ends it, then the nodes and factories that keep it growing, then whatever's nearest.
 	var/obj/structure/blob/best
 	var/best_score
 	for(var/obj/structure/blob/B in view(BOT_SIGHT_RANGE, owner))
+		if(LAZYACCESS(blob_out_of_reach, REF(B)) > world.time) //seen through a window or over a wall, and no way to it from here (hit_blob)
+			continue
 		var/obj/structure/blob/core/core = B.overmind?.blob_core
 		// The way in: whatever in sight is nearest the core, as well as near. Chopping at the nearest edge did nothing, the blob grows it
 		// straight back; hit_blob() cuts through what's in between.
@@ -445,10 +496,20 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 	max_clicks = 40
 	/// Swung at it last click: this one's the step back
 	var/swung = FALSE
+	/// Walks round what's in the way of the straight step
+	var/walks = 0
 
 /datum/bot_step/paced/hit_blob/do_click(datum/bot_brain/bot)
 	var/obj/structure/blob/B = bot.current_goal?.target
-	if(QDELETED(B) || bot.owner.incapacitated() || bot.owner.health < bot.owner.maxHealth * 0.5)
+	if(QDELETED(B) || bot.owner.incapacitated())
+		return FALSE
+	// Off while there's a hit or two left in it. A blob reaches out for about 36 at a time, twice in a second if it's saved up for it: at
+	// half health a welder at the core went 99 to 27 in that second, fell beside it, and nobody got to it. Away from it, not just a step.
+	if(bot.owner.health < bot.owner.maxHealth * 0.75)
+		var/turf/out = bot_blob_free_step(get_turf(bot.owner))
+		if(out)
+			bot.owner.Move(out, get_dir(bot.owner, out))
+		bot_tally("backed off the blob hurt")
 		return FALSE
 	var/turf/here = get_turf(bot.owner)
 	if(bot_in_emitter_fire(here)) //out of an emitter's line before anything
@@ -468,11 +529,27 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 		clicks++
 		return TRUE
 	swung = FALSE
-	var/obj/item/gun/G = bot.ready_lethal_gun() //goals/security_tactics.dm: a disabler's beam does nothing to it, and that's what an officer drew first
+	if(bot.owner.Adjacent(B) && bot.scan_blob(B)) //goals/blob_tactics.dm: what it is, before the first blow
+		wait_for = CLICK_CD_MELEE
+		return TRUE
+	var/tactic = bot.blob_tactic()
+	var/obj/item/gun/G
+	if(!(tactic & BLOB_TACTIC_NO_BURN))
+		G = bot.ready_lethal_gun() //goals/security_tactics.dm: a disabler's beam does nothing to it, and that's what an officer drew first
 	if(!G)
-		var/obj/item/gun/ballistic/shooter = bot.find_carried_tool(/obj/item/gun/ballistic)
-		if(shooter?.can_shoot())
-			G = shooter
+		G = bot.blob_gun() //bullets, the strain allowing
+	// An extinguisher on a blob water hurts: from a tile or two back, like a gun.
+	var/obj/item/extinguisher/hose = bot.blob_extinguisher()
+	if(!G && hose && get_dist(bot.owner, B) <= 3)
+		if(at_the_edge)
+			var/turf/back = bot_blob_free_step(here)
+			if(back && bot.owner.Move(back, get_dir(here, back)))
+				wait_for = 3
+				clicks++
+				return TRUE
+		if(get_dist(bot.owner, B) > 1 && bot.spray_blob(B, hose))
+			wait_for = CLICK_CD_RANGE
+			return TRUE
 	if(G && G.can_shoot() && at_the_edge) //a tile back, then shoot
 		var/turf/back = bot_blob_free_step(here)
 		if(back && bot.owner.Move(back, get_dir(here, back)))
@@ -486,19 +563,45 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 		wait_for = max(CLICK_CD_RANGE, G.fire_delay)
 		return TRUE
 	if(!bot.owner.Adjacent(B))
+		if(bot.pursuing_kind == "follow" && istype(bot.pursue_target, /obj/structure/blob)) //walking round to it: on till it's beside some of the blob
+			var/obj/structure/blob/reached = locate() in orange(1, here)
+			if(!reached || !bot.owner.Adjacent(reached))
+				wait_for = 5
+				return TRUE
+			bot.stop_pursuit()
 		var/turf/next = get_step_towards(bot.owner, B)
 		var/obj/structure/blob/in_the_way = next && (locate(/obj/structure/blob) in next)
 		if(in_the_way)
 			B = in_the_way //cutting a way through to the core: it used to stop at the first blob between, and the core was never reached
-		else
-			if(!next || bot_in_emitter_fire(next) || !bot.owner.Move(next, get_dir(bot.owner, next)))
+		else if(!next || bot_in_emitter_fire(next) || !bot.owner.Move(next, get_dir(bot.owner, next)))
+			// The straight step's a wall, a window or one of the others in the group. It used to give up there, and the next look round
+			// picked the same core again: hundreds of goes a shift a few tiles from it, every one ending at once, the core never touched.
+			// The bit of blob beside it if there is one, that's the way through; otherwise a walk round, as far towards it as it goes.
+			var/obj/structure/blob/beside = locate() in orange(1, here)
+			if(beside && bot.owner.Adjacent(beside))
+				B = beside
+			else if(walks < 3 && bot.walk_round_to_blob(B))
+				walks++
+				wait_for = 5
+				return TRUE
+			else
+				LAZYSET(bot.blob_out_of_reach, REF(bot.current_goal?.target), world.time + 30 SECONDS)
 				return FALSE
+		else
 			wait_for = 3
 			return TRUE
-	var/obj/item/weapon = bot.blob_welder()
+	var/obj/item/weapon = (tactic & BLOB_TACTIC_NO_BURN) ? null : bot.blob_welder()
+	if(!weapon && (tactic & BLOB_TACTIC_NO_BRUTE))
+		return FALSE //nothing it'll take a blow from without hitting back: welders and lasers only
+	if(!weapon && (tactic & BLOB_TACTIC_NO_BURN))
+		var/obj/item/extinguisher/E = bot.find_carried_tool(/obj/item/extinguisher)
+		if(E && bot.ready_in_hand(E))
+			weapon = E
 	if(!weapon)
 		bot.reach_for_weapon() //bot_fighting.dm: the best thing it's got, in hand
 		weapon = bot.owner.get_active_held_item()
+		if(weapon && (tactic & BLOB_TACTIC_NO_BURN) && weapon.damtype == BURN)
+			weapon = null
 	bot.owner.face_atom(B)
 	bot.owner.a_intent = INTENT_HARM
 	if(weapon)
@@ -511,6 +614,8 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 	return TRUE
 
 /datum/bot_step/paced/hit_blob/finish(datum/bot_brain/bot)
+	if(bot.pursuing_kind == "follow" && istype(bot.pursue_target, /obj/structure/blob))
+		bot.stop_pursuit()
 	var/obj/item/weldingtool/W = bot.find_carried_tool(/obj/item/weldingtool)
 	if(W?.isOn() && (W in bot.owner.held_items))
 		bot.toggle_in_hand(W) //not left burning in its hand to set the next plasma leak off
@@ -1620,7 +1725,7 @@ GLOBAL_LIST_EMPTY(bot_storage_asked)
 /datum/bot_blob_rally/proc/ready()
 	if(released)
 		return TRUE
-	if(!arrived)
+	if(!arrived || bot_blob_bomb_pending(core_ref)) //a bomb on its way to it, or set (goals/blob_tactics.dm): in after it's gone off
 		return FALSE
 	var/need = max(BOT_BLOB_RALLY_LEAST, CEILING(size * 0.7, 1))
 	if((arrived >= need && world.time >= first_in + BOT_BLOB_RALLY_MIN) || world.time >= first_in + BOT_BLOB_RALLY_MAX)
@@ -1630,7 +1735,7 @@ GLOBAL_LIST_EMPTY(bot_storage_asked)
 
 /// Open floor six to ten tiles off the blob's nearest edge to `from`, none of the blob within five of it, and as near to `from` as that
 /// goes: where the crew gather. Null if there's nowhere.
-/datum/bot_blob/proc/staging_spot(turf/from)
+/datum/bot_blob/proc/staging_spot(turf/from, datum/bot_brain/asker)
 	var/turf/edge
 	var/nearest
 	for(var/obj/structure/blob/B as anything in owner.blobs_legit)
@@ -1642,17 +1747,28 @@ GLOBAL_LIST_EMPTY(bot_storage_asked)
 			edge = get_turf(B)
 	if(!edge)
 		return null
-	var/turf/best
-	var/best_score
+	var/list/scored = list()
 	for(var/turf/open/floor/T in range(BOT_BLOB_RALLY_GAP_MAX, edge))
 		var/gap = get_dist(T, edge)
-		if(gap < BOT_BLOB_RALLY_GAP_MIN || T.density || is_blocked_turf(T, TRUE) || (locate(/obj/structure/blob) in range(BOT_BLOB_RALLY_GAP_MIN - 1, T)))
+		if(gap < BOT_BLOB_RALLY_GAP_MIN || T.density || (asker && !asker.turf_air_is_breathable(T)) || is_blocked_turf(T, TRUE) || (locate(/obj/structure/blob) in range(BOT_BLOB_RALLY_GAP_MIN - 1, T)))
 			continue
-		var/score = get_dist(from, T) + abs(gap - (BOT_BLOB_RALLY_GAP_MIN + 1)) * 2
-		if(isnull(best_score) || score < best_score)
-			best = T
-			best_score = score
-	return best
+		scored[T] = get_dist(from, T) + abs(gap - (BOT_BLOB_RALLY_GAP_MIN + 1)) * 2
+	// One it can walk to, by doors it opens: the best-scored was often in a room behind a locked door (Toxins, the Kitchen's cold room),
+	// and every volunteer sent there gave the wave up on the way, 59 times in twelve shifts.
+	for(var/tries in 1 to 5)
+		var/turf/best
+		for(var/turf/T as anything in scored)
+			if(!best || scored[T] < scored[best])
+				best = T
+		if(!best)
+			return null
+		if(!asker || asker.can_walk_lawfully_to(best))
+			return best
+		scored -= best
+		for(var/turf/T as anything in scored.Copy()) //nor the rest of that room
+			if(get_area(T) == get_area(best))
+				scored -= T
+	return null
 
 /// To the group's spot, armed, and then in with the rest.
 /datum/bot_goal/rally_for_blob
@@ -1675,7 +1791,7 @@ GLOBAL_LIST_EMPTY(bot_storage_asked)
 
 /datum/bot_goal/rally_for_blob/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/fight_blob/S = new
-	S.steps = list(new /datum/bot_step/ready_welder/arm_for_blob(), new /datum/bot_step/move_to(), new /datum/bot_step/paced/wait_for_group())
+	S.steps = bot.blob_arming_steps() + list(new /datum/bot_step/move_to(), new /datum/bot_step/paced/wait_for_group())
 	return list(S)
 
 /datum/bot_goal/rally_for_blob/on_success(datum/bot_brain/bot)
@@ -1705,6 +1821,8 @@ GLOBAL_LIST_EMPTY(bot_storage_asked)
 
 /datum/bot_step/paced/wait_for_group/do_click(datum/bot_brain/bot)
 	var/datum/bot_goal/rally_for_blob/G = bot.current_goal
+	if(istype(G) && bot_blob_bomb_pending(G.core_ref))
+		until = max(until, world.time + 30 SECONDS) //waited out: the bomb's the group's way in
 	if(!istype(G) || !G.rally || world.time >= until || G.rally.ready())
 		return FALSE
 	if(locate(/obj/structure/blob) in range(BOT_BLOB_RALLY_GAP_MIN - 3, bot.owner)) //it's grown on to them: in, there's no waiting here

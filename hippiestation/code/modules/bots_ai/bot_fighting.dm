@@ -491,6 +491,8 @@
 		return null
 	if(istype(V.attached_device, /obj/item/assembly/health) || bot_get_wanted_entry(H) || bot_in_nanosuit(H))
 		return V
+	if(V.bot_for_blob) //Science's, for the blob, told of on the radio (goals/blob_tactics.dm): through the Bar or past the Bridge, it's going there
+		return null
 	if(bot_bomb_out_of_place(H)) //apex/defenders.dm: in the Bar, on the Bridge, in Security - nobody's taking that to the range
 		return V
 	return null

@@ -310,6 +310,9 @@ GLOBAL_DATUM(bot_toxins, /datum/bot_toxins)
 		if(20)
 			return new /datum/bot_goal/toxins/assemble(src)
 		if(21)
+			var/obj/structure/blob/core/blob = bot.saboteur ? null : bot_blob_bomb_core(bot) //goals/blob_tactics.dm: on the blob, not the range
+			if(blob && istype(valve?.attached_device, /obj/item/assembly/timer))
+				return new /datum/bot_goal/toxins/blob_bomb(src, blob)
 			return new /datum/bot_goal/toxins/launch(src)
 	return null
 
@@ -334,6 +337,9 @@ GLOBAL_DATUM(bot_toxins, /datum/bot_toxins)
 		else
 			lab.finished = TRUE
 			log_game("BOT TOXINS: this station has no lab a bot can work")
+	// The range's had the round's bomb, and a blob's come aboard since: another one, for it (goals/blob_tactics.dm)
+	if(lab.found && lab.finished && !bot.wants_maxcap && !bot.saboteur && world.time >= lab.rest_until && QDELETED(lab.valve) && bot_blob_bomb_core(bot))
+		lab.again_for_blob()
 	if(!lab.found || lab.finished || world.time < lab.rest_until)
 		return FALSE
 	// One pair of hands: whoever started has the tanks and knows where it's up to. Somebody else only takes over if they can't go on.

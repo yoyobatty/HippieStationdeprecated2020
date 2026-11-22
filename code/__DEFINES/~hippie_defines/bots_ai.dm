@@ -89,3 +89,12 @@
 #define BOT_MOVABLE_PATH_PENALTY 10
 /// A fuel tank's blast, explosion(0, 1, 5, flame_range = 5): the light blast and the flames reach five tiles, six out is clear (foundation/tactics.dm)
 #define BOT_TANK_CLEAR 6
+/// What a blob's strain means for the crew, once somebody's put an analyzer on it (goals/blob_tactics.dm bot_strain_tactic())
+/// Burn makes it spread or throw flames: no welders, no lasers
+#define BLOB_TACTIC_NO_BURN (1<<0)
+/// A blow makes it lash out at everybody beside it: no clubs, no bullets
+#define BLOB_TACTIC_NO_BRUTE (1<<1)
+/// Water hurts it: extinguishers
+#define BLOB_TACTIC_SPRAY (1<<2)
+/// Shrugs off explosions: no bomb on it
+#define BLOB_TACTIC_NO_BOMB (1<<3)

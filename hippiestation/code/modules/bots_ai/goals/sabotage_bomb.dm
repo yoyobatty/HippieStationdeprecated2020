@@ -209,6 +209,8 @@ GLOBAL_LIST_EMPTY(bot_ticking_bombs)
 		return FALSE
 	if(armed_bomb == V || bot_traitor && saboteur)
 		return FALSE //its own, or somebody else's handiwork it's glad of
+	if(V.bot_for_blob) //Science's, on the blob, told of on the radio: not one to pull the timer on, only to be clear of
+		return react_to_blob_bomb(V)
 	var/obj/item/assembly/timer/T = V.attached_device
 	var/brave = (is_security_job() && nerve >= 0.3) || (is_fire_response_job() && nerve >= 0.6) || nerve >= 0.85
 	if(brave && T.time > BOT_BOMB_TOO_LATE && !taken_by_another(V))
