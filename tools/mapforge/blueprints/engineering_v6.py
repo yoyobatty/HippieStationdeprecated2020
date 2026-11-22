@@ -38,15 +38,15 @@ DRAWING = """\
             #LLLLLLLLLLLLLLL#KKKKK#PPPPPPPPPPPP#
             #LLLLLLLLLLLLLLL#KKKKK#PPPPPPPPPPPP#
             ########################PPPPPPPPPPP###
-            #OOOOOOO#HH#GGGGGGGGGGG#PPPPPPPPPPP###
-            #OOOOOOO#HH#GGGGGGGGGGG###############
-            #OOOOOOO#HH#GGGGGGGGGGG###############
-            #OOOOOOO#HH#GGGGGGGGGGG###############
-            #OOOOOOO#HH#GGGGGGGGGGG###############
-            #OOOOOOO#HH#GGGGGGGGGGG###############
-            #########HH#GGGGGGGGGGG###############
-            #WWWWWWW#HH##########GG###############
-            #WWWWWWW#HH#CCCCCCCC##################
+            #OOOOOOO#HH#gggg#GGGGGG#PPPPPPPPPPP###
+            #OOOOOOO#HH#gggg#GGGGGG###############
+            #OOOOOOO#HH#gggg#GGGGGG###############
+            #OOOOOOO#HH######GGGGGG###############
+            #OOOOOOO#HH#eeee#GGGGGG###############
+            #OOOOOOO#HH#eeee######################
+            #########HH#eeeeeeeeeeee##############
+            #WWWWWWW#HH#eeeeeeeeeeee##############
+            #WWWWWWW#HH###########################
             #WWWWWWW#HH#CCCCCCCC##################
             #WWWWWWW#HH#CCCCCCCC##################
             #WWWWWWW#HH#CCCCCCCC##################
@@ -65,11 +65,11 @@ DRAWING = """\
 
 
 ######################
-#AAAAA#MMMMMMMMMMMMMM#
-#AAAAA#MMMMMMMMMMMMMM#
-#AAAAA#MMMMMMMMMMMMMM#
-#AAAAA#MMMMMMMMMMMMMM#
-#AAAAA#MMMMMMMMMMMMMM#
+#AAAAA#MMMMMMMMMM#kkk#
+#AAAAA#MMMMMMMMMM#kkk#
+#AAAAA#MMMMMMMMMM#kkk#
+#AAAAA#MMMMMMMMMM#kkk#
+#AAAAA#MMMMMMMMMM#####
 #######MMMMMMMMMMMMMM#
 #MMMMM#MMMMMMMMMMMMMM#
 #MMMMM#MMMMMMMMMMMMMM#
@@ -77,15 +77,21 @@ DRAWING = """\
 #MMMMM#MMMMMMMMMMMMMM#
 #MMMMM#MMMMMMMMMMMMMM#
 ######################
-#NNN#222#DDD#QQQ#
-#NNN#222#DDD#QQQ#
-#NNN#222#DDD#QQQ#
-#NNN#222#DDD#QQQ#
-#################
+#ZZZZZZZZZZZZZZZZZZZZ#
+#ZZZZZZZZZZZZZZZZZZZZ#
+#ZZZZZZZZZZZZZZZZZZZZ#
+#ZZZZZZZZZZZZZZZZZZZZ#
+######################
+#QQQ#BBB#NNN#222#DDDD#
+#QQQ#BBB#NNN#222#DDDD#
+#QQQ#BBB#NNN#222#DDDD#
+#QQQ#BBB#NNN#222#DDDD#
+######################
 """
 CHARS = {"L": "break", "K": "checkpoint", "P": "smes", "H": "enghall", "O": "ce", "W": "workshop", "S": "storage",
-         "G": "gravgen", "C": "control", "F": "lockers", "X": "engine", "A": "atmosdesk", "Y": "atmoslockers",
-         "M": "atmos", "N": "n2", "2": "o2", "D": "airmix", "Q": "plasma"}
+         "G": "gravgen", "g": "gravante", "C": "control", "F": "lockers", "X": "engine", "A": "atmosdesk", "Y": "atmoslockers",
+         "M": "atmos", "N": "n2", "2": "o2", "D": "airmix", "Q": "plasma",
+         "Z": "gasstore", "B": "co2", "e": "shared", "k": "atmaint"}
 
 ENG, ATM = "/area/engine/engineering", "/area/engine/atmos"
 GREY, DARK, ENGF = "/turf/open/floor/plasteel", "/turf/open/floor/plasteel/dark", "/turf/open/floor/engine"
@@ -98,8 +104,19 @@ ROOM_TABLE = {
     "ce": dict(area="/area/crew_quarters/heads/chief", floor=GREY, name="Chief Engineer's Office", label="CE"),
     "workshop": dict(area=ENG, floor=GREY, name="Engineering Workshop", label="WORKSHOP"),
     "storage": dict(area="/area/engine/storage", floor=DARK, name="Engineering Secure Storage", label="STORAGE"),
+    # the stock pattern (size_budget 2026-11-22: v6's was 79 tiles, stock 35-60): the generator in its own chamber,
+    # an antechamber off the corridor with the rad gear, 50 tiles in all
     "gravgen": dict(area="/area/engine/gravity_generator", floor=DARK, name="Gravity Generator", label="GRAV"),
+    "gravante": dict(area="/area/engine/gravity_generator", floor=GREY, name="Gravity Generator Foyer", main=False,
+                     label="FOYER"),
     "control": dict(area=ENG, floor=DARK, name="Engine Control", label="CONTROL"),
+    # the stock shared storage (Meta 17 tiles, Delta 41) where the old gravity chamber's rows were left solid wall
+    # (the user 2026-11-22: no wall filler; the gate: 12 tiles of 3x3 solid wall)
+    # a maint room off the port run in the main floor's far corner (the gate 2026-11-22: atmos fill 0.80 against the
+    # accepted 0.77 and the stock 0.43-0.59, the redraw had made the block one rectangle); polish dresses it as maint
+    "atmaint": dict(area="/area/maintenance/port", floor="/turf/open/floor/plating", name="Atmospherics Maintenance",
+                    label="MAINT"),
+    "shared": dict(area="/area/engine/storage_shared", floor=GREY, name="Shared Engineering Storage", label="SHARED"),
     "lockers": dict(area=ENG, floor=GREY, name="Engineering Lockers", label="LOCKERS"),
     "engine": dict(area=ENG, floor=ENGF, name="Engine Room", label="ENGINE"),
     "smcore": dict(area="/area/engine/supermatter", floor=ENGF, name="Supermatter Chamber", apc=False, bare=True,
@@ -115,6 +132,11 @@ ROOM_TABLE = {
                 dress=False, vents=0, camera=False, module=True, label="CO2"),
     "plasma": dict(area=ATM, floor="/turf/open/floor/engine/plasma", name="Plasma Chamber", main=False, bare=True,
                    dress=False, vents=0, camera=False, module=True, label="PL"),
+    # the stock pattern (2026-11-22): canisters and the tank consoles in their own room between the main floor and
+    # the chambers, the waste filter bank along it (v6_station.chambers); a CO2 tank as every stock atmos has
+    "gasstore": dict(area=ATM, floor=GREY, name="Atmospherics Gas Storage", main=False, label="GAS"),
+    "co2": dict(area=ATM, floor="/turf/open/floor/engine/co2", name="Carbon Dioxide Chamber", main=False, bare=True,
+                dress=False, vents=0, camera=False, module=True, label="CO2"),
 }
 
 
@@ -136,8 +158,17 @@ LINKS = [
     glass("ce", "enghall", inset=1, shutter="ceprivacy"),
     door("workshop", "enghall", name="Engineering Workshop", access="10", **ENGK),
     door("storage", "enghall", name="Engineering Secure Storage", access="11", **ENGK),
-    door("gravgen", "enghall", name="Gravity Generator", access="19", kind="command"),
+    door("gravante", "enghall", name="Gravity Generator", access="19", kind="command"),
+    door("gravgen", "gravante", name="Gravity Generator Chamber", access="19", kind="command"),
+    # the foyer one row short (its last row and the wall under it go to Engine Control, which also took the solid
+    # wall left under the old chamber) and a window from the foyer, as the stock chambers have (the gate 2026-11-22:
+    # fill 0.91 against the stock 0.63-0.77, glass 0.00 against 0.09-0.22, 12 tiles of 3x3 solid wall)
+    glass("gravgen", "gravante"),
     door("control", "enghall", name="Engine Control", access="10", glass=True, **ENGK),
+    door("shared", "enghall", name="Shared Engineering Storage", access="10", **ENGK),
+    # a window from the hall (engineering's glass 0.14 with the shared room's walls, accepted 0.15, stock 0.18-0.41)
+    glass("shared", "enghall"),
+    door("atmaint", "maint", name="Maintenance", access="12", kind="maintenance"),
     door("lockers", "enghall", name="Engineering Lockers", access="10", **ENGK),
     door("engine", "enghall", wide=2, name="Engine Room", access="10", **ENGK),
     door("enghall", "hall", name="Engineering", access="10", glass=True, **ENGK),
@@ -146,7 +177,9 @@ LINKS = [
     door("atmosdesk", "hall", name="Atmospherics", access="24", kind="atmos", glass=True),
     door("atmos", "atmosdesk", name="Atmospherics", access="24", kind="atmos"),
     door("atmos", "maint", name="Atmospherics Maintenance", access="24", kind="maintenance"),
-] + [glass(g, "atmos") for g in ("n2", "o2", "airmix", "plasma")]
+    door("gasstore", "atmos", wide=2, name="Atmospherics Gas Storage", access="24", kind="atmos", glass=True),
+    glass("gasstore", "atmos", inset=2),
+] + [glass(g, "gasstore") for g in ("n2", "o2", "airmix", "plasma", "co2")]
 
 
 def stamps():

@@ -381,3 +381,18 @@ def backroom3(R):
 
 
 ASSETS.update({"launch": launch, "chapel": chapel3, "confess1": booth3, "confess2": booth3, "libback": backroom3})
+
+
+# ================================================================================================= gate redraw (11-22)
+def lawyer3(R):
+    # the 11-22 shrink (35 -> 25 tiles) lost the office's extinguisher cabinet and poster: pieces 0.28 a wall face
+    # against the accepted 0.36 and the stock 0.50-0.65. Both by the hall door: the east wall keeps its face for
+    # the maint back door the layout pass cuts there
+    LAWYER_BEFORE(R)
+    door = (R.doors("hall") or R.doors())[0]
+    R.place(hang("extinguisher", "extinguisher", "/obj/structure/extinguisher_cabinet"), near=door, must=False)
+    R.place(hang("law poster", "sign", "/obj/structure/sign/poster/official/random"), near=door, must=False)
+
+
+LAWYER_BEFORE = ASSETS["lawyer"]
+ASSETS.update({"lawyer": lawyer3})

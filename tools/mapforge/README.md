@@ -149,7 +149,8 @@ python tools/mapforge/forge/gallery.py --compare before after   # the same crops
 - `forge/space.py` (plan B2): space syntax on the region graph. It measures mean depth, integration, how much the
   halls are the core, intelligibility, depth of rooms from the halls, dead ends, loops and cut nodes, all against
   the human range. Output: `data/mapforge/space/report.txt`. Takes about 11 s.
-- `forge/walk.py` (plan C4): walks 93 shift trips on every map (commutes, deliveries, patients, arrests, escape),
+- `forge/trip_walk.py` (plan C4; was `forge/walk.py` until 2026-11-22, when that name went to the v6 gate's reach and
+  walk measures): walks 93 shift trips on every map (commutes, deliveries, patients, arrests, escape),
   shortest 4-way path over walkable tiles. It reports detour, trip length, failures, shortcuts through other
   departments, maintenance walking, 1-wide traffic, hot corridors and blocked airlocks. `--heat` draws traffic
   pictures to `data/previews/mapforge/walk/traffic.png`. Takes about 13 s.
@@ -189,6 +190,41 @@ python tools/mapforge/forge/fixmine.py diff --n 200         # tile diffs of fixe
 - `forge/fixmine.py`: reads tg's history (blobless clone: each map version is fetched on first read). A fix is a
   commit whose title says so, touching 3 station maps or fewer. `diff` compares each tile's whole text before and
   after, so access and dir edits count, and sums what changed: layout, objects, vars, turfs, areas.
+
+### Room by room against the stock look (2026-11-22)
+
+Each tool takes a built map (a path, or a name in `data/mapforge/`) and compares it with Meta, Delta, Omega
+(citadel's) and Hippie.
+
+```
+python tools/mapforge/forge/room_twin.py data/mapforge/station_v6.dmm [--dept medical] [--area sleeper]
+python tools/mapforge/forge/style_bands.py data/mapforge/station_v6.dmm [--dept science]
+python tools/mapforge/forge/style_bands.py --show medical/surgery
+python tools/mapforge/forge/disc_rooms.py data/mapforge/station_v6.dmm [--run data/mapforge/disc/v6]
+```
+
+- `forge/room_stats.py` holds the numbers these tools share, one set per room: size, fill, corners, doors, furniture,
+  dense tiles, decals, trim, items, grime, wall pieces per face, glass, lights, and the floor turf mix. It also lists
+  the object families in each room. A room's type is its area path, or the path's parent when the stock maps have too
+  few rooms of it.
+- `forge/room_twin.py` draws each room beside its nearest stock room of the same type on each of the four maps, all
+  at one scale. Under each picture are its numbers, red where the room is above its twins and blue where below.
+  Output: `data/previews/mapforge/room_twin/<map>/<dept>.png` (worst room first) and `report.md`.
+- `forge/style_bands.py` takes, for each room type, the band (min..median..max) of every number over all the stock
+  rooms of that type, and checks each room of the map against it. It lists the objects most stock rooms of the type
+  have that the room lacks, and the objects none of them have. It opens with the habits: the share of rooms outside
+  the band on each number, and the map's median against the stock median. Output: `data/mapforge/style_bands/<map>.md`.
+- `forge/size_budget.py` shows where a map spends its floor. It lists rooms bigger than every stock room of their
+  type, room types 3+ stock maps have and the map lacks, each department's share against the stock range, and hall
+  floor by width. `--picture` draws the hall widths.
+- `forge/room_stamp.py` copies a stock room whole, in any of 8 orientations. Pipes, cables and pipe-bound machines
+  stay behind; the station's own passes lay them again.
+- `station/v6_gate.py` is the v6 build's gate, run on every build by `v6_station.py` (`--no-gate` skips it). It
+  checks the map against the stock maps and against the accepted baseline in `data/mapforge/gate_v6.json`, and
+  fails the build when a check fails.
+- `forge/disc_rooms.py` averages the discriminator's tile logits per room, hall and maint area, using the fold that
+  held the map out, on the CPU. It ranks the places that look most generated and draws the worst rooms beside their
+  heat. Output: `data/mapforge/disc_rooms/<map>.md` and `data/previews/mapforge/disc_rooms/<map>.png`.
 
 ### Plan passes that close the discriminator's tells (`station/to_dmm.py`, after `carve_pens`)
 

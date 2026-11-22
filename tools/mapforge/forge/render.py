@@ -68,6 +68,8 @@ def render(dmm_path, out_png, region=None, z=1, scale=1.0, disable=None, mode=No
             from forge import dmm, smooth
             m = dmm.read(src)
             smooth.prepare(m)
+            from forge import atmos as _atmos
+            _atmos.render_prep(m)       # the pipe stubs and layer shifts the game draws at runtime
             dmm.write(m, src)
         cmd = [dmm_tools(), "-e", DME, "minimap", "-o", tmp, "--disable", ",".join(disable or DISABLE)]
         if region:

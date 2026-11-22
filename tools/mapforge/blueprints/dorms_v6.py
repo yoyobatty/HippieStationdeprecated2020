@@ -29,10 +29,10 @@ DRAWING = """\
 #1111#HH#5555#
 #1111#HH#5555#
 ######HH###########
-#2222#HH#KKKKKKKKK#
-#2222#HH#KKKKKKKKK#
-#2222#HH#KKKKKKKKK#
-######HH###########
+#2222#HH#6666#FFFF#
+#2222#HH#6666#FFFF#
+#2222#HH#6666#FFFF#
+######HH######FFFF#
 #3333#HH#FFFFFFFFF#
 #3333#HH#FFFFFFFFF#
 #3333#HH#FFFFFFFFF#
@@ -40,19 +40,19 @@ DRAWING = """\
 #4444#HH#FFFFFFFFF#
 #4444#HH#FFFFFFFFF#
 #4444#HH#FFFFFFFFF#
-######HH#FFFFFFFFF#
-#s#tt#HH###########
-######HH#6666#
-#RRRR#HH#6666#
-#RRRR#HH#6666#
-######HH######
+###################
+#LLLLLLLLLLLL######
 #LLLLLLLLLLLL#
 #LLLLLLLLLLLL#
-#LLLLLLLLLLLL#
+######LLLLLLL#
+#s#tt#LLLLLLL#
+######LLLLLLL#
+#RRRR#LLLLLLL#
+#RRRR#LLLLLLL#
 ##############
 """
 CHARS = {"s": "stall1", "t": "stall2", "H": "dormhall", "1": "dorm1", "2": "dorm2", "3": "dorm3", "4": "dorm4", "5": "dorm5", "6": "dorm6",
-         "R": "restroom", "K": "lockers", "F": "fitness", "L": "lounge"}
+         "R": "restroom", "F": "fitness", "L": "lockers"}
 
 DQ = "/area/crew_quarters"
 GREY, CARPET = "/turf/open/floor/plasteel", "/turf/open/floor/carpet"
@@ -70,8 +70,10 @@ ROOM_TABLE = {
                     label="FITNESS"),
 }
 for _i in range(1, 7):
-    ROOM_TABLE["dorm%d" % _i] = dict(area=DQ + "/dorms", floor=CARPET, name="Dorm %d" % _i, main=False,
-                                     camera=False, plant=False, label="D%d" % _i)
+    # cabins 5 and 6 on wood (stock dorms use 3-6 floor turfs; carpet everywhere put the commonest turf at 0.64, the
+    # stock maximum, once the lounge left)
+    ROOM_TABLE["dorm%d" % _i] = dict(area=DQ + "/dorms", floor=CARPET if _i <= 4 else "/turf/open/floor/wood",
+                                     name="Dorm %d" % _i, main=False, camera=False, plant=False, label="D%d" % _i)
 
 
 def in_zone(a):
@@ -80,19 +82,17 @@ def in_zone(a):
 
 PUB = dict(kind="public", glass=True)
 LINKS = [
-    door("lounge", "hall", wide=2, name="Dormitories", **PUB),
-    glass("lounge", "hall", inset=2),
+    door("lockers", "hall", wide=2, name="Dormitories", **PUB),
+    glass("lockers", "hall", inset=2),
     door("dormhall", "maint", name="Dormitories Maintenance", kind="maintenance", access="12"),
-    door("restroom", "dormhall", name="Restrooms", kind="public"),
+    door("restroom", "lockers", name="Restrooms", kind="public"),
     door("stall1", "restroom", name="Toilet", kind="public", vars={"id_tag": "stall1"}),
     door("stall2", "restroom", name="Toilet", kind="public", vars={"id_tag": "stall2"}),
     door("lockers", "dormhall", name="Locker Room", **PUB),
     door("fitness", "dormhall", name="Fitness Room", **PUB),
-    door("fitness", "lockers", name="Fitness Room", **PUB),
     glass("fitness", "dormhall", inset=1),
     glass("fitness", "space", span=(0.25, 0.75)),
     glass("dorm5", "space", span=(0.34, 0.67)),
-    glass("dorm6", "space", span=(0.34, 0.67)),
 ] + [door("dorm%d" % i, "dormhall", name="Dorm %d" % i, kind="public", vars={"id_tag": "Dorm%d" % i})
      for i in range(1, 7)]
 

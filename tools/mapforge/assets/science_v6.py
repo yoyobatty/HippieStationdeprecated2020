@@ -330,3 +330,24 @@ def secpost5(R):
 
 SECPOST_R4 = ASSETS["secpost"]
 ASSETS.update({"secpost": secpost5})
+
+
+# ================================================================================================= gate redraw (11-22)
+def rnd_zoned(R):
+    # the closets and the side tables on dark floor too, as the lathes and the island are (the gate 2026-11-22: the
+    # commonest floor 0.83 of the L-shaped lab against the accepted 0.78 and the stock 0.44-0.74)
+    ASSETS_BEFORE_ZONE["rnd"](R)
+    tiles = []
+    for p in R.tiles:
+        objs = [o[0] if isinstance(o, tuple) else o for sp in R.geo.cells.get(p, []) for o in sp.get("obj", [])]
+        floors = [sp.get("floor") for sp in R.geo.cells.get(p, []) if sp.get("floor")]
+        if any(o.startswith(("/obj/structure/closet", "/obj/structure/table")) for o in objs) and DARK not in floors:
+            tiles.append(p)
+    if tiles:
+        R.zone(tiles, floor=DARK)
+    # a third light for the L (2 lights on 47 tiles is 0.43, under the stock 0.43-0.83 and the accepted 0.46)
+    R.place(hang("lab light", "light", "/obj/machinery/light"), far=R.room.attrs["heart"], must=False)
+
+
+ASSETS_BEFORE_ZONE = dict(ASSETS)
+ASSETS.update({"rnd": rnd_zoned})

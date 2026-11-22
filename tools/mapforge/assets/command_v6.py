@@ -343,3 +343,84 @@ def captain3(R):
 
 
 ASSETS.update({"eva": eva3, "teleporter": teleporter3, "vault": vault3, "captain": captain3})
+
+
+# ================================================================================================= gate redraw (11-22)
+def techstorage3(R):
+    # the 11-22 redraw grew the room from 24 to 30 tiles (35 before the gate fix) with the same racks: furniture 0.26
+    # against the stock 0.42-0.56. What the stock tech storages also stand in it: the assistance vendor, a crate,
+    # and a free-standing rack row with boards
+    techstorage2(R)
+    door = (R.doors("hall") or R.doors())[0]
+    R.place(one("vendor", "V", "/obj/machinery/vending/assist"), near=door, must=False)
+    R.place(one("crate", "CR", "/obj/structure/closet/crate"), must=False)
+    R.place(Kit("rack row", [cell(u, 0, "/obj/structure/rack", "/obj/effect/spawner/lootdrop/techstorage/%s" % k, label="r")
+                             for u, k in enumerate(("rnd", "engineering"))], use=[(0, 1), (1, 1), (0, -1), (1, -1)],
+                back=None, mirror=False), near=R.room.attrs["heart"], must=False)
+
+
+# floors as the stock rooms lay them (the user 2026-11-22: "the styling of eva, tech and secure tech needs an
+# improvement, just kind of 1 uniform tile"; Meta, Delta, Omega and Hippie: EVA grey with a dark strip under the suit
+# units and racks behind a striped edge, 25% dark; tech storage neutral tile trim, 2-3 decals a tile, bot boxes under
+# the racks, dark and grey mixed)
+GREYF, DARKF = "/turf/open/floor/plasteel", "/turf/open/floor/plasteel/dark"
+NEUTRAL, STRIPES = "/obj/effect/turf_decal/tile/neutral", "/obj/effect/turf_decal/stripes/line"
+QUARTERS = {(0, 1): (1, 4), (0, -1): (8, 2), (1, 0): (4, 2), (-1, 0): (1, 8)}     # wall side -> trim quarters
+
+
+def _objs_at(R, p):
+    out = []
+    for sp in R.geo.cells.get(p, []):
+        for o in sp.get("obj", []):
+            out.append(o[0] if isinstance(o, tuple) else o)
+    return out
+
+
+def stock_floor(R, zone_of=(), bot_on=(), base=None, trim=True):
+    """zone_of: object paths whose tiles get the dark strip and its striped edge; bot_on: object paths that stand on
+    a bot box; base: the room's own floor (else the blueprint's); trim: neutral half-tile trim along the walls."""
+    zone = {p for p in R.tiles if any(o.startswith(zone_of) for o in _objs_at(R, p))} if zone_of else set()
+    if base:
+        for p in R.tiles:
+            if p not in zone:
+                R.put(p, None, floor=base)
+    if zone:
+        R.zone(zone, floor=DARKF, edge=STRIPES)
+    for p in sorted(R.tiles):
+        dec = []
+        if bot_on and any(o.startswith(bot_on) for o in _objs_at(R, p)):
+            dec.append(BOT)
+        if trim and p not in zone:
+            qs = set()
+            for (dx, dy), q in QUARTERS.items():
+                if (p[0] + dx, p[1] + dy) not in R.tiles:
+                    qs |= set(q)
+            dec += [(NEUTRAL, {"dir": d}) for d in sorted(qs)]
+        if dec:
+            R.put(p, None, decal=dec)
+
+
+def eva3(R):
+    eva2(R)
+    # the L-shape (11-22) left no wall run for the oxygen rack and no spot for the single suit-up chair: a rack of
+    # its own and a bench of three in the open middle
+    R.place(one("oxygen", "r", "/obj/structure/rack", "/obj/item/tank/internals/oxygen", "/obj/item/tank/internals/oxygen",
+                "/obj/item/clothing/mask/breath", back="wall"), must=False)
+    R.place(Kit("suit-up bench", [(i, 0, dict(obj=[(CHAIR, {"dir": 1})], open=True, seat=True, label="c"))
+                                  for i in range(3)], use=[], back=None, mirror=False),
+            near=R.room.attrs["heart"], must=False, need=lambda pl: apart(R, pl, 1))
+    stock_floor(R, zone_of=("/obj/machinery/suit_storage_unit", "/obj/structure/rack"), base=GREYF)
+
+
+def techstorage4(R):
+    techstorage3(R)
+    stock_floor(R, zone_of=("/obj/structure/rack",), bot_on=("/obj/structure/rack", "/obj/structure/closet",
+                                                           "/obj/machinery/vending"), base=GREYF)
+
+
+def securetech2(R):
+    securetech(R)
+    stock_floor(R, bot_on=("/obj/structure/rack",))
+
+
+ASSETS.update({"techstorage": techstorage4, "eva": eva3, "securetech": securetech2})

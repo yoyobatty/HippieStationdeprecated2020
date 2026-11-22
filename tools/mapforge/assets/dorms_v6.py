@@ -169,8 +169,13 @@ def fitness2(R):
                 objs.append(("/obj/machinery/door/window/westleft", {"dir": 8, "name": "Boxing Ring"}))
             # each edge tile's stripe faces its own side, corners take both (Dorms review 3 #1: all faced one way)
             R.put((x, y), "open", obj=objs, decal=[("/obj/effect/turf_decal/stripes/line", {"dir": d}) for d in edges])
-    R.put((138, 103), "obj", obj=["/obj/structure/closet/athletic_mixed"])
-    R.put((138, 102), "obj", obj=["/obj/structure/rack", "/obj/item/clothing/gloves/boxing",
+    # the way round the ring stays open (the 11-22 redraw left a one-tile margin, and the cooler and a weight machine
+    # on it cut the room in two)
+    R.reserve([(x, y) for x in range(x0 - 1, x1 + 2) for y in range(y0 - 1, y1 + 2)
+               if (x, y) in R.tiles and not (x0 <= x <= x1 and y0 <= y <= y1)], "open")
+    # in the room's north arm, wall behind them (the 11-22 redraw put the space window behind 138,102-103)
+    R.put((138, 107), "obj", obj=["/obj/structure/closet/athletic_mixed"])
+    R.put((138, 106), "obj", obj=["/obj/structure/rack", "/obj/item/clothing/gloves/boxing",
                                   "/obj/item/clothing/gloves/boxing"])
     door = (R.doors("dormhall") or R.doors())[0]
     R.run([one("weights", "WT", "/obj/structure/weightmachine/weightlifter", back="any"),
@@ -237,3 +242,46 @@ def hall3(R):
 
 
 ASSETS.update({"lounge": lounge3, "fitness": fitness3, "dormhall": hall3})
+
+
+# ================================================================================================= gate redraw (11-22)
+# the regression gate (station/v6_gate.py, 2026-11-22): the dorm hall now ends at the cabins (dorms 102 tiles in a
+# 12x15 box: fill 0.57 in the stock 0.54-0.75, was 0.47), and the locker room below it is the way in from arm E, with
+# the restrooms off it (71 tiles, fill 0.74 in the stock 0.72-0.95). The old lockers2 placed at the old room's tiles.
+FREEZER, RUG = "/turf/open/floor/plasteel/freezer", "/turf/open/floor/carpet"
+QUARTERS = {(-1, 0): (1, 8), (1, 0): (4, 2), (0, 1): (1, 4), (0, -1): (8, 2)}     # door side -> tile decal quarters
+
+
+def lockers3(R):
+    street = (R.doors("hall") or R.doors())[0]
+    heart = R.room.attrs["heart"]
+    R.run([one("locker", "L", "/obj/structure/closet/secure_closet/personal")] * 4, far=street)
+    R.run([one("wardrobe", "L", path) for path in (
+        "/obj/structure/closet/wardrobe/grey", "/obj/structure/closet/wardrobe/black",
+        "/obj/structure/closet/wardrobe/mixed", "/obj/structure/closet/wardrobe/pjs")], far=street)
+    R.run([one("washer", "WM", "/obj/machinery/washing_machine"), one("washer", "WM", "/obj/machinery/washing_machine"),
+           one("laundry", "t", TABLE, "/obj/item/storage/backpack/duffelbag", "/obj/item/clothing/under/color/grey",
+               back="wall")], zone=(FREEZER, None))
+    R.place(Kit("bench", [(i, 0, dict(obj=[("/obj/structure/chair/stool", {})], open=True, seat=True, label="s"))
+                          for i in range(3)], use=[], back=None, mirror=False),
+            near=heart, must=False, need=lambda pl: apart(R, pl, 1), zone=(RUG, None))
+    R.place(PLANT_K, near=street, must=False)
+    R.place(PLANT_K, near=street, must=False)
+    R.place(hang("dorm map", "sign", "/obj/structure/sign/map/left"), near=street, must=False)
+    R.place(hang("laundry poster", "sign", "/obj/structure/sign/poster/official/cleanliness"), must=False)
+    for p in free_spots(R, heart, 3):
+        R.mark(p, ASSISTANT)
+
+
+def hall4(R):
+    hall3(R)
+    # the hall tile before each door painted toward it, as Meta's dorm hall is (decal and trim were 0.01 and 0.00
+    # against the stock 0.25-0.75 and 0.03-0.75 once the old lounge left the dorms)
+    from forge.proc.place import room_doors
+    for d, q in room_doors(R.geo, R.rid):
+        side = (max(-1, min(1, d[0] - q[0])), max(-1, min(1, d[1] - q[1])))
+        if side in QUARTERS and q in R.tiles:
+            R.put(q, None, decal=[("/obj/effect/turf_decal/tile/neutral", {"dir": k}) for k in QUARTERS[side]])
+
+
+ASSETS.update({"lockers": lockers3, "dormhall": hall4})

@@ -74,6 +74,7 @@ def audit(path, verbose):
             print("  stack %d,%d %s" % (x, y, ", ".join(what)))
         for x, y, froms in both:
             print("  both  wall %d,%d from %s" % (x, y, " ".join("%d,%d" % f for f in froms)))
+    return dict(over=len(over), stacked=len(stacked), both=len(both))
 
 
 def main():

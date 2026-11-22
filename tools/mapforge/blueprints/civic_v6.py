@@ -47,11 +47,11 @@ DRAWING = """\
 #######LLLLLL#FF#GGGGGGG#AAAAAAA#
 #LLLLLLLLLLLL#FF#GGGGGGG#AAAAAAA#
 #LLLLLLLLLLLL#FF#################
-#LLLLLLLLLLLL#FF#MMMMMMM#WWWWWWW#
-#LLLLLLLLLLLL#FF#MMMMMMM#WWWWWWW#
-#LLLLLLLLLLLL#FF#MMMMMMM#WWWWWWW#
-#LLLLLLLLLLLL#FF#MMMMMMM#WWWWWWW#
-#LLLLLLLLLLLL#FF#MMMMMMM#WWWWWWW#
+#LLLLLLLLLLLL#FF#MMMMMMMMM#WWWWW#
+#LLLLLLLLLLLL#FF#MMMMMMMMM#WWWWW#
+#LLLLLLLLLLLL#FF#MMMMMMMMM#WWWWW#
+#LLLLLLLLLLLL#FF#MMMMMMMMM#WWWWW#
+#LLLLLLLLLLLL#FF#MMMMMMMMM#WWWWW#
 #################################
 """
 CHARS = {"D": "launch", "H": "chapel", "X": "confess1", "Y": "confess2", "O": "chapeloffice", "K": "crematorium", "L": "library", "B": "libback",
@@ -106,8 +106,10 @@ LINKS = [
     door("gameroom", "gallery", name="Game Room", **PUB),
     door("gameroom", "maint", name="Game Room Maintenance", access="12", kind="maintenance"),
     door("meeting", "foyer", name="Meeting Room", **PUB),
-    door("lawyer", "hall", name="Law Office", access="38", kind="public", glass=True),
-    glass("lawyer", "hall", inset=1),
+    door("lawyer", "hall", at=("x", 124), name="Law Office", access="38", kind="public", glass=True),
+    # the door at the hall wall's west end and 3 panes of the 4-tile run beside it: 3 of 19 walls (the 11-22 shrink,
+    # 35 -> 25 tiles, with the door mid-wall: 4 panes 0.21 or 1-2, against the stock 0.12-0.19)
+    glass("lawyer", "hall", span=(0.0, 0.75)),
 ]
 
 _graph, _geo, _bp = drawing.department(NAME, BASE_MAP, DRAWING, CHARS, X0, Y0, ROOM_TABLE, LINKS, assets.ASSETS,

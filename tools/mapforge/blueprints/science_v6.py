@@ -86,9 +86,16 @@ def plans(P):
       south (x 59-92, y 30-41): nanites, experimentation, the toxins corridor, xenobiology over its pens
       tail (x 73-84, y 18-28): toxins over the launch room"""
     robotics = Y((1.0, "robotics"), (2, X((1.0, "robotics"), (4, "surgery"))))
-    secsuite = Y((4, "secpost"), (1.0, "cell"))
+    secsuite = Y((3, "cell"), (1.0, "secpost"))      # the post on the research street, its cell behind it
+    # 2026-11-22 size_budget: R&D 65 tiles and the servers 21 against stock 27-48 and 12-15; R&D gives two
+    # columns to the foyer, and the foyer two more so the RD's suite is 5 wide: the servers 5x3 (the 3x3 server
+    # chamber module stays at its east end), the RD's office 5x5
     rdsuite = Y((3, "server"), (1.0, "rdoffice"))
-    front = X((6, "mechbay"), (8, robotics), (4, "foyer"), (3, secsuite), (8, "rnd"), (1.0, rdsuite))
+    # R&D beside the foyer, the post beside the RD's suite, and R&D's west column takes the foyer's top three rows: an
+    # L as the stock labs are (the gate 2026-11-22: R&D a 5x8 box, fill 0.91 against the accepted 0.90 and the stock
+    # 0.65-0.77; the foyer, 9 wide and bare since the 11-22 shrink, gives the tiles)
+    front = X((6, "mechbay"), (8, robotics), (7, "foyer"), (1, Y((3, "rnd"), (1.0, "foyer"))), (5, "rnd"),
+              (3, secsuite), (1.0, rdsuite))
     explab = X((1.0, "explab"), (3, Y((1, "explab"), (1.0, "chamber"))))
     pens = X((3, "pen1"), (3, "pen2"), (3, "pen3"), (1.0, "pen4"))
     xeno = Y((4, "xeno"), (3, "pens"), (1.0, pens))
@@ -110,9 +117,8 @@ LINKS = [
     desk("rnd", "hall", name="Research and Development Desk", one_access="7;29", id="rnd"),
     glass("rnd", "hall", runs="door"),
     # the post watches the foyer and the arterial; its cell behind
-    door("secpost", "foyer", name="Security Post - Science", access="63", kind="security", glass=True),
-    glass("secpost", "foyer", runs="door"),
-    glass("secpost", "hall"),
+    door("secpost", "spine", name="Security Post - Science", access="63", kind="security", glass=True),
+    glass("secpost", "spine", runs="door"),
     door("cell", "secpost", type="windoor", name="Holding Cell", access="63"),
     glass("cell", "secpost"),
     # robotics and the mech bay

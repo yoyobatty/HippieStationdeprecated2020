@@ -88,7 +88,7 @@ def smes(R):
 
 def gravgen(R):
     # the generator stands in the middle of its room: the machine's tile is the bottom centre of its 3x3
-    mid = (126, 74)         # the 3x3 grows up from this tile (gravitygenerator.dm:147): rows 74-76 of 72-78
+    mid = (128, 74)         # the 3x3 grows up from this tile (gravitygenerator.dm:147): rows 74-76 of the 74-78 chamber
     R.put(mid, "obj", obj=["/obj/machinery/gravity_generator/main/station"])
     R.reserve([(mid[0] + dx, mid[1] + dy) for dx in (-1, 0, 1) for dy in (0, 1, 2)], "obj")
     R.place(hang("radiation sign", "sign", "/obj/structure/sign/warning/radiation"), must=False)
@@ -234,10 +234,45 @@ ASSETS.update({"atmos": atmos_main2, "engine": engine_room2, "lockers": lockers2
 from assets.engineering import button  # noqa: E402
 def gravgen3(R):
     gravgen(R)
-    # the notch south-east of the generator: the rad closet and a sign, not a dead corner (review 3 #4)
-    if (130, 71) in R.tiles:
-        R.put((130, 71), "obj", obj=["/obj/structure/closet/radiation"])
-    R.place(one("rad closet", "L", "/obj/structure/closet/radiation"), near=R.doors()[0], must=False)
+
+
+def gasstore(R):
+    # the stock pattern: canisters stand in their own room off the main floor (Meta, Delta, Hippie), in rows on
+    # loading boxes; the chambers' consoles and ports along the south wall are laid by v6_station.chambers
+    R.run([one("canister", "CN", "/obj/machinery/portable_atmospherics/canister/%s" % g, decal=[BOT]) for g in
+           ("oxygen", "oxygen", "nitrogen", "nitrogen", "carbon_dioxide", "toxins", "nitrous_oxide", "air", "air")])
+    R.run([one("pump", "pp", "/obj/machinery/portable_atmospherics/pump", decal=[BOT]),
+           one("pump", "pp", "/obj/machinery/portable_atmospherics/pump", decal=[BOT]),
+           one("scrubber", "sc", "/obj/machinery/portable_atmospherics/scrubber", decal=[BOT]),
+           one("scrubber", "sc", "/obj/machinery/portable_atmospherics/scrubber", decal=[BOT])])
+
+
+def atmos_main3(R):
+    # the main floor as all four stock atmos rooms have it (style_bands: in 4/4): the techs' lockers and suits by
+    # the desk door, both pipe dispensers, the tank dispenser, the alert consoles, a work table of scanners, belts
+    # and sheets; the canisters moved to the gas storage
+    desk = (R.doors("atmosdesk") or R.doors())[0]
+    R.run([one("atmos locker", "L", "/obj/structure/closet/secure_closet/atmospherics")] * 3 +
+          [one("fire closet", "L", "/obj/structure/closet/firecloset"),
+           one("atmos suit", "SU", "/obj/machinery/suit_storage_unit/atmos")], near=desk)
+    R.run([one("pipe dispenser", "PD", "/obj/machinery/pipedispenser"),
+           one("disposal pipe dispenser", "PD", "/obj/machinery/pipedispenser/disposal"),
+           one("tank dispenser", "TD", "/obj/structure/tank_dispenser")])
+    R.place(one("tools", "t", TABLE, "/obj/item/t_scanner", "/obj/item/analyzer", "/obj/item/storage/belt/utility",
+                back="wall"), must=False)
+    R.place(one("sheets", "t", TABLE, "/obj/item/stack/sheet/metal/fifty", "/obj/item/stack/sheet/glass/fifty",
+                "/obj/item/clothing/mask/gas", back="wall"), must=False)
+    R.place(one("station alerts", "C", ("/obj/machinery/computer/station_alert", {"dir": "IN"})), must=False)
+    R.place(one("atmos alerts", "C", ("/obj/machinery/computer/atmos_alert", {"dir": "IN"})), must=False)
+    R.place(hang("requests console", "requests_console", "/obj/machinery/requests_console",
+                 {"department": "Atmospherics", "departmentType": 3}), must=False)
+
+
+def gravante(R):
+    # the stock antechamber: rad closets and the warning sign before the chamber door (Meta, Delta, Hippie)
+    R.place(one("rad closet", "L", "/obj/structure/closet/radiation"), must=False)
+    R.place(one("rad closet", "L", "/obj/structure/closet/radiation"), must=False)
+    R.place(hang("radiation sign", "sign", "/obj/structure/sign/warning/radiation"), must=False)
 
 
 def control3(R):
@@ -298,5 +333,27 @@ def engine_room3(R):
                "/obj/item/geiger_counter", back="wall")], far=(R.doors("enghall") or R.doors())[0])
 
 
-ASSETS.update({"gravgen": gravgen3, "control": control3, "atmosdesk": atmos_desk3, "break": break3,
+ASSETS.update({"gravgen": gravgen3, "gravante": gravante, "gasstore": gasstore, "co2": chamber("co2"),
+               "atmos": atmos_main3, "control": control3, "atmosdesk": atmos_desk3, "break": break3,
                "engine": engine_room3})
+
+
+# ================================================================================================= gate redraw (11-22)
+RTABLE = "/obj/structure/table/reinforced"
+
+
+def shared(R):
+    # what the stock shared storages hold (Meta, Delta): reinforced tables with sheets and tools, the tool vendor,
+    # a tool closet, a plant
+    door = (R.doors("enghall") or R.doors())[0]
+    R.run([one("sheets", "t", RTABLE, ("/obj/item/stack/sheet/metal/fifty", {}), ("/obj/item/stack/sheet/glass/fifty", {}),
+               back="wall"),
+           one("tools", "t", RTABLE, "/obj/item/storage/toolbox/mechanical", "/obj/item/stack/cable_coil", back="wall"),
+           one("rods", "t", RTABLE, "/obj/item/stack/rods/fifty", "/obj/item/wrench", "/obj/item/crowbar/red", back="wall")],
+          far=door)
+    R.place(one("tool vendor", "V", "/obj/machinery/vending/tool"), must=False)
+    R.place(one("tool closet", "L", "/obj/structure/closet/toolcloset"), must=False)
+    R.place(PLANT_K, near=door, must=False)
+
+
+ASSETS.update({"shared": shared})

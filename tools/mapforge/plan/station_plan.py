@@ -57,8 +57,11 @@ BLOCKS = {
     # engineering took the maint east of it (2026-11-21): the supermatter stamp needs a hull wall with the coil in
     # open space behind it, so the block's east side is the station's hull from row 86 down
     "engineering": [[(103, 81), (139, 81), (139, 86), (141, 86), (141, 111), (103, 111)],
-                    # atmos: one column west and one row north (2026-11-21) so it fronts arm S and the arterial
-                    [(91, 113), (113, 113), (113, 126), (108, 126), (108, 131), (91, 131)]],
+                    # atmos: one column west and one row north (2026-11-21) so it fronts arm S and the arterial;
+                    # 2026-11-22 refit to the stock pattern (size_budget: atmos 3.2% of the floor, stock 3.5-8.3%):
+                    # five rows south into space for a gas storage room and five chambers along the hull, over the
+                    # maint row and the emergency storage that stood there
+                    [(91, 113), (113, 113), (113, 136), (91, 136)]],
     "ai": [[(166, 71), (179, 71), (179, 74), (183, 74), (183, 85), (179, 85), (179, 89), (166, 89)]],
     "medical": [[(56, 81), (77, 81), (77, 92), (88, 92), (88, 108), (62, 108), (62, 100), (56, 100)]],
     # science took the escape-side lounge (2026-11-18): the toxins tail needed a square base for xenobiology
@@ -72,7 +75,6 @@ MAINT = [
     (36, 32, 87, 33), (36, 34, 37, 49), (36, 48, 57, 49), (48, 50, 49, 77), (53, 34, 54, 45), (68, 34, 69, 45),
     (120, 28, 125, 31), (124, 32, 125, 45), (113, 48, 114, 77), (115, 48, 128, 51),
     (91, 101, 102, 102), (101, 103, 102, 110), (113, 113, 114, 132),
-    (92, 131, 112, 132),
     (30, 85, 55, 86), (54, 87, 55, 107), (30, 87, 31, 131), (44, 87, 45, 105), (32, 106, 53, 107),
     (32, 108, 43, 109), (32, 126, 51, 127), (32, 128, 66, 131),
 ]
@@ -81,14 +83,17 @@ MAINT_ROOMS = [
     (38, 34, 52, 45), (55, 34, 67, 45),             # behind the EVA wing
     (91, 103, 100, 110),                            # behind the south lounge
     (32, 87, 43, 105), (46, 87, 53, 105),           # below arrivals
-    (32, 110, 51, 125), (108, 126, 112, 130),                             # beside science
+    (32, 110, 51, 125),                             # beside science
     (56, 100, 61, 107),                             # medical's back corner
 ]
 DOCKS = {"arrivals": (18, 76, 25, 82), "supply": (24, 62, 29, 68), "escape": (84, 146, 94, 152),
          "solars NW": (14, 14, 22, 22), "solars NE": (150, 10, 158, 18), "solars SE": (150, 118, 158, 126),
          "solars SW": (14, 138, 22, 146)}
-CATWALKS = [(137, 111, 137, 111), (23, 18, 35, 18), (35, 19, 35, 31), (125, 14, 149, 14), (125, 15, 125, 27), (139, 122, 149, 122),
-            (138, 111, 138, 121), (23, 142, 29, 142), (29, 132, 29, 141)]
+# each catwalk overlaps the maint corridor it meets by a tile: (35, .. 31), (29, 132 ..) and (139, 122 ..) met theirs
+# corner to corner, cutting the SW, NW and SE solars off (2026-11-22; v6_station.solars opens the corner on canvases
+# built before this)
+CATWALKS = [(137, 111, 137, 111), (23, 18, 35, 18), (35, 19, 35, 32), (125, 14, 149, 14), (125, 15, 125, 27), (138, 122, 149, 122),
+            (138, 111, 138, 121), (23, 142, 29, 142), (29, 131, 29, 141)]
 
 COL = {"command": (70, 110, 200), "security": (200, 60, 60), "medical": (90, 190, 220), "science": (170, 90, 210),
        "engineering": (230, 170, 40), "cargo": (180, 130, 60), "service": (90, 180, 90), "dorms": (150, 150, 110),
