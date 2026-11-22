@@ -226,6 +226,57 @@ python tools/mapforge/forge/disc_rooms.py data/mapforge/station_v6.dmm [--run da
   held the map out, on the CPU. It ranks the places that look most generated and draws the worst rooms beside their
   heat. Output: `data/mapforge/disc_rooms/<map>.md` and `data/previews/mapforge/disc_rooms/<map>.png`.
 
+### Generator targets from the whole corpus (`studies/full_generator_plan.md`, 2026-11-22)
+
+Five studies read all 38 human maps (`parse.humans()`, 32 families) and set the full generator's targets. Each
+family counts once, and a band is the 10th..90th percentile over families. Each study caches its per-map results
+in `data/mapforge/gen_targets/` and writes `<study>.txt` and `<study>_targets.json` there. `--map <dmm>` checks a
+build against the bands, and `--fresh` measures again.
+
+```
+python tools/mapforge/studies/skeleton_types.py [--picture]   # hall layout: hub / donut / spine / tree / islands
+python tools/mapforge/studies/dept_scaling.py                 # floor from crew, department floor from station floor
+python tools/mapforge/studies/dept_adjacency.py               # which departments touch, radial place, door fronts
+python tools/mapforge/studies/space_sizes.py                  # hall and maint widths, pockets, room sizes and shapes
+python tools/mapforge/studies/stamp_supply.py                 # stock rooms to copy per type, look maps vs corpus
+```
+
+- `studies/corpus_common.py` holds the parts the studies share: map families, the cache, bands, power fits, and
+  `crew()`. `crew()` counts job start landmarks without tg's hangover spawns, which parse.crew counts.
+- `skeleton_types.py --picture` draws each map's halls, hall centre line and loop blocks to
+  `data/previews/mapforge/gen_targets/skeletons.png`.
+
+### The full generator (`gen/`, plan `studies/full_generator_plan.md`)
+
+```
+python tools/mapforge/gen/gate.py --calibrate              # the gate on all 38 human maps (M0's exit test)
+python tools/mapforge/gen/gate.py --bands                  # every band and pair rule
+python tools/mapforge/gen/gate.py <map.dmm> [--stage blocks|full] [--name N --accept]
+python tools/mapforge/gen/build.py --crew 80 --seed 1      # one station: data/mapforge/gen/gen_hub_c80_s1.dmm + .png
+python tools/mapforge/gen/build.py --set --sheet           # the regression set (gen/seeds.py) and a contact sheet
+```
+
+- `gen/gate.py`: every number of the four corpus studies against its band, plus pair rules and v6_gate's hard
+  checks.
+  - A band is the corpus families with the most extreme 10% at each end dropped (at least 80% of families inside),
+    joined with the four look maps' min..max, so Meta, Delta, Omega and Hippie pass every band.
+  - Pairs: "must touch" when 80%+ of families and all four look maps join the pair; "never touch" at 5% or under
+    and none of the look maps.
+  - RULED checks are the user's rulings, stricter than the stock maps; calibration lists them apart.
+  - `--name` keeps a per-build ratchet baseline in `data/mapforge/gen/baseline/`.
+- `gen/program.py` (S0): floor from crew, each department's budget from its fit at that floor, held inside the
+  gate's share band.
+- `gen/blocks.py` (S1 + S2): the hub block plan.
+  - Halls: the command core inside a 3-wide hall loop, and 4 spokes.
+  - Corners: departments whose radial band reaches 0.2 or less wrap the loop's corners as L blocks.
+  - Spokes: the rest line both sides of the spokes, nearest first; arrivals, escape and the AI sit past the spoke
+    tips.
+  - Test range: a 5x5 at 0.86-0.98 of the radius, as on Meta, Delta, Omega, Hippie and Box.
+  - Maint runs are added up to the maint budget.
+  - Painted as a .dmm with walls, rough partitions, doors and one area per department.
+- `gen/build.py`: tries layouts and nudges its numbers until the gate's block stage passes. Writes the .dmm, a
+  .json of every try, and a block picture in `data/previews/mapforge/gen/`.
+
 ### Plan passes that close the discriminator's tells (`station/to_dmm.py`, after `carve_pens`)
 
 - `split_rooms`: rooms of 56+ tiles get a straight partition (glass in most of it, a door in the middle); rooms of
