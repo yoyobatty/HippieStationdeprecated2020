@@ -276,6 +276,23 @@ python tools/mapforge/gen/build.py --set --sheet           # the regression set 
   - Painted as a .dmm with walls, rough partitions, doors and one area per department.
 - `gen/build.py`: tries layouts and nudges its numbers until the gate's block stage passes. Writes the .dmm, a
   .json of every try, and a block picture in `data/previews/mapforge/gen/`.
+  - What's left after the tries goes to a seeded local search (`repair`): it swaps slots, moves lobbies, and scales
+    quotas, the outpost and the depth, keeping any move that lowers failures plus band distance.
+  - `GEN_REPAIR=N` sets that search's budget.
+  - `--stage rooms` furnishes the plan (S3) and gates the bands, pairs and M2's hard checks.
+  - `GEN_OUT=<dir>` writes a trial build elsewhere.
+  - A batch runs `tools/gpu_share.py wait` before each seed, so a Last Light timed run goes first.
+- `gen/stamps.py`: the stock-room library over all 38 maps (`data/mapforge/gen/stamps.json`).
+  - A room is copyable when every path resolves here: as it is; renamed (other codebases' air alarm, holopad,
+    plants...); dropped (mapping helpers, nav landmarks, loose items a later codebase added); or as its nearest
+    known ancestor at least 3 segments deep, never a bare base type.
+  - 135 types in 3+ families; 76 of the 78 common types.
+- `gen/rooms.py` (S3): fills each department block with copied stock rooms.
+  - Room program: the department's common types first, then the same types again into what is left.
+  - Packing: skyline-style at the block's free corners, in 8 orientations, tightest fit.
+  - Corridors: the department's own corridor area; a piece over 120 tiles becomes walled maint pockets.
+  - Atmos: its gas chambers.
+  - Doors: a second door for one-door rooms down to the human 40%, and a door cut between atmos and engineering.
 
 ### Plan passes that close the discriminator's tells (`station/to_dmm.py`, after `carve_pens`)
 

@@ -333,3 +333,58 @@ Each milestone ends with a report of what was done and found, plus pictures wher
   - `gen_pinwheel_c80_s1`: 41 fail.
 - **Known paths:** `forge/typeindex` misses the pipe types the HELPER macros declare (mapping.dm). The gate expands
   them, so v6's layer1/layer3 pipes no longer read as unknown.
+
+### M1, 2026-11-22: program, skeleton and department blocks (9 of 15)
+
+`gen/program.py`, `gen/blocks.py` and `gen/build.py` build a hub block plan from a seed and a crew. On the regression
+set (hub x crew 40/80/120 x seeds 1-5, 50 tries, repair 150):
+- **9 of 15 pass every block check:** 69 checks covering skeleton, shares, radial places, adjacency log-likelihood
+  and pairs.
+- **The other 6 fail one check each:** radial security (2), atmos, service; spoke walk (2, crew 120).
+- About 1-5 min a seed, CPU only, after `tools/gpu_share.py wait`.
+- Contact sheet: `data/previews/mapforge/gen/sheet.png`.
+
+Decisions, each from a measurement:
+- **The test range.**
+  - On Meta, Delta, Omega, Hippie and Box the toxins test range (12-25 tiles) sits at 0.86-0.98 of the station
+    radius. It is often the farthest floor, so it sets the radius every radial place is measured by.
+  - The block plan places it; its distance (outpost) is a tuned number.
+- **4 spokes for M1.**
+  - With 2-3, the slot layout queues blocks single file along a spoke: walks ran 66-98 tiles against the human 62
+    max.
+  - A 2-spoke hub (Meta) puts departments on the bare loop sides; that is M6 work.
+- **Corners.**
+  - Inner departments wrap the loop corners as L blocks, only those whose radial band reaches 0.2.
+  - Engineering never takes a corner: atmos must touch it, and only two blocks in a row guarantee that.
+  - A corner block may hold no more than about 18 rows over the corner's width.
+  - Corners are given out after the spoke blocks stand, nearest the station's centroid first.
+- **Spoke blocks.**
+  - Blocks are deep and short (length/depth 0.45-1.1).
+  - A spoke side's second block goes in a second row once the walk would pass 42.
+  - Notches between touching blocks go back to the department, not to maint.
+- **Lopsided by design.** Load balancing is off: human hubs sit 0.08-0.17 of the radius off their centroid, and
+  the hall's centroid 0.05-0.13 off.
+- **Search.**
+  - Of the slot search's top 10 assignments, each is placed for real and the one whose placed numbers miss least
+    is kept.
+  - Then nudges between tries.
+  - Then a seeded local search (repair) on failures plus band distance.
+
+### M2, 2026-11-22: rooms by stock copies (in progress)
+
+- **Library.** `gen/stamps.py`: 1381 copyable rooms of 135 types in 3+ families; 76 of the 78 common types.
+  - Other codebases' paths are renamed, dropped (mapping helpers, nav landmarks, their extra items) or resolved to
+    a known ancestor.
+  - A bare base type is never used: it drew magenta.
+- **Packing.** `gen/rooms.py` fills each block with copied rooms, 3-12 per department.
+  - Department corridors take 8-25% of a block and their own area.
+  - Corridor pieces over 120 tiles become walled maint pockets.
+  - Atmos gets its gas chambers.
+  - One-door rooms get a second door down to 40%.
+  - Atmos and engineering get a door through their shared wall.
+- **Crew 80 seed 4, room stage.** Every room check passes: sizes, quantiles, rooms per 1k, oversized,
+  core types, known paths, and the atmos-engineering touch.
+  - Hall width mix still misses: the plan has too few hall segments, so a few random width draws swing it.
+  - Maint width mix still misses.
+- **Next:** widths allocated per segment to the human mix (spoke widths 3/3/4/5, a 2-wide T arm with a 1-wide
+  tail, 7-wide then 9+-wide lobby tiers), then the room-stage set.
