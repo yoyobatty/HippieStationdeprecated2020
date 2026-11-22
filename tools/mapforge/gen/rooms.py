@@ -104,15 +104,29 @@ class Block:
                 if own.get((c[0] + dx, c[1] + dy)) in ("hall", "arrivals", "escape"):
                     front.add(c)
         self.front = front
+        # the entry: a corridor from the middle of the hall front 4 cells in, kept from rooms, so the department's
+        # corridor always opens onto its hall (rooms on the front left whole corridors reachable only through maint)
+        self.keep = set()
+        if front:
+            fx = sum(c[0] for c in front) / float(len(front))
+            fy = sum(c[1] for c in front) / float(len(front))
+            fo = min(front, key=lambda c: (abs(c[0] - fx) + abs(c[1] - fy), c))
+            for dx, dy in N4:
+                if own.get((fo[0] - dx, fo[1] - dy)) in ("hall", "arrivals", "escape"):
+                    for t in range(1, 5):
+                        q = (fo[0] + dx * t, fo[1] + dy * t)
+                        if q in self.cells and q not in self.outline:
+                            self.keep.add(q)
+                    break
 
     def fits(self, F, R, o):
         Fm = [(o[0] + p[0], o[1] + p[1]) for p in F]
         for c in Fm:
-            if c not in self.inner or c in self.floor or c in self.ring:
+            if c not in self.inner or c in self.floor or c in self.ring or c in self.keep:
                 return None
         Rm = [(o[0] + p[0], o[1] + p[1]) for p in R]
         for c in Rm:
-            if c not in self.cells or c in self.floor:
+            if c not in self.cells or c in self.floor or c in self.keep:
                 return None
         return Fm, Rm
 
@@ -303,21 +317,37 @@ def _doors(B, rooms, corridor, own, r):
     comps = _comps(corridor)
     for comp in comps:
         fronts = [c for c in front_ok if any((c[0] + dx, c[1] + dy) in comp for dx, dy in N4)]
+        # a hall front first: a corridor whose only way in is maint leaves its rooms maint-only (the gate's "ways in")
+        hall_f = [c for c in fronts if any(own.get((c[0] + dx, c[1] + dy)) in ("hall", "arrivals", "escape")
+                                           for dx, dy in N4)]
         if fronts:
-            d = r.choice(sorted(fronts))
+            d = r.choice(sorted(hall_f or fronts))
             doors.append(d)
             reached_cells |= comp
     pending = list(rooms)
     changed = True
-    while changed and pending:
+    # two phases: first only doors onto the corridor, a hall or a reached room; maint only for rooms nothing else
+    # reaches (trace.py 2026-11-22: 31-48 maint-only areas came out of the room stage, and connect's rescue doors
+    # then pulled the one-door share to 0.18-0.25)
+    allow_maint = False
+    while pending and (changed or not allow_maint):
+        if not changed:
+            allow_maint = True
         changed = False
         for rm in list(pending):
             opts = []
             for c in rm["R"] - rm["inner"]:
                 for dx, dy in N4:
                     a, b = (c[0] + dx, c[1] + dy), (c[0] - dx, c[1] - dy)
-                    if a in rm["F"] and (b in reached_cells or (b not in B.cells and own.get(b) in outside)):
-                        opts.append((0 if c in rm["D"] else 1, c, b))
+                    if a not in rm["F"]:
+                        continue
+                    if b in reached_cells:
+                        opts.append((0, 0 if c in rm["D"] else 1, c, b))
+                    elif b not in B.cells and own.get(b) in ("hall", "arrivals", "escape"):
+                        opts.append((0, 0 if c in rm["D"] else 1, c, b))
+                    elif allow_maint and b not in B.cells and own.get(b) in outside:
+                        opts.append((1, 0 if c in rm["D"] else 1, c, b))
+            opts = [o[1:] for o in sorted(opts)]
             if opts:
                 opts.sort()
                 c, b = opts[0][1], opts[0][2]
@@ -339,7 +369,7 @@ def _doors(B, rooms, corridor, own, r):
     return doors
 
 
-ONE_DOOR = 0.40          # human median share of rooms with one way in (space_sizes.py)
+ONE_DOOR = 0.60          # connect, dress and the copies' own doors add plenty after this (full set 2026-11-22: 0.24)          # human median share of rooms with one way in (space_sizes.py)
 
 
 def _second_doors(B, rooms, corridor, own, doors, r):
@@ -462,7 +492,30 @@ def _split_corridor(B, corridor, doors, r, need=0):
                 if b in comp and b not in seen:
                     seen.add(b)
                     q.append(b)
-        k = set(order[:cmax_here])
+        # every door on this piece stays joined to the rest by corridor: the BFS tree's path from the first door to
+        # each other door is kept whatever the cap (cut-off doors left rooms reachable only through maint, and the
+        # rescue doors connect.py then cut dragged the one-door share to 0.25: full set 2026-11-22)
+        par = {seeds[0]: None}
+        qq = [seeds[0]]
+        i = 0
+        while i < len(qq):
+            a = qq[i]
+            i += 1
+            for dx, dy in N4:
+                b = (a[0] + dx, a[1] + dy)
+                if b in comp and b not in par:
+                    par[b] = a
+                    qq.append(b)
+        k = set()
+        for sd in seeds:
+            c = sd
+            while c is not None and c not in k:
+                k.add(c)
+                c = par.get(c)
+        for c in order:
+            if len(k) >= cmax_here:
+                break
+            k.add(c)
         left -= len(k)
         rest = comp - k
         # the line between them: rest cells touching the kept corridor become wall

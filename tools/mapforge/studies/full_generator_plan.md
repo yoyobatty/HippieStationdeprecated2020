@@ -423,3 +423,40 @@ Decisions, each from a measurement:
      time.
   3. M4: the dressing passes (habits, glaze, fixtures, polish, tidy).
   4. Retrain the discriminator after each and watch the hub builds' share of tiles called generated fall.
+
+### M2-M3, 2026-11-22 later: speed, the full stage, and what the trace measured
+
+- **Speed** (profile): the block gap check kept per department, 4 candidates instead of 10, repair stopping after
+  30 steps without gain, and room rounds that re-furnish instead of re-searching. The 15-seed room set went from
+  105 min to 15-30 min with `--jobs 5`; workers stay warm (furnish 22.6 s cold, 1.7 s warm).
+- **Full stage** (`build.py --stage full`: rooms, `gen/dress.py`, `gen/connect.py`, every check but the disposals
+  outlet): 0 of 15 passed, 3-11 failures each.
+- **`gen/trace.py`** applies each pass in turn to a furnished map and gates after each. Over 5 maps:
+  - The room stage leaves 13-48 areas reached only through maint, and 400-900 floor tiles unreached: maint networks
+    with no door to a hall, and second-row blocks with no hall of their own.
+  - connect.py reaches them (unreached floor 872 -> 43, maint-only areas 45 -> 3-13), but its 45-67 rescue doors
+    give rooms second ways in. The one-door share falls 0.34-0.42 -> 0.20-0.31 on every map.
+  - shared.py's vents clash with the copied rooms' vents; dress.vents_apart clears that.
+- **Conclusion: the cause is top-down packing.** Rooms are cut into pre-made department blocks; the leftover
+  corridor, pockets and unreachable pieces are then patched, and each patch moves another number.
+
+### Next: departments built bottom-up (the user's suggestion, 2026-11-22)
+
+The idea: a map as a graph of nodes, built from the bottom up by combining structures into bigger ones up to the
+root, with the space between filled from nearby terrain by Dijkstra.
+
+Applied here, keeping what passes (S0 program, S1 skeleton, the slot order of S2):
+1. **Department as a structure.** Its rooms (stock copies) are composed around a corridor graph:
+   - each room's door attaches to the corridor;
+   - the rooms humans join (surgery beside treatment, the server room beside R&D) join;
+   - one end of the corridor is the hall front.
+   - The department's footprint is the union of what its rooms need. Nothing is left over, so there are no
+     corridor scraps, every room is reached from the hall, and doors come only from the rooms' own.
+2. **Station as the root.** Each composed department is placed at its slot on the skeleton (radial place,
+   neighbours), turned to face its spoke.
+3. **Fill.** Space between departments is filled by multi-source Dijkstra from the hall and department edges:
+   - within 1-3 tiles of two different departments: maint, which links to the nearest hall by construction;
+   - farther out: space.
+   - That gives the maint width mix and its loops.
+4. **Judged as now:** `gen/gate.py` and `gen/trace.py`. Exit test: the trace's two shared failures (ways in,
+   one-door share) gone on all 5 trace seeds, with no new failure.

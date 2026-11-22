@@ -102,7 +102,7 @@ class Noise:
 
 
 DEFAULT_PARAMS = dict(spread=1.0, reach=1.0, hall_dw=0, ring_p=0.35, radial_shift={}, lobby=1.0, lobe=0.5,
-                      depth=1.0, qmul={}, outpost=1.3, sw=(0.5, 0.3, 0.2), lw=(2, 1), tails=1.0, pockets=0.7,
+                      depth=1.0, qmul={}, outpost=1.3, sw=(0.5, 0.3, 0.2), lw=(2, 1), tails=1.0, pockets=0.45,
                       spoke_ws=(3, 3, 4, 5),
                       runw=(0.45, 0.25))
 # the toxins test range: a 5x5 floor out in space past science (/area/science/test_area). On Meta, Delta, Omega,
@@ -583,7 +583,7 @@ class Layout:
                 # the lobby's neck: 4-5 wide, its own area (human arrivals and escape open through a hall before
                 # the wide part; the wide part alone would push the 9+ wide hall share past the human 22%)
                 kind = kinds[lob.index(i)]
-                k = self.r.randint(4, 8)
+                k = self.r.randint(2, 4)         # short: the branch from the junction ends inside 20
                 e["end"] = self._strip((e["end"][0] + e["d"][0], e["end"][1] + e["d"][1]), e["d"], k,
                                        5, AREA[kind], owner=kind)
             elif i == ai_at:
@@ -666,9 +666,9 @@ class Layout:
         # two tiers: 7 wide (human w6-8 7.5% of hall floor), then the wide hall (w9+ 12%), near square
         t1w = 6
         # the 9+ part is the smaller share: halls 7+ wide stay under the look maps' 0.195 of hall floor
-        t1 = max(3, int(round(b * 0.6 / t1w)))
-        wide = max(9, min(11, int(round(math.sqrt(b * 0.4 * 1.2)))))
-        deep = max(3, int(round(b * 0.4 / wide)))
+        t1 = max(3, min(5, int(round(b * 0.7 / t1w))))
+        wide = max(9, min(10, int(round(math.sqrt(b * 0.3 * 1.2)))))
+        deep = max(3, int(round(b * 0.3 / wide)))
         dx, dy = e["d"]
         ex, ey = e["end"]
         px, py = -dy, dx

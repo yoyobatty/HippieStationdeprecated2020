@@ -29,8 +29,40 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, ".."))
 sys.path.insert(0, os.path.join(HERE, "..", "station"))
 
-PASSES = ("close_corners", "layout", "glaze", "open_dead_ends", "shared", "polish", "pocket_fill", "plazas", "details",
-          "bins", "fixtures", "tidy", "habits", "bin_swap")
+# v6's "layout" (back doors) is left out: the room stage already gives rooms their second doors, and with both the
+# one-door share fell to 0.19 against the human 0.34-0.45 (full-stage set, 2026-11-22)
+PASSES = ("close_corners", "glaze", "open_dead_ends", "carve_open_maint", "shared", "polish", "pocket_fill", "plazas",
+          "details", "bins", "fixtures", "tidy", "habits", "bin_swap", "vents")
+
+
+VENT = ("/obj/machinery/atmospherics/components/unary/vent_pump", "/obj/machinery/atmospherics/components/unary/vent_scrubber")
+
+
+def vents_apart(m, log=print):
+    """The user's rulings the gate checks: no vent or scrubber on a power terminal, never two on one tile, never two of
+    a kind side by side outside the supermatter. Copied rooms bring their own vents and the shared pass adds more:
+    the later one of a clash goes."""
+    gone = 0
+    kind = {}
+    for (x, y, z), t in sorted(m.tiles.items()):
+        vs = [o for o in t.objs if o.path.startswith(VENT)]
+        if not vs:
+            continue
+        drop = []
+        if t.has("/obj/machinery/power/terminal") or t.apath.startswith("/area/engine/supermatter"):
+            if t.has("/obj/machinery/power/terminal"):
+                drop = vs
+        else:
+            k = "V" if vs[0].path.startswith(VENT[0]) else "S"
+            drop = vs[1:]
+            if any(kind.get((x + dx, y + dy)) == k for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+                drop = vs
+            else:
+                kind[(x, y)] = k
+        if drop:
+            t.objs = [o for o in t.objs if not any(o is d for d in drop)]
+            gone += len(drop)
+    log("dress: %d vents or scrubbers removed (on a terminal, stacked or side by side)" % gone)
 
 
 def dress(m, log=print, skip=()):
@@ -55,6 +87,11 @@ def dress(m, log=print, skip=()):
                 habits(m, log)
             elif name == "open_dead_ends":
                 V6.open_dead_ends(m, log)
+            elif name == "carve_open_maint":
+                from station import v6_rooms
+                v6_rooms.carve_open_maint(m, log)
+            elif name == "vents":
+                vents_apart(m, log)
             else:
                 getattr(V6, name)(m, log)
             out[name] = round(time.time() - t0, 1)

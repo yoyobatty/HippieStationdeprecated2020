@@ -67,6 +67,9 @@ def connect(m, log=print, rounds=12):
         made = 0
         for comp in _comps(un):
             best = None
+            mine = next(iter(comp))
+            maint_piece = sm.group.get(mine) == "maint"
+            dept = sm.group.get(mine)
             for p in comp:
                 for dx, dy in N4:
                     w = (p[0] + dx, p[1] + dy)
@@ -80,7 +83,14 @@ def connect(m, log=print, rounds=12):
                     else:
                         pen = 0
                     g = sm.group.get(q)
-                    sc = (RANK.get(g, 1 if g != "maint" else 2) + pen, w)
+                    # a maint piece opens onto a hall or other maint, a room only if nothing else is in reach (a
+                    # door into a room gives it a second way in: trace.py 2026-11-22, one-door share 0.34 -> 0.22);
+                    # a department piece onto a hall, then its own department, then maint
+                    if maint_piece:
+                        rank = 0 if g in RANK else 1 if g == "maint" else 3
+                    else:
+                        rank = 0 if g in RANK else 1 if g == dept else 2 if g == "maint" else 3
+                    sc = (rank + pen, w)
                     if best is None or sc < best[0]:
                         best = (sc, w, p, q)
             if best:
@@ -105,6 +115,10 @@ def connect(m, log=print, rounds=12):
             for dx, dy in N4:
                 w = (p[0] + dx, p[1] + dy)
                 q = (p[0] + 2 * dx, p[1] + 2 * dy)
+                w2 = None
+                if sm.cls.get(w) == "W" and sm.cls.get(q) == "W" and q not in sm.glass:
+                    # two walls thick (a room's wall and the corridor's): a door and a step of floor
+                    w2, q = q, (p[0] + 3 * dx, p[1] + 3 * dy)
                 if sm.cls.get(w) != "W" or w in sm.glass or sm.cls.get(q) != "F":
                     continue
                 g = sm.group.get(q)
@@ -113,13 +127,36 @@ def connect(m, log=print, rounds=12):
                 t = m.get(*w)
                 if t is None or t.tpath.startswith("/turf/closed/wall/r_wall"):
                     continue
-                sc = (RANK.get(g, 1), w)
+                sc = (RANK.get(g, 1) + (0.5 if w2 else 0), w)
                 if best is None or sc < best[0]:
-                    best = (sc, w, p, q)
+                    best = (sc, w, p, q, w2)
         if best:
             _cut(m, sm, best[1], best[2], best[3])
+            if best[4]:
+                t2 = m.get(*best[4])
+                t2.objs = []
+                t2.turf = dmm.Atom("/turf/open/floor/plasteel")
+                t2.area = dmm.Atom(sm.area.get(best[3]))
             fixed += 1
-    log("connect: %d doors in all; %d maint-only rooms given a front door" % (total, fixed))
+    # department-corridor scraps under 15 tiles still reached only through maint are packing leftovers, not rooms:
+    # walled in (the gate's "ways in" names any maint-only area; v6_rooms walls its leftover pockets the same way)
+    import rooms as RM
+    sm = parse.SemanticMap(m, "gen", 1)
+    walkable = {p for p, c in sm.cls.items() if c in ("F", "D")}
+    halls = [p for p in walkable if sm.group.get(p) == "hall"]
+    nom = walk._bfs(halls, lambda n: n in walkable and sm.group.get(n) != "maint")
+    corr = set(RM.CORRIDOR_AREA.values())
+    scraps = {p for p, c in sm.cls.items() if c == "F" and sm.area.get(p) in corr and p not in nom}
+    walled = 0
+    for comp in _comps(scraps):
+        if len(comp) < 15:
+            for p in comp:
+                t = m.get(*p)
+                t.objs = []
+                t.turf = dmm.Atom("/turf/closed/wall")
+            walled += len(comp)
+    log("connect: %d doors in all; %d maint-only rooms given a front door; %d corridor scrap tiles walled" % (
+        total, fixed, walled))
     prune_stubs(m, log)
     return total, fixed
 
