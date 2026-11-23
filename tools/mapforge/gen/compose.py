@@ -264,8 +264,18 @@ class Comp:
                         if not ok:
                             continue
                         edge = (ox + bb[0] == 0) + (ox + bb[2] == W - 1) + (oy + bb[1] == 0)
-                        sc = tight / float(len(Ro)) + 0.05 * edge - 0.03 * dd * (1.5 if pub else 1.0) + \
-                            (0.25 if rr in D else 0.0) + 0.01 * self.r.random()
+                        # the bay a room leaves behind it, between its back wall and the frame's edge (or the
+                        # front): empty space inside the department's box, which the station's fill pays for
+                        if u[0] > 0:
+                            bay = W - 1 - (ox + bb[2])
+                        elif u[0] < 0:
+                            bay = ox + bb[0]
+                        elif u[1] < 0:
+                            bay = oy + bb[1]
+                        else:
+                            bay = 0
+                        sc = tight / float(len(Ro)) + 0.05 * edge - BAY_W * bay - \
+                            0.03 * dd * (1.5 if pub else 1.0) + (0.25 if rr in D else 0.0) + 0.01 * self.r.random()
                         if best is None or sc > best[0]:
                             best = (sc, dd, e, src, k, (ox, oy), off, F, R, inner, w)
             if best is not None:
@@ -397,7 +407,11 @@ def compose(dept, target, W, key, Dmax=DMAX, stem=None):
     for x in sorted({sx, lo, hi}, key=lambda v: (v != sx, v)):
         C = _compose_at(dept, target, W, Dmax, cw, x, random.Random("compose|%s|%s|%d" % (dept, key, x)))
         fl = len(C.floor) + len(C.corr)
-        sc = (min(fl, target * 1.05), -len(C.cells))
+        xs = [c[0] for c in C.cells]
+        ys = [c[1] for c in C.cells]
+        box = (max(xs) - min(xs) + 1) * (max(ys) - min(ys) + 1)
+        # floor, less a share of the box it takes: a long one-sided department fills its box half as well (skel.fill)
+        sc = (min(fl, target * 1.05) - BOX_W * box, -len(C.cells))
         if best is None or sc > best[0]:
             best = (sc, C)
     return best[1]
@@ -451,7 +465,9 @@ def _compose_at(dept, target, W, Dmax, cw, sx, r):
     return C
 
 
-MIN_W = 17          # a stem with a room either side: about 7 cells each
+BAY_W = 0.04        # score lost per cell of bay behind a room (see Comp.attach)
+BOX_W = 0.2         # floor a stem variant gives up per cell of its bounding box (compose)
+MIN_W = 17         # a stem with a room either side: about 7 cells each
 
 
 def _small_rooms(C, dept, target, lib):
@@ -539,13 +555,16 @@ def get(dept, target, W, salt, Dmax=DMAX, stem=None):
 
 
 DEPTH = 1.4         # a spoke department may run this many times its slot's depth before it is widened instead
+DEPTH_CAP = 10 ** 6
+ASPECT_LO, FILL_LO = 0.762, 0.234   # skel.aspect and skel.fill band floors (gen/gate.py --bands)
+FLOOR_OF_OWN = 0.71  # station floor per claimed cell (walls are claimed too): 0.183 / 0.259 on crew 80 seed 4
 
 
 def fit(dept, target, W, h, salt, stem=None):
     """A composition near its slot's depth h: at most DEPTH x h deep, widened 20% at a time while it holds under 90%
     of its floor. (Deeper before wider, 1.8 h, was tried on crew 80 seed 4: the spoke walk passed but radial places,
     maint and fill failed, 6 checks against 2.)"""
-    Dm = max(18, int(round(h * DEPTH)))
+    Dm = max(18, min(DEPTH_CAP, int(round(h * DEPTH))))
     best = None
     for _ in range(5):
         C = get(dept, target, W, salt, Dmax=Dm, stem=stem)
@@ -618,6 +637,45 @@ class BU(BL.Layout):
                     self.own[c] = owner
                     self.harea[c] = area
         return (sx + dx * (length - 1), sy + dy * (length - 1))
+
+    def _test_site(self):
+        """The test range at blocks.Layout's distance (outpost x the farthest floor from the centroid), in the
+        direction of 32 that grows the station's box least, science's side preferred a little; the box stays near
+        square (human aspect 0.76-0.96). blocks.Layout took the compass point nearest science: with composed
+        departments that grew the box 1.6-2x on 2 of 4 seeds, and skel.fill (floor / box) fell to 0.15-0.2."""
+        cells = list(self.own)
+        cx = sum(c[0] for c in cells) / float(len(cells))
+        cy = sum(c[1] for c in cells) / float(len(cells))
+        far = max(math.hypot(c[0] - cx, c[1] - cy) for c in cells)
+        sci = [c for c, o in self.own.items() if o == "science"] or cells
+        sx = sum(c[0] for c in sci) / float(len(sci)) - cx
+        sy = sum(c[1] for c in sci) / float(len(sci)) - cy
+        sn = math.hypot(sx, sy) or 1.0
+        dist = far * self.q["outpost"] - BL.TEST_SIDE / 2.0
+        xs, ys = [c[0] for c in cells], [c[1] for c in cells]
+        x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+        area0 = float((x1 - x0 + 1) * (y1 - y0 + 1))
+        half = BL.TEST_SIDE // 2 + 1
+        best = None
+        for k in range(32):
+            a = k * math.pi / 16
+            ux, uy = math.cos(a), math.sin(a)
+            px, py = cx + ux * dist, cy + uy * dist
+            w = max(x1, px + half) - min(x0, px - half) + 1
+            h = max(y1, py + half) - min(y0, py - half) + 1
+            asp = min(w, h) / max(w, h)
+            fill = FLOOR_OF_OWN * len(cells) / float(w * h)
+            # out of the gate's bands, in band widths: skel.aspect 0.762.., skel.fill 0.234.. (the gate's numbers)
+            miss = max(0.0, ASPECT_LO + 0.01 - asp) / 0.2 + max(0.0, FILL_LO + 0.01 - fill) / 0.12
+            sc = miss + 0.05 * (w * h / area0) + 0.03 * (1.0 - (ux * sx + uy * sy) / sn)
+            if best is None or sc < best[0]:
+                best = (sc, px, py)
+        ox, oy = int(round(best[1])), int(round(best[2]))
+        for x in range(ox - BL.TEST_SIDE // 2 - 1, ox + BL.TEST_SIDE // 2 + 2):
+            for y in range(oy - BL.TEST_SIDE // 2 - 1, oy + BL.TEST_SIDE // 2 + 2):
+                if (x, y) not in self.own:
+                    self.own[(x, y)] = "testsite"
+        self.info["test_site"] = (ox, oy)
 
     # ---------------------------------------------------------------- S2: placement
     def _fits(self, cells, d):

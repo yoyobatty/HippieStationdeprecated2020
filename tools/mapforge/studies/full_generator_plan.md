@@ -541,3 +541,60 @@ and `trace_bottomup_run3.json`):
 2. **Room-size medians** (security, civic) and **`share.command`.** The core is sized from command's composition,
    which lands under its budget on big crews.
 3. **The atmos-engineering door.** Let the pair's footprints share one wall instead of standing two walls apart.
+
+### M2-M3, 2026-11-22 night: fill, and the first passing builds
+
+**`skel.fill` (station floor / station box) came from the test range, not the departments.**
+- Composed footprints are as dense as the old blocks: floor/cells 0.61-0.62 (the old FLOOR_RATIO 0.62).
+- Two other levers barely moved their box fill (floor/box), on 10 compositions:
+
+  | lever tried | box fill |
+  | --- | --- |
+  | a score cost on the bay behind each room | 0.442 -> 0.450 |
+  | the stem variant chosen by floor less 0.2x its box | 0.447 -> 0.463 |
+- Depth caps of 36 and 30 changed nothing measurable: fill moved 0.14-0.28 between configurations, which is noise.
+- Taking each element out of the box in turn named the cause: without the test range the box shrank 1.57x and 1.98x
+  on crew 80 seeds 1 and 4, and no more than 1.05x for any department.
+  - `blocks._test_site` took the compass point nearest science, at outpost x the farthest floor. On a diagonal that
+    grows the box both ways.
+- **Fix:** `compose.BU._test_site` keeps the distance and picks one of 32 directions by the gate's own bands:
+  distance out of `skel.aspect` (0.762..) plus distance out of `skel.fill` (0.234..). Floor is estimated as 0.71 of
+  the claimed cells. A small box term follows, with science's side as the tie-break.
+  - The bay cost (`BAY_W` 0.04) and box-aware variant choice (`BOX_W` 0.2) stay in. Both are small.
+
+**Trace** (5 trace seeds, `data/mapforge/gen_bu2`, `data/mapforge/gen/trace_bottomup_run4.json`):
+
+| | top-down | bottom-up before | bottom-up now |
+| --- | --- | --- | --- |
+| final failures | 30 | 21 | 11 |
+| maps failing `skel.fill` | - | 4 of 5 | 0 of 5 (0.237-0.256) |
+| "ways in" | 5 of 5 | 0 of 5 | 0 of 5 |
+| one-door share | out of band | in band | 0.369-0.390, in band |
+
+- Crew 80 seed 1 passes every check after connect.
+- Still new against top-down:
+  - crew 40 seed 3: radial.command, room_size_medical;
+  - crew 80 seed 4: share.hall, spoke_len;
+  - crew 120 seed 1: radial.civic, radial.hall, spoke_len;
+  - crew 120 seed 2: radial.engineering, share.command.
+
+**Full stage** (`build.py --set --stage full --jobs 5`, about 50 min): **2 of 15 pass** (crew 80 seeds 1 and 4), the
+first full-stage passes.
+- The rest fail 1-8 checks: 52 in all, against 72 before this fix.
+- `skel.fill` fails on 5 builds, down from 9. All 5 are crew 120 or crew 40 seed 2 and crew 80 seed 2.
+- No build fails "ways in" or the one-door share.
+
+| count | checks |
+| --- | --- |
+| 6 | `share.hall` |
+| 5 each | `skel.spoke_len`, `skel.fill` |
+| 4 each | `space.room_size_civic`, `share.command` (all crew 120) |
+| 2 each | room_size_medical, pocket_med, hall_share, share.service, radial.hall, radial.command, halls 7+ wide |
+| 1 each | must touch atmos-engineering, oversized, open maint, and 10 more |
+
+**Next:**
+1. **Crew 120's command share.** The core box is the command composition, which comes in under budget: let the
+   core take a second branch.
+2. **Hall share and spoke length.** The spokes carry fewer, deeper departments than the blocks did. Try the second
+   row back on, with side halls capped at the human arm length (19).
+3. **The civic median room size.** Civic's copies are big (library 127, chapel 117).
