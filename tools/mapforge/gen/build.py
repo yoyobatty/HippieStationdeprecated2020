@@ -32,6 +32,18 @@ STALL = 30            # repair stops after this many moves without improvement
 M2_HARD = ("core room types", "oversized rooms", "known paths", "solid wall filler")
 # stage full gates every check but these, which need the network pass (power, air, disposals) still to come
 M3_PENDING = ("disposals outlet",)
+# the room stage: departments composed bottom-up (gen/compose.py), or GEN_ROOMS=topdown for the old packing into
+# pre-made blocks (gen/rooms.py)
+BOTTOM_UP = os.environ.get("GEN_ROOMS", "bottomup") != "topdown"
+
+
+def _layout(*a, **k):
+    if BOTTOM_UP:
+        import compose as CP
+        return CP.layout(*a, **k)
+    return BL.layout(*a, **k)
+
+
 PIC = os.path.join(OUT, "pictures") if os.environ.get("GEN_OUT") else os.path.join(parse.ROOT, "data", "previews",
                                                                                     "mapforge", "gen")
 COL = {"command": (70, 110, 200), "security": (200, 60, 60), "medical": (90, 190, 220), "science": (170, 90, 200),
@@ -215,7 +227,7 @@ def repair(best, prog, P, radial, room, rband, name, log, quiet, evals=80):
             q["depth"] = max(0.6, min(1.8, q.get("depth", 1.0) * rnd.choice((0.9, 1.1))))
         else:
             q["qmul"]["maint"] = max(0.5, min(2.5, q["qmul"].get("maint", 1.0) * rnd.choice((0.9, 1.1))))
-        m2, L2 = BL.layout(prog, q, sub, P, radial, room, rband, force=asg)
+        m2, L2 = _layout(prog, q, sub, P, radial, room, rband, force=asg)
         ch2, f2 = measure(m2, name)
         sc2 = _score(ch2)
         log.append(dict(sub=sub, try_="repair", fails=[c["name"] for c in ch2 if not c["ok"]], params={}))
@@ -238,7 +250,7 @@ def search(prog, params, tries, name, P, radial, room, rband, log, quiet):
         if i % NUDGES == 0 and i:
             keep = ("qmul", "outpost", "depth", "sw", "lw", "tails", "pockets", "runw", "lobby", "spoke_ws")
             params = dict(BL.DEFAULT_PARAMS, **{k: params[k] for k in keep if k in params})
-        m, L = BL.layout(prog, params, sub, P, radial, room, rband)
+        m, L = _layout(prog, params, sub, P, radial, room, rband)
         checks, f = measure(m, name)
         fails = [c for c in checks if not c["ok"]]
         log.append(dict(sub=sub, try_=i, fails=[c["name"] for c in fails], params={k: v for k, v in params.items()
@@ -284,12 +296,16 @@ def build(seed, crew, shape="hub", tries=24, quiet=False, stage="blocks"):
             asg = (dict(L.cmap), {k: list(v) for k, v in L.smap.items()}, list(L.lob), L.ai_at)
         else:
             # the block plan passed: rebuild it as it was and furnish again with another room seed
-            m, L = BL.layout(prog, params, sub, P, radial, room, rband, force=asg)
+            m, L = _layout(prog, params, sub, P, radial, room, rband, force=asg)
             L.info["room_salt"] = rnd
         rooms_log = []
         if stage in ("rooms", "full"):
-            import rooms as RM
-            RM.furnish(L, m, log=rooms_log.append)
+            if BOTTOM_UP:
+                import compose as CP
+                CP.finish(L, m, log=rooms_log.append)
+            else:
+                import rooms as RM
+                RM.furnish(L, m, log=rooms_log.append)
             if stage == "full":
                 import dress as DR
                 import connect as CN
