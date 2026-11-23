@@ -343,7 +343,7 @@ SUBSYSTEM_DEF(statpanels)
 			LAZYSET(blockers, T, top)
 	mob_icons_left = TURF_TAB_MOB_ICONS_PER_REFRESH
 	// Row: name, the thing a click on it goes to, its look (appearance), how many. Alike is what the row shows: the same name
-	// and picture (icon, state, direction; offsets and paint aren't drawn), or for a mob the same look.
+	// and picture (icon, state, direction, overlays; offsets and paint aren't drawn), or for a mob the same look.
 	var/list/rows = list(list(listed.name, listed, listed.appearance, 1))
 	var/list/alike_of_look = list()
 	var/list/row_of_alike = list()
@@ -359,7 +359,13 @@ SUBSYSTEM_DEF(statpanels)
 		var/look = A.appearance
 		var/alike = alike_of_look[look]
 		if(!alike)
-			alike = ismob(A) ? look : "[A.name]|[A.icon]|[A.icon_state]|[A.dir]"
+			if(ismob(A))
+				alike = look
+			else
+				alike = "[A.name]|[A.icon]|[A.icon_state]|[A.dir]"
+				// Overlays count too, so a charged energy gun and an empty one get their own rows
+				for(var/image/overlay as anything in A.overlays)
+					alike += "|[overlay.icon]|[overlay.icon_state]"
 			alike_of_look[look] = alike
 		var/list/row = row_of_alike[alike]
 		if(row)
@@ -426,9 +432,11 @@ SUBSYSTEM_DEF(statpanels)
 /// The key of an atom's picture in the tile tab, made now if it isn't kept: its own icon and state, facing as it is. Mobs'
 /// own icons are mostly blank (they're drawn from overlays), so a mob gets its flattened picture, by look, and only
 /// mob_icons_left of those are made a refresh (a few ms each): the rest keep their key and come in a later one.
+/// A thing with overlays (an energy gun's charge) is flattened the same way, so its row shows them.
 /datum/controller/subsystem/statpanels/proc/turf_icon_key(atom/A, look)
 	var/key
-	if(ismob(A))
+	var/flatten = ismob(A) || length(A.overlays)
+	if(flatten)
 		key = appearance_keys[look]
 		if(!key)
 			if(length(appearance_keys) > 2000)
@@ -442,7 +450,7 @@ SUBSYSTEM_DEF(statpanels)
 	if(length(turf_icons) > 1000)
 		turf_icons.Cut()
 	var/icon/picture
-	if(ismob(A))
+	if(flatten)
 		if(mob_icons_left <= 0)
 			return key
 		mob_icons_left--
