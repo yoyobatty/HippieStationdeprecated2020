@@ -1,0 +1,18 @@
+<b>Feature request:</b> cache var slots at each var access in the interpreter
+
+<b>What:</b>
+A sampling profiler on Dream Daemon (516.1688, a HippieStation round with 25 bot players) puts about 15% of the server's busy time in looking vars up:
+- a binary search over an object's (var id, value) pairs
+- binary searches in the type's and the proc's tables on the same path
+
+The compare loop of the first search alone is 3.7%. Each search walks a different sorted array, so most steps are cache misses.
+
+<b>Why:</b>
+Code reads vars on the same few types at the same place over and over. At any one `src.x` in a proc, the object is almost always the same type as last time.
+
+<b>Suggested change:</b>
+Keep a small cache next to each var-access instruction: the type seen last time and where that var was found. On a match, read the value directly; on a miss, do today's search and refill the cache. This is the usual inline cache in dynamic language VMs.
+
+If changing the bytecode isn't practical, a one-entry "last var looked up" cache per type would get part of the way.
+
+Either way the DM behaviour stays the same, including vars that were never written and fall back to the type's default.

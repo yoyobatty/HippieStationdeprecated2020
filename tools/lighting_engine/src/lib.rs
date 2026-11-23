@@ -6,6 +6,7 @@
 //! after. The two BYOND API functions it uses are looked up in byondcore.dll at first use.
 
 pub mod engine;
+pub mod sprites;
 pub mod view;
 
 use engine::{Engine, Update};
@@ -913,5 +914,67 @@ pub unsafe extern "C" fn lighting_check(_argc: u32, _argv: *const ByondValue) ->
 			eprintln!("hippie_lighting check: {p}");
 		}
 		Ok(problems.len() as f32)
+	})
+}
+
+/// lighting_textures(on): light textures (sprites.rs) on or off. Turned on, every chunk with light in it will be taken by
+/// lighting_texture_take() once, and data/lightmaps/ is emptied the first time. Returns how many chunks that is.
+#[no_mangle]
+pub unsafe extern "C" fn lighting_textures(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	with_state("textures", |_, state| {
+		let on = args.first().map(|a| a.as_int() != 0).unwrap_or(false);
+		state.engine.chunks = None;
+		if !on {
+			return Ok(0.0);
+		}
+		static CLEARED: std::sync::Once = std::sync::Once::new();
+		CLEARED.call_once(|| {
+			let _ = std::fs::remove_dir_all(sprites::DIR);
+		});
+		std::fs::create_dir_all(sprites::DIR).map_err(|e| format!("making {}: {e}", sprites::DIR))?;
+		Ok(sprites::mark_all(&mut state.engine) as f32)
+	})
+}
+
+/// lighting_texture_take(max, out, fine): up to `max` chunks whose corners changed (after a lighting_flush()), each as 7 numbers:
+/// z, kx, ky, then the picture's name as four numbers (sprites::file_name()), all four 0 for a chunk with no light in it.
+/// `fine`: sprites::fine_picture() (FINE pixels a tile, traced shadows, lit wall faces) instead of a pixel a corner.
+/// Returns how many are still waiting.
+#[no_mangle]
+pub unsafe extern "C" fn lighting_texture_take(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	with_state("texture_take", |api, state| {
+		if args.len() < 2 {
+			return Err("wanted a count and a list".into());
+		}
+		let max = args[0].as_int().max(0) as usize;
+		let fine = args.get(2).map(|a| a.as_int() != 0).unwrap_or(false);
+		let Some(mut chunks) = state.engine.chunks.take() else {
+			return Ok(0.0);
+		};
+		let taken = chunks.take(max);
+		let left = chunks.dirty.len();
+		state.engine.chunks = Some(chunks);
+		let mut out = std::mem::take(&mut state.out);
+		out.clear();
+		let mut scratch = Vec::new();
+		for (z, kx, ky) in taken {
+			let picture = if fine {
+				sprites::fine_picture(&state.engine, z as usize, kx, ky, &mut scratch)?
+			} else {
+				sprites::chunk_picture(&state.engine, z as usize, kx, ky, &mut scratch)?
+			};
+			let p = match picture {
+				Some(hash) => sprites::hash_parts(hash),
+				None => [0; 4],
+			};
+			out.extend([z as f32, kx as f32, ky as f32, p[0] as f32, p[1] as f32, p[2] as f32, p[3] as f32].map(ByondValue::num));
+		}
+		if !out.is_empty() {
+			write_values(api, &args[1], &out)?;
+		}
+		state.out = out;
+		Ok(left as f32)
 	})
 }

@@ -1,0 +1,24 @@
+<b>Feature request:</b> a cheaper path for reference counting in Dream Daemon
+
+<b>What:</b>
+A sampling profiler on Dream Daemon (516.1688, a HippieStation round with 25 bot players) puts the two reference-count functions at about 11% of the server's busy time: 6-7% for the decrement and 3-4% for the increment. Their hottest instructions aren't the counting. They're the entry and exit of each call:
+- an exception-handling frame set up and torn down on every call
+- a stack-cookie check
+- a destructor call on an argument passed by value
+
+All of that runs before the switch on the value's type, so numbers and null values, which have no count, pay it too.
+
+<b>Why:</b>
+These run on nearly every value the interpreter moves. Making the common case cheap would speed up every game a little, with no change on the DM side.
+
+<b>Suggested change:</b>
+- Check at the call site, inline, whether the value's type is refcounted at all, and skip the call when it isn't.
+- Pass the value as a plain struct or const reference so no destructor runs on the way out.
+- Mark both functions noexcept so the compiler can drop the exception frame. On MSVC, __declspec(safebuffers) also drops the cookie check, which is safe here because these functions have no local buffers.
+
+<b>Tested:</b>
+I tried the type check on my own server by patching the entry of both functions with a small stub. The stub looks the type up in a table, returns at once for types with no count, and calls the per-type handler directly for simple types. Everything else falls through to the original code.
+- In a live round with 30 bots, sampled on and off in alternating windows, the two functions went from 8.1% to 6.4% of the main thread's busy time.
+- A DM loop of mixed number and object work ran about 10% faster.
+- Five minutes left on in the round gave no runtime errors.
+Most of what's left is the call itself, so the check at the call site, inline, should save more than my stub could.

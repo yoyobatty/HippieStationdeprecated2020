@@ -6,9 +6,10 @@
 // with the nerve for it (Security, or an engineer who's steady) goes and takes the timer off, which is what stops one (the valve's
 // "Remove" for the device, transfer_valve.dm); everybody else shouts, calls it in, and gets well away.
 
-/// How long a saboteur's bomb is set for: time to be well clear of a maxcap.
+/// How long a saboteur's bomb is set for: time to be well clear of a maxcap. In the timer's ticks, two seconds each (assembly/timer.dm
+/// process()): two minutes.
 #define BOT_BOMB_FUSE 60
-/// Below this many seconds left, nobody walks up to one.
+/// Below this many of the timer's ticks left (two seconds each: twelve seconds), nobody walks up to one.
 #define BOT_BOMB_TOO_LATE 6
 /// How long a saboteur waits for the lab to come up with one before trying something else.
 #define BOT_MAXCAP_PATIENCE (25 MINUTES)
@@ -163,9 +164,9 @@ GLOBAL_LIST_EMPTY(bot_ticking_bombs)
 	T.update_icon()
 	bot.owner.dropItemToGround(V)
 	set_it = TRUE
-	bot_log(bot, "SABOTAGE: left [V] in [get_area_name(V, TRUE)] with [BOT_BOMB_FUSE] seconds on the timer")
-	log_game("BOT SABOTAGE: [key_name(bot.owner)] set a tank bomb ([BOT_BOMB_FUSE]s) at [AREACOORD(V)]")
-	message_admins("BOT SABOTAGE: [ADMIN_LOOKUPFLW(bot.owner)] set a tank bomb ([BOT_BOMB_FUSE]s) at [ADMIN_VERBOSEJMP(V)]")
+	bot_log(bot, "SABOTAGE: left [V] in [get_area_name(V, TRUE)] with [BOT_BOMB_FUSE * 2] seconds on the timer")
+	log_game("BOT SABOTAGE: [key_name(bot.owner)] set a tank bomb ([BOT_BOMB_FUSE * 2]s) at [AREACOORD(V)]")
+	message_admins("BOT SABOTAGE: [ADMIN_LOOKUPFLW(bot.owner)] set a tank bomb ([BOT_BOMB_FUSE * 2]s) at [ADMIN_VERBOSEJMP(V)]")
 	bot_witness_sabotage(bot.owner, "left a bomb")
 	return FALSE
 

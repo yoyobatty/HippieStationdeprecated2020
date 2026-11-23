@@ -1,0 +1,105 @@
+<b>BYOND Version:</b> 516.1689 (same on 516.1688)
+<b>Operating System:</b> Windows 11
+<b>Applies to:</b> Dream Daemon
+
+<b>Descriptive Problem Summary:</b>
+Adding a new key to a keyed list gets slower in step with the list's length, and so does `key in list`. Reading or overwriting a key stays fast at any size, so the list's key index is working. The two slow operations just don't use it.
+
+Each figure is the average of 1,000 operations on 516.1689:
+
+<table>
+<tr><td>keys</td><td>new key</td><td>existing key</td><td>key in list</td><td>!isnull(list[key])</td></tr>
+<tr><td>10</td><td>661 ns</td><td>131 ns</td><td>81 ns</td><td>94 ns</td></tr>
+<tr><td>1,000</td><td>686 ns</td><td>166 ns</td><td>1,253 ns</td><td>88 ns</td></tr>
+<tr><td>10,000</td><td>2,904 ns</td><td>143 ns</td><td>10,472 ns</td><td>94 ns</td></tr>
+<tr><td>100,000</td><td>21,720 ns</td><td>117 ns</td><td>115,382 ns</td><td>109 ns</td></tr>
+<tr><td>300,000</td><td>62,933 ns</td><td>218 ns</td><td>330,509 ns</td><td>154 ns</td></tr>
+</table>
+
+516.1688 gives the same numbers within noise.
+
+A sampling profiler on dd.exe shows where the new-key time goes. Before the key is added to the index, the whole element array is walked from the end, checking whether the key is already there as a plain element without a value. That walk is 96% of the time at 300,000 keys. `in` looks like a plain walk over the elements as well.
+
+The check makes sense for a list like list("a") followed by L["a"] = 1, where "a" is an element but not in the index. Most keyed lists are only ever built with L[key] = value, though, and for those every element is already in the index.
+
+A possible fix: keep a flag on each list saying whether every element has an index entry. It starts true for a new list and becomes false when +=, Add(), Insert() or a plain index write puts an element in without a value. While it's true, a new key can skip the walk, and `key in list` can be answered from the index. Lists that clear the flag keep today's behaviour.
+
+Membership tests are common in /tg/-based code: our tree has about 1,100 `if(x in list)` checks, and some of them are on large keyed lists.
+
+<b>Tested (the `in` half):</b> on my own build I patched 516.1688 so `key in list` first looks the key up in the list's index and answers yes on a hit, falling back to the walk otherwise. 239 answers after duplicates, Cut, Remove, Insert, Swap, setting len, -=, |=, &=, ^=, +, Copy, Splice, deleted and reused datum keys, 0 and -0, and list keys all matched the unpatched engine. A hit in a 100,000-key list went from 104 us to 0.94 us. Misses and new keys need the flag above, since only the engine sees every way an element gets in.
+
+<b>Numbered Steps to Reproduce Problem:</b>
+1. Compile and run the code below.
+2. Read world.log.
+
+<b>Code Snippet (if applicable) to Reproduce Problem:</b>
+<dm>
+// Keyed list costs against list size. Stand-alone: dm assoc_key.dm, then dd assoc_key.dmb -invisible.
+// Results go to world.log in ns per operation (1000 operations, world.tick_usage deltas).
+
+#define REPS 1000
+
+/world
+	fps = 20
+
+/proc/ms()
+	return world.tick_usage * world.tick_lag
+
+/world/New()
+	..()
+	spawn(10)
+		world.log << "BYOND [world.byond_version].[world.byond_build]"
+		var/list/fresh = list()
+		for(var/i in 1 to REPS)
+			fresh += "new_[i]"
+		for(var/n in list(10, 1000, 10000, 100000, 300000))
+			var/list/A = list()
+			for(var/i in 1 to n)
+				A["key_[i]"] = i
+			var/hit = "key_[n]"
+			var/x
+			sleep(1)
+			var/t0 = ms()
+			for(var/k in fresh)
+				A[k] = 1
+			var/insert = (ms() - t0) * 1e6 / REPS
+			sleep(1)
+			t0 = ms()
+			for(var/k in fresh)
+				A[k] = 2
+			var/overwrite = (ms() - t0) * 1e6 / REPS
+			sleep(1)
+			t0 = ms()
+			for(var/i in 1 to REPS)
+				x = (hit in A)
+			var/in_test = (ms() - t0) * 1e6 / REPS
+			sleep(1)
+			t0 = ms()
+			for(var/i in 1 to REPS)
+				x = !isnull(A[hit])
+			var/read_test = (ms() - t0) * 1e6 / REPS
+			world.log << "[n] keys: new key [round(insert)] ns, existing key [round(overwrite)] ns, key in list [round(in_test)] ns, !isnull(list\[key\]) [round(read_test)] ns[x ? "" : " "]"
+		world.log << "done"
+		del(world)
+</dm>
+
+<b>Expected Results:</b>
+A new key and `key in list` cost about the same at any size, as reading a key does.
+
+<b>Actual Results:</b>
+Both grow in step with the list's length: 63 us and 330 us at 300,000 keys.
+
+<b>Does the problem occur:</b>
+Every time? Or how often? Every time.
+In other games? Any keyed list.
+In other user accounts? Not account related.
+On other computers? Not checked.
+
+<b>When does the problem NOT occur?</b>
+Small lists, writes to keys that already exist, and reads through list[key].
+
+<b>Did the problem NOT occur in any earlier versions? If so, what was the last version that worked?</b>
+Not checked before 516.1688.
+
+<b>Workarounds:</b>
+!isnull(list[key]) in place of `key in list` when no stored value is null. For new keys, nothing on the DM side.

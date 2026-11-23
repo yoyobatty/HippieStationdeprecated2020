@@ -1,0 +1,96 @@
+<b>BYOND Version:</b> 516.1689 (same on 516.1688)
+<b>Operating System:</b> Windows 11
+<b>Applies to:</b> Dream Daemon
+
+<b>Descriptive Problem Summary:</b>
+Moving onto a turf costs about 12 ns for every movable already on it, even when no type in the world overrides Cross, Crossed, Uncross, Uncrossed, Enter, Entered, Exit or Exited. A turf holding 20,000 plain /objs takes 240 us per step on and off. Players pile things on one tile, and in our game a pile of a few thousand items makes everything that walks over it slow.
+
+A plain /obj moved onto a turf and back off, average of 500 moves on 516.1689:
+
+<table>
+<tr><td>objs already on the turf</td><td>on and off</td></tr>
+<tr><td>0</td><td>546 ns</td></tr>
+<tr><td>100</td><td>990 ns</td></tr>
+<tr><td>1,000</td><td>6,871 ns</td></tr>
+<tr><td>5,000</td><td>32,815 ns</td></tr>
+<tr><td>20,000</td><td>239,904 ns</td></tr>
+</table>
+
+516.1688 gives the same figures within noise.
+
+From a sampling profile, the time isn't in Cross or Uncross. It's in keeping the turf's contents in order: the objs in a loc look like a singly linked chain, so adding one walks to the end of the chain, and removing one walks from the start to find the obj before it.
+
+A possible fix: keep the last obj of each loc's chain, and the previous obj for each obj (a doubly linked chain). Adding and removing are then constant time and contents keep the same order.
+
+<b>Tested:</b> on my own build I patched 516.1688 to do that, keeping a tail and a previous entry beside the engine and checking each one before using it. A seeded run of moves, Move(), contents += and -=, del, objs inside other objs and mobs, and loc = null compared 720 contents lists in order with the unpatched engine: all the same. Onto the turf and off again went from 6,475 to 227 ns with 1,000 objs, and from 241,727 to 347 ns with 20,000.
+
+<b>Numbered Steps to Reproduce Problem:</b>
+1. Compile and run the code below.
+2. Read world.log.
+
+<b>Code Snippet (if applicable) to Reproduce Problem:</b>
+<dm>
+// Moving a plain /obj onto and off a turf, against how many plain /objs are already there.
+// None of the types override Cross, Crossed, Uncross, Uncrossed, Enter, Entered, Exit or Exited.
+// Stand-alone: dm turf_entry.dm, then dd turf_entry.dmb -invisible. Results go to world.log.
+
+#define REPS 500
+
+/world
+	fps = 20
+	maxx = 5
+	maxy = 5
+	maxz = 1
+
+/proc/ms()
+	return world.tick_usage * world.tick_lag
+
+/world/New()
+	..()
+	spawn(10)
+		world.log << "BYOND [world.byond_version].[world.byond_build]"
+		var/turf/pile = locate(2, 2, 1)
+		var/turf/beside = locate(3, 2, 1)
+		var/obj/mover = new(beside)
+		var/have = 0
+		for(var/n in list(0, 10, 100, 1000, 5000, 20000))
+			while(have < n)
+				new /obj(pile)
+				have++
+			sleep(1)
+			var/t0 = ms()
+			for(var/i in 1 to REPS)
+				mover.loc = pile
+				mover.loc = beside
+			var/both = (ms() - t0) * 1e6 / REPS
+			sleep(1)
+			t0 = ms()
+			for(var/i in 1 to REPS)
+				mover.loc = beside
+				mover.loc = beside
+			var/control = (ms() - t0) * 1e6 / REPS
+			world.log << "[n] objs on the turf: onto it and off again [round(both)] ns, same moves on an empty turf [round(control)] ns"
+		world.log << "done"
+		del(world)
+</dm>
+
+<b>Expected Results:</b>
+With no Cross/Uncross overrides, a move costs about the same however many things are on the turf.
+
+<b>Actual Results:</b>
+About 12 ns per movable on the turf, 240 us at 20,000.
+
+<b>Does the problem occur:</b>
+Every time? Or how often? Every time.
+In other games? Any turf with many movables.
+In other user accounts? Not account related.
+On other computers? Not checked.
+
+<b>When does the problem NOT occur?</b>
+Turfs with few movables.
+
+<b>Did the problem NOT occur in any earlier versions? If so, what was the last version that worked?</b>
+Not checked before 516.1688.
+
+<b>Workarounds:</b>
+None in DM.

@@ -10,17 +10,34 @@ GLOBAL_VAR_INIT(bot_crew_panel_open, FALSE)
 GLOBAL_LIST_EMPTY(bot_crew_panels)
 
 /datum/bot_brain
-	/// Its last lines, kept while a Bot Crew panel is open: list("12:04:11 picked up the wrench", ...)
+	/// Its last lines, kept while a Bot Crew panel is open: list("picked up the wrench", ...). The world.time of each is in
+	/// panel_line_times; panel_text() puts the station time in front only when something reads them. A new "12:04:11 ..." text
+	/// for every line made a string that sorts after every earlier one, the worst case for BYOND's string tree.
 	var/list/panel_lines
+	var/list/panel_line_times
 	/// The last goal it gave up on, and the last thing it said before: text, and when
 	var/last_gave_up
 	var/last_gave_up_at = 0
 
 /datum/bot_brain/proc/remember_line(msg)
 	var/static/regex/jump_link = regex(@" ?\(<a [^>]*>JMP</a>\)", "g") //bot_coord()'s link, for admin chat: the panel has its own Jump
-	LAZYADD(panel_lines, "[station_time_timestamp("hh:mm:ss")] [jump_link.Replace(msg, "")]")
+	LAZYADD(panel_lines, jump_link.Replace(msg, ""))
+	LAZYADD(panel_line_times, world.time)
 	if(length(panel_lines) > BOT_PANEL_LINES)
 		panel_lines.Cut(1, 2)
+		panel_line_times.Cut(1, 2)
+
+/// Line i (default the last) of panel_lines with its station time in front: "12:04:11 picked up the wrench"
+/datum/bot_brain/proc/panel_line(i = length(panel_lines))
+	if(i < 1 || i > length(panel_lines))
+		return null
+	return "[station_time_timestamp("hh:mm:ss", panel_line_times[i])] [panel_lines[i]]"
+
+/// All of panel_lines with their station times, oldest first
+/datum/bot_brain/proc/panel_text()
+	. = list()
+	for(var/i in 1 to length(panel_lines))
+		. += panel_line(i)
 
 /// From give_up_goal() (bot_goals.dm). What it was after, and why if the log says (only kept while a panel is open) or the last
 /// route that failed does.
@@ -30,7 +47,7 @@ GLOBAL_LIST_EMPTY(bot_crew_panels)
 	var/what = goal.doing || bot_telemetry_short(goal.type)
 	if(goal.target && goal.target != owner)
 		what += " ([goal.target])"
-	var/why = length(panel_lines) ? copytext(panel_lines[length(panel_lines)], 10) : last_path_fail_reason
+	var/why = length(panel_lines) ? panel_lines[length(panel_lines)] : last_path_fail_reason
 	last_gave_up = why ? "[what]: [why]" : what
 	last_gave_up_at = world.time
 
@@ -70,6 +87,7 @@ GLOBAL_LIST_EMPTY(bot_crew_panels)
 		GLOB.bot_crew_panel_open = FALSE
 		for(var/mob/living/carbon/human/H as anything in GLOB.bot_crew_members)
 			H.bot_brain?.panel_lines = null
+			H.bot_brain?.panel_line_times = null
 	return ..()
 
 /// The state words for a bot, as the panel shows them
@@ -150,7 +168,7 @@ GLOBAL_LIST_EMPTY(bot_crew_panels)
 		"worn" = worn,
 		"health" = round(H.health),
 		"suspended" = B.suspended_goal ? (B.suspended_goal.doing || bot_telemetry_short(B.suspended_goal.type)) : null,
-		"lines" = B.panel_lines?.Copy() || list(),
+		"lines" = B.panel_text(),
 	)
 
 /datum/admin_tool_window/bot_crew/ui_act(action, list/params)

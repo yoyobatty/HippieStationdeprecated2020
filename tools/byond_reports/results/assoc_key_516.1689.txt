@@ -1,0 +1,7 @@
+BYOND 516.1689
+10 keys: new key 661 ns, existing key 131 ns, key in list 81 ns, !isnull(list[key]) 94 ns
+1000 keys: new key 686 ns, existing key 166 ns, key in list 1253 ns, !isnull(list[key]) 88 ns
+10000 keys: new key 2904 ns, existing key 143 ns, key in list 10472 ns, !isnull(list[key]) 94 ns
+100000 keys: new key 21720 ns, existing key 117 ns, key in list 115382 ns, !isnull(list[key]) 109 ns
+300000 keys: new key 62933 ns, existing key 218 ns, key in list 330509 ns, !isnull(list[key]) 154 ns
+done

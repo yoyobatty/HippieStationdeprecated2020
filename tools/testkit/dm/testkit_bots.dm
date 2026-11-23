@@ -90,7 +90,7 @@
 		if(GLOB.bot_work_claims[claim] == B)
 			claims += "[locate(claim) || claim]"
 	why["claims"] = claims
-	why["lines"] = B.panel_lines
+	why["lines"] = B.panel_text()
 	why["events"] = events_since(max(0, event_seq - 2000), null, 30, "\"ref\":\"[REF(B.owner)]\"")
 	return why
 

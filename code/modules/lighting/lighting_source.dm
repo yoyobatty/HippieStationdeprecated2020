@@ -258,7 +258,7 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 	if(sheet)
 		return sheet
 	var/range = max(1, light_range)
-	var/key = "[range]-[light_dir]-[light_angle]-[light_height]-[light_tail]"
+	var/key = "[range]-[light_dir]-[light_angle]-[light_height]-[light_tail][GLOB.lighting_v2_falloff ? "-v2k[GLOB.light_v2_falloff_k]" : ""]" // hippie -- lighting v2 falloff has sheets of its own
 	var/list/hand_back = GLOB.lighting_sheets[key]
 	if(!hand_back)
 		hand_back = generate_sheet(range, light_dir, light_angle, light_height, light_tail, light_reach)
@@ -275,7 +275,7 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 /datum/light_source/proc/get_scatter_sheet()
 	var/range = max(1, light_range)
 	var/scatter = SSlighting.cone_scatter
-	var/key = "[range]-[light_dir]-[light_angle]-[light_height]-[light_tail]-scatter[scatter]"
+	var/key = "[range]-[light_dir]-[light_angle]-[light_height]-[light_tail]-scatter[scatter][GLOB.lighting_v2_falloff ? "-v2k[GLOB.light_v2_falloff_k]" : ""]" // hippie -- lighting v2 falloff has sheets of its own
 	var/list/hand_back = GLOB.lighting_sheets[key]
 	if(!hand_back)
 		var/list/cone = get_sheet()
@@ -333,7 +333,9 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 	// How far out we are, as a fraction of our range
 	var/distance = sqrt(x ** 2 + y ** 2 + height) / range_divisor
 	var/multiplier
-	if(distance <= 2 - tail)
+	if(GLOB.lighting_v2_falloff && height >= 0) // hippie -- lighting v2: a softer curve for lamps (light_v2_falloff(), lighting_v2.dm); starlight keeps its own
+		multiplier = light_v2_falloff(distance, tail)
+	else if(distance <= 2 - tail)
 		multiplier = 1 - CLAMP01(distance)
 	else if(distance < tail)
 		// The curve: a parabola touching the straight line where it takes over, and flat when it reaches 0

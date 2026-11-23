@@ -27,6 +27,61 @@ const FILTER_RESEARCHED = 'researched';
 // Fabricator groups that also list what's still to research, greyed
 const LOCKED_SHOWN = { 'Stock Parts': true };
 
+// Sidebar groups, most used first; any other group follows by name.
+// A department techfab's groups are departments, after these
+const groupSorter = order => {
+  const rank = {};
+  order.forEach((name, i) => {
+    rank[name] = i;
+  });
+  const rankOf = name => (rank[name] === undefined
+    ? order.length
+    : rank[name]);
+  return (a, b) => (rankOf(a) - rankOf(b)) || a.localeCompare(b);
+};
+const byFabGroup = groupSorter([
+  'Stock Parts', 'Tools', 'Medical', 'Mining', 'Power', 'Bluespace',
+  'Cybernetics', 'Computer Parts', 'Weapons', 'Ammo', 'Service',
+]);
+const byResearchGroup = groupSorter([
+  'Stock Parts', 'Machines', 'Tools', 'Equipment', 'Surgery', 'Implants',
+  'Mechs & Borgs', 'Weapons', 'Clothing',
+]);
+
+const GROUP_ICONS = {
+  'All': 'list',
+  'Stock Parts': 'cog',
+  'Tools': 'wrench',
+  'Medical': 'medkit',
+  'Mining': 'gem',
+  'Power': 'bolt',
+  'Bluespace': 'atom',
+  'Cybernetics': 'eye',
+  'Computer Parts': 'microchip',
+  'Weapons': 'crosshairs',
+  'Ammo': 'bullseye',
+  'Service': 'utensils',
+  'Machines': 'industry',
+  'Equipment': 'toolbox',
+  'Surgery': 'user-md',
+  'Implants': 'syringe',
+  'Mechs & Borgs': 'robot',
+  'Clothing': 'tshirt',
+  // Department techfabs and the rest
+  'Engineering': 'hard-hat',
+  'Science': 'flask',
+  'Security': 'shield-alt',
+  'Cargo': 'box',
+  'Command': 'star',
+  'Materials': 'cubes',
+  'AI': 'brain',
+  'Exosuit': 'robot',
+  'Exosuit Modules': 'puzzle-piece',
+  'Firing Pins': 'thumbtack',
+  'Misc': 'ellipsis-h',
+  'Other': 'ellipsis-h',
+};
+
 const STATUS_COLORS = {
   researched: '#6ebc3c',
   available: '#efca32',
@@ -935,13 +990,78 @@ const FabricatorQueue = props => {
   );
 };
 
+// A fabricator's unlocked / all designs per group, 'All' for the lot. All
+// counts the designs still to research whose node can be seen, not hidden
+const fabProgress = (data, research, fab, designs, groups) => {
+  const own = toSet(fab.categories);
+  const hasOwn = (fab.categories || []).length > 0;
+  const done = { 'All': designs.length };
+  const totals = { 'All': designs.length };
+  for (let design of designs) {
+    for (let group of design.groups) {
+      done[group] = (done[group] || 0) + 1;
+      totals[group] = (totals[group] || 0) + 1;
+    }
+  }
+  for (let id of Object.keys(data.designs)) {
+    if (research.researchedDesigns[id]
+      || !(research.nodesOfDesign[id] || []).some(nodeId => research
+        .statusOf(nodeId) !== 'hidden')) {
+      continue;
+    }
+    const design = { ...data.designs[id], id };
+    if (!buildsHere(design, fab)) {
+      continue;
+    }
+    const inGroups = groupsOf(design, fab, own, hasOwn)
+      .filter(group => groups[group]);
+    for (let group of inGroups) {
+      totals[group] = (totals[group] || 0) + 1;
+    }
+    if (inGroups.length) {
+      totals['All'] += 1;
+    }
+  }
+  return { done, totals };
+};
+
+// Researched / all designs per research group, each design once per
+// group, 'All' for the lot
+const researchProgress = (research, visible) => {
+  const groupDesigns = { 'All': {} };
+  for (let node of visible) {
+    const name = node.group || 'Other';
+    const seen = groupDesigns[name] = groupDesigns[name] || {};
+    for (let id of node.designs) {
+      seen[id] = true;
+      groupDesigns['All'][id] = true;
+    }
+  }
+  const done = {};
+  const totals = {};
+  for (let name of Object.keys(groupDesigns)) {
+    const ids = Object.keys(groupDesigns[name]);
+    totals[name] = ids.length;
+    done[name] = ids.filter(id => research.researchedDesigns[id]).length;
+  }
+  return { done, totals };
+};
+
+// A group in the sidebar: its icon, name, and either a plain count or
+// done / total (green once all done). counts and totals are per group
+// name; no totals means plain counts
 const SidebarEntry = props => {
-  const { name, count, selected, onClick } = props;
+  const { name, label, counts, totals, selected, onClick } = props;
+  const count = counts[name] || 0;
+  const total = totals ? totals[name] || 0 : undefined;
+  const icon = GROUP_ICONS[name] || 'folder';
+  const empty = total === undefined ? count === 0 : total === 0;
+  const complete = total !== undefined && total > 0 && count >= total;
   return (
     <Button
       fluid
       selected={selected}
-      color={!selected && count === 0 ? 'transparent' : null}
+      color={!selected && empty ? 'transparent' : null}
       onClick={onClick}>
       <Box
         style={{
@@ -952,11 +1072,22 @@ const SidebarEntry = props => {
           style={{
             'overflow': 'hidden',
             'text-overflow': 'ellipsis',
+            'white-space': 'nowrap',
           }}>
-          {name}
+          <Icon
+            name={icon}
+            mr={1}
+            style={{ 'width': '14px', 'text-align': 'center' }} />
+          {label || name}
         </Box>
-        <Box ml={1} style={{ 'opacity': 0.6 }}>
-          {count}
+        <Box
+          ml={1}
+          color={complete ? 'good' : null}
+          style={{
+            'opacity': complete ? 1 : 0.6,
+            'white-space': 'nowrap',
+          }}>
+          {total === undefined ? count : count + '/' + total}
         </Box>
       </Box>
     </Button>
@@ -1007,7 +1138,8 @@ class FabricatorPanel extends Component {
         groups[group] = true;
       }
     }
-    const names = Object.keys(groups).sort();
+    const names = Object.keys(groups).sort(byFabGroup);
+    const progress = fabProgress(data, research, fab, designs, groups);
     const query = search.toLowerCase();
     const { searchPick } = this.state;
     // A search goes by the design's name, or its group ("stock parts")
@@ -1042,7 +1174,7 @@ class FabricatorPanel extends Component {
       ? tierOf(a) - tierOf(b)
       : 0) || a.name.localeCompare(b.name);
     const byGroup = (a, b) => (oneHome
-      ? (a.groups[0] || '').localeCompare(b.groups[0] || '')
+      ? byFabGroup(a.groups[0] || '', b.groups[0] || '')
       : 0) || byOrder(a, b);
     const shown = listed
       .filter(design => !category || design.groups.includes(category))
@@ -1092,6 +1224,11 @@ class FabricatorPanel extends Component {
     // Headings between the groups when they're all listed together, and
     // between the tiers in one group sorted by tier
     const headed = oneHome && !category;
+    // Searching or printable-only: the sidebar counts what's listed
+    counts['All'] = listed.length;
+    const plain = query || hide;
+    const sideCounts = plain ? counts : progress.done;
+    const sideTotals = plain ? null : progress.totals;
     const tierHeaded = !headed && sort === 'tier';
     const headingOf = design => (headed
       ? design.groups[0] || 'Other'
@@ -1124,15 +1261,18 @@ class FabricatorPanel extends Component {
               'background-color': 'rgba(0, 0, 0, 0.2)',
             }}>
             <SidebarEntry
-              name={query ? 'All matches' : 'All'}
-              count={listed.length}
+              name="All"
+              label={query ? 'All matches' : 'All'}
+              counts={sideCounts}
+              totals={sideTotals}
               selected={!category}
               onClick={() => select(null)} />
             {names.map(name => (
               <SidebarEntry
                 key={name}
                 name={name}
-                count={counts[name] || 0}
+                counts={sideCounts}
+                totals={sideTotals}
                 selected={category === name}
                 onClick={() => select(name)} />
             ))}
@@ -1833,7 +1973,7 @@ class RdConsoleMenu extends Component {
     for (let node of visible) {
       groupNames[node.group || 'Other'] = true;
     }
-    const names = Object.keys(groupNames).sort();
+    const names = Object.keys(groupNames).sort(byResearchGroup);
     let group;
     if (query) {
       // A new search starts over all the groups
@@ -1881,6 +2021,11 @@ class RdConsoleMenu extends Component {
       const name = node.group || 'Other';
       groupCounts[name] = (groupCounts[name] || 0) + 1;
     }
+    groupCounts['All'] = listed.length;
+    // Searching: matches per group; otherwise researched / all designs
+    const progress = query ? null : researchProgress(research, visible);
+    const sideCounts = query ? groupCounts : progress.done;
+    const sideTotals = query ? null : progress.totals;
     const nodes = listed
       .filter(inGroup)
       .map(node => ({
@@ -1916,22 +2061,25 @@ class RdConsoleMenu extends Component {
             'top': 0,
             'bottom': 0,
             'left': 0,
-            'width': '150px',
+            'width': '190px',
             'padding': '6px',
             'box-sizing': 'border-box',
             'overflow-y': 'auto',
             'background-color': 'rgba(0, 0, 0, 0.2)',
           }}>
           <SidebarEntry
-            name={query ? 'All matches' : 'All'}
-            count={listed.length}
+            name="All"
+            label={query ? 'All matches' : 'All'}
+            counts={sideCounts}
+            totals={sideTotals}
             selected={!group}
             onClick={() => this.setGroup(null, query)} />
           {names.map(name => (
             <SidebarEntry
               key={name}
               name={name}
-              count={groupCounts[name] || 0}
+              counts={sideCounts}
+              totals={sideTotals}
               selected={group === name}
               onClick={() => this.setGroup(name, query)} />
           ))}
@@ -1942,8 +2090,8 @@ class RdConsoleMenu extends Component {
             'position': 'absolute',
             'top': 0,
             'bottom': 0,
-            'left': '150px',
-            'width': 'calc(58% - 150px)',
+            'left': '190px',
+            'width': 'calc(60% - 190px)',
             'padding': '6px',
             'box-sizing': 'border-box',
             'overflow-y': 'auto',
@@ -2024,7 +2172,7 @@ class RdConsoleMenu extends Component {
             'position': 'absolute',
             'top': 0,
             'bottom': 0,
-            'left': '58%',
+            'left': '60%',
             'right': 0,
             'padding': '8px',
             'box-sizing': 'border-box',

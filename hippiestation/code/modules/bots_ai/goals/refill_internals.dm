@@ -663,7 +663,19 @@
 
 /datum/bot_strategy/seek_air/New()
 	. = ..()
-	steps = list(new /datum/bot_step/move_to())
+	steps = list(new /datum/bot_step/move_to(), new /datum/bot_step/step_into_air())
+
+/// On to the tile with air, not beside it: a walk to a tile ends next to it, and a bot one tile short of the air "found air", stood on in
+/// the bad, was told it couldn't breathe and went to find air again, 13 times in a row (tools/bot_gym/hollow_goals.py, 2026-11-22).
+/datum/bot_step/step_into_air/execute(datum/bot_brain/bot)
+	var/turf/T = get_turf(bot.current_goal?.target)
+	var/turf/here = get_turf(bot.owner)
+	if(!T || !here)
+		return GOAL_STEP_FAIL
+	if(here != T && get_dist(here, T) <= 1)
+		bot.owner.Move(T, get_dir(here, T))
+		here = get_turf(bot.owner)
+	return bot.turf_air_is_breathable(here) ? GOAL_STEP_SUCCESS : GOAL_STEP_FAIL
 
 /datum/bot_strategy/seek_air/is_feasible(datum/bot_brain/bot)
 	return TRUE

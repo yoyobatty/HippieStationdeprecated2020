@@ -108,6 +108,7 @@
 		bot.no_medical_supplies_until = world.time + 5 MINUTES
 		return GOAL_STEP_FAIL
 	var/hurt_before = bot.owner.getBruteLoss() + bot.owner.getFireLoss() + bot.owner.getToxLoss()
+	var/dose_before = I.reagents?.total_volume
 	bot.owner.changeNext_move(CLICK_CD_MELEE)
 	bot_log(bot, "treating myself with [I]")
 	// Unlike treating ANOTHER patient (treat_patient.dm's own step, which heals
@@ -122,6 +123,12 @@
 	// A pill or a patch works as it goes, not on the spot: three in a row, no less hurt the moment after each, used to be "this isn't
 	// doing anything for me" and a give-up, 87 times in three long shifts, with three patches gone each time.
 	if(istype(I, /obj/item/reagent_containers))
+		// Unless it never went in: the same patch still full in hand. That was a "success", nothing in the blood the moment after, and
+		// another go at once: 263 in one second for one bot (tools/bot_gym/hollow_goals.py, 2026-11-22). Medbay, then.
+		if(!QDELETED(I) && !isnull(dose_before) && I.reagents && I.reagents.total_volume >= dose_before && !bot_healing_in_blood(bot.owner))
+			bot_log(bot, "[I] didn't go in")
+			bot.no_medical_supplies_until = world.time + 2 MINUTES
+			return GOAL_STEP_FAIL
 		bot_log(bot, "[I]'s in - it'll work as it goes")
 		return GOAL_STEP_SUCCESS
 	useless_clicks = (bot.owner.getBruteLoss() + bot.owner.getFireLoss() + bot.owner.getToxLoss() < hurt_before) ? 0 : useless_clicks + 1

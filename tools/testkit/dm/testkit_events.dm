@@ -258,7 +258,7 @@
 	if(kit && goal && kit.wants("bot.gave_up"))
 		kit.event("bot.gave_up", list("bot" = owner?.real_name, "ref" = REF(owner), "goal" = bot_telemetry_short(goal.type),
 			"target" = goal.target ? "[goal.target]" : null, "path_fail" = last_path_fail_reason, "at" = kit.at(owner),
-			"last" = length(panel_lines) ? panel_lines[length(panel_lines)] : null))
+			"last" = panel_line()))
 	return ..()
 
 /datum/bot_brain/goal_succeeded()

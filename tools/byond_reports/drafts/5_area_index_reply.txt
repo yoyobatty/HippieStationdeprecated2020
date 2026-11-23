@@ -1,6 +1,6 @@
 Reply to http://www.byond.com/forum/post/2992468 (Keep a turf index on each area so contents doesn't scan the world)
 
-Some numbers from inside the game, for context. 516.1688, our tgstation fork on a 255x255x12 map: 780,300 turfs, 243 to 259 areas (some ruins are random). Three runs with 20 player bots; the ranges below cover all three.
+@Zewaka: agreed, and we've done that where it mattered most (below). Current tg has machines register with their area for power, and we'll likely follow. Some numbers from inside the game, for context. 516.1688, our tgstation fork on a 255x255x12 map: 780,300 turfs, 243 to 259 areas (some ruins are random). Three runs with 20 player bots; the ranges below cover all three.
 
 Per area, the mean over real station rooms:
 

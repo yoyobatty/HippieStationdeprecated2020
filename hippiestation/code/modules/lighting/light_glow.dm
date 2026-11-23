@@ -154,7 +154,7 @@ GLOBAL_LIST_EMPTY(worn_lights)
 	if(quality >= GRAPHICS_QUALITY_MEDIUM)
 		filters += filter(type = "layer", render_source = LIGHT_GLOW_RENDER_TARGET, blend_mode = BLEND_ADD)
 		// The finish: light and shadow meet over a couple of pixels, where they used to meet on a tile's edge
-		filters += filter(type = "blur", size = LIGHTING_SOFTEN_SIZE)
+		filters += filter(type = "blur", size = (GLOB.lighting_v2 && quality >= GRAPHICS_QUALITY_HIGH) ? LIGHT_V2_SOFTEN_SIZE : LIGHTING_SOFTEN_SIZE) // lighting_v2.dm
 	// tg's three, from code/_onclick/hud/plane_master.dm: what glows and where space shows are cut out of the darkness
 	filters += filter(type="alpha", render_source=EMISSIVE_RENDER_TARGET, flags=MASK_INVERSE)
 	filters += filter(type="alpha", render_source=EMISSIVE_UNBLOCKABLE_RENDER_TARGET, flags=MASK_INVERSE)

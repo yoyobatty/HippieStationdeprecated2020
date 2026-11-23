@@ -242,6 +242,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/library/lib_machines.dm
 ## code/modules/library/random_books.dm
 ## code/modules/lighting/lighting_corner.dm (the tone curve in update_objects(): light past the knee eases toward full instead of being cut off at 1, see ~hippie_defines/lighting_tone.dm)
+## code/modules/lighting/lighting_source.dm (lighting v2: falloff_at_coord() takes light_v2_falloff() for lamps, and v2 sheets have keys of their own, see lighting_v2_lamps.dm)
 ## code/modules/mapping/map_template.dm (tile engine neighbour cache, tile_engine.dm; a ruin on a level the lobby build is making loads as at startup)
 ## code/modules/mapping/reader.dm (plain turf-and-area tiles made in _load_impl(); parsing by hippie_map.dll, map_engine.dm)
 ## code/modules/mapping/space_management/space_reservation.dm
@@ -300,7 +301,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/photography/camera/camera_image_capturing.dm (top of a pile only; flat icons kept by appearance)
 ## code/modules/plumbing/ducts.dm (user, not usr: null when a bot does it)
 ## code/modules/power/apc.dm (an outage tells the area once; a healthy APC skips its no-op autoset(), percent() and poweralert() calls)
-## code/modules/power/lighting.dm (user, not usr: null when a bot does it)
+## code/modules/power/lighting.dm (user, not usr: null when a bot does it; lighting v2: a tube's glow keeps its strength when v2 dims the fixture's light, update_icon(); fire alarms keep full strength and night shift dims with day, update())
 ## code/modules/power/singularity/singularity.dm (eat() eats what is in reach and queues the rest for the fast pull loop: hippiestation/code/modules/power/singularity_pull.dm)
 ## code/modules/power/smes.dm (user, not usr: null when a bot does it)
 ## code/modules/power/turbine.dm (the console's power readout before the turbine first runs)

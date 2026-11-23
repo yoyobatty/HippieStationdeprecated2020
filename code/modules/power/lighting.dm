@@ -337,7 +337,7 @@
 				icon_state = "[base_state]"
 				if(on)
 					//var/mutable_appearance/glowybit = mutable_appearance(overlayicon, base_state, layer, EMISSIVE_PLANE)
-					var/glowalpha = clamp(light_power*250, 30, 200)
+					var/glowalpha = clamp((GLOB.lighting_v2 ? light_power / v2_power_scale() : light_power)*250, 30, 200) // hippie -- lighting v2 dims fixtures' light, not their tubes (lighting_v2_lamps.dm)
 					SSvis_overlays.add_vis_overlay(src, overlayicon, base_state, layer, plane, dir, glowalpha)
 					SSvis_overlays.add_vis_overlay(src, overlayicon, base_state, layer, EMISSIVE_PLANE, dir, glowalpha)
 					//add_overlay(glowybit)
@@ -363,9 +363,11 @@
 		var/area/A = get_area(src)
 		if (A && A.fire)
 			CO = bulb_emergency_colour
+			if(GLOB.lighting_v2 && !isnull(v2_base_power)) // hippie -- lighting v2: a fire alarm floods the room red at full strength (lighting_v2_lamps.dm)
+				PO = v2_base_power
 		else if (nightshift_enabled)
 			BR = nightshift_brightness
-			PO = nightshift_light_power
+			PO = nightshift_light_power * (GLOB.lighting_v2 ? v2_power_scale() : 1) // hippie -- lighting v2 dims night shift as much as day (lighting_v2_lamps.dm)
 			if(!color)
 				CO = nightshift_light_color
 		var/matching = light && BR == light.light_range && PO == light.light_power && CO == light.light_color

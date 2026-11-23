@@ -1,0 +1,8 @@
+BYOND 516.1688
+0 objs on the turf: onto it and off again 486 ns, same moves on an empty turf 590 ns
+10 objs on the turf: onto it and off again 329 ns, same moves on an empty turf 467 ns
+100 objs on the turf: onto it and off again 658 ns, same moves on an empty turf 461 ns
+1000 objs on the turf: onto it and off again 7082 ns, same moves on an empty turf 229 ns
+5000 objs on the turf: onto it and off again 32971 ns, same moves on an empty turf 452 ns
+20000 objs on the turf: onto it and off again 233710 ns, same moves on an empty turf 227 ns
+done

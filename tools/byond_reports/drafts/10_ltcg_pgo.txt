@@ -1,0 +1,10 @@
+<b>Feature request:</b> build byondcore.dll with link-time code generation and profile-guided optimisation
+
+<b>What:</b>
+A sampling profiler on Dream Daemon (516.1688, a HippieStation round with 25 bot players) finds about 8% of the server's busy time in very small functions that are called, not inlined. Most are 13 to 40 instructions long and build or unpack a value. Each keeps a full stack frame. The interpreter loop and the var lookups call them constantly.
+
+<b>Why:</b>
+These helpers look like they live in other source files from their callers, which the compiler can only inline across with link-time code generation. Profile-guided optimisation then lays out the interpreter's hot paths and inlines by measured call counts. On bytecode interpreters it typically gives 10-20%, with no source changes and no change in behaviour.
+
+<b>Suggested change:</b>
+In MSVC: /GL on the compile and /LTCG on the link for byondcore.dll. For PGO, build with /GENPROFILE, run a few representative servers (any large SS13 codebase with players or bots makes a good load), then relink with /USEPROFILE. We can supply a headless SS13 round that drives the server without players, to use as training load.

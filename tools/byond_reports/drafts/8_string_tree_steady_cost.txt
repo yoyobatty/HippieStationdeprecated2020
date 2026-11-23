@@ -1,0 +1,18 @@
+Follow-up to my sorted-strings report, with numbers from a running game instead of a repro.
+
+I put a sampling profiler on Dream Daemon during a HippieStation round: 516.1688, 25 bot players, the main thread busy about half of each tick. Comparing strings while walking the string tree came to 5.8% of the server's busy time. 4.1% of that was a plain byte-by-byte strcmp, the single biggest leaf function after the bytecode loop. It runs in two places:
+- making a new runtime string, to find out whether it already exists
+- dropping a string's last reference, where the string seems to be looked up again by its text to take it out of the tree
+
+At that point the tree held 282,686 strings. The average node sat 22.8 levels deep, which is close to balanced (19). The deepest sat 660 levels deep. The deep branches were the series the first report describes: "\ref" text like [0x2102c5e3] (1,573 nodes below depth 100), ids built from refs (camera_console_[0x2003f39]_map) and log lines that start with a timestamp. Strings in those series share their first 8 to 20 bytes, so each compare on the way down reads that prefix again.
+
+Two changes would cover both the steady cost and the stall:
+1. Intern through a hash table: hash the bytes once, store the hash with each entry, and compare text only when the hashes match. A lookup becomes one hash plus usually one compare, and ascending series stop mattering.
+2. When a string's count reaches zero, remove it by its id, which the caller already has, rather than finding it again by its text.
+
+If the tree has to stay for ordered walks somewhere, a balanced tree with a stored hash checked before strcmp would fix most of it.
+
+I tried change 1 on my own server to check it holds up. A small DLL took over the lookup function: it keeps the engine's nodes but links them as one chain, so the engine's own insert and remove code still works, and finds strings through a hash table (FNV-1a, stored hash, 0.8 probes per lookup). Removal still goes through a lookup by text, just a hashed one.
+- Repro (200,000 kept ascending strings): making a new kept string went from 4.1-6.7 us to 0.47-0.56 us. Finding an existing string went from 0.63-0.76 us to 0.44 us.
+- Live round, 30 bots, sampled on and off in alternating 30 second windows: string lookup plus strcmp went from 3.45% to 1.23% of the main thread's busy time.
+- Five minutes left on in the round: 2.3 million lookups and 743,000 removals, with no runtime errors and no failed deletes.

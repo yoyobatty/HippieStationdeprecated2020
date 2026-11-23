@@ -113,6 +113,8 @@ pub struct Engine {
 	spill_order: Vec<u32>,
 	frontier: Vec<u32>,
 	spilling: Vec<u32>,
+	/// Light textures (sprites.rs): on, and the chunks whose corners changed since they were last taken
+	pub chunks: Option<crate::sprites::Chunks>,
 }
 
 const NORTH: u8 = 1;
@@ -141,6 +143,7 @@ impl Engine {
 			spill_order: Vec::new(),
 			frontier: Vec::new(),
 			spilling: Vec::new(),
+			chunks: None,
 		}
 	}
 
@@ -794,6 +797,11 @@ impl Engine {
 			corner.needs_update = false;
 			let changed = update_cache(corner, knee);
 			let unlit = corner.affecting.is_empty();
+			if let Some(chunks) = self.chunks.as_mut() {
+				if changed || unlit {
+					chunks.mark_corner(z, c as i32 % (maxx + 1), c as i32 / (maxx + 1));
+				}
+			}
 			if changed {
 				let cx = c as i32 % (maxx + 1);
 				let cy = c as i32 / (maxx + 1);
