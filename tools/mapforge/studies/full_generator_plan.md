@@ -460,3 +460,84 @@ Applied here, keeping what passes (S0 program, S1 skeleton, the slot order of S2
    - That gives the maint width mix and its loops.
 4. **Judged as now:** `gen/gate.py` and `gen/trace.py`. Exit test: the trace's two shared failures (ways in,
    one-door share) gone on all 5 trace seeds, with no new failure.
+
+### M2-M3, 2026-11-22 night: bottom-up departments built (`gen/compose.py`)
+
+`build.py` uses it by default; `GEN_ROOMS=topdown` keeps the old packing (`gen/rooms.py`). Commit 78fc76a8 plus the
+fixes after it.
+
+**How it works:**
+- **A department is composed in its own frame** (x along its hall front, y away from it).
+  - The whole corridor is planned first and kept free of rooms: a stem from the front, with branches across it when
+    the frame is 32+ wide or under 30 deep.
+  - Stock copies are attached nearest the front first. Each goes on with a door cell of its own wall on the
+    corridor wall, the copy's own door where one lands there. Of those fits, the tightest wins.
+  - Three stem positions are tried (the seed's, low end, high end); the one with the most floor wins. One deep side
+    is what fits engineering's main room.
+  - The corridor is cut back to its last door. A closed pocket beside the corridor becomes an alcove, up to the
+    corridor's cap.
+  - The corridor is capped at 0.85 of its area type's biggest look-map room: it is a room to room_stats.
+  - A small-room pass follows while the department's median room size is over its band.
+- **Placed at the slot** from `blocks.Layout` (core, spoke sides, corners, past a spoke tip), turned to face its hall.
+  - A spoke department is composed at most 1.4x its slot's depth, then widened 20% at a time.
+  - The command core box is the composed footprint.
+- **Fill:** a multi-source search from department edges and halls.
+  - Maint where two departments are within 3 tiles, or a department and a hall within 2.
+  - Each maint piece is joined to its nearest hall by the shortest path through space.
+  - Maint no hall reaches is dropped.
+  - Then runs and pockets up to the maint budget, as before.
+- **Doors last, measured on parse regions:**
+  - room pieces no walk reaches get a door to their own department (never maint); a window becomes the door as a
+    last resort;
+  - closets of 1-3 tiles with no such wall are walled;
+  - then second doors to a room of the department, the hall or maint, until the one-door share is 0.39.
+
+**Decisions, each from a measurement:**
+- **The two failures were caused by connect.** Its rescue doors gave 2-tile stock closets a maint door ("ways in"),
+  and its doors into rooms pulled the one-door share down. With every piece reached before connect runs, connect
+  cuts 0-6 doors a map (it cut 15-67 before).
+- **Second-row side halls are off.** A department behind another got a side hall of its own: those ran 50-64 tiles
+  against the human arm's 19.5 max, and spokes ran to 80.
+- **Even-width spokes are drawn exactly over lo..hi.** `blocks.Layout._strip` put N and W spokes one cell over, so a
+  department composed against lo-1 fronted onto nothing.
+- **Enclosed voids are no longer wall:** as wall they were 59 tiles of solid filler on crew 80 seed 4.
+- **Widened before deepened.** Deeper first (1.8x the slot) passed the spoke walk on crew 80 seed 4, but radial,
+  maint and fill then failed: 6 checks against 2.
+
+**Trace** (5 trace seeds, `data/mapforge/gen_bu`; before/after in `data/mapforge/gen/trace_topdown_2026-11-22.json`
+and `trace_bottomup_run3.json`):
+
+| | top-down | bottom-up |
+| --- | --- | --- |
+| "ways in" fails | 5 of 5 | 0 of 5 |
+| one-door share after connect | 0.20-0.31 (out of band on 5) | 0.363-0.388 (in band on 5) |
+| final failures | 30 (4-7 a map) | 21 (2-8 a map) |
+
+- The exit test's last clause is **not met.** Every map traded its old failures for others.
+  - Gone: floor reached, oversized, open maint, maint_tv, maint_pocket, walk_loops, room_size_atmos, and halls
+    7+ wide on one map.
+  - New: `skel.fill` (4 of 5), `skel.spoke_len`, `share.hall`, `skel.core_dist`, `share.command`, and some
+    departments' median room size.
+
+**Full stage** (`build.py --set --stage full --jobs 5`, 48 min): **0 of 15 pass, 2-7 failures each** (top-down: 0 of
+15, 3-11).
+- No build fails "ways in" or the one-door share.
+- Failures over the 15:
+
+  | count | checks |
+  | --- | --- |
+  | 9 | `skel.fill` |
+  | 6 each | `space.room_size_security`, `share.command` |
+  | 5 | `space.room_size_civic` |
+  | 4 each | `skel.spoke_len`, halls 7+ wide |
+  | 3 each | `space.pockets_per_1k`, `share.hall` |
+  | 2 | must touch atmos-engineering (`rooms.touch_doors` found no wall run between them) |
+  | 1-2 each | the rest |
+
+**Next, by count:**
+1. **`skel.fill`.** Composed departments are ragged at the back, so the station box holds less floor (0.17-0.21
+   against 0.234). Square the back edge: rooms at the far end take the frame's full width first, or the footprint is
+   cut at the last full row.
+2. **Room-size medians** (security, civic) and **`share.command`.** The core is sized from command's composition,
+   which lands under its budget on big crews.
+3. **The atmos-engineering door.** Let the pair's footprints share one wall instead of standing two walls apart.
