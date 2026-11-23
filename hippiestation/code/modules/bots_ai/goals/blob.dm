@@ -484,7 +484,9 @@ GLOBAL_LIST_EMPTY(bot_blobs)
 
 /datum/bot_goal/fight_blob/get_strategies(datum/bot_brain/bot)
 	var/datum/bot_strategy/fight_blob/S = new
-	S.steps = list(new /datum/bot_step/paced/hit_blob())
+	// The mask on first, where the air's bad: on_internals (goals/blob_tactics.dm) let it start the fight there, and without this it
+	// started with no mask, dropped it for "can't breathe here", and took it up again, 13 times in a row (hollow_goals.py).
+	S.steps = list(new /datum/bot_step/kit_up_for_air(), new /datum/bot_step/paced/hit_blob())
 	return list(S)
 
 /datum/bot_strategy/fight_blob/is_feasible(datum/bot_brain/bot)

@@ -31,7 +31,13 @@
 		bot_log(src, "[I] wouldn't go in my hand ([owner.has_active_hand() ? "holding [owner.get_active_held_item() || "nothing"]" : "no hand that works"])")
 		return FALSE
 	bot_log(src, "picked up [I]")
+	just_taken = WEAKREF(I)
+	just_taken_at = world.time
 	return TRUE
+
+/// What it last picked up, and when: make_hand_free() keeps it and sets the other hand's load down instead
+/datum/bot_brain/var/datum/weakref/just_taken
+/datum/bot_brain/var/just_taken_at = 0
 
 /// One hand empty, whatever it takes: into the bag if the bag will have it, either hand's load, or else set down for a
 /// moment (set_down_items). put_in_hands() with both hands full tips what it's given onto the floor, and with a full
@@ -43,6 +49,12 @@
 	var/obj/item/inactive = owner.get_inactive_held_item()
 	if(!active || (!inactive && other_hand_works()) || put_away(active, allow_equip = FALSE) || (inactive && put_away(inactive, allow_equip = FALSE)))
 		return
+	// Not what it's only just picked up, when the other hand's had its load longer: a circuit build that wanted the battery and the
+	// assembly in hand, with a tool in the other, set the battery down to take the assembly and the assembly to take the battery, 12
+	// times in a row (tools/bot_gym/hollow_goals.py, 2026-11-22).
+	if(inactive && other_hand_works() && just_taken?.resolve() == active && world.time < just_taken_at + 10 SECONDS && just_taken?.resolve() != inactive)
+		owner.swap_hand()
+		active = owner.get_active_held_item()
 	bot_log(src, "setting [active] down for a moment")
 	owner.dropItemToGround(active)
 	LAZYADD(set_down_items, active)

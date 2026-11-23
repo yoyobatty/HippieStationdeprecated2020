@@ -136,8 +136,14 @@ GLOBAL_LIST_INIT(bot_medicine_recipes, list(
 	if(!recipe)
 		recipe = bot.brew_for_self() //goals/chem_lab.dm
 		for_self = !!recipe
-	// A full fridge is a job done. Bots used to keep mixing all shift, 90 batches of it, until the dispenser ran flat.
-	if(!recipe && length(fridge?.contents) >= BOT_MEDICINE_STOCK)
+	// A full fridge is a job done. Bots used to keep mixing all shift, 90 batches of it, until the dispenser ran flat. With no fridge
+	// it can get to, what's been made is left by the ChemMaster: that's the stock. It was nothing, never enough, and a doctor made
+	// 37 batches of bicaridine in a row (tools/bot_gym/hollow_goals.py, 2026-11-22).
+	var/stock = length(fridge?.contents)
+	if(!fridge)
+		for(var/obj/item/reagent_containers/pill/P in range(4, M))
+			stock++
+	if(!recipe && stock >= BOT_MEDICINE_STOCK)
 		bot.chemistry_blocked_until = world.time + 5 MINUTES
 		return
 	recipe = recipe || bot.pick_medicine_recipe()

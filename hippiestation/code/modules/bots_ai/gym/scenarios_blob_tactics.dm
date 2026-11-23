@@ -225,3 +225,48 @@
 	if(bot_lost())
 		return BOT_GYM_FAIL
 	return blob_harmed() ? BOT_GYM_PASS : BOT_GYM_PENDING //the blob between it and the core: the core comes after
+
+/// Both hands full and the bag too: what it's only just picked up stays in hand, and the other hand's load goes down for the next thing.
+/datum/bot_scenario/hands_keep_just_taken
+	name = "hands: full hands and bag, picking up a second part keeps the first part, not the tool"
+	desc = "A wrench in one hand, a screwdriver in the other, the bag full. It picks up a power cell (the screwdriver goes down for it), then an assembly: the wrench goes down, not the cell it's only just picked up. Before, the cell went down for the assembly and the assembly for the cell, 12 times running in a circuit build."
+	job = "Scientist"
+	time_limit = 20 SECONDS
+	kit_hands = list(/obj/item/wrench, /obj/item/screwdriver)
+	kit_backpack = list(/obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher, /obj/item/extinguisher)
+	layout = list(
+		"#######",
+		"#Byz..#",
+		"#######")
+	var/obj/item/stock_parts/cell/part_one
+	var/obj/item/electronic_assembly/part_two
+	var/done = FALSE
+
+/datum/bot_scenario/hands_keep_just_taken/setup()
+	part_one = new(first_marker("y"))
+	part_two = new(first_marker("z"))
+
+/datum/bot_scenario/hands_keep_just_taken/make_goal()
+	return null
+
+/datum/bot_scenario/hands_keep_just_taken/post_spawn()
+	INVOKE_ASYNC(src, PROC_REF(pick_both))
+
+/datum/bot_scenario/hands_keep_just_taken/proc/pick_both()
+	brain.take_in_hand(part_one)
+	step(bot, EAST)
+	brain.take_in_hand(part_two)
+	done = TRUE
+
+/datum/bot_scenario/hands_keep_just_taken/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!done)
+		return BOT_GYM_PENDING
+	if(!(part_two in bot.held_items))
+		fail_reason = "the assembly isn't in hand"
+		return BOT_GYM_FAIL
+	if(!(part_one in bot.held_items))
+		fail_reason = "set the cell it had only just picked up down for the assembly ([part_one.loc])"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
