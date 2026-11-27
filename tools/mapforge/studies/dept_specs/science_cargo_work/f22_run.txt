@@ -1,0 +1,99 @@
+check before: 62 (C1 1, C10 1, C11 1, C2 1, C3 1, C4 1, C9 1, E2 1, E3 2, E4 1, K1 13, K2 9, S1 1, S2 1, S3 1, S4 1, S5 1, S7 2, S9 1, T1 1, T2 1, T3 1, T4 1, T7 1, X11 1, X5 2, X6 7, X7 1, X8 5)
+  56,164 X5 xenobiology: a slime loose outside the pens
+  46,157 X5 xenobiology: 6 slimes (stock 2-3)
+  47,170 X6 xenobiology: no camera sees a free tile beside this slime (the console feeds only where a camera sees)
+  51,170 X6 xenobiology: no camera sees a free tile beside this slime (the console feeds only where a camera sees)
+  55,170 X6 xenobiology: no camera sees a free tile beside this slime (the console feeds only where a camera sees)
+  59,170 X6 xenobiology: no camera sees a free tile beside this slime (the console feeds only where a camera sees)
+  56,164 X6 xenobiology: no camera sees a free tile beside this slime (the console feeds only where a camera sees)
+  46,157 X6 xenobiology: no camera sees a free tile beside this slime (the console feeds only where a camera sees)
+  57,159 X6 xenobiology: no camera sees a free tile beside the slime processor
+  46,157 X7 xenobiology: no kill room (a pen of cold telecomms floor; stock 8 of 8 have one, with a freezer)
+  49,158 X8 xenobiology: pen behind an airlock (stock: windoor and blast door, 7 pens of 7)
+  47,168 X8 xenobiology: pen behind an airlock (stock: windoor and blast door, 7 pens of 7)
+  51,168 X8 xenobiology: pen behind an airlock (stock: windoor and blast door, 7 pens of 7)
+  55,168 X8 xenobiology: pen behind an airlock (stock: windoor and blast door, 7 pens of 7)
+  59,168 X8 xenobiology: pen behind an airlock (stock: windoor and blast door, 7 pens of 7)
+  55,160 X11 xenobiology: shield wall generator in the open floor (stock 8 of 8: the entrance's corners); the bots push it aside
+  60,141 E2 explab: console beside the experimentor (stock 7 of 7: 3 away, out of its piece)
+  61,141 E3 explab: no scrubber (stock 7 of 7, 1-6): the machine's smoke and hot air stay in
+  61,141 E3 explab: no air vent (stock 7 of 7)
+  61,141 E4 explab: no blast doors closing off the test chamber (stock 7 of 7, 1-5)
+  62,162 T1 toxins: no burn chamber (/area/science/mixing/chamber; stock 7 of 8, goals/toxins.dm find_lab)
+  62,162 T2 toxins: the mixing lab is not on the hull (stock 8 of 8): its chamber can't vent to space
+  62,162 T3 toxins: no mass driver "toxinsdriver" with its button (stock 8 of 8) out to the test range
+  62,162 T4 toxins: no freezer on a port in the mixing lab (stock 7 of 8)
+  62,162 T7 toxins: no portable scrubber in the mixing lab (find_lab needs one; stock pump 5, scrubber 4 of 8)
+  67,157 S1 R&D lab: no desk (windoor on a table) for the crew to collect from (stock: R&D 8 of 8 onto a primary hall, robotics 6 of 8)
+  60,146 S2 robotics: no desk (windoor on a table) for the crew to collect from (stock: R&D 8 of 8 onto a primary hall, robotics 6 of 8)
+  66,149 S3 mech bay: no door to robotics (stock 8 of 8 join by door)
+  54,140 S4 RD office: no door onto the science corridor (stock: off the research corridor)
+  60,140 S5 explab: no door onto the science corridor (stock: off the research corridor)
+  55,149 S7 server room: 1 R&D servers (stock 2 on 8 of 8)
+  55,149 S7 server room: no freezer (stock 8 of 8 keep it cold)
+  67,163 S9 research lobby: a dead-end room (doors onto /area/science/lab, /area/science/mixing); stock /area/science/research IS the corridor
+  34,148 C1 cargo: the supply dock opens into /area/maintenance/fore, not the cargo bay (stock 8 of 8 into the bay)
+  23,133 C2 mining: the mining dock opens into /area/maintenance/port, not the mining dock room (stock 8 of 8)
+  27,115 C3 cargo bay: 0 conveyor belts from the dock (stock 11-17 on 8 of 8, with 2 plastic flaps)
+  27,131 C4 mining: 6 miner lockers (stock 3 on 8 of 8)
+  1,1 C9 cargo: no cargo wardrobe (stock 8 of 8)
+  36,107 C10 cargo office: no door or desk onto a hall (stock: the office is the public front, 8 of 8)
+  36,127 C11 QM office: doesn't look onto the bay (stock 8 of 8: door or window)
+  54,140 K1 science: /area/crew_quarters/heads/hor (35 tiles) has no camera (stock: a camera in each room)
+  46,153 K1 science: /area/science (75 tiles) has no camera (stock: a camera in each room)
+  60,140 K1 science: /area/science/explab (27 tiles) has no camera (stock: a camera in each room)
+  49,140 K1 science: /area/science/misc_lab (27 tiles) has no camera (stock: a camera in each room)
+  62,162 K1 science: /area/science/mixing (40 tiles) has no camera (stock: a camera in each room)
+  66,140 K1 science: /area/science/nanite (26 tiles) has no camera (stock: a camera in each room)
+  67,163 K1 science: /area/science/research (36 tiles) has no camera (stock: a camera in each room)
+  60,146 K1 science: /area/science/robotics/lab (32 tiles) has no camera (stock: a camera in each room)
+  66,149 K1 science: /area/science/robotics/mechbay (23 tiles) has no camera (stock: a camera in each room)
+  55,149 K1 science: /area/science/server (12 tiles) has no camera (stock: a camera in each room)
+  46,140 K1 science: /area/science/storage (17 tiles) has no camera (stock: a camera in each room)
+  62,157 K1 science: /area/science/storage (16 tiles) has no camera (stock: a camera in each room)
+  46,148 K1 science: /area/security/checkpoint/science/research (16 tiles) has no camera (stock: a camera in each room)
+  33,107 K2 cargo: /area/quartermaster (66 tiles) has no camera (stock: a camera in each room)
+  27,131 K2 cargo: /area/quartermaster/miningdock (45 tiles) has no camera (stock: a camera in each room)
+  36,132 K2 cargo: /area/quartermaster/miningoffice (29 tiles) has no camera (stock: a camera in each room)
+  36,107 K2 cargo: /area/quartermaster/office (38 tiles) has no camera (stock: a camera in each room)
+  36,127 K2 cargo: /area/quartermaster/qm (15 tiles) has no camera (stock: a camera in each room)
+  36,117 K2 cargo: /area/quartermaster/sorting (35 tiles) has no camera (stock: a camera in each room)
+  27,115 K2 cargo: /area/quartermaster/storage (56 tiles) has no camera (stock: a camera in each room)
+  27,107 K2 cargo: /area/quartermaster/warehouse (33 tiles) has no camera (stock: a camera in each room)
+  27,127 K2 cargo: /area/security/checkpoint/supply (15 tiles) has no camera (stock: a camera in each room)
+xeno: kill room at 46,157 (9 tiles): cold floor, freezer at 46,157
+xeno: 3 slimes past the stock 3 taken out
+xeno: pen 1 front at 47,168: windoor and blast door
+xeno: pen 2 front at 51,168: windoor and blast door, button at 50,167
+xeno: pen 3 front at 55,168: windoor and blast door, button at 53,167
+xeno: pen 4 front at 59,168: windoor and blast door, button at 58,167
+moved xenobiologyaccess 55,160 -> 50,166
+xeno: 6 cameras hung
+explab: console 60,141 -> 64,142 (3 from the experimentor)
+cameras: 22 hung in science and cargo rooms
+cargo: 3 miner lockers past the stock 3 taken out (kept: 36,134, 39,133, 27,134)
+placed cargo_wardrobe at 27,122
+fn_science_cargo: 44 fixes
+check after: 21 (C1 1, C10 1, C11 1, C2 1, C3 1, E3 2, E4 1, S1 1, S2 1, S3 1, S4 1, S5 1, S7 2, S9 1, T1 1, T2 1, T3 1, T4 1, T7 1)
+  61,141 E3 explab: no scrubber (stock 7 of 7, 1-6): the machine's smoke and hot air stay in
+  61,141 E3 explab: no air vent (stock 7 of 7)
+  61,141 E4 explab: no blast doors closing off the test chamber (stock 7 of 7, 1-5)
+  62,162 T1 toxins: no burn chamber (/area/science/mixing/chamber; stock 7 of 8, goals/toxins.dm find_lab)
+  62,162 T2 toxins: the mixing lab is not on the hull (stock 8 of 8): its chamber can't vent to space
+  62,162 T3 toxins: no mass driver "toxinsdriver" with its button (stock 8 of 8) out to the test range
+  62,162 T4 toxins: no freezer on a port in the mixing lab (stock 7 of 8)
+  62,162 T7 toxins: no portable scrubber in the mixing lab (find_lab needs one; stock pump 5, scrubber 4 of 8)
+  67,157 S1 R&D lab: no desk (windoor on a table) for the crew to collect from (stock: R&D 8 of 8 onto a primary hall, robotics 6 of 8)
+  60,146 S2 robotics: no desk (windoor on a table) for the crew to collect from (stock: R&D 8 of 8 onto a primary hall, robotics 6 of 8)
+  66,149 S3 mech bay: no door to robotics (stock 8 of 8 join by door)
+  54,140 S4 RD office: no door onto the science corridor (stock: off the research corridor)
+  60,140 S5 explab: no door onto the science corridor (stock: off the research corridor)
+  55,149 S7 server room: 1 R&D servers (stock 2 on 8 of 8)
+  55,149 S7 server room: no freezer (stock 8 of 8 keep it cold)
+  67,163 S9 research lobby: a dead-end room (doors onto /area/science/lab, /area/science/mixing); stock /area/science/research IS the corridor
+  34,148 C1 cargo: the supply dock opens into /area/maintenance/fore, not the cargo bay (stock 8 of 8 into the bay)
+  23,133 C2 mining: the mining dock opens into /area/maintenance/port, not the mining dock room (stock 8 of 8)
+  27,115 C3 cargo bay: 0 conveyor belts from the dock (stock 11-17 on 8 of 8, with 2 plastic flaps)
+  36,107 C10 cargo office: no door or desk onto a hall (stock: the office is the public front, 8 of 8)
+  36,127 C11 QM office: doesn't look onto the bay (stock 8 of 8: door or window)
+-> tools/mapforge/studies/dept_specs/science_cargo_work/f22_fixed.dmm

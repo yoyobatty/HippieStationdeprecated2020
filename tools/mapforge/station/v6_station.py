@@ -417,7 +417,10 @@ def details(m, log):
             if (solid(m.get(*nb(p, 1))) and solid(m.get(*nb(p, 2)))) or (solid(m.get(*nb(p, 4))) and solid(m.get(*nb(p, 8)))):
                 continue
             left = budget.get(p, OPEN)
-            if r < (0.06 if maint else 0.045):
+            # halls: rare, and only along a wall (gen/mapinspect.py "loose": stock halls keep 0.6-0.8 items per 1000
+            # floor tiles off the walls; 4.5% of hall tiles anywhere gave 3.95, the user's "random crowbars", 2026-11-25)
+            by_wall = any(solid(m.get(*nb(p, d))) for d in (1, 2, 4, 8))
+            if r < (0.06 if maint else (0.006 if by_wall else 0.0)):
                 if left["items"] > 0:
                     t.objs.append(dmm.Atom(rnd.choice(FLOOR_LITTER)))
                     added["items"] += 1
@@ -1584,6 +1587,12 @@ def shared(m, log, extra_areas=()):
         free = [p for p in tiles if not kit.dense(m.get(*p).objs) and not m.get(*p).has("/obj/machinery/door")
                 and not m.get(*p).has("/obj/machinery/atmospherics")]
         mid = [p for p in free if not any(solid(m.get(*nb(p, d))) for d in CARD)] or free
+        # vents and scrubbers already in the room count, and none goes beside one of its kind (an AI satellite
+        # foyer copied with its vent got a second one beside it: the ruled "vents apart" check, 2026-11-25)
+        had_v = [p for p in tiles if any("vent_pump" in o.path for o in m.get(*p).objs)]
+        had_s = [p for p in tiles if any("vent_scrubber" in o.path for o in m.get(*p).objs)]
+        n = max(0, n - len(had_v))
+        mid = [p for p in mid if not any(abs(p[0] - q[0]) + abs(p[1] - q[1]) <= 1 for q in had_v + had_s)]
         vents = []
         for _ in range(n):
             if not mid:
@@ -2376,6 +2385,31 @@ def air(m, log):
         vents[cls] = out
     if moved:
         log("air: moved %d vents off pipework, connectors and consoles" % moved)
+    # never two of a kind side by side (the user's ruling, gen/gate.py "vents apart"): a copied room's vent and the
+    # one moved or added beside it, an AI satellite foyer 2026-11-25; the second moves to the nearest free floor of its
+    # room clear of its kind
+    apart = 0
+    for cls in ("supply", "scrubbers"):
+        taken_v = set(vents["supply"]) | set(vents["scrubbers"])
+        out = []
+        for v in vents[cls]:
+            if any(abs(v[0] - q[0]) + abs(v[1] - q[1]) == 1 for q in out):
+                t = m.get(*v)
+                cand = [(x, y) for x in range(v[0] - 5, v[0] + 6) for y in range(v[1] - 5, v[1] + 6)
+                        if (x, y) not in taken_v and m.get(x, y) is not None and m.get(x, y).apath == t.apath
+                        and is_floor(m.get(x, y)) and not is_window(m.get(x, y)) and not kit.dense(m.get(x, y).objs)
+                        and not m.get(x, y).has("/obj/machinery/door") and not atmos.atoms(m.get(x, y))
+                        and not m.get(x, y).has("/obj/machinery/computer") and not m.get(x, y).has("/obj/machinery/power/terminal")
+                        and not is_tank(m.get(x, y))
+                        and not any(abs(x - q[0]) + abs(y - q[1]) <= 1 for q in out + vents[cls])]
+                if cand:
+                    v = min(cand, key=lambda q: (abs(q[0] - v[0]) + abs(q[1] - v[1]), q))
+                    taken_v.add(v)
+                    apart += 1
+            out.append(v)
+        vents[cls] = out
+    if apart:
+        log("air: moved %d vents away from one of their kind beside them" % apart)
     for cls in ("supply", "scrubbers"):
         tap, side, dev = roots[cls]
         mine = 1 if cls == "supply" else 2

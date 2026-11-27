@@ -1,0 +1,204 @@
+204                                                                                                                                                                                           
+203                                                                                                                                                                                           
+202                                                                                                                                                                                           
+201                                                                                                                                                                                           
+200                                                                                                                                                                                           
+199                                                                                                                                                                                           
+198                                                                                                                                                                                           
+197                                                                                                                                                                                           
+196                                                                                                                                                                                           
+195                                                                                                                                                                                           
+194                                                                                                                                                                                           
+193                                                                     ##   #   ###                                                                                                          
+192                                                                     #yyyyyyyyyy#                                                                                                          
+191                                                                     #yyyyyyyyyy                                                                                                           
+190                                                                     Dyyyyyyyyyy                                                                                                           
+189                                                                     #yyyyyyyyyy#                                                                                                          
+188                                                                      yyyyyyyyyy                                                                                          ##rrr##          
+187                                                                      yyyyyyyyyy                                                                                          #rrrrr#          
+186                                                                     #yyyyyyyyyy                                                                                          rrrrrrr          
+185                                                                     Dyyyyyyyyyy#                                                                                         rrrrrrr          
+184                                                                     ###yyyyyy###                                                                                         rrrrrrr          
+183                                                                       #yyyyyy#                                                                                           #rrrrr#          
+182                                                                        yyyyyy                                                                                            ##rrr##          
+181                                                                       #yyyyyy                                                                                                             
+180                                                                        yyyyyy#                                                                                                            
+179                                                                        yyyyy##                                                                                                            
+178                                                                        yyyyy#                                                                                                             
+177                                                                       #yyyyy#                                                                                                             
+176                                                              ##   #  ##yyyyy##   ##                                                                                                       
+175                                                              #++++++++++++++++++++#                                                                                                       
+174                                                              #D#D+++++++++++++++++                                                                                                        
+173                                                              #...#++++#+++++++++++#                                                                                                       
+172                                             ##r###r###r###r############+++++##   ##                                                                                                       
+171                                             #rrr#rrr#rrr#rrr#rrrrDrrrr#+++++#                                                                                                             
+170                                             rrrrrrrrrrrrrrrr#rrrr#rrrrr+++++                                                                                                              
+169                                             #rrr#rrr#rrr#rrr#rrrr#rrrr#+++++#                                                                                                             
+168                                             ##D###D###D###D##rrrr#rrrr#+++++                                                                                                              
+167                                             #rrr#rrrrrrrrrrr#rrrr#rrrr#+++++                                                                                                              
+166                                             rrrr#rrrrrrrrrrr#rrrr#rrrr#+++++                                                                                                              
+165                                             #rrr#rrrrrrrrrrr#rrrr#rrrr#+++++#                                                                                                             
+164                                             rrrrDrrrrrrrrrrr#rrrr#rrrr#+++++                                                                                                              
+163                                             rrrr#rrrrrrrrrrr#rrrr#rrrr#+++++                                                                                                              
+162                                             #rrrrrrrrrrrrrrr#rrrr##D###+++++                                                       ?????????                                              
+161                                             #rrr#rrrrrrrrrrr##D###rrrr#+++++#                                                      ?????????                                              
+160                                             ##r##rrrrrrrrrrr#rrrr#rrrr#+++++                                                       ?????????                                              
+159            ?????????                        #rrr#rrrrrrrrrrr#rrrr#rrrr#+++++                                                       ?????????                                              
+158            ?????????                        rrrrDrrrrrrrrrrr#rrrr#rrrrr+++++                                                       ?????????                                              
+157            ?????????                        #rrr#rrrrrrrrrrr#rrrr#rrrr#+++++#                                                      ?????????                                              
+156            ?????????                        ##r###r##r#D########D#D####+++++                                                       ?????????                                              
+155            ?????????                        #rrrrrrrrrrrrrrrrrrrrrrrrrD+++++                                                       ?????????                                              
+154            ?????????                        rrrrrrrrrrrrrrrrrrrrrrrrrrD+++++                                                       ?????????                                              
+153            ?????????                        #rrrrrrrrrrrrrrrrrrrrrrrrrD+++++#                                                          ?                                                  
+152            ?????????                        ##D##########D##D#####r##D#+++++######                                                     ?                                                  
+151            ?????????                        #ssss#...#rrrr#rrrrr#rrrrr#+++++##...#                  ###.###                            ?                                                  
+150                ?                            #ssssD...#rrrr#rrrrr#rrrrr#+++++##...#                  #.....#                           #D#                                                 
+149                ?                            #ssss#...#rrrr#rrrrr#rrrrrr++++++#....                  .......                           #.#                                                 
+148                ?                            #ssss#...##D###rrrrr##rrrr#++++++#...#                  #.....#                          ##D##                                                
+147               #D#         ###.###D#         ######D###rrrr#rrrrrr#rrrr#++++++#...#                  #.....#                          #...#                                                
+146               #.#         #.....#.#         #rrrDrrrr#rrrr#rrrrrr##D###+++++##D#D### # # # # # # # ###D#D#### # # # # # # # # ###    .....                                                
+145              ##D###       .........         #rrr#rrrr#rrrr###D####rrrr#+++++D...................................................#    #...#                                                
+144              #....#       #.....#.#         #rrr#rrrr#rrrr#rrrrrrDrrrrr+++++### ####D###### #D## ####...........................###  #...#                                                
+143              #....###.##  #.....#.#         #rr##rrr##rrrr#rrrrrr#rrrr#+++++#....#......#.........#..###########################..####D###                                                
+142              #....D....#  #D#D#D#.### # # ###rr#rrrr#rrrrr#rrrrr##rrrr#+++++#....#......#......... ..#                         #..D....#                                                  
+141              ###.##....####.................#rr#rrrr#rrrrrrrrrrr#rrrrrr+++++D....#......#.........#..#                         #..#....#                                                  
+140                   #....D.########D######.##.#rrDrrrr#rrrrr#rrrrr#rrrrr#+++++#....###.####.........#..#                         #..D.....                                                  
+139                   #....#.#qqqqq#qq#qqqq#.##.###########################+++++#....#......###.#######..#                         #..#....#                                                  
+138                   #....D.#qqqqq#qqqqqqq#.##...........................D+++++###.##......#.....#...#..#                         #..#....#                                                  
+137                   ###.##.#qqqqqDqq#qqqq#.##...........................#+++++#....D......#.....#...#..#                         #..###.##                                                  
+136                        #.#qqqqq#qq#qqqq#...############################+++++#....########.....#...#..#                         #..#                                                       
+135                        #.#qqqqq#qqDqqqq#...#llllllDllll#llll#lllll#lll#+++++D....#......#.....#...D..#                         #..#                                                       
+134                        #.#qqqqqqqq#qqqq#...#llllll#llll#llll#lllllDlll#+++++#....#......#.....#...#..#                         #..                                                        
+133                        D.Dqqqqqqqq#qqqq#...#llllll#llll##D###lllll#####+++++#....#......#.....#...#..#                         #..#                                                       
+132                        #.#qqqqqqqq#q####...#llllll#llll#llll#lllllllll#+++++### ####D######D####D##..#     ###e####ee###ee#e####..                                                        
+131                        #.#qqqqq#qq###qq#...#llllll#llll#llll#llllllllll+++++D....................##..#      #eeeeeeeeeeeeeeeeee#..#                                                       
+130                         .#######qqDqqqq#...#llllll#llll##D###lllllllll#+++++#######################..#      #eeeeDeeeeeeeeeeeDe#..                                                        
+129                        #.#sssss#qq#qqqq#...#llllll#llll#llll#lllllllll#+++++#dddddd#ddDddddddddd#  ..#      #eeeeeee#eee#eeeeee#..#                                                       
+128                        #.#sssss#qq#qqqq#...#llllll#llll#llll#lllllllllD+++++#ddddddddd#ddddddddd#  ..#      #eeee#ee#eee#eeee#e#..                                                        
+127                 ###.#.##.#sssssDqq#q####...#llllll#llll#llll#lllllllll#+++++#ddddddddd#ddddddddd#  ..#      #eeee#ee#eee###ee#e#..#                                                       
+126                 #......#.##D##D#qq###qq#...#D#lll##D#######D##D##l#####+++++ddddddd#dddddddddddd#  ..#      #eeeeeee#eee#e#eeee#..                                                        
+125                 #......D.#qqqqq#qq#qqqq#...#llllllllllllllllllllllllllD+++++#dddddd#dd#ddddddddd#  ..#      ##eeeeeeeeeeDeDeeDe#..#                                                       
+124                 ###.#.##.#qqqqqqqqqqqqqD...#llllllllllllllllllllllllllD+++++dddddddDdd###########  ..#      #eeeeeee#eee#e#eeee#..                                                        
+123                        #.#qqqqqqqqqqqqq#...###D#####D###D##llll##D#####+++++ddddddd#ddDddddd#ddd#  ..#      #eeee#ee#eee###ee#e#..#                                                       
+122                        #.#qqqqqqqqqqqqq#...#llll#llll#llllllllll#lllll#+++++#dddddd#dd#dddddDddd#  ..#      #eeee#ee#eee#eeee#e#..#                                                       
+121                         .#qqqqqqqq#qqqq#...#llll#llll#llllllllll#lllll#+++++########dd#ddddd#####  ..#      #eeeeeee#eee#eeeeee#..### # # # # # # # ###                                   
+120                        #.#qqqqqqqq#qqqq##D##llll#llll#llllllllll#lllll#+++++#dddddd#dd#ddddd#ddd#  ..#      #eeeeDeeeeeeeeeeeDe#......................#                                   
+119                        #.#qqqqqqqqDqqqq#...##D###llll#llllllllll#lllll#+++++#ddddddddd#dddddDddd#  ..#      #eeeeeeeeeeeeeeeeee#......................#####                               
+118                    #####.#qqqqqqqq#qqqq#...#llll#lll##llllllllll#lllll#+++++ddddddd#dd#ddddd##D##  ..#     #######e#DeeeD#ee##e#..........................#                               
+117                    #...#.Dqqqqqqqq#q#D##...#llll#lll#lllllllllllDlllll#+++++ddddddd#dd#ddddd#ddd#  ..#    e#eeeeeeeeeeeeeeeeeee#######################....#                               
+116                    ....#.#qqqqq#qq#D#qq#...##D###lll#lllllllllll#lllll#+++++#ddddddDdd#D##DdDddd#  ..#     #eeeeeeeeeeeeeeeeeee# #aaa#aaa#aaa#aaa#aaa#....                                
+115                    #...#.#qqqqq#qq#qqqq#...#....#lllllllllllllll#lllll#+++++ddddddd#dd#dd#dd#####  ..#     #eeeeeeeeeeeeeeeeeee# #aaa#aaa#aaa#aaa#aaa#....#                               
+114                    ....D.#D###qDqqqqqqq#...#....#lll#lllllllllll#lllll#+++++ddddddd#dd#dd#dd#ddd#  ..##eee#########e##D###########aaa#aaa#aaa#aaa#aaa#....#                               
+113                    #...#.#qqq###qqqqqqq#######l###########D####D#######+++++#dddddd#dd#dd#ddDddd#  ..#eeeeeeeeeee#eee#eeeee#eeee###a###a###a###a###a###...#####                           
+112                    #...D.#qqqqq#qqqqqqq#             #.##+++++++#######+++++##dd####DD########### #..#eeeeeeeeeeeDeee#eeeee#eeee##aaaaaaaaaaaaaaaaaaaa#...#...#                           
+111                    ##.##.#qqqqq#qqqqqqq# ####   #### ###++++++++++++++++++++++++++++++++D.....#   #..#eeeeeeeeeee#eee#eeeee#eeee##aaaaaaaaaaaaaaaaaaaa#...#....                           
+110                        #.#qqqqq#qqqqqqq# #.......#....#+++++++++++++++++++++++++++++++++#####D#####..#eeeeeeeeeee#eee#eeeee#eeee##aaaaaaaaaaaaaaaaaaaa#...D...#                           
+109                         .#qqqqq#qq#qqqq#  ............#+++++++++++++++++++++++++++++++++#.........#..##D##eeeeeeeeeee#eeeeeDeeee##aaaaaaaaaaaaaaaaaaaaD...#....                           
+108                        #.#qqqqqDqq#qqqq###.......#....#+++################c####c#cc##+++#.........#..Deee#eeeeeeeeeee#eeeee#eeee############D##########...D...#                           
+107                        #.#qqqqq#qqDqqqq#.#.......#....#+++#ccccccccccDcc#ccc#ccccccc#+++#.........#..#eee##eeeeeeeeee#eeeee#eeee##aaaaaaaaaaaaaaaaaaaa#...#...#                           
+106                        #D#######DD######D####D#####D###+++#cccccccccc#cccccc#cccccccc+++#.........#..#eeee#eeeeeeeeee#eeeee#eeee##aaaaaaaaaaaaaaaaaaaa#...#####                           
+105                        #++++++++++++++++++++++++++++++++++#cccccccccc#cc#ccc#ccccccc#+++###########..#e####e###ee#eeeDe#####eeee##aaaaaaaaaaaaaaaaaaaa#...#                               
+104                        #++++++++++++++++++++++++++++++++++#######cccc#cc##D#####D####+++#.........#..###ee##ee####eee###eee####D##aaaaaaaaaaaaaaaaaaaa#...#                               
+103                         ++++++++++++++++++++++++++++++++++#ccccc##D###cc#ccccccccccc#+++#......... ..#eeeee#eeeee#eeeDeeeeee#eee##aaaaaaaaaaaaaaaaaaaa#...                                
+102                         ++##   #   #   #   #   #   # ##+++#cccccccccc#cccccccccccccc#+++D.........#..#eeeee#eeeeeDeee#eeeeee#eee##aaaaaaaaaaaaaaaaaaaa#...#                               
+101                         ++#                           #+++#cccccccccc#cc#cccccccccccc+++#.........#..#eeeeeDeeeee#eee#eeeeeeDeee##aaaaaaaaaaaaaaaaaaaa#...#                               
+100                        #++                            #+++#ccccccccccDcc#cccccccccccc+++###########..#eeeee#eeeee#eeeeeeeeee#eee##aaaaaaaaaaaaaaaaaaaa#.###                               
+ 99                         ++#                            +++#ccccc###cc#ccDccccccccccc#+++#.....#...#..#eeeee#e#####eee#ee#####eeeeDaaaaaaaaaaaaaaaaaaaa#.###                               
+ 98                         ###                            +++######cc####cc#ccccccc##c##+++#......... ..#####D###eee#eee####eee######aaaaaaaaaaaaaaaaaaaa#.D+                                
+ 97                                                        +++#cccc#cccccDcc#########ccc#+++D.....#...#..#eeeeeeeeeeeeeee#eeeeee#ssss#aaaaaaaaaaaaaaaaaaaa###+#                               
+ 96                                                       #+++#cccc#ccccc#cc#ccccc#cccccc+++#.....#...#..#eeeeeeeeeeeeeeeDeeeeee#ssss#aaaaaaaaaaaaaaaaaaaa#+++                                
+ 95                                                        +++#ccccDccccc#ccDccccc#ccccc#+++###.###...D..#eeeeeeeeeeeeeee#eeeeeeDssss#aaaaaaaaaaaaaaaaaaaa#+++                                
+ 94                                                        +++#cccc#ccccc#cc#cccccDccccc#+++#.....#...#..#eeeeeeeeeee#eee#eee#D##ssss#aaaaaaaaaaaaaaaaaaaa#+++       ##   #  ##               
+ 93                                                        +++####c####cc#cc#ccccc#cccccc+++#.....#...#..#eeeeeeeeeee#eee#eeeDee#ssss#aaaaaaaaaaaaaaaaaaaa#+++#      #xxxxxxxx#               
+ 92                                                       #+++#cc###cc####cc####cc#ccccc#+++#.....#...#..#eeeeeeeeeeeDeee#eee#ee#ssss#aaaaaaaaaaaaaaaaaaaa#+++##   ###xxxxxxxx                
+ 91                                                        +++#cccc#ccccc#cc#cc##########+++###D########D##e##########DDD#####################DD##############xxxxxxxxxxxxxxxx                
+ 90                                                        +++#cccc#cccccDcc#cccc#cccccc#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++xxxxxxxxxxxxxxxx                
+ 89                                                        +++#ccccDccccc#cc#ccccDcccccc#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++xxxxxxxxxxxxxxxx#               
+ 88                                                       #+++#cccc#ccccc#cc#cccc#ccccccc+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++xxxxxxxxxxxxxxxx                
+ 87                                                        +++#cccc#ccccc#ccDcccc#cccccc#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++xxxxxxxxxxxxxxxx                
+ 86                                                        +++#######c####DD##cc###c#####+++###vv#######DDD#########v###D###s###s######DDD#######D#########+++###xxxxxxxxxxxxx                
+ 85                                                        +++++++++++++++++++++++++++++++++##vvvvvvvvv#vvvDvvvvvv#vvv#..#ssss#sssssss#sss#sssss#sssssssss#+++# ##  ##xxxxxxxx#               
+ 84                                                       #+++++++++++++++++++++++++++++++++##vvvvvvvvv#vvv#vvvvvv#vvv#..#ssss#sssssss#sssDsssssDsssssssss#+++       ## #D#  ##               
+ 83                                                 ###.###++++++++++++++++++++++++++++++++###vvvvvvvvv#vvv#vvvvvv#vvv#..#ssss#sssssssssss#sssss#sssssssss#+++                                
+ 82                                                 #....##D###++#####++#############+++####.#vvvvvvvvv#vvv#vvvvvvDvvv#..#ssssDsssssss#sss###sss#####sssss#+++#                               
+ 81                                                 #....#..######mmm#####mm#mm######+++#  ###vvvvvvvvvDvvvvvvvvvv#vvv#..#ssss#sssssss#sss#s#####sss#####D##D##                               
+ 80                                                 #....D..#mmmm#mmm#mmm#mm#mm#mmmm#+++#    #vvvvvvvvv#vvvvvvvvvv#vvv#..#ssss#sssssssDsssDsssss#sssssssss#...#                               
+ 79                                                 ###.##..#mmmm#mmm#mmm#mm#mm#mmmmm+++     #vvvvvvvvv#vvv#vvvvvv#vvv#..##D######s####sss#sssssDsssssssss#...#                               
+ 78                                                      #..#mmmm#mmm#mmm#mmDmm#mmmm#+++     #vvvvvvvvvvvvv####vvv###D#..#ssssss#sssss#sss#sssss#sssssssss#...####                            
+ 77                                                      #..###D###D###D##mm#mm##mmm#+++     #vvvvvvvvvvvvv#vv####vvvv#..#ssssss#sssssssss###########sssss#...#..#                            
+ 76                                                       ..#mmm#mmmm#mmm#mm#mmm#mmm#+++#    #vvvvvvvvvvvvv#vvvvvvvvvv#..#ssssssDsssss#sss#sssssssss#######...D...                            
+ 75                                                      #..#mmmDmmmmDmmm#mm#mmm#mmm#+++     #vvvvvvvvv#vvv#vvvvvvvvvv#..#ssssss#sssss#sssDsssssssssssssss#...#..#                            
+ 74                                                       ..#mmm#mmmm#mmm#D###D##mmm#+++     ##v###vv###vvvDvvvvvvvvvv#..#ssssss#sssssDsss#sssssssssssssss#...D..#                            
+ 73                                                      #..#####mmmm#####mmmmmm##D##+++     #vvvv####v#vvv#vvvvvvvvvv#..#ss###########sss#sssssssssssssss#...####                            
+ 72                                                       ..#mmmmmmmm#mmm#mmmmmm#sss#+++#    #vvvv#vvvv#vvv#vvvvvvvvvv#..####s#sssssss#sss#sssssssssssssss#...#                               
+ 71                                                      #..#mmmmmmmmDmmm#mmmmmm#sss#+++     #vvvv#vvvv#vvv#vvvvvvvvvv#..#ssss#sssssss#sss#D##D##D##D###D##...                                
+ 70                                                       ..#mmmmmmmm#mmm#mmmmmm#sss#+++     #vvvv###D##vvv#vvvvvvvvvv#..#ssss#sssssssssss#ss#ss#ss#ss#sss#...#                               
+ 69                                                      #..#mmmmmmmm#mmm#mmmmmm#sss#+++     #vvvvDvvvvDvvvvvvvvvvvvvv#..#ssssDsssssss#sss#ss#ss#ss#ss#sss#...                                
+ 68                                                       ..##mm##D####m#######D##D##+++#    #vvvv#vvvv#vvvvvvvvvvvvvv#..#ssss#sssssss#sss#ss#ss#ss#ss#sss#...#                               
+ 67                                                      #..#mmmmmmmmmmmmmmmmmmmmmmmD+++     #D####vvvv#vvvvvvvvvvvvvv#..#ssss#sssssssDsss#################...                                
+ 66                                                       ..#mmmmmmmmmmmmmmmmmmmmmmmD+++     #vvvv#vvvvvvvvvvvvvvvvvvv#..#ssss#sssssss#sss#ss#ss#ssss#ssss#...#                               
+ 65                                                      #..#mmmmmmmmmmmmmmmmmmmmmmmD+++     #vvvvDvvvv#vvv#vvvvvvvvvv#..#ssss#sssssss#sss#ss#ss#ssss#ssss#...                                
+ 64                                                       ..##D#######D##D####D##m###+++#   ###########################..#ssss#sssssssssss#ss#ss#ssss#ssss#...#                               
+ 63                                                      #..#mmmmm#mmmm#mmm#mmmmmmmm#+++    #............................#ssss#sssssssssss#D##D###D###ssss#...                                
+ 62                                                       ..#mmmmm#mmm##mmm#mmmmmmmmm+++    #D#D#### # # # # ###D#####...#ssss#sssssssssss#ssssssssss#ssss#...#                               
+ 61                                                      #..#mmmmm#mmm#mmmm#mmmmmmmmm+++    #...#             #..#   #...#ssss#sssssssssss#ssssssssssDssss#...                                
+ 60                                                       ..#mmmmm#mmm#mmmm#mmmmmmmm#+++# .##D###.            ....   #...#ssss#sssssss#sssDssssssssss#ssss#...#                               
+ 59                                                      #..#mmmmm##D###mmm#mmmmmmmmm+++   #....#             #..#   #..###################################...#                               
+ 58                                                       ..###D###mmmm##D##mmmmmmmm#+++  .#....#.            #..#   ####...................................###                               
+ 57                                                      #..#mmmmm#mmmm#mmm#mmmmmmmm#+++   #....#             ####      #..................................##                                 
+ 56                                                       ..#mmmm##mmmm#mmm#D##D##D##+++#  ######                       #..................................#                                  
+ 55                                   ?????????          #..#mmmm#mmmmm#mmm#mm#mm#mm#+++     . .                        #####D#D#### # ###D#D### # # # ###D###                                
+ 54                                   ?????????          #..#mmmm#mmmmmmmmm#mm#mm#mm#+++                                   #.....#       #...#           #...#                                
+ 53                                   ?????????     ###.##..#mmmmDmmmmm#mmm#mm#mm#mm#+++                                   #.....#       #...#           .....                                
+ 52                                   ?????????   ###....D.##########################+++#                                  #.....#       #####           #...#                                
+ 51                                   ????????????D.D....###....................D+++++++##  ##                             ###.###                       #...#                                
+ 50                                   ?????????   ###....# #....................#++++++++++++#                                                           ##D##                                
+ 49                                   ?????????     ###.## ### # # # # ###D#D####++++++++++++#                                                            #.#                                 
+ 48                                   ?????????                         #....#  ## ##+++##   #                                                            #D#                                 
+ 47                                   ?????????                         ......      #+++#                                                                  ?                                  
+ 46                                                                     #....#       +++                                                                   ?                                  
+ 45                                                                     #....#       +++                                                                   ?                                  
+ 44                                                                     ###.##       +++                                                               ?????????                              
+ 43                                                                                 #+++#                                                              ?????????                              
+ 42                                                                            ######DD##   ###                                                        ?????????                              
+ 41                                                                            #iiii#ii######i####                                                     ?????????                              
+ 40                                                                            #iiii#ii#iiiiiiiii#                                                     ?????????                              
+ 39                                                                            #iiii#ii#iiiiiiiii##                                                    ?????????                              
+ 38                                                                            ##iiiDii#iii##i#iii#                                                    ?????????                              
+ 37                                                                            #iiii#iiDiii#iiiiii#                                                    ?????????                              
+ 36                                                                            #iiii#ii#iii##i#iii#                                                    ?????????                              
+ 35                                                                            #iiii#ii#iiiiiiiii##                                                                                           
+ 34                                                                       #######D###ii#iiiiiiiii#                                                                                            
+ 33                                                                       #iiiiiiiiiDii##D###i####                                                                                            
+ 32                                                                       #iiiiiiiii#ii#iiii###                                                                                               
+ 31                                                                       #iiiiiiiii#ii#iiii#                                                                                                 
+ 30                                                                       #iiiiiiiii#iiDiiii#                                                                                                 
+ 29                                                                       ###########ii#iiii#                                                                                                 
+ 28                                                                       #iiiiiiiiiDii#iiii#                                                                                                 
+ 27                                                                       #iii#D#iii#ii######                                                                                                 
+ 26                                                                       #iiiiiiiii#ii##iii##                                                                                                
+ 25                                                                       ##iiiiiii##ii#iiiii#                                                                                                
+ 24                                                                       #iiiiiiiii#iiDiiiii#                                                                                                
+ 23                                                                       #iiiiiiiii#ii#iiii##                                                                                                
+ 22                                                                       #iiiiiiiii#ii######                                                                                                 
+ 21                                                                       ####iii####ii#iiii##                                                                                                
+ 20                                                                          #####iiDiiDiiiii#                                                                                                
+ 19                                                                            #iiii#ii#iiiii#                                                                                                
+ 18                                                                            #iiii#ii#ii##D#                                                                                                
+ 17                                                                            #iiii#ii#iiiii#                                                                                                
+ 16                                                                            ######ii#ii####                                                                                                
+ 15                                                                             #iii#ii#ii#                                                                                                   
+ 14                                                                             #iiiDii#ii#                                                                                                   
+ 13                                                                             #iii#######                                                                                                   
+ 12                                                                             #iii#                                                                                                         
+ 11                                                                             #####                                                                                                         
+ 10                                                                                                                                                                                           
+  9                                                                                                                                                                                           
+  8                                                                                                                                                                                           
+  7                                                                                                                                                                                           
+  6                                                                                                                                                                                           
+  5                                                                                                                                                                                           
+  4                                                                                                                                                                                           
+  3                                                                                                                                                                                           
+  2                                                                                                                                                                                           
+  1                                                                                                                                                                                           

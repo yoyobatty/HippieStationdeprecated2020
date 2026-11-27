@@ -1,0 +1,32 @@
+== f22_c100_s7.dmm
+  kitchen         45 tiles  public   0  doors {'crew_quarters': 1, 'coldroom': 1}  counters onto {}  access {'28': 2}
+  coldroom        21 tiles  public   0  doors {'kitchen': 1, 'bar': 1}  counters onto {}  access {'28': 2}
+  bar            126 tiles  public  87  doors {'coldroom': 1, 'crew_quarters': 1}  counters onto {}  access {'28': 1, '-': 1}
+  hydro          101 tiles  public  62  doors {'crew_quarters': 1}  counters onto {}  access {'-': 1}
+  garden          20 tiles  public  14  doors {'janitor': 2, 'theatre': 1, 'crew_quarters': 1}  counters onto {}  access {'26': 2, '-': 2}
+  janitor         17 tiles  public   0  doors {'garden': 2, 'theatre': 1}  counters onto {}  access {'26': 3}
+  theatre         24 tiles  public  13  doors {'garden': 1, 'janitor': 1}  counters onto {}  access {'-': 1, '26': 1}
+  chapel          94 tiles  public  81  doors {'chapel': 1, 'tools': 1, 'HALL': 2}  counters onto {}  access {'-': 4}
+  chapel_office   31 tiles  public   0  doors {'chapel': 1}  counters onto {}  access {'22': 1}
+  library         87 tiles  public  54  doors {'HALL': 1, 'chapel': 2, 'storage/emergency/starboard': 1}  counters onto {}  access {'-': 4}
+  law             16 tiles  public   0  doors {'security': 1, 'ai_monitored/security/armory': 1}  counters onto {}  access {'38': 2}
+  dorms          106 tiles  public  91  doors {'fitness': 2, 'locker': 1, 'HALL': 2}  counters onto {}  access {'-': 5}
+  locker          48 tiles  public  29  doors {'dorms': 1}  counters onto {}  access {'-': 1}
+  fitness         93 tiles  public  74  doors {'dorms': 2}  counters onto {}  access {'-': 2}
+  tools           45 tiles  public  29  doors {'chapel': 2}  counters onto {}  access {'-': 2}
+== f22_service.dmm
+  kitchen         47 tiles  public   0  doors {'crew_quarters': 1, 'coldroom': 1}  counters onto {'bar': 2}  access {'28': 2}
+  coldroom        21 tiles  public   0  doors {'kitchen': 1}  counters onto {}  access {'28': 1}
+  bar            126 tiles  public  78  doors {'crew_quarters': 1}  counters onto {}  access {'-': 1}
+  hydro          102 tiles  public   0  doors {'crew_quarters': 1}  counters onto {'crew_quarters': 1}  access {'35': 1}
+  garden          20 tiles  public  14  doors {'theatre': 1, 'crew_quarters': 1, 'janitor': 1}  counters onto {}  access {'-': 2, '26': 1}
+  janitor         17 tiles  public   0  doors {'crew_quarters': 1, 'theatre': 1, 'garden': 1}  counters onto {}  access {'26': 3}
+  theatre         24 tiles  public  13  doors {'garden': 1, 'janitor': 1}  counters onto {}  access {'-': 1, '26': 1}
+  chapel          94 tiles  public  81  doors {'chapel': 1, 'tools': 1, 'HALL': 2}  counters onto {}  access {'-': 4}
+  chapel_office   31 tiles  public   0  doors {'chapel': 1}  counters onto {}  access {'22': 1}
+  library         87 tiles  public  54  doors {'HALL': 1, 'chapel': 2, 'storage/emergency/starboard': 1}  counters onto {}  access {'-': 4}
+  law             16 tiles  public   0  doors {'security': 1}  counters onto {}  access {'38': 1}
+  dorms          106 tiles  public  92  doors {'fitness': 2, 'locker': 1, 'HALL': 2}  counters onto {}  access {'-': 5}
+  locker          48 tiles  public  29  doors {'dorms': 1}  counters onto {}  access {'-': 1}
+  fitness         93 tiles  public  74  doors {'dorms': 2}  counters onto {}  access {'-': 2}
+  tools           45 tiles  public  29  doors {'chapel': 2}  counters onto {}  access {'-': 2}

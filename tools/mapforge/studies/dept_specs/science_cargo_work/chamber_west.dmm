@@ -1,0 +1,56 @@
+"aA" = (/obj/machinery/camera{c_tag = "Toxins Lab East"; network = list("ss13","rd"); dir = 8; pixel_y = -22},/obj/machinery/light{dir = 4},/turf/open/floor/plasteel,/area/science/mixing)
+"aB" = (/obj/machinery/door/airlock/research,/turf/open/floor/plasteel,/area/science/mixing)
+"aC" = (/turf/open/floor/plasteel,/area/science)
+"aa" = (/turf/open/space,/area/space)
+"ab" = (/obj/structure/lattice,/turf/open/space,/area/space)
+"ac" = (/turf/closed/wall,/area/maintenance/fore)
+"ad" = (/turf/closed/wall/r_wall,/area/science/mixing)
+"ae" = (/turf/closed/wall/r_wall,/area/science/mixing/chamber)
+"af" = (/obj/machinery/door/poddoor/incinerator_toxmix,/turf/open/floor/engine/vacuum,/area/science/mixing/chamber)
+"ag" = (/turf/open/floor/engine/vacuum,/area/science/mixing/chamber)
+"ah" = (/obj/structure/sign/warning/vacuum/external{pixel_y = 32},/turf/open/floor/engine/vacuum,/area/science/mixing/chamber)
+"ai" = (/turf/open/floor/plasteel/white,/area/science/mixing)
+"aj" = (/obj/machinery/sparker/toxmix{pixel_x = 25},/obj/machinery/atmospherics/components/unary/outlet_injector/atmos/toxins_mixing_input{dir = 4},/turf/open/floor/engine/vacuum,/area/science/mixing/chamber)
+"ak" = (/obj/effect/landmark/event_spawn,/obj/machinery/air_sensor/atmos/toxins_mixing_tank,/turf/open/floor/engine/vacuum,/area/science/mixing/chamber)
+"al" = (/obj/machinery/sparker/toxmix{pixel_x = 25},/obj/machinery/atmospherics/components/unary/vent_scrubber/on{dir = 4},/turf/open/floor/engine/vacuum,/area/science/mixing/chamber)
+"am" = (/obj/machinery/atmospherics/pipe/simple/general/visible{dir = 4},/turf/closed/wall/r_wall,/area/science/mixing/chamber)
+"an" = (/obj/effect/mapping_helpers/airlock/locked,/obj/machinery/door/airlock/research/glass/incinerator/toxmix_exterior,/turf/open/floor/engine,/area/science/mixing/chamber)
+"ao" = (/obj/structure/sign/warning/fire{pixel_y = -32},/obj/machinery/atmospherics/components/binary/pump/on{dir = 8},/turf/open/floor/engine,/area/science/mixing/chamber)
+"ap" = (/obj/machinery/atmospherics/components/binary/dp_vent_pump/high_volume/incinerator_toxmix,/turf/open/floor/engine,/area/science/mixing/chamber)
+"aq" = (/obj/machinery/airlock_sensor/incinerator_toxmix{pixel_y = 24},/obj/machinery/atmospherics/components/binary/pump/on{dir = 4},/turf/open/floor/engine,/area/science/mixing/chamber)
+"ar" = (/obj/effect/mapping_helpers/airlock/locked,/obj/machinery/door/airlock/research/glass/incinerator/toxmix_interior,/turf/open/floor/engine,/area/science/mixing/chamber)
+"as" = (/obj/machinery/door/firedoor/heavy,/obj/machinery/airalarm/mixingchamber{dir = 4; pixel_x = -24},/turf/open/floor/plasteel/white,/area/science/mixing/chamber)
+"at" = (/obj/machinery/atmospherics/pipe/simple/general/visible{dir = 4},/obj/machinery/meter,/obj/machinery/button/door/incinerator_vent_toxmix{pixel_x = -25; pixel_y = 5},/obj/machinery/button/ignition/incinerator/toxmix{pixel_x = -25; pixel_y = -5},/turf/open/floor/plasteel/white,/area/science/mixing/chamber)
+"au" = (/turf/open/floor/plasteel/white,/area/science/mixing/chamber)
+"av" = (/obj/machinery/atmospherics/pipe/simple/general/visible{dir = 4},/obj/machinery/meter,/obj/machinery/embedded_controller/radio/airlock_controller/incinerator_toxmix{pixel_x = -24},/turf/open/floor/plasteel/white,/area/science/mixing/chamber)
+"aw" = (/obj/machinery/door/firedoor/heavy,/turf/open/floor/plasteel/white,/area/science/mixing)
+"ax" = (/obj/machinery/atmospherics/components/binary/valve{name = "port to mix"; dir = 4},/turf/open/floor/plasteel/white,/area/science/mixing)
+"ay" = (/obj/machinery/atmospherics/components/binary/valve{name = "mix to port"; dir = 4},/turf/open/floor/plasteel/white,/area/science/mixing)
+"az" = (/obj/machinery/atmospherics/components/unary/portables_connector/visible{dir = 8},/turf/open/floor/plasteel,/area/science/mixing)
+
+(1,1,1) = {"
+aaaaaaaaaaacacacacacacacacacacacacacacacacacacac
+aaaaaaaaaaacacacacacacacacacacacacacacacacacacac
+aaaaaaaaaaacacacacacacacacacacacacacacacacacacac
+aaaaaaaaaaacacacacacacacacacacacacacacacacacacac
+aaaaaaaaaaacacacacacacacacacacacacacacacacacacac
+aaaaaaaaaaacacacacacacacacacacacacacacacacacacac
+aaaaaaaaaaacacacacacacacacacacacacacacacacacacac
+aaaaaaaaaaacacacacacacacacacacacacacacacacacacac
+aaaaaaaaaaadadadadadadadadadadadadadacacacacacac
+aaaaaaaaaaadaiaiaiaiaiaiaiaiaiaiaiadacacacacacac
+aaaaaaaaaaadaiaiaiaiaiaiaiaiaiaiaiadacacacacacac
+aaaaaaaaaaadaiaiaiaiaiaiaiaiaiaiaiadacacacacacac
+aaaaaaaaaaadaiaiaiaiaiaiaiaiaiaiaiadacacacacacac
+aaaaaaaaaaaeaeaeaeaeaeawawawaiaiaiaBaCacacacacac
+aaaaaaaaabafahalamaqamavayazaiaiaiadacacacacacac
+aaaaaaaaabafagakanaparauaiaAaiaiaiadacacacacacac
+aaaaaaaaabafagajamaoamataxazaiaiaiadacacacacacac
+aaaaaaaaaaaeaeaeaeaeaeasawawaiaiaiadacacacacacac
+aaaaaaaaaaadadadadadadadadadadadadadacacacacacac
+aaaaaaaaaaacacacacacacacacacacacacacacacacacacac
+aaaaaaaaaaacacacacacacacacacacacacacacacacacacac
+aaaaaaaaaaacacacacacacacacacacacacacacacacacacac
+aaaaaaaaaaacacacacacacacacacacacacacacacacacacac
+aaaaaaaaaaacacacacacacacacacacacacacacacacacacac
+"}

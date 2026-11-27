@@ -1,0 +1,4911 @@
+{
+ "BoxStation": {
+  "back": {
+   "atmos": 1,
+   "cargo": 3,
+   "civic": 6,
+   "command": 3,
+   "dorms": 5,
+   "engineering": 1,
+   "medical": 5,
+   "science": 6,
+   "security": 5,
+   "service": 7
+  },
+  "boxrooms_command": 0.64,
+  "boxrooms_security": 0.63,
+  "cell_area": {
+   "brig": 3
+  },
+  "cell_sizes": [
+   6,
+   6,
+   6
+  ],
+  "cells_bed": 3,
+  "cells_flasher": 3,
+  "cells_locker": 3,
+  "desks": {
+   "armory|main": 1,
+   "brig|brig": 2,
+   "brig|hall": 2,
+   "brig|warden": 1,
+   "g:atmos|hall": 1,
+   "g:cargo|g:cargo": 1,
+   "g:cargo|hall": 1,
+   "g:medical|g:medical": 5,
+   "g:science|g:science": 1,
+   "g:science|hall": 2,
+   "g:service|g:service": 1,
+   "g:service|hall": 2,
+   "hall|hop": 1,
+   "hall|post_other": 1
+  },
+  "doors_armory": {
+   "main": 1,
+   "warden": 2
+  },
+  "doors_bridge": {
+   "captain": 1,
+   "hall": 4,
+   "meeting": 1,
+   "upload": 1
+  },
+  "doors_captain": {
+   "bridge": 1,
+   "maint": 1
+  },
+  "doors_courtroom": {
+   "maint": 1
+  },
+  "doors_detective": {
+   "hall": 1
+  },
+  "doors_eva": {
+   "hall": 2,
+   "maint": 1
+  },
+  "doors_gateway": {
+   "hall": 1
+  },
+  "doors_hop": {
+   "hall": 2,
+   "meeting": 1
+  },
+  "doors_hos": {
+   "main": 1
+  },
+  "doors_labor": {
+   "brig": 1,
+   "hall": 1,
+   "maint": 1
+  },
+  "doors_lawoffice": {
+   "hall": 1,
+   "maint": 1
+  },
+  "doors_prison": {
+   "brig": 3,
+   "transfer": 1
+  },
+  "doors_tcomms_ctrl": {
+   "g:ai": 1,
+   "hall": 1
+  },
+  "doors_teleporter": {
+   "hall": 1,
+   "maint": 1
+  },
+  "doors_transfer": {
+   "prison": 1
+  },
+  "doors_upload": {
+   "bridge": 1
+  },
+  "doors_vault": {
+   "hall": 1
+  },
+  "doors_warden": {
+   "armory": 2,
+   "brig": 2,
+   "main": 1
+  },
+  "fill_command": 0.23,
+  "fill_security": 0.41,
+  "front": {
+   "ai": 1,
+   "civic": 13,
+   "command": 10,
+   "dorms": 2,
+   "engineering": 3,
+   "medical": 1,
+   "science": 2,
+   "security": 6,
+   "service": 6
+  },
+  "hop_airlock_hall": true,
+  "hop_desk_hall": true,
+  "kit_bench": {
+   "armory": 1,
+   "bridge": 5,
+   "brig": 2,
+   "captain": 7,
+   "courtroom": 19,
+   "detective": 3,
+   "g:ai": 4,
+   "g:atmos": 3,
+   "g:cargo": 8,
+   "g:civic": 37,
+   "g:dorms": 18,
+   "g:engineering": 4,
+   "g:medical": 26,
+   "g:science": 21,
+   "g:service": 33,
+   "gateway": 1,
+   "hall": 17,
+   "hop": 3,
+   "hos": 2,
+   "labor": 1,
+   "lawoffice": 2,
+   "main": 4,
+   "maint": 39,
+   "meeting": 6,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_other": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "prison": 11,
+   "tcomms_ctrl": 2,
+   "teleporter": 1,
+   "transfer": 1,
+   "warden": 1
+  },
+  "kit_brigphys": {
+   "g:medical": 3
+  },
+  "kit_cardcon": {
+   "captain": 1,
+   "hop": 1,
+   "post_other": 1
+  },
+  "kit_comms": {
+   "bridge": 1,
+   "captain": 1
+  },
+  "kit_crewmon": {
+   "bridge": 1,
+   "g:medical": 1,
+   "warden": 1
+  },
+  "kit_evidence": {},
+  "kit_gulag_tp": {
+   "labor": 1
+  },
+  "kit_hopqueue_flasher": {
+   "armory": 3,
+   "brig": 5,
+   "g:ai": 1,
+   "prison": 3,
+   "transfer": 1,
+   "upload": 1
+  },
+  "kit_hoslocker": {
+   "hos": 1
+  },
+  "kit_idcon": {
+   "captain": 1,
+   "hop": 1,
+   "post_other": 1
+  },
+  "kit_labor_con": {
+   "bridge": 1,
+   "labor": 1
+  },
+  "kit_nuke": {
+   "maint": 1,
+   "vault": 1
+  },
+  "kit_prisoner_con": {
+   "bridge": 1,
+   "warden": 1
+  },
+  "kit_recharger": {
+   "bridge": 1,
+   "captain": 1,
+   "g:science": 1,
+   "gateway": 1,
+   "hop": 1,
+   "hos": 1,
+   "main": 2,
+   "meeting": 1,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_other": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "warden": 2
+  },
+  "kit_riot": {
+   "armory": 10,
+   "brig": 1,
+   "detective": 1,
+   "eva": 5,
+   "g:ai": 5,
+   "g:atmos": 1,
+   "g:cargo": 3,
+   "g:civic": 6,
+   "g:engineering": 16,
+   "g:science": 6,
+   "lawoffice": 1,
+   "maint": 50,
+   "tcomms_ctrl": 1,
+   "teleporter": 1,
+   "transfer": 1,
+   "warden": 1
+  },
+  "kit_seccam": {
+   "bridge": 1,
+   "main": 1,
+   "post_other": 1,
+   "warden": 1
+  },
+  "kit_secdata": {
+   "bridge": 1,
+   "brig": 1,
+   "detective": 1,
+   "hos": 1,
+   "main": 1,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_other": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "warden": 1
+  },
+  "kit_seclocker": {
+   "main": 6,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_other": 1,
+   "post_science": 1,
+   "post_supply": 1
+  },
+  "kit_secvend": {
+   "main": 1
+  },
+  "kit_suitstorage": {
+   "armory": 2,
+   "captain": 1,
+   "eva": 4,
+   "g:atmos": 1,
+   "g:engineering": 3,
+   "g:medical": 1,
+   "g:science": 1,
+   "hos": 1
+  },
+  "kit_tele_con": {
+   "g:ai": 1,
+   "teleporter": 1
+  },
+  "kit_upload_con": {
+   "upload": 2
+  },
+  "kit_wardenlocker": {
+   "warden": 1
+  },
+  "kit_weapons": {
+   "armory": 16,
+   "g:medical": 2,
+   "g:science": 2,
+   "g:service": 1,
+   "main": 1,
+   "vault": 1
+  },
+  "links_armory": {
+   "main": "desk",
+   "prison": "wall",
+   "warden": "windoor"
+  },
+  "links_bridge": {
+   "captain": "airlock",
+   "hall": "airlock",
+   "meeting": "airlock",
+   "upload": "airlock"
+  },
+  "links_brig": {
+   "courtroom": "wall",
+   "hall": "airlock",
+   "labor": "airlock",
+   "main": "airlock",
+   "prison": "airlock",
+   "warden": "airlock"
+  },
+  "links_captain": {
+   "bridge": "airlock",
+   "hall": "wall",
+   "maint": "airlock",
+   "teleporter": "wall",
+   "upload": "wall"
+  },
+  "links_courtroom": {
+   "brig": "wall",
+   "main": "wall",
+   "maint": "airlock"
+  },
+  "links_detective": {
+   "hall": "airlock",
+   "lawoffice": "wall",
+   "maint": "wall"
+  },
+  "links_eva": {
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_gateway": {
+   "hall": "airlock",
+   "maint": "wall"
+  },
+  "links_hop": {
+   "hall": "airlock",
+   "maint": "wall",
+   "meeting": "airlock"
+  },
+  "links_hos": {
+   "main": "airlock"
+  },
+  "links_labor": {
+   "brig": "airlock",
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_lawoffice": {
+   "detective": "wall",
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_main": {
+   "armory": "desk",
+   "brig": "airlock",
+   "courtroom": "wall",
+   "hos": "airlock",
+   "maint": "airlock",
+   "warden": "airlock"
+  },
+  "links_meeting": {
+   "bridge": "airlock",
+   "hall": "shutter",
+   "hop": "airlock",
+   "maint": "wall",
+   "upload": "wall"
+  },
+  "links_post_engineering": {
+   "g:atmos": "wall",
+   "g:engineering": "airlock"
+  },
+  "links_post_medical": {
+   "g:medical": "airlock",
+   "hall": "wall"
+  },
+  "links_post_other": {
+   "g:service": "wall",
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_post_science": {
+   "g:science": "airlock"
+  },
+  "links_post_supply": {
+   "g:cargo": "airlock",
+   "hall": "wall",
+   "maint": "wall"
+  },
+  "links_prison": {
+   "armory": "wall",
+   "brig": "airlock",
+   "g:None": "wall",
+   "transfer": "airlock"
+  },
+  "links_tcomms_ctrl": {
+   "g:ai": "airlock",
+   "hall": "airlock",
+   "maint": "wall"
+  },
+  "links_teleporter": {
+   "captain": "wall",
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_transfer": {
+   "prison": "airlock"
+  },
+  "links_upload": {
+   "bridge": "airlock",
+   "captain": "wall",
+   "g:engineering": "wall",
+   "meeting": "wall"
+  },
+  "links_vault": {
+   "hall": "airlock"
+  },
+  "links_warden": {
+   "armory": "windoor",
+   "brig": "airlock",
+   "main": "airlock"
+  },
+  "present": {
+   "armory": 40,
+   "bridge": 81,
+   "brig": 134,
+   "captain": 74,
+   "courtroom": 59,
+   "detective": 24,
+   "eva": 78,
+   "gateway": 39,
+   "hop": 35,
+   "hos": 25,
+   "labor": 39,
+   "lawoffice": 22,
+   "main": 112,
+   "meeting": 54,
+   "post_engineering": 12,
+   "post_medical": 15,
+   "post_other": 18,
+   "post_science": 15,
+   "post_supply": 12,
+   "prison": 159,
+   "tcomms_ctrl": 30,
+   "teleporter": 28,
+   "transfer": 29,
+   "upload": 41,
+   "vault": 20,
+   "warden": 32
+  },
+  "radius": 52.61805194062786,
+  "route_arr": {
+   "ai": 2.05,
+   "atmos": 1.81,
+   "bridge": 0.89,
+   "brig": 1.46,
+   "cargo": 0.99,
+   "civic": 0.02,
+   "command": 0.46,
+   "courtroom": 1.58,
+   "detective": 1.43,
+   "dorms": 0.21,
+   "engineering": 1.52,
+   "eva": 0.8,
+   "gateway": 0.57,
+   "hop": 1.14,
+   "labor": 1.63,
+   "lawoffice": 1.6,
+   "maint": 0.02,
+   "medical": 1.79,
+   "post": 0.02,
+   "post_other": 0.02,
+   "science": 2.24,
+   "security": 1.43,
+   "service": 0.06,
+   "tcomms_ctrl": 2.05,
+   "teleporter": 1.73,
+   "vault": 0.46
+  },
+  "route_esc": {
+   "ai": 2.28,
+   "atmos": 1.96,
+   "bridge": 1.27,
+   "brig": 2.07,
+   "cargo": 2.13,
+   "civic": 0.02,
+   "command": 1.27,
+   "courtroom": 2.19,
+   "detective": 2.11,
+   "dorms": 1.5,
+   "engineering": 1.71,
+   "eva": 1.75,
+   "gateway": 2.03,
+   "hop": 1.84,
+   "labor": 2.32,
+   "lawoffice": 2.28,
+   "maint": 0.02,
+   "medical": 0.67,
+   "post": 2.81,
+   "post_other": 2.81,
+   "science": 0.1,
+   "security": 2.07,
+   "service": 0.51,
+   "tcomms_ctrl": 2.28,
+   "teleporter": 1.35,
+   "vault": 2.28
+  },
+  "timed_cells": 3,
+  "timer_area": {
+   "brig": 3
+  },
+  "timer_dist": [
+   2,
+   2,
+   2
+  ],
+  "timers": 3,
+  "untimed_cellpieces": 3
+ },
+ "Deltastation": {
+  "back": {
+   "atmos": 1,
+   "cargo": 3,
+   "civic": 12,
+   "dorms": 6,
+   "engineering": 3,
+   "medical": 12,
+   "science": 11,
+   "security": 8,
+   "service": 12
+  },
+  "boxrooms_command": 0.36,
+  "boxrooms_security": 0.84,
+  "cell_area": {
+   "brig": 2,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_science": 1,
+   "post_supply": 1
+  },
+  "cell_sizes": [
+   6,
+   6,
+   6,
+   6,
+   6,
+   6
+  ],
+  "cells_bed": 2,
+  "cells_flasher": 2,
+  "cells_locker": 6,
+  "desks": {
+   "armory|brig": 1,
+   "brig|hall": 1,
+   "brig|warden": 2,
+   "captain|captain": 1,
+   "g:atmos|hall": 1,
+   "g:cargo|hall": 4,
+   "g:cargo|post_supply": 1,
+   "g:civic|g:civic": 1,
+   "g:medical|g:medical": 3,
+   "g:medical|hall": 2,
+   "g:science|g:science": 2,
+   "g:science|hall": 2,
+   "g:service|hall": 4,
+   "hall|hop": 1,
+   "post_escape|post_escape": 1,
+   "post_other|post_other": 1
+  },
+  "doors_armory": {
+   "brig": 1,
+   "warden": 2
+  },
+  "doors_bridge": {
+   "captain": 1,
+   "hall": 4,
+   "meeting": 1,
+   "tcomms_ctrl": 1
+  },
+  "doors_captain": {
+   "bridge": 1,
+   "captain_bed": 1
+  },
+  "doors_captain_bed": {
+   "captain": 1,
+   "teleporter": 1
+  },
+  "doors_courtroom": {
+   "hall": 4,
+   "lawoffice": 1
+  },
+  "doors_customs": {
+   "hall": 3,
+   "maint": 2
+  },
+  "doors_detective": {
+   "hall": 1,
+   "maint": 2
+  },
+  "doors_education": {
+   "prison": 1
+  },
+  "doors_eva": {
+   "cmd_corr": 2
+  },
+  "doors_gateway": {
+   "cmd_corr": 1,
+   "hall": 1
+  },
+  "doors_hop": {
+   "cmd_corr": 1,
+   "hall": 1,
+   "meeting": 1
+  },
+  "doors_hos": {
+   "main": 1
+  },
+  "doors_lawoffice": {
+   "courtroom": 1,
+   "hall": 1,
+   "maint": 1
+  },
+  "doors_post_escape": {
+   "hall": 2
+  },
+  "doors_prison": {
+   "brig": 2,
+   "education": 1
+  },
+  "doors_tcomms_ctrl": {
+   "bridge": 1,
+   "g:ai": 1
+  },
+  "doors_teleporter": {
+   "captain_bed": 1,
+   "cmd_corr": 1
+  },
+  "doors_transfer": {
+   "brig": 2,
+   "hall": 1
+  },
+  "doors_upload": {
+   "g:ai": 1
+  },
+  "doors_warden": {
+   "armory": 2,
+   "brig": 4
+  },
+  "fill_command": 0.47,
+  "fill_security": 0.17,
+  "front": {
+   "cargo": 3,
+   "civic": 15,
+   "command": 7,
+   "dorms": 4,
+   "engineering": 2,
+   "hall": 4,
+   "medical": 2,
+   "science": 1,
+   "security": 14,
+   "service": 10
+  },
+  "hop_airlock_hall": true,
+  "hop_desk_hall": true,
+  "kit_bench": {
+   "armory": 1,
+   "bridge": 11,
+   "brig": 4,
+   "captain": 6,
+   "captain_bed": 1,
+   "cmd_corr": 6,
+   "courtroom": 31,
+   "customs": 2,
+   "detective": 8,
+   "education": 2,
+   "g:ai": 4,
+   "g:atmos": 5,
+   "g:cargo": 13,
+   "g:civic": 63,
+   "g:dorms": 39,
+   "g:engineering": 9,
+   "g:medical": 35,
+   "g:other:/area/aisat": 4,
+   "g:science": 30,
+   "g:service": 74,
+   "hall": 48,
+   "hop": 4,
+   "hos": 3,
+   "lawoffice": 3,
+   "main": 17,
+   "maint": 25,
+   "meeting": 7,
+   "post_engineering": 3,
+   "post_escape": 8,
+   "post_medical": 3,
+   "post_other": 1,
+   "post_science": 3,
+   "post_supply": 3,
+   "prison": 6,
+   "showroom": 6,
+   "tcomms_ctrl": 4,
+   "transfer": 4,
+   "warden": 1
+  },
+  "kit_brigphys": {
+   "g:medical": 2
+  },
+  "kit_cardcon": {
+   "bridge": 1,
+   "captain": 1,
+   "customs": 2,
+   "hop": 1
+  },
+  "kit_comms": {
+   "bridge": 1,
+   "captain": 1
+  },
+  "kit_crewmon": {
+   "bridge": 1,
+   "customs": 2,
+   "g:medical": 3,
+   "hos": 1,
+   "post_medical": 1,
+   "warden": 1
+  },
+  "kit_evidence": {
+   "warden": 2
+  },
+  "kit_gulag_tp": {
+   "transfer": 1
+  },
+  "kit_hopqueue_flasher": {
+   "armory": 3,
+   "brig": 2,
+   "education": 1,
+   "g:ai": 2,
+   "g:engineering": 2,
+   "hall": 2,
+   "prison": 3,
+   "upload": 2
+  },
+  "kit_hoslocker": {
+   "hos": 1
+  },
+  "kit_idcon": {
+   "bridge": 1,
+   "captain": 1,
+   "customs": 2,
+   "hop": 1
+  },
+  "kit_labor_con": {
+   "transfer": 1
+  },
+  "kit_nuke": {
+   "maint": 1,
+   "sec_vault": 1
+  },
+  "kit_prisoner_con": {
+   "bridge": 1,
+   "hos": 2,
+   "post_escape": 1,
+   "post_other": 1,
+   "warden": 1
+  },
+  "kit_recharger": {
+   "armory": 1,
+   "bridge": 2,
+   "brig": 2,
+   "captain": 1,
+   "captain_bed": 1,
+   "g:science": 1,
+   "gateway": 1,
+   "hop": 1,
+   "hos": 1,
+   "main": 1,
+   "post_engineering": 1,
+   "post_escape": 1,
+   "post_medical": 1,
+   "post_other": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "prison": 1,
+   "range": 1,
+   "transfer": 1,
+   "warden": 1
+  },
+  "kit_riot": {
+   "armory": 9,
+   "bridge": 2,
+   "detective": 2,
+   "g:cargo": 1,
+   "g:civic": 7,
+   "g:engineering": 20,
+   "g:science": 8,
+   "g:service": 2,
+   "gateway": 1,
+   "hall": 3,
+   "lawoffice": 1,
+   "maint": 45,
+   "prison": 1,
+   "teleporter": 2,
+   "warden": 2
+  },
+  "kit_seccam": {
+   "bridge": 1,
+   "brig": 1,
+   "main": 1,
+   "post_engineering": 1,
+   "post_escape": 1,
+   "post_medical": 1,
+   "post_other": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "warden": 1
+  },
+  "kit_secdata": {
+   "bridge": 1,
+   "brig": 1,
+   "detective": 1,
+   "hop": 1,
+   "hos": 2,
+   "main": 2,
+   "post_engineering": 1,
+   "post_escape": 1,
+   "post_medical": 1,
+   "post_other": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "transfer": 1,
+   "warden": 1
+  },
+  "kit_seclocker": {
+   "brig": 6,
+   "maint": 1,
+   "post_engineering": 1,
+   "post_escape": 1,
+   "post_medical": 1,
+   "post_other": 1,
+   "post_science": 1
+  },
+  "kit_secvend": {
+   "brig": 1
+  },
+  "kit_suitstorage": {
+   "captain_bed": 1,
+   "eva": 8,
+   "g:atmos": 1,
+   "g:cargo": 1,
+   "g:engineering": 4,
+   "g:medical": 1,
+   "g:science": 1,
+   "hos": 1,
+   "warden": 2
+  },
+  "kit_tele_con": {
+   "g:ai": 1,
+   "teleporter": 1
+  },
+  "kit_upload_con": {
+   "upload": 2
+  },
+  "kit_wardenlocker": {
+   "warden": 1
+  },
+  "kit_weapons": {
+   "armory": 16,
+   "g:dorms": 1,
+   "g:medical": 3,
+   "g:science": 4,
+   "g:service": 1,
+   "maint": 1,
+   "range": 2,
+   "sec_vault": 1
+  },
+  "links_armory": {
+   "brig": "desk",
+   "warden": "airlock"
+  },
+  "links_bridge": {
+   "captain": "airlock",
+   "hall": "airlock",
+   "meeting": "airlock",
+   "tcomms_ctrl": "airlock"
+  },
+  "links_brig": {
+   "armory": "desk",
+   "hall": "airlock",
+   "lawoffice": "wall",
+   "main": "airlock",
+   "maint": "wall",
+   "prison": "airlock",
+   "range": "airlock",
+   "transfer": "airlock",
+   "warden": "airlock"
+  },
+  "links_captain": {
+   "bridge": "airlock",
+   "captain_bed": "airlock",
+   "g:ai": "wall",
+   "hall": "wall",
+   "tcomms_ctrl": "wall"
+  },
+  "links_captain_bed": {
+   "captain": "airlock",
+   "g:ai": "wall",
+   "hall": "wall",
+   "teleporter": "airlock"
+  },
+  "links_cmd_corr": {
+   "eva": "airlock",
+   "g:ai": "airlock",
+   "gateway": "airlock",
+   "hall": "airlock",
+   "hop": "airlock",
+   "showroom": "airlock",
+   "teleporter": "airlock"
+  },
+  "links_courtroom": {
+   "g:dorms": "wall",
+   "hall": "airlock",
+   "lawoffice": "airlock",
+   "maint": "wall"
+  },
+  "links_customs": {
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_detective": {
+   "g:civic": "wall",
+   "g:service": "wall",
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_education": {
+   "prison": "airlock"
+  },
+  "links_eva": {
+   "cmd_corr": "airlock",
+   "hall": "shutter",
+   "showroom": "wall"
+  },
+  "links_gateway": {
+   "cmd_corr": "airlock",
+   "hall": "airlock",
+   "showroom": "wall"
+  },
+  "links_hop": {
+   "cmd_corr": "airlock",
+   "g:ai": "wall",
+   "hall": "desk",
+   "meeting": "airlock"
+  },
+  "links_hos": {
+   "main": "airlock"
+  },
+  "links_lawoffice": {
+   "brig": "wall",
+   "courtroom": "airlock",
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_main": {
+   "brig": "airlock",
+   "hos": "airlock",
+   "prison": "window",
+   "warden": "wall"
+  },
+  "links_meeting": {
+   "bridge": "airlock",
+   "g:ai": "wall",
+   "hall": "shutter",
+   "hop": "airlock",
+   "tcomms_ctrl": "wall"
+  },
+  "links_post_engineering": {
+   "g:engineering": "airlock",
+   "hall": "wall"
+  },
+  "links_post_escape": {
+   "hall": "airlock"
+  },
+  "links_post_medical": {
+   "g:medical": "airlock",
+   "maint": "wall"
+  },
+  "links_post_other": {
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_post_science": {
+   "g:science": "airlock",
+   "hall": "wall"
+  },
+  "links_post_supply": {
+   "g:cargo": "airlock"
+  },
+  "links_prison": {
+   "brig": "airlock",
+   "education": "airlock",
+   "main": "window"
+  },
+  "links_range": {
+   "brig": "airlock",
+   "maint": "airlock"
+  },
+  "links_showroom": {
+   "cmd_corr": "airlock",
+   "eva": "wall",
+   "gateway": "wall",
+   "hall": "airlock"
+  },
+  "links_tcomms_ctrl": {
+   "bridge": "airlock",
+   "captain": "wall",
+   "g:ai": "airlock",
+   "meeting": "wall"
+  },
+  "links_teleporter": {
+   "captain_bed": "airlock",
+   "cmd_corr": "airlock",
+   "g:ai": "wall",
+   "hall": "shutter"
+  },
+  "links_transfer": {
+   "brig": "airlock",
+   "hall": "airlock"
+  },
+  "links_upload": {
+   "g:ai": "airlock",
+   "g:other:/area/aisat": "shutter"
+  },
+  "links_warden": {
+   "armory": "airlock",
+   "brig": "airlock",
+   "main": "wall"
+  },
+  "present": {
+   "armory": 40,
+   "bridge": 136,
+   "brig": 153,
+   "captain": 54,
+   "captain_bed": 31,
+   "cmd_corr": 86,
+   "courtroom": 121,
+   "customs": 38,
+   "detective": 83,
+   "education": 28,
+   "eva": 59,
+   "gateway": 53,
+   "hop": 73,
+   "hos": 55,
+   "lawoffice": 25,
+   "main": 105,
+   "meeting": 47,
+   "post_engineering": 21,
+   "post_escape": 34,
+   "post_medical": 21,
+   "post_other": 18,
+   "post_science": 21,
+   "post_supply": 21,
+   "prison": 171,
+   "range": 32,
+   "sec_vault": 26,
+   "showroom": 44,
+   "tcomms_ctrl": 36,
+   "teleporter": 33,
+   "transfer": 56,
+   "upload": 51,
+   "warden": 42
+  },
+  "radius": 62.04290010646327,
+  "route_arr": {
+   "ai": 1.6,
+   "atmos": 1.66,
+   "bridge": 0.93,
+   "brig": 1.5,
+   "cargo": 0.06,
+   "civic": 0.02,
+   "command": 0.93,
+   "courtroom": 1.21,
+   "customs": 0.02,
+   "detective": 1.32,
+   "dorms": 0.02,
+   "engineering": 1.37,
+   "eva": 1.39,
+   "gateway": 1.45,
+   "hop": 1.14,
+   "lawoffice": 1.42,
+   "maint": 0.02,
+   "medical": 1.58,
+   "post": 0.02,
+   "post_escape": 2.69,
+   "post_other": 0.02,
+   "science": 1.58,
+   "sec_vault": 0.93,
+   "security": 0.93,
+   "service": 0.29,
+   "showroom": 1.6,
+   "teleporter": 1.24,
+   "transfer": 1.58
+  },
+  "route_esc": {
+   "ai": 1.47,
+   "atmos": 1.98,
+   "bridge": 1.53,
+   "brig": 1.77,
+   "cargo": 1.69,
+   "civic": 0.02,
+   "command": 0.77,
+   "courtroom": 1.24,
+   "customs": 0.1,
+   "detective": 1.64,
+   "dorms": 1.26,
+   "engineering": 1.69,
+   "eva": 0.89,
+   "gateway": 0.87,
+   "hop": 1.31,
+   "lawoffice": 1.68,
+   "maint": 0.02,
+   "medical": 0.23,
+   "post": 0.02,
+   "post_escape": 0.02,
+   "post_other": 2.61,
+   "science": 0.31,
+   "sec_vault": 1.64,
+   "security": 1.24,
+   "service": 1.69,
+   "showroom": 0.77,
+   "teleporter": 1.24,
+   "transfer": 1.9
+  },
+  "timed_cells": 6,
+  "timer_area": {
+   "brig": 2,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_science": 1,
+   "post_supply": 1
+  },
+  "timer_dist": [
+   1,
+   1,
+   1,
+   1,
+   2,
+   2
+  ],
+  "timers": 6,
+  "untimed_cellpieces": 6
+ },
+ "Donutstation": {
+  "back": {
+   "ai": 2,
+   "atmos": 1,
+   "cargo": 2,
+   "civic": 8,
+   "command": 2,
+   "dorms": 4,
+   "engineering": 2,
+   "medical": 6,
+   "science": 3,
+   "security": 3,
+   "service": 6,
+   "solar": 2
+  },
+  "boxrooms_command": 0.17,
+  "boxrooms_security": 0.52,
+  "cell_area": {
+   "brig": 4
+  },
+  "cell_sizes": [
+   5,
+   6,
+   6,
+   8
+  ],
+  "cells_bed": 4,
+  "cells_flasher": 4,
+  "cells_locker": 4,
+  "desks": {
+   "armory|brig": 1,
+   "brig|warden": 1,
+   "g:atmos|hall": 1,
+   "g:cargo|g:cargo": 1,
+   "g:medical|g:medical": 3,
+   "g:science|hall": 2,
+   "g:service|hall": 2,
+   "hall|post_other": 1,
+   "hop|hop": 1
+  },
+  "doors_armory": {
+   "brig": 1,
+   "warden": 2
+  },
+  "doors_bridge": {
+   "captain": 1,
+   "captain_bed": 2,
+   "hall": 2,
+   "hop": 1
+  },
+  "doors_captain": {
+   "bridge": 1
+  },
+  "doors_captain_bed": {
+   "bridge": 2
+  },
+  "doors_courtroom": {
+   "brig": 1,
+   "hall": 2,
+   "maint": 1
+  },
+  "doors_detective": {
+   "hall": 1
+  },
+  "doors_eva": {
+   "hall": 2
+  },
+  "doors_gateway": {
+   "maint": 1
+  },
+  "doors_hop": {
+   "bridge": 1
+  },
+  "doors_hos": {
+   "main": 1
+  },
+  "doors_labor": {
+   "prison": 2
+  },
+  "doors_lawoffice": {
+   "hall": 1
+  },
+  "doors_prison": {
+   "labor": 2
+  },
+  "doors_tcomms_ctrl": {
+   "g:ai": 1
+  },
+  "doors_teleporter": {
+   "hall": 1
+  },
+  "doors_upload": {
+   "maint": 2
+  },
+  "doors_vault": {
+   "maint": 1
+  },
+  "doors_warden": {
+   "armory": 2,
+   "brig": 3
+  },
+  "fill_command": 0.06,
+  "fill_security": 0.27,
+  "front": {
+   "atmos": 1,
+   "civic": 6,
+   "command": 5,
+   "dorms": 2,
+   "engineering": 2,
+   "science": 1,
+   "security": 7,
+   "service": 6
+  },
+  "hop_airlock_hall": false,
+  "hop_desk_hall": false,
+  "kit_bench": {
+   "bridge": 7,
+   "brig": 4,
+   "captain": 2,
+   "courtroom": 20,
+   "detective": 2,
+   "g:None": 6,
+   "g:atmos": 3,
+   "g:cargo": 5,
+   "g:civic": 24,
+   "g:dorms": 15,
+   "g:engineering": 4,
+   "g:medical": 28,
+   "g:science": 14,
+   "g:service": 27,
+   "hall": 31,
+   "hop": 1,
+   "hos": 2,
+   "labor": 1,
+   "lawoffice": 2,
+   "main": 7,
+   "maint": 21,
+   "post_medical": 1,
+   "post_other": 1,
+   "post_science": 1,
+   "prison": 8,
+   "tcomms_ctrl": 4,
+   "warden": 1
+  },
+  "kit_brigphys": {
+   "g:medical": 3
+  },
+  "kit_cardcon": {
+   "captain": 1,
+   "hop": 1,
+   "post_other": 1
+  },
+  "kit_comms": {
+   "bridge": 1,
+   "captain": 1
+  },
+  "kit_crewmon": {
+   "bridge": 1,
+   "g:medical": 1,
+   "warden": 1
+  },
+  "kit_evidence": {},
+  "kit_gulag_tp": {
+   "labor": 1
+  },
+  "kit_hopqueue_flasher": {
+   "armory": 3,
+   "brig": 4,
+   "hop": 1
+  },
+  "kit_hoslocker": {
+   "hos": 1
+  },
+  "kit_idcon": {
+   "captain": 1,
+   "hop": 1,
+   "post_other": 1
+  },
+  "kit_labor_con": {
+   "bridge": 1,
+   "labor": 1
+  },
+  "kit_nuke": {
+   "vault": 1
+  },
+  "kit_prisoner_con": {
+   "bridge": 1,
+   "warden": 1
+  },
+  "kit_recharger": {
+   "bridge": 1,
+   "captain": 1,
+   "gateway": 1,
+   "hop": 1,
+   "hos": 1,
+   "main": 3,
+   "post_medical": 1,
+   "post_other": 1,
+   "post_science": 1,
+   "warden": 2
+  },
+  "kit_riot": {
+   "armory": 10,
+   "bridge": 1,
+   "detective": 1,
+   "eva": 2,
+   "g:ai": 1,
+   "g:atmos": 1,
+   "g:cargo": 1,
+   "g:civic": 8,
+   "g:dorms": 3,
+   "g:engineering": 10,
+   "g:science": 4,
+   "g:service": 2,
+   "g:solar": 1,
+   "lawoffice": 1,
+   "maint": 44,
+   "prison": 1,
+   "teleporter": 1,
+   "vault": 2,
+   "warden": 1
+  },
+  "kit_seccam": {
+   "bridge": 1,
+   "main": 1,
+   "post_medical": 1,
+   "post_other": 1,
+   "post_science": 1,
+   "warden": 1
+  },
+  "kit_secdata": {
+   "bridge": 1,
+   "detective": 1,
+   "hos": 1,
+   "main": 1,
+   "post_medical": 1,
+   "post_other": 1,
+   "post_science": 1,
+   "warden": 1
+  },
+  "kit_seclocker": {
+   "main": 6,
+   "post_medical": 1,
+   "post_other": 1,
+   "post_science": 1
+  },
+  "kit_secvend": {
+   "main": 1
+  },
+  "kit_suitstorage": {
+   "armory": 2,
+   "bridge": 1,
+   "captain": 1,
+   "eva": 4,
+   "g:atmos": 1,
+   "g:engineering": 7,
+   "g:medical": 1,
+   "g:science": 1,
+   "hos": 1,
+   "tcomms_ctrl": 1
+  },
+  "kit_tele_con": {
+   "g:ai": 1,
+   "teleporter": 1
+  },
+  "kit_upload_con": {
+   "upload": 2
+  },
+  "kit_wardenlocker": {
+   "warden": 1
+  },
+  "kit_weapons": {
+   "armory": 16,
+   "g:medical": 1,
+   "g:service": 2,
+   "main": 1,
+   "maint": 4,
+   "vault": 1,
+   "warden": 2
+  },
+  "links_armory": {
+   "brig": "desk",
+   "captain": "wall",
+   "prison": "wall",
+   "warden": "windoor"
+  },
+  "links_bridge": {
+   "brig": "wall",
+   "captain": "airlock",
+   "captain_bed": "airlock",
+   "detective": "wall",
+   "hall": "airlock",
+   "hop": "airlock",
+   "upload": "wall"
+  },
+  "links_brig": {
+   "armory": "desk",
+   "bridge": "wall",
+   "courtroom": "airlock",
+   "hall": "airlock",
+   "labor": "wall",
+   "main": "airlock",
+   "maint": "airlock",
+   "prison": "wall",
+   "warden": "airlock"
+  },
+  "links_captain": {
+   "armory": "wall",
+   "bridge": "airlock",
+   "prison": "wall",
+   "warden": "wall"
+  },
+  "links_captain_bed": {
+   "bridge": "airlock",
+   "upload": "wall"
+  },
+  "links_courtroom": {
+   "brig": "airlock",
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_detective": {
+   "bridge": "wall",
+   "hall": "airlock",
+   "hop": "wall",
+   "maint": "wall",
+   "upload": "wall"
+  },
+  "links_eva": {
+   "hall": "airlock",
+   "maint": "wall"
+  },
+  "links_gateway": {
+   "maint": "airlock"
+  },
+  "links_hop": {
+   "bridge": "airlock",
+   "detective": "wall",
+   "hall": "shutter"
+  },
+  "links_hos": {
+   "main": "airlock",
+   "maint": "wall"
+  },
+  "links_labor": {
+   "brig": "wall",
+   "prison": "airlock"
+  },
+  "links_lawoffice": {
+   "hall": "airlock",
+   "maint": "wall"
+  },
+  "links_main": {
+   "brig": "airlock",
+   "hos": "airlock",
+   "maint": "airlock"
+  },
+  "links_post_medical": {
+   "g:medical": "airlock"
+  },
+  "links_post_other": {
+   "hall": "airlock"
+  },
+  "links_post_science": {
+   "g:science": "airlock"
+  },
+  "links_prison": {
+   "armory": "wall",
+   "brig": "wall",
+   "captain": "wall",
+   "labor": "airlock"
+  },
+  "links_tcomms_ctrl": {
+   "g:ai": "airlock"
+  },
+  "links_teleporter": {
+   "g:civic": "wall",
+   "g:engineering": "wall",
+   "hall": "airlock"
+  },
+  "links_upload": {
+   "bridge": "wall",
+   "captain_bed": "wall",
+   "detective": "wall",
+   "maint": "airlock"
+  },
+  "links_vault": {
+   "maint": "airlock"
+  },
+  "links_warden": {
+   "armory": "windoor",
+   "brig": "airlock",
+   "captain": "wall"
+  },
+  "present": {
+   "armory": 40,
+   "bridge": 161,
+   "brig": 184,
+   "captain": 21,
+   "captain_bed": 12,
+   "courtroom": 77,
+   "detective": 29,
+   "eva": 41,
+   "gateway": 39,
+   "hop": 33,
+   "hos": 25,
+   "labor": 37,
+   "lawoffice": 19,
+   "main": 120,
+   "post_medical": 15,
+   "post_other": 18,
+   "post_science": 15,
+   "prison": 163,
+   "tcomms_ctrl": 69,
+   "teleporter": 17,
+   "upload": 42,
+   "vault": 31,
+   "warden": 32
+  },
+  "radius": 49.09422021158563,
+  "route_arr": {
+   "atmos": 1.96,
+   "bridge": 1.3,
+   "brig": 1.47,
+   "cargo": 0.18,
+   "civic": 0.2,
+   "command": 0.33,
+   "courtroom": 1.96,
+   "detective": 1.02,
+   "dorms": 0.35,
+   "engineering": 0.75,
+   "eva": 0.33,
+   "hop": 1.18,
+   "lawoffice": 1.85,
+   "maint": 0.18,
+   "medical": 1.24,
+   "post": 0.02,
+   "post_other": 0.02,
+   "science": 0.73,
+   "security": 1.02,
+   "service": 0.63,
+   "teleporter": 0.49
+  },
+  "route_esc": {
+   "atmos": 2.14,
+   "bridge": 1.53,
+   "brig": 1.69,
+   "cargo": 0.41,
+   "civic": 0.02,
+   "command": 0.51,
+   "courtroom": 2.18,
+   "detective": 1.24,
+   "dorms": 0.53,
+   "engineering": 0.98,
+   "eva": 0.51,
+   "hop": 1.41,
+   "lawoffice": 2.08,
+   "maint": 0.02,
+   "medical": 1.43,
+   "post": 0.06,
+   "post_other": 0.06,
+   "science": 0.92,
+   "security": 1.24,
+   "service": 0.86,
+   "teleporter": 0.71
+  },
+  "timed_cells": 4,
+  "timer_area": {
+   "brig": 4
+  },
+  "timer_dist": [
+   1,
+   1,
+   1,
+   2
+  ],
+  "timers": 4,
+  "untimed_cellpieces": 2
+ },
+ "EndoStation": {
+  "back": {
+   "atmos": 2,
+   "cargo": 5,
+   "civic": 3,
+   "command": 1,
+   "dorms": 4,
+   "engineering": 7,
+   "medical": 11,
+   "other": 1,
+   "science": 9,
+   "security": 9,
+   "service": 3
+  },
+  "boxrooms_command": 0.33,
+  "boxrooms_security": 0.72,
+  "cell_area": {
+   "brig": 4,
+   "post_medical": 1,
+   "post_science": 1
+  },
+  "cell_sizes": [
+   6,
+   6,
+   6,
+   6,
+   6,
+   24
+  ],
+  "cells_bed": 4,
+  "cells_flasher": 4,
+  "cells_locker": 6,
+  "desks": {
+   "armory|warden": 1,
+   "brig|brig": 4,
+   "brig|warden": 1,
+   "customs|hall": 1,
+   "g:atmos|hall": 1,
+   "g:cargo|hall": 2,
+   "g:medical|g:medical": 4,
+   "g:medical|hall": 1,
+   "g:science|g:science": 1,
+   "g:science|hall": 4,
+   "g:service|g:service": 2,
+   "hall|hop": 1,
+   "post_escape|post_escape": 1
+  },
+  "doors_armory": {
+   "warden": 2
+  },
+  "doors_bridge": {
+   "captain": 1,
+   "hall": 4,
+   "hop": 1
+  },
+  "doors_captain": {
+   "bridge": 1,
+   "captain_bed": 1
+  },
+  "doors_captain_bed": {
+   "captain": 1
+  },
+  "doors_courtroom": {
+   "brig": 1,
+   "hall": 1,
+   "maint": 1
+  },
+  "doors_customs": {
+   "hall": 3,
+   "maint": 2
+  },
+  "doors_detective": {
+   "hall": 1,
+   "maint": 1
+  },
+  "doors_eva": {
+   "hall": 1
+  },
+  "doors_gateway": {
+   "hall": 1,
+   "maint": 1
+  },
+  "doors_hop": {
+   "bridge": 1,
+   "hall": 1
+  },
+  "doors_hos": {
+   "main": 1
+  },
+  "doors_labor": {
+   "brig": 2,
+   "maint": 1
+  },
+  "doors_lawoffice": {
+   "hall": 1,
+   "maint": 1
+  },
+  "doors_post_escape": {
+   "hall": 2
+  },
+  "doors_prison": {
+   "main": 4,
+   "transfer": 1
+  },
+  "doors_tcomms_ctrl": {
+   "g:ai": 2
+  },
+  "doors_teleporter": {
+   "hall": 1
+  },
+  "doors_transfer": {
+   "prison": 1
+  },
+  "doors_upload": {
+   "g:ai": 1
+  },
+  "doors_warden": {
+   "armory": 2,
+   "brig": 2,
+   "main": 2
+  },
+  "fill_command": 0.11,
+  "fill_security": 0.15,
+  "front": {
+   "cargo": 2,
+   "civic": 11,
+   "command": 7,
+   "dorms": 2,
+   "engineering": 3,
+   "medical": 1,
+   "other": 5,
+   "science": 2,
+   "security": 11,
+   "service": 8
+  },
+  "hop_airlock_hall": false,
+  "hop_desk_hall": true,
+  "kit_bench": {
+   "bridge": 19,
+   "brig": 7,
+   "captain": 2,
+   "captain_bed": 2,
+   "courtroom": 19,
+   "customs": 3,
+   "detective": 5,
+   "g:None": 7,
+   "g:ai": 2,
+   "g:atmos": 2,
+   "g:cargo": 15,
+   "g:civic": 33,
+   "g:dorms": 21,
+   "g:engineering": 10,
+   "g:medical": 40,
+   "g:science": 32,
+   "g:service": 19,
+   "gateway": 1,
+   "hall": 46,
+   "hop": 2,
+   "hos": 2,
+   "labor": 1,
+   "lawoffice": 3,
+   "main": 10,
+   "maint": 21,
+   "post_engineering": 4,
+   "post_escape": 6,
+   "post_medical": 4,
+   "post_other": 1,
+   "post_science": 3,
+   "post_supply": 2,
+   "prison": 7,
+   "tcomms_ctrl": 2,
+   "transfer": 2,
+   "warden": 1
+  },
+  "kit_brigphys": {
+   "g:medical": 3
+  },
+  "kit_cardcon": {
+   "bridge": 1,
+   "captain": 1,
+   "customs": 2,
+   "hop": 1
+  },
+  "kit_comms": {
+   "bridge": 1,
+   "captain": 1
+  },
+  "kit_crewmon": {
+   "bridge": 1,
+   "customs": 1,
+   "g:medical": 3,
+   "hos": 1,
+   "maint": 1,
+   "post_medical": 1,
+   "warden": 1
+  },
+  "kit_evidence": {},
+  "kit_gulag_tp": {
+   "labor": 1
+  },
+  "kit_hopqueue_flasher": {
+   "armory": 3,
+   "brig": 5,
+   "g:ai": 6,
+   "prison": 3,
+   "transfer": 1,
+   "warden": 3
+  },
+  "kit_hoslocker": {
+   "hos": 1
+  },
+  "kit_idcon": {
+   "bridge": 1,
+   "captain": 1,
+   "customs": 2,
+   "hop": 1
+  },
+  "kit_labor_con": {
+   "bridge": 1,
+   "labor": 1
+  },
+  "kit_nuke": {
+   "maint": 2,
+   "sec_vault": 1
+  },
+  "kit_prisoner_con": {
+   "bridge": 1,
+   "hos": 2,
+   "post_escape": 1,
+   "warden": 1
+  },
+  "kit_recharger": {
+   "armory": 1,
+   "bridge": 4,
+   "brig": 1,
+   "captain": 1,
+   "captain_bed": 1,
+   "customs": 1,
+   "g:science": 1,
+   "gateway": 1,
+   "hop": 1,
+   "hos": 2,
+   "post_engineering": 1,
+   "post_escape": 1,
+   "post_medical": 1,
+   "post_other": 2,
+   "post_science": 1,
+   "post_supply": 1,
+   "warden": 4
+  },
+  "kit_riot": {
+   "armory": 12,
+   "bridge": 1,
+   "brig": 1,
+   "detective": 1,
+   "g:ai": 2,
+   "g:atmos": 1,
+   "g:cargo": 5,
+   "g:civic": 6,
+   "g:engineering": 13,
+   "g:science": 5,
+   "g:service": 2,
+   "gateway": 3,
+   "lawoffice": 1,
+   "maint": 38,
+   "prison": 1,
+   "tcomms_ctrl": 1,
+   "teleporter": 2,
+   "warden": 4
+  },
+  "kit_seccam": {
+   "bridge": 1,
+   "customs": 1,
+   "main": 1,
+   "post_escape": 1,
+   "post_medical": 1,
+   "post_other": 2,
+   "post_science": 1,
+   "warden": 1
+  },
+  "kit_secdata": {
+   "bridge": 1,
+   "brig": 1,
+   "customs": 1,
+   "detective": 1,
+   "hos": 1,
+   "main": 1,
+   "post_engineering": 1,
+   "post_escape": 1,
+   "post_medical": 1,
+   "post_other": 2,
+   "post_science": 1,
+   "post_supply": 2,
+   "warden": 1
+  },
+  "kit_seclocker": {
+   "customs": 1,
+   "maint": 1,
+   "post_engineering": 1,
+   "post_escape": 1,
+   "post_medical": 1,
+   "post_other": 2,
+   "post_science": 1,
+   "post_supply": 1,
+   "warden": 6
+  },
+  "kit_secvend": {
+   "warden": 1
+  },
+  "kit_suitstorage": {
+   "armory": 4,
+   "captain": 1,
+   "eva": 8,
+   "g:atmos": 3,
+   "g:cargo": 1,
+   "g:engineering": 6,
+   "g:medical": 1,
+   "g:science": 1,
+   "hos": 1,
+   "maint": 2
+  },
+  "kit_tele_con": {
+   "g:ai": 1,
+   "teleporter": 1
+  },
+  "kit_upload_con": {
+   "upload": 2
+  },
+  "kit_wardenlocker": {
+   "warden": 1
+  },
+  "kit_weapons": {
+   "armory": 22,
+   "g:dorms": 1,
+   "g:medical": 4,
+   "g:science": 4,
+   "g:service": 1,
+   "main": 1,
+   "sec_vault": 1
+  },
+  "links_armory": {
+   "warden": "airlock"
+  },
+  "links_bridge": {
+   "captain": "airlock",
+   "captain_bed": "wall",
+   "hall": "airlock",
+   "hop": "airlock"
+  },
+  "links_brig": {
+   "courtroom": "airlock",
+   "detective": "wall",
+   "hall": "window",
+   "labor": "airlock",
+   "main": "airlock",
+   "maint": "wall",
+   "warden": "airlock"
+  },
+  "links_captain": {
+   "bridge": "airlock",
+   "captain_bed": "airlock",
+   "hall": "wall",
+   "hop": "wall"
+  },
+  "links_captain_bed": {
+   "bridge": "wall",
+   "captain": "airlock",
+   "hall": "wall",
+   "post_other": "wall"
+  },
+  "links_courtroom": {
+   "brig": "airlock",
+   "hall": "airlock",
+   "main": "wall",
+   "maint": "airlock"
+  },
+  "links_customs": {
+   "g:civic": "wall",
+   "g:engineering": "wall",
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_detective": {
+   "brig": "wall",
+   "hall": "airlock",
+   "lawoffice": "wall",
+   "maint": "airlock"
+  },
+  "links_eva": {
+   "g:civic": "wall",
+   "hall": "airlock",
+   "teleporter": "wall"
+  },
+  "links_gateway": {
+   "g:civic": "wall",
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_hop": {
+   "bridge": "airlock",
+   "captain": "wall",
+   "hall": "desk",
+   "post_other": "window"
+  },
+  "links_hos": {
+   "main": "airlock",
+   "warden": "shutter"
+  },
+  "links_labor": {
+   "brig": "airlock",
+   "maint": "airlock"
+  },
+  "links_lawoffice": {
+   "detective": "wall",
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_main": {
+   "brig": "airlock",
+   "courtroom": "wall",
+   "g:civic": "wall",
+   "hos": "airlock",
+   "maint": "airlock",
+   "prison": "airlock",
+   "warden": "airlock"
+  },
+  "links_post_engineering": {
+   "g:civic": "wall",
+   "hall": "airlock",
+   "maint": "wall"
+  },
+  "links_post_escape": {
+   "hall": "airlock"
+  },
+  "links_post_medical": {
+   "g:medical": "airlock",
+   "hall": "airlock"
+  },
+  "links_post_other": {
+   "captain_bed": "wall",
+   "hall": "airlock",
+   "hop": "window"
+  },
+  "links_post_science": {
+   "g:science": "airlock",
+   "hall": "wall",
+   "maint": "airlock"
+  },
+  "links_post_supply": {
+   "g:cargo": "airlock",
+   "hall": "window"
+  },
+  "links_prison": {
+   "g:None": "wall",
+   "g:civic": "wall",
+   "main": "airlock",
+   "maint": "wall",
+   "transfer": "airlock"
+  },
+  "links_tcomms_ctrl": {
+   "g:ai": "airlock"
+  },
+  "links_teleporter": {
+   "eva": "wall",
+   "g:civic": "wall",
+   "g:engineering": "wall",
+   "hall": "airlock"
+  },
+  "links_transfer": {
+   "maint": "wall",
+   "prison": "airlock"
+  },
+  "links_upload": {
+   "g:ai": "airlock"
+  },
+  "links_warden": {
+   "armory": "airlock",
+   "brig": "airlock",
+   "hos": "shutter",
+   "main": "airlock"
+  },
+  "present": {
+   "armory": 64,
+   "bridge": 136,
+   "brig": 213,
+   "captain": 39,
+   "captain_bed": 24,
+   "courtroom": 62,
+   "customs": 44,
+   "detective": 48,
+   "eva": 32,
+   "gateway": 46,
+   "hop": 42,
+   "hos": 65,
+   "labor": 50,
+   "lawoffice": 30,
+   "main": 106,
+   "post_engineering": 39,
+   "post_escape": 41,
+   "post_medical": 39,
+   "post_other": 16,
+   "post_science": 39,
+   "post_supply": 24,
+   "prison": 171,
+   "sec_vault": 21,
+   "tcomms_ctrl": 31,
+   "teleporter": 27,
+   "transfer": 28,
+   "upload": 48,
+   "warden": 92
+  },
+  "radius": 61.61043249922617,
+  "route_arr": {
+   "civic": 0.02,
+   "command": 0.02,
+   "customs": 0.02,
+   "gateway": 0.02,
+   "maint": 0.02,
+   "other": 0.03,
+   "post": 0.02
+  },
+  "route_esc": {
+   "atmos": 2.26,
+   "bridge": 1.38,
+   "brig": 1.79,
+   "cargo": 0.47,
+   "civic": 0.93,
+   "command": 0.97,
+   "courtroom": 2.09,
+   "customs": 0.02,
+   "detective": 1.62,
+   "engineering": 0.02,
+   "eva": 1.75,
+   "hop": 0.97,
+   "lawoffice": 1.48,
+   "maint": 0.02,
+   "medical": 0.08,
+   "post": 0.02,
+   "post_engineering": 2.27,
+   "post_escape": 0.02,
+   "post_medical": 0.44,
+   "post_other": 1.3,
+   "science": 0.8,
+   "sec_vault": 0.7,
+   "security": 0.7,
+   "service": 0.02,
+   "teleporter": 1.67
+  },
+  "timed_cells": 6,
+  "timer_area": {
+   "brig": 4,
+   "post_medical": 1,
+   "post_science": 1
+  },
+  "timer_dist": [
+   2,
+   2,
+   2,
+   2,
+   3,
+   6
+  ],
+  "timers": 6,
+  "untimed_cellpieces": 3
+ },
+ "HippieStation": {
+  "back": {
+   "atmos": 1,
+   "cargo": 3,
+   "civic": 6,
+   "command": 3,
+   "dorms": 3,
+   "engineering": 3,
+   "medical": 5,
+   "other:/area/DJoffice": 1,
+   "other:/area/hippie/pool": 4,
+   "science": 6,
+   "security": 6,
+   "service": 8
+  },
+  "boxrooms_command": 0.58,
+  "boxrooms_security": 0.61,
+  "cell_area": {
+   "brig": 4
+  },
+  "cell_sizes": [
+   6,
+   6,
+   6,
+   6
+  ],
+  "cells_bed": 4,
+  "cells_flasher": 4,
+  "cells_locker": 4,
+  "desks": {
+   "armory|main": 1,
+   "brig|brig": 2,
+   "brig|hall": 2,
+   "brig|warden": 1,
+   "g:atmos|hall": 1,
+   "g:cargo|g:cargo": 1,
+   "g:cargo|hall": 1,
+   "g:medical|g:medical": 4,
+   "g:medical|hall": 1,
+   "g:other:/area/DJoffice|g:other:/area/DJoffice": 1,
+   "g:other:/area/DJoffice|hall": 1,
+   "g:science|g:science": 1,
+   "g:science|hall": 2,
+   "g:service|g:service": 1,
+   "g:service|hall": 2,
+   "hall|hall": 1,
+   "hall|hop": 1,
+   "hall|vault": 1
+  },
+  "doors_armory": {
+   "main": 1,
+   "warden": 2
+  },
+  "doors_bridge": {
+   "captain": 1,
+   "hall": 4,
+   "meeting": 1,
+   "upload": 1
+  },
+  "doors_captain": {
+   "bridge": 1,
+   "maint": 1
+  },
+  "doors_courtroom": {
+   "brig": 1,
+   "hall": 1,
+   "maint": 1
+  },
+  "doors_detective": {
+   "hall": 1,
+   "maint": 1
+  },
+  "doors_eva": {
+   "hall": 2,
+   "maint": 1
+  },
+  "doors_gateway": {
+   "hall": 1
+  },
+  "doors_hop": {
+   "hall": 2,
+   "meeting": 1
+  },
+  "doors_hos": {
+   "main": 1
+  },
+  "doors_labor": {
+   "brig": 1,
+   "hall": 1,
+   "maint": 1
+  },
+  "doors_lawoffice": {
+   "hall": 1,
+   "maint": 1
+  },
+  "doors_prison": {
+   "brig": 3,
+   "maint": 1,
+   "transfer": 1
+  },
+  "doors_tcomms_ctrl": {
+   "g:ai": 1,
+   "hall": 1
+  },
+  "doors_teleporter": {
+   "hall": 1,
+   "maint": 1
+  },
+  "doors_transfer": {
+   "prison": 1
+  },
+  "doors_upload": {
+   "bridge": 1
+  },
+  "doors_vault": {
+   "hall": 2
+  },
+  "doors_warden": {
+   "armory": 2,
+   "brig": 2,
+   "main": 1
+  },
+  "fill_command": 0.31,
+  "fill_security": 0.37,
+  "front": {
+   "ai": 1,
+   "civic": 13,
+   "command": 10,
+   "dorms": 2,
+   "engineering": 2,
+   "medical": 1,
+   "other:/area/DJoffice": 1,
+   "other:/area/hippie/clown": 1,
+   "other:/area/hippie/mime": 1,
+   "science": 2,
+   "security": 7,
+   "service": 6
+  },
+  "hop_airlock_hall": true,
+  "hop_desk_hall": true,
+  "kit_bench": {
+   "armory": 1,
+   "bridge": 5,
+   "brig": 1,
+   "captain": 7,
+   "courtroom": 20,
+   "detective": 1,
+   "g:ai": 4,
+   "g:atmos": 3,
+   "g:cargo": 6,
+   "g:civic": 44,
+   "g:dorms": 15,
+   "g:engineering": 13,
+   "g:medical": 18,
+   "g:other:/area/DJoffice": 2,
+   "g:other:/area/aisat": 2,
+   "g:other:/area/hippie/mime": 1,
+   "g:other:/area/hippie/pool": 2,
+   "g:science": 21,
+   "g:service": 44,
+   "gateway": 1,
+   "hall": 68,
+   "hop": 3,
+   "hos": 2,
+   "labor": 1,
+   "lawoffice": 2,
+   "main": 4,
+   "maint": 51,
+   "meeting": 6,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_other": 3,
+   "post_science": 1,
+   "post_supply": 1,
+   "prison": 11,
+   "tcomms_ctrl": 2,
+   "teleporter": 1,
+   "transfer": 1,
+   "vault": 2,
+   "warden": 1
+  },
+  "kit_brigphys": {
+   "g:medical": 3
+  },
+  "kit_cardcon": {
+   "captain": 1,
+   "hop": 1,
+   "post_other": 1
+  },
+  "kit_comms": {
+   "bridge": 1,
+   "captain": 1
+  },
+  "kit_crewmon": {
+   "bridge": 1,
+   "g:medical": 1,
+   "maint": 1,
+   "warden": 1
+  },
+  "kit_evidence": {},
+  "kit_gulag_tp": {
+   "labor": 1
+  },
+  "kit_hopqueue_flasher": {
+   "armory": 3,
+   "brig": 5,
+   "g:ai": 3,
+   "prison": 3,
+   "transfer": 1,
+   "upload": 1
+  },
+  "kit_hoslocker": {
+   "hos": 1
+  },
+  "kit_idcon": {
+   "captain": 1,
+   "hop": 1,
+   "post_other": 1
+  },
+  "kit_labor_con": {
+   "bridge": 1,
+   "labor": 1
+  },
+  "kit_nuke": {
+   "maint": 1,
+   "vault": 1
+  },
+  "kit_prisoner_con": {
+   "bridge": 1,
+   "warden": 1
+  },
+  "kit_recharger": {
+   "bridge": 1,
+   "captain": 1,
+   "g:science": 1,
+   "gateway": 1,
+   "hall": 1,
+   "hop": 1,
+   "hos": 1,
+   "main": 2,
+   "meeting": 1,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_other": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "vault": 1,
+   "warden": 2
+  },
+  "kit_riot": {
+   "armory": 6,
+   "eva": 5,
+   "g:ai": 5,
+   "g:atmos": 1,
+   "g:cargo": 2,
+   "g:civic": 4,
+   "g:engineering": 21,
+   "g:science": 8,
+   "g:service": 1,
+   "lawoffice": 1,
+   "maint": 65,
+   "tcomms_ctrl": 1,
+   "teleporter": 1,
+   "transfer": 1,
+   "warden": 1
+  },
+  "kit_seccam": {
+   "bridge": 1,
+   "main": 1,
+   "maint": 1,
+   "post_other": 1,
+   "vault": 1,
+   "warden": 1
+  },
+  "kit_secdata": {
+   "bridge": 1,
+   "brig": 1,
+   "detective": 1,
+   "hall": 1,
+   "hos": 1,
+   "main": 1,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_other": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "vault": 1,
+   "warden": 1
+  },
+  "kit_seclocker": {
+   "main": 6,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_other": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "vault": 1
+  },
+  "kit_secvend": {
+   "main": 1
+  },
+  "kit_suitstorage": {
+   "armory": 2,
+   "captain": 1,
+   "eva": 4,
+   "g:atmos": 1,
+   "g:engineering": 4,
+   "g:medical": 1,
+   "g:science": 1,
+   "hos": 1
+  },
+  "kit_tele_con": {
+   "g:ai": 1,
+   "teleporter": 1
+  },
+  "kit_upload_con": {
+   "upload": 2
+  },
+  "kit_wardenlocker": {
+   "warden": 1
+  },
+  "kit_weapons": {
+   "armory": 4,
+   "g:medical": 2,
+   "g:science": 2,
+   "g:service": 1,
+   "main": 1,
+   "maint": 5,
+   "vault": 1
+  },
+  "links_armory": {
+   "main": "desk",
+   "prison": "wall",
+   "warden": "airlock"
+  },
+  "links_bridge": {
+   "captain": "airlock",
+   "hall": "airlock",
+   "meeting": "airlock",
+   "upload": "airlock"
+  },
+  "links_brig": {
+   "courtroom": "airlock",
+   "hall": "airlock",
+   "labor": "airlock",
+   "main": "airlock",
+   "prison": "airlock",
+   "warden": "airlock"
+  },
+  "links_captain": {
+   "bridge": "airlock",
+   "hall": "wall",
+   "maint": "airlock",
+   "teleporter": "wall",
+   "upload": "wall"
+  },
+  "links_courtroom": {
+   "brig": "airlock",
+   "hall": "airlock",
+   "main": "wall",
+   "maint": "airlock"
+  },
+  "links_detective": {
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_eva": {
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_gateway": {
+   "hall": "airlock",
+   "maint": "wall"
+  },
+  "links_hop": {
+   "hall": "airlock",
+   "maint": "wall",
+   "meeting": "airlock"
+  },
+  "links_hos": {
+   "main": "airlock"
+  },
+  "links_labor": {
+   "brig": "airlock",
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_lawoffice": {
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_main": {
+   "armory": "desk",
+   "brig": "airlock",
+   "courtroom": "wall",
+   "hos": "airlock",
+   "maint": "airlock",
+   "warden": "airlock"
+  },
+  "links_meeting": {
+   "bridge": "airlock",
+   "hall": "shutter",
+   "hop": "airlock",
+   "maint": "wall",
+   "upload": "wall"
+  },
+  "links_post_engineering": {
+   "g:atmos": "wall",
+   "g:engineering": "airlock"
+  },
+  "links_post_medical": {
+   "g:medical": "airlock",
+   "hall": "wall"
+  },
+  "links_post_other": {
+   "hall": "airlock"
+  },
+  "links_post_science": {
+   "g:science": "airlock"
+  },
+  "links_post_supply": {
+   "g:cargo": "airlock",
+   "hall": "wall",
+   "maint": "wall"
+  },
+  "links_prison": {
+   "armory": "wall",
+   "brig": "airlock",
+   "maint": "airlock",
+   "transfer": "airlock"
+  },
+  "links_tcomms_ctrl": {
+   "g:ai": "airlock",
+   "hall": "airlock",
+   "maint": "wall"
+  },
+  "links_teleporter": {
+   "captain": "wall",
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_transfer": {
+   "maint": "wall",
+   "prison": "airlock"
+  },
+  "links_upload": {
+   "bridge": "airlock",
+   "captain": "wall",
+   "maint": "wall",
+   "meeting": "wall"
+  },
+  "links_vault": {
+   "hall": "airlock",
+   "maint": "wall"
+  },
+  "links_warden": {
+   "armory": "airlock",
+   "brig": "airlock",
+   "main": "airlock"
+  },
+  "present": {
+   "armory": 36,
+   "bridge": 81,
+   "brig": 129,
+   "captain": 74,
+   "courtroom": 65,
+   "detective": 25,
+   "eva": 78,
+   "gateway": 39,
+   "hop": 35,
+   "hos": 25,
+   "labor": 39,
+   "lawoffice": 20,
+   "main": 110,
+   "meeting": 54,
+   "post_engineering": 12,
+   "post_medical": 15,
+   "post_other": 57,
+   "post_science": 15,
+   "post_supply": 16,
+   "prison": 206,
+   "tcomms_ctrl": 30,
+   "teleporter": 28,
+   "transfer": 29,
+   "upload": 41,
+   "vault": 43,
+   "warden": 32
+  },
+  "radius": 57.04735117727269,
+  "route_arr": {
+   "ai": 1.89,
+   "atmos": 1.67,
+   "bridge": 0.82,
+   "brig": 1.35,
+   "cargo": 0.91,
+   "civic": 0.02,
+   "command": 0.53,
+   "courtroom": 1.47,
+   "detective": 1.45,
+   "dorms": 0.19,
+   "engineering": 1.51,
+   "eva": 0.74,
+   "gateway": 0.53,
+   "hop": 1.05,
+   "labor": 1.51,
+   "lawoffice": 1.31,
+   "maint": 0.02,
+   "medical": 1.51,
+   "other:/area/DJoffice": 0.79,
+   "other:/area/hippie/clown": 0.44,
+   "other:/area/hippie/mime": 0.33,
+   "post": 0.02,
+   "post_other": 0.02,
+   "science": 2.07,
+   "security": 1.31,
+   "service": 0.05,
+   "tcomms_ctrl": 1.89,
+   "teleporter": 1.6,
+   "vault": 1.38
+  },
+  "route_esc": {
+   "ai": 2.12,
+   "atmos": 1.82,
+   "bridge": 1.19,
+   "brig": 1.93,
+   "cargo": 1.98,
+   "civic": 0.02,
+   "command": 1.19,
+   "courtroom": 2.05,
+   "detective": 2.1,
+   "dorms": 1.4,
+   "engineering": 1.74,
+   "eva": 1.63,
+   "gateway": 1.89,
+   "hop": 1.72,
+   "labor": 2.16,
+   "lawoffice": 1.96,
+   "maint": 0.02,
+   "medical": 0.63,
+   "other:/area/DJoffice": 1.96,
+   "other:/area/hippie/clown": 2.03,
+   "other:/area/hippie/mime": 2.14,
+   "post": 2.72,
+   "post_other": 2.72,
+   "science": 0.11,
+   "security": 1.93,
+   "service": 0.49,
+   "tcomms_ctrl": 2.12,
+   "teleporter": 1.26,
+   "vault": 1.58
+  },
+  "timed_cells": 4,
+  "timer_area": {
+   "brig": 4
+  },
+  "timer_dist": [
+   2,
+   2,
+   2,
+   2
+  ],
+  "timers": 4,
+  "untimed_cellpieces": 4
+ },
+ "MetaLake": {
+  "back": {
+   "atmos": 1,
+   "cargo": 4,
+   "civic": 12,
+   "command": 2,
+   "dorms": 5,
+   "engineering": 4,
+   "medical": 16,
+   "other": 1,
+   "other:/area/hippie/pool": 1,
+   "other:/area/hippie/scichem": 1,
+   "science": 18,
+   "security": 5,
+   "service": 9
+  },
+  "boxrooms_command": 0.42,
+  "boxrooms_security": 0.66,
+  "cell_area": {
+   "brig": 3
+  },
+  "cell_sizes": [
+   6,
+   6,
+   6
+  ],
+  "cells_bed": 3,
+  "cells_flasher": 3,
+  "cells_locker": 3,
+  "desks": {
+   "brig|hall": 1,
+   "brig|warden": 1,
+   "captain_bed|captain_bed": 1,
+   "cmd_corr|hop": 1,
+   "customs|customs": 1,
+   "g:atmos|hall": 1,
+   "g:cargo|hall": 2,
+   "g:medical|g:medical": 3,
+   "g:medical|hall": 1,
+   "g:science|g:science": 2,
+   "g:science|hall": 1,
+   "g:service|g:service": 1,
+   "g:service|hall": 2,
+   "hall|hall": 1,
+   "warden|warden": 1
+  },
+  "doors_armory": {
+   "warden": 1
+  },
+  "doors_bridge": {
+   "captain_bed": 1,
+   "cmd_corr": 4,
+   "hop": 1,
+   "maint": 1
+  },
+  "doors_captain_bed": {
+   "bridge": 1,
+   "cmd_corr": 1,
+   "maint": 1
+  },
+  "doors_courtroom": {
+   "brig": 1,
+   "g:dorms": 1,
+   "hall": 3,
+   "lawoffice": 1
+  },
+  "doors_customs": {
+   "hall": 1,
+   "maint": 1
+  },
+  "doors_detective": {
+   "brig": 1,
+   "maint": 1
+  },
+  "doors_education": {
+   "prison": 1
+  },
+  "doors_eva": {
+   "cmd_corr": 2
+  },
+  "doors_gateway": {
+   "cmd_corr": 1,
+   "maint": 1
+  },
+  "doors_hop": {
+   "bridge": 1,
+   "cmd_corr": 1,
+   "hall": 1
+  },
+  "doors_hos": {
+   "main": 1
+  },
+  "doors_lawoffice": {
+   "courtroom": 1,
+   "g:dorms": 1,
+   "maint": 1
+  },
+  "doors_prison": {
+   "brig": 2,
+   "education": 1
+  },
+  "doors_tcomms_ctrl": {
+   "g:ai": 2
+  },
+  "doors_teleporter": {
+   "cmd_corr": 1
+  },
+  "doors_upload": {
+   "g:ai": 1
+  },
+  "doors_warden": {
+   "armory": 1,
+   "brig": 4,
+   "main": 1
+  },
+  "fill_command": 0.49,
+  "fill_security": 0.33,
+  "front": {
+   "ai": 1,
+   "cargo": 1,
+   "civic": 14,
+   "command": 3,
+   "dorms": 3,
+   "engineering": 2,
+   "hall": 4,
+   "medical": 2,
+   "science": 1,
+   "security": 6,
+   "service": 3
+  },
+  "hop_airlock_hall": true,
+  "hop_desk_hall": false,
+  "kit_bench": {
+   "bridge": 15,
+   "brig": 9,
+   "captain_bed": 6,
+   "cmd_corr": 16,
+   "courtroom": 21,
+   "customs": 1,
+   "detective": 1,
+   "education": 1,
+   "g:ai": 2,
+   "g:atmos": 2,
+   "g:cargo": 9,
+   "g:civic": 46,
+   "g:dorms": 21,
+   "g:engineering": 8,
+   "g:medical": 35,
+   "g:other:/area/aisat": 4,
+   "g:other:/area/hippie/pool": 6,
+   "g:other:/area/hippie/scichem": 1,
+   "g:science": 31,
+   "g:service": 31,
+   "gateway": 1,
+   "hall": 44,
+   "hop": 2,
+   "hos": 2,
+   "lawoffice": 3,
+   "main": 16,
+   "maint": 32,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_science": 3,
+   "post_supply": 1,
+   "prison": 7,
+   "tcomms_ctrl": 4,
+   "warden": 2
+  },
+  "kit_brigphys": {
+   "g:medical": 2
+  },
+  "kit_cardcon": {
+   "bridge": 1,
+   "captain_bed": 1,
+   "customs": 1,
+   "hop": 1
+  },
+  "kit_comms": {
+   "bridge": 1,
+   "captain_bed": 1
+  },
+  "kit_crewmon": {
+   "bridge": 1,
+   "g:medical": 1,
+   "warden": 1
+  },
+  "kit_evidence": {
+   "warden": 1
+  },
+  "kit_gulag_tp": {
+   "brig": 1
+  },
+  "kit_hopqueue_flasher": {
+   "brig": 5,
+   "cmd_corr": 1,
+   "education": 1,
+   "g:ai": 5,
+   "hall": 1,
+   "prison": 4,
+   "upload": 4,
+   "warden": 3
+  },
+  "kit_hoslocker": {
+   "hos": 1
+  },
+  "kit_idcon": {
+   "bridge": 1,
+   "captain_bed": 1,
+   "customs": 1,
+   "hop": 1
+  },
+  "kit_labor_con": {
+   "brig": 1
+  },
+  "kit_nuke": {
+   "maint": 1,
+   "sec_vault": 1,
+   "showroom": 1
+  },
+  "kit_prisoner_con": {
+   "bridge": 1,
+   "hos": 1,
+   "warden": 1
+  },
+  "kit_recharger": {
+   "bridge": 2,
+   "captain_bed": 1,
+   "customs": 1,
+   "g:science": 1,
+   "gateway": 1,
+   "hall": 2,
+   "hop": 1,
+   "hos": 1,
+   "main": 1,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "prison": 1,
+   "range": 1,
+   "warden": 3
+  },
+  "kit_riot": {
+   "armory": 11,
+   "bridge": 4,
+   "brig": 2,
+   "captain_bed": 1,
+   "detective": 1,
+   "g:ai": 1,
+   "g:atmos": 1,
+   "g:cargo": 6,
+   "g:civic": 7,
+   "g:dorms": 3,
+   "g:engineering": 13,
+   "g:medical": 1,
+   "g:other:/area/hippie/pool": 2,
+   "g:science": 3,
+   "g:service": 1,
+   "gateway": 3,
+   "hall": 1,
+   "lawoffice": 1,
+   "maint": 48,
+   "prison": 1,
+   "range": 1,
+   "teleporter": 2,
+   "warden": 4
+  },
+  "kit_seccam": {
+   "bridge": 1,
+   "brig": 1,
+   "customs": 1,
+   "main": 1,
+   "warden": 1
+  },
+  "kit_secdata": {
+   "bridge": 1,
+   "brig": 1,
+   "customs": 1,
+   "detective": 1,
+   "hall": 1,
+   "hop": 1,
+   "hos": 1,
+   "main": 1,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "warden": 1
+  },
+  "kit_seclocker": {
+   "customs": 1,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "warden": 6
+  },
+  "kit_secvend": {
+   "warden": 1
+  },
+  "kit_suitstorage": {
+   "brig": 2,
+   "captain_bed": 1,
+   "eva": 8,
+   "g:atmos": 1,
+   "g:engineering": 3,
+   "g:medical": 1,
+   "g:science": 1,
+   "hos": 1
+  },
+  "kit_tele_con": {
+   "g:ai": 1,
+   "teleporter": 1
+  },
+  "kit_upload_con": {},
+  "kit_wardenlocker": {
+   "warden": 1
+  },
+  "kit_weapons": {
+   "armory": 16,
+   "g:medical": 2,
+   "g:science": 4,
+   "g:service": 1,
+   "maint": 1,
+   "range": 2,
+   "sec_vault": 2,
+   "warden": 1
+  },
+  "links_armory": {
+   "warden": "airlock"
+  },
+  "links_bridge": {
+   "captain_bed": "airlock",
+   "cmd_corr": "airlock",
+   "hop": "airlock",
+   "maint": "windoor"
+  },
+  "links_brig": {
+   "courtroom": "airlock",
+   "detective": "airlock",
+   "hall": "airlock",
+   "main": "airlock",
+   "maint": "airlock",
+   "prison": "airlock",
+   "warden": "airlock"
+  },
+  "links_captain_bed": {
+   "bridge": "airlock",
+   "cmd_corr": "airlock",
+   "hall": "wall",
+   "maint": "airlock"
+  },
+  "links_cmd_corr": {
+   "bridge": "airlock",
+   "captain_bed": "airlock",
+   "eva": "airlock",
+   "gateway": "airlock",
+   "hall": "airlock",
+   "hop": "desk",
+   "maint": "airlock",
+   "showroom": "airlock",
+   "teleporter": "airlock"
+  },
+  "links_courtroom": {
+   "brig": "airlock",
+   "g:dorms": "airlock",
+   "hall": "airlock",
+   "lawoffice": "airlock"
+  },
+  "links_customs": {
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_detective": {
+   "brig": "airlock",
+   "lawoffice": "wall",
+   "maint": "airlock"
+  },
+  "links_education": {
+   "prison": "airlock"
+  },
+  "links_eva": {
+   "cmd_corr": "airlock",
+   "hall": "shutter",
+   "teleporter": "wall"
+  },
+  "links_gateway": {
+   "cmd_corr": "airlock",
+   "hall": "shutter",
+   "maint": "airlock",
+   "showroom": "wall"
+  },
+  "links_hop": {
+   "bridge": "airlock",
+   "cmd_corr": "desk",
+   "g:civic": "wall",
+   "hall": "airlock",
+   "maint": "wall"
+  },
+  "links_hos": {
+   "main": "airlock"
+  },
+  "links_lawoffice": {
+   "courtroom": "airlock",
+   "detective": "wall",
+   "g:dorms": "airlock",
+   "maint": "airlock"
+  },
+  "links_main": {
+   "brig": "airlock",
+   "hos": "airlock",
+   "maint": "wall",
+   "range": "airlock",
+   "warden": "airlock"
+  },
+  "links_post_engineering": {
+   "g:engineering": "airlock",
+   "maint": "wall"
+  },
+  "links_post_medical": {
+   "g:medical": "airlock",
+   "hall": "wall"
+  },
+  "links_post_science": {
+   "g:science": "airlock",
+   "hall": "wall",
+   "maint": "wall"
+  },
+  "links_post_supply": {
+   "g:cargo": "airlock",
+   "hall": "window",
+   "maint": "wall"
+  },
+  "links_prison": {
+   "brig": "airlock",
+   "education": "airlock",
+   "warden": "wall"
+  },
+  "links_range": {
+   "main": "airlock",
+   "maint": "airlock"
+  },
+  "links_showroom": {
+   "cmd_corr": "airlock",
+   "gateway": "wall",
+   "hall": "airlock",
+   "teleporter": "wall"
+  },
+  "links_tcomms_ctrl": {
+   "g:ai": "airlock"
+  },
+  "links_teleporter": {
+   "cmd_corr": "airlock",
+   "eva": "wall",
+   "hall": "shutter",
+   "showroom": "wall"
+  },
+  "links_upload": {
+   "g:ai": "airlock"
+  },
+  "links_warden": {
+   "armory": "airlock",
+   "brig": "airlock",
+   "main": "airlock",
+   "prison": "wall"
+  },
+  "present": {
+   "armory": 29,
+   "bridge": 133,
+   "brig": 197,
+   "captain_bed": 68,
+   "cmd_corr": 98,
+   "courtroom": 76,
+   "customs": 17,
+   "detective": 27,
+   "education": 28,
+   "eva": 31,
+   "gateway": 46,
+   "hop": 36,
+   "hos": 33,
+   "lawoffice": 25,
+   "main": 95,
+   "post_engineering": 12,
+   "post_medical": 8,
+   "post_science": 15,
+   "post_supply": 12,
+   "prison": 161,
+   "range": 23,
+   "sec_vault": 20,
+   "showroom": 44,
+   "tcomms_ctrl": 28,
+   "teleporter": 27,
+   "upload": 32,
+   "warden": 79
+  },
+  "radius": 52.335996891351165,
+  "route_arr": {
+   "ai": 1.07,
+   "atmos": 2.37,
+   "bridge": 1.03,
+   "brig": 1.55,
+   "captain_bed": 1.36,
+   "cargo": 0.27,
+   "civic": 0.02,
+   "command": 0.73,
+   "courtroom": 1.32,
+   "customs": 0.06,
+   "dorms": 0.21,
+   "engineering": 2.06,
+   "eva": 0.9,
+   "gateway": 1.34,
+   "hop": 0.73,
+   "maint": 0.02,
+   "medical": 1.3,
+   "post": 0.06,
+   "science": 1.51,
+   "security": 1.32,
+   "service": 1.55,
+   "showroom": 1.24,
+   "teleporter": 1.03
+  },
+  "route_esc": {
+   "ai": 1.82,
+   "atmos": 2.2,
+   "bridge": 1.49,
+   "brig": 2.25,
+   "captain_bed": 1.43,
+   "cargo": 1.66,
+   "civic": 0.02,
+   "command": 0.78,
+   "courtroom": 1.8,
+   "customs": 2.06,
+   "dorms": 1.68,
+   "engineering": 1.97,
+   "eva": 0.97,
+   "gateway": 0.96,
+   "hop": 1.38,
+   "maint": 0.02,
+   "medical": 0.15,
+   "post": 2.06,
+   "science": 0.15,
+   "security": 1.8,
+   "service": 1.09,
+   "showroom": 0.78,
+   "teleporter": 0.88
+  },
+  "timed_cells": 3,
+  "timer_area": {
+   "brig": 3
+  },
+  "timer_dist": [
+   2,
+   2,
+   2
+  ],
+  "timers": 3,
+  "untimed_cellpieces": 5
+ },
+ "MetaStation": {
+  "back": {
+   "atmos": 1,
+   "cargo": 4,
+   "civic": 12,
+   "command": 2,
+   "dorms": 6,
+   "engineering": 4,
+   "medical": 16,
+   "other": 1,
+   "science": 20,
+   "security": 5,
+   "service": 9
+  },
+  "boxrooms_command": 0.42,
+  "boxrooms_security": 0.66,
+  "cell_area": {
+   "brig": 3
+  },
+  "cell_sizes": [
+   6,
+   6,
+   6
+  ],
+  "cells_bed": 3,
+  "cells_flasher": 3,
+  "cells_locker": 3,
+  "desks": {
+   "brig|hall": 1,
+   "brig|warden": 1,
+   "captain_bed|captain_bed": 1,
+   "cmd_corr|hop": 1,
+   "customs|customs": 1,
+   "g:atmos|hall": 1,
+   "g:cargo|hall": 2,
+   "g:medical|g:medical": 3,
+   "g:medical|hall": 1,
+   "g:science|g:science": 2,
+   "g:science|hall": 1,
+   "g:service|g:service": 1,
+   "g:service|hall": 2,
+   "hall|hall": 1,
+   "maint|maint": 1,
+   "warden|warden": 1
+  },
+  "doors_armory": {
+   "warden": 1
+  },
+  "doors_bridge": {
+   "captain_bed": 1,
+   "cmd_corr": 4,
+   "hop": 1,
+   "maint": 1
+  },
+  "doors_captain_bed": {
+   "bridge": 1,
+   "cmd_corr": 1,
+   "maint": 1
+  },
+  "doors_courtroom": {
+   "brig": 1,
+   "g:dorms": 1,
+   "hall": 3,
+   "lawoffice": 1
+  },
+  "doors_customs": {
+   "hall": 1,
+   "maint": 1
+  },
+  "doors_detective": {
+   "brig": 1,
+   "maint": 1
+  },
+  "doors_education": {
+   "prison": 1
+  },
+  "doors_eva": {
+   "cmd_corr": 2
+  },
+  "doors_gateway": {
+   "cmd_corr": 1,
+   "maint": 1
+  },
+  "doors_hop": {
+   "bridge": 1,
+   "cmd_corr": 1,
+   "hall": 1
+  },
+  "doors_hos": {
+   "main": 1
+  },
+  "doors_lawoffice": {
+   "courtroom": 1,
+   "g:dorms": 1,
+   "maint": 1
+  },
+  "doors_prison": {
+   "brig": 2,
+   "education": 1
+  },
+  "doors_tcomms_ctrl": {
+   "g:ai": 2
+  },
+  "doors_teleporter": {
+   "cmd_corr": 1
+  },
+  "doors_upload": {
+   "g:ai": 1
+  },
+  "doors_warden": {
+   "armory": 1,
+   "brig": 4,
+   "main": 1
+  },
+  "fill_command": 0.49,
+  "fill_security": 0.33,
+  "front": {
+   "ai": 1,
+   "cargo": 1,
+   "civic": 14,
+   "command": 3,
+   "dorms": 3,
+   "engineering": 2,
+   "hall": 4,
+   "medical": 2,
+   "science": 1,
+   "security": 6,
+   "service": 3
+  },
+  "hop_airlock_hall": true,
+  "hop_desk_hall": false,
+  "kit_bench": {
+   "bridge": 15,
+   "brig": 9,
+   "captain_bed": 6,
+   "cmd_corr": 16,
+   "courtroom": 21,
+   "customs": 1,
+   "detective": 1,
+   "education": 1,
+   "g:ai": 2,
+   "g:atmos": 2,
+   "g:cargo": 9,
+   "g:civic": 46,
+   "g:dorms": 33,
+   "g:engineering": 8,
+   "g:medical": 35,
+   "g:other:/area/aisat": 4,
+   "g:science": 33,
+   "g:service": 31,
+   "gateway": 1,
+   "hall": 44,
+   "hop": 2,
+   "hos": 2,
+   "lawoffice": 3,
+   "main": 16,
+   "maint": 34,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_science": 3,
+   "post_supply": 1,
+   "prison": 7,
+   "tcomms_ctrl": 4,
+   "warden": 2
+  },
+  "kit_brigphys": {
+   "g:medical": 2
+  },
+  "kit_cardcon": {
+   "bridge": 1,
+   "captain_bed": 1,
+   "customs": 1,
+   "hop": 1
+  },
+  "kit_comms": {
+   "bridge": 1,
+   "captain_bed": 1
+  },
+  "kit_crewmon": {
+   "bridge": 1,
+   "g:medical": 1,
+   "warden": 1
+  },
+  "kit_evidence": {
+   "warden": 1
+  },
+  "kit_gulag_tp": {
+   "brig": 1
+  },
+  "kit_hopqueue_flasher": {
+   "brig": 5,
+   "cmd_corr": 1,
+   "education": 1,
+   "g:ai": 5,
+   "hall": 1,
+   "prison": 4,
+   "upload": 4,
+   "warden": 3
+  },
+  "kit_hoslocker": {
+   "hos": 1
+  },
+  "kit_idcon": {
+   "bridge": 1,
+   "captain_bed": 1,
+   "customs": 1,
+   "hop": 1
+  },
+  "kit_labor_con": {
+   "brig": 1
+  },
+  "kit_nuke": {
+   "maint": 1,
+   "sec_vault": 1,
+   "showroom": 1
+  },
+  "kit_prisoner_con": {
+   "bridge": 1,
+   "hos": 1,
+   "warden": 1
+  },
+  "kit_recharger": {
+   "bridge": 2,
+   "captain_bed": 1,
+   "customs": 1,
+   "g:science": 1,
+   "gateway": 1,
+   "hall": 2,
+   "hop": 1,
+   "hos": 1,
+   "main": 1,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "prison": 1,
+   "range": 1,
+   "warden": 3
+  },
+  "kit_riot": {
+   "armory": 11,
+   "bridge": 4,
+   "brig": 2,
+   "captain_bed": 1,
+   "detective": 1,
+   "g:ai": 1,
+   "g:atmos": 1,
+   "g:cargo": 6,
+   "g:civic": 7,
+   "g:dorms": 5,
+   "g:engineering": 13,
+   "g:medical": 1,
+   "g:science": 3,
+   "g:service": 1,
+   "gateway": 3,
+   "hall": 1,
+   "lawoffice": 1,
+   "maint": 52,
+   "prison": 1,
+   "range": 1,
+   "teleporter": 2,
+   "warden": 4
+  },
+  "kit_seccam": {
+   "bridge": 1,
+   "brig": 1,
+   "customs": 1,
+   "main": 1,
+   "warden": 1
+  },
+  "kit_secdata": {
+   "bridge": 1,
+   "brig": 1,
+   "customs": 1,
+   "detective": 1,
+   "hall": 1,
+   "hop": 1,
+   "hos": 1,
+   "main": 1,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "warden": 1
+  },
+  "kit_seclocker": {
+   "customs": 1,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "warden": 6
+  },
+  "kit_secvend": {
+   "warden": 1
+  },
+  "kit_suitstorage": {
+   "brig": 2,
+   "captain_bed": 1,
+   "eva": 8,
+   "g:atmos": 1,
+   "g:engineering": 3,
+   "g:medical": 1,
+   "g:science": 1,
+   "hos": 1
+  },
+  "kit_tele_con": {
+   "g:ai": 1,
+   "teleporter": 1
+  },
+  "kit_upload_con": {},
+  "kit_wardenlocker": {
+   "warden": 1
+  },
+  "kit_weapons": {
+   "armory": 16,
+   "g:medical": 2,
+   "g:science": 4,
+   "g:service": 1,
+   "maint": 1,
+   "range": 2,
+   "sec_vault": 2,
+   "warden": 1
+  },
+  "links_armory": {
+   "warden": "airlock"
+  },
+  "links_bridge": {
+   "captain_bed": "airlock",
+   "cmd_corr": "airlock",
+   "hop": "airlock",
+   "maint": "windoor"
+  },
+  "links_brig": {
+   "courtroom": "airlock",
+   "detective": "airlock",
+   "hall": "airlock",
+   "main": "airlock",
+   "maint": "airlock",
+   "prison": "airlock",
+   "warden": "airlock"
+  },
+  "links_captain_bed": {
+   "bridge": "airlock",
+   "cmd_corr": "airlock",
+   "hall": "wall",
+   "maint": "airlock"
+  },
+  "links_cmd_corr": {
+   "bridge": "airlock",
+   "captain_bed": "airlock",
+   "eva": "airlock",
+   "gateway": "airlock",
+   "hall": "airlock",
+   "hop": "desk",
+   "maint": "airlock",
+   "showroom": "airlock",
+   "teleporter": "airlock"
+  },
+  "links_courtroom": {
+   "brig": "airlock",
+   "g:dorms": "airlock",
+   "hall": "airlock",
+   "lawoffice": "airlock"
+  },
+  "links_customs": {
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_detective": {
+   "brig": "airlock",
+   "lawoffice": "wall",
+   "maint": "airlock"
+  },
+  "links_education": {
+   "prison": "airlock"
+  },
+  "links_eva": {
+   "cmd_corr": "airlock",
+   "hall": "shutter",
+   "teleporter": "wall"
+  },
+  "links_gateway": {
+   "cmd_corr": "airlock",
+   "hall": "shutter",
+   "maint": "airlock",
+   "showroom": "wall"
+  },
+  "links_hop": {
+   "bridge": "airlock",
+   "cmd_corr": "desk",
+   "g:civic": "wall",
+   "hall": "airlock",
+   "maint": "wall"
+  },
+  "links_hos": {
+   "main": "airlock"
+  },
+  "links_lawoffice": {
+   "courtroom": "airlock",
+   "detective": "wall",
+   "g:dorms": "airlock",
+   "maint": "airlock"
+  },
+  "links_main": {
+   "brig": "airlock",
+   "hos": "airlock",
+   "maint": "wall",
+   "range": "airlock",
+   "warden": "airlock"
+  },
+  "links_post_engineering": {
+   "g:engineering": "airlock",
+   "maint": "wall"
+  },
+  "links_post_medical": {
+   "g:medical": "airlock",
+   "hall": "wall"
+  },
+  "links_post_science": {
+   "g:science": "airlock",
+   "hall": "wall",
+   "maint": "wall"
+  },
+  "links_post_supply": {
+   "g:cargo": "airlock",
+   "hall": "window",
+   "maint": "wall"
+  },
+  "links_prison": {
+   "brig": "airlock",
+   "education": "airlock",
+   "warden": "wall"
+  },
+  "links_range": {
+   "main": "airlock",
+   "maint": "airlock"
+  },
+  "links_showroom": {
+   "cmd_corr": "airlock",
+   "gateway": "wall",
+   "hall": "airlock",
+   "teleporter": "wall"
+  },
+  "links_tcomms_ctrl": {
+   "g:ai": "airlock"
+  },
+  "links_teleporter": {
+   "cmd_corr": "airlock",
+   "eva": "wall",
+   "hall": "shutter",
+   "showroom": "wall"
+  },
+  "links_upload": {
+   "g:ai": "airlock"
+  },
+  "links_warden": {
+   "armory": "airlock",
+   "brig": "airlock",
+   "main": "airlock",
+   "prison": "wall"
+  },
+  "present": {
+   "armory": 29,
+   "bridge": 133,
+   "brig": 197,
+   "captain_bed": 68,
+   "cmd_corr": 98,
+   "courtroom": 76,
+   "customs": 17,
+   "detective": 27,
+   "education": 28,
+   "eva": 31,
+   "gateway": 46,
+   "hop": 36,
+   "hos": 33,
+   "lawoffice": 25,
+   "main": 95,
+   "post_engineering": 12,
+   "post_medical": 8,
+   "post_science": 15,
+   "post_supply": 12,
+   "prison": 161,
+   "range": 23,
+   "sec_vault": 20,
+   "showroom": 44,
+   "tcomms_ctrl": 28,
+   "teleporter": 27,
+   "upload": 32,
+   "warden": 79
+  },
+  "radius": 52.335996891351165,
+  "route_arr": {
+   "ai": 1.07,
+   "atmos": 2.37,
+   "bridge": 1.03,
+   "brig": 1.55,
+   "captain_bed": 1.36,
+   "cargo": 0.27,
+   "civic": 0.02,
+   "command": 0.73,
+   "courtroom": 1.32,
+   "customs": 0.06,
+   "dorms": 0.21,
+   "engineering": 2.06,
+   "eva": 0.9,
+   "gateway": 1.34,
+   "hop": 0.73,
+   "maint": 0.02,
+   "medical": 1.3,
+   "post": 0.06,
+   "science": 1.51,
+   "security": 1.32,
+   "service": 1.55,
+   "showroom": 1.24,
+   "teleporter": 1.03
+  },
+  "route_esc": {
+   "ai": 1.82,
+   "atmos": 2.2,
+   "bridge": 1.49,
+   "brig": 2.25,
+   "captain_bed": 1.43,
+   "cargo": 1.66,
+   "civic": 0.02,
+   "command": 0.78,
+   "courtroom": 1.8,
+   "customs": 2.06,
+   "dorms": 1.68,
+   "engineering": 1.97,
+   "eva": 0.97,
+   "gateway": 0.96,
+   "hop": 1.38,
+   "maint": 0.02,
+   "medical": 0.15,
+   "post": 2.06,
+   "science": 0.15,
+   "security": 1.8,
+   "service": 1.09,
+   "showroom": 0.78,
+   "teleporter": 0.88
+  },
+  "timed_cells": 3,
+  "timer_area": {
+   "brig": 3
+  },
+  "timer_dist": [
+   2,
+   2,
+   2
+  ],
+  "timers": 3,
+  "untimed_cellpieces": 5
+ },
+ "PubbyStation": {
+  "back": {
+   "atmos": 1,
+   "cargo": 3,
+   "civic": 4,
+   "command": 2,
+   "dorms": 5,
+   "engineering": 2,
+   "medical": 5,
+   "science": 8,
+   "security": 5,
+   "service": 4
+  },
+  "boxrooms_command": 0.6,
+  "boxrooms_security": 0.78,
+  "cell_area": {
+   "brig": 3
+  },
+  "cell_sizes": [
+   6,
+   6,
+   6
+  ],
+  "cells_bed": 3,
+  "cells_flasher": 3,
+  "cells_locker": 3,
+  "desks": {
+   "brig|brig": 2,
+   "brig|hall": 3,
+   "brig|warden": 1,
+   "customs|hall": 2,
+   "g:atmos|hall": 2,
+   "g:cargo|g:cargo": 4,
+   "g:medical|g:medical": 4,
+   "g:science|hall": 2,
+   "g:service|hall": 2,
+   "hall|hop": 1
+  },
+  "doors_armory": {
+   "warden": 2
+  },
+  "doors_bridge": {
+   "captain": 1,
+   "hall": 4,
+   "hop": 1,
+   "maint": 1,
+   "upload": 1
+  },
+  "doors_captain": {
+   "bridge": 1,
+   "maint": 1
+  },
+  "doors_customs": {
+   "hall": 3
+  },
+  "doors_detective": {
+   "hall": 1,
+   "maint": 1
+  },
+  "doors_gateway": {
+   "hall": 1
+  },
+  "doors_hop": {
+   "bridge": 1,
+   "hall": 2
+  },
+  "doors_hos": {
+   "main": 1
+  },
+  "doors_labor": {
+   "maint": 1,
+   "transfer": 1
+  },
+  "doors_lawoffice": {
+   "hall": 1,
+   "maint": 1
+  },
+  "doors_prison": {
+   "brig": 2,
+   "transfer": 1
+  },
+  "doors_tcomms_ctrl": {
+   "g:None": 1,
+   "g:ai": 1
+  },
+  "doors_teleporter": {
+   "hall": 1
+  },
+  "doors_transfer": {
+   "labor": 1,
+   "prison": 1
+  },
+  "doors_upload": {
+   "bridge": 1
+  },
+  "doors_vault": {
+   "hall": 1
+  },
+  "doors_warden": {
+   "armory": 2,
+   "brig": 2,
+   "main": 1
+  },
+  "fill_command": 0.26,
+  "fill_security": 0.38,
+  "front": {
+   "atmos": 1,
+   "civic": 9,
+   "command": 8,
+   "dorms": 4,
+   "engineering": 2,
+   "medical": 1,
+   "science": 4,
+   "security": 7,
+   "service": 12
+  },
+  "hop_airlock_hall": true,
+  "hop_desk_hall": true,
+  "kit_bench": {
+   "bridge": 19,
+   "brig": 7,
+   "captain": 7,
+   "customs": 2,
+   "detective": 3,
+   "g:ai": 5,
+   "g:atmos": 3,
+   "g:cargo": 7,
+   "g:civic": 59,
+   "g:dorms": 12,
+   "g:engineering": 20,
+   "g:medical": 26,
+   "g:science": 21,
+   "g:service": 37,
+   "hall": 65,
+   "hop": 2,
+   "hos": 4,
+   "lawoffice": 6,
+   "main": 6,
+   "maint": 59,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "prison": 6,
+   "tcomms_ctrl": 2,
+   "teleporter": 2,
+   "transfer": 1,
+   "warden": 1
+  },
+  "kit_brigphys": {
+   "g:medical": 2
+  },
+  "kit_cardcon": {
+   "bridge": 1,
+   "captain": 1,
+   "customs": 1,
+   "hop": 1
+  },
+  "kit_comms": {
+   "bridge": 1,
+   "captain": 1
+  },
+  "kit_crewmon": {
+   "bridge": 1,
+   "detective": 1,
+   "g:medical": 2,
+   "warden": 1
+  },
+  "kit_evidence": {},
+  "kit_gulag_tp": {
+   "brig": 1
+  },
+  "kit_hopqueue_flasher": {
+   "armory": 2,
+   "brig": 4,
+   "g:ai": 2,
+   "hall": 2,
+   "prison": 2,
+   "transfer": 1,
+   "upload": 2
+  },
+  "kit_hoslocker": {
+   "hos": 1
+  },
+  "kit_idcon": {
+   "bridge": 1,
+   "captain": 1,
+   "customs": 1,
+   "hop": 1
+  },
+  "kit_labor_con": {
+   "bridge": 1,
+   "brig": 1
+  },
+  "kit_nuke": {
+   "maint": 1,
+   "vault": 1
+  },
+  "kit_prisoner_con": {
+   "bridge": 1,
+   "warden": 1
+  },
+  "kit_recharger": {
+   "bridge": 1,
+   "captain": 1,
+   "customs": 1,
+   "g:ai": 1,
+   "g:science": 1,
+   "hos": 1,
+   "main": 2,
+   "maint": 1,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "warden": 2
+  },
+  "kit_riot": {
+   "armory": 9,
+   "detective": 1,
+   "g:ai": 1,
+   "g:atmos": 1,
+   "g:cargo": 1,
+   "g:civic": 6,
+   "g:engineering": 18,
+   "g:medical": 1,
+   "g:science": 5,
+   "g:service": 2,
+   "lawoffice": 1,
+   "maint": 14,
+   "tcomms_ctrl": 1,
+   "transfer": 1,
+   "warden": 1
+  },
+  "kit_seccam": {
+   "bridge": 1,
+   "brig": 1,
+   "customs": 1,
+   "main": 1,
+   "post_medical": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "warden": 1
+  },
+  "kit_secdata": {
+   "bridge": 1,
+   "brig": 1,
+   "customs": 1,
+   "detective": 1,
+   "hop": 1,
+   "hos": 1,
+   "main": 1,
+   "post_engineering": 2,
+   "post_medical": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "warden": 1
+  },
+  "kit_seclocker": {
+   "customs": 1,
+   "main": 8,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_science": 1,
+   "post_supply": 1
+  },
+  "kit_secvend": {
+   "main": 1
+  },
+  "kit_suitstorage": {
+   "captain": 1,
+   "g:atmos": 1,
+   "g:civic": 5,
+   "g:engineering": 4,
+   "g:medical": 1,
+   "g:science": 1,
+   "hos": 1,
+   "main": 2
+  },
+  "kit_tele_con": {
+   "g:ai": 1,
+   "teleporter": 1
+  },
+  "kit_upload_con": {
+   "upload": 2
+  },
+  "kit_wardenlocker": {
+   "warden": 1
+  },
+  "kit_weapons": {
+   "armory": 16,
+   "g:medical": 1,
+   "g:service": 2,
+   "maint": 3,
+   "vault": 1
+  },
+  "links_armory": {
+   "brig": "wall",
+   "main": "wall",
+   "prison": "wall",
+   "warden": "windoor"
+  },
+  "links_bridge": {
+   "captain": "airlock",
+   "hall": "airlock",
+   "hop": "airlock",
+   "maint": "airlock",
+   "upload": "airlock"
+  },
+  "links_brig": {
+   "armory": "wall",
+   "captain": "wall",
+   "hall": "airlock",
+   "labor": "wall",
+   "main": "airlock",
+   "maint": "airlock",
+   "prison": "airlock",
+   "warden": "airlock"
+  },
+  "links_captain": {
+   "bridge": "airlock",
+   "brig": "wall",
+   "g:civic": "wall",
+   "hall": "wall",
+   "maint": "airlock"
+  },
+  "links_customs": {
+   "hall": "airlock"
+  },
+  "links_detective": {
+   "g:civic": "wall",
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_gateway": {
+   "hall": "airlock",
+   "vault": "wall"
+  },
+  "links_hop": {
+   "bridge": "airlock",
+   "hall": "airlock"
+  },
+  "links_hos": {
+   "main": "airlock",
+   "maint": "wall"
+  },
+  "links_labor": {
+   "brig": "wall",
+   "maint": "airlock",
+   "transfer": "airlock"
+  },
+  "links_lawoffice": {
+   "hall": "airlock",
+   "maint": "airlock"
+  },
+  "links_main": {
+   "armory": "wall",
+   "brig": "airlock",
+   "hos": "airlock",
+   "maint": "airlock",
+   "warden": "airlock"
+  },
+  "links_post_engineering": {
+   "g:engineering": "airlock",
+   "hall": "window"
+  },
+  "links_post_medical": {
+   "g:medical": "airlock",
+   "hall": "wall"
+  },
+  "links_post_science": {
+   "g:science": "shutter",
+   "hall": "airlock"
+  },
+  "links_post_supply": {
+   "g:cargo": "airlock",
+   "hall": "window"
+  },
+  "links_prison": {
+   "armory": "wall",
+   "brig": "airlock",
+   "transfer": "airlock"
+  },
+  "links_tcomms_ctrl": {
+   "g:None": "airlock",
+   "g:ai": "airlock"
+  },
+  "links_teleporter": {
+   "g:civic": "wall",
+   "hall": "airlock",
+   "maint": "wall"
+  },
+  "links_transfer": {
+   "labor": "airlock",
+   "maint": "wall",
+   "prison": "airlock"
+  },
+  "links_upload": {
+   "bridge": "airlock"
+  },
+  "links_vault": {
+   "gateway": "wall",
+   "hall": "airlock"
+  },
+  "links_warden": {
+   "armory": "windoor",
+   "brig": "airlock",
+   "main": "airlock"
+  },
+  "present": {
+   "armory": 30,
+   "bridge": 142,
+   "brig": 158,
+   "captain": 66,
+   "customs": 15,
+   "detective": 35,
+   "gateway": 23,
+   "hop": 32,
+   "hos": 36,
+   "labor": 10,
+   "lawoffice": 30,
+   "main": 113,
+   "post_engineering": 12,
+   "post_medical": 12,
+   "post_science": 12,
+   "post_supply": 12,
+   "prison": 107,
+   "tcomms_ctrl": 42,
+   "teleporter": 20,
+   "transfer": 39,
+   "upload": 25,
+   "vault": 20,
+   "warden": 32
+  },
+  "radius": 50.64524718933639,
+  "route_arr": {
+   "atmos": 1.62,
+   "bridge": 0.89,
+   "brig": 0.67,
+   "cargo": 1.28,
+   "civic": 0.22,
+   "command": 0.89,
+   "customs": 0.02,
+   "detective": 0.73,
+   "dorms": 0.71,
+   "engineering": 2.01,
+   "gateway": 1.62,
+   "hop": 1.32,
+   "lawoffice": 0.89,
+   "maint": 0.02,
+   "medical": 0.43,
+   "post": 0.02,
+   "post_science": 1.56,
+   "science": 1.09,
+   "security": 0.67,
+   "service": 0.02,
+   "teleporter": 1.24,
+   "vault": 1.7
+  },
+  "route_esc": {
+   "atmos": 1.78,
+   "bridge": 0.73,
+   "brig": 0.51,
+   "cargo": 1.36,
+   "civic": 0.02,
+   "command": 0.73,
+   "customs": 0.02,
+   "detective": 0.57,
+   "dorms": 0.55,
+   "engineering": 2.17,
+   "gateway": 1.46,
+   "hop": 1.16,
+   "lawoffice": 0.73,
+   "maint": 0.02,
+   "medical": 0.59,
+   "post": 0.02,
+   "post_science": 1.72,
+   "science": 1.24,
+   "security": 0.51,
+   "service": 0.22,
+   "teleporter": 1.09,
+   "vault": 1.54
+  },
+  "timed_cells": 3,
+  "timer_area": {
+   "brig": 3
+  },
+  "timer_dist": [
+   2,
+   2,
+   2
+  ],
+  "timers": 3,
+  "untimed_cellpieces": 3
+ },
+ "f22_c100_s7": {
+  "back": {
+   "atmos": 1,
+   "cargo": 4,
+   "civic": 1,
+   "engineering": 1,
+   "science": 1,
+   "security": 1
+  },
+  "boxrooms_command": 0.29,
+  "boxrooms_security": 0.73,
+  "cell_area": {},
+  "cell_sizes": [],
+  "cells_bed": 0,
+  "cells_flasher": 0,
+  "cells_locker": 0,
+  "desks": {},
+  "doors_armory": {
+   "education": 1,
+   "lawoffice": 1
+  },
+  "doors_bridge": {
+   "cmd_corr": 1
+  },
+  "doors_captain": {
+   "teleporter": 1
+  },
+  "doors_captain_bed": {
+   "gateway": 1
+  },
+  "doors_courtroom": {
+   "range": 1,
+   "sec_corr": 1
+  },
+  "doors_detective": {
+   "education": 1,
+   "sec_corr": 1
+  },
+  "doors_education": {
+   "armory": 1,
+   "detective": 1,
+   "hall": 1
+  },
+  "doors_eva": {
+   "cmd_corr": 1,
+   "vault": 1
+  },
+  "doors_gateway": {
+   "captain_bed": 1,
+   "cmd_corr": 1
+  },
+  "doors_hop": {
+   "cmd_corr": 1,
+   "meeting": 1
+  },
+  "doors_hos": {
+   "range": 1,
+   "warden": 1
+  },
+  "doors_labor": {
+   "brig": 1
+  },
+  "doors_lawoffice": {
+   "armory": 1,
+   "sec_corr": 1
+  },
+  "doors_prison": {
+   "sec_corr": 1
+  },
+  "doors_tcomms_ctrl": {
+   "g:ai": 1,
+   "upload": 1
+  },
+  "doors_teleporter": {
+   "captain": 1,
+   "cmd_corr": 1
+  },
+  "doors_transfer": {
+   "main": 1
+  },
+  "doors_upload": {
+   "g:ai": 1,
+   "tcomms_ctrl": 1
+  },
+  "doors_vault": {
+   "cmd_corr": 1,
+   "eva": 1,
+   "showroom": 1
+  },
+  "doors_warden": {
+   "hos": 1,
+   "sec_corr": 1
+  },
+  "fill_command": 0.75,
+  "fill_security": 0.75,
+  "front": {
+   "ai": 2,
+   "atmos": 2,
+   "cargo": 2,
+   "civic": 5,
+   "command": 2,
+   "dorms": 2,
+   "engineering": 3,
+   "medical": 3,
+   "science": 3,
+   "security": 4,
+   "service": 3
+  },
+  "hop_airlock_hall": false,
+  "hop_desk_hall": false,
+  "kit_bench": {
+   "bridge": 1,
+   "brig": 10,
+   "captain": 2,
+   "captain_bed": 2,
+   "courtroom": 7,
+   "detective": 1,
+   "education": 2,
+   "g:ai": 2,
+   "g:cargo": 9,
+   "g:civic": 30,
+   "g:dorms": 13,
+   "g:engineering": 9,
+   "g:medical": 11,
+   "g:science": 10,
+   "g:service": 23,
+   "gateway": 1,
+   "hall": 8,
+   "hop": 1,
+   "hos": 2,
+   "lawoffice": 1,
+   "main": 10,
+   "maint": 16,
+   "meeting": 1,
+   "post_engineering": 1,
+   "post_science": 3,
+   "post_supply": 1,
+   "prison": 7,
+   "tcomms_ctrl": 4,
+   "teleporter": 2,
+   "transfer": 1
+  },
+  "kit_brigphys": {},
+  "kit_cardcon": {
+   "captain": 1,
+   "hop": 1
+  },
+  "kit_comms": {
+   "bridge": 1,
+   "captain": 1
+  },
+  "kit_crewmon": {
+   "bridge": 1,
+   "g:medical": 1
+  },
+  "kit_evidence": {
+   "warden": 1
+  },
+  "kit_gulag_tp": {
+   "transfer": 1
+  },
+  "kit_hopqueue_flasher": {
+   "g:ai": 1,
+   "prison": 3,
+   "upload": 2
+  },
+  "kit_hoslocker": {
+   "hos": 1
+  },
+  "kit_idcon": {
+   "captain": 1,
+   "hop": 1
+  },
+  "kit_labor_con": {
+   "labor": 1,
+   "transfer": 1
+  },
+  "kit_nuke": {
+   "showroom": 1,
+   "vault": 1
+  },
+  "kit_prisoner_con": {
+   "bridge": 1
+  },
+  "kit_recharger": {
+   "bridge": 1,
+   "captain": 1,
+   "captain_bed": 1,
+   "gateway": 1,
+   "hos": 1,
+   "main": 1,
+   "meeting": 1,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "range": 1,
+   "transfer": 1,
+   "warden": 2
+  },
+  "kit_riot": {
+   "armory": 9,
+   "bridge": 1,
+   "brig": 1,
+   "detective": 1,
+   "eva": 5,
+   "g:ai": 3,
+   "g:cargo": 5,
+   "g:civic": 3,
+   "g:dorms": 2,
+   "g:engineering": 13,
+   "g:science": 4,
+   "gateway": 3,
+   "lawoffice": 1,
+   "maint": 43,
+   "range": 1,
+   "transfer": 1
+  },
+  "kit_seccam": {
+   "bridge": 1,
+   "main": 1
+  },
+  "kit_secdata": {
+   "bridge": 1,
+   "hop": 1,
+   "hos": 1,
+   "main": 1,
+   "post_engineering": 1,
+   "post_medical": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "transfer": 1
+  },
+  "kit_seclocker": {
+   "main": 1,
+   "post_engineering": 1,
+   "post_science": 1,
+   "post_supply": 1,
+   "warden": 5
+  },
+  "kit_secvend": {
+   "main": 1,
+   "warden": 1
+  },
+  "kit_suitstorage": {
+   "armory": 2,
+   "bridge": 1,
+   "captain": 1,
+   "captain_bed": 1,
+   "eva": 6,
+   "g:engineering": 6,
+   "g:medical": 1,
+   "g:science": 1,
+   "hos": 1
+  },
+  "kit_tele_con": {
+   "g:ai": 1,
+   "teleporter": 1
+  },
+  "kit_upload_con": {
+   "upload": 2
+  },
+  "kit_wardenlocker": {},
+  "kit_weapons": {
+   "armory": 16,
+   "g:medical": 2,
+   "g:service": 1,
+   "main": 1,
+   "range": 2,
+   "vault": 5
+  },
+  "links_armory": {
+   "education": "airlock",
+   "lawoffice": "airlock",
+   "maint": "wall",
+   "prison": "wall"
+  },
+  "links_bridge": {
+   "cmd_corr": "airlock",
+   "hall": "window",
+   "hop": "wall",
+   "meeting": "window"
+  },
+  "links_brig": {
+   "labor": "airlock",
+   "maint": "wall",
+   "prison": "wall",
+   "sec_corr": "airlock"
+  },
+  "links_captain": {
+   "hall": "window",
+   "meeting": "wall",
+   "teleporter": "airlock"
+  },
+  "links_captain_bed": {
+   "gateway": "airlock",
+   "hall": "wall",
+   "vault": "wall"
+  },
+  "links_cmd_corr": {
+   "bridge": "airlock",
+   "eva": "airlock",
+   "gateway": "airlock",
+   "hall": "airlock",
+   "hop": "airlock",
+   "showroom": "airlock",
+   "teleporter": "airlock",
+   "vault": "airlock"
+  },
+  "links_courtroom": {
+   "hall": "window",
+   "hos": "wall",
+   "range": "airlock",
+   "sec_corr": "airlock",
+   "warden": "window"
+  },
+  "links_detective": {
+   "education": "airlock",
+   "hall": "wall",
+   "lawoffice": "wall",
+   "sec_corr": "airlock"
+  },
+  "links_education": {
+   "armory": "airlock",
+   "detective": "airlock",
+   "hall": "airlock"
+  },
+  "links_eva": {
+   "cmd_corr": "airlock",
+   "hall": "wall",
+   "showroom": "wall",
+   "vault": "airlock"
+  },
+  "links_gateway": {
+   "captain_bed": "airlock",
+   "cmd_corr": "airlock",
+   "hall": "window",
+   "showroom": "wall"
+  },
+  "links_hop": {
+   "bridge": "wall",
+   "cmd_corr": "airlock",
+   "meeting": "airlock",
+   "teleporter": "wall"
+  },
+  "links_hos": {
+   "courtroom": "wall",
+   "main": "wall",
+   "maint": "wall",
+   "range": "airlock",
+   "transfer": "wall",
+   "warden": "airlock"
+  },
+  "links_labor": {
+   "brig": "airlock",
+   "maint": "wall",
+   "prison": "wall"
+  },
+  "links_lawoffice": {
+   "armory": "airlock",
+   "detective": "wall",
+   "prison": "wall",
+   "sec_corr": "airlock"
+  },
+  "links_main": {
+   "hos": "wall",
+   "maint": "wall",
+   "sec_corr": "airlock",
+   "transfer": "airlock",
+   "warden": "wall"
+  },
+  "links_meeting": {
+   "bridge": "window",
+   "captain": "wall",
+   "hall": "window",
+   "hop": "airlock"
+  },
+  "links_post_engineering": {
+   "g:atmos": "wall",
+   "g:engineering": "airlock",
+   "hall": "wall"
+  },
+  "links_post_medical": {
+   "g:medical": "airlock",
+   "hall": "wall"
+  },
+  "links_post_science": {
+   "g:science": "airlock",
+   "maint": "airlock"
+  },
+  "links_post_supply": {
+   "g:cargo": "airlock",
+   "maint": "wall"
+  },
+  "links_prison": {
+   "armory": "wall",
+   "brig": "wall",
+   "labor": "wall",
+   "lawoffice": "wall",
+   "maint": "wall",
+   "sec_corr": "airlock"
+  },
+  "links_range": {
+   "courtroom": "airlock",
+   "hall": "window",
+   "hos": "airlock",
+   "maint": "wall"
+  },
+  "links_sec_corr": {
+   "brig": "airlock",
+   "courtroom": "airlock",
+   "detective": "airlock",
+   "hall": "airlock",
+   "lawoffice": "airlock",
+   "main": "airlock",
+   "maint": "wall",
+   "prison": "airlock",
+   "warden": "airlock"
+  },
+  "links_showroom": {
+   "cmd_corr": "airlock",
+   "eva": "wall",
+   "gateway": "wall",
+   "vault": "airlock"
+  },
+  "links_tcomms_ctrl": {
+   "g:ai": "airlock",
+   "upload": "airlock"
+  },
+  "links_teleporter": {
+   "captain": "airlock",
+   "cmd_corr": "airlock",
+   "hall": "window",
+   "hop": "wall"
+  },
+  "links_transfer": {
+   "hos": "wall",
+   "main": "airlock",
+   "maint": "wall"
+  },
+  "links_upload": {
+   "g:ai": "airlock",
+   "tcomms_ctrl": "airlock"
+  },
+  "links_vault": {
+   "captain_bed": "wall",
+   "cmd_corr": "airlock",
+   "eva": "airlock",
+   "hall": "wall",
+   "showroom": "airlock"
+  },
+  "links_warden": {
+   "courtroom": "window",
+   "hos": "airlock",
+   "main": "wall",
+   "sec_corr": "airlock"
+  },
+  "present": {
+   "armory": 35,
+   "bridge": 92,
+   "brig": 54,
+   "captain": 24,
+   "captain_bed": 22,
+   "cmd_corr": 42,
+   "courtroom": 42,
+   "detective": 18,
+   "education": 32,
+   "eva": 42,
+   "gateway": 27,
+   "hop": 22,
+   "hos": 32,
+   "labor": 28,
+   "lawoffice": 16,
+   "main": 91,
+   "meeting": 28,
+   "post_engineering": 24,
+   "post_medical": 12,
+   "post_science": 16,
+   "post_supply": 15,
+   "prison": 102,
+   "range": 24,
+   "sec_corr": 78,
+   "showroom": 24,
+   "tcomms_ctrl": 36,
+   "teleporter": 18,
+   "transfer": 49,
+   "upload": 25,
+   "vault": 51,
+   "warden": 25
+  },
+  "radius": 50.58235725176625,
+  "route_arr": {
+   "ai": 2.91,
+   "atmos": 2.97,
+   "cargo": 2.17,
+   "civic": 0.97,
+   "cmd_corr": 2.29,
+   "command": 2.29,
+   "dorms": 1.48,
+   "education": 3.08,
+   "engineering": 2.49,
+   "maint": 0.18,
+   "medical": 2.45,
+   "science": 0.43,
+   "sec_corr": 2.89,
+   "security": 2.89,
+   "service": 2.27
+  },
+  "route_esc": {
+   "ai": 2.31,
+   "atmos": 0.32,
+   "cargo": 2.85,
+   "civic": 2.25,
+   "cmd_corr": 1.7,
+   "command": 1.7,
+   "dorms": 1.8,
+   "education": 0.28,
+   "engineering": 0.77,
+   "hall": 3.44,
+   "maint": 0.16,
+   "medical": 1.86,
+   "science": 2.91,
+   "sec_corr": 0.43,
+   "security": 0.28,
+   "service": 1.05
+  },
+  "timed_cells": 0,
+  "timer_area": {},
+  "timer_dist": [],
+  "timers": 0,
+  "untimed_cellpieces": 8
+ }
+}

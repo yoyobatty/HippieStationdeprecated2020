@@ -1,0 +1,125 @@
+== hippiestation.dmm
+  kitchen         72 tiles  public   0  doors {'maint': 1, 'bar': 2}  counters onto {'HALL': 4}  access {'28': 3}
+  bar            142 tiles  public  87  doors {'maint': 2, 'kitchen': 2, 'HALL': 2}  counters onto {}  access {'25': 1, '12': 1, '28': 2, '-': 2}
+  hydro          121 tiles  public   0  doors {'maint': 2, 'HALL': 2}  counters onto {'HALL': 2}  access {'35': 4}
+  garden          43 tiles  public  34  doors {'maint': 1, 'tools': 1, 'HALL': 1}  counters onto {}  access {'12': 1, '-': 2}
+  janitor         23 tiles  public   0  doors {'HALL': 1, 'maint': 1}  counters onto {}  access {'26': 2}
+  theatre         42 tiles  public   0  doors {'maint': 1}  counters onto {}  access {'46': 1}
+  chapel         146 tiles  public 126  doors {'maint': 1, 'chapel_office': 2, 'library': 2, 'hallway/secondary/exit': 2}  counters onto {}  access {'12,27': 1, '22': 2, '-': 4}
+  chapel_office   41 tiles  public   0  doors {'maint': 1, 'chapel': 2}  counters onto {}  access {'27': 1, '22': 2}
+  library        118 tiles  public  70  doors {'maint': 1, 'HALL': 2, 'chapel': 2}  counters onto {}  access {'12': 1, '-': 4}
+  law             20 tiles  public   0  doors {'HALL': 1, 'maint': 1}  counters onto {}  access {'38': 2}
+  dorms           99 tiles  public  79  doors {'maint': 2, 'hippie/pool': 2, 'toilet': 2, 'HALL': 2}  counters onto {}  access {'12': 2, '-': 6}
+  toilet          52 tiles  public  52  doors {'dorms': 2, 'locker': 1}  counters onto {}  access {'-': 3}
+  locker          95 tiles  public  50  doors {'toilet': 1, 'maint': 1}  counters onto {}  access {'-': 1, '12': 1}
+  tools           50 tiles  public  32  doors {'maint': 1, 'garden': 1, 'HALL': 2}  counters onto {}  access {'12': 1, '-': 3}
+== MetaStation.dmm
+  kitchen         49 tiles  public   0  doors {'hydro': 1, 'bar': 1, 'coldroom': 1}  counters onto {'bar': 4}  access {'28,35': 1, '28': 2}
+  coldroom        25 tiles  public   0  doors {'kitchen': 1, 'maint': 1}  counters onto {}  access {'28': 2}
+  bar            137 tiles  public  83  doors {'HALL': 2, 'kitchen': 1, 'maint': 2}  counters onto {}  access {'-': 2, '28': 1, '25': 1, '12': 1}
+  hydro           91 tiles  public   0  doors {'HALL': 1, 'maint': 2, 'kitchen': 1}  counters onto {'HALL': 2}  access {'35': 3, '28,35': 1}
+  garden          49 tiles  public  27  doors {'locker': 1, 'maint': 1}  counters onto {}  access {'-': 1, '12': 1}
+  janitor         16 tiles  public   0  doors {'maint': 1}  counters onto {}  access {'26': 1}
+  theatre         50 tiles  public   0  doors {'maint': 2}  counters onto {}  access {'12,46': 1, '46': 1}
+  chapel         119 tiles  public  90  doors {'chapel_office': 1, 'maint': 1, 'hallway/secondary/exit/departure_lounge': 2}  counters onto {}  access {'22': 1, '12,22': 1, '-': 2}
+  chapel_office   35 tiles  public   1  doors {'maint': 2, 'chapel': 1}  counters onto {}  access {'27': 1, '22': 2}
+  library        146 tiles  public  88  doors {'maint': 2, 'HALL': 4}  counters onto {}  access {'12,37': 2, '-': 4}
+  law             25 tiles  public   0  doors {'security/courtroom': 1, 'locker': 1, 'maint': 1}  counters onto {}  access {'38': 3}
+  dorms          104 tiles  public  83  doors {'toilet': 1, 'locker': 2, 'fitness': 2, 'maint': 1}  counters onto {}  access {'-': 5, '12': 1}
+  toilet          58 tiles  public  57  doors {'HALL': 1, 'maint': 1, 'locker': 2, 'dorms': 1}  counters onto {}  access {'-': 4, '12': 1}
+  locker         125 tiles  public 101  doors {'security/courtroom': 1, 'HALL': 2, 'law': 1, 'maint': 2, 'toilet': 2, 'dorms': 2, 'garden': 1}  counters onto {}  access {'-': 8, '38': 1, '1,12,38,4': 1, '12': 1}
+  fitness        134 tiles  public  84  doors {'maint': 2, 'dorms': 2, 'holodeck/rec_center': 4}  counters onto {}  access {'1,12,38,4': 1, '-': 6, '12': 1}
+  tools           65 tiles  public  42  doors {'maint': 1, 'construction/storage_wing': 2, 'HALL': 2}  counters onto {}  access {'12': 1, '-': 4}
+== BoxStation.dmm
+  kitchen         73 tiles  public   0  doors {'bar': 2, 'maint': 1}  counters onto {'HALL': 4}  access {'28': 3}
+  bar            141 tiles  public  88  doors {'HALL': 2, 'maint': 2, 'kitchen': 2}  counters onto {}  access {'-': 2, '12,22,25,26,28,35,37,38,46': 1, '25': 1, '28': 2}
+  hydro           91 tiles  public   0  doors {'maint': 1, 'HALL': 2}  counters onto {'HALL': 2}  access {'35': 3}
+  garden          43 tiles  public  34  doors {'maint': 1, 'HALL': 1, 'tools': 1}  counters onto {}  access {'12': 1, '-': 2}
+  janitor         23 tiles  public   0  doors {'HALL': 1, 'maint': 1}  counters onto {}  access {'26': 2}
+  theatre         41 tiles  public   0  doors {'maint': 1}  counters onto {}  access {'46': 1}
+  chapel         131 tiles  public 120  doors {'library': 2, 'chapel_office': 1, 'maint': 1, 'hallway/secondary/exit': 2}  counters onto {}  access {'-': 4, '22': 1, '12': 1}
+  chapel_office   34 tiles  public   0  doors {'maint': 1, 'chapel': 1}  counters onto {}  access {'27': 1, '22': 1}
+  library        119 tiles  public  73  doors {'maint': 1, 'HALL': 2, 'chapel': 2}  counters onto {}  access {'12': 1, '-': 4}
+  law             22 tiles  public   0  doors {'maint': 1, 'HALL': 1}  counters onto {}  access {'38': 2}
+  dorms           99 tiles  public  79  doors {'maint': 2, 'HALL': 2, 'toilet': 2, 'fitness': 2}  counters onto {}  access {'12': 2, '-': 6}
+  toilet          52 tiles  public  52  doors {'locker': 1, 'dorms': 2}  counters onto {}  access {'-': 3}
+  locker          95 tiles  public  50  doors {'toilet': 1, 'maint': 1}  counters onto {}  access {'-': 1, '12': 1}
+  fitness         71 tiles  public  45  doors {'dorms': 2, 'maint': 2, 'holodeck/rec_center': 4}  counters onto {}  access {'-': 6, '12': 2}
+  tools           50 tiles  public  32  doors {'garden': 1, 'maint': 1, 'HALL': 2}  counters onto {}  access {'-': 3, '12': 1}
+== DeltaStation2.dmm
+  kitchen         90 tiles  public   0  doors {'hallway/secondary/service': 2}  counters onto {'bar': 4, 'HALL': 4}  access {'28': 2}
+  bar            173 tiles  public  68  doors {'hallway/secondary/service': 2, 'HALL': 3}  counters onto {}  access {'25': 1, '46': 1, '-': 3}
+  hydro          110 tiles  public   0  doors {'maint': 1, 'hallway/secondary/service': 3}  counters onto {'HALL': 2}  access {'35': 4}
+  janitor         26 tiles  public   0  doors {'maint': 1}  counters onto {}  access {'26': 1}
+  theatre         26 tiles  public   0  doors {'maint': 1, 'hallway/secondary/service': 1}  counters onto {}  access {'46': 2}
+  chapel         110 tiles  public  97  doors {'chapel_office': 3, 'maint': 1, 'hallway/secondary/exit/departure_lounge': 2}  counters onto {}  access {'27': 3, '12': 1, '-': 2}
+  chapel_office   80 tiles  public   0  doors {'maint': 1, 'chapel': 3, 'hallway/secondary/exit/departure_lounge': 1}  counters onto {}  access {'27': 5}
+  library        221 tiles  public 116  doors {'maint': 2, 'HALL': 4}  counters onto {}  access {'12': 2, '-': 4}
+  law             25 tiles  public   0  doors {'security/courtroom': 1, 'HALL': 1, 'maint': 1}  counters onto {}  access {'38': 3}
+  dorms          113 tiles  public  84  doors {'locker': 2, 'maint': 1, 'fitness': 2}  counters onto {}  access {'-': 4, '12': 1}
+  toilet          63 tiles  public  60  doors {'hallway/secondary/entry': 1, 'HALL': 1, 'maint': 1, 'locker': 1}  counters onto {}  access {'-': 3, '12': 1}
+  locker         104 tiles  public  75  doors {'HALL': 2, 'toilet': 1, 'maint': 2, 'dorms': 2}  counters onto {}  access {'-': 5, '12': 2}
+  fitness        226 tiles  public 162  doors {'maint': 2, 'dorms': 2, 'holodeck/rec_center': 4}  counters onto {}  access {'12': 2, '-': 6}
+  tools           65 tiles  public  43  doors {'maint': 1, 'HALL': 4}  counters onto {}  access {'12': 1, '-': 4}
+== PubbyStation.dmm
+  kitchen         79 tiles  public   0  doors {'hydro': 1, 'HALL': 1, 'bar': 1}  counters onto {'bar': 6}  access {'28,35': 1, '28': 2}
+  bar            158 tiles  public  88  doors {'kitchen': 1, 'maint': 2, 'HALL': 7, 'theatre': 1}  counters onto {}  access {'28': 1, '25': 2, '-': 7, '46': 1}
+  hydro           97 tiles  public   0  doors {'maint': 1, 'HALL': 1, 'kitchen': 1}  counters onto {'HALL': 2}  access {'35': 2, '28,35': 1}
+  garden          56 tiles  public   0  doors {'chapel': 2}  counters onto {}  access {'-': 2}
+  janitor         24 tiles  public   0  doors {'HALL': 1}  counters onto {}  access {'26': 1}
+  theatre         16 tiles  public   0  doors {'bar': 1, 'maint': 1}  counters onto {}  access {'46': 2}
+  chapel         339 tiles  public   0  doors {'chapel_office': 1, 'garden': 2, 'maint': 1, 'chapel/asteroid/monastery': 5, 'library': 2}  counters onto {}  access {'22': 1, '-': 9, '10,11,22,24,37': 1}
+  chapel_office   78 tiles  public   0  doors {'chapel/asteroid/monastery': 1, 'chapel': 1}  counters onto {}  access {'22': 2}
+  library        195 tiles  public   0  doors {'chapel': 2}  counters onto {}  access {'-': 2}
+  law             30 tiles  public   0  doors {'maint': 1, 'HALL': 1}  counters onto {}  access {'38': 2}
+  dorms           97 tiles  public  80  doors {'maint': 1, 'HALL': 2, 'toilet': 1, 'fitness': 2}  counters onto {}  access {'12': 1, '-': 5}
+  toilet          47 tiles  public  45  doors {'HALL': 2, 'maint': 2, 'dorms': 1}  counters onto {}  access {'-': 3, '12': 2}
+  fitness         42 tiles  public  28  doors {'dorms': 2, 'holodeck/rec_center': 4, 'maint': 2}  counters onto {}  access {'-': 6, '12': 2}
+  tools           45 tiles  public  28  doors {'HALL': 2}  counters onto {}  access {'-': 2}
+== Donutstation.dmm
+  kitchen         45 tiles  public   0  doors {'HALL': 1, 'coldroom': 1}  counters onto {'bar': 5}  access {'28,35': 1, '28': 1}
+  coldroom        28 tiles  public   0  doors {'maint': 1, 'kitchen': 1}  counters onto {}  access {'28': 2}
+  bar            128 tiles  public  79  doors {'maint': 2}  counters onto {}  access {'25': 1, '12,25,46': 1}
+  hydro           87 tiles  public   0  doors {'maint': 1, 'HALL': 2}  counters onto {'HALL': 2}  access {'35': 1, '28,35': 2}
+  garden          53 tiles  public  40  doors {'HALL': 2}  counters onto {}  access {'-': 2}
+  janitor         25 tiles  public   0  doors {'HALL': 1, 'maint': 1}  counters onto {}  access {'26': 1, '12,26': 1}
+  theatre         48 tiles  public   0  doors {'maint': 1}  counters onto {}  access {'46': 1}
+  chapel         134 tiles  public 129  doors {'HALL': 2, 'chapel_office': 2, 'medical/morgue': 1, 'maint': 1}  counters onto {}  access {'-': 2, '22': 2, '22,6': 1, '12,22': 1}
+  chapel_office   73 tiles  public   0  doors {'maint': 2, 'chapel': 2}  counters onto {}  access {'12,20': 2, '22': 2}
+  library        108 tiles  public  67  doors {'HALL': 1, 'maint': 2}  counters onto {}  access {'-': 1, '12,35': 2}
+  law             19 tiles  public   0  doors {'HALL': 1}  counters onto {}  access {'38': 1}
+  dorms           30 tiles  public   6  doors {'maint': 1, 'fitness': 1}  counters onto {}  access {'12': 1, '-': 1}
+  fitness        246 tiles  public 171  doors {'maint': 3, 'holodeck/rec_center': 4, 'dorms': 1, 'HALL': 2}  counters onto {}  access {'12,47': 2, '-': 7, '12': 1}
+== EndoStation.dmm
+  kitchen         68 tiles  public   0  doors {'dorms': 1, 'coldroom': 1, 'bar': 2}  counters onto {'bar': 4}  access {'28,35': 1, '28': 3}
+  coldroom        25 tiles  public   0  doors {'hallway/secondary/service': 1, 'kitchen': 1}  counters onto {}  access {'28': 2}
+  bar            168 tiles  public  94  doors {'dorms': 2, 'kitchen': 2, 'hydro': 2, 'hallway/secondary/service': 1, 'HALL': 2}  counters onto {'HALL': 2}  access {'-': 4, '28': 2, '35': 2, '25': 1}
+  hydro          106 tiles  public   0  doors {'hallway/secondary/service': 1, 'bar': 2, 'maint': 1}  counters onto {'bar': 2}  access {'35': 4}
+  janitor         20 tiles  public   0  doors {'HALL': 1}  counters onto {}  access {'26': 1}
+  theatre         42 tiles  public   1  doors {'maint': 2, 'hallway/secondary/service': 1}  counters onto {}  access {'46': 3}
+  chapel         119 tiles  public 103  doors {'HALL': 4, 'chapel_office': 1}  counters onto {}  access {'-': 4, '22': 1}
+  chapel_office   67 tiles  public   0  doors {'chapel': 1, 'maint': 1}  counters onto {}  access {'22': 1, '27': 1}
+  library        173 tiles  public 111  doors {'hallway/secondary/entry': 2, 'dorms': 2}  counters onto {}  access {'-': 4}
+  law             31 tiles  public   0  doors {'HALL': 1, 'maint': 1}  counters onto {}  access {'38': 2}
+  dorms          246 tiles  public 195  doors {'maint': 2, 'holodeck/rec_center': 4, 'fitness': 1, 'library': 2, 'toilet': 1, 'hallway/secondary/service': 1, 'kitchen': 1, 'bar': 2}  counters onto {}  access {'-': 12, '22,25,26,28,35,37,38,46': 1, '28,35': 1}
+  toilet          18 tiles  public  18  doors {'dorms': 1}  counters onto {}  access {'-': 1}
+  locker          35 tiles  public  19  doors {}  counters onto {}  access {}
+  fitness         27 tiles  public  21  doors {'maint': 2, 'dorms': 1}  counters onto {}  access {'12': 2, '-': 1}
+  tools           78 tiles  public  53  doors {'HALL': 2}  counters onto {}  access {'-': 2}
+== MetaLake.dmm
+  kitchen         49 tiles  public   0  doors {'hydro': 1, 'bar': 1, 'coldroom': 1}  counters onto {'bar': 4}  access {'28,35': 1, '28': 2}
+  coldroom        25 tiles  public   0  doors {'kitchen': 1, 'maint': 1}  counters onto {}  access {'28': 2}
+  bar            137 tiles  public  83  doors {'HALL': 2, 'kitchen': 1, 'maint': 2}  counters onto {}  access {'-': 2, '28': 1, '25': 1, '12': 1}
+  hydro           91 tiles  public   0  doors {'HALL': 1, 'maint': 2, 'kitchen': 1}  counters onto {'HALL': 2}  access {'35': 3, '28,35': 1}
+  garden          49 tiles  public  27  doors {'locker': 1, 'maint': 1}  counters onto {}  access {'-': 1, '12': 1}
+  janitor         16 tiles  public   0  doors {'maint': 1}  counters onto {}  access {'26': 1}
+  theatre         50 tiles  public   0  doors {'maint': 2}  counters onto {}  access {'12,46': 1, '46': 1}
+  chapel         119 tiles  public  90  doors {'chapel_office': 1, 'maint': 1, 'hallway/secondary/exit/departure_lounge': 2}  counters onto {}  access {'22': 1, '12,22': 1, '-': 2}
+  chapel_office   35 tiles  public   1  doors {'maint': 2, 'chapel': 1}  counters onto {}  access {'27': 1, '22': 2}
+  library        146 tiles  public  88  doors {'maint': 2, 'HALL': 4}  counters onto {}  access {'12,37': 2, '-': 4}
+  law             25 tiles  public   0  doors {'security/courtroom': 1, 'locker': 1, 'maint': 1}  counters onto {}  access {'38': 3}
+  dorms          104 tiles  public  83  doors {'toilet': 1, 'locker': 2, 'hippie/pool': 2, 'maint': 1}  counters onto {}  access {'-': 5, '12': 1}
+  toilet          58 tiles  public  57  doors {'HALL': 1, 'maint': 1, 'locker': 2, 'dorms': 1}  counters onto {}  access {'-': 4, '12': 1}
+  locker         125 tiles  public 101  doors {'security/courtroom': 1, 'HALL': 2, 'law': 1, 'maint': 2, 'toilet': 2, 'dorms': 2, 'garden': 1}  counters onto {}  access {'-': 8, '38': 1, '1,12,38,4': 1, '12': 1}
+  fitness         11 tiles  public   8  doors {'hippie/pool': 1, 'holodeck/rec_center': 2, 'maint': 1}  counters onto {}  access {'-': 3, '12': 1}
+  tools           65 tiles  public  42  doors {'maint': 1, 'construction/storage_wing': 2, 'HALL': 2}  counters onto {}  access {'12': 1, '-': 4}

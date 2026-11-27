@@ -629,8 +629,11 @@ def touch_doors(m, L, log=print):
                 for dx, dy in N4:
                     ws = [(p[0] + dx * i, p[1] + dy * i) for i in range(1, steps + 1)]
                     q = (p[0] + dx * (steps + 1), p[1] + dy * (steps + 1))
+                    # never into a gas chamber (its engine floor reads as floor) or through a chamber's ring
                     if all(sm.cls.get(w) == "W" and w not in sm.glass for w in ws) and sm.cls.get(q) == "F" \
-                            and sm.group.get(q) == b:
+                            and sm.group.get(q) == b and not any(
+                                (m.get(*z).tpath if m.get(*z) else "").startswith("/turf/open/floor/engine/")
+                                for z in [p, q] + [(w[0] + ex, w[1] + ey) for w in ws for ex, ey in N4]):
                         t = m.get(*ws[0])
                         t.objs = [dmm.Atom("/obj/machinery/door/airlock")]
                         t.turf = dmm.Atom("/turf/open/floor/plasteel")

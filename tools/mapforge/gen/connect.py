@@ -42,6 +42,15 @@ def _comps(cells):
     return out
 
 
+def sealed(m, p):
+    """A tile of a room stock maps keep sealed: Atmospherics' gas chambers and the burn chamber, whose floor is an engine
+    subtype (/turf/open/floor/engine/n2, .../vacuum). No door is cut into one and it is never walled up as a scrap
+    (2026-11-25: the scrap pass walled all five chambers and the rescue cut a door into each)."""
+    t = m.get(p[0], p[1], 1)
+    # and airless floor out past the hull (the engine's waste injector: a door was cut to it through the hull)
+    return t is not None and (t.tpath.startswith("/turf/open/floor/engine/") or t.tpath.endswith("/airless"))
+
+
 def _cut(m, sm, w, a, b):
     t = m.get(*w)
     maint = "maint" in (sm.group.get(a), sm.group.get(b))
@@ -66,6 +75,8 @@ def connect(m, log=print, rounds=12):
         reached = _reached(sm)
         made = 0
         for comp in _comps(un):
+            if any(sealed(m, p) for p in comp):
+                continue
             best = None
             mine = next(iter(comp))
             maint_piece = sm.group.get(mine) == "maint"
@@ -146,7 +157,7 @@ def connect(m, log=print, rounds=12):
     halls = [p for p in walkable if sm.group.get(p) == "hall"]
     nom = walk._bfs(halls, lambda n: n in walkable and sm.group.get(n) != "maint")
     corr = set(RM.CORRIDOR_AREA.values())
-    scraps = {p for p, c in sm.cls.items() if c == "F" and sm.area.get(p) in corr and p not in nom}
+    scraps = {p for p, c in sm.cls.items() if c == "F" and sm.area.get(p) in corr and p not in nom and not sealed(m, p)}
     walled = 0
     for comp in _comps(scraps):
         if len(comp) < 15:

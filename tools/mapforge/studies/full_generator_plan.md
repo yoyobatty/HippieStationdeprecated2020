@@ -598,3 +598,134 @@ first full-stage passes.
 2. **Hall share and spoke length.** The spokes carry fewer, deeper departments than the blocks did. Try the second
    row back on, with side halls capped at the human arm length (19).
 3. **The civic median room size.** Civic's copies are big (library 127, chapel 117).
+
+### M3, 2026-11-25: networks, engine, docks and solars (`gen/net.py`)
+
+The user's rulings on resuming: the pass bar is **the median human map** (at most 7 gate failures a build; the
+median human map fails 7 of its ~112 checks), and the next block is **making builds playable**: power, air,
+disposals, solars and docks, then a boot and a Bot Shift.
+
+**What the full stage does now** (`build.py --stage full`; `GEN_NET=0` gives the 2026-11-23 stage):
+1. `net.engine`: MetaStation's supermatter block (`to_dmm.engine_block`: the crystal's chamber, the gas loop, the
+   emitter room, the coil in space) in a room of its own against engineering's outer wall. Row 18 of the block's frame
+   is engineering's wall with one door; everything up to row 17 and the coil must be space with a tile of space round
+   it. Of the sites, the one that grows the station's box least, then the one nearest an engineering SMES. The waste
+   line goes to its own injector past the hull (`to_dmm.route_engine_waste`). The map is padded 32 tiles while
+   placing and cropped back to 10 after.
+2. `net.outside`: docks (arrivals side-on with `to_dmm.side_dock`, escape, cargo and mining head-on with an arm of up
+   to 3 tiles, Box's port sizes), then a solar array per corner of the station's box: v6's solar maint room
+   (`v6_station._solar_room`) by the maint tile nearest the corner, a 9x9 field at the nearest clear spot past its
+   airlocks, a catwalk between.
+3. dress and connect, as before.
+4. `net.networks`: v6's power (the main SMES are engineering's; input net on layer 1 from their terminals to the
+   collector ring; the grid to every APC, machine and terminal), v6's air on the map turned so Atmospherics' room is
+   north of its chambers (`net.rotate`, exact both ways), and v6's disposals with an exit at least 7 tiles from any
+   bin.
+
+**Changes the networks needed elsewhere:**
+- **Atmos is composed as the v6 blueprint** (`compose._atmos`): main floor, a wall with a door, four gas-storage rows,
+  the chambers' front wall with three panes each, five 3x3 chambers in the row plasma, CO2, N2, O2, air.
+  `paint_dept` reverses the row on a mirrored frame, so it always reads plasma to air west to east once turned.
+  `atmos_works` then lays its 82 tiles on three layers unchanged.
+- **The chambers stay sealed.** `connect.py`'s scrap pass had walled all five chambers (they are atmos's corridor
+  area, unreached from a hall) and its rescue cut a door into each. Engine-subtype floor is now left alone
+  (`connect.sealed`), and `rooms.touch_doors` never opens into a chamber.
+- **v6's disposals tree never branches off its first three trunk tiles**, so a bin 3 tiles from the exit became the
+  whole tree (1 bin of 57 reached). `net.disposal_exit` keeps the exit 7 tiles from every bin: 54-72 bins reached, 1
+  left over.
+- **Cargo's bay as an anchor** (`compose.ANCHORS`): the bay is cargo's first room but came out in some frames and not
+  others; a composition without it is redone at other depths and one wider frame.
+
+**Crew 80 seed 1, full stage with networks** (612 s, `data/mapforge/gen_net/`): **3 failures** (radial.service, halls
+7+ wide, vents apart), inside the bar.
+- Engine placed inside the station's old box (x1.00). 4 solar arrays.
+- Power: 7 main SMES, 119 APCs, grid 1190 cable tiles, input net 39 tiles to the collector ring.
+- Air: atmos works laid; 202 vents and 182 scrubbers piped (1 vent left out), 92 sealed rooms given a vent.
+- Disposals: 72 bins on 904 pipe tiles, the mail line to the delivery chute.
+- Docks: arrivals and escape docked; **cargo and mining found no hull wall with room for the shuttle** (cargo had no
+  bay in that build; the anchor came after).
+
+**After the first boot** (`run_zone_check.sh gen_c80_s1`, 0 runtimes), four fixes:
+- **Copied rooms' vents were on no network**: 117 of 508 were layer-2 `vent_pump/on` and the supply here is v6's layer
+  1. `net.air` moves them onto the supply first (a server room's vent drops its unbounded-pressure settings, since its
+  stock cooling loop isn't copied). Second boot: 4 open pipe ends in all (cryo cells).
+- **The grid was three nets**: v6's forest grows a tree from every root, and copied SMES rooms stand apart, so each
+  SMES had its own net and only one terminal reached the collector ring. Now one grid tree from the first main SMES
+  (the others among its targets), and one input tree from the first terminal. Second boot: 100 APCs on one net with
+  11 SMES and 350 kW, 102 on mains.
+- **20 areas had no APC** (kitchen, library, medbay central...): `net.ensure_apc` mounts one in every area that takes
+  one (not halls and maint, which `shared` covers, nor space, arrays, the crystal's chamber, the test range,
+  shuttles).
+- **Network checks in the build**: the gate can't see a missing engine or dock, so a round without them was kept
+  (crew 80 seed 1 kept a round with neither engine nor escape dock). `net.net_checks()` adds hard checks: engine
+  placed, docks (all 4), solar arrays (4), grid reach (at most 1 left out), atmos works.
+
+**Cargo and mining docks** (the user asked for them):
+- Cargo's bay and mining dock are **anchor rooms** (`compose.ANCHORS`): a cargo composition without both is redone at
+  depths 20-36 and one wider frame, keeping the one with the most.
+- `net.head_dock` takes **arms of up to 6 tiles**, allows walls beside the shuttle's rect (floor still not), and
+  **crosses one maint corridor** when the department has no wall on space (a maintenance door in the department's
+  wall, the external airlock in maint's). Then the department's other rooms, then maint and halls within 15 tiles.
+  Crew 80 seed 1's cargo sat in a notch of the outline where every gangway out ran into other station floor.
+
+**Crew 80 seed 1, final** (1148 s): **3 failures** (radial.civic, halls 7+ wide, vents apart); engine placed; all four
+docks (cargo off its corridor with a 3-tile arm, mining off its dock room). Boot: 0 runtimes; escape (Birdboat) and
+arrivals (donut) can dock; supply and mining read "shuttle none" as on the accepted v6 build (the cargo shuttle
+starts at CentCom). Pictures: `python tools/mapforge/gen/pictures.py gen_c80_s1` (whole map, networks, close-ups lit
+by the boot's lighting snapshot) in `data/previews/mapforge/gen_c80_s1/`.
+
+### M3-M5, 2026-11-25 later: the first Bot Shifts, and what they found
+
+**Shift 1** (crew 80 seed 1, 30 minutes, 16 bots, evac, 10x): the engine ran the whole shift (crystal 100%, ~1550
+MeV, 3/3 emitters, grid 1250 kW, SMES 45% -> 62%), the cargo loop worked (orders, crates unloaded, MULE deliveries),
+all 16 boarded evac, 0 runtimes. 10 checks failed. Running APCs fell 127 -> 94 of 129, and the solar consoles saw no
+array. Fixes:
+- **One APC an area** (`net.dedupe_apcs`): 14 areas had 2-4 (copies of one area type each bring theirs).
+- **`v6_station.SOLAR_NET` moves with the map**: `net.pad`/`net.crop` shift it. Stale, it let `power()` strip the
+  solar rooms' cable, and every console lost its array.
+
+**Walkers couldn't get into rooms.** Botany, chemistry, the experimentation lab, the janitor's closet and the cargo bay
+logged "no path found in any pass". The gate's walk checks go by walls and doors only. `gen/walkfix.py` measures
+reach the way a crew member walks: furniture, full-tile glass (window spawners aren't dense, so `kit.dense` missed
+them), edge windows and railings, shut firedoors, and a door on a table (a counter's windoor) all block. Stock
+calibration (areas under 60% walkable, outside the AI satellite): Meta 4, Box 0, Hippie 5, Delta 12 (abandoned
+rooms); the accepted v6 build 0. Crew 80 seed 1 before: hydroponics 0/71, chemistry 2/29, the bridge, chapel office,
+EVA, armory, vault, sorting... The causes:
+- 50-80 copied firedoors set `density = 1` (shut);
+- doors opening onto a tray, a table, a counter (chemistry's only airlock opened onto its desk);
+- a copy's door into a 1-tile niche walled off from its room.
+`walkfix.fix` opens every firedoor, moves dense things off door fronts and out of one-tile plugs to the nearest free
+floor of their area, and cuts a door through one plain wall where a piece is still cut off (own area, department,
+hall, maint, as connect.py ranks). After: 0-1 areas under 60%. Hard check "walkable rooms" (at most 4) in
+`net.net_checks`. connect.py and walkfix never touch airless floor: a rescue door had been cut through the hull to
+the engine's waste injector.
+
+**Copied rooms lost their own pipe loops** (`room_stamp.DROP` strips pipes, pumps, freezers, connectors): cryo had
+open ends and the doctor never loaded it. `room_stamp.apply(keep_local=True)` (gen's paint passes it; v6's builds
+don't) keeps a room's networks that stay inside it and aren't supply or scrubbers: Meta's cryo keeps its freezer, two
+cells, connectors and pipes; its server room its cooling loop. `net.air` leaves a vent on such a loop alone. Shift 2:
+the doctor connected the canister, started the freezer and loaded cryo.
+
+**Shift 2** (with the above, before the strict walk measure): 0 runtimes, APCs 110/111, 4 of 4 solar arrays
+tracking, the hydroponics bay planted, no bot failed. Still failing, all passing on the stock Hippie map: bar
+drinks, slimes, experiments, request-console drills, the harvest fridge, the janitor's mopping, the CE's gear.
+
+**Room kit** (`gen/essentials.py`): a room copied from one map keeps only what that map put in it; the bar had both
+dispensers but no Booze-O-Mat and no glass. From all 38 human maps, a type's kit is every object family in at least
+70% of its rooms (5+ rooms; wall pieces, lights, alarms, doors, windows, pipes, decals and plain furniture left to the
+other passes): 185 types. `WORK_KIT` adds what a crew job's work needs whatever the share (the bar's Booze-O-Mat: 13
+of 34 stock bar rooms; the rest stand it in a neighbouring bar area). It runs after dress, before connect and
+walkfix: 51 things on crew 80 seed 1.
+
+**Shift 3** (walkfix with the strict walker, room loops, essentials with the message server): **5 failures**, down
+from 10 and 9. Passing now: the bar (19 drinks poured, the customer's order mixed), slimes tended, the CE's gear, the
+hydroponics bay, solars 4 of 4, cargo (3 orders, 3 crates), research and upgrades, the medical drill, evac (16 of 16),
+the supermatter (100%, ~1570 MeV all shift). Boot: 0 runtimes, 0 open pipe ends, 3 of 444 vents off a network.
+Still failing:
+- **Request-console drills**: the crate request is logged but the message never goes through, though the map now
+  has a message server (the hub autolinks "messaging") and radio works (4 lost calls against 10 on a stock-map
+  shift). Not traced further.
+- **Experiments**: the experimentor's chamber is behind open blast doors (`poddoor/preopen`, as on stock maps);
+  walkers reach it, the bots' path search doesn't route through them. A bot-side limit.
+- **Mopping** ("no way to the mop in Custodial Closet") and **the harvest fridge** (the botanist harvested all shift
+  but stocked no produce fridge): not traced yet.

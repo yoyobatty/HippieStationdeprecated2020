@@ -72,6 +72,13 @@ def dress(m, log=print, skip=()):
     import rooms as RM
     out = {}
     extra = tuple(RM.CORRIDOR_AREA.values())
+    try:
+        # the learned departments' other corridor areas (the dorms' corridor is fitness): lit like the rest (crew 100
+        # seed 7's dorm corridor had no light, 2026-11-26)
+        import learn.floorplan as FP
+        extra += tuple(FP.CORR_ALT.values())
+    except Exception:                            # noqa: BLE001
+        pass
     for name in PASSES:
         if name in skip or os.environ.get("GEN_SKIP_" + name.upper()):
             continue
@@ -84,7 +91,7 @@ def dress(m, log=print, skip=()):
                 tidy(m, log)
             elif name == "habits":
                 from station.v6_habits import habits
-                habits(m, log)
+                habits(m, log, skip_exact=extra)
             elif name == "open_dead_ends":
                 V6.open_dead_ends(m, log)
             elif name == "carve_open_maint":

@@ -1,0 +1,8 @@
+hippiestation    check before: 3 (K1 1, K2 2)
+MetaStation      check before: 2 (K2 1, S2 1)
+BoxStation       check before: 3 (K1 1, K2 2)
+DeltaStation2    check before: 5 (K1 2, S5 1, T7 2)
+PubbyStation     check before: 6 (S4 1, S5 1, S6 1, S7 1, T4 1, T7 1)
+Donutstation     check before: 11 (C12 1, C6 1, K1 3, K2 2, T1 1, T7 2, X8 1)
+EndoStation      check before: 5 (K1 1, K2 1, T1 1, T7 2)
+MetaLake         check before: 2 (K2 1, S2 1)

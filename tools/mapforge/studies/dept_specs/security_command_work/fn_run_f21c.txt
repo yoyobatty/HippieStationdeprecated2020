@@ -1,0 +1,89 @@
+check before: 37
+  176, 88  S1 0 timed brig cells (stock 3-4 in the brig, 7/7; a door timer outside, its cell windoor): the Warden and the security bots can't sentence anyone
+  176,102  S3 Brig Control has no desk (table + windoor) onto the brig/hall (stock 7/7 look onto the brig: desk, windoor or window)
+  176,102  S3b Brig Control has no security camera console (stock 7/7)
+  176,102  S3b Brig Control has no security records console (stock 7/7)
+  182,102  S5 the HoS office isn't off the Security Office (stock 7/7)
+  172, 88  S7b no front desk from the brig onto the hall (stock 5/7)
+  176,108  S8 the courtroom has no public door onto a hall (stock 5/6 courtrooms)
+  167,110  S9 the detective opens only inside Security (stock 6/7 hall, 5/7 maint)
+  167,103  S14 the lawoffice opens only inside Security (stock 6/7 hall, 6/7 maint)
+  176, 88  S10 no arrivals customs post (stock 4/7 families)
+  148,115  S12 door eva <-> showroom: no stock map joins these
+  166,111  S12 door detective <-> range: no stock map joins these
+  183,110  S12 door courtroom <-> main: no stock map joins these
+  149,109  S12 door captain <-> vault: no stock map joins these
+  159,109  S12 door education <-> range: no stock map joins these
+  166,106  S12 door education <-> lawoffice: no stock map joins these
+  171,106  S12 door brig <-> lawoffice: no stock map joins these
+  148,103  S12 door eva <-> hop: no stock map joins these
+  181,102  S12 door hos <-> warden: no stock map joins these
+  133, 98  S12 door captain_bed <-> gateway: no stock map joins these
+  148, 98  S12 door teleporter <-> vault: no stock map joins these
+  188, 98  S12 door maint <-> transfer: no stock map joins these
+  130, 95  S12 door captain_bed <-> hall: no stock map joins these
+  167,103  S15 the lawyer can't reach the lawoffice with a lawyer's access (stock 7/7)
+  176,108  S15 the lawyer can't reach the courtroom with a lawyer's access (stock 7/7)
+  187, 88  S13 no labor shuttle dock (laborcamp_home: stock 7/7)
+  143,107  C2 the captain's office isn't off the bridge (stock 6/6)
+  130, 96  C2b the captain's bedroom isn't off his office, the bridge or the command hall (stock 4/4)
+  143,102  C3 the HoP's desk doesn't face a public hall (stock 7/7): no queue, no service
+  143,102  C3b no HoP airlock (in the HoP's area) with a hall tile in front: bot_hopping.dm department_doorstep finds no HoP (stock 6/7)
+  149, 96  C4 the vault has 2 doors (stock 1)
+  149, 96  C4c the vault is 2 separate rooms (stock 1)
+  184,108  H1 security has 2 maint back doors (stock 3-9; 7/7 and 6/7 have the minimum)
+  130,102  H1 command has 0 maint back doors (stock 1-3; 7/7 and 6/7 have the minimum)
+  130,102  H2 arrivals to command's nearest door 1.41 radii (stock 0.33-0.93)
+  130,102  H3 arrivals to the nearest civic/service/dorms door 0.91 radii (stock 0.02-0.22)
+  176, 88  H2b arrivals to Security's front 1.98 radii (stock 0.67-1.43)
+fn_security_command: "Cell 1" at 176,91 timed (timer 178,92)
+fn_security_command: "Cell 2" at 179,91 timed (timer 179,94)
+fn_security_command: spare brig locker at 185,94 taken out (each cell has its own)
+fn_security_command: walled up the door captain_bed <-> hall at 130,95
+fn_security_command: kept the door teleporter <-> vault at 148,98 (a room's only way in: layout)
+fn_security_command: kept the door captain <-> vault at 149,109 (a room's only way in: layout)
+fn_security_command: walled up the door education <-> lawoffice at 166,106
+fn_security_command: kept the door brig <-> lawoffice at 171,106 (a room's only way in: layout)
+fn_security_command: walled up the door courtroom <-> main at 183,110
+fn_security_command: kept the door captain_bed <-> gateway at 133,98 (a room's only way in: layout)
+fn_security_command: kept the door eva <-> hop at 148,103 (a room's only way in: layout)
+fn_security_command: walled up the door eva <-> showroom at 148,115
+fn_security_command: kept the door education <-> range at 159,109 (a room's only way in: layout)
+fn_security_command: kept the door detective <-> range at 166,111 (a room's only way in: layout)
+fn_security_command: kept the door hos <-> warden at 181,102 (a room's only way in: layout)
+fn_security_command: kept the door maint <-> transfer at 188,98 (a room's only way in: layout)
+fn_security_command: S8 glass door courtroom -> hall at 179,114
+fn_security_command: S9 security door detective -> hall at 168,114
+fn_security_command: H1 maintenance door main -> maint at 191,109
+desks: 0 counters ()
+fn_security_command: S3b 5 officers' lockers moved from Brig Control (25 tiles) to the Security Office
+fn_security_command: S3b security camera console in Brig Control at 180,106
+fn_security_command: S3b security records console in Brig Control at 178,102
+fn_security_command: 16 changes
+check after: 26
+  176, 88  S1 2 timed brig cells (stock 3-4 in the brig, 7/7; a door timer outside, its cell windoor): the Warden and the security bots can't sentence anyone
+  176,102  S3 Brig Control has no desk (table + windoor) onto the brig/hall (stock 7/7 look onto the brig: desk, windoor or window)
+  182,102  S5 the HoS office isn't off the Security Office (stock 7/7)
+  172, 88  S7b no front desk from the brig onto the hall (stock 5/7)
+  167,103  S14 the lawoffice opens only inside Security (stock 6/7 hall, 6/7 maint)
+  176, 88  S10 no arrivals customs post (stock 4/7 families)
+  166,111  S12 door detective <-> range: no stock map joins these
+  149,109  S12 door captain <-> vault: no stock map joins these
+  159,109  S12 door education <-> range: no stock map joins these
+  171,106  S12 door brig <-> lawoffice: no stock map joins these
+  148,103  S12 door eva <-> hop: no stock map joins these
+  181,102  S12 door hos <-> warden: no stock map joins these
+  133, 98  S12 door captain_bed <-> gateway: no stock map joins these
+  148, 98  S12 door teleporter <-> vault: no stock map joins these
+  188, 98  S12 door maint <-> transfer: no stock map joins these
+  187, 88  S13 no labor shuttle dock (laborcamp_home: stock 7/7)
+  143,107  C2 the captain's office isn't off the bridge (stock 6/6)
+  130, 96  C2b the captain's bedroom isn't off his office, the bridge or the command hall (stock 4/4)
+  143,102  C3 the HoP's desk doesn't face a public hall (stock 7/7): no queue, no service
+  143,102  C3b no HoP airlock (in the HoP's area) with a hall tile in front: bot_hopping.dm department_doorstep finds no HoP (stock 6/7)
+  149, 96  C4 the vault has 2 doors (stock 1)
+  149, 96  C4c the vault is 2 separate rooms (stock 1)
+  130,102  H1 command has 0 maint back doors (stock 1-3; 7/7 and 6/7 have the minimum)
+  130,102  H2 arrivals to command's nearest door 1.41 radii (stock 0.33-0.93)
+  130,102  H3 arrivals to the nearest civic/service/dorms door 0.91 radii (stock 0.02-0.22)
+  176, 88  H2b arrivals to Security's front 1.90 radii (stock 0.67-1.43)

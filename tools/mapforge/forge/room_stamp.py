@@ -80,6 +80,17 @@ def xatom(k, a):
     return dmm.Atom(a.path, list(vs.items()))
 
 
+_ROOMS = {}
+
+
+def _rooms(mapname, sm):
+    """room_stats.rooms of a map, once per process (a Source per stock copy recomputed them all: 1.2 s a copy, most
+    of a generated station's layout time, 2026-11-25)."""
+    if mapname not in _ROOMS:
+        _ROOMS[mapname] = RS.rooms(sm)
+    return _ROOMS[mapname]
+
+
 class Source:
     """One stock room: the largest piece of its area on the station level."""
 
@@ -88,7 +99,7 @@ class Source:
         server room with its control room beside it)."""
         sm = parse.load(mapname)
         self.map, self.area, self.sm = mapname, area, sm
-        rm = piece or max((r for r in RS.rooms(sm) if r.area == area), key=lambda r: len(r.tiles))
+        rm = piece or max((r for r in _rooms(mapname, sm) if r.area == area), key=lambda r: len(r.tiles))
         self.floor = set(rm.tiles)
         self.areas = {p: rm.area for p in rm.tiles}
         for r in extra:
@@ -111,24 +122,76 @@ class Source:
                 {self.rel(p, k) for p in self.doors})
 
 
-def apply(m, src, k, origin, cut_doors, door_atom=None, wall="/turf/closed/wall", area=None):
+def local_loops(src):
+    """{(tile, index in tile.objs)} of the source room's own pipe networks: atmos atoms on its floor and inner walls
+    whose network stays inside them and is not the station's supply or scrubbers (a cryo loop with its freezer, a
+    server room's cooling, a kitchen freezer). A network that leaves the room is the station's or a neighbour's and
+    stays behind, as DROP has it."""
+    from forge import atmos as A
+    sm = src.sm
+    tiles = src.floor | src.inner
+    nodes = {}
+    for p in tiles:
+        t = sm.m.get(p[0], p[1], sm.z)
+        if t is None:
+            continue
+        for i, a in enumerate(t.objs):
+            if a.path.startswith(A.PREFIX) and A.mask(a):
+                nodes[(p, i)] = a
+    parent = {n: n for n in nodes}
+
+    def find(n):
+        while parent[n] != n:
+            parent[n] = parent[parent[n]]
+            n = parent[n]
+        return n
+    leaves = set()
+    for (p, i), a in nodes.items():
+        for d, (dx, dy) in A.DELTA.items():
+            if not A.mask(a) & d:
+                continue
+            q = (p[0] + dx, p[1] + dy)
+            tq = sm.m.get(q[0], q[1], sm.z)
+            for j, b in enumerate(tq.objs if tq else []):
+                if b.path.startswith(A.PREFIX) and A.mask(b) and A.joins(a, b, d):
+                    if (q, j) in nodes:
+                        parent[find((p, i))] = find((q, j))
+                    else:
+                        leaves.add((p, i))
+    comps = {}
+    for n in nodes:
+        comps.setdefault(find(n), []).append(n)
+    keep = set()
+    for c in comps.values():
+        if len(c) < 2 or any(n in leaves for n in c) or any(A.kind(nodes[n]) in ("supply", "scrubbers") for n in c):
+            continue
+        keep.update(c)
+    return keep
+
+
+def apply(m, src, k, origin, cut_doors, door_atom=None, wall="/turf/closed/wall", area=None, keep_local=False):
     """Write the room into dmm.Map m with its origin at `origin`; cut_doors: outer ring tiles (map coords) that become
     doors (the source's own door there when it had one, else door_atom); area: one area for all of it (a stock
-    maint room joins the maint area it is put in)."""
+    maint room joins the maint area it is put in); keep_local: keep the room's own closed pipe loops (local_loops),
+    which DROP would otherwise strip."""
     ox, oy = origin
     sm = src.sm
     z = sm.z
+    loops = local_loops(src) if keep_local else set()
+
+    def kept(p, t):
+        return [xatom(k, a) for i, a in enumerate(t.objs) if not a.path.startswith(DROP) or (p, i) in loops]
     for p in src.floor | src.ring:
         rx, ry = src.rel(p, k)
         q = (ox + rx, oy + ry)
         t = sm.m.get(p[0], p[1], z)
         if p in src.floor:
-            objs = [xatom(k, a) for a in t.objs if not a.path.startswith(DROP)]
+            objs = kept(p, t)
             # airless floor belonged to a vent-to-space corner whose pipes stay behind: it is plain floor here
             turf = t.tpath[:-len("/airless")] if t.tpath.endswith("/airless") else t.tpath
             m.set(q[0], q[1], dmm.Tile(objs, dmm.Atom(turf), dmm.Atom(area or src.areas[p])))
         elif p in src.inner:
-            objs = [xatom(k, a) for a in t.objs if not a.path.startswith(DROP)]
+            objs = kept(p, t)
             side = next((src.areas[(p[0] + dx, p[1] + dy)] for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))
                          if (p[0] + dx, p[1] + dy) in src.areas), src.area)
             m.set(q[0], q[1], dmm.Tile(objs, dmm.Atom(t.tpath), dmm.Atom(area or side)))

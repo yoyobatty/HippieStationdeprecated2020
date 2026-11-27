@@ -1,0 +1,101 @@
+============================== f22_c100_s7 25 rooms
+crew_quarters/heads/chief                27 x103-107 y99-104         ce_office,consoles
+      doors: airlock/engineering/glass "Shared Engineering Storage"[32;19]>engine/storage_shared; airlock/command "Chief Engineer"[56]>engine/break_room
+      glass: 
+      kit: apc_ctrl, card_ce, ce_locker, cell, cell_charger, disposal, keycard, req_console, station_alert, sus_ce, telescreen
+engine                                   66 x115-117 y92-113         
+      doors: airlock/highsecurity "Gravity Generator"[19;23;63]>storage/tech; airlock/engineering/glass "Shared Engineering Storage"[32;19]>engine/storage_shared; airlock/engineering "SMES Room"[32]>engine/engine_smes; airlock/engineering/glass "Engineering Access"[32;19]>engine/break_room; airlock/engineering "Engine Room"[10]>hallway/primary/starboard; airlock/engineering "Engine Room"[10]>hallway/primary/starboard; airlock/highsecurity "Gravity Generator Foyer"[10]>engine/gravity_generator; airlock/engineering "Engine Room"[10]>engine/engineering; airlock/engineering "Engine Room"[10]>hallway/primary/starboard
+      glass: engine/engineering, engine/break_room, engine/gravity_generator
+      kit: 
+engine/atmos                            320 x131-150 y92-107         atmos
+      doors: airlock/atmos "Atmospherics">hallway/primary/starboard; airlock/atmos/glass "Atmospherics Monitoring"[24]>engine/atmos; airlock/atmos "Atmospherics">hallway/primary/starboard; airlock/atmos/glass/critical "SMES Room"[24;10]>engine/engine_smes
+      glass: 
+      kit: canisterx3, thermox2
+engine/atmos                             80 x131-150 y109-112        atmos
+      doors: airlock/maintenance "Atmospherics Maintenance"[24]>maintenance/starboard; airlock/atmos/glass "Atmospherics Monitoring"[24]>engine/atmos
+      glass: engine/atmos
+      kit: atmos_ctrlx5
+engine/atmos                              9 x131-133 y114-116        atmos
+      doors: 
+      glass: engine/atmos
+      kit: canister
+engine/atmos                              9 x135-137 y114-116        atmos
+      doors: 
+      glass: engine/atmos
+      kit: atmos_ctrl
+engine/atmos                              9 x139-141 y114-116        atmos
+      doors: 
+      glass: engine/atmos
+      kit: 
+engine/atmos                              9 x143-145 y114-116        atmos
+      doors: 
+      glass: engine/atmos
+      kit: 
+engine/atmos                              9 x147-149 y114-116        atmos
+      doors: 
+      glass: engine/atmos
+      kit: 
+engine/break_room                        69 x103-113 y92-98          break
+      doors: airlock/command "Chief Engineer"[56]>crew_quarters/heads/chief; airlock/engineering/glass "Engineering Access"[32;19]>engine
+      glass: engine, hallway/primary/starboard
+      kit: plantx5, cellx2, coffeex2, cell_charger, disposal, extinguisher, lightrepl, microwave
+engine/engine_smes                       41 x119-123 y105-113        smes
+      doors: airlock/engineering "Engineering Storage"[10]>engine/storage; airlock/engineering "SMES Room"[32]>engine; airlock/engineering "Supermatter Engine">engine/engineering
+      glass: 
+      kit: smesx4, terminalx4, cellx2, extinguisher, port_gen
+engine/engine_smes                       16 x126-129 y99-103         smes,sheets
+      doors: airlock/highsecurity "Gravity Generator Foyer"[10]>engine/gravity_generator; airlock/engineering "Engineering Storage"[10]>engine/storage; airlock/atmos/glass/critical "SMES Room"[24;10]>engine/atmos
+      glass: 
+      kit: glassx3, metalx3, cablex2, lightbox, plasteel, sus_engine, tank_disp
+engine/engineering                       87 x115-125 y119-131        sheets
+      doors: airlock/engineering/glass "Supermatter Engine"[10]>engine/engineering; airlock/engineering/glass "Supermatter Engine"[10]>engine/engineering; airlock/engineering/glass "Supermatter Engine"[10]>engine/engineering; airlock/engineering/glass "Laser Room"[10]>engine/engineering; poddoor/shutters/preopen "Radiation Chamber Shutters">engine/supermatter; airlock/engineering/glass "Supermatter Engine"[10]>engine/engineering; airlock/engineering/glass "Supermatter Engine"[10]>engine/engineering; airlock/engineering/glass "Laser Room"[10]>engine/engineering; poddoor/shutters/preopen "Radiation Chamber Shutters">engine/supermatter; poddoor/shutters/preopen "Radiation Chamber Shutters">engine/supermatter; poddoor/shutters/preopen "Radiation Chamber Shutters">engine/supermatter; airlock/engineering/glass/critical "Supermatter Chamber"[10]>engine/supermatter; poddoor/shutters/preopen "Radiation Chamber Shutters">engine/supermatter; poddoor/shutters/preopen "Radiation Chamber Shutters">engine/supermatter
+      glass: engine/engineering, engine/supermatter, space
+      kit: canisterx4, fire_closetx2, blast_btn, disposal, em_closet, glass, igloves, meson, rad_closet, sign_fire, tool_closet
+engine/engineering                       73 x103-113 y105-113        lockers,showers,vend,consoles,sheets
+      doors: airlock/engineering/glass "Supermatter Engine"[10]>engine/engineering; airlock/engineering "Engine Room"[10]>engine
+      glass: space, engine
+      kit: glassx4, eng_lockerx3, mesonx3, airlock_ex2, cablex2, cellx2, metalx2, rad_closetx2, atmos_alert, belt, disposal, elec_locker, eng_modcon, engi_wardrobe, engivend, fueltank, igloves, lightbox, plant, plasteel, port_pump, shower, station_alert, toolbox, watertank, weld_locker, weld_mask, welder
+engine/engineering                       71 x109-127 y115-131        
+      doors: airlock/engineering/glass "Supermatter Engine"[10]>engine/engineering; airlock/engineering/glass "Supermatter Engine"[10]>engine/engineering; airlock/engineering/glass "Supermatter Engine"[10]>engine/engineering; airlock/engineering/glass "Supermatter Engine"[10]>engine/engineering; airlock/engineering/glass "Supermatter Engine"[10]>engine/engineering; airlock/engineering "Supermatter Engine">engine/engine_smes
+      glass: engine/engineering, engine
+      kit: em_closetx2, thermox2, disposal, fire_closet, tank_disp, tool_closet, weld_mask
+engine/engineering                       51 x110-113 y119-131        vend,emitter_store,sheets
+      doors: airlock/engineering/glass "Laser Room"[10]>engine/engineering; airlock/engineering/glass "Laser Room"[10]>engine/engineering
+      glass: engine/engineering, space
+      kit: emitterx3, disposal, em_closet, glass, req_console, rpd, toolvend, weld_mask
+engine/engineering                       11 x103-106 y105-108        smes
+      doors: airlock/engineering/glass "Supermatter Engine"[10]>engine/engineering; airlock/maintenance "Engineering Maintenance"[10]>maintenance/starboard
+      glass: 
+      kit: terminalx4, smesx2, extinguisher
+engine/gravity_generator                 29 x119-124 y99-104         grav
+      doors: airlock/highsecurity "Gravity Generator Foyer"[10]>engine/engine_smes; airlock/highsecurity "Gravity Generator Foyer"[10]>engine
+      glass: engine
+      kit: terminalx2, grav, port_gen, rad_closet, smes
+engine/storage                           36 x125-128 y105-113        suits,sheets
+      doors: airlock/engineering "Engineering Storage"[10]>engine/engine_smes; airlock/engineering "Engineering Storage"[10]>engine/engine_smes
+      glass: 
+      kit: glassx3, sus_enginex3, airlock_ex2, cablex2, magbootsx2, metalx2, plantx2, belt, canister, extinguisher, fueltank, lightbox, meson, plasteel, port_gen, tank_disp, watertank, weld_mask, welder
+engine/storage_shared                    23 x109-113 y99-104         vend
+      doors: airlock/engineering/glass "Shared Engineering Storage"[32;19]>engine; airlock/engineering/glass "Shared Engineering Storage"[32;19]>crew_quarters/heads/chief
+      glass: 
+      kit: plantx2, imprinter, lathe_eng, rdconsole, tool_closet, toolvend
+engine/supermatter                       21 x118-120 y122-128        crystal,engine_room
+      doors: poddoor/shutters/preopen "Radiation Chamber Shutters">engine/engineering; poddoor/shutters/preopen "Radiation Chamber Shutters">engine/engineering; poddoor/shutters/preopen "Radiation Chamber Shutters">engine/engineering; airlock/engineering/glass/critical "Supermatter Chamber"[10]>engine/supermatter; poddoor/shutters/preopen "Radiation Chamber Shutters">engine/engineering; poddoor/shutters/preopen "Radiation Chamber Shutters">engine/engineering; poddoor/shutters/preopen "Radiation Chamber Shutters">engine/engineering
+      glass: engine/engineering
+      kit: rad_collectorx6, crystal, sign_fire
+engine/supermatter                        3 x122-122 y124-126        crystal
+      doors: airlock/engineering/glass/critical "Supermatter Chamber"[10]>engine/engineering; airlock/engineering/glass/critical "Supermatter Chamber"[10]>engine/supermatter
+      glass: 
+      kit: 
+security/checkpoint/engineering          24 x126-129 y92-97          checkpoint
+      doors: airlock/security/glass "Engineering Security Post"[63]>storage/tech
+      glass: 
+      kit: extinguisher, recharger, req_console, telescreen
+storage/tech                             30 x119-124 y92-98          tech_storage
+      doors: airlock/highsecurity "Gravity Generator"[19;23;63]>engine; airlock/security/glass "Engineering Security Post"[63]>security/checkpoint/engineering; airlock/highsecurity "Secure Tech Storage"[19;23]>storage/tech; airlock/highsecurity "Secure Tech Storage"[19;23]>storage/tech
+      glass: 
+      kit: toolboxx2, cell, cell_charger, extinguisher, igloves, meson
+storage/tech                              4 x123-124 y92-93          tech_storage
+      doors: airlock/highsecurity "Secure Tech Storage"[19;23]>storage/tech; airlock/highsecurity "Secure Tech Storage"[19;23]>storage/tech
+      glass: 
+      kit: sus_other

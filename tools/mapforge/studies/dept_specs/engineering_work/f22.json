@@ -1,0 +1,1462 @@
+{
+ "f22_c100_s7": [
+  {
+   "area": "/area/engine/break_room",
+   "n": 69,
+   "box": [
+    103,
+    92,
+    113,
+    98
+   ],
+   "tags": [
+    "break"
+   ],
+   "kit": {
+    "chair": 4,
+    "disposal": 1,
+    "plant": 5,
+    "rack": 1,
+    "table": 8,
+    "microwave": 1,
+    "extinguisher": 1,
+    "coffee": 2,
+    "lightrepl": 1,
+    "cell_charger": 1,
+    "cell": 2,
+    "sign_other": 4
+   },
+   "doors": [
+    {
+     "x": 107,
+     "y": 98,
+     "path": "/obj/machinery/door/airlock/command",
+     "name": "Chief Engineer",
+     "access": "56",
+     "beyond": [
+      "/area/crew_quarters/heads/chief"
+     ],
+     "table": false
+    },
+    {
+     "x": 114,
+     "y": 92,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Engineering Access",
+     "access": "32;19",
+     "beyond": [
+      "/area/engine"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {
+    "/area/engine": 3,
+    "/area/hallway/primary/starboard": 1
+   }
+  },
+  {
+   "area": "/area/crew_quarters/heads/chief",
+   "n": 27,
+   "box": [
+    103,
+    99,
+    107,
+    104
+   ],
+   "tags": [
+    "ce_office",
+    "consoles"
+   ],
+   "kit": {
+    "ce_locker": 1,
+    "apc_ctrl": 1,
+    "station_alert": 1,
+    "sus_ce": 1,
+    "chair": 1,
+    "disposal": 1,
+    "table": 3,
+    "cell_charger": 1,
+    "cell": 1,
+    "telescreen": 1,
+    "req_console": 1,
+    "card_ce": 1,
+    "keycard": 1
+   },
+   "doors": [
+    {
+     "x": 108,
+     "y": 101,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Shared Engineering Storage",
+     "access": "32;19",
+     "beyond": [
+      "/area/engine/storage_shared"
+     ],
+     "table": false
+    },
+    {
+     "x": 107,
+     "y": 98,
+     "path": "/obj/machinery/door/airlock/command",
+     "name": "Chief Engineer",
+     "access": "56",
+     "beyond": [
+      "/area/engine/break_room"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {}
+  },
+  {
+   "area": "/area/engine/engineering",
+   "n": 11,
+   "box": [
+    103,
+    105,
+    106,
+    108
+   ],
+   "tags": [
+    "smes"
+   ],
+   "kit": {
+    "terminal": 4,
+    "sign_other": 3,
+    "extinguisher": 1,
+    "smes": 2
+   },
+   "doors": [
+    {
+     "x": 104,
+     "y": 109,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Supermatter Engine",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 102,
+     "y": 108,
+     "path": "/obj/machinery/door/airlock/maintenance",
+     "name": "Engineering Maintenance",
+     "access": "10",
+     "beyond": [
+      "/area/maintenance/starboard"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {}
+  },
+  {
+   "area": "/area/engine/engineering",
+   "n": 73,
+   "box": [
+    103,
+    105,
+    113,
+    113
+   ],
+   "tags": [
+    "lockers",
+    "showers",
+    "vend",
+    "consoles",
+    "sheets"
+   ],
+   "kit": {
+    "belt": 1,
+    "welder": 1,
+    "weld_mask": 1,
+    "watertank": 1,
+    "sign_other": 4,
+    "plant": 1,
+    "engivend": 1,
+    "eng_modcon": 1,
+    "rad_closet": 2,
+    "rack": 2,
+    "lightbox": 1,
+    "meson": 3,
+    "disposal": 1,
+    "table": 6,
+    "glass": 4,
+    "eng_locker": 3,
+    "engi_wardrobe": 1,
+    "igloves": 1,
+    "cell": 2,
+    "station_alert": 1,
+    "toolbox": 1,
+    "shower": 1,
+    "elec_locker": 1,
+    "metal": 2,
+    "plasteel": 1,
+    "port_pump": 1,
+    "fueltank": 1,
+    "cable": 2,
+    "airlock_e": 2,
+    "atmos_alert": 1,
+    "weld_locker": 1
+   },
+   "doors": [
+    {
+     "x": 104,
+     "y": 109,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Supermatter Engine",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 114,
+     "y": 112,
+     "path": "/obj/machinery/door/airlock/engineering",
+     "name": "Engine Room",
+     "access": "10",
+     "beyond": [
+      "/area/engine"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {
+    "space": 3,
+    "/area/engine": 4
+   }
+  },
+  {
+   "area": "/area/engine/storage_shared",
+   "n": 23,
+   "box": [
+    109,
+    99,
+    113,
+    104
+   ],
+   "tags": [
+    "vend"
+   ],
+   "kit": {
+    "tool_closet": 1,
+    "plant": 2,
+    "table": 3,
+    "sign_other": 2,
+    "rdconsole": 1,
+    "lathe_eng": 1,
+    "toolvend": 1,
+    "imprinter": 1
+   },
+   "doors": [
+    {
+     "x": 114,
+     "y": 102,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Shared Engineering Storage",
+     "access": "32;19",
+     "beyond": [
+      "/area/engine"
+     ],
+     "table": false
+    },
+    {
+     "x": 108,
+     "y": 101,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Shared Engineering Storage",
+     "access": "32;19",
+     "beyond": [
+      "/area/crew_quarters/heads/chief"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {}
+  },
+  {
+   "area": "/area/engine/engineering",
+   "n": 71,
+   "box": [
+    109,
+    115,
+    127,
+    131
+   ],
+   "tags": [],
+   "kit": {
+    "tank_disp": 1,
+    "table": 1,
+    "weld_mask": 1,
+    "tool_closet": 1,
+    "holopad": 1,
+    "thermo": 2,
+    "sign_other": 6,
+    "disposal": 1,
+    "fire_closet": 1,
+    "em_closet": 2
+   },
+   "doors": [
+    {
+     "x": 126,
+     "y": 125,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Supermatter Engine",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 117,
+     "y": 118,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Supermatter Engine",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 121,
+     "y": 118,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Supermatter Engine",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 126,
+     "y": 130,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Supermatter Engine",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 126,
+     "y": 120,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Supermatter Engine",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 119,
+     "y": 114,
+     "path": "/obj/machinery/door/airlock/engineering",
+     "name": "Supermatter Engine",
+     "access": "",
+     "beyond": [
+      "/area/engine/engine_smes"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {
+    "/area/engine/engineering": 12,
+    "/area/engine": 1
+   }
+  },
+  {
+   "area": "/area/engine/engineering",
+   "n": 51,
+   "box": [
+    110,
+    119,
+    113,
+    131
+   ],
+   "tags": [
+    "vend",
+    "emitter_store",
+    "sheets"
+   ],
+   "kit": {
+    "emitter": 3,
+    "table": 2,
+    "weld_mask": 1,
+    "glass": 1,
+    "req_console": 1,
+    "disposal": 1,
+    "sign_other": 2,
+    "toolvend": 1,
+    "em_closet": 1,
+    "rpd": 1
+   },
+   "doors": [
+    {
+     "x": 114,
+     "y": 120,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Laser Room",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 114,
+     "y": 130,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Laser Room",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {
+    "/area/engine/engineering": 7,
+    "space": 1
+   }
+  },
+  {
+   "area": "/area/engine",
+   "n": 66,
+   "box": [
+    115,
+    92,
+    117,
+    113
+   ],
+   "tags": [],
+   "kit": {},
+   "doors": [
+    {
+     "x": 118,
+     "y": 96,
+     "path": "/obj/machinery/door/airlock/highsecurity",
+     "name": "Gravity Generator",
+     "access": "19;23;63",
+     "beyond": [
+      "/area/storage/tech"
+     ],
+     "table": false
+    },
+    {
+     "x": 114,
+     "y": 102,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Shared Engineering Storage",
+     "access": "32;19",
+     "beyond": [
+      "/area/engine/storage_shared"
+     ],
+     "table": false
+    },
+    {
+     "x": 118,
+     "y": 105,
+     "path": "/obj/machinery/door/airlock/engineering",
+     "name": "SMES Room",
+     "access": "32",
+     "beyond": [
+      "/area/engine/engine_smes"
+     ],
+     "table": false
+    },
+    {
+     "x": 114,
+     "y": 92,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Engineering Access",
+     "access": "32;19",
+     "beyond": [
+      "/area/engine/break_room"
+     ],
+     "table": false
+    },
+    {
+     "x": 115,
+     "y": 91,
+     "path": "/obj/machinery/door/airlock/engineering",
+     "name": "Engine Room",
+     "access": "10",
+     "beyond": [
+      "/area/hallway/primary/starboard"
+     ],
+     "table": false
+    },
+    {
+     "x": 117,
+     "y": 91,
+     "path": "/obj/machinery/door/airlock/engineering",
+     "name": "Engine Room",
+     "access": "10",
+     "beyond": [
+      "/area/hallway/primary/starboard"
+     ],
+     "table": false
+    },
+    {
+     "x": 118,
+     "y": 103,
+     "path": "/obj/machinery/door/airlock/highsecurity",
+     "name": "Gravity Generator Foyer",
+     "access": "10",
+     "beyond": [
+      "/area/engine/gravity_generator"
+     ],
+     "table": false
+    },
+    {
+     "x": 114,
+     "y": 112,
+     "path": "/obj/machinery/door/airlock/engineering",
+     "name": "Engine Room",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 116,
+     "y": 91,
+     "path": "/obj/machinery/door/airlock/engineering",
+     "name": "Engine Room",
+     "access": "10",
+     "beyond": [
+      "/area/hallway/primary/starboard"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {
+    "/area/engine/engineering": 5,
+    "/area/engine/break_room": 3,
+    "/area/engine/gravity_generator": 1
+   }
+  },
+  {
+   "area": "/area/engine/engineering",
+   "n": 87,
+   "box": [
+    115,
+    119,
+    125,
+    131
+   ],
+   "tags": [
+    "sheets"
+   ],
+   "kit": {
+    "sign_other": 7,
+    "canister": 4,
+    "em_closet": 1,
+    "blast_btn": 1,
+    "table": 1,
+    "glass": 1,
+    "meson": 1,
+    "igloves": 1,
+    "camera": 2,
+    "fire_closet": 2,
+    "tool_closet": 1,
+    "rad_closet": 1,
+    "disposal": 1,
+    "sign_fire": 1
+   },
+   "doors": [
+    {
+     "x": 126,
+     "y": 130,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Supermatter Engine",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 117,
+     "y": 118,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Supermatter Engine",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 121,
+     "y": 118,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Supermatter Engine",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 114,
+     "y": 130,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Laser Room",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 119,
+     "y": 129,
+     "path": "/obj/machinery/door/poddoor/shutters/preopen",
+     "name": "Radiation Chamber Shutters",
+     "access": "",
+     "beyond": [
+      "/area/engine/supermatter"
+     ],
+     "table": false
+    },
+    {
+     "x": 126,
+     "y": 125,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Supermatter Engine",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 126,
+     "y": 120,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Supermatter Engine",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 114,
+     "y": 120,
+     "path": "/obj/machinery/door/airlock/engineering/glass",
+     "name": "Laser Room",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 119,
+     "y": 121,
+     "path": "/obj/machinery/door/poddoor/shutters/preopen",
+     "name": "Radiation Chamber Shutters",
+     "access": "",
+     "beyond": [
+      "/area/engine/supermatter"
+     ],
+     "table": false
+    },
+    {
+     "x": 118,
+     "y": 129,
+     "path": "/obj/machinery/door/poddoor/shutters/preopen",
+     "name": "Radiation Chamber Shutters",
+     "access": "",
+     "beyond": [
+      "/area/engine/supermatter"
+     ],
+     "table": false
+    },
+    {
+     "x": 120,
+     "y": 129,
+     "path": "/obj/machinery/door/poddoor/shutters/preopen",
+     "name": "Radiation Chamber Shutters",
+     "access": "",
+     "beyond": [
+      "/area/engine/supermatter"
+     ],
+     "table": false
+    },
+    {
+     "x": 123,
+     "y": 125,
+     "path": "/obj/machinery/door/airlock/engineering/glass/critical",
+     "name": "Supermatter Chamber",
+     "access": "10",
+     "beyond": [
+      "/area/engine/supermatter"
+     ],
+     "table": false
+    },
+    {
+     "x": 118,
+     "y": 121,
+     "path": "/obj/machinery/door/poddoor/shutters/preopen",
+     "name": "Radiation Chamber Shutters",
+     "access": "",
+     "beyond": [
+      "/area/engine/supermatter"
+     ],
+     "table": false
+    },
+    {
+     "x": 120,
+     "y": 121,
+     "path": "/obj/machinery/door/poddoor/shutters/preopen",
+     "name": "Radiation Chamber Shutters",
+     "access": "",
+     "beyond": [
+      "/area/engine/supermatter"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {
+    "/area/engine/engineering": 19,
+    "/area/engine/supermatter": 1,
+    "space": 5
+   }
+  },
+  {
+   "area": "/area/engine/supermatter",
+   "n": 21,
+   "box": [
+    118,
+    122,
+    120,
+    128
+   ],
+   "tags": [
+    "crystal",
+    "engine_room"
+   ],
+   "kit": {
+    "rad_collector": 6,
+    "camera": 1,
+    "crystal": 1,
+    "sign_other": 1,
+    "sign_fire": 1
+   },
+   "doors": [
+    {
+     "x": 118,
+     "y": 121,
+     "path": "/obj/machinery/door/poddoor/shutters/preopen",
+     "name": "Radiation Chamber Shutters",
+     "access": "",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 118,
+     "y": 129,
+     "path": "/obj/machinery/door/poddoor/shutters/preopen",
+     "name": "Radiation Chamber Shutters",
+     "access": "",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 120,
+     "y": 121,
+     "path": "/obj/machinery/door/poddoor/shutters/preopen",
+     "name": "Radiation Chamber Shutters",
+     "access": "",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 121,
+     "y": 125,
+     "path": "/obj/machinery/door/airlock/engineering/glass/critical",
+     "name": "Supermatter Chamber",
+     "access": "10",
+     "beyond": [
+      "/area/engine/supermatter"
+     ],
+     "table": false
+    },
+    {
+     "x": 120,
+     "y": 129,
+     "path": "/obj/machinery/door/poddoor/shutters/preopen",
+     "name": "Radiation Chamber Shutters",
+     "access": "",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 119,
+     "y": 121,
+     "path": "/obj/machinery/door/poddoor/shutters/preopen",
+     "name": "Radiation Chamber Shutters",
+     "access": "",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 119,
+     "y": 129,
+     "path": "/obj/machinery/door/poddoor/shutters/preopen",
+     "name": "Radiation Chamber Shutters",
+     "access": "",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {
+    "/area/engine/engineering": 3
+   }
+  },
+  {
+   "area": "/area/storage/tech",
+   "n": 30,
+   "box": [
+    119,
+    92,
+    124,
+    98
+   ],
+   "tags": [
+    "tech_storage"
+   ],
+   "kit": {
+    "rack": 8,
+    "table": 5,
+    "cell_charger": 1,
+    "cell": 1,
+    "extinguisher": 1,
+    "toolbox": 2,
+    "meson": 1,
+    "igloves": 1
+   },
+   "doors": [
+    {
+     "x": 118,
+     "y": 96,
+     "path": "/obj/machinery/door/airlock/highsecurity",
+     "name": "Gravity Generator",
+     "access": "19;23;63",
+     "beyond": [
+      "/area/engine"
+     ],
+     "table": false
+    },
+    {
+     "x": 125,
+     "y": 95,
+     "path": "/obj/machinery/door/airlock/security/glass",
+     "name": "Engineering Security Post",
+     "access": "63",
+     "beyond": [
+      "/area/security/checkpoint/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 122,
+     "y": 93,
+     "path": "/obj/machinery/door/airlock/highsecurity",
+     "name": "Secure Tech Storage",
+     "access": "19;23",
+     "beyond": [
+      "/area/storage/tech"
+     ],
+     "table": false
+    },
+    {
+     "x": 123,
+     "y": 94,
+     "path": "/obj/machinery/door/airlock/highsecurity",
+     "name": "Secure Tech Storage",
+     "access": "19;23",
+     "beyond": [
+      "/area/storage/tech"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {}
+  },
+  {
+   "area": "/area/engine/gravity_generator",
+   "n": 29,
+   "box": [
+    119,
+    99,
+    124,
+    104
+   ],
+   "tags": [
+    "grav"
+   ],
+   "kit": {
+    "table": 2,
+    "smes": 1,
+    "chair": 2,
+    "terminal": 2,
+    "grav": 1,
+    "port_gen": 1,
+    "rad_closet": 1
+   },
+   "doors": [
+    {
+     "x": 125,
+     "y": 101,
+     "path": "/obj/machinery/door/airlock/highsecurity",
+     "name": "Gravity Generator Foyer",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engine_smes"
+     ],
+     "table": false
+    },
+    {
+     "x": 118,
+     "y": 103,
+     "path": "/obj/machinery/door/airlock/highsecurity",
+     "name": "Gravity Generator Foyer",
+     "access": "10",
+     "beyond": [
+      "/area/engine"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {
+    "/area/engine": 1
+   }
+  },
+  {
+   "area": "/area/engine/engine_smes",
+   "n": 41,
+   "box": [
+    119,
+    105,
+    123,
+    113
+   ],
+   "tags": [
+    "smes"
+   ],
+   "kit": {
+    "table": 2,
+    "cell": 2,
+    "port_gen": 1,
+    "terminal": 4,
+    "smes": 4,
+    "chair": 2,
+    "extinguisher": 1
+   },
+   "doors": [
+    {
+     "x": 124,
+     "y": 109,
+     "path": "/obj/machinery/door/airlock/engineering",
+     "name": "Engineering Storage",
+     "access": "10",
+     "beyond": [
+      "/area/engine/storage"
+     ],
+     "table": false
+    },
+    {
+     "x": 118,
+     "y": 105,
+     "path": "/obj/machinery/door/airlock/engineering",
+     "name": "SMES Room",
+     "access": "32",
+     "beyond": [
+      "/area/engine"
+     ],
+     "table": false
+    },
+    {
+     "x": 119,
+     "y": 114,
+     "path": "/obj/machinery/door/airlock/engineering",
+     "name": "Supermatter Engine",
+     "access": "",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {}
+  },
+  {
+   "area": "/area/engine/supermatter",
+   "n": 3,
+   "box": [
+    122,
+    124,
+    122,
+    126
+   ],
+   "tags": [
+    "crystal"
+   ],
+   "kit": {},
+   "doors": [
+    {
+     "x": 123,
+     "y": 125,
+     "path": "/obj/machinery/door/airlock/engineering/glass/critical",
+     "name": "Supermatter Chamber",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engineering"
+     ],
+     "table": false
+    },
+    {
+     "x": 121,
+     "y": 125,
+     "path": "/obj/machinery/door/airlock/engineering/glass/critical",
+     "name": "Supermatter Chamber",
+     "access": "10",
+     "beyond": [
+      "/area/engine/supermatter"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {}
+  },
+  {
+   "area": "/area/storage/tech",
+   "n": 4,
+   "box": [
+    123,
+    92,
+    124,
+    93
+   ],
+   "tags": [
+    "tech_storage"
+   ],
+   "kit": {
+    "sus_other": 1
+   },
+   "doors": [
+    {
+     "x": 122,
+     "y": 93,
+     "path": "/obj/machinery/door/airlock/highsecurity",
+     "name": "Secure Tech Storage",
+     "access": "19;23",
+     "beyond": [
+      "/area/storage/tech"
+     ],
+     "table": false
+    },
+    {
+     "x": 123,
+     "y": 94,
+     "path": "/obj/machinery/door/airlock/highsecurity",
+     "name": "Secure Tech Storage",
+     "access": "19;23",
+     "beyond": [
+      "/area/storage/tech"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {}
+  },
+  {
+   "area": "/area/engine/storage",
+   "n": 36,
+   "box": [
+    125,
+    105,
+    128,
+    113
+   ],
+   "tags": [
+    "suits",
+    "sheets"
+   ],
+   "kit": {
+    "rack": 2,
+    "meson": 1,
+    "lightbox": 1,
+    "extinguisher": 1,
+    "tank_disp": 1,
+    "table": 6,
+    "metal": 2,
+    "glass": 3,
+    "plant": 2,
+    "sign_other": 3,
+    "port_gen": 1,
+    "cable": 2,
+    "airlock_e": 2,
+    "sus_engine": 3,
+    "watertank": 1,
+    "fueltank": 1,
+    "plasteel": 1,
+    "magboots": 2,
+    "canister": 1,
+    "belt": 1,
+    "welder": 1,
+    "weld_mask": 1
+   },
+   "doors": [
+    {
+     "x": 128,
+     "y": 104,
+     "path": "/obj/machinery/door/airlock/engineering",
+     "name": "Engineering Storage",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engine_smes"
+     ],
+     "table": false
+    },
+    {
+     "x": 124,
+     "y": 109,
+     "path": "/obj/machinery/door/airlock/engineering",
+     "name": "Engineering Storage",
+     "access": "10",
+     "beyond": [
+      "/area/engine/engine_smes"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {}
+  },
+  {
+   "area": "/area/security/checkpoint/engineering",
+   "n": 24,
+   "box": [
+    126,
+    92,
+    129,
+    97
+   ],
+   "tags": [
+    "checkpoint"
+   ],
+   "kit": {
+    "table": 3,
+    "telescreen": 1,
+    "req_console": 1,
+    "chair": 1,
+    "recharger": 1,
+    "extinguisher": 1
+   },
+   "doors": [
+    {
+     "x": 125,
+     "y": 95,
+     "path": "/obj/machinery/door/airlock/security/glass",
+     "name": "Engineering Security Post",
+     "access": "63",
+     "beyond": [
+      "/area/storage/tech"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {}
+  },
+  {
+   "area": "/area/engine/engine_smes",
+   "n": 16,
+   "box": [
+    126,
+    99,
+    129,
+    103
+   ],
+   "tags": [
+    "smes",
+    "sheets"
+   ],
+   "kit": {
+    "table": 2,
+    "plasteel": 1,
+    "glass": 3,
+    "lightbox": 1,
+    "sus_engine": 1,
+    "metal": 3,
+    "cable": 2,
+    "tank_disp": 1
+   },
+   "doors": [
+    {
+     "x": 125,
+     "y": 101,
+     "path": "/obj/machinery/door/airlock/highsecurity",
+     "name": "Gravity Generator Foyer",
+     "access": "10",
+     "beyond": [
+      "/area/engine/gravity_generator"
+     ],
+     "table": false
+    },
+    {
+     "x": 128,
+     "y": 104,
+     "path": "/obj/machinery/door/airlock/engineering",
+     "name": "Engineering Storage",
+     "access": "10",
+     "beyond": [
+      "/area/engine/storage"
+     ],
+     "table": false
+    },
+    {
+     "x": 130,
+     "y": 99,
+     "path": "/obj/machinery/door/airlock/atmos/glass/critical",
+     "name": "SMES Room",
+     "access": "24;10",
+     "beyond": [
+      "/area/engine/atmos"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {}
+  },
+  {
+   "area": "/area/engine/atmos",
+   "n": 320,
+   "box": [
+    131,
+    92,
+    150,
+    107
+   ],
+   "tags": [
+    "atmos"
+   ],
+   "kit": {
+    "canister": 3,
+    "sign_other": 2,
+    "thermo": 2
+   },
+   "doors": [
+    {
+     "x": 139,
+     "y": 91,
+     "path": "/obj/machinery/door/airlock/atmos",
+     "name": "Atmospherics",
+     "access": "",
+     "beyond": [
+      "/area/hallway/primary/starboard"
+     ],
+     "table": false
+    },
+    {
+     "x": 141,
+     "y": 108,
+     "path": "/obj/machinery/door/airlock/atmos/glass",
+     "name": "Atmospherics Monitoring",
+     "access": "24",
+     "beyond": [
+      "/area/engine/atmos"
+     ],
+     "table": false
+    },
+    {
+     "x": 140,
+     "y": 91,
+     "path": "/obj/machinery/door/airlock/atmos",
+     "name": "Atmospherics",
+     "access": "",
+     "beyond": [
+      "/area/hallway/primary/starboard"
+     ],
+     "table": false
+    },
+    {
+     "x": 130,
+     "y": 99,
+     "path": "/obj/machinery/door/airlock/atmos/glass/critical",
+     "name": "SMES Room",
+     "access": "24;10",
+     "beyond": [
+      "/area/engine/engine_smes"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {}
+  },
+  {
+   "area": "/area/engine/atmos",
+   "n": 80,
+   "box": [
+    131,
+    109,
+    150,
+    112
+   ],
+   "tags": [
+    "atmos"
+   ],
+   "kit": {
+    "atmos_ctrl": 5,
+    "sign_other": 2
+   },
+   "doors": [
+    {
+     "x": 151,
+     "y": 109,
+     "path": "/obj/machinery/door/airlock/maintenance",
+     "name": "Atmospherics Maintenance",
+     "access": "24",
+     "beyond": [
+      "/area/maintenance/starboard"
+     ],
+     "table": false
+    },
+    {
+     "x": 141,
+     "y": 108,
+     "path": "/obj/machinery/door/airlock/atmos/glass",
+     "name": "Atmospherics Monitoring",
+     "access": "24",
+     "beyond": [
+      "/area/engine/atmos"
+     ],
+     "table": false
+    }
+   ],
+   "glass": {
+    "/area/engine/atmos": 5
+   }
+  },
+  {
+   "area": "/area/engine/atmos",
+   "n": 9,
+   "box": [
+    131,
+    114,
+    133,
+    116
+   ],
+   "tags": [
+    "atmos"
+   ],
+   "kit": {
+    "canister": 1
+   },
+   "doors": [],
+   "glass": {
+    "/area/engine/atmos": 1
+   }
+  },
+  {
+   "area": "/area/engine/atmos",
+   "n": 9,
+   "box": [
+    135,
+    114,
+    137,
+    116
+   ],
+   "tags": [
+    "atmos"
+   ],
+   "kit": {
+    "atmos_ctrl": 1
+   },
+   "doors": [],
+   "glass": {
+    "/area/engine/atmos": 1
+   }
+  },
+  {
+   "area": "/area/engine/atmos",
+   "n": 9,
+   "box": [
+    139,
+    114,
+    141,
+    116
+   ],
+   "tags": [
+    "atmos"
+   ],
+   "kit": {},
+   "doors": [],
+   "glass": {
+    "/area/engine/atmos": 1
+   }
+  },
+  {
+   "area": "/area/engine/atmos",
+   "n": 9,
+   "box": [
+    143,
+    114,
+    145,
+    116
+   ],
+   "tags": [
+    "atmos"
+   ],
+   "kit": {},
+   "doors": [],
+   "glass": {
+    "/area/engine/atmos": 1
+   }
+  },
+  {
+   "area": "/area/engine/atmos",
+   "n": 9,
+   "box": [
+    147,
+    114,
+    149,
+    116
+   ],
+   "tags": [
+    "atmos"
+   ],
+   "kit": {},
+   "doors": [],
+   "glass": {
+    "/area/engine/atmos": 1
+   }
+  }
+ ]
+}

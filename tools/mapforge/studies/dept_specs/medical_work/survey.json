@@ -1,0 +1,1202 @@
+{
+"f22_c100_s7": [
+{
+"map": "f22_c100_s7",
+"area": "/area/crew_quarters/heads/cmo",
+"tiles": 13,
+"bbox": [
+64,
+60,
+67,
+63
+],
+"kit": {
+"keycard": 1,
+"table": 2,
+"cmo_locker": 1,
+"requests": 1
+},
+"doors": [
+{
+"at": [
+67,
+64
+],
+"type": "/obj/machinery/door/airlock/command",
+"name": "Chief Medical Officer's Office",
+"acc": "40",
+"beyond": "/area/medical/medbay",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+65,
+59
+],
+"type": "/obj/machinery/door/airlock/command",
+"name": "Chief Medical Officer's Office",
+"acc": "40",
+"beyond": "/area/medical/storage",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/crew_quarters/heads/cmo",
+"tiles": 16,
+"bbox": [
+74,
+75,
+76,
+81
+],
+"kit": {
+"med_records": 1,
+"table": 2,
+"crew_monitor": 1,
+"extinguisher": 1,
+"disposal": 1,
+"requests": 1,
+"bed": 1
+},
+"doors": [
+{
+"at": [
+73,
+78
+],
+"type": "/obj/machinery/door/airlock/command",
+"name": "Chief Medical Officer's Office",
+"acc": "40",
+"beyond": "/area/medical/storage",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+75,
+74
+],
+"type": "/obj/machinery/door/airlock/command",
+"name": "Chief Medical Officer's Office",
+"acc": "40",
+"beyond": "/area/medical/chemistry",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/chemistry",
+"tiles": 30,
+"bbox": [
+71,
+69,
+76,
+73
+],
+"kit": {
+"chem_locker": 1,
+"chem_dispenser": 2,
+"chem_master": 2,
+"chem_heater": 2,
+"extinguisher": 1,
+"table": 4,
+"disposal": 1,
+"requests": 1,
+"beakers": 4
+},
+"doors": [
+{
+"at": [
+76,
+68
+],
+"type": "/obj/machinery/door/airlock/medical/glass",
+"name": "Chemistry Lab",
+"acc": "5; 33",
+"beyond": "/area/medical/medbay",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+71,
+74
+],
+"type": "/obj/machinery/door/airlock/medical/glass",
+"name": "Chemistry Lab",
+"acc": "5; 33",
+"beyond": "/area/medical/storage",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+75,
+74
+],
+"type": "/obj/machinery/door/airlock/command",
+"name": "Chief Medical Officer's Office",
+"acc": "40",
+"beyond": "/area/crew_quarters/heads/cmo",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/cryo",
+"tiles": 15,
+"bbox": [
+69,
+53,
+71,
+57
+],
+"kit": {
+"table": 4,
+"o2_canister": 2,
+"beakers": 4,
+"extinguisher": 1
+},
+"doors": [
+{
+"at": [
+70,
+58
+],
+"type": "/obj/machinery/door/airlock/medical/glass",
+"name": "Medbay Maintenance",
+"acc": "5",
+"beyond": "/area/medical/sleeper",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [
+{
+"at": [
+68,
+54
+],
+"beyond": "/area/medical/storage"
+}
+],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/genetics",
+"tiles": 24,
+"bbox": [
+77,
+74,
+80,
+80
+],
+"kit": {
+"sink": 1,
+"roller": 2,
+"bed": 2,
+"requests": 1,
+"table": 5,
+"beakers": 1,
+"bodybag": 1,
+"pill_bottles": 2,
+"dna_console": 2,
+"sign": 1,
+"monkey_cubes": 1,
+"dna_scanner": 2,
+"mirror": 1,
+"chair": 1
+},
+"doors": [
+{
+"at": [
+79,
+73
+],
+"type": "/obj/machinery/door/airlock/security/glass",
+"name": "Medbay Security Post",
+"acc": "63",
+"beyond": "/area/security/checkpoint/medical",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [
+{
+"at": [
+81,
+79
+],
+"beyond": "/area/hallway/primary/aft"
+}
+],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/genetics/cloning",
+"tiles": 6,
+"bbox": [
+73,
+53,
+74,
+55
+],
+"kit": {
+"clonepod": 1,
+"sink": 1,
+"clone_console": 1,
+"dna_scanner": 1
+},
+"doors": [
+{
+"at": [
+73,
+56
+],
+"type": "/obj/machinery/door/airlock/medical/glass",
+"name": "Cloning Lab",
+"acc": "5",
+"beyond": "/area/medical/medbay/central",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/medbay",
+"tiles": 69,
+"bbox": [
+58,
+65,
+80,
+67
+],
+"kit": {
+"sign": 3,
+"disposal": 1
+},
+"doors": [
+{
+"at": [
+67,
+64
+],
+"type": "/obj/machinery/door/airlock/command",
+"name": "Chief Medical Officer's Office",
+"acc": "40",
+"beyond": "/area/crew_quarters/heads/cmo",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+81,
+65
+],
+"type": "/obj/machinery/door/airlock/medical",
+"name": "Medbay",
+"acc": "",
+"beyond": "/area/hallway/primary/aft",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+76,
+68
+],
+"type": "/obj/machinery/door/airlock/medical/glass",
+"name": "Chemistry Lab",
+"acc": "5; 33",
+"beyond": "/area/medical/chemistry",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+63,
+68
+],
+"type": "/obj/machinery/door/airlock/medical",
+"name": "Chemistry Lab",
+"acc": "5",
+"beyond": "/area/medical/virology",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+81,
+67
+],
+"type": "/obj/machinery/door/airlock/medical",
+"name": "Medbay",
+"acc": "5",
+"beyond": "/area/hallway/primary/aft",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+75,
+64
+],
+"type": "/obj/machinery/door/airlock/medical/glass",
+"name": "Chemistry Lab",
+"acc": "5",
+"beyond": "/area/medical/medbay/central",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+70,
+64
+],
+"type": "/obj/machinery/door/airlock/medical/glass",
+"name": "Medbay Storage",
+"acc": "5",
+"beyond": "/area/medical/sleeper",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+59,
+64
+],
+"type": "/obj/machinery/door/airlock/medical",
+"name": "Morgue",
+"acc": "",
+"beyond": "/area/medical/morgue",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+81,
+66
+],
+"type": "/obj/machinery/door/airlock/medical",
+"name": "Medbay",
+"acc": "5",
+"beyond": "/area/hallway/primary/aft",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+79,
+68
+],
+"type": "/obj/machinery/door/airlock/security/glass",
+"name": "Medbay Security Post",
+"acc": "63",
+"beyond": "/area/security/checkpoint/medical",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [
+{
+"at": [
+78,
+64
+],
+"beyond": "/area/medical/medbay/central"
+},
+{
+"at": [
+59,
+68
+],
+"beyond": "/area/medical/virology"
+},
+{
+"at": [
+60,
+68
+],
+"beyond": "/area/medical/virology"
+},
+{
+"at": [
+68,
+68
+],
+"beyond": "/area/medical/virology"
+}
+],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/medbay/central",
+"tiles": 56,
+"bbox": [
+73,
+57,
+80,
+63
+],
+"kit": {
+"shower": 1,
+"table": 5,
+"firstaid": 1,
+"extinguisher": 3,
+"chair": 4,
+"roller": 3,
+"bed": 4,
+"iv_drip": 3,
+"sink": 2,
+"glass_cab": 1,
+"sign": 1,
+"bodybag": 1,
+"disposal": 1
+},
+"doors": [
+{
+"at": [
+75,
+64
+],
+"type": "/obj/machinery/door/airlock/medical/glass",
+"name": "Chemistry Lab",
+"acc": "5",
+"beyond": "/area/medical/medbay",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+79,
+56
+],
+"type": "/obj/machinery/door/airlock/medical",
+"name": "Patient Room B",
+"acc": "5",
+"beyond": "/area/medical/patients_rooms/room_b",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+76,
+56
+],
+"type": "/obj/machinery/door/airlock/medical",
+"name": "Patient Room A",
+"acc": "5",
+"beyond": "/area/medical/patients_rooms/room_a",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+73,
+56
+],
+"type": "/obj/machinery/door/airlock/medical/glass",
+"name": "Cloning Lab",
+"acc": "5",
+"beyond": "/area/medical/genetics/cloning",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [
+{
+"at": [
+81,
+59
+],
+"beyond": "/area/hallway/primary/aft"
+},
+{
+"at": [
+81,
+62
+],
+"beyond": "/area/hallway/primary/aft"
+},
+{
+"at": [
+81,
+61
+],
+"beyond": "/area/hallway/primary/aft"
+},
+{
+"at": [
+78,
+64
+],
+"beyond": "/area/medical/medbay"
+}
+],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/medbay/lobby",
+"tiles": 21,
+"bbox": [
+58,
+53,
+62,
+57
+],
+"kit": {
+"chair": 2,
+"table": 6,
+"med_records": 1,
+"requests": 1,
+"firstaid": 1,
+"sign": 1
+},
+"doors": [
+{
+"at": [
+62,
+53
+],
+"type": "/obj/machinery/door/airlock/medical/glass",
+"name": "Medbay",
+"acc": "5",
+"beyond": "/area/medical/storage",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+60,
+58
+],
+"type": "/obj/machinery/door/airlock/medical/glass",
+"name": "Medbay",
+"acc": "",
+"beyond": "/area/medical/morgue",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/morgue",
+"tiles": 25,
+"bbox": [
+58,
+59,
+62,
+63
+],
+"kit": {
+"morgue": 4,
+"table": 3,
+"bodybag": 2
+},
+"doors": [
+{
+"at": [
+60,
+58
+],
+"type": "/obj/machinery/door/airlock/medical/glass",
+"name": "Medbay",
+"acc": "",
+"beyond": "/area/medical/medbay/lobby",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+59,
+64
+],
+"type": "/obj/machinery/door/airlock/medical",
+"name": "Morgue",
+"acc": "",
+"beyond": "/area/medical/medbay",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/patients_rooms/room_a",
+"tiles": 6,
+"bbox": [
+76,
+53,
+77,
+55
+],
+"kit": {
+"bed": 1,
+"table": 1,
+"wallmed": 1,
+"medkit_wall": 1,
+"chair": 1
+},
+"doors": [
+{
+"at": [
+76,
+56
+],
+"type": "/obj/machinery/door/airlock/medical",
+"name": "Patient Room A",
+"acc": "5",
+"beyond": "/area/medical/medbay/central",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/patients_rooms/room_b",
+"tiles": 6,
+"bbox": [
+79,
+53,
+80,
+55
+],
+"kit": {
+"wallmed": 1,
+"medkit_wall": 1,
+"chair": 1,
+"bed": 1,
+"table": 1
+},
+"doors": [
+{
+"at": [
+79,
+56
+],
+"type": "/obj/machinery/door/airlock/medical",
+"name": "Patient Room B",
+"acc": "5",
+"beyond": "/area/medical/medbay/central",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/sleeper",
+"tiles": 17,
+"bbox": [
+68,
+59,
+71,
+63
+],
+"kit": {
+"table": 2,
+"stasis": 2,
+"sleeper": 2,
+"medlocker": 1,
+"anesthetic": 1,
+"med_records": 1,
+"shower": 1
+},
+"doors": [
+{
+"at": [
+70,
+64
+],
+"type": "/obj/machinery/door/airlock/medical/glass",
+"name": "Medbay Storage",
+"acc": "5",
+"beyond": "/area/medical/medbay",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+70,
+58
+],
+"type": "/obj/machinery/door/airlock/medical/glass",
+"name": "Medbay Maintenance",
+"acc": "5",
+"beyond": "/area/medical/cryo",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/storage",
+"tiles": 14,
+"bbox": [
+71,
+75,
+72,
+81
+],
+"kit": {
+"table": 6,
+"firstaid": 9,
+"requests": 1
+},
+"doors": [
+{
+"at": [
+71,
+74
+],
+"type": "/obj/machinery/door/airlock/medical/glass",
+"name": "Chemistry Lab",
+"acc": "5; 33",
+"beyond": "/area/medical/chemistry",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+73,
+78
+],
+"type": "/obj/machinery/door/airlock/command",
+"name": "Chief Medical Officer's Office",
+"acc": "40",
+"beyond": "/area/crew_quarters/heads/cmo",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/storage",
+"tiles": 27,
+"bbox": [
+63,
+53,
+67,
+58
+],
+"kit": {
+"table": 9,
+"bodybag": 1,
+"firstaid": 12,
+"medlocker": 2,
+"disposal": 1,
+"beakers": 1,
+"extinguisher": 1,
+"requests": 1
+},
+"doors": [
+{
+"at": [
+65,
+59
+],
+"type": "/obj/machinery/door/airlock/command",
+"name": "Chief Medical Officer's Office",
+"acc": "40",
+"beyond": "/area/crew_quarters/heads/cmo",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+62,
+53
+],
+"type": "/obj/machinery/door/airlock/medical/glass",
+"name": "Medbay",
+"acc": "5",
+"beyond": "/area/medical/medbay/lobby",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [
+{
+"at": [
+68,
+54
+],
+"beyond": "/area/medical/cryo"
+}
+],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/virology",
+"tiles": 48,
+"bbox": [
+58,
+69,
+65,
+76
+],
+"kit": {
+"table": 8,
+"disposal": 1,
+"sink": 2,
+"chair": 2,
+"shower": 2,
+"beakers": 1,
+"smartfridge_chem": 1,
+"smartfridge": 1,
+"pandemic": 1,
+"sign": 1,
+"wallmed": 1,
+"medkit_wall": 1,
+"extinguisher": 1
+},
+"doors": [
+{
+"at": [
+61,
+75
+],
+"type": "/obj/machinery/door/airlock/virology/glass",
+"name": "Virology Interior Airlock",
+"acc": "39",
+"beyond": "/area/medical/virology",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+66,
+75
+],
+"type": "/obj/machinery/door/airlock/virology/glass",
+"name": "Virology Interior Airlock",
+"acc": "39",
+"beyond": "/area/medical/virology",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+63,
+68
+],
+"type": "/obj/machinery/door/airlock/medical",
+"name": "Chemistry Lab",
+"acc": "5",
+"beyond": "/area/medical/medbay",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+64,
+77
+],
+"type": "/obj/machinery/door/airlock/virology/glass",
+"name": "Virology Interior Airlock",
+"acc": "39",
+"beyond": "/area/medical/virology",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+66,
+71
+],
+"type": "/obj/machinery/door/airlock/virology/glass",
+"name": "Virology Interior Airlock",
+"acc": "39",
+"beyond": "/area/medical/virology",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [
+{
+"at": [
+59,
+68
+],
+"beyond": "/area/medical/medbay"
+},
+{
+"at": [
+60,
+68
+],
+"beyond": "/area/medical/medbay"
+}
+],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/virology",
+"tiles": 12,
+"bbox": [
+63,
+78,
+65,
+81
+],
+"kit": {
+"sink": 2,
+"roller": 2,
+"bed": 2
+},
+"doors": [
+{
+"at": [
+64,
+77
+],
+"type": "/obj/machinery/door/airlock/virology/glass",
+"name": "Virology Interior Airlock",
+"acc": "39",
+"beyond": "/area/medical/virology",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/virology",
+"tiles": 9,
+"bbox": [
+67,
+74,
+69,
+76
+],
+"kit": {
+"sink": 2,
+"bio_closet": 2
+},
+"doors": [
+{
+"at": [
+68,
+77
+],
+"type": "/obj/machinery/door/airlock/virology/glass",
+"name": "Virology Interior Airlock",
+"acc": "39",
+"beyond": "/area/medical/virology",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+66,
+75
+],
+"type": "/obj/machinery/door/airlock/virology/glass",
+"name": "Virology Interior Airlock",
+"acc": "39",
+"beyond": "/area/medical/virology",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/virology",
+"tiles": 12,
+"bbox": [
+67,
+69,
+69,
+72
+],
+"kit": {
+"roller": 2,
+"bed": 2,
+"sink": 1,
+"bio_closet": 1,
+"medlocker": 1,
+"viro_locker": 1
+},
+"doors": [
+{
+"at": [
+66,
+71
+],
+"type": "/obj/machinery/door/airlock/virology/glass",
+"name": "Virology Interior Airlock",
+"acc": "39",
+"beyond": "/area/medical/virology",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [
+{
+"at": [
+68,
+68
+],
+"beyond": "/area/medical/medbay"
+}
+],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/virology",
+"tiles": 12,
+"bbox": [
+58,
+78,
+61,
+80
+],
+"kit": {
+"table": 2,
+"med_records": 1,
+"bed": 1,
+"seccomp": 1
+},
+"doors": [
+{
+"at": [
+60,
+77
+],
+"type": "/obj/machinery/door/airlock/virology/glass",
+"name": "Virology Interior Airlock",
+"acc": "39",
+"beyond": "/area/medical/virology",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/virology",
+"tiles": 9,
+"bbox": [
+67,
+78,
+69,
+80
+],
+"kit": {
+"em_closet": 1,
+"glass_cab": 1,
+"bed": 1,
+"extinguisher": 1,
+"sink": 1,
+"sign": 2,
+"biohazard_sign": 1,
+"table": 1,
+"mirror": 1
+},
+"doors": [
+{
+"at": [
+68,
+77
+],
+"type": "/obj/machinery/door/airlock/virology/glass",
+"name": "Virology Interior Airlock",
+"acc": "39",
+"beyond": "/area/medical/virology",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/medical/virology",
+"tiles": 9,
+"bbox": [
+58,
+74,
+60,
+76
+],
+"kit": {
+"sign": 2,
+"extinguisher": 1,
+"glass_cab": 1,
+"biohazard_sign": 1,
+"sink": 2,
+"mirror": 1
+},
+"doors": [
+{
+"at": [
+60,
+77
+],
+"type": "/obj/machinery/door/airlock/virology/glass",
+"name": "Virology Interior Airlock",
+"acc": "39",
+"beyond": "/area/medical/virology",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+61,
+75
+],
+"type": "/obj/machinery/door/airlock/virology/glass",
+"name": "Virology Interior Airlock",
+"acc": "39",
+"beyond": "/area/medical/virology",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [],
+"desks": []
+},
+{
+"map": "f22_c100_s7",
+"area": "/area/security/checkpoint/medical",
+"tiles": 12,
+"bbox": [
+78,
+69,
+80,
+72
+],
+"kit": {
+"table": 2,
+"wardrobe": 1,
+"requests": 1,
+"seccomp": 1
+},
+"doors": [
+{
+"at": [
+79,
+68
+],
+"type": "/obj/machinery/door/airlock/security/glass",
+"name": "Medbay Security Post",
+"acc": "63",
+"beyond": "/area/medical/medbay",
+"door_area": "/area/medical/medbay"
+},
+{
+"at": [
+79,
+73
+],
+"type": "/obj/machinery/door/airlock/security/glass",
+"name": "Medbay Security Post",
+"acc": "63",
+"beyond": "/area/medical/genetics",
+"door_area": "/area/medical/medbay"
+}
+],
+"windows": [],
+"desks": []
+}
+]
+}

@@ -54,6 +54,9 @@ def floor_residual():
     return (sum((r - m) ** 2 for r in rs) / len(rs)) ** 0.5
 
 
+AI_SHARE = 0.034      # the AI satellite's least share of the floor (human look band 0.031-0.044)
+
+
 def program(seed, crew, shape="hub"):
     r = rng_for("program", shape, crew, seed)
     ds = _load("dept_scaling")
@@ -96,6 +99,17 @@ def program(seed, crew, shape="hub"):
         for g in rest:
             budgets[g] = budgets[g] * left / rs
         budgets.update(fixed)
+    # the AI satellite holds the AI's core, its upload and telecomms (the radio and the requests consoles' message
+    # server): at least the human look band's share, taken from the rest (at 0.026 its block had no room for the
+    # core, crew 100 seed 7, 2026-11-26)
+    ai_min = AI_SHARE * floor
+    if budgets["ai"] < ai_min:
+        extra = ai_min - budgets["ai"]
+        rest = [g for g in GROUPS if g != "ai"]
+        rs = sum(budgets[g] for g in rest)
+        for g in rest:
+            budgets[g] -= extra * budgets[g] / rs
+        budgets["ai"] = ai_min
     # spokes and core from the 8 hub maps nearest this floor (a small station has fewer, shorter spokes)
     hubs = sorted([v for v in sk["per_map"].values() if v["type"] == "hub"], key=lambda v: abs(v["floor"] - floor))[:8]
     # 4 for now (the hub median): with fewer, the slot layout queues blocks single file and spokes run past the

@@ -42,6 +42,9 @@ N8 = [(dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy]
 HALLISH = ("hall", "arrivals", "escape")
 DEPTS = ("command",) + BL.RING
 ONE_DOOR = 0.39          # the human median share of rooms with one way in (space_sizes.py; band 0.335-0.448)
+PIECE_TILES = 16        # a floorplan piece (cell, pen, cabin) at most this many tiles: second_doors leaves it be
+ONE_DOOR_ROOMS = ("/area/crew_quarters/heads/chief", "/area/ai_monitored/nuke_storage",
+                  "/area/ai_monitored/security/armory", "/area/storage/tech/secure")
 DMAX = 60
 
 
@@ -128,8 +131,9 @@ class Comp:
     """A department being composed in its own frame: x in [0, W), 0 <= y <= Dmax, y = 0 its hall front wall. Cells
     live in a bytearray grid: 0 free, 1 room floor, 2 room wall, 3 corridor floor, 4 corridor wall (planned)."""
 
-    def __init__(self, dept, W, Dmax, cw, r):
+    def __init__(self, dept, W, Dmax, cw, r, halls=()):
         self.dept, self.W, self.Dmax, self.r, self.cw = dept, W, Dmax, r, cw
+        self.halls = halls
         self.H = Dmax + 1
         self.occ = bytearray(W * self.H)
         self.floor, self.ring, self.corr = set(), set(), set()
@@ -209,6 +213,21 @@ class Comp:
                 w = (c[0] + u[0], c[1] + u[1])
                 if self.inb(w) and w[1] >= 1 and self.occ[w[1] * W + w[0]] == 4:
                     self.wall_list.append((self.dist.get(c, 999), w, u))
+        # frame edges that face a hall once placed (self.halls): a room there may take its door straight onto the
+        # hall, as human bridges and public rooms do (command's corridor, capped at 63 by its area type, reached
+        # 138-216 of a 388-522 budget at crew 120)
+        for spec in self.halls:
+            if spec[0] == "F":
+                lo, hi = (spec[1], spec[2]) if len(spec) > 1 else (0, W - 1)
+                cells = [((x, 0), (0, 1)) for x in range(max(0, lo), min(W - 1, hi) + 1)]
+            elif spec[0] == "L":
+                cells = [((0, y), (1, 0)) for y in range(1, self.Dmax)]
+            else:
+                cells = [((W - 1, y), (-1, 0)) for y in range(1, self.Dmax)]
+            for w, u in cells:
+                if self.occ[w[1] * W + w[0]] == 0 and w not in self.front:
+                    self.occ[w[1] * W + w[0]] = 5
+                    self.wall_list.append((w[1] if spec[0] != "F" else 0, w, u))
         self.wall_list.sort()
         n = 0
         for dd in sorted(self.dist.values()):
@@ -224,7 +243,7 @@ class Comp:
         """The best placement of one of the copies `ents` (tried in order) with a door cell of its own wall on the
         corridor's wall: among the corridor walls nearest the front that take it, the tightest fit."""
         W, H, occ = self.W, self.H, self.occ
-        walls = [(dd, w, u) for dd, w, u in self.wall_list if dd <= self.maxd and occ[w[1] * W + w[0]] == 4
+        walls = [(dd, w, u) for dd, w, u in self.wall_list if (dd <= self.maxd or occ[w[1] * W + w[0]] == 5) and occ[w[1] * W + w[0]] in (4, 5)
                  and not self.near_door(w)]
         if not walls:
             return None
@@ -254,6 +273,8 @@ class Comp:
                         if avoid and any((p[0] + ox, p[1] + oy) in avoid for p in F):
                             continue
                         tight = 0
+                        dbl = 0
+                        own = None
                         for f in Ro:
                             v = occ[base + f]
                             if v == 1 or v == 3:
@@ -261,7 +282,20 @@ class Comp:
                                 break
                             if v:
                                 tight += 1
-                        if not ok:
+                                continue
+                            # a wall of its own on a free cell, side by side with a wall already there: a double
+                            # wall (2026-11-25: 64.6 a 1000 wall tiles on crew 80 seed 1 against stock 8-13; two
+                            # thirds inside one department, copies standing a wall apart)
+                            i = base + f
+                            cx = i % W
+                            for j in ((i - 1) if cx > 0 else -1, (i + 1) if cx < W - 1 else -1, i - W, i + W):
+                                if 0 <= j < W * H and occ[j] in (2, 4):
+                                    if own is None:
+                                        own = {base + g for g in Fo} | {base + g for g in Ro}
+                                    if j not in own:
+                                        dbl += 1
+                                        break
+                        if not ok or dbl > DBL_MAX:
                             continue
                         edge = (ox + bb[0] == 0) + (ox + bb[2] == W - 1) + (oy + bb[1] == 0)
                         # the bay a room leaves behind it, between its back wall and the frame's edge (or the
@@ -274,7 +308,7 @@ class Comp:
                             bay = oy + bb[1]
                         else:
                             bay = 0
-                        sc = tight / float(len(Ro)) + 0.05 * edge - BAY_W * bay - \
+                        sc = tight / float(len(Ro)) + 0.05 * edge - BAY_W * bay - DBL_W * dbl - \
                             0.03 * dd * (1.5 if pub else 1.0) + (0.25 if rr in D else 0.0) + 0.01 * self.r.random()
                         if best is None or sc > best[0]:
                             best = (sc, dd, e, src, k, (ox, oy), off, F, R, inner, w)
@@ -298,7 +332,11 @@ class Comp:
                                inner={(p[0] + o[0], p[1] + o[1]) for p in inner}, door=w))
 
     def trim(self):
-        """Cut each corridor run back to its last door (or its last kept branch): no corridor is left over."""
+        """Cut each corridor run back to its last door (or its last kept branch): no corridor is left over. With no
+        room on it at all (every room opens on the hall), there is no corridor and no front door."""
+        if not any((d[0] + u[0], d[1] + u[1]) in self.corr for d in self.doors for u in N4):
+            self.corr, self.seg_of, self.front = set(), {}, set()
+            return
         need = {}
         for d in self.doors | self.front:
             for u in N4:
@@ -385,12 +423,12 @@ def room_items(dept, target, r):
 CORR_SHARE = 0.18          # the corridor's share of a composed department's floor, for the room budget
 
 
-def compose(dept, target, W, key, Dmax=DMAX, stem=None):
+def compose(dept, target, W, key, Dmax=DMAX, stem=None, halls=()):
     """Compose department `dept` with about `target` floor tiles in a frame W wide and at most Dmax deep. stem: (lo,
     hi), the range for the stem's first column. Returns a Comp with footprint() done."""
     r = random.Random("compose|%s|%s" % (dept, key))
     W = max(W, MIN_W)
-    cw = 3 if target >= 450 else 2
+    cw = 2       # 3 wide gave a third less wall a door can take per corridor cell, under the corridor's cap
     lo, hi = stem if stem else (1, W - cw - 1)
     lo, hi = max(1, lo), min(W - cw - 1, hi)
     if hi < lo:
@@ -398,14 +436,14 @@ def compose(dept, target, W, key, Dmax=DMAX, stem=None):
     mid = (W - cw) // 2
     sx = max(lo, min(hi, mid + r.randint(-max(1, W // 8), max(1, W // 8))))
     if dept == "atmos":
-        C = Comp(dept, W, Dmax, cw, r)
-        C.plan(sx, 1, ())
+        C = Comp(dept, ATMOS_W, max(Dmax, MAIN_MIN + STORE + 8), cw, r)
+        C.plan(min(sx, ATMOS_W - cw - 1), 1, ())
         return _atmos(C, target, r)
     # three stems (the seed's, at the low end, at the high end: one deep side for a big room); the most floor wins,
     # then the smallest footprint
     best = None
     for x in sorted({sx, lo, hi}, key=lambda v: (v != sx, v)):
-        C = _compose_at(dept, target, W, Dmax, cw, x, random.Random("compose|%s|%s|%d" % (dept, key, x)))
+        C = _compose_at(dept, target, W, Dmax, cw, x, halls, random.Random("compose|%s|%s|%d" % (dept, key, x)))
         fl = len(C.floor) + len(C.corr)
         xs = [c[0] for c in C.cells]
         ys = [c[1] for c in C.cells]
@@ -417,8 +455,8 @@ def compose(dept, target, W, key, Dmax=DMAX, stem=None):
     return best[1]
 
 
-def _compose_at(dept, target, W, Dmax, cw, sx, r):
-    C = Comp(dept, W, Dmax, cw, r)
+def _compose_at(dept, target, W, Dmax, cw, sx, halls, r):
+    C = Comp(dept, W, Dmax, cw, r, halls)
     if Dmax < 30:
         # shallow (a loop corner): a short stem and one branch across at mid depth
         yb = max(4, (Dmax - cw) // 2)
@@ -458,6 +496,7 @@ def _compose_at(dept, target, W, Dmax, cw, sx, r):
         C.put(got, area)
         used += len(C.rooms[-1]["F"])
         have.add(area)
+    _more_copies(C, dept, target, lib, budget)
     _small_rooms(C, dept, target, lib)
     C.trim()
     C.footprint()
@@ -466,8 +505,37 @@ def _compose_at(dept, target, W, Dmax, cw, sx, r):
 
 
 BAY_W = 0.04        # score lost per cell of bay behind a room (see Comp.attach)
+DBL_W = 0.12        # score lost per wall cell of a copy standing beside a wall already there (a double wall)
+DBL_MAX = 2         # a placement with more such cells is not taken: one or two is a corner, three is a wall run
 BOX_W = 0.2         # floor a stem variant gives up per cell of its bounding box (compose)
 MIN_W = 17         # a stem with a room either side: about 7 cells each
+
+
+def _more_copies(C, dept, target, lib, budget):
+    """A department its types can't fill once each (crew 120: command 216-302 of 522, and fit() widened security to
+    124 chasing floor it could never get) takes second copies, most common types first, each never within 3 tiles of
+    one of its own type (two side by side read as one oversized room), until 90% of the room budget."""
+    types = [t for t in RM.program_types().get(dept, []) if t[1] != RM.CORRIDOR_AREA.get(dept) and t[1] in lib]
+    for _ in range(16):
+        used = sum(len(rm["F"]) for rm in C.rooms)
+        left = budget - used
+        if used >= 0.95 * budget or left < 12:
+            return
+        placed = False
+        for fam, area, size in types:
+            cap = RM.look_max(area)
+            ents = sorted([e for e in lib[area] if e["tiles"] <= min(left * 1.1, cap)], key=lambda e: RM._rank(e, size))
+            if not ents:
+                continue
+            near = {(c[0] + dx, c[1] + dy) for rm in C.rooms if rm["area"] == area for c in rm["F"]
+                    for dx in range(-3, 4) for dy in range(-3, 4)}
+            got = C.attach(ents, any(x in area for x in RM.PUBLIC), avoid=near)
+            if got:
+                C.put(got, area)
+                placed = True
+                break
+        if not placed:
+            return
 
 
 def _small_rooms(C, dept, target, lib):
@@ -505,35 +573,49 @@ def _small_rooms(C, dept, target, lib):
 COMB_W = 32         # wider than this, branches cross the stem every 16-20 rows
 
 
-GASES = ("n2", "o2", "plasma", "co2", "air")
+# v6's chamber row, in order along the frame's x (station/v6_station.atmos_works lays the waste line, its filters and
+# the air mix by it: plasma first, air last). paint_dept reverses it on a mirrored frame, so on the map it always runs
+# the same way round once the room side is turned north (gen/net.py turns the map for the atmos passes).
+GASES = ("plasma", "co2", "n2", "o2", "air")
+ATMOS_W = 22        # walls at x 0 and 21; chamber rings x 0..20 (centres 2, 6, 10, 14, 18); gas storage x 1..20
+STORE = 4           # gas storage rows: the waste line, two air-mix rows, the tank consoles
+MAIN_MIN = 10       # main floor rows: atmos_works' thermal loop, mixing bench and refinery reach 9 rows from the wall
 
 
 def _atmos(C, target, r):
-    """Atmos as every stock atmos has it: one big main floor (its corridor area) and the gas chambers, 3x3 rooms of the
-    gas's own engine floor against the back wall."""
-    W = C.W
-    n_ch = len(GASES)
-    D = max(8, int(math.ceil((target - 9 * n_ch) / float(max(1, W - 2)))))
-    C.corr = {(x, y) for x in range(1, W - 1) for y in range(1, D + 1)}
+    """Atmos as the v6 blueprint has it (station/v6_station.chambers and atmos_works need exactly this), from the
+    hall front back:
+      y 1..D        the main floor (the department's corridor area), at least MAIN_MIN rows
+      y D+1         a wall with one door
+      y D+2..D+5    gas storage: waste line (D+2), two air-mix rows, tank consoles and connectors (D+5)
+      y D+6         the chambers' front wall, three panes per chamber (chambers() turns two of them to wall)
+      y D+7..D+9    the five 3x3 chambers of the gas's own engine floor, 4 apart (shared walls)
+    Main floor and storage are one area; room_stats joins them (atmos look max 490, kept under 0.85 of it)."""
+    W = ATMOS_W
+    cap = int(RM.look_max(RM.CORRIDOR_AREA["atmos"]) * 0.85)
+    D = max(MAIN_MIN, min((cap - (W - 2) * STORE) // (W - 2),
+                          int(math.ceil((target - 9 * len(GASES) - (W - 2) * STORE) / float(W - 2)))))
+    main = {(x, y) for x in range(1, W - 1) for y in range(1, D + 1)}
+    store = {(x, y) for x in range(1, W - 1) for y in range(D + 2, D + 2 + STORE)}
+    C.corr = main | store
     C.seg_of = {c: 0 for c in C.corr}
-    C.chambers = []
-    # chambers along the back wall (ring bottom row = the main floor's back wall), 4 apart (shared walls)
-    x = 0
-    for gas in GASES:
-        if x + 4 > W - 1:
-            break
-        F = {(x + 1 + i, D + 2 + j) for i in range(3) for j in range(3)}
-        R = {(x + i, D + 1 + j) for i in range(5) for j in range(5)} - F
+    C.doors = {((W - 2) // 2 + 1, D + 1)}
+    C.chambers, C.panes = [], set()
+    y0 = D + 2 + STORE                      # the chambers' front wall row
+    for i, gas in enumerate(GASES):
+        cx = 2 + 4 * i
+        F = {(cx + a, y0 + 1 + b) for a in (-1, 0, 1) for b in range(3)}
+        R = {(cx + a, y0 + b) for a in range(-2, 3) for b in range(5)} - F
         C.chambers.append((gas, F, R))
-        x += 4
+        C.panes |= {(cx + a, y0) for a in (-1, 0, 1)}
     C.rooms = []
     cw = {(c[0] + dx, c[1] + dy) for c in C.corr for dx, dy in N8} - C.corr
-    ch = set().union(*[F | R for _, F, R in C.chambers]) if C.chambers else set()
+    ch = set().union(*[F | R for _, F, R in C.chambers])
     C.cells = C.corr | cw | ch | C.front
-    C.floor = set().union(*[F for _, F, _ in C.chambers]) if C.chambers else set()
-    C.ring = set().union(*[R for _, _, R in C.chambers]) if C.chambers else set()
+    C.floor = set().union(*[F for _, F, _ in C.chambers])
+    C.ring = set().union(*[R for _, _, R in C.chambers])
     C.voids = set()
-    C.wall = C.cells - C.corr - C.floor - C.front
+    C.wall = C.cells - C.corr - C.floor - C.front - C.doors
     return C
 
 
@@ -543,40 +625,113 @@ _CACHE = {}
 SIDE_HALLS = False
 
 
-def get(dept, target, W, salt, Dmax=DMAX, stem=None):
-    """compose(), cached: the slot search places the same department many times."""
+def get(dept, target, W, salt, Dmax=DMAX, stem=None, halls=()):
+    """compose(), cached: the slot search places the same department many times. halls: the frame edges that face a
+    hall once placed ("F" the front, ("F", lo, hi) part of it, "L" x = 0, "R" x = W - 1)."""
     tb = int(round(math.log(max(20.0, target)) / math.log(1.04)))
-    key = (dept, tb, int(W), salt, Dmax, stem)
-    if key not in _CACHE:
+    halls = tuple(h if isinstance(h, tuple) else (h,) for h in halls)
+    key = (dept, tb, int(W), salt, Dmax, stem, halls)
+    if key not in _CACHE and LEARNED and dept not in COMPOSED:
+        import learn.floorplan as FP
         if len(_CACHE) > 3000:
             _CACHE.clear()
-        _CACHE[key] = compose(dept, 1.04 ** tb, int(W), "%s|%d|%d|%s|%s" % (salt, tb, W, Dmax, stem), Dmax, stem)
+        _CACHE[key] = FP.plan(dept, 1.04 ** tb, int(W), Dmax, "%s|%d|%d|%s|%s" % (salt, tb, W, Dmax, stem), stem=stem)
+    if key not in _CACHE or _CACHE[key] is None:
+        if len(_CACHE) > 3000:
+            _CACHE.clear()
+        _CACHE[key] = compose(dept, 1.04 ** tb, int(W), "%s|%d|%d|%s|%s" % (salt, tb, W, Dmax, stem), Dmax, stem,
+                              halls)
     return _CACHE[key]
 
 
+# whole human departments (gen/deptstamp.py): off (the user 2026-11-25: "No I don't like that"); GEN_DEPTS=stamp tries it
+STAMP_DEPTS = os.environ.get("GEN_DEPTS", "learned") == "stamp"
+# departments laid out by the learned floorplanner (gen/learn/floorplan.py; the user's pick 2026-11-25, "learn from
+# examples"); GEN_DEPTS=compose keeps the stock-copy composition. Atmos (the v6 blueprint the atmos passes need) and
+# the AI satellite stay composed; engineering is learned since roomdb learns SMES rooms (SMES and terminals).
+LEARNED = os.environ.get("GEN_DEPTS", "learned") == "learned"
+COMPOSED = ("atmos", "ai")
 DEPTH = 1.4         # a spoke department may run this many times its slot's depth before it is widened instead
 DEPTH_CAP = 10 ** 6
+WIDEN = 2           # widenings at most (1.44x): every cell of width lengthens the spoke walk
 ASPECT_LO, FILL_LO = 0.762, 0.234   # skel.aspect and skel.fill band floors (gen/gate.py --bands)
 FLOOR_OF_OWN = 0.71  # station floor per claimed cell (walls are claimed too): 0.183 / 0.259 on crew 80 seed 4
 
 
-def fit(dept, target, W, h, salt, stem=None):
+def learned_w(target, Dm, dept=None):
+    """The widest a learned department's frame goes: its floor over its depth, or about the side of a square of it,
+    whichever is wider, and never under 17 (a stem with rooms either side); engineering keeps its engine annex."""
+    w = max(17, int(math.ceil(1.25 * target / max(10, Dm))), int(1.4 * math.sqrt(target)))
+    if dept == "engineering":
+        import learn.floorplan as FP
+        w = max(w, FP.ANNEX_BLOCK_W + 1)
+    return w
+
+
+def fit(dept, target, W, h, salt, stem=None, halls=()):
     """A composition near its slot's depth h: at most DEPTH x h deep, widened 20% at a time while it holds under 90%
     of its floor. (Deeper before wider, 1.8 h, was tried on crew 80 seed 4: the spoke walk passed but radial places,
     maint and fill failed, 6 checks against 2.)"""
     Dm = max(18, min(DEPTH_CAP, int(round(h * DEPTH))))
+    if STAMP_DEPTS:
+        import deptstamp as DS
+        C = DS.comp(dept, target, W, Dm, salt)
+        if C is not None:
+            return C
     best = None
-    for _ in range(5):
-        C = get(dept, target, W, salt, Dmax=Dm, stem=stem)
+    learned = LEARNED and dept not in COMPOSED
+    if learned:
+        # a learned department no wider than about the side of a square of its floor: slots of 106 along the hall
+        # (crew 100 seed 7, security and science) laid every room out as a long bar, 2026-11-25
+        W = min(W, learned_w(target, Dm, dept))
+    W0 = W
+    for _ in range(WIDEN + 1):
+        C = get(dept, target, W, salt, Dmax=Dm, stem=stem, halls=halls)
         fl = len(C.floor) + len(C.corr)
         if best is not None and fl <= best[0] * 1.03:
             break                   # wider gains nothing: the department's room types ran out, not its room
         if best is None or fl > best[0]:
             best = (fl, C)
-        if fl >= 0.9 * target:
+        if fl >= 0.85 * target:
             break
         W = int(W * 1.2) + 1
-    return best[1]
+        if learned and W > learned_w(target, Dm, dept):
+            break
+    C = best[1]
+    anchors = ANCHORS.get(dept, ())
+
+    def got(C_):
+        return sum(1 for a in anchors if any(rm["area"] == a for rm in C_.rooms))
+
+    def has(C_):
+        return got(C_) == len(anchors)
+    if anchors and not has(C):
+        # the rooms the department works from: other depths and a wider frame until stock copies of them fit, the
+        # one nearest the slot's depth first; else the one with the most of them
+        best_a = (got(C), C)
+        for Dm2 in sorted(ANCHOR_DEPTHS, key=lambda d: (abs(d - Dm), d)):
+            for W2 in (W0, int(W0 * 1.2) + 1):
+                if (Dm2, W2) == (Dm, W0):
+                    continue
+                C2 = get(dept, target, W2, salt, Dmax=Dm2, stem=stem, halls=halls)
+                if has(C2):
+                    return C2
+                if got(C2) > best_a[0]:
+                    best_a = (got(C2), C2)
+        return best_a[1]
+    return C
+
+
+# A department's working room: composed again deeper when the first composition has none. Cargo's bay (31 of 32
+# families, median 132 tiles) is the first room tried, and still came out in some frames and not others (W 17: in at
+# 20-28 deep, out at 36-42, where the stem runs long with no branch; crew 80 seed 1 had none, so no supply dock and
+# nothing for cargo to work from, 2026-11-25).
+# The mining dock (23 of 32 families) likewise: crew 80 seed 1 came out with a bay and no mining room, so no dock for
+# the mining shuttle.
+ANCHORS = {"cargo": ("/area/quartermaster/storage", "/area/quartermaster/miningdock")}
+AI_ANCHORS = ("/area/tcommsat/server", "/area/ai_monitored/turret_protected/ai")
+AI_FLOOR = 260      # core 60, upload 34, telecomms 60 + 30, the interior and their walls (rooms.program_types)
+ANCHOR_DEPTHS = (20, 24, 28, 32, 36)
 
 
 # ------------------------------------------------------------------------------------------------ the station
@@ -597,7 +752,19 @@ class BU(BL.Layout):
         area = b["command"] / BL.FLOOR_RATIO * self.q["qmul"].get("command", 1.0)
         asp = self.r.uniform(1.0, 1.5)
         cw = max(9, int(round(math.sqrt(area * asp))))
-        C = get("command", self.target("command"), cw, self.salt)
+        # at most 1.5x as deep as wide (with hall doors up both sides it climbed to 61 rows on 34, box fill 0.23);
+        # widened while under 85% of its budget (crew 120: 216-359 of 388-522, share.command failed on 4 of 5)
+        t = self.target("command")
+        best = None
+        for _ in range(3):
+            C = get("command", t, cw, self.salt, Dmax=max(20, int(cw * 1.5)), halls=("F", "L", "R"))
+            fl = len(C.floor) + len(C.corr)
+            if best is None or fl > best[0]:
+                best = (fl, C)
+            if fl >= 0.85 * t:
+                break
+            cw = int(cw * 1.2) + 1
+        C = best[1]
         xs = [c[0] for c in C.cells]
         ys = [c[1] for c in C.cells]
         w, h = max(xs) + 1, max(ys) + 1
@@ -714,6 +881,11 @@ class BU(BL.Layout):
                 ln = max(9, int(round(quota[d] / h)))
                 if d == "atmos":
                     ln = max(ln, 22)
+                if d == "engineering" and LEARNED:
+                    import learn.floorplan as FP
+                    # the supermatter annex behind it: the room is 21 wide and its coil 3 more on one side, with
+                    # space round the coil (crew 80 seed 1 at W 21 had no engine site, 2026-11-25)
+                    ln = max(ln, FP.ANNEX_BLOCK_W + 1)
                 nxt = ds[j + 1] if j + 1 < len(ds) else None
                 if SIDE_HALLS and prev and a + ln > BL.STACK_WALK:
                     got = self._second_row(e, k, prev, d, ln)
@@ -721,7 +893,7 @@ class BU(BL.Layout):
                         a = max(a, got + self._gap_of[d].get(nxt, 1) if nxt else got + 1)
                         prev = None
                         continue
-                C = fit(d, self.target(d), ln, h, self.salt)
+                C = fit(d, self.target(d), ln, h, self.salt, halls=("F",))
                 cross = (lambda kk: (e["hi"] + 1) if kk > 0 else (e["lo"] - 1))(k)
                 nvec = ((k, 0) if e["side"] in ("N", "S") else (0, k))
                 placed = False
@@ -792,7 +964,7 @@ class BU(BL.Layout):
         W = front + 10
         Dm = self._deep.get(cn, 20) - 2
         for tries in range(5):
-            C = get(d, self.target(d), W, self.salt + "|" + cn, Dmax=Dm, stem=(1, front - 4))
+            C = get(d, self.target(d), W, self.salt + "|" + cn, Dmax=Dm, stem=(1, front - 4), halls=(("F", 0, front - 1), "L"))
             fr = Frame((x0, y0), (sx, 0), (0, sy))
             if self._fits([fr(c) for c in C.cells], d):
                 self._put(d, C, fr)
@@ -800,10 +972,29 @@ class BU(BL.Layout):
             Dm -= 2
             W -= 2
 
+    def _ai_target(self):
+        """The AI block's floor: its target, never under what its core, upload and telecomms take (the search's
+        multiplier took crew 100 seed 7's to 162 and the core never fit, 2026-11-26)."""
+        return max(self.target("ai"), AI_FLOOR)
+
     def _ai(self, e):
         q = self.p["budgets"]["ai"] / BL.FLOOR_RATIO * 1.06
         wide = max(9, int(round(math.sqrt(q * 1.2))))
-        C = get("ai", self.target("ai"), wide, self.salt + "|tip", stem=(wide // 2 - 1, wide // 2 - 1))
+        C = get("ai", self._ai_target(), wide, self.salt + "|tip", stem=(wide // 2 - 1, wide // 2 - 1))
+        # the telecomms server room is the station's radio and the requests consoles' message server: composed at
+        # other widths until it fits (crew 100 seed 7 lost it from f5 on, and no request went through, 2026-11-26)
+        # (and the AI's own core: crew 100 seed 7 had none; the core's stock copy wants a frame 27 wide)
+        def got(C_):
+            return sum(1 for a in AI_ANCHORS if any(rm["area"] == a for rm in C_.rooms))
+        if got(C) < len(AI_ANCHORS):
+            best_ = (got(C), C, wide)
+            for w2 in (wide + 2, wide + 4, 27, 30, wide - 2):
+                C2 = get("ai", self._ai_target(), w2, self.salt + "|tip", stem=(w2 // 2 - 1, w2 // 2 - 1))
+                if got(C2) > best_[0]:
+                    best_ = (got(C2), C2, w2)
+                if best_[0] == len(AI_ANCHORS):
+                    break
+            _, C, wide = best_
         dx, dy = e["d"]
         ex, ey = e["end"]
         px, py = -dy, dx
@@ -826,7 +1017,15 @@ class BU(BL.Layout):
         for e in sorted(self.spoke_list, key=lambda e: -e["L"]):
             q = self.p["budgets"]["ai"] / BL.FLOOR_RATIO * 1.06
             ln = max(9, int(round(q / 9)))
-            C = get("ai", self.target("ai"), ln, self.salt + "|side")
+            C = get("ai", self._ai_target(), ln, self.salt + "|side", halls=("F",))
+            def got(C_):
+                return sum(1 for a in AI_ANCHORS if any(rm["area"] == a for rm in C_.rooms))
+            for l2 in (ln + 2, ln + 4, ln + 8, ln - 2):
+                if got(C) == len(AI_ANCHORS):
+                    break
+                C2 = get("ai", self._ai_target(), l2, self.salt + "|side", halls=("F",))
+                if got(C2) > got(C):
+                    C, ln = C2, l2
             for k in (1, -1):
                 cross = (e["hi"] + 1) if k > 0 else (e["lo"] - 1)
                 nvec = ((k, 0) if e["side"] in ("N", "S") else (0, k))
@@ -1107,9 +1306,22 @@ def paint_dept(m, L, d, C, fr, ox, oy):
     S = lambda c: (fr(c)[0] + ox, fr(c)[1] + oy)  # noqa: E731
     for c in C.cells:
         m.set(*S(c), dmm.Tile([], dmm.Atom(BL.TURF_WALL), dmm.Atom(area)))
+    for c in getattr(C, "space", ()):
+        m.set(*S(c), dmm.Tile([], dmm.Atom(BL.TURF_SPACE), dmm.Atom("/area/space")))
     for c in C.corr:
-        m.set(*S(c), dmm.Tile([], dmm.Atom(BL.TURF_FLOOR), dmm.Atom(area)))
+        m.set(*S(c), dmm.Tile([], dmm.Atom(getattr(C, "corr_turf", None) or BL.TURF_FLOOR),
+                              dmm.Atom(getattr(C, "corr_area", None) or area)))
+    if getattr(C, "learned", False):
+        import learn.deptdb as DB
+        turfs = DB.model()["turf"]
+        for rm in C.rooms:
+            for c in rm["F"]:
+                tf = turfs.get(rm["area"]) or ("/turf/open/floor/plating" if rm["area"].startswith("/area/maintenance")
+                                               else BL.TURF_FLOOR)
+                m.set(*S(c), dmm.Tile([], dmm.Atom(tf), dmm.Atom(rm["area"])))
     for rm in C.rooms:
+        if rm.get("gen"):
+            continue
         src, k = rm["src"], rm["k"]
         k2 = kcompose(fr.k, k)
         F0, _, _ = src.footprint(k)
@@ -1121,7 +1333,7 @@ def paint_dept(m, L, d, C, fr, ox, oy):
         t = room_stamp.xform(fr.k, *lo)
         origin = (fr.B[0] + t[0] + ox, fr.B[1] + t[1] + oy)
         cut = {S(dd) for dd in C.doors if dd in rm["R"]}
-        room_stamp.apply(m, src, k2, origin, cut, door_atom=dmm.Atom("/obj/machinery/door/airlock"))
+        room_stamp.apply(m, src, k2, origin, cut, door_atom=dmm.Atom("/obj/machinery/door/airlock"), keep_local=True)
         for c in rm["F"] | rm["R"]:
             tl = m.get(*S(c))
             if tl is None:
@@ -1147,12 +1359,30 @@ def paint_dept(m, L, d, C, fr, ox, oy):
             tl.objs = [dmm.Atom("/obj/machinery/door/airlock")]
             tl.turf = dmm.Atom(BL.TURF_FLOOR)
         n += 1
-    for gas, F, R in getattr(C, "chambers", []):
+    if getattr(C, "src", None) is not None:
+        # a whole human department: its tiles are left as the human made them by the later passes (build.py restores
+        # them after dress and the room kit)
+        L.stamped = getattr(L, "stamped", set()) | {S(c) for c in C.cells}
+    if getattr(C, "learned", False):
+        # glazed and furnished in the room stage (finish), once: the block search paints every try
+        L.learned = getattr(L, "learned", []) + [(C, fr, ox, oy)]
+    chs = getattr(C, "chambers", [])
+    gases = [g for g, _, _ in chs]
+    # a frame with det(a, n) = +1 is mirrored against the blueprint (room north of the chambers, plasma west): the
+    # gases go the other way round so the row reads plasma .. air west to east once the room side is turned north
+    if fr.a[0] * fr.n[1] - fr.a[1] * fr.n[0] > 0:
+        gases.reverse()
+    for gas, (_, F, R) in zip(gases, chs):
         for c in F:
             m.set(*S(c), dmm.Tile([], dmm.Atom("/turf/open/floor/engine/" + gas), dmm.Atom(area)))
         for c in R:
             m.set(*S(c), dmm.Tile([], dmm.Atom("/turf/closed/wall/r_wall"), dmm.Atom(area)))
+    for c in getattr(C, "panes", ()):
+        m.set(*S(c), dmm.Tile([dmm.Atom(PANE)], dmm.Atom("/turf/open/floor/plating"), dmm.Atom(area)))
     return n
+
+
+PANE = "/obj/effect/spawner/structure/window/reinforced"
 
 
 def layout(prog, params, sub, P, radial, room_size, rband=None, force=None):
@@ -1234,10 +1464,21 @@ def second_doors(m, seed, log=print, target=ONE_DOOR):
     order = sorted(one)
     r.shuffle(order)
     made = 0
+    # cells, pens and cabins (floorplan pieces: virology's isolation cells, the brig's, slime pens, dorm cabins) keep
+    # their one door: the pass paired neighbouring cells with a door between them (crew 100 seed 7 f20: 9 of 20
+    # pieces had two)
+    import learn.floorplan as FP_
+    import learn.doordb as DD_
+
+    def cell(x):
+        rg_ = sm.regions[x]
+        # and the rooms the stock maps give one door: the CE's office (6/7: its one airlock, access 56; a second
+        # door from shared storage let anyone with 32 in, f22), the vault, the armory, secure tech storage
+        return (rg_.area in FP_.pieces() and len(rg_.tiles) <= PIECE_TILES) or rg_.area in ONE_DOOR_ROOMS
     for rid in order:
         if len(one) / float(len(rooms)) <= target:
             break
-        if rid not in one:
+        if rid not in one or cell(rid):
             continue
         rg = sm.regions[rid]
         best = None
@@ -1248,7 +1489,11 @@ def second_doors(m, seed, log=print, target=ONE_DOOR):
                 if sm.cls.get(w) != "W" or w in sm.glass or w in hungw or sm.cls.get(q) != "F":
                     continue
                 r2 = sm.region.get(q)
-                if r2 is None or r2 == rid or r2 in links[rid]:
+                if r2 is None or r2 == rid or r2 in links[rid] or cell(r2):
+                    continue
+                # only between kinds of room a human map joins (the armory into the law office, the vault into EVA,
+                # f22: gen/learn/fn_security_command.py S12)
+                if not DD_.pair_seen(rg.area, sm.regions[r2].area):
                     continue
                 t = m.get(w[0], w[1], 1)
                 if t is None or t.tpath != BL.TURF_WALL or t.objs:
@@ -1289,7 +1534,45 @@ def second_doors(m, seed, log=print, target=ONE_DOOR):
 
 
 def finish(L, m, log=print):
-    """After layout(): the second doors (the atmos-engineering door is cut in layout)."""
+    """After layout(): learned departments glazed and furnished (gen/learn/floorplan.py), then the second doors
+    (the atmos-engineering door is cut in layout)."""
+    if getattr(L, "learned", None):
+        import learn.floorplan as FP
+        n_ = 0
+        FP.STATION.clear()          # the station's machine budget, spent across its departments (synth.furnish)
+        FP.BUDGETS.clear()
+        # the supermatter block (net.engine, pasted later) brings engineering's lockers, bins and tank dispenser:
+        # its share of the learned budget is spent before the learned engine rooms take theirs (a station had two of
+        # each, crew 100 seed 7, 2026-11-26)
+        try:
+            import roomdb as RDB
+            import to_dmm as T_
+            from collections import Counter as C_
+            brought = C_()
+            for _, cell in T_.engine_block().items():
+                for o in cell[2]:
+                    f = RDB.family(getattr(o, "path", str(o)))
+                    if f:
+                        brought[(cell[1], f)] += 1
+            for (area, f), n in brought.items():
+                cp = RDB.caps().get(area, {}).get(f)
+                if cp:
+                    FP.BUDGETS.setdefault(area, {})[f] = cp[1] - n
+        except Exception as e:                   # noqa: BLE001 - no engine block known: budgets as learned
+            log("compose: engine budget not pre-spent: %s" % str(e)[:80])
+        for C, fr, ox, oy in L.learned:
+            S = (lambda fr_, ox_, oy_: (lambda c: (fr_(c)[0] + ox_, fr_(c)[1] + oy_)))(fr, ox, oy)
+            FP.glaze(m, C, S)
+            FP.trim(m, C, S)
+            n_ += FP.furnish(m, C, S, log)
+        log("compose: %d learned departments furnished (%d tiles)" % (len(L.learned), n_))
+        # their rooms' floor, for build.py to restore after the station's dressing passes (habits, details,
+        # fixtures and the room kit are for copied rooms; a learned room has its learned furnishing)
+        tiles = set()
+        for C, fr, ox, oy in L.learned:
+            for rm in C.rooms:
+                tiles |= {(fr(c)[0] + ox, fr(c)[1] + oy) for c in rm["F"]}
+        L.learned_tiles, L.learned_off = tiles, tuple(L.offset)
     for d, (C, fr) in sorted(L.placed.items()):
         log("compose: %-12s %2d rooms, corridor %d, floor %d of %d wanted, W %d, voids %d" % (
             d, len(C.rooms), len(C.corr), len(C.corr) + len(C.floor), L.target(d), C.W, len(C.voids)))

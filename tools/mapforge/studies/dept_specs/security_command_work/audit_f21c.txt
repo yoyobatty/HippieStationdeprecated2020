@@ -1,0 +1,67 @@
+f21c_c100_s7.dmm                   {'dead_door': 0, 'plain_door': 0, 'odd_door': 2, 'unreached': 1, 'closed': 0, 'over_room': 5, 'over_type': 9, 'no_terminal': 2, 'no_apc': 3, 'no_power_door': 0, 'dark': 3, 'orphan': 1, 'big': 0, 'job_reach': 6, 'missing_room': 3, 'missing_kit': 20, 'missing_items': 11, 'use': 0}
+  odd_door     36, 98  maint hatch between rooms /area/ai_monitored/storage/satellite | /area/ai_monitored/turret_protected
+  odd_door     40, 98  maint hatch between rooms /area/ai_monitored/turret_protected/aisat/atmos | /area/ai_monitored/turret_protected
+  unreached    53, 16  /area/science/test_area (25 tiles)
+  over_type    36, 98  /area/ai_monitored/storage/satellite: 2 recharge_station in all (typical human map 1)
+  over_type   170, 67  /area/engine/engine_smes: 5 terminal in all (typical human map 4)
+  over_type   162, 84  /area/engine/engineering: 4 bin in all (typical human map 1)
+  over_type   162, 84  /area/engine/engineering: 4 watertank in all (typical human map 1)
+  over_type   162, 84  /area/engine/engineering: 6 terminal in all (typical human map 3)
+  over_type   164, 65  /area/engine/gravity_generator: 2 terminal in all (typical human map 1)
+  over_type   134, 89  /area/janitor: 2 watertank in all (typical human map 1)
+  over_type    38,110  /area/tcommsat/server: 2 smes in all (typical human map 1)
+  over_type    38,110  /area/tcommsat/server: 2 terminal in all (typical human map 1)
+  over_room   178, 67  /area/engine/engineering: 3 firecloset (human room at most 2)
+  over_room   178, 67  /area/engine/engineering: 3 bin (human room at most 1)
+  over_room   178, 67  /area/engine/engineering: 3 watertank (human room at most 1)
+  over_room   162, 83  /area/engine/engineering: 6 terminal (human room at most 3)
+  over_room   164, 62  /area/engine/gravity_generator: 2 terminal (human room at most 1)
+  dark        176, 42  /area/engine/atmos piece of 9 tiles, no light
+  dark        185, 67  /area/engine/supermatter piece of 32 tiles, no light
+  dark         53, 12  /area/science/test_area piece of 25 tiles, no light
+  no_apc      185, 69  /area/engine/supermatter (33 tiles)
+  no_apc       80, 74  /area/science/server (9 tiles)
+  no_apc       53, 16  /area/science/test_area (25 tiles)
+  orphan       53, 93  button/door id "AI Chamber Entrance Shutters": nothing else has it
+  no_terminal  37,107  /area/tcommsat/server
+  no_terminal  37,105  /area/tcommsat/server
+  missing_kit 149,117  /area/bridge/showroom/corporate: marauder
+  missing_kit 130,100  /area/crew_quarters/heads/captain/private: dresser, captains, captain, sink, toilet
+  missing_kit 164, 71  /area/crew_quarters/heads/chief: keycard_auth
+  missing_kit 143,105  /area/crew_quarters/heads/hop: recharger
+  missing_kit 145, 77  /area/crew_quarters/kitchen: kitchen, condimaster
+  missing_kit 129, 77  /area/crew_quarters/theatre: toy
+  missing_kit 135,138  /area/crew_quarters/toilet: toilet, shower, urinal, recharge_station
+  missing_kit 135,135  /area/crew_quarters/toilet/auxiliary: urinal
+  missing_kit 156, 57  /area/engine/atmos: fueltank, atmospherics, pump
+  missing_kit 138, 89  /area/hydroponics: condimaster
+  missing_kit 167,108  /area/lawoffice: employment
+  missing_kit  87,117  /area/quartermaster/sorting: conveyor, disposaloutlet, oneway, plasticflaps
+  missing_kit  86,137  /area/quartermaster/storage: oneway, plasticflaps, conveyor
+  missing_kit  80, 74  /area/science/server: server
+  missing_kit  88, 87  /area/science/xenobiology: disposaloutlet
+  missing_kit  70, 78  /area/security/checkpoint/science/research: filingcabinet
+  missing_kit 176,106  /area/security/warden: crew, security
+  missing_kit 119, 74  /area/storage/emergency/port: watertank
+  missing_kit 109, 81  /area/storage/tools: fueltank
+  missing_kit 143,100  /area/teleporter: rack
+  missing_items 143,112  /area/crew_quarters/heads/captain: nuclear, nuke
+  missing_items 130,100  /area/crew_quarters/heads/captain/private: nuclear
+  missing_items 182,103  /area/crew_quarters/heads/hos: red, hos
+  missing_items 145, 77  /area/crew_quarters/kitchen: papersack
+  missing_items 156, 57  /area/engine/atmos: fifty, welding, gas, black, utility
+  missing_items 105, 96  /area/library: green
+  missing_items 113,124  /area/medical/morgue: bodybags
+  missing_items  82, 90  /area/science/lab: scanning_module, matter_bin, tech_disk, high
+  missing_items  77, 96  /area/science/robotics/lab: mechanical, welding, welding, prox_sensor, mmi
+  missing_items  53, 16  /area/science/test_area: beacon
+  missing_items 167,113  /area/security/detectives_office: taperecorder, detective
+  job_reach   105, 81  /area/construction: none of chaplain/curator/lawyer/assistant gets in
+  job_reach   143,112  /area/crew_quarters/heads/captain: none of head_of_personnel gets in
+  job_reach   130,100  /area/crew_quarters/heads/captain/private: none of head_of_personnel gets in
+  job_reach   167,108  /area/lawoffice: none of security_officer/warden/detective/head_of_security gets in
+  job_reach   109, 81  /area/storage/tools: none of chaplain/curator/lawyer/assistant gets in
+  job_reach   108, 70  /area/vacant_room/commissary: none of chaplain/curator/lawyer/assistant gets in
+  missing_room   0,  0  /area/construction/mining/aux_base
+  missing_room   0,  0  /area/holodeck/rec_center
+  missing_room   0,  0  /area/science/mixing/chamber

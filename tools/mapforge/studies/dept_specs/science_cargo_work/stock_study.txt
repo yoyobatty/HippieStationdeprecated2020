@@ -1,0 +1,879 @@
+== hippiestation
+  xeno_tiles             353
+  xeno_pens              8
+  slimes                 2
+  slimes_in_pens         2
+  xeno_cameras           4
+  pens_with_camera       2
+  xeno_windoors          14
+  xeno_blastdoors        23
+  xeno_door_buttons      7
+  pen_door_kinds         {'airlock': 15, 'windoor': 7}
+  xeno_bins              8
+  xeno_outlets           7
+  xeno_freezer           1
+  xeno_consoles          2
+  console_in_xeno        2
+  recycler_same_area     True
+  processor              1
+  fridge                 1
+  processor_fridge_dist  1
+  console_processor_dist 8
+  cube_boxes             2
+  xeno_showers           0
+  xeno_l3                2
+  xeno_shieldgen         2
+  kill_room              8
+  xeno_exits             {'/area/science/research': 1}
+  chamber_tiles          28
+  chamber_injector       1
+  chamber_igniter        1
+  vent_blastdoors        0
+  vent_on_space          0
+  ignition_button        2
+  toxins_driver          1
+  driver_area            /area/science/mixing
+  driver_button          1
+  driver_to_range        22
+  doppler_area           ['/area/science/mixing']
+  mixing_freezer         2
+  mixing_pump            3
+  mixing_scrubber        3
+  tank_dispenser         1
+  sci_canisters          {'nitrous_oxide': 2, 'carbon_dioxide': 2, 'oxygen': 4, 'toxins': 5, 'canister': 4}
+  mixing_tiles           187
+  mixing_on_hull         True
+  rnd_desk               {'/area/hallway/primary/starboard': 1}
+  robo_desk              {'/area/science/research': 1, '/area/hallway/primary/starboard': 1}
+  exofab                 2
+  exofab_area            ['/area/science/robotics/lab']
+  optable_robotics       1
+  mech_ports             4
+  mech_port_area         ['/area/maintenance/department/electrical', '/area/quartermaster/miningdock', '/area/science/robotics/mechbay']
+  borg_chargers_sci      2
+  experimentor_area      ['/area/science/explab']
+  exp_console_dist       5
+  servers                2
+  server_area            ['/area/science/server']
+  server_control_area    ['/area/science/server']
+  server_freezer         1
+  sci_showers            1
+  sci_fireclosets        3
+  sci_emclosets          1
+  sci_extinguisher_cab   7
+  sci_l3                 5
+  sci_rad                1
+  sci_bombcloset         3
+  sci_cameras            26
+  shower_area            [('/area/science/research', 1)]
+  bay_tiles              163
+  supply_to_bay          1
+  supply_opens_into      {'/area/quartermaster/storage': 4}
+  mining_to_dock         1
+  mining_opens_into      {'/area/quartermaster/miningdock': 1}
+  conveyors              {'/area/security/prison': 7, '/area/security/checkpoint/auxiliary': 24, '/area/maintenance/disposal': 15, '/area/quartermaster/sorting': 5, '/area/science/robotics/lab': 4, '/area/quartermaster/storage': 14}
+  flaps                  {'/area/quartermaster/sorting': 1, '/area/quartermaster/storage': 2}
+  conveyor_switch        {'/area/quartermaster/sorting': 1, '/area/quartermaster/storage': 3}
+  cargo_console          {'/area/quartermaster/office': 2, '/area/quartermaster/qm': 1}
+  ore_redemption         {'/area/quartermaster/miningdock': 1}
+  mining_vendor          {'/area/quartermaster/miningdock': 1}
+  miner_lockers          {'/area/quartermaster/miningdock': 3}
+  qm_locker              {'/area/quartermaster/qm': 1}
+  autolathe              {'/area/quartermaster/office': 1}
+  delivery_chute         {'/area/quartermaster/sorting': 1}
+  bounty                 {'/area/quartermaster/office': 1}
+  mining_console         {'/area/quartermaster/miningdock': 1}
+  tagger                 {'/area/quartermaster/sorting': 2}
+  wrap                   {'/area/quartermaster/sorting': 1}
+  stacker                {}
+  photocopier            {'/area/quartermaster/office': 1}
+  crates                 {'/area/quartermaster/warehouse': 8, '/area/quartermaster/office': 1, '/area/quartermaster/miningdock': 2}
+  cargo_cameras          {'/area/quartermaster/sorting': 1, '/area/quartermaster/storage': 3, '/area/quartermaster/office': 1, '/area/quartermaster/qm': 1, '/area/security/checkpoint/supply': 1, '/area/quartermaster/miningdock': 2}
+  firecloset             {}
+  emcloset               {'/area/quartermaster/storage': 2}
+  extinguisher_cab       {'/area/quartermaster/storage': 1}
+  mulebot                {'/area/quartermaster/storage': 2}
+  navbeacon              {'/area/quartermaster/storage': 4}
+  cargo_vendor           {'/area/quartermaster/storage': 1}
+  requests               {'/area/quartermaster/sorting': 1, '/area/quartermaster/storage': 1, '/area/quartermaster/office': 1, '/area/quartermaster/qm': 1, '/area/security/checkpoint/supply': 1, '/area/quartermaster/miningdock': 1}
+  ore_redemption_any     ['/area/quartermaster/miningdock']
+  office_fronts          {}
+  tiles:quartermaster/office 71
+  tiles:quartermaster/storage 125
+  tiles:quartermaster/sorting 33
+  tiles:quartermaster/warehouse 29
+  tiles:quartermaster/qm 20
+  tiles:quartermaster/miningdock 60
+  tiles:quartermaster/miningoffice 0
+  tiles:quartermaster    0
+  tiles:security/checkpoint/supply 17
+  areas: {'/area/science/robotics/mechbay': 30, '/area/science/robotics/lab': 81, '/area/science/lab': 36, '/area/science/research': 145, '/area/science/explab': 49, '/area/science/nanite': 42, '/area/science/server': 17, '/area/security/checkpoint/science/research': 16, '/area/science/xenobiology': 219, '/area/science/storage': 26, '/area/crew_quarters/heads/hor': 31, '/area/science/mixing': 153, '/area/science/test_area': 25, '/area/science/mixing/chamber': 18, '/area/science/misc_lab': 95}
+== MetaStation
+  xeno_tiles             454
+  xeno_pens              10
+  slimes                 3
+  slimes_in_pens         3
+  xeno_cameras           14
+  pens_with_camera       9
+  xeno_windoors          14
+  xeno_blastdoors        26
+  xeno_door_buttons      7
+  pen_door_kinds         {'windoor': 7, 'airlock': 21}
+  xeno_bins              8
+  xeno_outlets           8
+  xeno_freezer           1
+  xeno_consoles          2
+  console_in_xeno        2
+  recycler_same_area     True
+  processor              1
+  fridge                 1
+  processor_fridge_dist  5
+  console_processor_dist 4
+  cube_boxes             2
+  xeno_showers           1
+  xeno_l3                2
+  xeno_shieldgen         2
+  kill_room              8
+  xeno_exits             {'/area/maintenance/department/science/xenobiology': 4}
+  chamber_tiles          34
+  chamber_injector       1
+  chamber_igniter        2
+  vent_blastdoors        0
+  vent_on_space          0
+  ignition_button        2
+  toxins_driver          1
+  driver_area            /area/science/mixing
+  driver_button          1
+  driver_to_range        57
+  doppler_area           ['/area/science/mixing']
+  mixing_freezer         2
+  mixing_pump            2
+  mixing_scrubber        1
+  tank_dispenser         1
+  sci_canisters          {'carbon_dioxide': 2, 'nitrous_oxide': 2, 'oxygen': 4, 'bz': 1, 'canister': 3, 'nitrogen': 2, 'toxins': 4}
+  mixing_tiles           123
+  mixing_on_hull         True
+  rnd_desk               {'/area/science/research': 1, '/area/hallway/primary/aft': 1}
+  robo_desk              {}
+  exofab                 3
+  exofab_area            ['/area/maintenance/port/aft', '/area/science/robotics/lab']
+  optable_robotics       1
+  mech_ports             3
+  mech_port_area         ['/area/maintenance/port/aft', '/area/science/robotics/mechbay']
+  borg_chargers_sci      2
+  experimentor_area      ['/area/science/explab']
+  exp_console_dist       3
+  servers                2
+  server_area            ['/area/science/server']
+  server_control_area    ['/area/science/server']
+  server_freezer         1
+  sci_showers            4
+  sci_fireclosets        2
+  sci_emclosets          2
+  sci_extinguisher_cab   12
+  sci_l3                 4
+  sci_rad                1
+  sci_bombcloset         2
+  sci_cameras            36
+  shower_area            [('/area/science/research', 3), ('/area/science/xenobiology', 1)]
+  bay_tiles              173
+  supply_to_bay          1
+  supply_opens_into      {'/area/quartermaster/storage': 4}
+  mining_to_dock         1
+  mining_opens_into      {'/area/quartermaster/miningoffice': 1}
+  conveyors              {'/area/quartermaster/storage': 16, '/area/maintenance/disposal': 14, '/area/quartermaster/sorting': 10}
+  flaps                  {'/area/quartermaster/storage': 2, '/area/quartermaster/sorting': 3}
+  conveyor_switch        {'/area/quartermaster/storage': 3, '/area/quartermaster/sorting': 2}
+  cargo_console          {'/area/quartermaster/storage': 1, '/area/quartermaster/qm': 1, '/area/quartermaster/office': 1}
+  ore_redemption         {'/area/quartermaster/office': 1}
+  mining_vendor          {'/area/quartermaster/miningoffice': 1}
+  miner_lockers          {'/area/quartermaster/miningoffice': 3}
+  qm_locker              {'/area/quartermaster/qm': 1}
+  autolathe              {'/area/quartermaster/office': 1}
+  delivery_chute         {'/area/quartermaster/sorting': 1}
+  bounty                 {'/area/quartermaster/office': 1, '/area/quartermaster/qm': 1}
+  mining_console         {'/area/quartermaster/miningoffice': 1}
+  tagger                 {'/area/quartermaster/storage': 1, '/area/quartermaster/sorting': 1}
+  wrap                   {'/area/quartermaster/storage': 5, '/area/quartermaster/sorting': 8}
+  stacker                {}
+  photocopier            {'/area/quartermaster/office': 1}
+  crates                 {'/area/quartermaster/miningoffice': 2, '/area/quartermaster/storage': 3, '/area/quartermaster/warehouse': 6}
+  cargo_cameras          {'/area/quartermaster/miningoffice': 2, '/area/quartermaster/storage': 4, '/area/quartermaster/sorting': 1, '/area/quartermaster/office': 1, '/area/security/checkpoint/supply': 1, '/area/quartermaster/qm': 1}
+  firecloset             {}
+  emcloset               {'/area/quartermaster/miningoffice': 1}
+  extinguisher_cab       {'/area/quartermaster/miningoffice': 1, '/area/quartermaster/office': 1, '/area/quartermaster/warehouse': 1, '/area/quartermaster/storage': 1}
+  mulebot                {'/area/quartermaster/storage': 2}
+  navbeacon              {'/area/quartermaster/storage': 4}
+  cargo_vendor           {'/area/quartermaster/storage': 2}
+  requests               {'/area/quartermaster/miningoffice': 1, '/area/quartermaster/sorting': 1, '/area/quartermaster/office': 1, '/area/security/checkpoint/supply': 1, '/area/quartermaster/qm': 1}
+  ore_redemption_any     ['/area/quartermaster/office']
+  office_fronts          {'door': 3, 'desk': 3, 'desk_in:hallway': 1}
+  tiles:quartermaster/office 37
+  tiles:quartermaster/storage 157
+  tiles:quartermaster/sorting 39
+  tiles:quartermaster/warehouse 26
+  tiles:quartermaster/qm 17
+  tiles:quartermaster/miningdock 0
+  tiles:quartermaster/miningoffice 40
+  tiles:quartermaster    0
+  tiles:security/checkpoint/supply 13
+  areas: {'/area/science/research': 186, '/area/science/lab': 48, '/area/science/robotics/mechbay': 28, '/area/science/robotics/lab': 65, '/area/science/nanite': 25, '/area/security/checkpoint/science/research': 16, '/area/science/xenobiology': 268, '/area/crew_quarters/heads/hor': 31, '/area/science/mixing': 89, '/area/science/mixing/chamber': 15, '/area/science/server': 17, '/area/science/storage': 27, '/area/science/explab': 55, '/area/science/misc_lab': 3, '/area/science/misc_lab/range': 53, '/area/science/test_area': 25}
+== BoxStation
+  xeno_tiles             353
+  xeno_pens              8
+  slimes                 2
+  slimes_in_pens         2
+  xeno_cameras           4
+  pens_with_camera       2
+  xeno_windoors          14
+  xeno_blastdoors        23
+  xeno_door_buttons      7
+  pen_door_kinds         {'airlock': 15, 'windoor': 7}
+  xeno_bins              8
+  xeno_outlets           7
+  xeno_freezer           1
+  xeno_consoles          2
+  console_in_xeno        2
+  recycler_same_area     True
+  processor              1
+  fridge                 1
+  processor_fridge_dist  1
+  console_processor_dist 8
+  cube_boxes             2
+  xeno_showers           0
+  xeno_l3                2
+  xeno_shieldgen         2
+  kill_room              8
+  xeno_exits             {'/area/science/research': 1}
+  chamber_tiles          34
+  chamber_injector       1
+  chamber_igniter        2
+  vent_blastdoors        0
+  vent_on_space          0
+  ignition_button        2
+  toxins_driver          1
+  driver_area            /area/science/mixing
+  driver_button          1
+  driver_to_range        26
+  doppler_area           ['/area/science/mixing']
+  mixing_freezer         2
+  mixing_pump            2
+  mixing_scrubber        3
+  tank_dispenser         1
+  sci_canisters          {'canister': 5, 'oxygen': 4, 'nitrous_oxide': 2, 'carbon_dioxide': 2, 'toxins': 5, 'bz': 1}
+  mixing_tiles           156
+  mixing_on_hull         True
+  rnd_desk               {'/area/hallway/primary/starboard': 1}
+  robo_desk              {'/area/science/research': 1, '/area/hallway/primary/starboard': 1}
+  exofab                 2
+  exofab_area            ['/area/science/robotics/lab']
+  optable_robotics       1
+  mech_ports             3
+  mech_port_area         ['/area/maintenance/department/electrical', '/area/science/robotics/mechbay']
+  borg_chargers_sci      2
+  experimentor_area      ['/area/science/explab']
+  exp_console_dist       5
+  servers                2
+  server_area            ['/area/science/server']
+  server_control_area    ['/area/science/server']
+  server_freezer         1
+  sci_showers            1
+  sci_fireclosets        2
+  sci_emclosets          1
+  sci_extinguisher_cab   7
+  sci_l3                 5
+  sci_rad                1
+  sci_bombcloset         3
+  sci_cameras            23
+  shower_area            [('/area/science/research', 1)]
+  bay_tiles              163
+  supply_to_bay          1
+  supply_opens_into      {'/area/quartermaster/storage': 4}
+  mining_to_dock         1
+  mining_opens_into      {'/area/quartermaster/miningdock': 1}
+  conveyors              {'/area/maintenance/disposal': 13, '/area/quartermaster/storage': 14, '/area/quartermaster/sorting': 5, '/area/science/robotics/lab': 4}
+  flaps                  {'/area/quartermaster/storage': 2, '/area/quartermaster/sorting': 1}
+  conveyor_switch        {'/area/quartermaster/storage': 3, '/area/quartermaster/sorting': 1}
+  cargo_console          {'/area/quartermaster/qm': 1, '/area/quartermaster/office': 2}
+  ore_redemption         {'/area/quartermaster/miningdock': 1}
+  mining_vendor          {'/area/quartermaster/miningdock': 1}
+  miner_lockers          {'/area/quartermaster/miningdock': 3}
+  qm_locker              {'/area/quartermaster/qm': 1}
+  autolathe              {'/area/quartermaster/office': 1}
+  delivery_chute         {'/area/quartermaster/sorting': 1}
+  bounty                 {'/area/quartermaster/qm': 1, '/area/quartermaster/storage': 1}
+  mining_console         {'/area/quartermaster/miningdock': 1}
+  tagger                 {'/area/quartermaster/sorting': 2}
+  wrap                   {'/area/quartermaster/sorting': 1}
+  stacker                {}
+  photocopier            {'/area/quartermaster/office': 1}
+  crates                 {'/area/quartermaster/warehouse': 8, '/area/quartermaster/miningdock': 2, '/area/quartermaster/office': 1}
+  cargo_cameras          {'/area/quartermaster/storage': 3, '/area/quartermaster/qm': 1, '/area/quartermaster/miningdock': 2, '/area/quartermaster/office': 1, '/area/quartermaster/sorting': 1, '/area/security/checkpoint/supply': 1}
+  firecloset             {}
+  emcloset               {'/area/quartermaster/storage': 2, '/area/quartermaster/miningdock': 1}
+  extinguisher_cab       {'/area/quartermaster/storage': 1}
+  mulebot                {'/area/quartermaster/storage': 2}
+  navbeacon              {'/area/quartermaster/storage': 4}
+  cargo_vendor           {'/area/quartermaster/storage': 1}
+  requests               {'/area/quartermaster/storage': 1, '/area/quartermaster/qm': 1, '/area/quartermaster/office': 1, '/area/quartermaster/miningdock': 1, '/area/quartermaster/sorting': 1, '/area/security/checkpoint/supply': 1}
+  ore_redemption_any     ['/area/quartermaster/miningdock']
+  office_fronts          {}
+  tiles:quartermaster/office 77
+  tiles:quartermaster/storage 125
+  tiles:quartermaster/sorting 33
+  tiles:quartermaster/warehouse 29
+  tiles:quartermaster/qm 20
+  tiles:quartermaster/miningdock 60
+  tiles:quartermaster/miningoffice 0
+  tiles:quartermaster    0
+  tiles:security/checkpoint/supply 13
+  areas: {'/area/science/robotics/mechbay': 30, '/area/science/robotics/lab': 81, '/area/science/xenobiology': 219, '/area/science/research': 148, '/area/science/server': 17, '/area/security/checkpoint/science': 16, '/area/science/storage': 26, '/area/science/misc_lab': 87, '/area/science/lab': 36, '/area/science/nanite': 42, '/area/crew_quarters/heads/hor': 31, '/area/science/mixing': 108, '/area/science/mixing/chamber': 18, '/area/science/explab': 49, '/area/science/test_area': 25}
+== DeltaStation2
+  xeno_tiles             381
+  xeno_pens              9
+  slimes                 3
+  slimes_in_pens         3
+  xeno_cameras           10
+  pens_with_camera       8
+  xeno_windoors          14
+  xeno_blastdoors        26
+  xeno_door_buttons      7
+  pen_door_kinds         {'windoor': 7, 'airlock': 17}
+  xeno_bins              8
+  xeno_outlets           7
+  xeno_freezer           1
+  xeno_consoles          2
+  console_in_xeno        2
+  recycler_same_area     True
+  processor              1
+  fridge                 1
+  processor_fridge_dist  1
+  console_processor_dist 5
+  cube_boxes             2
+  xeno_showers           2
+  xeno_l3                0
+  xeno_shieldgen         2
+  kill_room              15
+  xeno_exits             {'/area/science/research': 3}
+  chamber_tiles          25
+  chamber_injector       1
+  chamber_igniter        1
+  vent_blastdoors        0
+  vent_on_space          0
+  ignition_button        1
+  toxins_driver          1
+  driver_area            /area/science/misc_lab
+  driver_button          1
+  driver_to_range        59
+  doppler_area           ['/area/science/misc_lab']
+  mixing_freezer         2
+  mixing_pump            0
+  mixing_scrubber        0
+  tank_dispenser         1
+  sci_canisters          {'air': 1, 'canister': 1, 'carbon_dioxide': 2, 'toxins': 6, 'nitrous_oxide': 2, 'oxygen': 6, 'nitrogen': 2, 'bz': 1}
+  mixing_tiles           105
+  mixing_on_hull         True
+  rnd_desk               {'/area/science/research': 2, '/area/hallway/primary/aft': 1}
+  robo_desk              {'/area/hallway/primary/aft': 1}
+  exofab                 3
+  exofab_area            ['/area/science/research/abandoned', '/area/science/robotics/lab']
+  optable_robotics       1
+  mech_ports             3
+  mech_port_area         ['/area/science/research/abandoned', '/area/science/robotics/mechbay']
+  borg_chargers_sci      3
+  experimentor_area      ['/area/science/explab']
+  exp_console_dist       4
+  servers                2
+  server_area            ['/area/science/server']
+  server_control_area    ['/area/science/server']
+  server_freezer         1
+  sci_showers            4
+  sci_fireclosets        4
+  sci_emclosets          2
+  sci_extinguisher_cab   20
+  sci_l3                 1
+  sci_rad                1
+  sci_bombcloset         3
+  sci_cameras            33
+  shower_area            [('/area/science/research', 2), ('/area/science/xenobiology', 2)]
+  bay_tiles              286
+  supply_to_bay          1
+  supply_opens_into      {'/area/quartermaster/storage': 4}
+  mining_to_dock         1
+  mining_opens_into      {'/area/quartermaster/miningoffice': 1}
+  conveyors              {'/area/quartermaster/sorting': 10, '/area/quartermaster/storage': 16, '/area/maintenance/disposal': 17}
+  flaps                  {'/area/quartermaster/sorting': 3, '/area/quartermaster/office': 1, '/area/quartermaster/warehouse': 1, '/area/quartermaster/storage': 2}
+  conveyor_switch        {'/area/quartermaster/sorting': 2, '/area/quartermaster/storage': 2}
+  cargo_console          {'/area/quartermaster/miningoffice': 1, '/area/security/checkpoint/supply': 1, '/area/quartermaster/office': 1, '/area/quartermaster/storage': 2, '/area/quartermaster/qm': 1}
+  ore_redemption         {'/area/quartermaster/miningoffice': 1}
+  mining_vendor          {'/area/quartermaster/miningoffice': 1}
+  miner_lockers          {'/area/quartermaster/miningoffice': 3}
+  qm_locker              {'/area/quartermaster/qm': 1}
+  autolathe              {'/area/quartermaster/office': 1}
+  delivery_chute         {'/area/quartermaster/sorting': 1}
+  bounty                 {'/area/quartermaster/office': 1, '/area/quartermaster/storage': 1, '/area/quartermaster/qm': 1}
+  mining_console         {'/area/quartermaster/miningoffice': 1, '/area/quartermaster/qm': 1}
+  tagger                 {'/area/quartermaster/sorting': 1}
+  wrap                   {'/area/quartermaster/sorting': 1, '/area/quartermaster/storage': 2, '/area/quartermaster/qm': 1}
+  stacker                {}
+  photocopier            {'/area/quartermaster/office': 1, '/area/quartermaster/miningoffice': 1, '/area/quartermaster/qm': 1}
+  crates                 {'/area/quartermaster/warehouse': 5, '/area/quartermaster/storage': 8}
+  cargo_cameras          {'/area/quartermaster/sorting': 1, '/area/quartermaster/office': 1, '/area/quartermaster/warehouse': 1, '/area/security/checkpoint/supply': 1, '/area/quartermaster/storage': 4, '/area/quartermaster/miningoffice': 2, '/area/quartermaster/qm': 2}
+  firecloset             {'/area/quartermaster/warehouse': 1}
+  emcloset               {'/area/quartermaster/miningoffice': 1}
+  extinguisher_cab       {'/area/quartermaster/sorting': 1, '/area/security/checkpoint/supply': 1, '/area/quartermaster/office': 1, '/area/quartermaster/storage': 1, '/area/quartermaster/miningoffice': 1, '/area/quartermaster/qm': 1}
+  mulebot                {'/area/quartermaster/storage': 2}
+  navbeacon              {'/area/quartermaster/storage': 4}
+  cargo_vendor           {'/area/quartermaster/storage': 2}
+  requests               {'/area/quartermaster/office': 1, '/area/quartermaster/miningoffice': 1, '/area/quartermaster/qm': 1}
+  ore_redemption_any     ['/area/quartermaster/miningoffice']
+  office_fronts          {'desk': 3, 'door': 3, 'desk_in:hallway': 1}
+  tiles:quartermaster/office 55
+  tiles:quartermaster/storage 261
+  tiles:quartermaster/sorting 49
+  tiles:quartermaster/warehouse 68
+  tiles:quartermaster/qm 49
+  tiles:quartermaster/miningdock 0
+  tiles:quartermaster/miningoffice 112
+  tiles:quartermaster    0
+  tiles:security/checkpoint/supply 25
+  areas: {'/area/science/test_area': 25, '/area/science/misc_lab/range': 31, '/area/science/research/abandoned': 78, '/area/science/xenobiology': 238, '/area/science/misc_lab': 42, '/area/science/explab': 33, '/area/science/nanite': 38, '/area/science/mixing': 84, '/area/science/research': 299, '/area/science/mixing/chamber': 15, '/area/science/storage': 45, '/area/crew_quarters/heads/hor': 52, '/area/security/checkpoint/science/research': 24, '/area/science/server': 14, '/area/science/robotics/mechbay': 62, '/area/science/robotics/lab': 64, '/area/science/lab': 49}
+== PubbyStation
+  xeno_tiles             404
+  xeno_pens              10
+  slimes                 2
+  slimes_in_pens         2
+  xeno_cameras           5
+  pens_with_camera       1
+  xeno_windoors          14
+  xeno_blastdoors        27
+  xeno_door_buttons      9
+  pen_door_kinds         {'airlock': 23, 'windoor': 7}
+  xeno_bins              9
+  xeno_outlets           7
+  xeno_freezer           1
+  xeno_consoles          2
+  console_in_xeno        2
+  recycler_same_area     True
+  processor              1
+  fridge                 1
+  processor_fridge_dist  1
+  console_processor_dist 2
+  cube_boxes             2
+  xeno_showers           1
+  xeno_l3                2
+  xeno_shieldgen         4
+  kill_room              6
+  xeno_exits             {'/area/science/explab': 1}
+  chamber_tiles          31
+  chamber_injector       1
+  chamber_igniter        1
+  vent_blastdoors        0
+  vent_on_space          0
+  ignition_button        2
+  toxins_driver          1
+  driver_area            /area/science/mixing
+  driver_button          1
+  doppler_area           ['/area/science/mixing']
+  mixing_freezer         0
+  mixing_pump            2
+  mixing_scrubber        0
+  tank_dispenser         1
+  sci_canisters          {'oxygen': 4, 'toxins': 6, 'nitrous_oxide': 2, 'canister': 2, 'nitrogen': 1, 'carbon_dioxide': 2, 'bz': 1}
+  mixing_tiles           122
+  mixing_on_hull         True
+  rnd_desk               {'/area/hallway/primary/aft': 1}
+  robo_desk              {'/area/hallway/primary/central': 1}
+  exofab                 3
+  exofab_area            ['/area/ai_monitored/turret_protected/AIsatextAS', '/area/science/robotics/lab']
+  optable_robotics       1
+  mech_ports             3
+  mech_port_area         ['/area/maintenance/department/security/brig', '/area/science/robotics/mechbay']
+  borg_chargers_sci      2
+  experimentor_area      ['/area/science/explab']
+  exp_console_dist       3
+  servers                2
+  server_area            ['/area/science/server']
+  server_control_area    ['/area/science/server']
+  server_freezer         1
+  sci_showers            2
+  sci_fireclosets        3
+  sci_emclosets          3
+  sci_extinguisher_cab   10
+  sci_l3                 2
+  sci_rad                1
+  sci_bombcloset         2
+  sci_cameras            20
+  shower_area            [('/area/science/explab', 1), ('/area/science/xenobiology', 1)]
+  bay_tiles              99
+  supply_to_bay          1
+  supply_opens_into      {'/area/quartermaster/storage': 4}
+  mining_to_dock         1
+  mining_opens_into      {'/area/quartermaster/miningdock': 1}
+  conveyors              {'/area/engine/engineering': 2, '/area/engine/atmos': 1, '/area/quartermaster/sorting': 7, '/area/quartermaster/office': 1, '/area/quartermaster/storage': 11, '/area/maintenance/disposal': 12}
+  flaps                  {'/area/quartermaster/sorting': 1, '/area/quartermaster/storage': 2, '/area/quartermaster/office': 1}
+  conveyor_switch        {'/area/quartermaster/sorting': 1, '/area/quartermaster/storage': 2, '/area/quartermaster/office': 1}
+  cargo_console          {'/area/quartermaster/office': 2, '/area/quartermaster/qm': 1}
+  ore_redemption         {'/area/quartermaster/office': 1}
+  mining_vendor          {'/area/quartermaster/miningdock': 1}
+  miner_lockers          {'/area/quartermaster/miningdock': 3}
+  qm_locker              {'/area/quartermaster/qm': 1}
+  autolathe              {'/area/quartermaster/office': 1}
+  delivery_chute         {'/area/quartermaster/sorting': 1}
+  bounty                 {'/area/quartermaster/office': 1, '/area/quartermaster/qm': 1}
+  mining_console         {'/area/quartermaster/miningdock': 1}
+  tagger                 {'/area/quartermaster/sorting': 1}
+  wrap                   {'/area/quartermaster/sorting': 1}
+  stacker                {}
+  photocopier            {'/area/quartermaster/office': 1}
+  crates                 {'/area/quartermaster/sorting': 1, '/area/quartermaster/warehouse': 9, '/area/quartermaster/storage': 1}
+  cargo_cameras          {'/area/security/checkpoint/supply': 1, '/area/quartermaster/office': 2, '/area/quartermaster/sorting': 1, '/area/quartermaster/storage': 2, '/area/quartermaster/qm': 1, '/area/quartermaster/miningdock': 1, '/area/quartermaster/warehouse': 1}
+  firecloset             {}
+  emcloset               {'/area/quartermaster/miningdock': 1}
+  extinguisher_cab       {'/area/quartermaster/office': 2, '/area/quartermaster/warehouse': 1, '/area/quartermaster/miningdock': 1}
+  mulebot                {'/area/quartermaster/storage': 2}
+  navbeacon              {'/area/quartermaster/storage': 4}
+  cargo_vendor           {'/area/quartermaster/office': 1}
+  requests               {'/area/security/checkpoint/supply': 1, '/area/quartermaster/office': 1, '/area/quartermaster/sorting': 1, '/area/quartermaster/storage': 1, '/area/quartermaster/qm': 1, '/area/quartermaster/miningdock': 1}
+  ore_redemption_any     ['/area/quartermaster/office']
+  office_fronts          {}
+  tiles:quartermaster/office 86
+  tiles:quartermaster/storage 87
+  tiles:quartermaster/sorting 39
+  tiles:quartermaster/warehouse 34
+  tiles:quartermaster/qm 13
+  tiles:quartermaster/miningdock 29
+  tiles:quartermaster/miningoffice 0
+  tiles:quartermaster    0
+  tiles:security/checkpoint/supply 13
+  areas: {'/area/science/lab': 44, '/area/crew_quarters/heads/hor': 21, '/area/security/checkpoint/science': 13, '/area/science/robotics/lab': 59, '/area/science/robotics/mechbay': 35, '/area/science/explab': 202, '/area/science/storage': 37, '/area/science/server': 17, '/area/science/mixing': 81, '/area/science/mixing/chamber': 15, '/area/science/xenobiology': 249}
+== Donutstation
+  xeno_tiles             347
+  xeno_pens              9
+  slimes                 2
+  slimes_in_pens         2
+  xeno_cameras           11
+  pens_with_camera       9
+  xeno_windoors          14
+  xeno_blastdoors        23
+  xeno_door_buttons      7
+  pen_door_kinds         {'airlock': 16, 'windoor': 7}
+  xeno_bins              7
+  xeno_outlets           7
+  xeno_freezer           1
+  xeno_consoles          2
+  console_in_xeno        2
+  recycler_same_area     True
+  processor              1
+  fridge                 1
+  processor_fridge_dist  1
+  console_processor_dist 18
+  cube_boxes             2
+  xeno_showers           0
+  xeno_l3                2
+  xeno_shieldgen         2
+  kill_room              4
+  xeno_exits             {'/area/science/research': 1}
+  chamber_tiles          0
+  chamber_injector       1
+  chamber_igniter        2
+  vent_blastdoors        0
+  vent_on_space          0
+  ignition_button        1
+  toxins_driver          1
+  driver_area            /area/science/research
+  driver_button          1
+  doppler_area           ['/area/science/research']
+  mixing_freezer         2
+  mixing_pump            0
+  mixing_scrubber        0
+  tank_dispenser         1
+  sci_canisters          {'bz': 1, 'oxygen': 4, 'nitrous_oxide': 2, 'carbon_dioxide': 2, 'toxins': 5, 'air': 1}
+  mixing_tiles           114
+  mixing_on_hull         True
+  rnd_desk               {'/area/hallway/primary/central': 1}
+  robo_desk              {'/area/hallway/primary/central': 1}
+  exofab                 2
+  exofab_area            ['/area/science/robotics/lab']
+  optable_robotics       1
+  mech_ports             2
+  mech_port_area         ['/area/science/robotics/mechbay']
+  borg_chargers_sci      2
+  experimentor_area      ['/area/science/explab']
+  exp_console_dist       3
+  servers                2
+  server_area            ['/area/science/server']
+  server_control_area    ['/area/science/server']
+  server_freezer         1
+  sci_showers            1
+  sci_fireclosets        2
+  sci_emclosets          1
+  sci_extinguisher_cab   5
+  sci_l3                 3
+  sci_rad                1
+  sci_bombcloset         0
+  sci_cameras            27
+  shower_area            [('/area/science/research', 1)]
+  bay_tiles              124
+  supply_to_bay          1
+  supply_opens_into      {'/area/quartermaster/storage': 4}
+  mining_to_dock         1
+  mining_opens_into      {'/area/quartermaster/miningdock': 1}
+  conveyors              {'/area/science/robotics/lab': 6, '/area/quartermaster/storage': 14, '/area/maintenance/disposal': 12}
+  flaps                  {'/area/quartermaster/storage': 2}
+  conveyor_switch        {'/area/quartermaster/storage': 2}
+  cargo_console          {'/area/quartermaster/qm': 1, '/area/quartermaster/storage': 1, '/area/quartermaster/office': 2}
+  ore_redemption         {'/area/quartermaster/office': 1}
+  mining_vendor          {'/area/quartermaster/miningdock': 1}
+  miner_lockers          {'/area/quartermaster/miningdock': 3}
+  qm_locker              {'/area/quartermaster/qm': 1}
+  autolathe              {'/area/quartermaster/office': 1}
+  delivery_chute         {}
+  bounty                 {'/area/quartermaster/qm': 1}
+  mining_console         {'/area/quartermaster/miningdock': 1}
+  tagger                 {'/area/quartermaster/office': 2}
+  wrap                   {'/area/quartermaster/office': 1}
+  stacker                {}
+  photocopier            {}
+  crates                 {'/area/quartermaster/storage': 9, '/area/quartermaster/office': 1, '/area/quartermaster/warehouse': 4, '/area/quartermaster/miningdock': 2}
+  cargo_cameras          {'/area/quartermaster/qm': 1, '/area/quartermaster/office': 3, '/area/quartermaster/storage': 1}
+  firecloset             {}
+  emcloset               {'/area/quartermaster/office': 2}
+  extinguisher_cab       {'/area/quartermaster/office': 1}
+  mulebot                {'/area/quartermaster/office': 2}
+  navbeacon              {'/area/quartermaster/office': 2}
+  cargo_vendor           {'/area/quartermaster/office': 1}
+  requests               {'/area/quartermaster/qm': 1, '/area/quartermaster/storage': 1, '/area/quartermaster/miningdock': 1}
+  ore_redemption_any     ['/area/quartermaster/office']
+  office_fronts          {}
+  tiles:quartermaster/office 90
+  tiles:quartermaster/storage 101
+  tiles:quartermaster/sorting 0
+  tiles:quartermaster/warehouse 20
+  tiles:quartermaster/qm 18
+  tiles:quartermaster/miningdock 41
+  tiles:quartermaster/miningoffice 0
+  tiles:quartermaster    0
+  tiles:security/checkpoint/supply 0
+  areas: {'/area/science/xenobiology': 210, '/area/science/research': 197, '/area/science/storage': 25, '/area/science/mixing': 81, '/area/science/server': 17, '/area/crew_quarters/heads/hor': 31, '/area/science/explab': 42, '/area/security/checkpoint/science': 16, '/area/science/robotics/lab': 76, '/area/science/lab': 57, '/area/science/robotics/mechbay': 29}
+== EndoStation
+  xeno_tiles             432
+  xeno_pens              9
+  slimes                 2
+  slimes_in_pens         2
+  xeno_cameras           16
+  pens_with_camera       9
+  xeno_windoors          18
+  xeno_blastdoors        30
+  xeno_door_buttons      9
+  pen_door_kinds         {'airlock': 17, 'windoor': 8}
+  xeno_bins              10
+  xeno_outlets           9
+  xeno_freezer           1
+  xeno_consoles          2
+  console_in_xeno        2
+  recycler_same_area     True
+  processor              1
+  fridge                 1
+  processor_fridge_dist  1
+  console_processor_dist 4
+  cube_boxes             2
+  xeno_showers           2
+  xeno_l3                2
+  xeno_shieldgen         0
+  kill_room              12
+  xeno_exits             {'/area/maintenance/department/science': 1, '/area/science/research': 1}
+  chamber_tiles          32
+  chamber_injector       1
+  chamber_igniter        1
+  vent_blastdoors        0
+  vent_on_space          0
+  ignition_button        1
+  toxins_driver          1
+  driver_area            /area/science/misc_lab
+  driver_button          1
+  driver_to_range        33
+  doppler_area           ['/area/science/misc_lab']
+  mixing_freezer         2
+  mixing_pump            0
+  mixing_scrubber        0
+  tank_dispenser         1
+  sci_canisters          {'oxygen': 6, 'toxins': 6, 'nitrous_oxide': 2, 'nitrogen': 2, 'canister': 1, 'carbon_dioxide': 2, 'bz': 1}
+  mixing_tiles           152
+  mixing_on_hull         True
+  rnd_desk               {'/area/hallway/primary/starboard': 1, '/area/science/research': 1, '/area/hallway/primary/central': 1}
+  robo_desk              {'/area/hallway/primary/aft': 1, '/area/hallway/primary/central': 1}
+  exofab                 2
+  exofab_area            ['/area/science/robotics/lab']
+  optable_robotics       1
+  mech_ports             2
+  mech_port_area         ['/area/science/robotics/mechbay']
+  borg_chargers_sci      2
+  experimentor_area      ['/area/science/explab']
+  exp_console_dist       4
+  servers                2
+  server_area            ['/area/science/server']
+  server_control_area    ['/area/science/server']
+  server_freezer         1
+  sci_showers            4
+  sci_fireclosets        5
+  sci_emclosets          0
+  sci_extinguisher_cab   9
+  sci_l3                 4
+  sci_rad                1
+  sci_bombcloset         1
+  sci_cameras            45
+  shower_area            [('/area/science/research', 2), ('/area/science/xenobiology', 2)]
+  bay_tiles              213
+  supply_to_bay          1
+  supply_opens_into      {'/area/quartermaster/storage': 4}
+  mining_to_dock         1
+  mining_opens_into      {'/area/quartermaster/miningdock': 1}
+  conveyors              {'/area/hallway/secondary/service': 4, '/area/quartermaster/storage': 17, '/area/maintenance/department/engine': 4, '/area/maintenance/disposal': 15, '/area/quartermaster/sorting': 9, '/area/medical/medbay/central': 4, '/area/science/shuttle_dock': 4}
+  flaps                  {'/area/quartermaster/storage': 3, '/area/quartermaster/sorting': 3}
+  conveyor_switch        {'/area/quartermaster/storage': 2, '/area/quartermaster/sorting': 3}
+  cargo_console          {'/area/quartermaster/storage': 2, '/area/quartermaster/qm': 1, '/area/quartermaster/office': 1}
+  ore_redemption         {'/area/quartermaster/miningdock': 1}
+  mining_vendor          {'/area/quartermaster/miningdock': 1}
+  miner_lockers          {'/area/quartermaster/miningdock': 3}
+  qm_locker              {'/area/quartermaster/qm': 1}
+  autolathe              {'/area/quartermaster/office': 1}
+  delivery_chute         {'/area/quartermaster/sorting': 1}
+  bounty                 {'/area/quartermaster/qm': 1, '/area/quartermaster/storage': 1}
+  mining_console         {'/area/quartermaster/miningdock': 1, '/area/quartermaster/qm': 1}
+  tagger                 {'/area/quartermaster/storage': 1, '/area/quartermaster/sorting': 2}
+  wrap                   {'/area/quartermaster/storage': 5, '/area/quartermaster/qm': 1, '/area/quartermaster/sorting': 1}
+  stacker                {}
+  photocopier            {'/area/quartermaster/office': 1}
+  crates                 {'/area/quartermaster/storage': 3, '/area/quartermaster/warehouse': 10, '/area/quartermaster/office': 1}
+  cargo_cameras          {'/area/quartermaster/storage': 4, '/area/quartermaster/qm': 2, '/area/quartermaster/office': 2, '/area/quartermaster/miningdock': 2, '/area/quartermaster/sorting': 1, '/area/security/checkpoint/supply': 1}
+  firecloset             {}
+  emcloset               {'/area/quartermaster/miningdock': 1}
+  extinguisher_cab       {'/area/quartermaster/miningdock': 1}
+  mulebot                {'/area/quartermaster/storage': 2}
+  navbeacon              {'/area/quartermaster/storage': 4}
+  cargo_vendor           {'/area/quartermaster/storage': 2}
+  requests               {'/area/quartermaster/qm': 1, '/area/quartermaster/miningdock': 1, '/area/quartermaster/office': 1, '/area/quartermaster/sorting': 1, '/area/security/checkpoint/supply': 1}
+  ore_redemption_any     ['/area/quartermaster/miningdock']
+  office_fronts          {'door': 6, 'desk': 3, 'desk_in:hallway': 1}
+  tiles:quartermaster/office 46
+  tiles:quartermaster/storage 166
+  tiles:quartermaster/sorting 49
+  tiles:quartermaster/warehouse 40
+  tiles:quartermaster/qm 38
+  tiles:quartermaster/miningdock 135
+  tiles:quartermaster/miningoffice 0
+  tiles:quartermaster    0
+  tiles:security/checkpoint/supply 25
+  areas: {'/area/science/robotics/lab': 108, '/area/science/robotics/mechbay': 61, '/area/science/lab': 60, '/area/science/research': 268, '/area/science/misc_lab/range': 41, '/area/science/nanite': 89, '/area/crew_quarters/heads/hor': 71, '/area/science/server': 13, '/area/science/mixing': 116, '/area/science/storage': 47, '/area/security/checkpoint/science/research': 42, '/area/science/mixing/chamber': 14, '/area/science/xenobiology': 271, '/area/science/explab': 35, '/area/science/misc_lab': 50, '/area/science/shuttle_dock': 39, '/area/science/test_area': 25}
+== MetaLake
+  xeno_tiles             454
+  xeno_pens              10
+  slimes                 3
+  slimes_in_pens         3
+  xeno_cameras           14
+  pens_with_camera       9
+  xeno_windoors          14
+  xeno_blastdoors        26
+  xeno_door_buttons      7
+  pen_door_kinds         {'windoor': 7, 'airlock': 21}
+  xeno_bins              8
+  xeno_outlets           8
+  xeno_freezer           1
+  xeno_consoles          2
+  console_in_xeno        2
+  recycler_same_area     True
+  processor              1
+  fridge                 1
+  processor_fridge_dist  5
+  console_processor_dist 4
+  cube_boxes             2
+  xeno_showers           1
+  xeno_l3                2
+  xeno_shieldgen         2
+  kill_room              8
+  xeno_exits             {'/area/maintenance/department/science/xenobiology': 4}
+  chamber_tiles          34
+  chamber_injector       1
+  chamber_igniter        1
+  vent_blastdoors        0
+  vent_on_space          0
+  ignition_button        2
+  toxins_driver          1
+  driver_area            /area/science/mixing
+  driver_button          1
+  driver_to_range        57
+  doppler_area           ['/area/science/mixing']
+  mixing_freezer         2
+  mixing_pump            2
+  mixing_scrubber        1
+  tank_dispenser         1
+  sci_canisters          {'carbon_dioxide': 2, 'nitrous_oxide': 2, 'oxygen': 4, 'bz': 1, 'canister': 3, 'nitrogen': 2, 'toxins': 4}
+  mixing_tiles           122
+  mixing_on_hull         True
+  rnd_desk               {'/area/science/research': 1, '/area/hallway/primary/aft': 1}
+  robo_desk              {}
+  exofab                 3
+  exofab_area            ['/area/maintenance/port/aft', '/area/science/robotics/lab']
+  optable_robotics       1
+  mech_ports             3
+  mech_port_area         ['/area/maintenance/port/aft', '/area/science/robotics/mechbay']
+  borg_chargers_sci      2
+  experimentor_area      []
+  exp_console_dist       None
+  servers                2
+  server_area            ['/area/science/server']
+  server_control_area    ['/area/science/server']
+  server_freezer         1
+  sci_showers            4
+  sci_fireclosets        2
+  sci_emclosets          1
+  sci_extinguisher_cab   10
+  sci_l3                 3
+  sci_rad                0
+  sci_bombcloset         2
+  sci_cameras            33
+  shower_area            [('/area/science/research', 3), ('/area/science/xenobiology', 1)]
+  bay_tiles              173
+  supply_to_bay          1
+  supply_opens_into      {'/area/quartermaster/storage': 4}
+  mining_to_dock         1
+  mining_opens_into      {'/area/quartermaster/miningoffice': 1}
+  conveyors              {'/area/quartermaster/storage': 16, '/area/maintenance/disposal': 14, '/area/quartermaster/sorting': 10}
+  flaps                  {'/area/quartermaster/storage': 2, '/area/quartermaster/sorting': 3}
+  conveyor_switch        {'/area/quartermaster/storage': 3, '/area/quartermaster/sorting': 2}
+  cargo_console          {'/area/quartermaster/storage': 1, '/area/quartermaster/qm': 1, '/area/quartermaster/office': 1}
+  ore_redemption         {'/area/quartermaster/office': 1}
+  mining_vendor          {'/area/quartermaster/miningoffice': 1}
+  miner_lockers          {'/area/quartermaster/miningoffice': 3}
+  qm_locker              {'/area/quartermaster/qm': 1}
+  autolathe              {'/area/quartermaster/office': 1}
+  delivery_chute         {'/area/quartermaster/sorting': 1}
+  bounty                 {'/area/quartermaster/office': 1, '/area/quartermaster/qm': 1}
+  mining_console         {'/area/quartermaster/miningoffice': 1}
+  tagger                 {'/area/quartermaster/storage': 1, '/area/quartermaster/sorting': 1}
+  wrap                   {'/area/quartermaster/storage': 5, '/area/quartermaster/sorting': 8}
+  stacker                {}
+  photocopier            {'/area/quartermaster/office': 1}
+  crates                 {'/area/quartermaster/miningoffice': 2, '/area/quartermaster/storage': 3, '/area/quartermaster/warehouse': 6}
+  cargo_cameras          {'/area/quartermaster/miningoffice': 2, '/area/quartermaster/storage': 4, '/area/quartermaster/sorting': 1, '/area/quartermaster/office': 1, '/area/security/checkpoint/supply': 1, '/area/quartermaster/qm': 1}
+  firecloset             {}
+  emcloset               {'/area/quartermaster/miningoffice': 1}
+  extinguisher_cab       {'/area/quartermaster/miningoffice': 1, '/area/quartermaster/office': 1, '/area/quartermaster/warehouse': 1, '/area/quartermaster/storage': 1}
+  mulebot                {'/area/quartermaster/storage': 2}
+  navbeacon              {'/area/quartermaster/storage': 4}
+  cargo_vendor           {'/area/quartermaster/storage': 2}
+  requests               {'/area/quartermaster/miningoffice': 1, '/area/quartermaster/sorting': 1, '/area/quartermaster/office': 1, '/area/security/checkpoint/supply': 1, '/area/quartermaster/qm': 1}
+  ore_redemption_any     ['/area/quartermaster/office']
+  office_fronts          {'door': 3, 'desk': 3, 'desk_in:hallway': 1}
+  tiles:quartermaster/office 37
+  tiles:quartermaster/storage 157
+  tiles:quartermaster/sorting 39
+  tiles:quartermaster/warehouse 26
+  tiles:quartermaster/qm 17
+  tiles:quartermaster/miningdock 0
+  tiles:quartermaster/miningoffice 40
+  tiles:quartermaster    0
+  tiles:security/checkpoint/supply 13
+  areas: {'/area/science/research': 186, '/area/science/lab': 48, '/area/science/robotics/mechbay': 28, '/area/science/robotics/lab': 65, '/area/science/nanite': 25, '/area/security/checkpoint/science/research': 16, '/area/science/xenobiology': 268, '/area/crew_quarters/heads/hor': 31, '/area/science/mixing': 88, '/area/science/mixing/chamber': 15, '/area/science/server': 17, '/area/science/storage': 27, '/area/science/misc_lab/range': 52, '/area/science/test_area': 25}
+-> H:\HippieStationdeprecated2020-master\HippieStationdeprecated2020-master\tools\mapforge\studies\dept_specs\science_cargo_work\stock_study.json

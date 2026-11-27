@@ -30,8 +30,10 @@ NUDGES = 2
 STALL = 30            # repair stops after this many moves without improvement
 # M2's exit test: every band and pair, plus these hard checks (walk, air and power belong to M3)
 M2_HARD = ("core room types", "oversized rooms", "known paths", "solid wall filler")
-# stage full gates every check but these, which need the network pass (power, air, disposals) still to come
-M3_PENDING = ("disposals outlet",)
+# stage full gates every check but these (none since gen/net.py lays power, air and disposals, 2026-11-25)
+M3_PENDING = ()
+# GEN_NET=0 builds the full stage without gen/net.py's engine, docks, solars and networks (the 2026-11-23 full stage)
+NETWORKS = os.environ.get("GEN_NET", "1") != "0"
 # the room stage: departments composed bottom-up (gen/compose.py), or GEN_ROOMS=topdown for the old packing into
 # pre-made blocks (gen/rooms.py)
 BOTTOM_UP = os.environ.get("GEN_ROOMS", "bottomup") != "topdown"
@@ -61,6 +63,11 @@ def targets():
     return radial, room
 
 
+# block-stage checks of what the station needs from its layout, not its shape; each counts as BLOCK_HEAVY band fails
+# in the search (a layout without the cargo dock strip loses to one with it and two more shape misses)
+BLOCK_HEAVY = {"cargo dock strip": 3}
+
+
 def measure(m, name):
     band, rules, P, _ = G.bands()
     sm = parse.SemanticMap(m, name, 1)
@@ -68,7 +75,20 @@ def measure(m, name):
     f.update(G.flat_skeleton(G.SK.measure(sm)))
     f.update(G.flat_shares(G.DS.measure(sm)))
     f.update(G.flat_adj(G.DA.measure(sm), P))
-    return G.band_checks(f, "blocks"), f
+    checks = G.band_checks(f, "blocks")
+    if BOTTOM_UP:
+        import net as NT_
+        fits = NT_.strip_fits(m)
+        if fits is not None:
+            checks.append(dict(kind="hard", name="cargo dock strip", ok=bool(fits), value=int(bool(fits)),
+                               dist=0.0 if fits else BLOCK_HEAVY["cargo dock strip"] - 1.0,
+                               detail="Box's supply dock strip fits on the cargo bay" if fits else
+                               "no hull wall of the cargo bay takes the supply dock strip (the shuttle's 12 x 7 rect)"))
+    return checks, f
+
+
+def _nfail(fails):
+    return sum(BLOCK_HEAVY.get(c["name"], 1) for c in fails)
 
 
 def nudge(params, checks, prog=None):
@@ -258,7 +278,7 @@ def search(prog, params, tries, name, P, radial, room, rband, log, quiet):
         if not quiet:
             print("  %s try %2d (layout %d): %d fails %s" % (name, i, sub, len(fails), ", ".join(
                 "%s=%s" % (c["name"], G.CC.fmt(c["value"])) for c in fails[:6])))
-        if best is None or len(fails) < len(best[2]):
+        if best is None or _nfail(fails) < _nfail(best[2]):
             best = (m, L, fails, checks, f, sub)
         if not fails:
             break
@@ -269,6 +289,70 @@ def search(prog, params, tries, name, P, radial, room, rband, log, quiet):
 
 
 ROOM_ROUNDS = 4
+
+
+REUSE_ROUNDS = 2      # room rounds when the block plan is reused
+# a station without these doesn't run: a round missing one loses to any round that has it (two rounds tied on 17
+# failures kept the one with no engine, 2026-11-25)
+ESSENTIAL = ("engine placed", "docks", "grid reach", "atmos works", "walkable rooms", "solar arrays", "floor reached",
+             "function: rooms", "function: doors", "function: big machines", "function: public rooms",
+             "function: wall joins", "function: wall mounts")
+
+
+def _weight(fails):
+    return sum(10 if c["name"] in ESSENTIAL else 1 for c in fails)
+
+
+def _save_layout(name, params, sub, asg):
+    """The block plan a seed's search settled on (params, sub-seed, the slot assignment), for GEN_REUSE=1 rebuilds:
+    a change to the room stage is then judged on the same station in minutes, not after a 20-minute search."""
+    cmap, smap, lob, ai = asg
+    d = dict(params=params, sub=sub, cmap=cmap, smap={"%s|%s" % k: v for k, v in smap.items()}, lob=lob, ai=ai)
+    json.dump(d, open(os.path.join(OUT, name + ".layout.json"), "w"), default=str)
+
+
+def _load_layout(name):
+    p = os.path.join(OUT, name + ".layout.json")
+    if not os.path.exists(p):
+        return None
+    d = json.load(open(p))
+    smap = {}
+    for k, v in d["smap"].items():
+        a, b = k.split("|")
+        smap[(int(a), int(b))] = v
+    ai = tuple(d["ai"]) if isinstance(d["ai"], list) else d["ai"]
+    return d["params"], d["sub"], (d["cmap"], smap, d["lob"], ai)
+
+
+# medical before the alarms and networks (its cryo bay and moved morgue want their fixtures and power); the rest
+# after mend, as their agents tested them on finished maps (trim took the engine vestibule's closets, doordb renamed
+# the new doors); science last (the air pass put a supply vent in xenobiology's kill room)
+FN_EARLY = ("fn_medical",)
+FN_LATE = ("fn_security_command", "fn_service", "fn_engineering", "fn_science_cargo")
+
+
+def _fn_passes(m, seed, log, names):
+    """The department function passes (gen/learn/fn_<dept>.py fix(m, seed, log)); one that fails is logged with
+    its traceback and the build goes on (a half-run pass leaves what it did)."""
+    import importlib
+    import traceback
+    sys.path.insert(0, os.path.join(HERE, "learn"))
+    for nm in names:
+        if not os.path.exists(os.path.join(HERE, "learn", nm + ".py")):
+            continue
+        try:
+            n = importlib.import_module(nm).fix(m, seed, log)
+            log("%s: %s changes" % (nm, n))
+        except Exception:                      # noqa: BLE001
+            log("%s FAILED: %s" % (nm, traceback.format_exc()[-800:].replace(chr(10), " | ")))
+
+
+def _trace(m, label, log):
+    """GEN_TRACE_DOORS=1: the dead airlocks (gen/doorfix.py) after each late pass, to find the pass that makes them."""
+    if os.environ.get("GEN_TRACE_DOORS"):
+        import doorfix
+        d = doorfix.dead(m)
+        log.append("trace %-14s dead doors %d %s" % (label, len(d), " ".join("%d,%d" % (x, y) for x, y, _ in d[:12])))
 
 
 def build(seed, crew, shape="hub", tries=24, quiet=False, stage="blocks"):
@@ -288,12 +372,22 @@ def build(seed, crew, shape="hub", tries=24, quiet=False, stage="blocks"):
     rounds = ROOM_ROUNDS if stage in ("rooms", "full") else 1
     kept = None
     best = None
+    reuse = _load_layout(name) if os.environ.get("GEN_REUSE") else None
+    if reuse is not None:
+        params, sub, asg = reuse
+        rounds = min(rounds, REUSE_ROUNDS)
     for rnd in range(rounds):
-        if best is None or block_fail:
+        if reuse is not None and rnd == 0:
+            # the block plan this seed settled on before (GEN_REUSE=1): no search, the room stage again
+            m, L = _layout(prog, params, sub, P, radial, room, rband, force=asg)
+            best = (m, L, [], [], 0, sub)
+            block_fail = False
+        elif best is None or block_fail:
             best, params = search(prog, params, tries if rnd == 0 else max(8, tries // 3), name, P, radial, room,
                                   rband, log, quiet)
             m, L, fails, checks, f, sub = best
             asg = (dict(L.cmap), {k: list(v) for k, v in L.smap.items()}, list(L.lob), L.ai_at)
+            _save_layout(name, params, sub, asg)
         else:
             # the block plan passed: rebuild it as it was and furnish again with another room seed
             m, L = _layout(prog, params, sub, P, radial, room, rband, force=asg)
@@ -309,8 +403,113 @@ def build(seed, crew, shape="hub", tries=24, quiet=False, stage="blocks"):
             if stage == "full":
                 import dress as DR
                 import connect as CN
+                import net as NT
+                if NETWORKS:
+                    NT.REPORT.clear()
+                    NT.engine(m, L, rooms_log.append)
+                    NT.outside(m, L, rooms_log.append)
+                    import voids as VD
+                    VD.fill(m, seed, rooms_log.append)         # walled-in space made vacant rooms
+                _trace(m, "engine+outside", rooms_log)
+                keep = {}
+                if getattr(L, "learned_tiles", None):
+                    dx, dy = L.offset[0] - L.learned_off[0], L.offset[1] - L.learned_off[1]
+                    keep = {(x + dx, y + dy): m.get(x + dx, y + dy).copy() for (x, y) in L.learned_tiles
+                            if m.get(x + dx, y + dy) is not None}
                 DR.dress(m, rooms_log.append)
+                for p_, t_ in keep.items():
+                    m.set(p_[0], p_[1], t_)
+                if keep:
+                    rooms_log.append("learned rooms: %d floor tiles kept as furnished through the dressing passes" % len(keep))
+                if NETWORKS:
+                    # after the restore: a learned room's missing kit (a kitchen's microwave) was added and then
+                    # thrown away with the dressing passes' changes (2026-11-25)
+                    import essentials as ES
+                    ES.apply(m, rooms_log.append)
+                _trace(m, "dress+es", rooms_log)
                 CN.connect(m, rooms_log.append)
+                _trace(m, "connect", rooms_log)
+                if NETWORKS:
+                    import walls as WLL
+                    WLL.absorb_gaps(m, rooms_log.append)       # sealed 1-wide gaps taken into the rooms beside them
+                    WLL.merge_doubles(m, rooms_log.append)     # one wall where two stood (gen/walls.py)
+                    sys.path.insert(0, os.path.join(HERE, "learn"))
+                    import audit as AU
+                    AU.seat_big(m, rooms_log.append)           # the gravity generator's 3x3 first, before doors come
+                    import doorcount as DCN
+                    DCN.fix(m, rooms_log.append)               # each room's door count in its type's stock range
+                    _trace(m, "merge_doubles", rooms_log)
+                if NETWORKS:
+                    import walkfix as WF
+                    import doorfix as DF
+                    DF.fix(m, rooms_log.append)                # no airlock into a wall or a blocked front
+                    NT.REPORT["cut_off"] = WF.fix(m, rooms_log.append)
+                    _trace(m, "walkfix", rooms_log)
+                    # walls that meet only at a corner joined (medbay's wall to surgery stepped a row, f21)
+                    WLL.join_corners(m, rooms_log.append)
+                    # every area that takes power has its APC before the grid is laid (crew 100 seed 7's starboard
+                    # maint had lost its own by here: nine maint doors without power, 2026-11-26)
+                    sys.path.insert(0, os.path.join(HERE, "learn"))
+                    import settle as STL
+                    STL.settle(m, rooms_log.append)            # pieces where the stock maps put them (placestudy)
+                    import density as DNS
+                    DNS.fix(m, rooms_log.append)               # each room's free floor in its type's stock band
+                    import airy as AIRY
+                    AIRY.fix(m, rooms_log.append)              # no 1-tile squeezes where stock rooms keep walkways open
+                    AU.pair_up(m, rooms_log.append)            # the experimentor's console within its 3 tiles
+                    import desks as DSK
+                    DSK.fix(m, seed, rooms_log.append)         # counters: kitchen hatch, chemistry/R&D/cargo desks (f21: 7)
+                    # each department's functional patterns from the stock maps (tools/mapforge/studies/dept_specs/:
+                    # cells with timers, Brig Control's desk, the serving hatch, the produce fridge, an operating room,
+                    # the cryo bay, ...), before the alarms and the networks
+                    _fn_passes(m, seed, rooms_log.append, FN_EARLY)
+                    NT.dedupe_apcs(m, rooms_log.append)       # one an area (the security corridor had two)
+                    n_apc = 0
+                    for a_ in sorted({t.apath for t in m.tiles.values() if t.apath and not t.apath.startswith(
+                            ("/area/space", "/area/solar", "/area/engine/supermatter", "/area/science/test_area",
+                             "/area/shuttle"))}):
+                        n_apc += NT.ensure_apc(m, a_, lambda s_: None)
+                    rooms_log.append("apc: %d areas without one given one before the grid" % n_apc)
+                    import fixtures as FXT
+                    FXT.fix(m, seed, rooms_log.append)         # fire/air alarms, switches, extinguishers at stock rates
+                    # (after the APCs: hung first, they took a small store's only free wall face and its door had no
+                    # power, f17)
+                    NT.networks(m, rooms_log.append)
+                    _trace(m, "networks", rooms_log)
+                    WLL.seal_hull(m, rooms_log.append)        # no station floor left open to space
+                    WLL.fill_slivers(m, rooms_log.append)     # no 1-wide pocket of space sealed between two walls
+                    WLL.hull_corners(m, rooms_log.append)     # no hull corner left open (walls meeting diagonally)
+                    _trace(m, "seal_hull", rooms_log)
+                    DF.fix(m, rooms_log.append)                # again: the seal can wall in a door that opened on space
+                    sys.path.insert(0, os.path.join(HERE, "learn"))
+                    import doordb as DD
+                    DD.style(m, seed, rooms_log.append)        # learned airlock types, access and names
+                    DF.door_areas(m, rooms_log.append)        # no airlock in space's unpowered area
+                    import audit as AU
+                    lt_ = set()
+                    if getattr(L, "learned_tiles", None):
+                        dx_, dy_ = L.offset[0] - L.learned_off[0], L.offset[1] - L.learned_off[1]
+                        lt_ = {(x + dx_, y + dy_) for (x, y) in L.learned_tiles}
+                    AU.trim(m, lt_, rooms_log.append)          # no more lockers than a human map's room type has
+                    AU.mend(m, rooms_log.append)               # consoles off walls, machines where one can stand
+                    AU.seat_big(m, rooms_log.append)           # last: the mend moved a table into the 3x3 (f17)
+                    # after the networks: xenobiology's kill room loses the supply vent the air pass gave it
+                    _fn_passes(m, seed, rooms_log.append, FN_LATE)
+                    WLL.join_corners(m, rooms_log.append)      # the late passes' walls joined too
+                    WLL.clear_stray_glass(m, rooms_log.append)  # panes left of wall lines that went (to space)
+                    import mounts as MNT
+                    MNT.fix(m, rooms_log.append)               # APCs, alarms, lights, signs on a wall that's there
+                    import doordb as DDB
+                    n_ = DDB.open_jobs(m, rooms_log.append)    # the late passes' areas: each piece reached by its jobs
+                    rooms_log.append("doors: %d more doors opened for a department's own jobs after the late passes" % n_)
+                    MNT.bot_decals(m, rooms_log.append)
+                    WLL.hull_corners(m, rooms_log.append)
+                    AU.seat_big(m, rooms_log.append)           # a late pass may stand a piece on the 3x3 (f30)
+                    au_ = AU.audit(m)
+                    rooms_log.append("audit: %s" % AU.summary(au_))
+                    import placestudy as PSY
+                    rooms_log.append("placement: %s" % PSY.summary(PSY.check(m)))
+                    L.info["function"] = AU.function_checks(au_)
             if not quiet:
                 for ln in rooms_log:
                     print("  " + ln)
@@ -320,6 +519,13 @@ def build(seed, crew, shape="hub", tries=24, quiet=False, stage="blocks"):
             if stage == "full":
                 checks = [c for c in checks if c["kind"] in ("band", "pair", "hard", "ruled")
                           and c["name"] not in M3_PENDING]
+                if NETWORKS:
+                    import net as NT
+                    checks += NT.net_checks()
+                    # what the function audit says a station can't do without (gen/audit.py function_checks): a round
+                    # that lost the AI core, telecomms or virology to a tighter layout passed with 4 shape fails and
+                    # was kept over ones that had them (crew 100 seed 7 f11, 2026-11-26)
+                    checks += L.info.get("function", [])
             else:
                 checks = [c for c in checks if c["kind"] in ("band", "pair") or c["name"] in M2_HARD]
             fails = [c for c in checks if not c["ok"]]
@@ -327,7 +533,7 @@ def build(seed, crew, shape="hub", tries=24, quiet=False, stage="blocks"):
             if not quiet:
                 print("  %s rooms round %d: %d fails %s" % (name, rnd, len(fails), ", ".join(c["name"] for c in fails)))
         block_fail = any(c["name"].startswith(G.BLOCK_PREFIX) or c["kind"] == "pair" for c in fails)
-        if kept is None or len(fails) < len(kept[2]):
+        if kept is None or _weight(fails) < _weight(kept[2]):
             kept = (m, L, fails, checks, sub, rooms_log)
         if not fails:
             break

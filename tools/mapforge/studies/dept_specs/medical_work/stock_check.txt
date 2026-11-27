@@ -1,0 +1,31 @@
+== MetaStation/MetaStation
+check before: 0 ()
+== BoxStation/BoxStation
+check before: 2 (med.door_name 1, med.patient_locker 1)
+  139,108  med.patient_locker: patient room without its patient locker (stock 9/10 rooms)
+  134,114  med.door_name: "surgery observation" between lobby and medhall
+== Deltastation/DeltaStation2
+check before: 2 (med.chem_shower 1, med.door_name 1)
+  156, 91  med.chem_shower: nearest emergency shower 22 tiles from the dispensers (stock 4-26, median 13, 7/8 within 20; Hippie and Endo keep one in chemistry)
+  190,100  med.door_name: "medbay auxiliary storage" between MAINT and scrap
+== HippieStation/hippiestation
+check before: 2 (med.patient_locker 1, med.public 1)
+  139,108  med.patient_locker: patient room without its patient locker (stock 9/10 rooms)
+  133,117  med.public: the public walks into chemistry (stock: lobby, walkway, ward only)
+== PubbyStation/PubbyStation
+check before: 1 (med.patient_locker 1)
+  121,113  med.patient_locker: patient room without its patient locker (stock 9/10 rooms)
+== Donutstation/Donutstation
+check before: 1 (med.surgery 1)
+   93,111  med.surgery: scalpel, hemostat, retractor, cautery not all within 4 tiles of the table (8/8)
+== EndoStation/EndoStation
+check before: 7 (med.checkpoint_kit 1, med.checkpoint_window 1, med.clone_use 1, med.public 3, med.surgery 1)
+  141, 82  med.surgery: scalpel, hemostat, retractor, cautery not all within 4 tiles of the table (8/8)
+  143, 96  med.clone_use: clonepod has no free tile beside it to use it from
+  125, 92  med.checkpoint_kit: medbay security post has no security locker (8/8)
+  125, 92  med.checkpoint_window: medbay security post can't see the walkway or hall (8/8 windows)
+  130, 72  med.public: the public walks into chemistry (stock: lobby, walkway, ward only)
+  142, 64  med.public: the public walks into chemistry (stock: lobby, walkway, ward only)
+  138, 72  med.public: the public walks into storage (stock: lobby, walkway, ward only)
+== MetaLake/MetaLake
+check before: 0 ()

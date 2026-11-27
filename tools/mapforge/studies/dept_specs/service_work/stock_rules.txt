@@ -1,0 +1,40 @@
+HippieStation  {}
+MetaStation    {}
+BoxStation     {}
+Deltastation   {'theatre_bar': 1}
+    130,163 theatre_bar: theatre does not adjoin the bar
+PubbyStation   {'janitor_door': 1, 'dorm_beds': 1, 'chapel': 1, 'library': 1}
+    98,143 janitor_door: janitor's closet (7 tiles) reached only through janitor
+    151,168 dorm_beds: dorms: 3 beds
+    73,183 chapel: 2 crematoria
+    69,52 library: library not reached by the public
+Donutstation   {'produce_fridge': 1, 'kitchen_counts': 1}
+    127,119 produce_fridge: no produce smartfridge on the station (Botanist and Cook have nowhere to share the harvest)
+    131,95 kitchen_counts: kitchen: 2 gibber (stock 1)
+EndoStation    {'theatre_staff': 1, 'theatre_bar': 1}
+    96,112 theatre_staff: theatre open to the public
+    98,109 theatre_bar: theatre does not adjoin the bar
+MetaLake       {}
+
+produce_fridge   fails on 1 of 8: Donutstation
+kitchen_counter  fails on 0 of 8: 
+kitchen_staff    fails on 0 of 8: 
+coldroom_joins   fails on 0 of 8: 
+hydro_staff      fails on 0 of 8: 
+hydro_desk       fails on 0 of 8: 
+hydro_kit        fails on 0 of 8: 
+bar_staff_side   fails on 0 of 8: 
+bar_kit          fails on 0 of 8: 
+bar_public       fails on 0 of 8: 
+kitchen_kit      fails on 0 of 8: 
+kitchen_counts   fails on 1 of 8: Donutstation
+janitor_door     fails on 1 of 8: PubbyStation
+janitor_kit      fails on 0 of 8: 
+theatre_staff    fails on 1 of 8: EndoStation
+theatre_bar      fails on 2 of 8: Deltastation, EndoStation
+restroom         fails on 0 of 8: 
+dorm_beds        fails on 1 of 8: PubbyStation
+chapel           fails on 1 of 8: PubbyStation
+library          fails on 1 of 8: PubbyStation
+law_office       fails on 0 of 8: 
+tool_storage     fails on 0 of 8: 

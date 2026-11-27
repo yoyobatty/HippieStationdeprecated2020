@@ -1,0 +1,79 @@
+check before: 45  (atmos 18, atmos_door 1, ce_office 3, checkpoint 1, corridor 1, engine_door 1, foyer 1, grav 1, layout 3, rad_sign 2, store 1, tech 6, terminal 3, way_in 3)
+  119,114  way_in: the walk to the engine (30 steps) passes no shower within 2 steps before its door (None; stock 5/7: 1 step, the Engine Room vestibule)
+  119,114  way_in: the walk to the engine (30 steps) passes no radiation closet within 2 steps before its door (5; stock 6/7: 1 step, the Engine Room vestibule)
+  119,114  way_in: the walk to the engine (30 steps) passes no fire closet within 2 steps before its door (None; stock 5/7: 1 step, the Engine Room vestibule)
+  119,114  rad_sign: no radiation/secure-area sign along the last 12 steps of the walk in (stock 5/6 where found)
+  119,114  engine_door: "Supermatter Engine" into the engine opens for anyone (stock 7/7: access 10, or 24;10)
+  119,114  store: the walk into the engine goes through /area/engine/engine_smes (stock 6/6: through the foyer, vestibule and main room; stores are dead ends)
+  116,114  corridor: the engineering corridor meets the engine only through glass
+  125,101  grav: 1 radiation closets in the gravity generator's rooms or by their doors (stock 6/7: 2, in its foyer)
+  125,101  rad_sign: no radiation sign at the gravity generator (stock 5/7)
+  105,107  terminal: a power terminal with no SMES on its side (stock 6/7: none)
+  106,106  terminal: a power terminal with no SMES on its side (stock 6/7: none)
+  122,103  terminal: a power terminal with no SMES on its side (stock 6/7: none)
+  108,101  ce_office: an airlock the CE's access (56) doesn't guard: "Shared Engineering Storage" ['19', '32'] (stock 7/7: all 56)
+  108,101  ce_office: 2 airlocks onto the station (stock 6/7: 1; Delta's second is the CE's own quarters)
+  103, 99  ce_office: no window onto the department (stock 7/7)
+  125, 95  checkpoint: no airlock onto a hall or the department's floor (stock 6/6 posts); it opens on storage/tech
+  119, 92  tech: tech storage has no airlock onto a hall (stock 7/7, access 23)
+  118, 96  tech: tech storage's door is named "Gravity Generator"
+  119, 92  tech: tech storage lacks the circuit board spawners service, rnd, security, engineering, tcomms, medical (stock 7/7)
+  123, 92  tech: secure tech storage lacks the circuit board spawners AI, command, RnD_secure (stock 7/7)
+  122, 93  tech: the secure room has 2 airlocks (stock 6/6: 1)
+  123, 92  tech: a suit storage unit in secure tech storage
+  103, 92  foyer: the break room / foyer has no airlock onto a hall (stock 6/7, 32;19)
+  130, 99  atmos_door: airlock/atmos/glass/critical "SMES Room" between engineering and Atmospherics (stock: an atmos airlock named Atmospherics, access 24, 6/6)
+  139, 91  atmos: a hall airlock anyone opens (stock 7/7: access 24)
+  140, 91  atmos: a hall airlock anyone opens (stock 7/7: access 24)
+  131, 92  atmos: no front desk onto a hall (stock 7/7)
+  131, 92  atmos: 0 of atmospherics (stock 7/7: 2+)
+  131, 92  atmos: 0 of atmos_wardrobe (stock 7/7: 1+)
+  131, 92  atmos: 0 of atmos (stock 7/7: 1+)
+  131, 92  atmos: 0 of pipedispenser (stock 7/7: 1+)
+  131, 92  atmos: 0 of pump (stock 7/7: 2+)
+  131, 92  atmos: 0 of scrubber (stock 7/7: 2+)
+  131, 92  atmos: 0 of tank_dispenser (stock 7/7: 1+)
+  131, 92  atmos: 0 of atmos_alert (stock 7/7: 1+)
+  131, 92  atmos: 0 of fueltank (stock 7/7: 1+)
+  131, 92  atmos: 0 of watertank (stock 7/7: 1+)
+  131, 92  atmos: 0 of bin (stock 7/7: 1+)
+  131, 92  atmos: 0 of fireaxecabinet (stock 7/7: 1+)
+  131, 92  atmos: 0 of extinguisher_cabinet (stock 7/7: 2+)
+  131, 92  atmos: 0 of requests_console (stock 7/7: 1+)
+  131, 92  atmos: 1 spare canisters (stock 8-12 in the monitoring room)
+    0,  0  layout: no secure storage of emitters, field and shield generators behind blast doors (stock 7/7)
+    0,  0  layout: no external airlock from engineering (stock 6/7)
+  127,116  layout: 3 tank dispensers in engineering (stock 1-2)
+fn_engineering: corridor (116, 114): the window onto the engine is the Engine Room airlock now
+fn_engineering: engine_door (119, 114): "Supermatter Engine" takes access 10
+fn_engineering: store (119, 114): the engine_smes's door into the engine walled up (the way in is /area/engine's now)
+fn_engineering: ce_office (106, 99): the station_alert cutting the room in two moved to (103, 99)
+fn_engineering: ce_office (108, 101): the "Shared Engineering Storage" door (access ['19', '32']) into the CE's office is a shuttered window now
+fn_engineering: ce_office: the privacy shutters' button
+fn_engineering: checkpoint (128, 91): an airlock onto /area/hallway/primary/starboard
+fn_engineering: checkpoint (125, 95): its door into /area/storage/tech walled up
+fn_engineering: tech (121, 91): tech storage's airlock onto the hall
+fn_engineering: tech (118, 96): the inner door is Tech Storage, access 23
+fn_engineering: tech storage (122, 96): the table cutting the room in two moved to (124, 95)
+fn_engineering: tech (123, 94): the secure room's second door walled up
+fn_engineering: tech (123, 92): the suit storage unit out of secure tech storage (engineering storage has its own)
+fn_engineering: tech: tech storage given its circuit board spawners service, rnd, security, engineering, tcomms, medical
+fn_engineering: tech: secure tech storage given its circuit board spawners AI, command, RnD_secure
+fn_engineering: foyer (106, 91): the break room's airlock onto the hall (32;19)
+fn_engineering: atmos_door (130, 99): airlock/atmos/glass/critical is the Atmospherics Access airlock
+fn_engineering: atmos (139, 91): the hall airlock takes access 24
+fn_engineering: atmos (140, 91): the hall airlock takes access 24
+fn_engineering: atmos (136, 91): the Atmospherics Desk onto the hall
+fn_engineering: atmos: added atmospherics, atmospherics, atmos_wardrobe, atmos, pipedispenser, pump, pump, scrubber, scrubber, tank_dispenser, atmos_alert, fueltank, high, air, oxygen, nitrogen, carbon_dioxide, nitrous_oxide, fireaxecabinet, extinguisher_cabinet, extinguisher_cabinet, requests_console
+fn_engineering: terminal: 3 power terminals with no SMES taken out
+fn_engineering: way_in: by the "Engine Room" door (116, 114) (department side, /area/engine): shower (115, 109), shower (117, 109), radiation (115, 113), radiation (117, 113), firecloset (115, 111)
+fn_engineering: rad_sign (117, 114): by the way into the engine
+fn_engineering: grav: a radiation closet in the gravity generator's room at (124, 103)
+fn_engineering: rad_sign (125, 100): by the way into the gravity generator
+fn_engineering: 60 changes
+check after: 4  (atmos 1, layout 3)
+  131, 92  atmos: 0 of bin (stock 7/7: 1+)
+    0,  0  layout: no secure storage of emitters, field and shield generators behind blast doors (stock 7/7)
+    0,  0  layout: no external airlock from engineering (stock 6/7)
+  127,116  layout: 3 tank dispensers in engineering (stock 1-2)
+wrote tools/mapforge/studies/dept_specs/engineering_work/out/f22_c100_s7_fe.dmm

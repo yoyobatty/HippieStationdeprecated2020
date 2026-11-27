@@ -294,6 +294,27 @@ python tools/mapforge/gen/build.py --set --sheet           # the regression set 
   - Atmos: its gas chambers.
   - Doors: a second door for one-door rooms down to the human 40%, and a door cut between atmos and engineering.
 
+### Learned departments and the function pass (`gen/learn/`, 2026-11-25..27)
+
+State, open items and every finding: `studies/function_pass_2026_11_26.md` ("Start here" at the top).
+
+```
+python tools/mapforge/gen/learn/plancheck.py                  # plan faults over every department, 6 seeds
+python tools/mapforge/gen/learn/plancheck.py --dept cargo -v   # one department's frames, its hub figures
+python tools/mapforge/gen/learn/variety.py --plans 6           # room sizes and shapes against the stock maps
+python tools/mapforge/gen/audit.py <map.dmm> --list            # function audit: doors, kit, reach, wall joins
+python tools/mapforge/gen/mounts.py <map.dmm>                  # wall mounts with no wall behind them
+python tools/mapforge/gen/roomreview.py <map.dmm> --only quartermaster --out <dir>
+bash data/mapforge/gen_learn/chainL.sh gen_hub_c100_s7 genF53_c100_s7   # boot + 30-min Bot Shift + pictures
+```
+
+- `gen/learn/floorplan.py`: a department's rooms in strips off its stem; `HUB` (cargo built round its bay at
+  the block's far end), `DEEPEN` (planned again deeper when rooms of the program are left out), `reach_rooms`.
+- `gen/learn/fn_<dept>.py`: department function passes (specs in `studies/dept_specs/`).
+- `gen/net.py`: docks; `supply_dock` stamps Box's dock strip, `strip_fits` is the block-stage check
+  "cargo dock strip" (weighs 3 fails in the layout search, `gen/build.py BLOCK_HEAVY`).
+- `gen/walls.py`: wall joins (no corner-only joins), stray windows, hull sealing.
+
 ### Plan passes that close the discriminator's tells (`station/to_dmm.py`, after `carve_pens`)
 
 - `split_rooms`: rooms of 56+ tiles get a straight partition (glass in most of it, a door in the middle); rooms of

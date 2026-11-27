@@ -1,0 +1,88 @@
+183 106 crew_quarters/heads/hor open/floor/plasteel/cafeteria /obj/machinery/atmospherics/pipe/simple/supply/hidden{dir = 4} | /obj/structure/cable
+184 106 crew_quarters/heads/hor open/floor/plasteel/cafeteria /obj/machinery/atmospherics/pipe/simple/supply/hidden{dir = 4}
+185 106 crew_quarters/heads/hor open/floor/plasteel/cafeteria /obj/machinery/atmospherics/pipe/simple/supply/hidden{dir = 4}
+186 106 crew_quarters/heads/hor open/floor/plasteel/cafeteria /obj/machinery/atmospherics/components/unary/vent_pump/on{dir = 8}
+187 106 crew_quarters/heads/hor open/floor/plasteel/cafeteria 
+188 106 crew_quarters/heads/hor open/floor/plasteel/cafeteria /obj/machinery/airalarm{dir = 8; pixel_x = 24}
+189 106 crew_quarters/heads/hor closed/wall 
+190 106 science/mixing open/floor/plasteel /obj/machinery/portable_atmospherics/canister | /obj/structure/cable
+191 106 science/mixing open/floor/plasteel /obj/machinery/portable_atmospherics/pump | /obj/machinery/atmospherics/pipe/simple/supply/hidden | /obj/structure/cable
+192 106 science/mixing open/floor/plasteel /obj/machinery/atmospherics/pipe/manifold/scrubbers/hidden{dir = 8} | /obj/structure/cable
+193 106 science/mixing open/floor/plasteel/white /obj/machinery/door/firedoor/heavy | /obj/machinery/door/airlock/research{name = "Toxins Launch Room Access"; req_access_txt = "7"} | /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden{dir = 4} | /obj/effect/mapping_helpers/airlock/cyclelink_helper{dir = 4} | /obj/structure/cable
+183 105 crew_quarters/heads/hor open/floor/plasteel/cafeteria /obj/machinery/power/apc{dir = 8; name = "RD Office APC"; areastring = "/area/crew_quarters/heads/hor"; pixel_x = -25} | /obj/machinery/light_switch{pixel_y = -23} | /obj/item/twohanded/required/kirbyplants/dead | /obj/structure/cable
+184 105 crew_quarters/heads/hor open/floor/plasteel/cafeteria /obj/machinery/keycard_auth{pixel_y = -24} | /obj/machinery/light | /obj/machinery/computer/card/minor/rd{dir = 1}
+185 105 crew_quarters/heads/hor open/floor/plasteel/cafeteria /obj/structure/table | /obj/item/cartridge/signal/toxins | /obj/item/cartridge/signal/toxins{pixel_x = -4; pixel_y = 2} | /obj/item/cartridge/signal/toxins{pixel_x = 4; pixel_y = 6} | /obj/machinery/camera{c_tag = "Research Director's Office"; dir = 1; network = list("ss13","rd")} | /obj/item/radio/intercom{pixel_y = -29}
+186 105 crew_quarters/heads/hor open/floor/plasteel/cafeteria /obj/structure/closet/secure_closet/RD
+187 105 crew_quarters/heads/hor open/floor/plasteel/cafeteria /obj/machinery/disposal/bin
+188 105 crew_quarters/heads/hor open/floor/plasteel/cafeteria /obj/machinery/suit_storage_unit/rd
+189 105 crew_quarters/heads/hor closed/wall 
+190 105 science/mixing open/floor/plasteel /obj/structure/cable | /obj/machinery/power/apc{areastring = "/area/science/mixing/chamber"; dir = 8; name = "Toxins Chamber APC"; pixel_x = -25}
+191 105 science/mixing open/floor/plasteel /obj/machinery/atmospherics/pipe/simple/supply/hidden
+192 105 science/mixing open/floor/plasteel /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden
+193 105 science/mixing closed/wall/r_wall 
+183 104 crew_quarters/heads/hor closed/wall 
+184 104 science/mixing/chamber closed/wall/r_wall 
+185 104 science/mixing/chamber closed/wall/r_wall 
+186 104 science/mixing/chamber closed/wall/r_wall 
+187 104 science/mixing/chamber closed/wall/r_wall 
+188 104 science/mixing/chamber closed/wall/r_wall /obj/machinery/atmospherics/pipe/simple/supply/hidden{dir = 6}
+189 104 science/mixing/chamber closed/wall/r_wall /obj/machinery/atmospherics/pipe/simple/supply/hidden{dir = 4}
+190 104 science/mixing open/floor/plasteel/white /obj/machinery/door/firedoor/heavy | /obj/machinery/atmospherics/pipe/simple/supply/hidden{dir = 4}
+191 104 science/mixing open/floor/plasteel/white /obj/machinery/door/firedoor/heavy | /obj/machinery/atmospherics/pipe/manifold/supply/hidden{dir = 4}
+192 104 science/mixing open/floor/plasteel/white /obj/machinery/door/firedoor/heavy | /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden
+193 104 science/mixing closed/wall/r_wall 
+183 103 space/nearstation open/space /obj/structure/lattice
+184 103 science/mixing/chamber open/floor/engine/vacuum /obj/machinery/door/poddoor/incinerator_toxmix
+185 103 science/mixing/chamber open/floor/engine/vacuum /obj/structure/sign/warning/vacuum/external{pixel_y = 32}
+186 103 science/mixing/chamber open/floor/engine/vacuum /obj/machinery/sparker/toxmix{dir = 2; pixel_x = 25} | /obj/machinery/atmospherics/components/unary/vent_scrubber/on{dir = 4}
+187 103 science/mixing/chamber closed/wall/r_wall /obj/machinery/atmospherics/pipe/simple/general/visible{dir = 4}
+188 103 science/mixing/chamber open/floor/engine /obj/machinery/airlock_sensor/incinerator_toxmix{pixel_y = 24} | /obj/machinery/atmospherics/components/binary/pump/on{dir = 4} | /obj/machinery/atmospherics/pipe/simple/supply/hidden
+189 103 science/mixing/chamber closed/wall/r_wall /obj/machinery/atmospherics/pipe/simple/general/visible{dir = 4}
+190 103 science/mixing/chamber open/floor/plasteel/white /obj/machinery/atmospherics/pipe/simple/general/visible{dir = 4} | /obj/machinery/meter | /obj/machinery/embedded_controller/radio/airlock_controller/incinerator_toxmix{pixel_x = -24}
+191 103 science/mixing open/floor/plasteel/white /obj/machinery/atmospherics/components/binary/valve{dir = 4; name = "mix to port"} | /obj/machinery/atmospherics/pipe/simple/supply/hidden
+192 103 science/mixing open/floor/plasteel /obj/machinery/atmospherics/components/unary/portables_connector/visible{dir = 8} | /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden
+193 103 science/mixing closed/wall/r_wall 
+183 102 space/nearstation open/space /obj/structure/lattice
+184 102 science/mixing/chamber open/floor/engine/vacuum /obj/machinery/door/poddoor/incinerator_toxmix
+185 102 science/mixing/chamber open/floor/engine/vacuum 
+186 102 science/mixing/chamber open/floor/engine/vacuum /obj/machinery/air_sensor/atmos/toxins_mixing_tank
+187 102 science/mixing/chamber open/floor/engine /obj/effect/mapping_helpers/airlock/locked | /obj/machinery/door/airlock/research/glass/incinerator/toxmix_exterior
+188 102 science/mixing/chamber open/floor/engine /obj/machinery/atmospherics/components/binary/dp_vent_pump/high_volume/incinerator_toxmix{dir = 2}
+189 102 science/mixing/chamber open/floor/engine /obj/effect/mapping_helpers/airlock/locked | /obj/machinery/door/airlock/research/glass/incinerator/toxmix_interior
+190 102 science/mixing/chamber open/floor/plasteel/white 
+191 102 science/mixing open/floor/plasteel/white /obj/machinery/atmospherics/pipe/simple/supply/hidden
+192 102 science/mixing open/floor/plasteel /obj/machinery/camera{c_tag = "Toxins Lab East"; dir = 8; network = list("ss13","rd"); pixel_y = -22} | /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden | /obj/machinery/light{dir = 4}
+193 102 science/mixing closed/wall/r_wall 
+183 101 space/nearstation open/space /obj/structure/lattice
+184 101 science/mixing/chamber open/floor/engine/vacuum /obj/machinery/door/poddoor/incinerator_toxmix
+185 101 science/mixing/chamber open/floor/engine/vacuum 
+186 101 science/mixing/chamber open/floor/engine/vacuum /obj/machinery/sparker/toxmix{dir = 2; pixel_x = 25} | /obj/machinery/atmospherics/components/unary/outlet_injector/atmos/toxins_mixing_input{dir = 4}
+187 101 science/mixing/chamber closed/wall/r_wall /obj/machinery/atmospherics/pipe/simple/general/visible{dir = 4}
+188 101 science/mixing/chamber open/floor/engine /obj/structure/sign/warning/fire{pixel_y = -32} | /obj/machinery/atmospherics/components/binary/pump/on{dir = 8} | /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden
+189 101 science/mixing/chamber closed/wall/r_wall /obj/machinery/atmospherics/pipe/simple/general/visible{dir = 4}
+190 101 science/mixing/chamber open/floor/plasteel/white /obj/machinery/atmospherics/pipe/simple/general/visible{dir = 4} | /obj/machinery/meter | /obj/machinery/button/door/incinerator_vent_toxmix{pixel_x = -25; pixel_y = 5} | /obj/machinery/button/ignition/incinerator/toxmix{pixel_x = -25; pixel_y = -5}
+191 101 science/mixing open/floor/plasteel/white /obj/machinery/atmospherics/components/binary/valve{dir = 4; name = "port to mix"} | /obj/machinery/atmospherics/pipe/simple/supply/hidden
+192 101 science/mixing open/floor/plasteel /obj/machinery/atmospherics/components/unary/portables_connector/visible{dir = 8} | /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden
+193 101 science/mixing closed/wall/r_wall 
+183 100 science/mixing closed/wall 
+184 100 science/mixing/chamber closed/wall/r_wall 
+185 100 science/mixing/chamber closed/wall/r_wall 
+186 100 science/mixing/chamber closed/wall/r_wall 
+187 100 science/mixing/chamber closed/wall/r_wall 
+188 100 science/mixing/chamber closed/wall/r_wall /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden{dir = 5}
+189 100 science/mixing/chamber closed/wall/r_wall /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden{dir = 4}
+190 100 science/mixing/chamber open/floor/plasteel/white /obj/machinery/door/firedoor/heavy | /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden{dir = 4} | /obj/machinery/airalarm/mixingchamber{dir = 4; pixel_x = -24}
+191 100 science/mixing open/floor/plasteel/white /obj/machinery/door/firedoor/heavy | /obj/machinery/atmospherics/pipe/simple/supply/hidden | /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden{dir = 4}
+192 100 science/mixing open/floor/plasteel/white /obj/machinery/door/firedoor/heavy | /obj/machinery/atmospherics/pipe/manifold/scrubbers/hidden{dir = 4}
+193 100 science/mixing closed/wall/r_wall 
+183 99 science/mixing closed/wall 
+184 99 science/mixing open/floor/plasteel/white /obj/machinery/light_switch{pixel_y = 28} | /obj/structure/extinguisher_cabinet{pixel_x = -27} | /obj/machinery/disposal/bin
+185 99 science/mixing open/floor/plasteel/white /obj/structure/closet/bombcloset
+186 99 science/mixing open/floor/plasteel/white /obj/structure/closet/bombcloset
+187 99 science/mixing open/floor/plasteel/white /obj/structure/closet/l3closet/scientist{pixel_x = -2} | /obj/machinery/light{dir = 1}
+188 99 science/mixing open/floor/plasteel/white /obj/machinery/vending/wardrobe/science_wardrobe
+189 99 science/mixing open/floor/plasteel/white /obj/structure/tank_dispenser
+190 99 science/mixing open/floor/plasteel/white 
+191 99 science/mixing open/floor/plasteel/white /obj/machinery/atmospherics/pipe/simple/supply/hidden
+192 99 science/mixing open/floor/plasteel/white /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden
+193 99 science/mixing open/floor/plasteel/white /obj/item/transfer_valve{pixel_x = -5} | /obj/item/transfer_valve{pixel_x = -5} | /obj/item/transfer_valve | /obj/item/transfer_valve | /obj/item/transfer_valve{pixel_x = 5} | /obj/item/transfer_valve{pixel_x = 5} | /obj/machinery/requests_console{department = "Science"; departmentType = 2; name = "Science Requests Console"; pixel_y = 30; receive_ore_updates = 1} | /obj/structure/table/reinforced

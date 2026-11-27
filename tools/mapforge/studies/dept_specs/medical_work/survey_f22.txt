@@ -1,0 +1,24 @@
+== f22_c100_s7: 23 medical pieces, 468 tiles
+  /area/crew_quarters/heads/cmo                13  bbox [64, 60, 67, 63]  doors 2 win 0 desk 0 | cmo_locker 1, keycard 1, requests 1
+  /area/crew_quarters/heads/cmo                16  bbox [74, 75, 76, 81]  doors 2 win 0 desk 0 | bed 1, crew_monitor 1, disposal 1, extinguisher 1, med_records 1, requests 1
+  /area/medical/chemistry                      30  bbox [71, 69, 76, 73]  doors 3 win 0 desk 0 | beakers 4, chem_dispenser 2, chem_heater 2, chem_locker 1, chem_master 2, disposal 1, extinguisher 1, requests 1
+  /area/medical/cryo                           15  bbox [69, 53, 71, 57]  doors 1 win 1 desk 0 | beakers 4, extinguisher 1, o2_canister 2
+  /area/medical/genetics                       24  bbox [77, 74, 80, 80]  doors 1 win 1 desk 0 | beakers 1, bed 2, bodybag 1, dna_console 2, dna_scanner 2, mirror 1, monkey_cubes 1, pill_bottles 2, requests 1, roller 2, sink 1
+  /area/medical/genetics/cloning                6  bbox [73, 53, 74, 55]  doors 1 win 0 desk 0 | clone_console 1, clonepod 1, dna_scanner 1, sink 1
+  /area/medical/medbay                         69  bbox [58, 65, 80, 67]  doors 10 win 4 desk 0 | disposal 1
+  /area/medical/medbay/central                 56  bbox [73, 57, 80, 63]  doors 4 win 4 desk 0 | bed 4, bodybag 1, disposal 1, extinguisher 3, firstaid 1, glass_cab 1, iv_drip 3, roller 3, shower 1, sink 2
+  /area/medical/medbay/lobby                   21  bbox [58, 53, 62, 57]  doors 2 win 0 desk 0 | firstaid 1, med_records 1, requests 1
+  /area/medical/morgue                         25  bbox [58, 59, 62, 63]  doors 2 win 0 desk 0 | bodybag 2, morgue 4
+  /area/medical/patients_rooms/room_a           6  bbox [76, 53, 77, 55]  doors 1 win 0 desk 0 | bed 1, medkit_wall 1, wallmed 1
+  /area/medical/patients_rooms/room_b           6  bbox [79, 53, 80, 55]  doors 1 win 0 desk 0 | bed 1, medkit_wall 1, wallmed 1
+  /area/medical/sleeper                        17  bbox [68, 59, 71, 63]  doors 2 win 0 desk 0 | anesthetic 1, med_records 1, medlocker 1, shower 1, sleeper 2, stasis 2
+  /area/medical/storage                        14  bbox [71, 75, 72, 81]  doors 2 win 0 desk 0 | firstaid 9, requests 1
+  /area/medical/storage                        27  bbox [63, 53, 67, 58]  doors 2 win 1 desk 0 | beakers 1, bodybag 1, disposal 1, extinguisher 1, firstaid 12, medlocker 2, requests 1
+  /area/medical/virology                       48  bbox [58, 69, 65, 76]  doors 5 win 2 desk 0 | beakers 1, disposal 1, extinguisher 1, medkit_wall 1, pandemic 1, shower 2, sink 2, smartfridge 1, smartfridge_chem 1, wallmed 1
+  /area/medical/virology                       12  bbox [63, 78, 65, 81]  doors 1 win 0 desk 0 | bed 2, roller 2, sink 2
+  /area/medical/virology                        9  bbox [67, 74, 69, 76]  doors 2 win 0 desk 0 | bio_closet 2, sink 2
+  /area/medical/virology                       12  bbox [67, 69, 69, 72]  doors 1 win 1 desk 0 | bed 2, bio_closet 1, medlocker 1, roller 2, sink 1, viro_locker 1
+  /area/medical/virology                       12  bbox [58, 78, 61, 80]  doors 1 win 0 desk 0 | bed 1, med_records 1, seccomp 1
+  /area/medical/virology                        9  bbox [67, 78, 69, 80]  doors 1 win 0 desk 0 | bed 1, biohazard_sign 1, em_closet 1, extinguisher 1, glass_cab 1, mirror 1, sink 1
+  /area/medical/virology                        9  bbox [58, 74, 60, 76]  doors 2 win 0 desk 0 | biohazard_sign 1, extinguisher 1, glass_cab 1, mirror 1, sink 2
+  /area/security/checkpoint/medical            12  bbox [78, 69, 80, 72]  doors 2 win 0 desk 0 | requests 1, seccomp 1, wardrobe 1

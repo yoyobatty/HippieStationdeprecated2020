@@ -1,0 +1,46 @@
+before: 23 {'produce_fridge': 1, 'kitchen_counter': 1, 'coldroom_joins': 1, 'hydro_staff': 1, 'hydro_desk': 1, 'bar_staff_side': 3, 'kitchen_counts': 3, 'janitor_door': 2, 'janitor_kit': 1, 'theatre_staff': 1, 'theatre_bar': 1, 'restroom': 3, 'chapel': 2, 'law_office': 2}
+  95,79 produce_fridge: no produce smartfridge on the station (Botanist and Cook have nowhere to share the harvest)
+  107,81 kitchen_counter: kitchen has no serving counter onto public floor (bar, cafeteria, hall)
+  114,78 coldroom_joins: cold room door onto /area/crew_quarters/bar
+  100,81 hydro_staff: hydroponics open to the public
+  95,79 hydro_desk: hydroponics has no public desk
+  109,70 bar_staff_side: beer on the public side of the bar
+  109,66 bar_staff_side: drinks on the public side of the bar
+  105,65 bar_staff_side: boozeomat on the public side of the bar
+  114,80 kitchen_counts: kitchen: 2 gibber (stock 1)
+  113,80 kitchen_counts: kitchen: 2 condimaster (stock 1)
+  110,83 kitchen_counts: kitchen: 1 microwave (stock 2)
+  92,65 janitor_door: janitor's closet (8 tiles) reached only through garden, theatre
+  97,71 janitor_door: janitor's closet (9 tiles) reached only through garden
+  95,68 janitor_kit: janitor: no JaniDrobe (galoshes)
+  95,69 theatre_staff: theatre open to the public
+  92,70 theatre_bar: theatre does not adjoin the bar
+  89,119 restroom: crew quarters: 0 showers
+  89,119 restroom: crew quarters: 0 toilets
+  89,119 restroom: crew quarters: 0 sink
+  52,114 chapel: 2 crematoria
+  52,122 chapel: crematorium has no button
+  141,79 law_office: law office door into /area/ai_monitored/security/armory
+  137,79 law_office: the Lawyer can't walk in from the halls
+fn_service: Hydroponics door 100,81 given access 35 (was public)
+fn_service: Theatre Backstage door 95,69 given access 46 (was public)
+fn_service: produce smartfridge set into the wall at 100,84 (hydroponics 99,84 / /area/crew_quarters 101,84)
+fn_service: Serving Hatch hatch onto /area/crew_quarters/bar at 109,77 108,77
+fn_service: law office door 141,79 into /area/ai_monitored/security/armory walled up
+fn_service: dorm cabin by door 88,116 (6 tiles) made the restroom: shower x2, toilet x2, sink x1
+fn_service: janitor's closet door cut at 100,73 onto /area/crew_quarters
+fn_service: door 98,70 walled up (janitor's closet into /area/hydroponics/garden)
+fn_service: door 114,78 walled up (cold room onto /area/crew_quarters/bar)
+fn_service: bar counter built from 114,65 along west, back to the south wall (6 columns, Bar Door at 114,67)
+fn_service: extra gibber at 105,83 taken out
+fn_service: extra condimaster at 113,80 taken out
+fn_service: second microwave on the kitchen table at 108,81
+fn_service: second crematorium at 52,114 taken out
+fn_service: crematorium button at 50,122 (crematorium 52,122)
+fn_service: jani_wardrobe added in /area/janitor at 98,71
+fix: 16 changes
+after: 4 {'hydro_desk': 1, 'janitor_door': 1, 'theatre_bar': 1, 'law_office': 1}
+  95,79 hydro_desk: hydroponics has no public desk
+  92,65 janitor_door: janitor's closet (8 tiles) reached only through garden, theatre
+  92,70 theatre_bar: theatre does not adjoin the bar
+  137,79 law_office: the Lawyer can't walk in from the halls

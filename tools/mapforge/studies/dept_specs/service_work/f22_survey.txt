@@ -1,0 +1,139 @@
+==================== data/mapforge/gen_learn/f22_c100_s7.dmm
+/area/chapel  80 tiles  box (45,113)-(71,135)
+   kit: machinery/door/airlock x17
+   door      -> /area/chapel/main  x1 at 57,123
+   glass     -> /area/chapel/main  x4 at 60,123 61,123 62,123 63,123
+   open      -> /area/chapel/main  x7 at 54,115 57,122 60,122 61,122 62,122 63,122
+   door      -> /area/chapel/office  x1 at 53,123
+   open      -> /area/chapel/office  x2 at 52,115 53,122
+   door      -> /area/construction  x1 at 45,126
+   glass     -> /area/construction  x3 at 47,126 48,126 49,126
+   open      -> /area/construction  x5 at 45,127 47,127 48,127 49,127 50,135
+   door      -> /area/hallway/primary/fore  x2 at 71,124 71,125
+   open      -> /area/hallway/primary/fore  x3 at 72,124 72,125 72,131
+   door      -> /area/library  x1 at 63,126
+   glass     -> /area/library  x1 at 66,126
+   open      -> /area/library  x5 at 63,127 66,127 66,134 68,134 70,131
+   door      -> /area/library/lounge  x1 at 47,123
+   open      -> /area/library/lounge  x2 at 46,120 47,122
+   open      -> /area/maintenance/department/chapel  x2 at 46,115 47,114
+   open      -> /area/storage/art  x2 at 58,131 58,132
+   open      -> /area/storage/emergency/starboard  x2 at 46,117 46,118
+   door      -> /area/storage/primary  x1 at 66,123
+   open      -> /area/storage/primary  x2 at 66,117 66,122
+   door      -> /area/storage/tools  x1 at 60,126
+   open      -> /area/storage/tools  x2 at 58,129 60,127
+   open      -> /area/vacant_room/commissary  x1 at 58,134
+   door      -> /area/vacant_room/office  x1 at 52,126
+   open      -> /area/vacant_room/office  x2 at 52,127 52,135
+/area/chapel/main  96 tiles  box (54,113)-(64,122)
+   kit: item/flashlight/lantern x2, item/paper_bin, item/reagent_containers/food x6, item/storage/book, item/storage/fancy x2, item/twohanded/required x6, machinery/door/airlock x2, structure/bookcase x2, structure/chair/wood x22, structure/extinguisher_cabinet, structure/sign/plaques, structure/sign/warning, structure/table/wood x11
+   door      -> /area/chapel  x1 at 57,123
+   open      -> /area/chapel  x5 at 53,115 60,123 61,123 62,123 63,123
+   door      -> /area/hallway/primary/central  x2 at 59,113 64,113
+   open      -> /area/hallway/primary/central  x2 at 59,112 64,112
+   door      -> /area/storage/primary  x1 at 65,117
+/area/chapel/office  31 tiles  box (50,114)-(53,122)
+   kit: item/clipboard, item/flashlight/lamp, item/folder, item/paper_bin, item/pen, item/pen/fourcolor, item/storage/crayons x2, item/storage/fancy x3, item/toy/figure, item/twohanded/required, machinery/disposal/bin, machinery/photocopier, machinery/requests_console, machinery/vending/wardrobe, structure/bodycontainer/crematorium x2, structure/chair/office x2, structure/extinguisher_cabinet, structure/sign/poster, structure/sign/warning, structure/table/wood x7
+   door      -> /area/chapel  x1 at 53,123
+   open      -> /area/chapel  x1 at 53,115
+/area/crew_quarters/bar  126 tiles  box (105,65)-(114,77)
+   kit: item/book/manual x2, item/clothing/head, item/clothing/mask x2, item/clothing/under x3, item/gun/ballistic, item/instrument/trombone, item/reagent_containers/food x20, item/reagent_containers/glass, item/stack/spacecash x2, item/storage/pill_bottle, item/toy/cards x4, machinery/chem_dispenser/drinks x2, machinery/chem_master/condimaster, machinery/computer/arcade, machinery/computer/security x2, machinery/computer/slot_machine x2, machinery/disposal/bin x2, machinery/reagentgrinder, machinery/rnd/production, machinery/vending/boozeomat, machinery/vending/cigarette, machinery/vending/coffee, machinery/vending/cola, machinery/vending/snack, machinery/vending/wardrobe, structure/chair x2, structure/chair/stool x15, structure/chair/wood x4, structure/closet/crate, structure/closet/secure_closet, structure/extinguisher_cabinet, structure/reagent_dispensers/beerkeg, structure/sign/poster, structure/table x3, structure/table/glass x3, structure/table/reinforced x2, structure/table/wood x15
+   door      -> /area/crew_quarters  x1 at 104,74
+   open      -> /area/crew_quarters  x4 at 104,66 104,67 104,68 104,69
+   door      -> /area/crew_quarters/kitchen/coldroom  x1 at 114,78
+/area/crew_quarters/dorms  132 tiles  box (77,112)-(96,129)
+   kit: item/bedsheet/dorms x5, item/bedsheet/red x3, item/clothing/under x3, item/twohanded/required x2, machinery/door/airlock x13, structure/bed x8, structure/chair/stool x3, structure/closet/secure_closet x5, structure/dresser x7, structure/sign/poster x3, structure/table, structure/table/wood x2
+   door      -> /area/crew_quarters/fitness  x1 at 87,129
+   glass     -> /area/crew_quarters/fitness  x1 at 87,126
+   open      -> /area/crew_quarters/fitness  x2 at 88,126 88,129
+   door      -> /area/crew_quarters/fitness/recreation  x1 at 84,116
+   glass     -> /area/crew_quarters/fitness/recreation  x1 at 84,119
+   open      -> /area/crew_quarters/fitness/recreation  x8 at 78,114 78,115 78,117 78,118 79,113 80,113
+   door      -> /area/crew_quarters/locker  x1 at 84,124
+   glass     -> /area/crew_quarters/locker  x2 at 84,127 84,128
+   open      -> /area/crew_quarters/locker  x6 at 78,123 78,124 78,126 83,124 83,127 83,128
+   door      -> /area/hallway/primary/central  x2 at 85,112 86,112
+   open      -> /area/hallway/primary/central  x4 at 79,111 80,111 85,111 86,111
+   open      -> /area/hallway/primary/fore  x7 at 76,114 76,115 76,117 76,118 76,123 76,124
+/area/crew_quarters/fitness  45 tiles  box (88,125)-(96,129)
+   kit: item/clothing/gloves x3, item/clothing/mask x3, item/clothing/shoes, item/storage/firstaid x2, machinery/disposal/bin, structure/chair x3, structure/chair/stool, structure/closet/athletic_mixed, structure/closet/boxinggloves, structure/closet/lasertag x2, structure/closet/masks, structure/rack, structure/reagent_dispensers/water_cooler, structure/table x2
+   door      -> /area/crew_quarters/dorms  x1 at 87,129
+   open      -> /area/crew_quarters/dorms  x1 at 87,126
+/area/crew_quarters/fitness/recreation  48 tiles  box (78,113)-(83,120)
+   kit: item/paper/fluff, item/storage/firstaid, item/twohanded/required, machinery/computer/arcade x2, machinery/computer/holodeck, structure/chair x2, structure/chair/stool x4, structure/punching_bag, structure/rack, structure/table, structure/weightmachine/stacklifter x2, structure/weightmachine/weightlifter x2
+   door      -> /area/crew_quarters/dorms  x1 at 84,116
+   open      -> /area/crew_quarters/dorms  x7 at 77,114 77,115 77,117 77,118 79,112 80,112
+/area/crew_quarters/kitchen  45 tiles  box (105,78)-(110,85)
+   kit: item/book/manual x2, item/kitchen/rollingpin, item/reagent_containers/food x5, item/reagent_containers/glass, item/stack/packageWrap, item/storage/box, machinery/chem_master/condimaster, machinery/deepfryer x2, machinery/disposal/bin, machinery/food_cart, machinery/gibber, machinery/microwave, machinery/processor, machinery/reagentgrinder, machinery/requests_console, machinery/vending/dinnerware, structure/closet/secure_closet x2, structure/sink/kitchen, structure/table x9, structure/table/reinforced
+   door      -> /area/crew_quarters  x1 at 104,85
+   open      -> /area/crew_quarters  x2 at 104,80 104,81
+   door      -> /area/crew_quarters/kitchen/coldroom  x1 at 111,82
+/area/crew_quarters/kitchen/coldroom  21 tiles  box (112,79)-(114,85)
+   kit: /mob/living/simple_animal/hostile, machinery/chem_master/condimaster, machinery/gibber, machinery/icecream_vat, machinery/vending/wardrobe, structure/closet/secure_closet x2, structure/extinguisher_cabinet, structure/kitchenspike x2, structure/reagent_dispensers/cooking_oil, structure/sink/kitchen x2
+   open      -> /area/crew_quarters  x1 at 113,86
+   door      -> /area/crew_quarters/bar  x1 at 114,78
+   door      -> /area/crew_quarters/kitchen  x1 at 111,82
+/area/crew_quarters/locker  48 tiles  box (78,122)-(83,129)
+   kit: item/clothing/shoes, item/razor, item/storage/toolbox x2, item/twohanded/required x2, machinery/vending/cigarette, machinery/vending/clothing, machinery/vending/coffee, machinery/vending/cola, machinery/washing_machine x3, structure/closet, structure/closet/secure_closet x3, structure/closet/wardrobe x4, structure/extinguisher_cabinet, structure/table x4
+   door      -> /area/crew_quarters/dorms  x1 at 84,124
+   open      -> /area/crew_quarters/dorms  x5 at 77,123 77,124 77,126 84,127 84,128
+/area/crew_quarters/theatre  25 tiles  box (91,68)-(95,73)
+   kit: item/bikehorn, item/clothing/mask x4, item/instrument/eguitar, item/instrument/guitar, item/instrument/violin, item/lipstick/black, item/lipstick/jade, item/lipstick/purple, item/saxophone, item/toy/dummy, item/toy/prize, machinery/disposal/bin, machinery/door/airlock, machinery/vending/autodrobe, structure/chair/stool, structure/chair/wood, structure/closet/crate, structure/dresser, structure/piano, structure/table/wood x6
+   open      -> /area/crew_quarters  x1 at 92,74
+   door      -> /area/hydroponics/garden  x1 at 95,69
+   open      -> /area/hydroponics/garden  x1 at 96,69
+   door      -> /area/janitor  x1 at 91,67
+/area/hydroponics  101 tiles  box (91,74)-(99,85)
+   kit: item/book/manual, item/clipboard, item/crowbar, item/cultivator x3, item/grenade/chem_grenade x2, item/hand_labeler, item/honey_frame x3, item/melee/flyswatter, item/queen_bee/bought, item/reagent_containers/food x4, item/reagent_containers/glass x5, item/reagent_containers/spray x5, item/seeds/potato, item/seeds/pumpkin, item/seeds/wheat, item/shovel/spade x4, item/stack/packageWrap, item/storage/box x2, item/toy/figure, item/watertank x2, item/wirecutters x3, item/wrench x3, machinery/biogenerator, machinery/disposal/bin, machinery/hydroponics/constructable x15, machinery/plantgenes, machinery/reagentgrinder, machinery/requests_console, machinery/seed_extractor, machinery/smartfridge/disks, machinery/vending/hydronutrients, machinery/vending/hydroseeds, machinery/vending/wardrobe, structure/beebox/unwrenched, structure/closet/crate x4, structure/closet/secure_closet x2, structure/extinguisher_cabinet, structure/reagent_dispensers/watertank x2, structure/sign/departments, structure/sign/poster x2, structure/sink x5, structure/table x2, structure/table/glass x7
+   door      -> /area/crew_quarters  x1 at 100,81
+   open      -> /area/crew_quarters  x6 at 92,74 92,86 93,86 100,76 100,77 100,78
+/area/hydroponics/garden  20 tiles  box (96,65)-(99,69)
+   kit: item/crowbar x2, item/cultivator x2, item/hatchet x2, item/plant_analyzer x2, item/reagent_containers/food x7, item/reagent_containers/glass x2, item/seeds/apple, item/seeds/banana, item/seeds/cocoapod, item/seeds/grape, item/seeds/orange, item/seeds/sugarcane, item/seeds/tower, item/seeds/watermelon, item/seeds/wheat, item/storage/bag, machinery/biogenerator, machinery/hydroponics/soil x6, machinery/seed_extractor, structure/sink x2, structure/table/glass x4
+   door      -> /area/crew_quarters  x1 at 100,69
+   open      -> /area/crew_quarters  x1 at 100,66
+   door      -> /area/crew_quarters/theatre  x1 at 95,69
+   door      -> /area/janitor  x2 at 95,65 98,70
+/area/janitor  17 tiles  box (91,65)-(99,73)
+   kit: /mob/living/simple_animal/hostile, item/clothing/gloves x2, item/grenade/chem_grenade, item/key/janitor, item/mop, item/restraints/legcuffs, item/storage/box x4, machinery/disposal/bin, machinery/requests_console x2, structure/janitorialcart x2, structure/reagent_dispensers/watertank, structure/sign/poster x2, structure/table x2
+   door      -> /area/crew_quarters/theatre  x1 at 91,67
+   door      -> /area/hydroponics/garden  x2 at 95,65 98,70
+/area/lawoffice  16 tiles  box (136,78)-(140,81)
+   kit: item/book/manual, item/cartridge/lawyer, item/flashlight/lamp, item/folder/blue, item/paper_bin, item/pen, item/stamp/law, item/storage/briefcase, item/taperecorder, machinery/computer/security, machinery/disposal/bin, machinery/photocopier, machinery/requests_console, machinery/vending/wardrobe, structure/chair/office, structure/filingcabinet/employment, structure/rack, structure/table/wood x3
+   door      -> /area/ai_monitored/security/armory  x1 at 141,79
+   door      -> /area/security  x1 at 135,80
+/area/library  76 tiles  box (62,127)-(71,135)
+   kit: item/camera, item/camera_film, item/folder, item/paper_bin, item/pen x2, item/taperecorder, item/twohanded/required x4, machinery/bookbinder, machinery/computer/libraryconsole, machinery/computer/security, machinery/door/airlock, machinery/libraryscanner, machinery/photocopier x2, machinery/vending/wardrobe, structure/bookcase, structure/bookcase/random x12, structure/chair/office, structure/displaycase/trophy x2, structure/table/wood x7
+   door      -> /area/chapel  x1 at 63,126
+   door(own tile) -> /area/chapel  x1 at 67,134
+   open      -> /area/chapel  x2 at 66,126 71,131
+   door      -> /area/hallway/primary/fore  x1 at 71,128
+   open      -> /area/hallway/primary/fore  x1 at 72,128
+/area/library/lounge  12 tiles  box (45,120)-(48,122)
+   kit: machinery/disposal/bin, machinery/vending/coffee, machinery/vending/games, structure/chair/comfy, structure/filingcabinet, structure/table/wood
+   door      -> /area/chapel  x1 at 47,123
+   door      -> /area/storage/emergency/starboard  x1 at 46,119
+/area/storage/art  8 tiles  box (57,131)-(60,132)
+   kit: item/camera, item/camera_film, item/hand_labeler, item/paper_bin/construction, item/stack/pipe_cleaner_coil x6, item/storage/crayons x2, structure/table x5
+   door      -> /area/storage/tools  x1 at 58,130
+   door      -> /area/vacant_room/commissary  x1 at 58,133
+/area/storage/emergency/starboard  8 tiles  box (45,117)-(48,118)
+   kit: machinery/portable_atmospherics/canister, machinery/space_heater, structure/reagent_dispensers/watertank
+   door      -> /area/library/lounge  x1 at 46,119
+   door      -> /area/maintenance/department/chapel  x1 at 46,116
+/area/storage/primary  45 tiles  box (66,114)-(70,122)
+   kit: item/analyzer, item/assembly/igniter x2, item/assembly/prox_sensor, item/assembly/signaler x2, item/clothing/gloves, item/crowbar x2, item/flashlight, item/multitool x2, item/screwdriver x2, item/stack/cable_coil, item/stack/packageWrap x4, item/stock_parts/cell, item/storage/belt, item/storage/firstaid, item/storage/toolbox x2, item/t_scanner, item/twohanded/required, item/weldingtool, item/wirecutters, item/wrench, machinery/cell_charger, machinery/disposal/bin, machinery/requests_console, machinery/vending/assist, machinery/vending/tool, structure/chair/stool, structure/closet/crate, structure/extinguisher_cabinet, structure/reagent_dispensers/fueltank, structure/reagent_dispensers/watertank, structure/table x10
+   door      -> /area/chapel  x1 at 66,123
+   door      -> /area/chapel/main  x1 at 65,117
+/area/storage/tools  12 tiles  box (57,127)-(60,129)
+   kit: item/clothing/gloves, item/clothing/suit, item/electronics/airlock, item/electronics/apc, item/multitool, item/stack/sheet x3, item/storage/box, item/storage/toolbox, structure/rack x2, structure/reagent_dispensers/fueltank, structure/table x3
+   door      -> /area/chapel  x1 at 60,126
+   door      -> /area/storage/art  x1 at 58,130
+/area/vacant_room/commissary  8 tiles  box (57,134)-(60,135)
+   kit: item/circuitboard/machine, item/hand_labeler, item/paper_bin, item/pen, item/stack/cable_coil, item/stack/sheet, item/storage/secure x2, item/wrench, structure/closet/secure_closet, structure/table x2
+   door      -> /area/storage/art  x1 at 58,133
+/area/vacant_room/office  36 tiles  box (52,127)-(55,135)
+   kit: item/flashlight/lamp x2, item/folder/blue, item/pen/red, structure/chair/office x2, structure/filingcabinet/chestdrawer, structure/table/wood x13
+   door      -> /area/chapel  x1 at 52,126
+   door      -> /area/construction  x1 at 51,135
+trays (workplace) 15; produce smartfridges 0

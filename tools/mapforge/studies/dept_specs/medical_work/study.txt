@@ -1,0 +1,283 @@
+Room types (pieces / tiles) per map
+type            hippiestation MetaStation   BoxStation    DeltaStation2 PubbyStation  Donutstation  EndoStation   MetaLake      f22_c100_s7   f21c_c100_s7  
+checkpoint      1/15          1/8           1/15          2/21          1/12          1/15          3/39          1/8           1/12          1/15          
+chemistry       1/35          1/36          1/35          1/45          1/39          1/45          1/46          1/36          1/30          1/30          
+cloning         1/32          1/16          1/16          1/26          1/25          1/19          1/39          1/18          1/6           1/30          
+cmo             1/24          1/28          1/24          2/50          1/25          1/24          2/60          1/28          2/29          1/17          
+cryo            1/20          1/20          1/20          1/20          1/20          1/20          1/20          1/20          -             -             
+genetics        1/38          1/33          1/41          1/33          1/58          1/37          1/33          1/33          1/24          1/38          
+genetics_other  1/6           2/20          1/6           1/22          -             1/9           6/33          2/20          -             -             
+lobby           -             -             1/1           -             -             1/38          -             -             2/90          2/77          
+medhall         3/136         8/165         4/174         9/323         5/156         3/120         9/267         8/165         1/56          2/52          
+morgue          1/35          1/40          1/35          1/55          1/30          1/34          1/32          1/40          1/25          1/21          
+morgue_other    -             -             -             1/1           -             -             4/28          -             -             -             
+other:/area/medical/apothecary-             -             -             -             -             -             2/4           -             -             -             
+other:/area/medical/chemistry3/24          -             -             -             -             -             2/65          -             -             -             
+other:/area/medical/cryo-             -             -             -             -             -             -             -             1/15          1/18          
+patient_room    3/27          2/12          3/27          2/30          2/12          2/12          3/40          2/12          2/12          3/18          
+reception       -             1/5           -             1/15          -             -             2/27          1/5           -             -             
+storage         1/28          1/32          1/28          2/28          1/18          1/30          2/34          1/32          2/41          2/18          
+surgery         1/25          1/25          1/25          2/67          1/25          1/25          2/58          1/25          -             1/33          
+surgery_obs     -             1/15          -             1/15          1/15          -             -             1/15          -             -             
+surgery_prep    -             2/16          -             2/16          -             1/10          1/12          2/16          -             -             
+treatment       1/16          1/25          1/16          1/20          1/15          1/12          1/21          1/25          1/17          1/27          
+viro_airlock    1/9           1/9           1/9           1/9           1/9           1/9           1/9           1/9           1/9           -             
+viro_cell       2/12          2/12          2/12          3/24          2/12          2/12          4/24          2/12          4/45          3/24          
+viro_lab        1/38          1/30          1/38          1/35          1/41          1/36          2/75          1/30          1/48          1/72          
+viro_other      2/19          4/40          1/18          5/82          -             1/18          7/108         4/40          1/9           1/18          
+viro_pen        1/15          1/10          1/15          1/10          -             1/8           1/10          1/10          -             -             
+
+Door neighbours per type (how many maps have a door between the two)
+  medhall | medhall                        9  BoxSt,Delta,Donut,EndoS,MetaL,MetaS,Pubby,f21c_,hippi
+  MAINT | medhall                          8  BoxSt,Delta,Donut,EndoS,MetaL,MetaS,Pubby,hippi
+  cloning | medhall                        8  BoxSt,Delta,Donut,EndoS,MetaL,MetaS,f22_c,hippi
+  cmo | medhall                            8  BoxSt,Delta,Donut,EndoS,MetaL,MetaS,Pubby,hippi
+  viro_lab | viro_other                    8  BoxSt,Delta,Donut,EndoS,MetaL,MetaS,f21c_,hippi
+  MAINT | genetics_other                   7  BoxSt,Delta,Donut,EndoS,MetaL,MetaS,hippi
+  MAINT | morgue                           7  BoxSt,Delta,Donut,EndoS,MetaL,MetaS,hippi
+  MAINT | surgery                          7  BoxSt,Delta,Donut,MetaL,MetaS,Pubby,hippi
+  chemistry | medhall                      7  BoxSt,Delta,Donut,EndoS,MetaL,MetaS,Pubby
+  cloning | genetics                       7  BoxSt,Delta,Donut,EndoS,MetaL,MetaS,hippi
+  genetics | genetics_other                7  BoxSt,Delta,Donut,EndoS,MetaL,MetaS,hippi
+  medhall | patient_room                   7  Delta,Donut,EndoS,MetaL,MetaS,Pubby,f22_c
+  medhall | storage                        7  BoxSt,Donut,EndoS,MetaL,MetaS,Pubby,hippi
+  HALL | morgue                            6  BoxSt,Delta,MetaL,MetaS,Pubby,hippi
+  checkpoint | medhall                     6  BoxSt,Delta,Donut,EndoS,Pubby,hippi
+  medhall | viro_airlock                   6  BoxSt,Donut,MetaL,MetaS,Pubby,hippi
+  MAINT | chemistry                        5  Delta,EndoS,MetaL,MetaS,Pubby
+  OUT:medical/genetics | genetics          5  Delta,Donut,EndoS,MetaL,MetaS
+  medhall | morgue                         5  BoxSt,MetaL,MetaS,Pubby,hippi
+  viro_airlock | viro_lab                  5  BoxSt,Donut,Pubby,f22_c,hippi
+  viro_lab | viro_lab                      5  BoxSt,Pubby,f21c_,f22_c,hippi
+  HALL | genetics_other                    4  Delta,EndoS,MetaL,MetaS
+  MAINT | storage                          4  Delta,EndoS,MetaL,MetaS
+  lobby | medhall                          4  BoxSt,Donut,f21c_,f22_c
+  surgery | surgery_obs                    4  Delta,MetaL,MetaS,Pubby
+  viro_airlock | viro_other                4  Delta,EndoS,MetaL,MetaS
+  viro_cell | viro_other                   4  Delta,EndoS,MetaL,MetaS
+  viro_other | viro_pen                    4  Delta,EndoS,MetaL,MetaS
+  HALL | lobby                             3  BoxSt,f21c_,f22_c
+  MAINT | cmo                              3  MetaL,MetaS,Pubby
+  MAINT | surgery_prep                     3  EndoS,MetaL,MetaS
+  OUT:science/research | genetics_other    3  BoxSt,Donut,hippi
+  genetics | genetics                      3  BoxSt,Pubby,hippi
+  genetics_other | morgue                  3  Delta,MetaL,MetaS
+  medhall | reception                      3  EndoS,MetaL,MetaS
+  patient_room | storage                   3  BoxSt,f21c_,hippi
+  surgery_obs | surgery_prep               3  Delta,MetaL,MetaS
+  surgery_prep | surgery_prep              3  Delta,MetaL,MetaS
+  viro_cell | viro_lab                     3  Donut,f21c_,f22_c
+  viro_lab | viro_pen                      3  BoxSt,Donut,hippi
+                                           2  EndoS,MetaS
+  MAINT | cryo                             2  MetaL,MetaS
+  MAINT | genetics                         2  Donut,EndoS
+  MAINT | surgery_obs                      2  MetaL,MetaS
+  MAINT | treatment                        2  MetaL,MetaS
+  MAINT | viro_airlock                     2  Delta,EndoS
+  OUT:medical/genetics | cloning           2  Delta,MetaS
+  OUT:medical/storage | storage            2  MetaL,MetaS
+  SPACE | viro_other                       2  MetaL,MetaS
+  checkpoint | checkpoint                  2  Delta,EndoS
+  checkpoint | lobby                       2  f21c_,f22_c
+  checkpoint | reception                   2  MetaL,MetaS
+  checkpoint | storage                     2  MetaL,MetaS
+  chemistry | chemistry                    2  EndoS,Pubby
+  chemistry | lobby                        2  f21c_,f22_c
+  cloning | cloning                        2  Donut,EndoS
+  cmo | cmo                                2  Delta,EndoS
+  cmo | lobby                              2  f21c_,f22_c
+  cryo | surgery_obs                       2  MetaL,MetaS
+  genetics | medhall                       2  Pubby,f21c_
+  lobby | morgue                           2  f21c_,f22_c
+  lobby | storage                          2  f21c_,f22_c
+  lobby | viro_lab                         2  f21c_,f22_c
+  medhall | surgery_obs                    2  Delta,Pubby
+  medhall | surgery_prep                   2  Delta,Donut
+  medhall | treatment                      2  EndoS,f21c_
+  other:/area/medical/chemistry | other:/area/medical/chemistry 2  EndoS,hippi
+  patient_room | surgery                   2  BoxSt,hippi
+  patient_room | treatment                 2  BoxSt,hippi
+  storage | storage                        2  Delta,EndoS
+  viro_other | viro_other                  2  Delta,EndoS
+  CHAPEL | morgue                          1  Donut
+  HALL | checkpoint                        1  EndoS
+  HALL | other:/area/medical/apothecary    1  EndoS
+  HALL | other:/area/medical/chemistry     1  hippi
+  HALL | storage                           1  f21c_
+  MAINT | other:/area/medical/apothecary   1  EndoS
+  MAINT | other:/area/medical/chemistry    1  EndoS
+  MAINT | patient_room                     1  Pubby
+  MAINT | viro_other                       1  hippi
+  OUT:engine/engineering | morgue_other    1  Delta
+  OUT:medical/chemistry | OUT:medical/chemistry 1  EndoS
+  OUT:medical/chemistry | other:/area/medical/chemistry 1  EndoS
+  OUT:medical/genetics | genetics_other    1  EndoS
+  OUT:medical/medbay | medhall             1  EndoS
+  OUT:storage/emergency | genetics         1  Pubby
+  OUT:storage/emergency | medhall          1  Pubby
+  OUT:storage/emergency | morgue           1  Pubby
+  checkpoint | cloning                     1  EndoS
+  checkpoint | genetics                    1  f22_c
+  checkpoint | patient_room                1  f21c_
+  chemistry | cloning                      1  f21c_
+  chemistry | cmo                          1  f22_c
+  chemistry | other:/area/medical/chemistry 1  hippi
+  chemistry | storage                      1  f22_c
+  cloning | genetics_other                 1  EndoS
+  cmo | other:/area/medical/cryo           1  f21c_
+  cmo | storage                            1  f22_c
+  genetics_other | genetics_other          1  EndoS
+  lobby | patient_room                     1  f21c_
+  lobby | treatment                        1  f22_c
+  medhall | morgue_other                   1  EndoS
+  medhall | other:/area/medical/chemistry  1  hippi
+  medhall | surgery                        1  Donut
+  morgue | morgue_other                    1  EndoS
+  morgue | surgery                         1  EndoS
+  morgue | treatment                       1  f21c_
+  morgue_other | morgue_other              1  EndoS
+  other:/area/medical/cryo | treatment     1  f22_c
+  storage | surgery                        1  f21c_
+  storage | treatment                      1  Delta
+  surgery | treatment                      1  EndoS
+  treatment | treatment                    1  f21c_
+  viro_airlock | viro_cell                 1  f22_c
+
+Desks (table + windoor) between
+  chemistry | medhall                      8  BoxSt,Delta,Donut,EndoS,MetaL,MetaS,Pubby,hippi
+  HALL | chemistry                         3  Delta,MetaL,MetaS
+  storage | storage                        3  Delta,MetaL,MetaS
+  OUT:medical/sleeper | storage            2  BoxSt,hippi
+  genetics_other | genetics_other          2  MetaL,MetaS
+  HALL | genetics_other                    2  Delta,EndoS
+  OUT:medical/chemistry | OUT:medical/chemistry 1  hippi
+  OUT:medical/medbay | storage             1  Pubby
+  chemistry | lobby                        1  Donut
+  chemistry | storage                      1  EndoS
+  chemistry | other:/area/medical/apothecary 1  EndoS
+  medhall | reception                      1  EndoS
+  OUT:medical/storage | storage            1  EndoS
+
+Windows between
+  HALL | medhall                           9  BoxSt,Delta,EndoS,MetaL,MetaS,Pubby,f21c_,f22_c,hippi
+  cmo | medhall                            8  BoxSt,Delta,Donut,EndoS,MetaL,MetaS,Pubby,hippi
+  checkpoint | medhall                     8  BoxSt,Delta,Donut,EndoS,MetaL,MetaS,Pubby,hippi
+  cloning | medhall                        7  BoxSt,Delta,Donut,EndoS,MetaL,MetaS,hippi
+  medhall | storage                        7  BoxSt,Delta,Donut,EndoS,MetaL,MetaS,hippi
+  HALL | chemistry                         6  Delta,Donut,EndoS,MetaL,MetaS,hippi
+  medhall | treatment                      6  BoxSt,EndoS,MetaL,MetaS,Pubby,hippi
+  cryo | medhall                           6  BoxSt,Donut,EndoS,MetaL,MetaS,hippi
+  chemistry | medhall                      5  Delta,EndoS,MetaL,MetaS,Pubby
+  cloning | genetics                       4  Delta,Donut,MetaL,MetaS
+  medhall | patient_room                   4  Donut,EndoS,MetaL,MetaS
+  genetics | medhall                       4  BoxSt,Delta,Donut,Pubby
+  cryo | treatment                         3  Donut,MetaL,MetaS
+  cryo | surgery_obs                       2  MetaL,MetaS
+  SPACE | viro_cell                        2  MetaL,MetaS
+  cmo | cryo                               2  Delta,EndoS
+  HALL | genetics_other                    2  Delta,EndoS
+  medhall | surgery_obs                    2  Delta,Pubby
+  storage | treatment                      2  Delta,Pubby
+  lobby | medhall                          2  Donut,f22_c
+  HALL | genetics                          2  f21c_,f22_c
+  lobby | viro_lab                         2  f21c_,f22_c
+  lobby | viro_cell                        2  f21c_,f22_c
+  medhall | other:/area/medical/chemistry  1  hippi
+  OUT:medical/medbay | cloning             1  hippi
+  OUT:medical/genetics | medhall           1  Delta
+  medhall | surgery_prep                   1  Delta
+  OUT:medical/storage | medhall            1  Delta
+  OUT:storage/emergency | genetics         1  Pubby
+  OUT:medical/chemistry | medhall          1  Pubby
+  OUT:medical/medbay | treatment           1  Pubby
+  MAINT | cloning                          1  Donut
+  HALL | lobby                             1  Donut
+  MAINT | morgue                           1  Donut
+  MAINT | viro_pen                         1  Donut
+  cmo | surgery                            1  EndoS
+  chemistry | storage                      1  EndoS
+  MAINT | other:/area/medical/chemistry    1  EndoS
+  genetics | genetics_other                1  EndoS
+  OUT:medical/genetics | genetics          1  EndoS
+  MAINT | genetics                         1  EndoS
+  OUT:medical/genetics | genetics_other    1  EndoS
+  HALL | checkpoint                        1  EndoS
+  other:/area/medical/cryo | storage       1  f22_c
+  chemistry | lobby                        1  f21c_
+  surgery | viro_lab                       1  f21c_
+
+Public (no-access path from the hall) / hops from hall, per type
+  hippiestation  public: medhall, other:/area/medical/chemistry
+                 hops: checkpoint [3], chemistry [3], cloning [3], cmo [5], cryo [None], genetics [4], genetics_other [5], medhall [4, 3, 2], morgue [1], other:/area/medical/chemistry [3, 2, 1], patient_room [None, None, 6], storage [5], surgery [7], treatment [7], viro_airlock [5], viro_cell [None, None], viro_lab [6], viro_other [7, None], viro_pen [7]
+  MetaStation    public: checkpoint, genetics_other, medhall, reception
+                 hops: checkpoint [None], chemistry [None], cloning [3], cmo [None], cryo [None], genetics [2], genetics_other [1, 1], medhall [4, 5, None, None, 2, None, None, None], morgue [1], patient_room [None, 5], reception [None], storage [None], surgery [None], surgery_obs [None], surgery_prep [None, None], treatment [None], viro_airlock [None], viro_cell [None, None], viro_lab [None], viro_other [None, None, None, None], viro_pen [None]
+  BoxStation     public: lobby, medhall
+                 hops: checkpoint [3], chemistry [3], cloning [3], cmo [None], cryo [None], genetics [4], genetics_other [5], lobby [1], medhall [None, 3, 2, 3], morgue [1], patient_room [None, None, None], storage [None], surgery [None], treatment [None], viro_airlock [None], viro_cell [None, None], viro_lab [None], viro_other [None], viro_pen [None]
+  DeltaStation2  public: cryo, medhall, patient_room, surgery_obs, surgery_prep, treatment
+                 hops: checkpoint [11, 12], chemistry [None], cloning [3], cmo [6, 5], cryo [None], genetics [2], genetics_other [1], medhall [4, 11, 10, None, None, 13, 6, 12, 13], morgue [1], morgue_other [None], patient_room [7, 7], reception [None], storage [None, None], surgery [None, 8], surgery_obs [7], surgery_prep [8, 9], treatment [None], viro_airlock [None], viro_cell [None, None, None], viro_lab [None], viro_other [None, None, None, None, None], viro_pen [None]
+  PubbyStation   public: cryo, medhall, surgery_obs, treatment
+                 hops: checkpoint [3], chemistry [5], cloning [None], cmo [3], cryo [None], genetics [3], medhall [3, 4, 2, None, 2], morgue [1], patient_room [None, None], storage [None], surgery [None], surgery_obs [None], treatment [None], viro_airlock [3], viro_cell [None, None], viro_lab [4]
+  Donutstation   public: lobby
+                 hops: checkpoint [None], chemistry [None], cloning [None], cmo [None], cryo [None], genetics [None], genetics_other [None], lobby [None], medhall [None, None, None], morgue [None], patient_room [None, None], storage [None], surgery [None], surgery_prep [None], treatment [None], viro_airlock [None], viro_cell [None, None], viro_lab [None], viro_other [None], viro_pen [None]
+  EndoStation    public: checkpoint, medhall, other:/area/medical/apothecary, reception
+                 hops: checkpoint [2, 1, 1], chemistry [None], cloning [3], cmo [None, None], cryo [None], genetics [2], genetics_other [1, 4, 5, 5, 5, None], medhall [None, None, None, 3, None, 4, None, None, None], morgue [None], morgue_other [None, None, None, None], other:/area/medical/apothecary [1, None], other:/area/medical/chemistry [None, None], patient_room [None, None, None], reception [None, None], storage [None, None], surgery [None, None], surgery_prep [None], treatment [None], viro_airlock [None], viro_cell [None, None, None, None], viro_lab [None, None], viro_other [None, None, None, None, None, None, None], viro_pen [None]
+  MetaLake       public: checkpoint, genetics_other, medhall, reception
+                 hops: checkpoint [None], chemistry [None], cloning [3], cmo [None], cryo [None], genetics [2], genetics_other [1, 1], medhall [4, 5, None, None, 2, None, None, None], morgue [1], patient_room [None, 5], reception [None], storage [None], surgery [None], surgery_obs [None], surgery_prep [None, None], treatment [None], viro_airlock [None], viro_cell [None, None], viro_lab [None], viro_other [None, None, None, None], viro_pen [None]
+  f22_c100_s7    public: lobby, morgue
+                 hops: checkpoint [2], chemistry [2], cloning [3], cmo [2, 3], genetics [3], lobby [1, 3], medhall [2], morgue [2], other:/area/medical/cryo [3], patient_room [3, 3], storage [3, 3], treatment [2], viro_airlock [3], viro_cell [3, 3, 3, 4], viro_lab [2], viro_other [None]
+  f21c_c100_s7   public: checkpoint, lobby, patient_room
+                 hops: checkpoint [2], chemistry [2], cloning [3], cmo [2], genetics [3], lobby [1, 4], medhall [2, 4], morgue [2], other:/area/medical/cryo [3], patient_room [None, 3, 2], storage [2, 1], surgery [3], treatment [3], viro_cell [3, 3, None], viro_lab [2], viro_other [3]
+
+Hall doors (type, name, access, room)
+  hippiestation  airlock/medical                    Morgue                       6          ['HALL', 'morgue']
+  hippiestation  opening                                                                    ['HALL', 'other:/area/medical/chemistry']
+  MetaStation    airlock/research                   Genetics Access              9          ['HALL', 'genetics_other']
+  MetaStation    airlock/grunge                     Morgue                       6          ['HALL', 'morgue']
+  MetaStation    opening                                                                    ['HALL', 'genetics_other']
+  BoxStation     airlock/medical                    Morgue                       6          ['HALL', 'morgue']
+  BoxStation     opening                                                                    ['HALL', 'lobby']
+  DeltaStation2  airlock/research                   Genetics Desk                9          ['HALL', 'genetics_other']
+  DeltaStation2  airlock/grunge                     Morgue                       6          ['HALL', 'morgue']
+  PubbyStation   airlock/grunge                     Morgue                       6          ['HALL', 'morgue']
+  EndoStation    airlock/research                   Genetics Desk                9          ['HALL', 'genetics_other']
+  EndoStation    airlock/security/glass             Medical Cell                 63         ['HALL', 'checkpoint']
+  EndoStation    opening                                                                    ['HALL', 'other:/area/medical/apothecary']
+  EndoStation    opening                                                                    ['HALL', 'checkpoint']
+  MetaLake       airlock/research                   Genetics Access              9          ['HALL', 'genetics_other']
+  MetaLake       airlock/grunge                     Morgue                       6          ['HALL', 'morgue']
+  MetaLake       opening                                                                    ['HALL', 'genetics_other']
+  f22_c100_s7    airlock/medical                    Medbay                                  ['HALL', 'lobby']
+  f22_c100_s7    airlock/medical                    Medbay                       5          ['HALL', 'lobby']
+  f22_c100_s7    airlock/medical                    Medbay                       5          ['HALL', 'lobby']
+  f21c_c100_s7   airlock/medical/glass              Medbay                                  ['HALL', 'lobby']
+  f21c_c100_s7   airlock/medical/glass              Medbay                       5          ['HALL', 'lobby']
+  f21c_c100_s7   airlock/medical/glass              Medbay                       5          ['HALL', 'lobby']
+  f21c_c100_s7   airlock/medical/glass              Medbay Storage               5          ['HALL', 'storage']
+
+Kit per type: share of maps whose rooms of the type hold it (any piece), and median count
+  checkpoint     (10 maps): table 10/10, seccomp 10/10, sec_locker 9/10, chair 9/10, requests 6/10, extinguisher 3/10, crew_monitor 3/10, holopad 2/10, wardrobe 2/10, em_closet 1/10
+  chemistry      (10 maps): chem_heater 10/10, table 10/10, chem_dispenser 10/10, beakers 10/10, chem_master 10/10, disposal 10/10, requests 10/10, extinguisher 9/10, chair 9/10, chem_locker 8/10, holopad 6/10, pill_bottles 2/10, wardrobe 2/10, medlocker 2/10, viro_locker 2/10, sink 1/10, shower 1/10
+  cloning        (10 maps): clonepod 10/10, dna_scanner 10/10, clone_console 10/10, table 8/10, bodybag 7/10, holopad 6/10, glass_cab 6/10, chair 4/10, wardrobe 4/10, sink 3/10, pill_bottles 1/10, requests 1/10, shower 1/10, mirror 1/10
+  cmo            (10 maps): keycard 10/10, med_records 10/10, table 10/10, cmo_locker 10/10, requests 10/10, disposal 10/10, chair 8/10, crew_monitor 8/10, holopad 6/10, seccomp 6/10, bed 5/10, extinguisher 3/10, mirror 2/10, wallmed 2/10, medkit_wall 2/10, firstaid 2/10
+  cryo           (8 maps): o2_canister 8/8, cryo 8/8, freezer 8/8, table 8/8, beakers 8/8, medlocker 3/8, viro_locker 3/8, pill_bottles 2/8, chair 1/8, holopad 1/8
+  genetics       (10 maps): chair 10/10, table 10/10, pill_bottles 10/10, dna_scanner 10/10, dna_console 10/10, requests 10/10, monkey 8/10, disposal 7/10, bodybag 7/10, monkey_cubes 7/10, mirror 7/10, beakers 5/10, sink 5/10, extinguisher 5/10, roller 4/10, bed 4/10, medlocker 3/10, viro_locker 3/10, glass_cab 3/10, med_records 2/10, holopad 2/10, shower 1/10
+  genetics_other (7 maps): beakers 4/7, table 4/7, chair 4/7, glass_cab 3/7, disposal 2/7, extinguisher 2/7
+  lobby          (4 maps): table 3/4, requests 3/4, chair 2/4, med_records 2/4, firstaid 2/4, disposal 2/4, holopad 1/4
+  medhall        (10 maps): roller 10/10, bed 10/10, extinguisher 9/10, table 9/10, chair 9/10, firstaid 9/10, medvend 8/10, disposal 8/10, holopad 8/10, iv_drip 8/10, shower 7/10, bodybag 6/10, sink 5/10, requests 4/10, glass_cab 4/10, med_records 3/10, biohazard_sign 3/10, beakers 3/10, seccomp 2/10, medbot 2/10, pill_bottles 1/10, mirror 1/10, crew_monitor 1/10, bio_closet 1/10, wardrobe 1/10
+  morgue         (10 maps): morgue 10/10, table 9/10, bodybag 9/10, disposal 3/10, chair 1/10, chute 1/10, extinguisher 1/10
+  morgue_other   (2 maps): table 1/2, bodybag 1/2, morgue 1/2, disposal 1/2, optable 1/2, shower 1/2, op_computer 1/2, surgery_tray 1/2
+  other:/area/medical/apothecary (1 maps): table 1/1
+  other:/area/medical/chemistry (2 maps): extinguisher 2/2, table 2/2, shower 1/2, chem_locker 1/2, disposal 1/2, holopad 1/2, chair 1/2, sink 1/2, plumbed 1/2
+  other:/area/medical/cryo (2 maps): table 2/2, o2_canister 2/2, beakers 2/2, extinguisher 2/2
+  patient_room   (10 maps): chair 10/10, bed 10/10, table 10/10, wallmed 10/10, medkit_wall 10/10, glass_cab 9/10, iv_drip 4/10, wardrobe 4/10, mirror 4/10, med_records 2/10, sink 2/10, curtain 2/10
+  reception      (4 maps): chair 4/4, crew_monitor 4/4, sink 2/4, holopad 2/4, table 2/4, med_records 2/4, firstaid 1/4
+  storage        (10 maps): table 10/10, medlocker 10/10, beakers 10/10, firstaid 10/10, disposal 9/10, bodybag 7/10, requests 7/10, bio_closet 5/10, medvend 4/10, sink 3/10, holopad 3/10, extinguisher 3/10, shower 1/10
+  surgery        (9 maps): medlocker 9/9, anesthetic 9/9, table 9/9, surgery_tray 9/9, optable 9/9, op_computer 9/9, wallmed 7/9, medkit_wall 7/9, sink 5/9, beakers 4/9, extinguisher 2/9, firstaid 2/9, shower 2/9, holopad 2/9, roller 1/9, bed 1/9, iv_drip 1/9, chair 1/9, mirror 1/9, med_records 1/9, curtain 1/9, sleeper 1/9, stasis 1/9, pill_bottles 1/9
+  surgery_obs    (4 maps): table 4/4, bed 4/4, roller 4/4, iv_drip 4/4, med_records 4/4, extinguisher 3/4, holopad 2/4, chair 2/4, crew_monitor 1/4, seccomp 1/4, beakers 1/4
+  surgery_prep   (5 maps): chair 5/5, holopad 3/5, table 1/5, med_records 1/5
+  treatment      (10 maps): table 9/10, stasis 9/10, med_records 7/10, shower 7/10, holopad 6/10, sink 4/10, sleeper 4/10, bed 4/10, chair 4/10, mirror 3/10, wardrobe 3/10, roller 3/10, medlocker 2/10, extinguisher 2/10, defib 1/10, firstaid 1/10, viro_locker 1/10, disposal 1/10, iv_drip 1/10, pill_bottles 1/10, beakers 1/10, anesthetic 1/10
+  viro_airlock   (9 maps): bio_closet 9/9, sink 8/9, em_closet 8/9, shower 7/9, biohazard_sign 4/9, mirror 2/9, extinguisher 2/9
+  viro_cell      (10 maps): bed 10/10, table 10/10, glass_cab 5/10, beakers 5/10, chair 2/10, iv_drip 2/10, med_records 2/10, seccomp 2/10, sink 2/10, roller 2/10, extinguisher 2/10, biohazard_sign 2/10, mirror 2/10, wardrobe 1/10, bio_closet 1/10, medlocker 1/10, viro_locker 1/10, em_closet 1/10
+  viro_lab       (10 maps): table 10/10, beakers 10/10, pandemic 10/10, disposal 10/10, chair 10/10, smartfridge_chem 10/10, smartfridge 10/10, extinguisher 10/10, requests 8/10, sink 7/10, holopad 7/10, bio_closet 7/10, medlocker 7/10, viro_locker 7/10, medvend 4/10, shower 2/10, wallmed 2/10, medkit_wall 2/10, iv_drip 1/10, monkey 1/10, monkey_cubes 1/10, seccomp 1/10, bed 1/10, glass_cab 1/10, em_closet 1/10, roller 1/10
+  viro_other     (9 maps): table 8/9, iv_drip 8/9, chair 8/9, sink 6/9, extinguisher 5/9, bed 4/9, seccomp 4/9, wallmed 2/9, medkit_wall 2/9, holopad 2/9, chute 2/9, disposal 2/9, medvend 2/9, med_records 1/9, glass_cab 1/9, biohazard_sign 1/9, mirror 1/9
+  viro_pen       (7 maps): monkey 7/7, roller 4/7, bed 4/7

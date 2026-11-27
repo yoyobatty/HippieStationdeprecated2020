@@ -1,0 +1,378 @@
+## vestibule (rad/shower room, 2+ airlocks, <=16 tiles)
+   meta     12 t rad_closet1,tool_closet2,fire_closet1,shower2,extinguisher1 [Engine Room]
+   box      -
+   delta    10 t rad_closet4,shower4,extinguisher1,sign_rad2 [Atmospherics Engine Access]; 12 t tool_closet2,rad_closet2,extinguisher1,sign_rad1 [Engineering Access]; 3 t rad_closet1,extinguisher1,fire_closet1,sign_rad1 [Emergency Access]
+   hippie   9 t shower1,fire_closet2,rad_closet2,sign_rad1 [Engine Room]
+   pubby    -
+   donut    6 t rad_closet2 [Supermatter External Chamber]; 6 t rad_closet2,fire_closet2 [Engine Room]; 6 t rad_closet2 [Supermatter External Chamber]
+   endo     6 t shower1,rad_closet2 [Supermatter External Chamber]; 9 t fire_closet2,rad_closet2,shower2 [Engineering Foyer]; 6 t em_closet1,rad_closet1 [Supermatter Engine Room]; 6 t rad_closet2,shower1 [Supermatter External Chamber]
+   f22_c100 -
+## showers eng / atmos
+   meta     3 / 1
+   box      2 / 0
+   delta    4 / 0
+   hippie   1 / 0
+   pubby    1 / 0
+   donut    0 / 0
+   endo     4 / 1
+   f22_c100 1 / 0
+## shower rooms
+   meta     atmos(214), engineering(12), engineering(96)
+   box      engineering(9)
+   delta    atmospherics_engine(10)
+   hippie   engineering(9)
+   pubby    engineering(149)
+   donut    -
+   endo     atmos(251), engineering(9), external(6), external(6)
+   f22_c100 engineering(73)
+## sinks eng
+   meta     0
+   box      0
+   delta    0
+   hippie   0
+   pubby    1
+   donut    0
+   endo     0
+   f22_c100 0
+## rad closets eng (vest/grav/other) atmos
+   meta     3 (1/2/0) 0
+   box      7 (0/2/5) 0
+   delta    10 (7/2/1) 0
+   hippie   8 (2/2/4) 0
+   pubby    4 (0/2/2) 0
+   donut    8 (6/2/0) 2
+   endo     10 (7/1/2) 0
+   f22_c100 4 (0/1/3) 0
+## fire closets eng / atmos
+   meta     4 / 0
+   box      5 / 0
+   delta    3 / 0
+   hippie   5 / 0
+   pubby    1 / 0
+   donut    2 / 1
+   endo     3 / 0
+   f22_c100 3 / 0
+## emergency closets eng
+   meta     1
+   box      4
+   delta    6
+   hippie   8
+   pubby    2
+   donut    1
+   endo     2
+   f22_c100 4
+## extinguisher cabinets eng / atmos
+   meta     6 / 2
+   box      3 / 2
+   delta    20 / 4
+   hippie   5 / 2
+   pubby    5 / 2
+   donut    0 / 2
+   endo     1 / 2
+   f22_c100 6 / 0
+## fireaxe eng / atmos
+   meta     0 / 1
+   box      0 / 1
+   delta    0 / 1
+   hippie   0 / 1
+   pubby    0 / 1
+   donut    0 / 1
+   endo     0 / 1
+   f22_c100 0 / 0
+## walk crystal door -> rad closet / shower / fire closet / extinguisher
+   meta     15 / 16 / 6 / 11
+   box      14 / 20 / 19 / 16
+   delta    7 / 6 / 16 / 6
+   hippie   14 / 21 / 19 / 16
+   pubby    21 / 32 / 28 / 21
+   donut    10 / None / None / None
+   endo     10 / 10 / 39 / 34
+   f22_c100 15 / 40 / 5 / 10
+## rad signs eng
+   meta     3
+   box      5
+   delta    19
+   hippie   4
+   pubby    18
+   donut    3
+   endo     2
+   f22_c100 0
+## eng lockers / elec / weld / tool closets
+   meta     2 / 1 / 1 / 3
+   box      3 / 1 / 1 / 0
+   delta    4 / 1 / 1 / 4
+   hippie   4 / 2 / 2 / 0
+   pubby    2 / 1 / 1 / 0
+   donut    3 / 1 / 1 / 0
+   endo     4 / 2 / 1 / 0
+   f22_c100 3 / 1 / 1 / 3
+## locker rooms (tiles)
+   meta     96
+   box      122, 156
+   delta    169
+   hippie   105, 135, 166
+   pubby    34
+   donut    81
+   endo     115
+   f22_c100 73
+## engivend / toolvend / engi wardrobe
+   meta     1 / 1 / 1
+   box      1 / 1 / 1
+   delta    1 / 1 / 1
+   hippie   1 / 2 / 2
+   pubby    1 / 1 / 1
+   donut    1 / 0 / 1
+   endo     1 / 0 / 1
+   f22_c100 1 / 2 / 1
+## SUS engine (rooms) / SUS ce
+   meta     2 (engineer25) / 1
+   box      2 (engineer36) / 1
+   delta    3 (storage35) / 1
+   hippie   3 (port_eng27,engineer36) / 1
+   pubby    2 (engine_s18) / 1
+   donut    4 (engineer9,external6,external6) / 1
+   endo     4 (engineer47,external6) / 1
+   f22_c100 4 (storage36,engine_s16) / 1
+## tank dispensers eng
+   meta     1
+   box      1
+   delta    1
+   hippie   2
+   pubby    1
+   donut    1
+   endo     2
+   f22_c100 3
+## fuel / water tanks eng
+   meta     1 / 1
+   box      2 / 2
+   delta    3 / 2
+   hippie   2 / 2
+   pubby    0 / 1
+   donut    1 / 1
+   endo     2 / 2
+   f22_c100 2 / 2
+## sheet stacks metal/glass/plasteel eng
+   meta     4/5/1
+   box      5/5/1
+   delta    3/8/3
+   hippie   8/9/4
+   pubby    5/5/1
+   donut    3/5/1
+   endo     6/4/1
+   f22_c100 7/12/3
+## SMES main rooms (count, tiles, door names)
+   meta     3 in 12 t Power Monitoring
+   box      4 in 48 t SMES Room
+   delta    2 in 6 t Power Monitoring; 3 in 12 t Power Monitoring
+   hippie   1 in 105 t Engine Room/Engineering External Access/Power Storage; 4 in 42 t Gravity Generator Foyer/Port Engineering/SMES Room
+   pubby    4 in 18 t Power Storage
+   donut    4 in 159 t Laser Room/Supermatter Chamber/Supermatter External Chamber
+   endo     6 in 20 t SMES Room
+   f22_c100 2 in 11 t Engineering Maintenance/Supermatter Engine; 4 in 41 t Engineering Storage/SMES Room/Supermatter Engine
+## SMES grav
+   meta     1
+   box      1
+   delta    1
+   hippie   1
+   pubby    1
+   donut    1
+   endo     1
+   f22_c100 1
+## terminals eng (SMES eng)
+   meta     4 (4)
+   box      5 (5)
+   delta    6 (6)
+   hippie   6 (6)
+   pubby    5 (5)
+   donut    5 (5)
+   endo     7 (7)
+   f22_c100 10 (7)
+## consoles eng: station_alert/atmos_alert/eng_modcon/power_mon/apc_ctrl
+   meta     2/1/1/0/1
+   box      2/1/1/0/1
+   delta    3/1/2/1/1
+   hippie   3/1/2/0/1
+   pubby    2/1/2/0/1
+   donut    2/1/1/0/1
+   endo     3/1/2/0/1
+   f22_c100 2/1/1/0/1
+## console rooms
+   meta     chief(33), engineerin(12)
+   box      engineerin(36), chief(24)
+   delta    chief(48), engineerin(15), engineerin(12)
+   hippie   port_engin(27), engineerin(36), chief(24)
+   pubby    engineerin(149), chief(20)
+   donut    engineerin(81), chief(22)
+   endo     engineerin(115), engine_roo(6), chief(24)
+   f22_c100 chief(27), engineerin(73)
+## secure storage (blast doors): emitters/fieldgens/shieldgens
+   meta     16 t 4/4/2
+   box      18 t 4/5/2
+   delta    25 t 4/4/4
+   hippie   21 t 4/5/2; 18 t 2/0/0
+   pubby    19 t 5/4/2
+   donut    23 t 4/5/4
+   endo     36 t 4/5/4
+   f22_c100 -
+## laser room emitters
+   meta     3
+   box      3
+   delta    -
+   hippie   3
+   pubby    -
+   donut    5
+   endo     5
+   f22_c100 3
+## CE office rooms (tiles: airlocks->beyond [access])
+   meta     33: engineering[56]
+   box      24: engineering[56]
+   delta    48: chief[56], break_room[56]; 15: chief[56]
+   hippie   24: engineering[56]
+   pubby    20: engineering[56]
+   donut    22: engineering[56]
+   endo     24: engineering[56]
+   f22_c100 27: storage_shared[32;19], break_room[56]
+## CE office shutters (poddoors) / blast buttons
+   meta     2 / 5
+   box      5 / 4
+   delta    4 / 5
+   hippie   5 / 4
+   pubby    3 / 4
+   donut    0 / 4
+   endo     0 / 4
+   f22_c100 0 / 0
+## CE kit: locker/sus_ce/card/keycard/apc_ctrl/st_alert/telescreen/req
+   meta     1/1/1/1/1/1/3/1
+   box      1/1/1/1/1/1/1/1
+   delta    1/1/1/1/1/1/2/1
+   hippie   1/1/1/1/1/1/1/1
+   pubby    1/1/1/1/1/1/2/1
+   donut    1/1/1/0/1/1/1/1
+   endo     1/1/1/0/1/1/1/1
+   f22_c100 1/1/1/1/1/1/1/1
+## checkpoint airlocks -> beyond
+   meta     engine/break_room
+   box      engine/break_room
+   delta    engine/engineering; engine/break_room
+   hippie   engine/break_room
+   pubby    engine/break_room
+   donut    -
+   endo     ; hallway/primary/fore
+   f22_c100 storage/tech
+## tech storage (tiles: airlocks -> beyond [access])
+   meta     6: storage/tech[19;23]; 30: storage/tech[19;23], hallway/primary/starboard[23;30]
+   box      6: storage/tech[19;23]; 56: storage/tech[19;23], hallway/primary/aft[23]
+   delta    63: hallway/primary/port[23], storage/tech[19;23]; 6: storage/tech[19;23]
+   hippie   6: storage/tech[19;23]; 56: storage/tech[19;23], hallway/primary/aft[23]
+   pubby    7: storage/tech[19;23]; 45: storage/tech[19;23], hallway/primary/aft[23], maintenance/department/engine[23], engine/gravity_generator[11]
+   donut    23: hallway/primary/central[23]
+   endo     40: hallway/primary/central[23], storage/tech[19;23]; 6: storage/tech[19;23]
+   f22_c100 30: engine[19;23;63], security/checkpoint/engineering[63], storage/tech[19;23], storage/tech[19;23]; 4: storage/tech[19;23], storage/tech[19;23]
+## break room/foyer (tiles: airlock names [access])
+   meta     49: Shared Engineering Storage[32;19], Escape Pod Four[32], Engineering Security Post[63], Engineering Foyer[32;19]; 13: MiniSat Access[32;19], MiniSat Space Access Airlock[32]; 6: Escape Pod Four[32], [12]
+   box      39: Security Office[63], Atmospherics[24], Engineering Foyer[32;19], Engine Room[10]
+   delta    78: Engineering Foyer[32;19], Shared Engineering Storage[32;19], Engineering Access[10]; 3: Atmospherics Access[24;10], Atmospherics Access[24;10]; 9: Engineering Cell[63], Engineering Foyer[32;19], Engineering Foyer[32;19]
+   hippie   35: Security Office[63], Atmospherics[24], Engineering[32]
+   pubby    9: Engineering Security Post[63], Engineering[10;24]
+   donut    -
+   endo     15: Engineering Maintenance[10;24;10], Engineering Emergency Atmos Room[32;19]
+   f22_c100 69: Chief Engineer[56], Engineering Access[32;19]
+## break kit: coffee/microwave/lathe/toolvend/disposal
+   meta     2/1/0/0/1
+   box      2/0/1/1/0
+   delta    2/1/0/0/1
+   hippie   2/0/0/0/0
+   pubby    0/0/0/0/0
+   donut    0/0/0/0/0
+   endo     0/0/0/0/0
+   f22_c100 2/1/0/0/1
+## eng lathe rooms
+   meta     storage_shared(17)
+   box      break_room(39)
+   delta    storage_shared(20)
+   hippie   engineering(12)
+   pubby    engineering(149)
+   donut    -
+   endo     engineering(115)
+   f22_c100 storage_shared(23)
+## eng airlocks to halls
+   meta     break_roo:Engineering Foyer[32;19], tech:Tech Storage[23;30]
+   box      break_roo:Engineering Foyer[32;19], gravity_g:Gravity Generator[11], tech:Tech Storage[23]
+   delta    break_roo:Engineering Foyer[32;19], tech:Technology Storage[23]
+   hippie   break_roo:Engineering[32], tech:Tech Storage[23]
+   pubby    break_roo:Engineering[10;24], tech:Tech Storage[23]
+   donut    engineeri:Engine Room[10], tech:Tech Storage[23]
+   endo     break_roo:Engineering Emergency Atmos Room[32;19], engineeri:Engineering Foyer[32;19], engineeri:Security Office[63], tech:Tech Storage[23]
+   f22_c100 engine:Engine Room[10]
+## eng airlocks to maint
+   meta     4
+   box      1
+   delta    3
+   hippie   3
+   pubby    2
+   donut    2
+   endo     7
+   f22_c100 1
+## eng external airlocks
+   meta     3
+   box      9
+   delta    14
+   hippie   20
+   pubby    4
+   donut    0
+   endo     3
+   f22_c100 0
+## eng<->atmos airlocks
+   meta     Atmospherics[24]
+   box      Atmospherics[24]
+   delta    Atmospherics Access[24;10], Atmospherics Engine Access[24;10]
+   hippie   Atmospherics[24]
+   pubby    Atmospherics[24]
+   donut    -
+   endo     Atmospherics[24]
+   f22_c100 SMES Room[24;10]
+## delivery windoors
+   meta     Engineering Deliveries
+   box      Atmospherics Delivery, Engineering Delivery
+   delta    Atmospherics Delivery, Engineering Delivery
+   hippie   Atmospherics Delivery, Engineering Delivery
+   pubby    Atmospherics Delivery, Engineering Delivery
+   donut    Atmospherics Delivery Access, Engineering Delivery Access
+   endo     Engineering Delivery
+   f22_c100 -
+## atmos desk windoors to hall
+   meta     2
+   box      1
+   delta    1
+   hippie   1
+   pubby    3
+   donut    2
+   endo     1
+   f22_c100 0
+## atmos hall airlocks [access]
+   meta     -
+   box      -
+   delta    -
+   hippie   -
+   pubby    Atmospherics[24]
+   donut    Atmospherics Foyer[24;10]
+   endo     -
+   f22_c100 Atmospherics[]
+## atmos kit: lockers/wardrobe/sus/fireaxe/pipe_disp/hazvest/heater/pump/scrub/tank_disp/req/alert
+   meta     2/1/1/1/3/4/3/2/2/1/2/1
+   box      2/1/1/1/3/4/2/4/4/1/2/1
+   delta    2/1/1/1/3/4/2/2/2/1/1/2
+   hippie   2/1/1/1/3/4/2/4/4/1/2/1
+   pubby    2/1/1/1/3/2/1/2/2/1/2/1
+   donut    2/1/1/1/0/4/3/2/0/1/3/1
+   endo     2/1/3/1/3/4/3/2/2/1/2/1
+   f22_c100 0/0/0/0/0/0/0/0/0/0/0/0
+## walk front -> crystal door / grav / smes room / solars(maint) / tcomms / atmos
+   meta     27 / 38 / 23 / 50 / None / 10
+   box      31 / 0 / 36 / 43 / 7 / 8
+   delta    46 / 30 / 18 / 58 / 51 / 6
+   hippie   31 / 45 / 38 / 43 / 7 / 8
+   pubby    37 / 13 / 18 / 88 / 67 / 3
+   donut    None / 44 / None / 32 / None / 5
+   endo     41 / 18 / 46 / 30 / 132 / 3
+   f22_c100 29 / 14 / 16 / 76 / 92 / 24

@@ -218,7 +218,7 @@ def _used_walls(m):
     return used
 
 
-def habits(m, log):
+def habits(m, log, skip_exact=()):
     rnd = random.Random(1122)
     sm = parse.SemanticMap(m, "v6")
     used = _used_walls(m)
@@ -227,7 +227,9 @@ def habits(m, log):
     # room's walls were all furniture when lights came last)
     made["light"] += lights_to_band(m, sm, used)
     for rm in sorted(RS.rooms(sm), key=lambda r: r.area):
-        if rm.area.startswith(SKIP_AREAS) or rm.area.endswith("abandoned") or "abandoned" in rm.area:
+        # skip_exact: areas that are corridors here (gen/learn's department corridors carry a room type's area: the
+        # science corridor was lined with bio closets, 2026-11-26)
+        if rm.area.startswith(SKIP_AREAS) or rm.area.endswith("abandoned") or "abandoned" in rm.area                 or rm.area in skip_exact:
             continue
         kind = RS.type_of(rm.area)
         peers = RS.peers(kind) if kind else []

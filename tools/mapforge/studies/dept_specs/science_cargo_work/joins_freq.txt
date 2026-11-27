@@ -1,0 +1,45 @@
+/area/crew_quarters/heads/hor door {'/area/science/research': 7, '/area/science/lab': 1}
+/area/crew_quarters/heads/hor window {'/area/science/research': 7, '/area/science/server': 2, '/area/science/lab': 1, '/area/security/checkpoint/science': 1, 'MAINT': 1, '/area/science/misc_lab/range': 1}
+/area/quartermaster/miningdock door {'MAINT': 5, '/area/quartermaster/office': 3, '/area/quartermaster/qm': 3, '/area/security/checkpoint/supply': 3, '/area/quartermaster/storage': 1}
+/area/quartermaster/miningdock window {'/area/quartermaster/qm': 4, '/area/security/checkpoint/supply': 3, '/area/quartermaster/storage': 1, 'HALL': 1}
+/area/quartermaster/miningoffice desk {'HALL': 1}
+/area/quartermaster/miningoffice door {'MAINT': 3, '/area/quartermaster/storage': 3, 'HALL': 1}
+/area/quartermaster/miningoffice window {'/area/quartermaster/storage': 3, 'HALL': 1, '/area/quartermaster/qm': 1}
+/area/quartermaster/office desk {'HALL': 4, '/area/quartermaster/sorting': 1}
+/area/quartermaster/office door {'/area/quartermaster/sorting': 7, '/area/quartermaster/storage': 7, 'HALL': 4, '/area/quartermaster/miningdock': 3, '/area/security/checkpoint/supply': 2, 'MAINT': 2, '/area/engine/engineering': 1, '/area/quartermaster/qm': 1}
+/area/quartermaster/office window {'HALL': 8, '/area/quartermaster/sorting': 5, '/area/quartermaster/storage': 4, '/area/security/checkpoint/supply': 4, '/area/quartermaster/qm': 1}
+/area/quartermaster/qm door {'/area/quartermaster/storage': 8, '/area/quartermaster/miningdock': 3, '/area/quartermaster/office': 1}
+/area/quartermaster/qm window {'/area/quartermaster/storage': 8, '/area/quartermaster/miningdock': 4, '/area/quartermaster/miningoffice': 1, '/area/quartermaster/office': 1}
+/area/quartermaster/sorting desk {'HALL': 6, '/area/quartermaster/office': 1}
+/area/quartermaster/sorting door {'/area/quartermaster/office': 7, 'MAINT': 2, '/area/quartermaster/storage': 2, '/area/quartermaster/warehouse': 1, '/area/security/checkpoint/supply': 1, 'HALL': 1}
+/area/quartermaster/sorting window {'HALL': 6, '/area/quartermaster/office': 5, '/area/quartermaster/storage': 2, '/area/security/checkpoint/supply': 2}
+/area/quartermaster/storage desk {'/area/security/checkpoint/supply': 1}
+/area/quartermaster/storage door {'/area/quartermaster/qm': 8, '/area/quartermaster/office': 7, 'MAINT': 6, '/area/quartermaster/miningoffice': 3, '/area/security/checkpoint/supply': 3, '/area/construction/storage_wing': 2, '/area/quartermaster/sorting': 2, '/area/quartermaster/warehouse': 1, '/area/quartermaster/miningdock': 1}
+/area/quartermaster/storage window {'/area/quartermaster/qm': 8, '/area/quartermaster/office': 4, '/area/quartermaster/miningoffice': 3, '/area/quartermaster/sorting': 2, '/area/security/checkpoint/supply': 1, 'HALL': 1, '/area/quartermaster/miningdock': 1, 'MAINT': 1}
+/area/quartermaster/warehouse door {'MAINT': 7, 'HALL': 1, '/area/quartermaster/sorting': 1, '/area/quartermaster/storage': 1}
+/area/science/explab door {'MAINT': 6, '/area/science/research': 5, '/area/science/nanite': 1, 'HALL': 1, '/area/science/mixing': 1, '/area/science/server': 1, '/area/science/storage': 1, '/area/science/xenobiology': 1}
+/area/science/explab window {'/area/science/research': 3, '/area/science/mixing': 1, 'MAINT': 1}
+/area/science/lab desk {'HALL': 8, '/area/science/research': 4}
+/area/science/lab door {'MAINT': 3, '/area/science/research': 2, '/area/science/robotics/mechbay': 1, '/area/crew_quarters/heads/hor': 1, 'HALL': 1, '/area/science/nanite': 1}
+/area/science/lab window {'HALL': 8, '/area/science/research': 4, '/area/science/robotics/mechbay': 1, '/area/crew_quarters/heads/hor': 1}
+/area/science/misc_lab door {'MAINT': 6, '/area/science/research': 3}
+/area/science/misc_lab window {'/area/science/research': 2, '/area/crew_quarters/heads/hor': 1}
+/area/science/mixing door {'MAINT': 8, '/area/science/mixing/chamber': 5, '/area/science/mixing': 5, '/area/science/storage': 3, '/area/science/research': 3, '/area/science/explab': 1}
+/area/science/mixing window {'/area/science/research': 7, '/area/space/nearstation': 2, '/area/science/explab': 1}
+/area/science/nanite door {'/area/science/research': 4, 'MAINT': 3, '/area/science/explab': 1, '/area/science/lab': 1}
+/area/science/nanite window {'/area/science/research': 6}
+/area/science/robotics/lab desk {'HALL': 6, '/area/science/research': 2}
+/area/science/robotics/lab door {'/area/science/robotics/mechbay': 8, '/area/science/research': 6, 'MAINT': 4, 'HALL': 1}
+/area/science/robotics/lab window {'HALL': 8, '/area/science/robotics/mechbay': 7, '/area/science/research': 6}
+/area/science/robotics/mechbay door {'/area/science/robotics/lab': 8, 'HALL': 7, 'MAINT': 5, '/area/science/research': 2, '/area/science/lab': 1}
+/area/science/robotics/mechbay window {'/area/science/robotics/lab': 7, '/area/science/research': 2, '/area/science/lab': 1}
+/area/science/server door {'/area/science/research': 7, '/area/science/explab': 1}
+/area/science/server window {'/area/crew_quarters/heads/hor': 2}
+/area/science/storage door {'/area/science/mixing': 3, '/area/science/research': 2, '/area/engine/atmos': 1, '/area/science/explab': 1}
+/area/science/xenobiology door {'MAINT': 7, '/area/science/research': 5, '/area/science/explab': 1}
+/area/science/xenobiology window {'/area/science/research': 5, '/area/space/nearstation': 3, 'MAINT': 1}
+/area/security/checkpoint/science door {'/area/science/research': 7, 'HALL': 1, 'MAINT': 1}
+/area/security/checkpoint/science window {'/area/science/research': 7, '/area/crew_quarters/heads/hor': 1, 'HALL': 1, 'MAINT': 1}
+/area/security/checkpoint/supply desk {'/area/quartermaster/storage': 1}
+/area/security/checkpoint/supply door {'/area/quartermaster/miningdock': 3, '/area/quartermaster/storage': 3, '/area/quartermaster/office': 2, '/area/quartermaster/sorting': 1}
+/area/security/checkpoint/supply window {'/area/quartermaster/office': 4, 'HALL': 4, '/area/quartermaster/miningdock': 3, '/area/quartermaster/sorting': 2, '/area/quartermaster/storage': 1}
