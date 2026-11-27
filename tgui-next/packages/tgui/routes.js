@@ -32,6 +32,7 @@ import { AtmosMixer } from './interfaces/AtmosMixer';
 import { AtmosPump } from './interfaces/AtmosPump';
 import { BanWindow } from './interfaces/BanWindow';
 import { Biogenerator } from './interfaces/Biogenerator';
+import { FishingBoard, FishingReel } from './interfaces/Fishing';
 import { BluespaceArtillery } from './interfaces/BluespaceArtillery';
 import { BorgPanel } from './interfaces/BorgPanel';
 import { BotCrew } from './interfaces/BotCrew';
@@ -747,6 +748,14 @@ const ROUTES = {
   },
   engraved_message: {
     component: () => EngravedMessage,
+    scrollable: false,
+  },
+  fishing_board: {
+    component: () => FishingBoard,
+    scrollable: true,
+  },
+  fishing_reel: {
+    component: () => FishingReel,
     scrollable: false,
   },
   gps: {
