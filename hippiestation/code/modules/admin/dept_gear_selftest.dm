@@ -65,7 +65,7 @@
 		lines += "FAIL couldn't reserve space for the test"
 		failed++
 		return
-	for(var/test in list(PROC_REF(test_maint_loot), PROC_REF(test_godmode_money), PROC_REF(test_rped), PROC_REF(test_ledger), PROC_REF(test_plant_hud), PROC_REF(test_scrubber_pack), PROC_REF(test_multitool), PROC_REF(test_pager), PROC_REF(test_bombs), PROC_REF(test_screentips), PROC_REF(test_examine_more), PROC_REF(test_orbit_menu), PROC_REF(test_order_amounts), PROC_REF(test_crate_trolley)))
+	for(var/test in list(PROC_REF(test_maint_loot), PROC_REF(test_godmode_money), PROC_REF(test_rped), PROC_REF(test_ledger), PROC_REF(test_plant_hud), PROC_REF(test_scrubber_pack), PROC_REF(test_multitool), PROC_REF(test_pager), PROC_REF(test_bombs), PROC_REF(test_screentips), PROC_REF(test_examine_more), PROC_REF(test_orbit_menu), PROC_REF(test_order_amounts), PROC_REF(test_crate_trolley), PROC_REF(test_crate_trolley_climb)))
 		lines += ""
 		lines += "== [replacetext("[test]", "/datum/dept_gear_test/proc/", "")]"
 		try
@@ -889,6 +889,73 @@
 	var/turf/trolley_turf = get_turf(trolley)
 	qdel(trolley)
 	check("if it's destroyed, its crates are left behind", fifth.loc == trolley_turf && !QDELETED(fifth))
+	for(var/datum/D in made)
+		qdel(D)
+
+/// Standing on a trolley's crates (Paradise e9e3cf55d5): climb up, ride at a walk, fall at a run, climb down
+/datum/dept_gear_test/proc/test_crate_trolley_climb()
+	var/obj/structure/crate_trolley/trolley = new(spot(4, 10))
+	var/mob/living/carbon/human/rider = make_human(spot(3, 10), "Trolley Rider", "Cargo Technician")
+	var/mob/living/carbon/human/puller = make_human(spot(4, 9), "Trolley Puller", "Cargo Technician")
+	var/list/made = list(trolley, rider, puller)
+	check("bots don't route over it as furniture", !trolley.climbable)
+	trolley.start_climb(rider)
+	check("nothing to climb onto while it's empty", !rider.buckled)
+	for(var/i in 1 to 2)
+		var/obj/structure/closet/crate/crate = new(spot(3, 9)) // beside both the puller and the trolley
+		made += crate
+		trolley.try_load(crate, puller)
+	check("two crates load for the test", length(trolley.crates) == 2, "[length(trolley.crates)] aboard")
+	trolley.start_climb(rider)
+	check("someone can climb up onto its crates", rider.buckled == trolley && rider.loc == trolley.loc, "buckled to [rider.buckled]")
+	check("and stands on the lid of the top crate", rider.pixel_y == 3 + 11 * 2 + 2 && rider.lying == 0, "pixel_y [rider.pixel_y], lying [rider.lying]")
+	var/obj/structure/closet/crate/spare = new(spot(3, 9))
+	made += spare
+	check("a crate that could load otherwise", puller.Adjacent(spare) && trolley.Adjacent(spare))
+	check("no loading while someone stands on it", !trolley.can_load(spare, puller, TRUE))
+	qdel(spare)
+
+	puller.m_intent = MOVE_INTENT_WALK
+	puller.start_pulling(trolley)
+	var/turf/home = spot(4, 10)
+	var/turf/away = spot(5, 10)
+	for(var/i in 1 to 40)
+		trolley.Move(i % 2 ? away : home)
+	check("pulled at a walk, the rider rides along and stays up", rider.buckled == trolley && rider.loc == trolley.loc)
+
+	puller.m_intent = MOVE_INTENT_RUN
+	var/steps = 0
+	while(rider.buckled && steps < 200)
+		steps++
+		trolley.Move(trolley.loc == home ? away : home)
+	var/brute = rider.getBruteLoss()
+	check("pulled at a run, the rider falls off", !rider.buckled && rider.loc != trolley.loc && get_dist(rider, trolley) == 1, "after [steps] steps")
+	check("and is hurt and knocked down by the height", round(brute) == 10 && rider.IsKnockdown() && rider.pixel_y <= 0, "brute [brute], pixel_y [rider.pixel_y]")
+	puller.stop_pulling()
+	rider.SetKnockdown(0)
+	rider.fully_heal()
+	sleep(2)
+
+	rider.forceMove(get_step(trolley, WEST))
+	trolley.start_climb(rider)
+	rider.Knockdown(1 SECONDS)
+	sleep(1)
+	check("knocked down on top, they fall", !rider.buckled && rider.loc != trolley.loc)
+	rider.SetKnockdown(0)
+	rider.fully_heal()
+	sleep(2)
+
+	rider.forceMove(get_step(trolley, WEST))
+	trolley.start_climb(rider)
+	var/turf/landing = get_step(trolley, NORTH)
+	trolley.relaymove(rider, NORTH)
+	sleep(25)
+	check("moving on top climbs down on purpose, unhurt", !rider.buckled && rider.loc == landing && !rider.IsKnockdown() && !rider.getBruteLoss(), "at [rider.loc], brute [rider.getBruteLoss()]")
+
+	trolley.start_climb(rider)
+	var/obj/structure/closet/crate/top = trolley.crates[2]
+	qdel(top)
+	check("a crate deleted from under them leaves the list and drops the rider", length(trolley.crates) == 1 && !rider.buckled, "[length(trolley.crates)] aboard")
 	for(var/datum/D in made)
 		qdel(D)
 
