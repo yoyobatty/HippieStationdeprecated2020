@@ -119,7 +119,7 @@
 	SEND_SIGNAL(src, COMSIG_ATOM_SING_PULL, S, current_size)
 	if(throwing && throwing.target == S)
 		return
-	throw_at(S, 14, 3, spin = 0)
+	throw_at(S, 14, 3, spin = TRUE) // spins on its way in (Paradise 24f91e81a2)
 
 /mob/living/singularity_pull(obj/singularity/S, current_size)
 	if(current_size >= STAGE_SIX && throwing && throwing.target == S)
