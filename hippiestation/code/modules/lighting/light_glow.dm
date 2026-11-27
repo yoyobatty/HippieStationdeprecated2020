@@ -73,8 +73,9 @@ GLOBAL_LIST_EMPTY(light_glows)
 
 /obj/effect/hotspot/Initialize(mapload, starting_volume, starting_temperature)
 	. = ..()
-	// One fire in four carries a pool: they overlap for tiles around, and a big fire is hundreds of these
-	if(!(x % 2) && !(y % 2))
+	// One fire in four carries a pool: they overlap for tiles around, and a big fire is hundreds of these. Not merged flames,
+	// whose glow is their own (merged_flames.dm)
+	if(!flames_merged && !(x % 2) && !(y % 2))
 		vis_contents += light_glow("fire[1 + ((x / 2 + y / 2) % 3)]")
 
 /obj/machinery/firealarm/update_fire_light(fire)

@@ -506,7 +506,8 @@ GLOBAL_LIST_INIT(particle_fx_kinds, list(
 
 /obj/effect/hotspot/Initialize(mapload, starting_volume, starting_temperature)
 	. = ..()
-	if(!(x % 2) && !(y % 2)) //one fire in four, the ones that carry a pool of light (light_glow.dm): a big fire is hundreds of these
+	// Merged flames bring their own smoke, embers and glow (merged_flames.dm): these are for a fire drawn the old way only
+	if(!flames_merged && !(x % 2) && !(y % 2)) //one fire in four, the ones that carry a pool of light (light_glow.dm): a big fire is hundreds of these
 		ember_kind = "ember"
 		vis_contents += particle_fx("ember")
 		vis_contents += particle_fx("fire_smoke")

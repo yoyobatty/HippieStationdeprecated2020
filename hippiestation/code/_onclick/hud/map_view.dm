@@ -143,6 +143,9 @@ GLOBAL_LIST_EMPTY(map_view_starlights)
 	starlight.screen_loc = "[map_name]:1,1"
 	. += starlight
 
+	// Fires are drawn on a hidden plane and shown over the lighting by relays (merged_flames.dm)
+	. += map_view_fire_relays(map_name, renamed)
+
 	for(var/obj/screen/S as anything in .)
 		S.assigned_map = map_name
 

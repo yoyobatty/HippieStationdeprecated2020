@@ -145,7 +145,8 @@
 		add_overlay(fusion_overlay)
 		add_overlay(rainbow_overlay)
 
-	set_light(l_color = rgb(LERP(250,heat_r,greyscale_fire),LERP(160,heat_g,greyscale_fire),LERP(25,heat_b,greyscale_fire)))
+	if(!flame_light()) // hippie -- warm firelight by the flames' size and heat, relit only when they change (merged_flames.dm)
+		set_light(l_color = rgb(LERP(250,heat_r,greyscale_fire),LERP(160,heat_g,greyscale_fire),LERP(25,heat_b,greyscale_fire)))
 
 	heat_r /= 255
 	heat_g /= 255
