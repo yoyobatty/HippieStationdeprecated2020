@@ -29,6 +29,27 @@
 	cut_overlays()
 	add_overlay(tiles)
 
+/// tile() for a sprite kept as four quarters, "<base>_XY" with X and Y 0 or 1 from the bottom left (tools/sky_gen/v2/build_v2.py
+/// quarters()): every repeat's quarters, put together by transforms. The object's own sprite is the bottom left quarter. A
+/// sprite bigger than the view in a screen object's vis_contents makes BYOND grow the map to fit it, and the view then fills
+/// only part of the pane (the 960 px band left it in the bottom left quarter for anyone with the sky on); transforms don't.
+/obj/screen/sky_art/proc/tile_quarters(base, reach = 2)
+	icon_state = "[base]_00"
+	transform = matrix(scale, 0, 0, 0, scale, 0)
+	var/half = sprite_size / 2
+	var/list/tiles = list()
+	for(var/x in -reach to reach)
+		for(var/y in -reach to reach)
+			for(var/qx in 0 to 1)
+				for(var/qy in 0 to 1)
+					if(x == 0 && y == 0 && qx == 0 && qy == 0)
+						continue
+					var/mutable_appearance/copy = mutable_appearance(icon, "[base]_[qx][qy]")
+					copy.transform = matrix(1, 0, x * sprite_size + qx * half, 0, 1, y * sprite_size + qy * half)
+					tiles += copy
+	cut_overlays()
+	add_overlay(tiles)
+
 /// Slides the art one repeat along a heading (list(x, y), each -1, 0 or 1) every `time`, for good. The art repeats, so the loop has no seam.
 /obj/screen/sky_art/proc/drift(list/heading, time)
 	var/repeat = sprite_size * scale
@@ -329,7 +350,9 @@
 		// as a 480 px cloud drawn at twice size is
 		A.pixel_x = -PARALLAX_TILE / 2
 		A.pixel_y = -PARALLAX_TILE / 2
-	A.tile()
+		A.tile_quarters("band") // kept as four 480 px quarters, so the sky never reaches past the view (tile_quarters())
+	else
+		A.tile()
 	if(moving && cloud[5])
 		A.drift(cloud[6], cloud[5] MINUTES)
 	sky_art[name] = A
