@@ -31,6 +31,8 @@
 	var/shocked = FALSE//Shocks morons, like an airlock.
 	var/tempunlocked = FALSE
 	var/old_rcolor
+	/// How hard the pools' wave machine is running, one of the POOL_WAVES_ settings
+	var/wave_setting = POOL_WAVES_OFF
 	resistance_flags = INDESTRUCTIBLE|UNACIDABLE
 
 /obj/machinery/poolcontroller/Initialize()
@@ -228,15 +230,25 @@
 	// Cache on the colour actually shown, and check the water itself: this used to cache only the beaker's colour, so
 	// blood never tinted the water and a refilled pool (new, uncoloured water overlays) stayed clear
 	var/turf/open/pool/sample = LAZYACCESS(linkedturfs, 1)
-	if(newcolor == old_rcolor && sample?.watereffect?.color == newcolor)
+	if(newcolor == old_rcolor && sample?.pool_tint == newcolor)
 		return
 	old_rcolor = newcolor
 	for(var/X in linkedturfs)
 		var/turf/open/pool/water = X
-		if(water.watereffect)
-			water.watereffect.color = newcolor
-		if(water.watertop)
-			water.watertop.color = newcolor
+		water.set_pool_tint(newcolor) // pool_water_look.dm
+
+/// Turns the wave machine of every pool this runs up, down or off (pool_waves.dm)
+/obj/machinery/poolcontroller/proc/set_waves(setting)
+	if(!(setting in list(POOL_WAVES_OFF, POOL_WAVES_GENTLE, POOL_WAVES_STRONG)))
+		return
+	wave_setting = setting
+	var/list/pools = list()
+	for(var/X in linkedturfs)
+		var/turf/open/pool/water = X
+		if(water.waves)
+			pools |= water.waves
+	for(var/datum/pool_waves/pool as anything in pools)
+		pool.set_machine(setting)
 
 /obj/machinery/poolcontroller/proc/miston() //Spawn /obj/effect/mist (from the shower) on all linked pool tiles
 	if(misted)
@@ -301,7 +313,7 @@
 												datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
-		ui = new(user, src, ui_key, "pool_controller", "[name]", 300, 450, master_ui, state)
+		ui = new(user, src, ui_key, "pool_controller", "[name]", 300, 510, master_ui, state)
 		ui.set_autoupdate(TRUE)
 		ui.open()
 
@@ -313,6 +325,7 @@
 	.["poolstatus"] = drained
 	.["reagent"] = cur_reagent
 	.["hasBeaker"] = beaker
+	.["waves"] = wave_setting
 
 
 /obj/machinery/poolcontroller/ui_act(action, params)
@@ -323,6 +336,10 @@
 	switch(action)
 		if("toggle_drain")
 			ToggleDrain(usr)
+			. = TRUE
+
+		if("set_waves")
+			set_waves(text2num(params["waves"]))
 			. = TRUE
 
 		if("remove_beaker")

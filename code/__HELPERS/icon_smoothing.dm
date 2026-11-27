@@ -110,8 +110,9 @@
 #define SMOOTH_GROUP_HIEROPHANT_FLOOR S_TURF(38) ///turf/open/indestructible/hierophant
 #define SMOOTH_GROUP_HIEROPHANT_FLOOR_TWO S_TURF(39) ///turf/open/indestructible/hierophant/two
 #define SMOOTH_GROUP_FLOOR_LAVA S_TURF(40) ///turf/open/lava/smooth/*
+#define SMOOTH_GROUP_POOL_WATER S_TURF(41) ///turf/open/pool // hippie -- pool water edges (pool_water_look.dm)
 
-#define MAX_S_TURF 40 //Always match this value with the one above it.
+#define MAX_S_TURF 41 //Always match this value with the one above it. // hippie -- was 40
 
 #define S_OBJ(num) ("-" + #num + ",")
 /* /obj included */

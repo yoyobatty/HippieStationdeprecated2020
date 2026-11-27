@@ -68,6 +68,16 @@ export const Pool = props => {
           disabled={data.timer}
           onClick={() => act(ref, 'toggle_drain')} />
       </Section>
+      <Section title="Wave machine">
+        {['Off', 'Gentle', 'Strong'].map((label, setting) => (
+          <Button
+            key={label}
+            content={label}
+            selected={data.waves === setting}
+            disabled={data.timer || data.poolstatus}
+            onClick={() => act(ref, 'set_waves', { waves: setting })} />
+        ))}
+      </Section>
       <Section title="Chemistry">
         <LabeledList>
           <LabeledList.Item

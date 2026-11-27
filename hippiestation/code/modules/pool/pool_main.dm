@@ -1,52 +1,24 @@
+// How the water looks (edges, depth, waves, reflections, swimmers waist deep) is pool_water_look.dm, from Paradise. The flat
+// "bottom" and "top" water sprites that used to sit over and under swimmers are gone with it.
 /turf/open/pool
-	icon = 'hippiestation/icons/turf/pool.dmi'
 	var/filled = TRUE
 	name = "poolwater"
 	desc = "You're safer here than in the deep."
-	icon_state = "pool_tile"
 	heat_capacity = INFINITY
 	var/next_splash = 1
-	var/obj/effect/overlay/water/watereffect
-	var/obj/effect/overlay/water/top/watertop
-
 
 /turf/open/pool/Initialize()
 	. = ..()
 	create_reagents(100)
-	watereffect = new /obj/effect/overlay/water(src)
-	watertop = new /obj/effect/overlay/water/top(src)
-
-/turf/open/pool/Destroy()
-	QDEL_NULL(watereffect)
-	QDEL_NULL(watertop)
-	return ..()
 
 /turf/open/pool/proc/update_icon()
 	if(!filled)
 		name = "drained pool"
 		desc = "No diving!"
-		QDEL_NULL(watereffect)
-		QDEL_NULL(watertop)
 	else
 		name = "poolwater"
 		desc = "You're safer here than in the deep."
-		if(!watereffect) // refilling a pool that's already full shouldn't stack a second layer of water
-			watereffect = new /obj/effect/overlay/water(src)
-		if(!watertop)
-			watertop = new /obj/effect/overlay/water/top(src)
-
-/obj/effect/overlay/water
-	name = "water"
-	icon = 'hippiestation/icons/turf/pool.dmi'
-	icon_state = "bottom"
-	density = FALSE
-	mouse_opacity = 0
-	layer = ABOVE_MOB_LAYER
-	anchored = TRUE
-
-/obj/effect/overlay/water/top
-	icon_state = "top"
-	layer = BELOW_MOB_LAYER
+	set_pool_filled(filled) // pool_water_look.dm
 
 /mob/living
 	var/swimming = FALSE

@@ -17,6 +17,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/__HELPERS/\_logging.dm
 ## code/__HELPERS/AStar.dm
 ## code/__HELPERS/game.dm (get_hearers_in_view(): radios found once, a hearer added once, each tile and range remembered for the tick; get_mobs_in_radio_ranges() doesn't ask a radio with nobody but radios in reach)
+## code/__HELPERS/icon_smoothing.dm (SMOOTH_GROUP_POOL_WATER, MAX_S_TURF 41: pool water edges, pool_water_look.dm)
 ## code/__HELPERS/icons.dm
 ## code/__HELPERS/mobs.dm (do_after(), do_mob(), do_after_mob() refuse a deleted mob)
 ## code/__HELPERS/time.dm (update_midnight_rollover(): only a jump back of half a day counts as midnight, not a clock set back a second)
