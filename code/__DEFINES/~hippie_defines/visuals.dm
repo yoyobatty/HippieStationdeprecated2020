@@ -105,3 +105,28 @@
 /// Something crosses the sky this often: mostly shooting stars, now and then a comet or a far-off ship
 #define SKY_FLYBY_MIN (50 SECONDS)
 #define SKY_FLYBY_MAX (170 SECONDS)
+
+// Heat haze (hippiestation/code/modules/lighting/heat_haze.dm): over lava, and over a middling or big fire
+/// Hidden plane of the ripple maps over hot things. The floor and game world planes displace themselves by it, near them only
+#define HEAT_HAZE_PLANE 3
+#define HEAT_HAZE_RENDER_TARGET "*HEAT_HAZE_PLANE"
+/// How far, in pixels, the haze can push what's under it at most (a full-strength red or green pixel in the map)
+#define HEAT_HAZE_DISPLACE_SIZE 10
+
+// Fires drawn as a room fire (hippiestation/code/modules/atmospherics/merged_flames.dm). All five planes are hidden: the fire plane
+// is shown by a relay over the lighting, the others are read by it.
+/// The bed of flame in the middle of big fires: its texture, drawn on every burning tile
+#define FIRE_BED_PLANE -30
+#define FIRE_BED_RENDER_TARGET "*FIRE_BED_PLANE"
+/// Soft blobs from the tiles deep in a fire: where the bed's texture shows, fading out at the fire's edge
+#define FIRE_BED_MASK_PLANE -29
+#define FIRE_BED_MASK_RENDER_TARGET "*FIRE_BED_MASK_PLANE"
+/// Where the viewer can see: wherever the lighting isn't pitch black. Fires are cut down to it, as they're drawn over the lighting
+#define FIRE_SEEN_PLANE -28
+#define FIRE_SEEN_RENDER_TARGET "*FIRE_SEEN_PLANE"
+/// Smooth noise that scrolls up the screen, out of sight. The picture of the fires is pushed about by it
+#define FIRE_NOISE_PLANE -27
+#define FIRE_NOISE_RENDER_TARGET "*FIRE_NOISE_PLANE"
+/// Fires are drawn here first, out of sight, so their light can be spread round them before they're shown
+#define FIRE_PLANE -26
+#define FIRE_RENDER_TARGET "*FIRE_PLANE"
